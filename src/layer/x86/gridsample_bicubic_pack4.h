@@ -64,8 +64,8 @@ static void gridsample_2d_bicubic_align0_zeros_blob_pack4(const Mat& src, Mat& d
                 gy = _mm_div_ps(_mm_comp_fmsub_ps(_mm_add_ps(gy, v1fp4), vImgHf, v1fp4), two);
             }
 
-            __m128 gx_floor = _mm_floor_ps(gx);
-            __m128 gy_floor = _mm_floor_ps(gy);
+            __m128 gx_floor = floor_ps(gx);
+            __m128 gy_floor = floor_ps(gy);
 
             const __m128 tx = _mm_sub_ps(gx, gx_floor);
             const __m128 ty = _mm_sub_ps(gy, gy_floor);
@@ -164,8 +164,8 @@ static void gridsample_2d_bicubic_align1_zeros_blob_pack4(const Mat& src, Mat& d
                 gy = _mm_mul_ps(_mm_div_ps(_mm_add_ps(gy, v1fp4), two), _mm_sub_ps(vImgHf, v1fp4));
             }
 
-            __m128 gx_floor = _mm_floor_ps(gx);
-            __m128 gy_floor = _mm_floor_ps(gy);
+            __m128 gx_floor = floor_ps(gx);
+            __m128 gy_floor = floor_ps(gy);
 
             const __m128 tx = _mm_sub_ps(gx, gx_floor);
             const __m128 ty = _mm_sub_ps(gy, gy_floor);
@@ -262,8 +262,8 @@ static void gridsample_2d_bicubic_align0_border_blob_pack4(const Mat& src, Mat& 
             gx = _mm_div_ps(_mm_comp_fmsub_ps(_mm_add_ps(gx, v1fp4), vImgWf, v1fp4), two);
             gy = _mm_div_ps(_mm_comp_fmsub_ps(_mm_add_ps(gy, v1fp4), vImgHf, v1fp4), two);
 
-            __m128 gx_floor = _mm_floor_ps(gx);
-            __m128 gy_floor = _mm_floor_ps(gy);
+            __m128 gx_floor = floor_ps(gx);
+            __m128 gy_floor = floor_ps(gy);
 
             const __m128 tx = _mm_sub_ps(gx, gx_floor);
             const __m128 ty = _mm_sub_ps(gy, gy_floor);
@@ -354,8 +354,8 @@ static void gridsample_2d_bicubic_align1_border_blob_pack4(const Mat& src, Mat& 
             gx = _mm_mul_ps(_mm_div_ps(_mm_add_ps(gx, v1fp4), two), _mm_sub_ps(vImgWf, v1fp4));
             gy = _mm_mul_ps(_mm_div_ps(_mm_add_ps(gy, v1fp4), two), _mm_sub_ps(vImgHf, v1fp4));
 
-            __m128 gx_floor = _mm_floor_ps(gx);
-            __m128 gy_floor = _mm_floor_ps(gy);
+            __m128 gx_floor = floor_ps(gx);
+            __m128 gy_floor = floor_ps(gy);
 
             const __m128 tx = _mm_sub_ps(gx, gx_floor);
             const __m128 ty = _mm_sub_ps(gy, gy_floor);
@@ -445,8 +445,8 @@ static void gridsample_2d_bicubic_align0_reflection_blob_pack4(const Mat& src, M
             gx = _mm_div_ps(_mm_comp_fmsub_ps(_mm_add_ps(gx, v1fp4), vImgWf, v1fp4), two);
             gy = _mm_div_ps(_mm_comp_fmsub_ps(_mm_add_ps(gy, v1fp4), vImgHf, v1fp4), two);
 
-            __m128 gx_floor = _mm_floor_ps(gx);
-            __m128 gy_floor = _mm_floor_ps(gy);
+            __m128 gx_floor = floor_ps(gx);
+            __m128 gy_floor = floor_ps(gy);
 
             const __m128 tx = _mm_sub_ps(gx, gx_floor);
             const __m128 ty = _mm_sub_ps(gy, gy_floor);
@@ -611,8 +611,8 @@ static void gridsample_2d_bicubic_align1_reflection_blob_pack4(const Mat& src, M
             gx = _mm_mul_ps(_mm_div_ps(_mm_add_ps(gx, v1fp4), two), _mm_sub_ps(vImgWf, v1fp4));
             gy = _mm_mul_ps(_mm_div_ps(_mm_add_ps(gy, v1fp4), two), _mm_sub_ps(vImgHf, v1fp4));
 
-            __m128 gx_floor = _mm_floor_ps(gx);
-            __m128 gy_floor = _mm_floor_ps(gy);
+            __m128 gx_floor = floor_ps(gx);
+            __m128 gy_floor = floor_ps(gy);
 
             const __m128 tx = _mm_sub_ps(gx, gx_floor);
             const __m128 ty = _mm_sub_ps(gy, gy_floor);

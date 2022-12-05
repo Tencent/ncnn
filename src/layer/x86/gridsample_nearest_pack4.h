@@ -20,6 +20,9 @@ static void gridsample_2d_nearest_align0_zeros_blob_pack4(const Mat& src, Mat& d
     const __m128i vImgHi = _mm_set1_epi32(src.h);
 
     const __m128i vElempacki = _mm_set1_epi32(src.elempack);
+#if !((_MSC_VER && __AVX__) || __SSE4_1__)
+    const __m128 vElempackf = _mm_set1_ps(src.elempack);
+#endif // !__SSE4_1__
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int y = 0; y < dst.h; y++)
@@ -42,8 +45,8 @@ static void gridsample_2d_nearest_align0_zeros_blob_pack4(const Mat& src, Mat& d
                 gy = _mm_div_ps(_mm_comp_fmsub_ps(_mm_add_ps(gy, v1fp4), vImgHf, v1fp4), two);
             }
 
-            gx = _mm_floor_ps(_mm_add_ps(gx, _mm_set1_ps(0.5f)));
-            gy = _mm_floor_ps(_mm_add_ps(gy, _mm_set1_ps(0.5f)));
+            gx = floor_ps(_mm_add_ps(gx, _mm_set1_ps(0.5f)));
+            gy = floor_ps(_mm_add_ps(gy, _mm_set1_ps(0.5f)));
 
             __m128i ix = _mm_cvtps_epi32(gx);
             __m128i iy = _mm_cvtps_epi32(gy);
@@ -51,8 +54,14 @@ static void gridsample_2d_nearest_align0_zeros_blob_pack4(const Mat& src, Mat& d
             __m128i v_in_range = _mm_and_si128(_mm_and_si128(_mm_cmpgt_epi32(ix, vn1ip4), _mm_cmpgt_epi32(vImgWi, ix)),
                                                _mm_and_si128(_mm_cmpgt_epi32(iy, vn1ip4), _mm_cmpgt_epi32(vImgHi, iy)));
 
+#if (_MSC_VER && __AVX__) || __SSE4_1__
             __m128i i_offset = _mm_add_epi32(_mm_mullo_epi32(_mm_add_epi32(_mm_mullo_epi32(iy, vImgWi), ix), vElempacki),
                                              _mm_set_epi32(3, 2, 1, 0));
+#else
+            __m128 offset = _mm_add_ps(_mm_mul_ps(_mm_add_ps(_mm_mul_ps(gy, vImgWf), gx), vElempackf),
+                                             _mm_set_ps(3, 2, 1, 0));
+            __m128i i_offset = _mm_cvtps_epi32(offset);
+#endif // __SSE4_1__
 
             for (int q = 0; q < dst.c; q++)
             {
@@ -72,6 +81,9 @@ static void gridsample_2d_nearest_align1_zeros_blob_pack4(const Mat& src, Mat& d
     const __m128i vImgHi = _mm_set1_epi32(src.h);
 
     const __m128i vElempacki = _mm_set1_epi32(src.elempack);
+#if !((_MSC_VER && __AVX__) || __SSE4_1__)
+    const __m128 vElempackf = _mm_set1_ps(src.elempack);
+#endif // !__SSE4_1__
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int y = 0; y < dst.h; y++)
@@ -94,8 +106,8 @@ static void gridsample_2d_nearest_align1_zeros_blob_pack4(const Mat& src, Mat& d
                 gy = _mm_mul_ps(_mm_div_ps(_mm_add_ps(gy, v1fp4), two), _mm_sub_ps(vImgHf, v1fp4));
             }
 
-            gx = _mm_floor_ps(_mm_add_ps(gx, _mm_set1_ps(0.5f)));
-            gy = _mm_floor_ps(_mm_add_ps(gy, _mm_set1_ps(0.5f)));
+            gx = floor_ps(_mm_add_ps(gx, _mm_set1_ps(0.5f)));
+            gy = floor_ps(_mm_add_ps(gy, _mm_set1_ps(0.5f)));
 
             __m128i ix = _mm_cvtps_epi32(gx);
             __m128i iy = _mm_cvtps_epi32(gy);
@@ -103,8 +115,14 @@ static void gridsample_2d_nearest_align1_zeros_blob_pack4(const Mat& src, Mat& d
             __m128i v_in_range = _mm_and_si128(_mm_and_si128(_mm_cmpgt_epi32(ix, vn1ip4), _mm_cmpgt_epi32(vImgWi, ix)),
                                                _mm_and_si128(_mm_cmpgt_epi32(iy, vn1ip4), _mm_cmpgt_epi32(vImgHi, iy)));
 
+#if (_MSC_VER && __AVX__) || __SSE4_1__
             __m128i i_offset = _mm_add_epi32(_mm_mullo_epi32(_mm_add_epi32(_mm_mullo_epi32(iy, vImgWi), ix), vElempacki),
                                              _mm_set_epi32(3, 2, 1, 0));
+#else
+            __m128 offset = _mm_add_ps(_mm_mul_ps(_mm_add_ps(_mm_mul_ps(gy, vImgWf), gx), vElempackf),
+                                       _mm_set_ps(3, 2, 1, 0));
+            __m128i i_offset = _mm_cvtps_epi32(offset);
+#endif // __SSE4_1__
 
             for (int q = 0; q < dst.c; q++)
             {
@@ -124,6 +142,9 @@ static void gridsample_2d_nearest_align0_border_blob_pack4(const Mat& src, Mat& 
     const __m128i vImgHi = _mm_set1_epi32(src.h);
 
     const __m128i vElempacki = _mm_set1_epi32(src.elempack);
+#if !((_MSC_VER && __AVX__) || __SSE4_1__)
+    const __m128 vElempackf = _mm_set1_ps(src.elempack);
+#endif // !__SSE4_1__
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int y = 0; y < dst.h; y++)
@@ -154,14 +175,20 @@ static void gridsample_2d_nearest_align0_border_blob_pack4(const Mat& src, Mat& 
                 gy = _mm_min_ps(border_y, _mm_max_ps(gy, _mm_setzero_ps()));
             }
 
-            gx = _mm_floor_ps(_mm_add_ps(gx, _mm_set1_ps(0.5f)));
-            gy = _mm_floor_ps(_mm_add_ps(gy, _mm_set1_ps(0.5f)));
+            gx = floor_ps(_mm_add_ps(gx, _mm_set1_ps(0.5f)));
+            gy = floor_ps(_mm_add_ps(gy, _mm_set1_ps(0.5f)));
 
             __m128i ix = _mm_cvtps_epi32(gx);
             __m128i iy = _mm_cvtps_epi32(gy);
 
+#if (_MSC_VER && __AVX__) || __SSE4_1__
             __m128i i_offset = _mm_add_epi32(_mm_mullo_epi32(_mm_add_epi32(_mm_mullo_epi32(iy, vImgWi), ix), vElempacki),
                                              _mm_set_epi32(3, 2, 1, 0));
+#else
+            __m128 offset = _mm_add_ps(_mm_mul_ps(_mm_add_ps(_mm_mul_ps(gy, vImgWf), gx), vElempackf),
+                                       _mm_set_ps(3, 2, 1, 0));
+            __m128i i_offset = _mm_cvtps_epi32(offset);
+#endif // __SSE4_1__
 
             for (int q = 0; q < dst.c; q++)
             {
@@ -181,6 +208,9 @@ static void gridsample_2d_nearest_align1_border_blob_pack4(const Mat& src, Mat& 
     const __m128i vImgHi = _mm_set1_epi32(src.h);
 
     const __m128i vElempacki = _mm_set1_epi32(src.elempack);
+#if !((_MSC_VER && __AVX__) || __SSE4_1__)
+    const __m128 vElempackf = _mm_set1_ps(src.elempack);
+#endif // !__SSE4_1__
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int y = 0; y < dst.h; y++)
@@ -211,14 +241,20 @@ static void gridsample_2d_nearest_align1_border_blob_pack4(const Mat& src, Mat& 
                 gy = _mm_min_ps(border_y, _mm_max_ps(gy, _mm_setzero_ps()));
             }
 
-            gx = _mm_floor_ps(_mm_add_ps(gx, _mm_set1_ps(0.5f)));
-            gy = _mm_floor_ps(_mm_add_ps(gy, _mm_set1_ps(0.5f)));
+            gx = floor_ps(_mm_add_ps(gx, _mm_set1_ps(0.5f)));
+            gy = floor_ps(_mm_add_ps(gy, _mm_set1_ps(0.5f)));
 
             __m128i ix = _mm_cvtps_epi32(gx);
             __m128i iy = _mm_cvtps_epi32(gy);
 
+#if (_MSC_VER && __AVX__) || __SSE4_1__
             __m128i i_offset = _mm_add_epi32(_mm_mullo_epi32(_mm_add_epi32(_mm_mullo_epi32(iy, vImgWi), ix), vElempacki),
                                              _mm_set_epi32(3, 2, 1, 0));
+#else
+            __m128 offset = _mm_add_ps(_mm_mul_ps(_mm_add_ps(_mm_mul_ps(gy, vImgWf), gx), vElempackf),
+                                       _mm_set_ps(3, 2, 1, 0));
+            __m128i i_offset = _mm_cvtps_epi32(offset);
+#endif // __SSE4_1__
 
             for (int q = 0; q < dst.c; q++)
             {
@@ -238,6 +274,9 @@ static void gridsample_2d_nearest_align0_reflection_blob_pack4(const Mat& src, M
     const __m128i vImgHi = _mm_set1_epi32(src.h);
 
     const __m128i vElempacki = _mm_set1_epi32(src.elempack);
+#if !((_MSC_VER && __AVX__) || __SSE4_1__)
+    const __m128 vElempackf = _mm_set1_ps(src.elempack);
+#endif // !__SSE4_1__
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int y = 0; y < dst.h; y++)
@@ -253,8 +292,8 @@ static void gridsample_2d_nearest_align0_reflection_blob_pack4(const Mat& src, M
             gx = _mm_div_ps(_mm_comp_fmsub_ps(_mm_add_ps(gx, v1fp4), vImgWf, v1fp4), two);
             gy = _mm_div_ps(_mm_comp_fmsub_ps(_mm_add_ps(gy, v1fp4), vImgHf, v1fp4), two);
 
-            gx = _mm_floor_ps(_mm_add_ps(gx, _mm_set1_ps(0.5f)));
-            gy = _mm_floor_ps(_mm_add_ps(gy, _mm_set1_ps(0.5f)));
+            gx = floor_ps(_mm_add_ps(gx, _mm_set1_ps(0.5f)));
+            gy = floor_ps(_mm_add_ps(gy, _mm_set1_ps(0.5f)));
 
             // compute coord
             {
@@ -295,8 +334,14 @@ static void gridsample_2d_nearest_align0_reflection_blob_pack4(const Mat& src, M
             __m128i ix = _mm_cvtps_epi32(gx);
             __m128i iy = _mm_cvtps_epi32(gy);
 
+#if (_MSC_VER && __AVX__) || __SSE4_1__
             __m128i i_offset = _mm_add_epi32(_mm_mullo_epi32(_mm_add_epi32(_mm_mullo_epi32(iy, vImgWi), ix), vElempacki),
                                              _mm_set_epi32(3, 2, 1, 0));
+#else
+            __m128 offset = _mm_add_ps(_mm_mul_ps(_mm_add_ps(_mm_mul_ps(gy, vImgWf), gx), vElempackf),
+                                       _mm_set_ps(3, 2, 1, 0));
+            __m128i i_offset = _mm_cvtps_epi32(offset);
+#endif // __SSE4_1__
 
             for (int q = 0; q < dst.c; q++)
             {
@@ -316,6 +361,9 @@ static void gridsample_2d_nearest_align1_reflection_blob_pack4(const Mat& src, M
     const __m128i vImgHi = _mm_set1_epi32(src.h);
 
     const __m128i vElempacki = _mm_set1_epi32(src.elempack);
+#if !((_MSC_VER && __AVX__) || __SSE4_1__)
+    const __m128 vElempackf = _mm_set1_ps(src.elempack);
+#endif // !__SSE4_1__
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int y = 0; y < dst.h; y++)
@@ -331,8 +379,8 @@ static void gridsample_2d_nearest_align1_reflection_blob_pack4(const Mat& src, M
             gx = _mm_mul_ps(_mm_div_ps(_mm_add_ps(gx, v1fp4), two), _mm_sub_ps(vImgWf, v1fp4));
             gy = _mm_mul_ps(_mm_div_ps(_mm_add_ps(gy, v1fp4), two), _mm_sub_ps(vImgHf, v1fp4));
 
-            gx = _mm_floor_ps(_mm_add_ps(gx, _mm_set1_ps(0.5f)));
-            gy = _mm_floor_ps(_mm_add_ps(gy, _mm_set1_ps(0.5f)));
+            gx = floor_ps(_mm_add_ps(gx, _mm_set1_ps(0.5f)));
+            gy = floor_ps(_mm_add_ps(gy, _mm_set1_ps(0.5f)));
 
             // compute coord
             {
@@ -356,8 +404,14 @@ static void gridsample_2d_nearest_align1_reflection_blob_pack4(const Mat& src, M
             __m128i ix = _mm_cvtps_epi32(gx);
             __m128i iy = _mm_cvtps_epi32(gy);
 
+#if (_MSC_VER && __AVX__) || __SSE4_1__
             __m128i i_offset = _mm_add_epi32(_mm_mullo_epi32(_mm_add_epi32(_mm_mullo_epi32(iy, vImgWi), ix), vElempacki),
                                              _mm_set_epi32(3, 2, 1, 0));
+#else
+            __m128 offset = _mm_add_ps(_mm_mul_ps(_mm_add_ps(_mm_mul_ps(gy, vImgWf), gx), vElempackf),
+                                       _mm_set_ps(3, 2, 1, 0));
+            __m128i i_offset = _mm_cvtps_epi32(offset);
+#endif // __SSE4_1__
 
             for (int q = 0; q < dst.c; q++)
             {
@@ -379,6 +433,7 @@ static void gridsample_3d_nearest_align0_zeros_blob_pack4(const Mat& src, Mat& d
     const __m128i vImgDi = _mm_set1_epi32(src.d);
 
     const __m128i vElempacki = _mm_set1_epi32(src.elempack);
+    const __m128 vElempackf = _mm_set1_ps(src.elempack);
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int z = 0; z < dst.d; z++)
@@ -407,9 +462,9 @@ static void gridsample_3d_nearest_align0_zeros_blob_pack4(const Mat& src, Mat& d
                     gz = _mm_div_ps(_mm_comp_fmsub_ps(_mm_add_ps(gz, v1fp4), vImgDf, v1fp4), two);
                 }
 
-                gx = _mm_floor_ps(_mm_add_ps(gx, _mm_set1_ps(0.5f)));
-                gy = _mm_floor_ps(_mm_add_ps(gy, _mm_set1_ps(0.5f)));
-                gz = _mm_floor_ps(_mm_add_ps(gz, _mm_set1_ps(0.5f)));
+                gx = floor_ps(_mm_add_ps(gx, _mm_set1_ps(0.5f)));
+                gy = floor_ps(_mm_add_ps(gy, _mm_set1_ps(0.5f)));
+                gz = floor_ps(_mm_add_ps(gz, _mm_set1_ps(0.5f)));
 
                 __m128i ix = _mm_cvtps_epi32(gx);
                 __m128i iy = _mm_cvtps_epi32(gy);
@@ -419,7 +474,9 @@ static void gridsample_3d_nearest_align0_zeros_blob_pack4(const Mat& src, Mat& d
                                                    _mm_and_si128(_mm_cmpgt_epi32(iy, vn1ip4), _mm_cmpgt_epi32(vImgHi, iy)));
                 v_in_range = _mm_and_si128(v_in_range, _mm_and_si128(_mm_cmpgt_epi32(iz, vn1ip4), _mm_cmpgt_epi32(vImgDi, iz)));
 
-                __m128i i_offset = _mm_add_epi32(_mm_mullo_epi32(_mm_add_epi32(_mm_mullo_epi32(_mm_mullo_epi32(vImgWi, vImgHi), iz), _mm_add_epi32(_mm_mullo_epi32(iy, vImgWi), ix)), vElempacki), _mm_set_epi32(3, 2, 1, 0));
+                __m128 offset = _mm_add_ps(_mm_mul_ps(_mm_add_ps(_mm_mul_ps(_mm_mul_ps(vImgWf, vImgHf), gz),
+                               _mm_add_ps(_mm_mul_ps(gy, vImgWf), gx)),vElempackf), _mm_set_ps(3, 2, 1, 0));
+                __m128i i_offset = _mm_cvtps_epi32(offset);
 
                 for (int q = 0; q < dst.c; q++)
                 {
@@ -442,6 +499,7 @@ static void gridsample_3d_nearest_align1_zeros_blob_pack4(const Mat& src, Mat& d
     const __m128i vImgDi = _mm_set1_epi32(src.d);
 
     const __m128i vElempacki = _mm_set1_epi32(src.elempack);
+    const __m128 vElempackf = _mm_set1_ps(src.elempack);
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int z = 0; z < dst.d; z++)
@@ -470,9 +528,9 @@ static void gridsample_3d_nearest_align1_zeros_blob_pack4(const Mat& src, Mat& d
                     gz = _mm_mul_ps(_mm_div_ps(_mm_add_ps(gz, v1fp4), two), _mm_sub_ps(vImgDf, v1fp4));
                 }
 
-                gx = _mm_floor_ps(_mm_add_ps(gx, _mm_set1_ps(0.5f)));
-                gy = _mm_floor_ps(_mm_add_ps(gy, _mm_set1_ps(0.5f)));
-                gz = _mm_floor_ps(_mm_add_ps(gz, _mm_set1_ps(0.5f)));
+                gx = floor_ps(_mm_add_ps(gx, _mm_set1_ps(0.5f)));
+                gy = floor_ps(_mm_add_ps(gy, _mm_set1_ps(0.5f)));
+                gz = floor_ps(_mm_add_ps(gz, _mm_set1_ps(0.5f)));
 
                 __m128i ix = _mm_cvtps_epi32(gx);
                 __m128i iy = _mm_cvtps_epi32(gy);
@@ -482,7 +540,9 @@ static void gridsample_3d_nearest_align1_zeros_blob_pack4(const Mat& src, Mat& d
                                                    _mm_and_si128(_mm_cmpgt_epi32(iy, vn1ip4), _mm_cmpgt_epi32(vImgHi, iy)));
                 v_in_range = _mm_and_si128(v_in_range, _mm_and_si128(_mm_cmpgt_epi32(iz, vn1ip4), _mm_cmpgt_epi32(vImgDi, iz)));
 
-                __m128i i_offset = _mm_add_epi32(_mm_mullo_epi32(_mm_add_epi32(_mm_mullo_epi32(_mm_mullo_epi32(vImgWi, vImgHi), iz), _mm_add_epi32(_mm_mullo_epi32(iy, vImgWi), ix)), vElempacki), _mm_set_epi32(3, 2, 1, 0));
+                __m128 offset = _mm_add_ps(_mm_mul_ps(_mm_add_ps(_mm_mul_ps(_mm_mul_ps(vImgWf, vImgHf), gz),
+                               _mm_add_ps(_mm_mul_ps(gy, vImgWf), gx)),vElempackf), _mm_set_ps(3, 2, 1, 0));
+                __m128i i_offset = _mm_cvtps_epi32(offset);
 
                 for (int q = 0; q < dst.c; q++)
                 {
@@ -505,6 +565,7 @@ static void gridsample_3d_nearest_align0_border_blob_pack4(const Mat& src, Mat& 
     const __m128i vImgDi = _mm_set1_epi32(src.d);
 
     const __m128i vElempacki = _mm_set1_epi32(src.elempack);
+    const __m128 vElempackf = _mm_set1_ps(src.elempack);
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int z = 0; z < dst.d; z++)
@@ -545,15 +606,17 @@ static void gridsample_3d_nearest_align0_border_blob_pack4(const Mat& src, Mat& 
                     gz = _mm_min_ps(border_z, _mm_max_ps(gz, _mm_setzero_ps()));
                 }
 
-                gx = _mm_floor_ps(_mm_add_ps(gx, _mm_set1_ps(0.5f)));
-                gy = _mm_floor_ps(_mm_add_ps(gy, _mm_set1_ps(0.5f)));
-                gz = _mm_floor_ps(_mm_add_ps(gz, _mm_set1_ps(0.5f)));
+                gx = floor_ps(_mm_add_ps(gx, _mm_set1_ps(0.5f)));
+                gy = floor_ps(_mm_add_ps(gy, _mm_set1_ps(0.5f)));
+                gz = floor_ps(_mm_add_ps(gz, _mm_set1_ps(0.5f)));
 
                 __m128i ix = _mm_cvtps_epi32(gx);
                 __m128i iy = _mm_cvtps_epi32(gy);
                 __m128i iz = _mm_cvtps_epi32(gz);
 
-                __m128i i_offset = _mm_add_epi32(_mm_mullo_epi32(_mm_add_epi32(_mm_mullo_epi32(_mm_mullo_epi32(vImgWi, vImgHi), iz), _mm_add_epi32(_mm_mullo_epi32(iy, vImgWi), ix)), vElempacki), _mm_set_epi32(3, 2, 1, 0));
+                __m128 offset = _mm_add_ps(_mm_mul_ps(_mm_add_ps(_mm_mul_ps(_mm_mul_ps(vImgWf, vImgHf), gz),
+                               _mm_add_ps(_mm_mul_ps(gy, vImgWf), gx)),vElempackf), _mm_set_ps(3, 2, 1, 0));
+                __m128i i_offset = _mm_cvtps_epi32(offset);
 
                 for (int q = 0; q < dst.c; q++)
                 {
@@ -576,6 +639,7 @@ static void gridsample_3d_nearest_align1_border_blob_pack4(const Mat& src, Mat& 
     const __m128i vImgDi = _mm_set1_epi32(src.d);
 
     const __m128i vElempacki = _mm_set1_epi32(src.elempack);
+    const __m128 vElempackf = _mm_set1_ps(src.elempack);
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int z = 0; z < dst.d; z++)
@@ -616,15 +680,17 @@ static void gridsample_3d_nearest_align1_border_blob_pack4(const Mat& src, Mat& 
                     gz = _mm_min_ps(border_z, _mm_max_ps(gz, _mm_setzero_ps()));
                 }
 
-                gx = _mm_floor_ps(_mm_add_ps(gx, _mm_set1_ps(0.5f)));
-                gy = _mm_floor_ps(_mm_add_ps(gy, _mm_set1_ps(0.5f)));
-                gz = _mm_floor_ps(_mm_add_ps(gz, _mm_set1_ps(0.5f)));
+                gx = floor_ps(_mm_add_ps(gx, _mm_set1_ps(0.5f)));
+                gy = floor_ps(_mm_add_ps(gy, _mm_set1_ps(0.5f)));
+                gz = floor_ps(_mm_add_ps(gz, _mm_set1_ps(0.5f)));
 
                 __m128i ix = _mm_cvtps_epi32(gx);
                 __m128i iy = _mm_cvtps_epi32(gy);
                 __m128i iz = _mm_cvtps_epi32(gz);
 
-                __m128i i_offset = _mm_add_epi32(_mm_mullo_epi32(_mm_add_epi32(_mm_mullo_epi32(_mm_mullo_epi32(vImgWi, vImgHi), iz), _mm_add_epi32(_mm_mullo_epi32(iy, vImgWi), ix)), vElempacki), _mm_set_epi32(3, 2, 1, 0));
+                __m128 offset = _mm_add_ps(_mm_mul_ps(_mm_add_ps(_mm_mul_ps(_mm_mul_ps(vImgWf, vImgHf), gz),
+                               _mm_add_ps(_mm_mul_ps(gy, vImgWf), gx)),vElempackf), _mm_set_ps(3, 2, 1, 0));
+                __m128i i_offset = _mm_cvtps_epi32(offset);
 
                 for (int q = 0; q < dst.c; q++)
                 {
@@ -647,6 +713,7 @@ static void gridsample_3d_nearest_align0_reflection_blob_pack4(const Mat& src, M
     const __m128i vImgDi = _mm_set1_epi32(src.d);
 
     const __m128i vElempacki = _mm_set1_epi32(src.elempack);
+    const __m128 vElempackf = _mm_set1_ps(src.elempack);
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int z = 0; z < dst.d; z++)
@@ -666,9 +733,9 @@ static void gridsample_3d_nearest_align0_reflection_blob_pack4(const Mat& src, M
                 gy = _mm_div_ps(_mm_comp_fmsub_ps(_mm_add_ps(gy, v1fp4), vImgHf, v1fp4), two);
                 gz = _mm_div_ps(_mm_comp_fmsub_ps(_mm_add_ps(gz, v1fp4), vImgDf, v1fp4), two);
 
-                gx = _mm_floor_ps(_mm_add_ps(gx, _mm_set1_ps(0.5f)));
-                gy = _mm_floor_ps(_mm_add_ps(gy, _mm_set1_ps(0.5f)));
-                gz = _mm_floor_ps(_mm_add_ps(gz, _mm_set1_ps(0.5f)));
+                gx = floor_ps(_mm_add_ps(gx, _mm_set1_ps(0.5f)));
+                gy = floor_ps(_mm_add_ps(gy, _mm_set1_ps(0.5f)));
+                gz = floor_ps(_mm_add_ps(gz, _mm_set1_ps(0.5f)));
 
                 // compute coord
                 {
@@ -726,7 +793,9 @@ static void gridsample_3d_nearest_align0_reflection_blob_pack4(const Mat& src, M
                 __m128i iy = _mm_cvtps_epi32(gy);
                 __m128i iz = _mm_cvtps_epi32(gz);
 
-                __m128i i_offset = _mm_add_epi32(_mm_mullo_epi32(_mm_add_epi32(_mm_mullo_epi32(_mm_mullo_epi32(vImgWi, vImgHi), iz), _mm_add_epi32(_mm_mullo_epi32(iy, vImgWi), ix)), vElempacki), _mm_set_epi32(3, 2, 1, 0));
+                __m128 offset = _mm_add_ps(_mm_mul_ps(_mm_add_ps(_mm_mul_ps(_mm_mul_ps(vImgWf, vImgHf), gz),
+                               _mm_add_ps(_mm_mul_ps(gy, vImgWf), gx)),vElempackf), _mm_set_ps(3, 2, 1, 0));
+                __m128i i_offset = _mm_cvtps_epi32(offset);
 
                 for (int q = 0; q < dst.c; q++)
                 {
@@ -749,6 +818,7 @@ static void gridsample_3d_nearest_align1_reflection_blob_pack4(const Mat& src, M
     const __m128i vImgDi = _mm_set1_epi32(src.d);
 
     const __m128i vElempacki = _mm_set1_epi32(src.elempack);
+    const __m128 vElempackf = _mm_set1_ps(src.elempack);
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int z = 0; z < dst.d; z++)
@@ -768,9 +838,9 @@ static void gridsample_3d_nearest_align1_reflection_blob_pack4(const Mat& src, M
                 gy = _mm_mul_ps(_mm_div_ps(_mm_add_ps(gy, v1fp4), two), _mm_sub_ps(vImgHf, v1fp4));
                 gz = _mm_mul_ps(_mm_div_ps(_mm_add_ps(gz, v1fp4), two), _mm_sub_ps(vImgDf, v1fp4));
 
-                gx = _mm_floor_ps(_mm_add_ps(gx, _mm_set1_ps(0.5f)));
-                gy = _mm_floor_ps(_mm_add_ps(gy, _mm_set1_ps(0.5f)));
-                gz = _mm_floor_ps(_mm_add_ps(gz, _mm_set1_ps(0.5f)));
+                gx = floor_ps(_mm_add_ps(gx, _mm_set1_ps(0.5f)));
+                gy = floor_ps(_mm_add_ps(gy, _mm_set1_ps(0.5f)));
+                gz = floor_ps(_mm_add_ps(gz, _mm_set1_ps(0.5f)));
 
                 // compute coord
                 {
@@ -803,7 +873,9 @@ static void gridsample_3d_nearest_align1_reflection_blob_pack4(const Mat& src, M
                 __m128i iy = _mm_cvtps_epi32(gy);
                 __m128i iz = _mm_cvtps_epi32(gz);
 
-                __m128i i_offset = _mm_add_epi32(_mm_mullo_epi32(_mm_add_epi32(_mm_mullo_epi32(_mm_mullo_epi32(vImgWi, vImgHi), iz), _mm_add_epi32(_mm_mullo_epi32(iy, vImgWi), ix)), vElempacki), _mm_set_epi32(3, 2, 1, 0));
+                __m128 offset = _mm_add_ps(_mm_mul_ps(_mm_add_ps(_mm_mul_ps(_mm_mul_ps(vImgWf, vImgHf), gz),
+                               _mm_add_ps(_mm_mul_ps(gy, vImgWf), gx)),vElempackf), _mm_set_ps(3, 2, 1, 0));
+                __m128i i_offset = _mm_cvtps_epi32(offset);
 
                 for (int q = 0; q < dst.c; q++)
                 {

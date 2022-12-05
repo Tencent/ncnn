@@ -937,7 +937,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 __m256 gx = _mm256_permute2f128_ps(tmp_x, gy, 0b00100000);
                                 gy = _mm256_permute2f128_ps(tmp_x, gy, 0b00110001);
-                                tmp_x = gx;
+                                memcpy(&tmp_x, &gx, 8 * sizeof(float));
 
                                 gx = _mm256_shuffle_ps(gx, gy, 0b10001000);
                                 gy = _mm256_shuffle_ps(tmp_x, gy, 0b11011101);
@@ -989,10 +989,10 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 for (int q = 0; q < channels; q++)
                                 {
-                                    __m256 nw_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), bottom_blob.channel(q), i_nw_offset, *reinterpret_cast<__m256*>(&v00_in_range), sizeof(float));
-                                    __m256 ne_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), bottom_blob.channel(q), i_ne_offset, *reinterpret_cast<__m256*>(&v10_in_range), sizeof(float));
-                                    __m256 sw_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), bottom_blob.channel(q), i_sw_offset, *reinterpret_cast<__m256*>(&v01_in_range), sizeof(float));
-                                    __m256 se_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), bottom_blob.channel(q), i_se_offset, *reinterpret_cast<__m256*>(&v11_in_range), sizeof(float));
+                                    __m256 nw_val = mask_gather_ps256(bottom_blob.channel(q), i_nw_offset, *reinterpret_cast<__m256*>(&v00_in_range));
+                                    __m256 ne_val = mask_gather_ps256(bottom_blob.channel(q), i_ne_offset, *reinterpret_cast<__m256*>(&v10_in_range));
+                                    __m256 sw_val = mask_gather_ps256(bottom_blob.channel(q), i_sw_offset, *reinterpret_cast<__m256*>(&v01_in_range));
+                                    __m256 se_val = mask_gather_ps256(bottom_blob.channel(q), i_se_offset, *reinterpret_cast<__m256*>(&v11_in_range));
 
                                     __m256 _v = _mm256_mul_ps(nw_val, nw);
                                     _v = _mm256_comp_fmadd_ps(ne_val, ne, _v);
@@ -1059,7 +1059,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 __m256 gx = _mm256_permute2f128_ps(tmp_x, gy, 0b00100000);
                                 gy = _mm256_permute2f128_ps(tmp_x, gy, 0b00110001);
-                                tmp_x = gx;
+                                memcpy(&tmp_x, &gx, 8 * sizeof(float));
 
                                 gx = _mm256_shuffle_ps(gx, gy, 0b10001000);
                                 gy = _mm256_shuffle_ps(tmp_x, gy, 0b11011101);
@@ -1111,10 +1111,10 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 for (int q = 0; q < channels; q++)
                                 {
-                                    __m256 nw_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), bottom_blob.channel(q), i_nw_offset, *reinterpret_cast<__m256*>(&v00_in_range), sizeof(float));
-                                    __m256 ne_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), bottom_blob.channel(q), i_ne_offset, *reinterpret_cast<__m256*>(&v10_in_range), sizeof(float));
-                                    __m256 sw_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), bottom_blob.channel(q), i_sw_offset, *reinterpret_cast<__m256*>(&v01_in_range), sizeof(float));
-                                    __m256 se_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), bottom_blob.channel(q), i_se_offset, *reinterpret_cast<__m256*>(&v11_in_range), sizeof(float));
+                                    __m256 nw_val = mask_gather_ps256(bottom_blob.channel(q), i_nw_offset, *reinterpret_cast<__m256*>(&v00_in_range));
+                                    __m256 ne_val = mask_gather_ps256(bottom_blob.channel(q), i_ne_offset, *reinterpret_cast<__m256*>(&v10_in_range));
+                                    __m256 sw_val = mask_gather_ps256(bottom_blob.channel(q), i_sw_offset, *reinterpret_cast<__m256*>(&v01_in_range));
+                                    __m256 se_val = mask_gather_ps256(bottom_blob.channel(q), i_se_offset, *reinterpret_cast<__m256*>(&v11_in_range));
 
                                     __m256 _v = _mm256_mul_ps(nw_val, nw);
                                     _v = _mm256_comp_fmadd_ps(ne_val, ne, _v);
@@ -1183,7 +1183,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 __m256 gx = _mm256_permute2f128_ps(tmp_x, gy, 0b00100000);
                                 gy = _mm256_permute2f128_ps(tmp_x, gy, 0b00110001);
-                                tmp_x = gx;
+                                memcpy(&tmp_x, &gx, 8 * sizeof(float));
 
                                 gx = _mm256_shuffle_ps(gx, gy, 0b10001000);
                                 gy = _mm256_shuffle_ps(tmp_x, gy, 0b11011101);
@@ -1238,10 +1238,10 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 for (int q = 0; q < channels; q++)
                                 {
-                                    __m256 nw_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), bottom_blob.channel(q), i_nw_offset, *(__m256*)_ps256_n1, sizeof(float));
-                                    __m256 ne_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), bottom_blob.channel(q), i_ne_offset, *reinterpret_cast<__m256*>(&x1_in_range), sizeof(float));
-                                    __m256 sw_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), bottom_blob.channel(q), i_sw_offset, *reinterpret_cast<__m256*>(&y1_in_range), sizeof(float));
-                                    __m256 se_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), bottom_blob.channel(q), i_se_offset, *reinterpret_cast<__m256*>(&v11_in_range), sizeof(float));
+                                    __m256 nw_val = mask_gather_ps256(bottom_blob.channel(q), i_nw_offset, *(__m256*)_ps256_n1);
+                                    __m256 ne_val = mask_gather_ps256(bottom_blob.channel(q), i_ne_offset, *reinterpret_cast<__m256*>(&x1_in_range));
+                                    __m256 sw_val = mask_gather_ps256(bottom_blob.channel(q), i_sw_offset, *reinterpret_cast<__m256*>(&y1_in_range));
+                                    __m256 se_val = mask_gather_ps256(bottom_blob.channel(q), i_se_offset, *reinterpret_cast<__m256*>(&v11_in_range));
 
                                     __m256 _v = _mm256_mul_ps(nw_val, nw);
                                     _v = _mm256_comp_fmadd_ps(ne_val, ne, _v);
@@ -1310,7 +1310,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 __m256 gx = _mm256_permute2f128_ps(tmp_x, gy, 0b00100000);
                                 gy = _mm256_permute2f128_ps(tmp_x, gy, 0b00110001);
-                                tmp_x = gx;
+                                memcpy(&tmp_x, &gx, 8 * sizeof(float));
 
                                 gx = _mm256_shuffle_ps(gx, gy, 0b10001000);
                                 gy = _mm256_shuffle_ps(tmp_x, gy, 0b11011101);
@@ -1365,10 +1365,10 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 for (int q = 0; q < channels; q++)
                                 {
-                                    __m256 nw_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), bottom_blob.channel(q), i_nw_offset, *(__m256*)_ps256_n1, sizeof(float));
-                                    __m256 ne_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), bottom_blob.channel(q), i_ne_offset, *reinterpret_cast<__m256*>(&x1_in_range), sizeof(float));
-                                    __m256 sw_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), bottom_blob.channel(q), i_sw_offset, *reinterpret_cast<__m256*>(&y1_in_range), sizeof(float));
-                                    __m256 se_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), bottom_blob.channel(q), i_se_offset, *reinterpret_cast<__m256*>(&v11_in_range), sizeof(float));
+                                    __m256 nw_val = mask_gather_ps256(bottom_blob.channel(q), i_nw_offset, *(__m256*)_ps256_n1);
+                                    __m256 ne_val = mask_gather_ps256(bottom_blob.channel(q), i_ne_offset, *reinterpret_cast<__m256*>(&x1_in_range));
+                                    __m256 sw_val = mask_gather_ps256(bottom_blob.channel(q), i_sw_offset, *reinterpret_cast<__m256*>(&y1_in_range));
+                                    __m256 se_val = mask_gather_ps256(bottom_blob.channel(q), i_se_offset, *reinterpret_cast<__m256*>(&v11_in_range));
 
                                     __m256 _v = _mm256_mul_ps(nw_val, nw);
                                     _v = _mm256_comp_fmadd_ps(ne_val, ne, _v);
@@ -1439,7 +1439,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 __m256 gx = _mm256_permute2f128_ps(tmp_x, gy, 0b00100000);
                                 gy = _mm256_permute2f128_ps(tmp_x, gy, 0b00110001);
-                                tmp_x = gx;
+                                memcpy(&tmp_x, &gx, 8 * sizeof(float));
 
                                 gx = _mm256_shuffle_ps(gx, gy, 0b10001000);
                                 gy = _mm256_shuffle_ps(tmp_x, gy, 0b11011101);
@@ -1517,10 +1517,10 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 for (int q = 0; q < channels; q++)
                                 {
-                                    __m256 nw_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), bottom_blob.channel(q), i_nw_offset, *(__m256*)_ps256_n1, sizeof(float));
-                                    __m256 ne_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), bottom_blob.channel(q), i_ne_offset, *reinterpret_cast<__m256*>(&x1_in_range), sizeof(float));
-                                    __m256 sw_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), bottom_blob.channel(q), i_sw_offset, *reinterpret_cast<__m256*>(&y1_in_range), sizeof(float));
-                                    __m256 se_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), bottom_blob.channel(q), i_se_offset, *reinterpret_cast<__m256*>(&v11_in_range), sizeof(float));
+                                    __m256 nw_val = mask_gather_ps256(bottom_blob.channel(q), i_nw_offset, *(__m256*)_ps256_n1);
+                                    __m256 ne_val = mask_gather_ps256(bottom_blob.channel(q), i_ne_offset, *reinterpret_cast<__m256*>(&x1_in_range));
+                                    __m256 sw_val = mask_gather_ps256(bottom_blob.channel(q), i_sw_offset, *reinterpret_cast<__m256*>(&y1_in_range));
+                                    __m256 se_val = mask_gather_ps256(bottom_blob.channel(q), i_se_offset, *reinterpret_cast<__m256*>(&v11_in_range));
 
                                     __m256 _v = _mm256_mul_ps(nw_val, nw);
                                     _v = _mm256_comp_fmadd_ps(ne_val, ne, _v);
@@ -1595,7 +1595,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 __m256 gx = _mm256_permute2f128_ps(tmp_x, gy, 0b00100000);
                                 gy = _mm256_permute2f128_ps(tmp_x, gy, 0b00110001);
-                                tmp_x = gx;
+                                memcpy(&tmp_x, &gx, 8 * sizeof(float));
 
                                 gx = _mm256_shuffle_ps(gx, gy, 0b10001000);
                                 gy = _mm256_shuffle_ps(tmp_x, gy, 0b11011101);
@@ -1656,10 +1656,10 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 for (int q = 0; q < channels; q++)
                                 {
-                                    __m256 nw_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), bottom_blob.channel(q), i_nw_offset, *(__m256*)_ps256_n1, sizeof(float));
-                                    __m256 ne_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), bottom_blob.channel(q), i_ne_offset, *reinterpret_cast<__m256*>(&x1_in_range), sizeof(float));
-                                    __m256 sw_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), bottom_blob.channel(q), i_sw_offset, *reinterpret_cast<__m256*>(&y1_in_range), sizeof(float));
-                                    __m256 se_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), bottom_blob.channel(q), i_se_offset, *reinterpret_cast<__m256*>(&v11_in_range), sizeof(float));
+                                    __m256 nw_val = mask_gather_ps256(bottom_blob.channel(q), i_nw_offset, *(__m256*)_ps256_n1);
+                                    __m256 ne_val = mask_gather_ps256(bottom_blob.channel(q), i_ne_offset, *reinterpret_cast<__m256*>(&x1_in_range));
+                                    __m256 sw_val = mask_gather_ps256(bottom_blob.channel(q), i_sw_offset, *reinterpret_cast<__m256*>(&y1_in_range));
+                                    __m256 se_val = mask_gather_ps256(bottom_blob.channel(q), i_se_offset, *reinterpret_cast<__m256*>(&v11_in_range));
 
                                     __m256 _v = _mm256_mul_ps(nw_val, nw);
                                     _v = _mm256_comp_fmadd_ps(ne_val, ne, _v);
@@ -1744,7 +1744,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 __m256 gx = _mm256_permute2f128_ps(tmp_x, gy, 0b00100000);
                                 gy = _mm256_permute2f128_ps(tmp_x, gy, 0b00110001);
-                                tmp_x = gx;
+                                memcpy(&tmp_x, &gx, 8 * sizeof(float));
 
                                 gx = _mm256_shuffle_ps(gx, gy, 0b10001000);
                                 gy = _mm256_shuffle_ps(tmp_x, gy, 0b11011101);
@@ -1773,7 +1773,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 for (int q = 0; q < bottom_blob.c; q++)
                                 {
-                                    __m256 _v = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), bottom_blob.channel(q), i_offset, *reinterpret_cast<__m256*>(&v_in_range), sizeof(float));
+                                    __m256 _v = mask_gather_ps256(bottom_blob.channel(q), i_offset, *reinterpret_cast<__m256*>(&v_in_range));
 
                                     _mm256_storeu_ps(top_blob.channel(q).row(y) + x / 2, _v);
                                 }
@@ -1848,7 +1848,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 for (int q = 0; q < bottom_blob.c; q++)
                                 {
-                                    __m256 _v = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), bottom_blob.channel(q), i_offset, *reinterpret_cast<__m256*>(&v_in_range), sizeof(float));
+                                    __m256 _v = mask_gather_ps256(bottom_blob.channel(q), i_offset, *reinterpret_cast<__m256*>(&v_in_range));
 
                                     _mm256_storeu_ps(top_blob.channel(q).row(y) + x / 2, _v);
                                 }
@@ -1896,7 +1896,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 __m256 gx = _mm256_permute2f128_ps(tmp_x, gy, 0b00100000);
                                 gy = _mm256_permute2f128_ps(tmp_x, gy, 0b00110001);
-                                tmp_x = gx;
+                                memcpy(&tmp_x, &gx, 8 * sizeof(float));
 
                                 gx = _mm256_shuffle_ps(gx, gy, 0b10001000);
                                 gy = _mm256_shuffle_ps(tmp_x, gy, 0b11011101);
@@ -1930,7 +1930,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 for (int q = 0; q < bottom_blob.c; q++)
                                 {
-                                    __m256 _v = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), bottom_blob.channel(q), i_offset, _mm256_set1_ps(-1.0f), sizeof(float));
+                                    __m256 _v = mask_gather_ps256(bottom_blob.channel(q), i_offset, _mm256_set1_ps(-1.0f));
 
                                     _mm256_storeu_ps(top_blob.channel(q).row(y) + x / 2, _v);
                                 }
@@ -1977,7 +1977,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 __m256 gx = _mm256_permute2f128_ps(tmp_x, gy, 0b00100000);
                                 gy = _mm256_permute2f128_ps(tmp_x, gy, 0b00110001);
-                                tmp_x = gx;
+                                memcpy(&tmp_x, &gx, 8 * sizeof(float));
 
                                 gx = _mm256_shuffle_ps(gx, gy, 0b10001000);
                                 gy = _mm256_shuffle_ps(tmp_x, gy, 0b11011101);
@@ -2011,7 +2011,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 for (int q = 0; q < bottom_blob.c; q++)
                                 {
-                                    __m256 _v = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), bottom_blob.channel(q), i_offset, _mm256_set1_ps(-1.0f), sizeof(float));
+                                    __m256 _v = mask_gather_ps256(bottom_blob.channel(q), i_offset, _mm256_set1_ps(-1.0f));
 
                                     _mm256_storeu_ps(top_blob.channel(q).row(y) + x / 2, _v);
                                 }
@@ -2060,7 +2060,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 __m256 gx = _mm256_permute2f128_ps(tmp_x, gy, 0b00100000);
                                 gy = _mm256_permute2f128_ps(tmp_x, gy, 0b00110001);
-                                tmp_x = gx;
+                                memcpy(&tmp_x, &gx, 8 * sizeof(float));
 
                                 gx = _mm256_shuffle_ps(gx, gy, 0b10001000);
                                 gy = _mm256_shuffle_ps(tmp_x, gy, 0b11011101);
@@ -2115,7 +2115,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 for (int q = 0; q < bottom_blob.c; q++)
                                 {
-                                    __m256 _v = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), bottom_blob.channel(q), i_offset, _mm256_set1_ps(-1.0f), sizeof(float));
+                                    __m256 _v = mask_gather_ps256(bottom_blob.channel(q), i_offset, _mm256_set1_ps(-1.0f));
 
                                     _mm256_storeu_ps(top_blob.channel(q).row(y) + x / 2, _v);
                                 }
@@ -2168,7 +2168,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 __m256 gx = _mm256_permute2f128_ps(tmp_x, gy, 0b00100000);
                                 gy = _mm256_permute2f128_ps(tmp_x, gy, 0b00110001);
-                                tmp_x = gx;
+                                memcpy(&tmp_x, &gx, 8 * sizeof(float));
 
                                 gx = _mm256_shuffle_ps(gx, gy, 0b10001000);
                                 gy = _mm256_shuffle_ps(tmp_x, gy, 0b11011101);
@@ -2206,7 +2206,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 for (int q = 0; q < bottom_blob.c; q++)
                                 {
-                                    __m256 _v = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), bottom_blob.channel(q), i_offset, _mm256_set1_ps(-1.0f), sizeof(float));
+                                    __m256 _v = mask_gather_ps256(bottom_blob.channel(q), i_offset, _mm256_set1_ps(-1.0f));
 
                                     _mm256_storeu_ps(top_blob.channel(q).row(y) + x / 2, _v);
                                 }
@@ -2266,7 +2266,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 __m256 gx = _mm256_permute2f128_ps(tmp_x, gy, 0b00100000);
                                 gy = _mm256_permute2f128_ps(tmp_x, gy, 0b00110001);
-                                tmp_x = gx;
+                                memcpy(&tmp_x, &gx, 8 * sizeof(float));
 
                                 gx = _mm256_shuffle_ps(gx, gy, 0b10001000);
                                 gy = _mm256_shuffle_ps(tmp_x, gy, 0b11011101);
@@ -2335,10 +2335,10 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                 {
                                     for (int i = 0; i < 4; i++)
                                     {
-                                        __m256 x0_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), bottom_blob.channel(q), v0_offset[i], *reinterpret_cast<__m256*>(&v0_in_range[i]), sizeof(float));
-                                        __m256 x1_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), bottom_blob.channel(q), v1_offset[i], *reinterpret_cast<__m256*>(&v1_in_range[i]), sizeof(float));
-                                        __m256 x2_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), bottom_blob.channel(q), v2_offset[i], *reinterpret_cast<__m256*>(&v2_in_range[i]), sizeof(float));
-                                        __m256 x3_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), bottom_blob.channel(q), v3_offset[i], *reinterpret_cast<__m256*>(&v3_in_range[i]), sizeof(float));
+                                        __m256 x0_val = mask_gather_ps256(bottom_blob.channel(q), v0_offset[i], *reinterpret_cast<__m256*>(&v0_in_range[i]));
+                                        __m256 x1_val = mask_gather_ps256(bottom_blob.channel(q), v1_offset[i], *reinterpret_cast<__m256*>(&v1_in_range[i]));
+                                        __m256 x2_val = mask_gather_ps256(bottom_blob.channel(q), v2_offset[i], *reinterpret_cast<__m256*>(&v2_in_range[i]));
+                                        __m256 x3_val = mask_gather_ps256(bottom_blob.channel(q), v3_offset[i], *reinterpret_cast<__m256*>(&v3_in_range[i]));
 
                                         coefficients[i] = cubic_interp1d_p8(x0_val, x1_val, x2_val, x3_val, tx);
                                     }
@@ -2446,7 +2446,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 __m256 gx = _mm256_permute2f128_ps(tmp_x, gy, 0b00100000);
                                 gy = _mm256_permute2f128_ps(tmp_x, gy, 0b00110001);
-                                tmp_x = gx;
+                                memcpy(&tmp_x, &gx, 8 * sizeof(float));
 
                                 gx = _mm256_shuffle_ps(gx, gy, 0b10001000);
                                 gy = _mm256_shuffle_ps(tmp_x, gy, 0b11011101);
@@ -2515,10 +2515,10 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                 {
                                     for (int i = 0; i < 4; i++)
                                     {
-                                        __m256 x0_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), bottom_blob.channel(q), v0_offset[i], *reinterpret_cast<__m256*>(&v0_in_range[i]), sizeof(float));
-                                        __m256 x1_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), bottom_blob.channel(q), v1_offset[i], *reinterpret_cast<__m256*>(&v1_in_range[i]), sizeof(float));
-                                        __m256 x2_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), bottom_blob.channel(q), v2_offset[i], *reinterpret_cast<__m256*>(&v2_in_range[i]), sizeof(float));
-                                        __m256 x3_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), bottom_blob.channel(q), v3_offset[i], *reinterpret_cast<__m256*>(&v3_in_range[i]), sizeof(float));
+                                        __m256 x0_val = mask_gather_ps256(bottom_blob.channel(q), v0_offset[i], *reinterpret_cast<__m256*>(&v0_in_range[i]));
+                                        __m256 x1_val = mask_gather_ps256(bottom_blob.channel(q), v1_offset[i], *reinterpret_cast<__m256*>(&v1_in_range[i]));
+                                        __m256 x2_val = mask_gather_ps256(bottom_blob.channel(q), v2_offset[i], *reinterpret_cast<__m256*>(&v2_in_range[i]));
+                                        __m256 x3_val = mask_gather_ps256(bottom_blob.channel(q), v3_offset[i], *reinterpret_cast<__m256*>(&v3_in_range[i]));
 
                                         coefficients[i] = cubic_interp1d_p8(x0_val, x1_val, x2_val, x3_val, tx);
                                     }
@@ -2628,7 +2628,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 __m256 gx = _mm256_permute2f128_ps(tmp_x, gy, 0b00100000);
                                 gy = _mm256_permute2f128_ps(tmp_x, gy, 0b00110001);
-                                tmp_x = gx;
+                                memcpy(&tmp_x, &gx, 8 * sizeof(float));
 
                                 gx = _mm256_shuffle_ps(gx, gy, 0b10001000);
                                 gy = _mm256_shuffle_ps(tmp_x, gy, 0b11011101);
@@ -2683,10 +2683,10 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                 {
                                     for (int i = 0; i < 4; i++)
                                     {
-                                        __m256 x0_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), bottom_blob.channel(q), v0_offset[i], *(__m256*)_ps256_n1, sizeof(float));
-                                        __m256 x1_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), bottom_blob.channel(q), v1_offset[i], *(__m256*)_ps256_n1, sizeof(float));
-                                        __m256 x2_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), bottom_blob.channel(q), v2_offset[i], *(__m256*)_ps256_n1, sizeof(float));
-                                        __m256 x3_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), bottom_blob.channel(q), v3_offset[i], *(__m256*)_ps256_n1, sizeof(float));
+                                        __m256 x0_val = mask_gather_ps256(bottom_blob.channel(q), v0_offset[i], *(__m256*)_ps256_n1);
+                                        __m256 x1_val = mask_gather_ps256(bottom_blob.channel(q), v1_offset[i], *(__m256*)_ps256_n1);
+                                        __m256 x2_val = mask_gather_ps256(bottom_blob.channel(q), v2_offset[i], *(__m256*)_ps256_n1);
+                                        __m256 x3_val = mask_gather_ps256(bottom_blob.channel(q), v3_offset[i], *(__m256*)_ps256_n1);
 
                                         coefficients[i] = cubic_interp1d_p8(x0_val, x1_val, x2_val, x3_val, tx);
                                     }
@@ -2785,7 +2785,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 __m256 gx = _mm256_permute2f128_ps(tmp_x, gy, 0b00100000);
                                 gy = _mm256_permute2f128_ps(tmp_x, gy, 0b00110001);
-                                tmp_x = gx;
+                                memcpy(&tmp_x, &gx, 8 * sizeof(float));
 
                                 gx = _mm256_shuffle_ps(gx, gy, 0b10001000);
                                 gy = _mm256_shuffle_ps(tmp_x, gy, 0b11011101);
@@ -2841,10 +2841,10 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                 {
                                     for (int i = 0; i < 4; i++)
                                     {
-                                        __m256 x0_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), bottom_blob.channel(q), v0_offset[i], *(__m256*)_ps256_n1, sizeof(float));
-                                        __m256 x1_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), bottom_blob.channel(q), v1_offset[i], *(__m256*)_ps256_n1, sizeof(float));
-                                        __m256 x2_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), bottom_blob.channel(q), v2_offset[i], *(__m256*)_ps256_n1, sizeof(float));
-                                        __m256 x3_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), bottom_blob.channel(q), v3_offset[i], *(__m256*)_ps256_n1, sizeof(float));
+                                        __m256 x0_val = mask_gather_ps256(bottom_blob.channel(q), v0_offset[i], *(__m256*)_ps256_n1);
+                                        __m256 x1_val = mask_gather_ps256(bottom_blob.channel(q), v1_offset[i], *(__m256*)_ps256_n1);
+                                        __m256 x2_val = mask_gather_ps256(bottom_blob.channel(q), v2_offset[i], *(__m256*)_ps256_n1);
+                                        __m256 x3_val = mask_gather_ps256(bottom_blob.channel(q), v3_offset[i], *(__m256*)_ps256_n1);
 
                                         coefficients[i] = cubic_interp1d_p8(x0_val, x1_val, x2_val, x3_val, tx);
                                     }
@@ -2940,7 +2940,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 __m256 gx = _mm256_permute2f128_ps(tmp_x, gy, 0b00100000);
                                 gy = _mm256_permute2f128_ps(tmp_x, gy, 0b00110001);
-                                tmp_x = gx;
+                                memcpy(&tmp_x, &gx, 8 * sizeof(float));
 
                                 gx = _mm256_shuffle_ps(gx, gy, 0b10001000);
                                 gy = _mm256_shuffle_ps(tmp_x, gy, 0b11011101);
@@ -3067,10 +3067,10 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                 {
                                     for (int i = 0; i < 4; i++)
                                     {
-                                        __m256 x0_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), bottom_blob.channel(q), v0_offset[i], *(__m256*)_ps256_n1, sizeof(float));
-                                        __m256 x1_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), bottom_blob.channel(q), v1_offset[i], *(__m256*)_ps256_n1, sizeof(float));
-                                        __m256 x2_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), bottom_blob.channel(q), v2_offset[i], *(__m256*)_ps256_n1, sizeof(float));
-                                        __m256 x3_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), bottom_blob.channel(q), v3_offset[i], *(__m256*)_ps256_n1, sizeof(float));
+                                        __m256 x0_val = mask_gather_ps256(bottom_blob.channel(q), v0_offset[i], *(__m256*)_ps256_n1);
+                                        __m256 x1_val = mask_gather_ps256(bottom_blob.channel(q), v1_offset[i], *(__m256*)_ps256_n1);
+                                        __m256 x2_val = mask_gather_ps256(bottom_blob.channel(q), v2_offset[i], *(__m256*)_ps256_n1);
+                                        __m256 x3_val = mask_gather_ps256(bottom_blob.channel(q), v3_offset[i], *(__m256*)_ps256_n1);
 
                                         coefficients[i] = cubic_interp1d_p8(x0_val, x1_val, x2_val, x3_val, tx);
                                     }
@@ -3183,7 +3183,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 __m256 gx = _mm256_permute2f128_ps(tmp_x, gy, 0b00100000);
                                 gy = _mm256_permute2f128_ps(tmp_x, gy, 0b00110001);
-                                tmp_x = gx;
+                                memcpy(&tmp_x, &gx, 8 * sizeof(float));
 
                                 gx = _mm256_shuffle_ps(gx, gy, 0b10001000);
                                 gy = _mm256_shuffle_ps(tmp_x, gy, 0b11011101);
@@ -3270,10 +3270,10 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                 {
                                     for (int i = 0; i < 4; i++)
                                     {
-                                        __m256 x0_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), bottom_blob.channel(q), v0_offset[i], *(__m256*)_ps256_n1, sizeof(float));
-                                        __m256 x1_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), bottom_blob.channel(q), v1_offset[i], *(__m256*)_ps256_n1, sizeof(float));
-                                        __m256 x2_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), bottom_blob.channel(q), v2_offset[i], *(__m256*)_ps256_n1, sizeof(float));
-                                        __m256 x3_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), bottom_blob.channel(q), v3_offset[i], *(__m256*)_ps256_n1, sizeof(float));
+                                        __m256 x0_val = mask_gather_ps256(bottom_blob.channel(q), v0_offset[i], *(__m256*)_ps256_n1);
+                                        __m256 x1_val = mask_gather_ps256(bottom_blob.channel(q), v1_offset[i], *(__m256*)_ps256_n1);
+                                        __m256 x2_val = mask_gather_ps256(bottom_blob.channel(q), v2_offset[i], *(__m256*)_ps256_n1);
+                                        __m256 x3_val = mask_gather_ps256(bottom_blob.channel(q), v3_offset[i], *(__m256*)_ps256_n1);
 
                                         coefficients[i] = cubic_interp1d_p8(x0_val, x1_val, x2_val, x3_val, tx);
                                     }
