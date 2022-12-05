@@ -2288,7 +2288,12 @@ MAKE_FUNCTION(binary_op_rdiv_fp16s, y / x, vdiv_f16(y, x), vdivq_f16(y, x))
 int BinaryOp_arm::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     const Mat& bottom_blob = bottom_blobs[0];
-    const Mat& bottom_blob1 = bottom_blobs[1];
+    Mat bottom_blob1 = bottom_blobs[1];
+    if (bottom_blob1.dims == 2 && bottom_blob1.w == 1)
+    {
+        // fix for torch.mean() with keepdim=True for 2-D tensors
+        bottom_blob1 = bottom_blob1.reshape(bottom_blob1.h);
+    }
 
     Mat& top_blob = top_blobs[0];
 

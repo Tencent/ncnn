@@ -990,7 +990,14 @@ int BinaryOp_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
 #endif
 
     const Mat& bottom_blob = bottom_blobs[0];
-    const Mat& bottom_blob1 = bottom_blobs[1];
+
+    Mat bottom_blob1 = bottom_blobs[1];
+    if (bottom_blob1.dims == 2 && bottom_blob1.w == 1)
+    {
+        // fix for torch.mean() with keepdim=True for 2-D tensors
+        bottom_blob1 = bottom_blob1.reshape(bottom_blob1.h);
+    }
+
     Mat& top_blob = top_blobs[0];
 
 #if __ARM_NEON
@@ -2587,7 +2594,12 @@ static int binary_op_scalar_inplace_bf16s(Mat& a, float b, const Option& opt)
 int BinaryOp_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     const Mat& bottom_blob = bottom_blobs[0];
-    const Mat& bottom_blob1 = bottom_blobs[1];
+    Mat bottom_blob1 = bottom_blobs[1];
+    if (bottom_blob1.dims == 2 && bottom_blob1.w == 1)
+    {
+        // fix for torch.mean() with keepdim=True for 2-D tensors
+        bottom_blob1 = bottom_blob1.reshape(bottom_blob1.h);
+    }
 
     Mat& top_blob = top_blobs[0];
 
