@@ -176,7 +176,7 @@ static void gridsample_2d_bicubic_align1_zeros_blob_pack4(const Mat& src, Mat& d
             __m128 gx1 = gx_floor;
             __m128 gx2 = _mm_add_ps(gx_floor, v1fp4);
             __m128 gx3 = _mm_add_ps(gx_floor, _mm_set1_ps(2.0f));
-
+  
             __m128i x0 = _mm_cvtps_epi32(gx0);
             __m128i x1 = _mm_cvtps_epi32(gx1);
             __m128i x2 = _mm_cvtps_epi32(gx2);
@@ -241,8 +241,6 @@ static void gridsample_2d_bicubic_align0_border_blob_pack4(const Mat& src, Mat& 
 {
     const __m128 vImgWf = _mm_set1_ps(src.w);
     const __m128 vImgHf = _mm_set1_ps(src.h);
-    const __m128i vImgWi = _mm_set1_epi32(src.w);
-    const __m128i vImgHi = _mm_set1_epi32(src.h);
 
     const __m128 vElempackf = _mm_set1_ps(src.elempack);
 
@@ -280,18 +278,11 @@ static void gridsample_2d_bicubic_align0_border_blob_pack4(const Mat& src, Mat& 
             gx2 = _mm_min_ps(border_x, _mm_max_ps(gx2, _mm_setzero_ps()));
             gx3 = _mm_min_ps(border_x, _mm_max_ps(gx3, _mm_setzero_ps()));
 
-            __m128i x0 = _mm_cvtps_epi32(gx0);
-            __m128i x1 = _mm_cvtps_epi32(gx1);
-            __m128i x2 = _mm_cvtps_epi32(gx2);
-            __m128i x3 = _mm_cvtps_epi32(gx3);
-
             __m128i v0_offset[4], v1_offset[4], v2_offset[4], v3_offset[4];
             for (int i = 0; i < 4; i++)
             {
                 gy = _mm_add_ps(gy_floor, _mm_set1_ps(-1.0f + i));
                 gy = _mm_min_ps(border_y, _mm_max_ps(gy, _mm_setzero_ps()));
-
-                __m128i y = _mm_cvtps_epi32(gy);
 
                 __m128 v0_offset_f = _mm_add_ps(_mm_mul_ps(_mm_add_ps(_mm_mul_ps(gy, vImgWf), gx0), vElempackf),
                                                 _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f));
@@ -332,8 +323,6 @@ static void gridsample_2d_bicubic_align1_border_blob_pack4(const Mat& src, Mat& 
 {
     const __m128 vImgWf = _mm_set1_ps(src.w);
     const __m128 vImgHf = _mm_set1_ps(src.h);
-    const __m128i vImgWi = _mm_set1_epi32(src.w);
-    const __m128i vImgHi = _mm_set1_epi32(src.h);
 
     const __m128 vElempackf = _mm_set1_ps(src.elempack);
 
@@ -372,18 +361,11 @@ static void gridsample_2d_bicubic_align1_border_blob_pack4(const Mat& src, Mat& 
             gx2 = _mm_min_ps(border_x, _mm_max_ps(gx2, _mm_setzero_ps()));
             gx3 = _mm_min_ps(border_x, _mm_max_ps(gx3, _mm_setzero_ps()));
 
-            __m128i x0 = _mm_cvtps_epi32(gx0);
-            __m128i x1 = _mm_cvtps_epi32(gx1);
-            __m128i x2 = _mm_cvtps_epi32(gx2);
-            __m128i x3 = _mm_cvtps_epi32(gx3);
-
             __m128i v0_offset[4], v1_offset[4], v2_offset[4], v3_offset[4];
             for (int i = 0; i < 4; i++)
             {
                 gy = _mm_add_ps(gy_floor, _mm_set1_ps(-1.0f + i));
                 gy = _mm_min_ps(border_y, _mm_max_ps(gy, _mm_setzero_ps()));
-
-                __m128i y = _mm_cvtps_epi32(gy);
 
                 __m128 v0_offset_f = _mm_add_ps(_mm_mul_ps(_mm_add_ps(_mm_mul_ps(gy, vImgWf), gx0), vElempackf),
                                                 _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f));
@@ -424,8 +406,6 @@ static void gridsample_2d_bicubic_align0_reflection_blob_pack4(const Mat& src, M
 {
     const __m128 vImgWf = _mm_set1_ps(src.w);
     const __m128 vImgHf = _mm_set1_ps(src.h);
-    const __m128i vImgWi = _mm_set1_epi32(src.w);
-    const __m128i vImgHi = _mm_set1_epi32(src.h);
 
     const __m128 vElempackf = _mm_set1_ps(src.elempack);
 
@@ -460,8 +440,6 @@ static void gridsample_2d_bicubic_align0_reflection_blob_pack4(const Mat& src, M
             const __m128 v0p5fp4 = _mm_set1_ps(0.5f);
             {
                 // x0
-                const __m128 border_x = _mm_sub_ps(vImgWf, v1fp4);
-
                 gx0 = _mm_add_ps(gx0, v0p5fp4);
 
                 gx0 = _mm_and_ps(gx0, *(__m128*)_ps_inv_sign_mask);
@@ -518,11 +496,6 @@ static void gridsample_2d_bicubic_align0_reflection_blob_pack4(const Mat& src, M
                 gx3 = _mm_min_ps(border_x, _mm_max_ps(gx3, _mm_setzero_ps()));
             }
 
-            __m128i x0 = _mm_cvtps_epi32(gx0);
-            __m128i x1 = _mm_cvtps_epi32(gx1);
-            __m128i x2 = _mm_cvtps_epi32(gx2);
-            __m128i x3 = _mm_cvtps_epi32(gx3);
-
             __m128i v0_offset[4], v1_offset[4], v2_offset[4], v3_offset[4];
             for (int i = 0; i < 4; i++)
             {
@@ -530,8 +503,6 @@ static void gridsample_2d_bicubic_align0_reflection_blob_pack4(const Mat& src, M
 
                 {
                     //y
-                    const __m128 border_y = _mm_sub_ps(vImgHf, v1fp4);
-
                     gy = _mm_add_ps(gy, v0p5fp4);
 
                     gy = _mm_and_ps(gy, *(__m128*)_ps_inv_sign_mask);
@@ -545,8 +516,6 @@ static void gridsample_2d_bicubic_align0_reflection_blob_pack4(const Mat& src, M
 
                     gy = _mm_min_ps(border_y, _mm_max_ps(gy, _mm_setzero_ps()));
                 }
-
-                __m128i y = _mm_cvtps_epi32(gy);
 
                 __m128 v0_offset_f = _mm_add_ps(_mm_mul_ps(_mm_add_ps(_mm_mul_ps(gy, vImgWf), gx0), vElempackf),
                                                 _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f));
@@ -589,8 +558,6 @@ static void gridsample_2d_bicubic_align1_reflection_blob_pack4(const Mat& src, M
 
     const __m128 vImgWf = _mm_set1_ps(src.w);
     const __m128 vImgHf = _mm_set1_ps(src.h);
-    const __m128i vImgWi = _mm_set1_epi32(src.w);
-    const __m128i vImgHi = _mm_set1_epi32(src.h);
 
     const __m128 vElempackf = _mm_set1_ps(src.elempack);
 
@@ -626,8 +593,6 @@ static void gridsample_2d_bicubic_align1_reflection_blob_pack4(const Mat& src, M
             const __m128 v0p5fp4 = _mm_set1_ps(0.5f);
             {
                 // x0
-                const __m128 border_x = _mm_sub_ps(vImgWf, v1fp4);
-
                 gx0 = _mm_and_ps(gx0, *(__m128*)_ps_inv_sign_mask);
                 __m128 reflectx0_v = _mm_and_ps(_mm_sub_ps(gx0, border_x), *(__m128*)_ps_inv_sign_mask);
                 gx0 = _mm_sub_ps(border_x, reflectx0_v);
@@ -651,11 +616,6 @@ static void gridsample_2d_bicubic_align1_reflection_blob_pack4(const Mat& src, M
                 gx3 = _mm_sub_ps(border_x, reflectx3_v);
             }
 
-            __m128i x0 = _mm_cvtps_epi32(gx0);
-            __m128i x1 = _mm_cvtps_epi32(gx1);
-            __m128i x2 = _mm_cvtps_epi32(gx2);
-            __m128i x3 = _mm_cvtps_epi32(gx3);
-
             __m128i v0_offset[4], v1_offset[4], v2_offset[4], v3_offset[4];
             for (int i = 0; i < 4; i++)
             {
@@ -670,8 +630,6 @@ static void gridsample_2d_bicubic_align1_reflection_blob_pack4(const Mat& src, M
                     __m128 reflecty_v = _mm_and_ps(_mm_sub_ps(gy, border_y), *(__m128*)_ps_inv_sign_mask);
                     gy = _mm_sub_ps(border_y, reflecty_v);
                 }
-
-                __m128i y = _mm_cvtps_epi32(gy);
 
                 __m128 v0_offset_f = _mm_add_ps(_mm_mul_ps(_mm_add_ps(_mm_mul_ps(gy, vImgWf), gx0), vElempackf),
                                                 _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f));

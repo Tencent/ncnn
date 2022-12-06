@@ -409,7 +409,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
             if (sample_type == 3)
             {
                 NCNN_LOGE("unsupported bicubic when dims == 4");
-                return -1;
+                return -100;
             }
         }
     }
@@ -649,7 +649,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
             if (sample_type == 3)
             {
                 NCNN_LOGE("unsupported bicubic when dims == 4");
-                return -1;
+                return -100;
             }
         }
     }
@@ -884,7 +884,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
             if (sample_type == 3)
             {
                 NCNN_LOGE("unsupported bicubic when dims == 4");
-                return -1;
+                return -100;
             }
         }
     }
@@ -911,12 +911,11 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
         if (dims == 3)
         {
-            const int size = w * h;
             const int grid_size = grid_p1.w * grid_p1.h;
 
             top_blob.create(grid_p1.h, grid_p1.c, channels, elemsize, opt.blob_allocator);
             if (top_blob.empty())
-                return -1;
+                return -100;
 
             if (sample_type == 1)
             {
@@ -2847,11 +2846,6 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                 float sample_x = gridptr[x];
                                 float sample_y = gridptr[x + 1];
 
-                                if (y == 1 && x == 24)
-                                {
-                                    int a = 10;
-                                }
-
                                 sample_x = ((sample_x + 1) * w - 1) / 2.f;
                                 sample_y = ((sample_y + 1) * h - 1) / 2.f;
 
@@ -3490,16 +3484,451 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
         if (dims == 4)
         {
             return GridSample::forward(bottom_blobs, top_blobs, opt);
-            int size = w * h * d;
+            int grid_size = grid_p1.w * grid_p1.h * grid_p1.d;
 
-            top_blob.create(grid.h, grid.d, grid.c * grid.elempack, channels, elemsize, elempack, opt.blob_allocator);
+            top_blob.create(grid_p1.h, grid_p1.d, grid_p1.c, channels, elemsize, elempack, opt.blob_allocator);
             if (top_blob.empty())
                 return -100;
             if (sample_type == 1)
             {
+                if (padding_mode == 1)
+                {
+                    if (align_corner == 0)
+                    {
+#pragma omp parallel for num_threads(opt.num_threads)
+                        for (int y = 0; y < grid_p1.c; y++)
+                        {
+                            float* gridptr = grid_p1.channel(y);
+                            int nn = grid_size;
+#if __AVX__
+                            for (int x = 0; x + 23 < nn; x += 24)
+                            {
+                                //upzip (3)
+                                __m256 tmp_x = _mm256_loadu_ps(gridptr + x);
+                                __m256 tmp_y = _mm256_loadu_ps(gridptr + x + 8);
+                                __m256 gz = _mm256_loadu_ps(gridptr + x + 16);
+
+                                __m256 gx = _mm256_permute2f128_ps(tmp_x, tmp_y, 0b00110000);
+                                __m256 gy = _mm256_permute2f128_ps(tmp_x, gz, 0b00100001);
+                                gz = _mm256_permute2f128_ps(tmp_y, gz, 0b00110000);
+
+                                tmp_x = _mm256_shuffle_ps(gx, gy, 0b01001001);
+                                tmp_y = _mm256_shuffle_ps(gy, gz, 0b10011110);
+
+                                gy = _mm256_shuffle_ps(tmp_x, tmp_y, 0b11011000);
+                                gx = _mm256_shuffle_ps(gx, tmp_y, 0b10001100);
+                                gz = _mm256_shuffle_ps(tmp_x, gz, 0b11001101);
+
+
+                            }
+#endif // __AVX__
+                            for (int x = grid_size - nn; x < grid_size; x += 3)
+                            {
+                                float gx = gridptr[x];
+                                float gy = gridptr[x + 1];
+                                float gz = gridptr[x + 2];
+                            }
+                        }
+                    }
+                    else
+                    {
+#pragma omp parallel for num_threads(opt.num_threads)
+                        for (int y = 0; y < grid_p1.c; y++)
+                        {
+                            float* gridptr = grid_p1.channel(y);
+                            int nn = grid_size;
+#if __AVX__
+                            for (int x = 0; x + 23 < nn; x += 24)
+                            {
+                                __m256 tmp_x = _mm256_loadu_ps(gridptr + x);
+                                __m256 tmp_y = _mm256_loadu_ps(gridptr + x + 8);
+                                __m256 gz = _mm256_loadu_ps(gridptr + x + 16);
+
+                                __m256 gx = _mm256_permute2f128_ps(tmp_x, tmp_y, 0b00110000);
+                                __m256 gy = _mm256_permute2f128_ps(tmp_x, gz, 0b00100001);
+                                gz = _mm256_permute2f128_ps(tmp_y, gz, 0b00110000);
+
+                                tmp_x = _mm256_shuffle_ps(gx, gy, 0b01001001);
+                                tmp_y = _mm256_shuffle_ps(gy, gz, 0b10011110);
+
+                                gy = _mm256_shuffle_ps(tmp_x, tmp_y, 0b11011000);
+                                gx = _mm256_shuffle_ps(gx, tmp_y, 0b10001100);
+                                gz = _mm256_shuffle_ps(tmp_x, gz, 0b11001101);
+
+                            }
+#endif // __AVX__
+                            for (int x = grid_size - nn; x < grid_size; x += 3)
+                            {
+                                float gx = gridptr[x];
+                                float gy = gridptr[x + 1];
+                                float gz = gridptr[x + 2];
+                            }
+                        }
+                    }
+                }
+                else if (padding_mode == 2)
+                {
+                    if (align_corner == 0)
+                    {
+#pragma omp parallel for num_threads(opt.num_threads)
+                        for (int y = 0; y < grid_p1.c; y++)
+                        {
+                            float* gridptr = grid_p1.channel(y);
+                            int nn = grid_size;
+#if __AVX__
+                            for (int x = 0; x + 23 < nn; x += 24)
+                            {
+                                __m256 tmp_x = _mm256_loadu_ps(gridptr + x);
+                                __m256 tmp_y = _mm256_loadu_ps(gridptr + x + 8);
+                                __m256 gz = _mm256_loadu_ps(gridptr + x + 16);
+
+                                __m256 gx = _mm256_permute2f128_ps(tmp_x, tmp_y, 0b00110000);
+                                __m256 gy = _mm256_permute2f128_ps(tmp_x, gz, 0b00100001);
+                                gz = _mm256_permute2f128_ps(tmp_y, gz, 0b00110000);
+
+                                tmp_x = _mm256_shuffle_ps(gx, gy, 0b01001001);
+                                tmp_y = _mm256_shuffle_ps(gy, gz, 0b10011110);
+
+                                gy = _mm256_shuffle_ps(tmp_x, tmp_y, 0b11011000);
+                                gx = _mm256_shuffle_ps(gx, tmp_y, 0b10001100);
+                                gz = _mm256_shuffle_ps(tmp_x, gz, 0b11001101);
+
+                            }
+#endif // __AVX__
+                            for (int x = grid_size - nn; x < grid_size; x += 3)
+                            {
+                                float gx = gridptr[x];
+                                float gy = gridptr[x + 1];
+                                float gz = gridptr[x + 2];
+                            }
+                        }
+                    }
+                    else
+                    {
+#pragma omp parallel for num_threads(opt.num_threads)
+                        for (int y = 0; y < grid_p1.c; y++)
+                        {
+                            float* gridptr = grid_p1.channel(y);
+                            int nn = grid_size;
+#if __AVX__
+                            for (int x = 0; x + 23 < nn; x += 24)
+                            {
+                                __m256 tmp_x = _mm256_loadu_ps(gridptr + x);
+                                __m256 tmp_y = _mm256_loadu_ps(gridptr + x + 8);
+                                __m256 gz = _mm256_loadu_ps(gridptr + x + 16);
+
+                                __m256 gx = _mm256_permute2f128_ps(tmp_x, tmp_y, 0b00110000);
+                                __m256 gy = _mm256_permute2f128_ps(tmp_x, gz, 0b00100001);
+                                gz = _mm256_permute2f128_ps(tmp_y, gz, 0b00110000);
+
+                                tmp_x = _mm256_shuffle_ps(gx, gy, 0b01001001);
+                                tmp_y = _mm256_shuffle_ps(gy, gz, 0b10011110);
+
+                                gy = _mm256_shuffle_ps(tmp_x, tmp_y, 0b11011000);
+                                gx = _mm256_shuffle_ps(gx, tmp_y, 0b10001100);
+                                gz = _mm256_shuffle_ps(tmp_x, gz, 0b11001101);
+
+                            }
+#endif // __AVX__
+                            for (int x = grid_size - nn; x < grid_size; x += 3)
+                            {
+                                float gx = gridptr[x];
+                                float gy = gridptr[x + 1];
+                                float gz = gridptr[x + 2];
+                            }
+                        }
+                    }
+                }
+                else if (padding_mode == 3)
+                {
+                    if (align_corner == 0)
+                    {
+#pragma omp parallel for num_threads(opt.num_threads)
+                        for (int y = 0; y < grid_p1.c; y++)
+                        {
+                            float* gridptr = grid_p1.channel(y);
+                            int nn = grid_size;
+#if __AVX__
+                            for (int x = 0; x + 23 < nn; x += 24)
+                            {
+                                __m256 tmp_x = _mm256_loadu_ps(gridptr + x);
+                                __m256 tmp_y = _mm256_loadu_ps(gridptr + x + 8);
+                                __m256 gz = _mm256_loadu_ps(gridptr + x + 16);
+
+                                __m256 gx = _mm256_permute2f128_ps(tmp_x, tmp_y, 0b00110000);
+                                __m256 gy = _mm256_permute2f128_ps(tmp_x, gz, 0b00100001);
+                                gz = _mm256_permute2f128_ps(tmp_y, gz, 0b00110000);
+
+                                tmp_x = _mm256_shuffle_ps(gx, gy, 0b01001001);
+                                tmp_y = _mm256_shuffle_ps(gy, gz, 0b10011110);
+
+                                gy = _mm256_shuffle_ps(tmp_x, tmp_y, 0b11011000);
+                                gx = _mm256_shuffle_ps(gx, tmp_y, 0b10001100);
+                                gz = _mm256_shuffle_ps(tmp_x, gz, 0b11001101);
+
+                            }
+#endif // __AVX__
+                            for (int x = grid_size - nn; x < grid_size; x += 3)
+                            {
+                                float gx = gridptr[x];
+                                float gy = gridptr[x + 1];
+                                float gz = gridptr[x + 2];
+                            }
+                        }
+                    }
+                    else
+                    {
+#pragma omp parallel for num_threads(opt.num_threads)
+                        for (int y = 0; y < grid_p1.c; y++)
+                        {
+                            float* gridptr = grid_p1.channel(y);
+                            int nn = grid_size;
+#if __AVX__
+                            for (int x = 0; x + 23 < nn; x += 24)
+                            {
+                                __m256 tmp_x = _mm256_loadu_ps(gridptr + x);
+                                __m256 tmp_y = _mm256_loadu_ps(gridptr + x + 8);
+                                __m256 gz = _mm256_loadu_ps(gridptr + x + 16);
+
+                                __m256 gx = _mm256_permute2f128_ps(tmp_x, tmp_y, 0b00110000);
+                                __m256 gy = _mm256_permute2f128_ps(tmp_x, gz, 0b00100001);
+                                gz = _mm256_permute2f128_ps(tmp_y, gz, 0b00110000);
+
+                                tmp_x = _mm256_shuffle_ps(gx, gy, 0b01001001);
+                                tmp_y = _mm256_shuffle_ps(gy, gz, 0b10011110);
+
+                                gy = _mm256_shuffle_ps(tmp_x, tmp_y, 0b11011000);
+                                gx = _mm256_shuffle_ps(gx, tmp_y, 0b10001100);
+                                gz = _mm256_shuffle_ps(tmp_x, gz, 0b11001101);
+
+                            }
+#endif // __AVX__
+                            for (int x = grid_size - nn; x < grid_size; x += 3)
+                            {
+                                float gx = gridptr[x];
+                                float gy = gridptr[x + 1];
+                                float gz = gridptr[x + 2];
+                            }
+                        }
+                    }
+                }
             }
             else if (sample_type == 2)
             {
+                if (padding_mode == 1)
+                {
+                    if (align_corner == 0)
+                    {
+#pragma omp parallel for num_threads(opt.num_threads)
+                        for (int y = 0; y < grid_p1.c; y++)
+                        {
+                            float* gridptr = grid_p1.channel(y);
+                            int nn = grid_size;
+#if __AVX__
+                            for (int x = 0; x + 23 < nn; x += 24)
+                            {
+                                //upzip (3)
+                                __m256 tmp_x = _mm256_loadu_ps(gridptr + x);
+                                __m256 tmp_y = _mm256_loadu_ps(gridptr + x + 8);
+                                __m256 gz = _mm256_loadu_ps(gridptr + x + 16);
+
+                                __m256 gx = _mm256_permute2f128_ps(tmp_x, tmp_y, 0b00110000);
+                                __m256 gy = _mm256_permute2f128_ps(tmp_x, gz, 0b00100001);
+                                gz = _mm256_permute2f128_ps(tmp_y, gz, 0b00110000);
+
+                                tmp_x = _mm256_shuffle_ps(gx, gy, 0b01001001);
+                                tmp_y = _mm256_shuffle_ps(gy, gz, 0b10011110);
+
+                                gy = _mm256_shuffle_ps(tmp_x, tmp_y, 0b11011000);
+                                gx = _mm256_shuffle_ps(gx, tmp_y, 0b10001100);
+                                gz = _mm256_shuffle_ps(tmp_x, gz, 0b11001101);
+                            }
+#endif // __AVX__
+                            for (int x = grid_size - nn; x < grid_size; x += 3)
+                            {
+                                float gx = gridptr[x];
+                                float gy = gridptr[x + 1];
+                                float gz = gridptr[x + 2];
+                            }
+                        }
+                    }
+                    else
+                    {
+#pragma omp parallel for num_threads(opt.num_threads)
+                        for (int y = 0; y < grid_p1.c; y++)
+                        {
+                            float* gridptr = grid_p1.channel(y);
+                            int nn = grid_size;
+#if __AVX__
+                            for (int x = 0; x + 23 < nn; x += 24)
+                            {
+                                __m256 tmp_x = _mm256_loadu_ps(gridptr + x);
+                                __m256 tmp_y = _mm256_loadu_ps(gridptr + x + 8);
+                                __m256 gz = _mm256_loadu_ps(gridptr + x + 16);
+
+                                __m256 gx = _mm256_permute2f128_ps(tmp_x, tmp_y, 0b00110000);
+                                __m256 gy = _mm256_permute2f128_ps(tmp_x, gz, 0b00100001);
+                                gz = _mm256_permute2f128_ps(tmp_y, gz, 0b00110000);
+
+                                tmp_x = _mm256_shuffle_ps(gx, gy, 0b01001001);
+                                tmp_y = _mm256_shuffle_ps(gy, gz, 0b10011110);
+
+                                gy = _mm256_shuffle_ps(tmp_x, tmp_y, 0b11011000);
+                                gx = _mm256_shuffle_ps(gx, tmp_y, 0b10001100);
+                                gz = _mm256_shuffle_ps(tmp_x, gz, 0b11001101);
+                            }
+#endif // __AVX__
+                            for (int x = grid_size - nn; x < grid_size; x += 3)
+                            {
+                                float gx = gridptr[x];
+                                float gy = gridptr[x + 1];
+                                float gz = gridptr[x + 2];
+                            }
+                        }
+                    }
+                }
+                else if (padding_mode == 2)
+                {
+                    if (align_corner == 0)
+                    {
+#pragma omp parallel for num_threads(opt.num_threads)
+                        for (int y = 0; y < grid_p1.c; y++)
+                        {
+                            float* gridptr = grid_p1.channel(y);
+                            int nn = grid_size;
+#if __AVX__
+                            for (int x = 0; x + 23 < nn; x += 24)
+                            {
+                                __m256 tmp_x = _mm256_loadu_ps(gridptr + x);
+                                __m256 tmp_y = _mm256_loadu_ps(gridptr + x + 8);
+                                __m256 gz = _mm256_loadu_ps(gridptr + x + 16);
+
+                                __m256 gx = _mm256_permute2f128_ps(tmp_x, tmp_y, 0b00110000);
+                                __m256 gy = _mm256_permute2f128_ps(tmp_x, gz, 0b00100001);
+                                gz = _mm256_permute2f128_ps(tmp_y, gz, 0b00110000);
+
+                                tmp_x = _mm256_shuffle_ps(gx, gy, 0b01001001);
+                                tmp_y = _mm256_shuffle_ps(gy, gz, 0b10011110);
+
+                                gy = _mm256_shuffle_ps(tmp_x, tmp_y, 0b11011000);
+                                gx = _mm256_shuffle_ps(gx, tmp_y, 0b10001100);
+                                gz = _mm256_shuffle_ps(tmp_x, gz, 0b11001101);
+                            }
+#endif // __AVX__
+                            for (int x = grid_size - nn; x < grid_size; x += 3)
+                            {
+                                float gx = gridptr[x];
+                                float gy = gridptr[x + 1];
+                                float gz = gridptr[x + 2];
+                            }
+                        }
+                    }
+                    else
+                    {
+#pragma omp parallel for num_threads(opt.num_threads)
+                        for (int y = 0; y < grid_p1.c; y++)
+                        {
+                            float* gridptr = grid_p1.channel(y);
+                            int nn = grid_size;
+#if __AVX__
+                            for (int x = 0; x + 23 < nn; x += 24)
+                            {
+                                __m256 tmp_x = _mm256_loadu_ps(gridptr + x);
+                                __m256 tmp_y = _mm256_loadu_ps(gridptr + x + 8);
+                                __m256 gz = _mm256_loadu_ps(gridptr + x + 16);
+
+                                __m256 gx = _mm256_permute2f128_ps(tmp_x, tmp_y, 0b00110000);
+                                __m256 gy = _mm256_permute2f128_ps(tmp_x, gz, 0b00100001);
+                                gz = _mm256_permute2f128_ps(tmp_y, gz, 0b00110000);
+
+                                tmp_x = _mm256_shuffle_ps(gx, gy, 0b01001001);
+                                tmp_y = _mm256_shuffle_ps(gy, gz, 0b10011110);
+
+                                gy = _mm256_shuffle_ps(tmp_x, tmp_y, 0b11011000);
+                                gx = _mm256_shuffle_ps(gx, tmp_y, 0b10001100);
+                                gz = _mm256_shuffle_ps(tmp_x, gz, 0b11001101);
+                            }
+#endif // __AVX__
+                            for (int x = grid_size - nn; x < grid_size; x += 3)
+                            {
+                                float gx = gridptr[x];
+                                float gy = gridptr[x + 1];
+                                float gz = gridptr[x + 2];
+                            }
+                        }
+                    }
+                }
+                else if (padding_mode == 3)
+                {
+                    if (align_corner == 0)
+                    {
+#pragma omp parallel for num_threads(opt.num_threads)
+                        for (int y = 0; y < grid_p1.c; y++)
+                        {
+                            float* gridptr = grid_p1.channel(y);
+                            int nn = grid_size;
+#if __AVX__
+                            for (int x = 0; x + 23 < nn; x += 24)
+                            {
+                                __m256 tmp_x = _mm256_loadu_ps(gridptr + x);
+                                __m256 tmp_y = _mm256_loadu_ps(gridptr + x + 8);
+                                __m256 gz = _mm256_loadu_ps(gridptr + x + 16);
+
+                                __m256 gx = _mm256_permute2f128_ps(tmp_x, tmp_y, 0b00110000);
+                                __m256 gy = _mm256_permute2f128_ps(tmp_x, gz, 0b00100001);
+                                gz = _mm256_permute2f128_ps(tmp_y, gz, 0b00110000);
+
+                                tmp_x = _mm256_shuffle_ps(gx, gy, 0b01001001);
+                                tmp_y = _mm256_shuffle_ps(gy, gz, 0b10011110);
+
+                                gy = _mm256_shuffle_ps(tmp_x, tmp_y, 0b11011000);
+                                gx = _mm256_shuffle_ps(gx, tmp_y, 0b10001100);
+                                gz = _mm256_shuffle_ps(tmp_x, gz, 0b11001101);
+                            }
+#endif // __AVX__
+                            for (int x = grid_size - nn; x < grid_size; x += 3)
+                            {
+                                float gx = gridptr[x];
+                                float gy = gridptr[x + 1];
+                                float gz = gridptr[x + 2];
+                            }
+                        }
+                    }
+                    else
+                    {
+#pragma omp parallel for num_threads(opt.num_threads)
+                        for (int y = 0; y < grid_p1.c; y++)
+                        {
+                            float* gridptr = grid_p1.channel(y);
+                            int nn = grid_size;
+#if __AVX__
+                            for (int x = 0; x + 23 < nn; x += 24)
+                            {
+                                __m256 tmp_x = _mm256_loadu_ps(gridptr + x);
+                                __m256 tmp_y = _mm256_loadu_ps(gridptr + x + 8);
+                                __m256 gz = _mm256_loadu_ps(gridptr + x + 16);
+
+                                __m256 gx = _mm256_permute2f128_ps(tmp_x, tmp_y, 0b00110000);
+                                __m256 gy = _mm256_permute2f128_ps(tmp_x, gz, 0b00100001);
+                                gz = _mm256_permute2f128_ps(tmp_y, gz, 0b00110000);
+
+                                tmp_x = _mm256_shuffle_ps(gx, gy, 0b01001001);
+                                tmp_y = _mm256_shuffle_ps(gy, gz, 0b10011110);
+
+                                gy = _mm256_shuffle_ps(tmp_x, tmp_y, 0b11011000);
+                                gx = _mm256_shuffle_ps(gx, tmp_y, 0b10001100);
+                                gz = _mm256_shuffle_ps(tmp_x, gz, 0b11001101);
+                            }
+#endif // __AVX__
+                            for (int x = grid_size - nn; x < grid_size; x += 3)
+                            {
+                                float gx = gridptr[x];
+                                float gy = gridptr[x + 1];
+                                float gz = gridptr[x + 2];
+                            }
+                        }
+                    }
+                }
             }
             else
             {
