@@ -24,7 +24,6 @@ static void gridsample_2d_bilinear_align0_zeros_blob_pack8(const Mat& src, Mat& 
     const __m256 vElempackf = _mm256_set1_ps(src.elempack);
 #endif // !!__AVX2__
 
-
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int y = 0; y < dst.h; y++)
     {
@@ -95,7 +94,7 @@ static void gridsample_2d_bilinear_align0_zeros_blob_pack8(const Mat& src, Mat& 
             __m256 v11_in_range = _mm256_and_ps(x1_in_range, y1_in_range);
 
             __m256 nw_offset = _mm256_add_ps(_mm256_mul_ps(_mm256_add_ps(_mm256_mul_ps(y_n, vImgWf), x_w), vElempackf),
-                                                _mm256_set_ps(7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
+                                             _mm256_set_ps(7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
             __m256 ne_offset = _mm256_add_ps(nw_offset, vElempackf);
             __m256 sw_offset = _mm256_add_ps(nw_offset, _mm256_mul_ps(vImgWf, vElempackf));
             __m256 se_offset = _mm256_add_ps(sw_offset, vElempackf);
@@ -113,7 +112,7 @@ static void gridsample_2d_bilinear_align0_zeros_blob_pack8(const Mat& src, Mat& 
                 __m256 ne_val = mask_gather_ps256(src.channel(q), i_ne_offset, _mm256_castsi256_ps(v10_in_range));
                 __m256 sw_val = mask_gather_ps256(src.channel(q), i_sw_offset, _mm256_castsi256_ps(v01_in_range));
                 __m256 se_val = mask_gather_ps256(src.channel(q), i_se_offset, _mm256_castsi256_ps(v11_in_range));
-#else                                             
+#else
                 __m256 nw_val = mask_gather_ps256(src.channel(q), i_nw_offset, v00_in_range);
                 __m256 ne_val = mask_gather_ps256(src.channel(q), i_ne_offset, v10_in_range);
                 __m256 sw_val = mask_gather_ps256(src.channel(q), i_sw_offset, v01_in_range);
@@ -177,7 +176,7 @@ static void gridsample_2d_bilinear_align1_zeros_blob_pack8(const Mat& src, Mat& 
             __m256 sw = _mm256_mul_ps(n, e);
             __m256 se = _mm256_mul_ps(n, w);
 
-            #if __AVX2__
+#if __AVX2__
             __m256i x0 = _mm256_cvtps_epi32(x_w);
             __m256i y0 = _mm256_cvtps_epi32(y_n);
             __m256i x1 = _mm256_add_epi32(x0, *(__m256i*)_pi32_256_1);
@@ -321,7 +320,6 @@ static void gridsample_2d_bilinear_align0_border_blob_pack8(const Mat& src, Mat&
 
             for (int q = 0; q < dst.c; q++)
             {
-
                 __m256 nw_val = mask_gather_ps256(src.channel(q), i_nw_offset, *(__m256*)_ps256_n1);
                 __m256 ne_val = mask_gather_ps256(src.channel(q), i_ne_offset, x1_in_range);
                 __m256 sw_val = mask_gather_ps256(src.channel(q), i_sw_offset, y1_in_range);
@@ -734,7 +732,7 @@ static void gridsample_3d_bilinear_align0_zeros_blob_pack8(const Mat& src, Mat& 
                     v101_in_range = _mm256_and_si256(v10_in_range, z1_in_range);
                     v111_in_range = _mm256_and_si256(v11_in_range, z1_in_range);
                 }
-              
+
                 __m256i i_tnw_offset = _mm256_add_epi32(_mm256_mullo_epi32(_mm256_add_epi32(_mm256_mullo_epi32(_mm256_mullo_epi32(vImgWi, vImgHi), z0), _mm256_add_epi32(_mm256_mullo_epi32(y0, vImgWi), x0)), vElempacki), _mm256_set_epi32(7, 6, 5, 4, 3, 2, 1, 0));
                 __m256i i_tne_offset = _mm256_add_epi32(i_tnw_offset, vElempacki);
                 __m256i i_tsw_offset = _mm256_add_epi32(i_tnw_offset, _mm256_mullo_epi32(vImgWi, vElempacki));
@@ -774,12 +772,14 @@ static void gridsample_3d_bilinear_align0_zeros_blob_pack8(const Mat& src, Mat& 
                     v111_in_range = _mm256_and_ps(v11_in_range, z1_in_range);
                 }
 
-                __m256 tnw_offset = _mm256_add_ps(_mm256_mul_ps(_mm256_add_ps(_mm256_mul_ps(_mm256_mul_ps(vImgWf, vImgHf), z_t), 
-                    _mm256_add_ps(_mm256_mul_ps(y_n, vImgWf), x_w)), vElempackf), _mm256_set_ps(7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
+                __m256 tnw_offset = _mm256_add_ps(_mm256_mul_ps(_mm256_add_ps(_mm256_mul_ps(_mm256_mul_ps(vImgWf, vImgHf), z_t),
+                                                  _mm256_add_ps(_mm256_mul_ps(y_n, vImgWf), x_w)),
+                                                  vElempackf),
+                                                  _mm256_set_ps(7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
                 __m256 tne_offset = _mm256_add_ps(tnw_offset, vElempackf);
                 __m256 tsw_offset = _mm256_add_ps(tnw_offset, _mm256_mul_ps(vImgWf, vElempackf));
                 __m256 tse_offset = _mm256_add_ps(tsw_offset, vElempackf);
-                       
+
                 __m256 bnw_offset = _mm256_add_ps(_mm256_mul_ps(_mm256_mul_ps(vImgWf, vImgHf), vElempackf), tnw_offset);
                 __m256 bne_offset = _mm256_add_ps(bnw_offset, vElempackf);
                 __m256 bsw_offset = _mm256_add_ps(bnw_offset, _mm256_mul_ps(vImgWf, vElempackf));
@@ -795,7 +795,6 @@ static void gridsample_3d_bilinear_align0_zeros_blob_pack8(const Mat& src, Mat& 
                 __m256i i_bsw_offset = _mm256_cvtps_epi32(bsw_offset);
                 __m256i i_bse_offset = _mm256_cvtps_epi32(bse_offset);
 #endif // __AVX2__
-
 
                 for (int q = 0; q < dst.c; q++)
                 {
@@ -982,8 +981,8 @@ static void gridsample_3d_bilinear_align1_zeros_blob_pack8(const Mat& src, Mat& 
                 }
 
                 __m256 tnw_offset = _mm256_add_ps(_mm256_mul_ps(_mm256_add_ps(_mm256_mul_ps(_mm256_mul_ps(vImgWf, vImgHf), z_t),
-                                                                              _mm256_add_ps(_mm256_mul_ps(y_n, vImgWf), x_w)),
-                                                                vElempackf),
+                                                  _mm256_add_ps(_mm256_mul_ps(y_n, vImgWf), x_w)),
+                                                  vElempackf),
                                                   _mm256_set_ps(7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
                 __m256 tne_offset = _mm256_add_ps(tnw_offset, vElempackf);
                 __m256 tsw_offset = _mm256_add_ps(tnw_offset, _mm256_mul_ps(vImgWf, vElempackf));
@@ -1144,7 +1143,9 @@ static void gridsample_3d_bilinear_align0_border_blob_pack8(const Mat& src, Mat&
                     v111_in_range = _mm256_and_ps(v11_in_range, z1_in_range);
                 }
                 __m256 tnw_offset = _mm256_add_ps(_mm256_mul_ps(_mm256_add_ps(_mm256_mul_ps(_mm256_mul_ps(vImgWf, vImgHf), z_t),
-                    _mm256_add_ps(_mm256_mul_ps(y_n, vImgWf), x_w)),vElempackf),_mm256_set_ps(7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
+                                                  _mm256_add_ps(_mm256_mul_ps(y_n, vImgWf), x_w)),
+                                                  vElempackf),
+                                                  _mm256_set_ps(7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
                 __m256 tne_offset = _mm256_add_ps(tnw_offset, vElempackf);
                 __m256 tsw_offset = _mm256_add_ps(tnw_offset, _mm256_mul_ps(vImgWf, vElempackf));
                 __m256 tse_offset = _mm256_add_ps(tsw_offset, vElempackf);
@@ -1154,7 +1155,7 @@ static void gridsample_3d_bilinear_align0_border_blob_pack8(const Mat& src, Mat&
                 __m256 bsw_offset = _mm256_add_ps(bnw_offset, _mm256_mul_ps(vImgWf, vElempackf));
                 __m256 bse_offset = _mm256_add_ps(bsw_offset, vElempackf);
 
-                                __m256i i_tnw_offset = _mm256_cvtps_epi32(tnw_offset);
+                __m256i i_tnw_offset = _mm256_cvtps_epi32(tnw_offset);
                 __m256i i_tne_offset = _mm256_cvtps_epi32(tne_offset);
                 __m256i i_tsw_offset = _mm256_cvtps_epi32(tsw_offset);
                 __m256i i_tse_offset = _mm256_cvtps_epi32(tse_offset);
@@ -1272,7 +1273,7 @@ static void gridsample_3d_bilinear_align1_border_blob_pack8(const Mat& src, Mat&
                     bse = _mm256_mul_ps(t, se);
                 }
 
-                                __m256 x1 = _mm256_add_ps(x_w, *(__m256*)_ps256_1);
+                __m256 x1 = _mm256_add_ps(x_w, *(__m256*)_ps256_1);
                 __m256 y1 = _mm256_add_ps(y_n, *(__m256*)_ps256_1);
                 __m256 z1 = _mm256_add_ps(z_t, *(__m256*)_ps256_1);
 
@@ -1291,8 +1292,8 @@ static void gridsample_3d_bilinear_align1_border_blob_pack8(const Mat& src, Mat&
                     v111_in_range = _mm256_and_ps(v11_in_range, z1_in_range);
                 }
                 __m256 tnw_offset = _mm256_add_ps(_mm256_mul_ps(_mm256_add_ps(_mm256_mul_ps(_mm256_mul_ps(vImgWf, vImgHf), z_t),
-                                                                              _mm256_add_ps(_mm256_mul_ps(y_n, vImgWf), x_w)),
-                                                                vElempackf),
+                                                  _mm256_add_ps(_mm256_mul_ps(y_n, vImgWf), x_w)),
+                                                  vElempackf),
                                                   _mm256_set_ps(7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
                 __m256 tne_offset = _mm256_add_ps(tnw_offset, vElempackf);
                 __m256 tsw_offset = _mm256_add_ps(tnw_offset, _mm256_mul_ps(vImgWf, vElempackf));
@@ -1452,7 +1453,7 @@ static void gridsample_3d_bilinear_align0_reflection_blob_pack8(const Mat& src, 
                     bse = _mm256_mul_ps(t, se);
                 }
 
-                                __m256 x1 = _mm256_add_ps(x_w, *(__m256*)_ps256_1);
+                __m256 x1 = _mm256_add_ps(x_w, *(__m256*)_ps256_1);
                 __m256 y1 = _mm256_add_ps(y_n, *(__m256*)_ps256_1);
                 __m256 z1 = _mm256_add_ps(z_t, *(__m256*)_ps256_1);
 
@@ -1471,8 +1472,8 @@ static void gridsample_3d_bilinear_align0_reflection_blob_pack8(const Mat& src, 
                     v111_in_range = _mm256_and_ps(v11_in_range, z1_in_range);
                 }
                 __m256 tnw_offset = _mm256_add_ps(_mm256_mul_ps(_mm256_add_ps(_mm256_mul_ps(_mm256_mul_ps(vImgWf, vImgHf), z_t),
-                                                                              _mm256_add_ps(_mm256_mul_ps(y_n, vImgWf), x_w)),
-                                                                vElempackf),
+                                                  _mm256_add_ps(_mm256_mul_ps(y_n, vImgWf), x_w)),
+                                                  vElempackf),
                                                   _mm256_set_ps(7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
                 __m256 tne_offset = _mm256_add_ps(tnw_offset, vElempackf);
                 __m256 tsw_offset = _mm256_add_ps(tnw_offset, _mm256_mul_ps(vImgWf, vElempackf));
@@ -1626,8 +1627,8 @@ static void gridsample_3d_bilinear_align1_reflection_blob_pack8(const Mat& src, 
                     v111_in_range = _mm256_and_ps(v11_in_range, z1_in_range);
                 }
                 __m256 tnw_offset = _mm256_add_ps(_mm256_mul_ps(_mm256_add_ps(_mm256_mul_ps(_mm256_mul_ps(vImgWf, vImgHf), z_t),
-                                                                              _mm256_add_ps(_mm256_mul_ps(y_n, vImgWf), x_w)),
-                                                                vElempackf),
+                                                  _mm256_add_ps(_mm256_mul_ps(y_n, vImgWf), x_w)),
+                                                  vElempackf),
                                                   _mm256_set_ps(7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
                 __m256 tne_offset = _mm256_add_ps(tnw_offset, vElempackf);
                 __m256 tsw_offset = _mm256_add_ps(tnw_offset, _mm256_mul_ps(vImgWf, vElempackf));

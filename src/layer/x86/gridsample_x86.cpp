@@ -1319,7 +1319,6 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 for (int q = 0; q < channels; q++)
                                 {
-
                                     __m256 nw_val = mask_gather_ps256(bottom_blob.channel(q), i_nw_offset, *(__m256*)_ps256_n1);
 #if __AVX2__
                                     __m256 ne_val = mask_gather_ps256(bottom_blob.channel(q), i_ne_offset, _mm256_castsi256_ps(x1_in_range));
@@ -1435,7 +1434,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                 __m256 sw = _mm256_mul_ps(n, e);
                                 __m256 se = _mm256_mul_ps(n, w);
 
-                                                                __m256i x0 = _mm256_cvtps_epi32(x_w);
+                                __m256i x0 = _mm256_cvtps_epi32(x_w);
                                 __m256i y0 = _mm256_cvtps_epi32(y_n);
 #if __AVX2__
                                 __m256i x1 = _mm256_add_epi32(x0, *(__m256i*)_pi32_256_1);
@@ -1612,7 +1611,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                 __m256 sw = _mm256_mul_ps(n, e);
                                 __m256 se = _mm256_mul_ps(n, w);
 
-                                                                __m256i x0 = _mm256_cvtps_epi32(x_w);
+                                __m256i x0 = _mm256_cvtps_epi32(x_w);
                                 __m256i y0 = _mm256_cvtps_epi32(y_n);
 #if __AVX2__
                                 __m256i x1 = _mm256_add_epi32(x0, *(__m256i*)_pi32_256_1);
@@ -1776,7 +1775,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                 __m256 sw = _mm256_mul_ps(n, e);
                                 __m256 se = _mm256_mul_ps(n, w);
 
-                                                               __m256i x0 = _mm256_cvtps_epi32(x_w);
+                                __m256i x0 = _mm256_cvtps_epi32(x_w);
                                 __m256i y0 = _mm256_cvtps_epi32(y_n);
 #if __AVX2__
                                 __m256i x1 = _mm256_add_epi32(x0, *(__m256i*)_pi32_256_1);
@@ -1927,7 +1926,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                 gy = _mm256_floor_ps(_mm256_add_ps(gy, _mm256_set1_ps(0.5f)));
 
                                 __m256 v_in_range = _mm256_and_ps(_mm256_and_ps(_mm256_cmp_ps(gx, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgWf, gx, _CMP_GT_OS)),
-                                                                   _mm256_and_ps(_mm256_cmp_ps(gy, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgHf, gy, _CMP_GT_OS)));
+                                                                  _mm256_and_ps(_mm256_cmp_ps(gy, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgHf, gy, _CMP_GT_OS)));
 
                                 __m256 offset = _mm256_add_ps(_mm256_mul_ps(gy, vImgWf), gx);
                                 __m256i i_offset = _mm256_cvtps_epi32(offset);
