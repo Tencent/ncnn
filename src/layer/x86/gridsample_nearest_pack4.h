@@ -65,7 +65,7 @@ static void gridsample_2d_nearest_align0_zeros_blob_pack4(const Mat& src, Mat& d
 
             for (int q = 0; q < dst.c; q++)
             {
-                __m128 _v = mask_gather_ps(src.channel(q), i_offset, *reinterpret_cast<__m128*>(&v_in_range));
+                __m128 _v = mask_gather_ps(src.channel(q), i_offset, _mm_castsi128_ps(v_in_range));
 
                 _mm_storeu_ps(dst.channel(q).row(y) + x * dst.elempack, _v);
             }
@@ -126,7 +126,7 @@ static void gridsample_2d_nearest_align1_zeros_blob_pack4(const Mat& src, Mat& d
 
             for (int q = 0; q < dst.c; q++)
             {
-                __m128 _v = mask_gather_ps(src.channel(q), i_offset, *reinterpret_cast<__m128*>(&v_in_range));
+                __m128 _v = mask_gather_ps(src.channel(q), i_offset, _mm_castsi128_ps(v_in_range));
 
                 _mm_storeu_ps(dst.channel(q).row(y) + x * dst.elempack, _v);
             }
@@ -480,7 +480,7 @@ static void gridsample_3d_nearest_align0_zeros_blob_pack4(const Mat& src, Mat& d
 
                 for (int q = 0; q < dst.c; q++)
                 {
-                    __m128 _v = mask_gather_ps(src.channel(q), i_offset, *reinterpret_cast<__m128*>(&v_in_range));
+                    __m128 _v = mask_gather_ps(src.channel(q), i_offset, _mm_castsi128_ps(v_in_range));
 
                     _mm_storeu_ps(dst.channel(q).depth(z).row(y) + x * dst.elempack, _v);
                 }
@@ -546,7 +546,7 @@ static void gridsample_3d_nearest_align1_zeros_blob_pack4(const Mat& src, Mat& d
 
                 for (int q = 0; q < dst.c; q++)
                 {
-                    __m128 _v = mask_gather_ps(src.channel(q), i_offset, *reinterpret_cast<__m128*>(&v_in_range));
+                    __m128 _v = mask_gather_ps(src.channel(q), i_offset, _mm_castsi128_ps(v_in_range));
 
                     _mm_storeu_ps(dst.channel(q).depth(z).row(y) + x * dst.elempack, _v);
                 }

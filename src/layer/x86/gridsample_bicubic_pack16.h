@@ -64,8 +64,8 @@ static void gridsample_2d_bicubic_align0_zeros_blob_pack16(const Mat& src, Mat& 
                 gy = _mm512_div_ps(_mm512_fmsub_ps(_mm512_add_ps(gy, *(__m512*)_ps512_1), vImgHf, *(__m512*)_ps512_1), two);
             }
 
-            __m512 gx_floor = _mm512_floor_ps(gx);
-            __m512 gy_floor = _mm512_floor_ps(gy);
+            __m512 gx_floor = _mm512_roundscale_ps(gx, _MM_FROUND_TO_NEG_INF);
+            __m512 gy_floor = _mm512_roundscale_ps(gy, _MM_FROUND_TO_NEG_INF);
 
             const __m512 tx = _mm512_sub_ps(gx, gx_floor);
             const __m512 ty = _mm512_sub_ps(gy, gy_floor);
@@ -164,8 +164,8 @@ static void gridsample_2d_bicubic_align1_zeros_blob_pack16(const Mat& src, Mat& 
                 gy = _mm512_mul_ps(_mm512_div_ps(_mm512_add_ps(gy, *(__m512*)_ps512_1), two), _mm512_sub_ps(vImgHf, *(__m512*)_ps512_1));
             }
 
-            __m512 gx_floor = _mm512_floor_ps(gx);
-            __m512 gy_floor = _mm512_floor_ps(gy);
+            __m512 gx_floor = _mm512_roundscale_ps(gx, _MM_FROUND_TO_NEG_INF);
+            __m512 gy_floor = _mm512_roundscale_ps(gy, _MM_FROUND_TO_NEG_INF);
 
             const __m512 tx = _mm512_sub_ps(gx, gx_floor);
             const __m512 ty = _mm512_sub_ps(gy, gy_floor);
@@ -262,8 +262,8 @@ static void gridsample_2d_bicubic_align0_border_blob_pack16(const Mat& src, Mat&
             gx = _mm512_div_ps(_mm512_fmsub_ps(_mm512_add_ps(gx, *(__m512*)_ps512_1), vImgWf, *(__m512*)_ps512_1), two);
             gy = _mm512_div_ps(_mm512_fmsub_ps(_mm512_add_ps(gy, *(__m512*)_ps512_1), vImgHf, *(__m512*)_ps512_1), two);
 
-            __m512 gx_floor = _mm512_floor_ps(gx);
-            __m512 gy_floor = _mm512_floor_ps(gy);
+            __m512 gx_floor = _mm512_roundscale_ps(gx, _MM_FROUND_TO_NEG_INF);
+            __m512 gy_floor = _mm512_roundscale_ps(gy, _MM_FROUND_TO_NEG_INF);
 
             const __m512 tx = _mm512_sub_ps(gx, gx_floor);
             const __m512 ty = _mm512_sub_ps(gy, gy_floor);
@@ -354,8 +354,8 @@ static void gridsample_2d_bicubic_align1_border_blob_pack16(const Mat& src, Mat&
             gx = _mm512_mul_ps(_mm512_div_ps(_mm512_add_ps(gx, *(__m512*)_ps512_1), two), _mm512_sub_ps(vImgWf, *(__m512*)_ps512_1));
             gy = _mm512_mul_ps(_mm512_div_ps(_mm512_add_ps(gy, *(__m512*)_ps512_1), two), _mm512_sub_ps(vImgHf, *(__m512*)_ps512_1));
 
-            __m512 gx_floor = _mm512_floor_ps(gx);
-            __m512 gy_floor = _mm512_floor_ps(gy);
+            __m512 gx_floor = _mm512_roundscale_ps(gx, _MM_FROUND_TO_NEG_INF);
+            __m512 gy_floor = _mm512_roundscale_ps(gy, _MM_FROUND_TO_NEG_INF);
 
             const __m512 tx = _mm512_sub_ps(gx, gx_floor);
             const __m512 ty = _mm512_sub_ps(gy, gy_floor);
@@ -445,8 +445,8 @@ static void gridsample_2d_bicubic_align0_reflection_blob_pack16(const Mat& src, 
             gx = _mm512_div_ps(_mm512_fmsub_ps(_mm512_add_ps(gx, *(__m512*)_ps512_1), vImgWf, *(__m512*)_ps512_1), two);
             gy = _mm512_div_ps(_mm512_fmsub_ps(_mm512_add_ps(gy, *(__m512*)_ps512_1), vImgHf, *(__m512*)_ps512_1), two);
 
-            __m512 gx_floor = _mm512_floor_ps(gx);
-            __m512 gy_floor = _mm512_floor_ps(gy);
+            __m512 gx_floor = _mm512_roundscale_ps(gx, _MM_FROUND_TO_NEG_INF);
+            __m512 gy_floor = _mm512_roundscale_ps(gy, _MM_FROUND_TO_NEG_INF);
 
             const __m512 tx = _mm512_sub_ps(gx, gx_floor);
             const __m512 ty = _mm512_sub_ps(gy, gy_floor);
@@ -611,8 +611,8 @@ static void gridsample_2d_bicubic_align1_reflection_blob_pack16(const Mat& src, 
             gx = _mm512_mul_ps(_mm512_div_ps(_mm512_add_ps(gx, *(__m512*)_ps512_1), two), _mm512_sub_ps(vImgWf, *(__m512*)_ps512_1));
             gy = _mm512_mul_ps(_mm512_div_ps(_mm512_add_ps(gy, *(__m512*)_ps512_1), two), _mm512_sub_ps(vImgHf, *(__m512*)_ps512_1));
 
-            __m512 gx_floor = _mm512_floor_ps(gx);
-            __m512 gy_floor = _mm512_floor_ps(gy);
+            __m512 gx_floor = _mm512_roundscale_ps(gx, _MM_FROUND_TO_NEG_INF);
+            __m512 gy_floor = _mm512_roundscale_ps(gy, _MM_FROUND_TO_NEG_INF);
 
             const __m512 tx = _mm512_sub_ps(gx, gx_floor);
             const __m512 ty = _mm512_sub_ps(gy, gy_floor);

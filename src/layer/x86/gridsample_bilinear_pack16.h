@@ -42,8 +42,8 @@ static void gridsample_2d_bilinear_align0_zeros_blob_pack16(const Mat& src, Mat&
                 gy = _mm512_div_ps(_mm512_fmsub_ps(_mm512_add_ps(gy, *(__m512*)_ps512_1), vImgHf, *(__m512*)_ps512_1), two);
             }
 
-            __m512 x_w = _mm512_floor_ps(gx);
-            __m512 y_n = _mm512_floor_ps(gy);
+            __m512 x_w = _mm512_roundscale_ps(gx, _MM_FROUND_TO_NEG_INF);
+            __m512 y_n = _mm512_roundscale_ps(gy, _MM_FROUND_TO_NEG_INF);
 
             __m512 w = _mm512_sub_ps(gx, x_w);
             __m512 e = _mm512_sub_ps(*(__m512*)_ps512_1, w);
@@ -125,8 +125,8 @@ static void gridsample_2d_bilinear_align1_zeros_blob_pack16(const Mat& src, Mat&
                 gy = _mm512_mul_ps(_mm512_div_ps(_mm512_add_ps(gy, *(__m512*)_ps512_1), two), _mm512_sub_ps(vImgHf, *(__m512*)_ps512_1));
             }
 
-            __m512 x_w = _mm512_floor_ps(gx);
-            __m512 y_n = _mm512_floor_ps(gy);
+            __m512 x_w = _mm512_roundscale_ps(gx, _MM_FROUND_TO_NEG_INF);
+            __m512 y_n = _mm512_roundscale_ps(gy, _MM_FROUND_TO_NEG_INF);
 
             __m512 w = _mm512_sub_ps(gx, x_w);
             __m512 e = _mm512_sub_ps(*(__m512*)_ps512_1, w);
@@ -216,8 +216,8 @@ static void gridsample_2d_bilinear_align0_border_blob_pack16(const Mat& src, Mat
                 gy = _mm512_min_ps(border_y, _mm512_max_ps(gy, _mm512_setzero_ps()));
             }
 
-            __m512 x_w = _mm512_floor_ps(gx);
-            __m512 y_n = _mm512_floor_ps(gy);
+            __m512 x_w = _mm512_roundscale_ps(gx, _MM_FROUND_TO_NEG_INF);
+            __m512 y_n = _mm512_roundscale_ps(gy, _MM_FROUND_TO_NEG_INF);
 
             __m512 w = _mm512_sub_ps(gx, x_w);
             __m512 e = _mm512_sub_ps(*(__m512*)_ps512_1, w);
@@ -302,8 +302,8 @@ static void gridsample_2d_bilinear_align1_border_blob_pack16(const Mat& src, Mat
                 gy = _mm512_min_ps(border_y, _mm512_max_ps(gy, _mm512_setzero_ps()));
             }
 
-            __m512 x_w = _mm512_floor_ps(gx);
-            __m512 y_n = _mm512_floor_ps(gy);
+            __m512 x_w = _mm512_roundscale_ps(gx, _MM_FROUND_TO_NEG_INF);
+            __m512 y_n = _mm512_roundscale_ps(gy, _MM_FROUND_TO_NEG_INF);
 
             __m512 w = _mm512_sub_ps(gx, x_w);
             __m512 e = _mm512_sub_ps(*(__m512*)_ps512_1, w);
@@ -411,8 +411,8 @@ static void gridsample_2d_bilinear_align0_reflection_blob_pack16(const Mat& src,
                 gy = _mm512_min_ps(border_y, _mm512_max_ps(gy, _mm512_setzero_ps()));
             }
 
-            __m512 x_w = _mm512_floor_ps(gx);
-            __m512 y_n = _mm512_floor_ps(gy);
+            __m512 x_w = _mm512_roundscale_ps(gx, _MM_FROUND_TO_NEG_INF);
+            __m512 y_n = _mm512_roundscale_ps(gy, _MM_FROUND_TO_NEG_INF);
 
             __m512 w = _mm512_sub_ps(gx, x_w);
             __m512 e = _mm512_sub_ps(*(__m512*)_ps512_1, w);
@@ -503,8 +503,8 @@ static void gridsample_2d_bilinear_align1_reflection_blob_pack16(const Mat& src,
                 gy = _mm512_sub_ps(border_y, reflecty_v);
             }
 
-            __m512 x_w = _mm512_floor_ps(gx);
-            __m512 y_n = _mm512_floor_ps(gy);
+            __m512 x_w = _mm512_roundscale_ps(gx, _MM_FROUND_TO_NEG_INF);
+            __m512 y_n = _mm512_roundscale_ps(gy, _MM_FROUND_TO_NEG_INF);
 
             __m512 w = _mm512_sub_ps(gx, x_w);
             __m512 e = _mm512_sub_ps(*(__m512*)_ps512_1, w);
@@ -589,9 +589,9 @@ static void gridsample_3d_bilinear_align0_zeros_blob_pack16(const Mat& src, Mat&
                     gz = _mm512_div_ps(_mm512_fmsub_ps(_mm512_add_ps(gz, *(__m512*)_ps512_1), vImgDf, *(__m512*)_ps512_1), two);
                 }
 
-                __m512 x_w = _mm512_floor_ps(gx);
-                __m512 y_n = _mm512_floor_ps(gy);
-                __m512 z_t = _mm512_floor_ps(gz);
+                __m512 x_w = _mm512_roundscale_ps(gx, _MM_FROUND_TO_NEG_INF);
+                __m512 y_n = _mm512_roundscale_ps(gy, _MM_FROUND_TO_NEG_INF);
+                __m512 z_t = _mm512_roundscale_ps(gz, _MM_FROUND_TO_NEG_INF);
 
                 __m512 w = _mm512_sub_ps(gx, x_w);
                 __m512 e = _mm512_sub_ps(*(__m512*)_ps512_1, w);
@@ -728,9 +728,9 @@ static void gridsample_3d_bilinear_align1_zeros_blob_pack16(const Mat& src, Mat&
                     gz = _mm512_mul_ps(_mm512_div_ps(_mm512_add_ps(gz, *(__m512*)_ps512_1), two), _mm512_sub_ps(vImgDf, *(__m512*)_ps512_1));
                 }
 
-                __m512 x_w = _mm512_floor_ps(gx);
-                __m512 y_n = _mm512_floor_ps(gy);
-                __m512 z_t = _mm512_floor_ps(gz);
+                __m512 x_w = _mm512_roundscale_ps(gx, _MM_FROUND_TO_NEG_INF);
+                __m512 y_n = _mm512_roundscale_ps(gy, _MM_FROUND_TO_NEG_INF);
+                __m512 z_t = _mm512_roundscale_ps(gz, _MM_FROUND_TO_NEG_INF);
 
                 __m512 w = _mm512_sub_ps(gx, x_w);
                 __m512 e = _mm512_sub_ps(*(__m512*)_ps512_1, w);
@@ -879,9 +879,9 @@ static void gridsample_3d_bilinear_align0_border_blob_pack16(const Mat& src, Mat
                     gz = _mm512_min_ps(border_z, _mm512_max_ps(gz, _mm512_setzero_ps()));
                 }
 
-                __m512 x_w = _mm512_floor_ps(gx);
-                __m512 y_n = _mm512_floor_ps(gy);
-                __m512 z_t = _mm512_floor_ps(gz);
+                __m512 x_w = _mm512_roundscale_ps(gx, _MM_FROUND_TO_NEG_INF);
+                __m512 y_n = _mm512_roundscale_ps(gy, _MM_FROUND_TO_NEG_INF);
+                __m512 z_t = _mm512_roundscale_ps(gz, _MM_FROUND_TO_NEG_INF);
 
                 __m512 w = _mm512_sub_ps(gx, x_w);
                 __m512 e = _mm512_sub_ps(*(__m512*)_ps512_1, w);
@@ -1020,9 +1020,9 @@ static void gridsample_3d_bilinear_align1_border_blob_pack16(const Mat& src, Mat
                     gz = _mm512_min_ps(border_z, _mm512_max_ps(gz, _mm512_setzero_ps()));
                 }
 
-                __m512 x_w = _mm512_floor_ps(gx);
-                __m512 y_n = _mm512_floor_ps(gy);
-                __m512 z_t = _mm512_floor_ps(gz);
+                __m512 x_w = _mm512_roundscale_ps(gx, _MM_FROUND_TO_NEG_INF);
+                __m512 y_n = _mm512_roundscale_ps(gy, _MM_FROUND_TO_NEG_INF);
+                __m512 z_t = _mm512_roundscale_ps(gz, _MM_FROUND_TO_NEG_INF);
 
                 __m512 w = _mm512_sub_ps(gx, x_w);
                 __m512 e = _mm512_sub_ps(*(__m512*)_ps512_1, w);
@@ -1192,9 +1192,9 @@ static void gridsample_3d_bilinear_align0_reflection_blob_pack16(const Mat& src,
                     gz = _mm512_min_ps(border_z, _mm512_max_ps(gz, _mm512_setzero_ps()));
                 }
 
-                __m512 x_w = _mm512_floor_ps(gx);
-                __m512 y_n = _mm512_floor_ps(gy);
-                __m512 z_t = _mm512_floor_ps(gz);
+                __m512 x_w = _mm512_roundscale_ps(gx, _MM_FROUND_TO_NEG_INF);
+                __m512 y_n = _mm512_roundscale_ps(gy, _MM_FROUND_TO_NEG_INF);
+                __m512 z_t = _mm512_roundscale_ps(gz, _MM_FROUND_TO_NEG_INF);
 
                 __m512 w = _mm512_sub_ps(gx, x_w);
                 __m512 e = _mm512_sub_ps(*(__m512*)_ps512_1, w);
@@ -1339,9 +1339,9 @@ static void gridsample_3d_bilinear_align1_reflection_blob_pack16(const Mat& src,
                     gz = _mm512_sub_ps(border_z, reflectz_v);
                 }
 
-                __m512 x_w = _mm512_floor_ps(gx);
-                __m512 y_n = _mm512_floor_ps(gy);
-                __m512 z_t = _mm512_floor_ps(gz);
+                __m512 x_w = _mm512_roundscale_ps(gx, _MM_FROUND_TO_NEG_INF);
+                __m512 y_n = _mm512_roundscale_ps(gy, _MM_FROUND_TO_NEG_INF);
+                __m512 z_t = _mm512_roundscale_ps(gz, _MM_FROUND_TO_NEG_INF);
 
                 __m512 w = _mm512_sub_ps(gx, x_w);
                 __m512 e = _mm512_sub_ps(*(__m512*)_ps512_1, w);

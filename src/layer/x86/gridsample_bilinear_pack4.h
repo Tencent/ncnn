@@ -100,10 +100,10 @@ static void gridsample_2d_bilinear_align0_zeros_blob_pack4(const Mat& src, Mat& 
 
             for (int q = 0; q < dst.c; q++)
             {
-                __m128 nw_val = mask_gather_ps(src.channel(q), i_nw_offset, *reinterpret_cast<__m128*>(&v00_in_range));
-                __m128 ne_val = mask_gather_ps(src.channel(q), i_ne_offset, *reinterpret_cast<__m128*>(&v10_in_range));
-                __m128 sw_val = mask_gather_ps(src.channel(q), i_sw_offset, *reinterpret_cast<__m128*>(&v01_in_range));
-                __m128 se_val = mask_gather_ps(src.channel(q), i_se_offset, *reinterpret_cast<__m128*>(&v11_in_range));
+                __m128 nw_val = mask_gather_ps(src.channel(q), i_nw_offset, _mm_castsi128_ps(v00_in_range));
+                __m128 ne_val = mask_gather_ps(src.channel(q), i_ne_offset, _mm_castsi128_ps(v10_in_range));
+                __m128 sw_val = mask_gather_ps(src.channel(q), i_sw_offset, _mm_castsi128_ps(v01_in_range));
+                __m128 se_val = mask_gather_ps(src.channel(q), i_se_offset, _mm_castsi128_ps(v11_in_range));
 
                 __m128 _v = _mm_mul_ps(nw_val, nw);
                 _v = _mm_comp_fmadd_ps(ne_val, ne, _v);
@@ -204,10 +204,10 @@ static void gridsample_2d_bilinear_align1_zeros_blob_pack4(const Mat& src, Mat& 
 
             for (int q = 0; q < dst.c; q++)
             {
-                __m128 nw_val = mask_gather_ps(src.channel(q), i_nw_offset, *reinterpret_cast<__m128*>(&v00_in_range));
-                __m128 ne_val = mask_gather_ps(src.channel(q), i_ne_offset, *reinterpret_cast<__m128*>(&v10_in_range));
-                __m128 sw_val = mask_gather_ps(src.channel(q), i_sw_offset, *reinterpret_cast<__m128*>(&v01_in_range));
-                __m128 se_val = mask_gather_ps(src.channel(q), i_se_offset, *reinterpret_cast<__m128*>(&v11_in_range));
+                __m128 nw_val = mask_gather_ps(src.channel(q), i_nw_offset, _mm_castsi128_ps(v00_in_range));
+                __m128 ne_val = mask_gather_ps(src.channel(q), i_ne_offset, _mm_castsi128_ps(v10_in_range));
+                __m128 sw_val = mask_gather_ps(src.channel(q), i_sw_offset, _mm_castsi128_ps(v01_in_range));
+                __m128 se_val = mask_gather_ps(src.channel(q), i_se_offset, _mm_castsi128_ps(v11_in_range));
 
                 __m128 _v = _mm_mul_ps(nw_val, nw);
                 _v = _mm_comp_fmadd_ps(ne_val, ne, _v);
@@ -312,9 +312,9 @@ static void gridsample_2d_bilinear_align0_border_blob_pack4(const Mat& src, Mat&
             for (int q = 0; q < dst.c; q++)
             {
                 __m128 nw_val = mask_gather_ps(src.channel(q), i_nw_offset, vn1fp4);
-                __m128 ne_val = mask_gather_ps(src.channel(q), i_ne_offset, *reinterpret_cast<__m128*>(&x1_in_range));
-                __m128 sw_val = mask_gather_ps(src.channel(q), i_sw_offset, *reinterpret_cast<__m128*>(&y1_in_range));
-                __m128 se_val = mask_gather_ps(src.channel(q), i_se_offset, *reinterpret_cast<__m128*>(&v11_in_range));
+                __m128 ne_val = mask_gather_ps(src.channel(q), i_ne_offset, _mm_castsi128_ps(x1_in_range));
+                __m128 sw_val = mask_gather_ps(src.channel(q), i_sw_offset, _mm_castsi128_ps(y1_in_range));
+                __m128 se_val = mask_gather_ps(src.channel(q), i_se_offset, _mm_castsi128_ps(v11_in_range));
 
                 __m128 _v = _mm_mul_ps(nw_val, nw);
                 _v = _mm_comp_fmadd_ps(ne_val, ne, _v);
@@ -419,9 +419,9 @@ static void gridsample_2d_bilinear_align1_border_blob_pack4(const Mat& src, Mat&
             for (int q = 0; q < dst.c; q++)
             {
                 __m128 nw_val = mask_gather_ps(src.channel(q), i_nw_offset, vn1fp4);
-                __m128 ne_val = mask_gather_ps(src.channel(q), i_ne_offset, *reinterpret_cast<__m128*>(&x1_in_range));
-                __m128 sw_val = mask_gather_ps(src.channel(q), i_sw_offset, *reinterpret_cast<__m128*>(&y1_in_range));
-                __m128 se_val = mask_gather_ps(src.channel(q), i_se_offset, *reinterpret_cast<__m128*>(&v11_in_range));
+                __m128 ne_val = mask_gather_ps(src.channel(q), i_ne_offset, _mm_castsi128_ps(x1_in_range));
+                __m128 sw_val = mask_gather_ps(src.channel(q), i_sw_offset, _mm_castsi128_ps(y1_in_range));
+                __m128 se_val = mask_gather_ps(src.channel(q), i_se_offset, _mm_castsi128_ps(v11_in_range));
 
                 __m128 _v = _mm_mul_ps(nw_val, nw);
                 _v = _mm_comp_fmadd_ps(ne_val, ne, _v);
@@ -549,9 +549,9 @@ static void gridsample_2d_bilinear_align0_reflection_blob_pack4(const Mat& src, 
             for (int q = 0; q < dst.c; q++)
             {
                 __m128 nw_val = mask_gather_ps(src.channel(q), i_nw_offset, vn1fp4);
-                __m128 ne_val = mask_gather_ps(src.channel(q), i_ne_offset, *reinterpret_cast<__m128*>(&x1_in_range));
-                __m128 sw_val = mask_gather_ps(src.channel(q), i_sw_offset, *reinterpret_cast<__m128*>(&y1_in_range));
-                __m128 se_val = mask_gather_ps(src.channel(q), i_se_offset, *reinterpret_cast<__m128*>(&v11_in_range));
+                __m128 ne_val = mask_gather_ps(src.channel(q), i_ne_offset, _mm_castsi128_ps(x1_in_range));
+                __m128 sw_val = mask_gather_ps(src.channel(q), i_sw_offset, _mm_castsi128_ps(y1_in_range));
+                __m128 se_val = mask_gather_ps(src.channel(q), i_se_offset, _mm_castsi128_ps(v11_in_range));
 
                 __m128 _v = _mm_mul_ps(nw_val, nw);
                 _v = _mm_comp_fmadd_ps(ne_val, ne, _v);
@@ -662,9 +662,9 @@ static void gridsample_2d_bilinear_align1_reflection_blob_pack4(const Mat& src, 
             for (int q = 0; q < dst.c; q++)
             {
                 __m128 nw_val = mask_gather_ps(src.channel(q), i_nw_offset, vn1fp4);
-                __m128 ne_val = mask_gather_ps(src.channel(q), i_ne_offset, *reinterpret_cast<__m128*>(&x1_in_range));
-                __m128 sw_val = mask_gather_ps(src.channel(q), i_sw_offset, *reinterpret_cast<__m128*>(&y1_in_range));
-                __m128 se_val = mask_gather_ps(src.channel(q), i_se_offset, *reinterpret_cast<__m128*>(&v11_in_range));
+                __m128 ne_val = mask_gather_ps(src.channel(q), i_ne_offset, _mm_castsi128_ps(x1_in_range));
+                __m128 sw_val = mask_gather_ps(src.channel(q), i_sw_offset, _mm_castsi128_ps(y1_in_range));
+                __m128 se_val = mask_gather_ps(src.channel(q), i_se_offset, _mm_castsi128_ps(v11_in_range));
 
                 __m128 _v = _mm_mul_ps(nw_val, nw);
                 _v = _mm_comp_fmadd_ps(ne_val, ne, _v);
@@ -821,15 +821,15 @@ static void gridsample_3d_bilinear_align0_zeros_blob_pack4(const Mat& src, Mat& 
 
                 for (int q = 0; q < dst.c; q++)
                 {
-                    __m128 tnw_val = mask_gather_ps(src.channel(q), i_tnw_offset, *reinterpret_cast<__m128*>(&v000_in_range));
-                    __m128 tne_val = mask_gather_ps(src.channel(q), i_tne_offset, *reinterpret_cast<__m128*>(&v100_in_range));
-                    __m128 tsw_val = mask_gather_ps(src.channel(q), i_tsw_offset, *reinterpret_cast<__m128*>(&v010_in_range));
-                    __m128 tse_val = mask_gather_ps(src.channel(q), i_tse_offset, *reinterpret_cast<__m128*>(&v110_in_range));
+                    __m128 tnw_val = mask_gather_ps(src.channel(q), i_tnw_offset, _mm_castsi128_ps(v000_in_range));
+                    __m128 tne_val = mask_gather_ps(src.channel(q), i_tne_offset, _mm_castsi128_ps(v100_in_range));
+                    __m128 tsw_val = mask_gather_ps(src.channel(q), i_tsw_offset, _mm_castsi128_ps(v010_in_range));
+                    __m128 tse_val = mask_gather_ps(src.channel(q), i_tse_offset, _mm_castsi128_ps(v110_in_range));
 
-                    __m128 bnw_val = mask_gather_ps(src.channel(q), i_bnw_offset, *reinterpret_cast<__m128*>(&v001_in_range));
-                    __m128 bne_val = mask_gather_ps(src.channel(q), i_bne_offset, *reinterpret_cast<__m128*>(&v101_in_range));
-                    __m128 bsw_val = mask_gather_ps(src.channel(q), i_bsw_offset, *reinterpret_cast<__m128*>(&v011_in_range));
-                    __m128 bse_val = mask_gather_ps(src.channel(q), i_bse_offset, *reinterpret_cast<__m128*>(&v111_in_range));
+                    __m128 bnw_val = mask_gather_ps(src.channel(q), i_bnw_offset, _mm_castsi128_ps(v001_in_range));
+                    __m128 bne_val = mask_gather_ps(src.channel(q), i_bne_offset, _mm_castsi128_ps(v101_in_range));
+                    __m128 bsw_val = mask_gather_ps(src.channel(q), i_bsw_offset, _mm_castsi128_ps(v011_in_range));
+                    __m128 bse_val = mask_gather_ps(src.channel(q), i_bse_offset, _mm_castsi128_ps(v111_in_range));
 
                     __m128 _v = _mm_mul_ps(tnw_val, tnw);
                     _v = _mm_comp_fmadd_ps(tne_val, tne, _v);
@@ -991,15 +991,15 @@ static void gridsample_3d_bilinear_align1_zeros_blob_pack4(const Mat& src, Mat& 
 
                 for (int q = 0; q < dst.c; q++)
                 {
-                    __m128 tnw_val = mask_gather_ps(src.channel(q), i_tnw_offset, *reinterpret_cast<__m128*>(&v000_in_range));
-                    __m128 tne_val = mask_gather_ps(src.channel(q), i_tne_offset, *reinterpret_cast<__m128*>(&v100_in_range));
-                    __m128 tsw_val = mask_gather_ps(src.channel(q), i_tsw_offset, *reinterpret_cast<__m128*>(&v010_in_range));
-                    __m128 tse_val = mask_gather_ps(src.channel(q), i_tse_offset, *reinterpret_cast<__m128*>(&v110_in_range));
+                    __m128 tnw_val = mask_gather_ps(src.channel(q), i_tnw_offset, _mm_castsi128_ps(v000_in_range));
+                    __m128 tne_val = mask_gather_ps(src.channel(q), i_tne_offset, _mm_castsi128_ps(v100_in_range));
+                    __m128 tsw_val = mask_gather_ps(src.channel(q), i_tsw_offset, _mm_castsi128_ps(v010_in_range));
+                    __m128 tse_val = mask_gather_ps(src.channel(q), i_tse_offset, _mm_castsi128_ps(v110_in_range));
 
-                    __m128 bnw_val = mask_gather_ps(src.channel(q), i_bnw_offset, *reinterpret_cast<__m128*>(&v001_in_range));
-                    __m128 bne_val = mask_gather_ps(src.channel(q), i_bne_offset, *reinterpret_cast<__m128*>(&v101_in_range));
-                    __m128 bsw_val = mask_gather_ps(src.channel(q), i_bsw_offset, *reinterpret_cast<__m128*>(&v011_in_range));
-                    __m128 bse_val = mask_gather_ps(src.channel(q), i_bse_offset, *reinterpret_cast<__m128*>(&v111_in_range));
+                    __m128 bnw_val = mask_gather_ps(src.channel(q), i_bnw_offset, _mm_castsi128_ps(v001_in_range));
+                    __m128 bne_val = mask_gather_ps(src.channel(q), i_bne_offset, _mm_castsi128_ps(v101_in_range));
+                    __m128 bsw_val = mask_gather_ps(src.channel(q), i_bsw_offset, _mm_castsi128_ps(v011_in_range));
+                    __m128 bse_val = mask_gather_ps(src.channel(q), i_bse_offset, _mm_castsi128_ps(v111_in_range));
 
                     __m128 _v = _mm_mul_ps(tnw_val, tnw);
                     _v = _mm_comp_fmadd_ps(tne_val, tne, _v);
@@ -1158,14 +1158,14 @@ static void gridsample_3d_bilinear_align0_border_blob_pack4(const Mat& src, Mat&
                 for (int q = 0; q < dst.c; q++)
                 {
                     __m128 tnw_val = mask_gather_ps(src.channel(q), i_tnw_offset, vn1fp4);
-                    __m128 tne_val = mask_gather_ps(src.channel(q), i_tne_offset, *reinterpret_cast<__m128*>(&x1_in_range));
-                    __m128 tsw_val = mask_gather_ps(src.channel(q), i_tsw_offset, *reinterpret_cast<__m128*>(&y1_in_range));
-                    __m128 tse_val = mask_gather_ps(src.channel(q), i_tse_offset, *reinterpret_cast<__m128*>(&v110_in_range));
+                    __m128 tne_val = mask_gather_ps(src.channel(q), i_tne_offset, _mm_castsi128_ps(x1_in_range));
+                    __m128 tsw_val = mask_gather_ps(src.channel(q), i_tsw_offset, _mm_castsi128_ps(y1_in_range));
+                    __m128 tse_val = mask_gather_ps(src.channel(q), i_tse_offset, _mm_castsi128_ps(v110_in_range));
 
-                    __m128 bnw_val = mask_gather_ps(src.channel(q), i_bnw_offset, *reinterpret_cast<__m128*>(&z1_in_range));
-                    __m128 bne_val = mask_gather_ps(src.channel(q), i_bne_offset, *reinterpret_cast<__m128*>(&v101_in_range));
-                    __m128 bsw_val = mask_gather_ps(src.channel(q), i_bsw_offset, *reinterpret_cast<__m128*>(&v011_in_range));
-                    __m128 bse_val = mask_gather_ps(src.channel(q), i_bse_offset, *reinterpret_cast<__m128*>(&v111_in_range));
+                    __m128 bnw_val = mask_gather_ps(src.channel(q), i_bnw_offset, _mm_castsi128_ps(z1_in_range));
+                    __m128 bne_val = mask_gather_ps(src.channel(q), i_bne_offset, _mm_castsi128_ps(v101_in_range));
+                    __m128 bsw_val = mask_gather_ps(src.channel(q), i_bsw_offset, _mm_castsi128_ps(v011_in_range));
+                    __m128 bse_val = mask_gather_ps(src.channel(q), i_bse_offset, _mm_castsi128_ps(v111_in_range));
 
                     __m128 _v = _mm_mul_ps(tnw_val, tnw);
                     _v = _mm_comp_fmadd_ps(tne_val, tne, _v);
@@ -1324,14 +1324,14 @@ static void gridsample_3d_bilinear_align1_border_blob_pack4(const Mat& src, Mat&
                 for (int q = 0; q < dst.c; q++)
                 {
                     __m128 tnw_val = mask_gather_ps(src.channel(q), i_tnw_offset, vn1fp4);
-                    __m128 tne_val = mask_gather_ps(src.channel(q), i_tne_offset, *reinterpret_cast<__m128*>(&x1_in_range));
-                    __m128 tsw_val = mask_gather_ps(src.channel(q), i_tsw_offset, *reinterpret_cast<__m128*>(&y1_in_range));
-                    __m128 tse_val = mask_gather_ps(src.channel(q), i_tse_offset, *reinterpret_cast<__m128*>(&v110_in_range));
+                    __m128 tne_val = mask_gather_ps(src.channel(q), i_tne_offset, _mm_castsi128_ps(x1_in_range));
+                    __m128 tsw_val = mask_gather_ps(src.channel(q), i_tsw_offset, _mm_castsi128_ps(y1_in_range));
+                    __m128 tse_val = mask_gather_ps(src.channel(q), i_tse_offset, _mm_castsi128_ps(v110_in_range));
 
-                    __m128 bnw_val = mask_gather_ps(src.channel(q), i_bnw_offset, *reinterpret_cast<__m128*>(&z1_in_range));
-                    __m128 bne_val = mask_gather_ps(src.channel(q), i_bne_offset, *reinterpret_cast<__m128*>(&v101_in_range));
-                    __m128 bsw_val = mask_gather_ps(src.channel(q), i_bsw_offset, *reinterpret_cast<__m128*>(&v011_in_range));
-                    __m128 bse_val = mask_gather_ps(src.channel(q), i_bse_offset, *reinterpret_cast<__m128*>(&v111_in_range));
+                    __m128 bnw_val = mask_gather_ps(src.channel(q), i_bnw_offset, _mm_castsi128_ps(z1_in_range));
+                    __m128 bne_val = mask_gather_ps(src.channel(q), i_bne_offset, _mm_castsi128_ps(v101_in_range));
+                    __m128 bsw_val = mask_gather_ps(src.channel(q), i_bsw_offset, _mm_castsi128_ps(v011_in_range));
+                    __m128 bse_val = mask_gather_ps(src.channel(q), i_bse_offset, _mm_castsi128_ps(v111_in_range));
 
                     __m128 _v = _mm_mul_ps(tnw_val, tnw);
                     _v = _mm_comp_fmadd_ps(tne_val, tne, _v);
@@ -1521,14 +1521,14 @@ static void gridsample_3d_bilinear_align0_reflection_blob_pack4(const Mat& src, 
                 for (int q = 0; q < dst.c; q++)
                 {
                     __m128 tnw_val = mask_gather_ps(src.channel(q), i_tnw_offset, vn1fp4);
-                    __m128 tne_val = mask_gather_ps(src.channel(q), i_tne_offset, *reinterpret_cast<__m128*>(&x1_in_range));
-                    __m128 tsw_val = mask_gather_ps(src.channel(q), i_tsw_offset, *reinterpret_cast<__m128*>(&y1_in_range));
-                    __m128 tse_val = mask_gather_ps(src.channel(q), i_tse_offset, *reinterpret_cast<__m128*>(&v110_in_range));
+                    __m128 tne_val = mask_gather_ps(src.channel(q), i_tne_offset, _mm_castsi128_ps(x1_in_range));
+                    __m128 tsw_val = mask_gather_ps(src.channel(q), i_tsw_offset, _mm_castsi128_ps(y1_in_range));
+                    __m128 tse_val = mask_gather_ps(src.channel(q), i_tse_offset, _mm_castsi128_ps(v110_in_range));
 
-                    __m128 bnw_val = mask_gather_ps(src.channel(q), i_bnw_offset, *reinterpret_cast<__m128*>(&z1_in_range));
-                    __m128 bne_val = mask_gather_ps(src.channel(q), i_bne_offset, *reinterpret_cast<__m128*>(&v101_in_range));
-                    __m128 bsw_val = mask_gather_ps(src.channel(q), i_bsw_offset, *reinterpret_cast<__m128*>(&v011_in_range));
-                    __m128 bse_val = mask_gather_ps(src.channel(q), i_bse_offset, *reinterpret_cast<__m128*>(&v111_in_range));
+                    __m128 bnw_val = mask_gather_ps(src.channel(q), i_bnw_offset, _mm_castsi128_ps(z1_in_range));
+                    __m128 bne_val = mask_gather_ps(src.channel(q), i_bne_offset, _mm_castsi128_ps(v101_in_range));
+                    __m128 bsw_val = mask_gather_ps(src.channel(q), i_bsw_offset, _mm_castsi128_ps(v011_in_range));
+                    __m128 bse_val = mask_gather_ps(src.channel(q), i_bse_offset, _mm_castsi128_ps(v111_in_range));
 
                     __m128 _v = _mm_mul_ps(tnw_val, tnw);
                     _v = _mm_comp_fmadd_ps(tne_val, tne, _v);
@@ -1693,14 +1693,14 @@ static void gridsample_3d_bilinear_align1_reflection_blob_pack4(const Mat& src, 
                 for (int q = 0; q < dst.c; q++)
                 {
                     __m128 tnw_val = mask_gather_ps(src.channel(q), i_tnw_offset, vn1fp4);
-                    __m128 tne_val = mask_gather_ps(src.channel(q), i_tne_offset, *reinterpret_cast<__m128*>(&x1_in_range));
-                    __m128 tsw_val = mask_gather_ps(src.channel(q), i_tsw_offset, *reinterpret_cast<__m128*>(&y1_in_range));
-                    __m128 tse_val = mask_gather_ps(src.channel(q), i_tse_offset, *reinterpret_cast<__m128*>(&v110_in_range));
+                    __m128 tne_val = mask_gather_ps(src.channel(q), i_tne_offset, _mm_castsi128_ps(x1_in_range));
+                    __m128 tsw_val = mask_gather_ps(src.channel(q), i_tsw_offset, _mm_castsi128_ps(y1_in_range));
+                    __m128 tse_val = mask_gather_ps(src.channel(q), i_tse_offset, _mm_castsi128_ps(v110_in_range));
 
-                    __m128 bnw_val = mask_gather_ps(src.channel(q), i_bnw_offset, *reinterpret_cast<__m128*>(&z1_in_range));
-                    __m128 bne_val = mask_gather_ps(src.channel(q), i_bne_offset, *reinterpret_cast<__m128*>(&v101_in_range));
-                    __m128 bsw_val = mask_gather_ps(src.channel(q), i_bsw_offset, *reinterpret_cast<__m128*>(&v011_in_range));
-                    __m128 bse_val = mask_gather_ps(src.channel(q), i_bse_offset, *reinterpret_cast<__m128*>(&v111_in_range));
+                    __m128 bnw_val = mask_gather_ps(src.channel(q), i_bnw_offset, _mm_castsi128_ps(z1_in_range));
+                    __m128 bne_val = mask_gather_ps(src.channel(q), i_bne_offset, _mm_castsi128_ps(v101_in_range));
+                    __m128 bsw_val = mask_gather_ps(src.channel(q), i_bsw_offset, _mm_castsi128_ps(v011_in_range));
+                    __m128 bse_val = mask_gather_ps(src.channel(q), i_bse_offset, _mm_castsi128_ps(v111_in_range));
 
                     __m128 _v = _mm_mul_ps(tnw_val, tnw);
                     _v = _mm_comp_fmadd_ps(tne_val, tne, _v);

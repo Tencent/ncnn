@@ -966,9 +966,10 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                 __m256 sw = _mm256_mul_ps(n, e);
                                 __m256 se = _mm256_mul_ps(n, w);
 
+#if __AVX2__
                                 __m256i x0 = _mm256_cvtps_epi32(x_w);
-                                __m256i x1 = _mm256_add_epi32(x0, *(__m256i*)_pi32_256_1);
                                 __m256i y0 = _mm256_cvtps_epi32(y_n);
+                                __m256i x1 = _mm256_add_epi32(x0, *(__m256i*)_pi32_256_1);
                                 __m256i y1 = _mm256_add_epi32(y0, *(__m256i*)_pi32_256_1);
 
                                 __m256i x0_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(x0, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgWi, x0));
@@ -981,18 +982,48 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                 __m256i v10_in_range = _mm256_and_si256(x1_in_range, y0_in_range);
                                 __m256i v11_in_range = _mm256_and_si256(x1_in_range, y1_in_range);
 
-                                // (W*y + x) * elempack + vec(8)
                                 __m256i i_nw_offset = _mm256_add_epi32(_mm256_mullo_epi32(y0, vImgWi), x0);
                                 __m256i i_ne_offset = _mm256_add_epi32(i_nw_offset, *(__m256i*)_pi32_256_1);
                                 __m256i i_sw_offset = _mm256_add_epi32(i_nw_offset, vImgWi);
                                 __m256i i_se_offset = _mm256_add_epi32(i_sw_offset, *(__m256i*)_pi32_256_1);
+#else
+                                __m256 x1 = _mm256_add_ps(x_w, *(__m256*)_ps256_1);
+                                __m256 y1 = _mm256_add_ps(y_n, *(__m256*)_ps256_1);
+
+                                __m256 x0_in_range = _mm256_and_ps(_mm256_cmp_ps(x_w, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgWf, x_w, _CMP_GT_OS));
+                                __m256 x1_in_range = _mm256_and_ps(_mm256_cmp_ps(x1, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgWf, x1, _CMP_GT_OS));
+                                __m256 y0_in_range = _mm256_and_ps(_mm256_cmp_ps(y_n, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgHf, y_n, _CMP_GT_OS));
+                                __m256 y1_in_range = _mm256_and_ps(_mm256_cmp_ps(y1, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgHf, y1, _CMP_GT_OS));
+
+                                __m256 v00_in_range = _mm256_and_ps(x0_in_range, y0_in_range);
+                                __m256 v01_in_range = _mm256_and_ps(x0_in_range, y1_in_range);
+                                __m256 v10_in_range = _mm256_and_ps(x1_in_range, y0_in_range);
+                                __m256 v11_in_range = _mm256_and_ps(x1_in_range, y1_in_range);
+
+                                __m256 nw_offset = _mm256_add_ps(_mm256_mul_ps(y_n, vImgWf), x_w);
+                                __m256 ne_offset = _mm256_add_ps(nw_offset, *(__m256*)_ps256_1);
+                                __m256 sw_offset = _mm256_add_ps(nw_offset, vImgWf);
+                                __m256 se_offset = _mm256_add_ps(sw_offset, *(__m256*)_ps256_1);
+
+                                __m256i i_nw_offset = _mm256_cvtps_epi32(nw_offset);
+                                __m256i i_ne_offset = _mm256_cvtps_epi32(ne_offset);
+                                __m256i i_sw_offset = _mm256_cvtps_epi32(sw_offset);
+                                __m256i i_se_offset = _mm256_cvtps_epi32(se_offset);
+#endif // __AVX2__
 
                                 for (int q = 0; q < channels; q++)
                                 {
-                                    __m256 nw_val = mask_gather_ps256(bottom_blob.channel(q), i_nw_offset, *reinterpret_cast<__m256*>(&v00_in_range));
-                                    __m256 ne_val = mask_gather_ps256(bottom_blob.channel(q), i_ne_offset, *reinterpret_cast<__m256*>(&v10_in_range));
-                                    __m256 sw_val = mask_gather_ps256(bottom_blob.channel(q), i_sw_offset, *reinterpret_cast<__m256*>(&v01_in_range));
-                                    __m256 se_val = mask_gather_ps256(bottom_blob.channel(q), i_se_offset, *reinterpret_cast<__m256*>(&v11_in_range));
+#if __AVX2__
+                                    __m256 nw_val = mask_gather_ps256(bottom_blob.channel(q), i_nw_offset, _mm256_castsi256_ps(v00_in_range));
+                                    __m256 ne_val = mask_gather_ps256(bottom_blob.channel(q), i_ne_offset, _mm256_castsi256_ps(v10_in_range));
+                                    __m256 sw_val = mask_gather_ps256(bottom_blob.channel(q), i_sw_offset, _mm256_castsi256_ps(v01_in_range));
+                                    __m256 se_val = mask_gather_ps256(bottom_blob.channel(q), i_se_offset, _mm256_castsi256_ps(v11_in_range));
+#else
+                                    __m256 nw_val = mask_gather_ps256(bottom_blob.channel(q), i_nw_offset, v00_in_range);
+                                    __m256 ne_val = mask_gather_ps256(bottom_blob.channel(q), i_ne_offset, v10_in_range);
+                                    __m256 sw_val = mask_gather_ps256(bottom_blob.channel(q), i_sw_offset, v01_in_range);
+                                    __m256 se_val = mask_gather_ps256(bottom_blob.channel(q), i_se_offset, v11_in_range);
+#endif // __AVX2__
 
                                     __m256 _v = _mm256_mul_ps(nw_val, nw);
                                     _v = _mm256_comp_fmadd_ps(ne_val, ne, _v);
@@ -1088,9 +1119,10 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                 __m256 sw = _mm256_mul_ps(n, e);
                                 __m256 se = _mm256_mul_ps(n, w);
 
+#if __AVX2__
                                 __m256i x0 = _mm256_cvtps_epi32(x_w);
-                                __m256i x1 = _mm256_add_epi32(x0, *(__m256i*)_pi32_256_1);
                                 __m256i y0 = _mm256_cvtps_epi32(y_n);
+                                __m256i x1 = _mm256_add_epi32(x0, *(__m256i*)_pi32_256_1);
                                 __m256i y1 = _mm256_add_epi32(y0, *(__m256i*)_pi32_256_1);
 
                                 __m256i x0_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(x0, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgWi, x0));
@@ -1103,18 +1135,48 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                 __m256i v10_in_range = _mm256_and_si256(x1_in_range, y0_in_range);
                                 __m256i v11_in_range = _mm256_and_si256(x1_in_range, y1_in_range);
 
-                                // (W*y + x) * elempack + vec(8)
                                 __m256i i_nw_offset = _mm256_add_epi32(_mm256_mullo_epi32(y0, vImgWi), x0);
                                 __m256i i_ne_offset = _mm256_add_epi32(i_nw_offset, *(__m256i*)_pi32_256_1);
                                 __m256i i_sw_offset = _mm256_add_epi32(i_nw_offset, vImgWi);
                                 __m256i i_se_offset = _mm256_add_epi32(i_sw_offset, *(__m256i*)_pi32_256_1);
+#else
+                                __m256 x1 = _mm256_add_ps(x_w, *(__m256*)_ps256_1);
+                                __m256 y1 = _mm256_add_ps(y_n, *(__m256*)_ps256_1);
+
+                                __m256 x0_in_range = _mm256_and_ps(_mm256_cmp_ps(x_w, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgWf, x_w, _CMP_GT_OS));
+                                __m256 x1_in_range = _mm256_and_ps(_mm256_cmp_ps(x1, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgWf, x1, _CMP_GT_OS));
+                                __m256 y0_in_range = _mm256_and_ps(_mm256_cmp_ps(y_n, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgHf, y_n, _CMP_GT_OS));
+                                __m256 y1_in_range = _mm256_and_ps(_mm256_cmp_ps(y1, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgHf, y1, _CMP_GT_OS));
+
+                                __m256 v00_in_range = _mm256_and_ps(x0_in_range, y0_in_range);
+                                __m256 v01_in_range = _mm256_and_ps(x0_in_range, y1_in_range);
+                                __m256 v10_in_range = _mm256_and_ps(x1_in_range, y0_in_range);
+                                __m256 v11_in_range = _mm256_and_ps(x1_in_range, y1_in_range);
+
+                                __m256 nw_offset = _mm256_add_ps(_mm256_mul_ps(y_n, vImgWf), x_w);
+                                __m256 ne_offset = _mm256_add_ps(nw_offset, *(__m256*)_ps256_1);
+                                __m256 sw_offset = _mm256_add_ps(nw_offset, vImgWf);
+                                __m256 se_offset = _mm256_add_ps(sw_offset, *(__m256*)_ps256_1);
+
+                                __m256i i_nw_offset = _mm256_cvtps_epi32(nw_offset);
+                                __m256i i_ne_offset = _mm256_cvtps_epi32(ne_offset);
+                                __m256i i_sw_offset = _mm256_cvtps_epi32(sw_offset);
+                                __m256i i_se_offset = _mm256_cvtps_epi32(se_offset);
+#endif // __AVX2__
 
                                 for (int q = 0; q < channels; q++)
                                 {
-                                    __m256 nw_val = mask_gather_ps256(bottom_blob.channel(q), i_nw_offset, *reinterpret_cast<__m256*>(&v00_in_range));
-                                    __m256 ne_val = mask_gather_ps256(bottom_blob.channel(q), i_ne_offset, *reinterpret_cast<__m256*>(&v10_in_range));
-                                    __m256 sw_val = mask_gather_ps256(bottom_blob.channel(q), i_sw_offset, *reinterpret_cast<__m256*>(&v01_in_range));
-                                    __m256 se_val = mask_gather_ps256(bottom_blob.channel(q), i_se_offset, *reinterpret_cast<__m256*>(&v11_in_range));
+#if __AVX2__
+                                    __m256 nw_val = mask_gather_ps256(bottom_blob.channel(q), i_nw_offset, _mm256_castsi256_ps(v00_in_range));
+                                    __m256 ne_val = mask_gather_ps256(bottom_blob.channel(q), i_ne_offset, _mm256_castsi256_ps(v10_in_range));
+                                    __m256 sw_val = mask_gather_ps256(bottom_blob.channel(q), i_sw_offset, _mm256_castsi256_ps(v01_in_range));
+                                    __m256 se_val = mask_gather_ps256(bottom_blob.channel(q), i_se_offset, _mm256_castsi256_ps(v11_in_range));
+#else
+                                    __m256 nw_val = mask_gather_ps256(bottom_blob.channel(q), i_nw_offset, v00_in_range);
+                                    __m256 ne_val = mask_gather_ps256(bottom_blob.channel(q), i_ne_offset, v10_in_range);
+                                    __m256 sw_val = mask_gather_ps256(bottom_blob.channel(q), i_sw_offset, v01_in_range);
+                                    __m256 se_val = mask_gather_ps256(bottom_blob.channel(q), i_se_offset, v11_in_range);
+#endif // __AVX2__
 
                                     __m256 _v = _mm256_mul_ps(nw_val, nw);
                                     _v = _mm256_comp_fmadd_ps(ne_val, ne, _v);
@@ -1221,8 +1283,9 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                 __m256 se = _mm256_mul_ps(n, w);
 
                                 __m256i x0 = _mm256_cvtps_epi32(x_w);
-                                __m256i x1 = _mm256_add_epi32(x0, *(__m256i*)_pi32_256_1);
                                 __m256i y0 = _mm256_cvtps_epi32(y_n);
+#if __AVX2__
+                                __m256i x1 = _mm256_add_epi32(x0, *(__m256i*)_pi32_256_1);
                                 __m256i y1 = _mm256_add_epi32(y0, *(__m256i*)_pi32_256_1);
 
                                 __m256i x1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(x1, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgWi, x1));
@@ -1230,18 +1293,43 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 __m256i v11_in_range = _mm256_and_si256(x1_in_range, y1_in_range);
 
-                                // (W*y + x) * elempack + vec(8)
                                 __m256i i_nw_offset = _mm256_add_epi32(_mm256_mullo_epi32(y0, vImgWi), x0);
                                 __m256i i_ne_offset = _mm256_add_epi32(i_nw_offset, *(__m256i*)_pi32_256_1);
                                 __m256i i_sw_offset = _mm256_add_epi32(i_nw_offset, vImgWi);
                                 __m256i i_se_offset = _mm256_add_epi32(i_sw_offset, *(__m256i*)_pi32_256_1);
+#else
+                                __m256 x1 = _mm256_add_ps(x_w, *(__m256*)_ps256_1);
+                                __m256 y1 = _mm256_add_ps(y_n, *(__m256*)_ps256_1);
+
+                                __m256 x1_in_range = _mm256_and_ps(_mm256_cmp_ps(x1, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgWf, x1, _CMP_GT_OS));
+                                __m256 y1_in_range = _mm256_and_ps(_mm256_cmp_ps(y1, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgHf, y1, _CMP_GT_OS));
+
+                                __m256 v11_in_range = _mm256_and_ps(x1_in_range, y1_in_range);
+
+                                __m256 nw_offset = _mm256_add_ps(_mm256_mul_ps(y_n, vImgWf), x_w);
+                                __m256 ne_offset = _mm256_add_ps(nw_offset, *(__m256*)_ps256_1);
+                                __m256 sw_offset = _mm256_add_ps(nw_offset, vImgWf);
+                                __m256 se_offset = _mm256_add_ps(sw_offset, *(__m256*)_ps256_1);
+
+                                __m256i i_nw_offset = _mm256_cvtps_epi32(nw_offset);
+                                __m256i i_ne_offset = _mm256_cvtps_epi32(ne_offset);
+                                __m256i i_sw_offset = _mm256_cvtps_epi32(sw_offset);
+                                __m256i i_se_offset = _mm256_cvtps_epi32(se_offset);
+#endif
 
                                 for (int q = 0; q < channels; q++)
                                 {
+
                                     __m256 nw_val = mask_gather_ps256(bottom_blob.channel(q), i_nw_offset, *(__m256*)_ps256_n1);
-                                    __m256 ne_val = mask_gather_ps256(bottom_blob.channel(q), i_ne_offset, *reinterpret_cast<__m256*>(&x1_in_range));
-                                    __m256 sw_val = mask_gather_ps256(bottom_blob.channel(q), i_sw_offset, *reinterpret_cast<__m256*>(&y1_in_range));
-                                    __m256 se_val = mask_gather_ps256(bottom_blob.channel(q), i_se_offset, *reinterpret_cast<__m256*>(&v11_in_range));
+#if __AVX2__
+                                    __m256 ne_val = mask_gather_ps256(bottom_blob.channel(q), i_ne_offset, _mm256_castsi256_ps(x1_in_range));
+                                    __m256 sw_val = mask_gather_ps256(bottom_blob.channel(q), i_sw_offset, _mm256_castsi256_ps(y1_in_range));
+                                    __m256 se_val = mask_gather_ps256(bottom_blob.channel(q), i_se_offset, _mm256_castsi256_ps(v11_in_range));
+#else
+                                    __m256 ne_val = mask_gather_ps256(bottom_blob.channel(q), i_ne_offset, x1_in_range);
+                                    __m256 sw_val = mask_gather_ps256(bottom_blob.channel(q), i_sw_offset, y1_in_range);
+                                    __m256 se_val = mask_gather_ps256(bottom_blob.channel(q), i_se_offset, v11_in_range);
+#endif
 
                                     __m256 _v = _mm256_mul_ps(nw_val, nw);
                                     _v = _mm256_comp_fmadd_ps(ne_val, ne, _v);
@@ -1347,9 +1435,10 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                 __m256 sw = _mm256_mul_ps(n, e);
                                 __m256 se = _mm256_mul_ps(n, w);
 
-                                __m256i x0 = _mm256_cvtps_epi32(x_w);
-                                __m256i x1 = _mm256_add_epi32(x0, *(__m256i*)_pi32_256_1);
+                                                                __m256i x0 = _mm256_cvtps_epi32(x_w);
                                 __m256i y0 = _mm256_cvtps_epi32(y_n);
+#if __AVX2__
+                                __m256i x1 = _mm256_add_epi32(x0, *(__m256i*)_pi32_256_1);
                                 __m256i y1 = _mm256_add_epi32(y0, *(__m256i*)_pi32_256_1);
 
                                 __m256i x1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(x1, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgWi, x1));
@@ -1357,18 +1446,42 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 __m256i v11_in_range = _mm256_and_si256(x1_in_range, y1_in_range);
 
-                                // (W*y + x) * elempack + vec(8)
                                 __m256i i_nw_offset = _mm256_add_epi32(_mm256_mullo_epi32(y0, vImgWi), x0);
                                 __m256i i_ne_offset = _mm256_add_epi32(i_nw_offset, *(__m256i*)_pi32_256_1);
                                 __m256i i_sw_offset = _mm256_add_epi32(i_nw_offset, vImgWi);
                                 __m256i i_se_offset = _mm256_add_epi32(i_sw_offset, *(__m256i*)_pi32_256_1);
+#else
+                                __m256 x1 = _mm256_add_ps(x_w, *(__m256*)_ps256_1);
+                                __m256 y1 = _mm256_add_ps(y_n, *(__m256*)_ps256_1);
+
+                                __m256 x1_in_range = _mm256_and_ps(_mm256_cmp_ps(x1, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgWf, x1, _CMP_GT_OS));
+                                __m256 y1_in_range = _mm256_and_ps(_mm256_cmp_ps(y1, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgHf, y1, _CMP_GT_OS));
+
+                                __m256 v11_in_range = _mm256_and_ps(x1_in_range, y1_in_range);
+
+                                __m256 nw_offset = _mm256_add_ps(_mm256_mul_ps(y_n, vImgWf), x_w);
+                                __m256 ne_offset = _mm256_add_ps(nw_offset, *(__m256*)_ps256_1);
+                                __m256 sw_offset = _mm256_add_ps(nw_offset, vImgWf);
+                                __m256 se_offset = _mm256_add_ps(sw_offset, *(__m256*)_ps256_1);
+
+                                __m256i i_nw_offset = _mm256_cvtps_epi32(nw_offset);
+                                __m256i i_ne_offset = _mm256_cvtps_epi32(ne_offset);
+                                __m256i i_sw_offset = _mm256_cvtps_epi32(sw_offset);
+                                __m256i i_se_offset = _mm256_cvtps_epi32(se_offset);
+#endif
 
                                 for (int q = 0; q < channels; q++)
                                 {
                                     __m256 nw_val = mask_gather_ps256(bottom_blob.channel(q), i_nw_offset, *(__m256*)_ps256_n1);
-                                    __m256 ne_val = mask_gather_ps256(bottom_blob.channel(q), i_ne_offset, *reinterpret_cast<__m256*>(&x1_in_range));
-                                    __m256 sw_val = mask_gather_ps256(bottom_blob.channel(q), i_sw_offset, *reinterpret_cast<__m256*>(&y1_in_range));
-                                    __m256 se_val = mask_gather_ps256(bottom_blob.channel(q), i_se_offset, *reinterpret_cast<__m256*>(&v11_in_range));
+#if __AVX2__
+                                    __m256 ne_val = mask_gather_ps256(bottom_blob.channel(q), i_ne_offset, _mm256_castsi256_ps(x1_in_range));
+                                    __m256 sw_val = mask_gather_ps256(bottom_blob.channel(q), i_sw_offset, _mm256_castsi256_ps(y1_in_range));
+                                    __m256 se_val = mask_gather_ps256(bottom_blob.channel(q), i_se_offset, _mm256_castsi256_ps(v11_in_range));
+#else
+                                    __m256 ne_val = mask_gather_ps256(bottom_blob.channel(q), i_ne_offset, x1_in_range);
+                                    __m256 sw_val = mask_gather_ps256(bottom_blob.channel(q), i_sw_offset, y1_in_range);
+                                    __m256 se_val = mask_gather_ps256(bottom_blob.channel(q), i_se_offset, v11_in_range);
+#endif
 
                                     __m256 _v = _mm256_mul_ps(nw_val, nw);
                                     _v = _mm256_comp_fmadd_ps(ne_val, ne, _v);
@@ -1499,9 +1612,10 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                 __m256 sw = _mm256_mul_ps(n, e);
                                 __m256 se = _mm256_mul_ps(n, w);
 
-                                __m256i x0 = _mm256_cvtps_epi32(x_w);
-                                __m256i x1 = _mm256_add_epi32(x0, *(__m256i*)_pi32_256_1);
+                                                                __m256i x0 = _mm256_cvtps_epi32(x_w);
                                 __m256i y0 = _mm256_cvtps_epi32(y_n);
+#if __AVX2__
+                                __m256i x1 = _mm256_add_epi32(x0, *(__m256i*)_pi32_256_1);
                                 __m256i y1 = _mm256_add_epi32(y0, *(__m256i*)_pi32_256_1);
 
                                 __m256i x1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(x1, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgWi, x1));
@@ -1509,18 +1623,42 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 __m256i v11_in_range = _mm256_and_si256(x1_in_range, y1_in_range);
 
-                                // (W*y + x) * elempack + vec(8)
                                 __m256i i_nw_offset = _mm256_add_epi32(_mm256_mullo_epi32(y0, vImgWi), x0);
                                 __m256i i_ne_offset = _mm256_add_epi32(i_nw_offset, *(__m256i*)_pi32_256_1);
                                 __m256i i_sw_offset = _mm256_add_epi32(i_nw_offset, vImgWi);
                                 __m256i i_se_offset = _mm256_add_epi32(i_sw_offset, *(__m256i*)_pi32_256_1);
+#else
+                                __m256 x1 = _mm256_add_ps(x_w, *(__m256*)_ps256_1);
+                                __m256 y1 = _mm256_add_ps(y_n, *(__m256*)_ps256_1);
+
+                                __m256 x1_in_range = _mm256_and_ps(_mm256_cmp_ps(x1, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgWf, x1, _CMP_GT_OS));
+                                __m256 y1_in_range = _mm256_and_ps(_mm256_cmp_ps(y1, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgHf, y1, _CMP_GT_OS));
+
+                                __m256 v11_in_range = _mm256_and_ps(x1_in_range, y1_in_range);
+
+                                __m256 nw_offset = _mm256_add_ps(_mm256_mul_ps(y_n, vImgWf), x_w);
+                                __m256 ne_offset = _mm256_add_ps(nw_offset, *(__m256*)_ps256_1);
+                                __m256 sw_offset = _mm256_add_ps(nw_offset, vImgWf);
+                                __m256 se_offset = _mm256_add_ps(sw_offset, *(__m256*)_ps256_1);
+
+                                __m256i i_nw_offset = _mm256_cvtps_epi32(nw_offset);
+                                __m256i i_ne_offset = _mm256_cvtps_epi32(ne_offset);
+                                __m256i i_sw_offset = _mm256_cvtps_epi32(sw_offset);
+                                __m256i i_se_offset = _mm256_cvtps_epi32(se_offset);
+#endif
 
                                 for (int q = 0; q < channels; q++)
                                 {
                                     __m256 nw_val = mask_gather_ps256(bottom_blob.channel(q), i_nw_offset, *(__m256*)_ps256_n1);
-                                    __m256 ne_val = mask_gather_ps256(bottom_blob.channel(q), i_ne_offset, *reinterpret_cast<__m256*>(&x1_in_range));
-                                    __m256 sw_val = mask_gather_ps256(bottom_blob.channel(q), i_sw_offset, *reinterpret_cast<__m256*>(&y1_in_range));
-                                    __m256 se_val = mask_gather_ps256(bottom_blob.channel(q), i_se_offset, *reinterpret_cast<__m256*>(&v11_in_range));
+#if __AVX2__
+                                    __m256 ne_val = mask_gather_ps256(bottom_blob.channel(q), i_ne_offset, _mm256_castsi256_ps(x1_in_range));
+                                    __m256 sw_val = mask_gather_ps256(bottom_blob.channel(q), i_sw_offset, _mm256_castsi256_ps(y1_in_range));
+                                    __m256 se_val = mask_gather_ps256(bottom_blob.channel(q), i_se_offset, _mm256_castsi256_ps(v11_in_range));
+#else
+                                    __m256 ne_val = mask_gather_ps256(bottom_blob.channel(q), i_ne_offset, x1_in_range);
+                                    __m256 sw_val = mask_gather_ps256(bottom_blob.channel(q), i_sw_offset, y1_in_range);
+                                    __m256 se_val = mask_gather_ps256(bottom_blob.channel(q), i_se_offset, v11_in_range);
+#endif
 
                                     __m256 _v = _mm256_mul_ps(nw_val, nw);
                                     _v = _mm256_comp_fmadd_ps(ne_val, ne, _v);
@@ -1638,9 +1776,10 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                 __m256 sw = _mm256_mul_ps(n, e);
                                 __m256 se = _mm256_mul_ps(n, w);
 
-                                __m256i x0 = _mm256_cvtps_epi32(x_w);
-                                __m256i x1 = _mm256_add_epi32(x0, *(__m256i*)_pi32_256_1);
+                                                               __m256i x0 = _mm256_cvtps_epi32(x_w);
                                 __m256i y0 = _mm256_cvtps_epi32(y_n);
+#if __AVX2__
+                                __m256i x1 = _mm256_add_epi32(x0, *(__m256i*)_pi32_256_1);
                                 __m256i y1 = _mm256_add_epi32(y0, *(__m256i*)_pi32_256_1);
 
                                 __m256i x1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(x1, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgWi, x1));
@@ -1648,18 +1787,42 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 __m256i v11_in_range = _mm256_and_si256(x1_in_range, y1_in_range);
 
-                                // (W*y + x) * elempack + vec(8)
                                 __m256i i_nw_offset = _mm256_add_epi32(_mm256_mullo_epi32(y0, vImgWi), x0);
                                 __m256i i_ne_offset = _mm256_add_epi32(i_nw_offset, *(__m256i*)_pi32_256_1);
                                 __m256i i_sw_offset = _mm256_add_epi32(i_nw_offset, vImgWi);
                                 __m256i i_se_offset = _mm256_add_epi32(i_sw_offset, *(__m256i*)_pi32_256_1);
+#else
+                                __m256 x1 = _mm256_add_ps(x_w, *(__m256*)_ps256_1);
+                                __m256 y1 = _mm256_add_ps(y_n, *(__m256*)_ps256_1);
+
+                                __m256 x1_in_range = _mm256_and_ps(_mm256_cmp_ps(x1, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgWf, x1, _CMP_GT_OS));
+                                __m256 y1_in_range = _mm256_and_ps(_mm256_cmp_ps(y1, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgHf, y1, _CMP_GT_OS));
+
+                                __m256 v11_in_range = _mm256_and_ps(x1_in_range, y1_in_range);
+
+                                __m256 nw_offset = _mm256_add_ps(_mm256_mul_ps(y_n, vImgWf), x_w);
+                                __m256 ne_offset = _mm256_add_ps(nw_offset, *(__m256*)_ps256_1);
+                                __m256 sw_offset = _mm256_add_ps(nw_offset, vImgWf);
+                                __m256 se_offset = _mm256_add_ps(sw_offset, *(__m256*)_ps256_1);
+
+                                __m256i i_nw_offset = _mm256_cvtps_epi32(nw_offset);
+                                __m256i i_ne_offset = _mm256_cvtps_epi32(ne_offset);
+                                __m256i i_sw_offset = _mm256_cvtps_epi32(sw_offset);
+                                __m256i i_se_offset = _mm256_cvtps_epi32(se_offset);
+#endif
 
                                 for (int q = 0; q < channels; q++)
                                 {
                                     __m256 nw_val = mask_gather_ps256(bottom_blob.channel(q), i_nw_offset, *(__m256*)_ps256_n1);
-                                    __m256 ne_val = mask_gather_ps256(bottom_blob.channel(q), i_ne_offset, *reinterpret_cast<__m256*>(&x1_in_range));
-                                    __m256 sw_val = mask_gather_ps256(bottom_blob.channel(q), i_sw_offset, *reinterpret_cast<__m256*>(&y1_in_range));
-                                    __m256 se_val = mask_gather_ps256(bottom_blob.channel(q), i_se_offset, *reinterpret_cast<__m256*>(&v11_in_range));
+#if __AVX2__
+                                    __m256 ne_val = mask_gather_ps256(bottom_blob.channel(q), i_ne_offset, _mm256_castsi256_ps(x1_in_range));
+                                    __m256 sw_val = mask_gather_ps256(bottom_blob.channel(q), i_sw_offset, _mm256_castsi256_ps(y1_in_range));
+                                    __m256 se_val = mask_gather_ps256(bottom_blob.channel(q), i_se_offset, _mm256_castsi256_ps(v11_in_range));
+#else
+                                    __m256 ne_val = mask_gather_ps256(bottom_blob.channel(q), i_ne_offset, x1_in_range);
+                                    __m256 sw_val = mask_gather_ps256(bottom_blob.channel(q), i_sw_offset, y1_in_range);
+                                    __m256 se_val = mask_gather_ps256(bottom_blob.channel(q), i_se_offset, v11_in_range);
+#endif
 
                                     __m256 _v = _mm256_mul_ps(nw_val, nw);
                                     _v = _mm256_comp_fmadd_ps(ne_val, ne, _v);
@@ -1763,17 +1926,15 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                 gx = _mm256_floor_ps(_mm256_add_ps(gx, _mm256_set1_ps(0.5f)));
                                 gy = _mm256_floor_ps(_mm256_add_ps(gy, _mm256_set1_ps(0.5f)));
 
-                                __m256i ix = _mm256_cvtps_epi32(gx);
-                                __m256i iy = _mm256_cvtps_epi32(gy);
+                                __m256 v_in_range = _mm256_and_ps(_mm256_and_ps(_mm256_cmp_ps(gx, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgWf, gx, _CMP_GT_OS)),
+                                                                   _mm256_and_ps(_mm256_cmp_ps(gy, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgHf, gy, _CMP_GT_OS)));
 
-                                __m256i v_in_range = _mm256_and_si256(_mm256_and_si256(_mm256_cmpgt_epi32(ix, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgWi, ix)),
-                                                                      _mm256_and_si256(_mm256_cmpgt_epi32(iy, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgHi, iy)));
-
-                                __m256i i_offset = _mm256_add_epi32(_mm256_mullo_epi32(iy, vImgWi), ix);
+                                __m256 offset = _mm256_add_ps(_mm256_mul_ps(gy, vImgWf), gx);
+                                __m256i i_offset = _mm256_cvtps_epi32(offset);
 
                                 for (int q = 0; q < bottom_blob.c; q++)
                                 {
-                                    __m256 _v = mask_gather_ps256(bottom_blob.channel(q), i_offset, *reinterpret_cast<__m256*>(&v_in_range));
+                                    __m256 _v = mask_gather_ps256(bottom_blob.channel(q), i_offset, v_in_range);
 
                                     _mm256_storeu_ps(top_blob.channel(q).row(y) + x / 2, _v);
                                 }
@@ -1841,14 +2002,15 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                 __m256i ix = _mm256_cvtps_epi32(gx);
                                 __m256i iy = _mm256_cvtps_epi32(gy);
 
-                                __m256i v_in_range = _mm256_and_si256(_mm256_and_si256(_mm256_cmpgt_epi32(ix, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgWi, ix)),
-                                                                      _mm256_and_si256(_mm256_cmpgt_epi32(iy, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgHi, iy)));
+                                __m256 v_in_range = _mm256_and_ps(_mm256_and_ps(_mm256_cmp_ps(gx, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgWf, gx, _CMP_GT_OS)),
+                                                                  _mm256_and_ps(_mm256_cmp_ps(gy, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgHf, gy, _CMP_GT_OS)));
 
-                                __m256i i_offset = _mm256_add_epi32(_mm256_mullo_epi32(iy, vImgWi), ix);
+                                __m256 offset = _mm256_add_ps(_mm256_mul_ps(gy, vImgWf), gx);
+                                __m256i i_offset = _mm256_cvtps_epi32(offset);
 
                                 for (int q = 0; q < bottom_blob.c; q++)
                                 {
-                                    __m256 _v = mask_gather_ps256(bottom_blob.channel(q), i_offset, *reinterpret_cast<__m256*>(&v_in_range));
+                                    __m256 _v = mask_gather_ps256(bottom_blob.channel(q), i_offset, v_in_range);
 
                                     _mm256_storeu_ps(top_blob.channel(q).row(y) + x / 2, _v);
                                 }
@@ -1926,8 +2088,8 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                 __m256i ix = _mm256_cvtps_epi32(gx);
                                 __m256i iy = _mm256_cvtps_epi32(gy);
 
-                                __m256i i_offset = _mm256_add_epi32(_mm256_mullo_epi32(iy, vImgWi), ix);
-
+                                __m256 offset = _mm256_add_ps(_mm256_mul_ps(gy, vImgWf), gx);
+                                __m256i i_offset = _mm256_cvtps_epi32(offset);
                                 for (int q = 0; q < bottom_blob.c; q++)
                                 {
                                     __m256 _v = mask_gather_ps256(bottom_blob.channel(q), i_offset, _mm256_set1_ps(-1.0f));
@@ -2007,8 +2169,8 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                 __m256i ix = _mm256_cvtps_epi32(gx);
                                 __m256i iy = _mm256_cvtps_epi32(gy);
 
-                                __m256i i_offset = _mm256_add_epi32(_mm256_mullo_epi32(iy, vImgWi), ix);
-
+                                __m256 offset = _mm256_add_ps(_mm256_mul_ps(gy, vImgWf), gx);
+                                __m256i i_offset = _mm256_cvtps_epi32(offset);
                                 for (int q = 0; q < bottom_blob.c; q++)
                                 {
                                     __m256 _v = mask_gather_ps256(bottom_blob.channel(q), i_offset, _mm256_set1_ps(-1.0f));
@@ -2111,8 +2273,8 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                 __m256i ix = _mm256_cvtps_epi32(gx);
                                 __m256i iy = _mm256_cvtps_epi32(gy);
 
-                                __m256i i_offset = _mm256_add_epi32(_mm256_mullo_epi32(iy, vImgWi), ix);
-
+                                __m256 offset = _mm256_add_ps(_mm256_mul_ps(gy, vImgWf), gx);
+                                __m256i i_offset = _mm256_cvtps_epi32(offset);
                                 for (int q = 0; q < bottom_blob.c; q++)
                                 {
                                     __m256 _v = mask_gather_ps256(bottom_blob.channel(q), i_offset, _mm256_set1_ps(-1.0f));
@@ -2202,8 +2364,8 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                 __m256i ix = _mm256_cvtps_epi32(gx);
                                 __m256i iy = _mm256_cvtps_epi32(gy);
 
-                                __m256i i_offset = _mm256_add_epi32(_mm256_mullo_epi32(iy, vImgWi), ix);
-
+                                __m256 offset = _mm256_add_ps(_mm256_mul_ps(gy, vImgWf), gx);
+                                __m256i i_offset = _mm256_cvtps_epi32(offset);
                                 for (int q = 0; q < bottom_blob.c; q++)
                                 {
                                     __m256 _v = mask_gather_ps256(bottom_blob.channel(q), i_offset, _mm256_set1_ps(-1.0f));
@@ -2295,30 +2457,23 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                 __m256 gx2 = _mm256_add_ps(gx_floor, *(__m256*)_ps256_1);
                                 __m256 gx3 = _mm256_add_ps(gx_floor, _mm256_set1_ps(2.0f));
 
-                                __m256i x0 = _mm256_cvtps_epi32(gx0);
-                                __m256i x1 = _mm256_cvtps_epi32(gx1);
-                                __m256i x2 = _mm256_cvtps_epi32(gx2);
-                                __m256i x3 = _mm256_cvtps_epi32(gx3);
+                                __m256 x0_in_range = _mm256_and_ps(_mm256_cmp_ps(gx0, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgWf, gx0, _CMP_GT_OS));
+                                __m256 x1_in_range = _mm256_and_ps(_mm256_cmp_ps(gx1, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgWf, gx1, _CMP_GT_OS));
+                                __m256 x2_in_range = _mm256_and_ps(_mm256_cmp_ps(gx2, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgWf, gx2, _CMP_GT_OS));
+                                __m256 x3_in_range = _mm256_and_ps(_mm256_cmp_ps(gx3, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgWf, gx3, _CMP_GT_OS));
 
-                                __m256i x0_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(x0, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgWi, x0));
-                                __m256i x1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(x1, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgWi, x1));
-                                __m256i x2_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(x2, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgWi, x2));
-                                __m256i x3_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(x3, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgWi, x3));
-
-                                __m256i v0_offset[4], v1_offset[4], v2_offset[4], v3_offset[4],
-                                        v0_in_range[4], v1_in_range[4], v2_in_range[4], v3_in_range[4];
+                                __m256i v0_offset[4], v1_offset[4], v2_offset[4], v3_offset[4];
+                                __m256 v0_in_range[4], v1_in_range[4], v2_in_range[4], v3_in_range[4];
                                 for (int i = 0; i < 4; i++)
                                 {
                                     gy = _mm256_add_ps(gy_floor, _mm256_set1_ps(-1.0f + i));
 
-                                    __m256i y = _mm256_cvtps_epi32(gy);
+                                    __m256 y_in_range = _mm256_and_ps(_mm256_cmp_ps(gy, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgHf, gy, _CMP_GT_OS));
 
-                                    __m256i y_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(y, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgHi, y));
-
-                                    v0_in_range[i] = _mm256_and_si256(x0_in_range, y_in_range);
-                                    v1_in_range[i] = _mm256_and_si256(x1_in_range, y_in_range);
-                                    v2_in_range[i] = _mm256_and_si256(x2_in_range, y_in_range);
-                                    v3_in_range[i] = _mm256_and_si256(x3_in_range, y_in_range);
+                                    v0_in_range[i] = _mm256_and_ps(x0_in_range, y_in_range);
+                                    v1_in_range[i] = _mm256_and_ps(x1_in_range, y_in_range);
+                                    v2_in_range[i] = _mm256_and_ps(x2_in_range, y_in_range);
+                                    v3_in_range[i] = _mm256_and_ps(x3_in_range, y_in_range);
 
                                     __m256 v0_offset_f = _mm256_add_ps(_mm256_mul_ps(gy, vImgWf), gx0);
                                     __m256 v1_offset_f = _mm256_add_ps(_mm256_mul_ps(gy, vImgWf), gx1);
@@ -2335,10 +2490,10 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                 {
                                     for (int i = 0; i < 4; i++)
                                     {
-                                        __m256 x0_val = mask_gather_ps256(bottom_blob.channel(q), v0_offset[i], *reinterpret_cast<__m256*>(&v0_in_range[i]));
-                                        __m256 x1_val = mask_gather_ps256(bottom_blob.channel(q), v1_offset[i], *reinterpret_cast<__m256*>(&v1_in_range[i]));
-                                        __m256 x2_val = mask_gather_ps256(bottom_blob.channel(q), v2_offset[i], *reinterpret_cast<__m256*>(&v2_in_range[i]));
-                                        __m256 x3_val = mask_gather_ps256(bottom_blob.channel(q), v3_offset[i], *reinterpret_cast<__m256*>(&v3_in_range[i]));
+                                        __m256 x0_val = mask_gather_ps256(bottom_blob.channel(q), v0_offset[i], v0_in_range[i]);
+                                        __m256 x1_val = mask_gather_ps256(bottom_blob.channel(q), v1_offset[i], v1_in_range[i]);
+                                        __m256 x2_val = mask_gather_ps256(bottom_blob.channel(q), v2_offset[i], v2_in_range[i]);
+                                        __m256 x3_val = mask_gather_ps256(bottom_blob.channel(q), v3_offset[i], v3_in_range[i]);
 
                                         coefficients[i] = cubic_interp1d_p8(x0_val, x1_val, x2_val, x3_val, tx);
                                     }
@@ -2378,22 +2533,22 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                 bool x3_in_range = (x3 > -1) & (x3 < w);
                                 bool y3_in_range = (y3 > -1) & (y3 < h);
 
-                                bool v00_in_range = x0_in_range * y0_in_range;
-                                bool v01_in_range = x1_in_range * y0_in_range;
-                                bool v02_in_range = x2_in_range * y0_in_range;
-                                bool v03_in_range = x3_in_range * y0_in_range;
-                                bool v10_in_range = x0_in_range * y1_in_range;
-                                bool v11_in_range = x1_in_range * y1_in_range;
-                                bool v12_in_range = x2_in_range * y1_in_range;
-                                bool v13_in_range = x3_in_range * y1_in_range;
-                                bool v20_in_range = x0_in_range * y2_in_range;
-                                bool v21_in_range = x1_in_range * y2_in_range;
-                                bool v22_in_range = x2_in_range * y2_in_range;
-                                bool v23_in_range = x3_in_range * y2_in_range;
-                                bool v30_in_range = x0_in_range * y3_in_range;
-                                bool v31_in_range = x1_in_range * y3_in_range;
-                                bool v32_in_range = x2_in_range * y3_in_range;
-                                bool v33_in_range = x3_in_range * y3_in_range;
+                                bool v00_in_range = x0_in_range & y0_in_range;
+                                bool v01_in_range = x1_in_range & y0_in_range;
+                                bool v02_in_range = x2_in_range & y0_in_range;
+                                bool v03_in_range = x3_in_range & y0_in_range;
+                                bool v10_in_range = x0_in_range & y1_in_range;
+                                bool v11_in_range = x1_in_range & y1_in_range;
+                                bool v12_in_range = x2_in_range & y1_in_range;
+                                bool v13_in_range = x3_in_range & y1_in_range;
+                                bool v20_in_range = x0_in_range & y2_in_range;
+                                bool v21_in_range = x1_in_range & y2_in_range;
+                                bool v22_in_range = x2_in_range & y2_in_range;
+                                bool v23_in_range = x3_in_range & y2_in_range;
+                                bool v30_in_range = x0_in_range & y3_in_range;
+                                bool v31_in_range = x1_in_range & y3_in_range;
+                                bool v32_in_range = x2_in_range & y3_in_range;
+                                bool v33_in_range = x3_in_range & y3_in_range;
 
                                 for (int q = 0; q < channels; q++)
                                 {
@@ -2475,30 +2630,23 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                 __m256 gx2 = _mm256_add_ps(gx_floor, *(__m256*)_ps256_1);
                                 __m256 gx3 = _mm256_add_ps(gx_floor, _mm256_set1_ps(2.0f));
 
-                                __m256i x0 = _mm256_cvtps_epi32(gx0);
-                                __m256i x1 = _mm256_cvtps_epi32(gx1);
-                                __m256i x2 = _mm256_cvtps_epi32(gx2);
-                                __m256i x3 = _mm256_cvtps_epi32(gx3);
+                                __m256 x0_in_range = _mm256_and_ps(_mm256_cmp_ps(gx0, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgWf, gx0, _CMP_GT_OS));
+                                __m256 x1_in_range = _mm256_and_ps(_mm256_cmp_ps(gx1, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgWf, gx1, _CMP_GT_OS));
+                                __m256 x2_in_range = _mm256_and_ps(_mm256_cmp_ps(gx2, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgWf, gx2, _CMP_GT_OS));
+                                __m256 x3_in_range = _mm256_and_ps(_mm256_cmp_ps(gx3, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgWf, gx3, _CMP_GT_OS));
 
-                                __m256i x0_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(x0, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgWi, x0));
-                                __m256i x1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(x1, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgWi, x1));
-                                __m256i x2_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(x2, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgWi, x2));
-                                __m256i x3_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(x3, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgWi, x3));
-
-                                __m256i v0_offset[4], v1_offset[4], v2_offset[4], v3_offset[4],
-                                        v0_in_range[4], v1_in_range[4], v2_in_range[4], v3_in_range[4];
+                                __m256i v0_offset[4], v1_offset[4], v2_offset[4], v3_offset[4];
+                                __m256 v0_in_range[4], v1_in_range[4], v2_in_range[4], v3_in_range[4];
                                 for (int i = 0; i < 4; i++)
                                 {
                                     gy = _mm256_add_ps(gy_floor, _mm256_set1_ps(-1.0f + i));
 
-                                    __m256i y = _mm256_cvtps_epi32(gy);
+                                    __m256 y_in_range = _mm256_and_ps(_mm256_cmp_ps(gy, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgHf, gy, _CMP_GT_OS));
 
-                                    __m256i y_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(y, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgHi, y));
-
-                                    v0_in_range[i] = _mm256_and_si256(x0_in_range, y_in_range);
-                                    v1_in_range[i] = _mm256_and_si256(x1_in_range, y_in_range);
-                                    v2_in_range[i] = _mm256_and_si256(x2_in_range, y_in_range);
-                                    v3_in_range[i] = _mm256_and_si256(x3_in_range, y_in_range);
+                                    v0_in_range[i] = _mm256_and_ps(x0_in_range, y_in_range);
+                                    v1_in_range[i] = _mm256_and_ps(x1_in_range, y_in_range);
+                                    v2_in_range[i] = _mm256_and_ps(x2_in_range, y_in_range);
+                                    v3_in_range[i] = _mm256_and_ps(x3_in_range, y_in_range);
 
                                     __m256 v0_offset_f = _mm256_add_ps(_mm256_mul_ps(gy, vImgWf), gx0);
                                     __m256 v1_offset_f = _mm256_add_ps(_mm256_mul_ps(gy, vImgWf), gx1);
@@ -2515,10 +2663,10 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                 {
                                     for (int i = 0; i < 4; i++)
                                     {
-                                        __m256 x0_val = mask_gather_ps256(bottom_blob.channel(q), v0_offset[i], *reinterpret_cast<__m256*>(&v0_in_range[i]));
-                                        __m256 x1_val = mask_gather_ps256(bottom_blob.channel(q), v1_offset[i], *reinterpret_cast<__m256*>(&v1_in_range[i]));
-                                        __m256 x2_val = mask_gather_ps256(bottom_blob.channel(q), v2_offset[i], *reinterpret_cast<__m256*>(&v2_in_range[i]));
-                                        __m256 x3_val = mask_gather_ps256(bottom_blob.channel(q), v3_offset[i], *reinterpret_cast<__m256*>(&v3_in_range[i]));
+                                        __m256 x0_val = mask_gather_ps256(bottom_blob.channel(q), v0_offset[i], v0_in_range[i]);
+                                        __m256 x1_val = mask_gather_ps256(bottom_blob.channel(q), v1_offset[i], v1_in_range[i]);
+                                        __m256 x2_val = mask_gather_ps256(bottom_blob.channel(q), v2_offset[i], v2_in_range[i]);
+                                        __m256 x3_val = mask_gather_ps256(bottom_blob.channel(q), v3_offset[i], v3_in_range[i]);
 
                                         coefficients[i] = cubic_interp1d_p8(x0_val, x1_val, x2_val, x3_val, tx);
                                     }
@@ -2557,22 +2705,22 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                 bool x3_in_range = (x3 > -1) & (x3 < w);
                                 bool y3_in_range = (y3 > -1) & (y3 < h);
 
-                                bool v00_in_range = x0_in_range * y0_in_range;
-                                bool v01_in_range = x1_in_range * y0_in_range;
-                                bool v02_in_range = x2_in_range * y0_in_range;
-                                bool v03_in_range = x3_in_range * y0_in_range;
-                                bool v10_in_range = x0_in_range * y1_in_range;
-                                bool v11_in_range = x1_in_range * y1_in_range;
-                                bool v12_in_range = x2_in_range * y1_in_range;
-                                bool v13_in_range = x3_in_range * y1_in_range;
-                                bool v20_in_range = x0_in_range * y2_in_range;
-                                bool v21_in_range = x1_in_range * y2_in_range;
-                                bool v22_in_range = x2_in_range * y2_in_range;
-                                bool v23_in_range = x3_in_range * y2_in_range;
-                                bool v30_in_range = x0_in_range * y3_in_range;
-                                bool v31_in_range = x1_in_range * y3_in_range;
-                                bool v32_in_range = x2_in_range * y3_in_range;
-                                bool v33_in_range = x3_in_range * y3_in_range;
+                                bool v00_in_range = x0_in_range & y0_in_range;
+                                bool v01_in_range = x1_in_range & y0_in_range;
+                                bool v02_in_range = x2_in_range & y0_in_range;
+                                bool v03_in_range = x3_in_range & y0_in_range;
+                                bool v10_in_range = x0_in_range & y1_in_range;
+                                bool v11_in_range = x1_in_range & y1_in_range;
+                                bool v12_in_range = x2_in_range & y1_in_range;
+                                bool v13_in_range = x3_in_range & y1_in_range;
+                                bool v20_in_range = x0_in_range & y2_in_range;
+                                bool v21_in_range = x1_in_range & y2_in_range;
+                                bool v22_in_range = x2_in_range & y2_in_range;
+                                bool v23_in_range = x3_in_range & y2_in_range;
+                                bool v30_in_range = x0_in_range & y3_in_range;
+                                bool v31_in_range = x1_in_range & y3_in_range;
+                                bool v32_in_range = x2_in_range & y3_in_range;
+                                bool v33_in_range = x3_in_range & y3_in_range;
 
                                 for (int q = 0; q < channels; q++)
                                 {
@@ -2656,11 +2804,6 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                 gx1 = _mm256_min_ps(border_x, _mm256_max_ps(gx1, _mm256_setzero_ps()));
                                 gx2 = _mm256_min_ps(border_x, _mm256_max_ps(gx2, _mm256_setzero_ps()));
                                 gx3 = _mm256_min_ps(border_x, _mm256_max_ps(gx3, _mm256_setzero_ps()));
-
-                                __m256i x0 = _mm256_cvtps_epi32(gx0);
-                                __m256i x1 = _mm256_cvtps_epi32(gx1);
-                                __m256i x2 = _mm256_cvtps_epi32(gx2);
-                                __m256i x3 = _mm256_cvtps_epi32(gx3);
 
                                 __m256i v0_offset[4], v1_offset[4], v2_offset[4], v3_offset[4];
                                 for (int i = 0; i < 4; i++)
@@ -2814,11 +2957,6 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                 gx1 = _mm256_min_ps(border_x, _mm256_max_ps(gx1, _mm256_setzero_ps()));
                                 gx2 = _mm256_min_ps(border_x, _mm256_max_ps(gx2, _mm256_setzero_ps()));
                                 gx3 = _mm256_min_ps(border_x, _mm256_max_ps(gx3, _mm256_setzero_ps()));
-
-                                __m256i x0 = _mm256_cvtps_epi32(gx0);
-                                __m256i x1 = _mm256_cvtps_epi32(gx1);
-                                __m256i x2 = _mm256_cvtps_epi32(gx2);
-                                __m256i x3 = _mm256_cvtps_epi32(gx3);
 
                                 __m256i v0_offset[4], v1_offset[4], v2_offset[4], v3_offset[4];
                                 for (int i = 0; i < 4; i++)
@@ -3023,11 +3161,6 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                     gx3 = _mm256_min_ps(border_x, _mm256_max_ps(gx3, _mm256_setzero_ps()));
                                 }
-
-                                __m256i x0 = _mm256_cvtps_epi32(gx0);
-                                __m256i x1 = _mm256_cvtps_epi32(gx1);
-                                __m256i x2 = _mm256_cvtps_epi32(gx2);
-                                __m256i x3 = _mm256_cvtps_epi32(gx3);
 
                                 __m256i v0_offset[4], v1_offset[4], v2_offset[4], v3_offset[4];
                                 for (int i = 0; i < 4; i++)
@@ -3234,11 +3367,6 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                     __m256 reflectx3_v = _mm256_and_ps(_mm256_sub_ps(gx3, border_x), *(__m256*)_ps256_inv_sign_mask);
                                     gx3 = _mm256_sub_ps(border_x, reflectx3_v);
                                 }
-
-                                __m256i x0 = _mm256_cvtps_epi32(gx0);
-                                __m256i x1 = _mm256_cvtps_epi32(gx1);
-                                __m256i x2 = _mm256_cvtps_epi32(gx2);
-                                __m256i x3 = _mm256_cvtps_epi32(gx3);
 
                                 __m256i v0_offset[4], v1_offset[4], v2_offset[4], v3_offset[4];
                                 for (int i = 0; i < 4; i++)

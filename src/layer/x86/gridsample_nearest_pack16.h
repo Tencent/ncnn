@@ -42,8 +42,8 @@ static void gridsample_2d_nearest_align0_zeros_blob_pack16(const Mat& src, Mat& 
                 gy = _mm512_div_ps(_mm512_fmsub_ps(_mm512_add_ps(gy, *(__m512*)_ps512_1), vImgHf, *(__m512*)_ps512_1), two);
             }
 
-            gx = _mm512_floor_ps(_mm512_add_ps(gx, _mm512_set1_ps(0.5f)));
-            gy = _mm512_floor_ps(_mm512_add_ps(gy, _mm512_set1_ps(0.5f)));
+            gx = _mm512_roundscale_ps(_mm512_add_ps(gx, _mm512_set1_ps(0.5f)), _MM_FROUND_TO_NEG_INF);
+            gy = _mm512_roundscale_ps(_mm512_add_ps(gy, _mm512_set1_ps(0.5f)), _MM_FROUND_TO_NEG_INF);
 
             __m512i ix = _mm512_cvtps_epi32(gx);
             __m512i iy = _mm512_cvtps_epi32(gy);
@@ -93,8 +93,8 @@ static void gridsample_2d_nearest_align1_zeros_blob_pack16(const Mat& src, Mat& 
                 gy = _mm512_mul_ps(_mm512_div_ps(_mm512_add_ps(gy, *(__m512*)_ps512_1), two), _mm512_sub_ps(vImgHf, *(__m512*)_ps512_1));
             }
 
-            gx = _mm512_floor_ps(_mm512_add_ps(gx, _mm512_set1_ps(0.5f)));
-            gy = _mm512_floor_ps(_mm512_add_ps(gy, _mm512_set1_ps(0.5f)));
+            gx = _mm512_roundscale_ps(_mm512_add_ps(gx, _mm512_set1_ps(0.5f)), _MM_FROUND_TO_NEG_INF);
+            gy = _mm512_roundscale_ps(_mm512_add_ps(gy, _mm512_set1_ps(0.5f)), _MM_FROUND_TO_NEG_INF);
 
             __m512i ix = _mm512_cvtps_epi32(gx);
             __m512i iy = _mm512_cvtps_epi32(gy);
@@ -152,8 +152,8 @@ static void gridsample_2d_nearest_align0_border_blob_pack16(const Mat& src, Mat&
                 gy = _mm512_min_ps(border_y, _mm512_max_ps(gy, _mm512_setzero_ps()));
             }
 
-            gx = _mm512_floor_ps(_mm512_add_ps(gx, _mm512_set1_ps(0.5f)));
-            gy = _mm512_floor_ps(_mm512_add_ps(gy, _mm512_set1_ps(0.5f)));
+            gx = _mm512_roundscale_ps(_mm512_add_ps(gx, _mm512_set1_ps(0.5f)), _MM_FROUND_TO_NEG_INF);
+            gy = _mm512_roundscale_ps(_mm512_add_ps(gy, _mm512_set1_ps(0.5f)), _MM_FROUND_TO_NEG_INF);
 
             __m512i ix = _mm512_cvtps_epi32(gx);
             __m512i iy = _mm512_cvtps_epi32(gy);
@@ -209,8 +209,8 @@ static void gridsample_2d_nearest_align1_border_blob_pack16(const Mat& src, Mat&
                 gy = _mm512_min_ps(border_y, _mm512_max_ps(gy, _mm512_setzero_ps()));
             }
 
-            gx = _mm512_floor_ps(_mm512_add_ps(gx, _mm512_set1_ps(0.5f)));
-            gy = _mm512_floor_ps(_mm512_add_ps(gy, _mm512_set1_ps(0.5f)));
+            gx = _mm512_roundscale_ps(_mm512_add_ps(gx, _mm512_set1_ps(0.5f)), _MM_FROUND_TO_NEG_INF);
+            gy = _mm512_roundscale_ps(_mm512_add_ps(gy, _mm512_set1_ps(0.5f)), _MM_FROUND_TO_NEG_INF);
 
             __m512i ix = _mm512_cvtps_epi32(gx);
             __m512i iy = _mm512_cvtps_epi32(gy);
@@ -251,8 +251,8 @@ static void gridsample_2d_nearest_align0_reflection_blob_pack16(const Mat& src, 
             gx = _mm512_div_ps(_mm512_fmsub_ps(_mm512_add_ps(gx, *(__m512*)_ps512_1), vImgWf, *(__m512*)_ps512_1), two);
             gy = _mm512_div_ps(_mm512_fmsub_ps(_mm512_add_ps(gy, *(__m512*)_ps512_1), vImgHf, *(__m512*)_ps512_1), two);
 
-            gx = _mm512_floor_ps(_mm512_add_ps(gx, _mm512_set1_ps(0.5f)));
-            gy = _mm512_floor_ps(_mm512_add_ps(gy, _mm512_set1_ps(0.5f)));
+            gx = _mm512_roundscale_ps(_mm512_add_ps(gx, _mm512_set1_ps(0.5f)), _MM_FROUND_TO_NEG_INF);
+            gy = _mm512_roundscale_ps(_mm512_add_ps(gy, _mm512_set1_ps(0.5f)), _MM_FROUND_TO_NEG_INF);
 
             // compute coord
             {
@@ -329,8 +329,8 @@ static void gridsample_2d_nearest_align1_reflection_blob_pack16(const Mat& src, 
             gx = _mm512_mul_ps(_mm512_div_ps(_mm512_add_ps(gx, *(__m512*)_ps512_1), two), _mm512_sub_ps(vImgWf, *(__m512*)_ps512_1));
             gy = _mm512_mul_ps(_mm512_div_ps(_mm512_add_ps(gy, *(__m512*)_ps512_1), two), _mm512_sub_ps(vImgHf, *(__m512*)_ps512_1));
 
-            gx = _mm512_floor_ps(_mm512_add_ps(gx, _mm512_set1_ps(0.5f)));
-            gy = _mm512_floor_ps(_mm512_add_ps(gy, _mm512_set1_ps(0.5f)));
+            gx = _mm512_roundscale_ps(_mm512_add_ps(gx, _mm512_set1_ps(0.5f)), _MM_FROUND_TO_NEG_INF);
+            gy = _mm512_roundscale_ps(_mm512_add_ps(gy, _mm512_set1_ps(0.5f)), _MM_FROUND_TO_NEG_INF);
 
             // compute coord
             {
@@ -405,9 +405,9 @@ static void gridsample_3d_nearest_align0_zeros_blob_pack16(const Mat& src, Mat& 
                     gz = _mm512_div_ps(_mm512_fmsub_ps(_mm512_add_ps(gz, *(__m512*)_ps512_1), vImgDf, *(__m512*)_ps512_1), two);
                 }
 
-                gx = _mm512_floor_ps(_mm512_add_ps(gx, _mm512_set1_ps(0.5f)));
-                gy = _mm512_floor_ps(_mm512_add_ps(gy, _mm512_set1_ps(0.5f)));
-                gz = _mm512_floor_ps(_mm512_add_ps(gz, _mm512_set1_ps(0.5f)));
+                gx = _mm512_roundscale_ps(_mm512_add_ps(gx, _mm512_set1_ps(0.5f)), _MM_FROUND_TO_NEG_INF);
+                gy = _mm512_roundscale_ps(_mm512_add_ps(gy, _mm512_set1_ps(0.5f)), _MM_FROUND_TO_NEG_INF);
+                gz = _mm512_roundscale_ps(_mm512_add_ps(gz, _mm512_set1_ps(0.5f)), _MM_FROUND_TO_NEG_INF);
 
                 __m512i ix = _mm512_cvtps_epi32(gx);
                 __m512i iy = _mm512_cvtps_epi32(gy);
@@ -467,9 +467,9 @@ static void gridsample_3d_nearest_align1_zeros_blob_pack16(const Mat& src, Mat& 
                     gz = _mm512_mul_ps(_mm512_div_ps(_mm512_add_ps(gz, *(__m512*)_ps512_1), two), _mm512_sub_ps(vImgDf, *(__m512*)_ps512_1));
                 }
 
-                gx = _mm512_floor_ps(_mm512_add_ps(gx, _mm512_set1_ps(0.5f)));
-                gy = _mm512_floor_ps(_mm512_add_ps(gy, _mm512_set1_ps(0.5f)));
-                gz = _mm512_floor_ps(_mm512_add_ps(gz, _mm512_set1_ps(0.5f)));
+                gx = _mm512_roundscale_ps(_mm512_add_ps(gx, _mm512_set1_ps(0.5f)), _MM_FROUND_TO_NEG_INF);
+                gy = _mm512_roundscale_ps(_mm512_add_ps(gy, _mm512_set1_ps(0.5f)), _MM_FROUND_TO_NEG_INF);
+                gz = _mm512_roundscale_ps(_mm512_add_ps(gz, _mm512_set1_ps(0.5f)), _MM_FROUND_TO_NEG_INF);
 
                 __m512i ix = _mm512_cvtps_epi32(gx);
                 __m512i iy = _mm512_cvtps_epi32(gy);
@@ -541,9 +541,9 @@ static void gridsample_3d_nearest_align0_border_blob_pack16(const Mat& src, Mat&
                     gz = _mm512_min_ps(border_z, _mm512_max_ps(gz, _mm512_setzero_ps()));
                 }
 
-                gx = _mm512_floor_ps(_mm512_add_ps(gx, _mm512_set1_ps(0.5f)));
-                gy = _mm512_floor_ps(_mm512_add_ps(gy, _mm512_set1_ps(0.5f)));
-                gz = _mm512_floor_ps(_mm512_add_ps(gz, _mm512_set1_ps(0.5f)));
+                gx = _mm512_roundscale_ps(_mm512_add_ps(gx, _mm512_set1_ps(0.5f)), _MM_FROUND_TO_NEG_INF);
+                gy = _mm512_roundscale_ps(_mm512_add_ps(gy, _mm512_set1_ps(0.5f)), _MM_FROUND_TO_NEG_INF);
+                gz = _mm512_roundscale_ps(_mm512_add_ps(gz, _mm512_set1_ps(0.5f)), _MM_FROUND_TO_NEG_INF);
 
                 __m512i ix = _mm512_cvtps_epi32(gx);
                 __m512i iy = _mm512_cvtps_epi32(gy);
@@ -612,9 +612,9 @@ static void gridsample_3d_nearest_align1_border_blob_pack16(const Mat& src, Mat&
                     gz = _mm512_min_ps(border_z, _mm512_max_ps(gz, _mm512_setzero_ps()));
                 }
 
-                gx = _mm512_floor_ps(_mm512_add_ps(gx, _mm512_set1_ps(0.5f)));
-                gy = _mm512_floor_ps(_mm512_add_ps(gy, _mm512_set1_ps(0.5f)));
-                gz = _mm512_floor_ps(_mm512_add_ps(gz, _mm512_set1_ps(0.5f)));
+                gx = _mm512_roundscale_ps(_mm512_add_ps(gx, _mm512_set1_ps(0.5f)), _MM_FROUND_TO_NEG_INF);
+                gy = _mm512_roundscale_ps(_mm512_add_ps(gy, _mm512_set1_ps(0.5f)), _MM_FROUND_TO_NEG_INF);
+                gz = _mm512_roundscale_ps(_mm512_add_ps(gz, _mm512_set1_ps(0.5f)), _MM_FROUND_TO_NEG_INF);
 
                 __m512i ix = _mm512_cvtps_epi32(gx);
                 __m512i iy = _mm512_cvtps_epi32(gy);
@@ -662,9 +662,9 @@ static void gridsample_3d_nearest_align0_reflection_blob_pack16(const Mat& src, 
                 gy = _mm512_div_ps(_mm512_fmsub_ps(_mm512_add_ps(gy, *(__m512*)_ps512_1), vImgHf, *(__m512*)_ps512_1), two);
                 gz = _mm512_div_ps(_mm512_fmsub_ps(_mm512_add_ps(gz, *(__m512*)_ps512_1), vImgDf, *(__m512*)_ps512_1), two);
 
-                gx = _mm512_floor_ps(_mm512_add_ps(gx, _mm512_set1_ps(0.5f)));
-                gy = _mm512_floor_ps(_mm512_add_ps(gy, _mm512_set1_ps(0.5f)));
-                gz = _mm512_floor_ps(_mm512_add_ps(gz, _mm512_set1_ps(0.5f)));
+                gx = _mm512_roundscale_ps(_mm512_add_ps(gx, _mm512_set1_ps(0.5f)), _MM_FROUND_TO_NEG_INF);
+                gy = _mm512_roundscale_ps(_mm512_add_ps(gy, _mm512_set1_ps(0.5f)), _MM_FROUND_TO_NEG_INF);
+                gz = _mm512_roundscale_ps(_mm512_add_ps(gz, _mm512_set1_ps(0.5f)), _MM_FROUND_TO_NEG_INF);
 
                 // compute coord
                 {
@@ -764,9 +764,9 @@ static void gridsample_3d_nearest_align1_reflection_blob_pack16(const Mat& src, 
                 gy = _mm512_mul_ps(_mm512_div_ps(_mm512_add_ps(gy, *(__m512*)_ps512_1), two), _mm512_sub_ps(vImgHf, *(__m512*)_ps512_1));
                 gz = _mm512_mul_ps(_mm512_div_ps(_mm512_add_ps(gz, *(__m512*)_ps512_1), two), _mm512_sub_ps(vImgDf, *(__m512*)_ps512_1));
 
-                gx = _mm512_floor_ps(_mm512_add_ps(gx, _mm512_set1_ps(0.5f)));
-                gy = _mm512_floor_ps(_mm512_add_ps(gy, _mm512_set1_ps(0.5f)));
-                gz = _mm512_floor_ps(_mm512_add_ps(gz, _mm512_set1_ps(0.5f)));
+                gx = _mm512_roundscale_ps(_mm512_add_ps(gx, _mm512_set1_ps(0.5f)), _MM_FROUND_TO_NEG_INF);
+                gy = _mm512_roundscale_ps(_mm512_add_ps(gy, _mm512_set1_ps(0.5f)), _MM_FROUND_TO_NEG_INF);
+                gz = _mm512_roundscale_ps(_mm512_add_ps(gz, _mm512_set1_ps(0.5f)), _MM_FROUND_TO_NEG_INF);
 
                 // compute coord
                 {

@@ -121,10 +121,10 @@ static void gridsample_2d_bicubic_align0_zeros_blob_pack4(const Mat& src, Mat& d
             {
                 for (int i = 0; i < 4; i++)
                 {
-                    __m128 x0_val = mask_gather_ps(src.channel(q), v0_offset[i], *reinterpret_cast<__m128*>(&v0_in_range[i]));
-                    __m128 x1_val = mask_gather_ps(src.channel(q), v1_offset[i], *reinterpret_cast<__m128*>(&v1_in_range[i]));
-                    __m128 x2_val = mask_gather_ps(src.channel(q), v2_offset[i], *reinterpret_cast<__m128*>(&v2_in_range[i]));
-                    __m128 x3_val = mask_gather_ps(src.channel(q), v3_offset[i], *reinterpret_cast<__m128*>(&v3_in_range[i]));
+                    __m128 x0_val = mask_gather_ps(src.channel(q), v0_offset[i], _mm_castsi128_ps(v0_in_range[i]));
+                    __m128 x1_val = mask_gather_ps(src.channel(q), v1_offset[i], _mm_castsi128_ps(v1_in_range[i]));
+                    __m128 x2_val = mask_gather_ps(src.channel(q), v2_offset[i], _mm_castsi128_ps(v2_in_range[i]));
+                    __m128 x3_val = mask_gather_ps(src.channel(q), v3_offset[i], _mm_castsi128_ps(v3_in_range[i]));
 
                     coefficients[i] = cubic_interp1d_p4(x0_val, x1_val, x2_val, x3_val, tx);
                 }
@@ -221,10 +221,10 @@ static void gridsample_2d_bicubic_align1_zeros_blob_pack4(const Mat& src, Mat& d
             {
                 for (int i = 0; i < 4; i++)
                 {
-                    __m128 x0_val = mask_gather_ps(src.channel(q), v0_offset[i], *reinterpret_cast<__m128*>(&v0_in_range[i]));
-                    __m128 x1_val = mask_gather_ps(src.channel(q), v1_offset[i], *reinterpret_cast<__m128*>(&v1_in_range[i]));
-                    __m128 x2_val = mask_gather_ps(src.channel(q), v2_offset[i], *reinterpret_cast<__m128*>(&v2_in_range[i]));
-                    __m128 x3_val = mask_gather_ps(src.channel(q), v3_offset[i], *reinterpret_cast<__m128*>(&v3_in_range[i]));
+                    __m128 x0_val = mask_gather_ps(src.channel(q), v0_offset[i], _mm_castsi128_ps(v0_in_range[i]));
+                    __m128 x1_val = mask_gather_ps(src.channel(q), v1_offset[i], _mm_castsi128_ps(v1_in_range[i]));
+                    __m128 x2_val = mask_gather_ps(src.channel(q), v2_offset[i], _mm_castsi128_ps(v2_in_range[i]));
+                    __m128 x3_val = mask_gather_ps(src.channel(q), v3_offset[i], _mm_castsi128_ps(v3_in_range[i]));
 
                     coefficients[i] = cubic_interp1d_p4(x0_val, x1_val, x2_val, x3_val, tx);
                 }
