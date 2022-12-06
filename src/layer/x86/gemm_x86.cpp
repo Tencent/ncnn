@@ -22,6 +22,8 @@
 #endif // __SSE2__
 #include "x86_usability.h"
 
+#include "cpu.h"
+
 namespace ncnn {
 
 Gemm_x86::Gemm_x86()
@@ -40,13 +42,26 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
     // NCNN_LOGE("M/N/K = %d %d %d", M, N, K);
 
     // TODO do not hardcode
-    int TILE_M = 16 * 16; // 256
+    int TILE_M = 16 * 16 * get_physical_cpu_count(); // 256
     int TILE_N = 12 * 20; // 240
     int TILE_K = 16 * 16;
 
-    TILE_M = std::min(TILE_M, (M / ((M + TILE_M - 1) / TILE_M) + 15) / 16 * 16);
-    TILE_N = std::min(TILE_N, (N / ((N + TILE_N - 1) / TILE_N) + 11) / 12 * 12);
-    TILE_K = std::min(TILE_K, (K / ((K + TILE_K - 1) / TILE_K) + 15) / 16 * 16);
+    {
+        int nn_M = (M + TILE_M - 1) / TILE_M;
+        int nn_N = (N + TILE_N - 1) / TILE_N;
+        int nn_K = (K + TILE_K - 1) / TILE_K;
+
+        TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 15) / 16 * 16);
+        TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 11) / 12 * 12);
+        TILE_K = std::min(TILE_K, ((K + nn_K - 1) / nn_K + 15) / 16 * 16);
+
+        if (opt.num_threads > 1)
+        {
+            TILE_M = std::min(TILE_M, (TILE_M / opt.num_threads + 15) / 16 * 16);
+            TILE_N = std::min(TILE_N, (TILE_N / opt.num_threads + 11) / 12 * 12);
+            TILE_K = std::min(TILE_K, (TILE_K / opt.num_threads + 15) / 16 * 16);
+        }
+    }
 
     // NCNN_LOGE("TILE M/N/K = %d %d %d", TILE_M, TILE_N, TILE_K);
 
@@ -105,16 +120,1332 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
         }
     }
 
-    Mat AT(TILE_K * TILE_M, (K + TILE_K - 1) / TILE_K, 4u, opt.blob_allocator);
+    int nn_M = (M + TILE_M - 1) / TILE_M;
+    int nn_N = (N + TILE_N - 1) / TILE_N;
+
+    Mat ATX(TILE_K * TILE_M, (K + TILE_K - 1) / TILE_K, opt.num_threads, 4u, opt.blob_allocator);
     Mat BT(TILE_K * TILE_N, (K + TILE_K - 1) / TILE_K, (N + TILE_N - 1) / TILE_N, 4u, opt.blob_allocator);
 
-    Mat tmp;
+    Mat tmpX;
     if (K > TILE_K)
-        tmp.create(TILE_N, TILE_M, 4u, opt.blob_allocator);
+        tmpX.create(TILE_N, TILE_M, opt.num_threads, 4u, opt.blob_allocator);
 
-    int i = 0;
-    for (; i < M; i += TILE_M)
+    // pack B
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int ppj = 0; ppj < nn_N; ppj++)
     {
+        const int j = ppj * TILE_N;
+
+        for (int k = 0; k < K; k += TILE_K)
+        {
+            const int max_jj = std::min((N - j), TILE_N);
+            const int max_kk = std::min((K - k), TILE_K);
+
+            // pack B
+            if (transB)
+            {
+                // pack_b(B, BT, TILE_N, TILE_K, opt);
+                const int elempack = B.elempack;
+
+                float* pp = BT.channel(j / TILE_N).row(k / TILE_K);
+
+                int jj = 0;
+#if __SSE2__
+                for (; jj + 11 < max_jj; jj += 12)
+                {
+#if __AVX__
+#if __AVX512F__
+                    if (elempack == 16)
+                    {
+                        const float* p0 = B.row((j + jj) / 16 + 0) + k * 16;
+                        const float* p1 = B.row((j + jj) / 16 + 1) + k * 16;
+
+                        if ((j + jj) % 16 == 0)
+                        {
+                            for (int kk = 0; kk < max_kk; kk++)
+                            {
+                                _mm256_storeu_ps(pp, _mm256_load_ps(p0));
+                                _mm_store_ps(pp + 8, _mm_load_ps(p0 + 8));
+                                pp += 12;
+                                p0 += 16;
+                            }
+                        }
+                        if ((j + jj) % 16 == 4)
+                        {
+                            for (int kk = 0; kk < max_kk; kk++)
+                            {
+                                _mm256_storeu_ps(pp, _mm256_loadu_ps(p0 + 4));
+                                _mm_store_ps(pp + 8, _mm_load_ps(p0 + 12));
+                                pp += 12;
+                                p0 += 16;
+                            }
+                        }
+                        if ((j + jj) % 16 == 8)
+                        {
+                            for (int kk = 0; kk < max_kk; kk++)
+                            {
+                                _mm256_storeu_ps(pp, _mm256_load_ps(p0 + 8));
+                                _mm_store_ps(pp + 8, _mm_load_ps(p1));
+                                pp += 12;
+                                p0 += 16;
+                                p1 += 16;
+                            }
+                        }
+                        if ((j + jj) % 16 == 12)
+                        {
+                            for (int kk = 0; kk < max_kk; kk++)
+                            {
+                                _mm_store_ps(pp, _mm_load_ps(p0 + 12));
+                                _mm256_storeu_ps(pp + 4, _mm256_load_ps(p1));
+                                pp += 12;
+                                p0 += 16;
+                                p1 += 16;
+                            }
+                        }
+                    }
+#endif // __AVX512F__
+                    if (elempack == 8)
+                    {
+                        const float* p0 = B.row((j + jj) / 8 + 0) + k * 8;
+                        const float* p1 = B.row((j + jj) / 8 + 1) + k * 8;
+
+                        if ((j + jj) % 8 == 0)
+                        {
+                            for (int kk = 0; kk < max_kk; kk++)
+                            {
+                                _mm256_storeu_ps(pp, _mm256_load_ps(p0));
+                                _mm_store_ps(pp + 8, _mm_load_ps(p1));
+                                pp += 12;
+                                p0 += 8;
+                                p1 += 8;
+                            }
+                        }
+                        if ((j + jj) % 8 == 4)
+                        {
+                            for (int kk = 0; kk < max_kk; kk++)
+                            {
+                                _mm_store_ps(pp, _mm_load_ps(p0 + 4));
+                                _mm256_storeu_ps(pp + 4, _mm256_load_ps(p1));
+                                pp += 12;
+                                p0 += 8;
+                                p1 += 8;
+                            }
+                        }
+                    }
+#endif // __AVX__
+                    if (elempack == 4)
+                    {
+                        const float* p0 = B.row((j + jj) / 4 + 0) + k * 4;
+                        const float* p1 = B.row((j + jj) / 4 + 1) + k * 4;
+                        const float* p2 = B.row((j + jj) / 4 + 2) + k * 4;
+
+                        for (int kk = 0; kk < max_kk; kk++)
+                        {
+                            _mm_store_ps(pp, _mm_load_ps(p0));
+                            _mm_store_ps(pp + 4, _mm_load_ps(p1));
+                            _mm_store_ps(pp + 8, _mm_load_ps(p2));
+                            pp += 12;
+                            p0 += 4;
+                            p1 += 4;
+                            p2 += 4;
+                        }
+                    }
+                    if (elempack == 1)
+                    {
+                        const float* p0 = B.row(j + jj + 0) + k;
+                        const float* p1 = B.row(j + jj + 1) + k;
+                        const float* p2 = B.row(j + jj + 2) + k;
+                        const float* p3 = B.row(j + jj + 3) + k;
+                        const float* p4 = B.row(j + jj + 4) + k;
+                        const float* p5 = B.row(j + jj + 5) + k;
+                        const float* p6 = B.row(j + jj + 6) + k;
+                        const float* p7 = B.row(j + jj + 7) + k;
+                        const float* p8 = B.row(j + jj + 8) + k;
+                        const float* p9 = B.row(j + jj + 9) + k;
+                        const float* pa = B.row(j + jj + 10) + k;
+                        const float* pb = B.row(j + jj + 11) + k;
+
+                        int kk = 0;
+#if __AVX__
+                        for (; kk + 7 < max_kk; kk += 8)
+                        {
+                            __m256 _r0 = _mm256_loadu_ps(p0);
+                            __m256 _r1 = _mm256_loadu_ps(p1);
+                            __m256 _r2 = _mm256_loadu_ps(p2);
+                            __m256 _r3 = _mm256_loadu_ps(p3);
+                            __m256 _r4 = _mm256_loadu_ps(p4);
+                            __m256 _r5 = _mm256_loadu_ps(p5);
+                            __m256 _r6 = _mm256_loadu_ps(p6);
+                            __m256 _r7 = _mm256_loadu_ps(p7);
+                            __m256 _r8 = _mm256_loadu_ps(p8);
+                            __m256 _r9 = _mm256_loadu_ps(p9);
+                            __m256 _ra = _mm256_loadu_ps(pa);
+                            __m256 _rb = _mm256_loadu_ps(pb);
+                            transpose8x12_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7, _r8, _r9, _ra, _rb);
+                            _mm256_storeu_ps(pp, _r0);
+                            _mm256_storeu_ps(pp + 8, _r1);
+                            _mm256_storeu_ps(pp + 8 * 2, _r2);
+                            _mm256_storeu_ps(pp + 8 * 3, _r3);
+                            _mm256_storeu_ps(pp + 8 * 4, _r4);
+                            _mm256_storeu_ps(pp + 8 * 5, _r5);
+                            _mm256_storeu_ps(pp + 8 * 6, _r6);
+                            _mm256_storeu_ps(pp + 8 * 7, _r7);
+                            _mm256_storeu_ps(pp + 8 * 8, _r8);
+                            _mm256_storeu_ps(pp + 8 * 9, _r9);
+                            _mm256_storeu_ps(pp + 8 * 10, _ra);
+                            _mm256_storeu_ps(pp + 8 * 11, _rb);
+                            pp += 96;
+                            p0 += 8;
+                            p1 += 8;
+                            p2 += 8;
+                            p3 += 8;
+                            p4 += 8;
+                            p5 += 8;
+                            p6 += 8;
+                            p7 += 8;
+                            p8 += 8;
+                            p9 += 8;
+                            pa += 8;
+                            pb += 8;
+                        }
+#endif // __AVX__
+                        for (; kk + 3 < max_kk; kk += 4)
+                        {
+                            __m128 _r0 = _mm_loadu_ps(p0);
+                            __m128 _r1 = _mm_loadu_ps(p1);
+                            __m128 _r2 = _mm_loadu_ps(p2);
+                            __m128 _r3 = _mm_loadu_ps(p3);
+                            __m128 _r4 = _mm_loadu_ps(p4);
+                            __m128 _r5 = _mm_loadu_ps(p5);
+                            __m128 _r6 = _mm_loadu_ps(p6);
+                            __m128 _r7 = _mm_loadu_ps(p7);
+                            __m128 _r8 = _mm_loadu_ps(p8);
+                            __m128 _r9 = _mm_loadu_ps(p9);
+                            __m128 _ra = _mm_loadu_ps(pa);
+                            __m128 _rb = _mm_loadu_ps(pb);
+                            _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
+                            _MM_TRANSPOSE4_PS(_r4, _r5, _r6, _r7);
+                            _MM_TRANSPOSE4_PS(_r8, _r9, _ra, _rb);
+                            _mm_store_ps(pp, _r0);
+                            _mm_store_ps(pp + 4, _r4);
+                            _mm_store_ps(pp + 4 * 2, _r8);
+                            _mm_store_ps(pp + 4 * 3, _r1);
+                            _mm_store_ps(pp + 4 * 4, _r5);
+                            _mm_store_ps(pp + 4 * 5, _r9);
+                            _mm_store_ps(pp + 4 * 6, _r2);
+                            _mm_store_ps(pp + 4 * 7, _r6);
+                            _mm_store_ps(pp + 4 * 8, _ra);
+                            _mm_store_ps(pp + 4 * 9, _r3);
+                            _mm_store_ps(pp + 4 * 10, _r7);
+                            _mm_store_ps(pp + 4 * 11, _rb);
+                            pp += 48;
+                            p0 += 4;
+                            p1 += 4;
+                            p2 += 4;
+                            p3 += 4;
+                            p4 += 4;
+                            p5 += 4;
+                            p6 += 4;
+                            p7 += 4;
+                            p8 += 4;
+                            p9 += 4;
+                            pa += 4;
+                            pb += 4;
+                        }
+                        for (; kk < max_kk; kk++)
+                        {
+                            pp[0] = p0[0];
+                            pp[1] = p1[0];
+                            pp[2] = p2[0];
+                            pp[3] = p3[0];
+                            pp[4] = p4[0];
+                            pp[5] = p5[0];
+                            pp[6] = p6[0];
+                            pp[7] = p7[0];
+                            pp[8] = p8[0];
+                            pp[9] = p9[0];
+                            pp[10] = pa[0];
+                            pp[11] = pb[0];
+                            pp += 12;
+                            p0++;
+                            p1++;
+                            p2++;
+                            p3++;
+                            p4++;
+                            p5++;
+                            p6++;
+                            p7++;
+                            p8++;
+                            p9++;
+                            pa++;
+                            pb++;
+                        }
+                    }
+                }
+                for (; jj + 7 < max_jj; jj += 8)
+                {
+#if __AVX__
+#if __AVX512F__
+                    if (elempack == 16)
+                    {
+                        const float* p0 = B.row((j + jj) / 16 + 0) + k * 16;
+                        const float* p1 = B.row((j + jj) / 16 + 1) + k * 16;
+
+                        if ((j + jj) % 16 == 0)
+                        {
+                            for (int kk = 0; kk < max_kk; kk++)
+                            {
+                                pp[0] = p0[0];
+                                pp[1] = p0[1];
+                                pp[2] = p0[2];
+                                pp[3] = p0[3];
+                                pp[4] = p0[4];
+                                pp[5] = p0[5];
+                                pp[6] = p0[6];
+                                pp[7] = p0[7];
+                                pp += 8;
+                                p0 += 16;
+                            }
+                        }
+                        if ((j + jj) % 16 == 4)
+                        {
+                            for (int kk = 0; kk < max_kk; kk++)
+                            {
+                                pp[0] = p0[4];
+                                pp[1] = p0[5];
+                                pp[2] = p0[6];
+                                pp[3] = p0[7];
+                                pp[4] = p0[8];
+                                pp[5] = p0[9];
+                                pp[6] = p0[10];
+                                pp[7] = p0[11];
+                                pp += 8;
+                                p0 += 16;
+                            }
+                        }
+                        if ((j + jj) % 16 == 8)
+                        {
+                            for (int kk = 0; kk < max_kk; kk++)
+                            {
+                                pp[0] = p0[8];
+                                pp[1] = p0[9];
+                                pp[2] = p0[10];
+                                pp[3] = p0[11];
+                                pp[4] = p0[12];
+                                pp[5] = p0[13];
+                                pp[6] = p0[14];
+                                pp[7] = p0[15];
+                                pp += 8;
+                                p0 += 16;
+                            }
+                        }
+                        if ((j + jj) % 16 == 12)
+                        {
+                            for (int kk = 0; kk < max_kk; kk++)
+                            {
+                                pp[0] = p0[12];
+                                pp[1] = p0[13];
+                                pp[2] = p0[14];
+                                pp[3] = p0[15];
+                                pp[4] = p1[0];
+                                pp[5] = p1[1];
+                                pp[6] = p1[2];
+                                pp[7] = p1[3];
+                                pp += 8;
+                                p0 += 16;
+                                p1 += 16;
+                            }
+                        }
+                    }
+#endif // __AVX512F__
+                    if (elempack == 8)
+                    {
+                        const float* p0 = B.row((j + jj) / 8 + 0) + k * 8;
+                        const float* p1 = B.row((j + jj) / 8 + 1) + k * 8;
+
+                        if ((j + jj) % 8 == 0)
+                        {
+                            for (int kk = 0; kk < max_kk; kk++)
+                            {
+                                _mm256_storeu_ps(pp, _mm256_load_ps(p0));
+                                pp += 8;
+                                p0 += 8;
+                            }
+                        }
+                        if ((j + jj) % 8 == 4)
+                        {
+                            for (int kk = 0; kk < max_kk; kk++)
+                            {
+                                _mm_store_ps(pp, _mm_load_ps(p0 + 4));
+                                _mm_store_ps(pp + 4, _mm_load_ps(p1));
+                                pp += 8;
+                                p0 += 8;
+                                p1 += 8;
+                            }
+                        }
+                    }
+#endif // __AVX__
+                    if (elempack == 4)
+                    {
+                        const float* p0 = B.row((j + jj) / 4 + 0) + k * 4;
+                        const float* p1 = B.row((j + jj) / 4 + 1) + k * 4;
+
+                        for (int kk = 0; kk < max_kk; kk++)
+                        {
+                            _mm_store_ps(pp, _mm_load_ps(p0));
+                            _mm_store_ps(pp + 4, _mm_load_ps(p1));
+                            pp += 8;
+                            p0 += 4;
+                            p1 += 4;
+                        }
+                    }
+                    if (elempack == 1)
+                    {
+                        const float* p0 = B.row(j + jj + 0) + k;
+                        const float* p1 = B.row(j + jj + 1) + k;
+                        const float* p2 = B.row(j + jj + 2) + k;
+                        const float* p3 = B.row(j + jj + 3) + k;
+                        const float* p4 = B.row(j + jj + 4) + k;
+                        const float* p5 = B.row(j + jj + 5) + k;
+                        const float* p6 = B.row(j + jj + 6) + k;
+                        const float* p7 = B.row(j + jj + 7) + k;
+
+                        int kk = 0;
+#if __AVX__
+                        for (; kk + 7 < max_kk; kk += 8)
+                        {
+                            __m256 _r0 = _mm256_loadu_ps(p0);
+                            __m256 _r1 = _mm256_loadu_ps(p1);
+                            __m256 _r2 = _mm256_loadu_ps(p2);
+                            __m256 _r3 = _mm256_loadu_ps(p3);
+                            __m256 _r4 = _mm256_loadu_ps(p4);
+                            __m256 _r5 = _mm256_loadu_ps(p5);
+                            __m256 _r6 = _mm256_loadu_ps(p6);
+                            __m256 _r7 = _mm256_loadu_ps(p7);
+                            transpose8x8_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
+                            _mm256_storeu_ps(pp, _r0);
+                            _mm256_storeu_ps(pp + 8, _r1);
+                            _mm256_storeu_ps(pp + 8 * 2, _r2);
+                            _mm256_storeu_ps(pp + 8 * 3, _r3);
+                            _mm256_storeu_ps(pp + 8 * 4, _r4);
+                            _mm256_storeu_ps(pp + 8 * 5, _r5);
+                            _mm256_storeu_ps(pp + 8 * 6, _r6);
+                            _mm256_storeu_ps(pp + 8 * 7, _r7);
+                            pp += 64;
+                            p0 += 8;
+                            p1 += 8;
+                            p2 += 8;
+                            p3 += 8;
+                            p4 += 8;
+                            p5 += 8;
+                            p6 += 8;
+                            p7 += 8;
+                        }
+#endif // __AVX__
+                        for (; kk + 3 < max_kk; kk += 4)
+                        {
+                            __m128 _r0 = _mm_loadu_ps(p0);
+                            __m128 _r1 = _mm_loadu_ps(p1);
+                            __m128 _r2 = _mm_loadu_ps(p2);
+                            __m128 _r3 = _mm_loadu_ps(p3);
+                            __m128 _r4 = _mm_loadu_ps(p4);
+                            __m128 _r5 = _mm_loadu_ps(p5);
+                            __m128 _r6 = _mm_loadu_ps(p6);
+                            __m128 _r7 = _mm_loadu_ps(p7);
+                            _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
+                            _MM_TRANSPOSE4_PS(_r4, _r5, _r6, _r7);
+                            _mm_store_ps(pp, _r0);
+                            _mm_store_ps(pp + 4, _r4);
+                            _mm_store_ps(pp + 4 * 2, _r1);
+                            _mm_store_ps(pp + 4 * 3, _r5);
+                            _mm_store_ps(pp + 4 * 4, _r2);
+                            _mm_store_ps(pp + 4 * 5, _r6);
+                            _mm_store_ps(pp + 4 * 6, _r3);
+                            _mm_store_ps(pp + 4 * 7, _r7);
+                            pp += 32;
+                            p0 += 4;
+                            p1 += 4;
+                            p2 += 4;
+                            p3 += 4;
+                            p4 += 4;
+                            p5 += 4;
+                            p6 += 4;
+                            p7 += 4;
+                        }
+                        for (; kk < max_kk; kk++)
+                        {
+                            pp[0] = p0[0];
+                            pp[1] = p1[0];
+                            pp[2] = p2[0];
+                            pp[3] = p3[0];
+                            pp[4] = p4[0];
+                            pp[5] = p5[0];
+                            pp[6] = p6[0];
+                            pp[7] = p7[0];
+                            pp += 8;
+                            p0++;
+                            p1++;
+                            p2++;
+                            p3++;
+                            p4++;
+                            p5++;
+                            p6++;
+                            p7++;
+                        }
+                    }
+                }
+                for (; jj + 3 < max_jj; jj += 4)
+                {
+#if __AVX__
+#if __AVX512F__
+                    if (elempack == 16)
+                    {
+                        const float* p0 = B.row((j + jj) / 16 + 0) + k * 16;
+
+                        if ((j + jj) % 16 == 0)
+                        {
+                            for (int kk = 0; kk < max_kk; kk++)
+                            {
+                                pp[0] = p0[0];
+                                pp[1] = p0[1];
+                                pp[2] = p0[2];
+                                pp[3] = p0[3];
+                                pp += 4;
+                                p0 += 16;
+                            }
+                        }
+                        if ((j + jj) % 16 == 4)
+                        {
+                            for (int kk = 0; kk < max_kk; kk++)
+                            {
+                                pp[0] = p0[4];
+                                pp[1] = p0[5];
+                                pp[2] = p0[6];
+                                pp[3] = p0[7];
+                                pp += 4;
+                                p0 += 16;
+                            }
+                        }
+                        if ((j + jj) % 16 == 8)
+                        {
+                            for (int kk = 0; kk < max_kk; kk++)
+                            {
+                                pp[0] = p0[8];
+                                pp[1] = p0[9];
+                                pp[2] = p0[10];
+                                pp[3] = p0[11];
+                                pp += 4;
+                                p0 += 16;
+                            }
+                        }
+                        if ((j + jj) % 16 == 12)
+                        {
+                            for (int kk = 0; kk < max_kk; kk++)
+                            {
+                                pp[0] = p0[12];
+                                pp[1] = p0[13];
+                                pp[2] = p0[14];
+                                pp[3] = p0[15];
+                                pp += 4;
+                                p0 += 16;
+                            }
+                        }
+                    }
+#endif // __AVX512F__
+                    if (elempack == 8)
+                    {
+                        const float* p0 = B.row((j + jj) / 8 + 0) + k * 8;
+
+                        if ((j + jj) % 8 == 0)
+                        {
+                            for (int kk = 0; kk < max_kk; kk++)
+                            {
+                                _mm_store_ps(pp, _mm_load_ps(p0));
+                                pp += 4;
+                                p0 += 8;
+                            }
+                        }
+                        if ((j + jj) % 8 == 4)
+                        {
+                            for (int kk = 0; kk < max_kk; kk++)
+                            {
+                                _mm_store_ps(pp, _mm_load_ps(p0 + 4));
+                                pp += 4;
+                                p0 += 8;
+                            }
+                        }
+                    }
+#endif // __AVX__
+                    if (elempack == 4)
+                    {
+                        const float* p0 = B.row((j + jj) / 4 + 0) + k * 4;
+
+                        for (int kk = 0; kk < max_kk; kk++)
+                        {
+                            _mm_store_ps(pp, _mm_load_ps(p0));
+                            pp += 4;
+                            p0 += 4;
+                        }
+                    }
+                    if (elempack == 1)
+                    {
+                        const float* p0 = B.row(j + jj + 0) + k;
+                        const float* p1 = B.row(j + jj + 1) + k;
+                        const float* p2 = B.row(j + jj + 2) + k;
+                        const float* p3 = B.row(j + jj + 3) + k;
+
+                        int kk = 0;
+#if __AVX__
+                        for (; kk + 7 < max_kk; kk += 8)
+                        {
+                            __m256 _r0 = _mm256_loadu_ps(p0);
+                            __m256 _r1 = _mm256_loadu_ps(p1);
+                            __m256 _r2 = _mm256_loadu_ps(p2);
+                            __m256 _r3 = _mm256_loadu_ps(p3);
+                            transpose8x4_ps(_r0, _r1, _r2, _r3);
+                            _mm256_storeu_ps(pp, _r0);
+                            _mm256_storeu_ps(pp + 8, _r1);
+                            _mm256_storeu_ps(pp + 16, _r2);
+                            _mm256_storeu_ps(pp + 24, _r3);
+                            pp += 32;
+                            p0 += 8;
+                            p1 += 8;
+                            p2 += 8;
+                            p3 += 8;
+                        }
+#endif // __AVX__
+                        for (; kk + 3 < max_kk; kk += 4)
+                        {
+                            __m128 _r0 = _mm_loadu_ps(p0);
+                            __m128 _r1 = _mm_loadu_ps(p1);
+                            __m128 _r2 = _mm_loadu_ps(p2);
+                            __m128 _r3 = _mm_loadu_ps(p3);
+                            _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
+                            _mm_store_ps(pp, _r0);
+                            _mm_store_ps(pp + 4, _r1);
+                            _mm_store_ps(pp + 8, _r2);
+                            _mm_store_ps(pp + 12, _r3);
+                            pp += 16;
+                            p0 += 4;
+                            p1 += 4;
+                            p2 += 4;
+                            p3 += 4;
+                        }
+                        for (; kk < max_kk; kk++)
+                        {
+                            pp[0] = p0[0];
+                            pp[1] = p1[0];
+                            pp[2] = p2[0];
+                            pp[3] = p3[0];
+                            pp += 4;
+                            p0++;
+                            p1++;
+                            p2++;
+                            p3++;
+                        }
+                    }
+                }
+#endif // __SSE2__
+                for (; jj + 1 < max_jj; jj += 2)
+                {
+                    // if (elempack == 1)
+                    {
+                        const float* p0 = B.row(j + jj + 0) + k;
+                        const float* p1 = B.row(j + jj + 1) + k;
+
+                        int kk = 0;
+#if __SSE2__
+#if __AVX__
+                        for (; kk + 7 < max_kk; kk += 8)
+                        {
+                            __m256 _r0 = _mm256_loadu_ps(p0);
+                            __m256 _r1 = _mm256_loadu_ps(p1);
+                            transpose8x2_ps(_r0, _r1);
+                            _mm256_storeu_ps(pp, _r0);
+                            _mm256_storeu_ps(pp + 8, _r1);
+                            pp += 16;
+                            p0 += 8;
+                            p1 += 8;
+                        }
+#endif // __AVX__
+                        for (; kk + 3 < max_kk; kk += 4)
+                        {
+                            __m128 _r0 = _mm_loadu_ps(p0);
+                            __m128 _r1 = _mm_loadu_ps(p1);
+                            __m128 _tmp0 = _mm_unpacklo_ps(_r0, _r1);
+                            __m128 _tmp1 = _mm_unpackhi_ps(_r0, _r1);
+                            _mm_store_ps(pp, _tmp0);
+                            _mm_store_ps(pp + 4, _tmp1);
+                            pp += 8;
+                            p0 += 4;
+                            p1 += 4;
+                        }
+#endif // __SSE2__
+                        for (; kk < max_kk; kk++)
+                        {
+                            pp[0] = p0[0];
+                            pp[1] = p1[0];
+                            pp += 2;
+                            p0++;
+                            p1++;
+                        }
+                    }
+                }
+                for (; jj < max_jj; jj += 1)
+                {
+                    // if (elempack == 1)
+                    {
+                        const float* p0 = B.row(j + jj + 0) + k;
+
+                        int kk = 0;
+#if __SSE2__
+#if __AVX__
+                        for (; kk + 7 < max_kk; kk += 8)
+                        {
+                            _mm256_storeu_ps(pp, _mm256_loadu_ps(p0));
+                            pp += 8;
+                            p0 += 8;
+                        }
+#endif // __AVX__
+                        for (; kk + 3 < max_kk; kk += 4)
+                        {
+                            _mm_storeu_ps(pp, _mm_loadu_ps(p0));
+                            pp += 4;
+                            p0 += 4;
+                        }
+#endif // __SSE2__
+                        for (; kk < max_kk; kk++)
+                        {
+                            pp[0] = p0[0];
+                            pp += 1;
+                            p0++;
+                        }
+                    }
+                }
+            }
+            else
+            {
+                // transpose_pack_b(B, BT, TILE_N, TILE_K, opt);
+                const int elempack = B.elempack;
+
+                float* pp = BT.channel(j / TILE_N).row(k / TILE_K);
+
+                int jj = 0;
+#if __SSE2__
+                for (; jj + 11 < max_jj; jj += 12)
+                {
+#if __AVX__
+#if __AVX512F__
+                    if (elempack == 16)
+                    {
+                        const float* p0 = B.row(k / 16) + (j + jj) * 16;
+
+                        int kk = 0;
+                        for (; kk + 15 < max_kk; kk += 16)
+                        {
+                            __m512 _r0 = _mm512_load_ps(p0);
+                            __m512 _r1 = _mm512_load_ps(p0 + 16 * 1);
+                            __m512 _r2 = _mm512_load_ps(p0 + 16 * 2);
+                            __m512 _r3 = _mm512_load_ps(p0 + 16 * 3);
+                            __m512 _r4 = _mm512_load_ps(p0 + 16 * 4);
+                            __m512 _r5 = _mm512_load_ps(p0 + 16 * 5);
+                            __m512 _r6 = _mm512_load_ps(p0 + 16 * 6);
+                            __m512 _r7 = _mm512_load_ps(p0 + 16 * 7);
+                            __m512 _r8 = _mm512_load_ps(p0 + 16 * 8);
+                            __m512 _r9 = _mm512_load_ps(p0 + 16 * 9);
+                            __m512 _ra = _mm512_load_ps(p0 + 16 * 10);
+                            __m512 _rb = _mm512_load_ps(p0 + 16 * 11);
+                            transpose16x12_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7, _r8, _r9, _ra, _rb);
+                            _mm512_store_ps(pp, _r0);
+                            _mm512_store_ps(pp + 16 * 1, _r1);
+                            _mm512_store_ps(pp + 16 * 2, _r2);
+                            _mm512_store_ps(pp + 16 * 3, _r3);
+                            _mm512_store_ps(pp + 16 * 4, _r4);
+                            _mm512_store_ps(pp + 16 * 5, _r5);
+                            _mm512_store_ps(pp + 16 * 6, _r6);
+                            _mm512_store_ps(pp + 16 * 7, _r7);
+                            _mm512_store_ps(pp + 16 * 8, _r8);
+                            _mm512_store_ps(pp + 16 * 9, _r9);
+                            _mm512_store_ps(pp + 16 * 10, _ra);
+                            _mm512_store_ps(pp + 16 * 11, _rb);
+                            pp += 192;
+                            p0 += N * 16;
+                        }
+                        for (; kk < max_kk; kk++)
+                        {
+                            pp[0] = p0[0];
+                            pp[1] = p0[16 * 1];
+                            pp[2] = p0[16 * 2];
+                            pp[3] = p0[16 * 3];
+                            pp[4] = p0[16 * 4];
+                            pp[5] = p0[16 * 5];
+                            pp[6] = p0[16 * 6];
+                            pp[7] = p0[16 * 7];
+                            pp[8] = p0[16 * 8];
+                            pp[9] = p0[16 * 9];
+                            pp[10] = p0[16 * 10];
+                            pp[11] = p0[16 * 11];
+                            pp += 12;
+                            p0 += 1;
+                        }
+                    }
+#endif // __AVX512F__
+                    if (elempack == 8)
+                    {
+                        const float* p0 = B.row(k / 8) + (j + jj) * 8;
+
+                        int kk = 0;
+                        for (; kk + 7 < max_kk; kk += 8)
+                        {
+                            __m256 _r0 = _mm256_load_ps(p0);
+                            __m256 _r1 = _mm256_load_ps(p0 + 8 * 1);
+                            __m256 _r2 = _mm256_load_ps(p0 + 8 * 2);
+                            __m256 _r3 = _mm256_load_ps(p0 + 8 * 3);
+                            __m256 _r4 = _mm256_load_ps(p0 + 8 * 4);
+                            __m256 _r5 = _mm256_load_ps(p0 + 8 * 5);
+                            __m256 _r6 = _mm256_load_ps(p0 + 8 * 6);
+                            __m256 _r7 = _mm256_load_ps(p0 + 8 * 7);
+                            __m256 _r8 = _mm256_load_ps(p0 + 8 * 8);
+                            __m256 _r9 = _mm256_load_ps(p0 + 8 * 9);
+                            __m256 _ra = _mm256_load_ps(p0 + 8 * 10);
+                            __m256 _rb = _mm256_load_ps(p0 + 8 * 11);
+                            transpose8x12_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7, _r8, _r9, _ra, _rb);
+                            _mm256_store_ps(pp, _r0);
+                            _mm256_store_ps(pp + 8 * 1, _r1);
+                            _mm256_store_ps(pp + 8 * 2, _r2);
+                            _mm256_store_ps(pp + 8 * 3, _r3);
+                            _mm256_store_ps(pp + 8 * 4, _r4);
+                            _mm256_store_ps(pp + 8 * 5, _r5);
+                            _mm256_store_ps(pp + 8 * 6, _r6);
+                            _mm256_store_ps(pp + 8 * 7, _r7);
+                            _mm256_store_ps(pp + 8 * 8, _r8);
+                            _mm256_store_ps(pp + 8 * 9, _r9);
+                            _mm256_store_ps(pp + 8 * 10, _ra);
+                            _mm256_store_ps(pp + 8 * 11, _rb);
+                            pp += 96;
+                            p0 += N * 8;
+                        }
+                        for (; kk < max_kk; kk++)
+                        {
+                            pp[0] = p0[0];
+                            pp[1] = p0[8 * 1];
+                            pp[2] = p0[8 * 2];
+                            pp[3] = p0[8 * 3];
+                            pp[4] = p0[8 * 4];
+                            pp[5] = p0[8 * 5];
+                            pp[6] = p0[8 * 6];
+                            pp[7] = p0[8 * 7];
+                            pp[8] = p0[8 * 8];
+                            pp[9] = p0[8 * 9];
+                            pp[10] = p0[8 * 10];
+                            pp[11] = p0[8 * 11];
+                            pp += 12;
+                            p0 += 1;
+                        }
+                    }
+#endif // __AVX__
+                    if (elempack == 4)
+                    {
+                        const float* p0 = B.row(k / 4) + (j + jj) * 4;
+
+                        int kk = 0;
+                        for (; kk + 3 < max_kk; kk += 4)
+                        {
+                            __m128 _r0 = _mm_load_ps(p0);
+                            __m128 _r1 = _mm_load_ps(p0 + 4 * 1);
+                            __m128 _r2 = _mm_load_ps(p0 + 4 * 2);
+                            __m128 _r3 = _mm_load_ps(p0 + 4 * 3);
+                            __m128 _r4 = _mm_load_ps(p0 + 4 * 4);
+                            __m128 _r5 = _mm_load_ps(p0 + 4 * 5);
+                            __m128 _r6 = _mm_load_ps(p0 + 4 * 6);
+                            __m128 _r7 = _mm_load_ps(p0 + 4 * 7);
+                            __m128 _r8 = _mm_load_ps(p0 + 4 * 8);
+                            __m128 _r9 = _mm_load_ps(p0 + 4 * 9);
+                            __m128 _ra = _mm_load_ps(p0 + 4 * 10);
+                            __m128 _rb = _mm_load_ps(p0 + 4 * 11);
+                            _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
+                            _MM_TRANSPOSE4_PS(_r4, _r5, _r6, _r7);
+                            _MM_TRANSPOSE4_PS(_r8, _r9, _ra, _rb);
+                            _mm_store_ps(pp, _r0);
+                            _mm_store_ps(pp + 4 * 1, _r4);
+                            _mm_store_ps(pp + 4 * 2, _r8);
+                            _mm_store_ps(pp + 4 * 3, _r1);
+                            _mm_store_ps(pp + 4 * 4, _r5);
+                            _mm_store_ps(pp + 4 * 5, _r9);
+                            _mm_store_ps(pp + 4 * 6, _r2);
+                            _mm_store_ps(pp + 4 * 7, _r6);
+                            _mm_store_ps(pp + 4 * 8, _ra);
+                            _mm_store_ps(pp + 4 * 9, _r3);
+                            _mm_store_ps(pp + 4 * 10, _r7);
+                            _mm_store_ps(pp + 4 * 11, _rb);
+                            pp += 48;
+                            p0 += N * 4;
+                        }
+                        for (; kk < max_kk; kk++)
+                        {
+                            pp[0] = p0[0];
+                            pp[1] = p0[4 * 1];
+                            pp[2] = p0[4 * 2];
+                            pp[3] = p0[4 * 3];
+                            pp[4] = p0[4 * 4];
+                            pp[5] = p0[4 * 5];
+                            pp[6] = p0[4 * 6];
+                            pp[7] = p0[4 * 7];
+                            pp[8] = p0[4 * 8];
+                            pp[9] = p0[4 * 9];
+                            pp[10] = p0[4 * 10];
+                            pp[11] = p0[4 * 11];
+                            pp += 12;
+                            p0 += 1;
+                        }
+                    }
+                    if (elempack == 1)
+                    {
+                        const float* p0 = B.row(k) + (j + jj);
+
+                        int kk = 0;
+                        for (; kk < max_kk; kk++)
+                        {
+                            _mm_store_ps(pp, _mm_loadu_ps(p0));
+                            _mm_store_ps(pp + 4, _mm_loadu_ps(p0 + 4));
+                            _mm_store_ps(pp + 8, _mm_loadu_ps(p0 + 8));
+                            pp += 12;
+                            p0 += N;
+                        }
+                    }
+                }
+                for (; jj + 7 < max_jj; jj += 8)
+                {
+#if __AVX__
+#if __AVX512F__
+                    if (elempack == 16)
+                    {
+                        const float* p0 = B.row(k / 16) + (j + jj) * 16;
+
+                        int kk = 0;
+                        for (; kk + 15 < max_kk; kk += 16)
+                        {
+                            __m512 _r0 = _mm512_load_ps(p0);
+                            __m512 _r1 = _mm512_load_ps(p0 + 16 * 1);
+                            __m512 _r2 = _mm512_load_ps(p0 + 16 * 2);
+                            __m512 _r3 = _mm512_load_ps(p0 + 16 * 3);
+                            __m512 _r4 = _mm512_load_ps(p0 + 16 * 4);
+                            __m512 _r5 = _mm512_load_ps(p0 + 16 * 5);
+                            __m512 _r6 = _mm512_load_ps(p0 + 16 * 6);
+                            __m512 _r7 = _mm512_load_ps(p0 + 16 * 7);
+                            transpose16x8_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
+                            _mm512_store_ps(pp, _r0);
+                            _mm512_store_ps(pp + 16 * 1, _r1);
+                            _mm512_store_ps(pp + 16 * 2, _r2);
+                            _mm512_store_ps(pp + 16 * 3, _r3);
+                            _mm512_store_ps(pp + 16 * 4, _r4);
+                            _mm512_store_ps(pp + 16 * 5, _r5);
+                            _mm512_store_ps(pp + 16 * 6, _r6);
+                            _mm512_store_ps(pp + 16 * 7, _r7);
+                            pp += 128;
+                            p0 += N * 16;
+                        }
+                        for (; kk < max_kk; kk++)
+                        {
+                            pp[0] = p0[0];
+                            pp[1] = p0[16 * 1];
+                            pp[2] = p0[16 * 2];
+                            pp[3] = p0[16 * 3];
+                            pp[4] = p0[16 * 4];
+                            pp[5] = p0[16 * 5];
+                            pp[6] = p0[16 * 6];
+                            pp[7] = p0[16 * 7];
+                            pp += 8;
+                            p0 += 1;
+                        }
+                    }
+#endif // __AVX512F__
+                    if (elempack == 8)
+                    {
+                        const float* p0 = B.row(k / 8) + (j + jj) * 8;
+
+                        int kk = 0;
+                        for (; kk + 7 < max_kk; kk += 8)
+                        {
+                            __m256 _r0 = _mm256_load_ps(p0);
+                            __m256 _r1 = _mm256_load_ps(p0 + 8 * 1);
+                            __m256 _r2 = _mm256_load_ps(p0 + 8 * 2);
+                            __m256 _r3 = _mm256_load_ps(p0 + 8 * 3);
+                            __m256 _r4 = _mm256_load_ps(p0 + 8 * 4);
+                            __m256 _r5 = _mm256_load_ps(p0 + 8 * 5);
+                            __m256 _r6 = _mm256_load_ps(p0 + 8 * 6);
+                            __m256 _r7 = _mm256_load_ps(p0 + 8 * 7);
+                            transpose8x8_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
+                            _mm256_store_ps(pp, _r0);
+                            _mm256_store_ps(pp + 8 * 1, _r1);
+                            _mm256_store_ps(pp + 8 * 2, _r2);
+                            _mm256_store_ps(pp + 8 * 3, _r3);
+                            _mm256_store_ps(pp + 8 * 4, _r4);
+                            _mm256_store_ps(pp + 8 * 5, _r5);
+                            _mm256_store_ps(pp + 8 * 6, _r6);
+                            _mm256_store_ps(pp + 8 * 7, _r7);
+                            pp += 64;
+                            p0 += N * 8;
+                        }
+                        for (; kk < max_kk; kk++)
+                        {
+                            pp[0] = p0[0];
+                            pp[1] = p0[8 * 1];
+                            pp[2] = p0[8 * 2];
+                            pp[3] = p0[8 * 3];
+                            pp[4] = p0[8 * 4];
+                            pp[5] = p0[8 * 5];
+                            pp[6] = p0[8 * 6];
+                            pp[7] = p0[8 * 7];
+                            pp += 8;
+                            p0 += 1;
+                        }
+                    }
+#endif // __AVX__
+                    if (elempack == 4)
+                    {
+                        const float* p0 = B.row(k / 4) + (j + jj) * 4;
+
+                        int kk = 0;
+                        for (; kk + 3 < max_kk; kk += 4)
+                        {
+                            __m128 _r0 = _mm_load_ps(p0);
+                            __m128 _r1 = _mm_load_ps(p0 + 4 * 1);
+                            __m128 _r2 = _mm_load_ps(p0 + 4 * 2);
+                            __m128 _r3 = _mm_load_ps(p0 + 4 * 3);
+                            __m128 _r4 = _mm_load_ps(p0 + 4 * 4);
+                            __m128 _r5 = _mm_load_ps(p0 + 4 * 5);
+                            __m128 _r6 = _mm_load_ps(p0 + 4 * 6);
+                            __m128 _r7 = _mm_load_ps(p0 + 4 * 7);
+                            _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
+                            _MM_TRANSPOSE4_PS(_r4, _r5, _r6, _r7);
+                            _mm_store_ps(pp, _r0);
+                            _mm_store_ps(pp + 4 * 1, _r4);
+                            _mm_store_ps(pp + 4 * 2, _r1);
+                            _mm_store_ps(pp + 4 * 3, _r5);
+                            _mm_store_ps(pp + 4 * 4, _r2);
+                            _mm_store_ps(pp + 4 * 5, _r6);
+                            _mm_store_ps(pp + 4 * 6, _r3);
+                            _mm_store_ps(pp + 4 * 7, _r7);
+                            pp += 32;
+                            p0 += N * 4;
+                        }
+                        for (; kk < max_kk; kk++)
+                        {
+                            pp[0] = p0[0];
+                            pp[1] = p0[4 * 1];
+                            pp[2] = p0[4 * 2];
+                            pp[3] = p0[4 * 3];
+                            pp[4] = p0[4 * 4];
+                            pp[5] = p0[4 * 5];
+                            pp[6] = p0[4 * 6];
+                            pp[7] = p0[4 * 7];
+                            pp += 8;
+                            p0 += 1;
+                        }
+                    }
+                    if (elempack == 1)
+                    {
+                        const float* p0 = B.row(k) + (j + jj);
+
+                        int kk = 0;
+                        for (; kk < max_kk; kk++)
+                        {
+                            _mm_store_ps(pp, _mm_loadu_ps(p0));
+                            _mm_store_ps(pp + 4, _mm_loadu_ps(p0 + 4));
+                            pp += 8;
+                            p0 += N;
+                        }
+                    }
+                }
+                for (; jj + 3 < max_jj; jj += 4)
+                {
+#if __AVX__
+#if __AVX512F__
+                    if (elempack == 16)
+                    {
+                        const float* p0 = B.row(k / 16) + (j + jj) * 16;
+
+                        int kk = 0;
+                        for (; kk + 15 < max_kk; kk += 16)
+                        {
+                            __m512 _r0 = _mm512_load_ps(p0);
+                            __m512 _r1 = _mm512_load_ps(p0 + 16 * 1);
+                            __m512 _r2 = _mm512_load_ps(p0 + 16 * 2);
+                            __m512 _r3 = _mm512_load_ps(p0 + 16 * 3);
+                            transpose16x4_ps(_r0, _r1, _r2, _r3);
+                            _mm512_store_ps(pp, _r0);
+                            _mm512_store_ps(pp + 16 * 1, _r1);
+                            _mm512_store_ps(pp + 16 * 2, _r2);
+                            _mm512_store_ps(pp + 16 * 3, _r3);
+                            pp += 64;
+                            p0 += N * 8;
+                        }
+                        for (; kk < max_kk; kk++)
+                        {
+                            pp[0] = p0[0];
+                            pp[1] = p0[16 * 1];
+                            pp[2] = p0[16 * 2];
+                            pp[3] = p0[16 * 3];
+                            pp += 4;
+                            p0 += 1;
+                        }
+                    }
+#endif // __AVX512F__
+                    if (elempack == 8)
+                    {
+                        const float* p0 = B.row(k / 8) + (j + jj) * 8;
+
+                        int kk = 0;
+                        for (; kk + 7 < max_kk; kk += 8)
+                        {
+                            __m256 _r0 = _mm256_load_ps(p0);
+                            __m256 _r1 = _mm256_load_ps(p0 + 8 * 1);
+                            __m256 _r2 = _mm256_load_ps(p0 + 8 * 2);
+                            __m256 _r3 = _mm256_load_ps(p0 + 8 * 3);
+                            transpose8x4_ps(_r0, _r1, _r2, _r3);
+                            _mm256_store_ps(pp, _r0);
+                            _mm256_store_ps(pp + 8 * 1, _r1);
+                            _mm256_store_ps(pp + 8 * 2, _r2);
+                            _mm256_store_ps(pp + 8 * 3, _r3);
+                            pp += 32;
+                            p0 += N * 8;
+                        }
+                        for (; kk < max_kk; kk++)
+                        {
+                            pp[0] = p0[0];
+                            pp[1] = p0[8 * 1];
+                            pp[2] = p0[8 * 2];
+                            pp[3] = p0[8 * 3];
+                            pp += 4;
+                            p0 += 1;
+                        }
+                    }
+#endif // __AVX__
+                    if (elempack == 4)
+                    {
+                        const float* p0 = B.row(k / 4) + (j + jj) * 4;
+
+                        int kk = 0;
+                        for (; kk + 3 < max_kk; kk += 4)
+                        {
+                            __m128 _r0 = _mm_load_ps(p0);
+                            __m128 _r1 = _mm_load_ps(p0 + 4 * 1);
+                            __m128 _r2 = _mm_load_ps(p0 + 4 * 2);
+                            __m128 _r3 = _mm_load_ps(p0 + 4 * 3);
+                            _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
+                            _mm_store_ps(pp, _r0);
+                            _mm_store_ps(pp + 4 * 1, _r1);
+                            _mm_store_ps(pp + 4 * 2, _r2);
+                            _mm_store_ps(pp + 4 * 3, _r3);
+                            pp += 16;
+                            p0 += N * 4;
+                        }
+                        for (; kk < max_kk; kk++)
+                        {
+                            pp[0] = p0[0];
+                            pp[1] = p0[4 * 1];
+                            pp[2] = p0[4 * 2];
+                            pp[3] = p0[4 * 3];
+                            pp += 4;
+                            p0 += 1;
+                        }
+                    }
+                    if (elempack == 1)
+                    {
+                        const float* p0 = B.row(k) + (j + jj);
+
+                        int kk = 0;
+                        for (; kk < max_kk; kk++)
+                        {
+                            _mm_store_ps(pp, _mm_loadu_ps(p0));
+                            pp += 4;
+                            p0 += N;
+                        }
+                    }
+                }
+#endif // __SSE2__
+                for (; jj + 1 < max_jj; jj += 2)
+                {
+#if __SSE2__
+#if __AVX__
+#if __AVX512F__
+                    if (elempack == 16)
+                    {
+                        const float* p0 = B.row(k / 16) + (j + jj) * 16;
+
+                        int kk = 0;
+                        for (; kk + 15 < max_kk; kk += 16)
+                        {
+                            __m512 _r0 = _mm512_load_ps(p0);
+                            __m512 _r1 = _mm512_load_ps(p0 + 16);
+                            transpose16x2_ps(_r0, _r1);
+                            _mm512_store_ps(pp, _r0);
+                            _mm512_store_ps(pp + 16, _r1);
+                            pp += 32;
+                            p0 += N * 16;
+                        }
+                        for (; kk < max_kk; kk++)
+                        {
+                            pp[0] = p0[0];
+                            pp[1] = p0[16];
+                            pp += 2;
+                            p0 += 1;
+                        }
+                    }
+#endif // __AVX512F__
+                    if (elempack == 8)
+                    {
+                        const float* p0 = B.row(k / 8) + (j + jj) * 8;
+
+                        int kk = 0;
+                        for (; kk + 7 < max_kk; kk += 8)
+                        {
+                            __m256 _r0 = _mm256_load_ps(p0);
+                            __m256 _r1 = _mm256_load_ps(p0 + 8);
+                            transpose8x2_ps(_r0, _r1);
+                            _mm256_store_ps(pp, _r0);
+                            _mm256_store_ps(pp + 8, _r1);
+                            pp += 16;
+                            p0 += N * 8;
+                        }
+                        for (; kk < max_kk; kk++)
+                        {
+                            pp[0] = p0[0];
+                            pp[1] = p0[8];
+                            pp += 2;
+                            p0 += 1;
+                        }
+                    }
+#endif // __AVX__
+                    if (elempack == 4)
+                    {
+                        const float* p0 = B.row(k / 4) + (j + jj) * 4;
+
+                        int kk = 0;
+                        for (; kk + 3 < max_kk; kk += 4)
+                        {
+                            __m128 _r0 = _mm_load_ps(p0);
+                            __m128 _r1 = _mm_load_ps(p0 + 4);
+                            __m128 _tmp0 = _mm_unpacklo_ps(_r0, _r1);
+                            __m128 _tmp1 = _mm_unpackhi_ps(_r0, _r1);
+                            _mm_store_ps(pp, _tmp0);
+                            _mm_store_ps(pp + 4, _tmp1);
+                            pp += 8;
+                            p0 += N * 4;
+                        }
+                        for (; kk < max_kk; kk++)
+                        {
+                            pp[0] = p0[0];
+                            pp[1] = p0[4];
+                            pp += 2;
+                            p0 += 1;
+                        }
+                    }
+#endif // __SSE2__
+                    if (elempack == 1)
+                    {
+                        const float* p0 = B.row(k) + (j + jj);
+
+                        int kk = 0;
+                        for (; kk < max_kk; kk++)
+                        {
+                            pp[0] = p0[0];
+                            pp[1] = p0[1];
+                            pp += 2;
+                            p0 += N;
+                        }
+                    }
+                }
+                for (; jj < max_jj; jj += 1)
+                {
+#if __SSE2__
+#if __AVX__
+#if __AVX512F__
+                    if (elempack == 16)
+                    {
+                        const float* p0 = B.row(k / 16) + (j + jj) * 16;
+
+                        int kk = 0;
+                        for (; kk + 15 < max_kk; kk += 16)
+                        {
+                            _mm512_store_ps(pp, _mm512_load_ps(p0));
+                            pp += 16;
+                            p0 += N * 16;
+                        }
+                        for (; kk < max_kk; kk++)
+                        {
+                            pp[0] = p0[0];
+                            pp += 1;
+                            p0 += 1;
+                        }
+                    }
+#endif // __AVX512F__
+                    if (elempack == 8)
+                    {
+                        const float* p0 = B.row(k / 8) + (j + jj) * 8;
+
+                        int kk = 0;
+                        for (; kk + 7 < max_kk; kk += 8)
+                        {
+                            _mm256_store_ps(pp, _mm256_load_ps(p0));
+                            pp += 8;
+                            p0 += N * 8;
+                        }
+                        for (; kk < max_kk; kk++)
+                        {
+                            pp[0] = p0[0];
+                            pp += 1;
+                            p0 += 1;
+                        }
+                    }
+#endif // __AVX__
+                    if (elempack == 4)
+                    {
+                        const float* p0 = B.row(k / 4) + (j + jj) * 4;
+
+                        int kk = 0;
+                        for (; kk + 3 < max_kk; kk += 4)
+                        {
+                            _mm_store_ps(pp, _mm_load_ps(p0));
+                            pp += 4;
+                            p0 += N * 4;
+                        }
+                        for (; kk < max_kk; kk++)
+                        {
+                            pp[0] = p0[0];
+                            pp += 1;
+                            p0 += 1;
+                        }
+                    }
+#endif // __SSE2__
+                    if (elempack == 1)
+                    {
+                        const float* p0 = B.row(k) + (j + jj);
+
+                        int kk = 0;
+                        for (; kk < max_kk; kk++)
+                        {
+                            pp[0] = p0[0];
+                            pp += 1;
+                            p0 += N;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int ppi = 0; ppi < nn_M; ppi++)
+    {
+        const int i = ppi * TILE_M;
+
+        Mat AT = ATX.channel(get_omp_thread_num());
+        Mat tmp;
+        if (K > TILE_K)
+            tmp = tmpX.channel(get_omp_thread_num());
+
         int j = 0;
         for (; j < N; j += TILE_N)
         {
@@ -1182,1302 +2513,6 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
                                     pp[0] = p0[0];
                                     pp += 1;
                                     p0++;
-                                }
-                            }
-                        }
-                    }
-                }
-
-                if (i == 0)
-                {
-                    // pack B
-                    if (transB)
-                    {
-                        // pack_b(B, BT, TILE_N, TILE_K, opt);
-                        const int elempack = B.elempack;
-
-                        float* pp = BT.channel(j / TILE_N).row(k / TILE_K);
-
-                        int jj = 0;
-#if __SSE2__
-                        for (; jj + 11 < max_jj; jj += 12)
-                        {
-#if __AVX__
-#if __AVX512F__
-                            if (elempack == 16)
-                            {
-                                const float* p0 = B.row((j + jj) / 16 + 0) + k * 16;
-                                const float* p1 = B.row((j + jj) / 16 + 1) + k * 16;
-
-                                if ((j + jj) % 16 == 0)
-                                {
-                                    for (int kk = 0; kk < max_kk; kk++)
-                                    {
-                                        _mm256_storeu_ps(pp, _mm256_load_ps(p0));
-                                        _mm_store_ps(pp + 8, _mm_load_ps(p0 + 8));
-                                        pp += 12;
-                                        p0 += 16;
-                                    }
-                                }
-                                if ((j + jj) % 16 == 4)
-                                {
-                                    for (int kk = 0; kk < max_kk; kk++)
-                                    {
-                                        _mm256_storeu_ps(pp, _mm256_loadu_ps(p0 + 4));
-                                        _mm_store_ps(pp + 8, _mm_load_ps(p0 + 12));
-                                        pp += 12;
-                                        p0 += 16;
-                                    }
-                                }
-                                if ((j + jj) % 16 == 8)
-                                {
-                                    for (int kk = 0; kk < max_kk; kk++)
-                                    {
-                                        _mm256_storeu_ps(pp, _mm256_load_ps(p0 + 8));
-                                        _mm_store_ps(pp + 8, _mm_load_ps(p1));
-                                        pp += 12;
-                                        p0 += 16;
-                                        p1 += 16;
-                                    }
-                                }
-                                if ((j + jj) % 16 == 12)
-                                {
-                                    for (int kk = 0; kk < max_kk; kk++)
-                                    {
-                                        _mm_store_ps(pp, _mm_load_ps(p0 + 12));
-                                        _mm256_storeu_ps(pp + 4, _mm256_load_ps(p1));
-                                        pp += 12;
-                                        p0 += 16;
-                                        p1 += 16;
-                                    }
-                                }
-                            }
-#endif // __AVX512F__
-                            if (elempack == 8)
-                            {
-                                const float* p0 = B.row((j + jj) / 8 + 0) + k * 8;
-                                const float* p1 = B.row((j + jj) / 8 + 1) + k * 8;
-
-                                if ((j + jj) % 8 == 0)
-                                {
-                                    for (int kk = 0; kk < max_kk; kk++)
-                                    {
-                                        _mm256_storeu_ps(pp, _mm256_load_ps(p0));
-                                        _mm_store_ps(pp + 8, _mm_load_ps(p1));
-                                        pp += 12;
-                                        p0 += 8;
-                                        p1 += 8;
-                                    }
-                                }
-                                if ((j + jj) % 8 == 4)
-                                {
-                                    for (int kk = 0; kk < max_kk; kk++)
-                                    {
-                                        _mm_store_ps(pp, _mm_load_ps(p0 + 4));
-                                        _mm256_storeu_ps(pp + 4, _mm256_load_ps(p1));
-                                        pp += 12;
-                                        p0 += 8;
-                                        p1 += 8;
-                                    }
-                                }
-                            }
-#endif // __AVX__
-                            if (elempack == 4)
-                            {
-                                const float* p0 = B.row((j + jj) / 4 + 0) + k * 4;
-                                const float* p1 = B.row((j + jj) / 4 + 1) + k * 4;
-                                const float* p2 = B.row((j + jj) / 4 + 2) + k * 4;
-
-                                for (int kk = 0; kk < max_kk; kk++)
-                                {
-                                    _mm_store_ps(pp, _mm_load_ps(p0));
-                                    _mm_store_ps(pp + 4, _mm_load_ps(p1));
-                                    _mm_store_ps(pp + 8, _mm_load_ps(p2));
-                                    pp += 12;
-                                    p0 += 4;
-                                    p1 += 4;
-                                    p2 += 4;
-                                }
-                            }
-                            if (elempack == 1)
-                            {
-                                const float* p0 = B.row(j + jj + 0) + k;
-                                const float* p1 = B.row(j + jj + 1) + k;
-                                const float* p2 = B.row(j + jj + 2) + k;
-                                const float* p3 = B.row(j + jj + 3) + k;
-                                const float* p4 = B.row(j + jj + 4) + k;
-                                const float* p5 = B.row(j + jj + 5) + k;
-                                const float* p6 = B.row(j + jj + 6) + k;
-                                const float* p7 = B.row(j + jj + 7) + k;
-                                const float* p8 = B.row(j + jj + 8) + k;
-                                const float* p9 = B.row(j + jj + 9) + k;
-                                const float* pa = B.row(j + jj + 10) + k;
-                                const float* pb = B.row(j + jj + 11) + k;
-
-                                int kk = 0;
-#if __AVX__
-                                for (; kk + 7 < max_kk; kk += 8)
-                                {
-                                    __m256 _r0 = _mm256_loadu_ps(p0);
-                                    __m256 _r1 = _mm256_loadu_ps(p1);
-                                    __m256 _r2 = _mm256_loadu_ps(p2);
-                                    __m256 _r3 = _mm256_loadu_ps(p3);
-                                    __m256 _r4 = _mm256_loadu_ps(p4);
-                                    __m256 _r5 = _mm256_loadu_ps(p5);
-                                    __m256 _r6 = _mm256_loadu_ps(p6);
-                                    __m256 _r7 = _mm256_loadu_ps(p7);
-                                    __m256 _r8 = _mm256_loadu_ps(p8);
-                                    __m256 _r9 = _mm256_loadu_ps(p9);
-                                    __m256 _ra = _mm256_loadu_ps(pa);
-                                    __m256 _rb = _mm256_loadu_ps(pb);
-                                    transpose8x12_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7, _r8, _r9, _ra, _rb);
-                                    _mm256_storeu_ps(pp, _r0);
-                                    _mm256_storeu_ps(pp + 8, _r1);
-                                    _mm256_storeu_ps(pp + 8 * 2, _r2);
-                                    _mm256_storeu_ps(pp + 8 * 3, _r3);
-                                    _mm256_storeu_ps(pp + 8 * 4, _r4);
-                                    _mm256_storeu_ps(pp + 8 * 5, _r5);
-                                    _mm256_storeu_ps(pp + 8 * 6, _r6);
-                                    _mm256_storeu_ps(pp + 8 * 7, _r7);
-                                    _mm256_storeu_ps(pp + 8 * 8, _r8);
-                                    _mm256_storeu_ps(pp + 8 * 9, _r9);
-                                    _mm256_storeu_ps(pp + 8 * 10, _ra);
-                                    _mm256_storeu_ps(pp + 8 * 11, _rb);
-                                    pp += 96;
-                                    p0 += 8;
-                                    p1 += 8;
-                                    p2 += 8;
-                                    p3 += 8;
-                                    p4 += 8;
-                                    p5 += 8;
-                                    p6 += 8;
-                                    p7 += 8;
-                                    p8 += 8;
-                                    p9 += 8;
-                                    pa += 8;
-                                    pb += 8;
-                                }
-#endif // __AVX__
-                                for (; kk + 3 < max_kk; kk += 4)
-                                {
-                                    __m128 _r0 = _mm_loadu_ps(p0);
-                                    __m128 _r1 = _mm_loadu_ps(p1);
-                                    __m128 _r2 = _mm_loadu_ps(p2);
-                                    __m128 _r3 = _mm_loadu_ps(p3);
-                                    __m128 _r4 = _mm_loadu_ps(p4);
-                                    __m128 _r5 = _mm_loadu_ps(p5);
-                                    __m128 _r6 = _mm_loadu_ps(p6);
-                                    __m128 _r7 = _mm_loadu_ps(p7);
-                                    __m128 _r8 = _mm_loadu_ps(p8);
-                                    __m128 _r9 = _mm_loadu_ps(p9);
-                                    __m128 _ra = _mm_loadu_ps(pa);
-                                    __m128 _rb = _mm_loadu_ps(pb);
-                                    _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
-                                    _MM_TRANSPOSE4_PS(_r4, _r5, _r6, _r7);
-                                    _MM_TRANSPOSE4_PS(_r8, _r9, _ra, _rb);
-                                    _mm_store_ps(pp, _r0);
-                                    _mm_store_ps(pp + 4, _r4);
-                                    _mm_store_ps(pp + 4 * 2, _r8);
-                                    _mm_store_ps(pp + 4 * 3, _r1);
-                                    _mm_store_ps(pp + 4 * 4, _r5);
-                                    _mm_store_ps(pp + 4 * 5, _r9);
-                                    _mm_store_ps(pp + 4 * 6, _r2);
-                                    _mm_store_ps(pp + 4 * 7, _r6);
-                                    _mm_store_ps(pp + 4 * 8, _ra);
-                                    _mm_store_ps(pp + 4 * 9, _r3);
-                                    _mm_store_ps(pp + 4 * 10, _r7);
-                                    _mm_store_ps(pp + 4 * 11, _rb);
-                                    pp += 48;
-                                    p0 += 4;
-                                    p1 += 4;
-                                    p2 += 4;
-                                    p3 += 4;
-                                    p4 += 4;
-                                    p5 += 4;
-                                    p6 += 4;
-                                    p7 += 4;
-                                    p8 += 4;
-                                    p9 += 4;
-                                    pa += 4;
-                                    pb += 4;
-                                }
-                                for (; kk < max_kk; kk++)
-                                {
-                                    pp[0] = p0[0];
-                                    pp[1] = p1[0];
-                                    pp[2] = p2[0];
-                                    pp[3] = p3[0];
-                                    pp[4] = p4[0];
-                                    pp[5] = p5[0];
-                                    pp[6] = p6[0];
-                                    pp[7] = p7[0];
-                                    pp[8] = p8[0];
-                                    pp[9] = p9[0];
-                                    pp[10] = pa[0];
-                                    pp[11] = pb[0];
-                                    pp += 12;
-                                    p0++;
-                                    p1++;
-                                    p2++;
-                                    p3++;
-                                    p4++;
-                                    p5++;
-                                    p6++;
-                                    p7++;
-                                    p8++;
-                                    p9++;
-                                    pa++;
-                                    pb++;
-                                }
-                            }
-                        }
-                        for (; jj + 7 < max_jj; jj += 8)
-                        {
-#if __AVX__
-#if __AVX512F__
-                            if (elempack == 16)
-                            {
-                                const float* p0 = B.row((j + jj) / 16 + 0) + k * 16;
-                                const float* p1 = B.row((j + jj) / 16 + 1) + k * 16;
-
-                                if ((j + jj) % 16 == 0)
-                                {
-                                    for (int kk = 0; kk < max_kk; kk++)
-                                    {
-                                        pp[0] = p0[0];
-                                        pp[1] = p0[1];
-                                        pp[2] = p0[2];
-                                        pp[3] = p0[3];
-                                        pp[4] = p0[4];
-                                        pp[5] = p0[5];
-                                        pp[6] = p0[6];
-                                        pp[7] = p0[7];
-                                        pp += 8;
-                                        p0 += 16;
-                                    }
-                                }
-                                if ((j + jj) % 16 == 4)
-                                {
-                                    for (int kk = 0; kk < max_kk; kk++)
-                                    {
-                                        pp[0] = p0[4];
-                                        pp[1] = p0[5];
-                                        pp[2] = p0[6];
-                                        pp[3] = p0[7];
-                                        pp[4] = p0[8];
-                                        pp[5] = p0[9];
-                                        pp[6] = p0[10];
-                                        pp[7] = p0[11];
-                                        pp += 8;
-                                        p0 += 16;
-                                    }
-                                }
-                                if ((j + jj) % 16 == 8)
-                                {
-                                    for (int kk = 0; kk < max_kk; kk++)
-                                    {
-                                        pp[0] = p0[8];
-                                        pp[1] = p0[9];
-                                        pp[2] = p0[10];
-                                        pp[3] = p0[11];
-                                        pp[4] = p0[12];
-                                        pp[5] = p0[13];
-                                        pp[6] = p0[14];
-                                        pp[7] = p0[15];
-                                        pp += 8;
-                                        p0 += 16;
-                                    }
-                                }
-                                if ((j + jj) % 16 == 12)
-                                {
-                                    for (int kk = 0; kk < max_kk; kk++)
-                                    {
-                                        pp[0] = p0[12];
-                                        pp[1] = p0[13];
-                                        pp[2] = p0[14];
-                                        pp[3] = p0[15];
-                                        pp[4] = p1[0];
-                                        pp[5] = p1[1];
-                                        pp[6] = p1[2];
-                                        pp[7] = p1[3];
-                                        pp += 8;
-                                        p0 += 16;
-                                        p1 += 16;
-                                    }
-                                }
-                            }
-#endif // __AVX512F__
-                            if (elempack == 8)
-                            {
-                                const float* p0 = B.row((j + jj) / 8 + 0) + k * 8;
-                                const float* p1 = B.row((j + jj) / 8 + 1) + k * 8;
-
-                                if ((j + jj) % 8 == 0)
-                                {
-                                    for (int kk = 0; kk < max_kk; kk++)
-                                    {
-                                        _mm256_storeu_ps(pp, _mm256_load_ps(p0));
-                                        pp += 8;
-                                        p0 += 8;
-                                    }
-                                }
-                                if ((j + jj) % 8 == 4)
-                                {
-                                    for (int kk = 0; kk < max_kk; kk++)
-                                    {
-                                        _mm_store_ps(pp, _mm_load_ps(p0 + 4));
-                                        _mm_store_ps(pp + 4, _mm_load_ps(p1));
-                                        pp += 8;
-                                        p0 += 8;
-                                        p1 += 8;
-                                    }
-                                }
-                            }
-#endif // __AVX__
-                            if (elempack == 4)
-                            {
-                                const float* p0 = B.row((j + jj) / 4 + 0) + k * 4;
-                                const float* p1 = B.row((j + jj) / 4 + 1) + k * 4;
-
-                                for (int kk = 0; kk < max_kk; kk++)
-                                {
-                                    _mm_store_ps(pp, _mm_load_ps(p0));
-                                    _mm_store_ps(pp + 4, _mm_load_ps(p1));
-                                    pp += 8;
-                                    p0 += 4;
-                                    p1 += 4;
-                                }
-                            }
-                            if (elempack == 1)
-                            {
-                                const float* p0 = B.row(j + jj + 0) + k;
-                                const float* p1 = B.row(j + jj + 1) + k;
-                                const float* p2 = B.row(j + jj + 2) + k;
-                                const float* p3 = B.row(j + jj + 3) + k;
-                                const float* p4 = B.row(j + jj + 4) + k;
-                                const float* p5 = B.row(j + jj + 5) + k;
-                                const float* p6 = B.row(j + jj + 6) + k;
-                                const float* p7 = B.row(j + jj + 7) + k;
-
-                                int kk = 0;
-#if __AVX__
-                                for (; kk + 7 < max_kk; kk += 8)
-                                {
-                                    __m256 _r0 = _mm256_loadu_ps(p0);
-                                    __m256 _r1 = _mm256_loadu_ps(p1);
-                                    __m256 _r2 = _mm256_loadu_ps(p2);
-                                    __m256 _r3 = _mm256_loadu_ps(p3);
-                                    __m256 _r4 = _mm256_loadu_ps(p4);
-                                    __m256 _r5 = _mm256_loadu_ps(p5);
-                                    __m256 _r6 = _mm256_loadu_ps(p6);
-                                    __m256 _r7 = _mm256_loadu_ps(p7);
-                                    transpose8x8_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
-                                    _mm256_storeu_ps(pp, _r0);
-                                    _mm256_storeu_ps(pp + 8, _r1);
-                                    _mm256_storeu_ps(pp + 8 * 2, _r2);
-                                    _mm256_storeu_ps(pp + 8 * 3, _r3);
-                                    _mm256_storeu_ps(pp + 8 * 4, _r4);
-                                    _mm256_storeu_ps(pp + 8 * 5, _r5);
-                                    _mm256_storeu_ps(pp + 8 * 6, _r6);
-                                    _mm256_storeu_ps(pp + 8 * 7, _r7);
-                                    pp += 64;
-                                    p0 += 8;
-                                    p1 += 8;
-                                    p2 += 8;
-                                    p3 += 8;
-                                    p4 += 8;
-                                    p5 += 8;
-                                    p6 += 8;
-                                    p7 += 8;
-                                }
-#endif // __AVX__
-                                for (; kk + 3 < max_kk; kk += 4)
-                                {
-                                    __m128 _r0 = _mm_loadu_ps(p0);
-                                    __m128 _r1 = _mm_loadu_ps(p1);
-                                    __m128 _r2 = _mm_loadu_ps(p2);
-                                    __m128 _r3 = _mm_loadu_ps(p3);
-                                    __m128 _r4 = _mm_loadu_ps(p4);
-                                    __m128 _r5 = _mm_loadu_ps(p5);
-                                    __m128 _r6 = _mm_loadu_ps(p6);
-                                    __m128 _r7 = _mm_loadu_ps(p7);
-                                    _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
-                                    _MM_TRANSPOSE4_PS(_r4, _r5, _r6, _r7);
-                                    _mm_store_ps(pp, _r0);
-                                    _mm_store_ps(pp + 4, _r4);
-                                    _mm_store_ps(pp + 4 * 2, _r1);
-                                    _mm_store_ps(pp + 4 * 3, _r5);
-                                    _mm_store_ps(pp + 4 * 4, _r2);
-                                    _mm_store_ps(pp + 4 * 5, _r6);
-                                    _mm_store_ps(pp + 4 * 6, _r3);
-                                    _mm_store_ps(pp + 4 * 7, _r7);
-                                    pp += 32;
-                                    p0 += 4;
-                                    p1 += 4;
-                                    p2 += 4;
-                                    p3 += 4;
-                                    p4 += 4;
-                                    p5 += 4;
-                                    p6 += 4;
-                                    p7 += 4;
-                                }
-                                for (; kk < max_kk; kk++)
-                                {
-                                    pp[0] = p0[0];
-                                    pp[1] = p1[0];
-                                    pp[2] = p2[0];
-                                    pp[3] = p3[0];
-                                    pp[4] = p4[0];
-                                    pp[5] = p5[0];
-                                    pp[6] = p6[0];
-                                    pp[7] = p7[0];
-                                    pp += 8;
-                                    p0++;
-                                    p1++;
-                                    p2++;
-                                    p3++;
-                                    p4++;
-                                    p5++;
-                                    p6++;
-                                    p7++;
-                                }
-                            }
-                        }
-                        for (; jj + 3 < max_jj; jj += 4)
-                        {
-#if __AVX__
-#if __AVX512F__
-                            if (elempack == 16)
-                            {
-                                const float* p0 = B.row((j + jj) / 16 + 0) + k * 16;
-
-                                if ((j + jj) % 16 == 0)
-                                {
-                                    for (int kk = 0; kk < max_kk; kk++)
-                                    {
-                                        pp[0] = p0[0];
-                                        pp[1] = p0[1];
-                                        pp[2] = p0[2];
-                                        pp[3] = p0[3];
-                                        pp += 4;
-                                        p0 += 16;
-                                    }
-                                }
-                                if ((j + jj) % 16 == 4)
-                                {
-                                    for (int kk = 0; kk < max_kk; kk++)
-                                    {
-                                        pp[0] = p0[4];
-                                        pp[1] = p0[5];
-                                        pp[2] = p0[6];
-                                        pp[3] = p0[7];
-                                        pp += 4;
-                                        p0 += 16;
-                                    }
-                                }
-                                if ((j + jj) % 16 == 8)
-                                {
-                                    for (int kk = 0; kk < max_kk; kk++)
-                                    {
-                                        pp[0] = p0[8];
-                                        pp[1] = p0[9];
-                                        pp[2] = p0[10];
-                                        pp[3] = p0[11];
-                                        pp += 4;
-                                        p0 += 16;
-                                    }
-                                }
-                                if ((j + jj) % 16 == 12)
-                                {
-                                    for (int kk = 0; kk < max_kk; kk++)
-                                    {
-                                        pp[0] = p0[12];
-                                        pp[1] = p0[13];
-                                        pp[2] = p0[14];
-                                        pp[3] = p0[15];
-                                        pp += 4;
-                                        p0 += 16;
-                                    }
-                                }
-                            }
-#endif // __AVX512F__
-                            if (elempack == 8)
-                            {
-                                const float* p0 = B.row((j + jj) / 8 + 0) + k * 8;
-
-                                if ((j + jj) % 8 == 0)
-                                {
-                                    for (int kk = 0; kk < max_kk; kk++)
-                                    {
-                                        _mm_store_ps(pp, _mm_load_ps(p0));
-                                        pp += 4;
-                                        p0 += 8;
-                                    }
-                                }
-                                if ((j + jj) % 8 == 4)
-                                {
-                                    for (int kk = 0; kk < max_kk; kk++)
-                                    {
-                                        _mm_store_ps(pp, _mm_load_ps(p0 + 4));
-                                        pp += 4;
-                                        p0 += 8;
-                                    }
-                                }
-                            }
-#endif // __AVX__
-                            if (elempack == 4)
-                            {
-                                const float* p0 = B.row((j + jj) / 4 + 0) + k * 4;
-
-                                for (int kk = 0; kk < max_kk; kk++)
-                                {
-                                    _mm_store_ps(pp, _mm_load_ps(p0));
-                                    pp += 4;
-                                    p0 += 4;
-                                }
-                            }
-                            if (elempack == 1)
-                            {
-                                const float* p0 = B.row(j + jj + 0) + k;
-                                const float* p1 = B.row(j + jj + 1) + k;
-                                const float* p2 = B.row(j + jj + 2) + k;
-                                const float* p3 = B.row(j + jj + 3) + k;
-
-                                int kk = 0;
-#if __AVX__
-                                for (; kk + 7 < max_kk; kk += 8)
-                                {
-                                    __m256 _r0 = _mm256_loadu_ps(p0);
-                                    __m256 _r1 = _mm256_loadu_ps(p1);
-                                    __m256 _r2 = _mm256_loadu_ps(p2);
-                                    __m256 _r3 = _mm256_loadu_ps(p3);
-                                    transpose8x4_ps(_r0, _r1, _r2, _r3);
-                                    _mm256_storeu_ps(pp, _r0);
-                                    _mm256_storeu_ps(pp + 8, _r1);
-                                    _mm256_storeu_ps(pp + 16, _r2);
-                                    _mm256_storeu_ps(pp + 24, _r3);
-                                    pp += 32;
-                                    p0 += 8;
-                                    p1 += 8;
-                                    p2 += 8;
-                                    p3 += 8;
-                                }
-#endif // __AVX__
-                                for (; kk + 3 < max_kk; kk += 4)
-                                {
-                                    __m128 _r0 = _mm_loadu_ps(p0);
-                                    __m128 _r1 = _mm_loadu_ps(p1);
-                                    __m128 _r2 = _mm_loadu_ps(p2);
-                                    __m128 _r3 = _mm_loadu_ps(p3);
-                                    _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
-                                    _mm_store_ps(pp, _r0);
-                                    _mm_store_ps(pp + 4, _r1);
-                                    _mm_store_ps(pp + 8, _r2);
-                                    _mm_store_ps(pp + 12, _r3);
-                                    pp += 16;
-                                    p0 += 4;
-                                    p1 += 4;
-                                    p2 += 4;
-                                    p3 += 4;
-                                }
-                                for (; kk < max_kk; kk++)
-                                {
-                                    pp[0] = p0[0];
-                                    pp[1] = p1[0];
-                                    pp[2] = p2[0];
-                                    pp[3] = p3[0];
-                                    pp += 4;
-                                    p0++;
-                                    p1++;
-                                    p2++;
-                                    p3++;
-                                }
-                            }
-                        }
-#endif // __SSE2__
-                        for (; jj + 1 < max_jj; jj += 2)
-                        {
-                            // if (elempack == 1)
-                            {
-                                const float* p0 = B.row(j + jj + 0) + k;
-                                const float* p1 = B.row(j + jj + 1) + k;
-
-                                int kk = 0;
-#if __SSE2__
-#if __AVX__
-                                for (; kk + 7 < max_kk; kk += 8)
-                                {
-                                    __m256 _r0 = _mm256_loadu_ps(p0);
-                                    __m256 _r1 = _mm256_loadu_ps(p1);
-                                    transpose8x2_ps(_r0, _r1);
-                                    _mm256_storeu_ps(pp, _r0);
-                                    _mm256_storeu_ps(pp + 8, _r1);
-                                    pp += 16;
-                                    p0 += 8;
-                                    p1 += 8;
-                                }
-#endif // __AVX__
-                                for (; kk + 3 < max_kk; kk += 4)
-                                {
-                                    __m128 _r0 = _mm_loadu_ps(p0);
-                                    __m128 _r1 = _mm_loadu_ps(p1);
-                                    __m128 _tmp0 = _mm_unpacklo_ps(_r0, _r1);
-                                    __m128 _tmp1 = _mm_unpackhi_ps(_r0, _r1);
-                                    _mm_store_ps(pp, _tmp0);
-                                    _mm_store_ps(pp + 4, _tmp1);
-                                    pp += 8;
-                                    p0 += 4;
-                                    p1 += 4;
-                                }
-#endif // __SSE2__
-                                for (; kk < max_kk; kk++)
-                                {
-                                    pp[0] = p0[0];
-                                    pp[1] = p1[0];
-                                    pp += 2;
-                                    p0++;
-                                    p1++;
-                                }
-                            }
-                        }
-                        for (; jj < max_jj; jj += 1)
-                        {
-                            // if (elempack == 1)
-                            {
-                                const float* p0 = B.row(j + jj + 0) + k;
-
-                                int kk = 0;
-#if __SSE2__
-#if __AVX__
-                                for (; kk + 7 < max_kk; kk += 8)
-                                {
-                                    _mm256_storeu_ps(pp, _mm256_loadu_ps(p0));
-                                    pp += 8;
-                                    p0 += 8;
-                                }
-#endif // __AVX__
-                                for (; kk + 3 < max_kk; kk += 4)
-                                {
-                                    _mm_storeu_ps(pp, _mm_loadu_ps(p0));
-                                    pp += 4;
-                                    p0 += 4;
-                                }
-#endif // __SSE2__
-                                for (; kk < max_kk; kk++)
-                                {
-                                    pp[0] = p0[0];
-                                    pp += 1;
-                                    p0++;
-                                }
-                            }
-                        }
-                    }
-                    else
-                    {
-                        // transpose_pack_b(B, BT, TILE_N, TILE_K, opt);
-                        const int elempack = B.elempack;
-
-                        float* pp = BT.channel(j / TILE_N).row(k / TILE_K);
-
-                        int jj = 0;
-#if __SSE2__
-                        for (; jj + 11 < max_jj; jj += 12)
-                        {
-#if __AVX__
-#if __AVX512F__
-                            if (elempack == 16)
-                            {
-                                const float* p0 = B.row(k / 16) + (j + jj) * 16;
-
-                                int kk = 0;
-                                for (; kk + 15 < max_kk; kk += 16)
-                                {
-                                    __m512 _r0 = _mm512_load_ps(p0);
-                                    __m512 _r1 = _mm512_load_ps(p0 + 16 * 1);
-                                    __m512 _r2 = _mm512_load_ps(p0 + 16 * 2);
-                                    __m512 _r3 = _mm512_load_ps(p0 + 16 * 3);
-                                    __m512 _r4 = _mm512_load_ps(p0 + 16 * 4);
-                                    __m512 _r5 = _mm512_load_ps(p0 + 16 * 5);
-                                    __m512 _r6 = _mm512_load_ps(p0 + 16 * 6);
-                                    __m512 _r7 = _mm512_load_ps(p0 + 16 * 7);
-                                    __m512 _r8 = _mm512_load_ps(p0 + 16 * 8);
-                                    __m512 _r9 = _mm512_load_ps(p0 + 16 * 9);
-                                    __m512 _ra = _mm512_load_ps(p0 + 16 * 10);
-                                    __m512 _rb = _mm512_load_ps(p0 + 16 * 11);
-                                    transpose16x12_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7, _r8, _r9, _ra, _rb);
-                                    _mm512_store_ps(pp, _r0);
-                                    _mm512_store_ps(pp + 16 * 1, _r1);
-                                    _mm512_store_ps(pp + 16 * 2, _r2);
-                                    _mm512_store_ps(pp + 16 * 3, _r3);
-                                    _mm512_store_ps(pp + 16 * 4, _r4);
-                                    _mm512_store_ps(pp + 16 * 5, _r5);
-                                    _mm512_store_ps(pp + 16 * 6, _r6);
-                                    _mm512_store_ps(pp + 16 * 7, _r7);
-                                    _mm512_store_ps(pp + 16 * 8, _r8);
-                                    _mm512_store_ps(pp + 16 * 9, _r9);
-                                    _mm512_store_ps(pp + 16 * 10, _ra);
-                                    _mm512_store_ps(pp + 16 * 11, _rb);
-                                    pp += 192;
-                                    p0 += N * 16;
-                                }
-                                for (; kk < max_kk; kk++)
-                                {
-                                    pp[0] = p0[0];
-                                    pp[1] = p0[16 * 1];
-                                    pp[2] = p0[16 * 2];
-                                    pp[3] = p0[16 * 3];
-                                    pp[4] = p0[16 * 4];
-                                    pp[5] = p0[16 * 5];
-                                    pp[6] = p0[16 * 6];
-                                    pp[7] = p0[16 * 7];
-                                    pp[8] = p0[16 * 8];
-                                    pp[9] = p0[16 * 9];
-                                    pp[10] = p0[16 * 10];
-                                    pp[11] = p0[16 * 11];
-                                    pp += 12;
-                                    p0 += 1;
-                                }
-                            }
-#endif // __AVX512F__
-                            if (elempack == 8)
-                            {
-                                const float* p0 = B.row(k / 8) + (j + jj) * 8;
-
-                                int kk = 0;
-                                for (; kk + 7 < max_kk; kk += 8)
-                                {
-                                    __m256 _r0 = _mm256_load_ps(p0);
-                                    __m256 _r1 = _mm256_load_ps(p0 + 8 * 1);
-                                    __m256 _r2 = _mm256_load_ps(p0 + 8 * 2);
-                                    __m256 _r3 = _mm256_load_ps(p0 + 8 * 3);
-                                    __m256 _r4 = _mm256_load_ps(p0 + 8 * 4);
-                                    __m256 _r5 = _mm256_load_ps(p0 + 8 * 5);
-                                    __m256 _r6 = _mm256_load_ps(p0 + 8 * 6);
-                                    __m256 _r7 = _mm256_load_ps(p0 + 8 * 7);
-                                    __m256 _r8 = _mm256_load_ps(p0 + 8 * 8);
-                                    __m256 _r9 = _mm256_load_ps(p0 + 8 * 9);
-                                    __m256 _ra = _mm256_load_ps(p0 + 8 * 10);
-                                    __m256 _rb = _mm256_load_ps(p0 + 8 * 11);
-                                    transpose8x12_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7, _r8, _r9, _ra, _rb);
-                                    _mm256_store_ps(pp, _r0);
-                                    _mm256_store_ps(pp + 8 * 1, _r1);
-                                    _mm256_store_ps(pp + 8 * 2, _r2);
-                                    _mm256_store_ps(pp + 8 * 3, _r3);
-                                    _mm256_store_ps(pp + 8 * 4, _r4);
-                                    _mm256_store_ps(pp + 8 * 5, _r5);
-                                    _mm256_store_ps(pp + 8 * 6, _r6);
-                                    _mm256_store_ps(pp + 8 * 7, _r7);
-                                    _mm256_store_ps(pp + 8 * 8, _r8);
-                                    _mm256_store_ps(pp + 8 * 9, _r9);
-                                    _mm256_store_ps(pp + 8 * 10, _ra);
-                                    _mm256_store_ps(pp + 8 * 11, _rb);
-                                    pp += 96;
-                                    p0 += N * 8;
-                                }
-                                for (; kk < max_kk; kk++)
-                                {
-                                    pp[0] = p0[0];
-                                    pp[1] = p0[8 * 1];
-                                    pp[2] = p0[8 * 2];
-                                    pp[3] = p0[8 * 3];
-                                    pp[4] = p0[8 * 4];
-                                    pp[5] = p0[8 * 5];
-                                    pp[6] = p0[8 * 6];
-                                    pp[7] = p0[8 * 7];
-                                    pp[8] = p0[8 * 8];
-                                    pp[9] = p0[8 * 9];
-                                    pp[10] = p0[8 * 10];
-                                    pp[11] = p0[8 * 11];
-                                    pp += 12;
-                                    p0 += 1;
-                                }
-                            }
-#endif // __AVX__
-                            if (elempack == 4)
-                            {
-                                const float* p0 = B.row(k / 4) + (j + jj) * 4;
-
-                                int kk = 0;
-                                for (; kk + 3 < max_kk; kk += 4)
-                                {
-                                    __m128 _r0 = _mm_load_ps(p0);
-                                    __m128 _r1 = _mm_load_ps(p0 + 4 * 1);
-                                    __m128 _r2 = _mm_load_ps(p0 + 4 * 2);
-                                    __m128 _r3 = _mm_load_ps(p0 + 4 * 3);
-                                    __m128 _r4 = _mm_load_ps(p0 + 4 * 4);
-                                    __m128 _r5 = _mm_load_ps(p0 + 4 * 5);
-                                    __m128 _r6 = _mm_load_ps(p0 + 4 * 6);
-                                    __m128 _r7 = _mm_load_ps(p0 + 4 * 7);
-                                    __m128 _r8 = _mm_load_ps(p0 + 4 * 8);
-                                    __m128 _r9 = _mm_load_ps(p0 + 4 * 9);
-                                    __m128 _ra = _mm_load_ps(p0 + 4 * 10);
-                                    __m128 _rb = _mm_load_ps(p0 + 4 * 11);
-                                    _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
-                                    _MM_TRANSPOSE4_PS(_r4, _r5, _r6, _r7);
-                                    _MM_TRANSPOSE4_PS(_r8, _r9, _ra, _rb);
-                                    _mm_store_ps(pp, _r0);
-                                    _mm_store_ps(pp + 4 * 1, _r4);
-                                    _mm_store_ps(pp + 4 * 2, _r8);
-                                    _mm_store_ps(pp + 4 * 3, _r1);
-                                    _mm_store_ps(pp + 4 * 4, _r5);
-                                    _mm_store_ps(pp + 4 * 5, _r9);
-                                    _mm_store_ps(pp + 4 * 6, _r2);
-                                    _mm_store_ps(pp + 4 * 7, _r6);
-                                    _mm_store_ps(pp + 4 * 8, _ra);
-                                    _mm_store_ps(pp + 4 * 9, _r3);
-                                    _mm_store_ps(pp + 4 * 10, _r7);
-                                    _mm_store_ps(pp + 4 * 11, _rb);
-                                    pp += 48;
-                                    p0 += N * 4;
-                                }
-                                for (; kk < max_kk; kk++)
-                                {
-                                    pp[0] = p0[0];
-                                    pp[1] = p0[4 * 1];
-                                    pp[2] = p0[4 * 2];
-                                    pp[3] = p0[4 * 3];
-                                    pp[4] = p0[4 * 4];
-                                    pp[5] = p0[4 * 5];
-                                    pp[6] = p0[4 * 6];
-                                    pp[7] = p0[4 * 7];
-                                    pp[8] = p0[4 * 8];
-                                    pp[9] = p0[4 * 9];
-                                    pp[10] = p0[4 * 10];
-                                    pp[11] = p0[4 * 11];
-                                    pp += 12;
-                                    p0 += 1;
-                                }
-                            }
-                            if (elempack == 1)
-                            {
-                                const float* p0 = B.row(k) + (j + jj);
-
-                                int kk = 0;
-                                for (; kk < max_kk; kk++)
-                                {
-                                    _mm_store_ps(pp, _mm_loadu_ps(p0));
-                                    _mm_store_ps(pp + 4, _mm_loadu_ps(p0 + 4));
-                                    _mm_store_ps(pp + 8, _mm_loadu_ps(p0 + 8));
-                                    pp += 12;
-                                    p0 += N;
-                                }
-                            }
-                        }
-                        for (; jj + 7 < max_jj; jj += 8)
-                        {
-#if __AVX__
-#if __AVX512F__
-                            if (elempack == 16)
-                            {
-                                const float* p0 = B.row(k / 16) + (j + jj) * 16;
-
-                                int kk = 0;
-                                for (; kk + 15 < max_kk; kk += 16)
-                                {
-                                    __m512 _r0 = _mm512_load_ps(p0);
-                                    __m512 _r1 = _mm512_load_ps(p0 + 16 * 1);
-                                    __m512 _r2 = _mm512_load_ps(p0 + 16 * 2);
-                                    __m512 _r3 = _mm512_load_ps(p0 + 16 * 3);
-                                    __m512 _r4 = _mm512_load_ps(p0 + 16 * 4);
-                                    __m512 _r5 = _mm512_load_ps(p0 + 16 * 5);
-                                    __m512 _r6 = _mm512_load_ps(p0 + 16 * 6);
-                                    __m512 _r7 = _mm512_load_ps(p0 + 16 * 7);
-                                    transpose16x8_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
-                                    _mm512_store_ps(pp, _r0);
-                                    _mm512_store_ps(pp + 16 * 1, _r1);
-                                    _mm512_store_ps(pp + 16 * 2, _r2);
-                                    _mm512_store_ps(pp + 16 * 3, _r3);
-                                    _mm512_store_ps(pp + 16 * 4, _r4);
-                                    _mm512_store_ps(pp + 16 * 5, _r5);
-                                    _mm512_store_ps(pp + 16 * 6, _r6);
-                                    _mm512_store_ps(pp + 16 * 7, _r7);
-                                    pp += 128;
-                                    p0 += N * 16;
-                                }
-                                for (; kk < max_kk; kk++)
-                                {
-                                    pp[0] = p0[0];
-                                    pp[1] = p0[16 * 1];
-                                    pp[2] = p0[16 * 2];
-                                    pp[3] = p0[16 * 3];
-                                    pp[4] = p0[16 * 4];
-                                    pp[5] = p0[16 * 5];
-                                    pp[6] = p0[16 * 6];
-                                    pp[7] = p0[16 * 7];
-                                    pp += 8;
-                                    p0 += 1;
-                                }
-                            }
-#endif // __AVX512F__
-                            if (elempack == 8)
-                            {
-                                const float* p0 = B.row(k / 8) + (j + jj) * 8;
-
-                                int kk = 0;
-                                for (; kk + 7 < max_kk; kk += 8)
-                                {
-                                    __m256 _r0 = _mm256_load_ps(p0);
-                                    __m256 _r1 = _mm256_load_ps(p0 + 8 * 1);
-                                    __m256 _r2 = _mm256_load_ps(p0 + 8 * 2);
-                                    __m256 _r3 = _mm256_load_ps(p0 + 8 * 3);
-                                    __m256 _r4 = _mm256_load_ps(p0 + 8 * 4);
-                                    __m256 _r5 = _mm256_load_ps(p0 + 8 * 5);
-                                    __m256 _r6 = _mm256_load_ps(p0 + 8 * 6);
-                                    __m256 _r7 = _mm256_load_ps(p0 + 8 * 7);
-                                    transpose8x8_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
-                                    _mm256_store_ps(pp, _r0);
-                                    _mm256_store_ps(pp + 8 * 1, _r1);
-                                    _mm256_store_ps(pp + 8 * 2, _r2);
-                                    _mm256_store_ps(pp + 8 * 3, _r3);
-                                    _mm256_store_ps(pp + 8 * 4, _r4);
-                                    _mm256_store_ps(pp + 8 * 5, _r5);
-                                    _mm256_store_ps(pp + 8 * 6, _r6);
-                                    _mm256_store_ps(pp + 8 * 7, _r7);
-                                    pp += 64;
-                                    p0 += N * 8;
-                                }
-                                for (; kk < max_kk; kk++)
-                                {
-                                    pp[0] = p0[0];
-                                    pp[1] = p0[8 * 1];
-                                    pp[2] = p0[8 * 2];
-                                    pp[3] = p0[8 * 3];
-                                    pp[4] = p0[8 * 4];
-                                    pp[5] = p0[8 * 5];
-                                    pp[6] = p0[8 * 6];
-                                    pp[7] = p0[8 * 7];
-                                    pp += 8;
-                                    p0 += 1;
-                                }
-                            }
-#endif // __AVX__
-                            if (elempack == 4)
-                            {
-                                const float* p0 = B.row(k / 4) + (j + jj) * 4;
-
-                                int kk = 0;
-                                for (; kk + 3 < max_kk; kk += 4)
-                                {
-                                    __m128 _r0 = _mm_load_ps(p0);
-                                    __m128 _r1 = _mm_load_ps(p0 + 4 * 1);
-                                    __m128 _r2 = _mm_load_ps(p0 + 4 * 2);
-                                    __m128 _r3 = _mm_load_ps(p0 + 4 * 3);
-                                    __m128 _r4 = _mm_load_ps(p0 + 4 * 4);
-                                    __m128 _r5 = _mm_load_ps(p0 + 4 * 5);
-                                    __m128 _r6 = _mm_load_ps(p0 + 4 * 6);
-                                    __m128 _r7 = _mm_load_ps(p0 + 4 * 7);
-                                    _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
-                                    _MM_TRANSPOSE4_PS(_r4, _r5, _r6, _r7);
-                                    _mm_store_ps(pp, _r0);
-                                    _mm_store_ps(pp + 4 * 1, _r4);
-                                    _mm_store_ps(pp + 4 * 2, _r1);
-                                    _mm_store_ps(pp + 4 * 3, _r5);
-                                    _mm_store_ps(pp + 4 * 4, _r2);
-                                    _mm_store_ps(pp + 4 * 5, _r6);
-                                    _mm_store_ps(pp + 4 * 6, _r3);
-                                    _mm_store_ps(pp + 4 * 7, _r7);
-                                    pp += 32;
-                                    p0 += N * 4;
-                                }
-                                for (; kk < max_kk; kk++)
-                                {
-                                    pp[0] = p0[0];
-                                    pp[1] = p0[4 * 1];
-                                    pp[2] = p0[4 * 2];
-                                    pp[3] = p0[4 * 3];
-                                    pp[4] = p0[4 * 4];
-                                    pp[5] = p0[4 * 5];
-                                    pp[6] = p0[4 * 6];
-                                    pp[7] = p0[4 * 7];
-                                    pp += 8;
-                                    p0 += 1;
-                                }
-                            }
-                            if (elempack == 1)
-                            {
-                                const float* p0 = B.row(k) + (j + jj);
-
-                                int kk = 0;
-                                for (; kk < max_kk; kk++)
-                                {
-                                    _mm_store_ps(pp, _mm_loadu_ps(p0));
-                                    _mm_store_ps(pp + 4, _mm_loadu_ps(p0 + 4));
-                                    pp += 8;
-                                    p0 += N;
-                                }
-                            }
-                        }
-                        for (; jj + 3 < max_jj; jj += 4)
-                        {
-#if __AVX__
-#if __AVX512F__
-                            if (elempack == 16)
-                            {
-                                const float* p0 = B.row(k / 16) + (j + jj) * 16;
-
-                                int kk = 0;
-                                for (; kk + 15 < max_kk; kk += 16)
-                                {
-                                    __m512 _r0 = _mm512_load_ps(p0);
-                                    __m512 _r1 = _mm512_load_ps(p0 + 16 * 1);
-                                    __m512 _r2 = _mm512_load_ps(p0 + 16 * 2);
-                                    __m512 _r3 = _mm512_load_ps(p0 + 16 * 3);
-                                    transpose16x4_ps(_r0, _r1, _r2, _r3);
-                                    _mm512_store_ps(pp, _r0);
-                                    _mm512_store_ps(pp + 16 * 1, _r1);
-                                    _mm512_store_ps(pp + 16 * 2, _r2);
-                                    _mm512_store_ps(pp + 16 * 3, _r3);
-                                    pp += 64;
-                                    p0 += N * 8;
-                                }
-                                for (; kk < max_kk; kk++)
-                                {
-                                    pp[0] = p0[0];
-                                    pp[1] = p0[16 * 1];
-                                    pp[2] = p0[16 * 2];
-                                    pp[3] = p0[16 * 3];
-                                    pp += 4;
-                                    p0 += 1;
-                                }
-                            }
-#endif // __AVX512F__
-                            if (elempack == 8)
-                            {
-                                const float* p0 = B.row(k / 8) + (j + jj) * 8;
-
-                                int kk = 0;
-                                for (; kk + 7 < max_kk; kk += 8)
-                                {
-                                    __m256 _r0 = _mm256_load_ps(p0);
-                                    __m256 _r1 = _mm256_load_ps(p0 + 8 * 1);
-                                    __m256 _r2 = _mm256_load_ps(p0 + 8 * 2);
-                                    __m256 _r3 = _mm256_load_ps(p0 + 8 * 3);
-                                    transpose8x4_ps(_r0, _r1, _r2, _r3);
-                                    _mm256_store_ps(pp, _r0);
-                                    _mm256_store_ps(pp + 8 * 1, _r1);
-                                    _mm256_store_ps(pp + 8 * 2, _r2);
-                                    _mm256_store_ps(pp + 8 * 3, _r3);
-                                    pp += 32;
-                                    p0 += N * 8;
-                                }
-                                for (; kk < max_kk; kk++)
-                                {
-                                    pp[0] = p0[0];
-                                    pp[1] = p0[8 * 1];
-                                    pp[2] = p0[8 * 2];
-                                    pp[3] = p0[8 * 3];
-                                    pp += 4;
-                                    p0 += 1;
-                                }
-                            }
-#endif // __AVX__
-                            if (elempack == 4)
-                            {
-                                const float* p0 = B.row(k / 4) + (j + jj) * 4;
-
-                                int kk = 0;
-                                for (; kk + 3 < max_kk; kk += 4)
-                                {
-                                    __m128 _r0 = _mm_load_ps(p0);
-                                    __m128 _r1 = _mm_load_ps(p0 + 4 * 1);
-                                    __m128 _r2 = _mm_load_ps(p0 + 4 * 2);
-                                    __m128 _r3 = _mm_load_ps(p0 + 4 * 3);
-                                    _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
-                                    _mm_store_ps(pp, _r0);
-                                    _mm_store_ps(pp + 4 * 1, _r1);
-                                    _mm_store_ps(pp + 4 * 2, _r2);
-                                    _mm_store_ps(pp + 4 * 3, _r3);
-                                    pp += 16;
-                                    p0 += N * 4;
-                                }
-                                for (; kk < max_kk; kk++)
-                                {
-                                    pp[0] = p0[0];
-                                    pp[1] = p0[4 * 1];
-                                    pp[2] = p0[4 * 2];
-                                    pp[3] = p0[4 * 3];
-                                    pp += 4;
-                                    p0 += 1;
-                                }
-                            }
-                            if (elempack == 1)
-                            {
-                                const float* p0 = B.row(k) + (j + jj);
-
-                                int kk = 0;
-                                for (; kk < max_kk; kk++)
-                                {
-                                    _mm_store_ps(pp, _mm_loadu_ps(p0));
-                                    pp += 4;
-                                    p0 += N;
-                                }
-                            }
-                        }
-#endif // __SSE2__
-                        for (; jj + 1 < max_jj; jj += 2)
-                        {
-#if __SSE2__
-#if __AVX__
-#if __AVX512F__
-                            if (elempack == 16)
-                            {
-                                const float* p0 = B.row(k / 16) + (j + jj) * 16;
-
-                                int kk = 0;
-                                for (; kk + 15 < max_kk; kk += 16)
-                                {
-                                    __m512 _r0 = _mm512_load_ps(p0);
-                                    __m512 _r1 = _mm512_load_ps(p0 + 16);
-                                    transpose16x2_ps(_r0, _r1);
-                                    _mm512_store_ps(pp, _r0);
-                                    _mm512_store_ps(pp + 16, _r1);
-                                    pp += 32;
-                                    p0 += N * 16;
-                                }
-                                for (; kk < max_kk; kk++)
-                                {
-                                    pp[0] = p0[0];
-                                    pp[1] = p0[16];
-                                    pp += 2;
-                                    p0 += 1;
-                                }
-                            }
-#endif // __AVX512F__
-                            if (elempack == 8)
-                            {
-                                const float* p0 = B.row(k / 8) + (j + jj) * 8;
-
-                                int kk = 0;
-                                for (; kk + 7 < max_kk; kk += 8)
-                                {
-                                    __m256 _r0 = _mm256_load_ps(p0);
-                                    __m256 _r1 = _mm256_load_ps(p0 + 8);
-                                    transpose8x2_ps(_r0, _r1);
-                                    _mm256_store_ps(pp, _r0);
-                                    _mm256_store_ps(pp + 8, _r1);
-                                    pp += 16;
-                                    p0 += N * 8;
-                                }
-                                for (; kk < max_kk; kk++)
-                                {
-                                    pp[0] = p0[0];
-                                    pp[1] = p0[8];
-                                    pp += 2;
-                                    p0 += 1;
-                                }
-                            }
-#endif // __AVX__
-                            if (elempack == 4)
-                            {
-                                const float* p0 = B.row(k / 4) + (j + jj) * 4;
-
-                                int kk = 0;
-                                for (; kk + 3 < max_kk; kk += 4)
-                                {
-                                    __m128 _r0 = _mm_load_ps(p0);
-                                    __m128 _r1 = _mm_load_ps(p0 + 4);
-                                    __m128 _tmp0 = _mm_unpacklo_ps(_r0, _r1);
-                                    __m128 _tmp1 = _mm_unpackhi_ps(_r0, _r1);
-                                    _mm_store_ps(pp, _tmp0);
-                                    _mm_store_ps(pp + 4, _tmp1);
-                                    pp += 8;
-                                    p0 += N * 4;
-                                }
-                                for (; kk < max_kk; kk++)
-                                {
-                                    pp[0] = p0[0];
-                                    pp[1] = p0[4];
-                                    pp += 2;
-                                    p0 += 1;
-                                }
-                            }
-#endif // __SSE2__
-                            if (elempack == 1)
-                            {
-                                const float* p0 = B.row(k) + (j + jj);
-
-                                int kk = 0;
-                                for (; kk < max_kk; kk++)
-                                {
-                                    pp[0] = p0[0];
-                                    pp[1] = p0[1];
-                                    pp += 2;
-                                    p0 += N;
-                                }
-                            }
-                        }
-                        for (; jj < max_jj; jj += 1)
-                        {
-#if __SSE2__
-#if __AVX__
-#if __AVX512F__
-                            if (elempack == 16)
-                            {
-                                const float* p0 = B.row(k / 16) + (j + jj) * 16;
-
-                                int kk = 0;
-                                for (; kk + 15 < max_kk; kk += 16)
-                                {
-                                    _mm512_store_ps(pp, _mm512_load_ps(p0));
-                                    pp += 16;
-                                    p0 += N * 16;
-                                }
-                                for (; kk < max_kk; kk++)
-                                {
-                                    pp[0] = p0[0];
-                                    pp += 1;
-                                    p0 += 1;
-                                }
-                            }
-#endif // __AVX512F__
-                            if (elempack == 8)
-                            {
-                                const float* p0 = B.row(k / 8) + (j + jj) * 8;
-
-                                int kk = 0;
-                                for (; kk + 7 < max_kk; kk += 8)
-                                {
-                                    _mm256_store_ps(pp, _mm256_load_ps(p0));
-                                    pp += 8;
-                                    p0 += N * 8;
-                                }
-                                for (; kk < max_kk; kk++)
-                                {
-                                    pp[0] = p0[0];
-                                    pp += 1;
-                                    p0 += 1;
-                                }
-                            }
-#endif // __AVX__
-                            if (elempack == 4)
-                            {
-                                const float* p0 = B.row(k / 4) + (j + jj) * 4;
-
-                                int kk = 0;
-                                for (; kk + 3 < max_kk; kk += 4)
-                                {
-                                    _mm_store_ps(pp, _mm_load_ps(p0));
-                                    pp += 4;
-                                    p0 += N * 4;
-                                }
-                                for (; kk < max_kk; kk++)
-                                {
-                                    pp[0] = p0[0];
-                                    pp += 1;
-                                    p0 += 1;
-                                }
-                            }
-#endif // __SSE2__
-                            if (elempack == 1)
-                            {
-                                const float* p0 = B.row(k) + (j + jj);
-
-                                int kk = 0;
-                                for (; kk < max_kk; kk++)
-                                {
-                                    pp[0] = p0[0];
-                                    pp += 1;
-                                    p0 += N;
                                 }
                             }
                         }
