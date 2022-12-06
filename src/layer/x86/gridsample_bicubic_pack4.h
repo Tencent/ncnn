@@ -176,7 +176,7 @@ static void gridsample_2d_bicubic_align1_zeros_blob_pack4(const Mat& src, Mat& d
             __m128 gx1 = gx_floor;
             __m128 gx2 = _mm_add_ps(gx_floor, v1fp4);
             __m128 gx3 = _mm_add_ps(gx_floor, _mm_set1_ps(2.0f));
-  
+
             __m128i x0 = _mm_cvtps_epi32(gx0);
             __m128i x1 = _mm_cvtps_epi32(gx1);
             __m128i x2 = _mm_cvtps_epi32(gx2);
