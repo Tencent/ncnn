@@ -59,7 +59,7 @@ static void gridsample_2d_nearest_align0_zeros_blob_pack4(const Mat& src, Mat& d
                                              _mm_set_epi32(3, 2, 1, 0));
 #else
             __m128 offset = _mm_add_ps(_mm_mul_ps(_mm_add_ps(_mm_mul_ps(gy, vImgWf), gx), vElempackf),
-                                             _mm_set_ps(3, 2, 1, 0));
+                                       _mm_set_ps(3, 2, 1, 0));
             __m128i i_offset = _mm_cvtps_epi32(offset);
 #endif // __SSE4_1__
 
@@ -475,7 +475,9 @@ static void gridsample_3d_nearest_align0_zeros_blob_pack4(const Mat& src, Mat& d
                 v_in_range = _mm_and_si128(v_in_range, _mm_and_si128(_mm_cmpgt_epi32(iz, vn1ip4), _mm_cmpgt_epi32(vImgDi, iz)));
 
                 __m128 offset = _mm_add_ps(_mm_mul_ps(_mm_add_ps(_mm_mul_ps(_mm_mul_ps(vImgWf, vImgHf), gz),
-                               _mm_add_ps(_mm_mul_ps(gy, vImgWf), gx)),vElempackf), _mm_set_ps(3, 2, 1, 0));
+                                                      _mm_add_ps(_mm_mul_ps(gy, vImgWf), gx)),
+                                                      vElempackf),
+                                           _mm_set_ps(3, 2, 1, 0));
                 __m128i i_offset = _mm_cvtps_epi32(offset);
 
                 for (int q = 0; q < dst.c; q++)
@@ -541,7 +543,9 @@ static void gridsample_3d_nearest_align1_zeros_blob_pack4(const Mat& src, Mat& d
                 v_in_range = _mm_and_si128(v_in_range, _mm_and_si128(_mm_cmpgt_epi32(iz, vn1ip4), _mm_cmpgt_epi32(vImgDi, iz)));
 
                 __m128 offset = _mm_add_ps(_mm_mul_ps(_mm_add_ps(_mm_mul_ps(_mm_mul_ps(vImgWf, vImgHf), gz),
-                               _mm_add_ps(_mm_mul_ps(gy, vImgWf), gx)),vElempackf), _mm_set_ps(3, 2, 1, 0));
+                                                      _mm_add_ps(_mm_mul_ps(gy, vImgWf), gx)),
+                                                      vElempackf),
+                                           _mm_set_ps(3, 2, 1, 0));
                 __m128i i_offset = _mm_cvtps_epi32(offset);
 
                 for (int q = 0; q < dst.c; q++)
@@ -615,7 +619,9 @@ static void gridsample_3d_nearest_align0_border_blob_pack4(const Mat& src, Mat& 
                 __m128i iz = _mm_cvtps_epi32(gz);
 
                 __m128 offset = _mm_add_ps(_mm_mul_ps(_mm_add_ps(_mm_mul_ps(_mm_mul_ps(vImgWf, vImgHf), gz),
-                               _mm_add_ps(_mm_mul_ps(gy, vImgWf), gx)),vElempackf), _mm_set_ps(3, 2, 1, 0));
+                                                      _mm_add_ps(_mm_mul_ps(gy, vImgWf), gx)),
+                                                      vElempackf),
+                                           _mm_set_ps(3, 2, 1, 0));
                 __m128i i_offset = _mm_cvtps_epi32(offset);
 
                 for (int q = 0; q < dst.c; q++)
@@ -689,7 +695,9 @@ static void gridsample_3d_nearest_align1_border_blob_pack4(const Mat& src, Mat& 
                 __m128i iz = _mm_cvtps_epi32(gz);
 
                 __m128 offset = _mm_add_ps(_mm_mul_ps(_mm_add_ps(_mm_mul_ps(_mm_mul_ps(vImgWf, vImgHf), gz),
-                               _mm_add_ps(_mm_mul_ps(gy, vImgWf), gx)),vElempackf), _mm_set_ps(3, 2, 1, 0));
+                                                      _mm_add_ps(_mm_mul_ps(gy, vImgWf), gx)),
+                                                      vElempackf),
+                                           _mm_set_ps(3, 2, 1, 0));
                 __m128i i_offset = _mm_cvtps_epi32(offset);
 
                 for (int q = 0; q < dst.c; q++)
@@ -794,7 +802,9 @@ static void gridsample_3d_nearest_align0_reflection_blob_pack4(const Mat& src, M
                 __m128i iz = _mm_cvtps_epi32(gz);
 
                 __m128 offset = _mm_add_ps(_mm_mul_ps(_mm_add_ps(_mm_mul_ps(_mm_mul_ps(vImgWf, vImgHf), gz),
-                               _mm_add_ps(_mm_mul_ps(gy, vImgWf), gx)),vElempackf), _mm_set_ps(3, 2, 1, 0));
+                                                      _mm_add_ps(_mm_mul_ps(gy, vImgWf), gx)),
+                                                      vElempackf),
+                                           _mm_set_ps(3, 2, 1, 0));
                 __m128i i_offset = _mm_cvtps_epi32(offset);
 
                 for (int q = 0; q < dst.c; q++)
@@ -874,7 +884,9 @@ static void gridsample_3d_nearest_align1_reflection_blob_pack4(const Mat& src, M
                 __m128i iz = _mm_cvtps_epi32(gz);
 
                 __m128 offset = _mm_add_ps(_mm_mul_ps(_mm_add_ps(_mm_mul_ps(_mm_mul_ps(vImgWf, vImgHf), gz),
-                               _mm_add_ps(_mm_mul_ps(gy, vImgWf), gx)),vElempackf), _mm_set_ps(3, 2, 1, 0));
+                                                      _mm_add_ps(_mm_mul_ps(gy, vImgWf), gx)),
+                                                      vElempackf),
+                                           _mm_set_ps(3, 2, 1, 0));
                 __m128i i_offset = _mm_cvtps_epi32(offset);
 
                 for (int q = 0; q < dst.c; q++)
