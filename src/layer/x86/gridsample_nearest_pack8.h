@@ -408,12 +408,14 @@ static void gridsample_3d_nearest_align0_zeros_blob_pack8(const Mat& src, Mat& d
                 gy = _mm256_floor_ps(_mm256_add_ps(gy, _mm256_set1_ps(0.5f)));
                 gz = _mm256_floor_ps(_mm256_add_ps(gz, _mm256_set1_ps(0.5f)));
 
-               __m256 v_in_range = _mm256_and_ps(_mm256_and_ps(_mm256_cmp_ps(gx, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgWf, gx, _CMP_GT_OS)),
-                                              _mm256_and_ps(_mm256_cmp_ps(gy, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgHf, gy, _CMP_GT_OS)));
+                __m256 v_in_range = _mm256_and_ps(_mm256_and_ps(_mm256_cmp_ps(gx, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgWf, gx, _CMP_GT_OS)),
+                                                  _mm256_and_ps(_mm256_cmp_ps(gy, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgHf, gy, _CMP_GT_OS)));
                 v_in_range = _mm256_and_ps(v_in_range, _mm256_and_ps(_mm256_cmp_ps(gz, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgDf, gz, _CMP_GT_OS)));
 
-                __m256 offset = _mm256_add_ps(_mm256_mul_ps(_mm256_add_ps(_mm256_mul_ps(_mm256_mul_ps(vImgWf, vImgHf), gz), 
-                    _mm256_add_ps(_mm256_mul_ps(gy, vImgWf), gx)), vElempackf), _mm256_set_ps(7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
+                __m256 offset = _mm256_add_ps(_mm256_mul_ps(_mm256_add_ps(_mm256_mul_ps(_mm256_mul_ps(vImgWf, vImgHf), gz),
+                                              _mm256_add_ps(_mm256_mul_ps(gy, vImgWf), gx)),
+                                              vElempackf),
+                                              _mm256_set_ps(7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
 
                 __m256i i_offset = _mm256_cvtps_epi32(offset);
 
@@ -470,12 +472,14 @@ static void gridsample_3d_nearest_align1_zeros_blob_pack8(const Mat& src, Mat& d
                 gy = _mm256_floor_ps(_mm256_add_ps(gy, _mm256_set1_ps(0.5f)));
                 gz = _mm256_floor_ps(_mm256_add_ps(gz, _mm256_set1_ps(0.5f)));
 
-               __m256 v_in_range = _mm256_and_ps(_mm256_and_ps(_mm256_cmp_ps(gx, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgWf, gx, _CMP_GT_OS)),
-                                              _mm256_and_ps(_mm256_cmp_ps(gy, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgHf, gy, _CMP_GT_OS)));
+                __m256 v_in_range = _mm256_and_ps(_mm256_and_ps(_mm256_cmp_ps(gx, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgWf, gx, _CMP_GT_OS)),
+                                                  _mm256_and_ps(_mm256_cmp_ps(gy, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgHf, gy, _CMP_GT_OS)));
                 v_in_range = _mm256_and_ps(v_in_range, _mm256_and_ps(_mm256_cmp_ps(gz, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgDf, gz, _CMP_GT_OS)));
 
-                __m256 offset = _mm256_add_ps(_mm256_mul_ps(_mm256_add_ps(_mm256_mul_ps(_mm256_mul_ps(vImgWf, vImgHf), gz), 
-                    _mm256_add_ps(_mm256_mul_ps(gy, vImgWf), gx)), vElempackf), _mm256_set_ps(7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
+                __m256 offset = _mm256_add_ps(_mm256_mul_ps(_mm256_add_ps(_mm256_mul_ps(_mm256_mul_ps(vImgWf, vImgHf), gz),
+                                              _mm256_add_ps(_mm256_mul_ps(gy, vImgWf), gx)),
+                                              vElempackf),
+                                              _mm256_set_ps(7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
 
                 __m256i i_offset = _mm256_cvtps_epi32(offset);
 
@@ -544,8 +548,10 @@ static void gridsample_3d_nearest_align0_border_blob_pack8(const Mat& src, Mat& 
                 gy = _mm256_floor_ps(_mm256_add_ps(gy, _mm256_set1_ps(0.5f)));
                 gz = _mm256_floor_ps(_mm256_add_ps(gz, _mm256_set1_ps(0.5f)));
 
-                __m256 offset = _mm256_add_ps(_mm256_mul_ps(_mm256_add_ps(_mm256_mul_ps(_mm256_mul_ps(vImgWf, vImgHf), gz), 
-                    _mm256_add_ps(_mm256_mul_ps(gy, vImgWf), gx)), vElempackf), _mm256_set_ps(7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
+                __m256 offset = _mm256_add_ps(_mm256_mul_ps(_mm256_add_ps(_mm256_mul_ps(_mm256_mul_ps(vImgWf, vImgHf), gz),
+                                              _mm256_add_ps(_mm256_mul_ps(gy, vImgWf), gx)),
+                                              vElempackf),
+                                              _mm256_set_ps(7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
 
                 __m256i i_offset = _mm256_cvtps_epi32(offset);
 
@@ -614,8 +620,10 @@ static void gridsample_3d_nearest_align1_border_blob_pack8(const Mat& src, Mat& 
                 gy = _mm256_floor_ps(_mm256_add_ps(gy, _mm256_set1_ps(0.5f)));
                 gz = _mm256_floor_ps(_mm256_add_ps(gz, _mm256_set1_ps(0.5f)));
 
-                __m256 offset = _mm256_add_ps(_mm256_mul_ps(_mm256_add_ps(_mm256_mul_ps(_mm256_mul_ps(vImgWf, vImgHf), gz), 
-                    _mm256_add_ps(_mm256_mul_ps(gy, vImgWf), gx)), vElempackf), _mm256_set_ps(7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
+                __m256 offset = _mm256_add_ps(_mm256_mul_ps(_mm256_add_ps(_mm256_mul_ps(_mm256_mul_ps(vImgWf, vImgHf), gz),
+                                              _mm256_add_ps(_mm256_mul_ps(gy, vImgWf), gx)),
+                                              vElempackf),
+                                              _mm256_set_ps(7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
 
                 __m256i i_offset = _mm256_cvtps_epi32(offset);
 
@@ -715,8 +723,10 @@ static void gridsample_3d_nearest_align0_reflection_blob_pack8(const Mat& src, M
                     gz = _mm256_min_ps(border_z, _mm256_max_ps(gz, _mm256_setzero_ps()));
                 }
 
-                __m256 offset = _mm256_add_ps(_mm256_mul_ps(_mm256_add_ps(_mm256_mul_ps(_mm256_mul_ps(vImgWf, vImgHf), gz), 
-                    _mm256_add_ps(_mm256_mul_ps(gy, vImgWf), gx)), vElempackf), _mm256_set_ps(7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
+                __m256 offset = _mm256_add_ps(_mm256_mul_ps(_mm256_add_ps(_mm256_mul_ps(_mm256_mul_ps(vImgWf, vImgHf), gz),
+                                              _mm256_add_ps(_mm256_mul_ps(gy, vImgWf), gx)),
+                                              vElempackf),
+                                              _mm256_set_ps(7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
 
                 __m256i i_offset = _mm256_cvtps_epi32(offset);
 
@@ -791,8 +801,10 @@ static void gridsample_3d_nearest_align1_reflection_blob_pack8(const Mat& src, M
                     gz = _mm256_sub_ps(border_z, reflectz_v);
                 }
 
-                __m256 offset = _mm256_add_ps(_mm256_mul_ps(_mm256_add_ps(_mm256_mul_ps(_mm256_mul_ps(vImgWf, vImgHf), gz), 
-                    _mm256_add_ps(_mm256_mul_ps(gy, vImgWf), gx)), vElempackf), _mm256_set_ps(7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
+                __m256 offset = _mm256_add_ps(_mm256_mul_ps(_mm256_add_ps(_mm256_mul_ps(_mm256_mul_ps(vImgWf, vImgHf), gz),
+                                              _mm256_add_ps(_mm256_mul_ps(gy, vImgWf), gx)),
+                                              vElempackf),
+                                              _mm256_set_ps(7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
 
                 __m256i i_offset = _mm256_cvtps_epi32(offset);
 
