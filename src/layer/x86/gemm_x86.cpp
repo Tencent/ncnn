@@ -43,7 +43,7 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
 
     // TODO do not hardcode
     int TILE_M = 16 * 16 * get_physical_cpu_count(); // 256
-    int TILE_N = 12 * 20; // 240
+    int TILE_N = 12 * 20;                            // 240
     int TILE_K = 16 * 16;
 
     {
