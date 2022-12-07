@@ -287,12 +287,12 @@ static int test_gemm_0(int M, int N, int K)
            || test_gemm_constantB(M, N, K, 2.1f, 0, 0)
            || test_gemm_constantB(M, N, K, 3.1f, 0, 1)
            || test_gemm_constantB(M, N, K, 4.1f, 1, 0)
-           || test_gemm_constantB(M, N, K, 5.1f, 1, 1
+           || test_gemm_constantB(M, N, K, 5.1f, 1, 1)
 
            || test_gemm_constantAB(M, N, K, 2.1f, 0, 0)
            || test_gemm_constantAB(M, N, K, 3.1f, 0, 1)
            || test_gemm_constantAB(M, N, K, 4.1f, 1, 0)
-           || test_gemm_constantAB(M, N, K, 5.1f, 1, 1));
+           || test_gemm_constantAB(M, N, K, 5.1f, 1, 1);
 }
 
 static int test_gemm_1(int M, int N, int K)

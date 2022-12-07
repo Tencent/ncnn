@@ -7076,7 +7076,7 @@ int Gemm_x86::create_pipeline(const Option& opt)
 
         // TODO do not hardcode
         // int TILE_M = 16 * 16 * get_physical_cpu_count(); // 256
-        int TILE_N = 12 * 20;                            // 240
+        int TILE_N = 12 * 20; // 240
         int TILE_K = 16 * 16;
 
         {
