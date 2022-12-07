@@ -41,6 +41,105 @@ static int test_gemm(int M, int N, int K, float alpha, int transA, int transB)
     return ret;
 }
 
+static int test_gemm_constantA(int M, int N, int K, float alpha, int transA, int transB)
+{
+    ncnn::ParamDict pd;
+    pd.set(0, alpha);
+    pd.set(1, 1.f); // beta
+    pd.set(2, transA);
+    pd.set(3, transB);
+
+    pd.set(4, 1);
+    pd.set(5, 0);
+    pd.set(6, 0);
+    pd.set(7, M);
+    pd.set(8, N);
+    pd.set(9, K);
+
+    std::vector<ncnn::Mat> weights(1);
+    weights[0] = transA ? ncnn::Mat(M, K) : ncnn::Mat(K, M);
+
+    std::vector<ncnn::Mat> a(1);
+    a[0] = transB ? ncnn::Mat(K, N) : ncnn::Mat(N, K);
+
+    Randomize(weights[0]);
+    Randomize(a[0]);
+
+    int ret = test_layer<ncnn::Gemm>("Gemm", pd, weights, a);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_gemm_constantA failed M=%d N=%d K=%d alpha=%f transA=%d transB=%d\n", M, N, K, alpha, transA, transB);
+    }
+
+    return ret;
+}
+
+static int test_gemm_constantB(int M, int N, int K, float alpha, int transA, int transB)
+{
+    ncnn::ParamDict pd;
+    pd.set(0, alpha);
+    pd.set(1, 1.f); // beta
+    pd.set(2, transA);
+    pd.set(3, transB);
+
+    pd.set(4, 0);
+    pd.set(5, 1);
+    pd.set(6, 0);
+    pd.set(7, M);
+    pd.set(8, N);
+    pd.set(9, K);
+
+    std::vector<ncnn::Mat> weights(1);
+    weights[0] = transB ? ncnn::Mat(K, N) : ncnn::Mat(N, K);
+
+    std::vector<ncnn::Mat> a(1);
+    a[0] = transA ? ncnn::Mat(M, K) : ncnn::Mat(K, M);
+
+    Randomize(weights[0]);
+    Randomize(a[0]);
+
+    int ret = test_layer<ncnn::Gemm>("Gemm", pd, weights, a);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_gemm_constantB failed M=%d N=%d K=%d alpha=%f transA=%d transB=%d\n", M, N, K, alpha, transA, transB);
+    }
+
+    return ret;
+}
+
+static int test_gemm_constantAB(int M, int N, int K, float alpha, int transA, int transB)
+{
+    ncnn::ParamDict pd;
+    pd.set(0, alpha);
+    pd.set(1, 1.f); // beta
+    pd.set(2, transA);
+    pd.set(3, transB);
+
+    pd.set(4, 1);
+    pd.set(5, 1);
+    pd.set(6, 0);
+    pd.set(7, M);
+    pd.set(8, N);
+    pd.set(9, K);
+
+    std::vector<ncnn::Mat> weights(2);
+    weights[0] = transA ? ncnn::Mat(M, K) : ncnn::Mat(K, M);
+    weights[1] = transB ? ncnn::Mat(K, N) : ncnn::Mat(N, K);
+
+    std::vector<ncnn::Mat> a(0);
+
+    Randomize(weights[0]);
+    Randomize(weights[1]);
+
+    int ret = test_layer<ncnn::Gemm>("Gemm", pd, weights, a);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_gemm_constantAB failed M=%d N=%d K=%d alpha=%f transA=%d transB=%d\n", M, N, K, alpha, transA, transB);
+    }
+
+    return ret;
+}
+
 static int test_gemm_bias(int M, int N, int K, const ncnn::Mat& C, float alpha, float beta, int transA, int transB)
 {
     ncnn::ParamDict pd;
@@ -68,95 +167,165 @@ static int test_gemm_bias(int M, int N, int K, const ncnn::Mat& C, float alpha, 
     return ret;
 }
 
-static int test_gemm_0()
+static int test_gemm_constantABC_bias(int M, int N, int K, const ncnn::Mat& C, float alpha, float beta, int transA, int transB)
 {
-    return 0
-           || test_gemm(13, 14, 15, 0.1f, 0, 0)
-           || test_gemm(13, 14, 15, 0.3f, 1, 0)
-           || test_gemm(13, 14, 15, -0.4f, 0, 1)
-           || test_gemm(13, 14, 15, 1.7f, 1, 1)
-           || test_gemm(16, 24, 15, 0.1f, 0, 0)
-           || test_gemm(16, 24, 15, 0.3f, 1, 0)
-           || test_gemm(16, 24, 15, -0.4f, 0, 1)
-           || test_gemm(16, 24, 15, 1.7f, 1, 1);
+    int broadcast_type_C = 0;
+    if (C.dims == 1 && C.w == 1)
+    {
+        // scalar
+        broadcast_type_C = 0;
+    }
+    if (C.dims == 1 && C.w == M)
+    {
+        // M
+        // auto broadcast from h to w is the ncnn-style convention
+        broadcast_type_C = 1;
+    }
+    if (C.dims == 1 && C.w == N)
+    {
+        // N
+        broadcast_type_C = 4;
+    }
+    if (C.dims == 2 && C.w == 1 && C.h == M)
+    {
+        // Mx1
+        broadcast_type_C = 2;
+    }
+    if (C.dims == 2 && C.w == N && C.h == M)
+    {
+        // MxN
+        broadcast_type_C = 3;
+    }
+    if (C.dims == 2 && C.w == N && C.h == 1)
+    {
+        // 1xN
+        broadcast_type_C = 4;
+    }
+
+    ncnn::ParamDict pd;
+    pd.set(0, alpha);
+    pd.set(1, 1.f); // beta
+    pd.set(2, transA);
+    pd.set(3, transB);
+
+    pd.set(4, 1);
+    pd.set(5, 1);
+    pd.set(6, 1);
+    pd.set(7, M);
+    pd.set(8, N);
+    pd.set(9, K);
+    pd.set(10, broadcast_type_C);
+
+    std::vector<ncnn::Mat> weights(3);
+    weights[0] = transA ? ncnn::Mat(M, K) : ncnn::Mat(K, M);
+    weights[1] = transB ? ncnn::Mat(K, N) : ncnn::Mat(N, K);
+    weights[2] = C;
+
+    std::vector<ncnn::Mat> a(0);
+
+    Randomize(weights[0]);
+    Randomize(weights[1]);
+    Randomize(weights[2]);
+
+    int ret = test_layer<ncnn::Gemm>("Gemm", pd, weights, a);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_gemm_constantABC_bias failed M=%d N=%d K=%d C.dims=%d C=(%d %d %d) broadcast_type_C=%d alpha=%f beta=%f transA=%d transB=%d\n", M, N, K, C.dims, C.w, C.h, C.c, broadcast_type_C, alpha, beta, transA, transB);
+    }
+
+    return ret;
 }
 
-static int test_gemm_1()
+static int test_gemm_constantAB_bias(int M, int N, int K, const ncnn::Mat& C, float alpha, float beta, int transA, int transB)
 {
-    return 0
-           || test_gemm_bias(13, 14, 15, RandomMat(1), 0.1f, 0.2f, 0, 0)
-           || test_gemm_bias(13, 14, 15, RandomMat(1), 0.4f, -1.2f, 1, 0)
-           || test_gemm_bias(13, 14, 15, RandomMat(1), -0.3f, 3.f, 0, 1)
-           || test_gemm_bias(13, 14, 15, RandomMat(1), 1.7f, 1.f, 1, 1)
-           || test_gemm_bias(16, 24, 15, RandomMat(1), 0.1f, 0.2f, 0, 0)
-           || test_gemm_bias(16, 24, 15, RandomMat(1), 0.4f, -1.2f, 1, 0)
-           || test_gemm_bias(16, 24, 15, RandomMat(1), -0.3f, 3.f, 0, 1)
-           || test_gemm_bias(16, 24, 15, RandomMat(1), 1.7f, 1.f, 1, 1);
+    ncnn::ParamDict pd;
+    pd.set(0, alpha);
+    pd.set(1, 1.f); // beta
+    pd.set(2, transA);
+    pd.set(3, transB);
+
+    pd.set(4, 1);
+    pd.set(5, 1);
+    pd.set(6, 0);
+    pd.set(7, M);
+    pd.set(8, N);
+    pd.set(9, K);
+
+    std::vector<ncnn::Mat> weights(2);
+    weights[0] = transA ? ncnn::Mat(M, K) : ncnn::Mat(K, M);
+    weights[1] = transB ? ncnn::Mat(K, N) : ncnn::Mat(N, K);
+
+    std::vector<ncnn::Mat> a(1);
+    a[0] = C;
+
+    Randomize(weights[0]);
+    Randomize(weights[1]);
+    Randomize(a[0]);
+
+    int ret = test_layer<ncnn::Gemm>("Gemm", pd, weights, a);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_gemm_constantAB_bias failed M=%d N=%d K=%d C.dims=%d C=(%d %d %d) alpha=%f beta=%f transA=%d transB=%d\n", M, N, K, C.dims, C.w, C.h, C.c, alpha, beta, transA, transB);
+    }
+
+    return ret;
 }
 
-static int test_gemm_2()
+static int test_gemm_0(int M, int N, int K)
 {
     return 0
-           || test_gemm_bias(13, 14, 15, RandomMat(13), 0.1f, 1.f, 0, 0)
-           || test_gemm_bias(13, 14, 15, RandomMat(13), 0.4f, 2.f, 1, 0)
-           || test_gemm_bias(13, 14, 15, RandomMat(13), -0.3f, 0.11f, 0, 1)
-           || test_gemm_bias(13, 14, 15, RandomMat(13), 1.7f, -20.f, 1, 1)
-           || test_gemm_bias(16, 24, 15, RandomMat(16), 0.1f, 1.f, 0, 0)
-           || test_gemm_bias(16, 24, 15, RandomMat(16), 0.4f, 2.f, 1, 0)
-           || test_gemm_bias(16, 24, 15, RandomMat(16), -0.3f, 0.11f, 0, 1)
-           || test_gemm_bias(16, 24, 15, RandomMat(16), 1.7f, -20.f, 1, 1);
+           || test_gemm(M, N, K, 2.1f, 0, 0)
+           || test_gemm(M, N, K, 3.1f, 0, 1)
+           || test_gemm(M, N, K, 4.1f, 1, 0)
+           || test_gemm(M, N, K, 5.1f, 1, 1)
+
+           || test_gemm_constantA(M, N, K, 2.1f, 0, 0)
+           || test_gemm_constantA(M, N, K, 3.1f, 0, 1)
+           || test_gemm_constantA(M, N, K, 4.1f, 1, 0)
+           || test_gemm_constantA(M, N, K, 5.1f, 1, 1)
+
+           || test_gemm_constantB(M, N, K, 2.1f, 0, 0)
+           || test_gemm_constantB(M, N, K, 3.1f, 0, 1)
+           || test_gemm_constantB(M, N, K, 4.1f, 1, 0)
+           || test_gemm_constantB(M, N, K, 5.1f, 1, 1
+
+           || test_gemm_constantAB(M, N, K, 2.1f, 0, 0)
+           || test_gemm_constantAB(M, N, K, 3.1f, 0, 1)
+           || test_gemm_constantAB(M, N, K, 4.1f, 1, 0)
+           || test_gemm_constantAB(M, N, K, 5.1f, 1, 1));
 }
 
-static int test_gemm_3()
+static int test_gemm_1(int M, int N, int K)
 {
     return 0
-           || test_gemm_bias(13, 14, 15, RandomMat(13, 1), 0.1f, 4.f, 0, 0)
-           || test_gemm_bias(13, 14, 15, RandomMat(13, 1), 0.4f, 1.f, 1, 0)
-           || test_gemm_bias(13, 14, 15, RandomMat(13, 1), -0.3f, -0.01f, 0, 1)
-           || test_gemm_bias(13, 14, 15, RandomMat(13, 1), 1.7f, 0.3f, 1, 1)
-           || test_gemm_bias(16, 24, 15, RandomMat(16, 1), 0.1f, 4.f, 0, 0)
-           || test_gemm_bias(16, 24, 15, RandomMat(16, 1), 0.4f, 1.f, 1, 0)
-           || test_gemm_bias(16, 24, 15, RandomMat(16, 1), -0.3f, -0.01f, 0, 1)
-           || test_gemm_bias(16, 24, 15, RandomMat(16, 1), 1.7f, 0.3f, 1, 1);
+           || test_gemm_bias(M, N, K, RandomMat(1), 2.1f, 0.5f, 0, 0)
+           || test_gemm_bias(M, N, K, RandomMat(M), 3.1f, 0.6f, 0, 1)
+           || test_gemm_bias(M, N, K, RandomMat(1, M), 4.1f, 0.7f, 1, 0)
+           || test_gemm_bias(M, N, K, RandomMat(N, M), 5.1f, 0.8f, 1, 1)
+           || test_gemm_bias(M, N, K, RandomMat(N, 1), 2.1f, 0.5f, 0, 0)
+           || test_gemm_bias(M, N, K, RandomMat(N), 3.1f, 0.6f, 0, 1);
 }
 
-static int test_gemm_4()
+static int test_gemm_2(int M, int N, int K)
 {
     return 0
-           || test_gemm_bias(13, 14, 15, RandomMat(13, 14), 0.1f, 6.f, 0, 0)
-           || test_gemm_bias(13, 14, 15, RandomMat(13, 14), 0.4f, 1.22f, 1, 0)
-           || test_gemm_bias(13, 14, 15, RandomMat(13, 14), -0.3f, 1.01f, 0, 1)
-           || test_gemm_bias(13, 14, 15, RandomMat(13, 14), 1.7f, 0.3f, 1, 1)
-           || test_gemm_bias(16, 24, 15, RandomMat(16, 24), 0.1f, 6.f, 0, 0)
-           || test_gemm_bias(16, 24, 15, RandomMat(16, 24), 0.4f, 1.22f, 1, 0)
-           || test_gemm_bias(16, 24, 15, RandomMat(16, 24), -0.3f, 1.01f, 0, 1)
-           || test_gemm_bias(16, 24, 15, RandomMat(16, 24), 1.7f, 0.3f, 1, 1);
+           || test_gemm_constantABC_bias(M, N, K, RandomMat(1), 4.1f, 0.7f, 1, 0)
+           || test_gemm_constantABC_bias(M, N, K, RandomMat(M), 5.1f, 0.8f, 1, 1)
+           || test_gemm_constantABC_bias(M, N, K, RandomMat(1, M), 2.1f, 0.5f, 0, 0)
+           || test_gemm_constantABC_bias(M, N, K, RandomMat(N, M), 3.1f, 0.6f, 0, 1)
+           || test_gemm_constantABC_bias(M, N, K, RandomMat(N, 1), 4.1f, 0.7f, 1, 0)
+           || test_gemm_constantABC_bias(M, N, K, RandomMat(N), 5.1f, 0.8f, 1, 1);
 }
 
-static int test_gemm_5()
+static int test_gemm_3(int M, int N, int K)
 {
     return 0
-           || test_gemm_bias(13, 14, 15, RandomMat(1, 14), 0.1f, 0.4f, 0, 0)
-           || test_gemm_bias(13, 14, 15, RandomMat(1, 14), 0.4f, -1.f, 1, 0)
-           || test_gemm_bias(13, 14, 15, RandomMat(1, 14), -0.3f, -0.21f, 0, 1)
-           || test_gemm_bias(13, 14, 15, RandomMat(1, 14), 1.7f, 1.3f, 1, 1)
-           || test_gemm_bias(16, 24, 15, RandomMat(1, 24), 0.1f, 0.4f, 0, 0)
-           || test_gemm_bias(16, 24, 15, RandomMat(1, 24), 0.4f, -1.f, 1, 0)
-           || test_gemm_bias(16, 24, 15, RandomMat(1, 24), -0.3f, -0.21f, 0, 1)
-           || test_gemm_bias(16, 24, 15, RandomMat(1, 24), 1.7f, 1.3f, 1, 1);
-}
-
-static int test_gemm_6()
-{
-    return 0
-           || test_gemm_bias(13, 14, 15, RandomMat(14), 0.1f, 0.4f, 0, 0)
-           || test_gemm_bias(13, 14, 15, RandomMat(14), 0.4f, -1.f, 1, 0)
-           || test_gemm_bias(13, 14, 15, RandomMat(14), -0.3f, -0.21f, 0, 1)
-           || test_gemm_bias(13, 14, 15, RandomMat(14), 1.7f, 1.3f, 1, 1)
-           || test_gemm_bias(16, 24, 15, RandomMat(24), 0.1f, 0.4f, 0, 0)
-           || test_gemm_bias(16, 24, 15, RandomMat(24), 0.4f, -1.f, 1, 0)
-           || test_gemm_bias(16, 24, 15, RandomMat(24), -0.3f, -0.21f, 0, 1)
-           || test_gemm_bias(16, 24, 15, RandomMat(24), 1.7f, 1.3f, 1, 1);
+           || test_gemm_constantAB_bias(M, N, K, RandomMat(1), 2.1f, 0.5f, 0, 0)
+           || test_gemm_constantAB_bias(M, N, K, RandomMat(M), 3.1f, 0.6f, 0, 1)
+           || test_gemm_constantAB_bias(M, N, K, RandomMat(1, M), 4.1f, 0.7f, 1, 0)
+           || test_gemm_constantAB_bias(M, N, K, RandomMat(N, M), 5.1f, 0.8f, 1, 1)
+           || test_gemm_constantAB_bias(M, N, K, RandomMat(N, 1), 2.1f, 0.5f, 0, 0)
+           || test_gemm_constantAB_bias(M, N, K, RandomMat(N), 3.1f, 0.6f, 0, 1);
 }
 
 int main()
@@ -177,34 +346,10 @@ int main()
                 int K = nmk[k];
 
                 int ret = 0
-                          || test_gemm(M, N, K, 2.1f, 0, 0)
-                          || test_gemm(M, N, K, 2.1f, 0, 1)
-                          || test_gemm(M, N, K, 2.1f, 1, 0)
-                          || test_gemm(M, N, K, 2.1f, 1, 1)
-                          || test_gemm_bias(M, N, K, RandomMat(1), 2.1f, 0.5f, 0, 0)
-                          || test_gemm_bias(M, N, K, RandomMat(1), 2.1f, 0.5f, 0, 1)
-                          || test_gemm_bias(M, N, K, RandomMat(1), 2.1f, 0.5f, 1, 0)
-                          || test_gemm_bias(M, N, K, RandomMat(1), 2.1f, 0.5f, 1, 1)
-                          || test_gemm_bias(M, N, K, RandomMat(M), 2.1f, 0.5f, 0, 0)
-                          || test_gemm_bias(M, N, K, RandomMat(M), 2.1f, 0.5f, 0, 1)
-                          || test_gemm_bias(M, N, K, RandomMat(M), 2.1f, 0.5f, 1, 0)
-                          || test_gemm_bias(M, N, K, RandomMat(M), 2.1f, 0.5f, 1, 1)
-                          || test_gemm_bias(M, N, K, RandomMat(M, 1), 2.1f, 0.5f, 0, 0)
-                          || test_gemm_bias(M, N, K, RandomMat(M, 1), 2.1f, 0.5f, 0, 1)
-                          || test_gemm_bias(M, N, K, RandomMat(M, 1), 2.1f, 0.5f, 1, 0)
-                          || test_gemm_bias(M, N, K, RandomMat(M, 1), 2.1f, 0.5f, 1, 1)
-                          || test_gemm_bias(M, N, K, RandomMat(M, N), 2.1f, 0.5f, 0, 0)
-                          || test_gemm_bias(M, N, K, RandomMat(M, N), 2.1f, 0.5f, 0, 1)
-                          || test_gemm_bias(M, N, K, RandomMat(M, N), 2.1f, 0.5f, 1, 0)
-                          || test_gemm_bias(M, N, K, RandomMat(M, N), 2.1f, 0.5f, 1, 1)
-                          || test_gemm_bias(M, N, K, RandomMat(1, N), 2.1f, 0.5f, 0, 0)
-                          || test_gemm_bias(M, N, K, RandomMat(1, N), 2.1f, 0.5f, 0, 1)
-                          || test_gemm_bias(M, N, K, RandomMat(1, N), 2.1f, 0.5f, 1, 0)
-                          || test_gemm_bias(M, N, K, RandomMat(1, N), 2.1f, 0.5f, 1, 1)
-                          || test_gemm_bias(M, N, K, RandomMat(N), 2.1f, 0.5f, 0, 0)
-                          || test_gemm_bias(M, N, K, RandomMat(N), 2.1f, 0.5f, 0, 1)
-                          || test_gemm_bias(M, N, K, RandomMat(N), 2.1f, 0.5f, 1, 0)
-                          || test_gemm_bias(M, N, K, RandomMat(N), 2.1f, 0.5f, 1, 1);
+                          || test_gemm_0(M, N, K)
+                          || test_gemm_1(M, N, K)
+                          || test_gemm_2(M, N, K)
+                          || test_gemm_3(M, N, K);
 
                 if (ret != 0)
                     return 0;
@@ -212,12 +357,5 @@ int main()
         }
     }
 
-    return 0
-           || test_gemm_0()
-           || test_gemm_1()
-           || test_gemm_2()
-           || test_gemm_3()
-           || test_gemm_4()
-           || test_gemm_5()
-           || test_gemm_6();
+    return 0;
 }

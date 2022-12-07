@@ -26,6 +26,8 @@ public:
 
     virtual int load_param(const ParamDict& pd);
 
+    virtual int load_model(const ModelBin& mb);
+
     virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 
 public:
@@ -33,6 +35,19 @@ public:
     float beta;
     int transA;
     int transB;
+
+    int constantA;
+    int constantB;
+    int constantC;
+    int constantM;
+    int constantN;
+    int constantK;
+    int constant_broadcast_type_C;
+
+    // constant A / B / C
+    Mat A_data;
+    Mat B_data;
+    Mat C_data;
 };
 
 } // namespace ncnn

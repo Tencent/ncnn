@@ -28,14 +28,80 @@ int Gemm::load_param(const ParamDict& pd)
     beta = pd.get(1, 1.f);
     transA = pd.get(2, 0);
     transB = pd.get(3, 0);
+    constantA = pd.get(4, 0);
+    constantB = pd.get(5, 0);
+    constantC = pd.get(6, 0);
+    constantM = pd.get(7, 0);
+    constantN = pd.get(8, 0);
+    constantK = pd.get(9, 0);
+    constant_broadcast_type_C = pd.get(10, 0);
+
+    if (constantA == 1 && (constantM == 0 || constantK == 0))
+    {
+        NCNN_LOGE("constantM and constantK must be non-zero when constantA enabled");
+        return -1;
+    }
+
+    if (constantB == 1 && (constantN == 0 || constantK == 0))
+    {
+        NCNN_LOGE("constantN and constantK must be non-zero when constantB enabled");
+        return -1;
+    }
+
+    if (constantC == 1 && (constant_broadcast_type_C < 0 || constant_broadcast_type_C > 4))
+    {
+        NCNN_LOGE("constant_broadcast_type_C must be 0~4 when constantC enabled");
+        return -1;
+    }
+
+    return 0;
+}
+
+int Gemm::load_model(const ModelBin& mb)
+{
+    if (constantA == 1)
+    {
+        if (transA == 0)
+            A_data = mb.load(constantK, constantM, 0);
+        else
+            A_data = mb.load(constantM, constantK, 0);
+        if (A_data.empty())
+            return -100;
+    }
+
+    if (constantB == 1)
+    {
+        if (transB == 0)
+            B_data = mb.load(constantN, constantK, 0);
+        else
+            B_data = mb.load(constantK, constantN, 0);
+        if (B_data.empty())
+            return -100;
+    }
+
+    if (constantC == 1)
+    {
+        if (constant_broadcast_type_C == 0)
+            C_data = mb.load(1, 0);
+        if (constant_broadcast_type_C == 1)
+            C_data = mb.load(constantM, 0);
+        if (constant_broadcast_type_C == 2)
+            C_data = mb.load(1, constantM, 0);
+        if (constant_broadcast_type_C == 3)
+            C_data = mb.load(constantN, constantM, 0);
+        if (constant_broadcast_type_C == 4)
+            C_data = mb.load(constantN, 1, 0);
+        if (C_data.empty())
+            return -100;
+    }
 
     return 0;
 }
 
 int Gemm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
-    const Mat& A0 = bottom_blobs[0];
-    const Mat& B0 = bottom_blobs[1];
+    const Mat& A0 = constantA ? A_data : bottom_blobs[0];
+    const Mat& B0 = constantB ? B_data : constantA ? bottom_blobs[0] : bottom_blobs[1];
 
     size_t elemsize = A0.elemsize;
 
@@ -83,46 +149,67 @@ int Gemm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
     int K = A.w; // assert A.w == B.w
     int N = B.h;
 
-    bool has_C = bottom_blobs.size() == 3;
-
     const float* ptrC = 0;
     int broadcast_type_C = 0;
-    if (has_C)
+    if (constantC)
     {
-        const Mat& C = bottom_blobs[2];
+        ptrC = C_data;
+        broadcast_type_C = constant_broadcast_type_C;
+    }
+    else
+    {
+        if (constantA && constantB)
+        {
+            ptrC = bottom_blobs.size() == 1 ? bottom_blobs[0] : 0;
+        }
+        else if (constantA)
+        {
+            ptrC = bottom_blobs.size() == 2 ? bottom_blobs[1] : 0;
+        }
+        else if (constantB)
+        {
+            ptrC = bottom_blobs.size() == 2 ? bottom_blobs[1] : 0;
+        }
+        else
+        {
+            ptrC = bottom_blobs.size() == 3 ? bottom_blobs[2] : 0;
+        }
 
-        ptrC = C;
+        if (ptrC)
+        {
+            const Mat& C = bottom_blobs[bottom_blobs.size() - 1];
 
-        if (C.dims == 1 && C.w == 1)
-        {
-            // scalar
-            broadcast_type_C = 0;
-        }
-        if (C.dims == 1 && C.w == M)
-        {
-            // M
-            // auto broadcast from h to w is the ncnn-style convention
-            broadcast_type_C = 1;
-        }
-        if (C.dims == 1 && C.w == N)
-        {
-            // N
-            broadcast_type_C = 4;
-        }
-        if (C.dims == 2 && C.w == 1 && C.h == M)
-        {
-            // Mx1
-            broadcast_type_C = 2;
-        }
-        if (C.dims == 2 && C.w == N && C.h == M)
-        {
-            // MxN
-            broadcast_type_C = 3;
-        }
-        if (C.dims == 2 && C.w == N && C.h == 1)
-        {
-            // 1xN
-            broadcast_type_C = 4;
+            if (C.dims == 1 && C.w == 1)
+            {
+                // scalar
+                broadcast_type_C = 0;
+            }
+            if (C.dims == 1 && C.w == M)
+            {
+                // M
+                // auto broadcast from h to w is the ncnn-style convention
+                broadcast_type_C = 1;
+            }
+            if (C.dims == 1 && C.w == N)
+            {
+                // N
+                broadcast_type_C = 4;
+            }
+            if (C.dims == 2 && C.w == 1 && C.h == M)
+            {
+                // Mx1
+                broadcast_type_C = 2;
+            }
+            if (C.dims == 2 && C.w == N && C.h == M)
+            {
+                // MxN
+                broadcast_type_C = 3;
+            }
+            if (C.dims == 2 && C.w == N && C.h == 1)
+            {
+                // 1xN
+                broadcast_type_C = 4;
+            }
         }
     }
 
@@ -141,7 +228,7 @@ int Gemm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
             const float* ptrB = B.row(j);
 
             float sum = 0.f;
-            if (has_C)
+            if (ptrC)
             {
                 if (broadcast_type_C == 0)
                 {
