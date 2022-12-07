@@ -6647,9 +6647,9 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
     // NCNN_LOGE("M/N/K = %d %d %d", M, N, K);
 
     // TODO do not hardcode
-    int TILE_M = 16 * 16 * get_physical_cpu_count(); // 256
-    int TILE_N = 12 * 20;                            // 240
-    int TILE_K = 16 * 16;
+    int TILE_M = 16 * 8 * get_physical_cpu_count();
+    int TILE_N = 12 * 10 * get_physical_cpu_count();
+    int TILE_K = 16 * 8 * get_physical_cpu_count();
 
     {
         int nn_M = (M + TILE_M - 1) / TILE_M;
@@ -6758,9 +6758,9 @@ static int gemm_AT_x86(const Mat& AT, const Mat& B, const Mat& C, Mat& top_blob,
     // NCNN_LOGE("M/N/K = %d %d %d", M, N, K);
 
     // TODO do not hardcode
-    int TILE_M = 16 * 16 * get_physical_cpu_count(); // 256
-    int TILE_N = 12 * 20;                            // 240
-    int TILE_K = 16 * 16;
+    int TILE_M = 16 * 8 * get_physical_cpu_count();
+    int TILE_N = 12 * 10 * get_physical_cpu_count();
+    int TILE_K = 16 * 8 * get_physical_cpu_count();
 
     {
         int nn_M = (M + TILE_M - 1) / TILE_M;
@@ -6856,9 +6856,9 @@ static int gemm_BT_x86(const Mat& A, const Mat& BT, const Mat& C, Mat& top_blob,
     // NCNN_LOGE("M/N/K = %d %d %d", M, N, K);
 
     // TODO do not hardcode
-    int TILE_M = 16 * 16 * get_physical_cpu_count(); // 256
-    int TILE_N = 12 * 20;                            // 240
-    int TILE_K = 16 * 16;
+    int TILE_M = 16 * 8 * get_physical_cpu_count();
+    int TILE_N = 12 * 10 * get_physical_cpu_count();
+    int TILE_K = 16 * 8 * get_physical_cpu_count();
 
     {
         int nn_M = (M + TILE_M - 1) / TILE_M;
@@ -6940,9 +6940,9 @@ static int gemm_AT_BT_x86(const Mat& AT, const Mat& BT, const Mat& C, Mat& top_b
     // NCNN_LOGE("M/N/K = %d %d %d", M, N, K);
 
     // TODO do not hardcode
-    int TILE_M = 16 * 16 * get_physical_cpu_count(); // 256
-    int TILE_N = 12 * 20;                            // 240
-    int TILE_K = 16 * 16;
+    int TILE_M = 16 * 8 * get_physical_cpu_count();
+    int TILE_N = 12 * 10 * get_physical_cpu_count();
+    int TILE_K = 16 * 8 * get_physical_cpu_count();
 
     {
         int nn_M = (M + TILE_M - 1) / TILE_M;
@@ -7013,9 +7013,9 @@ int Gemm_x86::create_pipeline(const Option& opt)
         const int K = constantK;
 
         // TODO do not hardcode
-        int TILE_M = 16 * 16 * get_physical_cpu_count(); // 256
-        // int TILE_N = 12 * 20;                            // 240
-        int TILE_K = 16 * 16;
+        int TILE_M = 16 * 8 * get_physical_cpu_count();
+        // int TILE_N = 12 * 10 * get_physical_cpu_count();
+        int TILE_K = 16 * 8 * get_physical_cpu_count();
 
         {
             int nn_M = (constantM + TILE_M - 1) / TILE_M;
@@ -7075,9 +7075,9 @@ int Gemm_x86::create_pipeline(const Option& opt)
         const int K = constantK;
 
         // TODO do not hardcode
-        // int TILE_M = 16 * 16 * get_physical_cpu_count(); // 256
-        int TILE_N = 12 * 20; // 240
-        int TILE_K = 16 * 16;
+        // int TILE_M = 16 * 8 * get_physical_cpu_count();
+        int TILE_N = 12 * 10 * get_physical_cpu_count();
+        int TILE_K = 16 * 8 * get_physical_cpu_count();
 
         {
             // int nn_M = (constantM + TILE_M - 1) / TILE_M;
