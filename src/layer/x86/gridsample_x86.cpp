@@ -924,7 +924,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                 {
                     if (align_corner == 0)
                     {
-#pragma omp parallel for num_threads(opt.num_threads)
+                        #pragma omp parallel for num_threads(opt.num_threads)
                         for (int y = 0; y < grid_p1.c; y++)
                         {
                             float* gridptr = grid_p1.channel(y);
@@ -1077,7 +1077,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                     }
                     else
                     {
-#pragma omp parallel for num_threads(opt.num_threads)
+                        #pragma omp parallel for num_threads(opt.num_threads)
                         for (int y = 0; y < grid_p1.c; y++)
                         {
                             float* gridptr = grid_p1.channel(y);
@@ -1232,7 +1232,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                 {
                     if (align_corner == 0)
                     {
-#pragma omp parallel for num_threads(opt.num_threads)
+                        #pragma omp parallel for num_threads(opt.num_threads)
                         for (int y = 0; y < grid_p1.c; y++)
                         {
                             float* gridptr = grid_p1.channel(y);
@@ -1384,7 +1384,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                     }
                     else
                     {
-#pragma omp parallel for num_threads(opt.num_threads)
+                        #pragma omp parallel for num_threads(opt.num_threads)
                         for (int y = 0; y < grid_p1.c; y++)
                         {
                             float* gridptr = grid_p1.channel(y);
@@ -1538,7 +1538,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                 {
                     if (align_corner == 0)
                     {
-#pragma omp parallel for num_threads(opt.num_threads)
+                        #pragma omp parallel for num_threads(opt.num_threads)
                         for (int y = 0; y < grid_p1.c; y++)
                         {
                             float* gridptr = grid_p1.channel(y);
@@ -1719,7 +1719,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                     }
                     else
                     {
-#pragma omp parallel for num_threads(opt.num_threads)
+                        #pragma omp parallel for num_threads(opt.num_threads)
                         for (int y = 0; y < grid_p1.c; y++)
                         {
                             float* gridptr = grid_p1.channel(y);
@@ -1893,7 +1893,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                 {
                     if (align_corner == 0)
                     {
-#pragma omp parallel for num_threads(opt.num_threads)
+                        #pragma omp parallel for num_threads(opt.num_threads)
                         for (int y = 0; y < grid_p1.c; y++)
                         {
                             float* gridptr = grid_p1.channel(y);
@@ -1966,7 +1966,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                     }
                     else
                     {
-#pragma omp parallel for num_threads(opt.num_threads)
+                        #pragma omp parallel for num_threads(opt.num_threads)
                         for (int y = 0; y < grid_p1.c; y++)
                         {
                             float* gridptr = grid_p1.channel(y);
@@ -2041,7 +2041,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                 {
                     if (align_corner == 0)
                     {
-#pragma omp parallel for num_threads(opt.num_threads)
+                        #pragma omp parallel for num_threads(opt.num_threads)
                         for (int y = 0; y < grid_p1.c; y++)
                         {
                             float* gridptr = grid_p1.channel(y);
@@ -2119,7 +2119,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                     }
                     else
                     {
-#pragma omp parallel for num_threads(opt.num_threads)
+                        #pragma omp parallel for num_threads(opt.num_threads)
                         for (int y = 0; y < grid_p1.c; y++)
                         {
                             float* gridptr = grid_p1.channel(y);
@@ -2199,7 +2199,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                 {
                     if (align_corner == 0)
                     {
-#pragma omp parallel for num_threads(opt.num_threads)
+                        #pragma omp parallel for num_threads(opt.num_threads)
                         for (int y = 0; y < grid_p1.c; y++)
                         {
                             float* gridptr = grid_p1.channel(y);
@@ -2304,7 +2304,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                     }
                     else
                     {
-#pragma omp parallel for num_threads(opt.num_threads)
+                        #pragma omp parallel for num_threads(opt.num_threads)
                         for (int y = 0; y < grid_p1.c; y++)
                         {
                             float* gridptr = grid_p1.channel(y);
@@ -2399,7 +2399,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                 {
                     if (align_corner == 0)
                     {
-#pragma omp parallel for num_threads(opt.num_threads)
+                        #pragma omp parallel for num_threads(opt.num_threads)
                         for (int y = 0; y < grid_p1.c; y++)
                         {
                             float* gridptr = grid_p1.channel(y);
@@ -2572,7 +2572,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                     }
                     else
                     {
-#pragma omp parallel for num_threads(opt.num_threads)
+                        #pragma omp parallel for num_threads(opt.num_threads)
                         for (int y = 0; y < grid_p1.c; y++)
                         {
                             float* gridptr = grid_p1.channel(y);
@@ -2747,7 +2747,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                 {
                     if (align_corner == 0)
                     {
-#pragma omp parallel for num_threads(opt.num_threads)
+                        #pragma omp parallel for num_threads(opt.num_threads)
                         for (int y = 0; y < grid_p1.c; y++)
                         {
                             float* gridptr = grid_p1.channel(y);
@@ -2894,7 +2894,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                     }
                     else
                     {
-#pragma omp parallel for num_threads(opt.num_threads)
+                        #pragma omp parallel for num_threads(opt.num_threads)
                         for (int y = 0; y < grid_p1.c; y++)
                         {
                             float* gridptr = grid_p1.channel(y);
@@ -3044,7 +3044,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                 {
                     if (align_corner == 0)
                     {
-#pragma omp parallel for num_threads(opt.num_threads)
+                        #pragma omp parallel for num_threads(opt.num_threads)
                         for (int y = 0; y < grid_p1.c; y++)
                         {
                             float* gridptr = grid_p1.channel(y);
@@ -3282,7 +3282,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                     }
                     else
                     {
-#pragma omp parallel for num_threads(opt.num_threads)
+                        #pragma omp parallel for num_threads(opt.num_threads)
                         for (int y = 0; y < grid_p1.c; y++)
                         {
                             float* gridptr = grid_p1.channel(y);
@@ -3485,7 +3485,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                 {
                     if (align_corner == 0)
                     {
-#pragma omp parallel for num_threads(opt.num_threads)
+                        #pragma omp parallel for num_threads(opt.num_threads)
                         for (int y = 0; y < grid_p1.c; y++)
                         {
                             float* gridptr = grid_p1.channel(y);
@@ -3762,7 +3762,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                     }
                     else
                     {
-#pragma omp parallel for num_threads(opt.num_threads)
+                        #pragma omp parallel for num_threads(opt.num_threads)
                         for (int y = 0; y < grid_p1.c; y++)
                         {
                             float* gridptr = grid_p1.channel(y);
@@ -4039,7 +4039,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                 {
                     if (align_corner == 0)
                     {
-#pragma omp parallel for num_threads(opt.num_threads)
+                        #pragma omp parallel for num_threads(opt.num_threads)
                         for (int y = 0; y < grid_p1.c; y++)
                         {
                             float* gridptr = grid_p1.channel(y);
@@ -4211,7 +4211,6 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                 bool y1_in_range = (y1 > -1) & (y1 < h);
                                 bool z1_in_range = (z1 > -1) & (z1 < d);
 
-
                                 bool v11_in_range = x1_in_range & y1_in_range;
 
                                 bool v110_in_range = y1_in_range & z1_in_range;
@@ -4252,7 +4251,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                     }
                     else
                     {
-#pragma omp parallel for num_threads(opt.num_threads)
+                        #pragma omp parallel for num_threads(opt.num_threads)
                         for (int y = 0; y < grid_p1.c; y++)
                         {
                             float* gridptr = grid_p1.channel(y);
@@ -4467,7 +4466,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                 {
                     if (align_corner == 0)
                     {
-#pragma omp parallel for num_threads(opt.num_threads)
+                        #pragma omp parallel for num_threads(opt.num_threads)
                         for (int y = 0; y < grid_p1.c; y++)
                         {
                             float* gridptr = grid_p1.channel(y);
@@ -4490,7 +4489,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                 gx = _mm256_shuffle_ps(gx, tmp_y, 0b10001100);
                                 gz = _mm256_shuffle_ps(tmp_x, gz, 0b11001101);
 
-                                 // compute coord
+                                // compute coord
                                 {
                                     const __m256 two = _mm256_set1_ps(2.f);
 
@@ -4719,7 +4718,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                     }
                     else
                     {
-#pragma omp parallel for num_threads(opt.num_threads)
+                        #pragma omp parallel for num_threads(opt.num_threads)
                         for (int y = 0; y < grid_p1.c; y++)
                         {
                             float* gridptr = grid_p1.channel(y);
@@ -4952,7 +4951,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                 {
                     if (align_corner == 0)
                     {
-#pragma omp parallel for num_threads(opt.num_threads)
+                        #pragma omp parallel for num_threads(opt.num_threads)
                         for (int y = 0; y < grid_p1.c; y++)
                         {
                             float* gridptr = grid_p1.channel(y);
@@ -4999,7 +4998,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                 v_in_range = _mm256_and_ps(v_in_range, _mm256_and_ps(_mm256_cmp_ps(gz, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgDf, gz, _CMP_GT_OS)));
 
                                 __m256 offset = _mm256_add_ps(_mm256_mul_ps(_mm256_mul_ps(vImgWf, vImgHf), gz),
-                                                                  _mm256_add_ps(_mm256_mul_ps(gy, vImgWf), gx));
+                                                              _mm256_add_ps(_mm256_mul_ps(gy, vImgWf), gx));
                                 __m256i i_offset = _mm256_cvtps_epi32(offset);
 
                                 for (int q = 0; q < channels; q++)
@@ -5038,7 +5037,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                     }
                     else
                     {
-#pragma omp parallel for num_threads(opt.num_threads)
+                        #pragma omp parallel for num_threads(opt.num_threads)
                         for (int y = 0; y < grid_p1.c; y++)
                         {
                             float* gridptr = grid_p1.channel(y);
@@ -5124,7 +5123,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                 {
                     if (align_corner == 0)
                     {
-#pragma omp parallel for num_threads(opt.num_threads)
+                        #pragma omp parallel for num_threads(opt.num_threads)
                         for (int y = 0; y < grid_p1.c; y++)
                         {
                             float* gridptr = grid_p1.channel(y);
@@ -5217,7 +5216,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                     }
                     else
                     {
-#pragma omp parallel for num_threads(opt.num_threads)
+                        #pragma omp parallel for num_threads(opt.num_threads)
                         for (int y = 0; y < grid_p1.c; y++)
                         {
                             float* gridptr = grid_p1.channel(y);
@@ -5342,7 +5341,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                 {
                     if (align_corner == 0)
                     {
-#pragma omp parallel for num_threads(opt.num_threads)
+                        #pragma omp parallel for num_threads(opt.num_threads)
                         for (int y = 0; y < grid_p1.c; y++)
                         {
                             float* gridptr = grid_p1.channel(y);
@@ -5369,7 +5368,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                 gx = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), vImgWf, *(__m256*)_ps256_1), two);
                                 gy = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), vImgHf, *(__m256*)_ps256_1), two);
                                 gz = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gz, *(__m256*)_ps256_1), vImgDf, *(__m256*)_ps256_1), two);
-                                
+
                                 gx = _mm256_floor_ps(_mm256_add_ps(gx, _mm256_set1_ps(0.5f)));
                                 gy = _mm256_floor_ps(_mm256_add_ps(gy, _mm256_set1_ps(0.5f)));
                                 gz = _mm256_floor_ps(_mm256_add_ps(gz, _mm256_set1_ps(0.5f)));
@@ -5474,7 +5473,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                     }
                     else
                     {
-#pragma omp parallel for num_threads(opt.num_threads)
+                        #pragma omp parallel for num_threads(opt.num_threads)
                         for (int y = 0; y < grid_p1.c; y++)
                         {
                             float* gridptr = grid_p1.channel(y);
@@ -5592,9 +5591,8 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
         }
         return 0;
 #endif // __SSE2__
-
-        }
-        return 0;
+    }
+    return 0;
 }
 
 } // namespace ncnn
