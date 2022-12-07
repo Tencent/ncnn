@@ -937,7 +937,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 __m256 gx = _mm256_permute2f128_ps(tmp_x, gy, 0b00100000);
                                 gy = _mm256_permute2f128_ps(tmp_x, gy, 0b00110001);
-                                memcpy(&tmp_x, &gx, 8 * sizeof(float));
+                                tmp_x = _mm256_or_ps(gx, _mm256_setzero_ps());
 
                                 gx = _mm256_shuffle_ps(gx, gy, 0b10001000);
                                 gy = _mm256_shuffle_ps(tmp_x, gy, 0b11011101);
@@ -1090,7 +1090,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 __m256 gx = _mm256_permute2f128_ps(tmp_x, gy, 0b00100000);
                                 gy = _mm256_permute2f128_ps(tmp_x, gy, 0b00110001);
-                                memcpy(&tmp_x, &gx, 8 * sizeof(float));
+                                tmp_x = _mm256_or_ps(gx, _mm256_setzero_ps());
 
                                 gx = _mm256_shuffle_ps(gx, gy, 0b10001000);
                                 gy = _mm256_shuffle_ps(tmp_x, gy, 0b11011101);
@@ -1245,7 +1245,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 __m256 gx = _mm256_permute2f128_ps(tmp_x, gy, 0b00100000);
                                 gy = _mm256_permute2f128_ps(tmp_x, gy, 0b00110001);
-                                memcpy(&tmp_x, &gx, 8 * sizeof(float));
+                                tmp_x = _mm256_or_ps(gx, _mm256_setzero_ps());
 
                                 gx = _mm256_shuffle_ps(gx, gy, 0b10001000);
                                 gy = _mm256_shuffle_ps(tmp_x, gy, 0b11011101);
@@ -1397,7 +1397,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 __m256 gx = _mm256_permute2f128_ps(tmp_x, gy, 0b00100000);
                                 gy = _mm256_permute2f128_ps(tmp_x, gy, 0b00110001);
-                                memcpy(&tmp_x, &gx, 8 * sizeof(float));
+                                tmp_x = _mm256_or_ps(gx, _mm256_setzero_ps());
 
                                 gx = _mm256_shuffle_ps(gx, gy, 0b10001000);
                                 gy = _mm256_shuffle_ps(tmp_x, gy, 0b11011101);
@@ -1551,7 +1551,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 __m256 gx = _mm256_permute2f128_ps(tmp_x, gy, 0b00100000);
                                 gy = _mm256_permute2f128_ps(tmp_x, gy, 0b00110001);
-                                memcpy(&tmp_x, &gx, 8 * sizeof(float));
+                                tmp_x = _mm256_or_ps(gx, _mm256_setzero_ps());
 
                                 gx = _mm256_shuffle_ps(gx, gy, 0b10001000);
                                 gy = _mm256_shuffle_ps(tmp_x, gy, 0b11011101);
@@ -1732,7 +1732,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 __m256 gx = _mm256_permute2f128_ps(tmp_x, gy, 0b00100000);
                                 gy = _mm256_permute2f128_ps(tmp_x, gy, 0b00110001);
-                                memcpy(&tmp_x, &gx, 8 * sizeof(float));
+                                tmp_x = _mm256_or_ps(gx, _mm256_setzero_ps());
 
                                 gx = _mm256_shuffle_ps(gx, gy, 0b10001000);
                                 gy = _mm256_shuffle_ps(tmp_x, gy, 0b11011101);
@@ -1906,7 +1906,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 __m256 gx = _mm256_permute2f128_ps(tmp_x, gy, 0b00100000);
                                 gy = _mm256_permute2f128_ps(tmp_x, gy, 0b00110001);
-                                memcpy(&tmp_x, &gx, 8 * sizeof(float));
+                                tmp_x = _mm256_or_ps(gx, _mm256_setzero_ps());
 
                                 gx = _mm256_shuffle_ps(gx, gy, 0b10001000);
                                 gy = _mm256_shuffle_ps(tmp_x, gy, 0b11011101);
@@ -1979,7 +1979,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 __m256 gx = _mm256_permute2f128_ps(tmp_x, gy, 0b00100000);
                                 gy = _mm256_permute2f128_ps(tmp_x, gy, 0b00110001);
-                                memcpy(&tmp_x, &gx, 8 * sizeof(float));
+                                tmp_x = _mm256_or_ps(gx, _mm256_setzero_ps());
 
                                 gx = _mm256_shuffle_ps(gx, gy, 0b10001000);
                                 gy = _mm256_shuffle_ps(tmp_x, gy, 0b11011101);
@@ -2054,7 +2054,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 __m256 gx = _mm256_permute2f128_ps(tmp_x, gy, 0b00100000);
                                 gy = _mm256_permute2f128_ps(tmp_x, gy, 0b00110001);
-                                memcpy(&tmp_x, &gx, 8 * sizeof(float));
+                                tmp_x = _mm256_or_ps(gx, _mm256_setzero_ps());
 
                                 gx = _mm256_shuffle_ps(gx, gy, 0b10001000);
                                 gy = _mm256_shuffle_ps(tmp_x, gy, 0b11011101);
@@ -2132,7 +2132,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 __m256 gx = _mm256_permute2f128_ps(tmp_x, gy, 0b00100000);
                                 gy = _mm256_permute2f128_ps(tmp_x, gy, 0b00110001);
-                                memcpy(&tmp_x, &gx, 8 * sizeof(float));
+                                tmp_x = _mm256_or_ps(gx, _mm256_setzero_ps());
 
                                 gx = _mm256_shuffle_ps(gx, gy, 0b10001000);
                                 gy = _mm256_shuffle_ps(tmp_x, gy, 0b11011101);
@@ -2212,7 +2212,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 __m256 gx = _mm256_permute2f128_ps(tmp_x, gy, 0b00100000);
                                 gy = _mm256_permute2f128_ps(tmp_x, gy, 0b00110001);
-                                memcpy(&tmp_x, &gx, 8 * sizeof(float));
+                                tmp_x = _mm256_or_ps(gx, _mm256_setzero_ps());
 
                                 gx = _mm256_shuffle_ps(gx, gy, 0b10001000);
                                 gy = _mm256_shuffle_ps(tmp_x, gy, 0b11011101);
@@ -2317,7 +2317,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 __m256 gx = _mm256_permute2f128_ps(tmp_x, gy, 0b00100000);
                                 gy = _mm256_permute2f128_ps(tmp_x, gy, 0b00110001);
-                                memcpy(&tmp_x, &gx, 8 * sizeof(float));
+                                tmp_x = _mm256_or_ps(gx, _mm256_setzero_ps());
 
                                 gx = _mm256_shuffle_ps(gx, gy, 0b10001000);
                                 gy = _mm256_shuffle_ps(tmp_x, gy, 0b11011101);
@@ -2412,7 +2412,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 __m256 gx = _mm256_permute2f128_ps(tmp_x, gy, 0b00100000);
                                 gy = _mm256_permute2f128_ps(tmp_x, gy, 0b00110001);
-                                memcpy(&tmp_x, &gx, 8 * sizeof(float));
+                                tmp_x = _mm256_or_ps(gx, _mm256_setzero_ps());
 
                                 gx = _mm256_shuffle_ps(gx, gy, 0b10001000);
                                 gy = _mm256_shuffle_ps(tmp_x, gy, 0b11011101);
@@ -2585,7 +2585,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 __m256 gx = _mm256_permute2f128_ps(tmp_x, gy, 0b00100000);
                                 gy = _mm256_permute2f128_ps(tmp_x, gy, 0b00110001);
-                                memcpy(&tmp_x, &gx, 8 * sizeof(float));
+                                tmp_x = _mm256_or_ps(gx, _mm256_setzero_ps());
 
                                 gx = _mm256_shuffle_ps(gx, gy, 0b10001000);
                                 gy = _mm256_shuffle_ps(tmp_x, gy, 0b11011101);
@@ -2760,7 +2760,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 __m256 gx = _mm256_permute2f128_ps(tmp_x, gy, 0b00100000);
                                 gy = _mm256_permute2f128_ps(tmp_x, gy, 0b00110001);
-                                memcpy(&tmp_x, &gx, 8 * sizeof(float));
+                                tmp_x = _mm256_or_ps(gx, _mm256_setzero_ps());
 
                                 gx = _mm256_shuffle_ps(gx, gy, 0b10001000);
                                 gy = _mm256_shuffle_ps(tmp_x, gy, 0b11011101);
@@ -2907,7 +2907,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 __m256 gx = _mm256_permute2f128_ps(tmp_x, gy, 0b00100000);
                                 gy = _mm256_permute2f128_ps(tmp_x, gy, 0b00110001);
-                                memcpy(&tmp_x, &gx, 8 * sizeof(float));
+                                tmp_x = _mm256_or_ps(gx, _mm256_setzero_ps());
 
                                 gx = _mm256_shuffle_ps(gx, gy, 0b10001000);
                                 gy = _mm256_shuffle_ps(tmp_x, gy, 0b11011101);
@@ -3057,7 +3057,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 __m256 gx = _mm256_permute2f128_ps(tmp_x, gy, 0b00100000);
                                 gy = _mm256_permute2f128_ps(tmp_x, gy, 0b00110001);
-                                memcpy(&tmp_x, &gx, 8 * sizeof(float));
+                                tmp_x = _mm256_or_ps(gx, _mm256_setzero_ps());
 
                                 gx = _mm256_shuffle_ps(gx, gy, 0b10001000);
                                 gy = _mm256_shuffle_ps(tmp_x, gy, 0b11011101);
@@ -3295,7 +3295,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 __m256 gx = _mm256_permute2f128_ps(tmp_x, gy, 0b00100000);
                                 gy = _mm256_permute2f128_ps(tmp_x, gy, 0b00110001);
-                                memcpy(&tmp_x, &gx, 8 * sizeof(float));
+                                tmp_x = _mm256_or_ps(gx, _mm256_setzero_ps());
 
                                 gx = _mm256_shuffle_ps(gx, gy, 0b10001000);
                                 gy = _mm256_shuffle_ps(tmp_x, gy, 0b11011101);
