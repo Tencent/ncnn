@@ -740,7 +740,7 @@ static NCNN_FORCEINLINE __m128 pow_ps(__m128 a, __m128 b)
 
 static NCNN_FORCEINLINE __m128 floor_ps(const __m128 x)
 {
-#if (_MSC_VER && __AVX__) || (__SSE4_1__ && !__APPLE__ && !__ABDRIUD__)
+#if (_MSC_VER && __AVX__) || (__SSE4_1__ && !__APPLE__ && !__ANDRIOD__)
     return _mm_floor_ps(x);
 #endif // __SSE4_1__
 
@@ -781,7 +781,7 @@ static NCNN_FORCEINLINE __m128 floor_ps(const __m128 x)
 
 static NCNN_FORCEINLINE __m128 ceil_ps(const __m128 x)
 {
-#if (_MSC_VER && __AVX__) || (__SSE4_1__ && !__APPLE__ && !__ABDRIUD__)
+#if (_MSC_VER && __AVX__) || (__SSE4_1__ && !__APPLE__ && !__ANDRIOD__)
     return _mm_ceil_ps(x);
 #endif // __SSE4_1__
 
