@@ -364,7 +364,6 @@ static void gridsample_3d_nearest_align0_zeros_blob_pack4(const Mat& src, Mat& d
     const __m128i vImgHi = _mm_set1_epi32(src.h);
     const __m128i vImgDi = _mm_set1_epi32(src.d);
 
-    const __m128i vElempacki = _mm_set1_epi32(src.elempack);
     const __m128 vElempackf = _mm_set1_ps(src.elempack);
 
     #pragma omp parallel for num_threads(opt.num_threads)

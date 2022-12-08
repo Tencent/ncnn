@@ -16,8 +16,6 @@ static void gridsample_2d_nearest_align0_zeros_blob_pack8(const Mat& src, Mat& d
 {
     const __m256 vImgWf = _mm256_set1_ps(src.w);
     const __m256 vImgHf = _mm256_set1_ps(src.h);
-    const __m256i vImgWi = _mm256_set1_epi32(src.w);
-    const __m256i vImgHi = _mm256_set1_epi32(src.h);
 
     const __m256 vElempackf = _mm256_set1_ps(src.elempack);
 
@@ -67,8 +65,6 @@ static void gridsample_2d_nearest_align1_zeros_blob_pack8(const Mat& src, Mat& d
 {
     const __m256 vImgWf = _mm256_set1_ps(src.w);
     const __m256 vImgHf = _mm256_set1_ps(src.h);
-    const __m256i vImgWi = _mm256_set1_epi32(src.w);
-    const __m256i vImgHi = _mm256_set1_epi32(src.h);
 
     const __m256 vElempackf = _mm256_set1_ps(src.elempack);
 
@@ -118,8 +114,6 @@ static void gridsample_2d_nearest_align0_border_blob_pack8(const Mat& src, Mat& 
 {
     const __m256 vImgWf = _mm256_set1_ps(src.w);
     const __m256 vImgHf = _mm256_set1_ps(src.h);
-    const __m256i vImgWi = _mm256_set1_epi32(src.w);
-    const __m256i vImgHi = _mm256_set1_epi32(src.h);
 
     const __m256 vElempackf = _mm256_set1_ps(src.elempack);
 
@@ -174,8 +168,6 @@ static void gridsample_2d_nearest_align1_border_blob_pack8(const Mat& src, Mat& 
 {
     const __m256 vImgWf = _mm256_set1_ps(src.w);
     const __m256 vImgHf = _mm256_set1_ps(src.h);
-    const __m256i vImgWi = _mm256_set1_epi32(src.w);
-    const __m256i vImgHi = _mm256_set1_epi32(src.h);
 
     const __m256 vElempackf = _mm256_set1_ps(src.elempack);
 
@@ -230,8 +222,6 @@ static void gridsample_2d_nearest_align0_reflection_blob_pack8(const Mat& src, M
 {
     const __m256 vImgWf = _mm256_set1_ps(src.w);
     const __m256 vImgHf = _mm256_set1_ps(src.h);
-    const __m256i vImgWi = _mm256_set1_epi32(src.w);
-    const __m256i vImgHi = _mm256_set1_epi32(src.h);
 
     const __m256 vElempackf = _mm256_set1_ps(src.elempack);
 
@@ -307,8 +297,6 @@ static void gridsample_2d_nearest_align1_reflection_blob_pack8(const Mat& src, M
 {
     const __m256 vImgWf = _mm256_set1_ps(src.w);
     const __m256 vImgHf = _mm256_set1_ps(src.h);
-    const __m256i vImgWi = _mm256_set1_epi32(src.w);
-    const __m256i vImgHi = _mm256_set1_epi32(src.h);
 
     const __m256 vElempackf = _mm256_set1_ps(src.elempack);
 
@@ -348,9 +336,6 @@ static void gridsample_2d_nearest_align1_reflection_blob_pack8(const Mat& src, M
                 gy = _mm256_sub_ps(border_y, reflecty_v);
             }
 
-            __m256i ix = _mm256_cvtps_epi32(gx);
-            __m256i iy = _mm256_cvtps_epi32(gy);
-
             __m256 offset = _mm256_add_ps(_mm256_mul_ps(_mm256_add_ps(_mm256_mul_ps(gy, vImgWf), gx), vElempackf),
                                           _mm256_set_ps(7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
 
@@ -371,9 +356,6 @@ static void gridsample_3d_nearest_align0_zeros_blob_pack8(const Mat& src, Mat& d
     const __m256 vImgWf = _mm256_set1_ps(src.w);
     const __m256 vImgHf = _mm256_set1_ps(src.h);
     const __m256 vImgDf = _mm256_set1_ps(src.d);
-    const __m256i vImgWi = _mm256_set1_epi32(src.w);
-    const __m256i vImgHi = _mm256_set1_epi32(src.h);
-    const __m256i vImgDi = _mm256_set1_epi32(src.d);
 
     const __m256 vElempackf = _mm256_set1_ps(src.elempack);
 
@@ -435,9 +417,6 @@ static void gridsample_3d_nearest_align1_zeros_blob_pack8(const Mat& src, Mat& d
     const __m256 vImgWf = _mm256_set1_ps(src.w);
     const __m256 vImgHf = _mm256_set1_ps(src.h);
     const __m256 vImgDf = _mm256_set1_ps(src.d);
-    const __m256i vImgWi = _mm256_set1_epi32(src.w);
-    const __m256i vImgHi = _mm256_set1_epi32(src.h);
-    const __m256i vImgDi = _mm256_set1_epi32(src.d);
 
     const __m256 vElempackf = _mm256_set1_ps(src.elempack);
 
@@ -499,9 +478,6 @@ static void gridsample_3d_nearest_align0_border_blob_pack8(const Mat& src, Mat& 
     const __m256 vImgWf = _mm256_set1_ps(src.w);
     const __m256 vImgHf = _mm256_set1_ps(src.h);
     const __m256 vImgDf = _mm256_set1_ps(src.d);
-    const __m256i vImgWi = _mm256_set1_epi32(src.w);
-    const __m256i vImgHi = _mm256_set1_epi32(src.h);
-    const __m256i vImgDi = _mm256_set1_epi32(src.d);
 
     const __m256 vElempackf = _mm256_set1_ps(src.elempack);
 
@@ -571,9 +547,6 @@ static void gridsample_3d_nearest_align1_border_blob_pack8(const Mat& src, Mat& 
     const __m256 vImgWf = _mm256_set1_ps(src.w);
     const __m256 vImgHf = _mm256_set1_ps(src.h);
     const __m256 vImgDf = _mm256_set1_ps(src.d);
-    const __m256i vImgWi = _mm256_set1_epi32(src.w);
-    const __m256i vImgHi = _mm256_set1_epi32(src.h);
-    const __m256i vImgDi = _mm256_set1_epi32(src.d);
 
     const __m256 vElempackf = _mm256_set1_ps(src.elempack);
 
@@ -643,9 +616,6 @@ static void gridsample_3d_nearest_align0_reflection_blob_pack8(const Mat& src, M
     const __m256 vImgWf = _mm256_set1_ps(src.w);
     const __m256 vImgHf = _mm256_set1_ps(src.h);
     const __m256 vImgDf = _mm256_set1_ps(src.d);
-    const __m256i vImgWi = _mm256_set1_epi32(src.w);
-    const __m256i vImgHi = _mm256_set1_epi32(src.h);
-    const __m256i vImgDi = _mm256_set1_epi32(src.d);
 
     const __m256 vElempackf = _mm256_set1_ps(src.elempack);
 
@@ -746,9 +716,6 @@ static void gridsample_3d_nearest_align1_reflection_blob_pack8(const Mat& src, M
     const __m256 vImgWf = _mm256_set1_ps(src.w);
     const __m256 vImgHf = _mm256_set1_ps(src.h);
     const __m256 vImgDf = _mm256_set1_ps(src.d);
-    const __m256i vImgWi = _mm256_set1_epi32(src.w);
-    const __m256i vImgHi = _mm256_set1_epi32(src.h);
-    const __m256i vImgDi = _mm256_set1_epi32(src.d);
 
     const __m256 vElempackf = _mm256_set1_ps(src.elempack);
 

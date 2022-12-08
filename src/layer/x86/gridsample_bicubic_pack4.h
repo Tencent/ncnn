@@ -554,8 +554,6 @@ static void gridsample_2d_bicubic_align0_reflection_blob_pack4(const Mat& src, M
 
 static void gridsample_2d_bicubic_align1_reflection_blob_pack4(const Mat& src, Mat& dst, const Mat& grid, const Option& opt)
 {
-    float* outptr = static_cast<float*>(dst.data);
-
     const __m128 vImgWf = _mm_set1_ps(src.w);
     const __m128 vImgHf = _mm_set1_ps(src.h);
 
@@ -590,7 +588,6 @@ static void gridsample_2d_bicubic_align1_reflection_blob_pack4(const Mat& src, M
             __m128 gx1 = gx_floor;
             __m128 gx2 = _mm_add_ps(gx_floor, v1fp4);
             __m128 gx3 = _mm_add_ps(gx_floor, _mm_set1_ps(2.0f));
-            const __m128 v0p5fp4 = _mm_set1_ps(0.5f);
             {
                 // x0
                 gx0 = _mm_and_ps(gx0, *(__m128*)_ps_inv_sign_mask);
@@ -623,8 +620,6 @@ static void gridsample_2d_bicubic_align1_reflection_blob_pack4(const Mat& src, M
 
                 {
                     //y
-                    const __m128 border_y = _mm_sub_ps(vImgHf, v1fp4);
-
                     gy = _mm_and_ps(gy, *(__m128*)_ps_inv_sign_mask);
 
                     __m128 reflecty_v = _mm_and_ps(_mm_sub_ps(gy, border_y), *(__m128*)_ps_inv_sign_mask);

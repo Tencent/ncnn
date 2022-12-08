@@ -16,13 +16,14 @@ static void gridsample_2d_bilinear_align0_zeros_blob_pack8(const Mat& src, Mat& 
 {
     const __m256 vImgWf = _mm256_set1_ps(src.w);
     const __m256 vImgHf = _mm256_set1_ps(src.h);
+#if __AVX2__
     const __m256i vImgWi = _mm256_set1_epi32(src.w);
     const __m256i vImgHi = _mm256_set1_epi32(src.h);
 
     const __m256i vElempacki = _mm256_set1_epi32(src.elempack);
-#if !__AVX2__
+#else
     const __m256 vElempackf = _mm256_set1_ps(src.elempack);
-#endif // !!__AVX2__
+#endif // __AVX2__
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int y = 0; y < dst.h; y++)
@@ -134,13 +135,14 @@ static void gridsample_2d_bilinear_align1_zeros_blob_pack8(const Mat& src, Mat& 
 {
     const __m256 vImgWf = _mm256_set1_ps(src.w);
     const __m256 vImgHf = _mm256_set1_ps(src.h);
+#if __AVX2__
     const __m256i vImgWi = _mm256_set1_epi32(src.w);
     const __m256i vImgHi = _mm256_set1_epi32(src.h);
 
     const __m256i vElempacki = _mm256_set1_epi32(src.elempack);
-#if !__AVX2__
+#else
     const __m256 vElempackf = _mm256_set1_ps(src.elempack);
-#endif // !!__AVX2__
+#endif // __AVX2__
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int y = 0; y < dst.h; y++)
@@ -252,8 +254,6 @@ static void gridsample_2d_bilinear_align0_border_blob_pack8(const Mat& src, Mat&
 {
     const __m256 vImgWf = _mm256_set1_ps(src.w);
     const __m256 vImgHf = _mm256_set1_ps(src.h);
-    const __m256i vImgWi = _mm256_set1_epi32(src.w);
-    const __m256i vImgHi = _mm256_set1_epi32(src.h);
 
     const __m256 vElempackf = _mm256_set1_ps(src.elempack);
 
@@ -340,8 +340,6 @@ static void gridsample_2d_bilinear_align1_border_blob_pack8(const Mat& src, Mat&
 {
     const __m256 vImgWf = _mm256_set1_ps(src.w);
     const __m256 vImgHf = _mm256_set1_ps(src.h);
-    const __m256i vImgWi = _mm256_set1_epi32(src.w);
-    const __m256i vImgHi = _mm256_set1_epi32(src.h);
 
     const __m256 vElempackf = _mm256_set1_ps(src.elempack);
 
@@ -428,8 +426,6 @@ static void gridsample_2d_bilinear_align0_reflection_blob_pack8(const Mat& src, 
 {
     const __m256 vImgWf = _mm256_set1_ps(src.w);
     const __m256 vImgHf = _mm256_set1_ps(src.h);
-    const __m256i vImgWi = _mm256_set1_epi32(src.w);
-    const __m256i vImgHi = _mm256_set1_epi32(src.h);
 
     const __m256 vElempackf = _mm256_set1_ps(src.elempack);
 
@@ -539,8 +535,6 @@ static void gridsample_2d_bilinear_align1_reflection_blob_pack8(const Mat& src, 
 {
     const __m256 vImgWf = _mm256_set1_ps(src.w);
     const __m256 vImgHf = _mm256_set1_ps(src.h);
-    const __m256i vImgWi = _mm256_set1_epi32(src.w);
-    const __m256i vImgHi = _mm256_set1_epi32(src.h);
 
     const __m256 vElempackf = _mm256_set1_ps(src.elempack);
 
@@ -634,14 +628,15 @@ static void gridsample_3d_bilinear_align0_zeros_blob_pack8(const Mat& src, Mat& 
     const __m256 vImgWf = _mm256_set1_ps(src.w);
     const __m256 vImgHf = _mm256_set1_ps(src.h);
     const __m256 vImgDf = _mm256_set1_ps(src.d);
+#if __AVX2__
     const __m256i vImgWi = _mm256_set1_epi32(src.w);
     const __m256i vImgHi = _mm256_set1_epi32(src.h);
     const __m256i vImgDi = _mm256_set1_epi32(src.d);
 
     const __m256i vElempacki = _mm256_set1_epi32(src.elempack);
-#if !__AVX2__
+#else
     const __m256 vElempackf = _mm256_set1_ps(src.elempack);
-#endif // !!__AVX2__
+#endif // __AVX2__
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int z = 0; z < dst.d; z++)
@@ -842,14 +837,15 @@ static void gridsample_3d_bilinear_align1_zeros_blob_pack8(const Mat& src, Mat& 
     const __m256 vImgWf = _mm256_set1_ps(src.w);
     const __m256 vImgHf = _mm256_set1_ps(src.h);
     const __m256 vImgDf = _mm256_set1_ps(src.d);
+#if __AVX2__
     const __m256i vImgWi = _mm256_set1_epi32(src.w);
     const __m256i vImgHi = _mm256_set1_epi32(src.h);
     const __m256i vImgDi = _mm256_set1_epi32(src.d);
 
     const __m256i vElempacki = _mm256_set1_epi32(src.elempack);
-#if !__AVX2__
+#else
     const __m256 vElempackf = _mm256_set1_ps(src.elempack);
-#endif // !!__AVX2__
+#endif // __AVX2__
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int z = 0; z < dst.d; z++)
@@ -1050,9 +1046,6 @@ static void gridsample_3d_bilinear_align0_border_blob_pack8(const Mat& src, Mat&
     const __m256 vImgWf = _mm256_set1_ps(src.w);
     const __m256 vImgHf = _mm256_set1_ps(src.h);
     const __m256 vImgDf = _mm256_set1_ps(src.d);
-    const __m256i vImgWi = _mm256_set1_epi32(src.w);
-    const __m256i vImgHi = _mm256_set1_epi32(src.h);
-    const __m256i vImgDi = _mm256_set1_epi32(src.d);
 
     const __m256 vElempackf = _mm256_set1_ps(src.elempack);
 
@@ -1199,9 +1192,6 @@ static void gridsample_3d_bilinear_align1_border_blob_pack8(const Mat& src, Mat&
     const __m256 vImgWf = _mm256_set1_ps(src.w);
     const __m256 vImgHf = _mm256_set1_ps(src.h);
     const __m256 vImgDf = _mm256_set1_ps(src.d);
-    const __m256i vImgWi = _mm256_set1_epi32(src.w);
-    const __m256i vImgHi = _mm256_set1_epi32(src.h);
-    const __m256i vImgDi = _mm256_set1_epi32(src.d);
 
     const __m256 vElempackf = _mm256_set1_ps(src.elempack);
 
@@ -1348,9 +1338,6 @@ static void gridsample_3d_bilinear_align0_reflection_blob_pack8(const Mat& src, 
     const __m256 vImgWf = _mm256_set1_ps(src.w);
     const __m256 vImgHf = _mm256_set1_ps(src.h);
     const __m256 vImgDf = _mm256_set1_ps(src.d);
-    const __m256i vImgWi = _mm256_set1_epi32(src.w);
-    const __m256i vImgHi = _mm256_set1_epi32(src.h);
-    const __m256i vImgDi = _mm256_set1_epi32(src.d);
 
     const __m256 vElempackf = _mm256_set1_ps(src.elempack);
 
@@ -1528,9 +1515,6 @@ static void gridsample_3d_bilinear_align1_reflection_blob_pack8(const Mat& src, 
     const __m256 vImgWf = _mm256_set1_ps(src.w);
     const __m256 vImgHf = _mm256_set1_ps(src.h);
     const __m256 vImgDf = _mm256_set1_ps(src.d);
-    const __m256i vImgWi = _mm256_set1_epi32(src.w);
-    const __m256i vImgHi = _mm256_set1_epi32(src.h);
-    const __m256i vImgDi = _mm256_set1_epi32(src.d);
 
     const __m256 vElempackf = _mm256_set1_ps(src.elempack);
 

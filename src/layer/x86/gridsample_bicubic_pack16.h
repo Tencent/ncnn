@@ -241,8 +241,6 @@ static void gridsample_2d_bicubic_align0_border_blob_pack16(const Mat& src, Mat&
 {
     const __m512 vImgWf = _mm512_set1_ps(src.w);
     const __m512 vImgHf = _mm512_set1_ps(src.h);
-    const __m512i vImgWi = _mm512_set1_epi32(src.w);
-    const __m512i vImgHi = _mm512_set1_epi32(src.h);
 
     const __m512 vElempackf = _mm512_set1_ps(src.elempack);
 
@@ -291,8 +289,6 @@ static void gridsample_2d_bicubic_align0_border_blob_pack16(const Mat& src, Mat&
                 gy = _mm512_add_ps(gy_floor, _mm512_set1_ps(-1.0f + i));
                 gy = _mm512_min_ps(border_y, _mm512_max_ps(gy, _mm512_setzero_ps()));
 
-                __m512i y = _mm512_cvtps_epi32(gy);
-
                 __m512 v0_offset_f = _mm512_add_ps(_mm512_mul_ps(_mm512_add_ps(_mm512_mul_ps(gy, vImgWf), gx0), vElempackf),
                                                    _mm512_set_ps(15.0f, 14.0f, 13.0f, 12.0f, 11.0f, 10.0f, 9.0f, 8.0f, 7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
                 __m512 v1_offset_f = _mm512_add_ps(_mm512_mul_ps(_mm512_add_ps(_mm512_mul_ps(gy, vImgWf), gx1), vElempackf),
@@ -332,8 +328,6 @@ static void gridsample_2d_bicubic_align1_border_blob_pack16(const Mat& src, Mat&
 {
     const __m512 vImgWf = _mm512_set1_ps(src.w);
     const __m512 vImgHf = _mm512_set1_ps(src.h);
-    const __m512i vImgWi = _mm512_set1_epi32(src.w);
-    const __m512i vImgHi = _mm512_set1_epi32(src.h);
 
     const __m512 vElempackf = _mm512_set1_ps(src.elempack);
 
@@ -383,8 +377,6 @@ static void gridsample_2d_bicubic_align1_border_blob_pack16(const Mat& src, Mat&
                 gy = _mm512_add_ps(gy_floor, _mm512_set1_ps(-1.0f + i));
                 gy = _mm512_min_ps(border_y, _mm512_max_ps(gy, _mm512_setzero_ps()));
 
-                __m512i y = _mm512_cvtps_epi32(gy);
-
                 __m512 v0_offset_f = _mm512_add_ps(_mm512_mul_ps(_mm512_add_ps(_mm512_mul_ps(gy, vImgWf), gx0), vElempackf),
                                                    _mm512_set_ps(15.0f, 14.0f, 13.0f, 12.0f, 11.0f, 10.0f, 9.0f, 8.0f, 7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
                 __m512 v1_offset_f = _mm512_add_ps(_mm512_mul_ps(_mm512_add_ps(_mm512_mul_ps(gy, vImgWf), gx1), vElempackf),
@@ -424,8 +416,6 @@ static void gridsample_2d_bicubic_align0_reflection_blob_pack16(const Mat& src, 
 {
     const __m512 vImgWf = _mm512_set1_ps(src.w);
     const __m512 vImgHf = _mm512_set1_ps(src.h);
-    const __m512i vImgWi = _mm512_set1_epi32(src.w);
-    const __m512i vImgHi = _mm512_set1_epi32(src.h);
 
     const __m512 vElempackf = _mm512_set1_ps(src.elempack);
 
@@ -460,8 +450,6 @@ static void gridsample_2d_bicubic_align0_reflection_blob_pack16(const Mat& src, 
             const __m512 v0p5fp16 = _mm512_set1_ps(0.5f);
             {
                 // x0
-                const __m512 border_x = _mm512_sub_ps(vImgWf, *(__m512*)_ps512_1);
-
                 gx0 = _mm512_add_ps(gx0, v0p5fp16);
 
                 gx0 = _mm512_and_ps(gx0, *(__m512*)_ps512_inv_sign_mask);
@@ -546,8 +534,6 @@ static void gridsample_2d_bicubic_align0_reflection_blob_pack16(const Mat& src, 
                     gy = _mm512_min_ps(border_y, _mm512_max_ps(gy, _mm512_setzero_ps()));
                 }
 
-                __m512i y = _mm512_cvtps_epi32(gy);
-
                 __m512 v0_offset_f = _mm512_add_ps(_mm512_mul_ps(_mm512_add_ps(_mm512_mul_ps(gy, vImgWf), gx0), vElempackf),
                                                    _mm512_set_ps(15.0f, 14.0f, 13.0f, 12.0f, 11.0f, 10.0f, 9.0f, 8.0f, 7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
                 __m512 v1_offset_f = _mm512_add_ps(_mm512_mul_ps(_mm512_add_ps(_mm512_mul_ps(gy, vImgWf), gx1), vElempackf),
@@ -589,8 +575,6 @@ static void gridsample_2d_bicubic_align1_reflection_blob_pack16(const Mat& src, 
 
     const __m512 vImgWf = _mm512_set1_ps(src.w);
     const __m512 vImgHf = _mm512_set1_ps(src.h);
-    const __m512i vImgWi = _mm512_set1_epi32(src.w);
-    const __m512i vImgHi = _mm512_set1_epi32(src.h);
 
     const __m512 vElempackf = _mm512_set1_ps(src.elempack);
 
@@ -626,8 +610,6 @@ static void gridsample_2d_bicubic_align1_reflection_blob_pack16(const Mat& src, 
             const __m512 v0p5fp16 = _mm512_set1_ps(0.5f);
             {
                 // x0
-                const __m512 border_x = _mm512_sub_ps(vImgWf, *(__m512*)_ps512_1);
-
                 gx0 = _mm512_and_ps(gx0, *(__m512*)_ps512_inv_sign_mask);
                 __m512 reflectx0_v = _mm512_and_ps(_mm512_sub_ps(gx0, border_x), *(__m512*)_ps512_inv_sign_mask);
                 gx0 = _mm512_sub_ps(border_x, reflectx0_v);
@@ -663,15 +645,11 @@ static void gridsample_2d_bicubic_align1_reflection_blob_pack16(const Mat& src, 
 
                 {
                     //y
-                    const __m512 border_y = _mm512_sub_ps(vImgHf, *(__m512*)_ps512_1);
-
                     gy = _mm512_and_ps(gy, *(__m512*)_ps512_inv_sign_mask);
 
                     __m512 reflecty_v = _mm512_and_ps(_mm512_sub_ps(gy, border_y), *(__m512*)_ps512_inv_sign_mask);
                     gy = _mm512_sub_ps(border_y, reflecty_v);
                 }
-
-                __m512i y = _mm512_cvtps_epi32(gy);
 
                 __m512 v0_offset_f = _mm512_add_ps(_mm512_mul_ps(_mm512_add_ps(_mm512_mul_ps(gy, vImgWf), gx0), vElempackf),
                                                    _mm512_set_ps(15.0f, 14.0f, 13.0f, 12.0f, 11.0f, 10.0f, 9.0f, 8.0f, 7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));

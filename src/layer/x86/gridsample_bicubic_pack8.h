@@ -16,8 +16,6 @@ static void gridsample_2d_bicubic_align0_zeros_blob_pack8(const Mat& src, Mat& d
 {
     const __m256 vImgWf = _mm256_set1_ps(src.w);
     const __m256 vImgHf = _mm256_set1_ps(src.h);
-    const __m256i vImgWi = _mm256_set1_epi32(src.w);
-    const __m256i vImgHi = _mm256_set1_epi32(src.h);
 
     const __m256 vElempackf = _mm256_set1_ps(src.elempack);
 
@@ -112,8 +110,6 @@ static void gridsample_2d_bicubic_align1_zeros_blob_pack8(const Mat& src, Mat& d
 {
     const __m256 vImgWf = _mm256_set1_ps(src.w);
     const __m256 vImgHf = _mm256_set1_ps(src.h);
-    const __m256i vImgWi = _mm256_set1_epi32(src.w);
-    const __m256i vImgHi = _mm256_set1_epi32(src.h);
 
     const __m256 vElempackf = _mm256_set1_ps(src.elempack);
 
@@ -205,8 +201,6 @@ static void gridsample_2d_bicubic_align0_border_blob_pack8(const Mat& src, Mat& 
 {
     const __m256 vImgWf = _mm256_set1_ps(src.w);
     const __m256 vImgHf = _mm256_set1_ps(src.h);
-    const __m256i vImgWi = _mm256_set1_epi32(src.w);
-    const __m256i vImgHi = _mm256_set1_epi32(src.h);
 
     const __m256 vElempackf = _mm256_set1_ps(src.elempack);
 
@@ -289,8 +283,6 @@ static void gridsample_2d_bicubic_align1_border_blob_pack8(const Mat& src, Mat& 
 {
     const __m256 vImgWf = _mm256_set1_ps(src.w);
     const __m256 vImgHf = _mm256_set1_ps(src.h);
-    const __m256i vImgWi = _mm256_set1_epi32(src.w);
-    const __m256i vImgHi = _mm256_set1_epi32(src.h);
 
     const __m256 vElempackf = _mm256_set1_ps(src.elempack);
 
@@ -374,8 +366,6 @@ static void gridsample_2d_bicubic_align0_reflection_blob_pack8(const Mat& src, M
 {
     const __m256 vImgWf = _mm256_set1_ps(src.w);
     const __m256 vImgHf = _mm256_set1_ps(src.h);
-    const __m256i vImgWi = _mm256_set1_epi32(src.w);
-    const __m256i vImgHi = _mm256_set1_epi32(src.h);
 
     const __m256 vElempackf = _mm256_set1_ps(src.elempack);
 
@@ -410,8 +400,6 @@ static void gridsample_2d_bicubic_align0_reflection_blob_pack8(const Mat& src, M
             const __m256 v0p5fp8 = _mm256_set1_ps(0.5f);
             {
                 // x0
-                const __m256 border_x = _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1);
-
                 gx0 = _mm256_add_ps(gx0, v0p5fp8);
 
                 gx0 = _mm256_and_ps(gx0, *(__m256*)_ps256_inv_sign_mask);
@@ -475,8 +463,6 @@ static void gridsample_2d_bicubic_align0_reflection_blob_pack8(const Mat& src, M
 
                 {
                     //y
-                    const __m256 border_y = _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1);
-
                     gy = _mm256_add_ps(gy, v0p5fp8);
 
                     gy = _mm256_and_ps(gy, *(__m256*)_ps256_inv_sign_mask);
@@ -528,12 +514,8 @@ static void gridsample_2d_bicubic_align0_reflection_blob_pack8(const Mat& src, M
 
 static void gridsample_2d_bicubic_align1_reflection_blob_pack8(const Mat& src, Mat& dst, const Mat& grid, const Option& opt)
 {
-    float* outptr = static_cast<float*>(dst.data);
-
     const __m256 vImgWf = _mm256_set1_ps(src.w);
     const __m256 vImgHf = _mm256_set1_ps(src.h);
-    const __m256i vImgWi = _mm256_set1_epi32(src.w);
-    const __m256i vImgHi = _mm256_set1_epi32(src.h);
 
     const __m256 vElempackf = _mm256_set1_ps(src.elempack);
 
@@ -566,11 +548,8 @@ static void gridsample_2d_bicubic_align1_reflection_blob_pack8(const Mat& src, M
             __m256 gx1 = gx_floor;
             __m256 gx2 = _mm256_add_ps(gx_floor, *(__m256*)_ps256_1);
             __m256 gx3 = _mm256_add_ps(gx_floor, _mm256_set1_ps(2.0f));
-            const __m256 v0p5fp8 = _mm256_set1_ps(0.5f);
             {
                 // x0
-                const __m256 border_x = _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1);
-
                 gx0 = _mm256_and_ps(gx0, *(__m256*)_ps256_inv_sign_mask);
                 __m256 reflectx0_v = _mm256_and_ps(_mm256_sub_ps(gx0, border_x), *(__m256*)_ps256_inv_sign_mask);
                 gx0 = _mm256_sub_ps(border_x, reflectx0_v);
@@ -601,8 +580,6 @@ static void gridsample_2d_bicubic_align1_reflection_blob_pack8(const Mat& src, M
 
                 {
                     //y
-                    const __m256 border_y = _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1);
-
                     gy = _mm256_and_ps(gy, *(__m256*)_ps256_inv_sign_mask);
 
                     __m256 reflecty_v = _mm256_and_ps(_mm256_sub_ps(gy, border_y), *(__m256*)_ps256_inv_sign_mask);

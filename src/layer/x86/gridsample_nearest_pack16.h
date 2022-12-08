@@ -119,7 +119,6 @@ static void gridsample_2d_nearest_align0_border_blob_pack16(const Mat& src, Mat&
     const __m512 vImgWf = _mm512_set1_ps(src.w);
     const __m512 vImgHf = _mm512_set1_ps(src.h);
     const __m512i vImgWi = _mm512_set1_epi32(src.w);
-    const __m512i vImgHi = _mm512_set1_epi32(src.h);
 
     const __m512i vElempacki = _mm512_set1_epi32(src.elempack);
 
@@ -176,7 +175,6 @@ static void gridsample_2d_nearest_align1_border_blob_pack16(const Mat& src, Mat&
     const __m512 vImgWf = _mm512_set1_ps(src.w);
     const __m512 vImgHf = _mm512_set1_ps(src.h);
     const __m512i vImgWi = _mm512_set1_epi32(src.w);
-    const __m512i vImgHi = _mm512_set1_epi32(src.h);
 
     const __m512i vElempacki = _mm512_set1_epi32(src.elempack);
 
@@ -233,7 +231,6 @@ static void gridsample_2d_nearest_align0_reflection_blob_pack16(const Mat& src, 
     const __m512 vImgWf = _mm512_set1_ps(src.w);
     const __m512 vImgHf = _mm512_set1_ps(src.h);
     const __m512i vImgWi = _mm512_set1_epi32(src.w);
-    const __m512i vImgHi = _mm512_set1_epi32(src.h);
 
     const __m512i vElempacki = _mm512_set1_epi32(src.elempack);
 
@@ -311,7 +308,6 @@ static void gridsample_2d_nearest_align1_reflection_blob_pack16(const Mat& src, 
     const __m512 vImgWf = _mm512_set1_ps(src.w);
     const __m512 vImgHf = _mm512_set1_ps(src.h);
     const __m512i vImgWi = _mm512_set1_epi32(src.w);
-    const __m512i vImgHi = _mm512_set1_epi32(src.h);
 
     const __m512i vElempacki = _mm512_set1_epi32(src.elempack);
 
@@ -498,7 +494,6 @@ static void gridsample_3d_nearest_align0_border_blob_pack16(const Mat& src, Mat&
     const __m512 vImgDf = _mm512_set1_ps(src.d);
     const __m512i vImgWi = _mm512_set1_epi32(src.w);
     const __m512i vImgHi = _mm512_set1_epi32(src.h);
-    const __m512i vImgDi = _mm512_set1_epi32(src.d);
 
     const __m512i vElempacki = _mm512_set1_epi32(src.elempack);
 
@@ -569,7 +564,6 @@ static void gridsample_3d_nearest_align1_border_blob_pack16(const Mat& src, Mat&
     const __m512 vImgDf = _mm512_set1_ps(src.d);
     const __m512i vImgWi = _mm512_set1_epi32(src.w);
     const __m512i vImgHi = _mm512_set1_epi32(src.h);
-    const __m512i vImgDi = _mm512_set1_epi32(src.d);
 
     const __m512i vElempacki = _mm512_set1_epi32(src.elempack);
 
@@ -640,7 +634,6 @@ static void gridsample_3d_nearest_align0_reflection_blob_pack16(const Mat& src, 
     const __m512 vImgDf = _mm512_set1_ps(src.d);
     const __m512i vImgWi = _mm512_set1_epi32(src.w);
     const __m512i vImgHi = _mm512_set1_epi32(src.h);
-    const __m512i vImgDi = _mm512_set1_epi32(src.d);
 
     const __m512i vElempacki = _mm512_set1_epi32(src.elempack);
 
@@ -742,7 +735,6 @@ static void gridsample_3d_nearest_align1_reflection_blob_pack16(const Mat& src, 
     const __m512 vImgDf = _mm512_set1_ps(src.d);
     const __m512i vImgWi = _mm512_set1_epi32(src.w);
     const __m512i vImgHi = _mm512_set1_epi32(src.h);
-    const __m512i vImgDi = _mm512_set1_epi32(src.d);
 
     const __m512i vElempacki = _mm512_set1_epi32(src.elempack);
 

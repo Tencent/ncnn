@@ -50,6 +50,7 @@ _PI32_CONST512(n1, -1);
 #endif // __AVX512F__
 
 _PS256_CONST(n1, -1.0f);
+_PS256_CONST(2, 2.0f);
 _PI32_CONST256(n1, -1);
 
 static NCNN_FORCEINLINE __m256 mask_gather_ps256(const float* ptr, __m256i offset, __m256 mask)
@@ -554,10 +555,6 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
         if (dims == 4)
         {
-            const int outW = grid.h;
-            const int outH = grid.d;
-            const int outD = grid.c * grid.elempack;
-
             top_blob.create(grid.h, grid.d, grid.c * grid.elempack, channels, elemsize, elempack, opt.blob_allocator);
             if (top_blob.empty())
                 return -100;
@@ -905,9 +902,10 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 #if __AVX__
         const __m256 vImgWf = _mm256_set1_ps(w);
         const __m256 vImgHf = _mm256_set1_ps(h);
+#if __AVX2__
         const __m256i vImgWi = _mm256_set1_epi32(w);
         const __m256i vImgHi = _mm256_set1_epi32(h);
-
+#endif //__AVX2__
 #endif // __AVX__
 
         if (dims == 3)
@@ -944,13 +942,13 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 // compute coord
                                 {
-                                    const __m256 two = _mm256_set1_ps(2.f);
+
 
                                     // x
-                                    gx = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), vImgWf, *(__m256*)_ps256_1), two);
+                                    gx = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), vImgWf, *(__m256*)_ps256_1), *(__m256*)_ps256_2);
 
                                     // y
-                                    gy = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), vImgHf, *(__m256*)_ps256_1), two);
+                                    gy = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), vImgHf, *(__m256*)_ps256_1), *(__m256*)_ps256_2);
                                 }
 
                                 __m256 x_w = _mm256_floor_ps(gx);
@@ -1097,13 +1095,13 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 // compute coord
                                 {
-                                    const __m256 two = _mm256_set1_ps(2.f);
+
 
                                     // x
-                                    gx = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), two), _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1));
+                                    gx = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), *(__m256*)_ps256_2), _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1));
 
                                     // y
-                                    gy = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), two), _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1));
+                                    gy = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), *(__m256*)_ps256_2), _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1));
                                 }
 
                                 __m256 x_w = _mm256_floor_ps(gx);
@@ -1252,17 +1250,17 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 // compute coord
                                 {
-                                    const __m256 two = _mm256_set1_ps(2.f);
+
 
                                     // x
-                                    gx = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), vImgWf, *(__m256*)_ps256_1), two);
+                                    gx = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), vImgWf, *(__m256*)_ps256_1), *(__m256*)_ps256_2);
 
                                     const __m256 border_x = _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1);
 
                                     gx = _mm256_min_ps(border_x, _mm256_max_ps(gx, _mm256_setzero_ps()));
 
                                     // y
-                                    gy = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), vImgHf, *(__m256*)_ps256_1), two);
+                                    gy = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), vImgHf, *(__m256*)_ps256_1), *(__m256*)_ps256_2);
 
                                     const __m256 border_y = _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1);
 
@@ -1404,17 +1402,17 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 // compute coord
                                 {
-                                    const __m256 two = _mm256_set1_ps(2.f);
+
 
                                     // x
-                                    gx = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), two), _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1));
+                                    gx = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), *(__m256*)_ps256_2), _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1));
 
                                     const __m256 border_x = _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1);
 
                                     gx = _mm256_min_ps(border_x, _mm256_max_ps(gx, _mm256_setzero_ps()));
 
                                     // y
-                                    gy = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), two), _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1));
+                                    gy = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), *(__m256*)_ps256_2), _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1));
 
                                     const __m256 border_y = _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1);
 
@@ -1558,10 +1556,10 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 // compute coord
                                 {
-                                    const __m256 two = _mm256_set1_ps(2.f);
+
 
                                     // x
-                                    gx = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), vImgWf, *(__m256*)_ps256_1), two);
+                                    gx = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), vImgWf, *(__m256*)_ps256_1), *(__m256*)_ps256_2);
 
                                     const __m256 border_x = _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1);
 
@@ -1580,7 +1578,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                     gx = _mm256_min_ps(border_x, _mm256_max_ps(gx, _mm256_setzero_ps()));
 
                                     // y
-                                    gy = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), vImgHf, *(__m256*)_ps256_1), two);
+                                    gy = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), vImgHf, *(__m256*)_ps256_1), *(__m256*)_ps256_2);
 
                                     const __m256 border_y = _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1);
 
@@ -1739,10 +1737,10 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 // compute coord
                                 {
-                                    const __m256 two = _mm256_set1_ps(2.f);
+
 
                                     // x
-                                    gx = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), two), _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1));
+                                    gx = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), *(__m256*)_ps256_2), _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1));
 
                                     const __m256 border_x = _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1);
 
@@ -1752,7 +1750,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                     gx = _mm256_sub_ps(border_x, reflectx_v);
 
                                     // y
-                                    gy = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), two), _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1));
+                                    gy = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), *(__m256*)_ps256_2), _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1));
 
                                     const __m256 border_y = _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1);
 
@@ -1913,13 +1911,13 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 // compute coord
                                 {
-                                    const __m256 two = _mm256_set1_ps(2.f);
+
 
                                     // x
-                                    gx = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), vImgWf, *(__m256*)_ps256_1), two);
+                                    gx = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), vImgWf, *(__m256*)_ps256_1), *(__m256*)_ps256_2);
 
                                     // y
-                                    gy = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), vImgHf, *(__m256*)_ps256_1), two);
+                                    gy = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), vImgHf, *(__m256*)_ps256_1), *(__m256*)_ps256_2);
                                 }
 
                                 gx = _mm256_floor_ps(_mm256_add_ps(gx, _mm256_set1_ps(0.5f)));
@@ -1986,13 +1984,13 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 // compute coord
                                 {
-                                    const __m256 two = _mm256_set1_ps(2.f);
+
 
                                     // x
-                                    gx = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), two), _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1));
+                                    gx = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), *(__m256*)_ps256_2), _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1));
 
                                     // y
-                                    gy = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), two), _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1));
+                                    gy = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), *(__m256*)_ps256_2), _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1));
                                 }
 
                                 gx = _mm256_floor_ps(_mm256_add_ps(gx, _mm256_set1_ps(0.5f)));
@@ -2061,17 +2059,17 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 // compute coord
                                 {
-                                    const __m256 two = _mm256_set1_ps(2.f);
+
 
                                     // x
-                                    gx = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), vImgWf, *(__m256*)_ps256_1), two);
+                                    gx = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), vImgWf, *(__m256*)_ps256_1), *(__m256*)_ps256_2);
 
                                     const __m256 border_x = _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1);
 
                                     gx = _mm256_min_ps(border_x, _mm256_max_ps(gx, _mm256_setzero_ps()));
 
                                     // y
-                                    gy = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), vImgHf, *(__m256*)_ps256_1), two);
+                                    gy = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), vImgHf, *(__m256*)_ps256_1), *(__m256*)_ps256_2);
 
                                     const __m256 border_y = _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1);
 
@@ -2139,17 +2137,17 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 // compute coord
                                 {
-                                    const __m256 two = _mm256_set1_ps(2.f);
+
 
                                     // x
-                                    gx = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), two), _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1));
+                                    gx = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), *(__m256*)_ps256_2), _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1));
 
                                     const __m256 border_x = _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1);
 
                                     gx = _mm256_min_ps(border_x, _mm256_max_ps(gx, _mm256_setzero_ps()));
 
                                     // y
-                                    gy = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), two), _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1));
+                                    gy = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), *(__m256*)_ps256_2), _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1));
 
                                     const __m256 border_y = _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1);
 
@@ -2217,9 +2215,9 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                 gx = _mm256_shuffle_ps(gx, gy, 0b10001000);
                                 gy = _mm256_shuffle_ps(tmp_x, gy, 0b11011101);
 
-                                const __m256 two = _mm256_set1_ps(2.f);
-                                gx = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), vImgWf, *(__m256*)_ps256_1), two);
-                                gy = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), vImgHf, *(__m256*)_ps256_1), two);
+                                
+                                gx = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), vImgWf, *(__m256*)_ps256_1), *(__m256*)_ps256_2);
+                                gy = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), vImgHf, *(__m256*)_ps256_1), *(__m256*)_ps256_2);
 
                                 gx = _mm256_floor_ps(_mm256_add_ps(gx, _mm256_set1_ps(0.5f)));
                                 gy = _mm256_floor_ps(_mm256_add_ps(gy, _mm256_set1_ps(0.5f)));
@@ -2322,9 +2320,9 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                 gx = _mm256_shuffle_ps(gx, gy, 0b10001000);
                                 gy = _mm256_shuffle_ps(tmp_x, gy, 0b11011101);
 
-                                const __m256 two = _mm256_set1_ps(2.f);
-                                gx = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), two), _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1));
-                                gy = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), two), _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1));
+                                
+                                gx = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), *(__m256*)_ps256_2), _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1));
+                                gy = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), *(__m256*)_ps256_2), _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1));
 
                                 gx = _mm256_floor_ps(_mm256_add_ps(gx, _mm256_set1_ps(0.5f)));
                                 gy = _mm256_floor_ps(_mm256_add_ps(gy, _mm256_set1_ps(0.5f)));
@@ -2419,13 +2417,13 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 // compute coord
                                 {
-                                    const __m256 two = _mm256_set1_ps(2.f);
+
 
                                     // x
-                                    gx = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), vImgWf, *(__m256*)_ps256_1), two);
+                                    gx = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), vImgWf, *(__m256*)_ps256_1), *(__m256*)_ps256_2);
 
                                     // y
-                                    gy = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), vImgHf, *(__m256*)_ps256_1), two);
+                                    gy = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), vImgHf, *(__m256*)_ps256_1), *(__m256*)_ps256_2);
                                 }
 
                                 __m256 gx_floor = _mm256_floor_ps(gx);
@@ -2592,13 +2590,13 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 // compute coord
                                 {
-                                    const __m256 two = _mm256_set1_ps(2.f);
+
 
                                     // x
-                                    gx = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), two), _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1));
+                                    gx = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), *(__m256*)_ps256_2), _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1));
 
                                     // y
-                                    gy = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), two), _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1));
+                                    gy = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), *(__m256*)_ps256_2), _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1));
                                 }
 
                                 __m256 gx_floor = _mm256_floor_ps(gx);
@@ -2764,12 +2762,11 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 gx = _mm256_shuffle_ps(gx, gy, 0b10001000);
                                 gy = _mm256_shuffle_ps(tmp_x, gy, 0b11011101);
-
-                                const __m256 two = _mm256_set1_ps(2.f);
+                                
                                 const __m256 border_y = _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1);
                                 const __m256 border_x = _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1);
-                                gx = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), vImgWf, *(__m256*)_ps256_1), two);
-                                gy = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), vImgHf, *(__m256*)_ps256_1), two);
+                                gx = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), vImgWf, *(__m256*)_ps256_1), *(__m256*)_ps256_2);
+                                gy = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), vImgHf, *(__m256*)_ps256_1), *(__m256*)_ps256_2);
 
                                 __m256 gx_floor = _mm256_floor_ps(gx);
                                 __m256 gy_floor = _mm256_floor_ps(gy);
@@ -2912,12 +2909,12 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                 gx = _mm256_shuffle_ps(gx, gy, 0b10001000);
                                 gy = _mm256_shuffle_ps(tmp_x, gy, 0b11011101);
 
-                                const __m256 two = _mm256_set1_ps(2.f);
+                                
                                 const __m256 border_x = _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1);
                                 const __m256 border_y = _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1);
 
-                                gx = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), two), _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1));
-                                gy = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), two), _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1));
+                                gx = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), *(__m256*)_ps256_2), _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1));
+                                gy = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), *(__m256*)_ps256_2), _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1));
 
                                 __m256 gx_floor = _mm256_floor_ps(gx);
                                 __m256 gy_floor = _mm256_floor_ps(gy);
@@ -3062,11 +3059,10 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                 gx = _mm256_shuffle_ps(gx, gy, 0b10001000);
                                 gy = _mm256_shuffle_ps(tmp_x, gy, 0b11011101);
 
-                                const __m256 two = _mm256_set1_ps(2.f);
                                 const __m256 border_y = _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1);
                                 const __m256 border_x = _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1);
-                                gx = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), vImgWf, *(__m256*)_ps256_1), two);
-                                gy = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), vImgHf, *(__m256*)_ps256_1), two);
+                                gx = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), vImgWf, *(__m256*)_ps256_1), *(__m256*)_ps256_2);
+                                gy = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), vImgHf, *(__m256*)_ps256_1), *(__m256*)_ps256_2);
 
                                 __m256 gx_floor = _mm256_floor_ps(gx);
                                 __m256 gy_floor = _mm256_floor_ps(gy);
@@ -3083,8 +3079,6 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                 const __m256 v0p5fp8 = _mm256_set1_ps(0.5f);
                                 {
                                     // x0
-                                    const __m256 border_x = _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1);
-
                                     gx0 = _mm256_add_ps(gx0, v0p5fp8);
 
                                     gx0 = _mm256_and_ps(gx0, *(__m256*)_ps256_inv_sign_mask);
@@ -3148,8 +3142,6 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                     {
                                         //y
-                                        const __m256 border_y = _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1);
-
                                         gy = _mm256_add_ps(gy, v0p5fp8);
 
                                         gy = _mm256_and_ps(gy, *(__m256*)_ps256_inv_sign_mask);
@@ -3300,12 +3292,11 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                 gx = _mm256_shuffle_ps(gx, gy, 0b10001000);
                                 gy = _mm256_shuffle_ps(tmp_x, gy, 0b11011101);
 
-                                const __m256 two = _mm256_set1_ps(2.f);
                                 const __m256 border_x = _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1);
                                 const __m256 border_y = _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1);
 
-                                gx = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), two), _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1));
-                                gy = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), two), _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1));
+                                gx = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), *(__m256*)_ps256_2), _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1));
+                                gy = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), *(__m256*)_ps256_2), _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1));
 
                                 __m256 gx_floor = _mm256_floor_ps(gx);
                                 __m256 gy_floor = _mm256_floor_ps(gy);
@@ -3319,11 +3310,8 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                 __m256 gx1 = gx_floor;
                                 __m256 gx2 = _mm256_add_ps(gx_floor, *(__m256*)_ps256_1);
                                 __m256 gx3 = _mm256_add_ps(gx_floor, _mm256_set1_ps(2.0f));
-                                const __m256 v0p5fp8 = _mm256_set1_ps(0.5f);
                                 {
                                     // x0
-                                    const __m256 border_x = _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1);
-
                                     gx0 = _mm256_and_ps(gx0, *(__m256*)_ps256_inv_sign_mask);
                                     __m256 reflectx0_v = _mm256_and_ps(_mm256_sub_ps(gx0, border_x), *(__m256*)_ps256_inv_sign_mask);
                                     gx0 = _mm256_sub_ps(border_x, reflectx0_v);
@@ -3354,8 +3342,6 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                     {
                                         //y
-                                        const __m256 border_y = _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1);
-
                                         gy = _mm256_and_ps(gy, *(__m256*)_ps256_inv_sign_mask);
 
                                         __m256 reflecty_v = _mm256_and_ps(_mm256_sub_ps(gy, border_y), *(__m256*)_ps256_inv_sign_mask);
@@ -3471,7 +3457,9 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
         {
 #if __AVX__
             const __m256 vImgDf = _mm256_set1_ps(d);
+#if __AVX2__
             const __m256i vImgDi = _mm256_set1_epi32(d);
+#endif // __AVX2__
 #endif // __AVX__
             int grid_size = grid_p1.w * grid_p1.h * grid_p1.d;
 
@@ -3511,16 +3499,15 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 // compute coord
                                 {
-                                    const __m256 two = _mm256_set1_ps(2.f);
 
                                     // x
-                                    gx = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), vImgWf, *(__m256*)_ps256_1), two);
+                                    gx = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), vImgWf, *(__m256*)_ps256_1), *(__m256*)_ps256_2);
 
                                     // y
-                                    gy = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), vImgHf, *(__m256*)_ps256_1), two);
+                                    gy = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), vImgHf, *(__m256*)_ps256_1), *(__m256*)_ps256_2);
 
                                     // z
-                                    gz = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gz, *(__m256*)_ps256_1), vImgDf, *(__m256*)_ps256_1), two);
+                                    gz = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gz, *(__m256*)_ps256_1), vImgDf, *(__m256*)_ps256_1), *(__m256*)_ps256_2);
                                 }
 
                                 __m256 x_w = _mm256_floor_ps(gx);
@@ -3754,7 +3741,6 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                     float v0 = v00 * (1 - beta) + v01 * beta;
                                     float v1 = v10 * (1 - beta) + v11 * beta;
 
-                                    float v = v0 * (1 - gamma) + v1 * gamma;
                                     top_blob.channel(q).depth(y)[x / 3] = v0 * (1 - gamma) + v1 * gamma;
                                 }
                             }
@@ -3787,16 +3773,14 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 // compute coord
                                 {
-                                    const __m256 two = _mm256_set1_ps(2.f);
-
                                     // x
-                                    gx = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), two), _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1));
+                                    gx = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), *(__m256*)_ps256_2), _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1));
 
                                     // y
-                                    gy = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), two), _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1));
+                                    gy = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), *(__m256*)_ps256_2), _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1));
 
                                     // z
-                                    gz = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gz, *(__m256*)_ps256_1), two), _mm256_sub_ps(vImgDf, *(__m256*)_ps256_1));
+                                    gz = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gz, *(__m256*)_ps256_1), *(__m256*)_ps256_2), _mm256_sub_ps(vImgDf, *(__m256*)_ps256_1));
                                 }
 
                                 __m256 x_w = _mm256_floor_ps(gx);
@@ -4028,7 +4012,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                     float v0 = v00 * (1 - beta) + v01 * beta;
                                     float v1 = v10 * (1 - beta) + v11 * beta;
 
-                                    float v = v0 * (1 - gamma) + v1 * gamma;
+                                    
                                     top_blob.channel(q).depth(y)[x / 3] = v0 * (1 - gamma) + v1 * gamma;
                                 }
                             }
@@ -4064,24 +4048,22 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 // compute coord
                                 {
-                                    const __m256 two = _mm256_set1_ps(2.f);
-
                                     // x
-                                    gx = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), vImgWf, *(__m256*)_ps256_1), two);
+                                    gx = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), vImgWf, *(__m256*)_ps256_1), *(__m256*)_ps256_2);
 
                                     const __m256 border_x = _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1);
 
                                     gx = _mm256_min_ps(border_x, _mm256_max_ps(gx, _mm256_setzero_ps()));
 
                                     // y
-                                    gy = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), vImgHf, *(__m256*)_ps256_1), two);
+                                    gy = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), vImgHf, *(__m256*)_ps256_1), *(__m256*)_ps256_2);
 
                                     const __m256 border_y = _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1);
 
                                     gy = _mm256_min_ps(border_y, _mm256_max_ps(gy, _mm256_setzero_ps()));
 
                                     // z
-                                    gz = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gz, *(__m256*)_ps256_1), vImgDf, *(__m256*)_ps256_1), two);
+                                    gz = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gz, *(__m256*)_ps256_1), vImgDf, *(__m256*)_ps256_1), *(__m256*)_ps256_2);
 
                                     const __m256 border_z = _mm256_sub_ps(vImgDf, *(__m256*)_ps256_1);
 
@@ -4243,7 +4225,6 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                     float v0 = v00 * (1 - beta) + v01 * beta;
                                     float v1 = v10 * (1 - beta) + v11 * beta;
 
-                                    float v = v0 * (1 - gamma) + v1 * gamma;
                                     top_blob.channel(q).depth(y)[x / 3] = v0 * (1 - gamma) + v1 * gamma;
                                 }
                             }
@@ -4276,24 +4257,22 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 // compute coord
                                 {
-                                    const __m256 two = _mm256_set1_ps(2.f);
-
                                     // x
-                                    gx = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), two), _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1));
+                                    gx = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), *(__m256*)_ps256_2), _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1));
 
                                     const __m256 border_x = _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1);
 
                                     gx = _mm256_min_ps(border_x, _mm256_max_ps(gx, _mm256_setzero_ps()));
 
                                     // y
-                                    gy = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), two), _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1));
+                                    gy = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), *(__m256*)_ps256_2), _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1));
 
                                     const __m256 border_y = _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1);
 
                                     gy = _mm256_min_ps(border_y, _mm256_max_ps(gy, _mm256_setzero_ps()));
 
                                     // z
-                                    gz = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gz, *(__m256*)_ps256_1), two), _mm256_sub_ps(vImgDf, *(__m256*)_ps256_1));
+                                    gz = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gz, *(__m256*)_ps256_1), *(__m256*)_ps256_2), _mm256_sub_ps(vImgDf, *(__m256*)_ps256_1));
 
                                     const __m256 border_z = _mm256_sub_ps(vImgDf, *(__m256*)_ps256_1);
 
@@ -4455,7 +4434,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                     float v0 = v00 * (1 - beta) + v01 * beta;
                                     float v1 = v10 * (1 - beta) + v11 * beta;
 
-                                    float v = v0 * (1 - gamma) + v1 * gamma;
+                                    
                                     top_blob.channel(q).depth(y)[x / 3] = v0 * (1 - gamma) + v1 * gamma;
                                 }
                             }
@@ -4491,10 +4470,8 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 // compute coord
                                 {
-                                    const __m256 two = _mm256_set1_ps(2.f);
-
                                     // x
-                                    gx = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), vImgWf, *(__m256*)_ps256_1), two);
+                                    gx = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), vImgWf, *(__m256*)_ps256_1), *(__m256*)_ps256_2);
                                     const __m256 border_x = _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1);
 
                                     __m256 v0p5fp8 = _mm256_set1_ps(0.5f);
@@ -4512,7 +4489,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                     gx = _mm256_min_ps(border_x, _mm256_max_ps(gx, _mm256_setzero_ps()));
 
                                     // y
-                                    gy = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), vImgHf, *(__m256*)_ps256_1), two);
+                                    gy = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), vImgHf, *(__m256*)_ps256_1), *(__m256*)_ps256_2);
                                     const __m256 border_y = _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1);
 
                                     gy = _mm256_add_ps(gy, v0p5fp8);
@@ -4529,7 +4506,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                     gy = _mm256_min_ps(border_y, _mm256_max_ps(gy, _mm256_setzero_ps()));
 
                                     // z
-                                    gz = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gz, *(__m256*)_ps256_1), vImgDf, *(__m256*)_ps256_1), two);
+                                    gz = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gz, *(__m256*)_ps256_1), vImgDf, *(__m256*)_ps256_1), *(__m256*)_ps256_2);
                                     const __m256 border_z = _mm256_sub_ps(vImgDf, *(__m256*)_ps256_1);
 
                                     gz = _mm256_add_ps(gz, v0p5fp8);
@@ -4710,7 +4687,6 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                     float v0 = v00 * (1 - beta) + v01 * beta;
                                     float v1 = v10 * (1 - beta) + v11 * beta;
 
-                                    float v = v0 * (1 - gamma) + v1 * gamma;
                                     top_blob.channel(q).depth(y)[x / 3] = v0 * (1 - gamma) + v1 * gamma;
                                 }
                             }
@@ -4743,10 +4719,8 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 // compute coord
                                 {
-                                    const __m256 two = _mm256_set1_ps(2.f);
-
                                     // x
-                                    gx = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), two), _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1));
+                                    gx = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), *(__m256*)_ps256_2), _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1));
                                     const __m256 border_x = _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1);
 
                                     gx = _mm256_and_ps(gx, *(__m256*)_ps256_inv_sign_mask);
@@ -4755,7 +4729,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                     gx = _mm256_sub_ps(border_x, reflectx_v);
 
                                     // y
-                                    gy = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), two), _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1));
+                                    gy = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), *(__m256*)_ps256_2), _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1));
                                     const __m256 border_y = _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1);
 
                                     gy = _mm256_and_ps(gy, *(__m256*)_ps256_inv_sign_mask);
@@ -4764,7 +4738,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                     gy = _mm256_sub_ps(border_y, reflecty_v);
 
                                     // z
-                                    gz = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gz, *(__m256*)_ps256_1), two), _mm256_sub_ps(vImgDf, *(__m256*)_ps256_1));
+                                    gz = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gz, *(__m256*)_ps256_1), *(__m256*)_ps256_2), _mm256_sub_ps(vImgDf, *(__m256*)_ps256_1));
                                     const __m256 border_z = _mm256_sub_ps(vImgDf, *(__m256*)_ps256_1);
 
                                     gz = _mm256_and_ps(gz, *(__m256*)_ps256_inv_sign_mask);
@@ -4937,7 +4911,6 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                     float v0 = v00 * (1 - beta) + v01 * beta;
                                     float v1 = v10 * (1 - beta) + v11 * beta;
 
-                                    float v = v0 * (1 - gamma) + v1 * gamma;
                                     top_blob.channel(q).depth(y)[x / 3] = v0 * (1 - gamma) + v1 * gamma;
                                 }
                             }
@@ -4977,16 +4950,14 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 // compute coord
                                 {
-                                    const __m256 two = _mm256_set1_ps(2.f);
-
                                     // x
-                                    gx = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), vImgWf, *(__m256*)_ps256_1), two);
+                                    gx = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), vImgWf, *(__m256*)_ps256_1), *(__m256*)_ps256_2);
 
                                     // y
-                                    gy = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), vImgHf, *(__m256*)_ps256_1), two);
+                                    gy = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), vImgHf, *(__m256*)_ps256_1), *(__m256*)_ps256_2);
 
                                     // z
-                                    gz = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gz, *(__m256*)_ps256_1), vImgDf, *(__m256*)_ps256_1), two);
+                                    gz = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gz, *(__m256*)_ps256_1), vImgDf, *(__m256*)_ps256_1), *(__m256*)_ps256_2);
                                 }
 
                                 gx = _mm256_floor_ps(_mm256_add_ps(gx, _mm256_set1_ps(0.5f)));
@@ -5062,16 +5033,14 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 // compute coord
                                 {
-                                    const __m256 two = _mm256_set1_ps(2.f);
-
                                     // x
-                                    gx = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), two), _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1));
+                                    gx = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), *(__m256*)_ps256_2), _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1));
 
                                     // y
-                                    gy = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), two), _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1));
+                                    gy = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), *(__m256*)_ps256_2), _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1));
 
                                     // z
-                                    gz = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gz, *(__m256*)_ps256_1), two), _mm256_sub_ps(vImgDf, *(__m256*)_ps256_1));
+                                    gz = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gz, *(__m256*)_ps256_1), *(__m256*)_ps256_2), _mm256_sub_ps(vImgDf, *(__m256*)_ps256_1));
                                 }
 
                                 gx = _mm256_floor_ps(_mm256_add_ps(gx, _mm256_set1_ps(0.5f)));
@@ -5148,24 +5117,22 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 // compute coord
                                 {
-                                    const __m256 two = _mm256_set1_ps(2.f);
-
                                     // x
-                                    gx = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), vImgWf, *(__m256*)_ps256_1), two);
+                                    gx = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), vImgWf, *(__m256*)_ps256_1), *(__m256*)_ps256_2);
 
                                     const __m256 border_x = _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1);
 
                                     gx = _mm256_min_ps(border_x, _mm256_max_ps(gx, _mm256_setzero_ps()));
 
                                     // y
-                                    gy = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), vImgHf, *(__m256*)_ps256_1), two);
+                                    gy = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), vImgHf, *(__m256*)_ps256_1), *(__m256*)_ps256_2);
 
                                     const __m256 border_y = _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1);
 
                                     gy = _mm256_min_ps(border_y, _mm256_max_ps(gy, _mm256_setzero_ps()));
 
                                     // z
-                                    gz = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gz, *(__m256*)_ps256_1), vImgDf, *(__m256*)_ps256_1), two);
+                                    gz = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gz, *(__m256*)_ps256_1), vImgDf, *(__m256*)_ps256_1), *(__m256*)_ps256_2);
 
                                     const __m256 border_z = _mm256_sub_ps(vImgDf, *(__m256*)_ps256_1);
 
@@ -5241,57 +5208,26 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 // compute coord
                                 {
-                                    const __m256 two = _mm256_set1_ps(2.f);
-
                                     // x
-                                    gx = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), two), _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1));
+                                    gx = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), *(__m256*)_ps256_2), _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1));
 
                                     const __m256 border_x = _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1);
 
                                     gx = _mm256_min_ps(border_x, _mm256_max_ps(gx, _mm256_setzero_ps()));
 
                                     // y
-                                    gy = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), two), _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1));
+                                    gy = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), *(__m256*)_ps256_2), _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1));
 
                                     const __m256 border_y = _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1);
 
                                     gy = _mm256_min_ps(border_y, _mm256_max_ps(gy, _mm256_setzero_ps()));
 
                                     // z
-                                    gz = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gz, *(__m256*)_ps256_1), two), _mm256_sub_ps(vImgDf, *(__m256*)_ps256_1));
+                                    gz = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gz, *(__m256*)_ps256_1), *(__m256*)_ps256_2), _mm256_sub_ps(vImgDf, *(__m256*)_ps256_1));
 
                                     const __m256 border_z = _mm256_sub_ps(vImgDf, *(__m256*)_ps256_1);
 
                                     gz = _mm256_min_ps(border_z, _mm256_max_ps(gz, _mm256_setzero_ps()));
-                                }
-
-                                __m256 x_w = _mm256_floor_ps(gx);
-                                __m256 y_n = _mm256_floor_ps(gy);
-                                __m256 z_t = _mm256_floor_ps(gz);
-
-                                __m256 w = _mm256_sub_ps(gx, x_w);
-                                __m256 e = _mm256_sub_ps(*(__m256*)_ps256_1, w);
-                                __m256 n = _mm256_sub_ps(gy, y_n);
-                                __m256 s = _mm256_sub_ps(*(__m256*)_ps256_1, n);
-                                __m256 t = _mm256_sub_ps(gz, z_t);
-                                __m256 b = _mm256_sub_ps(*(__m256*)_ps256_1, t);
-
-                                __m256 tnw, tne, tsw, tse, bnw, bne, bsw, bse;
-                                {
-                                    __m256 nw = _mm256_mul_ps(s, e);
-                                    __m256 ne = _mm256_mul_ps(s, w);
-                                    __m256 sw = _mm256_mul_ps(n, e);
-                                    __m256 se = _mm256_mul_ps(n, w);
-
-                                    tnw = _mm256_mul_ps(b, nw);
-                                    tne = _mm256_mul_ps(b, ne);
-                                    tsw = _mm256_mul_ps(b, sw);
-                                    tse = _mm256_mul_ps(b, se);
-
-                                    bnw = _mm256_mul_ps(t, nw);
-                                    bne = _mm256_mul_ps(t, ne);
-                                    bsw = _mm256_mul_ps(t, sw);
-                                    bse = _mm256_mul_ps(t, se);
                                 }
 
                                 gx = _mm256_floor_ps(_mm256_add_ps(gx, _mm256_set1_ps(0.5f)));
@@ -5364,10 +5300,10 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                 gx = _mm256_shuffle_ps(gx, tmp_y, 0b10001100);
                                 gz = _mm256_shuffle_ps(tmp_x, gz, 0b11001101);
 
-                                const __m256 two = _mm256_set1_ps(2.f);
-                                gx = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), vImgWf, *(__m256*)_ps256_1), two);
-                                gy = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), vImgHf, *(__m256*)_ps256_1), two);
-                                gz = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gz, *(__m256*)_ps256_1), vImgDf, *(__m256*)_ps256_1), two);
+                                
+                                gx = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), vImgWf, *(__m256*)_ps256_1), *(__m256*)_ps256_2);
+                                gy = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), vImgHf, *(__m256*)_ps256_1), *(__m256*)_ps256_2);
+                                gz = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gz, *(__m256*)_ps256_1), vImgDf, *(__m256*)_ps256_1), *(__m256*)_ps256_2);
 
                                 gx = _mm256_floor_ps(_mm256_add_ps(gx, _mm256_set1_ps(0.5f)));
                                 gy = _mm256_floor_ps(_mm256_add_ps(gy, _mm256_set1_ps(0.5f)));
@@ -5496,10 +5432,10 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                 gx = _mm256_shuffle_ps(gx, tmp_y, 0b10001100);
                                 gz = _mm256_shuffle_ps(tmp_x, gz, 0b11001101);
 
-                                const __m256 two = _mm256_set1_ps(2.f);
-                                gx = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), two), _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1));
-                                gy = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), two), _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1));
-                                gz = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gz, *(__m256*)_ps256_1), two), _mm256_sub_ps(vImgDf, *(__m256*)_ps256_1));
+                                
+                                gx = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), *(__m256*)_ps256_2), _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1));
+                                gy = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), *(__m256*)_ps256_2), _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1));
+                                gz = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gz, *(__m256*)_ps256_1), *(__m256*)_ps256_2), _mm256_sub_ps(vImgDf, *(__m256*)_ps256_1));
 
                                 gx = _mm256_floor_ps(_mm256_add_ps(gx, _mm256_set1_ps(0.5f)));
                                 gy = _mm256_floor_ps(_mm256_add_ps(gy, _mm256_set1_ps(0.5f)));
@@ -5507,8 +5443,6 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 // compute coord
                                 {
-                                    const __m256 two = _mm256_set1_ps(2.f);
-
                                     // x
                                     const __m256 border_x = _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1);
 

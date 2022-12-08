@@ -19,8 +19,9 @@ static void gridsample_2d_bilinear_align0_zeros_blob_pack4(const Mat& src, Mat& 
     const __m128i vImgWi = _mm_set1_epi32(src.w);
     const __m128i vImgHi = _mm_set1_epi32(src.h);
 
+#if ((_MSC_VER && __AVX__) || __SSE4_1__)
     const __m128i vElempacki = _mm_set1_epi32(src.elempack);
-#if !((_MSC_VER && __AVX__) || __SSE4_1__)
+#else
     const __m128 vElempackf = _mm_set1_ps(src.elempack);
 #endif // !__SSE4_1__
 
@@ -123,8 +124,9 @@ static void gridsample_2d_bilinear_align1_zeros_blob_pack4(const Mat& src, Mat& 
     const __m128i vImgWi = _mm_set1_epi32(src.w);
     const __m128i vImgHi = _mm_set1_epi32(src.h);
 
+#if ((_MSC_VER && __AVX__) || __SSE4_1__)
     const __m128i vElempacki = _mm_set1_epi32(src.elempack);
-#if !((_MSC_VER && __AVX__) || __SSE4_1__)
+#else
     const __m128 vElempackf = _mm_set1_ps(src.elempack);
 #endif // !__SSE4_1__
 
@@ -227,8 +229,9 @@ static void gridsample_2d_bilinear_align0_border_blob_pack4(const Mat& src, Mat&
     const __m128i vImgWi = _mm_set1_epi32(src.w);
     const __m128i vImgHi = _mm_set1_epi32(src.h);
 
+#if ((_MSC_VER && __AVX__) || __SSE4_1__)
     const __m128i vElempacki = _mm_set1_epi32(src.elempack);
-#if !((_MSC_VER && __AVX__) || __SSE4_1__)
+#else
     const __m128 vElempackf = _mm_set1_ps(src.elempack);
 #endif // !__SSE4_1__
 
@@ -334,8 +337,9 @@ static void gridsample_2d_bilinear_align1_border_blob_pack4(const Mat& src, Mat&
     const __m128i vImgWi = _mm_set1_epi32(src.w);
     const __m128i vImgHi = _mm_set1_epi32(src.h);
 
+#if ((_MSC_VER && __AVX__) || __SSE4_1__)
     const __m128i vElempacki = _mm_set1_epi32(src.elempack);
-#if !((_MSC_VER && __AVX__) || __SSE4_1__)
+#else
     const __m128 vElempackf = _mm_set1_ps(src.elempack);
 #endif // !__SSE4_1__
 
@@ -441,8 +445,9 @@ static void gridsample_2d_bilinear_align0_reflection_blob_pack4(const Mat& src, 
     const __m128i vImgWi = _mm_set1_epi32(src.w);
     const __m128i vImgHi = _mm_set1_epi32(src.h);
 
+#if ((_MSC_VER && __AVX__) || __SSE4_1__)
     const __m128i vElempacki = _mm_set1_epi32(src.elempack);
-#if !((_MSC_VER && __AVX__) || __SSE4_1__)
+#else
     const __m128 vElempackf = _mm_set1_ps(src.elempack);
 #endif // !__SSE4_1__
 
@@ -571,8 +576,9 @@ static void gridsample_2d_bilinear_align1_reflection_blob_pack4(const Mat& src, 
     const __m128i vImgWi = _mm_set1_epi32(src.w);
     const __m128i vImgHi = _mm_set1_epi32(src.h);
 
+#if ((_MSC_VER && __AVX__) || __SSE4_1__)
     const __m128i vElempacki = _mm_set1_epi32(src.elempack);
-#if !((_MSC_VER && __AVX__) || __SSE4_1__)
+#else
     const __m128 vElempackf = _mm_set1_ps(src.elempack);
 #endif // !__SSE4_1__
 
@@ -686,8 +692,9 @@ static void gridsample_3d_bilinear_align0_zeros_blob_pack4(const Mat& src, Mat& 
     const __m128i vImgHi = _mm_set1_epi32(src.h);
     const __m128i vImgDi = _mm_set1_epi32(src.d);
 
+#if ((_MSC_VER && __AVX__) || __SSE4_1__)
     const __m128i vElempacki = _mm_set1_epi32(src.elempack);
-#if !((_MSC_VER && __AVX__) || __SSE4_1__)
+#else
     const __m128 vElempackf = _mm_set1_ps(src.elempack);
 #endif // !__SSE4_1__
 
@@ -856,8 +863,9 @@ static void gridsample_3d_bilinear_align1_zeros_blob_pack4(const Mat& src, Mat& 
     const __m128i vImgHi = _mm_set1_epi32(src.h);
     const __m128i vImgDi = _mm_set1_epi32(src.d);
 
+#if ((_MSC_VER && __AVX__) || __SSE4_1__)
     const __m128i vElempacki = _mm_set1_epi32(src.elempack);
-#if !((_MSC_VER && __AVX__) || __SSE4_1__)
+#else
     const __m128 vElempackf = _mm_set1_ps(src.elempack);
 #endif // !__SSE4_1__
 
@@ -1026,8 +1034,9 @@ static void gridsample_3d_bilinear_align0_border_blob_pack4(const Mat& src, Mat&
     const __m128i vImgHi = _mm_set1_epi32(src.h);
     const __m128i vImgDi = _mm_set1_epi32(src.d);
 
+#if ((_MSC_VER && __AVX__) || __SSE4_1__)
     const __m128i vElempacki = _mm_set1_epi32(src.elempack);
-#if !((_MSC_VER && __AVX__) || __SSE4_1__)
+#else
     const __m128 vElempackf = _mm_set1_ps(src.elempack);
 #endif // !__SSE4_1__
 
@@ -1192,8 +1201,9 @@ static void gridsample_3d_bilinear_align1_border_blob_pack4(const Mat& src, Mat&
     const __m128i vImgHi = _mm_set1_epi32(src.h);
     const __m128i vImgDi = _mm_set1_epi32(src.d);
 
+#if ((_MSC_VER && __AVX__) || __SSE4_1__)
     const __m128i vElempacki = _mm_set1_epi32(src.elempack);
-#if !((_MSC_VER && __AVX__) || __SSE4_1__)
+#else
     const __m128 vElempackf = _mm_set1_ps(src.elempack);
 #endif // !__SSE4_1__
 
@@ -1358,8 +1368,9 @@ static void gridsample_3d_bilinear_align0_reflection_blob_pack4(const Mat& src, 
     const __m128i vImgHi = _mm_set1_epi32(src.h);
     const __m128i vImgDi = _mm_set1_epi32(src.d);
 
+#if ((_MSC_VER && __AVX__) || __SSE4_1__)
     const __m128i vElempacki = _mm_set1_epi32(src.elempack);
-#if !((_MSC_VER && __AVX__) || __SSE4_1__)
+#else
     const __m128 vElempackf = _mm_set1_ps(src.elempack);
 #endif // !__SSE4_1__
 
@@ -1554,9 +1565,9 @@ static void gridsample_3d_bilinear_align1_reflection_blob_pack4(const Mat& src, 
     const __m128i vImgWi = _mm_set1_epi32(src.w);
     const __m128i vImgHi = _mm_set1_epi32(src.h);
     const __m128i vImgDi = _mm_set1_epi32(src.d);
-
+#if ((_MSC_VER && __AVX__) || __SSE4_1__)
     const __m128i vElempacki = _mm_set1_epi32(src.elempack);
-#if !((_MSC_VER && __AVX__) || __SSE4_1__)
+#else
     const __m128 vElempackf = _mm_set1_ps(src.elempack);
 #endif // !__SSE4_1__
 
