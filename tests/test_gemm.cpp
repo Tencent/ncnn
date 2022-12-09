@@ -332,29 +332,52 @@ int main()
 {
     SRAND(7767517);
 
-    int nmk[] = {1, 2, 3, 4, 5, 6, 7, 8, 11, 12, 13, 16, 20, 24, 50, 573};
-    int nmk_count = sizeof(nmk) / sizeof(int);
-
-    for (int i = 0; i < nmk_count; i++)
+    int mnk[][3] =
     {
-        for (int j = 0; j < nmk_count; j++)
-        {
-            for (int k = 0; k < nmk_count; k++)
-            {
-                int M = nmk[i];
-                int N = nmk[j];
-                int K = nmk[k];
+        {1, 1, 1},
+        {2, 2, 2},
+        {3, 3, 3},
+        {4, 4, 4},
+        {5, 5, 5},
+        {6, 6, 6},
+        {7, 7, 7},
+        {8, 8, 8},
+        {15, 15, 15},
+        {16, 16, 16},
+        {31, 31, 31},
+        {40, 40, 40},
+        {1, 1, 23},
+        {1, 31, 1},
+        {23, 1, 1},
+        {1, 1, 47},
+        {1, 35, 1},
+        {47, 1, 1},
+        {1, 35, 47},
+        {23, 31, 1},
+        {23, 1, 23},
+        {23, 31, 23},
+        {47, 35, 1},
+        {47, 1, 47},
+        {47, 35, 47},
+        {311, 311, 311}
+    };
 
-                int ret = 0
-                          || test_gemm_0(M, N, K)
-                          || test_gemm_1(M, N, K)
-                          || test_gemm_2(M, N, K)
-                          || test_gemm_3(M, N, K);
+    int mnk_count = sizeof(mnk) / sizeof(int) / 3;
 
-                if (ret != 0)
-                    return 0;
-            }
-        }
+    for (int i = 0; i < mnk_count; i++)
+    {
+        int M = mnk[i][0];
+        int N = mnk[i][1];
+        int K = mnk[i][2];
+
+        int ret = 0
+                    || test_gemm_0(M, N, K)
+                    || test_gemm_1(M, N, K)
+                    || test_gemm_2(M, N, K)
+                    || test_gemm_3(M, N, K);
+
+        if (ret != 0)
+            return 0;
     }
 
     return 0;
