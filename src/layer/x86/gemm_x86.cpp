@@ -6202,9 +6202,28 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
 static void get_optimal_tile_mnk(int M, int N, int K, int& TILE_M, int& TILE_N, int& TILE_K, const Option& opt)
 {
     // TODO do not hardcode
-    TILE_M = 16 * 8 * get_physical_cpu_count();
-    TILE_N = 12 * 10 * get_physical_cpu_count();
-    TILE_K = 16 * 8 * get_physical_cpu_count();
+#if __AVX512F__
+    TILE_M = 16 * 8;
+    TILE_N = 12 * 10;
+    TILE_K = 16 * 8;
+#elif __AVX__
+    TILE_M = 8 * 16;
+    TILE_N = 12 * 10;
+    TILE_K = 8 * 16;
+#elif __SSE2__
+    TILE_M = 4 * 16;
+    TILE_N = 12 * 5;
+    TILE_K = 4 * 16;
+#else
+    TILE_M = 16;
+    TILE_N = 12;
+    TILE_K = 16;
+#endif
+
+    const int physical_cpu_count = get_physical_cpu_count();
+    TILE_M *= physical_cpu_count;
+    TILE_N *= physical_cpu_count;
+    TILE_K *= physical_cpu_count;
 
     if (M > 0)
     {
