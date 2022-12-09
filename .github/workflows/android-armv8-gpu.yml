@@ -60,7 +60,7 @@ jobs:
         cmake --build . -j 2
 
   android-aarch64-gpu-ndk-r16b:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
     - uses: actions/checkout@v3
       with:
