@@ -5524,6 +5524,8 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
             }
         }
         return 0;
+#else
+        return GridSample::forward(bottom_blobs, top_blobs, opt);
 #endif // __SSE2__
     }
     return 0;
