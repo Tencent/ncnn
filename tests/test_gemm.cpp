@@ -332,8 +332,7 @@ int main()
 {
     SRAND(7767517);
 
-    int mnk[][3] =
-    {
+    int mnk[][3] = {
         {1, 1, 1},
         {2, 2, 2},
         {3, 3, 3},
@@ -377,10 +376,10 @@ int main()
         int K = mnk[i][2];
 
         int ret = 0
-                    || test_gemm_0(M, N, K)
-                    || test_gemm_1(M, N, K)
-                    || test_gemm_2(M, N, K)
-                    || test_gemm_3(M, N, K);
+                  || test_gemm_0(M, N, K)
+                  || test_gemm_1(M, N, K)
+                  || test_gemm_2(M, N, K)
+                  || test_gemm_3(M, N, K);
 
         if (ret != 0)
             return 0;
