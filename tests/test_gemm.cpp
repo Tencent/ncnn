@@ -15,13 +15,14 @@
 #include "layer/gemm.h"
 #include "testutil.h"
 
-static int test_gemm(int M, int N, int K, float alpha, int transA, int transB)
+static int test_gemm(int M, int N, int K, float alpha, int transA, int transB, int output_N1M = 0)
 {
     ncnn::ParamDict pd;
     pd.set(0, alpha);
     pd.set(1, 1.f); // beta
     pd.set(2, transA);
     pd.set(3, transB);
+    pd.set(11, output_N1M);
 
     std::vector<ncnn::Mat> weights(0);
 
@@ -35,7 +36,7 @@ static int test_gemm(int M, int N, int K, float alpha, int transA, int transB)
     int ret = test_layer<ncnn::Gemm>("Gemm", pd, weights, a);
     if (ret != 0)
     {
-        fprintf(stderr, "test_gemm failed M=%d N=%d K=%d alpha=%f transA=%d transB=%d\n", M, N, K, alpha, transA, transB);
+        fprintf(stderr, "test_gemm failed M=%d N=%d K=%d alpha=%f transA=%d transB=%d output_N1M=%d\n", M, N, K, alpha, transA, transB, output_N1M);
     }
 
     return ret;
@@ -278,6 +279,9 @@ static int test_gemm_0(int M, int N, int K)
            || test_gemm(M, N, K, 3.1f, 0, 1)
            || test_gemm(M, N, K, 4.1f, 1, 0)
            || test_gemm(M, N, K, 5.1f, 1, 1)
+
+           || test_gemm(M, N, K, 1.9f, 1, 0, 1)
+           || test_gemm(M, N, K, 1.7f, 0, 1, 1)
 
            || test_gemm_constantA(M, N, K, 2.1f, 0, 0)
            || test_gemm_constantA(M, N, K, 3.1f, 0, 1)

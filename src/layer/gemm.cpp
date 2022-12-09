@@ -35,6 +35,7 @@ int Gemm::load_param(const ParamDict& pd)
     constantN = pd.get(8, 0);
     constantK = pd.get(9, 0);
     constant_broadcast_type_C = pd.get(10, 0);
+    output_N1M = pd.get(11, 0);
 
     if (constantA == 1 && (constantM == 0 || constantK == 0))
     {
@@ -214,13 +215,19 @@ int Gemm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
     }
 
     Mat& top_blob = top_blobs[0];
-    top_blob.create(N, M, elemsize, opt.blob_allocator);
+    if (output_N1M)
+        top_blob.create(N, 1, M, elemsize, opt.blob_allocator);
+    else
+        top_blob.create(N, M, elemsize, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
 
-    float* outptr = top_blob;
+    const int out_hstep = output_N1M ? (int)top_blob.cstep : N;
+
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int i = 0; i < M; i++)
     {
+        float* outptr = (float*)top_blob + i * out_hstep;
         const float* ptrA = A.row(i);
 
         for (int j = 0; j < N; j++)

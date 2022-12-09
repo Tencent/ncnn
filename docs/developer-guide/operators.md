@@ -823,6 +823,7 @@ y = gemm(a, b) * alpha + c * beta
 | 8         | constantN     | int   | 0         |                   |
 | 9         | constantK     | int   | 0         |                   |
 | 10        | constant_broadcast_type_C | int | 0 |                 |
+| 11        | output_N1M    | int   | 0         |                   |
 
 | weight        | type  | shape                 |
 | ------------- | ----- | --------------------- |

@@ -1951,6 +1951,7 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
 {
     const int out_elempack = top_blob.elempack;
     const int N = top_blob.w;
+    const int out_hstep = top_blob.dims == 3 ? (int)top_blob.cstep : N;
 
     const float* pA0 = AT_tile;
     const float* pB0 = BT_tile;
@@ -1963,7 +1964,7 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
 #if __AVX512F__
     for (; ii + 15 < max_ii; ii += 16)
     {
-        float* outptr0 = top_blob.row((i + ii) / out_elempack) + j * out_elempack;
+        float* outptr0 = (float*)top_blob + (i + ii) * out_hstep + j * out_elempack;
 
         const float* pB = pB0;
 
@@ -2372,18 +2373,18 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
                     _mm256_store_ps(outptr0 + 8 * 10, _mm512_extractf32x8_ps(_suma, 0));
                     _mm256_store_ps(outptr0 + 8 * 11, _mm512_extractf32x8_ps(_sumb, 0));
 
-                    _mm256_store_ps(outptr0 + N * 8, _mm512_extractf32x8_ps(_sum0, 1));
-                    _mm256_store_ps(outptr0 + N * 8 + 8 * 1, _mm512_extractf32x8_ps(_sum1, 1));
-                    _mm256_store_ps(outptr0 + N * 8 + 8 * 2, _mm512_extractf32x8_ps(_sum2, 1));
-                    _mm256_store_ps(outptr0 + N * 8 + 8 * 3, _mm512_extractf32x8_ps(_sum3, 1));
-                    _mm256_store_ps(outptr0 + N * 8 + 8 * 4, _mm512_extractf32x8_ps(_sum4, 1));
-                    _mm256_store_ps(outptr0 + N * 8 + 8 * 5, _mm512_extractf32x8_ps(_sum5, 1));
-                    _mm256_store_ps(outptr0 + N * 8 + 8 * 6, _mm512_extractf32x8_ps(_sum6, 1));
-                    _mm256_store_ps(outptr0 + N * 8 + 8 * 7, _mm512_extractf32x8_ps(_sum7, 1));
-                    _mm256_store_ps(outptr0 + N * 8 + 8 * 8, _mm512_extractf32x8_ps(_sum8, 1));
-                    _mm256_store_ps(outptr0 + N * 8 + 8 * 9, _mm512_extractf32x8_ps(_sum9, 1));
-                    _mm256_store_ps(outptr0 + N * 8 + 8 * 10, _mm512_extractf32x8_ps(_suma, 1));
-                    _mm256_store_ps(outptr0 + N * 8 + 8 * 11, _mm512_extractf32x8_ps(_sumb, 1));
+                    _mm256_store_ps(outptr0 + out_hstep * 8, _mm512_extractf32x8_ps(_sum0, 1));
+                    _mm256_store_ps(outptr0 + out_hstep * 8 + 8 * 1, _mm512_extractf32x8_ps(_sum1, 1));
+                    _mm256_store_ps(outptr0 + out_hstep * 8 + 8 * 2, _mm512_extractf32x8_ps(_sum2, 1));
+                    _mm256_store_ps(outptr0 + out_hstep * 8 + 8 * 3, _mm512_extractf32x8_ps(_sum3, 1));
+                    _mm256_store_ps(outptr0 + out_hstep * 8 + 8 * 4, _mm512_extractf32x8_ps(_sum4, 1));
+                    _mm256_store_ps(outptr0 + out_hstep * 8 + 8 * 5, _mm512_extractf32x8_ps(_sum5, 1));
+                    _mm256_store_ps(outptr0 + out_hstep * 8 + 8 * 6, _mm512_extractf32x8_ps(_sum6, 1));
+                    _mm256_store_ps(outptr0 + out_hstep * 8 + 8 * 7, _mm512_extractf32x8_ps(_sum7, 1));
+                    _mm256_store_ps(outptr0 + out_hstep * 8 + 8 * 8, _mm512_extractf32x8_ps(_sum8, 1));
+                    _mm256_store_ps(outptr0 + out_hstep * 8 + 8 * 9, _mm512_extractf32x8_ps(_sum9, 1));
+                    _mm256_store_ps(outptr0 + out_hstep * 8 + 8 * 10, _mm512_extractf32x8_ps(_suma, 1));
+                    _mm256_store_ps(outptr0 + out_hstep * 8 + 8 * 11, _mm512_extractf32x8_ps(_sumb, 1));
 
                     outptr0 += 96;
                 }
@@ -2402,44 +2403,44 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
                     _mm_store_ps(outptr0 + 4 * 10, _mm512_extractf32x4_ps(_suma, 0));
                     _mm_store_ps(outptr0 + 4 * 11, _mm512_extractf32x4_ps(_sumb, 0));
 
-                    _mm_store_ps(outptr0 + N * 4, _mm512_extractf32x4_ps(_sum0, 1));
-                    _mm_store_ps(outptr0 + N * 4 + 4 * 1, _mm512_extractf32x4_ps(_sum1, 1));
-                    _mm_store_ps(outptr0 + N * 4 + 4 * 2, _mm512_extractf32x4_ps(_sum2, 1));
-                    _mm_store_ps(outptr0 + N * 4 + 4 * 3, _mm512_extractf32x4_ps(_sum3, 1));
-                    _mm_store_ps(outptr0 + N * 4 + 4 * 4, _mm512_extractf32x4_ps(_sum4, 1));
-                    _mm_store_ps(outptr0 + N * 4 + 4 * 5, _mm512_extractf32x4_ps(_sum5, 1));
-                    _mm_store_ps(outptr0 + N * 4 + 4 * 6, _mm512_extractf32x4_ps(_sum6, 1));
-                    _mm_store_ps(outptr0 + N * 4 + 4 * 7, _mm512_extractf32x4_ps(_sum7, 1));
-                    _mm_store_ps(outptr0 + N * 4 + 4 * 8, _mm512_extractf32x4_ps(_sum8, 1));
-                    _mm_store_ps(outptr0 + N * 4 + 4 * 9, _mm512_extractf32x4_ps(_sum9, 1));
-                    _mm_store_ps(outptr0 + N * 4 + 4 * 10, _mm512_extractf32x4_ps(_suma, 1));
-                    _mm_store_ps(outptr0 + N * 4 + 4 * 11, _mm512_extractf32x4_ps(_sumb, 1));
+                    _mm_store_ps(outptr0 + out_hstep * 4, _mm512_extractf32x4_ps(_sum0, 1));
+                    _mm_store_ps(outptr0 + out_hstep * 4 + 4 * 1, _mm512_extractf32x4_ps(_sum1, 1));
+                    _mm_store_ps(outptr0 + out_hstep * 4 + 4 * 2, _mm512_extractf32x4_ps(_sum2, 1));
+                    _mm_store_ps(outptr0 + out_hstep * 4 + 4 * 3, _mm512_extractf32x4_ps(_sum3, 1));
+                    _mm_store_ps(outptr0 + out_hstep * 4 + 4 * 4, _mm512_extractf32x4_ps(_sum4, 1));
+                    _mm_store_ps(outptr0 + out_hstep * 4 + 4 * 5, _mm512_extractf32x4_ps(_sum5, 1));
+                    _mm_store_ps(outptr0 + out_hstep * 4 + 4 * 6, _mm512_extractf32x4_ps(_sum6, 1));
+                    _mm_store_ps(outptr0 + out_hstep * 4 + 4 * 7, _mm512_extractf32x4_ps(_sum7, 1));
+                    _mm_store_ps(outptr0 + out_hstep * 4 + 4 * 8, _mm512_extractf32x4_ps(_sum8, 1));
+                    _mm_store_ps(outptr0 + out_hstep * 4 + 4 * 9, _mm512_extractf32x4_ps(_sum9, 1));
+                    _mm_store_ps(outptr0 + out_hstep * 4 + 4 * 10, _mm512_extractf32x4_ps(_suma, 1));
+                    _mm_store_ps(outptr0 + out_hstep * 4 + 4 * 11, _mm512_extractf32x4_ps(_sumb, 1));
 
-                    _mm_store_ps(outptr0 + N * 8, _mm512_extractf32x4_ps(_sum0, 2));
-                    _mm_store_ps(outptr0 + N * 8 + 4 * 1, _mm512_extractf32x4_ps(_sum1, 2));
-                    _mm_store_ps(outptr0 + N * 8 + 4 * 2, _mm512_extractf32x4_ps(_sum2, 2));
-                    _mm_store_ps(outptr0 + N * 8 + 4 * 3, _mm512_extractf32x4_ps(_sum3, 2));
-                    _mm_store_ps(outptr0 + N * 8 + 4 * 4, _mm512_extractf32x4_ps(_sum4, 2));
-                    _mm_store_ps(outptr0 + N * 8 + 4 * 5, _mm512_extractf32x4_ps(_sum5, 2));
-                    _mm_store_ps(outptr0 + N * 8 + 4 * 6, _mm512_extractf32x4_ps(_sum6, 2));
-                    _mm_store_ps(outptr0 + N * 8 + 4 * 7, _mm512_extractf32x4_ps(_sum7, 2));
-                    _mm_store_ps(outptr0 + N * 8 + 4 * 8, _mm512_extractf32x4_ps(_sum8, 2));
-                    _mm_store_ps(outptr0 + N * 8 + 4 * 9, _mm512_extractf32x4_ps(_sum9, 2));
-                    _mm_store_ps(outptr0 + N * 8 + 4 * 10, _mm512_extractf32x4_ps(_suma, 2));
-                    _mm_store_ps(outptr0 + N * 8 + 4 * 11, _mm512_extractf32x4_ps(_sumb, 2));
+                    _mm_store_ps(outptr0 + out_hstep * 8, _mm512_extractf32x4_ps(_sum0, 2));
+                    _mm_store_ps(outptr0 + out_hstep * 8 + 4 * 1, _mm512_extractf32x4_ps(_sum1, 2));
+                    _mm_store_ps(outptr0 + out_hstep * 8 + 4 * 2, _mm512_extractf32x4_ps(_sum2, 2));
+                    _mm_store_ps(outptr0 + out_hstep * 8 + 4 * 3, _mm512_extractf32x4_ps(_sum3, 2));
+                    _mm_store_ps(outptr0 + out_hstep * 8 + 4 * 4, _mm512_extractf32x4_ps(_sum4, 2));
+                    _mm_store_ps(outptr0 + out_hstep * 8 + 4 * 5, _mm512_extractf32x4_ps(_sum5, 2));
+                    _mm_store_ps(outptr0 + out_hstep * 8 + 4 * 6, _mm512_extractf32x4_ps(_sum6, 2));
+                    _mm_store_ps(outptr0 + out_hstep * 8 + 4 * 7, _mm512_extractf32x4_ps(_sum7, 2));
+                    _mm_store_ps(outptr0 + out_hstep * 8 + 4 * 8, _mm512_extractf32x4_ps(_sum8, 2));
+                    _mm_store_ps(outptr0 + out_hstep * 8 + 4 * 9, _mm512_extractf32x4_ps(_sum9, 2));
+                    _mm_store_ps(outptr0 + out_hstep * 8 + 4 * 10, _mm512_extractf32x4_ps(_suma, 2));
+                    _mm_store_ps(outptr0 + out_hstep * 8 + 4 * 11, _mm512_extractf32x4_ps(_sumb, 2));
 
-                    _mm_store_ps(outptr0 + N * 12, _mm512_extractf32x4_ps(_sum0, 3));
-                    _mm_store_ps(outptr0 + N * 12 + 4 * 1, _mm512_extractf32x4_ps(_sum1, 3));
-                    _mm_store_ps(outptr0 + N * 12 + 4 * 2, _mm512_extractf32x4_ps(_sum2, 3));
-                    _mm_store_ps(outptr0 + N * 12 + 4 * 3, _mm512_extractf32x4_ps(_sum3, 3));
-                    _mm_store_ps(outptr0 + N * 12 + 4 * 4, _mm512_extractf32x4_ps(_sum4, 3));
-                    _mm_store_ps(outptr0 + N * 12 + 4 * 5, _mm512_extractf32x4_ps(_sum5, 3));
-                    _mm_store_ps(outptr0 + N * 12 + 4 * 6, _mm512_extractf32x4_ps(_sum6, 3));
-                    _mm_store_ps(outptr0 + N * 12 + 4 * 7, _mm512_extractf32x4_ps(_sum7, 3));
-                    _mm_store_ps(outptr0 + N * 12 + 4 * 8, _mm512_extractf32x4_ps(_sum8, 3));
-                    _mm_store_ps(outptr0 + N * 12 + 4 * 9, _mm512_extractf32x4_ps(_sum9, 3));
-                    _mm_store_ps(outptr0 + N * 12 + 4 * 10, _mm512_extractf32x4_ps(_suma, 3));
-                    _mm_store_ps(outptr0 + N * 12 + 4 * 11, _mm512_extractf32x4_ps(_sumb, 3));
+                    _mm_store_ps(outptr0 + out_hstep * 12, _mm512_extractf32x4_ps(_sum0, 3));
+                    _mm_store_ps(outptr0 + out_hstep * 12 + 4 * 1, _mm512_extractf32x4_ps(_sum1, 3));
+                    _mm_store_ps(outptr0 + out_hstep * 12 + 4 * 2, _mm512_extractf32x4_ps(_sum2, 3));
+                    _mm_store_ps(outptr0 + out_hstep * 12 + 4 * 3, _mm512_extractf32x4_ps(_sum3, 3));
+                    _mm_store_ps(outptr0 + out_hstep * 12 + 4 * 4, _mm512_extractf32x4_ps(_sum4, 3));
+                    _mm_store_ps(outptr0 + out_hstep * 12 + 4 * 5, _mm512_extractf32x4_ps(_sum5, 3));
+                    _mm_store_ps(outptr0 + out_hstep * 12 + 4 * 6, _mm512_extractf32x4_ps(_sum6, 3));
+                    _mm_store_ps(outptr0 + out_hstep * 12 + 4 * 7, _mm512_extractf32x4_ps(_sum7, 3));
+                    _mm_store_ps(outptr0 + out_hstep * 12 + 4 * 8, _mm512_extractf32x4_ps(_sum8, 3));
+                    _mm_store_ps(outptr0 + out_hstep * 12 + 4 * 9, _mm512_extractf32x4_ps(_sum9, 3));
+                    _mm_store_ps(outptr0 + out_hstep * 12 + 4 * 10, _mm512_extractf32x4_ps(_suma, 3));
+                    _mm_store_ps(outptr0 + out_hstep * 12 + 4 * 11, _mm512_extractf32x4_ps(_sumb, 3));
 
                     outptr0 += 48;
                 }
@@ -2449,39 +2450,39 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
 
                     _mm256_storeu_ps(outptr0, _mm512_extractf32x8_ps(_sum0, 0));
                     _mm_storeu_ps(outptr0 + 8, _mm512_extractf32x4_ps(_sum0, 2));
-                    _mm_storeu_ps(outptr0 + N * 1, _mm512_extractf32x4_ps(_sum0, 3));
-                    _mm256_storeu_ps(outptr0 + N * 1 + 4, _mm512_extractf32x8_ps(_sum1, 0));
-                    _mm256_storeu_ps(outptr0 + N * 2, _mm512_extractf32x8_ps(_sum1, 1));
-                    _mm_storeu_ps(outptr0 + N * 2 + 8, _mm512_extractf32x4_ps(_sum2, 0));
-                    _mm_storeu_ps(outptr0 + N * 3, _mm512_extractf32x4_ps(_sum2, 1));
-                    _mm256_storeu_ps(outptr0 + N * 3 + 4, _mm512_extractf32x8_ps(_sum2, 1));
+                    _mm_storeu_ps(outptr0 + out_hstep * 1, _mm512_extractf32x4_ps(_sum0, 3));
+                    _mm256_storeu_ps(outptr0 + out_hstep * 1 + 4, _mm512_extractf32x8_ps(_sum1, 0));
+                    _mm256_storeu_ps(outptr0 + out_hstep * 2, _mm512_extractf32x8_ps(_sum1, 1));
+                    _mm_storeu_ps(outptr0 + out_hstep * 2 + 8, _mm512_extractf32x4_ps(_sum2, 0));
+                    _mm_storeu_ps(outptr0 + out_hstep * 3, _mm512_extractf32x4_ps(_sum2, 1));
+                    _mm256_storeu_ps(outptr0 + out_hstep * 3 + 4, _mm512_extractf32x8_ps(_sum2, 1));
 
-                    _mm256_storeu_ps(outptr0 + N * 4, _mm512_extractf32x8_ps(_sum3, 0));
-                    _mm_storeu_ps(outptr0 + N * 4 + 8, _mm512_extractf32x4_ps(_sum3, 2));
-                    _mm_storeu_ps(outptr0 + N * 5, _mm512_extractf32x4_ps(_sum3, 3));
-                    _mm256_storeu_ps(outptr0 + N * 5 + 4, _mm512_extractf32x8_ps(_sum4, 0));
-                    _mm256_storeu_ps(outptr0 + N * 6, _mm512_extractf32x8_ps(_sum4, 1));
-                    _mm_storeu_ps(outptr0 + N * 6 + 8, _mm512_extractf32x4_ps(_sum5, 0));
-                    _mm_storeu_ps(outptr0 + N * 7, _mm512_extractf32x4_ps(_sum5, 1));
-                    _mm256_storeu_ps(outptr0 + N * 7 + 4, _mm512_extractf32x8_ps(_sum5, 1));
+                    _mm256_storeu_ps(outptr0 + out_hstep * 4, _mm512_extractf32x8_ps(_sum3, 0));
+                    _mm_storeu_ps(outptr0 + out_hstep * 4 + 8, _mm512_extractf32x4_ps(_sum3, 2));
+                    _mm_storeu_ps(outptr0 + out_hstep * 5, _mm512_extractf32x4_ps(_sum3, 3));
+                    _mm256_storeu_ps(outptr0 + out_hstep * 5 + 4, _mm512_extractf32x8_ps(_sum4, 0));
+                    _mm256_storeu_ps(outptr0 + out_hstep * 6, _mm512_extractf32x8_ps(_sum4, 1));
+                    _mm_storeu_ps(outptr0 + out_hstep * 6 + 8, _mm512_extractf32x4_ps(_sum5, 0));
+                    _mm_storeu_ps(outptr0 + out_hstep * 7, _mm512_extractf32x4_ps(_sum5, 1));
+                    _mm256_storeu_ps(outptr0 + out_hstep * 7 + 4, _mm512_extractf32x8_ps(_sum5, 1));
 
-                    _mm256_storeu_ps(outptr0 + N * 8, _mm512_extractf32x8_ps(_sum6, 0));
-                    _mm_storeu_ps(outptr0 + N * 8 + 8, _mm512_extractf32x4_ps(_sum6, 2));
-                    _mm_storeu_ps(outptr0 + N * 9, _mm512_extractf32x4_ps(_sum6, 3));
-                    _mm256_storeu_ps(outptr0 + N * 9 + 4, _mm512_extractf32x8_ps(_sum7, 0));
-                    _mm256_storeu_ps(outptr0 + N * 10, _mm512_extractf32x8_ps(_sum7, 1));
-                    _mm_storeu_ps(outptr0 + N * 10 + 8, _mm512_extractf32x4_ps(_sum8, 0));
-                    _mm_storeu_ps(outptr0 + N * 11, _mm512_extractf32x4_ps(_sum8, 1));
-                    _mm256_storeu_ps(outptr0 + N * 11 + 4, _mm512_extractf32x8_ps(_sum8, 1));
+                    _mm256_storeu_ps(outptr0 + out_hstep * 8, _mm512_extractf32x8_ps(_sum6, 0));
+                    _mm_storeu_ps(outptr0 + out_hstep * 8 + 8, _mm512_extractf32x4_ps(_sum6, 2));
+                    _mm_storeu_ps(outptr0 + out_hstep * 9, _mm512_extractf32x4_ps(_sum6, 3));
+                    _mm256_storeu_ps(outptr0 + out_hstep * 9 + 4, _mm512_extractf32x8_ps(_sum7, 0));
+                    _mm256_storeu_ps(outptr0 + out_hstep * 10, _mm512_extractf32x8_ps(_sum7, 1));
+                    _mm_storeu_ps(outptr0 + out_hstep * 10 + 8, _mm512_extractf32x4_ps(_sum8, 0));
+                    _mm_storeu_ps(outptr0 + out_hstep * 11, _mm512_extractf32x4_ps(_sum8, 1));
+                    _mm256_storeu_ps(outptr0 + out_hstep * 11 + 4, _mm512_extractf32x8_ps(_sum8, 1));
 
-                    _mm256_storeu_ps(outptr0 + N * 12, _mm512_extractf32x8_ps(_sum9, 0));
-                    _mm_storeu_ps(outptr0 + N * 12 + 8, _mm512_extractf32x4_ps(_sum9, 2));
-                    _mm_storeu_ps(outptr0 + N * 13, _mm512_extractf32x4_ps(_sum9, 3));
-                    _mm256_storeu_ps(outptr0 + N * 13 + 4, _mm512_extractf32x8_ps(_suma, 0));
-                    _mm256_storeu_ps(outptr0 + N * 14, _mm512_extractf32x8_ps(_suma, 1));
-                    _mm_storeu_ps(outptr0 + N * 14 + 8, _mm512_extractf32x4_ps(_sumb, 0));
-                    _mm_storeu_ps(outptr0 + N * 15, _mm512_extractf32x4_ps(_sumb, 1));
-                    _mm256_storeu_ps(outptr0 + N * 15 + 4, _mm512_extractf32x8_ps(_sumb, 1));
+                    _mm256_storeu_ps(outptr0 + out_hstep * 12, _mm512_extractf32x8_ps(_sum9, 0));
+                    _mm_storeu_ps(outptr0 + out_hstep * 12 + 8, _mm512_extractf32x4_ps(_sum9, 2));
+                    _mm_storeu_ps(outptr0 + out_hstep * 13, _mm512_extractf32x4_ps(_sum9, 3));
+                    _mm256_storeu_ps(outptr0 + out_hstep * 13 + 4, _mm512_extractf32x8_ps(_suma, 0));
+                    _mm256_storeu_ps(outptr0 + out_hstep * 14, _mm512_extractf32x8_ps(_suma, 1));
+                    _mm_storeu_ps(outptr0 + out_hstep * 14 + 8, _mm512_extractf32x4_ps(_sumb, 0));
+                    _mm_storeu_ps(outptr0 + out_hstep * 15, _mm512_extractf32x4_ps(_sumb, 1));
+                    _mm256_storeu_ps(outptr0 + out_hstep * 15 + 4, _mm512_extractf32x8_ps(_sumb, 1));
 
                     outptr0 += 12;
                 }
@@ -2758,14 +2759,14 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
                     _mm256_store_ps(outptr0 + 8 * 6, _mm512_extractf32x8_ps(_sum6, 0));
                     _mm256_store_ps(outptr0 + 8 * 7, _mm512_extractf32x8_ps(_sum7, 0));
 
-                    _mm256_store_ps(outptr0 + N * 8, _mm512_extractf32x8_ps(_sum0, 1));
-                    _mm256_store_ps(outptr0 + N * 8 + 8 * 1, _mm512_extractf32x8_ps(_sum1, 1));
-                    _mm256_store_ps(outptr0 + N * 8 + 8 * 2, _mm512_extractf32x8_ps(_sum2, 1));
-                    _mm256_store_ps(outptr0 + N * 8 + 8 * 3, _mm512_extractf32x8_ps(_sum3, 1));
-                    _mm256_store_ps(outptr0 + N * 8 + 8 * 4, _mm512_extractf32x8_ps(_sum4, 1));
-                    _mm256_store_ps(outptr0 + N * 8 + 8 * 5, _mm512_extractf32x8_ps(_sum5, 1));
-                    _mm256_store_ps(outptr0 + N * 8 + 8 * 6, _mm512_extractf32x8_ps(_sum6, 1));
-                    _mm256_store_ps(outptr0 + N * 8 + 8 * 7, _mm512_extractf32x8_ps(_sum7, 1));
+                    _mm256_store_ps(outptr0 + out_hstep * 8, _mm512_extractf32x8_ps(_sum0, 1));
+                    _mm256_store_ps(outptr0 + out_hstep * 8 + 8 * 1, _mm512_extractf32x8_ps(_sum1, 1));
+                    _mm256_store_ps(outptr0 + out_hstep * 8 + 8 * 2, _mm512_extractf32x8_ps(_sum2, 1));
+                    _mm256_store_ps(outptr0 + out_hstep * 8 + 8 * 3, _mm512_extractf32x8_ps(_sum3, 1));
+                    _mm256_store_ps(outptr0 + out_hstep * 8 + 8 * 4, _mm512_extractf32x8_ps(_sum4, 1));
+                    _mm256_store_ps(outptr0 + out_hstep * 8 + 8 * 5, _mm512_extractf32x8_ps(_sum5, 1));
+                    _mm256_store_ps(outptr0 + out_hstep * 8 + 8 * 6, _mm512_extractf32x8_ps(_sum6, 1));
+                    _mm256_store_ps(outptr0 + out_hstep * 8 + 8 * 7, _mm512_extractf32x8_ps(_sum7, 1));
 
                     outptr0 += 64;
                 }
@@ -2780,32 +2781,32 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
                     _mm_store_ps(outptr0 + 4 * 6, _mm512_extractf32x4_ps(_sum6, 0));
                     _mm_store_ps(outptr0 + 4 * 7, _mm512_extractf32x4_ps(_sum7, 0));
 
-                    _mm_store_ps(outptr0 + N * 4, _mm512_extractf32x4_ps(_sum0, 1));
-                    _mm_store_ps(outptr0 + N * 4 + 4 * 1, _mm512_extractf32x4_ps(_sum1, 1));
-                    _mm_store_ps(outptr0 + N * 4 + 4 * 2, _mm512_extractf32x4_ps(_sum2, 1));
-                    _mm_store_ps(outptr0 + N * 4 + 4 * 3, _mm512_extractf32x4_ps(_sum3, 1));
-                    _mm_store_ps(outptr0 + N * 4 + 4 * 4, _mm512_extractf32x4_ps(_sum4, 1));
-                    _mm_store_ps(outptr0 + N * 4 + 4 * 5, _mm512_extractf32x4_ps(_sum5, 1));
-                    _mm_store_ps(outptr0 + N * 4 + 4 * 6, _mm512_extractf32x4_ps(_sum6, 1));
-                    _mm_store_ps(outptr0 + N * 4 + 4 * 7, _mm512_extractf32x4_ps(_sum7, 1));
+                    _mm_store_ps(outptr0 + out_hstep * 4, _mm512_extractf32x4_ps(_sum0, 1));
+                    _mm_store_ps(outptr0 + out_hstep * 4 + 4 * 1, _mm512_extractf32x4_ps(_sum1, 1));
+                    _mm_store_ps(outptr0 + out_hstep * 4 + 4 * 2, _mm512_extractf32x4_ps(_sum2, 1));
+                    _mm_store_ps(outptr0 + out_hstep * 4 + 4 * 3, _mm512_extractf32x4_ps(_sum3, 1));
+                    _mm_store_ps(outptr0 + out_hstep * 4 + 4 * 4, _mm512_extractf32x4_ps(_sum4, 1));
+                    _mm_store_ps(outptr0 + out_hstep * 4 + 4 * 5, _mm512_extractf32x4_ps(_sum5, 1));
+                    _mm_store_ps(outptr0 + out_hstep * 4 + 4 * 6, _mm512_extractf32x4_ps(_sum6, 1));
+                    _mm_store_ps(outptr0 + out_hstep * 4 + 4 * 7, _mm512_extractf32x4_ps(_sum7, 1));
 
-                    _mm_store_ps(outptr0 + N * 8, _mm512_extractf32x4_ps(_sum0, 2));
-                    _mm_store_ps(outptr0 + N * 8 + 4 * 1, _mm512_extractf32x4_ps(_sum1, 2));
-                    _mm_store_ps(outptr0 + N * 8 + 4 * 2, _mm512_extractf32x4_ps(_sum2, 2));
-                    _mm_store_ps(outptr0 + N * 8 + 4 * 3, _mm512_extractf32x4_ps(_sum3, 2));
-                    _mm_store_ps(outptr0 + N * 8 + 4 * 4, _mm512_extractf32x4_ps(_sum4, 2));
-                    _mm_store_ps(outptr0 + N * 8 + 4 * 5, _mm512_extractf32x4_ps(_sum5, 2));
-                    _mm_store_ps(outptr0 + N * 8 + 4 * 6, _mm512_extractf32x4_ps(_sum6, 2));
-                    _mm_store_ps(outptr0 + N * 8 + 4 * 7, _mm512_extractf32x4_ps(_sum7, 2));
+                    _mm_store_ps(outptr0 + out_hstep * 8, _mm512_extractf32x4_ps(_sum0, 2));
+                    _mm_store_ps(outptr0 + out_hstep * 8 + 4 * 1, _mm512_extractf32x4_ps(_sum1, 2));
+                    _mm_store_ps(outptr0 + out_hstep * 8 + 4 * 2, _mm512_extractf32x4_ps(_sum2, 2));
+                    _mm_store_ps(outptr0 + out_hstep * 8 + 4 * 3, _mm512_extractf32x4_ps(_sum3, 2));
+                    _mm_store_ps(outptr0 + out_hstep * 8 + 4 * 4, _mm512_extractf32x4_ps(_sum4, 2));
+                    _mm_store_ps(outptr0 + out_hstep * 8 + 4 * 5, _mm512_extractf32x4_ps(_sum5, 2));
+                    _mm_store_ps(outptr0 + out_hstep * 8 + 4 * 6, _mm512_extractf32x4_ps(_sum6, 2));
+                    _mm_store_ps(outptr0 + out_hstep * 8 + 4 * 7, _mm512_extractf32x4_ps(_sum7, 2));
 
-                    _mm_store_ps(outptr0 + N * 12, _mm512_extractf32x4_ps(_sum0, 3));
-                    _mm_store_ps(outptr0 + N * 12 + 4 * 1, _mm512_extractf32x4_ps(_sum1, 3));
-                    _mm_store_ps(outptr0 + N * 12 + 4 * 2, _mm512_extractf32x4_ps(_sum2, 3));
-                    _mm_store_ps(outptr0 + N * 12 + 4 * 3, _mm512_extractf32x4_ps(_sum3, 3));
-                    _mm_store_ps(outptr0 + N * 12 + 4 * 4, _mm512_extractf32x4_ps(_sum4, 3));
-                    _mm_store_ps(outptr0 + N * 12 + 4 * 5, _mm512_extractf32x4_ps(_sum5, 3));
-                    _mm_store_ps(outptr0 + N * 12 + 4 * 6, _mm512_extractf32x4_ps(_sum6, 3));
-                    _mm_store_ps(outptr0 + N * 12 + 4 * 7, _mm512_extractf32x4_ps(_sum7, 3));
+                    _mm_store_ps(outptr0 + out_hstep * 12, _mm512_extractf32x4_ps(_sum0, 3));
+                    _mm_store_ps(outptr0 + out_hstep * 12 + 4 * 1, _mm512_extractf32x4_ps(_sum1, 3));
+                    _mm_store_ps(outptr0 + out_hstep * 12 + 4 * 2, _mm512_extractf32x4_ps(_sum2, 3));
+                    _mm_store_ps(outptr0 + out_hstep * 12 + 4 * 3, _mm512_extractf32x4_ps(_sum3, 3));
+                    _mm_store_ps(outptr0 + out_hstep * 12 + 4 * 4, _mm512_extractf32x4_ps(_sum4, 3));
+                    _mm_store_ps(outptr0 + out_hstep * 12 + 4 * 5, _mm512_extractf32x4_ps(_sum5, 3));
+                    _mm_store_ps(outptr0 + out_hstep * 12 + 4 * 6, _mm512_extractf32x4_ps(_sum6, 3));
+                    _mm_store_ps(outptr0 + out_hstep * 12 + 4 * 7, _mm512_extractf32x4_ps(_sum7, 3));
 
                     outptr0 += 32;
                 }
@@ -2814,21 +2815,21 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
                     transpose16x8_ps(_sum0, _sum1, _sum2, _sum3, _sum4, _sum5, _sum6, _sum7);
 
                     _mm256_storeu_ps(outptr0, _mm512_extractf32x8_ps(_sum0, 0));
-                    _mm256_storeu_ps(outptr0 + N * 1, _mm512_extractf32x8_ps(_sum0, 1));
-                    _mm256_storeu_ps(outptr0 + N * 2, _mm512_extractf32x8_ps(_sum1, 0));
-                    _mm256_storeu_ps(outptr0 + N * 3, _mm512_extractf32x8_ps(_sum1, 1));
-                    _mm256_storeu_ps(outptr0 + N * 4, _mm512_extractf32x8_ps(_sum2, 0));
-                    _mm256_storeu_ps(outptr0 + N * 5, _mm512_extractf32x8_ps(_sum2, 1));
-                    _mm256_storeu_ps(outptr0 + N * 6, _mm512_extractf32x8_ps(_sum3, 0));
-                    _mm256_storeu_ps(outptr0 + N * 7, _mm512_extractf32x8_ps(_sum3, 1));
-                    _mm256_storeu_ps(outptr0 + N * 8, _mm512_extractf32x8_ps(_sum4, 0));
-                    _mm256_storeu_ps(outptr0 + N * 9, _mm512_extractf32x8_ps(_sum4, 1));
-                    _mm256_storeu_ps(outptr0 + N * 10, _mm512_extractf32x8_ps(_sum5, 0));
-                    _mm256_storeu_ps(outptr0 + N * 11, _mm512_extractf32x8_ps(_sum5, 1));
-                    _mm256_storeu_ps(outptr0 + N * 12, _mm512_extractf32x8_ps(_sum6, 0));
-                    _mm256_storeu_ps(outptr0 + N * 13, _mm512_extractf32x8_ps(_sum6, 1));
-                    _mm256_storeu_ps(outptr0 + N * 14, _mm512_extractf32x8_ps(_sum7, 0));
-                    _mm256_storeu_ps(outptr0 + N * 15, _mm512_extractf32x8_ps(_sum7, 1));
+                    _mm256_storeu_ps(outptr0 + out_hstep * 1, _mm512_extractf32x8_ps(_sum0, 1));
+                    _mm256_storeu_ps(outptr0 + out_hstep * 2, _mm512_extractf32x8_ps(_sum1, 0));
+                    _mm256_storeu_ps(outptr0 + out_hstep * 3, _mm512_extractf32x8_ps(_sum1, 1));
+                    _mm256_storeu_ps(outptr0 + out_hstep * 4, _mm512_extractf32x8_ps(_sum2, 0));
+                    _mm256_storeu_ps(outptr0 + out_hstep * 5, _mm512_extractf32x8_ps(_sum2, 1));
+                    _mm256_storeu_ps(outptr0 + out_hstep * 6, _mm512_extractf32x8_ps(_sum3, 0));
+                    _mm256_storeu_ps(outptr0 + out_hstep * 7, _mm512_extractf32x8_ps(_sum3, 1));
+                    _mm256_storeu_ps(outptr0 + out_hstep * 8, _mm512_extractf32x8_ps(_sum4, 0));
+                    _mm256_storeu_ps(outptr0 + out_hstep * 9, _mm512_extractf32x8_ps(_sum4, 1));
+                    _mm256_storeu_ps(outptr0 + out_hstep * 10, _mm512_extractf32x8_ps(_sum5, 0));
+                    _mm256_storeu_ps(outptr0 + out_hstep * 11, _mm512_extractf32x8_ps(_sum5, 1));
+                    _mm256_storeu_ps(outptr0 + out_hstep * 12, _mm512_extractf32x8_ps(_sum6, 0));
+                    _mm256_storeu_ps(outptr0 + out_hstep * 13, _mm512_extractf32x8_ps(_sum6, 1));
+                    _mm256_storeu_ps(outptr0 + out_hstep * 14, _mm512_extractf32x8_ps(_sum7, 0));
+                    _mm256_storeu_ps(outptr0 + out_hstep * 15, _mm512_extractf32x8_ps(_sum7, 1));
 
                     outptr0 += 8;
                 }
@@ -3020,10 +3021,10 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
                     _mm256_store_ps(outptr0 + 8 * 2, _mm512_extractf32x8_ps(_sum2, 0));
                     _mm256_store_ps(outptr0 + 8 * 3, _mm512_extractf32x8_ps(_sum3, 0));
 
-                    _mm256_store_ps(outptr0 + N * 8, _mm512_extractf32x8_ps(_sum0, 1));
-                    _mm256_store_ps(outptr0 + N * 8 + 8 * 1, _mm512_extractf32x8_ps(_sum1, 1));
-                    _mm256_store_ps(outptr0 + N * 8 + 8 * 2, _mm512_extractf32x8_ps(_sum2, 1));
-                    _mm256_store_ps(outptr0 + N * 8 + 8 * 3, _mm512_extractf32x8_ps(_sum3, 1));
+                    _mm256_store_ps(outptr0 + out_hstep * 8, _mm512_extractf32x8_ps(_sum0, 1));
+                    _mm256_store_ps(outptr0 + out_hstep * 8 + 8 * 1, _mm512_extractf32x8_ps(_sum1, 1));
+                    _mm256_store_ps(outptr0 + out_hstep * 8 + 8 * 2, _mm512_extractf32x8_ps(_sum2, 1));
+                    _mm256_store_ps(outptr0 + out_hstep * 8 + 8 * 3, _mm512_extractf32x8_ps(_sum3, 1));
 
                     outptr0 += 32;
                 }
@@ -3034,20 +3035,20 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
                     _mm_store_ps(outptr0 + 4 * 2, _mm512_extractf32x4_ps(_sum2, 0));
                     _mm_store_ps(outptr0 + 4 * 3, _mm512_extractf32x4_ps(_sum3, 0));
 
-                    _mm_store_ps(outptr0 + N * 4, _mm512_extractf32x4_ps(_sum0, 1));
-                    _mm_store_ps(outptr0 + N * 4 + 4 * 1, _mm512_extractf32x4_ps(_sum1, 1));
-                    _mm_store_ps(outptr0 + N * 4 + 4 * 2, _mm512_extractf32x4_ps(_sum2, 1));
-                    _mm_store_ps(outptr0 + N * 4 + 4 * 3, _mm512_extractf32x4_ps(_sum3, 1));
+                    _mm_store_ps(outptr0 + out_hstep * 4, _mm512_extractf32x4_ps(_sum0, 1));
+                    _mm_store_ps(outptr0 + out_hstep * 4 + 4 * 1, _mm512_extractf32x4_ps(_sum1, 1));
+                    _mm_store_ps(outptr0 + out_hstep * 4 + 4 * 2, _mm512_extractf32x4_ps(_sum2, 1));
+                    _mm_store_ps(outptr0 + out_hstep * 4 + 4 * 3, _mm512_extractf32x4_ps(_sum3, 1));
 
-                    _mm_store_ps(outptr0 + N * 8, _mm512_extractf32x4_ps(_sum0, 2));
-                    _mm_store_ps(outptr0 + N * 8 + 4 * 1, _mm512_extractf32x4_ps(_sum1, 2));
-                    _mm_store_ps(outptr0 + N * 8 + 4 * 2, _mm512_extractf32x4_ps(_sum2, 2));
-                    _mm_store_ps(outptr0 + N * 8 + 4 * 3, _mm512_extractf32x4_ps(_sum3, 2));
+                    _mm_store_ps(outptr0 + out_hstep * 8, _mm512_extractf32x4_ps(_sum0, 2));
+                    _mm_store_ps(outptr0 + out_hstep * 8 + 4 * 1, _mm512_extractf32x4_ps(_sum1, 2));
+                    _mm_store_ps(outptr0 + out_hstep * 8 + 4 * 2, _mm512_extractf32x4_ps(_sum2, 2));
+                    _mm_store_ps(outptr0 + out_hstep * 8 + 4 * 3, _mm512_extractf32x4_ps(_sum3, 2));
 
-                    _mm_store_ps(outptr0 + N * 12, _mm512_extractf32x4_ps(_sum0, 3));
-                    _mm_store_ps(outptr0 + N * 12 + 4 * 1, _mm512_extractf32x4_ps(_sum1, 3));
-                    _mm_store_ps(outptr0 + N * 12 + 4 * 2, _mm512_extractf32x4_ps(_sum2, 3));
-                    _mm_store_ps(outptr0 + N * 12 + 4 * 3, _mm512_extractf32x4_ps(_sum3, 3));
+                    _mm_store_ps(outptr0 + out_hstep * 12, _mm512_extractf32x4_ps(_sum0, 3));
+                    _mm_store_ps(outptr0 + out_hstep * 12 + 4 * 1, _mm512_extractf32x4_ps(_sum1, 3));
+                    _mm_store_ps(outptr0 + out_hstep * 12 + 4 * 2, _mm512_extractf32x4_ps(_sum2, 3));
+                    _mm_store_ps(outptr0 + out_hstep * 12 + 4 * 3, _mm512_extractf32x4_ps(_sum3, 3));
 
                     outptr0 += 16;
                 }
@@ -3076,21 +3077,21 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
                     _MM_TRANSPOSE4_PS(_sum0_3, _sum1_3, _sum2_3, _sum3_3);
 
                     _mm_storeu_ps(outptr0, _sum0_0);
-                    _mm_storeu_ps(outptr0 + N * 1, _sum1_0);
-                    _mm_storeu_ps(outptr0 + N * 2, _sum2_0);
-                    _mm_storeu_ps(outptr0 + N * 3, _sum3_0);
-                    _mm_storeu_ps(outptr0 + N * 4, _sum0_1);
-                    _mm_storeu_ps(outptr0 + N * 5, _sum1_1);
-                    _mm_storeu_ps(outptr0 + N * 6, _sum2_1);
-                    _mm_storeu_ps(outptr0 + N * 7, _sum3_1);
-                    _mm_storeu_ps(outptr0 + N * 8, _sum0_2);
-                    _mm_storeu_ps(outptr0 + N * 9, _sum1_2);
-                    _mm_storeu_ps(outptr0 + N * 10, _sum2_2);
-                    _mm_storeu_ps(outptr0 + N * 11, _sum3_2);
-                    _mm_storeu_ps(outptr0 + N * 12, _sum0_3);
-                    _mm_storeu_ps(outptr0 + N * 13, _sum1_3);
-                    _mm_storeu_ps(outptr0 + N * 14, _sum2_3);
-                    _mm_storeu_ps(outptr0 + N * 15, _sum3_3);
+                    _mm_storeu_ps(outptr0 + out_hstep * 1, _sum1_0);
+                    _mm_storeu_ps(outptr0 + out_hstep * 2, _sum2_0);
+                    _mm_storeu_ps(outptr0 + out_hstep * 3, _sum3_0);
+                    _mm_storeu_ps(outptr0 + out_hstep * 4, _sum0_1);
+                    _mm_storeu_ps(outptr0 + out_hstep * 5, _sum1_1);
+                    _mm_storeu_ps(outptr0 + out_hstep * 6, _sum2_1);
+                    _mm_storeu_ps(outptr0 + out_hstep * 7, _sum3_1);
+                    _mm_storeu_ps(outptr0 + out_hstep * 8, _sum0_2);
+                    _mm_storeu_ps(outptr0 + out_hstep * 9, _sum1_2);
+                    _mm_storeu_ps(outptr0 + out_hstep * 10, _sum2_2);
+                    _mm_storeu_ps(outptr0 + out_hstep * 11, _sum3_2);
+                    _mm_storeu_ps(outptr0 + out_hstep * 12, _sum0_3);
+                    _mm_storeu_ps(outptr0 + out_hstep * 13, _sum1_3);
+                    _mm_storeu_ps(outptr0 + out_hstep * 14, _sum2_3);
+                    _mm_storeu_ps(outptr0 + out_hstep * 15, _sum3_3);
 
                     outptr0 += 4;
                 }
@@ -3249,8 +3250,8 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
                     _mm256_store_ps(outptr0, _mm512_extractf32x8_ps(_sum0, 0));
                     _mm256_store_ps(outptr0 + 8, _mm512_extractf32x8_ps(_sum1, 0));
 
-                    _mm256_store_ps(outptr0 + N * 8, _mm512_extractf32x8_ps(_sum0, 1));
-                    _mm256_store_ps(outptr0 + N * 8 + 8, _mm512_extractf32x8_ps(_sum1, 1));
+                    _mm256_store_ps(outptr0 + out_hstep * 8, _mm512_extractf32x8_ps(_sum0, 1));
+                    _mm256_store_ps(outptr0 + out_hstep * 8 + 8, _mm512_extractf32x8_ps(_sum1, 1));
                     outptr0 += 16;
                 }
                 if (out_elempack == 4)
@@ -3258,14 +3259,14 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
                     _mm_store_ps(outptr0, _mm512_extractf32x4_ps(_sum0, 0));
                     _mm_store_ps(outptr0 + 4, _mm512_extractf32x4_ps(_sum1, 0));
 
-                    _mm_store_ps(outptr0 + N * 4, _mm512_extractf32x4_ps(_sum0, 1));
-                    _mm_store_ps(outptr0 + N * 4 + 4, _mm512_extractf32x4_ps(_sum1, 1));
+                    _mm_store_ps(outptr0 + out_hstep * 4, _mm512_extractf32x4_ps(_sum0, 1));
+                    _mm_store_ps(outptr0 + out_hstep * 4 + 4, _mm512_extractf32x4_ps(_sum1, 1));
 
-                    _mm_store_ps(outptr0 + N * 8, _mm512_extractf32x4_ps(_sum0, 2));
-                    _mm_store_ps(outptr0 + N * 8 + 4, _mm512_extractf32x4_ps(_sum1, 2));
+                    _mm_store_ps(outptr0 + out_hstep * 8, _mm512_extractf32x4_ps(_sum0, 2));
+                    _mm_store_ps(outptr0 + out_hstep * 8 + 4, _mm512_extractf32x4_ps(_sum1, 2));
 
-                    _mm_store_ps(outptr0 + N * 12, _mm512_extractf32x4_ps(_sum0, 3));
-                    _mm_store_ps(outptr0 + N * 12 + 4, _mm512_extractf32x4_ps(_sum1, 3));
+                    _mm_store_ps(outptr0 + out_hstep * 12, _mm512_extractf32x4_ps(_sum0, 3));
+                    _mm_store_ps(outptr0 + out_hstep * 12 + 4, _mm512_extractf32x4_ps(_sum1, 3));
                     outptr0 += 8;
                 }
                 if (out_elempack == 1)
@@ -3276,38 +3277,38 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
                     _mm512_storeu_ps(sum1, _sum1);
 
                     outptr0[0] = sum0[0];
-                    outptr0[N] = sum0[1];
-                    outptr0[N * 2] = sum0[2];
-                    outptr0[N * 3] = sum0[3];
-                    outptr0[N * 4] = sum0[4];
-                    outptr0[N * 5] = sum0[5];
-                    outptr0[N * 6] = sum0[6];
-                    outptr0[N * 7] = sum0[7];
-                    outptr0[N * 8] = sum0[8];
-                    outptr0[N * 9] = sum0[9];
-                    outptr0[N * 10] = sum0[10];
-                    outptr0[N * 11] = sum0[11];
-                    outptr0[N * 12] = sum0[12];
-                    outptr0[N * 13] = sum0[13];
-                    outptr0[N * 14] = sum0[14];
-                    outptr0[N * 15] = sum0[15];
+                    outptr0[out_hstep] = sum0[1];
+                    outptr0[out_hstep * 2] = sum0[2];
+                    outptr0[out_hstep * 3] = sum0[3];
+                    outptr0[out_hstep * 4] = sum0[4];
+                    outptr0[out_hstep * 5] = sum0[5];
+                    outptr0[out_hstep * 6] = sum0[6];
+                    outptr0[out_hstep * 7] = sum0[7];
+                    outptr0[out_hstep * 8] = sum0[8];
+                    outptr0[out_hstep * 9] = sum0[9];
+                    outptr0[out_hstep * 10] = sum0[10];
+                    outptr0[out_hstep * 11] = sum0[11];
+                    outptr0[out_hstep * 12] = sum0[12];
+                    outptr0[out_hstep * 13] = sum0[13];
+                    outptr0[out_hstep * 14] = sum0[14];
+                    outptr0[out_hstep * 15] = sum0[15];
 
                     outptr0[1] = sum1[0];
-                    outptr0[N + 1] = sum1[1];
-                    outptr0[N * 2 + 1] = sum1[2];
-                    outptr0[N * 3 + 1] = sum1[3];
-                    outptr0[N * 4 + 1] = sum1[4];
-                    outptr0[N * 5 + 1] = sum1[5];
-                    outptr0[N * 6 + 1] = sum1[6];
-                    outptr0[N * 7 + 1] = sum1[7];
-                    outptr0[N * 8 + 1] = sum1[8];
-                    outptr0[N * 9 + 1] = sum1[9];
-                    outptr0[N * 10 + 1] = sum1[10];
-                    outptr0[N * 11 + 1] = sum1[11];
-                    outptr0[N * 12 + 1] = sum1[12];
-                    outptr0[N * 13 + 1] = sum1[13];
-                    outptr0[N * 14 + 1] = sum1[14];
-                    outptr0[N * 15 + 1] = sum1[15];
+                    outptr0[out_hstep + 1] = sum1[1];
+                    outptr0[out_hstep * 2 + 1] = sum1[2];
+                    outptr0[out_hstep * 3 + 1] = sum1[3];
+                    outptr0[out_hstep * 4 + 1] = sum1[4];
+                    outptr0[out_hstep * 5 + 1] = sum1[5];
+                    outptr0[out_hstep * 6 + 1] = sum1[6];
+                    outptr0[out_hstep * 7 + 1] = sum1[7];
+                    outptr0[out_hstep * 8 + 1] = sum1[8];
+                    outptr0[out_hstep * 9 + 1] = sum1[9];
+                    outptr0[out_hstep * 10 + 1] = sum1[10];
+                    outptr0[out_hstep * 11 + 1] = sum1[11];
+                    outptr0[out_hstep * 12 + 1] = sum1[12];
+                    outptr0[out_hstep * 13 + 1] = sum1[13];
+                    outptr0[out_hstep * 14 + 1] = sum1[14];
+                    outptr0[out_hstep * 15 + 1] = sum1[15];
                     outptr0 += 2;
                 }
             }
@@ -3424,15 +3425,15 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
                 if (out_elempack == 8)
                 {
                     _mm256_store_ps(outptr0, _mm512_extractf32x8_ps(_sum0, 0));
-                    _mm256_store_ps(outptr0 + N * 8, _mm512_extractf32x8_ps(_sum0, 1));
+                    _mm256_store_ps(outptr0 + out_hstep * 8, _mm512_extractf32x8_ps(_sum0, 1));
                     outptr0 += 8;
                 }
                 if (out_elempack == 4)
                 {
                     _mm_store_ps(outptr0, _mm512_extractf32x4_ps(_sum0, 0));
-                    _mm_store_ps(outptr0 + N * 4, _mm512_extractf32x4_ps(_sum0, 1));
-                    _mm_store_ps(outptr0 + N * 8, _mm512_extractf32x4_ps(_sum0, 2));
-                    _mm_store_ps(outptr0 + N * 12, _mm512_extractf32x4_ps(_sum0, 3));
+                    _mm_store_ps(outptr0 + out_hstep * 4, _mm512_extractf32x4_ps(_sum0, 1));
+                    _mm_store_ps(outptr0 + out_hstep * 8, _mm512_extractf32x4_ps(_sum0, 2));
+                    _mm_store_ps(outptr0 + out_hstep * 12, _mm512_extractf32x4_ps(_sum0, 3));
                     outptr0 += 4;
                 }
                 if (out_elempack == 1)
@@ -3441,21 +3442,21 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
                     _mm512_storeu_ps(sum0, _sum0);
 
                     outptr0[0] = sum0[0];
-                    outptr0[N * 1] = sum0[1];
-                    outptr0[N * 2] = sum0[2];
-                    outptr0[N * 3] = sum0[3];
-                    outptr0[N * 4] = sum0[4];
-                    outptr0[N * 5] = sum0[5];
-                    outptr0[N * 6] = sum0[6];
-                    outptr0[N * 7] = sum0[7];
-                    outptr0[N * 8] = sum0[8];
-                    outptr0[N * 9] = sum0[9];
-                    outptr0[N * 10] = sum0[10];
-                    outptr0[N * 11] = sum0[11];
-                    outptr0[N * 12] = sum0[12];
-                    outptr0[N * 13] = sum0[13];
-                    outptr0[N * 14] = sum0[14];
-                    outptr0[N * 15] = sum0[15];
+                    outptr0[out_hstep * 1] = sum0[1];
+                    outptr0[out_hstep * 2] = sum0[2];
+                    outptr0[out_hstep * 3] = sum0[3];
+                    outptr0[out_hstep * 4] = sum0[4];
+                    outptr0[out_hstep * 5] = sum0[5];
+                    outptr0[out_hstep * 6] = sum0[6];
+                    outptr0[out_hstep * 7] = sum0[7];
+                    outptr0[out_hstep * 8] = sum0[8];
+                    outptr0[out_hstep * 9] = sum0[9];
+                    outptr0[out_hstep * 10] = sum0[10];
+                    outptr0[out_hstep * 11] = sum0[11];
+                    outptr0[out_hstep * 12] = sum0[12];
+                    outptr0[out_hstep * 13] = sum0[13];
+                    outptr0[out_hstep * 14] = sum0[14];
+                    outptr0[out_hstep * 15] = sum0[15];
                     outptr0++;
                 }
             }
@@ -3472,7 +3473,7 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
 #endif // __AVX512F__
     for (; ii + 7 < max_ii; ii += 8)
     {
-        float* outptr0 = top_blob.row((i + ii) / out_elempack) + j * out_elempack;
+        float* outptr0 = (float*)top_blob + (i + ii) * out_hstep + j * out_elempack;
 
         const float* pB = pB0;
 
@@ -3764,18 +3765,18 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
                     _mm_store_ps(outptr0 + 4 * 10, _mm256_extractf128_ps(_suma, 0));
                     _mm_store_ps(outptr0 + 4 * 11, _mm256_extractf128_ps(_sumb, 0));
 
-                    _mm_store_ps(outptr0 + N * 4, _mm256_extractf128_ps(_sum0, 1));
-                    _mm_store_ps(outptr0 + N * 4 + 4 * 1, _mm256_extractf128_ps(_sum1, 1));
-                    _mm_store_ps(outptr0 + N * 4 + 4 * 2, _mm256_extractf128_ps(_sum2, 1));
-                    _mm_store_ps(outptr0 + N * 4 + 4 * 3, _mm256_extractf128_ps(_sum3, 1));
-                    _mm_store_ps(outptr0 + N * 4 + 4 * 4, _mm256_extractf128_ps(_sum4, 1));
-                    _mm_store_ps(outptr0 + N * 4 + 4 * 5, _mm256_extractf128_ps(_sum5, 1));
-                    _mm_store_ps(outptr0 + N * 4 + 4 * 6, _mm256_extractf128_ps(_sum6, 1));
-                    _mm_store_ps(outptr0 + N * 4 + 4 * 7, _mm256_extractf128_ps(_sum7, 1));
-                    _mm_store_ps(outptr0 + N * 4 + 4 * 8, _mm256_extractf128_ps(_sum8, 1));
-                    _mm_store_ps(outptr0 + N * 4 + 4 * 9, _mm256_extractf128_ps(_sum9, 1));
-                    _mm_store_ps(outptr0 + N * 4 + 4 * 10, _mm256_extractf128_ps(_suma, 1));
-                    _mm_store_ps(outptr0 + N * 4 + 4 * 11, _mm256_extractf128_ps(_sumb, 1));
+                    _mm_store_ps(outptr0 + out_hstep * 4, _mm256_extractf128_ps(_sum0, 1));
+                    _mm_store_ps(outptr0 + out_hstep * 4 + 4 * 1, _mm256_extractf128_ps(_sum1, 1));
+                    _mm_store_ps(outptr0 + out_hstep * 4 + 4 * 2, _mm256_extractf128_ps(_sum2, 1));
+                    _mm_store_ps(outptr0 + out_hstep * 4 + 4 * 3, _mm256_extractf128_ps(_sum3, 1));
+                    _mm_store_ps(outptr0 + out_hstep * 4 + 4 * 4, _mm256_extractf128_ps(_sum4, 1));
+                    _mm_store_ps(outptr0 + out_hstep * 4 + 4 * 5, _mm256_extractf128_ps(_sum5, 1));
+                    _mm_store_ps(outptr0 + out_hstep * 4 + 4 * 6, _mm256_extractf128_ps(_sum6, 1));
+                    _mm_store_ps(outptr0 + out_hstep * 4 + 4 * 7, _mm256_extractf128_ps(_sum7, 1));
+                    _mm_store_ps(outptr0 + out_hstep * 4 + 4 * 8, _mm256_extractf128_ps(_sum8, 1));
+                    _mm_store_ps(outptr0 + out_hstep * 4 + 4 * 9, _mm256_extractf128_ps(_sum9, 1));
+                    _mm_store_ps(outptr0 + out_hstep * 4 + 4 * 10, _mm256_extractf128_ps(_suma, 1));
+                    _mm_store_ps(outptr0 + out_hstep * 4 + 4 * 11, _mm256_extractf128_ps(_sumb, 1));
 
                     outptr0 += 48;
                 }
@@ -3784,13 +3785,13 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
                     transpose8x8_ps(_sum0, _sum1, _sum2, _sum3, _sum4, _sum5, _sum6, _sum7);
 
                     _mm256_storeu_ps(outptr0, _sum0);
-                    _mm256_storeu_ps(outptr0 + N * 1, _sum1);
-                    _mm256_storeu_ps(outptr0 + N * 2, _sum2);
-                    _mm256_storeu_ps(outptr0 + N * 3, _sum3);
-                    _mm256_storeu_ps(outptr0 + N * 4, _sum4);
-                    _mm256_storeu_ps(outptr0 + N * 5, _sum5);
-                    _mm256_storeu_ps(outptr0 + N * 6, _sum6);
-                    _mm256_storeu_ps(outptr0 + N * 7, _sum7);
+                    _mm256_storeu_ps(outptr0 + out_hstep * 1, _sum1);
+                    _mm256_storeu_ps(outptr0 + out_hstep * 2, _sum2);
+                    _mm256_storeu_ps(outptr0 + out_hstep * 3, _sum3);
+                    _mm256_storeu_ps(outptr0 + out_hstep * 4, _sum4);
+                    _mm256_storeu_ps(outptr0 + out_hstep * 5, _sum5);
+                    _mm256_storeu_ps(outptr0 + out_hstep * 6, _sum6);
+                    _mm256_storeu_ps(outptr0 + out_hstep * 7, _sum7);
 
                     __m128 _sum8_0 = _mm256_extractf128_ps(_sum8, 0);
                     __m128 _sum9_0 = _mm256_extractf128_ps(_sum9, 0);
@@ -3805,13 +3806,13 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
                     _MM_TRANSPOSE4_PS(_sum8_1, _sum9_1, _suma_1, _sumb_1);
 
                     _mm_storeu_ps(outptr0 + 8, _sum8_0);
-                    _mm_storeu_ps(outptr0 + N * 1 + 8, _sum9_0);
-                    _mm_storeu_ps(outptr0 + N * 2 + 8, _suma_0);
-                    _mm_storeu_ps(outptr0 + N * 3 + 8, _sumb_0);
-                    _mm_storeu_ps(outptr0 + N * 4 + 8, _sum8_1);
-                    _mm_storeu_ps(outptr0 + N * 5 + 8, _sum9_1);
-                    _mm_storeu_ps(outptr0 + N * 6 + 8, _suma_1);
-                    _mm_storeu_ps(outptr0 + N * 7 + 8, _sumb_1);
+                    _mm_storeu_ps(outptr0 + out_hstep * 1 + 8, _sum9_0);
+                    _mm_storeu_ps(outptr0 + out_hstep * 2 + 8, _suma_0);
+                    _mm_storeu_ps(outptr0 + out_hstep * 3 + 8, _sumb_0);
+                    _mm_storeu_ps(outptr0 + out_hstep * 4 + 8, _sum8_1);
+                    _mm_storeu_ps(outptr0 + out_hstep * 5 + 8, _sum9_1);
+                    _mm_storeu_ps(outptr0 + out_hstep * 6 + 8, _suma_1);
+                    _mm_storeu_ps(outptr0 + out_hstep * 7 + 8, _sumb_1);
 
                     outptr0 += 12;
                 }
@@ -4027,14 +4028,14 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
                     _mm_store_ps(outptr0 + 4 * 6, _mm256_extractf128_ps(_sum6, 0));
                     _mm_store_ps(outptr0 + 4 * 7, _mm256_extractf128_ps(_sum7, 0));
 
-                    _mm_store_ps(outptr0 + N * 4, _mm256_extractf128_ps(_sum0, 1));
-                    _mm_store_ps(outptr0 + N * 4 + 4 * 1, _mm256_extractf128_ps(_sum1, 1));
-                    _mm_store_ps(outptr0 + N * 4 + 4 * 2, _mm256_extractf128_ps(_sum2, 1));
-                    _mm_store_ps(outptr0 + N * 4 + 4 * 3, _mm256_extractf128_ps(_sum3, 1));
-                    _mm_store_ps(outptr0 + N * 4 + 4 * 4, _mm256_extractf128_ps(_sum4, 1));
-                    _mm_store_ps(outptr0 + N * 4 + 4 * 5, _mm256_extractf128_ps(_sum5, 1));
-                    _mm_store_ps(outptr0 + N * 4 + 4 * 6, _mm256_extractf128_ps(_sum6, 1));
-                    _mm_store_ps(outptr0 + N * 4 + 4 * 7, _mm256_extractf128_ps(_sum7, 1));
+                    _mm_store_ps(outptr0 + out_hstep * 4, _mm256_extractf128_ps(_sum0, 1));
+                    _mm_store_ps(outptr0 + out_hstep * 4 + 4 * 1, _mm256_extractf128_ps(_sum1, 1));
+                    _mm_store_ps(outptr0 + out_hstep * 4 + 4 * 2, _mm256_extractf128_ps(_sum2, 1));
+                    _mm_store_ps(outptr0 + out_hstep * 4 + 4 * 3, _mm256_extractf128_ps(_sum3, 1));
+                    _mm_store_ps(outptr0 + out_hstep * 4 + 4 * 4, _mm256_extractf128_ps(_sum4, 1));
+                    _mm_store_ps(outptr0 + out_hstep * 4 + 4 * 5, _mm256_extractf128_ps(_sum5, 1));
+                    _mm_store_ps(outptr0 + out_hstep * 4 + 4 * 6, _mm256_extractf128_ps(_sum6, 1));
+                    _mm_store_ps(outptr0 + out_hstep * 4 + 4 * 7, _mm256_extractf128_ps(_sum7, 1));
 
                     outptr0 += 32;
                 }
@@ -4043,13 +4044,13 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
                     transpose8x8_ps(_sum0, _sum1, _sum2, _sum3, _sum4, _sum5, _sum6, _sum7);
 
                     _mm256_storeu_ps(outptr0, _sum0);
-                    _mm256_storeu_ps(outptr0 + N * 1, _sum1);
-                    _mm256_storeu_ps(outptr0 + N * 2, _sum2);
-                    _mm256_storeu_ps(outptr0 + N * 3, _sum3);
-                    _mm256_storeu_ps(outptr0 + N * 4, _sum4);
-                    _mm256_storeu_ps(outptr0 + N * 5, _sum5);
-                    _mm256_storeu_ps(outptr0 + N * 6, _sum6);
-                    _mm256_storeu_ps(outptr0 + N * 7, _sum7);
+                    _mm256_storeu_ps(outptr0 + out_hstep * 1, _sum1);
+                    _mm256_storeu_ps(outptr0 + out_hstep * 2, _sum2);
+                    _mm256_storeu_ps(outptr0 + out_hstep * 3, _sum3);
+                    _mm256_storeu_ps(outptr0 + out_hstep * 4, _sum4);
+                    _mm256_storeu_ps(outptr0 + out_hstep * 5, _sum5);
+                    _mm256_storeu_ps(outptr0 + out_hstep * 6, _sum6);
+                    _mm256_storeu_ps(outptr0 + out_hstep * 7, _sum7);
 
                     outptr0 += 8;
                 }
@@ -4207,10 +4208,10 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
                     _mm_store_ps(outptr0 + 4 * 2, _mm256_extractf128_ps(_sum2, 0));
                     _mm_store_ps(outptr0 + 4 * 3, _mm256_extractf128_ps(_sum3, 0));
 
-                    _mm_store_ps(outptr0 + N * 4, _mm256_extractf128_ps(_sum0, 1));
-                    _mm_store_ps(outptr0 + N * 4 + 4 * 1, _mm256_extractf128_ps(_sum1, 1));
-                    _mm_store_ps(outptr0 + N * 4 + 4 * 2, _mm256_extractf128_ps(_sum2, 1));
-                    _mm_store_ps(outptr0 + N * 4 + 4 * 3, _mm256_extractf128_ps(_sum3, 1));
+                    _mm_store_ps(outptr0 + out_hstep * 4, _mm256_extractf128_ps(_sum0, 1));
+                    _mm_store_ps(outptr0 + out_hstep * 4 + 4 * 1, _mm256_extractf128_ps(_sum1, 1));
+                    _mm_store_ps(outptr0 + out_hstep * 4 + 4 * 2, _mm256_extractf128_ps(_sum2, 1));
+                    _mm_store_ps(outptr0 + out_hstep * 4 + 4 * 3, _mm256_extractf128_ps(_sum3, 1));
 
                     outptr0 += 16;
                 }
@@ -4229,13 +4230,13 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
                     _MM_TRANSPOSE4_PS(_sum0_1, _sum1_1, _sum2_1, _sum3_1);
 
                     _mm_storeu_ps(outptr0, _sum0_0);
-                    _mm_storeu_ps(outptr0 + N * 1, _sum1_0);
-                    _mm_storeu_ps(outptr0 + N * 2, _sum2_0);
-                    _mm_storeu_ps(outptr0 + N * 3, _sum3_0);
-                    _mm_storeu_ps(outptr0 + N * 4, _sum0_1);
-                    _mm_storeu_ps(outptr0 + N * 5, _sum1_1);
-                    _mm_storeu_ps(outptr0 + N * 6, _sum2_1);
-                    _mm_storeu_ps(outptr0 + N * 7, _sum3_1);
+                    _mm_storeu_ps(outptr0 + out_hstep * 1, _sum1_0);
+                    _mm_storeu_ps(outptr0 + out_hstep * 2, _sum2_0);
+                    _mm_storeu_ps(outptr0 + out_hstep * 3, _sum3_0);
+                    _mm_storeu_ps(outptr0 + out_hstep * 4, _sum0_1);
+                    _mm_storeu_ps(outptr0 + out_hstep * 5, _sum1_1);
+                    _mm_storeu_ps(outptr0 + out_hstep * 6, _sum2_1);
+                    _mm_storeu_ps(outptr0 + out_hstep * 7, _sum3_1);
 
                     outptr0 += 4;
                 }
@@ -4364,8 +4365,8 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
                     _mm_store_ps(outptr0, _mm256_extractf128_ps(_sum0, 0));
                     _mm_store_ps(outptr0 + 4, _mm256_extractf128_ps(_sum1, 0));
 
-                    _mm_store_ps(outptr0 + N * 4, _mm256_extractf128_ps(_sum0, 1));
-                    _mm_store_ps(outptr0 + N * 4 + 4, _mm256_extractf128_ps(_sum1, 1));
+                    _mm_store_ps(outptr0 + out_hstep * 4, _mm256_extractf128_ps(_sum0, 1));
+                    _mm_store_ps(outptr0 + out_hstep * 4 + 4, _mm256_extractf128_ps(_sum1, 1));
                     outptr0 += 8;
                 }
                 if (out_elempack == 1)
@@ -4376,22 +4377,22 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
                     _mm256_storeu_ps(sum1, _sum1);
 
                     outptr0[0] = sum0[0];
-                    outptr0[N] = sum0[1];
-                    outptr0[N * 2] = sum0[2];
-                    outptr0[N * 3] = sum0[3];
-                    outptr0[N * 4] = sum0[4];
-                    outptr0[N * 5] = sum0[5];
-                    outptr0[N * 6] = sum0[6];
-                    outptr0[N * 7] = sum0[7];
+                    outptr0[out_hstep] = sum0[1];
+                    outptr0[out_hstep * 2] = sum0[2];
+                    outptr0[out_hstep * 3] = sum0[3];
+                    outptr0[out_hstep * 4] = sum0[4];
+                    outptr0[out_hstep * 5] = sum0[5];
+                    outptr0[out_hstep * 6] = sum0[6];
+                    outptr0[out_hstep * 7] = sum0[7];
 
                     outptr0[1] = sum1[0];
-                    outptr0[N + 1] = sum1[1];
-                    outptr0[N * 2 + 1] = sum1[2];
-                    outptr0[N * 3 + 1] = sum1[3];
-                    outptr0[N * 4 + 1] = sum1[4];
-                    outptr0[N * 5 + 1] = sum1[5];
-                    outptr0[N * 6 + 1] = sum1[6];
-                    outptr0[N * 7 + 1] = sum1[7];
+                    outptr0[out_hstep + 1] = sum1[1];
+                    outptr0[out_hstep * 2 + 1] = sum1[2];
+                    outptr0[out_hstep * 3 + 1] = sum1[3];
+                    outptr0[out_hstep * 4 + 1] = sum1[4];
+                    outptr0[out_hstep * 5 + 1] = sum1[5];
+                    outptr0[out_hstep * 6 + 1] = sum1[6];
+                    outptr0[out_hstep * 7 + 1] = sum1[7];
                     outptr0 += 2;
                 }
             }
@@ -4491,7 +4492,7 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
                 if (out_elempack == 4)
                 {
                     _mm_store_ps(outptr0, _mm256_extractf128_ps(_sum0, 0));
-                    _mm_store_ps(outptr0 + N * 4, _mm256_extractf128_ps(_sum0, 1));
+                    _mm_store_ps(outptr0 + out_hstep * 4, _mm256_extractf128_ps(_sum0, 1));
                     outptr0 += 4;
                 }
                 if (out_elempack == 1)
@@ -4500,13 +4501,13 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
                     _mm256_storeu_ps(sum0, _sum0);
 
                     outptr0[0] = sum0[0];
-                    outptr0[N * 1] = sum0[1];
-                    outptr0[N * 2] = sum0[2];
-                    outptr0[N * 3] = sum0[3];
-                    outptr0[N * 4] = sum0[4];
-                    outptr0[N * 5] = sum0[5];
-                    outptr0[N * 6] = sum0[6];
-                    outptr0[N * 7] = sum0[7];
+                    outptr0[out_hstep * 1] = sum0[1];
+                    outptr0[out_hstep * 2] = sum0[2];
+                    outptr0[out_hstep * 3] = sum0[3];
+                    outptr0[out_hstep * 4] = sum0[4];
+                    outptr0[out_hstep * 5] = sum0[5];
+                    outptr0[out_hstep * 6] = sum0[6];
+                    outptr0[out_hstep * 7] = sum0[7];
                     outptr0++;
                 }
             }
@@ -4523,7 +4524,7 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
 #endif // __AVX__
     for (; ii + 3 < max_ii; ii += 4)
     {
-        float* outptr0 = top_blob.row((i + ii) / out_elempack) + j * out_elempack;
+        float* outptr0 = (float*)top_blob + (i + ii) * out_hstep + j * out_elempack;
 
         const float* pB = pB0;
 
@@ -4756,17 +4757,17 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
                     _MM_TRANSPOSE4_PS(_sum8, _sum9, _suma, _sumb);
 
                     _mm_storeu_ps(outptr0, _sum0);
-                    _mm_storeu_ps(outptr0 + N * 1, _sum1);
-                    _mm_storeu_ps(outptr0 + N * 2, _sum2);
-                    _mm_storeu_ps(outptr0 + N * 3, _sum3);
+                    _mm_storeu_ps(outptr0 + out_hstep * 1, _sum1);
+                    _mm_storeu_ps(outptr0 + out_hstep * 2, _sum2);
+                    _mm_storeu_ps(outptr0 + out_hstep * 3, _sum3);
                     _mm_storeu_ps(outptr0 + 4, _sum4);
-                    _mm_storeu_ps(outptr0 + N * 1 + 4, _sum5);
-                    _mm_storeu_ps(outptr0 + N * 2 + 4, _sum6);
-                    _mm_storeu_ps(outptr0 + N * 3 + 4, _sum7);
+                    _mm_storeu_ps(outptr0 + out_hstep * 1 + 4, _sum5);
+                    _mm_storeu_ps(outptr0 + out_hstep * 2 + 4, _sum6);
+                    _mm_storeu_ps(outptr0 + out_hstep * 3 + 4, _sum7);
                     _mm_storeu_ps(outptr0 + 8, _sum8);
-                    _mm_storeu_ps(outptr0 + N * 1 + 8, _sum9);
-                    _mm_storeu_ps(outptr0 + N * 2 + 8, _suma);
-                    _mm_storeu_ps(outptr0 + N * 3 + 8, _sumb);
+                    _mm_storeu_ps(outptr0 + out_hstep * 1 + 8, _sum9);
+                    _mm_storeu_ps(outptr0 + out_hstep * 2 + 8, _suma);
+                    _mm_storeu_ps(outptr0 + out_hstep * 3 + 8, _sumb);
                     outptr0 += 12;
                 }
             }
@@ -4949,13 +4950,13 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
                     _MM_TRANSPOSE4_PS(_sum4, _sum5, _sum6, _sum7);
 
                     _mm_storeu_ps(outptr0, _sum0);
-                    _mm_storeu_ps(outptr0 + N * 1, _sum1);
-                    _mm_storeu_ps(outptr0 + N * 2, _sum2);
-                    _mm_storeu_ps(outptr0 + N * 3, _sum3);
+                    _mm_storeu_ps(outptr0 + out_hstep * 1, _sum1);
+                    _mm_storeu_ps(outptr0 + out_hstep * 2, _sum2);
+                    _mm_storeu_ps(outptr0 + out_hstep * 3, _sum3);
                     _mm_storeu_ps(outptr0 + 4, _sum4);
-                    _mm_storeu_ps(outptr0 + N * 1 + 4, _sum5);
-                    _mm_storeu_ps(outptr0 + N * 2 + 4, _sum6);
-                    _mm_storeu_ps(outptr0 + N * 3 + 4, _sum7);
+                    _mm_storeu_ps(outptr0 + out_hstep * 1 + 4, _sum5);
+                    _mm_storeu_ps(outptr0 + out_hstep * 2 + 4, _sum6);
+                    _mm_storeu_ps(outptr0 + out_hstep * 3 + 4, _sum7);
                     outptr0 += 8;
                 }
             }
@@ -5084,9 +5085,9 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
                     _MM_TRANSPOSE4_PS(_sum0, _sum1, _sum2, _sum3);
 
                     _mm_storeu_ps(outptr0, _sum0);
-                    _mm_storeu_ps(outptr0 + N * 1, _sum1);
-                    _mm_storeu_ps(outptr0 + N * 2, _sum2);
-                    _mm_storeu_ps(outptr0 + N * 3, _sum3);
+                    _mm_storeu_ps(outptr0 + out_hstep * 1, _sum1);
+                    _mm_storeu_ps(outptr0 + out_hstep * 2, _sum2);
+                    _mm_storeu_ps(outptr0 + out_hstep * 3, _sum3);
                     outptr0 += 4;
                 }
             }
@@ -5199,13 +5200,13 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
                     _mm_storeu_ps(sum1, _sum1);
 
                     outptr0[0] = sum0[0];
-                    outptr0[N] = sum0[1];
-                    outptr0[N * 2] = sum0[2];
-                    outptr0[N * 3] = sum0[3];
+                    outptr0[out_hstep] = sum0[1];
+                    outptr0[out_hstep * 2] = sum0[2];
+                    outptr0[out_hstep * 3] = sum0[3];
                     outptr0[1] = sum1[0];
-                    outptr0[N + 1] = sum1[1];
-                    outptr0[N * 2 + 1] = sum1[2];
-                    outptr0[N * 3 + 1] = sum1[3];
+                    outptr0[out_hstep + 1] = sum1[1];
+                    outptr0[out_hstep * 2 + 1] = sum1[2];
+                    outptr0[out_hstep * 3 + 1] = sum1[3];
                     outptr0 += 2;
                 }
             }
@@ -5297,9 +5298,9 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
                     _mm_storeu_ps(sum0, _sum0);
 
                     outptr0[0] = sum0[0];
-                    outptr0[N] = sum0[1];
-                    outptr0[N * 2] = sum0[2];
-                    outptr0[N * 3] = sum0[3];
+                    outptr0[out_hstep] = sum0[1];
+                    outptr0[out_hstep * 2] = sum0[2];
+                    outptr0[out_hstep * 3] = sum0[3];
                     outptr0++;
                 }
             }
@@ -5316,7 +5317,7 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
 #endif // __SSE2__
     for (; ii + 1 < max_ii; ii += 2)
     {
-        float* outptr0 = top_blob.row(i + ii) + j;
+        float* outptr0 = (float*)top_blob + (i + ii) * out_hstep + j;
 
         const float* pB = pB0;
 
@@ -5453,9 +5454,9 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
                     _mm_storeu_ps(outptr0, _sum00);
                     _mm_storeu_ps(outptr0 + 4, _sum01);
                     _mm_storeu_ps(outptr0 + 8, _sum02);
-                    _mm_storeu_ps(outptr0 + N, _sum10);
-                    _mm_storeu_ps(outptr0 + N + 4, _sum11);
-                    _mm_storeu_ps(outptr0 + N + 8, _sum12);
+                    _mm_storeu_ps(outptr0 + out_hstep, _sum10);
+                    _mm_storeu_ps(outptr0 + out_hstep + 4, _sum11);
+                    _mm_storeu_ps(outptr0 + out_hstep + 8, _sum12);
                     outptr0 += 12;
                 }
             }
@@ -5563,8 +5564,8 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
                 {
                     _mm_storeu_ps(outptr0, _sum00);
                     _mm_storeu_ps(outptr0 + 4, _sum01);
-                    _mm_storeu_ps(outptr0 + N, _sum10);
-                    _mm_storeu_ps(outptr0 + N + 4, _sum11);
+                    _mm_storeu_ps(outptr0 + out_hstep, _sum10);
+                    _mm_storeu_ps(outptr0 + out_hstep + 4, _sum11);
                     outptr0 += 8;
                 }
             }
@@ -5646,7 +5647,7 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
                 // if (out_elempack == 1)
                 {
                     _mm_storeu_ps(outptr0, _sum0);
-                    _mm_storeu_ps(outptr0 + N, _sum1);
+                    _mm_storeu_ps(outptr0 + out_hstep, _sum1);
                     outptr0 += 4;
                 }
             }
@@ -5744,8 +5745,8 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
                 {
                     outptr0[0] = sum00;
                     outptr0[1] = sum01;
-                    outptr0[N] = sum10;
-                    outptr0[N + 1] = sum11;
+                    outptr0[out_hstep] = sum10;
+                    outptr0[out_hstep + 1] = sum11;
                     outptr0 += 2;
                 }
             }
@@ -5822,7 +5823,7 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
                 // if (out_elempack == 1)
                 {
                     outptr0[0] = sum0;
-                    outptr0[N] = sum1;
+                    outptr0[out_hstep] = sum1;
                     outptr0++;
                 }
             }
@@ -5839,7 +5840,7 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
     }
     for (; ii < max_ii; ii += 1)
     {
-        float* outptr0 = top_blob.row(i + ii) + j;
+        float* outptr0 = (float*)top_blob + (i + ii) * out_hstep + j;
 
         const float* pB = pB0;
 
@@ -6766,7 +6767,10 @@ int Gemm_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     size_t out_elemsize = 4u * out_elempack;
 
     Mat& top_blob = top_blobs[0];
-    top_blob.create(N, M / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+    if (output_N1M)
+        top_blob.create(N, 1, M / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+    else
+        top_blob.create(N, M / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
 

@@ -43,6 +43,7 @@ public:
     int constantN;
     int constantK;
     int constant_broadcast_type_C;
+    int output_N1M;
 
     // constant A / B / C
     Mat A_data;
