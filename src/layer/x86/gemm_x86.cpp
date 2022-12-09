@@ -502,27 +502,6 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
                 pp += 256;
                 p0 += M * 16;
             }
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp[1] = p0[16 * 1];
-                pp[2] = p0[16 * 2];
-                pp[3] = p0[16 * 3];
-                pp[4] = p0[16 * 4];
-                pp[5] = p0[16 * 5];
-                pp[6] = p0[16 * 6];
-                pp[7] = p0[16 * 7];
-                pp[8] = p0[16 * 8];
-                pp[9] = p0[16 * 9];
-                pp[10] = p0[16 * 10];
-                pp[11] = p0[16 * 11];
-                pp[12] = p0[16 * 12];
-                pp[13] = p0[16 * 13];
-                pp[14] = p0[16 * 14];
-                pp[15] = p0[16 * 15];
-                pp += 16;
-                p0 += 1;
-            }
         }
         if (elempack == 8)
         {
@@ -568,27 +547,6 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
                 _mm512_store_ps(pp + 16 * 7, _rr7);
                 pp += 128;
                 p0 += M * 8;
-            }
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp[1] = p0[8 * 1];
-                pp[2] = p0[8 * 2];
-                pp[3] = p0[8 * 3];
-                pp[4] = p0[8 * 4];
-                pp[5] = p0[8 * 5];
-                pp[6] = p0[8 * 6];
-                pp[7] = p0[8 * 7];
-                pp[8] = p0[8 * 8];
-                pp[9] = p0[8 * 9];
-                pp[10] = p0[8 * 10];
-                pp[11] = p0[8 * 11];
-                pp[12] = p0[8 * 12];
-                pp[13] = p0[8 * 13];
-                pp[14] = p0[8 * 14];
-                pp[15] = p0[8 * 15];
-                pp += 16;
-                p0 += 1;
             }
         }
         if (elempack == 4)
@@ -637,27 +595,6 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
                 pp += 64;
                 p0 += M * 4;
             }
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp[1] = p0[4 * 1];
-                pp[2] = p0[4 * 2];
-                pp[3] = p0[4 * 3];
-                pp[4] = p0[4 * 4];
-                pp[5] = p0[4 * 5];
-                pp[6] = p0[4 * 6];
-                pp[7] = p0[4 * 7];
-                pp[8] = p0[4 * 8];
-                pp[9] = p0[4 * 9];
-                pp[10] = p0[4 * 10];
-                pp[11] = p0[4 * 11];
-                pp[12] = p0[4 * 12];
-                pp[13] = p0[4 * 13];
-                pp[14] = p0[4 * 14];
-                pp[15] = p0[4 * 15];
-                pp += 16;
-                p0 += 1;
-            }
         }
         if (elempack == 1)
         {
@@ -703,19 +640,6 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
                 pp += 128;
                 p0 += M * 16;
             }
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp[1] = p0[16 * 1];
-                pp[2] = p0[16 * 2];
-                pp[3] = p0[16 * 3];
-                pp[4] = p0[16 * 4];
-                pp[5] = p0[16 * 5];
-                pp[6] = p0[16 * 6];
-                pp[7] = p0[16 * 7];
-                pp += 8;
-                p0 += 1;
-            }
         }
 #endif // __AVX512F__
         if (elempack == 8)
@@ -745,19 +669,6 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
                 pp += 64;
                 p0 += M * 8;
             }
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp[1] = p0[8 * 1];
-                pp[2] = p0[8 * 2];
-                pp[3] = p0[8 * 3];
-                pp[4] = p0[8 * 4];
-                pp[5] = p0[8 * 5];
-                pp[6] = p0[8 * 6];
-                pp[7] = p0[8 * 7];
-                pp += 8;
-                p0 += 1;
-            }
         }
         if (elempack == 4)
         {
@@ -786,19 +697,6 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
                 _mm_store_ps(pp + 4 * 7, _r7);
                 pp += 32;
                 p0 += M * 4;
-            }
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp[1] = p0[4 * 1];
-                pp[2] = p0[4 * 2];
-                pp[3] = p0[4 * 3];
-                pp[4] = p0[4 * 4];
-                pp[5] = p0[4 * 5];
-                pp[6] = p0[4 * 6];
-                pp[7] = p0[4 * 7];
-                pp += 8;
-                p0 += 1;
             }
         }
         if (elempack == 1)
@@ -838,15 +736,6 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
                 pp += 64;
                 p0 += M * 16;
             }
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp[1] = p0[16 * 1];
-                pp[2] = p0[16 * 2];
-                pp[3] = p0[16 * 3];
-                pp += 4;
-                p0 += 1;
-            }
         }
 #endif // __AVX512F__
         if (elempack == 8)
@@ -868,15 +757,6 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
                 pp += 32;
                 p0 += M * 8;
             }
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp[1] = p0[8 * 1];
-                pp[2] = p0[8 * 2];
-                pp[3] = p0[8 * 3];
-                pp += 4;
-                p0 += 1;
-            }
         }
 #endif // __AVX__
         if (elempack == 4)
@@ -897,15 +777,6 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
                 _mm_store_ps(pp + 4 * 3, _r3);
                 pp += 16;
                 p0 += M * 4;
-            }
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp[1] = p0[4 * 1];
-                pp[2] = p0[4 * 2];
-                pp[3] = p0[4 * 3];
-                pp += 4;
-                p0 += 1;
             }
         }
         if (elempack == 1)
@@ -942,13 +813,6 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
                 pp += 32;
                 p0 += M * 16;
             }
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp[1] = p0[16];
-                pp += 2;
-                p0 += 1;
-            }
         }
 #endif // __AVX512F__
         if (elempack == 8)
@@ -965,13 +829,6 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
                 _mm256_store_ps(pp + 8, _r1);
                 pp += 16;
                 p0 += M * 8;
-            }
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp[1] = p0[8];
-                pp += 2;
-                p0 += 1;
             }
         }
 #endif // __AVX__
@@ -990,13 +847,6 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
                 _mm_store_ps(pp + 4, _tmp1);
                 pp += 8;
                 p0 += M * 4;
-            }
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp[1] = p0[4];
-                pp += 2;
-                p0 += 1;
             }
         }
 #endif // __SSE2__
@@ -1030,12 +880,6 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
                 pp += 16;
                 p0 += M * 16;
             }
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp += 1;
-                p0 += 1;
-            }
         }
 #endif // __AVX512F__
         if (elempack == 8)
@@ -1049,12 +893,6 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
                 pp += 8;
                 p0 += M * 8;
             }
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp += 1;
-                p0 += 1;
-            }
         }
 #endif // __AVX__
         if (elempack == 4)
@@ -1067,12 +905,6 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
                 _mm_store_ps(pp, _mm_load_ps(p0));
                 pp += 4;
                 p0 += M * 4;
-            }
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp += 1;
-                p0 += 1;
             }
         }
 #endif // __SSE2__
@@ -1339,99 +1171,33 @@ static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max
         if (elempack == 16)
         {
             const float* p0 = B.row((j + jj) / 16 + 0) + k * 16;
-            const float* p1 = B.row((j + jj) / 16 + 1) + k * 16;
 
-            if ((j + jj) % 16 == 0)
+            // (j + jj) % 16 == 8
+            for (int kk = 0; kk < max_kk; kk++)
             {
-                for (int kk = 0; kk < max_kk; kk++)
-                {
-                    pp[0] = p0[0];
-                    pp[1] = p0[1];
-                    pp[2] = p0[2];
-                    pp[3] = p0[3];
-                    pp[4] = p0[4];
-                    pp[5] = p0[5];
-                    pp[6] = p0[6];
-                    pp[7] = p0[7];
-                    pp += 8;
-                    p0 += 16;
-                }
-            }
-            if ((j + jj) % 16 == 4)
-            {
-                for (int kk = 0; kk < max_kk; kk++)
-                {
-                    pp[0] = p0[4];
-                    pp[1] = p0[5];
-                    pp[2] = p0[6];
-                    pp[3] = p0[7];
-                    pp[4] = p0[8];
-                    pp[5] = p0[9];
-                    pp[6] = p0[10];
-                    pp[7] = p0[11];
-                    pp += 8;
-                    p0 += 16;
-                }
-            }
-            if ((j + jj) % 16 == 8)
-            {
-                for (int kk = 0; kk < max_kk; kk++)
-                {
-                    pp[0] = p0[8];
-                    pp[1] = p0[9];
-                    pp[2] = p0[10];
-                    pp[3] = p0[11];
-                    pp[4] = p0[12];
-                    pp[5] = p0[13];
-                    pp[6] = p0[14];
-                    pp[7] = p0[15];
-                    pp += 8;
-                    p0 += 16;
-                }
-            }
-            if ((j + jj) % 16 == 12)
-            {
-                for (int kk = 0; kk < max_kk; kk++)
-                {
-                    pp[0] = p0[12];
-                    pp[1] = p0[13];
-                    pp[2] = p0[14];
-                    pp[3] = p0[15];
-                    pp[4] = p1[0];
-                    pp[5] = p1[1];
-                    pp[6] = p1[2];
-                    pp[7] = p1[3];
-                    pp += 8;
-                    p0 += 16;
-                    p1 += 16;
-                }
+                pp[0] = p0[8];
+                pp[1] = p0[9];
+                pp[2] = p0[10];
+                pp[3] = p0[11];
+                pp[4] = p0[12];
+                pp[5] = p0[13];
+                pp[6] = p0[14];
+                pp[7] = p0[15];
+                pp += 8;
+                p0 += 16;
             }
         }
 #endif // __AVX512F__
         if (elempack == 8)
         {
             const float* p0 = B.row((j + jj) / 8 + 0) + k * 8;
-            const float* p1 = B.row((j + jj) / 8 + 1) + k * 8;
 
-            if ((j + jj) % 8 == 0)
+            // (j + jj) % 8 == 0
+            for (int kk = 0; kk < max_kk; kk++)
             {
-                for (int kk = 0; kk < max_kk; kk++)
-                {
-                    _mm256_storeu_ps(pp, _mm256_load_ps(p0));
-                    pp += 8;
-                    p0 += 8;
-                }
-            }
-            if ((j + jj) % 8 == 4)
-            {
-                for (int kk = 0; kk < max_kk; kk++)
-                {
-                    _mm_store_ps(pp, _mm_load_ps(p0 + 4));
-                    _mm_store_ps(pp + 4, _mm_load_ps(p1));
-                    pp += 8;
-                    p0 += 8;
-                    p1 += 8;
-                }
+                _mm256_storeu_ps(pp, _mm256_load_ps(p0));
+                pp += 8;
+                p0 += 8;
             }
         }
 #endif // __AVX__
@@ -1552,53 +1318,15 @@ static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max
         {
             const float* p0 = B.row((j + jj) / 16 + 0) + k * 16;
 
-            if ((j + jj) % 16 == 0)
+            // (j + jj) % 16 == 12
+            for (int kk = 0; kk < max_kk; kk++)
             {
-                for (int kk = 0; kk < max_kk; kk++)
-                {
-                    pp[0] = p0[0];
-                    pp[1] = p0[1];
-                    pp[2] = p0[2];
-                    pp[3] = p0[3];
-                    pp += 4;
-                    p0 += 16;
-                }
-            }
-            if ((j + jj) % 16 == 4)
-            {
-                for (int kk = 0; kk < max_kk; kk++)
-                {
-                    pp[0] = p0[4];
-                    pp[1] = p0[5];
-                    pp[2] = p0[6];
-                    pp[3] = p0[7];
-                    pp += 4;
-                    p0 += 16;
-                }
-            }
-            if ((j + jj) % 16 == 8)
-            {
-                for (int kk = 0; kk < max_kk; kk++)
-                {
-                    pp[0] = p0[8];
-                    pp[1] = p0[9];
-                    pp[2] = p0[10];
-                    pp[3] = p0[11];
-                    pp += 4;
-                    p0 += 16;
-                }
-            }
-            if ((j + jj) % 16 == 12)
-            {
-                for (int kk = 0; kk < max_kk; kk++)
-                {
-                    pp[0] = p0[12];
-                    pp[1] = p0[13];
-                    pp[2] = p0[14];
-                    pp[3] = p0[15];
-                    pp += 4;
-                    p0 += 16;
-                }
+                pp[0] = p0[12];
+                pp[1] = p0[13];
+                pp[2] = p0[14];
+                pp[3] = p0[15];
+                pp += 4;
+                p0 += 16;
             }
         }
 #endif // __AVX512F__
@@ -1606,23 +1334,12 @@ static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max
         {
             const float* p0 = B.row((j + jj) / 8 + 0) + k * 8;
 
-            if ((j + jj) % 8 == 0)
+            // (j + jj) % 8 == 4
+            for (int kk = 0; kk < max_kk; kk++)
             {
-                for (int kk = 0; kk < max_kk; kk++)
-                {
-                    _mm_store_ps(pp, _mm_load_ps(p0));
-                    pp += 4;
-                    p0 += 8;
-                }
-            }
-            if ((j + jj) % 8 == 4)
-            {
-                for (int kk = 0; kk < max_kk; kk++)
-                {
-                    _mm_store_ps(pp, _mm_load_ps(p0 + 4));
-                    pp += 4;
-                    p0 += 8;
-                }
+                _mm_store_ps(pp, _mm_load_ps(p0 + 4));
+                pp += 4;
+                p0 += 8;
             }
         }
 #endif // __AVX__
@@ -1823,23 +1540,6 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
                 pp += 192;
                 p0 += N * 16;
             }
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp[1] = p0[16 * 1];
-                pp[2] = p0[16 * 2];
-                pp[3] = p0[16 * 3];
-                pp[4] = p0[16 * 4];
-                pp[5] = p0[16 * 5];
-                pp[6] = p0[16 * 6];
-                pp[7] = p0[16 * 7];
-                pp[8] = p0[16 * 8];
-                pp[9] = p0[16 * 9];
-                pp[10] = p0[16 * 10];
-                pp[11] = p0[16 * 11];
-                pp += 12;
-                p0 += 1;
-            }
         }
 #endif // __AVX512F__
         if (elempack == 8)
@@ -1876,23 +1576,6 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
                 _mm256_store_ps(pp + 8 * 11, _rb);
                 pp += 96;
                 p0 += N * 8;
-            }
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp[1] = p0[8 * 1];
-                pp[2] = p0[8 * 2];
-                pp[3] = p0[8 * 3];
-                pp[4] = p0[8 * 4];
-                pp[5] = p0[8 * 5];
-                pp[6] = p0[8 * 6];
-                pp[7] = p0[8 * 7];
-                pp[8] = p0[8 * 8];
-                pp[9] = p0[8 * 9];
-                pp[10] = p0[8 * 10];
-                pp[11] = p0[8 * 11];
-                pp += 12;
-                p0 += 1;
             }
         }
 #endif // __AVX__
@@ -1932,23 +1615,6 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
                 _mm_store_ps(pp + 4 * 11, _rb);
                 pp += 48;
                 p0 += N * 4;
-            }
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp[1] = p0[4 * 1];
-                pp[2] = p0[4 * 2];
-                pp[3] = p0[4 * 3];
-                pp[4] = p0[4 * 4];
-                pp[5] = p0[4 * 5];
-                pp[6] = p0[4 * 6];
-                pp[7] = p0[4 * 7];
-                pp[8] = p0[4 * 8];
-                pp[9] = p0[4 * 9];
-                pp[10] = p0[4 * 10];
-                pp[11] = p0[4 * 11];
-                pp += 12;
-                p0 += 1;
             }
         }
         if (elempack == 1)
@@ -1997,19 +1663,6 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
                 pp += 128;
                 p0 += N * 16;
             }
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp[1] = p0[16 * 1];
-                pp[2] = p0[16 * 2];
-                pp[3] = p0[16 * 3];
-                pp[4] = p0[16 * 4];
-                pp[5] = p0[16 * 5];
-                pp[6] = p0[16 * 6];
-                pp[7] = p0[16 * 7];
-                pp += 8;
-                p0 += 1;
-            }
         }
 #endif // __AVX512F__
         if (elempack == 8)
@@ -2038,19 +1691,6 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
                 _mm256_store_ps(pp + 8 * 7, _r7);
                 pp += 64;
                 p0 += N * 8;
-            }
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp[1] = p0[8 * 1];
-                pp[2] = p0[8 * 2];
-                pp[3] = p0[8 * 3];
-                pp[4] = p0[8 * 4];
-                pp[5] = p0[8 * 5];
-                pp[6] = p0[8 * 6];
-                pp[7] = p0[8 * 7];
-                pp += 8;
-                p0 += 1;
             }
         }
 #endif // __AVX__
@@ -2081,19 +1721,6 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
                 _mm_store_ps(pp + 4 * 7, _r7);
                 pp += 32;
                 p0 += N * 4;
-            }
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp[1] = p0[4 * 1];
-                pp[2] = p0[4 * 2];
-                pp[3] = p0[4 * 3];
-                pp[4] = p0[4 * 4];
-                pp[5] = p0[4 * 5];
-                pp[6] = p0[4 * 6];
-                pp[7] = p0[4 * 7];
-                pp += 8;
-                p0 += 1;
             }
         }
         if (elempack == 1)
@@ -2133,15 +1760,6 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
                 pp += 64;
                 p0 += N * 8;
             }
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp[1] = p0[16 * 1];
-                pp[2] = p0[16 * 2];
-                pp[3] = p0[16 * 3];
-                pp += 4;
-                p0 += 1;
-            }
         }
 #endif // __AVX512F__
         if (elempack == 8)
@@ -2163,15 +1781,6 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
                 pp += 32;
                 p0 += N * 8;
             }
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp[1] = p0[8 * 1];
-                pp[2] = p0[8 * 2];
-                pp[3] = p0[8 * 3];
-                pp += 4;
-                p0 += 1;
-            }
         }
 #endif // __AVX__
         if (elempack == 4)
@@ -2192,15 +1801,6 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
                 _mm_store_ps(pp + 4 * 3, _r3);
                 pp += 16;
                 p0 += N * 4;
-            }
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp[1] = p0[4 * 1];
-                pp[2] = p0[4 * 2];
-                pp[3] = p0[4 * 3];
-                pp += 4;
-                p0 += 1;
             }
         }
         if (elempack == 1)
@@ -2237,13 +1837,6 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
                 pp += 32;
                 p0 += N * 16;
             }
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp[1] = p0[16];
-                pp += 2;
-                p0 += 1;
-            }
         }
 #endif // __AVX512F__
         if (elempack == 8)
@@ -2260,13 +1853,6 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
                 _mm256_store_ps(pp + 8, _r1);
                 pp += 16;
                 p0 += N * 8;
-            }
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp[1] = p0[8];
-                pp += 2;
-                p0 += 1;
             }
         }
 #endif // __AVX__
@@ -2285,13 +1871,6 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
                 _mm_store_ps(pp + 4, _tmp1);
                 pp += 8;
                 p0 += N * 4;
-            }
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp[1] = p0[4];
-                pp += 2;
-                p0 += 1;
             }
         }
 #endif // __SSE2__
@@ -2325,12 +1904,6 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
                 pp += 16;
                 p0 += N * 16;
             }
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp += 1;
-                p0 += 1;
-            }
         }
 #endif // __AVX512F__
         if (elempack == 8)
@@ -2344,12 +1917,6 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
                 pp += 8;
                 p0 += N * 8;
             }
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp += 1;
-                p0 += 1;
-            }
         }
 #endif // __AVX__
         if (elempack == 4)
@@ -2362,12 +1929,6 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
                 _mm_store_ps(pp, _mm_load_ps(p0));
                 pp += 4;
                 p0 += N * 4;
-            }
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp += 1;
-                p0 += 1;
             }
         }
 #endif // __SSE2__
