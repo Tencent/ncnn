@@ -6638,6 +6638,39 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
     }
 }
 
+static void get_optimal_tile_mnk(int M, int N, int K, int& TILE_M, int& TILE_N, int& TILE_K, const Option& opt)
+{
+    // TODO do not hardcode
+    TILE_M = 16 * 8 * get_physical_cpu_count();
+    TILE_N = 12 * 10 * get_physical_cpu_count();
+    TILE_K = 16 * 8 * get_physical_cpu_count();
+
+    if (M > 0)
+    {
+        int nn_M = (M + TILE_M - 1) / TILE_M;
+        TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 15) / 16 * 16);
+    }
+
+    if (N > 0)
+    {
+        int nn_N = (N + TILE_N - 1) / TILE_N;
+        TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 11) / 12 * 12);
+    }
+
+    if (K > 0)
+    {
+        int nn_K = (K + TILE_K - 1) / TILE_K;
+        TILE_K = std::min(TILE_K, ((K + nn_K - 1) / nn_K + 15) / 16 * 16);
+    }
+
+    if (opt.num_threads > 1)
+    {
+        TILE_M = std::min(TILE_M, (TILE_M / opt.num_threads + 15) / 16 * 16);
+        TILE_N = std::min(TILE_N, (TILE_N / opt.num_threads + 11) / 12 * 12);
+        TILE_K = std::min(TILE_K, (TILE_K / opt.num_threads + 15) / 16 * 16);
+    }
+}
+
 static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int broadcast_type_C, int transA, int transB, float alpha, float beta, const Option& opt)
 {
     const int M = transA ? A.w : A.h * A.elempack;
@@ -6646,27 +6679,8 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
 
     // NCNN_LOGE("M/N/K = %d %d %d", M, N, K);
 
-    // TODO do not hardcode
-    int TILE_M = 16 * 8 * get_physical_cpu_count();
-    int TILE_N = 12 * 10 * get_physical_cpu_count();
-    int TILE_K = 16 * 8 * get_physical_cpu_count();
-
-    {
-        int nn_M = (M + TILE_M - 1) / TILE_M;
-        int nn_N = (N + TILE_N - 1) / TILE_N;
-        int nn_K = (K + TILE_K - 1) / TILE_K;
-
-        TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 15) / 16 * 16);
-        TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 11) / 12 * 12);
-        TILE_K = std::min(TILE_K, ((K + nn_K - 1) / nn_K + 15) / 16 * 16);
-
-        if (opt.num_threads > 1)
-        {
-            TILE_M = std::min(TILE_M, (TILE_M / opt.num_threads + 15) / 16 * 16);
-            TILE_N = std::min(TILE_N, (TILE_N / opt.num_threads + 11) / 12 * 12);
-            TILE_K = std::min(TILE_K, (TILE_K / opt.num_threads + 15) / 16 * 16);
-        }
-    }
+    int TILE_M, TILE_N, TILE_K;
+    get_optimal_tile_mnk(M, N, K, TILE_M, TILE_N, TILE_K, opt);
 
     // NCNN_LOGE("TILE M/N/K = %d %d %d", TILE_M, TILE_N, TILE_K);
 
@@ -6757,27 +6771,8 @@ static int gemm_AT_x86(const Mat& AT, const Mat& B, const Mat& C, Mat& top_blob,
 
     // NCNN_LOGE("M/N/K = %d %d %d", M, N, K);
 
-    // TODO do not hardcode
-    int TILE_M = 16 * 8 * get_physical_cpu_count();
-    int TILE_N = 12 * 10 * get_physical_cpu_count();
-    int TILE_K = 16 * 8 * get_physical_cpu_count();
-
-    {
-        int nn_M = (M + TILE_M - 1) / TILE_M;
-        int nn_N = (N + TILE_N - 1) / TILE_N;
-        int nn_K = (K + TILE_K - 1) / TILE_K;
-
-        TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 15) / 16 * 16);
-        TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 11) / 12 * 12);
-        TILE_K = std::min(TILE_K, ((K + nn_K - 1) / nn_K + 15) / 16 * 16);
-
-        if (opt.num_threads > 1)
-        {
-            TILE_M = std::min(TILE_M, (TILE_M / opt.num_threads + 15) / 16 * 16);
-            TILE_N = std::min(TILE_N, (TILE_N / opt.num_threads + 11) / 12 * 12);
-            TILE_K = std::min(TILE_K, (TILE_K / opt.num_threads + 15) / 16 * 16);
-        }
-    }
+    int TILE_M, TILE_N, TILE_K;
+    get_optimal_tile_mnk(M, N, K, TILE_M, TILE_N, TILE_K, opt);
 
     // NCNN_LOGE("TILE M/N/K = %d %d %d", TILE_M, TILE_N, TILE_K);
 
@@ -6855,27 +6850,8 @@ static int gemm_BT_x86(const Mat& A, const Mat& BT, const Mat& C, Mat& top_blob,
 
     // NCNN_LOGE("M/N/K = %d %d %d", M, N, K);
 
-    // TODO do not hardcode
-    int TILE_M = 16 * 8 * get_physical_cpu_count();
-    int TILE_N = 12 * 10 * get_physical_cpu_count();
-    int TILE_K = 16 * 8 * get_physical_cpu_count();
-
-    {
-        int nn_M = (M + TILE_M - 1) / TILE_M;
-        int nn_N = (N + TILE_N - 1) / TILE_N;
-        int nn_K = (K + TILE_K - 1) / TILE_K;
-
-        TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 15) / 16 * 16);
-        TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 11) / 12 * 12);
-        TILE_K = std::min(TILE_K, ((K + nn_K - 1) / nn_K + 15) / 16 * 16);
-
-        if (opt.num_threads > 1)
-        {
-            TILE_M = std::min(TILE_M, (TILE_M / opt.num_threads + 15) / 16 * 16);
-            TILE_N = std::min(TILE_N, (TILE_N / opt.num_threads + 11) / 12 * 12);
-            TILE_K = std::min(TILE_K, (TILE_K / opt.num_threads + 15) / 16 * 16);
-        }
-    }
+    int TILE_M, TILE_N, TILE_K;
+    get_optimal_tile_mnk(M, N, K, TILE_M, TILE_N, TILE_K, opt);
 
     // NCNN_LOGE("TILE M/N/K = %d %d %d", TILE_M, TILE_N, TILE_K);
 
@@ -6939,27 +6915,8 @@ static int gemm_AT_BT_x86(const Mat& AT, const Mat& BT, const Mat& C, Mat& top_b
 {
     // NCNN_LOGE("M/N/K = %d %d %d", M, N, K);
 
-    // TODO do not hardcode
-    int TILE_M = 16 * 8 * get_physical_cpu_count();
-    int TILE_N = 12 * 10 * get_physical_cpu_count();
-    int TILE_K = 16 * 8 * get_physical_cpu_count();
-
-    {
-        int nn_M = (M + TILE_M - 1) / TILE_M;
-        int nn_N = (N + TILE_N - 1) / TILE_N;
-        int nn_K = (K + TILE_K - 1) / TILE_K;
-
-        TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 15) / 16 * 16);
-        TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 11) / 12 * 12);
-        TILE_K = std::min(TILE_K, ((K + nn_K - 1) / nn_K + 15) / 16 * 16);
-
-        if (opt.num_threads > 1)
-        {
-            TILE_M = std::min(TILE_M, (TILE_M / opt.num_threads + 15) / 16 * 16);
-            TILE_N = std::min(TILE_N, (TILE_N / opt.num_threads + 11) / 12 * 12);
-            TILE_K = std::min(TILE_K, (TILE_K / opt.num_threads + 15) / 16 * 16);
-        }
-    }
+    int TILE_M, TILE_N, TILE_K;
+    get_optimal_tile_mnk(M, N, K, TILE_M, TILE_N, TILE_K, opt);
 
     // NCNN_LOGE("TILE M/N/K = %d %d %d", TILE_M, TILE_N, TILE_K);
 
@@ -7012,27 +6969,8 @@ int Gemm_x86::create_pipeline(const Option& opt)
         const int M = constantM;
         const int K = constantK;
 
-        // TODO do not hardcode
-        int TILE_M = 16 * 8 * get_physical_cpu_count();
-        // int TILE_N = 12 * 10 * get_physical_cpu_count();
-        int TILE_K = 16 * 8 * get_physical_cpu_count();
-
-        {
-            int nn_M = (constantM + TILE_M - 1) / TILE_M;
-            // int nn_N = (constantN + TILE_N - 1) / TILE_N;
-            int nn_K = (constantK + TILE_K - 1) / TILE_K;
-
-            TILE_M = std::min(TILE_M, ((constantM + nn_M - 1) / nn_M + 15) / 16 * 16);
-            // TILE_N = std::min(TILE_N, ((constantN + nn_N - 1) / nn_N + 11) / 12 * 12);
-            TILE_K = std::min(TILE_K, ((constantK + nn_K - 1) / nn_K + 15) / 16 * 16);
-
-            if (opt.num_threads > 1)
-            {
-                TILE_M = std::min(TILE_M, (TILE_M / opt.num_threads + 15) / 16 * 16);
-                // TILE_N = std::min(TILE_N, (TILE_N / opt.num_threads + 11) / 12 * 12);
-                TILE_K = std::min(TILE_K, (TILE_K / opt.num_threads + 15) / 16 * 16);
-            }
-        }
+        int TILE_M, TILE_N, TILE_K;
+        get_optimal_tile_mnk(M, 0, K, TILE_M, TILE_N, TILE_K, opt);
 
         const int nn_M = (M + TILE_M - 1) / TILE_M;
 
@@ -7074,27 +7012,8 @@ int Gemm_x86::create_pipeline(const Option& opt)
         const int N = constantN;
         const int K = constantK;
 
-        // TODO do not hardcode
-        // int TILE_M = 16 * 8 * get_physical_cpu_count();
-        int TILE_N = 12 * 10 * get_physical_cpu_count();
-        int TILE_K = 16 * 8 * get_physical_cpu_count();
-
-        {
-            // int nn_M = (constantM + TILE_M - 1) / TILE_M;
-            int nn_N = (constantN + TILE_N - 1) / TILE_N;
-            int nn_K = (constantK + TILE_K - 1) / TILE_K;
-
-            // TILE_M = std::min(TILE_M, ((constantM + nn_M - 1) / nn_M + 15) / 16 * 16);
-            TILE_N = std::min(TILE_N, ((constantN + nn_N - 1) / nn_N + 11) / 12 * 12);
-            TILE_K = std::min(TILE_K, ((constantK + nn_K - 1) / nn_K + 15) / 16 * 16);
-
-            if (opt.num_threads > 1)
-            {
-                // TILE_M = std::min(TILE_M, (TILE_M / opt.num_threads + 15) / 16 * 16);
-                TILE_N = std::min(TILE_N, (TILE_N / opt.num_threads + 11) / 12 * 12);
-                TILE_K = std::min(TILE_K, (TILE_K / opt.num_threads + 15) / 16 * 16);
-            }
-        }
+        int TILE_M, TILE_N, TILE_K;
+        get_optimal_tile_mnk(0, N, K, TILE_M, TILE_N, TILE_K, opt);
 
         const int nn_N = (N + TILE_N - 1) / TILE_N;
 
