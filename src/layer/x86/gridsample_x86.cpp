@@ -942,8 +942,6 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 // compute coord
                                 {
-
-
                                     // x
                                     gx = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), vImgWf, *(__m256*)_ps256_1), *(__m256*)_ps256_2);
 
@@ -1095,8 +1093,6 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 // compute coord
                                 {
-
-
                                     // x
                                     gx = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), *(__m256*)_ps256_2), _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1));
 
@@ -1250,8 +1246,6 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 // compute coord
                                 {
-
-
                                     // x
                                     gx = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), vImgWf, *(__m256*)_ps256_1), *(__m256*)_ps256_2);
 
@@ -1402,8 +1396,6 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 // compute coord
                                 {
-
-
                                     // x
                                     gx = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), *(__m256*)_ps256_2), _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1));
 
@@ -1556,8 +1548,6 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 // compute coord
                                 {
-
-
                                     // x
                                     gx = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), vImgWf, *(__m256*)_ps256_1), *(__m256*)_ps256_2);
 
@@ -1737,8 +1727,6 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 // compute coord
                                 {
-
-
                                     // x
                                     gx = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), *(__m256*)_ps256_2), _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1));
 
@@ -1911,8 +1899,6 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 // compute coord
                                 {
-
-
                                     // x
                                     gx = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), vImgWf, *(__m256*)_ps256_1), *(__m256*)_ps256_2);
 
@@ -1984,8 +1970,6 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 // compute coord
                                 {
-
-
                                     // x
                                     gx = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), *(__m256*)_ps256_2), _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1));
 
@@ -2059,8 +2043,6 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 // compute coord
                                 {
-
-
                                     // x
                                     gx = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), vImgWf, *(__m256*)_ps256_1), *(__m256*)_ps256_2);
 
@@ -2137,8 +2119,6 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 // compute coord
                                 {
-
-
                                     // x
                                     gx = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), *(__m256*)_ps256_2), _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1));
 
@@ -2215,7 +2195,6 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                 gx = _mm256_shuffle_ps(gx, gy, 0b10001000);
                                 gy = _mm256_shuffle_ps(tmp_x, gy, 0b11011101);
 
-                                
                                 gx = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), vImgWf, *(__m256*)_ps256_1), *(__m256*)_ps256_2);
                                 gy = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), vImgHf, *(__m256*)_ps256_1), *(__m256*)_ps256_2);
 
@@ -2320,7 +2299,6 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                 gx = _mm256_shuffle_ps(gx, gy, 0b10001000);
                                 gy = _mm256_shuffle_ps(tmp_x, gy, 0b11011101);
 
-                                
                                 gx = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), *(__m256*)_ps256_2), _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1));
                                 gy = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), *(__m256*)_ps256_2), _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1));
 
@@ -2417,8 +2395,6 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 // compute coord
                                 {
-
-
                                     // x
                                     gx = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), vImgWf, *(__m256*)_ps256_1), *(__m256*)_ps256_2);
 
@@ -2590,8 +2566,6 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 // compute coord
                                 {
-
-
                                     // x
                                     gx = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), *(__m256*)_ps256_2), _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1));
 
@@ -2762,7 +2736,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 gx = _mm256_shuffle_ps(gx, gy, 0b10001000);
                                 gy = _mm256_shuffle_ps(tmp_x, gy, 0b11011101);
-                                
+
                                 const __m256 border_y = _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1);
                                 const __m256 border_x = _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1);
                                 gx = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), vImgWf, *(__m256*)_ps256_1), *(__m256*)_ps256_2);
@@ -2909,7 +2883,6 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                 gx = _mm256_shuffle_ps(gx, gy, 0b10001000);
                                 gy = _mm256_shuffle_ps(tmp_x, gy, 0b11011101);
 
-                                
                                 const __m256 border_x = _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1);
                                 const __m256 border_y = _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1);
 
@@ -3499,7 +3472,6 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 // compute coord
                                 {
-
                                     // x
                                     gx = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), vImgWf, *(__m256*)_ps256_1), *(__m256*)_ps256_2);
 
@@ -4012,7 +3984,6 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                     float v0 = v00 * (1 - beta) + v01 * beta;
                                     float v1 = v10 * (1 - beta) + v11 * beta;
 
-                                    
                                     top_blob.channel(q).depth(y)[x / 3] = v0 * (1 - gamma) + v1 * gamma;
                                 }
                             }
@@ -4434,7 +4405,6 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                     float v0 = v00 * (1 - beta) + v01 * beta;
                                     float v1 = v10 * (1 - beta) + v11 * beta;
 
-                                    
                                     top_blob.channel(q).depth(y)[x / 3] = v0 * (1 - gamma) + v1 * gamma;
                                 }
                             }
@@ -5300,7 +5270,6 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                 gx = _mm256_shuffle_ps(gx, tmp_y, 0b10001100);
                                 gz = _mm256_shuffle_ps(tmp_x, gz, 0b11001101);
 
-                                
                                 gx = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), vImgWf, *(__m256*)_ps256_1), *(__m256*)_ps256_2);
                                 gy = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), vImgHf, *(__m256*)_ps256_1), *(__m256*)_ps256_2);
                                 gz = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gz, *(__m256*)_ps256_1), vImgDf, *(__m256*)_ps256_1), *(__m256*)_ps256_2);
@@ -5432,7 +5401,6 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                 gx = _mm256_shuffle_ps(gx, tmp_y, 0b10001100);
                                 gz = _mm256_shuffle_ps(tmp_x, gz, 0b11001101);
 
-                                
                                 gx = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), *(__m256*)_ps256_2), _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1));
                                 gy = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), *(__m256*)_ps256_2), _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1));
                                 gz = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gz, *(__m256*)_ps256_1), *(__m256*)_ps256_2), _mm256_sub_ps(vImgDf, *(__m256*)_ps256_1));
