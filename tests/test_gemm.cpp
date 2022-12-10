@@ -27,8 +27,16 @@ static int test_gemm(int M, int N, int K, float alpha, int transA, int transB, i
     std::vector<ncnn::Mat> weights(0);
 
     std::vector<ncnn::Mat> a(2);
-    a[0] = transA ? ncnn::Mat(M, K) : ncnn::Mat(K, M);
-    a[1] = transB ? ncnn::Mat(K, N) : ncnn::Mat(N, K);
+    if (output_N1M)
+    {
+        a[0] = transA ? ncnn::Mat(M, 1, K) : ncnn::Mat(K, 1, M);
+        a[1] = transB ? ncnn::Mat(K, 1, N) : ncnn::Mat(N, 1, K);
+    }
+    else
+    {
+        a[0] = transA ? ncnn::Mat(M, K) : ncnn::Mat(K, M);
+        a[1] = transB ? ncnn::Mat(K, N) : ncnn::Mat(N, K);
+    }
 
     Randomize(a[0]);
     Randomize(a[1]);
@@ -280,8 +288,10 @@ static int test_gemm_0(int M, int N, int K)
            || test_gemm(M, N, K, 4.1f, 1, 0)
            || test_gemm(M, N, K, 5.1f, 1, 1)
 
-           || test_gemm(M, N, K, 1.9f, 1, 0, 1)
            || test_gemm(M, N, K, 1.7f, 0, 1, 1)
+           || test_gemm(M, N, K, 1.7f, 1, 1, 1)
+           || test_gemm(M, N, K, 1.9f, 0, 0, 1)
+           || test_gemm(M, N, K, 1.9f, 1, 0, 1)
 
            || test_gemm_constantA(M, N, K, 2.1f, 0, 0)
            || test_gemm_constantA(M, N, K, 3.1f, 0, 1)

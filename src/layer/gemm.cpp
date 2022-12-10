@@ -114,14 +114,16 @@ int Gemm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
     else
     {
         // transpose A to row-major
-        A.create(A0.h, A0.w, elemsize, opt.workspace_allocator);
+        A.create((A0.dims == 3 ? A0.c : A0.h), A0.w, elemsize, opt.workspace_allocator);
+
+        const int A0_hstep = A0.dims == 3 ? (int)A0.cstep : A0.w;
 
         for (int i = 0; i < A.h; i++)
         {
             float* ptr = A.row(i);
             for (int j = 0; j < A.w; j++)
             {
-                ptr[j] = A0.row(j)[i];
+                ptr[j] = A0[j * A0_hstep + i];
             }
         }
     }
@@ -130,14 +132,16 @@ int Gemm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
     if (transB == 0)
     {
         // transpose B to col-major
-        B.create(B0.h, B0.w, elemsize, opt.workspace_allocator);
+        B.create((B0.dims == 3 ? B0.c : B0.h), B0.w, elemsize, opt.workspace_allocator);
+
+        const int B0_hstep = B0.dims == 3 ? (int)B0.cstep : B0.w;
 
         for (int i = 0; i < B.h; i++)
         {
             float* ptr = B.row(i);
             for (int j = 0; j < B.w; j++)
             {
-                ptr[j] = B0.row(j)[i];
+                ptr[j] = B0[j * B0_hstep + i];
             }
         }
     }
@@ -146,9 +150,9 @@ int Gemm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
         B = B0;
     }
 
-    int M = A.h;
+    int M = A.dims == 3 ? A.c : A.h;
     int K = A.w; // assert A.w == B.w
-    int N = B.h;
+    int N = B.dims == 3 ? B.c : B.h;
 
     const float* ptrC = 0;
     int broadcast_type_C = 0;
@@ -228,11 +232,15 @@ int Gemm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
     for (int i = 0; i < M; i++)
     {
         float* outptr = (float*)top_blob + i * out_hstep;
-        const float* ptrA = A.row(i);
+
+        const int A_hstep = A.dims == 3 ? (int)A.cstep : A.w;
+        const int B_hstep = B.dims == 3 ? (int)B.cstep : B.w;
+
+        const float* ptrA = (const float*)A + i * A_hstep;
 
         for (int j = 0; j < N; j++)
         {
-            const float* ptrB = B.row(j);
+            const float* ptrB = (const float*)B + j * B_hstep;
 
             float sum = 0.f;
             if (ptrC)

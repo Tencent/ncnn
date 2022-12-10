@@ -35,9 +35,8 @@ Gemm_x86::Gemm_x86()
 
 static void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
 {
-    // const int M = A.h * A.elempack;
-    // const int K = A.w;
     const int elempack = A.elempack;
+    const int A_hstep = A.dims == 3 ? (int)A.cstep : A.w;
 
     float* pp = AT;
 
@@ -49,7 +48,7 @@ static void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max
     {
         if (elempack == 16)
         {
-            const float* p0 = A.row((i + ii) / 16 + 0) + k * 16;
+            const float* p0 = (const float*)A + (i + ii) * A_hstep + k * 16;
 
             for (int kk = 0; kk < max_kk; kk++)
             {
@@ -60,8 +59,8 @@ static void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max
         }
         if (elempack == 8)
         {
-            const float* p0 = A.row((i + ii) / 8 + 0) + k * 8;
-            const float* p1 = A.row((i + ii) / 8 + 1) + k * 8;
+            const float* p0 = (const float*)A + (i + ii) * A_hstep + k * 8;
+            const float* p1 = (const float*)A + (i + ii + 8) * A_hstep + k * 8;
 
             for (int kk = 0; kk < max_kk; kk++)
             {
@@ -74,10 +73,10 @@ static void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max
         }
         if (elempack == 4)
         {
-            const float* p0 = A.row((i + ii) / 4 + 0) + k * 4;
-            const float* p1 = A.row((i + ii) / 4 + 1) + k * 4;
-            const float* p2 = A.row((i + ii) / 4 + 2) + k * 4;
-            const float* p3 = A.row((i + ii) / 4 + 3) + k * 4;
+            const float* p0 = (const float*)A + (i + ii) * A_hstep + k * 4;
+            const float* p1 = (const float*)A + (i + ii + 4) * A_hstep + k * 4;
+            const float* p2 = (const float*)A + (i + ii + 8) * A_hstep + k * 4;
+            const float* p3 = (const float*)A + (i + ii + 12) * A_hstep + k * 4;
 
             for (int kk = 0; kk < max_kk; kk++)
             {
@@ -94,22 +93,22 @@ static void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max
         }
         if (elempack == 1)
         {
-            const float* p0 = A.row(i + ii + 0) + k;
-            const float* p1 = A.row(i + ii + 1) + k;
-            const float* p2 = A.row(i + ii + 2) + k;
-            const float* p3 = A.row(i + ii + 3) + k;
-            const float* p4 = A.row(i + ii + 4) + k;
-            const float* p5 = A.row(i + ii + 5) + k;
-            const float* p6 = A.row(i + ii + 6) + k;
-            const float* p7 = A.row(i + ii + 7) + k;
-            const float* p8 = A.row(i + ii + 8) + k;
-            const float* p9 = A.row(i + ii + 9) + k;
-            const float* pa = A.row(i + ii + 10) + k;
-            const float* pb = A.row(i + ii + 11) + k;
-            const float* pc = A.row(i + ii + 12) + k;
-            const float* pd = A.row(i + ii + 13) + k;
-            const float* pe = A.row(i + ii + 14) + k;
-            const float* pf = A.row(i + ii + 15) + k;
+            const float* p0 = (const float*)A + (i + ii) * A_hstep + k;
+            const float* p1 = (const float*)A + (i + ii + 1) * A_hstep + k;
+            const float* p2 = (const float*)A + (i + ii + 2) * A_hstep + k;
+            const float* p3 = (const float*)A + (i + ii + 3) * A_hstep + k;
+            const float* p4 = (const float*)A + (i + ii + 4) * A_hstep + k;
+            const float* p5 = (const float*)A + (i + ii + 5) * A_hstep + k;
+            const float* p6 = (const float*)A + (i + ii + 6) * A_hstep + k;
+            const float* p7 = (const float*)A + (i + ii + 7) * A_hstep + k;
+            const float* p8 = (const float*)A + (i + ii + 8) * A_hstep + k;
+            const float* p9 = (const float*)A + (i + ii + 9) * A_hstep + k;
+            const float* pa = (const float*)A + (i + ii + 10) * A_hstep + k;
+            const float* pb = (const float*)A + (i + ii + 11) * A_hstep + k;
+            const float* pc = (const float*)A + (i + ii + 12) * A_hstep + k;
+            const float* pd = (const float*)A + (i + ii + 13) * A_hstep + k;
+            const float* pe = (const float*)A + (i + ii + 14) * A_hstep + k;
+            const float* pf = (const float*)A + (i + ii + 15) * A_hstep + k;
 
             int kk = 0;
             for (; kk + 15 < max_kk; kk += 16)
@@ -208,7 +207,7 @@ static void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max
     {
         if (elempack == 8)
         {
-            const float* p0 = A.row((i + ii) / 8 + 0) + k * 8;
+            const float* p0 = (const float*)A + (i + ii) * A_hstep + k * 8;
 
             for (int kk = 0; kk < max_kk; kk++)
             {
@@ -219,8 +218,8 @@ static void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max
         }
         if (elempack == 4)
         {
-            const float* p0 = A.row((i + ii) / 4 + 0) + k * 4;
-            const float* p1 = A.row((i + ii) / 4 + 1) + k * 4;
+            const float* p0 = (const float*)A + (i + ii) * A_hstep + k * 4;
+            const float* p1 = (const float*)A + (i + ii + 4) * A_hstep + k * 4;
 
             for (int kk = 0; kk < max_kk; kk++)
             {
@@ -233,14 +232,14 @@ static void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max
         }
         if (elempack == 1)
         {
-            const float* p0 = A.row(i + ii + 0) + k;
-            const float* p1 = A.row(i + ii + 1) + k;
-            const float* p2 = A.row(i + ii + 2) + k;
-            const float* p3 = A.row(i + ii + 3) + k;
-            const float* p4 = A.row(i + ii + 4) + k;
-            const float* p5 = A.row(i + ii + 5) + k;
-            const float* p6 = A.row(i + ii + 6) + k;
-            const float* p7 = A.row(i + ii + 7) + k;
+            const float* p0 = (const float*)A + (i + ii) * A_hstep + k;
+            const float* p1 = (const float*)A + (i + ii + 1) * A_hstep + k;
+            const float* p2 = (const float*)A + (i + ii + 2) * A_hstep + k;
+            const float* p3 = (const float*)A + (i + ii + 3) * A_hstep + k;
+            const float* p4 = (const float*)A + (i + ii + 4) * A_hstep + k;
+            const float* p5 = (const float*)A + (i + ii + 5) * A_hstep + k;
+            const float* p6 = (const float*)A + (i + ii + 6) * A_hstep + k;
+            const float* p7 = (const float*)A + (i + ii + 7) * A_hstep + k;
 
             int kk = 0;
             for (; kk + 7 < max_kk; kk += 8)
@@ -299,7 +298,7 @@ static void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max
     {
         if (elempack == 4)
         {
-            const float* p0 = A.row((i + ii) / 4 + 0) + k * 4;
+            const float* p0 = (const float*)A + (i + ii) * A_hstep + k * 4;
 
             for (int kk = 0; kk < max_kk; kk++)
             {
@@ -310,10 +309,10 @@ static void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max
         }
         if (elempack == 1)
         {
-            const float* p0 = A.row(i + ii + 0) + k;
-            const float* p1 = A.row(i + ii + 1) + k;
-            const float* p2 = A.row(i + ii + 2) + k;
-            const float* p3 = A.row(i + ii + 3) + k;
+            const float* p0 = (const float*)A + (i + ii) * A_hstep + k;
+            const float* p1 = (const float*)A + (i + ii + 1) * A_hstep + k;
+            const float* p2 = (const float*)A + (i + ii + 2) * A_hstep + k;
+            const float* p3 = (const float*)A + (i + ii + 3) * A_hstep + k;
 
             int kk = 0;
 #if __AVX__
@@ -371,8 +370,8 @@ static void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max
     {
         // if (elempack == 1)
         {
-            const float* p0 = A.row(i + ii + 0) + k;
-            const float* p1 = A.row(i + ii + 1) + k;
+            const float* p0 = (const float*)A + (i + ii) * A_hstep + k;
+            const float* p1 = (const float*)A + (i + ii + 1) * A_hstep + k;
 
             int kk = 0;
 #if __SSE2__
@@ -416,7 +415,7 @@ static void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max
     {
         // if (elempack == 1)
         {
-            const float* p0 = A.row(i + ii + 0) + k;
+            const float* p0 = (const float*)A + (i + ii) * A_hstep + k;
 
             int kk = 0;
 #if __SSE2__
@@ -447,9 +446,8 @@ static void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max
 
 static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
 {
-    const int M = A.w;
-    // const int K = A.h * A.elempack;
     const int elempack = A.elempack;
+    const int A_hstep = A.dims == 3 ? (int)A.cstep : A.w;
 
     float* pp = AT;
 
@@ -461,7 +459,7 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
     {
         if (elempack == 16)
         {
-            const float* p0 = A.row(k / 16) + (i + ii) * 16;
+            const float* p0 = (const float*)A + k * A_hstep + (i + ii) * 16;
 
             int kk = 0;
             for (; kk + 15 < max_kk; kk += 16)
@@ -500,12 +498,12 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
                 _mm512_store_ps(pp + 16 * 14, _re);
                 _mm512_store_ps(pp + 16 * 15, _rf);
                 pp += 256;
-                p0 += M * 16;
+                p0 += A_hstep * 16;
             }
         }
         if (elempack == 8)
         {
-            const float* p0 = A.row(k / 8) + (i + ii) * 8;
+            const float* p0 = (const float*)A + k * A_hstep + (i + ii) * 8;
 
             int kk = 0;
             for (; kk + 7 < max_kk; kk += 8)
@@ -546,12 +544,12 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
                 _mm512_store_ps(pp + 16 * 6, _rr6);
                 _mm512_store_ps(pp + 16 * 7, _rr7);
                 pp += 128;
-                p0 += M * 8;
+                p0 += A_hstep * 8;
             }
         }
         if (elempack == 4)
         {
-            const float* p0 = A.row(k / 4) + (i + ii) * 4;
+            const float* p0 = (const float*)A + k * A_hstep + (i + ii) * 4;
 
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
@@ -593,19 +591,19 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
                 _mm_store_ps(pp + 4 * 14, _rb);
                 _mm_store_ps(pp + 4 * 15, _rf);
                 pp += 64;
-                p0 += M * 4;
+                p0 += A_hstep * 4;
             }
         }
         if (elempack == 1)
         {
-            const float* p0 = A.row(k) + (i + ii);
+            const float* p0 = (const float*)A + k * A_hstep + (i + ii);
 
             int kk = 0;
             for (; kk < max_kk; kk++)
             {
                 _mm512_store_ps(pp, _mm512_loadu_ps(p0));
                 pp += 16;
-                p0 += M;
+                p0 += A_hstep;
             }
         }
     }
@@ -615,7 +613,7 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
 #if __AVX512F__
         if (elempack == 16)
         {
-            const float* p0 = A.row(k / 16) + (i + ii) * 16;
+            const float* p0 = (const float*)A + k * A_hstep + (i + ii) * 16;
 
             int kk = 0;
             for (; kk + 15 < max_kk; kk += 16)
@@ -638,13 +636,13 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
                 _mm512_store_ps(pp + 16 * 6, _r6);
                 _mm512_store_ps(pp + 16 * 7, _r7);
                 pp += 128;
-                p0 += M * 16;
+                p0 += A_hstep * 16;
             }
         }
 #endif // __AVX512F__
         if (elempack == 8)
         {
-            const float* p0 = A.row(k / 8) + (i + ii) * 8;
+            const float* p0 = (const float*)A + k * A_hstep + (i + ii) * 8;
 
             int kk = 0;
             for (; kk + 7 < max_kk; kk += 8)
@@ -667,12 +665,12 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
                 _mm256_store_ps(pp + 8 * 6, _r6);
                 _mm256_store_ps(pp + 8 * 7, _r7);
                 pp += 64;
-                p0 += M * 8;
+                p0 += A_hstep * 8;
             }
         }
         if (elempack == 4)
         {
-            const float* p0 = A.row(k / 4) + (i + ii) * 4;
+            const float* p0 = (const float*)A + k * A_hstep + (i + ii) * 4;
 
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
@@ -696,19 +694,19 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
                 _mm_store_ps(pp + 4 * 6, _r3);
                 _mm_store_ps(pp + 4 * 7, _r7);
                 pp += 32;
-                p0 += M * 4;
+                p0 += A_hstep * 4;
             }
         }
         if (elempack == 1)
         {
-            const float* p0 = A.row(k) + (i + ii);
+            const float* p0 = (const float*)A + k * A_hstep + (i + ii);
 
             int kk = 0;
             for (; kk < max_kk; kk++)
             {
                 _mm256_store_ps(pp, _mm256_loadu_ps(p0));
                 pp += 8;
-                p0 += M;
+                p0 += A_hstep;
             }
         }
     }
@@ -719,7 +717,7 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
 #if __AVX512F__
         if (elempack == 16)
         {
-            const float* p0 = A.row(k / 16) + (i + ii) * 16;
+            const float* p0 = (const float*)A + k * A_hstep + (i + ii) * 16;
 
             int kk = 0;
             for (; kk + 15 < max_kk; kk += 16)
@@ -734,13 +732,13 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
                 _mm512_store_ps(pp + 16 * 2, _r2);
                 _mm512_store_ps(pp + 16 * 3, _r3);
                 pp += 64;
-                p0 += M * 16;
+                p0 += A_hstep * 16;
             }
         }
 #endif // __AVX512F__
         if (elempack == 8)
         {
-            const float* p0 = A.row(k / 8) + (i + ii) * 8;
+            const float* p0 = (const float*)A + k * A_hstep + (i + ii) * 8;
 
             int kk = 0;
             for (; kk + 7 < max_kk; kk += 8)
@@ -755,13 +753,13 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
                 _mm256_store_ps(pp + 8 * 2, _r2);
                 _mm256_store_ps(pp + 8 * 3, _r3);
                 pp += 32;
-                p0 += M * 8;
+                p0 += A_hstep * 8;
             }
         }
 #endif // __AVX__
         if (elempack == 4)
         {
-            const float* p0 = A.row(k / 4) + (i + ii) * 4;
+            const float* p0 = (const float*)A + k * A_hstep + (i + ii) * 4;
 
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
@@ -776,19 +774,19 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
                 _mm_store_ps(pp + 4 * 2, _r2);
                 _mm_store_ps(pp + 4 * 3, _r3);
                 pp += 16;
-                p0 += M * 4;
+                p0 += A_hstep * 4;
             }
         }
         if (elempack == 1)
         {
-            const float* p0 = A.row(k) + (i + ii);
+            const float* p0 = (const float*)A + k * A_hstep + (i + ii);
 
             int kk = 0;
             for (; kk < max_kk; kk++)
             {
                 _mm_store_ps(pp, _mm_loadu_ps(p0));
                 pp += 4;
-                p0 += M;
+                p0 += A_hstep;
             }
         }
     }
@@ -800,7 +798,7 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
 #if __AVX512F__
         if (elempack == 16)
         {
-            const float* p0 = A.row(k / 16) + (i + ii) * 16;
+            const float* p0 = (const float*)A + k * A_hstep + (i + ii) * 16;
 
             int kk = 0;
             for (; kk + 15 < max_kk; kk += 16)
@@ -811,13 +809,13 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
                 _mm512_store_ps(pp, _r0);
                 _mm512_store_ps(pp + 16, _r1);
                 pp += 32;
-                p0 += M * 16;
+                p0 += A_hstep * 16;
             }
         }
 #endif // __AVX512F__
         if (elempack == 8)
         {
-            const float* p0 = A.row(k / 8) + (i + ii) * 8;
+            const float* p0 = (const float*)A + k * A_hstep + (i + ii) * 8;
 
             int kk = 0;
             for (; kk + 7 < max_kk; kk += 8)
@@ -828,13 +826,13 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
                 _mm256_store_ps(pp, _r0);
                 _mm256_store_ps(pp + 8, _r1);
                 pp += 16;
-                p0 += M * 8;
+                p0 += A_hstep * 8;
             }
         }
 #endif // __AVX__
         if (elempack == 4)
         {
-            const float* p0 = A.row(k / 4) + (i + ii) * 4;
+            const float* p0 = (const float*)A + k * A_hstep + (i + ii) * 4;
 
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
@@ -846,13 +844,13 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
                 _mm_store_ps(pp, _tmp0);
                 _mm_store_ps(pp + 4, _tmp1);
                 pp += 8;
-                p0 += M * 4;
+                p0 += A_hstep * 4;
             }
         }
 #endif // __SSE2__
         if (elempack == 1)
         {
-            const float* p0 = A.row(k) + (i + ii);
+            const float* p0 = (const float*)A + k * A_hstep + (i + ii);
 
             int kk = 0;
             for (; kk < max_kk; kk++)
@@ -860,7 +858,7 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
                 pp[0] = p0[0];
                 pp[1] = p0[1];
                 pp += 2;
-                p0 += M;
+                p0 += A_hstep;
             }
         }
     }
@@ -871,53 +869,53 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
 #if __AVX512F__
         if (elempack == 16)
         {
-            const float* p0 = A.row(k / 16) + (i + ii) * 16;
+            const float* p0 = (const float*)A + k * A_hstep + (i + ii) * 16;
 
             int kk = 0;
             for (; kk + 15 < max_kk; kk += 16)
             {
                 _mm512_store_ps(pp, _mm512_load_ps(p0));
                 pp += 16;
-                p0 += M * 16;
+                p0 += A_hstep * 16;
             }
         }
 #endif // __AVX512F__
         if (elempack == 8)
         {
-            const float* p0 = A.row(k / 8) + (i + ii) * 8;
+            const float* p0 = (const float*)A + k * A_hstep + (i + ii) * 8;
 
             int kk = 0;
             for (; kk + 7 < max_kk; kk += 8)
             {
                 _mm256_store_ps(pp, _mm256_load_ps(p0));
                 pp += 8;
-                p0 += M * 8;
+                p0 += A_hstep * 8;
             }
         }
 #endif // __AVX__
         if (elempack == 4)
         {
-            const float* p0 = A.row(k / 4) + (i + ii) * 4;
+            const float* p0 = (const float*)A + k * A_hstep + (i + ii) * 4;
 
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
                 _mm_store_ps(pp, _mm_load_ps(p0));
                 pp += 4;
-                p0 += M * 4;
+                p0 += A_hstep * 4;
             }
         }
 #endif // __SSE2__
         if (elempack == 1)
         {
-            const float* p0 = A.row(k) + (i + ii);
+            const float* p0 = (const float*)A + k * A_hstep + (i + ii);
 
             int kk = 0;
             for (; kk < max_kk; kk++)
             {
                 pp[0] = p0[0];
                 pp += 1;
-                p0 += M;
+                p0 += A_hstep;
             }
         }
     }
@@ -925,9 +923,8 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
 
 static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk)
 {
-    // const int N = B.h * B.elempack;
-    // const int K = B.w;
     const int elempack = B.elempack;
+    const int B_hstep = B.dims == 3 ? (int)B.cstep : B.w;
 
     float* pp = BT;
 
@@ -939,8 +936,8 @@ static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max
 #if __AVX512F__
         if (elempack == 16)
         {
-            const float* p0 = B.row((j + jj) / 16 + 0) + k * 16;
-            const float* p1 = B.row((j + jj) / 16 + 1) + k * 16;
+            const float* p0 = (const float*)B + (j + jj) / 16 * 16 * B_hstep + k * 16;
+            const float* p1 = (const float*)B + ((j + jj) / 16 * 16 + 16) * B_hstep + k * 16;
 
             if ((j + jj) % 16 == 0)
             {
@@ -988,8 +985,8 @@ static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max
 #endif // __AVX512F__
         if (elempack == 8)
         {
-            const float* p0 = B.row((j + jj) / 8 + 0) + k * 8;
-            const float* p1 = B.row((j + jj) / 8 + 1) + k * 8;
+            const float* p0 = (const float*)B + (j + jj) / 8 * 8 * B_hstep + k * 8;
+            const float* p1 = (const float*)B + ((j + jj) / 8 * 8 + 8) * B_hstep + k * 8;
 
             if ((j + jj) % 8 == 0)
             {
@@ -1017,9 +1014,9 @@ static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max
 #endif // __AVX__
         if (elempack == 4)
         {
-            const float* p0 = B.row((j + jj) / 4 + 0) + k * 4;
-            const float* p1 = B.row((j + jj) / 4 + 1) + k * 4;
-            const float* p2 = B.row((j + jj) / 4 + 2) + k * 4;
+            const float* p0 = (const float*)B + (j + jj) * B_hstep + k * 4;
+            const float* p1 = (const float*)B + (j + jj + 4) * B_hstep + k * 4;
+            const float* p2 = (const float*)B + (j + jj + 8) * B_hstep + k * 4;
 
             for (int kk = 0; kk < max_kk; kk++)
             {
@@ -1034,18 +1031,18 @@ static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max
         }
         if (elempack == 1)
         {
-            const float* p0 = B.row(j + jj + 0) + k;
-            const float* p1 = B.row(j + jj + 1) + k;
-            const float* p2 = B.row(j + jj + 2) + k;
-            const float* p3 = B.row(j + jj + 3) + k;
-            const float* p4 = B.row(j + jj + 4) + k;
-            const float* p5 = B.row(j + jj + 5) + k;
-            const float* p6 = B.row(j + jj + 6) + k;
-            const float* p7 = B.row(j + jj + 7) + k;
-            const float* p8 = B.row(j + jj + 8) + k;
-            const float* p9 = B.row(j + jj + 9) + k;
-            const float* pa = B.row(j + jj + 10) + k;
-            const float* pb = B.row(j + jj + 11) + k;
+            const float* p0 = (const float*)B + (j + jj) * B_hstep + k;
+            const float* p1 = (const float*)B + (j + jj + 1) * B_hstep + k;
+            const float* p2 = (const float*)B + (j + jj + 2) * B_hstep + k;
+            const float* p3 = (const float*)B + (j + jj + 3) * B_hstep + k;
+            const float* p4 = (const float*)B + (j + jj + 4) * B_hstep + k;
+            const float* p5 = (const float*)B + (j + jj + 5) * B_hstep + k;
+            const float* p6 = (const float*)B + (j + jj + 6) * B_hstep + k;
+            const float* p7 = (const float*)B + (j + jj + 7) * B_hstep + k;
+            const float* p8 = (const float*)B + (j + jj + 8) * B_hstep + k;
+            const float* p9 = (const float*)B + (j + jj + 9) * B_hstep + k;
+            const float* pa = (const float*)B + (j + jj + 10) * B_hstep + k;
+            const float* pb = (const float*)B + (j + jj + 11) * B_hstep + k;
 
             int kk = 0;
 #if __AVX__
@@ -1170,7 +1167,7 @@ static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max
 #if __AVX512F__
         if (elempack == 16)
         {
-            const float* p0 = B.row((j + jj) / 16 + 0) + k * 16;
+            const float* p0 = (const float*)B + (j + jj) / 16 * 16 * B_hstep + k * 16;
 
             // (j + jj) % 16 == 8
             for (int kk = 0; kk < max_kk; kk++)
@@ -1190,7 +1187,7 @@ static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max
 #endif // __AVX512F__
         if (elempack == 8)
         {
-            const float* p0 = B.row((j + jj) / 8 + 0) + k * 8;
+            const float* p0 = (const float*)B + (j + jj) / 8 * 8 * B_hstep + k * 8;
 
             // (j + jj) % 8 == 0
             for (int kk = 0; kk < max_kk; kk++)
@@ -1203,8 +1200,8 @@ static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max
 #endif // __AVX__
         if (elempack == 4)
         {
-            const float* p0 = B.row((j + jj) / 4 + 0) + k * 4;
-            const float* p1 = B.row((j + jj) / 4 + 1) + k * 4;
+            const float* p0 = (const float*)B + (j + jj) * B_hstep + k * 4;
+            const float* p1 = (const float*)B + (j + jj + 4) * B_hstep + k * 4;
 
             for (int kk = 0; kk < max_kk; kk++)
             {
@@ -1217,14 +1214,14 @@ static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max
         }
         if (elempack == 1)
         {
-            const float* p0 = B.row(j + jj + 0) + k;
-            const float* p1 = B.row(j + jj + 1) + k;
-            const float* p2 = B.row(j + jj + 2) + k;
-            const float* p3 = B.row(j + jj + 3) + k;
-            const float* p4 = B.row(j + jj + 4) + k;
-            const float* p5 = B.row(j + jj + 5) + k;
-            const float* p6 = B.row(j + jj + 6) + k;
-            const float* p7 = B.row(j + jj + 7) + k;
+            const float* p0 = (const float*)B + (j + jj) * B_hstep + k;
+            const float* p1 = (const float*)B + (j + jj + 1) * B_hstep + k;
+            const float* p2 = (const float*)B + (j + jj + 2) * B_hstep + k;
+            const float* p3 = (const float*)B + (j + jj + 3) * B_hstep + k;
+            const float* p4 = (const float*)B + (j + jj + 4) * B_hstep + k;
+            const float* p5 = (const float*)B + (j + jj + 5) * B_hstep + k;
+            const float* p6 = (const float*)B + (j + jj + 6) * B_hstep + k;
+            const float* p7 = (const float*)B + (j + jj + 7) * B_hstep + k;
 
             int kk = 0;
 #if __AVX__
@@ -1316,7 +1313,7 @@ static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max
 #if __AVX512F__
         if (elempack == 16)
         {
-            const float* p0 = B.row((j + jj) / 16 + 0) + k * 16;
+            const float* p0 = (const float*)B + (j + jj) / 16 * 16 * B_hstep + k * 16;
 
             // (j + jj) % 16 == 12
             for (int kk = 0; kk < max_kk; kk++)
@@ -1332,7 +1329,7 @@ static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max
 #endif // __AVX512F__
         if (elempack == 8)
         {
-            const float* p0 = B.row((j + jj) / 8 + 0) + k * 8;
+            const float* p0 = (const float*)B + (j + jj) / 8 * 8 * B_hstep + k * 8;
 
             // (j + jj) % 8 == 4
             for (int kk = 0; kk < max_kk; kk++)
@@ -1345,7 +1342,7 @@ static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max
 #endif // __AVX__
         if (elempack == 4)
         {
-            const float* p0 = B.row((j + jj) / 4 + 0) + k * 4;
+            const float* p0 = (const float*)B + (j + jj) * B_hstep + k * 4;
 
             for (int kk = 0; kk < max_kk; kk++)
             {
@@ -1356,10 +1353,10 @@ static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max
         }
         if (elempack == 1)
         {
-            const float* p0 = B.row(j + jj + 0) + k;
-            const float* p1 = B.row(j + jj + 1) + k;
-            const float* p2 = B.row(j + jj + 2) + k;
-            const float* p3 = B.row(j + jj + 3) + k;
+            const float* p0 = (const float*)B + (j + jj) * B_hstep + k;
+            const float* p1 = (const float*)B + (j + jj + 1) * B_hstep + k;
+            const float* p2 = (const float*)B + (j + jj + 2) * B_hstep + k;
+            const float* p3 = (const float*)B + (j + jj + 3) * B_hstep + k;
 
             int kk = 0;
 #if __AVX__
@@ -1417,8 +1414,8 @@ static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max
     {
         // if (elempack == 1)
         {
-            const float* p0 = B.row(j + jj + 0) + k;
-            const float* p1 = B.row(j + jj + 1) + k;
+            const float* p0 = (const float*)B + (j + jj) * B_hstep + k;
+            const float* p1 = (const float*)B + (j + jj + 1) * B_hstep + k;
 
             int kk = 0;
 #if __SSE2__
@@ -1462,7 +1459,7 @@ static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max
     {
         // if (elempack == 1)
         {
-            const float* p0 = B.row(j + jj + 0) + k;
+            const float* p0 = (const float*)B + (j + jj) * B_hstep + k;
 
             int kk = 0;
 #if __SSE2__
@@ -1493,9 +1490,8 @@ static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max
 
 static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk)
 {
-    const int N = B.w;
-    // const int K = B.h * B.elempack;
     const int elempack = B.elempack;
+    const int B_hstep = B.dims == 3 ? (int)B.cstep : B.w;
 
     float* pp = BT;
 
@@ -1507,7 +1503,7 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
 #if __AVX512F__
         if (elempack == 16)
         {
-            const float* p0 = B.row(k / 16) + (j + jj) * 16;
+            const float* p0 = (const float*)B + k / 16 * 16 * B_hstep + (j + jj) * 16;
 
             int kk = 0;
             for (; kk + 15 < max_kk; kk += 16)
@@ -1538,13 +1534,13 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
                 _mm512_store_ps(pp + 16 * 10, _ra);
                 _mm512_store_ps(pp + 16 * 11, _rb);
                 pp += 192;
-                p0 += N * 16;
+                p0 += B_hstep * 16;
             }
         }
 #endif // __AVX512F__
         if (elempack == 8)
         {
-            const float* p0 = B.row(k / 8) + (j + jj) * 8;
+            const float* p0 = (const float*)B + k / 8 * 8 * B_hstep + (j + jj) * 8;
 
             int kk = 0;
             for (; kk + 7 < max_kk; kk += 8)
@@ -1575,13 +1571,13 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
                 _mm256_store_ps(pp + 8 * 10, _ra);
                 _mm256_store_ps(pp + 8 * 11, _rb);
                 pp += 96;
-                p0 += N * 8;
+                p0 += B_hstep * 8;
             }
         }
 #endif // __AVX__
         if (elempack == 4)
         {
-            const float* p0 = B.row(k / 4) + (j + jj) * 4;
+            const float* p0 = (const float*)B + k * B_hstep + (j + jj) * 4;
 
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
@@ -1614,12 +1610,12 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
                 _mm_store_ps(pp + 4 * 10, _r7);
                 _mm_store_ps(pp + 4 * 11, _rb);
                 pp += 48;
-                p0 += N * 4;
+                p0 += B_hstep * 4;
             }
         }
         if (elempack == 1)
         {
-            const float* p0 = B.row(k) + (j + jj);
+            const float* p0 = (const float*)B + k * B_hstep + (j + jj);
 
             int kk = 0;
             for (; kk < max_kk; kk++)
@@ -1628,7 +1624,7 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
                 _mm_store_ps(pp + 4, _mm_loadu_ps(p0 + 4));
                 _mm_store_ps(pp + 8, _mm_loadu_ps(p0 + 8));
                 pp += 12;
-                p0 += N;
+                p0 += B_hstep;
             }
         }
     }
@@ -1638,7 +1634,7 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
 #if __AVX512F__
         if (elempack == 16)
         {
-            const float* p0 = B.row(k / 16) + (j + jj) * 16;
+            const float* p0 = (const float*)B + k / 16 * 16 * B_hstep + (j + jj) * 16;
 
             int kk = 0;
             for (; kk + 15 < max_kk; kk += 16)
@@ -1661,13 +1657,13 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
                 _mm512_store_ps(pp + 16 * 6, _r6);
                 _mm512_store_ps(pp + 16 * 7, _r7);
                 pp += 128;
-                p0 += N * 16;
+                p0 += B_hstep * 16;
             }
         }
 #endif // __AVX512F__
         if (elempack == 8)
         {
-            const float* p0 = B.row(k / 8) + (j + jj) * 8;
+            const float* p0 = (const float*)B + k / 8 * 8 * B_hstep + (j + jj) * 8;
 
             int kk = 0;
             for (; kk + 7 < max_kk; kk += 8)
@@ -1690,13 +1686,13 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
                 _mm256_store_ps(pp + 8 * 6, _r6);
                 _mm256_store_ps(pp + 8 * 7, _r7);
                 pp += 64;
-                p0 += N * 8;
+                p0 += B_hstep * 8;
             }
         }
 #endif // __AVX__
         if (elempack == 4)
         {
-            const float* p0 = B.row(k / 4) + (j + jj) * 4;
+            const float* p0 = (const float*)B + k * B_hstep + (j + jj) * 4;
 
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
@@ -1720,12 +1716,12 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
                 _mm_store_ps(pp + 4 * 6, _r3);
                 _mm_store_ps(pp + 4 * 7, _r7);
                 pp += 32;
-                p0 += N * 4;
+                p0 += B_hstep * 4;
             }
         }
         if (elempack == 1)
         {
-            const float* p0 = B.row(k) + (j + jj);
+            const float* p0 = (const float*)B + k * B_hstep + (j + jj);
 
             int kk = 0;
             for (; kk < max_kk; kk++)
@@ -1733,7 +1729,7 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
                 _mm_store_ps(pp, _mm_loadu_ps(p0));
                 _mm_store_ps(pp + 4, _mm_loadu_ps(p0 + 4));
                 pp += 8;
-                p0 += N;
+                p0 += B_hstep;
             }
         }
     }
@@ -1743,7 +1739,7 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
 #if __AVX512F__
         if (elempack == 16)
         {
-            const float* p0 = B.row(k / 16) + (j + jj) * 16;
+            const float* p0 = (const float*)B + k / 16 * 16 * B_hstep + (j + jj) * 16;
 
             int kk = 0;
             for (; kk + 15 < max_kk; kk += 16)
@@ -1758,13 +1754,13 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
                 _mm512_store_ps(pp + 16 * 2, _r2);
                 _mm512_store_ps(pp + 16 * 3, _r3);
                 pp += 64;
-                p0 += N * 8;
+                p0 += B_hstep * 8;
             }
         }
 #endif // __AVX512F__
         if (elempack == 8)
         {
-            const float* p0 = B.row(k / 8) + (j + jj) * 8;
+            const float* p0 = (const float*)B + k / 8 * 8 * B_hstep + (j + jj) * 8;
 
             int kk = 0;
             for (; kk + 7 < max_kk; kk += 8)
@@ -1779,13 +1775,13 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
                 _mm256_store_ps(pp + 8 * 2, _r2);
                 _mm256_store_ps(pp + 8 * 3, _r3);
                 pp += 32;
-                p0 += N * 8;
+                p0 += B_hstep * 8;
             }
         }
 #endif // __AVX__
         if (elempack == 4)
         {
-            const float* p0 = B.row(k / 4) + (j + jj) * 4;
+            const float* p0 = (const float*)B + k * B_hstep + (j + jj) * 4;
 
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
@@ -1800,19 +1796,19 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
                 _mm_store_ps(pp + 4 * 2, _r2);
                 _mm_store_ps(pp + 4 * 3, _r3);
                 pp += 16;
-                p0 += N * 4;
+                p0 += B_hstep * 4;
             }
         }
         if (elempack == 1)
         {
-            const float* p0 = B.row(k) + (j + jj);
+            const float* p0 = (const float*)B + k * B_hstep + (j + jj);
 
             int kk = 0;
             for (; kk < max_kk; kk++)
             {
                 _mm_store_ps(pp, _mm_loadu_ps(p0));
                 pp += 4;
-                p0 += N;
+                p0 += B_hstep;
             }
         }
     }
@@ -1824,7 +1820,7 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
 #if __AVX512F__
         if (elempack == 16)
         {
-            const float* p0 = B.row(k / 16) + (j + jj) * 16;
+            const float* p0 = (const float*)B + k / 16 * 16 * B_hstep + (j + jj) * 16;
 
             int kk = 0;
             for (; kk + 15 < max_kk; kk += 16)
@@ -1835,13 +1831,13 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
                 _mm512_store_ps(pp, _r0);
                 _mm512_store_ps(pp + 16, _r1);
                 pp += 32;
-                p0 += N * 16;
+                p0 += B_hstep * 16;
             }
         }
 #endif // __AVX512F__
         if (elempack == 8)
         {
-            const float* p0 = B.row(k / 8) + (j + jj) * 8;
+            const float* p0 = (const float*)B + k / 8 * 8 * B_hstep + (j + jj) * 8;
 
             int kk = 0;
             for (; kk + 7 < max_kk; kk += 8)
@@ -1852,13 +1848,13 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
                 _mm256_store_ps(pp, _r0);
                 _mm256_store_ps(pp + 8, _r1);
                 pp += 16;
-                p0 += N * 8;
+                p0 += B_hstep * 8;
             }
         }
 #endif // __AVX__
         if (elempack == 4)
         {
-            const float* p0 = B.row(k / 4) + (j + jj) * 4;
+            const float* p0 = (const float*)B + k * B_hstep + (j + jj) * 4;
 
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
@@ -1870,13 +1866,13 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
                 _mm_store_ps(pp, _tmp0);
                 _mm_store_ps(pp + 4, _tmp1);
                 pp += 8;
-                p0 += N * 4;
+                p0 += B_hstep * 4;
             }
         }
 #endif // __SSE2__
         if (elempack == 1)
         {
-            const float* p0 = B.row(k) + (j + jj);
+            const float* p0 = (const float*)B + k * B_hstep + (j + jj);
 
             int kk = 0;
             for (; kk < max_kk; kk++)
@@ -1884,7 +1880,7 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
                 pp[0] = p0[0];
                 pp[1] = p0[1];
                 pp += 2;
-                p0 += N;
+                p0 += B_hstep;
             }
         }
     }
@@ -1895,53 +1891,53 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
 #if __AVX512F__
         if (elempack == 16)
         {
-            const float* p0 = B.row(k / 16) + (j + jj) * 16;
+            const float* p0 = (const float*)B + k / 16 * 16 * B_hstep + (j + jj) * 16;
 
             int kk = 0;
             for (; kk + 15 < max_kk; kk += 16)
             {
                 _mm512_store_ps(pp, _mm512_load_ps(p0));
                 pp += 16;
-                p0 += N * 16;
+                p0 += B_hstep * 16;
             }
         }
 #endif // __AVX512F__
         if (elempack == 8)
         {
-            const float* p0 = B.row(k / 8) + (j + jj) * 8;
+            const float* p0 = (const float*)B + k / 8 * 8 * B_hstep + (j + jj) * 8;
 
             int kk = 0;
             for (; kk + 7 < max_kk; kk += 8)
             {
                 _mm256_store_ps(pp, _mm256_load_ps(p0));
                 pp += 8;
-                p0 += N * 8;
+                p0 += B_hstep * 8;
             }
         }
 #endif // __AVX__
         if (elempack == 4)
         {
-            const float* p0 = B.row(k / 4) + (j + jj) * 4;
+            const float* p0 = (const float*)B + k * B_hstep + (j + jj) * 4;
 
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
                 _mm_store_ps(pp, _mm_load_ps(p0));
                 pp += 4;
-                p0 += N * 4;
+                p0 += B_hstep * 4;
             }
         }
 #endif // __SSE2__
         if (elempack == 1)
         {
-            const float* p0 = B.row(k) + (j + jj);
+            const float* p0 = (const float*)B + k * B_hstep + (j + jj);
 
             int kk = 0;
             for (; kk < max_kk; kk++)
             {
                 pp[0] = p0[0];
                 pp += 1;
-                p0 += N;
+                p0 += B_hstep;
             }
         }
     }
@@ -6254,9 +6250,9 @@ static void get_optimal_tile_mnk(int M, int N, int K, int& TILE_M, int& TILE_N, 
 
 static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int broadcast_type_C, int transA, int transB, float alpha, float beta, const Option& opt)
 {
-    const int M = transA ? A.w : A.h * A.elempack;
-    const int K = transA ? A.h * A.elempack : A.w;
-    const int N = transB ? B.h * B.elempack : B.w;
+    const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
+    const int K = transA ? (A.dims == 3 ? A.c : A.h) * A.elempack : A.w;
+    const int N = transB ? (B.dims == 3 ? B.c : B.h) * B.elempack : B.w;
 
     // NCNN_LOGE("M/N/K = %d %d %d", M, N, K);
 
@@ -6348,7 +6344,7 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
 
 static int gemm_AT_x86(const Mat& AT, const Mat& B, const Mat& C, Mat& top_blob, int broadcast_type_C, int M, int K, int transB, float alpha, float beta, const Option& opt)
 {
-    const int N = transB ? B.h * B.elempack : B.w;
+    const int N = transB ? (B.dims == 3 ? B.c : B.h) * B.elempack : B.w;
 
     // NCNN_LOGE("M/N/K = %d %d %d", M, N, K);
 
@@ -6427,7 +6423,7 @@ static int gemm_AT_x86(const Mat& AT, const Mat& B, const Mat& C, Mat& top_blob,
 
 static int gemm_BT_x86(const Mat& A, const Mat& BT, const Mat& C, Mat& top_blob, int broadcast_type_C, int N, int K, int transA, float alpha, float beta, const Option& opt)
 {
-    const int M = transA ? A.w : A.h * A.elempack;
+    const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
 
     // NCNN_LOGE("M/N/K = %d %d %d", M, N, K);
 
@@ -6673,20 +6669,20 @@ int Gemm_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     {
         const Mat& B = bottom_blobs[0];
         M = constantM;
-        N = transB ? B.h * B.elempack : B.w;
+        N = transB ? (B.dims == 3 ? B.c : B.h) * B.elempack : B.w;
     }
     else if (constantB)
     {
         const Mat& A = bottom_blobs[0];
-        M = transA ? A.w : A.h * A.elempack;
+        M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
         N = constantN;
     }
     else
     {
         const Mat& A = bottom_blobs[0];
         const Mat& B = bottom_blobs[1];
-        M = transA ? A.w : A.h * A.elempack;
-        N = transB ? B.h * B.elempack : B.w;
+        M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
+        N = transB ? (B.dims == 3 ? B.c : B.h) * B.elempack : B.w;
     }
 
     Mat C;
