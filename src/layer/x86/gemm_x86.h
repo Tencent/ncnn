@@ -1,6 +1,6 @@
 // Tencent is pleased to support the open source community by making ncnn available.
 //
-// Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
+// Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
 //
 // Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 // in compliance with the License. You may obtain a copy of the License at
@@ -12,45 +12,28 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#ifndef LAYER_GEMM_H
-#define LAYER_GEMM_H
+#ifndef LAYER_GEMM_X86_H
+#define LAYER_GEMM_X86_H
 
-#include "layer.h"
+#include "gemm.h"
 
 namespace ncnn {
 
-class Gemm : public Layer
+class Gemm_x86 : virtual public Gemm
 {
 public:
-    Gemm();
+    Gemm_x86();
 
-    virtual int load_param(const ParamDict& pd);
-
-    virtual int load_model(const ModelBin& mb);
+    virtual int create_pipeline(const Option& opt);
 
     virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 
 public:
-    float alpha;
-    float beta;
-    int transA;
-    int transB;
-
-    int constantA;
-    int constantB;
-    int constantC;
-    int constantM;
-    int constantN;
-    int constantK;
-    int constant_broadcast_type_C;
-    int output_N1M;
-
-    // constant A / B / C
-    Mat A_data;
-    Mat B_data;
-    Mat C_data;
+    Mat AT_data;
+    Mat BT_data;
+    Mat CT_data;
 };
 
 } // namespace ncnn
 
-#endif // LAYER_GEMM_H
+#endif // LAYER_GEMM_X86_H

@@ -816,6 +816,20 @@ y = gemm(a, b) * alpha + c * beta
 | 1         | beta          | float | 1.f       |                   |
 | 2         | transA        | int   | 0         |                   |
 | 3         | transb        | int   | 0         |                   |
+| 4         | constantA     | int   | 0         |                   |
+| 5         | constantB     | int   | 0         |                   |
+| 6         | constantC     | int   | 0         |                   |
+| 7         | constantM     | int   | 0         |                   |
+| 8         | constantN     | int   | 0         |                   |
+| 9         | constantK     | int   | 0         |                   |
+| 10        | constant_broadcast_type_C | int | 0 |                 |
+| 11        | output_N1M    | int   | 0         |                   |
+
+| weight        | type  | shape                 |
+| ------------- | ----- | --------------------- |
+| A_data        | float | [M, K] or [K, M]      |
+| B_data        | float | [N, K] or [K, N]      |
+| C_data        | float | [1], [M] or [N] or [1, M] or [N,1] or [N, M] |
 
 # GridSample
 ```
