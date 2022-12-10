@@ -1577,7 +1577,7 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
 #endif // __AVX__
         if (elempack == 4)
         {
-            const float* p0 = (const float*)B + k * B_hstep + (j + jj) * 4;
+            const float* p0 = (const float*)B + k / 4 * 4 * B_hstep + (j + jj) * 4;
 
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
@@ -1692,7 +1692,7 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
 #endif // __AVX__
         if (elempack == 4)
         {
-            const float* p0 = (const float*)B + k * B_hstep + (j + jj) * 4;
+            const float* p0 = (const float*)B + k / 4 * 4 * B_hstep + (j + jj) * 4;
 
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
@@ -1781,7 +1781,7 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
 #endif // __AVX__
         if (elempack == 4)
         {
-            const float* p0 = (const float*)B + k * B_hstep + (j + jj) * 4;
+            const float* p0 = (const float*)B + k / 4 * 4 * B_hstep + (j + jj) * 4;
 
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
@@ -1854,7 +1854,7 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
 #endif // __AVX__
         if (elempack == 4)
         {
-            const float* p0 = (const float*)B + k * B_hstep + (j + jj) * 4;
+            const float* p0 = (const float*)B + k / 4 * 4 * B_hstep + (j + jj) * 4;
 
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
@@ -1917,7 +1917,7 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
 #endif // __AVX__
         if (elempack == 4)
         {
-            const float* p0 = (const float*)B + k * B_hstep + (j + jj) * 4;
+            const float* p0 = (const float*)B + k / 4 * 4 * B_hstep + (j + jj) * 4;
 
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
