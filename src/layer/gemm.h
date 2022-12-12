@@ -28,6 +28,8 @@ public:
 
     virtual int load_model(const ModelBin& mb);
 
+    virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
+
     virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 
 public:
