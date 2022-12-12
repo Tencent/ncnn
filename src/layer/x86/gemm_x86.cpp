@@ -5893,20 +5893,20 @@ static void get_optimal_tile_mnk(int M, int N, int K, int& TILE_M, int& TILE_N, 
     // TODO do not hardcode
 #if __AVX512F__
     TILE_M = 16 * 8;
-    TILE_N = 12 * 10;
-    TILE_K = 16 * 8;
+    TILE_N = 4 * 32;
+    TILE_K = 4 * 32;
 #elif __AVX__
     TILE_M = 8 * 16;
-    TILE_N = 12 * 10;
-    TILE_K = 8 * 16;
+    TILE_N = 4 * 32;
+    TILE_K = 2 * 64;
 #elif __SSE2__
     TILE_M = 4 * 16;
-    TILE_N = 12 * 5;
-    TILE_K = 4 * 16;
+    TILE_N = 2 * 32;
+    TILE_K = 2 * 32;
 #else
-    TILE_M = 16;
-    TILE_N = 12;
-    TILE_K = 16;
+    TILE_M = 2 * 8;
+    TILE_N = 2 * 8;
+    TILE_K = 1 * 16;
 #endif
 
     const int physical_cpu_count = get_physical_cpu_count();
@@ -5917,13 +5917,29 @@ static void get_optimal_tile_mnk(int M, int N, int K, int& TILE_M, int& TILE_N, 
     if (M > 0)
     {
         int nn_M = (M + TILE_M - 1) / TILE_M;
+#if __AVX512F__
         TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 15) / 16 * 16);
+#elif __AVX__
+        TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 7) / 8 * 8);
+#elif __SSE2__
+        TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 3) / 4 * 4);
+#else
+        TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 1) / 2 * 2);
+#endif
     }
 
     if (N > 0)
     {
         int nn_N = (N + TILE_N - 1) / TILE_N;
-        TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 11) / 12 * 12);
+#if __AVX512F__
+        TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 3) / 4 * 4);
+#elif __AVX__
+        TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 3) / 4 * 4);
+#elif __SSE2__
+        TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 1) / 2 * 2);
+#else
+        TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 1) / 2 * 2);
+#endif
     }
 
     if (K > 0)
@@ -5933,6 +5949,8 @@ static void get_optimal_tile_mnk(int M, int N, int K, int& TILE_M, int& TILE_N, 
         TILE_K = std::min(TILE_K, ((K + nn_K - 1) / nn_K + 3) / 4 * 4);
 #elif __AVX__
         TILE_K = std::min(TILE_K, ((K + nn_K - 1) / nn_K + 1) / 2 * 2);
+#elif __SSE2__
+        TILE_K = std::min(TILE_K, ((K + nn_K - 1) / nn_K + 1) / 2 * 2);
 #else
         TILE_K = std::min(TILE_K, (K + nn_K - 1) / nn_K);
 #endif
@@ -5940,13 +5958,21 @@ static void get_optimal_tile_mnk(int M, int N, int K, int& TILE_M, int& TILE_N, 
 
     if (opt.num_threads > 1)
     {
-        TILE_M = std::min(TILE_M, (std::max(1, TILE_M / opt.num_threads) + 15) / 16 * 16);
-        TILE_N = std::min(TILE_N, (std::max(1, TILE_N / opt.num_threads) + 11) / 12 * 12);
 #if __AVX512F__
+        TILE_M = std::min(TILE_M, (std::max(1, TILE_M / opt.num_threads) + 15) / 16 * 16);
+        TILE_N = std::min(TILE_N, (std::max(1, TILE_N / opt.num_threads) + 3) / 4 * 4);
         TILE_K = std::min(TILE_K, (std::max(1, TILE_K / opt.num_threads) + 3) / 4 * 4);
 #elif __AVX__
+        TILE_M = std::min(TILE_M, (std::max(1, TILE_M / opt.num_threads) + 7) / 8 * 8);
+        TILE_N = std::min(TILE_N, (std::max(1, TILE_N / opt.num_threads) + 3) / 4 * 4);
+        TILE_K = std::min(TILE_K, (std::max(1, TILE_K / opt.num_threads) + 1) / 2 * 2);
+#elif __SSE2__
+        TILE_M = std::min(TILE_M, (std::max(1, TILE_M / opt.num_threads) + 3) / 4 * 4);
+        TILE_N = std::min(TILE_N, (std::max(1, TILE_N / opt.num_threads) + 1) / 2 * 2);
         TILE_K = std::min(TILE_K, (std::max(1, TILE_K / opt.num_threads) + 1) / 2 * 2);
 #else
+        TILE_M = std::min(TILE_M, (std::max(1, TILE_M / opt.num_threads) + 1) / 2 * 2);
+        TILE_N = std::min(TILE_N, (std::max(1, TILE_N / opt.num_threads) + 1) / 2 * 2);
         TILE_K = std::min(TILE_K, std::max(1, TILE_K / opt.num_threads));
 #endif
     }
