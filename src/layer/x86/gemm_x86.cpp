@@ -31,6 +31,8 @@ Gemm_x86::Gemm_x86()
 #if __SSE2__
     support_packing = true;
 #endif // __SSE2__
+
+    nT = 0;
 }
 
 static void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
@@ -5888,7 +5890,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
     }
 }
 
-static void get_optimal_tile_mnk(int M, int N, int K, int& TILE_M, int& TILE_N, int& TILE_K, const Option& opt)
+static void get_optimal_tile_mnk(int M, int N, int K, int& TILE_M, int& TILE_N, int& TILE_K, int nT)
 {
     // TODO do not hardcode
 #if __AVX512F__
@@ -5909,7 +5911,7 @@ static void get_optimal_tile_mnk(int M, int N, int K, int& TILE_M, int& TILE_N, 
     TILE_K = 1 * 16;
 #endif
 
-    TILE_M *= std::min(opt.num_threads, get_physical_cpu_count());
+    TILE_M *= std::min(nT, get_physical_cpu_count());
 
     if (M > 0)
     {
@@ -5953,21 +5955,21 @@ static void get_optimal_tile_mnk(int M, int N, int K, int& TILE_M, int& TILE_N, 
 #endif
     }
 
-    if (opt.num_threads > 1)
+    if (nT > 1)
     {
 #if __AVX512F__
-        TILE_M = std::min(TILE_M, (std::max(1, TILE_M / opt.num_threads) + 15) / 16 * 16);
+        TILE_M = std::min(TILE_M, (std::max(1, TILE_M / nT) + 15) / 16 * 16);
 #elif __AVX__
-        TILE_M = std::min(TILE_M, (std::max(1, TILE_M / opt.num_threads) + 7) / 8 * 8);
+        TILE_M = std::min(TILE_M, (std::max(1, TILE_M / nT) + 7) / 8 * 8);
 #elif __SSE2__
-        TILE_M = std::min(TILE_M, (std::max(1, TILE_M / opt.num_threads) + 3) / 4 * 4);
+        TILE_M = std::min(TILE_M, (std::max(1, TILE_M / nT) + 3) / 4 * 4);
 #else
-        TILE_M = std::min(TILE_M, (std::max(1, TILE_M / opt.num_threads) + 1) / 2 * 2);
+        TILE_M = std::min(TILE_M, (std::max(1, TILE_M / nT) + 1) / 2 * 2);
 #endif
     }
 }
 
-static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int broadcast_type_C, int transA, int transB, const Option& opt)
+static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int broadcast_type_C, int transA, int transB, int nT, const Option& opt)
 {
     const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
     const int K = transA ? (A.dims == 3 ? A.c : A.h) * A.elempack : A.w;
@@ -5976,22 +5978,22 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
     // NCNN_LOGE("M/N/K = %d %d %d", M, N, K);
 
     int TILE_M, TILE_N, TILE_K;
-    get_optimal_tile_mnk(M, N, K, TILE_M, TILE_N, TILE_K, opt);
+    get_optimal_tile_mnk(M, N, K, TILE_M, TILE_N, TILE_K, nT);
 
     // NCNN_LOGE("TILE M/N/K = %d %d %d", TILE_M, TILE_N, TILE_K);
 
     int nn_M = (M + TILE_M - 1) / TILE_M;
     int nn_N = (N + TILE_N - 1) / TILE_N;
 
-    Mat ATX(TILE_K * TILE_M, (K + TILE_K - 1) / TILE_K, opt.num_threads, 4u, opt.blob_allocator);
+    Mat ATX(TILE_K * TILE_M, (K + TILE_K - 1) / TILE_K, nT, 4u, opt.blob_allocator);
     Mat BT(TILE_K * TILE_N, (K + TILE_K - 1) / TILE_K, (N + TILE_N - 1) / TILE_N, 4u, opt.blob_allocator);
 
     Mat tmpX;
     if (K > TILE_K)
-        tmpX.create(TILE_N, TILE_M, opt.num_threads, 4u, opt.blob_allocator);
+        tmpX.create(TILE_N, TILE_M, nT, 4u, opt.blob_allocator);
 
     // pack B
-    #pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(nT)
     for (int ppj = 0; ppj < nn_N; ppj++)
     {
         const int j = ppj * TILE_N;
@@ -6014,7 +6016,7 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
         }
     }
 
-    #pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(nT)
     for (int ppi = 0; ppi < nn_M; ppi++)
     {
         const int i = ppi * TILE_M;
@@ -6061,14 +6063,14 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
     return 0;
 }
 
-static int gemm_AT_x86(const Mat& AT, const Mat& B, const Mat& C, Mat& top_blob, int broadcast_type_C, int M, int K, int transB, const Option& opt)
+static int gemm_AT_x86(const Mat& AT, const Mat& B, const Mat& C, Mat& top_blob, int broadcast_type_C, int M, int K, int transB, int nT, const Option& opt)
 {
     const int N = transB ? (B.dims == 3 ? B.c : B.h) * B.elempack : B.w;
 
     // NCNN_LOGE("M/N/K = %d %d %d", M, N, K);
 
     int TILE_M, TILE_N, TILE_K;
-    get_optimal_tile_mnk(M, N, K, TILE_M, TILE_N, TILE_K, opt);
+    get_optimal_tile_mnk(M, N, K, TILE_M, TILE_N, TILE_K, nT);
 
     // NCNN_LOGE("TILE M/N/K = %d %d %d", TILE_M, TILE_N, TILE_K);
 
@@ -6079,10 +6081,10 @@ static int gemm_AT_x86(const Mat& AT, const Mat& B, const Mat& C, Mat& top_blob,
 
     Mat tmpX;
     if (K > TILE_K)
-        tmpX.create(TILE_N, TILE_M, opt.num_threads, 4u, opt.blob_allocator);
+        tmpX.create(TILE_N, TILE_M, nT, 4u, opt.blob_allocator);
 
     // pack B
-    #pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(nT)
     for (int ppj = 0; ppj < nn_N; ppj++)
     {
         const int j = ppj * TILE_N;
@@ -6105,7 +6107,7 @@ static int gemm_AT_x86(const Mat& AT, const Mat& B, const Mat& C, Mat& top_blob,
         }
     }
 
-    #pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(nT)
     for (int ppi = 0; ppi < nn_M; ppi++)
     {
         const int i = ppi * TILE_M;
@@ -6140,27 +6142,27 @@ static int gemm_AT_x86(const Mat& AT, const Mat& B, const Mat& C, Mat& top_blob,
     return 0;
 }
 
-static int gemm_BT_x86(const Mat& A, const Mat& BT, const Mat& C, Mat& top_blob, int broadcast_type_C, int N, int K, int transA, const Option& opt)
+static int gemm_BT_x86(const Mat& A, const Mat& BT, const Mat& C, Mat& top_blob, int broadcast_type_C, int N, int K, int transA, int nT, const Option& opt)
 {
     const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
 
     // NCNN_LOGE("M/N/K = %d %d %d", M, N, K);
 
     int TILE_M, TILE_N, TILE_K;
-    get_optimal_tile_mnk(M, N, K, TILE_M, TILE_N, TILE_K, opt);
+    get_optimal_tile_mnk(M, N, K, TILE_M, TILE_N, TILE_K, nT);
 
     // NCNN_LOGE("TILE M/N/K = %d %d %d", TILE_M, TILE_N, TILE_K);
 
     int nn_M = (M + TILE_M - 1) / TILE_M;
     // int nn_N = (N + TILE_N - 1) / TILE_N;
 
-    Mat ATX(TILE_K * TILE_M, (K + TILE_K - 1) / TILE_K, opt.num_threads, 4u, opt.blob_allocator);
+    Mat ATX(TILE_K * TILE_M, (K + TILE_K - 1) / TILE_K, nT, 4u, opt.blob_allocator);
 
     Mat tmpX;
     if (K > TILE_K)
-        tmpX.create(TILE_N, TILE_M, opt.num_threads, 4u, opt.blob_allocator);
+        tmpX.create(TILE_N, TILE_M, nT, 4u, opt.blob_allocator);
 
-    #pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(nT)
     for (int ppi = 0; ppi < nn_M; ppi++)
     {
         const int i = ppi * TILE_M;
@@ -6207,12 +6209,12 @@ static int gemm_BT_x86(const Mat& A, const Mat& BT, const Mat& C, Mat& top_blob,
     return 0;
 }
 
-static int gemm_AT_BT_x86(const Mat& AT, const Mat& BT, const Mat& C, Mat& top_blob, int broadcast_type_C, int M, int N, int K, const Option& opt)
+static int gemm_AT_BT_x86(const Mat& AT, const Mat& BT, const Mat& C, Mat& top_blob, int broadcast_type_C, int M, int N, int K, int nT, const Option& opt)
 {
     // NCNN_LOGE("M/N/K = %d %d %d", M, N, K);
 
     int TILE_M, TILE_N, TILE_K;
-    get_optimal_tile_mnk(M, N, K, TILE_M, TILE_N, TILE_K, opt);
+    get_optimal_tile_mnk(M, N, K, TILE_M, TILE_N, TILE_K, nT);
 
     // NCNN_LOGE("TILE M/N/K = %d %d %d", TILE_M, TILE_N, TILE_K);
 
@@ -6221,9 +6223,9 @@ static int gemm_AT_BT_x86(const Mat& AT, const Mat& BT, const Mat& C, Mat& top_b
 
     Mat tmpX;
     if (K > TILE_K)
-        tmpX.create(TILE_N, TILE_M, opt.num_threads, 4u, opt.blob_allocator);
+        tmpX.create(TILE_N, TILE_M, nT, 4u, opt.blob_allocator);
 
-    #pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(nT)
     for (int ppi = 0; ppi < nn_M; ppi++)
     {
         const int i = ppi * TILE_M;
@@ -6266,7 +6268,7 @@ int Gemm_x86::create_pipeline(const Option& opt)
         const int K = constantK;
 
         int TILE_M, TILE_N, TILE_K;
-        get_optimal_tile_mnk(M, 0, K, TILE_M, TILE_N, TILE_K, opt);
+        get_optimal_tile_mnk(M, 0, K, TILE_M, TILE_N, TILE_K, opt.num_threads);
 
         const int nn_M = (M + TILE_M - 1) / TILE_M;
 
@@ -6309,7 +6311,7 @@ int Gemm_x86::create_pipeline(const Option& opt)
         const int K = constantK;
 
         int TILE_M, TILE_N, TILE_K;
-        get_optimal_tile_mnk(0, N, K, TILE_M, TILE_N, TILE_K, opt);
+        get_optimal_tile_mnk(0, N, K, TILE_M, TILE_N, TILE_K, opt.num_threads);
 
         const int nn_N = (N + TILE_N - 1) / TILE_N;
 
@@ -6380,6 +6382,11 @@ int Gemm_x86::create_pipeline(const Option& opt)
         {
             C_data.release();
         }
+    }
+
+    if (constantA || constantB || constantC)
+    {
+        nT = opt.num_threads;
     }
 
     return 0;
@@ -6514,26 +6521,33 @@ int Gemm_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     if (top_blob.empty())
         return -100;
 
+    if (nT != 0 && opt.num_threads != nT)
+    {
+        // force num_threads the same as in create_pipeline
+        // so we could use pre-packed A/B from the same tile config
+        NCNN_LOGE("opt.num_threads %d changed, gemm will use load-time value %d", opt.num_threads, nT);
+    }
+
     int ret = 0;
     if (constantA && constantB)
     {
-        ret = gemm_AT_BT_x86(AT_data, BT_data, C, top_blob, broadcast_type_C, constantM, constantN, constantK, opt);
+        ret = gemm_AT_BT_x86(AT_data, BT_data, C, top_blob, broadcast_type_C, constantM, constantN, constantK, nT, opt);
     }
     else if (constantA)
     {
         const Mat& B = bottom_blobs[0];
-        ret = gemm_AT_x86(AT_data, B, C, top_blob, broadcast_type_C, constantM, constantK, transB, opt);
+        ret = gemm_AT_x86(AT_data, B, C, top_blob, broadcast_type_C, constantM, constantK, transB, nT, opt);
     }
     else if (constantB)
     {
         const Mat& A = bottom_blobs[0];
-        ret = gemm_BT_x86(A, BT_data, C, top_blob, broadcast_type_C, constantN, constantK, transA, opt);
+        ret = gemm_BT_x86(A, BT_data, C, top_blob, broadcast_type_C, constantN, constantK, transA, nT, opt);
     }
     else
     {
         const Mat& A = bottom_blobs[0];
         const Mat& B = bottom_blobs[1];
-        ret = gemm_x86(A, B, C, top_blob, broadcast_type_C, transA, transB, opt);
+        ret = gemm_x86(A, B, C, top_blob, broadcast_type_C, transA, transB, nT, opt);
     }
 
     // multiply top_blob with alpha
