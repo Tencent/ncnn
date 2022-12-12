@@ -31,6 +31,8 @@ Gemm_x86::Gemm_x86()
 #if __SSE2__
     support_packing = true;
 #endif // __SSE2__
+
+    nT = 0;
 }
 
 static void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
@@ -1943,7 +1945,7 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
     }
 }
 
-static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, const Mat& C, Mat& top_blob, int broadcast_type_C, Mat& tmp, float alpha, float beta, int i, int max_ii, int j, int max_jj, int k, int max_kk, bool k_end)
+static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, const Mat& C, Mat& top_blob, int broadcast_type_C, Mat& tmp, int i, int max_ii, int j, int max_jj, int k, int max_kk, bool k_end)
 {
     const int out_elempack = top_blob.elempack;
     const int N = top_blob.w;
@@ -2267,20 +2269,6 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
                         _sumb = _mm512_set1_ps(pC[11]);
                         pC += 12;
                     }
-
-                    __m512 _beta = _mm512_set1_ps(beta);
-                    _sum0 = _mm512_mul_ps(_sum0, _beta);
-                    _sum1 = _mm512_mul_ps(_sum1, _beta);
-                    _sum2 = _mm512_mul_ps(_sum2, _beta);
-                    _sum3 = _mm512_mul_ps(_sum3, _beta);
-                    _sum4 = _mm512_mul_ps(_sum4, _beta);
-                    _sum5 = _mm512_mul_ps(_sum5, _beta);
-                    _sum6 = _mm512_mul_ps(_sum6, _beta);
-                    _sum7 = _mm512_mul_ps(_sum7, _beta);
-                    _sum8 = _mm512_mul_ps(_sum8, _beta);
-                    _sum9 = _mm512_mul_ps(_sum9, _beta);
-                    _suma = _mm512_mul_ps(_suma, _beta);
-                    _sumb = _mm512_mul_ps(_sumb, _beta);
                 }
             }
             else
@@ -2324,20 +2312,6 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
 
             if (k_end)
             {
-                __m512 _alpha = _mm512_set1_ps(alpha);
-                _sum0 = _mm512_mul_ps(_sum0, _alpha);
-                _sum1 = _mm512_mul_ps(_sum1, _alpha);
-                _sum2 = _mm512_mul_ps(_sum2, _alpha);
-                _sum3 = _mm512_mul_ps(_sum3, _alpha);
-                _sum4 = _mm512_mul_ps(_sum4, _alpha);
-                _sum5 = _mm512_mul_ps(_sum5, _alpha);
-                _sum6 = _mm512_mul_ps(_sum6, _alpha);
-                _sum7 = _mm512_mul_ps(_sum7, _alpha);
-                _sum8 = _mm512_mul_ps(_sum8, _alpha);
-                _sum9 = _mm512_mul_ps(_sum9, _alpha);
-                _suma = _mm512_mul_ps(_suma, _alpha);
-                _sumb = _mm512_mul_ps(_sumb, _alpha);
-
                 if (out_elempack == 16)
                 {
                     _mm512_store_ps(outptr0, _sum0);
@@ -2677,16 +2651,6 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
                         _sum7 = _mm512_set1_ps(pC[7]);
                         pC += 8;
                     }
-
-                    __m512 _beta = _mm512_set1_ps(beta);
-                    _sum0 = _mm512_mul_ps(_sum0, _beta);
-                    _sum1 = _mm512_mul_ps(_sum1, _beta);
-                    _sum2 = _mm512_mul_ps(_sum2, _beta);
-                    _sum3 = _mm512_mul_ps(_sum3, _beta);
-                    _sum4 = _mm512_mul_ps(_sum4, _beta);
-                    _sum5 = _mm512_mul_ps(_sum5, _beta);
-                    _sum6 = _mm512_mul_ps(_sum6, _beta);
-                    _sum7 = _mm512_mul_ps(_sum7, _beta);
                 }
             }
             else
@@ -2722,16 +2686,6 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
 
             if (k_end)
             {
-                __m512 _alpha = _mm512_set1_ps(alpha);
-                _sum0 = _mm512_mul_ps(_sum0, _alpha);
-                _sum1 = _mm512_mul_ps(_sum1, _alpha);
-                _sum2 = _mm512_mul_ps(_sum2, _alpha);
-                _sum3 = _mm512_mul_ps(_sum3, _alpha);
-                _sum4 = _mm512_mul_ps(_sum4, _alpha);
-                _sum5 = _mm512_mul_ps(_sum5, _alpha);
-                _sum6 = _mm512_mul_ps(_sum6, _alpha);
-                _sum7 = _mm512_mul_ps(_sum7, _alpha);
-
                 if (out_elempack == 16)
                 {
                     _mm512_store_ps(outptr0, _sum0);
@@ -2963,12 +2917,6 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
                         _sum3 = _mm512_set1_ps(pC[3]);
                         pC += 4;
                     }
-
-                    __m512 _beta = _mm512_set1_ps(beta);
-                    _sum0 = _mm512_mul_ps(_sum0, _beta);
-                    _sum1 = _mm512_mul_ps(_sum1, _beta);
-                    _sum2 = _mm512_mul_ps(_sum2, _beta);
-                    _sum3 = _mm512_mul_ps(_sum3, _beta);
                 }
             }
             else
@@ -2996,12 +2944,6 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
 
             if (k_end)
             {
-                __m512 _alpha = _mm512_set1_ps(alpha);
-                _sum0 = _mm512_mul_ps(_sum0, _alpha);
-                _sum1 = _mm512_mul_ps(_sum1, _alpha);
-                _sum2 = _mm512_mul_ps(_sum2, _alpha);
-                _sum3 = _mm512_mul_ps(_sum3, _alpha);
-
                 if (out_elempack == 16)
                 {
                     _mm512_store_ps(outptr0, _sum0);
@@ -3204,10 +3146,6 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
                         _sum1 = _mm512_set1_ps(pC[1]);
                         pC += 2;
                     }
-
-                    __m512 _beta = _mm512_set1_ps(beta);
-                    _sum0 = _mm512_mul_ps(_sum0, _beta);
-                    _sum1 = _mm512_mul_ps(_sum1, _beta);
                 }
             }
             else
@@ -3231,10 +3169,6 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
 
             if (k_end)
             {
-                __m512 _alpha = _mm512_set1_ps(alpha);
-                _sum0 = _mm512_mul_ps(_sum0, _alpha);
-                _sum1 = _mm512_mul_ps(_sum1, _alpha);
-
                 if (out_elempack == 16)
                 {
                     _mm512_store_ps(outptr0, _sum0);
@@ -3386,9 +3320,6 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
                         _sum0 = _mm512_set1_ps(pC[0]);
                         pC += 1;
                     }
-
-                    __m512 _beta = _mm512_set1_ps(beta);
-                    _sum0 = _mm512_mul_ps(_sum0, _beta);
                 }
             }
             else
@@ -3410,9 +3341,6 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
 
             if (k_end)
             {
-                __m512 _alpha = _mm512_set1_ps(alpha);
-                _sum0 = _mm512_mul_ps(_sum0, _alpha);
-
                 if (out_elempack == 16)
                 {
                     _mm512_store_ps(outptr0, _sum0);
@@ -3659,20 +3587,6 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
                         _sumb = _mm256_set1_ps(pC[11]);
                         pC += 12;
                     }
-
-                    __m256 _beta = _mm256_set1_ps(beta);
-                    _sum0 = _mm256_mul_ps(_sum0, _beta);
-                    _sum1 = _mm256_mul_ps(_sum1, _beta);
-                    _sum2 = _mm256_mul_ps(_sum2, _beta);
-                    _sum3 = _mm256_mul_ps(_sum3, _beta);
-                    _sum4 = _mm256_mul_ps(_sum4, _beta);
-                    _sum5 = _mm256_mul_ps(_sum5, _beta);
-                    _sum6 = _mm256_mul_ps(_sum6, _beta);
-                    _sum7 = _mm256_mul_ps(_sum7, _beta);
-                    _sum8 = _mm256_mul_ps(_sum8, _beta);
-                    _sum9 = _mm256_mul_ps(_sum9, _beta);
-                    _suma = _mm256_mul_ps(_suma, _beta);
-                    _sumb = _mm256_mul_ps(_sumb, _beta);
                 }
             }
             else
@@ -3716,20 +3630,6 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
 
             if (k_end)
             {
-                __m256 _alpha = _mm256_set1_ps(alpha);
-                _sum0 = _mm256_mul_ps(_sum0, _alpha);
-                _sum1 = _mm256_mul_ps(_sum1, _alpha);
-                _sum2 = _mm256_mul_ps(_sum2, _alpha);
-                _sum3 = _mm256_mul_ps(_sum3, _alpha);
-                _sum4 = _mm256_mul_ps(_sum4, _alpha);
-                _sum5 = _mm256_mul_ps(_sum5, _alpha);
-                _sum6 = _mm256_mul_ps(_sum6, _alpha);
-                _sum7 = _mm256_mul_ps(_sum7, _alpha);
-                _sum8 = _mm256_mul_ps(_sum8, _alpha);
-                _sum9 = _mm256_mul_ps(_sum9, _alpha);
-                _suma = _mm256_mul_ps(_suma, _alpha);
-                _sumb = _mm256_mul_ps(_sumb, _alpha);
-
                 if (out_elempack == 8)
                 {
                     _mm256_store_ps(outptr0, _sum0);
@@ -3946,16 +3846,6 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
                         _sum7 = _mm256_set1_ps(pC[7]);
                         pC += 8;
                     }
-
-                    __m256 _beta = _mm256_set1_ps(beta);
-                    _sum0 = _mm256_mul_ps(_sum0, _beta);
-                    _sum1 = _mm256_mul_ps(_sum1, _beta);
-                    _sum2 = _mm256_mul_ps(_sum2, _beta);
-                    _sum3 = _mm256_mul_ps(_sum3, _beta);
-                    _sum4 = _mm256_mul_ps(_sum4, _beta);
-                    _sum5 = _mm256_mul_ps(_sum5, _beta);
-                    _sum6 = _mm256_mul_ps(_sum6, _beta);
-                    _sum7 = _mm256_mul_ps(_sum7, _beta);
                 }
             }
             else
@@ -3991,16 +3881,6 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
 
             if (k_end)
             {
-                __m256 _alpha = _mm256_set1_ps(alpha);
-                _sum0 = _mm256_mul_ps(_sum0, _alpha);
-                _sum1 = _mm256_mul_ps(_sum1, _alpha);
-                _sum2 = _mm256_mul_ps(_sum2, _alpha);
-                _sum3 = _mm256_mul_ps(_sum3, _alpha);
-                _sum4 = _mm256_mul_ps(_sum4, _alpha);
-                _sum5 = _mm256_mul_ps(_sum5, _alpha);
-                _sum6 = _mm256_mul_ps(_sum6, _alpha);
-                _sum7 = _mm256_mul_ps(_sum7, _alpha);
-
                 if (out_elempack == 8)
                 {
                     _mm256_store_ps(outptr0, _sum0);
@@ -4150,12 +4030,6 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
                         _sum3 = _mm256_set1_ps(pC[3]);
                         pC += 4;
                     }
-
-                    __m256 _beta = _mm256_set1_ps(beta);
-                    _sum0 = _mm256_mul_ps(_sum0, _beta);
-                    _sum1 = _mm256_mul_ps(_sum1, _beta);
-                    _sum2 = _mm256_mul_ps(_sum2, _beta);
-                    _sum3 = _mm256_mul_ps(_sum3, _beta);
                 }
             }
             else
@@ -4183,12 +4057,6 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
 
             if (k_end)
             {
-                __m256 _alpha = _mm256_set1_ps(alpha);
-                _sum0 = _mm256_mul_ps(_sum0, _alpha);
-                _sum1 = _mm256_mul_ps(_sum1, _alpha);
-                _sum2 = _mm256_mul_ps(_sum2, _alpha);
-                _sum3 = _mm256_mul_ps(_sum3, _alpha);
-
                 if (out_elempack == 8)
                 {
                     _mm256_store_ps(outptr0, _sum0);
@@ -4319,10 +4187,6 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
                         _sum1 = _mm256_set1_ps(pC[1]);
                         pC += 2;
                     }
-
-                    __m256 _beta = _mm256_set1_ps(beta);
-                    _sum0 = _mm256_mul_ps(_sum0, _beta);
-                    _sum1 = _mm256_mul_ps(_sum1, _beta);
                 }
             }
             else
@@ -4346,10 +4210,6 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
 
             if (k_end)
             {
-                __m256 _alpha = _mm256_set1_ps(alpha);
-                _sum0 = _mm256_mul_ps(_sum0, _alpha);
-                _sum1 = _mm256_mul_ps(_sum1, _alpha);
-
                 if (out_elempack == 8)
                 {
                     _mm256_store_ps(outptr0, _sum0);
@@ -4453,9 +4313,6 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
                         _sum0 = _mm256_set1_ps(pC[0]);
                         pC += 1;
                     }
-
-                    __m256 _beta = _mm256_set1_ps(beta);
-                    _sum0 = _mm256_mul_ps(_sum0, _beta);
                 }
             }
             else
@@ -4477,9 +4334,6 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
 
             if (k_end)
             {
-                __m256 _alpha = _mm256_set1_ps(alpha);
-                _sum0 = _mm256_mul_ps(_sum0, _alpha);
-
                 if (out_elempack == 8)
                 {
                     _mm256_store_ps(outptr0, _sum0);
@@ -4659,20 +4513,6 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
                         _sumb = _mm_set1_ps(pC[11]);
                         pC += 12;
                     }
-
-                    __m128 _beta = _mm_set1_ps(beta);
-                    _sum0 = _mm_mul_ps(_sum0, _beta);
-                    _sum1 = _mm_mul_ps(_sum1, _beta);
-                    _sum2 = _mm_mul_ps(_sum2, _beta);
-                    _sum3 = _mm_mul_ps(_sum3, _beta);
-                    _sum4 = _mm_mul_ps(_sum4, _beta);
-                    _sum5 = _mm_mul_ps(_sum5, _beta);
-                    _sum6 = _mm_mul_ps(_sum6, _beta);
-                    _sum7 = _mm_mul_ps(_sum7, _beta);
-                    _sum8 = _mm_mul_ps(_sum8, _beta);
-                    _sum9 = _mm_mul_ps(_sum9, _beta);
-                    _suma = _mm_mul_ps(_suma, _beta);
-                    _sumb = _mm_mul_ps(_sumb, _beta);
                 }
             }
             else
@@ -4716,20 +4556,6 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
 
             if (k_end)
             {
-                __m128 _alpha = _mm_set1_ps(alpha);
-                _sum0 = _mm_mul_ps(_sum0, _alpha);
-                _sum1 = _mm_mul_ps(_sum1, _alpha);
-                _sum2 = _mm_mul_ps(_sum2, _alpha);
-                _sum3 = _mm_mul_ps(_sum3, _alpha);
-                _sum4 = _mm_mul_ps(_sum4, _alpha);
-                _sum5 = _mm_mul_ps(_sum5, _alpha);
-                _sum6 = _mm_mul_ps(_sum6, _alpha);
-                _sum7 = _mm_mul_ps(_sum7, _alpha);
-                _sum8 = _mm_mul_ps(_sum8, _alpha);
-                _sum9 = _mm_mul_ps(_sum9, _alpha);
-                _suma = _mm_mul_ps(_suma, _alpha);
-                _sumb = _mm_mul_ps(_sumb, _alpha);
-
                 if (out_elempack == 4)
                 {
                     _mm_store_ps(outptr0, _sum0);
@@ -4873,16 +4699,6 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
                         _sum7 = _mm_set1_ps(pC[7]);
                         pC += 8;
                     }
-
-                    __m128 _beta = _mm_set1_ps(beta);
-                    _sum0 = _mm_mul_ps(_sum0, _beta);
-                    _sum1 = _mm_mul_ps(_sum1, _beta);
-                    _sum2 = _mm_mul_ps(_sum2, _beta);
-                    _sum3 = _mm_mul_ps(_sum3, _beta);
-                    _sum4 = _mm_mul_ps(_sum4, _beta);
-                    _sum5 = _mm_mul_ps(_sum5, _beta);
-                    _sum6 = _mm_mul_ps(_sum6, _beta);
-                    _sum7 = _mm_mul_ps(_sum7, _beta);
                 }
             }
             else
@@ -4918,16 +4734,6 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
 
             if (k_end)
             {
-                __m128 _alpha = _mm_set1_ps(alpha);
-                _sum0 = _mm_mul_ps(_sum0, _alpha);
-                _sum1 = _mm_mul_ps(_sum1, _alpha);
-                _sum2 = _mm_mul_ps(_sum2, _alpha);
-                _sum3 = _mm_mul_ps(_sum3, _alpha);
-                _sum4 = _mm_mul_ps(_sum4, _alpha);
-                _sum5 = _mm_mul_ps(_sum5, _alpha);
-                _sum6 = _mm_mul_ps(_sum6, _alpha);
-                _sum7 = _mm_mul_ps(_sum7, _alpha);
-
                 if (out_elempack == 4)
                 {
                     _mm_store_ps(outptr0, _sum0);
@@ -5029,12 +4835,6 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
                         _sum3 = _mm_set1_ps(pC[3]);
                         pC += 4;
                     }
-
-                    __m128 _beta = _mm_set1_ps(beta);
-                    _sum0 = _mm_mul_ps(_sum0, _beta);
-                    _sum1 = _mm_mul_ps(_sum1, _beta);
-                    _sum2 = _mm_mul_ps(_sum2, _beta);
-                    _sum3 = _mm_mul_ps(_sum3, _beta);
                 }
             }
             else
@@ -5062,12 +4862,6 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
 
             if (k_end)
             {
-                __m128 _alpha = _mm_set1_ps(alpha);
-                _sum0 = _mm_mul_ps(_sum0, _alpha);
-                _sum1 = _mm_mul_ps(_sum1, _alpha);
-                _sum2 = _mm_mul_ps(_sum2, _alpha);
-                _sum3 = _mm_mul_ps(_sum3, _alpha);
-
                 if (out_elempack == 4)
                 {
                     _mm_store_ps(outptr0, _sum0);
@@ -5151,10 +4945,6 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
                         _sum1 = _mm_set1_ps(pC[1]);
                         pC += 2;
                     }
-
-                    __m128 _beta = _mm_set1_ps(beta);
-                    _sum0 = _mm_mul_ps(_sum0, _beta);
-                    _sum1 = _mm_mul_ps(_sum1, _beta);
                 }
             }
             else
@@ -5178,10 +4968,6 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
 
             if (k_end)
             {
-                __m128 _alpha = _mm_set1_ps(alpha);
-                _sum0 = _mm_mul_ps(_sum0, _alpha);
-                _sum1 = _mm_mul_ps(_sum1, _alpha);
-
                 if (out_elempack == 4)
                 {
                     _mm_store_ps(outptr0, _sum0);
@@ -5256,9 +5042,6 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
                         _sum0 = _mm_set1_ps(pC[0]);
                         pC += 1;
                     }
-
-                    __m128 _beta = _mm_set1_ps(beta);
-                    _sum0 = _mm_mul_ps(_sum0, _beta);
                 }
             }
             else
@@ -5280,9 +5063,6 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
 
             if (k_end)
             {
-                __m128 _alpha = _mm_set1_ps(alpha);
-                _sum0 = _mm_mul_ps(_sum0, _alpha);
-
                 if (out_elempack == 4)
                 {
                     _mm_store_ps(outptr0, _sum0);
@@ -5394,14 +5174,6 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
                         _sum12 = _sum02;
                         pC += 12;
                     }
-
-                    __m128 _beta = _mm_set1_ps(beta);
-                    _sum00 = _mm_mul_ps(_sum00, _beta);
-                    _sum01 = _mm_mul_ps(_sum01, _beta);
-                    _sum02 = _mm_mul_ps(_sum02, _beta);
-                    _sum10 = _mm_mul_ps(_sum10, _beta);
-                    _sum11 = _mm_mul_ps(_sum11, _beta);
-                    _sum12 = _mm_mul_ps(_sum12, _beta);
                 }
             }
             else
@@ -5437,14 +5209,6 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
 
             if (k_end)
             {
-                __m128 _alpha = _mm_set1_ps(alpha);
-                _sum00 = _mm_mul_ps(_sum00, _alpha);
-                _sum01 = _mm_mul_ps(_sum01, _alpha);
-                _sum02 = _mm_mul_ps(_sum02, _alpha);
-                _sum10 = _mm_mul_ps(_sum10, _alpha);
-                _sum11 = _mm_mul_ps(_sum11, _alpha);
-                _sum12 = _mm_mul_ps(_sum12, _alpha);
-
                 // if (out_elempack == 1)
                 {
                     _mm_storeu_ps(outptr0, _sum00);
@@ -5514,12 +5278,6 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
                         _sum11 = _sum01;
                         pC += 8;
                     }
-
-                    __m128 _beta = _mm_set1_ps(beta);
-                    _sum00 = _mm_mul_ps(_sum00, _beta);
-                    _sum01 = _mm_mul_ps(_sum01, _beta);
-                    _sum10 = _mm_mul_ps(_sum10, _beta);
-                    _sum11 = _mm_mul_ps(_sum11, _beta);
                 }
             }
             else
@@ -5550,12 +5308,6 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
 
             if (k_end)
             {
-                __m128 _alpha = _mm_set1_ps(alpha);
-                _sum00 = _mm_mul_ps(_sum00, _alpha);
-                _sum01 = _mm_mul_ps(_sum01, _alpha);
-                _sum10 = _mm_mul_ps(_sum10, _alpha);
-                _sum11 = _mm_mul_ps(_sum11, _alpha);
-
                 // if (out_elempack == 1)
                 {
                     _mm_storeu_ps(outptr0, _sum00);
@@ -5609,10 +5361,6 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
                         _sum1 = _sum0;
                         pC += 4;
                     }
-
-                    __m128 _beta = _mm_set1_ps(beta);
-                    _sum0 = _mm_mul_ps(_sum0, _beta);
-                    _sum1 = _mm_mul_ps(_sum1, _beta);
                 }
             }
             else
@@ -5636,10 +5384,6 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
 
             if (k_end)
             {
-                __m128 _alpha = _mm_set1_ps(alpha);
-                _sum0 = _mm_mul_ps(_sum0, _alpha);
-                _sum1 = _mm_mul_ps(_sum1, _alpha);
-
                 // if (out_elempack == 1)
                 {
                     _mm_storeu_ps(outptr0, _sum0);
@@ -5702,11 +5446,6 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
                         sum11 = pC[1];
                         pC += 2;
                     }
-
-                    sum00 *= beta;
-                    sum01 *= beta;
-                    sum10 *= beta;
-                    sum11 *= beta;
                 }
             }
             else
@@ -5732,11 +5471,6 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
 
             if (k_end)
             {
-                sum00 *= alpha;
-                sum01 *= alpha;
-                sum10 *= alpha;
-                sum11 *= alpha;
-
                 // if (out_elempack == 1)
                 {
                     outptr0[0] = sum00;
@@ -5790,9 +5524,6 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
                         sum1 = pC[0];
                         pC += 1;
                     }
-
-                    sum0 *= beta;
-                    sum1 *= beta;
                 }
             }
             else
@@ -5813,9 +5544,6 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
 
             if (k_end)
             {
-                sum0 *= alpha;
-                sum1 *= alpha;
-
                 // if (out_elempack == 1)
                 {
                     outptr0[0] = sum0;
@@ -5886,11 +5614,6 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
                         _sum2 = _mm_loadu_ps(pC + 8);
                         pC += 12;
                     }
-
-                    __m128 _beta = _mm_set1_ps(beta);
-                    _sum0 = _mm_mul_ps(_sum0, _beta);
-                    _sum1 = _mm_mul_ps(_sum1, _beta);
-                    _sum2 = _mm_mul_ps(_sum2, _beta);
                 }
             }
             else
@@ -5919,11 +5642,6 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
 
             if (k_end)
             {
-                __m128 _alpha = _mm_set1_ps(alpha);
-                _sum0 = _mm_mul_ps(_sum0, _alpha);
-                _sum1 = _mm_mul_ps(_sum1, _alpha);
-                _sum2 = _mm_mul_ps(_sum2, _alpha);
-
                 // if (out_elempack == 1)
                 {
                     _mm_storeu_ps(outptr0, _sum0);
@@ -5964,10 +5682,6 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
                         _sum1 = _mm_loadu_ps(pC + 4);
                         pC += 8;
                     }
-
-                    __m128 _beta = _mm_set1_ps(beta);
-                    _sum0 = _mm_mul_ps(_sum0, _beta);
-                    _sum1 = _mm_mul_ps(_sum1, _beta);
                 }
             }
             else
@@ -5993,10 +5707,6 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
 
             if (k_end)
             {
-                __m128 _alpha = _mm_set1_ps(alpha);
-                _sum0 = _mm_mul_ps(_sum0, _alpha);
-                _sum1 = _mm_mul_ps(_sum1, _alpha);
-
                 // if (out_elempack == 1)
                 {
                     _mm_storeu_ps(outptr0, _sum0);
@@ -6031,9 +5741,6 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
                         _sum = _mm_loadu_ps(pC);
                         pC += 4;
                     }
-
-                    __m128 _beta = _mm_set1_ps(beta);
-                    _sum = _mm_mul_ps(_sum, _beta);
                 }
             }
             else
@@ -6055,9 +5762,6 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
 
             if (k_end)
             {
-                __m128 _alpha = _mm_set1_ps(alpha);
-                _sum = _mm_mul_ps(_sum, _alpha);
-
                 // if (out_elempack == 1)
                 {
                     _mm_storeu_ps(outptr0, _sum);
@@ -6095,9 +5799,6 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
                         sum1 = pC[1];
                         pC += 2;
                     }
-
-                    sum0 *= beta;
-                    sum1 *= beta;
                 }
             }
             else
@@ -6119,9 +5820,6 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
 
             if (k_end)
             {
-                sum0 *= alpha;
-                sum1 *= alpha;
-
                 // if (out_elempack == 1)
                 {
                     outptr0[0] = sum0;
@@ -6156,8 +5854,6 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
                         sum = pC[0];
                         pC += 1;
                     }
-
-                    sum *= beta;
                 }
             }
             else
@@ -6176,8 +5872,6 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
 
             if (k_end)
             {
-                sum *= alpha;
-
                 // if (out_elempack == 1)
                 {
                     outptr0[0] = sum;
@@ -6196,42 +5890,55 @@ static void matmul_packed_transB_tile(const Mat& AT_tile, const Mat& BT_tile, co
     }
 }
 
-static void get_optimal_tile_mnk(int M, int N, int K, int& TILE_M, int& TILE_N, int& TILE_K, const Option& opt)
+static void get_optimal_tile_mnk(int M, int N, int K, int& TILE_M, int& TILE_N, int& TILE_K, int nT)
 {
     // TODO do not hardcode
 #if __AVX512F__
     TILE_M = 16 * 8;
-    TILE_N = 12 * 10;
-    TILE_K = 16 * 8;
+    TILE_N = 4 * 32;
+    TILE_K = 4 * 32;
 #elif __AVX__
     TILE_M = 8 * 16;
-    TILE_N = 12 * 10;
-    TILE_K = 8 * 16;
+    TILE_N = 4 * 32;
+    TILE_K = 2 * 64;
 #elif __SSE2__
     TILE_M = 4 * 16;
-    TILE_N = 12 * 5;
-    TILE_K = 4 * 16;
+    TILE_N = 2 * 32;
+    TILE_K = 2 * 32;
 #else
-    TILE_M = 16;
-    TILE_N = 12;
-    TILE_K = 16;
+    TILE_M = 2 * 8;
+    TILE_N = 2 * 8;
+    TILE_K = 1 * 16;
 #endif
 
-    const int physical_cpu_count = get_physical_cpu_count();
-    TILE_M *= physical_cpu_count;
-    TILE_N *= physical_cpu_count;
-    TILE_K *= physical_cpu_count;
+    TILE_M *= std::min(nT, get_physical_cpu_count());
 
     if (M > 0)
     {
         int nn_M = (M + TILE_M - 1) / TILE_M;
+#if __AVX512F__
         TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 15) / 16 * 16);
+#elif __AVX__
+        TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 7) / 8 * 8);
+#elif __SSE2__
+        TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 3) / 4 * 4);
+#else
+        TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 1) / 2 * 2);
+#endif
     }
 
     if (N > 0)
     {
         int nn_N = (N + TILE_N - 1) / TILE_N;
-        TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 11) / 12 * 12);
+#if __AVX512F__
+        TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 3) / 4 * 4);
+#elif __AVX__
+        TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 3) / 4 * 4);
+#elif __SSE2__
+        TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 1) / 2 * 2);
+#else
+        TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 1) / 2 * 2);
+#endif
     }
 
     if (K > 0)
@@ -6241,26 +5948,28 @@ static void get_optimal_tile_mnk(int M, int N, int K, int& TILE_M, int& TILE_N, 
         TILE_K = std::min(TILE_K, ((K + nn_K - 1) / nn_K + 3) / 4 * 4);
 #elif __AVX__
         TILE_K = std::min(TILE_K, ((K + nn_K - 1) / nn_K + 1) / 2 * 2);
+#elif __SSE2__
+        TILE_K = std::min(TILE_K, ((K + nn_K - 1) / nn_K + 1) / 2 * 2);
 #else
         TILE_K = std::min(TILE_K, (K + nn_K - 1) / nn_K);
 #endif
     }
 
-    if (opt.num_threads > 1)
+    if (nT > 1)
     {
-        TILE_M = std::min(TILE_M, (std::max(1, TILE_M / opt.num_threads) + 15) / 16 * 16);
-        TILE_N = std::min(TILE_N, (std::max(1, TILE_N / opt.num_threads) + 11) / 12 * 12);
 #if __AVX512F__
-        TILE_K = std::min(TILE_K, (std::max(1, TILE_K / opt.num_threads) + 3) / 4 * 4);
+        TILE_M = std::min(TILE_M, (std::max(1, TILE_M / nT) + 15) / 16 * 16);
 #elif __AVX__
-        TILE_K = std::min(TILE_K, (std::max(1, TILE_K / opt.num_threads) + 1) / 2 * 2);
+        TILE_M = std::min(TILE_M, (std::max(1, TILE_M / nT) + 7) / 8 * 8);
+#elif __SSE2__
+        TILE_M = std::min(TILE_M, (std::max(1, TILE_M / nT) + 3) / 4 * 4);
 #else
-        TILE_K = std::min(TILE_K, std::max(1, TILE_K / opt.num_threads));
+        TILE_M = std::min(TILE_M, (std::max(1, TILE_M / nT) + 1) / 2 * 2);
 #endif
     }
 }
 
-static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int broadcast_type_C, int transA, int transB, float alpha, float beta, const Option& opt)
+static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int broadcast_type_C, int transA, int transB, int nT, const Option& opt)
 {
     const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
     const int K = transA ? (A.dims == 3 ? A.c : A.h) * A.elempack : A.w;
@@ -6269,22 +5978,22 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
     // NCNN_LOGE("M/N/K = %d %d %d", M, N, K);
 
     int TILE_M, TILE_N, TILE_K;
-    get_optimal_tile_mnk(M, N, K, TILE_M, TILE_N, TILE_K, opt);
+    get_optimal_tile_mnk(M, N, K, TILE_M, TILE_N, TILE_K, nT);
 
     // NCNN_LOGE("TILE M/N/K = %d %d %d", TILE_M, TILE_N, TILE_K);
 
     int nn_M = (M + TILE_M - 1) / TILE_M;
     int nn_N = (N + TILE_N - 1) / TILE_N;
 
-    Mat ATX(TILE_K * TILE_M, (K + TILE_K - 1) / TILE_K, opt.num_threads, 4u, opt.blob_allocator);
+    Mat ATX(TILE_K * TILE_M, (K + TILE_K - 1) / TILE_K, nT, 4u, opt.blob_allocator);
     Mat BT(TILE_K * TILE_N, (K + TILE_K - 1) / TILE_K, (N + TILE_N - 1) / TILE_N, 4u, opt.blob_allocator);
 
     Mat tmpX;
     if (K > TILE_K)
-        tmpX.create(TILE_N, TILE_M, opt.num_threads, 4u, opt.blob_allocator);
+        tmpX.create(TILE_N, TILE_M, nT, 4u, opt.blob_allocator);
 
     // pack B
-    #pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(nT)
     for (int ppj = 0; ppj < nn_N; ppj++)
     {
         const int j = ppj * TILE_N;
@@ -6307,7 +6016,7 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
         }
     }
 
-    #pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(nT)
     for (int ppi = 0; ppi < nn_M; ppi++)
     {
         const int i = ppi * TILE_M;
@@ -6346,7 +6055,7 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
 
                 bool k_end = k + TILE_K >= K;
 
-                matmul_packed_transB_tile(AT_tile, BT_tile, C, top_blob, broadcast_type_C, tmp, alpha, beta, i, max_ii, j, max_jj, k, max_kk, k_end);
+                gemm_transB_packed_tile(AT_tile, BT_tile, C, top_blob, broadcast_type_C, tmp, i, max_ii, j, max_jj, k, max_kk, k_end);
             }
         }
     }
@@ -6354,14 +6063,14 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
     return 0;
 }
 
-static int gemm_AT_x86(const Mat& AT, const Mat& B, const Mat& C, Mat& top_blob, int broadcast_type_C, int M, int K, int transB, float alpha, float beta, const Option& opt)
+static int gemm_AT_x86(const Mat& AT, const Mat& B, const Mat& C, Mat& top_blob, int broadcast_type_C, int M, int K, int transB, int nT, const Option& opt)
 {
     const int N = transB ? (B.dims == 3 ? B.c : B.h) * B.elempack : B.w;
 
     // NCNN_LOGE("M/N/K = %d %d %d", M, N, K);
 
     int TILE_M, TILE_N, TILE_K;
-    get_optimal_tile_mnk(M, N, K, TILE_M, TILE_N, TILE_K, opt);
+    get_optimal_tile_mnk(M, N, K, TILE_M, TILE_N, TILE_K, nT);
 
     // NCNN_LOGE("TILE M/N/K = %d %d %d", TILE_M, TILE_N, TILE_K);
 
@@ -6372,10 +6081,10 @@ static int gemm_AT_x86(const Mat& AT, const Mat& B, const Mat& C, Mat& top_blob,
 
     Mat tmpX;
     if (K > TILE_K)
-        tmpX.create(TILE_N, TILE_M, opt.num_threads, 4u, opt.blob_allocator);
+        tmpX.create(TILE_N, TILE_M, nT, 4u, opt.blob_allocator);
 
     // pack B
-    #pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(nT)
     for (int ppj = 0; ppj < nn_N; ppj++)
     {
         const int j = ppj * TILE_N;
@@ -6398,7 +6107,7 @@ static int gemm_AT_x86(const Mat& AT, const Mat& B, const Mat& C, Mat& top_blob,
         }
     }
 
-    #pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(nT)
     for (int ppi = 0; ppi < nn_M; ppi++)
     {
         const int i = ppi * TILE_M;
@@ -6425,7 +6134,7 @@ static int gemm_AT_x86(const Mat& AT, const Mat& B, const Mat& C, Mat& top_blob,
 
                 bool k_end = k + TILE_K >= K;
 
-                matmul_packed_transB_tile(AT_tile, BT_tile, C, top_blob, broadcast_type_C, tmp, alpha, beta, i, max_ii, j, max_jj, k, max_kk, k_end);
+                gemm_transB_packed_tile(AT_tile, BT_tile, C, top_blob, broadcast_type_C, tmp, i, max_ii, j, max_jj, k, max_kk, k_end);
             }
         }
     }
@@ -6433,27 +6142,27 @@ static int gemm_AT_x86(const Mat& AT, const Mat& B, const Mat& C, Mat& top_blob,
     return 0;
 }
 
-static int gemm_BT_x86(const Mat& A, const Mat& BT, const Mat& C, Mat& top_blob, int broadcast_type_C, int N, int K, int transA, float alpha, float beta, const Option& opt)
+static int gemm_BT_x86(const Mat& A, const Mat& BT, const Mat& C, Mat& top_blob, int broadcast_type_C, int N, int K, int transA, int nT, const Option& opt)
 {
     const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
 
     // NCNN_LOGE("M/N/K = %d %d %d", M, N, K);
 
     int TILE_M, TILE_N, TILE_K;
-    get_optimal_tile_mnk(M, N, K, TILE_M, TILE_N, TILE_K, opt);
+    get_optimal_tile_mnk(M, N, K, TILE_M, TILE_N, TILE_K, nT);
 
     // NCNN_LOGE("TILE M/N/K = %d %d %d", TILE_M, TILE_N, TILE_K);
 
     int nn_M = (M + TILE_M - 1) / TILE_M;
     // int nn_N = (N + TILE_N - 1) / TILE_N;
 
-    Mat ATX(TILE_K * TILE_M, (K + TILE_K - 1) / TILE_K, opt.num_threads, 4u, opt.blob_allocator);
+    Mat ATX(TILE_K * TILE_M, (K + TILE_K - 1) / TILE_K, nT, 4u, opt.blob_allocator);
 
     Mat tmpX;
     if (K > TILE_K)
-        tmpX.create(TILE_N, TILE_M, opt.num_threads, 4u, opt.blob_allocator);
+        tmpX.create(TILE_N, TILE_M, nT, 4u, opt.blob_allocator);
 
-    #pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(nT)
     for (int ppi = 0; ppi < nn_M; ppi++)
     {
         const int i = ppi * TILE_M;
@@ -6492,7 +6201,7 @@ static int gemm_BT_x86(const Mat& A, const Mat& BT, const Mat& C, Mat& top_blob,
 
                 bool k_end = k + TILE_K >= K;
 
-                matmul_packed_transB_tile(AT_tile, BT_tile, C, top_blob, broadcast_type_C, tmp, alpha, beta, i, max_ii, j, max_jj, k, max_kk, k_end);
+                gemm_transB_packed_tile(AT_tile, BT_tile, C, top_blob, broadcast_type_C, tmp, i, max_ii, j, max_jj, k, max_kk, k_end);
             }
         }
     }
@@ -6500,12 +6209,12 @@ static int gemm_BT_x86(const Mat& A, const Mat& BT, const Mat& C, Mat& top_blob,
     return 0;
 }
 
-static int gemm_AT_BT_x86(const Mat& AT, const Mat& BT, const Mat& C, Mat& top_blob, int broadcast_type_C, int M, int N, int K, float alpha, float beta, const Option& opt)
+static int gemm_AT_BT_x86(const Mat& AT, const Mat& BT, const Mat& C, Mat& top_blob, int broadcast_type_C, int M, int N, int K, int nT, const Option& opt)
 {
     // NCNN_LOGE("M/N/K = %d %d %d", M, N, K);
 
     int TILE_M, TILE_N, TILE_K;
-    get_optimal_tile_mnk(M, N, K, TILE_M, TILE_N, TILE_K, opt);
+    get_optimal_tile_mnk(M, N, K, TILE_M, TILE_N, TILE_K, nT);
 
     // NCNN_LOGE("TILE M/N/K = %d %d %d", TILE_M, TILE_N, TILE_K);
 
@@ -6514,9 +6223,9 @@ static int gemm_AT_BT_x86(const Mat& AT, const Mat& BT, const Mat& C, Mat& top_b
 
     Mat tmpX;
     if (K > TILE_K)
-        tmpX.create(TILE_N, TILE_M, opt.num_threads, 4u, opt.blob_allocator);
+        tmpX.create(TILE_N, TILE_M, nT, 4u, opt.blob_allocator);
 
-    #pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(nT)
     for (int ppi = 0; ppi < nn_M; ppi++)
     {
         const int i = ppi * TILE_M;
@@ -6543,7 +6252,7 @@ static int gemm_AT_BT_x86(const Mat& AT, const Mat& BT, const Mat& C, Mat& top_b
 
                 bool k_end = k + TILE_K >= K;
 
-                matmul_packed_transB_tile(AT_tile, BT_tile, C, top_blob, broadcast_type_C, tmp, alpha, beta, i, max_ii, j, max_jj, k, max_kk, k_end);
+                gemm_transB_packed_tile(AT_tile, BT_tile, C, top_blob, broadcast_type_C, tmp, i, max_ii, j, max_jj, k, max_kk, k_end);
             }
         }
     }
@@ -6559,7 +6268,7 @@ int Gemm_x86::create_pipeline(const Option& opt)
         const int K = constantK;
 
         int TILE_M, TILE_N, TILE_K;
-        get_optimal_tile_mnk(M, 0, K, TILE_M, TILE_N, TILE_K, opt);
+        get_optimal_tile_mnk(M, 0, K, TILE_M, TILE_N, TILE_K, opt.num_threads);
 
         const int nn_M = (M + TILE_M - 1) / TILE_M;
 
@@ -6602,7 +6311,7 @@ int Gemm_x86::create_pipeline(const Option& opt)
         const int K = constantK;
 
         int TILE_M, TILE_N, TILE_K;
-        get_optimal_tile_mnk(0, N, K, TILE_M, TILE_N, TILE_K, opt);
+        get_optimal_tile_mnk(0, N, K, TILE_M, TILE_N, TILE_K, opt.num_threads);
 
         const int nn_N = (N + TILE_N - 1) / TILE_N;
 
@@ -6639,7 +6348,7 @@ int Gemm_x86::create_pipeline(const Option& opt)
         }
     }
 
-    if (constantC)
+    if (constantC && constant_broadcast_type_C != -1)
     {
         const int M = constantM;
 
@@ -6659,10 +6368,25 @@ int Gemm_x86::create_pipeline(const Option& opt)
 
         convert_packing(C_data, CT_data, C_elempack, opt);
 
+        // pre-multiply C with beta
+        if (beta != 1.f)
+        {
+            const int size = CT_data.total() * C_elempack;
+            for (int i = 0; i < size; i++)
+            {
+                CT_data[i] *= beta;
+            }
+        }
+
         if (opt.lightmode)
         {
             C_data.release();
         }
+    }
+
+    if (constantA || constantB || constantC)
+    {
+        nT = opt.num_threads;
     }
 
     return 0;
@@ -6756,6 +6480,21 @@ int Gemm_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                 // 1xN
                 broadcast_type_C = 4;
             }
+
+            // pre-multiply C with beta
+            if (beta != 1.f)
+            {
+                Mat CT_data;
+                CT_data.create_like(C, opt.workspace_allocator);
+
+                const int size = C.total() * C.elempack;
+                for (int i = 0; i < size; i++)
+                {
+                    CT_data[i] = C[i] * beta;
+                }
+
+                C = CT_data;
+            }
         }
     }
 
@@ -6782,26 +6521,46 @@ int Gemm_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     if (top_blob.empty())
         return -100;
 
+    int _nT = nT ? nT : opt.num_threads;
+    if (nT != 0 && opt.num_threads != nT)
+    {
+        // force num_threads the same as in create_pipeline
+        // so we could use pre-packed A/B from the same tile config
+        NCNN_LOGE("opt.num_threads %d changed, gemm will use load-time value %d", opt.num_threads, nT);
+    }
+
     int ret = 0;
     if (constantA && constantB)
     {
-        ret = gemm_AT_BT_x86(AT_data, BT_data, C, top_blob, broadcast_type_C, constantM, constantN, constantK, alpha, beta, opt);
+        ret = gemm_AT_BT_x86(AT_data, BT_data, C, top_blob, broadcast_type_C, constantM, constantN, constantK, _nT, opt);
     }
     else if (constantA)
     {
         const Mat& B = bottom_blobs[0];
-        ret = gemm_AT_x86(AT_data, B, C, top_blob, broadcast_type_C, constantM, constantK, transB, alpha, beta, opt);
+        ret = gemm_AT_x86(AT_data, B, C, top_blob, broadcast_type_C, constantM, constantK, transB, _nT, opt);
     }
     else if (constantB)
     {
         const Mat& A = bottom_blobs[0];
-        ret = gemm_BT_x86(A, BT_data, C, top_blob, broadcast_type_C, constantN, constantK, transA, alpha, beta, opt);
+        ret = gemm_BT_x86(A, BT_data, C, top_blob, broadcast_type_C, constantN, constantK, transA, _nT, opt);
     }
     else
     {
         const Mat& A = bottom_blobs[0];
         const Mat& B = bottom_blobs[1];
-        ret = gemm_x86(A, B, C, top_blob, broadcast_type_C, transA, transB, alpha, beta, opt);
+        ret = gemm_x86(A, B, C, top_blob, broadcast_type_C, transA, transB, _nT, opt);
+    }
+
+    // multiply top_blob with alpha
+    if (alpha != 1.f)
+    {
+        const int size = top_blob.total() * out_elempack;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int i = 0; i < size; i++)
+        {
+            top_blob[i] *= alpha;
+        }
     }
 
     return ret;

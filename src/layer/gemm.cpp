@@ -49,11 +49,20 @@ int Gemm::load_param(const ParamDict& pd)
         return -1;
     }
 
-    if (constantC == 1 && (constant_broadcast_type_C < 0 || constant_broadcast_type_C > 4))
+    if (constantC == 1 && (constant_broadcast_type_C < -1 || constant_broadcast_type_C > 4))
     {
-        NCNN_LOGE("constant_broadcast_type_C must be 0~4 when constantC enabled");
+        NCNN_LOGE("constant_broadcast_type_C must be -1 or 0~4 when constantC enabled");
         return -1;
     }
+
+    if (constantA == 0 && constantB == 1 && constantC == 1)
+        one_blob_only = true;
+
+    if (constantA == 1 && constantB == 0 && constantC == 1)
+        one_blob_only = true;
+
+    if (constantA == 1 && constantB == 1 && constantC == 0)
+        one_blob_only = true;
 
     return 0;
 }
@@ -80,7 +89,7 @@ int Gemm::load_model(const ModelBin& mb)
             return -100;
     }
 
-    if (constantC == 1)
+    if (constantC == 1 && constant_broadcast_type_C != -1)
     {
         if (constant_broadcast_type_C == 0)
             C_data = mb.load(1, 0);
@@ -97,6 +106,15 @@ int Gemm::load_model(const ModelBin& mb)
     }
 
     return 0;
+}
+
+int Gemm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+{
+    std::vector<Mat> bottom_blobs(1, bottom_blob);
+    std::vector<Mat> top_blobs(1);
+    int ret = forward(bottom_blobs, top_blobs, opt);
+    top_blob = top_blobs[0];
+    return ret;
 }
 
 int Gemm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const

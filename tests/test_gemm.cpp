@@ -60,21 +60,21 @@ static int test_gemm_constantA(int M, int N, int K, float alpha, int transA, int
 
     pd.set(4, 1);
     pd.set(5, 0);
-    pd.set(6, 0);
+    pd.set(6, 1);
     pd.set(7, M);
     pd.set(8, N);
     pd.set(9, K);
+    pd.set(10, -1);
 
     std::vector<ncnn::Mat> weights(1);
     weights[0] = transA ? ncnn::Mat(M, K) : ncnn::Mat(K, M);
 
-    std::vector<ncnn::Mat> a(1);
-    a[0] = transB ? ncnn::Mat(K, N) : ncnn::Mat(N, K);
+    ncnn::Mat B = transB ? ncnn::Mat(K, N) : ncnn::Mat(N, K);
 
     Randomize(weights[0]);
-    Randomize(a[0]);
+    Randomize(B);
 
-    int ret = test_layer<ncnn::Gemm>("Gemm", pd, weights, a);
+    int ret = test_layer<ncnn::Gemm>("Gemm", pd, weights, B);
     if (ret != 0)
     {
         fprintf(stderr, "test_gemm_constantA failed M=%d N=%d K=%d alpha=%f transA=%d transB=%d\n", M, N, K, alpha, transA, transB);
@@ -93,21 +93,21 @@ static int test_gemm_constantB(int M, int N, int K, float alpha, int transA, int
 
     pd.set(4, 0);
     pd.set(5, 1);
-    pd.set(6, 0);
+    pd.set(6, 1);
     pd.set(7, M);
     pd.set(8, N);
     pd.set(9, K);
+    pd.set(10, -1);
 
     std::vector<ncnn::Mat> weights(1);
     weights[0] = transB ? ncnn::Mat(K, N) : ncnn::Mat(N, K);
 
-    std::vector<ncnn::Mat> a(1);
-    a[0] = transA ? ncnn::Mat(M, K) : ncnn::Mat(K, M);
+    ncnn::Mat A = transA ? ncnn::Mat(M, K) : ncnn::Mat(K, M);
 
     Randomize(weights[0]);
-    Randomize(a[0]);
+    Randomize(A);
 
-    int ret = test_layer<ncnn::Gemm>("Gemm", pd, weights, a);
+    int ret = test_layer<ncnn::Gemm>("Gemm", pd, weights, A);
     if (ret != 0)
     {
         fprintf(stderr, "test_gemm_constantB failed M=%d N=%d K=%d alpha=%f transA=%d transB=%d\n", M, N, K, alpha, transA, transB);
@@ -126,10 +126,11 @@ static int test_gemm_constantAB(int M, int N, int K, float alpha, int transA, in
 
     pd.set(4, 1);
     pd.set(5, 1);
-    pd.set(6, 0);
+    pd.set(6, 1);
     pd.set(7, M);
     pd.set(8, N);
     pd.set(9, K);
+    pd.set(10, -1);
 
     std::vector<ncnn::Mat> weights(2);
     weights[0] = transA ? ncnn::Mat(M, K) : ncnn::Mat(K, M);
