@@ -5909,10 +5909,7 @@ static void get_optimal_tile_mnk(int M, int N, int K, int& TILE_M, int& TILE_N, 
     TILE_K = 1 * 16;
 #endif
 
-    const int physical_cpu_count = get_physical_cpu_count();
-    TILE_M *= physical_cpu_count;
-    TILE_N *= physical_cpu_count;
-    TILE_K *= physical_cpu_count;
+    TILE_M *= std::min(opt.num_threads, get_physical_cpu_count());
 
     if (M > 0)
     {
@@ -5960,20 +5957,12 @@ static void get_optimal_tile_mnk(int M, int N, int K, int& TILE_M, int& TILE_N, 
     {
 #if __AVX512F__
         TILE_M = std::min(TILE_M, (std::max(1, TILE_M / opt.num_threads) + 15) / 16 * 16);
-        TILE_N = std::min(TILE_N, (std::max(1, TILE_N / opt.num_threads) + 3) / 4 * 4);
-        TILE_K = std::min(TILE_K, (std::max(1, TILE_K / opt.num_threads) + 3) / 4 * 4);
 #elif __AVX__
         TILE_M = std::min(TILE_M, (std::max(1, TILE_M / opt.num_threads) + 7) / 8 * 8);
-        TILE_N = std::min(TILE_N, (std::max(1, TILE_N / opt.num_threads) + 3) / 4 * 4);
-        TILE_K = std::min(TILE_K, (std::max(1, TILE_K / opt.num_threads) + 1) / 2 * 2);
 #elif __SSE2__
         TILE_M = std::min(TILE_M, (std::max(1, TILE_M / opt.num_threads) + 3) / 4 * 4);
-        TILE_N = std::min(TILE_N, (std::max(1, TILE_N / opt.num_threads) + 1) / 2 * 2);
-        TILE_K = std::min(TILE_K, (std::max(1, TILE_K / opt.num_threads) + 1) / 2 * 2);
 #else
         TILE_M = std::min(TILE_M, (std::max(1, TILE_M / opt.num_threads) + 1) / 2 * 2);
-        TILE_N = std::min(TILE_N, (std::max(1, TILE_N / opt.num_threads) + 1) / 2 * 2);
-        TILE_K = std::min(TILE_K, std::max(1, TILE_K / opt.num_threads));
 #endif
     }
 }
