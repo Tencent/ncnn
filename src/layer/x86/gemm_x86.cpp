@@ -5892,8 +5892,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
 
 static void get_optimal_tile_mnk(int M, int N, int K, int& TILE_M, int& TILE_N, int& TILE_K, int nT)
 {
-    (void)nT;
-
     // resolve optimal tile size from cache size
     size_t l2_cache_size = get_cpu_level2_cache_size();
     int tile_size = (int)sqrt((float)l2_cache_size / 3 / sizeof(float));
@@ -5949,6 +5947,8 @@ static void get_optimal_tile_mnk(int M, int N, int K, int& TILE_M, int& TILE_N, 
         }
     }
 
+    TILE_M *= std::min(nT, get_physical_cpu_count());
+
     if (M > 0)
     {
         int nn_M = (M + TILE_M - 1) / TILE_M;
@@ -5974,6 +5974,19 @@ static void get_optimal_tile_mnk(int M, int N, int K, int& TILE_M, int& TILE_N, 
         TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 1) / 2 * 2);
 #else
         TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 1) / 2 * 2);
+#endif
+    }
+
+    if (nT > 1)
+    {
+#if __AVX512F__
+        TILE_M = std::min(TILE_M, (std::max(1, TILE_M / nT) + 15) / 16 * 16);
+#elif __AVX__
+        TILE_M = std::min(TILE_M, (std::max(1, TILE_M / nT) + 7) / 8 * 8);
+#elif __SSE2__
+        TILE_M = std::min(TILE_M, (std::max(1, TILE_M / nT) + 3) / 4 * 4);
+#else
+        TILE_M = std::min(TILE_M, (std::max(1, TILE_M / nT) + 1) / 2 * 2);
 #endif
     }
 }
