@@ -1384,7 +1384,7 @@ static int get_cpu_level2_cachesize()
                 PCACHE_DESCRIPTOR Cache = &ptr->Cache;
                 if (Cache->Level == 2)
                 {
-                    size = std::max(size, Cache->Size);
+                    size = std::max(size, (int)Cache->Size);
                 }
             }
 
@@ -1448,7 +1448,7 @@ static int get_cpu_level3_cachesize()
                 PCACHE_DESCRIPTOR Cache = &ptr->Cache;
                 if (Cache->Level == 3)
                 {
-                    size = std::max(size, Cache->Size);
+                    size = std::max(size, (int)Cache->Size);
                 }
             }
 
