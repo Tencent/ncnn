@@ -1361,6 +1361,128 @@ int get_physical_big_cpu_count()
     return g_cpucount - g_physical_cpucount;
 }
 
+static int get_cpu_level2_cachesize()
+{
+    int size = 0;
+#if (defined _WIN32 && !(defined __MINGW32__))
+    typedef BOOL(WINAPI * LPFN_GLPI)(PSYSTEM_LOGICAL_PROCESSOR_INFORMATION, PDWORD);
+    LPFN_GLPI glpi = (LPFN_GLPI)GetProcAddress(GetModuleHandle(TEXT("kernel32")), "GetLogicalProcessorInformation");
+    if (glpi != NULL)
+    {
+        DWORD return_length = 0;
+        glpi(NULL, &return_length);
+
+        PSYSTEM_LOGICAL_PROCESSOR_INFORMATION buffer = (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION)malloc(return_length);
+        glpi(buffer, &return_length);
+
+        PSYSTEM_LOGICAL_PROCESSOR_INFORMATION ptr = buffer;
+        DWORD byte_offset = 0;
+        while (byte_offset + sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION) <= return_length)
+        {
+            if (ptr->Relationship == RelationCache)
+            {
+                PCACHE_DESCRIPTOR Cache = &ptr->Cache;
+                if (Cache->Level == 2)
+                {
+                    size = std::max(size, Cache->Size);
+                }
+            }
+
+            byte_offset += sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION);
+            ptr++;
+        }
+
+        free(buffer);
+    }
+#elif defined __linux__
+    size = sysconf(_SC_LEVEL2_CACHE_SIZE);
+#elif __APPLE__
+    size_t len = sizeof(size);
+    sysctlbyname("hw.l2cachesize", &size, &len, NULL, 0);
+#endif
+
+    // fallback to a common value
+    if (size <= 0)
+    {
+#if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
+        size = 64 * 1024;
+        if (cpu_support_x86_avx())
+            size = 128 * 1024;
+        if (cpu_support_x86_avx2())
+            size = 256 * 1024;
+        if (cpu_support_x86_avx512())
+            size = 1024 * 1024;
+#elif __aarch64__
+        size = 256 * 1024;
+#elif __arm__
+        size = 128 * 1024;
+#else
+        // is 64k still too large here ?
+        size = 64 * 1024;
+#endif
+    }
+
+    return size;
+}
+
+static int get_cpu_level3_cachesize()
+{
+    int size = 0;
+#if (defined _WIN32 && !(defined __MINGW32__))
+    typedef BOOL(WINAPI * LPFN_GLPI)(PSYSTEM_LOGICAL_PROCESSOR_INFORMATION, PDWORD);
+    LPFN_GLPI glpi = (LPFN_GLPI)GetProcAddress(GetModuleHandle(TEXT("kernel32")), "GetLogicalProcessorInformation");
+    if (glpi != NULL)
+    {
+        DWORD return_length = 0;
+        glpi(NULL, &return_length);
+
+        PSYSTEM_LOGICAL_PROCESSOR_INFORMATION buffer = (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION)malloc(return_length);
+        glpi(buffer, &return_length);
+
+        PSYSTEM_LOGICAL_PROCESSOR_INFORMATION ptr = buffer;
+        DWORD byte_offset = 0;
+        while (byte_offset + sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION) <= return_length)
+        {
+            if (ptr->Relationship == RelationCache)
+            {
+                PCACHE_DESCRIPTOR Cache = &ptr->Cache;
+                if (Cache->Level == 3)
+                {
+                    size = std::max(size, Cache->Size);
+                }
+            }
+
+            byte_offset += sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION);
+            ptr++;
+        }
+
+        free(buffer);
+    }
+#elif defined __linux__
+    size = sysconf(_SC_LEVEL3_CACHE_SIZE);
+#elif __APPLE__
+    size_t len = sizeof(size);
+    sysctlbyname("hw.l3cachesize", &size, &len, NULL, 0);
+#endif
+
+    // l3 cache size can be zero
+
+    return size;
+}
+
+static int g_cpu_level2_cachesize = get_cpu_level2_cachesize();
+static int g_cpu_level3_cachesize = get_cpu_level3_cachesize();
+
+int get_cpu_level2_cache_size()
+{
+    return g_cpu_level2_cachesize;
+}
+
+int get_cpu_level3_cache_size()
+{
+    return g_cpu_level3_cachesize;
+}
+
 #if (defined _WIN32 && !(defined __MINGW32__))
 static CpuSet get_smt_cpu_mask()
 {
