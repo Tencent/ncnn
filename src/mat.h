@@ -29,6 +29,9 @@
 #if __mips_msa
 #include <msa.h>
 #endif
+#if __loongarch_sx
+#include <lsxintrin.h>
+#endif
 #if __riscv_vector
 #include <riscv_vector.h>
 #include "cpu.h" // cpu_riscv_vlenb()
@@ -128,6 +131,9 @@ public:
 #if __mips_msa
     void fill(v4f32 _v);
 #endif // __mips_msa
+#if __loongarch_sx
+    void fill(__m128 _v);
+#endif //__loongarch_sx
 #if __riscv_vector
     void fill(vfloat32m1_t _v);
     void fill(vuint16m1_t _v);
@@ -1067,11 +1073,23 @@ NCNN_FORCEINLINE void Mat::fill(v4f32 _v)
 }
 #endif // __mips_msa
 
+#if __loongarch_sx
+NCNN_FORCEINLINE void Mat::fill(__m128 _v)
+{
+    int size = (int)total();
+    float* ptr = (float*)data;
+    for (int i = 0; i < size; i++)
+    {
+        __lsx_vst(_v, ptr, 0);
+        ptr += 4;
+    }
+}
+#endif // __loongarch_sx
 #if __riscv_vector
 NCNN_FORCEINLINE void Mat::fill(vfloat32m1_t _v)
 {
     const int packn = cpu_riscv_vlenb() / 4;
-    const word_type vl = vsetvl_e32m1(packn);
+    const size_t vl = vsetvl_e32m1(packn);
 
     int size = (int)total();
     float* ptr = (float*)data;
@@ -1085,7 +1103,7 @@ NCNN_FORCEINLINE void Mat::fill(vfloat32m1_t _v)
 NCNN_FORCEINLINE void Mat::fill(vuint16m1_t _v)
 {
     const int packn = cpu_riscv_vlenb() / 2;
-    const word_type vl = vsetvl_e16m1(packn);
+    const size_t vl = vsetvl_e16m1(packn);
 
     int size = (int)total();
     unsigned short* ptr = (unsigned short*)data;
@@ -1099,7 +1117,7 @@ NCNN_FORCEINLINE void Mat::fill(vuint16m1_t _v)
 NCNN_FORCEINLINE void Mat::fill(vint8m1_t _v)
 {
     const int packn = cpu_riscv_vlenb() / 1;
-    const word_type vl = vsetvl_e8m1(packn);
+    const size_t vl = vsetvl_e8m1(packn);
 
     int size = (int)total();
     signed char* ptr = (signed char*)data;
@@ -1113,7 +1131,7 @@ NCNN_FORCEINLINE void Mat::fill(vint8m1_t _v)
 NCNN_FORCEINLINE void Mat::fill(vfloat16m1_t _v)
 {
     const int packn = cpu_riscv_vlenb() / 2;
-    const word_type vl = vsetvl_e16m1(packn);
+    const size_t vl = vsetvl_e16m1(packn);
 
     int size = (int)total();
     __fp16* ptr = (__fp16*)data;

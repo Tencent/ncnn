@@ -46,6 +46,7 @@ build*/
 .idea
 cmake-build-debug
 cmake-build-release
+CMakeSettings.json
 
 # Compiled python
 __pycache__

@@ -15,7 +15,7 @@
 static void conv3x3s1_winograd63_transform_input_packn_rvv(const Mat& bottom_blob, Mat& bottom_blob_tm, const Option& opt)
 {
     const int packn = csrr_vlenb() / 4;
-    const word_type vl = vsetvl_e32m1(packn);
+    const size_t vl = vsetvl_e32m1(packn);
 
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
@@ -180,7 +180,7 @@ static void conv3x3s1_winograd63_transform_input_packn_rvv(const Mat& bottom_blo
 static void conv3x3s1_winograd63_transform_output_packn_rvv(const Mat& top_blob_tm, Mat& top_blob, const Mat& bias, const Option& opt)
 {
     const int packn = csrr_vlenb() / 4;
-    const word_type vl = vsetvl_e32m1(packn);
+    const size_t vl = vsetvl_e32m1(packn);
 
     const int outw = top_blob.w;
     const int outh = top_blob.h;
@@ -323,7 +323,7 @@ static void conv3x3s1_winograd63_transform_output_packn_rvv(const Mat& top_blob_
 static void conv3x3s1_winograd43_transform_input_packn_rvv(const Mat& bottom_blob, Mat& bottom_blob_tm, const Option& opt)
 {
     const int packn = csrr_vlenb() / 4;
-    const word_type vl = vsetvl_e32m1(packn);
+    const size_t vl = vsetvl_e32m1(packn);
 
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
@@ -436,7 +436,7 @@ static void conv3x3s1_winograd43_transform_input_packn_rvv(const Mat& bottom_blo
 static void conv3x3s1_winograd43_transform_output_packn_rvv(const Mat& top_blob_tm, Mat& top_blob, const Mat& bias, const Option& opt)
 {
     const int packn = csrr_vlenb() / 4;
-    const word_type vl = vsetvl_e32m1(packn);
+    const size_t vl = vsetvl_e32m1(packn);
 
     const int outw = top_blob.w;
     const int outh = top_blob.h;
@@ -553,7 +553,7 @@ static void conv3x3s1_winograd43_transform_output_packn_rvv(const Mat& top_blob_
 static void conv3x3s1_winograd23_transform_input_packn_rvv(const Mat& bottom_blob, Mat& bottom_blob_tm, const Option& opt)
 {
     const int packn = csrr_vlenb() / 4;
-    const word_type vl = vsetvl_e32m1(packn);
+    const size_t vl = vsetvl_e32m1(packn);
 
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
@@ -646,7 +646,7 @@ static void conv3x3s1_winograd23_transform_input_packn_rvv(const Mat& bottom_blo
 static void conv3x3s1_winograd23_transform_output_packn_rvv(const Mat& top_blob_tm, Mat& top_blob, const Mat& bias, const Option& opt)
 {
     const int packn = csrr_vlenb() / 4;
-    const word_type vl = vsetvl_e32m1(packn);
+    const size_t vl = vsetvl_e32m1(packn);
 
     const int outw = top_blob.w;
     const int outh = top_blob.h;

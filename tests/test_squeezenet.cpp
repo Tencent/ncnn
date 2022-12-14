@@ -177,6 +177,16 @@ static int test_squeezenet(const ncnn::Option& opt, int load_model_type, float e
     {
         // load from plain model file
         squeezenet.load_param(MODEL_DIR "/squeezenet_v1.1.param");
+
+        // test random feature disabled bits
+        {
+            std::vector<ncnn::Layer*>& layers = squeezenet.mutable_layers();
+            for (size_t i = 0; i < layers.size(); i++)
+            {
+                layers[i]->featmask = i * 11 % 128;
+            }
+        }
+
         squeezenet.load_model(MODEL_DIR "/squeezenet_v1.1.bin");
     }
     if (load_model_type == 1)

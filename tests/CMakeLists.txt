@@ -19,7 +19,18 @@ macro(ncnn_add_layer_test class)
 
     # enable if WITH_LAYER_xxx option ON
     if(${WITH_LAYER_${name}})
-        ncnn_add_test(${name})
+        file(GLOB test_${name}_SRCS "test_${name}.cpp" "test_${name}_*.cpp" LIST_DIRECTORIES FALSE)
+
+        foreach(test_file ${test_${name}_SRCS})
+            get_filename_component(test_filename ${test_file} NAME_WE)
+            add_executable(${test_filename} ${test_file})
+            target_link_libraries(${test_filename} PRIVATE ncnn)
+
+            add_test(NAME ${test_filename} COMMAND ${CMAKE_COMMAND} -DTEST_EXECUTABLE=$<TARGET_FILE:${test_filename}> -P ${CMAKE_CURRENT_SOURCE_DIR}/../cmake/run_test.cmake)
+
+            # add test to a virtual project group
+            set_property(TARGET ${test_filename} PROPERTY FOLDER "tests")
+        endforeach()
     endif()
 endmacro()
 
@@ -85,8 +96,11 @@ ncnn_add_layer_test(Eltwise)
 ncnn_add_layer_test(ELU)
 ncnn_add_layer_test(ExpandDims)
 ncnn_add_layer_test(Flatten)
+ncnn_add_layer_test(Fold)
 ncnn_add_layer_test(GELU)
+ncnn_add_layer_test(GLU)
 ncnn_add_layer_test(Gemm)
+ncnn_add_layer_test(GridSample)
 ncnn_add_layer_test(GroupNorm)
 ncnn_add_layer_test(GRU)
 ncnn_add_layer_test(HardSigmoid)
@@ -134,4 +148,5 @@ ncnn_add_layer_test(Swish)
 ncnn_add_layer_test(TanH)
 ncnn_add_layer_test(Tile)
 ncnn_add_layer_test(UnaryOp)
+ncnn_add_layer_test(Unfold)
 ncnn_add_layer_test(Yolov3DetectionOutput)

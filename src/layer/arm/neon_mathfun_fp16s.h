@@ -89,9 +89,9 @@ static inline float16x4_t log_ps(float16x4_t x)
      *     } else { x = x - 1.0; }
      */
     uint16x4_t mask = vclt_f16(x, vdup_n_f16(c_cephes_SQRTHF));
-    float16x4_t tmp = vreinterpret_f16_u16(vand_u16(vreinterpret_u16_f16(x), mask));
+    float16x4_t tmp = (float16x4_t)(vand_u16((uint16x4_t)(x), mask));
     x = vsub_f16(x, one);
-    e = vsub_f16(e, vreinterpret_f16_u16(vand_u16(vreinterpret_u16_f16(one), mask)));
+    e = vsub_f16(e, (float16x4_t)(vand_u16((uint16x4_t)(one), mask)));
     x = vadd_f16(x, tmp);
 
     float16x4_t z = vmul_f16(x, x);
@@ -115,7 +115,7 @@ static inline float16x4_t log_ps(float16x4_t x)
 
     x = vadd_f16(x, y);
     x = vfma_f16(x, e, vdup_n_f16(c_cephes_log_q2));
-    x = vreinterpret_f16_u16(vorr_u16(vreinterpret_u16_f16(x), invalid_mask)); // negative arg will be NAN
+    x = (float16x4_t)(vorr_u16((uint16x4_t)(x), invalid_mask)); // negative arg will be NAN
     return x;
 }
 
@@ -208,9 +208,9 @@ static inline float16x4_t exp_ps(float16x4_t x)
 
     /* if greater, substract 1 */
     uint16x4_t mask = vcgt_f16(tmp, fx);
-    mask = vand_u16(mask, vreinterpret_u16_f16(one));
+    mask = vand_u16(mask, (uint16x4_t)(one));
 
-    fx = vsub_f16(tmp, vreinterpret_f16_u16(mask));
+    fx = vsub_f16(tmp, (float16x4_t)(mask));
 
     tmp = vmul_f16(fx, vdup_n_f16(c_cephes_exp_C1));
     float16x4_t z = vmul_f16(fx, vdup_n_f16(c_cephes_exp_C2));
@@ -489,7 +489,7 @@ static inline float16x4_t tanh_ps(float16x4_t x)
 
     // clamp the inputs to the range [-9, 9] since anything outside
     // this range is -/+1.0f in single-precision.
-    x2 = vreinterpret_f16_u16(vbsl_u16(vcge_f16(vdup_n_f16(c_tanh_hi), x2), vreinterpret_u16_f16(x2), vreinterpret_u16_f16(vdup_n_f16(c_tanh_hi))));
+    x2 = (float16x4_t)(vbsl_u16(vcge_f16(vdup_n_f16(c_tanh_hi), x2), (uint16x4_t)(x2), (uint16x4_t)(vdup_n_f16(c_tanh_hi))));
 
     // since the polynomials are odd/even, we need x**2.
     float16x4_t z = vmul_f16(x2, x2);
@@ -514,10 +514,10 @@ static inline float16x4_t tanh_ps(float16x4_t x)
     y = vdiv_f16(y, w);
 
     // reinstate the sign.
-    y = vreinterpret_f16_u16(vbsl_u16(vdup_n_u16(1u << 15), vreinterpret_u16_f16(x), vreinterpret_u16_f16(y)));
+    y = (float16x4_t)(vbsl_u16(vdup_n_u16(1u << 15), (uint16x4_t)(x), (uint16x4_t)(y)));
 
     // when the argument is very small in magnitude it's more accurate to just return it.
-    y = vreinterpret_f16_u16(vbsl_u16(tiny_mask, vreinterpret_u16_f16(y), vreinterpret_u16_f16(x)));
+    y = (float16x4_t)(vbsl_u16(tiny_mask, (uint16x4_t)(y), (uint16x4_t)(x)));
 
     return y;
 }

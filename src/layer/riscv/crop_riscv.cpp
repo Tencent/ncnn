@@ -43,7 +43,7 @@ static void crop_packn_rvv(const Mat& src, Mat& dst, int top, int left, int pack
     int h = dst.h;
     int right = src.w - dst.w - left;
 
-    const word_type vl = vsetvl_e32m1(packn);
+    const size_t vl = vsetvl_e32m1(packn);
 
     const float* ptr = src.row(top) + left * packn;
     float* outptr = dst;
@@ -69,7 +69,7 @@ static void crop_packn_bf16_fp16s_rvv(const Mat& src, Mat& dst, int top, int lef
     int h = dst.h;
     int right = src.w - dst.w - left;
 
-    const word_type vl = vsetvl_e16m1(packn);
+    const size_t vl = vsetvl_e16m1(packn);
 
     const unsigned short* ptr = src.row<unsigned short>(top) + left * packn;
     unsigned short* outptr = dst;

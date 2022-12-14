@@ -4,23 +4,25 @@ on:
     branches: [master]
     paths:
     - '.github/workflows/linux-loongarch64-cpu-gcc.yml'
+    - 'toolchains/loongarch64-linux-gnu.toolchain.cmake'
     - 'toolchains/loongarch64-unknown-linux-gnu.toolchain.cmake'
     - 'CMakeLists.txt'
     - 'cmake/**'
     - 'src/*'
     - 'src/layer/*'
-    - 'src/layer/loongarch64/**'
+    - 'src/layer/loongarch/**'
     - 'tests/**'
   pull_request:
     branches: [master]
     paths:
     - '.github/workflows/linux-loongarch64-cpu-gcc.yml'
+    - 'toolchains/loongarch64-linux-gnu.toolchain.cmake'
     - 'toolchains/loongarch64-unknown-linux-gnu.toolchain.cmake'
     - 'CMakeLists.txt'
     - 'cmake/**'
     - 'src/*'
     - 'src/layer/*'
-    - 'src/layer/loongarch64/**'
+    - 'src/layer/loongarch/**'
     - 'tests/**'
 concurrency:
   group: linux-loongarch64-cpu-gcc-${{ github.ref }}
@@ -56,6 +58,21 @@ jobs:
       run: |
         export PATH=$GITHUB_WORKSPACE:$PATH
         export LD_LIBRARY_PATH=$GITHUB_WORKSPACE/cross-tools/target/usr/lib64:$LD_LIBRARY_PATH
-        export QEMU_STRACE=1
         cd build
         TESTS_EXECUTABLE_LOADER=qemu-loongarch64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;$GITHUB_WORKSPACE/cross-tools/target/usr" ctest --output-on-failure -j 4
+
+  linux-gcc-loongarch64-lsx:
+    runs-on: [self-hosted, linux, centos]
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: configure
+      run: |
+        export LOONGARCH64_ROOT_PATH=/data/action/osd/loongson-gnu-toolchain-8.3-x86_64-loongarch64-linux-gnu-rc1.1
+        export LD_LIBRARY_PATH=/data/action/osd/loongson-gnu-toolchain-8.3-x86_64-loongarch64-linux-gnu-rc1.1/sysroot/usr/lib64:$LD_LIBRARY_PATH
+        mkdir build && cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/loongarch64-linux-gnu.toolchain.cmake -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+
+    - name: build
+      run: cmake --build build -j 4

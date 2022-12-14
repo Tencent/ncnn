@@ -65,12 +65,44 @@ static bool operand_maybe_tensor(const Operand* operand)
         return false;
     }
 
-    if (op->type == "aten::floor_divide" || op->type == "aten::mul" || op->type == "aten::div" || op->type == "aten::pow")
+    if (op->type == "aten::abs"
+            || op->type == "aten::acos"
+            || op->type == "aten::acosh"
+            || op->type == "aten::asin"
+            || op->type == "aten::asinh"
+            || op->type == "aten::atan"
+            || op->type == "aten::atanh"
+            || op->type == "aten::ceil"
+            || op->type == "aten::cos"
+            || op->type == "aten::cosh"
+            || op->type == "aten::exp"
+            || op->type == "aten::floor"
+            || op->type == "aten::log"
+            || op->type == "aten::neg"
+            || op->type == "aten::reciprocal"
+            || op->type == "aten::rsqrt"
+            || op->type == "aten::sign"
+            || op->type == "aten::sin"
+            || op->type == "aten::sinh"
+            || op->type == "aten::sqrt"
+            || op->type == "aten::square"
+            || op->type == "aten::tan"
+            || op->type == "aten::tanh"
+            || op->type == "aten::trunc")
+    {
+        return operand_maybe_tensor(op->inputs[0]);
+    }
+
+    if (op->type == "aten::atan2"
+            || op->type == "aten::div"
+            || op->type == "aten::floor_divide"
+            || op->type == "aten::mul"
+            || op->type == "aten::pow")
     {
         return operand_maybe_tensor(op->inputs[0]) || operand_maybe_tensor(op->inputs[1]);
     }
 
-    if (op->type == "aten::__and__" || op->type == "aten::__or__" || op->type == "aten::__xor__")
+    if (op->type == "aten::__and__" || op->type == "aten::__or__" || op->type == "aten::__xor__" || op->type == "aten::__lshift__" || op->type == "aten::__rshift__")
     {
         return operand_maybe_tensor(op->inputs[0]) || operand_maybe_tensor(op->inputs[1]);
     }
@@ -80,15 +112,10 @@ static bool operand_maybe_tensor(const Operand* operand)
         return operand_maybe_tensor(op->inputs[0]) || operand_maybe_tensor(op->inputs[1]) || operand_maybe_tensor(op->inputs[2]);
     }
 
-    if (op->type == "aten::sqrt" || op->type == "aten::rsqrt" || op->type == "aten::neg")
-    {
-        return operand_maybe_tensor(op->inputs[0]);
-    }
-
     return true;
 }
 
-static bool operand_is_foldable(const Operand* operand, const std::map<std::string, Attribute>& foldable_constants)
+static bool operand_is_foldable(const Operand* operand, const std::set<std::string>& foldable_constants)
 {
     if (foldable_constants.find(operand->name) != foldable_constants.end())
         return true;
@@ -107,7 +134,7 @@ static bool operand_is_foldable(const Operand* operand, const std::map<std::stri
     return true;
 }
 
-static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, std::vector<Operand*>& inputs, const std::map<std::string, Attribute>& foldable_constants, bool checksubgraph = true)
+static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, std::vector<Operand*>& inputs, const std::set<std::string>& foldable_constants, bool checksubgraph = true)
 {
     // fprintf(stderr, "fuse_expression %s\n", operand->name.c_str());
 
@@ -246,7 +273,44 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
     {
         fuse_expression(graph, op->inputs[0], expr, inputs, foldable_constants);
     }
-    else if (op->type == "aten::floor_divide" || op->type == "aten::mul" || op->type == "aten::div" || op->type == "aten::pow" || op->type == "aten::remainder")
+    else if (op->type == "aten::abs"
+             || op->type == "aten::acos"
+             || op->type == "aten::acosh"
+             || op->type == "aten::asin"
+             || op->type == "aten::asinh"
+             || op->type == "aten::atan"
+             || op->type == "aten::atanh"
+             || op->type == "aten::ceil"
+             || op->type == "aten::cos"
+             || op->type == "aten::cosh"
+             || op->type == "aten::exp"
+             || op->type == "aten::floor"
+             || op->type == "aten::log"
+             || op->type == "aten::neg"
+             || op->type == "aten::reciprocal"
+             || op->type == "aten::rsqrt"
+             || op->type == "aten::sign"
+             || op->type == "aten::sin"
+             || op->type == "aten::sinh"
+             || op->type == "aten::sqrt"
+             || op->type == "aten::square"
+             || op->type == "aten::tan"
+             || op->type == "aten::tanh"
+             || op->type == "aten::trunc")
+    {
+        std::string mathop = op->type.substr(6);
+
+        expr += mathop;
+        expr += "(";
+        fuse_expression(graph, op->inputs[0], expr, inputs, foldable_constants);
+        expr += ")";
+    }
+    else if (op->type == "aten::atan2"
+             || op->type == "aten::div"
+             || op->type == "aten::floor_divide"
+             || op->type == "aten::mul"
+             || op->type == "aten::pow"
+             || op->type == "aten::remainder")
     {
         std::string mathop = op->type.substr(6);
 
@@ -257,11 +321,9 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
         fuse_expression(graph, op->inputs[1], expr, inputs, foldable_constants);
         expr += ")";
     }
-    else if (op->type == "aten::__and__" || op->type == "aten::__or__" || op->type == "aten::__xor__")
+    else if (op->type == "aten::__and__" || op->type == "aten::__or__" || op->type == "aten::__xor__" || op->type == "aten::__lshift__" || op->type == "aten::__rshift__")
     {
-        std::string mathop = op->type.substr(8, 3);
-        if (mathop == "or_")
-            mathop = "or";
+        std::string mathop = op->type.substr(8, op->type.size() - 10);
 
         expr += mathop;
         expr += "(";
@@ -326,24 +388,6 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
         fuse_expression(graph, op->inputs[0], expr, inputs, foldable_constants);
         expr += ")";
     }
-    else if (op->type == "aten::sqrt")
-    {
-        expr += "sqrt(";
-        fuse_expression(graph, op->inputs[0], expr, inputs, foldable_constants);
-        expr += ")";
-    }
-    else if (op->type == "aten::rsqrt")
-    {
-        expr += "rsqrt(";
-        fuse_expression(graph, op->inputs[0], expr, inputs, foldable_constants);
-        expr += ")";
-    }
-    else if (op->type == "aten::neg")
-    {
-        expr += "neg(";
-        fuse_expression(graph, op->inputs[0], expr, inputs, foldable_constants);
-        expr += ")";
-    }
     else
     {
         auto it = std::find(inputs.begin(), inputs.end(), operand);
@@ -366,7 +410,7 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
     }
 }
 
-void fuse_expression(Graph& graph, const std::map<std::string, Attribute>& foldable_constants)
+void fuse_expression(Graph& graph, const std::set<std::string>& foldable_constants)
 {
     int pnnx_expr_index = 0;
 
@@ -403,11 +447,43 @@ void fuse_expression(Graph& graph, const std::map<std::string, Attribute>& folda
             {
                 need_fuse = true;
             }
-            if (op->type == "aten::floor_divide" || op->type == "aten::add" || op->type == "aten::sub" || op->type == "aten::mul" || op->type == "aten::div" || op->type == "aten::sqrt" || op->type == "aten::rsub" || op->type == "aten::rsqrt" || op->type == "aten::neg" || op->type == "aten::pow" || op->type == "aten::remainder")
+            if (op->type == "aten::abs"
+                    || op->type == "aten::acos"
+                    || op->type == "aten::acosh"
+                    || op->type == "aten::add"
+                    || op->type == "aten::asin"
+                    || op->type == "aten::asinh"
+                    || op->type == "aten::atan"
+                    || op->type == "aten::atanh"
+                    || op->type == "aten::atan2"
+                    || op->type == "aten::ceil"
+                    || op->type == "aten::cos"
+                    || op->type == "aten::cosh"
+                    || op->type == "aten::div"
+                    || op->type == "aten::exp"
+                    || op->type == "aten::floor"
+                    || op->type == "aten::floor_divide"
+                    || op->type == "aten::log"
+                    || op->type == "aten::mul"
+                    || op->type == "aten::neg"
+                    || op->type == "aten::pow"
+                    || op->type == "aten::reciprocal"
+                    || op->type == "aten::remainder"
+                    || op->type == "aten::rsqrt"
+                    || op->type == "aten::rsub"
+                    || op->type == "aten::sign"
+                    || op->type == "aten::sin"
+                    || op->type == "aten::sinh"
+                    || op->type == "aten::sqrt"
+                    || op->type == "aten::square"
+                    || op->type == "aten::sub"
+                    || op->type == "aten::tan"
+                    || op->type == "aten::tanh"
+                    || op->type == "aten::trunc")
             {
                 need_fuse = true;
             }
-            if (op->type == "aten::__and__" || op->type == "aten::__or__" || op->type == "aten::__xor__")
+            if (op->type == "aten::__and__" || op->type == "aten::__or__" || op->type == "aten::__xor__" || op->type == "aten::__lshift__" || op->type == "aten::__rshift__")
             {
                 need_fuse = true;
             }

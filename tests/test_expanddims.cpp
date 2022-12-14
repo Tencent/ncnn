@@ -15,11 +15,12 @@
 #include "layer/expanddims.h"
 #include "testutil.h"
 
-static int test_expanddims(const ncnn::Mat& a, int expand_w, int expand_h, int expand_c)
+static int test_expanddims(const ncnn::Mat& a, int expand_w, int expand_h, int expand_d, int expand_c)
 {
     ncnn::ParamDict pd;
     pd.set(0, expand_w);
     pd.set(1, expand_h);
+    pd.set(11, expand_d);
     pd.set(2, expand_c);
 
     std::vector<ncnn::Mat> weights(0);
@@ -27,7 +28,7 @@ static int test_expanddims(const ncnn::Mat& a, int expand_w, int expand_h, int e
     int ret = test_layer<ncnn::ExpandDims>("ExpandDims", pd, weights, a);
     if (ret != 0)
     {
-        fprintf(stderr, "test_expanddims failed a.dims=%d a=(%d %d %d) expand_w=%d expand_h=%d expand_c=%d\n", a.dims, a.w, a.h, a.c, expand_w, expand_h, expand_c);
+        fprintf(stderr, "test_expanddims failed a.dims=%d a=(%d %d %d %d) expand_w=%d expand_h=%d expand_d=%d expand_c=%d\n", a.dims, a.w, a.h, a.d, a.c, expand_w, expand_h, expand_d, expand_c);
     }
 
     return ret;
@@ -60,6 +61,17 @@ static ncnn::Mat IntArrayMat(int a0, int a1, int a2)
     return m;
 }
 
+static ncnn::Mat IntArrayMat(int a0, int a1, int a2, int a3)
+{
+    ncnn::Mat m(4);
+    int* p = m;
+    p[0] = a0;
+    p[1] = a1;
+    p[2] = a2;
+    p[3] = a3;
+    return m;
+}
+
 static void print_int_array(const ncnn::Mat& a)
 {
     const int* pa = a;
@@ -82,7 +94,7 @@ static int test_expanddims_axes(const ncnn::Mat& a, const ncnn::Mat& axes)
     int ret = test_layer<ncnn::ExpandDims>("ExpandDims", pd, weights, a);
     if (ret != 0)
     {
-        fprintf(stderr, "test_expanddims_axes failed a.dims=%d a=(%d %d %d)\n", a.dims, a.w, a.h, a.c);
+        fprintf(stderr, "test_expanddims_axes failed a.dims=%d a=(%d %d %d %d)\n", a.dims, a.w, a.h, a.d, a.c);
         fprintf(stderr, " axes=");
         print_int_array(axes);
         fprintf(stderr, "\n");
@@ -91,48 +103,73 @@ static int test_expanddims_axes(const ncnn::Mat& a, const ncnn::Mat& axes)
     return ret;
 }
 
-static int test_expand_0()
+static int test_expanddims_all_params(const ncnn::Mat& a)
 {
-    ncnn::Mat as[7];
-    as[0] = RandomMat(1, 1, 1);
-    as[1] = RandomMat(14, 16);
-    as[2] = RandomMat(1, 14);
-    as[3] = RandomMat(11, 1);
-    as[4] = RandomMat(1, 1);
-    as[5] = RandomMat(120);
-    as[6] = RandomMat(1);
+    return 0
+           || test_expanddims(a, 0, 0, 0, 0)
+           || test_expanddims(a, 0, 0, 0, 1)
+           || test_expanddims(a, 0, 0, 1, 0)
+           || test_expanddims(a, 0, 0, 1, 1)
+           || test_expanddims(a, 0, 1, 0, 0)
+           || test_expanddims(a, 0, 1, 0, 1)
+           || test_expanddims(a, 0, 1, 1, 0)
+           || test_expanddims(a, 0, 1, 1, 1)
+           || test_expanddims(a, 1, 0, 0, 0)
+           || test_expanddims(a, 1, 0, 0, 1)
+           || test_expanddims(a, 1, 0, 1, 0)
+           || test_expanddims(a, 1, 0, 1, 1)
+           || test_expanddims(a, 1, 1, 0, 0)
+           || test_expanddims(a, 1, 1, 0, 1)
+           || test_expanddims(a, 1, 1, 1, 0)
+           || test_expanddims(a, 1, 1, 1, 1)
 
-    for (int i = 0; i < 7; i++)
-    {
-        const ncnn::Mat& a = as[i];
-        int ret = 0
-                  || test_expanddims(a, 0, 0, 0)
-                  || test_expanddims(a, 0, 0, 1)
-                  || test_expanddims(a, 0, 1, 0)
-                  || test_expanddims(a, 0, 1, 1)
-                  || test_expanddims(a, 1, 0, 0)
-                  || test_expanddims(a, 1, 0, 1)
-                  || test_expanddims(a, 1, 1, 0)
-                  || test_expanddims(a, 1, 1, 1)
+           || test_expanddims_axes(a, IntArrayMat(0))
+           || test_expanddims_axes(a, IntArrayMat(1))
+           || test_expanddims_axes(a, IntArrayMat(2))
+           || test_expanddims_axes(a, IntArrayMat(3))
+           || test_expanddims_axes(a, IntArrayMat(0, 1))
+           || test_expanddims_axes(a, IntArrayMat(0, 2))
+           || test_expanddims_axes(a, IntArrayMat(0, 3))
+           || test_expanddims_axes(a, IntArrayMat(1, 2))
+           || test_expanddims_axes(a, IntArrayMat(1, 3))
+           || test_expanddims_axes(a, IntArrayMat(2, 3))
+           || test_expanddims_axes(a, IntArrayMat(0, 1, 2))
+           || test_expanddims_axes(a, IntArrayMat(0, 1, 3))
+           || test_expanddims_axes(a, IntArrayMat(0, 2, 3))
+           || test_expanddims_axes(a, IntArrayMat(1, 2, 3))
+           || test_expanddims_axes(a, IntArrayMat(0, 1, 2, 3));
+}
 
-                  || test_expanddims_axes(a, IntArrayMat(0))
-                  || test_expanddims_axes(a, IntArrayMat(1))
-                  || test_expanddims_axes(a, IntArrayMat(2))
-                  || test_expanddims_axes(a, IntArrayMat(0, 1))
-                  || test_expanddims_axes(a, IntArrayMat(0, 2))
-                  || test_expanddims_axes(a, IntArrayMat(1, 2))
-                  || test_expanddims_axes(a, IntArrayMat(0, 1, 2));
+static int test_expanddims_0()
+{
+    return 0
+           || test_expanddims_all_params(RandomMat(3, 12, 16))
+           || test_expanddims_all_params(RandomMat(3, 1, 16))
+           || test_expanddims_all_params(RandomMat(1, 33, 15))
+           || test_expanddims_all_params(RandomMat(1, 14, 1))
+           || test_expanddims_all_params(RandomMat(12, 13, 1))
+           || test_expanddims_all_params(RandomMat(1, 1, 1));
+}
 
-        if (ret != 0)
-            return ret;
-    }
+static int test_expanddims_1()
+{
+    return 0
+           || test_expanddims_all_params(RandomMat(14, 16))
+           || test_expanddims_all_params(RandomMat(1, 14))
+           || test_expanddims_all_params(RandomMat(11, 1))
+           || test_expanddims_all_params(RandomMat(1, 1));
+}
 
-    return 0;
+static int test_expanddims_2()
+{
+    return 0
+           || test_expanddims_all_params(RandomMat(120))
+           || test_expanddims_all_params(RandomMat(1));
 }
 
 int main()
 {
     SRAND(7767517);
 
-    return test_expand_0();
+    return test_expanddims_0() || test_expanddims_1() || test_expanddims_2();
 }

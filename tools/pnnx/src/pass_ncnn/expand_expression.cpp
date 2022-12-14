@@ -119,7 +119,23 @@ static std::string expand_expression(Graph& graph, const Operator* op, int& pnnx
             // not supported
             return std::string();
         }
-        else if (t == "sqrt" || t == "rsqrt" || t == "neg")
+        else if (t == "abs"
+                 || t == "acos"
+                 || t == "asin"
+                 || t == "atan"
+                 || t == "ceil"
+                 || t == "cos"
+                 || t == "exp"
+                 || t == "floor"
+                 || t == "log"
+                 || t == "neg"
+                 || t == "reciprocal"
+                 || t == "rsqrt"
+                 || t == "sin"
+                 || t == "sqrt"
+                 || t == "square"
+                 || t == "tan"
+                 || t == "tanh")
         {
             std::string a = exprstack.top();
             exprstack.pop();
@@ -129,9 +145,23 @@ static std::string expand_expression(Graph& graph, const Operator* op, int& pnnx
 
             Operator* op_unary = graph.new_operator_before("UnaryOp", t + "_" + std::to_string(pnnx_expr_index++), op);
 
-            if (t == "sqrt") op_unary->params["0"] = 5;
-            if (t == "rsqrt") op_unary->params["0"] = 6;
+            if (t == "abs") op_unary->params["0"] = 0;
+            if (t == "acos") op_unary->params["0"] = 13;
+            if (t == "asin") op_unary->params["0"] = 12;
+            if (t == "atan") op_unary->params["0"] = 14;
+            if (t == "ceil") op_unary->params["0"] = 3;
+            if (t == "cos") op_unary->params["0"] = 10;
+            if (t == "exp") op_unary->params["0"] = 7;
+            if (t == "floor") op_unary->params["0"] = 2;
+            if (t == "log") op_unary->params["0"] = 8;
             if (t == "neg") op_unary->params["0"] = 1;
+            if (t == "reciprocal") op_unary->params["0"] = 15;
+            if (t == "rsqrt") op_unary->params["0"] = 6;
+            if (t == "sin") op_unary->params["0"] = 9;
+            if (t == "sqrt") op_unary->params["0"] = 5;
+            if (t == "square") op_unary->params["0"] = 4;
+            if (t == "tan") op_unary->params["0"] = 11;
+            if (t == "tanh") op_unary->params["0"] = 16;
 
             Operand* op_unary_in = token_is_argument(a) ? op->inputs[std::stoi(a.substr(1))] : graph.get_operand(op->name + "_" + a);
             op_unary_in->consumers.push_back(op_unary);

@@ -42,6 +42,12 @@
 #include <emscripten/threading.h>
 #endif
 
+#if defined _WIN32 && !(defined __MINGW32__)
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include <powerbase.h>
+#endif
+
 #if defined __ANDROID__ || defined __linux__
 #if defined __ANDROID__
 #if __ANDROID_API__ >= 18
@@ -88,9 +94,17 @@
 #ifndef CPUFAMILY_ARM_AVALANCHE_BLIZZARD
 #define CPUFAMILY_ARM_AVALANCHE_BLIZZARD 0xda33d83d
 #endif
+// A16
+#ifndef CPUFAMILY_ARM_EVEREST_SAWTOOTH
+#define CPUFAMILY_ARM_EVEREST_SAWTOOTH 0x8765edea
+#endif
 // M1
 #ifndef CPUFAMILY_AARCH64_FIRESTORM_ICESTORM
 #define CPUFAMILY_AARCH64_FIRESTORM_ICESTORM 0x1b588bb3
+#endif
+// M2
+#ifndef CPUFAMILY_AARCH64_AVALANCHE_BLIZZARD
+#define CPUFAMILY_AARCH64_AVALANCHE_BLIZZARD 0xda33d83d
 #endif
 #endif // __APPLE__
 
@@ -159,7 +173,7 @@ static unsigned int get_elf_hwcap_from_proc_self_auxv(unsigned int type)
         return 0;
     }
 
-#if __aarch64__ || __mips64 || __riscv_xlen == 64
+#if __aarch64__ || __mips64 || __riscv_xlen == 64 || __loongarch64
     struct
     {
         uint64_t tag;
@@ -236,6 +250,12 @@ static unsigned int g_hwcaps2 = get_elf_hwcap(AT_HWCAP2);
 #define HWCAP_LOONGSON_MMI (1 << 11)
 #endif
 
+#if __loongarch64
+// from arch/loongarch/include/uapi/asm/hwcap.h
+#define HWCAP_LOONGARCH_LSX  (1 << 4)
+#define HWCAP_LOONGARCH_LASX (1 << 5)
+#endif
+
 #if __riscv
 // from arch/riscv/include/uapi/asm/hwcap.h
 #define COMPAT_HWCAP_ISA_F (1 << ('F' - 'A'))
@@ -272,9 +292,60 @@ static cpu_subtype_t get_hw_cpusubtype()
 static unsigned int g_hw_cpufamily = get_hw_cpufamily();
 static cpu_type_t g_hw_cputype = get_hw_cputype();
 static cpu_subtype_t g_hw_cpusubtype = get_hw_cpusubtype();
+
+static int get_hw_capability(const char* cap)
+{
+    int64_t value = 0;
+    size_t len = sizeof(value);
+    sysctlbyname(cap, &value, &len, NULL, 0);
+    return value;
+}
+
+static int g_hw_optional_arm_FEAT_FP16 = get_hw_capability("hw.optional.arm.FEAT_FP16");
+static int g_hw_optional_arm_FEAT_DotProd = get_hw_capability("hw.optional.arm.FEAT_DotProd");
+static int g_hw_optional_arm_FEAT_FHM = get_hw_capability("hw.optional.arm.FEAT_FHM");
+static int g_hw_optional_arm_FEAT_BF16 = get_hw_capability("hw.optional.arm.FEAT_BF16");
+static int g_hw_optional_arm_FEAT_I8MM = get_hw_capability("hw.optional.arm.FEAT_I8MM");
 #endif // __APPLE__
 
-#if defined __ANDROID__ || defined __linux__
+#if (defined _WIN32 && !(defined __MINGW32__))
+CpuSet::CpuSet()
+{
+    disable_all();
+}
+
+void CpuSet::enable(int cpu)
+{
+    mask |= (1 << cpu);
+}
+
+void CpuSet::disable(int cpu)
+{
+    mask &= ~(1 << cpu);
+}
+
+void CpuSet::disable_all()
+{
+    mask = 0;
+}
+
+bool CpuSet::is_enabled(int cpu) const
+{
+    return mask & (1 << cpu);
+}
+
+int CpuSet::num_enabled() const
+{
+    int num_enabled = 0;
+    for (int i = 0; i < (int)sizeof(mask) * 8; i++)
+    {
+        if (is_enabled(i))
+            num_enabled++;
+    }
+
+    return num_enabled;
+}
+#elif defined __ANDROID__ || defined __linux__
 CpuSet::CpuSet()
 {
     disable_all();
@@ -444,7 +515,13 @@ int cpu_support_arm_asimdhp()
 #endif
 #elif __APPLE__
 #if __aarch64__
-    return g_hw_cpufamily == CPUFAMILY_ARM_MONSOON_MISTRAL || g_hw_cpufamily == CPUFAMILY_ARM_VORTEX_TEMPEST || g_hw_cpufamily == CPUFAMILY_ARM_LIGHTNING_THUNDER || g_hw_cpufamily == CPUFAMILY_ARM_FIRESTORM_ICESTORM || g_hw_cpufamily == CPUFAMILY_ARM_AVALANCHE_BLIZZARD;
+    return g_hw_optional_arm_FEAT_FP16
+           || g_hw_cpufamily == CPUFAMILY_ARM_MONSOON_MISTRAL
+           || g_hw_cpufamily == CPUFAMILY_ARM_VORTEX_TEMPEST
+           || g_hw_cpufamily == CPUFAMILY_ARM_LIGHTNING_THUNDER
+           || g_hw_cpufamily == CPUFAMILY_ARM_FIRESTORM_ICESTORM
+           || g_hw_cpufamily == CPUFAMILY_ARM_AVALANCHE_BLIZZARD
+           || g_hw_cpufamily == CPUFAMILY_ARM_EVEREST_SAWTOOTH;
 #else
     return 0;
 #endif
@@ -463,7 +540,11 @@ int cpu_support_arm_asimddp()
 #endif
 #elif __APPLE__
 #if __aarch64__
-    return g_hw_cpufamily == CPUFAMILY_ARM_LIGHTNING_THUNDER || g_hw_cpufamily == CPUFAMILY_ARM_FIRESTORM_ICESTORM || g_hw_cpufamily == CPUFAMILY_ARM_AVALANCHE_BLIZZARD;
+    return g_hw_optional_arm_FEAT_DotProd
+           || g_hw_cpufamily == CPUFAMILY_ARM_LIGHTNING_THUNDER
+           || g_hw_cpufamily == CPUFAMILY_ARM_FIRESTORM_ICESTORM
+           || g_hw_cpufamily == CPUFAMILY_ARM_AVALANCHE_BLIZZARD
+           || g_hw_cpufamily == CPUFAMILY_ARM_EVEREST_SAWTOOTH;
 #else
     return 0;
 #endif
@@ -482,7 +563,11 @@ int cpu_support_arm_asimdfhm()
 #endif
 #elif __APPLE__
 #if __aarch64__
-    return g_hw_cpufamily == CPUFAMILY_ARM_LIGHTNING_THUNDER || g_hw_cpufamily == CPUFAMILY_ARM_FIRESTORM_ICESTORM || g_hw_cpufamily == CPUFAMILY_ARM_AVALANCHE_BLIZZARD;
+    return g_hw_optional_arm_FEAT_FHM
+           || g_hw_cpufamily == CPUFAMILY_ARM_LIGHTNING_THUNDER
+           || g_hw_cpufamily == CPUFAMILY_ARM_FIRESTORM_ICESTORM
+           || g_hw_cpufamily == CPUFAMILY_ARM_AVALANCHE_BLIZZARD
+           || g_hw_cpufamily == CPUFAMILY_ARM_EVEREST_SAWTOOTH;
 #else
     return 0;
 #endif
@@ -501,7 +586,9 @@ int cpu_support_arm_bf16()
 #endif
 #elif __APPLE__
 #if __aarch64__
-    return 0; // no known apple cpu support armv8.6 bf16
+    return g_hw_optional_arm_FEAT_BF16
+           || g_hw_cpufamily == CPUFAMILY_ARM_AVALANCHE_BLIZZARD
+           || g_hw_cpufamily == CPUFAMILY_ARM_EVEREST_SAWTOOTH;
 #else
     return 0;
 #endif
@@ -520,7 +607,9 @@ int cpu_support_arm_i8mm()
 #endif
 #elif __APPLE__
 #if __aarch64__
-    return 0; // no known apple cpu support armv8.6 i8mm
+    return g_hw_optional_arm_FEAT_I8MM
+           || g_hw_cpufamily == CPUFAMILY_ARM_AVALANCHE_BLIZZARD
+           || g_hw_cpufamily == CPUFAMILY_ARM_EVEREST_SAWTOOTH;
 #else
     return 0;
 #endif
@@ -1001,6 +1090,32 @@ int cpu_support_mips_msa()
 #endif
 }
 
+int cpu_support_loongarch_lsx()
+{
+#if defined __ANDROID__ || defined __linux__
+#if __loongarch64
+    return g_hwcaps & HWCAP_LOONGARCH_LSX;
+#else
+    return 0;
+#endif
+#else
+    return 0;
+#endif
+}
+
+int cpu_support_loongarch_lasx()
+{
+#if defined __ANDROID__ || defined __linux__
+#if __loongarch64
+    return g_hwcaps & HWCAP_LOONGARCH_LASX;
+#else
+    return 0;
+#endif
+#else
+    return 0;
+#endif
+}
+
 int cpu_support_loongson_mmi()
 {
 #if defined __ANDROID__ || defined __linux__
@@ -1069,6 +1184,10 @@ static int get_cpucount()
         count = emscripten_num_logical_cores();
     else
         count = 1;
+#elif (defined _WIN32 && !(defined __MINGW32__))
+    SYSTEM_INFO system_info;
+    GetSystemInfo(&system_info);
+    count = system_info.dwNumberOfProcessors;
 #elif defined __ANDROID__ || defined __linux__
     // get cpu count from /proc/cpuinfo
     FILE* fp = fopen("/proc/cpuinfo", "rb");
@@ -1123,6 +1242,345 @@ int get_big_cpu_count()
     int big_cpu_count = get_cpu_thread_affinity_mask(2).num_enabled();
     return big_cpu_count ? big_cpu_count : g_cpucount;
 }
+
+#if defined __ANDROID__ || defined __linux__
+static int get_thread_siblings(int cpuid)
+{
+    char path[256];
+    sprintf(path, "/sys/devices/system/cpu/cpu%d/topology/thread_siblings", cpuid);
+
+    FILE* fp = fopen(path, "rb");
+    if (!fp)
+        return -1;
+
+    int thread_siblings = -1;
+    int nscan = fscanf(fp, "%x", &thread_siblings);
+    if (nscan != 1)
+    {
+        // ignore
+    }
+
+    fclose(fp);
+
+    return thread_siblings;
+}
+#endif // defined __ANDROID__ || defined __linux__
+
+static int get_physical_cpucount()
+{
+    int count = 0;
+#if (defined _WIN32 && !(defined __MINGW32__))
+    typedef BOOL(WINAPI * LPFN_GLPI)(PSYSTEM_LOGICAL_PROCESSOR_INFORMATION, PDWORD);
+    LPFN_GLPI glpi = (LPFN_GLPI)GetProcAddress(GetModuleHandle(TEXT("kernel32")), "GetLogicalProcessorInformation");
+    if (glpi == NULL)
+    {
+        NCNN_LOGE("GetLogicalProcessorInformation is not supported");
+        return g_cpucount;
+    }
+
+    DWORD return_length = 0;
+    glpi(NULL, &return_length);
+
+    PSYSTEM_LOGICAL_PROCESSOR_INFORMATION buffer = (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION)malloc(return_length);
+    glpi(buffer, &return_length);
+
+    PSYSTEM_LOGICAL_PROCESSOR_INFORMATION ptr = buffer;
+    DWORD byte_offset = 0;
+    while (byte_offset + sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION) <= return_length)
+    {
+        if (ptr->Relationship == RelationProcessorCore)
+        {
+            count++;
+        }
+
+        byte_offset += sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION);
+        ptr++;
+    }
+
+    free(buffer);
+#elif defined __ANDROID__ || defined __linux__
+    std::vector<int> thread_set;
+    for (int i = 0; i < g_cpucount; i++)
+    {
+        int thread_siblings = get_thread_siblings(i);
+        if (thread_siblings == -1)
+        {
+            // ignore malformed one
+            continue;
+        }
+
+        bool thread_siblings_exists = false;
+        for (size_t j = 0; j < thread_set.size(); j++)
+        {
+            if (thread_set[j] == thread_siblings)
+            {
+                thread_siblings_exists = true;
+                break;
+            }
+        }
+
+        if (!thread_siblings_exists)
+        {
+            thread_set.push_back(thread_siblings);
+            count++;
+        }
+    }
+#elif __APPLE__
+    size_t len = sizeof(count);
+    sysctlbyname("hw.physicalcpu_max", &count, &len, NULL, 0);
+#else
+    count = g_cpucount;
+#endif
+
+    if (count > g_cpucount)
+        count = g_cpucount;
+
+    return count;
+}
+
+static int g_physical_cpucount = get_physical_cpucount();
+
+int get_physical_cpu_count()
+{
+    return g_physical_cpucount;
+}
+
+int get_physical_little_cpu_count()
+{
+    if (g_physical_cpucount == g_cpucount)
+        return get_little_cpu_count();
+
+    return g_physical_cpucount * 2 - g_cpucount;
+}
+
+int get_physical_big_cpu_count()
+{
+    if (g_physical_cpucount == g_cpucount)
+        return get_big_cpu_count();
+
+    return g_cpucount - g_physical_cpucount;
+}
+
+static int get_cpu_level2_cachesize()
+{
+    int size = 0;
+#if (defined _WIN32 && !(defined __MINGW32__))
+    typedef BOOL(WINAPI * LPFN_GLPI)(PSYSTEM_LOGICAL_PROCESSOR_INFORMATION, PDWORD);
+    LPFN_GLPI glpi = (LPFN_GLPI)GetProcAddress(GetModuleHandle(TEXT("kernel32")), "GetLogicalProcessorInformation");
+    if (glpi != NULL)
+    {
+        DWORD return_length = 0;
+        glpi(NULL, &return_length);
+
+        PSYSTEM_LOGICAL_PROCESSOR_INFORMATION buffer = (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION)malloc(return_length);
+        glpi(buffer, &return_length);
+
+        PSYSTEM_LOGICAL_PROCESSOR_INFORMATION ptr = buffer;
+        DWORD byte_offset = 0;
+        while (byte_offset + sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION) <= return_length)
+        {
+            if (ptr->Relationship == RelationCache)
+            {
+                PCACHE_DESCRIPTOR Cache = &ptr->Cache;
+                if (Cache->Level == 2)
+                {
+                    size = std::max(size, (int)Cache->Size);
+                }
+            }
+
+            byte_offset += sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION);
+            ptr++;
+        }
+
+        free(buffer);
+    }
+#elif defined __linux__
+    size = sysconf(_SC_LEVEL2_CACHE_SIZE);
+#elif __APPLE__
+    // perflevel 0 is the higher performance cluster
+    int cpusperl2 = get_hw_capability("hw.perflevel0.cpusperl2");
+    int l2cachesize = get_hw_capability("hw.perflevel0.l2cachesize");
+    size = cpusperl2 > 1 ? l2cachesize / cpusperl2 : l2cachesize;
+#endif
+
+    // fallback to a common value
+    if (size <= 0)
+    {
+#if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
+        size = 64 * 1024;
+        if (cpu_support_x86_avx())
+            size = 128 * 1024;
+        if (cpu_support_x86_avx2())
+            size = 256 * 1024;
+        if (cpu_support_x86_avx512())
+            size = 1024 * 1024;
+#elif __aarch64__
+        size = 256 * 1024;
+#elif __arm__
+        size = 128 * 1024;
+#else
+        // is 64k still too large here ?
+        size = 64 * 1024;
+#endif
+    }
+
+    return size;
+}
+
+static int get_cpu_level3_cachesize()
+{
+    int size = 0;
+#if (defined _WIN32 && !(defined __MINGW32__))
+    typedef BOOL(WINAPI * LPFN_GLPI)(PSYSTEM_LOGICAL_PROCESSOR_INFORMATION, PDWORD);
+    LPFN_GLPI glpi = (LPFN_GLPI)GetProcAddress(GetModuleHandle(TEXT("kernel32")), "GetLogicalProcessorInformation");
+    if (glpi != NULL)
+    {
+        DWORD return_length = 0;
+        glpi(NULL, &return_length);
+
+        PSYSTEM_LOGICAL_PROCESSOR_INFORMATION buffer = (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION)malloc(return_length);
+        glpi(buffer, &return_length);
+
+        PSYSTEM_LOGICAL_PROCESSOR_INFORMATION ptr = buffer;
+        DWORD byte_offset = 0;
+        while (byte_offset + sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION) <= return_length)
+        {
+            if (ptr->Relationship == RelationCache)
+            {
+                PCACHE_DESCRIPTOR Cache = &ptr->Cache;
+                if (Cache->Level == 3)
+                {
+                    size = std::max(size, (int)Cache->Size);
+                }
+            }
+
+            byte_offset += sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION);
+            ptr++;
+        }
+
+        free(buffer);
+    }
+#elif defined __linux__
+    size = sysconf(_SC_LEVEL3_CACHE_SIZE);
+#elif __APPLE__
+    // perflevel 0 is the higher performance cluster
+    // get the size shared among all cpus
+    size = get_hw_capability("hw.perflevel0.l3cachesize");
+#endif
+
+    // l3 cache size can be zero
+
+    return size;
+}
+
+static int g_cpu_level2_cachesize = get_cpu_level2_cachesize();
+static int g_cpu_level3_cachesize = get_cpu_level3_cachesize();
+
+int get_cpu_level2_cache_size()
+{
+    return g_cpu_level2_cachesize;
+}
+
+int get_cpu_level3_cache_size()
+{
+    return g_cpu_level3_cachesize;
+}
+
+#if (defined _WIN32 && !(defined __MINGW32__))
+static CpuSet get_smt_cpu_mask()
+{
+    CpuSet smt_cpu_mask;
+
+    typedef BOOL(WINAPI * LPFN_GLPI)(PSYSTEM_LOGICAL_PROCESSOR_INFORMATION, PDWORD);
+    LPFN_GLPI glpi = (LPFN_GLPI)GetProcAddress(GetModuleHandle(TEXT("kernel32")), "GetLogicalProcessorInformation");
+    if (glpi == NULL)
+    {
+        NCNN_LOGE("GetLogicalProcessorInformation is not supported");
+        return smt_cpu_mask;
+    }
+
+    DWORD return_length = 0;
+    glpi(NULL, &return_length);
+
+    PSYSTEM_LOGICAL_PROCESSOR_INFORMATION buffer = (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION)malloc(return_length);
+    glpi(buffer, &return_length);
+
+    PSYSTEM_LOGICAL_PROCESSOR_INFORMATION ptr = buffer;
+    DWORD byte_offset = 0;
+    while (byte_offset + sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION) <= return_length)
+    {
+        if (ptr->Relationship == RelationProcessorCore)
+        {
+            CpuSet smt_set;
+            smt_set.mask = ptr->ProcessorMask;
+            if (smt_set.num_enabled() > 1)
+            {
+                // this core is smt
+                smt_cpu_mask.mask |= smt_set.mask;
+            }
+        }
+
+        byte_offset += sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION);
+        ptr++;
+    }
+
+    free(buffer);
+
+    return smt_cpu_mask;
+}
+
+static std::vector<int> get_max_freq_mhz()
+{
+    typedef struct _PROCESSOR_POWER_INFORMATION
+    {
+        ULONG Number;
+        ULONG MaxMhz;
+        ULONG CurrentMhz;
+        ULONG MhzLimit;
+        ULONG MaxIdleState;
+        ULONG CurrentIdleState;
+    } PROCESSOR_POWER_INFORMATION, *PPROCESSOR_POWER_INFORMATION;
+
+    HMODULE powrprof = LoadLibrary(TEXT("powrprof.dll"));
+
+    typedef LONG(WINAPI * LPFN_CNPI)(POWER_INFORMATION_LEVEL, PVOID, ULONG, PVOID, ULONG);
+    LPFN_CNPI cnpi = (LPFN_CNPI)GetProcAddress(powrprof, "CallNtPowerInformation");
+    if (cnpi == NULL)
+    {
+        NCNN_LOGE("CallNtPowerInformation is not supported");
+        FreeLibrary(powrprof);
+        return std::vector<int>(g_cpucount, 0);
+    }
+
+    DWORD return_length = sizeof(PROCESSOR_POWER_INFORMATION) * g_cpucount;
+    PPROCESSOR_POWER_INFORMATION buffer = (PPROCESSOR_POWER_INFORMATION)malloc(return_length);
+
+    cnpi(ProcessorInformation, NULL, 0, buffer, return_length);
+
+    std::vector<int> ret;
+    for (int i = 0; i < g_cpucount; i++)
+    {
+        ULONG max_mhz = buffer[i].MaxMhz;
+        ret.push_back(max_mhz);
+    }
+
+    free(buffer);
+    FreeLibrary(powrprof);
+    return ret;
+}
+
+static int set_sched_affinity(const CpuSet& thread_affinity_mask)
+{
+    DWORD_PTR prev_mask = SetThreadAffinityMask(GetCurrentThread(), thread_affinity_mask.mask);
+    if (prev_mask == 0)
+    {
+        NCNN_LOGE("SetThreadAffinityMask failed %d", GetLastError());
+        return -1;
+    }
+
+    return 0;
+}
+#endif // (defined _WIN32 && !(defined __MINGW32__))
 
 #if defined __ANDROID__ || defined __linux__
 static int get_max_freq_khz(int cpuid)
@@ -1197,6 +1655,39 @@ static int get_max_freq_khz(int cpuid)
     fclose(fp);
 
     return max_freq_khz;
+}
+
+static bool is_smt_cpu(int cpuid)
+{
+    // https://github.com/torvalds/linux/blob/v6.0/Documentation/ABI/stable/sysfs-devices-system-cpu#L68-72
+    char path[256];
+    sprintf(path, "/sys/devices/system/cpu/cpu%d/topology/core_cpus_list", cpuid);
+
+    FILE* fp = fopen(path, "rb");
+
+    if (!fp)
+    {
+        sprintf(path, "/sys/devices/system/cpu/cpu%d/topology/thread_siblings_list", cpuid);
+        fp = fopen(path, "rb");
+
+        if (!fp)
+            return false;
+    }
+
+    bool is_smt = false;
+    while (!feof(fp))
+    {
+        char ch = fgetc(fp);
+        if (ch == ',' || ch == '-')
+        {
+            is_smt = true;
+            break;
+        }
+    }
+
+    fclose(fp);
+
+    return is_smt;
 }
 
 static int set_sched_affinity(const CpuSet& thread_affinity_mask)
@@ -1289,7 +1780,48 @@ static int setup_thread_affinity_masks()
 {
     g_thread_affinity_mask_all.disable_all();
 
-#if defined __ANDROID__ || defined __linux__
+#if (defined _WIN32 && !(defined __MINGW32__))
+    // get max freq mhz for all cores
+    int max_freq_mhz_min = INT_MAX;
+    int max_freq_mhz_max = 0;
+    std::vector<int> cpu_max_freq_mhz = get_max_freq_mhz();
+    for (int i = 0; i < g_cpucount; i++)
+    {
+        int max_freq_mhz = cpu_max_freq_mhz[i];
+
+        // NCNN_LOGE("%d max freq = %d khz", i, max_freq_mhz);
+
+        if (max_freq_mhz > max_freq_mhz_max)
+            max_freq_mhz_max = max_freq_mhz;
+        if (max_freq_mhz < max_freq_mhz_min)
+            max_freq_mhz_min = max_freq_mhz;
+    }
+
+    int max_freq_mhz_medium = (max_freq_mhz_min + max_freq_mhz_max) / 2;
+    if (max_freq_mhz_medium == max_freq_mhz_max)
+    {
+        g_thread_affinity_mask_little.disable_all();
+        g_thread_affinity_mask_big = g_thread_affinity_mask_all;
+        return 0;
+    }
+
+    CpuSet smt_cpu_mask = get_smt_cpu_mask();
+
+    for (int i = 0; i < g_cpucount; i++)
+    {
+        if (smt_cpu_mask.is_enabled(i))
+        {
+            // always treat smt core as big core
+            g_thread_affinity_mask_big.enable(i);
+            continue;
+        }
+
+        if (cpu_max_freq_mhz[i] < max_freq_mhz_medium)
+            g_thread_affinity_mask_little.enable(i);
+        else
+            g_thread_affinity_mask_big.enable(i);
+    }
+#elif defined __ANDROID__ || defined __linux__
     int max_freq_khz_min = INT_MAX;
     int max_freq_khz_max = 0;
     std::vector<int> cpu_max_freq_khz(g_cpucount);
@@ -1297,7 +1829,7 @@ static int setup_thread_affinity_masks()
     {
         int max_freq_khz = get_max_freq_khz(i);
 
-        //         NCNN_LOGE("%d max freq = %d khz", i, max_freq_khz);
+        // NCNN_LOGE("%d max freq = %d khz", i, max_freq_khz);
 
         cpu_max_freq_khz[i] = max_freq_khz;
 
@@ -1317,52 +1849,38 @@ static int setup_thread_affinity_masks()
 
     for (int i = 0; i < g_cpucount; i++)
     {
+        if (is_smt_cpu(i))
+        {
+            // always treat smt core as big core
+            g_thread_affinity_mask_big.enable(i);
+            continue;
+        }
+
         if (cpu_max_freq_khz[i] < max_freq_khz_medium)
             g_thread_affinity_mask_little.enable(i);
         else
             g_thread_affinity_mask_big.enable(i);
     }
 #elif __APPLE__
-    // affinity info from cpu model
-    if (g_hw_cpufamily == CPUFAMILY_ARM_MONSOON_MISTRAL)
-    {
-        // 2 + 4
-        g_thread_affinity_mask_big.enable(0);
-        g_thread_affinity_mask_big.enable(1);
-        g_thread_affinity_mask_little.enable(2);
-        g_thread_affinity_mask_little.enable(3);
-        g_thread_affinity_mask_little.enable(4);
-        g_thread_affinity_mask_little.enable(5);
-    }
-    else if (g_hw_cpufamily == CPUFAMILY_ARM_VORTEX_TEMPEST || g_hw_cpufamily == CPUFAMILY_ARM_LIGHTNING_THUNDER || g_hw_cpufamily == CPUFAMILY_ARM_FIRESTORM_ICESTORM || g_hw_cpufamily == CPUFAMILY_ARM_AVALANCHE_BLIZZARD)
-    {
-        // 2 + 4 or 4 + 4
-        if (get_cpu_count() == 6)
-        {
-            g_thread_affinity_mask_big.enable(0);
-            g_thread_affinity_mask_big.enable(1);
-            g_thread_affinity_mask_little.enable(2);
-            g_thread_affinity_mask_little.enable(3);
-            g_thread_affinity_mask_little.enable(4);
-            g_thread_affinity_mask_little.enable(5);
-        }
-        else
-        {
-            g_thread_affinity_mask_big.enable(0);
-            g_thread_affinity_mask_big.enable(1);
-            g_thread_affinity_mask_big.enable(2);
-            g_thread_affinity_mask_big.enable(3);
-            g_thread_affinity_mask_little.enable(4);
-            g_thread_affinity_mask_little.enable(5);
-            g_thread_affinity_mask_little.enable(6);
-            g_thread_affinity_mask_little.enable(7);
-        }
-    }
-    else
+    int nperflevels = get_hw_capability("hw.nperflevels");
+    if (nperflevels == 1)
     {
         // smp models
         g_thread_affinity_mask_little.disable_all();
         g_thread_affinity_mask_big = g_thread_affinity_mask_all;
+    }
+    else
+    {
+        // two or more clusters, level0 is the high-performance cluster
+        int perflevel0_logicalcpu = get_hw_capability("hw.perflevel0.logicalcpu_max");
+        for (int i = 0; i < perflevel0_logicalcpu; i++)
+        {
+            g_thread_affinity_mask_big.enable(i);
+        }
+        for (int i = perflevel0_logicalcpu; i < g_cpucount; i++)
+        {
+            g_thread_affinity_mask_little.enable(i);
+        }
     }
 #else
     // TODO implement me for other platforms
@@ -1394,7 +1912,7 @@ const CpuSet& get_cpu_thread_affinity_mask(int powersave)
 
 int set_cpu_thread_affinity(const CpuSet& thread_affinity_mask)
 {
-#if defined __ANDROID__ || defined __linux__
+#if defined __ANDROID__ || defined __linux__ || (defined _WIN32 && !(defined __MINGW32__))
     int num_threads = thread_affinity_mask.num_enabled();
 
 #ifdef _OPENMP
@@ -1584,3 +2102,21 @@ int set_flush_denormals(int flush_denormals)
 }
 
 } // namespace ncnn
+
+#if defined __ANDROID__ && defined(_OPENMP) && __clang__
+#ifdef __cplusplus
+extern "C" {
+#endif
+void __wrap___kmp_affinity_determine_capable(const char* /*env_var*/)
+{
+    // the internal affinity routines in llvm openmp call abort on __NR_sched_getaffinity / __NR_sched_setaffinity fails
+    // ref KMPNativeAffinity::get_system_affinity/set_system_affinity in openmp/runtime/src/kmp_affinity.h
+    // and cpu core goes offline in powersave mode on android, which triggers abort
+    // ATM there is no known api for controlling the abort behavior
+    // override __kmp_affinity_determine_capable with empty body to disable affinity regardless of KMP_AFFINITY env_var
+    // ugly hack works >.<    --- nihui
+}
+#ifdef __cplusplus
+} // extern "C"
+#endif
+#endif
