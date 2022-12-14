@@ -1756,7 +1756,7 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
                 _mm512_store_ps(pp + 16 * 2, _r2);
                 _mm512_store_ps(pp + 16 * 3, _r3);
                 pp += 64;
-                p0 += B_hstep * 8;
+                p0 += B_hstep * 16;
             }
         }
 #endif // __AVX512F__
