@@ -92,7 +92,7 @@ pnnx.Output             output      1 0 out
             if (axes[i] > batch_index)
                 axes[i] -= 1;
 
-            if (ends[i] == INT_MAX)
+            if (ends[i] == -1)
                 ends[i] = -233;
         }
 
