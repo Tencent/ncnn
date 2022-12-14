@@ -34,6 +34,8 @@ public:
 
     Mat weight_data_tm;
     Mat weight_sgemm_data;
+
+    Layer* gemm;
 };
 
 } // namespace ncnn
