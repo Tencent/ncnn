@@ -1464,7 +1464,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             top_blob.h = 1;
         }
         Option opt_b = opt;
-        opt_b.blob_allocator = opt.workspace_allocator;
+        opt_b.blob_allocator = top_blob.allocator;
         gemm->forward(bottom_im2col, top_blob, opt_b);
         {
             top_blob.w = outw;
