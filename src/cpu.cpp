@@ -1361,6 +1361,131 @@ int get_physical_big_cpu_count()
     return g_cpucount - g_physical_cpucount;
 }
 
+static int get_cpu_level2_cachesize()
+{
+    int size = 0;
+#if (defined _WIN32 && !(defined __MINGW32__))
+    typedef BOOL(WINAPI * LPFN_GLPI)(PSYSTEM_LOGICAL_PROCESSOR_INFORMATION, PDWORD);
+    LPFN_GLPI glpi = (LPFN_GLPI)GetProcAddress(GetModuleHandle(TEXT("kernel32")), "GetLogicalProcessorInformation");
+    if (glpi != NULL)
+    {
+        DWORD return_length = 0;
+        glpi(NULL, &return_length);
+
+        PSYSTEM_LOGICAL_PROCESSOR_INFORMATION buffer = (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION)malloc(return_length);
+        glpi(buffer, &return_length);
+
+        PSYSTEM_LOGICAL_PROCESSOR_INFORMATION ptr = buffer;
+        DWORD byte_offset = 0;
+        while (byte_offset + sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION) <= return_length)
+        {
+            if (ptr->Relationship == RelationCache)
+            {
+                PCACHE_DESCRIPTOR Cache = &ptr->Cache;
+                if (Cache->Level == 2)
+                {
+                    size = std::max(size, (int)Cache->Size);
+                }
+            }
+
+            byte_offset += sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION);
+            ptr++;
+        }
+
+        free(buffer);
+    }
+#elif defined __linux__
+    size = sysconf(_SC_LEVEL2_CACHE_SIZE);
+#elif __APPLE__
+    // perflevel 0 is the higher performance cluster
+    int cpusperl2 = get_hw_capability("hw.perflevel0.cpusperl2");
+    int l2cachesize = get_hw_capability("hw.perflevel0.l2cachesize");
+    size = cpusperl2 > 1 ? l2cachesize / cpusperl2 : l2cachesize;
+#endif
+
+    // fallback to a common value
+    if (size <= 0)
+    {
+#if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
+        size = 64 * 1024;
+        if (cpu_support_x86_avx())
+            size = 128 * 1024;
+        if (cpu_support_x86_avx2())
+            size = 256 * 1024;
+        if (cpu_support_x86_avx512())
+            size = 1024 * 1024;
+#elif __aarch64__
+        size = 256 * 1024;
+#elif __arm__
+        size = 128 * 1024;
+#else
+        // is 64k still too large here ?
+        size = 64 * 1024;
+#endif
+    }
+
+    return size;
+}
+
+static int get_cpu_level3_cachesize()
+{
+    int size = 0;
+#if (defined _WIN32 && !(defined __MINGW32__))
+    typedef BOOL(WINAPI * LPFN_GLPI)(PSYSTEM_LOGICAL_PROCESSOR_INFORMATION, PDWORD);
+    LPFN_GLPI glpi = (LPFN_GLPI)GetProcAddress(GetModuleHandle(TEXT("kernel32")), "GetLogicalProcessorInformation");
+    if (glpi != NULL)
+    {
+        DWORD return_length = 0;
+        glpi(NULL, &return_length);
+
+        PSYSTEM_LOGICAL_PROCESSOR_INFORMATION buffer = (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION)malloc(return_length);
+        glpi(buffer, &return_length);
+
+        PSYSTEM_LOGICAL_PROCESSOR_INFORMATION ptr = buffer;
+        DWORD byte_offset = 0;
+        while (byte_offset + sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION) <= return_length)
+        {
+            if (ptr->Relationship == RelationCache)
+            {
+                PCACHE_DESCRIPTOR Cache = &ptr->Cache;
+                if (Cache->Level == 3)
+                {
+                    size = std::max(size, (int)Cache->Size);
+                }
+            }
+
+            byte_offset += sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION);
+            ptr++;
+        }
+
+        free(buffer);
+    }
+#elif defined __linux__
+    size = sysconf(_SC_LEVEL3_CACHE_SIZE);
+#elif __APPLE__
+    // perflevel 0 is the higher performance cluster
+    // get the size shared among all cpus
+    size = get_hw_capability("hw.perflevel0.l3cachesize");
+#endif
+
+    // l3 cache size can be zero
+
+    return size;
+}
+
+static int g_cpu_level2_cachesize = get_cpu_level2_cachesize();
+static int g_cpu_level3_cachesize = get_cpu_level3_cachesize();
+
+int get_cpu_level2_cache_size()
+{
+    return g_cpu_level2_cachesize;
+}
+
+int get_cpu_level3_cache_size()
+{
+    return g_cpu_level3_cachesize;
+}
+
 #if (defined _WIN32 && !(defined __MINGW32__))
 static CpuSet get_smt_cpu_mask()
 {
@@ -1737,89 +1862,25 @@ static int setup_thread_affinity_masks()
             g_thread_affinity_mask_big.enable(i);
     }
 #elif __APPLE__
-    // affinity info from cpu model
-    // TODO find a general way to get per-core frequency on macos
-    if (g_hw_cpufamily == CPUFAMILY_ARM_MONSOON_MISTRAL)
-    {
-        // 2 + 4
-        g_thread_affinity_mask_big.enable(0);
-        g_thread_affinity_mask_big.enable(1);
-        g_thread_affinity_mask_little.enable(2);
-        g_thread_affinity_mask_little.enable(3);
-        g_thread_affinity_mask_little.enable(4);
-        g_thread_affinity_mask_little.enable(5);
-    }
-    else if (g_hw_cpufamily == CPUFAMILY_ARM_VORTEX_TEMPEST
-             || g_hw_cpufamily == CPUFAMILY_ARM_LIGHTNING_THUNDER
-             || g_hw_cpufamily == CPUFAMILY_ARM_FIRESTORM_ICESTORM
-             || g_hw_cpufamily == CPUFAMILY_ARM_AVALANCHE_BLIZZARD
-             || g_hw_cpufamily == CPUFAMILY_ARM_EVEREST_SAWTOOTH)
-    {
-        int cpu_count = get_cpu_count();
-        if (cpu_count == 6)
-        {
-            // 2 + 4
-            g_thread_affinity_mask_big.enable(0);
-            g_thread_affinity_mask_big.enable(1);
-            g_thread_affinity_mask_little.enable(2);
-            g_thread_affinity_mask_little.enable(3);
-            g_thread_affinity_mask_little.enable(4);
-            g_thread_affinity_mask_little.enable(5);
-        }
-        else if (cpu_count == 8)
-        {
-            // 4 + 4
-            g_thread_affinity_mask_big.enable(0);
-            g_thread_affinity_mask_big.enable(1);
-            g_thread_affinity_mask_big.enable(2);
-            g_thread_affinity_mask_big.enable(3);
-            g_thread_affinity_mask_little.enable(4);
-            g_thread_affinity_mask_little.enable(5);
-            g_thread_affinity_mask_little.enable(6);
-            g_thread_affinity_mask_little.enable(7);
-        }
-        else if (cpu_count == 10)
-        {
-            // 8 + 2
-            g_thread_affinity_mask_big.enable(0);
-            g_thread_affinity_mask_big.enable(1);
-            g_thread_affinity_mask_big.enable(2);
-            g_thread_affinity_mask_big.enable(3);
-            g_thread_affinity_mask_big.enable(4);
-            g_thread_affinity_mask_big.enable(5);
-            g_thread_affinity_mask_big.enable(6);
-            g_thread_affinity_mask_big.enable(7);
-            g_thread_affinity_mask_little.enable(8);
-            g_thread_affinity_mask_little.enable(9);
-        }
-        else if (cpu_count == 20)
-        {
-            // 16 + 4
-            g_thread_affinity_mask_big.enable(0);
-            g_thread_affinity_mask_big.enable(1);
-            g_thread_affinity_mask_big.enable(2);
-            g_thread_affinity_mask_big.enable(3);
-            g_thread_affinity_mask_big.enable(4);
-            g_thread_affinity_mask_big.enable(5);
-            g_thread_affinity_mask_big.enable(6);
-            g_thread_affinity_mask_big.enable(7);
-            g_thread_affinity_mask_big.enable(8);
-            g_thread_affinity_mask_big.enable(9);
-            g_thread_affinity_mask_big.enable(10);
-            g_thread_affinity_mask_big.enable(11);
-            g_thread_affinity_mask_big.enable(12);
-            g_thread_affinity_mask_big.enable(13);
-            g_thread_affinity_mask_big.enable(14);
-            g_thread_affinity_mask_big.enable(15);
-            g_thread_affinity_mask_little.enable(16);
-            g_thread_affinity_mask_little.enable(17);
-        }
-    }
-    else
+    int nperflevels = get_hw_capability("hw.nperflevels");
+    if (nperflevels == 1)
     {
         // smp models
         g_thread_affinity_mask_little.disable_all();
         g_thread_affinity_mask_big = g_thread_affinity_mask_all;
+    }
+    else
+    {
+        // two or more clusters, level0 is the high-performance cluster
+        int perflevel0_logicalcpu = get_hw_capability("hw.perflevel0.logicalcpu_max");
+        for (int i = 0; i < perflevel0_logicalcpu; i++)
+        {
+            g_thread_affinity_mask_big.enable(i);
+        }
+        for (int i = perflevel0_logicalcpu; i < g_cpucount; i++)
+        {
+            g_thread_affinity_mask_little.enable(i);
+        }
     }
 #else
     // TODO implement me for other platforms
