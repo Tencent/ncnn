@@ -36,6 +36,7 @@ int Gemm::load_param(const ParamDict& pd)
     constantK = pd.get(9, 0);
     constant_broadcast_type_C = pd.get(10, 0);
     output_N1M = pd.get(11, 0);
+    output_elempack = pd.get(12, 0);
 
     if (constantA == 1 && (constantM == 0 || constantK == 0))
     {

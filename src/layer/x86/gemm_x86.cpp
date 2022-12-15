@@ -6525,6 +6525,8 @@ int Gemm_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 #endif
     }
 #endif // __SSE2__
+    if (output_elempack)
+        out_elempack = output_elempack;
     size_t out_elemsize = 4u * out_elempack;
 
     Mat& top_blob = top_blobs[0];
