@@ -94,16 +94,16 @@ int Deconvolution_x86::create_pipeline(const Option& opt)
         gemm = ncnn::create_layer(ncnn::LayerType::Gemm);
 
         ncnn::ParamDict pd;
-        pd.set(2, 1);                   // transA
-        pd.set(3, 0);                   // transB
-        pd.set(4, 1);                   // constantA
-        pd.set(5, 0);                   // constantB
-        pd.set(6, 1);                   // constantC
-        pd.set(7, maxk * num_output);   // M = maxk*num_output
-        pd.set(8, 0);                   // N = size
-        pd.set(9, num_input);           // K = inch
-        pd.set(10, -1);                 // constant_broadcast_type_C = null
-        pd.set(11, 0);                  // output_N1M
+        pd.set(2, 1);                 // transA
+        pd.set(3, 0);                 // transB
+        pd.set(4, 1);                 // constantA
+        pd.set(5, 0);                 // constantB
+        pd.set(6, 1);                 // constantC
+        pd.set(7, maxk * num_output); // M = maxk*num_output
+        pd.set(8, 0);                 // N = size
+        pd.set(9, num_input);         // K = inch
+        pd.set(10, -1);               // constant_broadcast_type_C = null
+        pd.set(11, 0);                // output_N1M
         pd.set(12, out_elempack);
 
         gemm->load_param(pd);
