@@ -46,6 +46,7 @@ public:
     int constantK;
     int constant_broadcast_type_C;
     int output_N1M;
+    int output_elempack;
 
     // constant A / B / C
     Mat A_data;
