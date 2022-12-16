@@ -54,7 +54,7 @@ pnnx.Output             output      1 0 out
 
         int input_rank = op->inputs[0]->shape.size();
 
-        if (input_rank > 4)
+        if (input_rank > 5)
         {
             fprintf(stderr, "squeeze %d-rank tensor is not supported yet!\n", input_rank);
             return;
@@ -97,6 +97,7 @@ pnnx.Output             output      1 0 out
     {
         op->params["0"] = 1;
         op->params["1"] = 1;
+        op->params["11"] = 1;
         op->params["2"] = 1;
     }
 };

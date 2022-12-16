@@ -22,7 +22,7 @@ jobs:
     steps:
     - name: get-version
       id: get_version
-      run: echo ::set-output name=VERSION::${GITHUB_REF/refs\/tags\//}
+      run: echo "VERSION=${GITHUB_REF/refs\/tags\//}" >> $GITHUB_OUTPUT
 
   full-source:
     needs: [setup]
@@ -237,7 +237,7 @@ jobs:
         path: ${{ env.PACKAGENAME }}.zip
 
   openmp-macos:
-    runs-on: macos-latest
+    runs-on: macos-11
     steps:
     - name: cache-openmp
       id: cache-openmp
@@ -290,7 +290,7 @@ jobs:
 
   macos:
     needs: [setup, openmp-macos]
-    runs-on: macos-latest
+    runs-on: macos-11
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-macos
     steps:
@@ -358,7 +358,7 @@ jobs:
 
   macos-gpu:
     needs: [setup, openmp-macos]
-    runs-on: macos-latest
+    runs-on: macos-11
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-macos-vulkan
     steps:
@@ -454,7 +454,7 @@ jobs:
         path: ${{ env.PACKAGENAME }}.zip
 
   openmp-ios:
-    runs-on: macos-latest
+    runs-on: macos-11
     steps:
     - name: cache-openmp
       id: cache-openmp
@@ -511,7 +511,7 @@ jobs:
 
   ios:
     needs: [setup, openmp-ios]
-    runs-on: macos-latest
+    runs-on: macos-11
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ios
     steps:
@@ -594,7 +594,7 @@ jobs:
 
   ios-gpu:
     needs: [setup, openmp-ios]
-    runs-on: macos-latest
+    runs-on: macos-11
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ios-vulkan
     steps:
@@ -693,7 +693,7 @@ jobs:
         path: ${{ env.PACKAGENAME }}.zip
 
   openmp-ios-bitcode:
-    runs-on: macos-latest
+    runs-on: macos-11
     steps:
     - name: cache-openmp
       id: cache-openmp
@@ -750,7 +750,7 @@ jobs:
 
   ios-bitcode:
     needs: [setup, openmp-ios-bitcode]
-    runs-on: macos-latest
+    runs-on: macos-11
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ios-bitcode
     steps:
@@ -833,7 +833,7 @@ jobs:
 
   ios-gpu-bitcode:
     needs: [setup, openmp-ios-bitcode]
-    runs-on: macos-latest
+    runs-on: macos-11
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ios-vulkan-bitcode
     steps:
@@ -1267,6 +1267,7 @@ jobs:
     runs-on: windows-2019
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2015
+      UseMultiToolTask: true
     steps:
     - uses: actions/checkout@v3
       with:
@@ -1332,6 +1333,7 @@ jobs:
     runs-on: windows-2019
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2015-shared
+      UseMultiToolTask: true
     steps:
     - uses: actions/checkout@v3
       with:
@@ -1397,6 +1399,7 @@ jobs:
     runs-on: windows-2019
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2017
+      UseMultiToolTask: true
     steps:
     - uses: actions/checkout@v3
       with:
@@ -1462,6 +1465,7 @@ jobs:
     runs-on: windows-2019
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2017-shared
+      UseMultiToolTask: true
     steps:
     - uses: actions/checkout@v3
       with:
@@ -1527,6 +1531,7 @@ jobs:
     runs-on: windows-latest
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2019
+      UseMultiToolTask: true
     steps:
     - uses: actions/checkout@v3
       with:
@@ -1608,6 +1613,7 @@ jobs:
     runs-on: windows-latest
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2019-shared
+      UseMultiToolTask: true
     steps:
     - uses: actions/checkout@v3
       with:
@@ -1689,6 +1695,7 @@ jobs:
     runs-on: windows-latest
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2022
+      UseMultiToolTask: true
     steps:
     - uses: actions/checkout@v3
       with:
@@ -1770,6 +1777,7 @@ jobs:
     runs-on: windows-latest
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2022-shared
+      UseMultiToolTask: true
     steps:
     - uses: actions/checkout@v3
       with:

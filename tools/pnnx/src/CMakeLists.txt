@@ -198,6 +198,8 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_bitwise_and.cpp
     pass_level2/torch_bitwise_or.cpp
     pass_level2/torch_bitwise_xor.cpp
+    pass_level2/torch_bitwise_left_shift.cpp
+    pass_level2/torch_bitwise_right_shift.cpp
     pass_level2/torch_cat.cpp
     pass_level2/torch_chunk.cpp
     pass_level2/torch_clamp.cpp
@@ -302,10 +304,11 @@ set(pnnx_pass_level5_SRCS
     pass_level5/eliminate_noop_expression.cpp
     pass_level5/eliminate_noop_pad.cpp
     pass_level5/eliminate_noop_upsample.cpp
-    pass_level5/eliminate_slice.cpp
-    pass_level5/eliminate_view_reshape.cpp
+    pass_level5/eliminate_noop_slice.cpp
+    pass_level5/eliminate_noop_view_reshape.cpp
     pass_level5/eval_expression.cpp
     pass_level5/fold_constants.cpp
+    pass_level5/fuse_adjacent_reshape.cpp
     pass_level5/fuse_channel_shuffle.cpp
     pass_level5/fuse_constant_expression.cpp
     pass_level5/fuse_conv1d_batchnorm1d.cpp
@@ -314,11 +317,19 @@ set(pnnx_pass_level5_SRCS
     pass_level5/fuse_convtranspose2d_batchnorm2d.cpp
     pass_level5/fuse_contiguous_view.cpp
     pass_level5/fuse_linear_batchnorm1d.cpp
+    pass_level5/fuse_pad_conv1d.cpp
+    pass_level5/fuse_pad_conv2d.cpp
     pass_level5/fuse_select_to_unbind.cpp
     pass_level5/fuse_slice_copy.cpp
     pass_level5/fuse_slice_indices.cpp
     pass_level5/fuse_slice_to_tensor_split.cpp
+    pass_level5/fuse_static_batchnorm.cpp
     pass_level5/fuse_static_conv.cpp
+    pass_level5/fuse_static_convtranspose.cpp
+    pass_level5/fuse_static_groupnorm.cpp
+    pass_level5/fuse_static_instancenorm.cpp
+    pass_level5/fuse_static_layernorm.cpp
+    pass_level5/fuse_static_linear.cpp
     pass_level5/normalize_einsum_equation.cpp
     pass_level5/unroll_rnn_op.cpp
 )
@@ -341,7 +352,6 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/insert_split.cpp
     pass_ncnn/chain_multi_output.cpp
     pass_ncnn/solve_batch_index.cpp
-    pass_ncnn/convert_to_fp16_model.cpp
 
     pass_ncnn/eliminate_noop.cpp
     pass_ncnn/eliminate_tail_reshape_permute.cpp

@@ -126,6 +126,10 @@ NCNN_EXPORT int get_physical_cpu_count();
 NCNN_EXPORT int get_physical_little_cpu_count();
 NCNN_EXPORT int get_physical_big_cpu_count();
 
+// cpu l2 varies from 64k to 1M, but l3 can be zero
+NCNN_EXPORT int get_cpu_level2_cache_size();
+NCNN_EXPORT int get_cpu_level3_cache_size();
+
 // bind all threads on little clusters if powersave enabled
 // affects HMP arch cpu like ARM big.LITTLE
 // only implemented on android at the moment

@@ -226,6 +226,8 @@ if(NCNN_OPENMP)
         elseif(ANDROID_NDK_MAJOR AND (ANDROID_NDK_MAJOR GREATER 20))
             target_compile_options(ncnn PRIVATE -fopenmp)
             target_link_libraries(ncnn PUBLIC -fopenmp -static-openmp)
+            # see cpu.cpp __wrap___kmp_abort_process comment for the linker magic
+            target_link_libraries(ncnn PUBLIC -Wl,-wrap,__kmp_affinity_determine_capable)
         elseif(OpenMP_CXX_FOUND)
             target_link_libraries(ncnn PUBLIC OpenMP::OpenMP_CXX)
         else()
@@ -450,6 +452,12 @@ if(((IOS AND CMAKE_OSX_ARCHITECTURES MATCHES "arm64") OR (APPLE AND CMAKE_OSX_AR
         endif()
     endif()
     target_compile_options(ncnn PRIVATE ${ARM_MARCH_FLAG})
+
+    if(ANDROID_NDK_MAJOR AND (ANDROID_NDK_MAJOR GREATER_EQUAL 23))
+        # llvm 12 in ndk-23 enables out-of-line atomics by default
+        # disable this feature for fixing linking atomic builtins issue with old ndk
+        target_compile_options(ncnn PRIVATE -mno-outline-atomics)
+    endif()
 endif()
 
 if(NCNN_TARGET_ARCH STREQUAL "mips")

@@ -59,7 +59,7 @@ static int test_deformableconv2d(int w, int h, int c, int outch, int kernel, int
 
 static int test_deformableconv2d_0()
 {
-    static const int kdsp[16][4] = {
+    static const int kdsp[10][4] = {
         {1, 1, 1, 0},
         {1, 1, 2, 0},
         {2, 1, 1, 1},
@@ -67,18 +67,12 @@ static int test_deformableconv2d_0()
         {3, 1, 1, 1},
         {3, 1, 2, 1},
         {3, 2, 1, 1},
-        {4, 1, 1, 0},
         {4, 1, 2, 1},
-        {4, 2, 1, 1},
-        {5, 1, 1, 2},
         {5, 1, 2, 2},
         {5, 2, 2, 2},
-        {7, 1, 1, 3},
-        {7, 1, 2, 3},
-        {7, 2, 1, 3},
     };
 
-    for (int i = 0; i < 16; i++)
+    for (int i = 0; i < 4; i++)
     {
         const int k = kdsp[i][0];
         const int d = kdsp[i][1];

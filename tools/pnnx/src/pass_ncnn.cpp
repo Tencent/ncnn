@@ -31,7 +31,6 @@
 #include "pass_ncnn/insert_split.h"
 #include "pass_ncnn/chain_multi_output.h"
 #include "pass_ncnn/solve_batch_index.h"
-#include "pass_ncnn/convert_to_fp16_model.h"
 
 #include "pass_ncnn/eliminate_noop.h"
 #include "pass_ncnn/eliminate_tail_reshape_permute.h"
@@ -134,8 +133,6 @@ void pass_ncnn(Graph& g)
     ncnn::convert_input(g);
 
     ncnn::eliminate_output(g);
-
-    ncnn::convert_to_fp16_model(g);
 }
 
 } // namespace pnnx

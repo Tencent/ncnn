@@ -292,10 +292,18 @@ pnnx_add_test(pnnx_fuse_convtranspose2d_batchnorm2d)
 pnnx_add_test(pnnx_fuse_linear_batchnorm1d)
 pnnx_add_test(pnnx_fuse_select_to_unbind)
 pnnx_add_test(pnnx_fuse_slice_to_tensor_split)
+pnnx_add_test(pnnx_fuse_adjacent_reshape)
+pnnx_add_test(pnnx_fuse_pad_conv1d)
+pnnx_add_test(pnnx_fuse_pad_conv2d)
 
 if(Torch_VERSION VERSION_GREATER_EQUAL "1.9")
     pnnx_add_test(F_mish)
     pnnx_add_test(nn_Mish)
+endif()
+
+if(Torch_VERSION VERSION_GREATER_EQUAL "1.10")
+    pnnx_add_test(torch_bitwise_left_shift)
+    pnnx_add_test(torch_bitwise_right_shift)
 endif()
 
 if(Torch_VERSION VERSION_GREATER_EQUAL "1.11")
