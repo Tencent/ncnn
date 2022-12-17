@@ -316,6 +316,10 @@ ncnn 目前已在腾讯多款应用中使用，如：QQ，Qzone，微信，天�
 
 - <https://github.com/mizu-bai/ncnn-fortran> Call ncnn from Fortran
 
+- <https://github.com/k2-fsa/sherpa> Use ncnn for real-time speech
+  recognition (i.e., speech-to-text); also support embedded devices and provide
+  mobile Apps (e.g., Android App)
+
 ---
 
 ## License
