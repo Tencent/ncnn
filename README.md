@@ -314,6 +314,8 @@ ncnn 目前已在腾讯多款应用中使用，如：QQ，Qzone，微信，天�
 - <https://github.com/magicse/ncnn-colorization-siggraph17><br>
 <img src="https://user-images.githubusercontent.com/13585785/189326958-f5a8d6f8-caef-49bf-88da-ae494371195d.jpg" width ="700"/>
 
+- <https://github.com/mizu-bai/ncnn-fortran> Call ncnn from Fortran
+
 ---
 
 ## License
