@@ -2327,35 +2327,34 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                     "vmla.f32   %q12, q3, d5[0] \n"
                     "vmla.f32   %q13, q3, d5[1] \n"
                     : "=r"(pA),
-                      "=r"(pB),
-                      "=w"(_sum0),
-                      "=w"(_sum1),
-                      "=w"(_sum2),
-                      "=w"(_sum3),
-                      "=w"(_sum4),
-                      "=w"(_sum5),
-                      "=w"(_sum6),
-                      "=w"(_sum7),
-                      "=w"(_sum8),
-                      "=w"(_sum9),
-                      "=w"(_suma),
-                      "=w"(_sumb)
+                    "=r"(pB),
+                    "=w"(_sum0),
+                    "=w"(_sum1),
+                    "=w"(_sum2),
+                    "=w"(_sum3),
+                    "=w"(_sum4),
+                    "=w"(_sum5),
+                    "=w"(_sum6),
+                    "=w"(_sum7),
+                    "=w"(_sum8),
+                    "=w"(_sum9),
+                    "=w"(_suma),
+                    "=w"(_sumb)
                     : "0"(pA),
-                      "1"(pB),
-                      "2"(_sum0),
-                      "3"(_sum1),
-                      "4"(_sum2),
-                      "5"(_sum3),
-                      "6"(_sum4),
-                      "7"(_sum5),
-                      "8"(_sum6),
-                      "9"(_sum7),
-                      "10"(_sum8),
-                      "11"(_sum9),
-                      "12"(_suma),
-                      "13"(_sumb)
-                    : "memory", "q0", "q1", "q2", "q3"
-                );
+                    "1"(pB),
+                    "2"(_sum0),
+                    "3"(_sum1),
+                    "4"(_sum2),
+                    "5"(_sum3),
+                    "6"(_sum4),
+                    "7"(_sum5),
+                    "8"(_sum6),
+                    "9"(_sum7),
+                    "10"(_sum8),
+                    "11"(_sum9),
+                    "12"(_suma),
+                    "13"(_sumb)
+                    : "memory", "q0", "q1", "q2", "q3");
 #endif
             }
 
