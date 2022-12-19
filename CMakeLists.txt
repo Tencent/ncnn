@@ -144,6 +144,14 @@ endif()
 
 ##############################################
 
+include(CheckCXXCompilerFlag)
+check_cxx_source_compiles("int main() { int a = 0; asm volatile(\"\" : \"=r\"(a) : \"0\"(a) : \"memory\"); return 0; }" NCNN_COMPILER_SUPPORT_GNU_INLINE_ASM)
+if(NCNN_COMPILER_SUPPORT_GNU_INLINE_ASM)
+    option(NCNN_GNU_INLINE_ASM "optimize platform with gnu style inline assembly" ON)
+else()
+    message(WARNING "The compiler does not support gnu style inline assembly. NCNN_GNU_INLINE_ASM will be OFF.")
+endif()
+
 if((IOS AND CMAKE_OSX_ARCHITECTURES MATCHES "arm")
     OR (APPLE AND CMAKE_OSX_ARCHITECTURES MATCHES "arm64")
     OR (CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm|aarch64)")
@@ -152,8 +160,6 @@ if((IOS AND CMAKE_OSX_ARCHITECTURES MATCHES "arm")
     set(NCNN_TARGET_ARCH arm)
 
     if(CMAKE_SIZEOF_VOID_P EQUAL 4 AND NOT (CMAKE_CXX_COMPILER_ID MATCHES "MSVC" OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_SIMULATE_ID MATCHES "MSVC" AND CMAKE_CXX_COMPILER_FRONTEND_VARIANT MATCHES "MSVC")))
-        include(CheckCXXCompilerFlag)
-
         set(CMAKE_REQUIRED_FLAGS "-mfpu=neon-vfpv4")
         check_cxx_source_compiles("#include <arm_neon.h>\nint main() { float32x4_t _a; float16x4_t _s = vcvt_f16_f32(_a); return 0; }" NCNN_COMPILER_SUPPORT_ARM_VFPV4)
 
@@ -172,8 +178,6 @@ if((IOS AND CMAKE_OSX_ARCHITECTURES MATCHES "arm")
     endif()
 
     if(CMAKE_SIZEOF_VOID_P EQUAL 8 AND NOT (CMAKE_CXX_COMPILER_ID MATCHES "MSVC" OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_SIMULATE_ID MATCHES "MSVC" AND CMAKE_CXX_COMPILER_FRONTEND_VARIANT MATCHES "MSVC")))
-        include(CheckCXXCompilerFlag)
-
         set(CMAKE_REQUIRED_FLAGS "-march=armv8.2-a+fp16")
         check_cxx_source_compiles("#include <arm_neon.h>\nint main() { float16x8_t _s, _a, _b; _s = vfmaq_f16(_s, _a, _b); return 0; }" NCNN_COMPILER_SUPPORT_ARM82_FP16)
 
@@ -278,8 +282,6 @@ if((IOS AND CMAKE_OSX_ARCHITECTURES MATCHES "arm")
 elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(mips)")
     set(NCNN_TARGET_ARCH mips)
 
-    include(CheckCXXCompilerFlag)
-
     check_cxx_compiler_flag("-mmsa" NCNN_COMPILER_SUPPORT_MIPS_MSA)
 
     set(CMAKE_REQUIRED_FLAGS "-mloongson-mmi -I${CMAKE_CURRENT_SOURCE_DIR}/src/layer/mips")
@@ -300,8 +302,6 @@ elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(mips)")
 elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(loongarch64|loongarch32)")
     set(NCNN_TARGET_ARCH loongarch)
 
-    include(CheckCXXCompilerFlag)
-
     check_cxx_compiler_flag("-mlsx" NCNN_COMPILER_SUPPORT_LOONGARCH_LSX)
 
     if(NCNN_COMPILER_SUPPORT_LOONGARCH_LSX)
@@ -314,8 +314,6 @@ elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(riscv)")
     set(NCNN_TARGET_ARCH riscv)
 
     if(CMAKE_SIZEOF_VOID_P EQUAL 8)
-        include(CheckCXXCompilerFlag)
-
         set(CMAKE_REQUIRED_FLAGS "-march=rv64gcv")
         check_cxx_source_compiles("#include <riscv_vector.h>\nint main() { vfloat32m1_t _s, _w; float _v; size_t vl; _s = vfmacc_vf_f32m1(_s, _v, _w, vl); return 0; }" NCNN_COMPILER_SUPPORT_RVV)
 
@@ -368,7 +366,6 @@ else()
 
     option(NCNN_SSE2 "optimize x86 platform with sse2 extension" ON)
 
-    include(CheckCXXCompilerFlag)
     if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC" OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_SIMULATE_ID MATCHES "MSVC" AND CMAKE_CXX_COMPILER_FRONTEND_VARIANT MATCHES "MSVC"))
         check_cxx_compiler_flag("/arch:AVX" NCNN_COMPILER_SUPPORT_X86_AVX)
         check_cxx_compiler_flag("/arch:AVX" NCNN_COMPILER_SUPPORT_X86_FMA)
