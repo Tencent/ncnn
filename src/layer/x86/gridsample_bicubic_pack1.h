@@ -921,7 +921,7 @@ static void gridsample_2d_bicubic_align1_reflection_blob_pack1(const Mat& src, M
     const __m256 vImgHf = _mm256_set1_ps(src.h);
 #endif // __AVX__
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int y = 0; y < grid.c; y++)
     {
         const float* gridptr = grid.channel(y);

@@ -116,7 +116,7 @@ static void gridsample_2d_bilinear_align0_zeros_blob_pack1(const Mat& src, Mat& 
                 __m256 ne_val = mask_gather_ps256(src.channel(q), i_ne_offset, _mm256_castsi256_ps(v10_in_range));
                 __m256 sw_val = mask_gather_ps256(src.channel(q), i_sw_offset, _mm256_castsi256_ps(v01_in_range));
                 __m256 se_val = mask_gather_ps256(src.channel(q), i_se_offset, _mm256_castsi256_ps(v11_in_range));
-#else                                             
+#else
                 __m256 nw_val = mask_gather_ps256(src.channel(q), i_nw_offset, v00_in_range);
                 __m256 ne_val = mask_gather_ps256(src.channel(q), i_ne_offset, v10_in_range);
                 __m256 sw_val = mask_gather_ps256(src.channel(q), i_sw_offset, v01_in_range);
@@ -174,7 +174,6 @@ static void gridsample_2d_bilinear_align0_zeros_blob_pack1(const Mat& src, Mat& 
     }
 }
 
-
 static void gridsample_2d_bilinear_align1_zeros_blob_pack1(const Mat& src, Mat& dst, const Mat& grid, const Option& opt)
 {
     const int grid_size = grid.w * grid.h;
@@ -187,7 +186,7 @@ static void gridsample_2d_bilinear_align1_zeros_blob_pack1(const Mat& src, Mat& 
 #endif // __AVX2__
 #endif // __AVX__
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int y = 0; y < grid.c; y++)
     {
         const float* gridptr = grid.channel(y);
@@ -279,7 +278,7 @@ static void gridsample_2d_bilinear_align1_zeros_blob_pack1(const Mat& src, Mat& 
                 __m256 ne_val = mask_gather_ps256(src.channel(q), i_ne_offset, _mm256_castsi256_ps(v10_in_range));
                 __m256 sw_val = mask_gather_ps256(src.channel(q), i_sw_offset, _mm256_castsi256_ps(v01_in_range));
                 __m256 se_val = mask_gather_ps256(src.channel(q), i_se_offset, _mm256_castsi256_ps(v11_in_range));
-#else                                             
+#else
                 __m256 nw_val = mask_gather_ps256(src.channel(q), i_nw_offset, v00_in_range);
                 __m256 ne_val = mask_gather_ps256(src.channel(q), i_ne_offset, v10_in_range);
                 __m256 sw_val = mask_gather_ps256(src.channel(q), i_sw_offset, v01_in_range);
@@ -348,7 +347,7 @@ static void gridsample_2d_bilinear_align0_border_blob_pack1(const Mat& src, Mat&
 #endif // __AVX2__
 #endif // __AVX__
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int y = 0; y < grid.c; y++)
     {
         const float* gridptr = grid.channel(y);
@@ -1033,7 +1032,7 @@ static void gridsample_3d_bilinear_align0_zeros_blob_pack1(const Mat& src, Mat& 
 #endif // __AVX2__
 #endif // __AVX__
 
-     #pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int y = 0; y < grid.c; y++)
     {
         const float* gridptr = grid.channel(y);
