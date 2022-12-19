@@ -183,8 +183,8 @@ Parameter::Parameter(const torch::jit::Node* value_node)
         {
             type = 2;
             int64_t i64 = value_node->i(torch::jit::attr::value);
-            if (i64 == LONG_MAX) i64 = INT_MAX;
-            if (i64 == LONG_MIN) i64 = INT_MIN;
+            if (i64 == LLONG_MAX) i64 = INT_MAX;
+            if (i64 == LLONG_MAX) i64 = INT_MIN;
             i = (int)i64;
             break;
         }
