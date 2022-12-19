@@ -138,8 +138,11 @@ ncnn_allocator_t ncnn_allocator_create_unlocked_pool_allocator()
 
 void ncnn_allocator_destroy(ncnn_allocator_t allocator)
 {
-    delete (Allocator*)allocator->pthis;
-    free(allocator);
+    if (allocator)
+    {
+        delete (Allocator*)allocator->pthis;
+        free(allocator);
+    }
 }
 
 /* option api */
@@ -161,6 +164,26 @@ int ncnn_option_get_num_threads(const ncnn_option_t opt)
 void ncnn_option_set_num_threads(ncnn_option_t opt, int num_threads)
 {
     ((Option*)opt)->num_threads = num_threads;
+}
+
+int ncnn_option_get_use_local_pool_allocator(const ncnn_option_t opt)
+{
+    return ((Option*)opt)->use_local_pool_allocator;
+}
+
+void ncnn_option_set_use_local_pool_allocator(ncnn_option_t opt, int use_local_pool_allocator)
+{
+    ((Option*)opt)->use_local_pool_allocator = use_local_pool_allocator;
+}
+
+void ncnn_option_set_blob_allocator(ncnn_option_t opt, ncnn_allocator_t allocator)
+{
+    ((Option*)opt)->blob_allocator = allocator ? (Allocator*)allocator->pthis : NULL;
+}
+
+void ncnn_option_set_workspace_allocator(ncnn_option_t opt, ncnn_allocator_t allocator)
+{
+    ((Option*)opt)->workspace_allocator = allocator ? (Allocator*)allocator->pthis : NULL;
 }
 
 int ncnn_option_get_use_vulkan_compute(const ncnn_option_t opt)
@@ -191,82 +214,82 @@ ncnn_mat_t ncnn_mat_create()
 
 ncnn_mat_t ncnn_mat_create_1d(int w, ncnn_allocator_t allocator)
 {
-    return (ncnn_mat_t)(new Mat(w, (size_t)4u, (Allocator*)allocator));
+    return (ncnn_mat_t)(new Mat(w, (size_t)4u, allocator ? (Allocator*)allocator->pthis : NULL));
 }
 
 ncnn_mat_t ncnn_mat_create_2d(int w, int h, ncnn_allocator_t allocator)
 {
-    return (ncnn_mat_t)(new Mat(w, h, (size_t)4u, (Allocator*)allocator));
+    return (ncnn_mat_t)(new Mat(w, h, (size_t)4u, allocator ? (Allocator*)allocator->pthis : NULL));
 }
 
 ncnn_mat_t ncnn_mat_create_3d(int w, int h, int c, ncnn_allocator_t allocator)
 {
-    return (ncnn_mat_t)(new Mat(w, h, c, (size_t)4u, (Allocator*)allocator));
+    return (ncnn_mat_t)(new Mat(w, h, c, (size_t)4u, allocator ? (Allocator*)allocator->pthis : NULL));
 }
 
 ncnn_mat_t ncnn_mat_create_4d(int w, int h, int d, int c, ncnn_allocator_t allocator)
 {
-    return (ncnn_mat_t)(new Mat(w, h, d, c, (size_t)4u, (Allocator*)allocator));
+    return (ncnn_mat_t)(new Mat(w, h, d, c, (size_t)4u, allocator ? (Allocator*)allocator->pthis : NULL));
 }
 
 ncnn_mat_t ncnn_mat_create_external_1d(int w, void* data, ncnn_allocator_t allocator)
 {
-    return (ncnn_mat_t)(new Mat(w, data, (size_t)4u, (Allocator*)allocator));
+    return (ncnn_mat_t)(new Mat(w, data, (size_t)4u, allocator ? (Allocator*)allocator->pthis : NULL));
 }
 
 ncnn_mat_t ncnn_mat_create_external_2d(int w, int h, void* data, ncnn_allocator_t allocator)
 {
-    return (ncnn_mat_t)(new Mat(w, h, data, (size_t)4u, (Allocator*)allocator));
+    return (ncnn_mat_t)(new Mat(w, h, data, (size_t)4u, allocator ? (Allocator*)allocator->pthis : NULL));
 }
 
 ncnn_mat_t ncnn_mat_create_external_3d(int w, int h, int c, void* data, ncnn_allocator_t allocator)
 {
-    return (ncnn_mat_t)(new Mat(w, h, c, data, (size_t)4u, (Allocator*)allocator));
+    return (ncnn_mat_t)(new Mat(w, h, c, data, (size_t)4u, allocator ? (Allocator*)allocator->pthis : NULL));
 }
 
 ncnn_mat_t ncnn_mat_create_external_4d(int w, int h, int d, int c, void* data, ncnn_allocator_t allocator)
 {
-    return (ncnn_mat_t)(new Mat(w, h, d, c, data, (size_t)4u, (Allocator*)allocator));
+    return (ncnn_mat_t)(new Mat(w, h, d, c, data, (size_t)4u, allocator ? (Allocator*)allocator->pthis : NULL));
 }
 
 ncnn_mat_t ncnn_mat_create_1d_elem(int w, size_t elemsize, int elempack, ncnn_allocator_t allocator)
 {
-    return (ncnn_mat_t)(new Mat(w, elemsize, elempack, (Allocator*)allocator));
+    return (ncnn_mat_t)(new Mat(w, elemsize, elempack, allocator ? (Allocator*)allocator->pthis : NULL));
 }
 
 ncnn_mat_t ncnn_mat_create_2d_elem(int w, int h, size_t elemsize, int elempack, ncnn_allocator_t allocator)
 {
-    return (ncnn_mat_t)(new Mat(w, h, elemsize, elempack, (Allocator*)allocator));
+    return (ncnn_mat_t)(new Mat(w, h, elemsize, elempack, allocator ? (Allocator*)allocator->pthis : NULL));
 }
 
 ncnn_mat_t ncnn_mat_create_3d_elem(int w, int h, int c, size_t elemsize, int elempack, ncnn_allocator_t allocator)
 {
-    return (ncnn_mat_t)(new Mat(w, h, c, elemsize, elempack, (Allocator*)allocator));
+    return (ncnn_mat_t)(new Mat(w, h, c, elemsize, elempack, allocator ? (Allocator*)allocator->pthis : NULL));
 }
 
 ncnn_mat_t ncnn_mat_create_4d_elem(int w, int h, int d, int c, size_t elemsize, int elempack, ncnn_allocator_t allocator)
 {
-    return (ncnn_mat_t)(new Mat(w, h, d, c, elemsize, elempack, (Allocator*)allocator));
+    return (ncnn_mat_t)(new Mat(w, h, d, c, elemsize, elempack, allocator ? (Allocator*)allocator->pthis : NULL));
 }
 
 ncnn_mat_t ncnn_mat_create_external_1d_elem(int w, void* data, size_t elemsize, int elempack, ncnn_allocator_t allocator)
 {
-    return (ncnn_mat_t)(new Mat(w, data, elemsize, elempack, (Allocator*)allocator));
+    return (ncnn_mat_t)(new Mat(w, data, elemsize, elempack, allocator ? (Allocator*)allocator->pthis : NULL));
 }
 
 ncnn_mat_t ncnn_mat_create_external_2d_elem(int w, int h, void* data, size_t elemsize, int elempack, ncnn_allocator_t allocator)
 {
-    return (ncnn_mat_t)(new Mat(w, h, data, elemsize, elempack, (Allocator*)allocator));
+    return (ncnn_mat_t)(new Mat(w, h, data, elemsize, elempack, allocator ? (Allocator*)allocator->pthis : NULL));
 }
 
 ncnn_mat_t ncnn_mat_create_external_3d_elem(int w, int h, int c, void* data, size_t elemsize, int elempack, ncnn_allocator_t allocator)
 {
-    return (ncnn_mat_t)(new Mat(w, h, c, data, elemsize, elempack, (Allocator*)allocator));
+    return (ncnn_mat_t)(new Mat(w, h, c, data, elemsize, elempack, allocator ? (Allocator*)allocator->pthis : NULL));
 }
 
 ncnn_mat_t ncnn_mat_create_external_4d_elem(int w, int h, int d, int c, void* data, size_t elemsize, int elempack, ncnn_allocator_t allocator)
 {
-    return (ncnn_mat_t)(new Mat(w, h, d, c, data, elemsize, elempack, (Allocator*)allocator));
+    return (ncnn_mat_t)(new Mat(w, h, d, c, data, elemsize, elempack, allocator ? (Allocator*)allocator->pthis : NULL));
 }
 
 void ncnn_mat_destroy(ncnn_mat_t mat)
@@ -281,27 +304,27 @@ void ncnn_mat_fill_float(ncnn_mat_t mat, float v)
 
 ncnn_mat_t ncnn_mat_clone(const ncnn_mat_t mat, ncnn_allocator_t allocator)
 {
-    return (ncnn_mat_t)(new Mat(((const Mat*)mat)->clone((Allocator*)allocator)));
+    return (ncnn_mat_t)(new Mat(((const Mat*)mat)->clone(allocator ? (Allocator*)allocator->pthis : NULL)));
 }
 
 ncnn_mat_t ncnn_mat_reshape_1d(const ncnn_mat_t mat, int w, ncnn_allocator_t allocator)
 {
-    return (ncnn_mat_t)(new Mat(((const Mat*)mat)->reshape(w, (Allocator*)allocator)));
+    return (ncnn_mat_t)(new Mat(((const Mat*)mat)->reshape(w, allocator ? (Allocator*)allocator->pthis : NULL)));
 }
 
 ncnn_mat_t ncnn_mat_reshape_2d(const ncnn_mat_t mat, int w, int h, ncnn_allocator_t allocator)
 {
-    return (ncnn_mat_t)(new Mat(((const Mat*)mat)->reshape(w, h, (Allocator*)allocator)));
+    return (ncnn_mat_t)(new Mat(((const Mat*)mat)->reshape(w, h, allocator ? (Allocator*)allocator->pthis : NULL)));
 }
 
 ncnn_mat_t ncnn_mat_reshape_3d(const ncnn_mat_t mat, int w, int h, int c, ncnn_allocator_t allocator)
 {
-    return (ncnn_mat_t)(new Mat(((const Mat*)mat)->reshape(w, h, c, (Allocator*)allocator)));
+    return (ncnn_mat_t)(new Mat(((const Mat*)mat)->reshape(w, h, c, allocator ? (Allocator*)allocator->pthis : NULL)));
 }
 
 ncnn_mat_t ncnn_mat_reshape_4d(const ncnn_mat_t mat, int w, int h, int d, int c, ncnn_allocator_t allocator)
 {
-    return (ncnn_mat_t)(new Mat(((const Mat*)mat)->reshape(w, h, d, c, (Allocator*)allocator)));
+    return (ncnn_mat_t)(new Mat(((const Mat*)mat)->reshape(w, h, d, c, allocator ? (Allocator*)allocator->pthis : NULL)));
 }
 
 int ncnn_mat_get_dims(const ncnn_mat_t mat)
@@ -359,22 +382,22 @@ void* ncnn_mat_get_channel_data(const ncnn_mat_t mat, int c)
 /* mat pixel api */
 ncnn_mat_t ncnn_mat_from_pixels(const unsigned char* pixels, int type, int w, int h, int stride, ncnn_allocator_t allocator)
 {
-    return (ncnn_mat_t)(new Mat(Mat::from_pixels(pixels, type, w, h, stride, (Allocator*)allocator)));
+    return (ncnn_mat_t)(new Mat(Mat::from_pixels(pixels, type, w, h, stride, allocator ? (Allocator*)allocator->pthis : NULL)));
 }
 
 ncnn_mat_t ncnn_mat_from_pixels_resize(const unsigned char* pixels, int type, int w, int h, int stride, int target_width, int target_height, ncnn_allocator_t allocator)
 {
-    return (ncnn_mat_t)(new Mat(Mat::from_pixels_resize(pixels, type, w, h, stride, target_width, target_height, (Allocator*)allocator)));
+    return (ncnn_mat_t)(new Mat(Mat::from_pixels_resize(pixels, type, w, h, stride, target_width, target_height, allocator ? (Allocator*)allocator->pthis : NULL)));
 }
 
 ncnn_mat_t ncnn_mat_from_pixels_roi(const unsigned char* pixels, int type, int w, int h, int stride, int roix, int roiy, int roiw, int roih, ncnn_allocator_t allocator)
 {
-    return (ncnn_mat_t)(new Mat(Mat::from_pixels_roi(pixels, type, w, h, stride, roix, roiy, roiw, roih, (Allocator*)allocator)));
+    return (ncnn_mat_t)(new Mat(Mat::from_pixels_roi(pixels, type, w, h, stride, roix, roiy, roiw, roih, allocator ? (Allocator*)allocator->pthis : NULL)));
 }
 
 ncnn_mat_t ncnn_mat_from_pixels_roi_resize(const unsigned char* pixels, int type, int w, int h, int stride, int roix, int roiy, int roiw, int roih, int target_width, int target_height, ncnn_allocator_t allocator)
 {
-    return (ncnn_mat_t)(new Mat(Mat::from_pixels_roi_resize(pixels, type, w, h, stride, roix, roiy, roiw, roih, target_width, target_height, (Allocator*)allocator)));
+    return (ncnn_mat_t)(new Mat(Mat::from_pixels_roi_resize(pixels, type, w, h, stride, roix, roiy, roiw, roih, target_width, target_height, allocator ? (Allocator*)allocator->pthis : NULL)));
 }
 
 void ncnn_mat_to_pixels(const ncnn_mat_t mat, unsigned char* pixels, int type, int stride)
@@ -1188,6 +1211,11 @@ void ncnn_net_destroy(ncnn_net_t net)
         ud = ud_next;
     }
     free(net);
+}
+
+ncnn_option_t ncnn_net_get_option(ncnn_net_t net)
+{
+    return (ncnn_option_t)(&((Net*)(net->pthis))->opt);
 }
 
 void ncnn_net_set_option(ncnn_net_t net, ncnn_option_t opt)

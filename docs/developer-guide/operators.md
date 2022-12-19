@@ -816,6 +816,20 @@ y = gemm(a, b) * alpha + c * beta
 | 1         | beta          | float | 1.f       |                   |
 | 2         | transA        | int   | 0         |                   |
 | 3         | transb        | int   | 0         |                   |
+| 4         | constantA     | int   | 0         |                   |
+| 5         | constantB     | int   | 0         |                   |
+| 6         | constantC     | int   | 0         |                   |
+| 7         | constantM     | int   | 0         |                   |
+| 8         | constantN     | int   | 0         |                   |
+| 9         | constantK     | int   | 0         |                   |
+| 10        | constant_broadcast_type_C | int | 0 |                 |
+| 11        | output_N1M    | int   | 0         |                   |
+
+| weight        | type  | shape                 |
+| ------------- | ----- | --------------------- |
+| A_data        | float | [M, K] or [K, M]      |
+| B_data        | float | [N, K] or [K, N]      |
+| C_data        | float | [1], [M] or [N] or [1, M] or [N,1] or [N, M] |
 
 # GridSample
 ```
@@ -1132,14 +1146,16 @@ y = affine(out)
 | 0         | embed_dim     | int   | 0         |                   |
 | 1         | num_head      | int   | 1         |                   |
 | 2         | weight_data_size| int | 0         |                   |
+| 3         | kdim          | int   | embed_dim |                   |
+| 4         | vdim          | int   | embed_dim |                   |
 
 | weight        | type  | shape                 |
 | ------------- | ----- | --------------------- |
 | q_weight_data | float/fp16/int8 | [weight_data_size] |
 | q_bias_data   | float | [embed_dim]           |
-| k_weight_data | float/fp16/int8 | [weight_data_size] |
+| k_weight_data | float/fp16/int8 | [embed_dim * kdim] |
 | k_bias_data   | float | [embed_dim]           |
-| v_weight_data | float/fp16/int8 | [weight_data_size] |
+| v_weight_data | float/fp16/int8 | [embed_dim * vdim] |
 | v_bias_data   | float | [embed_dim]           |
 | out_weight_data| float/fp16/int8 | [weight_data_size] |
 | out_bias_data | float | [embed_dim]           |

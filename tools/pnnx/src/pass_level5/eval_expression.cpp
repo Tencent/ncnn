@@ -45,20 +45,14 @@ static bool token_is_literal(const std::string& t)
     float f;
     iss >> std::noskipws >> f;
     return iss.eof() && !iss.fail();
+}
 
-    //     for (size_t i = 0; i < t.size(); i++)
-    //     {
-    //         if (i == 0 && t[i] == '-')
-    //             continue;
-    //
-    //         if (t[i] < '0' || t[i] > '9')
-    //         {
-    //             if (t[i] != '.' && t[i] != 'e')
-    //                 return false;
-    //         }
-    //     }
-    //
-    //     return true;
+static bool token_is_interger_literal(const std::string& t)
+{
+    std::istringstream iss(t);
+    int f;
+    iss >> std::noskipws >> f;
+    return iss.eof() && !iss.fail();
 }
 
 static std::string eval_expression(const Operator* op)
@@ -317,8 +311,7 @@ static std::string eval_expression(const Operator* op)
                  || t == "div"
                  || t == "floor_divide"
                  || t == "pow"
-                 || t == "remainder"
-                 || t == "and" || t == "or" || t == "xor")
+                 || t == "remainder")
         {
             std::string a = exprstack.top();
             exprstack.pop();
@@ -370,6 +363,50 @@ static std::string eval_expression(const Operator* op)
                     float r = fmod(af, bf);
                     if (af * bf < 0)
                         r += bf;
+                    exprstack.push(std::to_string(r));
+                }
+            }
+            else
+            {
+                std::string r = t + "(" + a + "," + b + ")";
+                exprstack.push(r);
+            }
+        }
+        else if (t == "and" || t == "or" || t == "xor" || t == "lshift" || t == "rshift")
+        {
+            std::string a = exprstack.top();
+            exprstack.pop();
+            std::string b = exprstack.top();
+            exprstack.pop();
+
+            if (token_is_interger_literal(a) && token_is_interger_literal(b))
+            {
+                int ai = std::stoi(a);
+                int bi = std::stoi(b);
+
+                if (t == "and")
+                {
+                    int r = ai & bi;
+                    exprstack.push(std::to_string(r));
+                }
+                if (t == "or")
+                {
+                    int r = ai | bi;
+                    exprstack.push(std::to_string(r));
+                }
+                if (t == "xor")
+                {
+                    int r = ai ^ bi;
+                    exprstack.push(std::to_string(r));
+                }
+                if (t == "lshift")
+                {
+                    int r = ai << bi;
+                    exprstack.push(std::to_string(r));
+                }
+                if (t == "rshift")
+                {
+                    int r = ai >> bi;
                     exprstack.push(std::to_string(r));
                 }
             }

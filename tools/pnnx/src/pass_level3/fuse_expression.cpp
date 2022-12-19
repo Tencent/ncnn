@@ -102,7 +102,7 @@ static bool operand_maybe_tensor(const Operand* operand)
         return operand_maybe_tensor(op->inputs[0]) || operand_maybe_tensor(op->inputs[1]);
     }
 
-    if (op->type == "aten::__and__" || op->type == "aten::__or__" || op->type == "aten::__xor__")
+    if (op->type == "aten::__and__" || op->type == "aten::__or__" || op->type == "aten::__xor__" || op->type == "aten::__lshift__" || op->type == "aten::__rshift__")
     {
         return operand_maybe_tensor(op->inputs[0]) || operand_maybe_tensor(op->inputs[1]);
     }
@@ -321,11 +321,9 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
         fuse_expression(graph, op->inputs[1], expr, inputs, foldable_constants);
         expr += ")";
     }
-    else if (op->type == "aten::__and__" || op->type == "aten::__or__" || op->type == "aten::__xor__")
+    else if (op->type == "aten::__and__" || op->type == "aten::__or__" || op->type == "aten::__xor__" || op->type == "aten::__lshift__" || op->type == "aten::__rshift__")
     {
-        std::string mathop = op->type.substr(8, 3);
-        if (mathop == "or_")
-            mathop = "or";
+        std::string mathop = op->type.substr(8, op->type.size() - 10);
 
         expr += mathop;
         expr += "(";
@@ -485,7 +483,7 @@ void fuse_expression(Graph& graph, const std::set<std::string>& foldable_constan
             {
                 need_fuse = true;
             }
-            if (op->type == "aten::__and__" || op->type == "aten::__or__" || op->type == "aten::__xor__")
+            if (op->type == "aten::__and__" || op->type == "aten::__or__" || op->type == "aten::__xor__" || op->type == "aten::__lshift__" || op->type == "aten::__rshift__")
             {
                 need_fuse = true;
             }

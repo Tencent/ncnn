@@ -34,6 +34,8 @@ public:
 
     virtual bool match(const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const;
 
+    virtual bool match(const std::map<std::string, const Operator*>& matched_operators) const;
+
     virtual void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const;
 
     virtual void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const;

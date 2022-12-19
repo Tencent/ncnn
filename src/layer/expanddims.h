@@ -31,6 +31,7 @@ public:
 public:
     int expand_w;
     int expand_h;
+    int expand_d;
     int expand_c;
     Mat axes;
 };

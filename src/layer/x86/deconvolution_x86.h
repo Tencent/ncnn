@@ -30,6 +30,9 @@ public:
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
 public:
+    Layer* activation;
+    Layer* gemm;
+
     Mat weight_data_tm;
 };
 

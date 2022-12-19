@@ -34,6 +34,8 @@ public:
     int embed_dim;
     int num_head;
     int weight_data_size;
+    int kdim;
+    int vdim;
 
     Mat q_weight_data;
     Mat q_bias_data;
