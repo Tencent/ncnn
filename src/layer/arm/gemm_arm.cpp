@@ -2308,7 +2308,8 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
 
                 pA += 4;
                 pB += 12;
-#else
+#else  // __aarch64__
+#if NCNN_GNU_INLINE_ASM
                 asm volatile(
                     "pld        [%0, #128]      \n"
                     "pld        [%1, #384]      \n"
@@ -2355,7 +2356,29 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                     "12"(_suma),
                     "13"(_sumb)
                     : "memory", "q0", "q1", "q2", "q3");
-#endif
+#else  // NCNN_GNU_INLINE_ASM
+                float32x4_t _pA = vld1q_f32(pA);
+                float32x4_t _pB0 = vld1q_f32(pB);
+                float32x4_t _pB1 = vld1q_f32(pB + 4);
+                float32x4_t _pB2 = vld1q_f32(pB + 8);
+
+                _sum0 = vmlaq_lane_f32(_sum0, _pA, vget_low_f32(_pB0), 0);
+                _sum1 = vmlaq_lane_f32(_sum1, _pA, vget_low_f32(_pB0), 1);
+                _sum2 = vmlaq_lane_f32(_sum2, _pA, vget_high_f32(_pB0), 0);
+                _sum3 = vmlaq_lane_f32(_sum3, _pA, vget_high_f32(_pB0), 1);
+                _sum4 = vmlaq_lane_f32(_sum4, _pA, vget_low_f32(_pB1), 0);
+                _sum5 = vmlaq_lane_f32(_sum5, _pA, vget_low_f32(_pB1), 1);
+                _sum6 = vmlaq_lane_f32(_sum6, _pA, vget_high_f32(_pB1), 0);
+                _sum7 = vmlaq_lane_f32(_sum7, _pA, vget_high_f32(_pB1), 1);
+                _sum8 = vmlaq_lane_f32(_sum8, _pA, vget_low_f32(_pB2), 0);
+                _sum9 = vmlaq_lane_f32(_sum9, _pA, vget_low_f32(_pB2), 1);
+                _suma = vmlaq_lane_f32(_suma, _pA, vget_high_f32(_pB2), 0);
+                _sumb = vmlaq_lane_f32(_sumb, _pA, vget_high_f32(_pB2), 1);
+
+                pA += 4;
+                pB += 12;
+#endif // NCNN_GNU_INLINE_ASM
+#endif // __aarch64__
             }
 
             if (k_end)
