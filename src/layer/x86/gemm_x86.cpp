@@ -5840,7 +5840,7 @@ static void get_optimal_tile_mnk(int M, int N, int K, int& TILE_M, int& TILE_N, 
 #elif __SSE2__
         TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 3) / 4 * 4);
 #else
-        TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 1) / 2 * 2);
+        TILE_N = std::min(TILE_N, (N + nn_N - 1) / nn_N);
 #endif
     }
 
