@@ -3690,7 +3690,7 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
                 _sum9 = vfmaq_laneq_f32(_sum9, _pA, _pB2, 1);
                 _suma = vfmaq_laneq_f32(_suma, _pA, _pB2, 2);
                 _sumb = vfmaq_laneq_f32(_sumb, _pA, _pB2, 3);
-#else // __aarch64__
+#else  // __aarch64__
                 _sum0 = vmlaq_lane_f32(_sum0, _pA, vget_low_f32(_pB0), 0);
                 _sum1 = vmlaq_lane_f32(_sum1, _pA, vget_low_f32(_pB0), 1);
                 _sum2 = vmlaq_lane_f32(_sum2, _pA, vget_high_f32(_pB0), 0);
