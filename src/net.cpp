@@ -793,8 +793,8 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
 {
     // clang-format off
     // *INDENT-OFF*
-#if NCNN_VFPV4 || __aarch64__
-    if (opt.use_fp16_storage && cpu_support_arm_vfpv4())
+#if NCNN_ARM82
+    if (opt.use_fp16_storage && cpu_support_arm_asimdhp())
     {
         if (bottom_blob.elembits() == 32 && layer->support_fp16_storage)
         {
@@ -810,7 +810,7 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
         }
     }
     else
-#endif // NCNN_VFPV4 || __aarch64__
+#endif // NCNN_ARM82
 #if NCNN_RVV
     if (opt.use_fp16_storage && cpu_support_riscv_v() && cpu_support_riscv_zfh())
     {
