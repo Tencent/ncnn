@@ -280,7 +280,7 @@ static void transpose_pack_A_tile_fp32_to_fp16(const Mat& A, Mat& AT, int i, int
             int kk = 0;
             for (; kk < max_kk; kk++)
             {
-                float16x8_t _r0 = vcombine_u16((uint16x4_t)vcvt_f16_f32(vld1q_f32(p0)), (uint16x4_t)vcvt_f16_f32(vld1q_f32(p0 + 4)));
+                uint16x8_t _r0 = vcombine_u16((uint16x4_t)vcvt_f16_f32(vld1q_f32(p0)), (uint16x4_t)vcvt_f16_f32(vld1q_f32(p0 + 4)));
                 vst1q_u16(pp, _r0);
                 pp += 8;
                 p0 += A_hstep;

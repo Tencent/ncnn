@@ -403,10 +403,10 @@ static inline void transpose4x4_ph(float16x4_t& _r0, float16x4_t& _r1, float16x4
     uint16x4x2_t _r23z = vzip_u16(vreinterpret_u16_f16(_r2), vreinterpret_u16_f16(_r3));
     uint32x2x2_t _r01 = vzip_u32(vreinterpret_u32_u16(_r01z.val[0]), vreinterpret_u32_u16(_r23z.val[0]));
     uint32x2x2_t _r23 = vzip_u32(vreinterpret_u32_u16(_r01z.val[1]), vreinterpret_u32_u16(_r23z.val[1]));
-    _r0 = vreinterpret_u16_u32(_r01.val[0]);
-    _r1 = vreinterpret_u16_u32(_r01.val[1]);
-    _r2 = vreinterpret_u16_u32(_r23.val[0]);
-    _r3 = vreinterpret_u16_u32(_r23.val[1]);
+    _r0 = vreinterpret_f16_u32(_r01.val[0]);
+    _r1 = vreinterpret_f16_u32(_r01.val[1]);
+    _r2 = vreinterpret_f16_u32(_r23.val[0]);
+    _r3 = vreinterpret_f16_u32(_r23.val[1]);
 }
 
 static inline void transpose4x8_ph(float16x4_t& _r0, float16x4_t& _r1, float16x4_t& _r2, float16x4_t& _r3, float16x4_t& _r4, float16x4_t& _r5, float16x4_t& _r6, float16x4_t& _r7)
