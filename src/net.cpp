@@ -793,8 +793,8 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
 {
     // clang-format off
     // *INDENT-OFF*
-#if NCNN_ARM82
-    if (opt.use_fp16_storage && cpu_support_arm_asimdhp())
+#if NCNN_VFPV4 || __aarch64__
+    if (opt.use_fp16_storage && cpu_support_arm_vfpv4())
     {
         if (bottom_blob.elembits() == 32 && layer->support_fp16_storage)
         {
@@ -810,7 +810,7 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
         }
     }
     else
-#endif // NCNN_ARM82
+#endif // NCNN_VFPV4 || __aarch64__
 #if NCNN_RVV
     if (opt.use_fp16_storage && cpu_support_riscv_v() && cpu_support_riscv_zfh())
     {
@@ -893,7 +893,7 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
             if (elembits == 16)
             {
 #if NCNN_ARM82
-                if (elemcount % 8 == 0 && opt.use_fp16_storage && opt.use_fp16_arithmetic && layer->support_fp16_storage)
+                if (elemcount % 8 == 0 && ncnn::cpu_support_arm_asimdhp() && opt.use_fp16_arithmetic)
                     dst_elempack = 8;
                 else if (elemcount % 4 == 0)
                     dst_elempack = 4;

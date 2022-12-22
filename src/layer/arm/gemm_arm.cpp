@@ -28,6 +28,9 @@ Gemm_arm::Gemm_arm()
 {
 #if __ARM_NEON
     support_packing = true;
+#if NCNN_VFPV4 || __aarch64__
+    support_fp16_storage = cpu_support_arm_vfpv4();
+#endif
 #endif // __ARM_NEON
 
     nT = 0;
@@ -4160,6 +4163,19 @@ static int gemm_AT_BT_arm(const Mat& AT, const Mat& BT, const Mat& C, Mat& top_b
 
 int Gemm_arm::create_pipeline(const Option& opt)
 {
+#if NCNN_VFPV4 || __aarch64__
+    if (support_fp16_storage && opt.use_fp16_storage)
+    {
+#if NCNN_ARM82
+        if (cpu_support_arm_asimdhp() && opt.use_fp16_arithmetic)
+        {
+            return create_pipeline_fp16sa(opt);
+        }
+#endif
+        return create_pipeline_fp16s(opt);
+    }
+#endif
+
     if (constantA)
     {
         const int M = constantM;
@@ -4286,6 +4302,22 @@ int Gemm_arm::create_pipeline(const Option& opt)
 
 int Gemm_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
+    const Mat& bottom_blob = constantA ? AT_data : bottom_blobs[0];
+    int elembits = bottom_blob.elembits();
+
+#if NCNN_VFPV4 || __aarch64__
+    if (support_fp16_storage && opt.use_fp16_storage && elembits == 16)
+    {
+#if NCNN_ARM82
+        if (cpu_support_arm_asimdhp() && opt.use_fp16_arithmetic)
+        {
+            return forward_fp16sa(bottom_blobs, top_blobs, opt);
+        }
+#endif
+        return forward_fp16s(bottom_blobs, top_blobs, opt);
+    }
+#endif
+
     int M;
     int N;
     if (constantA && constantB)
@@ -4438,6 +4470,8 @@ int Gemm_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
         const Mat& B = bottom_blobs[1];
         ret = gemm_arm(A, B, C, top_blob, broadcast_type_C, transA, transB, _nT, opt);
     }
+    if (ret != 0)
+        return ret;
 
     // multiply top_blob with alpha
     if (alpha != 1.f)
@@ -4451,7 +4485,7 @@ int Gemm_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
         }
     }
 
-    return ret;
+    return 0;
 }
 
 } // namespace ncnn

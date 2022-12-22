@@ -228,6 +228,7 @@ macro(ncnn_add_layer class)
     endif()
 
     if(NCNN_TARGET_ARCH STREQUAL "arm" AND CMAKE_SIZEOF_VOID_P EQUAL 8)
+        ncnn_add_arch_opt_source(${class} vfpv4 " ")
         if(NCNN_ARM82)
             ncnn_add_arch_opt_source(${class} asimdhp "-march=armv8.2-a+fp16")
         endif()
