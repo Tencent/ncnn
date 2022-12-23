@@ -3672,12 +3672,12 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
                 _suma = vfmlalq_lane_low_f16(_suma, _pAA, _pB2, 2);
                 _sumb = vfmlalq_lane_high_f16(_sumb, _pAA, _pB2, 3);
 #else
+#if __aarch64__
                 float32x4_t _pA = vcvt_f32_f16((float16x4_t)vld1_u16(pA));
                 float32x4_t _pB0 = vcvt_f32_f16((float16x4_t)vld1_u16(pB));
                 float32x4_t _pB1 = vcvt_f32_f16((float16x4_t)vld1_u16(pB + 4));
                 float32x4_t _pB2 = vcvt_f32_f16((float16x4_t)vld1_u16(pB + 8));
 
-#if __aarch64__
                 _sum0 = vfmaq_laneq_f32(_sum0, _pA, _pB0, 0);
                 _sum1 = vfmaq_laneq_f32(_sum1, _pA, _pB0, 1);
                 _sum2 = vfmaq_laneq_f32(_sum2, _pA, _pB0, 2);
@@ -3690,7 +3690,67 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
                 _sum9 = vfmaq_laneq_f32(_sum9, _pA, _pB2, 1);
                 _suma = vfmaq_laneq_f32(_suma, _pA, _pB2, 2);
                 _sumb = vfmaq_laneq_f32(_sumb, _pA, _pB2, 3);
+
+                pA += 4;
+                pB += 12;
 #else  // __aarch64__
+#if NCNN_GNU_INLINE_ASM
+                asm volatile(
+                    "pld        [%0, #64]       \n"
+                    "pld        [%1, #192]      \n"
+                    "vld1.u16   {d6}, [%0 :64]! \n"
+                    "vld1.u16   {d2-d4}, [%1 :64]! \n"
+                    "vcvt.f32.f16 q3, d6        \n"
+                    "vcvt.f32.f16 q0, d2        \n"
+                    "vcvt.f32.f16 q1, d3        \n"
+                    "vcvt.f32.f16 q2, d4        \n"
+                    "vmla.f32   %q2, q3, d0[0]  \n"
+                    "vmla.f32   %q3, q3, d0[1]  \n"
+                    "vmla.f32   %q4, q3, d1[0]  \n"
+                    "vmla.f32   %q5, q3, d1[1]  \n"
+                    "vmla.f32   %q6, q3, d2[0]  \n"
+                    "vmla.f32   %q7, q3, d2[1]  \n"
+                    "vmla.f32   %q8, q3, d3[0]  \n"
+                    "vmla.f32   %q9, q3, d3[1]  \n"
+                    "vmla.f32   %q10, q3, d4[0] \n"
+                    "vmla.f32   %q11, q3, d4[1] \n"
+                    "vmla.f32   %q12, q3, d5[0] \n"
+                    "vmla.f32   %q13, q3, d5[1] \n"
+                    : "=r"(pA),
+                    "=r"(pB),
+                    "=w"(_sum0),
+                    "=w"(_sum1),
+                    "=w"(_sum2),
+                    "=w"(_sum3),
+                    "=w"(_sum4),
+                    "=w"(_sum5),
+                    "=w"(_sum6),
+                    "=w"(_sum7),
+                    "=w"(_sum8),
+                    "=w"(_sum9),
+                    "=w"(_suma),
+                    "=w"(_sumb)
+                    : "0"(pA),
+                    "1"(pB),
+                    "2"(_sum0),
+                    "3"(_sum1),
+                    "4"(_sum2),
+                    "5"(_sum3),
+                    "6"(_sum4),
+                    "7"(_sum5),
+                    "8"(_sum6),
+                    "9"(_sum7),
+                    "10"(_sum8),
+                    "11"(_sum9),
+                    "12"(_suma),
+                    "13"(_sumb)
+                    : "memory", "q0", "q1", "q2", "q3");
+#else
+                float32x4_t _pA = vcvt_f32_f16((float16x4_t)vld1_u16(pA));
+                float32x4_t _pB0 = vcvt_f32_f16((float16x4_t)vld1_u16(pB));
+                float32x4_t _pB1 = vcvt_f32_f16((float16x4_t)vld1_u16(pB + 4));
+                float32x4_t _pB2 = vcvt_f32_f16((float16x4_t)vld1_u16(pB + 8));
+
                 _sum0 = vmlaq_lane_f32(_sum0, _pA, vget_low_f32(_pB0), 0);
                 _sum1 = vmlaq_lane_f32(_sum1, _pA, vget_low_f32(_pB0), 1);
                 _sum2 = vmlaq_lane_f32(_sum2, _pA, vget_high_f32(_pB0), 0);
@@ -3703,11 +3763,12 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
                 _sum9 = vmlaq_lane_f32(_sum9, _pA, vget_low_f32(_pB2), 1);
                 _suma = vmlaq_lane_f32(_suma, _pA, vget_high_f32(_pB2), 0);
                 _sumb = vmlaq_lane_f32(_sumb, _pA, vget_high_f32(_pB2), 1);
-#endif // __aarch64__
-#endif
 
                 pA += 4;
                 pB += 12;
+#endif
+#endif // __aarch64__
+#endif
             }
 
             if (k_end)
