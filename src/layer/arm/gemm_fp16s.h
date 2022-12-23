@@ -3693,7 +3693,7 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
 
                 pA += 4;
                 pB += 12;
-#else  // __aarch64__
+#else // __aarch64__
 #if NCNN_GNU_INLINE_ASM
                 asm volatile(
                     "pld        [%0, #64]       \n"
