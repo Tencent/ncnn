@@ -106,8 +106,8 @@ static void convolution_pack4to1_bf16s_neon(const Mat& bottom_blob, Mat& top_blo
 
                     for (int k = 0; k < maxk; k++)
                     {
-                        float32x4_t _val = float2bfloat(vld1_u16(sptr + space_ofs[k] * 4));
-                        float32x4_t _w = float2bfloat(vld1_u16(kptr));
+                        float32x4_t _val = bfloat2float(vld1_u16(sptr + space_ofs[k] * 4));
+                        float32x4_t _w = bfloat2float(vld1_u16(kptr));
                         float32x4_t _s4 = vmulq_f32(_val, _w);
 #if __aarch64__
                         sum += vaddvq_f32(_s4); // dot

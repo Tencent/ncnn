@@ -605,11 +605,11 @@ int Interp_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<
 
                         float32x2_t _a01 = vld1_f32(alphap);
 
-                        float32x4_t _S0 = float2bfloat(vld1_u16(Sp));
-                        float32x4_t _S1 = float2bfloat(vld1_u16(Sp + 4));
+                        float32x4_t _S0 = bfloat2float(vld1_u16(Sp));
+                        float32x4_t _S1 = bfloat2float(vld1_u16(Sp + 4));
                         float32x4_t _p = vmulq_lane_f32(_S0, _a01, 0);
                         _p = vmlaq_lane_f32(_p, _S1, _a01, 1);
-                        vst1_u16(outptr, bfloat2float(_p));
+                        vst1_u16(outptr, float2bfloat(_p));
 
                         alphap += 2;
                         outptr += 4;
@@ -642,15 +642,15 @@ int Interp_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<
 
                         float32x4_t _a0123 = vld1q_f32(alphap);
 
-                        float32x4_t _S0 = float2bfloat(vld1_u16(Sp - 4));
-                        float32x4_t _S1 = float2bfloat(vld1_u16(Sp + 0));
-                        float32x4_t _S2 = float2bfloat(vld1_u16(Sp + 4));
-                        float32x4_t _S3 = float2bfloat(vld1_u16(Sp + 8));
+                        float32x4_t _S0 = bfloat2float(vld1_u16(Sp - 4));
+                        float32x4_t _S1 = bfloat2float(vld1_u16(Sp + 0));
+                        float32x4_t _S2 = bfloat2float(vld1_u16(Sp + 4));
+                        float32x4_t _S3 = bfloat2float(vld1_u16(Sp + 8));
                         float32x4_t _p = vmulq_lane_f32(_S0, vget_low_f32(_a0123), 0);
                         _p = vmlaq_lane_f32(_p, _S1, vget_low_f32(_a0123), 1);
                         _p = vmlaq_lane_f32(_p, _S2, vget_high_f32(_a0123), 0);
                         _p = vmlaq_lane_f32(_p, _S3, vget_high_f32(_a0123), 1);
-                        vst1_u16(outptr, bfloat2float(_p));
+                        vst1_u16(outptr, float2bfloat(_p));
 
                         alphap += 4;
                         outptr += 4;

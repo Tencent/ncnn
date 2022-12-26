@@ -805,14 +805,14 @@ int ConvolutionDepthWise_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blo
 
                             for (int k = 0; k < maxk; k++)
                             {
-                                float32x4_t _val = float2bfloat(vld1_u16(sptr + space_ofs[k] * 4));
-                                float32x4_t _w = float2bfloat(vld1_u16(kptr + k * 4));
+                                float32x4_t _val = bfloat2float(vld1_u16(sptr + space_ofs[k] * 4));
+                                float32x4_t _w = bfloat2float(vld1_u16(kptr + k * 4));
                                 _sum = vmlaq_f32(_sum, _val, _w);
                             }
 
                             _sum = activation_ps(_sum, activation_type, activation_params);
 
-                            vst1_u16(outptr + j * 4, bfloat2float(_sum));
+                            vst1_u16(outptr + j * 4, float2bfloat(_sum));
                         }
 
                         outptr += outw * 4;
