@@ -3660,17 +3660,20 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
                 float16x4_t _pB2 = vld1_f16(pB + 8);
 
                 _sum0 = vfmlalq_lane_low_f16(_sum0, _pAA, _pB0, 0);
-                _sum1 = vfmlalq_lane_high_f16(_sum1, _pAA, _pB0, 1);
+                _sum1 = vfmlalq_lane_low_f16(_sum1, _pAA, _pB0, 1);
                 _sum2 = vfmlalq_lane_low_f16(_sum2, _pAA, _pB0, 2);
-                _sum3 = vfmlalq_lane_high_f16(_sum3, _pAA, _pB0, 3);
+                _sum3 = vfmlalq_lane_low_f16(_sum3, _pAA, _pB0, 3);
                 _sum4 = vfmlalq_lane_low_f16(_sum4, _pAA, _pB1, 0);
-                _sum5 = vfmlalq_lane_high_f16(_sum5, _pAA, _pB1, 1);
+                _sum5 = vfmlalq_lane_low_f16(_sum5, _pAA, _pB1, 1);
                 _sum6 = vfmlalq_lane_low_f16(_sum6, _pAA, _pB1, 2);
-                _sum7 = vfmlalq_lane_high_f16(_sum7, _pAA, _pB1, 3);
+                _sum7 = vfmlalq_lane_low_f16(_sum7, _pAA, _pB1, 3);
                 _sum8 = vfmlalq_lane_low_f16(_sum8, _pAA, _pB2, 0);
-                _sum9 = vfmlalq_lane_high_f16(_sum9, _pAA, _pB2, 1);
+                _sum9 = vfmlalq_lane_low_f16(_sum9, _pAA, _pB2, 1);
                 _suma = vfmlalq_lane_low_f16(_suma, _pAA, _pB2, 2);
-                _sumb = vfmlalq_lane_high_f16(_sumb, _pAA, _pB2, 3);
+                _sumb = vfmlalq_lane_low_f16(_sumb, _pAA, _pB2, 3);
+
+                pA += 4;
+                pB += 12;
 #else
 #if __aarch64__
                 float32x4_t _pA = vcvt_f32_f16((float16x4_t)vld1_u16(pA));
@@ -3960,13 +3963,13 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
                 float16x4_t _pB1 = vld1_f16(pB + 4);
 
                 _sum0 = vfmlalq_lane_low_f16(_sum0, _pAA, _pB0, 0);
-                _sum1 = vfmlalq_lane_high_f16(_sum1, _pAA, _pB0, 1);
+                _sum1 = vfmlalq_lane_low_f16(_sum1, _pAA, _pB0, 1);
                 _sum2 = vfmlalq_lane_low_f16(_sum2, _pAA, _pB0, 2);
-                _sum3 = vfmlalq_lane_high_f16(_sum3, _pAA, _pB0, 3);
+                _sum3 = vfmlalq_lane_low_f16(_sum3, _pAA, _pB0, 3);
                 _sum4 = vfmlalq_lane_low_f16(_sum4, _pAA, _pB1, 0);
-                _sum5 = vfmlalq_lane_high_f16(_sum5, _pAA, _pB1, 1);
+                _sum5 = vfmlalq_lane_low_f16(_sum5, _pAA, _pB1, 1);
                 _sum6 = vfmlalq_lane_low_f16(_sum6, _pAA, _pB1, 2);
-                _sum7 = vfmlalq_lane_high_f16(_sum7, _pAA, _pB1, 3);
+                _sum7 = vfmlalq_lane_low_f16(_sum7, _pAA, _pB1, 3);
 #else
                 float32x4_t _pA = vcvt_f32_f16((float16x4_t)vld1_u16(pA));
                 float32x4_t _pB0 = vcvt_f32_f16((float16x4_t)vld1_u16(pB));
@@ -4137,9 +4140,9 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
                 float16x4_t _pB0 = vld1_f16(pB);
 
                 _sum0 = vfmlalq_lane_low_f16(_sum0, _pAA, _pB0, 0);
-                _sum1 = vfmlalq_lane_high_f16(_sum1, _pAA, _pB0, 1);
+                _sum1 = vfmlalq_lane_low_f16(_sum1, _pAA, _pB0, 1);
                 _sum2 = vfmlalq_lane_low_f16(_sum2, _pAA, _pB0, 2);
-                _sum3 = vfmlalq_lane_high_f16(_sum3, _pAA, _pB0, 3);
+                _sum3 = vfmlalq_lane_low_f16(_sum3, _pAA, _pB0, 3);
 #else
                 float32x4_t _pA = vcvt_f32_f16((float16x4_t)vld1_u16(pA));
                 float32x4_t _pB = vcvt_f32_f16((float16x4_t)vld1_u16(pB));
