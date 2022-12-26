@@ -287,9 +287,9 @@ int BatchNorm_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt
                 float32x4_t _a = vld1q_f32((const float*)a_data + i * 4);
                 float32x4_t _b = vld1q_f32((const float*)b_data + i * 4);
 
-                float32x4_t _p = float2bfloat(vld1_u16(ptr));
+                float32x4_t _p = bfloat2float(vld1_u16(ptr));
                 _p = vmlaq_f32(_a, _p, _b);
-                vst1_u16(ptr, bfloat2float(_p));
+                vst1_u16(ptr, float2bfloat(_p));
             }
         }
 
@@ -308,9 +308,9 @@ int BatchNorm_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt
 
                 for (int j = 0; j < w; j++)
                 {
-                    float32x4_t _p = float2bfloat(vld1_u16(ptr));
+                    float32x4_t _p = bfloat2float(vld1_u16(ptr));
                     _p = vmlaq_f32(_a, _p, _b);
-                    vst1_u16(ptr, bfloat2float(_p));
+                    vst1_u16(ptr, float2bfloat(_p));
 
                     ptr += 4;
                 }
@@ -335,9 +335,9 @@ int BatchNorm_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt
 
                 for (int i = 0; i < size; i++)
                 {
-                    float32x4_t _p = float2bfloat(vld1_u16(ptr));
+                    float32x4_t _p = bfloat2float(vld1_u16(ptr));
                     _p = vmlaq_f32(_a, _p, _b);
-                    vst1_u16(ptr, bfloat2float(_p));
+                    vst1_u16(ptr, float2bfloat(_p));
 
                     ptr += 4;
                 }
@@ -381,9 +381,9 @@ int BatchNorm_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt
 
             for (; j + 3 < w; j += 4)
             {
-                float32x4_t _p = float2bfloat(vld1_u16(ptr));
+                float32x4_t _p = bfloat2float(vld1_u16(ptr));
                 _p = vmlaq_f32(_a, _p, _b);
-                vst1_u16(ptr, bfloat2float(_p));
+                vst1_u16(ptr, float2bfloat(_p));
 
                 ptr += 4;
             }
@@ -420,9 +420,9 @@ int BatchNorm_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt
 
             for (; j + 3 < size; j += 4)
             {
-                float32x4_t _p = float2bfloat(vld1_u16(ptr));
+                float32x4_t _p = bfloat2float(vld1_u16(ptr));
                 _p = vmlaq_f32(_a, _p, _b);
-                vst1_u16(ptr, bfloat2float(_p));
+                vst1_u16(ptr, float2bfloat(_p));
 
                 ptr += 4;
             }

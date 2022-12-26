@@ -248,7 +248,7 @@ int InstanceNorm_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& 
             const unsigned short* ptr = ptr0;
             for (int i = 0; i < size; i++)
             {
-                float32x4_t _p = float2bfloat(vld1_u16(ptr));
+                float32x4_t _p = bfloat2float(vld1_u16(ptr));
                 _sum = vaddq_f32(_sum, _p);
                 ptr += 4;
                 //sqsum += ptr[i] * ptr[i];
@@ -257,7 +257,7 @@ int InstanceNorm_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& 
             ptr = ptr0;
             for (int i = 0; i < size; i++)
             {
-                float32x4_t _p = float2bfloat(vld1_u16(ptr));
+                float32x4_t _p = bfloat2float(vld1_u16(ptr));
                 float32x4_t _tmp = vsubq_f32(_p, _mean);
                 _sqsum = vmlaq_f32(_sqsum, _tmp, _tmp);
                 ptr += 4;
@@ -288,9 +288,9 @@ int InstanceNorm_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& 
 
             for (int i = 0; i < size; i++)
             {
-                float32x4_t _p = float2bfloat(vld1_u16(ptr0));
+                float32x4_t _p = bfloat2float(vld1_u16(ptr0));
                 _p = vmlaq_f32(_b, _p, _a);
-                vst1_u16(ptr0, bfloat2float(_p));
+                vst1_u16(ptr0, float2bfloat(_p));
                 ptr0 += 4;
             }
         }
@@ -313,7 +313,7 @@ int InstanceNorm_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& 
         float32x4_t _sum = vdupq_n_f32(0.f);
         for (; i + 3 < size; i += 4)
         {
-            float32x4_t _p = float2bfloat(vld1_u16(ptr));
+            float32x4_t _p = bfloat2float(vld1_u16(ptr));
             _sum = vaddq_f32(_sum, _p);
             ptr += 4;
         }
@@ -338,7 +338,7 @@ int InstanceNorm_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& 
         float32x4_t _mean = vdupq_n_f32(mean);
         for (; i + 3 < size; i += 4)
         {
-            float32x4_t _p = float2bfloat(vld1_u16(ptr));
+            float32x4_t _p = bfloat2float(vld1_u16(ptr));
             float32x4_t _tmp = vsubq_f32(_p, _mean);
             _sqsum = vmlaq_f32(_sqsum, _tmp, _tmp);
             ptr += 4;
@@ -382,9 +382,9 @@ int InstanceNorm_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& 
         float32x4_t _b = vdupq_n_f32(b);
         for (; i + 3 < size; i += 4)
         {
-            float32x4_t _p = float2bfloat(vld1_u16(ptr0));
+            float32x4_t _p = bfloat2float(vld1_u16(ptr0));
             _p = vmlaq_f32(_b, _p, _a);
-            vst1_u16(ptr0, bfloat2float(_p));
+            vst1_u16(ptr0, float2bfloat(_p));
             ptr0 += 4;
         }
 #endif // __ARM_NEON

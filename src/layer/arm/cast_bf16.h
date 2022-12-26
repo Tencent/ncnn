@@ -105,8 +105,8 @@ static void cast_fp32_to_bf16_neon(const Mat& bottom_blob, Mat& top_blob, const 
             bfloat16x8_t _p_bf16 = vcombine_bf16(_p0_bf16, _p1_bf16);
             vst1q_bf16(outptr, _p_bf16);
 #else
-            uint16x4_t _p0_bf16 = bfloat2float(_p0_fp32);
-            uint16x4_t _p1_bf16 = bfloat2float(_p1_fp32);
+            uint16x4_t _p0_bf16 = float2bfloat(_p0_fp32);
+            uint16x4_t _p1_bf16 = float2bfloat(_p1_fp32);
             uint16x8_t _p_bf16 = vcombine_u16(_p0_bf16, _p1_bf16);
             vst1q_u16(outptr, _p_bf16);
 #endif
@@ -120,7 +120,7 @@ static void cast_fp32_to_bf16_neon(const Mat& bottom_blob, Mat& top_blob, const 
             bfloat16x4_t _p_bf16 = vcvt_bf16_f32(_p_fp32);
             vst1_bf16(outptr, _p_bf16);
 #else
-            uint16x4_t _p_bf16 = bfloat2float(_p_fp32);
+            uint16x4_t _p_bf16 = float2bfloat(_p_fp32);
             vst1_u16(outptr, _p_bf16);
 #endif
             ptr += 4;
@@ -218,8 +218,8 @@ static void cast_bf16_to_fp32_neon(const Mat& bottom_blob, Mat& top_blob, const 
             float32x4_t _p1_fp32 = vcvt_f32_bf16(vget_high_bf16(_p_bf16));
 #else
             uint16x8_t _p_bf16 = vld1q_u16(ptr);
-            float32x4_t _p0_fp32 = float2bfloat(vget_low_u16(_p_bf16));
-            float32x4_t _p1_fp32 = float2bfloat(vget_high_u16(_p_bf16));
+            float32x4_t _p0_fp32 = bfloat2float(vget_low_u16(_p_bf16));
+            float32x4_t _p1_fp32 = bfloat2float(vget_high_u16(_p_bf16));
 #endif
             vst1q_f32(outptr, _p0_fp32);
             vst1q_f32(outptr + 4, _p1_fp32);
@@ -233,7 +233,7 @@ static void cast_bf16_to_fp32_neon(const Mat& bottom_blob, Mat& top_blob, const 
             float32x4_t _p_fp32 = vcvt_f32_bf16(_p_bf16);
 #else
             uint16x4_t _p_bf16 = vld1_u16(ptr);
-            float32x4_t _p_fp32 = float2bfloat(_p_bf16);
+            float32x4_t _p_fp32 = bfloat2float(_p_bf16);
 #endif
             vst1q_f32(outptr, _p_fp32);
             ptr += 4;

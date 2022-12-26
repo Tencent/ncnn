@@ -948,7 +948,7 @@ int Dequantize_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const O
 
                         float32x4_t _v = vcvtq_f32_s32(vld1q_s32(intptr));
                         _v = vmulq_f32(_v, _scale);
-                        vst1_u16(ptr, bfloat2float(_v));
+                        vst1_u16(ptr, float2bfloat(_v));
                     }
                 }
                 else if (bias_data_size == 1)
@@ -967,7 +967,7 @@ int Dequantize_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const O
 #else
                         _v = vmlaq_f32(_bias, _v, _scale);
 #endif
-                        vst1_u16(ptr, bfloat2float(_v));
+                        vst1_u16(ptr, float2bfloat(_v));
                     }
                 }
                 else
@@ -985,7 +985,7 @@ int Dequantize_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const O
 #else
                         _v = vmlaq_f32(_bias, _v, _scale);
 #endif
-                        vst1_u16(ptr, bfloat2float(_v));
+                        vst1_u16(ptr, float2bfloat(_v));
                     }
                 }
             }
@@ -1002,7 +1002,7 @@ int Dequantize_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const O
                         float32x4_t _scale = vld1q_f32((const float*)scale_data + i * 4);
                         float32x4_t _v = vcvtq_f32_s32(vld1q_s32(intptr));
                         _v = vmulq_f32(_v, _scale);
-                        vst1_u16(ptr, bfloat2float(_v));
+                        vst1_u16(ptr, float2bfloat(_v));
                     }
                 }
                 else if (bias_data_size == 1)
@@ -1022,7 +1022,7 @@ int Dequantize_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const O
 #else
                         _v = vmlaq_f32(_bias, _v, _scale);
 #endif
-                        vst1_u16(ptr, bfloat2float(_v));
+                        vst1_u16(ptr, float2bfloat(_v));
                     }
                 }
                 else
@@ -1041,7 +1041,7 @@ int Dequantize_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const O
 #else
                         _v = vmlaq_f32(_bias, _v, _scale);
 #endif
-                        vst1_u16(ptr, bfloat2float(_v));
+                        vst1_u16(ptr, float2bfloat(_v));
                     }
                 }
             }
@@ -1075,8 +1075,8 @@ int Dequantize_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const O
                         float32x4_t _v1 = vcvtq_f32_s32(vld1q_s32(intptr + 4));
                         _v0 = vmulq_f32(_v0, _scale0);
                         _v1 = vmulq_f32(_v1, _scale1);
-                        vst1_u16(ptr0, bfloat2float(_v0));
-                        vst1_u16(ptr1, bfloat2float(_v1));
+                        vst1_u16(ptr0, float2bfloat(_v0));
+                        vst1_u16(ptr1, float2bfloat(_v1));
 
                         intptr += 8;
                         ptr0 += 4;
@@ -1109,8 +1109,8 @@ int Dequantize_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const O
                         _v0 = vmlaq_f32(_bias0, _v0, _scale0);
                         _v1 = vmlaq_f32(_bias1, _v1, _scale1);
 #endif
-                        vst1_u16(ptr0, bfloat2float(_v0));
-                        vst1_u16(ptr1, bfloat2float(_v1));
+                        vst1_u16(ptr0, float2bfloat(_v0));
+                        vst1_u16(ptr1, float2bfloat(_v1));
 
                         intptr += 8;
                         ptr0 += 4;
@@ -1150,8 +1150,8 @@ int Dequantize_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const O
                         float32x4_t _v1 = vcvtq_f32_s32(vld1q_s32(intptr + 4));
                         _v0 = vmulq_f32(_v0, _scale0);
                         _v1 = vmulq_f32(_v1, _scale1);
-                        vst1_u16(ptr0, bfloat2float(_v0));
-                        vst1_u16(ptr1, bfloat2float(_v1));
+                        vst1_u16(ptr0, float2bfloat(_v0));
+                        vst1_u16(ptr1, float2bfloat(_v1));
 
                         intptr += 8;
                         ptr0 += 4;
@@ -1184,8 +1184,8 @@ int Dequantize_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const O
                         _v0 = vmlaq_f32(_bias0, _v0, _scale0);
                         _v1 = vmlaq_f32(_bias1, _v1, _scale1);
 #endif
-                        vst1_u16(ptr0, bfloat2float(_v0));
-                        vst1_u16(ptr1, bfloat2float(_v1));
+                        vst1_u16(ptr0, float2bfloat(_v0));
+                        vst1_u16(ptr1, float2bfloat(_v1));
 
                         intptr += 8;
                         ptr0 += 4;
@@ -1222,7 +1222,7 @@ int Dequantize_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const O
 
                         float32x4_t _v = vcvtq_f32_s32(vld1q_s32(intptr));
                         _v = vmulq_f32(_v, _scale);
-                        vst1_u16(ptr, bfloat2float(_v));
+                        vst1_u16(ptr, float2bfloat(_v));
                     }
                 }
                 else if (bias_data_size == 1)
@@ -1241,7 +1241,7 @@ int Dequantize_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const O
 #else
                         _v = vmlaq_f32(_bias, _v, _scale);
 #endif
-                        vst1_u16(ptr, bfloat2float(_v));
+                        vst1_u16(ptr, float2bfloat(_v));
                     }
                 }
                 else
@@ -1259,7 +1259,7 @@ int Dequantize_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const O
 #else
                         _v = vmlaq_f32(_bias, _v, _scale);
 #endif
-                        vst1_u16(ptr, bfloat2float(_v));
+                        vst1_u16(ptr, float2bfloat(_v));
                     }
                 }
             }
@@ -1276,7 +1276,7 @@ int Dequantize_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const O
                         float32x4_t _scale = vld1q_f32((const float*)scale_data + i * 4);
                         float32x4_t _v = vcvtq_f32_s32(vld1q_s32(intptr));
                         _v = vmulq_f32(_v, _scale);
-                        vst1_u16(ptr, bfloat2float(_v));
+                        vst1_u16(ptr, float2bfloat(_v));
                     }
                 }
                 else if (bias_data_size == 1)
@@ -1296,7 +1296,7 @@ int Dequantize_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const O
 #else
                         _v = vmlaq_f32(_bias, _v, _scale);
 #endif
-                        vst1_u16(ptr, bfloat2float(_v));
+                        vst1_u16(ptr, float2bfloat(_v));
                     }
                 }
                 else
@@ -1315,7 +1315,7 @@ int Dequantize_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const O
 #else
                         _v = vmlaq_f32(_bias, _v, _scale);
 #endif
-                        vst1_u16(ptr, bfloat2float(_v));
+                        vst1_u16(ptr, float2bfloat(_v));
                     }
                 }
             }
@@ -1344,7 +1344,7 @@ int Dequantize_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const O
                     {
                         float32x4_t _v = vcvtq_f32_s32(vld1q_s32(intptr));
                         _v = vmulq_f32(_v, _scale);
-                        vst1_u16(ptr, bfloat2float(_v));
+                        vst1_u16(ptr, float2bfloat(_v));
 
                         intptr += 4;
                         ptr += 4;
@@ -1370,7 +1370,7 @@ int Dequantize_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const O
 #else
                         _v = vmlaq_f32(_bias, _v, _scale);
 #endif
-                        vst1_u16(ptr, bfloat2float(_v));
+                        vst1_u16(ptr, float2bfloat(_v));
 
                         intptr += 4;
                         ptr += 4;
@@ -1404,7 +1404,7 @@ int Dequantize_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const O
                     {
                         float32x4_t _v = vcvtq_f32_s32(vld1q_s32(intptr));
                         _v = vmulq_f32(_v, _scale);
-                        vst1_u16(ptr, bfloat2float(_v));
+                        vst1_u16(ptr, float2bfloat(_v));
 
                         intptr += 4;
                         ptr += 4;
@@ -1430,7 +1430,7 @@ int Dequantize_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const O
 #else
                         _v = vmlaq_f32(_bias, _v, _scale);
 #endif
-                        vst1_u16(ptr, bfloat2float(_v));
+                        vst1_u16(ptr, float2bfloat(_v));
 
                         intptr += 4;
                         ptr += 4;
@@ -1542,7 +1542,7 @@ int Dequantize_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const O
                 {
                     float32x4_t _v = vcvtq_f32_s32(vld1q_s32(intptr));
                     _v = vmulq_f32(_v, _scale);
-                    vst1_u16(ptr, bfloat2float(_v));
+                    vst1_u16(ptr, float2bfloat(_v));
 
                     intptr += 4;
                     ptr += 4;
@@ -1577,7 +1577,7 @@ int Dequantize_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const O
 #else
                     _v = vmlaq_f32(_bias, _v, _scale);
 #endif
-                    vst1_u16(ptr, bfloat2float(_v));
+                    vst1_u16(ptr, float2bfloat(_v));
 
                     intptr += 4;
                     ptr += 4;
@@ -1619,7 +1619,7 @@ int Dequantize_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const O
                 {
                     float32x4_t _v = vcvtq_f32_s32(vld1q_s32(intptr));
                     _v = vmulq_f32(_v, _scale);
-                    vst1_u16(ptr, bfloat2float(_v));
+                    vst1_u16(ptr, float2bfloat(_v));
 
                     intptr += 4;
                     ptr += 4;
@@ -1654,7 +1654,7 @@ int Dequantize_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const O
 #else
                     _v = vmlaq_f32(_bias, _v, _scale);
 #endif
-                    vst1_u16(ptr, bfloat2float(_v));
+                    vst1_u16(ptr, float2bfloat(_v));
 
                     intptr += 4;
                     ptr += 4;
