@@ -20,6 +20,8 @@ static void pack_A_tile_bf16_fp16(const Mat& A, Mat& AT, int i, int max_ii, int 
     unsigned short* pp = AT;
 
     int ii = 0;
+#if __ARM_NEON
+#if __aarch64__
     for (; ii + 7 < max_ii; ii += 8)
     {
         if (elempack == 8)
@@ -110,6 +112,7 @@ static void pack_A_tile_bf16_fp16(const Mat& A, Mat& AT, int i, int max_ii, int 
             }
         }
     }
+#endif // __aarch64__
     for (; ii + 3 < max_ii; ii += 4)
     {
         if (elempack == 4)
@@ -180,6 +183,7 @@ static void pack_A_tile_bf16_fp16(const Mat& A, Mat& AT, int i, int max_ii, int 
             }
         }
     }
+#endif // __ARM_NEON
     for (; ii + 1 < max_ii; ii += 2)
     {
         // if (elempack == 1)
@@ -188,6 +192,7 @@ static void pack_A_tile_bf16_fp16(const Mat& A, Mat& AT, int i, int max_ii, int 
             const unsigned short* p1 = (const unsigned short*)A + (i + ii + 1) * A_hstep + k;
 
             int kk = 0;
+#if __ARM_NEON
             for (; kk + 7 < max_kk; kk += 8)
             {
                 uint16x8x2_t _r01;
@@ -208,6 +213,7 @@ static void pack_A_tile_bf16_fp16(const Mat& A, Mat& AT, int i, int max_ii, int 
                 p0 += 4;
                 p1 += 4;
             }
+#endif // __ARM_NEON
             for (; kk < max_kk; kk++)
             {
                 pp[0] = p0[0];
@@ -225,6 +231,7 @@ static void pack_A_tile_bf16_fp16(const Mat& A, Mat& AT, int i, int max_ii, int 
             const unsigned short* p0 = (const unsigned short*)A + (i + ii) * A_hstep + k;
 
             int kk = 0;
+#if __ARM_NEON
             for (; kk + 7 < max_kk; kk += 8)
             {
                 vst1q_u16(pp, vld1q_u16(p0));
@@ -237,6 +244,7 @@ static void pack_A_tile_bf16_fp16(const Mat& A, Mat& AT, int i, int max_ii, int 
                 pp += 4;
                 p0 += 4;
             }
+#endif // __ARM_NEON
             for (; kk < max_kk; kk++)
             {
                 pp[0] = (unsigned short)p0[0];
@@ -255,6 +263,8 @@ static void transpose_pack_A_tile_bf16_fp16(const Mat& A, Mat& AT, int i, int ma
     unsigned short* pp = AT;
 
     int ii = 0;
+#if __ARM_NEON
+#if __aarch64__
     for (; ii + 7 < max_ii; ii += 8)
     {
         if (elempack == 8)
@@ -311,6 +321,7 @@ static void transpose_pack_A_tile_bf16_fp16(const Mat& A, Mat& AT, int i, int ma
             }
         }
     }
+#endif // __aarch64__
     for (; ii + 3 < max_ii; ii += 4)
     {
         if (elempack == 8)
@@ -357,8 +368,10 @@ static void transpose_pack_A_tile_bf16_fp16(const Mat& A, Mat& AT, int i, int ma
             }
         }
     }
+#endif // __ARM_NEON
     for (; ii + 1 < max_ii; ii += 2)
     {
+#if __ARM_NEON
         if (elempack == 8)
         {
             const unsigned short* p0 = (const unsigned short*)A + k * A_hstep + (i + ii) * 8;
@@ -389,6 +402,7 @@ static void transpose_pack_A_tile_bf16_fp16(const Mat& A, Mat& AT, int i, int ma
                 p0 += A_hstep * 4;
             }
         }
+#endif // __ARM_NEON
         if (elempack == 1)
         {
             const unsigned short* p0 = (const unsigned short*)A + k * A_hstep + (i + ii);
@@ -405,6 +419,7 @@ static void transpose_pack_A_tile_bf16_fp16(const Mat& A, Mat& AT, int i, int ma
     }
     for (; ii < max_ii; ii += 1)
     {
+#if __ARM_NEON
         if (elempack == 8)
         {
             const unsigned short* p0 = (const unsigned short*)A + k * A_hstep + (i + ii) * 8;
@@ -429,6 +444,7 @@ static void transpose_pack_A_tile_bf16_fp16(const Mat& A, Mat& AT, int i, int ma
                 p0 += A_hstep * 4;
             }
         }
+#endif // __ARM_NEON
         if (elempack == 1)
         {
             const unsigned short* p0 = (const unsigned short*)A + k * A_hstep + (i + ii);
@@ -452,6 +468,7 @@ static void pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int max_jj, int 
     unsigned short* pp = BT;
 
     int jj = 0;
+#if __ARM_NEON
     for (; jj + 11 < max_jj; jj += 12)
     {
         if (elempack == 8)
@@ -795,6 +812,7 @@ static void pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int max_jj, int 
             }
         }
     }
+#endif // __ARM_NEON
     for (; jj + 1 < max_jj; jj += 2)
     {
         // if (elempack == 1)
@@ -803,6 +821,7 @@ static void pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int max_jj, int 
             const unsigned short* p1 = (const unsigned short*)B + (j + jj + 1) * B_hstep + k;
 
             int kk = 0;
+#if __ARM_NEON
             for (; kk + 7 < max_kk; kk += 8)
             {
                 uint16x8x2_t _r01;
@@ -823,6 +842,7 @@ static void pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int max_jj, int 
                 p0 += 4;
                 p1 += 4;
             }
+#endif // __ARM_NEON
             for (; kk < max_kk; kk++)
             {
                 pp[0] = p0[0];
@@ -840,6 +860,7 @@ static void pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int max_jj, int 
             const unsigned short* p0 = (const unsigned short*)B + (j + jj) * B_hstep + k;
 
             int kk = 0;
+#if __ARM_NEON
             for (; kk + 7 < max_kk; kk += 8)
             {
                 vst1q_u16(pp, vld1q_u16(p0));
@@ -852,6 +873,7 @@ static void pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int max_jj, int 
                 pp += 4;
                 p0 += 4;
             }
+#endif // __ARM_NEON
             for (; kk < max_kk; kk++)
             {
                 pp[0] = p0[0];
@@ -870,6 +892,7 @@ static void transpose_pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int ma
     unsigned short* pp = BT;
 
     int jj = 0;
+#if __ARM_NEON
     for (; jj + 11 < max_jj; jj += 12)
     {
         if (elempack == 8)
@@ -1047,8 +1070,10 @@ static void transpose_pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int ma
             }
         }
     }
+#endif // __ARM_NEON
     for (; jj + 1 < max_jj; jj += 2)
     {
+#if __ARM_NEON
         if (elempack == 8)
         {
             const unsigned short* p0 = (const unsigned short*)B + k * B_hstep + (j + jj) * 8;
@@ -1079,6 +1104,7 @@ static void transpose_pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int ma
                 p0 += B_hstep * 4;
             }
         }
+#endif // __ARM_NEON
         if (elempack == 1)
         {
             const unsigned short* p0 = (const unsigned short*)B + k * B_hstep + (j + jj);
@@ -1095,6 +1121,7 @@ static void transpose_pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int ma
     }
     for (; jj < max_jj; jj += 1)
     {
+#if __ARM_NEON
         if (elempack == 8)
         {
             const unsigned short* p0 = (const unsigned short*)B + k * B_hstep + (j + jj) * 8;
@@ -1119,6 +1146,7 @@ static void transpose_pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int ma
                 p0 += B_hstep * 4;
             }
         }
+#endif // __ARM_NEON
         if (elempack == 1)
         {
             const unsigned short* p0 = (const unsigned short*)B + k * B_hstep + (j + jj);

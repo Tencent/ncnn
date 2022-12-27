@@ -254,6 +254,7 @@ static void transpose_pack_A_tile_fp32_to_fp16(const Mat& A, Mat& AT, int i, int
     unsigned short* pp = AT;
 
     int ii = 0;
+#if __aarch64__
     for (; ii + 7 < max_ii; ii += 8)
     {
         if (elempack == 4)
@@ -287,6 +288,7 @@ static void transpose_pack_A_tile_fp32_to_fp16(const Mat& A, Mat& AT, int i, int
             }
         }
     }
+#endif // __aarch64__
     for (; ii + 3 < max_ii; ii += 4)
     {
         if (elempack == 4)

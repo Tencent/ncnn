@@ -20,6 +20,7 @@ static void pack_A_tile_fp32_to_bf16(const Mat& A, Mat& AT, int i, int max_ii, i
     unsigned short* pp = AT;
 
     int ii = 0;
+#if __ARM_NEON
 #if __aarch64__
     for (; ii + 7 < max_ii; ii += 8)
     {
@@ -173,6 +174,7 @@ static void pack_A_tile_fp32_to_bf16(const Mat& A, Mat& AT, int i, int max_ii, i
             }
         }
     }
+#endif // __ARM_NEON
     for (; ii + 1 < max_ii; ii += 2)
     {
         // if (elempack == 1)
@@ -181,6 +183,7 @@ static void pack_A_tile_fp32_to_bf16(const Mat& A, Mat& AT, int i, int max_ii, i
             const float* p1 = (const float*)A + (i + ii + 1) * A_hstep + k;
 
             int kk = 0;
+#if __ARM_NEON
             for (; kk + 7 < max_kk; kk += 8)
             {
                 uint16x8x2_t _r01;
@@ -201,6 +204,7 @@ static void pack_A_tile_fp32_to_bf16(const Mat& A, Mat& AT, int i, int max_ii, i
                 p0 += 4;
                 p1 += 4;
             }
+#endif // __ARM_NEON
             for (; kk < max_kk; kk++)
             {
                 pp[0] = float32_to_bfloat16(p0[0]);
@@ -218,6 +222,7 @@ static void pack_A_tile_fp32_to_bf16(const Mat& A, Mat& AT, int i, int max_ii, i
             const float* p0 = (const float*)A + (i + ii) * A_hstep + k;
 
             int kk = 0;
+#if __ARM_NEON
             for (; kk + 7 < max_kk; kk += 8)
             {
                 uint16x8_t _r0 = vcombine_u16(float2bfloat(vld1q_f32(p0)), float2bfloat(vld1q_f32(p0 + 4)));
@@ -232,6 +237,7 @@ static void pack_A_tile_fp32_to_bf16(const Mat& A, Mat& AT, int i, int max_ii, i
                 pp += 4;
                 p0 += 4;
             }
+#endif // __ARM_NEON
             for (; kk < max_kk; kk++)
             {
                 pp[0] = float32_to_bfloat16(p0[0]);
@@ -250,6 +256,8 @@ static void transpose_pack_A_tile_fp32_to_bf16(const Mat& A, Mat& AT, int i, int
     unsigned short* pp = AT;
 
     int ii = 0;
+#if __ARM_NEON
+#if __aarch64__
     for (; ii + 7 < max_ii; ii += 8)
     {
         if (elempack == 4)
@@ -283,6 +291,7 @@ static void transpose_pack_A_tile_fp32_to_bf16(const Mat& A, Mat& AT, int i, int
             }
         }
     }
+#endif // __aarch64__
     for (; ii + 3 < max_ii; ii += 4)
     {
         if (elempack == 4)
@@ -313,8 +322,10 @@ static void transpose_pack_A_tile_fp32_to_bf16(const Mat& A, Mat& AT, int i, int
             }
         }
     }
+#endif // __ARM_NEON
     for (; ii + 1 < max_ii; ii += 2)
     {
+#if __ARM_NEON
         if (elempack == 4)
         {
             const float* p0 = (const float*)A + k * A_hstep + (i + ii) * 4;
@@ -330,6 +341,7 @@ static void transpose_pack_A_tile_fp32_to_bf16(const Mat& A, Mat& AT, int i, int
                 p0 += A_hstep * 4;
             }
         }
+#endif // __ARM_NEON
         if (elempack == 1)
         {
             const float* p0 = (const float*)A + k * A_hstep + (i + ii);
@@ -346,6 +358,7 @@ static void transpose_pack_A_tile_fp32_to_bf16(const Mat& A, Mat& AT, int i, int
     }
     for (; ii < max_ii; ii += 1)
     {
+#if __ARM_NEON
         if (elempack == 4)
         {
             const float* p0 = (const float*)A + k * A_hstep + (i + ii) * 4;
@@ -359,6 +372,7 @@ static void transpose_pack_A_tile_fp32_to_bf16(const Mat& A, Mat& AT, int i, int
                 p0 += A_hstep * 4;
             }
         }
+#endif // __ARM_NEON
         if (elempack == 1)
         {
             const float* p0 = (const float*)A + k * A_hstep + (i + ii);
@@ -382,6 +396,7 @@ static void pack_B_tile_fp32_to_bf16(const Mat& B, Mat& BT, int j, int max_jj, i
     unsigned short* pp = BT;
 
     int jj = 0;
+#if __ARM_NEON
     for (; jj + 11 < max_jj; jj += 12)
     {
         if (elempack == 4)
@@ -675,6 +690,7 @@ static void pack_B_tile_fp32_to_bf16(const Mat& B, Mat& BT, int j, int max_jj, i
             }
         }
     }
+#endif // __ARM_NEON
     for (; jj + 1 < max_jj; jj += 2)
     {
         // if (elempack == 1)
@@ -683,6 +699,7 @@ static void pack_B_tile_fp32_to_bf16(const Mat& B, Mat& BT, int j, int max_jj, i
             const float* p1 = (const float*)B + (j + jj + 1) * B_hstep + k;
 
             int kk = 0;
+#if __ARM_NEON
             for (; kk + 7 < max_kk; kk += 8)
             {
                 uint16x8x2_t _r01;
@@ -703,6 +720,7 @@ static void pack_B_tile_fp32_to_bf16(const Mat& B, Mat& BT, int j, int max_jj, i
                 p0 += 4;
                 p1 += 4;
             }
+#endif // __ARM_NEON
             for (; kk < max_kk; kk++)
             {
                 pp[0] = float32_to_bfloat16(p0[0]);
@@ -720,6 +738,7 @@ static void pack_B_tile_fp32_to_bf16(const Mat& B, Mat& BT, int j, int max_jj, i
             const float* p0 = (const float*)B + (j + jj) * B_hstep + k;
 
             int kk = 0;
+#if __ARM_NEON
             for (; kk + 7 < max_kk; kk += 8)
             {
                 uint16x8_t _r0 = vcombine_u16(float2bfloat(vld1q_f32(p0)), float2bfloat(vld1q_f32(p0 + 4)));
@@ -734,6 +753,7 @@ static void pack_B_tile_fp32_to_bf16(const Mat& B, Mat& BT, int j, int max_jj, i
                 pp += 4;
                 p0 += 4;
             }
+#endif // __ARM_NEON
             for (; kk < max_kk; kk++)
             {
                 pp[0] = float32_to_bfloat16(p0[0]);
@@ -752,6 +772,7 @@ static void transpose_pack_B_tile_fp32_to_bf16(const Mat& B, Mat& BT, int j, int
     unsigned short* pp = BT;
 
     int jj = 0;
+#if __ARM_NEON
     for (; jj + 11 < max_jj; jj += 12)
     {
         if (elempack == 4)
@@ -858,8 +879,10 @@ static void transpose_pack_B_tile_fp32_to_bf16(const Mat& B, Mat& BT, int j, int
             }
         }
     }
+#endif // __ARM_NEON
     for (; jj + 1 < max_jj; jj += 2)
     {
+#if __ARM_NEON
         if (elempack == 4)
         {
             const float* p0 = (const float*)B + k * B_hstep + (j + jj) * 4;
@@ -875,6 +898,7 @@ static void transpose_pack_B_tile_fp32_to_bf16(const Mat& B, Mat& BT, int j, int
                 p0 += B_hstep * 4;
             }
         }
+#endif // __ARM_NEON
         if (elempack == 1)
         {
             const float* p0 = (const float*)B + k * B_hstep + (j + jj);
@@ -891,6 +915,7 @@ static void transpose_pack_B_tile_fp32_to_bf16(const Mat& B, Mat& BT, int j, int
     }
     for (; jj < max_jj; jj += 1)
     {
+#if __ARM_NEON
         if (elempack == 4)
         {
             const float* p0 = (const float*)B + k * B_hstep + (j + jj) * 4;
@@ -904,6 +929,7 @@ static void transpose_pack_B_tile_fp32_to_bf16(const Mat& B, Mat& BT, int j, int
                 p0 += B_hstep * 4;
             }
         }
+#endif // __ARM_NEON
         if (elempack == 1)
         {
             const float* p0 = (const float*)B + k * B_hstep + (j + jj);
@@ -931,6 +957,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
     float* ptmp = tmp;
 
     int ii = 0;
+#if __ARM_NEON
 #if __aarch64__
     for (; ii + 7 < max_ii; ii += 8)
     {
@@ -3105,6 +3132,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
 
         pA0 += max_kk * 4;
     }
+#endif // __ARM_NEON
     for (; ii + 1 < max_ii; ii += 2)
     {
         unsigned short* outptr0 = (unsigned short*)top_blob + (i + ii) * out_hstep + j;
@@ -3129,6 +3157,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
         }
 
         int jj = 0;
+#if __ARM_NEON
         for (; jj + 11 < max_jj; jj += 12)
         {
             float32x4_t _sum00;
@@ -3464,6 +3493,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
 
             ptmp += 8;
         }
+#endif // __ARM_NEON
         for (; jj + 1 < max_jj; jj += 2)
         {
             float sum00;
@@ -3673,6 +3703,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
         }
 
         int jj = 0;
+#if __ARM_NEON
         for (; jj + 11 < max_jj; jj += 12)
         {
             float32x4_t _sum0;
@@ -3899,6 +3930,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
 
             ptmp += 4;
         }
+#endif // __ARM_NEON
         for (; jj + 1 < max_jj; jj += 2)
         {
             float sum0;
