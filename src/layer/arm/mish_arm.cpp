@@ -136,9 +136,9 @@ int Mish_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
 
             for (int i = 0; i < size; i++)
             {
-                float32x4_t _p = float2bfloat(vld1_u16(ptr));
+                float32x4_t _p = bfloat2float(vld1_u16(ptr));
                 _p = vmulq_f32(_p, tanh_ps(log_ps(vaddq_f32(exp_ps(_p), vdupq_n_f32(1.f)))));
-                vst1_u16(ptr, bfloat2float(_p));
+                vst1_u16(ptr, float2bfloat(_p));
                 ptr += 4;
             }
         }
@@ -162,9 +162,9 @@ int Mish_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
 #if __ARM_NEON
         for (; nn > 0; nn--)
         {
-            float32x4_t _p = float2bfloat(vld1_u16(ptr));
+            float32x4_t _p = bfloat2float(vld1_u16(ptr));
             _p = vmulq_f32(_p, tanh_ps(log_ps(vaddq_f32(exp_ps(_p), vdupq_n_f32(1.f)))));
-            vst1_u16(ptr, bfloat2float(_p));
+            vst1_u16(ptr, float2bfloat(_p));
             ptr += 4;
         }
 #endif // __ARM_NEON
