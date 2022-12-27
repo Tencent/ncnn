@@ -24,6 +24,7 @@
 
 namespace ncnn {
 
+#include "gemm_bf16s_fp16s.h"
 #include "gemm_fp16s.h"
 
 static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_tile, const Mat& C, Mat& top_blob, int broadcast_type_C, Mat& tmp, int i, int max_ii, int j, int max_jj, int k, int max_kk, bool k_end)
@@ -2612,11 +2613,11 @@ static int gemm_arm_fp16sa(const Mat& A, const Mat& B, const Mat& C, Mat& top_bl
 
             if (transB)
             {
-                pack_B_tile_fp16(B, BT_tile, j, max_jj, k, max_kk);
+                pack_B_tile_bf16_fp16(B, BT_tile, j, max_jj, k, max_kk);
             }
             else
             {
-                transpose_pack_B_tile_fp16(B, BT_tile, j, max_jj, k, max_kk);
+                transpose_pack_B_tile_bf16_fp16(B, BT_tile, j, max_jj, k, max_kk);
             }
         }
     }
@@ -2650,11 +2651,11 @@ static int gemm_arm_fp16sa(const Mat& A, const Mat& B, const Mat& C, Mat& top_bl
                 {
                     if (transA)
                     {
-                        transpose_pack_A_tile_fp16(A, AT_tile, i, max_ii, k, max_kk);
+                        transpose_pack_A_tile_bf16_fp16(A, AT_tile, i, max_ii, k, max_kk);
                     }
                     else
                     {
-                        pack_A_tile_fp16(A, AT_tile, i, max_ii, k, max_kk);
+                        pack_A_tile_bf16_fp16(A, AT_tile, i, max_ii, k, max_kk);
                     }
                 }
 
@@ -2703,11 +2704,11 @@ static int gemm_AT_arm_fp16sa(const Mat& AT, const Mat& B, const Mat& C, Mat& to
 
             if (transB)
             {
-                pack_B_tile_fp16(B, BT_tile, j, max_jj, k, max_kk);
+                pack_B_tile_bf16_fp16(B, BT_tile, j, max_jj, k, max_kk);
             }
             else
             {
-                transpose_pack_B_tile_fp16(B, BT_tile, j, max_jj, k, max_kk);
+                transpose_pack_B_tile_bf16_fp16(B, BT_tile, j, max_jj, k, max_kk);
             }
         }
     }
@@ -2796,11 +2797,11 @@ static int gemm_BT_arm_fp16sa(const Mat& A, const Mat& BT, const Mat& C, Mat& to
                 {
                     if (transA)
                     {
-                        transpose_pack_A_tile_fp16(A, AT_tile, i, max_ii, k, max_kk);
+                        transpose_pack_A_tile_bf16_fp16(A, AT_tile, i, max_ii, k, max_kk);
                     }
                     else
                     {
-                        pack_A_tile_fp16(A, AT_tile, i, max_ii, k, max_kk);
+                        pack_A_tile_bf16_fp16(A, AT_tile, i, max_ii, k, max_kk);
                     }
                 }
 

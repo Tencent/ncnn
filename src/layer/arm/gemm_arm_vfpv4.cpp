@@ -24,6 +24,7 @@
 
 namespace ncnn {
 
+#include "gemm_bf16s_fp16s.h"
 #include "gemm_fp16s.h"
 
 static int gemm_arm_fp16s(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int broadcast_type_C, int transA, int transB, float alpha, int nT, const Option& opt)
@@ -35,7 +36,7 @@ static int gemm_arm_fp16s(const Mat& A, const Mat& B, const Mat& C, Mat& top_blo
     // NCNN_LOGE("M/N/K = %d %d %d", M, N, K);
 
     int TILE_M, TILE_N, TILE_K;
-    get_optimal_tile_mnk_fp16s(M, N, K, TILE_M, TILE_N, TILE_K, nT);
+    get_optimal_tile_mnk_bf16s_fp16s(M, N, K, TILE_M, TILE_N, TILE_K, nT);
 
     // NCNN_LOGE("TILE M/N/K = %d %d %d", TILE_M, TILE_N, TILE_K);
 
@@ -64,11 +65,11 @@ static int gemm_arm_fp16s(const Mat& A, const Mat& B, const Mat& C, Mat& top_blo
 
             if (transB)
             {
-                pack_B_tile_fp16(B, BT_tile, j, max_jj, k, max_kk);
+                pack_B_tile_bf16_fp16(B, BT_tile, j, max_jj, k, max_kk);
             }
             else
             {
-                transpose_pack_B_tile_fp16(B, BT_tile, j, max_jj, k, max_kk);
+                transpose_pack_B_tile_bf16_fp16(B, BT_tile, j, max_jj, k, max_kk);
             }
         }
     }
@@ -102,11 +103,11 @@ static int gemm_arm_fp16s(const Mat& A, const Mat& B, const Mat& C, Mat& top_blo
                 {
                     if (transA)
                     {
-                        transpose_pack_A_tile_fp16(A, AT_tile, i, max_ii, k, max_kk);
+                        transpose_pack_A_tile_bf16_fp16(A, AT_tile, i, max_ii, k, max_kk);
                     }
                     else
                     {
-                        pack_A_tile_fp16(A, AT_tile, i, max_ii, k, max_kk);
+                        pack_A_tile_bf16_fp16(A, AT_tile, i, max_ii, k, max_kk);
                     }
                 }
 
@@ -127,7 +128,7 @@ static int gemm_AT_arm_fp16s(const Mat& AT, const Mat& B, const Mat& C, Mat& top
     // NCNN_LOGE("M/N/K = %d %d %d", M, N, K);
 
     int TILE_M, TILE_N, TILE_K;
-    get_optimal_tile_mnk_fp16s(M, N, K, TILE_M, TILE_N, TILE_K, nT);
+    get_optimal_tile_mnk_bf16s_fp16s(M, N, K, TILE_M, TILE_N, TILE_K, nT);
 
     // NCNN_LOGE("TILE M/N/K = %d %d %d", TILE_M, TILE_N, TILE_K);
 
@@ -155,11 +156,11 @@ static int gemm_AT_arm_fp16s(const Mat& AT, const Mat& B, const Mat& C, Mat& top
 
             if (transB)
             {
-                pack_B_tile_fp16(B, BT_tile, j, max_jj, k, max_kk);
+                pack_B_tile_bf16_fp16(B, BT_tile, j, max_jj, k, max_kk);
             }
             else
             {
-                transpose_pack_B_tile_fp16(B, BT_tile, j, max_jj, k, max_kk);
+                transpose_pack_B_tile_bf16_fp16(B, BT_tile, j, max_jj, k, max_kk);
             }
         }
     }
@@ -206,7 +207,7 @@ static int gemm_BT_arm_fp16s(const Mat& A, const Mat& BT, const Mat& C, Mat& top
     // NCNN_LOGE("M/N/K = %d %d %d", M, N, K);
 
     int TILE_M, TILE_N, TILE_K;
-    get_optimal_tile_mnk_fp16s(M, N, K, TILE_M, TILE_N, TILE_K, nT);
+    get_optimal_tile_mnk_bf16s_fp16s(M, N, K, TILE_M, TILE_N, TILE_K, nT);
 
     // NCNN_LOGE("TILE M/N/K = %d %d %d", TILE_M, TILE_N, TILE_K);
 
@@ -248,11 +249,11 @@ static int gemm_BT_arm_fp16s(const Mat& A, const Mat& BT, const Mat& C, Mat& top
                 {
                     if (transA)
                     {
-                        transpose_pack_A_tile_fp16(A, AT_tile, i, max_ii, k, max_kk);
+                        transpose_pack_A_tile_bf16_fp16(A, AT_tile, i, max_ii, k, max_kk);
                     }
                     else
                     {
-                        pack_A_tile_fp16(A, AT_tile, i, max_ii, k, max_kk);
+                        pack_A_tile_bf16_fp16(A, AT_tile, i, max_ii, k, max_kk);
                     }
                 }
 
@@ -271,7 +272,7 @@ static int gemm_AT_BT_arm_fp16s(const Mat& AT, const Mat& BT, const Mat& C, Mat&
     // NCNN_LOGE("M/N/K = %d %d %d", M, N, K);
 
     int TILE_M, TILE_N, TILE_K;
-    get_optimal_tile_mnk_fp16s(M, N, K, TILE_M, TILE_N, TILE_K, nT);
+    get_optimal_tile_mnk_bf16s_fp16s(M, N, K, TILE_M, TILE_N, TILE_K, nT);
 
     // NCNN_LOGE("TILE M/N/K = %d %d %d", TILE_M, TILE_N, TILE_K);
 
@@ -325,7 +326,7 @@ int Gemm_arm::create_pipeline_fp16s(const Option& opt)
         const int K = constantK;
 
         int TILE_M, TILE_N, TILE_K;
-        get_optimal_tile_mnk_fp16s(M, 0, K, TILE_M, TILE_N, TILE_K, opt.num_threads);
+        get_optimal_tile_mnk_bf16s_fp16s(M, 0, K, TILE_M, TILE_N, TILE_K, opt.num_threads);
 
         const int nn_M = (M + TILE_M - 1) / TILE_M;
 
@@ -368,7 +369,7 @@ int Gemm_arm::create_pipeline_fp16s(const Option& opt)
         const int K = constantK;
 
         int TILE_M, TILE_N, TILE_K;
-        get_optimal_tile_mnk_fp16s(0, N, K, TILE_M, TILE_N, TILE_K, opt.num_threads);
+        get_optimal_tile_mnk_bf16s_fp16s(0, N, K, TILE_M, TILE_N, TILE_K, opt.num_threads);
 
         const int nn_N = (N + TILE_N - 1) / TILE_N;
 
