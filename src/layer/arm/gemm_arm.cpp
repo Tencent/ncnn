@@ -4329,9 +4329,9 @@ int Gemm_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     if (cpu_support_arm_asimdhp() && opt.use_fp16_storage && elembits == 16)
     {
         if (opt.use_fp16_arithmetic)
-            return forward_fp16sa(bottom_blob, top_blob, opt);
+            return forward_fp16sa(bottom_blobs, top_blobs, opt);
         else
-            return forward_fp16s(bottom_blob, top_blob, opt);
+            return forward_fp16s(bottom_blobs, top_blobs, opt);
     }
 #endif
 
