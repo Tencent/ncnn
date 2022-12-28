@@ -1095,34 +1095,6 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                     }
                     if (broadcast_type_C == 3)
                     {
-                        if (out_elempack == 8)
-                        {
-                            _sum00 = vld1q_f32(pC);
-                            _sum01 = vld1q_f32(pC + 4);
-                            _sum10 = vld1q_f32(pC + 4 * 2);
-                            _sum11 = vld1q_f32(pC + 4 * 3);
-                            _sum20 = vld1q_f32(pC + 4 * 4);
-                            _sum21 = vld1q_f32(pC + 4 * 5);
-                            _sum30 = vld1q_f32(pC + 4 * 6);
-                            _sum31 = vld1q_f32(pC + 4 * 7);
-                            _sum40 = vld1q_f32(pC + 4 * 8);
-                            _sum41 = vld1q_f32(pC + 4 * 9);
-                            _sum50 = vld1q_f32(pC + 4 * 10);
-                            _sum51 = vld1q_f32(pC + 4 * 11);
-                            _sum60 = vld1q_f32(pC + 4 * 12);
-                            _sum61 = vld1q_f32(pC + 4 * 13);
-                            _sum70 = vld1q_f32(pC + 4 * 14);
-                            _sum71 = vld1q_f32(pC + 4 * 15);
-                            _sum80 = vld1q_f32(pC + 4 * 16);
-                            _sum81 = vld1q_f32(pC + 4 * 17);
-                            _sum90 = vld1q_f32(pC + 4 * 18);
-                            _sum91 = vld1q_f32(pC + 4 * 19);
-                            _suma0 = vld1q_f32(pC + 4 * 20);
-                            _suma1 = vld1q_f32(pC + 4 * 21);
-                            _sumb0 = vld1q_f32(pC + 4 * 22);
-                            _sumb1 = vld1q_f32(pC + 4 * 23);
-                            pC += 96;
-                        }
                         if (out_elempack == 4)
                         {
                             _sum00 = vld1q_f32(pC);
@@ -1313,22 +1285,6 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                     _sumb1 = vmulq_f32(_sumb1, _alpha);
                 }
 
-                if (out_elempack == 8)
-                {
-                    vst1q_u16(outptr0, vcombine_u16(float2bfloat(_sum00), float2bfloat(_sum01)));
-                    vst1q_u16(outptr0 + 8 * 1, vcombine_u16(float2bfloat(_sum10), float2bfloat(_sum11)));
-                    vst1q_u16(outptr0 + 8 * 2, vcombine_u16(float2bfloat(_sum20), float2bfloat(_sum21)));
-                    vst1q_u16(outptr0 + 8 * 3, vcombine_u16(float2bfloat(_sum30), float2bfloat(_sum31)));
-                    vst1q_u16(outptr0 + 8 * 4, vcombine_u16(float2bfloat(_sum40), float2bfloat(_sum41)));
-                    vst1q_u16(outptr0 + 8 * 5, vcombine_u16(float2bfloat(_sum50), float2bfloat(_sum51)));
-                    vst1q_u16(outptr0 + 8 * 6, vcombine_u16(float2bfloat(_sum60), float2bfloat(_sum61)));
-                    vst1q_u16(outptr0 + 8 * 7, vcombine_u16(float2bfloat(_sum70), float2bfloat(_sum71)));
-                    vst1q_u16(outptr0 + 8 * 8, vcombine_u16(float2bfloat(_sum80), float2bfloat(_sum81)));
-                    vst1q_u16(outptr0 + 8 * 9, vcombine_u16(float2bfloat(_sum90), float2bfloat(_sum91)));
-                    vst1q_u16(outptr0 + 8 * 10, vcombine_u16(float2bfloat(_suma0), float2bfloat(_suma1)));
-                    vst1q_u16(outptr0 + 8 * 11, vcombine_u16(float2bfloat(_sumb0), float2bfloat(_sumb1)));
-                    outptr0 += 96;
-                }
                 if (out_elempack == 4)
                 {
                     vst1_u16(outptr0, float2bfloat(_sum00));
@@ -1501,26 +1457,6 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                     }
                     if (broadcast_type_C == 3)
                     {
-                        if (out_elempack == 8)
-                        {
-                            _sum00 = vld1q_f32(pC);
-                            _sum01 = vld1q_f32(pC + 4);
-                            _sum10 = vld1q_f32(pC + 4 * 2);
-                            _sum11 = vld1q_f32(pC + 4 * 3);
-                            _sum20 = vld1q_f32(pC + 4 * 4);
-                            _sum21 = vld1q_f32(pC + 4 * 5);
-                            _sum30 = vld1q_f32(pC + 4 * 6);
-                            _sum31 = vld1q_f32(pC + 4 * 7);
-                            _sum40 = vld1q_f32(pC + 4 * 8);
-                            _sum41 = vld1q_f32(pC + 4 * 9);
-                            _sum50 = vld1q_f32(pC + 4 * 10);
-                            _sum51 = vld1q_f32(pC + 4 * 11);
-                            _sum60 = vld1q_f32(pC + 4 * 12);
-                            _sum61 = vld1q_f32(pC + 4 * 13);
-                            _sum70 = vld1q_f32(pC + 4 * 14);
-                            _sum71 = vld1q_f32(pC + 4 * 15);
-                            pC += 64;
-                        }
                         if (out_elempack == 4)
                         {
                             _sum00 = vld1q_f32(pC);
@@ -1661,18 +1597,6 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                     _sum71 = vmulq_f32(_sum71, _alpha);
                 }
 
-                if (out_elempack == 8)
-                {
-                    vst1q_u16(outptr0, vcombine_u16(float2bfloat(_sum00), float2bfloat(_sum01)));
-                    vst1q_u16(outptr0 + 8 * 1, vcombine_u16(float2bfloat(_sum10), float2bfloat(_sum11)));
-                    vst1q_u16(outptr0 + 8 * 2, vcombine_u16(float2bfloat(_sum20), float2bfloat(_sum21)));
-                    vst1q_u16(outptr0 + 8 * 3, vcombine_u16(float2bfloat(_sum30), float2bfloat(_sum31)));
-                    vst1q_u16(outptr0 + 8 * 4, vcombine_u16(float2bfloat(_sum40), float2bfloat(_sum41)));
-                    vst1q_u16(outptr0 + 8 * 5, vcombine_u16(float2bfloat(_sum50), float2bfloat(_sum51)));
-                    vst1q_u16(outptr0 + 8 * 6, vcombine_u16(float2bfloat(_sum60), float2bfloat(_sum61)));
-                    vst1q_u16(outptr0 + 8 * 7, vcombine_u16(float2bfloat(_sum70), float2bfloat(_sum71)));
-                    outptr0 += 64;
-                }
                 if (out_elempack == 4)
                 {
                     vst1_u16(outptr0, float2bfloat(_sum00));
@@ -1789,18 +1713,6 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                     }
                     if (broadcast_type_C == 3)
                     {
-                        if (out_elempack == 8)
-                        {
-                            _sum00 = vld1q_f32(pC);
-                            _sum01 = vld1q_f32(pC + 4);
-                            _sum10 = vld1q_f32(pC + 4 * 2);
-                            _sum11 = vld1q_f32(pC + 4 * 3);
-                            _sum20 = vld1q_f32(pC + 4 * 4);
-                            _sum21 = vld1q_f32(pC + 4 * 5);
-                            _sum30 = vld1q_f32(pC + 4 * 6);
-                            _sum31 = vld1q_f32(pC + 4 * 7);
-                            pC += 32;
-                        }
                         if (out_elempack == 4)
                         {
                             _sum00 = vld1q_f32(pC);
@@ -1892,14 +1804,6 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                     _sum31 = vmulq_f32(_sum31, _alpha);
                 }
 
-                if (out_elempack == 8)
-                {
-                    vst1q_u16(outptr0, vcombine_u16(float2bfloat(_sum00), float2bfloat(_sum01)));
-                    vst1q_u16(outptr0 + 8 * 1, vcombine_u16(float2bfloat(_sum10), float2bfloat(_sum11)));
-                    vst1q_u16(outptr0 + 8 * 2, vcombine_u16(float2bfloat(_sum20), float2bfloat(_sum21)));
-                    vst1q_u16(outptr0 + 8 * 3, vcombine_u16(float2bfloat(_sum30), float2bfloat(_sum31)));
-                    outptr0 += 32;
-                }
                 if (out_elempack == 4)
                 {
                     vst1_u16(outptr0, float2bfloat(_sum00));
@@ -1976,14 +1880,6 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                     }
                     if (broadcast_type_C == 3)
                     {
-                        if (out_elempack == 8)
-                        {
-                            _sum00 = vld1q_f32(pC);
-                            _sum01 = vld1q_f32(pC + 4);
-                            _sum10 = vld1q_f32(pC + 4 * 2);
-                            _sum11 = vld1q_f32(pC + 4 * 3);
-                            pC += 16;
-                        }
                         if (out_elempack == 4)
                         {
                             _sum00 = vld1q_f32(pC);
@@ -2069,12 +1965,6 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                     _sum11 = vmulq_f32(_sum11, _alpha);
                 }
 
-                if (out_elempack == 8)
-                {
-                    vst1q_u16(outptr0, vcombine_u16(float2bfloat(_sum00), float2bfloat(_sum01)));
-                    vst1q_u16(outptr0 + 8, vcombine_u16(float2bfloat(_sum10), float2bfloat(_sum11)));
-                    outptr0 += 16;
-                }
                 if (out_elempack == 4)
                 {
                     vst1_u16(outptr0, float2bfloat(_sum00));
@@ -2147,12 +2037,6 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                     }
                     if (broadcast_type_C == 3)
                     {
-                        if (out_elempack == 8)
-                        {
-                            _sum00 = vld1q_f32(pC);
-                            _sum01 = vld1q_f32(pC + 4);
-                            pC += 8;
-                        }
                         if (out_elempack == 4)
                         {
                             _sum00 = vld1q_f32(pC);
@@ -2216,11 +2100,6 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                     _sum01 = vmulq_f32(_sum01, _alpha);
                 }
 
-                if (out_elempack == 8)
-                {
-                    vst1q_u16(outptr0, vcombine_u16(float2bfloat(_sum00), float2bfloat(_sum01)));
-                    outptr0 += 8;
-                }
                 if (out_elempack == 4)
                 {
                     vst1_u16(outptr0, float2bfloat(_sum00));
