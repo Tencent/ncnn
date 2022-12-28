@@ -940,11 +940,11 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
     const int out_hstep = top_blob.dims == 3 ? (int)top_blob.cstep : N;
 
 #if __ARM_FEATURE_FP16_FML
-    const __fp16* pA0 = AT_tile;
-    const __fp16* pB0 = BT_tile;
+    const __fp16* pAT = AT_tile;
+    const __fp16* pBT = BT_tile;
 #else
-    const unsigned short* pA0 = AT_tile;
-    const unsigned short* pB0 = BT_tile;
+    const unsigned short* pAT = AT_tile;
+    const unsigned short* pBT = BT_tile;
 #endif
 
     float* ptmp = tmp;
@@ -956,9 +956,9 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
         unsigned short* outptr0 = (unsigned short*)top_blob + (i + ii) * out_hstep + j * out_elempack;
 
 #if __ARM_FEATURE_FP16_FML
-        const __fp16* pB = pB0;
+        const __fp16* pB = pBT;
 #else
-        const unsigned short* pB = pB0;
+        const unsigned short* pB = pBT;
 #endif
 
         const float* pC = C;
@@ -1238,9 +1238,9 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
             }
 
 #if __ARM_FEATURE_FP16_FML
-            const __fp16* pA = pA0;
+            const __fp16* pA = pAT;
 #else
-            const unsigned short* pA = pA0;
+            const unsigned short* pA = pAT;
 #endif
             int kk = 0;
             for (; kk < max_kk; kk += 1)
@@ -1640,9 +1640,9 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
             }
 
 #if __ARM_FEATURE_FP16_FML
-            const __fp16* pA = pA0;
+            const __fp16* pA = pAT;
 #else
-            const unsigned short* pA = pA0;
+            const unsigned short* pA = pAT;
 #endif
             int kk = 0;
             for (; kk < max_kk; kk += 1)
@@ -1914,9 +1914,9 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
             }
 
 #if __ARM_FEATURE_FP16_FML
-            const __fp16* pA = pA0;
+            const __fp16* pA = pAT;
 #else
-            const unsigned short* pA = pA0;
+            const unsigned short* pA = pAT;
 #endif
             int kk = 0;
             for (; kk < max_kk; kk += 1)
@@ -2116,9 +2116,9 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
             }
 
 #if __ARM_FEATURE_FP16_FML
-            const __fp16* pA = pA0;
+            const __fp16* pA = pAT;
 #else
-            const unsigned short* pA = pA0;
+            const unsigned short* pA = pAT;
 #endif
             int kk = 0;
             for (; kk < max_kk; kk += 1)
@@ -2285,9 +2285,9 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
             }
 
 #if __ARM_FEATURE_FP16_FML
-            const __fp16* pA = pA0;
+            const __fp16* pA = pAT;
 #else
-            const unsigned short* pA = pA0;
+            const unsigned short* pA = pAT;
 #endif
             int kk = 0;
             for (; kk < max_kk; kk += 1)
@@ -2359,7 +2359,7 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
             ptmp += 8;
         }
 
-        pA0 += max_kk * 8;
+        pAT += max_kk * 8;
     }
 #endif // __aarch64__
     for (; ii + 3 < max_ii; ii += 4)
@@ -2367,9 +2367,9 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
         unsigned short* outptr0 = (unsigned short*)top_blob + (i + ii) * out_hstep + j * out_elempack;
 
 #if __ARM_FEATURE_FP16_FML
-        const __fp16* pB = pB0;
+        const __fp16* pB = pBT;
 #else
-        const unsigned short* pB = pB0;
+        const unsigned short* pB = pBT;
 #endif
 
         const float* pC = C;
@@ -2524,9 +2524,9 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
             }
 
 #if __ARM_FEATURE_FP16_FML
-            const __fp16* pA = pA0;
+            const __fp16* pA = pAT;
 #else
-            const unsigned short* pA = pA0;
+            const unsigned short* pA = pAT;
 #endif
             int kk = 0;
             for (; kk < max_kk; kk += 1)
@@ -2828,9 +2828,9 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
             }
 
 #if __ARM_FEATURE_FP16_FML
-            const __fp16* pA = pA0;
+            const __fp16* pA = pAT;
 #else
-            const unsigned short* pA = pA0;
+            const unsigned short* pA = pAT;
 #endif
             int kk = 0;
             for (; kk < max_kk; kk += 1)
@@ -3006,9 +3006,9 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
             }
 
 #if __ARM_FEATURE_FP16_FML
-            const __fp16* pA = pA0;
+            const __fp16* pA = pAT;
 #else
-            const unsigned short* pA = pA0;
+            const unsigned short* pA = pAT;
 #endif
             int kk = 0;
             for (; kk < max_kk; kk += 1)
@@ -3147,9 +3147,9 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
             }
 
 #if __ARM_FEATURE_FP16_FML
-            const __fp16* pA = pA0;
+            const __fp16* pA = pAT;
 #else
-            const unsigned short* pA = pA0;
+            const unsigned short* pA = pAT;
 #endif
             int kk = 0;
             for (; kk < max_kk; kk += 1)
@@ -3273,9 +3273,9 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
             }
 
 #if __ARM_FEATURE_FP16_FML
-            const __fp16* pA = pA0;
+            const __fp16* pA = pAT;
 #else
-            const unsigned short* pA = pA0;
+            const unsigned short* pA = pAT;
 #endif
             int kk = 0;
             for (; kk < max_kk; kk += 1)
@@ -3335,16 +3335,16 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
             ptmp += 4;
         }
 
-        pA0 += max_kk * 4;
+        pAT += max_kk * 4;
     }
     for (; ii + 1 < max_ii; ii += 2)
     {
         unsigned short* outptr0 = (unsigned short*)top_blob + (i + ii) * out_hstep + j;
 
 #if __ARM_FEATURE_FP16_FML
-        const __fp16* pB = pB0;
+        const __fp16* pB = pBT;
 #else
-        const unsigned short* pB = pB0;
+        const unsigned short* pB = pBT;
 #endif
 
         const float* pC = C;
@@ -3436,9 +3436,9 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
             }
 
 #if __ARM_FEATURE_FP16_FML
-            const __fp16* pA = pA0;
+            const __fp16* pA = pAT;
 #else
-            const unsigned short* pA = pA0;
+            const unsigned short* pA = pAT;
 #endif
             int kk = 0;
             for (; kk < max_kk; kk += 1)
@@ -3581,9 +3581,9 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
             }
 
 #if __ARM_FEATURE_FP16_FML
-            const __fp16* pA = pA0;
+            const __fp16* pA = pAT;
 #else
-            const unsigned short* pA = pA0;
+            const unsigned short* pA = pAT;
 #endif
             int kk = 0;
             for (; kk < max_kk; kk += 1)
@@ -3697,9 +3697,9 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
             }
 
 #if __ARM_FEATURE_FP16_FML
-            const __fp16* pA = pA0;
+            const __fp16* pA = pAT;
 #else
-            const unsigned short* pA = pA0;
+            const unsigned short* pA = pAT;
 #endif
             int kk = 0;
             for (; kk < max_kk; kk += 1)
@@ -3813,9 +3813,9 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
             }
 
 #if __ARM_FEATURE_FP16_FML
-            const __fp16* pA = pA0;
+            const __fp16* pA = pAT;
 #else
-            const unsigned short* pA = pA0;
+            const unsigned short* pA = pAT;
 #endif
             int kk = 0;
             for (; kk < max_kk; kk += 1)
@@ -3913,9 +3913,9 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
             }
 
 #if __ARM_FEATURE_FP16_FML
-            const __fp16* pA = pA0;
+            const __fp16* pA = pAT;
 #else
-            const unsigned short* pA = pA0;
+            const unsigned short* pA = pAT;
 #endif
             int kk = 0;
             for (; kk < max_kk; kk += 1)
@@ -3960,16 +3960,16 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
             ptmp += 2;
         }
 
-        pA0 += max_kk * 2;
+        pAT += max_kk * 2;
     }
     for (; ii < max_ii; ii += 1)
     {
         unsigned short* outptr0 = (unsigned short*)top_blob + (i + ii) * out_hstep + j;
 
 #if __ARM_FEATURE_FP16_FML
-        const __fp16* pB = pB0;
+        const __fp16* pB = pBT;
 #else
-        const unsigned short* pB = pB0;
+        const unsigned short* pB = pBT;
 #endif
 
         const float* pC = C;
@@ -4027,9 +4027,9 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
             }
 
 #if __ARM_FEATURE_FP16_FML
-            const __fp16* pA = pA0;
+            const __fp16* pA = pAT;
 #else
-            const unsigned short* pA = pA0;
+            const unsigned short* pA = pAT;
 #endif
             int kk = 0;
             for (; kk < max_kk; kk += 1)
@@ -4125,9 +4125,9 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
             }
 
 #if __ARM_FEATURE_FP16_FML
-            const __fp16* pA = pA0;
+            const __fp16* pA = pAT;
 #else
-            const unsigned short* pA = pA0;
+            const unsigned short* pA = pAT;
 #endif
             int kk = 0;
             for (; kk < max_kk; kk += 1)
@@ -4208,9 +4208,9 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
             }
 
 #if __ARM_FEATURE_FP16_FML
-            const __fp16* pA = pA0;
+            const __fp16* pA = pAT;
 #else
-            const unsigned short* pA = pA0;
+            const unsigned short* pA = pAT;
 #endif
             int kk = 0;
             for (; kk < max_kk; kk += 1)
@@ -4288,9 +4288,9 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
             }
 
 #if __ARM_FEATURE_FP16_FML
-            const __fp16* pA = pA0;
+            const __fp16* pA = pAT;
 #else
-            const unsigned short* pA = pA0;
+            const unsigned short* pA = pAT;
 #endif
             int kk = 0;
             for (; kk < max_kk; kk += 1)
@@ -4362,9 +4362,9 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
             }
 
 #if __ARM_FEATURE_FP16_FML
-            const __fp16* pA = pA0;
+            const __fp16* pA = pAT;
 #else
-            const unsigned short* pA = pA0;
+            const unsigned short* pA = pAT;
 #endif
             int kk = 0;
             for (; kk < max_kk; kk += 1)
@@ -4403,6 +4403,6 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
             ptmp += 1;
         }
 
-        pA0 += max_kk;
+        pAT += max_kk;
     }
 }

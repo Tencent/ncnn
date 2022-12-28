@@ -951,8 +951,8 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
     const int N = top_blob.w;
     const int out_hstep = top_blob.dims == 3 ? (int)top_blob.cstep : N;
 
-    const unsigned short* pA0 = AT_tile;
-    const unsigned short* pB0 = BT_tile;
+    const unsigned short* pAT = AT_tile;
+    const unsigned short* pBT = BT_tile;
 
     float* ptmp = tmp;
 
@@ -963,7 +963,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
     {
         unsigned short* outptr0 = (unsigned short*)top_blob + (i + ii) * out_hstep + j * out_elempack;
 
-        const unsigned short* pB = pB0;
+        const unsigned short* pB = pBT;
 
         const float* pC = C;
         if (pC)
@@ -1241,7 +1241,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 _sumb1 = vld1q_f32(ptmp + 4 * 23);
             }
 
-            const unsigned short* pA = pA0;
+            const unsigned short* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -1606,7 +1606,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 _sum71 = vld1q_f32(ptmp + 4 * 15);
             }
 
-            const unsigned short* pA = pA0;
+            const unsigned short* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -1854,7 +1854,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 _sum31 = vld1q_f32(ptmp + 4 * 7);
             }
 
-            const unsigned short* pA = pA0;
+            const unsigned short* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -2038,7 +2038,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 _sum11 = vld1q_f32(ptmp + 4 * 3);
             }
 
-            const unsigned short* pA = pA0;
+            const unsigned short* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -2190,7 +2190,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 _sum01 = vld1q_f32(ptmp + 4);
             }
 
-            const unsigned short* pA = pA0;
+            const unsigned short* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -2253,14 +2253,14 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
             ptmp += 8;
         }
 
-        pA0 += max_kk * 8;
+        pAT += max_kk * 8;
     }
 #endif // __aarch64__
     for (; ii + 3 < max_ii; ii += 4)
     {
         unsigned short* outptr0 = (unsigned short*)top_blob + (i + ii) * out_hstep + j * out_elempack;
 
-        const unsigned short* pB = pB0;
+        const unsigned short* pB = pBT;
 
         const float* pC = C;
         if (pC)
@@ -2413,7 +2413,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 _sumb = vld1q_f32(ptmp + 4 * 11);
             }
 
-            const unsigned short* pA = pA0;
+            const unsigned short* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -2688,7 +2688,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 _sum7 = vld1q_f32(ptmp + 4 * 7);
             }
 
-            const unsigned short* pA = pA0;
+            const unsigned short* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -2845,7 +2845,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 _sum3 = vld1q_f32(ptmp + 4 * 3);
             }
 
-            const unsigned short* pA = pA0;
+            const unsigned short* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -2970,7 +2970,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 _sum1 = vld1q_f32(ptmp + 4);
             }
 
-            const unsigned short* pA = pA0;
+            const unsigned short* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -3080,7 +3080,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 _sum0 = vld1q_f32(ptmp);
             }
 
-            const unsigned short* pA = pA0;
+            const unsigned short* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -3130,14 +3130,14 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
             ptmp += 4;
         }
 
-        pA0 += max_kk * 4;
+        pAT += max_kk * 4;
     }
 #endif // __ARM_NEON
     for (; ii + 1 < max_ii; ii += 2)
     {
         unsigned short* outptr0 = (unsigned short*)top_blob + (i + ii) * out_hstep + j;
 
-        const unsigned short* pB = pB0;
+        const unsigned short* pB = pBT;
 
         const float* pC = C;
         if (pC)
@@ -3228,7 +3228,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 _sum12 = vld1q_f32(ptmp + 20);
             }
 
-            const unsigned short* pA = pA0;
+            const unsigned short* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -3351,7 +3351,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 _sum11 = vld1q_f32(ptmp + 12);
             }
 
-            const unsigned short* pA = pA0;
+            const unsigned short* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -3449,7 +3449,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 _sum1 = vld1q_f32(ptmp + 4);
             }
 
-            const unsigned short* pA = pA0;
+            const unsigned short* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -3550,14 +3550,14 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 sum11 = ptmp[3];
             }
 
-            const unsigned short* pA = pA0;
+            const unsigned short* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
-                float pA0 = float16_to_float32(pA[0]);
-                float pA1 = float16_to_float32(pA[1]);
-                float pB0 = float16_to_float32(pB[0]);
-                float pB1 = float16_to_float32(pB[1]);
+                float pA0 = bfloat16_to_float32(pA[0]);
+                float pA1 = bfloat16_to_float32(pA[1]);
+                float pB0 = bfloat16_to_float32(pB[0]);
+                float pB1 = bfloat16_to_float32(pB[1]);
 
                 sum00 += pA0 * pB0;
                 sum01 += pA0 * pB1;
@@ -3639,13 +3639,13 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 sum1 = ptmp[1];
             }
 
-            const unsigned short* pA = pA0;
+            const unsigned short* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
-                float pA0 = float16_to_float32(pA[0]);
-                float pA1 = float16_to_float32(pA[1]);
-                float pB0 = float16_to_float32(pB[0]);
+                float pA0 = bfloat16_to_float32(pA[0]);
+                float pA1 = bfloat16_to_float32(pA[1]);
+                float pB0 = bfloat16_to_float32(pB[0]);
 
                 sum0 += pA0 * pB0;
                 sum1 += pA1 * pB0;
@@ -3677,13 +3677,13 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
             ptmp += 2;
         }
 
-        pA0 += max_kk * 2;
+        pAT += max_kk * 2;
     }
     for (; ii < max_ii; ii += 1)
     {
         unsigned short* outptr0 = (unsigned short*)top_blob + (i + ii) * out_hstep + j;
 
-        const unsigned short* pB = pB0;
+        const unsigned short* pB = pBT;
 
         const float* pC = C;
         if (pC)
@@ -3740,7 +3740,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 _sum2 = vld1q_f32(ptmp + 8);
             }
 
-            const unsigned short* pA = pA0;
+            const unsigned short* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -3822,7 +3822,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 _sum1 = vld1q_f32(ptmp + 4);
             }
 
-            const unsigned short* pA = pA0;
+            const unsigned short* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -3893,7 +3893,7 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 _sum = vld1q_f32(ptmp);
             }
 
-            const unsigned short* pA = pA0;
+            const unsigned short* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -3962,13 +3962,13 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 sum1 = ptmp[1];
             }
 
-            const unsigned short* pA = pA0;
+            const unsigned short* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
-                float pA0 = float16_to_float32(pA[0]);
-                float pB0 = float16_to_float32(pB[0]);
-                float pB1 = float16_to_float32(pB[1]);
+                float pA0 = bfloat16_to_float32(pA[0]);
+                float pB0 = bfloat16_to_float32(pB[0]);
+                float pB1 = bfloat16_to_float32(pB[1]);
 
                 sum0 += pA0 * pB0;
                 sum1 += pA0 * pB1;
@@ -4026,12 +4026,12 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
                 sum = ptmp[0];
             }
 
-            const unsigned short* pA = pA0;
+            const unsigned short* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
-                float pA0 = float16_to_float32(pA[0]);
-                float pB0 = float16_to_float32(pB[0]);
+                float pA0 = bfloat16_to_float32(pA[0]);
+                float pB0 = bfloat16_to_float32(pB[0]);
 
                 sum += pA0 * pB0;
                 pA += 1;
@@ -4059,6 +4059,6 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
             ptmp += 1;
         }
 
-        pA0 += max_kk;
+        pAT += max_kk;
     }
 }

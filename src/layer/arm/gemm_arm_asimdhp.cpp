@@ -33,8 +33,8 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
     const int N = top_blob.w;
     const int out_hstep = top_blob.dims == 3 ? (int)top_blob.cstep : N;
 
-    const __fp16* pA0 = AT_tile;
-    const __fp16* pB0 = BT_tile;
+    const __fp16* pAT = AT_tile;
+    const __fp16* pBT = BT_tile;
 
     __fp16* ptmp = tmp;
 
@@ -43,7 +43,7 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
     {
         __fp16* outptr0 = (__fp16*)top_blob + (i + ii) * out_hstep + j * out_elempack;
 
-        const __fp16* pB = pB0;
+        const __fp16* pB = pBT;
 
         const __fp16* pC = C;
         if (pC)
@@ -225,7 +225,7 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
                 _sumb = vld1q_f16(ptmp + 8 * 11);
             }
 
-            const __fp16* pA = pA0;
+            const __fp16* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -505,7 +505,7 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
                 _sum7 = vld1q_f16(ptmp + 8 * 7);
             }
 
-            const __fp16* pA = pA0;
+            const __fp16* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -680,7 +680,7 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
                 _sum3 = vld1q_f16(ptmp + 8 * 3);
             }
 
-            const __fp16* pA = pA0;
+            const __fp16* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -823,7 +823,7 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
                 _sum1 = vld1q_f16(ptmp + 8);
             }
 
-            const __fp16* pA = pA0;
+            const __fp16* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -949,7 +949,7 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
                 _sum0 = vld1q_f16(ptmp);
             }
 
-            const __fp16* pA = pA0;
+            const __fp16* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -1000,13 +1000,13 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
             ptmp += 8;
         }
 
-        pA0 += max_kk * 8;
+        pAT += max_kk * 8;
     }
     for (; ii + 3 < max_ii; ii += 4)
     {
         __fp16* outptr0 = (__fp16*)top_blob + (i + ii) * out_hstep + j * out_elempack;
 
-        const __fp16* pB = pB0;
+        const __fp16* pB = pBT;
 
         const __fp16* pC = C;
         if (pC)
@@ -1159,7 +1159,7 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
                 _sumb = vld1_f16(ptmp + 4 * 11);
             }
 
-            const __fp16* pA = pA0;
+            const __fp16* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -1346,7 +1346,7 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
                 _sum7 = vld1_f16(ptmp + 4 * 7);
             }
 
-            const __fp16* pA = pA0;
+            const __fp16* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -1479,7 +1479,7 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
                 _sum3 = vld1_f16(ptmp + 4 * 3);
             }
 
-            const __fp16* pA = pA0;
+            const __fp16* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -1588,7 +1588,7 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
                 _sum1 = vld1_f16(ptmp + 4);
             }
 
-            const __fp16* pA = pA0;
+            const __fp16* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -1686,7 +1686,7 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
                 _sum0 = vld1_f16(ptmp);
             }
 
-            const __fp16* pA = pA0;
+            const __fp16* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -1726,13 +1726,13 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
             ptmp += 4;
         }
 
-        pA0 += max_kk * 4;
+        pAT += max_kk * 4;
     }
     for (; ii + 1 < max_ii; ii += 2)
     {
         __fp16* outptr0 = (__fp16*)top_blob + (i + ii) * out_hstep + j;
 
-        const __fp16* pB = pB0;
+        const __fp16* pB = pBT;
 
         const __fp16* pC = C;
         if (pC)
@@ -1822,7 +1822,7 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
                 _sum12 = vld1_f16(ptmp + 20);
             }
 
-            const __fp16* pA = pA0;
+            const __fp16* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -1925,7 +1925,7 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
                 _sum11 = vld1_f16(ptmp + 12);
             }
 
-            const __fp16* pA = pA0;
+            const __fp16* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -2007,7 +2007,7 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
                 _sum1 = vld1_f16(ptmp + 4);
             }
 
-            const __fp16* pA = pA0;
+            const __fp16* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -2096,7 +2096,7 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
                 sum11 = ptmp[3];
             }
 
-            const __fp16* pA = pA0;
+            const __fp16* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -2172,7 +2172,7 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
                 sum1 = ptmp[1];
             }
 
-            const __fp16* pA = pA0;
+            const __fp16* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -2200,13 +2200,13 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
             ptmp += 2;
         }
 
-        pA0 += max_kk * 2;
+        pAT += max_kk * 2;
     }
     for (; ii < max_ii; ii += 1)
     {
         __fp16* outptr0 = (__fp16*)top_blob + (i + ii) * out_hstep + j;
 
-        const __fp16* pB = pB0;
+        const __fp16* pB = pBT;
 
         const __fp16* pC = C;
         if (pC)
@@ -2262,7 +2262,7 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
                 _sum2 = vld1_f16(ptmp + 8);
             }
 
-            const __fp16* pA = pA0;
+            const __fp16* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -2330,7 +2330,7 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
                 _sum1 = vld1_f16(ptmp + 4);
             }
 
-            const __fp16* pA = pA0;
+            const __fp16* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -2389,7 +2389,7 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
                 _sum = vld1_f16(ptmp);
             }
 
-            const __fp16* pA = pA0;
+            const __fp16* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -2448,7 +2448,7 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
                 sum1 = ptmp[1];
             }
 
-            const __fp16* pA = pA0;
+            const __fp16* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -2502,7 +2502,7 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
                 sum = ptmp[0];
             }
 
-            const __fp16* pA = pA0;
+            const __fp16* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -2527,7 +2527,7 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
             ptmp += 1;
         }
 
-        pA0 += max_kk;
+        pAT += max_kk;
     }
 }
 

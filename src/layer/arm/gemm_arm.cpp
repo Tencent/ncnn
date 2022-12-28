@@ -897,8 +897,8 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
     const int N = top_blob.w;
     const int out_hstep = top_blob.dims == 3 ? (int)top_blob.cstep : N;
 
-    const float* pA0 = AT_tile;
-    const float* pB0 = BT_tile;
+    const float* pAT = AT_tile;
+    const float* pBT = BT_tile;
 
     float* ptmp = tmp;
 
@@ -909,7 +909,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
     {
         float* outptr0 = (float*)top_blob + (i + ii) * out_hstep + j * out_elempack;
 
-        const float* pB = pB0;
+        const float* pB = pBT;
 
         const float* pC = C;
         if (pC)
@@ -1159,7 +1159,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 _sumb1 = vld1q_f32(ptmp + 4 * 23);
             }
 
-            const float* pA = pA0;
+            const float* pA = pAT;
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
@@ -1600,7 +1600,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 _sum71 = vld1q_f32(ptmp + 4 * 15);
             }
 
-            const float* pA = pA0;
+            const float* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -1802,7 +1802,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 _sum31 = vld1q_f32(ptmp + 4 * 7);
             }
 
-            const float* pA = pA0;
+            const float* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -1956,7 +1956,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 _sum11 = vld1q_f32(ptmp + 4 * 3);
             }
 
-            const float* pA = pA0;
+            const float* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -2085,7 +2085,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 _sum01 = vld1q_f32(ptmp + 4 * 1);
             }
 
-            const float* pA = pA0;
+            const float* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -2135,14 +2135,14 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             ptmp += 8;
         }
 
-        pA0 += max_kk * 8;
+        pAT += max_kk * 8;
     }
 #endif // __aarch64__
     for (; ii + 3 < max_ii; ii += 4)
     {
         float* outptr0 = (float*)top_blob + (i + ii) * out_hstep + j * out_elempack;
 
-        const float* pB = pB0;
+        const float* pB = pBT;
 
         const float* pC = C;
         if (pC)
@@ -2295,7 +2295,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 _sumb = vld1q_f32(ptmp + 4 * 11);
             }
 
-            const float* pA = pA0;
+            const float* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -2549,7 +2549,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 _sum7 = vld1q_f32(ptmp + 4 * 7);
             }
 
-            const float* pA = pA0;
+            const float* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -2693,7 +2693,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 _sum3 = vld1q_f32(ptmp + 4 * 3);
             }
 
-            const float* pA = pA0;
+            const float* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -2809,7 +2809,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 _sum1 = vld1q_f32(ptmp + 4);
             }
 
-            const float* pA = pA0;
+            const float* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -2911,7 +2911,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 _sum0 = vld1q_f32(ptmp);
             }
 
-            const float* pA = pA0;
+            const float* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -2955,14 +2955,14 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             ptmp += 4;
         }
 
-        pA0 += max_kk * 4;
+        pAT += max_kk * 4;
     }
 #endif // __ARM_NEON
     for (; ii + 1 < max_ii; ii += 2)
     {
         float* outptr0 = (float*)top_blob + (i + ii) * out_hstep + j;
 
-        const float* pB = pB0;
+        const float* pB = pBT;
 
         const float* pC = C;
         if (pC)
@@ -3053,7 +3053,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 _sum12 = vld1q_f32(ptmp + 20);
             }
 
-            const float* pA = pA0;
+            const float* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -3163,7 +3163,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 _sum11 = vld1q_f32(ptmp + 12);
             }
 
-            const float* pA = pA0;
+            const float* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -3250,7 +3250,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 _sum1 = vld1q_f32(ptmp + 4);
             }
 
-            const float* pA = pA0;
+            const float* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -3343,7 +3343,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 sum11 = ptmp[3];
             }
 
-            const float* pA = pA0;
+            const float* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -3419,7 +3419,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 sum1 = ptmp[1];
             }
 
-            const float* pA = pA0;
+            const float* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -3447,13 +3447,13 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             ptmp += 2;
         }
 
-        pA0 += max_kk * 2;
+        pAT += max_kk * 2;
     }
     for (; ii < max_ii; ii += 1)
     {
         float* outptr0 = (float*)top_blob + (i + ii) * out_hstep + j;
 
-        const float* pB = pB0;
+        const float* pB = pBT;
 
         const float* pC = C;
         if (pC)
@@ -3510,7 +3510,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 _sum2 = vld1q_f32(ptmp + 8);
             }
 
-            const float* pA = pA0;
+            const float* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -3583,7 +3583,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 _sum1 = vld1q_f32(ptmp + 4);
             }
 
-            const float* pA = pA0;
+            const float* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -3646,7 +3646,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 _sum = vld1q_f32(ptmp);
             }
 
-            const float* pA = pA0;
+            const float* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -3710,7 +3710,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 sum1 = ptmp[1];
             }
 
-            const float* pA = pA0;
+            const float* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -3764,7 +3764,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 sum = ptmp[0];
             }
 
-            const float* pA = pA0;
+            const float* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -3789,7 +3789,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             ptmp += 1;
         }
 
-        pA0 += max_kk;
+        pAT += max_kk;
     }
 }
 
