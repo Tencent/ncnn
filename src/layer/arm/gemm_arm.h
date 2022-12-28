@@ -28,6 +28,20 @@ public:
 
     virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 
+protected:
+#if NCNN_VFPV4 || __aarch64__
+    int create_pipeline_fp16s(const Option& opt);
+    int forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
+#if NCNN_ARM82
+    int create_pipeline_fp16sa(const Option& opt);
+    int forward_fp16sa(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
+#endif
+#endif
+#if NCNN_BF16
+    int create_pipeline_bf16s(const Option& opt);
+    int forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
+#endif
+
 public:
     int nT;
     Mat AT_data;
