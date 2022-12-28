@@ -441,18 +441,39 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
 
     for (size_t i = 0; i < a4.size(); i++)
     {
-        if (opt.use_fp16_storage && op->support_fp16_storage && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
+        // clang-format off
+        // *INDENT-OFF*
+#if NCNN_ARM82
+        if (opt.use_fp16_storage && ncnn::cpu_support_arm_asimdhp() && op->support_fp16_storage && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
         {
             ncnn::cast_float32_to_float16(a[i], a4[i], opt);
         }
-        else if (opt.use_bf16_storage && op->support_bf16_storage && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
+        else
+#endif // NCNN_ARM82
+#if NCNN_RVV
+        if (opt.use_fp16_storage && ncnn::cpu_support_riscv_v() && ncnn::cpu_support_riscv_zfh() && op->support_fp16_storage && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
+        {
+            ncnn::cast_float32_to_float16(a[i], a4[i], opt);
+        }
+        else
+#endif // NCNN_RVV
+#if NCNN_BF16
+        if (opt.use_bf16_storage && op->support_bf16_storage && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
         {
             ncnn::cast_float32_to_bfloat16(a[i], a4[i], opt);
+        }
+        else
+#endif // NCNN_BF16
+        if (opt.use_fp16_storage && op->support_fp16_storage && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
+        {
+            ncnn::cast_float32_to_float16(a[i], a4[i], opt);
         }
         else
         {
             a4[i] = a[i];
         }
+        // *INDENT-ON*
+        // clang-format on
 
         if (opt.use_packing_layout && op->support_packing && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_PACKING))
         {
@@ -874,18 +895,39 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
 
     ncnn::Mat a4;
 
-    if (opt.use_fp16_storage && op->support_fp16_storage && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
+    // clang-format off
+    // *INDENT-OFF*
+#if NCNN_ARM82
+    if (opt.use_fp16_storage && ncnn::cpu_support_arm_asimdhp() && op->support_fp16_storage && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
     {
         ncnn::cast_float32_to_float16(a, a4, opt);
     }
-    else if (opt.use_bf16_storage && op->support_bf16_storage && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
+    else
+#endif // NCNN_ARM82
+#if NCNN_RVV
+    if (opt.use_fp16_storage && ncnn::cpu_support_riscv_v() && ncnn::cpu_support_riscv_zfh() && op->support_fp16_storage && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
+    {
+        ncnn::cast_float32_to_float16(a, a4, opt);
+    }
+    else
+#endif // NCNN_RVV
+#if NCNN_BF16
+    if (opt.use_bf16_storage && op->support_bf16_storage && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
     {
         ncnn::cast_float32_to_bfloat16(a, a4, opt);
+    }
+    else
+#endif // NCNN_BF16
+    if (opt.use_fp16_storage && op->support_fp16_storage && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
+    {
+        ncnn::cast_float32_to_float16(a, a4, opt);
     }
     else
     {
         a4 = a;
     }
+    // *INDENT-ON*
+    // clang-format on
 
     if (opt.use_packing_layout && op->support_packing && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_PACKING))
     {
