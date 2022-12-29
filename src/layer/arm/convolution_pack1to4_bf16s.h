@@ -12,45 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-static void convolution_transform_kernel_pack1to4_bf16s_neon(const Mat& weight_data, Mat& weight_data_bf16, int num_input, int num_output, int kernel_w, int kernel_h)
-{
-    const int maxk = kernel_w * kernel_h;
-
-    // src = kw-kh-inch-outch
-    // dst = 4b-kw-kh-inch-outch/4b
-    Mat weight_data_r2 = weight_data.reshape(maxk, num_input, num_output);
-
-    weight_data_bf16.create(maxk, num_input, num_output / 4, (size_t)2 * 4, 4);
-
-    for (int q = 0; q + 3 < num_output; q += 4)
-    {
-        const Mat k0 = weight_data_r2.channel(q);
-        const Mat k1 = weight_data_r2.channel(q + 1);
-        const Mat k2 = weight_data_r2.channel(q + 2);
-        const Mat k3 = weight_data_r2.channel(q + 3);
-
-        unsigned short* g00 = weight_data_bf16.channel(q / 4);
-
-        for (int p = 0; p < num_input; p++)
-        {
-            const float* k00 = k0.row(p);
-            const float* k10 = k1.row(p);
-            const float* k20 = k2.row(p);
-            const float* k30 = k3.row(p);
-
-            for (int k = 0; k < maxk; k++)
-            {
-                g00[0] = float32_to_bfloat16(k00[k]);
-                g00[1] = float32_to_bfloat16(k10[k]);
-                g00[2] = float32_to_bfloat16(k20[k]);
-                g00[3] = float32_to_bfloat16(k30[k]);
-
-                g00 += 4;
-            }
-        }
-    }
-}
-
 static void convolution_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_bf16, const Mat& bias_data, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int activation_type, const Mat& activation_params, const Option& opt)
 {
     int w = bottom_blob.w;

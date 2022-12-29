@@ -61,6 +61,8 @@ public:
     // forwardDilation
     Layer* convolution_dilation1;
 
+    Layer* gemm;
+
     // fp16
     Mat bias_data_fp16;
 

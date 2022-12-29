@@ -12,41 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-static void convolution_transform_kernel_pack4to1_neon(const Mat& weight_data, Mat& weight_data_pack4to1, int num_input, int num_output, int kernel_w, int kernel_h)
-{
-    const int maxk = kernel_w * kernel_h;
-
-    // src = kw-kh-inch-outch
-    // dst = 4a-kw-kh-inch/4a-outch
-    Mat weight_data_r2 = weight_data.reshape(maxk, num_input, num_output);
-
-    weight_data_pack4to1.create(maxk, num_input / 4, num_output, (size_t)4 * 4, 4);
-
-    for (int q = 0; q < num_output; q++)
-    {
-        const Mat k0 = weight_data_r2.channel(q);
-        float* g00 = weight_data_pack4to1.channel(q);
-
-        for (int p = 0; p + 3 < num_input; p += 4)
-        {
-            const float* k00 = k0.row(p);
-            const float* k01 = k0.row(p + 1);
-            const float* k02 = k0.row(p + 2);
-            const float* k03 = k0.row(p + 3);
-
-            for (int k = 0; k < maxk; k++)
-            {
-                g00[0] = k00[k];
-                g00[1] = k01[k];
-                g00[2] = k02[k];
-                g00[3] = k03[k];
-
-                g00 += 4;
-            }
-        }
-    }
-}
-
 static void convolution_pack4to1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_pack4to1, const Mat& bias_data, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int activation_type, const Mat& activation_params, const Option& opt)
 {
     int w = bottom_blob.w;
