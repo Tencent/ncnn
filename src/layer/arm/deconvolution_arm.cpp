@@ -455,17 +455,17 @@ int Deconvolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                                     float32x4_t _w2 = vld1q_f32(kptr + k * 16 + 8);
                                     float32x4_t _w3 = vld1q_f32(kptr + k * 16 + 12);
 
-    #if __aarch64__
+#if __aarch64__
                                     _sum = vmlaq_laneq_f32(_sum, _w0, _val, 0);
                                     _sum = vmlaq_laneq_f32(_sum, _w1, _val, 1);
                                     _sum = vmlaq_laneq_f32(_sum, _w2, _val, 2);
                                     _sum = vmlaq_laneq_f32(_sum, _w3, _val, 3);
-    #else
+#else
                                     _sum = vmlaq_lane_f32(_sum, _w0, vget_low_f32(_val), 0);
                                     _sum = vmlaq_lane_f32(_sum, _w1, vget_low_f32(_val), 1);
                                     _sum = vmlaq_lane_f32(_sum, _w2, vget_high_f32(_val), 0);
                                     _sum = vmlaq_lane_f32(_sum, _w3, vget_high_f32(_val), 1);
-    #endif
+#endif
                                 }
                             }
 
@@ -608,13 +608,13 @@ int Deconvolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                                     float32x4_t _w = vld1q_f32(kptr + k * 4);
 
                                     float32x4_t _s4 = vmulq_f32(_val, _w);
-    #if __aarch64__
+#if __aarch64__
                                     sum += vaddvq_f32(_s4); // dot
-    #else
+#else
                                     float32x2_t _ss = vadd_f32(vget_low_f32(_s4), vget_high_f32(_s4));
                                     _ss = vpadd_f32(_ss, _ss);
                                     sum += vget_lane_f32(_ss, 0);
-    #endif
+#endif
                                 }
                             }
 
