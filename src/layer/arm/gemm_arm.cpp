@@ -4905,10 +4905,12 @@ int Gemm_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<Ma
     }
 
     int out_elempack = 1;
+#if __ARM_NEON
     if (opt.use_packing_layout)
     {
         out_elempack = M % 4 == 0 ? 4 : 1;
     }
+#endif
     if (output_elempack)
         out_elempack = output_elempack;
     size_t out_elemsize = 2u * out_elempack;
