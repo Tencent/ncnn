@@ -36,25 +36,11 @@ namespace ncnn {
 #include "convolution_pack4_fp16s.h"
 #include "convolution_pack1to4_fp16s.h"
 #include "convolution_pack4to1_fp16s.h"
-// #include "convolution_sgemm_fp16s.h"
-// #include "convolution_sgemm_pack4_fp16s.h"
-// #include "convolution_sgemm_pack1to4_fp16s.h"
-// #include "convolution_sgemm_pack4to8_fp16s.h"
-// #include "convolution_sgemm_pack8_fp16s.h"
-// #include "convolution_sgemm_pack8to4_fp16s.h"
-// #include "convolution_sgemm_pack8to1_fp16s.h"
 #include "convolution_winograd_transform_fp16s.h"
 #include "convolution_winograd_transform_pack4_fp16s.h"
 #include "convolution_winograd_transform_pack8_fp16s.h"
 #include "convolution_winograd_dot_pack4_fp16s.h"
 #include "convolution_winograd_dot_pack8_fp16s.h"
-// #include "convolution_1x1_fp16s.h"
-// #include "convolution_1x1_pack4_fp16s.h"
-// #include "convolution_1x1_pack1to4_fp16s.h"
-// #include "convolution_1x1_pack8_fp16s.h"
-// #include "convolution_1x1_pack4to8_fp16s.h"
-// #include "convolution_1x1_pack8to1_fp16s.h"
-// #include "convolution_1x1_pack8to4_fp16s.h"
 #include "convolution_3x3_pack4_fp16s.h"
 #include "convolution_3x3_pack1to8_fp16s.h"
 #include "convolution_3x3_pack1to4_fp16s.h"
@@ -115,6 +101,11 @@ int Convolution_arm::create_pipeline_fp16s(const Option& opt)
     {
         elempack = opt.use_fp16_arithmetic && num_input % 8 == 0 ? 8 : num_input % 4 == 0 ? 4 : 1;
         out_elempack = opt.use_fp16_arithmetic && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+    }
+
+    if (opt.use_fp16_arithmetic)
+    {
+        ncnn::cast_float32_to_float16(bias_data, bias_data_fp16, opt);
     }
 
     // pack8
@@ -287,11 +278,6 @@ int Convolution_arm::create_pipeline_fp16s(const Option& opt)
     else
     {
         convolution_transform_kernel_packed_fp16s_neon(weight_data, weight_data_tm, num_input, num_output, kernel_w, kernel_h, elempack, out_elempack);
-    }
-
-    if (opt.use_fp16_arithmetic)
-    {
-        ncnn::cast_float32_to_float16(bias_data, bias_data_fp16, opt);
     }
 
     if (opt.lightmode)
