@@ -37,6 +37,7 @@ namespace ncnn {
 
 #include "convolution_winograd_transform.h"
 #include "convolution_winograd_dot.h"
+#include "convolution_1x1.h"
 #include "convolution_3x3.h"
 #include "convolution_5x5.h"
 
