@@ -380,9 +380,9 @@ int Convolution_x86::create_pipeline(const Option& opt)
     }
 
     int l2_cache_size = get_cpu_level2_cache_size();
-    bool prefer_sgemm = num_input * num_output * kernel_w * kernel_h * dilation_w * dilation_h * stride_w * stride_h * (int)sizeof(float) * 2 > l2_cache_size || (num_input >= 16 || num_output >= 16);
+    bool prefer_sgemm = (kernel_w == 1 && kernel_h == 1) || num_input * num_output * kernel_w * kernel_h * dilation_w * dilation_h * stride_w * stride_h * (int)sizeof(float) * 2 > l2_cache_size || (num_input >= 16 || num_output >= 16);
 
-    if ((opt.use_sgemm_convolution && prefer_sgemm) || (kernel_w == 1 && kernel_h == 1))
+    if (opt.use_sgemm_convolution && prefer_sgemm)
     {
         const int maxk = kernel_w * kernel_h;
 
@@ -801,9 +801,9 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     }
 
     int l2_cache_size = get_cpu_level2_cache_size();
-    bool prefer_sgemm = num_input * num_output * kernel_w * kernel_h * dilation_w * dilation_h * stride_w * stride_h * (int)sizeof(float) * 2 > l2_cache_size || (num_input >= 16 || num_output >= 16);
+    bool prefer_sgemm = (kernel_w == 1 && kernel_h == 1) || num_input * num_output * kernel_w * kernel_h * dilation_w * dilation_h * stride_w * stride_h * (int)sizeof(float) * 2 > l2_cache_size || (num_input >= 16 || num_output >= 16);
 
-    if ((opt.use_sgemm_convolution && prefer_sgemm) || (kernel_w == 1 && kernel_h == 1))
+    if (opt.use_sgemm_convolution && prefer_sgemm)
     {
         // im2col
         Mat bottom_im2col;
@@ -1172,67 +1172,115 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
 
         if (elempack == 1 && out_elempack == 1)
         {
-            const int maxk = kernel_w * kernel_h;
-
-            // kernel offsets
-            std::vector<int> _space_ofs(maxk);
-            int* space_ofs = &_space_ofs[0];
+            if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
             {
-                int p1 = 0;
-                int p2 = 0;
-                int gap = w * dilation_h - kernel_w * dilation_w;
-                for (int i = 0; i < kernel_h; i++)
+                conv1x1s1_sse(bottom_blob_bordered, top_blob, weight_data_tm, bias_data, opt);
+
+                if (activation)
                 {
-                    for (int j = 0; j < kernel_w; j++)
-                    {
-                        space_ofs[p1] = p2;
-                        p1++;
-                        p2 += dilation_w;
-                    }
-                    p2 += gap;
+                    activation->forward_inplace(top_blob, opt);
                 }
             }
-
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int p = 0; p < num_output; p++)
+            else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
             {
-                float* outptr = top_blob.channel(p);
+                conv1x1s2_sse(bottom_blob_bordered, top_blob, weight_data_tm, bias_data, opt);
 
-                for (int i = 0; i < outh; i++)
+                if (activation)
                 {
-                    for (int j = 0; j < outw; j++)
+                    activation->forward_inplace(top_blob, opt);
+                }
+            }
+            else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+            {
+                conv3x3s1_sse(bottom_blob_bordered, top_blob, weight_data_tm, bias_data, opt);
+
+                if (activation)
+                {
+                    activation->forward_inplace(top_blob, opt);
+                }
+            }
+            else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+            {
+                conv3x3s2_sse(bottom_blob_bordered, top_blob, weight_data_tm, bias_data, opt);
+
+                if (activation)
+                {
+                    activation->forward_inplace(top_blob, opt);
+                }
+            }
+            else if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+            {
+                conv5x5s1_sse(bottom_blob_bordered, top_blob, weight_data_tm, bias_data, opt);
+
+                if (activation)
+                {
+                    activation->forward_inplace(top_blob, opt);
+                }
+            }
+            else
+            {
+                const int maxk = kernel_w * kernel_h;
+
+                // kernel offsets
+                std::vector<int> _space_ofs(maxk);
+                int* space_ofs = &_space_ofs[0];
+                {
+                    int p1 = 0;
+                    int p2 = 0;
+                    int gap = w * dilation_h - kernel_w * dilation_w;
+                    for (int i = 0; i < kernel_h; i++)
                     {
-                        float sum = 0.f;
-
-                        if (bias_term)
+                        for (int j = 0; j < kernel_w; j++)
                         {
-                            sum = bias_data[p];
+                            space_ofs[p1] = p2;
+                            p1++;
+                            p2 += dilation_w;
                         }
+                        p2 += gap;
+                    }
+                }
 
-                        const float* kptr = (const float*)weight_data_tm + maxk * channels * p;
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int p = 0; p < num_output; p++)
+                {
+                    float* outptr = top_blob.channel(p);
 
-                        // channels
-                        for (int q = 0; q < channels; q++)
+                    for (int i = 0; i < outh; i++)
+                    {
+                        for (int j = 0; j < outw; j++)
                         {
-                            const Mat m = bottom_blob_bordered.channel(q);
-                            const float* sptr = m.row(i * stride_h) + j * stride_w;
+                            float sum = 0.f;
 
-                            for (int k = 0; k < maxk; k++)
+                            if (bias_term)
                             {
-                                float val = sptr[space_ofs[k]];
-                                float wt = kptr[k];
-                                sum += val * wt;
+                                sum = bias_data[p];
                             }
 
-                            kptr += maxk;
+                            const float* kptr = (const float*)weight_data_tm + maxk * channels * p;
+
+                            // channels
+                            for (int q = 0; q < channels; q++)
+                            {
+                                const Mat m = bottom_blob_bordered.channel(q);
+                                const float* sptr = m.row(i * stride_h) + j * stride_w;
+
+                                for (int k = 0; k < maxk; k++)
+                                {
+                                    float val = sptr[space_ofs[k]];
+                                    float wt = kptr[k];
+                                    sum += val * wt;
+                                }
+
+                                kptr += maxk;
+                            }
+
+                            sum = activation_ss(sum, activation_type, activation_params);
+
+                            outptr[j] = sum;
                         }
 
-                        sum = activation_ss(sum, activation_type, activation_params);
-
-                        outptr[j] = sum;
+                        outptr += outw;
                     }
-
-                    outptr += outw;
                 }
             }
         }
