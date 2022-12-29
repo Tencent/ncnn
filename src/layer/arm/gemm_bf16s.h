@@ -3433,7 +3433,8 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
-                asm volatile("nop\n":::);
+                asm volatile("nop\n" ::
+                             :);
                 float pA0 = bfloat16_to_float32(pA[0]);
                 float pA1 = bfloat16_to_float32(pA[1]);
                 float pB0 = bfloat16_to_float32(pB[0]);

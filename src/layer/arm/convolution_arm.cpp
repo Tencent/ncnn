@@ -615,7 +615,7 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     {
         if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
-            if (opt.use_winograd_convolution && opt.use_winograd63_convolution && num_input >= 16 && num_output >= 16)// && w <= 120 && h <= 120)
+            if (opt.use_winograd_convolution && opt.use_winograd63_convolution && num_input >= 16 && num_output >= 16) // && w <= 120 && h <= 120)
             {
                 // conv3x3s1_winograd63_neon4(bottom_blob_bordered, top_blob, weight_winograd63_data, bias_data, opt);
                 conv3x3s1_winograd63_neon5(bottom_blob_bordered, top_blob, weight_winograd63_data, bias_data, opt);
