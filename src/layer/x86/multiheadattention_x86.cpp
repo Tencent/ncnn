@@ -47,17 +47,17 @@ int MultiHeadAttention_x86::create_pipeline(const Option& opt)
         ncnn::ParamDict pd;
         pd.set(0, inv_sqrt_embed_dim_per_head);
         pd.set(1, 1.f);
-        pd.set(2, 0);      // transA
-        pd.set(3, 1);      // transB
-        pd.set(4, 0);      // constantA
-        pd.set(5, 0);      // constantB
-        pd.set(6, 0);      // constantC
-        pd.set(7, 0);      // M = outch
-        pd.set(8, 0);      // N = size
-        pd.set(9, 0);      // K = maxk*inch
-        pd.set(10, -1);    // constant_broadcast_type_C = null
-        pd.set(11, 0);     // output_N1M
-        pd.set(12, 1);     // output_elempack
+        pd.set(2, 0);   // transA
+        pd.set(3, 1);   // transB
+        pd.set(4, 0);   // constantA
+        pd.set(5, 0);   // constantB
+        pd.set(6, 0);   // constantC
+        pd.set(7, 0);   // M = outch
+        pd.set(8, 0);   // N = size
+        pd.set(9, 0);   // K = maxk*inch
+        pd.set(10, -1); // constant_broadcast_type_C = null
+        pd.set(11, 0);  // output_N1M
+        pd.set(12, 1);  // output_elempack
         q_gemm->load_param(pd);
         q_gemm->load_model(ModelBinFromMatArray(0));
         q_gemm->create_pipeline(opt);
@@ -74,17 +74,17 @@ int MultiHeadAttention_x86::create_pipeline(const Option& opt)
     {
         k_gemm = ncnn::create_layer(ncnn::LayerType::Gemm);
         ncnn::ParamDict pd;
-        pd.set(2, 0);      // transA
-        pd.set(3, 1);      // transB
-        pd.set(4, 0);      // constantA
-        pd.set(5, 0);      // constantB
-        pd.set(6, 0);      // constantC
-        pd.set(7, 0);      // M = outch
-        pd.set(8, 0);      // N = size
-        pd.set(9, 0);      // K = maxk*inch
-        pd.set(10, -1);    // constant_broadcast_type_C = null
-        pd.set(11, 0);     // output_N1M
-        pd.set(12, 1);     // output_elempack
+        pd.set(2, 0);   // transA
+        pd.set(3, 1);   // transB
+        pd.set(4, 0);   // constantA
+        pd.set(5, 0);   // constantB
+        pd.set(6, 0);   // constantC
+        pd.set(7, 0);   // M = outch
+        pd.set(8, 0);   // N = size
+        pd.set(9, 0);   // K = maxk*inch
+        pd.set(10, -1); // constant_broadcast_type_C = null
+        pd.set(11, 0);  // output_N1M
+        pd.set(12, 1);  // output_elempack
         k_gemm->load_param(pd);
         k_gemm->load_model(ModelBinFromMatArray(0));
         k_gemm->create_pipeline(opt);
@@ -101,17 +101,17 @@ int MultiHeadAttention_x86::create_pipeline(const Option& opt)
     {
         v_gemm = ncnn::create_layer(ncnn::LayerType::Gemm);
         ncnn::ParamDict pd;
-        pd.set(2, 0);      // transA
-        pd.set(3, 1);      // transB
-        pd.set(4, 0);      // constantA
-        pd.set(5, 0);      // constantB
-        pd.set(6, 0);      // constantC
-        pd.set(7, 0);      // M = outch
-        pd.set(8, 0);      // N = size
-        pd.set(9, 0);      // K = maxk*inch
-        pd.set(10, -1);    // constant_broadcast_type_C = null
-        pd.set(11, 0);     // output_N1M
-        pd.set(12, 1);     // output_elempack
+        pd.set(2, 0);   // transA
+        pd.set(3, 1);   // transB
+        pd.set(4, 0);   // constantA
+        pd.set(5, 0);   // constantB
+        pd.set(6, 0);   // constantC
+        pd.set(7, 0);   // M = outch
+        pd.set(8, 0);   // N = size
+        pd.set(9, 0);   // K = maxk*inch
+        pd.set(10, -1); // constant_broadcast_type_C = null
+        pd.set(11, 0);  // output_N1M
+        pd.set(12, 1);  // output_elempack
         v_gemm->load_param(pd);
         v_gemm->load_model(ModelBinFromMatArray(0));
         v_gemm->create_pipeline(opt);
@@ -144,17 +144,17 @@ int MultiHeadAttention_x86::create_pipeline(const Option& opt)
     {
         o_gemm = ncnn::create_layer(ncnn::LayerType::Gemm);
         ncnn::ParamDict pd;
-        pd.set(2, 0);      // transA
-        pd.set(3, 1);      // transB
-        pd.set(4, 0);      // constantA
-        pd.set(5, 0);      // constantB
-        pd.set(6, 0);      // constantC
-        pd.set(7, 0);      // M = outch
-        pd.set(8, 0);      // N = size
-        pd.set(9, 0);      // K = maxk*inch
-        pd.set(10, -1);    // constant_broadcast_type_C = null
-        pd.set(11, 0);     // output_N1M
-        pd.set(12, 1);     // output_elempack
+        pd.set(2, 0);   // transA
+        pd.set(3, 1);   // transB
+        pd.set(4, 0);   // constantA
+        pd.set(5, 0);   // constantB
+        pd.set(6, 0);   // constantC
+        pd.set(7, 0);   // M = outch
+        pd.set(8, 0);   // N = size
+        pd.set(9, 0);   // K = maxk*inch
+        pd.set(10, -1); // constant_broadcast_type_C = null
+        pd.set(11, 0);  // output_N1M
+        pd.set(12, 1);  // output_elempack
         o_gemm->load_param(pd);
         o_gemm->load_model(ModelBinFromMatArray(0));
         o_gemm->create_pipeline(opt);
@@ -249,7 +249,7 @@ int MultiHeadAttention_x86::forward(const std::vector<Mat>& bottom_blobs, std::v
         std::vector<Mat> q_affine(1);
         q_gemm->forward(q_bottom_blobs, q_affine, opt_no);
 
-        ncnn::Mat q_affine_reshape = q_affine[0].reshape(embed_dim_per_head,num_head,src_seqlen);
+        ncnn::Mat q_affine_reshape = q_affine[0].reshape(embed_dim_per_head, num_head, src_seqlen);
 
         permute_wch->forward(q_affine_reshape, q_affine_reshape_wch, opt_no);
     }
@@ -263,7 +263,7 @@ int MultiHeadAttention_x86::forward(const std::vector<Mat>& bottom_blobs, std::v
         std::vector<Mat> v_affine(1);
         v_gemm->forward(v_bottom_blobs, v_affine, opt_no);
 
-        ncnn::Mat v_affine_reshape = v_affine[0].reshape(embed_dim_per_head,num_head,dst_seqlen);
+        ncnn::Mat v_affine_reshape = v_affine[0].reshape(embed_dim_per_head, num_head, dst_seqlen);
 
         permute_wch->forward(v_affine_reshape, v_affine_reshape_wch, opt_no);
     }
@@ -277,7 +277,7 @@ int MultiHeadAttention_x86::forward(const std::vector<Mat>& bottom_blobs, std::v
         std::vector<Mat> k_affine(1);
         k_gemm->forward(k_bottom_blobs, k_affine, opt_no);
 
-        ncnn::Mat k_affine_reshape = k_affine[0].reshape(embed_dim_per_head,num_head,dst_seqlen);
+        ncnn::Mat k_affine_reshape = k_affine[0].reshape(embed_dim_per_head, num_head, dst_seqlen);
 
         permute_cwh->forward(k_affine_reshape, k_affine_reshape_cwh, opt_no);
     }
@@ -288,7 +288,7 @@ int MultiHeadAttention_x86::forward(const std::vector<Mat>& bottom_blobs, std::v
         qk_bottom_blobs[0] = q_affine_reshape_wch;
         qk_bottom_blobs[1] = k_affine_reshape_cwh;
         std::vector<Mat> qk_cross(1);
-        qk_matmul->forward(qk_bottom_blobs, qk_cross, opt_no); 
+        qk_matmul->forward(qk_bottom_blobs, qk_cross, opt_no);
 
         qk_softmax->forward_inplace(qk_cross[0], opt_no);
 
@@ -302,13 +302,13 @@ int MultiHeadAttention_x86::forward(const std::vector<Mat>& bottom_blobs, std::v
         ncnn::Mat qkv_wch;
         permute_wch->forward(qkv_cross[0], qkv_wch, opt_no);
 
-        ncnn::Mat qkv_better = qkv_wch.reshape(embed_dim,src_seqlen);
+        ncnn::Mat qkv_better = qkv_wch.reshape(embed_dim, src_seqlen);
 
         std::vector<Mat> o_bottom_blobs(3);
         o_bottom_blobs[0] = qkv_better;
         o_bottom_blobs[1] = out_weight_data.reshape(embed_dim, embed_dim);
         o_bottom_blobs[2] = out_bias_data;
-        o_gemm->forward(o_bottom_blobs, top_blobs, opt_no); 
+        o_gemm->forward(o_bottom_blobs, top_blobs, opt_no);
     }
 
     return 0;
