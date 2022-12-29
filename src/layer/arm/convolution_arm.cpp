@@ -27,7 +27,6 @@
 
 namespace ncnn {
 
-// #include "convolution_sgemm.h"
 #include "convolution_winograd_transform.h"
 
 #include "convolution_1x1.h"
@@ -39,9 +38,7 @@ namespace ncnn {
 
 #if NCNN_BF16
 #include "convolution_bf16s.h"
-// #include "convolution_sgemm_bf16s.h"
 #include "convolution_winograd_transform_bf16s.h"
-// #include "convolution_1x1_bf16s.h"
 #endif // NCNN_BF16
 
 #if NCNN_INT8
@@ -57,14 +54,8 @@ namespace ncnn {
 #include "convolution_pack4.h"
 #include "convolution_pack1to4.h"
 #include "convolution_pack4to1.h"
-// #include "convolution_sgemm_pack4.h"
-// #include "convolution_sgemm_pack1to4.h"
-// #include "convolution_sgemm_pack4to1.h"
 #include "convolution_winograd_transform_pack4.h"
 #include "convolution_winograd_dot_pack4.h"
-// #include "convolution_1x1_pack4.h"
-// #include "convolution_1x1_pack1to4.h"
-// #include "convolution_1x1_pack4to1.h"
 #include "convolution_3x3_pack1to4.h"
 #include "convolution_3x3_pack4.h"
 #include "convolution_3x3_pack4to1.h"
@@ -75,13 +66,7 @@ namespace ncnn {
 #include "convolution_pack4_bf16s.h"
 #include "convolution_pack1to4_bf16s.h"
 #include "convolution_pack4to1_bf16s.h"
-// #include "convolution_sgemm_pack4_bf16s.h"
-// #include "convolution_sgemm_pack1to4_bf16s.h"
-// #include "convolution_sgemm_pack4to1_bf16s.h"
 #include "convolution_winograd_transform_pack4_bf16s.h"
-// #include "convolution_1x1_pack4_bf16s.h"
-// #include "convolution_1x1_pack1to4_bf16s.h"
-// #include "convolution_1x1_pack4to1_bf16s.h"
 #include "convolution_3x3_pack1to4_bf16s.h"
 #include "convolution_3x3_pack4_bf16s.h"
 #include "convolution_3x3_pack4to1_bf16s.h"
