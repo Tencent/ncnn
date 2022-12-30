@@ -745,8 +745,8 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
                     "st1    {v3.4s}, [%1], #16          \n"
                     "st1    {v7.4s}, [%1], #16          \n"
                     "st1    {v11.4s}, [%1], #16         \n"
-                    : "=r"(p0),  // %0
-                    "=r"(pp) // %1
+                    : "=r"(p0), // %0
+                    "=r"(pp)  // %1
                     : "0"(p0),
                     "1"(pp)
                     : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11");
@@ -812,8 +812,8 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
                     "st1    {v6.4s}, [%1], #16          \n"
                     "st1    {v3.4s}, [%1], #16          \n"
                     "st1    {v7.4s}, [%1], #16          \n"
-                    : "=r"(p0),  // %0
-                    "=r"(pp) // %1
+                    : "=r"(p0), // %0
+                    "=r"(pp)  // %1
                     : "0"(p0),
                     "1"(pp)
                     : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7");
@@ -840,8 +840,8 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
                     "sub        %0, %0, #64         \n"
                     "vst1.f32   {d4-d7}, [%1 :128]! \n"
                     "vst1.f32   {d20-d23}, [%1 :128]! \n"
-                    : "=r"(p0),  // %0
-                    "=r"(pp) // %1
+                    : "=r"(p0), // %0
+                    "=r"(pp)  // %1
                     : "0"(p0),
                     "1"(pp)
                     : "memory", "q0", "q1", "q2", "q3", "q8", "q9", "q10", "q11");
@@ -892,8 +892,8 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
                     "prfm   pldl1keep, [%0, #512]       \n"
                     "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%0] \n"
                     "st4    {v0.4s, v1.4s, v2.4s, v3.4s}, [%1], #64 \n"
-                    : "=r"(p0),  // %0
-                    "=r"(pp) // %1
+                    : "=r"(p0), // %0
+                    "=r"(pp)  // %1
                     : "0"(p0),
                     "1"(pp)
                     : "memory", "v0", "v1", "v2", "v3");
@@ -906,8 +906,8 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
                     "vswp       d1, d4              \n"
                     "vswp       d3, d6              \n"
                     "vstm       %1!, {d0-d7}        \n"
-                    : "=r"(p0),  // %0
-                    "=r"(pp) // %1
+                    : "=r"(p0), // %0
+                    "=r"(pp)  // %1
                     : "0"(p0),
                     "1"(pp)
                     : "memory", "q0", "q1", "q2", "q3");
@@ -954,8 +954,8 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
                     "prfm   pldl1keep, [%0, #256]       \n"
                     "ld1    {v0.4s, v1.4s}, [%0]        \n"
                     "st2    {v0.4s, v1.4s}, [%1], #32   \n"
-                    : "=r"(p0),  // %0
-                    "=r"(pp) // %1
+                    : "=r"(p0), // %0
+                    "=r"(pp)  // %1
                     : "0"(p0),
                     "1"(pp)
                     : "memory", "v0", "v1", "v2", "v3");
@@ -964,8 +964,8 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
                     "pld        [%0, #256]          \n"
                     "vld1.f32   {d0-d3}, [%0 :128]  \n"
                     "vst2.f32   {d0-d3}, [%1 :128]! \n"
-                    : "=r"(p0),  // %0
-                    "=r"(pp) // %1
+                    : "=r"(p0), // %0
+                    "=r"(pp)  // %1
                     : "0"(p0),
                     "1"(pp)
                     : "memory", "q0", "q1");
@@ -1420,9 +1420,9 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                     "fmla   %26.4s, v7.4s, v3.s[2]  \n"
                     "fmla   %27.4s, v7.4s, v3.s[3]  \n"
 
-                    :"=r"(pA),
+                    : "=r"(pA),
                     "=r"(pB)
-                    :"0"(pA),
+                    : "0"(pA),
                     "1"(pB),
                     "w"(_sum00),
                     "w"(_sum10),
@@ -1448,8 +1448,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                     "w"(_sum91),
                     "w"(_suma1),
                     "w"(_sumb1)
-                    : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7"
-                );
+                    : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7");
             }
 #endif
             for (; kk < max_kk; kk += 1)
@@ -1835,9 +1834,9 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                     "fmla   %18.4s, v11.4s, v3.s[2] \n"
                     "fmla   %19.4s, v11.4s, v3.s[3] \n"
 
-                    :"=r"(pA),
+                    : "=r"(pA),
                     "=r"(pB)
-                    :"0"(pA),
+                    : "0"(pA),
                     "1"(pB),
                     "w"(_sum00),
                     "w"(_sum10),
@@ -1855,8 +1854,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                     "w"(_sum51),
                     "w"(_sum61),
                     "w"(_sum71)
-                    : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11"
-                );
+                    : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11");
             }
 #endif
             for (; kk < max_kk; kk += 1)
@@ -2110,9 +2108,9 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                     "fmla   %10.4s, v11.4s, v3.s[2]   \n"
                     "fmla   %11.4s, v11.4s, v3.s[3]   \n"
 
-                    :"=r"(pA),
+                    : "=r"(pA),
                     "=r"(pB)
-                    :"0"(pA),
+                    : "0"(pA),
                     "1"(pB),
                     "w"(_sum00),
                     "w"(_sum10),
@@ -2122,8 +2120,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                     "w"(_sum11),
                     "w"(_sum21),
                     "w"(_sum31)
-                    : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11"
-                );
+                    : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11");
             }
 #endif
             for (; kk < max_kk; kk += 1)
@@ -2313,16 +2310,15 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                     "fmla   %6.4s, v11.4s, v1.s[2]  \n"
                     "fmla   %7.4s, v11.4s, v1.s[3]  \n"
 
-                    :"=r"(pA),
+                    : "=r"(pA),
                     "=r"(pB)
-                    :"0"(pA),
+                    : "0"(pA),
                     "1"(pB),
                     "w"(_sum00),
                     "w"(_sum10),
                     "w"(_sum01),
                     "w"(_sum11)
-                    : "memory", "v0", "v1", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11"
-                );
+                    : "memory", "v0", "v1", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11");
             }
 #endif
             for (; kk < max_kk; kk += 1)
@@ -2477,14 +2473,13 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                     "fmla   %4.4s, v6.4s, v8.s[3]   \n"
                     "fmla   %5.4s, v7.4s, v8.s[3]   \n"
 
-                    :"=r"(pA),
+                    : "=r"(pA),
                     "=r"(pB)
-                    :"0"(pA),
+                    : "0"(pA),
                     "1"(pB),
                     "w"(_sum00),
                     "w"(_sum01)
-                    : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8"
-                );
+                    : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8");
             }
 #endif
             for (; kk < max_kk; kk += 1)
