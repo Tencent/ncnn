@@ -1302,6 +1302,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
 #if NCNN_GNU_INLINE_ASM
             for (; kk + 3 < max_kk; kk += 4)
             {
+#ifdef __clang__
                 asm volatile(
                     "prfm   pldl1keep, [%0, #512]   \n"
                     "ld1    {v4.4s, v5.4s, v6.4s, v7.4s}, [%0], #64 \n"
@@ -1309,146 +1310,357 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                     "prfm   pldl1keep, [%1, #512]   \n"
                     "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%1], #64 \n"
 
-                    "fmla   %4.4s, v4.4s, v0.s[0]   \n"
-                    "fmla   %5.4s, v4.4s, v0.s[1]   \n"
-                    "fmla   %6.4s, v4.4s, v0.s[2]   \n"
-                    "fmla   %7.4s, v4.4s, v0.s[3]   \n"
-                    "fmla   %8.4s, v5.4s, v0.s[0]   \n"
-                    "fmla   %9.4s, v5.4s, v0.s[1]   \n"
-                    "fmla   %10.4s, v5.4s, v0.s[2]  \n"
-                    "fmla   %11.4s, v5.4s, v0.s[3]  \n"
-                    "fmla   %12.4s, v4.4s, v1.s[0]  \n"
-                    "fmla   %13.4s, v4.4s, v1.s[1]  \n"
-                    "fmla   %14.4s, v4.4s, v1.s[2]  \n"
-                    "fmla   %15.4s, v4.4s, v1.s[3]  \n"
-                    "fmla   %16.4s, v5.4s, v1.s[0]  \n"
-                    "fmla   %17.4s, v5.4s, v1.s[1]  \n"
-                    "fmla   %18.4s, v5.4s, v1.s[2]  \n"
-                    "fmla   %19.4s, v5.4s, v1.s[3]  \n"
-                    "fmla   %20.4s, v4.4s, v2.s[0]  \n"
-                    "fmla   %21.4s, v4.4s, v2.s[1]  \n"
-                    "fmla   %22.4s, v4.4s, v2.s[2]  \n"
-                    "fmla   %23.4s, v4.4s, v2.s[3]  \n"
-                    "fmla   %24.4s, v5.4s, v2.s[0]  \n"
-                    "fmla   %25.4s, v5.4s, v2.s[1]  \n"
-                    "fmla   %26.4s, v5.4s, v2.s[2]  \n"
-                    "fmla   %27.4s, v5.4s, v2.s[3]  \n"
+                    "fmla   %2.4s, v4.4s, v0.s[0]   \n"
+                    "fmla   %3.4s, v4.4s, v0.s[1]   \n"
+                    "fmla   %4.4s, v4.4s, v0.s[2]   \n"
+                    "fmla   %5.4s, v4.4s, v0.s[3]   \n"
+                    "fmla   %6.4s, v5.4s, v0.s[0]   \n"
+                    "fmla   %7.4s, v5.4s, v0.s[1]   \n"
+                    "fmla   %8.4s, v5.4s, v0.s[2]   \n"
+                    "fmla   %9.4s, v5.4s, v0.s[3]   \n"
+                    "fmla   %10.4s, v4.4s, v1.s[0]  \n"
+                    "fmla   %11.4s, v4.4s, v1.s[1]  \n"
+                    "fmla   %12.4s, v4.4s, v1.s[2]  \n"
+                    "fmla   %13.4s, v4.4s, v1.s[3]  \n"
+                    "fmla   %14.4s, v5.4s, v1.s[0]  \n"
+                    "fmla   %15.4s, v5.4s, v1.s[1]  \n"
+                    "fmla   %16.4s, v5.4s, v1.s[2]  \n"
+                    "fmla   %17.4s, v5.4s, v1.s[3]  \n"
+                    "fmla   %18.4s, v4.4s, v2.s[0]  \n"
+                    "fmla   %19.4s, v4.4s, v2.s[1]  \n"
+                    "fmla   %20.4s, v4.4s, v2.s[2]  \n"
+                    "fmla   %21.4s, v4.4s, v2.s[3]  \n"
+                    "fmla   %22.4s, v5.4s, v2.s[0]  \n"
+                    "fmla   %23.4s, v5.4s, v2.s[1]  \n"
+                    "fmla   %24.4s, v5.4s, v2.s[2]  \n"
+                    "fmla   %25.4s, v5.4s, v2.s[3]  \n"
 
-                    "fmla   %4.4s, v6.4s, v3.s[0]   \n"
-                    "fmla   %5.4s, v6.4s, v3.s[1]   \n"
-                    "fmla   %6.4s, v6.4s, v3.s[2]   \n"
-                    "fmla   %7.4s, v6.4s, v3.s[3]   \n"
-                    "fmla   %8.4s, v7.4s, v3.s[0]   \n"
-                    "fmla   %9.4s, v7.4s, v3.s[1]   \n"
-                    "fmla   %10.4s, v7.4s, v3.s[2]  \n"
-                    "fmla   %11.4s, v7.4s, v3.s[3]  \n"
+                    "fmla   %2.4s, v6.4s, v3.s[0]   \n"
+                    "fmla   %3.4s, v6.4s, v3.s[1]   \n"
+                    "fmla   %4.4s, v6.4s, v3.s[2]   \n"
+                    "fmla   %5.4s, v6.4s, v3.s[3]   \n"
+                    "fmla   %6.4s, v7.4s, v3.s[0]   \n"
+                    "fmla   %7.4s, v7.4s, v3.s[1]   \n"
+                    "fmla   %8.4s, v7.4s, v3.s[2]   \n"
+                    "fmla   %9.4s, v7.4s, v3.s[3]   \n"
 
                     "prfm   pldl1keep, [%1, #512]   \n"
                     "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%1], #64 \n"
 
-                    "fmla   %12.4s, v6.4s, v0.s[0]  \n"
-                    "fmla   %13.4s, v6.4s, v0.s[1]  \n"
-                    "fmla   %14.4s, v6.4s, v0.s[2]  \n"
-                    "fmla   %15.4s, v6.4s, v0.s[3]  \n"
-                    "fmla   %16.4s, v7.4s, v0.s[0]  \n"
-                    "fmla   %17.4s, v7.4s, v0.s[1]  \n"
-                    "fmla   %18.4s, v7.4s, v0.s[2]  \n"
-                    "fmla   %19.4s, v7.4s, v0.s[3]  \n"
-                    "fmla   %20.4s, v6.4s, v1.s[0]  \n"
-                    "fmla   %21.4s, v6.4s, v1.s[1]  \n"
-                    "fmla   %22.4s, v6.4s, v1.s[2]  \n"
-                    "fmla   %23.4s, v6.4s, v1.s[3]  \n"
-                    "fmla   %24.4s, v7.4s, v1.s[0]  \n"
-                    "fmla   %25.4s, v7.4s, v1.s[1]  \n"
-                    "fmla   %26.4s, v7.4s, v1.s[2]  \n"
-                    "fmla   %27.4s, v7.4s, v1.s[3]  \n"
+                    "fmla   %10.4s, v6.4s, v0.s[0]  \n"
+                    "fmla   %11.4s, v6.4s, v0.s[1]  \n"
+                    "fmla   %12.4s, v6.4s, v0.s[2]  \n"
+                    "fmla   %13.4s, v6.4s, v0.s[3]  \n"
+                    "fmla   %14.4s, v7.4s, v0.s[0]  \n"
+                    "fmla   %15.4s, v7.4s, v0.s[1]  \n"
+                    "fmla   %16.4s, v7.4s, v0.s[2]  \n"
+                    "fmla   %17.4s, v7.4s, v0.s[3]  \n"
+                    "fmla   %18.4s, v6.4s, v1.s[0]  \n"
+                    "fmla   %19.4s, v6.4s, v1.s[1]  \n"
+                    "fmla   %20.4s, v6.4s, v1.s[2]  \n"
+                    "fmla   %21.4s, v6.4s, v1.s[3]  \n"
+                    "fmla   %22.4s, v7.4s, v1.s[0]  \n"
+                    "fmla   %23.4s, v7.4s, v1.s[1]  \n"
+                    "fmla   %24.4s, v7.4s, v1.s[2]  \n"
+                    "fmla   %25.4s, v7.4s, v1.s[3]  \n"
 
                     "prfm   pldl1keep, [%0, #512]   \n"
                     "ld1    {v4.4s, v5.4s, v6.4s, v7.4s}, [%0], #64 \n"
 
-                    "fmla   %4.4s, v4.4s, v2.s[0]   \n"
-                    "fmla   %5.4s, v4.4s, v2.s[1]   \n"
-                    "fmla   %6.4s, v4.4s, v2.s[2]   \n"
-                    "fmla   %7.4s, v4.4s, v2.s[3]   \n"
-                    "fmla   %8.4s, v5.4s, v2.s[0]   \n"
-                    "fmla   %9.4s, v5.4s, v2.s[1]   \n"
-                    "fmla   %10.4s, v5.4s, v2.s[2]  \n"
-                    "fmla   %11.4s, v5.4s, v2.s[3]  \n"
-                    "fmla   %12.4s, v4.4s, v3.s[0]  \n"
-                    "fmla   %13.4s, v4.4s, v3.s[1]  \n"
-                    "fmla   %14.4s, v4.4s, v3.s[2]  \n"
-                    "fmla   %15.4s, v4.4s, v3.s[3]  \n"
-                    "fmla   %16.4s, v5.4s, v3.s[0]  \n"
-                    "fmla   %17.4s, v5.4s, v3.s[1]  \n"
-                    "fmla   %18.4s, v5.4s, v3.s[2]  \n"
-                    "fmla   %19.4s, v5.4s, v3.s[3]  \n"
+                    "fmla   %2.4s, v4.4s, v2.s[0]   \n"
+                    "fmla   %3.4s, v4.4s, v2.s[1]   \n"
+                    "fmla   %4.4s, v4.4s, v2.s[2]   \n"
+                    "fmla   %5.4s, v4.4s, v2.s[3]   \n"
+                    "fmla   %6.4s, v5.4s, v2.s[0]   \n"
+                    "fmla   %7.4s, v5.4s, v2.s[1]   \n"
+                    "fmla   %8.4s, v5.4s, v2.s[2]   \n"
+                    "fmla   %9.4s, v5.4s, v2.s[3]   \n"
+                    "fmla   %10.4s, v4.4s, v3.s[0]  \n"
+                    "fmla   %11.4s, v4.4s, v3.s[1]  \n"
+                    "fmla   %12.4s, v4.4s, v3.s[2]  \n"
+                    "fmla   %13.4s, v4.4s, v3.s[3]  \n"
+                    "fmla   %14.4s, v5.4s, v3.s[0]  \n"
+                    "fmla   %15.4s, v5.4s, v3.s[1]  \n"
+                    "fmla   %16.4s, v5.4s, v3.s[2]  \n"
+                    "fmla   %17.4s, v5.4s, v3.s[3]  \n"
 
                     "prfm   pldl1keep, [%1, #512]   \n"
                     "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%1], #64 \n"
 
-                    "fmla   %20.4s, v4.4s, v0.s[0]  \n"
-                    "fmla   %21.4s, v4.4s, v0.s[1]  \n"
-                    "fmla   %22.4s, v4.4s, v0.s[2]  \n"
-                    "fmla   %23.4s, v4.4s, v0.s[3]  \n"
-                    "fmla   %24.4s, v5.4s, v0.s[0]  \n"
-                    "fmla   %25.4s, v5.4s, v0.s[1]  \n"
-                    "fmla   %26.4s, v5.4s, v0.s[2]  \n"
-                    "fmla   %27.4s, v5.4s, v0.s[3]  \n"
+                    "fmla   %18.4s, v4.4s, v0.s[0]  \n"
+                    "fmla   %19.4s, v4.4s, v0.s[1]  \n"
+                    "fmla   %20.4s, v4.4s, v0.s[2]  \n"
+                    "fmla   %21.4s, v4.4s, v0.s[3]  \n"
+                    "fmla   %22.4s, v5.4s, v0.s[0]  \n"
+                    "fmla   %23.4s, v5.4s, v0.s[1]  \n"
+                    "fmla   %24.4s, v5.4s, v0.s[2]  \n"
+                    "fmla   %25.4s, v5.4s, v0.s[3]  \n"
 
-                    "fmla   %4.4s, v6.4s, v1.s[0]   \n"
-                    "fmla   %5.4s, v6.4s, v1.s[1]   \n"
-                    "fmla   %6.4s, v6.4s, v1.s[2]   \n"
-                    "fmla   %7.4s, v6.4s, v1.s[3]   \n"
-                    "fmla   %8.4s, v7.4s, v1.s[0]   \n"
-                    "fmla   %9.4s, v7.4s, v1.s[1]   \n"
-                    "fmla   %10.4s, v7.4s, v1.s[2]  \n"
-                    "fmla   %11.4s, v7.4s, v1.s[3]  \n"
-                    "fmla   %12.4s, v6.4s, v2.s[0]  \n"
-                    "fmla   %13.4s, v6.4s, v2.s[1]  \n"
-                    "fmla   %14.4s, v6.4s, v2.s[2]  \n"
-                    "fmla   %15.4s, v6.4s, v2.s[3]  \n"
-                    "fmla   %16.4s, v7.4s, v2.s[0]  \n"
-                    "fmla   %17.4s, v7.4s, v2.s[1]  \n"
-                    "fmla   %18.4s, v7.4s, v2.s[2]  \n"
-                    "fmla   %19.4s, v7.4s, v2.s[3]  \n"
-                    "fmla   %20.4s, v6.4s, v3.s[0]  \n"
-                    "fmla   %21.4s, v6.4s, v3.s[1]  \n"
-                    "fmla   %22.4s, v6.4s, v3.s[2]  \n"
-                    "fmla   %23.4s, v6.4s, v3.s[3]  \n"
-                    "fmla   %24.4s, v7.4s, v3.s[0]  \n"
-                    "fmla   %25.4s, v7.4s, v3.s[1]  \n"
-                    "fmla   %26.4s, v7.4s, v3.s[2]  \n"
-                    "fmla   %27.4s, v7.4s, v3.s[3]  \n"
+                    "fmla   %2.4s, v6.4s, v1.s[0]   \n"
+                    "fmla   %3.4s, v6.4s, v1.s[1]   \n"
+                    "fmla   %4.4s, v6.4s, v1.s[2]   \n"
+                    "fmla   %5.4s, v6.4s, v1.s[3]   \n"
+                    "fmla   %6.4s, v7.4s, v1.s[0]   \n"
+                    "fmla   %7.4s, v7.4s, v1.s[1]   \n"
+                    "fmla   %8.4s, v7.4s, v1.s[2]   \n"
+                    "fmla   %9.4s, v7.4s, v1.s[3]   \n"
+                    "fmla   %10.4s, v6.4s, v2.s[0]  \n"
+                    "fmla   %11.4s, v6.4s, v2.s[1]  \n"
+                    "fmla   %12.4s, v6.4s, v2.s[2]  \n"
+                    "fmla   %13.4s, v6.4s, v2.s[3]  \n"
+                    "fmla   %14.4s, v7.4s, v2.s[0]  \n"
+                    "fmla   %15.4s, v7.4s, v2.s[1]  \n"
+                    "fmla   %16.4s, v7.4s, v2.s[2]  \n"
+                    "fmla   %17.4s, v7.4s, v2.s[3]  \n"
+                    "fmla   %18.4s, v6.4s, v3.s[0]  \n"
+                    "fmla   %19.4s, v6.4s, v3.s[1]  \n"
+                    "fmla   %20.4s, v6.4s, v3.s[2]  \n"
+                    "fmla   %21.4s, v6.4s, v3.s[3]  \n"
+                    "fmla   %22.4s, v7.4s, v3.s[0]  \n"
+                    "fmla   %23.4s, v7.4s, v3.s[1]  \n"
+                    "fmla   %24.4s, v7.4s, v3.s[2]  \n"
+                    "fmla   %25.4s, v7.4s, v3.s[3]  \n"
 
                     : "=r"(pA),
-                    "=r"(pB)
+                    "=r"(pB),
+                    "=w"(_sum00),
+                    "=w"(_sum10),
+                    "=w"(_sum20),
+                    "=w"(_sum30),
+                    "=w"(_sum01),
+                    "=w"(_sum11),
+                    "=w"(_sum21),
+                    "=w"(_sum31),
+                    "=w"(_sum40),
+                    "=w"(_sum50),
+                    "=w"(_sum60),
+                    "=w"(_sum70),
+                    "=w"(_sum41),
+                    "=w"(_sum51),
+                    "=w"(_sum61),
+                    "=w"(_sum71),
+                    "=w"(_sum80),
+                    "=w"(_sum90),
+                    "=w"(_suma0),
+                    "=w"(_sumb0),
+                    "=w"(_sum81),
+                    "=w"(_sum91),
+                    "=w"(_suma1),
+                    "=w"(_sumb1)
                     : "0"(pA),
                     "1"(pB),
-                    "w"(_sum00),
-                    "w"(_sum10),
-                    "w"(_sum20),
-                    "w"(_sum30),
-                    "w"(_sum01),
-                    "w"(_sum11),
-                    "w"(_sum21),
-                    "w"(_sum31),
-                    "w"(_sum40),
-                    "w"(_sum50),
-                    "w"(_sum60),
-                    "w"(_sum70),
-                    "w"(_sum41),
-                    "w"(_sum51),
-                    "w"(_sum61),
-                    "w"(_sum71),
-                    "w"(_sum80),
-                    "w"(_sum90),
-                    "w"(_suma0),
-                    "w"(_sumb0),
-                    "w"(_sum81),
-                    "w"(_sum91),
-                    "w"(_suma1),
-                    "w"(_sumb1)
+                    "2"(_sum00),
+                    "3"(_sum10),
+                    "4"(_sum20),
+                    "5"(_sum30),
+                    "6"(_sum01),
+                    "7"(_sum11),
+                    "8"(_sum21),
+                    "9"(_sum31),
+                    "10"(_sum40),
+                    "11"(_sum50),
+                    "12"(_sum60),
+                    "13"(_sum70),
+                    "14"(_sum41),
+                    "15"(_sum51),
+                    "16"(_sum61),
+                    "17"(_sum71),
+                    "18"(_sum80),
+                    "19"(_sum90),
+                    "20"(_suma0),
+                    "21"(_sumb0),
+                    "22"(_sum81),
+                    "23"(_sum91),
+                    "24"(_suma1),
+                    "25"(_sumb1)
                     : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7");
+#else
+                // gcc rejects over 30 oprands
+                register float32x4_t _pA0 asm("v4");
+                register float32x4_t _pA1 asm("v5");
+                register float32x4_t _pA2 asm("v6");
+                register float32x4_t _pA3 asm("v7");
+                asm volatile(
+                    "prfm   pldl1keep, [%0, #512]   \n"
+                    "ld1    {%1.4s, %2.4s, %3.4s, %4.4s}, [%0], #64 \n"
+                    : "=r"(pA),
+                    "=w"(_pA0),
+                    "=w"(_pA1),
+                    "=w"(_pA2),
+                    "=w"(_pA3)
+                    : "0"(pA),
+                    "1"(_pA0),
+                    "2"(_pA1),
+                    "3"(_pA2),
+                    "4"(_pA3)
+                    : "memory");
+
+                register float32x4_t _pB0 asm("v0");
+                register float32x4_t _pB1 asm("v1");
+                register float32x4_t _pB2 asm("v2");
+                register float32x4_t _pB3 asm("v3");
+                asm volatile(
+                    "prfm   pldl1keep, [%0, #512]   \n"
+                    "ld1    {%1.4s, %2.4s, %3.4s, %4.4s}, [%0], #64 \n"
+                    : "=r"(pB),
+                    "=w"(_pB0),
+                    "=w"(_pB1),
+                    "=w"(_pB2),
+                    "=w"(_pB3)
+                    : "0"(pB),
+                    "1"(_pB0),
+                    "2"(_pB1),
+                    "3"(_pB2),
+                    "4"(_pB3)
+                    : "memory");
+
+                _sum00 = vfmaq_laneq_f32(_sum00, _pA0, _pB0, 0);
+                _sum10 = vfmaq_laneq_f32(_sum10, _pA0, _pB0, 1);
+                _sum20 = vfmaq_laneq_f32(_sum20, _pA0, _pB0, 2);
+                _sum30 = vfmaq_laneq_f32(_sum30, _pA0, _pB0, 3);
+                _sum01 = vfmaq_laneq_f32(_sum01, _pA1, _pB0, 0);
+                _sum11 = vfmaq_laneq_f32(_sum11, _pA1, _pB0, 1);
+                _sum21 = vfmaq_laneq_f32(_sum21, _pA1, _pB0, 2);
+                _sum31 = vfmaq_laneq_f32(_sum31, _pA1, _pB0, 3);
+                _sum40 = vfmaq_laneq_f32(_sum40, _pA0, _pB1, 0);
+                _sum50 = vfmaq_laneq_f32(_sum50, _pA0, _pB1, 1);
+                _sum60 = vfmaq_laneq_f32(_sum60, _pA0, _pB1, 2);
+                _sum70 = vfmaq_laneq_f32(_sum70, _pA0, _pB1, 3);
+                _sum41 = vfmaq_laneq_f32(_sum41, _pA1, _pB1, 0);
+                _sum51 = vfmaq_laneq_f32(_sum51, _pA1, _pB1, 1);
+                _sum61 = vfmaq_laneq_f32(_sum61, _pA1, _pB1, 2);
+                _sum71 = vfmaq_laneq_f32(_sum71, _pA1, _pB1, 3);
+                _sum80 = vfmaq_laneq_f32(_sum80, _pA0, _pB2, 0);
+                _sum90 = vfmaq_laneq_f32(_sum90, _pA0, _pB2, 1);
+                _suma0 = vfmaq_laneq_f32(_suma0, _pA0, _pB2, 2);
+                _sumb0 = vfmaq_laneq_f32(_sumb0, _pA0, _pB2, 3);
+                _sum81 = vfmaq_laneq_f32(_sum81, _pA1, _pB2, 0);
+                _sum91 = vfmaq_laneq_f32(_sum91, _pA1, _pB2, 1);
+                _suma1 = vfmaq_laneq_f32(_suma1, _pA1, _pB2, 2);
+                _sumb1 = vfmaq_laneq_f32(_sumb1, _pA1, _pB2, 3);
+
+                _sum00 = vfmaq_laneq_f32(_sum00, _pA2, _pB3, 0);
+                _sum10 = vfmaq_laneq_f32(_sum10, _pA2, _pB3, 1);
+                _sum20 = vfmaq_laneq_f32(_sum20, _pA2, _pB3, 2);
+                _sum30 = vfmaq_laneq_f32(_sum30, _pA2, _pB3, 3);
+                _sum01 = vfmaq_laneq_f32(_sum01, _pA3, _pB3, 0);
+                _sum11 = vfmaq_laneq_f32(_sum11, _pA3, _pB3, 1);
+                _sum21 = vfmaq_laneq_f32(_sum21, _pA3, _pB3, 2);
+                _sum31 = vfmaq_laneq_f32(_sum31, _pA3, _pB3, 3);
+
+                asm volatile(
+                    "prfm   pldl1keep, [%0, #512]   \n"
+                    "ld1    {%1.4s, %2.4s, %3.4s, %4.4s}, [%0], #64 \n"
+                    : "=r"(pB),
+                    "=w"(_pB0),
+                    "=w"(_pB1),
+                    "=w"(_pB2),
+                    "=w"(_pB3)
+                    : "0"(pB),
+                    "1"(_pB0),
+                    "2"(_pB1),
+                    "3"(_pB2),
+                    "4"(_pB3)
+                    : "memory");
+
+                _sum40 = vfmaq_laneq_f32(_sum40, _pA2, _pB0, 0);
+                _sum50 = vfmaq_laneq_f32(_sum50, _pA2, _pB0, 1);
+                _sum60 = vfmaq_laneq_f32(_sum60, _pA2, _pB0, 2);
+                _sum70 = vfmaq_laneq_f32(_sum70, _pA2, _pB0, 3);
+                _sum41 = vfmaq_laneq_f32(_sum41, _pA3, _pB0, 0);
+                _sum51 = vfmaq_laneq_f32(_sum51, _pA3, _pB0, 1);
+                _sum61 = vfmaq_laneq_f32(_sum61, _pA3, _pB0, 2);
+                _sum71 = vfmaq_laneq_f32(_sum71, _pA3, _pB0, 3);
+                _sum80 = vfmaq_laneq_f32(_sum80, _pA2, _pB1, 0);
+                _sum90 = vfmaq_laneq_f32(_sum90, _pA2, _pB1, 1);
+                _suma0 = vfmaq_laneq_f32(_suma0, _pA2, _pB1, 2);
+                _sumb0 = vfmaq_laneq_f32(_sumb0, _pA2, _pB1, 3);
+                _sum81 = vfmaq_laneq_f32(_sum81, _pA3, _pB1, 0);
+                _sum91 = vfmaq_laneq_f32(_sum91, _pA3, _pB1, 1);
+                _suma1 = vfmaq_laneq_f32(_suma1, _pA3, _pB1, 2);
+                _sumb1 = vfmaq_laneq_f32(_sumb1, _pA3, _pB1, 3);
+
+                asm volatile(
+                    "prfm   pldl1keep, [%0, #512]   \n"
+                    "ld1    {%1.4s, %2.4s, %3.4s, %4.4s}, [%0], #64 \n"
+                    : "=r"(pA),
+                    "=w"(_pA0),
+                    "=w"(_pA1),
+                    "=w"(_pA2),
+                    "=w"(_pA3)
+                    : "0"(pA),
+                    "1"(_pA0),
+                    "2"(_pA1),
+                    "3"(_pA2),
+                    "4"(_pA3)
+                    : "memory");
+
+                _sum00 = vfmaq_laneq_f32(_sum00, _pA0, _pB2, 0);
+                _sum10 = vfmaq_laneq_f32(_sum10, _pA0, _pB2, 1);
+                _sum20 = vfmaq_laneq_f32(_sum20, _pA0, _pB2, 2);
+                _sum30 = vfmaq_laneq_f32(_sum30, _pA0, _pB2, 3);
+                _sum01 = vfmaq_laneq_f32(_sum01, _pA1, _pB2, 0);
+                _sum11 = vfmaq_laneq_f32(_sum11, _pA1, _pB2, 1);
+                _sum21 = vfmaq_laneq_f32(_sum21, _pA1, _pB2, 2);
+                _sum31 = vfmaq_laneq_f32(_sum31, _pA1, _pB2, 3);
+                _sum40 = vfmaq_laneq_f32(_sum40, _pA0, _pB3, 0);
+                _sum50 = vfmaq_laneq_f32(_sum50, _pA0, _pB3, 1);
+                _sum60 = vfmaq_laneq_f32(_sum60, _pA0, _pB3, 2);
+                _sum70 = vfmaq_laneq_f32(_sum70, _pA0, _pB3, 3);
+                _sum41 = vfmaq_laneq_f32(_sum41, _pA1, _pB3, 0);
+                _sum51 = vfmaq_laneq_f32(_sum51, _pA1, _pB3, 1);
+                _sum61 = vfmaq_laneq_f32(_sum61, _pA1, _pB3, 2);
+                _sum71 = vfmaq_laneq_f32(_sum71, _pA1, _pB3, 3);
+
+                asm volatile(
+                    "prfm   pldl1keep, [%0, #512]   \n"
+                    "ld1    {%1.4s, %2.4s, %3.4s, %4.4s}, [%0], #64 \n"
+                    : "=r"(pB),
+                    "=w"(_pB0),
+                    "=w"(_pB1),
+                    "=w"(_pB2),
+                    "=w"(_pB3)
+                    : "0"(pB),
+                    "1"(_pB0),
+                    "2"(_pB1),
+                    "3"(_pB2),
+                    "4"(_pB3)
+                    : "memory");
+
+                _sum80 = vfmaq_laneq_f32(_sum80, _pA0, _pB0, 0);
+                _sum90 = vfmaq_laneq_f32(_sum90, _pA0, _pB0, 1);
+                _suma0 = vfmaq_laneq_f32(_suma0, _pA0, _pB0, 2);
+                _sumb0 = vfmaq_laneq_f32(_sumb0, _pA0, _pB0, 3);
+                _sum81 = vfmaq_laneq_f32(_sum81, _pA1, _pB0, 0);
+                _sum91 = vfmaq_laneq_f32(_sum91, _pA1, _pB0, 1);
+                _suma1 = vfmaq_laneq_f32(_suma1, _pA1, _pB0, 2);
+                _sumb1 = vfmaq_laneq_f32(_sumb1, _pA1, _pB0, 3);
+
+                _sum00 = vfmaq_laneq_f32(_sum00, _pA2, _pB1, 0);
+                _sum10 = vfmaq_laneq_f32(_sum10, _pA2, _pB1, 1);
+                _sum20 = vfmaq_laneq_f32(_sum20, _pA2, _pB1, 2);
+                _sum30 = vfmaq_laneq_f32(_sum30, _pA2, _pB1, 3);
+                _sum01 = vfmaq_laneq_f32(_sum01, _pA3, _pB1, 0);
+                _sum11 = vfmaq_laneq_f32(_sum11, _pA3, _pB1, 1);
+                _sum21 = vfmaq_laneq_f32(_sum21, _pA3, _pB1, 2);
+                _sum31 = vfmaq_laneq_f32(_sum31, _pA3, _pB1, 3);
+                _sum40 = vfmaq_laneq_f32(_sum40, _pA2, _pB2, 0);
+                _sum50 = vfmaq_laneq_f32(_sum50, _pA2, _pB2, 1);
+                _sum60 = vfmaq_laneq_f32(_sum60, _pA2, _pB2, 2);
+                _sum70 = vfmaq_laneq_f32(_sum70, _pA2, _pB2, 3);
+                _sum41 = vfmaq_laneq_f32(_sum41, _pA3, _pB2, 0);
+                _sum51 = vfmaq_laneq_f32(_sum51, _pA3, _pB2, 1);
+                _sum61 = vfmaq_laneq_f32(_sum61, _pA3, _pB2, 2);
+                _sum71 = vfmaq_laneq_f32(_sum71, _pA3, _pB2, 3);
+                _sum80 = vfmaq_laneq_f32(_sum80, _pA2, _pB3, 0);
+                _sum90 = vfmaq_laneq_f32(_sum90, _pA2, _pB3, 1);
+                _suma0 = vfmaq_laneq_f32(_suma0, _pA2, _pB3, 2);
+                _sumb0 = vfmaq_laneq_f32(_sumb0, _pA2, _pB3, 3);
+                _sum81 = vfmaq_laneq_f32(_sum81, _pA3, _pB3, 0);
+                _sum91 = vfmaq_laneq_f32(_sum91, _pA3, _pB3, 1);
+                _suma1 = vfmaq_laneq_f32(_suma1, _pA3, _pB3, 2);
+                _sumb1 = vfmaq_laneq_f32(_sumb1, _pA3, _pB3, 3);
+#endif
             }
 #endif
             for (; kk < max_kk; kk += 1)
@@ -1753,6 +1965,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
 #if NCNN_GNU_INLINE_ASM
             for (; kk + 3 < max_kk; kk += 4)
             {
+#ifdef __clang__
                 asm volatile(
                     "prfm   pldl1keep, [%0, #512]   \n"
                     "ld1    {v4.4s, v5.4s, v6.4s, v7.4s}, [%0], #64 \n"
@@ -1760,39 +1973,39 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                     "prfm   pldl1keep, [%1, #512]   \n"
                     "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%1], #64 \n"
 
-                    "fmla   %4.4s, v4.4s, v0.s[0]   \n"
-                    "fmla   %5.4s, v4.4s, v0.s[1]   \n"
-                    "fmla   %6.4s, v4.4s, v0.s[2]   \n"
-                    "fmla   %7.4s, v4.4s, v0.s[3]   \n"
-                    "fmla   %8.4s, v5.4s, v0.s[0]   \n"
-                    "fmla   %9.4s, v5.4s, v0.s[1]   \n"
-                    "fmla   %10.4s, v5.4s, v0.s[2]  \n"
-                    "fmla   %11.4s, v5.4s, v0.s[3]  \n"
-                    "fmla   %12.4s, v4.4s, v1.s[0]  \n"
-                    "fmla   %13.4s, v4.4s, v1.s[1]  \n"
-                    "fmla   %14.4s, v4.4s, v1.s[2]  \n"
-                    "fmla   %15.4s, v4.4s, v1.s[3]  \n"
-                    "fmla   %16.4s, v5.4s, v1.s[0]  \n"
-                    "fmla   %17.4s, v5.4s, v1.s[1]  \n"
-                    "fmla   %18.4s, v5.4s, v1.s[2]  \n"
-                    "fmla   %19.4s, v5.4s, v1.s[3]  \n"
+                    "fmla   %2.4s, v4.4s, v0.s[0]   \n"
+                    "fmla   %3.4s, v4.4s, v0.s[1]   \n"
+                    "fmla   %4.4s, v4.4s, v0.s[2]   \n"
+                    "fmla   %5.4s, v4.4s, v0.s[3]   \n"
+                    "fmla   %6.4s, v5.4s, v0.s[0]   \n"
+                    "fmla   %7.4s, v5.4s, v0.s[1]   \n"
+                    "fmla   %8.4s, v5.4s, v0.s[2]   \n"
+                    "fmla   %9.4s, v5.4s, v0.s[3]   \n"
+                    "fmla   %10.4s, v4.4s, v1.s[0]  \n"
+                    "fmla   %11.4s, v4.4s, v1.s[1]  \n"
+                    "fmla   %12.4s, v4.4s, v1.s[2]  \n"
+                    "fmla   %13.4s, v4.4s, v1.s[3]  \n"
+                    "fmla   %14.4s, v5.4s, v1.s[0]  \n"
+                    "fmla   %15.4s, v5.4s, v1.s[1]  \n"
+                    "fmla   %16.4s, v5.4s, v1.s[2]  \n"
+                    "fmla   %17.4s, v5.4s, v1.s[3]  \n"
 
-                    "fmla   %4.4s, v6.4s, v2.s[0]   \n"
-                    "fmla   %5.4s, v6.4s, v2.s[1]   \n"
-                    "fmla   %6.4s, v6.4s, v2.s[2]   \n"
-                    "fmla   %7.4s, v6.4s, v2.s[3]   \n"
-                    "fmla   %8.4s, v7.4s, v2.s[0]   \n"
-                    "fmla   %9.4s, v7.4s, v2.s[1]   \n"
-                    "fmla   %10.4s, v7.4s, v2.s[2]  \n"
-                    "fmla   %11.4s, v7.4s, v2.s[3]  \n"
-                    "fmla   %12.4s, v6.4s, v3.s[0]  \n"
-                    "fmla   %13.4s, v6.4s, v3.s[1]  \n"
-                    "fmla   %14.4s, v6.4s, v3.s[2]  \n"
-                    "fmla   %15.4s, v6.4s, v3.s[3]  \n"
-                    "fmla   %16.4s, v7.4s, v3.s[0]  \n"
-                    "fmla   %17.4s, v7.4s, v3.s[1]  \n"
-                    "fmla   %18.4s, v7.4s, v3.s[2]  \n"
-                    "fmla   %19.4s, v7.4s, v3.s[3]  \n"
+                    "fmla   %2.4s, v6.4s, v2.s[0]   \n"
+                    "fmla   %3.4s, v6.4s, v2.s[1]   \n"
+                    "fmla   %4.4s, v6.4s, v2.s[2]   \n"
+                    "fmla   %5.4s, v6.4s, v2.s[3]   \n"
+                    "fmla   %6.4s, v7.4s, v2.s[0]   \n"
+                    "fmla   %7.4s, v7.4s, v2.s[1]   \n"
+                    "fmla   %8.4s, v7.4s, v2.s[2]   \n"
+                    "fmla   %9.4s, v7.4s, v2.s[3]   \n"
+                    "fmla   %10.4s, v6.4s, v3.s[0]  \n"
+                    "fmla   %11.4s, v6.4s, v3.s[1]  \n"
+                    "fmla   %12.4s, v6.4s, v3.s[2]  \n"
+                    "fmla   %13.4s, v6.4s, v3.s[3]  \n"
+                    "fmla   %14.4s, v7.4s, v3.s[0]  \n"
+                    "fmla   %15.4s, v7.4s, v3.s[1]  \n"
+                    "fmla   %16.4s, v7.4s, v3.s[2]  \n"
+                    "fmla   %17.4s, v7.4s, v3.s[3]  \n"
 
                     "prfm   pldl1keep, [%0, #512]   \n"
                     "ld1    {v8.4s, v9.4s, v10.4s, v11.4s}, [%0], #64 \n"
@@ -1800,61 +2013,215 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                     "prfm   pldl1keep, [%1, #512]   \n"
                     "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%1], #64 \n"
 
-                    "fmla   %4.4s, v8.4s, v0.s[0]   \n"
-                    "fmla   %5.4s, v8.4s, v0.s[1]   \n"
-                    "fmla   %6.4s, v8.4s, v0.s[2]   \n"
-                    "fmla   %7.4s, v8.4s, v0.s[3]   \n"
-                    "fmla   %8.4s, v9.4s, v0.s[0]   \n"
-                    "fmla   %9.4s, v9.4s, v0.s[1]   \n"
-                    "fmla   %10.4s, v9.4s, v0.s[2]  \n"
-                    "fmla   %11.4s, v9.4s, v0.s[3]  \n"
-                    "fmla   %12.4s, v8.4s, v1.s[0]  \n"
-                    "fmla   %13.4s, v8.4s, v1.s[1]  \n"
-                    "fmla   %14.4s, v8.4s, v1.s[2]  \n"
-                    "fmla   %15.4s, v8.4s, v1.s[3]  \n"
-                    "fmla   %16.4s, v9.4s, v1.s[0]  \n"
-                    "fmla   %17.4s, v9.4s, v1.s[1]  \n"
-                    "fmla   %18.4s, v9.4s, v1.s[2]  \n"
-                    "fmla   %19.4s, v9.4s, v1.s[3]  \n"
+                    "fmla   %2.4s, v8.4s, v0.s[0]   \n"
+                    "fmla   %3.4s, v8.4s, v0.s[1]   \n"
+                    "fmla   %4.4s, v8.4s, v0.s[2]   \n"
+                    "fmla   %5.4s, v8.4s, v0.s[3]   \n"
+                    "fmla   %6.4s, v9.4s, v0.s[0]   \n"
+                    "fmla   %7.4s, v9.4s, v0.s[1]   \n"
+                    "fmla   %8.4s, v9.4s, v0.s[2]   \n"
+                    "fmla   %9.4s, v9.4s, v0.s[3]   \n"
+                    "fmla   %10.4s, v8.4s, v1.s[0]  \n"
+                    "fmla   %11.4s, v8.4s, v1.s[1]  \n"
+                    "fmla   %12.4s, v8.4s, v1.s[2]  \n"
+                    "fmla   %13.4s, v8.4s, v1.s[3]  \n"
+                    "fmla   %14.4s, v9.4s, v1.s[0]  \n"
+                    "fmla   %15.4s, v9.4s, v1.s[1]  \n"
+                    "fmla   %16.4s, v9.4s, v1.s[2]  \n"
+                    "fmla   %17.4s, v9.4s, v1.s[3]  \n"
 
-                    "fmla   %4.4s, v10.4s, v2.s[0]  \n"
-                    "fmla   %5.4s, v10.4s, v2.s[1]  \n"
-                    "fmla   %6.4s, v10.4s, v2.s[2]  \n"
-                    "fmla   %7.4s, v10.4s, v2.s[3]  \n"
-                    "fmla   %8.4s, v11.4s, v2.s[0]  \n"
-                    "fmla   %9.4s, v11.4s, v2.s[1]  \n"
-                    "fmla   %10.4s, v11.4s, v2.s[2] \n"
-                    "fmla   %11.4s, v11.4s, v2.s[3] \n"
-                    "fmla   %12.4s, v10.4s, v3.s[0] \n"
-                    "fmla   %13.4s, v10.4s, v3.s[1] \n"
-                    "fmla   %14.4s, v10.4s, v3.s[2] \n"
-                    "fmla   %15.4s, v10.4s, v3.s[3] \n"
-                    "fmla   %16.4s, v11.4s, v3.s[0] \n"
-                    "fmla   %17.4s, v11.4s, v3.s[1] \n"
-                    "fmla   %18.4s, v11.4s, v3.s[2] \n"
-                    "fmla   %19.4s, v11.4s, v3.s[3] \n"
+                    "fmla   %2.4s, v10.4s, v2.s[0]  \n"
+                    "fmla   %3.4s, v10.4s, v2.s[1]  \n"
+                    "fmla   %4.4s, v10.4s, v2.s[2]  \n"
+                    "fmla   %5.4s, v10.4s, v2.s[3]  \n"
+                    "fmla   %6.4s, v11.4s, v2.s[0]  \n"
+                    "fmla   %7.4s, v11.4s, v2.s[1]  \n"
+                    "fmla   %8.4s, v11.4s, v2.s[2]  \n"
+                    "fmla   %9.4s, v11.4s, v2.s[3]  \n"
+                    "fmla   %10.4s, v10.4s, v3.s[0] \n"
+                    "fmla   %11.4s, v10.4s, v3.s[1] \n"
+                    "fmla   %12.4s, v10.4s, v3.s[2] \n"
+                    "fmla   %13.4s, v10.4s, v3.s[3] \n"
+                    "fmla   %14.4s, v11.4s, v3.s[0] \n"
+                    "fmla   %15.4s, v11.4s, v3.s[1] \n"
+                    "fmla   %16.4s, v11.4s, v3.s[2] \n"
+                    "fmla   %17.4s, v11.4s, v3.s[3] \n"
 
                     : "=r"(pA),
-                    "=r"(pB)
+                    "=r"(pB),
+                    "=w"(_sum00),
+                    "=w"(_sum10),
+                    "=w"(_sum20),
+                    "=w"(_sum30),
+                    "=w"(_sum01),
+                    "=w"(_sum11),
+                    "=w"(_sum21),
+                    "=w"(_sum31),
+                    "=w"(_sum40),
+                    "=w"(_sum50),
+                    "=w"(_sum60),
+                    "=w"(_sum70),
+                    "=w"(_sum41),
+                    "=w"(_sum51),
+                    "=w"(_sum61),
+                    "=w"(_sum71)
                     : "0"(pA),
                     "1"(pB),
-                    "w"(_sum00),
-                    "w"(_sum10),
-                    "w"(_sum20),
-                    "w"(_sum30),
-                    "w"(_sum01),
-                    "w"(_sum11),
-                    "w"(_sum21),
-                    "w"(_sum31),
-                    "w"(_sum40),
-                    "w"(_sum50),
-                    "w"(_sum60),
-                    "w"(_sum70),
-                    "w"(_sum41),
-                    "w"(_sum51),
-                    "w"(_sum61),
-                    "w"(_sum71)
+                    "2"(_sum00),
+                    "3"(_sum10),
+                    "4"(_sum20),
+                    "5"(_sum30),
+                    "6"(_sum01),
+                    "7"(_sum11),
+                    "8"(_sum21),
+                    "9"(_sum31),
+                    "10"(_sum40),
+                    "11"(_sum50),
+                    "12"(_sum60),
+                    "13"(_sum70),
+                    "14"(_sum41),
+                    "15"(_sum51),
+                    "16"(_sum61),
+                    "17"(_sum71)
                     : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11");
+#else
+                // gcc rejects over 30 oprands
+                register float32x4_t _pA0 asm("v4");
+                register float32x4_t _pA1 asm("v5");
+                register float32x4_t _pA2 asm("v6");
+                register float32x4_t _pA3 asm("v7");
+                asm volatile(
+                    "prfm   pldl1keep, [%0, #512]   \n"
+                    "ld1    {%1.4s, %2.4s, %3.4s, %4.4s}, [%0], #64 \n"
+                    : "=r"(pA),
+                    "=w"(_pA0),
+                    "=w"(_pA1),
+                    "=w"(_pA2),
+                    "=w"(_pA3)
+                    : "0"(pA),
+                    "1"(_pA0),
+                    "2"(_pA1),
+                    "3"(_pA2),
+                    "4"(_pA3)
+                    : "memory");
+
+                register float32x4_t _pB0 asm("v0");
+                register float32x4_t _pB1 asm("v1");
+                register float32x4_t _pB2 asm("v2");
+                register float32x4_t _pB3 asm("v3");
+                asm volatile(
+                    "prfm   pldl1keep, [%0, #512]   \n"
+                    "ld1    {%1.4s, %2.4s, %3.4s, %4.4s}, [%0], #64 \n"
+                    : "=r"(pB),
+                    "=w"(_pB0),
+                    "=w"(_pB1),
+                    "=w"(_pB2),
+                    "=w"(_pB3)
+                    : "0"(pB),
+                    "1"(_pB0),
+                    "2"(_pB1),
+                    "3"(_pB2),
+                    "4"(_pB3)
+                    : "memory");
+
+                _sum00 = vfmaq_laneq_f32(_sum00, _pA0, _pB0, 0);
+                _sum10 = vfmaq_laneq_f32(_sum10, _pA0, _pB0, 1);
+                _sum20 = vfmaq_laneq_f32(_sum20, _pA0, _pB0, 2);
+                _sum30 = vfmaq_laneq_f32(_sum30, _pA0, _pB0, 3);
+                _sum01 = vfmaq_laneq_f32(_sum01, _pA1, _pB0, 0);
+                _sum11 = vfmaq_laneq_f32(_sum11, _pA1, _pB0, 1);
+                _sum21 = vfmaq_laneq_f32(_sum21, _pA1, _pB0, 2);
+                _sum31 = vfmaq_laneq_f32(_sum31, _pA1, _pB0, 3);
+                _sum40 = vfmaq_laneq_f32(_sum40, _pA0, _pB1, 0);
+                _sum50 = vfmaq_laneq_f32(_sum50, _pA0, _pB1, 1);
+                _sum60 = vfmaq_laneq_f32(_sum60, _pA0, _pB1, 2);
+                _sum70 = vfmaq_laneq_f32(_sum70, _pA0, _pB1, 3);
+                _sum41 = vfmaq_laneq_f32(_sum41, _pA1, _pB1, 0);
+                _sum51 = vfmaq_laneq_f32(_sum51, _pA1, _pB1, 1);
+                _sum61 = vfmaq_laneq_f32(_sum61, _pA1, _pB1, 2);
+                _sum71 = vfmaq_laneq_f32(_sum71, _pA1, _pB1, 3);
+
+                _sum00 = vfmaq_laneq_f32(_sum00, _pA2, _pB2, 0);
+                _sum10 = vfmaq_laneq_f32(_sum10, _pA2, _pB2, 1);
+                _sum20 = vfmaq_laneq_f32(_sum20, _pA2, _pB2, 2);
+                _sum30 = vfmaq_laneq_f32(_sum30, _pA2, _pB2, 3);
+                _sum01 = vfmaq_laneq_f32(_sum01, _pA3, _pB2, 0);
+                _sum11 = vfmaq_laneq_f32(_sum11, _pA3, _pB2, 1);
+                _sum21 = vfmaq_laneq_f32(_sum21, _pA3, _pB2, 2);
+                _sum31 = vfmaq_laneq_f32(_sum31, _pA3, _pB2, 3);
+                _sum40 = vfmaq_laneq_f32(_sum40, _pA2, _pB3, 0);
+                _sum50 = vfmaq_laneq_f32(_sum50, _pA2, _pB3, 1);
+                _sum60 = vfmaq_laneq_f32(_sum60, _pA2, _pB3, 2);
+                _sum70 = vfmaq_laneq_f32(_sum70, _pA2, _pB3, 3);
+                _sum41 = vfmaq_laneq_f32(_sum41, _pA3, _pB3, 0);
+                _sum51 = vfmaq_laneq_f32(_sum51, _pA3, _pB3, 1);
+                _sum61 = vfmaq_laneq_f32(_sum61, _pA3, _pB3, 2);
+                _sum71 = vfmaq_laneq_f32(_sum71, _pA3, _pB3, 3);
+
+                asm volatile(
+                    "prfm   pldl1keep, [%0, #512]   \n"
+                    "ld1    {%1.4s, %2.4s, %3.4s, %4.4s}, [%0], #64 \n"
+                    : "=r"(pA),
+                    "=w"(_pA0),
+                    "=w"(_pA1),
+                    "=w"(_pA2),
+                    "=w"(_pA3)
+                    : "0"(pA),
+                    "1"(_pA0),
+                    "2"(_pA1),
+                    "3"(_pA2),
+                    "4"(_pA3)
+                    : "memory");
+
+                asm volatile(
+                    "prfm   pldl1keep, [%0, #512]   \n"
+                    "ld1    {%1.4s, %2.4s, %3.4s, %4.4s}, [%0], #64 \n"
+                    : "=r"(pB),
+                    "=w"(_pB0),
+                    "=w"(_pB1),
+                    "=w"(_pB2),
+                    "=w"(_pB3)
+                    : "0"(pB),
+                    "1"(_pB0),
+                    "2"(_pB1),
+                    "3"(_pB2),
+                    "4"(_pB3)
+                    : "memory");
+
+                _sum00 = vfmaq_laneq_f32(_sum00, _pA0, _pB0, 0);
+                _sum10 = vfmaq_laneq_f32(_sum10, _pA0, _pB0, 1);
+                _sum20 = vfmaq_laneq_f32(_sum20, _pA0, _pB0, 2);
+                _sum30 = vfmaq_laneq_f32(_sum30, _pA0, _pB0, 3);
+                _sum01 = vfmaq_laneq_f32(_sum01, _pA1, _pB0, 0);
+                _sum11 = vfmaq_laneq_f32(_sum11, _pA1, _pB0, 1);
+                _sum21 = vfmaq_laneq_f32(_sum21, _pA1, _pB0, 2);
+                _sum31 = vfmaq_laneq_f32(_sum31, _pA1, _pB0, 3);
+                _sum40 = vfmaq_laneq_f32(_sum40, _pA0, _pB1, 0);
+                _sum50 = vfmaq_laneq_f32(_sum50, _pA0, _pB1, 1);
+                _sum60 = vfmaq_laneq_f32(_sum60, _pA0, _pB1, 2);
+                _sum70 = vfmaq_laneq_f32(_sum70, _pA0, _pB1, 3);
+                _sum41 = vfmaq_laneq_f32(_sum41, _pA1, _pB1, 0);
+                _sum51 = vfmaq_laneq_f32(_sum51, _pA1, _pB1, 1);
+                _sum61 = vfmaq_laneq_f32(_sum61, _pA1, _pB1, 2);
+                _sum71 = vfmaq_laneq_f32(_sum71, _pA1, _pB1, 3);
+
+                _sum00 = vfmaq_laneq_f32(_sum00, _pA2, _pB2, 0);
+                _sum10 = vfmaq_laneq_f32(_sum10, _pA2, _pB2, 1);
+                _sum20 = vfmaq_laneq_f32(_sum20, _pA2, _pB2, 2);
+                _sum30 = vfmaq_laneq_f32(_sum30, _pA2, _pB2, 3);
+                _sum01 = vfmaq_laneq_f32(_sum01, _pA3, _pB2, 0);
+                _sum11 = vfmaq_laneq_f32(_sum11, _pA3, _pB2, 1);
+                _sum21 = vfmaq_laneq_f32(_sum21, _pA3, _pB2, 2);
+                _sum31 = vfmaq_laneq_f32(_sum31, _pA3, _pB2, 3);
+                _sum40 = vfmaq_laneq_f32(_sum40, _pA2, _pB3, 0);
+                _sum50 = vfmaq_laneq_f32(_sum50, _pA2, _pB3, 1);
+                _sum60 = vfmaq_laneq_f32(_sum60, _pA2, _pB3, 2);
+                _sum70 = vfmaq_laneq_f32(_sum70, _pA2, _pB3, 3);
+                _sum41 = vfmaq_laneq_f32(_sum41, _pA3, _pB3, 0);
+                _sum51 = vfmaq_laneq_f32(_sum51, _pA3, _pB3, 1);
+                _sum61 = vfmaq_laneq_f32(_sum61, _pA3, _pB3, 2);
+                _sum71 = vfmaq_laneq_f32(_sum71, _pA3, _pB3, 3);
+#endif
             }
 #endif
             for (; kk < max_kk; kk += 1)
@@ -2069,57 +2436,65 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                     "prfm   pldl1keep, [%1, #512]   \n"
                     "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%1], #64 \n"
 
-                    "fmla   %4.4s, v4.4s, v0.s[0]   \n"
-                    "fmla   %5.4s, v4.4s, v0.s[1]   \n"
-                    "fmla   %6.4s, v4.4s, v0.s[2]   \n"
-                    "fmla   %7.4s, v4.4s, v0.s[3]   \n"
-                    "fmla   %8.4s, v5.4s, v0.s[0]   \n"
-                    "fmla   %9.4s, v5.4s, v0.s[1]   \n"
-                    "fmla   %10.4s, v5.4s, v0.s[2]   \n"
-                    "fmla   %11.4s, v5.4s, v0.s[3]   \n"
+                    "fmla   %2.4s, v4.4s, v0.s[0]   \n"
+                    "fmla   %3.4s, v4.4s, v0.s[1]   \n"
+                    "fmla   %4.4s, v4.4s, v0.s[2]   \n"
+                    "fmla   %5.4s, v4.4s, v0.s[3]   \n"
+                    "fmla   %6.4s, v5.4s, v0.s[0]   \n"
+                    "fmla   %7.4s, v5.4s, v0.s[1]   \n"
+                    "fmla   %8.4s, v5.4s, v0.s[2]   \n"
+                    "fmla   %9.4s, v5.4s, v0.s[3]   \n"
 
-                    "fmla   %4.4s, v6.4s, v1.s[0]   \n"
-                    "fmla   %5.4s, v6.4s, v1.s[1]   \n"
-                    "fmla   %6.4s, v6.4s, v1.s[2]   \n"
-                    "fmla   %7.4s, v6.4s, v1.s[3]   \n"
-                    "fmla   %8.4s, v7.4s, v1.s[0]   \n"
-                    "fmla   %9.4s, v7.4s, v1.s[1]   \n"
-                    "fmla   %10.4s, v7.4s, v1.s[2]   \n"
-                    "fmla   %11.4s, v7.4s, v1.s[3]   \n"
+                    "fmla   %2.4s, v6.4s, v1.s[0]   \n"
+                    "fmla   %3.4s, v6.4s, v1.s[1]   \n"
+                    "fmla   %4.4s, v6.4s, v1.s[2]   \n"
+                    "fmla   %5.4s, v6.4s, v1.s[3]   \n"
+                    "fmla   %6.4s, v7.4s, v1.s[0]   \n"
+                    "fmla   %7.4s, v7.4s, v1.s[1]   \n"
+                    "fmla   %8.4s, v7.4s, v1.s[2]   \n"
+                    "fmla   %9.4s, v7.4s, v1.s[3]   \n"
 
                     "prfm   pldl1keep, [%0, #512]   \n"
                     "ld1    {v8.4s, v9.4s, v10.4s, v11.4s}, [%0], #64 \n"
 
-                    "fmla   %4.4s, v8.4s, v2.s[0]   \n"
-                    "fmla   %5.4s, v8.4s, v2.s[1]   \n"
-                    "fmla   %6.4s, v8.4s, v2.s[2]   \n"
-                    "fmla   %7.4s, v8.4s, v2.s[3]   \n"
-                    "fmla   %8.4s, v9.4s, v2.s[0]   \n"
-                    "fmla   %9.4s, v9.4s, v2.s[1]   \n"
-                    "fmla   %10.4s, v9.4s, v2.s[2]   \n"
-                    "fmla   %11.4s, v9.4s, v2.s[3]   \n"
+                    "fmla   %2.4s, v8.4s, v2.s[0]   \n"
+                    "fmla   %3.4s, v8.4s, v2.s[1]   \n"
+                    "fmla   %4.4s, v8.4s, v2.s[2]   \n"
+                    "fmla   %5.4s, v8.4s, v2.s[3]   \n"
+                    "fmla   %6.4s, v9.4s, v2.s[0]   \n"
+                    "fmla   %7.4s, v9.4s, v2.s[1]   \n"
+                    "fmla   %8.4s, v9.4s, v2.s[2]   \n"
+                    "fmla   %9.4s, v9.4s, v2.s[3]   \n"
 
-                    "fmla   %4.4s, v10.4s, v3.s[0]   \n"
-                    "fmla   %5.4s, v10.4s, v3.s[1]   \n"
-                    "fmla   %6.4s, v10.4s, v3.s[2]   \n"
-                    "fmla   %7.4s, v10.4s, v3.s[3]   \n"
-                    "fmla   %8.4s, v11.4s, v3.s[0]   \n"
-                    "fmla   %9.4s, v11.4s, v3.s[1]   \n"
-                    "fmla   %10.4s, v11.4s, v3.s[2]   \n"
-                    "fmla   %11.4s, v11.4s, v3.s[3]   \n"
+                    "fmla   %2.4s, v10.4s, v3.s[0]  \n"
+                    "fmla   %3.4s, v10.4s, v3.s[1]  \n"
+                    "fmla   %4.4s, v10.4s, v3.s[2]  \n"
+                    "fmla   %5.4s, v10.4s, v3.s[3]  \n"
+                    "fmla   %6.4s, v11.4s, v3.s[0]  \n"
+                    "fmla   %7.4s, v11.4s, v3.s[1]  \n"
+                    "fmla   %8.4s, v11.4s, v3.s[2]  \n"
+                    "fmla   %9.4s, v11.4s, v3.s[3]  \n"
 
                     : "=r"(pA),
-                    "=r"(pB)
+                    "=r"(pB),
+                    "=w"(_sum00),
+                    "=w"(_sum10),
+                    "=w"(_sum20),
+                    "=w"(_sum30),
+                    "=w"(_sum01),
+                    "=w"(_sum11),
+                    "=w"(_sum21),
+                    "=w"(_sum31)
                     : "0"(pA),
                     "1"(pB),
-                    "w"(_sum00),
-                    "w"(_sum10),
-                    "w"(_sum20),
-                    "w"(_sum30),
-                    "w"(_sum01),
-                    "w"(_sum11),
-                    "w"(_sum21),
-                    "w"(_sum31)
+                    "2"(_sum00),
+                    "3"(_sum10),
+                    "4"(_sum20),
+                    "5"(_sum30),
+                    "6"(_sum01),
+                    "7"(_sum11),
+                    "8"(_sum21),
+                    "9"(_sum31)
                     : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11");
             }
 #endif
@@ -2287,37 +2662,41 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                     "prfm   pldl1keep, [%1, #256]   \n"
                     "ld1    {v0.4s, v1.4s}, [%1], #32 \n"
 
-                    "fmla   %4.4s, v4.4s, v0.s[0]   \n"
-                    "fmla   %5.4s, v4.4s, v0.s[1]   \n"
-                    "fmla   %6.4s, v5.4s, v0.s[0]   \n"
-                    "fmla   %7.4s, v5.4s, v0.s[1]   \n"
+                    "fmla   %2.4s, v4.4s, v0.s[0]   \n"
+                    "fmla   %3.4s, v4.4s, v0.s[1]   \n"
+                    "fmla   %4.4s, v5.4s, v0.s[0]   \n"
+                    "fmla   %5.4s, v5.4s, v0.s[1]   \n"
 
-                    "fmla   %4.4s, v6.4s, v0.s[2]   \n"
-                    "fmla   %5.4s, v6.4s, v0.s[3]   \n"
-                    "fmla   %6.4s, v7.4s, v0.s[2]   \n"
-                    "fmla   %7.4s, v7.4s, v0.s[3]   \n"
+                    "fmla   %2.4s, v6.4s, v0.s[2]   \n"
+                    "fmla   %3.4s, v6.4s, v0.s[3]   \n"
+                    "fmla   %4.4s, v7.4s, v0.s[2]   \n"
+                    "fmla   %5.4s, v7.4s, v0.s[3]   \n"
 
                     "prfm   pldl1keep, [%0, #512]   \n"
                     "ld1    {v8.4s, v9.4s, v10.4s, v11.4s}, [%0], #64 \n"
 
-                    "fmla   %4.4s, v8.4s, v1.s[0]   \n"
-                    "fmla   %5.4s, v8.4s, v1.s[1]   \n"
-                    "fmla   %6.4s, v9.4s, v1.s[0]   \n"
-                    "fmla   %7.4s, v9.4s, v1.s[1]   \n"
+                    "fmla   %2.4s, v8.4s, v1.s[0]   \n"
+                    "fmla   %3.4s, v8.4s, v1.s[1]   \n"
+                    "fmla   %4.4s, v9.4s, v1.s[0]   \n"
+                    "fmla   %5.4s, v9.4s, v1.s[1]   \n"
 
-                    "fmla   %4.4s, v10.4s, v1.s[2]  \n"
-                    "fmla   %5.4s, v10.4s, v1.s[3]  \n"
-                    "fmla   %6.4s, v11.4s, v1.s[2]  \n"
-                    "fmla   %7.4s, v11.4s, v1.s[3]  \n"
+                    "fmla   %2.4s, v10.4s, v1.s[2]  \n"
+                    "fmla   %3.4s, v10.4s, v1.s[3]  \n"
+                    "fmla   %4.4s, v11.4s, v1.s[2]  \n"
+                    "fmla   %5.4s, v11.4s, v1.s[3]  \n"
 
                     : "=r"(pA),
-                    "=r"(pB)
+                    "=r"(pB),
+                    "=w"(_sum00),
+                    "=w"(_sum10),
+                    "=w"(_sum01),
+                    "=w"(_sum11)
                     : "0"(pA),
                     "1"(pB),
-                    "w"(_sum00),
-                    "w"(_sum10),
-                    "w"(_sum01),
-                    "w"(_sum11)
+                    "2"(_sum00),
+                    "3"(_sum10),
+                    "4"(_sum01),
+                    "5"(_sum11)
                     : "memory", "v0", "v1", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11");
             }
 #endif
@@ -2460,25 +2839,27 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                     "prfm   pldl1keep, [%1, #128]   \n"
                     "ld1    {v8.4s}, [%1], #16      \n"
 
-                    "fmla   %4.4s, v0.4s, v8.s[0]   \n"
-                    "fmla   %5.4s, v1.4s, v8.s[0]   \n"
-                    "fmla   %4.4s, v2.4s, v8.s[1]   \n"
-                    "fmla   %5.4s, v3.4s, v8.s[1]   \n"
+                    "fmla   %2.4s, v0.4s, v8.s[0]   \n"
+                    "fmla   %3.4s, v1.4s, v8.s[0]   \n"
+                    "fmla   %2.4s, v2.4s, v8.s[1]   \n"
+                    "fmla   %3.4s, v3.4s, v8.s[1]   \n"
 
                     "prfm   pldl1keep, [%0, #512]   \n"
                     "ld1    {v4.4s, v5.4s, v6.4s, v7.4s}, [%0], #64 \n"
 
-                    "fmla   %4.4s, v4.4s, v8.s[2]   \n"
-                    "fmla   %5.4s, v5.4s, v8.s[2]   \n"
-                    "fmla   %4.4s, v6.4s, v8.s[3]   \n"
-                    "fmla   %5.4s, v7.4s, v8.s[3]   \n"
+                    "fmla   %2.4s, v4.4s, v8.s[2]   \n"
+                    "fmla   %3.4s, v5.4s, v8.s[2]   \n"
+                    "fmla   %2.4s, v6.4s, v8.s[3]   \n"
+                    "fmla   %3.4s, v7.4s, v8.s[3]   \n"
 
                     : "=r"(pA),
-                    "=r"(pB)
+                    "=r"(pB),
+                    "=w"(_sum00),
+                    "=w"(_sum01)
                     : "0"(pA),
                     "1"(pB),
-                    "w"(_sum00),
-                    "w"(_sum01)
+                    "2"(_sum00),
+                    "3"(_sum01)
                     : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8");
             }
 #endif
