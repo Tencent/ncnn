@@ -724,6 +724,34 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
+#if NCNN_GNU_INLINE_ASM && __aarch64__
+                asm volatile(
+                    "prfm   pldl1keep, [%0, #512]       \n"
+                    "ld4    {v0.4s, v1.4s, v2.4s, v3.4s}, [%0], #64 \n"
+                    "prfm   pldl1keep, [%0, #512]       \n"
+                    "ld4    {v4.4s, v5.4s, v6.4s, v7.4s}, [%0], #64 \n"
+                    "prfm   pldl1keep, [%0, #512]       \n"
+                    "ld4    {v8.4s, v9.4s, v10.4s, v11.4s}, [%0] \n"
+                    "st1    {v0.4s}, [%1], #16          \n"
+                    "st1    {v4.4s}, [%1], #16          \n"
+                    "st1    {v8.4s}, [%1], #16          \n"
+                    "sub    %0, %0, #128                \n"
+                    "st1    {v1.4s}, [%1], #16          \n"
+                    "st1    {v5.4s}, [%1], #16          \n"
+                    "st1    {v9.4s}, [%1], #16          \n"
+                    "st1    {v2.4s}, [%1], #16          \n"
+                    "st1    {v6.4s}, [%1], #16          \n"
+                    "st1    {v10.4s}, [%1], #16         \n"
+                    "st1    {v3.4s}, [%1], #16          \n"
+                    "st1    {v7.4s}, [%1], #16          \n"
+                    "st1    {v11.4s}, [%1], #16         \n"
+                    : "=r"(p0),  // %0
+                    "=r"(pp) // %1
+                    : "0"(p0),
+                    "1"(pp)
+                    : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11");
+                p0 += B_hstep * 4;
+#else
                 float32x4x4_t _r0123 = vld4q_f32(p0);
                 float32x4x4_t _r4567 = vld4q_f32(p0 + 16);
                 float32x4x4_t _r89ab = vld4q_f32(p0 + 32);
@@ -741,6 +769,7 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
                 vst1q_f32(pp + 4 * 11, _r89ab.val[3]);
                 pp += 48;
                 p0 += B_hstep * 4;
+#endif
             }
         }
         if (elempack == 1)
@@ -767,6 +796,58 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
+#if NCNN_GNU_INLINE_ASM
+#if __aarch64__
+                asm volatile(
+                    "prfm   pldl1keep, [%0, #512]       \n"
+                    "ld4    {v0.4s, v1.4s, v2.4s, v3.4s}, [%0], #64 \n"
+                    "prfm   pldl1keep, [%0, #512]       \n"
+                    "ld4    {v4.4s, v5.4s, v6.4s, v7.4s}, [%0] \n"
+                    "st1    {v0.4s}, [%1], #16          \n"
+                    "st1    {v4.4s}, [%1], #16          \n"
+                    "st1    {v1.4s}, [%1], #16          \n"
+                    "st1    {v5.4s}, [%1], #16          \n"
+                    "sub    %0, %0, #64                 \n"
+                    "st1    {v2.4s}, [%1], #16          \n"
+                    "st1    {v6.4s}, [%1], #16          \n"
+                    "st1    {v3.4s}, [%1], #16          \n"
+                    "st1    {v7.4s}, [%1], #16          \n"
+                    : "=r"(p0),  // %0
+                    "=r"(pp) // %1
+                    : "0"(p0),
+                    "1"(pp)
+                    : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7");
+#else
+                asm volatile(
+                    "pld        [%0, #512]          \n"
+                    "vldm       %0!, {d0-d7}        \n"
+                    "pld        [%0, #512]          \n"
+                    "vldm       %0, {d16-d23}       \n"
+
+                    "vtrn.32    q0, q1              \n"
+                    "vtrn.32    q2, q3              \n"
+                    "vtrn.32    q8, q9              \n"
+                    "vtrn.32    q10, q11            \n"
+                    "vswp       d1, d4              \n"
+                    "vswp       d3, d6              \n"
+                    "vswp       d17, d20            \n"
+                    "vswp       d19, d22            \n"
+                    "vswp       q1, q8              \n"
+                    "vswp       q3, q10             \n"
+
+                    "vst1.f32   {d0-d3}, [%1 :128]! \n"
+                    "vst1.f32   {d16-d19}, [%1 :128]! \n"
+                    "sub        %0, %0, #64         \n"
+                    "vst1.f32   {d4-d7}, [%1 :128]! \n"
+                    "vst1.f32   {d20-d23}, [%1 :128]! \n"
+                    : "=r"(p0),  // %0
+                    "=r"(pp) // %1
+                    : "0"(p0),
+                    "1"(pp)
+                    : "memory", "q0", "q1", "q2", "q3", "q8", "q9", "q10", "q11");
+#endif
+                p0 += B_hstep * 4;
+#else
                 float32x4x4_t _r0123 = vld4q_f32(p0);
                 float32x4x4_t _r4567 = vld4q_f32(p0 + 16);
                 vst1q_f32(pp, _r0123.val[0]);
@@ -779,6 +860,7 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
                 vst1q_f32(pp + 4 * 7, _r4567.val[3]);
                 pp += 32;
                 p0 += B_hstep * 4;
+#endif
             }
         }
         if (elempack == 1)
@@ -804,6 +886,34 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
+#if NCNN_GNU_INLINE_ASM
+#if __aarch64__
+                asm volatile(
+                    "prfm   pldl1keep, [%0, #512]       \n"
+                    "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%0] \n"
+                    "st4    {v0.4s, v1.4s, v2.4s, v3.4s}, [%1], #64 \n"
+                    : "=r"(p0),  // %0
+                    "=r"(pp) // %1
+                    : "0"(p0),
+                    "1"(pp)
+                    : "memory", "v0", "v1", "v2", "v3");
+#else
+                asm volatile(
+                    "pld        [%0, #512]          \n"
+                    "vldm       %0, {d0-d7}         \n"
+                    "vtrn.32    q0, q1              \n"
+                    "vtrn.32    q2, q3              \n"
+                    "vswp       d1, d4              \n"
+                    "vswp       d3, d6              \n"
+                    "vstm       %1!, {d0-d7}        \n"
+                    : "=r"(p0),  // %0
+                    "=r"(pp) // %1
+                    : "0"(p0),
+                    "1"(pp)
+                    : "memory", "q0", "q1", "q2", "q3");
+#endif
+                p0 += B_hstep * 4;
+#else
                 float32x4x4_t _r0123 = vld4q_f32(p0);
                 vst1q_f32(pp, _r0123.val[0]);
                 vst1q_f32(pp + 4, _r0123.val[1]);
@@ -811,6 +921,7 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
                 vst1q_f32(pp + 4 * 3, _r0123.val[3]);
                 pp += 16;
                 p0 += B_hstep * 4;
+#endif
             }
         }
         if (elempack == 1)
@@ -837,12 +948,37 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
+#if NCNN_GNU_INLINE_ASM
+#if __aarch64__
+                asm volatile(
+                    "prfm   pldl1keep, [%0, #256]       \n"
+                    "ld1    {v0.4s, v1.4s}, [%0]        \n"
+                    "st2    {v0.4s, v1.4s}, [%1], #32   \n"
+                    : "=r"(p0),  // %0
+                    "=r"(pp) // %1
+                    : "0"(p0),
+                    "1"(pp)
+                    : "memory", "v0", "v1", "v2", "v3");
+#else
+                asm volatile(
+                    "pld        [%0, #256]          \n"
+                    "vld1.f32   {d0-d3}, [%0 :128]  \n"
+                    "vst2.f32   {d0-d3}, [%1 :128]! \n"
+                    : "=r"(p0),  // %0
+                    "=r"(pp) // %1
+                    : "0"(p0),
+                    "1"(pp)
+                    : "memory", "q0", "q1");
+#endif
+                p0 += B_hstep * 4;
+#else
                 float32x4x2_t _r01;
                 _r01.val[0] = vld1q_f32(p0);
                 _r01.val[1] = vld1q_f32(p0 + 4);
                 vst2q_f32(pp, _r01);
                 pp += 8;
                 p0 += B_hstep * 4;
+#endif
             }
         }
 #endif // __ARM_NEON
@@ -896,6 +1032,8 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
     const int out_elempack = top_blob.elempack;
     const int N = top_blob.w;
     const int out_hstep = top_blob.dims == 3 ? (int)top_blob.cstep : N;
+
+    // NCNN_LOGE("%d %d %d", max_ii, max_jj, max_kk);
 
     const float* pAT = AT_tile;
     const float* pBT = BT_tile;
@@ -1161,6 +1299,159 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
 
             const float* pA = pAT;
             int kk = 0;
+#if NCNN_GNU_INLINE_ASM
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                asm volatile(
+                    "prfm   pldl1keep, [%0, #512]   \n"
+                    "ld1    {v4.4s, v5.4s, v6.4s, v7.4s}, [%0], #64 \n"
+
+                    "prfm   pldl1keep, [%1, #512]   \n"
+                    "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%1], #64 \n"
+
+                    "fmla   %4.4s, v4.4s, v0.s[0]   \n"
+                    "fmla   %5.4s, v4.4s, v0.s[1]   \n"
+                    "fmla   %6.4s, v4.4s, v0.s[2]   \n"
+                    "fmla   %7.4s, v4.4s, v0.s[3]   \n"
+                    "fmla   %8.4s, v5.4s, v0.s[0]   \n"
+                    "fmla   %9.4s, v5.4s, v0.s[1]   \n"
+                    "fmla   %10.4s, v5.4s, v0.s[2]  \n"
+                    "fmla   %11.4s, v5.4s, v0.s[3]  \n"
+                    "fmla   %12.4s, v4.4s, v1.s[0]  \n"
+                    "fmla   %13.4s, v4.4s, v1.s[1]  \n"
+                    "fmla   %14.4s, v4.4s, v1.s[2]  \n"
+                    "fmla   %15.4s, v4.4s, v1.s[3]  \n"
+                    "fmla   %16.4s, v5.4s, v1.s[0]  \n"
+                    "fmla   %17.4s, v5.4s, v1.s[1]  \n"
+                    "fmla   %18.4s, v5.4s, v1.s[2]  \n"
+                    "fmla   %19.4s, v5.4s, v1.s[3]  \n"
+                    "fmla   %20.4s, v4.4s, v2.s[0]  \n"
+                    "fmla   %21.4s, v4.4s, v2.s[1]  \n"
+                    "fmla   %22.4s, v4.4s, v2.s[2]  \n"
+                    "fmla   %23.4s, v4.4s, v2.s[3]  \n"
+                    "fmla   %24.4s, v5.4s, v2.s[0]  \n"
+                    "fmla   %25.4s, v5.4s, v2.s[1]  \n"
+                    "fmla   %26.4s, v5.4s, v2.s[2]  \n"
+                    "fmla   %27.4s, v5.4s, v2.s[3]  \n"
+
+                    "fmla   %4.4s, v6.4s, v3.s[0]   \n"
+                    "fmla   %5.4s, v6.4s, v3.s[1]   \n"
+                    "fmla   %6.4s, v6.4s, v3.s[2]   \n"
+                    "fmla   %7.4s, v6.4s, v3.s[3]   \n"
+                    "fmla   %8.4s, v7.4s, v3.s[0]   \n"
+                    "fmla   %9.4s, v7.4s, v3.s[1]   \n"
+                    "fmla   %10.4s, v7.4s, v3.s[2]  \n"
+                    "fmla   %11.4s, v7.4s, v3.s[3]  \n"
+
+                    "prfm   pldl1keep, [%1, #512]   \n"
+                    "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%1], #64 \n"
+
+                    "fmla   %12.4s, v6.4s, v0.s[0]  \n"
+                    "fmla   %13.4s, v6.4s, v0.s[1]  \n"
+                    "fmla   %14.4s, v6.4s, v0.s[2]  \n"
+                    "fmla   %15.4s, v6.4s, v0.s[3]  \n"
+                    "fmla   %16.4s, v7.4s, v0.s[0]  \n"
+                    "fmla   %17.4s, v7.4s, v0.s[1]  \n"
+                    "fmla   %18.4s, v7.4s, v0.s[2]  \n"
+                    "fmla   %19.4s, v7.4s, v0.s[3]  \n"
+                    "fmla   %20.4s, v6.4s, v1.s[0]  \n"
+                    "fmla   %21.4s, v6.4s, v1.s[1]  \n"
+                    "fmla   %22.4s, v6.4s, v1.s[2]  \n"
+                    "fmla   %23.4s, v6.4s, v1.s[3]  \n"
+                    "fmla   %24.4s, v7.4s, v1.s[0]  \n"
+                    "fmla   %25.4s, v7.4s, v1.s[1]  \n"
+                    "fmla   %26.4s, v7.4s, v1.s[2]  \n"
+                    "fmla   %27.4s, v7.4s, v1.s[3]  \n"
+
+                    "prfm   pldl1keep, [%0, #512]   \n"
+                    "ld1    {v4.4s, v5.4s, v6.4s, v7.4s}, [%0], #64 \n"
+
+                    "fmla   %4.4s, v4.4s, v2.s[0]   \n"
+                    "fmla   %5.4s, v4.4s, v2.s[1]   \n"
+                    "fmla   %6.4s, v4.4s, v2.s[2]   \n"
+                    "fmla   %7.4s, v4.4s, v2.s[3]   \n"
+                    "fmla   %8.4s, v5.4s, v2.s[0]   \n"
+                    "fmla   %9.4s, v5.4s, v2.s[1]   \n"
+                    "fmla   %10.4s, v5.4s, v2.s[2]  \n"
+                    "fmla   %11.4s, v5.4s, v2.s[3]  \n"
+                    "fmla   %12.4s, v4.4s, v3.s[0]  \n"
+                    "fmla   %13.4s, v4.4s, v3.s[1]  \n"
+                    "fmla   %14.4s, v4.4s, v3.s[2]  \n"
+                    "fmla   %15.4s, v4.4s, v3.s[3]  \n"
+                    "fmla   %16.4s, v5.4s, v3.s[0]  \n"
+                    "fmla   %17.4s, v5.4s, v3.s[1]  \n"
+                    "fmla   %18.4s, v5.4s, v3.s[2]  \n"
+                    "fmla   %19.4s, v5.4s, v3.s[3]  \n"
+
+                    "prfm   pldl1keep, [%1, #512]   \n"
+                    "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%1], #64 \n"
+
+                    "fmla   %20.4s, v4.4s, v0.s[0]  \n"
+                    "fmla   %21.4s, v4.4s, v0.s[1]  \n"
+                    "fmla   %22.4s, v4.4s, v0.s[2]  \n"
+                    "fmla   %23.4s, v4.4s, v0.s[3]  \n"
+                    "fmla   %24.4s, v5.4s, v0.s[0]  \n"
+                    "fmla   %25.4s, v5.4s, v0.s[1]  \n"
+                    "fmla   %26.4s, v5.4s, v0.s[2]  \n"
+                    "fmla   %27.4s, v5.4s, v0.s[3]  \n"
+
+                    "fmla   %4.4s, v6.4s, v1.s[0]   \n"
+                    "fmla   %5.4s, v6.4s, v1.s[1]   \n"
+                    "fmla   %6.4s, v6.4s, v1.s[2]   \n"
+                    "fmla   %7.4s, v6.4s, v1.s[3]   \n"
+                    "fmla   %8.4s, v7.4s, v1.s[0]   \n"
+                    "fmla   %9.4s, v7.4s, v1.s[1]   \n"
+                    "fmla   %10.4s, v7.4s, v1.s[2]  \n"
+                    "fmla   %11.4s, v7.4s, v1.s[3]  \n"
+                    "fmla   %12.4s, v6.4s, v2.s[0]  \n"
+                    "fmla   %13.4s, v6.4s, v2.s[1]  \n"
+                    "fmla   %14.4s, v6.4s, v2.s[2]  \n"
+                    "fmla   %15.4s, v6.4s, v2.s[3]  \n"
+                    "fmla   %16.4s, v7.4s, v2.s[0]  \n"
+                    "fmla   %17.4s, v7.4s, v2.s[1]  \n"
+                    "fmla   %18.4s, v7.4s, v2.s[2]  \n"
+                    "fmla   %19.4s, v7.4s, v2.s[3]  \n"
+                    "fmla   %20.4s, v6.4s, v3.s[0]  \n"
+                    "fmla   %21.4s, v6.4s, v3.s[1]  \n"
+                    "fmla   %22.4s, v6.4s, v3.s[2]  \n"
+                    "fmla   %23.4s, v6.4s, v3.s[3]  \n"
+                    "fmla   %24.4s, v7.4s, v3.s[0]  \n"
+                    "fmla   %25.4s, v7.4s, v3.s[1]  \n"
+                    "fmla   %26.4s, v7.4s, v3.s[2]  \n"
+                    "fmla   %27.4s, v7.4s, v3.s[3]  \n"
+
+                    :"=r"(pA),
+                    "=r"(pB)
+                    :"0"(pA),
+                    "1"(pB),
+                    "w"(_sum00),
+                    "w"(_sum10),
+                    "w"(_sum20),
+                    "w"(_sum30),
+                    "w"(_sum01),
+                    "w"(_sum11),
+                    "w"(_sum21),
+                    "w"(_sum31),
+                    "w"(_sum40),
+                    "w"(_sum50),
+                    "w"(_sum60),
+                    "w"(_sum70),
+                    "w"(_sum41),
+                    "w"(_sum51),
+                    "w"(_sum61),
+                    "w"(_sum71),
+                    "w"(_sum80),
+                    "w"(_sum90),
+                    "w"(_suma0),
+                    "w"(_sumb0),
+                    "w"(_sum81),
+                    "w"(_sum91),
+                    "w"(_suma1),
+                    "w"(_sumb1)
+                    : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7"
+                );
+            }
+#endif
             for (; kk < max_kk; kk += 1)
             {
                 float32x4_t _pA0 = vld1q_f32(pA);
@@ -1171,28 +1462,28 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 float32x4_t _pB2 = vld1q_f32(pB + 8);
 
                 _sum00 = vfmaq_laneq_f32(_sum00, _pA0, _pB0, 0);
-                _sum01 = vfmaq_laneq_f32(_sum01, _pA1, _pB0, 0);
                 _sum10 = vfmaq_laneq_f32(_sum10, _pA0, _pB0, 1);
-                _sum11 = vfmaq_laneq_f32(_sum11, _pA1, _pB0, 1);
                 _sum20 = vfmaq_laneq_f32(_sum20, _pA0, _pB0, 2);
-                _sum21 = vfmaq_laneq_f32(_sum21, _pA1, _pB0, 2);
                 _sum30 = vfmaq_laneq_f32(_sum30, _pA0, _pB0, 3);
+                _sum01 = vfmaq_laneq_f32(_sum01, _pA1, _pB0, 0);
+                _sum11 = vfmaq_laneq_f32(_sum11, _pA1, _pB0, 1);
+                _sum21 = vfmaq_laneq_f32(_sum21, _pA1, _pB0, 2);
                 _sum31 = vfmaq_laneq_f32(_sum31, _pA1, _pB0, 3);
                 _sum40 = vfmaq_laneq_f32(_sum40, _pA0, _pB1, 0);
-                _sum41 = vfmaq_laneq_f32(_sum41, _pA1, _pB1, 0);
                 _sum50 = vfmaq_laneq_f32(_sum50, _pA0, _pB1, 1);
-                _sum51 = vfmaq_laneq_f32(_sum51, _pA1, _pB1, 1);
                 _sum60 = vfmaq_laneq_f32(_sum60, _pA0, _pB1, 2);
-                _sum61 = vfmaq_laneq_f32(_sum61, _pA1, _pB1, 2);
                 _sum70 = vfmaq_laneq_f32(_sum70, _pA0, _pB1, 3);
+                _sum41 = vfmaq_laneq_f32(_sum41, _pA1, _pB1, 0);
+                _sum51 = vfmaq_laneq_f32(_sum51, _pA1, _pB1, 1);
+                _sum61 = vfmaq_laneq_f32(_sum61, _pA1, _pB1, 2);
                 _sum71 = vfmaq_laneq_f32(_sum71, _pA1, _pB1, 3);
                 _sum80 = vfmaq_laneq_f32(_sum80, _pA0, _pB2, 0);
-                _sum81 = vfmaq_laneq_f32(_sum81, _pA1, _pB2, 0);
                 _sum90 = vfmaq_laneq_f32(_sum90, _pA0, _pB2, 1);
-                _sum91 = vfmaq_laneq_f32(_sum91, _pA1, _pB2, 1);
                 _suma0 = vfmaq_laneq_f32(_suma0, _pA0, _pB2, 2);
-                _suma1 = vfmaq_laneq_f32(_suma1, _pA1, _pB2, 2);
                 _sumb0 = vfmaq_laneq_f32(_sumb0, _pA0, _pB2, 3);
+                _sum81 = vfmaq_laneq_f32(_sum81, _pA1, _pB2, 0);
+                _sum91 = vfmaq_laneq_f32(_sum91, _pA1, _pB2, 1);
+                _suma1 = vfmaq_laneq_f32(_suma1, _pA1, _pB2, 2);
                 _sumb1 = vfmaq_laneq_f32(_sumb1, _pA1, _pB2, 3);
 
                 pA += 8;
@@ -1460,6 +1751,114 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
 
             const float* pA = pAT;
             int kk = 0;
+#if NCNN_GNU_INLINE_ASM
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                asm volatile(
+                    "prfm   pldl1keep, [%0, #512]   \n"
+                    "ld1    {v4.4s, v5.4s, v6.4s, v7.4s}, [%0], #64 \n"
+
+                    "prfm   pldl1keep, [%1, #512]   \n"
+                    "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%1], #64 \n"
+
+                    "fmla   %4.4s, v4.4s, v0.s[0]   \n"
+                    "fmla   %5.4s, v4.4s, v0.s[1]   \n"
+                    "fmla   %6.4s, v4.4s, v0.s[2]   \n"
+                    "fmla   %7.4s, v4.4s, v0.s[3]   \n"
+                    "fmla   %8.4s, v5.4s, v0.s[0]   \n"
+                    "fmla   %9.4s, v5.4s, v0.s[1]   \n"
+                    "fmla   %10.4s, v5.4s, v0.s[2]  \n"
+                    "fmla   %11.4s, v5.4s, v0.s[3]  \n"
+                    "fmla   %12.4s, v4.4s, v1.s[0]  \n"
+                    "fmla   %13.4s, v4.4s, v1.s[1]  \n"
+                    "fmla   %14.4s, v4.4s, v1.s[2]  \n"
+                    "fmla   %15.4s, v4.4s, v1.s[3]  \n"
+                    "fmla   %16.4s, v5.4s, v1.s[0]  \n"
+                    "fmla   %17.4s, v5.4s, v1.s[1]  \n"
+                    "fmla   %18.4s, v5.4s, v1.s[2]  \n"
+                    "fmla   %19.4s, v5.4s, v1.s[3]  \n"
+
+                    "fmla   %4.4s, v6.4s, v2.s[0]   \n"
+                    "fmla   %5.4s, v6.4s, v2.s[1]   \n"
+                    "fmla   %6.4s, v6.4s, v2.s[2]   \n"
+                    "fmla   %7.4s, v6.4s, v2.s[3]   \n"
+                    "fmla   %8.4s, v7.4s, v2.s[0]   \n"
+                    "fmla   %9.4s, v7.4s, v2.s[1]   \n"
+                    "fmla   %10.4s, v7.4s, v2.s[2]  \n"
+                    "fmla   %11.4s, v7.4s, v2.s[3]  \n"
+                    "fmla   %12.4s, v6.4s, v3.s[0]  \n"
+                    "fmla   %13.4s, v6.4s, v3.s[1]  \n"
+                    "fmla   %14.4s, v6.4s, v3.s[2]  \n"
+                    "fmla   %15.4s, v6.4s, v3.s[3]  \n"
+                    "fmla   %16.4s, v7.4s, v3.s[0]  \n"
+                    "fmla   %17.4s, v7.4s, v3.s[1]  \n"
+                    "fmla   %18.4s, v7.4s, v3.s[2]  \n"
+                    "fmla   %19.4s, v7.4s, v3.s[3]  \n"
+
+                    "prfm   pldl1keep, [%0, #512]   \n"
+                    "ld1    {v8.4s, v9.4s, v10.4s, v11.4s}, [%0], #64 \n"
+
+                    "prfm   pldl1keep, [%1, #512]   \n"
+                    "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%1], #64 \n"
+
+                    "fmla   %4.4s, v8.4s, v0.s[0]   \n"
+                    "fmla   %5.4s, v8.4s, v0.s[1]   \n"
+                    "fmla   %6.4s, v8.4s, v0.s[2]   \n"
+                    "fmla   %7.4s, v8.4s, v0.s[3]   \n"
+                    "fmla   %8.4s, v9.4s, v0.s[0]   \n"
+                    "fmla   %9.4s, v9.4s, v0.s[1]   \n"
+                    "fmla   %10.4s, v9.4s, v0.s[2]  \n"
+                    "fmla   %11.4s, v9.4s, v0.s[3]  \n"
+                    "fmla   %12.4s, v8.4s, v1.s[0]  \n"
+                    "fmla   %13.4s, v8.4s, v1.s[1]  \n"
+                    "fmla   %14.4s, v8.4s, v1.s[2]  \n"
+                    "fmla   %15.4s, v8.4s, v1.s[3]  \n"
+                    "fmla   %16.4s, v9.4s, v1.s[0]  \n"
+                    "fmla   %17.4s, v9.4s, v1.s[1]  \n"
+                    "fmla   %18.4s, v9.4s, v1.s[2]  \n"
+                    "fmla   %19.4s, v9.4s, v1.s[3]  \n"
+
+                    "fmla   %4.4s, v10.4s, v2.s[0]  \n"
+                    "fmla   %5.4s, v10.4s, v2.s[1]  \n"
+                    "fmla   %6.4s, v10.4s, v2.s[2]  \n"
+                    "fmla   %7.4s, v10.4s, v2.s[3]  \n"
+                    "fmla   %8.4s, v11.4s, v2.s[0]  \n"
+                    "fmla   %9.4s, v11.4s, v2.s[1]  \n"
+                    "fmla   %10.4s, v11.4s, v2.s[2] \n"
+                    "fmla   %11.4s, v11.4s, v2.s[3] \n"
+                    "fmla   %12.4s, v10.4s, v3.s[0] \n"
+                    "fmla   %13.4s, v10.4s, v3.s[1] \n"
+                    "fmla   %14.4s, v10.4s, v3.s[2] \n"
+                    "fmla   %15.4s, v10.4s, v3.s[3] \n"
+                    "fmla   %16.4s, v11.4s, v3.s[0] \n"
+                    "fmla   %17.4s, v11.4s, v3.s[1] \n"
+                    "fmla   %18.4s, v11.4s, v3.s[2] \n"
+                    "fmla   %19.4s, v11.4s, v3.s[3] \n"
+
+                    :"=r"(pA),
+                    "=r"(pB)
+                    :"0"(pA),
+                    "1"(pB),
+                    "w"(_sum00),
+                    "w"(_sum10),
+                    "w"(_sum20),
+                    "w"(_sum30),
+                    "w"(_sum01),
+                    "w"(_sum11),
+                    "w"(_sum21),
+                    "w"(_sum31),
+                    "w"(_sum40),
+                    "w"(_sum50),
+                    "w"(_sum60),
+                    "w"(_sum70),
+                    "w"(_sum41),
+                    "w"(_sum51),
+                    "w"(_sum61),
+                    "w"(_sum71)
+                    : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11"
+                );
+            }
+#endif
             for (; kk < max_kk; kk += 1)
             {
                 float32x4_t _pA0 = vld1q_f32(pA);
@@ -1662,6 +2061,71 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
 
             const float* pA = pAT;
             int kk = 0;
+#if NCNN_GNU_INLINE_ASM
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                asm volatile(
+                    "prfm   pldl1keep, [%0, #512]   \n"
+                    "ld1    {v4.4s, v5.4s, v6.4s, v7.4s}, [%0], #64 \n"
+
+                    "prfm   pldl1keep, [%1, #512]   \n"
+                    "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%1], #64 \n"
+
+                    "fmla   %4.4s, v4.4s, v0.s[0]   \n"
+                    "fmla   %5.4s, v4.4s, v0.s[1]   \n"
+                    "fmla   %6.4s, v4.4s, v0.s[2]   \n"
+                    "fmla   %7.4s, v4.4s, v0.s[3]   \n"
+                    "fmla   %8.4s, v5.4s, v0.s[0]   \n"
+                    "fmla   %9.4s, v5.4s, v0.s[1]   \n"
+                    "fmla   %10.4s, v5.4s, v0.s[2]   \n"
+                    "fmla   %11.4s, v5.4s, v0.s[3]   \n"
+
+                    "fmla   %4.4s, v6.4s, v1.s[0]   \n"
+                    "fmla   %5.4s, v6.4s, v1.s[1]   \n"
+                    "fmla   %6.4s, v6.4s, v1.s[2]   \n"
+                    "fmla   %7.4s, v6.4s, v1.s[3]   \n"
+                    "fmla   %8.4s, v7.4s, v1.s[0]   \n"
+                    "fmla   %9.4s, v7.4s, v1.s[1]   \n"
+                    "fmla   %10.4s, v7.4s, v1.s[2]   \n"
+                    "fmla   %11.4s, v7.4s, v1.s[3]   \n"
+
+                    "prfm   pldl1keep, [%0, #512]   \n"
+                    "ld1    {v8.4s, v9.4s, v10.4s, v11.4s}, [%0], #64 \n"
+
+                    "fmla   %4.4s, v8.4s, v2.s[0]   \n"
+                    "fmla   %5.4s, v8.4s, v2.s[1]   \n"
+                    "fmla   %6.4s, v8.4s, v2.s[2]   \n"
+                    "fmla   %7.4s, v8.4s, v2.s[3]   \n"
+                    "fmla   %8.4s, v9.4s, v2.s[0]   \n"
+                    "fmla   %9.4s, v9.4s, v2.s[1]   \n"
+                    "fmla   %10.4s, v9.4s, v2.s[2]   \n"
+                    "fmla   %11.4s, v9.4s, v2.s[3]   \n"
+
+                    "fmla   %4.4s, v10.4s, v3.s[0]   \n"
+                    "fmla   %5.4s, v10.4s, v3.s[1]   \n"
+                    "fmla   %6.4s, v10.4s, v3.s[2]   \n"
+                    "fmla   %7.4s, v10.4s, v3.s[3]   \n"
+                    "fmla   %8.4s, v11.4s, v3.s[0]   \n"
+                    "fmla   %9.4s, v11.4s, v3.s[1]   \n"
+                    "fmla   %10.4s, v11.4s, v3.s[2]   \n"
+                    "fmla   %11.4s, v11.4s, v3.s[3]   \n"
+
+                    :"=r"(pA),
+                    "=r"(pB)
+                    :"0"(pA),
+                    "1"(pB),
+                    "w"(_sum00),
+                    "w"(_sum10),
+                    "w"(_sum20),
+                    "w"(_sum30),
+                    "w"(_sum01),
+                    "w"(_sum11),
+                    "w"(_sum21),
+                    "w"(_sum31)
+                    : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11"
+                );
+            }
+#endif
             for (; kk < max_kk; kk += 1)
             {
                 float32x4_t _pA0 = vld1q_f32(pA);
@@ -1816,6 +2280,51 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
 
             const float* pA = pAT;
             int kk = 0;
+#if NCNN_GNU_INLINE_ASM
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                asm volatile(
+                    "prfm   pldl1keep, [%0, #512]   \n"
+                    "ld1    {v4.4s, v5.4s, v6.4s, v7.4s}, [%0], #64 \n"
+
+                    "prfm   pldl1keep, [%1, #256]   \n"
+                    "ld1    {v0.4s, v1.4s}, [%1], #32 \n"
+
+                    "fmla   %4.4s, v4.4s, v0.s[0]   \n"
+                    "fmla   %5.4s, v4.4s, v0.s[1]   \n"
+                    "fmla   %6.4s, v5.4s, v0.s[0]   \n"
+                    "fmla   %7.4s, v5.4s, v0.s[1]   \n"
+
+                    "fmla   %4.4s, v6.4s, v0.s[2]   \n"
+                    "fmla   %5.4s, v6.4s, v0.s[3]   \n"
+                    "fmla   %6.4s, v7.4s, v0.s[2]   \n"
+                    "fmla   %7.4s, v7.4s, v0.s[3]   \n"
+
+                    "prfm   pldl1keep, [%0, #512]   \n"
+                    "ld1    {v8.4s, v9.4s, v10.4s, v11.4s}, [%0], #64 \n"
+
+                    "fmla   %4.4s, v8.4s, v1.s[0]   \n"
+                    "fmla   %5.4s, v8.4s, v1.s[1]   \n"
+                    "fmla   %6.4s, v9.4s, v1.s[0]   \n"
+                    "fmla   %7.4s, v9.4s, v1.s[1]   \n"
+
+                    "fmla   %4.4s, v10.4s, v1.s[2]  \n"
+                    "fmla   %5.4s, v10.4s, v1.s[3]  \n"
+                    "fmla   %6.4s, v11.4s, v1.s[2]  \n"
+                    "fmla   %7.4s, v11.4s, v1.s[3]  \n"
+
+                    :"=r"(pA),
+                    "=r"(pB)
+                    :"0"(pA),
+                    "1"(pB),
+                    "w"(_sum00),
+                    "w"(_sum10),
+                    "w"(_sum01),
+                    "w"(_sum11)
+                    : "memory", "v0", "v1", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11"
+                );
+            }
+#endif
             for (; kk < max_kk; kk += 1)
             {
                 float32x4_t _pA0 = vld1q_f32(pA);
@@ -1945,6 +2454,39 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
 
             const float* pA = pAT;
             int kk = 0;
+#if NCNN_GNU_INLINE_ASM
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                asm volatile(
+                    "prfm   pldl1keep, [%0, #512]   \n"
+                    "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%0], #64 \n"
+
+                    "prfm   pldl1keep, [%1, #128]   \n"
+                    "ld1    {v8.4s}, [%1], #16      \n"
+
+                    "fmla   %4.4s, v0.4s, v8.s[0]   \n"
+                    "fmla   %5.4s, v1.4s, v8.s[0]   \n"
+                    "fmla   %4.4s, v2.4s, v8.s[1]   \n"
+                    "fmla   %5.4s, v3.4s, v8.s[1]   \n"
+
+                    "prfm   pldl1keep, [%0, #512]   \n"
+                    "ld1    {v4.4s, v5.4s, v6.4s, v7.4s}, [%0], #64 \n"
+
+                    "fmla   %4.4s, v4.4s, v8.s[2]   \n"
+                    "fmla   %5.4s, v5.4s, v8.s[2]   \n"
+                    "fmla   %4.4s, v6.4s, v8.s[3]   \n"
+                    "fmla   %5.4s, v7.4s, v8.s[3]   \n"
+
+                    :"=r"(pA),
+                    "=r"(pB)
+                    :"0"(pA),
+                    "1"(pB),
+                    "w"(_sum00),
+                    "w"(_sum01)
+                    : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8"
+                );
+            }
+#endif
             for (; kk < max_kk; kk += 1)
             {
                 float32x4_t _pA0 = vld1q_f32(pA);
@@ -3654,6 +4196,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
 static void get_optimal_tile_mnk(int M, int N, int K, int& TILE_M, int& TILE_N, int& TILE_K, int nT)
 {
     // resolve optimal tile size from cache size
+    // size_t l2_cache_size = 200*1024*1024;// FIXME but tiling on arm always lose
     size_t l2_cache_size = get_cpu_level2_cache_size();
     int tile_size = (int)sqrt((float)l2_cache_size / 3 / sizeof(float));
 

@@ -305,6 +305,22 @@ int Convolution_arm::create_pipeline(const Option& opt)
     int l2_cache_size = get_cpu_level2_cache_size();
     bool prefer_sgemm = (kernel_w == 1 && kernel_h == 1) || num_input * num_output * kernel_w * kernel_h * dilation_w * dilation_h * stride_w * stride_h * (int)sizeof(float) * 2 > l2_cache_size || (num_input >= 16 || num_output >= 16);
 
+    if (elempack == 4 && out_elempack == 4)
+    {
+        if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2 && (num_input < 4 || num_output < 32))
+        {
+            prefer_sgemm = false;
+        }
+        if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
+            prefer_sgemm = false;
+        }
+        if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2 && (num_input < 8 || num_output < 44))
+        {
+            prefer_sgemm = false;
+        }
+    }
+
     if (opt.use_sgemm_convolution && prefer_sgemm)
     {
         const int maxk = kernel_w * kernel_h;
@@ -628,6 +644,22 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
 
     int l2_cache_size = get_cpu_level2_cache_size();
     bool prefer_sgemm = (kernel_w == 1 && kernel_h == 1) || num_input * num_output * kernel_w * kernel_h * dilation_w * dilation_h * stride_w * stride_h * (int)sizeof(float) * 2 > l2_cache_size || (num_input >= 16 || num_output >= 16);
+
+    if (elempack == 4 && out_elempack == 4)
+    {
+        if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2 && (num_input < 4 || num_output < 32))
+        {
+            prefer_sgemm = false;
+        }
+        if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
+            prefer_sgemm = false;
+        }
+        if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2 && (num_input < 8 || num_output < 44))
+        {
+            prefer_sgemm = false;
+        }
+    }
 
     if (opt.use_sgemm_convolution && prefer_sgemm)
     {
