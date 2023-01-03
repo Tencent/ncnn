@@ -6239,18 +6239,26 @@ int Gemm_x86::create_pipeline(const Option& opt)
 
     if (constantC && constant_broadcast_type_C != -1)
     {
-        const int M = constantM;
+        int elemcount = 1;
+        if (constant_broadcast_type_C == 1 || constant_broadcast_type_C == 2 || constant_broadcast_type_C == 3)
+        {
+            elemcount = constantM;
+        }
+        else if (constant_broadcast_type_C == 4)
+        {
+            elemcount = constantN;
+        }
 
         int C_elempack = 1;
 #if __SSE2__
         if (opt.use_packing_layout)
         {
 #if __AVX512F__
-            C_elempack = M % 16 == 0 ? 16 : M % 8 == 0 ? 8 : M % 4 == 0 ? 4 : 1;
+            C_elempack = elemcount % 16 == 0 ? 16 : elemcount % 8 == 0 ? 8 : elemcount % 4 == 0 ? 4 : 1;
 #elif __AVX__
-            C_elempack = M % 8 == 0 ? 8 : M % 4 == 0 ? 4 : 1;
+            C_elempack = elemcount % 8 == 0 ? 8 : elemcount % 4 == 0 ? 4 : 1;
 #else
-            C_elempack = M % 4 == 0 ? 4 : 1;
+            C_elempack = elemcount % 4 == 0 ? 4 : 1;
 #endif
         }
 #endif // __SSE2__
