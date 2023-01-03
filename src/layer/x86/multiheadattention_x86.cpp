@@ -281,19 +281,9 @@ int MultiHeadAttention_x86::forward(const std::vector<Mat>& bottom_blobs, std::v
         Mat q_affine;
         q_gemm->forward(q_blob, q_affine, opt);
 
-        ncnn::Mat q_affine_reshape = q_affine.reshape(embed_dim_per_head, num_head, src_seqlen);
+        q_affine = q_affine.reshape(embed_dim_per_head, num_head, src_seqlen);
 
-        permute_wch->forward(q_affine_reshape, q_affine_reshape_wch, opt);
-    }
-
-    ncnn::Mat v_affine_reshape_wch;
-    {
-        Mat v_affine;
-        v_gemm->forward(v_blob, v_affine, opt);
-
-        ncnn::Mat v_affine_reshape = v_affine.reshape(embed_dim_per_head, num_head, dst_seqlen);
-
-        permute_wch->forward(v_affine_reshape, v_affine_reshape_wch, opt);
+        permute_wch->forward(q_affine, q_affine_reshape_wch, opt);
     }
 
     ncnn::Mat k_affine_reshape_cwh;
@@ -301,34 +291,55 @@ int MultiHeadAttention_x86::forward(const std::vector<Mat>& bottom_blobs, std::v
         Mat k_affine;
         k_gemm->forward(k_blob, k_affine, opt);
 
-        ncnn::Mat k_affine_reshape = k_affine.reshape(embed_dim_per_head, num_head, dst_seqlen);
+        k_affine = k_affine.reshape(embed_dim_per_head, num_head, dst_seqlen);
 
-        permute_cwh->forward(k_affine_reshape, k_affine_reshape_cwh, opt);
+        permute_cwh->forward(k_affine, k_affine_reshape_cwh, opt);
     }
 
-    std::vector<Mat> qkv_cross(1);
+    std::vector<Mat> qk_cross(1);
     {
         std::vector<Mat> qk_bottom_blobs(2);
         qk_bottom_blobs[0] = q_affine_reshape_wch;
         qk_bottom_blobs[1] = k_affine_reshape_cwh;
-        std::vector<Mat> qk_cross(1);
+
         qk_matmul->forward(qk_bottom_blobs, qk_cross, opt);
 
-        qk_softmax->forward_inplace(qk_cross[0], opt);
+        q_affine_reshape_wch.release();
+        k_affine_reshape_cwh.release();
 
+        qk_softmax->forward_inplace(qk_cross[0], opt);
+    }
+
+    ncnn::Mat v_affine_reshape_wch;
+    {
+        Mat v_affine;
+        v_gemm->forward(v_blob, v_affine, opt);
+
+        v_affine = v_affine.reshape(embed_dim_per_head, num_head, dst_seqlen);
+
+        permute_wch->forward(v_affine, v_affine_reshape_wch, opt);
+    }
+
+    std::vector<Mat> qkv_cross(1);
+    {
         std::vector<Mat> qkv_bottom_blobs(2);
         qkv_bottom_blobs[0] = qk_cross[0];
         qkv_bottom_blobs[1] = v_affine_reshape_wch;
         qkv_matmul->forward(qkv_bottom_blobs, qkv_cross, opt);
+
+        qk_cross[0].release();
+        v_affine_reshape_wch.release();
     }
 
     {
         ncnn::Mat qkv_wch;
         permute_wch->forward(qkv_cross[0], qkv_wch, opt);
 
-        ncnn::Mat qkv_better = qkv_wch.reshape(embed_dim, src_seqlen);
+        qkv_cross[0].release();
 
-        o_gemm->forward(qkv_better, top_blobs[0], opt);
+        qkv_wch = qkv_wch.reshape(embed_dim, src_seqlen);
+
+        o_gemm->forward(qkv_wch, top_blobs[0], opt);
     }
 
     return 0;
