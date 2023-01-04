@@ -28,13 +28,13 @@ MultiHeadAttention_x86::MultiHeadAttention_x86()
     permute_wch = 0;
 
     k_gemm = 0;
-    permute_cwh = 0;
 
     v_gemm = 0;
 
-    qk_matmul = 0;
+    qk_gemm = 0;
+    qkv_gemm = 0;
+
     qk_softmax = 0;
-    qkv_matmul = 0;
 
     o_gemm = 0;
 }
@@ -51,14 +51,14 @@ int MultiHeadAttention_x86::create_pipeline(const Option& opt)
         pd.set(1, 1.f);
         pd.set(2, 0);         // transA
         pd.set(3, 1);         // transB
-        pd.set(4, 0);         // constantA
-        pd.set(5, 1);         // constantB
+        pd.set(4, 1);         // constantA
+        pd.set(5, 0);         // constantB
         pd.set(6, 1);         // constantC
-        pd.set(7, 0);         // M
-        pd.set(8, embed_dim); // N
+        pd.set(7, embed_dim); // M
+        pd.set(8, 0);         // N
         pd.set(9, embed_dim); // K
-        pd.set(10, 4);        // constant_broadcast_type_C
-        pd.set(11, 1);        // output_N1M
+        pd.set(10, 1);        // constant_broadcast_type_C
+        pd.set(11, 0);        // output_N1M
         pd.set(12, 1);        // output_elempack
         q_gemm->load_param(pd);
         Mat weights[2];
@@ -87,14 +87,14 @@ int MultiHeadAttention_x86::create_pipeline(const Option& opt)
         ncnn::ParamDict pd;
         pd.set(2, 0);         // transA
         pd.set(3, 1);         // transB
-        pd.set(4, 0);         // constantA
-        pd.set(5, 1);         // constantB
+        pd.set(4, 1);         // constantA
+        pd.set(5, 0);         // constantB
         pd.set(6, 1);         // constantC
-        pd.set(7, 0);         // M
-        pd.set(8, embed_dim); // N
+        pd.set(7, embed_dim); // M
+        pd.set(8, 0);         // N
         pd.set(9, kdim);      // K
-        pd.set(10, 4);        // constant_broadcast_type_C
-        pd.set(11, 1);        // output_N1M
+        pd.set(10, 1);        // constant_broadcast_type_C
+        pd.set(11, 0);        // output_N1M
         pd.set(12, 1);        // output_elempack
         k_gemm->load_param(pd);
         Mat weights[2];
@@ -109,28 +109,20 @@ int MultiHeadAttention_x86::create_pipeline(const Option& opt)
             k_bias_data.release();
         }
     }
-    {
-        permute_cwh = ncnn::create_layer(ncnn::LayerType::Permute);
-        ncnn::ParamDict pd;
-        pd.set(0, 3); // cwh
-        permute_cwh->load_param(pd);
-        permute_cwh->load_model(ModelBinFromMatArray(0));
-        permute_cwh->create_pipeline(opt);
-    }
 
     {
         v_gemm = ncnn::create_layer(ncnn::LayerType::Gemm);
         ncnn::ParamDict pd;
         pd.set(2, 0);         // transA
         pd.set(3, 1);         // transB
-        pd.set(4, 0);         // constantA
-        pd.set(5, 1);         // constantB
+        pd.set(4, 1);         // constantA
+        pd.set(5, 0);         // constantB
         pd.set(6, 1);         // constantC
-        pd.set(7, 0);         // M
-        pd.set(8, embed_dim); // N
+        pd.set(7, embed_dim); // M
+        pd.set(8, 0);         // N
         pd.set(9, vdim);      // K
-        pd.set(10, 4);        // constant_broadcast_type_C
-        pd.set(11, 1);        // output_N1M
+        pd.set(10, 1);        // constant_broadcast_type_C
+        pd.set(11, 0);        // output_N1M
         pd.set(12, 1);        // output_elempack
         v_gemm->load_param(pd);
         Mat weights[2];
@@ -147,12 +139,46 @@ int MultiHeadAttention_x86::create_pipeline(const Option& opt)
     }
 
     {
-        qk_matmul = ncnn::create_layer(ncnn::LayerType::MatMul);
+        qk_gemm = ncnn::create_layer(ncnn::LayerType::Gemm);
         ncnn::ParamDict pd;
-        qk_matmul->load_param(pd);
-        qk_matmul->load_model(ModelBinFromMatArray(0));
-        qk_matmul->create_pipeline(opt);
+        pd.set(2, 1);   // transA
+        pd.set(3, 0);   // transB
+        pd.set(4, 0);   // constantA
+        pd.set(5, 0);   // constantB
+        pd.set(6, 1);   // constantC
+        pd.set(7, 0);   // M
+        pd.set(8, 0);   // N
+        pd.set(9, 0);   // K
+        pd.set(10, -1); // constant_broadcast_type_C
+        pd.set(11, 0);  // output_N1M
+        pd.set(12, 1);  // output_elempack
+        qk_gemm->load_param(pd);
+        qk_gemm->load_model(ModelBinFromMatArray(0));
+        Option opt1 = opt;
+        opt1.num_threads = 1;
+        qk_gemm->create_pipeline(opt1);
     }
+    {
+        qkv_gemm = ncnn::create_layer(ncnn::LayerType::Gemm);
+        ncnn::ParamDict pd;
+        pd.set(2, 0);   // transA
+        pd.set(3, 1);   // transB
+        pd.set(4, 0);   // constantA
+        pd.set(5, 0);   // constantB
+        pd.set(6, 1);   // constantC
+        pd.set(7, 0);   // M
+        pd.set(8, 0);   // N
+        pd.set(9, 0);   // K
+        pd.set(10, -1); // constant_broadcast_type_C
+        pd.set(11, 0);  // output_N1M
+        pd.set(12, 1);  // output_elempack
+        qkv_gemm->load_param(pd);
+        qkv_gemm->load_model(ModelBinFromMatArray(0));
+        Option opt1 = opt;
+        opt1.num_threads = 1;
+        qkv_gemm->create_pipeline(opt1);
+    }
+
     {
         qk_softmax = ncnn::create_layer(ncnn::LayerType::Softmax);
         ncnn::ParamDict pd;
@@ -161,13 +187,6 @@ int MultiHeadAttention_x86::create_pipeline(const Option& opt)
         qk_softmax->load_param(pd);
         qk_softmax->load_model(ModelBinFromMatArray(0));
         qk_softmax->create_pipeline(opt);
-    }
-    {
-        qkv_matmul = ncnn::create_layer(ncnn::LayerType::MatMul);
-        ncnn::ParamDict pd;
-        qkv_matmul->load_param(pd);
-        qkv_matmul->load_model(ModelBinFromMatArray(0));
-        qkv_matmul->create_pipeline(opt);
     }
 
     {
@@ -221,12 +240,6 @@ int MultiHeadAttention_x86::destroy_pipeline(const Option& opt)
         delete k_gemm;
         k_gemm = 0;
     }
-    if (permute_cwh)
-    {
-        permute_cwh->destroy_pipeline(opt);
-        delete permute_cwh;
-        permute_cwh = 0;
-    }
 
     if (v_gemm)
     {
@@ -235,23 +248,24 @@ int MultiHeadAttention_x86::destroy_pipeline(const Option& opt)
         v_gemm = 0;
     }
 
-    if (qk_matmul)
+    if (qk_gemm)
     {
-        qk_matmul->destroy_pipeline(opt);
-        delete qk_matmul;
-        qk_matmul = 0;
+        qk_gemm->destroy_pipeline(opt);
+        delete qk_gemm;
+        qk_gemm = 0;
     }
+    if (qkv_gemm)
+    {
+        qkv_gemm->destroy_pipeline(opt);
+        delete qkv_gemm;
+        qkv_gemm = 0;
+    }
+
     if (qk_softmax)
     {
         qk_softmax->destroy_pipeline(opt);
         delete qk_softmax;
         qk_softmax = 0;
-    }
-    if (qkv_matmul)
-    {
-        qkv_matmul->destroy_pipeline(opt);
-        delete qkv_matmul;
-        qkv_matmul = 0;
     }
 
     if (o_gemm)
@@ -274,66 +288,56 @@ int MultiHeadAttention_x86::forward(const std::vector<Mat>& bottom_blobs, std::v
     const int src_seqlen = q_blob.h * q_blob.elempack;
     const int dst_seqlen = k_blob.h * k_blob.elempack;
 
-    ncnn::Mat q_affine_reshape_wch;
-    {
-        Mat q_affine;
-        q_gemm->forward(q_blob, q_affine, opt);
+    Mat q_affine;
+    q_gemm->forward(q_blob, q_affine, opt);
 
-        q_affine = q_affine.reshape(embed_dim_per_head, num_head, src_seqlen);
+    Mat k_affine;
+    k_gemm->forward(k_blob, k_affine, opt);
 
-        permute_wch->forward(q_affine, q_affine_reshape_wch, opt);
-    }
-
-    ncnn::Mat k_affine_reshape_cwh;
-    {
-        Mat k_affine;
-        k_gemm->forward(k_blob, k_affine, opt);
-
-        k_affine = k_affine.reshape(embed_dim_per_head, num_head, dst_seqlen);
-
-        permute_cwh->forward(k_affine, k_affine_reshape_cwh, opt);
-    }
-
-    std::vector<Mat> qk_cross(1);
+    Mat qk_cross(dst_seqlen, src_seqlen * num_head, 4u, opt.blob_allocator);
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int i = 0; i < num_head; i++)
     {
         std::vector<Mat> qk_bottom_blobs(2);
-        qk_bottom_blobs[0] = q_affine_reshape_wch;
-        qk_bottom_blobs[1] = k_affine_reshape_cwh;
-
-        qk_matmul->forward(qk_bottom_blobs, qk_cross, opt);
-
-        q_affine_reshape_wch.release();
-        k_affine_reshape_cwh.release();
-
-        qk_softmax->forward_inplace(qk_cross[0], opt);
+        qk_bottom_blobs[0] = q_affine.row_range(i * embed_dim_per_head, embed_dim_per_head);
+        qk_bottom_blobs[1] = k_affine.row_range(i * embed_dim_per_head, embed_dim_per_head);
+        std::vector<Mat> qk_top_blobs(1);
+        qk_top_blobs[0] = qk_cross.row_range(i * src_seqlen, src_seqlen);
+        Option opt1 = opt;
+        opt1.num_threads = 1;
+        qk_gemm->forward(qk_bottom_blobs, qk_top_blobs, opt1);
     }
 
-    ncnn::Mat v_affine_reshape_wch;
-    {
-        Mat v_affine;
-        v_gemm->forward(v_blob, v_affine, opt);
+    q_affine.release();
+    k_affine.release();
 
-        v_affine = v_affine.reshape(embed_dim_per_head, num_head, dst_seqlen);
+    qk_softmax->forward_inplace(qk_cross, opt);
 
-        permute_wch->forward(v_affine, v_affine_reshape_wch, opt);
-    }
+    Mat v_affine;
+    v_gemm->forward(v_blob, v_affine, opt);
 
-    std::vector<Mat> qkv_cross(1);
+    Mat qkv_cross(embed_dim_per_head, src_seqlen, num_head, 4u, opt.blob_allocator);
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int i = 0; i < num_head; i++)
     {
         std::vector<Mat> qkv_bottom_blobs(2);
-        qkv_bottom_blobs[0] = qk_cross[0];
-        qkv_bottom_blobs[1] = v_affine_reshape_wch;
-        qkv_matmul->forward(qkv_bottom_blobs, qkv_cross, opt);
-
-        qk_cross[0].release();
-        v_affine_reshape_wch.release();
+        qkv_bottom_blobs[0] = qk_cross.row_range(i * src_seqlen, src_seqlen);
+        qkv_bottom_blobs[1] = v_affine.row_range(i * embed_dim_per_head, embed_dim_per_head);
+        std::vector<Mat> qkv_top_blobs(1);
+        qkv_top_blobs[0] = qkv_cross.channel(i);
+        Option opt1 = opt;
+        opt1.num_threads = 1;
+        qkv_gemm->forward(qkv_bottom_blobs, qkv_top_blobs, opt1);
     }
 
-    {
-        ncnn::Mat qkv_wch;
-        permute_wch->forward(qkv_cross[0], qkv_wch, opt);
+    qk_cross.release();
+    v_affine.release();
 
-        qkv_cross[0].release();
+    {
+        Mat qkv_wch;
+        permute_wch->forward(qkv_cross, qkv_wch, opt);
+
+        qkv_cross.release();
 
         qkv_wch = qkv_wch.reshape(embed_dim, src_seqlen);
 

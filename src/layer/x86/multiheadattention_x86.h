@@ -36,10 +36,9 @@ public:
     Layer* o_gemm;
 
     Layer* permute_wch;
-    Layer* permute_cwh;
 
-    Layer* qk_matmul;
-    Layer* qkv_matmul;
+    Layer* qk_gemm;
+    Layer* qkv_gemm;
 
     Layer* qk_softmax;
 };
