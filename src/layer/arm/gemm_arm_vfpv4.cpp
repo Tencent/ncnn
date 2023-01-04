@@ -408,12 +408,20 @@ int Gemm_arm::create_pipeline_fp16s(const Option& opt)
 
     if (constantC && constant_broadcast_type_C != -1)
     {
-        const int M = constantM;
+        int elemcount = 1;
+        if (constant_broadcast_type_C == 1 || constant_broadcast_type_C == 2 || constant_broadcast_type_C == 3)
+        {
+            elemcount = constantM;
+        }
+        else if (constant_broadcast_type_C == 4)
+        {
+            elemcount = constantN;
+        }
 
         int C_elempack = 1;
         if (opt.use_packing_layout)
         {
-            C_elempack = M % 4 == 0 ? 4 : 1;
+            C_elempack = elemcount % 4 == 0 ? 4 : 1;
         }
 
         convert_packing(C_data, CT_data, C_elempack, opt);
