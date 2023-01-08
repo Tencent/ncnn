@@ -145,7 +145,7 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, 
                 __m512 _rb = _mm512_loadu_ps(p0 + (jj + 11) * batch * 16 + b * 16);
                 transpose16x12_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7, _r8, _r9, _ra, _rb);
                 _mm512_storeu_ps(pp, _r0);
-                _mm512_storeu_ps(pp + 16 * 1, _r1);
+                _mm512_storeu_ps(pp + 16, _r1);
                 _mm512_storeu_ps(pp + 16 * 2, _r2);
                 _mm512_storeu_ps(pp + 16 * 3, _r3);
                 _mm512_storeu_ps(pp + 16 * 4, _r4);
@@ -176,7 +176,7 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, 
                 __m256 _rb = _mm256_loadu_ps(p0 + (jj + 11) * batch * 8 + b * 8);
                 transpose8x12_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7, _r8, _r9, _ra, _rb);
                 _mm256_storeu_ps(pp, _r0);
-                _mm256_storeu_ps(pp + 8 * 1, _r1);
+                _mm256_storeu_ps(pp + 8, _r1);
                 _mm256_storeu_ps(pp + 8 * 2, _r2);
                 _mm256_storeu_ps(pp + 8 * 3, _r3);
                 _mm256_storeu_ps(pp + 8 * 4, _r4);
@@ -209,7 +209,7 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, 
                 _MM_TRANSPOSE4_PS(_r4, _r5, _r6, _r7);
                 _MM_TRANSPOSE4_PS(_r8, _r9, _ra, _rb);
                 _mm_storeu_ps(pp, _r0);
-                _mm_storeu_ps(pp + 4 * 1, _r4);
+                _mm_storeu_ps(pp + 4, _r4);
                 _mm_storeu_ps(pp + 4 * 2, _r8);
                 _mm_storeu_ps(pp + 4 * 3, _r1);
                 _mm_storeu_ps(pp + 4 * 4, _r5);
@@ -655,7 +655,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 
                 if (k_end)
                 {
-                    _mm512_storeu_ps(&outptr[(jj + 0) * max_ii + ii], _sum0);
+                    _mm512_storeu_ps(&outptr[jj * max_ii + ii], _sum0);
                     _mm512_storeu_ps(&outptr[(jj + 1) * max_ii + ii], _sum1);
                     _mm512_storeu_ps(&outptr[(jj + 2) * max_ii + ii], _sum2);
                     _mm512_storeu_ps(&outptr[(jj + 3) * max_ii + ii], _sum3);
@@ -741,7 +741,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 
                 if (k_end)
                 {
-                    _mm512_storeu_ps(&outptr[(jj + 0) * max_ii + ii], _sum0);
+                    _mm512_storeu_ps(&outptr[jj * max_ii + ii], _sum0);
                     _mm512_storeu_ps(&outptr[(jj + 1) * max_ii + ii], _sum1);
                     _mm512_storeu_ps(&outptr[(jj + 2) * max_ii + ii], _sum2);
                     _mm512_storeu_ps(&outptr[(jj + 3) * max_ii + ii], _sum3);
@@ -803,7 +803,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 
                 if (k_end)
                 {
-                    _mm512_storeu_ps(&outptr[(jj + 0) * max_ii + ii], _sum0);
+                    _mm512_storeu_ps(&outptr[jj * max_ii + ii], _sum0);
                     _mm512_storeu_ps(&outptr[(jj + 1) * max_ii + ii], _sum1);
                     _mm512_storeu_ps(&outptr[(jj + 2) * max_ii + ii], _sum2);
                     _mm512_storeu_ps(&outptr[(jj + 3) * max_ii + ii], _sum3);
@@ -849,7 +849,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 
                 if (k_end)
                 {
-                    _mm512_storeu_ps(&outptr[(jj + 0) * max_ii + ii], _sum0);
+                    _mm512_storeu_ps(&outptr[jj * max_ii + ii], _sum0);
                     _mm512_storeu_ps(&outptr[(jj + 1) * max_ii + ii], _sum1);
                 }
                 else
@@ -888,7 +888,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 
                 if (k_end)
                 {
-                    _mm512_storeu_ps(&outptr[(jj)*max_ii + ii], _sum);
+                    _mm512_storeu_ps(&outptr[jj * max_ii + ii], _sum);
                 }
                 else
                 {
@@ -977,7 +977,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 
                 if (k_end)
                 {
-                    _mm256_storeu_ps(&outptr[(jj + 0) * max_ii + ii], _sum0);
+                    _mm256_storeu_ps(&outptr[jj * max_ii + ii], _sum0);
                     _mm256_storeu_ps(&outptr[(jj + 1) * max_ii + ii], _sum1);
                     _mm256_storeu_ps(&outptr[(jj + 2) * max_ii + ii], _sum2);
                     _mm256_storeu_ps(&outptr[(jj + 3) * max_ii + ii], _sum3);
@@ -1063,7 +1063,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 
                 if (k_end)
                 {
-                    _mm256_storeu_ps(&outptr[(jj + 0) * max_ii + ii], _sum0);
+                    _mm256_storeu_ps(&outptr[jj * max_ii + ii], _sum0);
                     _mm256_storeu_ps(&outptr[(jj + 1) * max_ii + ii], _sum1);
                     _mm256_storeu_ps(&outptr[(jj + 2) * max_ii + ii], _sum2);
                     _mm256_storeu_ps(&outptr[(jj + 3) * max_ii + ii], _sum3);
@@ -1125,7 +1125,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 
                 if (k_end)
                 {
-                    _mm256_storeu_ps(&outptr[(jj + 0) * max_ii + ii], _sum0);
+                    _mm256_storeu_ps(&outptr[jj * max_ii + ii], _sum0);
                     _mm256_storeu_ps(&outptr[(jj + 1) * max_ii + ii], _sum1);
                     _mm256_storeu_ps(&outptr[(jj + 2) * max_ii + ii], _sum2);
                     _mm256_storeu_ps(&outptr[(jj + 3) * max_ii + ii], _sum3);
@@ -1171,7 +1171,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 
                 if (k_end)
                 {
-                    _mm256_storeu_ps(&outptr[(jj + 0) * max_ii + ii], _sum0);
+                    _mm256_storeu_ps(&outptr[jj * max_ii + ii], _sum0);
                     _mm256_storeu_ps(&outptr[(jj + 1) * max_ii + ii], _sum1);
                 }
                 else
@@ -1210,7 +1210,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 
                 if (k_end)
                 {
-                    _mm256_storeu_ps(&outptr[(jj)*max_ii + ii], _sum);
+                    _mm256_storeu_ps(&outptr[jj * max_ii + ii], _sum);
                 }
                 else
                 {
@@ -1299,7 +1299,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 
                 if (k_end)
                 {
-                    _mm_storeu_ps(&outptr[(jj + 0) * max_ii + ii], _sum0);
+                    _mm_storeu_ps(&outptr[jj * max_ii + ii], _sum0);
                     _mm_storeu_ps(&outptr[(jj + 1) * max_ii + ii], _sum1);
                     _mm_storeu_ps(&outptr[(jj + 2) * max_ii + ii], _sum2);
                     _mm_storeu_ps(&outptr[(jj + 3) * max_ii + ii], _sum3);
@@ -1385,7 +1385,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 
                 if (k_end)
                 {
-                    _mm_storeu_ps(&outptr[(jj + 0) * max_ii + ii], _sum0);
+                    _mm_storeu_ps(&outptr[jj * max_ii + ii], _sum0);
                     _mm_storeu_ps(&outptr[(jj + 1) * max_ii + ii], _sum1);
                     _mm_storeu_ps(&outptr[(jj + 2) * max_ii + ii], _sum2);
                     _mm_storeu_ps(&outptr[(jj + 3) * max_ii + ii], _sum3);
@@ -1447,7 +1447,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 
                 if (k_end)
                 {
-                    _mm_storeu_ps(&outptr[(jj + 0) * max_ii + ii], _sum0);
+                    _mm_storeu_ps(&outptr[jj * max_ii + ii], _sum0);
                     _mm_storeu_ps(&outptr[(jj + 1) * max_ii + ii], _sum1);
                     _mm_storeu_ps(&outptr[(jj + 2) * max_ii + ii], _sum2);
                     _mm_storeu_ps(&outptr[(jj + 3) * max_ii + ii], _sum3);
@@ -1493,7 +1493,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 
                 if (k_end)
                 {
-                    _mm_storeu_ps(&outptr[(jj + 0) * max_ii + ii], _sum0);
+                    _mm_storeu_ps(&outptr[jj * max_ii + ii], _sum0);
                     _mm_storeu_ps(&outptr[(jj + 1) * max_ii + ii], _sum1);
                 }
                 else
@@ -1607,7 +1607,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     _mm_storeu_ps(sum + 12, _sum3);
                     _mm_storeu_ps(sum + 16, _sum4);
                     _mm_storeu_ps(sum + 20, _sum5);
-                    outptr[(jj + 0) * max_ii + ii] = sum[0];
+                    outptr[jj * max_ii + ii] = sum[0];
                     outptr[(jj + 1) * max_ii + ii] = sum[1];
                     outptr[(jj + 2) * max_ii + ii] = sum[2];
                     outptr[(jj + 3) * max_ii + ii] = sum[3];
@@ -1619,7 +1619,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     outptr[(jj + 9) * max_ii + ii] = sum[9];
                     outptr[(jj + 10) * max_ii + ii] = sum[10];
                     outptr[(jj + 11) * max_ii + ii] = sum[11];
-                    outptr[(jj + 0) * max_ii + ii + 1] = sum[12];
+                    outptr[jj * max_ii + ii + 1] = sum[12];
                     outptr[(jj + 1) * max_ii + ii + 1] = sum[13];
                     outptr[(jj + 2) * max_ii + ii + 1] = sum[14];
                     outptr[(jj + 3) * max_ii + ii + 1] = sum[15];
@@ -1690,7 +1690,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     _mm_storeu_ps(sum + 4, _sum1);
                     _mm_storeu_ps(sum + 8, _sum2);
                     _mm_storeu_ps(sum + 12, _sum3);
-                    outptr[(jj + 0) * max_ii + ii] = sum[0];
+                    outptr[jj * max_ii + ii] = sum[0];
                     outptr[(jj + 1) * max_ii + ii] = sum[1];
                     outptr[(jj + 2) * max_ii + ii] = sum[2];
                     outptr[(jj + 3) * max_ii + ii] = sum[3];
@@ -1698,7 +1698,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     outptr[(jj + 5) * max_ii + ii] = sum[5];
                     outptr[(jj + 6) * max_ii + ii] = sum[6];
                     outptr[(jj + 7) * max_ii + ii] = sum[7];
-                    outptr[(jj + 0) * max_ii + ii + 1] = sum[8];
+                    outptr[jj * max_ii + ii + 1] = sum[8];
                     outptr[(jj + 1) * max_ii + ii + 1] = sum[9];
                     outptr[(jj + 2) * max_ii + ii + 1] = sum[10];
                     outptr[(jj + 3) * max_ii + ii + 1] = sum[11];
@@ -1750,11 +1750,11 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     float sum[8];
                     _mm_storeu_ps(sum, _sum0);
                     _mm_storeu_ps(sum + 4, _sum1);
-                    outptr[(jj + 0) * max_ii + ii] = sum[0];
+                    outptr[jj * max_ii + ii] = sum[0];
                     outptr[(jj + 1) * max_ii + ii] = sum[1];
                     outptr[(jj + 2) * max_ii + ii] = sum[2];
                     outptr[(jj + 3) * max_ii + ii] = sum[3];
-                    outptr[(jj + 0) * max_ii + ii + 1] = sum[4];
+                    outptr[jj * max_ii + ii + 1] = sum[4];
                     outptr[(jj + 1) * max_ii + ii + 1] = sum[5];
                     outptr[(jj + 2) * max_ii + ii + 1] = sum[6];
                     outptr[(jj + 3) * max_ii + ii + 1] = sum[7];
@@ -1805,8 +1805,8 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 
                 if (k_end)
                 {
-                    outptr[(jj + 0) * max_ii + ii] = sum00;
-                    outptr[(jj + 0) * max_ii + ii + 1] = sum01;
+                    outptr[jj * max_ii + ii] = sum00;
+                    outptr[jj * max_ii + ii + 1] = sum01;
                     outptr[(jj + 1) * max_ii + ii] = sum10;
                     outptr[(jj + 1) * max_ii + ii + 1] = sum11;
                 }
@@ -1910,7 +1910,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     _mm_storeu_ps(sum, _sum0);
                     _mm_storeu_ps(sum + 4, _sum1);
                     _mm_storeu_ps(sum + 8, _sum2);
-                    outptr[(jj + 0) * max_ii + ii] = sum[0];
+                    outptr[jj * max_ii + ii] = sum[0];
                     outptr[(jj + 1) * max_ii + ii] = sum[1];
                     outptr[(jj + 2) * max_ii + ii] = sum[2];
                     outptr[(jj + 3) * max_ii + ii] = sum[3];
@@ -1967,7 +1967,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     float sum[8];
                     _mm_storeu_ps(sum, _sum0);
                     _mm_storeu_ps(sum + 4, _sum1);
-                    outptr[(jj + 0) * max_ii + ii] = sum[0];
+                    outptr[jj * max_ii + ii] = sum[0];
                     outptr[(jj + 1) * max_ii + ii] = sum[1];
                     outptr[(jj + 2) * max_ii + ii] = sum[2];
                     outptr[(jj + 3) * max_ii + ii] = sum[3];
@@ -2013,7 +2013,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 {
                     float sum[4];
                     _mm_storeu_ps(sum, _sum);
-                    outptr[(jj + 0) * max_ii + ii] = sum[0];
+                    outptr[jj * max_ii + ii] = sum[0];
                     outptr[(jj + 1) * max_ii + ii] = sum[1];
                     outptr[(jj + 2) * max_ii + ii] = sum[2];
                     outptr[(jj + 3) * max_ii + ii] = sum[3];
@@ -2370,7 +2370,7 @@ static inline void conv3x3s1_winograd23_transform_input_tile(const Mat& bottom_b
                     }
                     if (elempack == 1)
                     {
-                        const float* r0 = bottom_blob.channel(k + kk + 0).row(ti * 2 + m) + (tj * 2);
+                        const float* r0 = bottom_blob.channel(k + kk).row(ti * 2 + m) + (tj * 2);
                         const float* r1 = bottom_blob.channel(k + kk + 1).row(ti * 2 + m) + (tj * 2);
                         const float* r2 = bottom_blob.channel(k + kk + 2).row(ti * 2 + m) + (tj * 2);
                         const float* r3 = bottom_blob.channel(k + kk + 3).row(ti * 2 + m) + (tj * 2);
@@ -2487,7 +2487,7 @@ static inline void conv3x3s1_winograd23_transform_input_tile(const Mat& bottom_b
                     }
                     if (elempack == 1)
                     {
-                        const float* r0 = bottom_blob.channel(k + kk + 0).row(ti * 2 + m) + (tj * 2);
+                        const float* r0 = bottom_blob.channel(k + kk).row(ti * 2 + m) + (tj * 2);
                         const float* r1 = bottom_blob.channel(k + kk + 1).row(ti * 2 + m) + (tj * 2);
                         const float* r2 = bottom_blob.channel(k + kk + 2).row(ti * 2 + m) + (tj * 2);
                         const float* r3 = bottom_blob.channel(k + kk + 3).row(ti * 2 + m) + (tj * 2);
@@ -2576,7 +2576,7 @@ static inline void conv3x3s1_winograd23_transform_input_tile(const Mat& bottom_b
                     }
                     if (elempack == 1)
                     {
-                        const float* r0 = bottom_blob.channel(k + kk + 0).row(ti * 2 + m) + (tj * 2);
+                        const float* r0 = bottom_blob.channel(k + kk).row(ti * 2 + m) + (tj * 2);
                         const float* r1 = bottom_blob.channel(k + kk + 1).row(ti * 2 + m) + (tj * 2);
                         const float* r2 = bottom_blob.channel(k + kk + 2).row(ti * 2 + m) + (tj * 2);
                         const float* r3 = bottom_blob.channel(k + kk + 3).row(ti * 2 + m) + (tj * 2);
@@ -2805,7 +2805,7 @@ static inline void conv3x3s1_winograd23_transform_output_tile(const Mat& top_til
 
             for (int m = 0; m < 4; m++)
             {
-                const float* r0 = &top_tile.row(m * 4 + 0)[jj * max_ii + ii];
+                const float* r0 = &top_tile.row(m * 4)[jj * max_ii + ii];
                 const float* r1 = &top_tile.row(m * 4 + 1)[jj * max_ii + ii];
                 const float* r2 = &top_tile.row(m * 4 + 2)[jj * max_ii + ii];
                 const float* r3 = &top_tile.row(m * 4 + 3)[jj * max_ii + ii];
@@ -2883,7 +2883,7 @@ static inline void conv3x3s1_winograd23_transform_output_tile(const Mat& top_til
                     _mm512_storeu_ps(tmp0, _tmp0);
                     _mm512_storeu_ps(tmp1, _tmp1);
 
-                    float* output0 = top_blob.channel(i + ii + 0).row(ti * 2 + m) + (tj * 2);
+                    float* output0 = top_blob.channel(i + ii).row(ti * 2 + m) + (tj * 2);
                     float* output1 = top_blob.channel(i + ii + 1).row(ti * 2 + m) + (tj * 2);
                     float* output2 = top_blob.channel(i + ii + 2).row(ti * 2 + m) + (tj * 2);
                     float* output3 = top_blob.channel(i + ii + 3).row(ti * 2 + m) + (tj * 2);
@@ -2955,7 +2955,7 @@ static inline void conv3x3s1_winograd23_transform_output_tile(const Mat& top_til
 
             for (int m = 0; m < 4; m++)
             {
-                const float* r0 = &top_tile.row(m * 4 + 0)[jj * max_ii + ii];
+                const float* r0 = &top_tile.row(m * 4)[jj * max_ii + ii];
                 const float* r1 = &top_tile.row(m * 4 + 1)[jj * max_ii + ii];
                 const float* r2 = &top_tile.row(m * 4 + 2)[jj * max_ii + ii];
                 const float* r3 = &top_tile.row(m * 4 + 3)[jj * max_ii + ii];
@@ -3014,7 +3014,7 @@ static inline void conv3x3s1_winograd23_transform_output_tile(const Mat& top_til
                     _mm256_storeu_ps(tmp0, _tmp0);
                     _mm256_storeu_ps(tmp1, _tmp1);
 
-                    float* output0 = top_blob.channel(i + ii + 0).row(ti * 2 + m) + (tj * 2);
+                    float* output0 = top_blob.channel(i + ii).row(ti * 2 + m) + (tj * 2);
                     float* output1 = top_blob.channel(i + ii + 1).row(ti * 2 + m) + (tj * 2);
                     float* output2 = top_blob.channel(i + ii + 2).row(ti * 2 + m) + (tj * 2);
                     float* output3 = top_blob.channel(i + ii + 3).row(ti * 2 + m) + (tj * 2);
@@ -3062,7 +3062,7 @@ static inline void conv3x3s1_winograd23_transform_output_tile(const Mat& top_til
 
             for (int m = 0; m < 4; m++)
             {
-                const float* r0 = &top_tile.row(m * 4 + 0)[jj * max_ii + ii];
+                const float* r0 = &top_tile.row(m * 4)[jj * max_ii + ii];
                 const float* r1 = &top_tile.row(m * 4 + 1)[jj * max_ii + ii];
                 const float* r2 = &top_tile.row(m * 4 + 2)[jj * max_ii + ii];
                 const float* r3 = &top_tile.row(m * 4 + 3)[jj * max_ii + ii];
@@ -3105,7 +3105,7 @@ static inline void conv3x3s1_winograd23_transform_output_tile(const Mat& top_til
                     _mm_storeu_ps(tmp0, _tmp0);
                     _mm_storeu_ps(tmp1, _tmp1);
 
-                    float* output0 = top_blob.channel(i + ii + 0).row(ti * 2 + m) + (tj * 2);
+                    float* output0 = top_blob.channel(i + ii).row(ti * 2 + m) + (tj * 2);
                     float* output1 = top_blob.channel(i + ii + 1).row(ti * 2 + m) + (tj * 2);
                     float* output2 = top_blob.channel(i + ii + 2).row(ti * 2 + m) + (tj * 2);
                     float* output3 = top_blob.channel(i + ii + 3).row(ti * 2 + m) + (tj * 2);
@@ -3142,8 +3142,8 @@ static inline void conv3x3s1_winograd23_transform_output_tile(const Mat& top_til
 
             for (int m = 0; m < 4; m++)
             {
-                float r00 = top_tile.row(m * 4 + 0)[jj * max_ii + ii];
-                float r01 = top_tile.row(m * 4 + 0)[jj * max_ii + ii + 1];
+                float r00 = top_tile.row(m * 4)[jj * max_ii + ii];
+                float r01 = top_tile.row(m * 4)[jj * max_ii + ii + 1];
                 float r10 = top_tile.row(m * 4 + 1)[jj * max_ii + ii];
                 float r11 = top_tile.row(m * 4 + 1)[jj * max_ii + ii + 1];
                 float r20 = top_tile.row(m * 4 + 2)[jj * max_ii + ii];
@@ -3210,7 +3210,7 @@ static inline void conv3x3s1_winograd23_transform_output_tile(const Mat& top_til
 
             for (int m = 0; m < 4; m++)
             {
-                float r0 = top_tile.row(m * 4 + 0)[jj * max_ii + ii];
+                float r0 = top_tile.row(m * 4)[jj * max_ii + ii];
                 float r1 = top_tile.row(m * 4 + 1)[jj * max_ii + ii];
                 float r2 = top_tile.row(m * 4 + 2)[jj * max_ii + ii];
                 float r3 = top_tile.row(m * 4 + 3)[jj * max_ii + ii];
@@ -3533,7 +3533,7 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
                     }
                     if (elempack == 1)
                     {
-                        const float* r0 = bottom_blob.channel(k + kk + 0).row(ti * 4 + m) + (tj * 4);
+                        const float* r0 = bottom_blob.channel(k + kk).row(ti * 4 + m) + (tj * 4);
                         const float* r1 = bottom_blob.channel(k + kk + 1).row(ti * 4 + m) + (tj * 4);
                         const float* r2 = bottom_blob.channel(k + kk + 2).row(ti * 4 + m) + (tj * 4);
                         const float* r3 = bottom_blob.channel(k + kk + 3).row(ti * 4 + m) + (tj * 4);
@@ -3682,7 +3682,7 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
                     }
                     if (elempack == 1)
                     {
-                        const float* r0 = bottom_blob.channel(k + kk + 0).row(ti * 4 + m) + (tj * 4);
+                        const float* r0 = bottom_blob.channel(k + kk).row(ti * 4 + m) + (tj * 4);
                         const float* r1 = bottom_blob.channel(k + kk + 1).row(ti * 4 + m) + (tj * 4);
                         const float* r2 = bottom_blob.channel(k + kk + 2).row(ti * 4 + m) + (tj * 4);
                         const float* r3 = bottom_blob.channel(k + kk + 3).row(ti * 4 + m) + (tj * 4);
@@ -3801,7 +3801,7 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
                     }
                     if (elempack == 1)
                     {
-                        const float* r0 = bottom_blob.channel(k + kk + 0).row(ti * 4 + m) + (tj * 4);
+                        const float* r0 = bottom_blob.channel(k + kk).row(ti * 4 + m) + (tj * 4);
                         const float* r1 = bottom_blob.channel(k + kk + 1).row(ti * 4 + m) + (tj * 4);
                         const float* r2 = bottom_blob.channel(k + kk + 2).row(ti * 4 + m) + (tj * 4);
                         const float* r3 = bottom_blob.channel(k + kk + 3).row(ti * 4 + m) + (tj * 4);
@@ -4098,7 +4098,7 @@ static inline void conv3x3s1_winograd43_transform_output_tile(const Mat& top_til
 
             for (int m = 0; m < 6; m++)
             {
-                const float* r0 = &top_tile.row(m * 6 + 0)[jj * max_ii + ii];
+                const float* r0 = &top_tile.row(m * 6)[jj * max_ii + ii];
                 const float* r1 = &top_tile.row(m * 6 + 1)[jj * max_ii + ii];
                 const float* r2 = &top_tile.row(m * 6 + 2)[jj * max_ii + ii];
                 const float* r3 = &top_tile.row(m * 6 + 3)[jj * max_ii + ii];
@@ -4223,7 +4223,7 @@ static inline void conv3x3s1_winograd43_transform_output_tile(const Mat& top_til
                     _mm512_storeu_ps(tmp2, _tmp2);
                     _mm512_storeu_ps(tmp3, _tmp3);
 
-                    float* output0 = top_blob.channel(i + ii + 0).row(ti * 4 + m) + (tj * 4);
+                    float* output0 = top_blob.channel(i + ii).row(ti * 4 + m) + (tj * 4);
                     float* output1 = top_blob.channel(i + ii + 1).row(ti * 4 + m) + (tj * 4);
                     float* output2 = top_blob.channel(i + ii + 2).row(ti * 4 + m) + (tj * 4);
                     float* output3 = top_blob.channel(i + ii + 3).row(ti * 4 + m) + (tj * 4);
@@ -4336,7 +4336,7 @@ static inline void conv3x3s1_winograd43_transform_output_tile(const Mat& top_til
 
             for (int m = 0; m < 6; m++)
             {
-                const float* r0 = &top_tile.row(m * 6 + 0)[jj * max_ii + ii];
+                const float* r0 = &top_tile.row(m * 6)[jj * max_ii + ii];
                 const float* r1 = &top_tile.row(m * 6 + 1)[jj * max_ii + ii];
                 const float* r2 = &top_tile.row(m * 6 + 2)[jj * max_ii + ii];
                 const float* r3 = &top_tile.row(m * 6 + 3)[jj * max_ii + ii];
@@ -4428,7 +4428,7 @@ static inline void conv3x3s1_winograd43_transform_output_tile(const Mat& top_til
                     _mm256_storeu_ps(tmp2, _tmp2);
                     _mm256_storeu_ps(tmp3, _tmp3);
 
-                    float* output0 = top_blob.channel(i + ii + 0).row(ti * 4 + m) + (tj * 4);
+                    float* output0 = top_blob.channel(i + ii).row(ti * 4 + m) + (tj * 4);
                     float* output1 = top_blob.channel(i + ii + 1).row(ti * 4 + m) + (tj * 4);
                     float* output2 = top_blob.channel(i + ii + 2).row(ti * 4 + m) + (tj * 4);
                     float* output3 = top_blob.channel(i + ii + 3).row(ti * 4 + m) + (tj * 4);
@@ -4501,7 +4501,7 @@ static inline void conv3x3s1_winograd43_transform_output_tile(const Mat& top_til
 
             for (int m = 0; m < 6; m++)
             {
-                const float* r0 = &top_tile.row(m * 6 + 0)[jj * max_ii + ii];
+                const float* r0 = &top_tile.row(m * 6)[jj * max_ii + ii];
                 const float* r1 = &top_tile.row(m * 6 + 1)[jj * max_ii + ii];
                 const float* r2 = &top_tile.row(m * 6 + 2)[jj * max_ii + ii];
                 const float* r3 = &top_tile.row(m * 6 + 3)[jj * max_ii + ii];
@@ -4570,7 +4570,7 @@ static inline void conv3x3s1_winograd43_transform_output_tile(const Mat& top_til
                     _mm_storeu_ps(tmp2, _tmp2);
                     _mm_storeu_ps(tmp3, _tmp3);
 
-                    float* output0 = top_blob.channel(i + ii + 0).row(ti * 4 + m) + (tj * 4);
+                    float* output0 = top_blob.channel(i + ii).row(ti * 4 + m) + (tj * 4);
                     float* output1 = top_blob.channel(i + ii + 1).row(ti * 4 + m) + (tj * 4);
                     float* output2 = top_blob.channel(i + ii + 2).row(ti * 4 + m) + (tj * 4);
                     float* output3 = top_blob.channel(i + ii + 3).row(ti * 4 + m) + (tj * 4);
@@ -4620,8 +4620,8 @@ static inline void conv3x3s1_winograd43_transform_output_tile(const Mat& top_til
 
             for (int m = 0; m < 6; m++)
             {
-                float r00 = top_tile.row(m * 6 + 0)[jj * max_ii + ii];
-                float r01 = top_tile.row(m * 6 + 0)[jj * max_ii + ii + 1];
+                float r00 = top_tile.row(m * 6)[jj * max_ii + ii];
+                float r01 = top_tile.row(m * 6)[jj * max_ii + ii + 1];
                 float r10 = top_tile.row(m * 6 + 1)[jj * max_ii + ii];
                 float r11 = top_tile.row(m * 6 + 1)[jj * max_ii + ii + 1];
                 float r20 = top_tile.row(m * 6 + 2)[jj * max_ii + ii];
@@ -4718,7 +4718,7 @@ static inline void conv3x3s1_winograd43_transform_output_tile(const Mat& top_til
 
             for (int m = 0; m < 6; m++)
             {
-                float r0 = top_tile.row(m * 6 + 0)[jj * max_ii + ii];
+                float r0 = top_tile.row(m * 6)[jj * max_ii + ii];
                 float r1 = top_tile.row(m * 6 + 1)[jj * max_ii + ii];
                 float r2 = top_tile.row(m * 6 + 2)[jj * max_ii + ii];
                 float r3 = top_tile.row(m * 6 + 3)[jj * max_ii + ii];
