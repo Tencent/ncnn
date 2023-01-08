@@ -953,7 +953,7 @@ PYBIND11_MODULE(ncnn, m)
     .def("create_extractor", &Net::create_extractor, py::keep_alive<0, 1>()) //net should be kept alive until retuned ex is freed by gc
 
     .def("input_indexes", &Net::input_indexes, py::return_value_policy::reference)
-    .def("input_indexes", &Net::output_indexes, py::return_value_policy::reference)
+    .def("output_indexes", &Net::output_indexes, py::return_value_policy::reference)
 #if NCNN_STRING
     .def("input_names", &Net::input_names, py::return_value_policy::reference)
     .def("output_names", &Net::output_names, py::return_value_policy::reference)
