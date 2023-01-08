@@ -888,7 +888,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 
                 if (k_end)
                 {
-                    _mm512_storeu_ps(&outptr[(jj) * max_ii + ii], _sum);
+                    _mm512_storeu_ps(&outptr[(jj)*max_ii + ii], _sum);
                 }
                 else
                 {
@@ -1210,7 +1210,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 
                 if (k_end)
                 {
-                    _mm256_storeu_ps(&outptr[(jj) * max_ii + ii], _sum);
+                    _mm256_storeu_ps(&outptr[(jj)*max_ii + ii], _sum);
                 }
                 else
                 {
@@ -2654,10 +2654,23 @@ static inline void conv3x3s1_winograd23_transform_input_tile(const Mat& bottom_b
                         const float* r0123_0 = bottom_blob.channel(k + kk).row(ti * 2 + m) + (tj * 2);
                         const float* r0123_1 = bottom_blob.channel(k + kk + 1).row(ti * 2 + m) + (tj * 2);
 
-                        r00 = r0123_0[0]; r01 = r0123_1[0];
-                        if (tj * 2 + 1 < w) { r10 = r0123_0[1]; r11 = r0123_1[1]; }
-                        if (tj * 2 + 2 < w) { r20 = r0123_0[2]; r21 = r0123_1[2]; }
-                        if (tj * 2 + 3 < w) { r30 = r0123_0[3]; r31 = r0123_1[3]; }
+                        r00 = r0123_0[0];
+                        r01 = r0123_1[0];
+                        if (tj * 2 + 1 < w)
+                        {
+                            r10 = r0123_0[1];
+                            r11 = r0123_1[1];
+                        }
+                        if (tj * 2 + 2 < w)
+                        {
+                            r20 = r0123_0[2];
+                            r21 = r0123_1[2];
+                        }
+                        if (tj * 2 + 3 < w)
+                        {
+                            r30 = r0123_0[3];
+                            r31 = r0123_1[3];
+                        }
                     }
                 }
 
@@ -3172,8 +3185,13 @@ static inline void conv3x3s1_winograd23_transform_output_tile(const Mat& top_til
                     float* output0 = top_blob.channel(i + ii).row(ti * 2 + m) + (tj * 2);
                     float* output1 = top_blob.channel(i + ii + 1).row(ti * 2 + m) + (tj * 2);
 
-                    output0[0] = tmp00; output1[0] = tmp01;
-                    if (tj * 2 + 1 < outw) { output0[1] = tmp10; output1[1] = tmp11; }
+                    output0[0] = tmp00;
+                    output1[0] = tmp01;
+                    if (tj * 2 + 1 < outw)
+                    {
+                        output0[1] = tmp10;
+                        output1[1] = tmp11;
+                    }
                 }
             }
         }
@@ -3887,26 +3905,46 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
 
                         r00 = r0123_0[0];
                         r01 = r0123_1[0];
-                        if (tj * 4 + 1 < w) { r10 = r0123_0[1]; r11 = r0123_1[1]; }
-                        if (tj * 4 + 2 < w) { r20 = r0123_0[2]; r21 = r0123_1[2]; }
-                        if (tj * 4 + 3 < w) { r30 = r0123_0[3]; r31 = r0123_1[3]; }
-                        if (tj * 4 + 4 < w) { r40 = r0123_0[4]; r41 = r0123_1[4]; }
-                        if (tj * 4 + 5 < w) { r50 = r0123_0[5]; r51 = r0123_1[5]; }
+                        if (tj * 4 + 1 < w)
+                        {
+                            r10 = r0123_0[1];
+                            r11 = r0123_1[1];
+                        }
+                        if (tj * 4 + 2 < w)
+                        {
+                            r20 = r0123_0[2];
+                            r21 = r0123_1[2];
+                        }
+                        if (tj * 4 + 3 < w)
+                        {
+                            r30 = r0123_0[3];
+                            r31 = r0123_1[3];
+                        }
+                        if (tj * 4 + 4 < w)
+                        {
+                            r40 = r0123_0[4];
+                            r41 = r0123_1[4];
+                        }
+                        if (tj * 4 + 5 < w)
+                        {
+                            r50 = r0123_0[5];
+                            r51 = r0123_1[5];
+                        }
                     }
                 }
 
-                tmp[0][m][0] =  r00 * 4.f - r20 * 5.f + r40;
-                tmp[0][m][1] =  r01 * 4.f - r21 * 5.f + r41;
+                tmp[0][m][0] = r00 * 4.f - r20 * 5.f + r40;
+                tmp[0][m][1] = r01 * 4.f - r21 * 5.f + r41;
                 tmp[1][m][0] = -r10 * 4.f - r20 * 4.f + r30 + r40;
                 tmp[1][m][1] = -r11 * 4.f - r21 * 4.f + r31 + r41;
-                tmp[2][m][0] =  r10 * 4.f - r20 * 4.f - r30 + r40;
-                tmp[2][m][1] =  r11 * 4.f - r21 * 4.f - r31 + r41;
+                tmp[2][m][0] = r10 * 4.f - r20 * 4.f - r30 + r40;
+                tmp[2][m][1] = r11 * 4.f - r21 * 4.f - r31 + r41;
                 tmp[3][m][0] = -r10 * 2.f - r20 + r30 * 2.f + r40;
                 tmp[3][m][1] = -r11 * 2.f - r21 + r31 * 2.f + r41;
-                tmp[4][m][0] =  r10 * 2.f - r20 - r30 * 2.f + r40;
-                tmp[4][m][1] =  r11 * 2.f - r21 - r31 * 2.f + r41;
-                tmp[5][m][0] =  r10 * 4.f - r30 * 5.f + r50;
-                tmp[5][m][1] =  r11 * 4.f - r31 * 5.f + r51;
+                tmp[4][m][0] = r10 * 2.f - r20 - r30 * 2.f + r40;
+                tmp[4][m][1] = r11 * 2.f - r21 - r31 * 2.f + r41;
+                tmp[5][m][0] = r10 * 4.f - r30 * 5.f + r50;
+                tmp[5][m][1] = r11 * 4.f - r31 * 5.f + r51;
             }
             for (int m = 0; m < 6; m++)
             {
@@ -3923,18 +3961,18 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
                 float r50 = tmp[m][5][0];
                 float r51 = tmp[m][5][1];
 
-                float z00 =  r00 * 4.f - r20 * 5.f + r40;
-                float z01 =  r01 * 4.f - r21 * 5.f + r41;
+                float z00 = r00 * 4.f - r20 * 5.f + r40;
+                float z01 = r01 * 4.f - r21 * 5.f + r41;
                 float z10 = -r10 * 4.f - r20 * 4.f + r30 + r40;
                 float z11 = -r11 * 4.f - r21 * 4.f + r31 + r41;
-                float z20 =  r10 * 4.f - r20 * 4.f - r30 + r40;
-                float z21 =  r11 * 4.f - r21 * 4.f - r31 + r41;
+                float z20 = r10 * 4.f - r20 * 4.f - r30 + r40;
+                float z21 = r11 * 4.f - r21 * 4.f - r31 + r41;
                 float z30 = -r10 * 2.f - r20 + r30 * 2.f + r40;
                 float z31 = -r11 * 2.f - r21 + r31 * 2.f + r41;
-                float z40 =  r10 * 2.f - r20 - r30 * 2.f + r40;
-                float z41 =  r11 * 2.f - r21 - r31 * 2.f + r41;
-                float z50 =  r10 * 4.f - r30 * 5.f + r50;
-                float z51 =  r11 * 4.f - r31 * 5.f + r51;
+                float z40 = r10 * 2.f - r20 - r30 * 2.f + r40;
+                float z41 = r11 * 2.f - r21 - r31 * 2.f + r41;
+                float z50 = r10 * 4.f - r30 * 5.f + r50;
+                float z51 = r11 * 4.f - r31 * 5.f + r51;
 
                 ptmp[0] = z00;
                 ptmp[1] = z01;
@@ -3986,12 +4024,12 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
                     }
                 }
 
-                tmp[0][m] =  r0 * 4.f - r2 * 5.f + r4;
+                tmp[0][m] = r0 * 4.f - r2 * 5.f + r4;
                 tmp[1][m] = -r1 * 4.f - r2 * 4.f + r3 + r4;
-                tmp[2][m] =  r1 * 4.f - r2 * 4.f - r3 + r4;
+                tmp[2][m] = r1 * 4.f - r2 * 4.f - r3 + r4;
                 tmp[3][m] = -r1 * 2.f - r2 + r3 * 2.f + r4;
-                tmp[4][m] =  r1 * 2.f - r2 - r3 * 2.f + r4;
-                tmp[5][m] =  r1 * 4.f - r3 * 5.f + r5;
+                tmp[4][m] = r1 * 2.f - r2 - r3 * 2.f + r4;
+                tmp[5][m] = r1 * 4.f - r3 * 5.f + r5;
             }
             for (int m = 0; m < 6; m++)
             {
@@ -4002,12 +4040,12 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
                 float r4 = tmp[m][4];
                 float r5 = tmp[m][5];
 
-                float z0 =  r0 * 4.f - r2 * 5.f + r4;
+                float z0 = r0 * 4.f - r2 * 5.f + r4;
                 float z1 = -r1 * 4.f - r2 * 4.f + r3 + r4;
-                float z2 =  r1 * 4.f - r2 * 4.f - r3 + r4;
+                float z2 = r1 * 4.f - r2 * 4.f - r3 + r4;
                 float z3 = -r1 * 2.f - r2 + r3 * 2.f + r4;
-                float z4 =  r1 * 2.f - r2 - r3 * 2.f + r4;
-                float z5 =  r1 * 4.f - r3 * 5.f + r5;
+                float z4 = r1 * 2.f - r2 - r3 * 2.f + r4;
+                float z5 = r1 * 4.f - r3 * 5.f + r5;
 
                 ptmp[0] = z0;
                 ptmp[1] = z1;
@@ -4645,10 +4683,23 @@ static inline void conv3x3s1_winograd43_transform_output_tile(const Mat& top_til
                     float* output0 = top_blob.channel(i + ii).row(ti * 4 + m) + (tj * 4);
                     float* output1 = top_blob.channel(i + ii + 1).row(ti * 4 + m) + (tj * 4);
 
-                    output0[0] = tmp00; output1[0] = tmp01;
-                    if (tj * 4 + 1 < outw) { output0[1] = tmp10; output1[1] = tmp11; }
-                    if (tj * 4 + 2 < outw) { output0[2] = tmp20; output1[2] = tmp21; }
-                    if (tj * 4 + 3 < outw) { output0[3] = tmp30; output1[3] = tmp31; }
+                    output0[0] = tmp00;
+                    output1[0] = tmp01;
+                    if (tj * 4 + 1 < outw)
+                    {
+                        output0[1] = tmp10;
+                        output1[1] = tmp11;
+                    }
+                    if (tj * 4 + 2 < outw)
+                    {
+                        output0[2] = tmp20;
+                        output1[2] = tmp21;
+                    }
+                    if (tj * 4 + 3 < outw)
+                    {
+                        output0[3] = tmp30;
+                        output1[3] = tmp31;
+                    }
                 }
             }
         }

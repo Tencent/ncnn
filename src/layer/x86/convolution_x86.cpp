@@ -500,7 +500,6 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
 
     const int num_input = channels * elempack;
 
-
     if (opt.use_winograd_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
     {
         // conv3x3s1_winograd23(bottom_blob_bordered, top_blob, weight_winograd23_data, bias_data, opt);
