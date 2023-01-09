@@ -2739,23 +2739,14 @@ static inline void conv3x3s1_winograd23_transform_input_tile(const Mat& bottom_b
                 float r30 = tmp[m][3][0];
                 float r31 = tmp[m][3][1];
 
-                float z00 = r00 - r20;
-                float z01 = r01 - r21;
-                float z10 = r10 + r20;
-                float z11 = r11 + r21;
-                float z20 = r20 - r10;
-                float z21 = r21 - r11;
-                float z30 = r30 - r10;
-                float z31 = r31 - r11;
-
-                ptmp[0] = z00;
-                ptmp[1] = z01;
-                ptmp[2] = z10;
-                ptmp[3] = z11;
-                ptmp[4] = z20;
-                ptmp[5] = z21;
-                ptmp[6] = z30;
-                ptmp[7] = z31;
+                ptmp[0] = r00 - r20;
+                ptmp[1] = r01 - r21;
+                ptmp[2] = r10 + r20;
+                ptmp[3] = r11 + r21;
+                ptmp[4] = r20 - r10;
+                ptmp[5] = r21 - r11;
+                ptmp[6] = r30 - r10;
+                ptmp[7] = r31 - r11;
                 ptmp += 8;
             }
         }
@@ -2802,15 +2793,10 @@ static inline void conv3x3s1_winograd23_transform_input_tile(const Mat& bottom_b
                 float r2 = tmp[m][2];
                 float r3 = tmp[m][3];
 
-                float z0 = r0 - r2;
-                float z1 = r1 + r2;
-                float z2 = r2 - r1;
-                float z3 = r3 - r1;
-
-                ptmp[0] = z0;
-                ptmp[1] = z1;
-                ptmp[2] = z2;
-                ptmp[3] = z3;
+                ptmp[0] = r0 - r2;
+                ptmp[1] = r1 + r2;
+                ptmp[2] = r2 - r1;
+                ptmp[3] = r3 - r1;
                 ptmp += 4;
             }
         }
@@ -3235,15 +3221,10 @@ static inline void conv3x3s1_winograd23_transform_output_tile(const Mat& top_til
                 float r30 = top_tile.depth(m * 4 + 3).row(jj)[ii];
                 float r31 = top_tile.depth(m * 4 + 3).row(jj)[ii + 1];
 
-                float tmp00 = r00 + r10 + r20;
-                float tmp01 = r01 + r11 + r21;
-                float tmp10 = r10 - r20 + r30;
-                float tmp11 = r11 - r21 + r31;
-
-                tmp[0][m][0] = tmp00;
-                tmp[0][m][1] = tmp01;
-                tmp[1][m][0] = tmp10;
-                tmp[1][m][1] = tmp11;
+                tmp[0][m][0] = r00 + r10 + r20;
+                tmp[0][m][1] = r01 + r11 + r21;
+                tmp[1][m][0] = r10 - r20 + r30;
+                tmp[1][m][1] = r11 - r21 + r31;
             }
             for (int m = 0; m < 2; m++)
             {
@@ -3299,11 +3280,8 @@ static inline void conv3x3s1_winograd23_transform_output_tile(const Mat& top_til
                 float r2 = top_tile.depth(m * 4 + 2).row(jj)[ii];
                 float r3 = top_tile.depth(m * 4 + 3).row(jj)[ii];
 
-                float tmp0 = r0 + r1 + r2;
-                float tmp1 = r1 - r2 + r3;
-
-                tmp[0][m] = tmp0;
-                tmp[1][m] = tmp1;
+                tmp[0][m] = r0 + r1 + r2;
+                tmp[1][m] = r1 - r2 + r3;
             }
             for (int m = 0; m < 2; m++)
             {
@@ -4096,31 +4074,18 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
                 float r50 = tmp[m][5][0];
                 float r51 = tmp[m][5][1];
 
-                float z00 = r00 * 4.f - r20 * 5.f + r40;
-                float z01 = r01 * 4.f - r21 * 5.f + r41;
-                float z10 = -r10 * 4.f - r20 * 4.f + r30 + r40;
-                float z11 = -r11 * 4.f - r21 * 4.f + r31 + r41;
-                float z20 = r10 * 4.f - r20 * 4.f - r30 + r40;
-                float z21 = r11 * 4.f - r21 * 4.f - r31 + r41;
-                float z30 = -r10 * 2.f - r20 + r30 * 2.f + r40;
-                float z31 = -r11 * 2.f - r21 + r31 * 2.f + r41;
-                float z40 = r10 * 2.f - r20 - r30 * 2.f + r40;
-                float z41 = r11 * 2.f - r21 - r31 * 2.f + r41;
-                float z50 = r10 * 4.f - r30 * 5.f + r50;
-                float z51 = r11 * 4.f - r31 * 5.f + r51;
-
-                ptmp[0] = z00;
-                ptmp[1] = z01;
-                ptmp[2] = z10;
-                ptmp[3] = z11;
-                ptmp[4] = z20;
-                ptmp[5] = z21;
-                ptmp[6] = z30;
-                ptmp[7] = z31;
-                ptmp[8] = z40;
-                ptmp[9] = z41;
-                ptmp[10] = z50;
-                ptmp[11] = z51;
+                ptmp[0] = r00 * 4.f - r20 * 5.f + r40;
+                ptmp[1] = r01 * 4.f - r21 * 5.f + r41;
+                ptmp[2] = -r10 * 4.f - r20 * 4.f + r30 + r40;
+                ptmp[3] = -r11 * 4.f - r21 * 4.f + r31 + r41;
+                ptmp[4] = r10 * 4.f - r20 * 4.f - r30 + r40;
+                ptmp[5] = r11 * 4.f - r21 * 4.f - r31 + r41;
+                ptmp[6] = -r10 * 2.f - r20 + r30 * 2.f + r40;
+                ptmp[7] = -r11 * 2.f - r21 + r31 * 2.f + r41;
+                ptmp[8] = r10 * 2.f - r20 - r30 * 2.f + r40;
+                ptmp[9] = r11 * 2.f - r21 - r31 * 2.f + r41;
+                ptmp[10] = r10 * 4.f - r30 * 5.f + r50;
+                ptmp[11] = r11 * 4.f - r31 * 5.f + r51;
                 ptmp += 12;
             }
         }
@@ -4175,19 +4140,12 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
                 float r4 = tmp[m][4];
                 float r5 = tmp[m][5];
 
-                float z0 = r0 * 4.f - r2 * 5.f + r4;
-                float z1 = -r1 * 4.f - r2 * 4.f + r3 + r4;
-                float z2 = r1 * 4.f - r2 * 4.f - r3 + r4;
-                float z3 = -r1 * 2.f - r2 + r3 * 2.f + r4;
-                float z4 = r1 * 2.f - r2 - r3 * 2.f + r4;
-                float z5 = r1 * 4.f - r3 * 5.f + r5;
-
-                ptmp[0] = z0;
-                ptmp[1] = z1;
-                ptmp[2] = z2;
-                ptmp[3] = z3;
-                ptmp[4] = z4;
-                ptmp[5] = z5;
+                ptmp[0] = r0 * 4.f - r2 * 5.f + r4;
+                ptmp[1] = -r1 * 4.f - r2 * 4.f + r3 + r4;
+                ptmp[2] = r1 * 4.f - r2 * 4.f - r3 + r4;
+                ptmp[3] = -r1 * 2.f - r2 + r3 * 2.f + r4;
+                ptmp[4] = r1 * 2.f - r2 - r3 * 2.f + r4;
+                ptmp[5] = r1 * 4.f - r3 * 5.f + r5;
                 ptmp += 6;
             }
         }
@@ -4815,23 +4773,14 @@ static inline void conv3x3s1_winograd43_transform_output_tile(const Mat& top_til
                 float r50 = top_tile.depth(m * 6 + 5).row(jj)[ii];
                 float r51 = top_tile.depth(m * 6 + 5).row(jj)[ii + 1];
 
-                float tmp00 = r00 + r10 + r20 + r30 + r40;
-                float tmp01 = r01 + r11 + r21 + r31 + r41;
-                float tmp10 = r10 - r20 + r30 * 2.f - r40 * 2.f;
-                float tmp11 = r11 - r21 + r31 * 2.f - r41 * 2.f;
-                float tmp20 = r10 + r20 + r30 * 4.f + r40 * 4.f;
-                float tmp21 = r11 + r21 + r31 * 4.f + r41 * 4.f;
-                float tmp30 = r10 - r20 + r30 * 8.f - r40 * 8.f + r50;
-                float tmp31 = r11 - r21 + r31 * 8.f - r41 * 8.f + r51;
-
-                tmp[0][m][0] = tmp00;
-                tmp[0][m][1] = tmp01;
-                tmp[1][m][0] = tmp10;
-                tmp[1][m][1] = tmp11;
-                tmp[2][m][0] = tmp20;
-                tmp[2][m][1] = tmp21;
-                tmp[3][m][0] = tmp30;
-                tmp[3][m][1] = tmp31;
+                tmp[0][m][0] = r00 + r10 + r20 + r30 + r40;
+                tmp[0][m][1] = r01 + r11 + r21 + r31 + r41;
+                tmp[1][m][0] = r10 - r20 + r30 * 2.f - r40 * 2.f;
+                tmp[1][m][1] = r11 - r21 + r31 * 2.f - r41 * 2.f;
+                tmp[2][m][0] = r10 + r20 + r30 * 4.f + r40 * 4.f;
+                tmp[2][m][1] = r11 + r21 + r31 * 4.f + r41 * 4.f;
+                tmp[3][m][0] = r10 - r20 + r30 * 8.f - r40 * 8.f + r50;
+                tmp[3][m][1] = r11 - r21 + r31 * 8.f - r41 * 8.f + r51;
             }
             for (int m = 0; m < 4; m++)
             {
@@ -4907,15 +4856,10 @@ static inline void conv3x3s1_winograd43_transform_output_tile(const Mat& top_til
                 float r4 = top_tile.depth(m * 6 + 4).row(jj)[ii];
                 float r5 = top_tile.depth(m * 6 + 5).row(jj)[ii];
 
-                float tmp0 = r0 + r1 + r2 + r3 + r4;
-                float tmp1 = r1 - r2 + r3 * 2.f - r4 * 2.f;
-                float tmp2 = r1 + r2 + r3 * 4.f + r4 * 4.f;
-                float tmp3 = r1 - r2 + r3 * 8.f - r4 * 8.f + r5;
-
-                tmp[0][m] = tmp0;
-                tmp[1][m] = tmp1;
-                tmp[2][m] = tmp2;
-                tmp[3][m] = tmp3;
+                tmp[0][m] = r0 + r1 + r2 + r3 + r4;
+                tmp[1][m] = r1 - r2 + r3 * 2.f - r4 * 2.f;
+                tmp[2][m] = r1 + r2 + r3 * 4.f + r4 * 4.f;
+                tmp[3][m] = r1 - r2 + r3 * 8.f - r4 * 8.f + r5;
             }
             for (int m = 0; m < 4; m++)
             {
@@ -5040,6 +4984,2109 @@ static void conv3x3s1_winograd43(const Mat& bottom_blob, Mat& top_blob, const Ma
 
             // transform output
             conv3x3s1_winograd43_transform_output_tile(top_tile, top_blob, bias, i, max_ii, j, max_jj);
+        }
+    }
+}
+
+static inline void conv3x3s1_winograd63_transform_kernel_tile(const Mat& kernel, Mat& A, int inch, int i, int max_ii, int k, int max_kk)
+{
+    float* ptmp = A;
+
+    int ii = 0;
+    for (; ii < max_ii; ii++)
+    {
+        int kk = 0;
+        for (; kk < max_kk; kk++)
+        {
+            // const float ktm[8][3] = {
+            //     {1.0f, 0.0f, 0.0f},
+            //     {-2.0f / 9, -2.0f / 9, -2.0f / 9},
+            //     {-2.0f / 9, 2.0f / 9, -2.0f / 9},
+            //     {1.0f / 90, 1.0f / 45, 2.0f / 45},
+            //     {1.0f / 90, -1.0f / 45, 2.0f / 45},
+            //     {1.0f / 45, 1.0f / 90, 1.0f / 180},
+            //     {1.0f / 45, -1.0f / 90, 1.0f / 180},
+            //     {0.0f, 0.0f, 1.0f}
+            // };
+            const float ktm0 = 2.0f / 9;
+            const float ktm1 = 1.0f / 45;
+            const float ktm2 = 2.0f / 45;
+            const float ktm3 = 1.0f / 90;
+            const float ktm4 = 1.0f / 180;
+
+            float tmp[8][3];
+
+            for (int m = 0; m < 3; m++)
+            {
+                const float* k0 = (const float*)kernel + (i + ii) * inch * 9 + (k + kk) * 9 + m * 3;
+
+                float r0 = k0[0];
+                float r1 = k0[1];
+                float r2 = k0[2];
+
+                tmp[0][m] = r0;
+                tmp[1][m] = -r0 * ktm0 - r1 * ktm0 - r2 * ktm0;
+                tmp[2][m] = -r0 * ktm0 + r1 * ktm0 - r2 * ktm0;
+                tmp[3][m] = r0 * ktm3 + r1 * ktm1 + r2 * ktm2;
+                tmp[4][m] = r0 * ktm3 - r1 * ktm1 + r2 * ktm2;
+                tmp[5][m] = r0 * ktm1 + r1 * ktm3 + r2 * ktm4;
+                tmp[6][m] = r0 * ktm1 - r1 * ktm3 + r2 * ktm4;
+                tmp[7][m] = r2;
+            }
+
+            for (int m = 0; m < 8; m++)
+            {
+                float r0 = tmp[m][0];
+                float r1 = tmp[m][1];
+                float r2 = tmp[m][2];
+
+                float z0 = r0;
+                float z1 = -r0 * ktm0 - r1 * ktm0 - r2 * ktm0;
+                float z2 = -r0 * ktm0 + r1 * ktm0 - r2 * ktm0;
+                float z3 = r0 * ktm3 + r1 * ktm1 + r2 * ktm2;
+                float z4 = r0 * ktm3 - r1 * ktm1 + r2 * ktm2;
+                float z5 = r0 * ktm1 + r1 * ktm3 + r2 * ktm4;
+                float z6 = r0 * ktm1 - r1 * ktm3 + r2 * ktm4;
+                float z7 = r2;
+
+                ptmp[0] = z0;
+                ptmp[1] = z1;
+                ptmp[2] = z2;
+                ptmp[3] = z3;
+                ptmp[4] = z4;
+                ptmp[5] = z5;
+                ptmp[6] = z6;
+                ptmp[7] = z7;
+                ptmp += 8;
+            }
+        }
+    }
+}
+
+static void conv3x3s1_winograd63_transform_kernel(const Mat& kernel, Mat& AT, int inch, int outch, const Option& opt)
+{
+    const int M = outch;
+    const int K = inch;
+    const int B = 64;
+
+    int TILE_M, TILE_N, TILE_K;
+    get_optimal_tile_mnk(M, 0, K, TILE_M, TILE_N, TILE_K, opt.num_threads);
+
+    const int nn_M = (M + TILE_M - 1) / TILE_M;
+
+    Mat A_tileX(B * TILE_M * TILE_K, 1, opt.num_threads, 4u, opt.blob_allocator);
+
+    AT.create(TILE_K * TILE_M, B, (K + TILE_K - 1) / TILE_K, (M + TILE_M - 1) / TILE_M, 4u, opt.blob_allocator);
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int ppj = 0; ppj < nn_M; ppj++)
+    {
+        const int i = ppj * TILE_M;
+
+        Mat A_tile = A_tileX.channel(get_omp_thread_num());
+
+        for (int k = 0; k < K; k += TILE_K)
+        {
+            const int max_ii = std::min((M - i), TILE_M);
+            const int max_kk = std::min((K - k), TILE_K);
+
+            conv3x3s1_winograd63_transform_kernel_tile(kernel, A_tile, inch, i, max_ii, k, max_kk);
+
+            Mat AT_tile = AT.channel(i / TILE_M).depth(k / TILE_K);
+
+            pack_A_tile(A_tile, AT_tile, B, max_ii, max_kk);
+        }
+    }
+}
+
+static inline void conv3x3s1_winograd63_transform_input_tile(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk)
+{
+    // const float itm[8][8] = {
+    //     {1.0f, 0.0f,-5.25f, 0.00f, 5.25f, 0.00f,-1.0f, 0.0f},
+    //     {0.0f, 1.0f, 1.00f,-4.25f,-4.25f, 1.00f, 1.0f, 0.0f},
+    //     {0.0f,-1.0f, 1.00f, 4.25f,-4.25f,-1.00f, 1.0f, 0.0f},
+    //     {0.0f, 0.5f, 0.25f,-2.50f,-1.25f, 2.00f, 1.0f, 0.0f},
+    //     {0.0f,-0.5f, 0.25f, 2.50f,-1.25f,-2.00f, 1.0f, 0.0f},
+    //     {0.0f, 2.0f, 4.00f,-2.50f,-5.00f, 0.50f, 1.0f, 0.0f},
+    //     {0.0f,-2.0f, 4.00f, 2.50f,-5.00f,-0.50f, 1.0f, 0.0f},
+    //     {0.0f,-1.0f, 0.00f, 5.25f, 0.00f,-5.25f, 0.0f, 1.0f}
+    // };
+
+    const int w = bottom_blob.w;
+    const int h = bottom_blob.h;
+    const int elempack = bottom_blob.elempack;
+
+    const int w_tiles = (w + 3) / 6;
+
+    float* ptmp = B;
+
+    int kk = 0;
+#if __SSE2__
+#if __AVX__
+#if __AVX512F__
+    for (; kk + 15 < max_kk; kk += 16)
+    {
+        int jj = 0;
+        for (; jj < max_jj; jj++)
+        {
+            int ti = (j + jj) / w_tiles;
+            int tj = (j + jj) % w_tiles;
+
+#ifdef _MSC_VER
+            __declspec(align(64))
+#else
+            __attribute__((aligned(64)))
+#endif
+            float tmp[8][8][16];
+
+            for (int m = 0; m < 8; m++)
+            {
+                __m512 _r0 = _mm512_setzero_ps();
+                __m512 _r1 = _mm512_setzero_ps();
+                __m512 _r2 = _mm512_setzero_ps();
+                __m512 _r3 = _mm512_setzero_ps();
+                __m512 _r4 = _mm512_setzero_ps();
+                __m512 _r5 = _mm512_setzero_ps();
+                __m512 _r6 = _mm512_setzero_ps();
+                __m512 _r7 = _mm512_setzero_ps();
+
+                if (ti * 6 + m < h)
+                {
+                    if (elempack == 16)
+                    {
+                        const float* r0 = bottom_blob.channel((k + kk) / 16).row(ti * 6 + m) + (tj * 6) * 16;
+
+                        _r0 = _mm512_load_ps(r0);
+                        if (tj * 6 + 1 < w) _r1 = _mm512_load_ps(r0 + 16);
+                        if (tj * 6 + 2 < w) _r2 = _mm512_load_ps(r0 + 32);
+                        if (tj * 6 + 3 < w) _r3 = _mm512_load_ps(r0 + 48);
+                        if (tj * 6 + 4 < w) _r4 = _mm512_load_ps(r0 + 64);
+                        if (tj * 6 + 5 < w) _r5 = _mm512_load_ps(r0 + 80);
+                        if (tj * 6 + 6 < w) _r6 = _mm512_load_ps(r0 + 96);
+                        if (tj * 6 + 7 < w) _r7 = _mm512_load_ps(r0 + 112);
+                    }
+                    if (elempack == 8)
+                    {
+                        const float* r0 = bottom_blob.channel((k + kk) / 8).row(ti * 6 + m) + (tj * 6) * 8;
+                        const float* r1 = bottom_blob.channel((k + kk) / 8 + 1).row(ti * 6 + m) + (tj * 6) * 8;
+
+                        _r0 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_load_ps(r0)), _mm256_load_ps(r1), 1);
+                        if (tj * 6 + 1 < w) _r1 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_load_ps(r0 + 8)), _mm256_load_ps(r1 + 8), 1);
+                        if (tj * 6 + 2 < w) _r2 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_load_ps(r0 + 16)), _mm256_load_ps(r1 + 16), 1);
+                        if (tj * 6 + 3 < w) _r3 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_load_ps(r0 + 24)), _mm256_load_ps(r1 + 24), 1);
+                        if (tj * 6 + 4 < w) _r4 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_load_ps(r0 + 32)), _mm256_load_ps(r1 + 32), 1);
+                        if (tj * 6 + 5 < w) _r5 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_load_ps(r0 + 40)), _mm256_load_ps(r1 + 40), 1);
+                        if (tj * 6 + 6 < w) _r6 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_load_ps(r0 + 48)), _mm256_load_ps(r1 + 48), 1);
+                        if (tj * 6 + 7 < w) _r7 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_load_ps(r0 + 56)), _mm256_load_ps(r1 + 56), 1);
+                    }
+                    if (elempack == 4)
+                    {
+                        const float* r0 = bottom_blob.channel((k + kk) / 4).row(ti * 6 + m) + (tj * 6) * 4;
+                        const float* r1 = bottom_blob.channel((k + kk) / 4 + 1).row(ti * 6 + m) + (tj * 6) * 4;
+                        const float* r2 = bottom_blob.channel((k + kk) / 4 + 2).row(ti * 6 + m) + (tj * 6) * 4;
+                        const float* r3 = bottom_blob.channel((k + kk) / 4 + 3).row(ti * 6 + m) + (tj * 6) * 4;
+
+                        _r0 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0)), _mm_load_ps(r1), 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r2)), _mm_load_ps(r3), 1), 1);
+                        if (tj * 6 + 1 < w) _r1 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0 + 4)), _mm_load_ps(r1 + 4), 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r2 + 4)), _mm_load_ps(r3 + 4), 1), 1);
+                        if (tj * 6 + 2 < w) _r2 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0 + 8)), _mm_load_ps(r1 + 8), 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r2 + 8)), _mm_load_ps(r3 + 8), 1), 1);
+                        if (tj * 6 + 3 < w) _r3 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0 + 12)), _mm_load_ps(r1 + 12), 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r2 + 12)), _mm_load_ps(r3 + 12), 1), 1);
+                        if (tj * 6 + 4 < w) _r4 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0 + 16)), _mm_load_ps(r1 + 16), 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r2 + 16)), _mm_load_ps(r3 + 16), 1), 1);
+                        if (tj * 6 + 5 < w) _r5 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0 + 20)), _mm_load_ps(r1 + 20), 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r2 + 20)), _mm_load_ps(r3 + 20), 1), 1);
+                        if (tj * 6 + 6 < w) _r6 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0 + 24)), _mm_load_ps(r1 + 24), 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r2 + 24)), _mm_load_ps(r3 + 24), 1), 1);
+                        if (tj * 6 + 7 < w) _r7 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0 + 28)), _mm_load_ps(r1 + 28), 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r2 + 28)), _mm_load_ps(r3 + 28), 1), 1);
+                    }
+                    if (elempack == 1)
+                    {
+                        const float* r0 = bottom_blob.channel(k + kk).row(ti * 6 + m) + (tj * 6);
+                        const float* r1 = bottom_blob.channel(k + kk + 1).row(ti * 6 + m) + (tj * 6);
+                        const float* r2 = bottom_blob.channel(k + kk + 2).row(ti * 6 + m) + (tj * 6);
+                        const float* r3 = bottom_blob.channel(k + kk + 3).row(ti * 6 + m) + (tj * 6);
+                        const float* r4 = bottom_blob.channel(k + kk + 4).row(ti * 6 + m) + (tj * 6);
+                        const float* r5 = bottom_blob.channel(k + kk + 5).row(ti * 6 + m) + (tj * 6);
+                        const float* r6 = bottom_blob.channel(k + kk + 6).row(ti * 6 + m) + (tj * 6);
+                        const float* r7 = bottom_blob.channel(k + kk + 7).row(ti * 6 + m) + (tj * 6);
+                        const float* r8 = bottom_blob.channel(k + kk + 8).row(ti * 6 + m) + (tj * 6);
+                        const float* r9 = bottom_blob.channel(k + kk + 9).row(ti * 6 + m) + (tj * 6);
+                        const float* ra = bottom_blob.channel(k + kk + 10).row(ti * 6 + m) + (tj * 6);
+                        const float* rb = bottom_blob.channel(k + kk + 11).row(ti * 6 + m) + (tj * 6);
+                        const float* rc = bottom_blob.channel(k + kk + 12).row(ti * 6 + m) + (tj * 6);
+                        const float* rd = bottom_blob.channel(k + kk + 13).row(ti * 6 + m) + (tj * 6);
+                        const float* re = bottom_blob.channel(k + kk + 14).row(ti * 6 + m) + (tj * 6);
+                        const float* rf = bottom_blob.channel(k + kk + 15).row(ti * 6 + m) + (tj * 6);
+
+                        __m128 _t0 = _mm_loadu_ps(r0);
+                        __m128 _t1 = _mm_loadu_ps(r1);
+                        __m128 _t2 = _mm_loadu_ps(r2);
+                        __m128 _t3 = _mm_loadu_ps(r3);
+                        __m128 _t4 = _mm_loadu_ps(r4);
+                        __m128 _t5 = _mm_loadu_ps(r5);
+                        __m128 _t6 = _mm_loadu_ps(r6);
+                        __m128 _t7 = _mm_loadu_ps(r7);
+                        __m128 _t8 = _mm_loadu_ps(r8);
+                        __m128 _t9 = _mm_loadu_ps(r9);
+                        __m128 _ta = _mm_loadu_ps(ra);
+                        __m128 _tb = _mm_loadu_ps(rb);
+                        __m128 _tc = _mm_loadu_ps(rc);
+                        __m128 _td = _mm_loadu_ps(rd);
+                        __m128 _te = _mm_loadu_ps(re);
+                        __m128 _tf = _mm_loadu_ps(rf);
+
+                        _MM_TRANSPOSE4_PS(_t0, _t1, _t2, _t3);
+                        _MM_TRANSPOSE4_PS(_t4, _t5, _t6, _t7);
+                        _MM_TRANSPOSE4_PS(_t8, _t9, _ta, _tb);
+                        _MM_TRANSPOSE4_PS(_tc, _td, _te, _tf);
+
+                        _r0 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_t0), _t4, 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_t8), _tc, 1), 1);
+                        if (tj * 6 + 1 < w) _r1 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_t1), _t5, 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_t9), _td, 1), 1);
+                        if (tj * 6 + 2 < w) _r2 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_t2), _t6, 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_ta), _te, 1), 1);
+                        if (tj * 6 + 3 < w) _r3 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_t3), _t7, 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_tb), _tf, 1), 1);
+                        if (tj * 6 + 4 < w)
+                        {
+                            _t0 = _mm_loadu_ps(r0 + 4);
+                            _t1 = _mm_loadu_ps(r1 + 4);
+                            _t2 = _mm_loadu_ps(r2 + 4);
+                            _t3 = _mm_loadu_ps(r3 + 4);
+                            _t4 = _mm_loadu_ps(r4 + 4);
+                            _t5 = _mm_loadu_ps(r5 + 4);
+                            _t6 = _mm_loadu_ps(r6 + 4);
+                            _t7 = _mm_loadu_ps(r7 + 4);
+                            _t8 = _mm_loadu_ps(r8 + 4);
+                            _t9 = _mm_loadu_ps(r9 + 4);
+                            _ta = _mm_loadu_ps(ra + 4);
+                            _tb = _mm_loadu_ps(rb + 4);
+                            _tc = _mm_loadu_ps(rc + 4);
+                            _td = _mm_loadu_ps(rd + 4);
+                            _te = _mm_loadu_ps(re + 4);
+                            _tf = _mm_loadu_ps(rf + 4);
+
+                            _MM_TRANSPOSE4_PS(_t0, _t1, _t2, _t3);
+                            _MM_TRANSPOSE4_PS(_t4, _t5, _t6, _t7);
+                            _MM_TRANSPOSE4_PS(_t8, _t9, _ta, _tb);
+                            _MM_TRANSPOSE4_PS(_tc, _td, _te, _tf);
+
+                            _r4 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_t0), _t4, 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_t8), _tc, 1), 1);
+                            if (tj * 6 + 5 < w) _r5 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_t1), _t5, 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_t9), _td, 1), 1);
+                            if (tj * 6 + 6 < w) _r6 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_t2), _t6, 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_ta), _te, 1), 1);
+                            if (tj * 6 + 7 < w) _r7 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_t3), _t7, 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_tb), _tf, 1), 1);
+                        }
+                    }
+                }
+
+                __m512 _v5_25 = _mm512_set1_ps(5.25f);
+                __m512 _vm4_25 = _mm512_set1_ps(-4.25f);
+                __m512 _vm1_25 = _mm512_set1_ps(-1.25f);
+                __m512 _v0_25 = _mm512_set1_ps(0.25f);
+                __m512 _vm2_5 = _mm512_set1_ps(-2.5f);
+                __m512 _v0_5 = _mm512_set1_ps(0.5f);
+                __m512 _v2 = _mm512_set1_ps(2.f);
+                __m512 _v4 = _mm512_set1_ps(4.f);
+
+                __m512 _tmp12a = _mm512_fmadd_ps(_vm4_25, _r4, _mm512_add_ps(_r2, _r6));
+                __m512 _tmp12b = _mm512_fmadd_ps(_vm4_25, _r3, _mm512_add_ps(_r1, _r5));
+                __m512 _tmp34a = _mm512_fmadd_ps(_vm1_25, _r4, _mm512_fmadd_ps(_v0_25, _r2, _r6));
+                __m512 _tmp34b = _mm512_fmadd_ps(_v2, _r5, _mm512_fmadd_ps(_vm2_5, _r3, _mm512_mul_ps(_r1, _v0_5)));
+                __m512 _tmp56a = _mm512_fmadd_ps(_v4, _mm512_fmadd_ps(_vm1_25, _r4, _r2), _r6);
+                __m512 _tmp56b = _mm512_fmadd_ps(_v0_5, _r5, _mm512_fmadd_ps(_vm2_5, _r3, _mm512_mul_ps(_r1, _v2)));
+
+                __m512 _tmp0 = _mm512_fmadd_ps(_v5_25, _mm512_sub_ps(_r4, _r2), _mm512_sub_ps(_r0, _r6));
+                __m512 _tmp1 = _mm512_add_ps(_tmp12a, _tmp12b);
+                __m512 _tmp2 = _mm512_sub_ps(_tmp12a, _tmp12b);
+                __m512 _tmp3 = _mm512_add_ps(_tmp34a, _tmp34b);
+                __m512 _tmp4 = _mm512_sub_ps(_tmp34a, _tmp34b);
+                __m512 _tmp5 = _mm512_add_ps(_tmp56a, _tmp56b);
+                __m512 _tmp6 = _mm512_sub_ps(_tmp56a, _tmp56b);
+                __m512 _tmp7 = _mm512_fmadd_ps(_v5_25, _mm512_sub_ps(_r3, _r5), _mm512_sub_ps(_r7, _r1));
+
+                _mm512_store_ps(tmp[0][m], _tmp0);
+                _mm512_store_ps(tmp[1][m], _tmp1);
+                _mm512_store_ps(tmp[2][m], _tmp2);
+                _mm512_store_ps(tmp[3][m], _tmp3);
+                _mm512_store_ps(tmp[4][m], _tmp4);
+                _mm512_store_ps(tmp[5][m], _tmp5);
+                _mm512_store_ps(tmp[6][m], _tmp6);
+                _mm512_store_ps(tmp[7][m], _tmp7);
+            }
+            for (int m = 0; m < 8; m++)
+            {
+                __m512 _r0 = _mm512_load_ps(tmp[m][0]);
+                __m512 _r1 = _mm512_load_ps(tmp[m][1]);
+                __m512 _r2 = _mm512_load_ps(tmp[m][2]);
+                __m512 _r3 = _mm512_load_ps(tmp[m][3]);
+                __m512 _r4 = _mm512_load_ps(tmp[m][4]);
+                __m512 _r5 = _mm512_load_ps(tmp[m][5]);
+                __m512 _r6 = _mm512_load_ps(tmp[m][6]);
+                __m512 _r7 = _mm512_load_ps(tmp[m][7]);
+
+                __m512 _v5_25 = _mm512_set1_ps(5.25f);
+                __m512 _vm4_25 = _mm512_set1_ps(-4.25f);
+                __m512 _vm1_25 = _mm512_set1_ps(-1.25f);
+                __m512 _v0_25 = _mm512_set1_ps(0.25f);
+                __m512 _vm2_5 = _mm512_set1_ps(-2.5f);
+                __m512 _v0_5 = _mm512_set1_ps(0.5f);
+                __m512 _v2 = _mm512_set1_ps(2.f);
+                __m512 _v4 = _mm512_set1_ps(4.f);
+
+                __m512 _tmp12a = _mm512_fmadd_ps(_vm4_25, _r4, _mm512_add_ps(_r2, _r6));
+                __m512 _tmp12b = _mm512_fmadd_ps(_vm4_25, _r3, _mm512_add_ps(_r1, _r5));
+                __m512 _tmp34a = _mm512_fmadd_ps(_vm1_25, _r4, _mm512_fmadd_ps(_v0_25, _r2, _r6));
+                __m512 _tmp34b = _mm512_fmadd_ps(_v2, _r5, _mm512_fmadd_ps(_vm2_5, _r3, _mm512_mul_ps(_r1, _v0_5)));
+                __m512 _tmp56a = _mm512_fmadd_ps(_v4, _mm512_fmadd_ps(_vm1_25, _r4, _r2), _r6);
+                __m512 _tmp56b = _mm512_fmadd_ps(_v0_5, _r5, _mm512_fmadd_ps(_vm2_5, _r3, _mm512_mul_ps(_r1, _v2)));
+
+                __m512 _tmp0 = _mm512_fmadd_ps(_v5_25, _mm512_sub_ps(_r4, _r2), _mm512_sub_ps(_r0, _r6));
+                __m512 _tmp1 = _mm512_add_ps(_tmp12a, _tmp12b);
+                __m512 _tmp2 = _mm512_sub_ps(_tmp12a, _tmp12b);
+                __m512 _tmp3 = _mm512_add_ps(_tmp34a, _tmp34b);
+                __m512 _tmp4 = _mm512_sub_ps(_tmp34a, _tmp34b);
+                __m512 _tmp5 = _mm512_add_ps(_tmp56a, _tmp56b);
+                __m512 _tmp6 = _mm512_sub_ps(_tmp56a, _tmp56b);
+                __m512 _tmp7 = _mm512_fmadd_ps(_v5_25, _mm512_sub_ps(_r3, _r5), _mm512_sub_ps(_r7, _r1));
+
+                _mm512_store_ps(ptmp, _tmp0);
+                _mm512_store_ps(ptmp + 16, _tmp1);
+                _mm512_store_ps(ptmp + 32, _tmp2);
+                _mm512_store_ps(ptmp + 48, _tmp3);
+                _mm512_store_ps(ptmp + 64, _tmp4);
+                _mm512_store_ps(ptmp + 80, _tmp5);
+                _mm512_store_ps(ptmp + 96, _tmp6);
+                _mm512_store_ps(ptmp + 112, _tmp7);
+                ptmp += 128;
+            }
+        }
+    }
+#endif // __AVX512F__
+    for (; kk + 7 < max_kk; kk += 8)
+    {
+        int jj = 0;
+        for (; jj < max_jj; jj++)
+        {
+            int ti = (j + jj) / w_tiles;
+            int tj = (j + jj) % w_tiles;
+
+#ifdef _MSC_VER
+            __declspec(align(32))
+#else
+            __attribute__((aligned(32)))
+#endif
+            float tmp[8][8][8];
+
+            for (int m = 0; m < 8; m++)
+            {
+                __m256 _r0 = _mm256_setzero_ps();
+                __m256 _r1 = _mm256_setzero_ps();
+                __m256 _r2 = _mm256_setzero_ps();
+                __m256 _r3 = _mm256_setzero_ps();
+                __m256 _r4 = _mm256_setzero_ps();
+                __m256 _r5 = _mm256_setzero_ps();
+                __m256 _r6 = _mm256_setzero_ps();
+                __m256 _r7 = _mm256_setzero_ps();
+
+                if (ti * 6 + m < h)
+                {
+                    if (elempack == 8)
+                    {
+                        const float* r0 = bottom_blob.channel((k + kk) / 8).row(ti * 6 + m) + (tj * 6) * 8;
+
+                        _r0 = _mm256_load_ps(r0);
+                        if (tj * 6 + 1 < w) _r1 = _mm256_load_ps(r0 + 8);
+                        if (tj * 6 + 2 < w) _r2 = _mm256_load_ps(r0 + 16);
+                        if (tj * 6 + 3 < w) _r3 = _mm256_load_ps(r0 + 24);
+                        if (tj * 6 + 4 < w) _r4 = _mm256_load_ps(r0 + 32);
+                        if (tj * 6 + 5 < w) _r5 = _mm256_load_ps(r0 + 40);
+                        if (tj * 6 + 6 < w) _r6 = _mm256_load_ps(r0 + 48);
+                        if (tj * 6 + 7 < w) _r7 = _mm256_load_ps(r0 + 56);
+                    }
+                    if (elempack == 4)
+                    {
+                        const float* r0 = bottom_blob.channel((k + kk) / 4).row(ti * 6 + m) + (tj * 6) * 4;
+                        const float* r1 = bottom_blob.channel((k + kk) / 4 + 1).row(ti * 6 + m) + (tj * 6) * 4;
+
+                        _r0 = _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0)), _mm_load_ps(r1), 1);
+                        if (tj * 6 + 1 < w) _r1 = _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0 + 4)), _mm_load_ps(r1 + 4), 1);
+                        if (tj * 6 + 2 < w) _r2 = _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0 + 8)), _mm_load_ps(r1 + 8), 1);
+                        if (tj * 6 + 3 < w) _r3 = _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0 + 12)), _mm_load_ps(r1 + 12), 1);
+                        if (tj * 6 + 4 < w) _r4 = _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0 + 16)), _mm_load_ps(r1 + 16), 1);
+                        if (tj * 6 + 5 < w) _r5 = _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0 + 20)), _mm_load_ps(r1 + 20), 1);
+                        if (tj * 6 + 6 < w) _r6 = _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0 + 24)), _mm_load_ps(r1 + 24), 1);
+                        if (tj * 6 + 7 < w) _r7 = _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0 + 28)), _mm_load_ps(r1 + 28), 1);
+                    }
+                    if (elempack == 1)
+                    {
+                        const float* r0 = bottom_blob.channel(k + kk).row(ti * 6 + m) + (tj * 6);
+                        const float* r1 = bottom_blob.channel(k + kk + 1).row(ti * 6 + m) + (tj * 6);
+                        const float* r2 = bottom_blob.channel(k + kk + 2).row(ti * 6 + m) + (tj * 6);
+                        const float* r3 = bottom_blob.channel(k + kk + 3).row(ti * 6 + m) + (tj * 6);
+                        const float* r4 = bottom_blob.channel(k + kk + 4).row(ti * 6 + m) + (tj * 6);
+                        const float* r5 = bottom_blob.channel(k + kk + 5).row(ti * 6 + m) + (tj * 6);
+                        const float* r6 = bottom_blob.channel(k + kk + 6).row(ti * 6 + m) + (tj * 6);
+                        const float* r7 = bottom_blob.channel(k + kk + 7).row(ti * 6 + m) + (tj * 6);
+
+                        __m128 _t0 = _mm_loadu_ps(r0);
+                        __m128 _t1 = _mm_loadu_ps(r1);
+                        __m128 _t2 = _mm_loadu_ps(r2);
+                        __m128 _t3 = _mm_loadu_ps(r3);
+                        __m128 _t4 = _mm_loadu_ps(r4);
+                        __m128 _t5 = _mm_loadu_ps(r5);
+                        __m128 _t6 = _mm_loadu_ps(r6);
+                        __m128 _t7 = _mm_loadu_ps(r7);
+
+                        _MM_TRANSPOSE4_PS(_t0, _t1, _t2, _t3);
+                        _MM_TRANSPOSE4_PS(_t4, _t5, _t6, _t7);
+
+                        _r0 = _mm256_insertf128_ps(_mm256_castps128_ps256(_t0), _t4, 1);
+                        if (tj * 6 + 1 < w) _r1 = _mm256_insertf128_ps(_mm256_castps128_ps256(_t1), _t5, 1);
+                        if (tj * 6 + 2 < w) _r2 = _mm256_insertf128_ps(_mm256_castps128_ps256(_t2), _t6, 1);
+                        if (tj * 6 + 3 < w) _r3 = _mm256_insertf128_ps(_mm256_castps128_ps256(_t3), _t7, 1);
+                        if (tj * 6 + 4 < w)
+                        {
+                            _t0 = _mm_loadu_ps(r0 + 4);
+                            _t1 = _mm_loadu_ps(r1 + 4);
+                            _t2 = _mm_loadu_ps(r2 + 4);
+                            _t3 = _mm_loadu_ps(r3 + 4);
+                            _t4 = _mm_loadu_ps(r4 + 4);
+                            _t5 = _mm_loadu_ps(r5 + 4);
+                            _t6 = _mm_loadu_ps(r6 + 4);
+                            _t7 = _mm_loadu_ps(r7 + 4);
+
+                            _MM_TRANSPOSE4_PS(_t0, _t1, _t2, _t3);
+                            _MM_TRANSPOSE4_PS(_t4, _t5, _t6, _t7);
+
+                            _r4 = _mm256_insertf128_ps(_mm256_castps128_ps256(_t0), _t4, 1);
+                            if (tj * 6 + 5 < w) _r5 = _mm256_insertf128_ps(_mm256_castps128_ps256(_t1), _t5, 1);
+                            if (tj * 6 + 6 < w) _r6 = _mm256_insertf128_ps(_mm256_castps128_ps256(_t2), _t6, 1);
+                            if (tj * 6 + 7 < w) _r7 = _mm256_insertf128_ps(_mm256_castps128_ps256(_t3), _t7, 1);
+                        }
+                    }
+                }
+
+                __m256 _v5_25 = _mm256_set1_ps(5.25f);
+                __m256 _vm4_25 = _mm256_set1_ps(-4.25f);
+                __m256 _vm1_25 = _mm256_set1_ps(-1.25f);
+                __m256 _v0_25 = _mm256_set1_ps(0.25f);
+                __m256 _vm2_5 = _mm256_set1_ps(-2.5f);
+                __m256 _v0_5 = _mm256_set1_ps(0.5f);
+                __m256 _v2 = _mm256_set1_ps(2.f);
+                __m256 _v4 = _mm256_set1_ps(4.f);
+
+                __m256 _tmp12a = _mm256_comp_fmadd_ps(_vm4_25, _r4, _mm256_add_ps(_r2, _r6));
+                __m256 _tmp12b = _mm256_comp_fmadd_ps(_vm4_25, _r3, _mm256_add_ps(_r1, _r5));
+                __m256 _tmp34a = _mm256_comp_fmadd_ps(_vm1_25, _r4, _mm256_comp_fmadd_ps(_v0_25, _r2, _r6));
+                __m256 _tmp34b = _mm256_comp_fmadd_ps(_v2, _r5, _mm256_comp_fmadd_ps(_vm2_5, _r3, _mm256_mul_ps(_r1, _v0_5)));
+                __m256 _tmp56a = _mm256_comp_fmadd_ps(_v4, _mm256_comp_fmadd_ps(_vm1_25, _r4, _r2), _r6);
+                __m256 _tmp56b = _mm256_comp_fmadd_ps(_v0_5, _r5, _mm256_comp_fmadd_ps(_vm2_5, _r3, _mm256_mul_ps(_r1, _v2)));
+
+                __m256 _tmp0 = _mm256_comp_fmadd_ps(_v5_25, _mm256_sub_ps(_r4, _r2), _mm256_sub_ps(_r0, _r6));
+                __m256 _tmp1 = _mm256_add_ps(_tmp12a, _tmp12b);
+                __m256 _tmp2 = _mm256_sub_ps(_tmp12a, _tmp12b);
+                __m256 _tmp3 = _mm256_add_ps(_tmp34a, _tmp34b);
+                __m256 _tmp4 = _mm256_sub_ps(_tmp34a, _tmp34b);
+                __m256 _tmp5 = _mm256_add_ps(_tmp56a, _tmp56b);
+                __m256 _tmp6 = _mm256_sub_ps(_tmp56a, _tmp56b);
+                __m256 _tmp7 = _mm256_comp_fmadd_ps(_v5_25, _mm256_sub_ps(_r3, _r5), _mm256_sub_ps(_r7, _r1));
+
+#if defined(__GNUC__) && (__GNUC__ <= 4) && (__GNUC_MINOR__ < 6)
+                _mm256_storeu_ps(tmp[0][m], _tmp0);
+                _mm256_storeu_ps(tmp[1][m], _tmp1);
+                _mm256_storeu_ps(tmp[2][m], _tmp2);
+                _mm256_storeu_ps(tmp[3][m], _tmp3);
+                _mm256_storeu_ps(tmp[4][m], _tmp4);
+                _mm256_storeu_ps(tmp[5][m], _tmp5);
+                _mm256_storeu_ps(tmp[6][m], _tmp6);
+                _mm256_storeu_ps(tmp[7][m], _tmp7);
+#else
+                _mm256_store_ps(tmp[0][m], _tmp0);
+                _mm256_store_ps(tmp[1][m], _tmp1);
+                _mm256_store_ps(tmp[2][m], _tmp2);
+                _mm256_store_ps(tmp[3][m], _tmp3);
+                _mm256_store_ps(tmp[4][m], _tmp4);
+                _mm256_store_ps(tmp[5][m], _tmp5);
+                _mm256_store_ps(tmp[6][m], _tmp6);
+                _mm256_store_ps(tmp[7][m], _tmp7);
+#endif
+            }
+            for (int m = 0; m < 8; m++)
+            {
+#if defined(__GNUC__) && (__GNUC__ <= 4) && (__GNUC_MINOR__ < 6)
+                __m256 _r0 = _mm256_loadu_ps(tmp[m][0]);
+                __m256 _r1 = _mm256_loadu_ps(tmp[m][1]);
+                __m256 _r2 = _mm256_loadu_ps(tmp[m][2]);
+                __m256 _r3 = _mm256_loadu_ps(tmp[m][3]);
+                __m256 _r4 = _mm256_loadu_ps(tmp[m][4]);
+                __m256 _r5 = _mm256_loadu_ps(tmp[m][5]);
+                __m256 _r6 = _mm256_loadu_ps(tmp[m][6]);
+                __m256 _r7 = _mm256_loadu_ps(tmp[m][7]);
+#else
+                __m256 _r0 = _mm256_load_ps(tmp[m][0]);
+                __m256 _r1 = _mm256_load_ps(tmp[m][1]);
+                __m256 _r2 = _mm256_load_ps(tmp[m][2]);
+                __m256 _r3 = _mm256_load_ps(tmp[m][3]);
+                __m256 _r4 = _mm256_load_ps(tmp[m][4]);
+                __m256 _r5 = _mm256_load_ps(tmp[m][5]);
+                __m256 _r6 = _mm256_load_ps(tmp[m][6]);
+                __m256 _r7 = _mm256_load_ps(tmp[m][7]);
+#endif
+
+                __m256 _v5_25 = _mm256_set1_ps(5.25f);
+                __m256 _vm4_25 = _mm256_set1_ps(-4.25f);
+                __m256 _vm1_25 = _mm256_set1_ps(-1.25f);
+                __m256 _v0_25 = _mm256_set1_ps(0.25f);
+                __m256 _vm2_5 = _mm256_set1_ps(-2.5f);
+                __m256 _v0_5 = _mm256_set1_ps(0.5f);
+                __m256 _v2 = _mm256_set1_ps(2.f);
+                __m256 _v4 = _mm256_set1_ps(4.f);
+
+                __m256 _tmp12a = _mm256_comp_fmadd_ps(_vm4_25, _r4, _mm256_add_ps(_r2, _r6));
+                __m256 _tmp12b = _mm256_comp_fmadd_ps(_vm4_25, _r3, _mm256_add_ps(_r1, _r5));
+                __m256 _tmp34a = _mm256_comp_fmadd_ps(_vm1_25, _r4, _mm256_comp_fmadd_ps(_v0_25, _r2, _r6));
+                __m256 _tmp34b = _mm256_comp_fmadd_ps(_v2, _r5, _mm256_comp_fmadd_ps(_vm2_5, _r3, _mm256_mul_ps(_r1, _v0_5)));
+                __m256 _tmp56a = _mm256_comp_fmadd_ps(_v4, _mm256_comp_fmadd_ps(_vm1_25, _r4, _r2), _r6);
+                __m256 _tmp56b = _mm256_comp_fmadd_ps(_v0_5, _r5, _mm256_comp_fmadd_ps(_vm2_5, _r3, _mm256_mul_ps(_r1, _v2)));
+
+                __m256 _tmp0 = _mm256_comp_fmadd_ps(_v5_25, _mm256_sub_ps(_r4, _r2), _mm256_sub_ps(_r0, _r6));
+                __m256 _tmp1 = _mm256_add_ps(_tmp12a, _tmp12b);
+                __m256 _tmp2 = _mm256_sub_ps(_tmp12a, _tmp12b);
+                __m256 _tmp3 = _mm256_add_ps(_tmp34a, _tmp34b);
+                __m256 _tmp4 = _mm256_sub_ps(_tmp34a, _tmp34b);
+                __m256 _tmp5 = _mm256_add_ps(_tmp56a, _tmp56b);
+                __m256 _tmp6 = _mm256_sub_ps(_tmp56a, _tmp56b);
+                __m256 _tmp7 = _mm256_comp_fmadd_ps(_v5_25, _mm256_sub_ps(_r3, _r5), _mm256_sub_ps(_r7, _r1));
+
+                _mm256_store_ps(ptmp, _tmp0);
+                _mm256_store_ps(ptmp + 8, _tmp1);
+                _mm256_store_ps(ptmp + 16, _tmp2);
+                _mm256_store_ps(ptmp + 24, _tmp3);
+                _mm256_store_ps(ptmp + 32, _tmp4);
+                _mm256_store_ps(ptmp + 40, _tmp5);
+                _mm256_store_ps(ptmp + 48, _tmp6);
+                _mm256_store_ps(ptmp + 56, _tmp7);
+                ptmp += 64;
+            }
+        }
+    }
+#endif // __AVX__
+    for (; kk + 3 < max_kk; kk += 4)
+    {
+        int jj = 0;
+        for (; jj < max_jj; jj++)
+        {
+            int ti = (j + jj) / w_tiles;
+            int tj = (j + jj) % w_tiles;
+
+#ifdef _MSC_VER
+            __declspec(align(16))
+#else
+            __attribute__((aligned(16)))
+#endif
+            float tmp[8][8][4];
+
+            for (int m = 0; m < 8; m++)
+            {
+                __m128 _r0 = _mm_setzero_ps();
+                __m128 _r1 = _mm_setzero_ps();
+                __m128 _r2 = _mm_setzero_ps();
+                __m128 _r3 = _mm_setzero_ps();
+                __m128 _r4 = _mm_setzero_ps();
+                __m128 _r5 = _mm_setzero_ps();
+                __m128 _r6 = _mm_setzero_ps();
+                __m128 _r7 = _mm_setzero_ps();
+
+                if (ti * 6 + m < h)
+                {
+                    if (elempack == 4)
+                    {
+                        const float* r0 = bottom_blob.channel((k + kk) / 4).row(ti * 6 + m) + (tj * 6) * 4;
+
+                        _r0 = _mm_load_ps(r0);
+                        if (tj * 6 + 1 < w) _r1 = _mm_load_ps(r0 + 4);
+                        if (tj * 6 + 2 < w) _r2 = _mm_load_ps(r0 + 8);
+                        if (tj * 6 + 3 < w) _r3 = _mm_load_ps(r0 + 12);
+                        if (tj * 6 + 4 < w) _r4 = _mm_load_ps(r0 + 16);
+                        if (tj * 6 + 5 < w) _r5 = _mm_load_ps(r0 + 20);
+                        if (tj * 6 + 6 < w) _r6 = _mm_load_ps(r0 + 24);
+                        if (tj * 6 + 7 < w) _r7 = _mm_load_ps(r0 + 28);
+                    }
+                    if (elempack == 1)
+                    {
+                        const float* r0 = bottom_blob.channel(k + kk).row(ti * 6 + m) + (tj * 6);
+                        const float* r1 = bottom_blob.channel(k + kk + 1).row(ti * 6 + m) + (tj * 6);
+                        const float* r2 = bottom_blob.channel(k + kk + 2).row(ti * 6 + m) + (tj * 6);
+                        const float* r3 = bottom_blob.channel(k + kk + 3).row(ti * 6 + m) + (tj * 6);
+
+                        __m128 _t0 = _mm_loadu_ps(r0);
+                        __m128 _t1 = _mm_loadu_ps(r1);
+                        __m128 _t2 = _mm_loadu_ps(r2);
+                        __m128 _t3 = _mm_loadu_ps(r3);
+
+                        _MM_TRANSPOSE4_PS(_t0, _t1, _t2, _t3);
+
+                        _r0 = _t0;
+                        if (tj * 6 + 1 < w) _r1 = _t1;
+                        if (tj * 6 + 2 < w) _r2 = _t2;
+                        if (tj * 6 + 3 < w) _r3 = _t3;
+                        if (tj * 6 + 4 < w)
+                        {
+                            _t0 = _mm_loadu_ps(r0 + 4);
+                            _t1 = _mm_loadu_ps(r1 + 4);
+                            _t2 = _mm_loadu_ps(r2 + 4);
+                            _t3 = _mm_loadu_ps(r3 + 4);
+
+                            _MM_TRANSPOSE4_PS(_t0, _t1, _t2, _t3);
+
+                            _r4 = _t0;
+                            if (tj * 6 + 5 < w) _r5 = _t1;
+                            if (tj * 6 + 6 < w) _r6 = _t2;
+                            if (tj * 6 + 7 < w) _r7 = _t3;
+                        }
+                    }
+                }
+
+                __m128 _v5_25 = _mm_set1_ps(5.25f);
+                __m128 _vm4_25 = _mm_set1_ps(-4.25f);
+                __m128 _vm1_25 = _mm_set1_ps(-1.25f);
+                __m128 _v0_25 = _mm_set1_ps(0.25f);
+                __m128 _vm2_5 = _mm_set1_ps(-2.5f);
+                __m128 _v0_5 = _mm_set1_ps(0.5f);
+                __m128 _v2 = _mm_set1_ps(2.f);
+                __m128 _v4 = _mm_set1_ps(4.f);
+
+                __m128 _tmp12a = _mm_comp_fmadd_ps(_vm4_25, _r4, _mm_add_ps(_r2, _r6));
+                __m128 _tmp12b = _mm_comp_fmadd_ps(_vm4_25, _r3, _mm_add_ps(_r1, _r5));
+                __m128 _tmp34a = _mm_comp_fmadd_ps(_vm1_25, _r4, _mm_comp_fmadd_ps(_v0_25, _r2, _r6));
+                __m128 _tmp34b = _mm_comp_fmadd_ps(_v2, _r5, _mm_comp_fmadd_ps(_vm2_5, _r3, _mm_mul_ps(_r1, _v0_5)));
+                __m128 _tmp56a = _mm_comp_fmadd_ps(_v4, _mm_comp_fmadd_ps(_vm1_25, _r4, _r2), _r6);
+                __m128 _tmp56b = _mm_comp_fmadd_ps(_v0_5, _r5, _mm_comp_fmadd_ps(_vm2_5, _r3, _mm_mul_ps(_r1, _v2)));
+
+                __m128 _tmp0 = _mm_comp_fmadd_ps(_v5_25, _mm_sub_ps(_r4, _r2), _mm_sub_ps(_r0, _r6));
+                __m128 _tmp1 = _mm_add_ps(_tmp12a, _tmp12b);
+                __m128 _tmp2 = _mm_sub_ps(_tmp12a, _tmp12b);
+                __m128 _tmp3 = _mm_add_ps(_tmp34a, _tmp34b);
+                __m128 _tmp4 = _mm_sub_ps(_tmp34a, _tmp34b);
+                __m128 _tmp5 = _mm_add_ps(_tmp56a, _tmp56b);
+                __m128 _tmp6 = _mm_sub_ps(_tmp56a, _tmp56b);
+                __m128 _tmp7 = _mm_comp_fmadd_ps(_v5_25, _mm_sub_ps(_r3, _r5), _mm_sub_ps(_r7, _r1));
+
+#if defined(__GNUC__) && (__GNUC__ <= 4) && (__GNUC_MINOR__ < 6)
+                _mm_storeu_ps(tmp[0][m], _tmp0);
+                _mm_storeu_ps(tmp[1][m], _tmp1);
+                _mm_storeu_ps(tmp[2][m], _tmp2);
+                _mm_storeu_ps(tmp[3][m], _tmp3);
+                _mm_storeu_ps(tmp[4][m], _tmp4);
+                _mm_storeu_ps(tmp[5][m], _tmp5);
+                _mm_storeu_ps(tmp[6][m], _tmp6);
+                _mm_storeu_ps(tmp[7][m], _tmp7);
+#else
+                _mm_store_ps(tmp[0][m], _tmp0);
+                _mm_store_ps(tmp[1][m], _tmp1);
+                _mm_store_ps(tmp[2][m], _tmp2);
+                _mm_store_ps(tmp[3][m], _tmp3);
+                _mm_store_ps(tmp[4][m], _tmp4);
+                _mm_store_ps(tmp[5][m], _tmp5);
+                _mm_store_ps(tmp[6][m], _tmp6);
+                _mm_store_ps(tmp[7][m], _tmp7);
+#endif
+            }
+            for (int m = 0; m < 8; m++)
+            {
+#if defined(__GNUC__) && (__GNUC__ <= 4) && (__GNUC_MINOR__ < 6)
+                __m128 _r0 = _mm_loadu_ps(tmp[m][0]);
+                __m128 _r1 = _mm_loadu_ps(tmp[m][1]);
+                __m128 _r2 = _mm_loadu_ps(tmp[m][2]);
+                __m128 _r3 = _mm_loadu_ps(tmp[m][3]);
+                __m128 _r4 = _mm_loadu_ps(tmp[m][4]);
+                __m128 _r5 = _mm_loadu_ps(tmp[m][5]);
+                __m128 _r6 = _mm_loadu_ps(tmp[m][6]);
+                __m128 _r7 = _mm_loadu_ps(tmp[m][7]);
+#else
+                __m128 _r0 = _mm_load_ps(tmp[m][0]);
+                __m128 _r1 = _mm_load_ps(tmp[m][1]);
+                __m128 _r2 = _mm_load_ps(tmp[m][2]);
+                __m128 _r3 = _mm_load_ps(tmp[m][3]);
+                __m128 _r4 = _mm_load_ps(tmp[m][4]);
+                __m128 _r5 = _mm_load_ps(tmp[m][5]);
+                __m128 _r6 = _mm_load_ps(tmp[m][6]);
+                __m128 _r7 = _mm_load_ps(tmp[m][7]);
+#endif
+
+                __m128 _v5_25 = _mm_set1_ps(5.25f);
+                __m128 _vm4_25 = _mm_set1_ps(-4.25f);
+                __m128 _vm1_25 = _mm_set1_ps(-1.25f);
+                __m128 _v0_25 = _mm_set1_ps(0.25f);
+                __m128 _vm2_5 = _mm_set1_ps(-2.5f);
+                __m128 _v0_5 = _mm_set1_ps(0.5f);
+                __m128 _v2 = _mm_set1_ps(2.f);
+                __m128 _v4 = _mm_set1_ps(4.f);
+
+                __m128 _tmp12a = _mm_comp_fmadd_ps(_vm4_25, _r4, _mm_add_ps(_r2, _r6));
+                __m128 _tmp12b = _mm_comp_fmadd_ps(_vm4_25, _r3, _mm_add_ps(_r1, _r5));
+                __m128 _tmp34a = _mm_comp_fmadd_ps(_vm1_25, _r4, _mm_comp_fmadd_ps(_v0_25, _r2, _r6));
+                __m128 _tmp34b = _mm_comp_fmadd_ps(_v2, _r5, _mm_comp_fmadd_ps(_vm2_5, _r3, _mm_mul_ps(_r1, _v0_5)));
+                __m128 _tmp56a = _mm_comp_fmadd_ps(_v4, _mm_comp_fmadd_ps(_vm1_25, _r4, _r2), _r6);
+                __m128 _tmp56b = _mm_comp_fmadd_ps(_v0_5, _r5, _mm_comp_fmadd_ps(_vm2_5, _r3, _mm_mul_ps(_r1, _v2)));
+
+                __m128 _tmp0 = _mm_comp_fmadd_ps(_v5_25, _mm_sub_ps(_r4, _r2), _mm_sub_ps(_r0, _r6));
+                __m128 _tmp1 = _mm_add_ps(_tmp12a, _tmp12b);
+                __m128 _tmp2 = _mm_sub_ps(_tmp12a, _tmp12b);
+                __m128 _tmp3 = _mm_add_ps(_tmp34a, _tmp34b);
+                __m128 _tmp4 = _mm_sub_ps(_tmp34a, _tmp34b);
+                __m128 _tmp5 = _mm_add_ps(_tmp56a, _tmp56b);
+                __m128 _tmp6 = _mm_sub_ps(_tmp56a, _tmp56b);
+                __m128 _tmp7 = _mm_comp_fmadd_ps(_v5_25, _mm_sub_ps(_r3, _r5), _mm_sub_ps(_r7, _r1));
+
+                _mm_store_ps(ptmp, _tmp0);
+                _mm_store_ps(ptmp + 4, _tmp1);
+                _mm_store_ps(ptmp + 8, _tmp2);
+                _mm_store_ps(ptmp + 12, _tmp3);
+                _mm_store_ps(ptmp + 16, _tmp4);
+                _mm_store_ps(ptmp + 20, _tmp5);
+                _mm_store_ps(ptmp + 24, _tmp6);
+                _mm_store_ps(ptmp + 28, _tmp7);
+                ptmp += 32;
+            }
+        }
+    }
+#endif // __SSE2__
+    for (; kk + 1 < max_kk; kk += 2)
+    {
+        int jj = 0;
+        for (; jj < max_jj; jj++)
+        {
+            int ti = (j + jj) / w_tiles;
+            int tj = (j + jj) % w_tiles;
+
+            float tmp[8][8][2];
+
+            for (int m = 0; m < 8; m++)
+            {
+                float r00 = 0.f;
+                float r01 = 0.f;
+                float r10 = 0.f;
+                float r11 = 0.f;
+                float r20 = 0.f;
+                float r21 = 0.f;
+                float r30 = 0.f;
+                float r31 = 0.f;
+                float r40 = 0.f;
+                float r41 = 0.f;
+                float r50 = 0.f;
+                float r51 = 0.f;
+                float r60 = 0.f;
+                float r61 = 0.f;
+                float r70 = 0.f;
+                float r71 = 0.f;
+
+                if (ti * 4 + m < h)
+                {
+                    // if (elempack == 1)
+                    {
+                        const float* r0123_0 = bottom_blob.channel(k + kk).row(ti * 6 + m) + (tj * 6);
+                        const float* r0123_1 = bottom_blob.channel(k + kk + 1).row(ti * 6 + m) + (tj * 6);
+
+                        r00 = r0123_0[0];
+                        r01 = r0123_1[0];
+                        if (tj * 6 + 1 < w)
+                        {
+                            r10 = r0123_0[1];
+                            r11 = r0123_1[1];
+                        }
+                        if (tj * 6 + 2 < w)
+                        {
+                            r20 = r0123_0[2];
+                            r21 = r0123_1[2];
+                        }
+                        if (tj * 6 + 3 < w)
+                        {
+                            r30 = r0123_0[3];
+                            r31 = r0123_1[3];
+                        }
+                        if (tj * 6 + 4 < w)
+                        {
+                            r40 = r0123_0[4];
+                            r41 = r0123_1[4];
+                        }
+                        if (tj * 6 + 5 < w)
+                        {
+                            r50 = r0123_0[5];
+                            r51 = r0123_1[5];
+                        }
+                        if (tj * 6 + 6 < w)
+                        {
+                            r60 = r0123_0[6];
+                            r61 = r0123_1[6];
+                        }
+                        if (tj * 6 + 7 < w)
+                        {
+                            r70 = r0123_0[7];
+                            r71 = r0123_1[7];
+                        }
+                    }
+                }
+
+                float tmp12a0 = r20 + r60 - r40 * 4.25f;
+                float tmp12a1 = r21 + r61 - r41 * 4.25f;
+                float tmp12b0 = r10 + r50 - r30 * 4.25f;
+                float tmp12b1 = r11 + r51 - r31 * 4.25f;
+                float tmp34a0 = r60 + r20 * 0.25f - r40 * 1.25f;
+                float tmp34a1 = r61 + r21 * 0.25f - r41 * 1.25f;
+                float tmp34b0 = r10 * 0.5f - r30 * 2.5f + r50 * 2.f;
+                float tmp34b1 = r11 * 0.5f - r31 * 2.5f + r51 * 2.f;
+                float tmp56a0 = r20 * 4.f - r40 * 5.f + r60;
+                float tmp56a1 = r21 * 4.f - r41 * 5.f + r61;
+                float tmp56b0 = r10 * 2.f - r30 * 2.5f + r50 * 0.5f;
+                float tmp56b1 = r11 * 2.f - r31 * 2.5f + r51 * 0.5f;
+
+                tmp[0][m][0] = r00 - r60 + (r40 - r20) * 5.25f;
+                tmp[0][m][1] = r01 - r61 + (r41 - r21) * 5.25f;
+                tmp[1][m][0] = tmp12a0 + tmp12b0;
+                tmp[1][m][1] = tmp12a1 + tmp12b1;
+                tmp[2][m][0] = tmp12a0 - tmp12b0;
+                tmp[2][m][1] = tmp12a1 - tmp12b1;
+                tmp[3][m][0] = tmp34a0 + tmp34b0;
+                tmp[3][m][1] = tmp34a1 + tmp34b1;
+                tmp[4][m][0] = tmp34a0 - tmp34b0;
+                tmp[4][m][1] = tmp34a1 - tmp34b1;
+                tmp[5][m][0] = tmp56a0 + tmp56b0;
+                tmp[5][m][1] = tmp56a1 + tmp56b1;
+                tmp[6][m][0] = tmp56a0 - tmp56b0;
+                tmp[6][m][1] = tmp56a1 - tmp56b1;
+                tmp[7][m][0] = r70 - r10 + (r30 - r50) * 5.25f;
+                tmp[7][m][1] = r71 - r11 + (r31 - r51) * 5.25f;
+            }
+            for (int m = 0; m < 8; m++)
+            {
+                float r00 = tmp[m][0][0];
+                float r01 = tmp[m][0][1];
+                float r10 = tmp[m][1][0];
+                float r11 = tmp[m][1][1];
+                float r20 = tmp[m][2][0];
+                float r21 = tmp[m][2][1];
+                float r30 = tmp[m][3][0];
+                float r31 = tmp[m][3][1];
+                float r40 = tmp[m][4][0];
+                float r41 = tmp[m][4][1];
+                float r50 = tmp[m][5][0];
+                float r51 = tmp[m][5][1];
+                float r60 = tmp[m][6][0];
+                float r61 = tmp[m][6][1];
+                float r70 = tmp[m][7][0];
+                float r71 = tmp[m][7][1];
+
+                float tmp12a0 = r20 + r60 - r40 * 4.25f;
+                float tmp12a1 = r21 + r61 - r41 * 4.25f;
+                float tmp12b0 = r10 + r50 - r30 * 4.25f;
+                float tmp12b1 = r11 + r51 - r31 * 4.25f;
+                float tmp34a0 = r60 + r20 * 0.25f - r40 * 1.25f;
+                float tmp34a1 = r61 + r21 * 0.25f - r41 * 1.25f;
+                float tmp34b0 = r10 * 0.5f - r30 * 2.5f + r50 * 2.f;
+                float tmp34b1 = r11 * 0.5f - r31 * 2.5f + r51 * 2.f;
+                float tmp56a0 = r20 * 4.f - r40 * 5.f + r60;
+                float tmp56a1 = r21 * 4.f - r41 * 5.f + r61;
+                float tmp56b0 = r10 * 2.f - r30 * 2.5f + r50 * 0.5f;
+                float tmp56b1 = r11 * 2.f - r31 * 2.5f + r51 * 0.5f;
+
+                ptmp[0] = r00 - r60 + (r40 - r20) * 5.25f;
+                ptmp[1] = r01 - r61 + (r41 - r21) * 5.25f;
+                ptmp[2] = tmp12a0 + tmp12b0;
+                ptmp[3] = tmp12a1 + tmp12b1;
+                ptmp[4] = tmp12a0 - tmp12b0;
+                ptmp[5] = tmp12a1 - tmp12b1;
+                ptmp[6] = tmp34a0 + tmp34b0;
+                ptmp[7] = tmp34a1 + tmp34b1;
+                ptmp[8] = tmp34a0 - tmp34b0;
+                ptmp[9] = tmp34a1 - tmp34b1;
+                ptmp[10] = tmp56a0 + tmp56b0;
+                ptmp[11] = tmp56a1 + tmp56b1;
+                ptmp[12] = tmp56a0 - tmp56b0;
+                ptmp[13] = tmp56a1 - tmp56b1;
+                ptmp[14] = r70 - r10 + (r30 - r50) * 5.25f;
+                ptmp[15] = r71 - r11 + (r31 - r51) * 5.25f;
+                ptmp += 16;
+            }
+        }
+    }
+    for (; kk < max_kk; kk++)
+    {
+        int jj = 0;
+        for (; jj < max_jj; jj++)
+        {
+            int ti = (j + jj) / w_tiles;
+            int tj = (j + jj) % w_tiles;
+
+            float tmp[8][8];
+
+            for (int m = 0; m < 8; m++)
+            {
+                float r0 = 0.f;
+                float r1 = 0.f;
+                float r2 = 0.f;
+                float r3 = 0.f;
+                float r4 = 0.f;
+                float r5 = 0.f;
+                float r6 = 0.f;
+                float r7 = 0.f;
+
+                if (ti * 6 + m < h)
+                {
+                    // if (elempack == 1)
+                    {
+                        const float* r0123 = bottom_blob.channel(k + kk).row(ti * 6 + m) + (tj * 6);
+
+                        r0 = r0123[0];
+                        if (tj * 6 + 1 < w) r1 = r0123[1];
+                        if (tj * 6 + 2 < w) r2 = r0123[2];
+                        if (tj * 6 + 3 < w) r3 = r0123[3];
+                        if (tj * 6 + 4 < w) r4 = r0123[4];
+                        if (tj * 6 + 5 < w) r5 = r0123[5];
+                        if (tj * 6 + 6 < w) r6 = r0123[6];
+                        if (tj * 6 + 7 < w) r7 = r0123[7];
+                    }
+                }
+
+                float tmp12a = r2 + r6 - r4 * 4.25f;
+                float tmp12b = r1 + r5 - r3 * 4.25f;
+                float tmp34a = r6 + r2 * 0.25f - r4 * 1.25f;
+                float tmp34b = r1 * 0.5f - r3 * 2.5f + r5 * 2.f;
+                float tmp56a = r2 * 4.f - r4 * 5.f + r6;
+                float tmp56b = r1 * 2.f - r3 * 2.5f + r5 * 0.5f;
+
+                tmp[0][m] = r0 - r6 + (r4 - r2) * 5.25f;
+                tmp[1][m] = tmp12a + tmp12b;
+                tmp[2][m] = tmp12a - tmp12b;
+                tmp[3][m] = tmp34a + tmp34b;
+                tmp[4][m] = tmp34a - tmp34b;
+                tmp[5][m] = tmp56a + tmp56b;
+                tmp[6][m] = tmp56a - tmp56b;
+                tmp[7][m] = r7 - r1 + (r3 - r5) * 5.25f;
+            }
+            for (int m = 0; m < 8; m++)
+            {
+                float r0 = tmp[m][0];
+                float r1 = tmp[m][1];
+                float r2 = tmp[m][2];
+                float r3 = tmp[m][3];
+                float r4 = tmp[m][4];
+                float r5 = tmp[m][5];
+                float r6 = tmp[m][6];
+                float r7 = tmp[m][7];
+
+                float tmp12a = r2 + r6 - r4 * 4.25f;
+                float tmp12b = r1 + r5 - r3 * 4.25f;
+                float tmp34a = r6 + r2 * 0.25f - r4 * 1.25f;
+                float tmp34b = r1 * 0.5f - r3 * 2.5f + r5 * 2.f;
+                float tmp56a = r2 * 4.f - r4 * 5.f + r6;
+                float tmp56b = r1 * 2.f - r3 * 2.5f + r5 * 0.5f;
+
+                ptmp[0] = r0 - r6 + (r4 - r2) * 5.25f;
+                ptmp[1] = tmp12a + tmp12b;
+                ptmp[2] = tmp12a - tmp12b;
+                ptmp[3] = tmp34a + tmp34b;
+                ptmp[4] = tmp34a - tmp34b;
+                ptmp[5] = tmp56a + tmp56b;
+                ptmp[6] = tmp56a - tmp56b;
+                ptmp[7] = r7 - r1 + (r3 - r5) * 5.25f;
+                ptmp += 8;
+            }
+        }
+    }
+}
+
+static inline void conv3x3s1_winograd63_transform_output_tile(const Mat& top_tile, Mat& top_blob, const Mat& bias, int i, int max_ii, int j, int max_jj)
+{
+    // const float otm[6][8] = {
+    //     {1.0f, 1.0f,  1.0f,  1.0f,  1.0f, 32.0f, 32.0f, 0.0f},
+    //     {0.0f, 1.0f, -1.0f,  2.0f, -2.0f, 16.0f,-16.0f, 0.0f},
+    //     {0.0f, 1.0f,  1.0f,  4.0f,  4.0f,  8.0f,  8.0f, 0.0f},
+    //     {0.0f, 1.0f, -1.0f,  8.0f, -8.0f,  4.0f, -4.0f, 0.0f},
+    //     {0.0f, 1.0f,  1.0f, 16.0f, 16.0f,  2.0f,  2.0f, 0.0f},
+    //     {0.0f, 1.0f, -1.0f, 32.0f,-32.0f,  1.0f, -1.0f, 1.0f}
+    // };
+
+    const int outw = top_blob.w;
+    const int outh = top_blob.h;
+    const int out_elempack = top_blob.elempack;
+
+    const int w_tiles = (outw + 5) / 6;
+
+    const float* biasptr = bias;
+
+    int ii = 0;
+#if __SSE2__
+#if __AVX__
+#if __AVX512F__
+    for (; ii + 15 < max_ii; ii += 16)
+    {
+        __m512 _bias0 = biasptr ? _mm512_loadu_ps(biasptr + i + ii) : _mm512_setzero_ps();
+
+        int jj = 0;
+        for (; jj < max_jj; jj++)
+        {
+            int ti = (j + jj) / w_tiles;
+            int tj = (j + jj) % w_tiles;
+
+#ifdef _MSC_VER
+            __declspec(align(64))
+#else
+            __attribute__((aligned(64)))
+#endif
+            float tmp[6][8][16];
+
+            __m512 _v32 = _mm512_set1_ps(32.f);
+            __m512 _v16 = _mm512_set1_ps(16.f);
+            __m512 _v8 = _mm512_set1_ps(8.f);
+            __m512 _v4 = _mm512_set1_ps(4.f);
+            __m512 _v2 = _mm512_set1_ps(2.f);
+
+            for (int m = 0; m < 8; m++)
+            {
+                const float* r0 = top_tile.depth(m * 8).row(jj) + ii;
+                const float* r1 = top_tile.depth(m * 8 + 1).row(jj) + ii;
+                const float* r2 = top_tile.depth(m * 8 + 2).row(jj) + ii;
+                const float* r3 = top_tile.depth(m * 8 + 3).row(jj) + ii;
+                const float* r4 = top_tile.depth(m * 8 + 4).row(jj) + ii;
+                const float* r5 = top_tile.depth(m * 8 + 5).row(jj) + ii;
+                const float* r6 = top_tile.depth(m * 8 + 6).row(jj) + ii;
+                const float* r7 = top_tile.depth(m * 8 + 7).row(jj) + ii;
+
+                __m512 _r0 = _mm512_load_ps(r0);
+                __m512 _r1 = _mm512_load_ps(r1);
+                __m512 _r2 = _mm512_load_ps(r2);
+                __m512 _r3 = _mm512_load_ps(r3);
+                __m512 _r4 = _mm512_load_ps(r4);
+                __m512 _r5 = _mm512_load_ps(r5);
+                __m512 _r6 = _mm512_load_ps(r6);
+                __m512 _r7 = _mm512_load_ps(r7);
+
+                __m512 _tmp024a = _mm512_add_ps(_r1, _r2);
+                __m512 _tmp135a = _mm512_sub_ps(_r1, _r2);
+                __m512 _tmp024b = _mm512_add_ps(_r3, _r4);
+                __m512 _tmp135b = _mm512_sub_ps(_r3, _r4);
+                __m512 _tmp024c = _mm512_add_ps(_r5, _r6);
+                __m512 _tmp135c = _mm512_sub_ps(_r5, _r6);
+                __m512 _tmp0 = _mm512_add_ps(_mm512_add_ps(_r0, _tmp024a), _mm512_fmadd_ps(_v32, _tmp024c, _tmp024b));
+                __m512 _tmp1 = _mm512_fmadd_ps(_v16, _tmp135c, _mm512_fmadd_ps(_v2, _tmp135b, _tmp135a));
+                __m512 _tmp2 = _mm512_fmadd_ps(_v8, _tmp024c, _mm512_fmadd_ps(_v4, _tmp024b, _tmp024a));
+                __m512 _tmp3 = _mm512_fmadd_ps(_v4, _tmp135c, _mm512_fmadd_ps(_v8, _tmp135b, _tmp135a));
+                __m512 _tmp4 = _mm512_fmadd_ps(_v2, _tmp024c, _mm512_fmadd_ps(_v16, _tmp024b, _tmp024a));
+                __m512 _tmp5 = _mm512_add_ps(_mm512_add_ps(_r7, _tmp135a), _mm512_fmadd_ps(_v32, _tmp135b, _tmp135c));
+
+                _mm512_store_ps(tmp[0][m], _tmp0);
+                _mm512_store_ps(tmp[1][m], _tmp1);
+                _mm512_store_ps(tmp[2][m], _tmp2);
+                _mm512_store_ps(tmp[3][m], _tmp3);
+                _mm512_store_ps(tmp[4][m], _tmp4);
+                _mm512_store_ps(tmp[5][m], _tmp5);
+            }
+            for (int m = 0; m < 6; m++)
+            {
+                if (ti * 6 + m >= outh)
+                    continue;
+
+                __m512 _r0 = _mm512_load_ps(tmp[m][0]);
+                __m512 _r1 = _mm512_load_ps(tmp[m][1]);
+                __m512 _r2 = _mm512_load_ps(tmp[m][2]);
+                __m512 _r3 = _mm512_load_ps(tmp[m][3]);
+                __m512 _r4 = _mm512_load_ps(tmp[m][4]);
+                __m512 _r5 = _mm512_load_ps(tmp[m][5]);
+                __m512 _r6 = _mm512_load_ps(tmp[m][6]);
+                __m512 _r7 = _mm512_load_ps(tmp[m][7]);
+
+                __m512 _tmp024a = _mm512_add_ps(_r1, _r2);
+                __m512 _tmp135a = _mm512_sub_ps(_r1, _r2);
+                __m512 _tmp024b = _mm512_add_ps(_r3, _r4);
+                __m512 _tmp135b = _mm512_sub_ps(_r3, _r4);
+                __m512 _tmp024c = _mm512_add_ps(_r5, _r6);
+                __m512 _tmp135c = _mm512_sub_ps(_r5, _r6);
+                __m512 _tmp0 = _mm512_add_ps(_bias0, _mm512_add_ps(_mm512_add_ps(_r0, _tmp024a), _mm512_fmadd_ps(_v32, _tmp024c, _tmp024b)));
+                __m512 _tmp1 = _mm512_add_ps(_bias0, _mm512_fmadd_ps(_v16, _tmp135c, _mm512_fmadd_ps(_v2, _tmp135b, _tmp135a)));
+                __m512 _tmp2 = _mm512_add_ps(_bias0, _mm512_fmadd_ps(_v8, _tmp024c, _mm512_fmadd_ps(_v4, _tmp024b, _tmp024a)));
+                __m512 _tmp3 = _mm512_add_ps(_bias0, _mm512_fmadd_ps(_v4, _tmp135c, _mm512_fmadd_ps(_v8, _tmp135b, _tmp135a)));
+                __m512 _tmp4 = _mm512_add_ps(_bias0, _mm512_fmadd_ps(_v2, _tmp024c, _mm512_fmadd_ps(_v16, _tmp024b, _tmp024a)));
+                __m512 _tmp5 = _mm512_add_ps(_bias0, _mm512_add_ps(_mm512_add_ps(_r7, _tmp135a), _mm512_fmadd_ps(_v32, _tmp135b, _tmp135c)));
+
+                if (out_elempack == 16)
+                {
+                    float* output0 = top_blob.channel((i + ii) / 16).row(ti * 6 + m) + (tj * 6) * 16;
+
+                    _mm512_store_ps(output0, _tmp0);
+                    if (tj * 6 + 1 < outw) _mm512_store_ps(output0 + 16, _tmp1);
+                    if (tj * 6 + 2 < outw) _mm512_store_ps(output0 + 32, _tmp2);
+                    if (tj * 6 + 3 < outw) _mm512_store_ps(output0 + 48, _tmp3);
+                    if (tj * 6 + 4 < outw) _mm512_store_ps(output0 + 64, _tmp4);
+                    if (tj * 6 + 5 < outw) _mm512_store_ps(output0 + 80, _tmp5);
+                }
+                if (out_elempack == 8)
+                {
+                    float* output0 = top_blob.channel((i + ii) / 8).row(ti * 6 + m) + (tj * 6) * 8;
+                    float* output1 = top_blob.channel((i + ii) / 8 + 1).row(ti * 6 + m) + (tj * 6) * 8;
+
+                    _mm256_store_ps(output0, _mm512_extractf32x8_ps(_tmp0, 0));
+                    _mm256_store_ps(output1, _mm512_extractf32x8_ps(_tmp0, 1));
+                    if (tj * 6 + 1 < outw)
+                    {
+                        _mm256_store_ps(output0 + 8, _mm512_extractf32x8_ps(_tmp1, 0));
+                        _mm256_store_ps(output1 + 8, _mm512_extractf32x8_ps(_tmp1, 1));
+                    }
+                    if (tj * 6 + 2 < outw)
+                    {
+                        _mm256_store_ps(output0 + 16, _mm512_extractf32x8_ps(_tmp2, 0));
+                        _mm256_store_ps(output1 + 16, _mm512_extractf32x8_ps(_tmp2, 1));
+                    }
+                    if (tj * 6 + 3 < outw)
+                    {
+                        _mm256_store_ps(output0 + 24, _mm512_extractf32x8_ps(_tmp3, 0));
+                        _mm256_store_ps(output1 + 24, _mm512_extractf32x8_ps(_tmp3, 1));
+                    }
+                    if (tj * 6 + 4 < outw)
+                    {
+                        _mm256_store_ps(output0 + 32, _mm512_extractf32x8_ps(_tmp4, 0));
+                        _mm256_store_ps(output1 + 32, _mm512_extractf32x8_ps(_tmp4, 1));
+                    }
+                    if (tj * 6 + 5 < outw)
+                    {
+                        _mm256_store_ps(output0 + 40, _mm512_extractf32x8_ps(_tmp5, 0));
+                        _mm256_store_ps(output1 + 40, _mm512_extractf32x8_ps(_tmp5, 1));
+                    }
+                }
+                if (out_elempack == 4)
+                {
+                    float* output0 = top_blob.channel((i + ii) / 4).row(ti * 6 + m) + (tj * 6) * 4;
+                    float* output1 = top_blob.channel((i + ii) / 4 + 1).row(ti * 6 + m) + (tj * 6) * 4;
+                    float* output2 = top_blob.channel((i + ii) / 4 + 2).row(ti * 6 + m) + (tj * 6) * 4;
+                    float* output3 = top_blob.channel((i + ii) / 4 + 3).row(ti * 6 + m) + (tj * 6) * 4;
+
+                    _mm_store_ps(output0, _mm512_extractf32x4_ps(_tmp0, 0));
+                    _mm_store_ps(output1, _mm512_extractf32x4_ps(_tmp0, 1));
+                    _mm_store_ps(output2, _mm512_extractf32x4_ps(_tmp0, 2));
+                    _mm_store_ps(output3, _mm512_extractf32x4_ps(_tmp0, 3));
+                    if (tj * 6 + 1 < outw)
+                    {
+                        _mm_store_ps(output0 + 4, _mm512_extractf32x4_ps(_tmp1, 0));
+                        _mm_store_ps(output1 + 4, _mm512_extractf32x4_ps(_tmp1, 1));
+                        _mm_store_ps(output2 + 4, _mm512_extractf32x4_ps(_tmp1, 2));
+                        _mm_store_ps(output3 + 4, _mm512_extractf32x4_ps(_tmp1, 3));
+                    }
+                    if (tj * 6 + 2 < outw)
+                    {
+                        _mm_store_ps(output0 + 8, _mm512_extractf32x4_ps(_tmp2, 0));
+                        _mm_store_ps(output1 + 8, _mm512_extractf32x4_ps(_tmp2, 1));
+                        _mm_store_ps(output2 + 8, _mm512_extractf32x4_ps(_tmp2, 2));
+                        _mm_store_ps(output3 + 8, _mm512_extractf32x4_ps(_tmp2, 3));
+                    }
+                    if (tj * 6 + 3 < outw)
+                    {
+                        _mm_store_ps(output0 + 12, _mm512_extractf32x4_ps(_tmp3, 0));
+                        _mm_store_ps(output1 + 12, _mm512_extractf32x4_ps(_tmp3, 1));
+                        _mm_store_ps(output2 + 12, _mm512_extractf32x4_ps(_tmp3, 2));
+                        _mm_store_ps(output3 + 12, _mm512_extractf32x4_ps(_tmp3, 3));
+                    }
+                    if (tj * 6 + 4 < outw)
+                    {
+                        _mm_store_ps(output0 + 16, _mm512_extractf32x4_ps(_tmp4, 0));
+                        _mm_store_ps(output1 + 16, _mm512_extractf32x4_ps(_tmp4, 1));
+                        _mm_store_ps(output2 + 16, _mm512_extractf32x4_ps(_tmp4, 2));
+                        _mm_store_ps(output3 + 16, _mm512_extractf32x4_ps(_tmp4, 3));
+                    }
+                    if (tj * 6 + 5 < outw)
+                    {
+                        _mm_store_ps(output0 + 20, _mm512_extractf32x4_ps(_tmp5, 0));
+                        _mm_store_ps(output1 + 20, _mm512_extractf32x4_ps(_tmp5, 1));
+                        _mm_store_ps(output2 + 20, _mm512_extractf32x4_ps(_tmp5, 2));
+                        _mm_store_ps(output3 + 20, _mm512_extractf32x4_ps(_tmp5, 3));
+                    }
+                }
+                if (out_elempack == 1)
+                {
+                    float tmp0[16];
+                    float tmp1[16];
+                    float tmp2[16];
+                    float tmp3[16];
+                    float tmp4[16];
+                    float tmp5[16];
+                    _mm512_storeu_ps(tmp0, _tmp0);
+                    _mm512_storeu_ps(tmp1, _tmp1);
+                    _mm512_storeu_ps(tmp2, _tmp2);
+                    _mm512_storeu_ps(tmp3, _tmp3);
+                    _mm512_storeu_ps(tmp4, _tmp3);
+                    _mm512_storeu_ps(tmp5, _tmp3);
+
+                    float* output0 = top_blob.channel(i + ii).row(ti * 6 + m) + (tj * 6);
+                    float* output1 = top_blob.channel(i + ii + 1).row(ti * 6 + m) + (tj * 6);
+                    float* output2 = top_blob.channel(i + ii + 2).row(ti * 6 + m) + (tj * 6);
+                    float* output3 = top_blob.channel(i + ii + 3).row(ti * 6 + m) + (tj * 6);
+                    float* output4 = top_blob.channel(i + ii + 4).row(ti * 6 + m) + (tj * 6);
+                    float* output5 = top_blob.channel(i + ii + 5).row(ti * 6 + m) + (tj * 6);
+                    float* output6 = top_blob.channel(i + ii + 6).row(ti * 6 + m) + (tj * 6);
+                    float* output7 = top_blob.channel(i + ii + 7).row(ti * 6 + m) + (tj * 6);
+                    float* output8 = top_blob.channel(i + ii + 8).row(ti * 6 + m) + (tj * 6);
+                    float* output9 = top_blob.channel(i + ii + 9).row(ti * 6 + m) + (tj * 6);
+                    float* outputa = top_blob.channel(i + ii + 10).row(ti * 6 + m) + (tj * 6);
+                    float* outputb = top_blob.channel(i + ii + 11).row(ti * 6 + m) + (tj * 6);
+                    float* outputc = top_blob.channel(i + ii + 12).row(ti * 6 + m) + (tj * 6);
+                    float* outputd = top_blob.channel(i + ii + 13).row(ti * 6 + m) + (tj * 6);
+                    float* outpute = top_blob.channel(i + ii + 14).row(ti * 6 + m) + (tj * 6);
+                    float* outputf = top_blob.channel(i + ii + 15).row(ti * 6 + m) + (tj * 6);
+
+                    output0[0] = tmp0[0];
+                    output1[0] = tmp0[1];
+                    output2[0] = tmp0[2];
+                    output3[0] = tmp0[3];
+                    output4[0] = tmp0[4];
+                    output5[0] = tmp0[5];
+                    output6[0] = tmp0[6];
+                    output7[0] = tmp0[7];
+                    output8[0] = tmp0[8];
+                    output9[0] = tmp0[9];
+                    outputa[0] = tmp0[10];
+                    outputb[0] = tmp0[11];
+                    outputc[0] = tmp0[12];
+                    outputd[0] = tmp0[13];
+                    outpute[0] = tmp0[14];
+                    outputf[0] = tmp0[15];
+                    if (tj * 6 + 1 < outw)
+                    {
+                        output0[1] = tmp1[0];
+                        output1[1] = tmp1[1];
+                        output2[1] = tmp1[2];
+                        output3[1] = tmp1[3];
+                        output4[1] = tmp1[4];
+                        output5[1] = tmp1[5];
+                        output6[1] = tmp1[6];
+                        output7[1] = tmp1[7];
+                        output8[1] = tmp1[8];
+                        output9[1] = tmp1[9];
+                        outputa[1] = tmp1[10];
+                        outputb[1] = tmp1[11];
+                        outputc[1] = tmp1[12];
+                        outputd[1] = tmp1[13];
+                        outpute[1] = tmp1[14];
+                        outputf[1] = tmp1[15];
+                    }
+                    if (tj * 6 + 2 < outw)
+                    {
+                        output0[2] = tmp2[0];
+                        output1[2] = tmp2[1];
+                        output2[2] = tmp2[2];
+                        output3[2] = tmp2[3];
+                        output4[2] = tmp2[4];
+                        output5[2] = tmp2[5];
+                        output6[2] = tmp2[6];
+                        output7[2] = tmp2[7];
+                        output8[2] = tmp2[8];
+                        output9[2] = tmp2[9];
+                        outputa[2] = tmp2[10];
+                        outputb[2] = tmp2[11];
+                        outputc[2] = tmp2[12];
+                        outputd[2] = tmp2[13];
+                        outpute[2] = tmp2[14];
+                        outputf[2] = tmp2[15];
+                    }
+                    if (tj * 6 + 3 < outw)
+                    {
+                        output0[3] = tmp3[0];
+                        output1[3] = tmp3[1];
+                        output2[3] = tmp3[2];
+                        output3[3] = tmp3[3];
+                        output4[3] = tmp3[4];
+                        output5[3] = tmp3[5];
+                        output6[3] = tmp3[6];
+                        output7[3] = tmp3[7];
+                        output8[3] = tmp3[8];
+                        output9[3] = tmp3[9];
+                        outputa[3] = tmp3[10];
+                        outputb[3] = tmp3[11];
+                        outputc[3] = tmp3[12];
+                        outputd[3] = tmp3[13];
+                        outpute[3] = tmp3[14];
+                        outputf[3] = tmp3[15];
+                    }
+                    if (tj * 6 + 4 < outw)
+                    {
+                        output0[4] = tmp4[0];
+                        output1[4] = tmp4[1];
+                        output2[4] = tmp4[2];
+                        output3[4] = tmp4[3];
+                        output4[4] = tmp4[4];
+                        output5[4] = tmp4[5];
+                        output6[4] = tmp4[6];
+                        output7[4] = tmp4[7];
+                        output8[4] = tmp4[8];
+                        output9[4] = tmp4[9];
+                        outputa[4] = tmp4[10];
+                        outputb[4] = tmp4[11];
+                        outputc[4] = tmp4[12];
+                        outputd[4] = tmp4[13];
+                        outpute[4] = tmp4[14];
+                        outputf[4] = tmp4[15];
+                    }
+                    if (tj * 6 + 5 < outw)
+                    {
+                        output0[5] = tmp5[0];
+                        output1[5] = tmp5[1];
+                        output2[5] = tmp5[2];
+                        output3[5] = tmp5[3];
+                        output4[5] = tmp5[4];
+                        output5[5] = tmp5[5];
+                        output6[5] = tmp5[6];
+                        output7[5] = tmp5[7];
+                        output8[5] = tmp5[8];
+                        output9[5] = tmp5[9];
+                        outputa[5] = tmp5[10];
+                        outputb[5] = tmp5[11];
+                        outputc[5] = tmp5[12];
+                        outputd[5] = tmp5[13];
+                        outpute[5] = tmp5[14];
+                        outputf[5] = tmp5[15];
+                    }
+                }
+            }
+        }
+    }
+#endif // __AVX512F__
+    for (; ii + 7 < max_ii; ii += 8)
+    {
+        __m256 _bias0 = biasptr ? _mm256_loadu_ps(biasptr + i + ii) : _mm256_setzero_ps();
+
+        int jj = 0;
+        for (; jj < max_jj; jj++)
+        {
+            int ti = (j + jj) / w_tiles;
+            int tj = (j + jj) % w_tiles;
+
+#ifdef _MSC_VER
+            __declspec(align(32))
+#else
+            __attribute__((aligned(32)))
+#endif
+            float tmp[6][8][8];
+
+            __m256 _v32 = _mm256_set1_ps(32.f);
+            __m256 _v16 = _mm256_set1_ps(16.f);
+            __m256 _v8 = _mm256_set1_ps(8.f);
+            __m256 _v4 = _mm256_set1_ps(4.f);
+            __m256 _v2 = _mm256_set1_ps(2.f);
+
+            for (int m = 0; m < 8; m++)
+            {
+                const float* r0 = top_tile.depth(m * 8).row(jj) + ii;
+                const float* r1 = top_tile.depth(m * 8 + 1).row(jj) + ii;
+                const float* r2 = top_tile.depth(m * 8 + 2).row(jj) + ii;
+                const float* r3 = top_tile.depth(m * 8 + 3).row(jj) + ii;
+                const float* r4 = top_tile.depth(m * 8 + 4).row(jj) + ii;
+                const float* r5 = top_tile.depth(m * 8 + 5).row(jj) + ii;
+                const float* r6 = top_tile.depth(m * 8 + 6).row(jj) + ii;
+                const float* r7 = top_tile.depth(m * 8 + 7).row(jj) + ii;
+
+                __m256 _r0 = _mm256_load_ps(r0);
+                __m256 _r1 = _mm256_load_ps(r1);
+                __m256 _r2 = _mm256_load_ps(r2);
+                __m256 _r3 = _mm256_load_ps(r3);
+                __m256 _r4 = _mm256_load_ps(r4);
+                __m256 _r5 = _mm256_load_ps(r5);
+                __m256 _r6 = _mm256_load_ps(r6);
+                __m256 _r7 = _mm256_load_ps(r7);
+
+                __m256 _tmp024a = _mm256_add_ps(_r1, _r2);
+                __m256 _tmp135a = _mm256_sub_ps(_r1, _r2);
+                __m256 _tmp024b = _mm256_add_ps(_r3, _r4);
+                __m256 _tmp135b = _mm256_sub_ps(_r3, _r4);
+                __m256 _tmp024c = _mm256_add_ps(_r5, _r6);
+                __m256 _tmp135c = _mm256_sub_ps(_r5, _r6);
+                __m256 _tmp0 = _mm256_add_ps(_mm256_add_ps(_r0, _tmp024a), _mm256_comp_fmadd_ps(_v32, _tmp024c, _tmp024b));
+                __m256 _tmp1 = _mm256_comp_fmadd_ps(_v16, _tmp135c, _mm256_comp_fmadd_ps(_v2, _tmp135b, _tmp135a));
+                __m256 _tmp2 = _mm256_comp_fmadd_ps(_v8, _tmp024c, _mm256_comp_fmadd_ps(_v4, _tmp024b, _tmp024a));
+                __m256 _tmp3 = _mm256_comp_fmadd_ps(_v4, _tmp135c, _mm256_comp_fmadd_ps(_v8, _tmp135b, _tmp135a));
+                __m256 _tmp4 = _mm256_comp_fmadd_ps(_v2, _tmp024c, _mm256_comp_fmadd_ps(_v16, _tmp024b, _tmp024a));
+                __m256 _tmp5 = _mm256_add_ps(_mm256_add_ps(_r7, _tmp135a), _mm256_comp_fmadd_ps(_v32, _tmp135b, _tmp135c));
+
+#if defined(__GNUC__) && (__GNUC__ <= 4) && (__GNUC_MINOR__ < 6)
+                _mm256_storeu_ps(tmp[0][m], _tmp0);
+                _mm256_storeu_ps(tmp[1][m], _tmp1);
+                _mm256_storeu_ps(tmp[2][m], _tmp2);
+                _mm256_storeu_ps(tmp[3][m], _tmp3);
+                _mm256_storeu_ps(tmp[4][m], _tmp4);
+                _mm256_storeu_ps(tmp[5][m], _tmp5);
+#else
+                _mm256_store_ps(tmp[0][m], _tmp0);
+                _mm256_store_ps(tmp[1][m], _tmp1);
+                _mm256_store_ps(tmp[2][m], _tmp2);
+                _mm256_store_ps(tmp[3][m], _tmp3);
+                _mm256_store_ps(tmp[4][m], _tmp4);
+                _mm256_store_ps(tmp[5][m], _tmp5);
+#endif
+            }
+            for (int m = 0; m < 6; m++)
+            {
+                if (ti * 6 + m >= outh)
+                    continue;
+
+#if defined(__GNUC__) && (__GNUC__ <= 4) && (__GNUC_MINOR__ < 6)
+                __m256 _r0 = _mm256_loadu_ps(tmp[m][0]);
+                __m256 _r1 = _mm256_loadu_ps(tmp[m][1]);
+                __m256 _r2 = _mm256_loadu_ps(tmp[m][2]);
+                __m256 _r3 = _mm256_loadu_ps(tmp[m][3]);
+                __m256 _r4 = _mm256_loadu_ps(tmp[m][4]);
+                __m256 _r5 = _mm256_loadu_ps(tmp[m][5]);
+                __m256 _r6 = _mm256_loadu_ps(tmp[m][6]);
+                __m256 _r7 = _mm256_loadu_ps(tmp[m][7]);
+#else
+                __m256 _r0 = _mm256_load_ps(tmp[m][0]);
+                __m256 _r1 = _mm256_load_ps(tmp[m][1]);
+                __m256 _r2 = _mm256_load_ps(tmp[m][2]);
+                __m256 _r3 = _mm256_load_ps(tmp[m][3]);
+                __m256 _r4 = _mm256_load_ps(tmp[m][4]);
+                __m256 _r5 = _mm256_load_ps(tmp[m][5]);
+                __m256 _r6 = _mm256_load_ps(tmp[m][6]);
+                __m256 _r7 = _mm256_load_ps(tmp[m][7]);
+#endif
+
+                __m256 _tmp024a = _mm256_add_ps(_r1, _r2);
+                __m256 _tmp135a = _mm256_sub_ps(_r1, _r2);
+                __m256 _tmp024b = _mm256_add_ps(_r3, _r4);
+                __m256 _tmp135b = _mm256_sub_ps(_r3, _r4);
+                __m256 _tmp024c = _mm256_add_ps(_r5, _r6);
+                __m256 _tmp135c = _mm256_sub_ps(_r5, _r6);
+                __m256 _tmp0 = _mm256_add_ps(_bias0, _mm256_add_ps(_mm256_add_ps(_r0, _tmp024a), _mm256_comp_fmadd_ps(_v32, _tmp024c, _tmp024b)));
+                __m256 _tmp1 = _mm256_add_ps(_bias0, _mm256_comp_fmadd_ps(_v16, _tmp135c, _mm256_comp_fmadd_ps(_v2, _tmp135b, _tmp135a)));
+                __m256 _tmp2 = _mm256_add_ps(_bias0, _mm256_comp_fmadd_ps(_v8, _tmp024c, _mm256_comp_fmadd_ps(_v4, _tmp024b, _tmp024a)));
+                __m256 _tmp3 = _mm256_add_ps(_bias0, _mm256_comp_fmadd_ps(_v4, _tmp135c, _mm256_comp_fmadd_ps(_v8, _tmp135b, _tmp135a)));
+                __m256 _tmp4 = _mm256_add_ps(_bias0, _mm256_comp_fmadd_ps(_v2, _tmp024c, _mm256_comp_fmadd_ps(_v16, _tmp024b, _tmp024a)));
+                __m256 _tmp5 = _mm256_add_ps(_bias0, _mm256_add_ps(_mm256_add_ps(_r7, _tmp135a), _mm256_comp_fmadd_ps(_v32, _tmp135b, _tmp135c)));
+
+                if (out_elempack == 8)
+                {
+                    float* output0 = top_blob.channel((i + ii) / 8).row(ti * 6 + m) + (tj * 6) * 8;
+
+                    _mm256_store_ps(output0, _tmp0);
+                    if (tj * 6 + 1 < outw) _mm256_store_ps(output0 + 8, _tmp1);
+                    if (tj * 6 + 2 < outw) _mm256_store_ps(output0 + 16, _tmp2);
+                    if (tj * 6 + 3 < outw) _mm256_store_ps(output0 + 24, _tmp3);
+                    if (tj * 6 + 4 < outw) _mm256_store_ps(output0 + 32, _tmp4);
+                    if (tj * 6 + 5 < outw) _mm256_store_ps(output0 + 40, _tmp5);
+                }
+                if (out_elempack == 4)
+                {
+                    float* output0 = top_blob.channel((i + ii) / 4).row(ti * 6 + m) + (tj * 6) * 4;
+                    float* output1 = top_blob.channel((i + ii) / 4 + 1).row(ti * 6 + m) + (tj * 6) * 4;
+
+                    _mm_store_ps(output0, _mm256_extractf128_ps(_tmp0, 0));
+                    _mm_store_ps(output1, _mm256_extractf128_ps(_tmp0, 1));
+                    if (tj * 6 + 1 < outw)
+                    {
+                        _mm_store_ps(output0 + 4, _mm256_extractf128_ps(_tmp1, 0));
+                        _mm_store_ps(output1 + 4, _mm256_extractf128_ps(_tmp1, 1));
+                    }
+                    if (tj * 6 + 2 < outw)
+                    {
+                        _mm_store_ps(output0 + 8, _mm256_extractf128_ps(_tmp2, 0));
+                        _mm_store_ps(output1 + 8, _mm256_extractf128_ps(_tmp2, 1));
+                    }
+                    if (tj * 6 + 3 < outw)
+                    {
+                        _mm_store_ps(output0 + 12, _mm256_extractf128_ps(_tmp3, 0));
+                        _mm_store_ps(output1 + 12, _mm256_extractf128_ps(_tmp3, 1));
+                    }
+                    if (tj * 6 + 4 < outw)
+                    {
+                        _mm_store_ps(output0 + 16, _mm256_extractf128_ps(_tmp4, 0));
+                        _mm_store_ps(output1 + 16, _mm256_extractf128_ps(_tmp4, 1));
+                    }
+                    if (tj * 6 + 5 < outw)
+                    {
+                        _mm_store_ps(output0 + 20, _mm256_extractf128_ps(_tmp5, 0));
+                        _mm_store_ps(output1 + 20, _mm256_extractf128_ps(_tmp5, 1));
+                    }
+                }
+                if (out_elempack == 1)
+                {
+                    float tmp0[8];
+                    float tmp1[8];
+                    float tmp2[8];
+                    float tmp3[8];
+                    float tmp4[8];
+                    float tmp5[8];
+                    _mm256_storeu_ps(tmp0, _tmp0);
+                    _mm256_storeu_ps(tmp1, _tmp1);
+                    _mm256_storeu_ps(tmp2, _tmp2);
+                    _mm256_storeu_ps(tmp3, _tmp3);
+                    _mm256_storeu_ps(tmp4, _tmp4);
+                    _mm256_storeu_ps(tmp5, _tmp5);
+
+                    float* output0 = top_blob.channel(i + ii).row(ti * 6 + m) + (tj * 6);
+                    float* output1 = top_blob.channel(i + ii + 1).row(ti * 6 + m) + (tj * 6);
+                    float* output2 = top_blob.channel(i + ii + 2).row(ti * 6 + m) + (tj * 6);
+                    float* output3 = top_blob.channel(i + ii + 3).row(ti * 6 + m) + (tj * 6);
+                    float* output4 = top_blob.channel(i + ii + 4).row(ti * 6 + m) + (tj * 6);
+                    float* output5 = top_blob.channel(i + ii + 5).row(ti * 6 + m) + (tj * 6);
+                    float* output6 = top_blob.channel(i + ii + 6).row(ti * 6 + m) + (tj * 6);
+                    float* output7 = top_blob.channel(i + ii + 7).row(ti * 6 + m) + (tj * 6);
+
+                    output0[0] = tmp0[0];
+                    output1[0] = tmp0[1];
+                    output2[0] = tmp0[2];
+                    output3[0] = tmp0[3];
+                    output4[0] = tmp0[4];
+                    output5[0] = tmp0[5];
+                    output6[0] = tmp0[6];
+                    output7[0] = tmp0[7];
+                    if (tj * 6 + 1 < outw)
+                    {
+                        output0[1] = tmp1[0];
+                        output1[1] = tmp1[1];
+                        output2[1] = tmp1[2];
+                        output3[1] = tmp1[3];
+                        output4[1] = tmp1[4];
+                        output5[1] = tmp1[5];
+                        output6[1] = tmp1[6];
+                        output7[1] = tmp1[7];
+                    }
+                    if (tj * 6 + 2 < outw)
+                    {
+                        output0[2] = tmp2[0];
+                        output1[2] = tmp2[1];
+                        output2[2] = tmp2[2];
+                        output3[2] = tmp2[3];
+                        output4[2] = tmp2[4];
+                        output5[2] = tmp2[5];
+                        output6[2] = tmp2[6];
+                        output7[2] = tmp2[7];
+                    }
+                    if (tj * 6 + 3 < outw)
+                    {
+                        output0[3] = tmp3[0];
+                        output1[3] = tmp3[1];
+                        output2[3] = tmp3[2];
+                        output3[3] = tmp3[3];
+                        output4[3] = tmp3[4];
+                        output5[3] = tmp3[5];
+                        output6[3] = tmp3[6];
+                        output7[3] = tmp3[7];
+                    }
+                    if (tj * 6 + 4 < outw)
+                    {
+                        output0[4] = tmp4[0];
+                        output1[4] = tmp4[1];
+                        output2[4] = tmp4[2];
+                        output3[4] = tmp4[3];
+                        output4[4] = tmp4[4];
+                        output5[4] = tmp4[5];
+                        output6[4] = tmp4[6];
+                        output7[4] = tmp4[7];
+                    }
+                    if (tj * 6 + 5 < outw)
+                    {
+                        output0[5] = tmp5[0];
+                        output1[5] = tmp5[1];
+                        output2[5] = tmp5[2];
+                        output3[5] = tmp5[3];
+                        output4[5] = tmp5[4];
+                        output5[5] = tmp5[5];
+                        output6[5] = tmp5[6];
+                        output7[5] = tmp5[7];
+                    }
+                }
+            }
+        }
+    }
+#endif // __AVX__
+    for (; ii + 3 < max_ii; ii += 4)
+    {
+        __m128 _bias0 = biasptr ? _mm_loadu_ps(biasptr + i + ii) : _mm_setzero_ps();
+
+        int jj = 0;
+        for (; jj < max_jj; jj++)
+        {
+            int ti = (j + jj) / w_tiles;
+            int tj = (j + jj) % w_tiles;
+
+#ifdef _MSC_VER
+            __declspec(align(16))
+#else
+            __attribute__((aligned(16)))
+#endif
+            float tmp[6][8][4];
+
+            __m128 _v32 = _mm_set1_ps(32.f);
+            __m128 _v16 = _mm_set1_ps(16.f);
+            __m128 _v8 = _mm_set1_ps(8.f);
+            __m128 _v4 = _mm_set1_ps(4.f);
+            __m128 _v2 = _mm_set1_ps(2.f);
+
+            for (int m = 0; m < 8; m++)
+            {
+                const float* r0 = top_tile.depth(m * 8).row(jj) + ii;
+                const float* r1 = top_tile.depth(m * 8 + 1).row(jj) + ii;
+                const float* r2 = top_tile.depth(m * 8 + 2).row(jj) + ii;
+                const float* r3 = top_tile.depth(m * 8 + 3).row(jj) + ii;
+                const float* r4 = top_tile.depth(m * 8 + 4).row(jj) + ii;
+                const float* r5 = top_tile.depth(m * 8 + 5).row(jj) + ii;
+                const float* r6 = top_tile.depth(m * 8 + 6).row(jj) + ii;
+                const float* r7 = top_tile.depth(m * 8 + 7).row(jj) + ii;
+
+                __m128 _r0 = _mm_load_ps(r0);
+                __m128 _r1 = _mm_load_ps(r1);
+                __m128 _r2 = _mm_load_ps(r2);
+                __m128 _r3 = _mm_load_ps(r3);
+                __m128 _r4 = _mm_load_ps(r4);
+                __m128 _r5 = _mm_load_ps(r5);
+                __m128 _r6 = _mm_load_ps(r6);
+                __m128 _r7 = _mm_load_ps(r7);
+
+                __m128 _tmp024a = _mm_add_ps(_r1, _r2);
+                __m128 _tmp135a = _mm_sub_ps(_r1, _r2);
+                __m128 _tmp024b = _mm_add_ps(_r3, _r4);
+                __m128 _tmp135b = _mm_sub_ps(_r3, _r4);
+                __m128 _tmp024c = _mm_add_ps(_r5, _r6);
+                __m128 _tmp135c = _mm_sub_ps(_r5, _r6);
+                __m128 _tmp0 = _mm_add_ps(_mm_add_ps(_r0, _tmp024a), _mm_comp_fmadd_ps(_v32, _tmp024c, _tmp024b));
+                __m128 _tmp1 = _mm_comp_fmadd_ps(_v16, _tmp135c, _mm_comp_fmadd_ps(_v2, _tmp135b, _tmp135a));
+                __m128 _tmp2 = _mm_comp_fmadd_ps(_v8, _tmp024c, _mm_comp_fmadd_ps(_v4, _tmp024b, _tmp024a));
+                __m128 _tmp3 = _mm_comp_fmadd_ps(_v4, _tmp135c, _mm_comp_fmadd_ps(_v8, _tmp135b, _tmp135a));
+                __m128 _tmp4 = _mm_comp_fmadd_ps(_v2, _tmp024c, _mm_comp_fmadd_ps(_v16, _tmp024b, _tmp024a));
+                __m128 _tmp5 = _mm_add_ps(_mm_add_ps(_r7, _tmp135a), _mm_comp_fmadd_ps(_v32, _tmp135b, _tmp135c));
+
+#if defined(__GNUC__) && (__GNUC__ <= 4) && (__GNUC_MINOR__ < 6)
+                _mm_storeu_ps(tmp[0][m], _tmp0);
+                _mm_storeu_ps(tmp[1][m], _tmp1);
+                _mm_storeu_ps(tmp[2][m], _tmp2);
+                _mm_storeu_ps(tmp[3][m], _tmp3);
+                _mm_storeu_ps(tmp[4][m], _tmp4);
+                _mm_storeu_ps(tmp[5][m], _tmp5);
+#else
+                _mm_store_ps(tmp[0][m], _tmp0);
+                _mm_store_ps(tmp[1][m], _tmp1);
+                _mm_store_ps(tmp[2][m], _tmp2);
+                _mm_store_ps(tmp[3][m], _tmp3);
+                _mm_store_ps(tmp[4][m], _tmp4);
+                _mm_store_ps(tmp[5][m], _tmp5);
+#endif
+            }
+            for (int m = 0; m < 6; m++)
+            {
+                if (ti * 6 + m >= outh)
+                    continue;
+
+#if defined(__GNUC__) && (__GNUC__ <= 4) && (__GNUC_MINOR__ < 6)
+                __m128 _r0 = _mm_loadu_ps(tmp[m][0]);
+                __m128 _r1 = _mm_loadu_ps(tmp[m][1]);
+                __m128 _r2 = _mm_loadu_ps(tmp[m][2]);
+                __m128 _r3 = _mm_loadu_ps(tmp[m][3]);
+                __m128 _r4 = _mm_loadu_ps(tmp[m][4]);
+                __m128 _r5 = _mm_loadu_ps(tmp[m][5]);
+                __m128 _r6 = _mm_loadu_ps(tmp[m][6]);
+                __m128 _r7 = _mm_loadu_ps(tmp[m][7]);
+#else
+                __m128 _r0 = _mm_load_ps(tmp[m][0]);
+                __m128 _r1 = _mm_load_ps(tmp[m][1]);
+                __m128 _r2 = _mm_load_ps(tmp[m][2]);
+                __m128 _r3 = _mm_load_ps(tmp[m][3]);
+                __m128 _r4 = _mm_load_ps(tmp[m][4]);
+                __m128 _r5 = _mm_load_ps(tmp[m][5]);
+                __m128 _r6 = _mm_load_ps(tmp[m][6]);
+                __m128 _r7 = _mm_load_ps(tmp[m][7]);
+#endif
+
+                __m128 _tmp024a = _mm_add_ps(_r1, _r2);
+                __m128 _tmp135a = _mm_sub_ps(_r1, _r2);
+                __m128 _tmp024b = _mm_add_ps(_r3, _r4);
+                __m128 _tmp135b = _mm_sub_ps(_r3, _r4);
+                __m128 _tmp024c = _mm_add_ps(_r5, _r6);
+                __m128 _tmp135c = _mm_sub_ps(_r5, _r6);
+                __m128 _tmp0 = _mm_add_ps(_bias0, _mm_add_ps(_mm_add_ps(_r0, _tmp024a), _mm_comp_fmadd_ps(_v32, _tmp024c, _tmp024b)));
+                __m128 _tmp1 = _mm_add_ps(_bias0, _mm_comp_fmadd_ps(_v16, _tmp135c, _mm_comp_fmadd_ps(_v2, _tmp135b, _tmp135a)));
+                __m128 _tmp2 = _mm_add_ps(_bias0, _mm_comp_fmadd_ps(_v8, _tmp024c, _mm_comp_fmadd_ps(_v4, _tmp024b, _tmp024a)));
+                __m128 _tmp3 = _mm_add_ps(_bias0, _mm_comp_fmadd_ps(_v4, _tmp135c, _mm_comp_fmadd_ps(_v8, _tmp135b, _tmp135a)));
+                __m128 _tmp4 = _mm_add_ps(_bias0, _mm_comp_fmadd_ps(_v2, _tmp024c, _mm_comp_fmadd_ps(_v16, _tmp024b, _tmp024a)));
+                __m128 _tmp5 = _mm_add_ps(_bias0, _mm_add_ps(_mm_add_ps(_r7, _tmp135a), _mm_comp_fmadd_ps(_v32, _tmp135b, _tmp135c)));
+
+                if (out_elempack == 4)
+                {
+                    float* output0 = top_blob.channel((i + ii) / 4).row(ti * 6 + m) + (tj * 6) * 4;
+
+                    _mm_store_ps(output0, _tmp0);
+                    if (tj * 6 + 1 < outw) _mm_store_ps(output0 + 4, _tmp1);
+                    if (tj * 6 + 2 < outw) _mm_store_ps(output0 + 8, _tmp2);
+                    if (tj * 6 + 3 < outw) _mm_store_ps(output0 + 12, _tmp3);
+                    if (tj * 6 + 4 < outw) _mm_store_ps(output0 + 16, _tmp4);
+                    if (tj * 6 + 5 < outw) _mm_store_ps(output0 + 20, _tmp5);
+                }
+                if (out_elempack == 1)
+                {
+                    float tmp0[4];
+                    float tmp1[4];
+                    float tmp2[4];
+                    float tmp3[4];
+                    float tmp4[4];
+                    float tmp5[4];
+                    _mm_storeu_ps(tmp0, _tmp0);
+                    _mm_storeu_ps(tmp1, _tmp1);
+                    _mm_storeu_ps(tmp2, _tmp2);
+                    _mm_storeu_ps(tmp3, _tmp3);
+                    _mm_storeu_ps(tmp4, _tmp4);
+                    _mm_storeu_ps(tmp5, _tmp5);
+
+                    float* output0 = top_blob.channel(i + ii).row(ti * 6 + m) + (tj * 6);
+                    float* output1 = top_blob.channel(i + ii + 1).row(ti * 6 + m) + (tj * 6);
+                    float* output2 = top_blob.channel(i + ii + 2).row(ti * 6 + m) + (tj * 6);
+                    float* output3 = top_blob.channel(i + ii + 3).row(ti * 6 + m) + (tj * 6);
+
+                    output0[0] = tmp0[0];
+                    output1[0] = tmp0[1];
+                    output2[0] = tmp0[2];
+                    output3[0] = tmp0[3];
+                    if (tj * 6 + 1 < outw)
+                    {
+                        output0[1] = tmp1[0];
+                        output1[1] = tmp1[1];
+                        output2[1] = tmp1[2];
+                        output3[1] = tmp1[3];
+                    }
+                    if (tj * 6 + 2 < outw)
+                    {
+                        output0[2] = tmp2[0];
+                        output1[2] = tmp2[1];
+                        output2[2] = tmp2[2];
+                        output3[2] = tmp2[3];
+                    }
+                    if (tj * 6 + 3 < outw)
+                    {
+                        output0[3] = tmp3[0];
+                        output1[3] = tmp3[1];
+                        output2[3] = tmp3[2];
+                        output3[3] = tmp3[3];
+                    }
+                    if (tj * 6 + 4 < outw)
+                    {
+                        output0[4] = tmp4[0];
+                        output1[4] = tmp4[1];
+                        output2[4] = tmp4[2];
+                        output3[4] = tmp4[3];
+                    }
+                    if (tj * 6 + 5 < outw)
+                    {
+                        output0[5] = tmp5[0];
+                        output1[5] = tmp5[1];
+                        output2[5] = tmp5[2];
+                        output3[5] = tmp5[3];
+                    }
+                }
+            }
+        }
+    }
+#endif // __SSE2__
+    for (; ii + 1 < max_ii; ii += 2)
+    {
+        float bias0 = biasptr ? biasptr[i + ii] : 0.f;
+        float bias1 = biasptr ? biasptr[i + ii + 1] : 0.f;
+
+        int jj = 0;
+        for (; jj < max_jj; jj++)
+        {
+            int ti = (j + jj) / w_tiles;
+            int tj = (j + jj) % w_tiles;
+
+            float tmp[6][8][2];
+
+            for (int m = 0; m < 8; m++)
+            {
+                float r00 = top_tile.depth(m * 8).row(jj)[ii];
+                float r01 = top_tile.depth(m * 8).row(jj)[ii + 1];
+                float r10 = top_tile.depth(m * 8 + 1).row(jj)[ii];
+                float r11 = top_tile.depth(m * 8 + 1).row(jj)[ii + 1];
+                float r20 = top_tile.depth(m * 8 + 2).row(jj)[ii];
+                float r21 = top_tile.depth(m * 8 + 2).row(jj)[ii + 1];
+                float r30 = top_tile.depth(m * 8 + 3).row(jj)[ii];
+                float r31 = top_tile.depth(m * 8 + 3).row(jj)[ii + 1];
+                float r40 = top_tile.depth(m * 8 + 4).row(jj)[ii];
+                float r41 = top_tile.depth(m * 8 + 4).row(jj)[ii + 1];
+                float r50 = top_tile.depth(m * 8 + 5).row(jj)[ii];
+                float r51 = top_tile.depth(m * 8 + 5).row(jj)[ii + 1];
+                float r60 = top_tile.depth(m * 8 + 6).row(jj)[ii];
+                float r61 = top_tile.depth(m * 8 + 6).row(jj)[ii + 1];
+                float r70 = top_tile.depth(m * 8 + 7).row(jj)[ii];
+                float r71 = top_tile.depth(m * 8 + 7).row(jj)[ii + 1];
+
+                float tmp024a0 = r10 + r20;
+                float tmp024a1 = r11 + r21;
+                float tmp135a0 = r10 - r20;
+                float tmp135a1 = r11 - r21;
+                float tmp024b0 = r30 + r40;
+                float tmp024b1 = r31 + r41;
+                float tmp135b0 = r30 - r40;
+                float tmp135b1 = r31 - r41;
+                float tmp024c0 = r50 + r60;
+                float tmp024c1 = r51 + r61;
+                float tmp135c0 = r50 - r60;
+                float tmp135c1 = r51 - r61;
+
+                tmp[0][m][0] = r00 + tmp024a0 + tmp024b0 + tmp024c0 * 32;
+                tmp[0][m][1] = r01 + tmp024a1 + tmp024b1 + tmp024c1 * 32;
+                tmp[1][m][0] = tmp135a0 + tmp135b0 + tmp135b0 + tmp135c0 * 16;
+                tmp[1][m][1] = tmp135a1 + tmp135b1 + tmp135b1 + tmp135c1 * 16;
+                tmp[2][m][0] = tmp024a0 + tmp024b0 * 4 + tmp024c0 * 8;
+                tmp[2][m][1] = tmp024a1 + tmp024b1 * 4 + tmp024c1 * 8;
+                tmp[3][m][0] = tmp135a0 + tmp135b0 * 8 + tmp135c0 * 4;
+                tmp[3][m][1] = tmp135a1 + tmp135b1 * 8 + tmp135c1 * 4;
+                tmp[4][m][0] = tmp024a0 + tmp024b0 * 16 + tmp024c0 + tmp024c0;
+                tmp[4][m][1] = tmp024a1 + tmp024b1 * 16 + tmp024c1 + tmp024c1;
+                tmp[5][m][0] = r70 + tmp135a0 + tmp135b0 * 32 + tmp135c0;
+                tmp[5][m][1] = r71 + tmp135a1 + tmp135b1 * 32 + tmp135c1;
+            }
+            for (int m = 0; m < 6; m++)
+            {
+                if (ti * 6 + m >= outh)
+                    continue;
+
+                float r00 = tmp[m][0][0];
+                float r01 = tmp[m][0][1];
+                float r10 = tmp[m][1][0];
+                float r11 = tmp[m][1][1];
+                float r20 = tmp[m][2][0];
+                float r21 = tmp[m][2][1];
+                float r30 = tmp[m][3][0];
+                float r31 = tmp[m][3][1];
+                float r40 = tmp[m][4][0];
+                float r41 = tmp[m][4][1];
+                float r50 = tmp[m][5][0];
+                float r51 = tmp[m][5][1];
+                float r60 = tmp[m][6][0];
+                float r61 = tmp[m][6][1];
+                float r70 = tmp[m][7][0];
+                float r71 = tmp[m][7][1];
+
+                float tmp024a0 = r10 + r20;
+                float tmp024a1 = r11 + r21;
+                float tmp135a0 = r10 - r20;
+                float tmp135a1 = r11 - r21;
+                float tmp024b0 = r30 + r40;
+                float tmp024b1 = r31 + r41;
+                float tmp135b0 = r30 - r40;
+                float tmp135b1 = r31 - r41;
+                float tmp024c0 = r50 + r60;
+                float tmp024c1 = r51 + r61;
+                float tmp135c0 = r50 - r60;
+                float tmp135c1 = r51 - r61;
+
+                float tmp00 = bias0 + r00 + tmp024a0 + tmp024b0 + tmp024c0 * 32;
+                float tmp01 = bias1 + r01 + tmp024a1 + tmp024b1 + tmp024c1 * 32;
+                float tmp10 = bias0 + tmp135a0 + tmp135b0 + tmp135b0 + tmp135c0 * 16;
+                float tmp11 = bias1 + tmp135a1 + tmp135b1 + tmp135b1 + tmp135c1 * 16;
+                float tmp20 = bias0 + tmp024a0 + tmp024b0 * 4 + tmp024c0 * 8;
+                float tmp21 = bias1 + tmp024a1 + tmp024b1 * 4 + tmp024c1 * 8;
+                float tmp30 = bias0 + tmp135a0 + tmp135b0 * 8 + tmp135c0 * 4;
+                float tmp31 = bias1 + tmp135a1 + tmp135b1 * 8 + tmp135c1 * 4;
+                float tmp40 = bias0 + tmp024a0 + tmp024b0 * 16 + tmp024c0 + tmp024c0;
+                float tmp41 = bias1 + tmp024a1 + tmp024b1 * 16 + tmp024c1 + tmp024c1;
+                float tmp50 = bias0 + r70 + tmp135a0 + tmp135b0 * 32 + tmp135c0;
+                float tmp51 = bias1 + r71 + tmp135a1 + tmp135b1 * 32 + tmp135c1;
+
+                // if (out_elempack == 1)
+                {
+                    float* output0 = top_blob.channel(i + ii).row(ti * 6 + m) + (tj * 6);
+                    float* output1 = top_blob.channel(i + ii + 1).row(ti * 6 + m) + (tj * 6);
+
+                    output0[0] = tmp00;
+                    output1[0] = tmp01;
+                    if (tj * 6 + 1 < outw)
+                    {
+                        output0[1] = tmp10;
+                        output1[1] = tmp11;
+                    }
+                    if (tj * 6 + 2 < outw)
+                    {
+                        output0[2] = tmp20;
+                        output1[2] = tmp21;
+                    }
+                    if (tj * 6 + 3 < outw)
+                    {
+                        output0[3] = tmp30;
+                        output1[3] = tmp31;
+                    }
+                    if (tj * 6 + 4 < outw)
+                    {
+                        output0[4] = tmp40;
+                        output1[4] = tmp41;
+                    }
+                    if (tj * 6 + 5 < outw)
+                    {
+                        output0[5] = tmp50;
+                        output1[5] = tmp51;
+                    }
+                }
+            }
+        }
+    }
+    for (; ii < max_ii; ii++)
+    {
+        float bias0 = biasptr ? biasptr[i + ii] : 0.f;
+
+        int jj = 0;
+        for (; jj < max_jj; jj++)
+        {
+            int ti = (j + jj) / w_tiles;
+            int tj = (j + jj) % w_tiles;
+
+            float tmp[6][8];
+
+            for (int m = 0; m < 8; m++)
+            {
+                float r0 = top_tile.depth(m * 8).row(jj)[ii];
+                float r1 = top_tile.depth(m * 8 + 1).row(jj)[ii];
+                float r2 = top_tile.depth(m * 8 + 2).row(jj)[ii];
+                float r3 = top_tile.depth(m * 8 + 3).row(jj)[ii];
+                float r4 = top_tile.depth(m * 8 + 4).row(jj)[ii];
+                float r5 = top_tile.depth(m * 8 + 5).row(jj)[ii];
+                float r6 = top_tile.depth(m * 8 + 6).row(jj)[ii];
+                float r7 = top_tile.depth(m * 8 + 7).row(jj)[ii];
+
+                float tmp024a = r1 + r2;
+                float tmp135a = r1 - r2;
+                float tmp024b = r3 + r4;
+                float tmp135b = r3 - r4;
+                float tmp024c = r5 + r6;
+                float tmp135c = r5 - r6;
+
+                tmp[0][m] = r0 + tmp024a + tmp024b + tmp024c * 32;
+                tmp[1][m] = tmp135a + tmp135b + tmp135b + tmp135c * 16;
+                tmp[2][m] = tmp024a + tmp024b * 4 + tmp024c * 8;
+                tmp[3][m] = tmp135a + tmp135b * 8 + tmp135c * 4;
+                tmp[4][m] = tmp024a + tmp024b * 16 + tmp024c + tmp024c;
+                tmp[5][m] = r7 + tmp135a + tmp135b * 32 + tmp135c;
+            }
+            for (int m = 0; m < 6; m++)
+            {
+                if (ti * 6 + m >= outh)
+                    continue;
+
+                float r0 = tmp[m][0];
+                float r1 = tmp[m][1];
+                float r2 = tmp[m][2];
+                float r3 = tmp[m][3];
+                float r4 = tmp[m][4];
+                float r5 = tmp[m][5];
+                float r6 = tmp[m][6];
+                float r7 = tmp[m][7];
+
+                float tmp024a = r1 + r2;
+                float tmp135a = r1 - r2;
+                float tmp024b = r3 + r4;
+                float tmp135b = r3 - r4;
+                float tmp024c = r5 + r6;
+                float tmp135c = r5 - r6;
+
+                float tmp0 = bias0 + r0 + tmp024a + tmp024b + tmp024c * 32;
+                float tmp1 = bias0 + tmp135a + tmp135b + tmp135b + tmp135c * 16;
+                float tmp2 = bias0 + tmp024a + tmp024b * 4 + tmp024c * 8;
+                float tmp3 = bias0 + tmp135a + tmp135b * 8 + tmp135c * 4;
+                float tmp4 = bias0 + tmp024a + tmp024b * 16 + tmp024c + tmp024c;
+                float tmp5 = bias0 + r7 + tmp135a + tmp135b * 32 + tmp135c;
+
+                // if (out_elempack == 1)
+                {
+                    float* output0 = top_blob.channel(i + ii).row(ti * 6 + m) + (tj * 6);
+
+                    output0[0] = tmp0;
+                    if (tj * 6 + 1 < outw) output0[1] = tmp1;
+                    if (tj * 6 + 2 < outw) output0[2] = tmp2;
+                    if (tj * 6 + 3 < outw) output0[3] = tmp3;
+                    if (tj * 6 + 4 < outw) output0[4] = tmp4;
+                    if (tj * 6 + 5 < outw) output0[5] = tmp5;
+                }
+            }
+        }
+    }
+}
+
+static void conv3x3s1_winograd63(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, const Mat& bias, const Option& opt)
+{
+    int outw = top_blob.w;
+    int outh = top_blob.h;
+
+    // pad to 6n+2, winograd F(6,3)
+    int w_tiles = (outw + 5) / 6;
+    int h_tiles = (outh + 5) / 6;
+    int tiles = w_tiles * h_tiles;
+
+    const int M = top_blob.c * top_blob.elempack;
+    const int N = tiles;
+    const int K = bottom_blob.c * bottom_blob.elempack;
+    const int B = 64;
+
+    // NCNN_LOGE("conv3x3s1_winograd63 %d %d %d", M, N, K);
+
+    int nT = opt.num_threads;
+
+    int TILE_M, TILE_N, TILE_K;
+    get_optimal_tile_mnk(M, N, K, TILE_M, TILE_N, TILE_K, nT);
+
+    const int nn_M = (M + TILE_M - 1) / TILE_M;
+    const int nn_N = (N + TILE_N - 1) / TILE_N;
+
+    // NCNN_LOGE("TILE M/N/K = %d %d %d -> %d %d %d", M, N, K, TILE_M, TILE_N, TILE_K);
+
+    Mat B_tileX(B * TILE_N * TILE_K, 1, nT, 4u, opt.blob_allocator);
+    Mat BT(TILE_K * TILE_N, B, (K + TILE_K - 1) / TILE_K, (N + TILE_N - 1) / TILE_N, 4u, opt.blob_allocator);
+
+    #pragma omp parallel for num_threads(nT)
+    for (int ppj = 0; ppj < nn_N; ppj++)
+    {
+        const int j = ppj * TILE_N;
+
+        Mat B_tile = B_tileX.channel(get_omp_thread_num());
+
+        const int max_jj = std::min((N - j), TILE_N);
+
+        for (int k = 0; k < K; k += TILE_K)
+        {
+            const int max_kk = std::min((K - k), TILE_K);
+
+            // transform input
+            conv3x3s1_winograd63_transform_input_tile(bottom_blob, B_tile, j, max_jj, k, max_kk);
+
+            Mat BT_tile = BT.channel(j / TILE_N).depth(k / TILE_K);
+
+            transpose_pack_B_tile(B_tile, BT_tile, B, max_jj, max_kk);
+        }
+    }
+
+    Mat tmpX;
+    if (TILE_K < K)
+    {
+        tmpX.create(TILE_M * TILE_N, B, nT, 4u, opt.blob_allocator);
+    }
+
+    Mat top_tileX(TILE_M, TILE_N, B, nT, 4u, opt.blob_allocator);
+
+    #pragma omp parallel for num_threads(nT)
+    for (int ppj = 0; ppj < nn_M; ppj++)
+    {
+        const int i = ppj * TILE_M;
+
+        Mat tmp;
+        if (K > TILE_K)
+            tmp = tmpX.channel(get_omp_thread_num());
+
+        Mat top_tile = top_tileX.channel(get_omp_thread_num());
+
+        const int max_ii = std::min((M - i), TILE_M);
+
+        for (int j = 0; j < N; j += TILE_N)
+        {
+            const int max_jj = std::min((N - j), TILE_N);
+
+            for (int k = 0; k < K; k += TILE_K)
+            {
+                const int max_kk = std::min((K - k), TILE_K);
+
+                const Mat AT_tile = AT.channel(i / TILE_M).depth(k / TILE_K);
+
+                const Mat BT_tile = BT.channel(j / TILE_N).depth(k / TILE_K);
+
+                bool k_end = k + TILE_K >= K;
+
+                gemm_transB_packed_tile(AT_tile, BT_tile, top_tile, tmp, B, max_ii, max_jj, k, max_kk, k_end);
+            }
+
+            // transform output
+            conv3x3s1_winograd63_transform_output_tile(top_tile, top_blob, bias, i, max_ii, j, max_jj);
         }
     }
 }
