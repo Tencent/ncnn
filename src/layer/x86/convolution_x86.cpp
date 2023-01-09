@@ -277,6 +277,15 @@ int Convolution_x86::create_pipeline(const Option& opt)
             return 0;
         }
     }
+
+    if (elempack == 8 && out_elempack == 1)
+    {
+        if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
+            convolution_transform_kernel_packed_sse(weight_data, weight_data_tm, num_input, num_output, kernel_w, kernel_h, elempack, out_elempack);
+            return 0;
+        }
+    }
 #endif // __AVX__
 
     if (elempack == 1 && out_elempack == 4)
