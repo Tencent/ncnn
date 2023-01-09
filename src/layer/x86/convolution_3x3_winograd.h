@@ -6205,8 +6205,8 @@ static inline void conv3x3s1_winograd63_transform_output_tile(const Mat& top_til
                     _mm512_storeu_ps(tmp1, _tmp1);
                     _mm512_storeu_ps(tmp2, _tmp2);
                     _mm512_storeu_ps(tmp3, _tmp3);
-                    _mm512_storeu_ps(tmp4, _tmp3);
-                    _mm512_storeu_ps(tmp5, _tmp3);
+                    _mm512_storeu_ps(tmp4, _tmp4);
+                    _mm512_storeu_ps(tmp5, _tmp5);
 
                     float* output0 = top_blob.channel(i + ii).row(ti * 6 + m) + (tj * 6);
                     float* output1 = top_blob.channel(i + ii + 1).row(ti * 6 + m) + (tj * 6);
