@@ -131,18 +131,18 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, 
 #if __AVX512F__
             for (; kk + 15 < max_kk; kk += 16)
             {
-                __m512 _r0 = _mm512_loadu_ps(p0 + jj * batch * 16 + b * 16);
-                __m512 _r1 = _mm512_loadu_ps(p0 + (jj + 1) * batch * 16 + b * 16);
-                __m512 _r2 = _mm512_loadu_ps(p0 + (jj + 2) * batch * 16 + b * 16);
-                __m512 _r3 = _mm512_loadu_ps(p0 + (jj + 3) * batch * 16 + b * 16);
-                __m512 _r4 = _mm512_loadu_ps(p0 + (jj + 4) * batch * 16 + b * 16);
-                __m512 _r5 = _mm512_loadu_ps(p0 + (jj + 5) * batch * 16 + b * 16);
-                __m512 _r6 = _mm512_loadu_ps(p0 + (jj + 6) * batch * 16 + b * 16);
-                __m512 _r7 = _mm512_loadu_ps(p0 + (jj + 7) * batch * 16 + b * 16);
-                __m512 _r8 = _mm512_loadu_ps(p0 + (jj + 8) * batch * 16 + b * 16);
-                __m512 _r9 = _mm512_loadu_ps(p0 + (jj + 9) * batch * 16 + b * 16);
-                __m512 _ra = _mm512_loadu_ps(p0 + (jj + 10) * batch * 16 + b * 16);
-                __m512 _rb = _mm512_loadu_ps(p0 + (jj + 11) * batch * 16 + b * 16);
+                __m512 _r0 = _mm512_load_ps(p0 + jj * batch * 16 + b * 16);
+                __m512 _r1 = _mm512_load_ps(p0 + (jj + 1) * batch * 16 + b * 16);
+                __m512 _r2 = _mm512_load_ps(p0 + (jj + 2) * batch * 16 + b * 16);
+                __m512 _r3 = _mm512_load_ps(p0 + (jj + 3) * batch * 16 + b * 16);
+                __m512 _r4 = _mm512_load_ps(p0 + (jj + 4) * batch * 16 + b * 16);
+                __m512 _r5 = _mm512_load_ps(p0 + (jj + 5) * batch * 16 + b * 16);
+                __m512 _r6 = _mm512_load_ps(p0 + (jj + 6) * batch * 16 + b * 16);
+                __m512 _r7 = _mm512_load_ps(p0 + (jj + 7) * batch * 16 + b * 16);
+                __m512 _r8 = _mm512_load_ps(p0 + (jj + 8) * batch * 16 + b * 16);
+                __m512 _r9 = _mm512_load_ps(p0 + (jj + 9) * batch * 16 + b * 16);
+                __m512 _ra = _mm512_load_ps(p0 + (jj + 10) * batch * 16 + b * 16);
+                __m512 _rb = _mm512_load_ps(p0 + (jj + 11) * batch * 16 + b * 16);
                 transpose16x12_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7, _r8, _r9, _ra, _rb);
                 _mm512_storeu_ps(pp, _r0);
                 _mm512_storeu_ps(pp + 16, _r1);
@@ -162,18 +162,18 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, 
 #endif // __AVX512F__
             for (; kk + 7 < max_kk; kk += 8)
             {
-                __m256 _r0 = _mm256_loadu_ps(p0 + jj * batch * 8 + b * 8);
-                __m256 _r1 = _mm256_loadu_ps(p0 + (jj + 1) * batch * 8 + b * 8);
-                __m256 _r2 = _mm256_loadu_ps(p0 + (jj + 2) * batch * 8 + b * 8);
-                __m256 _r3 = _mm256_loadu_ps(p0 + (jj + 3) * batch * 8 + b * 8);
-                __m256 _r4 = _mm256_loadu_ps(p0 + (jj + 4) * batch * 8 + b * 8);
-                __m256 _r5 = _mm256_loadu_ps(p0 + (jj + 5) * batch * 8 + b * 8);
-                __m256 _r6 = _mm256_loadu_ps(p0 + (jj + 6) * batch * 8 + b * 8);
-                __m256 _r7 = _mm256_loadu_ps(p0 + (jj + 7) * batch * 8 + b * 8);
-                __m256 _r8 = _mm256_loadu_ps(p0 + (jj + 8) * batch * 8 + b * 8);
-                __m256 _r9 = _mm256_loadu_ps(p0 + (jj + 9) * batch * 8 + b * 8);
-                __m256 _ra = _mm256_loadu_ps(p0 + (jj + 10) * batch * 8 + b * 8);
-                __m256 _rb = _mm256_loadu_ps(p0 + (jj + 11) * batch * 8 + b * 8);
+                __m256 _r0 = _mm256_load_ps(p0 + jj * batch * 8 + b * 8);
+                __m256 _r1 = _mm256_load_ps(p0 + (jj + 1) * batch * 8 + b * 8);
+                __m256 _r2 = _mm256_load_ps(p0 + (jj + 2) * batch * 8 + b * 8);
+                __m256 _r3 = _mm256_load_ps(p0 + (jj + 3) * batch * 8 + b * 8);
+                __m256 _r4 = _mm256_load_ps(p0 + (jj + 4) * batch * 8 + b * 8);
+                __m256 _r5 = _mm256_load_ps(p0 + (jj + 5) * batch * 8 + b * 8);
+                __m256 _r6 = _mm256_load_ps(p0 + (jj + 6) * batch * 8 + b * 8);
+                __m256 _r7 = _mm256_load_ps(p0 + (jj + 7) * batch * 8 + b * 8);
+                __m256 _r8 = _mm256_load_ps(p0 + (jj + 8) * batch * 8 + b * 8);
+                __m256 _r9 = _mm256_load_ps(p0 + (jj + 9) * batch * 8 + b * 8);
+                __m256 _ra = _mm256_load_ps(p0 + (jj + 10) * batch * 8 + b * 8);
+                __m256 _rb = _mm256_load_ps(p0 + (jj + 11) * batch * 8 + b * 8);
                 transpose8x12_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7, _r8, _r9, _ra, _rb);
                 _mm256_storeu_ps(pp, _r0);
                 _mm256_storeu_ps(pp + 8, _r1);
@@ -193,33 +193,33 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, 
 #endif // __AVX__
             for (; kk + 3 < max_kk; kk += 4)
             {
-                __m128 _r0 = _mm_loadu_ps(p0 + jj * batch * 4 + b * 4);
-                __m128 _r1 = _mm_loadu_ps(p0 + (jj + 1) * batch * 4 + b * 4);
-                __m128 _r2 = _mm_loadu_ps(p0 + (jj + 2) * batch * 4 + b * 4);
-                __m128 _r3 = _mm_loadu_ps(p0 + (jj + 3) * batch * 4 + b * 4);
-                __m128 _r4 = _mm_loadu_ps(p0 + (jj + 4) * batch * 4 + b * 4);
-                __m128 _r5 = _mm_loadu_ps(p0 + (jj + 5) * batch * 4 + b * 4);
-                __m128 _r6 = _mm_loadu_ps(p0 + (jj + 6) * batch * 4 + b * 4);
-                __m128 _r7 = _mm_loadu_ps(p0 + (jj + 7) * batch * 4 + b * 4);
-                __m128 _r8 = _mm_loadu_ps(p0 + (jj + 8) * batch * 4 + b * 4);
-                __m128 _r9 = _mm_loadu_ps(p0 + (jj + 9) * batch * 4 + b * 4);
-                __m128 _ra = _mm_loadu_ps(p0 + (jj + 10) * batch * 4 + b * 4);
-                __m128 _rb = _mm_loadu_ps(p0 + (jj + 11) * batch * 4 + b * 4);
+                __m128 _r0 = _mm_load_ps(p0 + jj * batch * 4 + b * 4);
+                __m128 _r1 = _mm_load_ps(p0 + (jj + 1) * batch * 4 + b * 4);
+                __m128 _r2 = _mm_load_ps(p0 + (jj + 2) * batch * 4 + b * 4);
+                __m128 _r3 = _mm_load_ps(p0 + (jj + 3) * batch * 4 + b * 4);
+                __m128 _r4 = _mm_load_ps(p0 + (jj + 4) * batch * 4 + b * 4);
+                __m128 _r5 = _mm_load_ps(p0 + (jj + 5) * batch * 4 + b * 4);
+                __m128 _r6 = _mm_load_ps(p0 + (jj + 6) * batch * 4 + b * 4);
+                __m128 _r7 = _mm_load_ps(p0 + (jj + 7) * batch * 4 + b * 4);
+                __m128 _r8 = _mm_load_ps(p0 + (jj + 8) * batch * 4 + b * 4);
+                __m128 _r9 = _mm_load_ps(p0 + (jj + 9) * batch * 4 + b * 4);
+                __m128 _ra = _mm_load_ps(p0 + (jj + 10) * batch * 4 + b * 4);
+                __m128 _rb = _mm_load_ps(p0 + (jj + 11) * batch * 4 + b * 4);
                 _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
                 _MM_TRANSPOSE4_PS(_r4, _r5, _r6, _r7);
                 _MM_TRANSPOSE4_PS(_r8, _r9, _ra, _rb);
-                _mm_storeu_ps(pp, _r0);
-                _mm_storeu_ps(pp + 4, _r4);
-                _mm_storeu_ps(pp + 4 * 2, _r8);
-                _mm_storeu_ps(pp + 4 * 3, _r1);
-                _mm_storeu_ps(pp + 4 * 4, _r5);
-                _mm_storeu_ps(pp + 4 * 5, _r9);
-                _mm_storeu_ps(pp + 4 * 6, _r2);
-                _mm_storeu_ps(pp + 4 * 7, _r6);
-                _mm_storeu_ps(pp + 4 * 8, _ra);
-                _mm_storeu_ps(pp + 4 * 9, _r3);
-                _mm_storeu_ps(pp + 4 * 10, _r7);
-                _mm_storeu_ps(pp + 4 * 11, _rb);
+                _mm_store_ps(pp, _r0);
+                _mm_store_ps(pp + 4, _r4);
+                _mm_store_ps(pp + 4 * 2, _r8);
+                _mm_store_ps(pp + 4 * 3, _r1);
+                _mm_store_ps(pp + 4 * 4, _r5);
+                _mm_store_ps(pp + 4 * 5, _r9);
+                _mm_store_ps(pp + 4 * 6, _r2);
+                _mm_store_ps(pp + 4 * 7, _r6);
+                _mm_store_ps(pp + 4 * 8, _ra);
+                _mm_store_ps(pp + 4 * 9, _r3);
+                _mm_store_ps(pp + 4 * 10, _r7);
+                _mm_store_ps(pp + 4 * 11, _rb);
                 p0 += max_jj * batch * 4;
                 pp += 48;
             }
@@ -279,14 +279,14 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, 
 #if __AVX512F__
             for (; kk + 15 < max_kk; kk += 16)
             {
-                __m512 _r0 = _mm512_loadu_ps(p0 + jj * batch * 16 + b * 16);
-                __m512 _r1 = _mm512_loadu_ps(p0 + (jj + 1) * batch * 16 + b * 16);
-                __m512 _r2 = _mm512_loadu_ps(p0 + (jj + 2) * batch * 16 + b * 16);
-                __m512 _r3 = _mm512_loadu_ps(p0 + (jj + 3) * batch * 16 + b * 16);
-                __m512 _r4 = _mm512_loadu_ps(p0 + (jj + 4) * batch * 16 + b * 16);
-                __m512 _r5 = _mm512_loadu_ps(p0 + (jj + 5) * batch * 16 + b * 16);
-                __m512 _r6 = _mm512_loadu_ps(p0 + (jj + 6) * batch * 16 + b * 16);
-                __m512 _r7 = _mm512_loadu_ps(p0 + (jj + 7) * batch * 16 + b * 16);
+                __m512 _r0 = _mm512_load_ps(p0 + jj * batch * 16 + b * 16);
+                __m512 _r1 = _mm512_load_ps(p0 + (jj + 1) * batch * 16 + b * 16);
+                __m512 _r2 = _mm512_load_ps(p0 + (jj + 2) * batch * 16 + b * 16);
+                __m512 _r3 = _mm512_load_ps(p0 + (jj + 3) * batch * 16 + b * 16);
+                __m512 _r4 = _mm512_load_ps(p0 + (jj + 4) * batch * 16 + b * 16);
+                __m512 _r5 = _mm512_load_ps(p0 + (jj + 5) * batch * 16 + b * 16);
+                __m512 _r6 = _mm512_load_ps(p0 + (jj + 6) * batch * 16 + b * 16);
+                __m512 _r7 = _mm512_load_ps(p0 + (jj + 7) * batch * 16 + b * 16);
                 transpose16x8_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
                 _mm512_storeu_ps(pp, _r0);
                 _mm512_storeu_ps(pp + 16, _r1);
@@ -302,14 +302,14 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, 
 #endif // __AVX512F__
             for (; kk + 7 < max_kk; kk += 8)
             {
-                __m256 _r0 = _mm256_loadu_ps(p0 + jj * batch * 8 + b * 8);
-                __m256 _r1 = _mm256_loadu_ps(p0 + (jj + 1) * batch * 8 + b * 8);
-                __m256 _r2 = _mm256_loadu_ps(p0 + (jj + 2) * batch * 8 + b * 8);
-                __m256 _r3 = _mm256_loadu_ps(p0 + (jj + 3) * batch * 8 + b * 8);
-                __m256 _r4 = _mm256_loadu_ps(p0 + (jj + 4) * batch * 8 + b * 8);
-                __m256 _r5 = _mm256_loadu_ps(p0 + (jj + 5) * batch * 8 + b * 8);
-                __m256 _r6 = _mm256_loadu_ps(p0 + (jj + 6) * batch * 8 + b * 8);
-                __m256 _r7 = _mm256_loadu_ps(p0 + (jj + 7) * batch * 8 + b * 8);
+                __m256 _r0 = _mm256_load_ps(p0 + jj * batch * 8 + b * 8);
+                __m256 _r1 = _mm256_load_ps(p0 + (jj + 1) * batch * 8 + b * 8);
+                __m256 _r2 = _mm256_load_ps(p0 + (jj + 2) * batch * 8 + b * 8);
+                __m256 _r3 = _mm256_load_ps(p0 + (jj + 3) * batch * 8 + b * 8);
+                __m256 _r4 = _mm256_load_ps(p0 + (jj + 4) * batch * 8 + b * 8);
+                __m256 _r5 = _mm256_load_ps(p0 + (jj + 5) * batch * 8 + b * 8);
+                __m256 _r6 = _mm256_load_ps(p0 + (jj + 6) * batch * 8 + b * 8);
+                __m256 _r7 = _mm256_load_ps(p0 + (jj + 7) * batch * 8 + b * 8);
                 transpose8x8_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
                 _mm256_storeu_ps(pp, _r0);
                 _mm256_storeu_ps(pp + 8, _r1);
@@ -325,24 +325,24 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, 
 #endif // __AVX__
             for (; kk + 3 < max_kk; kk += 4)
             {
-                __m128 _r0 = _mm_loadu_ps(p0 + jj * batch * 4 + b * 4);
-                __m128 _r1 = _mm_loadu_ps(p0 + (jj + 1) * batch * 4 + b * 4);
-                __m128 _r2 = _mm_loadu_ps(p0 + (jj + 2) * batch * 4 + b * 4);
-                __m128 _r3 = _mm_loadu_ps(p0 + (jj + 3) * batch * 4 + b * 4);
-                __m128 _r4 = _mm_loadu_ps(p0 + (jj + 4) * batch * 4 + b * 4);
-                __m128 _r5 = _mm_loadu_ps(p0 + (jj + 5) * batch * 4 + b * 4);
-                __m128 _r6 = _mm_loadu_ps(p0 + (jj + 6) * batch * 4 + b * 4);
-                __m128 _r7 = _mm_loadu_ps(p0 + (jj + 7) * batch * 4 + b * 4);
+                __m128 _r0 = _mm_load_ps(p0 + jj * batch * 4 + b * 4);
+                __m128 _r1 = _mm_load_ps(p0 + (jj + 1) * batch * 4 + b * 4);
+                __m128 _r2 = _mm_load_ps(p0 + (jj + 2) * batch * 4 + b * 4);
+                __m128 _r3 = _mm_load_ps(p0 + (jj + 3) * batch * 4 + b * 4);
+                __m128 _r4 = _mm_load_ps(p0 + (jj + 4) * batch * 4 + b * 4);
+                __m128 _r5 = _mm_load_ps(p0 + (jj + 5) * batch * 4 + b * 4);
+                __m128 _r6 = _mm_load_ps(p0 + (jj + 6) * batch * 4 + b * 4);
+                __m128 _r7 = _mm_load_ps(p0 + (jj + 7) * batch * 4 + b * 4);
                 _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
                 _MM_TRANSPOSE4_PS(_r4, _r5, _r6, _r7);
-                _mm_storeu_ps(pp, _r0);
-                _mm_storeu_ps(pp + 4, _r4);
-                _mm_storeu_ps(pp + 8, _r1);
-                _mm_storeu_ps(pp + 12, _r5);
-                _mm_storeu_ps(pp + 16, _r2);
-                _mm_storeu_ps(pp + 20, _r6);
-                _mm_storeu_ps(pp + 24, _r3);
-                _mm_storeu_ps(pp + 28, _r7);
+                _mm_store_ps(pp, _r0);
+                _mm_store_ps(pp + 4, _r4);
+                _mm_store_ps(pp + 8, _r1);
+                _mm_store_ps(pp + 12, _r5);
+                _mm_store_ps(pp + 16, _r2);
+                _mm_store_ps(pp + 20, _r6);
+                _mm_store_ps(pp + 24, _r3);
+                _mm_store_ps(pp + 28, _r7);
                 p0 += max_jj * batch * 4;
                 pp += 32;
             }
@@ -390,10 +390,10 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, 
 #if __AVX512F__
             for (; kk + 15 < max_kk; kk += 16)
             {
-                __m512 _r0 = _mm512_loadu_ps(p0 + jj * batch * 16 + b * 16);
-                __m512 _r1 = _mm512_loadu_ps(p0 + (jj + 1) * batch * 16 + b * 16);
-                __m512 _r2 = _mm512_loadu_ps(p0 + (jj + 2) * batch * 16 + b * 16);
-                __m512 _r3 = _mm512_loadu_ps(p0 + (jj + 3) * batch * 16 + b * 16);
+                __m512 _r0 = _mm512_load_ps(p0 + jj * batch * 16 + b * 16);
+                __m512 _r1 = _mm512_load_ps(p0 + (jj + 1) * batch * 16 + b * 16);
+                __m512 _r2 = _mm512_load_ps(p0 + (jj + 2) * batch * 16 + b * 16);
+                __m512 _r3 = _mm512_load_ps(p0 + (jj + 3) * batch * 16 + b * 16);
                 transpose16x4_ps(_r0, _r1, _r2, _r3);
                 _mm512_storeu_ps(pp, _r0);
                 _mm512_storeu_ps(pp + 16, _r1);
@@ -405,10 +405,10 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, 
 #endif // __AVX512F__
             for (; kk + 7 < max_kk; kk += 8)
             {
-                __m256 _r0 = _mm256_loadu_ps(p0 + jj * batch * 8 + b * 8);
-                __m256 _r1 = _mm256_loadu_ps(p0 + (jj + 1) * batch * 8 + b * 8);
-                __m256 _r2 = _mm256_loadu_ps(p0 + (jj + 2) * batch * 8 + b * 8);
-                __m256 _r3 = _mm256_loadu_ps(p0 + (jj + 3) * batch * 8 + b * 8);
+                __m256 _r0 = _mm256_load_ps(p0 + jj * batch * 8 + b * 8);
+                __m256 _r1 = _mm256_load_ps(p0 + (jj + 1) * batch * 8 + b * 8);
+                __m256 _r2 = _mm256_load_ps(p0 + (jj + 2) * batch * 8 + b * 8);
+                __m256 _r3 = _mm256_load_ps(p0 + (jj + 3) * batch * 8 + b * 8);
                 transpose8x4_ps(_r0, _r1, _r2, _r3);
                 _mm256_storeu_ps(pp, _r0);
                 _mm256_storeu_ps(pp + 8, _r1);
@@ -420,15 +420,15 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, 
 #endif // __AVX__
             for (; kk + 3 < max_kk; kk += 4)
             {
-                __m128 _r0 = _mm_loadu_ps(p0 + jj * batch * 4 + b * 4);
-                __m128 _r1 = _mm_loadu_ps(p0 + (jj + 1) * batch * 4 + b * 4);
-                __m128 _r2 = _mm_loadu_ps(p0 + (jj + 2) * batch * 4 + b * 4);
-                __m128 _r3 = _mm_loadu_ps(p0 + (jj + 3) * batch * 4 + b * 4);
+                __m128 _r0 = _mm_load_ps(p0 + jj * batch * 4 + b * 4);
+                __m128 _r1 = _mm_load_ps(p0 + (jj + 1) * batch * 4 + b * 4);
+                __m128 _r2 = _mm_load_ps(p0 + (jj + 2) * batch * 4 + b * 4);
+                __m128 _r3 = _mm_load_ps(p0 + (jj + 3) * batch * 4 + b * 4);
                 _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
-                _mm_storeu_ps(pp, _r0);
-                _mm_storeu_ps(pp + 4, _r1);
-                _mm_storeu_ps(pp + 8, _r2);
-                _mm_storeu_ps(pp + 12, _r3);
+                _mm_store_ps(pp, _r0);
+                _mm_store_ps(pp + 4, _r1);
+                _mm_store_ps(pp + 8, _r2);
+                _mm_store_ps(pp + 12, _r3);
                 p0 += max_jj * batch * 4;
                 pp += 16;
             }
@@ -466,8 +466,8 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, 
 #if __AVX512F__
             for (; kk + 15 < max_kk; kk += 16)
             {
-                __m512 _r0 = _mm512_loadu_ps(p0 + jj * batch * 16 + b * 16);
-                __m512 _r1 = _mm512_loadu_ps(p0 + (jj + 1) * batch * 16 + b * 16);
+                __m512 _r0 = _mm512_load_ps(p0 + jj * batch * 16 + b * 16);
+                __m512 _r1 = _mm512_load_ps(p0 + (jj + 1) * batch * 16 + b * 16);
                 transpose16x2_ps(_r0, _r1);
                 _mm512_storeu_ps(pp, _r0);
                 _mm512_storeu_ps(pp + 16, _r1);
@@ -477,8 +477,8 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, 
 #endif // __AVX512F__
             for (; kk + 7 < max_kk; kk += 8)
             {
-                __m256 _r0 = _mm256_loadu_ps(p0 + jj * batch * 8 + b * 8);
-                __m256 _r1 = _mm256_loadu_ps(p0 + (jj + 1) * batch * 8 + b * 8);
+                __m256 _r0 = _mm256_load_ps(p0 + jj * batch * 8 + b * 8);
+                __m256 _r1 = _mm256_load_ps(p0 + (jj + 1) * batch * 8 + b * 8);
                 transpose8x2_ps(_r0, _r1);
                 _mm256_storeu_ps(pp, _r0);
                 _mm256_storeu_ps(pp + 8, _r1);
@@ -488,12 +488,12 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, 
 #endif // __AVX__
             for (; kk + 3 < max_kk; kk += 4)
             {
-                __m128 _r0 = _mm_loadu_ps(p0 + jj * batch * 4 + b * 4);
-                __m128 _r1 = _mm_loadu_ps(p0 + (jj + 1) * batch * 4 + b * 4);
+                __m128 _r0 = _mm_load_ps(p0 + jj * batch * 4 + b * 4);
+                __m128 _r1 = _mm_load_ps(p0 + (jj + 1) * batch * 4 + b * 4);
                 __m128 _tmp0 = _mm_unpacklo_ps(_r0, _r1);
                 __m128 _tmp1 = _mm_unpackhi_ps(_r0, _r1);
-                _mm_storeu_ps(pp, _tmp0);
-                _mm_storeu_ps(pp + 4, _tmp1);
+                _mm_store_ps(pp, _tmp0);
+                _mm_store_ps(pp + 4, _tmp1);
                 p0 += max_jj * batch * 4;
                 pp += 8;
             }
@@ -525,7 +525,7 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, 
 #if __AVX512F__
             for (; kk + 15 < max_kk; kk += 16)
             {
-                __m512 _r0 = _mm512_loadu_ps(p0 + jj * batch * 16 + b * 16);
+                __m512 _r0 = _mm512_load_ps(p0 + jj * batch * 16 + b * 16);
                 _mm512_storeu_ps(pp, _r0);
                 p0 += max_jj * batch * 16;
                 pp += 16;
@@ -533,7 +533,7 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, 
 #endif // __AVX512F__
             for (; kk + 7 < max_kk; kk += 8)
             {
-                __m256 _r0 = _mm256_loadu_ps(p0 + jj * batch * 8 + b * 8);
+                __m256 _r0 = _mm256_load_ps(p0 + jj * batch * 8 + b * 8);
                 _mm256_storeu_ps(pp, _r0);
                 p0 += max_jj * batch * 8;
                 pp += 8;
@@ -541,8 +541,8 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, 
 #endif // __AVX__
             for (; kk + 3 < max_kk; kk += 4)
             {
-                __m128 _r0 = _mm_loadu_ps(p0 + jj * batch * 4 + b * 4);
-                _mm_storeu_ps(pp, _r0);
+                __m128 _r0 = _mm_load_ps(p0 + jj * batch * 4 + b * 4);
+                _mm_store_ps(pp, _r0);
                 p0 += max_jj * batch * 4;
                 pp += 4;
             }
@@ -571,7 +571,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
         const float* pAT = AT_tile.row(b);
         const float* pBT = BT_tile.row(b);
 
-        float* outptr = top_blob.row(b);
+        Mat outptr = top_blob.depth(b);
 
         float* ptmp = tmp.row(b);
 
@@ -618,24 +618,24 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 }
                 else
                 {
-                    _sum0 = _mm512_loadu_ps(ptmp);
-                    _sum1 = _mm512_loadu_ps(ptmp + 16);
-                    _sum2 = _mm512_loadu_ps(ptmp + 16 * 2);
-                    _sum3 = _mm512_loadu_ps(ptmp + 16 * 3);
-                    _sum4 = _mm512_loadu_ps(ptmp + 16 * 4);
-                    _sum5 = _mm512_loadu_ps(ptmp + 16 * 5);
-                    _sum6 = _mm512_loadu_ps(ptmp + 16 * 6);
-                    _sum7 = _mm512_loadu_ps(ptmp + 16 * 7);
-                    _sum8 = _mm512_loadu_ps(ptmp + 16 * 8);
-                    _sum9 = _mm512_loadu_ps(ptmp + 16 * 9);
-                    _suma = _mm512_loadu_ps(ptmp + 16 * 10);
-                    _sumb = _mm512_loadu_ps(ptmp + 16 * 11);
+                    _sum0 = _mm512_load_ps(ptmp);
+                    _sum1 = _mm512_load_ps(ptmp + 16);
+                    _sum2 = _mm512_load_ps(ptmp + 16 * 2);
+                    _sum3 = _mm512_load_ps(ptmp + 16 * 3);
+                    _sum4 = _mm512_load_ps(ptmp + 16 * 4);
+                    _sum5 = _mm512_load_ps(ptmp + 16 * 5);
+                    _sum6 = _mm512_load_ps(ptmp + 16 * 6);
+                    _sum7 = _mm512_load_ps(ptmp + 16 * 7);
+                    _sum8 = _mm512_load_ps(ptmp + 16 * 8);
+                    _sum9 = _mm512_load_ps(ptmp + 16 * 9);
+                    _suma = _mm512_load_ps(ptmp + 16 * 10);
+                    _sumb = _mm512_load_ps(ptmp + 16 * 11);
                 }
 
                 int kk = 0;
                 for (; kk < max_kk; kk++)
                 {
-                    __m512 _pA = _mm512_loadu_ps(pA);
+                    __m512 _pA = _mm512_load_ps(pA);
                     _sum0 = _mm512_fmadd_ps(_pA, _mm512_set1_ps(pB[0]), _sum0);
                     _sum1 = _mm512_fmadd_ps(_pA, _mm512_set1_ps(pB[1]), _sum1);
                     _sum2 = _mm512_fmadd_ps(_pA, _mm512_set1_ps(pB[2]), _sum2);
@@ -655,33 +655,33 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 
                 if (k_end)
                 {
-                    _mm512_storeu_ps(&outptr[jj * max_ii + ii], _sum0);
-                    _mm512_storeu_ps(&outptr[(jj + 1) * max_ii + ii], _sum1);
-                    _mm512_storeu_ps(&outptr[(jj + 2) * max_ii + ii], _sum2);
-                    _mm512_storeu_ps(&outptr[(jj + 3) * max_ii + ii], _sum3);
-                    _mm512_storeu_ps(&outptr[(jj + 4) * max_ii + ii], _sum4);
-                    _mm512_storeu_ps(&outptr[(jj + 5) * max_ii + ii], _sum5);
-                    _mm512_storeu_ps(&outptr[(jj + 6) * max_ii + ii], _sum6);
-                    _mm512_storeu_ps(&outptr[(jj + 7) * max_ii + ii], _sum7);
-                    _mm512_storeu_ps(&outptr[(jj + 8) * max_ii + ii], _sum8);
-                    _mm512_storeu_ps(&outptr[(jj + 9) * max_ii + ii], _sum9);
-                    _mm512_storeu_ps(&outptr[(jj + 10) * max_ii + ii], _suma);
-                    _mm512_storeu_ps(&outptr[(jj + 11) * max_ii + ii], _sumb);
+                    _mm512_store_ps(outptr.row(jj) + ii, _sum0);
+                    _mm512_store_ps(outptr.row(jj + 1) + ii, _sum1);
+                    _mm512_store_ps(outptr.row(jj + 2) + ii, _sum2);
+                    _mm512_store_ps(outptr.row(jj + 3) + ii, _sum3);
+                    _mm512_store_ps(outptr.row(jj + 4) + ii, _sum4);
+                    _mm512_store_ps(outptr.row(jj + 5) + ii, _sum5);
+                    _mm512_store_ps(outptr.row(jj + 6) + ii, _sum6);
+                    _mm512_store_ps(outptr.row(jj + 7) + ii, _sum7);
+                    _mm512_store_ps(outptr.row(jj + 8) + ii, _sum8);
+                    _mm512_store_ps(outptr.row(jj + 9) + ii, _sum9);
+                    _mm512_store_ps(outptr.row(jj + 10) + ii, _suma);
+                    _mm512_store_ps(outptr.row(jj + 11) + ii, _sumb);
                 }
                 else
                 {
-                    _mm512_storeu_ps(ptmp, _sum0);
-                    _mm512_storeu_ps(ptmp + 16, _sum1);
-                    _mm512_storeu_ps(ptmp + 16 * 2, _sum2);
-                    _mm512_storeu_ps(ptmp + 16 * 3, _sum3);
-                    _mm512_storeu_ps(ptmp + 16 * 4, _sum4);
-                    _mm512_storeu_ps(ptmp + 16 * 5, _sum5);
-                    _mm512_storeu_ps(ptmp + 16 * 6, _sum6);
-                    _mm512_storeu_ps(ptmp + 16 * 7, _sum7);
-                    _mm512_storeu_ps(ptmp + 16 * 8, _sum8);
-                    _mm512_storeu_ps(ptmp + 16 * 9, _sum9);
-                    _mm512_storeu_ps(ptmp + 16 * 10, _suma);
-                    _mm512_storeu_ps(ptmp + 16 * 11, _sumb);
+                    _mm512_store_ps(ptmp, _sum0);
+                    _mm512_store_ps(ptmp + 16, _sum1);
+                    _mm512_store_ps(ptmp + 16 * 2, _sum2);
+                    _mm512_store_ps(ptmp + 16 * 3, _sum3);
+                    _mm512_store_ps(ptmp + 16 * 4, _sum4);
+                    _mm512_store_ps(ptmp + 16 * 5, _sum5);
+                    _mm512_store_ps(ptmp + 16 * 6, _sum6);
+                    _mm512_store_ps(ptmp + 16 * 7, _sum7);
+                    _mm512_store_ps(ptmp + 16 * 8, _sum8);
+                    _mm512_store_ps(ptmp + 16 * 9, _sum9);
+                    _mm512_store_ps(ptmp + 16 * 10, _suma);
+                    _mm512_store_ps(ptmp + 16 * 11, _sumb);
                 }
 
                 ptmp += 192;
@@ -712,20 +712,20 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 }
                 else
                 {
-                    _sum0 = _mm512_loadu_ps(ptmp);
-                    _sum1 = _mm512_loadu_ps(ptmp + 16);
-                    _sum2 = _mm512_loadu_ps(ptmp + 16 * 2);
-                    _sum3 = _mm512_loadu_ps(ptmp + 16 * 3);
-                    _sum4 = _mm512_loadu_ps(ptmp + 16 * 4);
-                    _sum5 = _mm512_loadu_ps(ptmp + 16 * 5);
-                    _sum6 = _mm512_loadu_ps(ptmp + 16 * 6);
-                    _sum7 = _mm512_loadu_ps(ptmp + 16 * 7);
+                    _sum0 = _mm512_load_ps(ptmp);
+                    _sum1 = _mm512_load_ps(ptmp + 16);
+                    _sum2 = _mm512_load_ps(ptmp + 16 * 2);
+                    _sum3 = _mm512_load_ps(ptmp + 16 * 3);
+                    _sum4 = _mm512_load_ps(ptmp + 16 * 4);
+                    _sum5 = _mm512_load_ps(ptmp + 16 * 5);
+                    _sum6 = _mm512_load_ps(ptmp + 16 * 6);
+                    _sum7 = _mm512_load_ps(ptmp + 16 * 7);
                 }
 
                 int kk = 0;
                 for (; kk < max_kk; kk++)
                 {
-                    __m512 _pA = _mm512_loadu_ps(pA);
+                    __m512 _pA = _mm512_load_ps(pA);
                     _sum0 = _mm512_fmadd_ps(_pA, _mm512_set1_ps(pB[0]), _sum0);
                     _sum1 = _mm512_fmadd_ps(_pA, _mm512_set1_ps(pB[1]), _sum1);
                     _sum2 = _mm512_fmadd_ps(_pA, _mm512_set1_ps(pB[2]), _sum2);
@@ -741,25 +741,25 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 
                 if (k_end)
                 {
-                    _mm512_storeu_ps(&outptr[jj * max_ii + ii], _sum0);
-                    _mm512_storeu_ps(&outptr[(jj + 1) * max_ii + ii], _sum1);
-                    _mm512_storeu_ps(&outptr[(jj + 2) * max_ii + ii], _sum2);
-                    _mm512_storeu_ps(&outptr[(jj + 3) * max_ii + ii], _sum3);
-                    _mm512_storeu_ps(&outptr[(jj + 4) * max_ii + ii], _sum4);
-                    _mm512_storeu_ps(&outptr[(jj + 5) * max_ii + ii], _sum5);
-                    _mm512_storeu_ps(&outptr[(jj + 6) * max_ii + ii], _sum6);
-                    _mm512_storeu_ps(&outptr[(jj + 7) * max_ii + ii], _sum7);
+                    _mm512_store_ps(outptr.row(jj) + ii, _sum0);
+                    _mm512_store_ps(outptr.row(jj + 1) + ii, _sum1);
+                    _mm512_store_ps(outptr.row(jj + 2) + ii, _sum2);
+                    _mm512_store_ps(outptr.row(jj + 3) + ii, _sum3);
+                    _mm512_store_ps(outptr.row(jj + 4) + ii, _sum4);
+                    _mm512_store_ps(outptr.row(jj + 5) + ii, _sum5);
+                    _mm512_store_ps(outptr.row(jj + 6) + ii, _sum6);
+                    _mm512_store_ps(outptr.row(jj + 7) + ii, _sum7);
                 }
                 else
                 {
-                    _mm512_storeu_ps(ptmp, _sum0);
-                    _mm512_storeu_ps(ptmp + 16, _sum1);
-                    _mm512_storeu_ps(ptmp + 16 * 2, _sum2);
-                    _mm512_storeu_ps(ptmp + 16 * 3, _sum3);
-                    _mm512_storeu_ps(ptmp + 16 * 4, _sum4);
-                    _mm512_storeu_ps(ptmp + 16 * 5, _sum5);
-                    _mm512_storeu_ps(ptmp + 16 * 6, _sum6);
-                    _mm512_storeu_ps(ptmp + 16 * 7, _sum7);
+                    _mm512_store_ps(ptmp, _sum0);
+                    _mm512_store_ps(ptmp + 16, _sum1);
+                    _mm512_store_ps(ptmp + 16 * 2, _sum2);
+                    _mm512_store_ps(ptmp + 16 * 3, _sum3);
+                    _mm512_store_ps(ptmp + 16 * 4, _sum4);
+                    _mm512_store_ps(ptmp + 16 * 5, _sum5);
+                    _mm512_store_ps(ptmp + 16 * 6, _sum6);
+                    _mm512_store_ps(ptmp + 16 * 7, _sum7);
                 }
 
                 ptmp += 128;
@@ -782,16 +782,16 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 }
                 else
                 {
-                    _sum0 = _mm512_loadu_ps(ptmp);
-                    _sum1 = _mm512_loadu_ps(ptmp + 16);
-                    _sum2 = _mm512_loadu_ps(ptmp + 16 * 2);
-                    _sum3 = _mm512_loadu_ps(ptmp + 16 * 3);
+                    _sum0 = _mm512_load_ps(ptmp);
+                    _sum1 = _mm512_load_ps(ptmp + 16);
+                    _sum2 = _mm512_load_ps(ptmp + 16 * 2);
+                    _sum3 = _mm512_load_ps(ptmp + 16 * 3);
                 }
 
                 int kk = 0;
                 for (; kk < max_kk; kk++)
                 {
-                    __m512 _pA = _mm512_loadu_ps(pA);
+                    __m512 _pA = _mm512_load_ps(pA);
                     _sum0 = _mm512_fmadd_ps(_pA, _mm512_set1_ps(pB[0]), _sum0);
                     _sum1 = _mm512_fmadd_ps(_pA, _mm512_set1_ps(pB[1]), _sum1);
                     _sum2 = _mm512_fmadd_ps(_pA, _mm512_set1_ps(pB[2]), _sum2);
@@ -803,17 +803,17 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 
                 if (k_end)
                 {
-                    _mm512_storeu_ps(&outptr[jj * max_ii + ii], _sum0);
-                    _mm512_storeu_ps(&outptr[(jj + 1) * max_ii + ii], _sum1);
-                    _mm512_storeu_ps(&outptr[(jj + 2) * max_ii + ii], _sum2);
-                    _mm512_storeu_ps(&outptr[(jj + 3) * max_ii + ii], _sum3);
+                    _mm512_store_ps(outptr.row(jj) + ii, _sum0);
+                    _mm512_store_ps(outptr.row(jj + 1) + ii, _sum1);
+                    _mm512_store_ps(outptr.row(jj + 2) + ii, _sum2);
+                    _mm512_store_ps(outptr.row(jj + 3) + ii, _sum3);
                 }
                 else
                 {
-                    _mm512_storeu_ps(ptmp, _sum0);
-                    _mm512_storeu_ps(ptmp + 16, _sum1);
-                    _mm512_storeu_ps(ptmp + 16 * 2, _sum2);
-                    _mm512_storeu_ps(ptmp + 16 * 3, _sum3);
+                    _mm512_store_ps(ptmp, _sum0);
+                    _mm512_store_ps(ptmp + 16, _sum1);
+                    _mm512_store_ps(ptmp + 16 * 2, _sum2);
+                    _mm512_store_ps(ptmp + 16 * 3, _sum3);
                 }
 
                 ptmp += 64;
@@ -832,14 +832,14 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 }
                 else
                 {
-                    _sum0 = _mm512_loadu_ps(ptmp);
-                    _sum1 = _mm512_loadu_ps(ptmp + 8);
+                    _sum0 = _mm512_load_ps(ptmp);
+                    _sum1 = _mm512_load_ps(ptmp + 8);
                 }
 
                 int kk = 0;
                 for (; kk < max_kk; kk++)
                 {
-                    __m512 _pA = _mm512_loadu_ps(pA);
+                    __m512 _pA = _mm512_load_ps(pA);
                     _sum0 = _mm512_fmadd_ps(_pA, _mm512_set1_ps(pB[0]), _sum0);
                     _sum1 = _mm512_fmadd_ps(_pA, _mm512_set1_ps(pB[1]), _sum1);
 
@@ -849,13 +849,13 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 
                 if (k_end)
                 {
-                    _mm512_storeu_ps(&outptr[jj * max_ii + ii], _sum0);
-                    _mm512_storeu_ps(&outptr[(jj + 1) * max_ii + ii], _sum1);
+                    _mm512_store_ps(outptr.row(jj) + ii, _sum0);
+                    _mm512_store_ps(outptr.row(jj + 1) + ii, _sum1);
                 }
                 else
                 {
-                    _mm512_storeu_ps(ptmp, _sum0);
-                    _mm512_storeu_ps(ptmp + 16, _sum1);
+                    _mm512_store_ps(ptmp, _sum0);
+                    _mm512_store_ps(ptmp + 16, _sum1);
                 }
 
                 ptmp += 32;
@@ -872,13 +872,13 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 }
                 else
                 {
-                    _sum = _mm512_loadu_ps(ptmp);
+                    _sum = _mm512_load_ps(ptmp);
                 }
 
                 int kk = 0;
                 for (; kk < max_kk; kk++)
                 {
-                    __m512 _pA = _mm512_loadu_ps(pA);
+                    __m512 _pA = _mm512_load_ps(pA);
                     __m512 _pB = _mm512_set1_ps(pB[0]);
                     _sum = _mm512_fmadd_ps(_pA, _pB, _sum);
 
@@ -888,11 +888,11 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 
                 if (k_end)
                 {
-                    _mm512_storeu_ps(&outptr[jj * max_ii + ii], _sum);
+                    _mm512_store_ps(outptr.row(jj) + ii, _sum);
                 }
                 else
                 {
-                    _mm512_storeu_ps(ptmp, _sum);
+                    _mm512_store_ps(ptmp, _sum);
                 }
 
                 ptmp += 16;
@@ -940,24 +940,24 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 }
                 else
                 {
-                    _sum0 = _mm256_loadu_ps(ptmp);
-                    _sum1 = _mm256_loadu_ps(ptmp + 8);
-                    _sum2 = _mm256_loadu_ps(ptmp + 16);
-                    _sum3 = _mm256_loadu_ps(ptmp + 24);
-                    _sum4 = _mm256_loadu_ps(ptmp + 32);
-                    _sum5 = _mm256_loadu_ps(ptmp + 40);
-                    _sum6 = _mm256_loadu_ps(ptmp + 48);
-                    _sum7 = _mm256_loadu_ps(ptmp + 56);
-                    _sum8 = _mm256_loadu_ps(ptmp + 64);
-                    _sum9 = _mm256_loadu_ps(ptmp + 72);
-                    _suma = _mm256_loadu_ps(ptmp + 80);
-                    _sumb = _mm256_loadu_ps(ptmp + 88);
+                    _sum0 = _mm256_load_ps(ptmp);
+                    _sum1 = _mm256_load_ps(ptmp + 8);
+                    _sum2 = _mm256_load_ps(ptmp + 16);
+                    _sum3 = _mm256_load_ps(ptmp + 24);
+                    _sum4 = _mm256_load_ps(ptmp + 32);
+                    _sum5 = _mm256_load_ps(ptmp + 40);
+                    _sum6 = _mm256_load_ps(ptmp + 48);
+                    _sum7 = _mm256_load_ps(ptmp + 56);
+                    _sum8 = _mm256_load_ps(ptmp + 64);
+                    _sum9 = _mm256_load_ps(ptmp + 72);
+                    _suma = _mm256_load_ps(ptmp + 80);
+                    _sumb = _mm256_load_ps(ptmp + 88);
                 }
 
                 int kk = 0;
                 for (; kk < max_kk; kk++)
                 {
-                    __m256 _pA = _mm256_loadu_ps(pA);
+                    __m256 _pA = _mm256_load_ps(pA);
                     _sum0 = _mm256_comp_fmadd_ps(_pA, _mm256_set1_ps(pB[0]), _sum0);
                     _sum1 = _mm256_comp_fmadd_ps(_pA, _mm256_set1_ps(pB[1]), _sum1);
                     _sum2 = _mm256_comp_fmadd_ps(_pA, _mm256_set1_ps(pB[2]), _sum2);
@@ -977,33 +977,33 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 
                 if (k_end)
                 {
-                    _mm256_storeu_ps(&outptr[jj * max_ii + ii], _sum0);
-                    _mm256_storeu_ps(&outptr[(jj + 1) * max_ii + ii], _sum1);
-                    _mm256_storeu_ps(&outptr[(jj + 2) * max_ii + ii], _sum2);
-                    _mm256_storeu_ps(&outptr[(jj + 3) * max_ii + ii], _sum3);
-                    _mm256_storeu_ps(&outptr[(jj + 4) * max_ii + ii], _sum4);
-                    _mm256_storeu_ps(&outptr[(jj + 5) * max_ii + ii], _sum5);
-                    _mm256_storeu_ps(&outptr[(jj + 6) * max_ii + ii], _sum6);
-                    _mm256_storeu_ps(&outptr[(jj + 7) * max_ii + ii], _sum7);
-                    _mm256_storeu_ps(&outptr[(jj + 8) * max_ii + ii], _sum8);
-                    _mm256_storeu_ps(&outptr[(jj + 9) * max_ii + ii], _sum9);
-                    _mm256_storeu_ps(&outptr[(jj + 10) * max_ii + ii], _suma);
-                    _mm256_storeu_ps(&outptr[(jj + 11) * max_ii + ii], _sumb);
+                    _mm256_store_ps(outptr.row(jj) + ii, _sum0);
+                    _mm256_store_ps(outptr.row(jj + 1) + ii, _sum1);
+                    _mm256_store_ps(outptr.row(jj + 2) + ii, _sum2);
+                    _mm256_store_ps(outptr.row(jj + 3) + ii, _sum3);
+                    _mm256_store_ps(outptr.row(jj + 4) + ii, _sum4);
+                    _mm256_store_ps(outptr.row(jj + 5) + ii, _sum5);
+                    _mm256_store_ps(outptr.row(jj + 6) + ii, _sum6);
+                    _mm256_store_ps(outptr.row(jj + 7) + ii, _sum7);
+                    _mm256_store_ps(outptr.row(jj + 8) + ii, _sum8);
+                    _mm256_store_ps(outptr.row(jj + 9) + ii, _sum9);
+                    _mm256_store_ps(outptr.row(jj + 10) + ii, _suma);
+                    _mm256_store_ps(outptr.row(jj + 11) + ii, _sumb);
                 }
                 else
                 {
-                    _mm256_storeu_ps(ptmp, _sum0);
-                    _mm256_storeu_ps(ptmp + 8, _sum1);
-                    _mm256_storeu_ps(ptmp + 16, _sum2);
-                    _mm256_storeu_ps(ptmp + 24, _sum3);
-                    _mm256_storeu_ps(ptmp + 32, _sum4);
-                    _mm256_storeu_ps(ptmp + 40, _sum5);
-                    _mm256_storeu_ps(ptmp + 48, _sum6);
-                    _mm256_storeu_ps(ptmp + 56, _sum7);
-                    _mm256_storeu_ps(ptmp + 64, _sum8);
-                    _mm256_storeu_ps(ptmp + 72, _sum9);
-                    _mm256_storeu_ps(ptmp + 80, _suma);
-                    _mm256_storeu_ps(ptmp + 88, _sumb);
+                    _mm256_store_ps(ptmp, _sum0);
+                    _mm256_store_ps(ptmp + 8, _sum1);
+                    _mm256_store_ps(ptmp + 16, _sum2);
+                    _mm256_store_ps(ptmp + 24, _sum3);
+                    _mm256_store_ps(ptmp + 32, _sum4);
+                    _mm256_store_ps(ptmp + 40, _sum5);
+                    _mm256_store_ps(ptmp + 48, _sum6);
+                    _mm256_store_ps(ptmp + 56, _sum7);
+                    _mm256_store_ps(ptmp + 64, _sum8);
+                    _mm256_store_ps(ptmp + 72, _sum9);
+                    _mm256_store_ps(ptmp + 80, _suma);
+                    _mm256_store_ps(ptmp + 88, _sumb);
                 }
 
                 ptmp += 96;
@@ -1034,20 +1034,20 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 }
                 else
                 {
-                    _sum0 = _mm256_loadu_ps(ptmp);
-                    _sum1 = _mm256_loadu_ps(ptmp + 8);
-                    _sum2 = _mm256_loadu_ps(ptmp + 16);
-                    _sum3 = _mm256_loadu_ps(ptmp + 24);
-                    _sum4 = _mm256_loadu_ps(ptmp + 32);
-                    _sum5 = _mm256_loadu_ps(ptmp + 40);
-                    _sum6 = _mm256_loadu_ps(ptmp + 48);
-                    _sum7 = _mm256_loadu_ps(ptmp + 56);
+                    _sum0 = _mm256_load_ps(ptmp);
+                    _sum1 = _mm256_load_ps(ptmp + 8);
+                    _sum2 = _mm256_load_ps(ptmp + 16);
+                    _sum3 = _mm256_load_ps(ptmp + 24);
+                    _sum4 = _mm256_load_ps(ptmp + 32);
+                    _sum5 = _mm256_load_ps(ptmp + 40);
+                    _sum6 = _mm256_load_ps(ptmp + 48);
+                    _sum7 = _mm256_load_ps(ptmp + 56);
                 }
 
                 int kk = 0;
                 for (; kk < max_kk; kk++)
                 {
-                    __m256 _pA = _mm256_loadu_ps(pA);
+                    __m256 _pA = _mm256_load_ps(pA);
                     _sum0 = _mm256_comp_fmadd_ps(_pA, _mm256_set1_ps(pB[0]), _sum0);
                     _sum1 = _mm256_comp_fmadd_ps(_pA, _mm256_set1_ps(pB[1]), _sum1);
                     _sum2 = _mm256_comp_fmadd_ps(_pA, _mm256_set1_ps(pB[2]), _sum2);
@@ -1063,25 +1063,25 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 
                 if (k_end)
                 {
-                    _mm256_storeu_ps(&outptr[jj * max_ii + ii], _sum0);
-                    _mm256_storeu_ps(&outptr[(jj + 1) * max_ii + ii], _sum1);
-                    _mm256_storeu_ps(&outptr[(jj + 2) * max_ii + ii], _sum2);
-                    _mm256_storeu_ps(&outptr[(jj + 3) * max_ii + ii], _sum3);
-                    _mm256_storeu_ps(&outptr[(jj + 4) * max_ii + ii], _sum4);
-                    _mm256_storeu_ps(&outptr[(jj + 5) * max_ii + ii], _sum5);
-                    _mm256_storeu_ps(&outptr[(jj + 6) * max_ii + ii], _sum6);
-                    _mm256_storeu_ps(&outptr[(jj + 7) * max_ii + ii], _sum7);
+                    _mm256_store_ps(outptr.row(jj) + ii, _sum0);
+                    _mm256_store_ps(outptr.row(jj + 1) + ii, _sum1);
+                    _mm256_store_ps(outptr.row(jj + 2) + ii, _sum2);
+                    _mm256_store_ps(outptr.row(jj + 3) + ii, _sum3);
+                    _mm256_store_ps(outptr.row(jj + 4) + ii, _sum4);
+                    _mm256_store_ps(outptr.row(jj + 5) + ii, _sum5);
+                    _mm256_store_ps(outptr.row(jj + 6) + ii, _sum6);
+                    _mm256_store_ps(outptr.row(jj + 7) + ii, _sum7);
                 }
                 else
                 {
-                    _mm256_storeu_ps(ptmp, _sum0);
-                    _mm256_storeu_ps(ptmp + 8, _sum1);
-                    _mm256_storeu_ps(ptmp + 16, _sum2);
-                    _mm256_storeu_ps(ptmp + 24, _sum3);
-                    _mm256_storeu_ps(ptmp + 32, _sum4);
-                    _mm256_storeu_ps(ptmp + 40, _sum5);
-                    _mm256_storeu_ps(ptmp + 48, _sum6);
-                    _mm256_storeu_ps(ptmp + 56, _sum7);
+                    _mm256_store_ps(ptmp, _sum0);
+                    _mm256_store_ps(ptmp + 8, _sum1);
+                    _mm256_store_ps(ptmp + 16, _sum2);
+                    _mm256_store_ps(ptmp + 24, _sum3);
+                    _mm256_store_ps(ptmp + 32, _sum4);
+                    _mm256_store_ps(ptmp + 40, _sum5);
+                    _mm256_store_ps(ptmp + 48, _sum6);
+                    _mm256_store_ps(ptmp + 56, _sum7);
                 }
 
                 ptmp += 64;
@@ -1104,16 +1104,16 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 }
                 else
                 {
-                    _sum0 = _mm256_loadu_ps(ptmp);
-                    _sum1 = _mm256_loadu_ps(ptmp + 8);
-                    _sum2 = _mm256_loadu_ps(ptmp + 16);
-                    _sum3 = _mm256_loadu_ps(ptmp + 24);
+                    _sum0 = _mm256_load_ps(ptmp);
+                    _sum1 = _mm256_load_ps(ptmp + 8);
+                    _sum2 = _mm256_load_ps(ptmp + 16);
+                    _sum3 = _mm256_load_ps(ptmp + 24);
                 }
 
                 int kk = 0;
                 for (; kk < max_kk; kk++)
                 {
-                    __m256 _pA = _mm256_loadu_ps(pA);
+                    __m256 _pA = _mm256_load_ps(pA);
                     _sum0 = _mm256_comp_fmadd_ps(_pA, _mm256_set1_ps(pB[0]), _sum0);
                     _sum1 = _mm256_comp_fmadd_ps(_pA, _mm256_set1_ps(pB[1]), _sum1);
                     _sum2 = _mm256_comp_fmadd_ps(_pA, _mm256_set1_ps(pB[2]), _sum2);
@@ -1125,17 +1125,17 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 
                 if (k_end)
                 {
-                    _mm256_storeu_ps(&outptr[jj * max_ii + ii], _sum0);
-                    _mm256_storeu_ps(&outptr[(jj + 1) * max_ii + ii], _sum1);
-                    _mm256_storeu_ps(&outptr[(jj + 2) * max_ii + ii], _sum2);
-                    _mm256_storeu_ps(&outptr[(jj + 3) * max_ii + ii], _sum3);
+                    _mm256_store_ps(outptr.row(jj) + ii, _sum0);
+                    _mm256_store_ps(outptr.row(jj + 1) + ii, _sum1);
+                    _mm256_store_ps(outptr.row(jj + 2) + ii, _sum2);
+                    _mm256_store_ps(outptr.row(jj + 3) + ii, _sum3);
                 }
                 else
                 {
-                    _mm256_storeu_ps(ptmp, _sum0);
-                    _mm256_storeu_ps(ptmp + 8, _sum1);
-                    _mm256_storeu_ps(ptmp + 16, _sum2);
-                    _mm256_storeu_ps(ptmp + 24, _sum3);
+                    _mm256_store_ps(ptmp, _sum0);
+                    _mm256_store_ps(ptmp + 8, _sum1);
+                    _mm256_store_ps(ptmp + 16, _sum2);
+                    _mm256_store_ps(ptmp + 24, _sum3);
                 }
 
                 ptmp += 32;
@@ -1154,14 +1154,14 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 }
                 else
                 {
-                    _sum0 = _mm256_loadu_ps(ptmp);
-                    _sum1 = _mm256_loadu_ps(ptmp + 8);
+                    _sum0 = _mm256_load_ps(ptmp);
+                    _sum1 = _mm256_load_ps(ptmp + 8);
                 }
 
                 int kk = 0;
                 for (; kk < max_kk; kk++)
                 {
-                    __m256 _pA = _mm256_loadu_ps(pA);
+                    __m256 _pA = _mm256_load_ps(pA);
                     _sum0 = _mm256_comp_fmadd_ps(_pA, _mm256_set1_ps(pB[0]), _sum0);
                     _sum1 = _mm256_comp_fmadd_ps(_pA, _mm256_set1_ps(pB[1]), _sum1);
 
@@ -1171,13 +1171,13 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 
                 if (k_end)
                 {
-                    _mm256_storeu_ps(&outptr[jj * max_ii + ii], _sum0);
-                    _mm256_storeu_ps(&outptr[(jj + 1) * max_ii + ii], _sum1);
+                    _mm256_store_ps(outptr.row(jj) + ii, _sum0);
+                    _mm256_store_ps(outptr.row(jj + 1) + ii, _sum1);
                 }
                 else
                 {
-                    _mm256_storeu_ps(ptmp, _sum0);
-                    _mm256_storeu_ps(ptmp + 8, _sum1);
+                    _mm256_store_ps(ptmp, _sum0);
+                    _mm256_store_ps(ptmp + 8, _sum1);
                 }
 
                 ptmp += 16;
@@ -1194,13 +1194,13 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 }
                 else
                 {
-                    _sum = _mm256_loadu_ps(ptmp);
+                    _sum = _mm256_load_ps(ptmp);
                 }
 
                 int kk = 0;
                 for (; kk < max_kk; kk++)
                 {
-                    __m256 _pA = _mm256_loadu_ps(pA);
+                    __m256 _pA = _mm256_load_ps(pA);
                     __m256 _pB = _mm256_set1_ps(pB[0]);
                     _sum = _mm256_comp_fmadd_ps(_pA, _pB, _sum);
 
@@ -1210,11 +1210,11 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 
                 if (k_end)
                 {
-                    _mm256_storeu_ps(&outptr[jj * max_ii + ii], _sum);
+                    _mm256_store_ps(outptr.row(jj) + ii, _sum);
                 }
                 else
                 {
-                    _mm256_storeu_ps(ptmp, _sum);
+                    _mm256_store_ps(ptmp, _sum);
                 }
 
                 ptmp += 8;
@@ -1262,24 +1262,24 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 }
                 else
                 {
-                    _sum0 = _mm_loadu_ps(ptmp);
-                    _sum1 = _mm_loadu_ps(ptmp + 4);
-                    _sum2 = _mm_loadu_ps(ptmp + 8);
-                    _sum3 = _mm_loadu_ps(ptmp + 12);
-                    _sum4 = _mm_loadu_ps(ptmp + 16);
-                    _sum5 = _mm_loadu_ps(ptmp + 20);
-                    _sum6 = _mm_loadu_ps(ptmp + 24);
-                    _sum7 = _mm_loadu_ps(ptmp + 28);
-                    _sum8 = _mm_loadu_ps(ptmp + 32);
-                    _sum9 = _mm_loadu_ps(ptmp + 36);
-                    _suma = _mm_loadu_ps(ptmp + 40);
-                    _sumb = _mm_loadu_ps(ptmp + 44);
+                    _sum0 = _mm_load_ps(ptmp);
+                    _sum1 = _mm_load_ps(ptmp + 4);
+                    _sum2 = _mm_load_ps(ptmp + 8);
+                    _sum3 = _mm_load_ps(ptmp + 12);
+                    _sum4 = _mm_load_ps(ptmp + 16);
+                    _sum5 = _mm_load_ps(ptmp + 20);
+                    _sum6 = _mm_load_ps(ptmp + 24);
+                    _sum7 = _mm_load_ps(ptmp + 28);
+                    _sum8 = _mm_load_ps(ptmp + 32);
+                    _sum9 = _mm_load_ps(ptmp + 36);
+                    _suma = _mm_load_ps(ptmp + 40);
+                    _sumb = _mm_load_ps(ptmp + 44);
                 }
 
                 int kk = 0;
                 for (; kk < max_kk; kk++)
                 {
-                    __m128 _pA = _mm_loadu_ps(pA);
+                    __m128 _pA = _mm_load_ps(pA);
                     _sum0 = _mm_comp_fmadd_ps(_pA, _mm_set1_ps(pB[0]), _sum0);
                     _sum1 = _mm_comp_fmadd_ps(_pA, _mm_set1_ps(pB[1]), _sum1);
                     _sum2 = _mm_comp_fmadd_ps(_pA, _mm_set1_ps(pB[2]), _sum2);
@@ -1299,33 +1299,33 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 
                 if (k_end)
                 {
-                    _mm_storeu_ps(&outptr[jj * max_ii + ii], _sum0);
-                    _mm_storeu_ps(&outptr[(jj + 1) * max_ii + ii], _sum1);
-                    _mm_storeu_ps(&outptr[(jj + 2) * max_ii + ii], _sum2);
-                    _mm_storeu_ps(&outptr[(jj + 3) * max_ii + ii], _sum3);
-                    _mm_storeu_ps(&outptr[(jj + 4) * max_ii + ii], _sum4);
-                    _mm_storeu_ps(&outptr[(jj + 5) * max_ii + ii], _sum5);
-                    _mm_storeu_ps(&outptr[(jj + 6) * max_ii + ii], _sum6);
-                    _mm_storeu_ps(&outptr[(jj + 7) * max_ii + ii], _sum7);
-                    _mm_storeu_ps(&outptr[(jj + 8) * max_ii + ii], _sum8);
-                    _mm_storeu_ps(&outptr[(jj + 9) * max_ii + ii], _sum9);
-                    _mm_storeu_ps(&outptr[(jj + 10) * max_ii + ii], _suma);
-                    _mm_storeu_ps(&outptr[(jj + 11) * max_ii + ii], _sumb);
+                    _mm_store_ps(outptr.row(jj) + ii, _sum0);
+                    _mm_store_ps(outptr.row(jj + 1) + ii, _sum1);
+                    _mm_store_ps(outptr.row(jj + 2) + ii, _sum2);
+                    _mm_store_ps(outptr.row(jj + 3) + ii, _sum3);
+                    _mm_store_ps(outptr.row(jj + 4) + ii, _sum4);
+                    _mm_store_ps(outptr.row(jj + 5) + ii, _sum5);
+                    _mm_store_ps(outptr.row(jj + 6) + ii, _sum6);
+                    _mm_store_ps(outptr.row(jj + 7) + ii, _sum7);
+                    _mm_store_ps(outptr.row(jj + 8) + ii, _sum8);
+                    _mm_store_ps(outptr.row(jj + 9) + ii, _sum9);
+                    _mm_store_ps(outptr.row(jj + 10) + ii, _suma);
+                    _mm_store_ps(outptr.row(jj + 11) + ii, _sumb);
                 }
                 else
                 {
-                    _mm_storeu_ps(ptmp, _sum0);
-                    _mm_storeu_ps(ptmp + 4, _sum1);
-                    _mm_storeu_ps(ptmp + 8, _sum2);
-                    _mm_storeu_ps(ptmp + 12, _sum3);
-                    _mm_storeu_ps(ptmp + 16, _sum4);
-                    _mm_storeu_ps(ptmp + 20, _sum5);
-                    _mm_storeu_ps(ptmp + 24, _sum6);
-                    _mm_storeu_ps(ptmp + 28, _sum7);
-                    _mm_storeu_ps(ptmp + 32, _sum8);
-                    _mm_storeu_ps(ptmp + 36, _sum9);
-                    _mm_storeu_ps(ptmp + 40, _suma);
-                    _mm_storeu_ps(ptmp + 44, _sumb);
+                    _mm_store_ps(ptmp, _sum0);
+                    _mm_store_ps(ptmp + 4, _sum1);
+                    _mm_store_ps(ptmp + 8, _sum2);
+                    _mm_store_ps(ptmp + 12, _sum3);
+                    _mm_store_ps(ptmp + 16, _sum4);
+                    _mm_store_ps(ptmp + 20, _sum5);
+                    _mm_store_ps(ptmp + 24, _sum6);
+                    _mm_store_ps(ptmp + 28, _sum7);
+                    _mm_store_ps(ptmp + 32, _sum8);
+                    _mm_store_ps(ptmp + 36, _sum9);
+                    _mm_store_ps(ptmp + 40, _suma);
+                    _mm_store_ps(ptmp + 44, _sumb);
                 }
 
                 ptmp += 48;
@@ -1356,20 +1356,20 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 }
                 else
                 {
-                    _sum0 = _mm_loadu_ps(ptmp);
-                    _sum1 = _mm_loadu_ps(ptmp + 4);
-                    _sum2 = _mm_loadu_ps(ptmp + 8);
-                    _sum3 = _mm_loadu_ps(ptmp + 12);
-                    _sum4 = _mm_loadu_ps(ptmp + 16);
-                    _sum5 = _mm_loadu_ps(ptmp + 20);
-                    _sum6 = _mm_loadu_ps(ptmp + 24);
-                    _sum7 = _mm_loadu_ps(ptmp + 28);
+                    _sum0 = _mm_load_ps(ptmp);
+                    _sum1 = _mm_load_ps(ptmp + 4);
+                    _sum2 = _mm_load_ps(ptmp + 8);
+                    _sum3 = _mm_load_ps(ptmp + 12);
+                    _sum4 = _mm_load_ps(ptmp + 16);
+                    _sum5 = _mm_load_ps(ptmp + 20);
+                    _sum6 = _mm_load_ps(ptmp + 24);
+                    _sum7 = _mm_load_ps(ptmp + 28);
                 }
 
                 int kk = 0;
                 for (; kk < max_kk; kk++)
                 {
-                    __m128 _pA = _mm_loadu_ps(pA);
+                    __m128 _pA = _mm_load_ps(pA);
                     _sum0 = _mm_comp_fmadd_ps(_pA, _mm_set1_ps(pB[0]), _sum0);
                     _sum1 = _mm_comp_fmadd_ps(_pA, _mm_set1_ps(pB[1]), _sum1);
                     _sum2 = _mm_comp_fmadd_ps(_pA, _mm_set1_ps(pB[2]), _sum2);
@@ -1385,25 +1385,25 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 
                 if (k_end)
                 {
-                    _mm_storeu_ps(&outptr[jj * max_ii + ii], _sum0);
-                    _mm_storeu_ps(&outptr[(jj + 1) * max_ii + ii], _sum1);
-                    _mm_storeu_ps(&outptr[(jj + 2) * max_ii + ii], _sum2);
-                    _mm_storeu_ps(&outptr[(jj + 3) * max_ii + ii], _sum3);
-                    _mm_storeu_ps(&outptr[(jj + 4) * max_ii + ii], _sum4);
-                    _mm_storeu_ps(&outptr[(jj + 5) * max_ii + ii], _sum5);
-                    _mm_storeu_ps(&outptr[(jj + 6) * max_ii + ii], _sum6);
-                    _mm_storeu_ps(&outptr[(jj + 7) * max_ii + ii], _sum7);
+                    _mm_store_ps(outptr.row(jj) + ii, _sum0);
+                    _mm_store_ps(outptr.row(jj + 1) + ii, _sum1);
+                    _mm_store_ps(outptr.row(jj + 2) + ii, _sum2);
+                    _mm_store_ps(outptr.row(jj + 3) + ii, _sum3);
+                    _mm_store_ps(outptr.row(jj + 4) + ii, _sum4);
+                    _mm_store_ps(outptr.row(jj + 5) + ii, _sum5);
+                    _mm_store_ps(outptr.row(jj + 6) + ii, _sum6);
+                    _mm_store_ps(outptr.row(jj + 7) + ii, _sum7);
                 }
                 else
                 {
-                    _mm_storeu_ps(ptmp, _sum0);
-                    _mm_storeu_ps(ptmp + 4, _sum1);
-                    _mm_storeu_ps(ptmp + 8, _sum2);
-                    _mm_storeu_ps(ptmp + 12, _sum3);
-                    _mm_storeu_ps(ptmp + 16, _sum4);
-                    _mm_storeu_ps(ptmp + 20, _sum5);
-                    _mm_storeu_ps(ptmp + 24, _sum6);
-                    _mm_storeu_ps(ptmp + 28, _sum7);
+                    _mm_store_ps(ptmp, _sum0);
+                    _mm_store_ps(ptmp + 4, _sum1);
+                    _mm_store_ps(ptmp + 8, _sum2);
+                    _mm_store_ps(ptmp + 12, _sum3);
+                    _mm_store_ps(ptmp + 16, _sum4);
+                    _mm_store_ps(ptmp + 20, _sum5);
+                    _mm_store_ps(ptmp + 24, _sum6);
+                    _mm_store_ps(ptmp + 28, _sum7);
                 }
 
                 ptmp += 32;
@@ -1426,16 +1426,16 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 }
                 else
                 {
-                    _sum0 = _mm_loadu_ps(ptmp);
-                    _sum1 = _mm_loadu_ps(ptmp + 4);
-                    _sum2 = _mm_loadu_ps(ptmp + 8);
-                    _sum3 = _mm_loadu_ps(ptmp + 12);
+                    _sum0 = _mm_load_ps(ptmp);
+                    _sum1 = _mm_load_ps(ptmp + 4);
+                    _sum2 = _mm_load_ps(ptmp + 8);
+                    _sum3 = _mm_load_ps(ptmp + 12);
                 }
 
                 int kk = 0;
                 for (; kk < max_kk; kk++)
                 {
-                    __m128 _pA = _mm_loadu_ps(pA);
+                    __m128 _pA = _mm_load_ps(pA);
                     _sum0 = _mm_comp_fmadd_ps(_pA, _mm_set1_ps(pB[0]), _sum0);
                     _sum1 = _mm_comp_fmadd_ps(_pA, _mm_set1_ps(pB[1]), _sum1);
                     _sum2 = _mm_comp_fmadd_ps(_pA, _mm_set1_ps(pB[2]), _sum2);
@@ -1447,17 +1447,17 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 
                 if (k_end)
                 {
-                    _mm_storeu_ps(&outptr[jj * max_ii + ii], _sum0);
-                    _mm_storeu_ps(&outptr[(jj + 1) * max_ii + ii], _sum1);
-                    _mm_storeu_ps(&outptr[(jj + 2) * max_ii + ii], _sum2);
-                    _mm_storeu_ps(&outptr[(jj + 3) * max_ii + ii], _sum3);
+                    _mm_store_ps(outptr.row(jj) + ii, _sum0);
+                    _mm_store_ps(outptr.row(jj + 1) + ii, _sum1);
+                    _mm_store_ps(outptr.row(jj + 2) + ii, _sum2);
+                    _mm_store_ps(outptr.row(jj + 3) + ii, _sum3);
                 }
                 else
                 {
-                    _mm_storeu_ps(ptmp, _sum0);
-                    _mm_storeu_ps(ptmp + 4, _sum1);
-                    _mm_storeu_ps(ptmp + 8, _sum2);
-                    _mm_storeu_ps(ptmp + 12, _sum3);
+                    _mm_store_ps(ptmp, _sum0);
+                    _mm_store_ps(ptmp + 4, _sum1);
+                    _mm_store_ps(ptmp + 8, _sum2);
+                    _mm_store_ps(ptmp + 12, _sum3);
                 }
 
                 ptmp += 16;
@@ -1476,14 +1476,14 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 }
                 else
                 {
-                    _sum0 = _mm_loadu_ps(ptmp);
-                    _sum1 = _mm_loadu_ps(ptmp + 4);
+                    _sum0 = _mm_load_ps(ptmp);
+                    _sum1 = _mm_load_ps(ptmp + 4);
                 }
 
                 int kk = 0;
                 for (; kk < max_kk; kk++)
                 {
-                    __m128 _pA = _mm_loadu_ps(pA);
+                    __m128 _pA = _mm_load_ps(pA);
                     _sum0 = _mm_comp_fmadd_ps(_pA, _mm_set1_ps(pB[0]), _sum0);
                     _sum1 = _mm_comp_fmadd_ps(_pA, _mm_set1_ps(pB[1]), _sum1);
 
@@ -1493,13 +1493,13 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 
                 if (k_end)
                 {
-                    _mm_storeu_ps(&outptr[jj * max_ii + ii], _sum0);
-                    _mm_storeu_ps(&outptr[(jj + 1) * max_ii + ii], _sum1);
+                    _mm_store_ps(outptr.row(jj) + ii, _sum0);
+                    _mm_store_ps(outptr.row(jj + 1) + ii, _sum1);
                 }
                 else
                 {
-                    _mm_storeu_ps(ptmp, _sum0);
-                    _mm_storeu_ps(ptmp + 4, _sum1);
+                    _mm_store_ps(ptmp, _sum0);
+                    _mm_store_ps(ptmp + 4, _sum1);
                 }
 
                 ptmp += 8;
@@ -1516,13 +1516,13 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 }
                 else
                 {
-                    _sum = _mm_loadu_ps(ptmp);
+                    _sum = _mm_load_ps(ptmp);
                 }
 
                 int kk = 0;
                 for (; kk < max_kk; kk++)
                 {
-                    __m128 _pA = _mm_loadu_ps(pA);
+                    __m128 _pA = _mm_load_ps(pA);
                     _sum = _mm_comp_fmadd_ps(_pA, _mm_set1_ps(pB[0]), _sum);
 
                     pA += 4;
@@ -1531,11 +1531,11 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 
                 if (k_end)
                 {
-                    _mm_storeu_ps(&outptr[jj * max_ii + ii], _sum);
+                    _mm_store_ps(outptr.row(jj) + ii, _sum);
                 }
                 else
                 {
-                    _mm_storeu_ps(ptmp, _sum);
+                    _mm_store_ps(ptmp, _sum);
                 }
 
                 ptmp += 4;
@@ -1572,12 +1572,12 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 }
                 else
                 {
-                    _sum0 = _mm_loadu_ps(ptmp);
-                    _sum1 = _mm_loadu_ps(ptmp + 4);
-                    _sum2 = _mm_loadu_ps(ptmp + 8);
-                    _sum3 = _mm_loadu_ps(ptmp + 12);
-                    _sum4 = _mm_loadu_ps(ptmp + 16);
-                    _sum5 = _mm_loadu_ps(ptmp + 20);
+                    _sum0 = _mm_load_ps(ptmp);
+                    _sum1 = _mm_load_ps(ptmp + 4);
+                    _sum2 = _mm_load_ps(ptmp + 8);
+                    _sum3 = _mm_load_ps(ptmp + 12);
+                    _sum4 = _mm_load_ps(ptmp + 16);
+                    _sum5 = _mm_load_ps(ptmp + 20);
                 }
 
                 int kk = 0;
@@ -1585,9 +1585,9 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 {
                     __m128 _pA0 = _mm_set1_ps(pA[0]);
                     __m128 _pA1 = _mm_set1_ps(pA[1]);
-                    __m128 _pB0 = _mm_loadu_ps(pB);
-                    __m128 _pB1 = _mm_loadu_ps(pB + 4);
-                    __m128 _pB2 = _mm_loadu_ps(pB + 8);
+                    __m128 _pB0 = _mm_load_ps(pB);
+                    __m128 _pB1 = _mm_load_ps(pB + 4);
+                    __m128 _pB2 = _mm_load_ps(pB + 8);
                     _sum0 = _mm_comp_fmadd_ps(_pA0, _pB0, _sum0);
                     _sum1 = _mm_comp_fmadd_ps(_pA0, _pB1, _sum1);
                     _sum2 = _mm_comp_fmadd_ps(_pA0, _pB2, _sum2);
@@ -1607,39 +1607,39 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     _mm_storeu_ps(sum + 12, _sum3);
                     _mm_storeu_ps(sum + 16, _sum4);
                     _mm_storeu_ps(sum + 20, _sum5);
-                    outptr[jj * max_ii + ii] = sum[0];
-                    outptr[(jj + 1) * max_ii + ii] = sum[1];
-                    outptr[(jj + 2) * max_ii + ii] = sum[2];
-                    outptr[(jj + 3) * max_ii + ii] = sum[3];
-                    outptr[(jj + 4) * max_ii + ii] = sum[4];
-                    outptr[(jj + 5) * max_ii + ii] = sum[5];
-                    outptr[(jj + 6) * max_ii + ii] = sum[6];
-                    outptr[(jj + 7) * max_ii + ii] = sum[7];
-                    outptr[(jj + 8) * max_ii + ii] = sum[8];
-                    outptr[(jj + 9) * max_ii + ii] = sum[9];
-                    outptr[(jj + 10) * max_ii + ii] = sum[10];
-                    outptr[(jj + 11) * max_ii + ii] = sum[11];
-                    outptr[jj * max_ii + ii + 1] = sum[12];
-                    outptr[(jj + 1) * max_ii + ii + 1] = sum[13];
-                    outptr[(jj + 2) * max_ii + ii + 1] = sum[14];
-                    outptr[(jj + 3) * max_ii + ii + 1] = sum[15];
-                    outptr[(jj + 4) * max_ii + ii + 1] = sum[16];
-                    outptr[(jj + 5) * max_ii + ii + 1] = sum[17];
-                    outptr[(jj + 6) * max_ii + ii + 1] = sum[18];
-                    outptr[(jj + 7) * max_ii + ii + 1] = sum[19];
-                    outptr[(jj + 8) * max_ii + ii + 1] = sum[20];
-                    outptr[(jj + 9) * max_ii + ii + 1] = sum[21];
-                    outptr[(jj + 10) * max_ii + ii + 1] = sum[22];
-                    outptr[(jj + 11) * max_ii + ii + 1] = sum[23];
+                    outptr.row(jj)[ii] = sum[0];
+                    outptr.row(jj + 1)[ii] = sum[1];
+                    outptr.row(jj + 2)[ii] = sum[2];
+                    outptr.row(jj + 3)[ii] = sum[3];
+                    outptr.row(jj + 4)[ii] = sum[4];
+                    outptr.row(jj + 5)[ii] = sum[5];
+                    outptr.row(jj + 6)[ii] = sum[6];
+                    outptr.row(jj + 7)[ii] = sum[7];
+                    outptr.row(jj + 8)[ii] = sum[8];
+                    outptr.row(jj + 9)[ii] = sum[9];
+                    outptr.row(jj + 10)[ii] = sum[10];
+                    outptr.row(jj + 11)[ii] = sum[11];
+                    outptr.row(jj)[ii + 1] = sum[12];
+                    outptr.row(jj + 1)[ii + 1] = sum[13];
+                    outptr.row(jj + 2)[ii + 1] = sum[14];
+                    outptr.row(jj + 3)[ii + 1] = sum[15];
+                    outptr.row(jj + 4)[ii + 1] = sum[16];
+                    outptr.row(jj + 5)[ii + 1] = sum[17];
+                    outptr.row(jj + 6)[ii + 1] = sum[18];
+                    outptr.row(jj + 7)[ii + 1] = sum[19];
+                    outptr.row(jj + 8)[ii + 1] = sum[20];
+                    outptr.row(jj + 9)[ii + 1] = sum[21];
+                    outptr.row(jj + 10)[ii + 1] = sum[22];
+                    outptr.row(jj + 11)[ii + 1] = sum[23];
                 }
                 else
                 {
-                    _mm_storeu_ps(ptmp, _sum0);
-                    _mm_storeu_ps(ptmp + 4, _sum1);
-                    _mm_storeu_ps(ptmp + 8, _sum2);
-                    _mm_storeu_ps(ptmp + 12, _sum3);
-                    _mm_storeu_ps(ptmp + 16, _sum4);
-                    _mm_storeu_ps(ptmp + 20, _sum5);
+                    _mm_store_ps(ptmp, _sum0);
+                    _mm_store_ps(ptmp + 4, _sum1);
+                    _mm_store_ps(ptmp + 8, _sum2);
+                    _mm_store_ps(ptmp + 12, _sum3);
+                    _mm_store_ps(ptmp + 16, _sum4);
+                    _mm_store_ps(ptmp + 20, _sum5);
                 }
 
                 ptmp += 24;
@@ -1662,10 +1662,10 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 }
                 else
                 {
-                    _sum0 = _mm_loadu_ps(ptmp);
-                    _sum1 = _mm_loadu_ps(ptmp + 4);
-                    _sum2 = _mm_loadu_ps(ptmp + 8);
-                    _sum3 = _mm_loadu_ps(ptmp + 12);
+                    _sum0 = _mm_load_ps(ptmp);
+                    _sum1 = _mm_load_ps(ptmp + 4);
+                    _sum2 = _mm_load_ps(ptmp + 8);
+                    _sum3 = _mm_load_ps(ptmp + 12);
                 }
 
                 int kk = 0;
@@ -1673,8 +1673,8 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 {
                     __m128 _pA0 = _mm_set1_ps(pA[0]);
                     __m128 _pA1 = _mm_set1_ps(pA[1]);
-                    __m128 _pB0 = _mm_loadu_ps(pB);
-                    __m128 _pB1 = _mm_loadu_ps(pB + 4);
+                    __m128 _pB0 = _mm_load_ps(pB);
+                    __m128 _pB1 = _mm_load_ps(pB + 4);
                     _sum0 = _mm_comp_fmadd_ps(_pA0, _pB0, _sum0);
                     _sum1 = _mm_comp_fmadd_ps(_pA0, _pB1, _sum1);
                     _sum2 = _mm_comp_fmadd_ps(_pA1, _pB0, _sum2);
@@ -1690,29 +1690,29 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     _mm_storeu_ps(sum + 4, _sum1);
                     _mm_storeu_ps(sum + 8, _sum2);
                     _mm_storeu_ps(sum + 12, _sum3);
-                    outptr[jj * max_ii + ii] = sum[0];
-                    outptr[(jj + 1) * max_ii + ii] = sum[1];
-                    outptr[(jj + 2) * max_ii + ii] = sum[2];
-                    outptr[(jj + 3) * max_ii + ii] = sum[3];
-                    outptr[(jj + 4) * max_ii + ii] = sum[4];
-                    outptr[(jj + 5) * max_ii + ii] = sum[5];
-                    outptr[(jj + 6) * max_ii + ii] = sum[6];
-                    outptr[(jj + 7) * max_ii + ii] = sum[7];
-                    outptr[jj * max_ii + ii + 1] = sum[8];
-                    outptr[(jj + 1) * max_ii + ii + 1] = sum[9];
-                    outptr[(jj + 2) * max_ii + ii + 1] = sum[10];
-                    outptr[(jj + 3) * max_ii + ii + 1] = sum[11];
-                    outptr[(jj + 4) * max_ii + ii + 1] = sum[12];
-                    outptr[(jj + 5) * max_ii + ii + 1] = sum[13];
-                    outptr[(jj + 6) * max_ii + ii + 1] = sum[14];
-                    outptr[(jj + 7) * max_ii + ii + 1] = sum[15];
+                    outptr.row(jj)[ii] = sum[0];
+                    outptr.row(jj + 1)[ii] = sum[1];
+                    outptr.row(jj + 2)[ii] = sum[2];
+                    outptr.row(jj + 3)[ii] = sum[3];
+                    outptr.row(jj + 4)[ii] = sum[4];
+                    outptr.row(jj + 5)[ii] = sum[5];
+                    outptr.row(jj + 6)[ii] = sum[6];
+                    outptr.row(jj + 7)[ii] = sum[7];
+                    outptr.row(jj)[ii + 1] = sum[8];
+                    outptr.row(jj + 1)[ii + 1] = sum[9];
+                    outptr.row(jj + 2)[ii + 1] = sum[10];
+                    outptr.row(jj + 3)[ii + 1] = sum[11];
+                    outptr.row(jj + 4)[ii + 1] = sum[12];
+                    outptr.row(jj + 5)[ii + 1] = sum[13];
+                    outptr.row(jj + 6)[ii + 1] = sum[14];
+                    outptr.row(jj + 7)[ii + 1] = sum[15];
                 }
                 else
                 {
-                    _mm_storeu_ps(ptmp, _sum0);
-                    _mm_storeu_ps(ptmp + 4, _sum1);
-                    _mm_storeu_ps(ptmp + 8, _sum2);
-                    _mm_storeu_ps(ptmp + 12, _sum3);
+                    _mm_store_ps(ptmp, _sum0);
+                    _mm_store_ps(ptmp + 4, _sum1);
+                    _mm_store_ps(ptmp + 8, _sum2);
+                    _mm_store_ps(ptmp + 12, _sum3);
                 }
 
                 ptmp += 16;
@@ -1731,14 +1731,14 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 }
                 else
                 {
-                    _sum0 = _mm_loadu_ps(ptmp);
-                    _sum1 = _mm_loadu_ps(ptmp + 4);
+                    _sum0 = _mm_load_ps(ptmp);
+                    _sum1 = _mm_load_ps(ptmp + 4);
                 }
 
                 int kk = 0;
                 for (; kk < max_kk; kk++)
                 {
-                    __m128 _pB = _mm_loadu_ps(pB);
+                    __m128 _pB = _mm_load_ps(pB);
                     _sum0 = _mm_comp_fmadd_ps(_mm_set1_ps(pA[0]), _pB, _sum0);
                     _sum1 = _mm_comp_fmadd_ps(_mm_set1_ps(pA[1]), _pB, _sum1);
                     pA += 2;
@@ -1750,19 +1750,19 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     float sum[8];
                     _mm_storeu_ps(sum, _sum0);
                     _mm_storeu_ps(sum + 4, _sum1);
-                    outptr[jj * max_ii + ii] = sum[0];
-                    outptr[(jj + 1) * max_ii + ii] = sum[1];
-                    outptr[(jj + 2) * max_ii + ii] = sum[2];
-                    outptr[(jj + 3) * max_ii + ii] = sum[3];
-                    outptr[jj * max_ii + ii + 1] = sum[4];
-                    outptr[(jj + 1) * max_ii + ii + 1] = sum[5];
-                    outptr[(jj + 2) * max_ii + ii + 1] = sum[6];
-                    outptr[(jj + 3) * max_ii + ii + 1] = sum[7];
+                    outptr.row(jj)[ii] = sum[0];
+                    outptr.row(jj + 1)[ii] = sum[1];
+                    outptr.row(jj + 2)[ii] = sum[2];
+                    outptr.row(jj + 3)[ii] = sum[3];
+                    outptr.row(jj)[ii + 1] = sum[4];
+                    outptr.row(jj + 1)[ii + 1] = sum[5];
+                    outptr.row(jj + 2)[ii + 1] = sum[6];
+                    outptr.row(jj + 3)[ii + 1] = sum[7];
                 }
                 else
                 {
-                    _mm_storeu_ps(ptmp, _sum0);
-                    _mm_storeu_ps(ptmp + 4, _sum1);
+                    _mm_store_ps(ptmp, _sum0);
+                    _mm_store_ps(ptmp + 4, _sum1);
                 }
 
                 ptmp += 8;
@@ -1805,10 +1805,10 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 
                 if (k_end)
                 {
-                    outptr[jj * max_ii + ii] = sum00;
-                    outptr[jj * max_ii + ii + 1] = sum01;
-                    outptr[(jj + 1) * max_ii + ii] = sum10;
-                    outptr[(jj + 1) * max_ii + ii + 1] = sum11;
+                    outptr.row(jj)[ii] = sum00;
+                    outptr.row(jj)[ii + 1] = sum01;
+                    outptr.row(jj + 1)[ii] = sum10;
+                    outptr.row(jj + 1)[ii + 1] = sum11;
                 }
                 else
                 {
@@ -1849,8 +1849,8 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 
                 if (k_end)
                 {
-                    outptr[jj * max_ii + ii] = sum0;
-                    outptr[jj * max_ii + ii + 1] = sum1;
+                    outptr.row(jj)[ii] = sum0;
+                    outptr.row(jj)[ii + 1] = sum1;
                 }
                 else
                 {
@@ -1885,18 +1885,18 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 }
                 else
                 {
-                    _sum0 = _mm_loadu_ps(ptmp);
-                    _sum1 = _mm_loadu_ps(ptmp + 4);
-                    _sum2 = _mm_loadu_ps(ptmp + 8);
+                    _sum0 = _mm_load_ps(ptmp);
+                    _sum1 = _mm_load_ps(ptmp + 4);
+                    _sum2 = _mm_load_ps(ptmp + 8);
                 }
 
                 int kk = 0;
                 for (; kk < max_kk; kk++)
                 {
                     __m128 _pA = _mm_set1_ps(pA[0]);
-                    __m128 _pB0 = _mm_loadu_ps(pB);
-                    __m128 _pB1 = _mm_loadu_ps(pB + 4);
-                    __m128 _pB2 = _mm_loadu_ps(pB + 8);
+                    __m128 _pB0 = _mm_load_ps(pB);
+                    __m128 _pB1 = _mm_load_ps(pB + 4);
+                    __m128 _pB2 = _mm_load_ps(pB + 8);
                     _sum0 = _mm_comp_fmadd_ps(_pA, _pB0, _sum0);
                     _sum1 = _mm_comp_fmadd_ps(_pA, _pB1, _sum1);
                     _sum2 = _mm_comp_fmadd_ps(_pA, _pB2, _sum2);
@@ -1910,24 +1910,24 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     _mm_storeu_ps(sum, _sum0);
                     _mm_storeu_ps(sum + 4, _sum1);
                     _mm_storeu_ps(sum + 8, _sum2);
-                    outptr[jj * max_ii + ii] = sum[0];
-                    outptr[(jj + 1) * max_ii + ii] = sum[1];
-                    outptr[(jj + 2) * max_ii + ii] = sum[2];
-                    outptr[(jj + 3) * max_ii + ii] = sum[3];
-                    outptr[(jj + 4) * max_ii + ii] = sum[4];
-                    outptr[(jj + 5) * max_ii + ii] = sum[5];
-                    outptr[(jj + 6) * max_ii + ii] = sum[6];
-                    outptr[(jj + 7) * max_ii + ii] = sum[7];
-                    outptr[(jj + 8) * max_ii + ii] = sum[8];
-                    outptr[(jj + 9) * max_ii + ii] = sum[9];
-                    outptr[(jj + 10) * max_ii + ii] = sum[10];
-                    outptr[(jj + 11) * max_ii + ii] = sum[11];
+                    outptr.row(jj)[ii] = sum[0];
+                    outptr.row(jj + 1)[ii] = sum[1];
+                    outptr.row(jj + 2)[ii] = sum[2];
+                    outptr.row(jj + 3)[ii] = sum[3];
+                    outptr.row(jj + 4)[ii] = sum[4];
+                    outptr.row(jj + 5)[ii] = sum[5];
+                    outptr.row(jj + 6)[ii] = sum[6];
+                    outptr.row(jj + 7)[ii] = sum[7];
+                    outptr.row(jj + 8)[ii] = sum[8];
+                    outptr.row(jj + 9)[ii] = sum[9];
+                    outptr.row(jj + 10)[ii] = sum[10];
+                    outptr.row(jj + 11)[ii] = sum[11];
                 }
                 else
                 {
-                    _mm_storeu_ps(ptmp, _sum0);
-                    _mm_storeu_ps(ptmp + 4, _sum1);
-                    _mm_storeu_ps(ptmp + 8, _sum2);
+                    _mm_store_ps(ptmp, _sum0);
+                    _mm_store_ps(ptmp + 4, _sum1);
+                    _mm_store_ps(ptmp + 8, _sum2);
                 }
 
                 ptmp += 12;
@@ -1946,16 +1946,16 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 }
                 else
                 {
-                    _sum0 = _mm_loadu_ps(ptmp);
-                    _sum1 = _mm_loadu_ps(ptmp + 4);
+                    _sum0 = _mm_load_ps(ptmp);
+                    _sum1 = _mm_load_ps(ptmp + 4);
                 }
 
                 int kk = 0;
                 for (; kk < max_kk; kk++)
                 {
                     __m128 _pA = _mm_set1_ps(pA[0]);
-                    __m128 _pB0 = _mm_loadu_ps(pB);
-                    __m128 _pB1 = _mm_loadu_ps(pB + 4);
+                    __m128 _pB0 = _mm_load_ps(pB);
+                    __m128 _pB1 = _mm_load_ps(pB + 4);
                     _sum0 = _mm_comp_fmadd_ps(_pA, _pB0, _sum0);
                     _sum1 = _mm_comp_fmadd_ps(_pA, _pB1, _sum1);
                     pA += 1;
@@ -1967,19 +1967,19 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     float sum[8];
                     _mm_storeu_ps(sum, _sum0);
                     _mm_storeu_ps(sum + 4, _sum1);
-                    outptr[jj * max_ii + ii] = sum[0];
-                    outptr[(jj + 1) * max_ii + ii] = sum[1];
-                    outptr[(jj + 2) * max_ii + ii] = sum[2];
-                    outptr[(jj + 3) * max_ii + ii] = sum[3];
-                    outptr[(jj + 4) * max_ii + ii] = sum[4];
-                    outptr[(jj + 5) * max_ii + ii] = sum[5];
-                    outptr[(jj + 6) * max_ii + ii] = sum[6];
-                    outptr[(jj + 7) * max_ii + ii] = sum[7];
+                    outptr.row(jj)[ii] = sum[0];
+                    outptr.row(jj + 1)[ii] = sum[1];
+                    outptr.row(jj + 2)[ii] = sum[2];
+                    outptr.row(jj + 3)[ii] = sum[3];
+                    outptr.row(jj + 4)[ii] = sum[4];
+                    outptr.row(jj + 5)[ii] = sum[5];
+                    outptr.row(jj + 6)[ii] = sum[6];
+                    outptr.row(jj + 7)[ii] = sum[7];
                 }
                 else
                 {
-                    _mm_storeu_ps(ptmp, _sum0);
-                    _mm_storeu_ps(ptmp + 4, _sum1);
+                    _mm_store_ps(ptmp, _sum0);
+                    _mm_store_ps(ptmp + 4, _sum1);
                 }
 
                 ptmp += 8;
@@ -1996,14 +1996,14 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 }
                 else
                 {
-                    _sum = _mm_loadu_ps(ptmp);
+                    _sum = _mm_load_ps(ptmp);
                 }
 
                 int kk = 0;
                 for (; kk < max_kk; kk++)
                 {
                     __m128 _pA = _mm_set1_ps(pA[0]);
-                    __m128 _pB = _mm_loadu_ps(pB);
+                    __m128 _pB = _mm_load_ps(pB);
                     _sum = _mm_comp_fmadd_ps(_pA, _pB, _sum);
                     pA += 1;
                     pB += 4;
@@ -2013,14 +2013,14 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 {
                     float sum[4];
                     _mm_storeu_ps(sum, _sum);
-                    outptr[jj * max_ii + ii] = sum[0];
-                    outptr[(jj + 1) * max_ii + ii] = sum[1];
-                    outptr[(jj + 2) * max_ii + ii] = sum[2];
-                    outptr[(jj + 3) * max_ii + ii] = sum[3];
+                    outptr.row(jj)[ii] = sum[0];
+                    outptr.row(jj + 1)[ii] = sum[1];
+                    outptr.row(jj + 2)[ii] = sum[2];
+                    outptr.row(jj + 3)[ii] = sum[3];
                 }
                 else
                 {
-                    _mm_storeu_ps(ptmp, _sum);
+                    _mm_store_ps(ptmp, _sum);
                 }
 
                 ptmp += 4;
@@ -2055,8 +2055,8 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 
                 if (k_end)
                 {
-                    outptr[jj * max_ii + ii] = sum0;
-                    outptr[(jj + 1) * max_ii + ii] = sum1;
+                    outptr.row(jj)[ii] = sum0;
+                    outptr.row(jj + 1)[ii] = sum1;
                 }
                 else
                 {
@@ -2091,7 +2091,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 
                 if (k_end)
                 {
-                    outptr[jj * max_ii + ii] = sum;
+                    outptr.row(jj)[ii] = sum;
                 }
                 else
                 {
@@ -2326,6 +2326,11 @@ static inline void conv3x3s1_winograd23_transform_input_tile(const Mat& bottom_b
             int ti = (j + jj) / w_tiles;
             int tj = (j + jj) % w_tiles;
 
+#ifdef _MSC_VER
+            __declspec(align(64))
+#else
+            __attribute__((aligned(64)))
+#endif
             float tmp[4][4][16];
 
             for (int m = 0; m < 4; m++)
@@ -2341,20 +2346,20 @@ static inline void conv3x3s1_winograd23_transform_input_tile(const Mat& bottom_b
                     {
                         const float* r0 = bottom_blob.channel((k + kk) / 16).row(ti * 2 + m) + (tj * 2) * 16;
 
-                        _r0 = _mm512_loadu_ps(r0);
-                        if (tj * 2 + 1 < w) _r1 = _mm512_loadu_ps(r0 + 16);
-                        if (tj * 2 + 2 < w) _r2 = _mm512_loadu_ps(r0 + 32);
-                        if (tj * 2 + 3 < w) _r3 = _mm512_loadu_ps(r0 + 48);
+                        _r0 = _mm512_load_ps(r0);
+                        if (tj * 2 + 1 < w) _r1 = _mm512_load_ps(r0 + 16);
+                        if (tj * 2 + 2 < w) _r2 = _mm512_load_ps(r0 + 32);
+                        if (tj * 2 + 3 < w) _r3 = _mm512_load_ps(r0 + 48);
                     }
                     if (elempack == 8)
                     {
                         const float* r0 = bottom_blob.channel((k + kk) / 8).row(ti * 2 + m) + (tj * 2) * 8;
                         const float* r1 = bottom_blob.channel((k + kk) / 8 + 1).row(ti * 2 + m) + (tj * 2) * 8;
 
-                        _r0 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_loadu_ps(r0)), _mm256_loadu_ps(r1), 1);
-                        if (tj * 2 + 1 < w) _r1 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_loadu_ps(r0 + 8)), _mm256_loadu_ps(r1 + 8), 1);
-                        if (tj * 2 + 2 < w) _r2 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_loadu_ps(r0 + 16)), _mm256_loadu_ps(r1 + 16), 1);
-                        if (tj * 2 + 3 < w) _r3 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_loadu_ps(r0 + 24)), _mm256_loadu_ps(r1 + 24), 1);
+                        _r0 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_load_ps(r0)), _mm256_load_ps(r1), 1);
+                        if (tj * 2 + 1 < w) _r1 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_load_ps(r0 + 8)), _mm256_load_ps(r1 + 8), 1);
+                        if (tj * 2 + 2 < w) _r2 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_load_ps(r0 + 16)), _mm256_load_ps(r1 + 16), 1);
+                        if (tj * 2 + 3 < w) _r3 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_load_ps(r0 + 24)), _mm256_load_ps(r1 + 24), 1);
                     }
                     if (elempack == 4)
                     {
@@ -2363,10 +2368,10 @@ static inline void conv3x3s1_winograd23_transform_input_tile(const Mat& bottom_b
                         const float* r2 = bottom_blob.channel((k + kk) / 4 + 2).row(ti * 2 + m) + (tj * 2) * 4;
                         const float* r3 = bottom_blob.channel((k + kk) / 4 + 3).row(ti * 2 + m) + (tj * 2) * 4;
 
-                        _r0 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_mm_loadu_ps(r0)), _mm_loadu_ps(r1), 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_loadu_ps(r2)), _mm_loadu_ps(r3), 1), 1);
-                        if (tj * 2 + 1 < w) _r1 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_mm_loadu_ps(r0 + 4)), _mm_loadu_ps(r1 + 4), 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_loadu_ps(r2 + 4)), _mm_loadu_ps(r3 + 4), 1), 1);
-                        if (tj * 2 + 2 < w) _r2 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_mm_loadu_ps(r0 + 8)), _mm_loadu_ps(r1 + 8), 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_loadu_ps(r2 + 8)), _mm_loadu_ps(r3 + 8), 1), 1);
-                        if (tj * 2 + 3 < w) _r3 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_mm_loadu_ps(r0 + 12)), _mm_loadu_ps(r1 + 12), 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_loadu_ps(r2 + 12)), _mm_loadu_ps(r3 + 12), 1), 1);
+                        _r0 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0)), _mm_load_ps(r1), 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r2)), _mm_load_ps(r3), 1), 1);
+                        if (tj * 2 + 1 < w) _r1 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0 + 4)), _mm_load_ps(r1 + 4), 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r2 + 4)), _mm_load_ps(r3 + 4), 1), 1);
+                        if (tj * 2 + 2 < w) _r2 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0 + 8)), _mm_load_ps(r1 + 8), 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r2 + 8)), _mm_load_ps(r3 + 8), 1), 1);
+                        if (tj * 2 + 3 < w) _r3 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0 + 12)), _mm_load_ps(r1 + 12), 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r2 + 12)), _mm_load_ps(r3 + 12), 1), 1);
                     }
                     if (elempack == 1)
                     {
@@ -2421,27 +2426,27 @@ static inline void conv3x3s1_winograd23_transform_input_tile(const Mat& bottom_b
                 __m512 _tmp2 = _mm512_sub_ps(_r2, _r1);
                 __m512 _tmp3 = _mm512_sub_ps(_r3, _r1);
 
-                _mm512_storeu_ps(tmp[0][m], _tmp0);
-                _mm512_storeu_ps(tmp[1][m], _tmp1);
-                _mm512_storeu_ps(tmp[2][m], _tmp2);
-                _mm512_storeu_ps(tmp[3][m], _tmp3);
+                _mm512_store_ps(tmp[0][m], _tmp0);
+                _mm512_store_ps(tmp[1][m], _tmp1);
+                _mm512_store_ps(tmp[2][m], _tmp2);
+                _mm512_store_ps(tmp[3][m], _tmp3);
             }
             for (int m = 0; m < 4; m++)
             {
-                __m512 _r0 = _mm512_loadu_ps(tmp[m][0]);
-                __m512 _r1 = _mm512_loadu_ps(tmp[m][1]);
-                __m512 _r2 = _mm512_loadu_ps(tmp[m][2]);
-                __m512 _r3 = _mm512_loadu_ps(tmp[m][3]);
+                __m512 _r0 = _mm512_load_ps(tmp[m][0]);
+                __m512 _r1 = _mm512_load_ps(tmp[m][1]);
+                __m512 _r2 = _mm512_load_ps(tmp[m][2]);
+                __m512 _r3 = _mm512_load_ps(tmp[m][3]);
 
                 __m512 _tmp0 = _mm512_sub_ps(_r0, _r2);
                 __m512 _tmp1 = _mm512_add_ps(_r1, _r2);
                 __m512 _tmp2 = _mm512_sub_ps(_r2, _r1);
                 __m512 _tmp3 = _mm512_sub_ps(_r3, _r1);
 
-                _mm512_storeu_ps(ptmp, _tmp0);
-                _mm512_storeu_ps(ptmp + 16, _tmp1);
-                _mm512_storeu_ps(ptmp + 32, _tmp2);
-                _mm512_storeu_ps(ptmp + 48, _tmp3);
+                _mm512_store_ps(ptmp, _tmp0);
+                _mm512_store_ps(ptmp + 16, _tmp1);
+                _mm512_store_ps(ptmp + 32, _tmp2);
+                _mm512_store_ps(ptmp + 48, _tmp3);
                 ptmp += 64;
             }
         }
@@ -2455,6 +2460,11 @@ static inline void conv3x3s1_winograd23_transform_input_tile(const Mat& bottom_b
             int ti = (j + jj) / w_tiles;
             int tj = (j + jj) % w_tiles;
 
+#ifdef _MSC_VER
+            __declspec(align(32))
+#else
+            __attribute__((aligned(32)))
+#endif
             float tmp[4][4][8];
 
             for (int m = 0; m < 4; m++)
@@ -2470,20 +2480,20 @@ static inline void conv3x3s1_winograd23_transform_input_tile(const Mat& bottom_b
                     {
                         const float* r0 = bottom_blob.channel((k + kk) / 8).row(ti * 2 + m) + (tj * 2) * 8;
 
-                        _r0 = _mm256_loadu_ps(r0);
-                        if (tj * 2 + 1 < w) _r1 = _mm256_loadu_ps(r0 + 8);
-                        if (tj * 2 + 2 < w) _r2 = _mm256_loadu_ps(r0 + 16);
-                        if (tj * 2 + 3 < w) _r3 = _mm256_loadu_ps(r0 + 24);
+                        _r0 = _mm256_load_ps(r0);
+                        if (tj * 2 + 1 < w) _r1 = _mm256_load_ps(r0 + 8);
+                        if (tj * 2 + 2 < w) _r2 = _mm256_load_ps(r0 + 16);
+                        if (tj * 2 + 3 < w) _r3 = _mm256_load_ps(r0 + 24);
                     }
                     if (elempack == 4)
                     {
                         const float* r0 = bottom_blob.channel((k + kk) / 4).row(ti * 2 + m) + (tj * 2) * 4;
                         const float* r1 = bottom_blob.channel((k + kk) / 4 + 1).row(ti * 2 + m) + (tj * 2) * 4;
 
-                        _r0 = _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_loadu_ps(r0)), _mm_loadu_ps(r1), 1);
-                        if (tj * 2 + 1 < w) _r1 = _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_loadu_ps(r0 + 4)), _mm_loadu_ps(r1 + 4), 1);
-                        if (tj * 2 + 2 < w) _r2 = _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_loadu_ps(r0 + 8)), _mm_loadu_ps(r1 + 8), 1);
-                        if (tj * 2 + 3 < w) _r3 = _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_loadu_ps(r0 + 12)), _mm_loadu_ps(r1 + 12), 1);
+                        _r0 = _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0)), _mm_load_ps(r1), 1);
+                        if (tj * 2 + 1 < w) _r1 = _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0 + 4)), _mm_load_ps(r1 + 4), 1);
+                        if (tj * 2 + 2 < w) _r2 = _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0 + 8)), _mm_load_ps(r1 + 8), 1);
+                        if (tj * 2 + 3 < w) _r3 = _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0 + 12)), _mm_load_ps(r1 + 12), 1);
                     }
                     if (elempack == 1)
                     {
@@ -2520,27 +2530,43 @@ static inline void conv3x3s1_winograd23_transform_input_tile(const Mat& bottom_b
                 __m256 _tmp2 = _mm256_sub_ps(_r2, _r1);
                 __m256 _tmp3 = _mm256_sub_ps(_r3, _r1);
 
+#if defined(__GNUC__) && (__GNUC__ <= 4) && (__GNUC_MINOR__ < 6)
+                // old gcc breaks stack variable alignement
+                // ref https://gcc.gnu.org/bugzilla/show_bug.cgi?id=16660
                 _mm256_storeu_ps(tmp[0][m], _tmp0);
                 _mm256_storeu_ps(tmp[1][m], _tmp1);
                 _mm256_storeu_ps(tmp[2][m], _tmp2);
                 _mm256_storeu_ps(tmp[3][m], _tmp3);
+#else
+                _mm256_store_ps(tmp[0][m], _tmp0);
+                _mm256_store_ps(tmp[1][m], _tmp1);
+                _mm256_store_ps(tmp[2][m], _tmp2);
+                _mm256_store_ps(tmp[3][m], _tmp3);
+#endif
             }
             for (int m = 0; m < 4; m++)
             {
+#if defined(__GNUC__) && (__GNUC__ <= 4) && (__GNUC_MINOR__ < 6)
                 __m256 _r0 = _mm256_loadu_ps(tmp[m][0]);
                 __m256 _r1 = _mm256_loadu_ps(tmp[m][1]);
                 __m256 _r2 = _mm256_loadu_ps(tmp[m][2]);
                 __m256 _r3 = _mm256_loadu_ps(tmp[m][3]);
+#else
+                __m256 _r0 = _mm256_load_ps(tmp[m][0]);
+                __m256 _r1 = _mm256_load_ps(tmp[m][1]);
+                __m256 _r2 = _mm256_load_ps(tmp[m][2]);
+                __m256 _r3 = _mm256_load_ps(tmp[m][3]);
+#endif
 
                 __m256 _tmp0 = _mm256_sub_ps(_r0, _r2);
                 __m256 _tmp1 = _mm256_add_ps(_r1, _r2);
                 __m256 _tmp2 = _mm256_sub_ps(_r2, _r1);
                 __m256 _tmp3 = _mm256_sub_ps(_r3, _r1);
 
-                _mm256_storeu_ps(ptmp, _tmp0);
-                _mm256_storeu_ps(ptmp + 8, _tmp1);
-                _mm256_storeu_ps(ptmp + 16, _tmp2);
-                _mm256_storeu_ps(ptmp + 24, _tmp3);
+                _mm256_store_ps(ptmp, _tmp0);
+                _mm256_store_ps(ptmp + 8, _tmp1);
+                _mm256_store_ps(ptmp + 16, _tmp2);
+                _mm256_store_ps(ptmp + 24, _tmp3);
                 ptmp += 32;
             }
         }
@@ -2554,6 +2580,11 @@ static inline void conv3x3s1_winograd23_transform_input_tile(const Mat& bottom_b
             int ti = (j + jj) / w_tiles;
             int tj = (j + jj) % w_tiles;
 
+#ifdef _MSC_VER
+            __declspec(align(16))
+#else
+            __attribute__((aligned(16)))
+#endif
             float tmp[4][4][4];
 
             for (int m = 0; m < 4; m++)
@@ -2569,10 +2600,10 @@ static inline void conv3x3s1_winograd23_transform_input_tile(const Mat& bottom_b
                     {
                         const float* r0 = bottom_blob.channel((k + kk) / 4).row(ti * 2 + m) + (tj * 2) * 4;
 
-                        _r0 = _mm_loadu_ps(r0);
-                        if (tj * 2 + 1 < w) _r1 = _mm_loadu_ps(r0 + 4);
-                        if (tj * 2 + 2 < w) _r2 = _mm_loadu_ps(r0 + 8);
-                        if (tj * 2 + 3 < w) _r3 = _mm_loadu_ps(r0 + 12);
+                        _r0 = _mm_load_ps(r0);
+                        if (tj * 2 + 1 < w) _r1 = _mm_load_ps(r0 + 4);
+                        if (tj * 2 + 2 < w) _r2 = _mm_load_ps(r0 + 8);
+                        if (tj * 2 + 3 < w) _r3 = _mm_load_ps(r0 + 12);
                     }
                     if (elempack == 1)
                     {
@@ -2600,27 +2631,41 @@ static inline void conv3x3s1_winograd23_transform_input_tile(const Mat& bottom_b
                 __m128 _tmp2 = _mm_sub_ps(_r2, _r1);
                 __m128 _tmp3 = _mm_sub_ps(_r3, _r1);
 
+#if defined(__GNUC__) && (__GNUC__ <= 4) && (__GNUC_MINOR__ < 6)
                 _mm_storeu_ps(tmp[0][m], _tmp0);
                 _mm_storeu_ps(tmp[1][m], _tmp1);
                 _mm_storeu_ps(tmp[2][m], _tmp2);
                 _mm_storeu_ps(tmp[3][m], _tmp3);
+#else
+                _mm_store_ps(tmp[0][m], _tmp0);
+                _mm_store_ps(tmp[1][m], _tmp1);
+                _mm_store_ps(tmp[2][m], _tmp2);
+                _mm_store_ps(tmp[3][m], _tmp3);
+#endif
             }
             for (int m = 0; m < 4; m++)
             {
+#if defined(__GNUC__) && (__GNUC__ <= 4) && (__GNUC_MINOR__ < 6)
                 __m128 _r0 = _mm_loadu_ps(tmp[m][0]);
                 __m128 _r1 = _mm_loadu_ps(tmp[m][1]);
                 __m128 _r2 = _mm_loadu_ps(tmp[m][2]);
                 __m128 _r3 = _mm_loadu_ps(tmp[m][3]);
+#else
+                __m128 _r0 = _mm_load_ps(tmp[m][0]);
+                __m128 _r1 = _mm_load_ps(tmp[m][1]);
+                __m128 _r2 = _mm_load_ps(tmp[m][2]);
+                __m128 _r3 = _mm_load_ps(tmp[m][3]);
+#endif
 
                 __m128 _tmp0 = _mm_sub_ps(_r0, _r2);
                 __m128 _tmp1 = _mm_add_ps(_r1, _r2);
                 __m128 _tmp2 = _mm_sub_ps(_r2, _r1);
                 __m128 _tmp3 = _mm_sub_ps(_r3, _r1);
 
-                _mm_storeu_ps(ptmp, _tmp0);
-                _mm_storeu_ps(ptmp + 4, _tmp1);
-                _mm_storeu_ps(ptmp + 8, _tmp2);
-                _mm_storeu_ps(ptmp + 12, _tmp3);
+                _mm_store_ps(ptmp, _tmp0);
+                _mm_store_ps(ptmp + 4, _tmp1);
+                _mm_store_ps(ptmp + 8, _tmp2);
+                _mm_store_ps(ptmp + 12, _tmp3);
                 ptmp += 16;
             }
         }
@@ -2801,35 +2846,40 @@ static inline void conv3x3s1_winograd23_transform_output_tile(const Mat& top_til
             int ti = (j + jj) / w_tiles;
             int tj = (j + jj) % w_tiles;
 
+#ifdef _MSC_VER
+            __declspec(align(64))
+#else
+            __attribute__((aligned(64)))
+#endif
             float tmp[2][4][16];
 
             for (int m = 0; m < 4; m++)
             {
-                const float* r0 = &top_tile.row(m * 4)[jj * max_ii + ii];
-                const float* r1 = &top_tile.row(m * 4 + 1)[jj * max_ii + ii];
-                const float* r2 = &top_tile.row(m * 4 + 2)[jj * max_ii + ii];
-                const float* r3 = &top_tile.row(m * 4 + 3)[jj * max_ii + ii];
+                const float* r0 = top_tile.depth(m * 4).row(jj) + ii;
+                const float* r1 = top_tile.depth(m * 4 + 1).row(jj) + ii;
+                const float* r2 = top_tile.depth(m * 4 + 2).row(jj) + ii;
+                const float* r3 = top_tile.depth(m * 4 + 3).row(jj) + ii;
 
-                __m512 _r0 = _mm512_loadu_ps(r0);
-                __m512 _r1 = _mm512_loadu_ps(r1);
-                __m512 _r2 = _mm512_loadu_ps(r2);
-                __m512 _r3 = _mm512_loadu_ps(r3);
+                __m512 _r0 = _mm512_load_ps(r0);
+                __m512 _r1 = _mm512_load_ps(r1);
+                __m512 _r2 = _mm512_load_ps(r2);
+                __m512 _r3 = _mm512_load_ps(r3);
 
                 __m512 _tmp0 = _mm512_add_ps(_mm512_add_ps(_r0, _r1), _r2);
                 __m512 _tmp1 = _mm512_add_ps(_mm512_sub_ps(_r1, _r2), _r3);
 
-                _mm512_storeu_ps(tmp[0][m], _tmp0);
-                _mm512_storeu_ps(tmp[1][m], _tmp1);
+                _mm512_store_ps(tmp[0][m], _tmp0);
+                _mm512_store_ps(tmp[1][m], _tmp1);
             }
             for (int m = 0; m < 2; m++)
             {
                 if (ti * 2 + m >= outh)
                     continue;
 
-                __m512 _r0 = _mm512_loadu_ps(tmp[m][0]);
-                __m512 _r1 = _mm512_loadu_ps(tmp[m][1]);
-                __m512 _r2 = _mm512_loadu_ps(tmp[m][2]);
-                __m512 _r3 = _mm512_loadu_ps(tmp[m][3]);
+                __m512 _r0 = _mm512_load_ps(tmp[m][0]);
+                __m512 _r1 = _mm512_load_ps(tmp[m][1]);
+                __m512 _r2 = _mm512_load_ps(tmp[m][2]);
+                __m512 _r3 = _mm512_load_ps(tmp[m][3]);
 
                 __m512 _tmp0 = _mm512_add_ps(_bias0, _mm512_add_ps(_mm512_add_ps(_r0, _r1), _r2));
                 __m512 _tmp1 = _mm512_add_ps(_bias0, _mm512_add_ps(_mm512_sub_ps(_r1, _r2), _r3));
@@ -2838,10 +2888,10 @@ static inline void conv3x3s1_winograd23_transform_output_tile(const Mat& top_til
                 {
                     float* output0 = top_blob.channel((i + ii) / 16).row(ti * 2 + m) + (tj * 2) * 16;
 
-                    _mm512_storeu_ps(output0, _tmp0);
+                    _mm512_store_ps(output0, _tmp0);
                     if (tj * 2 + 1 < outw)
                     {
-                        _mm512_storeu_ps(output0 + 16, _tmp1);
+                        _mm512_store_ps(output0 + 16, _tmp1);
                     }
                 }
                 if (out_elempack == 8)
@@ -2849,12 +2899,12 @@ static inline void conv3x3s1_winograd23_transform_output_tile(const Mat& top_til
                     float* output0 = top_blob.channel((i + ii) / 8).row(ti * 2 + m) + (tj * 2) * 8;
                     float* output1 = top_blob.channel((i + ii) / 8 + 1).row(ti * 2 + m) + (tj * 2) * 8;
 
-                    _mm256_storeu_ps(output0, _mm512_extractf32x8_ps(_tmp0, 0));
-                    _mm256_storeu_ps(output1, _mm512_extractf32x8_ps(_tmp0, 1));
+                    _mm256_store_ps(output0, _mm512_extractf32x8_ps(_tmp0, 0));
+                    _mm256_store_ps(output1, _mm512_extractf32x8_ps(_tmp0, 1));
                     if (tj * 2 + 1 < outw)
                     {
-                        _mm256_storeu_ps(output0 + 8, _mm512_extractf32x8_ps(_tmp1, 0));
-                        _mm256_storeu_ps(output1 + 8, _mm512_extractf32x8_ps(_tmp1, 1));
+                        _mm256_store_ps(output0 + 8, _mm512_extractf32x8_ps(_tmp1, 0));
+                        _mm256_store_ps(output1 + 8, _mm512_extractf32x8_ps(_tmp1, 1));
                     }
                 }
                 if (out_elempack == 4)
@@ -2864,16 +2914,16 @@ static inline void conv3x3s1_winograd23_transform_output_tile(const Mat& top_til
                     float* output2 = top_blob.channel((i + ii) / 4 + 2).row(ti * 2 + m) + (tj * 2) * 4;
                     float* output3 = top_blob.channel((i + ii) / 4 + 3).row(ti * 2 + m) + (tj * 2) * 4;
 
-                    _mm_storeu_ps(output0, _mm512_extractf32x4_ps(_tmp0, 0));
-                    _mm_storeu_ps(output1, _mm512_extractf32x4_ps(_tmp0, 1));
-                    _mm_storeu_ps(output2, _mm512_extractf32x4_ps(_tmp0, 2));
-                    _mm_storeu_ps(output3, _mm512_extractf32x4_ps(_tmp0, 3));
+                    _mm_store_ps(output0, _mm512_extractf32x4_ps(_tmp0, 0));
+                    _mm_store_ps(output1, _mm512_extractf32x4_ps(_tmp0, 1));
+                    _mm_store_ps(output2, _mm512_extractf32x4_ps(_tmp0, 2));
+                    _mm_store_ps(output3, _mm512_extractf32x4_ps(_tmp0, 3));
                     if (tj * 2 + 1 < outw)
                     {
-                        _mm_storeu_ps(output0 + 4, _mm512_extractf32x4_ps(_tmp1, 0));
-                        _mm_storeu_ps(output1 + 4, _mm512_extractf32x4_ps(_tmp1, 1));
-                        _mm_storeu_ps(output2 + 4, _mm512_extractf32x4_ps(_tmp1, 2));
-                        _mm_storeu_ps(output3 + 4, _mm512_extractf32x4_ps(_tmp1, 3));
+                        _mm_store_ps(output0 + 4, _mm512_extractf32x4_ps(_tmp1, 0));
+                        _mm_store_ps(output1 + 4, _mm512_extractf32x4_ps(_tmp1, 1));
+                        _mm_store_ps(output2 + 4, _mm512_extractf32x4_ps(_tmp1, 2));
+                        _mm_store_ps(output3 + 4, _mm512_extractf32x4_ps(_tmp1, 3));
                     }
                 }
                 if (out_elempack == 1)
@@ -2951,35 +3001,52 @@ static inline void conv3x3s1_winograd23_transform_output_tile(const Mat& top_til
             int ti = (j + jj) / w_tiles;
             int tj = (j + jj) % w_tiles;
 
+#ifdef _MSC_VER
+            __declspec(align(32))
+#else
+            __attribute__((aligned(32)))
+#endif
             float tmp[2][4][8];
 
             for (int m = 0; m < 4; m++)
             {
-                const float* r0 = &top_tile.row(m * 4)[jj * max_ii + ii];
-                const float* r1 = &top_tile.row(m * 4 + 1)[jj * max_ii + ii];
-                const float* r2 = &top_tile.row(m * 4 + 2)[jj * max_ii + ii];
-                const float* r3 = &top_tile.row(m * 4 + 3)[jj * max_ii + ii];
+                const float* r0 = top_tile.depth(m * 4).row(jj) + ii;
+                const float* r1 = top_tile.depth(m * 4 + 1).row(jj) + ii;
+                const float* r2 = top_tile.depth(m * 4 + 2).row(jj) + ii;
+                const float* r3 = top_tile.depth(m * 4 + 3).row(jj) + ii;
 
-                __m256 _r0 = _mm256_loadu_ps(r0);
-                __m256 _r1 = _mm256_loadu_ps(r1);
-                __m256 _r2 = _mm256_loadu_ps(r2);
-                __m256 _r3 = _mm256_loadu_ps(r3);
+                __m256 _r0 = _mm256_load_ps(r0);
+                __m256 _r1 = _mm256_load_ps(r1);
+                __m256 _r2 = _mm256_load_ps(r2);
+                __m256 _r3 = _mm256_load_ps(r3);
 
                 __m256 _tmp0 = _mm256_add_ps(_mm256_add_ps(_r0, _r1), _r2);
                 __m256 _tmp1 = _mm256_add_ps(_mm256_sub_ps(_r1, _r2), _r3);
 
+#if defined(__GNUC__) && (__GNUC__ <= 4) && (__GNUC_MINOR__ < 6)
                 _mm256_storeu_ps(tmp[0][m], _tmp0);
                 _mm256_storeu_ps(tmp[1][m], _tmp1);
+#else
+                _mm256_store_ps(tmp[0][m], _tmp0);
+                _mm256_store_ps(tmp[1][m], _tmp1);
+#endif
             }
             for (int m = 0; m < 2; m++)
             {
                 if (ti * 2 + m >= outh)
                     continue;
 
+#if defined(__GNUC__) && (__GNUC__ <= 4) && (__GNUC_MINOR__ < 6)
                 __m256 _r0 = _mm256_loadu_ps(tmp[m][0]);
                 __m256 _r1 = _mm256_loadu_ps(tmp[m][1]);
                 __m256 _r2 = _mm256_loadu_ps(tmp[m][2]);
                 __m256 _r3 = _mm256_loadu_ps(tmp[m][3]);
+#else
+                __m256 _r0 = _mm256_load_ps(tmp[m][0]);
+                __m256 _r1 = _mm256_load_ps(tmp[m][1]);
+                __m256 _r2 = _mm256_load_ps(tmp[m][2]);
+                __m256 _r3 = _mm256_load_ps(tmp[m][3]);
+#endif
 
                 __m256 _tmp0 = _mm256_add_ps(_bias0, _mm256_add_ps(_mm256_add_ps(_r0, _r1), _r2));
                 __m256 _tmp1 = _mm256_add_ps(_bias0, _mm256_add_ps(_mm256_sub_ps(_r1, _r2), _r3));
@@ -2988,10 +3055,10 @@ static inline void conv3x3s1_winograd23_transform_output_tile(const Mat& top_til
                 {
                     float* output0 = top_blob.channel((i + ii) / 8).row(ti * 2 + m) + (tj * 2) * 8;
 
-                    _mm256_storeu_ps(output0, _tmp0);
+                    _mm256_store_ps(output0, _tmp0);
                     if (tj * 2 + 1 < outw)
                     {
-                        _mm256_storeu_ps(output0 + 8, _tmp1);
+                        _mm256_store_ps(output0 + 8, _tmp1);
                     }
                 }
                 if (out_elempack == 4)
@@ -2999,12 +3066,12 @@ static inline void conv3x3s1_winograd23_transform_output_tile(const Mat& top_til
                     float* output0 = top_blob.channel((i + ii) / 4).row(ti * 2 + m) + (tj * 2) * 4;
                     float* output1 = top_blob.channel((i + ii) / 4 + 1).row(ti * 2 + m) + (tj * 2) * 4;
 
-                    _mm_storeu_ps(output0, _mm256_extractf128_ps(_tmp0, 0));
-                    _mm_storeu_ps(output1, _mm256_extractf128_ps(_tmp0, 1));
+                    _mm_store_ps(output0, _mm256_extractf128_ps(_tmp0, 0));
+                    _mm_store_ps(output1, _mm256_extractf128_ps(_tmp0, 1));
                     if (tj * 2 + 1 < outw)
                     {
-                        _mm_storeu_ps(output0 + 4, _mm256_extractf128_ps(_tmp1, 0));
-                        _mm_storeu_ps(output1 + 4, _mm256_extractf128_ps(_tmp1, 1));
+                        _mm_store_ps(output0 + 4, _mm256_extractf128_ps(_tmp1, 0));
+                        _mm_store_ps(output1 + 4, _mm256_extractf128_ps(_tmp1, 1));
                     }
                 }
                 if (out_elempack == 1)
@@ -3058,35 +3125,52 @@ static inline void conv3x3s1_winograd23_transform_output_tile(const Mat& top_til
             int ti = (j + jj) / w_tiles;
             int tj = (j + jj) % w_tiles;
 
+#ifdef _MSC_VER
+            __declspec(align(16))
+#else
+            __attribute__((aligned(16)))
+#endif
             float tmp[2][4][4];
 
             for (int m = 0; m < 4; m++)
             {
-                const float* r0 = &top_tile.row(m * 4)[jj * max_ii + ii];
-                const float* r1 = &top_tile.row(m * 4 + 1)[jj * max_ii + ii];
-                const float* r2 = &top_tile.row(m * 4 + 2)[jj * max_ii + ii];
-                const float* r3 = &top_tile.row(m * 4 + 3)[jj * max_ii + ii];
+                const float* r0 = top_tile.depth(m * 4).row(jj) + ii;
+                const float* r1 = top_tile.depth(m * 4 + 1).row(jj) + ii;
+                const float* r2 = top_tile.depth(m * 4 + 2).row(jj) + ii;
+                const float* r3 = top_tile.depth(m * 4 + 3).row(jj) + ii;
 
-                __m128 _r0 = _mm_loadu_ps(r0);
-                __m128 _r1 = _mm_loadu_ps(r1);
-                __m128 _r2 = _mm_loadu_ps(r2);
-                __m128 _r3 = _mm_loadu_ps(r3);
+                __m128 _r0 = _mm_load_ps(r0);
+                __m128 _r1 = _mm_load_ps(r1);
+                __m128 _r2 = _mm_load_ps(r2);
+                __m128 _r3 = _mm_load_ps(r3);
 
                 __m128 _tmp0 = _mm_add_ps(_mm_add_ps(_r0, _r1), _r2);
                 __m128 _tmp1 = _mm_add_ps(_mm_sub_ps(_r1, _r2), _r3);
 
+#if defined(__GNUC__) && (__GNUC__ <= 4) && (__GNUC_MINOR__ < 6)
                 _mm_storeu_ps(tmp[0][m], _tmp0);
                 _mm_storeu_ps(tmp[1][m], _tmp1);
+#else
+                _mm_store_ps(tmp[0][m], _tmp0);
+                _mm_store_ps(tmp[1][m], _tmp1);
+#endif
             }
             for (int m = 0; m < 2; m++)
             {
                 if (ti * 2 + m >= outh)
                     continue;
 
+#if defined(__GNUC__) && (__GNUC__ <= 4) && (__GNUC_MINOR__ < 6)
                 __m128 _r0 = _mm_loadu_ps(tmp[m][0]);
                 __m128 _r1 = _mm_loadu_ps(tmp[m][1]);
                 __m128 _r2 = _mm_loadu_ps(tmp[m][2]);
                 __m128 _r3 = _mm_loadu_ps(tmp[m][3]);
+#else
+                __m128 _r0 = _mm_load_ps(tmp[m][0]);
+                __m128 _r1 = _mm_load_ps(tmp[m][1]);
+                __m128 _r2 = _mm_load_ps(tmp[m][2]);
+                __m128 _r3 = _mm_load_ps(tmp[m][3]);
+#endif
 
                 __m128 _tmp0 = _mm_add_ps(_bias0, _mm_add_ps(_mm_add_ps(_r0, _r1), _r2));
                 __m128 _tmp1 = _mm_add_ps(_bias0, _mm_add_ps(_mm_sub_ps(_r1, _r2), _r3));
@@ -3095,8 +3179,8 @@ static inline void conv3x3s1_winograd23_transform_output_tile(const Mat& top_til
                 {
                     float* output0 = top_blob.channel((i + ii) / 4).row(ti * 2 + m) + (tj * 2) * 4;
 
-                    _mm_storeu_ps(output0, _tmp0);
-                    if (tj * 2 + 1 < outw) _mm_storeu_ps(output0 + 4, _tmp1);
+                    _mm_store_ps(output0, _tmp0);
+                    if (tj * 2 + 1 < outw) _mm_store_ps(output0 + 4, _tmp1);
                 }
                 if (out_elempack == 1)
                 {
@@ -3142,14 +3226,14 @@ static inline void conv3x3s1_winograd23_transform_output_tile(const Mat& top_til
 
             for (int m = 0; m < 4; m++)
             {
-                float r00 = top_tile.row(m * 4)[jj * max_ii + ii];
-                float r01 = top_tile.row(m * 4)[jj * max_ii + ii + 1];
-                float r10 = top_tile.row(m * 4 + 1)[jj * max_ii + ii];
-                float r11 = top_tile.row(m * 4 + 1)[jj * max_ii + ii + 1];
-                float r20 = top_tile.row(m * 4 + 2)[jj * max_ii + ii];
-                float r21 = top_tile.row(m * 4 + 2)[jj * max_ii + ii + 1];
-                float r30 = top_tile.row(m * 4 + 3)[jj * max_ii + ii];
-                float r31 = top_tile.row(m * 4 + 3)[jj * max_ii + ii + 1];
+                float r00 = top_tile.depth(m * 4).row(jj)[ii];
+                float r01 = top_tile.depth(m * 4).row(jj)[ii + 1];
+                float r10 = top_tile.depth(m * 4 + 1).row(jj)[ii];
+                float r11 = top_tile.depth(m * 4 + 1).row(jj)[ii + 1];
+                float r20 = top_tile.depth(m * 4 + 2).row(jj)[ii];
+                float r21 = top_tile.depth(m * 4 + 2).row(jj)[ii + 1];
+                float r30 = top_tile.depth(m * 4 + 3).row(jj)[ii];
+                float r31 = top_tile.depth(m * 4 + 3).row(jj)[ii + 1];
 
                 float tmp00 = r00 + r10 + r20;
                 float tmp01 = r01 + r11 + r21;
@@ -3210,10 +3294,10 @@ static inline void conv3x3s1_winograd23_transform_output_tile(const Mat& top_til
 
             for (int m = 0; m < 4; m++)
             {
-                float r0 = top_tile.row(m * 4)[jj * max_ii + ii];
-                float r1 = top_tile.row(m * 4 + 1)[jj * max_ii + ii];
-                float r2 = top_tile.row(m * 4 + 2)[jj * max_ii + ii];
-                float r3 = top_tile.row(m * 4 + 3)[jj * max_ii + ii];
+                float r0 = top_tile.depth(m * 4).row(jj)[ii];
+                float r1 = top_tile.depth(m * 4 + 1).row(jj)[ii];
+                float r2 = top_tile.depth(m * 4 + 2).row(jj)[ii];
+                float r3 = top_tile.depth(m * 4 + 3).row(jj)[ii];
 
                 float tmp0 = r0 + r1 + r2;
                 float tmp1 = r1 - r2 + r3;
@@ -3304,7 +3388,7 @@ static void conv3x3s1_winograd23(const Mat& bottom_blob, Mat& top_blob, const Ma
         tmpX.create(TILE_M * TILE_N, B, nT, 4u, opt.blob_allocator);
     }
 
-    Mat top_tileX(TILE_M * TILE_N, B, nT, 4u, opt.blob_allocator);
+    Mat top_tileX(TILE_M, TILE_N, B, nT, 4u, opt.blob_allocator);
 
     #pragma omp parallel for num_threads(nT)
     for (int ppj = 0; ppj < nn_M; ppj++)
@@ -3475,6 +3559,11 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
             int ti = (j + jj) / w_tiles;
             int tj = (j + jj) % w_tiles;
 
+#ifdef _MSC_VER
+            __declspec(align(64))
+#else
+            __attribute__((aligned(64)))
+#endif
             float tmp[6][6][16];
 
             __m512 _vm5 = _mm512_set1_ps(-5.f);
@@ -3498,24 +3587,24 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
                     {
                         const float* r0 = bottom_blob.channel((k + kk) / 16).row(ti * 4 + m) + (tj * 4) * 16;
 
-                        _r0 = _mm512_loadu_ps(r0);
-                        if (tj * 4 + 1 < w) _r1 = _mm512_loadu_ps(r0 + 16);
-                        if (tj * 4 + 2 < w) _r2 = _mm512_loadu_ps(r0 + 32);
-                        if (tj * 4 + 3 < w) _r3 = _mm512_loadu_ps(r0 + 48);
-                        if (tj * 4 + 4 < w) _r4 = _mm512_loadu_ps(r0 + 64);
-                        if (tj * 4 + 5 < w) _r5 = _mm512_loadu_ps(r0 + 80);
+                        _r0 = _mm512_load_ps(r0);
+                        if (tj * 4 + 1 < w) _r1 = _mm512_load_ps(r0 + 16);
+                        if (tj * 4 + 2 < w) _r2 = _mm512_load_ps(r0 + 32);
+                        if (tj * 4 + 3 < w) _r3 = _mm512_load_ps(r0 + 48);
+                        if (tj * 4 + 4 < w) _r4 = _mm512_load_ps(r0 + 64);
+                        if (tj * 4 + 5 < w) _r5 = _mm512_load_ps(r0 + 80);
                     }
                     if (elempack == 8)
                     {
                         const float* r0 = bottom_blob.channel((k + kk) / 8).row(ti * 4 + m) + (tj * 4) * 8;
                         const float* r1 = bottom_blob.channel((k + kk) / 8 + 1).row(ti * 4 + m) + (tj * 4) * 8;
 
-                        _r0 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_loadu_ps(r0)), _mm256_loadu_ps(r1), 1);
-                        if (tj * 4 + 1 < w) _r1 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_loadu_ps(r0 + 8)), _mm256_loadu_ps(r1 + 8), 1);
-                        if (tj * 4 + 2 < w) _r2 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_loadu_ps(r0 + 16)), _mm256_loadu_ps(r1 + 16), 1);
-                        if (tj * 4 + 3 < w) _r3 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_loadu_ps(r0 + 24)), _mm256_loadu_ps(r1 + 24), 1);
-                        if (tj * 4 + 4 < w) _r4 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_loadu_ps(r0 + 32)), _mm256_loadu_ps(r1 + 32), 1);
-                        if (tj * 4 + 5 < w) _r5 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_loadu_ps(r0 + 40)), _mm256_loadu_ps(r1 + 40), 1);
+                        _r0 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_load_ps(r0)), _mm256_load_ps(r1), 1);
+                        if (tj * 4 + 1 < w) _r1 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_load_ps(r0 + 8)), _mm256_load_ps(r1 + 8), 1);
+                        if (tj * 4 + 2 < w) _r2 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_load_ps(r0 + 16)), _mm256_load_ps(r1 + 16), 1);
+                        if (tj * 4 + 3 < w) _r3 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_load_ps(r0 + 24)), _mm256_load_ps(r1 + 24), 1);
+                        if (tj * 4 + 4 < w) _r4 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_load_ps(r0 + 32)), _mm256_load_ps(r1 + 32), 1);
+                        if (tj * 4 + 5 < w) _r5 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_load_ps(r0 + 40)), _mm256_load_ps(r1 + 40), 1);
                     }
                     if (elempack == 4)
                     {
@@ -3524,12 +3613,12 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
                         const float* r2 = bottom_blob.channel((k + kk) / 4 + 2).row(ti * 4 + m) + (tj * 4) * 4;
                         const float* r3 = bottom_blob.channel((k + kk) / 4 + 3).row(ti * 4 + m) + (tj * 4) * 4;
 
-                        _r0 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_mm_loadu_ps(r0)), _mm_loadu_ps(r1), 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_loadu_ps(r2)), _mm_loadu_ps(r3), 1), 1);
-                        if (tj * 4 + 1 < w) _r1 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_mm_loadu_ps(r0 + 4)), _mm_loadu_ps(r1 + 4), 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_loadu_ps(r2 + 4)), _mm_loadu_ps(r3 + 4), 1), 1);
-                        if (tj * 4 + 2 < w) _r2 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_mm_loadu_ps(r0 + 8)), _mm_loadu_ps(r1 + 8), 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_loadu_ps(r2 + 8)), _mm_loadu_ps(r3 + 8), 1), 1);
-                        if (tj * 4 + 3 < w) _r3 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_mm_loadu_ps(r0 + 12)), _mm_loadu_ps(r1 + 12), 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_loadu_ps(r2 + 12)), _mm_loadu_ps(r3 + 12), 1), 1);
-                        if (tj * 4 + 4 < w) _r4 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_mm_loadu_ps(r0 + 16)), _mm_loadu_ps(r1 + 16), 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_loadu_ps(r2 + 16)), _mm_loadu_ps(r3 + 16), 1), 1);
-                        if (tj * 4 + 5 < w) _r5 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_mm_loadu_ps(r0 + 20)), _mm_loadu_ps(r1 + 20), 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_loadu_ps(r2 + 20)), _mm_loadu_ps(r3 + 20), 1), 1);
+                        _r0 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0)), _mm_load_ps(r1), 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r2)), _mm_load_ps(r3), 1), 1);
+                        if (tj * 4 + 1 < w) _r1 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0 + 4)), _mm_load_ps(r1 + 4), 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r2 + 4)), _mm_load_ps(r3 + 4), 1), 1);
+                        if (tj * 4 + 2 < w) _r2 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0 + 8)), _mm_load_ps(r1 + 8), 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r2 + 8)), _mm_load_ps(r3 + 8), 1), 1);
+                        if (tj * 4 + 3 < w) _r3 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0 + 12)), _mm_load_ps(r1 + 12), 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r2 + 12)), _mm_load_ps(r3 + 12), 1), 1);
+                        if (tj * 4 + 4 < w) _r4 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0 + 16)), _mm_load_ps(r1 + 16), 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r2 + 16)), _mm_load_ps(r3 + 16), 1), 1);
+                        if (tj * 4 + 5 < w) _r5 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0 + 20)), _mm_load_ps(r1 + 20), 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r2 + 20)), _mm_load_ps(r3 + 20), 1), 1);
                     }
                     if (elempack == 1)
                     {
@@ -3596,21 +3685,21 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
                 __m512 _tmp4 = _mm512_fmadd_ps(_v2, _mm512_sub_ps(_r1, _r3), _mm512_sub_ps(_r4, _r2));
                 __m512 _tmp5 = _mm512_fmadd_ps(_vm5, _r3, _mm512_fmadd_ps(_v4, _r1, _r5));
 
-                _mm512_storeu_ps(tmp[0][m], _tmp0);
-                _mm512_storeu_ps(tmp[1][m], _tmp1);
-                _mm512_storeu_ps(tmp[2][m], _tmp2);
-                _mm512_storeu_ps(tmp[3][m], _tmp3);
-                _mm512_storeu_ps(tmp[4][m], _tmp4);
-                _mm512_storeu_ps(tmp[5][m], _tmp5);
+                _mm512_store_ps(tmp[0][m], _tmp0);
+                _mm512_store_ps(tmp[1][m], _tmp1);
+                _mm512_store_ps(tmp[2][m], _tmp2);
+                _mm512_store_ps(tmp[3][m], _tmp3);
+                _mm512_store_ps(tmp[4][m], _tmp4);
+                _mm512_store_ps(tmp[5][m], _tmp5);
             }
             for (int m = 0; m < 6; m++)
             {
-                __m512 _r0 = _mm512_loadu_ps(tmp[m][0]);
-                __m512 _r1 = _mm512_loadu_ps(tmp[m][1]);
-                __m512 _r2 = _mm512_loadu_ps(tmp[m][2]);
-                __m512 _r3 = _mm512_loadu_ps(tmp[m][3]);
-                __m512 _r4 = _mm512_loadu_ps(tmp[m][4]);
-                __m512 _r5 = _mm512_loadu_ps(tmp[m][5]);
+                __m512 _r0 = _mm512_load_ps(tmp[m][0]);
+                __m512 _r1 = _mm512_load_ps(tmp[m][1]);
+                __m512 _r2 = _mm512_load_ps(tmp[m][2]);
+                __m512 _r3 = _mm512_load_ps(tmp[m][3]);
+                __m512 _r4 = _mm512_load_ps(tmp[m][4]);
+                __m512 _r5 = _mm512_load_ps(tmp[m][5]);
 
                 __m512 _tmp0 = _mm512_fmadd_ps(_vm5, _r2, _mm512_fmadd_ps(_v4, _r0, _r4));
                 __m512 _tmp1 = _mm512_fmadd_ps(_vm4, _mm512_add_ps(_r1, _r2), _mm512_add_ps(_r4, _r3));
@@ -3619,12 +3708,12 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
                 __m512 _tmp4 = _mm512_fmadd_ps(_v2, _mm512_sub_ps(_r1, _r3), _mm512_sub_ps(_r4, _r2));
                 __m512 _tmp5 = _mm512_fmadd_ps(_vm5, _r3, _mm512_fmadd_ps(_v4, _r1, _r5));
 
-                _mm512_storeu_ps(ptmp, _tmp0);
-                _mm512_storeu_ps(ptmp + 16, _tmp1);
-                _mm512_storeu_ps(ptmp + 32, _tmp2);
-                _mm512_storeu_ps(ptmp + 48, _tmp3);
-                _mm512_storeu_ps(ptmp + 64, _tmp4);
-                _mm512_storeu_ps(ptmp + 80, _tmp5);
+                _mm512_store_ps(ptmp, _tmp0);
+                _mm512_store_ps(ptmp + 16, _tmp1);
+                _mm512_store_ps(ptmp + 32, _tmp2);
+                _mm512_store_ps(ptmp + 48, _tmp3);
+                _mm512_store_ps(ptmp + 64, _tmp4);
+                _mm512_store_ps(ptmp + 80, _tmp5);
                 ptmp += 96;
             }
         }
@@ -3638,6 +3727,11 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
             int ti = (j + jj) / w_tiles;
             int tj = (j + jj) % w_tiles;
 
+#ifdef _MSC_VER
+            __declspec(align(32))
+#else
+            __attribute__((aligned(32)))
+#endif
             float tmp[6][6][8];
 
             __m256 _vm5 = _mm256_set1_ps(-5.f);
@@ -3661,24 +3755,24 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
                     {
                         const float* r0 = bottom_blob.channel((k + kk) / 8).row(ti * 4 + m) + (tj * 4) * 8;
 
-                        _r0 = _mm256_loadu_ps(r0);
-                        if (tj * 4 + 1 < w) _r1 = _mm256_loadu_ps(r0 + 8);
-                        if (tj * 4 + 2 < w) _r2 = _mm256_loadu_ps(r0 + 16);
-                        if (tj * 4 + 3 < w) _r3 = _mm256_loadu_ps(r0 + 24);
-                        if (tj * 4 + 4 < w) _r4 = _mm256_loadu_ps(r0 + 32);
-                        if (tj * 4 + 5 < w) _r5 = _mm256_loadu_ps(r0 + 40);
+                        _r0 = _mm256_load_ps(r0);
+                        if (tj * 4 + 1 < w) _r1 = _mm256_load_ps(r0 + 8);
+                        if (tj * 4 + 2 < w) _r2 = _mm256_load_ps(r0 + 16);
+                        if (tj * 4 + 3 < w) _r3 = _mm256_load_ps(r0 + 24);
+                        if (tj * 4 + 4 < w) _r4 = _mm256_load_ps(r0 + 32);
+                        if (tj * 4 + 5 < w) _r5 = _mm256_load_ps(r0 + 40);
                     }
                     if (elempack == 4)
                     {
                         const float* r0 = bottom_blob.channel((k + kk) / 4).row(ti * 4 + m) + (tj * 4) * 4;
                         const float* r1 = bottom_blob.channel((k + kk) / 4 + 1).row(ti * 4 + m) + (tj * 4) * 4;
 
-                        _r0 = _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_loadu_ps(r0)), _mm_loadu_ps(r1), 1);
-                        if (tj * 4 + 1 < w) _r1 = _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_loadu_ps(r0 + 4)), _mm_loadu_ps(r1 + 4), 1);
-                        if (tj * 4 + 2 < w) _r2 = _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_loadu_ps(r0 + 8)), _mm_loadu_ps(r1 + 8), 1);
-                        if (tj * 4 + 3 < w) _r3 = _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_loadu_ps(r0 + 12)), _mm_loadu_ps(r1 + 12), 1);
-                        if (tj * 4 + 4 < w) _r4 = _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_loadu_ps(r0 + 16)), _mm_loadu_ps(r1 + 16), 1);
-                        if (tj * 4 + 5 < w) _r5 = _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_loadu_ps(r0 + 20)), _mm_loadu_ps(r1 + 20), 1);
+                        _r0 = _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0)), _mm_load_ps(r1), 1);
+                        if (tj * 4 + 1 < w) _r1 = _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0 + 4)), _mm_load_ps(r1 + 4), 1);
+                        if (tj * 4 + 2 < w) _r2 = _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0 + 8)), _mm_load_ps(r1 + 8), 1);
+                        if (tj * 4 + 3 < w) _r3 = _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0 + 12)), _mm_load_ps(r1 + 12), 1);
+                        if (tj * 4 + 4 < w) _r4 = _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0 + 16)), _mm_load_ps(r1 + 16), 1);
+                        if (tj * 4 + 5 < w) _r5 = _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0 + 20)), _mm_load_ps(r1 + 20), 1);
                     }
                     if (elempack == 1)
                     {
@@ -3727,21 +3821,39 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
                 __m256 _tmp4 = _mm256_comp_fmadd_ps(_v2, _mm256_sub_ps(_r1, _r3), _mm256_sub_ps(_r4, _r2));
                 __m256 _tmp5 = _mm256_comp_fmadd_ps(_vm5, _r3, _mm256_comp_fmadd_ps(_v4, _r1, _r5));
 
+#if defined(__GNUC__) && (__GNUC__ <= 4) && (__GNUC_MINOR__ < 6)
                 _mm256_storeu_ps(tmp[0][m], _tmp0);
                 _mm256_storeu_ps(tmp[1][m], _tmp1);
                 _mm256_storeu_ps(tmp[2][m], _tmp2);
                 _mm256_storeu_ps(tmp[3][m], _tmp3);
                 _mm256_storeu_ps(tmp[4][m], _tmp4);
                 _mm256_storeu_ps(tmp[5][m], _tmp5);
+#else
+                _mm256_store_ps(tmp[0][m], _tmp0);
+                _mm256_store_ps(tmp[1][m], _tmp1);
+                _mm256_store_ps(tmp[2][m], _tmp2);
+                _mm256_store_ps(tmp[3][m], _tmp3);
+                _mm256_store_ps(tmp[4][m], _tmp4);
+                _mm256_store_ps(tmp[5][m], _tmp5);
+#endif
             }
             for (int m = 0; m < 6; m++)
             {
+#if defined(__GNUC__) && (__GNUC__ <= 4) && (__GNUC_MINOR__ < 6)
                 __m256 _r0 = _mm256_loadu_ps(tmp[m][0]);
                 __m256 _r1 = _mm256_loadu_ps(tmp[m][1]);
                 __m256 _r2 = _mm256_loadu_ps(tmp[m][2]);
                 __m256 _r3 = _mm256_loadu_ps(tmp[m][3]);
                 __m256 _r4 = _mm256_loadu_ps(tmp[m][4]);
                 __m256 _r5 = _mm256_loadu_ps(tmp[m][5]);
+#else
+                __m256 _r0 = _mm256_load_ps(tmp[m][0]);
+                __m256 _r1 = _mm256_load_ps(tmp[m][1]);
+                __m256 _r2 = _mm256_load_ps(tmp[m][2]);
+                __m256 _r3 = _mm256_load_ps(tmp[m][3]);
+                __m256 _r4 = _mm256_load_ps(tmp[m][4]);
+                __m256 _r5 = _mm256_load_ps(tmp[m][5]);
+#endif
 
                 __m256 _tmp0 = _mm256_comp_fmadd_ps(_vm5, _r2, _mm256_comp_fmadd_ps(_v4, _r0, _r4));
                 __m256 _tmp1 = _mm256_comp_fmadd_ps(_vm4, _mm256_add_ps(_r1, _r2), _mm256_add_ps(_r4, _r3));
@@ -3750,12 +3862,12 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
                 __m256 _tmp4 = _mm256_comp_fmadd_ps(_v2, _mm256_sub_ps(_r1, _r3), _mm256_sub_ps(_r4, _r2));
                 __m256 _tmp5 = _mm256_comp_fmadd_ps(_vm5, _r3, _mm256_comp_fmadd_ps(_v4, _r1, _r5));
 
-                _mm256_storeu_ps(ptmp, _tmp0);
-                _mm256_storeu_ps(ptmp + 8, _tmp1);
-                _mm256_storeu_ps(ptmp + 16, _tmp2);
-                _mm256_storeu_ps(ptmp + 24, _tmp3);
-                _mm256_storeu_ps(ptmp + 32, _tmp4);
-                _mm256_storeu_ps(ptmp + 40, _tmp5);
+                _mm256_store_ps(ptmp, _tmp0);
+                _mm256_store_ps(ptmp + 8, _tmp1);
+                _mm256_store_ps(ptmp + 16, _tmp2);
+                _mm256_store_ps(ptmp + 24, _tmp3);
+                _mm256_store_ps(ptmp + 32, _tmp4);
+                _mm256_store_ps(ptmp + 40, _tmp5);
                 ptmp += 48;
             }
         }
@@ -3769,6 +3881,11 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
             int ti = (j + jj) / w_tiles;
             int tj = (j + jj) % w_tiles;
 
+#ifdef _MSC_VER
+            __declspec(align(16))
+#else
+            __attribute__((aligned(16)))
+#endif
             float tmp[6][6][4];
 
             __m128 _vm5 = _mm_set1_ps(-5.f);
@@ -3792,12 +3909,12 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
                     {
                         const float* r0 = bottom_blob.channel((k + kk) / 4).row(ti * 4 + m) + (tj * 4) * 4;
 
-                        _r0 = _mm_loadu_ps(r0);
-                        if (tj * 4 + 1 < w) _r1 = _mm_loadu_ps(r0 + 4);
-                        if (tj * 4 + 2 < w) _r2 = _mm_loadu_ps(r0 + 8);
-                        if (tj * 4 + 3 < w) _r3 = _mm_loadu_ps(r0 + 12);
-                        if (tj * 4 + 4 < w) _r4 = _mm_loadu_ps(r0 + 16);
-                        if (tj * 4 + 5 < w) _r5 = _mm_loadu_ps(r0 + 20);
+                        _r0 = _mm_load_ps(r0);
+                        if (tj * 4 + 1 < w) _r1 = _mm_load_ps(r0 + 4);
+                        if (tj * 4 + 2 < w) _r2 = _mm_load_ps(r0 + 8);
+                        if (tj * 4 + 3 < w) _r3 = _mm_load_ps(r0 + 12);
+                        if (tj * 4 + 4 < w) _r4 = _mm_load_ps(r0 + 16);
+                        if (tj * 4 + 5 < w) _r5 = _mm_load_ps(r0 + 20);
                     }
                     if (elempack == 1)
                     {
@@ -3837,21 +3954,39 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
                 __m128 _tmp4 = _mm_comp_fmadd_ps(_v2, _mm_sub_ps(_r1, _r3), _mm_sub_ps(_r4, _r2));
                 __m128 _tmp5 = _mm_comp_fmadd_ps(_vm5, _r3, _mm_comp_fmadd_ps(_v4, _r1, _r5));
 
+#if defined(__GNUC__) && (__GNUC__ <= 4) && (__GNUC_MINOR__ < 6)
                 _mm_storeu_ps(tmp[0][m], _tmp0);
                 _mm_storeu_ps(tmp[1][m], _tmp1);
                 _mm_storeu_ps(tmp[2][m], _tmp2);
                 _mm_storeu_ps(tmp[3][m], _tmp3);
                 _mm_storeu_ps(tmp[4][m], _tmp4);
                 _mm_storeu_ps(tmp[5][m], _tmp5);
+#else
+                _mm_store_ps(tmp[0][m], _tmp0);
+                _mm_store_ps(tmp[1][m], _tmp1);
+                _mm_store_ps(tmp[2][m], _tmp2);
+                _mm_store_ps(tmp[3][m], _tmp3);
+                _mm_store_ps(tmp[4][m], _tmp4);
+                _mm_store_ps(tmp[5][m], _tmp5);
+#endif
             }
             for (int m = 0; m < 6; m++)
             {
+#if defined(__GNUC__) && (__GNUC__ <= 4) && (__GNUC_MINOR__ < 6)
                 __m128 _r0 = _mm_loadu_ps(tmp[m][0]);
                 __m128 _r1 = _mm_loadu_ps(tmp[m][1]);
                 __m128 _r2 = _mm_loadu_ps(tmp[m][2]);
                 __m128 _r3 = _mm_loadu_ps(tmp[m][3]);
                 __m128 _r4 = _mm_loadu_ps(tmp[m][4]);
                 __m128 _r5 = _mm_loadu_ps(tmp[m][5]);
+#else
+                __m128 _r0 = _mm_load_ps(tmp[m][0]);
+                __m128 _r1 = _mm_load_ps(tmp[m][1]);
+                __m128 _r2 = _mm_load_ps(tmp[m][2]);
+                __m128 _r3 = _mm_load_ps(tmp[m][3]);
+                __m128 _r4 = _mm_load_ps(tmp[m][4]);
+                __m128 _r5 = _mm_load_ps(tmp[m][5]);
+#endif
 
                 __m128 _tmp0 = _mm_comp_fmadd_ps(_vm5, _r2, _mm_comp_fmadd_ps(_v4, _r0, _r4));
                 __m128 _tmp1 = _mm_comp_fmadd_ps(_vm4, _mm_add_ps(_r1, _r2), _mm_add_ps(_r4, _r3));
@@ -3860,12 +3995,12 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
                 __m128 _tmp4 = _mm_comp_fmadd_ps(_v2, _mm_sub_ps(_r1, _r3), _mm_sub_ps(_r4, _r2));
                 __m128 _tmp5 = _mm_comp_fmadd_ps(_vm5, _r3, _mm_comp_fmadd_ps(_v4, _r1, _r5));
 
-                _mm_storeu_ps(ptmp, _tmp0);
-                _mm_storeu_ps(ptmp + 4, _tmp1);
-                _mm_storeu_ps(ptmp + 8, _tmp2);
-                _mm_storeu_ps(ptmp + 12, _tmp3);
-                _mm_storeu_ps(ptmp + 16, _tmp4);
-                _mm_storeu_ps(ptmp + 20, _tmp5);
+                _mm_store_ps(ptmp, _tmp0);
+                _mm_store_ps(ptmp + 4, _tmp1);
+                _mm_store_ps(ptmp + 8, _tmp2);
+                _mm_store_ps(ptmp + 12, _tmp3);
+                _mm_store_ps(ptmp + 16, _tmp4);
+                _mm_store_ps(ptmp + 20, _tmp5);
                 ptmp += 24;
             }
         }
@@ -4090,6 +4225,11 @@ static inline void conv3x3s1_winograd43_transform_output_tile(const Mat& top_til
             int ti = (j + jj) / w_tiles;
             int tj = (j + jj) % w_tiles;
 
+#ifdef _MSC_VER
+            __declspec(align(64))
+#else
+            __attribute__((aligned(64)))
+#endif
             float tmp[4][6][16];
 
             __m512 _v2 = _mm512_set1_ps(2.f);
@@ -4098,19 +4238,19 @@ static inline void conv3x3s1_winograd43_transform_output_tile(const Mat& top_til
 
             for (int m = 0; m < 6; m++)
             {
-                const float* r0 = &top_tile.row(m * 6)[jj * max_ii + ii];
-                const float* r1 = &top_tile.row(m * 6 + 1)[jj * max_ii + ii];
-                const float* r2 = &top_tile.row(m * 6 + 2)[jj * max_ii + ii];
-                const float* r3 = &top_tile.row(m * 6 + 3)[jj * max_ii + ii];
-                const float* r4 = &top_tile.row(m * 6 + 4)[jj * max_ii + ii];
-                const float* r5 = &top_tile.row(m * 6 + 5)[jj * max_ii + ii];
+                const float* r0 = top_tile.depth(m * 6).row(jj) + ii;
+                const float* r1 = top_tile.depth(m * 6 + 1).row(jj) + ii;
+                const float* r2 = top_tile.depth(m * 6 + 2).row(jj) + ii;
+                const float* r3 = top_tile.depth(m * 6 + 3).row(jj) + ii;
+                const float* r4 = top_tile.depth(m * 6 + 4).row(jj) + ii;
+                const float* r5 = top_tile.depth(m * 6 + 5).row(jj) + ii;
 
-                __m512 _r0 = _mm512_loadu_ps(r0);
-                __m512 _r1 = _mm512_loadu_ps(r1);
-                __m512 _r2 = _mm512_loadu_ps(r2);
-                __m512 _r3 = _mm512_loadu_ps(r3);
-                __m512 _r4 = _mm512_loadu_ps(r4);
-                __m512 _r5 = _mm512_loadu_ps(r5);
+                __m512 _r0 = _mm512_load_ps(r0);
+                __m512 _r1 = _mm512_load_ps(r1);
+                __m512 _r2 = _mm512_load_ps(r2);
+                __m512 _r3 = _mm512_load_ps(r3);
+                __m512 _r4 = _mm512_load_ps(r4);
+                __m512 _r5 = _mm512_load_ps(r5);
 
                 __m512 _tmp02a = _mm512_add_ps(_r1, _r2);
                 __m512 _tmp13a = _mm512_sub_ps(_r1, _r2);
@@ -4121,22 +4261,22 @@ static inline void conv3x3s1_winograd43_transform_output_tile(const Mat& top_til
                 __m512 _tmp2 = _mm512_fmadd_ps(_v4, _tmp02b, _tmp02a);
                 __m512 _tmp3 = _mm512_fmadd_ps(_v8, _tmp13b, _mm512_add_ps(_r5, _tmp13a));
 
-                _mm512_storeu_ps(tmp[0][m], _tmp0);
-                _mm512_storeu_ps(tmp[1][m], _tmp1);
-                _mm512_storeu_ps(tmp[2][m], _tmp2);
-                _mm512_storeu_ps(tmp[3][m], _tmp3);
+                _mm512_store_ps(tmp[0][m], _tmp0);
+                _mm512_store_ps(tmp[1][m], _tmp1);
+                _mm512_store_ps(tmp[2][m], _tmp2);
+                _mm512_store_ps(tmp[3][m], _tmp3);
             }
             for (int m = 0; m < 4; m++)
             {
                 if (ti * 4 + m >= outh)
                     continue;
 
-                __m512 _r0 = _mm512_loadu_ps(tmp[m][0]);
-                __m512 _r1 = _mm512_loadu_ps(tmp[m][1]);
-                __m512 _r2 = _mm512_loadu_ps(tmp[m][2]);
-                __m512 _r3 = _mm512_loadu_ps(tmp[m][3]);
-                __m512 _r4 = _mm512_loadu_ps(tmp[m][4]);
-                __m512 _r5 = _mm512_loadu_ps(tmp[m][5]);
+                __m512 _r0 = _mm512_load_ps(tmp[m][0]);
+                __m512 _r1 = _mm512_load_ps(tmp[m][1]);
+                __m512 _r2 = _mm512_load_ps(tmp[m][2]);
+                __m512 _r3 = _mm512_load_ps(tmp[m][3]);
+                __m512 _r4 = _mm512_load_ps(tmp[m][4]);
+                __m512 _r5 = _mm512_load_ps(tmp[m][5]);
 
                 __m512 _tmp02a = _mm512_add_ps(_r1, _r2);
                 __m512 _tmp13a = _mm512_sub_ps(_r1, _r2);
@@ -4151,32 +4291,32 @@ static inline void conv3x3s1_winograd43_transform_output_tile(const Mat& top_til
                 {
                     float* output0 = top_blob.channel((i + ii) / 16).row(ti * 4 + m) + (tj * 4) * 16;
 
-                    _mm512_storeu_ps(output0, _tmp0);
-                    if (tj * 4 + 1 < outw) _mm512_storeu_ps(output0 + 16, _tmp1);
-                    if (tj * 4 + 2 < outw) _mm512_storeu_ps(output0 + 32, _tmp2);
-                    if (tj * 4 + 3 < outw) _mm512_storeu_ps(output0 + 48, _tmp3);
+                    _mm512_store_ps(output0, _tmp0);
+                    if (tj * 4 + 1 < outw) _mm512_store_ps(output0 + 16, _tmp1);
+                    if (tj * 4 + 2 < outw) _mm512_store_ps(output0 + 32, _tmp2);
+                    if (tj * 4 + 3 < outw) _mm512_store_ps(output0 + 48, _tmp3);
                 }
                 if (out_elempack == 8)
                 {
                     float* output0 = top_blob.channel((i + ii) / 8).row(ti * 4 + m) + (tj * 4) * 8;
                     float* output1 = top_blob.channel((i + ii) / 8 + 1).row(ti * 4 + m) + (tj * 4) * 8;
 
-                    _mm256_storeu_ps(output0, _mm512_extractf32x8_ps(_tmp0, 0));
-                    _mm256_storeu_ps(output1, _mm512_extractf32x8_ps(_tmp0, 1));
+                    _mm256_store_ps(output0, _mm512_extractf32x8_ps(_tmp0, 0));
+                    _mm256_store_ps(output1, _mm512_extractf32x8_ps(_tmp0, 1));
                     if (tj * 4 + 1 < outw)
                     {
-                        _mm256_storeu_ps(output0 + 8, _mm512_extractf32x8_ps(_tmp1, 0));
-                        _mm256_storeu_ps(output1 + 8, _mm512_extractf32x8_ps(_tmp1, 1));
+                        _mm256_store_ps(output0 + 8, _mm512_extractf32x8_ps(_tmp1, 0));
+                        _mm256_store_ps(output1 + 8, _mm512_extractf32x8_ps(_tmp1, 1));
                     }
                     if (tj * 4 + 2 < outw)
                     {
-                        _mm256_storeu_ps(output0 + 16, _mm512_extractf32x8_ps(_tmp2, 0));
-                        _mm256_storeu_ps(output1 + 16, _mm512_extractf32x8_ps(_tmp2, 1));
+                        _mm256_store_ps(output0 + 16, _mm512_extractf32x8_ps(_tmp2, 0));
+                        _mm256_store_ps(output1 + 16, _mm512_extractf32x8_ps(_tmp2, 1));
                     }
                     if (tj * 4 + 3 < outw)
                     {
-                        _mm256_storeu_ps(output0 + 24, _mm512_extractf32x8_ps(_tmp3, 0));
-                        _mm256_storeu_ps(output1 + 24, _mm512_extractf32x8_ps(_tmp3, 1));
+                        _mm256_store_ps(output0 + 24, _mm512_extractf32x8_ps(_tmp3, 0));
+                        _mm256_store_ps(output1 + 24, _mm512_extractf32x8_ps(_tmp3, 1));
                     }
                 }
                 if (out_elempack == 4)
@@ -4186,30 +4326,30 @@ static inline void conv3x3s1_winograd43_transform_output_tile(const Mat& top_til
                     float* output2 = top_blob.channel((i + ii) / 4 + 2).row(ti * 4 + m) + (tj * 4) * 4;
                     float* output3 = top_blob.channel((i + ii) / 4 + 3).row(ti * 4 + m) + (tj * 4) * 4;
 
-                    _mm_storeu_ps(output0, _mm512_extractf32x4_ps(_tmp0, 0));
-                    _mm_storeu_ps(output1, _mm512_extractf32x4_ps(_tmp0, 1));
-                    _mm_storeu_ps(output2, _mm512_extractf32x4_ps(_tmp0, 2));
-                    _mm_storeu_ps(output3, _mm512_extractf32x4_ps(_tmp0, 3));
+                    _mm_store_ps(output0, _mm512_extractf32x4_ps(_tmp0, 0));
+                    _mm_store_ps(output1, _mm512_extractf32x4_ps(_tmp0, 1));
+                    _mm_store_ps(output2, _mm512_extractf32x4_ps(_tmp0, 2));
+                    _mm_store_ps(output3, _mm512_extractf32x4_ps(_tmp0, 3));
                     if (tj * 4 + 1 < outw)
                     {
-                        _mm_storeu_ps(output0 + 4, _mm512_extractf32x4_ps(_tmp1, 0));
-                        _mm_storeu_ps(output1 + 4, _mm512_extractf32x4_ps(_tmp1, 1));
-                        _mm_storeu_ps(output2 + 4, _mm512_extractf32x4_ps(_tmp1, 2));
-                        _mm_storeu_ps(output3 + 4, _mm512_extractf32x4_ps(_tmp1, 3));
+                        _mm_store_ps(output0 + 4, _mm512_extractf32x4_ps(_tmp1, 0));
+                        _mm_store_ps(output1 + 4, _mm512_extractf32x4_ps(_tmp1, 1));
+                        _mm_store_ps(output2 + 4, _mm512_extractf32x4_ps(_tmp1, 2));
+                        _mm_store_ps(output3 + 4, _mm512_extractf32x4_ps(_tmp1, 3));
                     }
                     if (tj * 4 + 2 < outw)
                     {
-                        _mm_storeu_ps(output0 + 8, _mm512_extractf32x4_ps(_tmp2, 0));
-                        _mm_storeu_ps(output1 + 8, _mm512_extractf32x4_ps(_tmp2, 1));
-                        _mm_storeu_ps(output2 + 8, _mm512_extractf32x4_ps(_tmp2, 2));
-                        _mm_storeu_ps(output3 + 8, _mm512_extractf32x4_ps(_tmp2, 3));
+                        _mm_store_ps(output0 + 8, _mm512_extractf32x4_ps(_tmp2, 0));
+                        _mm_store_ps(output1 + 8, _mm512_extractf32x4_ps(_tmp2, 1));
+                        _mm_store_ps(output2 + 8, _mm512_extractf32x4_ps(_tmp2, 2));
+                        _mm_store_ps(output3 + 8, _mm512_extractf32x4_ps(_tmp2, 3));
                     }
                     if (tj * 4 + 3 < outw)
                     {
-                        _mm_storeu_ps(output0 + 12, _mm512_extractf32x4_ps(_tmp3, 0));
-                        _mm_storeu_ps(output1 + 12, _mm512_extractf32x4_ps(_tmp3, 1));
-                        _mm_storeu_ps(output2 + 12, _mm512_extractf32x4_ps(_tmp3, 2));
-                        _mm_storeu_ps(output3 + 12, _mm512_extractf32x4_ps(_tmp3, 3));
+                        _mm_store_ps(output0 + 12, _mm512_extractf32x4_ps(_tmp3, 0));
+                        _mm_store_ps(output1 + 12, _mm512_extractf32x4_ps(_tmp3, 1));
+                        _mm_store_ps(output2 + 12, _mm512_extractf32x4_ps(_tmp3, 2));
+                        _mm_store_ps(output3 + 12, _mm512_extractf32x4_ps(_tmp3, 3));
                     }
                 }
                 if (out_elempack == 1)
@@ -4328,6 +4468,11 @@ static inline void conv3x3s1_winograd43_transform_output_tile(const Mat& top_til
             int ti = (j + jj) / w_tiles;
             int tj = (j + jj) % w_tiles;
 
+#ifdef _MSC_VER
+            __declspec(align(32))
+#else
+            __attribute__((aligned(32)))
+#endif
             float tmp[4][6][8];
 
             __m256 _v2 = _mm256_set1_ps(2.f);
@@ -4336,19 +4481,19 @@ static inline void conv3x3s1_winograd43_transform_output_tile(const Mat& top_til
 
             for (int m = 0; m < 6; m++)
             {
-                const float* r0 = &top_tile.row(m * 6)[jj * max_ii + ii];
-                const float* r1 = &top_tile.row(m * 6 + 1)[jj * max_ii + ii];
-                const float* r2 = &top_tile.row(m * 6 + 2)[jj * max_ii + ii];
-                const float* r3 = &top_tile.row(m * 6 + 3)[jj * max_ii + ii];
-                const float* r4 = &top_tile.row(m * 6 + 4)[jj * max_ii + ii];
-                const float* r5 = &top_tile.row(m * 6 + 5)[jj * max_ii + ii];
+                const float* r0 = top_tile.depth(m * 6).row(jj) + ii;
+                const float* r1 = top_tile.depth(m * 6 + 1).row(jj) + ii;
+                const float* r2 = top_tile.depth(m * 6 + 2).row(jj) + ii;
+                const float* r3 = top_tile.depth(m * 6 + 3).row(jj) + ii;
+                const float* r4 = top_tile.depth(m * 6 + 4).row(jj) + ii;
+                const float* r5 = top_tile.depth(m * 6 + 5).row(jj) + ii;
 
-                __m256 _r0 = _mm256_loadu_ps(r0);
-                __m256 _r1 = _mm256_loadu_ps(r1);
-                __m256 _r2 = _mm256_loadu_ps(r2);
-                __m256 _r3 = _mm256_loadu_ps(r3);
-                __m256 _r4 = _mm256_loadu_ps(r4);
-                __m256 _r5 = _mm256_loadu_ps(r5);
+                __m256 _r0 = _mm256_load_ps(r0);
+                __m256 _r1 = _mm256_load_ps(r1);
+                __m256 _r2 = _mm256_load_ps(r2);
+                __m256 _r3 = _mm256_load_ps(r3);
+                __m256 _r4 = _mm256_load_ps(r4);
+                __m256 _r5 = _mm256_load_ps(r5);
 
                 __m256 _tmp02a = _mm256_add_ps(_r1, _r2);
                 __m256 _tmp13a = _mm256_sub_ps(_r1, _r2);
@@ -4359,22 +4504,38 @@ static inline void conv3x3s1_winograd43_transform_output_tile(const Mat& top_til
                 __m256 _tmp2 = _mm256_comp_fmadd_ps(_v4, _tmp02b, _tmp02a);
                 __m256 _tmp3 = _mm256_comp_fmadd_ps(_v8, _tmp13b, _mm256_add_ps(_r5, _tmp13a));
 
+#if defined(__GNUC__) && (__GNUC__ <= 4) && (__GNUC_MINOR__ < 6)
                 _mm256_storeu_ps(tmp[0][m], _tmp0);
                 _mm256_storeu_ps(tmp[1][m], _tmp1);
                 _mm256_storeu_ps(tmp[2][m], _tmp2);
                 _mm256_storeu_ps(tmp[3][m], _tmp3);
+#else
+                _mm256_store_ps(tmp[0][m], _tmp0);
+                _mm256_store_ps(tmp[1][m], _tmp1);
+                _mm256_store_ps(tmp[2][m], _tmp2);
+                _mm256_store_ps(tmp[3][m], _tmp3);
+#endif
             }
             for (int m = 0; m < 4; m++)
             {
                 if (ti * 4 + m >= outh)
                     continue;
 
+#if defined(__GNUC__) && (__GNUC__ <= 4) && (__GNUC_MINOR__ < 6)
                 __m256 _r0 = _mm256_loadu_ps(tmp[m][0]);
                 __m256 _r1 = _mm256_loadu_ps(tmp[m][1]);
                 __m256 _r2 = _mm256_loadu_ps(tmp[m][2]);
                 __m256 _r3 = _mm256_loadu_ps(tmp[m][3]);
                 __m256 _r4 = _mm256_loadu_ps(tmp[m][4]);
                 __m256 _r5 = _mm256_loadu_ps(tmp[m][5]);
+#else
+                __m256 _r0 = _mm256_load_ps(tmp[m][0]);
+                __m256 _r1 = _mm256_load_ps(tmp[m][1]);
+                __m256 _r2 = _mm256_load_ps(tmp[m][2]);
+                __m256 _r3 = _mm256_load_ps(tmp[m][3]);
+                __m256 _r4 = _mm256_load_ps(tmp[m][4]);
+                __m256 _r5 = _mm256_load_ps(tmp[m][5]);
+#endif
 
                 __m256 _tmp02a = _mm256_add_ps(_r1, _r2);
                 __m256 _tmp13a = _mm256_sub_ps(_r1, _r2);
@@ -4389,32 +4550,32 @@ static inline void conv3x3s1_winograd43_transform_output_tile(const Mat& top_til
                 {
                     float* output0 = top_blob.channel((i + ii) / 8).row(ti * 4 + m) + (tj * 4) * 8;
 
-                    _mm256_storeu_ps(output0, _tmp0);
-                    if (tj * 4 + 1 < outw) _mm256_storeu_ps(output0 + 8, _tmp1);
-                    if (tj * 4 + 2 < outw) _mm256_storeu_ps(output0 + 16, _tmp2);
-                    if (tj * 4 + 3 < outw) _mm256_storeu_ps(output0 + 24, _tmp3);
+                    _mm256_store_ps(output0, _tmp0);
+                    if (tj * 4 + 1 < outw) _mm256_store_ps(output0 + 8, _tmp1);
+                    if (tj * 4 + 2 < outw) _mm256_store_ps(output0 + 16, _tmp2);
+                    if (tj * 4 + 3 < outw) _mm256_store_ps(output0 + 24, _tmp3);
                 }
                 if (out_elempack == 4)
                 {
                     float* output0 = top_blob.channel((i + ii) / 4).row(ti * 4 + m) + (tj * 4) * 4;
                     float* output1 = top_blob.channel((i + ii) / 4 + 1).row(ti * 4 + m) + (tj * 4) * 4;
 
-                    _mm_storeu_ps(output0, _mm256_extractf128_ps(_tmp0, 0));
-                    _mm_storeu_ps(output1, _mm256_extractf128_ps(_tmp0, 1));
+                    _mm_store_ps(output0, _mm256_extractf128_ps(_tmp0, 0));
+                    _mm_store_ps(output1, _mm256_extractf128_ps(_tmp0, 1));
                     if (tj * 4 + 1 < outw)
                     {
-                        _mm_storeu_ps(output0 + 4, _mm256_extractf128_ps(_tmp1, 0));
-                        _mm_storeu_ps(output1 + 4, _mm256_extractf128_ps(_tmp1, 1));
+                        _mm_store_ps(output0 + 4, _mm256_extractf128_ps(_tmp1, 0));
+                        _mm_store_ps(output1 + 4, _mm256_extractf128_ps(_tmp1, 1));
                     }
                     if (tj * 4 + 2 < outw)
                     {
-                        _mm_storeu_ps(output0 + 8, _mm256_extractf128_ps(_tmp2, 0));
-                        _mm_storeu_ps(output1 + 8, _mm256_extractf128_ps(_tmp2, 1));
+                        _mm_store_ps(output0 + 8, _mm256_extractf128_ps(_tmp2, 0));
+                        _mm_store_ps(output1 + 8, _mm256_extractf128_ps(_tmp2, 1));
                     }
                     if (tj * 4 + 3 < outw)
                     {
-                        _mm_storeu_ps(output0 + 12, _mm256_extractf128_ps(_tmp3, 0));
-                        _mm_storeu_ps(output1 + 12, _mm256_extractf128_ps(_tmp3, 1));
+                        _mm_store_ps(output0 + 12, _mm256_extractf128_ps(_tmp3, 0));
+                        _mm_store_ps(output1 + 12, _mm256_extractf128_ps(_tmp3, 1));
                     }
                 }
                 if (out_elempack == 1)
@@ -4493,6 +4654,11 @@ static inline void conv3x3s1_winograd43_transform_output_tile(const Mat& top_til
             int ti = (j + jj) / w_tiles;
             int tj = (j + jj) % w_tiles;
 
+#ifdef _MSC_VER
+            __declspec(align(16))
+#else
+            __attribute__((aligned(16)))
+#endif
             float tmp[4][6][4];
 
             __m128 _v2 = _mm_set1_ps(2.f);
@@ -4501,19 +4667,19 @@ static inline void conv3x3s1_winograd43_transform_output_tile(const Mat& top_til
 
             for (int m = 0; m < 6; m++)
             {
-                const float* r0 = &top_tile.row(m * 6)[jj * max_ii + ii];
-                const float* r1 = &top_tile.row(m * 6 + 1)[jj * max_ii + ii];
-                const float* r2 = &top_tile.row(m * 6 + 2)[jj * max_ii + ii];
-                const float* r3 = &top_tile.row(m * 6 + 3)[jj * max_ii + ii];
-                const float* r4 = &top_tile.row(m * 6 + 4)[jj * max_ii + ii];
-                const float* r5 = &top_tile.row(m * 6 + 5)[jj * max_ii + ii];
+                const float* r0 = top_tile.depth(m * 6).row(jj) + ii;
+                const float* r1 = top_tile.depth(m * 6 + 1).row(jj) + ii;
+                const float* r2 = top_tile.depth(m * 6 + 2).row(jj) + ii;
+                const float* r3 = top_tile.depth(m * 6 + 3).row(jj) + ii;
+                const float* r4 = top_tile.depth(m * 6 + 4).row(jj) + ii;
+                const float* r5 = top_tile.depth(m * 6 + 5).row(jj) + ii;
 
-                __m128 _r0 = _mm_loadu_ps(r0);
-                __m128 _r1 = _mm_loadu_ps(r1);
-                __m128 _r2 = _mm_loadu_ps(r2);
-                __m128 _r3 = _mm_loadu_ps(r3);
-                __m128 _r4 = _mm_loadu_ps(r4);
-                __m128 _r5 = _mm_loadu_ps(r5);
+                __m128 _r0 = _mm_load_ps(r0);
+                __m128 _r1 = _mm_load_ps(r1);
+                __m128 _r2 = _mm_load_ps(r2);
+                __m128 _r3 = _mm_load_ps(r3);
+                __m128 _r4 = _mm_load_ps(r4);
+                __m128 _r5 = _mm_load_ps(r5);
 
                 __m128 _tmp02a = _mm_add_ps(_r1, _r2);
                 __m128 _tmp13a = _mm_sub_ps(_r1, _r2);
@@ -4524,22 +4690,38 @@ static inline void conv3x3s1_winograd43_transform_output_tile(const Mat& top_til
                 __m128 _tmp2 = _mm_comp_fmadd_ps(_v4, _tmp02b, _tmp02a);
                 __m128 _tmp3 = _mm_comp_fmadd_ps(_v8, _tmp13b, _mm_add_ps(_r5, _tmp13a));
 
+#if defined(__GNUC__) && (__GNUC__ <= 4) && (__GNUC_MINOR__ < 6)
                 _mm_storeu_ps(tmp[0][m], _tmp0);
                 _mm_storeu_ps(tmp[1][m], _tmp1);
                 _mm_storeu_ps(tmp[2][m], _tmp2);
                 _mm_storeu_ps(tmp[3][m], _tmp3);
+#else
+                _mm_store_ps(tmp[0][m], _tmp0);
+                _mm_store_ps(tmp[1][m], _tmp1);
+                _mm_store_ps(tmp[2][m], _tmp2);
+                _mm_store_ps(tmp[3][m], _tmp3);
+#endif
             }
             for (int m = 0; m < 4; m++)
             {
                 if (ti * 4 + m >= outh)
                     continue;
 
+#if defined(__GNUC__) && (__GNUC__ <= 4) && (__GNUC_MINOR__ < 6)
                 __m128 _r0 = _mm_loadu_ps(tmp[m][0]);
                 __m128 _r1 = _mm_loadu_ps(tmp[m][1]);
                 __m128 _r2 = _mm_loadu_ps(tmp[m][2]);
                 __m128 _r3 = _mm_loadu_ps(tmp[m][3]);
                 __m128 _r4 = _mm_loadu_ps(tmp[m][4]);
                 __m128 _r5 = _mm_loadu_ps(tmp[m][5]);
+#else
+                __m128 _r0 = _mm_load_ps(tmp[m][0]);
+                __m128 _r1 = _mm_load_ps(tmp[m][1]);
+                __m128 _r2 = _mm_load_ps(tmp[m][2]);
+                __m128 _r3 = _mm_load_ps(tmp[m][3]);
+                __m128 _r4 = _mm_load_ps(tmp[m][4]);
+                __m128 _r5 = _mm_load_ps(tmp[m][5]);
+#endif
 
                 __m128 _tmp02a = _mm_add_ps(_r1, _r2);
                 __m128 _tmp13a = _mm_sub_ps(_r1, _r2);
@@ -4554,10 +4736,10 @@ static inline void conv3x3s1_winograd43_transform_output_tile(const Mat& top_til
                 {
                     float* output0 = top_blob.channel((i + ii) / 4).row(ti * 4 + m) + (tj * 4) * 4;
 
-                    _mm_storeu_ps(output0, _tmp0);
-                    if (tj * 4 + 1 < outw) _mm_storeu_ps(output0 + 4, _tmp1);
-                    if (tj * 4 + 2 < outw) _mm_storeu_ps(output0 + 8, _tmp2);
-                    if (tj * 4 + 3 < outw) _mm_storeu_ps(output0 + 12, _tmp3);
+                    _mm_store_ps(output0, _tmp0);
+                    if (tj * 4 + 1 < outw) _mm_store_ps(output0 + 4, _tmp1);
+                    if (tj * 4 + 2 < outw) _mm_store_ps(output0 + 8, _tmp2);
+                    if (tj * 4 + 3 < outw) _mm_store_ps(output0 + 12, _tmp3);
                 }
                 if (out_elempack == 1)
                 {
@@ -4620,18 +4802,18 @@ static inline void conv3x3s1_winograd43_transform_output_tile(const Mat& top_til
 
             for (int m = 0; m < 6; m++)
             {
-                float r00 = top_tile.row(m * 6)[jj * max_ii + ii];
-                float r01 = top_tile.row(m * 6)[jj * max_ii + ii + 1];
-                float r10 = top_tile.row(m * 6 + 1)[jj * max_ii + ii];
-                float r11 = top_tile.row(m * 6 + 1)[jj * max_ii + ii + 1];
-                float r20 = top_tile.row(m * 6 + 2)[jj * max_ii + ii];
-                float r21 = top_tile.row(m * 6 + 2)[jj * max_ii + ii + 1];
-                float r30 = top_tile.row(m * 6 + 3)[jj * max_ii + ii];
-                float r31 = top_tile.row(m * 6 + 3)[jj * max_ii + ii + 1];
-                float r40 = top_tile.row(m * 6 + 4)[jj * max_ii + ii];
-                float r41 = top_tile.row(m * 6 + 4)[jj * max_ii + ii + 1];
-                float r50 = top_tile.row(m * 6 + 5)[jj * max_ii + ii];
-                float r51 = top_tile.row(m * 6 + 5)[jj * max_ii + ii + 1];
+                float r00 = top_tile.depth(m * 6).row(jj)[ii];
+                float r01 = top_tile.depth(m * 6).row(jj)[ii + 1];
+                float r10 = top_tile.depth(m * 6 + 1).row(jj)[ii];
+                float r11 = top_tile.depth(m * 6 + 1).row(jj)[ii + 1];
+                float r20 = top_tile.depth(m * 6 + 2).row(jj)[ii];
+                float r21 = top_tile.depth(m * 6 + 2).row(jj)[ii + 1];
+                float r30 = top_tile.depth(m * 6 + 3).row(jj)[ii];
+                float r31 = top_tile.depth(m * 6 + 3).row(jj)[ii + 1];
+                float r40 = top_tile.depth(m * 6 + 4).row(jj)[ii];
+                float r41 = top_tile.depth(m * 6 + 4).row(jj)[ii + 1];
+                float r50 = top_tile.depth(m * 6 + 5).row(jj)[ii];
+                float r51 = top_tile.depth(m * 6 + 5).row(jj)[ii + 1];
 
                 float tmp00 = r00 + r10 + r20 + r30 + r40;
                 float tmp01 = r01 + r11 + r21 + r31 + r41;
@@ -4718,12 +4900,12 @@ static inline void conv3x3s1_winograd43_transform_output_tile(const Mat& top_til
 
             for (int m = 0; m < 6; m++)
             {
-                float r0 = top_tile.row(m * 6)[jj * max_ii + ii];
-                float r1 = top_tile.row(m * 6 + 1)[jj * max_ii + ii];
-                float r2 = top_tile.row(m * 6 + 2)[jj * max_ii + ii];
-                float r3 = top_tile.row(m * 6 + 3)[jj * max_ii + ii];
-                float r4 = top_tile.row(m * 6 + 4)[jj * max_ii + ii];
-                float r5 = top_tile.row(m * 6 + 5)[jj * max_ii + ii];
+                float r0 = top_tile.depth(m * 6).row(jj)[ii];
+                float r1 = top_tile.depth(m * 6 + 1).row(jj)[ii];
+                float r2 = top_tile.depth(m * 6 + 2).row(jj)[ii];
+                float r3 = top_tile.depth(m * 6 + 3).row(jj)[ii];
+                float r4 = top_tile.depth(m * 6 + 4).row(jj)[ii];
+                float r5 = top_tile.depth(m * 6 + 5).row(jj)[ii];
 
                 float tmp0 = r0 + r1 + r2 + r3 + r4;
                 float tmp1 = r1 - r2 + r3 * 2.f - r4 * 2.f;
@@ -4824,7 +5006,7 @@ static void conv3x3s1_winograd43(const Mat& bottom_blob, Mat& top_blob, const Ma
         tmpX.create(TILE_M * TILE_N, B, nT, 4u, opt.blob_allocator);
     }
 
-    Mat top_tileX(TILE_M * TILE_N, B, nT, 4u, opt.blob_allocator);
+    Mat top_tileX(TILE_M, TILE_N, B, nT, 4u, opt.blob_allocator);
 
     #pragma omp parallel for num_threads(nT)
     for (int ppj = 0; ppj < nn_M; ppj++)
