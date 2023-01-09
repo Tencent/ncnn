@@ -542,7 +542,7 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, 
             for (; kk + 3 < max_kk; kk += 4)
             {
                 __m128 _r0 = _mm_load_ps(p0 + jj * batch * 4 + b * 4);
-                _mm_store_ps(pp, _r0);
+                _mm_storeu_ps(pp, _r0);
                 p0 += max_jj * batch * 4;
                 pp += 4;
             }
