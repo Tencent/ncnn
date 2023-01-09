@@ -43,9 +43,7 @@ public:
 
     Mat weight_data_tm;
     Mat weight_sgemm_data;
-    Mat weight_winograd23_data;
-    Mat weight_winograd43_data;
-    Mat weight_winograd63_data;
+    Mat weight_winograd_data;
 
     // forwardDilation
     Layer* convolution_dilation1;
