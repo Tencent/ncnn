@@ -579,7 +579,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 #if __SSE2__
 #if __AVX__
 #if __AVX512F__
-        for (; ii + 7 < max_ii; ii += 8)
+        for (; ii + 15 < max_ii; ii += 16)
         {
             const float* pB = pBT;
 
