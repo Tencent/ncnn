@@ -5774,7 +5774,7 @@ static inline void conv3x3s1_winograd63_transform_input_tile(const Mat& bottom_b
                 float r70 = 0.f;
                 float r71 = 0.f;
 
-                if (ti * 4 + m < h)
+                if (ti * 6 + m < h)
                 {
                     // if (elempack == 1)
                     {
