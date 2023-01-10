@@ -119,7 +119,6 @@ int GELU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     return 0;
 }
 
-
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC & NCNN_ARM82
 int GELU_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
 {
@@ -203,7 +202,6 @@ int GELU_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) co
     return 0;
 }
 #endif
-
 
 #if NCNN_BF16
 int GELU_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const
