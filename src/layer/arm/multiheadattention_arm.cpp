@@ -21,7 +21,6 @@ namespace ncnn {
 
 MultiHeadAttention_arm::MultiHeadAttention_arm()
 {
-
 #if __ARM_NEON
     support_packing = true;
 #if NCNN_ARM82
@@ -90,7 +89,7 @@ int MultiHeadAttention_arm::create_pipeline(const Option& opt)
     }
 
 #if NCNN_ARM82
-    if(support_fp16_storage && opt.use_fp16_packed)
+    if (support_fp16_storage && opt.use_fp16_packed)
     {
         Option optopt = opt;
 
@@ -458,9 +457,8 @@ int MultiHeadAttention_arm::destroy_pipeline(const Option& opt)
         permute_wch = 0;
     }
 
-
 #if NCNN_ARM82
-    if(support_fp16_storage && opt.use_fp16_packed)
+    if (support_fp16_storage && opt.use_fp16_packed)
     {
         Option optopt = opt;
 
@@ -580,13 +578,12 @@ int MultiHeadAttention_arm::forward(const std::vector<Mat>& bottom_blobs, std::v
     opt32.use_fp16_storage = false;
 
 #if NCNN_ARM82
-    if(support_fp16_storage && opt.use_fp16_packed && elembits == 16)
+    if (support_fp16_storage && opt.use_fp16_packed && elembits == 16)
     {
         Mat q_affine, k_affine, v_affine;
         Mat qk_cross(dst_seqlen, src_seqlen * num_head, 2u, opt.blob_allocator);
         Mat qkv_cross(embed_dim_per_head, src_seqlen, num_head, 2u, opt.blob_allocator);
         Mat qkv_wch_fp16(embed_dim, src_seqlen, 2u, opt.blob_allocator);
-
 
         q_gemm->forward(q_blob, q_affine, opt);
         k_gemm->forward(k_blob, k_affine, opt);
@@ -606,7 +603,7 @@ int MultiHeadAttention_arm::forward(const std::vector<Mat>& bottom_blobs, std::v
 
         q_affine.release();
         k_affine.release();
-        
+
         Mat qk_cross_fp32, qk_cross_fp32_fp16;
         cvtfp16_to_fp32->forward(qk_cross, qk_cross_fp32, opt);
         qk_softmax->forward_inplace(qk_cross_fp32, opt32);
@@ -616,7 +613,7 @@ int MultiHeadAttention_arm::forward(const std::vector<Mat>& bottom_blobs, std::v
         qk_cross_fp32.release();
 
         v_gemm->forward(v_blob, v_affine, opt);
-        
+
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < num_head; i++)
         {
