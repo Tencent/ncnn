@@ -133,7 +133,7 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, 
 #if __AVX__
 #if __AVX512F__
             N = batch * 16;
-            p0 = (const float*)B + jj * N + b * 16;
+            p0 += jj * N + b * 16;
             for (; kk + 15 < max_kk; kk += 16)
             {
                 __m512 _r0 = _mm512_load_ps(p0);
@@ -164,9 +164,10 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, 
                 p0 += max_jj * N;
                 pp += 192;
             }
+            p0 -= jj * N + b * 16;
 #endif // __AVX512F__
             N = batch * 8;
-            p0 = (const float*)B + jj * N + b * 8;
+            p0 += jj * N + b * 8;
             for (; kk + 7 < max_kk; kk += 8)
             {
                 __m256 _r0 = _mm256_load_ps(p0);
@@ -197,9 +198,10 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, 
                 p0 += max_jj * N;
                 pp += 96;
             }
+            p0 -= jj * N + b * 8;
 #endif // __AVX__
             N = batch * 4;
-            p0 = (const float*)B + jj * N + b * 4;
+            p0 += jj * N + b * 4;
             for (; kk + 3 < max_kk; kk += 4)
             {
                 __m128 _r0 = _mm_load_ps(p0);
@@ -232,8 +234,9 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, 
                 p0 += max_jj * N;
                 pp += 48;
             }
+            p0 -= jj * N + b * 4;
             N = batch * 2;
-            p0 = (const float*)B + jj * N + b * 2;
+            p0 += jj * N + b * 2;
             for (; kk + 1 < max_kk; kk += 2)
             {
                 pp[0] = p0[0];
@@ -263,8 +266,9 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, 
                 p0 += max_jj * N;
                 pp += 24;
             }
+            p0 -= jj * N + b * 2;
             N = batch;
-            p0 = (const float*)B + jj * N + b;
+            p0 += jj * N + b;
             for (; kk < max_kk; kk++)
             {
                 pp[0] = p0[0];
@@ -282,6 +286,7 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, 
                 p0 += max_jj * N;
                 pp += 12;
             }
+            p0 -= jj * N + b;
         }
         for (; jj + 7 < max_jj; jj += 8)
         {
@@ -292,7 +297,7 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, 
 #if __AVX__
 #if __AVX512F__
             N = batch * 16;
-            p0 = (const float*)B + jj * N + b * 16;
+            p0 += jj * N + b * 16;
             for (; kk + 15 < max_kk; kk += 16)
             {
                 __m512 _r0 = _mm512_load_ps(p0);
@@ -315,9 +320,10 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, 
                 p0 += max_jj * N;
                 pp += 128;
             }
+            p0 -= jj * N + b * 16;
 #endif // __AVX512F__
             N = batch * 8;
-            p0 = (const float*)B + jj * N + b * 8;
+            p0 += jj * N + b * 8;
             for (; kk + 7 < max_kk; kk += 8)
             {
                 __m256 _r0 = _mm256_load_ps(p0);
@@ -340,9 +346,10 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, 
                 p0 += max_jj * N;
                 pp += 64;
             }
+            p0 -= jj * N + b * 8;
 #endif // __AVX__
             N = batch * 4;
-            p0 = (const float*)B + jj * N + b * 4;
+            p0 += jj * N + b * 4;
             for (; kk + 3 < max_kk; kk += 4)
             {
                 __m128 _r0 = _mm_load_ps(p0);
@@ -366,12 +373,13 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, 
                 p0 += max_jj * N;
                 pp += 32;
             }
+            p0 -= jj * N + b * 4;
             N = batch * 2;
-            p0 = (const float*)B + jj * N + b * 2;
+            p0 += jj * N + b * 2;
             for (; kk + 1 < max_kk; kk += 2)
             {
                 pp[0] = p0[0];
-                pp[1] = p0[1 * N];
+                pp[1] = p0[N];
                 pp[2] = p0[2 * N];
                 pp[3] = p0[3 * N];
                 pp[4] = p0[4 * N];
@@ -389,8 +397,9 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, 
                 p0 += max_jj * N;
                 pp += 16;
             }
+            p0 -= jj * N + b * 2;
             N = batch;
-            p0 = (const float*)B + jj * N + b;
+            p0 += jj * N + b;
             for (; kk < max_kk; kk++)
             {
                 pp[0] = p0[0];
@@ -404,6 +413,7 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, 
                 p0 += max_jj * N;
                 pp += 8;
             }
+            p0 -= jj * N + b;
         }
         for (; jj + 3 < max_jj; jj += 4)
         {
@@ -414,7 +424,7 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, 
 #if __AVX__
 #if __AVX512F__
             N = batch * 16;
-            p0 = (const float*)B + jj * N + b * 16;
+            p0 += jj * N + b * 16;
             for (; kk + 15 < max_kk; kk += 16)
             {
                 __m512 _r0 = _mm512_load_ps(p0);
@@ -429,9 +439,10 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, 
                 p0 += max_jj * N;
                 pp += 64;
             }
+            p0 -= jj * N + b * 16;
 #endif // __AVX512F__
             N = batch * 8;
-            p0 = (const float*)B + jj * N + b * 8;
+            p0 += jj * N + b * 8;
             for (; kk + 7 < max_kk; kk += 8)
             {
                 __m256 _r0 = _mm256_load_ps(p0);
@@ -446,9 +457,10 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, 
                 p0 += max_jj * N;
                 pp += 32;
             }
+            p0 -= jj * N + b * 8;
 #endif // __AVX__
             N = batch * 4;
-            p0 = (const float*)B + jj * N + b * 4;
+            p0 += jj * N + b * 4;
             for (; kk + 3 < max_kk; kk += 4)
             {
                 __m128 _r0 = _mm_load_ps(p0);
@@ -463,8 +475,9 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, 
                 p0 += max_jj * N;
                 pp += 16;
             }
+            p0 -= jj * N + b * 4;
             N = batch * 2;
-            p0 = (const float*)B + jj * N + b * 2;
+            p0 += jj * N + b * 2;
             for (; kk + 1 < max_kk; kk += 2)
             {
                 pp[0] = p0[0];
@@ -478,8 +491,9 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, 
                 p0 += max_jj * N;
                 pp += 8;
             }
+            p0 -= jj * N + b * 2;
             N = batch;
-            p0 = (const float*)B + jj * N + b;
+            p0 += jj * N + b;
             for (; kk < max_kk; kk++)
             {
                 pp[0] = p0[0];
@@ -489,6 +503,7 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, 
                 p0 += max_jj * N;
                 pp += 4;
             }
+            p0 -= jj * N + b;
         }
 #endif // __SSE2__
         for (; jj + 1 < max_jj; jj += 2)
@@ -501,7 +516,7 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, 
 #if __AVX__
 #if __AVX512F__
             N = batch * 16;
-            p0 = (const float*)B + jj * N + b * 16;
+            p0 += jj * N + b * 16;
             for (; kk + 15 < max_kk; kk += 16)
             {
                 __m512 _r0 = _mm512_load_ps(p0);
@@ -512,9 +527,10 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, 
                 p0 += max_jj * N;
                 pp += 32;
             }
+            p0 -= jj * N + b * 16;
 #endif // __AVX512F__
             N = batch * 8;
-            p0 = (const float*)B + jj * N + b * 8;
+            p0 += jj * N + b * 8;
             for (; kk + 7 < max_kk; kk += 8)
             {
                 __m256 _r0 = _mm256_load_ps(p0);
@@ -525,9 +541,10 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, 
                 p0 += max_jj * N;
                 pp += 16;
             }
+            p0 -= jj * N + b * 8;
 #endif // __AVX__
             N = batch * 4;
-            p0 = (const float*)B + jj * N + b * 4;
+            p0 += jj * N + b * 4;
             for (; kk + 3 < max_kk; kk += 4)
             {
                 __m128 _r0 = _mm_load_ps(p0);
@@ -539,9 +556,10 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, 
                 p0 += max_jj * N;
                 pp += 8;
             }
+            p0 -= jj * N + b * 4;
 #endif // __SSE2__
             N = batch * 2;
-            p0 = (const float*)B + jj * N + b * 2;
+            p0 += jj * N + b * 2;
             for (; kk + 1 < max_kk; kk += 2)
             {
                 pp[0] = p0[0];
@@ -551,8 +569,9 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, 
                 p0 += max_jj * N;
                 pp += 4;
             }
+            p0 -= jj * N + b * 2;
             N = batch;
-            p0 = (const float*)B + jj * N + b;
+            p0 += jj * N + b;
             for (; kk < max_kk; kk++)
             {
                 pp[0] = p0[0];
@@ -560,6 +579,7 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, 
                 p0 += max_jj * N;
                 pp += 2;
             }
+            p0 -= jj * N + b;
         }
         for (; jj < max_jj; jj++)
         {
@@ -571,7 +591,7 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, 
 #if __AVX__
 #if __AVX512F__
             N = batch * 16;
-            p0 = (const float*)B + jj * N + b * 16;
+            p0 += jj * N + b * 16;
             for (; kk + 15 < max_kk; kk += 16)
             {
                 __m512 _r0 = _mm512_load_ps(p0);
@@ -579,9 +599,10 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, 
                 p0 += max_jj * N;
                 pp += 16;
             }
+            p0 -= jj * N + b * 16;
 #endif // __AVX512F__
             N = batch * 8;
-            p0 = (const float*)B + jj * N + b * 8;
+            p0 += jj * N + b * 8;
             for (; kk + 7 < max_kk; kk += 8)
             {
                 __m256 _r0 = _mm256_load_ps(p0);
@@ -589,9 +610,10 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, 
                 p0 += max_jj * N;
                 pp += 8;
             }
+            p0 -= jj * N + b * 8;
 #endif // __AVX__
             N = batch * 4;
-            p0 = (const float*)B + jj * N + b * 4;
+            p0 += jj * N + b * 4;
             for (; kk + 3 < max_kk; kk += 4)
             {
                 __m128 _r0 = _mm_load_ps(p0);
@@ -599,9 +621,10 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, 
                 p0 += max_jj * N;
                 pp += 4;
             }
+            p0 -= jj * N + b * 4;
 #endif // __SSE2__
             N = batch * 2;
-            p0 = (const float*)B + jj * N + b * 2;
+            p0 += jj * N + b * 2;
             for (; kk + 1 < max_kk; kk += 2)
             {
                 pp[0] = p0[0];
@@ -609,14 +632,16 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, 
                 p0 += max_jj * N;
                 pp += 2;
             }
+            p0 -= jj * N + b * 2;
             N = batch;
-            p0 = (const float*)B + jj * N + b;
+            p0 += jj * N + b;
             for (; kk < max_kk; kk++)
             {
                 pp[0] = p0[0];
                 p0 += max_jj * N;
                 pp += 1;
             }
+            p0 -= jj * N + b;
         }
     }
 }
@@ -3748,16 +3773,8 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
                         if (tj * 4 + 1 < w) _r1 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_t1), _t5, 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_t9), _td, 1), 1);
                         if (tj * 4 + 2 < w) _r2 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_t2), _t6, 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_ta), _te, 1), 1);
                         if (tj * 4 + 3 < w) _r3 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_t3), _t7, 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_tb), _tf, 1), 1);
-                        if (tj * 4 + 4 < w)
-                        {
-                            float tmp[16] = {r0[4], r1[4], r2[4], r3[4], r4[4], r5[4], r6[4], r7[4], r8[4], r9[4], ra[4], rb[4], rc[4], rd[4], re[4], rf[4]};
-                            _r4 = _mm512_loadu_ps(tmp);
-                        }
-                        if (tj * 4 + 5 < w)
-                        {
-                            float tmp[16] = {r0[5], r1[5], r2[5], r3[5], r4[5], r5[5], r6[5], r7[5], r8[5], r9[5], ra[5], rb[5], rc[5], rd[5], re[5], rf[5]};
-                            _r5 = _mm512_loadu_ps(tmp);
-                        }
+                        if (tj * 4 + 4 < w) _r4 = _mm512_set_ps(rf[4], re[4], rd[4], rc[4], rb[4], ra[4], r9[4], r8[4], r7[4], r6[4], r5[4], r4[4], r3[4], r2[4], r1[4], r0[4]);
+                        if (tj * 4 + 5 < w) _r5 = _mm512_set_ps(rf[5], re[5], rd[5], rc[5], rb[5], ra[5], r9[5], r8[5], r7[5], r6[5], r5[5], r4[5], r3[5], r2[5], r1[5], r0[5]);
                     }
                 }
 
@@ -3884,16 +3901,8 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
                         if (tj * 4 + 1 < w) _r1 = _mm256_insertf128_ps(_mm256_castps128_ps256(_t1), _t5, 1);
                         if (tj * 4 + 2 < w) _r2 = _mm256_insertf128_ps(_mm256_castps128_ps256(_t2), _t6, 1);
                         if (tj * 4 + 3 < w) _r3 = _mm256_insertf128_ps(_mm256_castps128_ps256(_t3), _t7, 1);
-                        if (tj * 4 + 4 < w)
-                        {
-                            float tmp[8] = {r0[4], r1[4], r2[4], r3[4], r4[4], r5[4], r6[4], r7[4]};
-                            _r4 = _mm256_loadu_ps(tmp);
-                        }
-                        if (tj * 4 + 5 < w)
-                        {
-                            float tmp[8] = {r0[5], r1[5], r2[5], r3[5], r4[5], r5[5], r6[5], r7[5]};
-                            _r5 = _mm256_loadu_ps(tmp);
-                        }
+                        if (tj * 4 + 4 < w) _r4 = _mm256_set_ps(r7[4], r6[4], r5[4], r4[4], r3[4], r2[4], r1[4], r0[4]);
+                        if (tj * 4 + 5 < w) _r5 = _mm256_set_ps(r7[5], r6[5], r5[5], r4[5], r3[5], r2[5], r1[5], r0[5]);
                     }
                 }
 
@@ -4018,16 +4027,8 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
                         if (tj * 4 + 1 < w) _r1 = _t1;
                         if (tj * 4 + 2 < w) _r2 = _t2;
                         if (tj * 4 + 3 < w) _r3 = _t3;
-                        if (tj * 4 + 4 < w)
-                        {
-                            float tmp[4] = {r0[4], r1[4], r2[4], r3[4]};
-                            _r4 = _mm_loadu_ps(tmp);
-                        }
-                        if (tj * 4 + 5 < w)
-                        {
-                            float tmp[4] = {r0[5], r1[5], r2[5], r3[5]};
-                            _r5 = _mm_loadu_ps(tmp);
-                        }
+                        if (tj * 4 + 4 < w) _r4 = _mm_set_ps(r3[4], r2[4], r1[4], r0[4]);
+                        if (tj * 4 + 5 < w) _r5 = _mm_set_ps(r3[5], r2[5], r1[5], r0[5]);
                     }
                 }
 
