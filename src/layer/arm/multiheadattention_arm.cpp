@@ -17,8 +17,6 @@
 #include "cpu.h"
 #include "layer_type.h"
 
-#include <stdio.h>
-
 namespace ncnn {
 
 MultiHeadAttention_arm::MultiHeadAttention_arm()
@@ -584,7 +582,6 @@ int MultiHeadAttention_arm::forward(const std::vector<Mat>& bottom_blobs, std::v
 #if NCNN_ARM82
     if(support_fp16_storage && opt.use_fp16_packed && elembits == 16)
     {
-        printf("FP16\n");
         Mat q_affine, k_affine, v_affine;
         Mat qk_cross(dst_seqlen, src_seqlen * num_head, 2u, opt.blob_allocator);
         Mat qkv_cross(embed_dim_per_head, src_seqlen, num_head, 2u, opt.blob_allocator);
@@ -658,8 +655,6 @@ int MultiHeadAttention_arm::forward(const std::vector<Mat>& bottom_blobs, std::v
         return 0;
     }
 #endif
-
-    printf("FP32\n");
 
     Mat q_affine;
     q_gemm->forward(q_blob, q_affine, opt32);
