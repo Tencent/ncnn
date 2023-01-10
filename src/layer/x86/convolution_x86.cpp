@@ -531,12 +531,12 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         const int minwh = std::min(w, h);
 
         bool prefer_winograd63 = minwh == 19 || minwh == 20
-            || (minwh > 30 && num_input >= 128)
-            || (minwh > 30 && num_input >= 64 && num_input < 128 && num_output >= 128)
-            || (minwh > 30 && num_input >= 64 && num_input < 128 && num_output < 128 && minwh < 96)
-            || (minwh > 30 && num_input >= 16 && num_input < 64 && num_output >= 64)
-            || (minwh > 30 && num_input >= 32 && num_input < 64 && num_output < 64 && minwh < 132)
-            || (minwh > 30 && num_input >= 16 && num_input < 32 && num_output < 64 && minwh < 192);
+                                 || (minwh > 30 && num_input >= 128)
+                                 || (minwh > 30 && num_input >= 64 && num_input < 128 && num_output >= 128)
+                                 || (minwh > 30 && num_input >= 64 && num_input < 128 && num_output < 128 && minwh < 96)
+                                 || (minwh > 30 && num_input >= 16 && num_input < 64 && num_output >= 64)
+                                 || (minwh > 30 && num_input >= 32 && num_input < 64 && num_output < 64 && minwh < 132)
+                                 || (minwh > 30 && num_input >= 16 && num_input < 32 && num_output < 64 && minwh < 192);
 
         bool prefer_winograd43 = (minwh > 14 && !prefer_winograd63);
         bool prefer_winograd23 = (!prefer_winograd43 && !prefer_winograd63);
