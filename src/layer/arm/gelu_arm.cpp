@@ -19,7 +19,7 @@
 #if __ARM_NEON
 #include <arm_neon.h>
 #include "neon_mathfun.h"
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#if NCNN_ARM82
 #include "neon_mathfun_fp16s.h"
 #endif
 #endif // __ARM_NEON
@@ -119,7 +119,7 @@ int GELU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     return 0;
 }
 
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC & NCNN_ARM82
+#if NCNN_ARM82
 int GELU_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
 {
     int w = bottom_top_blob.w;
