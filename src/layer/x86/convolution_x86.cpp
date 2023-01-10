@@ -270,7 +270,7 @@ int Convolution_x86::create_pipeline(const Option& opt)
                     h += pad_top + pad_bottom;
                 }
                 else if ((pad_left == -233 && pad_right == -233 && pad_top == -233 && pad_bottom == -233)
-                        || (pad_left == -234 && pad_right == -234 && pad_top == -234 && pad_bottom == -234))
+                         || (pad_left == -234 && pad_right == -234 && pad_top == -234 && pad_bottom == -234))
                 {
                     // tensorflow padding=SAME or onnx padding=SAME_UPPER/SAME_LOWER
                     w += 2;
