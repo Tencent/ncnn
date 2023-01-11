@@ -81,8 +81,7 @@ jobs:
     - name: vulkansdk
       run: |
         Invoke-WebRequest -Uri https://sdk.lunarg.com/sdk/download/1.3.236.0/windows/VulkanSDK-1.3.236.0-Installer.exe?Human=true -OutFile VulkanSDK.exe
-        $installer = Start-Process -FilePath VulkanSDK.exe -Wait -PassThru -ArgumentList @("/S");
-        $installer.WaitForExit();
+        .\VulkanSDK.exe --root C:\VulkanSDK --accept-licenses --default-answer --confirm-command install
     - name: cache-swiftshader
       if: matrix.vs-version != 'vs2015'
       id: cache-swiftshader
