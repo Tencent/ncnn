@@ -606,7 +606,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         {
             // f43 fallback to f63 or f23
             prefer_winograd43 = false;
-            if (opt.use_winograd63_convolution)
+            if (opt.use_winograd63_convolution && !weight_winograd63_data.empty())
             {
                 prefer_winograd63 = true;
             }
