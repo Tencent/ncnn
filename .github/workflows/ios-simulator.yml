@@ -24,7 +24,7 @@ concurrency:
   group: ios-simulator-${{ github.ref }}
   cancel-in-progress: true
 env:
-  DEVELOPER_DIR: /Applications/Xcode_12.4.app/Contents/Developer
+  DEVELOPER_DIR: /Applications/Xcode_14.0.1.app/Contents/Developer
 permissions:
   contents: read
 
