@@ -1161,7 +1161,7 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
     }
     remain_outch_start += nn_outch * 16;
     nn_outch = (outch - remain_outch_start) / 8;
-#else  // __AVX512F__
+#else // __AVX512F__
     nn_outch = (outch - remain_outch_start) / 8;
     #pragma omp parallel for num_threads(opt.num_threads)
 #endif // __AVX512F__
@@ -1595,7 +1595,7 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
     }
     remain_outch_start += nn_outch * 8;
     nn_outch = (outch - remain_outch_start) / 4;
-#else  // __AVX__
+#else // __AVX__
     nn_outch = (outch - remain_outch_start) / 4;
     #pragma omp parallel for num_threads(opt.num_threads)
 #endif // __AVX__
@@ -2022,7 +2022,7 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
         }
     }
     remain_outch_start += nn_outch * 4;
-#else  // __SSE2__
+#else // __SSE2__
     #pragma omp parallel for num_threads(opt.num_threads)
 #endif // __SSE2__
     for (int p = remain_outch_start; p < outch; p++)
