@@ -714,12 +714,17 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
 
     const float* bias_data_ptr = bias_data;
 
-    int p = 0;
+    int nn_outch = 0;
+    int remain_outch_start = 0;
 #if __SSE2__
 #if __AVX__
 #if __AVX512F__
-    for (; p + 15 < outch; p += 16)
+    nn_outch = outch / 16;
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int pp = 0; pp < nn_outch; pp++)
     {
+        const int p = pp * 16;
+
         float* outptr = top_blob.channel(p / out_elempack);
 
         for (int i = 0; i < outh; i++)
@@ -1154,9 +1159,16 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
             }
         }
     }
+    remain_outch_start += nn_outch * 16;
+    nn_outch = (outch - remain_outch_start) / 8;
+#else  // __AVX512F__
+    nn_outch = (outch - remain_outch_start) / 8;
+    #pragma omp parallel for num_threads(opt.num_threads)
 #endif // __AVX512F__
-    for (; p + 7 < outch; p += 8)
+    for (int pp = 0; pp < nn_outch; pp++)
     {
+        const int p = remain_outch_start + pp * 8;
+
         float* outptr = top_blob.channel(p / out_elempack);
 
         for (int i = 0; i < outh; i++)
@@ -1581,9 +1593,16 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
             }
         }
     }
+    remain_outch_start += nn_outch * 8;
+    nn_outch = (outch - remain_outch_start) / 4;
+#else  // __AVX__
+    nn_outch = (outch - remain_outch_start) / 4;
+    #pragma omp parallel for num_threads(opt.num_threads)
 #endif // __AVX__
-    for (; p + 3 < outch; p += 4)
+    for (int pp = 0; pp < nn_outch; pp++)
     {
+        const int p = remain_outch_start + pp * 4;
+
         float* outptr = top_blob.channel(p / out_elempack);
 
         for (int i = 0; i < outh; i++)
@@ -2002,8 +2021,11 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
             }
         }
     }
+    remain_outch_start += nn_outch * 4;
+#else  // __SSE2__
+    #pragma omp parallel for num_threads(opt.num_threads)
 #endif // __SSE2__
-    for (; p < outch; p++)
+    for (int p = remain_outch_start; p < outch; p++)
     {
         float* outptr = top_blob.channel(p);
 
