@@ -18,6 +18,9 @@ static void convolution_transform_kernel_packed(const Mat& kernel, Mat& kernel_t
 
     // src = kw-kh-inch-outch
     // dst = pb-pa-kw-kh-inch/pa-outch/pb
+
+    // clang-format off
+    // *INDENT-OFF*
 #if __SSE2__
 #if __AVX__
 #if __AVX512F__
@@ -87,6 +90,8 @@ static void convolution_transform_kernel_packed(const Mat& kernel, Mat& kernel_t
 #endif // __SSE2__
             kernel_tm.create(maxk, inch, outch);
     }
+    // *INDENT-ON*
+    // clang-format on
 
     int q = 0;
 #if __SSE2__
