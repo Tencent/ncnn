@@ -116,545 +116,8 @@ static void pack_A_tile(const Mat& A, Mat& AT, int batch, int max_ii, int max_kk
     }
 }
 
-#if 0
-static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, int max_kk)
-{
-    for (int b = 0; b < batch; b++)
-    {
-        float* pp = BT.row(b);
-
-        int jj = 0;
-#if __SSE2__
-        for (; jj + 11 < max_jj; jj += 12)
-        {
-            int N = batch;
-            const float* p0 = B;
-
-            int kk = 0;
-#if __AVX__
-#if __AVX512F__
-            N = batch * 16;
-            p0 += jj * N + b * 16;
-            for (; kk + 15 < max_kk; kk += 16)
-            {
-                __m512 _r0 = _mm512_load_ps(p0);
-                __m512 _r1 = _mm512_load_ps(p0 + N);
-                __m512 _r2 = _mm512_load_ps(p0 + 2 * N);
-                __m512 _r3 = _mm512_load_ps(p0 + 3 * N);
-                __m512 _r4 = _mm512_load_ps(p0 + 4 * N);
-                __m512 _r5 = _mm512_load_ps(p0 + 5 * N);
-                __m512 _r6 = _mm512_load_ps(p0 + 6 * N);
-                __m512 _r7 = _mm512_load_ps(p0 + 7 * N);
-                __m512 _r8 = _mm512_load_ps(p0 + 8 * N);
-                __m512 _r9 = _mm512_load_ps(p0 + 9 * N);
-                __m512 _ra = _mm512_load_ps(p0 + 10 * N);
-                __m512 _rb = _mm512_load_ps(p0 + 11 * N);
-                transpose16x12_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7, _r8, _r9, _ra, _rb);
-                _mm512_storeu_ps(pp, _r0);
-                _mm512_storeu_ps(pp + 16, _r1);
-                _mm512_storeu_ps(pp + 16 * 2, _r2);
-                _mm512_storeu_ps(pp + 16 * 3, _r3);
-                _mm512_storeu_ps(pp + 16 * 4, _r4);
-                _mm512_storeu_ps(pp + 16 * 5, _r5);
-                _mm512_storeu_ps(pp + 16 * 6, _r6);
-                _mm512_storeu_ps(pp + 16 * 7, _r7);
-                _mm512_storeu_ps(pp + 16 * 8, _r8);
-                _mm512_storeu_ps(pp + 16 * 9, _r9);
-                _mm512_storeu_ps(pp + 16 * 10, _ra);
-                _mm512_storeu_ps(pp + 16 * 11, _rb);
-                p0 += max_jj * N;
-                pp += 192;
-            }
-            p0 -= jj * N + b * 16;
-#endif // __AVX512F__
-            N = batch * 8;
-            p0 += jj * N + b * 8;
-            for (; kk + 7 < max_kk; kk += 8)
-            {
-                __m256 _r0 = _mm256_load_ps(p0);
-                __m256 _r1 = _mm256_load_ps(p0 + N);
-                __m256 _r2 = _mm256_load_ps(p0 + 2 * N);
-                __m256 _r3 = _mm256_load_ps(p0 + 3 * N);
-                __m256 _r4 = _mm256_load_ps(p0 + 4 * N);
-                __m256 _r5 = _mm256_load_ps(p0 + 5 * N);
-                __m256 _r6 = _mm256_load_ps(p0 + 6 * N);
-                __m256 _r7 = _mm256_load_ps(p0 + 7 * N);
-                __m256 _r8 = _mm256_load_ps(p0 + 8 * N);
-                __m256 _r9 = _mm256_load_ps(p0 + 9 * N);
-                __m256 _ra = _mm256_load_ps(p0 + 10 * N);
-                __m256 _rb = _mm256_load_ps(p0 + 11 * N);
-                transpose8x12_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7, _r8, _r9, _ra, _rb);
-                _mm256_storeu_ps(pp, _r0);
-                _mm256_storeu_ps(pp + 8, _r1);
-                _mm256_storeu_ps(pp + 8 * 2, _r2);
-                _mm256_storeu_ps(pp + 8 * 3, _r3);
-                _mm256_storeu_ps(pp + 8 * 4, _r4);
-                _mm256_storeu_ps(pp + 8 * 5, _r5);
-                _mm256_storeu_ps(pp + 8 * 6, _r6);
-                _mm256_storeu_ps(pp + 8 * 7, _r7);
-                _mm256_storeu_ps(pp + 8 * 8, _r8);
-                _mm256_storeu_ps(pp + 8 * 9, _r9);
-                _mm256_storeu_ps(pp + 8 * 10, _ra);
-                _mm256_storeu_ps(pp + 8 * 11, _rb);
-                p0 += max_jj * N;
-                pp += 96;
-            }
-            p0 -= jj * N + b * 8;
-#endif // __AVX__
-            N = batch * 4;
-            p0 += jj * N + b * 4;
-            for (; kk + 3 < max_kk; kk += 4)
-            {
-                __m128 _r0 = _mm_load_ps(p0);
-                __m128 _r1 = _mm_load_ps(p0 + N);
-                __m128 _r2 = _mm_load_ps(p0 + 2 * N);
-                __m128 _r3 = _mm_load_ps(p0 + 3 * N);
-                __m128 _r4 = _mm_load_ps(p0 + 4 * N);
-                __m128 _r5 = _mm_load_ps(p0 + 5 * N);
-                __m128 _r6 = _mm_load_ps(p0 + 6 * N);
-                __m128 _r7 = _mm_load_ps(p0 + 7 * N);
-                __m128 _r8 = _mm_load_ps(p0 + 8 * N);
-                __m128 _r9 = _mm_load_ps(p0 + 9 * N);
-                __m128 _ra = _mm_load_ps(p0 + 10 * N);
-                __m128 _rb = _mm_load_ps(p0 + 11 * N);
-                _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
-                _MM_TRANSPOSE4_PS(_r4, _r5, _r6, _r7);
-                _MM_TRANSPOSE4_PS(_r8, _r9, _ra, _rb);
-                _mm_store_ps(pp, _r0);
-                _mm_store_ps(pp + 4, _r4);
-                _mm_store_ps(pp + 4 * 2, _r8);
-                _mm_store_ps(pp + 4 * 3, _r1);
-                _mm_store_ps(pp + 4 * 4, _r5);
-                _mm_store_ps(pp + 4 * 5, _r9);
-                _mm_store_ps(pp + 4 * 6, _r2);
-                _mm_store_ps(pp + 4 * 7, _r6);
-                _mm_store_ps(pp + 4 * 8, _ra);
-                _mm_store_ps(pp + 4 * 9, _r3);
-                _mm_store_ps(pp + 4 * 10, _r7);
-                _mm_store_ps(pp + 4 * 11, _rb);
-                p0 += max_jj * N;
-                pp += 48;
-            }
-            p0 -= jj * N + b * 4;
-            N = batch * 2;
-            p0 += jj * N + b * 2;
-            for (; kk + 1 < max_kk; kk += 2)
-            {
-                pp[0] = p0[0];
-                pp[1] = p0[N];
-                pp[2] = p0[2 * N];
-                pp[3] = p0[3 * N];
-                pp[4] = p0[4 * N];
-                pp[5] = p0[5 * N];
-                pp[6] = p0[6 * N];
-                pp[7] = p0[7 * N];
-                pp[8] = p0[8 * N];
-                pp[9] = p0[9 * N];
-                pp[10] = p0[10 * N];
-                pp[11] = p0[11 * N];
-                pp[12] = p0[1];
-                pp[13] = p0[N + 1];
-                pp[14] = p0[2 * N + 1];
-                pp[15] = p0[3 * N + 1];
-                pp[16] = p0[4 * N + 1];
-                pp[17] = p0[5 * N + 1];
-                pp[18] = p0[6 * N + 1];
-                pp[19] = p0[7 * N + 1];
-                pp[20] = p0[8 * N + 1];
-                pp[21] = p0[9 * N + 1];
-                pp[22] = p0[10 * N + 1];
-                pp[23] = p0[11 * N + 1];
-                p0 += max_jj * N;
-                pp += 24;
-            }
-            p0 -= jj * N + b * 2;
-            N = batch;
-            p0 += jj * N + b;
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp[1] = p0[N];
-                pp[2] = p0[2 * N];
-                pp[3] = p0[3 * N];
-                pp[4] = p0[4 * N];
-                pp[5] = p0[5 * N];
-                pp[6] = p0[6 * N];
-                pp[7] = p0[7 * N];
-                pp[8] = p0[8 * N];
-                pp[9] = p0[9 * N];
-                pp[10] = p0[10 * N];
-                pp[11] = p0[11 * N];
-                p0 += max_jj * N;
-                pp += 12;
-            }
-            p0 -= jj * N + b;
-        }
-        for (; jj + 7 < max_jj; jj += 8)
-        {
-            int N = batch;
-            const float* p0 = B;
-
-            int kk = 0;
-#if __AVX__
-#if __AVX512F__
-            N = batch * 16;
-            p0 += jj * N + b * 16;
-            for (; kk + 15 < max_kk; kk += 16)
-            {
-                __m512 _r0 = _mm512_load_ps(p0);
-                __m512 _r1 = _mm512_load_ps(p0 + N);
-                __m512 _r2 = _mm512_load_ps(p0 + 2 * N);
-                __m512 _r3 = _mm512_load_ps(p0 + 3 * N);
-                __m512 _r4 = _mm512_load_ps(p0 + 4 * N);
-                __m512 _r5 = _mm512_load_ps(p0 + 5 * N);
-                __m512 _r6 = _mm512_load_ps(p0 + 6 * N);
-                __m512 _r7 = _mm512_load_ps(p0 + 7 * N);
-                transpose16x8_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
-                _mm512_storeu_ps(pp, _r0);
-                _mm512_storeu_ps(pp + 16, _r1);
-                _mm512_storeu_ps(pp + 16 * 2, _r2);
-                _mm512_storeu_ps(pp + 16 * 3, _r3);
-                _mm512_storeu_ps(pp + 16 * 4, _r4);
-                _mm512_storeu_ps(pp + 16 * 5, _r5);
-                _mm512_storeu_ps(pp + 16 * 6, _r6);
-                _mm512_storeu_ps(pp + 16 * 7, _r7);
-                p0 += max_jj * N;
-                pp += 128;
-            }
-            p0 -= jj * N + b * 16;
-#endif // __AVX512F__
-            N = batch * 8;
-            p0 += jj * N + b * 8;
-            for (; kk + 7 < max_kk; kk += 8)
-            {
-                __m256 _r0 = _mm256_load_ps(p0);
-                __m256 _r1 = _mm256_load_ps(p0 + N);
-                __m256 _r2 = _mm256_load_ps(p0 + 2 * N);
-                __m256 _r3 = _mm256_load_ps(p0 + 3 * N);
-                __m256 _r4 = _mm256_load_ps(p0 + 4 * N);
-                __m256 _r5 = _mm256_load_ps(p0 + 5 * N);
-                __m256 _r6 = _mm256_load_ps(p0 + 6 * N);
-                __m256 _r7 = _mm256_load_ps(p0 + 7 * N);
-                transpose8x8_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
-                _mm256_storeu_ps(pp, _r0);
-                _mm256_storeu_ps(pp + 8, _r1);
-                _mm256_storeu_ps(pp + 16, _r2);
-                _mm256_storeu_ps(pp + 24, _r3);
-                _mm256_storeu_ps(pp + 32, _r4);
-                _mm256_storeu_ps(pp + 40, _r5);
-                _mm256_storeu_ps(pp + 48, _r6);
-                _mm256_storeu_ps(pp + 56, _r7);
-                p0 += max_jj * N;
-                pp += 64;
-            }
-            p0 -= jj * N + b * 8;
-#endif // __AVX__
-            N = batch * 4;
-            p0 += jj * N + b * 4;
-            for (; kk + 3 < max_kk; kk += 4)
-            {
-                __m128 _r0 = _mm_load_ps(p0);
-                __m128 _r1 = _mm_load_ps(p0 + N);
-                __m128 _r2 = _mm_load_ps(p0 + 2 * N);
-                __m128 _r3 = _mm_load_ps(p0 + 3 * N);
-                __m128 _r4 = _mm_load_ps(p0 + 4 * N);
-                __m128 _r5 = _mm_load_ps(p0 + 5 * N);
-                __m128 _r6 = _mm_load_ps(p0 + 6 * N);
-                __m128 _r7 = _mm_load_ps(p0 + 7 * N);
-                _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
-                _MM_TRANSPOSE4_PS(_r4, _r5, _r6, _r7);
-                _mm_store_ps(pp, _r0);
-                _mm_store_ps(pp + 4, _r4);
-                _mm_store_ps(pp + 8, _r1);
-                _mm_store_ps(pp + 12, _r5);
-                _mm_store_ps(pp + 16, _r2);
-                _mm_store_ps(pp + 20, _r6);
-                _mm_store_ps(pp + 24, _r3);
-                _mm_store_ps(pp + 28, _r7);
-                p0 += max_jj * N;
-                pp += 32;
-            }
-            p0 -= jj * N + b * 4;
-            N = batch * 2;
-            p0 += jj * N + b * 2;
-            for (; kk + 1 < max_kk; kk += 2)
-            {
-                pp[0] = p0[0];
-                pp[1] = p0[N];
-                pp[2] = p0[2 * N];
-                pp[3] = p0[3 * N];
-                pp[4] = p0[4 * N];
-                pp[5] = p0[5 * N];
-                pp[6] = p0[6 * N];
-                pp[7] = p0[7 * N];
-                pp[8] = p0[1];
-                pp[9] = p0[N + 1];
-                pp[10] = p0[2 * N + 1];
-                pp[11] = p0[3 * N + 1];
-                pp[12] = p0[4 * N + 1];
-                pp[13] = p0[5 * N + 1];
-                pp[14] = p0[6 * N + 1];
-                pp[15] = p0[7 * N + 1];
-                p0 += max_jj * N;
-                pp += 16;
-            }
-            p0 -= jj * N + b * 2;
-            N = batch;
-            p0 += jj * N + b;
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp[1] = p0[N];
-                pp[2] = p0[2 * N];
-                pp[3] = p0[3 * N];
-                pp[4] = p0[4 * N];
-                pp[5] = p0[5 * N];
-                pp[6] = p0[6 * N];
-                pp[7] = p0[7 * N];
-                p0 += max_jj * N;
-                pp += 8;
-            }
-            p0 -= jj * N + b;
-        }
-        for (; jj + 3 < max_jj; jj += 4)
-        {
-            int N = batch;
-            const float* p0 = B;
-
-            int kk = 0;
-#if __AVX__
-#if __AVX512F__
-            N = batch * 16;
-            p0 += jj * N + b * 16;
-            for (; kk + 15 < max_kk; kk += 16)
-            {
-                __m512 _r0 = _mm512_load_ps(p0);
-                __m512 _r1 = _mm512_load_ps(p0 + N);
-                __m512 _r2 = _mm512_load_ps(p0 + 2 * N);
-                __m512 _r3 = _mm512_load_ps(p0 + 3 * N);
-                transpose16x4_ps(_r0, _r1, _r2, _r3);
-                _mm512_storeu_ps(pp, _r0);
-                _mm512_storeu_ps(pp + 16, _r1);
-                _mm512_storeu_ps(pp + 32, _r2);
-                _mm512_storeu_ps(pp + 48, _r3);
-                p0 += max_jj * N;
-                pp += 64;
-            }
-            p0 -= jj * N + b * 16;
-#endif // __AVX512F__
-            N = batch * 8;
-            p0 += jj * N + b * 8;
-            for (; kk + 7 < max_kk; kk += 8)
-            {
-                __m256 _r0 = _mm256_load_ps(p0);
-                __m256 _r1 = _mm256_load_ps(p0 + N);
-                __m256 _r2 = _mm256_load_ps(p0 + 2 * N);
-                __m256 _r3 = _mm256_load_ps(p0 + 3 * N);
-                transpose8x4_ps(_r0, _r1, _r2, _r3);
-                _mm256_storeu_ps(pp, _r0);
-                _mm256_storeu_ps(pp + 8, _r1);
-                _mm256_storeu_ps(pp + 16, _r2);
-                _mm256_storeu_ps(pp + 24, _r3);
-                p0 += max_jj * N;
-                pp += 32;
-            }
-            p0 -= jj * N + b * 8;
-#endif // __AVX__
-            N = batch * 4;
-            p0 += jj * N + b * 4;
-            for (; kk + 3 < max_kk; kk += 4)
-            {
-                __m128 _r0 = _mm_load_ps(p0);
-                __m128 _r1 = _mm_load_ps(p0 + N);
-                __m128 _r2 = _mm_load_ps(p0 + 2 * N);
-                __m128 _r3 = _mm_load_ps(p0 + 3 * N);
-                _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
-                _mm_store_ps(pp, _r0);
-                _mm_store_ps(pp + 4, _r1);
-                _mm_store_ps(pp + 8, _r2);
-                _mm_store_ps(pp + 12, _r3);
-                p0 += max_jj * N;
-                pp += 16;
-            }
-            p0 -= jj * N + b * 4;
-            N = batch * 2;
-            p0 += jj * N + b * 2;
-            for (; kk + 1 < max_kk; kk += 2)
-            {
-                pp[0] = p0[0];
-                pp[1] = p0[N];
-                pp[2] = p0[2 * N];
-                pp[3] = p0[3 * N];
-                pp[4] = p0[1];
-                pp[5] = p0[N + 1];
-                pp[6] = p0[2 * N + 1];
-                pp[7] = p0[3 * N + 1];
-                p0 += max_jj * N;
-                pp += 8;
-            }
-            p0 -= jj * N + b * 2;
-            N = batch;
-            p0 += jj * N + b;
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp[1] = p0[N];
-                pp[2] = p0[2 * N];
-                pp[3] = p0[3 * N];
-                p0 += max_jj * N;
-                pp += 4;
-            }
-            p0 -= jj * N + b;
-        }
-#endif // __SSE2__
-        for (; jj + 1 < max_jj; jj += 2)
-        {
-            int N = batch;
-            const float* p0 = B;
-
-            int kk = 0;
-#if __SSE2__
-#if __AVX__
-#if __AVX512F__
-            N = batch * 16;
-            p0 += jj * N + b * 16;
-            for (; kk + 15 < max_kk; kk += 16)
-            {
-                __m512 _r0 = _mm512_load_ps(p0);
-                __m512 _r1 = _mm512_load_ps(p0 + N);
-                transpose16x2_ps(_r0, _r1);
-                _mm512_storeu_ps(pp, _r0);
-                _mm512_storeu_ps(pp + 16, _r1);
-                p0 += max_jj * N;
-                pp += 32;
-            }
-            p0 -= jj * N + b * 16;
-#endif // __AVX512F__
-            N = batch * 8;
-            p0 += jj * N + b * 8;
-            for (; kk + 7 < max_kk; kk += 8)
-            {
-                __m256 _r0 = _mm256_load_ps(p0);
-                __m256 _r1 = _mm256_load_ps(p0 + N);
-                transpose8x2_ps(_r0, _r1);
-                _mm256_storeu_ps(pp, _r0);
-                _mm256_storeu_ps(pp + 8, _r1);
-                p0 += max_jj * N;
-                pp += 16;
-            }
-            p0 -= jj * N + b * 8;
-#endif // __AVX__
-            N = batch * 4;
-            p0 += jj * N + b * 4;
-            for (; kk + 3 < max_kk; kk += 4)
-            {
-                __m128 _r0 = _mm_load_ps(p0);
-                __m128 _r1 = _mm_load_ps(p0 + N);
-                __m128 _tmp0 = _mm_unpacklo_ps(_r0, _r1);
-                __m128 _tmp1 = _mm_unpackhi_ps(_r0, _r1);
-                _mm_store_ps(pp, _tmp0);
-                _mm_store_ps(pp + 4, _tmp1);
-                p0 += max_jj * N;
-                pp += 8;
-            }
-            p0 -= jj * N + b * 4;
-#endif // __SSE2__
-            N = batch * 2;
-            p0 += jj * N + b * 2;
-            for (; kk + 1 < max_kk; kk += 2)
-            {
-                pp[0] = p0[0];
-                pp[1] = p0[N];
-                pp[2] = p0[1];
-                pp[3] = p0[N + 1];
-                p0 += max_jj * N;
-                pp += 4;
-            }
-            p0 -= jj * N + b * 2;
-            N = batch;
-            p0 += jj * N + b;
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp[1] = p0[N];
-                p0 += max_jj * N;
-                pp += 2;
-            }
-            p0 -= jj * N + b;
-        }
-        for (; jj < max_jj; jj++)
-        {
-            int N = batch;
-            const float* p0 = B;
-
-            int kk = 0;
-#if __SSE2__
-#if __AVX__
-#if __AVX512F__
-            N = batch * 16;
-            p0 += jj * N + b * 16;
-            for (; kk + 15 < max_kk; kk += 16)
-            {
-                __m512 _r0 = _mm512_load_ps(p0);
-                _mm512_storeu_ps(pp, _r0);
-                p0 += max_jj * N;
-                pp += 16;
-            }
-            p0 -= jj * N + b * 16;
-#endif // __AVX512F__
-            N = batch * 8;
-            p0 += jj * N + b * 8;
-            for (; kk + 7 < max_kk; kk += 8)
-            {
-                __m256 _r0 = _mm256_load_ps(p0);
-                _mm256_storeu_ps(pp, _r0);
-                p0 += max_jj * N;
-                pp += 8;
-            }
-            p0 -= jj * N + b * 8;
-#endif // __AVX__
-            N = batch * 4;
-            p0 += jj * N + b * 4;
-            for (; kk + 3 < max_kk; kk += 4)
-            {
-                __m128 _r0 = _mm_load_ps(p0);
-                _mm_storeu_ps(pp, _r0);
-                p0 += max_jj * N;
-                pp += 4;
-            }
-            p0 -= jj * N + b * 4;
-#endif // __SSE2__
-            N = batch * 2;
-            p0 += jj * N + b * 2;
-            for (; kk + 1 < max_kk; kk += 2)
-            {
-                pp[0] = p0[0];
-                pp[1] = p0[1];
-                p0 += max_jj * N;
-                pp += 2;
-            }
-            p0 -= jj * N + b * 2;
-            N = batch;
-            p0 += jj * N + b;
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                p0 += max_jj * N;
-                pp += 1;
-            }
-            p0 -= jj * N + b;
-        }
-    }
-}
-#endif
-
 static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, int max_kk, int nT)
 {
-    // Mat B(TILE_N * B * TILE_K);
-    // Mat BT(TILE_K * TILE_N, B);
-
-    // max_jj * B * max_kk(16/8/4/2/1)
-
     #pragma omp parallel for num_threads(nT)
     for (int b = 0; b < batch; b++)
     {
@@ -718,18 +181,18 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, 
                 __m256 _ra = _mm256_load_ps(p0 + 8 * 10);
                 __m256 _rb = _mm256_load_ps(p0 + 8 * 11);
                 transpose8x12_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7, _r8, _r9, _ra, _rb);
-                _mm256_store_ps(pp, _r0);
-                _mm256_store_ps(pp + 8, _r1);
-                _mm256_store_ps(pp + 8 * 2, _r2);
-                _mm256_store_ps(pp + 8 * 3, _r3);
-                _mm256_store_ps(pp + 8 * 4, _r4);
-                _mm256_store_ps(pp + 8 * 5, _r5);
-                _mm256_store_ps(pp + 8 * 6, _r6);
-                _mm256_store_ps(pp + 8 * 7, _r7);
-                _mm256_store_ps(pp + 8 * 8, _r8);
-                _mm256_store_ps(pp + 8 * 9, _r9);
-                _mm256_store_ps(pp + 8 * 10, _ra);
-                _mm256_store_ps(pp + 8 * 11, _rb);
+                _mm256_storeu_ps(pp, _r0);
+                _mm256_storeu_ps(pp + 8, _r1);
+                _mm256_storeu_ps(pp + 8 * 2, _r2);
+                _mm256_storeu_ps(pp + 8 * 3, _r3);
+                _mm256_storeu_ps(pp + 8 * 4, _r4);
+                _mm256_storeu_ps(pp + 8 * 5, _r5);
+                _mm256_storeu_ps(pp + 8 * 6, _r6);
+                _mm256_storeu_ps(pp + 8 * 7, _r7);
+                _mm256_storeu_ps(pp + 8 * 8, _r8);
+                _mm256_storeu_ps(pp + 8 * 9, _r9);
+                _mm256_storeu_ps(pp + 8 * 10, _ra);
+                _mm256_storeu_ps(pp + 8 * 11, _rb);
                 p0 += max_jj * batch * 8;
                 pp += 96;
             }
@@ -861,14 +324,14 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, 
                 __m256 _r6 = _mm256_load_ps(p0 + 8 * 6);
                 __m256 _r7 = _mm256_load_ps(p0 + 8 * 7);
                 transpose8x8_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
-                _mm256_store_ps(pp, _r0);
-                _mm256_store_ps(pp + 8, _r1);
-                _mm256_store_ps(pp + 8 * 2, _r2);
-                _mm256_store_ps(pp + 8 * 3, _r3);
-                _mm256_store_ps(pp + 8 * 4, _r4);
-                _mm256_store_ps(pp + 8 * 5, _r5);
-                _mm256_store_ps(pp + 8 * 6, _r6);
-                _mm256_store_ps(pp + 8 * 7, _r7);
+                _mm256_storeu_ps(pp, _r0);
+                _mm256_storeu_ps(pp + 8, _r1);
+                _mm256_storeu_ps(pp + 8 * 2, _r2);
+                _mm256_storeu_ps(pp + 8 * 3, _r3);
+                _mm256_storeu_ps(pp + 8 * 4, _r4);
+                _mm256_storeu_ps(pp + 8 * 5, _r5);
+                _mm256_storeu_ps(pp + 8 * 6, _r6);
+                _mm256_storeu_ps(pp + 8 * 7, _r7);
                 p0 += max_jj * batch * 8;
                 pp += 64;
             }
@@ -969,10 +432,10 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, 
                 __m256 _r2 = _mm256_load_ps(p0 + 8 * 2);
                 __m256 _r3 = _mm256_load_ps(p0 + 8 * 3);
                 transpose8x4_ps(_r0, _r1, _r2, _r3);
-                _mm256_store_ps(pp, _r0);
-                _mm256_store_ps(pp + 8, _r1);
-                _mm256_store_ps(pp + 8 * 2, _r2);
-                _mm256_store_ps(pp + 8 * 3, _r3);
+                _mm256_storeu_ps(pp, _r0);
+                _mm256_storeu_ps(pp + 8, _r1);
+                _mm256_storeu_ps(pp + 8 * 2, _r2);
+                _mm256_storeu_ps(pp + 8 * 3, _r3);
                 p0 += max_jj * batch * 8;
                 pp += 32;
             }
@@ -1048,8 +511,8 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, 
                 __m256 _r0 = _mm256_load_ps(p0);
                 __m256 _r1 = _mm256_load_ps(p0 + 8);
                 transpose8x2_ps(_r0, _r1);
-                _mm256_store_ps(pp, _r0);
-                _mm256_store_ps(pp + 8, _r1);
+                _mm256_storeu_ps(pp, _r0);
+                _mm256_storeu_ps(pp + 8, _r1);
                 p0 += max_jj * batch * 8;
                 pp += 16;
             }
@@ -1062,8 +525,8 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, 
                 __m128 _r1 = _mm_load_ps(p0 + 4);
                 __m128 _tmp0 = _mm_unpacklo_ps(_r0, _r1);
                 __m128 _tmp1 = _mm_unpackhi_ps(_r0, _r1);
-                _mm_store_ps(pp, _tmp0);
-                _mm_store_ps(pp + 4, _tmp1);
+                _mm_storeu_ps(pp, _tmp0);
+                _mm_storeu_ps(pp + 4, _tmp1);
                 p0 += max_jj * batch * 4;
                 pp += 8;
             }
@@ -1111,7 +574,7 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, 
             for (; kk + 7 < max_kk; kk += 8)
             {
                 __m256 _r0 = _mm256_load_ps(p0);
-                _mm256_store_ps(pp, _r0);
+                _mm256_storeu_ps(pp, _r0);
                 p0 += max_jj * batch * 8;
                 pp += 8;
             }
@@ -1147,15 +610,8 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, 
     }
 }
 
-static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat& top_blob, Mat& tmp, int batch, int max_ii, int max_jj, int k, int max_kk, bool k_end)
+static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat& top_blob, int batch, int max_ii, int max_jj, int k, int max_kk)
 {
-    // Mat AT(TILE_K * TILE_M, B)
-    // Mat BT(TILE_K * TILE_N, B)
-
-    // Mat top_tileX(TILE_N * B * TILE_M);
-
-    float* ptmp = tmp;
-
     float* outptr = top_blob;
 
     int ii = 0;
@@ -1204,18 +660,18 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 }
                 else
                 {
-                    _sum0 = _mm512_load_ps(ptmp);
-                    _sum1 = _mm512_load_ps(ptmp + 16);
-                    _sum2 = _mm512_load_ps(ptmp + 16 * 2);
-                    _sum3 = _mm512_load_ps(ptmp + 16 * 3);
-                    _sum4 = _mm512_load_ps(ptmp + 16 * 4);
-                    _sum5 = _mm512_load_ps(ptmp + 16 * 5);
-                    _sum6 = _mm512_load_ps(ptmp + 16 * 6);
-                    _sum7 = _mm512_load_ps(ptmp + 16 * 7);
-                    _sum8 = _mm512_load_ps(ptmp + 16 * 8);
-                    _sum9 = _mm512_load_ps(ptmp + 16 * 9);
-                    _suma = _mm512_load_ps(ptmp + 16 * 10);
-                    _sumb = _mm512_load_ps(ptmp + 16 * 11);
+                    _sum0 = _mm512_load_ps(outptr);
+                    _sum1 = _mm512_load_ps(outptr + 16);
+                    _sum2 = _mm512_load_ps(outptr + 16 * 2);
+                    _sum3 = _mm512_load_ps(outptr + 16 * 3);
+                    _sum4 = _mm512_load_ps(outptr + 16 * 4);
+                    _sum5 = _mm512_load_ps(outptr + 16 * 5);
+                    _sum6 = _mm512_load_ps(outptr + 16 * 6);
+                    _sum7 = _mm512_load_ps(outptr + 16 * 7);
+                    _sum8 = _mm512_load_ps(outptr + 16 * 8);
+                    _sum9 = _mm512_load_ps(outptr + 16 * 9);
+                    _suma = _mm512_load_ps(outptr + 16 * 10);
+                    _sumb = _mm512_load_ps(outptr + 16 * 11);
                 }
 
                 int kk = 0;
@@ -1239,39 +695,19 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     pB += 12;
                 }
 
-                if (k_end)
-                {
-                    _mm512_store_ps(outptr, _sum0);
-                    _mm512_store_ps(outptr + 16, _sum1);
-                    _mm512_store_ps(outptr + 16 * 2, _sum2);
-                    _mm512_store_ps(outptr + 16 * 3, _sum3);
-                    _mm512_store_ps(outptr + 16 * 4, _sum4);
-                    _mm512_store_ps(outptr + 16 * 5, _sum5);
-                    _mm512_store_ps(outptr + 16 * 6, _sum6);
-                    _mm512_store_ps(outptr + 16 * 7, _sum7);
-                    _mm512_store_ps(outptr + 16 * 8, _sum8);
-                    _mm512_store_ps(outptr + 16 * 9, _sum9);
-                    _mm512_store_ps(outptr + 16 * 10, _suma);
-                    _mm512_store_ps(outptr + 16 * 11, _sumb);
-                    outptr += 16 * 12;
-                }
-                else
-                {
-                    _mm512_store_ps(ptmp, _sum0);
-                    _mm512_store_ps(ptmp + 16, _sum1);
-                    _mm512_store_ps(ptmp + 16 * 2, _sum2);
-                    _mm512_store_ps(ptmp + 16 * 3, _sum3);
-                    _mm512_store_ps(ptmp + 16 * 4, _sum4);
-                    _mm512_store_ps(ptmp + 16 * 5, _sum5);
-                    _mm512_store_ps(ptmp + 16 * 6, _sum6);
-                    _mm512_store_ps(ptmp + 16 * 7, _sum7);
-                    _mm512_store_ps(ptmp + 16 * 8, _sum8);
-                    _mm512_store_ps(ptmp + 16 * 9, _sum9);
-                    _mm512_store_ps(ptmp + 16 * 10, _suma);
-                    _mm512_store_ps(ptmp + 16 * 11, _sumb);
-                }
-
-                ptmp += 192;
+                _mm512_store_ps(outptr, _sum0);
+                _mm512_store_ps(outptr + 16, _sum1);
+                _mm512_store_ps(outptr + 16 * 2, _sum2);
+                _mm512_store_ps(outptr + 16 * 3, _sum3);
+                _mm512_store_ps(outptr + 16 * 4, _sum4);
+                _mm512_store_ps(outptr + 16 * 5, _sum5);
+                _mm512_store_ps(outptr + 16 * 6, _sum6);
+                _mm512_store_ps(outptr + 16 * 7, _sum7);
+                _mm512_store_ps(outptr + 16 * 8, _sum8);
+                _mm512_store_ps(outptr + 16 * 9, _sum9);
+                _mm512_store_ps(outptr + 16 * 10, _suma);
+                _mm512_store_ps(outptr + 16 * 11, _sumb);
+                outptr += 16 * 12;
             }
             for (; jj + 7 < max_jj; jj += 8)
             {
@@ -1299,14 +735,14 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 }
                 else
                 {
-                    _sum0 = _mm512_load_ps(ptmp);
-                    _sum1 = _mm512_load_ps(ptmp + 16);
-                    _sum2 = _mm512_load_ps(ptmp + 16 * 2);
-                    _sum3 = _mm512_load_ps(ptmp + 16 * 3);
-                    _sum4 = _mm512_load_ps(ptmp + 16 * 4);
-                    _sum5 = _mm512_load_ps(ptmp + 16 * 5);
-                    _sum6 = _mm512_load_ps(ptmp + 16 * 6);
-                    _sum7 = _mm512_load_ps(ptmp + 16 * 7);
+                    _sum0 = _mm512_load_ps(outptr);
+                    _sum1 = _mm512_load_ps(outptr + 16);
+                    _sum2 = _mm512_load_ps(outptr + 16 * 2);
+                    _sum3 = _mm512_load_ps(outptr + 16 * 3);
+                    _sum4 = _mm512_load_ps(outptr + 16 * 4);
+                    _sum5 = _mm512_load_ps(outptr + 16 * 5);
+                    _sum6 = _mm512_load_ps(outptr + 16 * 6);
+                    _sum7 = _mm512_load_ps(outptr + 16 * 7);
                 }
 
                 int kk = 0;
@@ -1326,31 +762,15 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     pB += 8;
                 }
 
-                if (k_end)
-                {
-                    _mm512_store_ps(outptr, _sum0);
-                    _mm512_store_ps(outptr + 16, _sum1);
-                    _mm512_store_ps(outptr + 16 * 2, _sum2);
-                    _mm512_store_ps(outptr + 16 * 3, _sum3);
-                    _mm512_store_ps(outptr + 16 * 4, _sum4);
-                    _mm512_store_ps(outptr + 16 * 5, _sum5);
-                    _mm512_store_ps(outptr + 16 * 6, _sum6);
-                    _mm512_store_ps(outptr + 16 * 7, _sum7);
-                    outptr += 16 * 8;
-                }
-                else
-                {
-                    _mm512_store_ps(ptmp, _sum0);
-                    _mm512_store_ps(ptmp + 16, _sum1);
-                    _mm512_store_ps(ptmp + 16 * 2, _sum2);
-                    _mm512_store_ps(ptmp + 16 * 3, _sum3);
-                    _mm512_store_ps(ptmp + 16 * 4, _sum4);
-                    _mm512_store_ps(ptmp + 16 * 5, _sum5);
-                    _mm512_store_ps(ptmp + 16 * 6, _sum6);
-                    _mm512_store_ps(ptmp + 16 * 7, _sum7);
-                }
-
-                ptmp += 128;
+                _mm512_store_ps(outptr, _sum0);
+                _mm512_store_ps(outptr + 16, _sum1);
+                _mm512_store_ps(outptr + 16 * 2, _sum2);
+                _mm512_store_ps(outptr + 16 * 3, _sum3);
+                _mm512_store_ps(outptr + 16 * 4, _sum4);
+                _mm512_store_ps(outptr + 16 * 5, _sum5);
+                _mm512_store_ps(outptr + 16 * 6, _sum6);
+                _mm512_store_ps(outptr + 16 * 7, _sum7);
+                outptr += 16 * 8;
             }
             for (; jj + 3 < max_jj; jj += 4)
             {
@@ -1370,10 +790,10 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 }
                 else
                 {
-                    _sum0 = _mm512_load_ps(ptmp);
-                    _sum1 = _mm512_load_ps(ptmp + 16);
-                    _sum2 = _mm512_load_ps(ptmp + 16 * 2);
-                    _sum3 = _mm512_load_ps(ptmp + 16 * 3);
+                    _sum0 = _mm512_load_ps(outptr);
+                    _sum1 = _mm512_load_ps(outptr + 16);
+                    _sum2 = _mm512_load_ps(outptr + 16 * 2);
+                    _sum3 = _mm512_load_ps(outptr + 16 * 3);
                 }
 
                 int kk = 0;
@@ -1389,23 +809,11 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     pB += 4;
                 }
 
-                if (k_end)
-                {
-                    _mm512_store_ps(outptr, _sum0);
-                    _mm512_store_ps(outptr + 16, _sum1);
-                    _mm512_store_ps(outptr + 16 * 2, _sum2);
-                    _mm512_store_ps(outptr + 16 * 3, _sum3);
-                    outptr += 16 * 4;
-                }
-                else
-                {
-                    _mm512_store_ps(ptmp, _sum0);
-                    _mm512_store_ps(ptmp + 16, _sum1);
-                    _mm512_store_ps(ptmp + 16 * 2, _sum2);
-                    _mm512_store_ps(ptmp + 16 * 3, _sum3);
-                }
-
-                ptmp += 64;
+                _mm512_store_ps(outptr, _sum0);
+                _mm512_store_ps(outptr + 16, _sum1);
+                _mm512_store_ps(outptr + 16 * 2, _sum2);
+                _mm512_store_ps(outptr + 16 * 3, _sum3);
+                outptr += 16 * 4;
             }
             for (; jj + 1 < max_jj; jj += 2)
             {
@@ -1421,8 +829,8 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 }
                 else
                 {
-                    _sum0 = _mm512_load_ps(ptmp);
-                    _sum1 = _mm512_load_ps(ptmp + 8);
+                    _sum0 = _mm512_load_ps(outptr);
+                    _sum1 = _mm512_load_ps(outptr + 16);
                 }
 
                 int kk = 0;
@@ -1436,19 +844,9 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     pB += 2;
                 }
 
-                if (k_end)
-                {
-                    _mm512_store_ps(outptr, _sum0);
-                    _mm512_store_ps(outptr + 16, _sum1);
-                    outptr += 16 * 2;
-                }
-                else
-                {
-                    _mm512_store_ps(ptmp, _sum0);
-                    _mm512_store_ps(ptmp + 16, _sum1);
-                }
-
-                ptmp += 32;
+                _mm512_store_ps(outptr, _sum0);
+                _mm512_store_ps(outptr + 16, _sum1);
+                outptr += 16 * 2;
             }
             for (; jj < max_jj; jj++)
             {
@@ -1462,7 +860,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 }
                 else
                 {
-                    _sum = _mm512_load_ps(ptmp);
+                    _sum = _mm512_load_ps(outptr);
                 }
 
                 int kk = 0;
@@ -1476,17 +874,8 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     pB += 1;
                 }
 
-                if (k_end)
-                {
-                    _mm512_store_ps(outptr, _sum);
-                    outptr += 16;
-                }
-                else
-                {
-                    _mm512_store_ps(ptmp, _sum);
-                }
-
-                ptmp += 16;
+                _mm512_store_ps(outptr, _sum);
+                outptr += 16;
             }
         }
     }
@@ -1533,18 +922,18 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 }
                 else
                 {
-                    _sum0 = _mm256_load_ps(ptmp);
-                    _sum1 = _mm256_load_ps(ptmp + 8);
-                    _sum2 = _mm256_load_ps(ptmp + 16);
-                    _sum3 = _mm256_load_ps(ptmp + 24);
-                    _sum4 = _mm256_load_ps(ptmp + 32);
-                    _sum5 = _mm256_load_ps(ptmp + 40);
-                    _sum6 = _mm256_load_ps(ptmp + 48);
-                    _sum7 = _mm256_load_ps(ptmp + 56);
-                    _sum8 = _mm256_load_ps(ptmp + 64);
-                    _sum9 = _mm256_load_ps(ptmp + 72);
-                    _suma = _mm256_load_ps(ptmp + 80);
-                    _sumb = _mm256_load_ps(ptmp + 88);
+                    _sum0 = _mm256_load_ps(outptr);
+                    _sum1 = _mm256_load_ps(outptr + 8);
+                    _sum2 = _mm256_load_ps(outptr + 16);
+                    _sum3 = _mm256_load_ps(outptr + 24);
+                    _sum4 = _mm256_load_ps(outptr + 32);
+                    _sum5 = _mm256_load_ps(outptr + 40);
+                    _sum6 = _mm256_load_ps(outptr + 48);
+                    _sum7 = _mm256_load_ps(outptr + 56);
+                    _sum8 = _mm256_load_ps(outptr + 64);
+                    _sum9 = _mm256_load_ps(outptr + 72);
+                    _suma = _mm256_load_ps(outptr + 80);
+                    _sumb = _mm256_load_ps(outptr + 88);
                 }
 
                 int kk = 0;
@@ -1568,38 +957,19 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     pB += 12;
                 }
 
-                if (k_end)
-                {
-                    _mm256_store_ps(outptr, _sum0);
-                    _mm256_store_ps(outptr + 8, _sum1);
-                    _mm256_store_ps(outptr + 8 * 2, _sum2);
-                    _mm256_store_ps(outptr + 8 * 3, _sum3);
-                    _mm256_store_ps(outptr + 8 * 4, _sum4);
-                    _mm256_store_ps(outptr + 8 * 5, _sum5);
-                    _mm256_store_ps(outptr + 8 * 6, _sum6);
-                    _mm256_store_ps(outptr + 8 * 7, _sum7);
-                    _mm256_store_ps(outptr + 8 * 8, _sum8);
-                    _mm256_store_ps(outptr + 8 * 9, _sum9);
-                    _mm256_store_ps(outptr + 8 * 10, _suma);
-                    _mm256_store_ps(outptr + 8 * 11, _sumb);
-                    outptr += 8 * 12;
-                }
-                else
-                {
-                    _mm256_store_ps(ptmp, _sum0);
-                    _mm256_store_ps(ptmp + 8, _sum1);
-                    _mm256_store_ps(ptmp + 16, _sum2);
-                    _mm256_store_ps(ptmp + 24, _sum3);
-                    _mm256_store_ps(ptmp + 32, _sum4);
-                    _mm256_store_ps(ptmp + 40, _sum5);
-                    _mm256_store_ps(ptmp + 48, _sum6);
-                    _mm256_store_ps(ptmp + 56, _sum7);
-                    _mm256_store_ps(ptmp + 64, _sum8);
-                    _mm256_store_ps(ptmp + 72, _sum9);
-                    _mm256_store_ps(ptmp + 80, _suma);
-                    _mm256_store_ps(ptmp + 88, _sumb);
-                }
-                ptmp += 96;
+                _mm256_store_ps(outptr, _sum0);
+                _mm256_store_ps(outptr + 8, _sum1);
+                _mm256_store_ps(outptr + 8 * 2, _sum2);
+                _mm256_store_ps(outptr + 8 * 3, _sum3);
+                _mm256_store_ps(outptr + 8 * 4, _sum4);
+                _mm256_store_ps(outptr + 8 * 5, _sum5);
+                _mm256_store_ps(outptr + 8 * 6, _sum6);
+                _mm256_store_ps(outptr + 8 * 7, _sum7);
+                _mm256_store_ps(outptr + 8 * 8, _sum8);
+                _mm256_store_ps(outptr + 8 * 9, _sum9);
+                _mm256_store_ps(outptr + 8 * 10, _suma);
+                _mm256_store_ps(outptr + 8 * 11, _sumb);
+                outptr += 8 * 12;
             }
             for (; jj + 7 < max_jj; jj += 8)
             {
@@ -1627,14 +997,14 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 }
                 else
                 {
-                    _sum0 = _mm256_load_ps(ptmp);
-                    _sum1 = _mm256_load_ps(ptmp + 8);
-                    _sum2 = _mm256_load_ps(ptmp + 16);
-                    _sum3 = _mm256_load_ps(ptmp + 24);
-                    _sum4 = _mm256_load_ps(ptmp + 32);
-                    _sum5 = _mm256_load_ps(ptmp + 40);
-                    _sum6 = _mm256_load_ps(ptmp + 48);
-                    _sum7 = _mm256_load_ps(ptmp + 56);
+                    _sum0 = _mm256_load_ps(outptr);
+                    _sum1 = _mm256_load_ps(outptr + 8);
+                    _sum2 = _mm256_load_ps(outptr + 16);
+                    _sum3 = _mm256_load_ps(outptr + 24);
+                    _sum4 = _mm256_load_ps(outptr + 32);
+                    _sum5 = _mm256_load_ps(outptr + 40);
+                    _sum6 = _mm256_load_ps(outptr + 48);
+                    _sum7 = _mm256_load_ps(outptr + 56);
                 }
 
                 int kk = 0;
@@ -1654,31 +1024,15 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     pB += 8;
                 }
 
-                if (k_end)
-                {
-                    _mm256_store_ps(outptr, _sum0);
-                    _mm256_store_ps(outptr + 8, _sum1);
-                    _mm256_store_ps(outptr + 8 * 2, _sum2);
-                    _mm256_store_ps(outptr + 8 * 3, _sum3);
-                    _mm256_store_ps(outptr + 8 * 4, _sum4);
-                    _mm256_store_ps(outptr + 8 * 5, _sum5);
-                    _mm256_store_ps(outptr + 8 * 6, _sum6);
-                    _mm256_store_ps(outptr + 8 * 7, _sum7);
-                    outptr += 8 * 8;
-                }
-                else
-                {
-                    _mm256_store_ps(ptmp, _sum0);
-                    _mm256_store_ps(ptmp + 8, _sum1);
-                    _mm256_store_ps(ptmp + 16, _sum2);
-                    _mm256_store_ps(ptmp + 24, _sum3);
-                    _mm256_store_ps(ptmp + 32, _sum4);
-                    _mm256_store_ps(ptmp + 40, _sum5);
-                    _mm256_store_ps(ptmp + 48, _sum6);
-                    _mm256_store_ps(ptmp + 56, _sum7);
-                }
-
-                ptmp += 64;
+                _mm256_store_ps(outptr, _sum0);
+                _mm256_store_ps(outptr + 8, _sum1);
+                _mm256_store_ps(outptr + 8 * 2, _sum2);
+                _mm256_store_ps(outptr + 8 * 3, _sum3);
+                _mm256_store_ps(outptr + 8 * 4, _sum4);
+                _mm256_store_ps(outptr + 8 * 5, _sum5);
+                _mm256_store_ps(outptr + 8 * 6, _sum6);
+                _mm256_store_ps(outptr + 8 * 7, _sum7);
+                outptr += 8 * 8;
             }
             for (; jj + 3 < max_jj; jj += 4)
             {
@@ -1698,10 +1052,10 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 }
                 else
                 {
-                    _sum0 = _mm256_load_ps(ptmp);
-                    _sum1 = _mm256_load_ps(ptmp + 8);
-                    _sum2 = _mm256_load_ps(ptmp + 16);
-                    _sum3 = _mm256_load_ps(ptmp + 24);
+                    _sum0 = _mm256_load_ps(outptr);
+                    _sum1 = _mm256_load_ps(outptr + 8);
+                    _sum2 = _mm256_load_ps(outptr + 16);
+                    _sum3 = _mm256_load_ps(outptr + 24);
                 }
 
                 int kk = 0;
@@ -1717,23 +1071,11 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     pB += 4;
                 }
 
-                if (k_end)
-                {
-                    _mm256_store_ps(outptr, _sum0);
-                    _mm256_store_ps(outptr + 8, _sum1);
-                    _mm256_store_ps(outptr + 8 * 2, _sum2);
-                    _mm256_store_ps(outptr + 8 * 3, _sum3);
-                    outptr += 8 * 4;
-                }
-                else
-                {
-                    _mm256_store_ps(ptmp, _sum0);
-                    _mm256_store_ps(ptmp + 8, _sum1);
-                    _mm256_store_ps(ptmp + 16, _sum2);
-                    _mm256_store_ps(ptmp + 24, _sum3);
-                }
-
-                ptmp += 32;
+                _mm256_store_ps(outptr, _sum0);
+                _mm256_store_ps(outptr + 8, _sum1);
+                _mm256_store_ps(outptr + 8 * 2, _sum2);
+                _mm256_store_ps(outptr + 8 * 3, _sum3);
+                outptr += 8 * 4;
             }
             for (; jj + 1 < max_jj; jj += 2)
             {
@@ -1749,8 +1091,8 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 }
                 else
                 {
-                    _sum0 = _mm256_load_ps(ptmp);
-                    _sum1 = _mm256_load_ps(ptmp + 8);
+                    _sum0 = _mm256_load_ps(outptr);
+                    _sum1 = _mm256_load_ps(outptr + 8);
                 }
 
                 int kk = 0;
@@ -1764,19 +1106,9 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     pB += 2;
                 }
 
-                if (k_end)
-                {
-                    _mm256_store_ps(outptr, _sum0);
-                    _mm256_store_ps(outptr + 8, _sum1);
-                    outptr += 8 * 2;
-                }
-                else
-                {
-                    _mm256_store_ps(ptmp, _sum0);
-                    _mm256_store_ps(ptmp + 8, _sum1);
-                }
-
-                ptmp += 16;
+                _mm256_store_ps(outptr, _sum0);
+                _mm256_store_ps(outptr + 8, _sum1);
+                outptr += 8 * 2;
             }
             for (; jj < max_jj; jj++)
             {
@@ -1790,7 +1122,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 }
                 else
                 {
-                    _sum = _mm256_load_ps(ptmp);
+                    _sum = _mm256_load_ps(outptr);
                 }
 
                 int kk = 0;
@@ -1804,17 +1136,8 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     pB += 1;
                 }
 
-                if (k_end)
-                {
-                    _mm256_store_ps(outptr, _sum);
-                    outptr += 8;
-                }
-                else
-                {
-                    _mm256_store_ps(ptmp, _sum);
-                }
-
-                ptmp += 8;
+                _mm256_store_ps(outptr, _sum);
+                outptr += 8;
             }
         }
     }
@@ -1861,18 +1184,18 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 }
                 else
                 {
-                    _sum0 = _mm_load_ps(ptmp);
-                    _sum1 = _mm_load_ps(ptmp + 4);
-                    _sum2 = _mm_load_ps(ptmp + 8);
-                    _sum3 = _mm_load_ps(ptmp + 12);
-                    _sum4 = _mm_load_ps(ptmp + 16);
-                    _sum5 = _mm_load_ps(ptmp + 20);
-                    _sum6 = _mm_load_ps(ptmp + 24);
-                    _sum7 = _mm_load_ps(ptmp + 28);
-                    _sum8 = _mm_load_ps(ptmp + 32);
-                    _sum9 = _mm_load_ps(ptmp + 36);
-                    _suma = _mm_load_ps(ptmp + 40);
-                    _sumb = _mm_load_ps(ptmp + 44);
+                    _sum0 = _mm_load_ps(outptr);
+                    _sum1 = _mm_load_ps(outptr + 4);
+                    _sum2 = _mm_load_ps(outptr + 8);
+                    _sum3 = _mm_load_ps(outptr + 12);
+                    _sum4 = _mm_load_ps(outptr + 16);
+                    _sum5 = _mm_load_ps(outptr + 20);
+                    _sum6 = _mm_load_ps(outptr + 24);
+                    _sum7 = _mm_load_ps(outptr + 28);
+                    _sum8 = _mm_load_ps(outptr + 32);
+                    _sum9 = _mm_load_ps(outptr + 36);
+                    _suma = _mm_load_ps(outptr + 40);
+                    _sumb = _mm_load_ps(outptr + 44);
                 }
 
                 int kk = 0;
@@ -1896,39 +1219,19 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     pB += 12;
                 }
 
-                if (k_end)
-                {
-                    _mm_store_ps(outptr, _sum0);
-                    _mm_store_ps(outptr + 4, _sum1);
-                    _mm_store_ps(outptr + 4 * 2, _sum2);
-                    _mm_store_ps(outptr + 4 * 3, _sum3);
-                    _mm_store_ps(outptr + 4 * 4, _sum4);
-                    _mm_store_ps(outptr + 4 * 5, _sum5);
-                    _mm_store_ps(outptr + 4 * 6, _sum6);
-                    _mm_store_ps(outptr + 4 * 7, _sum7);
-                    _mm_store_ps(outptr + 4 * 8, _sum8);
-                    _mm_store_ps(outptr + 4 * 9, _sum9);
-                    _mm_store_ps(outptr + 4 * 10, _suma);
-                    _mm_store_ps(outptr + 4 * 11, _sumb);
-                    outptr += 4 * 12;
-                }
-                else
-                {
-                    _mm_store_ps(ptmp, _sum0);
-                    _mm_store_ps(ptmp + 4, _sum1);
-                    _mm_store_ps(ptmp + 8, _sum2);
-                    _mm_store_ps(ptmp + 12, _sum3);
-                    _mm_store_ps(ptmp + 16, _sum4);
-                    _mm_store_ps(ptmp + 20, _sum5);
-                    _mm_store_ps(ptmp + 24, _sum6);
-                    _mm_store_ps(ptmp + 28, _sum7);
-                    _mm_store_ps(ptmp + 32, _sum8);
-                    _mm_store_ps(ptmp + 36, _sum9);
-                    _mm_store_ps(ptmp + 40, _suma);
-                    _mm_store_ps(ptmp + 44, _sumb);
-                }
-
-                ptmp += 48;
+                _mm_store_ps(outptr, _sum0);
+                _mm_store_ps(outptr + 4, _sum1);
+                _mm_store_ps(outptr + 4 * 2, _sum2);
+                _mm_store_ps(outptr + 4 * 3, _sum3);
+                _mm_store_ps(outptr + 4 * 4, _sum4);
+                _mm_store_ps(outptr + 4 * 5, _sum5);
+                _mm_store_ps(outptr + 4 * 6, _sum6);
+                _mm_store_ps(outptr + 4 * 7, _sum7);
+                _mm_store_ps(outptr + 4 * 8, _sum8);
+                _mm_store_ps(outptr + 4 * 9, _sum9);
+                _mm_store_ps(outptr + 4 * 10, _suma);
+                _mm_store_ps(outptr + 4 * 11, _sumb);
+                outptr += 4 * 12;
             }
             for (; jj + 7 < max_jj; jj += 8)
             {
@@ -1956,14 +1259,14 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 }
                 else
                 {
-                    _sum0 = _mm_load_ps(ptmp);
-                    _sum1 = _mm_load_ps(ptmp + 4);
-                    _sum2 = _mm_load_ps(ptmp + 8);
-                    _sum3 = _mm_load_ps(ptmp + 12);
-                    _sum4 = _mm_load_ps(ptmp + 16);
-                    _sum5 = _mm_load_ps(ptmp + 20);
-                    _sum6 = _mm_load_ps(ptmp + 24);
-                    _sum7 = _mm_load_ps(ptmp + 28);
+                    _sum0 = _mm_load_ps(outptr);
+                    _sum1 = _mm_load_ps(outptr + 4);
+                    _sum2 = _mm_load_ps(outptr + 8);
+                    _sum3 = _mm_load_ps(outptr + 12);
+                    _sum4 = _mm_load_ps(outptr + 16);
+                    _sum5 = _mm_load_ps(outptr + 20);
+                    _sum6 = _mm_load_ps(outptr + 24);
+                    _sum7 = _mm_load_ps(outptr + 28);
                 }
 
                 int kk = 0;
@@ -1983,31 +1286,15 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     pB += 8;
                 }
 
-                if (k_end)
-                {
-                    _mm_store_ps(outptr, _sum0);
-                    _mm_store_ps(outptr + 4, _sum1);
-                    _mm_store_ps(outptr + 4 * 2, _sum2);
-                    _mm_store_ps(outptr + 4 * 3, _sum3);
-                    _mm_store_ps(outptr + 4 * 4, _sum4);
-                    _mm_store_ps(outptr + 4 * 5, _sum5);
-                    _mm_store_ps(outptr + 4 * 6, _sum6);
-                    _mm_store_ps(outptr + 4 * 7, _sum7);
-                    outptr += 4 * 8;
-                }
-                else
-                {
-                    _mm_store_ps(ptmp, _sum0);
-                    _mm_store_ps(ptmp + 4, _sum1);
-                    _mm_store_ps(ptmp + 8, _sum2);
-                    _mm_store_ps(ptmp + 12, _sum3);
-                    _mm_store_ps(ptmp + 16, _sum4);
-                    _mm_store_ps(ptmp + 20, _sum5);
-                    _mm_store_ps(ptmp + 24, _sum6);
-                    _mm_store_ps(ptmp + 28, _sum7);
-                }
-
-                ptmp += 32;
+                _mm_store_ps(outptr, _sum0);
+                _mm_store_ps(outptr + 4, _sum1);
+                _mm_store_ps(outptr + 4 * 2, _sum2);
+                _mm_store_ps(outptr + 4 * 3, _sum3);
+                _mm_store_ps(outptr + 4 * 4, _sum4);
+                _mm_store_ps(outptr + 4 * 5, _sum5);
+                _mm_store_ps(outptr + 4 * 6, _sum6);
+                _mm_store_ps(outptr + 4 * 7, _sum7);
+                outptr += 4 * 8;
             }
             for (; jj + 3 < max_jj; jj += 4)
             {
@@ -2027,10 +1314,10 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 }
                 else
                 {
-                    _sum0 = _mm_load_ps(ptmp);
-                    _sum1 = _mm_load_ps(ptmp + 4);
-                    _sum2 = _mm_load_ps(ptmp + 8);
-                    _sum3 = _mm_load_ps(ptmp + 12);
+                    _sum0 = _mm_load_ps(outptr);
+                    _sum1 = _mm_load_ps(outptr + 4);
+                    _sum2 = _mm_load_ps(outptr + 8);
+                    _sum3 = _mm_load_ps(outptr + 12);
                 }
 
                 int kk = 0;
@@ -2046,23 +1333,11 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     pB += 4;
                 }
 
-                if (k_end)
-                {
-                    _mm_store_ps(outptr, _sum0);
-                    _mm_store_ps(outptr + 4, _sum1);
-                    _mm_store_ps(outptr + 4 * 2, _sum2);
-                    _mm_store_ps(outptr + 4 * 3, _sum3);
-                    outptr += 4 * 4;
-                }
-                else
-                {
-                    _mm_store_ps(ptmp, _sum0);
-                    _mm_store_ps(ptmp + 4, _sum1);
-                    _mm_store_ps(ptmp + 8, _sum2);
-                    _mm_store_ps(ptmp + 12, _sum3);
-                }
-
-                ptmp += 16;
+                _mm_store_ps(outptr, _sum0);
+                _mm_store_ps(outptr + 4, _sum1);
+                _mm_store_ps(outptr + 4 * 2, _sum2);
+                _mm_store_ps(outptr + 4 * 3, _sum3);
+                outptr += 4 * 4;
             }
             for (; jj + 1 < max_jj; jj += 2)
             {
@@ -2078,8 +1353,8 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 }
                 else
                 {
-                    _sum0 = _mm_load_ps(ptmp);
-                    _sum1 = _mm_load_ps(ptmp + 4);
+                    _sum0 = _mm_load_ps(outptr);
+                    _sum1 = _mm_load_ps(outptr + 4);
                 }
 
                 int kk = 0;
@@ -2093,19 +1368,9 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     pB += 2;
                 }
 
-                if (k_end)
-                {
-                    _mm_store_ps(outptr, _sum0);
-                    _mm_store_ps(outptr + 4, _sum1);
-                    outptr += 4 * 2;
-                }
-                else
-                {
-                    _mm_store_ps(ptmp, _sum0);
-                    _mm_store_ps(ptmp + 4, _sum1);
-                }
-
-                ptmp += 8;
+                _mm_store_ps(outptr, _sum0);
+                _mm_store_ps(outptr + 4, _sum1);
+                outptr += 4 * 2;
             }
             for (; jj < max_jj; jj++)
             {
@@ -2119,7 +1384,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 }
                 else
                 {
-                    _sum = _mm_load_ps(ptmp);
+                    _sum = _mm_load_ps(outptr);
                 }
 
                 int kk = 0;
@@ -2132,17 +1397,8 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     pB += 1;
                 }
 
-                if (k_end)
-                {
-                    _mm_store_ps(outptr, _sum);
-                    outptr += 4;
-                }
-                else
-                {
-                    _mm_store_ps(ptmp, _sum);
-                }
-
-                ptmp += 4;
+                _mm_store_ps(outptr, _sum);
+                outptr += 4;
             }
         }
     }
@@ -2178,12 +1434,18 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 }
                 else
                 {
-                    _sum0 = _mm_load_ps(ptmp);
-                    _sum1 = _mm_load_ps(ptmp + 4);
-                    _sum2 = _mm_load_ps(ptmp + 8);
-                    _sum3 = _mm_load_ps(ptmp + 12);
-                    _sum4 = _mm_load_ps(ptmp + 16);
-                    _sum5 = _mm_load_ps(ptmp + 20);
+                    __m128 _tmp0 = _mm_loadu_ps(outptr);
+                    __m128 _tmp1 = _mm_loadu_ps(outptr + 4);
+                    __m128 _tmp2 = _mm_loadu_ps(outptr + 8);
+                    __m128 _tmp3 = _mm_loadu_ps(outptr + 12);
+                    __m128 _tmp4 = _mm_loadu_ps(outptr + 16);
+                    __m128 _tmp5 = _mm_loadu_ps(outptr + 20);
+                    _sum0 = _mm_shuffle_ps(_tmp0, _tmp1, _MM_SHUFFLE(2, 0, 2, 0));
+                    _sum1 = _mm_shuffle_ps(_tmp2, _tmp3, _MM_SHUFFLE(2, 0, 2, 0));
+                    _sum2 = _mm_shuffle_ps(_tmp4, _tmp5, _MM_SHUFFLE(2, 0, 2, 0));
+                    _sum3 = _mm_shuffle_ps(_tmp0, _tmp1, _MM_SHUFFLE(3, 1, 3, 1));
+                    _sum4 = _mm_shuffle_ps(_tmp2, _tmp3, _MM_SHUFFLE(3, 1, 3, 1));
+                    _sum5 = _mm_shuffle_ps(_tmp4, _tmp5, _MM_SHUFFLE(3, 1, 3, 1));
                 }
 
                 int kk = 0;
@@ -2204,33 +1466,19 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     pB += 12;
                 }
 
-                if (k_end)
-                {
-                    __m128 _tmp0 = _mm_unpacklo_ps(_sum0, _sum3);
-                    __m128 _tmp1 = _mm_unpackhi_ps(_sum0, _sum3);
-                    __m128 _tmp2 = _mm_unpacklo_ps(_sum1, _sum4);
-                    __m128 _tmp3 = _mm_unpackhi_ps(_sum1, _sum4);
-                    __m128 _tmp4 = _mm_unpacklo_ps(_sum2, _sum5);
-                    __m128 _tmp5 = _mm_unpackhi_ps(_sum2, _sum5);
-                    _mm_store_ps(outptr, _tmp0);
-                    _mm_store_ps(outptr + 4, _tmp1);
-                    _mm_store_ps(outptr + 8, _tmp2);
-                    _mm_store_ps(outptr + 12, _tmp3);
-                    _mm_store_ps(outptr + 16, _tmp4);
-                    _mm_store_ps(outptr + 20, _tmp5);
-                    outptr += 2 * 12;
-                }
-                else
-                {
-                    _mm_store_ps(ptmp, _sum0);
-                    _mm_store_ps(ptmp + 4, _sum1);
-                    _mm_store_ps(ptmp + 8, _sum2);
-                    _mm_store_ps(ptmp + 12, _sum3);
-                    _mm_store_ps(ptmp + 16, _sum4);
-                    _mm_store_ps(ptmp + 20, _sum5);
-                }
-
-                ptmp += 24;
+                __m128 _tmp0 = _mm_unpacklo_ps(_sum0, _sum3);
+                __m128 _tmp1 = _mm_unpackhi_ps(_sum0, _sum3);
+                __m128 _tmp2 = _mm_unpacklo_ps(_sum1, _sum4);
+                __m128 _tmp3 = _mm_unpackhi_ps(_sum1, _sum4);
+                __m128 _tmp4 = _mm_unpacklo_ps(_sum2, _sum5);
+                __m128 _tmp5 = _mm_unpackhi_ps(_sum2, _sum5);
+                _mm_storeu_ps(outptr, _tmp0);
+                _mm_storeu_ps(outptr + 4, _tmp1);
+                _mm_storeu_ps(outptr + 8, _tmp2);
+                _mm_storeu_ps(outptr + 12, _tmp3);
+                _mm_storeu_ps(outptr + 16, _tmp4);
+                _mm_storeu_ps(outptr + 20, _tmp5);
+                outptr += 2 * 12;
             }
             for (; jj + 7 < max_jj; jj += 8)
             {
@@ -2250,10 +1498,14 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 }
                 else
                 {
-                    _sum0 = _mm_load_ps(ptmp);
-                    _sum1 = _mm_load_ps(ptmp + 4);
-                    _sum2 = _mm_load_ps(ptmp + 8);
-                    _sum3 = _mm_load_ps(ptmp + 12);
+                    __m128 _tmp0 = _mm_loadu_ps(outptr);
+                    __m128 _tmp1 = _mm_loadu_ps(outptr + 4);
+                    __m128 _tmp2 = _mm_loadu_ps(outptr + 8);
+                    __m128 _tmp3 = _mm_loadu_ps(outptr + 12);
+                    _sum0 = _mm_shuffle_ps(_tmp0, _tmp1, _MM_SHUFFLE(2, 0, 2, 0));
+                    _sum1 = _mm_shuffle_ps(_tmp2, _tmp3, _MM_SHUFFLE(2, 0, 2, 0));
+                    _sum2 = _mm_shuffle_ps(_tmp0, _tmp1, _MM_SHUFFLE(3, 1, 3, 1));
+                    _sum3 = _mm_shuffle_ps(_tmp2, _tmp3, _MM_SHUFFLE(3, 1, 3, 1));
                 }
 
                 int kk = 0;
@@ -2271,27 +1523,15 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     pB += 8;
                 }
 
-                if (k_end)
-                {
-                    __m128 _tmp0 = _mm_unpacklo_ps(_sum0, _sum2);
-                    __m128 _tmp1 = _mm_unpackhi_ps(_sum0, _sum2);
-                    __m128 _tmp2 = _mm_unpacklo_ps(_sum1, _sum3);
-                    __m128 _tmp3 = _mm_unpackhi_ps(_sum1, _sum3);
-                    _mm_store_ps(outptr, _tmp0);
-                    _mm_store_ps(outptr + 4, _tmp1);
-                    _mm_store_ps(outptr + 8, _tmp2);
-                    _mm_store_ps(outptr + 12, _tmp3);
-                    outptr += 2 * 8;
-                }
-                else
-                {
-                    _mm_store_ps(ptmp, _sum0);
-                    _mm_store_ps(ptmp + 4, _sum1);
-                    _mm_store_ps(ptmp + 8, _sum2);
-                    _mm_store_ps(ptmp + 12, _sum3);
-                }
-
-                ptmp += 16;
+                __m128 _tmp0 = _mm_unpacklo_ps(_sum0, _sum2);
+                __m128 _tmp1 = _mm_unpackhi_ps(_sum0, _sum2);
+                __m128 _tmp2 = _mm_unpacklo_ps(_sum1, _sum3);
+                __m128 _tmp3 = _mm_unpackhi_ps(_sum1, _sum3);
+                _mm_storeu_ps(outptr, _tmp0);
+                _mm_storeu_ps(outptr + 4, _tmp1);
+                _mm_storeu_ps(outptr + 8, _tmp2);
+                _mm_storeu_ps(outptr + 12, _tmp3);
+                outptr += 2 * 8;
             }
             for (; jj + 3 < max_jj; jj += 4)
             {
@@ -2307,8 +1547,10 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 }
                 else
                 {
-                    _sum0 = _mm_load_ps(ptmp);
-                    _sum1 = _mm_load_ps(ptmp + 4);
+                    __m128 _tmp0 = _mm_loadu_ps(outptr);
+                    __m128 _tmp1 = _mm_loadu_ps(outptr + 4);
+                    _sum0 = _mm_shuffle_ps(_tmp0, _tmp1, _MM_SHUFFLE(2, 0, 2, 0));
+                    _sum1 = _mm_shuffle_ps(_tmp0, _tmp1, _MM_SHUFFLE(3, 1, 3, 1));
                 }
 
                 int kk = 0;
@@ -2321,21 +1563,11 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     pB += 4;
                 }
 
-                if (k_end)
-                {
-                    __m128 _tmp0 = _mm_unpacklo_ps(_sum0, _sum1);
-                    __m128 _tmp1 = _mm_unpackhi_ps(_sum0, _sum1);
-                    _mm_store_ps(outptr, _tmp0);
-                    _mm_store_ps(outptr + 4, _tmp1);
-                    outptr += 2 * 4;
-                }
-                else
-                {
-                    _mm_store_ps(ptmp, _sum0);
-                    _mm_store_ps(ptmp + 4, _sum1);
-                }
-
-                ptmp += 8;
+                __m128 _tmp0 = _mm_unpacklo_ps(_sum0, _sum1);
+                __m128 _tmp1 = _mm_unpackhi_ps(_sum0, _sum1);
+                _mm_storeu_ps(outptr, _tmp0);
+                _mm_storeu_ps(outptr + 4, _tmp1);
+                outptr += 2 * 4;
             }
 #endif // __SSE2__
             for (; jj + 1 < max_jj; jj += 2)
@@ -2356,10 +1588,10 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 }
                 else
                 {
-                    sum00 = ptmp[0];
-                    sum01 = ptmp[1];
-                    sum10 = ptmp[2];
-                    sum11 = ptmp[3];
+                    sum00 = outptr[0];
+                    sum01 = outptr[1];
+                    sum10 = outptr[2];
+                    sum11 = outptr[3];
                 }
 
                 int kk = 0;
@@ -2373,23 +1605,11 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     pB += 2;
                 }
 
-                if (k_end)
-                {
-                    outptr[0] = sum00;
-                    outptr[1] = sum01;
-                    outptr[2] = sum10;
-                    outptr[3] = sum11;
-                    outptr += 2 * 2;
-                }
-                else
-                {
-                    ptmp[0] = sum00;
-                    ptmp[1] = sum01;
-                    ptmp[2] = sum10;
-                    ptmp[3] = sum11;
-                }
-
-                ptmp += 4;
+                outptr[0] = sum00;
+                outptr[1] = sum01;
+                outptr[2] = sum10;
+                outptr[3] = sum11;
+                outptr += 2 * 2;
             }
             for (; jj < max_jj; jj++)
             {
@@ -2405,8 +1625,8 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 }
                 else
                 {
-                    sum0 = ptmp[0];
-                    sum1 = ptmp[1];
+                    sum0 = outptr[0];
+                    sum1 = outptr[1];
                 }
 
                 int kk = 0;
@@ -2418,19 +1638,9 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     pB += 1;
                 }
 
-                if (k_end)
-                {
-                    outptr[0] = sum0;
-                    outptr[1] = sum1;
-                    outptr += 2;
-                }
-                else
-                {
-                    ptmp[0] = sum0;
-                    ptmp[1] = sum1;
-                }
-
-                ptmp += 2;
+                outptr[0] = sum0;
+                outptr[1] = sum1;
+                outptr += 2;
             }
         }
     }
@@ -2459,9 +1669,9 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 }
                 else
                 {
-                    _sum0 = _mm_load_ps(ptmp);
-                    _sum1 = _mm_load_ps(ptmp + 4);
-                    _sum2 = _mm_load_ps(ptmp + 8);
+                    _sum0 = _mm_loadu_ps(outptr);
+                    _sum1 = _mm_loadu_ps(outptr + 4);
+                    _sum2 = _mm_loadu_ps(outptr + 8);
                 }
 
                 int kk = 0;
@@ -2478,21 +1688,10 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     pB += 12;
                 }
 
-                if (k_end)
-                {
-                    _mm_store_ps(outptr, _sum0);
-                    _mm_store_ps(outptr + 4, _sum1);
-                    _mm_store_ps(outptr + 8, _sum2);
-                    outptr += 12;
-                }
-                else
-                {
-                    _mm_store_ps(ptmp, _sum0);
-                    _mm_store_ps(ptmp + 4, _sum1);
-                    _mm_store_ps(ptmp + 8, _sum2);
-                }
-
-                ptmp += 12;
+                _mm_storeu_ps(outptr, _sum0);
+                _mm_storeu_ps(outptr + 4, _sum1);
+                _mm_storeu_ps(outptr + 8, _sum2);
+                outptr += 12;
             }
             for (; jj + 7 < max_jj; jj += 8)
             {
@@ -2508,8 +1707,8 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 }
                 else
                 {
-                    _sum0 = _mm_load_ps(ptmp);
-                    _sum1 = _mm_load_ps(ptmp + 4);
+                    _sum0 = _mm_loadu_ps(outptr);
+                    _sum1 = _mm_loadu_ps(outptr + 4);
                 }
 
                 int kk = 0;
@@ -2524,19 +1723,9 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     pB += 8;
                 }
 
-                if (k_end)
-                {
-                    _mm_store_ps(outptr, _sum0);
-                    _mm_store_ps(outptr + 4, _sum1);
-                    outptr += 8;
-                }
-                else
-                {
-                    _mm_store_ps(ptmp, _sum0);
-                    _mm_store_ps(ptmp + 4, _sum1);
-                }
-
-                ptmp += 8;
+                _mm_storeu_ps(outptr, _sum0);
+                _mm_storeu_ps(outptr + 4, _sum1);
+                outptr += 8;
             }
             for (; jj + 3 < max_jj; jj += 4)
             {
@@ -2550,7 +1739,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 }
                 else
                 {
-                    _sum = _mm_load_ps(ptmp);
+                    _sum = _mm_loadu_ps(outptr);
                 }
 
                 int kk = 0;
@@ -2563,17 +1752,8 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     pB += 4;
                 }
 
-                if (k_end)
-                {
-                    _mm_store_ps(outptr, _sum);
-                    outptr += 4;
-                }
-                else
-                {
-                    _mm_store_ps(ptmp, _sum);
-                }
-
-                ptmp += 4;
+                _mm_storeu_ps(outptr, _sum);
+                outptr += 4;
             }
 #endif // __SSE2__
             for (; jj + 1 < max_jj; jj += 2)
@@ -2590,8 +1770,8 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 }
                 else
                 {
-                    sum0 = ptmp[0];
-                    sum1 = ptmp[1];
+                    sum0 = outptr[0];
+                    sum1 = outptr[1];
                 }
 
                 int kk = 0;
@@ -2603,19 +1783,9 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     pB += 2;
                 }
 
-                if (k_end)
-                {
-                    outptr[0] = sum0;
-                    outptr[1] = sum1;
-                    outptr += 2;
-                }
-                else
-                {
-                    ptmp[0] = sum0;
-                    ptmp[1] = sum1;
-                }
-
-                ptmp += 2;
+                outptr[0] = sum0;
+                outptr[1] = sum1;
+                outptr += 2;
             }
             for (; jj < max_jj; jj++)
             {
@@ -2629,7 +1799,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 }
                 else
                 {
-                    sum = ptmp[0];
+                    sum = outptr[0];
                 }
 
                 int kk = 0;
@@ -2640,17 +1810,8 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     pB += 1;
                 }
 
-                if (k_end)
-                {
-                    outptr[0] = sum;
-                    outptr += 1;
-                }
-                else
-                {
-                    ptmp[0] = sum;
-                }
-
-                ptmp += 1;
+                outptr[0] = sum;
+                outptr += 1;
             }
         }
     }
@@ -2849,7 +2010,7 @@ static void conv3x3s1_winograd23_transform_kernel(const Mat& kernel, Mat& AT, in
     }
 }
 
-static inline void conv3x3s1_winograd23_transform_input_tile(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk)
+static inline void conv3x3s1_winograd23_transform_input_tile(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk, int nT)
 {
     // const float itm[4][4] = {
     //     {1.0f,  0.0f, -1.0f,  0.0f},
@@ -2865,26 +2026,29 @@ static inline void conv3x3s1_winograd23_transform_input_tile(const Mat& bottom_b
 
     const int w_tiles = (w - 1) / 2;
 
-    float* ptmp = B;
-
-    int kk = 0;
+    int nn_max_kk = 0;
+    int remain_max_kk_start = 0;
 #if __SSE2__
 #if __AVX__
 #if __AVX512F__
-    for (; kk + 15 < max_kk; kk += 16)
+    nn_max_kk = max_kk / 16;
+    #pragma omp parallel for num_threads(nT)
+    for (int ppkk = 0; ppkk < nn_max_kk; ppkk++)
     {
+        const int kk = ppkk * 16;
+
+#ifdef _MSC_VER
+        __declspec(align(64))
+#else
+        __attribute__((aligned(64)))
+#endif
+        float tmp[4][4][16];
+
         int jj = 0;
         for (; jj < max_jj; jj++)
         {
             int ti = (j + jj) / w_tiles;
             int tj = (j + jj) % w_tiles;
-
-#ifdef _MSC_VER
-            __declspec(align(64))
-#else
-            __attribute__((aligned(64)))
-#endif
-            float tmp[4][4][16];
 
             const float* r0 = bottom_blob.channel((k + kk) / elempack).row(ti * 2) + (tj * 2) * elempack;
 
@@ -2983,6 +2147,12 @@ static inline void conv3x3s1_winograd23_transform_input_tile(const Mat& bottom_b
 
                 r0 += w * elempack;
             }
+
+            float* p0 = (float*)B + kk * max_jj * 16 + jj * 16;
+            float* p1 = p0 + max_jj * 16;
+            float* p2 = p0 + max_jj * 16 * 2;
+            float* p3 = p0 + max_jj * 16 * 3;
+
             for (int m = 0; m < 4; m++)
             {
                 __m512 _r0 = _mm512_load_ps(tmp[m][0]);
@@ -2995,29 +2165,40 @@ static inline void conv3x3s1_winograd23_transform_input_tile(const Mat& bottom_b
                 __m512 _tmp2 = _mm512_sub_ps(_r2, _r1);
                 __m512 _tmp3 = _mm512_sub_ps(_r3, _r1);
 
-                _mm512_store_ps(ptmp, _tmp0);
-                _mm512_store_ps(ptmp + 16, _tmp1);
-                _mm512_store_ps(ptmp + 32, _tmp2);
-                _mm512_store_ps(ptmp + 48, _tmp3);
-                ptmp += 64;
+                _mm512_store_ps(p0, _tmp0);
+                _mm512_store_ps(p1, _tmp1);
+                _mm512_store_ps(p2, _tmp2);
+                _mm512_store_ps(p3, _tmp3);
+
+                p0 += max_jj * 4 * 16;
+                p1 += max_jj * 4 * 16;
+                p2 += max_jj * 4 * 16;
+                p3 += max_jj * 4 * 16;
             }
         }
     }
+    remain_max_kk_start += nn_max_kk * 16;
+    nn_max_kk = (max_kk - remain_max_kk_start) / 8;
+#else // __AVX512F__
+    nn_max_kk = (max_kk - remain_max_kk_start) / 8;
+    #pragma omp parallel for num_threads(nT)
 #endif // __AVX512F__
-    for (; kk + 7 < max_kk; kk += 8)
+    for (int ppkk = 0; ppkk < nn_max_kk; ppkk++)
     {
+        const int kk = remain_max_kk_start + ppkk * 8;
+
+#ifdef _MSC_VER
+        __declspec(align(32))
+#else
+        __attribute__((aligned(32)))
+#endif
+        float tmp[4][4][8];
+
         int jj = 0;
         for (; jj < max_jj; jj++)
         {
             int ti = (j + jj) / w_tiles;
             int tj = (j + jj) % w_tiles;
-
-#ifdef _MSC_VER
-            __declspec(align(32))
-#else
-            __attribute__((aligned(32)))
-#endif
-            float tmp[4][4][8];
 
             const float* r0 = bottom_blob.channel((k + kk) / elempack).row(ti * 2) + (tj * 2) * elempack;
 
@@ -3096,6 +2277,12 @@ static inline void conv3x3s1_winograd23_transform_input_tile(const Mat& bottom_b
 
                 r0 += w * elempack;
             }
+
+            float* p0 = (float*)B + kk * max_jj * 16 + jj * 8;
+            float* p1 = p0 + max_jj * 8;
+            float* p2 = p0 + max_jj * 8 * 2;
+            float* p3 = p0 + max_jj * 8 * 3;
+
             for (int m = 0; m < 4; m++)
             {
 #if defined(__GNUC__) && (__GNUC__ <= 4) && (__GNUC_MINOR__ < 6)
@@ -3115,29 +2302,40 @@ static inline void conv3x3s1_winograd23_transform_input_tile(const Mat& bottom_b
                 __m256 _tmp2 = _mm256_sub_ps(_r2, _r1);
                 __m256 _tmp3 = _mm256_sub_ps(_r3, _r1);
 
-                _mm256_store_ps(ptmp, _tmp0);
-                _mm256_store_ps(ptmp + 8, _tmp1);
-                _mm256_store_ps(ptmp + 16, _tmp2);
-                _mm256_store_ps(ptmp + 24, _tmp3);
-                ptmp += 32;
+                _mm256_store_ps(p0, _tmp0);
+                _mm256_store_ps(p1, _tmp1);
+                _mm256_store_ps(p2, _tmp2);
+                _mm256_store_ps(p3, _tmp3);
+
+                p0 += max_jj * 4 * 8;
+                p1 += max_jj * 4 * 8;
+                p2 += max_jj * 4 * 8;
+                p3 += max_jj * 4 * 8;
             }
         }
     }
+    remain_max_kk_start += nn_max_kk * 8;
+    nn_max_kk = (max_kk - remain_max_kk_start) / 4;
+#else // __AVX__
+    nn_max_kk = (max_kk - remain_max_kk_start) / 4;
+    #pragma omp parallel for num_threads(nT)
 #endif // __AVX__
-    for (; kk + 3 < max_kk; kk += 4)
+    for (int ppkk = 0; ppkk < nn_max_kk; ppkk++)
     {
+        const int kk = remain_max_kk_start + ppkk * 4;
+
+#ifdef _MSC_VER
+        __declspec(align(16))
+#else
+        __attribute__((aligned(16)))
+#endif
+        float tmp[4][4][4];
+
         int jj = 0;
         for (; jj < max_jj; jj++)
         {
             int ti = (j + jj) / w_tiles;
             int tj = (j + jj) % w_tiles;
-
-#ifdef _MSC_VER
-            __declspec(align(16))
-#else
-            __attribute__((aligned(16)))
-#endif
-            float tmp[4][4][4];
 
             const float* r0 = bottom_blob.channel((k + kk) / elempack).row(ti * 2) + (tj * 2) * elempack;
 
@@ -3196,6 +2394,12 @@ static inline void conv3x3s1_winograd23_transform_input_tile(const Mat& bottom_b
 
                 r0 += w * elempack;
             }
+
+            float* p0 = (float*)B + kk * max_jj * 16 + jj * 4;
+            float* p1 = p0 + max_jj * 4;
+            float* p2 = p0 + max_jj * 4 * 2;
+            float* p3 = p0 + max_jj * 4 * 3;
+
             for (int m = 0; m < 4; m++)
             {
 #if defined(__GNUC__) && (__GNUC__ <= 4) && (__GNUC_MINOR__ < 6)
@@ -3215,24 +2419,35 @@ static inline void conv3x3s1_winograd23_transform_input_tile(const Mat& bottom_b
                 __m128 _tmp2 = _mm_sub_ps(_r2, _r1);
                 __m128 _tmp3 = _mm_sub_ps(_r3, _r1);
 
-                _mm_store_ps(ptmp, _tmp0);
-                _mm_store_ps(ptmp + 4, _tmp1);
-                _mm_store_ps(ptmp + 8, _tmp2);
-                _mm_store_ps(ptmp + 12, _tmp3);
-                ptmp += 16;
+                _mm_store_ps(p0, _tmp0);
+                _mm_store_ps(p1, _tmp1);
+                _mm_store_ps(p2, _tmp2);
+                _mm_store_ps(p3, _tmp3);
+
+                p0 += max_jj * 4 * 4;
+                p1 += max_jj * 4 * 4;
+                p2 += max_jj * 4 * 4;
+                p3 += max_jj * 4 * 4;
             }
         }
     }
+    remain_max_kk_start += nn_max_kk * 4;
+    nn_max_kk = (max_kk - remain_max_kk_start) / 2;
+#else // __SSE2__
+    nn_max_kk = (max_kk - remain_max_kk_start) / 2;
+    #pragma omp parallel for num_threads(nT)
 #endif // __SSE2__
-    for (; kk + 1 < max_kk; kk += 2)
+    for (int ppkk = 0; ppkk < nn_max_kk; ppkk++)
     {
+        const int kk = remain_max_kk_start + ppkk * 2;
+
+        float tmp[4][4][2];
+
         int jj = 0;
         for (; jj < max_jj; jj++)
         {
             int ti = (j + jj) / w_tiles;
             int tj = (j + jj) % w_tiles;
-
-            float tmp[4][4][2];
 
             const float* r0 = bottom_blob.channel(k + kk).row(ti * 2) + (tj * 2);
 
@@ -3284,6 +2499,12 @@ static inline void conv3x3s1_winograd23_transform_input_tile(const Mat& bottom_b
 
                 r0 += w;
             }
+
+            float* p0 = (float*)B + kk * max_jj * 16 + jj * 2;
+            float* p1 = p0 + max_jj * 2;
+            float* p2 = p0 + max_jj * 2 * 2;
+            float* p3 = p0 + max_jj * 2 * 3;
+
             for (int m = 0; m < 4; m++)
             {
                 float r00 = tmp[m][0][0];
@@ -3295,27 +2516,32 @@ static inline void conv3x3s1_winograd23_transform_input_tile(const Mat& bottom_b
                 float r30 = tmp[m][3][0];
                 float r31 = tmp[m][3][1];
 
-                ptmp[0] = r00 - r20;
-                ptmp[1] = r01 - r21;
-                ptmp[2] = r10 + r20;
-                ptmp[3] = r11 + r21;
-                ptmp[4] = r20 - r10;
-                ptmp[5] = r21 - r11;
-                ptmp[6] = r30 - r10;
-                ptmp[7] = r31 - r11;
-                ptmp += 8;
+                p0[0] = r00 - r20;
+                p0[1] = r01 - r21;
+                p1[0] = r10 + r20;
+                p1[1] = r11 + r21;
+                p2[0] = r20 - r10;
+                p2[1] = r21 - r11;
+                p3[0] = r30 - r10;
+                p3[1] = r31 - r11;
+
+                p0 += max_jj * 4 * 2;
+                p1 += max_jj * 4 * 2;
+                p2 += max_jj * 4 * 2;
+                p3 += max_jj * 4 * 2;
             }
         }
     }
-    for (; kk < max_kk; kk++)
+    remain_max_kk_start += nn_max_kk * 2;
+    for (int kk = remain_max_kk_start; kk < max_kk; kk++)
     {
+        float tmp[4][4];
+
         int jj = 0;
         for (; jj < max_jj; jj++)
         {
             int ti = (j + jj) / w_tiles;
             int tj = (j + jj) % w_tiles;
-
-            float tmp[4][4];
 
             const float* r0123 = bottom_blob.channel(k + kk).row(ti * 2) + (tj * 2);
 
@@ -3344,6 +2570,12 @@ static inline void conv3x3s1_winograd23_transform_input_tile(const Mat& bottom_b
 
                 r0123 += w;
             }
+
+            float* p0 = (float*)B + kk * max_jj * 16 + jj;
+            float* p1 = p0 + max_jj;
+            float* p2 = p0 + max_jj * 2;
+            float* p3 = p0 + max_jj * 3;
+
             for (int m = 0; m < 4; m++)
             {
                 float r0 = tmp[m][0];
@@ -3351,11 +2583,15 @@ static inline void conv3x3s1_winograd23_transform_input_tile(const Mat& bottom_b
                 float r2 = tmp[m][2];
                 float r3 = tmp[m][3];
 
-                ptmp[0] = r0 - r2;
-                ptmp[1] = r1 + r2;
-                ptmp[2] = r2 - r1;
-                ptmp[3] = r3 - r1;
-                ptmp += 4;
+                p0[0] = r0 - r2;
+                p1[0] = r1 + r2;
+                p2[0] = r2 - r1;
+                p3[0] = r3 - r1;
+
+                p0 += max_jj * 4;
+                p1 += max_jj * 4;
+                p2 += max_jj * 4;
+                p3 += max_jj * 4;
             }
         }
     }
@@ -3385,28 +2621,26 @@ static inline void conv3x3s1_winograd23_transform_output_tile(const Mat& top_til
     {
         __m512 _bias0 = biasptr ? _mm512_loadu_ps(biasptr + i + ii) : _mm512_setzero_ps();
 
+#ifdef _MSC_VER
+        __declspec(align(64))
+#else
+        __attribute__((aligned(64)))
+#endif
+        float tmp[2][4][16];
+
         int jj = 0;
         for (; jj < max_jj; jj++)
         {
             int ti = (j + jj) / w_tiles;
             int tj = (j + jj) % w_tiles;
 
-#ifdef _MSC_VER
-            __declspec(align(64))
-#else
-            __attribute__((aligned(64)))
-#endif
-            float tmp[2][4][16];
-
-            float* outptr0 = top_blob.channel((i + ii) / out_elempack).row(ti * 2) + (tj * 2) * out_elempack;
+            const float* r0 = (const float*)top_tile + ii * max_jj * 16 + jj * 16;
+            const float* r1 = r0 + max_jj * 16;
+            const float* r2 = r0 + max_jj * 16 * 2;
+            const float* r3 = r0 + max_jj * 16 * 3;
 
             for (int m = 0; m < 4; m++)
             {
-                const float* r0 = top_tile.depth(m * 4).row(jj) + ii;
-                const float* r1 = top_tile.depth(m * 4 + 1).row(jj) + ii;
-                const float* r2 = top_tile.depth(m * 4 + 2).row(jj) + ii;
-                const float* r3 = top_tile.depth(m * 4 + 3).row(jj) + ii;
-
                 __m512 _r0 = _mm512_load_ps(r0);
                 __m512 _r1 = _mm512_load_ps(r1);
                 __m512 _r2 = _mm512_load_ps(r2);
@@ -3417,7 +2651,15 @@ static inline void conv3x3s1_winograd23_transform_output_tile(const Mat& top_til
 
                 _mm512_store_ps(tmp[0][m], _tmp0);
                 _mm512_store_ps(tmp[1][m], _tmp1);
+
+                r0 += max_jj * 4 * 16;
+                r1 += max_jj * 4 * 16;
+                r2 += max_jj * 4 * 16;
+                r3 += max_jj * 4 * 16;
             }
+
+            float* outptr0 = top_blob.channel((i + ii) / out_elempack).row(ti * 2) + (tj * 2) * out_elempack;
+
             for (int m = 0; m < 2; m++)
             {
                 if (ti * 2 + m >= outh)
@@ -3539,28 +2781,26 @@ static inline void conv3x3s1_winograd23_transform_output_tile(const Mat& top_til
     {
         __m256 _bias0 = biasptr ? _mm256_loadu_ps(biasptr + i + ii) : _mm256_setzero_ps();
 
+#ifdef _MSC_VER
+        __declspec(align(32))
+#else
+        __attribute__((aligned(32)))
+#endif
+        float tmp[2][4][8];
+
         int jj = 0;
         for (; jj < max_jj; jj++)
         {
             int ti = (j + jj) / w_tiles;
             int tj = (j + jj) % w_tiles;
 
-#ifdef _MSC_VER
-            __declspec(align(32))
-#else
-            __attribute__((aligned(32)))
-#endif
-            float tmp[2][4][8];
-
-            float* outptr0 = top_blob.channel((i + ii) / out_elempack).row(ti * 2) + (tj * 2) * out_elempack;
+            const float* r0 = (const float*)top_tile + ii * max_jj * 16 + jj * 8;
+            const float* r1 = r0 + max_jj * 8;
+            const float* r2 = r0 + max_jj * 8 * 2;
+            const float* r3 = r0 + max_jj * 8 * 3;
 
             for (int m = 0; m < 4; m++)
             {
-                const float* r0 = top_tile.depth(m * 4).row(jj) + ii;
-                const float* r1 = top_tile.depth(m * 4 + 1).row(jj) + ii;
-                const float* r2 = top_tile.depth(m * 4 + 2).row(jj) + ii;
-                const float* r3 = top_tile.depth(m * 4 + 3).row(jj) + ii;
-
                 __m256 _r0 = _mm256_load_ps(r0);
                 __m256 _r1 = _mm256_load_ps(r1);
                 __m256 _r2 = _mm256_load_ps(r2);
@@ -3576,7 +2816,15 @@ static inline void conv3x3s1_winograd23_transform_output_tile(const Mat& top_til
                 _mm256_store_ps(tmp[0][m], _tmp0);
                 _mm256_store_ps(tmp[1][m], _tmp1);
 #endif
+
+                r0 += max_jj * 4 * 8;
+                r1 += max_jj * 4 * 8;
+                r2 += max_jj * 4 * 8;
+                r3 += max_jj * 4 * 8;
             }
+
+            float* outptr0 = top_blob.channel((i + ii) / out_elempack).row(ti * 2) + (tj * 2) * out_elempack;
+
             for (int m = 0; m < 2; m++)
             {
                 if (ti * 2 + m >= outh)
@@ -3663,28 +2911,26 @@ static inline void conv3x3s1_winograd23_transform_output_tile(const Mat& top_til
     {
         __m128 _bias0 = biasptr ? _mm_loadu_ps(biasptr + i + ii) : _mm_setzero_ps();
 
+#ifdef _MSC_VER
+        __declspec(align(16))
+#else
+        __attribute__((aligned(16)))
+#endif
+        float tmp[2][4][4];
+
         int jj = 0;
         for (; jj < max_jj; jj++)
         {
             int ti = (j + jj) / w_tiles;
             int tj = (j + jj) % w_tiles;
 
-#ifdef _MSC_VER
-            __declspec(align(16))
-#else
-            __attribute__((aligned(16)))
-#endif
-            float tmp[2][4][4];
-
-            float* outptr0 = top_blob.channel((i + ii) / out_elempack).row(ti * 2) + (tj * 2) * out_elempack;
+            const float* r0 = (const float*)top_tile + ii * max_jj * 16 + jj * 4;
+            const float* r1 = r0 + max_jj * 4;
+            const float* r2 = r0 + max_jj * 4 * 2;
+            const float* r3 = r0 + max_jj * 4 * 3;
 
             for (int m = 0; m < 4; m++)
             {
-                const float* r0 = top_tile.depth(m * 4).row(jj) + ii;
-                const float* r1 = top_tile.depth(m * 4 + 1).row(jj) + ii;
-                const float* r2 = top_tile.depth(m * 4 + 2).row(jj) + ii;
-                const float* r3 = top_tile.depth(m * 4 + 3).row(jj) + ii;
-
                 __m128 _r0 = _mm_load_ps(r0);
                 __m128 _r1 = _mm_load_ps(r1);
                 __m128 _r2 = _mm_load_ps(r2);
@@ -3700,7 +2946,15 @@ static inline void conv3x3s1_winograd23_transform_output_tile(const Mat& top_til
                 _mm_store_ps(tmp[0][m], _tmp0);
                 _mm_store_ps(tmp[1][m], _tmp1);
 #endif
+
+                r0 += max_jj * 4 * 4;
+                r1 += max_jj * 4 * 4;
+                r2 += max_jj * 4 * 4;
+                r3 += max_jj * 4 * 4;
             }
+
+            float* outptr0 = top_blob.channel((i + ii) / out_elempack).row(ti * 2) + (tj * 2) * out_elempack;
+
             for (int m = 0; m < 2; m++)
             {
                 if (ti * 2 + m >= outh)
@@ -3761,32 +3015,34 @@ static inline void conv3x3s1_winograd23_transform_output_tile(const Mat& top_til
         float bias0 = biasptr ? biasptr[i + ii] : 0.f;
         float bias1 = biasptr ? biasptr[i + ii + 1] : 0.f;
 
+        float tmp[2][4][2];
+
         int jj = 0;
         for (; jj < max_jj; jj++)
         {
             int ti = (j + jj) / w_tiles;
             int tj = (j + jj) % w_tiles;
 
-            float tmp[2][4][2];
-
-            float* outptr0 = top_blob.channel(i + ii).row(ti * 2) + (tj * 2);
+            const float* r0 = (const float*)top_tile + ii * max_jj * 16 + jj * 2;
+            const float* r1 = r0 + max_jj * 2;
+            const float* r2 = r0 + max_jj * 2 * 2;
+            const float* r3 = r0 + max_jj * 2 * 3;
 
             for (int m = 0; m < 4; m++)
             {
-                float r00 = top_tile.depth(m * 4).row(jj)[ii];
-                float r01 = top_tile.depth(m * 4).row(jj)[ii + 1];
-                float r10 = top_tile.depth(m * 4 + 1).row(jj)[ii];
-                float r11 = top_tile.depth(m * 4 + 1).row(jj)[ii + 1];
-                float r20 = top_tile.depth(m * 4 + 2).row(jj)[ii];
-                float r21 = top_tile.depth(m * 4 + 2).row(jj)[ii + 1];
-                float r30 = top_tile.depth(m * 4 + 3).row(jj)[ii];
-                float r31 = top_tile.depth(m * 4 + 3).row(jj)[ii + 1];
+                tmp[0][m][0] = r0[0] + r1[0] + r2[0];
+                tmp[0][m][1] = r0[1] + r1[1] + r2[1];
+                tmp[1][m][0] = r1[0] - r2[0] + r3[0];
+                tmp[1][m][1] = r1[1] - r2[1] + r3[1];
 
-                tmp[0][m][0] = r00 + r10 + r20;
-                tmp[0][m][1] = r01 + r11 + r21;
-                tmp[1][m][0] = r10 - r20 + r30;
-                tmp[1][m][1] = r11 - r21 + r31;
+                r0 += max_jj * 4 * 2;
+                r1 += max_jj * 4 * 2;
+                r2 += max_jj * 4 * 2;
+                r3 += max_jj * 4 * 2;
             }
+
+            float* outptr0 = top_blob.channel(i + ii).row(ti * 2) + (tj * 2);
+
             for (int m = 0; m < 2; m++)
             {
                 if (ti * 2 + m >= outh)
@@ -3827,26 +3083,32 @@ static inline void conv3x3s1_winograd23_transform_output_tile(const Mat& top_til
     {
         float bias0 = biasptr ? biasptr[i + ii] : 0.f;
 
+        float tmp[2][4];
+
         int jj = 0;
         for (; jj < max_jj; jj++)
         {
             int ti = (j + jj) / w_tiles;
             int tj = (j + jj) % w_tiles;
 
-            float tmp[2][4];
-
-            float* outptr0 = top_blob.channel(i + ii).row(ti * 2) + (tj * 2);
+            const float* r0 = (const float*)top_tile + ii * max_jj * 16 + jj;
+            const float* r1 = r0 + max_jj;
+            const float* r2 = r0 + max_jj * 2;
+            const float* r3 = r0 + max_jj * 3;
 
             for (int m = 0; m < 4; m++)
             {
-                float r0 = top_tile.depth(m * 4).row(jj)[ii];
-                float r1 = top_tile.depth(m * 4 + 1).row(jj)[ii];
-                float r2 = top_tile.depth(m * 4 + 2).row(jj)[ii];
-                float r3 = top_tile.depth(m * 4 + 3).row(jj)[ii];
+                tmp[0][m] = r0[0] + r1[0] + r2[0];
+                tmp[1][m] = r1[0] - r2[0] + r3[0];
 
-                tmp[0][m] = r0 + r1 + r2;
-                tmp[1][m] = r1 - r2 + r3;
+                r0 += max_jj * 4;
+                r1 += max_jj * 4;
+                r2 += max_jj * 4;
+                r3 += max_jj * 4;
             }
+
+            float* outptr0 = top_blob.channel(i + ii).row(ti * 2) + (tj * 2);
+
             for (int m = 0; m < 2; m++)
             {
                 if (ti * 2 + m >= outh)
@@ -3896,27 +3158,57 @@ static void conv3x3s1_winograd23(const Mat& bottom_blob, Mat& top_blob, const Ma
 
     const int nn_M = (M + TILE_M - 1) / TILE_M;
     const int nn_N = (N + TILE_N - 1) / TILE_N;
+    const int nn_K = (K + TILE_K - 1) / TILE_K;
 
     // NCNN_LOGE("TILE M/N/K = %d %d %d -> %d %d %d", M, N, K, TILE_M, TILE_N, TILE_K);
 
-    Mat B_tileX(B * TILE_N * TILE_K, 1, nT, 4u, opt.blob_allocator);
     Mat BT(TILE_K * TILE_N, B, (K + TILE_K - 1) / TILE_K, (N + TILE_N - 1) / TILE_N, 4u, opt.blob_allocator);
 
-    #pragma omp parallel for num_threads(nT)
-    for (int ppj = 0; ppj < nn_N; ppj++)
+    const int nn_NK = nn_N * nn_K;
+
+    if (nT > 1 && nn_NK < nT)
     {
-        const int j = ppj * TILE_N;
+        Mat B_tile(TILE_N * B * TILE_K, 4u, opt.blob_allocator);
 
-        Mat B_tile = B_tileX.channel(get_omp_thread_num());
-
-        const int max_jj = std::min((N - j), TILE_N);
-
-        for (int k = 0; k < K; k += TILE_K)
+        for (int ppjk = 0; ppjk < nn_NK; ppjk++)
         {
+            const int ppj = ppjk / nn_K;
+            const int ppk = ppjk % nn_K;
+
+            const int j = ppj * TILE_N;
+            const int k = ppk * TILE_K;
+
+            const int max_jj = std::min((N - j), TILE_N);
             const int max_kk = std::min((K - k), TILE_K);
 
             // transform input
-            conv3x3s1_winograd23_transform_input_tile(bottom_blob, B_tile, j, max_jj, k, max_kk);
+            conv3x3s1_winograd23_transform_input_tile(bottom_blob, B_tile, j, max_jj, k, max_kk, nT);
+
+            Mat BT_tile = BT.channel(j / TILE_N).depth(k / TILE_K);
+
+            transpose_pack_B_tile(B_tile, BT_tile, B, max_jj, max_kk, nT);
+        }
+    }
+    else
+    {
+        Mat B_tileX(TILE_N * B * TILE_K, 1, nT, 4u, opt.blob_allocator);
+
+        #pragma omp parallel for num_threads(nT)
+        for (int ppjk = 0; ppjk < nn_NK; ppjk++)
+        {
+            const int ppj = ppjk / nn_K;
+            const int ppk = ppjk % nn_K;
+
+            const int j = ppj * TILE_N;
+            const int k = ppk * TILE_K;
+
+            const int max_jj = std::min((N - j), TILE_N);
+            const int max_kk = std::min((K - k), TILE_K);
+
+            Mat B_tile = B_tileX.channel(get_omp_thread_num());
+
+            // transform input
+            conv3x3s1_winograd23_transform_input_tile(bottom_blob, B_tile, j, max_jj, k, max_kk, 1);
 
             Mat BT_tile = BT.channel(j / TILE_N).depth(k / TILE_K);
 
@@ -3924,22 +3216,12 @@ static void conv3x3s1_winograd23(const Mat& bottom_blob, Mat& top_blob, const Ma
         }
     }
 
-    Mat tmpX;
-    if (TILE_K < K)
-    {
-        tmpX.create(TILE_M * TILE_N, B, nT, 4u, opt.blob_allocator);
-    }
-
-    Mat top_tileX(TILE_M, TILE_N, B, nT, 4u, opt.blob_allocator);
+    Mat top_tileX(TILE_N * B * TILE_M, 1, nT, 4u, opt.blob_allocator);
 
     #pragma omp parallel for num_threads(nT)
     for (int ppj = 0; ppj < nn_M; ppj++)
     {
         const int i = ppj * TILE_M;
-
-        Mat tmp;
-        if (K > TILE_K)
-            tmp = tmpX.channel(get_omp_thread_num());
 
         Mat top_tile = top_tileX.channel(get_omp_thread_num());
 
@@ -3957,9 +3239,7 @@ static void conv3x3s1_winograd23(const Mat& bottom_blob, Mat& top_blob, const Ma
 
                 const Mat BT_tile = BT.channel(j / TILE_N).depth(k / TILE_K);
 
-                bool k_end = k + TILE_K >= K;
-
-                gemm_transB_packed_tile(AT_tile, BT_tile, top_tile, tmp, B, max_ii, max_jj, k, max_kk, k_end);
+                gemm_transB_packed_tile(AT_tile, BT_tile, top_tile, B, max_ii, max_jj, k, max_kk);
             }
 
             // transform output
@@ -4072,7 +3352,7 @@ static void conv3x3s1_winograd43_transform_kernel(const Mat& kernel, Mat& AT, in
     }
 }
 
-static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk)
+static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk, int nT)
 {
     // const float itm[6][6] = {
     //     {4.0f, 0.0f, -5.0f, 0.0f, 1.0f, 0.0f},
@@ -4090,26 +3370,29 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
 
     const int w_tiles = (w + 1) / 4;
 
-    float* ptmp = B;
-
-    int kk = 0;
+    int nn_max_kk = 0;
+    int remain_max_kk_start = 0;
 #if __SSE2__
 #if __AVX__
 #if __AVX512F__
-    for (; kk + 15 < max_kk; kk += 16)
+    nn_max_kk = max_kk / 16;
+    #pragma omp parallel for num_threads(nT)
+    for (int ppkk = 0; ppkk < nn_max_kk; ppkk++)
     {
+        const int kk = ppkk * 16;
+
+#ifdef _MSC_VER
+        __declspec(align(64))
+#else
+        __attribute__((aligned(64)))
+#endif
+        float tmp[6][6][16];
+
         int jj = 0;
         for (; jj < max_jj; jj++)
         {
             int ti = (j + jj) / w_tiles;
             int tj = (j + jj) % w_tiles;
-
-#ifdef _MSC_VER
-            __declspec(align(64))
-#else
-            __attribute__((aligned(64)))
-#endif
-            float tmp[6][6][16];
 
             const float* r0 = bottom_blob.channel((k + kk) / elempack).row(ti * 4) + (tj * 4) * elempack;
 
@@ -4228,6 +3511,14 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
 
                 r0 += w * elempack;
             }
+
+            float* p0 = (float*)B + kk * max_jj * 36 + jj * 16;
+            float* p1 = p0 + max_jj * 16;
+            float* p2 = p0 + max_jj * 16 * 2;
+            float* p3 = p0 + max_jj * 16 * 3;
+            float* p4 = p0 + max_jj * 16 * 4;
+            float* p5 = p0 + max_jj * 16 * 5;
+
             for (int m = 0; m < 6; m++)
             {
                 __m512 _r0 = _mm512_load_ps(tmp[m][0]);
@@ -4244,31 +3535,44 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
                 __m512 _tmp4 = _mm512_fmadd_ps(_v2, _mm512_sub_ps(_r1, _r3), _mm512_sub_ps(_r4, _r2));
                 __m512 _tmp5 = _mm512_fmadd_ps(_vm5, _r3, _mm512_fmadd_ps(_v4, _r1, _r5));
 
-                _mm512_store_ps(ptmp, _tmp0);
-                _mm512_store_ps(ptmp + 16, _tmp1);
-                _mm512_store_ps(ptmp + 32, _tmp2);
-                _mm512_store_ps(ptmp + 48, _tmp3);
-                _mm512_store_ps(ptmp + 64, _tmp4);
-                _mm512_store_ps(ptmp + 80, _tmp5);
-                ptmp += 96;
+                _mm512_store_ps(p0, _tmp0);
+                _mm512_store_ps(p1, _tmp1);
+                _mm512_store_ps(p2, _tmp2);
+                _mm512_store_ps(p3, _tmp3);
+                _mm512_store_ps(p4, _tmp4);
+                _mm512_store_ps(p5, _tmp5);
+
+                p0 += max_jj * 6 * 16;
+                p1 += max_jj * 6 * 16;
+                p2 += max_jj * 6 * 16;
+                p3 += max_jj * 6 * 16;
+                p4 += max_jj * 6 * 16;
+                p5 += max_jj * 6 * 16;
             }
         }
     }
+    remain_max_kk_start += nn_max_kk * 16;
+    nn_max_kk = (max_kk - remain_max_kk_start) / 8;
+#else // __AVX512F__
+    nn_max_kk = (max_kk - remain_max_kk_start) / 8;
+    #pragma omp parallel for num_threads(nT)
 #endif // __AVX512F__
-    for (; kk + 7 < max_kk; kk += 8)
+    for (int ppkk = 0; ppkk < nn_max_kk; ppkk++)
     {
+        const int kk = remain_max_kk_start + ppkk * 8;
+
+#ifdef _MSC_VER
+        __declspec(align(32))
+#else
+        __attribute__((aligned(32)))
+#endif
+        float tmp[6][6][8];
+
         int jj = 0;
         for (; jj < max_jj; jj++)
         {
             int ti = (j + jj) / w_tiles;
             int tj = (j + jj) % w_tiles;
-
-#ifdef _MSC_VER
-            __declspec(align(32))
-#else
-            __attribute__((aligned(32)))
-#endif
-            float tmp[6][6][8];
 
             const float* r0 = bottom_blob.channel((k + kk) / elempack).row(ti * 4) + (tj * 4) * elempack;
 
@@ -4365,6 +3669,14 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
 
                 r0 += w * elempack;
             }
+
+            float* p0 = (float*)B + kk * max_jj * 36 + jj * 8;
+            float* p1 = p0 + max_jj * 8;
+            float* p2 = p0 + max_jj * 8 * 2;
+            float* p3 = p0 + max_jj * 8 * 3;
+            float* p4 = p0 + max_jj * 8 * 4;
+            float* p5 = p0 + max_jj * 8 * 5;
+
             for (int m = 0; m < 6; m++)
             {
 #if defined(__GNUC__) && (__GNUC__ <= 4) && (__GNUC_MINOR__ < 6)
@@ -4390,31 +3702,44 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
                 __m256 _tmp4 = _mm256_comp_fmadd_ps(_v2, _mm256_sub_ps(_r1, _r3), _mm256_sub_ps(_r4, _r2));
                 __m256 _tmp5 = _mm256_comp_fmadd_ps(_vm5, _r3, _mm256_comp_fmadd_ps(_v4, _r1, _r5));
 
-                _mm256_store_ps(ptmp, _tmp0);
-                _mm256_store_ps(ptmp + 8, _tmp1);
-                _mm256_store_ps(ptmp + 16, _tmp2);
-                _mm256_store_ps(ptmp + 24, _tmp3);
-                _mm256_store_ps(ptmp + 32, _tmp4);
-                _mm256_store_ps(ptmp + 40, _tmp5);
-                ptmp += 48;
+                _mm256_store_ps(p0, _tmp0);
+                _mm256_store_ps(p1, _tmp1);
+                _mm256_store_ps(p2, _tmp2);
+                _mm256_store_ps(p3, _tmp3);
+                _mm256_store_ps(p4, _tmp4);
+                _mm256_store_ps(p5, _tmp5);
+
+                p0 += max_jj * 6 * 8;
+                p1 += max_jj * 6 * 8;
+                p2 += max_jj * 6 * 8;
+                p3 += max_jj * 6 * 8;
+                p4 += max_jj * 6 * 8;
+                p5 += max_jj * 6 * 8;
             }
         }
     }
+    remain_max_kk_start += nn_max_kk * 8;
+    nn_max_kk = (max_kk - remain_max_kk_start) / 4;
+#else // __AVX__
+    nn_max_kk = (max_kk - remain_max_kk_start) / 4;
+    #pragma omp parallel for num_threads(nT)
 #endif // __AVX__
-    for (; kk + 3 < max_kk; kk += 4)
+    for (int ppkk = 0; ppkk < nn_max_kk; ppkk++)
     {
+        const int kk = remain_max_kk_start + ppkk * 4;
+
+#ifdef _MSC_VER
+        __declspec(align(16))
+#else
+        __attribute__((aligned(16)))
+#endif
+        float tmp[6][6][4];
+
         int jj = 0;
         for (; jj < max_jj; jj++)
         {
             int ti = (j + jj) / w_tiles;
             int tj = (j + jj) % w_tiles;
-
-#ifdef _MSC_VER
-            __declspec(align(16))
-#else
-            __attribute__((aligned(16)))
-#endif
-            float tmp[6][6][4];
 
             const float* r0 = bottom_blob.channel((k + kk) / elempack).row(ti * 4) + (tj * 4) * elempack;
 
@@ -4491,6 +3816,14 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
 
                 r0 += w * elempack;
             }
+
+            float* p0 = (float*)B + kk * max_jj * 36 + jj * 4;
+            float* p1 = p0 + max_jj * 4;
+            float* p2 = p0 + max_jj * 4 * 2;
+            float* p3 = p0 + max_jj * 4 * 3;
+            float* p4 = p0 + max_jj * 4 * 4;
+            float* p5 = p0 + max_jj * 4 * 5;
+
             for (int m = 0; m < 6; m++)
             {
 #if defined(__GNUC__) && (__GNUC__ <= 4) && (__GNUC_MINOR__ < 6)
@@ -4516,26 +3849,39 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
                 __m128 _tmp4 = _mm_comp_fmadd_ps(_v2, _mm_sub_ps(_r1, _r3), _mm_sub_ps(_r4, _r2));
                 __m128 _tmp5 = _mm_comp_fmadd_ps(_vm5, _r3, _mm_comp_fmadd_ps(_v4, _r1, _r5));
 
-                _mm_store_ps(ptmp, _tmp0);
-                _mm_store_ps(ptmp + 4, _tmp1);
-                _mm_store_ps(ptmp + 8, _tmp2);
-                _mm_store_ps(ptmp + 12, _tmp3);
-                _mm_store_ps(ptmp + 16, _tmp4);
-                _mm_store_ps(ptmp + 20, _tmp5);
-                ptmp += 24;
+                _mm_store_ps(p0, _tmp0);
+                _mm_store_ps(p1, _tmp1);
+                _mm_store_ps(p2, _tmp2);
+                _mm_store_ps(p3, _tmp3);
+                _mm_store_ps(p4, _tmp4);
+                _mm_store_ps(p5, _tmp5);
+
+                p0 += max_jj * 6 * 4;
+                p1 += max_jj * 6 * 4;
+                p2 += max_jj * 6 * 4;
+                p3 += max_jj * 6 * 4;
+                p4 += max_jj * 6 * 4;
+                p5 += max_jj * 6 * 4;
             }
         }
     }
+    remain_max_kk_start += nn_max_kk * 4;
+    nn_max_kk = (max_kk - remain_max_kk_start) / 2;
+#else // __SSE2__
+    nn_max_kk = (max_kk - remain_max_kk_start) / 2;
+    #pragma omp parallel for num_threads(nT)
 #endif // __SSE2__
-    for (; kk + 1 < max_kk; kk += 2)
+    for (int ppkk = 0; ppkk < nn_max_kk; ppkk++)
     {
+        const int kk = remain_max_kk_start + ppkk * 2;
+
+        float tmp[6][6][2];
+
         int jj = 0;
         for (; jj < max_jj; jj++)
         {
             int ti = (j + jj) / w_tiles;
             int tj = (j + jj) % w_tiles;
-
-            float tmp[6][6][2];
 
             const float* r0 = bottom_blob.channel(k + kk).row(ti * 4) + (tj * 4);
 
@@ -4605,6 +3951,14 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
 
                 r0 += w;
             }
+
+            float* p0 = (float*)B + kk * max_jj * 36 + jj * 2;
+            float* p1 = p0 + max_jj * 2;
+            float* p2 = p0 + max_jj * 2 * 2;
+            float* p3 = p0 + max_jj * 2 * 3;
+            float* p4 = p0 + max_jj * 2 * 4;
+            float* p5 = p0 + max_jj * 2 * 5;
+
             for (int m = 0; m < 6; m++)
             {
                 float r00 = tmp[m][0][0];
@@ -4620,31 +3974,38 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
                 float r50 = tmp[m][5][0];
                 float r51 = tmp[m][5][1];
 
-                ptmp[0] = r00 * 4.f - r20 * 5.f + r40;
-                ptmp[1] = r01 * 4.f - r21 * 5.f + r41;
-                ptmp[2] = -r10 * 4.f - r20 * 4.f + r30 + r40;
-                ptmp[3] = -r11 * 4.f - r21 * 4.f + r31 + r41;
-                ptmp[4] = r10 * 4.f - r20 * 4.f - r30 + r40;
-                ptmp[5] = r11 * 4.f - r21 * 4.f - r31 + r41;
-                ptmp[6] = -r10 * 2.f - r20 + r30 * 2.f + r40;
-                ptmp[7] = -r11 * 2.f - r21 + r31 * 2.f + r41;
-                ptmp[8] = r10 * 2.f - r20 - r30 * 2.f + r40;
-                ptmp[9] = r11 * 2.f - r21 - r31 * 2.f + r41;
-                ptmp[10] = r10 * 4.f - r30 * 5.f + r50;
-                ptmp[11] = r11 * 4.f - r31 * 5.f + r51;
-                ptmp += 12;
+                p0[0] = r00 * 4.f - r20 * 5.f + r40;
+                p0[1] = r01 * 4.f - r21 * 5.f + r41;
+                p1[0] = -r10 * 4.f - r20 * 4.f + r30 + r40;
+                p1[1] = -r11 * 4.f - r21 * 4.f + r31 + r41;
+                p2[0] = r10 * 4.f - r20 * 4.f - r30 + r40;
+                p2[1] = r11 * 4.f - r21 * 4.f - r31 + r41;
+                p3[0] = -r10 * 2.f - r20 + r30 * 2.f + r40;
+                p3[1] = -r11 * 2.f - r21 + r31 * 2.f + r41;
+                p4[0] = r10 * 2.f - r20 - r30 * 2.f + r40;
+                p4[1] = r11 * 2.f - r21 - r31 * 2.f + r41;
+                p5[0] = r10 * 4.f - r30 * 5.f + r50;
+                p5[1] = r11 * 4.f - r31 * 5.f + r51;
+
+                p0 += max_jj * 6 * 2;
+                p1 += max_jj * 6 * 2;
+                p2 += max_jj * 6 * 2;
+                p3 += max_jj * 6 * 2;
+                p4 += max_jj * 6 * 2;
+                p5 += max_jj * 6 * 2;
             }
         }
     }
-    for (; kk < max_kk; kk++)
+    remain_max_kk_start += nn_max_kk * 2;
+    for (int kk = remain_max_kk_start; kk < max_kk; kk++)
     {
+        float tmp[6][6];
+
         int jj = 0;
         for (; jj < max_jj; jj++)
         {
             int ti = (j + jj) / w_tiles;
             int tj = (j + jj) % w_tiles;
-
-            float tmp[6][6];
 
             const float* r0123 = bottom_blob.channel(k + kk).row(ti * 4) + (tj * 4);
 
@@ -4679,6 +4040,14 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
 
                 r0123 += w;
             }
+
+            float* p0 = (float*)B + kk * max_jj * 36 + jj;
+            float* p1 = p0 + max_jj;
+            float* p2 = p0 + max_jj * 2;
+            float* p3 = p0 + max_jj * 3;
+            float* p4 = p0 + max_jj * 4;
+            float* p5 = p0 + max_jj * 5;
+
             for (int m = 0; m < 6; m++)
             {
                 float r0 = tmp[m][0];
@@ -4688,13 +4057,19 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
                 float r4 = tmp[m][4];
                 float r5 = tmp[m][5];
 
-                ptmp[0] = r0 * 4.f - r2 * 5.f + r4;
-                ptmp[1] = -r1 * 4.f - r2 * 4.f + r3 + r4;
-                ptmp[2] = r1 * 4.f - r2 * 4.f - r3 + r4;
-                ptmp[3] = -r1 * 2.f - r2 + r3 * 2.f + r4;
-                ptmp[4] = r1 * 2.f - r2 - r3 * 2.f + r4;
-                ptmp[5] = r1 * 4.f - r3 * 5.f + r5;
-                ptmp += 6;
+                p0[0] = r0 * 4.f - r2 * 5.f + r4;
+                p1[0] = -r1 * 4.f - r2 * 4.f + r3 + r4;
+                p2[0] = r1 * 4.f - r2 * 4.f - r3 + r4;
+                p3[0] = -r1 * 2.f - r2 + r3 * 2.f + r4;
+                p4[0] = r1 * 2.f - r2 - r3 * 2.f + r4;
+                p5[0] = r1 * 4.f - r3 * 5.f + r5;
+
+                p0 += max_jj * 6;
+                p1 += max_jj * 6;
+                p2 += max_jj * 6;
+                p3 += max_jj * 6;
+                p4 += max_jj * 6;
+                p5 += max_jj * 6;
             }
         }
     }
@@ -4726,20 +4101,25 @@ static inline void conv3x3s1_winograd43_transform_output_tile(const Mat& top_til
     {
         __m512 _bias0 = biasptr ? _mm512_loadu_ps(biasptr + i + ii) : _mm512_setzero_ps();
 
+#ifdef _MSC_VER
+        __declspec(align(64))
+#else
+        __attribute__((aligned(64)))
+#endif
+        float tmp[4][6][16];
+
         int jj = 0;
         for (; jj < max_jj; jj++)
         {
             int ti = (j + jj) / w_tiles;
             int tj = (j + jj) % w_tiles;
 
-#ifdef _MSC_VER
-            __declspec(align(64))
-#else
-            __attribute__((aligned(64)))
-#endif
-            float tmp[4][6][16];
-
-            float* outptr0 = top_blob.channel((i + ii) / out_elempack).row(ti * 4) + (tj * 4) * out_elempack;
+            const float* r0 = (const float*)top_tile + ii * max_jj * 36 + jj * 16;
+            const float* r1 = r0 + max_jj * 16;
+            const float* r2 = r0 + max_jj * 16 * 2;
+            const float* r3 = r0 + max_jj * 16 * 3;
+            const float* r4 = r0 + max_jj * 16 * 4;
+            const float* r5 = r0 + max_jj * 16 * 5;
 
             __m512 _v2 = _mm512_set1_ps(2.f);
             __m512 _v4 = _mm512_set1_ps(4.f);
@@ -4747,13 +4127,6 @@ static inline void conv3x3s1_winograd43_transform_output_tile(const Mat& top_til
 
             for (int m = 0; m < 6; m++)
             {
-                const float* r0 = top_tile.depth(m * 6).row(jj) + ii;
-                const float* r1 = top_tile.depth(m * 6 + 1).row(jj) + ii;
-                const float* r2 = top_tile.depth(m * 6 + 2).row(jj) + ii;
-                const float* r3 = top_tile.depth(m * 6 + 3).row(jj) + ii;
-                const float* r4 = top_tile.depth(m * 6 + 4).row(jj) + ii;
-                const float* r5 = top_tile.depth(m * 6 + 5).row(jj) + ii;
-
                 __m512 _r0 = _mm512_load_ps(r0);
                 __m512 _r1 = _mm512_load_ps(r1);
                 __m512 _r2 = _mm512_load_ps(r2);
@@ -4774,7 +4147,17 @@ static inline void conv3x3s1_winograd43_transform_output_tile(const Mat& top_til
                 _mm512_store_ps(tmp[1][m], _tmp1);
                 _mm512_store_ps(tmp[2][m], _tmp2);
                 _mm512_store_ps(tmp[3][m], _tmp3);
+
+                r0 += max_jj * 6 * 16;
+                r1 += max_jj * 6 * 16;
+                r2 += max_jj * 6 * 16;
+                r3 += max_jj * 6 * 16;
+                r4 += max_jj * 6 * 16;
+                r5 += max_jj * 6 * 16;
             }
+
+            float* outptr0 = top_blob.channel((i + ii) / out_elempack).row(ti * 4) + (tj * 4) * out_elempack;
+
             for (int m = 0; m < 4; m++)
             {
                 if (ti * 4 + m >= outh)
@@ -4968,20 +4351,25 @@ static inline void conv3x3s1_winograd43_transform_output_tile(const Mat& top_til
     {
         __m256 _bias0 = biasptr ? _mm256_loadu_ps(biasptr + i + ii) : _mm256_setzero_ps();
 
+#ifdef _MSC_VER
+        __declspec(align(32))
+#else
+        __attribute__((aligned(32)))
+#endif
+        float tmp[4][6][8];
+
         int jj = 0;
         for (; jj < max_jj; jj++)
         {
             int ti = (j + jj) / w_tiles;
             int tj = (j + jj) % w_tiles;
 
-#ifdef _MSC_VER
-            __declspec(align(32))
-#else
-            __attribute__((aligned(32)))
-#endif
-            float tmp[4][6][8];
-
-            float* outptr0 = top_blob.channel((i + ii) / out_elempack).row(ti * 4) + (tj * 4) * out_elempack;
+            const float* r0 = (const float*)top_tile + ii * max_jj * 36 + jj * 8;
+            const float* r1 = r0 + max_jj * 8;
+            const float* r2 = r0 + max_jj * 8 * 2;
+            const float* r3 = r0 + max_jj * 8 * 3;
+            const float* r4 = r0 + max_jj * 8 * 4;
+            const float* r5 = r0 + max_jj * 8 * 5;
 
             __m256 _v2 = _mm256_set1_ps(2.f);
             __m256 _v4 = _mm256_set1_ps(4.f);
@@ -4989,13 +4377,6 @@ static inline void conv3x3s1_winograd43_transform_output_tile(const Mat& top_til
 
             for (int m = 0; m < 6; m++)
             {
-                const float* r0 = top_tile.depth(m * 6).row(jj) + ii;
-                const float* r1 = top_tile.depth(m * 6 + 1).row(jj) + ii;
-                const float* r2 = top_tile.depth(m * 6 + 2).row(jj) + ii;
-                const float* r3 = top_tile.depth(m * 6 + 3).row(jj) + ii;
-                const float* r4 = top_tile.depth(m * 6 + 4).row(jj) + ii;
-                const float* r5 = top_tile.depth(m * 6 + 5).row(jj) + ii;
-
                 __m256 _r0 = _mm256_load_ps(r0);
                 __m256 _r1 = _mm256_load_ps(r1);
                 __m256 _r2 = _mm256_load_ps(r2);
@@ -5023,7 +4404,17 @@ static inline void conv3x3s1_winograd43_transform_output_tile(const Mat& top_til
                 _mm256_store_ps(tmp[2][m], _tmp2);
                 _mm256_store_ps(tmp[3][m], _tmp3);
 #endif
+
+                r0 += max_jj * 6 * 8;
+                r1 += max_jj * 6 * 8;
+                r2 += max_jj * 6 * 8;
+                r3 += max_jj * 6 * 8;
+                r4 += max_jj * 6 * 8;
+                r5 += max_jj * 6 * 8;
             }
+
+            float* outptr0 = top_blob.channel((i + ii) / out_elempack).row(ti * 4) + (tj * 4) * out_elempack;
+
             for (int m = 0; m < 4; m++)
             {
                 if (ti * 4 + m >= outh)
@@ -5154,20 +4545,25 @@ static inline void conv3x3s1_winograd43_transform_output_tile(const Mat& top_til
     {
         __m128 _bias0 = biasptr ? _mm_loadu_ps(biasptr + i + ii) : _mm_setzero_ps();
 
+#ifdef _MSC_VER
+        __declspec(align(16))
+#else
+        __attribute__((aligned(16)))
+#endif
+        float tmp[4][6][4];
+
         int jj = 0;
         for (; jj < max_jj; jj++)
         {
             int ti = (j + jj) / w_tiles;
             int tj = (j + jj) % w_tiles;
 
-#ifdef _MSC_VER
-            __declspec(align(16))
-#else
-            __attribute__((aligned(16)))
-#endif
-            float tmp[4][6][4];
-
-            float* outptr0 = top_blob.channel((i + ii) / out_elempack).row(ti * 4) + (tj * 4) * out_elempack;
+            const float* r0 = (const float*)top_tile + ii * max_jj * 36 + jj * 4;
+            const float* r1 = r0 + max_jj * 4;
+            const float* r2 = r0 + max_jj * 4 * 2;
+            const float* r3 = r0 + max_jj * 4 * 3;
+            const float* r4 = r0 + max_jj * 4 * 4;
+            const float* r5 = r0 + max_jj * 4 * 5;
 
             __m128 _v2 = _mm_set1_ps(2.f);
             __m128 _v4 = _mm_set1_ps(4.f);
@@ -5175,13 +4571,6 @@ static inline void conv3x3s1_winograd43_transform_output_tile(const Mat& top_til
 
             for (int m = 0; m < 6; m++)
             {
-                const float* r0 = top_tile.depth(m * 6).row(jj) + ii;
-                const float* r1 = top_tile.depth(m * 6 + 1).row(jj) + ii;
-                const float* r2 = top_tile.depth(m * 6 + 2).row(jj) + ii;
-                const float* r3 = top_tile.depth(m * 6 + 3).row(jj) + ii;
-                const float* r4 = top_tile.depth(m * 6 + 4).row(jj) + ii;
-                const float* r5 = top_tile.depth(m * 6 + 5).row(jj) + ii;
-
                 __m128 _r0 = _mm_load_ps(r0);
                 __m128 _r1 = _mm_load_ps(r1);
                 __m128 _r2 = _mm_load_ps(r2);
@@ -5209,7 +4598,17 @@ static inline void conv3x3s1_winograd43_transform_output_tile(const Mat& top_til
                 _mm_store_ps(tmp[2][m], _tmp2);
                 _mm_store_ps(tmp[3][m], _tmp3);
 #endif
+
+                r0 += max_jj * 6 * 4;
+                r1 += max_jj * 6 * 4;
+                r2 += max_jj * 6 * 4;
+                r3 += max_jj * 6 * 4;
+                r4 += max_jj * 6 * 4;
+                r5 += max_jj * 6 * 4;
             }
+
+            float* outptr0 = top_blob.channel((i + ii) / out_elempack).row(ti * 4) + (tj * 4) * out_elempack;
+
             for (int m = 0; m < 4; m++)
             {
                 if (ti * 4 + m >= outh)
@@ -5299,40 +4698,42 @@ static inline void conv3x3s1_winograd43_transform_output_tile(const Mat& top_til
         float bias0 = biasptr ? biasptr[i + ii] : 0.f;
         float bias1 = biasptr ? biasptr[i + ii + 1] : 0.f;
 
+        float tmp[4][6][2];
+
         int jj = 0;
         for (; jj < max_jj; jj++)
         {
             int ti = (j + jj) / w_tiles;
             int tj = (j + jj) % w_tiles;
 
-            float tmp[4][6][2];
-
-            float* outptr0 = top_blob.channel(i + ii).row(ti * 4) + (tj * 4);
+            const float* r0 = (const float*)top_tile + ii * max_jj * 36 + jj * 2;
+            const float* r1 = r0 + max_jj * 2;
+            const float* r2 = r0 + max_jj * 2 * 2;
+            const float* r3 = r0 + max_jj * 2 * 3;
+            const float* r4 = r0 + max_jj * 2 * 4;
+            const float* r5 = r0 + max_jj * 2 * 5;
 
             for (int m = 0; m < 6; m++)
             {
-                float r00 = top_tile.depth(m * 6).row(jj)[ii];
-                float r01 = top_tile.depth(m * 6).row(jj)[ii + 1];
-                float r10 = top_tile.depth(m * 6 + 1).row(jj)[ii];
-                float r11 = top_tile.depth(m * 6 + 1).row(jj)[ii + 1];
-                float r20 = top_tile.depth(m * 6 + 2).row(jj)[ii];
-                float r21 = top_tile.depth(m * 6 + 2).row(jj)[ii + 1];
-                float r30 = top_tile.depth(m * 6 + 3).row(jj)[ii];
-                float r31 = top_tile.depth(m * 6 + 3).row(jj)[ii + 1];
-                float r40 = top_tile.depth(m * 6 + 4).row(jj)[ii];
-                float r41 = top_tile.depth(m * 6 + 4).row(jj)[ii + 1];
-                float r50 = top_tile.depth(m * 6 + 5).row(jj)[ii];
-                float r51 = top_tile.depth(m * 6 + 5).row(jj)[ii + 1];
+                tmp[0][m][0] = r0[0] + r1[0] + r2[0] + r3[0] + r4[0];
+                tmp[0][m][1] = r0[1] + r1[1] + r2[1] + r3[1] + r4[1];
+                tmp[1][m][0] = r1[0] - r2[0] + r3[0] * 2.f - r4[0] * 2.f;
+                tmp[1][m][1] = r1[1] - r2[1] + r3[1] * 2.f - r4[1] * 2.f;
+                tmp[2][m][0] = r1[0] + r2[0] + r3[0] * 4.f + r4[0] * 4.f;
+                tmp[2][m][1] = r1[1] + r2[1] + r3[1] * 4.f + r4[1] * 4.f;
+                tmp[3][m][0] = r1[0] - r2[0] + r3[0] * 8.f - r4[0] * 8.f + r5[0];
+                tmp[3][m][1] = r1[1] - r2[1] + r3[1] * 8.f - r4[1] * 8.f + r5[1];
 
-                tmp[0][m][0] = r00 + r10 + r20 + r30 + r40;
-                tmp[0][m][1] = r01 + r11 + r21 + r31 + r41;
-                tmp[1][m][0] = r10 - r20 + r30 * 2.f - r40 * 2.f;
-                tmp[1][m][1] = r11 - r21 + r31 * 2.f - r41 * 2.f;
-                tmp[2][m][0] = r10 + r20 + r30 * 4.f + r40 * 4.f;
-                tmp[2][m][1] = r11 + r21 + r31 * 4.f + r41 * 4.f;
-                tmp[3][m][0] = r10 - r20 + r30 * 8.f - r40 * 8.f + r50;
-                tmp[3][m][1] = r11 - r21 + r31 * 8.f - r41 * 8.f + r51;
+                r0 += max_jj * 6 * 2;
+                r1 += max_jj * 6 * 2;
+                r2 += max_jj * 6 * 2;
+                r3 += max_jj * 6 * 2;
+                r4 += max_jj * 6 * 2;
+                r5 += max_jj * 6 * 2;
             }
+
+            float* outptr0 = top_blob.channel(i + ii).row(ti * 4) + (tj * 4);
+
             for (int m = 0; m < 4; m++)
             {
                 if (ti * 4 + m >= outh)
@@ -5391,30 +4792,38 @@ static inline void conv3x3s1_winograd43_transform_output_tile(const Mat& top_til
     {
         float bias0 = biasptr ? biasptr[i + ii] : 0.f;
 
+        float tmp[4][6];
+
         int jj = 0;
         for (; jj < max_jj; jj++)
         {
             int ti = (j + jj) / w_tiles;
             int tj = (j + jj) % w_tiles;
 
-            float tmp[4][6];
-
-            float* outptr0 = top_blob.channel(i + ii).row(ti * 4) + (tj * 4);
+            const float* r0 = (const float*)top_tile + ii * max_jj * 36 + jj;
+            const float* r1 = r0 + max_jj;
+            const float* r2 = r0 + max_jj * 2;
+            const float* r3 = r0 + max_jj * 3;
+            const float* r4 = r0 + max_jj * 4;
+            const float* r5 = r0 + max_jj * 5;
 
             for (int m = 0; m < 6; m++)
             {
-                float r0 = top_tile.depth(m * 6).row(jj)[ii];
-                float r1 = top_tile.depth(m * 6 + 1).row(jj)[ii];
-                float r2 = top_tile.depth(m * 6 + 2).row(jj)[ii];
-                float r3 = top_tile.depth(m * 6 + 3).row(jj)[ii];
-                float r4 = top_tile.depth(m * 6 + 4).row(jj)[ii];
-                float r5 = top_tile.depth(m * 6 + 5).row(jj)[ii];
+                tmp[0][m] = r0[0] + r1[0] + r2[0] + r3[0] + r4[0];
+                tmp[1][m] = r1[0] - r2[0] + r3[0] * 2.f - r4[0] * 2.f;
+                tmp[2][m] = r1[0] + r2[0] + r3[0] * 4.f + r4[0] * 4.f;
+                tmp[3][m] = r1[0] - r2[0] + r3[0] * 8.f - r4[0] * 8.f + r5[0];
 
-                tmp[0][m] = r0 + r1 + r2 + r3 + r4;
-                tmp[1][m] = r1 - r2 + r3 * 2.f - r4 * 2.f;
-                tmp[2][m] = r1 + r2 + r3 * 4.f + r4 * 4.f;
-                tmp[3][m] = r1 - r2 + r3 * 8.f - r4 * 8.f + r5;
+                r0 += max_jj * 6;
+                r1 += max_jj * 6;
+                r2 += max_jj * 6;
+                r3 += max_jj * 6;
+                r4 += max_jj * 6;
+                r5 += max_jj * 6;
             }
+
+            float* outptr0 = top_blob.channel(i + ii).row(ti * 4) + (tj * 4);
+
             for (int m = 0; m < 4; m++)
             {
                 if (ti * 4 + m >= outh)
@@ -5470,27 +4879,57 @@ static void conv3x3s1_winograd43(const Mat& bottom_blob, Mat& top_blob, const Ma
 
     const int nn_M = (M + TILE_M - 1) / TILE_M;
     const int nn_N = (N + TILE_N - 1) / TILE_N;
+    const int nn_K = (K + TILE_K - 1) / TILE_K;
 
     // NCNN_LOGE("TILE M/N/K = %d %d %d -> %d %d %d", M, N, K, TILE_M, TILE_N, TILE_K);
 
-    Mat B_tileX(B * TILE_N * TILE_K, 1, nT, 4u, opt.blob_allocator);
     Mat BT(TILE_K * TILE_N, B, (K + TILE_K - 1) / TILE_K, (N + TILE_N - 1) / TILE_N, 4u, opt.blob_allocator);
 
-    #pragma omp parallel for num_threads(nT)
-    for (int ppj = 0; ppj < nn_N; ppj++)
+    const int nn_NK = nn_N * nn_K;
+
+    if (nT > 1 && nn_NK < nT)
     {
-        const int j = ppj * TILE_N;
+        Mat B_tile(TILE_N * B * TILE_K, 4u, opt.blob_allocator);
 
-        Mat B_tile = B_tileX.channel(get_omp_thread_num());
-
-        const int max_jj = std::min((N - j), TILE_N);
-
-        for (int k = 0; k < K; k += TILE_K)
+        for (int ppjk = 0; ppjk < nn_NK; ppjk++)
         {
+            const int ppj = ppjk / nn_K;
+            const int ppk = ppjk % nn_K;
+
+            const int j = ppj * TILE_N;
+            const int k = ppk * TILE_K;
+
+            const int max_jj = std::min((N - j), TILE_N);
             const int max_kk = std::min((K - k), TILE_K);
 
             // transform input
-            conv3x3s1_winograd43_transform_input_tile(bottom_blob, B_tile, j, max_jj, k, max_kk);
+            conv3x3s1_winograd43_transform_input_tile(bottom_blob, B_tile, j, max_jj, k, max_kk, nT);
+
+            Mat BT_tile = BT.channel(j / TILE_N).depth(k / TILE_K);
+
+            transpose_pack_B_tile(B_tile, BT_tile, B, max_jj, max_kk, nT);
+        }
+    }
+    else
+    {
+        Mat B_tileX(TILE_N * B * TILE_K, 1, nT, 4u, opt.blob_allocator);
+
+        #pragma omp parallel for num_threads(nT)
+        for (int ppjk = 0; ppjk < nn_NK; ppjk++)
+        {
+            const int ppj = ppjk / nn_K;
+            const int ppk = ppjk % nn_K;
+
+            const int j = ppj * TILE_N;
+            const int k = ppk * TILE_K;
+
+            const int max_jj = std::min((N - j), TILE_N);
+            const int max_kk = std::min((K - k), TILE_K);
+
+            Mat B_tile = B_tileX.channel(get_omp_thread_num());
+
+            // transform input
+            conv3x3s1_winograd43_transform_input_tile(bottom_blob, B_tile, j, max_jj, k, max_kk, 1);
 
             Mat BT_tile = BT.channel(j / TILE_N).depth(k / TILE_K);
 
@@ -5498,22 +4937,12 @@ static void conv3x3s1_winograd43(const Mat& bottom_blob, Mat& top_blob, const Ma
         }
     }
 
-    Mat tmpX;
-    if (TILE_K < K)
-    {
-        tmpX.create(TILE_M * TILE_N, B, nT, 4u, opt.blob_allocator);
-    }
-
-    Mat top_tileX(TILE_M, TILE_N, B, nT, 4u, opt.blob_allocator);
+    Mat top_tileX(TILE_N * B * TILE_M, 1, nT, 4u, opt.blob_allocator);
 
     #pragma omp parallel for num_threads(nT)
     for (int ppj = 0; ppj < nn_M; ppj++)
     {
         const int i = ppj * TILE_M;
-
-        Mat tmp;
-        if (K > TILE_K)
-            tmp = tmpX.channel(get_omp_thread_num());
 
         Mat top_tile = top_tileX.channel(get_omp_thread_num());
 
@@ -5531,9 +4960,7 @@ static void conv3x3s1_winograd43(const Mat& bottom_blob, Mat& top_blob, const Ma
 
                 const Mat BT_tile = BT.channel(j / TILE_N).depth(k / TILE_K);
 
-                bool k_end = k + TILE_K >= K;
-
-                gemm_transB_packed_tile(AT_tile, BT_tile, top_tile, tmp, B, max_ii, max_jj, k, max_kk, k_end);
+                gemm_transB_packed_tile(AT_tile, BT_tile, top_tile, B, max_ii, max_jj, k, max_kk);
             }
 
             // transform output
@@ -7748,17 +7175,14 @@ static void conv3x3s1_winograd63(const Mat& bottom_blob, Mat& top_blob, const Ma
 
     // NCNN_LOGE("TILE M/N/K = %d %d %d -> %d %d %d", M, N, K, TILE_M, TILE_N, TILE_K);
 
-    // bottom_blob_tm.create(tiles, B, inch);
-    // bottom_blob_tm.create(TILE_N, B, TILE_K);
-
-    // Mat B_tileX(B * TILE_N * TILE_K, 1, nT, 4u, opt.blob_allocator);
-    Mat B_tileX(TILE_N * B * TILE_K, 1, nT, 4u, opt.blob_allocator);
     Mat BT(TILE_K * TILE_N, B, (K + TILE_K - 1) / TILE_K, (N + TILE_N - 1) / TILE_N, 4u, opt.blob_allocator);
 
     const int nn_NK = nn_N * nn_K;
 
     if (nT > 1 && nn_NK < nT)
     {
+        Mat B_tile(TILE_N * B * TILE_K, 4u, opt.blob_allocator);
+
         for (int ppjk = 0; ppjk < nn_NK; ppjk++)
         {
             const int ppj = ppjk / nn_K;
@@ -7770,8 +7194,6 @@ static void conv3x3s1_winograd63(const Mat& bottom_blob, Mat& top_blob, const Ma
             const int max_jj = std::min((N - j), TILE_N);
             const int max_kk = std::min((K - k), TILE_K);
 
-            Mat B_tile = B_tileX.channel(get_omp_thread_num());
-
             // transform input
             conv3x3s1_winograd63_transform_input_tile(bottom_blob, B_tile, j, max_jj, k, max_kk, nT);
 
@@ -7782,6 +7204,8 @@ static void conv3x3s1_winograd63(const Mat& bottom_blob, Mat& top_blob, const Ma
     }
     else
     {
+        Mat B_tileX(TILE_N * B * TILE_K, 1, nT, 4u, opt.blob_allocator);
+
         #pragma omp parallel for num_threads(nT)
         for (int ppjk = 0; ppjk < nn_NK; ppjk++)
         {
@@ -7805,24 +7229,12 @@ static void conv3x3s1_winograd63(const Mat& bottom_blob, Mat& top_blob, const Ma
         }
     }
 
-    // Mat tmpX;
-    // if (TILE_K < K)
-    // {
-    //     // tmpX.create(TILE_M * TILE_N, B, nT, 4u, opt.blob_allocator);
-    //     tmpX.create(TILE_N * B * TILE_M, 1, nT, 4u, opt.blob_allocator);
-    // }
-
-    // Mat top_tileX(TILE_M, TILE_N, B, nT, 4u, opt.blob_allocator);
     Mat top_tileX(TILE_N * B * TILE_M, 1, nT, 4u, opt.blob_allocator);
 
     #pragma omp parallel for num_threads(nT)
     for (int ppj = 0; ppj < nn_M; ppj++)
     {
         const int i = ppj * TILE_M;
-
-        // Mat tmp;
-        // if (K > TILE_K)
-        //     tmp = tmpX.channel(get_omp_thread_num());
 
         Mat top_tile = top_tileX.channel(get_omp_thread_num());
 
@@ -7840,9 +7252,7 @@ static void conv3x3s1_winograd63(const Mat& bottom_blob, Mat& top_blob, const Ma
 
                 const Mat BT_tile = BT.channel(j / TILE_N).depth(k / TILE_K);
 
-                bool k_end = k + TILE_K >= K;
-
-                gemm_transB_packed_tile(AT_tile, BT_tile, top_tile, top_tile, B, max_ii, max_jj, k, max_kk, k_end);
+                gemm_transB_packed_tile(AT_tile, BT_tile, top_tile, B, max_ii, max_jj, k, max_kk);
             }
 
             // transform output

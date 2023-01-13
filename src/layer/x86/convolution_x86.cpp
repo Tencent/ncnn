@@ -233,12 +233,12 @@ int Convolution_x86::create_pipeline(const Option& opt)
         if ((bottom_shapes.empty() || bottom_shapes[0].w == 0 || bottom_shapes[0].h == 0) && (top_shapes.empty() || top_shapes[0].w == 0 || top_shapes[0].h == 0))
         {
             // dynamic shape
-            // if (opt.use_winograd63_convolution && num_input <= 24 && num_output <= 24)
+            if (opt.use_winograd63_convolution && num_input <= 24 && num_output <= 24)
             conv3x3s1_winograd63_transform_kernel(weight_data, weight_winograd63_data, num_input, num_output, opt);
-            // else if (opt.use_winograd43_convolution)
-            //     conv3x3s1_winograd43_transform_kernel(weight_data, weight_winograd43_data, num_input, num_output, opt);
-            // else
-            //     conv3x3s1_winograd23_transform_kernel(weight_data, weight_winograd23_data, num_input, num_output, opt);
+            else if (opt.use_winograd43_convolution)
+                conv3x3s1_winograd43_transform_kernel(weight_data, weight_winograd43_data, num_input, num_output, opt);
+            else
+                conv3x3s1_winograd23_transform_kernel(weight_data, weight_winograd23_data, num_input, num_output, opt);
         }
         else
         {
@@ -324,22 +324,22 @@ int Convolution_x86::create_pipeline(const Option& opt)
                 }
             }
 
-            // if (prefer_winograd23)
-            // {
-            //     conv3x3s1_winograd23_transform_kernel(weight_data, weight_winograd23_data, num_input, num_output, opt);
-            // }
-            // else if (prefer_winograd43)
-            // {
-            //     conv3x3s1_winograd43_transform_kernel(weight_data, weight_winograd43_data, num_input, num_output, opt);
-            // }
-            // else if (prefer_winograd63)
+            if (prefer_winograd23)
+            {
+                conv3x3s1_winograd23_transform_kernel(weight_data, weight_winograd23_data, num_input, num_output, opt);
+            }
+            else if (prefer_winograd43)
+            {
+                conv3x3s1_winograd43_transform_kernel(weight_data, weight_winograd43_data, num_input, num_output, opt);
+            }
+            else if (prefer_winograd63)
             {
                 conv3x3s1_winograd63_transform_kernel(weight_data, weight_winograd63_data, num_input, num_output, opt);
             }
-            // else
-            // {
-            //     // should never reach here
-            // }
+            else
+            {
+                // should never reach here
+            }
         }
 
         if (opt.lightmode)
@@ -616,22 +616,22 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             }
         }
 
-        // if (prefer_winograd23)
-        // {
-        //     conv3x3s1_winograd23(bottom_blob_bordered, top_blob, weight_winograd23_data, bias_data, opt);
-        // }
-        // else if (prefer_winograd43)
-        // {
-        //     conv3x3s1_winograd43(bottom_blob_bordered, top_blob, weight_winograd43_data, bias_data, opt);
-        // }
-        // else if (prefer_winograd63)
+        if (prefer_winograd23)
+        {
+            conv3x3s1_winograd23(bottom_blob_bordered, top_blob, weight_winograd23_data, bias_data, opt);
+        }
+        else if (prefer_winograd43)
+        {
+            conv3x3s1_winograd43(bottom_blob_bordered, top_blob, weight_winograd43_data, bias_data, opt);
+        }
+        else if (prefer_winograd63)
         {
             conv3x3s1_winograd63(bottom_blob_bordered, top_blob, weight_winograd63_data, bias_data, opt);
         }
-        // else
-        // {
-        //     // should never reach here
-        // }
+        else
+        {
+            // should never reach here
+        }
 
         if (activation)
         {
