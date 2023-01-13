@@ -268,7 +268,7 @@ int GroupNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 
             // mean and var
             float sum = 0.f;
-            float * ptr = bottom_top_blob_g;
+            float* ptr = bottom_top_blob_g;
             {
                 int i = 0;
 #if __SSE2__
