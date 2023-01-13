@@ -103,6 +103,7 @@ int support_VK_KHR_get_physical_device_properties2 = 0;
 int support_VK_KHR_get_surface_capabilities2 = 0;
 int support_VK_KHR_surface = 0;
 int support_VK_EXT_debug_utils = 0;
+int support_VK_KHR_portability_enumeration = 0;
 #if __ANDROID_API__ >= 26
 int support_VK_KHR_android_surface = 0;
 #endif // __ANDROID_API__ >= 26
@@ -935,6 +936,7 @@ int create_gpu_instance()
     support_VK_KHR_get_surface_capabilities2 = 0;
     support_VK_KHR_surface = 0;
     support_VK_EXT_debug_utils = 0;
+    support_VK_KHR_portability_enumeration = 0;
 #if __ANDROID_API__ >= 26
     support_VK_KHR_android_surface = 0;
 #endif // __ANDROID_API__ >= 26
@@ -953,6 +955,8 @@ int create_gpu_instance()
             support_VK_KHR_surface = exp.specVersion;
         else if (strcmp(exp.extensionName, "VK_EXT_debug_utils") == 0)
             support_VK_EXT_debug_utils = exp.specVersion;
+        else if (strcmp(exp.extensionName, "VK_KHR_portability_enumeration") == 0)
+            support_VK_KHR_portability_enumeration = exp.specVersion;
 #if __ANDROID_API__ >= 26
         else if (strcmp(exp.extensionName, "VK_KHR_android_surface") == 0)
             support_VK_KHR_android_surface = exp.specVersion;
@@ -975,6 +979,11 @@ int create_gpu_instance()
     if (support_VK_KHR_android_surface)
         enabledExtensions.push_back("VK_KHR_android_surface");
 #endif // __ANDROID_API__ >= 26
+
+#if __APPLE__
+    if (support_VK_KHR_portability_enumeration)
+        enabledExtensions.push_back("VK_KHR_portability_enumeration");
+#endif
 
     uint32_t instance_api_version = VK_MAKE_VERSION(1, 0, 0);
     typedef VkResult(VKAPI_PTR * PFN_vkEnumerateInstanceVersion)(uint32_t * pApiVersion);
@@ -1003,7 +1012,11 @@ int create_gpu_instance()
     VkInstanceCreateInfo instanceCreateInfo;
     instanceCreateInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     instanceCreateInfo.pNext = 0;
+#if __APPLE__
+    instanceCreateInfo.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
+#else
     instanceCreateInfo.flags = 0;
+#endif
     instanceCreateInfo.pApplicationInfo = &applicationInfo;
     instanceCreateInfo.enabledLayerCount = enabledLayers.size();
     instanceCreateInfo.ppEnabledLayerNames = enabledLayers.data();
