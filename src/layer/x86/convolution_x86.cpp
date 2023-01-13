@@ -234,7 +234,7 @@ int Convolution_x86::create_pipeline(const Option& opt)
         {
             // dynamic shape
             if (opt.use_winograd63_convolution && num_input <= 24 && num_output <= 24)
-            conv3x3s1_winograd63_transform_kernel(weight_data, weight_winograd63_data, num_input, num_output, opt);
+                conv3x3s1_winograd63_transform_kernel(weight_data, weight_winograd63_data, num_input, num_output, opt);
             else if (opt.use_winograd43_convolution)
                 conv3x3s1_winograd43_transform_kernel(weight_data, weight_winograd43_data, num_input, num_output, opt);
             else
