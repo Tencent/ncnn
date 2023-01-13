@@ -653,7 +653,6 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, 
     // Mat B(TILE_N * B * TILE_K);
     // Mat BT(TILE_K * TILE_N, B);
 
-
     // max_jj * B * max_kk(16/8/4/2/1)
 
     #pragma omp parallel for num_threads(nT)
