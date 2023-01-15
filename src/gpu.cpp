@@ -101,9 +101,9 @@ static const int layer_shader_registry_entry_count = sizeof(layer_shader_registr
 int support_VK_KHR_external_memory_capabilities = 0;
 int support_VK_KHR_get_physical_device_properties2 = 0;
 int support_VK_KHR_get_surface_capabilities2 = 0;
+int support_VK_KHR_portability_enumeration = 0;
 int support_VK_KHR_surface = 0;
 int support_VK_EXT_debug_utils = 0;
-int support_VK_KHR_portability_enumeration = 0;
 #if __ANDROID_API__ >= 26
 int support_VK_KHR_android_surface = 0;
 #endif // __ANDROID_API__ >= 26
@@ -934,9 +934,9 @@ int create_gpu_instance()
 
     support_VK_KHR_get_physical_device_properties2 = 0;
     support_VK_KHR_get_surface_capabilities2 = 0;
+    support_VK_KHR_portability_enumeration = 0;
     support_VK_KHR_surface = 0;
     support_VK_EXT_debug_utils = 0;
-    support_VK_KHR_portability_enumeration = 0;
 #if __ANDROID_API__ >= 26
     support_VK_KHR_android_surface = 0;
 #endif // __ANDROID_API__ >= 26
@@ -951,12 +951,12 @@ int create_gpu_instance()
             support_VK_KHR_get_physical_device_properties2 = exp.specVersion;
         else if (strcmp(exp.extensionName, "VK_KHR_get_surface_capabilities2") == 0)
             support_VK_KHR_get_surface_capabilities2 = exp.specVersion;
+        else if (strcmp(exp.extensionName, "VK_KHR_portability_enumeration") == 0)
+            support_VK_KHR_portability_enumeration = exp.specVersion;
         else if (strcmp(exp.extensionName, "VK_KHR_surface") == 0)
             support_VK_KHR_surface = exp.specVersion;
         else if (strcmp(exp.extensionName, "VK_EXT_debug_utils") == 0)
             support_VK_EXT_debug_utils = exp.specVersion;
-        else if (strcmp(exp.extensionName, "VK_KHR_portability_enumeration") == 0)
-            support_VK_KHR_portability_enumeration = exp.specVersion;
 #if __ANDROID_API__ >= 26
         else if (strcmp(exp.extensionName, "VK_KHR_android_surface") == 0)
             support_VK_KHR_android_surface = exp.specVersion;
@@ -969,6 +969,8 @@ int create_gpu_instance()
         enabledExtensions.push_back("VK_KHR_get_physical_device_properties2");
     if (support_VK_KHR_get_surface_capabilities2)
         enabledExtensions.push_back("VK_KHR_get_surface_capabilities2");
+    if (support_VK_KHR_portability_enumeration)
+        enabledExtensions.push_back("VK_KHR_portability_enumeration");
     if (support_VK_KHR_surface)
         enabledExtensions.push_back("VK_KHR_surface");
 #if ENABLE_VALIDATION_LAYER
@@ -979,11 +981,6 @@ int create_gpu_instance()
     if (support_VK_KHR_android_surface)
         enabledExtensions.push_back("VK_KHR_android_surface");
 #endif // __ANDROID_API__ >= 26
-
-#if __APPLE__
-    if (support_VK_KHR_portability_enumeration)
-        enabledExtensions.push_back("VK_KHR_portability_enumeration");
-#endif
 
     uint32_t instance_api_version = VK_MAKE_VERSION(1, 0, 0);
     typedef VkResult(VKAPI_PTR * PFN_vkEnumerateInstanceVersion)(uint32_t * pApiVersion);
