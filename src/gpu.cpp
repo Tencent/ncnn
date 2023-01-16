@@ -235,6 +235,7 @@ public:
     int support_VK_KHR_maintenance2;
     int support_VK_KHR_maintenance3;
     int support_VK_KHR_multiview;
+    int support_VK_KHR_portability_subset;
     int support_VK_KHR_push_descriptor;
     int support_VK_KHR_sampler_ycbcr_conversion;
     int support_VK_KHR_shader_float16_int8;
@@ -578,6 +579,11 @@ int GpuInfo::support_VK_KHR_maintenance3() const
 int GpuInfo::support_VK_KHR_multiview() const
 {
     return d->support_VK_KHR_multiview;
+}
+
+int GpuInfo::support_VK_KHR_portability_subset() const
+{
+    return d->support_VK_KHR_portability_subset;
 }
 
 int GpuInfo::support_VK_KHR_push_descriptor() const
@@ -1322,6 +1328,7 @@ int create_gpu_instance()
         gpu_info.support_VK_KHR_maintenance2 = 0;
         gpu_info.support_VK_KHR_maintenance3 = 0;
         gpu_info.support_VK_KHR_multiview = 0;
+        gpu_info.support_VK_KHR_portability_subset= 0;
         gpu_info.support_VK_KHR_push_descriptor = 0;
         gpu_info.support_VK_KHR_sampler_ycbcr_conversion = 0;
         gpu_info.support_VK_KHR_shader_float16_int8 = 0;
@@ -1364,6 +1371,8 @@ int create_gpu_instance()
                 gpu_info.support_VK_KHR_maintenance3 = exp.specVersion;
             else if (strcmp(exp.extensionName, "VK_KHR_multiview") == 0)
                 gpu_info.support_VK_KHR_multiview = exp.specVersion;
+            else if (strcmp(exp.extensionName, "VK_KHR_portability_subset") == 0)
+                gpu_info.support_VK_KHR_portability_subset = exp.specVersion;
             else if (strcmp(exp.extensionName, "VK_KHR_push_descriptor") == 0)
                 gpu_info.support_VK_KHR_push_descriptor = exp.specVersion;
             else if (strcmp(exp.extensionName, "VK_KHR_sampler_ycbcr_conversion") == 0)
@@ -1933,6 +1942,8 @@ VulkanDevice::VulkanDevice(int device_index)
         enabledExtensions.push_back("VK_KHR_maintenance3");
     if (info.support_VK_KHR_multiview())
         enabledExtensions.push_back("VK_KHR_multiview");
+    if (info.support_VK_KHR_portability_subset())
+        enabledExtensions.push_back("VK_KHR_portability_subset");
     if (info.support_VK_KHR_push_descriptor())
         enabledExtensions.push_back("VK_KHR_push_descriptor");
     if (info.support_VK_KHR_sampler_ycbcr_conversion())

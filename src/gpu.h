@@ -176,6 +176,7 @@ public:
     int support_VK_KHR_maintenance2() const;
     int support_VK_KHR_maintenance3() const;
     int support_VK_KHR_multiview() const;
+    int support_VK_KHR_portability_subset() const;
     int support_VK_KHR_push_descriptor() const;
     int support_VK_KHR_sampler_ycbcr_conversion() const;
     int support_VK_KHR_shader_float16_int8() const;
