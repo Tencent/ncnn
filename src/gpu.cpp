@@ -1009,11 +1009,9 @@ int create_gpu_instance()
     VkInstanceCreateInfo instanceCreateInfo;
     instanceCreateInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     instanceCreateInfo.pNext = 0;
-#if __APPLE__
-    instanceCreateInfo.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
-#else
     instanceCreateInfo.flags = 0;
-#endif
+    if (support_VK_KHR_portability_enumeration)
+        instanceCreateInfo.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
     instanceCreateInfo.pApplicationInfo = &applicationInfo;
     instanceCreateInfo.enabledLayerCount = enabledLayers.size();
     instanceCreateInfo.ppEnabledLayerNames = enabledLayers.data();
