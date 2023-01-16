@@ -1328,7 +1328,7 @@ int create_gpu_instance()
         gpu_info.support_VK_KHR_maintenance2 = 0;
         gpu_info.support_VK_KHR_maintenance3 = 0;
         gpu_info.support_VK_KHR_multiview = 0;
-        gpu_info.support_VK_KHR_portability_subset= 0;
+        gpu_info.support_VK_KHR_portability_subset = 0;
         gpu_info.support_VK_KHR_push_descriptor = 0;
         gpu_info.support_VK_KHR_sampler_ycbcr_conversion = 0;
         gpu_info.support_VK_KHR_shader_float16_int8 = 0;
