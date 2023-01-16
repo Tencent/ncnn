@@ -3132,7 +3132,7 @@ static inline void conv3x3s1_winograd23_transform_output_tile(const Mat& top_til
     }
 }
 
-static void conv3x3s1_winograd23(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, const Mat& bias, const Option& opt)
+static void conv3x3s1_winograd23(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, const Mat& bias, int nT, const Option& opt)
 {
     int outw = top_blob.w;
     int outh = top_blob.h;
@@ -3148,8 +3148,6 @@ static void conv3x3s1_winograd23(const Mat& bottom_blob, Mat& top_blob, const Ma
     const int B = 16;
 
     // NCNN_LOGE("conv3x3s1_winograd23 %d %d %d", M, N, K);
-
-    int nT = opt.num_threads;
 
     int TILE_M, TILE_N, TILE_K;
     get_optimal_tile_mnk(M, N, K, TILE_M, TILE_N, TILE_K, nT);
@@ -4853,7 +4851,7 @@ static inline void conv3x3s1_winograd43_transform_output_tile(const Mat& top_til
     }
 }
 
-static void conv3x3s1_winograd43(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, const Mat& bias, const Option& opt)
+static void conv3x3s1_winograd43(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, const Mat& bias, int nT, const Option& opt)
 {
     int outw = top_blob.w;
     int outh = top_blob.h;
@@ -4869,8 +4867,6 @@ static void conv3x3s1_winograd43(const Mat& bottom_blob, Mat& top_blob, const Ma
     const int B = 36;
 
     // NCNN_LOGE("conv3x3s1_winograd43 %d %d %d", M, N, K);
-
-    int nT = opt.num_threads;
 
     int TILE_M, TILE_N, TILE_K;
     get_optimal_tile_mnk(M, N, K, TILE_M, TILE_N, TILE_K, nT);
@@ -7145,7 +7141,7 @@ static inline void conv3x3s1_winograd63_transform_output_tile(const Mat& top_til
     }
 }
 
-static void conv3x3s1_winograd63(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, const Mat& bias, const Option& opt)
+static void conv3x3s1_winograd63(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, const Mat& bias, int nT, const Option& opt)
 {
     int outw = top_blob.w;
     int outh = top_blob.h;
@@ -7161,8 +7157,6 @@ static void conv3x3s1_winograd63(const Mat& bottom_blob, Mat& top_blob, const Ma
     const int B = 64;
 
     // NCNN_LOGE("conv3x3s1_winograd63 %d %d %d", M, N, K);
-
-    int nT = opt.num_threads;
 
     int TILE_M, TILE_N, TILE_K;
     get_optimal_tile_mnk(M, N, K, TILE_M, TILE_N, TILE_K, nT);

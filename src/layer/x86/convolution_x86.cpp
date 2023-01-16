@@ -103,6 +103,7 @@ Convolution_x86::Convolution_x86()
 #endif // __SSE2__
 
     activation = 0;
+    nT = 0;
     convolution_dilation1 = 0;
     gemm = 0;
 }
@@ -313,6 +314,7 @@ int Convolution_x86::create_pipeline(const Option& opt)
         return 0;
 
     activation = create_activation_layer(activation_type, activation_params, opt);
+    nT = opt.num_threads;
 
 #if NCNN_INT8
     if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
@@ -734,17 +736,25 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             }
         }
 
+        int _nT = nT ? nT : opt.num_threads;
+        if (nT != 0 && opt.num_threads != nT)
+        {
+            // force num_threads the same as in create_pipeline
+            // so we could use pre-packed A/B from the same tile config
+            NCNN_LOGE("opt.num_threads %d changed, convolution winograd will use load-time value %d", opt.num_threads, nT);
+        }
+
         if (prefer_winograd23)
         {
-            conv3x3s1_winograd23(bottom_blob_bordered, top_blob, weight_winograd23_data, bias_data, opt);
+            conv3x3s1_winograd23(bottom_blob_bordered, top_blob, weight_winograd23_data, bias_data, _nT, opt);
         }
         else if (prefer_winograd43)
         {
-            conv3x3s1_winograd43(bottom_blob_bordered, top_blob, weight_winograd43_data, bias_data, opt);
+            conv3x3s1_winograd43(bottom_blob_bordered, top_blob, weight_winograd43_data, bias_data, _nT, opt);
         }
         else if (prefer_winograd63)
         {
-            conv3x3s1_winograd63(bottom_blob_bordered, top_blob, weight_winograd63_data, bias_data, opt);
+            conv3x3s1_winograd63(bottom_blob_bordered, top_blob, weight_winograd63_data, bias_data, _nT, opt);
         }
         else
         {
