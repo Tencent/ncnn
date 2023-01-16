@@ -157,55 +157,55 @@ static bool test_prefer_winograd63(int num_input, int num_output, int w, int h)
     {
         if (num_output >= 64) return false;
         if (num_output >= 32) return (minwh >= 11 && minwh <= 14)
-                                || (minwh >= 19 && minwh <= 20)
-                                || (minwh >= 23 && minwh <= 44)
-                                || (minwh >= 47 && minwh <= 56)
-                                || (minwh >= 63 && minwh <= 130);
+                                         || (minwh >= 19 && minwh <= 20)
+                                         || (minwh >= 23 && minwh <= 44)
+                                         || (minwh >= 47 && minwh <= 56)
+                                         || (minwh >= 63 && minwh <= 130);
         if (num_output >= 16) return (minwh >= 13 && minwh <= 14)
-                                || (minwh >= 19 && minwh <= 20)
-                                || (minwh >= 23 && minwh <= 38)
-                                || (minwh >= 43 && minwh <= 44)
-                                || (minwh >= 47 && minwh <= 140);
+                                         || (minwh >= 19 && minwh <= 20)
+                                         || (minwh >= 23 && minwh <= 38)
+                                         || (minwh >= 43 && minwh <= 44)
+                                         || (minwh >= 47 && minwh <= 140);
         if (num_output >= 8) return (minwh >= 11 && minwh <= 14)
-                                || (minwh >= 19 && minwh <= 20)
-                                || (minwh >= 31 && minwh <= 38)
-                                || (minwh >= 43 && minwh <= 44)
-                                || (minwh >= 55 && minwh <= 162);
+                                        || (minwh >= 19 && minwh <= 20)
+                                        || (minwh >= 31 && minwh <= 38)
+                                        || (minwh >= 43 && minwh <= 44)
+                                        || (minwh >= 55 && minwh <= 162);
         return false;
     }
     if (num_input >= 16)
     {
         if (num_output >= 64) return false;
         if (num_output >= 32) return (minwh >= 11 && minwh <= 14)
-                                || (minwh >= 19 && minwh <= 20)
-                                || (minwh >= 23 && minwh <= 44)
-                                || (minwh >= 47 && minwh <= 92)
-                                || (minwh >= 95 && minwh <= 188);
+                                         || (minwh >= 19 && minwh <= 20)
+                                         || (minwh >= 23 && minwh <= 44)
+                                         || (minwh >= 47 && minwh <= 92)
+                                         || (minwh >= 95 && minwh <= 188);
         if (num_output >= 16) return (minwh >= 11 && minwh <= 14)
-                                || (minwh >= 27 && minwh <= 38)
-                                || (minwh >= 43 && minwh <= 44)
-                                || (minwh >= 47 && minwh <= 74)
-                                || (minwh >= 81 && minwh <= 110)
-                                || (minwh >= 117 && minwh <= 170)
-                                || (minwh >= 177 && minwh <= 182);
+                                         || (minwh >= 27 && minwh <= 38)
+                                         || (minwh >= 43 && minwh <= 44)
+                                         || (minwh >= 47 && minwh <= 74)
+                                         || (minwh >= 81 && minwh <= 110)
+                                         || (minwh >= 117 && minwh <= 170)
+                                         || (minwh >= 177 && minwh <= 182);
         if (num_output >= 8) return (minwh >= 19 && minwh <= 20)
-                                || (minwh >= 33 && minwh <= 38)
-                                || (minwh >= 43 && minwh <= 44)
-                                || (minwh >= 47 && minwh <= 128)
-                                || (minwh >= 155 && minwh <= 210);
+                                        || (minwh >= 33 && minwh <= 38)
+                                        || (minwh >= 43 && minwh <= 44)
+                                        || (minwh >= 47 && minwh <= 128)
+                                        || (minwh >= 155 && minwh <= 210);
         return false;
     }
     if (num_input >= 8)
     {
         if (num_output >= 64) return false;
         if (num_output >= 32) return (minwh >= 7 && minwh <= 14)
-                                || (minwh >= 17 && minwh <= 20)
-                                || (minwh >= 23 && minwh <= 26)
-                                || (minwh >= 31 && minwh <= 38)
-                                || (minwh >= 43 && minwh <= 162);
+                                         || (minwh >= 17 && minwh <= 20)
+                                         || (minwh >= 23 && minwh <= 26)
+                                         || (minwh >= 31 && minwh <= 38)
+                                         || (minwh >= 43 && minwh <= 162);
         if (num_output >= 16) return minwh == 31 || minwh == 32
-                                || (minwh >= 39 && minwh <= 44)
-                                || (minwh >= 47 && minwh <= 212);
+                                         || (minwh >= 39 && minwh <= 44)
+                                         || (minwh >= 47 && minwh <= 212);
         if (num_output >= 8) return false;
         return false;
     }
@@ -263,8 +263,8 @@ static bool test_prefer_winograd23(int num_input, int num_output, int w, int h)
     }
     if (num_input >= 32)
     {
-        if (num_output >= 512) return (minwh >= 3 && minwh <=6) || (minwh >= 11 && minwh <= 12);
-        if (num_output >= 256) return (minwh >= 3 && minwh <=6) || (minwh >= 11 && minwh <= 12);
+        if (num_output >= 512) return (minwh >= 3 && minwh <= 6) || (minwh >= 11 && minwh <= 12);
+        if (num_output >= 256) return (minwh >= 3 && minwh <= 6) || (minwh >= 11 && minwh <= 12);
         if (num_output >= 128) return (minwh >= 3 && minwh <= 4) || (minwh >= 7 && minwh <= 16);
         if (num_output >= 64) return (minwh >= 3 && minwh <= 8);
         if (num_output >= 32) return (minwh >= 7 && minwh <= 8);
@@ -277,29 +277,29 @@ static bool test_prefer_winograd23(int num_input, int num_output, int w, int h)
         if (num_output >= 512) return (minwh >= 11 && minwh <= 12);
         if (num_output >= 256) return (minwh >= 3 && minwh <= 12);
         if (num_output >= 128) return (minwh >= 3 && minwh <= 6)
-                                || (minwh >= 9 && minwh <= 18);
+                                          || (minwh >= 9 && minwh <= 18);
         if (num_output >= 64) return (minwh >= 3 && minwh <= 4)
-                                || (minwh >= 7 && minwh <= 8)
-                                || (minwh >= 11 && minwh <= 12)
-                                || (minwh >= 15 && minwh <= 18);
+                                         || (minwh >= 7 && minwh <= 8)
+                                         || (minwh >= 11 && minwh <= 12)
+                                         || (minwh >= 15 && minwh <= 18);
         if (num_output >= 32) return (minwh >= 3 && minwh <= 4)
-                                || (minwh >= 9 && minwh <= 10);
+                                         || (minwh >= 9 && minwh <= 10);
         if (num_output >= 16) return (minwh >= 3 && minwh <= 10);
         if (num_output >= 8) return (minwh >= 3 && minwh <= 8)
-                                || (minwh >= 11 && minwh <= 12);
+                                        || (minwh >= 11 && minwh <= 12);
         return false;
     }
     if (num_input >= 8)
     {
         if (num_output >= 128) return false;
         if (num_output >= 64) return (minwh >= 3 && minwh <= 4)
-                                || (minwh >= 7 && minwh <= 14)
-                                || (minwh >= 47 && minwh <= 48);
+                                         || (minwh >= 7 && minwh <= 14)
+                                         || (minwh >= 47 && minwh <= 48);
         if (num_output >= 32) return (minwh >= 3 && minwh <= 6)
-                                || (minwh >= 15 && minwh <= 16);
+                                         || (minwh >= 15 && minwh <= 16);
         if (num_output >= 16) return (minwh >= 3 && minwh <= 6)
-                                || (minwh >= 9 && minwh <= 14)
-                                || (minwh >= 47 && minwh <= 212);
+                                         || (minwh >= 9 && minwh <= 14)
+                                         || (minwh >= 47 && minwh <= 212);
         if (num_output >= 8) return true;
         return false;
     }
