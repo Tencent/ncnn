@@ -103,6 +103,7 @@ Convolution_x86::Convolution_x86()
 #endif // __SSE2__
 
     activation = 0;
+    nT = 0;
     convolution_dilation1 = 0;
     gemm = 0;
 }
@@ -143,12 +144,177 @@ static void convolution_transform_kernel_packed_sse(const Mat& weight_data, Mat&
     }
 }
 
+static bool test_prefer_winograd63(int num_input, int num_output, int w, int h)
+{
+    // winograd selection strategy (profiled on i7-7700 single thread)
+
+    int minwh = std::min(w, h);
+
+    if (num_input >= 64)
+    {
+        return false;
+    }
+    if (num_input >= 32)
+    {
+        if (num_output >= 64) return false;
+        if (num_output >= 32) return (minwh >= 11 && minwh <= 14)
+                                         || (minwh >= 19 && minwh <= 20)
+                                         || (minwh >= 23 && minwh <= 44)
+                                         || (minwh >= 47 && minwh <= 56)
+                                         || (minwh >= 63 && minwh <= 130);
+        if (num_output >= 16) return (minwh >= 13 && minwh <= 14)
+                                         || (minwh >= 19 && minwh <= 20)
+                                         || (minwh >= 23 && minwh <= 38)
+                                         || (minwh >= 43 && minwh <= 44)
+                                         || (minwh >= 47 && minwh <= 140);
+        if (num_output >= 8) return (minwh >= 11 && minwh <= 14)
+                                        || (minwh >= 19 && minwh <= 20)
+                                        || (minwh >= 31 && minwh <= 38)
+                                        || (minwh >= 43 && minwh <= 44)
+                                        || (minwh >= 55 && minwh <= 162);
+        return false;
+    }
+    if (num_input >= 16)
+    {
+        if (num_output >= 64) return false;
+        if (num_output >= 32) return (minwh >= 11 && minwh <= 14)
+                                         || (minwh >= 19 && minwh <= 20)
+                                         || (minwh >= 23 && minwh <= 44)
+                                         || (minwh >= 47 && minwh <= 92)
+                                         || (minwh >= 95 && minwh <= 188);
+        if (num_output >= 16) return (minwh >= 11 && minwh <= 14)
+                                         || (minwh >= 27 && minwh <= 38)
+                                         || (minwh >= 43 && minwh <= 44)
+                                         || (minwh >= 47 && minwh <= 74)
+                                         || (minwh >= 81 && minwh <= 110)
+                                         || (minwh >= 117 && minwh <= 170)
+                                         || (minwh >= 177 && minwh <= 182);
+        if (num_output >= 8) return (minwh >= 19 && minwh <= 20)
+                                        || (minwh >= 33 && minwh <= 38)
+                                        || (minwh >= 43 && minwh <= 44)
+                                        || (minwh >= 47 && minwh <= 128)
+                                        || (minwh >= 155 && minwh <= 210);
+        return false;
+    }
+    if (num_input >= 8)
+    {
+        if (num_output >= 64) return false;
+        if (num_output >= 32) return (minwh >= 7 && minwh <= 14)
+                                         || (minwh >= 17 && minwh <= 20)
+                                         || (minwh >= 23 && minwh <= 26)
+                                         || (minwh >= 31 && minwh <= 38)
+                                         || (minwh >= 43 && minwh <= 162);
+        if (num_output >= 16) return minwh == 31 || minwh == 32
+                                         || (minwh >= 39 && minwh <= 44)
+                                         || (minwh >= 47 && minwh <= 212);
+        if (num_output >= 8) return false;
+        return false;
+    }
+
+    return false;
+}
+
+static bool test_prefer_winograd23(int num_input, int num_output, int w, int h)
+{
+    int minwh = std::min(w, h);
+
+    if (num_input >= 512)
+    {
+        if (num_output >= 512) return (minwh >= 3 && minwh <= 14);
+        if (num_output >= 256) return (minwh >= 3 && minwh <= 14);
+        if (num_output >= 128) return (minwh >= 3 && minwh <= 14);
+        if (num_output >= 64) return (minwh >= 3 && minwh <= 8) || (minwh >= 11 && minwh <= 12);
+        if (num_output >= 32) return (minwh >= 3 && minwh <= 8);
+        if (num_output >= 16) return (minwh >= 3 && minwh <= 8);
+        if (num_output >= 8) return (minwh >= 3 && minwh <= 6);
+        return false;
+    }
+    if (num_input >= 256)
+    {
+        if (num_output >= 512) return (minwh >= 3 && minwh <= 14);
+        if (num_output >= 256) return (minwh >= 3 && minwh <= 14);
+        if (num_output >= 128) return (minwh >= 3 && minwh <= 12);
+        if (num_output >= 64) return (minwh >= 3 && minwh <= 4);
+        if (num_output >= 32) return (minwh >= 3 && minwh <= 8);
+        if (num_output >= 16) return (minwh >= 3 && minwh <= 8);
+        if (num_output >= 8) return (minwh >= 3 && minwh <= 6);
+        return false;
+    }
+    if (num_input >= 128)
+    {
+        if (num_output >= 512) return (minwh >= 3 && minwh <= 14);
+        if (num_output >= 256) return (minwh >= 3 && minwh <= 8) || (minwh >= 11 && minwh <= 12);
+        if (num_output >= 128) return (minwh >= 3 && minwh <= 10);
+        if (num_output >= 64) return (minwh >= 3 && minwh <= 8);
+        if (num_output >= 32) return (minwh >= 3 && minwh <= 10);
+        if (num_output >= 16) return (minwh >= 3 && minwh <= 6);
+        if (num_output >= 8) return (minwh >= 3 && minwh <= 6);
+        return false;
+    }
+    if (num_input >= 64)
+    {
+        if (num_output >= 512) return (minwh >= 3 && minwh <= 8) || (minwh >= 11 && minwh <= 12) || (minwh >= 15 && minwh <= 20);
+        if (num_output >= 256) return (minwh >= 7 && minwh <= 8);
+        if (num_output >= 128) return (minwh >= 3 && minwh <= 8) || (minwh >= 19 && minwh <= 22);
+        if (num_output >= 64) return (minwh >= 3 && minwh <= 12);
+        if (num_output >= 32) return (minwh >= 3 && minwh <= 12);
+        if (num_output >= 16) return (minwh >= 3 && minwh <= 12);
+        if (num_output >= 8) return (minwh >= 3 && minwh <= 12);
+        return false;
+    }
+    if (num_input >= 32)
+    {
+        if (num_output >= 512) return (minwh >= 3 && minwh <= 6) || (minwh >= 11 && minwh <= 12);
+        if (num_output >= 256) return (minwh >= 3 && minwh <= 6) || (minwh >= 11 && minwh <= 12);
+        if (num_output >= 128) return (minwh >= 3 && minwh <= 4) || (minwh >= 7 && minwh <= 16);
+        if (num_output >= 64) return (minwh >= 3 && minwh <= 8);
+        if (num_output >= 32) return (minwh >= 7 && minwh <= 8);
+        if (num_output >= 16) return (minwh >= 7 && minwh <= 8);
+        if (num_output >= 8) return (minwh >= 3 && minwh <= 10);
+        return false;
+    }
+    if (num_input >= 16)
+    {
+        if (num_output >= 512) return (minwh >= 11 && minwh <= 12);
+        if (num_output >= 256) return (minwh >= 3 && minwh <= 12);
+        if (num_output >= 128) return (minwh >= 3 && minwh <= 6)
+                                          || (minwh >= 9 && minwh <= 18);
+        if (num_output >= 64) return (minwh >= 3 && minwh <= 4)
+                                         || (minwh >= 7 && minwh <= 8)
+                                         || (minwh >= 11 && minwh <= 12)
+                                         || (minwh >= 15 && minwh <= 18);
+        if (num_output >= 32) return (minwh >= 3 && minwh <= 4)
+                                         || (minwh >= 9 && minwh <= 10);
+        if (num_output >= 16) return (minwh >= 3 && minwh <= 10);
+        if (num_output >= 8) return (minwh >= 3 && minwh <= 8)
+                                        || (minwh >= 11 && minwh <= 12);
+        return false;
+    }
+    if (num_input >= 8)
+    {
+        if (num_output >= 128) return false;
+        if (num_output >= 64) return (minwh >= 3 && minwh <= 4)
+                                         || (minwh >= 7 && minwh <= 14)
+                                         || (minwh >= 47 && minwh <= 48);
+        if (num_output >= 32) return (minwh >= 3 && minwh <= 6)
+                                         || (minwh >= 15 && minwh <= 16);
+        if (num_output >= 16) return (minwh >= 3 && minwh <= 6)
+                                         || (minwh >= 9 && minwh <= 14)
+                                         || (minwh >= 47 && minwh <= 212);
+        if (num_output >= 8) return true;
+        return false;
+    }
+
+    return false;
+}
+
 int Convolution_x86::create_pipeline(const Option& opt)
 {
     if (dynamic_weight)
         return 0;
 
     activation = create_activation_layer(activation_type, activation_params, opt);
+    nT = opt.num_threads;
 
 #if NCNN_INT8
     if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
@@ -226,14 +392,14 @@ int Convolution_x86::create_pipeline(const Option& opt)
     }
 #endif // __SSE2__
 
-    bool prefer_winograd = (opt.use_winograd23_convolution || opt.use_winograd43_convolution || opt.use_winograd63_convolution) && num_input >= 16 && num_output >= 16;
+    bool prefer_winograd = (opt.use_winograd23_convolution || opt.use_winograd43_convolution || opt.use_winograd63_convolution) && (num_input > 8 || num_output > 8);
 
     if (opt.use_winograd_convolution && prefer_winograd && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
     {
         if ((bottom_shapes.empty() || bottom_shapes[0].w == 0 || bottom_shapes[0].h == 0) && (top_shapes.empty() || top_shapes[0].w == 0 || top_shapes[0].h == 0))
         {
             // dynamic shape
-            if (opt.use_winograd63_convolution && num_input <= 24 && num_output <= 24)
+            if ((opt.use_winograd63_convolution) && (num_input <= 32 && num_output <= 32))
                 conv3x3s1_winograd63_transform_kernel(weight_data, weight_winograd63_data, num_input, num_output, opt);
             else if (opt.use_winograd43_convolution)
                 conv3x3s1_winograd43_transform_kernel(weight_data, weight_winograd43_data, num_input, num_output, opt);
@@ -242,20 +408,6 @@ int Convolution_x86::create_pipeline(const Option& opt)
         }
         else
         {
-            //  winograd selection strategy
-            //
-            //   |   |   |   |   |                    c/outc
-            //   |   |   |   |   |        f63          ^
-            //   |   |   |   |   |   +----------------+128
-            //   |   |   |   |   |f63|    f43
-            //   |f23|f43|f63|f43|   +---+            +64
-            //   |   |   |   |   |  f63  |   f43
-            //   |   |   |   |   |       +---+        +32
-            //   |   |   |   |   |    f63    |   f43
-            //   +---+---+---+---+---+---+---+--------+16
-            //   0   14  19  21  31  96  132 192     --> wh
-            //
-
             int w;
             int h;
             if (top_shapes.empty() || top_shapes[0].w == 0 || top_shapes[0].h == 0)
@@ -283,18 +435,9 @@ int Convolution_x86::create_pipeline(const Option& opt)
                 h = top_shapes[0].h + 2;
             }
 
-            const int minwh = std::min(w, h);
-
-            bool prefer_winograd63 = minwh == 19 || minwh == 20
-                                     || (minwh > 30 && num_input >= 128)
-                                     || (minwh > 30 && num_input >= 64 && num_input < 128 && num_output >= 128)
-                                     || (minwh > 30 && num_input >= 64 && num_input < 128 && num_output < 128 && minwh < 96)
-                                     || (minwh > 30 && num_input >= 16 && num_input < 64 && num_output >= 64)
-                                     || (minwh > 30 && num_input >= 32 && num_input < 64 && num_output < 64 && minwh < 132)
-                                     || (minwh > 30 && num_input >= 16 && num_input < 32 && num_output < 64 && minwh < 192);
-
-            bool prefer_winograd43 = (minwh > 14 && !prefer_winograd63);
-            bool prefer_winograd23 = (!prefer_winograd43 && !prefer_winograd63);
+            bool prefer_winograd63 = test_prefer_winograd63(num_input, num_output, w, h);
+            bool prefer_winograd23 = test_prefer_winograd23(num_input, num_output, w, h);
+            bool prefer_winograd43 = !prefer_winograd63 && !prefer_winograd23;
 
             if (prefer_winograd23 && !opt.use_winograd23_convolution)
             {
@@ -557,36 +700,13 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
 
     const int num_input = channels * elempack;
 
-    bool prefer_winograd = (opt.use_winograd23_convolution || opt.use_winograd43_convolution || opt.use_winograd63_convolution) && num_input >= 16 && num_output >= 16;
+    bool prefer_winograd = (opt.use_winograd23_convolution || opt.use_winograd43_convolution || opt.use_winograd63_convolution) && (num_input > 8 || num_output > 8);
 
     if (opt.use_winograd_convolution && prefer_winograd && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
     {
-        //  winograd selection strategy
-        //
-        //   |   |   |   |   |                    c/outc
-        //   |   |   |   |   |        f63          ^
-        //   |   |   |   |   |   +----------------+128
-        //   |   |   |   |   |f63|    f43
-        //   |f23|f43|f63|f43|   +---+            +64
-        //   |   |   |   |   |  f63  |   f43
-        //   |   |   |   |   |       +---+        +32
-        //   |   |   |   |   |    f63    |   f43
-        //   +---+---+---+---+---+---+---+--------+16
-        //   0   14  19  21  31  96  132 192     --> wh
-        //
-
-        const int minwh = std::min(w, h);
-
-        bool prefer_winograd63 = minwh == 19 || minwh == 20
-                                 || (minwh > 30 && num_input >= 128)
-                                 || (minwh > 30 && num_input >= 64 && num_input < 128 && num_output >= 128)
-                                 || (minwh > 30 && num_input >= 64 && num_input < 128 && num_output < 128 && minwh < 96)
-                                 || (minwh > 30 && num_input >= 16 && num_input < 64 && num_output >= 64)
-                                 || (minwh > 30 && num_input >= 32 && num_input < 64 && num_output < 64 && minwh < 132)
-                                 || (minwh > 30 && num_input >= 16 && num_input < 32 && num_output < 64 && minwh < 192);
-
-        bool prefer_winograd43 = (minwh > 14 && !prefer_winograd63);
-        bool prefer_winograd23 = (!prefer_winograd43 && !prefer_winograd63);
+        bool prefer_winograd63 = test_prefer_winograd63(num_input, num_output, w, h);
+        bool prefer_winograd23 = test_prefer_winograd23(num_input, num_output, w, h);
+        bool prefer_winograd43 = !prefer_winograd63 && !prefer_winograd23;
 
         if (prefer_winograd23 && (!opt.use_winograd23_convolution || weight_winograd23_data.empty()))
         {
@@ -616,17 +736,25 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             }
         }
 
+        int _nT = nT ? nT : opt.num_threads;
+        if (nT != 0 && opt.num_threads != nT)
+        {
+            // force num_threads the same as in create_pipeline
+            // so we could use pre-packed A/B from the same tile config
+            NCNN_LOGE("opt.num_threads %d changed, convolution winograd will use load-time value %d", opt.num_threads, nT);
+        }
+
         if (prefer_winograd23)
         {
-            conv3x3s1_winograd23(bottom_blob_bordered, top_blob, weight_winograd23_data, bias_data, opt);
+            conv3x3s1_winograd23(bottom_blob_bordered, top_blob, weight_winograd23_data, bias_data, _nT, opt);
         }
         else if (prefer_winograd43)
         {
-            conv3x3s1_winograd43(bottom_blob_bordered, top_blob, weight_winograd43_data, bias_data, opt);
+            conv3x3s1_winograd43(bottom_blob_bordered, top_blob, weight_winograd43_data, bias_data, _nT, opt);
         }
         else if (prefer_winograd63)
         {
-            conv3x3s1_winograd63(bottom_blob_bordered, top_blob, weight_winograd63_data, bias_data, opt);
+            conv3x3s1_winograd63(bottom_blob_bordered, top_blob, weight_winograd63_data, bias_data, _nT, opt);
         }
         else
         {
