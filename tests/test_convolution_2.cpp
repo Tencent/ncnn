@@ -105,7 +105,14 @@ static int test_convolution_0()
            || test_convolution(12, 12, 47, 53, 3, 1, 1, 1, 0)
            || test_convolution(23, 23, 53, 53, 3, 1, 1, 1, 0)
            || test_convolution(26, 34, 47, 47, 3, 1, 1, 2, 0)
-           || test_convolution(52, 40, 31, 31, 3, 1, 1, 2, 0);
+           || test_convolution(52, 40, 31, 31, 3, 1, 1, 2, 0)
+           || test_convolution(6, 7, 7, 17, 2, 2, 2, 1, 1)
+           || test_convolution(8, 9, 3, 17, 5, 1, 1, 2, 1)
+           || test_convolution(9, 7, 19, 13, 1, 2, 2, 0, 0)
+           || test_convolution(15, 12, 19, 3, 4, 1, 2, 2, 1)
+           || test_convolution(14, 14, 24, 31, 5, 1, 2, 2, 1)
+           || test_convolution(12, 12, 20, 15, 6, 1, 1, 0, 0)
+           || test_convolution(11, 10, 12, 7, 4, 2, 1, 2, 1);
 }
 
 int main()

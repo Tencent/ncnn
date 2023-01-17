@@ -39,6 +39,7 @@ namespace ncnn {
 #include "convolution_5x5.h"
 
 #include "convolution_3x3_winograd.h"
+#include "convolution_packed.h"
 
 #if NCNN_INT8
 #include "convolution_sgemm_int8.h"
@@ -48,10 +49,6 @@ namespace ncnn {
 #endif // NCNN_INT8
 
 #if __SSE2__
-#include "convolution_pack4.h"
-#include "convolution_pack1to4.h"
-#include "convolution_pack4to1.h"
-
 #include "convolution_3x3_pack1to4.h"
 
 #if NCNN_INT8
@@ -71,26 +68,12 @@ namespace ncnn {
 #endif // NCNN_INT8
 
 #if __AVX__
-#include "convolution_pack8.h"
-#include "convolution_pack4to8.h"
-#include "convolution_pack1to8.h"
-#include "convolution_pack8to4.h"
-#include "convolution_pack8to1.h"
-
 #include "convolution_3x3_pack1to8.h"
 #include "convolution_3x3_pack8to1.h"
 #include "convolution_3x3_pack8.h"
 #include "convolution_2x2_pack8.h"
 
 #if __AVX512F__
-#include "convolution_pack16.h"
-#include "convolution_pack8to16.h"
-#include "convolution_pack4to16.h"
-#include "convolution_pack1to16.h"
-#include "convolution_pack16to8.h"
-#include "convolution_pack16to4.h"
-#include "convolution_pack16to1.h"
-
 #include "convolution_3x3_pack16to1.h"
 #endif // __AVX512F__
 #endif // __AVX__
@@ -560,13 +543,23 @@ int Convolution_x86::create_pipeline(const Option& opt)
 
         gemm->create_pipeline(opt);
     }
-    else if (elempack == 1 && out_elempack == 1)
-    {
-        weight_data_tm = weight_data;
-    }
     else
     {
-        convolution_transform_kernel_packed_sse(weight_data, weight_data_tm, num_input, num_output, kernel_w, kernel_h, elempack, out_elempack);
+        if ((elempack == 16 && out_elempack == 1 && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+                || (elempack == 8 && out_elempack == 8 && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+                || (elempack == 8 && out_elempack == 8 && kernel_w == 2 && kernel_h == 2 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+                || (elempack == 1 && out_elempack == 8 && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+                || (elempack == 1 && out_elempack == 8 && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+                || (elempack == 8 && out_elempack == 1 && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+                || (elempack == 1 && out_elempack == 4 && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+                || (elempack == 1 && out_elempack == 4 && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2))
+        {
+            convolution_transform_kernel_packed_sse(weight_data, weight_data_tm, num_input, num_output, kernel_w, kernel_h, elempack, out_elempack);
+        }
+        else
+        {
+            convolution_transform_kernel_packed(weight_data, weight_data_tm, num_input, num_output, kernel_w, kernel_h);
+        }
     }
 
     if (opt.lightmode)
@@ -1060,36 +1053,6 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
 #if __SSE2__
 #if __AVX__
 #if __AVX512F__
-        if (elempack == 16 && out_elempack == 16)
-        {
-            convolution_pack16_avx512(bottom_blob_bordered, top_blob, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
-        }
-
-        if (elempack == 8 && out_elempack == 16)
-        {
-            convolution_pack8to16_avx512(bottom_blob_bordered, top_blob, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
-        }
-
-        if (elempack == 16 && out_elempack == 8)
-        {
-            convolution_pack16to8_avx512(bottom_blob_bordered, top_blob, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
-        }
-
-        if (elempack == 4 && out_elempack == 16)
-        {
-            convolution_pack4to16_avx512(bottom_blob_bordered, top_blob, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
-        }
-
-        if (elempack == 16 && out_elempack == 4)
-        {
-            convolution_pack16to4_avx512(bottom_blob_bordered, top_blob, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
-        }
-
-        if (elempack == 1 && out_elempack == 16)
-        {
-            convolution_pack1to16_avx512(bottom_blob_bordered, top_blob, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
-        }
-
         if (elempack == 16 && out_elempack == 1)
         {
             if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
@@ -1100,10 +1063,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                 {
                     activation->forward_inplace(top_blob, opt);
                 }
-            }
-            else
-            {
-                convolution_pack16to1_avx512(bottom_blob_bordered, top_blob, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
+                return 0;
             }
         }
 #endif // __AVX512F__
@@ -1118,8 +1078,9 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                 {
                     activation->forward_inplace(top_blob, opt);
                 }
+                return 0;
             }
-            else if (kernel_w == 2 && kernel_h == 2 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+            if (kernel_w == 2 && kernel_h == 2 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
             {
                 conv2x2s1_pack8_avx(bottom_blob_bordered, top_blob, weight_data_tm, bias_data, opt);
 
@@ -1127,10 +1088,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                 {
                     activation->forward_inplace(top_blob, opt);
                 }
-            }
-            else
-            {
-                convolution_pack8_avx(bottom_blob_bordered, top_blob, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
+                return 0;
             }
         }
 
@@ -1144,8 +1102,9 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                 {
                     activation->forward_inplace(top_blob, opt);
                 }
+                return 0;
             }
-            else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+            if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
             {
                 conv3x3s2_pack1to8_avx(bottom_blob_bordered, top_blob, weight_data_tm, bias_data, opt);
 
@@ -1153,16 +1112,8 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                 {
                     activation->forward_inplace(top_blob, opt);
                 }
+                return 0;
             }
-            else
-            {
-                convolution_pack1to8_avx(bottom_blob_bordered, top_blob, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
-            }
-        }
-
-        if (elempack == 4 && out_elempack == 8)
-        {
-            convolution_pack4to8_avx(bottom_blob_bordered, top_blob, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
         }
 
         if (elempack == 8 && out_elempack == 1)
@@ -1175,23 +1126,10 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                 {
                     activation->forward_inplace(top_blob, opt);
                 }
+                return 0;
             }
-            else
-            {
-                convolution_pack8to1_avx(bottom_blob_bordered, top_blob, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
-            }
-        }
-
-        if (elempack == 8 && out_elempack == 4)
-        {
-            convolution_pack8to4_avx(bottom_blob_bordered, top_blob, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
         }
 #endif // __AVX__
-
-        if (elempack == 4 && out_elempack == 4)
-        {
-            convolution_pack4_sse(bottom_blob_bordered, top_blob, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
-        }
 
         if (elempack == 1 && out_elempack == 4)
         {
@@ -1203,8 +1141,9 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                 {
                     activation->forward_inplace(top_blob, opt);
                 }
+                return 0;
             }
-            else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+            if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
             {
                 conv3x3s2_pack1to4_sse(bottom_blob_bordered, top_blob, weight_data_tm, bias_data, opt);
 
@@ -1212,85 +1151,12 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                 {
                     activation->forward_inplace(top_blob, opt);
                 }
+                return 0;
             }
-            else
-            {
-                convolution_pack1to4_sse(bottom_blob_bordered, top_blob, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
-            }
-        }
-
-        if (elempack == 4 && out_elempack == 1)
-        {
-            convolution_pack4to1_sse(bottom_blob_bordered, top_blob, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
         }
 #endif // __SSE2__
 
-        if (elempack == 1 && out_elempack == 1)
-        {
-            const int maxk = kernel_w * kernel_h;
-
-            // kernel offsets
-            std::vector<int> _space_ofs(maxk);
-            int* space_ofs = &_space_ofs[0];
-            {
-                int p1 = 0;
-                int p2 = 0;
-                int gap = w * dilation_h - kernel_w * dilation_w;
-                for (int i = 0; i < kernel_h; i++)
-                {
-                    for (int j = 0; j < kernel_w; j++)
-                    {
-                        space_ofs[p1] = p2;
-                        p1++;
-                        p2 += dilation_w;
-                    }
-                    p2 += gap;
-                }
-            }
-
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int p = 0; p < num_output; p++)
-            {
-                float* outptr = top_blob.channel(p);
-
-                for (int i = 0; i < outh; i++)
-                {
-                    for (int j = 0; j < outw; j++)
-                    {
-                        float sum = 0.f;
-
-                        if (bias_term)
-                        {
-                            sum = bias_data[p];
-                        }
-
-                        const float* kptr = (const float*)weight_data_tm + maxk * channels * p;
-
-                        // channels
-                        for (int q = 0; q < channels; q++)
-                        {
-                            const Mat m = bottom_blob_bordered.channel(q);
-                            const float* sptr = m.row(i * stride_h) + j * stride_w;
-
-                            for (int k = 0; k < maxk; k++)
-                            {
-                                float val = sptr[space_ofs[k]];
-                                float wt = kptr[k];
-                                sum += val * wt;
-                            }
-
-                            kptr += maxk;
-                        }
-
-                        sum = activation_ss(sum, activation_type, activation_params);
-
-                        outptr[j] = sum;
-                    }
-
-                    outptr += outw;
-                }
-            }
-        }
+        convolution_packed(bottom_blob_bordered, top_blob, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
     }
 
     return 0;
