@@ -27,13 +27,15 @@ static void convolution_transform_kernel_packed(const Mat& kernel, Mat& kernel_t
     if (outch >= 16)
     {
         if (inch >= 16)
-            kernel_tm.create(16 * 16 * maxk, inch / 16 + (inch % 16) / 8 + (inch % 8) / 4 + inch % 4, outch / 16 + (outch % 16) / 8 + (outch % 8) / 4 + outch % 4);
+            kernel_tm.create(16 * 16 * maxk, inch / 16 + (inch % 16) / 8 + (inch % 8) / 4 + (inch % 4) / 2 + inch % 2, outch / 16 + (outch % 16) / 8 + (outch % 8) / 4 + (outch % 4) / 2 + outch % 2);
         else if (inch >= 8)
-            kernel_tm.create(16 * 8 * maxk, inch / 8 + (inch % 8) / 4 + inch % 4, outch / 16 + (outch % 16) / 8 + (outch % 8) / 4 + outch % 4);
+            kernel_tm.create(16 * 8 * maxk, inch / 8 + (inch % 8) / 4 + (inch % 4) / 2 + inch % 2, outch / 16 + (outch % 16) / 8 + (outch % 8) / 4 + (outch % 4) / 2 + outch % 2);
         else if (inch >= 4)
-            kernel_tm.create(16 * 4 * maxk, inch / 4 + inch % 4, outch / 16 + (outch % 16) / 8 + (outch % 8) / 4 + outch % 4);
+            kernel_tm.create(16 * 4 * maxk, inch / 4 + (inch % 4) / 2 + inch % 2, outch / 16 + (outch % 16) / 8 + (outch % 8) / 4 + (outch % 4) / 2 + outch % 2);
+        else if (inch >= 2)
+            kernel_tm.create(16 * 2 * maxk, inch / 2 + inch % 2, outch / 16 + (outch % 16) / 8 + (outch % 8) / 4 + (outch % 4) / 2 + outch % 2);
         else
-            kernel_tm.create(16 * maxk, inch, outch / 16 + (outch % 16) / 8 + (outch % 8) / 4 + outch % 4);
+            kernel_tm.create(16 * maxk, inch, outch / 16 + (outch % 16) / 8 + (outch % 8) / 4 + (outch % 4) / 2 + outch % 2);
     }
     else
 #endif // __AVX512F__
@@ -41,15 +43,17 @@ static void convolution_transform_kernel_packed(const Mat& kernel, Mat& kernel_t
     {
 #if __AVX512F__
         if (inch >= 16)
-            kernel_tm.create(8 * 16 * maxk, inch / 16 + (inch % 16) / 8 + (inch % 8) / 4 + inch % 4, outch / 8 + (outch % 8) / 4 + outch % 4);
+            kernel_tm.create(8 * 16 * maxk, inch / 16 + (inch % 16) / 8 + (inch % 8) / 4 + (inch % 4) / 2 + inch % 2, outch / 8 + (outch % 8) / 4 + (outch % 4) / 2 + outch % 2);
         else
 #endif // __AVX512F__
         if (inch >= 8)
-            kernel_tm.create(8 * 8 * maxk, inch / 8 + (inch % 8) / 4 + inch % 4, outch / 8 + (outch % 8) / 4 + outch % 4);
+            kernel_tm.create(8 * 8 * maxk, inch / 8 + (inch % 8) / 4 + (inch % 4) / 2 + inch % 2, outch / 8 + (outch % 8) / 4 + (outch % 4) / 2 + outch % 2);
         else if (inch >= 4)
-            kernel_tm.create(8 * 4 * maxk, inch / 4 + inch % 4, outch / 8 + (outch % 8) / 4 + outch % 4);
+            kernel_tm.create(8 * 4 * maxk, inch / 4 + (inch % 4) / 2 + inch % 2, outch / 8 + (outch % 8) / 4 + (outch % 4) / 2 + outch % 2);
+        else if (inch >= 2)
+            kernel_tm.create(8 * 2 * maxk, inch / 2 + inch % 2, outch / 8 + (outch % 8) / 4 + (outch % 4) / 2 + outch % 2);
         else
-            kernel_tm.create(8 * maxk, inch, outch / 8 + (outch % 8) / 4 + outch % 4);
+            kernel_tm.create(8 * maxk, inch, outch / 8 + (outch % 8) / 4 + (outch % 4) / 2 + outch % 2);
     }
     else
 #endif // __AVX__
@@ -58,34 +62,60 @@ static void convolution_transform_kernel_packed(const Mat& kernel, Mat& kernel_t
 #if __AVX__
 #if __AVX512F__
         if (inch >= 16)
-            kernel_tm.create(4 * 16 * maxk, inch / 16 + (inch % 16) / 8 + (inch % 8) / 4 + inch % 4, outch / 4 + outch % 4);
+            kernel_tm.create(4 * 16 * maxk, inch / 16 + (inch % 16) / 8 + (inch % 8) / 4 + (inch % 4) / 2 + inch % 2, outch / 4 + (outch % 4) / 2 + outch % 2);
         else
 #endif // __AVX512F__
         if (inch >= 8)
-            kernel_tm.create(4 * 8 * maxk, inch / 8 + (inch % 8) / 4 + inch % 4, outch / 4 + outch % 4);
+            kernel_tm.create(4 * 8 * maxk, inch / 8 + (inch % 8) / 4 + (inch % 4) / 2 + inch % 2, outch / 4 + (outch % 4) / 2 + outch % 2);
         else
 #endif // __AVX__
         if (inch >= 4)
-            kernel_tm.create(4 * 4 * maxk, inch / 4 + inch % 4, outch / 4 + outch % 4);
+            kernel_tm.create(4 * 4 * maxk, inch / 4 + (inch % 4) / 2 + inch % 2, outch / 4 + (outch % 4) / 2 + outch % 2);
+        if (inch >= 2)
+            kernel_tm.create(4 * 2 * maxk, inch / 2 + inch % 2, outch / 4 + (outch % 4) / 2 + outch % 2);
         else
-            kernel_tm.create(4 * maxk, inch, outch / 4 + outch % 4);
+            kernel_tm.create(4 * maxk, inch, outch / 4 + (outch % 4) / 2 + outch % 2);
     }
     else
 #endif // __SSE2__
+    if (outch >= 2)
     {
 #if __SSE2__
 #if __AVX__
 #if __AVX512F__
         if (inch >= 16)
-            kernel_tm.create(16 * maxk, inch / 16 + (inch % 16) / 8 + (inch % 8) / 4 + inch % 4, outch);
+            kernel_tm.create(2 * 16 * maxk, inch / 16 + (inch % 16) / 8 + (inch % 8) / 4 + (inch % 4) / 2 + inch % 2, outch / 2 + outch % 2);
         else
 #endif // __AVX512F__
         if (inch >= 8)
-            kernel_tm.create(8 * maxk, inch / 8 + (inch % 8) / 4 + inch % 4, outch);
+            kernel_tm.create(2 * 8 * maxk, inch / 8 + (inch % 8) / 4 + (inch % 4) / 2 + inch % 2, outch / 2 + outch % 2);
         else
 #endif // __AVX__
         if (inch >= 4)
-            kernel_tm.create(4 * maxk, inch / 4 + inch % 4, outch);
+            kernel_tm.create(2 * 4 * maxk, inch / 4 + (inch % 4) / 2 + inch % 2, outch / 2 + outch % 2);
+        if (inch >= 2)
+            kernel_tm.create(2 * 2 * maxk, inch / 2 + inch % 2, outch / 2 + outch % 2);
+        else
+#endif // __SSE2__
+            kernel_tm.create(2 * maxk, inch, outch / 2 + outch % 2);
+    }
+    else
+    {
+#if __SSE2__
+#if __AVX__
+#if __AVX512F__
+        if (inch >= 16)
+            kernel_tm.create(16 * maxk, inch / 16 + (inch % 16) / 8 + (inch % 8) / 4 + (inch % 4) / 2 + inch % 2, outch);
+        else
+#endif // __AVX512F__
+        if (inch >= 8)
+            kernel_tm.create(8 * maxk, inch / 8 + (inch % 8) / 4 + (inch % 4) / 2 + inch % 2, outch);
+        else
+#endif // __AVX__
+        if (inch >= 4)
+            kernel_tm.create(4 * maxk, inch / 4 + (inch % 4) / 2 + inch % 2, outch);
+        if (inch >= 2)
+            kernel_tm.create(2 * maxk, inch / 2 + inch % 2, outch);
         else
 #endif // __SSE2__
             kernel_tm.create(maxk, inch, outch);
@@ -300,6 +330,65 @@ static void convolution_transform_kernel_packed(const Mat& kernel, Mat& kernel_t
                 }
             }
         }
+        for (; p + 1 < inch; p += 2)
+        {
+            for (int k = 0; k < maxk; k++)
+            {
+                const float* k0 = kptr0 + p * maxk;
+                const float* k1 = kptr1 + p * maxk;
+                const float* k2 = kptr2 + p * maxk;
+                const float* k3 = kptr3 + p * maxk;
+                const float* k4 = kptr4 + p * maxk;
+                const float* k5 = kptr5 + p * maxk;
+                const float* k6 = kptr6 + p * maxk;
+                const float* k7 = kptr7 + p * maxk;
+                const float* k8 = kptr8 + p * maxk;
+                const float* k9 = kptr9 + p * maxk;
+                const float* ka = kptra + p * maxk;
+                const float* kb = kptrb + p * maxk;
+                const float* kc = kptrc + p * maxk;
+                const float* kd = kptrd + p * maxk;
+                const float* ke = kptre + p * maxk;
+                const float* kf = kptrf + p * maxk;
+
+                for (int i = 0; i < 2; i++)
+                {
+                    g00[0] = k0[k];
+                    g00[1] = k1[k];
+                    g00[2] = k2[k];
+                    g00[3] = k3[k];
+                    g00[4] = k4[k];
+                    g00[5] = k5[k];
+                    g00[6] = k6[k];
+                    g00[7] = k7[k];
+                    g00[8] = k8[k];
+                    g00[9] = k9[k];
+                    g00[10] = ka[k];
+                    g00[11] = kb[k];
+                    g00[12] = kc[k];
+                    g00[13] = kd[k];
+                    g00[14] = ke[k];
+                    g00[15] = kf[k];
+                    k0 += maxk;
+                    k1 += maxk;
+                    k2 += maxk;
+                    k3 += maxk;
+                    k4 += maxk;
+                    k5 += maxk;
+                    k6 += maxk;
+                    k7 += maxk;
+                    k8 += maxk;
+                    k9 += maxk;
+                    ka += maxk;
+                    kb += maxk;
+                    kc += maxk;
+                    kd += maxk;
+                    ke += maxk;
+                    kf += maxk;
+                    g00 += 16;
+                }
+            }
+        }
         for (; p < inch; p++)
         {
             const float* k0 = kptr0 + p * maxk;
@@ -467,6 +556,41 @@ static void convolution_transform_kernel_packed(const Mat& kernel, Mat& kernel_t
                 }
             }
         }
+        for (; p + 1 < inch; p += 2)
+        {
+            for (int k = 0; k < maxk; k++)
+            {
+                const float* k0 = kptr0 + p * maxk;
+                const float* k1 = kptr1 + p * maxk;
+                const float* k2 = kptr2 + p * maxk;
+                const float* k3 = kptr3 + p * maxk;
+                const float* k4 = kptr4 + p * maxk;
+                const float* k5 = kptr5 + p * maxk;
+                const float* k6 = kptr6 + p * maxk;
+                const float* k7 = kptr7 + p * maxk;
+
+                for (int i = 0; i < 2; i++)
+                {
+                    g00[0] = k0[k];
+                    g00[1] = k1[k];
+                    g00[2] = k2[k];
+                    g00[3] = k3[k];
+                    g00[4] = k4[k];
+                    g00[5] = k5[k];
+                    g00[6] = k6[k];
+                    g00[7] = k7[k];
+                    k0 += maxk;
+                    k1 += maxk;
+                    k2 += maxk;
+                    k3 += maxk;
+                    k4 += maxk;
+                    k5 += maxk;
+                    k6 += maxk;
+                    k7 += maxk;
+                    g00 += 8;
+                }
+            }
+        }
         for (; p < inch; p++)
         {
             const float* k0 = kptr0 + p * maxk;
@@ -582,6 +706,29 @@ static void convolution_transform_kernel_packed(const Mat& kernel, Mat& kernel_t
                 }
             }
         }
+        for (; p + 1 < inch; p += 2)
+        {
+            for (int k = 0; k < maxk; k++)
+            {
+                const float* k0 = kptr0 + p * maxk;
+                const float* k1 = kptr1 + p * maxk;
+                const float* k2 = kptr2 + p * maxk;
+                const float* k3 = kptr3 + p * maxk;
+
+                for (int i = 0; i < 2; i++)
+                {
+                    g00[0] = k0[k];
+                    g00[1] = k1[k];
+                    g00[2] = k2[k];
+                    g00[3] = k3[k];
+                    k0 += maxk;
+                    k1 += maxk;
+                    k2 += maxk;
+                    k3 += maxk;
+                    g00 += 4;
+                }
+            }
+        }
         for (; p < inch; p++)
         {
             const float* k0 = kptr0 + p * maxk;
@@ -600,18 +747,156 @@ static void convolution_transform_kernel_packed(const Mat& kernel, Mat& kernel_t
         }
     }
 #endif // __SSE2__
+    for (; q + 1 < outch; q += 2)
+    {
+        const float* kptr0 = (const float*)kernel + q * inch * maxk;
+        const float* kptr1 = (const float*)kernel + (q + 1) * inch * maxk;
+
+#if __AVX512F__
+        float* g00 = kernel_tm.channel(q / 16 + (q % 16) / 8 + (q % 8) / 4 + (q % 4) / 2);
+#elif __AVX__
+        float* g00 = kernel_tm.channel(q / 8 + (q % 8) / 4 + (q % 4) / 2);
+#elif __SSE2__
+        float* g00 = kernel_tm.channel(q / 4 + (q % 4) / 2);
+#else
+        float* g00 = kernel_tm.channel(q / 2);
+#endif
+
+        int p = 0;
+#if __SSE2__
+#if __AVX__
+#if __AVX512F__
+        for (; p + 15 < inch; p += 16)
+        {
+            for (int k = 0; k < maxk; k++)
+            {
+                const float* k0 = kptr0 + p * maxk + k;
+                const float* k1 = kptr1 + p * maxk + k;
+
+                g00[0] = k0[0];
+                g00[1] = k0[maxk];
+                g00[2] = k0[maxk * 2];
+                g00[3] = k0[maxk * 3];
+                g00[4] = k0[maxk * 4];
+                g00[5] = k0[maxk * 5];
+                g00[6] = k0[maxk * 6];
+                g00[7] = k0[maxk * 7];
+                g00[8] = k0[maxk * 8];
+                g00[9] = k0[maxk * 9];
+                g00[10] = k0[maxk * 10];
+                g00[11] = k0[maxk * 11];
+                g00[12] = k0[maxk * 12];
+                g00[13] = k0[maxk * 13];
+                g00[14] = k0[maxk * 14];
+                g00[15] = k0[maxk * 15];
+                g00[16] = k1[0];
+                g00[17] = k1[maxk];
+                g00[18] = k1[maxk * 2];
+                g00[19] = k1[maxk * 3];
+                g00[20] = k1[maxk * 4];
+                g00[21] = k1[maxk * 5];
+                g00[22] = k1[maxk * 6];
+                g00[23] = k1[maxk * 7];
+                g00[24] = k1[maxk * 8];
+                g00[25] = k1[maxk * 9];
+                g00[26] = k1[maxk * 10];
+                g00[27] = k1[maxk * 11];
+                g00[28] = k1[maxk * 12];
+                g00[29] = k1[maxk * 13];
+                g00[30] = k1[maxk * 14];
+                g00[31] = k1[maxk * 15];
+                g00 += 32;
+            }
+        }
+#endif // __AVX512F__
+        for (; p + 7 < inch; p += 8)
+        {
+            for (int k = 0; k < maxk; k++)
+            {
+                const float* k0 = kptr0 + p * maxk + k;
+                const float* k1 = kptr1 + p * maxk + k;
+
+                g00[0] = k0[0];
+                g00[1] = k0[maxk];
+                g00[2] = k0[maxk * 2];
+                g00[3] = k0[maxk * 3];
+                g00[4] = k0[maxk * 4];
+                g00[5] = k0[maxk * 5];
+                g00[6] = k0[maxk * 6];
+                g00[7] = k0[maxk * 7];
+                g00[8] = k1[0];
+                g00[9] = k1[maxk];
+                g00[10] = k1[maxk * 2];
+                g00[11] = k1[maxk * 3];
+                g00[12] = k1[maxk * 4];
+                g00[13] = k1[maxk * 5];
+                g00[14] = k1[maxk * 6];
+                g00[15] = k1[maxk * 7];
+                g00 += 16;
+            }
+        }
+#endif // __AVX__
+        for (; p + 3 < inch; p += 4)
+        {
+            for (int k = 0; k < maxk; k++)
+            {
+                const float* k0 = kptr0 + p * maxk + k;
+                const float* k1 = kptr1 + p * maxk + k;
+
+                g00[0] = k0[0];
+                g00[1] = k0[maxk];
+                g00[2] = k0[maxk * 2];
+                g00[3] = k0[maxk * 3];
+                g00[4] = k1[0];
+                g00[5] = k1[maxk];
+                g00[6] = k1[maxk * 2];
+                g00[7] = k1[maxk * 3];
+                g00 += 8;
+            }
+        }
+#endif // __SSE2__
+        for (; p + 1 < inch; p += 2)
+        {
+            for (int k = 0; k < maxk; k++)
+            {
+                const float* k0 = kptr0 + p * maxk;
+                const float* k1 = kptr1 + p * maxk;
+
+                for (int i = 0; i < 2; i++)
+                {
+                    g00[0] = k0[k];
+                    g00[1] = k1[k];
+                    k0 += maxk;
+                    k1 += maxk;
+                    g00 += 2;
+                }
+            }
+        }
+        for (; p < inch; p++)
+        {
+            const float* k0 = kptr0 + p * maxk;
+            const float* k1 = kptr1 + p * maxk;
+
+            for (int k = 0; k < maxk; k++)
+            {
+                g00[0] = k0[k];
+                g00[1] = k1[k];
+                g00 += 2;
+            }
+        }
+    }
     for (; q < outch; q++)
     {
         const float* kptr = (const float*)kernel + q * inch * maxk;
 
 #if __AVX512F__
-        float* g00 = kernel_tm.channel(q / 16 + (q % 16) / 8 + (q % 8) / 4 + q % 4);
+        float* g00 = kernel_tm.channel(q / 16 + (q % 16) / 8 + (q % 8) / 4 + (q % 4) / 2 + q % 2);
 #elif __AVX__
-        float* g00 = kernel_tm.channel(q / 8 + (q % 8) / 4 + q % 4);
+        float* g00 = kernel_tm.channel(q / 8 + (q % 8) / 4 + (q % 4) / 2 + q % 2);
 #elif __SSE2__
-        float* g00 = kernel_tm.channel(q / 4 + q % 4);
+        float* g00 = kernel_tm.channel(q / 4 + (q % 4) / 2 + q % 2);
 #else
-        float* g00 = kernel_tm.channel(q);
+        float* g00 = kernel_tm.channel(q / 2 + q % 2);
 #endif
 
         int p = 0;
@@ -663,6 +948,20 @@ static void convolution_transform_kernel_packed(const Mat& kernel, Mat& kernel_t
             }
         }
 #endif // __SSE2__
+        for (; p + 1 < inch; p += 2)
+        {
+            for (int k = 0; k < maxk; k++)
+            {
+                const float* k0 = kptr + p * maxk;
+
+                for (int i = 0; i < 2; i++)
+                {
+                    g00[0] = k0[k];
+                    k0 += maxk;
+                    g00 += 1;
+                }
+            }
+        }
         for (; p < inch; p++)
         {
             const float* k0 = kptr + p * maxk;
@@ -1088,6 +1387,28 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                             _sum3 = _mm512_fmadd_ps(_w3, _mm512_set1_ps(r3[sok]), _sum3);
 
                             kptr += 64;
+                        }
+                    }
+                }
+                for (; q + 1 < inch; q += 2)
+                {
+                    const float* r0 = bottom_blob.channel(q).row(i * stride_h) + j * stride_w;
+
+                    // if (elempack == 1)
+                    {
+                        const float* r1 = r0 + N;
+
+                        for (int k = 0; k < maxk; k++)
+                        {
+                            const int sok = space_ofs[k];
+
+                            __m512 _w0 = _mm512_load_ps(kptr);
+                            __m512 _w1 = _mm512_load_ps(kptr + 16);
+
+                            _sum0 = _mm512_fmadd_ps(_w0, _mm512_set1_ps(r0[sok]), _sum0);
+                            _sum1 = _mm512_fmadd_ps(_w1, _mm512_set1_ps(r1[sok]), _sum1);
+
+                            kptr += 32;
                         }
                     }
                 }
@@ -1541,6 +1862,28 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                         }
                     }
                 }
+                for (; q + 1 < inch; q += 2)
+                {
+                    const float* r0 = bottom_blob.channel(q).row(i * stride_h) + j * stride_w;
+
+                    // if (elempack == 1)
+                    {
+                        const float* r1 = r0 + N;
+
+                        for (int k = 0; k < maxk; k++)
+                        {
+                            const int sok = space_ofs[k];
+
+                            __m256 _w0 = _mm256_load_ps(kptr);
+                            __m256 _w1 = _mm256_load_ps(kptr + 8);
+
+                            _sum0 = _mm256_comp_fmadd_ps(_w0, _mm256_set1_ps(r0[sok]), _sum0);
+                            _sum1 = _mm256_comp_fmadd_ps(_w1, _mm256_set1_ps(r1[sok]), _sum1);
+
+                            kptr += 16;
+                        }
+                    }
+                }
                 for (; q < inch; q++)
                 {
                     const float* r0 = bottom_blob.channel(q).row(i * stride_h) + j * stride_w;
@@ -1979,6 +2322,28 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                         }
                     }
                 }
+                for (; q + 1 < inch; q += 2)
+                {
+                    const float* r0 = bottom_blob.channel(q).row(i * stride_h) + j * stride_w;
+
+                    // if (elempack == 1)
+                    {
+                        const float* r1 = r0 + N;
+
+                        for (int k = 0; k < maxk; k++)
+                        {
+                            const int sok = space_ofs[k];
+
+                            __m128 _w0 = _mm_load_ps(kptr);
+                            __m128 _w1 = _mm_load_ps(kptr + 4);
+
+                            _sum0 = _mm_comp_fmadd_ps(_w0, _mm_set1_ps(r0[sok]), _sum0);
+                            _sum1 = _mm_comp_fmadd_ps(_w1, _mm_set1_ps(r1[sok]), _sum1);
+
+                            kptr += 8;
+                        }
+                    }
+                }
                 for (; q < inch; q++)
                 {
                     const float* r0 = bottom_blob.channel(q).row(i * stride_h) + j * stride_w;
@@ -2022,9 +2387,286 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
         }
     }
     remain_outch_start += nn_outch * 4;
+    nn_outch = (outch - remain_outch_start) / 2;
 #else // __SSE2__
+    nn_outch = (outch - remain_outch_start) / 2;
     #pragma omp parallel for num_threads(opt.num_threads)
 #endif // __SSE2__
+    for (int pp = 0; pp < nn_outch; pp++)
+    {
+        const int p = remain_outch_start + pp * 2;
+
+        float* outptr0 = top_blob.channel(p);
+        float* outptr1 = top_blob.channel(p + 1);
+
+        for (int i = 0; i < outh; i++)
+        {
+            for (int j = 0; j < outw; j++)
+            {
+                float sum0 = 0.f;
+                float sum1 = 0.f;
+
+                if (bias_data_ptr)
+                {
+                    sum0 = bias_data_ptr[p];
+                    sum1 = bias_data_ptr[p + 1];
+                }
+
+#if __AVX512F__
+                const float* kptr = weight_data_tm.channel(p / 16 + (p % 16) / 8 + (p % 8) / 4 + (p % 4) / 2);
+#elif __AVX__
+                const float* kptr = weight_data_tm.channel(p / 8 + (p % 8) / 4 + (p % 4) / 2);
+#elif __SSE2__
+                const float* kptr = weight_data_tm.channel(p / 4 + (p % 4) / 2);
+#else
+                const float* kptr = weight_data_tm.channel(p / 2);
+#endif
+
+                int q = 0;
+#if __SSE2__
+#if __AVX__
+#if __AVX512F__
+                __m512 _sum0_avx512 = _mm512_setzero_ps();
+                __m512 _sum1_avx512 = _mm512_setzero_ps();
+                for (; q + 15 < inch; q += 16)
+                {
+                    const float* r0 = bottom_blob.channel(q / elempack).row(i * stride_h) + j * stride_w * elempack;
+
+                    if (elempack == 16)
+                    {
+                        for (int k = 0; k < maxk; k++)
+                        {
+                            const int sok = space_ofs[k];
+                            __m512 _r0 = _mm512_load_ps(r0 + sok);
+                            __m512 _w0 = _mm512_load_ps(kptr);
+                            __m512 _w1 = _mm512_load_ps(kptr + 16);
+                            _sum0_avx512 = _mm512_fmadd_ps(_r0, _w0, _sum0_avx512);
+                            _sum1_avx512 = _mm512_fmadd_ps(_r0, _w1, _sum1_avx512);
+
+                            kptr += 32;
+                        }
+                    }
+                    if (elempack == 8)
+                    {
+                        const float* r1 = r0 + N;
+
+                        for (int k = 0; k < maxk; k++)
+                        {
+                            const int sok = space_ofs[k];
+                            __m512 _r0 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_load_ps(r0 + sok)), _mm256_load_ps(r1 + sok), 1);
+                            __m512 _w0 = _mm512_load_ps(kptr);
+                            __m512 _w1 = _mm512_load_ps(kptr + 16);
+                            _sum0_avx512 = _mm512_fmadd_ps(_r0, _w0, _sum0_avx512);
+                            _sum1_avx512 = _mm512_fmadd_ps(_r0, _w1, _sum1_avx512);
+
+                            kptr += 32;
+                        }
+                    }
+                    if (elempack == 4)
+                    {
+                        const float* r1 = r0 + N;
+                        const float* r2 = r0 + N * 2;
+                        const float* r3 = r0 + N * 3;
+
+                        for (int k = 0; k < maxk; k++)
+                        {
+                            const int sok = space_ofs[k];
+                            __m512 _r0 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0 + sok)), _mm_load_ps(r1 + sok), 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r2 + sok)), _mm_load_ps(r3 + sok), 1), 1);
+                            __m512 _w0 = _mm512_load_ps(kptr);
+                            __m512 _w1 = _mm512_load_ps(kptr + 16);
+                            _sum0_avx512 = _mm512_fmadd_ps(_r0, _w0, _sum0_avx512);
+                            _sum1_avx512 = _mm512_fmadd_ps(_r0, _w1, _sum1_avx512);
+
+                            kptr += 32;
+                        }
+                    }
+                    if (elempack == 1)
+                    {
+                        const float* r1 = r0 + N;
+                        const float* r2 = r0 + N * 2;
+                        const float* r3 = r0 + N * 3;
+                        const float* r4 = r0 + N * 4;
+                        const float* r5 = r0 + N * 5;
+                        const float* r6 = r0 + N * 6;
+                        const float* r7 = r0 + N * 7;
+                        const float* r8 = r0 + N * 8;
+                        const float* r9 = r0 + N * 9;
+                        const float* ra = r0 + N * 10;
+                        const float* rb = r0 + N * 11;
+                        const float* rc = r0 + N * 12;
+                        const float* rd = r0 + N * 13;
+                        const float* re = r0 + N * 14;
+                        const float* rf = r0 + N * 15;
+
+                        for (int k = 0; k < maxk; k++)
+                        {
+                            const int sok = space_ofs[k];
+                            __m512 _r0 = _mm512_set_ps(rf[sok], re[sok], rd[sok], rc[sok], rb[sok], ra[sok], r9[sok], r8[sok], r7[sok], r6[sok], r5[sok], r4[sok], r3[sok], r2[sok], r1[sok], r0[sok]);
+                            __m512 _w0 = _mm512_load_ps(kptr);
+                            __m512 _w1 = _mm512_load_ps(kptr + 16);
+                            _sum0_avx512 = _mm512_fmadd_ps(_r0, _w0, _sum0_avx512);
+                            _sum1_avx512 = _mm512_fmadd_ps(_r0, _w1, _sum1_avx512);
+
+                            kptr += 32;
+                        }
+                    }
+                }
+                sum0 += _mm512_comp_reduce_add_ps(_sum0_avx512);
+                sum1 += _mm512_comp_reduce_add_ps(_sum1_avx512);
+#endif // __AVX512F__
+                __m256 _sum0_avx = _mm256_setzero_ps();
+                __m256 _sum1_avx = _mm256_setzero_ps();
+                for (; q + 7 < inch; q += 8)
+                {
+                    const float* r0 = bottom_blob.channel(q / elempack).row(i * stride_h) + j * stride_w * elempack;
+
+                    if (elempack == 8)
+                    {
+                        for (int k = 0; k < maxk; k++)
+                        {
+                            const int sok = space_ofs[k];
+                            __m256 _r0 = _mm256_load_ps(r0 + sok);
+                            __m256 _w0 = _mm256_load_ps(kptr);
+                            __m256 _w1 = _mm256_load_ps(kptr + 8);
+                            _sum0_avx = _mm256_comp_fmadd_ps(_r0, _w0, _sum0_avx);
+                            _sum1_avx = _mm256_comp_fmadd_ps(_r0, _w1, _sum1_avx);
+
+                            kptr += 16;
+                        }
+                    }
+                    if (elempack == 4)
+                    {
+                        const float* r1 = r0 + N;
+
+                        for (int k = 0; k < maxk; k++)
+                        {
+                            const int sok = space_ofs[k];
+                            __m256 _r0 = _mm256_insertf128_ps(_mm256_castps128_ps256(_mm_load_ps(r0 + sok)), _mm_load_ps(r1 + sok), 1);
+                            __m256 _w0 = _mm256_load_ps(kptr);
+                            __m256 _w1 = _mm256_load_ps(kptr + 8);
+                            _sum0_avx = _mm256_comp_fmadd_ps(_r0, _w0, _sum0_avx);
+                            _sum1_avx = _mm256_comp_fmadd_ps(_r0, _w1, _sum1_avx);
+
+                            kptr += 16;
+                        }
+                    }
+                    if (elempack == 1)
+                    {
+                        const float* r1 = r0 + N;
+                        const float* r2 = r0 + N * 2;
+                        const float* r3 = r0 + N * 3;
+                        const float* r4 = r0 + N * 4;
+                        const float* r5 = r0 + N * 5;
+                        const float* r6 = r0 + N * 6;
+                        const float* r7 = r0 + N * 7;
+
+                        for (int k = 0; k < maxk; k++)
+                        {
+                            const int sok = space_ofs[k];
+                            __m256 _r0 = _mm256_set_ps(r7[sok], r6[sok], r5[sok], r4[sok], r3[sok], r2[sok], r1[sok], r0[sok]);
+                            __m256 _w0 = _mm256_load_ps(kptr);
+                            __m256 _w1 = _mm256_load_ps(kptr + 8);
+                            _sum0_avx = _mm256_comp_fmadd_ps(_r0, _w0, _sum0_avx);
+                            _sum1_avx = _mm256_comp_fmadd_ps(_r0, _w1, _sum1_avx);
+
+                            kptr += 16;
+                        }
+                    }
+                }
+                sum0 += _mm256_reduce_add_ps(_sum0_avx);
+                sum1 += _mm256_reduce_add_ps(_sum1_avx);
+#endif // __AVX__
+                __m128 _sum0 = _mm_setzero_ps();
+                __m128 _sum1 = _mm_setzero_ps();
+                for (; q + 3 < inch; q += 4)
+                {
+                    const float* r0 = bottom_blob.channel(q / elempack).row(i * stride_h) + j * stride_w * elempack;
+
+                    if (elempack == 4)
+                    {
+                        for (int k = 0; k < maxk; k++)
+                        {
+                            const int sok = space_ofs[k];
+                            __m128 _r0 = _mm_load_ps(r0 + sok);
+                            __m128 _w0 = _mm_load_ps(kptr);
+                            __m128 _w1 = _mm_load_ps(kptr + 4);
+                            _sum0 = _mm_comp_fmadd_ps(_r0, _w0, _sum0);
+                            _sum1 = _mm_comp_fmadd_ps(_r0, _w1, _sum1);
+
+                            kptr += 8;
+                        }
+                    }
+                    if (elempack == 1)
+                    {
+                        const float* r1 = r0 + N;
+                        const float* r2 = r0 + N * 2;
+                        const float* r3 = r0 + N * 3;
+
+                        for (int k = 0; k < maxk; k++)
+                        {
+                            const int sok = space_ofs[k];
+                            __m128 _r0 = _mm_set_ps(r3[sok], r2[sok], r1[sok], r0[sok]);
+                            __m128 _w0 = _mm_load_ps(kptr);
+                            __m128 _w1 = _mm_load_ps(kptr + 4);
+                            _sum0 = _mm_comp_fmadd_ps(_r0, _w0, _sum0);
+                            _sum1 = _mm_comp_fmadd_ps(_r0, _w1, _sum1);
+
+                            kptr += 8;
+                        }
+                    }
+                }
+                sum0 += _mm_reduce_add_ps(_sum0);
+                sum1 += _mm_reduce_add_ps(_sum1);
+#endif // __SSE2__
+                for (; q + 1 < inch; q += 2)
+                {
+                    const float* r0 = bottom_blob.channel(q).row(i * stride_h) + j * stride_w;
+
+                    // if (elempack == 1)
+                    {
+                        const float* r1 = r0 + N;
+
+                        for (int k = 0; k < maxk; k++)
+                        {
+                            const int sok = space_ofs[k];
+
+                            sum0 += r0[sok] * kptr[0];
+                            sum1 += r0[sok] * kptr[1];
+                            sum0 += r1[sok] * kptr[2];
+                            sum1 += r1[sok] * kptr[3];
+
+                            kptr += 4;
+                        }
+                    }
+                }
+                for (; q < inch; q++)
+                {
+                    const float* r0 = bottom_blob.channel(q).row(i * stride_h) + j * stride_w;
+
+                    // if (elempack == 1)
+                    {
+                        for (int k = 0; k < maxk; k++)
+                        {
+                            float val = r0[space_ofs[k]];
+                            sum0 += val * kptr[0];
+                            sum1 += val * kptr[1];
+
+                            kptr += 2;
+                        }
+                    }
+                }
+
+                sum0 = activation_ss(sum0, activation_type, activation_params);
+                sum1 = activation_ss(sum1, activation_type, activation_params);
+
+                outptr0[0] = sum0;
+                outptr1[0] = sum1;
+                outptr0 += 1;
+                outptr1 += 1;
+            }
+        }
+    }
+    remain_outch_start += nn_outch * 2;
     for (int p = remain_outch_start; p < outch; p++)
     {
         float* outptr = top_blob.channel(p);
@@ -2041,13 +2683,13 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                 }
 
 #if __AVX512F__
-                const float* kptr = weight_data_tm.channel(p / 16 + (p % 16) / 8 + (p % 8) / 4 + p % 4);
+                const float* kptr = weight_data_tm.channel(p / 16 + (p % 16) / 8 + (p % 8) / 4 + (p % 4) / 2 + p % 2);
 #elif __AVX__
-                const float* kptr = weight_data_tm.channel(p / 8 + (p % 8) / 4 + p % 4);
+                const float* kptr = weight_data_tm.channel(p / 8 + (p % 8) / 4 + (p % 4) / 2 + p % 2);
 #elif __SSE2__
-                const float* kptr = weight_data_tm.channel(p / 4 + p % 4);
+                const float* kptr = weight_data_tm.channel(p / 4 + (p % 4) / 2 + p % 2);
 #else
-                const float* kptr = weight_data_tm.channel(p);
+                const float* kptr = weight_data_tm.channel(p / 2 + p % 2);
 #endif
 
                 int q = 0;
@@ -2222,6 +2864,25 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                 }
                 sum += _mm_reduce_add_ps(_sum);
 #endif // __SSE2__
+                for (; q + 1 < inch; q += 2)
+                {
+                    const float* r0 = bottom_blob.channel(q).row(i * stride_h) + j * stride_w;
+
+                    // if (elempack == 1)
+                    {
+                        const float* r1 = r0 + N;
+
+                        for (int k = 0; k < maxk; k++)
+                        {
+                            const int sok = space_ofs[k];
+
+                            sum += r0[sok] * kptr[0];
+                            sum += r1[sok] * kptr[1];
+
+                            kptr += 2;
+                        }
+                    }
+                }
                 for (; q < inch; q++)
                 {
                     const float* r0 = bottom_blob.channel(q).row(i * stride_h) + j * stride_w;
