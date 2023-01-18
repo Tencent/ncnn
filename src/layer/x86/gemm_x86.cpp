@@ -5182,8 +5182,8 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 // if (out_elempack == 1)
                 {
                     outptr0[0] = sum00;
-                    outptr0[1] = sum01;
-                    outptr0[out_hstep] = sum10;
+                    outptr0[1] = sum10;
+                    outptr0[out_hstep] = sum01;
                     outptr0[out_hstep + 1] = sum11;
                     outptr0 += 2;
                 }
