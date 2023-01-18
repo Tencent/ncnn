@@ -23,6 +23,7 @@ static int test_gemm(int M, int N, int K, float alpha, int transA, int transB, i
     pd.set(2, transA);
     pd.set(3, transB);
     pd.set(11, output_N1M);
+    pd.set(14, output_transpose);
 
     std::vector<ncnn::Mat> weights(0);
 
@@ -65,6 +66,7 @@ static int test_gemm_constantA(int M, int N, int K, float alpha, int transA, int
     pd.set(8, N);
     pd.set(9, K);
     pd.set(10, -1);
+    pd.set(14, output_transpose);
 
     std::vector<ncnn::Mat> weights(1);
     weights[0] = transA ? ncnn::Mat(M, K) : ncnn::Mat(K, M);
@@ -98,6 +100,7 @@ static int test_gemm_constantB(int M, int N, int K, float alpha, int transA, int
     pd.set(8, N);
     pd.set(9, K);
     pd.set(10, -1);
+    pd.set(14, output_transpose);
 
     std::vector<ncnn::Mat> weights(1);
     weights[0] = transB ? ncnn::Mat(K, N) : ncnn::Mat(N, K);
@@ -131,6 +134,7 @@ static int test_gemm_constantAB(int M, int N, int K, float alpha, int transA, in
     pd.set(8, N);
     pd.set(9, K);
     pd.set(10, -1);
+    pd.set(14, output_transpose);
 
     std::vector<ncnn::Mat> weights(2);
     weights[0] = transA ? ncnn::Mat(M, K) : ncnn::Mat(K, M);
@@ -157,6 +161,7 @@ static int test_gemm_bias(int M, int N, int K, const ncnn::Mat& C, float alpha, 
     pd.set(1, beta);
     pd.set(2, transA);
     pd.set(3, transB);
+    pd.set(14, output_transpose);
 
     std::vector<ncnn::Mat> weights(0);
 
@@ -225,6 +230,7 @@ static int test_gemm_constantABC_bias(int M, int N, int K, const ncnn::Mat& C, f
     pd.set(8, N);
     pd.set(9, K);
     pd.set(10, broadcast_type_C);
+    pd.set(14, output_transpose);
 
     std::vector<ncnn::Mat> weights(3);
     weights[0] = transA ? ncnn::Mat(M, K) : ncnn::Mat(K, M);
@@ -260,6 +266,7 @@ static int test_gemm_constantAB_bias(int M, int N, int K, const ncnn::Mat& C, fl
     pd.set(7, M);
     pd.set(8, N);
     pd.set(9, K);
+    pd.set(14, output_transpose);
 
     std::vector<ncnn::Mat> weights(2);
     weights[0] = transA ? ncnn::Mat(M, K) : ncnn::Mat(K, M);
