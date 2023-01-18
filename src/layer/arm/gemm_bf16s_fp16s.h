@@ -1162,6 +1162,231 @@ static void transpose_pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int ma
     }
 }
 
+static void transpose_unpack_output_tile_bf16_fp16(const Mat& topT, Mat& top_blob, int i, int max_ii, int j, int max_jj)
+{
+    const int out_elempack = top_blob.elempack;
+    const int out_hstep = top_blob.dims == 3 ? (int)top_blob.cstep : top_blob.w;
+
+    const unsigned short* pp = topT;
+
+    int ii = 0;
+#if __ARM_NEON
+#if __aarch64__
+    for (; ii + 7 < max_ii; ii += 8)
+    {
+        if (out_elempack == 8)
+        {
+            unsigned short* p0 = (unsigned short*)top_blob + j * out_hstep + (i + ii) * 8;
+
+            for (int jj = 0; jj + 7 < max_jj; jj += 8)
+            {
+                uint16x8_t _r0 = vld1q_u16(pp);
+                uint16x8_t _r1 = vld1q_u16(pp + 8);
+                uint16x8_t _r2 = vld1q_u16(pp + 8 * 2);
+                uint16x8_t _r3 = vld1q_u16(pp + 8 * 3);
+                uint16x8_t _r4 = vld1q_u16(pp + 8 * 4);
+                uint16x8_t _r5 = vld1q_u16(pp + 8 * 5);
+                uint16x8_t _r6 = vld1q_u16(pp + 8 * 6);
+                uint16x8_t _r7 = vld1q_u16(pp + 8 * 7);
+                transpose8x8_u16(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
+                vst1q_u16(p0, _r0);
+                vst1q_u16(p0 + 8, _r1);
+                vst1q_u16(p0 + 8 * 2, _r2);
+                vst1q_u16(p0 + 8 * 3, _r3);
+                vst1q_u16(p0 + 8 * 4, _r4);
+                vst1q_u16(p0 + 8 * 5, _r5);
+                vst1q_u16(p0 + 8 * 6, _r6);
+                vst1q_u16(p0 + 8 * 7, _r7);
+                pp += 64;
+                p0 += out_hstep * 8;
+            }
+        }
+        if (out_elempack == 4)
+        {
+            unsigned short* p0 = (unsigned short*)top_blob + j * out_hstep + (i + ii) * 4;
+
+            for (int jj = 0; jj + 3 < max_jj; jj += 4)
+            {
+                uint16x8x4_t _r0123;
+                _r0123.val[0] = vld1q_u16(pp);
+                _r0123.val[1] = vld1q_u16(pp + 8);
+                _r0123.val[2] = vld1q_u16(pp + 8 * 2);
+                _r0123.val[3] = vld1q_u16(pp + 8 * 3);
+                vst4q_u16(p0, _r0123);
+                pp += 32;
+                p0 += out_hstep * 4;
+            }
+        }
+        if (out_elempack == 1)
+        {
+            unsigned short* p0 = (unsigned short*)top_blob + j * out_hstep + (i + ii);
+
+            for (int jj = 0; jj < max_jj; jj += 1)
+            {
+                uint16x8_t _r0 = vld1q_u16(pp);
+                vst1q_u16(p0, _r0);
+                pp += 8;
+                p0 += out_hstep;
+            }
+        }
+    }
+#endif // __aarch64__
+    for (; ii + 3 < max_ii; ii += 4)
+    {
+#if __aarch64__
+        if (out_elempack == 8)
+        {
+            unsigned short* p0 = (unsigned short*)top_blob + j * out_hstep + (i + ii) * 8;
+
+            for (int jj = 0; jj + 7 < max_jj; jj += 8)
+            {
+                uint16x8x4_t _r0123 = vld4q_u16(pp);
+                vst1q_u16(p0, _r0123.val[0]);
+                vst1q_u16(p0 + 8, _r0123.val[1]);
+                vst1q_u16(p0 + 16, _r0123.val[2]);
+                vst1q_u16(p0 + 24, _r0123.val[3]);
+                pp += 32;
+                p0 += out_hstep * 8;
+            }
+        }
+#endif // __aarch64__
+        if (out_elempack == 4)
+        {
+            unsigned short* p0 = (unsigned short*)top_blob + j * out_hstep + (i + ii) * 4;
+
+            for (int jj = 0; jj + 3 < max_jj; jj += 4)
+            {
+                uint16x4x4_t _r0123;
+                _r0123.val[0] = vld1_u16(pp);
+                _r0123.val[1] = vld1_u16(pp + 4);
+                _r0123.val[2] = vld1_u16(pp + 8);
+                _r0123.val[3] = vld1_u16(pp + 12);
+                vst4_u16(p0, _r0123);
+                pp += 16;
+                p0 += out_hstep * 4;
+            }
+        }
+        if (out_elempack == 1)
+        {
+            unsigned short* p0 = (unsigned short*)top_blob + j * out_hstep + (i + ii);
+
+            for (int jj = 0; jj < max_jj; jj += 1)
+            {
+                uint16x4_t _r0 = vld1_u16(pp);
+                vst1_u16(p0, _r0);
+                pp += 4;
+                p0 += out_hstep;
+            }
+        }
+    }
+#endif // __ARM_NEON
+    for (; ii + 1 < max_ii; ii += 2)
+    {
+#if __ARM_NEON
+#if __aarch64__
+        if (out_elempack == 8)
+        {
+            unsigned short* p0 = (unsigned short*)top_blob + j * out_hstep + (i + ii) * 8;
+
+            for (int jj = 0; jj + 7 < max_jj; jj += 8)
+            {
+                p0[0] = pp[0];
+                p0[1] = pp[2];
+                p0[2] = pp[4];
+                p0[3] = pp[6];
+                p0[4] = pp[8];
+                p0[5] = pp[10];
+                p0[6] = pp[12];
+                p0[7] = pp[14];
+                p0[8] = pp[1];
+                p0[9] = pp[3];
+                p0[10] = pp[5];
+                p0[11] = pp[7];
+                p0[12] = pp[9];
+                p0[13] = pp[11];
+                p0[14] = pp[13];
+                p0[15] = pp[15];
+                pp += 16;
+                p0 += out_hstep * 8;
+            }
+        }
+#endif // __aarch64__
+        if (out_elempack == 4)
+        {
+            unsigned short* p0 = (unsigned short*)top_blob + j * out_hstep + (i + ii) * 4;
+
+            for (int jj = 0; jj + 3 < max_jj; jj += 4)
+            {
+                p0[0] = pp[0];
+                p0[1] = pp[2];
+                p0[2] = pp[4];
+                p0[3] = pp[6];
+                p0[4] = pp[1];
+                p0[5] = pp[3];
+                p0[6] = pp[5];
+                p0[7] = pp[7];
+                pp += 8;
+                p0 += out_hstep * 4;
+            }
+        }
+#endif // __ARM_NEON
+        if (out_elempack == 1)
+        {
+            unsigned short* p0 = (unsigned short*)top_blob + j * out_hstep + (i + ii);
+
+            for (int jj = 0; jj < max_jj; jj += 1)
+            {
+                p0[0] = pp[0];
+                p0[1] = pp[1];
+                pp += 2;
+                p0 += out_hstep;
+            }
+        }
+    }
+    for (; ii < max_ii; ii += 1)
+    {
+#if __ARM_NEON
+#if __aarch64__
+        if (out_elempack == 8)
+        {
+            unsigned short* p0 = (unsigned short*)top_blob + j * out_hstep + (i + ii) * 8;
+
+            for (int jj = 0; jj + 7 < max_jj; jj += 8)
+            {
+                uint16x8_t _r0 = vld1q_u16(pp);
+                vst1q_u16(p0, _r0);
+                pp += 8;
+                p0 += out_hstep * 8;
+            }
+        }
+#endif // __aarch64__
+        if (out_elempack == 4)
+        {
+            unsigned short* p0 = (unsigned short*)top_blob + j * out_hstep + (i + ii) * 4;
+
+            for (int jj = 0; jj + 3 < max_jj; jj += 4)
+            {
+                uint16x4_t _r0 = vld1_u16(pp);
+                vst1_u16(p0, _r0);
+                pp += 4;
+                p0 += out_hstep * 4;
+            }
+        }
+#endif // __ARM_NEON
+        if (out_elempack == 1)
+        {
+            unsigned short* p0 = (unsigned short*)top_blob + j * out_hstep + (i + ii);
+
+            for (int jj = 0; jj < max_jj; jj += 1)
+            {
+                p0[0] = pp[0];
+                pp += 1;
+                p0 += out_hstep;
+            }
+        }
+    }
+}
+
 static void get_optimal_tile_mnk_bf16s_fp16s(int M, int N, int K, int& TILE_M, int& TILE_N, int& TILE_K, int nT)
 {
     // resolve optimal tile size from cache size
