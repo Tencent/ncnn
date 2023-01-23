@@ -148,7 +148,7 @@ static int test_gemm_constantAB(int M, int N, int K, float alpha, int transA, in
     int ret = test_layer<ncnn::Gemm>("Gemm", pd, weights, a);
     if (ret != 0)
     {
-        fprintf(stderr, "test_gemm_constantAB failed M=%d N=%d K=%d alpha=%f transA=%d transB=%d\n", M, N, K, alpha, transA, transB, output_transpose);
+        fprintf(stderr, "test_gemm_constantAB failed M=%d N=%d K=%d alpha=%f transA=%d transB=%d output_transpose=%d\n", M, N, K, alpha, transA, transB, output_transpose);
     }
 
     return ret;
