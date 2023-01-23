@@ -14,6 +14,226 @@
 
 static void pack_A_tile_bf16_to_fp32(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
 {
+    const int elempack = A.elempack;
+    const int A_hstep = A.dims == 3 ? (int)A.cstep : A.w;
+
+    float* pp = AT;
+
+    int ii = 0;
+#if __ARM_NEON
+#if __aarch64__
+    for (; ii + 7 < max_ii; ii += 8)
+    {
+        if (elempack == 4)
+        {
+            const unsigned short* p0 = (const unsigned short*)A + (i + ii) * A_hstep + k * 4;
+            const unsigned short* p1 = (const unsigned short*)A + (i + ii + 4) * A_hstep + k * 4;
+
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+                uint16x4_t _r0 = vld1_u16(p0);
+                uint16x4_t _r1 = vld1_u16(p1);
+                vst1q_f32(pp, bfloat2float(_r0));
+                vst1q_f32(pp + 4, bfloat2float(_r1));
+                pp += 8;
+                p0 += 4;
+                p1 += 4;
+            }
+        }
+        if (elempack == 1)
+        {
+            const unsigned short* p0 = (const unsigned short*)A + (i + ii) * A_hstep + k;
+            const unsigned short* p1 = (const unsigned short*)A + (i + ii + 1) * A_hstep + k;
+            const unsigned short* p2 = (const unsigned short*)A + (i + ii + 2) * A_hstep + k;
+            const unsigned short* p3 = (const unsigned short*)A + (i + ii + 3) * A_hstep + k;
+            const unsigned short* p4 = (const unsigned short*)A + (i + ii + 4) * A_hstep + k;
+            const unsigned short* p5 = (const unsigned short*)A + (i + ii + 5) * A_hstep + k;
+            const unsigned short* p6 = (const unsigned short*)A + (i + ii + 6) * A_hstep + k;
+            const unsigned short* p7 = (const unsigned short*)A + (i + ii + 7) * A_hstep + k;
+
+            int kk = 0;
+            for (; kk + 7 < max_kk; kk += 8)
+            {
+                uint16x8_t _r0 = vld1q_u16(p0);
+                uint16x8_t _r1 = vld1q_u16(p1);
+                uint16x8_t _r2 = vld1q_u16(p2);
+                uint16x8_t _r3 = vld1q_u16(p3);
+                uint16x8_t _r4 = vld1q_u16(p4);
+                uint16x8_t _r5 = vld1q_u16(p5);
+                uint16x8_t _r6 = vld1q_u16(p6);
+                uint16x8_t _r7 = vld1q_u16(p7);
+                transpose8x8_u16(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
+                vst1q_f32(pp, bfloat2float(vget_low_u16(_r0)));
+                vst1q_f32(pp + 4, bfloat2float(vget_high_u16(_r0)));
+                vst1q_f32(pp + 4 * 2, bfloat2float(vget_low_u16(_r1)));
+                vst1q_f32(pp + 4 * 3, bfloat2float(vget_high_u16(_r1)));
+                vst1q_f32(pp + 4 * 4, bfloat2float(vget_low_u16(_r2)));
+                vst1q_f32(pp + 4 * 5, bfloat2float(vget_high_u16(_r2)));
+                vst1q_f32(pp + 4 * 6, bfloat2float(vget_low_u16(_r3)));
+                vst1q_f32(pp + 4 * 7, bfloat2float(vget_high_u16(_r3)));
+                vst1q_f32(pp + 4 * 8, bfloat2float(vget_low_u16(_r4)));
+                vst1q_f32(pp + 4 * 9, bfloat2float(vget_high_u16(_r4)));
+                vst1q_f32(pp + 4 * 10, bfloat2float(vget_low_u16(_r5)));
+                vst1q_f32(pp + 4 * 11, bfloat2float(vget_high_u16(_r5)));
+                vst1q_f32(pp + 4 * 12, bfloat2float(vget_low_u16(_r6)));
+                vst1q_f32(pp + 4 * 13, bfloat2float(vget_high_u16(_r6)));
+                vst1q_f32(pp + 4 * 14, bfloat2float(vget_low_u16(_r7)));
+                vst1q_f32(pp + 4 * 15, bfloat2float(vget_high_u16(_r7)));
+                pp += 64;
+                p0 += 8;
+                p1 += 8;
+                p2 += 8;
+                p3 += 8;
+                p4 += 8;
+                p5 += 8;
+                p6 += 8;
+                p7 += 8;
+            }
+            for (; kk < max_kk; kk++)
+            {
+                pp[0] = bfloat16_to_float32(p0[0]);
+                pp[1] = bfloat16_to_float32(p1[0]);
+                pp[2] = bfloat16_to_float32(p2[0]);
+                pp[3] = bfloat16_to_float32(p3[0]);
+                pp[4] = bfloat16_to_float32(p4[0]);
+                pp[5] = bfloat16_to_float32(p5[0]);
+                pp[6] = bfloat16_to_float32(p6[0]);
+                pp[7] = bfloat16_to_float32(p7[0]);
+                pp += 8;
+                p0++;
+                p1++;
+                p2++;
+                p3++;
+                p4++;
+                p5++;
+                p6++;
+                p7++;
+            }
+        }
+    }
+#endif // __aarch64__
+    for (; ii + 3 < max_ii; ii += 4)
+    {
+        if (elempack == 4)
+        {
+            const unsigned short* p0 = (const unsigned short*)A + (i + ii) * A_hstep + k * 4;
+
+            int kk = 0;
+            for (; kk + 1 < max_kk; kk += 2)
+            {
+                uint16x8_t _r0 = vld1q_u16(p0);
+                vst1q_f32(pp, bfloat2float(vget_low_u16(_r0)));
+                vst1q_f32(pp + 4, bfloat2float(vget_high_u16(_r0)));
+                pp += 8;
+                p0 += 8;
+            }
+            for (; kk < max_kk; kk++)
+            {
+                uint16x4_t _r0 = vld1_u16(p0);
+                vst1q_f32(pp, bfloat2float(_r0));
+                pp += 4;
+                p0 += 4;
+            }
+        }
+        if (elempack == 1)
+        {
+            const unsigned short* p0 = (const unsigned short*)A + (i + ii) * A_hstep + k;
+            const unsigned short* p1 = (const unsigned short*)A + (i + ii + 1) * A_hstep + k;
+            const unsigned short* p2 = (const unsigned short*)A + (i + ii + 2) * A_hstep + k;
+            const unsigned short* p3 = (const unsigned short*)A + (i + ii + 3) * A_hstep + k;
+
+            int kk = 0;
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                float32x4x4_t _r0123;
+                _r0123.val[0] = bfloat2float(vld1_u16(p0));
+                _r0123.val[1] = bfloat2float(vld1_u16(p1));
+                _r0123.val[2] = bfloat2float(vld1_u16(p2));
+                _r0123.val[3] = bfloat2float(vld1_u16(p3));
+                vst4q_f32(pp, _r0123);
+                pp += 16;
+                p0 += 4;
+                p1 += 4;
+                p2 += 4;
+                p3 += 4;
+            }
+            for (; kk < max_kk; kk++)
+            {
+                pp[0] = bfloat16_to_float32(p0[0]);
+                pp[1] = bfloat16_to_float32(p1[0]);
+                pp[2] = bfloat16_to_float32(p2[0]);
+                pp[3] = bfloat16_to_float32(p3[0]);
+                pp += 4;
+                p0++;
+                p1++;
+                p2++;
+                p3++;
+            }
+        }
+    }
+#endif // __ARM_NEON
+    for (; ii + 1 < max_ii; ii += 2)
+    {
+        // if (elempack == 1)
+        {
+            const unsigned short* p0 = (const unsigned short*)A + (i + ii) * A_hstep + k;
+            const unsigned short* p1 = (const unsigned short*)A + (i + ii + 1) * A_hstep + k;
+
+            int kk = 0;
+#if __ARM_NEON
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                float32x4x2_t _r01;
+                _r01.val[0] = bfloat2float(vld1_u16(p0));
+                _r01.val[1] = bfloat2float(vld1_u16(p1));
+                vst2q_f32(pp, _r01);
+                pp += 8;
+                p0 += 4;
+                p1 += 4;
+            }
+#endif // __ARM_NEON
+            for (; kk < max_kk; kk++)
+            {
+                pp[0] = bfloat16_to_float32(p0[0]);
+                pp[1] = bfloat16_to_float32(p1[0]);
+                pp += 2;
+                p0++;
+                p1++;
+            }
+        }
+    }
+    for (; ii < max_ii; ii += 1)
+    {
+        // if (elempack == 1)
+        {
+            const unsigned short* p0 = (const unsigned short*)A + (i + ii) * A_hstep + k;
+
+            int kk = 0;
+#if __ARM_NEON
+            for (; kk + 7 < max_kk; kk += 8)
+            {
+                uint16x8_t _r0 = vld1q_u16(p0);
+                vst1q_f32(pp, bfloat2float(vget_low_u16(_r0)));
+                vst1q_f32(pp + 4, bfloat2float(vget_high_u16(_r0)));
+                pp += 8;
+                p0 += 8;
+            }
+            for (; kk + 3 < max_kk; kk += 4)
+            {
+                uint16x4_t _r0 = vld1_u16(p0);
+                vst1q_f32(pp, bfloat2float(_r0));
+                pp += 4;
+                p0 += 4;
+            }
+#endif // __ARM_NEON
+            for (; kk < max_kk; kk++)
+            {
+                pp[0] = bfloat16_to_float32(p0[0]);
+                pp += 1;
+                p0++;
+            }
+        }
+    }
 }
 
 static void pack_A_tile_fp32_to_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
