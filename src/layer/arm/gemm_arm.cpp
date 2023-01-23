@@ -45,7 +45,7 @@ Gemm_arm::Gemm_arm()
     nT = 0;
 }
 
-static void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
+void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
 {
     const int elempack = A.elempack;
     const int A_hstep = A.dims == 3 ? (int)A.cstep : A.w;
@@ -2945,15 +2945,9 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                     }
                     if (broadcast_type_C == 3)
                     {
-                        float32x4_t _tmp0 = vld1q_f32(pC);
-                        float32x4_t _tmp1 = vld1q_f32(pC + 4);
-                        float32x4_t _tmp2 = vld1q_f32(pC + 8);
-                        float32x4_t _tmp3 = vld1q_f32(pC + 12);
-                        float32x4_t _tmp4 = vld1q_f32(pC + 16);
-                        float32x4_t _tmp5 = vld1q_f32(pC + 20);
-                        float32x4x2_t _tmp01 = vuzpq_f32(_tmp0, _tmp1);
-                        float32x4x2_t _tmp23 = vuzpq_f32(_tmp2, _tmp3);
-                        float32x4x2_t _tmp45 = vuzpq_f32(_tmp4, _tmp5);
+                        float32x4x2_t _tmp01 = vld2q_f32(pC);
+                        float32x4x2_t _tmp23 = vld2q_f32(pC + 8);
+                        float32x4x2_t _tmp45 = vld2q_f32(pC + 16);
                         _sum00 = _tmp01.val[0];
                         _sum01 = _tmp23.val[0];
                         _sum02 = _tmp45.val[0];
@@ -2976,12 +2970,15 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             }
             else
             {
-                _sum00 = vld1q_f32(outptr);
-                _sum01 = vld1q_f32(outptr + 4);
-                _sum02 = vld1q_f32(outptr + 8);
-                _sum10 = vld1q_f32(outptr + 12);
-                _sum11 = vld1q_f32(outptr + 16);
-                _sum12 = vld1q_f32(outptr + 20);
+                float32x4x2_t _tmp01 = vld2q_f32(outptr);
+                float32x4x2_t _tmp23 = vld2q_f32(outptr + 8);
+                float32x4x2_t _tmp45 = vld2q_f32(outptr + 16);
+                _sum00 = _tmp01.val[0];
+                _sum01 = _tmp23.val[0];
+                _sum02 = _tmp45.val[0];
+                _sum10 = _tmp01.val[1];
+                _sum11 = _tmp23.val[1];
+                _sum12 = _tmp45.val[1];
             }
 
             const float* pA = pAT;
@@ -3028,15 +3025,18 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             }
             else
             {
-                float32x4x2_t _tmp01 = vzipq_f32(_sum00, _sum10);
-                float32x4x2_t _tmp23 = vzipq_f32(_sum01, _sum11);
-                float32x4x2_t _tmp45 = vzipq_f32(_sum02, _sum12);
-                vst1q_f32(outptr, _tmp01.val[0]);
-                vst1q_f32(outptr + 4, _tmp01.val[1]);
-                vst1q_f32(outptr + 8, _tmp23.val[0]);
-                vst1q_f32(outptr + 12, _tmp23.val[1]);
-                vst1q_f32(outptr + 16, _tmp45.val[0]);
-                vst1q_f32(outptr + 20, _tmp45.val[1]);
+                float32x4x2_t _tmp01;
+                _tmp01.val[0] = _sum00;
+                _tmp01.val[1] = _sum10;
+                float32x4x2_t _tmp23;
+                _tmp23.val[0] = _sum01;
+                _tmp23.val[1] = _sum11;
+                float32x4x2_t _tmp45;
+                _tmp45.val[0] = _sum02;
+                _tmp45.val[1] = _sum12;
+                vst2q_f32(outptr, _tmp01);
+                vst2q_f32(outptr + 8, _tmp23);
+                vst2q_f32(outptr + 16, _tmp45);
             }
 
             outptr += 24;
@@ -3073,12 +3073,8 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                     }
                     if (broadcast_type_C == 3)
                     {
-                        float32x4_t _tmp0 = vld1q_f32(pC);
-                        float32x4_t _tmp1 = vld1q_f32(pC + 4);
-                        float32x4_t _tmp2 = vld1q_f32(pC + 8);
-                        float32x4_t _tmp3 = vld1q_f32(pC + 12);
-                        float32x4x2_t _tmp01 = vuzpq_f32(_tmp0, _tmp1);
-                        float32x4x2_t _tmp23 = vuzpq_f32(_tmp2, _tmp3);
+                        float32x4x2_t _tmp01 = vld2q_f32(pC);
+                        float32x4x2_t _tmp23 = vld2q_f32(pC + 8);
                         _sum00 = _tmp01.val[0];
                         _sum01 = _tmp23.val[0];
                         _sum10 = _tmp01.val[1];
@@ -3097,10 +3093,12 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             }
             else
             {
-                _sum00 = vld1q_f32(outptr);
-                _sum01 = vld1q_f32(outptr + 4);
-                _sum10 = vld1q_f32(outptr + 8);
-                _sum11 = vld1q_f32(outptr + 12);
+                float32x4x2_t _tmp01 = vld2q_f32(outptr);
+                float32x4x2_t _tmp23 = vld2q_f32(outptr + 8);
+                _sum00 = _tmp01.val[0];
+                _sum01 = _tmp23.val[0];
+                _sum10 = _tmp01.val[1];
+                _sum11 = _tmp23.val[1];
             }
 
             const float* pA = pAT;
@@ -3140,12 +3138,14 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             }
             else
             {
-                float32x4x2_t _tmp01 = vzipq_f32(_sum00, _sum10);
-                float32x4x2_t _tmp23 = vzipq_f32(_sum01, _sum11);
-                vst1q_f32(outptr, _tmp01.val[0]);
-                vst1q_f32(outptr + 4, _tmp01.val[1]);
-                vst1q_f32(outptr + 8, _tmp23.val[0]);
-                vst1q_f32(outptr + 12, _tmp23.val[1]);
+                float32x4x2_t _tmp01;
+                _tmp01.val[0] = _sum00;
+                _tmp01.val[1] = _sum10;
+                float32x4x2_t _tmp23;
+                _tmp23.val[0] = _sum01;
+                _tmp23.val[1] = _sum11;
+                vst2q_f32(outptr, _tmp01);
+                vst2q_f32(outptr + 8, _tmp23);
             }
 
             outptr += 16;
@@ -3174,9 +3174,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                     }
                     if (broadcast_type_C == 3)
                     {
-                        float32x4_t _tmp0 = vld1q_f32(pC);
-                        float32x4_t _tmp1 = vld1q_f32(pC + 4);
-                        float32x4x2_t _tmp01 = vuzpq_f32(_tmp0, _tmp1);
+                        float32x4x2_t _tmp01 = vld2q_f32(pC);
                         _sum0 = _tmp01.val[0];
                         _sum1 = _tmp01.val[1];
                         pC += 8;
@@ -3191,8 +3189,9 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             }
             else
             {
-                _sum0 = vld1q_f32(outptr);
-                _sum1 = vld1q_f32(outptr + 4);
+                float32x4x2_t _tmp01 = vld2q_f32(outptr);
+                _sum0 = _tmp01.val[0];
+                _sum1 = _tmp01.val[1];
             }
 
             const float* pA = pAT;
@@ -3225,9 +3224,10 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             }
             else
             {
-                float32x4x2_t _tmp01 = vzipq_f32(_sum0, _sum1);
-                vst1q_f32(outptr, _tmp01.val[0]);
-                vst1q_f32(outptr + 4, _tmp01.val[1]);
+                float32x4x2_t _tmp01;
+                _tmp01.val[0] = _sum0;
+                _tmp01.val[1] = _sum1;
+                vst2q_f32(outptr, _tmp01);
             }
 
             outptr += 8;
@@ -4602,7 +4602,7 @@ static int gemm_arm_bf16s(const Mat& A, const Mat& B, const Mat& C, Mat& top_blo
 
             if (broadcast_type_C == 3)
             {
-                pack_A_tile(C, topT_tile, i, max_ii, j, max_jj);
+                pack_A_tile_bf16_to_fp32(C, topT_tile, i, max_ii, j, max_jj);
             }
 
             const Mat& CT_tile = broadcast_type_C == 3 ? topT_tile : C;
@@ -4630,13 +4630,14 @@ static int gemm_arm_bf16s(const Mat& A, const Mat& B, const Mat& C, Mat& top_blo
                 }
 
                 bool k_end = !output_transpose && k + TILE_K >= K;
+                float _alpha = k + TILE_K >= K ? alpha : 1.f;
 
-                gemm_transB_packed_tile_bf16s(AT_tile, BT_tile, CT_tile, topT_tile, top_blob, broadcast_type_C, alpha, i, max_ii, j, max_jj, k, max_kk, k_end);
+                gemm_transB_packed_tile_bf16s(AT_tile, BT_tile, CT_tile, topT_tile, top_blob, broadcast_type_C, _alpha, i, max_ii, j, max_jj, k, max_kk, k_end);
             }
 
             if (output_transpose)
             {
-                transpose_unpack_output_tile_bf16_fp16(topT_tile, top_blob, i, max_ii, j, max_jj);
+                transpose_unpack_output_tile_fp32_to_bf16(topT_tile, top_blob, i, max_ii, j, max_jj);
             }
         }
     }
@@ -4709,7 +4710,7 @@ static int gemm_AT_arm_bf16s(const Mat& AT, const Mat& B, const Mat& C, Mat& top
 
             if (broadcast_type_C == 3)
             {
-                pack_A_tile(C, topT_tile, i, max_ii, j, max_jj);
+                pack_A_tile_bf16_to_fp32(C, topT_tile, i, max_ii, j, max_jj);
             }
 
             const Mat& CT_tile = broadcast_type_C == 3 ? topT_tile : C;
@@ -4725,13 +4726,14 @@ static int gemm_AT_arm_bf16s(const Mat& AT, const Mat& B, const Mat& C, Mat& top
                 Mat BT_tile = BT.channel(j / TILE_N).row_range(k / TILE_K, 1);
 
                 bool k_end = !output_transpose && k + TILE_K >= K;
+                float _alpha = k + TILE_K >= K ? alpha : 1.f;
 
-                gemm_transB_packed_tile_bf16s(AT_tile, BT_tile, CT_tile, topT_tile, top_blob, broadcast_type_C, alpha, i, max_ii, j, max_jj, k, max_kk, k_end);
+                gemm_transB_packed_tile_bf16s(AT_tile, BT_tile, CT_tile, topT_tile, top_blob, broadcast_type_C, _alpha, i, max_ii, j, max_jj, k, max_kk, k_end);
             }
 
             if (output_transpose)
             {
-                transpose_unpack_output_tile_bf16_fp16(topT_tile, top_blob, i, max_ii, j, max_jj);
+                transpose_unpack_output_tile_fp32_to_bf16(topT_tile, top_blob, i, max_ii, j, max_jj);
             }
         }
     }
@@ -4776,7 +4778,7 @@ static int gemm_BT_arm_bf16s(const Mat& A, const Mat& BT, const Mat& C, Mat& top
 
             if (broadcast_type_C == 3)
             {
-                pack_A_tile(C, topT_tile, i, max_ii, j, max_jj);
+                pack_A_tile_bf16_to_fp32(C, topT_tile, i, max_ii, j, max_jj);
             }
 
             const Mat& CT_tile = broadcast_type_C == 3 ? topT_tile : C;
@@ -4804,13 +4806,14 @@ static int gemm_BT_arm_bf16s(const Mat& A, const Mat& BT, const Mat& C, Mat& top
                 }
 
                 bool k_end = !output_transpose && k + TILE_K >= K;
+                float _alpha = k + TILE_K >= K ? alpha : 1.f;
 
-                gemm_transB_packed_tile_bf16s(AT_tile, BT_tile, CT_tile, topT_tile, top_blob, broadcast_type_C, alpha, i, max_ii, j, max_jj, k, max_kk, k_end);
+                gemm_transB_packed_tile_bf16s(AT_tile, BT_tile, CT_tile, topT_tile, top_blob, broadcast_type_C, _alpha, i, max_ii, j, max_jj, k, max_kk, k_end);
             }
 
             if (output_transpose)
             {
-                transpose_unpack_output_tile_bf16_fp16(topT_tile, top_blob, i, max_ii, j, max_jj);
+                transpose_unpack_output_tile_fp32_to_bf16(topT_tile, top_blob, i, max_ii, j, max_jj);
             }
         }
     }
@@ -4851,7 +4854,7 @@ static int gemm_AT_BT_arm_bf16s(const Mat& AT, const Mat& BT, const Mat& C, Mat&
 
             if (broadcast_type_C == 3)
             {
-                pack_A_tile(C, topT_tile, i, max_ii, j, max_jj);
+                pack_A_tile_bf16_to_fp32(C, topT_tile, i, max_ii, j, max_jj);
             }
 
             const Mat& CT_tile = broadcast_type_C == 3 ? topT_tile : C;
@@ -4867,13 +4870,14 @@ static int gemm_AT_BT_arm_bf16s(const Mat& AT, const Mat& BT, const Mat& C, Mat&
                 Mat BT_tile = BT.channel(j / TILE_N).row_range(k / TILE_K, 1);
 
                 bool k_end = !output_transpose && k + TILE_K >= K;
+                float _alpha = k + TILE_K >= K ? alpha : 1.f;
 
-                gemm_transB_packed_tile_bf16s(AT_tile, BT_tile, CT_tile, topT_tile, top_blob, broadcast_type_C, alpha, i, max_ii, j, max_jj, k, max_kk, k_end);
+                gemm_transB_packed_tile_bf16s(AT_tile, BT_tile, CT_tile, topT_tile, top_blob, broadcast_type_C, _alpha, i, max_ii, j, max_jj, k, max_kk, k_end);
             }
 
             if (output_transpose)
             {
-                transpose_unpack_output_tile_bf16_fp16(topT_tile, top_blob, i, max_ii, j, max_jj);
+                transpose_unpack_output_tile_fp32_to_bf16(topT_tile, top_blob, i, max_ii, j, max_jj);
             }
         }
     }

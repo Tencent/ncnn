@@ -1520,15 +1520,9 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
                     }
                     if (broadcast_type_C == 3)
                     {
-                        float16x4_t _tmp0 = vld1_f16(pC);
-                        float16x4_t _tmp1 = vld1_f16(pC + 4);
-                        float16x4_t _tmp2 = vld1_f16(pC + 8);
-                        float16x4_t _tmp3 = vld1_f16(pC + 12);
-                        float16x4_t _tmp4 = vld1_f16(pC + 16);
-                        float16x4_t _tmp5 = vld1_f16(pC + 20);
-                        float16x4x2_t _tmp01 = vuzp_f16(_tmp0, _tmp1);
-                        float16x4x2_t _tmp23 = vuzp_f16(_tmp2, _tmp3);
-                        float16x4x2_t _tmp45 = vuzp_f16(_tmp4, _tmp5);
+                        float16x4x2_t _tmp01 = vld2_f16(pC);
+                        float16x4x2_t _tmp23 = vld2_f16(pC + 8);
+                        float16x4x2_t _tmp45 = vld2_f16(pC + 16);
                         _sum00 = _tmp01.val[0];
                         _sum01 = _tmp23.val[0];
                         _sum02 = _tmp45.val[0];
@@ -1551,12 +1545,15 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
             }
             else
             {
-                _sum00 = vld1_f16(outptr);
-                _sum01 = vld1_f16(outptr + 4);
-                _sum02 = vld1_f16(outptr + 8);
-                _sum10 = vld1_f16(outptr + 12);
-                _sum11 = vld1_f16(outptr + 16);
-                _sum12 = vld1_f16(outptr + 20);
+                float16x4x2_t _tmp01 = vld2_f16(outptr);
+                float16x4x2_t _tmp23 = vld2_f16(outptr + 8);
+                float16x4x2_t _tmp45 = vld2_f16(outptr + 16);
+                _sum00 = _tmp01.val[0];
+                _sum01 = _tmp23.val[0];
+                _sum02 = _tmp45.val[0];
+                _sum10 = _tmp01.val[1];
+                _sum11 = _tmp23.val[1];
+                _sum12 = _tmp45.val[1];
             }
 
             const __fp16* pA = pAT;
@@ -1596,15 +1593,18 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
             }
             else
             {
-                float16x4x2_t _tmp01 = vzip_f16(_sum00, _sum10);
-                float16x4x2_t _tmp23 = vzip_f16(_sum01, _sum11);
-                float16x4x2_t _tmp45 = vzip_f16(_sum02, _sum12);
-                vst1_f16(outptr, _tmp01.val[0]);
-                vst1_f16(outptr + 4, _tmp01.val[1]);
-                vst1_f16(outptr + 8, _tmp23.val[0]);
-                vst1_f16(outptr + 12, _tmp23.val[1]);
-                vst1_f16(outptr + 16, _tmp45.val[0]);
-                vst1_f16(outptr + 20, _tmp45.val[1]);
+                float16x4x2_t _tmp01;
+                _tmp01.val[0] = _sum00;
+                _tmp01.val[1] = _sum10;
+                float16x4x2_t _tmp23;
+                _tmp23.val[0] = _sum01;
+                _tmp23.val[1] = _sum11;
+                float16x4x2_t _tmp45;
+                _tmp45.val[0] = _sum02;
+                _tmp45.val[1] = _sum12;
+                vst2_f16(outptr, _tmp01);
+                vst2_f16(outptr + 8, _tmp23);
+                vst2_f16(outptr + 16, _tmp45);
             }
 
             outptr += 24;
@@ -1641,16 +1641,13 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
                     }
                     if (broadcast_type_C == 3)
                     {
-                        float16x4_t _tmp0 = vld1_f16(pC);
-                        float16x4_t _tmp1 = vld1_f16(pC + 4);
-                        float16x4_t _tmp2 = vld1_f16(pC + 8);
-                        float16x4_t _tmp3 = vld1_f16(pC + 12);
-                        float16x4x2_t _tmp01 = vuzp_f16(_tmp0, _tmp1);
-                        float16x4x2_t _tmp23 = vuzp_f16(_tmp2, _tmp3);
+                        float16x4x2_t _tmp01 = vld2_f16(pC);
+                        float16x4x2_t _tmp23 = vld2_f16(pC + 8);
                         _sum00 = _tmp01.val[0];
                         _sum01 = _tmp23.val[0];
                         _sum10 = _tmp01.val[1];
                         _sum11 = _tmp23.val[1];
+                        pC += 16;
                     }
                     if (broadcast_type_C == 4)
                     {
@@ -1664,10 +1661,12 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
             }
             else
             {
-                _sum00 = vld1_f16(outptr);
-                _sum01 = vld1_f16(outptr + 4);
-                _sum10 = vld1_f16(outptr + 8);
-                _sum11 = vld1_f16(outptr + 12);
+                float16x4x2_t _tmp01 = vld2_f16(outptr);
+                float16x4x2_t _tmp23 = vld2_f16(outptr + 8);
+                _sum00 = _tmp01.val[0];
+                _sum01 = _tmp23.val[0];
+                _sum10 = _tmp01.val[1];
+                _sum11 = _tmp23.val[1];
             }
 
             const __fp16* pA = pAT;
@@ -1702,12 +1701,14 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
             }
             else
             {
-                float16x4x2_t _tmp01 = vzip_f16(_sum00, _sum10);
-                float16x4x2_t _tmp23 = vzip_f16(_sum01, _sum11);
-                vst1_f16(outptr, _tmp01.val[0]);
-                vst1_f16(outptr + 4, _tmp01.val[1]);
-                vst1_f16(outptr + 8, _tmp23.val[0]);
-                vst1_f16(outptr + 12, _tmp23.val[1]);
+                float16x4x2_t _tmp01;
+                _tmp01.val[0] = _sum00;
+                _tmp01.val[1] = _sum10;
+                float16x4x2_t _tmp23;
+                _tmp23.val[0] = _sum01;
+                _tmp23.val[1] = _sum11;
+                vst2_f16(outptr, _tmp01);
+                vst2_f16(outptr + 8, _tmp23);
             }
 
             outptr += 16;
@@ -1736,9 +1737,7 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
                     }
                     if (broadcast_type_C == 3)
                     {
-                        float16x4_t _tmp0 = vld1_f16(pC);
-                        float16x4_t _tmp1 = vld1_f16(pC + 4);
-                        float16x4x2_t _tmp01 = vuzp_f16(_tmp0, _tmp1);
+                        float16x4x2_t _tmp01 = vld2_f16(pC);
                         _sum0 = _tmp01.val[0];
                         _sum1 = _tmp01.val[1];
                         pC += 8;
@@ -1753,8 +1752,9 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
             }
             else
             {
-                _sum0 = vld1_f16(outptr);
-                _sum1 = vld1_f16(outptr + 4);
+                float16x4x2_t _tmp01 = vld2_f16(outptr);
+                _sum0 = _tmp01.val[0];
+                _sum1 = _tmp01.val[1];
             }
 
             const __fp16* pA = pAT;
@@ -1784,9 +1784,10 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
             }
             else
             {
-                float16x4x2_t _tmp01 = vzip_f16(_sum0, _sum1);
-                vst1_f16(outptr, _tmp01.val[0]);
-                vst1_f16(outptr + 4, _tmp01.val[1]);
+                float16x4x2_t _tmp01;
+                _tmp01.val[0] = _sum0;
+                _tmp01.val[1] = _sum1;
+                vst2_f16(outptr, _tmp01);
             }
 
             outptr += 8;
@@ -1852,8 +1853,8 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
             for (; kk < max_kk; kk += 1)
             {
                 sum00 += pA[0] * pB[0];
-                sum01 += pA[0] * pB[1];
-                sum10 += pA[1] * pB[0];
+                sum01 += pA[1] * pB[0];
+                sum10 += pA[0] * pB[1];
                 sum11 += pA[1] * pB[1];
 
                 pA += 2;
