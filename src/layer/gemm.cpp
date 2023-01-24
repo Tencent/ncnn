@@ -39,6 +39,9 @@ int Gemm::load_param(const ParamDict& pd)
     output_elempack = pd.get(12, 0);
     output_elemtype = pd.get(13, 0);
     output_transpose = pd.get(14, 0);
+    constant_TILE_M = pd.get(20, 0);
+    constant_TILE_N = pd.get(21, 0);
+    constant_TILE_K = pd.get(22, 0);
 
     if (constantA == 1 && (constantM == 0 || constantK == 0))
     {

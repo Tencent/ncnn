@@ -1515,7 +1515,7 @@ static void transpose_unpack_output_tile_bf16_fp16(const Mat& topT, Mat& top_blo
     }
 }
 
-static void get_optimal_tile_mnk_bf16s_fp16s(int M, int N, int K, int& TILE_M, int& TILE_N, int& TILE_K, int nT)
+static void get_optimal_tile_mnk_bf16s_fp16s(int M, int N, int K, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int& TILE_M, int& TILE_N, int& TILE_K, int nT)
 {
     // resolve optimal tile size from cache size
     size_t l2_cache_size = get_cpu_level2_cache_size();
@@ -1556,5 +1556,21 @@ static void get_optimal_tile_mnk_bf16s_fp16s(int M, int N, int K, int& TILE_M, i
     if (nT > 1)
     {
         TILE_M = std::min(TILE_M, (std::max(1, TILE_M / nT) + 7) / 8 * 8);
+    }
+
+    // always take constant TILE_M/N/K value when provided
+    if (constant_TILE_M > 0)
+    {
+        TILE_M = (constant_TILE_M + 7) / 8 * 8;
+    }
+
+    if (constant_TILE_N > 0)
+    {
+        TILE_N = (constant_TILE_N + 3) / 4 * 4;
+    }
+
+    if (constant_TILE_K > 0)
+    {
+        TILE_K = (constant_TILE_K + 7) / 8 * 8;
     }
 }
