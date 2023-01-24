@@ -3593,6 +3593,34 @@ static void gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile
 
             const unsigned short* pA = pAT;
             int kk = 0;
+#if __ARM_NEON
+            // clang 15.0.1 on aarch64 auto vectorization produces wrong result on this loop
+            // we have to teach it a bit  :$   --- nihui
+            float32x4_t _sum0 = vdupq_n_f32(0.f);
+            float32x4_t _sum1 = vdupq_n_f32(0.f);
+            for (; kk + 1 < max_kk; kk += 2)
+            {
+                float32x4_t _pA0123 = bfloat2float(vld1_u16(pA));
+                float32x4_t _pB0123 = bfloat2float(vld1_u16(pB));
+
+                float32x4x2_t _pB0213 = vtrnq_f32(_pB0123, _pB0123);
+
+#if __aarch64__
+                _sum0 = vfmaq_f32(_sum0, _pA0123, _pB0213.val[0]);
+                _sum1 = vfmaq_f32(_sum1, _pA0123, _pB0213.val[1]);
+#else
+                _sum0 = vmlaq_f32(_sum0, _pA0123, _pB0213.val[0]);
+                _sum1 = vmlaq_f32(_sum1, _pA0123, _pB0213.val[1]);
+#endif
+
+                pA += 4;
+                pB += 4;
+            }
+            sum00 += vgetq_lane_f32(_sum0, 0) + vgetq_lane_f32(_sum0, 2);
+            sum01 += vgetq_lane_f32(_sum0, 1) + vgetq_lane_f32(_sum0, 3);
+            sum10 += vgetq_lane_f32(_sum1, 0) + vgetq_lane_f32(_sum1, 2);
+            sum11 += vgetq_lane_f32(_sum1, 1) + vgetq_lane_f32(_sum1, 3);
+#endif // __ARM_NEON
             for (; kk < max_kk; kk += 1)
             {
                 float pA0 = bfloat16_to_float32(pA[0]);

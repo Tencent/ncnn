@@ -4602,7 +4602,7 @@ static int gemm_arm_bf16s(const Mat& A, const Mat& B, const Mat& C, Mat& top_blo
 
             if (broadcast_type_C == 3)
             {
-                pack_A_tile_bf16_to_fp32(C, topT_tile, i, max_ii, j, max_jj);
+                pack_A_tile(C, topT_tile, i, max_ii, j, max_jj);
             }
 
             const Mat& CT_tile = broadcast_type_C == 3 ? topT_tile : C;
@@ -4710,7 +4710,7 @@ static int gemm_AT_arm_bf16s(const Mat& AT, const Mat& B, const Mat& C, Mat& top
 
             if (broadcast_type_C == 3)
             {
-                pack_A_tile_bf16_to_fp32(C, topT_tile, i, max_ii, j, max_jj);
+                pack_A_tile(C, topT_tile, i, max_ii, j, max_jj);
             }
 
             const Mat& CT_tile = broadcast_type_C == 3 ? topT_tile : C;
@@ -4778,7 +4778,7 @@ static int gemm_BT_arm_bf16s(const Mat& A, const Mat& BT, const Mat& C, Mat& top
 
             if (broadcast_type_C == 3)
             {
-                pack_A_tile_bf16_to_fp32(C, topT_tile, i, max_ii, j, max_jj);
+                pack_A_tile(C, topT_tile, i, max_ii, j, max_jj);
             }
 
             const Mat& CT_tile = broadcast_type_C == 3 ? topT_tile : C;
@@ -4854,7 +4854,7 @@ static int gemm_AT_BT_arm_bf16s(const Mat& AT, const Mat& BT, const Mat& C, Mat&
 
             if (broadcast_type_C == 3)
             {
-                pack_A_tile_bf16_to_fp32(C, topT_tile, i, max_ii, j, max_jj);
+                pack_A_tile(C, topT_tile, i, max_ii, j, max_jj);
             }
 
             const Mat& CT_tile = broadcast_type_C == 3 ? topT_tile : C;
