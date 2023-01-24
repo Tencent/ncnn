@@ -293,8 +293,8 @@ int HardSwish_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt
         for (; i + 7 < size; i += 8)
         {
             uint16x8_t _p = vld1q_u16(ptr);
-            float32x4_t _p0 = float2bfloat(vget_low_u16(_p));
-            float32x4_t _p1 = float2bfloat(vget_high_u16(_p));
+            float32x4_t _p0 = bfloat2float(vget_low_u16(_p));
+            float32x4_t _p1 = bfloat2float(vget_high_u16(_p));
             float32x4_t _ans0 = vmlaq_f32(_beta, _p0, _alpha);
             float32x4_t _ans1 = vmlaq_f32(_beta, _p1, _alpha);
             _ans0 = vmaxq_f32(_ans0, _zero);
@@ -303,18 +303,18 @@ int HardSwish_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt
             _ans1 = vminq_f32(_ans1, _one);
             _p0 = vmulq_f32(_ans0, _p0);
             _p1 = vmulq_f32(_ans1, _p1);
-            _p = vcombine_u16(bfloat2float(_p0), bfloat2float(_p1));
+            _p = vcombine_u16(float2bfloat(_p0), float2bfloat(_p1));
             vst1q_u16(ptr, _p);
             ptr += 8;
         }
         for (; i + 3 < size; i += 4)
         {
-            float32x4_t _p = float2bfloat(vld1_u16(ptr));
+            float32x4_t _p = bfloat2float(vld1_u16(ptr));
             float32x4_t _ans = vmlaq_f32(_beta, _p, _alpha);
             _ans = vmaxq_f32(_ans, _zero);
             _ans = vminq_f32(_ans, _one);
             _p = vmulq_f32(_ans, _p);
-            vst1_u16(ptr, bfloat2float(_p));
+            vst1_u16(ptr, float2bfloat(_p));
             ptr += 4;
         }
 #endif // __ARM_NEON

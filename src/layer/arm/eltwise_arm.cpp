@@ -505,13 +505,13 @@ int Eltwise_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector
                 {
                     uint16x8_t _p01 = vld1q_u16(ptr);
                     uint16x8_t _q01 = vld1q_u16(ptr1);
-                    float32x4_t _p0 = float2bfloat(vget_low_u16(_p01));
-                    float32x4_t _p1 = float2bfloat(vget_high_u16(_p01));
-                    float32x4_t _q0 = float2bfloat(vget_low_u16(_q01));
-                    float32x4_t _q1 = float2bfloat(vget_high_u16(_q01));
+                    float32x4_t _p0 = bfloat2float(vget_low_u16(_p01));
+                    float32x4_t _p1 = bfloat2float(vget_high_u16(_p01));
+                    float32x4_t _q0 = bfloat2float(vget_low_u16(_q01));
+                    float32x4_t _q1 = bfloat2float(vget_high_u16(_q01));
                     _p0 = vmulq_f32(_p0, _q0);
                     _p1 = vmulq_f32(_p1, _q1);
-                    vst1q_u16(outptr, vcombine_u16(bfloat2float(_p0), bfloat2float(_p1)));
+                    vst1q_u16(outptr, vcombine_u16(float2bfloat(_p0), float2bfloat(_p1)));
 
                     ptr += 8;
                     ptr1 += 8;
@@ -519,10 +519,10 @@ int Eltwise_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector
                 }
                 for (; i + 3 < size; i += 4)
                 {
-                    float32x4_t _p = float2bfloat(vld1_u16(ptr));
-                    float32x4_t _q = float2bfloat(vld1_u16(ptr1));
+                    float32x4_t _p = bfloat2float(vld1_u16(ptr));
+                    float32x4_t _q = bfloat2float(vld1_u16(ptr1));
                     _p = vmulq_f32(_p, _q);
-                    vst1_u16(outptr, bfloat2float(_p));
+                    vst1_u16(outptr, float2bfloat(_p));
 
                     ptr += 4;
                     ptr1 += 4;
@@ -557,13 +557,13 @@ int Eltwise_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector
                     {
                         uint16x8_t _p01 = vld1q_u16(ptr);
                         uint16x8_t _q01 = vld1q_u16(ptr1);
-                        float32x4_t _p0 = float2bfloat(vget_low_u16(_p01));
-                        float32x4_t _p1 = float2bfloat(vget_high_u16(_p01));
-                        float32x4_t _q0 = float2bfloat(vget_low_u16(_q01));
-                        float32x4_t _q1 = float2bfloat(vget_high_u16(_q01));
+                        float32x4_t _p0 = bfloat2float(vget_low_u16(_p01));
+                        float32x4_t _p1 = bfloat2float(vget_high_u16(_p01));
+                        float32x4_t _q0 = bfloat2float(vget_low_u16(_q01));
+                        float32x4_t _q1 = bfloat2float(vget_high_u16(_q01));
                         _p0 = vaddq_f32(_p0, _q0);
                         _p1 = vaddq_f32(_p1, _q1);
-                        vst1q_u16(outptr, vcombine_u16(bfloat2float(_p0), bfloat2float(_p1)));
+                        vst1q_u16(outptr, vcombine_u16(float2bfloat(_p0), float2bfloat(_p1)));
 
                         ptr += 8;
                         ptr1 += 8;
@@ -571,10 +571,10 @@ int Eltwise_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector
                     }
                     for (; i + 3 < size; i += 4)
                     {
-                        float32x4_t _p = float2bfloat(vld1_u16(ptr));
-                        float32x4_t _q = float2bfloat(vld1_u16(ptr1));
+                        float32x4_t _p = bfloat2float(vld1_u16(ptr));
+                        float32x4_t _q = bfloat2float(vld1_u16(ptr1));
                         _p = vaddq_f32(_p, _q);
-                        vst1_u16(outptr, bfloat2float(_p));
+                        vst1_u16(outptr, float2bfloat(_p));
 
                         ptr += 4;
                         ptr1 += 4;
@@ -612,15 +612,15 @@ int Eltwise_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector
                     {
                         uint16x8_t _p01 = vld1q_u16(ptr);
                         uint16x8_t _q01 = vld1q_u16(ptr1);
-                        float32x4_t _p0 = float2bfloat(vget_low_u16(_p01));
-                        float32x4_t _p1 = float2bfloat(vget_high_u16(_p01));
-                        float32x4_t _q0 = float2bfloat(vget_low_u16(_q01));
-                        float32x4_t _q1 = float2bfloat(vget_high_u16(_q01));
+                        float32x4_t _p0 = bfloat2float(vget_low_u16(_p01));
+                        float32x4_t _p1 = bfloat2float(vget_high_u16(_p01));
+                        float32x4_t _q0 = bfloat2float(vget_low_u16(_q01));
+                        float32x4_t _q1 = bfloat2float(vget_high_u16(_q01));
                         _p0 = vmulq_f32(_p0, _coeff0);
                         _p1 = vmulq_f32(_p1, _coeff0);
                         _p0 = vmlaq_f32(_p0, _q0, _coeff1);
                         _p1 = vmlaq_f32(_p1, _q1, _coeff1);
-                        vst1q_u16(outptr, vcombine_u16(bfloat2float(_p0), bfloat2float(_p1)));
+                        vst1q_u16(outptr, vcombine_u16(float2bfloat(_p0), float2bfloat(_p1)));
 
                         ptr += 8;
                         ptr1 += 8;
@@ -628,11 +628,11 @@ int Eltwise_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector
                     }
                     for (; i + 3 < size; i += 4)
                     {
-                        float32x4_t _p = float2bfloat(vld1_u16(ptr));
-                        float32x4_t _q = float2bfloat(vld1_u16(ptr1));
+                        float32x4_t _p = bfloat2float(vld1_u16(ptr));
+                        float32x4_t _q = bfloat2float(vld1_u16(ptr1));
                         _p = vmulq_f32(_p, _coeff0);
                         _p = vmlaq_f32(_p, _q, _coeff1);
-                        vst1_u16(outptr, bfloat2float(_p));
+                        vst1_u16(outptr, float2bfloat(_p));
 
                         ptr += 4;
                         ptr1 += 4;
@@ -667,13 +667,13 @@ int Eltwise_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector
                 {
                     uint16x8_t _p01 = vld1q_u16(ptr);
                     uint16x8_t _q01 = vld1q_u16(ptr1);
-                    float32x4_t _p0 = float2bfloat(vget_low_u16(_p01));
-                    float32x4_t _p1 = float2bfloat(vget_high_u16(_p01));
-                    float32x4_t _q0 = float2bfloat(vget_low_u16(_q01));
-                    float32x4_t _q1 = float2bfloat(vget_high_u16(_q01));
+                    float32x4_t _p0 = bfloat2float(vget_low_u16(_p01));
+                    float32x4_t _p1 = bfloat2float(vget_high_u16(_p01));
+                    float32x4_t _q0 = bfloat2float(vget_low_u16(_q01));
+                    float32x4_t _q1 = bfloat2float(vget_high_u16(_q01));
                     _p0 = vmaxq_f32(_p0, _q0);
                     _p1 = vmaxq_f32(_p1, _q1);
-                    vst1q_u16(outptr, vcombine_u16(bfloat2float(_p0), bfloat2float(_p1)));
+                    vst1q_u16(outptr, vcombine_u16(float2bfloat(_p0), float2bfloat(_p1)));
 
                     ptr += 8;
                     ptr1 += 8;
@@ -681,10 +681,10 @@ int Eltwise_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector
                 }
                 for (; i + 3 < size; i += 4)
                 {
-                    float32x4_t _p = float2bfloat(vld1_u16(ptr));
-                    float32x4_t _q = float2bfloat(vld1_u16(ptr1));
+                    float32x4_t _p = bfloat2float(vld1_u16(ptr));
+                    float32x4_t _q = bfloat2float(vld1_u16(ptr1));
                     _p = vmaxq_f32(_p, _q);
-                    vst1_u16(outptr, bfloat2float(_p));
+                    vst1_u16(outptr, float2bfloat(_p));
 
                     ptr += 4;
                     ptr1 += 4;
@@ -726,10 +726,10 @@ int Eltwise_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector
             {
                 uint16x8_t _p01 = vld1q_u16(ptr);
                 uint16x8_t _q01 = vld1q_u16(ptr1);
-                float32x4_t _p0 = float2bfloat(vget_low_u16(_p01));
-                float32x4_t _p1 = float2bfloat(vget_high_u16(_p01));
-                float32x4_t _q0 = float2bfloat(vget_low_u16(_q01));
-                float32x4_t _q1 = float2bfloat(vget_high_u16(_q01));
+                float32x4_t _p0 = bfloat2float(vget_low_u16(_p01));
+                float32x4_t _p1 = bfloat2float(vget_high_u16(_p01));
+                float32x4_t _q0 = bfloat2float(vget_low_u16(_q01));
+                float32x4_t _q1 = bfloat2float(vget_high_u16(_q01));
                 _p0 = vmulq_f32(_p0, _q0);
                 _p1 = vmulq_f32(_p1, _q1);
                 vst1q_f32(outptr, _p0);
@@ -741,8 +741,8 @@ int Eltwise_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector
             }
             for (; i + 3 < size; i += 4)
             {
-                float32x4_t _p = float2bfloat(vld1_u16(ptr));
-                float32x4_t _q = float2bfloat(vld1_u16(ptr1));
+                float32x4_t _p = bfloat2float(vld1_u16(ptr));
+                float32x4_t _q = bfloat2float(vld1_u16(ptr1));
                 _p = vmulq_f32(_p, _q);
                 vst1q_f32(outptr, _p);
 
@@ -778,8 +778,8 @@ int Eltwise_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector
                     float32x4_t _p0 = vld1q_f32(outptr);
                     float32x4_t _p1 = vld1q_f32(outptr + 4);
                     uint16x8_t _q01 = vld1q_u16(ptr);
-                    float32x4_t _q0 = float2bfloat(vget_low_u16(_q01));
-                    float32x4_t _q1 = float2bfloat(vget_high_u16(_q01));
+                    float32x4_t _q0 = bfloat2float(vget_low_u16(_q01));
+                    float32x4_t _q1 = bfloat2float(vget_high_u16(_q01));
                     _p0 = vmulq_f32(_p0, _q0);
                     _p1 = vmulq_f32(_p1, _q1);
                     vst1q_f32(outptr, _p0);
@@ -791,7 +791,7 @@ int Eltwise_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector
                 for (; i + 3 < size; i += 4)
                 {
                     float32x4_t _p = vld1q_f32(outptr);
-                    float32x4_t _q = float2bfloat(vld1_u16(ptr));
+                    float32x4_t _q = bfloat2float(vld1_u16(ptr));
                     _p = vmulq_f32(_p, _q);
                     vst1q_f32(outptr, _p);
 
@@ -825,11 +825,11 @@ int Eltwise_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector
                     float32x4_t _p0 = vld1q_f32(ptr0);
                     float32x4_t _p1 = vld1q_f32(ptr0 + 4);
                     uint16x8_t _q01 = vld1q_u16(ptr);
-                    float32x4_t _q0 = float2bfloat(vget_low_u16(_q01));
-                    float32x4_t _q1 = float2bfloat(vget_high_u16(_q01));
+                    float32x4_t _q0 = bfloat2float(vget_low_u16(_q01));
+                    float32x4_t _q1 = bfloat2float(vget_high_u16(_q01));
                     _p0 = vmulq_f32(_p0, _q0);
                     _p1 = vmulq_f32(_p1, _q1);
-                    vst1q_u16(outptr, vcombine_u16(bfloat2float(_p0), bfloat2float(_p1)));
+                    vst1q_u16(outptr, vcombine_u16(float2bfloat(_p0), float2bfloat(_p1)));
 
                     ptr += 8;
                     ptr0 += 8;
@@ -838,9 +838,9 @@ int Eltwise_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector
                 for (; i + 3 < size; i += 4)
                 {
                     float32x4_t _p = vld1q_f32(ptr0);
-                    float32x4_t _q = float2bfloat(vld1_u16(ptr));
+                    float32x4_t _q = bfloat2float(vld1_u16(ptr));
                     _p = vmulq_f32(_p, _q);
-                    vst1_u16(outptr, bfloat2float(_p));
+                    vst1_u16(outptr, float2bfloat(_p));
 
                     ptr += 4;
                     ptr0 += 4;
@@ -877,10 +877,10 @@ int Eltwise_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector
                 {
                     uint16x8_t _p01 = vld1q_u16(ptr);
                     uint16x8_t _q01 = vld1q_u16(ptr1);
-                    float32x4_t _p0 = float2bfloat(vget_low_u16(_p01));
-                    float32x4_t _p1 = float2bfloat(vget_high_u16(_p01));
-                    float32x4_t _q0 = float2bfloat(vget_low_u16(_q01));
-                    float32x4_t _q1 = float2bfloat(vget_high_u16(_q01));
+                    float32x4_t _p0 = bfloat2float(vget_low_u16(_p01));
+                    float32x4_t _p1 = bfloat2float(vget_high_u16(_p01));
+                    float32x4_t _q0 = bfloat2float(vget_low_u16(_q01));
+                    float32x4_t _q1 = bfloat2float(vget_high_u16(_q01));
                     _p0 = vaddq_f32(_p0, _q0);
                     _p1 = vaddq_f32(_p1, _q1);
                     vst1q_f32(outptr, _p0);
@@ -892,8 +892,8 @@ int Eltwise_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector
                 }
                 for (; i + 3 < size; i += 4)
                 {
-                    float32x4_t _p = float2bfloat(vld1_u16(ptr));
-                    float32x4_t _q = float2bfloat(vld1_u16(ptr1));
+                    float32x4_t _p = bfloat2float(vld1_u16(ptr));
+                    float32x4_t _q = bfloat2float(vld1_u16(ptr1));
                     _p = vaddq_f32(_p, _q);
                     vst1q_f32(outptr, _p);
 
@@ -929,8 +929,8 @@ int Eltwise_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector
                         float32x4_t _p0 = vld1q_f32(outptr);
                         float32x4_t _p1 = vld1q_f32(outptr + 4);
                         uint16x8_t _q01 = vld1q_u16(ptr);
-                        float32x4_t _q0 = float2bfloat(vget_low_u16(_q01));
-                        float32x4_t _q1 = float2bfloat(vget_high_u16(_q01));
+                        float32x4_t _q0 = bfloat2float(vget_low_u16(_q01));
+                        float32x4_t _q1 = bfloat2float(vget_high_u16(_q01));
                         _p0 = vaddq_f32(_p0, _q0);
                         _p1 = vaddq_f32(_p1, _q1);
                         vst1q_f32(outptr, _p0);
@@ -942,7 +942,7 @@ int Eltwise_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector
                     for (; i + 3 < size; i += 4)
                     {
                         float32x4_t _p = vld1q_f32(outptr);
-                        float32x4_t _q = float2bfloat(vld1_u16(ptr));
+                        float32x4_t _q = bfloat2float(vld1_u16(ptr));
                         _p = vaddq_f32(_p, _q);
                         vst1q_f32(outptr, _p);
 
@@ -976,11 +976,11 @@ int Eltwise_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector
                         float32x4_t _p0 = vld1q_f32(ptr0);
                         float32x4_t _p1 = vld1q_f32(ptr0 + 4);
                         uint16x8_t _q01 = vld1q_u16(ptr);
-                        float32x4_t _q0 = float2bfloat(vget_low_u16(_q01));
-                        float32x4_t _q1 = float2bfloat(vget_high_u16(_q01));
+                        float32x4_t _q0 = bfloat2float(vget_low_u16(_q01));
+                        float32x4_t _q1 = bfloat2float(vget_high_u16(_q01));
                         _p0 = vaddq_f32(_p0, _q0);
                         _p1 = vaddq_f32(_p1, _q1);
-                        vst1q_u16(outptr, vcombine_u16(bfloat2float(_p0), bfloat2float(_p1)));
+                        vst1q_u16(outptr, vcombine_u16(float2bfloat(_p0), float2bfloat(_p1)));
 
                         ptr += 8;
                         ptr0 += 8;
@@ -989,9 +989,9 @@ int Eltwise_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector
                     for (; i + 3 < size; i += 4)
                     {
                         float32x4_t _p = vld1q_f32(ptr0);
-                        float32x4_t _q = float2bfloat(vld1_u16(ptr));
+                        float32x4_t _q = bfloat2float(vld1_u16(ptr));
                         _p = vaddq_f32(_p, _q);
-                        vst1_u16(outptr, bfloat2float(_p));
+                        vst1_u16(outptr, float2bfloat(_p));
 
                         ptr += 4;
                         ptr0 += 4;
@@ -1031,10 +1031,10 @@ int Eltwise_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector
                 {
                     uint16x8_t _p01 = vld1q_u16(ptr);
                     uint16x8_t _q01 = vld1q_u16(ptr1);
-                    float32x4_t _p0 = float2bfloat(vget_low_u16(_p01));
-                    float32x4_t _p1 = float2bfloat(vget_high_u16(_p01));
-                    float32x4_t _q0 = float2bfloat(vget_low_u16(_q01));
-                    float32x4_t _q1 = float2bfloat(vget_high_u16(_q01));
+                    float32x4_t _p0 = bfloat2float(vget_low_u16(_p01));
+                    float32x4_t _p1 = bfloat2float(vget_high_u16(_p01));
+                    float32x4_t _q0 = bfloat2float(vget_low_u16(_q01));
+                    float32x4_t _q1 = bfloat2float(vget_high_u16(_q01));
                     _p0 = vmulq_f32(_p0, _coeff0);
                     _p1 = vmulq_f32(_p1, _coeff0);
                     _p0 = vmlaq_f32(_p0, _q0, _coeff1);
@@ -1048,8 +1048,8 @@ int Eltwise_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector
                 }
                 for (; i + 3 < size; i += 4)
                 {
-                    float32x4_t _p = float2bfloat(vld1_u16(ptr));
-                    float32x4_t _q = float2bfloat(vld1_u16(ptr1));
+                    float32x4_t _p = bfloat2float(vld1_u16(ptr));
+                    float32x4_t _q = bfloat2float(vld1_u16(ptr1));
                     _p = vmulq_f32(_p, _coeff0);
                     _p = vmlaq_f32(_p, _q, _coeff1);
                     vst1q_f32(outptr, _p);
@@ -1089,8 +1089,8 @@ int Eltwise_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector
                         float32x4_t _p0 = vld1q_f32(outptr);
                         float32x4_t _p1 = vld1q_f32(outptr + 4);
                         uint16x8_t _q01 = vld1q_u16(ptr);
-                        float32x4_t _q0 = float2bfloat(vget_low_u16(_q01));
-                        float32x4_t _q1 = float2bfloat(vget_high_u16(_q01));
+                        float32x4_t _q0 = bfloat2float(vget_low_u16(_q01));
+                        float32x4_t _q1 = bfloat2float(vget_high_u16(_q01));
                         _p0 = vmlaq_f32(_p0, _q0, _coeff);
                         _p1 = vmlaq_f32(_p1, _q1, _coeff);
                         vst1q_f32(outptr, _p0);
@@ -1102,7 +1102,7 @@ int Eltwise_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector
                     for (; i + 3 < size; i += 4)
                     {
                         float32x4_t _p = vld1q_f32(outptr);
-                        float32x4_t _q = float2bfloat(vld1_u16(ptr));
+                        float32x4_t _q = bfloat2float(vld1_u16(ptr));
                         _p = vmlaq_f32(_p, _q, _coeff);
                         vst1q_f32(outptr, _p);
 
@@ -1139,11 +1139,11 @@ int Eltwise_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector
                         float32x4_t _p0 = vld1q_f32(ptr0);
                         float32x4_t _p1 = vld1q_f32(ptr0 + 4);
                         uint16x8_t _q01 = vld1q_u16(ptr);
-                        float32x4_t _q0 = float2bfloat(vget_low_u16(_q01));
-                        float32x4_t _q1 = float2bfloat(vget_high_u16(_q01));
+                        float32x4_t _q0 = bfloat2float(vget_low_u16(_q01));
+                        float32x4_t _q1 = bfloat2float(vget_high_u16(_q01));
                         _p0 = vmlaq_f32(_p0, _q0, _coeff);
                         _p1 = vmlaq_f32(_p1, _q1, _coeff);
-                        vst1q_u16(outptr, vcombine_u16(bfloat2float(_p0), bfloat2float(_p1)));
+                        vst1q_u16(outptr, vcombine_u16(float2bfloat(_p0), float2bfloat(_p1)));
 
                         ptr += 8;
                         ptr0 += 8;
@@ -1152,9 +1152,9 @@ int Eltwise_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector
                     for (; i + 3 < size; i += 4)
                     {
                         float32x4_t _p = vld1q_f32(ptr0);
-                        float32x4_t _q = float2bfloat(vld1_u16(ptr));
+                        float32x4_t _q = bfloat2float(vld1_u16(ptr));
                         _p = vmlaq_f32(_p, _q, _coeff);
-                        vst1_u16(outptr, bfloat2float(_p));
+                        vst1_u16(outptr, float2bfloat(_p));
 
                         ptr += 4;
                         ptr0 += 4;
@@ -1190,10 +1190,10 @@ int Eltwise_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector
             {
                 uint16x8_t _p01 = vld1q_u16(ptr);
                 uint16x8_t _q01 = vld1q_u16(ptr1);
-                float32x4_t _p0 = float2bfloat(vget_low_u16(_p01));
-                float32x4_t _p1 = float2bfloat(vget_high_u16(_p01));
-                float32x4_t _q0 = float2bfloat(vget_low_u16(_q01));
-                float32x4_t _q1 = float2bfloat(vget_high_u16(_q01));
+                float32x4_t _p0 = bfloat2float(vget_low_u16(_p01));
+                float32x4_t _p1 = bfloat2float(vget_high_u16(_p01));
+                float32x4_t _q0 = bfloat2float(vget_low_u16(_q01));
+                float32x4_t _q1 = bfloat2float(vget_high_u16(_q01));
                 _p0 = vmaxq_f32(_p0, _q0);
                 _p1 = vmaxq_f32(_p1, _q1);
                 vst1q_f32(outptr, _p0);
@@ -1205,8 +1205,8 @@ int Eltwise_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector
             }
             for (; i + 3 < size; i += 4)
             {
-                float32x4_t _p = float2bfloat(vld1_u16(ptr));
-                float32x4_t _q = float2bfloat(vld1_u16(ptr1));
+                float32x4_t _p = bfloat2float(vld1_u16(ptr));
+                float32x4_t _q = bfloat2float(vld1_u16(ptr1));
                 _p = vmaxq_f32(_p, _q);
                 vst1q_f32(outptr, _p);
 
@@ -1242,8 +1242,8 @@ int Eltwise_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector
                     float32x4_t _p0 = vld1q_f32(outptr);
                     float32x4_t _p1 = vld1q_f32(outptr + 4);
                     uint16x8_t _q01 = vld1q_u16(ptr);
-                    float32x4_t _q0 = float2bfloat(vget_low_u16(_q01));
-                    float32x4_t _q1 = float2bfloat(vget_high_u16(_q01));
+                    float32x4_t _q0 = bfloat2float(vget_low_u16(_q01));
+                    float32x4_t _q1 = bfloat2float(vget_high_u16(_q01));
                     _p0 = vmaxq_f32(_p0, _q0);
                     _p1 = vmaxq_f32(_p1, _q1);
                     vst1q_f32(outptr, _p0);
@@ -1255,7 +1255,7 @@ int Eltwise_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector
                 for (; i + 3 < size; i += 4)
                 {
                     float32x4_t _p = vld1q_f32(outptr);
-                    float32x4_t _q = float2bfloat(vld1_u16(ptr));
+                    float32x4_t _q = bfloat2float(vld1_u16(ptr));
                     _p = vmaxq_f32(_p, _q);
                     vst1q_f32(outptr, _p);
 
@@ -1289,11 +1289,11 @@ int Eltwise_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector
                     float32x4_t _p0 = vld1q_f32(ptr0);
                     float32x4_t _p1 = vld1q_f32(ptr0 + 4);
                     uint16x8_t _q01 = vld1q_u16(ptr);
-                    float32x4_t _q0 = float2bfloat(vget_low_u16(_q01));
-                    float32x4_t _q1 = float2bfloat(vget_high_u16(_q01));
+                    float32x4_t _q0 = bfloat2float(vget_low_u16(_q01));
+                    float32x4_t _q1 = bfloat2float(vget_high_u16(_q01));
                     _p0 = vmaxq_f32(_p0, _q0);
                     _p1 = vmaxq_f32(_p1, _q1);
-                    vst1q_u16(outptr, vcombine_u16(bfloat2float(_p0), bfloat2float(_p1)));
+                    vst1q_u16(outptr, vcombine_u16(float2bfloat(_p0), float2bfloat(_p1)));
 
                     ptr += 8;
                     ptr0 += 8;
@@ -1302,9 +1302,9 @@ int Eltwise_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector
                 for (; i + 3 < size; i += 4)
                 {
                     float32x4_t _p = vld1q_f32(ptr0);
-                    float32x4_t _q = float2bfloat(vld1_u16(ptr));
+                    float32x4_t _q = bfloat2float(vld1_u16(ptr));
                     _p = vmaxq_f32(_p, _q);
-                    vst1_u16(outptr, bfloat2float(_p));
+                    vst1_u16(outptr, float2bfloat(_p));
 
                     ptr += 4;
                     ptr0 += 4;

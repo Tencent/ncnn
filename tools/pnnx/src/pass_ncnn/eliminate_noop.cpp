@@ -30,7 +30,7 @@ void eliminate_noop(Graph& graph)
         {
             Operator* op = graph.ops[i];
 
-            if (op->type != "Noop")
+            if (op->type != "Noop" && op->type != "Tensor.clone")
                 continue;
 
             need_eliminate = true;

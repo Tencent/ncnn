@@ -68,14 +68,14 @@ static void conv3x3s1_winograd63_transform_input_pack4_bf16s_neon(const Mat& bot
 
                 for (int m = 0; m < 8; m++)
                 {
-                    float32x4_t _r00 = float2bfloat(vld1_u16(r0));
-                    float32x4_t _r01 = float2bfloat(vld1_u16(r0 + 4));
-                    float32x4_t _r02 = float2bfloat(vld1_u16(r0 + 8));
-                    float32x4_t _r03 = float2bfloat(vld1_u16(r0 + 12));
-                    float32x4_t _r04 = float2bfloat(vld1_u16(r0 + 16));
-                    float32x4_t _r05 = float2bfloat(vld1_u16(r0 + 20));
-                    float32x4_t _r06 = float2bfloat(vld1_u16(r0 + 24));
-                    float32x4_t _r07 = float2bfloat(vld1_u16(r0 + 28));
+                    float32x4_t _r00 = bfloat2float(vld1_u16(r0));
+                    float32x4_t _r01 = bfloat2float(vld1_u16(r0 + 4));
+                    float32x4_t _r02 = bfloat2float(vld1_u16(r0 + 8));
+                    float32x4_t _r03 = bfloat2float(vld1_u16(r0 + 12));
+                    float32x4_t _r04 = bfloat2float(vld1_u16(r0 + 16));
+                    float32x4_t _r05 = bfloat2float(vld1_u16(r0 + 20));
+                    float32x4_t _r06 = bfloat2float(vld1_u16(r0 + 24));
+                    float32x4_t _r07 = bfloat2float(vld1_u16(r0 + 28));
 
                     float32x4_t _tmp0m = vmlaq_n_f32(vsubq_f32(_r00, _r06), vsubq_f32(_r04, _r02), 5.25f);
                     float32x4_t _tmp7m = vmlaq_n_f32(vsubq_f32(_r07, _r01), vsubq_f32(_r03, _r05), 5.25f);
@@ -301,12 +301,12 @@ static void conv3x3s1_winograd63_transform_output_pack4_bf16s_neon(const Mat& to
                     float32x4_t _out03 = vaddq_f32(_bias0, vmlaq_n_f32(vmlaq_n_f32(_tmp135a, _tmp135b, 8.f), _tmp135c, 4.f));
                     float32x4_t _out05 = vaddq_f32(_bias0, vaddq_f32(vaddq_f32(_tmp07, _tmp135a), vmlaq_n_f32(_tmp135c, _tmp135b, 32.f)));
 
-                    vst1_u16(output0, bfloat2float(_out00));
-                    vst1_u16(output0 + 4, bfloat2float(_out01));
-                    vst1_u16(output0 + 8, bfloat2float(_out02));
-                    vst1_u16(output0 + 12, bfloat2float(_out03));
-                    vst1_u16(output0 + 16, bfloat2float(_out04));
-                    vst1_u16(output0 + 20, bfloat2float(_out05));
+                    vst1_u16(output0, float2bfloat(_out00));
+                    vst1_u16(output0 + 4, float2bfloat(_out01));
+                    vst1_u16(output0 + 8, float2bfloat(_out02));
+                    vst1_u16(output0 + 12, float2bfloat(_out03));
+                    vst1_u16(output0 + 16, float2bfloat(_out04));
+                    vst1_u16(output0 + 20, float2bfloat(_out05));
 
                     output0 += outw * 4;
                 }
@@ -358,12 +358,12 @@ static void conv3x3s1_winograd43_transform_input_pack4_bf16s_neon(const Mat& bot
 
                 for (int m = 0; m < 6; m++)
                 {
-                    float32x4_t _r00 = float2bfloat(vld1_u16(r0));
-                    float32x4_t _r01 = float2bfloat(vld1_u16(r0 + 4));
-                    float32x4_t _r02 = float2bfloat(vld1_u16(r0 + 8));
-                    float32x4_t _r03 = float2bfloat(vld1_u16(r0 + 12));
-                    float32x4_t _r04 = float2bfloat(vld1_u16(r0 + 16));
-                    float32x4_t _r05 = float2bfloat(vld1_u16(r0 + 20));
+                    float32x4_t _r00 = bfloat2float(vld1_u16(r0));
+                    float32x4_t _r01 = bfloat2float(vld1_u16(r0 + 4));
+                    float32x4_t _r02 = bfloat2float(vld1_u16(r0 + 8));
+                    float32x4_t _r03 = bfloat2float(vld1_u16(r0 + 12));
+                    float32x4_t _r04 = bfloat2float(vld1_u16(r0 + 16));
+                    float32x4_t _r05 = bfloat2float(vld1_u16(r0 + 20));
 
                     float32x4_t _tmp0m = vmlsq_n_f32(vmlaq_n_f32(_r04, _r00, 4.f), _r02, 5.f);
                     float32x4_t _tmp1m = vmlsq_n_f32(vaddq_f32(_r04, _r03), vaddq_f32(_r01, _r02), 4.f);
@@ -525,10 +525,10 @@ static void conv3x3s1_winograd43_transform_output_pack4_bf16s_neon(const Mat& to
                     float32x4_t _out02 = vaddq_f32(_bias0, vmlaq_n_f32(_tmp02a, _tmp02b, 4.f));
                     float32x4_t _out03 = vaddq_f32(_bias0, vmlaq_n_f32(vaddq_f32(_tmp05, _tmp13a), _tmp13b, 8.f));
 
-                    vst1_u16(output0, bfloat2float(_out00));
-                    vst1_u16(output0 + 4, bfloat2float(_out01));
-                    vst1_u16(output0 + 8, bfloat2float(_out02));
-                    vst1_u16(output0 + 12, bfloat2float(_out03));
+                    vst1_u16(output0, float2bfloat(_out00));
+                    vst1_u16(output0 + 4, float2bfloat(_out01));
+                    vst1_u16(output0 + 8, float2bfloat(_out02));
+                    vst1_u16(output0 + 12, float2bfloat(_out03));
 
                     output0 += outw * 4;
                 }
@@ -576,10 +576,10 @@ static void conv3x3s1_winograd23_transform_input_pack4_bf16s_neon(const Mat& bot
 
                 for (int m = 0; m < 4; m++)
                 {
-                    float32x4_t _r00 = float2bfloat(vld1_u16(r0));
-                    float32x4_t _r01 = float2bfloat(vld1_u16(r0 + 4));
-                    float32x4_t _r02 = float2bfloat(vld1_u16(r0 + 8));
-                    float32x4_t _r03 = float2bfloat(vld1_u16(r0 + 12));
+                    float32x4_t _r00 = bfloat2float(vld1_u16(r0));
+                    float32x4_t _r01 = bfloat2float(vld1_u16(r0 + 4));
+                    float32x4_t _r02 = bfloat2float(vld1_u16(r0 + 8));
+                    float32x4_t _r03 = bfloat2float(vld1_u16(r0 + 12));
 
                     float32x4_t _tmp0m = vsubq_f32(_r00, _r02);
                     float32x4_t _tmp1m = vaddq_f32(_r01, _r02);
@@ -697,8 +697,8 @@ static void conv3x3s1_winograd23_transform_output_pack4_bf16s_neon(const Mat& to
                     float32x4_t _out00 = vaddq_f32(_bias0, vaddq_f32(vaddq_f32(_tmp00, _tmp01), _tmp02));
                     float32x4_t _out01 = vaddq_f32(_bias0, vaddq_f32(vsubq_f32(_tmp01, _tmp02), _tmp03));
 
-                    vst1_u16(output0, bfloat2float(_out00));
-                    vst1_u16(output0 + 4, bfloat2float(_out01));
+                    vst1_u16(output0, float2bfloat(_out00));
+                    vst1_u16(output0 + 4, float2bfloat(_out01));
 
                     output0 += outw * 4;
                 }

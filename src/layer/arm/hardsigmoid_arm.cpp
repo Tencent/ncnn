@@ -274,25 +274,25 @@ int HardSigmoid_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& o
         for (; i + 7 < size; i += 8)
         {
             uint16x8_t _p = vld1q_u16(ptr);
-            float32x4_t _p0 = float2bfloat(vget_low_u16(_p));
-            float32x4_t _p1 = float2bfloat(vget_high_u16(_p));
+            float32x4_t _p0 = bfloat2float(vget_low_u16(_p));
+            float32x4_t _p1 = bfloat2float(vget_high_u16(_p));
             _p0 = vmlaq_f32(_beta, _p0, _alpha);
             _p1 = vmlaq_f32(_beta, _p1, _alpha);
             _p0 = vmaxq_f32(_p0, _zero);
             _p1 = vmaxq_f32(_p1, _zero);
             _p0 = vminq_f32(_p0, _one);
             _p1 = vminq_f32(_p1, _one);
-            _p = vcombine_u16(bfloat2float(_p0), bfloat2float(_p1));
+            _p = vcombine_u16(float2bfloat(_p0), float2bfloat(_p1));
             vst1q_u16(ptr, _p);
             ptr += 8;
         }
         for (; i + 3 < size; i += 4)
         {
-            float32x4_t _p = float2bfloat(vld1_u16(ptr));
+            float32x4_t _p = bfloat2float(vld1_u16(ptr));
             _p = vmlaq_f32(_beta, _p, _alpha);
             _p = vmaxq_f32(_p, _zero);
             _p = vminq_f32(_p, _one);
-            vst1_u16(ptr, bfloat2float(_p));
+            vst1_u16(ptr, float2bfloat(_p));
             ptr += 4;
         }
 #endif // __ARM_NEON
