@@ -1170,33 +1170,72 @@ static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max
         if (elempack == 16)
         {
             const float* p0 = (const float*)B + (j + jj) / 16 * 16 * B_hstep + k * 16;
+            const float* p1 = (const float*)B + ((j + jj) / 16 * 16 + 16) * B_hstep + k * 16;
 
-            // (j + jj) % 16 == 8
-            for (int kk = 0; kk < max_kk; kk++)
+            if ((j + jj) % 16 == 0)
             {
-                pp[0] = p0[8];
-                pp[1] = p0[9];
-                pp[2] = p0[10];
-                pp[3] = p0[11];
-                pp[4] = p0[12];
-                pp[5] = p0[13];
-                pp[6] = p0[14];
-                pp[7] = p0[15];
-                pp += 8;
-                p0 += 16;
+                for (int kk = 0; kk < max_kk; kk++)
+                {
+                    _mm256_storeu_ps(pp, _mm256_load_ps(p0));
+                    pp += 8;
+                    p0 += 16;
+                }
+            }
+            if ((j + jj) % 16 == 4)
+            {
+                for (int kk = 0; kk < max_kk; kk++)
+                {
+                    _mm256_storeu_ps(pp, _mm256_load_ps(p0 + 4));
+                    pp += 8;
+                    p0 += 16;
+                }
+            }
+            if ((j + jj) % 16 == 8)
+            {
+                for (int kk = 0; kk < max_kk; kk++)
+                {
+                    _mm256_storeu_ps(pp, _mm256_load_ps(p0 + 8));
+                    pp += 8;
+                    p0 += 16;
+                }
+            }
+            if ((j + jj) % 16 == 12)
+            {
+                for (int kk = 0; kk < max_kk; kk++)
+                {
+                    _mm_store_ps(pp, _mm_load_ps(p0 + 12));
+                    _mm_store_ps(pp + 4, _mm_load_ps(p1));
+                    pp += 8;
+                    p0 += 16;
+                    p1 += 16;
+                }
             }
         }
 #endif // __AVX512F__
         if (elempack == 8)
         {
             const float* p0 = (const float*)B + (j + jj) / 8 * 8 * B_hstep + k * 8;
+            const float* p1 = (const float*)B + (j + jj + 8) / 8 * 8 * B_hstep + k * 8;
 
-            // (j + jj) % 8 == 0
-            for (int kk = 0; kk < max_kk; kk++)
+            if ((j + jj) % 8 == 0)
             {
-                _mm256_storeu_ps(pp, _mm256_load_ps(p0));
-                pp += 8;
-                p0 += 8;
+                for (int kk = 0; kk < max_kk; kk++)
+                {
+                    _mm256_storeu_ps(pp, _mm256_load_ps(p0));
+                    pp += 8;
+                    p0 += 8;
+                }
+            }
+            if ((j + jj) % 8 == 4)
+            {
+                for (int kk = 0; kk < max_kk; kk++)
+                {
+                    _mm_store_ps(pp, _mm_load_ps(p0 + 4));
+                    _mm_store_ps(pp + 4, _mm_load_ps(p1));
+                    pp += 8;
+                    p0 += 8;
+                    p1 += 8;
+                }
             }
         }
 #endif // __AVX__
@@ -1317,15 +1356,41 @@ static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max
         {
             const float* p0 = (const float*)B + (j + jj) / 16 * 16 * B_hstep + k * 16;
 
-            // (j + jj) % 16 == 12
-            for (int kk = 0; kk < max_kk; kk++)
+            if ((j + jj) % 16 == 0)
             {
-                pp[0] = p0[12];
-                pp[1] = p0[13];
-                pp[2] = p0[14];
-                pp[3] = p0[15];
-                pp += 4;
-                p0 += 16;
+                for (int kk = 0; kk < max_kk; kk++)
+                {
+                    _mm_store_ps(pp, _mm_load_ps(p0));
+                    pp += 4;
+                    p0 += 16;
+                }
+            }
+            if ((j + jj) % 16 == 4)
+            {
+                for (int kk = 0; kk < max_kk; kk++)
+                {
+                    _mm_store_ps(pp, _mm_load_ps(p0 + 4));
+                    pp += 4;
+                    p0 += 16;
+                }
+            }
+            if ((j + jj) % 16 == 8)
+            {
+                for (int kk = 0; kk < max_kk; kk++)
+                {
+                    _mm_store_ps(pp, _mm_load_ps(p0 + 8));
+                    pp += 4;
+                    p0 += 16;
+                }
+            }
+            if ((j + jj) % 16 == 12)
+            {
+                for (int kk = 0; kk < max_kk; kk++)
+                {
+                    _mm_store_ps(pp, _mm_load_ps(p0 + 12));
+                    pp += 4;
+                    p0 += 16;
+                }
             }
         }
 #endif // __AVX512F__
@@ -1333,12 +1398,23 @@ static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max
         {
             const float* p0 = (const float*)B + (j + jj) / 8 * 8 * B_hstep + k * 8;
 
-            // (j + jj) % 8 == 4
-            for (int kk = 0; kk < max_kk; kk++)
+            if ((j + jj) % 8 == 0)
             {
-                _mm_store_ps(pp, _mm_load_ps(p0 + 4));
-                pp += 4;
-                p0 += 8;
+                for (int kk = 0; kk < max_kk; kk++)
+                {
+                    _mm_store_ps(pp, _mm_load_ps(p0));
+                    pp += 4;
+                    p0 += 8;
+                }
+            }
+            if ((j + jj) % 8 == 4)
+            {
+                for (int kk = 0; kk < max_kk; kk++)
+                {
+                    _mm_store_ps(pp, _mm_load_ps(p0 + 4));
+                    pp += 4;
+                    p0 += 8;
+                }
             }
         }
 #endif // __AVX__
