@@ -612,13 +612,26 @@ static void pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int max_jj, int 
         if (elempack == 8)
         {
             const unsigned short* p0 = (const unsigned short*)B + (j + jj) / 8 * 8 * B_hstep + k * 8;
+            const unsigned short* p1 = (const unsigned short*)B + (j + jj + 8) / 8 * 8 * B_hstep + k * 8;
 
-            // (j + jj) % 8 == 0
-            for (int kk = 0; kk < max_kk; kk++)
+            if ((j + jj) % 8 == 0)
             {
-                vst1q_u16(pp, vld1q_u16(p0));
-                pp += 8;
-                p0 += 8;
+                for (int kk = 0; kk < max_kk; kk++)
+                {
+                    vst1q_u16(pp, vld1q_u16(p0));
+                    pp += 8;
+                    p0 += 8;
+                }
+            }
+            if ((j + jj) % 8 == 4)
+            {
+                for (int kk = 0; kk < max_kk; kk++)
+                {
+                    vst1q_u16(pp, vcombine_u16(vld1_u16(p0 + 4), vld1_u16(p1)));
+                    pp += 8;
+                    p0 += 8;
+                    p1 += 8;
+                }
             }
         }
         if (elempack == 4)
@@ -736,12 +749,23 @@ static void pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int max_jj, int 
         {
             const unsigned short* p0 = (const unsigned short*)B + (j + jj) / 8 * 8 * B_hstep + k * 8;
 
-            // (j + jj) % 8 == 4
-            for (int kk = 0; kk < max_kk; kk++)
+            if ((j + jj) % 8 == 0)
             {
-                vst1_u16(pp, vld1_u16(p0 + 4));
-                pp += 4;
-                p0 += 8;
+                for (int kk = 0; kk < max_kk; kk++)
+                {
+                    vst1_u16(pp, vld1_u16(p0));
+                    pp += 4;
+                    p0 += 8;
+                }
+            }
+            if ((j + jj) % 8 == 4)
+            {
+                for (int kk = 0; kk < max_kk; kk++)
+                {
+                    vst1_u16(pp, vld1_u16(p0 + 4));
+                    pp += 4;
+                    p0 += 8;
+                }
             }
         }
         if (elempack == 4)
@@ -1176,9 +1200,29 @@ static void transpose_unpack_output_tile_bf16_fp16(const Mat& topT, Mat& top_blo
     {
         if (out_elempack == 8)
         {
-            unsigned short* p0 = (unsigned short*)top_blob + j * out_hstep + (i + ii) * 8;
+            unsigned short* p0 = (unsigned short*)top_blob + (j / 8 * 8) * out_hstep + (i + ii) * 8;
 
-            for (int jj = 0; jj + 7 < max_jj; jj += 8)
+            int jj = 0;
+            if (j % 8 == 4)
+            {
+                uint16x8_t _r0 = vld1q_u16(pp);
+                uint16x8_t _r1 = vld1q_u16(pp + 8);
+                uint16x8_t _r2 = vld1q_u16(pp + 8 * 2);
+                uint16x8_t _r3 = vld1q_u16(pp + 8 * 3);
+                transpose8x4_u16(_r0, _r1, _r2, _r3);
+                vst1_u16(p0 + 4, vget_low_u16(_r0));
+                vst1_u16(p0 + 8 + 4, vget_high_u16(_r0));
+                vst1_u16(p0 + 8 * 2 + 4, vget_low_u16(_r1));
+                vst1_u16(p0 + 8 * 3 + 4, vget_high_u16(_r1));
+                vst1_u16(p0 + 8 * 4 + 4, vget_low_u16(_r2));
+                vst1_u16(p0 + 8 * 5 + 4, vget_high_u16(_r2));
+                vst1_u16(p0 + 8 * 6 + 4, vget_low_u16(_r3));
+                vst1_u16(p0 + 8 * 7 + 4, vget_high_u16(_r3));
+                pp += 32;
+                p0 += out_hstep * 8;
+                jj += 4;
+            }
+            for (; jj + 7 < max_jj; jj += 8)
             {
                 uint16x8_t _r0 = vld1q_u16(pp);
                 uint16x8_t _r1 = vld1q_u16(pp + 8);
@@ -1198,6 +1242,24 @@ static void transpose_unpack_output_tile_bf16_fp16(const Mat& topT, Mat& top_blo
                 vst1q_u16(p0 + 8 * 6, _r6);
                 vst1q_u16(p0 + 8 * 7, _r7);
                 pp += 64;
+                p0 += out_hstep * 8;
+            }
+            for (; jj + 3 < max_jj; jj += 4)
+            {
+                uint16x8_t _r0 = vld1q_u16(pp);
+                uint16x8_t _r1 = vld1q_u16(pp + 8);
+                uint16x8_t _r2 = vld1q_u16(pp + 8 * 2);
+                uint16x8_t _r3 = vld1q_u16(pp + 8 * 3);
+                transpose8x4_u16(_r0, _r1, _r2, _r3);
+                vst1_u16(p0, vget_low_u16(_r0));
+                vst1_u16(p0 + 8, vget_high_u16(_r0));
+                vst1_u16(p0 + 8 * 2, vget_low_u16(_r1));
+                vst1_u16(p0 + 8 * 3, vget_high_u16(_r1));
+                vst1_u16(p0 + 8 * 4, vget_low_u16(_r2));
+                vst1_u16(p0 + 8 * 5, vget_high_u16(_r2));
+                vst1_u16(p0 + 8 * 6, vget_low_u16(_r3));
+                vst1_u16(p0 + 8 * 7, vget_high_u16(_r3));
+                pp += 32;
                 p0 += out_hstep * 8;
             }
         }
@@ -1236,9 +1298,21 @@ static void transpose_unpack_output_tile_bf16_fp16(const Mat& topT, Mat& top_blo
 #if __aarch64__
         if (out_elempack == 8)
         {
-            unsigned short* p0 = (unsigned short*)top_blob + j * out_hstep + (i + ii) * 8;
+            unsigned short* p0 = (unsigned short*)top_blob + (j / 8 * 8) * out_hstep + (i + ii) * 8;
 
-            for (int jj = 0; jj + 7 < max_jj; jj += 8)
+            int jj = 0;
+            if (j % 8 == 4)
+            {
+                uint16x4x4_t _r0123 = vld4_u16(pp);
+                vst1_u16(p0 + 4, _r0123.val[0]);
+                vst1_u16(p0 + 8 + 4, _r0123.val[1]);
+                vst1_u16(p0 + 16 + 4, _r0123.val[2]);
+                vst1_u16(p0 + 24 + 4, _r0123.val[3]);
+                pp += 16;
+                p0 += out_hstep * 8;
+                jj += 4;
+            }
+            for (; jj + 7 < max_jj; jj += 8)
             {
                 uint16x8x4_t _r0123 = vld4q_u16(pp);
                 vst1q_u16(p0, _r0123.val[0]);
@@ -1246,6 +1320,16 @@ static void transpose_unpack_output_tile_bf16_fp16(const Mat& topT, Mat& top_blo
                 vst1q_u16(p0 + 16, _r0123.val[2]);
                 vst1q_u16(p0 + 24, _r0123.val[3]);
                 pp += 32;
+                p0 += out_hstep * 8;
+            }
+            for (; jj + 3 < max_jj; jj += 4)
+            {
+                uint16x4x4_t _r0123 = vld4_u16(pp);
+                vst1_u16(p0, _r0123.val[0]);
+                vst1_u16(p0 + 8, _r0123.val[1]);
+                vst1_u16(p0 + 16, _r0123.val[2]);
+                vst1_u16(p0 + 24, _r0123.val[3]);
+                pp += 16;
                 p0 += out_hstep * 8;
             }
         }
@@ -1286,9 +1370,24 @@ static void transpose_unpack_output_tile_bf16_fp16(const Mat& topT, Mat& top_blo
 #if __aarch64__
         if (out_elempack == 8)
         {
-            unsigned short* p0 = (unsigned short*)top_blob + j * out_hstep + (i + ii) * 8;
+            unsigned short* p0 = (unsigned short*)top_blob + (j / 8 * 8) * out_hstep + (i + ii) * 8;
 
-            for (int jj = 0; jj + 7 < max_jj; jj += 8)
+            int jj = 0;
+            if (j % 8 == 4)
+            {
+                p0[0 + 4] = pp[0];
+                p0[1 + 4] = pp[2];
+                p0[2 + 4] = pp[4];
+                p0[3 + 4] = pp[6];
+                p0[8 + 4] = pp[1];
+                p0[9 + 4] = pp[3];
+                p0[10 + 4] = pp[5];
+                p0[11 + 4] = pp[7];
+                pp += 8;
+                p0 += out_hstep * 8;
+                jj += 4;
+            }
+            for (; jj + 7 < max_jj; jj += 8)
             {
                 p0[0] = pp[0];
                 p0[1] = pp[2];
@@ -1307,6 +1406,19 @@ static void transpose_unpack_output_tile_bf16_fp16(const Mat& topT, Mat& top_blo
                 p0[14] = pp[13];
                 p0[15] = pp[15];
                 pp += 16;
+                p0 += out_hstep * 8;
+            }
+            for (; jj + 3 < max_jj; jj += 4)
+            {
+                p0[0] = pp[0];
+                p0[1] = pp[2];
+                p0[2] = pp[4];
+                p0[3] = pp[6];
+                p0[8] = pp[1];
+                p0[9] = pp[3];
+                p0[10] = pp[5];
+                p0[11] = pp[7];
+                pp += 8;
                 p0 += out_hstep * 8;
             }
         }
@@ -1349,13 +1461,29 @@ static void transpose_unpack_output_tile_bf16_fp16(const Mat& topT, Mat& top_blo
 #if __aarch64__
         if (out_elempack == 8)
         {
-            unsigned short* p0 = (unsigned short*)top_blob + j * out_hstep + (i + ii) * 8;
+            unsigned short* p0 = (unsigned short*)top_blob + (j / 8 * 8) * out_hstep + (i + ii) * 8;
 
-            for (int jj = 0; jj + 7 < max_jj; jj += 8)
+            int jj = 0;
+            if (j % 8 == 4)
+            {
+                uint16x4_t _r0 = vld1_u16(pp);
+                vst1_u16(p0 + 4, _r0);
+                pp += 4;
+                p0 += out_hstep * 8;
+                jj += 4;
+            }
+            for (; jj + 7 < max_jj; jj += 8)
             {
                 uint16x8_t _r0 = vld1q_u16(pp);
                 vst1q_u16(p0, _r0);
                 pp += 8;
+                p0 += out_hstep * 8;
+            }
+            for (; jj + 3 < max_jj; jj += 4)
+            {
+                uint16x4_t _r0 = vld1_u16(pp);
+                vst1_u16(p0, _r0);
+                pp += 4;
                 p0 += out_hstep * 8;
             }
         }
