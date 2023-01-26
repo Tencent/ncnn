@@ -2792,7 +2792,7 @@ int Gemm_arm::create_pipeline_fp16sa(const Option& opt)
         // pre-multiply C with beta
         if (beta != 1.f)
         {
-            const int size = CT_data.total() * C_elempack;
+            const int size = CT_data.total() * CT_data.elempack;
             __fp16* ptr = CT_data;
             for (int i = 0; i < size; i++)
             {
