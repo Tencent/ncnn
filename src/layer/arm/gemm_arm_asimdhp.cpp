@@ -2781,20 +2781,9 @@ int Gemm_arm::create_pipeline_fp16sa(const Option& opt)
     {
         cast_float32_to_float16(C_data, CT_data, opt);
 
-        int elemcount = 1;
-        if (constant_broadcast_type_C == 1 || constant_broadcast_type_C == 2 || constant_broadcast_type_C == 3)
+        if (constant_broadcast_type_C == 3 && opt.use_packing_layout)
         {
-            elemcount = constantM;
-        }
-        else if (constant_broadcast_type_C == 4)
-        {
-            elemcount = constantN;
-        }
-
-        int C_elempack = 1;
-        if (opt.use_packing_layout)
-        {
-            C_elempack = elemcount % 8 == 0 ? 8 : elemcount % 4 == 0 ? 4 : 1;
+            int C_elempack = constantM % 8 == 0 ? 8 : constantM % 4 == 0 ? 4 : 1;
             Mat tmp;
             convert_packing(CT_data, tmp, C_elempack, opt);
             CT_data = tmp;

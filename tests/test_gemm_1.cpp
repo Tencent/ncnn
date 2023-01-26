@@ -15,14 +15,13 @@
 #include "layer/gemm.h"
 #include "testutil.h"
 
-static int test_gemm(int M, int N, int K, int TILE_M, int TILE_N, int TILE_K, float alpha, int transA, int transB, int output_transpose, int output_N1M = 0)
+static int test_gemm(int M, int N, int K, int TILE_M, int TILE_N, int TILE_K, float alpha, int transA, int transB, int output_transpose)
 {
     ncnn::ParamDict pd;
     pd.set(0, alpha);
     pd.set(1, 1.f); // beta
     pd.set(2, transA);
     pd.set(3, transB);
-    pd.set(11, output_N1M);
     pd.set(14, output_transpose);
 
     pd.set(20, TILE_M);
@@ -32,16 +31,8 @@ static int test_gemm(int M, int N, int K, int TILE_M, int TILE_N, int TILE_K, fl
     std::vector<ncnn::Mat> weights(0);
 
     std::vector<ncnn::Mat> a(2);
-    if (output_N1M)
-    {
-        a[0] = transA ? ncnn::Mat(M, 1, K) : ncnn::Mat(K, 1, M);
-        a[1] = transB ? ncnn::Mat(K, 1, N) : ncnn::Mat(N, 1, K);
-    }
-    else
-    {
-        a[0] = transA ? ncnn::Mat(M, K) : ncnn::Mat(K, M);
-        a[1] = transB ? ncnn::Mat(K, N) : ncnn::Mat(N, K);
-    }
+    a[0] = transA ? ncnn::Mat(M, K) : ncnn::Mat(K, M);
+    a[1] = transB ? ncnn::Mat(K, N) : ncnn::Mat(N, K);
 
     Randomize(a[0]);
     Randomize(a[1]);
@@ -49,7 +40,7 @@ static int test_gemm(int M, int N, int K, int TILE_M, int TILE_N, int TILE_K, fl
     int ret = test_layer<ncnn::Gemm>("Gemm", pd, weights, a);
     if (ret != 0)
     {
-        fprintf(stderr, "test_gemm failed M=%d N=%d K=%d TILE_M=%d TILE_N=%d TILE_K=%d alpha=%f transA=%d transB=%d output_transpose=%d output_N1M=%d\n", M, N, K, TILE_M, TILE_N, TILE_K, alpha, transA, transB, output_transpose, output_N1M);
+        fprintf(stderr, "test_gemm failed M=%d N=%d K=%d TILE_M=%d TILE_N=%d TILE_K=%d alpha=%f transA=%d transB=%d output_transpose=%d\n", M, N, K, TILE_M, TILE_N, TILE_K, alpha, transA, transB, output_transpose);
     }
 
     return ret;
@@ -83,31 +74,15 @@ int main()
         {8, 8, 8},
         {15, 15, 15},
         {16, 16, 16},
+        {24, 24, 24},
         {31, 31, 31},
+        {32, 32, 32},
+        {20, 32, 20},
         {40, 40, 40},
-        {1, 1, 23},
-        {1, 31, 1},
-        {23, 1, 1},
-        {12, 12, 23},
-        {12, 31, 12},
-        {23, 12, 12},
-        {1, 1, 47},
-        {1, 35, 1},
-        {47, 1, 1},
-        {24, 24, 47},
-        {24, 35, 24},
-        {47, 24, 24},
-        {1, 35, 47},
-        {23, 31, 1},
-        {23, 1, 23},
-        {23, 31, 23},
-        {31, 7, 3},
-        {28, 20, 7},
-        {32, 32, 9},
-        {44, 19, 7},
-        {47, 35, 48},
-        {47, 48, 47},
-        {48, 35, 47}
+        {47, 47, 47},
+        {48, 48, 48},
+        {52, 52, 52},
+        {64, 64, 64}
     };
 
     int tile_mnk[][3] = {
@@ -117,8 +92,9 @@ int main()
         {8, 8, 8},
         {12, 12, 12},
         {16, 16, 16},
-        {28, 28, 28},
-        {100, 100, 100}
+        {20, 20, 20},
+        {24, 24, 24},
+        {28, 28, 28}
     };
 
     int mnk_count = sizeof(mnk) / sizeof(int) / 3;
@@ -136,10 +112,18 @@ int main()
             int TILE_N = tile_mnk[j][1];
             int TILE_K = tile_mnk[j][2];
 
+            if (TILE_M >= M && TILE_N >= N && TILE_K >= K)
+                continue;
+
             int ret = test_gemm_0(M, N, K, TILE_M, TILE_N, TILE_K);
             if (ret != 0)
                 return 0;
         }
+
+        // test no tiling
+        int ret = test_gemm_0(M, N, K, 100, 100, 100);
+        if (ret != 0)
+            return 0;
     }
 
     return 0;
