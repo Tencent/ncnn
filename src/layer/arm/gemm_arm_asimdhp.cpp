@@ -2465,10 +2465,6 @@ static int gemm_AT_arm_fp16sa(const Mat& AT, const Mat& B, const Mat& C, Mat& to
 
     Mat BT(TILE_K * TILE_N, (K + TILE_K - 1) / TILE_K, (N + TILE_N - 1) / TILE_N, 2u, opt.blob_allocator);
 
-    Mat tmpX;
-    if (K > TILE_K)
-        tmpX.create(TILE_N, TILE_M, nT, 2u, opt.blob_allocator);
-
     const int nn_NK = nn_N * nn_K;
 
     // pack B
