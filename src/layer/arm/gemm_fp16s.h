@@ -18,7 +18,6 @@ void gemm_transB_packed_tile_fp16s_asimdfhm(const Mat& AT_tile, const Mat& BT_ti
 
 static void pack_A_tile_fp32_to_fp16(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
 {
-    const int elempack = A.elempack;
     const int A_hstep = A.dims == 3 ? (int)A.cstep : A.w;
 
     unsigned short* pp = AT;
@@ -27,228 +26,181 @@ static void pack_A_tile_fp32_to_fp16(const Mat& A, Mat& AT, int i, int max_ii, i
 #if __aarch64__
     for (; ii + 7 < max_ii; ii += 8)
     {
-        if (elempack == 4)
-        {
-            const float* p0 = (const float*)A + (i + ii) * A_hstep + k * 4;
-            const float* p1 = (const float*)A + (i + ii + 4) * A_hstep + k * 4;
+        const float* p0 = (const float*)A + (i + ii) * A_hstep + k;
+        const float* p1 = (const float*)A + (i + ii + 1) * A_hstep + k;
+        const float* p2 = (const float*)A + (i + ii + 2) * A_hstep + k;
+        const float* p3 = (const float*)A + (i + ii + 3) * A_hstep + k;
+        const float* p4 = (const float*)A + (i + ii + 4) * A_hstep + k;
+        const float* p5 = (const float*)A + (i + ii + 5) * A_hstep + k;
+        const float* p6 = (const float*)A + (i + ii + 6) * A_hstep + k;
+        const float* p7 = (const float*)A + (i + ii + 7) * A_hstep + k;
 
-            for (int kk = 0; kk < max_kk; kk++)
-            {
-                uint16x8_t _r0 = vcombine_u16((uint16x4_t)vcvt_f16_f32(vld1q_f32(p0)), (uint16x4_t)vcvt_f16_f32(vld1q_f32(p1)));
-                vst1q_u16(pp, _r0);
-                pp += 8;
-                p0 += 4;
-                p1 += 4;
-            }
+        int kk = 0;
+        for (; kk + 7 < max_kk; kk += 8)
+        {
+            uint16x8_t _r0 = vcombine_u16((uint16x4_t)vcvt_f16_f32(vld1q_f32(p0)), (uint16x4_t)vcvt_f16_f32(vld1q_f32(p0 + 4)));
+            uint16x8_t _r1 = vcombine_u16((uint16x4_t)vcvt_f16_f32(vld1q_f32(p1)), (uint16x4_t)vcvt_f16_f32(vld1q_f32(p1 + 4)));
+            uint16x8_t _r2 = vcombine_u16((uint16x4_t)vcvt_f16_f32(vld1q_f32(p2)), (uint16x4_t)vcvt_f16_f32(vld1q_f32(p2 + 4)));
+            uint16x8_t _r3 = vcombine_u16((uint16x4_t)vcvt_f16_f32(vld1q_f32(p3)), (uint16x4_t)vcvt_f16_f32(vld1q_f32(p3 + 4)));
+            uint16x8_t _r4 = vcombine_u16((uint16x4_t)vcvt_f16_f32(vld1q_f32(p4)), (uint16x4_t)vcvt_f16_f32(vld1q_f32(p4 + 4)));
+            uint16x8_t _r5 = vcombine_u16((uint16x4_t)vcvt_f16_f32(vld1q_f32(p5)), (uint16x4_t)vcvt_f16_f32(vld1q_f32(p5 + 4)));
+            uint16x8_t _r6 = vcombine_u16((uint16x4_t)vcvt_f16_f32(vld1q_f32(p6)), (uint16x4_t)vcvt_f16_f32(vld1q_f32(p6 + 4)));
+            uint16x8_t _r7 = vcombine_u16((uint16x4_t)vcvt_f16_f32(vld1q_f32(p7)), (uint16x4_t)vcvt_f16_f32(vld1q_f32(p7 + 4)));
+            transpose8x8_u16(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
+            vst1q_u16(pp, _r0);
+            vst1q_u16(pp + 8, _r1);
+            vst1q_u16(pp + 8 * 2, _r2);
+            vst1q_u16(pp + 8 * 3, _r3);
+            vst1q_u16(pp + 8 * 4, _r4);
+            vst1q_u16(pp + 8 * 5, _r5);
+            vst1q_u16(pp + 8 * 6, _r6);
+            vst1q_u16(pp + 8 * 7, _r7);
+            pp += 64;
+            p0 += 8;
+            p1 += 8;
+            p2 += 8;
+            p3 += 8;
+            p4 += 8;
+            p5 += 8;
+            p6 += 8;
+            p7 += 8;
         }
-        if (elempack == 1)
+        for (; kk < max_kk; kk++)
         {
-            const float* p0 = (const float*)A + (i + ii) * A_hstep + k;
-            const float* p1 = (const float*)A + (i + ii + 1) * A_hstep + k;
-            const float* p2 = (const float*)A + (i + ii + 2) * A_hstep + k;
-            const float* p3 = (const float*)A + (i + ii + 3) * A_hstep + k;
-            const float* p4 = (const float*)A + (i + ii + 4) * A_hstep + k;
-            const float* p5 = (const float*)A + (i + ii + 5) * A_hstep + k;
-            const float* p6 = (const float*)A + (i + ii + 6) * A_hstep + k;
-            const float* p7 = (const float*)A + (i + ii + 7) * A_hstep + k;
-
-            int kk = 0;
-            for (; kk + 7 < max_kk; kk += 8)
-            {
-                uint16x8_t _r0 = vcombine_u16((uint16x4_t)vcvt_f16_f32(vld1q_f32(p0)), (uint16x4_t)vcvt_f16_f32(vld1q_f32(p0 + 4)));
-                uint16x8_t _r1 = vcombine_u16((uint16x4_t)vcvt_f16_f32(vld1q_f32(p1)), (uint16x4_t)vcvt_f16_f32(vld1q_f32(p1 + 4)));
-                uint16x8_t _r2 = vcombine_u16((uint16x4_t)vcvt_f16_f32(vld1q_f32(p2)), (uint16x4_t)vcvt_f16_f32(vld1q_f32(p2 + 4)));
-                uint16x8_t _r3 = vcombine_u16((uint16x4_t)vcvt_f16_f32(vld1q_f32(p3)), (uint16x4_t)vcvt_f16_f32(vld1q_f32(p3 + 4)));
-                uint16x8_t _r4 = vcombine_u16((uint16x4_t)vcvt_f16_f32(vld1q_f32(p4)), (uint16x4_t)vcvt_f16_f32(vld1q_f32(p4 + 4)));
-                uint16x8_t _r5 = vcombine_u16((uint16x4_t)vcvt_f16_f32(vld1q_f32(p5)), (uint16x4_t)vcvt_f16_f32(vld1q_f32(p5 + 4)));
-                uint16x8_t _r6 = vcombine_u16((uint16x4_t)vcvt_f16_f32(vld1q_f32(p6)), (uint16x4_t)vcvt_f16_f32(vld1q_f32(p6 + 4)));
-                uint16x8_t _r7 = vcombine_u16((uint16x4_t)vcvt_f16_f32(vld1q_f32(p7)), (uint16x4_t)vcvt_f16_f32(vld1q_f32(p7 + 4)));
-                transpose8x8_u16(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
-                vst1q_u16(pp, _r0);
-                vst1q_u16(pp + 8, _r1);
-                vst1q_u16(pp + 8 * 2, _r2);
-                vst1q_u16(pp + 8 * 3, _r3);
-                vst1q_u16(pp + 8 * 4, _r4);
-                vst1q_u16(pp + 8 * 5, _r5);
-                vst1q_u16(pp + 8 * 6, _r6);
-                vst1q_u16(pp + 8 * 7, _r7);
-                pp += 64;
-                p0 += 8;
-                p1 += 8;
-                p2 += 8;
-                p3 += 8;
-                p4 += 8;
-                p5 += 8;
-                p6 += 8;
-                p7 += 8;
-            }
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = float32_to_float16(p0[0]);
-                pp[1] = float32_to_float16(p1[0]);
-                pp[2] = float32_to_float16(p2[0]);
-                pp[3] = float32_to_float16(p3[0]);
-                pp[4] = float32_to_float16(p4[0]);
-                pp[5] = float32_to_float16(p5[0]);
-                pp[6] = float32_to_float16(p6[0]);
-                pp[7] = float32_to_float16(p7[0]);
-                pp += 8;
-                p0++;
-                p1++;
-                p2++;
-                p3++;
-                p4++;
-                p5++;
-                p6++;
-                p7++;
-            }
+            pp[0] = float32_to_float16(p0[0]);
+            pp[1] = float32_to_float16(p1[0]);
+            pp[2] = float32_to_float16(p2[0]);
+            pp[3] = float32_to_float16(p3[0]);
+            pp[4] = float32_to_float16(p4[0]);
+            pp[5] = float32_to_float16(p5[0]);
+            pp[6] = float32_to_float16(p6[0]);
+            pp[7] = float32_to_float16(p7[0]);
+            pp += 8;
+            p0++;
+            p1++;
+            p2++;
+            p3++;
+            p4++;
+            p5++;
+            p6++;
+            p7++;
         }
     }
 #endif // __aarch64__
     for (; ii + 3 < max_ii; ii += 4)
     {
-        if (elempack == 4)
-        {
-            const float* p0 = (const float*)A + (i + ii) * A_hstep + k * 4;
+        const float* p0 = (const float*)A + (i + ii) * A_hstep + k;
+        const float* p1 = (const float*)A + (i + ii + 1) * A_hstep + k;
+        const float* p2 = (const float*)A + (i + ii + 2) * A_hstep + k;
+        const float* p3 = (const float*)A + (i + ii + 3) * A_hstep + k;
 
-            int kk = 0;
-            for (; kk + 1 < max_kk; kk += 2)
-            {
-                uint16x8_t _r0 = vcombine_u16((uint16x4_t)vcvt_f16_f32(vld1q_f32(p0)), (uint16x4_t)vcvt_f16_f32(vld1q_f32(p0 + 4)));
-                vst1q_u16(pp, _r0);
-                pp += 8;
-                p0 += 8;
-            }
-            for (; kk < max_kk; kk++)
-            {
-                uint16x4_t _r0 = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p0));
-                vst1_u16(pp, _r0);
-                pp += 4;
-                p0 += 4;
-            }
+        int kk = 0;
+        for (; kk + 7 < max_kk; kk += 8)
+        {
+            uint16x8x4_t _r0123;
+            _r0123.val[0] = vcombine_u16((uint16x4_t)vcvt_f16_f32(vld1q_f32(p0)), (uint16x4_t)vcvt_f16_f32(vld1q_f32(p0 + 4)));
+            _r0123.val[1] = vcombine_u16((uint16x4_t)vcvt_f16_f32(vld1q_f32(p1)), (uint16x4_t)vcvt_f16_f32(vld1q_f32(p1 + 4)));
+            _r0123.val[2] = vcombine_u16((uint16x4_t)vcvt_f16_f32(vld1q_f32(p2)), (uint16x4_t)vcvt_f16_f32(vld1q_f32(p2 + 4)));
+            _r0123.val[3] = vcombine_u16((uint16x4_t)vcvt_f16_f32(vld1q_f32(p3)), (uint16x4_t)vcvt_f16_f32(vld1q_f32(p3 + 4)));
+            vst4q_u16(pp, _r0123);
+            pp += 32;
+            p0 += 8;
+            p1 += 8;
+            p2 += 8;
+            p3 += 8;
         }
-        if (elempack == 1)
+        for (; kk + 3 < max_kk; kk += 4)
         {
-            const float* p0 = (const float*)A + (i + ii) * A_hstep + k;
-            const float* p1 = (const float*)A + (i + ii + 1) * A_hstep + k;
-            const float* p2 = (const float*)A + (i + ii + 2) * A_hstep + k;
-            const float* p3 = (const float*)A + (i + ii + 3) * A_hstep + k;
-
-            int kk = 0;
-            for (; kk + 7 < max_kk; kk += 8)
-            {
-                uint16x8x4_t _r0123;
-                _r0123.val[0] = vcombine_u16((uint16x4_t)vcvt_f16_f32(vld1q_f32(p0)), (uint16x4_t)vcvt_f16_f32(vld1q_f32(p0 + 4)));
-                _r0123.val[1] = vcombine_u16((uint16x4_t)vcvt_f16_f32(vld1q_f32(p1)), (uint16x4_t)vcvt_f16_f32(vld1q_f32(p1 + 4)));
-                _r0123.val[2] = vcombine_u16((uint16x4_t)vcvt_f16_f32(vld1q_f32(p2)), (uint16x4_t)vcvt_f16_f32(vld1q_f32(p2 + 4)));
-                _r0123.val[3] = vcombine_u16((uint16x4_t)vcvt_f16_f32(vld1q_f32(p3)), (uint16x4_t)vcvt_f16_f32(vld1q_f32(p3 + 4)));
-                vst4q_u16(pp, _r0123);
-                pp += 32;
-                p0 += 8;
-                p1 += 8;
-                p2 += 8;
-                p3 += 8;
-            }
-            for (; kk + 3 < max_kk; kk += 4)
-            {
-                uint16x4x4_t _r0123;
-                _r0123.val[0] = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p0));
-                _r0123.val[1] = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p1));
-                _r0123.val[2] = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p2));
-                _r0123.val[3] = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p3));
-                vst4_u16(pp, _r0123);
-                pp += 16;
-                p0 += 4;
-                p1 += 4;
-                p2 += 4;
-                p3 += 4;
-            }
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = float32_to_float16(p0[0]);
-                pp[1] = float32_to_float16(p1[0]);
-                pp[2] = float32_to_float16(p2[0]);
-                pp[3] = float32_to_float16(p3[0]);
-                pp += 4;
-                p0++;
-                p1++;
-                p2++;
-                p3++;
-            }
+            uint16x4x4_t _r0123;
+            _r0123.val[0] = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p0));
+            _r0123.val[1] = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p1));
+            _r0123.val[2] = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p2));
+            _r0123.val[3] = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p3));
+            vst4_u16(pp, _r0123);
+            pp += 16;
+            p0 += 4;
+            p1 += 4;
+            p2 += 4;
+            p3 += 4;
+        }
+        for (; kk < max_kk; kk++)
+        {
+            pp[0] = float32_to_float16(p0[0]);
+            pp[1] = float32_to_float16(p1[0]);
+            pp[2] = float32_to_float16(p2[0]);
+            pp[3] = float32_to_float16(p3[0]);
+            pp += 4;
+            p0++;
+            p1++;
+            p2++;
+            p3++;
         }
     }
     for (; ii + 1 < max_ii; ii += 2)
     {
-        // if (elempack == 1)
-        {
-            const float* p0 = (const float*)A + (i + ii) * A_hstep + k;
-            const float* p1 = (const float*)A + (i + ii + 1) * A_hstep + k;
+        const float* p0 = (const float*)A + (i + ii) * A_hstep + k;
+        const float* p1 = (const float*)A + (i + ii + 1) * A_hstep + k;
 
-            int kk = 0;
-            for (; kk + 7 < max_kk; kk += 8)
-            {
-                uint16x8x2_t _r01;
-                _r01.val[0] = vcombine_u16((uint16x4_t)vcvt_f16_f32(vld1q_f32(p0)), (uint16x4_t)vcvt_f16_f32(vld1q_f32(p0 + 4)));
-                _r01.val[1] = vcombine_u16((uint16x4_t)vcvt_f16_f32(vld1q_f32(p1)), (uint16x4_t)vcvt_f16_f32(vld1q_f32(p1 + 4)));
-                vst2q_u16(pp, _r01);
-                pp += 16;
-                p0 += 8;
-                p1 += 8;
-            }
-            for (; kk + 3 < max_kk; kk += 4)
-            {
-                uint16x4x2_t _r01;
-                _r01.val[0] = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p0));
-                _r01.val[1] = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p1));
-                vst2_u16(pp, _r01);
-                pp += 8;
-                p0 += 4;
-                p1 += 4;
-            }
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = float32_to_float16(p0[0]);
-                pp[1] = float32_to_float16(p1[0]);
-                pp += 2;
-                p0++;
-                p1++;
-            }
+        int kk = 0;
+        for (; kk + 7 < max_kk; kk += 8)
+        {
+            uint16x8x2_t _r01;
+            _r01.val[0] = vcombine_u16((uint16x4_t)vcvt_f16_f32(vld1q_f32(p0)), (uint16x4_t)vcvt_f16_f32(vld1q_f32(p0 + 4)));
+            _r01.val[1] = vcombine_u16((uint16x4_t)vcvt_f16_f32(vld1q_f32(p1)), (uint16x4_t)vcvt_f16_f32(vld1q_f32(p1 + 4)));
+            vst2q_u16(pp, _r01);
+            pp += 16;
+            p0 += 8;
+            p1 += 8;
+        }
+        for (; kk + 3 < max_kk; kk += 4)
+        {
+            uint16x4x2_t _r01;
+            _r01.val[0] = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p0));
+            _r01.val[1] = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p1));
+            vst2_u16(pp, _r01);
+            pp += 8;
+            p0 += 4;
+            p1 += 4;
+        }
+        for (; kk < max_kk; kk++)
+        {
+            pp[0] = float32_to_float16(p0[0]);
+            pp[1] = float32_to_float16(p1[0]);
+            pp += 2;
+            p0++;
+            p1++;
         }
     }
     for (; ii < max_ii; ii += 1)
     {
-        // if (elempack == 1)
-        {
-            const float* p0 = (const float*)A + (i + ii) * A_hstep + k;
+        const float* p0 = (const float*)A + (i + ii) * A_hstep + k;
 
-            int kk = 0;
-            for (; kk + 7 < max_kk; kk += 8)
-            {
-                uint16x8_t _r0 = vcombine_u16((uint16x4_t)vcvt_f16_f32(vld1q_f32(p0)), (uint16x4_t)vcvt_f16_f32(vld1q_f32(p0 + 4)));
-                vst1q_u16(pp, _r0);
-                pp += 8;
-                p0 += 8;
-            }
-            for (; kk + 3 < max_kk; kk += 4)
-            {
-                uint16x4_t _r0 = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p0));
-                vst1_u16(pp, _r0);
-                pp += 4;
-                p0 += 4;
-            }
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = float32_to_float16(p0[0]);
-                pp += 1;
-                p0++;
-            }
+        int kk = 0;
+        for (; kk + 7 < max_kk; kk += 8)
+        {
+            uint16x8_t _r0 = vcombine_u16((uint16x4_t)vcvt_f16_f32(vld1q_f32(p0)), (uint16x4_t)vcvt_f16_f32(vld1q_f32(p0 + 4)));
+            vst1q_u16(pp, _r0);
+            pp += 8;
+            p0 += 8;
+        }
+        for (; kk + 3 < max_kk; kk += 4)
+        {
+            uint16x4_t _r0 = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p0));
+            vst1_u16(pp, _r0);
+            pp += 4;
+            p0 += 4;
+        }
+        for (; kk < max_kk; kk++)
+        {
+            pp[0] = float32_to_float16(p0[0]);
+            pp += 1;
+            p0++;
         }
     }
 }
 
 static void transpose_pack_A_tile_fp32_to_fp16(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
 {
-    const int elempack = A.elempack;
     const int A_hstep = A.dims == 3 ? (int)A.cstep : A.w;
 
     unsigned short* pp = AT;
@@ -257,132 +209,60 @@ static void transpose_pack_A_tile_fp32_to_fp16(const Mat& A, Mat& AT, int i, int
 #if __aarch64__
     for (; ii + 7 < max_ii; ii += 8)
     {
-        if (elempack == 4)
-        {
-            const float* p0 = (const float*)A + k * A_hstep + (i + ii) * 4;
+        const float* p0 = (const float*)A + k * A_hstep + (i + ii);
 
-            int kk = 0;
-            for (; kk + 3 < max_kk; kk += 4)
-            {
-                float32x4x4_t _r0123 = vld4q_f32(p0);
-                float32x4x4_t _r4567 = vld4q_f32(p0 + 16);
-                vst1q_u16(pp, vcombine_u16((uint16x4_t)vcvt_f16_f32(_r0123.val[0]), (uint16x4_t)vcvt_f16_f32(_r4567.val[0])));
-                vst1q_u16(pp + 8, vcombine_u16((uint16x4_t)vcvt_f16_f32(_r0123.val[1]), (uint16x4_t)vcvt_f16_f32(_r4567.val[1])));
-                vst1q_u16(pp + 16, vcombine_u16((uint16x4_t)vcvt_f16_f32(_r0123.val[2]), (uint16x4_t)vcvt_f16_f32(_r4567.val[2])));
-                vst1q_u16(pp + 24, vcombine_u16((uint16x4_t)vcvt_f16_f32(_r0123.val[3]), (uint16x4_t)vcvt_f16_f32(_r4567.val[3])));
-                pp += 32;
-                p0 += A_hstep * 4;
-            }
-        }
-        if (elempack == 1)
+        int kk = 0;
+        for (; kk < max_kk; kk++)
         {
-            const float* p0 = (const float*)A + k * A_hstep + (i + ii);
-
-            int kk = 0;
-            for (; kk < max_kk; kk++)
-            {
-                uint16x8_t _r0 = vcombine_u16((uint16x4_t)vcvt_f16_f32(vld1q_f32(p0)), (uint16x4_t)vcvt_f16_f32(vld1q_f32(p0 + 4)));
-                vst1q_u16(pp, _r0);
-                pp += 8;
-                p0 += A_hstep;
-            }
+            uint16x8_t _r0 = vcombine_u16((uint16x4_t)vcvt_f16_f32(vld1q_f32(p0)), (uint16x4_t)vcvt_f16_f32(vld1q_f32(p0 + 4)));
+            vst1q_u16(pp, _r0);
+            pp += 8;
+            p0 += A_hstep;
         }
     }
 #endif // __aarch64__
     for (; ii + 3 < max_ii; ii += 4)
     {
-        if (elempack == 4)
-        {
-            const float* p0 = (const float*)A + k * A_hstep + (i + ii) * 4;
+        const float* p0 = (const float*)A + k * A_hstep + (i + ii);
 
-            int kk = 0;
-            for (; kk + 3 < max_kk; kk += 4)
-            {
-                float32x4x4_t _r0123 = vld4q_f32(p0);
-                vst1q_u16(pp, vcombine_u16((uint16x4_t)vcvt_f16_f32(_r0123.val[0]), (uint16x4_t)vcvt_f16_f32(_r0123.val[1])));
-                vst1q_u16(pp + 8, vcombine_u16((uint16x4_t)vcvt_f16_f32(_r0123.val[2]), (uint16x4_t)vcvt_f16_f32(_r0123.val[3])));
-                pp += 16;
-                p0 += A_hstep * 4;
-            }
-        }
-        if (elempack == 1)
+        int kk = 0;
+        for (; kk < max_kk; kk++)
         {
-            const float* p0 = (const float*)A + k * A_hstep + (i + ii);
-
-            int kk = 0;
-            for (; kk < max_kk; kk++)
-            {
-                uint16x4_t _r0 = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p0));
-                vst1_u16(pp, _r0);
-                pp += 4;
-                p0 += A_hstep;
-            }
+            uint16x4_t _r0 = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p0));
+            vst1_u16(pp, _r0);
+            pp += 4;
+            p0 += A_hstep;
         }
     }
     for (; ii + 1 < max_ii; ii += 2)
     {
-        if (elempack == 4)
-        {
-            const float* p0 = (const float*)A + k * A_hstep + (i + ii) * 4;
+        const float* p0 = (const float*)A + k * A_hstep + (i + ii);
 
-            int kk = 0;
-            for (; kk + 3 < max_kk; kk += 4)
-            {
-                uint16x4x2_t _r01;
-                _r01.val[0] = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p0));
-                _r01.val[1] = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p0 + 4));
-                vst2_u16(pp, _r01);
-                pp += 8;
-                p0 += A_hstep * 4;
-            }
-        }
-        if (elempack == 1)
+        int kk = 0;
+        for (; kk < max_kk; kk++)
         {
-            const float* p0 = (const float*)A + k * A_hstep + (i + ii);
-
-            int kk = 0;
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = float32_to_float16(p0[0]);
-                pp[1] = float32_to_float16(p0[1]);
-                pp += 2;
-                p0 += A_hstep;
-            }
+            pp[0] = float32_to_float16(p0[0]);
+            pp[1] = float32_to_float16(p0[1]);
+            pp += 2;
+            p0 += A_hstep;
         }
     }
     for (; ii < max_ii; ii += 1)
     {
-        if (elempack == 4)
-        {
-            const float* p0 = (const float*)A + k * A_hstep + (i + ii) * 4;
+        const float* p0 = (const float*)A + k * A_hstep + (i + ii);
 
-            int kk = 0;
-            for (; kk + 3 < max_kk; kk += 4)
-            {
-                uint16x4_t _r0 = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p0));
-                vst1_u16(pp, _r0);
-                pp += 4;
-                p0 += A_hstep * 4;
-            }
-        }
-        if (elempack == 1)
+        int kk = 0;
+        for (; kk < max_kk; kk++)
         {
-            const float* p0 = (const float*)A + k * A_hstep + (i + ii);
-
-            int kk = 0;
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = float32_to_float16(p0[0]);
-                pp += 1;
-                p0 += A_hstep;
-            }
+            pp[0] = float32_to_float16(p0[0]);
+            pp += 1;
+            p0 += A_hstep;
         }
     }
 }
 
 static void pack_B_tile_fp32_to_fp16(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk)
 {
-    const int elempack = B.elempack;
     const int B_hstep = B.dims == 3 ? (int)B.cstep : B.w;
 
     unsigned short* pp = BT;
@@ -390,369 +270,302 @@ static void pack_B_tile_fp32_to_fp16(const Mat& B, Mat& BT, int j, int max_jj, i
     int jj = 0;
     for (; jj + 11 < max_jj; jj += 12)
     {
-        if (elempack == 4)
-        {
-            const float* p0 = (const float*)B + (j + jj) * B_hstep + k * 4;
-            const float* p1 = (const float*)B + (j + jj + 4) * B_hstep + k * 4;
-            const float* p2 = (const float*)B + (j + jj + 8) * B_hstep + k * 4;
+        const float* p0 = (const float*)B + (j + jj) * B_hstep + k;
+        const float* p1 = (const float*)B + (j + jj + 1) * B_hstep + k;
+        const float* p2 = (const float*)B + (j + jj + 2) * B_hstep + k;
+        const float* p3 = (const float*)B + (j + jj + 3) * B_hstep + k;
+        const float* p4 = (const float*)B + (j + jj + 4) * B_hstep + k;
+        const float* p5 = (const float*)B + (j + jj + 5) * B_hstep + k;
+        const float* p6 = (const float*)B + (j + jj + 6) * B_hstep + k;
+        const float* p7 = (const float*)B + (j + jj + 7) * B_hstep + k;
+        const float* p8 = (const float*)B + (j + jj + 8) * B_hstep + k;
+        const float* p9 = (const float*)B + (j + jj + 9) * B_hstep + k;
+        const float* pa = (const float*)B + (j + jj + 10) * B_hstep + k;
+        const float* pb = (const float*)B + (j + jj + 11) * B_hstep + k;
 
-            for (int kk = 0; kk < max_kk; kk++)
-            {
-                vst1_u16(pp, (uint16x4_t)vcvt_f16_f32(vld1q_f32(p0)));
-                vst1_u16(pp + 4, (uint16x4_t)vcvt_f16_f32(vld1q_f32(p1)));
-                vst1_u16(pp + 8, (uint16x4_t)vcvt_f16_f32(vld1q_f32(p2)));
-                pp += 12;
-                p0 += 4;
-                p1 += 4;
-                p2 += 4;
-            }
+        int kk = 0;
+        for (; kk + 3 < max_kk; kk += 4)
+        {
+            uint16x4_t _r0 = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p0));
+            uint16x4_t _r1 = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p1));
+            uint16x4_t _r2 = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p2));
+            uint16x4_t _r3 = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p3));
+            uint16x4_t _r4 = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p4));
+            uint16x4_t _r5 = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p5));
+            uint16x4_t _r6 = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p6));
+            uint16x4_t _r7 = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p7));
+            uint16x4_t _r8 = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p8));
+            uint16x4_t _r9 = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p9));
+            uint16x4_t _ra = (uint16x4_t)vcvt_f16_f32(vld1q_f32(pa));
+            uint16x4_t _rb = (uint16x4_t)vcvt_f16_f32(vld1q_f32(pb));
+
+            transpose4x4_u16(_r0, _r1, _r2, _r3);
+            transpose4x4_u16(_r4, _r5, _r6, _r7);
+            transpose4x4_u16(_r8, _r9, _ra, _rb);
+
+            vst1_u16(pp, _r0);
+            vst1_u16(pp + 4, _r4);
+            vst1_u16(pp + 4 * 2, _r8);
+            vst1_u16(pp + 4 * 3, _r1);
+            vst1_u16(pp + 4 * 4, _r5);
+            vst1_u16(pp + 4 * 5, _r9);
+            vst1_u16(pp + 4 * 6, _r2);
+            vst1_u16(pp + 4 * 7, _r6);
+            vst1_u16(pp + 4 * 8, _ra);
+            vst1_u16(pp + 4 * 9, _r3);
+            vst1_u16(pp + 4 * 10, _r7);
+            vst1_u16(pp + 4 * 11, _rb);
+            pp += 48;
+            p0 += 4;
+            p1 += 4;
+            p2 += 4;
+            p3 += 4;
+            p4 += 4;
+            p5 += 4;
+            p6 += 4;
+            p7 += 4;
+            p8 += 4;
+            p9 += 4;
+            pa += 4;
+            pb += 4;
         }
-        if (elempack == 1)
+        for (; kk < max_kk; kk++)
         {
-            const float* p0 = (const float*)B + (j + jj) * B_hstep + k;
-            const float* p1 = (const float*)B + (j + jj + 1) * B_hstep + k;
-            const float* p2 = (const float*)B + (j + jj + 2) * B_hstep + k;
-            const float* p3 = (const float*)B + (j + jj + 3) * B_hstep + k;
-            const float* p4 = (const float*)B + (j + jj + 4) * B_hstep + k;
-            const float* p5 = (const float*)B + (j + jj + 5) * B_hstep + k;
-            const float* p6 = (const float*)B + (j + jj + 6) * B_hstep + k;
-            const float* p7 = (const float*)B + (j + jj + 7) * B_hstep + k;
-            const float* p8 = (const float*)B + (j + jj + 8) * B_hstep + k;
-            const float* p9 = (const float*)B + (j + jj + 9) * B_hstep + k;
-            const float* pa = (const float*)B + (j + jj + 10) * B_hstep + k;
-            const float* pb = (const float*)B + (j + jj + 11) * B_hstep + k;
-
-            int kk = 0;
-            for (; kk + 3 < max_kk; kk += 4)
-            {
-                uint16x4_t _r0 = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p0));
-                uint16x4_t _r1 = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p1));
-                uint16x4_t _r2 = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p2));
-                uint16x4_t _r3 = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p3));
-                uint16x4_t _r4 = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p4));
-                uint16x4_t _r5 = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p5));
-                uint16x4_t _r6 = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p6));
-                uint16x4_t _r7 = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p7));
-                uint16x4_t _r8 = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p8));
-                uint16x4_t _r9 = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p9));
-                uint16x4_t _ra = (uint16x4_t)vcvt_f16_f32(vld1q_f32(pa));
-                uint16x4_t _rb = (uint16x4_t)vcvt_f16_f32(vld1q_f32(pb));
-
-                transpose4x4_u16(_r0, _r1, _r2, _r3);
-                transpose4x4_u16(_r4, _r5, _r6, _r7);
-                transpose4x4_u16(_r8, _r9, _ra, _rb);
-
-                vst1_u16(pp, _r0);
-                vst1_u16(pp + 4, _r4);
-                vst1_u16(pp + 4 * 2, _r8);
-                vst1_u16(pp + 4 * 3, _r1);
-                vst1_u16(pp + 4 * 4, _r5);
-                vst1_u16(pp + 4 * 5, _r9);
-                vst1_u16(pp + 4 * 6, _r2);
-                vst1_u16(pp + 4 * 7, _r6);
-                vst1_u16(pp + 4 * 8, _ra);
-                vst1_u16(pp + 4 * 9, _r3);
-                vst1_u16(pp + 4 * 10, _r7);
-                vst1_u16(pp + 4 * 11, _rb);
-                pp += 48;
-                p0 += 4;
-                p1 += 4;
-                p2 += 4;
-                p3 += 4;
-                p4 += 4;
-                p5 += 4;
-                p6 += 4;
-                p7 += 4;
-                p8 += 4;
-                p9 += 4;
-                pa += 4;
-                pb += 4;
-            }
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = float32_to_float16(p0[0]);
-                pp[1] = float32_to_float16(p1[0]);
-                pp[2] = float32_to_float16(p2[0]);
-                pp[3] = float32_to_float16(p3[0]);
-                pp[4] = float32_to_float16(p4[0]);
-                pp[5] = float32_to_float16(p5[0]);
-                pp[6] = float32_to_float16(p6[0]);
-                pp[7] = float32_to_float16(p7[0]);
-                pp[8] = float32_to_float16(p8[0]);
-                pp[9] = float32_to_float16(p9[0]);
-                pp[10] = float32_to_float16(pa[0]);
-                pp[11] = float32_to_float16(pb[0]);
-                pp += 12;
-                p0++;
-                p1++;
-                p2++;
-                p3++;
-                p4++;
-                p5++;
-                p6++;
-                p7++;
-                p8++;
-                p9++;
-                pa++;
-                pb++;
-            }
+            pp[0] = float32_to_float16(p0[0]);
+            pp[1] = float32_to_float16(p1[0]);
+            pp[2] = float32_to_float16(p2[0]);
+            pp[3] = float32_to_float16(p3[0]);
+            pp[4] = float32_to_float16(p4[0]);
+            pp[5] = float32_to_float16(p5[0]);
+            pp[6] = float32_to_float16(p6[0]);
+            pp[7] = float32_to_float16(p7[0]);
+            pp[8] = float32_to_float16(p8[0]);
+            pp[9] = float32_to_float16(p9[0]);
+            pp[10] = float32_to_float16(pa[0]);
+            pp[11] = float32_to_float16(pb[0]);
+            pp += 12;
+            p0++;
+            p1++;
+            p2++;
+            p3++;
+            p4++;
+            p5++;
+            p6++;
+            p7++;
+            p8++;
+            p9++;
+            pa++;
+            pb++;
         }
     }
     for (; jj + 7 < max_jj; jj += 8)
     {
-        if (elempack == 4)
-        {
-            const float* p0 = (const float*)B + (j + jj) * B_hstep + k * 4;
-            const float* p1 = (const float*)B + (j + jj + 4) * B_hstep + k * 4;
+        const float* p0 = (const float*)B + (j + jj) * B_hstep + k;
+        const float* p1 = (const float*)B + (j + jj + 1) * B_hstep + k;
+        const float* p2 = (const float*)B + (j + jj + 2) * B_hstep + k;
+        const float* p3 = (const float*)B + (j + jj + 3) * B_hstep + k;
+        const float* p4 = (const float*)B + (j + jj + 4) * B_hstep + k;
+        const float* p5 = (const float*)B + (j + jj + 5) * B_hstep + k;
+        const float* p6 = (const float*)B + (j + jj + 6) * B_hstep + k;
+        const float* p7 = (const float*)B + (j + jj + 7) * B_hstep + k;
 
-            for (int kk = 0; kk < max_kk; kk++)
-            {
-                uint16x8_t _r0 = vcombine_u16((uint16x4_t)vcvt_f16_f32(vld1q_f32(p0)), (uint16x4_t)vcvt_f16_f32(vld1q_f32(p1)));
-                vst1q_u16(pp, _r0);
-                pp += 8;
-                p0 += 4;
-                p1 += 4;
-            }
+        int kk = 0;
+        for (; kk + 7 < max_kk; kk += 8)
+        {
+            uint16x8_t _r0 = vcombine_u16((uint16x4_t)vcvt_f16_f32(vld1q_f32(p0)), (uint16x4_t)vcvt_f16_f32(vld1q_f32(p0 + 4)));
+            uint16x8_t _r1 = vcombine_u16((uint16x4_t)vcvt_f16_f32(vld1q_f32(p1)), (uint16x4_t)vcvt_f16_f32(vld1q_f32(p1 + 4)));
+            uint16x8_t _r2 = vcombine_u16((uint16x4_t)vcvt_f16_f32(vld1q_f32(p2)), (uint16x4_t)vcvt_f16_f32(vld1q_f32(p2 + 4)));
+            uint16x8_t _r3 = vcombine_u16((uint16x4_t)vcvt_f16_f32(vld1q_f32(p3)), (uint16x4_t)vcvt_f16_f32(vld1q_f32(p3 + 4)));
+            uint16x8_t _r4 = vcombine_u16((uint16x4_t)vcvt_f16_f32(vld1q_f32(p4)), (uint16x4_t)vcvt_f16_f32(vld1q_f32(p4 + 4)));
+            uint16x8_t _r5 = vcombine_u16((uint16x4_t)vcvt_f16_f32(vld1q_f32(p5)), (uint16x4_t)vcvt_f16_f32(vld1q_f32(p5 + 4)));
+            uint16x8_t _r6 = vcombine_u16((uint16x4_t)vcvt_f16_f32(vld1q_f32(p6)), (uint16x4_t)vcvt_f16_f32(vld1q_f32(p6 + 4)));
+            uint16x8_t _r7 = vcombine_u16((uint16x4_t)vcvt_f16_f32(vld1q_f32(p7)), (uint16x4_t)vcvt_f16_f32(vld1q_f32(p7 + 4)));
+            transpose8x8_u16(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
+            vst1q_u16(pp, _r0);
+            vst1q_u16(pp + 8, _r1);
+            vst1q_u16(pp + 8 * 2, _r2);
+            vst1q_u16(pp + 8 * 3, _r3);
+            vst1q_u16(pp + 8 * 4, _r4);
+            vst1q_u16(pp + 8 * 5, _r5);
+            vst1q_u16(pp + 8 * 6, _r6);
+            vst1q_u16(pp + 8 * 7, _r7);
+            pp += 64;
+            p0 += 8;
+            p1 += 8;
+            p2 += 8;
+            p3 += 8;
+            p4 += 8;
+            p5 += 8;
+            p6 += 8;
+            p7 += 8;
         }
-        if (elempack == 1)
+        for (; kk + 3 < max_kk; kk += 4)
         {
-            const float* p0 = (const float*)B + (j + jj) * B_hstep + k;
-            const float* p1 = (const float*)B + (j + jj + 1) * B_hstep + k;
-            const float* p2 = (const float*)B + (j + jj + 2) * B_hstep + k;
-            const float* p3 = (const float*)B + (j + jj + 3) * B_hstep + k;
-            const float* p4 = (const float*)B + (j + jj + 4) * B_hstep + k;
-            const float* p5 = (const float*)B + (j + jj + 5) * B_hstep + k;
-            const float* p6 = (const float*)B + (j + jj + 6) * B_hstep + k;
-            const float* p7 = (const float*)B + (j + jj + 7) * B_hstep + k;
+            uint16x4_t _r0 = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p0));
+            uint16x4_t _r1 = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p1));
+            uint16x4_t _r2 = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p2));
+            uint16x4_t _r3 = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p3));
+            uint16x4_t _r4 = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p4));
+            uint16x4_t _r5 = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p5));
+            uint16x4_t _r6 = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p6));
+            uint16x4_t _r7 = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p7));
 
-            int kk = 0;
-            for (; kk + 7 < max_kk; kk += 8)
-            {
-                uint16x8_t _r0 = vcombine_u16((uint16x4_t)vcvt_f16_f32(vld1q_f32(p0)), (uint16x4_t)vcvt_f16_f32(vld1q_f32(p0 + 4)));
-                uint16x8_t _r1 = vcombine_u16((uint16x4_t)vcvt_f16_f32(vld1q_f32(p1)), (uint16x4_t)vcvt_f16_f32(vld1q_f32(p1 + 4)));
-                uint16x8_t _r2 = vcombine_u16((uint16x4_t)vcvt_f16_f32(vld1q_f32(p2)), (uint16x4_t)vcvt_f16_f32(vld1q_f32(p2 + 4)));
-                uint16x8_t _r3 = vcombine_u16((uint16x4_t)vcvt_f16_f32(vld1q_f32(p3)), (uint16x4_t)vcvt_f16_f32(vld1q_f32(p3 + 4)));
-                uint16x8_t _r4 = vcombine_u16((uint16x4_t)vcvt_f16_f32(vld1q_f32(p4)), (uint16x4_t)vcvt_f16_f32(vld1q_f32(p4 + 4)));
-                uint16x8_t _r5 = vcombine_u16((uint16x4_t)vcvt_f16_f32(vld1q_f32(p5)), (uint16x4_t)vcvt_f16_f32(vld1q_f32(p5 + 4)));
-                uint16x8_t _r6 = vcombine_u16((uint16x4_t)vcvt_f16_f32(vld1q_f32(p6)), (uint16x4_t)vcvt_f16_f32(vld1q_f32(p6 + 4)));
-                uint16x8_t _r7 = vcombine_u16((uint16x4_t)vcvt_f16_f32(vld1q_f32(p7)), (uint16x4_t)vcvt_f16_f32(vld1q_f32(p7 + 4)));
-                transpose8x8_u16(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
-                vst1q_u16(pp, _r0);
-                vst1q_u16(pp + 8, _r1);
-                vst1q_u16(pp + 8 * 2, _r2);
-                vst1q_u16(pp + 8 * 3, _r3);
-                vst1q_u16(pp + 8 * 4, _r4);
-                vst1q_u16(pp + 8 * 5, _r5);
-                vst1q_u16(pp + 8 * 6, _r6);
-                vst1q_u16(pp + 8 * 7, _r7);
-                pp += 64;
-                p0 += 8;
-                p1 += 8;
-                p2 += 8;
-                p3 += 8;
-                p4 += 8;
-                p5 += 8;
-                p6 += 8;
-                p7 += 8;
-            }
-            for (; kk + 3 < max_kk; kk += 4)
-            {
-                uint16x4_t _r0 = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p0));
-                uint16x4_t _r1 = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p1));
-                uint16x4_t _r2 = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p2));
-                uint16x4_t _r3 = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p3));
-                uint16x4_t _r4 = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p4));
-                uint16x4_t _r5 = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p5));
-                uint16x4_t _r6 = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p6));
-                uint16x4_t _r7 = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p7));
+            transpose4x4_u16(_r0, _r1, _r2, _r3);
+            transpose4x4_u16(_r4, _r5, _r6, _r7);
 
-                transpose4x4_u16(_r0, _r1, _r2, _r3);
-                transpose4x4_u16(_r4, _r5, _r6, _r7);
-
-                vst1_u16(pp, _r0);
-                vst1_u16(pp + 4, _r4);
-                vst1_u16(pp + 4 * 2, _r1);
-                vst1_u16(pp + 4 * 3, _r5);
-                vst1_u16(pp + 4 * 4, _r2);
-                vst1_u16(pp + 4 * 5, _r6);
-                vst1_u16(pp + 4 * 6, _r3);
-                vst1_u16(pp + 4 * 7, _r7);
-                pp += 32;
-                p0 += 4;
-                p1 += 4;
-                p2 += 4;
-                p3 += 4;
-                p4 += 4;
-                p5 += 4;
-                p6 += 4;
-                p7 += 4;
-            }
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = float32_to_float16(p0[0]);
-                pp[1] = float32_to_float16(p1[0]);
-                pp[2] = float32_to_float16(p2[0]);
-                pp[3] = float32_to_float16(p3[0]);
-                pp[4] = float32_to_float16(p4[0]);
-                pp[5] = float32_to_float16(p5[0]);
-                pp[6] = float32_to_float16(p6[0]);
-                pp[7] = float32_to_float16(p7[0]);
-                pp += 8;
-                p0++;
-                p1++;
-                p2++;
-                p3++;
-                p4++;
-                p5++;
-                p6++;
-                p7++;
-            }
+            vst1_u16(pp, _r0);
+            vst1_u16(pp + 4, _r4);
+            vst1_u16(pp + 4 * 2, _r1);
+            vst1_u16(pp + 4 * 3, _r5);
+            vst1_u16(pp + 4 * 4, _r2);
+            vst1_u16(pp + 4 * 5, _r6);
+            vst1_u16(pp + 4 * 6, _r3);
+            vst1_u16(pp + 4 * 7, _r7);
+            pp += 32;
+            p0 += 4;
+            p1 += 4;
+            p2 += 4;
+            p3 += 4;
+            p4 += 4;
+            p5 += 4;
+            p6 += 4;
+            p7 += 4;
+        }
+        for (; kk < max_kk; kk++)
+        {
+            pp[0] = float32_to_float16(p0[0]);
+            pp[1] = float32_to_float16(p1[0]);
+            pp[2] = float32_to_float16(p2[0]);
+            pp[3] = float32_to_float16(p3[0]);
+            pp[4] = float32_to_float16(p4[0]);
+            pp[5] = float32_to_float16(p5[0]);
+            pp[6] = float32_to_float16(p6[0]);
+            pp[7] = float32_to_float16(p7[0]);
+            pp += 8;
+            p0++;
+            p1++;
+            p2++;
+            p3++;
+            p4++;
+            p5++;
+            p6++;
+            p7++;
         }
     }
     for (; jj + 3 < max_jj; jj += 4)
     {
-        if (elempack == 4)
-        {
-            const float* p0 = (const float*)B + (j + jj) * B_hstep + k * 4;
+        const float* p0 = (const float*)B + (j + jj) * B_hstep + k;
+        const float* p1 = (const float*)B + (j + jj + 1) * B_hstep + k;
+        const float* p2 = (const float*)B + (j + jj + 2) * B_hstep + k;
+        const float* p3 = (const float*)B + (j + jj + 3) * B_hstep + k;
 
-            int kk = 0;
-            for (; kk + 1 < max_kk; kk += 2)
-            {
-                uint16x8_t _r0 = vcombine_u16((uint16x4_t)vcvt_f16_f32(vld1q_f32(p0)), (uint16x4_t)vcvt_f16_f32(vld1q_f32(p0 + 4)));
-                vst1q_u16(pp, _r0);
-                pp += 8;
-                p0 += 8;
-            }
-            for (; kk < max_kk; kk++)
-            {
-                uint16x4_t _r0 = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p0));
-                vst1_u16(pp, _r0);
-                pp += 4;
-                p0 += 4;
-            }
+        int kk = 0;
+        for (; kk + 7 < max_kk; kk += 8)
+        {
+            uint16x8x4_t _r0123;
+            _r0123.val[0] = vcombine_u16((uint16x4_t)vcvt_f16_f32(vld1q_f32(p0)), (uint16x4_t)vcvt_f16_f32(vld1q_f32(p0 + 4)));
+            _r0123.val[1] = vcombine_u16((uint16x4_t)vcvt_f16_f32(vld1q_f32(p1)), (uint16x4_t)vcvt_f16_f32(vld1q_f32(p1 + 4)));
+            _r0123.val[2] = vcombine_u16((uint16x4_t)vcvt_f16_f32(vld1q_f32(p2)), (uint16x4_t)vcvt_f16_f32(vld1q_f32(p2 + 4)));
+            _r0123.val[3] = vcombine_u16((uint16x4_t)vcvt_f16_f32(vld1q_f32(p3)), (uint16x4_t)vcvt_f16_f32(vld1q_f32(p3 + 4)));
+            vst4q_u16(pp, _r0123);
+            pp += 32;
+            p0 += 8;
+            p1 += 8;
+            p2 += 8;
+            p3 += 8;
         }
-        if (elempack == 1)
+        for (; kk + 3 < max_kk; kk += 4)
         {
-            const float* p0 = (const float*)B + (j + jj) * B_hstep + k;
-            const float* p1 = (const float*)B + (j + jj + 1) * B_hstep + k;
-            const float* p2 = (const float*)B + (j + jj + 2) * B_hstep + k;
-            const float* p3 = (const float*)B + (j + jj + 3) * B_hstep + k;
-
-            int kk = 0;
-            for (; kk + 7 < max_kk; kk += 8)
-            {
-                uint16x8x4_t _r0123;
-                _r0123.val[0] = vcombine_u16((uint16x4_t)vcvt_f16_f32(vld1q_f32(p0)), (uint16x4_t)vcvt_f16_f32(vld1q_f32(p0 + 4)));
-                _r0123.val[1] = vcombine_u16((uint16x4_t)vcvt_f16_f32(vld1q_f32(p1)), (uint16x4_t)vcvt_f16_f32(vld1q_f32(p1 + 4)));
-                _r0123.val[2] = vcombine_u16((uint16x4_t)vcvt_f16_f32(vld1q_f32(p2)), (uint16x4_t)vcvt_f16_f32(vld1q_f32(p2 + 4)));
-                _r0123.val[3] = vcombine_u16((uint16x4_t)vcvt_f16_f32(vld1q_f32(p3)), (uint16x4_t)vcvt_f16_f32(vld1q_f32(p3 + 4)));
-                vst4q_u16(pp, _r0123);
-                pp += 32;
-                p0 += 8;
-                p1 += 8;
-                p2 += 8;
-                p3 += 8;
-            }
-            for (; kk + 3 < max_kk; kk += 4)
-            {
-                uint16x4x4_t _r0123;
-                _r0123.val[0] = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p0));
-                _r0123.val[1] = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p1));
-                _r0123.val[2] = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p2));
-                _r0123.val[3] = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p3));
-                vst4_u16(pp, _r0123);
-                pp += 16;
-                p0 += 4;
-                p1 += 4;
-                p2 += 4;
-                p3 += 4;
-            }
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = float32_to_float16(p0[0]);
-                pp[1] = float32_to_float16(p1[0]);
-                pp[2] = float32_to_float16(p2[0]);
-                pp[3] = float32_to_float16(p3[0]);
-                pp += 4;
-                p0++;
-                p1++;
-                p2++;
-                p3++;
-            }
+            uint16x4x4_t _r0123;
+            _r0123.val[0] = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p0));
+            _r0123.val[1] = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p1));
+            _r0123.val[2] = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p2));
+            _r0123.val[3] = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p3));
+            vst4_u16(pp, _r0123);
+            pp += 16;
+            p0 += 4;
+            p1 += 4;
+            p2 += 4;
+            p3 += 4;
+        }
+        for (; kk < max_kk; kk++)
+        {
+            pp[0] = float32_to_float16(p0[0]);
+            pp[1] = float32_to_float16(p1[0]);
+            pp[2] = float32_to_float16(p2[0]);
+            pp[3] = float32_to_float16(p3[0]);
+            pp += 4;
+            p0++;
+            p1++;
+            p2++;
+            p3++;
         }
     }
     for (; jj + 1 < max_jj; jj += 2)
     {
-        // if (elempack == 1)
-        {
-            const float* p0 = (const float*)B + (j + jj) * B_hstep + k;
-            const float* p1 = (const float*)B + (j + jj + 1) * B_hstep + k;
+        const float* p0 = (const float*)B + (j + jj) * B_hstep + k;
+        const float* p1 = (const float*)B + (j + jj + 1) * B_hstep + k;
 
-            int kk = 0;
-            for (; kk + 7 < max_kk; kk += 8)
-            {
-                uint16x8x2_t _r01;
-                _r01.val[0] = vcombine_u16((uint16x4_t)vcvt_f16_f32(vld1q_f32(p0)), (uint16x4_t)vcvt_f16_f32(vld1q_f32(p0 + 4)));
-                _r01.val[1] = vcombine_u16((uint16x4_t)vcvt_f16_f32(vld1q_f32(p1)), (uint16x4_t)vcvt_f16_f32(vld1q_f32(p1 + 4)));
-                vst2q_u16(pp, _r01);
-                pp += 16;
-                p0 += 8;
-                p1 += 8;
-            }
-            for (; kk + 3 < max_kk; kk += 4)
-            {
-                uint16x4x2_t _r01;
-                _r01.val[0] = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p0));
-                _r01.val[1] = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p1));
-                vst2_u16(pp, _r01);
-                pp += 8;
-                p0 += 4;
-                p1 += 4;
-            }
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = float32_to_float16(p0[0]);
-                pp[1] = float32_to_float16(p1[0]);
-                pp += 2;
-                p0++;
-                p1++;
-            }
+        int kk = 0;
+        for (; kk + 7 < max_kk; kk += 8)
+        {
+            uint16x8x2_t _r01;
+            _r01.val[0] = vcombine_u16((uint16x4_t)vcvt_f16_f32(vld1q_f32(p0)), (uint16x4_t)vcvt_f16_f32(vld1q_f32(p0 + 4)));
+            _r01.val[1] = vcombine_u16((uint16x4_t)vcvt_f16_f32(vld1q_f32(p1)), (uint16x4_t)vcvt_f16_f32(vld1q_f32(p1 + 4)));
+            vst2q_u16(pp, _r01);
+            pp += 16;
+            p0 += 8;
+            p1 += 8;
+        }
+        for (; kk + 3 < max_kk; kk += 4)
+        {
+            uint16x4x2_t _r01;
+            _r01.val[0] = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p0));
+            _r01.val[1] = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p1));
+            vst2_u16(pp, _r01);
+            pp += 8;
+            p0 += 4;
+            p1 += 4;
+        }
+        for (; kk < max_kk; kk++)
+        {
+            pp[0] = float32_to_float16(p0[0]);
+            pp[1] = float32_to_float16(p1[0]);
+            pp += 2;
+            p0++;
+            p1++;
         }
     }
     for (; jj < max_jj; jj += 1)
     {
-        // if (elempack == 1)
-        {
-            const float* p0 = (const float*)B + (j + jj) * B_hstep + k;
+        const float* p0 = (const float*)B + (j + jj) * B_hstep + k;
 
-            int kk = 0;
-            for (; kk + 7 < max_kk; kk += 8)
-            {
-                uint16x8_t _r0 = vcombine_u16((uint16x4_t)vcvt_f16_f32(vld1q_f32(p0)), (uint16x4_t)vcvt_f16_f32(vld1q_f32(p0 + 4)));
-                vst1q_u16(pp, _r0);
-                pp += 8;
-                p0 += 8;
-            }
-            for (; kk + 3 < max_kk; kk += 4)
-            {
-                uint16x4_t _r0 = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p0));
-                vst1_u16(pp, _r0);
-                pp += 4;
-                p0 += 4;
-            }
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = float32_to_float16(p0[0]);
-                pp += 1;
-                p0++;
-            }
+        int kk = 0;
+        for (; kk + 7 < max_kk; kk += 8)
+        {
+            uint16x8_t _r0 = vcombine_u16((uint16x4_t)vcvt_f16_f32(vld1q_f32(p0)), (uint16x4_t)vcvt_f16_f32(vld1q_f32(p0 + 4)));
+            vst1q_u16(pp, _r0);
+            pp += 8;
+            p0 += 8;
+        }
+        for (; kk + 3 < max_kk; kk += 4)
+        {
+            uint16x4_t _r0 = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p0));
+            vst1_u16(pp, _r0);
+            pp += 4;
+            p0 += 4;
+        }
+        for (; kk < max_kk; kk++)
+        {
+            pp[0] = float32_to_float16(p0[0]);
+            pp += 1;
+            p0++;
         }
     }
 }
 
 static void transpose_pack_B_tile_fp32_to_fp16(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk)
 {
-    const int elempack = B.elempack;
     const int B_hstep = B.dims == 3 ? (int)B.cstep : B.w;
 
     unsigned short* pp = BT;
@@ -760,167 +573,67 @@ static void transpose_pack_B_tile_fp32_to_fp16(const Mat& B, Mat& BT, int j, int
     int jj = 0;
     for (; jj + 11 < max_jj; jj += 12)
     {
-        if (elempack == 4)
-        {
-            const float* p0 = (const float*)B + k * B_hstep + (j + jj) * 4;
+        const float* p0 = (const float*)B + k * B_hstep + (j + jj);
 
-            int kk = 0;
-            for (; kk + 3 < max_kk; kk += 4)
-            {
-                float32x4x4_t _r0123 = vld4q_f32(p0);
-                float32x4x4_t _r4567 = vld4q_f32(p0 + 16);
-                float32x4x4_t _r89ab = vld4q_f32(p0 + 32);
-                vst1_u16(pp, (uint16x4_t)vcvt_f16_f32(_r0123.val[0]));
-                vst1_u16(pp + 4, (uint16x4_t)vcvt_f16_f32(_r4567.val[0]));
-                vst1_u16(pp + 4 * 2, (uint16x4_t)vcvt_f16_f32(_r89ab.val[0]));
-                vst1_u16(pp + 4 * 3, (uint16x4_t)vcvt_f16_f32(_r0123.val[1]));
-                vst1_u16(pp + 4 * 4, (uint16x4_t)vcvt_f16_f32(_r4567.val[1]));
-                vst1_u16(pp + 4 * 5, (uint16x4_t)vcvt_f16_f32(_r89ab.val[1]));
-                vst1_u16(pp + 4 * 6, (uint16x4_t)vcvt_f16_f32(_r0123.val[2]));
-                vst1_u16(pp + 4 * 7, (uint16x4_t)vcvt_f16_f32(_r4567.val[2]));
-                vst1_u16(pp + 4 * 8, (uint16x4_t)vcvt_f16_f32(_r89ab.val[2]));
-                vst1_u16(pp + 4 * 9, (uint16x4_t)vcvt_f16_f32(_r0123.val[3]));
-                vst1_u16(pp + 4 * 10, (uint16x4_t)vcvt_f16_f32(_r4567.val[3]));
-                vst1_u16(pp + 4 * 11, (uint16x4_t)vcvt_f16_f32(_r89ab.val[3]));
-                pp += 48;
-                p0 += B_hstep * 4;
-            }
-        }
-        if (elempack == 1)
+        int kk = 0;
+        for (; kk < max_kk; kk++)
         {
-            const float* p0 = (const float*)B + k * B_hstep + (j + jj);
-
-            int kk = 0;
-            for (; kk < max_kk; kk++)
-            {
-                vst1_u16(pp, (uint16x4_t)vcvt_f16_f32(vld1q_f32(p0)));
-                vst1_u16(pp + 4, (uint16x4_t)vcvt_f16_f32(vld1q_f32(p0 + 4)));
-                vst1_u16(pp + 8, (uint16x4_t)vcvt_f16_f32(vld1q_f32(p0 + 8)));
-                pp += 12;
-                p0 += B_hstep;
-            }
+            vst1_u16(pp, (uint16x4_t)vcvt_f16_f32(vld1q_f32(p0)));
+            vst1_u16(pp + 4, (uint16x4_t)vcvt_f16_f32(vld1q_f32(p0 + 4)));
+            vst1_u16(pp + 8, (uint16x4_t)vcvt_f16_f32(vld1q_f32(p0 + 8)));
+            pp += 12;
+            p0 += B_hstep;
         }
     }
     for (; jj + 7 < max_jj; jj += 8)
     {
-        if (elempack == 4)
-        {
-            const float* p0 = (const float*)B + k * B_hstep + (j + jj) * 4;
+        const float* p0 = (const float*)B + k * B_hstep + (j + jj);
 
-            int kk = 0;
-            for (; kk + 3 < max_kk; kk += 4)
-            {
-                float32x4x4_t _r0123 = vld4q_f32(p0);
-                float32x4x4_t _r4567 = vld4q_f32(p0 + 16);
-                vst1q_u16(pp, vcombine_u16((uint16x4_t)vcvt_f16_f32(_r0123.val[0]), (uint16x4_t)vcvt_f16_f32(_r4567.val[0])));
-                vst1q_u16(pp + 8, vcombine_u16((uint16x4_t)vcvt_f16_f32(_r0123.val[1]), (uint16x4_t)vcvt_f16_f32(_r4567.val[1])));
-                vst1q_u16(pp + 16, vcombine_u16((uint16x4_t)vcvt_f16_f32(_r0123.val[2]), (uint16x4_t)vcvt_f16_f32(_r4567.val[2])));
-                vst1q_u16(pp + 24, vcombine_u16((uint16x4_t)vcvt_f16_f32(_r0123.val[3]), (uint16x4_t)vcvt_f16_f32(_r4567.val[3])));
-                pp += 32;
-                p0 += B_hstep * 4;
-            }
-        }
-        if (elempack == 1)
+        int kk = 0;
+        for (; kk < max_kk; kk++)
         {
-            const float* p0 = (const float*)B + k * B_hstep + (j + jj);
-
-            int kk = 0;
-            for (; kk < max_kk; kk++)
-            {
-                uint16x8_t _r0 = vcombine_u16((uint16x4_t)vcvt_f16_f32(vld1q_f32(p0)), (uint16x4_t)vcvt_f16_f32(vld1q_f32(p0 + 4)));
-                vst1q_u16(pp, _r0);
-                pp += 8;
-                p0 += B_hstep;
-            }
+            uint16x8_t _r0 = vcombine_u16((uint16x4_t)vcvt_f16_f32(vld1q_f32(p0)), (uint16x4_t)vcvt_f16_f32(vld1q_f32(p0 + 4)));
+            vst1q_u16(pp, _r0);
+            pp += 8;
+            p0 += B_hstep;
         }
     }
     for (; jj + 3 < max_jj; jj += 4)
     {
-        if (elempack == 4)
-        {
-            const float* p0 = (const float*)B + k * B_hstep + (j + jj) * 4;
+        const float* p0 = (const float*)B + k * B_hstep + (j + jj);
 
-            int kk = 0;
-            for (; kk + 3 < max_kk; kk += 4)
-            {
-                float32x4x4_t _r0123 = vld4q_f32(p0);
-                vst1q_u16(pp, vcombine_u16((uint16x4_t)vcvt_f16_f32(_r0123.val[0]), (uint16x4_t)vcvt_f16_f32(_r0123.val[1])));
-                vst1q_u16(pp + 8, vcombine_u16((uint16x4_t)vcvt_f16_f32(_r0123.val[2]), (uint16x4_t)vcvt_f16_f32(_r0123.val[3])));
-                pp += 16;
-                p0 += B_hstep * 4;
-            }
-        }
-        if (elempack == 1)
+        int kk = 0;
+        for (; kk < max_kk; kk++)
         {
-            const float* p0 = (const float*)B + k * B_hstep + (j + jj);
-
-            int kk = 0;
-            for (; kk < max_kk; kk++)
-            {
-                uint16x4_t _r0 = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p0));
-                vst1_u16(pp, _r0);
-                pp += 4;
-                p0 += B_hstep;
-            }
+            uint16x4_t _r0 = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p0));
+            vst1_u16(pp, _r0);
+            pp += 4;
+            p0 += B_hstep;
         }
     }
     for (; jj + 1 < max_jj; jj += 2)
     {
-        if (elempack == 4)
-        {
-            const float* p0 = (const float*)B + k * B_hstep + (j + jj) * 4;
+        const float* p0 = (const float*)B + k * B_hstep + (j + jj);
 
-            int kk = 0;
-            for (; kk + 3 < max_kk; kk += 4)
-            {
-                uint16x4x2_t _r01;
-                _r01.val[0] = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p0));
-                _r01.val[1] = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p0 + 4));
-                vst2_u16(pp, _r01);
-                pp += 8;
-                p0 += B_hstep * 4;
-            }
-        }
-        if (elempack == 1)
+        int kk = 0;
+        for (; kk < max_kk; kk++)
         {
-            const float* p0 = (const float*)B + k * B_hstep + (j + jj);
-
-            int kk = 0;
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = float32_to_float16(p0[0]);
-                pp[1] = float32_to_float16(p0[1]);
-                pp += 2;
-                p0 += B_hstep;
-            }
+            pp[0] = float32_to_float16(p0[0]);
+            pp[1] = float32_to_float16(p0[1]);
+            pp += 2;
+            p0 += B_hstep;
         }
     }
     for (; jj < max_jj; jj += 1)
     {
-        if (elempack == 4)
-        {
-            const float* p0 = (const float*)B + k * B_hstep + (j + jj) * 4;
+        const float* p0 = (const float*)B + k * B_hstep + (j + jj);
 
-            int kk = 0;
-            for (; kk + 3 < max_kk; kk += 4)
-            {
-                uint16x4_t _r0 = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p0));
-                vst1_u16(pp, _r0);
-                pp += 4;
-                p0 += B_hstep * 4;
-            }
-        }
-        if (elempack == 1)
+        int kk = 0;
+        for (; kk < max_kk; kk++)
         {
-            const float* p0 = (const float*)B + k * B_hstep + (j + jj);
-
-            int kk = 0;
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = float32_to_float16(p0[0]);
-                pp += 1;
-                p0 += B_hstep;
-            }
+            pp[0] = float32_to_float16(p0[0]);
+            pp += 1;
+            p0 += B_hstep;
         }
     }
 }
