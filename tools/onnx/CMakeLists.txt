@@ -9,6 +9,9 @@ if(PROTOBUF_FOUND)
             ${PROTOBUF_INCLUDE_DIR}
             ${CMAKE_CURRENT_BINARY_DIR})
     target_link_libraries(onnx2ncnn PRIVATE ${PROTOBUF_LIBRARIES})
+    if (EMSCRIPTEN AND NCNN_EMSCRIPTEN_MODULARIZE)
+        set_target_properties(onnx2ncnn PROPERTIES LINK_FLAGS "-s 'EXPORT_NAME=\"create_onnx2ncnn\"'")
+    endif()
 
     # add all onnx2ncnn tool to a virtual project group
     set_property(TARGET onnx2ncnn PROPERTY FOLDER "tools/converter")

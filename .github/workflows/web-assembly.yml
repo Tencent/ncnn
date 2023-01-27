@@ -31,12 +31,83 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
-    - name: emsdk
+    - name: Install emsdk 3.1.9
       run: |
         git clone https://github.com/emscripten-core/emsdk.git
         cd emsdk
+        ./emsdk install 3.1.9
+        ./emsdk activate 3.1.9
+    - name: Clone protobuf
+      uses: actions/checkout@v3
+      with:
+        repository: protocolbuffers/protobuf
+        ref: v3.11.4
+        submodules: recursive
+        path: protobuf
+    - name: Build protobuf for tools
+      run: |
+        # The installation of protobuf requires us to build all targets, but 
+        # emscripten fails to build some of them.
+        # So we build and install protobuf in native compilation mode firstly,
+        # and then build and copy wasm protobuf libs to the installed directory.
+        cd protobuf
+        mkdir build && cd build
+        cmake -DCMAKE_BUILD_TYPE=Release ../cmake
+        cmake --build . -j 2
+        cmake -DCMAKE_INSTALL_PREFIX=install -P cmake_install.cmake
+        cd .. && mkdir build-wasm-lib && cd build-wasm-lib
+        source ../../emsdk/emsdk_env.sh
+        cmake -DCMAKE_TOOLCHAIN_FILE=../../emsdk/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake -Dprotobuf_BUILD_PROTOC_BINARIES=OFF -Dprotobuf_BUILD_TESTS=OFF -DCMAKE_BUILD_TYPE=Release ../cmake
+        cmake --build . -j 2
+        cp libprotobuf.a libprotobuf-lite.a ../build/install/lib/
+    - name: Build tools
+      run: |
+        source emsdk/emsdk_env.sh
+        mkdir build-tools && cd build-tools
+        cmake -DCMAKE_TOOLCHAIN_FILE=../emsdk/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake -DNCNN_EMSCRIPTEN_MODULARIZE=ON -DNCNN_SSE2=OFF -DNCNN_BUILD_TOOLS=ON -DCMAKE_FIND_ROOT_PATH=$GITHUB_WORKSPACE/protobuf/build/install -DCMAKE_PREFIX_PATH=$GITHUB_WORKSPACE/protobuf/build/install -DCMAKE_BUILD_TYPE=Release ..
+        cmake --build . -j 2
+    - name: Upload tools as artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        path: |
+          build-tools/tools/**/*.wasm
+          build-tools/tools/**/*.js
+    - name: Uplaod tools to convertmodel.com
+      if: ${{ github.ref == 'refs/heads/master' }}
+      run: |
+        wget https://gosspublic.alicdn.com/ossutil/1.7.14/ossutil64
+        chmod 755 ossutil64
+        echo "[Credentials]" >> ~/.ossutilconfig
+        echo "language=EN" >> ~/.ossutilconfig
+        echo "endpoint=oss-cn-beijing.aliyuncs.com" >> ~/.ossutilconfig
+        echo "accessKeyID=${{ secrets.OSS_ACCESS_KEY }}" >> ~/.ossutilconfig
+        echo "accessKeySecret=${{ secrets.OSS_SECRET_KEY }}" >> ~/.ossutilconfig
+
+        function upload_js_wasm {
+          pushd $1
+          js=$2.js
+          wasm=$2.wasm
+          zipped_wasm=$2_gz.wasm
+          gzip -c -9 $wasm > $zipped_wasm
+          ./ossutil64 --config-file ~/.ossutilconfig cp -u $zipped_wasm oss://converter-web/$wasm --meta=Content-Type:application/wasm#Content-Encoding:gzip
+          ./ossutil64 --config-file ~/.ossutilconfig cp -u $js oss://converter-web/
+          popd
+        }
+
+        upload_js_wasm build-tools/tools/onnx    onnx2ncnn
+        upload_js_wasm build-tools/tools/caffe   caffe2ncnn
+        upload_js_wasm build-tools/tools/mxnet   mxnet2ncnn
+        upload_js_wasm build-tools/tools/darknet darknet2ncnn
+        upload_js_wasm build-tools/tools         ncnnoptimize
+        upload_js_wasm build-tools/tools         ncnnmerge
+        upload_js_wasm build-tools/tools         ncnn2mem
+        
+    - name: Install emsdk 2.0.8
+      run: |
+        cd emsdk
         ./emsdk install 2.0.8
         ./emsdk activate 2.0.8
+
     - name: build-basic
       run: |
         source emsdk/emsdk_env.sh

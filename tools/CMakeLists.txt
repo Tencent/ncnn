@@ -37,6 +37,12 @@ endif()
 
 add_executable(ncnnmerge ncnnmerge.cpp)
 
+if (EMSCRIPTEN AND NCNN_EMSCRIPTEN_MODULARIZE)
+    set_target_properties(ncnn2mem PROPERTIES LINK_FLAGS "-s 'EXPORT_NAME=\"create_ncnn2mem\"'")
+    set_target_properties(ncnnoptimize PROPERTIES LINK_FLAGS "-s 'EXPORT_NAME=\"create_ncnnoptimize\"'")
+    set_target_properties(ncnnmerge PROPERTIES LINK_FLAGS "-s 'EXPORT_NAME=\"create_ncnnmerge\"'")
+endif()
+
 # add all tools to a virtual project group
 set_property(TARGET ncnn2mem PROPERTY FOLDER "tools")
 set_property(TARGET ncnnoptimize PROPERTY FOLDER "tools")
