@@ -1,22 +1,26 @@
 ### Git clone ncnn repo with submodule
 
 ```
-$ git clone https://github.com/Tencent/ncnn.git
-$ cd ncnn
-$ git submodule update --init
+git clone https://github.com/Tencent/ncnn.git
+cd ncnn
+git submodule update --init
 ```
 
-* [Build for Linux / NVIDIA Jetson / Raspberry Pi](#build-for-linux)
-* [Build for Windows x64 using VS2017](#build-for-windows-x64-using-visual-studio-community-2017)
-* [Build for macOS](#build-for-macos)
-* [Build for ARM Cortex-A family with cross-compiling](#build-for-arm-cortex-a-family-with-cross-compiling)
-* [Build for Hisilicon platform with cross-compiling](#build-for-hisilicon-platform-with-cross-compiling)
-* [Build for Android](#build-for-android)
-* [Build for iOS on macOS with xcode](#build-for-ios-on-macos-with-xcode)
-* [Build for WebAssembly](#build-for-webassembly)
-* [Build for AllWinner D1](#build-for-allwinner-d1)
-* [Build for Loongson 2K1000](#build-for-loongson-2k1000)
-* [Build for Termux on Android](#Build-for-Termux-on-Android)
+- [Git clone ncnn repo with submodule](#git-clone-ncnn-repo-with-submodule)
+- [Build for Linux](#build-for-linux)
+  - [Nvidia Jetson](#nvidia-jetson)
+  - [Raspberry Pi](#raspberry-pi)
+  - [Verification](#verification)
+- [Build for Windows x64 using Visual Studio Community 2017](#build-for-windows-x64-using-visual-studio-community-2017)
+- [Build for macOS](#build-for-macos)
+- [Build for ARM Cortex-A family with cross-compiling](#build-for-arm-cortex-a-family-with-cross-compiling)
+- [Build for Hisilicon platform with cross-compiling](#build-for-hisilicon-platform-with-cross-compiling)
+- [Build for Android](#build-for-android)
+- [Build for iOS on macOS with xcode](#build-for-ios-on-macos-with-xcode)
+- [Build for WebAssembly](#build-for-webassembly)
+- [Build for AllWinner D1](#build-for-allwinner-d1)
+- [Build for Loongson 2K1000](#build-for-loongson-2k1000)
+- [Build for Termux on Android](#build-for-termux-on-android)
 
 ***
 
