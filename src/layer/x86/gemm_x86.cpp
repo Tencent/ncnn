@@ -133,7 +133,7 @@ static void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max
                 __m512 _rf = _mm512_loadu_ps(pf);
                 transpose16x16_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7, _r8, _r9, _ra, _rb, _rc, _rd, _re, _rf);
                 _mm512_store_ps(pp, _r0);
-                _mm512_store_ps(pp + 16 * 1, _r1);
+                _mm512_store_ps(pp + 16, _r1);
                 _mm512_store_ps(pp + 16 * 2, _r2);
                 _mm512_store_ps(pp + 16 * 3, _r3);
                 _mm512_store_ps(pp + 16 * 4, _r4);
@@ -1170,33 +1170,72 @@ static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max
         if (elempack == 16)
         {
             const float* p0 = (const float*)B + (j + jj) / 16 * 16 * B_hstep + k * 16;
+            const float* p1 = (const float*)B + ((j + jj) / 16 * 16 + 16) * B_hstep + k * 16;
 
-            // (j + jj) % 16 == 8
-            for (int kk = 0; kk < max_kk; kk++)
+            if ((j + jj) % 16 == 0)
             {
-                pp[0] = p0[8];
-                pp[1] = p0[9];
-                pp[2] = p0[10];
-                pp[3] = p0[11];
-                pp[4] = p0[12];
-                pp[5] = p0[13];
-                pp[6] = p0[14];
-                pp[7] = p0[15];
-                pp += 8;
-                p0 += 16;
+                for (int kk = 0; kk < max_kk; kk++)
+                {
+                    _mm256_storeu_ps(pp, _mm256_load_ps(p0));
+                    pp += 8;
+                    p0 += 16;
+                }
+            }
+            if ((j + jj) % 16 == 4)
+            {
+                for (int kk = 0; kk < max_kk; kk++)
+                {
+                    _mm256_storeu_ps(pp, _mm256_loadu_ps(p0 + 4));
+                    pp += 8;
+                    p0 += 16;
+                }
+            }
+            if ((j + jj) % 16 == 8)
+            {
+                for (int kk = 0; kk < max_kk; kk++)
+                {
+                    _mm256_storeu_ps(pp, _mm256_load_ps(p0 + 8));
+                    pp += 8;
+                    p0 += 16;
+                }
+            }
+            if ((j + jj) % 16 == 12)
+            {
+                for (int kk = 0; kk < max_kk; kk++)
+                {
+                    _mm_store_ps(pp, _mm_load_ps(p0 + 12));
+                    _mm_store_ps(pp + 4, _mm_load_ps(p1));
+                    pp += 8;
+                    p0 += 16;
+                    p1 += 16;
+                }
             }
         }
 #endif // __AVX512F__
         if (elempack == 8)
         {
             const float* p0 = (const float*)B + (j + jj) / 8 * 8 * B_hstep + k * 8;
+            const float* p1 = (const float*)B + (j + jj + 8) / 8 * 8 * B_hstep + k * 8;
 
-            // (j + jj) % 8 == 0
-            for (int kk = 0; kk < max_kk; kk++)
+            if ((j + jj) % 8 == 0)
             {
-                _mm256_storeu_ps(pp, _mm256_load_ps(p0));
-                pp += 8;
-                p0 += 8;
+                for (int kk = 0; kk < max_kk; kk++)
+                {
+                    _mm256_storeu_ps(pp, _mm256_load_ps(p0));
+                    pp += 8;
+                    p0 += 8;
+                }
+            }
+            if ((j + jj) % 8 == 4)
+            {
+                for (int kk = 0; kk < max_kk; kk++)
+                {
+                    _mm_store_ps(pp, _mm_load_ps(p0 + 4));
+                    _mm_store_ps(pp + 4, _mm_load_ps(p1));
+                    pp += 8;
+                    p0 += 8;
+                    p1 += 8;
+                }
             }
         }
 #endif // __AVX__
@@ -1317,15 +1356,41 @@ static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max
         {
             const float* p0 = (const float*)B + (j + jj) / 16 * 16 * B_hstep + k * 16;
 
-            // (j + jj) % 16 == 12
-            for (int kk = 0; kk < max_kk; kk++)
+            if ((j + jj) % 16 == 0)
             {
-                pp[0] = p0[12];
-                pp[1] = p0[13];
-                pp[2] = p0[14];
-                pp[3] = p0[15];
-                pp += 4;
-                p0 += 16;
+                for (int kk = 0; kk < max_kk; kk++)
+                {
+                    _mm_store_ps(pp, _mm_load_ps(p0));
+                    pp += 4;
+                    p0 += 16;
+                }
+            }
+            if ((j + jj) % 16 == 4)
+            {
+                for (int kk = 0; kk < max_kk; kk++)
+                {
+                    _mm_store_ps(pp, _mm_load_ps(p0 + 4));
+                    pp += 4;
+                    p0 += 16;
+                }
+            }
+            if ((j + jj) % 16 == 8)
+            {
+                for (int kk = 0; kk < max_kk; kk++)
+                {
+                    _mm_store_ps(pp, _mm_load_ps(p0 + 8));
+                    pp += 4;
+                    p0 += 16;
+                }
+            }
+            if ((j + jj) % 16 == 12)
+            {
+                for (int kk = 0; kk < max_kk; kk++)
+                {
+                    _mm_store_ps(pp, _mm_load_ps(p0 + 12));
+                    pp += 4;
+                    p0 += 16;
+                }
             }
         }
 #endif // __AVX512F__
@@ -1333,12 +1398,23 @@ static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max
         {
             const float* p0 = (const float*)B + (j + jj) / 8 * 8 * B_hstep + k * 8;
 
-            // (j + jj) % 8 == 4
-            for (int kk = 0; kk < max_kk; kk++)
+            if ((j + jj) % 8 == 0)
             {
-                _mm_store_ps(pp, _mm_load_ps(p0 + 4));
-                pp += 4;
-                p0 += 8;
+                for (int kk = 0; kk < max_kk; kk++)
+                {
+                    _mm_store_ps(pp, _mm_load_ps(p0));
+                    pp += 4;
+                    p0 += 8;
+                }
+            }
+            if ((j + jj) % 8 == 4)
+            {
+                for (int kk = 0; kk < max_kk; kk++)
+                {
+                    _mm_store_ps(pp, _mm_load_ps(p0 + 4));
+                    pp += 4;
+                    p0 += 8;
+                }
             }
         }
 #endif // __AVX__
@@ -1945,16 +2021,1544 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
     }
 }
 
-static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, const Mat& C, Mat& top_blob, int broadcast_type_C, Mat& tmp, int i, int max_ii, int j, int max_jj, int k, int max_kk, bool k_end)
+static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, int max_ii, int j, int max_jj)
 {
     const int out_elempack = top_blob.elempack;
-    const int N = top_blob.w;
-    const int out_hstep = top_blob.dims == 3 ? (int)top_blob.cstep : N;
+    const int out_hstep = top_blob.dims == 3 ? (int)top_blob.cstep : top_blob.w;
 
-    const float* pA0 = AT_tile;
-    const float* pB0 = BT_tile;
+    const float* pp = topT;
 
-    float* ptmp = tmp;
+    int ii = 0;
+#if __SSE2__
+#if __AVX__
+#if __AVX512F__
+    for (; ii + 15 < max_ii; ii += 16)
+    {
+        if (out_elempack == 16)
+        {
+            float* p0 = (float*)top_blob + (j / 16 * 16) * out_hstep + (i + ii) * 16;
+
+            int jj = 0;
+            if (j % 16 == 4)
+            {
+                __m512 _r0 = _mm512_load_ps(pp);
+                __m512 _r1 = _mm512_load_ps(pp + 16);
+                __m512 _r2 = _mm512_load_ps(pp + 16 * 2);
+                __m512 _r3 = _mm512_load_ps(pp + 16 * 3);
+                if (max_jj > 4)
+                {
+                    // assert max_jj > 8
+                    __m512 _r4 = _mm512_load_ps(pp + 16 * 4);
+                    __m512 _r5 = _mm512_load_ps(pp + 16 * 5);
+                    __m512 _r6 = _mm512_load_ps(pp + 16 * 6);
+                    __m512 _r7 = _mm512_load_ps(pp + 16 * 7);
+                    __m512 _r8 = _mm512_load_ps(pp + 16 * 8);
+                    __m512 _r9 = _mm512_load_ps(pp + 16 * 9);
+                    __m512 _ra = _mm512_load_ps(pp + 16 * 10);
+                    __m512 _rb = _mm512_load_ps(pp + 16 * 11);
+                    transpose16x12_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7, _r8, _r9, _ra, _rb);
+                    _mm256_storeu_ps(p0 + 4, _mm512_extractf32x8_ps(_r0, 0));
+                    _mm_store_ps(p0 + 4 + 8, _mm512_extractf32x4_ps(_r0, 2));
+                    _mm_store_ps(p0 + 16 + 4, _mm512_extractf32x4_ps(_r0, 3));
+                    _mm256_store_ps(p0 + 16 + 4 + 4, _mm512_extractf32x8_ps(_r1, 0));
+                    _mm256_storeu_ps(p0 + 16 * 2 + 4, _mm512_extractf32x8_ps(_r1, 1));
+                    _mm_store_ps(p0 + 16 * 2 + 4 + 8, _mm512_extractf32x4_ps(_r2, 0));
+                    _mm_store_ps(p0 + 16 * 3 + 4, _mm512_extractf32x4_ps(_r2, 1));
+                    _mm256_store_ps(p0 + 16 * 3 + 4 + 4, _mm512_extractf32x8_ps(_r2, 1));
+                    _mm256_storeu_ps(p0 + 16 * 4 + 4, _mm512_extractf32x8_ps(_r3, 0));
+                    _mm_store_ps(p0 + 16 * 4 + 4 + 8, _mm512_extractf32x4_ps(_r3, 2));
+                    _mm_store_ps(p0 + 16 * 5 + 4, _mm512_extractf32x4_ps(_r3, 3));
+                    _mm256_store_ps(p0 + 16 * 5 + 4 + 4, _mm512_extractf32x8_ps(_r4, 0));
+                    _mm256_storeu_ps(p0 + 16 * 6 + 4, _mm512_extractf32x8_ps(_r4, 1));
+                    _mm_store_ps(p0 + 16 * 6 + 4 + 8, _mm512_extractf32x4_ps(_r5, 0));
+                    _mm_store_ps(p0 + 16 * 7 + 4, _mm512_extractf32x4_ps(_r5, 1));
+                    _mm256_store_ps(p0 + 16 * 7 + 4 + 4, _mm512_extractf32x8_ps(_r5, 1));
+                    _mm256_storeu_ps(p0 + 16 * 8 + 4, _mm512_extractf32x8_ps(_r6, 0));
+                    _mm_store_ps(p0 + 16 * 8 + 4 + 8, _mm512_extractf32x4_ps(_r6, 2));
+                    _mm_store_ps(p0 + 16 * 9 + 4, _mm512_extractf32x4_ps(_r6, 3));
+                    _mm256_store_ps(p0 + 16 * 9 + 4 + 4, _mm512_extractf32x8_ps(_r7, 0));
+                    _mm256_storeu_ps(p0 + 16 * 10 + 4, _mm512_extractf32x8_ps(_r7, 1));
+                    _mm_store_ps(p0 + 16 * 10 + 4 + 8, _mm512_extractf32x4_ps(_r8, 0));
+                    _mm_store_ps(p0 + 16 * 11 + 4, _mm512_extractf32x4_ps(_r8, 1));
+                    _mm256_store_ps(p0 + 16 * 11 + 4 + 4, _mm512_extractf32x8_ps(_r8, 1));
+                    _mm256_storeu_ps(p0 + 16 * 12 + 4, _mm512_extractf32x8_ps(_r9, 0));
+                    _mm_store_ps(p0 + 16 * 12 + 4 + 8, _mm512_extractf32x4_ps(_r9, 2));
+                    _mm_store_ps(p0 + 16 * 13 + 4, _mm512_extractf32x4_ps(_r9, 3));
+                    _mm256_store_ps(p0 + 16 * 13 + 4 + 4, _mm512_extractf32x8_ps(_ra, 0));
+                    _mm256_storeu_ps(p0 + 16 * 14 + 4, _mm512_extractf32x8_ps(_ra, 1));
+                    _mm_store_ps(p0 + 16 * 14 + 4 + 8, _mm512_extractf32x4_ps(_rb, 0));
+                    _mm_store_ps(p0 + 16 * 15 + 4, _mm512_extractf32x4_ps(_rb, 1));
+                    _mm256_store_ps(p0 + 16 * 15 + 4 + 4, _mm512_extractf32x8_ps(_rb, 1));
+                    pp += 192;
+                    jj += 12;
+                }
+                else
+                {
+                    transpose16x4_ps(_r0, _r1, _r2, _r3);
+                    _mm_store_ps(p0 + 4, _mm512_extractf32x4_ps(_r0, 0));
+                    _mm_store_ps(p0 + 16 + 4, _mm512_extractf32x4_ps(_r0, 1));
+                    _mm_store_ps(p0 + 16 * 2 + 4, _mm512_extractf32x4_ps(_r0, 2));
+                    _mm_store_ps(p0 + 16 * 3 + 4, _mm512_extractf32x4_ps(_r0, 3));
+                    _mm_store_ps(p0 + 16 * 4 + 4, _mm512_extractf32x4_ps(_r1, 0));
+                    _mm_store_ps(p0 + 16 * 5 + 4, _mm512_extractf32x4_ps(_r1, 1));
+                    _mm_store_ps(p0 + 16 * 6 + 4, _mm512_extractf32x4_ps(_r1, 2));
+                    _mm_store_ps(p0 + 16 * 7 + 4, _mm512_extractf32x4_ps(_r1, 3));
+                    _mm_store_ps(p0 + 16 * 8 + 4, _mm512_extractf32x4_ps(_r2, 0));
+                    _mm_store_ps(p0 + 16 * 9 + 4, _mm512_extractf32x4_ps(_r2, 1));
+                    _mm_store_ps(p0 + 16 * 10 + 4, _mm512_extractf32x4_ps(_r2, 2));
+                    _mm_store_ps(p0 + 16 * 11 + 4, _mm512_extractf32x4_ps(_r2, 3));
+                    _mm_store_ps(p0 + 16 * 12 + 4, _mm512_extractf32x4_ps(_r3, 0));
+                    _mm_store_ps(p0 + 16 * 13 + 4, _mm512_extractf32x4_ps(_r3, 1));
+                    _mm_store_ps(p0 + 16 * 14 + 4, _mm512_extractf32x4_ps(_r3, 2));
+                    _mm_store_ps(p0 + 16 * 15 + 4, _mm512_extractf32x4_ps(_r3, 3));
+                    pp += 64;
+                    jj += 4;
+                }
+                p0 += out_hstep * 16;
+            }
+            if (j % 16 == 8)
+            {
+                __m512 _r0 = _mm512_load_ps(pp);
+                __m512 _r1 = _mm512_load_ps(pp + 16);
+                __m512 _r2 = _mm512_load_ps(pp + 16 * 2);
+                __m512 _r3 = _mm512_load_ps(pp + 16 * 3);
+                if (max_jj > 4)
+                {
+                    __m512 _r4 = _mm512_load_ps(pp + 16 * 4);
+                    __m512 _r5 = _mm512_load_ps(pp + 16 * 5);
+                    __m512 _r6 = _mm512_load_ps(pp + 16 * 6);
+                    __m512 _r7 = _mm512_load_ps(pp + 16 * 7);
+                    transpose16x8_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
+                    _mm256_store_ps(p0 + 8, _mm512_extractf32x8_ps(_r0, 0));
+                    _mm256_store_ps(p0 + 16 + 8, _mm512_extractf32x8_ps(_r0, 1));
+                    _mm256_store_ps(p0 + 16 * 2 + 8, _mm512_extractf32x8_ps(_r1, 0));
+                    _mm256_store_ps(p0 + 16 * 3 + 8, _mm512_extractf32x8_ps(_r1, 1));
+                    _mm256_store_ps(p0 + 16 * 4 + 8, _mm512_extractf32x8_ps(_r2, 0));
+                    _mm256_store_ps(p0 + 16 * 5 + 8, _mm512_extractf32x8_ps(_r2, 1));
+                    _mm256_store_ps(p0 + 16 * 6 + 8, _mm512_extractf32x8_ps(_r3, 0));
+                    _mm256_store_ps(p0 + 16 * 7 + 8, _mm512_extractf32x8_ps(_r3, 1));
+                    _mm256_store_ps(p0 + 16 * 8 + 8, _mm512_extractf32x8_ps(_r4, 0));
+                    _mm256_store_ps(p0 + 16 * 9 + 8, _mm512_extractf32x8_ps(_r4, 1));
+                    _mm256_store_ps(p0 + 16 * 10 + 8, _mm512_extractf32x8_ps(_r5, 0));
+                    _mm256_store_ps(p0 + 16 * 11 + 8, _mm512_extractf32x8_ps(_r5, 1));
+                    _mm256_store_ps(p0 + 16 * 12 + 8, _mm512_extractf32x8_ps(_r6, 0));
+                    _mm256_store_ps(p0 + 16 * 13 + 8, _mm512_extractf32x8_ps(_r6, 1));
+                    _mm256_store_ps(p0 + 16 * 14 + 8, _mm512_extractf32x8_ps(_r7, 0));
+                    _mm256_store_ps(p0 + 16 * 15 + 8, _mm512_extractf32x8_ps(_r7, 1));
+                    pp += 128;
+                    jj += 8;
+                }
+                else
+                {
+                    transpose16x4_ps(_r0, _r1, _r2, _r3);
+                    _mm_store_ps(p0 + 8, _mm512_extractf32x4_ps(_r0, 0));
+                    _mm_store_ps(p0 + 16 + 8, _mm512_extractf32x4_ps(_r0, 1));
+                    _mm_store_ps(p0 + 16 * 2 + 8, _mm512_extractf32x4_ps(_r0, 2));
+                    _mm_store_ps(p0 + 16 * 3 + 8, _mm512_extractf32x4_ps(_r0, 3));
+                    _mm_store_ps(p0 + 16 * 4 + 8, _mm512_extractf32x4_ps(_r1, 0));
+                    _mm_store_ps(p0 + 16 * 5 + 8, _mm512_extractf32x4_ps(_r1, 1));
+                    _mm_store_ps(p0 + 16 * 6 + 8, _mm512_extractf32x4_ps(_r1, 2));
+                    _mm_store_ps(p0 + 16 * 7 + 8, _mm512_extractf32x4_ps(_r1, 3));
+                    _mm_store_ps(p0 + 16 * 8 + 8, _mm512_extractf32x4_ps(_r2, 0));
+                    _mm_store_ps(p0 + 16 * 9 + 8, _mm512_extractf32x4_ps(_r2, 1));
+                    _mm_store_ps(p0 + 16 * 10 + 8, _mm512_extractf32x4_ps(_r2, 2));
+                    _mm_store_ps(p0 + 16 * 11 + 8, _mm512_extractf32x4_ps(_r2, 3));
+                    _mm_store_ps(p0 + 16 * 12 + 8, _mm512_extractf32x4_ps(_r3, 0));
+                    _mm_store_ps(p0 + 16 * 13 + 8, _mm512_extractf32x4_ps(_r3, 1));
+                    _mm_store_ps(p0 + 16 * 14 + 8, _mm512_extractf32x4_ps(_r3, 2));
+                    _mm_store_ps(p0 + 16 * 15 + 8, _mm512_extractf32x4_ps(_r3, 3));
+                    pp += 64;
+                    jj += 4;
+                }
+                p0 += out_hstep * 16;
+            }
+            if (j % 16 == 12)
+            {
+                __m512 _r0 = _mm512_load_ps(pp);
+                __m512 _r1 = _mm512_load_ps(pp + 16);
+                __m512 _r2 = _mm512_load_ps(pp + 16 * 2);
+                __m512 _r3 = _mm512_load_ps(pp + 16 * 3);
+                transpose16x4_ps(_r0, _r1, _r2, _r3);
+                _mm_store_ps(p0 + 12, _mm512_extractf32x4_ps(_r0, 0));
+                _mm_store_ps(p0 + 16 + 12, _mm512_extractf32x4_ps(_r0, 1));
+                _mm_store_ps(p0 + 16 * 2 + 12, _mm512_extractf32x4_ps(_r0, 2));
+                _mm_store_ps(p0 + 16 * 3 + 12, _mm512_extractf32x4_ps(_r0, 3));
+                _mm_store_ps(p0 + 16 * 4 + 12, _mm512_extractf32x4_ps(_r1, 0));
+                _mm_store_ps(p0 + 16 * 5 + 12, _mm512_extractf32x4_ps(_r1, 1));
+                _mm_store_ps(p0 + 16 * 6 + 12, _mm512_extractf32x4_ps(_r1, 2));
+                _mm_store_ps(p0 + 16 * 7 + 12, _mm512_extractf32x4_ps(_r1, 3));
+                _mm_store_ps(p0 + 16 * 8 + 12, _mm512_extractf32x4_ps(_r2, 0));
+                _mm_store_ps(p0 + 16 * 9 + 12, _mm512_extractf32x4_ps(_r2, 1));
+                _mm_store_ps(p0 + 16 * 10 + 12, _mm512_extractf32x4_ps(_r2, 2));
+                _mm_store_ps(p0 + 16 * 11 + 12, _mm512_extractf32x4_ps(_r2, 3));
+                _mm_store_ps(p0 + 16 * 12 + 12, _mm512_extractf32x4_ps(_r3, 0));
+                _mm_store_ps(p0 + 16 * 13 + 12, _mm512_extractf32x4_ps(_r3, 1));
+                _mm_store_ps(p0 + 16 * 14 + 12, _mm512_extractf32x4_ps(_r3, 2));
+                _mm_store_ps(p0 + 16 * 15 + 12, _mm512_extractf32x4_ps(_r3, 3));
+                pp += 64;
+                p0 += out_hstep * 16;
+                jj += 4;
+            }
+            for (; jj + 15 < max_jj; jj += 16)
+            {
+                __m512 _r0 = _mm512_load_ps(pp);
+                __m512 _r1 = _mm512_load_ps(pp + 16);
+                __m512 _r2 = _mm512_load_ps(pp + 16 * 2);
+                __m512 _r3 = _mm512_load_ps(pp + 16 * 3);
+                __m512 _r4 = _mm512_load_ps(pp + 16 * 4);
+                __m512 _r5 = _mm512_load_ps(pp + 16 * 5);
+                __m512 _r6 = _mm512_load_ps(pp + 16 * 6);
+                __m512 _r7 = _mm512_load_ps(pp + 16 * 7);
+                __m512 _r8 = _mm512_load_ps(pp + 16 * 8);
+                __m512 _r9 = _mm512_load_ps(pp + 16 * 9);
+                __m512 _ra = _mm512_load_ps(pp + 16 * 10);
+                __m512 _rb = _mm512_load_ps(pp + 16 * 11);
+                __m512 _rc = _mm512_load_ps(pp + 16 * 12);
+                __m512 _rd = _mm512_load_ps(pp + 16 * 13);
+                __m512 _re = _mm512_load_ps(pp + 16 * 14);
+                __m512 _rf = _mm512_load_ps(pp + 16 * 15);
+                transpose16x16_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7, _r8, _r9, _ra, _rb, _rc, _rd, _re, _rf);
+                _mm512_store_ps(p0, _r0);
+                _mm512_store_ps(p0 + 16, _r1);
+                _mm512_store_ps(p0 + 16 * 2, _r2);
+                _mm512_store_ps(p0 + 16 * 3, _r3);
+                _mm512_store_ps(p0 + 16 * 4, _r4);
+                _mm512_store_ps(p0 + 16 * 5, _r5);
+                _mm512_store_ps(p0 + 16 * 6, _r6);
+                _mm512_store_ps(p0 + 16 * 7, _r7);
+                _mm512_store_ps(p0 + 16 * 8, _r8);
+                _mm512_store_ps(p0 + 16 * 9, _r9);
+                _mm512_store_ps(p0 + 16 * 10, _ra);
+                _mm512_store_ps(p0 + 16 * 11, _rb);
+                _mm512_store_ps(p0 + 16 * 12, _rc);
+                _mm512_store_ps(p0 + 16 * 13, _rd);
+                _mm512_store_ps(p0 + 16 * 14, _re);
+                _mm512_store_ps(p0 + 16 * 15, _rf);
+                pp += 256;
+                p0 += out_hstep * 16;
+            }
+            for (; jj + 11 < max_jj; jj += 12)
+            {
+                __m512 _r0 = _mm512_load_ps(pp);
+                __m512 _r1 = _mm512_load_ps(pp + 16);
+                __m512 _r2 = _mm512_load_ps(pp + 16 * 2);
+                __m512 _r3 = _mm512_load_ps(pp + 16 * 3);
+                __m512 _r4 = _mm512_load_ps(pp + 16 * 4);
+                __m512 _r5 = _mm512_load_ps(pp + 16 * 5);
+                __m512 _r6 = _mm512_load_ps(pp + 16 * 6);
+                __m512 _r7 = _mm512_load_ps(pp + 16 * 7);
+                __m512 _r8 = _mm512_load_ps(pp + 16 * 8);
+                __m512 _r9 = _mm512_load_ps(pp + 16 * 9);
+                __m512 _ra = _mm512_load_ps(pp + 16 * 10);
+                __m512 _rb = _mm512_load_ps(pp + 16 * 11);
+                transpose16x12_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7, _r8, _r9, _ra, _rb);
+                _mm256_store_ps(p0, _mm512_extractf32x8_ps(_r0, 0));
+                _mm_store_ps(p0 + 8, _mm512_extractf32x4_ps(_r0, 2));
+                _mm_store_ps(p0 + 16, _mm512_extractf32x4_ps(_r0, 3));
+                _mm256_storeu_ps(p0 + 16 + 4, _mm512_extractf32x8_ps(_r1, 0));
+                _mm256_store_ps(p0 + 16 * 2, _mm512_extractf32x8_ps(_r1, 1));
+                _mm_store_ps(p0 + 16 * 2 + 8, _mm512_extractf32x4_ps(_r2, 0));
+                _mm_store_ps(p0 + 16 * 3, _mm512_extractf32x4_ps(_r2, 1));
+                _mm256_storeu_ps(p0 + 16 * 3 + 4, _mm512_extractf32x8_ps(_r2, 1));
+                _mm256_store_ps(p0 + 16 * 4, _mm512_extractf32x8_ps(_r3, 0));
+                _mm_store_ps(p0 + 16 * 4 + 8, _mm512_extractf32x4_ps(_r3, 2));
+                _mm_store_ps(p0 + 16 * 5, _mm512_extractf32x4_ps(_r3, 3));
+                _mm256_storeu_ps(p0 + 16 * 5 + 4, _mm512_extractf32x8_ps(_r4, 0));
+                _mm256_store_ps(p0 + 16 * 6, _mm512_extractf32x8_ps(_r4, 1));
+                _mm_store_ps(p0 + 16 * 6 + 8, _mm512_extractf32x4_ps(_r5, 0));
+                _mm_store_ps(p0 + 16 * 7, _mm512_extractf32x4_ps(_r5, 1));
+                _mm256_storeu_ps(p0 + 16 * 7 + 4, _mm512_extractf32x8_ps(_r5, 1));
+                _mm256_store_ps(p0 + 16 * 8, _mm512_extractf32x8_ps(_r6, 0));
+                _mm_store_ps(p0 + 16 * 8 + 8, _mm512_extractf32x4_ps(_r6, 2));
+                _mm_store_ps(p0 + 16 * 9, _mm512_extractf32x4_ps(_r6, 3));
+                _mm256_storeu_ps(p0 + 16 * 9 + 4, _mm512_extractf32x8_ps(_r7, 0));
+                _mm256_store_ps(p0 + 16 * 10, _mm512_extractf32x8_ps(_r7, 1));
+                _mm_store_ps(p0 + 16 * 10 + 8, _mm512_extractf32x4_ps(_r8, 0));
+                _mm_store_ps(p0 + 16 * 11, _mm512_extractf32x4_ps(_r8, 1));
+                _mm256_storeu_ps(p0 + 16 * 11 + 4, _mm512_extractf32x8_ps(_r8, 1));
+                _mm256_store_ps(p0 + 16 * 12, _mm512_extractf32x8_ps(_r9, 0));
+                _mm_store_ps(p0 + 16 * 12 + 8, _mm512_extractf32x4_ps(_r9, 2));
+                _mm_store_ps(p0 + 16 * 13, _mm512_extractf32x4_ps(_r9, 3));
+                _mm256_storeu_ps(p0 + 16 * 13 + 4, _mm512_extractf32x8_ps(_ra, 0));
+                _mm256_store_ps(p0 + 16 * 14, _mm512_extractf32x8_ps(_ra, 1));
+                _mm_store_ps(p0 + 16 * 14 + 8, _mm512_extractf32x4_ps(_rb, 0));
+                _mm_store_ps(p0 + 16 * 15, _mm512_extractf32x4_ps(_rb, 1));
+                _mm256_storeu_ps(p0 + 16 * 15 + 4, _mm512_extractf32x8_ps(_rb, 1));
+                pp += 192;
+                p0 += out_hstep * 16;
+            }
+            for (; jj + 7 < max_jj; jj += 8)
+            {
+                __m512 _r0 = _mm512_load_ps(pp);
+                __m512 _r1 = _mm512_load_ps(pp + 16);
+                __m512 _r2 = _mm512_load_ps(pp + 16 * 2);
+                __m512 _r3 = _mm512_load_ps(pp + 16 * 3);
+                __m512 _r4 = _mm512_load_ps(pp + 16 * 4);
+                __m512 _r5 = _mm512_load_ps(pp + 16 * 5);
+                __m512 _r6 = _mm512_load_ps(pp + 16 * 6);
+                __m512 _r7 = _mm512_load_ps(pp + 16 * 7);
+                transpose16x8_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
+                _mm256_store_ps(p0, _mm512_extractf32x8_ps(_r0, 0));
+                _mm256_store_ps(p0 + 16, _mm512_extractf32x8_ps(_r0, 1));
+                _mm256_store_ps(p0 + 16 * 2, _mm512_extractf32x8_ps(_r1, 0));
+                _mm256_store_ps(p0 + 16 * 3, _mm512_extractf32x8_ps(_r1, 1));
+                _mm256_store_ps(p0 + 16 * 4, _mm512_extractf32x8_ps(_r2, 0));
+                _mm256_store_ps(p0 + 16 * 5, _mm512_extractf32x8_ps(_r2, 1));
+                _mm256_store_ps(p0 + 16 * 6, _mm512_extractf32x8_ps(_r3, 0));
+                _mm256_store_ps(p0 + 16 * 7, _mm512_extractf32x8_ps(_r3, 1));
+                _mm256_store_ps(p0 + 16 * 8, _mm512_extractf32x8_ps(_r4, 0));
+                _mm256_store_ps(p0 + 16 * 9, _mm512_extractf32x8_ps(_r4, 1));
+                _mm256_store_ps(p0 + 16 * 10, _mm512_extractf32x8_ps(_r5, 0));
+                _mm256_store_ps(p0 + 16 * 11, _mm512_extractf32x8_ps(_r5, 1));
+                _mm256_store_ps(p0 + 16 * 12, _mm512_extractf32x8_ps(_r6, 0));
+                _mm256_store_ps(p0 + 16 * 13, _mm512_extractf32x8_ps(_r6, 1));
+                _mm256_store_ps(p0 + 16 * 14, _mm512_extractf32x8_ps(_r7, 0));
+                _mm256_store_ps(p0 + 16 * 15, _mm512_extractf32x8_ps(_r7, 1));
+                pp += 128;
+                p0 += out_hstep * 16;
+            }
+            for (; jj + 3 < max_jj; jj += 4)
+            {
+                __m512 _r0 = _mm512_load_ps(pp);
+                __m512 _r1 = _mm512_load_ps(pp + 16);
+                __m512 _r2 = _mm512_load_ps(pp + 16 * 2);
+                __m512 _r3 = _mm512_load_ps(pp + 16 * 3);
+                transpose16x4_ps(_r0, _r1, _r2, _r3);
+                _mm_store_ps(p0, _mm512_extractf32x4_ps(_r0, 0));
+                _mm_store_ps(p0 + 16, _mm512_extractf32x4_ps(_r0, 1));
+                _mm_store_ps(p0 + 16 * 2, _mm512_extractf32x4_ps(_r0, 2));
+                _mm_store_ps(p0 + 16 * 3, _mm512_extractf32x4_ps(_r0, 3));
+                _mm_store_ps(p0 + 16 * 4, _mm512_extractf32x4_ps(_r1, 0));
+                _mm_store_ps(p0 + 16 * 5, _mm512_extractf32x4_ps(_r1, 1));
+                _mm_store_ps(p0 + 16 * 6, _mm512_extractf32x4_ps(_r1, 2));
+                _mm_store_ps(p0 + 16 * 7, _mm512_extractf32x4_ps(_r1, 3));
+                _mm_store_ps(p0 + 16 * 8, _mm512_extractf32x4_ps(_r2, 0));
+                _mm_store_ps(p0 + 16 * 9, _mm512_extractf32x4_ps(_r2, 1));
+                _mm_store_ps(p0 + 16 * 10, _mm512_extractf32x4_ps(_r2, 2));
+                _mm_store_ps(p0 + 16 * 11, _mm512_extractf32x4_ps(_r2, 3));
+                _mm_store_ps(p0 + 16 * 12, _mm512_extractf32x4_ps(_r3, 0));
+                _mm_store_ps(p0 + 16 * 13, _mm512_extractf32x4_ps(_r3, 1));
+                _mm_store_ps(p0 + 16 * 14, _mm512_extractf32x4_ps(_r3, 2));
+                _mm_store_ps(p0 + 16 * 15, _mm512_extractf32x4_ps(_r3, 3));
+                pp += 64;
+                p0 += out_hstep * 16;
+            }
+        }
+        if (out_elempack == 8)
+        {
+            float* p0 = (float*)top_blob + (j / 8 * 8) * out_hstep + (i + ii) * 8;
+
+            int jj = 0;
+            if (j % 8 == 4)
+            {
+                __m512 _r0 = _mm512_load_ps(pp);
+                __m512 _r1 = _mm512_load_ps(pp + 16);
+                __m512 _r2 = _mm512_load_ps(pp + 16 * 2);
+                __m512 _r3 = _mm512_load_ps(pp + 16 * 3);
+                transpose16x4_ps(_r0, _r1, _r2, _r3);
+                _mm_store_ps(p0 + 4, _mm512_extractf32x4_ps(_r0, 0));
+                _mm_store_ps(p0 + 8 + 4, _mm512_extractf32x4_ps(_r0, 1));
+                _mm_store_ps(p0 + 8 * 2 + 4, _mm512_extractf32x4_ps(_r0, 2));
+                _mm_store_ps(p0 + 8 * 3 + 4, _mm512_extractf32x4_ps(_r0, 3));
+                _mm_store_ps(p0 + 8 * 4 + 4, _mm512_extractf32x4_ps(_r1, 0));
+                _mm_store_ps(p0 + 8 * 5 + 4, _mm512_extractf32x4_ps(_r1, 1));
+                _mm_store_ps(p0 + 8 * 6 + 4, _mm512_extractf32x4_ps(_r1, 2));
+                _mm_store_ps(p0 + 8 * 7 + 4, _mm512_extractf32x4_ps(_r1, 3));
+                _mm_store_ps(p0 + 8 * 8 + 4, _mm512_extractf32x4_ps(_r2, 0));
+                _mm_store_ps(p0 + 8 * 9 + 4, _mm512_extractf32x4_ps(_r2, 1));
+                _mm_store_ps(p0 + 8 * 10 + 4, _mm512_extractf32x4_ps(_r2, 2));
+                _mm_store_ps(p0 + 8 * 11 + 4, _mm512_extractf32x4_ps(_r2, 3));
+                _mm_store_ps(p0 + 8 * 12 + 4, _mm512_extractf32x4_ps(_r3, 0));
+                _mm_store_ps(p0 + 8 * 13 + 4, _mm512_extractf32x4_ps(_r3, 1));
+                _mm_store_ps(p0 + 8 * 14 + 4, _mm512_extractf32x4_ps(_r3, 2));
+                _mm_store_ps(p0 + 8 * 15 + 4, _mm512_extractf32x4_ps(_r3, 3));
+                pp += 64;
+                p0 += out_hstep * 8;
+                jj += 4;
+            }
+            for (; jj + 7 < max_jj; jj += 8)
+            {
+                __m512 _r0 = _mm512_load_ps(pp);
+                __m512 _r1 = _mm512_load_ps(pp + 16);
+                __m512 _r2 = _mm512_load_ps(pp + 16 * 2);
+                __m512 _r3 = _mm512_load_ps(pp + 16 * 3);
+                __m512 _r4 = _mm512_load_ps(pp + 16 * 4);
+                __m512 _r5 = _mm512_load_ps(pp + 16 * 5);
+                __m512 _r6 = _mm512_load_ps(pp + 16 * 6);
+                __m512 _r7 = _mm512_load_ps(pp + 16 * 7);
+                transpose16x8_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
+                _mm512_storeu_ps(p0, _r0);
+                _mm512_storeu_ps(p0 + 16, _r1);
+                _mm512_storeu_ps(p0 + 16 * 2, _r2);
+                _mm512_storeu_ps(p0 + 16 * 3, _r3);
+                _mm512_storeu_ps(p0 + 16 * 4, _r4);
+                _mm512_storeu_ps(p0 + 16 * 5, _r5);
+                _mm512_storeu_ps(p0 + 16 * 6, _r6);
+                _mm512_storeu_ps(p0 + 16 * 7, _r7);
+                pp += 128;
+                p0 += out_hstep * 8;
+            }
+            for (; jj + 3 < max_jj; jj += 4)
+            {
+                __m512 _r0 = _mm512_load_ps(pp);
+                __m512 _r1 = _mm512_load_ps(pp + 16);
+                __m512 _r2 = _mm512_load_ps(pp + 16 * 2);
+                __m512 _r3 = _mm512_load_ps(pp + 16 * 3);
+                transpose16x4_ps(_r0, _r1, _r2, _r3);
+                _mm_store_ps(p0, _mm512_extractf32x4_ps(_r0, 0));
+                _mm_store_ps(p0 + 8, _mm512_extractf32x4_ps(_r0, 1));
+                _mm_store_ps(p0 + 8 * 2, _mm512_extractf32x4_ps(_r0, 2));
+                _mm_store_ps(p0 + 8 * 3, _mm512_extractf32x4_ps(_r0, 3));
+                _mm_store_ps(p0 + 8 * 4, _mm512_extractf32x4_ps(_r1, 0));
+                _mm_store_ps(p0 + 8 * 5, _mm512_extractf32x4_ps(_r1, 1));
+                _mm_store_ps(p0 + 8 * 6, _mm512_extractf32x4_ps(_r1, 2));
+                _mm_store_ps(p0 + 8 * 7, _mm512_extractf32x4_ps(_r1, 3));
+                _mm_store_ps(p0 + 8 * 8, _mm512_extractf32x4_ps(_r2, 0));
+                _mm_store_ps(p0 + 8 * 9, _mm512_extractf32x4_ps(_r2, 1));
+                _mm_store_ps(p0 + 8 * 10, _mm512_extractf32x4_ps(_r2, 2));
+                _mm_store_ps(p0 + 8 * 11, _mm512_extractf32x4_ps(_r2, 3));
+                _mm_store_ps(p0 + 8 * 12, _mm512_extractf32x4_ps(_r3, 0));
+                _mm_store_ps(p0 + 8 * 13, _mm512_extractf32x4_ps(_r3, 1));
+                _mm_store_ps(p0 + 8 * 14, _mm512_extractf32x4_ps(_r3, 2));
+                _mm_store_ps(p0 + 8 * 15, _mm512_extractf32x4_ps(_r3, 3));
+                pp += 64;
+                p0 += out_hstep * 8;
+            }
+        }
+        if (out_elempack == 4)
+        {
+            float* p0 = (float*)top_blob + j * out_hstep + (i + ii) * 4;
+
+            for (int jj = 0; jj + 3 < max_jj; jj += 4)
+            {
+                __m512 _r0 = _mm512_load_ps(pp);
+                __m512 _r1 = _mm512_load_ps(pp + 16);
+                __m512 _r2 = _mm512_load_ps(pp + 16 * 2);
+                __m512 _r3 = _mm512_load_ps(pp + 16 * 3);
+                transpose16x4_ps(_r0, _r1, _r2, _r3);
+                _mm512_storeu_ps(p0, _r0);
+                _mm512_storeu_ps(p0 + 16, _r1);
+                _mm512_storeu_ps(p0 + 16 * 2, _r2);
+                _mm512_storeu_ps(p0 + 16 * 3, _r3);
+                pp += 64;
+                p0 += out_hstep * 4;
+            }
+        }
+        if (out_elempack == 1)
+        {
+            float* p0 = (float*)top_blob + j * out_hstep + (i + ii);
+
+            for (int jj = 0; jj < max_jj; jj += 1)
+            {
+                __m512 _r0 = _mm512_load_ps(pp);
+                _mm512_storeu_ps(p0, _r0);
+                pp += 16;
+                p0 += out_hstep;
+            }
+        }
+    }
+#endif // __AVX512F__
+    for (; ii + 7 < max_ii; ii += 8)
+    {
+#if __AVX512F__
+        if (out_elempack == 16)
+        {
+            float* p0 = (float*)top_blob + (j / 16 * 16) * out_hstep + (i + ii) * 16;
+
+            int jj = 0;
+            if (j % 16 == 4)
+            {
+                __m256 _r0 = _mm256_load_ps(pp);
+                __m256 _r1 = _mm256_load_ps(pp + 8);
+                __m256 _r2 = _mm256_load_ps(pp + 8 * 2);
+                __m256 _r3 = _mm256_load_ps(pp + 8 * 3);
+                if (max_jj > 4)
+                {
+                    // assert max_jj > 8
+                    __m256 _r4 = _mm256_load_ps(pp + 8 * 4);
+                    __m256 _r5 = _mm256_load_ps(pp + 8 * 5);
+                    __m256 _r6 = _mm256_load_ps(pp + 8 * 6);
+                    __m256 _r7 = _mm256_load_ps(pp + 8 * 7);
+                    __m256 _r8 = _mm256_load_ps(pp + 8 * 8);
+                    __m256 _r9 = _mm256_load_ps(pp + 8 * 9);
+                    __m256 _ra = _mm256_load_ps(pp + 8 * 10);
+                    __m256 _rb = _mm256_load_ps(pp + 8 * 11);
+                    transpose8x12_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7, _r8, _r9, _ra, _rb);
+                    _mm256_storeu_ps(p0 + 4, _r0);
+                    _mm_store_ps(p0 + 12, _mm256_extractf128_ps(_r1, 0));
+                    _mm_store_ps(p0 + 16 + 4, _mm256_extractf128_ps(_r1, 1));
+                    _mm256_store_ps(p0 + 16 + 8, _r2);
+                    _mm256_storeu_ps(p0 + 16 * 2 + 4, _r3);
+                    _mm_store_ps(p0 + 16 * 2 + 12, _mm256_extractf128_ps(_r4, 0));
+                    _mm_store_ps(p0 + 16 * 3 + 4, _mm256_extractf128_ps(_r4, 1));
+                    _mm256_store_ps(p0 + 16 * 3 + 8, _r5);
+                    _mm256_storeu_ps(p0 + 16 * 4 + 4, _r6);
+                    _mm_store_ps(p0 + 16 * 4 + 12, _mm256_extractf128_ps(_r7, 0));
+                    _mm_store_ps(p0 + 16 * 5 + 4, _mm256_extractf128_ps(_r7, 1));
+                    _mm256_store_ps(p0 + 16 * 5 + 8, _r8);
+                    _mm256_storeu_ps(p0 + 16 * 6 + 4, _r9);
+                    _mm_store_ps(p0 + 16 * 6 + 12, _mm256_extractf128_ps(_ra, 0));
+                    _mm_store_ps(p0 + 16 * 7 + 4, _mm256_extractf128_ps(_ra, 1));
+                    _mm256_store_ps(p0 + 16 * 7 + 8, _rb);
+                    pp += 96;
+                    jj += 12;
+                }
+                else
+                {
+                    transpose8x4_ps(_r0, _r1, _r2, _r3);
+                    _mm_store_ps(p0 + 4, _mm256_extractf128_ps(_r0, 0));
+                    _mm_store_ps(p0 + 16 + 4, _mm256_extractf128_ps(_r0, 1));
+                    _mm_store_ps(p0 + 16 * 2 + 4, _mm256_extractf128_ps(_r1, 0));
+                    _mm_store_ps(p0 + 16 * 3 + 4, _mm256_extractf128_ps(_r1, 1));
+                    _mm_store_ps(p0 + 16 * 4 + 4, _mm256_extractf128_ps(_r2, 0));
+                    _mm_store_ps(p0 + 16 * 5 + 4, _mm256_extractf128_ps(_r2, 1));
+                    _mm_store_ps(p0 + 16 * 6 + 4, _mm256_extractf128_ps(_r3, 0));
+                    _mm_store_ps(p0 + 16 * 7 + 4, _mm256_extractf128_ps(_r3, 1));
+                    pp += 32;
+                    jj += 4;
+                }
+                p0 += out_hstep * 16;
+            }
+            if (j % 16 == 8)
+            {
+                __m256 _r0 = _mm256_load_ps(pp);
+                __m256 _r1 = _mm256_load_ps(pp + 8);
+                __m256 _r2 = _mm256_load_ps(pp + 8 * 2);
+                __m256 _r3 = _mm256_load_ps(pp + 8 * 3);
+                if (max_jj > 4)
+                {
+                    __m256 _r4 = _mm256_load_ps(pp + 8 * 4);
+                    __m256 _r5 = _mm256_load_ps(pp + 8 * 5);
+                    __m256 _r6 = _mm256_load_ps(pp + 8 * 6);
+                    __m256 _r7 = _mm256_load_ps(pp + 8 * 7);
+                    transpose8x8_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
+                    _mm256_store_ps(p0 + 8, _r0);
+                    _mm256_store_ps(p0 + 16 + 8, _r1);
+                    _mm256_store_ps(p0 + 16 * 2 + 8, _r2);
+                    _mm256_store_ps(p0 + 16 * 3 + 8, _r3);
+                    _mm256_store_ps(p0 + 16 * 4 + 8, _r4);
+                    _mm256_store_ps(p0 + 16 * 5 + 8, _r5);
+                    _mm256_store_ps(p0 + 16 * 6 + 8, _r6);
+                    _mm256_store_ps(p0 + 16 * 7 + 8, _r7);
+                    pp += 64;
+                    jj += 8;
+                }
+                else
+                {
+                    transpose8x4_ps(_r0, _r1, _r2, _r3);
+                    _mm_store_ps(p0 + 8, _mm256_extractf128_ps(_r0, 0));
+                    _mm_store_ps(p0 + 16 + 8, _mm256_extractf128_ps(_r0, 1));
+                    _mm_store_ps(p0 + 16 * 2 + 8, _mm256_extractf128_ps(_r1, 0));
+                    _mm_store_ps(p0 + 16 * 3 + 8, _mm256_extractf128_ps(_r1, 1));
+                    _mm_store_ps(p0 + 16 * 4 + 8, _mm256_extractf128_ps(_r2, 0));
+                    _mm_store_ps(p0 + 16 * 5 + 8, _mm256_extractf128_ps(_r2, 1));
+                    _mm_store_ps(p0 + 16 * 6 + 8, _mm256_extractf128_ps(_r3, 0));
+                    _mm_store_ps(p0 + 16 * 7 + 8, _mm256_extractf128_ps(_r3, 1));
+                    pp += 32;
+                    jj += 4;
+                }
+                p0 += out_hstep * 16;
+            }
+            if (j % 16 == 12)
+            {
+                __m256 _r0 = _mm256_load_ps(pp);
+                __m256 _r1 = _mm256_load_ps(pp + 8);
+                __m256 _r2 = _mm256_load_ps(pp + 8 * 2);
+                __m256 _r3 = _mm256_load_ps(pp + 8 * 3);
+                transpose8x4_ps(_r0, _r1, _r2, _r3);
+                _mm_store_ps(p0 + 12, _mm256_extractf128_ps(_r0, 0));
+                _mm_store_ps(p0 + 16 + 12, _mm256_extractf128_ps(_r0, 1));
+                _mm_store_ps(p0 + 16 * 2 + 12, _mm256_extractf128_ps(_r1, 0));
+                _mm_store_ps(p0 + 16 * 3 + 12, _mm256_extractf128_ps(_r1, 1));
+                _mm_store_ps(p0 + 16 * 4 + 12, _mm256_extractf128_ps(_r2, 0));
+                _mm_store_ps(p0 + 16 * 5 + 12, _mm256_extractf128_ps(_r2, 1));
+                _mm_store_ps(p0 + 16 * 6 + 12, _mm256_extractf128_ps(_r3, 0));
+                _mm_store_ps(p0 + 16 * 7 + 12, _mm256_extractf128_ps(_r3, 1));
+                pp += 32;
+                p0 += out_hstep * 16;
+                jj += 4;
+            }
+            for (; jj + 15 < max_jj; jj += 16)
+            {
+                __m256 _r0 = _mm256_load_ps(pp);
+                __m256 _r1 = _mm256_load_ps(pp + 8);
+                __m256 _r2 = _mm256_load_ps(pp + 8 * 2);
+                __m256 _r3 = _mm256_load_ps(pp + 8 * 3);
+                __m256 _r4 = _mm256_load_ps(pp + 8 * 4);
+                __m256 _r5 = _mm256_load_ps(pp + 8 * 5);
+                __m256 _r6 = _mm256_load_ps(pp + 8 * 6);
+                __m256 _r7 = _mm256_load_ps(pp + 8 * 7);
+                __m256 _r8 = _mm256_load_ps(pp + 8 * 8);
+                __m256 _r9 = _mm256_load_ps(pp + 8 * 9);
+                __m256 _ra = _mm256_load_ps(pp + 8 * 10);
+                __m256 _rb = _mm256_load_ps(pp + 8 * 11);
+                __m256 _rc = _mm256_load_ps(pp + 8 * 12);
+                __m256 _rd = _mm256_load_ps(pp + 8 * 13);
+                __m256 _re = _mm256_load_ps(pp + 8 * 14);
+                __m256 _rf = _mm256_load_ps(pp + 8 * 15);
+                transpose8x16_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7, _r8, _r9, _ra, _rb, _rc, _rd, _re, _rf);
+                _mm256_store_ps(p0, _r0);
+                _mm256_store_ps(p0 + 8, _r1);
+                _mm256_store_ps(p0 + 8 * 2, _r2);
+                _mm256_store_ps(p0 + 8 * 3, _r3);
+                _mm256_store_ps(p0 + 8 * 4, _r4);
+                _mm256_store_ps(p0 + 8 * 5, _r5);
+                _mm256_store_ps(p0 + 8 * 6, _r6);
+                _mm256_store_ps(p0 + 8 * 7, _r7);
+                _mm256_store_ps(p0 + 8 * 8, _r8);
+                _mm256_store_ps(p0 + 8 * 9, _r9);
+                _mm256_store_ps(p0 + 8 * 10, _ra);
+                _mm256_store_ps(p0 + 8 * 11, _rb);
+                _mm256_store_ps(p0 + 8 * 12, _rc);
+                _mm256_store_ps(p0 + 8 * 13, _rd);
+                _mm256_store_ps(p0 + 8 * 14, _re);
+                _mm256_store_ps(p0 + 8 * 15, _rf);
+                pp += 128;
+                p0 += out_hstep * 16;
+            }
+            for (; jj + 11 < max_jj; jj += 12)
+            {
+                __m256 _r0 = _mm256_load_ps(pp);
+                __m256 _r1 = _mm256_load_ps(pp + 8);
+                __m256 _r2 = _mm256_load_ps(pp + 8 * 2);
+                __m256 _r3 = _mm256_load_ps(pp + 8 * 3);
+                __m256 _r4 = _mm256_load_ps(pp + 8 * 4);
+                __m256 _r5 = _mm256_load_ps(pp + 8 * 5);
+                __m256 _r6 = _mm256_load_ps(pp + 8 * 6);
+                __m256 _r7 = _mm256_load_ps(pp + 8 * 7);
+                __m256 _r8 = _mm256_load_ps(pp + 8 * 8);
+                __m256 _r9 = _mm256_load_ps(pp + 8 * 9);
+                __m256 _ra = _mm256_load_ps(pp + 8 * 10);
+                __m256 _rb = _mm256_load_ps(pp + 8 * 11);
+                transpose8x12_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7, _r8, _r9, _ra, _rb);
+                _mm256_store_ps(p0, _r0);
+                _mm_store_ps(p0 + 8, _mm256_extractf128_ps(_r1, 0));
+                _mm_store_ps(p0 + 16, _mm256_extractf128_ps(_r1, 1));
+                _mm256_storeu_ps(p0 + 16 + 4, _r2);
+                _mm256_store_ps(p0 + 16 * 2, _r3);
+                _mm_store_ps(p0 + 16 * 2 + 8, _mm256_extractf128_ps(_r4, 0));
+                _mm_store_ps(p0 + 16 * 3, _mm256_extractf128_ps(_r4, 1));
+                _mm256_storeu_ps(p0 + 16 * 3 + 4, _r5);
+                _mm256_store_ps(p0 + 16 * 4, _r6);
+                _mm_store_ps(p0 + 16 * 4 + 8, _mm256_extractf128_ps(_r7, 0));
+                _mm_store_ps(p0 + 16 * 5, _mm256_extractf128_ps(_r7, 1));
+                _mm256_storeu_ps(p0 + 16 * 5 + 4, _r8);
+                _mm256_store_ps(p0 + 16 * 6, _r9);
+                _mm_store_ps(p0 + 16 * 6 + 8, _mm256_extractf128_ps(_ra, 0));
+                _mm_store_ps(p0 + 16 * 7, _mm256_extractf128_ps(_ra, 1));
+                _mm256_storeu_ps(p0 + 16 * 7 + 4, _rb);
+                pp += 96;
+                p0 += out_hstep * 16;
+            }
+            for (; jj + 7 < max_jj; jj += 8)
+            {
+                __m256 _r0 = _mm256_load_ps(pp);
+                __m256 _r1 = _mm256_load_ps(pp + 8);
+                __m256 _r2 = _mm256_load_ps(pp + 8 * 2);
+                __m256 _r3 = _mm256_load_ps(pp + 8 * 3);
+                __m256 _r4 = _mm256_load_ps(pp + 8 * 4);
+                __m256 _r5 = _mm256_load_ps(pp + 8 * 5);
+                __m256 _r6 = _mm256_load_ps(pp + 8 * 6);
+                __m256 _r7 = _mm256_load_ps(pp + 8 * 7);
+                transpose8x8_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
+                _mm256_store_ps(p0, _r0);
+                _mm256_store_ps(p0 + 16, _r1);
+                _mm256_store_ps(p0 + 16 * 2, _r2);
+                _mm256_store_ps(p0 + 16 * 3, _r3);
+                _mm256_store_ps(p0 + 16 * 4, _r4);
+                _mm256_store_ps(p0 + 16 * 5, _r5);
+                _mm256_store_ps(p0 + 16 * 6, _r6);
+                _mm256_store_ps(p0 + 16 * 7, _r7);
+                pp += 64;
+                p0 += out_hstep * 16;
+            }
+            for (; jj + 3 < max_jj; jj += 4)
+            {
+                __m256 _r0 = _mm256_load_ps(pp);
+                __m256 _r1 = _mm256_load_ps(pp + 8);
+                __m256 _r2 = _mm256_load_ps(pp + 8 * 2);
+                __m256 _r3 = _mm256_load_ps(pp + 8 * 3);
+                transpose8x4_ps(_r0, _r1, _r2, _r3);
+                _mm_store_ps(p0, _mm256_extractf128_ps(_r0, 0));
+                _mm_store_ps(p0 + 16, _mm256_extractf128_ps(_r0, 1));
+                _mm_store_ps(p0 + 16 * 2, _mm256_extractf128_ps(_r1, 0));
+                _mm_store_ps(p0 + 16 * 3, _mm256_extractf128_ps(_r1, 1));
+                _mm_store_ps(p0 + 16 * 4, _mm256_extractf128_ps(_r2, 0));
+                _mm_store_ps(p0 + 16 * 5, _mm256_extractf128_ps(_r2, 1));
+                _mm_store_ps(p0 + 16 * 6, _mm256_extractf128_ps(_r3, 0));
+                _mm_store_ps(p0 + 16 * 7, _mm256_extractf128_ps(_r3, 1));
+                pp += 32;
+                p0 += out_hstep * 16;
+            }
+        }
+#endif // __AVX512F__
+        if (out_elempack == 8)
+        {
+            float* p0 = (float*)top_blob + (j / 8 * 8) * out_hstep + (i + ii) * 8;
+
+            int jj = 0;
+            if (j % 8 == 4)
+            {
+                __m256 _r0 = _mm256_load_ps(pp);
+                __m256 _r1 = _mm256_load_ps(pp + 8);
+                __m256 _r2 = _mm256_load_ps(pp + 8 * 2);
+                __m256 _r3 = _mm256_load_ps(pp + 8 * 3);
+                transpose8x4_ps(_r0, _r1, _r2, _r3);
+                _mm_store_ps(p0 + 4, _mm256_extractf128_ps(_r0, 0));
+                _mm_store_ps(p0 + 8 + 4, _mm256_extractf128_ps(_r0, 1));
+                _mm_store_ps(p0 + 8 * 2 + 4, _mm256_extractf128_ps(_r1, 0));
+                _mm_store_ps(p0 + 8 * 3 + 4, _mm256_extractf128_ps(_r1, 1));
+                _mm_store_ps(p0 + 8 * 4 + 4, _mm256_extractf128_ps(_r2, 0));
+                _mm_store_ps(p0 + 8 * 5 + 4, _mm256_extractf128_ps(_r2, 1));
+                _mm_store_ps(p0 + 8 * 6 + 4, _mm256_extractf128_ps(_r3, 0));
+                _mm_store_ps(p0 + 8 * 7 + 4, _mm256_extractf128_ps(_r3, 1));
+                pp += 32;
+                p0 += out_hstep * 8;
+                jj += 4;
+            }
+            for (; jj + 7 < max_jj; jj += 8)
+            {
+                __m256 _r0 = _mm256_load_ps(pp);
+                __m256 _r1 = _mm256_load_ps(pp + 8);
+                __m256 _r2 = _mm256_load_ps(pp + 8 * 2);
+                __m256 _r3 = _mm256_load_ps(pp + 8 * 3);
+                __m256 _r4 = _mm256_load_ps(pp + 8 * 4);
+                __m256 _r5 = _mm256_load_ps(pp + 8 * 5);
+                __m256 _r6 = _mm256_load_ps(pp + 8 * 6);
+                __m256 _r7 = _mm256_load_ps(pp + 8 * 7);
+                transpose8x8_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
+                _mm256_storeu_ps(p0, _r0);
+                _mm256_storeu_ps(p0 + 8, _r1);
+                _mm256_storeu_ps(p0 + 8 * 2, _r2);
+                _mm256_storeu_ps(p0 + 8 * 3, _r3);
+                _mm256_storeu_ps(p0 + 8 * 4, _r4);
+                _mm256_storeu_ps(p0 + 8 * 5, _r5);
+                _mm256_storeu_ps(p0 + 8 * 6, _r6);
+                _mm256_storeu_ps(p0 + 8 * 7, _r7);
+                pp += 64;
+                p0 += out_hstep * 8;
+            }
+            for (; jj + 3 < max_jj; jj += 4)
+            {
+                __m256 _r0 = _mm256_load_ps(pp);
+                __m256 _r1 = _mm256_load_ps(pp + 8);
+                __m256 _r2 = _mm256_load_ps(pp + 8 * 2);
+                __m256 _r3 = _mm256_load_ps(pp + 8 * 3);
+                transpose8x4_ps(_r0, _r1, _r2, _r3);
+                _mm_store_ps(p0, _mm256_extractf128_ps(_r0, 0));
+                _mm_store_ps(p0 + 8, _mm256_extractf128_ps(_r0, 1));
+                _mm_store_ps(p0 + 8 * 2, _mm256_extractf128_ps(_r1, 0));
+                _mm_store_ps(p0 + 8 * 3, _mm256_extractf128_ps(_r1, 1));
+                _mm_store_ps(p0 + 8 * 4, _mm256_extractf128_ps(_r2, 0));
+                _mm_store_ps(p0 + 8 * 5, _mm256_extractf128_ps(_r2, 1));
+                _mm_store_ps(p0 + 8 * 6, _mm256_extractf128_ps(_r3, 0));
+                _mm_store_ps(p0 + 8 * 7, _mm256_extractf128_ps(_r3, 1));
+                pp += 32;
+                p0 += out_hstep * 8;
+            }
+        }
+        if (out_elempack == 4)
+        {
+            float* p0 = (float*)top_blob + j * out_hstep + (i + ii) * 4;
+
+            for (int jj = 0; jj + 3 < max_jj; jj += 4)
+            {
+                __m256 _r0 = _mm256_load_ps(pp);
+                __m256 _r1 = _mm256_load_ps(pp + 8);
+                __m256 _r2 = _mm256_load_ps(pp + 8 * 2);
+                __m256 _r3 = _mm256_load_ps(pp + 8 * 3);
+                transpose8x4_ps(_r0, _r1, _r2, _r3);
+                _mm256_storeu_ps(p0, _r0);
+                _mm256_storeu_ps(p0 + 8, _r1);
+                _mm256_storeu_ps(p0 + 8 * 2, _r2);
+                _mm256_storeu_ps(p0 + 8 * 3, _r3);
+                pp += 32;
+                p0 += out_hstep * 4;
+            }
+        }
+        if (out_elempack == 1)
+        {
+            float* p0 = (float*)top_blob + j * out_hstep + (i + ii);
+
+            for (int jj = 0; jj < max_jj; jj += 1)
+            {
+                __m256 _r0 = _mm256_load_ps(pp);
+                _mm256_storeu_ps(p0, _r0);
+                pp += 8;
+                p0 += out_hstep;
+            }
+        }
+    }
+#endif // __AVX__
+    for (; ii + 3 < max_ii; ii += 4)
+    {
+#if __AVX__
+#if __AVX512F__
+        if (out_elempack == 16)
+        {
+            float* p0 = (float*)top_blob + (j / 16 * 16) * out_hstep + (i + ii) * 16;
+
+            int jj = 0;
+            if (j % 16 == 4)
+            {
+                __m128 _r0 = _mm_load_ps(pp);
+                __m128 _r1 = _mm_load_ps(pp + 4);
+                __m128 _r2 = _mm_load_ps(pp + 4 * 2);
+                __m128 _r3 = _mm_load_ps(pp + 4 * 3);
+                if (max_jj > 4)
+                {
+                    // assert max_jj > 8
+                    __m128 _r4 = _mm_load_ps(pp + 4 * 4);
+                    __m128 _r5 = _mm_load_ps(pp + 4 * 5);
+                    __m128 _r6 = _mm_load_ps(pp + 4 * 6);
+                    __m128 _r7 = _mm_load_ps(pp + 4 * 7);
+                    __m128 _r8 = _mm_load_ps(pp + 4 * 8);
+                    __m128 _r9 = _mm_load_ps(pp + 4 * 9);
+                    __m128 _ra = _mm_load_ps(pp + 4 * 10);
+                    __m128 _rb = _mm_load_ps(pp + 4 * 11);
+                    _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
+                    _MM_TRANSPOSE4_PS(_r4, _r5, _r6, _r7);
+                    _MM_TRANSPOSE4_PS(_r8, _r9, _ra, _rb);
+                    _mm_store_ps(p0 + 4, _r0);
+                    _mm_store_ps(p0 + 4 + 4, _r4);
+                    _mm_store_ps(p0 + 4 + 8, _r8);
+                    _mm_store_ps(p0 + 16 + 4, _r1);
+                    _mm_store_ps(p0 + 16 + 4 + 4, _r5);
+                    _mm_store_ps(p0 + 16 + 4 + 8, _r9);
+                    _mm_store_ps(p0 + 16 * 2 + 4, _r2);
+                    _mm_store_ps(p0 + 16 * 2 + 4 + 4, _r6);
+                    _mm_store_ps(p0 + 16 * 2 + 4 + 8, _ra);
+                    _mm_store_ps(p0 + 16 * 3 + 4, _r3);
+                    _mm_store_ps(p0 + 16 * 3 + 4 + 4, _r7);
+                    _mm_store_ps(p0 + 16 * 3 + 4 + 8, _rb);
+                    pp += 48;
+                    jj += 12;
+                }
+                else
+                {
+                    _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
+                    _mm_store_ps(p0 + 4, _r0);
+                    _mm_store_ps(p0 + 16 + 4, _r1);
+                    _mm_store_ps(p0 + 16 * 2 + 4, _r2);
+                    _mm_store_ps(p0 + 16 * 3 + 4, _r3);
+                    pp += 16;
+                    jj += 4;
+                }
+                p0 += out_hstep * 16;
+            }
+            if (j % 16 == 8)
+            {
+                __m128 _r0 = _mm_load_ps(pp);
+                __m128 _r1 = _mm_load_ps(pp + 4);
+                __m128 _r2 = _mm_load_ps(pp + 4 * 2);
+                __m128 _r3 = _mm_load_ps(pp + 4 * 3);
+                if (max_jj > 4)
+                {
+                    __m128 _r4 = _mm_load_ps(pp + 4 * 4);
+                    __m128 _r5 = _mm_load_ps(pp + 4 * 5);
+                    __m128 _r6 = _mm_load_ps(pp + 4 * 6);
+                    __m128 _r7 = _mm_load_ps(pp + 4 * 7);
+                    _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
+                    _MM_TRANSPOSE4_PS(_r4, _r5, _r6, _r7);
+                    _mm_store_ps(p0 + 8, _r0);
+                    _mm_store_ps(p0 + 8 + 4, _r4);
+                    _mm_store_ps(p0 + 16 + 8, _r1);
+                    _mm_store_ps(p0 + 16 + 8 + 4, _r5);
+                    _mm_store_ps(p0 + 16 * 2 + 8, _r2);
+                    _mm_store_ps(p0 + 16 * 2 + 8 + 4, _r6);
+                    _mm_store_ps(p0 + 16 * 3 + 8, _r3);
+                    _mm_store_ps(p0 + 16 * 3 + 8 + 4, _r7);
+                    pp += 32;
+                    jj += 8;
+                }
+                else
+                {
+                    _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
+                    _mm_store_ps(p0 + 8, _r0);
+                    _mm_store_ps(p0 + 16 + 8, _r1);
+                    _mm_store_ps(p0 + 16 * 2 + 8, _r2);
+                    _mm_store_ps(p0 + 16 * 3 + 8, _r3);
+                    pp += 16;
+                    jj += 4;
+                }
+                p0 += out_hstep * 16;
+            }
+            if (j % 16 == 12)
+            {
+                __m128 _r0 = _mm_load_ps(pp);
+                __m128 _r1 = _mm_load_ps(pp + 4);
+                __m128 _r2 = _mm_load_ps(pp + 4 * 2);
+                __m128 _r3 = _mm_load_ps(pp + 4 * 3);
+                _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
+                _mm_store_ps(p0 + 12, _r0);
+                _mm_store_ps(p0 + 16 + 12, _r1);
+                _mm_store_ps(p0 + 16 * 2 + 12, _r2);
+                _mm_store_ps(p0 + 16 * 3 + 12, _r3);
+                pp += 16;
+                p0 += out_hstep * 16;
+                jj += 4;
+            }
+            for (; jj + 15 < max_jj; jj += 16)
+            {
+                __m128 _r0 = _mm_load_ps(pp);
+                __m128 _r1 = _mm_load_ps(pp + 4);
+                __m128 _r2 = _mm_load_ps(pp + 4 * 2);
+                __m128 _r3 = _mm_load_ps(pp + 4 * 3);
+                __m128 _r4 = _mm_load_ps(pp + 4 * 4);
+                __m128 _r5 = _mm_load_ps(pp + 4 * 5);
+                __m128 _r6 = _mm_load_ps(pp + 4 * 6);
+                __m128 _r7 = _mm_load_ps(pp + 4 * 7);
+                __m128 _r8 = _mm_load_ps(pp + 4 * 8);
+                __m128 _r9 = _mm_load_ps(pp + 4 * 9);
+                __m128 _ra = _mm_load_ps(pp + 4 * 10);
+                __m128 _rb = _mm_load_ps(pp + 4 * 11);
+                __m128 _rc = _mm_load_ps(pp + 4 * 12);
+                __m128 _rd = _mm_load_ps(pp + 4 * 13);
+                __m128 _re = _mm_load_ps(pp + 4 * 14);
+                __m128 _rf = _mm_load_ps(pp + 4 * 15);
+                _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
+                _MM_TRANSPOSE4_PS(_r4, _r5, _r6, _r7);
+                _MM_TRANSPOSE4_PS(_r8, _r9, _ra, _rb);
+                _MM_TRANSPOSE4_PS(_rc, _rd, _re, _rf);
+                _mm_store_ps(p0, _r0);
+                _mm_store_ps(p0 + 4, _r4);
+                _mm_store_ps(p0 + 4 * 2, _r8);
+                _mm_store_ps(p0 + 4 * 3, _rc);
+                _mm_store_ps(p0 + 4 * 4, _r1);
+                _mm_store_ps(p0 + 4 * 5, _r5);
+                _mm_store_ps(p0 + 4 * 6, _r9);
+                _mm_store_ps(p0 + 4 * 7, _rd);
+                _mm_store_ps(p0 + 4 * 8, _r2);
+                _mm_store_ps(p0 + 4 * 9, _r6);
+                _mm_store_ps(p0 + 4 * 10, _ra);
+                _mm_store_ps(p0 + 4 * 11, _re);
+                _mm_store_ps(p0 + 4 * 12, _r3);
+                _mm_store_ps(p0 + 4 * 13, _r7);
+                _mm_store_ps(p0 + 4 * 14, _rb);
+                _mm_store_ps(p0 + 4 * 15, _rf);
+                pp += 64;
+                p0 += out_hstep * 16;
+            }
+            for (; jj + 11 < max_jj; jj += 12)
+            {
+                __m128 _r0 = _mm_load_ps(pp);
+                __m128 _r1 = _mm_load_ps(pp + 4);
+                __m128 _r2 = _mm_load_ps(pp + 4 * 2);
+                __m128 _r3 = _mm_load_ps(pp + 4 * 3);
+                __m128 _r4 = _mm_load_ps(pp + 4 * 4);
+                __m128 _r5 = _mm_load_ps(pp + 4 * 5);
+                __m128 _r6 = _mm_load_ps(pp + 4 * 6);
+                __m128 _r7 = _mm_load_ps(pp + 4 * 7);
+                __m128 _r8 = _mm_load_ps(pp + 4 * 8);
+                __m128 _r9 = _mm_load_ps(pp + 4 * 9);
+                __m128 _ra = _mm_load_ps(pp + 4 * 10);
+                __m128 _rb = _mm_load_ps(pp + 4 * 11);
+                _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
+                _MM_TRANSPOSE4_PS(_r4, _r5, _r6, _r7);
+                _MM_TRANSPOSE4_PS(_r8, _r9, _ra, _rb);
+                _mm_store_ps(p0, _r0);
+                _mm_store_ps(p0 + 4, _r4);
+                _mm_store_ps(p0 + 8, _r8);
+                _mm_store_ps(p0 + 16, _r1);
+                _mm_store_ps(p0 + 16 + 4, _r5);
+                _mm_store_ps(p0 + 16 + 8, _r9);
+                _mm_store_ps(p0 + 16 * 2, _r2);
+                _mm_store_ps(p0 + 16 * 2 + 4, _r6);
+                _mm_store_ps(p0 + 16 * 2 + 8, _ra);
+                _mm_store_ps(p0 + 16 * 3, _r3);
+                _mm_store_ps(p0 + 16 * 3 + 4, _r7);
+                _mm_store_ps(p0 + 16 * 3 + 8, _rb);
+                pp += 48;
+                p0 += out_hstep * 16;
+            }
+            for (; jj + 7 < max_jj; jj += 8)
+            {
+                __m128 _r0 = _mm_load_ps(pp);
+                __m128 _r1 = _mm_load_ps(pp + 4);
+                __m128 _r2 = _mm_load_ps(pp + 4 * 2);
+                __m128 _r3 = _mm_load_ps(pp + 4 * 3);
+                __m128 _r4 = _mm_load_ps(pp + 4 * 4);
+                __m128 _r5 = _mm_load_ps(pp + 4 * 5);
+                __m128 _r6 = _mm_load_ps(pp + 4 * 6);
+                __m128 _r7 = _mm_load_ps(pp + 4 * 7);
+                _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
+                _MM_TRANSPOSE4_PS(_r4, _r5, _r6, _r7);
+                _mm_store_ps(p0, _r0);
+                _mm_store_ps(p0 + 4, _r4);
+                _mm_store_ps(p0 + 16, _r1);
+                _mm_store_ps(p0 + 16 + 4, _r5);
+                _mm_store_ps(p0 + 16 * 2, _r2);
+                _mm_store_ps(p0 + 16 * 2 + 4, _r6);
+                _mm_store_ps(p0 + 16 * 3, _r3);
+                _mm_store_ps(p0 + 16 * 3 + 4, _r7);
+                pp += 32;
+                p0 += out_hstep * 16;
+            }
+            for (; jj + 3 < max_jj; jj += 4)
+            {
+                __m128 _r0 = _mm_load_ps(pp);
+                __m128 _r1 = _mm_load_ps(pp + 4);
+                __m128 _r2 = _mm_load_ps(pp + 4 * 2);
+                __m128 _r3 = _mm_load_ps(pp + 4 * 3);
+                _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
+                _mm_store_ps(p0, _r0);
+                _mm_store_ps(p0 + 16, _r1);
+                _mm_store_ps(p0 + 16 * 2, _r2);
+                _mm_store_ps(p0 + 16 * 3, _r3);
+                pp += 16;
+                p0 += out_hstep * 16;
+            }
+        }
+#endif // __AVX512F__
+        if (out_elempack == 8)
+        {
+            float* p0 = (float*)top_blob + (j / 8 * 8) * out_hstep + (i + ii) * 8;
+
+            int jj = 0;
+            if (j % 8 == 4)
+            {
+                __m128 _r0 = _mm_load_ps(pp);
+                __m128 _r1 = _mm_load_ps(pp + 4);
+                __m128 _r2 = _mm_load_ps(pp + 4 * 2);
+                __m128 _r3 = _mm_load_ps(pp + 4 * 3);
+                _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
+                _mm_store_ps(p0 + 4, _r0);
+                _mm_store_ps(p0 + 8 + 4, _r1);
+                _mm_store_ps(p0 + 8 * 2 + 4, _r2);
+                _mm_store_ps(p0 + 8 * 3 + 4, _r3);
+                pp += 16;
+                p0 += out_hstep * 8;
+                jj += 4;
+            }
+            for (; jj + 7 < max_jj; jj += 8)
+            {
+                __m128 _r0 = _mm_load_ps(pp);
+                __m128 _r1 = _mm_load_ps(pp + 4);
+                __m128 _r2 = _mm_load_ps(pp + 4 * 2);
+                __m128 _r3 = _mm_load_ps(pp + 4 * 3);
+                __m128 _r4 = _mm_load_ps(pp + 4 * 4);
+                __m128 _r5 = _mm_load_ps(pp + 4 * 5);
+                __m128 _r6 = _mm_load_ps(pp + 4 * 6);
+                __m128 _r7 = _mm_load_ps(pp + 4 * 7);
+                _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
+                _MM_TRANSPOSE4_PS(_r4, _r5, _r6, _r7);
+                _mm_storeu_ps(p0, _r0);
+                _mm_storeu_ps(p0 + 4, _r4);
+                _mm_storeu_ps(p0 + 4 * 2, _r1);
+                _mm_storeu_ps(p0 + 4 * 3, _r5);
+                _mm_storeu_ps(p0 + 4 * 4, _r2);
+                _mm_storeu_ps(p0 + 4 * 5, _r6);
+                _mm_storeu_ps(p0 + 4 * 6, _r3);
+                _mm_storeu_ps(p0 + 4 * 7, _r7);
+                pp += 32;
+                p0 += out_hstep * 8;
+            }
+            for (; jj + 3 < max_jj; jj += 4)
+            {
+                __m128 _r0 = _mm_load_ps(pp);
+                __m128 _r1 = _mm_load_ps(pp + 4);
+                __m128 _r2 = _mm_load_ps(pp + 4 * 2);
+                __m128 _r3 = _mm_load_ps(pp + 4 * 3);
+                _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
+                _mm_store_ps(p0, _r0);
+                _mm_store_ps(p0 + 8, _r1);
+                _mm_store_ps(p0 + 8 * 2, _r2);
+                _mm_store_ps(p0 + 8 * 3, _r3);
+                pp += 16;
+                p0 += out_hstep * 8;
+            }
+        }
+#endif // __AVX__
+        if (out_elempack == 4)
+        {
+            float* p0 = (float*)top_blob + j * out_hstep + (i + ii) * 4;
+
+            for (int jj = 0; jj + 3 < max_jj; jj += 4)
+            {
+                __m128 _r0 = _mm_load_ps(pp);
+                __m128 _r1 = _mm_load_ps(pp + 4);
+                __m128 _r2 = _mm_load_ps(pp + 4 * 2);
+                __m128 _r3 = _mm_load_ps(pp + 4 * 3);
+                _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
+                _mm_storeu_ps(p0, _r0);
+                _mm_storeu_ps(p0 + 4, _r1);
+                _mm_storeu_ps(p0 + 4 * 2, _r2);
+                _mm_storeu_ps(p0 + 4 * 3, _r3);
+                pp += 16;
+                p0 += out_hstep * 4;
+            }
+        }
+        if (out_elempack == 1)
+        {
+            float* p0 = (float*)top_blob + j * out_hstep + (i + ii);
+
+            for (int jj = 0; jj < max_jj; jj += 1)
+            {
+                __m128 _r0 = _mm_load_ps(pp);
+                _mm_storeu_ps(p0, _r0);
+                pp += 4;
+                p0 += out_hstep;
+            }
+        }
+    }
+#endif // __SSE2__
+    for (; ii + 1 < max_ii; ii += 2)
+    {
+#if __SSE2__
+#if __AVX__
+#if __AVX512F__
+        if (out_elempack == 16)
+        {
+            float* p0 = (float*)top_blob + (j / 16 * 16) * out_hstep + (i + ii) * 16;
+
+            int jj = 0;
+            if (j % 16 == 4)
+            {
+                if (max_jj > 4)
+                {
+                    // assert max_jj > 8
+                    p0[0 + 4] = pp[0];
+                    p0[1 + 4] = pp[2];
+                    p0[2 + 4] = pp[4];
+                    p0[3 + 4] = pp[6];
+                    p0[4 + 4] = pp[8];
+                    p0[5 + 4] = pp[10];
+                    p0[6 + 4] = pp[12];
+                    p0[7 + 4] = pp[14];
+                    p0[8 + 4] = pp[16];
+                    p0[9 + 4] = pp[18];
+                    p0[10 + 4] = pp[20];
+                    p0[11 + 4] = pp[22];
+                    p0[16 + 4] = pp[1];
+                    p0[17 + 4] = pp[3];
+                    p0[18 + 4] = pp[5];
+                    p0[19 + 4] = pp[7];
+                    p0[20 + 4] = pp[9];
+                    p0[21 + 4] = pp[11];
+                    p0[22 + 4] = pp[13];
+                    p0[23 + 4] = pp[15];
+                    p0[24 + 4] = pp[17];
+                    p0[25 + 4] = pp[19];
+                    p0[26 + 4] = pp[21];
+                    p0[27 + 4] = pp[23];
+                    pp += 24;
+                    jj += 12;
+                }
+                else
+                {
+                    p0[0 + 4] = pp[0];
+                    p0[1 + 4] = pp[2];
+                    p0[2 + 4] = pp[4];
+                    p0[3 + 4] = pp[6];
+                    p0[16 + 4] = pp[1];
+                    p0[17 + 4] = pp[3];
+                    p0[18 + 4] = pp[5];
+                    p0[19 + 4] = pp[7];
+                    pp += 8;
+                    jj += 4;
+                }
+                p0 += out_hstep * 16;
+            }
+            if (j % 16 == 8)
+            {
+                if (max_jj > 4)
+                {
+                    p0[0 + 8] = pp[0];
+                    p0[1 + 8] = pp[2];
+                    p0[2 + 8] = pp[4];
+                    p0[3 + 8] = pp[6];
+                    p0[4 + 8] = pp[8];
+                    p0[5 + 8] = pp[10];
+                    p0[6 + 8] = pp[12];
+                    p0[7 + 8] = pp[14];
+                    p0[16 + 8] = pp[1];
+                    p0[17 + 8] = pp[3];
+                    p0[18 + 8] = pp[5];
+                    p0[19 + 8] = pp[7];
+                    p0[20 + 8] = pp[9];
+                    p0[21 + 8] = pp[11];
+                    p0[22 + 8] = pp[13];
+                    p0[23 + 8] = pp[15];
+                    pp += 16;
+                    jj += 8;
+                }
+                else
+                {
+                    p0[0 + 8] = pp[0];
+                    p0[1 + 8] = pp[2];
+                    p0[2 + 8] = pp[4];
+                    p0[3 + 8] = pp[6];
+                    p0[16 + 8] = pp[1];
+                    p0[17 + 8] = pp[3];
+                    p0[18 + 8] = pp[5];
+                    p0[19 + 8] = pp[7];
+                    pp += 8;
+                    jj += 4;
+                }
+                p0 += out_hstep * 16;
+            }
+            if (j % 16 == 12)
+            {
+                p0[0 + 12] = pp[0];
+                p0[1 + 12] = pp[2];
+                p0[2 + 12] = pp[4];
+                p0[3 + 12] = pp[6];
+                p0[16 + 12] = pp[1];
+                p0[17 + 12] = pp[3];
+                p0[18 + 12] = pp[5];
+                p0[19 + 12] = pp[7];
+                pp += 8;
+                p0 += out_hstep * 16;
+                jj += 4;
+            }
+            for (; jj + 15 < max_jj; jj += 16)
+            {
+                p0[0] = pp[0];
+                p0[1] = pp[2];
+                p0[2] = pp[4];
+                p0[3] = pp[6];
+                p0[4] = pp[8];
+                p0[5] = pp[10];
+                p0[6] = pp[12];
+                p0[7] = pp[14];
+                p0[8] = pp[16];
+                p0[9] = pp[18];
+                p0[10] = pp[20];
+                p0[11] = pp[22];
+                p0[12] = pp[24];
+                p0[13] = pp[26];
+                p0[14] = pp[28];
+                p0[15] = pp[30];
+                p0[16] = pp[1];
+                p0[17] = pp[3];
+                p0[18] = pp[5];
+                p0[19] = pp[7];
+                p0[20] = pp[9];
+                p0[21] = pp[11];
+                p0[22] = pp[13];
+                p0[23] = pp[15];
+                p0[24] = pp[17];
+                p0[25] = pp[19];
+                p0[26] = pp[21];
+                p0[27] = pp[23];
+                p0[28] = pp[25];
+                p0[29] = pp[27];
+                p0[30] = pp[29];
+                p0[31] = pp[31];
+                pp += 32;
+                p0 += out_hstep * 16;
+            }
+            for (; jj + 11 < max_jj; jj += 12)
+            {
+                p0[0] = pp[0];
+                p0[1] = pp[2];
+                p0[2] = pp[4];
+                p0[3] = pp[6];
+                p0[4] = pp[8];
+                p0[5] = pp[10];
+                p0[6] = pp[12];
+                p0[7] = pp[14];
+                p0[8] = pp[16];
+                p0[9] = pp[18];
+                p0[10] = pp[20];
+                p0[11] = pp[22];
+                p0[16] = pp[1];
+                p0[17] = pp[3];
+                p0[18] = pp[5];
+                p0[19] = pp[7];
+                p0[20] = pp[9];
+                p0[21] = pp[11];
+                p0[22] = pp[13];
+                p0[23] = pp[15];
+                p0[24] = pp[17];
+                p0[25] = pp[19];
+                p0[26] = pp[21];
+                p0[27] = pp[23];
+                pp += 24;
+                p0 += out_hstep * 16;
+            }
+            for (; jj + 7 < max_jj; jj += 8)
+            {
+                p0[0] = pp[0];
+                p0[1] = pp[2];
+                p0[2] = pp[4];
+                p0[3] = pp[6];
+                p0[4] = pp[8];
+                p0[5] = pp[10];
+                p0[6] = pp[12];
+                p0[7] = pp[14];
+                p0[16] = pp[1];
+                p0[17] = pp[3];
+                p0[18] = pp[5];
+                p0[19] = pp[7];
+                p0[20] = pp[9];
+                p0[21] = pp[11];
+                p0[22] = pp[13];
+                p0[23] = pp[15];
+                pp += 16;
+                p0 += out_hstep * 16;
+            }
+            for (; jj + 3 < max_jj; jj += 4)
+            {
+                p0[0] = pp[0];
+                p0[1] = pp[2];
+                p0[2] = pp[4];
+                p0[3] = pp[6];
+                p0[16] = pp[1];
+                p0[17] = pp[3];
+                p0[18] = pp[5];
+                p0[19] = pp[7];
+                pp += 8;
+                p0 += out_hstep * 16;
+            }
+        }
+#endif // __AVX512F__
+        if (out_elempack == 8)
+        {
+            float* p0 = (float*)top_blob + (j / 8 * 8) * out_hstep + (i + ii) * 8;
+
+            int jj = 0;
+            if (j % 8 == 4)
+            {
+                p0[0 + 4] = pp[0];
+                p0[1 + 4] = pp[2];
+                p0[2 + 4] = pp[4];
+                p0[3 + 4] = pp[6];
+                p0[8 + 4] = pp[1];
+                p0[9 + 4] = pp[3];
+                p0[10 + 4] = pp[5];
+                p0[11 + 4] = pp[7];
+                pp += 8;
+                p0 += out_hstep * 8;
+                jj += 4;
+            }
+            for (; jj + 7 < max_jj; jj += 8)
+            {
+                p0[0] = pp[0];
+                p0[1] = pp[2];
+                p0[2] = pp[4];
+                p0[3] = pp[6];
+                p0[4] = pp[8];
+                p0[5] = pp[10];
+                p0[6] = pp[12];
+                p0[7] = pp[14];
+                p0[8] = pp[1];
+                p0[9] = pp[3];
+                p0[10] = pp[5];
+                p0[11] = pp[7];
+                p0[12] = pp[9];
+                p0[13] = pp[11];
+                p0[14] = pp[13];
+                p0[15] = pp[15];
+                pp += 16;
+                p0 += out_hstep * 8;
+            }
+            for (; jj + 3 < max_jj; jj += 4)
+            {
+                p0[0] = pp[0];
+                p0[1] = pp[2];
+                p0[2] = pp[4];
+                p0[3] = pp[6];
+                p0[8] = pp[1];
+                p0[9] = pp[3];
+                p0[10] = pp[5];
+                p0[11] = pp[7];
+                pp += 8;
+                p0 += out_hstep * 8;
+            }
+        }
+#endif // __AVX__
+        if (out_elempack == 4)
+        {
+            float* p0 = (float*)top_blob + j * out_hstep + (i + ii) * 4;
+
+            for (int jj = 0; jj + 3 < max_jj; jj += 4)
+            {
+                p0[0] = pp[0];
+                p0[1] = pp[2];
+                p0[2] = pp[4];
+                p0[3] = pp[6];
+                p0[4] = pp[1];
+                p0[5] = pp[3];
+                p0[6] = pp[5];
+                p0[7] = pp[7];
+                pp += 8;
+                p0 += out_hstep * 4;
+            }
+        }
+#endif // __SSE2__
+        if (out_elempack == 1)
+        {
+            float* p0 = (float*)top_blob + j * out_hstep + (i + ii);
+
+            for (int jj = 0; jj < max_jj; jj += 1)
+            {
+                p0[0] = pp[0];
+                p0[1] = pp[1];
+                pp += 2;
+                p0 += out_hstep;
+            }
+        }
+    }
+    for (; ii < max_ii; ii += 1)
+    {
+#if __SSE2__
+#if __AVX__
+#if __AVX512F__
+        if (out_elempack == 16)
+        {
+            float* p0 = (float*)top_blob + (j / 16 * 16) * out_hstep + (i + ii) * 16;
+
+            int jj = 0;
+            if (j % 16 == 4)
+            {
+                if (max_jj > 4)
+                {
+                    // assert max_jj > 8
+                    __m256 _r0 = _mm256_loadu_ps(pp);
+                    __m128 _r1 = _mm_loadu_ps(pp + 8);
+                    _mm256_storeu_ps(p0 + 4, _r0);
+                    _mm_store_ps(p0 + 4 + 8, _r1);
+                    pp += 12;
+                    jj += 12;
+                }
+                else
+                {
+                    __m128 _r0 = _mm_loadu_ps(pp);
+                    _mm_storeu_ps(p0 + 4, _r0);
+                    pp += 4;
+                    jj += 4;
+                }
+                p0 += out_hstep * 16;
+            }
+            if (j % 16 == 8)
+            {
+                if (max_jj > 4)
+                {
+                    __m256 _r0 = _mm256_loadu_ps(pp);
+                    _mm256_store_ps(p0 + 8, _r0);
+                    pp += 8;
+                    jj += 8;
+                }
+                else
+                {
+                    __m128 _r0 = _mm_loadu_ps(pp);
+                    _mm_store_ps(p0 + 8, _r0);
+                    pp += 4;
+                    jj += 4;
+                }
+                p0 += out_hstep * 16;
+            }
+            if (j % 16 == 12)
+            {
+                __m128 _r0 = _mm_loadu_ps(pp);
+                _mm_store_ps(p0 + 12, _r0);
+                pp += 4;
+                p0 += out_hstep * 16;
+                jj += 4;
+            }
+            for (; jj + 15 < max_jj; jj += 16)
+            {
+                __m512 _r0 = _mm512_loadu_ps(pp);
+                _mm512_store_ps(p0, _r0);
+                pp += 16;
+                p0 += out_hstep * 16;
+            }
+            for (; jj + 11 < max_jj; jj += 12)
+            {
+                __m256 _r0 = _mm256_loadu_ps(pp);
+                __m128 _r1 = _mm_loadu_ps(pp + 8);
+                _mm256_store_ps(p0, _r0);
+                _mm_store_ps(p0 + 8, _r1);
+                pp += 12;
+                p0 += out_hstep * 16;
+            }
+            for (; jj + 7 < max_jj; jj += 8)
+            {
+                __m256 _r0 = _mm256_loadu_ps(pp);
+                _mm256_store_ps(p0, _r0);
+                pp += 8;
+                p0 += out_hstep * 16;
+            }
+            for (; jj + 3 < max_jj; jj += 4)
+            {
+                __m128 _r0 = _mm_loadu_ps(pp);
+                _mm_store_ps(p0, _r0);
+                pp += 4;
+                p0 += out_hstep * 16;
+            }
+        }
+#endif // __AVX512F__
+        if (out_elempack == 8)
+        {
+            float* p0 = (float*)top_blob + (j / 8 * 8) * out_hstep + (i + ii) * 8;
+
+            int jj = 0;
+            if (j % 8 == 4)
+            {
+                p0[0 + 4] = pp[0];
+                p0[1 + 4] = pp[1];
+                p0[2 + 4] = pp[2];
+                p0[3 + 4] = pp[3];
+                pp += 4;
+                p0 += out_hstep * 8;
+                jj += 4;
+            }
+            for (; jj + 7 < max_jj; jj += 8)
+            {
+                __m256 _r0 = _mm256_loadu_ps(pp);
+                _mm256_store_ps(p0, _r0);
+                pp += 8;
+                p0 += out_hstep * 8;
+            }
+            for (; jj + 3 < max_jj; jj += 4)
+            {
+                p0[0] = pp[0];
+                p0[1] = pp[1];
+                p0[2] = pp[2];
+                p0[3] = pp[3];
+                pp += 4;
+                p0 += out_hstep * 8;
+            }
+        }
+#endif // __AVX__
+        if (out_elempack == 4)
+        {
+            float* p0 = (float*)top_blob + j * out_hstep + (i + ii) * 4;
+
+            for (int jj = 0; jj + 3 < max_jj; jj += 4)
+            {
+                __m128 _r0 = _mm_loadu_ps(pp);
+                _mm_store_ps(p0, _r0);
+                pp += 4;
+                p0 += out_hstep * 4;
+            }
+        }
+#endif // __SSE2__
+        if (out_elempack == 1)
+        {
+            float* p0 = (float*)top_blob + j * out_hstep + (i + ii);
+
+            for (int jj = 0; jj < max_jj; jj += 1)
+            {
+                p0[0] = pp[0];
+                pp += 1;
+                p0 += out_hstep;
+            }
+        }
+    }
+}
+
+static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, const Mat& CT_tile, Mat& topT_tile, Mat& top_blob, int broadcast_type_C, int i, int max_ii, int j, int max_jj, int k, int max_kk, bool k_end)
+{
+    const int out_elempack = top_blob.elempack;
+    const int out_hstep = top_blob.dims == 3 ? (int)top_blob.cstep : top_blob.w;
+
+    const float* pAT = AT_tile;
+    const float* pBT = BT_tile;
+    const float* pC = CT_tile;
+
+    float* outptr = topT_tile;
 
     int ii = 0;
 #if __SSE2__
@@ -1964,22 +3568,17 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
     {
         float* outptr0 = (float*)top_blob + (i + ii) * out_hstep + j * out_elempack;
 
-        const float* pB = pB0;
+        const float* pB = pBT;
 
-        const float* pC = C;
         if (pC)
         {
             if (broadcast_type_C == 1 || broadcast_type_C == 2)
             {
-                pC = pC + i + ii;
-            }
-            if (broadcast_type_C == 3)
-            {
-                pC = C.row((i + ii) / out_elempack) + j * out_elempack;
+                pC = (const float*)CT_tile + i + ii;
             }
             if (broadcast_type_C == 4)
             {
-                pC = pC + j;
+                pC = (const float*)CT_tile + j;
             }
         }
 
@@ -2048,152 +3647,19 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                     }
                     if (broadcast_type_C == 3)
                     {
-                        if (out_elempack == 16)
-                        {
-                            _sum0 = _mm512_loadu_ps(pC);
-                            _sum1 = _mm512_loadu_ps(pC + 16);
-                            _sum2 = _mm512_loadu_ps(pC + 16 * 2);
-                            _sum3 = _mm512_loadu_ps(pC + 16 * 3);
-                            _sum4 = _mm512_loadu_ps(pC + 16 * 4);
-                            _sum5 = _mm512_loadu_ps(pC + 16 * 5);
-                            _sum6 = _mm512_loadu_ps(pC + 16 * 6);
-                            _sum7 = _mm512_loadu_ps(pC + 16 * 7);
-                            _sum8 = _mm512_loadu_ps(pC + 16 * 8);
-                            _sum9 = _mm512_loadu_ps(pC + 16 * 9);
-                            _suma = _mm512_loadu_ps(pC + 16 * 10);
-                            _sumb = _mm512_loadu_ps(pC + 16 * 11);
-                            pC += 192;
-                        }
-                        if (out_elempack == 8)
-                        {
-                            __m512 _tmp0 = _mm512_loadu_ps(pC);
-                            __m512 _tmp1 = _mm512_loadu_ps(pC + 16);
-                            __m512 _tmp2 = _mm512_loadu_ps(pC + 32);
-                            __m512 _tmp3 = _mm512_loadu_ps(pC + 48);
-                            __m512 _tmp4 = _mm512_loadu_ps(pC + 64);
-                            __m512 _tmp5 = _mm512_loadu_ps(pC + 80);
-                            __m512 _tmp6 = _mm512_loadu_ps(pC + N * 8);
-                            __m512 _tmp7 = _mm512_loadu_ps(pC + N * 8 + 16);
-                            __m512 _tmp8 = _mm512_loadu_ps(pC + N * 8 + 32);
-                            __m512 _tmp9 = _mm512_loadu_ps(pC + N * 8 + 48);
-                            __m512 _tmpa = _mm512_loadu_ps(pC + N * 8 + 64);
-                            __m512 _tmpb = _mm512_loadu_ps(pC + N * 8 + 80);
-
-                            _sum0 = _mm512_shuffle_f32x4(_tmp0, _tmp6, _MM_SHUFFLE(1, 0, 1, 0));
-                            _sum1 = _mm512_shuffle_f32x4(_tmp0, _tmp6, _MM_SHUFFLE(3, 2, 3, 2));
-                            _sum2 = _mm512_shuffle_f32x4(_tmp1, _tmp7, _MM_SHUFFLE(1, 0, 1, 0));
-                            _sum3 = _mm512_shuffle_f32x4(_tmp1, _tmp7, _MM_SHUFFLE(3, 2, 3, 2));
-                            _sum4 = _mm512_shuffle_f32x4(_tmp2, _tmp8, _MM_SHUFFLE(1, 0, 1, 0));
-                            _sum5 = _mm512_shuffle_f32x4(_tmp2, _tmp8, _MM_SHUFFLE(3, 2, 3, 2));
-                            _sum6 = _mm512_shuffle_f32x4(_tmp3, _tmp9, _MM_SHUFFLE(1, 0, 1, 0));
-                            _sum7 = _mm512_shuffle_f32x4(_tmp3, _tmp9, _MM_SHUFFLE(3, 2, 3, 2));
-                            _sum8 = _mm512_shuffle_f32x4(_tmp4, _tmpa, _MM_SHUFFLE(1, 0, 1, 0));
-                            _sum9 = _mm512_shuffle_f32x4(_tmp4, _tmpa, _MM_SHUFFLE(3, 2, 3, 2));
-                            _suma = _mm512_shuffle_f32x4(_tmp5, _tmpb, _MM_SHUFFLE(1, 0, 1, 0));
-                            _sumb = _mm512_shuffle_f32x4(_tmp5, _tmpb, _MM_SHUFFLE(3, 2, 3, 2));
-                            pC += 96;
-                        }
-                        if (out_elempack == 4)
-                        {
-                            _sum0 = _mm512_loadu_ps(pC);
-                            _sum1 = _mm512_loadu_ps(pC + 16);
-                            _sum2 = _mm512_loadu_ps(pC + 32);
-                            _sum3 = _mm512_loadu_ps(pC + N * 4);
-                            _sum4 = _mm512_loadu_ps(pC + N * 4 + 16);
-                            _sum5 = _mm512_loadu_ps(pC + N * 4 + 32);
-                            _sum6 = _mm512_loadu_ps(pC + N * 8);
-                            _sum7 = _mm512_loadu_ps(pC + N * 8 + 16);
-                            _sum8 = _mm512_loadu_ps(pC + N * 8 + 32);
-                            _sum9 = _mm512_loadu_ps(pC + N * 12);
-                            _suma = _mm512_loadu_ps(pC + N * 12 + 16);
-                            _sumb = _mm512_loadu_ps(pC + N * 12 + 32);
-
-                            __m512 _tmp0 = _mm512_shuffle_f32x4(_sum0, _sum3, _MM_SHUFFLE(1, 0, 1, 0));
-                            __m512 _tmp1 = _mm512_shuffle_f32x4(_sum6, _sum9, _MM_SHUFFLE(1, 0, 1, 0));
-                            __m512 _tmp2 = _mm512_shuffle_f32x4(_sum0, _sum3, _MM_SHUFFLE(3, 2, 3, 2));
-                            __m512 _tmp3 = _mm512_shuffle_f32x4(_sum6, _sum9, _MM_SHUFFLE(3, 2, 3, 2));
-                            __m512 _tmp4 = _mm512_shuffle_f32x4(_sum1, _sum4, _MM_SHUFFLE(1, 0, 1, 0));
-                            __m512 _tmp5 = _mm512_shuffle_f32x4(_sum7, _suma, _MM_SHUFFLE(1, 0, 1, 0));
-                            __m512 _tmp6 = _mm512_shuffle_f32x4(_sum1, _sum4, _MM_SHUFFLE(3, 2, 3, 2));
-                            __m512 _tmp7 = _mm512_shuffle_f32x4(_sum7, _suma, _MM_SHUFFLE(3, 2, 3, 2));
-                            __m512 _tmp8 = _mm512_shuffle_f32x4(_sum2, _sum5, _MM_SHUFFLE(1, 0, 1, 0));
-                            __m512 _tmp9 = _mm512_shuffle_f32x4(_sum8, _sumb, _MM_SHUFFLE(1, 0, 1, 0));
-                            __m512 _tmpa = _mm512_shuffle_f32x4(_sum2, _sum5, _MM_SHUFFLE(3, 2, 3, 2));
-                            __m512 _tmpb = _mm512_shuffle_f32x4(_sum8, _sumb, _MM_SHUFFLE(3, 2, 3, 2));
-
-                            _sum0 = _mm512_shuffle_f32x4(_tmp0, _tmp1, _MM_SHUFFLE(2, 0, 2, 0));
-                            _sum1 = _mm512_shuffle_f32x4(_tmp0, _tmp1, _MM_SHUFFLE(3, 1, 3, 1));
-                            _sum2 = _mm512_shuffle_f32x4(_tmp2, _tmp3, _MM_SHUFFLE(2, 0, 2, 0));
-                            _sum3 = _mm512_shuffle_f32x4(_tmp2, _tmp3, _MM_SHUFFLE(3, 1, 3, 1));
-                            _sum4 = _mm512_shuffle_f32x4(_tmp4, _tmp5, _MM_SHUFFLE(2, 0, 2, 0));
-                            _sum5 = _mm512_shuffle_f32x4(_tmp4, _tmp5, _MM_SHUFFLE(3, 1, 3, 1));
-                            _sum6 = _mm512_shuffle_f32x4(_tmp6, _tmp7, _MM_SHUFFLE(2, 0, 2, 0));
-                            _sum7 = _mm512_shuffle_f32x4(_tmp6, _tmp7, _MM_SHUFFLE(3, 1, 3, 1));
-                            _sum8 = _mm512_shuffle_f32x4(_tmp8, _tmp9, _MM_SHUFFLE(2, 0, 2, 0));
-                            _sum9 = _mm512_shuffle_f32x4(_tmp8, _tmp9, _MM_SHUFFLE(3, 1, 3, 1));
-                            _suma = _mm512_shuffle_f32x4(_tmpa, _tmpb, _MM_SHUFFLE(2, 0, 2, 0));
-                            _sumb = _mm512_shuffle_f32x4(_tmpa, _tmpb, _MM_SHUFFLE(3, 1, 3, 1));
-
-                            pC += 48;
-                        }
-                        if (out_elempack == 1)
-                        {
-                            __m256 _r0 = _mm256_loadu_ps(pC);
-                            __m256 _r1 = _mm256_loadu_ps(pC + N);
-                            __m256 _r2 = _mm256_loadu_ps(pC + N * 2);
-                            __m256 _r3 = _mm256_loadu_ps(pC + N * 3);
-                            __m256 _r4 = _mm256_loadu_ps(pC + N * 4);
-                            __m256 _r5 = _mm256_loadu_ps(pC + N * 5);
-                            __m256 _r6 = _mm256_loadu_ps(pC + N * 6);
-                            __m256 _r7 = _mm256_loadu_ps(pC + N * 7);
-                            __m256 _r8 = _mm256_loadu_ps(pC + N * 8);
-                            __m256 _r9 = _mm256_loadu_ps(pC + N * 9);
-                            __m256 _ra = _mm256_loadu_ps(pC + N * 10);
-                            __m256 _rb = _mm256_loadu_ps(pC + N * 11);
-                            __m256 _rc = _mm256_loadu_ps(pC + N * 12);
-                            __m256 _rd = _mm256_loadu_ps(pC + N * 13);
-                            __m256 _re = _mm256_loadu_ps(pC + N * 14);
-                            __m256 _rf = _mm256_loadu_ps(pC + N * 15);
-
-                            transpose8x16_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7, _r8, _r9, _ra, _rb, _rc, _rd, _re, _rf);
-
-                            _sum0 = _mm512_insertf32x8(_mm512_castps256_ps512(_r0), _r1, 1);
-                            _sum1 = _mm512_insertf32x8(_mm512_castps256_ps512(_r2), _r3, 1);
-                            _sum2 = _mm512_insertf32x8(_mm512_castps256_ps512(_r4), _r5, 1);
-                            _sum3 = _mm512_insertf32x8(_mm512_castps256_ps512(_r6), _r7, 1);
-                            _sum4 = _mm512_insertf32x8(_mm512_castps256_ps512(_r8), _r9, 1);
-                            _sum5 = _mm512_insertf32x8(_mm512_castps256_ps512(_ra), _rb, 1);
-                            _sum6 = _mm512_insertf32x8(_mm512_castps256_ps512(_rc), _rd, 1);
-                            _sum7 = _mm512_insertf32x8(_mm512_castps256_ps512(_re), _rf, 1);
-
-                            __m128 _sum0_2 = _mm_loadu_ps(pC + 8);
-                            __m128 _sum1_2 = _mm_loadu_ps(pC + N + 8);
-                            __m128 _sum2_2 = _mm_loadu_ps(pC + N * 2 + 8);
-                            __m128 _sum3_2 = _mm_loadu_ps(pC + N * 3 + 8);
-                            __m128 _sum4_2 = _mm_loadu_ps(pC + N * 4 + 8);
-                            __m128 _sum5_2 = _mm_loadu_ps(pC + N * 5 + 8);
-                            __m128 _sum6_2 = _mm_loadu_ps(pC + N * 6 + 8);
-                            __m128 _sum7_2 = _mm_loadu_ps(pC + N * 7 + 8);
-                            __m128 _sum8_2 = _mm_loadu_ps(pC + N * 8 + 8);
-                            __m128 _sum9_2 = _mm_loadu_ps(pC + N * 9 + 8);
-                            __m128 _suma_2 = _mm_loadu_ps(pC + N * 10 + 8);
-                            __m128 _sumb_2 = _mm_loadu_ps(pC + N * 11 + 8);
-                            __m128 _sumc_2 = _mm_loadu_ps(pC + N * 12 + 8);
-                            __m128 _sumd_2 = _mm_loadu_ps(pC + N * 13 + 8);
-                            __m128 _sume_2 = _mm_loadu_ps(pC + N * 14 + 8);
-                            __m128 _sumf_2 = _mm_loadu_ps(pC + N * 15 + 8);
-
-                            _MM_TRANSPOSE4_PS(_sum0_2, _sum1_2, _sum2_2, _sum3_2);
-                            _MM_TRANSPOSE4_PS(_sum4_2, _sum5_2, _sum6_2, _sum7_2);
-                            _MM_TRANSPOSE4_PS(_sum8_2, _sum9_2, _suma_2, _sumb_2);
-                            _MM_TRANSPOSE4_PS(_sumc_2, _sumd_2, _sume_2, _sumf_2);
-
-                            _sum8 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_sum0_2), _sum4_2, 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_sum8_2), _sumc_2, 1), 1);
-                            _sum9 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_sum1_2), _sum5_2, 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_sum9_2), _sumd_2, 1), 1);
-                            _suma = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_sum2_2), _sum6_2, 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_suma_2), _sume_2, 1), 1);
-                            _sumb = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_sum3_2), _sum7_2, 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_sumb_2), _sumf_2, 1), 1);
-                            pC += 12;
-                        }
+                        _sum0 = _mm512_loadu_ps(pC);
+                        _sum1 = _mm512_loadu_ps(pC + 16);
+                        _sum2 = _mm512_loadu_ps(pC + 16 * 2);
+                        _sum3 = _mm512_loadu_ps(pC + 16 * 3);
+                        _sum4 = _mm512_loadu_ps(pC + 16 * 4);
+                        _sum5 = _mm512_loadu_ps(pC + 16 * 5);
+                        _sum6 = _mm512_loadu_ps(pC + 16 * 6);
+                        _sum7 = _mm512_loadu_ps(pC + 16 * 7);
+                        _sum8 = _mm512_loadu_ps(pC + 16 * 8);
+                        _sum9 = _mm512_loadu_ps(pC + 16 * 9);
+                        _suma = _mm512_loadu_ps(pC + 16 * 10);
+                        _sumb = _mm512_loadu_ps(pC + 16 * 11);
+                        pC += 192;
                     }
                     if (broadcast_type_C == 4)
                     {
@@ -2215,21 +3681,21 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             }
             else
             {
-                _sum0 = _mm512_load_ps(ptmp);
-                _sum1 = _mm512_load_ps(ptmp + 16 * 1);
-                _sum2 = _mm512_load_ps(ptmp + 16 * 2);
-                _sum3 = _mm512_load_ps(ptmp + 16 * 3);
-                _sum4 = _mm512_load_ps(ptmp + 16 * 4);
-                _sum5 = _mm512_load_ps(ptmp + 16 * 5);
-                _sum6 = _mm512_load_ps(ptmp + 16 * 6);
-                _sum7 = _mm512_load_ps(ptmp + 16 * 7);
-                _sum8 = _mm512_load_ps(ptmp + 16 * 8);
-                _sum9 = _mm512_load_ps(ptmp + 16 * 9);
-                _suma = _mm512_load_ps(ptmp + 16 * 10);
-                _sumb = _mm512_load_ps(ptmp + 16 * 11);
+                _sum0 = _mm512_load_ps(outptr);
+                _sum1 = _mm512_load_ps(outptr + 16 * 1);
+                _sum2 = _mm512_load_ps(outptr + 16 * 2);
+                _sum3 = _mm512_load_ps(outptr + 16 * 3);
+                _sum4 = _mm512_load_ps(outptr + 16 * 4);
+                _sum5 = _mm512_load_ps(outptr + 16 * 5);
+                _sum6 = _mm512_load_ps(outptr + 16 * 6);
+                _sum7 = _mm512_load_ps(outptr + 16 * 7);
+                _sum8 = _mm512_load_ps(outptr + 16 * 8);
+                _sum9 = _mm512_load_ps(outptr + 16 * 9);
+                _suma = _mm512_load_ps(outptr + 16 * 10);
+                _sumb = _mm512_load_ps(outptr + 16 * 11);
             }
 
-            const float* pA = pA0;
+            const float* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -2389,21 +3855,21 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             }
             else
             {
-                _mm512_store_ps(ptmp, _sum0);
-                _mm512_store_ps(ptmp + 16 * 1, _sum1);
-                _mm512_store_ps(ptmp + 16 * 2, _sum2);
-                _mm512_store_ps(ptmp + 16 * 3, _sum3);
-                _mm512_store_ps(ptmp + 16 * 4, _sum4);
-                _mm512_store_ps(ptmp + 16 * 5, _sum5);
-                _mm512_store_ps(ptmp + 16 * 6, _sum6);
-                _mm512_store_ps(ptmp + 16 * 7, _sum7);
-                _mm512_store_ps(ptmp + 16 * 8, _sum8);
-                _mm512_store_ps(ptmp + 16 * 9, _sum9);
-                _mm512_store_ps(ptmp + 16 * 10, _suma);
-                _mm512_store_ps(ptmp + 16 * 11, _sumb);
+                _mm512_store_ps(outptr, _sum0);
+                _mm512_store_ps(outptr + 16 * 1, _sum1);
+                _mm512_store_ps(outptr + 16 * 2, _sum2);
+                _mm512_store_ps(outptr + 16 * 3, _sum3);
+                _mm512_store_ps(outptr + 16 * 4, _sum4);
+                _mm512_store_ps(outptr + 16 * 5, _sum5);
+                _mm512_store_ps(outptr + 16 * 6, _sum6);
+                _mm512_store_ps(outptr + 16 * 7, _sum7);
+                _mm512_store_ps(outptr + 16 * 8, _sum8);
+                _mm512_store_ps(outptr + 16 * 9, _sum9);
+                _mm512_store_ps(outptr + 16 * 10, _suma);
+                _mm512_store_ps(outptr + 16 * 11, _sumb);
             }
 
-            ptmp += 192;
+            outptr += 192;
         }
         for (; jj + 7 < max_jj; jj += 8)
         {
@@ -2453,101 +3919,15 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                     }
                     if (broadcast_type_C == 3)
                     {
-                        if (out_elempack == 16)
-                        {
-                            _sum0 = _mm512_loadu_ps(pC);
-                            _sum1 = _mm512_loadu_ps(pC + 16);
-                            _sum2 = _mm512_loadu_ps(pC + 16 * 2);
-                            _sum3 = _mm512_loadu_ps(pC + 16 * 3);
-                            _sum4 = _mm512_loadu_ps(pC + 16 * 4);
-                            _sum5 = _mm512_loadu_ps(pC + 16 * 5);
-                            _sum6 = _mm512_loadu_ps(pC + 16 * 6);
-                            _sum7 = _mm512_loadu_ps(pC + 16 * 7);
-                            pC += 128;
-                        }
-                        if (out_elempack == 8)
-                        {
-                            __m512 _tmp0 = _mm512_loadu_ps(pC);
-                            __m512 _tmp1 = _mm512_loadu_ps(pC + 16);
-                            __m512 _tmp2 = _mm512_loadu_ps(pC + 32);
-                            __m512 _tmp3 = _mm512_loadu_ps(pC + 48);
-                            __m512 _tmp4 = _mm512_loadu_ps(pC + N * 8);
-                            __m512 _tmp5 = _mm512_loadu_ps(pC + N * 8 + 16);
-                            __m512 _tmp6 = _mm512_loadu_ps(pC + N * 8 + 32);
-                            __m512 _tmp7 = _mm512_loadu_ps(pC + N * 8 + 48);
-
-                            _sum0 = _mm512_shuffle_f32x4(_tmp0, _tmp4, _MM_SHUFFLE(1, 0, 1, 0));
-                            _sum1 = _mm512_shuffle_f32x4(_tmp0, _tmp4, _MM_SHUFFLE(3, 2, 3, 2));
-                            _sum2 = _mm512_shuffle_f32x4(_tmp1, _tmp5, _MM_SHUFFLE(1, 0, 1, 0));
-                            _sum3 = _mm512_shuffle_f32x4(_tmp1, _tmp5, _MM_SHUFFLE(3, 2, 3, 2));
-                            _sum4 = _mm512_shuffle_f32x4(_tmp2, _tmp6, _MM_SHUFFLE(1, 0, 1, 0));
-                            _sum5 = _mm512_shuffle_f32x4(_tmp2, _tmp6, _MM_SHUFFLE(3, 2, 3, 2));
-                            _sum6 = _mm512_shuffle_f32x4(_tmp3, _tmp7, _MM_SHUFFLE(1, 0, 1, 0));
-                            _sum7 = _mm512_shuffle_f32x4(_tmp3, _tmp7, _MM_SHUFFLE(3, 2, 3, 2));
-                            pC += 64;
-                        }
-                        if (out_elempack == 4)
-                        {
-                            _sum0 = _mm512_loadu_ps(pC);
-                            _sum1 = _mm512_loadu_ps(pC + 16);
-                            _sum2 = _mm512_loadu_ps(pC + N * 4);
-                            _sum3 = _mm512_loadu_ps(pC + N * 4 + 16);
-                            _sum4 = _mm512_loadu_ps(pC + N * 8);
-                            _sum5 = _mm512_loadu_ps(pC + N * 8 + 16);
-                            _sum6 = _mm512_loadu_ps(pC + N * 12);
-                            _sum7 = _mm512_loadu_ps(pC + N * 12 + 16);
-
-                            __m512 _tmp0 = _mm512_shuffle_f32x4(_sum0, _sum2, _MM_SHUFFLE(1, 0, 1, 0));
-                            __m512 _tmp1 = _mm512_shuffle_f32x4(_sum4, _sum6, _MM_SHUFFLE(1, 0, 1, 0));
-                            __m512 _tmp2 = _mm512_shuffle_f32x4(_sum0, _sum2, _MM_SHUFFLE(3, 2, 3, 2));
-                            __m512 _tmp3 = _mm512_shuffle_f32x4(_sum4, _sum6, _MM_SHUFFLE(3, 2, 3, 2));
-                            __m512 _tmp4 = _mm512_shuffle_f32x4(_sum1, _sum3, _MM_SHUFFLE(1, 0, 1, 0));
-                            __m512 _tmp5 = _mm512_shuffle_f32x4(_sum5, _sum7, _MM_SHUFFLE(1, 0, 1, 0));
-                            __m512 _tmp6 = _mm512_shuffle_f32x4(_sum1, _sum3, _MM_SHUFFLE(3, 2, 3, 2));
-                            __m512 _tmp7 = _mm512_shuffle_f32x4(_sum5, _sum7, _MM_SHUFFLE(3, 2, 3, 2));
-
-                            _sum0 = _mm512_shuffle_f32x4(_tmp0, _tmp1, _MM_SHUFFLE(2, 0, 2, 0));
-                            _sum1 = _mm512_shuffle_f32x4(_tmp0, _tmp1, _MM_SHUFFLE(3, 1, 3, 1));
-                            _sum2 = _mm512_shuffle_f32x4(_tmp2, _tmp3, _MM_SHUFFLE(2, 0, 2, 0));
-                            _sum3 = _mm512_shuffle_f32x4(_tmp2, _tmp3, _MM_SHUFFLE(3, 1, 3, 1));
-                            _sum4 = _mm512_shuffle_f32x4(_tmp4, _tmp5, _MM_SHUFFLE(2, 0, 2, 0));
-                            _sum5 = _mm512_shuffle_f32x4(_tmp4, _tmp5, _MM_SHUFFLE(3, 1, 3, 1));
-                            _sum6 = _mm512_shuffle_f32x4(_tmp6, _tmp7, _MM_SHUFFLE(2, 0, 2, 0));
-                            _sum7 = _mm512_shuffle_f32x4(_tmp6, _tmp7, _MM_SHUFFLE(3, 1, 3, 1));
-
-                            pC += 32;
-                        }
-                        if (out_elempack == 1)
-                        {
-                            __m256 _r0 = _mm256_loadu_ps(pC);
-                            __m256 _r1 = _mm256_loadu_ps(pC + N);
-                            __m256 _r2 = _mm256_loadu_ps(pC + N * 2);
-                            __m256 _r3 = _mm256_loadu_ps(pC + N * 3);
-                            __m256 _r4 = _mm256_loadu_ps(pC + N * 4);
-                            __m256 _r5 = _mm256_loadu_ps(pC + N * 5);
-                            __m256 _r6 = _mm256_loadu_ps(pC + N * 6);
-                            __m256 _r7 = _mm256_loadu_ps(pC + N * 7);
-                            __m256 _r8 = _mm256_loadu_ps(pC + N * 8);
-                            __m256 _r9 = _mm256_loadu_ps(pC + N * 9);
-                            __m256 _ra = _mm256_loadu_ps(pC + N * 10);
-                            __m256 _rb = _mm256_loadu_ps(pC + N * 11);
-                            __m256 _rc = _mm256_loadu_ps(pC + N * 12);
-                            __m256 _rd = _mm256_loadu_ps(pC + N * 13);
-                            __m256 _re = _mm256_loadu_ps(pC + N * 14);
-                            __m256 _rf = _mm256_loadu_ps(pC + N * 15);
-
-                            transpose8x16_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7, _r8, _r9, _ra, _rb, _rc, _rd, _re, _rf);
-
-                            _sum0 = _mm512_insertf32x8(_mm512_castps256_ps512(_r0), _r1, 1);
-                            _sum1 = _mm512_insertf32x8(_mm512_castps256_ps512(_r2), _r3, 1);
-                            _sum2 = _mm512_insertf32x8(_mm512_castps256_ps512(_r4), _r5, 1);
-                            _sum3 = _mm512_insertf32x8(_mm512_castps256_ps512(_r6), _r7, 1);
-                            _sum4 = _mm512_insertf32x8(_mm512_castps256_ps512(_r8), _r9, 1);
-                            _sum5 = _mm512_insertf32x8(_mm512_castps256_ps512(_ra), _rb, 1);
-                            _sum6 = _mm512_insertf32x8(_mm512_castps256_ps512(_rc), _rd, 1);
-                            _sum7 = _mm512_insertf32x8(_mm512_castps256_ps512(_re), _rf, 1);
-                            pC += 8;
-                        }
+                        _sum0 = _mm512_loadu_ps(pC);
+                        _sum1 = _mm512_loadu_ps(pC + 16);
+                        _sum2 = _mm512_loadu_ps(pC + 16 * 2);
+                        _sum3 = _mm512_loadu_ps(pC + 16 * 3);
+                        _sum4 = _mm512_loadu_ps(pC + 16 * 4);
+                        _sum5 = _mm512_loadu_ps(pC + 16 * 5);
+                        _sum6 = _mm512_loadu_ps(pC + 16 * 6);
+                        _sum7 = _mm512_loadu_ps(pC + 16 * 7);
+                        pC += 128;
                     }
                     if (broadcast_type_C == 4)
                     {
@@ -2565,17 +3945,17 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             }
             else
             {
-                _sum0 = _mm512_load_ps(ptmp);
-                _sum1 = _mm512_load_ps(ptmp + 16 * 1);
-                _sum2 = _mm512_load_ps(ptmp + 16 * 2);
-                _sum3 = _mm512_load_ps(ptmp + 16 * 3);
-                _sum4 = _mm512_load_ps(ptmp + 16 * 4);
-                _sum5 = _mm512_load_ps(ptmp + 16 * 5);
-                _sum6 = _mm512_load_ps(ptmp + 16 * 6);
-                _sum7 = _mm512_load_ps(ptmp + 16 * 7);
+                _sum0 = _mm512_load_ps(outptr);
+                _sum1 = _mm512_load_ps(outptr + 16 * 1);
+                _sum2 = _mm512_load_ps(outptr + 16 * 2);
+                _sum3 = _mm512_load_ps(outptr + 16 * 3);
+                _sum4 = _mm512_load_ps(outptr + 16 * 4);
+                _sum5 = _mm512_load_ps(outptr + 16 * 5);
+                _sum6 = _mm512_load_ps(outptr + 16 * 6);
+                _sum7 = _mm512_load_ps(outptr + 16 * 7);
             }
 
-            const float* pA = pA0;
+            const float* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -2688,17 +4068,17 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             }
             else
             {
-                _mm512_store_ps(ptmp, _sum0);
-                _mm512_store_ps(ptmp + 16 * 1, _sum1);
-                _mm512_store_ps(ptmp + 16 * 2, _sum2);
-                _mm512_store_ps(ptmp + 16 * 3, _sum3);
-                _mm512_store_ps(ptmp + 16 * 4, _sum4);
-                _mm512_store_ps(ptmp + 16 * 5, _sum5);
-                _mm512_store_ps(ptmp + 16 * 6, _sum6);
-                _mm512_store_ps(ptmp + 16 * 7, _sum7);
+                _mm512_store_ps(outptr, _sum0);
+                _mm512_store_ps(outptr + 16 * 1, _sum1);
+                _mm512_store_ps(outptr + 16 * 2, _sum2);
+                _mm512_store_ps(outptr + 16 * 3, _sum3);
+                _mm512_store_ps(outptr + 16 * 4, _sum4);
+                _mm512_store_ps(outptr + 16 * 5, _sum5);
+                _mm512_store_ps(outptr + 16 * 6, _sum6);
+                _mm512_store_ps(outptr + 16 * 7, _sum7);
             }
 
-            ptmp += 128;
+            outptr += 128;
         }
         for (; jj + 3 < max_jj; jj += 4)
         {
@@ -2732,74 +4112,11 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                     }
                     if (broadcast_type_C == 3)
                     {
-                        if (out_elempack == 16)
-                        {
-                            _sum0 = _mm512_loadu_ps(pC);
-                            _sum1 = _mm512_loadu_ps(pC + 16);
-                            _sum2 = _mm512_loadu_ps(pC + 32);
-                            _sum3 = _mm512_loadu_ps(pC + 48);
-                            pC += 64;
-                        }
-                        if (out_elempack == 8)
-                        {
-                            __m512 _tmp0 = _mm512_loadu_ps(pC);
-                            __m512 _tmp1 = _mm512_loadu_ps(pC + 16);
-                            __m512 _tmp2 = _mm512_loadu_ps(pC + N * 8);
-                            __m512 _tmp3 = _mm512_loadu_ps(pC + N * 8 + 16);
-                            _sum0 = _mm512_shuffle_f32x4(_tmp0, _tmp2, _MM_SHUFFLE(1, 0, 1, 0));
-                            _sum1 = _mm512_shuffle_f32x4(_tmp0, _tmp2, _MM_SHUFFLE(3, 2, 3, 2));
-                            _sum2 = _mm512_shuffle_f32x4(_tmp1, _tmp3, _MM_SHUFFLE(1, 0, 1, 0));
-                            _sum3 = _mm512_shuffle_f32x4(_tmp1, _tmp3, _MM_SHUFFLE(3, 2, 3, 2));
-                            pC += 32;
-                        }
-                        if (out_elempack == 4)
-                        {
-                            _sum0 = _mm512_loadu_ps(pC);
-                            _sum1 = _mm512_loadu_ps(pC + N * 4);
-                            _sum2 = _mm512_loadu_ps(pC + N * 8);
-                            _sum3 = _mm512_loadu_ps(pC + N * 12);
-
-                            __m512 _tmp0 = _mm512_shuffle_f32x4(_sum0, _sum1, _MM_SHUFFLE(1, 0, 1, 0));
-                            __m512 _tmp1 = _mm512_shuffle_f32x4(_sum2, _sum3, _MM_SHUFFLE(1, 0, 1, 0));
-                            __m512 _tmp2 = _mm512_shuffle_f32x4(_sum0, _sum1, _MM_SHUFFLE(3, 2, 3, 2));
-                            __m512 _tmp3 = _mm512_shuffle_f32x4(_sum2, _sum3, _MM_SHUFFLE(3, 2, 3, 2));
-
-                            _sum0 = _mm512_shuffle_f32x4(_tmp0, _tmp1, _MM_SHUFFLE(2, 0, 2, 0));
-                            _sum1 = _mm512_shuffle_f32x4(_tmp0, _tmp1, _MM_SHUFFLE(3, 1, 3, 1));
-                            _sum2 = _mm512_shuffle_f32x4(_tmp2, _tmp3, _MM_SHUFFLE(2, 0, 2, 0));
-                            _sum3 = _mm512_shuffle_f32x4(_tmp2, _tmp3, _MM_SHUFFLE(3, 1, 3, 1));
-                            pC += 16;
-                        }
-                        if (out_elempack == 1)
-                        {
-                            __m128 _sum0_0 = _mm_loadu_ps(pC);
-                            __m128 _sum1_0 = _mm_loadu_ps(pC + N);
-                            __m128 _sum2_0 = _mm_loadu_ps(pC + N * 2);
-                            __m128 _sum3_0 = _mm_loadu_ps(pC + N * 3);
-                            __m128 _sum4_0 = _mm_loadu_ps(pC + N * 4);
-                            __m128 _sum5_0 = _mm_loadu_ps(pC + N * 5);
-                            __m128 _sum6_0 = _mm_loadu_ps(pC + N * 6);
-                            __m128 _sum7_0 = _mm_loadu_ps(pC + N * 7);
-                            __m128 _sum8_0 = _mm_loadu_ps(pC + N * 8);
-                            __m128 _sum9_0 = _mm_loadu_ps(pC + N * 9);
-                            __m128 _suma_0 = _mm_loadu_ps(pC + N * 10);
-                            __m128 _sumb_0 = _mm_loadu_ps(pC + N * 11);
-                            __m128 _sumc_0 = _mm_loadu_ps(pC + N * 12);
-                            __m128 _sumd_0 = _mm_loadu_ps(pC + N * 13);
-                            __m128 _sume_0 = _mm_loadu_ps(pC + N * 14);
-                            __m128 _sumf_0 = _mm_loadu_ps(pC + N * 15);
-
-                            _MM_TRANSPOSE4_PS(_sum0_0, _sum1_0, _sum2_0, _sum3_0);
-                            _MM_TRANSPOSE4_PS(_sum4_0, _sum5_0, _sum6_0, _sum7_0);
-                            _MM_TRANSPOSE4_PS(_sum8_0, _sum9_0, _suma_0, _sumb_0);
-                            _MM_TRANSPOSE4_PS(_sumc_0, _sumd_0, _sume_0, _sumf_0);
-
-                            _sum0 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_sum0_0), _sum4_0, 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_sum8_0), _sumc_0, 1), 1);
-                            _sum1 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_sum1_0), _sum5_0, 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_sum9_0), _sumd_0, 1), 1);
-                            _sum2 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_sum2_0), _sum6_0, 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_suma_0), _sume_0, 1), 1);
-                            _sum3 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_sum3_0), _sum7_0, 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_sumb_0), _sumf_0, 1), 1);
-                            pC += 4;
-                        }
+                        _sum0 = _mm512_loadu_ps(pC);
+                        _sum1 = _mm512_loadu_ps(pC + 16);
+                        _sum2 = _mm512_loadu_ps(pC + 32);
+                        _sum3 = _mm512_loadu_ps(pC + 48);
+                        pC += 64;
                     }
                     if (broadcast_type_C == 4)
                     {
@@ -2813,13 +4130,13 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             }
             else
             {
-                _sum0 = _mm512_load_ps(ptmp);
-                _sum1 = _mm512_load_ps(ptmp + 16 * 1);
-                _sum2 = _mm512_load_ps(ptmp + 16 * 2);
-                _sum3 = _mm512_load_ps(ptmp + 16 * 3);
+                _sum0 = _mm512_load_ps(outptr);
+                _sum1 = _mm512_load_ps(outptr + 16 * 1);
+                _sum2 = _mm512_load_ps(outptr + 16 * 2);
+                _sum3 = _mm512_load_ps(outptr + 16 * 3);
             }
 
-            const float* pA = pA0;
+            const float* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -2924,13 +4241,13 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             }
             else
             {
-                _mm512_store_ps(ptmp, _sum0);
-                _mm512_store_ps(ptmp + 16 * 1, _sum1);
-                _mm512_store_ps(ptmp + 16 * 2, _sum2);
-                _mm512_store_ps(ptmp + 16 * 3, _sum3);
+                _mm512_store_ps(outptr, _sum0);
+                _mm512_store_ps(outptr + 16 * 1, _sum1);
+                _mm512_store_ps(outptr + 16 * 2, _sum2);
+                _mm512_store_ps(outptr + 16 * 3, _sum3);
             }
 
-            ptmp += 64;
+            outptr += 64;
         }
         for (; jj + 1 < max_jj; jj += 2)
         {
@@ -2956,75 +4273,9 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                     }
                     if (broadcast_type_C == 3)
                     {
-                        if (out_elempack == 16)
-                        {
-                            _sum0 = _mm512_loadu_ps(pC);
-                            _sum1 = _mm512_loadu_ps(pC + 16);
-                            pC += 32;
-                        }
-                        if (out_elempack == 8)
-                        {
-                            __m512 _tmp0 = _mm512_loadu_ps(pC);
-                            __m512 _tmp1 = _mm512_loadu_ps(pC + N * 8);
-                            _sum0 = _mm512_shuffle_f32x4(_tmp0, _tmp1, _MM_SHUFFLE(1, 0, 1, 0));
-                            _sum1 = _mm512_shuffle_f32x4(_tmp0, _tmp1, _MM_SHUFFLE(3, 2, 3, 2));
-                            pC += 16;
-                        }
-                        if (out_elempack == 4)
-                        {
-                            __m128 _sum0_0 = _mm_loadu_ps(pC);
-                            __m128 _sum1_0 = _mm_loadu_ps(pC + 4);
-                            __m128 _sum0_1 = _mm_loadu_ps(pC + N * 4);
-                            __m128 _sum1_1 = _mm_loadu_ps(pC + N * 4 + 4);
-                            __m128 _sum0_2 = _mm_loadu_ps(pC + N * 8);
-                            __m128 _sum1_2 = _mm_loadu_ps(pC + N * 8 + 4);
-                            __m128 _sum0_3 = _mm_loadu_ps(pC + N * 12);
-                            __m128 _sum1_3 = _mm_loadu_ps(pC + N * 12 + 4);
-                            _sum0 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_sum0_0), _sum0_1, 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_sum0_2), _sum0_3, 1), 1);
-                            _sum1 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_sum1_0), _sum1_1, 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_sum1_2), _sum1_3, 1), 1);
-                            pC += 8;
-                        }
-                        if (out_elempack == 1)
-                        {
-                            float sum0[16];
-                            float sum1[16];
-                            sum0[0] = pC[0];
-                            sum0[1] = pC[N];
-                            sum0[2] = pC[N * 2];
-                            sum0[3] = pC[N * 3];
-                            sum0[4] = pC[N * 4];
-                            sum0[5] = pC[N * 5];
-                            sum0[6] = pC[N * 6];
-                            sum0[7] = pC[N * 7];
-                            sum0[8] = pC[N * 8];
-                            sum0[9] = pC[N * 9];
-                            sum0[10] = pC[N * 10];
-                            sum0[11] = pC[N * 11];
-                            sum0[12] = pC[N * 12];
-                            sum0[13] = pC[N * 13];
-                            sum0[14] = pC[N * 14];
-                            sum0[15] = pC[N * 15];
-                            sum1[0] = pC[1];
-                            sum1[1] = pC[N + 1];
-                            sum1[2] = pC[N * 2 + 1];
-                            sum1[3] = pC[N * 3 + 1];
-                            sum1[4] = pC[N * 4 + 1];
-                            sum1[5] = pC[N * 5 + 1];
-                            sum1[6] = pC[N * 6 + 1];
-                            sum1[7] = pC[N * 7 + 1];
-                            sum1[8] = pC[N * 8 + 1];
-                            sum1[9] = pC[N * 9 + 1];
-                            sum1[10] = pC[N * 10 + 1];
-                            sum1[11] = pC[N * 11 + 1];
-                            sum1[12] = pC[N * 12 + 1];
-                            sum1[13] = pC[N * 13 + 1];
-                            sum1[14] = pC[N * 14 + 1];
-                            sum1[15] = pC[N * 15 + 1];
-
-                            _sum0 = _mm512_loadu_ps(sum0);
-                            _sum1 = _mm512_loadu_ps(sum1);
-                            pC += 2;
-                        }
+                        _sum0 = _mm512_loadu_ps(pC);
+                        _sum1 = _mm512_loadu_ps(pC + 16);
+                        pC += 32;
                     }
                     if (broadcast_type_C == 4)
                     {
@@ -3036,11 +4287,11 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             }
             else
             {
-                _sum0 = _mm512_load_ps(ptmp);
-                _sum1 = _mm512_load_ps(ptmp + 16);
+                _sum0 = _mm512_load_ps(outptr);
+                _sum1 = _mm512_load_ps(outptr + 16);
             }
 
-            const float* pA = pA0;
+            const float* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -3131,11 +4382,11 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             }
             else
             {
-                _mm512_store_ps(ptmp, _sum0);
-                _mm512_store_ps(ptmp + 16, _sum1);
+                _mm512_store_ps(outptr, _sum0);
+                _mm512_store_ps(outptr + 16, _sum1);
             }
 
-            ptmp += 32;
+            outptr += 32;
         }
         for (; jj < max_jj; jj += 1)
         {
@@ -3157,50 +4408,8 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                     }
                     if (broadcast_type_C == 3)
                     {
-                        if (out_elempack == 16)
-                        {
-                            _sum0 = _mm512_loadu_ps(pC);
-                            pC += 16;
-                        }
-                        if (out_elempack == 8)
-                        {
-                            __m256 _sum0_0 = _mm256_loadu_ps(pC);
-                            __m256 _sum0_1 = _mm256_loadu_ps(pC + N * 8);
-                            _sum0 = _mm512_insertf32x8(_mm512_castps256_ps512(_sum0_0), _sum0_1, 1);
-                            pC += 8;
-                        }
-                        if (out_elempack == 4)
-                        {
-                            __m128 _sum0_0 = _mm_loadu_ps(pC);
-                            __m128 _sum0_1 = _mm_loadu_ps(pC + N * 4);
-                            __m128 _sum0_2 = _mm_loadu_ps(pC + N * 8);
-                            __m128 _sum0_3 = _mm_loadu_ps(pC + N * 12);
-                            _sum0 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_sum0_0), _sum0_1, 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_sum0_2), _sum0_3, 1), 1);
-                            pC += 4;
-                        }
-                        if (out_elempack == 1)
-                        {
-                            float sum0[16];
-                            sum0[0] = pC[0];
-                            sum0[1] = pC[N];
-                            sum0[2] = pC[N * 2];
-                            sum0[3] = pC[N * 3];
-                            sum0[4] = pC[N * 4];
-                            sum0[5] = pC[N * 5];
-                            sum0[6] = pC[N * 6];
-                            sum0[7] = pC[N * 7];
-                            sum0[8] = pC[N * 8];
-                            sum0[9] = pC[N * 9];
-                            sum0[10] = pC[N * 10];
-                            sum0[11] = pC[N * 11];
-                            sum0[12] = pC[N * 12];
-                            sum0[13] = pC[N * 13];
-                            sum0[14] = pC[N * 14];
-                            sum0[15] = pC[N * 15];
-
-                            _sum0 = _mm512_loadu_ps(sum0);
-                            pC += 1;
-                        }
+                        _sum0 = _mm512_loadu_ps(pC);
+                        pC += 16;
                     }
                     if (broadcast_type_C == 4)
                     {
@@ -3211,10 +4420,10 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             }
             else
             {
-                _sum0 = _mm512_load_ps(ptmp);
+                _sum0 = _mm512_load_ps(outptr);
             }
 
-            const float* pA = pA0;
+            const float* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -3273,35 +4482,30 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             }
             else
             {
-                _mm512_store_ps(ptmp, _sum0);
+                _mm512_store_ps(outptr, _sum0);
             }
 
-            ptmp += 16;
+            outptr += 16;
         }
 
-        pA0 += max_kk * 16;
+        pAT += max_kk * 16;
     }
 #endif // __AVX512F__
     for (; ii + 7 < max_ii; ii += 8)
     {
         float* outptr0 = (float*)top_blob + (i + ii) * out_hstep + j * out_elempack;
 
-        const float* pB = pB0;
+        const float* pB = pBT;
 
-        const float* pC = C;
         if (pC)
         {
             if (broadcast_type_C == 1 || broadcast_type_C == 2)
             {
-                pC = pC + i + ii;
-            }
-            if (broadcast_type_C == 3)
-            {
-                pC = C.row((i + ii) / out_elempack) + j * out_elempack;
+                pC = (const float*)CT_tile + i + ii;
             }
             if (broadcast_type_C == 4)
             {
-                pC = pC + j;
+                pC = (const float*)CT_tile + j;
             }
         }
 
@@ -3370,82 +4574,19 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                     }
                     if (broadcast_type_C == 3)
                     {
-                        if (out_elempack == 8)
-                        {
-                            _sum0 = _mm256_loadu_ps(pC);
-                            _sum1 = _mm256_loadu_ps(pC + 8);
-                            _sum2 = _mm256_loadu_ps(pC + 8 * 2);
-                            _sum3 = _mm256_loadu_ps(pC + 8 * 3);
-                            _sum4 = _mm256_loadu_ps(pC + 8 * 4);
-                            _sum5 = _mm256_loadu_ps(pC + 8 * 5);
-                            _sum6 = _mm256_loadu_ps(pC + 8 * 6);
-                            _sum7 = _mm256_loadu_ps(pC + 8 * 7);
-                            _sum8 = _mm256_loadu_ps(pC + 8 * 8);
-                            _sum9 = _mm256_loadu_ps(pC + 8 * 9);
-                            _suma = _mm256_loadu_ps(pC + 8 * 10);
-                            _sumb = _mm256_loadu_ps(pC + 8 * 11);
-                            pC += 96;
-                        }
-                        if (out_elempack == 4)
-                        {
-                            __m256 _tmp0 = _mm256_loadu_ps(pC);
-                            __m256 _tmp1 = _mm256_loadu_ps(pC + 8);
-                            __m256 _tmp2 = _mm256_loadu_ps(pC + 8 * 2);
-                            __m256 _tmp3 = _mm256_loadu_ps(pC + 8 * 3);
-                            __m256 _tmp4 = _mm256_loadu_ps(pC + 8 * 4);
-                            __m256 _tmp5 = _mm256_loadu_ps(pC + 8 * 5);
-                            __m256 _tmp6 = _mm256_loadu_ps(pC + N * 4);
-                            __m256 _tmp7 = _mm256_loadu_ps(pC + N * 4 + 8);
-                            __m256 _tmp8 = _mm256_loadu_ps(pC + N * 4 + 8 * 2);
-                            __m256 _tmp9 = _mm256_loadu_ps(pC + N * 4 + 8 * 3);
-                            __m256 _tmpa = _mm256_loadu_ps(pC + N * 4 + 8 * 4);
-                            __m256 _tmpb = _mm256_loadu_ps(pC + N * 4 + 8 * 5);
-
-                            _sum0 = _mm256_permute2f128_ps(_tmp0, _tmp6, _MM_SHUFFLE(0, 2, 0, 0));
-                            _sum1 = _mm256_permute2f128_ps(_tmp0, _tmp6, _MM_SHUFFLE(0, 3, 0, 1));
-                            _sum2 = _mm256_permute2f128_ps(_tmp1, _tmp7, _MM_SHUFFLE(0, 2, 0, 0));
-                            _sum3 = _mm256_permute2f128_ps(_tmp1, _tmp7, _MM_SHUFFLE(0, 3, 0, 1));
-                            _sum4 = _mm256_permute2f128_ps(_tmp2, _tmp8, _MM_SHUFFLE(0, 2, 0, 0));
-                            _sum5 = _mm256_permute2f128_ps(_tmp2, _tmp8, _MM_SHUFFLE(0, 3, 0, 1));
-                            _sum6 = _mm256_permute2f128_ps(_tmp3, _tmp9, _MM_SHUFFLE(0, 2, 0, 0));
-                            _sum7 = _mm256_permute2f128_ps(_tmp3, _tmp9, _MM_SHUFFLE(0, 3, 0, 1));
-                            _sum8 = _mm256_permute2f128_ps(_tmp4, _tmpa, _MM_SHUFFLE(0, 2, 0, 0));
-                            _sum9 = _mm256_permute2f128_ps(_tmp4, _tmpa, _MM_SHUFFLE(0, 3, 0, 1));
-                            _suma = _mm256_permute2f128_ps(_tmp5, _tmpb, _MM_SHUFFLE(0, 2, 0, 0));
-                            _sumb = _mm256_permute2f128_ps(_tmp5, _tmpb, _MM_SHUFFLE(0, 3, 0, 1));
-                            pC += 48;
-                        }
-                        if (out_elempack == 1)
-                        {
-                            _sum0 = _mm256_loadu_ps(pC);
-                            _sum1 = _mm256_loadu_ps(pC + N);
-                            _sum2 = _mm256_loadu_ps(pC + N * 2);
-                            _sum3 = _mm256_loadu_ps(pC + N * 3);
-                            _sum4 = _mm256_loadu_ps(pC + N * 4);
-                            _sum5 = _mm256_loadu_ps(pC + N * 5);
-                            _sum6 = _mm256_loadu_ps(pC + N * 6);
-                            _sum7 = _mm256_loadu_ps(pC + N * 7);
-
-                            transpose8x8_ps(_sum0, _sum1, _sum2, _sum3, _sum4, _sum5, _sum6, _sum7);
-
-                            __m128 _sum0_8 = _mm_loadu_ps(pC + 8);
-                            __m128 _sum1_8 = _mm_loadu_ps(pC + N + 8);
-                            __m128 _sum2_8 = _mm_loadu_ps(pC + N * 2 + 8);
-                            __m128 _sum3_8 = _mm_loadu_ps(pC + N * 3 + 8);
-                            __m128 _sum4_8 = _mm_loadu_ps(pC + N * 4 + 8);
-                            __m128 _sum5_8 = _mm_loadu_ps(pC + N * 5 + 8);
-                            __m128 _sum6_8 = _mm_loadu_ps(pC + N * 6 + 8);
-                            __m128 _sum7_8 = _mm_loadu_ps(pC + N * 7 + 8);
-
-                            _MM_TRANSPOSE4_PS(_sum0_8, _sum1_8, _sum2_8, _sum3_8);
-                            _MM_TRANSPOSE4_PS(_sum4_8, _sum5_8, _sum6_8, _sum7_8);
-
-                            _sum8 = _mm256_insertf128_ps(_mm256_castps128_ps256(_sum0_8), _sum4_8, 1);
-                            _sum9 = _mm256_insertf128_ps(_mm256_castps128_ps256(_sum1_8), _sum5_8, 1);
-                            _suma = _mm256_insertf128_ps(_mm256_castps128_ps256(_sum2_8), _sum6_8, 1);
-                            _sumb = _mm256_insertf128_ps(_mm256_castps128_ps256(_sum3_8), _sum7_8, 1);
-                            pC += 12;
-                        }
+                        _sum0 = _mm256_loadu_ps(pC);
+                        _sum1 = _mm256_loadu_ps(pC + 8);
+                        _sum2 = _mm256_loadu_ps(pC + 8 * 2);
+                        _sum3 = _mm256_loadu_ps(pC + 8 * 3);
+                        _sum4 = _mm256_loadu_ps(pC + 8 * 4);
+                        _sum5 = _mm256_loadu_ps(pC + 8 * 5);
+                        _sum6 = _mm256_loadu_ps(pC + 8 * 6);
+                        _sum7 = _mm256_loadu_ps(pC + 8 * 7);
+                        _sum8 = _mm256_loadu_ps(pC + 8 * 8);
+                        _sum9 = _mm256_loadu_ps(pC + 8 * 9);
+                        _suma = _mm256_loadu_ps(pC + 8 * 10);
+                        _sumb = _mm256_loadu_ps(pC + 8 * 11);
+                        pC += 96;
                     }
                     if (broadcast_type_C == 4)
                     {
@@ -3467,21 +4608,21 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             }
             else
             {
-                _sum0 = _mm256_load_ps(ptmp);
-                _sum1 = _mm256_load_ps(ptmp + 8 * 1);
-                _sum2 = _mm256_load_ps(ptmp + 8 * 2);
-                _sum3 = _mm256_load_ps(ptmp + 8 * 3);
-                _sum4 = _mm256_load_ps(ptmp + 8 * 4);
-                _sum5 = _mm256_load_ps(ptmp + 8 * 5);
-                _sum6 = _mm256_load_ps(ptmp + 8 * 6);
-                _sum7 = _mm256_load_ps(ptmp + 8 * 7);
-                _sum8 = _mm256_load_ps(ptmp + 8 * 8);
-                _sum9 = _mm256_load_ps(ptmp + 8 * 9);
-                _suma = _mm256_load_ps(ptmp + 8 * 10);
-                _sumb = _mm256_load_ps(ptmp + 8 * 11);
+                _sum0 = _mm256_load_ps(outptr);
+                _sum1 = _mm256_load_ps(outptr + 8 * 1);
+                _sum2 = _mm256_load_ps(outptr + 8 * 2);
+                _sum3 = _mm256_load_ps(outptr + 8 * 3);
+                _sum4 = _mm256_load_ps(outptr + 8 * 4);
+                _sum5 = _mm256_load_ps(outptr + 8 * 5);
+                _sum6 = _mm256_load_ps(outptr + 8 * 6);
+                _sum7 = _mm256_load_ps(outptr + 8 * 7);
+                _sum8 = _mm256_load_ps(outptr + 8 * 8);
+                _sum9 = _mm256_load_ps(outptr + 8 * 9);
+                _suma = _mm256_load_ps(outptr + 8 * 10);
+                _sumb = _mm256_load_ps(outptr + 8 * 11);
             }
 
-            const float* pA = pA0;
+            const float* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -3592,21 +4733,21 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             }
             else
             {
-                _mm256_store_ps(ptmp, _sum0);
-                _mm256_store_ps(ptmp + 8 * 1, _sum1);
-                _mm256_store_ps(ptmp + 8 * 2, _sum2);
-                _mm256_store_ps(ptmp + 8 * 3, _sum3);
-                _mm256_store_ps(ptmp + 8 * 4, _sum4);
-                _mm256_store_ps(ptmp + 8 * 5, _sum5);
-                _mm256_store_ps(ptmp + 8 * 6, _sum6);
-                _mm256_store_ps(ptmp + 8 * 7, _sum7);
-                _mm256_store_ps(ptmp + 8 * 8, _sum8);
-                _mm256_store_ps(ptmp + 8 * 9, _sum9);
-                _mm256_store_ps(ptmp + 8 * 10, _suma);
-                _mm256_store_ps(ptmp + 8 * 11, _sumb);
+                _mm256_store_ps(outptr, _sum0);
+                _mm256_store_ps(outptr + 8 * 1, _sum1);
+                _mm256_store_ps(outptr + 8 * 2, _sum2);
+                _mm256_store_ps(outptr + 8 * 3, _sum3);
+                _mm256_store_ps(outptr + 8 * 4, _sum4);
+                _mm256_store_ps(outptr + 8 * 5, _sum5);
+                _mm256_store_ps(outptr + 8 * 6, _sum6);
+                _mm256_store_ps(outptr + 8 * 7, _sum7);
+                _mm256_store_ps(outptr + 8 * 8, _sum8);
+                _mm256_store_ps(outptr + 8 * 9, _sum9);
+                _mm256_store_ps(outptr + 8 * 10, _suma);
+                _mm256_store_ps(outptr + 8 * 11, _sumb);
             }
 
-            ptmp += 96;
+            outptr += 96;
         }
         for (; jj + 7 < max_jj; jj += 8)
         {
@@ -3656,53 +4797,15 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                     }
                     if (broadcast_type_C == 3)
                     {
-                        if (out_elempack == 8)
-                        {
-                            _sum0 = _mm256_loadu_ps(pC);
-                            _sum1 = _mm256_loadu_ps(pC + 8);
-                            _sum2 = _mm256_loadu_ps(pC + 8 * 2);
-                            _sum3 = _mm256_loadu_ps(pC + 8 * 3);
-                            _sum4 = _mm256_loadu_ps(pC + 8 * 4);
-                            _sum5 = _mm256_loadu_ps(pC + 8 * 5);
-                            _sum6 = _mm256_loadu_ps(pC + 8 * 6);
-                            _sum7 = _mm256_loadu_ps(pC + 8 * 7);
-                            pC += 64;
-                        }
-                        if (out_elempack == 4)
-                        {
-                            __m256 _tmp0 = _mm256_loadu_ps(pC);
-                            __m256 _tmp1 = _mm256_loadu_ps(pC + 8);
-                            __m256 _tmp2 = _mm256_loadu_ps(pC + 8 * 2);
-                            __m256 _tmp3 = _mm256_loadu_ps(pC + 8 * 3);
-                            __m256 _tmp4 = _mm256_loadu_ps(pC + N * 4);
-                            __m256 _tmp5 = _mm256_loadu_ps(pC + N * 4 + 8);
-                            __m256 _tmp6 = _mm256_loadu_ps(pC + N * 4 + 8 * 2);
-                            __m256 _tmp7 = _mm256_loadu_ps(pC + N * 4 + 8 * 3);
-
-                            _sum0 = _mm256_permute2f128_ps(_tmp0, _tmp4, _MM_SHUFFLE(0, 2, 0, 0));
-                            _sum1 = _mm256_permute2f128_ps(_tmp0, _tmp4, _MM_SHUFFLE(0, 3, 0, 1));
-                            _sum2 = _mm256_permute2f128_ps(_tmp1, _tmp5, _MM_SHUFFLE(0, 2, 0, 0));
-                            _sum3 = _mm256_permute2f128_ps(_tmp1, _tmp5, _MM_SHUFFLE(0, 3, 0, 1));
-                            _sum4 = _mm256_permute2f128_ps(_tmp2, _tmp6, _MM_SHUFFLE(0, 2, 0, 0));
-                            _sum5 = _mm256_permute2f128_ps(_tmp2, _tmp6, _MM_SHUFFLE(0, 3, 0, 1));
-                            _sum6 = _mm256_permute2f128_ps(_tmp3, _tmp7, _MM_SHUFFLE(0, 2, 0, 0));
-                            _sum7 = _mm256_permute2f128_ps(_tmp3, _tmp7, _MM_SHUFFLE(0, 3, 0, 1));
-                            pC += 32;
-                        }
-                        if (out_elempack == 1)
-                        {
-                            _sum0 = _mm256_loadu_ps(pC);
-                            _sum1 = _mm256_loadu_ps(pC + N);
-                            _sum2 = _mm256_loadu_ps(pC + N * 2);
-                            _sum3 = _mm256_loadu_ps(pC + N * 3);
-                            _sum4 = _mm256_loadu_ps(pC + N * 4);
-                            _sum5 = _mm256_loadu_ps(pC + N * 5);
-                            _sum6 = _mm256_loadu_ps(pC + N * 6);
-                            _sum7 = _mm256_loadu_ps(pC + N * 7);
-
-                            transpose8x8_ps(_sum0, _sum1, _sum2, _sum3, _sum4, _sum5, _sum6, _sum7);
-                            pC += 8;
-                        }
+                        _sum0 = _mm256_loadu_ps(pC);
+                        _sum1 = _mm256_loadu_ps(pC + 8);
+                        _sum2 = _mm256_loadu_ps(pC + 8 * 2);
+                        _sum3 = _mm256_loadu_ps(pC + 8 * 3);
+                        _sum4 = _mm256_loadu_ps(pC + 8 * 4);
+                        _sum5 = _mm256_loadu_ps(pC + 8 * 5);
+                        _sum6 = _mm256_loadu_ps(pC + 8 * 6);
+                        _sum7 = _mm256_loadu_ps(pC + 8 * 7);
+                        pC += 64;
                     }
                     if (broadcast_type_C == 4)
                     {
@@ -3720,17 +4823,17 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             }
             else
             {
-                _sum0 = _mm256_load_ps(ptmp);
-                _sum1 = _mm256_load_ps(ptmp + 8 * 1);
-                _sum2 = _mm256_load_ps(ptmp + 8 * 2);
-                _sum3 = _mm256_load_ps(ptmp + 8 * 3);
-                _sum4 = _mm256_load_ps(ptmp + 8 * 4);
-                _sum5 = _mm256_load_ps(ptmp + 8 * 5);
-                _sum6 = _mm256_load_ps(ptmp + 8 * 6);
-                _sum7 = _mm256_load_ps(ptmp + 8 * 7);
+                _sum0 = _mm256_load_ps(outptr);
+                _sum1 = _mm256_load_ps(outptr + 8 * 1);
+                _sum2 = _mm256_load_ps(outptr + 8 * 2);
+                _sum3 = _mm256_load_ps(outptr + 8 * 3);
+                _sum4 = _mm256_load_ps(outptr + 8 * 4);
+                _sum5 = _mm256_load_ps(outptr + 8 * 5);
+                _sum6 = _mm256_load_ps(outptr + 8 * 6);
+                _sum7 = _mm256_load_ps(outptr + 8 * 7);
             }
 
-            const float* pA = pA0;
+            const float* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -3804,17 +4907,17 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             }
             else
             {
-                _mm256_store_ps(ptmp, _sum0);
-                _mm256_store_ps(ptmp + 8 * 1, _sum1);
-                _mm256_store_ps(ptmp + 8 * 2, _sum2);
-                _mm256_store_ps(ptmp + 8 * 3, _sum3);
-                _mm256_store_ps(ptmp + 8 * 4, _sum4);
-                _mm256_store_ps(ptmp + 8 * 5, _sum5);
-                _mm256_store_ps(ptmp + 8 * 6, _sum6);
-                _mm256_store_ps(ptmp + 8 * 7, _sum7);
+                _mm256_store_ps(outptr, _sum0);
+                _mm256_store_ps(outptr + 8 * 1, _sum1);
+                _mm256_store_ps(outptr + 8 * 2, _sum2);
+                _mm256_store_ps(outptr + 8 * 3, _sum3);
+                _mm256_store_ps(outptr + 8 * 4, _sum4);
+                _mm256_store_ps(outptr + 8 * 5, _sum5);
+                _mm256_store_ps(outptr + 8 * 6, _sum6);
+                _mm256_store_ps(outptr + 8 * 7, _sum7);
             }
 
-            ptmp += 64;
+            outptr += 64;
         }
         for (; jj + 3 < max_jj; jj += 4)
         {
@@ -3848,47 +4951,11 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                     }
                     if (broadcast_type_C == 3)
                     {
-                        if (out_elempack == 8)
-                        {
-                            _sum0 = _mm256_loadu_ps(pC);
-                            _sum1 = _mm256_loadu_ps(pC + 8);
-                            _sum2 = _mm256_loadu_ps(pC + 16);
-                            _sum3 = _mm256_loadu_ps(pC + 24);
-                            pC += 32;
-                        }
-                        if (out_elempack == 4)
-                        {
-                            __m256 _tmp0 = _mm256_loadu_ps(pC);
-                            __m256 _tmp1 = _mm256_loadu_ps(pC + 8);
-                            __m256 _tmp2 = _mm256_loadu_ps(pC + N * 4);
-                            __m256 _tmp3 = _mm256_loadu_ps(pC + N * 4 + 8);
-
-                            _sum0 = _mm256_permute2f128_ps(_tmp0, _tmp2, _MM_SHUFFLE(0, 2, 0, 0));
-                            _sum1 = _mm256_permute2f128_ps(_tmp0, _tmp2, _MM_SHUFFLE(0, 3, 0, 1));
-                            _sum2 = _mm256_permute2f128_ps(_tmp1, _tmp3, _MM_SHUFFLE(0, 2, 0, 0));
-                            _sum3 = _mm256_permute2f128_ps(_tmp1, _tmp3, _MM_SHUFFLE(0, 3, 0, 1));
-                            pC += 16;
-                        }
-                        if (out_elempack == 1)
-                        {
-                            __m128 _sum0_0 = _mm_loadu_ps(pC);
-                            __m128 _sum1_0 = _mm_loadu_ps(pC + N);
-                            __m128 _sum2_0 = _mm_loadu_ps(pC + N * 2);
-                            __m128 _sum3_0 = _mm_loadu_ps(pC + N * 3);
-                            __m128 _sum4_0 = _mm_loadu_ps(pC + N * 4);
-                            __m128 _sum5_0 = _mm_loadu_ps(pC + N * 5);
-                            __m128 _sum6_0 = _mm_loadu_ps(pC + N * 6);
-                            __m128 _sum7_0 = _mm_loadu_ps(pC + N * 7);
-
-                            _MM_TRANSPOSE4_PS(_sum0_0, _sum1_0, _sum2_0, _sum3_0);
-                            _MM_TRANSPOSE4_PS(_sum4_0, _sum5_0, _sum6_0, _sum7_0);
-
-                            _sum0 = _mm256_insertf128_ps(_mm256_castps128_ps256(_sum0_0), _sum4_0, 1);
-                            _sum1 = _mm256_insertf128_ps(_mm256_castps128_ps256(_sum1_0), _sum5_0, 1);
-                            _sum2 = _mm256_insertf128_ps(_mm256_castps128_ps256(_sum2_0), _sum6_0, 1);
-                            _sum3 = _mm256_insertf128_ps(_mm256_castps128_ps256(_sum3_0), _sum7_0, 1);
-                            pC += 4;
-                        }
+                        _sum0 = _mm256_loadu_ps(pC);
+                        _sum1 = _mm256_loadu_ps(pC + 8);
+                        _sum2 = _mm256_loadu_ps(pC + 16);
+                        _sum3 = _mm256_loadu_ps(pC + 24);
+                        pC += 32;
                     }
                     if (broadcast_type_C == 4)
                     {
@@ -3902,13 +4969,13 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             }
             else
             {
-                _sum0 = _mm256_load_ps(ptmp);
-                _sum1 = _mm256_load_ps(ptmp + 8 * 1);
-                _sum2 = _mm256_load_ps(ptmp + 8 * 2);
-                _sum3 = _mm256_load_ps(ptmp + 8 * 3);
+                _sum0 = _mm256_load_ps(outptr);
+                _sum1 = _mm256_load_ps(outptr + 8 * 1);
+                _sum2 = _mm256_load_ps(outptr + 8 * 2);
+                _sum3 = _mm256_load_ps(outptr + 8 * 3);
             }
 
-            const float* pA = pA0;
+            const float* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -3976,13 +5043,13 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             }
             else
             {
-                _mm256_store_ps(ptmp, _sum0);
-                _mm256_store_ps(ptmp + 8 * 1, _sum1);
-                _mm256_store_ps(ptmp + 8 * 2, _sum2);
-                _mm256_store_ps(ptmp + 8 * 3, _sum3);
+                _mm256_store_ps(outptr, _sum0);
+                _mm256_store_ps(outptr + 8 * 1, _sum1);
+                _mm256_store_ps(outptr + 8 * 2, _sum2);
+                _mm256_store_ps(outptr + 8 * 3, _sum3);
             }
 
-            ptmp += 32;
+            outptr += 32;
         }
         for (; jj + 1 < max_jj; jj += 2)
         {
@@ -4008,45 +5075,9 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                     }
                     if (broadcast_type_C == 3)
                     {
-                        if (out_elempack == 8)
-                        {
-                            _sum0 = _mm256_loadu_ps(pC);
-                            _sum1 = _mm256_loadu_ps(pC + 8);
-                            pC += 16;
-                        }
-                        if (out_elempack == 4)
-                        {
-                            __m256 _tmp0 = _mm256_loadu_ps(pC);
-                            __m256 _tmp1 = _mm256_loadu_ps(pC + N * 4);
-                            _sum0 = _mm256_permute2f128_ps(_tmp0, _tmp1, _MM_SHUFFLE(0, 2, 0, 0));
-                            _sum1 = _mm256_permute2f128_ps(_tmp0, _tmp1, _MM_SHUFFLE(0, 3, 0, 1));
-                            pC += 8;
-                        }
-                        if (out_elempack == 1)
-                        {
-                            float sum0[8];
-                            float sum1[8];
-                            sum0[0] = pC[0];
-                            sum0[1] = pC[N];
-                            sum0[2] = pC[N * 2];
-                            sum0[3] = pC[N * 3];
-                            sum0[4] = pC[N * 4];
-                            sum0[5] = pC[N * 5];
-                            sum0[6] = pC[N * 6];
-                            sum0[7] = pC[N * 7];
-                            sum1[0] = pC[1];
-                            sum1[1] = pC[N + 1];
-                            sum1[2] = pC[N * 2 + 1];
-                            sum1[3] = pC[N * 3 + 1];
-                            sum1[4] = pC[N * 4 + 1];
-                            sum1[5] = pC[N * 5 + 1];
-                            sum1[6] = pC[N * 6 + 1];
-                            sum1[7] = pC[N * 7 + 1];
-
-                            _sum0 = _mm256_loadu_ps(sum0);
-                            _sum1 = _mm256_loadu_ps(sum1);
-                            pC += 2;
-                        }
+                        _sum0 = _mm256_loadu_ps(pC);
+                        _sum1 = _mm256_loadu_ps(pC + 8);
+                        pC += 16;
                     }
                     if (broadcast_type_C == 4)
                     {
@@ -4058,11 +5089,11 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             }
             else
             {
-                _sum0 = _mm256_load_ps(ptmp);
-                _sum1 = _mm256_load_ps(ptmp + 8);
+                _sum0 = _mm256_load_ps(outptr);
+                _sum1 = _mm256_load_ps(outptr + 8);
             }
 
-            const float* pA = pA0;
+            const float* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -4121,11 +5152,11 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             }
             else
             {
-                _mm256_store_ps(ptmp, _sum0);
-                _mm256_store_ps(ptmp + 8, _sum1);
+                _mm256_store_ps(outptr, _sum0);
+                _mm256_store_ps(outptr + 8, _sum1);
             }
 
-            ptmp += 16;
+            outptr += 16;
         }
         for (; jj < max_jj; jj += 1)
         {
@@ -4147,33 +5178,8 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                     }
                     if (broadcast_type_C == 3)
                     {
-                        if (out_elempack == 8)
-                        {
-                            _sum0 = _mm256_loadu_ps(pC);
-                            pC += 8;
-                        }
-                        if (out_elempack == 4)
-                        {
-                            __m128 _sum0_0 = _mm_loadu_ps(pC);
-                            __m128 _sum0_1 = _mm_loadu_ps(pC + N * 4);
-                            _sum0 = _mm256_insertf128_ps(_mm256_castps128_ps256(_sum0_0), _sum0_1, 1);
-                            pC += 4;
-                        }
-                        if (out_elempack == 1)
-                        {
-                            float sum0[8];
-                            sum0[0] = pC[0];
-                            sum0[1] = pC[N];
-                            sum0[2] = pC[N * 2];
-                            sum0[3] = pC[N * 3];
-                            sum0[4] = pC[N * 4];
-                            sum0[5] = pC[N * 5];
-                            sum0[6] = pC[N * 6];
-                            sum0[7] = pC[N * 7];
-
-                            _sum0 = _mm256_loadu_ps(sum0);
-                            pC += 1;
-                        }
+                        _sum0 = _mm256_loadu_ps(pC);
+                        pC += 8;
                     }
                     if (broadcast_type_C == 4)
                     {
@@ -4184,10 +5190,10 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             }
             else
             {
-                _sum0 = _mm256_load_ps(ptmp);
+                _sum0 = _mm256_load_ps(outptr);
             }
 
-            const float* pA = pA0;
+            const float* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -4230,35 +5236,30 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             }
             else
             {
-                _mm256_store_ps(ptmp, _sum0);
+                _mm256_store_ps(outptr, _sum0);
             }
 
-            ptmp += 8;
+            outptr += 8;
         }
 
-        pA0 += max_kk * 8;
+        pAT += max_kk * 8;
     }
 #endif // __AVX__
     for (; ii + 3 < max_ii; ii += 4)
     {
         float* outptr0 = (float*)top_blob + (i + ii) * out_hstep + j * out_elempack;
 
-        const float* pB = pB0;
+        const float* pB = pBT;
 
-        const float* pC = C;
         if (pC)
         {
             if (broadcast_type_C == 1 || broadcast_type_C == 2)
             {
-                pC = pC + i + ii;
-            }
-            if (broadcast_type_C == 3)
-            {
-                pC = C.row((i + ii) / out_elempack) + j * out_elempack;
+                pC = (const float*)CT_tile + i + ii;
             }
             if (broadcast_type_C == 4)
             {
-                pC = pC + j;
+                pC = (const float*)CT_tile + j;
             }
         }
 
@@ -4327,42 +5328,19 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                     }
                     if (broadcast_type_C == 3)
                     {
-                        if (out_elempack == 4)
-                        {
-                            _sum0 = _mm_loadu_ps(pC);
-                            _sum1 = _mm_loadu_ps(pC + 4);
-                            _sum2 = _mm_loadu_ps(pC + 8);
-                            _sum3 = _mm_loadu_ps(pC + 12);
-                            _sum4 = _mm_loadu_ps(pC + 16);
-                            _sum5 = _mm_loadu_ps(pC + 20);
-                            _sum6 = _mm_loadu_ps(pC + 24);
-                            _sum7 = _mm_loadu_ps(pC + 28);
-                            _sum8 = _mm_loadu_ps(pC + 32);
-                            _sum9 = _mm_loadu_ps(pC + 36);
-                            _suma = _mm_loadu_ps(pC + 40);
-                            _sumb = _mm_loadu_ps(pC + 44);
-                            pC += 48;
-                        }
-                        if (out_elempack == 1)
-                        {
-                            _sum0 = _mm_loadu_ps(pC);
-                            _sum1 = _mm_loadu_ps(pC + N);
-                            _sum2 = _mm_loadu_ps(pC + N * 2);
-                            _sum3 = _mm_loadu_ps(pC + N * 3);
-                            _sum4 = _mm_loadu_ps(pC + 4);
-                            _sum5 = _mm_loadu_ps(pC + N + 4);
-                            _sum6 = _mm_loadu_ps(pC + N * 2 + 4);
-                            _sum7 = _mm_loadu_ps(pC + N * 3 + 4);
-                            _sum8 = _mm_loadu_ps(pC + 8);
-                            _sum9 = _mm_loadu_ps(pC + N + 8);
-                            _suma = _mm_loadu_ps(pC + N * 2 + 8);
-                            _sumb = _mm_loadu_ps(pC + N * 3 + 8);
-
-                            _MM_TRANSPOSE4_PS(_sum0, _sum1, _sum2, _sum3);
-                            _MM_TRANSPOSE4_PS(_sum4, _sum5, _sum6, _sum7);
-                            _MM_TRANSPOSE4_PS(_sum8, _sum9, _suma, _sumb);
-                            pC += 12;
-                        }
+                        _sum0 = _mm_loadu_ps(pC);
+                        _sum1 = _mm_loadu_ps(pC + 4);
+                        _sum2 = _mm_loadu_ps(pC + 8);
+                        _sum3 = _mm_loadu_ps(pC + 12);
+                        _sum4 = _mm_loadu_ps(pC + 16);
+                        _sum5 = _mm_loadu_ps(pC + 20);
+                        _sum6 = _mm_loadu_ps(pC + 24);
+                        _sum7 = _mm_loadu_ps(pC + 28);
+                        _sum8 = _mm_loadu_ps(pC + 32);
+                        _sum9 = _mm_loadu_ps(pC + 36);
+                        _suma = _mm_loadu_ps(pC + 40);
+                        _sumb = _mm_loadu_ps(pC + 44);
+                        pC += 48;
                     }
                     if (broadcast_type_C == 4)
                     {
@@ -4384,21 +5362,21 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             }
             else
             {
-                _sum0 = _mm_load_ps(ptmp);
-                _sum1 = _mm_load_ps(ptmp + 4 * 1);
-                _sum2 = _mm_load_ps(ptmp + 4 * 2);
-                _sum3 = _mm_load_ps(ptmp + 4 * 3);
-                _sum4 = _mm_load_ps(ptmp + 4 * 4);
-                _sum5 = _mm_load_ps(ptmp + 4 * 5);
-                _sum6 = _mm_load_ps(ptmp + 4 * 6);
-                _sum7 = _mm_load_ps(ptmp + 4 * 7);
-                _sum8 = _mm_load_ps(ptmp + 4 * 8);
-                _sum9 = _mm_load_ps(ptmp + 4 * 9);
-                _suma = _mm_load_ps(ptmp + 4 * 10);
-                _sumb = _mm_load_ps(ptmp + 4 * 11);
+                _sum0 = _mm_load_ps(outptr);
+                _sum1 = _mm_load_ps(outptr + 4 * 1);
+                _sum2 = _mm_load_ps(outptr + 4 * 2);
+                _sum3 = _mm_load_ps(outptr + 4 * 3);
+                _sum4 = _mm_load_ps(outptr + 4 * 4);
+                _sum5 = _mm_load_ps(outptr + 4 * 5);
+                _sum6 = _mm_load_ps(outptr + 4 * 6);
+                _sum7 = _mm_load_ps(outptr + 4 * 7);
+                _sum8 = _mm_load_ps(outptr + 4 * 8);
+                _sum9 = _mm_load_ps(outptr + 4 * 9);
+                _suma = _mm_load_ps(outptr + 4 * 10);
+                _sumb = _mm_load_ps(outptr + 4 * 11);
             }
 
-            const float* pA = pA0;
+            const float* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -4462,21 +5440,21 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             }
             else
             {
-                _mm_store_ps(ptmp, _sum0);
-                _mm_store_ps(ptmp + 4 * 1, _sum1);
-                _mm_store_ps(ptmp + 4 * 2, _sum2);
-                _mm_store_ps(ptmp + 4 * 3, _sum3);
-                _mm_store_ps(ptmp + 4 * 4, _sum4);
-                _mm_store_ps(ptmp + 4 * 5, _sum5);
-                _mm_store_ps(ptmp + 4 * 6, _sum6);
-                _mm_store_ps(ptmp + 4 * 7, _sum7);
-                _mm_store_ps(ptmp + 4 * 8, _sum8);
-                _mm_store_ps(ptmp + 4 * 9, _sum9);
-                _mm_store_ps(ptmp + 4 * 10, _suma);
-                _mm_store_ps(ptmp + 4 * 11, _sumb);
+                _mm_store_ps(outptr, _sum0);
+                _mm_store_ps(outptr + 4 * 1, _sum1);
+                _mm_store_ps(outptr + 4 * 2, _sum2);
+                _mm_store_ps(outptr + 4 * 3, _sum3);
+                _mm_store_ps(outptr + 4 * 4, _sum4);
+                _mm_store_ps(outptr + 4 * 5, _sum5);
+                _mm_store_ps(outptr + 4 * 6, _sum6);
+                _mm_store_ps(outptr + 4 * 7, _sum7);
+                _mm_store_ps(outptr + 4 * 8, _sum8);
+                _mm_store_ps(outptr + 4 * 9, _sum9);
+                _mm_store_ps(outptr + 4 * 10, _suma);
+                _mm_store_ps(outptr + 4 * 11, _sumb);
             }
 
-            ptmp += 48;
+            outptr += 48;
         }
         for (; jj + 7 < max_jj; jj += 8)
         {
@@ -4526,33 +5504,15 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                     }
                     if (broadcast_type_C == 3)
                     {
-                        if (out_elempack == 4)
-                        {
-                            _sum0 = _mm_loadu_ps(pC);
-                            _sum1 = _mm_loadu_ps(pC + 4);
-                            _sum2 = _mm_loadu_ps(pC + 8);
-                            _sum3 = _mm_loadu_ps(pC + 12);
-                            _sum4 = _mm_loadu_ps(pC + 16);
-                            _sum5 = _mm_loadu_ps(pC + 20);
-                            _sum6 = _mm_loadu_ps(pC + 24);
-                            _sum7 = _mm_loadu_ps(pC + 28);
-                            pC += 32;
-                        }
-                        if (out_elempack == 1)
-                        {
-                            _sum0 = _mm_loadu_ps(pC);
-                            _sum1 = _mm_loadu_ps(pC + N);
-                            _sum2 = _mm_loadu_ps(pC + N * 2);
-                            _sum3 = _mm_loadu_ps(pC + N * 3);
-                            _sum4 = _mm_loadu_ps(pC + 4);
-                            _sum5 = _mm_loadu_ps(pC + N + 4);
-                            _sum6 = _mm_loadu_ps(pC + N * 2 + 4);
-                            _sum7 = _mm_loadu_ps(pC + N * 3 + 4);
-
-                            _MM_TRANSPOSE4_PS(_sum0, _sum1, _sum2, _sum3);
-                            _MM_TRANSPOSE4_PS(_sum4, _sum5, _sum6, _sum7);
-                            pC += 8;
-                        }
+                        _sum0 = _mm_loadu_ps(pC);
+                        _sum1 = _mm_loadu_ps(pC + 4);
+                        _sum2 = _mm_loadu_ps(pC + 8);
+                        _sum3 = _mm_loadu_ps(pC + 12);
+                        _sum4 = _mm_loadu_ps(pC + 16);
+                        _sum5 = _mm_loadu_ps(pC + 20);
+                        _sum6 = _mm_loadu_ps(pC + 24);
+                        _sum7 = _mm_loadu_ps(pC + 28);
+                        pC += 32;
                     }
                     if (broadcast_type_C == 4)
                     {
@@ -4570,17 +5530,17 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             }
             else
             {
-                _sum0 = _mm_load_ps(ptmp);
-                _sum1 = _mm_load_ps(ptmp + 4 * 1);
-                _sum2 = _mm_load_ps(ptmp + 4 * 2);
-                _sum3 = _mm_load_ps(ptmp + 4 * 3);
-                _sum4 = _mm_load_ps(ptmp + 4 * 4);
-                _sum5 = _mm_load_ps(ptmp + 4 * 5);
-                _sum6 = _mm_load_ps(ptmp + 4 * 6);
-                _sum7 = _mm_load_ps(ptmp + 4 * 7);
+                _sum0 = _mm_load_ps(outptr);
+                _sum1 = _mm_load_ps(outptr + 4 * 1);
+                _sum2 = _mm_load_ps(outptr + 4 * 2);
+                _sum3 = _mm_load_ps(outptr + 4 * 3);
+                _sum4 = _mm_load_ps(outptr + 4 * 4);
+                _sum5 = _mm_load_ps(outptr + 4 * 5);
+                _sum6 = _mm_load_ps(outptr + 4 * 6);
+                _sum7 = _mm_load_ps(outptr + 4 * 7);
             }
 
-            const float* pA = pA0;
+            const float* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -4631,17 +5591,17 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             }
             else
             {
-                _mm_store_ps(ptmp, _sum0);
-                _mm_store_ps(ptmp + 4 * 1, _sum1);
-                _mm_store_ps(ptmp + 4 * 2, _sum2);
-                _mm_store_ps(ptmp + 4 * 3, _sum3);
-                _mm_store_ps(ptmp + 4 * 4, _sum4);
-                _mm_store_ps(ptmp + 4 * 5, _sum5);
-                _mm_store_ps(ptmp + 4 * 6, _sum6);
-                _mm_store_ps(ptmp + 4 * 7, _sum7);
+                _mm_store_ps(outptr, _sum0);
+                _mm_store_ps(outptr + 4 * 1, _sum1);
+                _mm_store_ps(outptr + 4 * 2, _sum2);
+                _mm_store_ps(outptr + 4 * 3, _sum3);
+                _mm_store_ps(outptr + 4 * 4, _sum4);
+                _mm_store_ps(outptr + 4 * 5, _sum5);
+                _mm_store_ps(outptr + 4 * 6, _sum6);
+                _mm_store_ps(outptr + 4 * 7, _sum7);
             }
 
-            ptmp += 32;
+            outptr += 32;
         }
         for (; jj + 3 < max_jj; jj += 4)
         {
@@ -4675,24 +5635,11 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                     }
                     if (broadcast_type_C == 3)
                     {
-                        if (out_elempack == 4)
-                        {
-                            _sum0 = _mm_loadu_ps(pC);
-                            _sum1 = _mm_loadu_ps(pC + 4);
-                            _sum2 = _mm_loadu_ps(pC + 8);
-                            _sum3 = _mm_loadu_ps(pC + 12);
-                            pC += 16;
-                        }
-                        if (out_elempack == 1)
-                        {
-                            _sum0 = _mm_loadu_ps(pC);
-                            _sum1 = _mm_loadu_ps(pC + N);
-                            _sum2 = _mm_loadu_ps(pC + N * 2);
-                            _sum3 = _mm_loadu_ps(pC + N * 3);
-
-                            _MM_TRANSPOSE4_PS(_sum0, _sum1, _sum2, _sum3);
-                            pC += 4;
-                        }
+                        _sum0 = _mm_loadu_ps(pC);
+                        _sum1 = _mm_loadu_ps(pC + 4);
+                        _sum2 = _mm_loadu_ps(pC + 8);
+                        _sum3 = _mm_loadu_ps(pC + 12);
+                        pC += 16;
                     }
                     if (broadcast_type_C == 4)
                     {
@@ -4706,13 +5653,13 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             }
             else
             {
-                _sum0 = _mm_load_ps(ptmp);
-                _sum1 = _mm_load_ps(ptmp + 4 * 1);
-                _sum2 = _mm_load_ps(ptmp + 4 * 2);
-                _sum3 = _mm_load_ps(ptmp + 4 * 3);
+                _sum0 = _mm_load_ps(outptr);
+                _sum1 = _mm_load_ps(outptr + 4 * 1);
+                _sum2 = _mm_load_ps(outptr + 4 * 2);
+                _sum3 = _mm_load_ps(outptr + 4 * 3);
             }
 
-            const float* pA = pA0;
+            const float* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -4750,13 +5697,13 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             }
             else
             {
-                _mm_store_ps(ptmp, _sum0);
-                _mm_store_ps(ptmp + 4 * 1, _sum1);
-                _mm_store_ps(ptmp + 4 * 2, _sum2);
-                _mm_store_ps(ptmp + 4 * 3, _sum3);
+                _mm_store_ps(outptr, _sum0);
+                _mm_store_ps(outptr + 4 * 1, _sum1);
+                _mm_store_ps(outptr + 4 * 2, _sum2);
+                _mm_store_ps(outptr + 4 * 3, _sum3);
             }
 
-            ptmp += 16;
+            outptr += 16;
         }
         for (; jj + 1 < max_jj; jj += 2)
         {
@@ -4782,29 +5729,9 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                     }
                     if (broadcast_type_C == 3)
                     {
-                        if (out_elempack == 4)
-                        {
-                            _sum0 = _mm_loadu_ps(pC);
-                            _sum1 = _mm_loadu_ps(pC + 4);
-                            pC += 8;
-                        }
-                        if (out_elempack == 1)
-                        {
-                            float sum0[4];
-                            float sum1[4];
-                            sum0[0] = pC[0];
-                            sum0[1] = pC[N];
-                            sum0[2] = pC[N * 2];
-                            sum0[3] = pC[N * 3];
-                            sum1[0] = pC[1];
-                            sum1[1] = pC[N + 1];
-                            sum1[2] = pC[N * 2 + 1];
-                            sum1[3] = pC[N * 3 + 1];
-
-                            _sum0 = _mm_loadu_ps(sum0);
-                            _sum1 = _mm_loadu_ps(sum1);
-                            pC += 2;
-                        }
+                        _sum0 = _mm_loadu_ps(pC);
+                        _sum1 = _mm_loadu_ps(pC + 4);
+                        pC += 8;
                     }
                     if (broadcast_type_C == 4)
                     {
@@ -4816,11 +5743,11 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             }
             else
             {
-                _sum0 = _mm_load_ps(ptmp);
-                _sum1 = _mm_load_ps(ptmp + 4);
+                _sum0 = _mm_load_ps(outptr);
+                _sum1 = _mm_load_ps(outptr + 4);
             }
 
-            const float* pA = pA0;
+            const float* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -4861,11 +5788,11 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             }
             else
             {
-                _mm_store_ps(ptmp, _sum0);
-                _mm_store_ps(ptmp + 4, _sum1);
+                _mm_store_ps(outptr, _sum0);
+                _mm_store_ps(outptr + 4, _sum1);
             }
 
-            ptmp += 8;
+            outptr += 8;
         }
         for (; jj < max_jj; jj += 1)
         {
@@ -4887,22 +5814,8 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                     }
                     if (broadcast_type_C == 3)
                     {
-                        if (out_elempack == 4)
-                        {
-                            _sum0 = _mm_loadu_ps(pC);
-                            pC += 4;
-                        }
-                        if (out_elempack == 1)
-                        {
-                            float sum0[4];
-                            sum0[0] = pC[0];
-                            sum0[1] = pC[N];
-                            sum0[2] = pC[N * 2];
-                            sum0[3] = pC[N * 3];
-
-                            _sum0 = _mm_loadu_ps(sum0);
-                            pC += 1;
-                        }
+                        _sum0 = _mm_loadu_ps(pC);
+                        pC += 4;
                     }
                     if (broadcast_type_C == 4)
                     {
@@ -4913,10 +5826,10 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             }
             else
             {
-                _sum0 = _mm_load_ps(ptmp);
+                _sum0 = _mm_load_ps(outptr);
             }
 
-            const float* pA = pA0;
+            const float* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -4949,35 +5862,30 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             }
             else
             {
-                _mm_store_ps(ptmp, _sum0);
+                _mm_store_ps(outptr, _sum0);
             }
 
-            ptmp += 4;
+            outptr += 4;
         }
 
-        pA0 += max_kk * 4;
+        pAT += max_kk * 4;
     }
 #endif // __SSE2__
     for (; ii + 1 < max_ii; ii += 2)
     {
         float* outptr0 = (float*)top_blob + (i + ii) * out_hstep + j;
 
-        const float* pB = pB0;
+        const float* pB = pBT;
 
-        const float* pC = C;
         if (pC)
         {
             if (broadcast_type_C == 1 || broadcast_type_C == 2)
             {
-                pC = pC + i + ii;
-            }
-            if (broadcast_type_C == 3)
-            {
-                pC = C.row(i + ii) + j;
+                pC = (const float*)CT_tile + i + ii;
             }
             if (broadcast_type_C == 4)
             {
-                pC = pC + j;
+                pC = (const float*)CT_tile + j;
             }
         }
 
@@ -5023,13 +5931,19 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                     }
                     if (broadcast_type_C == 3)
                     {
-                        _sum00 = _mm_loadu_ps(pC);
-                        _sum01 = _mm_loadu_ps(pC + 4);
-                        _sum02 = _mm_loadu_ps(pC + 8);
-                        _sum10 = _mm_loadu_ps(pC + N);
-                        _sum11 = _mm_loadu_ps(pC + N + 4);
-                        _sum12 = _mm_loadu_ps(pC + N + 8);
-                        pC += 12;
+                        __m128 _tmp0 = _mm_loadu_ps(pC);
+                        __m128 _tmp1 = _mm_loadu_ps(pC + 4);
+                        __m128 _tmp2 = _mm_loadu_ps(pC + 8);
+                        __m128 _tmp3 = _mm_loadu_ps(pC + 12);
+                        __m128 _tmp4 = _mm_loadu_ps(pC + 16);
+                        __m128 _tmp5 = _mm_loadu_ps(pC + 20);
+                        _sum00 = _mm_shuffle_ps(_tmp0, _tmp1, _MM_SHUFFLE(2, 0, 2, 0));
+                        _sum01 = _mm_shuffle_ps(_tmp2, _tmp3, _MM_SHUFFLE(2, 0, 2, 0));
+                        _sum02 = _mm_shuffle_ps(_tmp4, _tmp5, _MM_SHUFFLE(2, 0, 2, 0));
+                        _sum10 = _mm_shuffle_ps(_tmp0, _tmp1, _MM_SHUFFLE(3, 1, 3, 1));
+                        _sum11 = _mm_shuffle_ps(_tmp2, _tmp3, _MM_SHUFFLE(3, 1, 3, 1));
+                        _sum12 = _mm_shuffle_ps(_tmp4, _tmp5, _MM_SHUFFLE(3, 1, 3, 1));
+                        pC += 24;
                     }
                     if (broadcast_type_C == 4)
                     {
@@ -5045,15 +5959,21 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             }
             else
             {
-                _sum00 = _mm_load_ps(ptmp);
-                _sum01 = _mm_load_ps(ptmp + 4);
-                _sum02 = _mm_load_ps(ptmp + 8);
-                _sum10 = _mm_load_ps(ptmp + 12);
-                _sum11 = _mm_load_ps(ptmp + 16);
-                _sum12 = _mm_load_ps(ptmp + 20);
+                __m128 _tmp0 = _mm_loadu_ps(outptr);
+                __m128 _tmp1 = _mm_loadu_ps(outptr + 4);
+                __m128 _tmp2 = _mm_loadu_ps(outptr + 8);
+                __m128 _tmp3 = _mm_loadu_ps(outptr + 12);
+                __m128 _tmp4 = _mm_loadu_ps(outptr + 16);
+                __m128 _tmp5 = _mm_loadu_ps(outptr + 20);
+                _sum00 = _mm_shuffle_ps(_tmp0, _tmp1, _MM_SHUFFLE(2, 0, 2, 0));
+                _sum01 = _mm_shuffle_ps(_tmp2, _tmp3, _MM_SHUFFLE(2, 0, 2, 0));
+                _sum02 = _mm_shuffle_ps(_tmp4, _tmp5, _MM_SHUFFLE(2, 0, 2, 0));
+                _sum10 = _mm_shuffle_ps(_tmp0, _tmp1, _MM_SHUFFLE(3, 1, 3, 1));
+                _sum11 = _mm_shuffle_ps(_tmp2, _tmp3, _MM_SHUFFLE(3, 1, 3, 1));
+                _sum12 = _mm_shuffle_ps(_tmp4, _tmp5, _MM_SHUFFLE(3, 1, 3, 1));
             }
 
-            const float* pA = pA0;
+            const float* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -5089,15 +6009,21 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             }
             else
             {
-                _mm_store_ps(ptmp, _sum00);
-                _mm_store_ps(ptmp + 4, _sum01);
-                _mm_store_ps(ptmp + 8, _sum02);
-                _mm_store_ps(ptmp + 12, _sum10);
-                _mm_store_ps(ptmp + 16, _sum11);
-                _mm_store_ps(ptmp + 20, _sum12);
+                __m128 _tmp0 = _mm_unpacklo_ps(_sum00, _sum10);
+                __m128 _tmp1 = _mm_unpackhi_ps(_sum00, _sum10);
+                __m128 _tmp2 = _mm_unpacklo_ps(_sum01, _sum11);
+                __m128 _tmp3 = _mm_unpackhi_ps(_sum01, _sum11);
+                __m128 _tmp4 = _mm_unpacklo_ps(_sum02, _sum12);
+                __m128 _tmp5 = _mm_unpackhi_ps(_sum02, _sum12);
+                _mm_store_ps(outptr, _tmp0);
+                _mm_store_ps(outptr + 4, _tmp1);
+                _mm_store_ps(outptr + 8, _tmp2);
+                _mm_store_ps(outptr + 12, _tmp3);
+                _mm_store_ps(outptr + 16, _tmp4);
+                _mm_store_ps(outptr + 20, _tmp5);
             }
 
-            ptmp += 24;
+            outptr += 24;
         }
         for (; jj + 7 < max_jj; jj += 8)
         {
@@ -5131,11 +6057,15 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                     }
                     if (broadcast_type_C == 3)
                     {
-                        _sum00 = _mm_loadu_ps(pC);
-                        _sum01 = _mm_loadu_ps(pC + 4);
-                        _sum10 = _mm_loadu_ps(pC + N);
-                        _sum11 = _mm_loadu_ps(pC + N + 4);
-                        pC += 8;
+                        __m128 _tmp0 = _mm_loadu_ps(pC);
+                        __m128 _tmp1 = _mm_loadu_ps(pC + 4);
+                        __m128 _tmp2 = _mm_loadu_ps(pC + 8);
+                        __m128 _tmp3 = _mm_loadu_ps(pC + 12);
+                        _sum00 = _mm_shuffle_ps(_tmp0, _tmp1, _MM_SHUFFLE(2, 0, 2, 0));
+                        _sum01 = _mm_shuffle_ps(_tmp2, _tmp3, _MM_SHUFFLE(2, 0, 2, 0));
+                        _sum10 = _mm_shuffle_ps(_tmp0, _tmp1, _MM_SHUFFLE(3, 1, 3, 1));
+                        _sum11 = _mm_shuffle_ps(_tmp2, _tmp3, _MM_SHUFFLE(3, 1, 3, 1));
+                        pC += 16;
                     }
                     if (broadcast_type_C == 4)
                     {
@@ -5149,13 +6079,17 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             }
             else
             {
-                _sum00 = _mm_load_ps(ptmp);
-                _sum01 = _mm_load_ps(ptmp + 4);
-                _sum10 = _mm_load_ps(ptmp + 8);
-                _sum11 = _mm_load_ps(ptmp + 12);
+                __m128 _tmp0 = _mm_loadu_ps(outptr);
+                __m128 _tmp1 = _mm_loadu_ps(outptr + 4);
+                __m128 _tmp2 = _mm_loadu_ps(outptr + 8);
+                __m128 _tmp3 = _mm_loadu_ps(outptr + 12);
+                _sum00 = _mm_shuffle_ps(_tmp0, _tmp1, _MM_SHUFFLE(2, 0, 2, 0));
+                _sum01 = _mm_shuffle_ps(_tmp2, _tmp3, _MM_SHUFFLE(2, 0, 2, 0));
+                _sum10 = _mm_shuffle_ps(_tmp0, _tmp1, _MM_SHUFFLE(3, 1, 3, 1));
+                _sum11 = _mm_shuffle_ps(_tmp2, _tmp3, _MM_SHUFFLE(3, 1, 3, 1));
             }
 
-            const float* pA = pA0;
+            const float* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -5186,13 +6120,17 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             }
             else
             {
-                _mm_store_ps(ptmp, _sum00);
-                _mm_store_ps(ptmp + 4, _sum01);
-                _mm_store_ps(ptmp + 8, _sum10);
-                _mm_store_ps(ptmp + 12, _sum11);
+                __m128 _tmp0 = _mm_unpacklo_ps(_sum00, _sum10);
+                __m128 _tmp1 = _mm_unpackhi_ps(_sum00, _sum10);
+                __m128 _tmp2 = _mm_unpacklo_ps(_sum01, _sum11);
+                __m128 _tmp3 = _mm_unpackhi_ps(_sum01, _sum11);
+                _mm_store_ps(outptr, _tmp0);
+                _mm_store_ps(outptr + 4, _tmp1);
+                _mm_store_ps(outptr + 8, _tmp2);
+                _mm_store_ps(outptr + 12, _tmp3);
             }
 
-            ptmp += 16;
+            outptr += 16;
         }
         for (; jj + 3 < max_jj; jj += 4)
         {
@@ -5218,9 +6156,11 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                     }
                     if (broadcast_type_C == 3)
                     {
-                        _sum0 = _mm_loadu_ps(pC);
-                        _sum1 = _mm_loadu_ps(pC + N);
-                        pC += 4;
+                        __m128 _tmp0 = _mm_loadu_ps(pC);
+                        __m128 _tmp1 = _mm_loadu_ps(pC + 4);
+                        _sum0 = _mm_shuffle_ps(_tmp0, _tmp1, _MM_SHUFFLE(2, 0, 2, 0));
+                        _sum1 = _mm_shuffle_ps(_tmp0, _tmp1, _MM_SHUFFLE(3, 1, 3, 1));
+                        pC += 8;
                     }
                     if (broadcast_type_C == 4)
                     {
@@ -5232,11 +6172,13 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             }
             else
             {
-                _sum0 = _mm_load_ps(ptmp);
-                _sum1 = _mm_load_ps(ptmp + 4);
+                __m128 _tmp0 = _mm_loadu_ps(outptr);
+                __m128 _tmp1 = _mm_loadu_ps(outptr + 4);
+                _sum0 = _mm_shuffle_ps(_tmp0, _tmp1, _MM_SHUFFLE(2, 0, 2, 0));
+                _sum1 = _mm_shuffle_ps(_tmp0, _tmp1, _MM_SHUFFLE(3, 1, 3, 1));
             }
 
-            const float* pA = pA0;
+            const float* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -5260,11 +6202,13 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             }
             else
             {
-                _mm_store_ps(ptmp, _sum0);
-                _mm_store_ps(ptmp + 4, _sum1);
+                __m128 _tmp0 = _mm_unpacklo_ps(_sum0, _sum1);
+                __m128 _tmp1 = _mm_unpackhi_ps(_sum0, _sum1);
+                _mm_storeu_ps(outptr, _tmp0);
+                _mm_storeu_ps(outptr + 4, _tmp1);
             }
 
-            ptmp += 8;
+            outptr += 8;
         }
 #endif // __SSE2__
         for (; jj + 1 < max_jj; jj += 2)
@@ -5293,23 +6237,23 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                     if (broadcast_type_C == 1 || broadcast_type_C == 2)
                     {
                         sum00 = pC[0];
-                        sum01 = pC[0];
-                        sum10 = pC[1];
+                        sum01 = pC[1];
+                        sum10 = pC[0];
                         sum11 = pC[1];
                     }
                     if (broadcast_type_C == 3)
                     {
                         sum00 = pC[0];
                         sum01 = pC[1];
-                        sum10 = pC[N];
-                        sum11 = pC[N + 1];
-                        pC += 2;
+                        sum10 = pC[2];
+                        sum11 = pC[3];
+                        pC += 4;
                     }
                     if (broadcast_type_C == 4)
                     {
                         sum00 = pC[0];
-                        sum01 = pC[1];
-                        sum10 = pC[0];
+                        sum01 = pC[0];
+                        sum10 = pC[1];
                         sum11 = pC[1];
                         pC += 2;
                     }
@@ -5317,19 +6261,19 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             }
             else
             {
-                sum00 = ptmp[0];
-                sum01 = ptmp[1];
-                sum10 = ptmp[2];
-                sum11 = ptmp[3];
+                sum00 = outptr[0];
+                sum01 = outptr[1];
+                sum10 = outptr[2];
+                sum11 = outptr[3];
             }
 
-            const float* pA = pA0;
+            const float* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
                 sum00 += pA[0] * pB[0];
-                sum01 += pA[0] * pB[1];
-                sum10 += pA[1] * pB[0];
+                sum01 += pA[1] * pB[0];
+                sum10 += pA[0] * pB[1];
                 sum11 += pA[1] * pB[1];
 
                 pA += 2;
@@ -5341,21 +6285,21 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 // if (out_elempack == 1)
                 {
                     outptr0[0] = sum00;
-                    outptr0[1] = sum01;
-                    outptr0[out_hstep] = sum10;
+                    outptr0[1] = sum10;
+                    outptr0[out_hstep] = sum01;
                     outptr0[out_hstep + 1] = sum11;
                     outptr0 += 2;
                 }
             }
             else
             {
-                ptmp[0] = sum00;
-                ptmp[1] = sum01;
-                ptmp[2] = sum10;
-                ptmp[3] = sum11;
+                outptr[0] = sum00;
+                outptr[1] = sum01;
+                outptr[2] = sum10;
+                outptr[3] = sum11;
             }
 
-            ptmp += 4;
+            outptr += 4;
         }
         for (; jj < max_jj; jj += 1)
         {
@@ -5382,8 +6326,8 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                     if (broadcast_type_C == 3)
                     {
                         sum0 = pC[0];
-                        sum1 = pC[N];
-                        pC += 1;
+                        sum1 = pC[1];
+                        pC += 2;
                     }
                     if (broadcast_type_C == 4)
                     {
@@ -5395,11 +6339,11 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             }
             else
             {
-                sum0 = ptmp[0];
-                sum1 = ptmp[1];
+                sum0 = outptr[0];
+                sum1 = outptr[1];
             }
 
-            const float* pA = pA0;
+            const float* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -5420,35 +6364,30 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             }
             else
             {
-                ptmp[0] = sum0;
-                ptmp[1] = sum1;
+                outptr[0] = sum0;
+                outptr[1] = sum1;
             }
 
-            ptmp += 2;
+            outptr += 2;
         }
 
-        pA0 += max_kk * 2;
+        pAT += max_kk * 2;
     }
     for (; ii < max_ii; ii += 1)
     {
         float* outptr0 = (float*)top_blob + (i + ii) * out_hstep + j;
 
-        const float* pB = pB0;
+        const float* pB = pBT;
 
-        const float* pC = C;
         if (pC)
         {
             if (broadcast_type_C == 1 || broadcast_type_C == 2)
             {
-                pC = pC + i + ii;
-            }
-            if (broadcast_type_C == 3)
-            {
-                pC = C.row(i + ii) + j;
+                pC = (const float*)CT_tile + i + ii;
             }
             if (broadcast_type_C == 4)
             {
-                pC = pC + j;
+                pC = (const float*)CT_tile + j;
             }
         }
 
@@ -5485,12 +6424,12 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             }
             else
             {
-                _sum0 = _mm_loadu_ps(ptmp);
-                _sum1 = _mm_loadu_ps(ptmp + 4);
-                _sum2 = _mm_loadu_ps(ptmp + 8);
+                _sum0 = _mm_loadu_ps(outptr);
+                _sum1 = _mm_loadu_ps(outptr + 4);
+                _sum2 = _mm_loadu_ps(outptr + 8);
             }
 
-            const float* pA = pA0;
+            const float* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -5519,12 +6458,12 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             }
             else
             {
-                _mm_storeu_ps(ptmp, _sum0);
-                _mm_storeu_ps(ptmp + 4, _sum1);
-                _mm_storeu_ps(ptmp + 8, _sum2);
+                _mm_storeu_ps(outptr, _sum0);
+                _mm_storeu_ps(outptr + 4, _sum1);
+                _mm_storeu_ps(outptr + 8, _sum2);
             }
 
-            ptmp += 12;
+            outptr += 12;
         }
         for (; jj + 7 < max_jj; jj += 8)
         {
@@ -5553,11 +6492,11 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             }
             else
             {
-                _sum0 = _mm_loadu_ps(ptmp);
-                _sum1 = _mm_loadu_ps(ptmp + 4);
+                _sum0 = _mm_loadu_ps(outptr);
+                _sum1 = _mm_loadu_ps(outptr + 4);
             }
 
-            const float* pA = pA0;
+            const float* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -5583,11 +6522,11 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             }
             else
             {
-                _mm_storeu_ps(ptmp, _sum0);
-                _mm_storeu_ps(ptmp + 4, _sum1);
+                _mm_storeu_ps(outptr, _sum0);
+                _mm_storeu_ps(outptr + 4, _sum1);
             }
 
-            ptmp += 8;
+            outptr += 8;
         }
         for (; jj + 3 < max_jj; jj += 4)
         {
@@ -5612,10 +6551,10 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             }
             else
             {
-                _sum = _mm_loadu_ps(ptmp);
+                _sum = _mm_loadu_ps(outptr);
             }
 
-            const float* pA = pA0;
+            const float* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -5637,10 +6576,10 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             }
             else
             {
-                _mm_storeu_ps(ptmp, _sum);
+                _mm_storeu_ps(outptr, _sum);
             }
 
-            ptmp += 4;
+            outptr += 4;
         }
 #endif // __SSE2__
         for (; jj + 1 < max_jj; jj += 2)
@@ -5670,11 +6609,11 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             }
             else
             {
-                sum0 = ptmp[0];
-                sum1 = ptmp[1];
+                sum0 = outptr[0];
+                sum1 = outptr[1];
             }
 
-            const float* pA = pA0;
+            const float* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -5696,11 +6635,11 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             }
             else
             {
-                ptmp[0] = sum0;
-                ptmp[1] = sum1;
+                outptr[0] = sum0;
+                outptr[1] = sum1;
             }
 
-            ptmp += 2;
+            outptr += 2;
         }
         for (; jj < max_jj; jj += 1)
         {
@@ -5725,10 +6664,10 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             }
             else
             {
-                sum = ptmp[0];
+                sum = outptr[0];
             }
 
-            const float* pA = pA0;
+            const float* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -5747,17 +6686,17 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             }
             else
             {
-                ptmp[0] = sum;
+                outptr[0] = sum;
             }
 
-            ptmp += 1;
+            outptr += 1;
         }
 
-        pA0 += max_kk;
+        pAT += max_kk;
     }
 }
 
-static void get_optimal_tile_mnk(int M, int N, int K, int& TILE_M, int& TILE_N, int& TILE_K, int nT)
+static void get_optimal_tile_mnk(int M, int N, int K, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int& TILE_M, int& TILE_N, int& TILE_K, int nT)
 {
     // resolve optimal tile size from cache size
     size_t l2_cache_size = get_cpu_level2_cache_size();
@@ -5856,9 +6795,49 @@ static void get_optimal_tile_mnk(int M, int N, int K, int& TILE_M, int& TILE_N, 
         TILE_M = std::min(TILE_M, (std::max(1, TILE_M / nT) + 1) / 2 * 2);
 #endif
     }
+
+    // always take constant TILE_M/N/K value when provided
+    if (constant_TILE_M > 0)
+    {
+#if __AVX512F__
+        TILE_M = (constant_TILE_M + 15) / 16 * 16;
+#elif __AVX__
+        TILE_M = (constant_TILE_M + 7) / 8 * 8;
+#elif __SSE2__
+        TILE_M = (constant_TILE_M + 3) / 4 * 4;
+#else
+        TILE_M = (constant_TILE_M + 1) / 2 * 2;
+#endif
+    }
+
+    if (constant_TILE_N > 0)
+    {
+#if __AVX512F__
+        TILE_N = (constant_TILE_N + 3) / 4 * 4;
+#elif __AVX__
+        TILE_N = (constant_TILE_N + 3) / 4 * 4;
+#elif __SSE2__
+        TILE_N = (constant_TILE_N + 3) / 4 * 4;
+#else
+        TILE_N = constant_TILE_N;
+#endif
+    }
+
+    if (constant_TILE_K > 0)
+    {
+#if __AVX512F__
+        TILE_K = (constant_TILE_K + 15) / 16 * 16;
+#elif __AVX__
+        TILE_K = (constant_TILE_K + 7) / 8 * 8;
+#elif __SSE2__
+        TILE_K = (constant_TILE_K + 3) / 4 * 4;
+#else
+        TILE_K = (constant_TILE_K + 1) / 2 * 2;
+#endif
+    }
 }
 
-static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int broadcast_type_C, int transA, int transB, int nT, const Option& opt)
+static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int broadcast_type_C, int transA, int transB, int output_transpose, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, const Option& opt)
 {
     const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
     const int K = transA ? (A.dims == 3 ? A.c : A.h) * A.elempack : A.w;
@@ -5867,7 +6846,7 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
     // NCNN_LOGE("M/N/K = %d %d %d", M, N, K);
 
     int TILE_M, TILE_N, TILE_K;
-    get_optimal_tile_mnk(M, N, K, TILE_M, TILE_N, TILE_K, nT);
+    get_optimal_tile_mnk(M, N, K, constant_TILE_M, constant_TILE_N, constant_TILE_K, TILE_M, TILE_N, TILE_K, nT);
 
     // NCNN_LOGE("TILE M/N/K = %d %d %d", TILE_M, TILE_N, TILE_K);
 
@@ -5877,10 +6856,6 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
 
     Mat ATX(TILE_K * TILE_M, (K + TILE_K - 1) / TILE_K, nT, 4u, opt.blob_allocator);
     Mat BT(TILE_K * TILE_N, (K + TILE_K - 1) / TILE_K, (N + TILE_N - 1) / TILE_N, 4u, opt.blob_allocator);
-
-    Mat tmpX;
-    if (K > TILE_K)
-        tmpX.create(TILE_N, TILE_M, nT, 4u, opt.blob_allocator);
 
     const int nn_NK = nn_N * nn_K;
 
@@ -5909,23 +6884,34 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
         }
     }
 
+    Mat topT;
+    if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
+        topT.create(TILE_N * TILE_M, 1, nT, 4u, opt.blob_allocator);
+
     #pragma omp parallel for num_threads(nT)
     for (int ppi = 0; ppi < nn_M; ppi++)
     {
         const int i = ppi * TILE_M;
 
-        Mat tmp;
-        if (K > TILE_K)
-            tmp = tmpX.channel(get_omp_thread_num());
+        const int max_ii = std::min((M - i), TILE_M);
 
-        int j = 0;
-        for (; j < N; j += TILE_N)
+        Mat topT_tile;
+        if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
+            topT_tile = topT.channel(get_omp_thread_num());
+
+        for (int j = 0; j < N; j += TILE_N)
         {
-            int k = 0;
-            for (; k < K; k += TILE_K)
+            const int max_jj = std::min((N - j), TILE_N);
+
+            if (broadcast_type_C == 3)
             {
-                const int max_ii = std::min((M - i), TILE_M);
-                const int max_jj = std::min((N - j), TILE_N);
+                pack_A_tile(C, topT_tile, i, max_ii, j, max_jj);
+            }
+
+            const Mat& CT_tile = broadcast_type_C == 3 ? topT_tile : C;
+
+            for (int k = 0; k < K; k += TILE_K)
+            {
                 const int max_kk = std::min((K - k), TILE_K);
 
                 // NCNN_LOGE("max_ii/jj/kk = %d %d %d", max_ii, max_jj, max_kk);
@@ -5946,9 +6932,14 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
                     }
                 }
 
-                bool k_end = k + TILE_K >= K;
+                bool k_end = !output_transpose && k + TILE_K >= K;
 
-                gemm_transB_packed_tile(AT_tile, BT_tile, C, top_blob, broadcast_type_C, tmp, i, max_ii, j, max_jj, k, max_kk, k_end);
+                gemm_transB_packed_tile(AT_tile, BT_tile, CT_tile, topT_tile, top_blob, broadcast_type_C, i, max_ii, j, max_jj, k, max_kk, k_end);
+            }
+
+            if (output_transpose)
+            {
+                transpose_unpack_output_tile(topT_tile, top_blob, i, max_ii, j, max_jj);
             }
         }
     }
@@ -5956,14 +6947,14 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
     return 0;
 }
 
-static int gemm_AT_x86(const Mat& AT, const Mat& B, const Mat& C, Mat& top_blob, int broadcast_type_C, int M, int K, int transB, int nT, const Option& opt)
+static int gemm_AT_x86(const Mat& AT, const Mat& B, const Mat& C, Mat& top_blob, int broadcast_type_C, int M, int K, int transB, int output_transpose, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, const Option& opt)
 {
     const int N = transB ? (B.dims == 3 ? B.c : B.h) * B.elempack : B.w;
 
     // NCNN_LOGE("M/N/K = %d %d %d", M, N, K);
 
     int TILE_M, TILE_N, TILE_K;
-    get_optimal_tile_mnk(M, N, K, TILE_M, TILE_N, TILE_K, nT);
+    get_optimal_tile_mnk(M, N, K, constant_TILE_M, constant_TILE_N, constant_TILE_K, TILE_M, TILE_N, TILE_K, nT);
 
     // NCNN_LOGE("TILE M/N/K = %d %d %d", TILE_M, TILE_N, TILE_K);
 
@@ -5972,10 +6963,6 @@ static int gemm_AT_x86(const Mat& AT, const Mat& B, const Mat& C, Mat& top_blob,
     int nn_K = (K + TILE_K - 1) / TILE_K;
 
     Mat BT(TILE_K * TILE_N, (K + TILE_K - 1) / TILE_K, (N + TILE_N - 1) / TILE_N, 4u, opt.blob_allocator);
-
-    Mat tmpX;
-    if (K > TILE_K)
-        tmpX.create(TILE_N, TILE_M, nT, 4u, opt.blob_allocator);
 
     const int nn_NK = nn_N * nn_K;
 
@@ -6004,23 +6991,34 @@ static int gemm_AT_x86(const Mat& AT, const Mat& B, const Mat& C, Mat& top_blob,
         }
     }
 
+    Mat topT;
+    if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
+        topT.create(TILE_N * TILE_M, 1, nT, 4u, opt.blob_allocator);
+
     #pragma omp parallel for num_threads(nT)
     for (int ppi = 0; ppi < nn_M; ppi++)
     {
         const int i = ppi * TILE_M;
 
-        Mat tmp;
-        if (K > TILE_K)
-            tmp = tmpX.channel(get_omp_thread_num());
+        const int max_ii = std::min((M - i), TILE_M);
 
-        int j = 0;
-        for (; j < N; j += TILE_N)
+        Mat topT_tile;
+        if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
+            topT_tile = topT.channel(get_omp_thread_num());
+
+        for (int j = 0; j < N; j += TILE_N)
         {
-            int k = 0;
-            for (; k < K; k += TILE_K)
+            const int max_jj = std::min((N - j), TILE_N);
+
+            if (broadcast_type_C == 3)
             {
-                const int max_ii = std::min((M - i), TILE_M);
-                const int max_jj = std::min((N - j), TILE_N);
+                pack_A_tile(C, topT_tile, i, max_ii, j, max_jj);
+            }
+
+            const Mat& CT_tile = broadcast_type_C == 3 ? topT_tile : C;
+
+            for (int k = 0; k < K; k += TILE_K)
+            {
                 const int max_kk = std::min((K - k), TILE_K);
 
                 // NCNN_LOGE("max_ii/jj/kk = %d %d %d", max_ii, max_jj, max_kk);
@@ -6029,9 +7027,14 @@ static int gemm_AT_x86(const Mat& AT, const Mat& B, const Mat& C, Mat& top_blob,
 
                 Mat BT_tile = BT.channel(j / TILE_N).row_range(k / TILE_K, 1);
 
-                bool k_end = k + TILE_K >= K;
+                bool k_end = !output_transpose && k + TILE_K >= K;
 
-                gemm_transB_packed_tile(AT_tile, BT_tile, C, top_blob, broadcast_type_C, tmp, i, max_ii, j, max_jj, k, max_kk, k_end);
+                gemm_transB_packed_tile(AT_tile, BT_tile, CT_tile, topT_tile, top_blob, broadcast_type_C, i, max_ii, j, max_jj, k, max_kk, k_end);
+            }
+
+            if (output_transpose)
+            {
+                transpose_unpack_output_tile(topT_tile, top_blob, i, max_ii, j, max_jj);
             }
         }
     }
@@ -6039,14 +7042,14 @@ static int gemm_AT_x86(const Mat& AT, const Mat& B, const Mat& C, Mat& top_blob,
     return 0;
 }
 
-static int gemm_BT_x86(const Mat& A, const Mat& BT, const Mat& C, Mat& top_blob, int broadcast_type_C, int N, int K, int transA, int nT, const Option& opt)
+static int gemm_BT_x86(const Mat& A, const Mat& BT, const Mat& C, Mat& top_blob, int broadcast_type_C, int N, int K, int transA, int output_transpose, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, const Option& opt)
 {
     const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
 
     // NCNN_LOGE("M/N/K = %d %d %d", M, N, K);
 
     int TILE_M, TILE_N, TILE_K;
-    get_optimal_tile_mnk(M, N, K, TILE_M, TILE_N, TILE_K, nT);
+    get_optimal_tile_mnk(M, N, K, constant_TILE_M, constant_TILE_N, constant_TILE_K, TILE_M, TILE_N, TILE_K, nT);
 
     // NCNN_LOGE("TILE M/N/K = %d %d %d", TILE_M, TILE_N, TILE_K);
 
@@ -6055,27 +7058,34 @@ static int gemm_BT_x86(const Mat& A, const Mat& BT, const Mat& C, Mat& top_blob,
 
     Mat ATX(TILE_K * TILE_M, (K + TILE_K - 1) / TILE_K, nT, 4u, opt.blob_allocator);
 
-    Mat tmpX;
-    if (K > TILE_K)
-        tmpX.create(TILE_N, TILE_M, nT, 4u, opt.blob_allocator);
+    Mat topT;
+    if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
+        topT.create(TILE_N * TILE_M, 1, nT, 4u, opt.blob_allocator);
 
     #pragma omp parallel for num_threads(nT)
     for (int ppi = 0; ppi < nn_M; ppi++)
     {
         const int i = ppi * TILE_M;
 
-        Mat tmp;
-        if (K > TILE_K)
-            tmp = tmpX.channel(get_omp_thread_num());
+        const int max_ii = std::min((M - i), TILE_M);
 
-        int j = 0;
-        for (; j < N; j += TILE_N)
+        Mat topT_tile;
+        if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
+            topT_tile = topT.channel(get_omp_thread_num());
+
+        for (int j = 0; j < N; j += TILE_N)
         {
-            int k = 0;
-            for (; k < K; k += TILE_K)
+            const int max_jj = std::min((N - j), TILE_N);
+
+            if (broadcast_type_C == 3)
             {
-                const int max_ii = std::min((M - i), TILE_M);
-                const int max_jj = std::min((N - j), TILE_N);
+                pack_A_tile(C, topT_tile, i, max_ii, j, max_jj);
+            }
+
+            const Mat& CT_tile = broadcast_type_C == 3 ? topT_tile : C;
+
+            for (int k = 0; k < K; k += TILE_K)
+            {
                 const int max_kk = std::min((K - k), TILE_K);
 
                 // NCNN_LOGE("max_ii/jj/kk = %d %d %d", max_ii, max_jj, max_kk);
@@ -6096,9 +7106,14 @@ static int gemm_BT_x86(const Mat& A, const Mat& BT, const Mat& C, Mat& top_blob,
                     }
                 }
 
-                bool k_end = k + TILE_K >= K;
+                bool k_end = !output_transpose && k + TILE_K >= K;
 
-                gemm_transB_packed_tile(AT_tile, BT_tile, C, top_blob, broadcast_type_C, tmp, i, max_ii, j, max_jj, k, max_kk, k_end);
+                gemm_transB_packed_tile(AT_tile, BT_tile, CT_tile, topT_tile, top_blob, broadcast_type_C, i, max_ii, j, max_jj, k, max_kk, k_end);
+            }
+
+            if (output_transpose)
+            {
+                transpose_unpack_output_tile(topT_tile, top_blob, i, max_ii, j, max_jj);
             }
         }
     }
@@ -6106,39 +7121,46 @@ static int gemm_BT_x86(const Mat& A, const Mat& BT, const Mat& C, Mat& top_blob,
     return 0;
 }
 
-static int gemm_AT_BT_x86(const Mat& AT, const Mat& BT, const Mat& C, Mat& top_blob, int broadcast_type_C, int M, int N, int K, int nT, const Option& opt)
+static int gemm_AT_BT_x86(const Mat& AT, const Mat& BT, const Mat& C, Mat& top_blob, int broadcast_type_C, int M, int N, int K, int output_transpose, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, const Option& opt)
 {
     // NCNN_LOGE("M/N/K = %d %d %d", M, N, K);
 
     int TILE_M, TILE_N, TILE_K;
-    get_optimal_tile_mnk(M, N, K, TILE_M, TILE_N, TILE_K, nT);
+    get_optimal_tile_mnk(M, N, K, constant_TILE_M, constant_TILE_N, constant_TILE_K, TILE_M, TILE_N, TILE_K, nT);
 
     // NCNN_LOGE("TILE M/N/K = %d %d %d", TILE_M, TILE_N, TILE_K);
 
     int nn_M = (M + TILE_M - 1) / TILE_M;
     // int nn_N = (N + TILE_N - 1) / TILE_N;
 
-    Mat tmpX;
-    if (K > TILE_K)
-        tmpX.create(TILE_N, TILE_M, nT, 4u, opt.blob_allocator);
+    Mat topT;
+    if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
+        topT.create(TILE_N * TILE_M, 1, nT, 4u, opt.blob_allocator);
 
     #pragma omp parallel for num_threads(nT)
     for (int ppi = 0; ppi < nn_M; ppi++)
     {
         const int i = ppi * TILE_M;
 
-        Mat tmp;
-        if (K > TILE_K)
-            tmp = tmpX.channel(get_omp_thread_num());
+        const int max_ii = std::min((M - i), TILE_M);
 
-        int j = 0;
-        for (; j < N; j += TILE_N)
+        Mat topT_tile;
+        if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
+            topT_tile = topT.channel(get_omp_thread_num());
+
+        for (int j = 0; j < N; j += TILE_N)
         {
-            int k = 0;
-            for (; k < K; k += TILE_K)
+            const int max_jj = std::min((N - j), TILE_N);
+
+            if (broadcast_type_C == 3)
             {
-                const int max_ii = std::min((M - i), TILE_M);
-                const int max_jj = std::min((N - j), TILE_N);
+                pack_A_tile(C, topT_tile, i, max_ii, j, max_jj);
+            }
+
+            const Mat& CT_tile = broadcast_type_C == 3 ? topT_tile : C;
+
+            for (int k = 0; k < K; k += TILE_K)
+            {
                 const int max_kk = std::min((K - k), TILE_K);
 
                 // NCNN_LOGE("max_ii/jj/kk = %d %d %d", max_ii, max_jj, max_kk);
@@ -6147,9 +7169,14 @@ static int gemm_AT_BT_x86(const Mat& AT, const Mat& BT, const Mat& C, Mat& top_b
 
                 Mat BT_tile = BT.channel(j / TILE_N).row_range(k / TILE_K, 1);
 
-                bool k_end = k + TILE_K >= K;
+                bool k_end = !output_transpose && k + TILE_K >= K;
 
-                gemm_transB_packed_tile(AT_tile, BT_tile, C, top_blob, broadcast_type_C, tmp, i, max_ii, j, max_jj, k, max_kk, k_end);
+                gemm_transB_packed_tile(AT_tile, BT_tile, CT_tile, topT_tile, top_blob, broadcast_type_C, i, max_ii, j, max_jj, k, max_kk, k_end);
+            }
+
+            if (output_transpose)
+            {
+                transpose_unpack_output_tile(topT_tile, top_blob, i, max_ii, j, max_jj);
             }
         }
     }
@@ -6165,7 +7192,7 @@ int Gemm_x86::create_pipeline(const Option& opt)
         const int K = constantK;
 
         int TILE_M, TILE_N, TILE_K;
-        get_optimal_tile_mnk(M, 0, K, TILE_M, TILE_N, TILE_K, opt.num_threads);
+        get_optimal_tile_mnk(M, 0, K, constant_TILE_M, constant_TILE_N, constant_TILE_K, TILE_M, TILE_N, TILE_K, opt.num_threads);
 
         const int nn_M = (M + TILE_M - 1) / TILE_M;
 
@@ -6208,7 +7235,7 @@ int Gemm_x86::create_pipeline(const Option& opt)
         const int K = constantK;
 
         int TILE_M, TILE_N, TILE_K;
-        get_optimal_tile_mnk(0, N, K, TILE_M, TILE_N, TILE_K, opt.num_threads);
+        get_optimal_tile_mnk(0, N, K, constant_TILE_M, constant_TILE_N, constant_TILE_K, TILE_M, TILE_N, TILE_K, opt.num_threads);
 
         const int nn_N = (N + TILE_N - 1) / TILE_N;
         const int nn_K = (K + TILE_K - 1) / TILE_K;
@@ -6251,40 +7278,35 @@ int Gemm_x86::create_pipeline(const Option& opt)
 
     if (constantC && constant_broadcast_type_C != -1)
     {
-        int elemcount = 1;
-        if (constant_broadcast_type_C == 1 || constant_broadcast_type_C == 2 || constant_broadcast_type_C == 3)
-        {
-            elemcount = constantM;
-        }
-        else if (constant_broadcast_type_C == 4)
-        {
-            elemcount = constantN;
-        }
+        CT_data = C_data;
 
-        int C_elempack = 1;
 #if __SSE2__
-        if (opt.use_packing_layout)
+        if (constant_broadcast_type_C == 3 && opt.use_packing_layout)
         {
 #if __AVX512F__
-            C_elempack = elemcount % 16 == 0 ? 16 : elemcount % 8 == 0 ? 8 : elemcount % 4 == 0 ? 4 : 1;
+            int C_elempack = constantM % 16 == 0 ? 16 : constantM % 8 == 0 ? 8 : constantM % 4 == 0 ? 4 : 1;
 #elif __AVX__
-            C_elempack = elemcount % 8 == 0 ? 8 : elemcount % 4 == 0 ? 4 : 1;
+            int C_elempack = constantM % 8 == 0 ? 8 : constantM % 4 == 0 ? 4 : 1;
 #else
-            C_elempack = elemcount % 4 == 0 ? 4 : 1;
+            int C_elempack = constantM % 4 == 0 ? 4 : 1;
 #endif
+            convert_packing(C_data, CT_data, C_elempack, opt);
         }
 #endif // __SSE2__
-
-        convert_packing(C_data, CT_data, C_elempack, opt);
 
         // pre-multiply C with beta
         if (beta != 1.f)
         {
-            const int size = CT_data.total() * C_elempack;
+            Mat C2;
+            C2.create_like(CT_data);
+
+            const int size = CT_data.total() * CT_data.elempack;
             for (int i = 0; i < size; i++)
             {
-                CT_data[i] *= beta;
+                C2[i] = CT_data[i] * beta;
             }
+
+            CT_data = C2;
         }
 
         if (opt.lightmode)
@@ -6393,16 +7415,16 @@ int Gemm_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
             // pre-multiply C with beta
             if (beta != 1.f)
             {
-                Mat CT_data;
-                CT_data.create_like(C, opt.workspace_allocator);
+                Mat C2;
+                C2.create_like(C, opt.workspace_allocator);
 
                 const int size = C.total() * C.elempack;
                 for (int i = 0; i < size; i++)
                 {
-                    CT_data[i] = C[i] * beta;
+                    C2[i] = C[i] * beta;
                 }
 
-                C = CT_data;
+                C = C2;
             }
         }
     }
@@ -6411,12 +7433,13 @@ int Gemm_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 #if __SSE2__
     if (opt.use_packing_layout)
     {
+        int outh = output_transpose ? N : M;
 #if __AVX512F__
-        out_elempack = M % 16 == 0 ? 16 : M % 8 == 0 ? 8 : M % 4 == 0 ? 4 : 1;
+        out_elempack = outh % 16 == 0 ? 16 : outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4 : 1;
 #elif __AVX__
-        out_elempack = M % 8 == 0 ? 8 : M % 4 == 0 ? 4 : 1;
+        out_elempack = outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4 : 1;
 #else
-        out_elempack = M % 4 == 0 ? 4 : 1;
+        out_elempack = outh % 4 == 0 ? 4 : 1;
 #endif
     }
 #endif // __SSE2__
@@ -6425,10 +7448,20 @@ int Gemm_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     size_t out_elemsize = 4u * out_elempack;
 
     Mat& top_blob = top_blobs[0];
-    if (output_N1M)
-        top_blob.create(N, 1, M / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+    if (output_transpose)
+    {
+        if (output_N1M)
+            top_blob.create(M, 1, N / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+        else
+            top_blob.create(M, N / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+    }
     else
-        top_blob.create(N, M / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+    {
+        if (output_N1M)
+            top_blob.create(N, 1, M / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+        else
+            top_blob.create(N, M / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+    }
     if (top_blob.empty())
         return -100;
 
@@ -6443,23 +7476,23 @@ int Gemm_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     int ret = 0;
     if (constantA && constantB)
     {
-        ret = gemm_AT_BT_x86(AT_data, BT_data, C, top_blob, broadcast_type_C, constantM, constantN, constantK, _nT, opt);
+        ret = gemm_AT_BT_x86(AT_data, BT_data, C, top_blob, broadcast_type_C, constantM, constantN, constantK, output_transpose, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
     }
     else if (constantA)
     {
         const Mat& B = bottom_blobs[0];
-        ret = gemm_AT_x86(AT_data, B, C, top_blob, broadcast_type_C, constantM, constantK, transB, _nT, opt);
+        ret = gemm_AT_x86(AT_data, B, C, top_blob, broadcast_type_C, constantM, constantK, transB, output_transpose, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
     }
     else if (constantB)
     {
         const Mat& A = bottom_blobs[0];
-        ret = gemm_BT_x86(A, BT_data, C, top_blob, broadcast_type_C, constantN, constantK, transA, _nT, opt);
+        ret = gemm_BT_x86(A, BT_data, C, top_blob, broadcast_type_C, constantN, constantK, transA, output_transpose, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
     }
     else
     {
         const Mat& A = bottom_blobs[0];
         const Mat& B = bottom_blobs[1];
-        ret = gemm_x86(A, B, C, top_blob, broadcast_type_C, transA, transB, _nT, opt);
+        ret = gemm_x86(A, B, C, top_blob, broadcast_type_C, transA, transB, output_transpose, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
     }
 
     // multiply top_blob with alpha

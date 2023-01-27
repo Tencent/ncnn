@@ -35,8 +35,6 @@ public:
     Layer* v_gemm;
     Layer* o_gemm;
 
-    Layer* permute_wch;
-
     Layer* qk_gemm;
     Layer* qkv_gemm;
 
