@@ -18,6 +18,8 @@
 #include <math.h>
 #if __SSE2__
 #include <emmintrin.h>
+#if __SSE4_1__
+#include <smmintrin.h>
 #if __AVX__
 #include <immintrin.h>
 #if __XOP__
@@ -25,6 +27,7 @@
 #include <ammintrin.h>
 #else
 #include <x86intrin.h>
+#endif
 #endif
 #endif
 #endif
