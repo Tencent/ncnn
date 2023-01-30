@@ -1,6 +1,6 @@
 // Tencent is pleased to support the open source community by making ncnn available.
 //
-// Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
+// Copyright (C) 2023 THL A29 Limited, a Tencent company. All rights reserved.
 //
 // Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 // in compliance with the License. You may obtain a copy of the License at
@@ -14,19 +14,20 @@
 
 #include "cpu.h"
 #include "mat.h"
+#include "x86_usability.h"
 
 namespace ncnn {
 
-#include "cast_fp16.h"
+#include "cast_bf16.h"
 
-void cast_fp32_to_fp16_sse_avx512fp16(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
+void cast_fp32_to_bf16_sse_avx2(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 {
-    cast_fp32_to_fp16_sse(bottom_blob, top_blob, opt);
+    cast_fp32_to_bf16_sse(bottom_blob, top_blob, opt);
 }
 
-void cast_fp16_to_fp32_sse_avx512fp16(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
+void cast_bf16_to_fp32_sse_avx2(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 {
-    cast_fp16_to_fp32_sse(bottom_blob, top_blob, opt);
+    cast_bf16_to_fp32_sse(bottom_blob, top_blob, opt);
 }
 
 } // namespace ncnn
