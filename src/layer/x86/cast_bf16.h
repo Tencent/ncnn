@@ -146,7 +146,7 @@ static void cast_bf16_to_fp32_sse(const Mat& bottom_blob, Mat& top_blob, const O
 #endif // __AVX__
         for (; i + 3 < size; i += 4)
         {
-            _mm_storeu_ps(outptr, bfloat2float_sse(_mm_loadu_si64(ptr)));
+            _mm_storeu_ps(outptr, bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr)));
             ptr += 4;
             outptr += 4;
         }
