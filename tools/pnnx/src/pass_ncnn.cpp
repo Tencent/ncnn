@@ -43,6 +43,7 @@
 #include "pass_ncnn/fuse_innerproduct_activation.h"
 #include "pass_ncnn/fuse_transpose_matmul.h"
 #include "pass_ncnn/fuse_binaryop_eltwise.h"
+#include "pass_ncnn/fuse_permute_gridsample.h"
 #include "pass_ncnn/insert_reshape_linear.h"
 #include "pass_ncnn/insert_reshape_pooling.h"
 
@@ -120,6 +121,7 @@ void pass_ncnn(Graph& g)
     ncnn::fuse_deconvolution_activation(g);
     ncnn::fuse_deconvolutiondepthwise_activation(g);
     ncnn::fuse_innerproduct_activation(g);
+    ncnn::fuse_permute_gridsample(g);
     ncnn::eliminate_tail_reshape_permute(g);
 
     dead_code_elimination(g);

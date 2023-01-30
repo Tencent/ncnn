@@ -94,6 +94,7 @@ pnnx.Output             output      1 0 out
                 op->type = "Noop";
             else if (new_dims == std::vector<int>{1, 0})
                 op->params["0"] = 1;
+            op->params["1"] = 1;
         }
         if (input_rank == 3)
         {
@@ -109,6 +110,7 @@ pnnx.Output             output      1 0 out
                 op->params["0"] = 4;
             else if (new_dims == std::vector<int>{2, 1, 0})
                 op->params["0"] = 5;
+            op->params["1"] = 2;
         }
         if (input_rank == 4)
         {
@@ -160,6 +162,7 @@ pnnx.Output             output      1 0 out
                 op->params["0"] = 22;
             else if (new_dims == std::vector<int>{3, 2, 1, 0})
                 op->params["0"] = 23;
+            op->params["1"] = 3;
         }
     }
 };

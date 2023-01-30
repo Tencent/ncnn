@@ -60,6 +60,7 @@ pnnx.Output             output        1 0 out
             op->params["1"] = 3;
 
         op->params["2"] = captured_params.at("align_corners").b ? 1 : 0;
+        op->params["3"] = 0;
     }
 };
 
