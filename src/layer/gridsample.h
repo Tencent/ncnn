@@ -1,6 +1,6 @@
 // Tencent is pleased to support the open source community by making ncnn available.
 //
-// Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
+// Copyright (C) 2023 THL A29 Limited, a Tencent company. All rights reserved.
 //
 // Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 // in compliance with the License. You may obtain a copy of the License at
@@ -33,6 +33,8 @@ public:
     int sample_type;  // 1=bilinear  2=nearest  3=bicubic
     int padding_mode; // 1=zeros     2=border   3=reflection
     int align_corner;
+
+    int permute_fusion;
 };
 
 } // namespace ncnn

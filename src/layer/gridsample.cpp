@@ -1,6 +1,6 @@
 // Tencent is pleased to support the open source community by making ncnn available.
 //
-// Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
+// Copyright (C) 2023 THL A29 Limited, a Tencent company. All rights reserved.
 //
 // Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 // coord compliance with the License. You may obtain a copy of the License at
@@ -28,6 +28,7 @@ int GridSample::load_param(const ParamDict& pd)
     sample_type = pd.get(0, 1);
     padding_mode = pd.get(1, 1);
     align_corner = pd.get(2, 0);
+    permute_fusion = pd.get(3, 0);
 
     if (sample_type < 1 || sample_type > 3)
     {
@@ -166,25 +167,79 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         if (top_blob.empty())
             return -100;
 
+        Mat offset_blob;
+        offset_blob.create(outw, outh, grid.c, elemsize, opt.blob_allocator);
+
+        //1 pre-calculate all interpolation offsets for each x y, unpack grid on-the-fly
+        if (permute_fusion == 0)
+        {
+            float* offsetptr_x = offset_blob.channel(0);
+            float* offsetptr_y = offset_blob.channel(1);
+
+            for (int y = 0; y < outh; y++)
+            {
+                const float* gridptr = grid.channel(y);
+                for (int x = 0; x < outw; x++)
+                {
+                    float sample_x = gridptr[0];
+                    float sample_y = gridptr[1];
+
+                    sample_x = grid_sample_unormalize(w, sample_x, align_corner);
+                    sample_y = grid_sample_unormalize(h, sample_y, align_corner);
+
+                    *offsetptr_x = sample_x;
+                    *offsetptr_y = sample_y;
+
+                    gridptr += 2;
+                    offsetptr_x++;
+                    offsetptr_y++;
+                }
+            }
+        }
+        else
+        {
+            const float* gridptr_x = grid.channel(0);
+            const float* gridptr_y = grid.channel(1);
+            float* offsetptr_x = offset_blob.channel(0);
+            float* offsetptr_y = offset_blob.channel(1);
+
+            for (int y = 0; y < outh; y++)
+            {
+                for (int x = 0; x < outw; x++)
+                {
+                    float sample_x = *gridptr_x;
+                    float sample_y = *gridptr_y;
+
+                    sample_x = grid_sample_unormalize(w, sample_x, align_corner);
+                    sample_y = grid_sample_unormalize(h, sample_y, align_corner);
+
+                    *offsetptr_x = sample_x;
+                    *offsetptr_y = sample_y;
+
+                    gridptr_x++;
+                    gridptr_y++;
+                    offsetptr_x++;
+                    offsetptr_y++;
+                }
+            }
+        }
+
         if (sample_type == 1) // bilinear
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 const Mat image = bottom_blob.channel(q);
                 float* outptr = top_blob.channel(q);
+                const float* offsetptr_x = offset_blob.channel(0);
+                const float* offsetptr_y = offset_blob.channel(1);
 
                 for (int y = 0; y < outh; y++)
                 {
-                    const float* gridptr = grid.channel(y);
-
                     for (int x = 0; x < outw; x++)
                     {
-                        float sample_x = gridptr[0];
-                        float sample_y = gridptr[1];
-
-                        sample_x = grid_sample_unormalize(w, sample_x, align_corner);
-                        sample_y = grid_sample_unormalize(h, sample_y, align_corner);
+                        float sample_x = *offsetptr_x;
+                        float sample_y = *offsetptr_y;
 
                         // bilinear interpolate
                         float v;
@@ -211,30 +266,28 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                         outptr[0] = v;
                         outptr += 1;
 
-                        gridptr += 2;
+                        offsetptr_x++;
+                        offsetptr_y++;
                     }
                 }
             }
         }
         else if (sample_type == 2) // nearest
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 const Mat image = bottom_blob.channel(q);
                 float* outptr = top_blob.channel(q);
+                const float* offsetptr_x = offset_blob.channel(0);
+                const float* offsetptr_y = offset_blob.channel(1);
 
                 for (int y = 0; y < outh; y++)
                 {
-                    const float* gridptr = grid.channel(y);
-
                     for (int x = 0; x < outw; x++)
                     {
-                        float sample_x = gridptr[0];
-                        float sample_y = gridptr[1];
-
-                        sample_x = grid_sample_unormalize(w, sample_x, align_corner);
-                        sample_y = grid_sample_unormalize(h, sample_y, align_corner);
+                        float sample_x = *offsetptr_x;
+                        float sample_y = *offsetptr_y;
 
                         int x0 = static_cast<int>(floor(sample_x + 0.5f));
                         int y0 = static_cast<int>(floor(sample_y + 0.5f));
@@ -244,30 +297,28 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                         outptr[0] = v;
                         outptr += 1;
 
-                        gridptr += 2;
+                        offsetptr_x++;
+                        offsetptr_y++;
                     }
                 }
             }
         }
         else if (sample_type == 3) // bicubic
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 const Mat image = bottom_blob.channel(q);
                 float* outptr = top_blob.channel(q);
+                const float* offsetptr_x = offset_blob.channel(0);
+                const float* offsetptr_y = offset_blob.channel(1);
 
                 for (int y = 0; y < outh; y++)
                 {
-                    const float* gridptr = grid.channel(y);
-
                     for (int x = 0; x < outw; x++)
                     {
-                        float sample_x = gridptr[0];
-                        float sample_y = gridptr[1];
-
-                        sample_x = grid_sample_unormalize(w, sample_x, align_corner);
-                        sample_y = grid_sample_unormalize(h, sample_y, align_corner);
+                        float sample_x = *offsetptr_x;
+                        float sample_y = *offsetptr_y;
 
                         // bicubic interpolate
                         float v;
@@ -314,7 +365,8 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                         outptr[0] = v;
                         outptr += 1;
 
-                        gridptr += 2;
+                        offsetptr_x++;
+                        offsetptr_y++;
                     }
                 }
             }
@@ -331,29 +383,101 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         if (top_blob.empty())
             return -100;
 
+        Mat offset_blob;
+        offset_blob.create(outw, outh, outd, grid.c, elemsize, opt.blob_allocator);
+
+        //1 pre-calculate all interpolation offsets for each x y, unpack grid on-the-fly
+        if (permute_fusion == 0)
+        {
+            float* offsetptr_x = offset_blob.channel(0);
+            float* offsetptr_y = offset_blob.channel(1);
+            float* offsetptr_z = offset_blob.channel(2);
+
+            for (int z = 0; z < outd; z++)
+            {
+                const float* gridptr = grid.channel(z);
+                for (int y = 0; y < outh; y++)
+                {
+                    for (int x = 0; x < outw; x++)
+                    {
+                        float sample_x = gridptr[0];
+                        float sample_y = gridptr[1];
+                        float sample_z = gridptr[2];
+
+                        sample_x = grid_sample_unormalize(w, sample_x, align_corner);
+                        sample_y = grid_sample_unormalize(h, sample_y, align_corner);
+                        sample_z = grid_sample_unormalize(d, sample_z, align_corner);
+
+                        *offsetptr_x = sample_x;
+                        *offsetptr_y = sample_y;
+                        *offsetptr_z = sample_z;
+
+                        gridptr += 3;
+                        offsetptr_x++;
+                        offsetptr_y++;
+                        offsetptr_z++;
+                    }
+                }
+            }
+        }
+        else
+        {
+            const float* gridptr_x = grid.channel(0);
+            const float* gridptr_y = grid.channel(1);
+            const float* gridptr_z = grid.channel(2);
+            float* offsetptr_x = offset_blob.channel(0);
+            float* offsetptr_y = offset_blob.channel(1);
+            float* offsetptr_z = offset_blob.channel(2);
+
+            for (int z = 0; z < outd; z++)
+            {
+                for (int y = 0; y < outh; y++)
+                {
+                    for (int x = 0; x < outw; x++)
+                    {
+                        float sample_x = *gridptr_x;
+                        float sample_y = *gridptr_y;
+                        float sample_z = *gridptr_z;
+
+                        sample_x = grid_sample_unormalize(w, sample_x, align_corner);
+                        sample_y = grid_sample_unormalize(h, sample_y, align_corner);
+                        sample_z = grid_sample_unormalize(d, sample_z, align_corner);
+
+                        *offsetptr_x = sample_x;
+                        *offsetptr_y = sample_y;
+                        *offsetptr_z = sample_z;
+
+                        gridptr_x++;
+                        gridptr_y++;
+                        gridptr_z++;
+                        offsetptr_x++;
+                        offsetptr_y++;
+                        offsetptr_z++;
+                    }
+                }
+            }
+        }
+
         if (sample_type == 1) // bilinear
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 const Mat image = bottom_blob.channel(q);
                 float* outptr = top_blob.channel(q);
+                const float* offsetptr_x = offset_blob.channel(0);
+                const float* offsetptr_y = offset_blob.channel(1);
+                const float* offsetptr_z = offset_blob.channel(2);
 
                 for (int z = 0; z < outd; z++)
                 {
-                    const float* gridptr = grid.channel(z);
-
                     for (int y = 0; y < outh; y++)
                     {
                         for (int x = 0; x < outw; x++)
                         {
-                            float sample_x = gridptr[0];
-                            float sample_y = gridptr[1];
-                            float sample_z = gridptr[2];
-
-                            sample_x = grid_sample_unormalize(w, sample_x, align_corner);
-                            sample_y = grid_sample_unormalize(h, sample_y, align_corner);
-                            sample_z = grid_sample_unormalize(d, sample_z, align_corner);
+                            float sample_x = *offsetptr_x;
+                            float sample_y = *offsetptr_y;
+                            float sample_z = *offsetptr_z;
 
                             // bilinear interpolate
                             float v;
@@ -392,7 +516,9 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                             outptr[0] = v;
                             outptr += 1;
 
-                            gridptr += 3;
+                            offsetptr_x++;
+                            offsetptr_y++;
+                            offsetptr_z++;
                         }
                     }
                 }
@@ -400,27 +526,24 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         }
         else if (sample_type == 2) // nearest
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 const Mat image = bottom_blob.channel(q);
                 float* outptr = top_blob.channel(q);
+                const float* offsetptr_x = offset_blob.channel(0);
+                const float* offsetptr_y = offset_blob.channel(1);
+                const float* offsetptr_z = offset_blob.channel(2);
 
                 for (int z = 0; z < outd; z++)
                 {
-                    const float* gridptr = grid.channel(z);
-
                     for (int y = 0; y < outh; y++)
                     {
                         for (int x = 0; x < outw; x++)
                         {
-                            float sample_x = gridptr[0];
-                            float sample_y = gridptr[1];
-                            float sample_z = gridptr[2];
-
-                            sample_x = grid_sample_unormalize(w, sample_x, align_corner);
-                            sample_y = grid_sample_unormalize(h, sample_y, align_corner);
-                            sample_z = grid_sample_unormalize(d, sample_z, align_corner);
+                            float sample_x = *offsetptr_x;
+                            float sample_y = *offsetptr_y;
+                            float sample_z = *offsetptr_z;
 
                             int x0 = static_cast<int>(floor(sample_x + 0.5f));
                             int y0 = static_cast<int>(floor(sample_y + 0.5f));
@@ -431,7 +554,9 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                             outptr[0] = v;
                             outptr += 1;
 
-                            gridptr += 3;
+                            offsetptr_x++;
+                            offsetptr_y++;
+                            offsetptr_z++;
                         }
                     }
                 }
