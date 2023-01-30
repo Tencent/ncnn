@@ -188,13 +188,14 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
             Mat weight_data_tm;
             weight_data_tm.create(6 * 6, num_input, num_output);
 
+            const float sq2 = 1.41421356237f;
             const float ktm[6][3] = {
                 {1.0f, 0.0f, 0.0f},
-                {-2.0f / 3, -2.0f / 3, -2.0f / 3},
-                {-2.0f / 3, 2.0f / 3, -2.0f / 3},
-                {1.0f / 6, 1.0f / 3, 2.0f / 3},
-                {1.0f / 6, -1.0f / 3, 2.0f / 3},
-                {0.0f, 0.0f, 4.0f}
+                {-2.0f / 3, -sq2 / 3, -1.0f / 3},
+                {-2.0f / 3, sq2 / 3, -1.0f / 3},
+                {1.0f / 6, sq2 / 6, 1.0f / 3},
+                {1.0f / 6, -sq2 / 6, 1.0f / 3},
+                {0.0f, 0.0f, 1.0f}
             };
 
             #pragma omp parallel for num_threads(opt.num_threads)
