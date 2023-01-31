@@ -154,6 +154,8 @@ void main()
 #endif
 
 #define sq2 1.41421356237
+#define sq2_m2 1.41421356237*2
+#define sq2_d2 1.41421356237/2
 #define sq2_d4 1.41421356237/4
 
     // const float otm[4][6] = {
