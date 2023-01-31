@@ -22,7 +22,7 @@ class Model(nn.Module):
         super(Model, self).__init__()
 
     def forward(self, x, y, z):
-        return x, y[0] + y[1], y[1] - z[0] + z[1] - z[2]
+        return x + z[1], y[0] + y[1], y[1] - z[0] + z[1] - z[2]
 
 def test():
     net = Model()
