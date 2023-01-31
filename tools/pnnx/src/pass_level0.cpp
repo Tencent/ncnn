@@ -15,6 +15,7 @@
 #include "pass_level0.h"
 
 #include "pass_level0/constant_unpooling.h"
+#include "pass_level0/flatten_input.h"
 #include "pass_level0/inline_block.h"
 #include "pass_level0/reset_device.h"
 #include "pass_level0/shape_inference.h"
@@ -26,6 +27,8 @@ void pass_level0(const torch::jit::Module& mod, std::shared_ptr<torch::jit::Grap
     inline_block(g, module_operators);
 
     reset_device(g, device);
+
+    flatten_input(g);
 
     constant_unpooling(g);
 
