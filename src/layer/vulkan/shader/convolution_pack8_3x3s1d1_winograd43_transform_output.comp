@@ -181,12 +181,12 @@ void main()
     afpvec8 m14 = (v41 - v42) * afp(sq2_d2) + (v43 - v44) * afp(sq2);
     afpvec8 m15 = (v51 - v52) * afp(sq2_d2) + (v53 - v54) * afp(sq2);
 
-    afpvec8 m20 = (v01 + v02) * afp(0.5) + (v03 + v04) * afp(sq2);
-    afpvec8 m21 = (v11 + v12) * afp(0.5) + (v13 + v14) * afp(sq2);
-    afpvec8 m22 = (v21 + v22) * afp(0.5) + (v23 + v24) * afp(sq2);
-    afpvec8 m23 = (v31 + v32) * afp(0.5) + (v33 + v34) * afp(sq2);
-    afpvec8 m24 = (v41 + v42) * afp(0.5) + (v43 + v44) * afp(sq2);
-    afpvec8 m25 = (v51 + v52) * afp(0.5) + (v53 + v54) * afp(sq2);
+    afpvec8 m20 = (v01 + v02) * afp(0.5) + (v03 + v04) * afp(2);
+    afpvec8 m21 = (v11 + v12) * afp(0.5) + (v13 + v14) * afp(2);
+    afpvec8 m22 = (v21 + v22) * afp(0.5) + (v23 + v24) * afp(2);
+    afpvec8 m23 = (v31 + v32) * afp(0.5) + (v33 + v34) * afp(2);
+    afpvec8 m24 = (v41 + v42) * afp(0.5) + (v43 + v44) * afp(2);
+    afpvec8 m25 = (v51 + v52) * afp(0.5) + (v53 + v54) * afp(2);
 
     afpvec8 m30 = v05 + (v01 - v02) * afp(sq2_d4) + (v03 - v04) * afp(sq2_m2);
     afpvec8 m31 = v15 + (v11 - v12) * afp(sq2_d4) + (v13 - v14) * afp(sq2_m2);
@@ -205,10 +205,10 @@ void main()
     v21 = (m21 - m22) * afp(sq2_d2) + (m23 - m24) * afp(sq2);
     v31 = (m31 - m32) * afp(sq2_d2) + (m33 - m34) * afp(sq2);
 
-    v02 = (m01 + m02) * afp(0.5) + (m03 + m04) * afp(sq2);
-    v12 = (m11 + m12) * afp(0.5) + (m13 + m14) * afp(sq2);
-    v22 = (m21 + m22) * afp(0.5) + (m23 + m24) * afp(sq2);
-    v32 = (m31 + m32) * afp(0.5) + (m33 + m34) * afp(sq2);
+    v02 = (m01 + m02) * afp(0.5) + (m03 + m04) * afp(2);
+    v12 = (m11 + m12) * afp(0.5) + (m13 + m14) * afp(2);
+    v22 = (m21 + m22) * afp(0.5) + (m23 + m24) * afp(2);
+    v32 = (m31 + m32) * afp(0.5) + (m33 + m34) * afp(2);
 
     v03 = m05 + (m01 - m02) * afp(sq2_d4) + (m03 - m04) * afp(sq2_m2);
     v13 = m15 + (m11 - m12) * afp(sq2_d4) + (m13 - m14) * afp(sq2_m2);
