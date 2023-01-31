@@ -1395,7 +1395,9 @@ static int get_cpu_level2_cachesize()
         free(buffer);
     }
 #elif defined __linux__
+#if defined(_SC_LEVEL2_CACHE_SIZE)
     size = sysconf(_SC_LEVEL2_CACHE_SIZE);
+#endif
 #elif __APPLE__
     // perflevel 0 is the higher performance cluster
     int cpusperl2 = get_hw_capability("hw.perflevel0.cpusperl2");
@@ -1461,7 +1463,9 @@ static int get_cpu_level3_cachesize()
         free(buffer);
     }
 #elif defined __linux__
+#if defined(_SC_LEVEL3_CACHE_SIZE)
     size = sysconf(_SC_LEVEL3_CACHE_SIZE);
+#endif
 #elif __APPLE__
     // perflevel 0 is the higher performance cluster
     // get the size shared among all cpus
