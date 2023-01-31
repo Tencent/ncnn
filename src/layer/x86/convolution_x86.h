@@ -41,6 +41,7 @@ protected:
 public:
     Layer* activation;
 
+    int nT;
     Mat weight_data_tm;
     Mat weight_sgemm_data;
     Mat weight_winograd23_data;
@@ -49,6 +50,8 @@ public:
 
     // forwardDilation
     Layer* convolution_dilation1;
+
+    Layer* gemm;
 
 #if NCNN_INT8
     Mat scale_in_data;

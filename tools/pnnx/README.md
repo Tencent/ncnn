@@ -10,7 +10,7 @@ Before PNNX, we had the following methods:
 2. export to ONNX, and convert onnx to inference-framework specific format, and deploy with TensorRT/OpenVINO/ncnn/etc.
 3. export to TorchScript, and deploy with libtorch
 
-As far as we know, ONNX has the ability to express the PyTorch model and it is an open standard. People usually use ONNX as an intermediate  representation between PyTorch and the inference platform. However, ONNX still has the following fatal problems, which makes the birth of PNNX necessary:
+As far as we know, ONNX has the ability to express the PyTorch model and it is an open standard. People usually use ONNX as an intermediate representation between PyTorch and the inference platform. However, ONNX still has the following fatal problems, which makes the birth of PNNX necessary:
 
 1. ONNX does not have a human-readable and editable file representation, making it difficult for users to easily modify the computation graph or add custom operators.
 2. The operator definition of ONNX is not completely in accordance with PyTorch. When exporting some PyTorch operators, glue operators are often added passively by ONNX, which makes the computation graph inconsistent with PyTorch and may impact the inference efficiency.
@@ -188,7 +188,7 @@ weight binaries can be listed or modified with any archive application eg. 7zip
 # PNNX operator
 PNNX always preserve operators from what PyTorch python api provides.
 
-Here is the netron visualization comparision among ONNX, TorchScript and PNNX with the original PyTorch python code shown.
+Here is the netron visualization comparison among ONNX, TorchScript and PNNX with the original PyTorch python code shown.
 
 ```python
 import torch
@@ -212,7 +212,7 @@ class Model(nn.Module):
 # PNNX expression operator
 PNNX trys to preserve expression from what PyTorch python code writes.
 
-Here is the netron visualization comparision among ONNX, TorchScript and PNNX with the original PyTorch python code shown.
+Here is the netron visualization comparison among ONNX, TorchScript and PNNX with the original PyTorch python code shown.
 
 ```python
 import torch
@@ -228,7 +228,7 @@ def foo(x, y):
 # PNNX torch function operator
 PNNX trys to preserve torch functions and Tensor member functions as one operator from what PyTorch python api provides.
 
-Here is the netron visualization comparision among ONNX, TorchScript and PNNX with the original PyTorch python code shown.
+Here is the netron visualization comparison among ONNX, TorchScript and PNNX with the original PyTorch python code shown.
 
 ```python
 import torch
@@ -270,7 +270,7 @@ inline module = utils.activations.SiLU
 pnnx yolov5s.pt inputshape=[1,3,640,640] moduleop=models.common.Focus,models.yolo.Detect
 ```
 
-Here is the netron visualization comparision among ONNX, TorchScript and PNNX with the original PyTorch python code shown.
+Here is the netron visualization comparison among ONNX, TorchScript and PNNX with the original PyTorch python code shown.
 
 ```python
 import torch

@@ -57,29 +57,17 @@ Deconvolution_x86::Deconvolution_x86()
 #if __SSE2__
     support_packing = true;
 #endif // __SSE2__
+
+    activation = 0;
+    gemm = 0;
 }
 
 int Deconvolution_x86::create_pipeline(const Option& opt)
 {
+    activation = create_activation_layer(activation_type, activation_params, opt);
+
     const int maxk = kernel_w * kernel_h;
     int num_input = weight_data_size / maxk / num_output;
-
-    Mat weight_data_transposed(weight_data.w);
-    {
-        float* pt = weight_data_transposed;
-        const float* p = weight_data;
-
-        for (int i = 0; i < num_input * num_output; i++)
-        {
-            for (int k = 0; k < maxk; k++)
-            {
-                pt[maxk - 1 - k] = p[k];
-            }
-
-            p += maxk;
-            pt += maxk;
-        }
-    }
 
     int elempack = 1;
     int out_elempack = 1;
@@ -99,9 +87,81 @@ int Deconvolution_x86::create_pipeline(const Option& opt)
     }
 #endif // __SSE2__
 
-    // src = kw-kh-inch-outch
-    // dst = pb-pa-kw-kh-inch/pa-outch/pb
+    if (opt.use_sgemm_convolution)
     {
+        const int maxk = kernel_w * kernel_h;
+
+        gemm = ncnn::create_layer(ncnn::LayerType::Gemm);
+
+        ncnn::ParamDict pd;
+        pd.set(2, 1);                 // transA
+        pd.set(3, 0);                 // transB
+        pd.set(4, 1);                 // constantA
+        pd.set(5, 0);                 // constantB
+        pd.set(6, 1);                 // constantC
+        pd.set(7, maxk * num_output); // M = maxk*num_output
+        pd.set(8, 0);                 // N = size
+        pd.set(9, num_input);         // K = inch
+        pd.set(10, -1);               // constant_broadcast_type_C = null
+        pd.set(11, 0);                // output_N1M
+        pd.set(12, out_elempack);
+
+        gemm->load_param(pd);
+
+        // maxk-inch-outch to pa-maxk-outch/pa-inch
+        Mat tmp;
+        {
+            Mat weight_data_r2 = weight_data.reshape(maxk, num_input, num_output);
+
+            tmp.create(maxk * num_output, num_input);
+
+            for (int p = 0; p < num_input; p += 1)
+            {
+                float* g00 = tmp.row(p);
+
+                for (int q = 0; q + (out_elempack - 1) < num_output; q += out_elempack)
+                {
+                    for (int k = 0; k < maxk; k++)
+                    {
+                        for (int i = 0; i < out_elempack; i++)
+                        {
+                            const float* k00 = weight_data_r2.channel(q + i).row(p);
+                            g00[0] = k00[k];
+                            g00++;
+                        }
+                    }
+                }
+            }
+        }
+
+        ncnn::Mat weights[1];
+        weights[0] = tmp;
+
+        gemm->load_model(ModelBinFromMatArray(weights));
+
+        gemm->create_pipeline(opt);
+    }
+    else
+    {
+        Mat weight_data_transposed(weight_data.w);
+        {
+            float* pt = weight_data_transposed;
+            const float* p = weight_data;
+
+            for (int i = 0; i < num_input * num_output; i++)
+            {
+                for (int k = 0; k < maxk; k++)
+                {
+                    pt[maxk - 1 - k] = p[k];
+                }
+
+                p += maxk;
+                pt += maxk;
+            }
+        }
+
+        // src = kw-kh-inch-outch
+        // dst = pb-pa-kw-kh-inch/pa-outch/pb
         Mat weight_data_r2 = weight_data_transposed.reshape(maxk, num_input, num_output);
 
         weight_data_tm.create(maxk, num_input / elempack, num_output / out_elempack, (size_t)4u * elempack * out_elempack, elempack * out_elempack);
@@ -138,8 +198,22 @@ int Deconvolution_x86::create_pipeline(const Option& opt)
     return 0;
 }
 
-int Deconvolution_x86::destroy_pipeline(const Option& /*opt*/)
+int Deconvolution_x86::destroy_pipeline(const Option& opt)
 {
+    if (activation)
+    {
+        activation->destroy_pipeline(opt);
+        delete activation;
+        activation = 0;
+    }
+
+    if (gemm)
+    {
+        gemm->destroy_pipeline(opt);
+        delete gemm;
+        gemm = 0;
+    }
+
     return 0;
 }
 
@@ -175,134 +249,299 @@ int Deconvolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
 #endif // __SSE2__
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
+    int out_channels = num_output / out_elempack;
+
     Mat top_blob_bordered;
     if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0 || (output_w > 0 && output_h > 0))
     {
-        top_blob_bordered.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.workspace_allocator);
+        top_blob_bordered.create(outw, outh, out_channels, out_elemsize, out_elempack, opt.workspace_allocator);
     }
     else
     {
         top_blob_bordered = top_blob;
-        top_blob_bordered.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+        top_blob_bordered.create(outw, outh, out_channels, out_elemsize, out_elempack, opt.blob_allocator);
     }
     if (top_blob_bordered.empty())
         return -100;
 
     const int maxk = kernel_w * kernel_h;
 
+    if (opt.use_sgemm_convolution)
+    {
+        // sgemm
+        Mat bottom_blob_2 = bottom_blob;
+        {
+            bottom_blob_2.w = bottom_blob.w * bottom_blob.h;
+            bottom_blob_2.h = 1;
+        }
+        Mat top_col2im;
+        Option opt_b = opt;
+        opt_b.blob_allocator = top_blob_bordered.allocator;
+        gemm->forward(bottom_blob_2, top_col2im, opt_b);
+
+        {
+            // col2im
+            const int gap = (outw * stride_h - w * stride_w) * out_elempack;
+
 #if __SSE2__
 #if __AVX__
 #if __AVX512F__
-    if (elempack == 16 && out_elempack == 16)
+            if (out_elempack == 16)
+            {
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int p = 0; p < out_channels; p++)
+                {
+                    const float* sptr = top_col2im.row(p * maxk);
+                    Mat outm = top_blob_bordered.channel(p);
+
+                    if (bias_data.empty())
+                    {
+                        outm.fill(_mm512_setzero_ps());
+                    }
+                    else
+                    {
+                        outm.fill(_mm512_load_ps((const float*)bias_data + p * 16));
+                    }
+
+                    for (int u = 0; u < kernel_h; u++)
+                    {
+                        for (int v = 0; v < kernel_w; v++)
+                        {
+                            float* ptr = outm.row(dilation_h * u) + dilation_w * v * 16;
+
+                            for (int i = 0; i < h; i++)
+                            {
+                                for (int j = 0; j < w; j++)
+                                {
+                                    __m512 _val = _mm512_load_ps(ptr);
+                                    __m512 _s = _mm512_load_ps(sptr);
+                                    _val = _mm512_add_ps(_val, _s);
+                                    _mm512_store_ps(ptr, _val);
+
+                                    ptr += stride_w * 16;
+                                    sptr += 16;
+                                }
+
+                                ptr += gap;
+                            }
+                        }
+                    }
+                }
+            }
+#endif // __AVX512F__
+
+            if (out_elempack == 8)
+            {
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int p = 0; p < out_channels; p++)
+                {
+                    const float* sptr = top_col2im.row(p * maxk);
+                    Mat outm = top_blob_bordered.channel(p);
+
+                    if (bias_data.empty())
+                    {
+                        outm.fill(_mm256_setzero_ps());
+                    }
+                    else
+                    {
+                        outm.fill(_mm256_load_ps((const float*)bias_data + p * 8));
+                    }
+
+                    for (int u = 0; u < kernel_h; u++)
+                    {
+                        for (int v = 0; v < kernel_w; v++)
+                        {
+                            float* ptr = outm.row(dilation_h * u) + dilation_w * v * 8;
+
+                            for (int i = 0; i < h; i++)
+                            {
+                                for (int j = 0; j < w; j++)
+                                {
+                                    __m256 _val = _mm256_load_ps(ptr);
+                                    __m256 _s = _mm256_load_ps(sptr);
+                                    _val = _mm256_add_ps(_val, _s);
+                                    _mm256_store_ps(ptr, _val);
+
+                                    ptr += stride_w * 8;
+                                    sptr += 8;
+                                }
+
+                                ptr += gap;
+                            }
+                        }
+                    }
+                }
+            }
+#endif // __AVX__
+
+            if (out_elempack == 4)
+            {
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int p = 0; p < out_channels; p++)
+                {
+                    const float* sptr = top_col2im.row(p * maxk);
+                    Mat outm = top_blob_bordered.channel(p);
+
+                    if (bias_data.empty())
+                    {
+                        outm.fill(_mm_setzero_ps());
+                    }
+                    else
+                    {
+                        outm.fill(_mm_load_ps((const float*)bias_data + p * 4));
+                    }
+
+                    for (int u = 0; u < kernel_h; u++)
+                    {
+                        for (int v = 0; v < kernel_w; v++)
+                        {
+                            float* ptr = outm.row(dilation_h * u) + dilation_w * v * 4;
+
+                            for (int i = 0; i < h; i++)
+                            {
+                                for (int j = 0; j < w; j++)
+                                {
+                                    __m128 _val = _mm_load_ps(ptr);
+                                    __m128 _s = _mm_load_ps(sptr);
+                                    _val = _mm_add_ps(_val, _s);
+                                    _mm_store_ps(ptr, _val);
+
+                                    ptr += stride_w * 4;
+                                    sptr += 4;
+                                }
+
+                                ptr += gap;
+                            }
+                        }
+                    }
+                }
+            }
+#endif // __SSE2__
+
+            if (out_elempack == 1)
+            {
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int p = 0; p < out_channels; p++)
+                {
+                    const float* sptr = top_col2im.row(p * maxk);
+                    Mat outm = top_blob_bordered.channel(p);
+
+                    const float bias = bias_data.empty() ? 0.f : bias_data[p];
+                    outm.fill(bias);
+
+                    for (int u = 0; u < kernel_h; u++)
+                    {
+                        for (int v = 0; v < kernel_w; v++)
+                        {
+                            float* ptr = outm.row(dilation_h * u) + dilation_w * v;
+
+                            for (int i = 0; i < h; i++)
+                            {
+                                for (int j = 0; j < w; j++)
+                                {
+                                    ptr[0] += sptr[0];
+
+                                    ptr += stride_w;
+                                    sptr += 1;
+                                }
+
+                                ptr += gap;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if (activation)
+        {
+            activation->forward_inplace(top_blob_bordered, opt);
+        }
+    }
+    else
     {
+#if __SSE2__
+#if __AVX__
+#if __AVX512F__
+        if (elempack == 16 && out_elempack == 16)
         {
             deconvolution_pack16_avx512(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
         }
-    }
 
-    if (elempack == 8 && out_elempack == 16)
-    {
+        if (elempack == 8 && out_elempack == 16)
         {
             deconvolution_pack8to16_avx512(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
         }
-    }
 
-    if (elempack == 16 && out_elempack == 8)
-    {
+        if (elempack == 16 && out_elempack == 8)
         {
             deconvolution_pack16to8_avx512(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
         }
-    }
 
-    if (elempack == 4 && out_elempack == 16)
-    {
+        if (elempack == 4 && out_elempack == 16)
         {
             deconvolution_pack4to16_avx512(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
         }
-    }
 
-    if (elempack == 16 && out_elempack == 4)
-    {
+        if (elempack == 16 && out_elempack == 4)
         {
             deconvolution_pack16to4_avx512(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
         }
-    }
 
-    if (elempack == 1 && out_elempack == 16)
-    {
+        if (elempack == 1 && out_elempack == 16)
         {
             deconvolution_pack1to16_avx512(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
         }
-    }
 
-    if (elempack == 16 && out_elempack == 1)
-    {
+        if (elempack == 16 && out_elempack == 1)
         {
             deconvolution_pack16to1_avx512(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
         }
-    }
 #endif // __AVX512F__
 
-    if (elempack == 8 && out_elempack == 8)
-    {
+        if (elempack == 8 && out_elempack == 8)
         {
             deconvolution_pack8_avx(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
         }
-    }
 
-    if (elempack == 4 && out_elempack == 8)
-    {
+        if (elempack == 4 && out_elempack == 8)
         {
             deconvolution_pack4to8_avx(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
         }
-    }
 
-    if (elempack == 8 && out_elempack == 4)
-    {
+        if (elempack == 8 && out_elempack == 4)
         {
             deconvolution_pack8to4_avx(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
         }
-    }
 
-    if (elempack == 1 && out_elempack == 8)
-    {
+        if (elempack == 1 && out_elempack == 8)
         {
             deconvolution_pack1to8_avx(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
         }
-    }
 
-    if (elempack == 8 && out_elempack == 1)
-    {
+        if (elempack == 8 && out_elempack == 1)
         {
             deconvolution_pack8to1_avx(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
         }
-    }
 #endif // __AVX__
 
-    if (elempack == 4 && out_elempack == 4)
-    {
+        if (elempack == 4 && out_elempack == 4)
         {
             deconvolution_pack4_sse(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
         }
-    }
 
-    if (elempack == 1 && out_elempack == 4)
-    {
+        if (elempack == 1 && out_elempack == 4)
         {
             deconvolution_pack1to4_sse(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
         }
-    }
 
-    if (elempack == 4 && out_elempack == 1)
-    {
+        if (elempack == 4 && out_elempack == 1)
         {
             deconvolution_pack4to1_sse(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
         }
-    }
 #endif // __SSE2__
 
-    if (elempack == 1 && out_elempack == 1)
-    {
+        if (elempack == 1 && out_elempack == 1)
         {
             // num_output
             #pragma omp parallel for num_threads(opt.num_threads)

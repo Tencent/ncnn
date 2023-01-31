@@ -2169,10 +2169,10 @@ static void im2col_sgemm_bf16s_neon(const Mat& bottom_im2col, Mat& top_blob, con
 
             for (; q + 3 < nn; q += 4)
             {
-                float32x4_t _p0 = float2bfloat(vld1_u16(tmpptr));
+                float32x4_t _p0 = bfloat2float(vld1_u16(tmpptr));
                 tmpptr += 4;
 
-                float32x4_t _k0 = float2bfloat(vld1_u16(kptr));
+                float32x4_t _k0 = bfloat2float(vld1_u16(kptr));
                 kptr += 4;
 
 #if __aarch64__

@@ -807,7 +807,7 @@ axis specifies the dimension to split the input
 a = transA ? transpose(x0) : x0
 b = transb ? transpose(x1) : x1
 c = x2
-y = gemm(a, b) * alpha + c * beta
+y = (gemm(a, b) + c * beta) * alpha
 ```
 
 | param id  | name          | type  | default   | description       |
@@ -824,6 +824,12 @@ y = gemm(a, b) * alpha + c * beta
 | 9         | constantK     | int   | 0         |                   |
 | 10        | constant_broadcast_type_C | int | 0 |                 |
 | 11        | output_N1M    | int   | 0         |                   |
+| 12        | output_elempack | int | 0         |                   |
+| 13        | output_elemtype | int | 0         |                   |
+| 14        | output_transpose | int| 0         |                   |
+| 20        | constant_TILE_M | int | 0         |                   |
+| 21        | constant_TILE_N | int | 0         |                   |
+| 22        | constant_TILE_K | int | 0         |                   |
 
 | weight        | type  | shape                 |
 | ------------- | ----- | --------------------- |

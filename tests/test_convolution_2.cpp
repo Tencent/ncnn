@@ -41,16 +41,6 @@ static int test_convolution(int w, int h, int c, int outch, int kernel, int dila
         weights[1] = RandomMat(outch);
 
     float epsilon = 0.001;
-    // larget epsilon for winograd optimization
-    if (kernel == 3 && dilation == 1 && stride == 1 && c >= 16 && outch >= 16)
-    {
-        Randomize(a, -1, 1);
-        if (c >= 64 || outch >= 64)
-            Randomize(weights[0], -0.3, 0.3);
-        else
-            Randomize(weights[0], -1, 1);
-        epsilon = 0.002;
-    }
 
     int ret = test_layer<ncnn::Convolution>("Convolution", pd, weights, a, epsilon);
     if (ret != 0)
@@ -97,7 +87,22 @@ static int test_convolution_0()
            || test_convolution(12, 18, 32, 160, 3, 1, 1, 1, 1)
            || test_convolution(12, 18, 4, 12, 3, 1, 1, 1, 1)
            || test_convolution(42, 18, 28, 140, 3, 1, 1, 1, 1)
-           || test_convolution(12, 18, 28, 140, 3, 1, 1, 1, 1);
+           || test_convolution(12, 18, 28, 140, 3, 1, 1, 1, 1)
+           || test_convolution(3, 3, 47, 47, 3, 1, 1, 0, 1)
+           || test_convolution(5, 5, 40, 40, 3, 1, 1, 0, 0)
+           || test_convolution(13, 13, 53, 47, 3, 1, 1, 0, 1)
+           || test_convolution(20, 26, 47, 47, 3, 1, 1, 0, 0)
+           || test_convolution(12, 12, 47, 53, 3, 1, 1, 1, 0)
+           || test_convolution(23, 23, 53, 53, 3, 1, 1, 1, 0)
+           || test_convolution(26, 34, 47, 47, 3, 1, 1, 2, 0)
+           || test_convolution(52, 40, 31, 31, 3, 1, 1, 2, 0)
+           || test_convolution(6, 7, 7, 17, 2, 2, 2, 1, 1)
+           || test_convolution(8, 9, 3, 17, 5, 1, 1, 2, 1)
+           || test_convolution(9, 7, 19, 13, 1, 2, 2, 0, 0)
+           || test_convolution(15, 12, 19, 3, 4, 1, 2, 2, 1)
+           || test_convolution(14, 14, 24, 31, 5, 1, 2, 2, 1)
+           || test_convolution(12, 12, 20, 15, 6, 1, 1, 0, 0)
+           || test_convolution(11, 10, 12, 7, 4, 2, 1, 2, 1);
 }
 
 int main()

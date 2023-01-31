@@ -31,6 +31,7 @@
 #cmakedefine01 NCNN_VULKAN
 #cmakedefine01 NCNN_SYSTEM_GLSLANG
 #cmakedefine01 NCNN_RUNTIME_CPU
+#cmakedefine01 NCNN_GNU_INLINE_ASM
 #cmakedefine01 NCNN_AVX
 #cmakedefine01 NCNN_XOP
 #cmakedefine01 NCNN_FMA

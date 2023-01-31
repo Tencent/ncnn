@@ -441,18 +441,39 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
 
     for (size_t i = 0; i < a4.size(); i++)
     {
-        if (opt.use_fp16_storage && op->support_fp16_storage && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
+        // clang-format off
+        // *INDENT-OFF*
+#if NCNN_ARM82
+        if (opt.use_fp16_storage && ncnn::cpu_support_arm_asimdhp() && op->support_fp16_storage && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
         {
             ncnn::cast_float32_to_float16(a[i], a4[i], opt);
         }
-        else if (opt.use_bf16_storage && op->support_bf16_storage && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
+        else
+#endif // NCNN_ARM82
+#if NCNN_RVV
+        if (opt.use_fp16_storage && ncnn::cpu_support_riscv_v() && ncnn::cpu_support_riscv_zfh() && op->support_fp16_storage && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
+        {
+            ncnn::cast_float32_to_float16(a[i], a4[i], opt);
+        }
+        else
+#endif // NCNN_RVV
+#if NCNN_BF16
+        if (opt.use_bf16_storage && op->support_bf16_storage && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
         {
             ncnn::cast_float32_to_bfloat16(a[i], a4[i], opt);
+        }
+        else
+#endif // NCNN_BF16
+        if (opt.use_fp16_storage && op->support_fp16_storage && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
+        {
+            ncnn::cast_float32_to_float16(a[i], a4[i], opt);
         }
         else
         {
             a4[i] = a[i];
         }
+        // *INDENT-ON*
+        // clang-format on
 
         if (opt.use_packing_layout && op->support_packing && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_PACKING))
         {
@@ -493,7 +514,7 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
             if (elembits == 16)
             {
 #if NCNN_ARM82
-                if (elemcount % 8 == 0 && opt.use_fp16_storage && opt.use_fp16_arithmetic && op->support_fp16_storage)
+                if (elemcount % 8 == 0 && ncnn::cpu_support_arm_asimdhp() && opt.use_fp16_arithmetic)
                     dst_elempack = 8;
                 else if (elemcount % 4 == 0)
                     dst_elempack = 4;
@@ -545,18 +566,43 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
 
     for (size_t i = 0; i < c.size(); i++)
     {
+        // clang-format off
+        // *INDENT-OFF*
+#if NCNN_ARM82
+        if (opt.use_fp16_storage && ncnn::cpu_support_arm_asimdhp() && op->support_fp16_storage && c[i].elembits() == 16)
+        {
+            ncnn::Mat c_fp32;
+            ncnn::cast_float16_to_float32(c[i], c_fp32, opt);
+            c[i] = c_fp32;
+        }
+        else
+#endif // NCNN_ARM82
+#if NCNN_RVV
+        if (opt.use_fp16_storage && ncnn::cpu_support_riscv_v() && ncnn::cpu_support_riscv_zfh() && op->support_fp16_storage && c[i].elembits() == 16)
+        {
+            ncnn::Mat c_fp32;
+            ncnn::cast_float16_to_float32(c[i], c_fp32, opt);
+            c[i] = c_fp32;
+        }
+        else
+#endif // NCNN_RVV
+#if NCNN_BF16
+        if (opt.use_bf16_storage && op->support_bf16_storage && c[i].elembits() == 16)
+        {
+            ncnn::Mat c_fp32;
+            ncnn::cast_bfloat16_to_float32(c[i], c_fp32, opt);
+            c[i] = c_fp32;
+        }
+        else
+#endif // NCNN_BF16
         if (opt.use_fp16_storage && op->support_fp16_storage && c[i].elembits() == 16)
         {
             ncnn::Mat c_fp32;
             ncnn::cast_float16_to_float32(c[i], c_fp32, opt);
             c[i] = c_fp32;
         }
-        else if (opt.use_bf16_storage && op->support_bf16_storage && c[i].elembits() == 16)
-        {
-            ncnn::Mat c_fp32;
-            ncnn::cast_bfloat16_to_float32(c[i], c_fp32, opt);
-            c[i] = c_fp32;
-        }
+        // *INDENT-ON*
+        // clang-format on
     }
 
     op->destroy_pipeline(opt);
@@ -874,18 +920,39 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
 
     ncnn::Mat a4;
 
-    if (opt.use_fp16_storage && op->support_fp16_storage && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
+    // clang-format off
+    // *INDENT-OFF*
+#if NCNN_ARM82
+    if (opt.use_fp16_storage && ncnn::cpu_support_arm_asimdhp() && op->support_fp16_storage && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
     {
         ncnn::cast_float32_to_float16(a, a4, opt);
     }
-    else if (opt.use_bf16_storage && op->support_bf16_storage && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
+    else
+#endif // NCNN_ARM82
+#if NCNN_RVV
+    if (opt.use_fp16_storage && ncnn::cpu_support_riscv_v() && ncnn::cpu_support_riscv_zfh() && op->support_fp16_storage && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
+    {
+        ncnn::cast_float32_to_float16(a, a4, opt);
+    }
+    else
+#endif // NCNN_RVV
+#if NCNN_BF16
+    if (opt.use_bf16_storage && op->support_bf16_storage && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
     {
         ncnn::cast_float32_to_bfloat16(a, a4, opt);
+    }
+    else
+#endif // NCNN_BF16
+    if (opt.use_fp16_storage && op->support_fp16_storage && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
+    {
+        ncnn::cast_float32_to_float16(a, a4, opt);
     }
     else
     {
         a4 = a;
     }
+    // *INDENT-ON*
+    // clang-format on
 
     if (opt.use_packing_layout && op->support_packing && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_PACKING))
     {
@@ -926,7 +993,7 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
         if (elembits == 16)
         {
 #if NCNN_ARM82
-            if (elemcount % 8 == 0 && opt.use_fp16_storage && opt.use_fp16_arithmetic && op->support_fp16_storage)
+            if (elemcount % 8 == 0 && ncnn::cpu_support_arm_asimdhp() && opt.use_fp16_arithmetic)
                 dst_elempack = 8;
             else if (elemcount % 4 == 0)
                 dst_elempack = 4;
@@ -969,18 +1036,43 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
         op->forward(a4, c, opt);
     }
 
+    // clang-format off
+    // *INDENT-OFF*
+#if NCNN_ARM82
+    if (opt.use_fp16_storage && ncnn::cpu_support_arm_asimdhp() && op->support_fp16_storage && c.elembits() == 16)
+    {
+        ncnn::Mat c_fp32;
+        ncnn::cast_float16_to_float32(c, c_fp32, opt);
+        c = c_fp32;
+    }
+    else
+#endif // NCNN_ARM82
+#if NCNN_RVV
+    if (opt.use_fp16_storage && ncnn::cpu_support_riscv_v() && ncnn::cpu_support_riscv_zfh() && op->support_fp16_storage && c.elembits() == 16)
+    {
+        ncnn::Mat c_fp32;
+        ncnn::cast_float16_to_float32(c, c_fp32, opt);
+        c = c_fp32;
+    }
+    else
+#endif // NCNN_RVV
+#if NCNN_BF16
+    if (opt.use_bf16_storage && op->support_bf16_storage && c.elembits() == 16)
+    {
+        ncnn::Mat c_fp32;
+        ncnn::cast_bfloat16_to_float32(c, c_fp32, opt);
+        c = c_fp32;
+    }
+    else
+#endif // NCNN_BF16
     if (opt.use_fp16_storage && op->support_fp16_storage && c.elembits() == 16)
     {
         ncnn::Mat c_fp32;
         ncnn::cast_float16_to_float32(c, c_fp32, opt);
         c = c_fp32;
     }
-    else if (opt.use_bf16_storage && op->support_bf16_storage && c.elembits() == 16)
-    {
-        ncnn::Mat c_fp32;
-        ncnn::cast_bfloat16_to_float32(c, c_fp32, opt);
-        c = c_fp32;
-    }
+    // *INDENT-ON*
+    // clang-format on
 
     op->destroy_pipeline(opt);
 
@@ -1224,7 +1316,7 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[2].use_fp16_packed = true;
     opts[2].use_fp16_storage = false;
     opts[2].use_fp16_arithmetic = false;
-    opts[2].use_bf16_storage = false;
+    opts[2].use_bf16_storage = true;
     opts[2].use_shader_pack8 = true;
     opts[2].use_image_storage = false;
 
@@ -1372,7 +1464,7 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[2].use_fp16_packed = true;
     opts[2].use_fp16_storage = false;
     opts[2].use_fp16_arithmetic = false;
-    opts[2].use_bf16_storage = false;
+    opts[2].use_bf16_storage = true;
     opts[2].use_shader_pack8 = true;
     opts[2].use_image_storage = false;
 
