@@ -1517,7 +1517,7 @@ static int get_big_cpu_data_cache_size(int level)
     const CpuSet& big_cs = get_cpu_thread_affinity_mask(2);
     if (big_cs.num_enabled() == 0)
     {
-        // should never reach here, fallback to cpu0
+        // smp cpu
         return get_data_cache_size(0, level);
     }
 
@@ -1953,11 +1953,17 @@ int set_cpu_powersave(int powersave)
     return 0;
 }
 
-static CpuSet g_thread_affinity_mask_all;
-static CpuSet g_thread_affinity_mask_little;
-static CpuSet g_thread_affinity_mask_big;
+class cpu_thread_affinity_mask
+{
+public:
+    cpu_thread_affinity_mask();
 
-static int setup_thread_affinity_masks()
+    CpuSet g_thread_affinity_mask_all;
+    CpuSet g_thread_affinity_mask_little;
+    CpuSet g_thread_affinity_mask_big;
+};
+
+cpu_thread_affinity_mask::cpu_thread_affinity_mask()
 {
     g_thread_affinity_mask_all.disable_all();
 
@@ -1983,7 +1989,7 @@ static int setup_thread_affinity_masks()
     {
         g_thread_affinity_mask_little.disable_all();
         g_thread_affinity_mask_big = g_thread_affinity_mask_all;
-        return 0;
+        return;
     }
 
     CpuSet smt_cpu_mask = get_smt_cpu_mask();
@@ -2025,7 +2031,7 @@ static int setup_thread_affinity_masks()
     {
         g_thread_affinity_mask_little.disable_all();
         g_thread_affinity_mask_big = g_thread_affinity_mask_all;
-        return 0;
+        return;
     }
 
     for (int i = 0; i < g_cpucount; i++)
@@ -2068,27 +2074,25 @@ static int setup_thread_affinity_masks()
     g_thread_affinity_mask_little.disable_all();
     g_thread_affinity_mask_big = g_thread_affinity_mask_all;
 #endif
-
-    return 0;
 }
 
 const CpuSet& get_cpu_thread_affinity_mask(int powersave)
 {
-    setup_thread_affinity_masks();
+    static cpu_thread_affinity_mask initer;
 
     if (powersave == 0)
-        return g_thread_affinity_mask_all;
+        return initer.g_thread_affinity_mask_all;
 
     if (powersave == 1)
-        return g_thread_affinity_mask_little;
+        return initer.g_thread_affinity_mask_little;
 
     if (powersave == 2)
-        return g_thread_affinity_mask_big;
+        return initer.g_thread_affinity_mask_big;
 
     NCNN_LOGE("powersave %d not supported", powersave);
 
     // fallback to all cores anyway
-    return g_thread_affinity_mask_all;
+    return initer.g_thread_affinity_mask_all;
 }
 
 int set_cpu_thread_affinity(const CpuSet& thread_affinity_mask)
