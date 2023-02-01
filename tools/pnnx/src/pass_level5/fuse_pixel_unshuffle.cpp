@@ -56,7 +56,7 @@ pnnx.Output             output      1 0 out
         int downscale_factor = shape[size - 1];
 
         bool match_reshape = downscale_factor == shape[size - 3] && shape[size - 2] == shape2[size2 - 1] && shape[size - 4] == shape2[size2 - 2]
-            && shape2[size2 - 3] == downscale_factor * downscale_factor * shape[size - 5];
+                             && shape2[size2 - 3] == downscale_factor * downscale_factor * shape[size - 5];
         bool match_permute = dims == std::vector<int>{0, 1, 3, 5, 2, 4};
 
         return match_reshape & match_permute;
