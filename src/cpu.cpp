@@ -1361,6 +1361,179 @@ int get_physical_big_cpu_count()
     return g_cpucount - g_physical_cpucount;
 }
 
+#if defined __ANDROID__ || defined __linux__
+static int get_data_cache_size(int cpuid, int level)
+{
+    char path[256];
+
+    // discover sysfs cache entry
+    int indexid = -1;
+    for (int i = 0;; i++)
+    {
+        // check level
+        {
+            sprintf(path, "/sys/devices/system/cpu/cpu%d/cache/index%d/level", cpuid, i);
+            FILE* fp = fopen(path, "rb");
+            if (!fp)
+                break;
+
+            int cache_level = -1;
+            int nscan = fscanf(fp, "%d", &cache_level);
+            fclose(fp);
+            if (nscan != 1 || cache_level != level)
+                continue;
+        }
+
+        // check type
+        {
+            sprintf(path, "/sys/devices/system/cpu/cpu%d/cache/index%d/type", cpuid, i);
+            FILE* fp = fopen(path, "rb");
+            if (!fp)
+                break;
+
+            char type[32];
+            int nscan = fscanf(fp, "%31s", type);
+            fclose(fp);
+            if (nscan != 1 || (strcmp(type, "Data") != 0 && strcmp(type, "Unified") != 0))
+                continue;
+        }
+
+        indexid = i;
+        break;
+    }
+
+    if (indexid == -1)
+    {
+        // no sysfs entry
+        return 0;
+    }
+
+    // get size
+    int cache_size_K = 0;
+    {
+        sprintf(path, "/sys/devices/system/cpu/cpu%d/cache/index%d/size", cpuid, indexid);
+        FILE* fp = fopen(path, "rb");
+        if (!fp)
+        {
+            NCNN_LOGE("fopen %s failed", path);
+            return 0;
+        }
+
+        int nscan = fscanf(fp, "%dK", &cache_size_K);
+        if (nscan != 1)
+        {
+            NCNN_LOGE("fscanf cache_size_K error %d", nscan);
+            return 0;
+        }
+        fclose(fp);
+    }
+
+    // parse shared_cpu_map mask
+    CpuSet shared_cpu_map;
+    {
+        sprintf(path, "/sys/devices/system/cpu/cpu%d/cache/index%d/shared_cpu_map", cpuid, indexid);
+        FILE* fp = fopen(path, "rb");
+        if (!fp)
+        {
+            NCNN_LOGE("fopen %s failed", path);
+            return 0;
+        }
+
+        char shared_cpu_map_str[256];
+        int nscan = fscanf(fp, "%255s", shared_cpu_map_str);
+        if (nscan != 1)
+        {
+            NCNN_LOGE("fscanf shared_cpu_map error %d", nscan);
+            return 0;
+        }
+        fclose(fp);
+
+        int len = strlen(shared_cpu_map_str);
+
+        if (shared_cpu_map_str[0] == '0' && shared_cpu_map_str[1] == 'x')
+        {
+            // skip leading 0x
+            len -= 2;
+        }
+
+        int ci = 0;
+        for (int i = len - 1; i >= 0; i--)
+        {
+            char x = shared_cpu_map_str[i];
+            if (x & 1) shared_cpu_map.enable(ci + 0);
+            if (x & 2) shared_cpu_map.enable(ci + 1);
+            if (x & 4) shared_cpu_map.enable(ci + 2);
+            if (x & 8) shared_cpu_map.enable(ci + 3);
+
+            ci += 4;
+        }
+    }
+
+    if (shared_cpu_map.num_enabled() == 1)
+        return cache_size_K * 1024;
+
+    // resolve physical cpu count in the shared_cpu_map
+    int shared_physical_cpu_count = 0;
+    {
+        std::vector<int> thread_set;
+        for (int i = 0; i < g_cpucount; i++)
+        {
+            if (!shared_cpu_map.is_enabled(i))
+                continue;
+
+            int thread_siblings = get_thread_siblings(i);
+            if (thread_siblings == -1)
+            {
+                // ignore malformed one
+                continue;
+            }
+
+            bool thread_siblings_exists = false;
+            for (size_t j = 0; j < thread_set.size(); j++)
+            {
+                if (thread_set[j] == thread_siblings)
+                {
+                    thread_siblings_exists = true;
+                    break;
+                }
+            }
+
+            if (!thread_siblings_exists)
+            {
+                thread_set.push_back(thread_siblings);
+                shared_physical_cpu_count++;
+            }
+        }
+    }
+
+    // return per-physical-core cache size with 4K aligned
+    cache_size_K = (cache_size_K / shared_physical_cpu_count + 3) / 4 * 4;
+
+    return cache_size_K * 1024;
+}
+
+static int get_big_cpu_data_cache_size(int level)
+{
+    const CpuSet& big_cs = get_cpu_thread_affinity_mask(2);
+    if (big_cs.num_enabled() == 0)
+    {
+        // smp cpu
+        return get_data_cache_size(0, level);
+    }
+
+    for (int i = 0; i < g_cpucount; i++)
+    {
+        if (big_cs.is_enabled(i))
+        {
+            return get_data_cache_size(i, level);
+        }
+    }
+
+    // should never reach here, fallback to cpu0
+    return get_data_cache_size(0, level);
+}
+#endif // defined __ANDROID__ || defined __linux__
+
 static int get_cpu_level2_cachesize()
 {
     int size = 0;
@@ -1394,9 +1567,11 @@ static int get_cpu_level2_cachesize()
 
         free(buffer);
     }
-#elif defined __linux__
+#elif defined __ANDROID__ || defined __linux__
+    size = get_big_cpu_data_cache_size(2);
 #if defined(_SC_LEVEL2_CACHE_SIZE)
-    size = sysconf(_SC_LEVEL2_CACHE_SIZE);
+    if (size <= 0)
+        size = sysconf(_SC_LEVEL2_CACHE_SIZE);
 #endif
 #elif __APPLE__
     // perflevel 0 is the higher performance cluster
@@ -1462,9 +1637,11 @@ static int get_cpu_level3_cachesize()
 
         free(buffer);
     }
-#elif defined __linux__
+#elif defined __ANDROID__ || defined __linux__
+    size = get_big_cpu_data_cache_size(3);
 #if defined(_SC_LEVEL3_CACHE_SIZE)
-    size = sysconf(_SC_LEVEL3_CACHE_SIZE);
+    if (size <= 0)
+        size = sysconf(_SC_LEVEL3_CACHE_SIZE);
 #endif
 #elif __APPLE__
     // perflevel 0 is the higher performance cluster
@@ -1776,13 +1953,19 @@ int set_cpu_powersave(int powersave)
     return 0;
 }
 
-static CpuSet g_thread_affinity_mask_all;
-static CpuSet g_thread_affinity_mask_little;
-static CpuSet g_thread_affinity_mask_big;
-
-static int setup_thread_affinity_masks()
+class cpu_thread_affinity_mask
 {
-    g_thread_affinity_mask_all.disable_all();
+public:
+    cpu_thread_affinity_mask();
+
+    CpuSet mask_all;
+    CpuSet mask_little;
+    CpuSet mask_big;
+};
+
+cpu_thread_affinity_mask::cpu_thread_affinity_mask()
+{
+    mask_all.disable_all();
 
 #if (defined _WIN32 && !(defined __MINGW32__))
     // get max freq mhz for all cores
@@ -1804,9 +1987,9 @@ static int setup_thread_affinity_masks()
     int max_freq_mhz_medium = (max_freq_mhz_min + max_freq_mhz_max) / 2;
     if (max_freq_mhz_medium == max_freq_mhz_max)
     {
-        g_thread_affinity_mask_little.disable_all();
-        g_thread_affinity_mask_big = g_thread_affinity_mask_all;
-        return 0;
+        mask_little.disable_all();
+        mask_big = mask_all;
+        return;
     }
 
     CpuSet smt_cpu_mask = get_smt_cpu_mask();
@@ -1816,14 +1999,14 @@ static int setup_thread_affinity_masks()
         if (smt_cpu_mask.is_enabled(i))
         {
             // always treat smt core as big core
-            g_thread_affinity_mask_big.enable(i);
+            mask_big.enable(i);
             continue;
         }
 
         if (cpu_max_freq_mhz[i] < max_freq_mhz_medium)
-            g_thread_affinity_mask_little.enable(i);
+            mask_little.enable(i);
         else
-            g_thread_affinity_mask_big.enable(i);
+            mask_big.enable(i);
     }
 #elif defined __ANDROID__ || defined __linux__
     int max_freq_khz_min = INT_MAX;
@@ -1846,9 +2029,9 @@ static int setup_thread_affinity_masks()
     int max_freq_khz_medium = (max_freq_khz_min + max_freq_khz_max) / 2;
     if (max_freq_khz_medium == max_freq_khz_max)
     {
-        g_thread_affinity_mask_little.disable_all();
-        g_thread_affinity_mask_big = g_thread_affinity_mask_all;
-        return 0;
+        mask_little.disable_all();
+        mask_big = mask_all;
+        return;
     }
 
     for (int i = 0; i < g_cpucount; i++)
@@ -1856,22 +2039,22 @@ static int setup_thread_affinity_masks()
         if (is_smt_cpu(i))
         {
             // always treat smt core as big core
-            g_thread_affinity_mask_big.enable(i);
+            mask_big.enable(i);
             continue;
         }
 
         if (cpu_max_freq_khz[i] < max_freq_khz_medium)
-            g_thread_affinity_mask_little.enable(i);
+            mask_little.enable(i);
         else
-            g_thread_affinity_mask_big.enable(i);
+            mask_big.enable(i);
     }
 #elif __APPLE__
     int nperflevels = get_hw_capability("hw.nperflevels");
     if (nperflevels == 1)
     {
         // smp models
-        g_thread_affinity_mask_little.disable_all();
-        g_thread_affinity_mask_big = g_thread_affinity_mask_all;
+        mask_little.disable_all();
+        mask_big = mask_all;
     }
     else
     {
@@ -1879,39 +2062,37 @@ static int setup_thread_affinity_masks()
         int perflevel0_logicalcpu = get_hw_capability("hw.perflevel0.logicalcpu_max");
         for (int i = 0; i < perflevel0_logicalcpu; i++)
         {
-            g_thread_affinity_mask_big.enable(i);
+            mask_big.enable(i);
         }
         for (int i = perflevel0_logicalcpu; i < g_cpucount; i++)
         {
-            g_thread_affinity_mask_little.enable(i);
+            mask_little.enable(i);
         }
     }
 #else
     // TODO implement me for other platforms
-    g_thread_affinity_mask_little.disable_all();
-    g_thread_affinity_mask_big = g_thread_affinity_mask_all;
+    mask_little.disable_all();
+    mask_big = mask_all;
 #endif
-
-    return 0;
 }
+
+static cpu_thread_affinity_mask g_thread_affinity_mask;
 
 const CpuSet& get_cpu_thread_affinity_mask(int powersave)
 {
-    setup_thread_affinity_masks();
-
     if (powersave == 0)
-        return g_thread_affinity_mask_all;
+        return g_thread_affinity_mask.mask_all;
 
     if (powersave == 1)
-        return g_thread_affinity_mask_little;
+        return g_thread_affinity_mask.mask_little;
 
     if (powersave == 2)
-        return g_thread_affinity_mask_big;
+        return g_thread_affinity_mask.mask_big;
 
     NCNN_LOGE("powersave %d not supported", powersave);
 
     // fallback to all cores anyway
-    return g_thread_affinity_mask_all;
+    return g_thread_affinity_mask.mask_all;
 }
 
 int set_cpu_thread_affinity(const CpuSet& thread_affinity_mask)
