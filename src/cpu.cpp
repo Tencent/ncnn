@@ -1958,14 +1958,14 @@ class cpu_thread_affinity_mask
 public:
     cpu_thread_affinity_mask();
 
-    CpuSet g_thread_affinity_mask_all;
-    CpuSet g_thread_affinity_mask_little;
-    CpuSet g_thread_affinity_mask_big;
+    CpuSet mask_all;
+    CpuSet mask_little;
+    CpuSet mask_big;
 };
 
 cpu_thread_affinity_mask::cpu_thread_affinity_mask()
 {
-    g_thread_affinity_mask_all.disable_all();
+    mask_all.disable_all();
 
 #if (defined _WIN32 && !(defined __MINGW32__))
     // get max freq mhz for all cores
@@ -1987,8 +1987,8 @@ cpu_thread_affinity_mask::cpu_thread_affinity_mask()
     int max_freq_mhz_medium = (max_freq_mhz_min + max_freq_mhz_max) / 2;
     if (max_freq_mhz_medium == max_freq_mhz_max)
     {
-        g_thread_affinity_mask_little.disable_all();
-        g_thread_affinity_mask_big = g_thread_affinity_mask_all;
+        mask_little.disable_all();
+        mask_big = mask_all;
         return;
     }
 
@@ -1999,14 +1999,14 @@ cpu_thread_affinity_mask::cpu_thread_affinity_mask()
         if (smt_cpu_mask.is_enabled(i))
         {
             // always treat smt core as big core
-            g_thread_affinity_mask_big.enable(i);
+            mask_big.enable(i);
             continue;
         }
 
         if (cpu_max_freq_mhz[i] < max_freq_mhz_medium)
-            g_thread_affinity_mask_little.enable(i);
+            mask_little.enable(i);
         else
-            g_thread_affinity_mask_big.enable(i);
+            mask_big.enable(i);
     }
 #elif defined __ANDROID__ || defined __linux__
     int max_freq_khz_min = INT_MAX;
@@ -2029,8 +2029,8 @@ cpu_thread_affinity_mask::cpu_thread_affinity_mask()
     int max_freq_khz_medium = (max_freq_khz_min + max_freq_khz_max) / 2;
     if (max_freq_khz_medium == max_freq_khz_max)
     {
-        g_thread_affinity_mask_little.disable_all();
-        g_thread_affinity_mask_big = g_thread_affinity_mask_all;
+        mask_little.disable_all();
+        mask_big = mask_all;
         return;
     }
 
@@ -2039,22 +2039,22 @@ cpu_thread_affinity_mask::cpu_thread_affinity_mask()
         if (is_smt_cpu(i))
         {
             // always treat smt core as big core
-            g_thread_affinity_mask_big.enable(i);
+            mask_big.enable(i);
             continue;
         }
 
         if (cpu_max_freq_khz[i] < max_freq_khz_medium)
-            g_thread_affinity_mask_little.enable(i);
+            mask_little.enable(i);
         else
-            g_thread_affinity_mask_big.enable(i);
+            mask_big.enable(i);
     }
 #elif __APPLE__
     int nperflevels = get_hw_capability("hw.nperflevels");
     if (nperflevels == 1)
     {
         // smp models
-        g_thread_affinity_mask_little.disable_all();
-        g_thread_affinity_mask_big = g_thread_affinity_mask_all;
+        mask_little.disable_all();
+        mask_big = mask_all;
     }
     else
     {
@@ -2062,37 +2062,37 @@ cpu_thread_affinity_mask::cpu_thread_affinity_mask()
         int perflevel0_logicalcpu = get_hw_capability("hw.perflevel0.logicalcpu_max");
         for (int i = 0; i < perflevel0_logicalcpu; i++)
         {
-            g_thread_affinity_mask_big.enable(i);
+            mask_big.enable(i);
         }
         for (int i = perflevel0_logicalcpu; i < g_cpucount; i++)
         {
-            g_thread_affinity_mask_little.enable(i);
+            mask_little.enable(i);
         }
     }
 #else
     // TODO implement me for other platforms
-    g_thread_affinity_mask_little.disable_all();
-    g_thread_affinity_mask_big = g_thread_affinity_mask_all;
+    mask_little.disable_all();
+    mask_big = mask_all;
 #endif
 }
 
+static cpu_thread_affinity_mask g_thread_affinity_mask;
+
 const CpuSet& get_cpu_thread_affinity_mask(int powersave)
 {
-    static cpu_thread_affinity_mask initer;
-
     if (powersave == 0)
-        return initer.g_thread_affinity_mask_all;
+        return g_thread_affinity_mask.mask_all;
 
     if (powersave == 1)
-        return initer.g_thread_affinity_mask_little;
+        return g_thread_affinity_mask.mask_little;
 
     if (powersave == 2)
-        return initer.g_thread_affinity_mask_big;
+        return g_thread_affinity_mask.mask_big;
 
     NCNN_LOGE("powersave %d not supported", powersave);
 
     // fallback to all cores anyway
-    return initer.g_thread_affinity_mask_all;
+    return g_thread_affinity_mask.mask_all;
 }
 
 int set_cpu_thread_affinity(const CpuSet& thread_affinity_mask)
