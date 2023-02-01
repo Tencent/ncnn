@@ -109,13 +109,14 @@ void pass_level5(Graph& g, const std::set<std::string>& foldable_constants, cons
 
     fuse_contiguous_view(g);
 
+    // need to execute before fuse_adjacent_reshape
+    fuse_pixel_unshuffle(g);
+
     fuse_adjacent_reshape(g);
 
     eliminate_noop_view_reshape(g);
 
     fuse_channel_shuffle(g);
-
-    fuse_pixel_unshuffle(g);
 
     fuse_index_expression(g);
 
