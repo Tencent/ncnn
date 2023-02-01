@@ -1368,7 +1368,7 @@ static int get_data_cache_size(int cpuid, int level)
 
     // discover sysfs cache entry
     int indexid = -1;
-    for (int i = 0; ; i++)
+    for (int i = 0;; i++)
     {
         // check level
         {
