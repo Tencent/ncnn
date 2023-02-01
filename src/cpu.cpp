@@ -1637,7 +1637,7 @@ static int get_cpu_level3_cachesize()
 
         free(buffer);
     }
-#elif defined __linux__
+#elif defined __ANDROID__ || defined __linux__
     size = get_big_cpu_data_cache_size(3);
 #if defined(_SC_LEVEL3_CACHE_SIZE)
     if (size <= 0)
