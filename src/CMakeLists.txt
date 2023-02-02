@@ -160,6 +160,7 @@ ncnn_add_layer(GLU)
 ncnn_add_layer(Fold)
 ncnn_add_layer(Unfold)
 ncnn_add_layer(GridSample)
+ncnn_add_layer(CumulativeSum)
 
 if(NCNN_VULKAN)
     ncnn_add_shader(${CMAKE_CURRENT_SOURCE_DIR}/convert_ycbcr.comp)
