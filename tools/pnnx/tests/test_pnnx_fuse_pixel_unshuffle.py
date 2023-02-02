@@ -52,17 +52,17 @@ def test():
 
     # export torchscript
     mod = torch.jit.trace(net, x)
-    mod.save("test_pnnx_fuse_PixelUnshuffle.pt")
+    mod.save("test_pnnx_fuse_pixel_unshuffle.pt")
 
     # torchscript to pnnx
     import os
-    os.system("pnnx test_pnnx_fuse_PixelUnshuffle.pt inputshape=[1,3,128,128]")
+    os.system("pnnx test_pnnx_fuse_pixel_unshuffle.pt inputshape=[1,3,128,128]")
 
     # ncnn inference
     import test_pnnx_fuse_PixelUnshuffle_pnnx
     b0 = test_pnnx_fuse_PixelUnshuffle_pnnx.test_inference()
 
-    return torch.allclose(a0, b0, 1e-4, 1e-4)
+    return torch.equal(a0, b0)
 
 if __name__ == "__main__":
     if test():
