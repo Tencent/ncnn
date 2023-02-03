@@ -563,23 +563,23 @@ int BinaryOp::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 
     // broadcast b for inner axis
     if ((b.dims < a.dims)
-        || (a.dims == 2 && b.w == 1 && b.h == a.h)
-        || (a.dims == 3 && b.w == 1 && b.h == 1 && b.c == a.c)
-        || (a.dims == 3 && b.w == 1 && b.h == a.h && b.c == a.c)
-        || (a.dims == 4 && b.w == 1 && b.h == 1 && b.d == 1 && b.c == a.c)
-        || (a.dims == 4 && b.w == 1 && b.h == 1 && b.d == a.d && b.c == a.c)
-        || (a.dims == 4 && b.w == 1 && b.h == a.h && b.d == a.d && b.c == a.c))
+            || (a.dims == 2 && b.w == 1 && b.h == a.h)
+            || (a.dims == 3 && b.w == 1 && b.h == 1 && b.c == a.c)
+            || (a.dims == 3 && b.w == 1 && b.h == a.h && b.c == a.c)
+            || (a.dims == 4 && b.w == 1 && b.h == 1 && b.d == 1 && b.c == a.c)
+            || (a.dims == 4 && b.w == 1 && b.h == 1 && b.d == a.d && b.c == a.c)
+            || (a.dims == 4 && b.w == 1 && b.h == a.h && b.d == a.d && b.c == a.c))
     {
         return binary_op_broadcast_inner(a, b, top_blob, op_type_r, opt);
     }
 
     // broadcast b for outer axis
     if ((a.dims == 2 && b.w == a.w && b.h == 1)
-        || (a.dims == 3 && b.w == a.w && b.h == 1 && b.c == 1)
-        || (a.dims == 3 && b.w == a.w && b.h == a.h && b.c == 1)
-        || (a.dims == 4 && b.w == a.w && b.h == 1 && b.d == 1 && b.c == 1)
-        || (a.dims == 4 && b.w == a.w && b.h == a.h && b.d == 1 && b.c == 1)
-        || (a.dims == 4 && b.w == a.w && b.h == a.h && b.d == a.d && b.c == 1))
+            || (a.dims == 3 && b.w == a.w && b.h == 1 && b.c == 1)
+            || (a.dims == 3 && b.w == a.w && b.h == a.h && b.c == 1)
+            || (a.dims == 4 && b.w == a.w && b.h == 1 && b.d == 1 && b.c == 1)
+            || (a.dims == 4 && b.w == a.w && b.h == a.h && b.d == 1 && b.c == 1)
+            || (a.dims == 4 && b.w == a.w && b.h == a.h && b.d == a.d && b.c == 1))
     {
         return binary_op_broadcast_outer(a, b, top_blob, op_type_r, opt);
     }
