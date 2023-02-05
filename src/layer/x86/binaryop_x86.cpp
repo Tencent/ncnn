@@ -75,7 +75,7 @@ static int binary_op_scalar(const Mat& a, float b, Mat& c, const Option& opt)
             outptr += 8;
         }
 #endif // __AVX__
-        __m128 _b = _mm_set1_ps((float)b);
+        __m128 _b = _mm_set1_ps(b);
         for (; i + 3 < size; i += 4)
         {
             __m128 _p = _mm_load_ps(ptr);
@@ -685,60 +685,51 @@ static int binary_op_broadcast_20(const Mat& a, const Mat& b, Mat& c, const Opti
         {
             const float* ptr1 = b.channel(q);
 
+            const int size = w * elempack;
+
+            int i = 0;
 #if __SSE2__
 #if __AVX__
 #if __AVX512F__
-            if (elempack == 16)
+            for (; i + 15 < size; i += 16)
             {
-                for (int x = 0; x < w; x++)
-                {
-                    __m512 _p = _mm512_loadu_ps(ptr);
-                    __m512 _b = _mm512_loadu_ps(ptr1);
-                    __m512 _outp = op.func_pack16(_p, _b);
-                    _mm512_storeu_ps(outptr, _outp);
-                    ptr += 16;
-                    ptr1 += 16;
-                    outptr += 16;
-                }
+                __m512 _p = _mm512_loadu_ps(ptr);
+                __m512 _p1 = _mm512_loadu_ps(ptr1);
+                __m512 _outp = op.func_pack16(_p, _p1);
+                _mm512_storeu_ps(outptr, _outp);
+                ptr += 16;
+                ptr1 += 16;
+                outptr += 16;
             }
 #endif // __AVX512F__
-            if (elempack == 8)
+            for (; i + 7 < size; i += 8)
             {
-                for (int x = 0; x < w; x++)
-                {
-                    __m256 _p = _mm256_loadu_ps(ptr);
-                    __m256 _b = _mm256_loadu_ps(ptr1);
-                    __m256 _outp = op.func_pack8(_p, _b);
-                    _mm256_storeu_ps(outptr, _outp);
-                    ptr += 8;
-                    ptr1 += 8;
-                    outptr += 8;
-                }
+                __m256 _p = _mm256_loadu_ps(ptr);
+                __m256 _p1 = _mm256_loadu_ps(ptr1);
+                __m256 _outp = op.func_pack8(_p, _p1);
+                _mm256_storeu_ps(outptr, _outp);
+                ptr += 8;
+                ptr1 += 8;
+                outptr += 8;
             }
 #endif // __AVX__
-            if (elempack == 4)
+            for (; i + 3 < size; i += 4)
             {
-                for (int x = 0; x < w; x++)
-                {
-                    __m128 _p = _mm_loadu_ps(ptr);
-                    __m128 _b = _mm_loadu_ps(ptr1);
-                    __m128 _outp = op.func_pack4(_p, _b);
-                    _mm_storeu_ps(outptr, _outp);
-                    ptr += 4;
-                    ptr1 += 4;
-                    outptr += 4;
-                }
+                __m128 _p = _mm_loadu_ps(ptr);
+                __m128 _p1 = _mm_loadu_ps(ptr1);
+                __m128 _outp = op.func_pack4(_p, _p1);
+                _mm_storeu_ps(outptr, _outp);
+                ptr += 4;
+                ptr1 += 4;
+                outptr += 4;
             }
 #endif // __SSE2__
-            if (elempack == 1)
+            for (; i < size; i++)
             {
-                for (int x = 0; x < w; x++)
-                {
-                    *outptr = op.func(*ptr, *ptr1);
-                    ptr += 1;
-                    ptr1 += 1;
-                    outptr += 1;
-                }
+                *outptr = op.func(*ptr, *ptr1);
+                ptr += 1;
+                ptr1 += 1;
+                outptr += 1;
             }
         }
     }
