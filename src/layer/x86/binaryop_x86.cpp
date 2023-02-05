@@ -174,15 +174,7 @@ static int binary_op_broadcast_inner(const Mat& a, const Mat& b, Mat& c, const O
     int h = a.h;
     int d = a.d;
     int channels = a.c;
-    // int size = w * h * d;
     int elempack = a.elempack;
-
-    int w1 = b.w;
-    int h1 = b.h;
-    int d1 = b.d;
-    int channels1 = b.c;
-    // int size1 = w1 * h1 * d1;
-    int elempack1 = b.elempack;
 
     if (a.dims == 2 && b.dims == 1)
     {
@@ -447,13 +439,14 @@ static int binary_op_broadcast_inner(const Mat& a, const Mat& b, Mat& c, const O
         for (int q = 0; q < channels; q++)
         {
             const float* ptr = a.channel(q);
-            const float* ptr1 = b.channel(q);
             float* outptr = c.channel(q);
 
             const int size = w * elempack;
 
             for (int z = 0; z < d; z++)
             {
+                const float* ptr1 = b.channel(q).row(z);
+
                 for (int y = 0; y < h; y++)
                 {
                     const float _b = ptr1[y];
@@ -498,15 +491,13 @@ static int binary_op_broadcast_inner(const Mat& a, const Mat& b, Mat& c, const O
                         outptr += 4;
                     }
 #endif // __SSE2__
-                    for (int x = 0; x < w; x++)
+                    for (; i < size; i++)
                     {
                         *outptr = op.func(*ptr, _b);
                         ptr += 1;
                         outptr += 1;
                     }
                 }
-
-                ptr1 += h;
             }
         }
     }
@@ -681,7 +672,6 @@ static int binary_op_broadcast_20(const Mat& a, const Mat& b, Mat& c, const Opti
 
     int w = a.w;
     int h = a.h;
-    int d = a.d;
     int channels = a.c;
     int elempack = a.elempack;
 
@@ -1116,12 +1106,12 @@ static int binary_op_broadcast_inner(const Mat& a, const Mat& b, Mat& c, int op_
 {
     // squeeze inner axes
     Mat b2 = b;
-    if (b.dims == 2) b2 = b.reshape(b.h);
-    if (b.dims == 3 && b.h == 1) b2 = b.reshape(b.c);
-    if (b.dims == 3 && b.w == 1) b2 = b.reshape(b.h, b.c);
-    if (b.dims == 4 && b.d == 1) b2 = b.reshape(b.c);
-    if (b.dims == 4 && b.h == 1) b2 = b.reshape(b.d, b.c);
-    if (b.dims == 4 && b.w == 1) b2 = b.reshape(b.h, b.d, b.c);
+    if (b.dims == 2 && b.w == 1) b2 = b.reshape(b.h);
+    else if (b.dims == 3 && b.h == 1) b2 = b.reshape(b.c);
+    else if (b.dims == 3 && b.w == 1) b2 = b.reshape(b.h, b.c);
+    else if (b.dims == 4 && b.d == 1) b2 = b.reshape(b.c);
+    else if (b.dims == 4 && b.h == 1) b2 = b.reshape(b.d, b.c);
+    else if (b.dims == 4 && b.w == 1) b2 = b.reshape(b.h, b.d, b.c);
 
     using namespace BinaryOp_x86_functor;
 
@@ -1203,8 +1193,6 @@ int BinaryOp_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
     if (top_blob.empty())
         return -100;
 
-    NCNN_LOGE("BinaryOp_x86 %d %d     %d %d %d %d      %d %d %d %d", a.dims, b.dims, a.w, a.h, a.d, a.c, b.w, b.h, b.d, b.c);
-
     // b is a scalar
     if (b.w * b.h * b.d * b.c * b.elempack == 1)
     {
@@ -1230,12 +1218,12 @@ int BinaryOp_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
     }
 
     // broadcast b for outer axis
-    if ((a.dims == 2 && b.w == a.w && b.h == 1)
+    if (b.elempack == 1 && ((a.dims == 2 && b.w == a.w && b.h == 1)
             || (a.dims == 3 && b.w == a.w && b.h == 1 && b.c == 1)
             || (a.dims == 3 && b.w == a.w && b.h == a.h && b.c == 1)
             || (a.dims == 4 && b.w == a.w && b.h == 1 && b.d == 1 && b.c == 1)
             || (a.dims == 4 && b.w == a.w && b.h == a.h && b.d == 1 && b.c == 1)
-            || (a.dims == 4 && b.w == a.w && b.h == a.h && b.d == a.d && b.c == 1))
+            || (a.dims == 4 && b.w == a.w && b.h == a.h && b.d == a.d && b.c == 1)))
     {
         return binary_op_broadcast_outer(a, b, top_blob, op_type_r, opt);
     }

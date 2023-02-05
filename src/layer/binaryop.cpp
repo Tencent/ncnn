@@ -102,13 +102,6 @@ static int binary_op_broadcast_inner(const Mat& a, const Mat& b, Mat& c, const O
     int d = a.d;
     int channels = a.c;
     int size = w * h * d;
-    size_t elemsize = a.elemsize;
-
-    int w1 = b.w;
-    int h1 = b.h;
-    int d1 = b.d;
-    int channels1 = b.c;
-    int size1 = w1 * h1 * d1;
 
     if (a.dims == 2 && b.dims == 1)
     {
@@ -293,16 +286,10 @@ static int binary_op_broadcast_20(const Mat& a, const Mat& b, Mat& c, const Opti
 
     int w = a.w;
     int h = a.h;
-    int d = a.d;
     int channels = a.c;
 
-    int w1 = b.w;
-    int h1 = b.h;
-    int d1 = b.d;
-    int channels1 = b.c;
-
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q = 0; q < channels1; q++)
+    for (int q = 0; q < channels; q++)
     {
         const float* ptr = a.channel(q);
         const float* ptr1 = b.channel(q);
@@ -328,11 +315,8 @@ static int binary_op_scalar_inplace(Mat& a, float b, const Option& opt)
 {
     Op op;
 
-    int w = a.w;
-    int h = a.h;
-    int d = a.d;
     int channels = a.c;
-    int size = w * h * d;
+    int size = a.w * a.h * a.d;
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
@@ -466,12 +450,12 @@ static int binary_op_broadcast_inner(const Mat& a, const Mat& b, Mat& c, int op_
 {
     // squeeze inner axes
     Mat b2 = b;
-    if (b.dims == 2) b2 = b.reshape(b.h);
-    if (b.dims == 3 && b.h == 1) b2 = b.reshape(b.c);
-    if (b.dims == 3 && b.w == 1) b2 = b.reshape(b.h, b.c);
-    if (b.dims == 4 && b.d == 1) b2 = b.reshape(b.c);
-    if (b.dims == 4 && b.h == 1) b2 = b.reshape(b.d, b.c);
-    if (b.dims == 4 && b.w == 1) b2 = b.reshape(b.h, b.d, b.c);
+    if (b.dims == 2 && b.w == 1) b2 = b.reshape(b.h);
+    else if (b.dims == 3 && b.h == 1) b2 = b.reshape(b.c);
+    else if (b.dims == 3 && b.w == 1) b2 = b.reshape(b.h, b.c);
+    else if (b.dims == 4 && b.d == 1) b2 = b.reshape(b.c);
+    else if (b.dims == 4 && b.h == 1) b2 = b.reshape(b.d, b.c);
+    else if (b.dims == 4 && b.w == 1) b2 = b.reshape(b.h, b.d, b.c);
 
     if (op_type == BinaryOp::Operation_ADD) return binary_op_broadcast_inner<binary_op_add>(a, b2, c, opt);
     if (op_type == BinaryOp::Operation_SUB) return binary_op_broadcast_inner<binary_op_sub>(a, b2, c, opt);
@@ -546,8 +530,6 @@ int BinaryOp::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     top_blob.create_like(a, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
-
-    NCNN_LOGE("BinaryOp %d %d     %d %d %d %d      %d %d %d %d", a.dims, b.dims, a.w, a.h, a.d, a.c, b.w, b.h, b.d, b.c);
 
     // b is a scalar
     if (b.w * b.h * b.d * b.c == 1)
