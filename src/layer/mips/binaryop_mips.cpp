@@ -49,6 +49,7 @@ static int binary_op_scalar(const Mat& a, float b, Mat& c, const Option& opt)
         v4f32 _b = __msa_fill_w_f32(b);
         for (; i + 3 < size; i += 4)
         {
+            __builtin_prefetch(ptr + 16);
             v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
             _p = op(_p, _b);
             __msa_st_w((v4i32)_p, outptr, 0);
@@ -91,6 +92,8 @@ static int binary_op_no_broadcast(const Mat& a, const Mat& b, Mat& c, const Opti
 #if __mips_msa
         for (; i + 3 < size; i += 4)
         {
+            __builtin_prefetch(ptr + 16);
+            __builtin_prefetch(ptr1 + 16);
             v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
             v4f32 _p1 = (v4f32)__msa_ld_w(ptr1, 0);
             v4f32 _outp = op(_p, _p1);
@@ -134,7 +137,7 @@ static int binary_op_broadcast_inner(const Mat& a, const Mat& b, Mat& c, const O
 
             const float _b = b[y];
 #if __mips_msa
-            v4f32 _b_128 = (elempack == 4) ? __msa_ld_w((const float*)b + y * 4, 0) : __msa_fill_w_f32(_b);
+            v4f32 _b_128 = (elempack == 4) ? (v4f32)__msa_ld_w((const float*)b + y * 4, 0) : __msa_fill_w_f32(_b);
 #endif // __mips_msa
 
             const int size = w * elempack;
@@ -143,6 +146,7 @@ static int binary_op_broadcast_inner(const Mat& a, const Mat& b, Mat& c, const O
 #if __mips_msa
             for (; i + 3 < size; i += 4)
             {
+                __builtin_prefetch(ptr + 16);
                 v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
                 v4f32 _outp = op(_p, _b_128);
                 __msa_st_w((v4i32)_outp, outptr, 0);
@@ -170,7 +174,7 @@ static int binary_op_broadcast_inner(const Mat& a, const Mat& b, Mat& c, const O
 
             const float _b = b[q];
 #if __mips_msa
-            v4f32 _b_128 = (elempack == 4) ? __msa_ld_w((const float*)b + q * 4, 0) : __msa_fill_w_f32(_b);
+            v4f32 _b_128 = (elempack == 4) ? (v4f32)__msa_ld_w((const float*)b + q * 4, 0) : __msa_fill_w_f32(_b);
 #endif // __mips_msa
 
             const int size = w * h * d * elempack;
@@ -179,6 +183,7 @@ static int binary_op_broadcast_inner(const Mat& a, const Mat& b, Mat& c, const O
 #if __mips_msa
             for (; i + 3 < size; i += 4)
             {
+                __builtin_prefetch(ptr + 16);
                 v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
                 v4f32 _outp = op(_p, _b_128);
                 __msa_st_w((v4i32)_outp, outptr, 0);
@@ -211,13 +216,14 @@ static int binary_op_broadcast_inner(const Mat& a, const Mat& b, Mat& c, const O
             {
                 const float _b = ptr1[y];
 #if __mips_msa
-                v4f32 _b_128 = (elempack == 4) ? __msa_ld_w((const float*)ptr1 + y * 4, 0) : __msa_fill_w_f32(_b);
+                v4f32 _b_128 = (elempack == 4) ? (v4f32)__msa_ld_w((const float*)ptr1 + y * 4, 0) : __msa_fill_w_f32(_b);
 #endif // __mips_msa
 
                 int i = 0;
 #if __mips_msa
                 for (; i + 3 < size; i += 4)
                 {
+                    __builtin_prefetch(ptr + 16);
                     v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
                     v4f32 _outp = op(_p, _b_128);
                     __msa_st_w((v4i32)_outp, outptr, 0);
@@ -251,13 +257,14 @@ static int binary_op_broadcast_inner(const Mat& a, const Mat& b, Mat& c, const O
             {
                 const float _b = ptr1[z];
 #if __mips_msa
-                v4f32 _b_128 = (elempack == 4) ? __msa_ld_w((const float*)ptr1 + z * 4, 0) : __msa_fill_w_f32(_b);
+                v4f32 _b_128 = (elempack == 4) ? (v4f32)__msa_ld_w((const float*)ptr1 + z * 4, 0) : __msa_fill_w_f32(_b);
 #endif // __mips_msa
 
                 int i = 0;
 #if __mips_msa
                 for (; i + 3 < size; i += 4)
                 {
+                    __builtin_prefetch(ptr + 16);
                     v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
                     v4f32 _outp = op(_p, _b_128);
                     __msa_st_w((v4i32)_outp, outptr, 0);
@@ -294,13 +301,14 @@ static int binary_op_broadcast_inner(const Mat& a, const Mat& b, Mat& c, const O
                 {
                     const float _b = ptr1[y];
 #if __mips_msa
-                    v4f32 _b_128 = (elempack == 4) ? __msa_ld_w((const float*)ptr1 + y * 4, 0) : __msa_fill_w_f32(_b);
+                    v4f32 _b_128 = (elempack == 4) ? (v4f32)__msa_ld_w((const float*)ptr1 + y * 4, 0) : __msa_fill_w_f32(_b);
 #endif // __mips_msa
 
                     int i = 0;
 #if __mips_msa
                     for (; i + 3 < size; i += 4)
                     {
+                        __builtin_prefetch(ptr + 16);
                         v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
                         v4f32 _outp = op(_p, _b_128);
                         __msa_st_w((v4i32)_outp, outptr, 0);
@@ -348,6 +356,7 @@ static int binary_op_broadcast_outer(const Mat& a, const Mat& b, Mat& c, const O
             {
                 for (int x = 0; x < w; x++)
                 {
+                    __builtin_prefetch(ptr + 16);
                     v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
                     v4f32 _b = __msa_fill_w_f32(*ptr1);
                     v4f32 _outp = op(_p, _b);
@@ -394,6 +403,7 @@ static int binary_op_broadcast_outer(const Mat& a, const Mat& b, Mat& c, const O
                     {
                         for (int x = 0; x < w; x++)
                         {
+                            __builtin_prefetch(ptr + 16);
                             v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
                             v4f32 _b = __msa_fill_w_f32(*ptr1);
                             v4f32 _outp = op(_p, _b);
@@ -448,6 +458,8 @@ static int binary_op_broadcast_20(const Mat& a, const Mat& b, Mat& c, const Opti
 #if __mips_msa
             for (; i + 3 < size; i += 4)
             {
+                __builtin_prefetch(ptr + 16);
+                __builtin_prefetch(ptr1 + 16);
                 v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
                 v4f32 _p1 = (v4f32)__msa_ld_w(ptr1, 0);
                 v4f32 _outp = op(_p, _p1);
@@ -488,6 +500,7 @@ static int binary_op_scalar_inplace(Mat& a, float b, const Option& opt)
         v4f32 _b = __msa_fill_w_f32(b);
         for (; i + 3 < size; i += 4)
         {
+            __builtin_prefetch(ptr + 16);
             v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
             _p = op(_p, _b);
             __msa_st_w((v4i32)_p, ptr, 0);
