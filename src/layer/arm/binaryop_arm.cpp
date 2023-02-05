@@ -495,7 +495,7 @@ static int binary_op_scalar_inplace(Mat& a, float b, const Option& opt)
 
         int i = 0;
 #if __ARM_NEON
-        float32x4_t _b = vdupq_n_f32((float)b);
+        float32x4_t _b = vdupq_n_f32(b);
         for (; i + 3 < size; i += 4)
         {
             float32x4_t _p = vld1q_f32(ptr);
