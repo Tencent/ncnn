@@ -191,7 +191,7 @@ static int test_binaryop_3()
         Randomize(b1);
 
         int ret = test_binaryop(a[i], b0) || test_binaryop(b0, a[i])
-              || test_binaryop(a[i], b1) || test_binaryop(b1, a[i]);
+                  || test_binaryop(a[i], b1) || test_binaryop(b1, a[i]);
         if (ret != 0)
             return ret;
     }
@@ -220,9 +220,9 @@ static int test_binaryop_4()
         Randomize(b3);
 
         int ret = test_binaryop(a[i], b0) || test_binaryop(b0, a[i])
-              || test_binaryop(a[i], b1) || test_binaryop(b1, a[i])
-              || test_binaryop(a[i], b2) || test_binaryop(b2, a[i])
-              || test_binaryop(a[i], b3) || test_binaryop(b3, a[i]);
+                  || test_binaryop(a[i], b1) || test_binaryop(b1, a[i])
+                  || test_binaryop(a[i], b2) || test_binaryop(b2, a[i])
+                  || test_binaryop(a[i], b3) || test_binaryop(b3, a[i]);
         if (ret != 0)
             return ret;
     }
@@ -255,11 +255,11 @@ static int test_binaryop_5()
         Randomize(b5);
 
         int ret = test_binaryop(a[i], b0) || test_binaryop(b0, a[i])
-              || test_binaryop(a[i], b1) || test_binaryop(b1, a[i])
-              || test_binaryop(a[i], b2) || test_binaryop(b2, a[i])
-              || test_binaryop(a[i], b3) || test_binaryop(b3, a[i])
-              || test_binaryop(a[i], b4) || test_binaryop(b4, a[i])
-              || test_binaryop(a[i], b5) || test_binaryop(b5, a[i]);
+                  || test_binaryop(a[i], b1) || test_binaryop(b1, a[i])
+                  || test_binaryop(a[i], b2) || test_binaryop(b2, a[i])
+                  || test_binaryop(a[i], b3) || test_binaryop(b3, a[i])
+                  || test_binaryop(a[i], b4) || test_binaryop(b4, a[i])
+                  || test_binaryop(a[i], b5) || test_binaryop(b5, a[i]);
         if (ret != 0)
             return ret;
     }
@@ -306,7 +306,7 @@ static int test_binaryop_7()
         Randomize(b1);
 
         int ret = test_binaryop(a[i], b0) || test_binaryop(b0, a[i])
-              || test_binaryop(a[i], b1) || test_binaryop(b1, a[i]);
+                  || test_binaryop(a[i], b1) || test_binaryop(b1, a[i]);
         if (ret != 0)
             return ret;
     }
@@ -333,8 +333,8 @@ static int test_binaryop_8()
         Randomize(b2);
 
         int ret = test_binaryop(a[i], b0) || test_binaryop(b0, a[i])
-              || test_binaryop(a[i], b1) || test_binaryop(b1, a[i])
-              || test_binaryop(a[i], b2) || test_binaryop(b2, a[i]);
+                  || test_binaryop(a[i], b1) || test_binaryop(b1, a[i])
+                  || test_binaryop(a[i], b2) || test_binaryop(b2, a[i]);
         if (ret != 0)
             return ret;
     }

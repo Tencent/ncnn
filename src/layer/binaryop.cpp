@@ -450,12 +450,18 @@ static int binary_op_broadcast_inner(const Mat& a, const Mat& b, Mat& c, int op_
 {
     // squeeze inner axes
     Mat b2 = b;
-    if (b.dims == 2 && b.w == 1) b2 = b.reshape(b.h);
-    else if (b.dims == 3 && b.h == 1) b2 = b.reshape(b.c);
-    else if (b.dims == 3 && b.w == 1) b2 = b.reshape(b.h, b.c);
-    else if (b.dims == 4 && b.d == 1) b2 = b.reshape(b.c);
-    else if (b.dims == 4 && b.h == 1) b2 = b.reshape(b.d, b.c);
-    else if (b.dims == 4 && b.w == 1) b2 = b.reshape(b.h, b.d, b.c);
+    if (b.dims == 2 && b.w == 1)
+        b2 = b.reshape(b.h);
+    else if (b.dims == 3 && b.h == 1)
+        b2 = b.reshape(b.c);
+    else if (b.dims == 3 && b.w == 1)
+        b2 = b.reshape(b.h, b.c);
+    else if (b.dims == 4 && b.d == 1)
+        b2 = b.reshape(b.c);
+    else if (b.dims == 4 && b.h == 1)
+        b2 = b.reshape(b.d, b.c);
+    else if (b.dims == 4 && b.w == 1)
+        b2 = b.reshape(b.h, b.d, b.c);
 
     if (op_type == BinaryOp::Operation_ADD) return binary_op_broadcast_inner<binary_op_add>(a, b2, c, opt);
     if (op_type == BinaryOp::Operation_SUB) return binary_op_broadcast_inner<binary_op_sub>(a, b2, c, opt);

@@ -1106,12 +1106,18 @@ static int binary_op_broadcast_inner(const Mat& a, const Mat& b, Mat& c, int op_
 {
     // squeeze inner axes
     Mat b2 = b;
-    if (b.dims == 2 && b.w == 1) b2 = b.reshape(b.h);
-    else if (b.dims == 3 && b.h == 1) b2 = b.reshape(b.c);
-    else if (b.dims == 3 && b.w == 1) b2 = b.reshape(b.h, b.c);
-    else if (b.dims == 4 && b.d == 1) b2 = b.reshape(b.c);
-    else if (b.dims == 4 && b.h == 1) b2 = b.reshape(b.d, b.c);
-    else if (b.dims == 4 && b.w == 1) b2 = b.reshape(b.h, b.d, b.c);
+    if (b.dims == 2 && b.w == 1)
+        b2 = b.reshape(b.h);
+    else if (b.dims == 3 && b.h == 1)
+        b2 = b.reshape(b.c);
+    else if (b.dims == 3 && b.w == 1)
+        b2 = b.reshape(b.h, b.c);
+    else if (b.dims == 4 && b.d == 1)
+        b2 = b.reshape(b.c);
+    else if (b.dims == 4 && b.h == 1)
+        b2 = b.reshape(b.d, b.c);
+    else if (b.dims == 4 && b.w == 1)
+        b2 = b.reshape(b.h, b.d, b.c);
 
     using namespace BinaryOp_x86_functor;
 
@@ -1218,12 +1224,7 @@ int BinaryOp_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
     }
 
     // broadcast b for outer axis
-    if (b.elempack == 1 && ((a.dims == 2 && b.w == a.w && b.h == 1)
-            || (a.dims == 3 && b.w == a.w && b.h == 1 && b.c == 1)
-            || (a.dims == 3 && b.w == a.w && b.h == a.h && b.c == 1)
-            || (a.dims == 4 && b.w == a.w && b.h == 1 && b.d == 1 && b.c == 1)
-            || (a.dims == 4 && b.w == a.w && b.h == a.h && b.d == 1 && b.c == 1)
-            || (a.dims == 4 && b.w == a.w && b.h == a.h && b.d == a.d && b.c == 1)))
+    if (b.elempack == 1 && ((a.dims == 2 && b.w == a.w && b.h == 1) || (a.dims == 3 && b.w == a.w && b.h == 1 && b.c == 1) || (a.dims == 3 && b.w == a.w && b.h == a.h && b.c == 1) || (a.dims == 4 && b.w == a.w && b.h == 1 && b.d == 1 && b.c == 1) || (a.dims == 4 && b.w == a.w && b.h == a.h && b.d == 1 && b.c == 1) || (a.dims == 4 && b.w == a.w && b.h == a.h && b.d == a.d && b.c == 1)))
     {
         return binary_op_broadcast_outer(a, b, top_blob, op_type_r, opt);
     }
