@@ -25,7 +25,7 @@ namespace ncnn {
 
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 template<typename Op>
-static int binary_op_scalar_fp16s(const Mat& a, float b, Mat& c, const Option& opt)
+static int binary_op_scalar_fp16s(const Mat& a, __fp16 b, Mat& c, const Option& opt)
 {
     Op op;
 
@@ -39,7 +39,7 @@ static int binary_op_scalar_fp16s(const Mat& a, float b, Mat& c, const Option& o
         __fp16* outptr = c.channel(q);
 
         int i = 0;
-        float16x8_t _b = vdupq_n_f16((__fp16)b);
+        float16x8_t _b = vdupq_n_f16(b);
         for (; i + 7 < size; i += 8)
         {
             float16x8_t _p = vld1q_f16(ptr);
@@ -58,7 +58,7 @@ static int binary_op_scalar_fp16s(const Mat& a, float b, Mat& c, const Option& o
         }
         for (; i < size; i++)
         {
-            *outptr = op(*ptr, (__fp16)b);
+            *outptr = op(*ptr, b);
             ptr++;
             outptr++;
         }
@@ -534,7 +534,7 @@ static int binary_op_broadcast_20_fp16s(const Mat& a, const Mat& b, Mat& c, cons
 }
 
 template<typename Op>
-static int binary_op_scalar_inplace_fp16s(Mat& a, float b, const Option& opt)
+static int binary_op_scalar_inplace_fp16s(Mat& a, __fp16 b, const Option& opt)
 {
     Op op;
 
@@ -547,7 +547,7 @@ static int binary_op_scalar_inplace_fp16s(Mat& a, float b, const Option& opt)
         __fp16* ptr = a.channel(q);
 
         int i = 0;
-        float16x8_t _b = vdupq_n_f16((__fp16)b);
+        float16x8_t _b = vdupq_n_f16(b);
         for (; i + 7 < size; i += 8)
         {
             float16x8_t _p = vld1q_f16(ptr);
@@ -564,7 +564,7 @@ static int binary_op_scalar_inplace_fp16s(Mat& a, float b, const Option& opt)
         }
         for (; i < size; i++)
         {
-            *ptr = op(*ptr, (__fp16)b);
+            *ptr = op(*ptr, b);
             ptr++;
         }
     }
@@ -736,49 +736,49 @@ int BinaryOp_arm::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vecto
     const bool b_rank_is_lower = bottom_blobs[1].dims < bottom_blobs[0].dims;
     const bool b_size_is_lower = bottom_blobs[1].w * bottom_blobs[1].h * bottom_blobs[1].d * bottom_blobs[1].c * bottom_blobs[1].elempack < bottom_blobs[0].w * bottom_blobs[0].h * bottom_blobs[0].d * bottom_blobs[0].c * bottom_blobs[0].elempack;
     const bool b_is_lower = b_rank_is_lower || b_size_is_lower;
-    const Mat& a = b_is_lower ? bottom_blobs[0] : bottom_blobs[1];
-    const Mat& b = b_is_lower ? bottom_blobs[1] : bottom_blobs[0];
+    const Mat& A = b_is_lower ? bottom_blobs[0] : bottom_blobs[1];
+    const Mat& B = b_is_lower ? bottom_blobs[1] : bottom_blobs[0];
     const int op_type_r = b_is_lower ? op_type : get_reverse_op_type(op_type);
 
     Mat& top_blob = top_blobs[0];
-    top_blob.create_like(a, opt.blob_allocator);
+    top_blob.create_like(A, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
 
-    // b is a scalar
-    if (b.w * b.h * b.d * b.c * b.elempack == 1)
+    // B is A scalar
+    if (B.w * B.h * B.d * B.c * B.elempack == 1)
     {
-        return binary_op_scalar_fp16s(a, b[0], top_blob, op_type_r, opt);
+        return binary_op_scalar_fp16s(A, ((const __fp16*)B)[0], top_blob, op_type_r, opt);
     }
 
     // no broadcast
-    if (a.dims == b.dims && a.w == b.w && a.h == b.h && a.d == b.d && a.c == b.c && a.elempack == b.elempack)
+    if (A.dims == B.dims && A.w == B.w && A.h == B.h && A.d == B.d && A.c == B.c && A.elempack == B.elempack)
     {
-        return binary_op_no_broadcast_fp16s(a, b, top_blob, op_type_r, opt);
+        return binary_op_no_broadcast_fp16s(A, B, top_blob, op_type_r, opt);
     }
 
-    // broadcast b for inner axis
-    if ((b.dims < a.dims)
-            || (a.dims == 2 && b.w == 1 && b.h == a.h)
-            || (a.dims == 3 && b.w == 1 && b.h == 1 && b.c == a.c)
-            || (a.dims == 3 && b.w == 1 && b.h == a.h && b.c == a.c)
-            || (a.dims == 4 && b.w == 1 && b.h == 1 && b.d == 1 && b.c == a.c)
-            || (a.dims == 4 && b.w == 1 && b.h == 1 && b.d == a.d && b.c == a.c)
-            || (a.dims == 4 && b.w == 1 && b.h == a.h && b.d == a.d && b.c == a.c))
+    // broadcast B for inner axis
+    if ((B.dims < A.dims)
+            || (A.dims == 2 && B.w == 1 && B.h == A.h)
+            || (A.dims == 3 && B.w == 1 && B.h == 1 && B.c == A.c)
+            || (A.dims == 3 && B.w == 1 && B.h == A.h && B.c == A.c)
+            || (A.dims == 4 && B.w == 1 && B.h == 1 && B.d == 1 && B.c == A.c)
+            || (A.dims == 4 && B.w == 1 && B.h == 1 && B.d == A.d && B.c == A.c)
+            || (A.dims == 4 && B.w == 1 && B.h == A.h && B.d == A.d && B.c == A.c))
     {
-        return binary_op_broadcast_inner_fp16s(a, b, top_blob, op_type_r, opt);
+        return binary_op_broadcast_inner_fp16s(A, B, top_blob, op_type_r, opt);
     }
 
-    // broadcast b for outer axis
-    if (b.elempack == 1 && ((a.dims == 2 && b.w == a.w && b.h == 1) || (a.dims == 3 && b.w == a.w && b.h == 1 && b.c == 1) || (a.dims == 3 && b.w == a.w && b.h == a.h && b.c == 1) || (a.dims == 4 && b.w == a.w && b.h == 1 && b.d == 1 && b.c == 1) || (a.dims == 4 && b.w == a.w && b.h == a.h && b.d == 1 && b.c == 1) || (a.dims == 4 && b.w == a.w && b.h == a.h && b.d == a.d && b.c == 1)))
+    // broadcast B for outer axis
+    if (B.elempack == 1 && ((A.dims == 2 && B.w == A.w && B.h == 1) || (A.dims == 3 && B.w == A.w && B.h == 1 && B.c == 1) || (A.dims == 3 && B.w == A.w && B.h == A.h && B.c == 1) || (A.dims == 4 && B.w == A.w && B.h == 1 && B.d == 1 && B.c == 1) || (A.dims == 4 && B.w == A.w && B.h == A.h && B.d == 1 && B.c == 1) || (A.dims == 4 && B.w == A.w && B.h == A.h && B.d == A.d && B.c == 1)))
     {
-        return binary_op_broadcast_outer_fp16s(a, b, top_blob, op_type_r, opt);
+        return binary_op_broadcast_outer_fp16s(A, B, top_blob, op_type_r, opt);
     }
 
     // some special broadcast rule here
-    if (a.dims == 3 && b.dims == 3 && a.w == b.w && b.h == 1 && a.c == b.c)
+    if (A.dims == 3 && B.dims == 3 && A.w == B.w && B.h == 1 && A.c == B.c)
     {
-        return binary_op_broadcast_20_fp16s(a, b, top_blob, op_type_r, opt);
+        return binary_op_broadcast_20_fp16s(A, B, top_blob, op_type_r, opt);
     }
 
     return 0;
@@ -788,16 +788,16 @@ int BinaryOp_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt)
 {
     using namespace BinaryOp_arm_functor;
 
-    if (op_type == Operation_ADD) return binary_op_scalar_inplace_fp16s<binary_op_add_fp16s>(bottom_top_blob, b, opt);
-    if (op_type == Operation_SUB) return binary_op_scalar_inplace_fp16s<binary_op_sub_fp16s>(bottom_top_blob, b, opt);
-    if (op_type == Operation_MUL) return binary_op_scalar_inplace_fp16s<binary_op_mul_fp16s>(bottom_top_blob, b, opt);
-    if (op_type == Operation_DIV) return binary_op_scalar_inplace_fp16s<binary_op_div_fp16s>(bottom_top_blob, b, opt);
-    if (op_type == Operation_MAX) return binary_op_scalar_inplace_fp16s<binary_op_max_fp16s>(bottom_top_blob, b, opt);
-    if (op_type == Operation_MIN) return binary_op_scalar_inplace_fp16s<binary_op_min_fp16s>(bottom_top_blob, b, opt);
-    if (op_type == Operation_POW) return binary_op_scalar_inplace_fp16s<binary_op_pow_fp16s>(bottom_top_blob, b, opt);
-    if (op_type == Operation_RSUB) return binary_op_scalar_inplace_fp16s<binary_op_rsub_fp16s>(bottom_top_blob, b, opt);
-    if (op_type == Operation_RDIV) return binary_op_scalar_inplace_fp16s<binary_op_rdiv_fp16s>(bottom_top_blob, b, opt);
-    if (op_type == Operation_RPOW) return binary_op_scalar_inplace_fp16s<binary_op_rpow_fp16s>(bottom_top_blob, b, opt);
+    if (op_type == Operation_ADD) return binary_op_scalar_inplace_fp16s<binary_op_add_fp16s>(bottom_top_blob, (__fp16)b, opt);
+    if (op_type == Operation_SUB) return binary_op_scalar_inplace_fp16s<binary_op_sub_fp16s>(bottom_top_blob, (__fp16)b, opt);
+    if (op_type == Operation_MUL) return binary_op_scalar_inplace_fp16s<binary_op_mul_fp16s>(bottom_top_blob, (__fp16)b, opt);
+    if (op_type == Operation_DIV) return binary_op_scalar_inplace_fp16s<binary_op_div_fp16s>(bottom_top_blob, (__fp16)b, opt);
+    if (op_type == Operation_MAX) return binary_op_scalar_inplace_fp16s<binary_op_max_fp16s>(bottom_top_blob, (__fp16)b, opt);
+    if (op_type == Operation_MIN) return binary_op_scalar_inplace_fp16s<binary_op_min_fp16s>(bottom_top_blob, (__fp16)b, opt);
+    if (op_type == Operation_POW) return binary_op_scalar_inplace_fp16s<binary_op_pow_fp16s>(bottom_top_blob, (__fp16)b, opt);
+    if (op_type == Operation_RSUB) return binary_op_scalar_inplace_fp16s<binary_op_rsub_fp16s>(bottom_top_blob, (__fp16)b, opt);
+    if (op_type == Operation_RDIV) return binary_op_scalar_inplace_fp16s<binary_op_rdiv_fp16s>(bottom_top_blob, (__fp16)b, opt);
+    if (op_type == Operation_RPOW) return binary_op_scalar_inplace_fp16s<binary_op_rpow_fp16s>(bottom_top_blob, (__fp16)b, opt);
 
     return 0;
 }

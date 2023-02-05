@@ -1181,49 +1181,49 @@ int BinaryOp_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
     const bool b_rank_is_lower = bottom_blobs[1].dims < bottom_blobs[0].dims;
     const bool b_size_is_lower = bottom_blobs[1].w * bottom_blobs[1].h * bottom_blobs[1].d * bottom_blobs[1].c * bottom_blobs[1].elempack < bottom_blobs[0].w * bottom_blobs[0].h * bottom_blobs[0].d * bottom_blobs[0].c * bottom_blobs[0].elempack;
     const bool b_is_lower = b_rank_is_lower || b_size_is_lower;
-    const Mat& a = b_is_lower ? bottom_blobs[0] : bottom_blobs[1];
-    const Mat& b = b_is_lower ? bottom_blobs[1] : bottom_blobs[0];
+    const Mat& A = b_is_lower ? bottom_blobs[0] : bottom_blobs[1];
+    const Mat& B = b_is_lower ? bottom_blobs[1] : bottom_blobs[0];
     const int op_type_r = b_is_lower ? op_type : get_reverse_op_type(op_type);
 
     Mat& top_blob = top_blobs[0];
-    top_blob.create_like(a, opt.blob_allocator);
+    top_blob.create_like(A, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
 
-    // b is a scalar
-    if (b.w * b.h * b.d * b.c * b.elempack == 1)
+    // B is a scalar
+    if (B.w * B.h * B.d * B.c * B.elempack == 1)
     {
-        return binary_op_scalar(a, b[0], top_blob, op_type_r, opt);
+        return binary_op_scalar(A, B[0], top_blob, op_type_r, opt);
     }
 
     // no broadcast
-    if (a.dims == b.dims && a.w == b.w && a.h == b.h && a.d == b.d && a.c == b.c && a.elempack == b.elempack)
+    if (A.dims == B.dims && A.w == B.w && A.h == B.h && A.d == B.d && A.c == B.c && A.elempack == B.elempack)
     {
-        return binary_op_no_broadcast(a, b, top_blob, op_type_r, opt);
+        return binary_op_no_broadcast(A, B, top_blob, op_type_r, opt);
     }
 
-    // broadcast b for inner axis
-    if ((b.dims < a.dims)
-            || (a.dims == 2 && b.w == 1 && b.h == a.h)
-            || (a.dims == 3 && b.w == 1 && b.h == 1 && b.c == a.c)
-            || (a.dims == 3 && b.w == 1 && b.h == a.h && b.c == a.c)
-            || (a.dims == 4 && b.w == 1 && b.h == 1 && b.d == 1 && b.c == a.c)
-            || (a.dims == 4 && b.w == 1 && b.h == 1 && b.d == a.d && b.c == a.c)
-            || (a.dims == 4 && b.w == 1 && b.h == a.h && b.d == a.d && b.c == a.c))
+    // broadcast B for inner axis
+    if ((B.dims < A.dims)
+            || (A.dims == 2 && B.w == 1 && B.h == A.h)
+            || (A.dims == 3 && B.w == 1 && B.h == 1 && B.c == A.c)
+            || (A.dims == 3 && B.w == 1 && B.h == A.h && B.c == A.c)
+            || (A.dims == 4 && B.w == 1 && B.h == 1 && B.d == 1 && B.c == A.c)
+            || (A.dims == 4 && B.w == 1 && B.h == 1 && B.d == A.d && B.c == A.c)
+            || (A.dims == 4 && B.w == 1 && B.h == A.h && B.d == A.d && B.c == A.c))
     {
-        return binary_op_broadcast_inner(a, b, top_blob, op_type_r, opt);
+        return binary_op_broadcast_inner(A, B, top_blob, op_type_r, opt);
     }
 
-    // broadcast b for outer axis
-    if (b.elempack == 1 && ((a.dims == 2 && b.w == a.w && b.h == 1) || (a.dims == 3 && b.w == a.w && b.h == 1 && b.c == 1) || (a.dims == 3 && b.w == a.w && b.h == a.h && b.c == 1) || (a.dims == 4 && b.w == a.w && b.h == 1 && b.d == 1 && b.c == 1) || (a.dims == 4 && b.w == a.w && b.h == a.h && b.d == 1 && b.c == 1) || (a.dims == 4 && b.w == a.w && b.h == a.h && b.d == a.d && b.c == 1)))
+    // broadcast B for outer axis
+    if (B.elempack == 1 && ((A.dims == 2 && B.w == A.w && B.h == 1) || (A.dims == 3 && B.w == A.w && B.h == 1 && B.c == 1) || (A.dims == 3 && B.w == A.w && B.h == A.h && B.c == 1) || (A.dims == 4 && B.w == A.w && B.h == 1 && B.d == 1 && B.c == 1) || (A.dims == 4 && B.w == A.w && B.h == A.h && B.d == 1 && B.c == 1) || (A.dims == 4 && B.w == A.w && B.h == A.h && B.d == A.d && B.c == 1)))
     {
-        return binary_op_broadcast_outer(a, b, top_blob, op_type_r, opt);
+        return binary_op_broadcast_outer(A, B, top_blob, op_type_r, opt);
     }
 
     // some special broadcast rule here
-    if (a.dims == 3 && b.dims == 3 && a.w == b.w && b.h == 1 && a.c == b.c)
+    if (A.dims == 3 && B.dims == 3 && A.w == B.w && B.h == 1 && A.c == B.c)
     {
-        return binary_op_broadcast_20(a, b, top_blob, op_type_r, opt);
+        return binary_op_broadcast_20(A, B, top_blob, op_type_r, opt);
     }
 
     return 0;
