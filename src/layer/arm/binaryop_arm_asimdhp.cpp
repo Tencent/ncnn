@@ -181,7 +181,7 @@ static int binary_op_broadcast_inner_fp16s(const Mat& a, const Mat& b, Mat& c, c
             const __fp16* ptr = a.channel(q);
             __fp16* outptr = c.channel(q);
 
-            const __fp16 _b = b[q];
+            const __fp16 _b = ((const __fp16*)b)[q];
             float16x4_t _b_128 = (elempack == 4) ? vld1_f16((const __fp16*)b + q * 4) : vdup_n_f16(_b);
             float16x8_t _b_256 = (elempack == 8) ? vld1q_f16((const __fp16*)b + q * 8) : vcombine_f16(_b_128, _b_128);
 
