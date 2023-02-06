@@ -363,7 +363,7 @@ static int binary_op_broadcast_outer(const Mat& a, const Mat& b, Mat& c, const O
                 int n = w * elempack;
                 while (n > 0)
                 {
-                    size_t vl = vsetvl_e32m1(n);
+                    size_t vl = vsetvl_e32m8(elempack);
                     vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
                     vfloat32m8_t _outp = op(_p, *ptr1, vl);
                     vse32_v_f32m8(outptr, _outp, vl);
@@ -411,7 +411,7 @@ static int binary_op_broadcast_outer(const Mat& a, const Mat& b, Mat& c, const O
                         int n = w * elempack;
                         while (n > 0)
                         {
-                            size_t vl = vsetvl_e32m1(n);
+                            size_t vl = vsetvl_e32m8(elempack);
                             vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
                             vfloat32m8_t _outp = op(_p, *ptr1, vl);
                             vse32_v_f32m8(outptr, _outp, vl);
@@ -1050,7 +1050,7 @@ static int binary_op_broadcast_outer_fp16s(const Mat& a, const Mat& b, Mat& c, c
                 int n = w * elempack;
                 while (n > 0)
                 {
-                    size_t vl = vsetvl_e16m1(n);
+                    size_t vl = vsetvl_e16m8(elempack);
                     vfloat16m8_t _p = vle16_v_f16m8(ptr, vl);
                     vfloat16m8_t _outp = op(_p, *ptr1, vl);
                     vse16_v_f16m8(outptr, _outp, vl);
@@ -1096,7 +1096,7 @@ static int binary_op_broadcast_outer_fp16s(const Mat& a, const Mat& b, Mat& c, c
                         int n = w * elempack;
                         while (n > 0)
                         {
-                            size_t vl = vsetvl_e16m1(n);
+                            size_t vl = vsetvl_e16m8(elempack);
                             vfloat16m8_t _p = vle16_v_f16m8(ptr, vl);
                             vfloat16m8_t _outp = op(_p, *ptr1, vl);
                             vse16_v_f16m8(outptr, _outp, vl);
