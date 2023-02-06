@@ -360,17 +360,20 @@ static int binary_op_broadcast_outer(const Mat& a, const Mat& b, Mat& c, const O
 #if __riscv_vector
             if (elempack != 1)
             {
-                int n = w * elempack;
-                while (n > 0)
+                for (int x = 0; x < w; x++)
                 {
-                    size_t vl = vsetvl_e32m8(elempack);
-                    vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
-                    vfloat32m8_t _outp = op(_p, *ptr1, vl);
-                    vse32_v_f32m8(outptr, _outp, vl);
-                    n -= vl;
-                    ptr += vl;
+                    int n = elempack;
+                    while (n > 0)
+                    {
+                        size_t vl = vsetvl_e32m8(n);
+                        vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
+                        vfloat32m8_t _outp = op(_p, *ptr1, vl);
+                        vse32_v_f32m8(outptr, _outp, vl);
+                        n -= vl;
+                        ptr += vl;
+                        outptr += vl;
+                    }
                     ptr1 += 1;
-                    outptr += vl;
                 }
             }
 #endif
@@ -406,19 +409,22 @@ static int binary_op_broadcast_outer(const Mat& a, const Mat& b, Mat& c, const O
                     const float* ptr1 = b.depth(z1).row(y1);
 
 #if __riscv_vector
-                    if (elempack == 4)
+                    if (elempack != 1)
                     {
-                        int n = w * elempack;
-                        while (n > 0)
+                        for (int x = 0; x < w; x++)
                         {
-                            size_t vl = vsetvl_e32m8(elempack);
-                            vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
-                            vfloat32m8_t _outp = op(_p, *ptr1, vl);
-                            vse32_v_f32m8(outptr, _outp, vl);
-                            n -= vl;
-                            ptr += vl;
+                            int n = elempack;
+                            while (n > 0)
+                            {
+                                size_t vl = vsetvl_e32m8(n);
+                                vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
+                                vfloat32m8_t _outp = op(_p, *ptr1, vl);
+                                vse32_v_f32m8(outptr, _outp, vl);
+                                n -= vl;
+                                ptr += vl;
+                                outptr += vl;
+                            }
                             ptr1 += 1;
-                            outptr += vl;
                         }
                     }
 #endif
@@ -1047,17 +1053,20 @@ static int binary_op_broadcast_outer_fp16s(const Mat& a, const Mat& b, Mat& c, c
 
             if (elempack != 1)
             {
-                int n = w * elempack;
-                while (n > 0)
+                for (int x = 0; x < w; x++)
                 {
-                    size_t vl = vsetvl_e16m8(elempack);
-                    vfloat16m8_t _p = vle16_v_f16m8(ptr, vl);
-                    vfloat16m8_t _outp = op(_p, *ptr1, vl);
-                    vse16_v_f16m8(outptr, _outp, vl);
-                    n -= vl;
-                    ptr += vl;
+                    int n = elempack;
+                    while (n > 0)
+                    {
+                        size_t vl = vsetvl_e16m8(n);
+                        vfloat16m8_t _p = vle16_v_f16m8(ptr, vl);
+                        vfloat16m8_t _outp = op(_p, *ptr1, vl);
+                        vse16_v_f16m8(outptr, _outp, vl);
+                        n -= vl;
+                        ptr += vl;
+                        outptr += vl;
+                    }
                     ptr1 += 1;
-                    outptr += vl;
                 }
             }
             if (elempack == 1)
@@ -1091,19 +1100,22 @@ static int binary_op_broadcast_outer_fp16s(const Mat& a, const Mat& b, Mat& c, c
 
                     const __fp16* ptr1 = b.depth(z1).row<const __fp16>(y1);
 
-                    if (elempack == 4)
+                    if (elempack != 1)
                     {
-                        int n = w * elempack;
-                        while (n > 0)
+                        for (int x = 0; x < w; x++)
                         {
-                            size_t vl = vsetvl_e16m8(elempack);
-                            vfloat16m8_t _p = vle16_v_f16m8(ptr, vl);
-                            vfloat16m8_t _outp = op(_p, *ptr1, vl);
-                            vse16_v_f16m8(outptr, _outp, vl);
-                            n -= vl;
-                            ptr += vl;
+                            int n = elempack;
+                            while (n > 0)
+                            {
+                                size_t vl = vsetvl_e16m8(n);
+                                vfloat16m8_t _p = vle16_v_f16m8(ptr, vl);
+                                vfloat16m8_t _outp = op(_p, *ptr1, vl);
+                                vse16_v_f16m8(outptr, _outp, vl);
+                                n -= vl;
+                                ptr += vl;
+                                outptr += vl;
+                            }
                             ptr1 += 1;
-                            outptr += vl;
                         }
                     }
                     if (elempack == 1)
