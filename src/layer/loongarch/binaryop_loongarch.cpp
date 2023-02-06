@@ -76,11 +76,6 @@ static int binary_op_no_broadcast(const Mat& a, const Mat& b, Mat& c, const Opti
     const int channels = a.c;
     const int size = a.w * a.h * a.d * a.elempack;
 
-    // type 7 13 19 29
-    c.create_like(a, opt.blob_allocator);
-    if (c.empty())
-        return -100;
-
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
     {
