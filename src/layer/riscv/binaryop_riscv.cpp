@@ -541,11 +541,11 @@ namespace BinaryOp_riscv_functor {
         {                                                                                            \
             return IMPLVV;                                                                           \
         }                                                                                            \
-        vfloat32m8_t operator()(const vfloat32m8_t& x, const float y, const size_t vl) const         \
+        vfloat32m8_t operator()(const vfloat32m8_t& x, const float& y, const size_t vl) const        \
         {                                                                                            \
             return IMPLVS;                                                                           \
         }                                                                                            \
-        vfloat32m8_t operator()(const float x, const vfloat32m8_t& y, const size_t vl) const         \
+        vfloat32m8_t operator()(const float& x, const vfloat32m8_t& y, const size_t vl) const        \
         {                                                                                            \
             return IMPLSV;                                                                           \
         }                                                                                            \
@@ -1002,8 +1002,9 @@ static int binary_op_broadcast_inner_fp16s(const Mat& a, const Mat& b, Mat& c, c
 
                 for (int y = 0; y < h; y++)
                 {
-                    const float _b = ptr1[y];
+                    const __fp16 _b = ptr1[y];
 
+                    int n = size;
                     vfloat16m8_t _bx = (elempack == 1) ? vfmv_v_f_f16m8(_b, vsetvl_e16m8(n)) : vle16_v_f16m8_f16m1(ptr1 + y * elempack);
                     while (n > 0)
                     {
@@ -1136,12 +1137,12 @@ static int binary_op_broadcast_20_fp16s(const Mat& a, const Mat& b, Mat& c, cons
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
     {
-        const float* ptr = a.channel(q);
-        float* outptr = c.channel(q);
+        const __fp16* ptr = a.channel(q);
+        __fp16* outptr = c.channel(q);
 
         for (int y = 0; y < h; y++)
         {
-            const float* ptr1 = b.channel(q);
+            const __fp16* ptr1 = b.channel(q);
 
             const int size = w * elempack;
 
@@ -1208,11 +1209,11 @@ namespace BinaryOp_riscv_functor {
         {                                                                                            \
             return IMPLVV;                                                                           \
         }                                                                                            \
-        vfloat16m8_t operator()(const vfloat16m8_t& x, const float y, const size_t vl) const         \
+        vfloat16m8_t operator()(const vfloat16m8_t& x, const __fp16& y, const size_t vl) const       \
         {                                                                                            \
             return IMPLVS;                                                                           \
         }                                                                                            \
-        vfloat16m8_t operator()(const float x, const vfloat16m8_t& y, const size_t vl) const         \
+        vfloat16m8_t operator()(const __fp16& x, const vfloat16m8_t& y, const size_t vl) const       \
         {                                                                                            \
             return IMPLSV;                                                                           \
         }                                                                                            \
@@ -1237,7 +1238,7 @@ MAKE_FUNCTION(binary_op_rpow_fp16s, (__fp16)pow((float)y, (float)x), pow_ps(y, x
 
 } // namespace BinaryOp_riscv_functor
 
-static int binary_op_scalar_fp16s(const Mat& a, float b, Mat& c, int op_type, const Option& opt)
+static int binary_op_scalar_fp16s(const Mat& a, __fp16 b, Mat& c, int op_type, const Option& opt)
 {
     using namespace BinaryOp_riscv_functor;
 
