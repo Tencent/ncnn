@@ -58,7 +58,7 @@ def test():
     import os
     os.system("../src/pnnx test_pnnx_fuse_pixel_unshuffle.pt inputshape=[1,3,128,128]")
 
-    # ncnn inference
+    # pnnx inference
     import test_pnnx_fuse_pixel_unshuffle_pnnx
     b0 = test_pnnx_fuse_pixel_unshuffle_pnnx.test_inference()
 
