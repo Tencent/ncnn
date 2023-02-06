@@ -56,7 +56,7 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("pnnx test_pnnx_fuse_pixel_unshuffle.pt inputshape=[1,3,128,128]")
+    os.system("../src/pnnx test_pnnx_fuse_pixel_unshuffle.pt inputshape=[1,3,128,128]")
 
     # ncnn inference
     import test_pnnx_fuse_pixel_unshuffle_pnnx
