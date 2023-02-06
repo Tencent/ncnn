@@ -308,6 +308,7 @@ static int binary_op_broadcast_inner(const Mat& a, const Mat& b, Mat& c, const O
                     const float _b = ptr1[y];
 
 #if __riscv_vector
+                    int n = size;
                     vfloat32m8_t _bx = (elempack == 1) ? vfmv_v_f_f32m8(_b, vsetvl_e32m8(n)) : vle32_v_f32m8_f32m1(ptr1 + y * elempack);
                     while (n > 0)
                     {
@@ -363,9 +364,9 @@ static int binary_op_broadcast_outer(const Mat& a, const Mat& b, Mat& c, const O
                 while (n > 0)
                 {
                     size_t vl = vsetvl_e32m1(n);
-                    vfloat32m1_t _p = vle32_v_f32m1(ptr, vl);
+                    vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
                     _outp = op(_p, *ptr1, vl);
-                    vse32_v_f32m1(outptr, _outp, vl);
+                    vse32_v_f32m8(outptr, _outp, vl);
                     n -= vl;
                     ptr += vl;
                     ptr1 += 1;
@@ -411,9 +412,9 @@ static int binary_op_broadcast_outer(const Mat& a, const Mat& b, Mat& c, const O
                         while (n > 0)
                         {
                             size_t vl = vsetvl_e32m1(n);
-                            vfloat32m1_t _p = vle32_v_f32m1(ptr, vl);
+                            vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
                             _outp = op(_p, *ptr1, vl);
-                            vse32_v_f32m1(outptr, _outp, vl);
+                            vse32_v_f32m8(outptr, _outp, vl);
                             n -= vl;
                             ptr += vl;
                             ptr1 += 1;
