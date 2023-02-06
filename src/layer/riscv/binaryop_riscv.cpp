@@ -1050,9 +1050,9 @@ static int binary_op_broadcast_outer_fp16s(const Mat& a, const Mat& b, Mat& c, c
                 while (n > 0)
                 {
                     size_t vl = vsetvl_e16m1(n);
-                    vfloat16m1_t _p = vle16_v_f16m1(ptr, vl);
+                    vfloat16m8_t _p = vle16_v_f16m8(ptr, vl);
                     vfloat16m8_t _outp = op(_p, *ptr1, vl);
-                    vse16_v_f16m1(outptr, _outp, vl);
+                    vse16_v_f16m8(outptr, _outp, vl);
                     n -= vl;
                     ptr += vl;
                     ptr1 += 1;
@@ -1096,9 +1096,9 @@ static int binary_op_broadcast_outer_fp16s(const Mat& a, const Mat& b, Mat& c, c
                         while (n > 0)
                         {
                             size_t vl = vsetvl_e16m1(n);
-                            vfloat16m1_t _p = vle16_v_f16m1(ptr, vl);
+                            vfloat16m8_t _p = vle16_v_f16m8(ptr, vl);
                             vfloat16m8_t _outp = op(_p, *ptr1, vl);
-                            vse16_v_f16m1(outptr, _outp, vl);
+                            vse16_v_f16m8(outptr, _outp, vl);
                             n -= vl;
                             ptr += vl;
                             ptr1 += 1;
