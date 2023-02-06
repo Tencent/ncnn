@@ -551,13 +551,13 @@ namespace BinaryOp_riscv_functor {
         }                                                                                            \
     };
 #else
-#define MAKE_FUNCTION(NAME, IMPL, IMPLVV, IMPLVS, IMPLSV)                                            \
-    struct NAME                                                                                      \
-    {                                                                                                \
-        float operator()(const float& x, const float& y) const                                       \
-        {                                                                                            \
-            return IMPL;                                                                             \
-        }                                                                                            \
+#define MAKE_FUNCTION(NAME, IMPL, IMPLVV, IMPLVS, IMPLSV)      \
+    struct NAME                                                \
+    {                                                          \
+        float operator()(const float& x, const float& y) const \
+        {                                                      \
+            return IMPL;                                       \
+        }                                                      \
     };
 #endif
 
@@ -842,7 +842,7 @@ static int binary_op_no_broadcast_fp16s(const Mat& a, const Mat& b, Mat& c, cons
             size_t vl = vsetvl_e16m8(n);
             vfloat16m8_t _p = vle16_v_f16m8(ptr, vl);
             vfloat16m8_t _p1 = vle16_v_f16m8(ptr1, vl);
-            vfloat32m8_t _outp = op(_p, _p1, vl);
+            vfloat16m8_t _outp = op(_p, _p1, vl);
             vse16_v_f16m8(outptr, _outp, vl);
             n -= vl;
             ptr += vl;
@@ -884,7 +884,7 @@ static int binary_op_broadcast_inner_fp16s(const Mat& a, const Mat& b, Mat& c, c
             {
                 size_t vl = vsetvl_e16m8(n);
                 vfloat16m8_t _p = vle16_v_f16m8(ptr, vl);
-                vfloat32m8_t _outp = op(_p, _bx, vl);
+                vfloat16m8_t _outp = op(_p, _bx, vl);
                 vse16_v_f16m8(outptr, _outp, vl);
                 n -= vl;
                 ptr += vl;
@@ -912,7 +912,7 @@ static int binary_op_broadcast_inner_fp16s(const Mat& a, const Mat& b, Mat& c, c
             {
                 size_t vl = vsetvl_e16m8(n);
                 vfloat16m8_t _p = vle16_v_f16m8(ptr, vl);
-                vfloat32m8_t _outp = op(_p, _bx, vl);
+                vfloat16m8_t _outp = op(_p, _bx, vl);
                 vse16_v_f16m8(outptr, _outp, vl);
                 n -= vl;
                 ptr += vl;
@@ -943,7 +943,7 @@ static int binary_op_broadcast_inner_fp16s(const Mat& a, const Mat& b, Mat& c, c
                 {
                     size_t vl = vsetvl_e16m8(n);
                     vfloat16m8_t _p = vle16_v_f16m8(ptr, vl);
-                    vfloat32m8_t _outp = op(_p, _bx, vl);
+                    vfloat16m8_t _outp = op(_p, _bx, vl);
                     vse16_v_f16m8(outptr, _outp, vl);
                     n -= vl;
                     ptr += vl;
@@ -975,7 +975,7 @@ static int binary_op_broadcast_inner_fp16s(const Mat& a, const Mat& b, Mat& c, c
                 {
                     size_t vl = vsetvl_e16m8(n);
                     vfloat16m8_t _p = vle16_v_f16m8(ptr, vl);
-                    vfloat32m8_t _outp = op(_p, _bx, vl);
+                    vfloat16m8_t _outp = op(_p, _bx, vl);
                     vse16_v_f16m8(outptr, _outp, vl);
                     n -= vl;
                     ptr += vl;
@@ -1009,7 +1009,7 @@ static int binary_op_broadcast_inner_fp16s(const Mat& a, const Mat& b, Mat& c, c
                     {
                         size_t vl = vsetvl_e16m8(n);
                         vfloat16m8_t _p = vle16_v_f16m8(ptr, vl);
-                        vfloat32m8_t _outp = op(_p, _bx, vl);
+                        vfloat16m8_t _outp = op(_p, _bx, vl);
                         vse16_v_f16m8(outptr, _outp, vl);
                         n -= vl;
                         ptr += vl;
@@ -1051,7 +1051,7 @@ static int binary_op_broadcast_outer_fp16s(const Mat& a, const Mat& b, Mat& c, c
                 {
                     size_t vl = vsetvl_e16m1(n);
                     vfloat16m1_t _p = vle16_v_f16m1(ptr, vl);
-                    vfloat32m8_t _outp = op(_p, *ptr1, vl);
+                    vfloat16m8_t _outp = op(_p, *ptr1, vl);
                     vse16_v_f16m1(outptr, _outp, vl);
                     n -= vl;
                     ptr += vl;
@@ -1097,7 +1097,7 @@ static int binary_op_broadcast_outer_fp16s(const Mat& a, const Mat& b, Mat& c, c
                         {
                             size_t vl = vsetvl_e16m1(n);
                             vfloat16m1_t _p = vle16_v_f16m1(ptr, vl);
-                            vfloat32m8_t _outp = op(_p, *ptr1, vl);
+                            vfloat16m8_t _outp = op(_p, *ptr1, vl);
                             vse16_v_f16m1(outptr, _outp, vl);
                             n -= vl;
                             ptr += vl;
@@ -1151,7 +1151,7 @@ static int binary_op_broadcast_20_fp16s(const Mat& a, const Mat& b, Mat& c, cons
                 size_t vl = vsetvl_e16m8(n);
                 vfloat16m8_t _p = vle16_v_f16m8(ptr, vl);
                 vfloat16m8_t _p1 = vle16_v_f16m8(ptr1, vl);
-                vfloat32m8_t _outp = op(_p, _p1, vl);
+                vfloat16m8_t _outp = op(_p, _p1, vl);
                 vse16_v_f16m8(outptr, _outp, vl);
                 n -= vl;
                 ptr += vl;
