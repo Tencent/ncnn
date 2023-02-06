@@ -528,7 +528,7 @@ static int binary_op_scalar_inplace(Mat& a, float b, const Option& opt)
 
 namespace BinaryOp_riscv_functor {
 
-#define MAKE_FUNCTION(NAME, IMPLVV, IMPLVS, IMPLSV)                                                  \
+#define MAKE_FUNCTION(NAME, IMPL, IMPLVV, IMPLVS, IMPLSV)                                            \
     struct NAME                                                                                      \
     {                                                                                                \
         float operator()(const float& x, const float& y) const                                       \
@@ -551,16 +551,16 @@ namespace BinaryOp_riscv_functor {
 
 // clang-format off
 // *INDENT-OFF*
-MAKE_FUNCTION(binary_op_add_rvv, x + y, vfadd_vv_f32m8(x, y, vl), vfadd_vf_f32m8(x, y, vl), vfadd_vf_f32m8(y, x, vl))
-MAKE_FUNCTION(binary_op_sub_rvv, x - y, vfsub_vv_f32m8(x, y, vl), vfsub_vf_f32m8(x, y, vl), vfrsub_vf_f32m8(y, x, vl))
-MAKE_FUNCTION(binary_op_mul_rvv, x * y, vfmul_vv_f32m8(x, y, vl), vfmul_vf_f32m8(x, y, vl), vfmul_vf_f32m8(y, x, vl))
-MAKE_FUNCTION(binary_op_div_rvv, x / y, vfdiv_vv_f32m8(x, y, vl), vfdiv_vf_f32m8(x, y, vl), vfrdiv_vf_f32m8(y, x, vl))
-MAKE_FUNCTION(binary_op_max_rvv, std::max(x, y), vfmax_vv_f32m8(x, y, vl), vfmax_vf_f32m8(x, y, vl), vfmax_vf_f32m8(y, x, vl))
-MAKE_FUNCTION(binary_op_min_rvv, std::min(x, y), vfmin_vv_f32m8(x, y, vl), vfmin_vf_f32m8(x, y, vl), vfmin_vf_f32m8(y, x, vl))
-MAKE_FUNCTION(binary_op_pow_rvv, (float)pow(x, y), pow_ps(x, y, vl), pow_ps(x, vfmv_v_f_f32m8(y, vl), vl), pow_ps(vfmv_v_f_f32m8(x, vl), y, vl))
-MAKE_FUNCTION(binary_op_rsub_rvv, y - x, vfsub_vv_f32m8(y, x, vl), vfrsub_vf_f32m8(x, y, vl), vfsub_vf_f32m8(y, x, vl))
-MAKE_FUNCTION(binary_op_rdiv_rvv, y / x, vfdiv_vv_f32m8(y, x, vl), vfrdiv_vf_f32m8(x, y, vl), vfdiv_vf_f32m8(y, x, vl))
-MAKE_FUNCTION(binary_op_rpow_rvv, (float)pow(y, x), pow_ps(y, x, vl), pow_ps(y, vfmv_v_f_f32m8(x, vl), vl), pow_ps(vfmv_v_f_f32m8(y, vl), x, vl))
+MAKE_FUNCTION(binary_op_add, x + y, vfadd_vv_f32m8(x, y, vl), vfadd_vf_f32m8(x, y, vl), vfadd_vf_f32m8(y, x, vl))
+MAKE_FUNCTION(binary_op_sub, x - y, vfsub_vv_f32m8(x, y, vl), vfsub_vf_f32m8(x, y, vl), vfrsub_vf_f32m8(y, x, vl))
+MAKE_FUNCTION(binary_op_mul, x * y, vfmul_vv_f32m8(x, y, vl), vfmul_vf_f32m8(x, y, vl), vfmul_vf_f32m8(y, x, vl))
+MAKE_FUNCTION(binary_op_div, x / y, vfdiv_vv_f32m8(x, y, vl), vfdiv_vf_f32m8(x, y, vl), vfrdiv_vf_f32m8(y, x, vl))
+MAKE_FUNCTION(binary_op_max, std::max(x, y), vfmax_vv_f32m8(x, y, vl), vfmax_vf_f32m8(x, y, vl), vfmax_vf_f32m8(y, x, vl))
+MAKE_FUNCTION(binary_op_min, std::min(x, y), vfmin_vv_f32m8(x, y, vl), vfmin_vf_f32m8(x, y, vl), vfmin_vf_f32m8(y, x, vl))
+MAKE_FUNCTION(binary_op_pow, (float)pow(x, y), pow_ps(x, y, vl), pow_ps(x, vfmv_v_f_f32m8(y, vl), vl), pow_ps(vfmv_v_f_f32m8(x, vl), y, vl))
+MAKE_FUNCTION(binary_op_rsub, y - x, vfsub_vv_f32m8(y, x, vl), vfrsub_vf_f32m8(x, y, vl), vfsub_vf_f32m8(y, x, vl))
+MAKE_FUNCTION(binary_op_rdiv, y / x, vfdiv_vv_f32m8(y, x, vl), vfrdiv_vf_f32m8(x, y, vl), vfdiv_vf_f32m8(y, x, vl))
+MAKE_FUNCTION(binary_op_rpow, (float)pow(y, x), pow_ps(y, x, vl), pow_ps(y, vfmv_v_f_f32m8(x, vl), vl), pow_ps(vfmv_v_f_f32m8(y, vl), x, vl))
 // *INDENT-ON*
 // clang-format on
 
