@@ -33,7 +33,9 @@ class Model(nn.Module):
         j = z / y
         k = w + y
         l = w - z
-        return a, b, c, d, e, f, g, h, i, j, k, l
+        m = (x - z) * w
+        n = (x + y) - (z + w)
+        return a, b, c, d, e, f, g, h, i, j, k, l, m, n
 
 def test():
     net = Model()

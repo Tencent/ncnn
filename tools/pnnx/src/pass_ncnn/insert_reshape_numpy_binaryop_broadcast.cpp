@@ -32,6 +32,9 @@ void insert_reshape_numpy_binaryop_broadcast(Graph& graph)
             if (op->type != "BinaryOp")
                 continue;
 
+            if (op->inputs.size() != 2)
+                continue;
+
             if (op->inputs[0]->shape.empty() || op->inputs[1]->shape.empty())
                 continue;
 
