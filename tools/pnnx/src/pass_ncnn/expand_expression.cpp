@@ -256,7 +256,6 @@ static std::string expand_expression(Graph& graph, const Operator* op, int& pnnx
                     for (int k = 0; k < outrank; k++)
                     {
                         out_shape[k] = std::max(a_shape[k], b_shape[k]);
-                        fprintf(stderr, "out_shape[%d] = %d\n", k, out_shape[k]);
                     }
                 }
                 op_binary_out->shape = out_shape;
