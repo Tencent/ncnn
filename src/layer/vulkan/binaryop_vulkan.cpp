@@ -198,22 +198,33 @@ int BinaryOp_vulkan::create_pipeline(const Option& opt)
     // broadcast
     if (shape.dims == 0 || broadcast)
     {
+        bool a_is_lower = false;
+        if (shape.dims != 0 && shape1.dims != 0)
+        {
+            const bool b_is_scalar = shape1_packed.w * shape1_packed.h * shape1_packed.d * shape1_packed.c * shape1_packed.elempack == 1;
+            const bool a_rank_is_lower = shape_packed.dims < shape1_packed.dims && !b_is_scalar;
+            const bool a_size_is_lower = shape_packed.w * shape_packed.h * shape_packed.d * shape_packed.c * shape_packed.elempack < shape1_packed.w * shape1_packed.h * shape1_packed.d * shape1_packed.c * shape1_packed.elempack;
+            a_is_lower = a_rank_is_lower || (!a_rank_is_lower && a_size_is_lower);
+        }
+        const Mat& A_shape_packed = a_is_lower ? shape1_packed : shape_packed;
+        const Mat& B_shape_packed = a_is_lower ? shape_packed : shape1_packed;
+
         const int op_type_r = get_reverse_op_type(op_type);
 
         std::vector<vk_specialization_type> specializations(1 + 18);
         specializations[0].i = op_type;
-        specializations[1 + 0].i = shape_packed.dims;
-        specializations[1 + 1].i = shape_packed.w;
-        specializations[1 + 2].i = shape_packed.h;
-        specializations[1 + 3].i = shape_packed.d;
-        specializations[1 + 4].i = shape_packed.c;
-        specializations[1 + 5].i = shape_packed.cstep;
-        specializations[1 + 6].i = shape1_packed.dims;
-        specializations[1 + 7].i = shape1_packed.w;
-        specializations[1 + 8].i = shape1_packed.h;
-        specializations[1 + 9].i = shape1_packed.d;
-        specializations[1 + 10].i = shape1_packed.c;
-        specializations[1 + 11].i = shape1_packed.cstep;
+        specializations[1 + 0].i = A_shape_packed.dims;
+        specializations[1 + 1].i = A_shape_packed.w;
+        specializations[1 + 2].i = A_shape_packed.h;
+        specializations[1 + 3].i = A_shape_packed.d;
+        specializations[1 + 4].i = A_shape_packed.c;
+        specializations[1 + 5].i = A_shape_packed.cstep;
+        specializations[1 + 6].i = B_shape_packed.dims;
+        specializations[1 + 7].i = B_shape_packed.w;
+        specializations[1 + 8].i = B_shape_packed.h;
+        specializations[1 + 9].i = B_shape_packed.d;
+        specializations[1 + 10].i = B_shape_packed.c;
+        specializations[1 + 11].i = B_shape_packed.cstep;
         specializations[1 + 12].i = out_shape_packed.dims;
         specializations[1 + 13].i = out_shape_packed.w;
         specializations[1 + 14].i = out_shape_packed.h;
@@ -223,18 +234,18 @@ int BinaryOp_vulkan::create_pipeline(const Option& opt)
 
         std::vector<vk_specialization_type> specializations_r(1 + 18);
         specializations_r[0].i = op_type_r;
-        specializations_r[1 + 0].i = shape1_packed.dims;
-        specializations_r[1 + 1].i = shape1_packed.w;
-        specializations_r[1 + 2].i = shape1_packed.h;
-        specializations_r[1 + 3].i = shape1_packed.d;
-        specializations_r[1 + 4].i = shape1_packed.c;
-        specializations_r[1 + 5].i = shape1_packed.cstep;
-        specializations_r[1 + 6].i = shape_packed.dims;
-        specializations_r[1 + 7].i = shape_packed.w;
-        specializations_r[1 + 8].i = shape_packed.h;
-        specializations_r[1 + 9].i = shape_packed.d;
-        specializations_r[1 + 10].i = shape_packed.c;
-        specializations_r[1 + 11].i = shape_packed.cstep;
+        specializations_r[1 + 0].i = A_shape_packed.dims;
+        specializations_r[1 + 1].i = A_shape_packed.w;
+        specializations_r[1 + 2].i = A_shape_packed.h;
+        specializations_r[1 + 3].i = A_shape_packed.d;
+        specializations_r[1 + 4].i = A_shape_packed.c;
+        specializations_r[1 + 5].i = A_shape_packed.cstep;
+        specializations_r[1 + 6].i = B_shape_packed.dims;
+        specializations_r[1 + 7].i = B_shape_packed.w;
+        specializations_r[1 + 8].i = B_shape_packed.h;
+        specializations_r[1 + 9].i = B_shape_packed.d;
+        specializations_r[1 + 10].i = B_shape_packed.c;
+        specializations_r[1 + 11].i = B_shape_packed.cstep;
         specializations_r[1 + 12].i = out_shape_packed.dims;
         specializations_r[1 + 13].i = out_shape_packed.w;
         specializations_r[1 + 14].i = out_shape_packed.h;
