@@ -20,7 +20,7 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-    def forward(self, x, y, z, w):
+    def forward(self, x, y, z, w, u, v):
         a = x + y
         b = x - z
         c = x * w
@@ -35,7 +35,10 @@ class Model(nn.Module):
         l = w - z
         m = (x - z) * w
         n = (x + y) - (z + w)
-        return a, b, c, d, e, f, g, h, i, j, k, l, m, n
+        o = x.view(1, 1, 5) + y.view(1, 7, 5) - z
+        p = u * y
+        q = z / v
+        return a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q
 
 def test():
     net = Model()
@@ -46,16 +49,18 @@ def test():
     y = torch.rand(7, 5)
     z = torch.rand(4, 7, 5)
     w = torch.rand(6, 4, 7, 5)
+    u = torch.rand(7, 1)
+    v = torch.rand(4, 1, 1)
 
-    a = net(x, y, z, w)
+    a = net(x, y, z, w, u, v)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, y, z, w))
+    mod = torch.jit.trace(net, (x, y, z, w, u, v))
     mod.save("test_ncnn_numpy_binaryop_broadcast.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_ncnn_numpy_binaryop_broadcast.pt inputshape=[5],[7,5],[4,7,5],[6,4,7,5]")
+    os.system("../../src/pnnx test_ncnn_numpy_binaryop_broadcast.pt inputshape=[5],[7,5],[4,7,5],[6,4,7,5],[7,1],[4,1,1]")
 
     # ncnn inference
     import test_ncnn_numpy_binaryop_broadcast_ncnn
