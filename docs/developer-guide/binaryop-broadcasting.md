@@ -6,16 +6,16 @@ C = BinaryOp(A, B)
 
 shape notation convention is [w], [w,h], [w,h,c], [w,h,d,c]
 
-binaryop with scalar and scalar-like
+* binaryop with scalar and scalar-like
 
 |type|A|B|C|
 |---|---|---|---|
-|0|[2]|scalar/[1]|[2]|
-|1|[2,3]|scalar/[1]/[1,1]|[2,3]|
-|2|[2,3,4]|scalar/[1]/[1,1]/[1,1,1]|[2,3,4]|
-|3|[2,3,4,5]|scalar/[1]/[1,1]/[1,1,1]/[1,1,1,1]|[2,3,4,5]|
+|0|[2]|scalar / [1]|[2]|
+|1|[2,3]|scalar / [1] / [1,1]|[2,3]|
+|2|[2,3,4]|scalar / [1] / [1,1] / [1,1,1]|[2,3,4]|
+|3|[2,3,4,5]|scalar / [1] / [1,1] / [1,1,1] / [1,1,1,1]|[2,3,4,5]|
 
-no broadcast
+* no broadcast
 
 |type|A|B|C|
 |---|---|---|---|
@@ -24,18 +24,18 @@ no broadcast
 |6|[2,3,4]|[2,3,4]|[2,3,4]|
 |7|[2,3,4,5]|[2,3,4,5]|[2,3,4,5]|
 
-broadcast B for inner axis
+* broadcast B for inner axis
 
 |type|A|B|C|
 |---|---|---|---|
-|8|[2,3]|[3]/[1,3]|[2,3]|
-|9|[2,3,4]|[4]/[1,1,4]|[2,3,4]|
-|10|[2,3,4]|[3,4]/[1,3,4]|[2,3,4]|
-|11|[2,3,4,5]|[5]/[1,1,1,5]|[2,3,4,5]|
-|12|[2,3,4,5]|[4,5]/[1,1,4,5]|[2,3,4,5]|
-|13|[2,3,4,5]|[3,4,5]/[1,3,4,5]|[2,3,4,5]|
+|8|[2,3]|[3] / [1,3]|[2,3]|
+|9|[2,3,4]|[4] / [1,1,4]|[2,3,4]|
+|10|[2,3,4]|[3,4] / [1,3,4]|[2,3,4]|
+|11|[2,3,4,5]|[5] / [1,1,1,5]|[2,3,4,5]|
+|12|[2,3,4,5]|[4,5] / [1,1,4,5]|[2,3,4,5]|
+|13|[2,3,4,5]|[3,4,5] / [1,3,4,5]|[2,3,4,5]|
 
-broadcast B for outer axis
+* broadcast B for outer axis
 
 |type|A|B|C|
 |---|---|---|---|
@@ -46,7 +46,7 @@ broadcast B for outer axis
 |18|[2,3,4,5]|[2,3,1,1]|[2,3,4,5]|
 |19|[2,3,4,5]|[2,3,4,1]|[2,3,4,5]|
 
-some special broadcasting rule exists for model compatibility
+* some special broadcasting rule exists for model compatibility
 
 |special type|A|B|C|
 |---|---|---|---|

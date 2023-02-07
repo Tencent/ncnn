@@ -697,12 +697,13 @@ int BinaryOp_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
         return forward_bf16s(bottom_blobs, top_blobs, opt);
 #endif
 
-    const bool b_rank_is_lower = bottom_blobs[1].dims < bottom_blobs[0].dims;
-    const bool b_size_is_lower = bottom_blobs[1].w * bottom_blobs[1].h * bottom_blobs[1].d * bottom_blobs[1].c * bottom_blobs[1].elempack < bottom_blobs[0].w * bottom_blobs[0].h * bottom_blobs[0].d * bottom_blobs[0].c * bottom_blobs[0].elempack;
-    const bool b_is_lower = b_rank_is_lower || b_size_is_lower;
-    const Mat& A = b_is_lower ? bottom_blobs[0] : bottom_blobs[1];
-    const Mat& B = b_is_lower ? bottom_blobs[1] : bottom_blobs[0];
-    const int op_type_r = b_is_lower ? op_type : get_reverse_op_type(op_type);
+    const bool b_is_scalar = bottom_blobs[1].w * bottom_blobs[1].h * bottom_blobs[1].d * bottom_blobs[1].c * bottom_blobs[1].elempack == 1;
+    const bool a_rank_is_lower = bottom_blobs[0].dims < bottom_blobs[1].dims && !b_is_scalar;
+    const bool a_size_is_lower = bottom_blobs[0].w * bottom_blobs[0].h * bottom_blobs[0].d * bottom_blobs[0].c * bottom_blobs[0].elempack < bottom_blobs[1].w * bottom_blobs[1].h * bottom_blobs[1].d * bottom_blobs[1].c * bottom_blobs[1].elempack;
+    const bool a_is_lower = a_rank_is_lower || (!a_rank_is_lower && a_size_is_lower);
+    const Mat& A = a_is_lower ? bottom_blobs[1] : bottom_blobs[0];
+    const Mat& B = a_is_lower ? bottom_blobs[0] : bottom_blobs[1];
+    const int op_type_r = a_is_lower ? get_reverse_op_type(op_type) : op_type;
 
     Mat& top_blob = top_blobs[0];
     top_blob.create_like(A, opt.blob_allocator);
@@ -1360,12 +1361,13 @@ static int binary_op_broadcast_20_bf16s(const Mat& a, const Mat& b, Mat& c, int 
 
 int BinaryOp_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
-    const bool b_rank_is_lower = bottom_blobs[1].dims < bottom_blobs[0].dims;
-    const bool b_size_is_lower = bottom_blobs[1].w * bottom_blobs[1].h * bottom_blobs[1].d * bottom_blobs[1].c * bottom_blobs[1].elempack < bottom_blobs[0].w * bottom_blobs[0].h * bottom_blobs[0].d * bottom_blobs[0].c * bottom_blobs[0].elempack;
-    const bool b_is_lower = b_rank_is_lower || b_size_is_lower;
-    const Mat& A = b_is_lower ? bottom_blobs[0] : bottom_blobs[1];
-    const Mat& B = b_is_lower ? bottom_blobs[1] : bottom_blobs[0];
-    const int op_type_r = b_is_lower ? op_type : get_reverse_op_type(op_type);
+    const bool b_is_scalar = bottom_blobs[1].w * bottom_blobs[1].h * bottom_blobs[1].d * bottom_blobs[1].c * bottom_blobs[1].elempack == 1;
+    const bool a_rank_is_lower = bottom_blobs[0].dims < bottom_blobs[1].dims && !b_is_scalar;
+    const bool a_size_is_lower = bottom_blobs[0].w * bottom_blobs[0].h * bottom_blobs[0].d * bottom_blobs[0].c * bottom_blobs[0].elempack < bottom_blobs[1].w * bottom_blobs[1].h * bottom_blobs[1].d * bottom_blobs[1].c * bottom_blobs[1].elempack;
+    const bool a_is_lower = a_rank_is_lower || (!a_rank_is_lower && a_size_is_lower);
+    const Mat& A = a_is_lower ? bottom_blobs[1] : bottom_blobs[0];
+    const Mat& B = a_is_lower ? bottom_blobs[0] : bottom_blobs[1];
+    const int op_type_r = a_is_lower ? get_reverse_op_type(op_type) : op_type;
 
     Mat& top_blob = top_blobs[0];
     top_blob.create_like(A, opt.blob_allocator);
