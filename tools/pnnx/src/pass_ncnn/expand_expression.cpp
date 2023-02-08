@@ -169,6 +169,8 @@ static std::string expand_expression(Graph& graph, const Operator* op, int& pnnx
             Operand* op_unary_out = graph.new_operand(op->name + "_" + r);
             op_unary_out->producer = op_unary;
 
+            op_unary_out->shape = op_unary_in->shape;
+
             op_unary->inputs.push_back(op_unary_in);
             op_unary->outputs.push_back(op_unary_out);
         }
@@ -204,6 +206,8 @@ static std::string expand_expression(Graph& graph, const Operator* op, int& pnnx
                 Operand* op_binary_out = graph.new_operand(op->name + "_" + r);
                 op_binary_out->producer = op_binary;
 
+                op_binary_out->shape = op_binary_inb->shape;
+
                 op_binary->inputs.push_back(op_binary_inb);
                 op_binary->outputs.push_back(op_binary_out);
             }
@@ -218,6 +222,8 @@ static std::string expand_expression(Graph& graph, const Operator* op, int& pnnx
                 Operand* op_binary_out = graph.new_operand(op->name + "_" + r);
                 op_binary_out->producer = op_binary;
 
+                op_binary_out->shape = op_binary_ina->shape;
+
                 op_binary->inputs.push_back(op_binary_ina);
                 op_binary->outputs.push_back(op_binary_out);
             }
@@ -231,6 +237,28 @@ static std::string expand_expression(Graph& graph, const Operator* op, int& pnnx
 
                 Operand* op_binary_out = graph.new_operand(op->name + "_" + r);
                 op_binary_out->producer = op_binary;
+
+                // resolve out shape
+                std::vector<int> out_shape;
+                {
+                    std::vector<int> a_shape = op_binary_ina->shape;
+                    std::vector<int> b_shape = op_binary_inb->shape;
+                    int outrank = (int)std::max(a_shape.size(), b_shape.size());
+                    for (int k = (int)a_shape.size(); k < outrank; k++)
+                    {
+                        a_shape.insert(a_shape.begin(), 1);
+                    }
+                    for (int k = (int)b_shape.size(); k < outrank; k++)
+                    {
+                        b_shape.insert(b_shape.begin(), 1);
+                    }
+                    out_shape.resize(outrank);
+                    for (int k = 0; k < outrank; k++)
+                    {
+                        out_shape[k] = std::max(a_shape[k], b_shape[k]);
+                    }
+                }
+                op_binary_out->shape = out_shape;
 
                 op_binary->inputs.push_back(op_binary_ina);
                 op_binary->inputs.push_back(op_binary_inb);

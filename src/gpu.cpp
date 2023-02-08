@@ -1123,6 +1123,7 @@ int create_gpu_instance()
         gpu_info.bug_storage_buffer_no_l1 = false;
         gpu_info.bug_corrupted_online_pipeline_cache = false;
         gpu_info.bug_implicit_fp16_arithmetic = false;
+        gpu_info.bug_buffer_image_load_zero = false;
 
         if (physicalDeviceProperties.vendorID == 0x5143 && physicalDeviceProperties.apiVersion < VK_MAKE_VERSION(1, 0, 66))
         {

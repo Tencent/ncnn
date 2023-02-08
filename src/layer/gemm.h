@@ -47,6 +47,12 @@ public:
     int constant_broadcast_type_C;
     int output_N1M;
     int output_elempack;
+    int output_elemtype; // 0=auto 1=fp32
+    int output_transpose;
+
+    int constant_TILE_M;
+    int constant_TILE_N;
+    int constant_TILE_K;
 
     // constant A / B / C
     Mat A_data;
