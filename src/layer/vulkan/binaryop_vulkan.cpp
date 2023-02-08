@@ -48,9 +48,11 @@ static int get_reverse_op_type(int op_type)
     if (op_type == BinaryOp::Operation_SUB) return BinaryOp::Operation_RSUB;
     if (op_type == BinaryOp::Operation_DIV) return BinaryOp::Operation_RDIV;
     if (op_type == BinaryOp::Operation_POW) return BinaryOp::Operation_RPOW;
+    if (op_type == BinaryOp::Operation_ATAN2) return BinaryOp::Operation_RATAN2;
     if (op_type == BinaryOp::Operation_RSUB) return BinaryOp::Operation_SUB;
     if (op_type == BinaryOp::Operation_RDIV) return BinaryOp::Operation_DIV;
     if (op_type == BinaryOp::Operation_RPOW) return BinaryOp::Operation_POW;
+    if (op_type == BinaryOp::Operation_RATAN2) return BinaryOp::Operation_ATAN2;
     return op_type;
 }
 
