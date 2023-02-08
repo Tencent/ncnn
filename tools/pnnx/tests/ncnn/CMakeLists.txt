@@ -187,6 +187,7 @@ pnnx_ncnn_add_test(vit_b_32)
 pnnx_ncnn_add_test(ncnn_fuse_transpose_matmul)
 pnnx_ncnn_add_test(ncnn_fuse_shufflechannel_slice)
 pnnx_ncnn_add_test(ncnn_fuse_binaryop_eltwise)
+pnnx_ncnn_add_test(ncnn_numpy_binaryop_broadcast)
 
 if(Torch_VERSION VERSION_GREATER_EQUAL "1.9")
     pnnx_ncnn_add_test(F_mish)

@@ -161,6 +161,7 @@ Operation type:
 - 6 = POW
 - 7 = RSUB
 - 8 = RDIV
+- 9 = RPOW
 
 # BNLL
 ```
