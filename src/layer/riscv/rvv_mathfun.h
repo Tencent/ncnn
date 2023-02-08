@@ -546,7 +546,7 @@ _RVV_FLOAT32_ERFC_OP(8, 4)
         {                                                                                               \
             tmpx[i] = atan2(tmpx[i], tmpy[i]);                                                          \
         }                                                                                               \
-        return vle32_v_f32m##LMUL##(ptr, vl);
+        return vle32_v_f32m##LMUL##(ptr, vl);                                                           \
     }
 
 _RVV_FLOAT32_ATAN2_OP(1, 32)

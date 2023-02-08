@@ -382,7 +382,7 @@ _RVV_FLOAT16_SIGMOID_OP(8, 2)
         {                                                                                               \
             tmpx[i] = (__fp16)atan2((float)tmpx[i], (float)tmpy[i]);                                    \
         }                                                                                               \
-        return vle16_v_f16m##LMUL##(ptr, vl);
+        return vle16_v_f16m##LMUL##(ptr, vl);                                                           \
     }
 
 _RVV_FLOAT16_ATAN2_OP(1, 32)
