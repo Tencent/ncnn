@@ -428,7 +428,6 @@ struct binary_op_ratan2
     }
 };
 
-
 static int binary_op_scalar(const Mat& a, float b, Mat& c, int op_type, const Option& opt)
 {
     if (op_type == BinaryOp::Operation_ADD) return binary_op_scalar<binary_op_add>(a, b, c, opt);
