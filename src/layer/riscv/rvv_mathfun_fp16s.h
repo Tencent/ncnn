@@ -376,13 +376,13 @@ _RVV_FLOAT16_SIGMOID_OP(8, 2)
     {                                                                                                   \
         std::vector<__fp16> tmpx(vl);                                                                   \
         std::vector<__fp16> tmpy(vl);                                                                   \
-        vse16_v_f16m##LMUL##(tmpx.data(), a, vl);                                                       \
-        vse16_v_f16m##LMUL##(tmpy.data(), b, vl);                                                       \
+        vse16_v_f16m##LMUL(tmpx.data(), a, vl);                                                         \
+        vse16_v_f16m##LMUL(tmpy.data(), b, vl);                                                         \
         for (int i = 0; i < vl; i++)                                                                    \
         {                                                                                               \
             tmpx[i] = (__fp16)atan2((float)tmpx[i], (float)tmpy[i]);                                    \
         }                                                                                               \
-        return vle16_v_f16m##LMUL##(ptr, vl);                                                           \
+        return vle16_v_f16m##LMUL(ptr, vl);                                                             \
     }
 
 _RVV_FLOAT16_ATAN2_OP(1, 32)

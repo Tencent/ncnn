@@ -540,13 +540,13 @@ _RVV_FLOAT32_ERFC_OP(8, 4)
     {                                                                                                   \
         std::vector<float> tmpx(vl);                                                                    \
         std::vector<float> tmpy(vl);                                                                    \
-        vse32_v_f32m##LMUL##(tmpx.data(), a, vl);                                                       \
-        vse32_v_f32m##LMUL##(tmpy.data(), b, vl);                                                       \
+        vse32_v_f32m##LMUL(tmpx.data(), a, vl);                                                         \
+        vse32_v_f32m##LMUL(tmpy.data(), b, vl);                                                         \
         for (int i = 0; i < vl; i++)                                                                    \
         {                                                                                               \
             tmpx[i] = atan2(tmpx[i], tmpy[i]);                                                          \
         }                                                                                               \
-        return vle32_v_f32m##LMUL##(ptr, vl);                                                           \
+        return vle32_v_f32m##LMUL(ptr, vl);                                                             \
     }
 
 _RVV_FLOAT32_ATAN2_OP(1, 32)
