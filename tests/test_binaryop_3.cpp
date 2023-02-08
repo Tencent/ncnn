@@ -65,7 +65,7 @@ static int test_binaryop(const ncnn::Mat& _a, float b)
     ncnn::Mat a = _a;
     if (op_type == 6 || op_type == 9)
     {
-        // value must be positive for pow
+        // value must be positive for pow/rpow
         Randomize(a, 0.001f, 2.f);
         b = RandomFloat(0.001f, 2.f);
     }
@@ -91,6 +91,8 @@ static int test_binaryop(const ncnn::Mat& _a, float b)
 
     return ret;
 }
+
+// https://github.com/Tencent/ncnn/wiki/binaryop-broadcasting
 
 static int test_binaryop_1()
 {
@@ -366,7 +368,7 @@ int main()
 {
     SRAND(7767517);
 
-    for (op_type = 0; op_type < 3; op_type++)
+    for (op_type = 9; op_type < OP_TYPE_MAX; op_type++)
     {
         int ret = 0
                   || test_binaryop_1()

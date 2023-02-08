@@ -534,4 +534,24 @@ _RVV_FLOAT32_ERFC_OP(2, 16)
 _RVV_FLOAT32_ERFC_OP(4, 8)
 _RVV_FLOAT32_ERFC_OP(8, 4)
 
+//TODO rvv optimize
+#define _RVV_FLOAT32_ATAN2_OP(LMUL, MLEN)                                                               \
+    static inline vfloat32m##LMUL##_t atan2_ps(vfloat32m##LMUL##_t a, vfloat32m##LMUL##_t b, size_t vl) \
+    {                                                                                                   \
+        std::vector<float> tmpx(vl);                                                                    \
+        std::vector<float> tmpy(vl);                                                                    \
+        vse32_v_f32m##LMUL(tmpx.data(), a, vl);                                                         \
+        vse32_v_f32m##LMUL(tmpy.data(), b, vl);                                                         \
+        for (int i = 0; i < vl; i++)                                                                    \
+        {                                                                                               \
+            tmpx[i] = atan2(tmpx[i], tmpy[i]);                                                          \
+        }                                                                                               \
+        return vle32_v_f32m##LMUL(tmpx.data(), vl);                                                     \
+    }
+
+_RVV_FLOAT32_ATAN2_OP(1, 32)
+_RVV_FLOAT32_ATAN2_OP(2, 16)
+_RVV_FLOAT32_ATAN2_OP(4, 8)
+_RVV_FLOAT32_ATAN2_OP(8, 4)
+
 #endif // RVV_MATHFUN_H

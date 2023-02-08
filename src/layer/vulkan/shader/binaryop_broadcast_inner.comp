@@ -184,6 +184,13 @@ void main()
     if (op_type == 7) res = v2 - v1;
     if (op_type == 8) res = v2 / v1;
     if (op_type == 9) res = pow(v2, v1);
+#if NCNN_moltenvk
+    if (op_type == 10) res = afp(atan(float(v1), float(v2)));
+    if (op_type == 11) res = afp(atan(float(v2), float(v1)));
+#else
+    if (op_type == 10) res = atan(v1, v2);
+    if (op_type == 11) res = atan(v2, v1);
+#endif
 
 #if NCNN_image_shader
     image3d_st1(top_blob_3d, ivec3(gx, gy, gz), res);

@@ -163,6 +163,26 @@ void main()
         res[0] = pow(v2[0], v1[0]);
         res[1] = pow(v2[1], v1[1]);
     }
+    if (op_type == 10)
+    {
+#if NCNN_moltenvk
+        res[0] = afpvec4(atan(vec4(v1[0]), vec4(v2[0])));
+        res[1] = afpvec4(atan(vec4(v1[1]), vec4(v2[1])));
+#else
+        res[0] = atan(v1[0], v2[0]);
+        res[1] = atan(v1[1], v2[1]);
+#endif
+    }
+    if (op_type == 11)
+    {
+#if NCNN_moltenvk
+        res[0] = afpvec4(atan(vec4(v2[0]), vec4(v1[0])));
+        res[1] = afpvec4(atan(vec4(v2[1]), vec4(v1[1])));
+#else
+        res[0] = atan(v2[0], v1[0]);
+        res[1] = atan(v2[1], v1[1]);
+#endif
+    }
 
 #if NCNN_image_shader
     image3d_st8(top_blob_3d, ivec3(gx, gy, gz), res);
