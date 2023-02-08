@@ -163,6 +163,8 @@ Operation type:
 - 7 = RSUB
 - 8 = RDIV
 - 9 = RPOW
+- 10 = ATAN2
+- 11 = RATAN2
 
 # BNLL
 ```

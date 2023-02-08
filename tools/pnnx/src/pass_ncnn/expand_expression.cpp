@@ -174,7 +174,7 @@ static std::string expand_expression(Graph& graph, const Operator* op, int& pnnx
             op_unary->inputs.push_back(op_unary_in);
             op_unary->outputs.push_back(op_unary_out);
         }
-        else if (t == "add" || t == "sub" || t == "mul" || t == "div" || /*t == "floor_divide" || */ t == "pow")
+        else if (t == "add" || t == "sub" || t == "mul" || t == "div" || /*t == "floor_divide" || */ t == "pow" || t == "atan2")
         {
             std::string a = exprstack.top();
             exprstack.pop();
@@ -191,11 +191,14 @@ static std::string expand_expression(Graph& graph, const Operator* op, int& pnnx
             if (t == "mul") op_binary->params["0"] = 2;
             if (t == "div") op_binary->params["0"] = 3;
             if (t == "pow") op_binary->params["0"] = 6;
+            if (t == "atan2") op_binary->params["0"] = 10;
 
             if (token_is_literal(a))
             {
                 if (t == "sub") op_binary->params["0"] = 7;
                 if (t == "div") op_binary->params["0"] = 8;
+                if (t == "pow") op_binary->params["0"] = 9;
+                if (t == "atan2") op_binary->params["0"] = 11;
 
                 Operand* op_binary_inb = token_is_argument(b) ? op->inputs[std::stoi(b.substr(1))] : graph.get_operand(op->name + "_" + b);
                 op_binary_inb->consumers.push_back(op_binary);

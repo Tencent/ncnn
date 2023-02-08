@@ -412,18 +412,39 @@ struct binary_op_rpow
     }
 };
 
+struct binary_op_atan2
+{
+    float operator()(const float& x, const float& y) const
+    {
+        return (float)atan2(x, y);
+    }
+};
+
+struct binary_op_ratan2
+{
+    float operator()(const float& x, const float& y) const
+    {
+        return (float)atan2(y, x);
+    }
+};
+
+#define DISPATCH_BINARYOP(binary_op, op_type, ...)                                              \
+    if (op_type == BinaryOp::Operation_ADD) return binary_op<binary_op_add>(__VA_ARGS__);       \
+    if (op_type == BinaryOp::Operation_SUB) return binary_op<binary_op_sub>(__VA_ARGS__);       \
+    if (op_type == BinaryOp::Operation_MUL) return binary_op<binary_op_mul>(__VA_ARGS__);       \
+    if (op_type == BinaryOp::Operation_DIV) return binary_op<binary_op_div>(__VA_ARGS__);       \
+    if (op_type == BinaryOp::Operation_MAX) return binary_op<binary_op_max>(__VA_ARGS__);       \
+    if (op_type == BinaryOp::Operation_MIN) return binary_op<binary_op_min>(__VA_ARGS__);       \
+    if (op_type == BinaryOp::Operation_POW) return binary_op<binary_op_pow>(__VA_ARGS__);       \
+    if (op_type == BinaryOp::Operation_RSUB) return binary_op<binary_op_rsub>(__VA_ARGS__);     \
+    if (op_type == BinaryOp::Operation_RDIV) return binary_op<binary_op_rdiv>(__VA_ARGS__);     \
+    if (op_type == BinaryOp::Operation_RPOW) return binary_op<binary_op_rpow>(__VA_ARGS__);     \
+    if (op_type == BinaryOp::Operation_ATAN2) return binary_op<binary_op_atan2>(__VA_ARGS__);   \
+    if (op_type == BinaryOp::Operation_RATAN2) return binary_op<binary_op_ratan2>(__VA_ARGS__);
+
 static int binary_op_scalar(const Mat& a, float b, Mat& c, int op_type, const Option& opt)
 {
-    if (op_type == BinaryOp::Operation_ADD) return binary_op_scalar<binary_op_add>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_SUB) return binary_op_scalar<binary_op_sub>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_MUL) return binary_op_scalar<binary_op_mul>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_DIV) return binary_op_scalar<binary_op_div>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_MAX) return binary_op_scalar<binary_op_max>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_MIN) return binary_op_scalar<binary_op_min>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_POW) return binary_op_scalar<binary_op_pow>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_RSUB) return binary_op_scalar<binary_op_rsub>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_RDIV) return binary_op_scalar<binary_op_rdiv>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_RPOW) return binary_op_scalar<binary_op_rpow>(a, b, c, opt);
+    DISPATCH_BINARYOP(binary_op_scalar, op_type, a, b, c, opt)
 
     // should never reach here
     return 0;
@@ -431,16 +452,7 @@ static int binary_op_scalar(const Mat& a, float b, Mat& c, int op_type, const Op
 
 static int binary_op_no_broadcast(const Mat& a, const Mat& b, Mat& c, int op_type, const Option& opt)
 {
-    if (op_type == BinaryOp::Operation_ADD) return binary_op_no_broadcast<binary_op_add>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_SUB) return binary_op_no_broadcast<binary_op_sub>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_MUL) return binary_op_no_broadcast<binary_op_mul>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_DIV) return binary_op_no_broadcast<binary_op_div>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_MAX) return binary_op_no_broadcast<binary_op_max>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_MIN) return binary_op_no_broadcast<binary_op_min>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_POW) return binary_op_no_broadcast<binary_op_pow>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_RSUB) return binary_op_no_broadcast<binary_op_rsub>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_RDIV) return binary_op_no_broadcast<binary_op_rdiv>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_RPOW) return binary_op_no_broadcast<binary_op_rpow>(a, b, c, opt);
+    DISPATCH_BINARYOP(binary_op_no_broadcast, op_type, a, b, c, opt)
 
     // should never reach here
     return 0;
@@ -463,16 +475,7 @@ static int binary_op_broadcast_inner(const Mat& a, const Mat& b, Mat& c, int op_
     else if (b.dims == 4 && b.w == 1)
         b2 = b.reshape(b.h, b.d, b.c);
 
-    if (op_type == BinaryOp::Operation_ADD) return binary_op_broadcast_inner<binary_op_add>(a, b2, c, opt);
-    if (op_type == BinaryOp::Operation_SUB) return binary_op_broadcast_inner<binary_op_sub>(a, b2, c, opt);
-    if (op_type == BinaryOp::Operation_MUL) return binary_op_broadcast_inner<binary_op_mul>(a, b2, c, opt);
-    if (op_type == BinaryOp::Operation_DIV) return binary_op_broadcast_inner<binary_op_div>(a, b2, c, opt);
-    if (op_type == BinaryOp::Operation_MAX) return binary_op_broadcast_inner<binary_op_max>(a, b2, c, opt);
-    if (op_type == BinaryOp::Operation_MIN) return binary_op_broadcast_inner<binary_op_min>(a, b2, c, opt);
-    if (op_type == BinaryOp::Operation_POW) return binary_op_broadcast_inner<binary_op_pow>(a, b2, c, opt);
-    if (op_type == BinaryOp::Operation_RSUB) return binary_op_broadcast_inner<binary_op_rsub>(a, b2, c, opt);
-    if (op_type == BinaryOp::Operation_RDIV) return binary_op_broadcast_inner<binary_op_rdiv>(a, b2, c, opt);
-    if (op_type == BinaryOp::Operation_RPOW) return binary_op_broadcast_inner<binary_op_rpow>(a, b2, c, opt);
+    DISPATCH_BINARYOP(binary_op_broadcast_inner, op_type, a, b2, c, opt)
 
     // should never reach here
     return 0;
@@ -480,16 +483,7 @@ static int binary_op_broadcast_inner(const Mat& a, const Mat& b, Mat& c, int op_
 
 static int binary_op_broadcast_outer(const Mat& a, const Mat& b, Mat& c, int op_type, const Option& opt)
 {
-    if (op_type == BinaryOp::Operation_ADD) return binary_op_broadcast_outer<binary_op_add>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_SUB) return binary_op_broadcast_outer<binary_op_sub>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_MUL) return binary_op_broadcast_outer<binary_op_mul>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_DIV) return binary_op_broadcast_outer<binary_op_div>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_MAX) return binary_op_broadcast_outer<binary_op_max>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_MIN) return binary_op_broadcast_outer<binary_op_min>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_POW) return binary_op_broadcast_outer<binary_op_pow>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_RSUB) return binary_op_broadcast_outer<binary_op_rsub>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_RDIV) return binary_op_broadcast_outer<binary_op_rdiv>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_RPOW) return binary_op_broadcast_outer<binary_op_rpow>(a, b, c, opt);
+    DISPATCH_BINARYOP(binary_op_broadcast_outer, op_type, a, b, c, opt)
 
     // should never reach here
     return 0;
@@ -497,16 +491,7 @@ static int binary_op_broadcast_outer(const Mat& a, const Mat& b, Mat& c, int op_
 
 static int binary_op_broadcast_20(const Mat& a, const Mat& b, Mat& c, int op_type, const Option& opt)
 {
-    if (op_type == BinaryOp::Operation_ADD) return binary_op_broadcast_20<binary_op_add>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_SUB) return binary_op_broadcast_20<binary_op_sub>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_MUL) return binary_op_broadcast_20<binary_op_mul>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_DIV) return binary_op_broadcast_20<binary_op_div>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_MAX) return binary_op_broadcast_20<binary_op_max>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_MIN) return binary_op_broadcast_20<binary_op_min>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_POW) return binary_op_broadcast_20<binary_op_pow>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_RSUB) return binary_op_broadcast_20<binary_op_rsub>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_RDIV) return binary_op_broadcast_20<binary_op_rdiv>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_RPOW) return binary_op_broadcast_20<binary_op_rpow>(a, b, c, opt);
+    DISPATCH_BINARYOP(binary_op_broadcast_20, op_type, a, b, c, opt)
 
     // should never reach here
     return 0;
@@ -517,9 +502,11 @@ static int get_reverse_op_type(int op_type)
     if (op_type == BinaryOp::Operation_SUB) return BinaryOp::Operation_RSUB;
     if (op_type == BinaryOp::Operation_DIV) return BinaryOp::Operation_RDIV;
     if (op_type == BinaryOp::Operation_POW) return BinaryOp::Operation_RPOW;
+    if (op_type == BinaryOp::Operation_ATAN2) return BinaryOp::Operation_RATAN2;
     if (op_type == BinaryOp::Operation_RSUB) return BinaryOp::Operation_SUB;
     if (op_type == BinaryOp::Operation_RDIV) return BinaryOp::Operation_DIV;
     if (op_type == BinaryOp::Operation_RPOW) return BinaryOp::Operation_POW;
+    if (op_type == BinaryOp::Operation_RATAN2) return BinaryOp::Operation_ATAN2;
     return op_type;
 }
 
@@ -584,16 +571,7 @@ int BinaryOp::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 
 int BinaryOp::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
-    if (op_type == Operation_ADD) return binary_op_scalar_inplace<binary_op_add>(bottom_top_blob, b, opt);
-    if (op_type == Operation_SUB) return binary_op_scalar_inplace<binary_op_sub>(bottom_top_blob, b, opt);
-    if (op_type == Operation_MUL) return binary_op_scalar_inplace<binary_op_mul>(bottom_top_blob, b, opt);
-    if (op_type == Operation_DIV) return binary_op_scalar_inplace<binary_op_div>(bottom_top_blob, b, opt);
-    if (op_type == Operation_MAX) return binary_op_scalar_inplace<binary_op_max>(bottom_top_blob, b, opt);
-    if (op_type == Operation_MIN) return binary_op_scalar_inplace<binary_op_min>(bottom_top_blob, b, opt);
-    if (op_type == Operation_POW) return binary_op_scalar_inplace<binary_op_pow>(bottom_top_blob, b, opt);
-    if (op_type == Operation_RSUB) return binary_op_scalar_inplace<binary_op_rsub>(bottom_top_blob, b, opt);
-    if (op_type == Operation_RDIV) return binary_op_scalar_inplace<binary_op_rdiv>(bottom_top_blob, b, opt);
-    if (op_type == Operation_RPOW) return binary_op_scalar_inplace<binary_op_rpow>(bottom_top_blob, b, opt);
+    DISPATCH_BINARYOP(binary_op_scalar_inplace, op_type, bottom_top_blob, b, opt)
 
     // should nerver reach here
     return 0;
