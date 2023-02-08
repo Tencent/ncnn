@@ -15,6 +15,7 @@
 * [ConvolutionDepthWise1D](#convolutiondepthwise1d)
 * [ConvolutionDepthWise3D](#convolutiondepthwise3d)
 * [Crop](#crop)
+* [CumulativeSum](#cumulativesum)
 * [Deconvolution](#deconvolution)
 * [Deconvolution1D](#deconvolution1d)
 * [Deconvolution3D](#deconvolution3d)
@@ -448,6 +449,20 @@ y = crop(x)
 | 9         | starts        | array | [ ]       |                   |
 | 10        | ends          | array | [ ]       |                   |
 | 11        | axes          | array | [ ]       |                   |
+
+# CumulativeSum
+
+If axis < 0, we use axis = x.dims + axis
+
+It implements https://pytorch.org/docs/stable/generated/torch.cumsum.html
+
+* one_blob_only
+* support_inplace
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | axis          | int   | 0         |                   |
+
 
 # Deconvolution
 ```
