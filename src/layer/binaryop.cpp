@@ -460,7 +460,7 @@ static int binary_op_no_broadcast(const Mat& a, const Mat& b, Mat& c, int op_typ
     if (op_type == BinaryOp::Operation_RDIV) return binary_op_no_broadcast<binary_op_div>(b, a, c, opt);
     if (op_type == BinaryOp::Operation_RPOW) return binary_op_no_broadcast<binary_op_pow>(b, a, c, opt);
     if (op_type == BinaryOp::Operation_ATAN2) return binary_op_no_broadcast<binary_op_atan2>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_RATAN2) return binary_op_no_broadcast<binary_op_ratan2>(b, a, c, opt);
+    if (op_type == BinaryOp::Operation_RATAN2) return binary_op_no_broadcast<binary_op_atan2>(b, a, c, opt);
 
     // should never reach here
     return 0;
