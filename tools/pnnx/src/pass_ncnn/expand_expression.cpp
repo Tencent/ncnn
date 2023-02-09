@@ -224,6 +224,14 @@ static std::string expand_expression(Graph& graph, const Operator* op, int& pnnx
                 op_binary->params["1"] = 1; // with_scalar
                 op_binary->params["2"] = std::stof(b);
 
+                if (t == "pow" && std::stof(b) == 2)
+                {
+                    // replace pow 2 with square
+                    op_binary->type = "UnaryOp";
+                    op_binary->params.clear();
+                    op_binary->params["0"] = 4;
+                }
+
                 Operand* op_binary_out = graph.new_operand(op->name + "_" + r);
                 op_binary_out->producer = op_binary;
 
