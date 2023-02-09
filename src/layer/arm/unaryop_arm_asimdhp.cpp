@@ -444,7 +444,7 @@ struct unary_op_log10_fp16s
     }
     float16x4_t func_pack4(const float16x4_t& x) const
     {
-        return vmul_f16(log_ps(x), vdup_n_f16(0.434294481903);
+        return vmul_f16(log_ps(x), vdup_n_f16(0.434294481903));
     }
     float16x8_t func_pack8(const float16x8_t& x) const
     {
