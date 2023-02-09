@@ -298,6 +298,7 @@ set(pnnx_pass_level4_SRCS
 )
 
 set(pnnx_pass_level5_SRCS
+    pass_level5/attribute_unpooling.cpp
     pass_level5/eliminate_dropout.cpp
     pass_level5/eliminate_identity_operator.cpp
     pass_level5/eliminate_maxpool_indices.cpp

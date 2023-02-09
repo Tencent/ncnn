@@ -1759,3 +1759,4 @@ Operation type:
 - 14 = ATAN
 - 15 = RECIPROCAL
 - 16 = TANH
+- 17 = LOG10

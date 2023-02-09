@@ -686,6 +686,32 @@ struct unary_op_tanh
 #endif // __SSE2__
 };
 
+struct unary_op_log10
+{
+    float func(const float& x) const
+    {
+        return (float)log10(x);
+    }
+#if __SSE2__
+    __m128 func_pack4(const __m128& x) const
+    {
+        return _mm_mul_ps(log_ps(x), _mm_set1_ps(0.434294481903));
+    }
+#if __AVX__
+    __m256 func_pack8(const __m256& x) const
+    {
+        return _mm256_mul_ps(log256_ps(x), _mm256_set1_ps(0.434294481903));
+    }
+#if __AVX512F__
+    __m512 func_pack16(const __m512& x) const
+    {
+        return _mm512_mul_ps(log512_ps(x), _mm512_set1_ps(0.434294481903));
+    }
+#endif // __AVX512F__
+#endif // __AVX__
+#endif // __SSE2__
+};
+
 } // namespace UnaryOp_x86_functor
 
 int UnaryOp_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
@@ -741,6 +767,9 @@ int UnaryOp_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
     if (op_type == Operation_TANH)
         return unary_op_inplace<unary_op_tanh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_LOG10)
+        return unary_op_inplace<unary_op_log10>(bottom_top_blob, opt);
 
     return 0;
 }

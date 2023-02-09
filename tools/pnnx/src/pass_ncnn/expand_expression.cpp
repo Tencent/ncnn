@@ -128,6 +128,7 @@ static std::string expand_expression(Graph& graph, const Operator* op, int& pnnx
                  || t == "exp"
                  || t == "floor"
                  || t == "log"
+                 || t == "log10"
                  || t == "neg"
                  || t == "reciprocal"
                  || t == "rsqrt"
@@ -154,6 +155,7 @@ static std::string expand_expression(Graph& graph, const Operator* op, int& pnnx
             if (t == "exp") op_unary->params["0"] = 7;
             if (t == "floor") op_unary->params["0"] = 2;
             if (t == "log") op_unary->params["0"] = 8;
+            if (t == "log10") op_unary->params["0"] = 17;
             if (t == "neg") op_unary->params["0"] = 1;
             if (t == "reciprocal") op_unary->params["0"] = 15;
             if (t == "rsqrt") op_unary->params["0"] = 6;
@@ -221,6 +223,14 @@ static std::string expand_expression(Graph& graph, const Operator* op, int& pnnx
 
                 op_binary->params["1"] = 1; // with_scalar
                 op_binary->params["2"] = std::stof(b);
+
+                if (t == "pow" && std::stof(b) == 2)
+                {
+                    // replace pow 2 with square
+                    op_binary->type = "UnaryOp";
+                    op_binary->params.clear();
+                    op_binary->params["0"] = 4;
+                }
 
                 Operand* op_binary_out = graph.new_operand(op->name + "_" + r);
                 op_binary_out->producer = op_binary;

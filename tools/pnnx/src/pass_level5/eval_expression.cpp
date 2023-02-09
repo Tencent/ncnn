@@ -153,6 +153,7 @@ static std::string eval_expression(const Operator* op)
                  || t == "exp"
                  || t == "floor"
                  || t == "log"
+                 || t == "log10"
                  || t == "neg"
                  || t == "reciprocal"
                  || t == "rsqrt"
@@ -240,6 +241,11 @@ static std::string eval_expression(const Operator* op)
                 if (t == "log")
                 {
                     float r = log(af);
+                    exprstack.push(std::to_string(r));
+                }
+                if (t == "log10")
+                {
+                    float r = log10(af);
                     exprstack.push(std::to_string(r));
                 }
                 if (t == "neg")

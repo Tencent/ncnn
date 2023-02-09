@@ -245,6 +245,14 @@ struct unary_op_tanh
     }
 };
 
+struct unary_op_log10
+{
+    vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
+    {
+        return vfmul_vf_f32m8(log_ps(x, vl), 0.434294481903, vl);
+    }
+};
+
 } // namespace UnaryOp_riscv_functor
 #endif // __riscv_vector
 
@@ -310,6 +318,9 @@ int UnaryOp_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 
     if (op_type == Operation_TANH)
         return unary_op_inplace<unary_op_tanh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_LOG10)
+        return unary_op_inplace<unary_op_log10>(bottom_top_blob, opt);
 
     return 0;
 #else  // __riscv_vector
@@ -528,6 +539,14 @@ struct unary_op_tanh_fp16s
     }
 };
 
+struct unary_op_log10_fp16s
+{
+    vfloat16m8_t operator()(const vfloat16m8_t& x, const size_t& vl) const
+    {
+        return vfmul_vf_f16m8(log_ps(x, vl), 0.434294481903, vl);
+    }
+};
+
 } // namespace UnaryOp_riscv_functor
 
 int UnaryOp_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
@@ -584,6 +603,9 @@ int UnaryOp_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt
 
     if (op_type == Operation_TANH)
         return unary_op_inplace_fp16s<unary_op_tanh_fp16s>(bottom_top_blob, opt);
+
+    if (op_type == Operation_LOG10)
+        return unary_op_inplace_fp16s<unary_op_log10_fp16s>(bottom_top_blob, opt);
 
     return 0;
 }
