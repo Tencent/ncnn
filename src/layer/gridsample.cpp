@@ -160,8 +160,8 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
 
     if (dims == 3)
     {
-        int outw = grid.h;
-        int outh = grid.c;
+        int outw = permute_fusion == 0 ? grid.h : grid.w;
+        int outh = permute_fusion == 0 ? grid.c : grid.h;
 
         top_blob.create(outw, outh, channels, elemsize, opt.blob_allocator);
         if (top_blob.empty())
@@ -375,9 +375,9 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
 
     if (dims == 4)
     {
-        int outw = grid.h;
-        int outh = grid.d;
-        int outd = grid.c;
+        int outw = permute_fusion == 0 ? grid.h : grid.w;
+        int outh = permute_fusion == 0 ? grid.d : grid.h;
+        int outd = permute_fusion == 0 ? grid.c : grid.d;
 
         top_blob.create(outw, outh, outd, channels, elemsize, opt.blob_allocator);
         if (top_blob.empty())
