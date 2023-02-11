@@ -15,6 +15,8 @@
 #include <float.h>
 #include <stdio.h>
 #include <string.h>
+#include <map>
+#include <fstream>
 
 #ifdef _WIN32
 #include <algorithm>
@@ -158,6 +160,45 @@ void benchmark(const char* comment, const ncnn::Mat& _in, const ncnn::Option& op
     fprintf(stderr, "%20s  min = %7.2f  max = %7.2f  avg = %7.2f\n", comment, time_min, time_max, time_avg);
 }
 
+void trim(std::string& str)
+{
+    if (std::empty(str)) {
+        return;
+    }
+    str.erase(0, str.find_first_not_of(" "));
+    str.erase(str.find_last_not_of(" ") + 1);
+}
+
+int read_model_config(const char* config_path,
+    std::map<std::string, std::string> &config_map)
+{
+    std::ifstream ifs;
+    ifs.open(config_path, std::ios::in);
+    if (!ifs.is_open())
+    {
+        return -1;
+    }
+    std::string line;
+    while (!ifs.eof()) {
+        std::getline(ifs, line);
+        trim(line);
+        if (line.empty() || line.find('#') == 0) {
+            continue;
+        }
+        size_t pos = line.find('=');
+        if (pos == line.npos) {
+            continue;
+        }
+
+        std::string key = line.substr(0, pos);
+        std::string value = line.substr(pos + 1);
+        trim(key);
+        trim(value);
+        config_map.insert(std::make_pair(key, value));
+    }
+    return 0;
+}
+
 int main(int argc, char** argv)
 {
     int loop_count = 4;
@@ -165,6 +206,7 @@ int main(int argc, char** argv)
     int powersave = 2;
     int gpu_device = -1;
     int cooling_down = 1;
+    char* model_config_path = "";
 
     if (argc >= 2)
     {
@@ -185,6 +227,10 @@ int main(int argc, char** argv)
     if (argc >= 6)
     {
         cooling_down = atoi(argv[5]);
+    }
+    if (argc >= 7)
+    {
+        model_config_path = argv[6];
     }
 
 #ifdef __EMSCRIPTEN__
@@ -250,77 +296,103 @@ int main(int argc, char** argv)
     fprintf(stderr, "cooling_down = %d\n", (int)g_enable_cooling_down);
 
     // run
-    benchmark("squeezenet", ncnn::Mat(227, 227, 3), opt);
+    printf("model_config_path: %s\n", model_config_path);
+    if (model_config_path != nullptr && model_config_path != "")
+    {
+        std::map<std::string, std::string> config_map;
+        int ret = read_model_config(model_config_path, config_map);
+        if (ret != 0)
+        {
+            printf("open config file filed\n");
+            return 0;
+        }
 
-    benchmark("squeezenet_int8", ncnn::Mat(227, 227, 3), opt);
+        std::string temp = config_map["model_path"];
+        printf("model path: %s\n", temp.c_str());
+        size_t pos = temp.rfind(".param");
+        temp = temp.substr(0, pos);
 
-    benchmark("mobilenet", ncnn::Mat(224, 224, 3), opt);
+        int width = std::stoi(config_map["width"]);
+        int height = std::stoi(config_map["height"]);
+        int channels = std::stoi(config_map["channels"]);
+        printf("intput width: %d, intput height: %d, intput channels: %d\n",
+            width, height, channels);
 
-    benchmark("mobilenet_int8", ncnn::Mat(224, 224, 3), opt);
+        benchmark(temp.c_str(),
+            ncnn::Mat(width, height, channels), opt);
+    } else {
+        benchmark("squeezenet", ncnn::Mat(227, 227, 3), opt);
 
-    benchmark("mobilenet_v2", ncnn::Mat(224, 224, 3), opt);
+        benchmark("squeezenet_int8", ncnn::Mat(227, 227, 3), opt);
 
-    // benchmark("mobilenet_v2_int8", ncnn::Mat(224, 224, 3), opt);
+        benchmark("mobilenet", ncnn::Mat(224, 224, 3), opt);
 
-    benchmark("mobilenet_v3", ncnn::Mat(224, 224, 3), opt);
+        benchmark("mobilenet_int8", ncnn::Mat(224, 224, 3), opt);
 
-    benchmark("shufflenet", ncnn::Mat(224, 224, 3), opt);
+        benchmark("mobilenet_v2", ncnn::Mat(224, 224, 3), opt);
 
-    benchmark("shufflenet_v2", ncnn::Mat(224, 224, 3), opt);
+        // benchmark("mobilenet_v2_int8", ncnn::Mat(224, 224, 3), opt);
 
-    benchmark("mnasnet", ncnn::Mat(224, 224, 3), opt);
+        benchmark("mobilenet_v3", ncnn::Mat(224, 224, 3), opt);
 
-    benchmark("proxylessnasnet", ncnn::Mat(224, 224, 3), opt);
+        benchmark("shufflenet", ncnn::Mat(224, 224, 3), opt);
 
-    benchmark("efficientnet_b0", ncnn::Mat(224, 224, 3), opt);
+        benchmark("shufflenet_v2", ncnn::Mat(224, 224, 3), opt);
 
-    benchmark("efficientnetv2_b0", ncnn::Mat(224, 224, 3), opt);
+        benchmark("mnasnet", ncnn::Mat(224, 224, 3), opt);
 
-    benchmark("regnety_400m", ncnn::Mat(224, 224, 3), opt);
+        benchmark("proxylessnasnet", ncnn::Mat(224, 224, 3), opt);
 
-    benchmark("blazeface", ncnn::Mat(128, 128, 3), opt);
+        benchmark("efficientnet_b0", ncnn::Mat(224, 224, 3), opt);
 
-    benchmark("googlenet", ncnn::Mat(224, 224, 3), opt);
+        benchmark("efficientnetv2_b0", ncnn::Mat(224, 224, 3), opt);
 
-    benchmark("googlenet_int8", ncnn::Mat(224, 224, 3), opt);
+        benchmark("regnety_400m", ncnn::Mat(224, 224, 3), opt);
 
-    benchmark("resnet18", ncnn::Mat(224, 224, 3), opt);
+        benchmark("blazeface", ncnn::Mat(128, 128, 3), opt);
 
-    benchmark("resnet18_int8", ncnn::Mat(224, 224, 3), opt);
+        benchmark("googlenet", ncnn::Mat(224, 224, 3), opt);
 
-    benchmark("alexnet", ncnn::Mat(227, 227, 3), opt);
+        benchmark("googlenet_int8", ncnn::Mat(224, 224, 3), opt);
 
-    benchmark("vgg16", ncnn::Mat(224, 224, 3), opt);
+        benchmark("resnet18", ncnn::Mat(224, 224, 3), opt);
 
-    benchmark("vgg16_int8", ncnn::Mat(224, 224, 3), opt);
+        benchmark("resnet18_int8", ncnn::Mat(224, 224, 3), opt);
 
-    benchmark("resnet50", ncnn::Mat(224, 224, 3), opt);
+        benchmark("alexnet", ncnn::Mat(227, 227, 3), opt);
 
-    benchmark("resnet50_int8", ncnn::Mat(224, 224, 3), opt);
+        benchmark("vgg16", ncnn::Mat(224, 224, 3), opt);
 
-    benchmark("squeezenet_ssd", ncnn::Mat(300, 300, 3), opt);
+        benchmark("vgg16_int8", ncnn::Mat(224, 224, 3), opt);
 
-    benchmark("squeezenet_ssd_int8", ncnn::Mat(300, 300, 3), opt);
+        benchmark("resnet50", ncnn::Mat(224, 224, 3), opt);
 
-    benchmark("mobilenet_ssd", ncnn::Mat(300, 300, 3), opt);
+        benchmark("resnet50_int8", ncnn::Mat(224, 224, 3), opt);
 
-    benchmark("mobilenet_ssd_int8", ncnn::Mat(300, 300, 3), opt);
+        benchmark("squeezenet_ssd", ncnn::Mat(300, 300, 3), opt);
 
-    benchmark("mobilenet_yolo", ncnn::Mat(416, 416, 3), opt);
+        benchmark("squeezenet_ssd_int8", ncnn::Mat(300, 300, 3), opt);
 
-    benchmark("mobilenetv2_yolov3", ncnn::Mat(352, 352, 3), opt);
+        benchmark("mobilenet_ssd", ncnn::Mat(300, 300, 3), opt);
 
-    benchmark("yolov4-tiny", ncnn::Mat(416, 416, 3), opt);
+        benchmark("mobilenet_ssd_int8", ncnn::Mat(300, 300, 3), opt);
 
-    benchmark("nanodet_m", ncnn::Mat(320, 320, 3), opt);
+        benchmark("mobilenet_yolo", ncnn::Mat(416, 416, 3), opt);
 
-    benchmark("yolo-fastest-1.1", ncnn::Mat(320, 320, 3), opt);
+        benchmark("mobilenetv2_yolov3", ncnn::Mat(352, 352, 3), opt);
 
-    benchmark("yolo-fastestv2", ncnn::Mat(352, 352, 3), opt);
+        benchmark("yolov4-tiny", ncnn::Mat(416, 416, 3), opt);
 
-    benchmark("vision_transformer", ncnn::Mat(384, 384, 3), opt);
+        benchmark("nanodet_m", ncnn::Mat(320, 320, 3), opt);
 
-    benchmark("FastestDet", ncnn::Mat(352, 352, 3), opt);
+        benchmark("yolo-fastest-1.1", ncnn::Mat(320, 320, 3), opt);
+
+        benchmark("yolo-fastestv2", ncnn::Mat(352, 352, 3), opt);
+
+        benchmark("vision_transformer", ncnn::Mat(384, 384, 3), opt);
+
+        benchmark("FastestDet", ncnn::Mat(352, 352, 3), opt);
+    }
 #if NCNN_VULKAN
     delete g_blob_vkallocator;
     delete g_staging_vkallocator;

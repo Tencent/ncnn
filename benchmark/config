@@ -1,0 +1,9 @@
+
+model_path = ./squeezenet.param
+
+width =227
+
+height= 227
+
+channels=3
+
