@@ -67,10 +67,10 @@ static int test_copyto_0()
             const ncnn::Mat& src = b[j];
 
             int ret = 0
-                || test_copyto(self, src, 0, 0, 0, 0)
-                || test_copyto(self, src, 13, 0, 0, 0)
-                || test_copyto(self, src, 28, 0, 0, 0)
-                || test_copyto(self, src, 32, 0, 0, 0);
+                      || test_copyto(self, src, 0, 0, 0, 0)
+                      || test_copyto(self, src, 13, 0, 0, 0)
+                      || test_copyto(self, src, 28, 0, 0, 0)
+                      || test_copyto(self, src, 32, 0, 0, 0);
 
             if (ret != 0)
                 return ret;
@@ -101,10 +101,10 @@ static int test_copyto_1()
             const ncnn::Mat& src = b[j];
 
             int ret = 0
-                || test_copyto(self, src, 0, 0, 0, 0)
-                || test_copyto(self, src, 1, 13, 0, 0)
-                || test_copyto(self, src, 3, 28, 0, 0)
-                || test_copyto(self, src, 10, 32, 0, 0);
+                      || test_copyto(self, src, 0, 0, 0, 0)
+                      || test_copyto(self, src, 1, 13, 0, 0)
+                      || test_copyto(self, src, 3, 28, 0, 0)
+                      || test_copyto(self, src, 10, 32, 0, 0);
 
             if (ret != 0)
                 return ret;
@@ -135,10 +135,10 @@ static int test_copyto_2()
             const ncnn::Mat& src = b[j];
 
             int ret = 0
-                || test_copyto(self, src, 0, 0, 0, 0)
-                || test_copyto(self, src, 0, 1, 0, 13)
-                || test_copyto(self, src, 4, 3, 0, 28)
-                || test_copyto(self, src, 5, 0, 0, 32);
+                      || test_copyto(self, src, 0, 0, 0, 0)
+                      || test_copyto(self, src, 0, 1, 0, 13)
+                      || test_copyto(self, src, 4, 3, 0, 28)
+                      || test_copyto(self, src, 5, 0, 0, 32);
 
             if (ret != 0)
                 return ret;
@@ -169,10 +169,10 @@ static int test_copyto_3()
             const ncnn::Mat& src = b[j];
 
             int ret = 0
-                || test_copyto(self, src, 0, 0, 0, 0)
-                || test_copyto(self, src, 0, 1, 1, 13)
-                || test_copyto(self, src, 4, 3, 0, 28)
-                || test_copyto(self, src, 5, 0, 2, 32);
+                      || test_copyto(self, src, 0, 0, 0, 0)
+                      || test_copyto(self, src, 0, 1, 1, 13)
+                      || test_copyto(self, src, 4, 3, 0, 28)
+                      || test_copyto(self, src, 5, 0, 2, 32);
 
             if (ret != 0)
                 return ret;
