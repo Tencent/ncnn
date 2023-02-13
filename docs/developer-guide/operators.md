@@ -430,6 +430,28 @@ y = activation(x3, act_type, act_params)
 | weight_data   | float/fp16/int8 | [kernel_w, kernel_h, kernel_d, num_input / group, num_output / group, group] |
 | bias_data     | float | [num_output]          |
 
+# CopyTo
+```
+self[roi] = src
+```
+
+* one_blob_only
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | woffset       | int   | 0         |                   |
+| 1         | hoffset       | int   | 0         |                   |
+| 2         | coffset       | int   | 1         |                   |
+| 3         | outw          | int   | 1         |                   |
+| 4         | outh          | int   | 0         |                   |
+| 5         | outc          | int   | 0         |                   |
+| 6         | woffset2      | int   | 0         |                   |
+| 7         | hoffset2      | int   | 1         |                   |
+| 8         | coffset2      | int   | 0         |                   |
+| 9         | starts        | array | [ ]       |                   |
+| 10        | ends          | array | [ ]       |                   |
+| 11        | axes          | array | [ ]       |                   |
+
 # Crop
 ```
 y = crop(x)

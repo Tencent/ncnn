@@ -492,6 +492,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/Tensor_reshape.cpp
     pass_ncnn/Tensor_repeat.cpp
     pass_ncnn/Tensor_slice.cpp
+    pass_ncnn/Tensor_slice_copy.cpp
     pass_ncnn/Tensor_view.cpp
     pass_ncnn/torch_addmm.cpp
     pass_ncnn/torch_amax.cpp
