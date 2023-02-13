@@ -73,7 +73,7 @@ int CopyTo::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
 
     int _woffset, _hoffset, _doffset, _coffset;
     int _outw = -1, _outh = -1, _outd = -1, _outc;
-    resolve_copyto_roi(self_blob.shape(), _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
+    resolve_copyto_roi(self_blob.shape(), src_blob.shape(), _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
 
     if (dims == 1)
     {
@@ -183,13 +183,13 @@ int CopyTo::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
     return 0;
 }
 
-void CopyTo::resolve_copyto_roi(const Mat& bottom_blob, int& _woffset, int& _hoffset, int& _doffset, int& _coffset, int& _outw, int& _outh, int& _outd, int& _outc) const
+void CopyTo::resolve_copyto_roi(const Mat& self_blob, const Mat& src_blob, int& _woffset, int& _hoffset, int& _doffset, int& _coffset, int& _outw, int& _outh, int& _outd, int& _outc) const
 {
-    int w = bottom_blob.w;
-    int h = bottom_blob.h;
-    int d = bottom_blob.d;
-    int channels = bottom_blob.c;
-    int dims = bottom_blob.dims;
+    int w = self_blob.w;
+    int h = self_blob.h;
+    int d = self_blob.d;
+    int channels = self_blob.c;
+    int dims = self_blob.dims;
 
     bool numpy_style_slice = !starts.empty() && !ends.empty();
     if (numpy_style_slice)
@@ -371,6 +371,12 @@ void CopyTo::resolve_copyto_roi(const Mat& bottom_blob, int& _woffset, int& _hof
                 _outc = std::min(outc, _outc);
         }
     }
+
+    // sanitize out shape for src_blob
+    _outw = std::min(_outw, src_blob.w);
+    _outh = std::min(_outh, src_blob.h);
+    _outd = std::min(_outd, src_blob.d);
+    _outc = std::min(_outc, src_blob.c);
 }
 
 } // namespace ncnn

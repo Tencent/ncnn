@@ -29,7 +29,7 @@ public:
     virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 
 protected:
-    void resolve_copyto_roi(const Mat& bottom_blob, int& woffset, int& hoffset, int& doffset, int& coffset, int& outw, int& outh, int& outd, int& outc) const;
+    void resolve_copyto_roi(const Mat& self_blob, const Mat& src_blob, int& woffset, int& hoffset, int& doffset, int& coffset, int& outw, int& outh, int& outd, int& outc) const;
 
 public:
     int woffset;
