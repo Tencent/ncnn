@@ -105,7 +105,7 @@ struct gridsample_2d_bilinear_compute_blob
                     __m256 se_offset = _mm256_add_ps(sw_offset, *(__m256*)_ps256_1);
 
                     __m256i i_nw_offset = _mm256_cvtps_epi32(nw_offset);
-                    
+
                     _mm256_storeu_ps(in_bound_ptr_00, *(__m256*)_ps256_n1);
                     _mm256_storeu_ps(in_bound_ptr_01, x1_in_range);
                     _mm256_storeu_ps(in_bound_ptr_10, y1_in_range);

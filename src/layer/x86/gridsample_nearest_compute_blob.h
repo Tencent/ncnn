@@ -327,4 +327,3 @@ struct gridsample_2d_nearest_compute_blob<PaddingMode::Zeros, align_corner>
         }
     }
 };
-

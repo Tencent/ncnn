@@ -27,7 +27,7 @@ struct gridsample_2d_bicubic_compute_blob
 #endif // __AVX2__
 #endif // __AVX__
 
-        int *v0_offset_ptr[4], *v1_offset_ptr[4], *v2_offset_ptr[4], *v3_offset_ptr[4]; 
+        int *v0_offset_ptr[4], *v1_offset_ptr[4], *v2_offset_ptr[4], *v3_offset_ptr[4];
 
         for (int i = 0; i < 4; i++)
         {
@@ -266,11 +266,11 @@ struct gridsample_2d_bicubic_compute_blob<PaddingMode::Zeros, align_corner>
 #endif // __AVX2__
 #endif // __AVX__
 
-        int *v0_offset_ptr[4], *v1_offset_ptr[4], *v2_offset_ptr[4], *v3_offset_ptr[4]; 
+        int *v0_offset_ptr[4], *v1_offset_ptr[4], *v2_offset_ptr[4], *v3_offset_ptr[4];
 
         float *v0_in_bound_ptr[4], *v1_in_bound_ptr[4], *v2_in_bound_ptr[4], *v3_in_bound_ptr[4];
 
-        for (int i = 0; i < 4; i ++)
+        for (int i = 0; i < 4; i++)
         {
             v0_offset_ptr[i * 4 + 0] = offset.channel(i * 4 + 0);
             v0_offset_ptr[i * 4 + 1] = offset.channel(i * 4 + 1);
@@ -529,5 +529,3 @@ struct gridsample_2d_bicubic_compute_blob<PaddingMode::Zeros, align_corner>
         }
     }
 };
-
-
