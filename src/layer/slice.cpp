@@ -128,10 +128,11 @@ int Slice::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_b
         return 0;
     }
 
-    if (dims == 3 && positive_axis == 0)
+    if ((dims == 3 || dims == 4) && positive_axis == 0)
     {
         int w = bottom_blob.w;
         int h = bottom_blob.h;
+        int d = bottom_blob.d;
         int channels = bottom_blob.c;
 
         int q = 0;
@@ -144,9 +145,11 @@ int Slice::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_b
             }
 
             Mat& top_blob = top_blobs[i];
-            top_blob.create(w, h, slice, elemsize, opt.blob_allocator);
+            top_blob.create(w, h, d, slice, elemsize, opt.blob_allocator);
             if (top_blob.empty())
                 return -100;
+
+            top_blob.dims = dims;
 
             int size = static_cast<int>(bottom_blob.cstep * slice);
 
@@ -228,6 +231,132 @@ int Slice::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_b
                     memcpy(outptr, ptr, slice * elemsize);
 
                     outptr += slice * elemsize;
+                }
+            }
+
+            q += slice;
+        }
+
+        return 0;
+    }
+
+    if (dims == 4 && positive_axis == 1)
+    {
+        int w = bottom_blob.w;
+        int h = bottom_blob.h;
+        int d = bottom_blob.d;
+        int channels = bottom_blob.c;
+
+        int q = 0;
+        for (size_t i = 0; i < top_blobs.size(); i++)
+        {
+            int slice = slices_ptr[i];
+            if (slice == -233)
+            {
+                slice = static_cast<int>((d - q) / (top_blobs.size() - i));
+            }
+
+            Mat& top_blob = top_blobs[i];
+            top_blob.create(w, h, slice, channels, elemsize, opt.blob_allocator);
+            if (top_blob.empty())
+                return -100;
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int p = 0; p < channels; p++)
+            {
+                int size = w * h * slice;
+
+                unsigned char* outptr = top_blob.channel(p);
+                const unsigned char* ptr = bottom_blob.channel(p).depth(q);
+                memcpy(outptr, ptr, size * elemsize);
+            }
+
+            q += slice;
+        }
+
+        return 0;
+    }
+
+    if (dims == 4 && positive_axis == 2)
+    {
+        int w = bottom_blob.w;
+        int h = bottom_blob.h;
+        int d = bottom_blob.d;
+        int channels = bottom_blob.c;
+
+        int q = 0;
+        for (size_t i = 0; i < top_blobs.size(); i++)
+        {
+            int slice = slices_ptr[i];
+            if (slice == -233)
+            {
+                slice = static_cast<int>((h - q) / (top_blobs.size() - i));
+            }
+
+            Mat& top_blob = top_blobs[i];
+            top_blob.create(w, slice, d, channels, elemsize, opt.blob_allocator);
+            if (top_blob.empty())
+                return -100;
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int p = 0; p < channels; p++)
+            {
+                unsigned char* outptr = top_blob.channel(p);
+                const Mat m = bottom_blob.channel(p);
+
+                int size = w * slice;
+
+                for (int j = 0; j < d; j++)
+                {
+                    const unsigned char* ptr = m.depth(j).row<const unsigned char>(q);
+                    memcpy(outptr, ptr, size * elemsize);
+
+                    outptr += size * elemsize;
+                }
+            }
+
+            q += slice;
+        }
+
+        return 0;
+    }
+
+    if (dims == 4 && positive_axis == 3)
+    {
+        int w = bottom_blob.w;
+        int h = bottom_blob.h;
+        int d = bottom_blob.d;
+        int channels = bottom_blob.c;
+
+        int q = 0;
+        for (size_t i = 0; i < top_blobs.size(); i++)
+        {
+            int slice = slices_ptr[i];
+            if (slice == -233)
+            {
+                slice = static_cast<int>((w - q) / (top_blobs.size() - i));
+            }
+
+            Mat& top_blob = top_blobs[i];
+            top_blob.create(slice, h, d, channels, elemsize, opt.blob_allocator);
+            if (top_blob.empty())
+                return -100;
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int p = 0; p < channels; p++)
+            {
+                unsigned char* outptr = top_blob.channel(p);
+                const Mat m = bottom_blob.channel(p);
+
+                for (int j = 0; j < d; j++)
+                {
+                    for (int k = 0; k < h; k++)
+                    {
+                        const unsigned char* ptr = m.depth(j).row<const unsigned char>(k) + q * elemsize;
+                        memcpy(outptr, ptr, slice * elemsize);
+
+                        outptr += slice * elemsize;
+                    }
                 }
             }
 

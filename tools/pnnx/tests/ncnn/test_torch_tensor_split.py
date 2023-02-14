@@ -20,11 +20,12 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-    def forward(self, x, y, z):
+    def forward(self, x, y, z, w):
         x0, x1, x2 = torch.tensor_split(x, (12, 13))
         y0, y1, y2 = torch.tensor_split(y, 3, dim=1)
         z0, z1 = torch.tensor_split(z, (3,), dim=0)
-        return x0, x1, x2, y0, y1, y2, z0, z1
+        w0, w1, w2, w3, w4 = torch.tensor_split(w, (1, 3, 7, 17), dim=3)
+        return x0, x1, x2, y0, y1, y2, z0, z1, w0, w1, w2, w3, w4
 
 def test():
     net = Model()
@@ -34,16 +35,17 @@ def test():
     x = torch.rand(100)
     y = torch.rand(3, 15)
     z = torch.rand(5, 9, 3)
+    w = torch.rand(6, 13, 6, 22)
 
-    a = net(x, y, z)
+    a = net(x, y, z, w)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, y, z))
+    mod = torch.jit.trace(net, (x, y, z, w))
     mod.save("test_torch_tensor_split.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_torch_tensor_split.pt inputshape=[100],[3,15],[5,9,3]")
+    os.system("../../src/pnnx test_torch_tensor_split.pt inputshape=[100],[3,15],[5,9,3],[6,13,6,22]")
 
     # ncnn inference
     import test_torch_tensor_split_ncnn
@@ -51,8 +53,6 @@ def test():
 
     for a0, b0 in zip(a, b):
         if not torch.equal(a0, b0):
-            print(a0.shape)
-            print(b0.shape)
             return False
     return True
 
