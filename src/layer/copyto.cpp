@@ -88,11 +88,11 @@ int CopyTo::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
             return -100;
 
         if (elemsize == 1)
-            copy_to_image<signed char>(src_blob, top_blob, _woffset, 0, _outw, 0);
+            copy_to_image<signed char>(src_blob, top_blob, _woffset, 0, _outw, 1);
         if (elemsize == 2)
-            copy_to_image<unsigned short>(src_blob, top_blob, _woffset, 0, _outw, 0);
+            copy_to_image<unsigned short>(src_blob, top_blob, _woffset, 0, _outw, 1);
         if (elemsize == 4)
-            copy_to_image<float>(src_blob, top_blob, _woffset, 0, _outw, 0);
+            copy_to_image<float>(src_blob, top_blob, _woffset, 0, _outw, 1);
 
         return 0;
     }
