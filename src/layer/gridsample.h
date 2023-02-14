@@ -28,6 +28,20 @@ public:
 
     virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 
+    enum InterpolationMode // 1=bilinear  2=nearest  3=bicubic
+    {
+        Bilinear = 1,
+        Nearest = 2,
+        Bicubic = 3
+    };
+
+    enum PaddingMode // 1=zeros     2=border   3=reflection
+    {
+        Zeros = 1,
+        Border = 2,
+        Reflection = 3
+    };
+
 public:
     // param
     int sample_type;  // 1=bilinear  2=nearest  3=bicubic
