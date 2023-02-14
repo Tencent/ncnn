@@ -99,16 +99,16 @@ static int test_slice_0()
     for (int i = 0; i < sizeof(a) / sizeof(a[0]); i++)
     {
         int ret = 0
-                || test_slice(a[i], IntArrayMat(-233, -233, -233), 0)
-                || test_slice(a[i], IntArrayMat(-233, -233, -233), 1)
-                || test_slice(a[i], IntArrayMat(-233, -233, -233), -2)
-                || test_slice(a[i], IntArrayMat(-233, -233, -233), 3)
-                || test_slice(a[i], IntArrayMat(3, 12, 16, -233), 0)
-                || test_slice(a[i], IntArrayMat(12, 16, -233), 0)
-                || test_slice(a[i], IntArrayMat(32, 8, -233), 0)
-                || test_slice(a[i], IntArrayMat(2, 12, 16, -233), 1)
-                || test_slice(a[i], IntArrayMat(16, 4, 5, -233), -2)
-                || test_slice(a[i], IntArrayMat(8, 2, 16, -233), 3);
+                  || test_slice(a[i], IntArrayMat(-233, -233, -233), 0)
+                  || test_slice(a[i], IntArrayMat(-233, -233, -233), 1)
+                  || test_slice(a[i], IntArrayMat(-233, -233, -233), -2)
+                  || test_slice(a[i], IntArrayMat(-233, -233, -233), 3)
+                  || test_slice(a[i], IntArrayMat(3, 12, 16, -233), 0)
+                  || test_slice(a[i], IntArrayMat(12, 16, -233), 0)
+                  || test_slice(a[i], IntArrayMat(32, 8, -233), 0)
+                  || test_slice(a[i], IntArrayMat(2, 12, 16, -233), 1)
+                  || test_slice(a[i], IntArrayMat(16, 4, 5, -233), -2)
+                  || test_slice(a[i], IntArrayMat(8, 2, 16, -233), 3);
 
         if (ret != 0)
             return ret;
@@ -128,14 +128,14 @@ static int test_slice_1()
     for (int i = 0; i < sizeof(a) / sizeof(a[0]); i++)
     {
         int ret = 0
-                || test_slice(a[i], IntArrayMat(-233, -233, -233), 0)
-                || test_slice(a[i], IntArrayMat(-233, -233, -233), 1)
-                || test_slice(a[i], IntArrayMat(-233, -233, -233), -1)
-                || test_slice(a[i], IntArrayMat(3, 12, 16, -233), 0)
-                || test_slice(a[i], IntArrayMat(12, 16, -233), 0)
-                || test_slice(a[i], IntArrayMat(32, 8, -233), 0)
-                || test_slice(a[i], IntArrayMat(2, 12, 16, -233), 1)
-                || test_slice(a[i], IntArrayMat(16, 4, 5, -233), -1);
+                  || test_slice(a[i], IntArrayMat(-233, -233, -233), 0)
+                  || test_slice(a[i], IntArrayMat(-233, -233, -233), 1)
+                  || test_slice(a[i], IntArrayMat(-233, -233, -233), -1)
+                  || test_slice(a[i], IntArrayMat(3, 12, 16, -233), 0)
+                  || test_slice(a[i], IntArrayMat(12, 16, -233), 0)
+                  || test_slice(a[i], IntArrayMat(32, 8, -233), 0)
+                  || test_slice(a[i], IntArrayMat(2, 12, 16, -233), 1)
+                  || test_slice(a[i], IntArrayMat(16, 4, 5, -233), -1);
 
         if (ret != 0)
             return ret;
@@ -155,12 +155,12 @@ static int test_slice_2()
     for (int i = 0; i < sizeof(a) / sizeof(a[0]); i++)
     {
         int ret = 0
-                || test_slice(a[i], IntArrayMat(-233, -233, -233), 0)
-                || test_slice(a[i], IntArrayMat(-233, -233, -233), -1)
-                || test_slice(a[i], IntArrayMat(3, 12, 16, -233), 0)
-                || test_slice(a[i], IntArrayMat(12, 16, -233), 0)
-                || test_slice(a[i], IntArrayMat(32, 8, -233), -2)
-                || test_slice(a[i], IntArrayMat(2, 12, 16, -233), -1);
+                  || test_slice(a[i], IntArrayMat(-233, -233, -233), 0)
+                  || test_slice(a[i], IntArrayMat(-233, -233, -233), -1)
+                  || test_slice(a[i], IntArrayMat(3, 12, 16, -233), 0)
+                  || test_slice(a[i], IntArrayMat(12, 16, -233), 0)
+                  || test_slice(a[i], IntArrayMat(32, 8, -233), -2)
+                  || test_slice(a[i], IntArrayMat(2, 12, 16, -233), -1);
 
         if (ret != 0)
             return ret;
@@ -180,10 +180,10 @@ static int test_slice_3()
     for (int i = 0; i < sizeof(a) / sizeof(a[0]); i++)
     {
         int ret = 0
-                || test_slice(a[i], IntArrayMat(-233, -233, -233), 0)
-                || test_slice(a[i], IntArrayMat(3, 12, 16, -233), 0)
-                || test_slice(a[i], IntArrayMat(12, 16, -233), 0)
-                || test_slice(a[i], IntArrayMat(32, 8, -233), -1);
+                  || test_slice(a[i], IntArrayMat(-233, -233, -233), 0)
+                  || test_slice(a[i], IntArrayMat(3, 12, 16, -233), 0)
+                  || test_slice(a[i], IntArrayMat(12, 16, -233), 0)
+                  || test_slice(a[i], IntArrayMat(32, 8, -233), -1);
 
         if (ret != 0)
             return ret;
