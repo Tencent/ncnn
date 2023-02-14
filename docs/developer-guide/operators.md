@@ -432,7 +432,7 @@ y = activation(x3, act_type, act_params)
 
 # CopyTo
 ```
-self[roi] = src
+self[offset] = src
 ```
 
 * one_blob_only
@@ -442,14 +442,7 @@ self[roi] = src
 | 0         | woffset       | int   | 0         |                   |
 | 1         | hoffset       | int   | 0         |                   |
 | 2         | coffset       | int   | 1         |                   |
-| 3         | outw          | int   | 1         |                   |
-| 4         | outh          | int   | 0         |                   |
-| 5         | outc          | int   | 0         |                   |
-| 6         | woffset2      | int   | 0         |                   |
-| 7         | hoffset2      | int   | 1         |                   |
-| 8         | coffset2      | int   | 0         |                   |
 | 9         | starts        | array | [ ]       |                   |
-| 10        | ends          | array | [ ]       |                   |
 | 11        | axes          | array | [ ]       |                   |
 
 # Crop

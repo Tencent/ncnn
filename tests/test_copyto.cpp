@@ -22,14 +22,6 @@ static int test_copyto(const ncnn::Mat& self, const ncnn::Mat& src, int woffset,
     pd.set(1, hoffset);  // hoffset
     pd.set(13, doffset); // doffset
     pd.set(2, coffset);  // coffset
-    pd.set(3, -233);     // outw
-    pd.set(4, -233);     // outh
-    pd.set(14, -233);    // outd
-    pd.set(5, -233);     // outc
-    pd.set(6, 0);        // woffset2
-    pd.set(7, 0);        // hoffset2
-    pd.set(15, 0);       // doffset2
-    pd.set(8, 0);        // coffset2
 
     std::vector<ncnn::Mat> weights(0);
 
@@ -200,6 +192,15 @@ static int test_copyto_3()
     return 0;
 }
 
+static int test_copyto_4()
+{
+    return 0
+           || test_copyto(RandomMat(15), RandomMat(15), 0, 0, 0, 0)
+           || test_copyto(RandomMat(11, 15), RandomMat(11, 15), 0, 0, 0, 0)
+           || test_copyto(RandomMat(4, 5, 16), RandomMat(4, 5, 16), 0, 0, 0, 0)
+           || test_copyto(RandomMat(3, 4, 5, 16), RandomMat(3, 4, 5, 16), 0, 0, 0, 0);
+}
+
 int main()
 {
     SRAND(776757);
@@ -208,5 +209,6 @@ int main()
            || test_copyto_0()
            || test_copyto_1()
            || test_copyto_2()
-           || test_copyto_3();
+           || test_copyto_3()
+           || test_copyto_4();
 }

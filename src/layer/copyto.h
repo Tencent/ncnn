@@ -29,7 +29,7 @@ public:
     virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 
 protected:
-    void resolve_copyto_roi(const Mat& self_blob, const Mat& src_blob, int& woffset, int& hoffset, int& doffset, int& coffset, int& outw, int& outh, int& outd, int& outc) const;
+    void resolve_copyto_offset(const Mat& self_blob, int& woffset, int& hoffset, int& doffset, int& coffset) const;
 
 public:
     int woffset;
@@ -37,22 +37,9 @@ public:
     int doffset;
     int coffset;
 
-    // -233 = remaining
-    int outw;
-    int outh;
-    int outd;
-    int outc;
-
-    // woffset is aka left, and woffset2 is aka right
-    int woffset2;
-    int hoffset2;
-    int doffset2;
-    int coffset2;
-
     // numpy-style slice
     // if provided, all the above attributes will be ignored
     Mat starts;
-    Mat ends;
     Mat axes;
 };
 

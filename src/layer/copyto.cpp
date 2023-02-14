@@ -28,29 +28,23 @@ int CopyTo::load_param(const ParamDict& pd)
     hoffset = pd.get(1, 0);
     doffset = pd.get(13, 0);
     coffset = pd.get(2, 0);
-    outw = pd.get(3, 0);
-    outh = pd.get(4, 0);
-    outd = pd.get(14, 0);
-    outc = pd.get(5, 0);
-    woffset2 = pd.get(6, 0);
-    hoffset2 = pd.get(7, 0);
-    doffset2 = pd.get(15, 0);
-    coffset2 = pd.get(8, 0);
 
     starts = pd.get(9, Mat());
-    ends = pd.get(10, Mat());
     axes = pd.get(11, Mat());
 
     return 0;
 }
 
 template<typename T>
-static void copy_to_image(const Mat& src, Mat& self, int x, int y, int w, int h)
+static void copy_to_image(const Mat& src, Mat& self, int top, int left)
 {
-    const T* ptr = src;
-    T* outptr = self.row<T>(y) + x;
+    int w = src.w;
+    int h = src.h;
 
-    for (int i = 0; i < h; i++)
+    const T* ptr = src;
+    T* outptr = self.row<T>(top) + left;
+
+    for (int y = 0; y < h; y++)
     {
         memcpy(outptr, ptr, w * sizeof(T));
         ptr += w;
@@ -71,119 +65,80 @@ int CopyTo::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
     int dims = self_blob.dims;
     size_t elemsize = self_blob.elemsize;
 
+    if (src_blob.dims == dims && src_blob.w == w && src_blob.h == h && src_blob.d == d && src_blob.c == channels)
+    {
+        top_blob = src_blob;
+        return 0;
+    }
+
+    top_blob = self_blob.clone(opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+
     int _woffset, _hoffset, _doffset, _coffset;
-    int _outw = -1, _outh = -1, _outd = -1, _outc;
-    resolve_copyto_roi(self_blob.shape(), src_blob.shape(), _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
+    resolve_copyto_offset(self_blob.shape(), _woffset, _hoffset, _doffset, _coffset);
 
     if (dims == 1)
     {
-        if (_outw == w)
-        {
-            top_blob = src_blob;
-            return 0;
-        }
-
-        top_blob = self_blob.clone(opt.blob_allocator);
-        if (top_blob.empty())
-            return -100;
-
         if (elemsize == 1)
-            copy_to_image<signed char>(src_blob, top_blob, _woffset, 0, _outw, 1);
+            copy_to_image<signed char>(src_blob, top_blob, 0, _woffset);
         if (elemsize == 2)
-            copy_to_image<unsigned short>(src_blob, top_blob, _woffset, 0, _outw, 1);
+            copy_to_image<unsigned short>(src_blob, top_blob, 0, _woffset);
         if (elemsize == 4)
-            copy_to_image<float>(src_blob, top_blob, _woffset, 0, _outw, 1);
-
-        return 0;
+            copy_to_image<float>(src_blob, top_blob, 0, _woffset);
     }
 
     if (dims == 2)
     {
-        if (_outw == w && _outh == h)
-        {
-            top_blob = src_blob;
-            return 0;
-        }
-
-        top_blob = self_blob.clone(opt.blob_allocator);
-        if (top_blob.empty())
-            return -100;
-
         if (elemsize == 1)
-            copy_to_image<signed char>(src_blob, top_blob, _woffset, _hoffset, _outw, _outh);
+            copy_to_image<signed char>(src_blob, top_blob, _hoffset, _woffset);
         if (elemsize == 2)
-            copy_to_image<unsigned short>(src_blob, top_blob, _woffset, _hoffset, _outw, _outh);
+            copy_to_image<unsigned short>(src_blob, top_blob, _hoffset, _woffset);
         if (elemsize == 4)
-            copy_to_image<float>(src_blob, top_blob, _woffset, _hoffset, _outw, _outh);
-
-        return 0;
+            copy_to_image<float>(src_blob, top_blob, _hoffset, _woffset);
     }
 
     if (dims == 3)
     {
-        if (_outw == w && _outh == h && _outc == channels)
-        {
-            top_blob = src_blob;
-            return 0;
-        }
-
-        top_blob = self_blob.clone(opt.blob_allocator);
-        if (top_blob.empty())
-            return -100;
-
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < _outc; q++)
+        for (int q = 0; q < src_blob.c; q++)
         {
             const Mat roim = src_blob.channel(q);
             Mat m = top_blob.channel(q + _coffset);
 
             if (elemsize == 1)
-                copy_to_image<signed char>(roim, m, _woffset, _hoffset, _outw, _outh);
+                copy_to_image<signed char>(roim, m, _hoffset, _woffset);
             if (elemsize == 2)
-                copy_to_image<unsigned short>(roim, m, _woffset, _hoffset, _outw, _outh);
+                copy_to_image<unsigned short>(roim, m, _hoffset, _woffset);
             if (elemsize == 4)
-                copy_to_image<float>(roim, m, _woffset, _hoffset, _outw, _outh);
+                copy_to_image<float>(roim, m, _hoffset, _woffset);
         }
-
-        return 0;
     }
 
     if (dims == 4)
     {
-        if (_outw == w && _outh == h && _outd == d && _outc == channels)
-        {
-            top_blob = src_blob;
-            return 0;
-        }
-
-        top_blob = self_blob.clone(opt.blob_allocator);
-        if (top_blob.empty())
-            return -100;
-
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < _outc; q++)
+        for (int q = 0; q < src_blob.c; q++)
         {
-            for (int z = 0; z < _outd; z++)
+            for (int z = 0; z < src_blob.d; z++)
             {
                 const Mat roim = src_blob.channel(q).depth(z);
                 Mat m = top_blob.channel(q + _coffset).depth(z + _doffset);
 
                 if (elemsize == 1)
-                    copy_to_image<signed char>(roim, m, _woffset, _hoffset, _outw, _outh);
+                    copy_to_image<signed char>(roim, m, _hoffset, _woffset);
                 if (elemsize == 2)
-                    copy_to_image<unsigned short>(roim, m, _woffset, _hoffset, _outw, _outh);
+                    copy_to_image<unsigned short>(roim, m, _hoffset, _woffset);
                 if (elemsize == 4)
-                    copy_to_image<float>(roim, m, _woffset, _hoffset, _outw, _outh);
+                    copy_to_image<float>(roim, m, _hoffset, _woffset);
             }
         }
-
-        return 0;
     }
 
     return 0;
 }
 
-void CopyTo::resolve_copyto_roi(const Mat& self_blob, const Mat& src_blob, int& _woffset, int& _hoffset, int& _doffset, int& _coffset, int& _outw, int& _outh, int& _outd, int& _outc) const
+void CopyTo::resolve_copyto_offset(const Mat& self_blob, int& _woffset, int& _hoffset, int& _doffset, int& _coffset) const
 {
     int w = self_blob.w;
     int h = self_blob.h;
@@ -191,20 +146,15 @@ void CopyTo::resolve_copyto_roi(const Mat& self_blob, const Mat& src_blob, int& 
     int channels = self_blob.c;
     int dims = self_blob.dims;
 
-    bool numpy_style_slice = !starts.empty() && !ends.empty();
+    bool numpy_style_slice = !starts.empty();
     if (numpy_style_slice)
     {
         _woffset = 0;
         _hoffset = 0;
         _doffset = 0;
         _coffset = 0;
-        _outw = w;
-        _outh = h;
-        _outd = d;
-        _outc = channels;
 
         const int* starts_ptr = starts;
-        const int* ends_ptr = ends;
         const int* axes_ptr = axes;
 
         int _axes[4] = {0, 1, 2, 3};
@@ -228,30 +178,23 @@ void CopyTo::resolve_copyto_roi(const Mat& self_blob, const Mat& src_blob, int& 
         {
             int axis = _axes[i];
             int start = starts_ptr[i];
-            int end = ends_ptr[i];
 
             if (dims == 1) // axis == 0
             {
                 if (start == -233) start = 0;
-                if (end == -233) end = w;
                 _woffset = start >= 0 ? start : w + start;
-                _outw = std::min(w, end > 0 ? end : w + end) - _woffset;
             }
             if (dims == 2)
             {
                 if (axis == 0)
                 {
                     if (start == -233) start = 0;
-                    if (end == -233) end = h;
                     _hoffset = start >= 0 ? start : h + start;
-                    _outh = std::min(h, end > 0 ? end : h + end) - _hoffset;
                 }
                 if (axis == 1)
                 {
                     if (start == -233) start = 0;
-                    if (end == -233) end = w;
                     _woffset = start >= 0 ? start : w + start;
-                    _outw = std::min(w, end > 0 ? end : w + end) - _woffset;
                 }
             }
             if (dims == 3)
@@ -259,23 +202,17 @@ void CopyTo::resolve_copyto_roi(const Mat& self_blob, const Mat& src_blob, int& 
                 if (axis == 0)
                 {
                     if (start == -233) start = 0;
-                    if (end == -233) end = channels;
                     _coffset = start >= 0 ? start : channels + start;
-                    _outc = std::min(channels, end > 0 ? end : channels + end) - _coffset;
                 }
                 if (axis == 1)
                 {
                     if (start == -233) start = 0;
-                    if (end == -233) end = h;
                     _hoffset = start >= 0 ? start : h + start;
-                    _outh = std::min(h, end > 0 ? end : h + end) - _hoffset;
                 }
                 if (axis == 2)
                 {
                     if (start == -233) start = 0;
-                    if (end == -233) end = w;
                     _woffset = start >= 0 ? start : w + start;
-                    _outw = std::min(w, end > 0 ? end : w + end) - _woffset;
                 }
             }
             if (dims == 4)
@@ -283,30 +220,22 @@ void CopyTo::resolve_copyto_roi(const Mat& self_blob, const Mat& src_blob, int& 
                 if (axis == 0)
                 {
                     if (start == -233) start = 0;
-                    if (end == -233) end = channels;
                     _coffset = start >= 0 ? start : channels + start;
-                    _outc = std::min(channels, end > 0 ? end : channels + end) - _coffset;
                 }
                 if (axis == 1)
                 {
                     if (start == -233) start = 0;
-                    if (end == -233) end = d;
                     _doffset = start >= 0 ? start : d + start;
-                    _outd = std::min(d, end > 0 ? end : d + end) - _doffset;
                 }
                 if (axis == 2)
                 {
                     if (start == -233) start = 0;
-                    if (end == -233) end = h;
                     _hoffset = start >= 0 ? start : h + start;
-                    _outh = std::min(h, end > 0 ? end : h + end) - _hoffset;
                 }
                 if (axis == 3)
                 {
                     if (start == -233) start = 0;
-                    if (end == -233) end = w;
                     _woffset = start >= 0 ? start : w + start;
-                    _outw = std::min(w, end > 0 ? end : w + end) - _woffset;
                 }
             }
         }
@@ -317,66 +246,7 @@ void CopyTo::resolve_copyto_roi(const Mat& self_blob, const Mat& src_blob, int& 
         _hoffset = hoffset;
         _doffset = doffset;
         _coffset = coffset;
-        _outw = w;
-        _outh = h;
-        _outd = d;
-        _outc = channels;
-
-        if (dims == 1)
-        {
-            _outw = w - woffset - woffset2;
-            if (outw != -233)
-                _outw = std::min(outw, _outw);
-        }
-        if (dims == 2)
-        {
-            _outw = w - woffset - woffset2;
-            if (outw != -233)
-                _outw = std::min(outw, _outw);
-
-            _outh = h - hoffset - hoffset2;
-            if (outh != -233)
-                _outh = std::min(outh, _outh);
-        }
-        if (dims == 3)
-        {
-            _outw = w - woffset - woffset2;
-            if (outw != -233)
-                _outw = std::min(outw, _outw);
-
-            _outh = h - hoffset - hoffset2;
-            if (outh != -233)
-                _outh = std::min(outh, _outh);
-
-            _outc = channels - coffset - coffset2;
-            if (outc != -233)
-                _outc = std::min(outc, _outc);
-        }
-        if (dims == 4)
-        {
-            _outw = w - woffset - woffset2;
-            if (outw != -233)
-                _outw = std::min(outw, _outw);
-
-            _outh = h - hoffset - hoffset2;
-            if (outh != -233)
-                _outh = std::min(outh, _outh);
-
-            _outd = d - doffset - doffset2;
-            if (outd != -233)
-                _outd = std::min(outd, _outd);
-
-            _outc = channels - coffset - coffset2;
-            if (outc != -233)
-                _outc = std::min(outc, _outc);
-        }
     }
-
-    // sanitize out shape for src_blob
-    _outw = std::min(_outw, src_blob.w);
-    _outh = std::min(_outh, src_blob.h);
-    _outd = std::min(_outd, src_blob.d);
-    _outc = std::min(_outc, src_blob.c);
 }
 
 } // namespace ncnn

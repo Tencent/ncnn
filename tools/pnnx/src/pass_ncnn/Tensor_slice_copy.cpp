@@ -98,7 +98,7 @@ pnnx.Output             output      1 0 out
         }
 
         op->params["9"] = starts;
-        op->params["10"] = ends;
+        // op->params["10"] = ends; // ncnn always resolve ends from src blob
         op->params["11"] = axes;
     }
 };
