@@ -218,6 +218,8 @@ int Reshape_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                 _h = total / _c / _w;
             if (_c == -1)
                 _c = total / _h / _w;
+
+            _d = 1;
         }
         else // if (ndim == 4)
         {
@@ -243,16 +245,10 @@ int Reshape_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         int out_elempack = opt.use_packing_layout && _c % 4 == 0 ? 4 : 1;
         size_t out_elemsize = elemsize / elempack * out_elempack;
 
-        if (dims == 3 && bottom_blob.c * elempack == _c && elempack == out_elempack)
+        if ((dims == 3 || dims == 4) && bottom_blob.c * elempack == _c && elempack == out_elempack)
         {
             top_blob = bottom_blob;
-            top_blob.w = _w;
-            top_blob.h = _h;
-            return 0;
-        }
-        if (dims == 4 && bottom_blob.c * elempack == _c && elempack == out_elempack)
-        {
-            top_blob = bottom_blob;
+            top_blob.dims = ndim;
             top_blob.w = _w;
             top_blob.h = _h;
             top_blob.d = _d;
@@ -607,6 +603,8 @@ int Reshape_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                 _h = total / _c / _w;
             if (_c == -1)
                 _c = total / _h / _w;
+
+            _d = 1;
         }
         else // if (ndim == 4)
         {
@@ -640,16 +638,10 @@ int Reshape_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
         }
         size_t out_elemsize = elemsize / elempack * out_elempack;
 
-        if (dims == 3 && bottom_blob.c * elempack == _c && elempack == out_elempack)
+        if ((dims == 3 || dims == 4) && bottom_blob.c * elempack == _c && elempack == out_elempack)
         {
             top_blob = bottom_blob;
-            top_blob.w = _w;
-            top_blob.h = _h;
-            return 0;
-        }
-        if (dims == 4 && bottom_blob.c * elempack == _c && elempack == out_elempack)
-        {
-            top_blob = bottom_blob;
+            top_blob.dims = ndim;
             top_blob.w = _w;
             top_blob.h = _h;
             top_blob.d = _d;

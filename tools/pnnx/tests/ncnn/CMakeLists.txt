@@ -131,6 +131,7 @@ pnnx_ncnn_add_test(Tensor_contiguous)
 pnnx_ncnn_add_test(Tensor_repeat)
 pnnx_ncnn_add_test(Tensor_reshape)
 pnnx_ncnn_add_test(Tensor_slice)
+pnnx_ncnn_add_test(Tensor_slice_copy)
 pnnx_ncnn_add_test(Tensor_view)
 
 pnnx_ncnn_add_test(torch_addmm)
