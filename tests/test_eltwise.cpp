@@ -36,7 +36,7 @@ static int test_eltwise(const std::vector<ncnn::Mat>& a, int op_type, const ncnn
     int ret = test_layer<ncnn::Eltwise>("Eltwise", pd, weights, a);
     if (ret != 0)
     {
-        fprintf(stderr, "test_eltwise failed a[0].dims=%d a[0]=(%d %d %d) op_type=%d", a[0].dims, a[0].w, a[0].h, a[0].c, op_type);
+        fprintf(stderr, "test_eltwise failed a[0].dims=%d a[0]=(%d %d %d %d) op_type=%d", a[0].dims, a[0].w, a[0].h, a[0].d, a[0].c, op_type);
         fprintf(stderr, " coeffs=");
         print_float_array(coeffs);
         fprintf(stderr, "\n");
@@ -315,6 +315,45 @@ static int test_eltwise_11()
            || test_eltwise(a, 2, RandomMat(5));
 }
 
+static int test_eltwise_12()
+{
+    std::vector<ncnn::Mat> a(2);
+    a[0] = RandomMat(31, 5, 3, 12);
+    a[1] = RandomMat(31, 5, 3, 12);
+
+    std::vector<ncnn::Mat> b(3);
+    b[0] = RandomMat(32, 4, 5, 32);
+    b[1] = RandomMat(32, 4, 5, 32);
+    b[2] = RandomMat(32, 4, 5, 32);
+
+    std::vector<ncnn::Mat> c(4);
+    c[0] = RandomMat(33, 6, 7, 7);
+    c[1] = RandomMat(33, 6, 7, 7);
+    c[2] = RandomMat(33, 6, 7, 7);
+    c[3] = RandomMat(33, 6, 7, 7);
+
+    return 0
+           || test_eltwise(a, 0, ncnn::Mat())
+           || test_eltwise(a, 1, ncnn::Mat())
+           || test_eltwise(a, 2, ncnn::Mat())
+           || test_eltwise(b, 0, ncnn::Mat())
+           || test_eltwise(b, 1, ncnn::Mat())
+           || test_eltwise(b, 2, ncnn::Mat())
+           || test_eltwise(c, 0, ncnn::Mat())
+           || test_eltwise(c, 1, ncnn::Mat())
+           || test_eltwise(c, 2, ncnn::Mat())
+
+           || test_eltwise(a, 0, RandomMat(2))
+           || test_eltwise(a, 1, RandomMat(2))
+           || test_eltwise(a, 2, RandomMat(2))
+           || test_eltwise(b, 0, RandomMat(3))
+           || test_eltwise(b, 1, RandomMat(3))
+           || test_eltwise(b, 2, RandomMat(3))
+           || test_eltwise(c, 0, RandomMat(4))
+           || test_eltwise(c, 1, RandomMat(4))
+           || test_eltwise(c, 2, RandomMat(4));
+}
+
 int main()
 {
     SRAND(7767517);
@@ -331,5 +370,6 @@ int main()
            || test_eltwise_8()
            || test_eltwise_9()
            || test_eltwise_10()
-           || test_eltwise_11();
+           || test_eltwise_11()
+           || test_eltwise_12();
 }
