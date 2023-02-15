@@ -60,8 +60,9 @@ jobs:
         apt-get update
         apt-get install -y python3-pip libjpeg-dev libpng-dev libprotobuf-dev protobuf-compiler
         python3 -m pip install --upgrade pip
-        pip3 uninstall -y setuptools
-        pip3 install -U pytest setuptools wheel twine distribute requests
+        apt-get remove -y python3-setuptools
+        pip3 install -U setuptools
+        pip3 install -U pytest wheel twine requests
 
     - name: setup pytorch
       run: |
