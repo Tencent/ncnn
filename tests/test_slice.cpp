@@ -91,9 +91,9 @@ static int test_slice(const ncnn::Mat& a, const ncnn::Mat& slices, int axis)
 static int test_slice_0()
 {
     ncnn::Mat a[] = {
-        RandomMat(48, 51, 36, 48),
-        RandomMat(36, 48, 48, 51),
-        RandomMat(60, 51, 36, 60)
+        RandomMat(30, 32, 36, 48),
+        RandomMat(36, 30, 32, 51),
+        RandomMat(30, 32, 36, 60)
     };
 
     for (int i = 0; i < sizeof(a) / sizeof(a[0]); i++)
