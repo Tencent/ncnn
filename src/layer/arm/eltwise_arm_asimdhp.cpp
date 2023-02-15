@@ -288,7 +288,7 @@ int Eltwise_arm::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector
         return 0;
     }
 
-    Mat top_blob_fp32(w, h, channels, (size_t)4u * elempack, elempack, opt.workspace_allocator);
+    Mat top_blob_fp32(w, h, d, channels, (size_t)4u * elempack, elempack, opt.workspace_allocator);
     if (top_blob_fp32.empty())
         return -100;
 
