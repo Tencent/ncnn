@@ -5,8 +5,9 @@ message: >-
   metadata from this file.
 type: software
 authors:
-  - affiliation: ncnn contributors
-  - affiliation: tencent
+  - affiliation: qq group 677104663
+    given-names: nihui
+    family-names: contirbutors
 abstract: >-
   ncnn is a high-performance neural network inference
   computing framework optimized for mobile platforms. 
