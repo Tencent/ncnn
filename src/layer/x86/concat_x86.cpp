@@ -799,7 +799,7 @@ int Concat_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         }
 
         Mat& top_blob = top_blobs[0];
-        top_blob.create(w, h, top_d, channels, elemsize, opt.blob_allocator);
+        top_blob.create(w, h, top_d, channels, elemsize, elempack, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 

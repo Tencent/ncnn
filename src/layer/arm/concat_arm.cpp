@@ -398,7 +398,7 @@ int Concat_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         }
 
         Mat& top_blob = top_blobs[0];
-        top_blob.create(w, h, top_d, channels, elemsize, opt.blob_allocator);
+        top_blob.create(w, h, top_d, channels, elemsize, elempack, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
@@ -930,7 +930,7 @@ int Concat_arm::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std::v
         }
 
         Mat& top_blob = top_blobs[0];
-        top_blob.create(w, h, top_d, channels, elemsize, opt.blob_allocator);
+        top_blob.create(w, h, top_d, channels, elemsize, elempack, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
