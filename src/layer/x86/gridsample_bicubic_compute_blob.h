@@ -24,7 +24,7 @@ struct gridsample_2d_bicubic_compute_blob
         const __m256 vElempackf = _mm256_set1_ps(src.elempack);
 #endif // __AVX__
 
-        int *v0_offset_ptr[4], *v1_offset_ptr[4], *v2_offset_ptr[4], *v3_offset_ptr[4]; 
+        int *v0_offset_ptr[4], *v1_offset_ptr[4], *v2_offset_ptr[4], *v3_offset_ptr[4];
 
         for (int i = 0; i < 4; i++)
         {
@@ -301,7 +301,7 @@ struct gridsample_2d_bicubic_compute_blob<PaddingMode::Zeros, align_corner>
         const __m256 vElempackf = _mm256_set1_ps(src.elempack);
 #endif // __AVX__
 
-        int *v0_offset_ptr[4], *v1_offset_ptr[4], *v2_offset_ptr[4], *v3_offset_ptr[4]; 
+        int *v0_offset_ptr[4], *v1_offset_ptr[4], *v2_offset_ptr[4], *v3_offset_ptr[4];
 
         float *v0_in_bound_ptr[4], *v1_in_bound_ptr[4], *v2_in_bound_ptr[4], *v3_in_bound_ptr[4];
 
