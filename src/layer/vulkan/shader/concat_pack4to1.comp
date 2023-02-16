@@ -27,14 +27,16 @@ layout (constant_id = 0) const int axis = 0;
 layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
 layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
 layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
-layout (constant_id = shape_constant_id_offset + 3) const int c = 0;
-layout (constant_id = shape_constant_id_offset + 4) const int cstep = 0;
+layout (constant_id = shape_constant_id_offset + 3) const int d = 0;
+layout (constant_id = shape_constant_id_offset + 4) const int c = 0;
+layout (constant_id = shape_constant_id_offset + 5) const int cstep = 0;
 
-layout (constant_id = shape_constant_id_offset + 5) const int outdims = 0;
-layout (constant_id = shape_constant_id_offset + 6) const int outw = 0;
-layout (constant_id = shape_constant_id_offset + 7) const int outh = 0;
-layout (constant_id = shape_constant_id_offset + 8) const int outc = 0;
-layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
+layout (constant_id = shape_constant_id_offset + 6) const int outdims = 0;
+layout (constant_id = shape_constant_id_offset + 7) const int outw = 0;
+layout (constant_id = shape_constant_id_offset + 8) const int outh = 0;
+layout (constant_id = shape_constant_id_offset + 9) const int outd = 0;
+layout (constant_id = shape_constant_id_offset + 10) const int outc = 0;
+layout (constant_id = shape_constant_id_offset + 11) const int outcstep = 0;
 
 #if NCNN_image_shader
 layout (binding = 0) uniform unfp sampler3D bottom_blob_3d;
@@ -49,12 +51,14 @@ layout (push_constant) uniform parameter
     int dims;
     int w;
     int h;
+    int d;
     int c;
     int cstep;
 
     int outdims;
     int outw;
     int outh;
+    int outd;
     int outc;
     int outcstep;
 
@@ -67,14 +71,30 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= psc(w) || gy >= psc(h) || gz >= psc(c))
+    if (gx >= psc(w) || gy >= psc(h) * psc(d) || gz >= psc(c))
         return;
 
     int positive_axis = axis < 0 ? psc(dims) + axis : axis;
-    ivec3 gxyz = ivec3(gx, gy, gz);
 
-    gxyz[psc(dims) - 1] *= 4;
-    gxyz[psc(dims) - 1 - positive_axis] += p.offset;
+    ivec3 gxyz;
+
+    if (psc(dims) == 4)
+    {
+        int yd = gy / psc(h);
+        int yh = gy % psc(h);
+
+        ivec4 gxydz = ivec4(gx, yh, yd, gz);
+        gxydz[psc(dims) - 1] *= 4;
+        gxydz[psc(dims) - 1 - positive_axis] += p.offset;
+
+        gxyz = ivec3(gxydz.r, gxydz.g + gxydz.b * psc(outh), gxydz.a);
+    }
+    else
+    {
+        gxyz = ivec3(gx, gy, gz);
+        gxyz[psc(dims) - 1] *= 4;
+        gxyz[psc(dims) - 1 - positive_axis] += p.offset;
+    }
 
 #if NCNN_image_shader
     afpvec4 v = image3d_ld4(bottom_blob_3d, ivec3(gx, gy, gz));
@@ -132,9 +152,18 @@ void main()
 
     int v_offset_0 = gxyz.z * psc(outcstep) + gxyz.y * psc(outw) + gxyz.x;
 
-    ivec3 gxyz4 = ivec3(1, psc(outw), psc(outcstep));
+    ivec4 gxydz4;
 
-    ivec4 v_offset = v_offset_0 + ivec4(0, 1, 2, 3) * gxyz4[psc(dims) - 1 - positive_axis];
+    if (psc(dims) == 4)
+    {
+        gxydz4 = ivec4(1, psc(outw), psc(outw) * psc(outh), psc(outcstep));
+    }
+    else
+    {
+        gxydz4 = ivec4(1, psc(outw), psc(outcstep), 0);
+    }
+
+    ivec4 v_offset = v_offset_0 + ivec4(0, 1, 2, 3) * gxydz4[psc(dims) - 1 - positive_axis];
 
     buffer_cp4to1(top_blob_data, v_offset, bottom_blob_data, gi);
 #endif
