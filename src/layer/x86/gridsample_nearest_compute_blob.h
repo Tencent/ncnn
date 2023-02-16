@@ -330,7 +330,7 @@ static void gridsample_2d_nearest_apply_interpolation_p8(const Mat& src, Mat& ds
     const int outh = dst.h;
     const int grid_size = outw * outh;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
     {
         const float* srcptr = src.channel(q);

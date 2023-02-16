@@ -579,7 +579,6 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
             return GridSample::forward(bottom_blobs, top_blobs, opt);
             if (sample_type == InterpolationMode::Bilinear)
             {
-
             }
             else if (sample_type == InterpolationMode::Nearest)
             {
@@ -602,7 +601,6 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
     {
         if (sample_type == InterpolationMode::Bilinear)
         {
-
         }
         else if (sample_type == InterpolationMode::Nearest)
         {
@@ -618,7 +616,6 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
     {
         if (sample_type == InterpolationMode::Bilinear)
         {
-
         }
         else if (sample_type == InterpolationMode::Nearest)
         {
@@ -630,14 +627,13 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
         {
         }
     }
-    
+
 #endif // __SSE2__
 
     if (elempack == 1)
     {
         if (sample_type == InterpolationMode::Bilinear)
         {
-
         }
         else if (sample_type == InterpolationMode::Nearest)
         {
@@ -653,7 +649,6 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
     {
         if (sample_type == InterpolationMode::Bilinear)
         {
-
         }
         else if (sample_type == InterpolationMode::Nearest)
         {
@@ -669,15 +664,12 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 #if __AVX__
 #if __AVX512F__
 
-
-
 #endif // __AVX512F__
 
 #endif // __AVX__
 
 #endif // __SSE2__
 
-    
     return 0;
 }
 

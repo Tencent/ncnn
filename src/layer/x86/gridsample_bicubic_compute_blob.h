@@ -144,7 +144,7 @@ struct gridsample_2d_bicubic_compute_blob
                     x2 = get_coord(src.w, x2);
                     x3 = get_coord(src.w, x3);
 
-                    for (int i = 0; i < 4; i ++)
+                    for (int i = 0; i < 4; i++)
                     {
                         int offset_y = get_coord(src.h, y1 + i - 1) * src.w;
 
@@ -308,7 +308,7 @@ struct gridsample_2d_bicubic_compute_blob<PaddingMode::Zeros, align_corner>
         float* value_x = value.channel(0);
         float* value_y = value.channel(1);
 
-        for (int i = 0; i < 4; i ++)
+        for (int i = 0; i < 4; i++)
         {
             v0_offset_ptr[i] = offset.channel(i * 4 + 0);
             v1_offset_ptr[i] = offset.channel(i * 4 + 1);
@@ -431,7 +431,7 @@ struct gridsample_2d_bicubic_compute_blob<PaddingMode::Zeros, align_corner>
                     bool x2_in_range = (x2 > -1) & (x2 < src.w);
                     bool x3_in_range = (x3 > -1) & (x3 < src.w);
 
-                    for (int i = 0; i < 4; i ++)
+                    for (int i = 0; i < 4; i++)
                     {
                         int gy = y1 + i - 1;
                         int offset_y = gy * src.w;
@@ -639,7 +639,7 @@ static void gridsample_2d_bicubic_apply_interpolation_p8(const Mat& src, Mat& ds
     __m256 y_coeffs0, y_coeffs1, y_coeffs2, y_coeffs3;
     __m256 value_f[4];
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
     {
         const float* srcptr = src.channel(q);
@@ -674,7 +674,7 @@ static void gridsample_2d_bicubic_apply_interpolation_p8(const Mat& src, Mat& ds
                 __m256 x1_val = mask_gather_ps256(srcptr, _mm256_add_epi32(_mm256_set1_epi32(*v1_offset_ptr[ii]), _mm256_set_epi32(7, 6, 5, 4, 3, 2, 1, 0)), _mm256_set1_ps(*v1_in_bound_ptr[ii]));
                 __m256 x2_val = mask_gather_ps256(srcptr, _mm256_add_epi32(_mm256_set1_epi32(*v2_offset_ptr[ii]), _mm256_set_epi32(7, 6, 5, 4, 3, 2, 1, 0)), _mm256_set1_ps(*v2_in_bound_ptr[ii]));
                 __m256 x3_val = mask_gather_ps256(srcptr, _mm256_add_epi32(_mm256_set1_epi32(*v3_offset_ptr[ii]), _mm256_set_epi32(7, 6, 5, 4, 3, 2, 1, 0)), _mm256_set1_ps(*v3_in_bound_ptr[ii]));
-                
+
                 value_f[ii] = _mm256_mul_ps(x_coeffs0, x0_val);
                 value_f[ii] = _mm256_comp_fmadd_ps(x_coeffs1, x1_val, value_f[ii]);
                 value_f[ii] = _mm256_comp_fmadd_ps(x_coeffs2, x2_val, value_f[ii]);
@@ -704,7 +704,6 @@ static void gridsample_2d_bicubic_apply_interpolation_p8(const Mat& src, Mat& ds
 
             dstptr += 8;
         }
-        
     }
 }
 

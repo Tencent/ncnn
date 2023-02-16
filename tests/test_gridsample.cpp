@@ -188,5 +188,6 @@ int main()
            || test_gridsample_0()
            || test_gridsample_1()
            /*|| test_gridsample_2()
-           || test_gridsample_3()*/;
+                 || test_gridsample_3()*/
+           ;
 }

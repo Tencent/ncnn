@@ -74,7 +74,7 @@ struct gridsample_2d_bilinear_compute_blob
                         gy = get_coord(vImgHf, gy);
                     }
 
-                                    __m256 x_w = _mm256_floor_ps(gx);
+                    __m256 x_w = _mm256_floor_ps(gx);
                     __m256 y_n = _mm256_floor_ps(gy);
 
 #if __AVX2__
@@ -548,7 +548,6 @@ struct gridsample_2d_bilinear_compute_blob<PaddingMode::Zeros, align_corner>
                     value_ptr_beta++;
                 }
             }
-
         }
         else
         {
@@ -710,7 +709,6 @@ struct gridsample_2d_bilinear_compute_blob<PaddingMode::Zeros, align_corner>
             }
         }
     }
-
 };
 
 #if __AVX__
@@ -721,7 +719,7 @@ static void gridsample_2d_bilinear_apply_interpolation_p8(const Mat& src, Mat& d
     const int outh = dst.h;
     const int grid_size = outw * outh;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
     {
         const float* srcptr = src.channel(q);
@@ -781,7 +779,6 @@ static void gridsample_2d_bilinear_apply_interpolation_p8(const Mat& src, Mat& d
 
             dstptr += 8;
         }
-        
     }
 }
 #endif // __AVX__
