@@ -25,13 +25,19 @@ struct gridsample_2d_bicubic_compute_blob
 #endif // __AVX__
 
         int *v0_offset_ptr[4], *v1_offset_ptr[4], *v2_offset_ptr[4], *v3_offset_ptr[4];
-
+        float *v0_in_bound_ptr[4], *v1_in_bound_ptr[4], *v2_in_bound_ptr[4], *v3_in_bound_ptr[4];
         for (int i = 0; i < 4; i++)
         {
             v0_offset_ptr[i] = offset.channel(i * 4 + 0);
             v1_offset_ptr[i] = offset.channel(i * 4 + 1);
             v2_offset_ptr[i] = offset.channel(i * 4 + 2);
             v3_offset_ptr[i] = offset.channel(i * 4 + 3);
+
+            v0_in_bound_ptr[i] = in_bound.channel(i * 4 + 0);
+            v1_in_bound_ptr[i] = in_bound.channel(i * 4 + 1);
+            v2_in_bound_ptr[i] = in_bound.channel(i * 4 + 2);
+            v3_in_bound_ptr[i] = in_bound.channel(i * 4 + 3);
+
         }
 
         float* value_x = value.channel(0);
@@ -101,6 +107,16 @@ struct gridsample_2d_bicubic_compute_blob
                         _mm256_storeu_epi32(v2_offset_ptr[i], _mm256_cvtps_epi32(v2_offset_f));
                         _mm256_storeu_epi32(v3_offset_ptr[i], _mm256_cvtps_epi32(v3_offset_f));
 
+                        _mm256_storeu_ps(v0_in_bound_ptr[i], *(__m256*)_ps256_n1);
+                        _mm256_storeu_ps(v1_in_bound_ptr[i], *(__m256*)_ps256_n1);
+                        _mm256_storeu_ps(v2_in_bound_ptr[i], *(__m256*)_ps256_n1);
+                        _mm256_storeu_ps(v3_in_bound_ptr[i], *(__m256*)_ps256_n1);
+
+                        v0_in_bound_ptr[i] += 8;
+                        v1_in_bound_ptr[i] += 8;
+                        v2_in_bound_ptr[i] += 8;
+                        v3_in_bound_ptr[i] += 8;
+
                         v0_offset_ptr[i] += 8;
                         v1_offset_ptr[i] += 8;
                         v2_offset_ptr[i] += 8;
@@ -152,6 +168,11 @@ struct gridsample_2d_bicubic_compute_blob
                         *v1_offset_ptr[i] = (offset_y + x1) * src.elempack;
                         *v2_offset_ptr[i] = (offset_y + x2) * src.elempack;
                         *v3_offset_ptr[i] = (offset_y + x3) * src.elempack;
+
+                        *v0_in_bound_ptr[i]++ = -1.0f;
+                        *v1_in_bound_ptr[i]++ = -1.0f;
+                        *v2_in_bound_ptr[i]++ = -1.0f;
+                        *v3_in_bound_ptr[i]++ = -1.0f;
 
                         v0_offset_ptr[i]++;
                         v1_offset_ptr[i]++;
@@ -220,6 +241,16 @@ struct gridsample_2d_bicubic_compute_blob
                     _mm256_storeu_epi32(v2_offset_ptr[i], _mm256_cvtps_epi32(v2_offset_f));
                     _mm256_storeu_epi32(v3_offset_ptr[i], _mm256_cvtps_epi32(v3_offset_f));
 
+                    _mm256_storeu_ps(v0_in_bound_ptr[i], *(__m256*)_ps256_n1);
+                    _mm256_storeu_ps(v1_in_bound_ptr[i], *(__m256*)_ps256_n1);
+                    _mm256_storeu_ps(v2_in_bound_ptr[i], *(__m256*)_ps256_n1);
+                    _mm256_storeu_ps(v3_in_bound_ptr[i], *(__m256*)_ps256_n1);
+
+                    v0_in_bound_ptr[i] += 8;
+                    v1_in_bound_ptr[i] += 8;
+                    v2_in_bound_ptr[i] += 8;
+                    v3_in_bound_ptr[i] += 8;
+
                     v0_offset_ptr[i] += 8;
                     v1_offset_ptr[i] += 8;
                     v2_offset_ptr[i] += 8;
@@ -272,6 +303,11 @@ struct gridsample_2d_bicubic_compute_blob
                     *v1_offset_ptr[i] = (offset_y + x1) * src.elempack;
                     *v2_offset_ptr[i] = (offset_y + x2) * src.elempack;
                     *v3_offset_ptr[i] = (offset_y + x3) * src.elempack;
+
+                    *v0_in_bound_ptr[i]++ = -1.0f;
+                    *v1_in_bound_ptr[i]++ = -1.0f;
+                    *v2_in_bound_ptr[i]++ = -1.0f;
+                    *v3_in_bound_ptr[i]++ = -1.0f;
 
                     v0_offset_ptr[i]++;
                     v1_offset_ptr[i]++;
@@ -438,10 +474,10 @@ struct gridsample_2d_bicubic_compute_blob<PaddingMode::Zeros, align_corner>
 
                         bool y_in_range = (gy > -1) & (gy < src.h);
 
-                        *v0_in_bound_ptr[i] = (x0_in_range & y_in_range) ? 0xFFFFFFFF : 0.0f;
-                        *v1_in_bound_ptr[i] = (x1_in_range & y_in_range) ? 0xFFFFFFFF : 0.0f;
-                        *v2_in_bound_ptr[i] = (x2_in_range & y_in_range) ? 0xFFFFFFFF : 0.0f;
-                        *v3_in_bound_ptr[i] = (x3_in_range & y_in_range) ? 0xFFFFFFFF : 0.0f;
+                        *v0_in_bound_ptr[i] = (x0_in_range & y_in_range) ? -1.0f : 0.0f;
+                        *v1_in_bound_ptr[i] = (x1_in_range & y_in_range) ? -1.0f : 0.0f;
+                        *v2_in_bound_ptr[i] = (x2_in_range & y_in_range) ? -1.0f : 0.0f;
+                        *v3_in_bound_ptr[i] = (x3_in_range & y_in_range) ? -1.0f : 0.0f;
 
                         *v0_offset_ptr[i] = (offset_y + x0) * src.elempack;
                         *v1_offset_ptr[i] = (offset_y + x1) * src.elempack;
@@ -578,10 +614,10 @@ struct gridsample_2d_bicubic_compute_blob<PaddingMode::Zeros, align_corner>
 
                     bool y_in_range = (gy > -1) & (gy < src.h);
 
-                    *v0_in_bound_ptr[i] = (x0_in_range & y_in_range) ? 0xFFFFFFFF : 0.0f;
-                    *v1_in_bound_ptr[i] = (x1_in_range & y_in_range) ? 0xFFFFFFFF : 0.0f;
-                    *v2_in_bound_ptr[i] = (x2_in_range & y_in_range) ? 0xFFFFFFFF : 0.0f;
-                    *v3_in_bound_ptr[i] = (x3_in_range & y_in_range) ? 0xFFFFFFFF : 0.0f;
+                    *v0_in_bound_ptr[i] = (x0_in_range & y_in_range) ? -1.0f : 0.0f;
+                    *v1_in_bound_ptr[i] = (x1_in_range & y_in_range) ? -1.0f : 0.0f;
+                    *v2_in_bound_ptr[i] = (x2_in_range & y_in_range) ? -1.0f : 0.0f;
+                    *v3_in_bound_ptr[i] = (x3_in_range & y_in_range) ? -1.0f : 0.0f;
 
                     *v0_offset_ptr[i] = (offset_y + x0) * src.elempack;
                     *v1_offset_ptr[i] = (offset_y + x1) * src.elempack;

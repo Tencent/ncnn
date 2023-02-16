@@ -170,9 +170,9 @@ struct gridsample_2d_bilinear_compute_blob
                     bool x1_in_bound = (x1 > -1) & (x1 < src.w);
                     bool y1_in_bound = (y1 > -1) & (y1 < src.h);
 
-                    *in_bound_ptr_01 = x1_in_bound ? 0xFFFFFFFF : 0.0f;
-                    *in_bound_ptr_10 = y1_in_bound ? 0xFFFFFFFF : 0.0f;
-                    *in_bound_ptr_11 = (x1_in_bound & y1_in_bound) ? 0xFFFFFFFF : 0.0f;
+                    *in_bound_ptr_01 = x1_in_bound ? -1.0f : 0.0f;
+                    *in_bound_ptr_10 = y1_in_bound ? -1.0f : 0.0f;
+                    *in_bound_ptr_11 = (x1_in_bound & y1_in_bound) ? -1.0f : 0.0f;
 
                     *offset_ptr_00 = (x0 + y0 * src.w) * src.elempack;
                     *offset_ptr_01 = (x1 + y0 * src.w) * src.elempack;
@@ -318,9 +318,9 @@ struct gridsample_2d_bilinear_compute_blob
                 bool x1_in_bound = (x1 > -1) & (x1 < src.w);
                 bool y1_in_bound = (y1 > -1) & (y1 < src.h);
 
-                *in_bound_ptr_01 = x1_in_bound ? 0xFFFFFFFF : 0.0f;
-                *in_bound_ptr_10 = y1_in_bound ? 0xFFFFFFFF : 0.0f;
-                *in_bound_ptr_11 = (x1_in_bound & y1_in_bound) ? 0xFFFFFFFF : 0.0f;
+                *in_bound_ptr_01 = x1_in_bound ? -1.0f : 0.0f;
+                *in_bound_ptr_10 = y1_in_bound ? -1.0f : 0.0f;
+                *in_bound_ptr_11 = (x1_in_bound & y1_in_bound) ? -1.0f : 0.0f;
 
                 *offset_ptr_00 = (x0 + y0 * src.w) * src.elempack;
                 *offset_ptr_01 = (x1 + y0 * src.w) * src.elempack;
@@ -519,10 +519,10 @@ struct gridsample_2d_bilinear_compute_blob<PaddingMode::Zeros, align_corner>
                     bool y0_in_bound = (y0 > -1) & (y0 < src.h);
                     bool y1_in_bound = (y1 > -1) & (y1 < src.h);
 
-                    *in_bound_ptr_00 = (x0_in_bound & y0_in_bound) ? 0xFFFFFFFF : 0.0f;
-                    *in_bound_ptr_01 = (x1_in_bound & y0_in_bound) ? 0xFFFFFFFF : 0.0f;
-                    *in_bound_ptr_10 = (x0_in_bound & y1_in_bound) ? 0xFFFFFFFF : 0.0f;
-                    *in_bound_ptr_11 = (x1_in_bound & y1_in_bound) ? 0xFFFFFFFF : 0.0f;
+                    *in_bound_ptr_00 = (x0_in_bound & y0_in_bound) ? -1.0f : 0.0f;
+                    *in_bound_ptr_01 = (x1_in_bound & y0_in_bound) ? -1.0f : 0.0f;
+                    *in_bound_ptr_10 = (x0_in_bound & y1_in_bound) ? -1.0f : 0.0f;
+                    *in_bound_ptr_11 = (x1_in_bound & y1_in_bound) ? -1.0f : 0.0f;
 
                     *offset_ptr_00 = (x0 + y0 * src.w) * src.elempack;
                     *offset_ptr_01 = (x1 + y0 * src.w) * src.elempack;
@@ -678,10 +678,10 @@ struct gridsample_2d_bilinear_compute_blob<PaddingMode::Zeros, align_corner>
                 bool y0_in_bound = (y0 > -1) & (y0 < src.h);
                 bool y1_in_bound = (y1 > -1) & (y1 < src.h);
 
-                *in_bound_ptr_00 = (x0_in_bound & y0_in_bound) ? 0xFFFFFFFF : 0.0f;
-                *in_bound_ptr_01 = (x1_in_bound & y0_in_bound) ? 0xFFFFFFFF : 0.0f;
-                *in_bound_ptr_10 = (x0_in_bound & y1_in_bound) ? 0xFFFFFFFF : 0.0f;
-                *in_bound_ptr_11 = (x1_in_bound & y1_in_bound) ? 0xFFFFFFFF : 0.0f;
+                *in_bound_ptr_00 = (x0_in_bound & y0_in_bound) ? -1.0f : 0.0f;
+                *in_bound_ptr_01 = (x1_in_bound & y0_in_bound) ? -1.0f : 0.0f;
+                *in_bound_ptr_10 = (x0_in_bound & y1_in_bound) ? -1.0f : 0.0f;
+                *in_bound_ptr_11 = (x1_in_bound & y1_in_bound) ? -1.0f : 0.0f;
 
                 *offset_ptr_00 = (x0 + y0 * src.w) * src.elempack;
                 *offset_ptr_01 = (x1 + y0 * src.w) * src.elempack;

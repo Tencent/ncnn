@@ -281,7 +281,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
             if (offset_blob.empty() || in_bound_blob.empty() || value_blob.empty())
                 return -100;
 
-            in_bound_blob.fill(0xFFFFFFFF);
+            in_bound_blob.fill(-1.0f);
 
             if (padding_mode == PaddingMode::Zeros)
             {
@@ -336,7 +336,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
             if (offset_blob.empty() || in_bound_blob.empty())
                 return -100;
 
-            in_bound_blob.fill(0xFFFFFFFF);
+            in_bound_blob.fill(-1.0f);
 
             if (padding_mode == PaddingMode::Zeros)
             {
@@ -391,8 +391,6 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
             value_blob.create(outw, outh, 2, elemsize, 1, opt.blob_allocator);
             if (offset_blob.empty() || in_bound_blob.empty() || value_blob.empty())
                 return -100;
-
-            in_bound_blob.fill(0xFFFFFFFF);
 
             if (padding_mode == PaddingMode::Zeros)
             {

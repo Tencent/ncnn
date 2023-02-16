@@ -244,7 +244,7 @@ struct gridsample_2d_nearest_compute_blob<PaddingMode::Zeros, align_corner>
                     int x0 = static_cast<int>(floor(sample_x + 0.5f));
                     int y0 = static_cast<int>(floor(sample_y + 0.5f));
 
-                    *in_bound_ptr = ((x0 > -1) & (x0 < src.w) & (y0 > -1) & (y0 < src.h)) ? 0xFFFFFFFF : 0.0f;
+                    *in_bound_ptr = ((x0 > -1) & (x0 < src.w) & (y0 > -1) & (y0 < src.h)) ? -1.0f : 0.0f;
                     *offset_ptr = (x0 + y0 * src.w) * src.elempack;
 
                     gridptr += 2;
@@ -307,7 +307,7 @@ struct gridsample_2d_nearest_compute_blob<PaddingMode::Zeros, align_corner>
                 int x0 = static_cast<int>(floor(sample_x + 0.5f));
                 int y0 = static_cast<int>(floor(sample_y + 0.5f));
 
-                *in_bound_ptr = ((x0 > -1) & (x0 < src.w) & (y0 > -1) & (y0 < src.h)) ? 0xFFFFFFFF : 0.0f;
+                *in_bound_ptr = ((x0 > -1) & (x0 < src.w) & (y0 > -1) & (y0 < src.h)) ? -1.0f : 0.0f;
 
                 *offset_ptr = (x0 + y0 * src.w) * src.elempack;
 
