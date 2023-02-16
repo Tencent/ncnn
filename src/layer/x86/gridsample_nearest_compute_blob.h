@@ -21,10 +21,7 @@ struct gridsample_2d_nearest_compute_blob
 #if __AVX__
         const __m256 vImgWf = _mm256_set1_ps(src.w);
         const __m256 vImgHf = _mm256_set1_ps(src.h);
-#if __AVX2__
-        const __m256i vImgWi = _mm256_set1_epi32(src.w);
-        const __m256i vImgHi = _mm256_set1_epi32(src.h);
-#endif // __AVX2__
+        const __m256 vElempackf = _mm256_set1_ps(src.elempack);
 #endif // __AVX__
 
         int* offset_ptr = offset.channel(0);
@@ -41,8 +38,8 @@ struct gridsample_2d_nearest_compute_blob
 #if __AVX__
                 for (int x = 0; x + 15 < nn; x += 16)
                 {
-                    __m256 tmp_x = _mm256_loadu_ps(gridptr + x);
-                    __m256 gy = _mm256_loadu_ps(gridptr + x + 8);
+                    __m256 tmp_x = _mm256_loadu_ps(gridptr);
+                    __m256 gy = _mm256_loadu_ps(gridptr + 8);
 
                     __m256 gx = _mm256_permute2f128_ps(tmp_x, gy, 0b00100000);
                     gy = _mm256_permute2f128_ps(tmp_x, gy, 0b00110001);
@@ -65,7 +62,7 @@ struct gridsample_2d_nearest_compute_blob
                     gx = _mm256_floor_ps(_mm256_add_ps(gx, _mm256_set1_ps(0.5f)));
                     gy = _mm256_floor_ps(_mm256_add_ps(gy, _mm256_set1_ps(0.5f)));
 
-                    __m256 offset = _mm256_add_ps(_mm256_mul_ps(gy, vImgWf), gx);
+                    __m256 offset = _mm256_mul_ps(_mm256_add_ps(_mm256_mul_ps(gy, vImgWf), gx), vElempackf);
                     __m256i i_offset = _mm256_cvtps_epi32(offset);
 
                     _mm256_storeu_epi32(offset_ptr, i_offset);
@@ -88,13 +85,13 @@ struct gridsample_2d_nearest_compute_blob
                     sample_x = get_coord(src.w, sample_x);
 
                     // y
-                    sample_y = unormalize(src.h, sample_x);
-                    sample_y = get_coord(src.h, sample_x);
+                    sample_y = unormalize(src.h, sample_y);
+                    sample_y = get_coord(src.h, sample_y);
 
                     int x0 = static_cast<int>(floor(sample_x + 0.5f));
                     int y0 = static_cast<int>(floor(sample_y + 0.5f));
 
-                    *offset_ptr = x0 + y0 * src.w;
+                    *offset_ptr = (x0 + y0 * src.w) * src.elempack;
 
                     gridptr += 2;
 
@@ -128,7 +125,7 @@ struct gridsample_2d_nearest_compute_blob
                 gx = _mm256_floor_ps(_mm256_add_ps(gx, _mm256_set1_ps(0.5f)));
                 gy = _mm256_floor_ps(_mm256_add_ps(gy, _mm256_set1_ps(0.5f)));
 
-                __m256 offset = _mm256_add_ps(_mm256_mul_ps(gy, vImgWf), gx);
+                __m256 offset = _mm256_mul_ps(_mm256_add_ps(_mm256_mul_ps(gy, vImgWf), gx), vElempackf);
                 __m256i i_offset = _mm256_cvtps_epi32(offset);
 
                 _mm256_storeu_epi32(offset_ptr, i_offset);
@@ -152,13 +149,13 @@ struct gridsample_2d_nearest_compute_blob
                 sample_x = get_coord(src.w, sample_x);
 
                 // y
-                sample_y = unormalize(src.h, sample_x);
-                sample_y = get_coord(src.h, sample_x);
+                sample_y = unormalize(src.h, sample_y);
+                sample_y = get_coord(src.h, sample_y);
 
                 int x0 = static_cast<int>(floor(sample_x + 0.5f));
                 int y0 = static_cast<int>(floor(sample_y + 0.5f));
 
-                *offset_ptr = x0 + y0 * src.w;
+                *offset_ptr = (x0 + y0 * src.w) * src.elempack;
 
                 gridptr_x++;
                 gridptr_y++;
@@ -178,10 +175,7 @@ struct gridsample_2d_nearest_compute_blob<PaddingMode::Zeros, align_corner>
 #if __AVX__
         const __m256 vImgWf = _mm256_set1_ps(src.w);
         const __m256 vImgHf = _mm256_set1_ps(src.h);
-#if __AVX2__
-        const __m256i vImgWi = _mm256_set1_epi32(src.w);
-        const __m256i vImgHi = _mm256_set1_epi32(src.h);
-#endif // __AVX2__
+        const __m256 vElempackf = _mm256_set1_ps(src.elempack);
 #endif // __AVX__
 
         int* offset_ptr = offset.channel(0);
@@ -199,8 +193,8 @@ struct gridsample_2d_nearest_compute_blob<PaddingMode::Zeros, align_corner>
 #if __AVX__
                 for (int x = 0; x + 15 < nn; x += 16)
                 {
-                    __m256 tmp_x = _mm256_loadu_ps(gridptr + x);
-                    __m256 gy = _mm256_loadu_ps(gridptr + x + 8);
+                    __m256 tmp_x = _mm256_loadu_ps(gridptr);
+                    __m256 gy = _mm256_loadu_ps(gridptr + 8);
 
                     __m256 gx = _mm256_permute2f128_ps(tmp_x, gy, 0b00100000);
                     gy = _mm256_permute2f128_ps(tmp_x, gy, 0b00110001);
@@ -223,7 +217,7 @@ struct gridsample_2d_nearest_compute_blob<PaddingMode::Zeros, align_corner>
                     __m256 v_in_range = _mm256_and_ps(_mm256_and_ps(_mm256_cmp_ps(gx, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgWf, gx, _CMP_GT_OS)),
                                                       _mm256_and_ps(_mm256_cmp_ps(gy, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgHf, gy, _CMP_GT_OS)));
 
-                    __m256 offset = _mm256_add_ps(_mm256_mul_ps(gy, vImgWf), gx);
+                    __m256 offset = _mm256_mul_ps(_mm256_add_ps(_mm256_mul_ps(gy, vImgWf), gx), vElempackf);
                     __m256i i_offset = _mm256_cvtps_epi32(offset);
 
                     _mm256_storeu_ps(in_bound_ptr, v_in_range);
@@ -245,13 +239,13 @@ struct gridsample_2d_nearest_compute_blob<PaddingMode::Zeros, align_corner>
                     // x
                     sample_x = unormalize(src.w, sample_x);
                     // y
-                    sample_y = unormalize(src.h, sample_x);
+                    sample_y = unormalize(src.h, sample_y);
 
                     int x0 = static_cast<int>(floor(sample_x + 0.5f));
                     int y0 = static_cast<int>(floor(sample_y + 0.5f));
 
-                    *in_bound_ptr = (x0 > -1) & (x0 < src.w) & (y0 > -1) & (y0 < src.h);
-                    *offset_ptr = x0 + y0 * src.w;
+                    *in_bound_ptr = ((x0 > -1) & (x0 < src.w) & (y0 > -1) & (y0 < src.h)) ? 0xFFFFFFFF : 0.0f;
+                    *offset_ptr = (x0 + y0 * src.w) * src.elempack;
 
                     gridptr += 2;
                     offset_ptr++;
@@ -285,7 +279,7 @@ struct gridsample_2d_nearest_compute_blob<PaddingMode::Zeros, align_corner>
                 __m256 v_in_range = _mm256_and_ps(_mm256_and_ps(_mm256_cmp_ps(gx, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgWf, gx, _CMP_GT_OS)),
                                                   _mm256_and_ps(_mm256_cmp_ps(gy, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgHf, gy, _CMP_GT_OS)));
 
-                __m256 offset = _mm256_add_ps(_mm256_mul_ps(gy, vImgWf), gx);
+                __m256 offset = _mm256_mul_ps(_mm256_add_ps(_mm256_mul_ps(gy, vImgWf), gx), vElempackf);
                 __m256i i_offset = _mm256_cvtps_epi32(offset);
 
                 _mm256_storeu_ps(in_bound_ptr, v_in_range);
@@ -308,14 +302,14 @@ struct gridsample_2d_nearest_compute_blob<PaddingMode::Zeros, align_corner>
                 // x
                 sample_x = unormalize(src.w, sample_x);
                 // y
-                sample_y = unormalize(src.h, sample_x);
+                sample_y = unormalize(src.h, sample_y);
 
                 int x0 = static_cast<int>(floor(sample_x + 0.5f));
                 int y0 = static_cast<int>(floor(sample_y + 0.5f));
 
-                *in_bound_ptr = (x0 > -1) & (x0 < src.w) & (y0 > -1) & (y0 < src.h);
+                *in_bound_ptr = ((x0 > -1) & (x0 < src.w) & (y0 > -1) & (y0 < src.h)) ? 0xFFFFFFFF : 0.0f;
 
-                *offset_ptr = x0 + y0 * src.w;
+                *offset_ptr = (x0 + y0 * src.w) * src.elempack;
 
                 gridptr_x++;
                 gridptr_y++;
@@ -328,3 +322,37 @@ struct gridsample_2d_nearest_compute_blob<PaddingMode::Zeros, align_corner>
     }
 };
 
+#if __AVX__
+static void gridsample_2d_nearest_apply_interpolation_p8(const Mat& src, Mat& dst, const Mat& offset, const Mat& in_bound, const Option& opt)
+{
+    const int channels = dst.c;
+    const int outw = dst.w;
+    const int outh = dst.h;
+    const int grid_size = outw * outh;
+
+#pragma omp parallel for num_threads(opt.num_threads)
+    for (int q = 0; q < channels; q++)
+    {
+        const float* srcptr = src.channel(q);
+        float* dstptr = dst.channel(q);
+
+        const int* offset_ptr = offset.channel(0);
+
+        const float* in_bound_ptr = in_bound.channel(0);
+
+        for (int i = 0; i < grid_size; i++)
+        {
+            __m256 _v = mask_gather_ps256(srcptr, _mm256_add_epi32(_mm256_set1_epi32(*offset_ptr), _mm256_set_epi32(7, 6, 5, 4, 3, 2, 1, 0)), _mm256_set1_ps(*in_bound_ptr));
+
+            _mm256_storeu_ps(dstptr, _v);
+
+            offset_ptr++;
+
+            in_bound_ptr++;
+
+            dstptr += 8;
+        }
+    }
+}
+
+#endif // __AVX__

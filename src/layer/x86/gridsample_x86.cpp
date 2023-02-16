@@ -43,7 +43,86 @@ _PS256_CONST(n1, -1.0f);
 _PS256_CONST(2, 2.0f);
 _PI32_CONST256(n1, -1);
 
-using PaddingMode = ncnn::GridSample::PaddingMode;
+static NCNN_FORCEINLINE __m256 mask_gather_ps256(const float* ptr, __m256i offset, __m256 mask)
+{
+#if __AVX2__
+    __m256 v = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), ptr, offset, mask, sizeof(float));
+#else
+    int offseti[8], maski[8];
+    memcpy(offseti, &offset, 8 * sizeof(int));
+    memcpy(maski, &mask, 8 * sizeof(int));
+
+    float data[8] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+    for (int i = 0; i < 8; i++)
+    {
+        if (maski[i] & 0xF0000000)
+        {
+            data[i] = *(ptr + offseti[i]);
+        }
+    }
+
+    __m256 v = _mm256_loadu_ps(data);
+#endif // __AVX2__
+
+    return v;
+}
+
+#endif // __AVX__
+
+const __m128 v1fp4 = _mm_set1_ps(1.0f);
+const __m128 vn1fp4 = _mm_set1_ps(-1.0f);
+const __m128i v1ip4 = _mm_set1_epi32(1);
+const __m128i vn1ip4 = _mm_set1_epi32(-1);
+
+static NCNN_FORCEINLINE __m128 mask_gather_ps(const float* ptr, __m128i offset, __m128 mask)
+{
+#if __AVX2__
+    __m128 v = _mm_mask_i32gather_ps(_mm_setzero_ps(), ptr, offset, mask, sizeof(float));
+#else
+    int offseti[4], maski[4];
+    memcpy(offseti, &offset, 4 * sizeof(int));
+    memcpy(maski, &mask, 4 * sizeof(int));
+
+    float data[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+    for (int i = 0; i < 4; i++)
+    {
+        if (maski[i] & 0xF0000000)
+        {
+            data[i] = *(ptr + offseti[i]);
+        }
+    }
+
+    __m128 v = _mm_loadu_ps(data);
+#endif // __AVX__
+
+    return v;
+}
+
+static inline void interpolate_cubic(float fx, float* coeffs)
+{
+    const float A = -0.75f;
+
+    float fx0 = fx + 1;
+    float fx1 = fx;
+    float fx2 = 1 - fx;
+    // float fx3 = 2 - fx;
+
+    coeffs[0] = A * fx0 * fx0 * fx0 - 5 * A * fx0 * fx0 + 8 * A * fx0 - 4 * A;
+    coeffs[1] = (A + 2) * fx1 * fx1 * fx1 - (A + 3) * fx1 * fx1 + 1;
+    coeffs[2] = (A + 2) * fx2 * fx2 * fx2 - (A + 3) * fx2 * fx2 + 1;
+    coeffs[3] = 1.f - coeffs[0] - coeffs[1] - coeffs[2];
+}
+
+static inline float reflect_coord(float x, int high)
+{
+    x = abs(x);
+    x = high - abs(x - high);
+    return x;
+}
+
+#endif // __SSE2__
+
+typedef GridSample::PaddingMode PaddingMode;
 
 template<bool align_corner>
 struct grid_sample_unormalize;
@@ -54,7 +133,7 @@ struct grid_sample_unormalize</*align_corner*/ true>
 #if __AVX__
     __m256 operator()(__m256 length, __m256 coord)
     {
-        return _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(coord, *(__m256*)_ps256_1), length, *(__m256*)_ps256_1), *(__m256*)_ps256_2);
+        return _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(coord, *(__m256*)_ps256_1), *(__m256*)_ps256_2), _mm256_sub_ps(length, *(__m256*)_ps256_1));
     }
 #endif // __AVX__
     float operator()(int length, float coord)
@@ -163,107 +242,6 @@ struct compute_coord<PaddingMode::Reflection, /*align_corner*/ false>
 #include "gridsample_bicubic_compute_blob.h"
 #include "gridsample_nearest_compute_blob.h"
 
-static NCNN_FORCEINLINE __m256 mask_gather_ps256(const float* ptr, __m256i offset, __m256 mask)
-{
-#if __AVX2__
-    __m256 v = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), ptr, offset, mask, sizeof(float));
-#else
-    int offseti[8], maski[8];
-    memcpy(offseti, &offset, 8 * sizeof(int));
-    memcpy(maski, &mask, 8 * sizeof(int));
-
-    float data[8] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
-    for (int i = 0; i < 8; i++)
-    {
-        if (maski[i] & 0xF0000000)
-        {
-            data[i] = *(ptr + offseti[i]);
-        }
-    }
-
-    __m256 v = _mm256_loadu_ps(data);
-#endif // __AVX__
-
-    return v;
-}
-
-static NCNN_FORCEINLINE __m256 cubic_interp1d_p8(const __m256& x0_v, const __m256& x1_v, const __m256& x2_v, const __m256& x3_v, const __m256& tx)
-{
-    const __m256 A = _mm256_set1_ps(-0.75f);
-
-    const __m256 x0 = _mm256_add_ps(tx, *(__m256*)_ps256_1);
-    const __m256& x1 = tx;
-    const __m256 x2 = _mm256_sub_ps(*(__m256*)_ps256_1, tx);
-    //const __m256 x3 = _mm256_add_ps(x2, *(__m256*)_ps256_1);
-
-    const __m256 coeffs0 = _mm256_sub_ps(_mm256_mul_ps(_mm256_add_ps(_mm256_mul_ps(_mm256_sub_ps(_mm256_mul_ps(A, x0), _mm256_mul_ps(_mm256_set1_ps(5.0f), A)), x0), _mm256_mul_ps(_mm256_set1_ps(8.0f), A)), x0), _mm256_mul_ps(_mm256_set1_ps(4), A));
-    const __m256 coeffs1 = _mm256_add_ps(_mm256_mul_ps(_mm256_mul_ps(_mm256_sub_ps(_mm256_mul_ps(_mm256_add_ps(A, _mm256_set1_ps(2.0f)), x1), _mm256_add_ps(A, _mm256_set1_ps(3.0f))), x1), x1), *(__m256*)_ps256_1);
-    const __m256 coeffs2 = _mm256_add_ps(_mm256_mul_ps(_mm256_mul_ps(_mm256_sub_ps(_mm256_mul_ps(_mm256_add_ps(A, _mm256_set1_ps(2.0f)), x2), _mm256_add_ps(A, _mm256_set1_ps(3.0f))), x2), x2), *(__m256*)_ps256_1);
-    const __m256 coeffs3 = _mm256_sub_ps(_mm256_sub_ps(_mm256_sub_ps(*(__m256*)_ps256_1, coeffs0), coeffs1), coeffs2);
-
-    __m256 _v = _mm256_mul_ps(coeffs0, x0_v);
-    _v = _mm256_comp_fmadd_ps(coeffs1, x1_v, _v);
-    _v = _mm256_comp_fmadd_ps(coeffs2, x2_v, _v);
-    _v = _mm256_comp_fmadd_ps(coeffs3, x3_v, _v);
-
-    return _v;
-}
-
-#endif // __AVX__
-
-const __m128 v1fp4 = _mm_set1_ps(1.0f);
-const __m128 vn1fp4 = _mm_set1_ps(-1.0f);
-const __m128i v1ip4 = _mm_set1_epi32(1);
-const __m128i vn1ip4 = _mm_set1_epi32(-1);
-
-static NCNN_FORCEINLINE __m128 mask_gather_ps(const float* ptr, __m128i offset, __m128 mask)
-{
-#if __AVX2__
-    __m128 v = _mm_mask_i32gather_ps(_mm_setzero_ps(), ptr, offset, mask, sizeof(float));
-#else
-    int offseti[4], maski[4];
-    memcpy(offseti, &offset, 4 * sizeof(int));
-    memcpy(maski, &mask, 4 * sizeof(int));
-
-    float data[4] = {0.0f, 0.0f, 0.0f, 0.0f};
-    for (int i = 0; i < 4; i++)
-    {
-        if (maski[i] & 0xF0000000)
-        {
-            data[i] = *(ptr + offseti[i]);
-        }
-    }
-
-    __m128 v = _mm_loadu_ps(data);
-#endif // __AVX__
-
-    return v;
-}
-
-static inline void interpolate_cubic(float fx, float* coeffs)
-{
-    const float A = -0.75f;
-
-    float fx0 = fx + 1;
-    float fx1 = fx;
-    float fx2 = 1 - fx;
-    // float fx3 = 2 - fx;
-
-    coeffs[0] = A * fx0 * fx0 * fx0 - 5 * A * fx0 * fx0 + 8 * A * fx0 - 4 * A;
-    coeffs[1] = (A + 2) * fx1 * fx1 * fx1 - (A + 3) * fx1 * fx1 + 1;
-    coeffs[2] = (A + 2) * fx2 * fx2 * fx2 - (A + 3) * fx2 * fx2 + 1;
-    coeffs[3] = 1.f - coeffs[0] - coeffs[1] - coeffs[2];
-}
-
-static inline float reflect_coord(float x, int high)
-{
-    x = abs(x);
-    x = high - abs(x - high);
-    return x;
-}
-
-#endif // __SSE2__
-
 int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     const Mat& bottom_blob = bottom_blobs[0];
@@ -275,12 +253,10 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
     int dims = bottom_blob.dims;
     size_t elemsize = bottom_blob.elemsize;
 
+    int outw, outh, outd;
     Mat offset_blob, in_bound_blob, value_blob;
 
-#if __SSE2__
-#if __AVX__
-
-     if (dims == 3)
+    if (dims == 3)
     {
          ncnn::Mat grid_tmp;
          if (permute_fusion == 0 && grid.elempack != 1)
@@ -290,20 +266,22 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
          ncnn::Mat grid_p1 = (grid.elempack == 1) ? grid : grid_tmp;
 
-        int outw = permute_fusion == 0 ? grid.h : grid.w;
-        int outh = permute_fusion == 0 ? grid.c : grid.h;
+        outw = permute_fusion == 0 ? grid.h : grid.w;
+        outh = permute_fusion == 0 ? grid.c : grid.h;
 
-        top_blob.create(outw, outh * grid.elempack, channels, elemsize, elempack, opt.blob_allocator);
+        top_blob.create(outw, outh, channels, elemsize, elempack, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
         if (sample_type == InterpolationMode::Bilinear)
         {
-            offset_blob.create(outw, outh, 1, elemsize, 1, opt.blob_allocator);
+            offset_blob.create(outw, outh, 4, elemsize, 1, opt.blob_allocator);
             in_bound_blob.create(outw, outh, 4, elemsize, 1, opt.blob_allocator);
             value_blob.create(outw, outh, 2, elemsize, 1, opt.blob_allocator);
             if (offset_blob.empty() || in_bound_blob.empty() || value_blob.empty())
                 return -100;
+
+            in_bound_blob.fill(0xFFFFFFFF);
 
             if (padding_mode == PaddingMode::Zeros)
             {
@@ -358,6 +336,8 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
             if (offset_blob.empty() || in_bound_blob.empty())
                 return -100;
 
+            in_bound_blob.fill(0xFFFFFFFF);
+
             if (padding_mode == PaddingMode::Zeros)
             {
                 if (align_corner == 0)
@@ -408,8 +388,11 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
         {
             offset_blob.create(outw, outh, 16, elemsize, 1, opt.blob_allocator);
             in_bound_blob.create(outw, outh, 16, elemsize, 1, opt.blob_allocator);
+            value_blob.create(outw, outh, 2, elemsize, 1, opt.blob_allocator);
             if (offset_blob.empty() || in_bound_blob.empty() || value_blob.empty())
                 return -100;
+
+            in_bound_blob.fill(0xFFFFFFFF);
 
             if (padding_mode == PaddingMode::Zeros)
             {
@@ -457,7 +440,6 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
             }
         }
     }
-        
 
      /*if (dims == 4)
     {
@@ -556,9 +538,146 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
         }
     }*/
 
+#if __SSE2__
+#if __AVX__
+#if __AVX512F__
+    if (elempack == 16)
+    {
+        if (sample_type == InterpolationMode::Bilinear)
+        {
+        }
+        else if (sample_type == InterpolationMode::Nearest)
+        {
+        }
+        else if (sample_type == InterpolationMode::Bicubic)
+        {
+        }
+        else
+        {
+        }
+    }
+#endif // __AVX512F__
+    if (elempack == 8)
+    {
+        if (dims == 3)
+        {
+            if (sample_type == InterpolationMode::Bilinear)
+            {
+                gridsample_2d_bilinear_apply_interpolation_p8(bottom_blob, top_blob, offset_blob, in_bound_blob, value_blob, opt);
+            }
+            else if (sample_type == InterpolationMode::Nearest)
+            {
+                gridsample_2d_nearest_apply_interpolation_p8(bottom_blob, top_blob, offset_blob, in_bound_blob, opt);
+            }
+            else if (sample_type == InterpolationMode::Bicubic)
+            {
+                gridsample_2d_bicubic_apply_interpolation_p8(bottom_blob, top_blob, offset_blob, in_bound_blob, value_blob, opt);
+            }
+        }
+        else if (dims == 4)
+        {
+            return GridSample::forward(bottom_blobs, top_blobs, opt);
+            if (sample_type == InterpolationMode::Bilinear)
+            {
+
+            }
+            else if (sample_type == InterpolationMode::Nearest)
+            {
+            }
+            else if (sample_type == InterpolationMode::Bicubic)
+            {
+            }
+            else
+            {
+            }
+        }
+    }
+    else
+    {
+        return GridSample::forward(bottom_blobs, top_blobs, opt);
+    }
+
+#endif // __AVX__
+    if (elempack == 4)
+    {
+        if (sample_type == InterpolationMode::Bilinear)
+        {
+
+        }
+        else if (sample_type == InterpolationMode::Nearest)
+        {
+        }
+        else if (sample_type == InterpolationMode::Bicubic)
+        {
+        }
+        else
+        {
+        }
+    }
+    else if (dims == 4)
+    {
+        if (sample_type == InterpolationMode::Bilinear)
+        {
+
+        }
+        else if (sample_type == InterpolationMode::Nearest)
+        {
+        }
+        else if (sample_type == InterpolationMode::Bicubic)
+        {
+        }
+        else
+        {
+        }
+    }
+    
+#endif // __SSE2__
+
+    if (elempack == 1)
+    {
+        if (sample_type == InterpolationMode::Bilinear)
+        {
+
+        }
+        else if (sample_type == InterpolationMode::Nearest)
+        {
+        }
+        else if (sample_type == InterpolationMode::Bicubic)
+        {
+        }
+        else
+        {
+        }
+    }
+    else if (dims == 4)
+    {
+        if (sample_type == InterpolationMode::Bilinear)
+        {
+
+        }
+        else if (sample_type == InterpolationMode::Nearest)
+        {
+        }
+        else if (sample_type == InterpolationMode::Bicubic)
+        {
+        }
+        else
+        {
+        }
+    }
+#if __SSE2__
+#if __AVX__
+#if __AVX512F__
+
+
+
+#endif // __AVX512F__
+
 #endif // __AVX__
 
 #endif // __SSE2__
+
+    
     return 0;
 }
 

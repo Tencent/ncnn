@@ -59,9 +59,9 @@ static float grid_sample_unormalize(int w, float coordx, int align_corner)
     return align_corner ? (coordx + 1) / 2.f * (w - 1) : ((coordx + 1) * w - 1) / 2.f;
 }
 
-static float border_coord(int x, int border)
+static float border_coord(float x, float border)
 {
-    return std::min(border, std::max(x, 0));
+    return std::min(border, std::max(x, 0.0f));
 }
 
 static float reflect_coord(float x, int high)
@@ -71,7 +71,7 @@ static float reflect_coord(float x, int high)
     return x;
 }
 
-static int compute_coord(int sx, int w, int padding_mode, int align_corner)
+static float compute_coord(float sx, int w, int padding_mode, int align_corner)
 {
     if (padding_mode == 2) // border
     {
@@ -85,7 +85,7 @@ static int compute_coord(int sx, int w, int padding_mode, int align_corner)
         }
         else
         {
-            sx = static_cast<int>(reflect_coord(sx + 0.5, w) - 0.5);
+            sx = reflect_coord(sx + 0.5, w) - 0.5;
             sx = border_coord(sx, w - 1);
         }
     }
@@ -170,7 +170,7 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         Mat offset_blob;
         offset_blob.create(outw, outh, grid.c, elemsize, opt.blob_allocator);
 
-        //1 pre-calculate all interpolation offsets for each x y, unpack grid on-the-fly
+        //pre-calculate all interpolation offsets for each x y, unpack grid on-the-fly
         if (permute_fusion == 0)
         {
             float* offsetptr_x = offset_blob.channel(0);
@@ -224,7 +224,7 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
             }
         }
 
-        if (sample_type == 1) // bilinear
+        if (sample_type == InterpolationMode::Bilinear) // bilinear
         {
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
@@ -244,15 +244,17 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                         // bilinear interpolate
                         float v;
                         {
-                            int x0 = (int)floor(sample_x);
-                            int y0 = (int)floor(sample_y);
+                            sample_x = compute_coord(sample_x, w, padding_mode, align_corner);
+                            sample_y = compute_coord(sample_y, h, padding_mode, align_corner);
+                            int x0 = floor(sample_x);
+                            int y0 = floor(sample_y);
                             int x1 = x0 + 1;
                             int y1 = y0 + 1;
 
-                            float v00 = get_value_bounded(image, x0, y0, padding_mode, align_corner);
-                            float v01 = get_value_bounded(image, x1, y0, padding_mode, align_corner);
-                            float v10 = get_value_bounded(image, x0, y1, padding_mode, align_corner);
-                            float v11 = get_value_bounded(image, x1, y1, padding_mode, align_corner);
+                            float v00 = get_value_bounded(image, x0, y0);
+                            float v01 = get_value_bounded(image, x1, y0);
+                            float v10 = get_value_bounded(image, x0, y1);
+                            float v11 = get_value_bounded(image, x1, y1);
 
                             float alpha = sample_x - x0;
                             float beta = sample_y - y0;
@@ -272,7 +274,7 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                 }
             }
         }
-        else if (sample_type == 2) // nearest
+        else if (sample_type == InterpolationMode::Nearest) // nearest
         {
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
@@ -288,11 +290,13 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                     {
                         float sample_x = *offsetptr_x;
                         float sample_y = *offsetptr_y;
+                        sample_x = compute_coord(sample_x, w, padding_mode, align_corner);
+                        sample_y = compute_coord(sample_y, h, padding_mode, align_corner);
 
                         int x0 = static_cast<int>(floor(sample_x + 0.5f));
                         int y0 = static_cast<int>(floor(sample_y + 0.5f));
 
-                        float v = get_value_bounded(image, x0, y0, padding_mode, align_corner);
+                        float v = get_value_bounded(image, x0, y0);
 
                         outptr[0] = v;
                         outptr += 1;
@@ -303,7 +307,7 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                 }
             }
         }
-        else if (sample_type == 3) // bicubic
+        else if (sample_type == InterpolationMode::Bicubic) // bicubic
         {
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
@@ -386,7 +390,7 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         Mat offset_blob;
         offset_blob.create(outw, outh, outd, grid.c, elemsize, opt.blob_allocator);
 
-        //1 pre-calculate all interpolation offsets for each x y, unpack grid on-the-fly
+        //pre-calculate all interpolation offsets for each x y, unpack grid on-the-fly
         if (permute_fusion == 0)
         {
             float* offsetptr_x = offset_blob.channel(0);
@@ -458,7 +462,7 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
             }
         }
 
-        if (sample_type == 1) // bilinear
+        if (sample_type == InterpolationMode::Bilinear) // bilinear
         {
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
@@ -524,7 +528,7 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                 }
             }
         }
-        else if (sample_type == 2) // nearest
+        else if (sample_type == InterpolationMode::Nearest) // nearest
         {
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
