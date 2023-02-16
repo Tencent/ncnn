@@ -37,7 +37,6 @@ struct gridsample_2d_bicubic_compute_blob
             v1_in_bound_ptr[i] = in_bound.channel(i * 4 + 1);
             v2_in_bound_ptr[i] = in_bound.channel(i * 4 + 2);
             v3_in_bound_ptr[i] = in_bound.channel(i * 4 + 3);
-
         }
 
         float* value_x = value.channel(0);
