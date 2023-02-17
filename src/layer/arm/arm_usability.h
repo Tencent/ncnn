@@ -151,6 +151,18 @@ static inline void transpose4x4_u16(uint16x4_t& _r0, uint16x4_t& _r1, uint16x4_t
     _r3 = vreinterpret_u16_u32(_r23.val[1]);
 }
 
+static inline void transpose8x4_u16(uint16x8_t& _r0, uint16x8_t& _r1, uint16x8_t& _r2, uint16x8_t& _r3)
+{
+    uint16x8x2_t _r01t = vzipq_u16(_r0, _r1);
+    uint16x8x2_t _r23t = vzipq_u16(_r2, _r3);
+    uint32x4x2_t _r01_0 = vzipq_u32(vreinterpretq_u32_u16(_r01t.val[0]), vreinterpretq_u32_u16(_r23t.val[0]));
+    uint32x4x2_t _r23_0 = vzipq_u32(vreinterpretq_u32_u16(_r01t.val[1]), vreinterpretq_u32_u16(_r23t.val[1]));
+    _r0 = vreinterpretq_u16_u32(_r01_0.val[0]);
+    _r1 = vreinterpretq_u16_u32(_r01_0.val[1]);
+    _r2 = vreinterpretq_u16_u32(_r23_0.val[0]);
+    _r3 = vreinterpretq_u16_u32(_r23_0.val[1]);
+}
+
 static inline void transpose8x8_u16(uint16x8_t& _r0, uint16x8_t& _r1, uint16x8_t& _r2, uint16x8_t& _r3, uint16x8_t& _r4, uint16x8_t& _r5, uint16x8_t& _r6, uint16x8_t& _r7)
 {
     uint16x8x2_t _r01t = vzipq_u16(_r0, _r1);

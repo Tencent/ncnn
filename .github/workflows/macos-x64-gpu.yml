@@ -32,7 +32,7 @@ concurrency:
   group: macos-x64-gpu-${{ github.ref }}
   cancel-in-progress: true
 env:
-  DEVELOPER_DIR: /Applications/Xcode_12.4.app/Contents/Developer
+  DEVELOPER_DIR: /Applications/Xcode_14.0.1.app/Contents/Developer
 permissions:
   contents: read
 
@@ -72,10 +72,10 @@ jobs:
         sudo cp $GITHUB_WORKSPACE/openmp-install/lib/libomp.a $DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib
     - name: vulkansdk
       run: |
-        wget https://sdk.lunarg.com/sdk/download/1.2.189.0/mac/vulkansdk-macos-1.2.189.0.dmg?Human=true -O vulkansdk-macos-1.2.189.0.dmg
-        hdiutil attach vulkansdk-macos-1.2.189.0.dmg
-        sudo /Volumes/vulkansdk-macos-1.2.189.0/InstallVulkan.app/Contents/MacOS/InstallVulkan --root $GITHUB_WORKSPACE/vulkansdk-macos-1.2.189.0 --accept-licenses --default-answer --confirm-command install
-        hdiutil detach /Volumes/vulkansdk-macos-1.2.189.0
+        wget https://sdk.lunarg.com/sdk/download/1.3.236.0/mac/vulkansdk-macos-1.3.236.0.dmg?Human=true -O vulkansdk-macos-1.3.236.0.dmg
+        hdiutil attach vulkansdk-macos-1.3.236.0.dmg
+        sudo /Volumes/vulkansdk-macos-1.3.236.0/InstallVulkan.app/Contents/MacOS/InstallVulkan --root $GITHUB_WORKSPACE/vulkansdk-macos-1.3.236.0 --accept-licenses --default-answer --confirm-command install
+        hdiutil detach /Volumes/vulkansdk-macos-1.3.236.0
     - name: cache-swiftshader
       id: cache-swiftshader
       uses: actions/cache@v3
@@ -105,7 +105,7 @@ jobs:
         cp Darwin/* $GITHUB_WORKSPACE/swiftshader-install
     - name: build
       run: |
-        export VULKAN_SDK=$GITHUB_WORKSPACE/vulkansdk-macos-1.2.189.0/macOS
+        export VULKAN_SDK=$GITHUB_WORKSPACE/vulkansdk-macos-1.3.236.0/macOS
         mkdir build && cd build
         cmake -DCMAKE_OSX_ARCHITECTURES=x86_64 \
             -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
@@ -116,12 +116,12 @@ jobs:
     - name: test
       run: |
         printf "[Processor]\nThreadCount=1\n" > build/tests/SwiftShader.ini
-        export DYLD_LIBRARY_PATH="$GITHUB_WORKSPACE/vulkansdk-macos-1.2.189.0/macOS/lib":$DYLD_LIBRARY_PATH
+        export DYLD_LIBRARY_PATH="$GITHUB_WORKSPACE/vulkansdk-macos-1.3.236.0/macOS/lib":$DYLD_LIBRARY_PATH
         export VK_ICD_FILENAMES="$GITHUB_WORKSPACE/swiftshader-install/vk_swiftshader_icd.json"
         cd build && ctest --output-on-failure -j 3
     - name: build-shared
       run: |
-        export VULKAN_SDK=$GITHUB_WORKSPACE/vulkansdk-macos-1.2.189.0/macOS
+        export VULKAN_SDK=$GITHUB_WORKSPACE/vulkansdk-macos-1.3.236.0/macOS
         mkdir build-shared && cd build-shared
         cmake -DCMAKE_OSX_ARCHITECTURES=x86_64 \
             -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \

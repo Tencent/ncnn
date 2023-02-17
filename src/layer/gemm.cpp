@@ -37,6 +37,11 @@ int Gemm::load_param(const ParamDict& pd)
     constant_broadcast_type_C = pd.get(10, 0);
     output_N1M = pd.get(11, 0);
     output_elempack = pd.get(12, 0);
+    output_elemtype = pd.get(13, 0);
+    output_transpose = pd.get(14, 0);
+    constant_TILE_M = pd.get(20, 0);
+    constant_TILE_N = pd.get(21, 0);
+    constant_TILE_K = pd.get(22, 0);
 
     if (constantA == 1 && (constantM == 0 || constantK == 0))
     {
@@ -238,19 +243,27 @@ int Gemm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
     }
 
     Mat& top_blob = top_blobs[0];
-    if (output_N1M)
-        top_blob.create(N, 1, M, elemsize, opt.blob_allocator);
+    if (output_transpose)
+    {
+        if (output_N1M)
+            top_blob.create(M, 1, N, elemsize, opt.blob_allocator);
+        else
+            top_blob.create(M, N, elemsize, opt.blob_allocator);
+    }
     else
-        top_blob.create(N, M, elemsize, opt.blob_allocator);
+    {
+        if (output_N1M)
+            top_blob.create(N, 1, M, elemsize, opt.blob_allocator);
+        else
+            top_blob.create(N, M, elemsize, opt.blob_allocator);
+    }
     if (top_blob.empty())
         return -100;
-
-    const int out_hstep = output_N1M ? (int)top_blob.cstep : N;
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int i = 0; i < M; i++)
     {
-        float* outptr = (float*)top_blob + i * out_hstep;
+        const int out_hstep = top_blob.dims == 3 ? (int)top_blob.cstep : top_blob.w;
 
         const int A_hstep = A.dims == 3 ? (int)A.cstep : A.w;
         const int B_hstep = B.dims == 3 ? (int)B.cstep : B.w;
@@ -293,7 +306,16 @@ int Gemm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
                 sum += ptrA[k] * ptrB[k];
             }
 
-            *outptr++ = sum * alpha;
+            sum *= alpha;
+
+            if (output_transpose)
+            {
+                top_blob[j * out_hstep + i] = sum;
+            }
+            else
+            {
+                top_blob[i * out_hstep + j] = sum;
+            }
         }
     }
 

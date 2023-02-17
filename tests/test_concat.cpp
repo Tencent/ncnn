@@ -25,7 +25,7 @@ static int test_concat(const std::vector<ncnn::Mat>& a, int axis)
     int ret = test_layer<ncnn::Concat>("Concat", pd, weights, a);
     if (ret != 0)
     {
-        fprintf(stderr, "test_concat failed a[0].dims=%d a[0]=(%d %d %d) axis=%d\n", a[0].dims, a[0].w, a[0].h, a[0].c, axis);
+        fprintf(stderr, "test_concat failed a[0].dims=%d a[0]=(%d %d %d %d) axis=%d\n", a[0].dims, a[0].w, a[0].h, a[0].d, a[0].c, axis);
     }
 
     return ret;
@@ -33,260 +33,286 @@ static int test_concat(const std::vector<ncnn::Mat>& a, int axis)
 
 static int test_concat_0()
 {
-    std::vector<ncnn::Mat> a(3);
-    a[0] = RandomMat(16, 12, 24);
-    a[1] = RandomMat(16, 12, 24);
-    a[2] = RandomMat(16, 12, 24);
+    ncnn::Mat a[] = {
+        RandomMat(15, 5, 6, 13),
+        RandomMat(15, 5, 6, 20),
+        RandomMat(15, 5, 6, 24),
+        RandomMat(15, 5, 6, 48)
+    };
 
-    std::vector<ncnn::Mat> b(3);
-    b[0] = RandomMat(16, 12, 64);
-    b[1] = RandomMat(16, 12, 64);
-    b[2] = RandomMat(16, 12, 64);
+    const int n = sizeof(a) / sizeof(a[0]);
 
-    return 0
-           || test_concat(a, 0)
-           || test_concat(a, 1)
-           || test_concat(a, 2)
-           || test_concat(a, -1)
-           || test_concat(a, -2)
-           || test_concat(a, -3)
+    for (int i = 0; i < n; i++)
+    {
+        for (int j = 0; j < n; j++)
+        {
+            for (int k = 0; k < n; k++)
+            {
+                std::vector<ncnn::Mat> as(3);
+                as[0] = a[i];
+                as[1] = a[j];
+                as[2] = a[k];
 
-           || test_concat(b, 0)
-           || test_concat(b, 1)
-           || test_concat(b, 2)
-           || test_concat(b, -1)
-           || test_concat(b, -2)
-           || test_concat(b, -3);
+                int ret = test_concat(as, 0) || test_concat(as, -4);
+                if (ret != 0)
+                    return ret;
+            }
+        }
+    }
+
+    return 0;
 }
 
 static int test_concat_1()
 {
-    std::vector<ncnn::Mat> a(3);
-    a[0] = RandomMat(7, 3, 3);
-    a[1] = RandomMat(7, 3, 8);
-    a[2] = RandomMat(7, 3, 5);
+    ncnn::Mat a[] = {
+        RandomMat(15, 3, 15, 13),
+        RandomMat(15, 3, 16, 20),
+        RandomMat(15, 3, 17, 24),
+        RandomMat(15, 3, 18, 48)
+    };
 
-    std::vector<ncnn::Mat> b(3);
-    b[0] = RandomMat(9, 5, 8);
-    b[1] = RandomMat(9, 5, 4);
-    b[2] = RandomMat(9, 5, 12);
+    const int n = sizeof(a) / sizeof(a[0]);
 
-    std::vector<ncnn::Mat> c(3);
-    c[0] = RandomMat(7, 3, 6);
-    c[1] = RandomMat(7, 3, 16);
-    c[2] = RandomMat(7, 3, 10);
+    for (int i = 0; i < n; i++)
+    {
+        std::vector<ncnn::Mat> as(3);
+        as[0] = a[i];
+        as[1] = a[i];
+        as[2] = a[i];
 
-    std::vector<ncnn::Mat> d(3);
-    d[0] = RandomMat(9, 5, 16);
-    d[1] = RandomMat(9, 5, 8);
-    d[2] = RandomMat(9, 5, 24);
+        int ret = test_concat(as, 1) || test_concat(as, -3);
+        if (ret != 0)
+            return ret;
+    }
 
-    std::vector<ncnn::Mat> e(2);
-    e[0] = RandomMat(7, 3, 16);
-    e[1] = RandomMat(7, 3, 4);
-
-    return 0
-           || test_concat(a, 0)
-           || test_concat(a, -3)
-
-           || test_concat(b, 0)
-           || test_concat(b, -3)
-
-           || test_concat(c, 0)
-           || test_concat(c, -3)
-
-           || test_concat(d, 0)
-           || test_concat(d, -3)
-
-           || test_concat(e, 0)
-           || test_concat(e, -3);
+    return 0;
 }
 
 static int test_concat_2()
 {
-    std::vector<ncnn::Mat> a(3);
-    a[0] = RandomMat(7, 3, 5);
-    a[1] = RandomMat(7, 8, 5);
-    a[2] = RandomMat(7, 5, 5);
+    ncnn::Mat a[] = {
+        RandomMat(15, 15, 6, 13),
+        RandomMat(15, 16, 6, 20),
+        RandomMat(15, 17, 6, 24),
+        RandomMat(15, 18, 6, 48)
+    };
 
-    std::vector<ncnn::Mat> b(3);
-    b[0] = RandomMat(9, 8, 12);
-    b[1] = RandomMat(9, 3, 12);
-    b[2] = RandomMat(9, 5, 12);
+    const int n = sizeof(a) / sizeof(a[0]);
 
-    std::vector<ncnn::Mat> c(3);
-    c[0] = RandomMat(7, 3, 10);
-    c[1] = RandomMat(7, 8, 10);
-    c[2] = RandomMat(7, 5, 10);
+    for (int i = 0; i < n; i++)
+    {
+        std::vector<ncnn::Mat> as(3);
+        as[0] = a[i];
+        as[1] = a[i];
+        as[2] = a[i];
 
-    std::vector<ncnn::Mat> d(3);
-    d[0] = RandomMat(9, 8, 24);
-    d[1] = RandomMat(9, 3, 24);
-    d[2] = RandomMat(9, 5, 24);
+        int ret = test_concat(as, 2) || test_concat(as, -2);
+        if (ret != 0)
+            return ret;
+    }
 
-    return 0
-           || test_concat(a, 1)
-           || test_concat(a, -2)
-
-           || test_concat(b, 1)
-           || test_concat(b, -2)
-
-           || test_concat(c, 1)
-           || test_concat(c, -2)
-
-           || test_concat(d, 1)
-           || test_concat(d, -2);
+    return 0;
 }
 
 static int test_concat_3()
 {
-    std::vector<ncnn::Mat> a(3);
-    a[0] = RandomMat(8, 9, 3);
-    a[1] = RandomMat(3, 9, 3);
-    a[2] = RandomMat(5, 9, 3);
+    ncnn::Mat a[] = {
+        RandomMat(15, 5, 7, 13),
+        RandomMat(16, 5, 7, 20),
+        RandomMat(17, 5, 7, 24),
+        RandomMat(18, 5, 7, 48)
+    };
 
-    std::vector<ncnn::Mat> b(3);
-    b[0] = RandomMat(1, 7, 16);
-    b[1] = RandomMat(8, 7, 16);
-    b[2] = RandomMat(7, 7, 16);
+    const int n = sizeof(a) / sizeof(a[0]);
 
-    std::vector<ncnn::Mat> c(3);
-    c[0] = RandomMat(8, 9, 6);
-    c[1] = RandomMat(3, 9, 6);
-    c[2] = RandomMat(5, 9, 6);
+    for (int i = 0; i < n; i++)
+    {
+        std::vector<ncnn::Mat> as(3);
+        as[0] = a[i];
+        as[1] = a[i];
+        as[2] = a[i];
 
-    std::vector<ncnn::Mat> d(3);
-    d[0] = RandomMat(1, 7, 32);
-    d[1] = RandomMat(8, 7, 32);
-    d[2] = RandomMat(7, 7, 32);
+        int ret = test_concat(as, 3) || test_concat(as, -1);
+        if (ret != 0)
+            return ret;
+    }
 
-    return 0
-           || test_concat(a, 2)
-           || test_concat(a, -1)
-
-           || test_concat(b, 2)
-           || test_concat(b, -1)
-
-           || test_concat(c, 2)
-           || test_concat(c, -1)
-
-           || test_concat(d, 2)
-           || test_concat(d, -1);
+    return 0;
 }
 
 static int test_concat_4()
 {
-    std::vector<ncnn::Mat> a(3);
-    a[0] = RandomMat(11, 3);
-    a[1] = RandomMat(11, 8);
-    a[2] = RandomMat(11, 5);
+    ncnn::Mat a[] = {
+        RandomMat(15, 13, 13),
+        RandomMat(15, 13, 20),
+        RandomMat(15, 13, 24),
+        RandomMat(15, 13, 48)
+    };
 
-    std::vector<ncnn::Mat> b(3);
-    b[0] = RandomMat(15, 12);
-    b[1] = RandomMat(15, 8);
-    b[2] = RandomMat(15, 4);
+    const int n = sizeof(a) / sizeof(a[0]);
 
-    std::vector<ncnn::Mat> c(3);
-    c[0] = RandomMat(11, 6);
-    c[1] = RandomMat(11, 16);
-    c[2] = RandomMat(11, 10);
+    for (int i = 0; i < n; i++)
+    {
+        for (int j = 0; j < n; j++)
+        {
+            for (int k = 0; k < n; k++)
+            {
+                std::vector<ncnn::Mat> as(3);
+                as[0] = a[i];
+                as[1] = a[j];
+                as[2] = a[k];
 
-    std::vector<ncnn::Mat> d(3);
-    d[0] = RandomMat(15, 24);
-    d[1] = RandomMat(15, 16);
-    d[2] = RandomMat(15, 8);
+                int ret = test_concat(as, 0) || test_concat(as, -3);
+                if (ret != 0)
+                    return ret;
+            }
+        }
+    }
 
-    std::vector<ncnn::Mat> e(2);
-    e[0] = RandomMat(11, 4);
-    e[1] = RandomMat(11, 32);
-
-    return 0
-           || test_concat(a, 0)
-           || test_concat(a, -2)
-
-           || test_concat(b, 0)
-           || test_concat(b, -2)
-
-           || test_concat(c, 0)
-           || test_concat(c, -2)
-
-           || test_concat(d, 0)
-           || test_concat(d, -2)
-
-           || test_concat(e, 0)
-           || test_concat(e, -2);
+    return 0;
 }
 
 static int test_concat_5()
 {
-    std::vector<ncnn::Mat> a(3);
-    a[0] = RandomMat(9, 7);
-    a[1] = RandomMat(8, 7);
-    a[2] = RandomMat(11, 7);
+    ncnn::Mat a[] = {
+        RandomMat(15, 15, 13),
+        RandomMat(15, 16, 20),
+        RandomMat(15, 17, 24),
+        RandomMat(15, 18, 48)
+    };
 
-    std::vector<ncnn::Mat> b(3);
-    b[0] = RandomMat(13, 24);
-    b[1] = RandomMat(18, 24);
-    b[2] = RandomMat(15, 24);
+    const int n = sizeof(a) / sizeof(a[0]);
 
-    std::vector<ncnn::Mat> c(3);
-    c[0] = RandomMat(9, 14);
-    c[1] = RandomMat(8, 14);
-    c[2] = RandomMat(11, 14);
+    for (int i = 0; i < n; i++)
+    {
+        std::vector<ncnn::Mat> as(3);
+        as[0] = a[i];
+        as[1] = a[i];
+        as[2] = a[i];
 
-    std::vector<ncnn::Mat> d(3);
-    d[0] = RandomMat(13, 48);
-    d[1] = RandomMat(18, 48);
-    d[2] = RandomMat(15, 48);
+        int ret = test_concat(as, 1) || test_concat(as, -2);
+        if (ret != 0)
+            return ret;
+    }
 
-    return 0
-           || test_concat(a, 1)
-           || test_concat(a, -1)
-
-           || test_concat(b, 1)
-           || test_concat(b, -1)
-
-           || test_concat(c, 1)
-           || test_concat(c, -1)
-
-           || test_concat(d, 1)
-           || test_concat(d, -1);
+    return 0;
 }
 
 static int test_concat_6()
 {
-    std::vector<ncnn::Mat> a(3);
-    a[0] = RandomMat(3);
-    a[1] = RandomMat(8);
-    a[2] = RandomMat(5);
+    ncnn::Mat a[] = {
+        RandomMat(15, 13, 13),
+        RandomMat(16, 13, 20),
+        RandomMat(17, 13, 24),
+        RandomMat(18, 13, 48)
+    };
 
-    std::vector<ncnn::Mat> b(3);
-    b[0] = RandomMat(4);
-    b[1] = RandomMat(8);
-    b[2] = RandomMat(12);
+    const int n = sizeof(a) / sizeof(a[0]);
 
-    std::vector<ncnn::Mat> c(3);
-    c[0] = RandomMat(6);
-    c[1] = RandomMat(16);
-    c[2] = RandomMat(10);
+    for (int i = 0; i < n; i++)
+    {
+        std::vector<ncnn::Mat> as(3);
+        as[0] = a[i];
+        as[1] = a[i];
+        as[2] = a[i];
 
-    std::vector<ncnn::Mat> d(3);
-    d[0] = RandomMat(8);
-    d[1] = RandomMat(16);
-    d[2] = RandomMat(24);
+        int ret = test_concat(as, 2) || test_concat(as, -1);
+        if (ret != 0)
+            return ret;
+    }
 
-    return 0
-           || test_concat(a, 0)
-           || test_concat(a, -1)
+    return 0;
+}
 
-           || test_concat(b, 0)
-           || test_concat(b, -1)
+static int test_concat_7()
+{
+    ncnn::Mat a[] = {
+        RandomMat(19, 29),
+        RandomMat(19, 44),
+        RandomMat(19, 56),
+        RandomMat(19, 80)
+    };
 
-           || test_concat(c, 0)
-           || test_concat(c, -1)
+    const int n = sizeof(a) / sizeof(a[0]);
 
-           || test_concat(d, 0)
-           || test_concat(d, -1);
+    for (int i = 0; i < n; i++)
+    {
+        for (int j = 0; j < n; j++)
+        {
+            for (int k = 0; k < n; k++)
+            {
+                std::vector<ncnn::Mat> as(3);
+                as[0] = a[i];
+                as[1] = a[j];
+                as[2] = a[k];
+
+                int ret = test_concat(as, 0) || test_concat(as, -2);
+                if (ret != 0)
+                    return ret;
+            }
+        }
+    }
+
+    return 0;
+}
+
+static int test_concat_8()
+{
+    ncnn::Mat a[] = {
+        RandomMat(19, 29),
+        RandomMat(16, 44),
+        RandomMat(17, 56),
+        RandomMat(18, 80)
+    };
+
+    const int n = sizeof(a) / sizeof(a[0]);
+
+    for (int i = 0; i < n; i++)
+    {
+        std::vector<ncnn::Mat> as(3);
+        as[0] = a[i];
+        as[1] = a[i];
+        as[2] = a[i];
+
+        int ret = test_concat(as, 1) || test_concat(as, -1);
+        if (ret != 0)
+            return ret;
+    }
+
+    return 0;
+}
+
+static int test_concat_9()
+{
+    ncnn::Mat a[] = {
+        RandomMat(29),
+        RandomMat(44),
+        RandomMat(56),
+        RandomMat(80)
+    };
+
+    const int n = sizeof(a) / sizeof(a[0]);
+
+    for (int i = 0; i < n; i++)
+    {
+        for (int j = 0; j < n; j++)
+        {
+            for (int k = 0; k < n; k++)
+            {
+                std::vector<ncnn::Mat> as(3);
+                as[0] = a[i];
+                as[1] = a[j];
+                as[2] = a[k];
+
+                int ret = test_concat(as, 0) || test_concat(as, -1);
+                if (ret != 0)
+                    return ret;
+            }
+        }
+    }
+
+    return 0;
 }
 
 int main()
@@ -300,5 +326,8 @@ int main()
            || test_concat_3()
            || test_concat_4()
            || test_concat_5()
-           || test_concat_6();
+           || test_concat_6()
+           || test_concat_7()
+           || test_concat_8()
+           || test_concat_9();
 }

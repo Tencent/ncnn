@@ -17,6 +17,7 @@
 
 #include "storezip.h"
 #include "pass_level0/constant_unpooling.h"
+#include "pass_level0/flatten_input.h"
 #include "pass_level0/inline_block.h"
 #include "pass_level0/reset_device.h"
 #include "pass_level0/shape_inference.h"
@@ -162,6 +163,8 @@ void shape_inference(const torch::jit::Module& mod, std::shared_ptr<torch::jit::
 
         reset_device(graph2, device);
 
+        flatten_input(graph2);
+
         constant_unpooling(graph2);
 
         std::vector<torch::jit::Value*> values2;
@@ -190,6 +193,27 @@ void shape_inference(const torch::jit::Module& mod, std::shared_ptr<torch::jit::
         graph2->eraseOutput(0);
         graph2->registerOutput(new_return_node->outputs()[0]);
 
+        // construct schema for new inputs and outputs
+        {
+            auto oldfs = mod2.get_method("forward").function().getSchema();
+
+            std::vector<c10::Argument> arguments;
+            std::vector<c10::Argument> returns;
+            for (size_t i = 0; i < graph2->inputs().size(); i++)
+            {
+                auto& v = graph2->inputs()[i];
+                arguments.push_back(c10::Argument(v->debugName(), v->type()));
+            }
+            for (size_t i = 0; i < graph2->outputs().size(); i++)
+            {
+                auto& v = graph2->outputs()[i];
+                returns.push_back(c10::Argument(v->debugName(), v->type()));
+            }
+
+            c10::FunctionSchema newfs(oldfs.name(), oldfs.overload_name(), arguments, returns);
+            mod2.get_method("forward").function().setSchema(newfs);
+        }
+
         // inference for all tensors
         auto outputs = mod2.copy().forward(inputs).toTuple();
 
@@ -206,16 +230,11 @@ void shape_inference(const torch::jit::Module& mod, std::shared_ptr<torch::jit::
                 // check if value that does not depend on inputs
                 if (!value_link_input(v, g_inputs, true) && value_link_output(v, g_outputs))
                 {
-                    // output_tensors[v] = t;
-                    const int ndim = (int)t.dim();
-                    if (ndim > 0)
-                    {
-                        // fprintf(stderr, "foldable_constant %s\n", v->debugName().c_str());
-                        foldable_constants.insert(v->debugName());
+                    // fprintf(stderr, "foldable_constant %s\n", v->debugName().c_str());
+                    foldable_constants.insert(v->debugName());
 
-                        at::Tensor t2 = t.cpu().contiguous();
-                        zip.write_file(v->debugName(), (const char*)t2.data_ptr(), t2.nbytes());
-                    }
+                    at::Tensor t2 = t.cpu().contiguous();
+                    zip.write_file(v->debugName(), (const char*)t2.data_ptr(), t2.nbytes());
                 }
             }
         }
@@ -253,16 +272,11 @@ void shape_inference(const torch::jit::Module& mod, std::shared_ptr<torch::jit::
                 // check if value that does not depend on inputs
                 if (!value_link_input(v, g_inputs, false) && value_link_output(v, g_outputs))
                 {
-                    // output_tensors[v] = t;
-                    const int ndim = (int)t.dim();
-                    if (ndim > 0)
-                    {
-                        // fprintf(stderr, "foldable_constant %s\n", v->debugName().c_str());
-                        foldable_constants.insert(v->debugName());
+                    // fprintf(stderr, "foldable_constant %s\n", v->debugName().c_str());
+                    foldable_constants.insert(v->debugName());
 
-                        at::Tensor t2 = t.cpu().contiguous();
-                        zip.write_file(v->debugName(), (const char*)t2.data_ptr(), t2.nbytes());
-                    }
+                    at::Tensor t2 = t.cpu().contiguous();
+                    zip.write_file(v->debugName(), (const char*)t2.data_ptr(), t2.nbytes());
                 }
             }
         }

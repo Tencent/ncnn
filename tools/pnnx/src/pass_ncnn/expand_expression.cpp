@@ -128,6 +128,7 @@ static std::string expand_expression(Graph& graph, const Operator* op, int& pnnx
                  || t == "exp"
                  || t == "floor"
                  || t == "log"
+                 || t == "log10"
                  || t == "neg"
                  || t == "reciprocal"
                  || t == "rsqrt"
@@ -154,6 +155,7 @@ static std::string expand_expression(Graph& graph, const Operator* op, int& pnnx
             if (t == "exp") op_unary->params["0"] = 7;
             if (t == "floor") op_unary->params["0"] = 2;
             if (t == "log") op_unary->params["0"] = 8;
+            if (t == "log10") op_unary->params["0"] = 17;
             if (t == "neg") op_unary->params["0"] = 1;
             if (t == "reciprocal") op_unary->params["0"] = 15;
             if (t == "rsqrt") op_unary->params["0"] = 6;
@@ -169,10 +171,12 @@ static std::string expand_expression(Graph& graph, const Operator* op, int& pnnx
             Operand* op_unary_out = graph.new_operand(op->name + "_" + r);
             op_unary_out->producer = op_unary;
 
+            op_unary_out->shape = op_unary_in->shape;
+
             op_unary->inputs.push_back(op_unary_in);
             op_unary->outputs.push_back(op_unary_out);
         }
-        else if (t == "add" || t == "sub" || t == "mul" || t == "div" || /*t == "floor_divide" || */ t == "pow")
+        else if (t == "add" || t == "sub" || t == "mul" || t == "div" || /*t == "floor_divide" || */ t == "pow" || t == "atan2")
         {
             std::string a = exprstack.top();
             exprstack.pop();
@@ -189,11 +193,14 @@ static std::string expand_expression(Graph& graph, const Operator* op, int& pnnx
             if (t == "mul") op_binary->params["0"] = 2;
             if (t == "div") op_binary->params["0"] = 3;
             if (t == "pow") op_binary->params["0"] = 6;
+            if (t == "atan2") op_binary->params["0"] = 10;
 
             if (token_is_literal(a))
             {
                 if (t == "sub") op_binary->params["0"] = 7;
                 if (t == "div") op_binary->params["0"] = 8;
+                if (t == "pow") op_binary->params["0"] = 9;
+                if (t == "atan2") op_binary->params["0"] = 11;
 
                 Operand* op_binary_inb = token_is_argument(b) ? op->inputs[std::stoi(b.substr(1))] : graph.get_operand(op->name + "_" + b);
                 op_binary_inb->consumers.push_back(op_binary);
@@ -203,6 +210,8 @@ static std::string expand_expression(Graph& graph, const Operator* op, int& pnnx
 
                 Operand* op_binary_out = graph.new_operand(op->name + "_" + r);
                 op_binary_out->producer = op_binary;
+
+                op_binary_out->shape = op_binary_inb->shape;
 
                 op_binary->inputs.push_back(op_binary_inb);
                 op_binary->outputs.push_back(op_binary_out);
@@ -215,8 +224,18 @@ static std::string expand_expression(Graph& graph, const Operator* op, int& pnnx
                 op_binary->params["1"] = 1; // with_scalar
                 op_binary->params["2"] = std::stof(b);
 
+                if (t == "pow" && std::stof(b) == 2)
+                {
+                    // replace pow 2 with square
+                    op_binary->type = "UnaryOp";
+                    op_binary->params.clear();
+                    op_binary->params["0"] = 4;
+                }
+
                 Operand* op_binary_out = graph.new_operand(op->name + "_" + r);
                 op_binary_out->producer = op_binary;
+
+                op_binary_out->shape = op_binary_ina->shape;
 
                 op_binary->inputs.push_back(op_binary_ina);
                 op_binary->outputs.push_back(op_binary_out);
@@ -231,6 +250,28 @@ static std::string expand_expression(Graph& graph, const Operator* op, int& pnnx
 
                 Operand* op_binary_out = graph.new_operand(op->name + "_" + r);
                 op_binary_out->producer = op_binary;
+
+                // resolve out shape
+                std::vector<int> out_shape;
+                {
+                    std::vector<int> a_shape = op_binary_ina->shape;
+                    std::vector<int> b_shape = op_binary_inb->shape;
+                    int outrank = (int)std::max(a_shape.size(), b_shape.size());
+                    for (int k = (int)a_shape.size(); k < outrank; k++)
+                    {
+                        a_shape.insert(a_shape.begin(), 1);
+                    }
+                    for (int k = (int)b_shape.size(); k < outrank; k++)
+                    {
+                        b_shape.insert(b_shape.begin(), 1);
+                    }
+                    out_shape.resize(outrank);
+                    for (int k = 0; k < outrank; k++)
+                    {
+                        out_shape[k] = std::max(a_shape[k], b_shape[k]);
+                    }
+                }
+                op_binary_out->shape = out_shape;
 
                 op_binary->inputs.push_back(op_binary_ina);
                 op_binary->inputs.push_back(op_binary_inb);

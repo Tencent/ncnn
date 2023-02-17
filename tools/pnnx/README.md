@@ -188,7 +188,7 @@ weight binaries can be listed or modified with any archive application eg. 7zip
 # PNNX operator
 PNNX always preserve operators from what PyTorch python api provides.
 
-Here is the netron visualization comparision among ONNX, TorchScript and PNNX with the original PyTorch python code shown.
+Here is the netron visualization comparison among ONNX, TorchScript and PNNX with the original PyTorch python code shown.
 
 ```python
 import torch
@@ -212,7 +212,7 @@ class Model(nn.Module):
 # PNNX expression operator
 PNNX trys to preserve expression from what PyTorch python code writes.
 
-Here is the netron visualization comparision among ONNX, TorchScript and PNNX with the original PyTorch python code shown.
+Here is the netron visualization comparison among ONNX, TorchScript and PNNX with the original PyTorch python code shown.
 
 ```python
 import torch
@@ -228,7 +228,7 @@ def foo(x, y):
 # PNNX torch function operator
 PNNX trys to preserve torch functions and Tensor member functions as one operator from what PyTorch python api provides.
 
-Here is the netron visualization comparision among ONNX, TorchScript and PNNX with the original PyTorch python code shown.
+Here is the netron visualization comparison among ONNX, TorchScript and PNNX with the original PyTorch python code shown.
 
 ```python
 import torch
@@ -270,7 +270,7 @@ inline module = utils.activations.SiLU
 pnnx yolov5s.pt inputshape=[1,3,640,640] moduleop=models.common.Focus,models.yolo.Detect
 ```
 
-Here is the netron visualization comparision among ONNX, TorchScript and PNNX with the original PyTorch python code shown.
+Here is the netron visualization comparison among ONNX, TorchScript and PNNX with the original PyTorch python code shown.
 
 ```python
 import torch

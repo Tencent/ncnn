@@ -15,6 +15,7 @@
 * [ConvolutionDepthWise1D](#convolutiondepthwise1d)
 * [ConvolutionDepthWise3D](#convolutiondepthwise3d)
 * [Crop](#crop)
+* [CumulativeSum](#cumulativesum)
 * [Deconvolution](#deconvolution)
 * [Deconvolution1D](#deconvolution1d)
 * [Deconvolution3D](#deconvolution3d)
@@ -161,6 +162,9 @@ Operation type:
 - 6 = POW
 - 7 = RSUB
 - 8 = RDIV
+- 9 = RPOW
+- 10 = ATAN2
+- 11 = RATAN2
 
 # BNLL
 ```
@@ -426,6 +430,21 @@ y = activation(x3, act_type, act_params)
 | weight_data   | float/fp16/int8 | [kernel_w, kernel_h, kernel_d, num_input / group, num_output / group, group] |
 | bias_data     | float | [num_output]          |
 
+# CopyTo
+```
+self[offset] = src
+```
+
+* one_blob_only
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | woffset       | int   | 0         |                   |
+| 1         | hoffset       | int   | 0         |                   |
+| 2         | coffset       | int   | 1         |                   |
+| 9         | starts        | array | [ ]       |                   |
+| 11        | axes          | array | [ ]       |                   |
+
 # Crop
 ```
 y = crop(x)
@@ -447,6 +466,20 @@ y = crop(x)
 | 9         | starts        | array | [ ]       |                   |
 | 10        | ends          | array | [ ]       |                   |
 | 11        | axes          | array | [ ]       |                   |
+
+# CumulativeSum
+
+If axis < 0, we use axis = x.dims + axis
+
+It implements https://pytorch.org/docs/stable/generated/torch.cumsum.html
+
+* one_blob_only
+* support_inplace
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | axis          | int   | 0         |                   |
+
 
 # Deconvolution
 ```
@@ -824,6 +857,12 @@ y = (gemm(a, b) + c * beta) * alpha
 | 9         | constantK     | int   | 0         |                   |
 | 10        | constant_broadcast_type_C | int | 0 |                 |
 | 11        | output_N1M    | int   | 0         |                   |
+| 12        | output_elempack | int | 0         |                   |
+| 13        | output_elemtype | int | 0         |                   |
+| 14        | output_transpose | int| 0         |                   |
+| 20        | constant_TILE_M | int | 0         |                   |
+| 21        | constant_TILE_N | int | 0         |                   |
+| 22        | constant_TILE_K | int | 0         |                   |
 
 | weight        | type  | shape                 |
 | ------------- | ----- | --------------------- |
@@ -1735,3 +1774,4 @@ Operation type:
 - 14 = ATAN
 - 15 = RECIPROCAL
 - 16 = TANH
+- 17 = LOG10

@@ -156,6 +156,11 @@ void main()
         res[1] = tanh(v[1]);
 #endif
     }
+    if (op_type == 17)
+    {
+        res[0] = log(v[0]) * afp(0.434294481903);
+        res[1] = log(v[1]) * afp(0.434294481903);
+    }
 
 #if NCNN_image_shader
     image3d_st8(top_blob_3d, ivec3(gx, gy, gz), res);

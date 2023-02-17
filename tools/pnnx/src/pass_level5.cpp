@@ -14,6 +14,7 @@
 
 #include "pass_level5.h"
 
+#include "pass_level5/attribute_unpooling.h"
 #include "pass_level5/fold_constants.h"
 #include "pass_level5/eliminate_dropout.h"
 #include "pass_level5/eliminate_identity_operator.h"
@@ -51,6 +52,7 @@
 #include "pass_level4/dead_code_elimination.h"
 #include "pass_level4/canonicalize.h"
 #include "pass_level3/fuse_index_expression.h"
+#include "pass_level5/fuse_pixel_unshuffle.h"
 
 namespace pnnx {
 
@@ -80,6 +82,8 @@ void pass_level5(Graph& g, const std::set<std::string>& foldable_constants, cons
 
     fuse_slice_copy(g);
 
+    attribute_unpooling(g);
+
     fuse_static_batchnorm(g);
     fuse_static_groupnorm(g);
     fuse_static_instancenorm(g);
@@ -107,6 +111,9 @@ void pass_level5(Graph& g, const std::set<std::string>& foldable_constants, cons
     eliminate_noop_upsample(g);
 
     fuse_contiguous_view(g);
+
+    // need to execute before fuse_adjacent_reshape
+    fuse_pixel_unshuffle(g);
 
     fuse_adjacent_reshape(g);
 

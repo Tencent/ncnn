@@ -156,106 +156,102 @@ void main()
     afp v55 = sy + 5 < psc(h) && sx + 5 < psc(w) ? buffer_ld1(bottom_blob_data, v_offset45.y + 5) : afp(0.f);
 #endif
 
+#define sq2 1.41421356237
+#define sq2_d2 1.41421356237/2
+
     // const float itm[6][6] = {
-    //     {1.0f, 0.0f, -1.25f, 0.0f, 0.25f, 0.0f},
-    //     {0.0f,-1.0f, -1.0f, 0.25f, 0.25f, 0.0f},
-    //     {0.0f, 1.0f, -1.0f,-0.25f, 0.25f, 0.0f},
-    //     {0.0f,-0.5f, -0.25f, 0.5f, 0.25f, 0.0f},
-    //     {0.0f, 0.5f, -0.25f,-0.5f, 0.25f, 0.0f},
-    //     {0.0f, 1.0f,  0.0f,-1.25f, 0.0f, 0.25f}
+    //     {1.0f,  0.0f,  -2.5f,  0.0f,  1.0f, 0.0f},
+    //     {0.0f, -sq2,   -2.0f,  sq2/2, 1.0f, 0.0f},
+    //     {0.0f,  sq2,   -2.0f, -sq2/2, 1.0f, 0.0f},
+    //     {0.0f, -sq2/2, -0.5f,  sq2,   1.0f, 0.0f},
+    //     {0.0f,  sq2/2, -0.5f, -sq2,   1.0f, 0.0f},
+    //     {0.0f,  1.0f,   0.0f,  -2.5f, 0.0f, 1.0f}
     // };
 
-    // 0 =  1 * r00 - 1.25 * r02 + 0.25 * r04
-    // 1 = -1 * (r01 + r02) + 0.25 * (r04 + r03)
-    // 2 =  1 * (r01 - r02) + 0.25 * (r04 - r03)
-    // 3 = -0.5 * (r01 - r03) + 0.25 * (r04 - r02)
-    // 4 =  0.5 * (r01 - r03) + 0.25 * (r04 - r02)
-    // 5 =  1 * r01 - 1.25 * r03 + 0.25 * r05
-
     // implicit transpose
-    afp m00 = v00 - v02 * afp(1.25) + v04 * afp(0.25);
-    afp m01 = v10 - v12 * afp(1.25) + v14 * afp(0.25);
-    afp m02 = v20 - v22 * afp(1.25) + v24 * afp(0.25);
-    afp m03 = v30 - v32 * afp(1.25) + v34 * afp(0.25);
-    afp m04 = v40 - v42 * afp(1.25) + v44 * afp(0.25);
-    afp m05 = v50 - v52 * afp(1.25) + v54 * afp(0.25);
+    afp m00 = v00 - v02 * afp(2.5) + v04;
+    afp m01 = v10 - v12 * afp(2.5) + v14;
+    afp m02 = v20 - v22 * afp(2.5) + v24;
+    afp m03 = v30 - v32 * afp(2.5) + v34;
+    afp m04 = v40 - v42 * afp(2.5) + v44;
+    afp m05 = v50 - v52 * afp(2.5) + v54;
 
-    afp m10 = (v04 + v03) * afp(0.25) - (v01 + v02);
-    afp m11 = (v14 + v13) * afp(0.25) - (v11 + v12);
-    afp m12 = (v24 + v23) * afp(0.25) - (v21 + v22);
-    afp m13 = (v34 + v33) * afp(0.25) - (v31 + v32);
-    afp m14 = (v44 + v43) * afp(0.25) - (v41 + v42);
-    afp m15 = (v54 + v53) * afp(0.25) - (v51 + v52);
+    afp m10 = v04 - v02 * afp(2) + v03 * afp(sq2_d2) - v01 * afp(sq2);
+    afp m11 = v14 - v12 * afp(2) + v13 * afp(sq2_d2) - v11 * afp(sq2);
+    afp m12 = v24 - v22 * afp(2) + v23 * afp(sq2_d2) - v21 * afp(sq2);
+    afp m13 = v34 - v32 * afp(2) + v33 * afp(sq2_d2) - v31 * afp(sq2);
+    afp m14 = v44 - v42 * afp(2) + v43 * afp(sq2_d2) - v41 * afp(sq2);
+    afp m15 = v54 - v52 * afp(2) + v53 * afp(sq2_d2) - v51 * afp(sq2);
 
-    afp m20 = (v04 - v03) * afp(0.25) + (v01 - v02);
-    afp m21 = (v14 - v13) * afp(0.25) + (v11 - v12);
-    afp m22 = (v24 - v23) * afp(0.25) + (v21 - v22);
-    afp m23 = (v34 - v33) * afp(0.25) + (v31 - v32);
-    afp m24 = (v44 - v43) * afp(0.25) + (v41 - v42);
-    afp m25 = (v54 - v53) * afp(0.25) + (v51 - v52);
+    afp m20 = v04 - v02 * afp(2) - v03 * afp(sq2_d2) + v01 * afp(sq2);
+    afp m21 = v14 - v12 * afp(2) - v13 * afp(sq2_d2) + v11 * afp(sq2);
+    afp m22 = v24 - v22 * afp(2) - v23 * afp(sq2_d2) + v21 * afp(sq2);
+    afp m23 = v34 - v32 * afp(2) - v33 * afp(sq2_d2) + v31 * afp(sq2);
+    afp m24 = v44 - v42 * afp(2) - v43 * afp(sq2_d2) + v41 * afp(sq2);
+    afp m25 = v54 - v52 * afp(2) - v53 * afp(sq2_d2) + v51 * afp(sq2);
 
-    afp m30 = (v04 - v02) * afp(0.25) - (v01 - v03) * afp(0.5);
-    afp m31 = (v14 - v12) * afp(0.25) - (v11 - v13) * afp(0.5);
-    afp m32 = (v24 - v22) * afp(0.25) - (v21 - v23) * afp(0.5);
-    afp m33 = (v34 - v32) * afp(0.25) - (v31 - v33) * afp(0.5);
-    afp m34 = (v44 - v42) * afp(0.25) - (v41 - v43) * afp(0.5);
-    afp m35 = (v54 - v52) * afp(0.25) - (v51 - v53) * afp(0.5);
+    afp m30 = v04 - v02 * afp(0.5) + v03 * afp(sq2) - v01 * afp(sq2_d2);
+    afp m31 = v14 - v12 * afp(0.5) + v13 * afp(sq2) - v11 * afp(sq2_d2);
+    afp m32 = v24 - v22 * afp(0.5) + v23 * afp(sq2) - v21 * afp(sq2_d2);
+    afp m33 = v34 - v32 * afp(0.5) + v33 * afp(sq2) - v31 * afp(sq2_d2);
+    afp m34 = v44 - v42 * afp(0.5) + v43 * afp(sq2) - v41 * afp(sq2_d2);
+    afp m35 = v54 - v52 * afp(0.5) + v53 * afp(sq2) - v51 * afp(sq2_d2);
 
-    afp m40 = (v04 - v02) * afp(0.25) + (v01 - v03) * afp(0.5);
-    afp m41 = (v14 - v12) * afp(0.25) + (v11 - v13) * afp(0.5);
-    afp m42 = (v24 - v22) * afp(0.25) + (v21 - v23) * afp(0.5);
-    afp m43 = (v34 - v32) * afp(0.25) + (v31 - v33) * afp(0.5);
-    afp m44 = (v44 - v42) * afp(0.25) + (v41 - v43) * afp(0.5);
-    afp m45 = (v54 - v52) * afp(0.25) + (v51 - v53) * afp(0.5);
+    afp m40 = v04 - v02 * afp(0.5) - v03 * afp(sq2) + v01 * afp(sq2_d2);
+    afp m41 = v14 - v12 * afp(0.5) - v13 * afp(sq2) + v11 * afp(sq2_d2);
+    afp m42 = v24 - v22 * afp(0.5) - v23 * afp(sq2) + v21 * afp(sq2_d2);
+    afp m43 = v34 - v32 * afp(0.5) - v33 * afp(sq2) + v31 * afp(sq2_d2);
+    afp m44 = v44 - v42 * afp(0.5) - v43 * afp(sq2) + v41 * afp(sq2_d2);
+    afp m45 = v54 - v52 * afp(0.5) - v53 * afp(sq2) + v51 * afp(sq2_d2);
 
-    afp m50 = v01 - v03 * afp(1.25) + v05 * afp(0.25);
-    afp m51 = v11 - v13 * afp(1.25) + v15 * afp(0.25);
-    afp m52 = v21 - v23 * afp(1.25) + v25 * afp(0.25);
-    afp m53 = v31 - v33 * afp(1.25) + v35 * afp(0.25);
-    afp m54 = v41 - v43 * afp(1.25) + v45 * afp(0.25);
-    afp m55 = v51 - v53 * afp(1.25) + v55 * afp(0.25);
+    afp m50 = v01 - v03 * afp(2.5) + v05;
+    afp m51 = v11 - v13 * afp(2.5) + v15;
+    afp m52 = v21 - v23 * afp(2.5) + v25;
+    afp m53 = v31 - v33 * afp(2.5) + v35;
+    afp m54 = v41 - v43 * afp(2.5) + v45;
+    afp m55 = v51 - v53 * afp(2.5) + v55;
 
-    v00 = m00 - m02 * afp(1.25) + m04 * afp(0.25);
-    v10 = m10 - m12 * afp(1.25) + m14 * afp(0.25);
-    v20 = m20 - m22 * afp(1.25) + m24 * afp(0.25);
-    v30 = m30 - m32 * afp(1.25) + m34 * afp(0.25);
-    v40 = m40 - m42 * afp(1.25) + m44 * afp(0.25);
-    v50 = m50 - m52 * afp(1.25) + m54 * afp(0.25);
+    v00 = m00 - m02 * afp(2.5) + m04;
+    v10 = m10 - m12 * afp(2.5) + m14;
+    v20 = m20 - m22 * afp(2.5) + m24;
+    v30 = m30 - m32 * afp(2.5) + m34;
+    v40 = m40 - m42 * afp(2.5) + m44;
+    v50 = m50 - m52 * afp(2.5) + m54;
 
-    v01 = (m04 + m03) * afp(0.25) - (m01 + m02);
-    v11 = (m14 + m13) * afp(0.25) - (m11 + m12);
-    v21 = (m24 + m23) * afp(0.25) - (m21 + m22);
-    v31 = (m34 + m33) * afp(0.25) - (m31 + m32);
-    v41 = (m44 + m43) * afp(0.25) - (m41 + m42);
-    v51 = (m54 + m53) * afp(0.25) - (m51 + m52);
+    v01 = m04 - m02 * afp(2) + m03 * afp(sq2_d2) - m01 * afp(sq2);
+    v11 = m14 - m12 * afp(2) + m13 * afp(sq2_d2) - m11 * afp(sq2);
+    v21 = m24 - m22 * afp(2) + m23 * afp(sq2_d2) - m21 * afp(sq2);
+    v31 = m34 - m32 * afp(2) + m33 * afp(sq2_d2) - m31 * afp(sq2);
+    v41 = m44 - m42 * afp(2) + m43 * afp(sq2_d2) - m41 * afp(sq2);
+    v51 = m54 - m52 * afp(2) + m53 * afp(sq2_d2) - m51 * afp(sq2);
 
-    v02 = (m04 - m03) * afp(0.25) + (m01 - m02);
-    v12 = (m14 - m13) * afp(0.25) + (m11 - m12);
-    v22 = (m24 - m23) * afp(0.25) + (m21 - m22);
-    v32 = (m34 - m33) * afp(0.25) + (m31 - m32);
-    v42 = (m44 - m43) * afp(0.25) + (m41 - m42);
-    v52 = (m54 - m53) * afp(0.25) + (m51 - m52);
+    v02 = m04 - m02 * afp(2) - m03 * afp(sq2_d2) + m01 * afp(sq2);
+    v12 = m14 - m12 * afp(2) - m13 * afp(sq2_d2) + m11 * afp(sq2);
+    v22 = m24 - m22 * afp(2) - m23 * afp(sq2_d2) + m21 * afp(sq2);
+    v32 = m34 - m32 * afp(2) - m33 * afp(sq2_d2) + m31 * afp(sq2);
+    v42 = m44 - m42 * afp(2) - m43 * afp(sq2_d2) + m41 * afp(sq2);
+    v52 = m54 - m52 * afp(2) - m53 * afp(sq2_d2) + m51 * afp(sq2);
 
-    v03 = (m04 - m02) * afp(0.25) - (m01 - m03) * afp(0.5);
-    v13 = (m14 - m12) * afp(0.25) - (m11 - m13) * afp(0.5);
-    v23 = (m24 - m22) * afp(0.25) - (m21 - m23) * afp(0.5);
-    v33 = (m34 - m32) * afp(0.25) - (m31 - m33) * afp(0.5);
-    v43 = (m44 - m42) * afp(0.25) - (m41 - m43) * afp(0.5);
-    v53 = (m54 - m52) * afp(0.25) - (m51 - m53) * afp(0.5);
+    v03 = m04 - m02 * afp(0.5) + m03 * afp(sq2) - m01 * afp(sq2_d2);
+    v13 = m14 - m12 * afp(0.5) + m13 * afp(sq2) - m11 * afp(sq2_d2);
+    v23 = m24 - m22 * afp(0.5) + m23 * afp(sq2) - m21 * afp(sq2_d2);
+    v33 = m34 - m32 * afp(0.5) + m33 * afp(sq2) - m31 * afp(sq2_d2);
+    v43 = m44 - m42 * afp(0.5) + m43 * afp(sq2) - m41 * afp(sq2_d2);
+    v53 = m54 - m52 * afp(0.5) + m53 * afp(sq2) - m51 * afp(sq2_d2);
 
-    v04 = (m04 - m02) * afp(0.25) + (m01 - m03) * afp(0.5);
-    v14 = (m14 - m12) * afp(0.25) + (m11 - m13) * afp(0.5);
-    v24 = (m24 - m22) * afp(0.25) + (m21 - m23) * afp(0.5);
-    v34 = (m34 - m32) * afp(0.25) + (m31 - m33) * afp(0.5);
-    v44 = (m44 - m42) * afp(0.25) + (m41 - m43) * afp(0.5);
-    v54 = (m54 - m52) * afp(0.25) + (m51 - m53) * afp(0.5);
+    v04 = m04 - m02 * afp(0.5) - m03 * afp(sq2) + m01 * afp(sq2_d2);
+    v14 = m14 - m12 * afp(0.5) - m13 * afp(sq2) + m11 * afp(sq2_d2);
+    v24 = m24 - m22 * afp(0.5) - m23 * afp(sq2) + m21 * afp(sq2_d2);
+    v34 = m34 - m32 * afp(0.5) - m33 * afp(sq2) + m31 * afp(sq2_d2);
+    v44 = m44 - m42 * afp(0.5) - m43 * afp(sq2) + m41 * afp(sq2_d2);
+    v54 = m54 - m52 * afp(0.5) - m53 * afp(sq2) + m51 * afp(sq2_d2);
 
-    v05 = m01 - m03 * afp(1.25) + m05 * afp(0.25);
-    v15 = m11 - m13 * afp(1.25) + m15 * afp(0.25);
-    v25 = m21 - m23 * afp(1.25) + m25 * afp(0.25);
-    v35 = m31 - m33 * afp(1.25) + m35 * afp(0.25);
-    v45 = m41 - m43 * afp(1.25) + m45 * afp(0.25);
-    v55 = m51 - m53 * afp(1.25) + m55 * afp(0.25);
+    v05 = m01 - m03 * afp(2.5) + m05;
+    v15 = m11 - m13 * afp(2.5) + m15;
+    v25 = m21 - m23 * afp(2.5) + m25;
+    v35 = m31 - m33 * afp(2.5) + m35;
+    v45 = m41 - m43 * afp(2.5) + m45;
+    v55 = m51 - m53 * afp(2.5) + m55;
 
     // store 36
 #if NCNN_image_shader

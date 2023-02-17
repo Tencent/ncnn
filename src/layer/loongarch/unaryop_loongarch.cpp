@@ -364,6 +364,20 @@ struct unary_op_tanh
 #endif // __loongarch_sx
 };
 
+struct unary_op_log10
+{
+    float func(const float& x) const
+    {
+        return (float)log10(x);
+    }
+#if __loongarch_sx
+    __m128 func_pack4(const __m128& x) const
+    {
+        return __lsx_vfmul_s(log_ps(x), __lsx_vreplfr2vr_s(0.434294481903));
+    }
+#endif // __loongarch_sx
+};
+
 } // namespace UnaryOp_loongarch_functor
 
 int UnaryOp_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
@@ -420,6 +434,9 @@ int UnaryOp_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) 
 
     if (op_type == Operation_TANH)
         return unary_op_inplace<unary_op_tanh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_LOG10)
+        return unary_op_inplace<unary_op_log10>(bottom_top_blob, opt);
 
     return 0;
 }

@@ -14,6 +14,7 @@
 
 #include "cpu.h"
 #include "mat.h"
+#include "x86_usability.h"
 
 namespace ncnn {
 

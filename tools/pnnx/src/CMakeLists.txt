@@ -5,6 +5,7 @@ set(pnnx_pass_level0_SRCS
     pass_level0/constant_unpooling.cpp
     pass_level0/inline_block.cpp
     pass_level0/reset_device.cpp
+    pass_level0/flatten_input.cpp
     pass_level0/shape_inference.cpp
 )
 
@@ -205,6 +206,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_clamp.cpp
     pass_level2/torch_clone.cpp
     pass_level2/torch_complex.cpp
+    pass_level2/torch_cumsum.cpp
     pass_level2/torch_dequantize.cpp
     pass_level2/torch_einsum.cpp
     pass_level2/torch_empty.cpp
@@ -296,6 +298,7 @@ set(pnnx_pass_level4_SRCS
 )
 
 set(pnnx_pass_level5_SRCS
+    pass_level5/attribute_unpooling.cpp
     pass_level5/eliminate_dropout.cpp
     pass_level5/eliminate_identity_operator.cpp
     pass_level5/eliminate_maxpool_indices.cpp
@@ -319,6 +322,7 @@ set(pnnx_pass_level5_SRCS
     pass_level5/fuse_linear_batchnorm1d.cpp
     pass_level5/fuse_pad_conv1d.cpp
     pass_level5/fuse_pad_conv2d.cpp
+    pass_level5/fuse_pixel_unshuffle.cpp
     pass_level5/fuse_select_to_unbind.cpp
     pass_level5/fuse_slice_copy.cpp
     pass_level5/fuse_slice_indices.cpp
@@ -364,6 +368,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/fuse_innerproduct_activation.cpp
     pass_ncnn/fuse_transpose_matmul.cpp
     pass_ncnn/fuse_binaryop_eltwise.cpp
+    pass_ncnn/insert_reshape_numpy_binaryop_broadcast.cpp
     pass_ncnn/insert_reshape_linear.cpp
     pass_ncnn/insert_reshape_pooling.cpp
 
@@ -487,6 +492,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/Tensor_reshape.cpp
     pass_ncnn/Tensor_repeat.cpp
     pass_ncnn/Tensor_slice.cpp
+    pass_ncnn/Tensor_slice_copy.cpp
     pass_ncnn/Tensor_view.cpp
     pass_ncnn/torch_addmm.cpp
     pass_ncnn/torch_amax.cpp
@@ -494,6 +500,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/torch_bmm.cpp
     pass_ncnn/torch_clamp.cpp
     pass_ncnn/torch_clone.cpp
+    pass_ncnn/torch_cumsum.cpp
     pass_ncnn/torch_flatten.cpp
     pass_ncnn/torch_logsumexp.cpp
     pass_ncnn/torch_matmul.cpp

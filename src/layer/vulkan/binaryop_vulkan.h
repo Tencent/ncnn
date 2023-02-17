@@ -43,13 +43,12 @@ public:
     Pipeline* pipeline_binaryop_pack8;
 
     // broadcast
-    Pipeline* pipeline_binaryop_broadcast;
-    Pipeline* pipeline_binaryop_broadcast_pack4;
-    Pipeline* pipeline_binaryop_broadcast_a1_pack4;
-    Pipeline* pipeline_binaryop_broadcast_b1_pack4;
-    Pipeline* pipeline_binaryop_broadcast_pack8;
-    Pipeline* pipeline_binaryop_broadcast_a1_pack8;
-    Pipeline* pipeline_binaryop_broadcast_b1_pack8;
+    Pipeline* pipeline_binaryop_broadcast_inner[2];
+    Pipeline* pipeline_binaryop_broadcast_inner_pack4[2];
+    Pipeline* pipeline_binaryop_broadcast_inner_pack8[2];
+    Pipeline* pipeline_binaryop_broadcast_outer[2];
+    Pipeline* pipeline_binaryop_broadcast_outer_pack4[2];
+    Pipeline* pipeline_binaryop_broadcast_outer_pack8[2];
 };
 
 } // namespace ncnn

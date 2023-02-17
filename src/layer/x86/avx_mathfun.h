@@ -751,4 +751,16 @@ static NCNN_FORCEINLINE __m256 pow256_ps(__m256 a, __m256 b)
     return exp256_ps(_mm256_mul_ps(b, log256_ps(a)));
 }
 
+static NCNN_FORCEINLINE __m256 atan2256_ps(__m256 a, __m256 b)
+{
+    //TODO avx optimize
+    float tmpx[8];
+    float tmpy[8];
+    _mm256_storeu_ps(tmpx, a);
+    _mm256_storeu_ps(tmpy, b);
+    for (int i = 0; i < 8; i++)
+        tmpx[i] = atan2(tmpx[i], tmpy[i]);
+    return _mm256_loadu_ps(tmpx);
+}
+
 #endif // AVX_MATHFUN_H

@@ -25,10 +25,7 @@ MultiHeadAttention_x86::MultiHeadAttention_x86()
 #endif // __SSE2__
 
     q_gemm = 0;
-    permute_wch = 0;
-
     k_gemm = 0;
-
     v_gemm = 0;
 
     qk_gemm = 0;
@@ -60,6 +57,7 @@ int MultiHeadAttention_x86::create_pipeline(const Option& opt)
         pd.set(10, 1);        // constant_broadcast_type_C
         pd.set(11, 0);        // output_N1M
         pd.set(12, 1);        // output_elempack
+        pd.set(14, 0);        // output_transpose
         q_gemm->load_param(pd);
         Mat weights[2];
         weights[0] = q_weight_data;
@@ -72,14 +70,6 @@ int MultiHeadAttention_x86::create_pipeline(const Option& opt)
             q_weight_data.release();
             q_bias_data.release();
         }
-    }
-    {
-        permute_wch = ncnn::create_layer(ncnn::LayerType::Permute);
-        ncnn::ParamDict pd;
-        pd.set(0, 2); // wch
-        permute_wch->load_param(pd);
-        permute_wch->load_model(ModelBinFromMatArray(0));
-        permute_wch->create_pipeline(opt);
     }
 
     {
@@ -96,6 +86,7 @@ int MultiHeadAttention_x86::create_pipeline(const Option& opt)
         pd.set(10, 1);        // constant_broadcast_type_C
         pd.set(11, 0);        // output_N1M
         pd.set(12, 1);        // output_elempack
+        pd.set(14, 0);        // output_transpose
         k_gemm->load_param(pd);
         Mat weights[2];
         weights[0] = k_weight_data;
@@ -124,6 +115,7 @@ int MultiHeadAttention_x86::create_pipeline(const Option& opt)
         pd.set(10, 1);        // constant_broadcast_type_C
         pd.set(11, 0);        // output_N1M
         pd.set(12, 1);        // output_elempack
+        pd.set(14, 0);        // output_transpose
         v_gemm->load_param(pd);
         Mat weights[2];
         weights[0] = v_weight_data;
@@ -172,6 +164,7 @@ int MultiHeadAttention_x86::create_pipeline(const Option& opt)
         pd.set(10, -1); // constant_broadcast_type_C
         pd.set(11, 0);  // output_N1M
         pd.set(12, 1);  // output_elempack
+        pd.set(14, 1);  // output_transpose
         qkv_gemm->load_param(pd);
         qkv_gemm->load_model(ModelBinFromMatArray(0));
         Option opt1 = opt;
@@ -192,7 +185,7 @@ int MultiHeadAttention_x86::create_pipeline(const Option& opt)
     {
         o_gemm = ncnn::create_layer(ncnn::LayerType::Gemm);
         ncnn::ParamDict pd;
-        pd.set(2, 0);         // transA
+        pd.set(2, 1);         // transA
         pd.set(3, 1);         // transB
         pd.set(4, 0);         // constantA
         pd.set(5, 1);         // constantB
@@ -200,7 +193,7 @@ int MultiHeadAttention_x86::create_pipeline(const Option& opt)
         pd.set(7, 0);         // M = outch
         pd.set(8, embed_dim); // N = size
         pd.set(9, embed_dim); // K = maxk*inch
-        pd.set(10, 4);        // constant_broadcast_type_C = null
+        pd.set(10, 4);        // constant_broadcast_type_C
         pd.set(11, 0);        // output_N1M
         o_gemm->load_param(pd);
         Mat weights[2];
@@ -226,12 +219,6 @@ int MultiHeadAttention_x86::destroy_pipeline(const Option& opt)
         q_gemm->destroy_pipeline(opt);
         delete q_gemm;
         q_gemm = 0;
-    }
-    if (permute_wch)
-    {
-        permute_wch->destroy_pipeline(opt);
-        delete permute_wch;
-        permute_wch = 0;
     }
 
     if (k_gemm)
@@ -316,7 +303,7 @@ int MultiHeadAttention_x86::forward(const std::vector<Mat>& bottom_blobs, std::v
     Mat v_affine;
     v_gemm->forward(v_blob, v_affine, opt);
 
-    Mat qkv_cross(embed_dim_per_head, src_seqlen, num_head, 4u, opt.blob_allocator);
+    Mat qkv_cross(src_seqlen, embed_dim_per_head * num_head, 4u, opt.blob_allocator);
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int i = 0; i < num_head; i++)
     {
@@ -324,25 +311,15 @@ int MultiHeadAttention_x86::forward(const std::vector<Mat>& bottom_blobs, std::v
         qkv_bottom_blobs[0] = qk_cross.row_range(i * src_seqlen, src_seqlen);
         qkv_bottom_blobs[1] = v_affine.row_range(i * embed_dim_per_head, embed_dim_per_head);
         std::vector<Mat> qkv_top_blobs(1);
-        qkv_top_blobs[0] = qkv_cross.channel(i);
+        qkv_top_blobs[0] = qkv_cross.row_range(i * embed_dim_per_head, embed_dim_per_head);
         Option opt1 = opt;
         opt1.num_threads = 1;
         qkv_gemm->forward(qkv_bottom_blobs, qkv_top_blobs, opt1);
     }
 
-    qk_cross.release();
     v_affine.release();
 
-    {
-        Mat qkv_wch;
-        permute_wch->forward(qkv_cross, qkv_wch, opt);
-
-        qkv_cross.release();
-
-        qkv_wch = qkv_wch.reshape(embed_dim, src_seqlen);
-
-        o_gemm->forward(qkv_wch, top_blobs[0], opt);
-    }
+    o_gemm->forward(qkv_cross, top_blobs[0], opt);
 
     return 0;
 }

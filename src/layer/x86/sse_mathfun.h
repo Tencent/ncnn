@@ -738,4 +738,18 @@ static NCNN_FORCEINLINE __m128 pow_ps(__m128 a, __m128 b)
     return exp_ps(_mm_mul_ps(b, log_ps(a)));
 }
 
+static NCNN_FORCEINLINE __m128 atan2_ps(__m128 a, __m128 b)
+{
+    //TODO sse optimize
+    float tmpx[4];
+    float tmpy[4];
+    _mm_storeu_ps(tmpx, a);
+    _mm_storeu_ps(tmpy, b);
+    tmpx[0] = atan2(tmpx[0], tmpy[0]);
+    tmpx[1] = atan2(tmpx[1], tmpy[1]);
+    tmpx[2] = atan2(tmpx[2], tmpy[2]);
+    tmpx[3] = atan2(tmpx[3], tmpy[3]);
+    return _mm_loadu_ps(tmpx);
+}
+
 #endif // SSE_MATHFUN_H
