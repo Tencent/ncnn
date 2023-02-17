@@ -230,16 +230,11 @@ void shape_inference(const torch::jit::Module& mod, std::shared_ptr<torch::jit::
                 // check if value that does not depend on inputs
                 if (!value_link_input(v, g_inputs, true) && value_link_output(v, g_outputs))
                 {
-                    // output_tensors[v] = t;
-                    const int ndim = (int)t.dim();
-                    if (ndim > 0)
-                    {
-                        // fprintf(stderr, "foldable_constant %s\n", v->debugName().c_str());
-                        foldable_constants.insert(v->debugName());
+                    // fprintf(stderr, "foldable_constant %s\n", v->debugName().c_str());
+                    foldable_constants.insert(v->debugName());
 
-                        at::Tensor t2 = t.cpu().contiguous();
-                        zip.write_file(v->debugName(), (const char*)t2.data_ptr(), t2.nbytes());
-                    }
+                    at::Tensor t2 = t.cpu().contiguous();
+                    zip.write_file(v->debugName(), (const char*)t2.data_ptr(), t2.nbytes());
                 }
             }
         }
@@ -277,16 +272,11 @@ void shape_inference(const torch::jit::Module& mod, std::shared_ptr<torch::jit::
                 // check if value that does not depend on inputs
                 if (!value_link_input(v, g_inputs, false) && value_link_output(v, g_outputs))
                 {
-                    // output_tensors[v] = t;
-                    const int ndim = (int)t.dim();
-                    if (ndim > 0)
-                    {
-                        // fprintf(stderr, "foldable_constant %s\n", v->debugName().c_str());
-                        foldable_constants.insert(v->debugName());
+                    // fprintf(stderr, "foldable_constant %s\n", v->debugName().c_str());
+                    foldable_constants.insert(v->debugName());
 
-                        at::Tensor t2 = t.cpu().contiguous();
-                        zip.write_file(v->debugName(), (const char*)t2.data_ptr(), t2.nbytes());
-                    }
+                    at::Tensor t2 = t.cpu().contiguous();
+                    zip.write_file(v->debugName(), (const char*)t2.data_ptr(), t2.nbytes());
                 }
             }
         }
