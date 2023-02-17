@@ -61,6 +61,11 @@ void convert_attribute(Graph& graph)
             }
         }
 
+        if (new_shape.size() == 0)
+        {
+            // scalar
+            op->params["0"] = 1;
+        }
         if (new_shape.size() == 1)
         {
             op->params["0"] = new_shape[0];
