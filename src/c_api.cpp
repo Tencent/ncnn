@@ -1338,6 +1338,38 @@ void ncnn_net_clear(ncnn_net_t net)
     return ((Net*)net->pthis)->clear();
 }
 
+int ncnn_net_get_input_count(const ncnn_net_t net)
+{
+    return (int)((Net*)net->pthis)->input_indexes().size();
+}
+
+int ncnn_net_get_output_count(const ncnn_net_t net)
+{
+    return (int)((Net*)net->pthis)->output_indexes().size();
+}
+
+#if NCNN_STRING
+const char* ncnn_net_get_input_name(const ncnn_net_t net, int i)
+{
+    return ((Net*)net->pthis)->input_names()[i];
+}
+
+const char* ncnn_net_get_output_name(const ncnn_net_t net, int i)
+{
+    return ((Net*)net->pthis)->output_names()[i];
+}
+#endif /* NCNN_STRING */
+
+int ncnn_net_get_input_index(const ncnn_net_t net, int i)
+{
+    return ((Net*)net->pthis)->input_indexes()[i];
+}
+
+int ncnn_net_get_output_index(const ncnn_net_t net, int i)
+{
+    return ((Net*)net->pthis)->output_indexes()[i];
+}
+
 /* extractor api */
 ncnn_extractor_t ncnn_extractor_create(ncnn_net_t net)
 {
