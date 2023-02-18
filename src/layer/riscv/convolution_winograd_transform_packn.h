@@ -549,10 +549,10 @@ static void conv3x3s1_winograd43_transform_output_packn_rvv(const Mat& top_blob_
                     vfloat32m1_t _tmp13a = vfsub_vv_f32m1(_r01, _r02, vl);
                     vfloat32m1_t _tmp13b = vfsub_vv_f32m1(_r03, _r04, vl);
 
-                    vfloat32m1_t _out00 = vfadd_vv_f32m1(_bias0, vfadd_vv_f32m1(vfadd_vv_f32m1(_r00, _tmp02a, vl), _tmp02b, vl));
-                    vfloat32m1_t _out01 = vfadd_vv_f32m1(_bias0, vfmacc_vf_f32m1(vfmul_vf_f32m1(_tmp13a, sq2_d2, vl), 2.f, _tmp13b, vl));
-                    vfloat32m1_t _out02 = vfadd_vv_f32m1(_bias0, vfmacc_vf_f32m1(vfmul_vf_f32m1(_tmp02a, 0.5f, vl), 2.f, _tmp02b, vl));
-                    vfloat32m1_t _out03 = vfadd_vv_f32m1(_bias0, vfmacc_vf_f32m1(vfmacc_vf_f32m1(_r05, sq2_d4, _tmp13a, vl), sq2_m2, _tmp13b, vl));
+                    vfloat32m1_t _out00 = vfadd_vv_f32m1(_bias0, vfadd_vv_f32m1(vfadd_vv_f32m1(_r00, _tmp02a, vl), _tmp02b, vl), vl);
+                    vfloat32m1_t _out01 = vfadd_vv_f32m1(_bias0, vfmacc_vf_f32m1(vfmul_vf_f32m1(_tmp13a, sq2_d2, vl), 2.f, _tmp13b, vl), vl);
+                    vfloat32m1_t _out02 = vfadd_vv_f32m1(_bias0, vfmacc_vf_f32m1(vfmul_vf_f32m1(_tmp02a, 0.5f, vl), 2.f, _tmp02b, vl), vl);
+                    vfloat32m1_t _out03 = vfadd_vv_f32m1(_bias0, vfmacc_vf_f32m1(vfmacc_vf_f32m1(_r05, sq2_d4, _tmp13a, vl), sq2_m2, _tmp13b, vl), vl);
 
                     vse32_v_f32m1(output0, _out00, vl);
                     vse32_v_f32m1(output0 + packn, _out01, vl);
