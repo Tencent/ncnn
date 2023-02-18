@@ -20,6 +20,10 @@ on:
     - 'src/layer/*'
     - 'src/layer/x86/**'
     - 'tests/**'
+
+env:
+  EMSCRIPTEN_VERSION: 3.1.28
+
 concurrency:
   group: web-assembly-${{ github.ref }}
   cancel-in-progress: true
@@ -35,8 +39,8 @@ jobs:
       run: |
         git clone https://github.com/emscripten-core/emsdk.git
         cd emsdk
-        ./emsdk install 2.0.8
-        ./emsdk activate 2.0.8
+        ./emsdk install $EMSCRIPTEN_VERSION
+        ./emsdk activate $EMSCRIPTEN_VERSION
     - name: build-basic
       run: |
         source emsdk/emsdk_env.sh
