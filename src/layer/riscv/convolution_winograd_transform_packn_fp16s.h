@@ -334,7 +334,7 @@ static void conv3x3s1_winograd43_transform_input_packn_fp16sa_rvv(const Mat& bot
     const int tiles = w_tiles * h_tiles;
 
     const float sq2 = 1.41421356237;
-    const float sq2_d2 = 1.41421356237/2;
+    const float sq2_d2 = 1.41421356237 / 2;
 
     // const float itm[6][6] = {
     //     {1.0f,  0.0f,  -2.5f,  0.0f,  1.0f, 0.0f},
@@ -462,9 +462,9 @@ static void conv3x3s1_winograd43_transform_output_packn_fp16sa_rvv(const Mat& to
     const __fp16* biasptr = bias;
 
     const float sq2 = 1.41421356237;
-    const float sq2_m2 = 1.41421356237*2;
-    const float sq2_d2 = 1.41421356237/2;
-    const float sq2_d4 = 1.41421356237/4;
+    const float sq2_m2 = 1.41421356237 * 2;
+    const float sq2_d2 = 1.41421356237 / 2;
+    const float sq2_d4 = 1.41421356237 / 4;
 
     // const float otm[4][6] = {
     //     {1.0f, 1.0f,   1.0f,  1.0f,  1.0f,   0.0f},
