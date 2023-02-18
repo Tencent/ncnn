@@ -505,12 +505,12 @@ static void conv3x3s1_winograd43_transform_output_packn_fp16sa_rvv(const Mat& to
 
                 for (int m = 0; m < 6; m++)
                 {
-                    vfloat16m1_t _out0tm0 = vle16_v_f16m1(output0_tm_0, vl);
-                    vfloat16m1_t _out0tm1 = vle16_v_f16m1(output0_tm_1, vl);
-                    vfloat16m1_t _out0tm2 = vle16_v_f16m1(output0_tm_2, vl);
-                    vfloat16m1_t _out0tm3 = vle16_v_f16m1(output0_tm_3, vl);
-                    vfloat16m1_t _out0tm4 = vle16_v_f16m1(output0_tm_4, vl);
-                    vfloat16m1_t _out0tm5 = vle16_v_f16m1(output0_tm_5, vl);
+                    vfloat16m1_t _r00 = vle16_v_f16m1(output0_tm_0, vl);
+                    vfloat16m1_t _r01 = vle16_v_f16m1(output0_tm_1, vl);
+                    vfloat16m1_t _r02 = vle16_v_f16m1(output0_tm_2, vl);
+                    vfloat16m1_t _r03 = vle16_v_f16m1(output0_tm_3, vl);
+                    vfloat16m1_t _r04 = vle16_v_f16m1(output0_tm_4, vl);
+                    vfloat16m1_t _r05 = vle16_v_f16m1(output0_tm_5, vl);
 
                     vfloat16m1_t _tmp02a = vfadd_vv_f16m1(_r01, _r02, vl);
                     vfloat16m1_t _tmp02b = vfadd_vv_f16m1(_r03, _r04, vl);
@@ -537,12 +537,12 @@ static void conv3x3s1_winograd43_transform_output_packn_fp16sa_rvv(const Mat& to
 
                 for (int m = 0; m < 4; m++)
                 {
-                    vfloat16m1_t _tmp00 = vle16_v_f16m1(tmp[m][0], vl);
-                    vfloat16m1_t _tmp01 = vle16_v_f16m1(tmp[m][1], vl);
-                    vfloat16m1_t _tmp02 = vle16_v_f16m1(tmp[m][2], vl);
-                    vfloat16m1_t _tmp03 = vle16_v_f16m1(tmp[m][3], vl);
-                    vfloat16m1_t _tmp04 = vle16_v_f16m1(tmp[m][4], vl);
-                    vfloat16m1_t _tmp05 = vle16_v_f16m1(tmp[m][5], vl);
+                    vfloat16m1_t _r00 = vle16_v_f16m1(tmp[m][0], vl);
+                    vfloat16m1_t _r01 = vle16_v_f16m1(tmp[m][1], vl);
+                    vfloat16m1_t _r02 = vle16_v_f16m1(tmp[m][2], vl);
+                    vfloat16m1_t _r03 = vle16_v_f16m1(tmp[m][3], vl);
+                    vfloat16m1_t _r04 = vle16_v_f16m1(tmp[m][4], vl);
+                    vfloat16m1_t _r05 = vle16_v_f16m1(tmp[m][5], vl);
 
                     vfloat16m1_t _tmp02a = vfadd_vv_f16m1(_r01, _r02, vl);
                     vfloat16m1_t _tmp02b = vfadd_vv_f16m1(_r03, _r04, vl);
