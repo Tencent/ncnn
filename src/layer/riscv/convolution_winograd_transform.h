@@ -215,9 +215,9 @@ static void conv3x3s1_winograd43_transform_output_rvv(const Mat& top_blob_tm, Ma
                     float tmp13b = r03 - r04;
 
                     float out00 = bias0 + r00 + tmp02a + tmp02b;
-                    float out01 = bias0 + tmp13a + tmp13b * 2;
-                    float out02 = bias0 + tmp02a + tmp02b * 4;
-                    float out03 = bias0 + r05 + tmp13a + tmp13b * 8;
+                    float out01 = bias0 + tmp13a * sq2_d2 + tmp13b * sq2;
+                    float out02 = bias0 + tmp02a * 0.5f + tmp02b * 2;
+                    float out03 = bias0 + r05 + tmp13a * sq2_d4 + tmp13b * sq2_m2;
 
                     output0[0] = out00;
                     output0[1] = out01;
