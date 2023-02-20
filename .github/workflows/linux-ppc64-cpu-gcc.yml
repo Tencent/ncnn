@@ -37,7 +37,7 @@ jobs:
       uses: actions/cache@v3
       with:
         path: qemu-install
-        key: qemu-ppc64le-install-20220502
+        key: qemu-ppc64le-install-20220502-2
     - name: install-qemu-build-deps
       if: steps.cache-qemu.outputs.cache-hit != 'true'
       run: |

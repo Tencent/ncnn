@@ -173,7 +173,7 @@ struct unary_op_tan
         // TODO rvv optimize
         std::vector<float> tmp(vl);
         vse32_v_f32m8(tmp.data(), x, vl);
-        for (int i = 0; i < vl; i++)
+        for (size_t i = 0; i < vl; i++)
         {
             tmp[i] = tan(tmp[i]);
         }
@@ -188,7 +188,7 @@ struct unary_op_asin
         // TODO rvv optimize
         std::vector<float> tmp(vl);
         vse32_v_f32m8(tmp.data(), x, vl);
-        for (int i = 0; i < vl; i++)
+        for (size_t i = 0; i < vl; i++)
         {
             tmp[i] = asin(tmp[i]);
         }
@@ -203,7 +203,7 @@ struct unary_op_acos
         // TODO rvv optimize
         std::vector<float> tmp(vl);
         vse32_v_f32m8(tmp.data(), x, vl);
-        for (int i = 0; i < vl; i++)
+        for (size_t i = 0; i < vl; i++)
         {
             tmp[i] = acos(tmp[i]);
         }
@@ -218,7 +218,7 @@ struct unary_op_atan
         // TODO rvv optimize
         std::vector<float> tmp(vl);
         vse32_v_f32m8(tmp.data(), x, vl);
-        for (int i = 0; i < vl; i++)
+        for (size_t i = 0; i < vl; i++)
         {
             tmp[i] = atan(tmp[i]);
         }
@@ -467,7 +467,7 @@ struct unary_op_tan_fp16s
         // TODO rvv optimize
         std::vector<__fp16> tmp(vl);
         vse16_v_f16m8(tmp.data(), x, vl);
-        for (int i = 0; i < vl; i++)
+        for (size_t i = 0; i < vl; i++)
         {
             tmp[i] = tan((float)tmp[i]);
         }
@@ -482,7 +482,7 @@ struct unary_op_asin_fp16s
         // TODO rvv optimize
         std::vector<__fp16> tmp(vl);
         vse16_v_f16m8(tmp.data(), x, vl);
-        for (int i = 0; i < vl; i++)
+        for (size_t i = 0; i < vl; i++)
         {
             tmp[i] = asin((float)tmp[i]);
         }
@@ -497,7 +497,7 @@ struct unary_op_acos_fp16s
         // TODO rvv optimize
         std::vector<__fp16> tmp(vl);
         vse16_v_f16m8(tmp.data(), x, vl);
-        for (int i = 0; i < vl; i++)
+        for (size_t i = 0; i < vl; i++)
         {
             tmp[i] = acos((float)tmp[i]);
         }
@@ -512,7 +512,7 @@ struct unary_op_atan_fp16s
         // TODO rvv optimize
         std::vector<__fp16> tmp(vl);
         vse16_v_f16m8(tmp.data(), x, vl);
-        for (int i = 0; i < vl; i++)
+        for (size_t i = 0; i < vl; i++)
         {
             tmp[i] = atan((float)tmp[i]);
         }
