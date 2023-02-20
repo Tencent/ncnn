@@ -40,6 +40,8 @@ static int test_convolution(int w, int h, int c, int outch, int kernel, int dila
     if (bias)
         weights[1] = RandomMat(outch);
 
+    Randomize(a, -1, 1);
+    Randomize(weights[0], -0.6, 0.6);
     float epsilon = 0.001;
 
     int ret = test_layer<ncnn::Convolution>("Convolution", pd, weights, a, epsilon);

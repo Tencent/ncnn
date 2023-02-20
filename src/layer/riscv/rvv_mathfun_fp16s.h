@@ -390,7 +390,7 @@ _RVV_FLOAT16_SIGMOID_OP(8, 2)
         std::vector<__fp16> tmpy(vl);                                                                   \
         vse16_v_f16m##LMUL(tmpx.data(), a, vl);                                                         \
         vse16_v_f16m##LMUL(tmpy.data(), b, vl);                                                         \
-        for (int i = 0; i < vl; i++)                                                                    \
+        for (size_t i = 0; i < vl; i++)                                                                 \
         {                                                                                               \
             tmpx[i] = (__fp16)atan2((float)tmpx[i], (float)tmpy[i]);                                    \
         }                                                                                               \
