@@ -510,8 +510,8 @@ Install Emscripten
 ```shell
 git clone https://github.com/emscripten-core/emsdk.git
 cd emsdk
-./emsdk install 2.0.8
-./emsdk activate 2.0.8
+./emsdk install 3.1.28
+./emsdk activate 3.1.28
 
 source emsdk/emsdk_env.sh
 ```
