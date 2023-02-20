@@ -19,6 +19,9 @@
 #include <stdio.h>
 
 #define STB_IMAGE_IMPLEMENTATION
+#if __ARM_NEON
+#define STBI_NEON
+#endif
 #define STBI_NO_THREAD_LOCALS
 #define STBI_ONLY_JPEG
 #define STBI_ONLY_PNG
