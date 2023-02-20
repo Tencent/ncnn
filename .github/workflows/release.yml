@@ -237,7 +237,7 @@ jobs:
         path: ${{ env.PACKAGENAME }}.zip
 
   openmp-macos:
-    runs-on: macos-11
+    runs-on: macos-latest
     steps:
     - name: cache-openmp
       id: cache-openmp
@@ -290,7 +290,7 @@ jobs:
 
   macos:
     needs: [setup, openmp-macos]
-    runs-on: macos-11
+    runs-on: macos-latest
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-macos
     steps:
@@ -358,7 +358,7 @@ jobs:
 
   macos-gpu:
     needs: [setup, openmp-macos]
-    runs-on: macos-11
+    runs-on: macos-latest
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-macos-vulkan
     steps:
@@ -454,7 +454,7 @@ jobs:
         path: ${{ env.PACKAGENAME }}.zip
 
   openmp-ios:
-    runs-on: macos-11
+    runs-on: macos-latest
     steps:
     - name: cache-openmp
       id: cache-openmp
@@ -511,7 +511,7 @@ jobs:
 
   ios:
     needs: [setup, openmp-ios]
-    runs-on: macos-11
+    runs-on: macos-latest
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ios
     steps:
@@ -594,7 +594,7 @@ jobs:
 
   ios-gpu:
     needs: [setup, openmp-ios]
-    runs-on: macos-11
+    runs-on: macos-latest
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ios-vulkan
     steps:
@@ -693,7 +693,7 @@ jobs:
         path: ${{ env.PACKAGENAME }}.zip
 
   openmp-ios-bitcode:
-    runs-on: macos-11
+    runs-on: macos-latest
     steps:
     - name: cache-openmp
       id: cache-openmp
@@ -750,7 +750,7 @@ jobs:
 
   ios-bitcode:
     needs: [setup, openmp-ios-bitcode]
-    runs-on: macos-11
+    runs-on: macos-latest
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ios-bitcode
     steps:
@@ -833,7 +833,7 @@ jobs:
 
   ios-gpu-bitcode:
     needs: [setup, openmp-ios-bitcode]
-    runs-on: macos-11
+    runs-on: macos-latest
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ios-vulkan-bitcode
     steps:
