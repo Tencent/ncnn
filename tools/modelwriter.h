@@ -2329,7 +2329,6 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             ncnn::Unfold* op = (ncnn::Unfold*)layer;
             ncnn::Unfold* op_default = (ncnn::Unfold*)layer_default;
 
-            fprintf_param_value(" 0=%d", num_output)
             fprintf_param_value(" 1=%d", kernel_w)
             {
                 if (op->kernel_h != op->kernel_w) fprintf(pp, " 11=%d", op->kernel_h);
