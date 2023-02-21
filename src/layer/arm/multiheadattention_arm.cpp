@@ -28,6 +28,8 @@ MultiHeadAttention_arm::MultiHeadAttention_arm()
 #endif
 #endif // __ARM_NEON
 
+    support_bf16_storage = false;
+
     cvtfp16_to_fp32 = 0;
     cvtfp32_to_fp16 = 0;
 
@@ -45,6 +47,9 @@ MultiHeadAttention_arm::MultiHeadAttention_arm()
 
 int MultiHeadAttention_arm::create_pipeline(const Option& opt)
 {
+    Option optn = opt;
+    optn.use_bf16_storage = false;
+
     Option opt32 = opt;
     opt32.use_bf16_storage = false;
     opt32.use_fp16_arithmetic = false;
@@ -58,7 +63,7 @@ int MultiHeadAttention_arm::create_pipeline(const Option& opt)
         pd.set(1, 1); // from fp32
         cvtfp16_to_fp32->load_param(pd);
         cvtfp16_to_fp32->load_model(ModelBinFromMatArray(0));
-        cvtfp16_to_fp32->create_pipeline(opt);
+        cvtfp16_to_fp32->create_pipeline(optn);
     }
     {
         cvtfp32_to_fp16 = ncnn::create_layer(ncnn::LayerType::Cast);
@@ -67,7 +72,7 @@ int MultiHeadAttention_arm::create_pipeline(const Option& opt)
         pd.set(1, 2); // from fp16
         cvtfp32_to_fp16->load_param(pd);
         cvtfp32_to_fp16->load_model(ModelBinFromMatArray(0));
-        cvtfp32_to_fp16->create_pipeline(opt);
+        cvtfp32_to_fp16->create_pipeline(optn);
     }
 
     {
@@ -89,9 +94,9 @@ int MultiHeadAttention_arm::create_pipeline(const Option& opt)
     }
 
 #if NCNN_ARM82
-    if (support_fp16_storage && opt.use_fp16_packed)
+    if (support_fp16_storage && optn.use_fp16_packed)
     {
-        Option optopt = opt;
+        Option optopt = optn;
 
         {
             const int embed_dim_per_head = embed_dim / num_head;
@@ -255,7 +260,7 @@ int MultiHeadAttention_arm::create_pipeline(const Option& opt)
     }
 #endif
 
-    Option optopt = opt;
+    Option optopt = optn;
     optopt.use_bf16_storage = false;
     optopt.use_fp16_arithmetic = false;
     optopt.use_fp16_packed = false;
@@ -424,7 +429,10 @@ int MultiHeadAttention_arm::create_pipeline(const Option& opt)
 
 int MultiHeadAttention_arm::destroy_pipeline(const Option& opt)
 {
-    Option opt32 = opt;
+    Option optn = opt;
+    optn.use_bf16_storage = false;
+
+    Option opt32 = optn;
     opt32.use_bf16_storage = false;
     opt32.use_fp16_arithmetic = false;
     opt32.use_fp16_packed = false;
@@ -432,13 +440,13 @@ int MultiHeadAttention_arm::destroy_pipeline(const Option& opt)
 
     if (cvtfp16_to_fp32)
     {
-        cvtfp16_to_fp32->destroy_pipeline(opt);
+        cvtfp16_to_fp32->destroy_pipeline(optn);
         delete cvtfp16_to_fp32;
         cvtfp16_to_fp32 = 0;
     }
     if (cvtfp32_to_fp16)
     {
-        cvtfp32_to_fp16->destroy_pipeline(opt);
+        cvtfp32_to_fp16->destroy_pipeline(optn);
         delete cvtfp32_to_fp16;
         cvtfp32_to_fp16 = 0;
     }
@@ -458,9 +466,9 @@ int MultiHeadAttention_arm::destroy_pipeline(const Option& opt)
     }
 
 #if NCNN_ARM82
-    if (support_fp16_storage && opt.use_fp16_packed)
+    if (support_fp16_storage && optn.use_fp16_packed)
     {
-        Option optopt = opt;
+        Option optopt = optn;
 
         if (q_gemm)
         {
@@ -508,7 +516,7 @@ int MultiHeadAttention_arm::destroy_pipeline(const Option& opt)
     }
 #endif
 
-    Option optopt = opt;
+    Option optopt = optn;
     optopt.use_bf16_storage = false;
     optopt.use_fp16_arithmetic = false;
     optopt.use_fp16_packed = false;
@@ -571,24 +579,27 @@ int MultiHeadAttention_arm::forward(const std::vector<Mat>& bottom_blobs, std::v
 
     const int elembits = q_blob.elembits();
 
-    Option opt32 = opt;
+    Option optn = opt;
+    optn.use_bf16_storage = false;
+
+    Option opt32 = optn;
     opt32.use_bf16_storage = false;
     opt32.use_fp16_arithmetic = false;
     opt32.use_fp16_packed = false;
     opt32.use_fp16_storage = false;
 
 #if NCNN_ARM82
-    if (support_fp16_storage && opt.use_fp16_packed && elembits == 16)
+    if (support_fp16_storage && optn.use_fp16_packed && elembits == 16)
     {
         Mat q_affine, k_affine, v_affine;
-        Mat qk_cross(dst_seqlen, src_seqlen * num_head, 2u, opt.blob_allocator);
-        Mat qkv_cross(embed_dim_per_head, src_seqlen, num_head, 2u, opt.blob_allocator);
+        Mat qk_cross(dst_seqlen, src_seqlen * num_head, 2u, optn.blob_allocator);
+        Mat qkv_cross(embed_dim_per_head, src_seqlen, num_head, 2u, optn.blob_allocator);
         Mat qkv_wch_fp16(embed_dim, src_seqlen, 2u, opt.blob_allocator);
 
-        q_gemm->forward(q_blob, q_affine, opt);
-        k_gemm->forward(k_blob, k_affine, opt);
+        q_gemm->forward(q_blob, q_affine, optn);
+        k_gemm->forward(k_blob, k_affine, optn);
 
-        #pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(optn.num_threads)
         for (int i = 0; i < num_head; i++)
         {
             std::vector<Mat> qk_bottom_blobs(2);
@@ -596,7 +607,7 @@ int MultiHeadAttention_arm::forward(const std::vector<Mat>& bottom_blobs, std::v
             qk_bottom_blobs[1] = k_affine.row_range(i * embed_dim_per_head, embed_dim_per_head);
             std::vector<Mat> qk_top_blobs(1);
             qk_top_blobs[0] = qk_cross.row_range(i * src_seqlen, src_seqlen);
-            Option opt1 = opt;
+            Option opt1 = optn;
             opt1.num_threads = 1;
             qk_gemm->forward(qk_bottom_blobs, qk_top_blobs, opt1);
         }
@@ -605,16 +616,16 @@ int MultiHeadAttention_arm::forward(const std::vector<Mat>& bottom_blobs, std::v
         k_affine.release();
 
         Mat qk_cross_fp32, qk_cross_fp32_fp16;
-        cvtfp16_to_fp32->forward(qk_cross, qk_cross_fp32, opt);
+        cvtfp16_to_fp32->forward(qk_cross, qk_cross_fp32, optn);
         qk_softmax->forward_inplace(qk_cross_fp32, opt32);
-        cvtfp32_to_fp16->forward(qk_cross_fp32, qk_cross_fp32_fp16, opt);
+        cvtfp32_to_fp16->forward(qk_cross_fp32, qk_cross_fp32_fp16, optn);
 
         qk_cross.release();
         qk_cross_fp32.release();
 
-        v_gemm->forward(v_blob, v_affine, opt);
+        v_gemm->forward(v_blob, v_affine, optn);
 
-        #pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(optn.num_threads)
         for (int i = 0; i < num_head; i++)
         {
             std::vector<Mat> qkv_bottom_blobs(2);
@@ -622,7 +633,7 @@ int MultiHeadAttention_arm::forward(const std::vector<Mat>& bottom_blobs, std::v
             qkv_bottom_blobs[1] = v_affine.row_range(i * embed_dim_per_head, embed_dim_per_head);
             std::vector<Mat> qkv_top_blobs(1);
             qkv_top_blobs[0] = qkv_cross.channel(i);
-            Option opt1 = opt;
+            Option opt1 = optn;
             opt1.num_threads = 1;
             qkv_gemm->forward(qkv_bottom_blobs, qkv_top_blobs, opt1);
         }
@@ -631,7 +642,7 @@ int MultiHeadAttention_arm::forward(const std::vector<Mat>& bottom_blobs, std::v
         v_affine.release();
 
         // permute + reshape
-        #pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(optn.num_threads)
         for (int q = 0; q < src_seqlen; q++)
         {
             __fp16* outptr = qkv_wch_fp16.row<__fp16>(q);
@@ -647,7 +658,7 @@ int MultiHeadAttention_arm::forward(const std::vector<Mat>& bottom_blobs, std::v
 
         qkv_cross.release();
 
-        o_gemm->forward(qkv_wch_fp16, top_blobs[0], opt);
+        o_gemm->forward(qkv_wch_fp16, top_blobs[0], optn);
 
         return 0;
     }
