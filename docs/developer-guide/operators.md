@@ -14,6 +14,7 @@
 * [ConvolutionDepthWise](#convolutiondepthwise)
 * [ConvolutionDepthWise1D](#convolutiondepthwise1d)
 * [ConvolutionDepthWise3D](#convolutiondepthwise3d)
+* [CopyTo](#copyto)
 * [Crop](#crop)
 * [CumulativeSum](#cumulativesum)
 * [Deconvolution](#deconvolution)
@@ -441,7 +442,8 @@ self[offset] = src
 | --------- | ------------- | ----- | --------- | ----------------- |
 | 0         | woffset       | int   | 0         |                   |
 | 1         | hoffset       | int   | 0         |                   |
-| 2         | coffset       | int   | 1         |                   |
+| 13        | doffset       | int   | 0         |                   |
+| 2         | coffset       | int   | 0         |                   |
 | 9         | starts        | array | [ ]       |                   |
 | 11        | axes          | array | [ ]       |                   |
 
