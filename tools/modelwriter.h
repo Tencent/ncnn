@@ -1661,7 +1661,6 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             ncnn::Fold* op = (ncnn::Fold*)layer;
             ncnn::Fold* op_default = (ncnn::Fold*)layer_default;
 
-            fprintf_param_value(" 0=%d", num_output)
             fprintf_param_value(" 1=%d", kernel_w)
             {
                 if (op->kernel_h != op->kernel_w) fprintf(pp, " 11=%d", op->kernel_h);
