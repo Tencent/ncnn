@@ -20,6 +20,10 @@ on:
     - 'src/layer/*'
     - 'src/layer/x86/**'
     - 'tests/**'
+
+env:
+  EMSCRIPTEN_VERSION: 3.1.28
+
 concurrency:
   group: web-assembly-${{ github.ref }}
   cancel-in-progress: true
@@ -35,13 +39,13 @@ jobs:
       run: |
         git clone https://github.com/emscripten-core/emsdk.git
         cd emsdk
-        ./emsdk install 2.0.8
-        ./emsdk activate 2.0.8
+        ./emsdk install $EMSCRIPTEN_VERSION
+        ./emsdk activate $EMSCRIPTEN_VERSION
     - name: build-basic
       run: |
         source emsdk/emsdk_env.sh
         mkdir build-basic && cd build-basic
-        cmake -DCMAKE_TOOLCHAIN_FILE=../emsdk/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake -DNCNN_THREADS=OFF -DNCNN_OPENMP=OFF -DNCNN_SIMPLEOMP=OFF -DNCNN_SIMPLEOCV=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_SSE2=OFF -DNCNN_AVX2=OFF -DNCNN_AVX=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake -DCMAKE_TOOLCHAIN_FILE=$EMSDK/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake -DNCNN_THREADS=OFF -DNCNN_OPENMP=OFF -DNCNN_SIMPLEOMP=OFF -DNCNN_SIMPLEOCV=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_SSE2=OFF -DNCNN_AVX2=OFF -DNCNN_AVX=OFF -DNCNN_BUILD_TESTS=ON ..
         cmake --build . -j 2
     - name: test-basic
       run: |
@@ -51,7 +55,7 @@ jobs:
       run: |
         source emsdk/emsdk_env.sh
         mkdir build-simd && cd build-simd
-        cmake -DCMAKE_TOOLCHAIN_FILE=../emsdk/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake -DNCNN_THREADS=OFF -DNCNN_OPENMP=OFF -DNCNN_SIMPLEOMP=OFF -DNCNN_SIMPLEOCV=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_SSE2=ON -DNCNN_AVX2=OFF -DNCNN_AVX=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake -DCMAKE_TOOLCHAIN_FILE=$EMSDK/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake -DNCNN_THREADS=OFF -DNCNN_OPENMP=OFF -DNCNN_SIMPLEOMP=OFF -DNCNN_SIMPLEOCV=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_SSE2=ON -DNCNN_AVX2=OFF -DNCNN_AVX=OFF -DNCNN_BUILD_TESTS=ON ..
         cmake --build . -j 2
     - name: test-simd
       run: |
@@ -61,7 +65,7 @@ jobs:
       run: |
         source emsdk/emsdk_env.sh
         mkdir build-simd-omp && cd build-simd-omp
-        cmake -DCMAKE_TOOLCHAIN_FILE=../emsdk/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake -DNCNN_THREADS=ON -DNCNN_OPENMP=ON -DNCNN_SIMPLEOMP=ON -DNCNN_SIMPLEOCV=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_SSE2=ON -DNCNN_AVX2=OFF -DNCNN_AVX=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake -DCMAKE_TOOLCHAIN_FILE=$EMSDK/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake -DNCNN_THREADS=ON -DNCNN_OPENMP=ON -DNCNN_SIMPLEOMP=ON -DNCNN_SIMPLEOCV=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_SSE2=ON -DNCNN_AVX2=OFF -DNCNN_AVX=OFF -DNCNN_BUILD_TESTS=ON ..
         cmake --build . -j 2
     - name: test-simd-omp
       run: |
