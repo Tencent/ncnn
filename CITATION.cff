@@ -13,15 +13,21 @@ abstract: >-
   computing framework optimized for mobile platforms. 
 date-released: 2017-06-30
 keywords:
-  - neural-network
-  - high performance
-  - artificial-intelligence
-  - deep-learning
+  - "neural network"
+  - "artificial intelligence"
+  - "deep learning"
   - android
   - ios
+  - windows
+  - linux
+  - macos
   - pnnx
   - simd
+  - vulkan
   - riscv
-  - arm-neon
+  - x86
+  - arm
+  - mips
+  - loongarch
 license: BSD-3-Clause
 repository-code: "https://github.com/Tencent/ncnn"
