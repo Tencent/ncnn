@@ -42,7 +42,6 @@ public:
     Layer* qkv_gemm;
 
     Layer* qk_softmax;
-    Layer* permute_wch;
 };
 
 } // namespace ncnn
