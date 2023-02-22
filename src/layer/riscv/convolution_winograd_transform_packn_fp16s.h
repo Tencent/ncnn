@@ -333,21 +333,24 @@ static void conv3x3s1_winograd43_transform_input_packn_fp16sa_rvv(const Mat& bot
     const int h_tiles = (h - 2) / 4;
     const int tiles = w_tiles * h_tiles;
 
+    const float sq2 = 1.41421356237;
+    const float sq2_d2 = 1.41421356237 / 2;
+
     // const float itm[6][6] = {
-    //     {4.0f, 0.0f, -5.0f, 0.0f, 1.0f, 0.0f},
-    //     {0.0f,-4.0f, -4.0f, 1.0f, 1.0f, 0.0f},
-    //     {0.0f, 4.0f, -4.0f,-1.0f, 1.0f, 0.0f},
-    //     {0.0f,-2.0f, -1.0f, 2.0f, 1.0f, 0.0f},
-    //     {0.0f, 2.0f, -1.0f,-2.0f, 1.0f, 0.0f},
-    //     {0.0f, 4.0f,  0.0f,-5.0f, 0.0f, 1.0f}
+    //     {1.0f,  0.0f,  -2.5f,  0.0f,  1.0f, 0.0f},
+    //     {0.0f, -sq2,   -2.0f,  sq2/2, 1.0f, 0.0f},
+    //     {0.0f,  sq2,   -2.0f, -sq2/2, 1.0f, 0.0f},
+    //     {0.0f, -sq2/2, -0.5f,  sq2,   1.0f, 0.0f},
+    //     {0.0f,  sq2/2, -0.5f, -sq2,   1.0f, 0.0f},
+    //     {0.0f,  1.0f,   0.0f,  -2.5f, 0.0f, 1.0f}
     // };
 
-    // 0 =  4 * r00 - 5 * r02 + r04
-    // 1 = -4 * (r01 + r02) + r04 + r03
-    // 2 =  4 * (r01 - r02) + r04 - r03
-    // 3 = -2 * (r01 - r03) + r04 - r02
-    // 4 =  2 * (r01 - r03) + r04 - r02
-    // 5 =  4 * r01 - 5 * r03 + r05
+    // 0 =  r00 - 2.5f * r02 + r04
+    // 1 = -(sq2 * r01 - sq2_d2 * r03) + (r04 - 2 * r02)
+    // 2 =  (sq2 * r01 - sq2_d2 * r03) + (r04 - 2 * r02)
+    // 3 = -(sq2_d2 * r01 - sq2 * r03) + (r04 - 0.5f * r02)
+    // 4 =  (sq2_d2 * r01 - sq2 * r03) + (r04 - 0.5f * r02)
+    // 5 =  r01 - 2.5f * r03 + r05
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < inch; q++)
@@ -374,12 +377,17 @@ static void conv3x3s1_winograd43_transform_input_packn_fp16sa_rvv(const Mat& bot
                     vfloat16m1_t _r04 = vle16_v_f16m1(r0 + packn * 4, vl);
                     vfloat16m1_t _r05 = vle16_v_f16m1(r0 + packn * 5, vl);
 
-                    vfloat16m1_t _tmp0m = vfmacc_vf_f16m1(vfmacc_vf_f16m1(_r04, 4.f, _r00, vl), -5.f, _r02, vl);
-                    vfloat16m1_t _tmp1m = vfmacc_vf_f16m1(vfadd_vv_f16m1(_r04, _r03, vl), -4.f, vfadd_vv_f16m1(_r01, _r02, vl), vl);
-                    vfloat16m1_t _tmp2m = vfmacc_vf_f16m1(vfsub_vv_f16m1(_r04, _r03, vl), 4.f, vfsub_vv_f16m1(_r01, _r02, vl), vl);
-                    vfloat16m1_t _tmp3m = vfmacc_vf_f16m1(vfsub_vv_f16m1(_r04, _r02, vl), -2.f, vfsub_vv_f16m1(_r01, _r03, vl), vl);
-                    vfloat16m1_t _tmp4m = vfmacc_vf_f16m1(vfsub_vv_f16m1(_r04, _r02, vl), 2.f, vfsub_vv_f16m1(_r01, _r03, vl), vl);
-                    vfloat16m1_t _tmp5m = vfmacc_vf_f16m1(vfmacc_vf_f16m1(_r05, 4.f, _r01, vl), -5.f, _r03, vl);
+                    vfloat16m1_t _tmp01a = vfmacc_vf_f16m1(vfmul_vf_f16m1(_r01, sq2, vl), -sq2_d2, _r03, vl);
+                    vfloat16m1_t _tmp01b = vfmacc_vf_f16m1(_r04, -2.f, _r02, vl);
+                    vfloat16m1_t _tmp23a = vfmacc_vf_f16m1(vfmul_vf_f16m1(_r01, sq2_d2, vl), -sq2, _r03, vl);
+                    vfloat16m1_t _tmp23b = vfmacc_vf_f16m1(_r04, -0.5f, _r02, vl);
+
+                    vfloat16m1_t _tmp0m = vfmacc_vf_f16m1(vfadd_vv_f16m1(_r00, _r04, vl), -2.5f, _r02, vl);
+                    vfloat16m1_t _tmp1m = vfsub_vv_f16m1(_tmp01b, _tmp01a, vl);
+                    vfloat16m1_t _tmp2m = vfadd_vv_f16m1(_tmp01b, _tmp01a, vl);
+                    vfloat16m1_t _tmp3m = vfsub_vv_f16m1(_tmp23b, _tmp23a, vl);
+                    vfloat16m1_t _tmp4m = vfadd_vv_f16m1(_tmp23b, _tmp23a, vl);
+                    vfloat16m1_t _tmp5m = vfmacc_vf_f16m1(vfadd_vv_f16m1(_r01, _r05, vl), -2.5f, _r03, vl);
 
                     vse16_v_f16m1(tmp[0][m], _tmp0m, vl);
                     vse16_v_f16m1(tmp[1][m], _tmp1m, vl);
@@ -400,26 +408,31 @@ static void conv3x3s1_winograd43_transform_input_packn_fp16sa_rvv(const Mat& bot
 
                 for (int m = 0; m < 6; m++)
                 {
-                    vfloat16m1_t _tmp00 = vle16_v_f16m1(tmp[m][0], vl);
-                    vfloat16m1_t _tmp01 = vle16_v_f16m1(tmp[m][1], vl);
-                    vfloat16m1_t _tmp02 = vle16_v_f16m1(tmp[m][2], vl);
-                    vfloat16m1_t _tmp03 = vle16_v_f16m1(tmp[m][3], vl);
-                    vfloat16m1_t _tmp04 = vle16_v_f16m1(tmp[m][4], vl);
-                    vfloat16m1_t _tmp05 = vle16_v_f16m1(tmp[m][5], vl);
+                    vfloat16m1_t _r00 = vle16_v_f16m1(tmp[m][0], vl);
+                    vfloat16m1_t _r01 = vle16_v_f16m1(tmp[m][1], vl);
+                    vfloat16m1_t _r02 = vle16_v_f16m1(tmp[m][2], vl);
+                    vfloat16m1_t _r03 = vle16_v_f16m1(tmp[m][3], vl);
+                    vfloat16m1_t _r04 = vle16_v_f16m1(tmp[m][4], vl);
+                    vfloat16m1_t _r05 = vle16_v_f16m1(tmp[m][5], vl);
 
-                    vfloat16m1_t _r0tm0 = vfmacc_vf_f16m1(vfmacc_vf_f16m1(_tmp04, 4.f, _tmp00, vl), -5.f, _tmp02, vl);
-                    vfloat16m1_t _r0tm1 = vfmacc_vf_f16m1(vfadd_vv_f16m1(_tmp04, _tmp03, vl), -4.f, vfadd_vv_f16m1(_tmp01, _tmp02, vl), vl);
-                    vfloat16m1_t _r0tm2 = vfmacc_vf_f16m1(vfsub_vv_f16m1(_tmp04, _tmp03, vl), 4.f, vfsub_vv_f16m1(_tmp01, _tmp02, vl), vl);
-                    vfloat16m1_t _r0tm3 = vfmacc_vf_f16m1(vfsub_vv_f16m1(_tmp04, _tmp02, vl), -2.f, vfsub_vv_f16m1(_tmp01, _tmp03, vl), vl);
-                    vfloat16m1_t _r0tm4 = vfmacc_vf_f16m1(vfsub_vv_f16m1(_tmp04, _tmp02, vl), 2.f, vfsub_vv_f16m1(_tmp01, _tmp03, vl), vl);
-                    vfloat16m1_t _r0tm5 = vfmacc_vf_f16m1(vfmacc_vf_f16m1(_tmp05, 4.f, _tmp01, vl), -5.f, _tmp03, vl);
+                    vfloat16m1_t _tmp01a = vfmacc_vf_f16m1(vfmul_vf_f16m1(_r01, sq2, vl), -sq2_d2, _r03, vl);
+                    vfloat16m1_t _tmp01b = vfmacc_vf_f16m1(_r04, -2.f, _r02, vl);
+                    vfloat16m1_t _tmp23a = vfmacc_vf_f16m1(vfmul_vf_f16m1(_r01, sq2_d2, vl), -sq2, _r03, vl);
+                    vfloat16m1_t _tmp23b = vfmacc_vf_f16m1(_r04, -0.5f, _r02, vl);
 
-                    vse16_v_f16m1(r0_tm_0, _r0tm0, vl);
-                    vse16_v_f16m1(r0_tm_1, _r0tm1, vl);
-                    vse16_v_f16m1(r0_tm_2, _r0tm2, vl);
-                    vse16_v_f16m1(r0_tm_3, _r0tm3, vl);
-                    vse16_v_f16m1(r0_tm_4, _r0tm4, vl);
-                    vse16_v_f16m1(r0_tm_5, _r0tm5, vl);
+                    vfloat16m1_t _tmp0m = vfmacc_vf_f16m1(vfadd_vv_f16m1(_r00, _r04, vl), -2.5f, _r02, vl);
+                    vfloat16m1_t _tmp1m = vfsub_vv_f16m1(_tmp01b, _tmp01a, vl);
+                    vfloat16m1_t _tmp2m = vfadd_vv_f16m1(_tmp01b, _tmp01a, vl);
+                    vfloat16m1_t _tmp3m = vfsub_vv_f16m1(_tmp23b, _tmp23a, vl);
+                    vfloat16m1_t _tmp4m = vfadd_vv_f16m1(_tmp23b, _tmp23a, vl);
+                    vfloat16m1_t _tmp5m = vfmacc_vf_f16m1(vfadd_vv_f16m1(_r01, _r05, vl), -2.5f, _r03, vl);
+
+                    vse16_v_f16m1(r0_tm_0, _tmp0m, vl);
+                    vse16_v_f16m1(r0_tm_1, _tmp1m, vl);
+                    vse16_v_f16m1(r0_tm_2, _tmp2m, vl);
+                    vse16_v_f16m1(r0_tm_3, _tmp3m, vl);
+                    vse16_v_f16m1(r0_tm_4, _tmp4m, vl);
+                    vse16_v_f16m1(r0_tm_5, _tmp5m, vl);
 
                     r0_tm_0 += tiles * packn * 6;
                     r0_tm_1 += tiles * packn * 6;
@@ -448,17 +461,22 @@ static void conv3x3s1_winograd43_transform_output_packn_fp16sa_rvv(const Mat& to
 
     const __fp16* biasptr = bias;
 
+    const float sq2 = 1.41421356237;
+    const float sq2_m2 = 1.41421356237 * 2;
+    const float sq2_d2 = 1.41421356237 / 2;
+    const float sq2_d4 = 1.41421356237 / 4;
+
     // const float otm[4][6] = {
-    //     {1.0f, 1.0f,  1.0f, 1.0f,  1.0f, 0.0f},
-    //     {0.0f, 1.0f, -1.0f, 2.0f, -2.0f, 0.0f},
-    //     {0.0f, 1.0f,  1.0f, 4.0f,  4.0f, 0.0f},
-    //     {0.0f, 1.0f, -1.0f, 8.0f, -8.0f, 1.0f}
+    //     {1.0f, 1.0f,   1.0f,  1.0f,  1.0f,   0.0f},
+    //     {0.0f, sq2/2, -sq2/2, sq2,   -sq2,   0.0f},
+    //     {0.0f, 0.5f,   0.5f,  2.0f,  2.0f,   0.0f},
+    //     {0.0f, sq2/4, -sq2/4, sq2*2, -sq2*2, 1.0f}
     // };
 
     // 0 = r00 + (r01 + r02) + (r03 + r04)
-    // 1 =       (r01 - r02) + (r03 - r04) * 2
-    // 2 =       (r01 + r02) + (r03 + r04) * 4
-    // 3 = r05 + (r01 - r02) + (r03 - r04) * 8
+    // 1 =       (r01 - r02) * sq2_d2 + (r03 - r04) * sq2
+    // 2 =       (r01 + r02) * 0.5f + (r03 + r04) * 2
+    // 3 = r05 + (r01 - r02) * sq2_d4 + (r03 - r04) * sq2_m2
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int p = 0; p < outch; p++)
@@ -487,23 +505,22 @@ static void conv3x3s1_winograd43_transform_output_packn_fp16sa_rvv(const Mat& to
 
                 for (int m = 0; m < 6; m++)
                 {
-                    vfloat16m1_t _out0tm0 = vle16_v_f16m1(output0_tm_0, vl);
-                    vfloat16m1_t _out0tm1 = vle16_v_f16m1(output0_tm_1, vl);
-                    vfloat16m1_t _out0tm2 = vle16_v_f16m1(output0_tm_2, vl);
-                    vfloat16m1_t _out0tm3 = vle16_v_f16m1(output0_tm_3, vl);
-                    vfloat16m1_t _out0tm4 = vle16_v_f16m1(output0_tm_4, vl);
-                    vfloat16m1_t _out0tm5 = vle16_v_f16m1(output0_tm_5, vl);
+                    vfloat16m1_t _r00 = vle16_v_f16m1(output0_tm_0, vl);
+                    vfloat16m1_t _r01 = vle16_v_f16m1(output0_tm_1, vl);
+                    vfloat16m1_t _r02 = vle16_v_f16m1(output0_tm_2, vl);
+                    vfloat16m1_t _r03 = vle16_v_f16m1(output0_tm_3, vl);
+                    vfloat16m1_t _r04 = vle16_v_f16m1(output0_tm_4, vl);
+                    vfloat16m1_t _r05 = vle16_v_f16m1(output0_tm_5, vl);
 
-                    vfloat16m1_t _tmp02a = vfadd_vv_f16m1(_out0tm1, _out0tm2, vl);
-                    vfloat16m1_t _tmp13a = vfsub_vv_f16m1(_out0tm1, _out0tm2, vl);
+                    vfloat16m1_t _tmp02a = vfadd_vv_f16m1(_r01, _r02, vl);
+                    vfloat16m1_t _tmp02b = vfadd_vv_f16m1(_r03, _r04, vl);
+                    vfloat16m1_t _tmp13a = vfsub_vv_f16m1(_r01, _r02, vl);
+                    vfloat16m1_t _tmp13b = vfsub_vv_f16m1(_r03, _r04, vl);
 
-                    vfloat16m1_t _tmp02b = vfadd_vv_f16m1(_out0tm3, _out0tm4, vl);
-                    vfloat16m1_t _tmp13b = vfsub_vv_f16m1(_out0tm3, _out0tm4, vl);
-
-                    vfloat16m1_t _tmp0m = vfadd_vv_f16m1(vfadd_vv_f16m1(_out0tm0, _tmp02a, vl), _tmp02b, vl);
-                    vfloat16m1_t _tmp1m = vfmacc_vf_f16m1(_tmp13a, 2.f, _tmp13b, vl);
-                    vfloat16m1_t _tmp2m = vfmacc_vf_f16m1(_tmp02a, 4.f, _tmp02b, vl);
-                    vfloat16m1_t _tmp3m = vfmacc_vf_f16m1(vfadd_vv_f16m1(_out0tm5, _tmp13a, vl), 8.f, _tmp13b, vl);
+                    vfloat16m1_t _tmp0m = vfadd_vv_f16m1(vfadd_vv_f16m1(_r00, _tmp02a, vl), _tmp02b, vl);
+                    vfloat16m1_t _tmp1m = vfmacc_vf_f16m1(vfmul_vf_f16m1(_tmp13a, sq2_d2, vl), sq2, _tmp13b, vl);
+                    vfloat16m1_t _tmp2m = vfmacc_vf_f16m1(vfmul_vf_f16m1(_tmp02a, 0.5f, vl), 2.f, _tmp02b, vl);
+                    vfloat16m1_t _tmp3m = vfmacc_vf_f16m1(vfmacc_vf_f16m1(_r05, sq2_d4, _tmp13a, vl), sq2_m2, _tmp13b, vl);
 
                     vse16_v_f16m1(tmp[0][m], _tmp0m, vl);
                     vse16_v_f16m1(tmp[1][m], _tmp1m, vl);
@@ -520,23 +537,22 @@ static void conv3x3s1_winograd43_transform_output_packn_fp16sa_rvv(const Mat& to
 
                 for (int m = 0; m < 4; m++)
                 {
-                    vfloat16m1_t _tmp00 = vle16_v_f16m1(tmp[m][0], vl);
-                    vfloat16m1_t _tmp01 = vle16_v_f16m1(tmp[m][1], vl);
-                    vfloat16m1_t _tmp02 = vle16_v_f16m1(tmp[m][2], vl);
-                    vfloat16m1_t _tmp03 = vle16_v_f16m1(tmp[m][3], vl);
-                    vfloat16m1_t _tmp04 = vle16_v_f16m1(tmp[m][4], vl);
-                    vfloat16m1_t _tmp05 = vle16_v_f16m1(tmp[m][5], vl);
+                    vfloat16m1_t _r00 = vle16_v_f16m1(tmp[m][0], vl);
+                    vfloat16m1_t _r01 = vle16_v_f16m1(tmp[m][1], vl);
+                    vfloat16m1_t _r02 = vle16_v_f16m1(tmp[m][2], vl);
+                    vfloat16m1_t _r03 = vle16_v_f16m1(tmp[m][3], vl);
+                    vfloat16m1_t _r04 = vle16_v_f16m1(tmp[m][4], vl);
+                    vfloat16m1_t _r05 = vle16_v_f16m1(tmp[m][5], vl);
 
-                    vfloat16m1_t _tmp02a = vfadd_vv_f16m1(_tmp01, _tmp02, vl);
-                    vfloat16m1_t _tmp13a = vfsub_vv_f16m1(_tmp01, _tmp02, vl);
+                    vfloat16m1_t _tmp02a = vfadd_vv_f16m1(_r01, _r02, vl);
+                    vfloat16m1_t _tmp02b = vfadd_vv_f16m1(_r03, _r04, vl);
+                    vfloat16m1_t _tmp13a = vfsub_vv_f16m1(_r01, _r02, vl);
+                    vfloat16m1_t _tmp13b = vfsub_vv_f16m1(_r03, _r04, vl);
 
-                    vfloat16m1_t _tmp02b = vfadd_vv_f16m1(_tmp03, _tmp04, vl);
-                    vfloat16m1_t _tmp13b = vfsub_vv_f16m1(_tmp03, _tmp04, vl);
-
-                    vfloat16m1_t _out00 = vfadd_vv_f16m1(_bias0, vfadd_vv_f16m1(vfadd_vv_f16m1(_tmp00, _tmp02a, vl), _tmp02b, vl), vl);
-                    vfloat16m1_t _out01 = vfadd_vv_f16m1(_bias0, vfmacc_vf_f16m1(_tmp13a, 2.f, _tmp13b, vl), vl);
-                    vfloat16m1_t _out02 = vfadd_vv_f16m1(_bias0, vfmacc_vf_f16m1(_tmp02a, 4.f, _tmp02b, vl), vl);
-                    vfloat16m1_t _out03 = vfadd_vv_f16m1(_bias0, vfmacc_vf_f16m1(vfadd_vv_f16m1(_tmp05, _tmp13a, vl), 8.f, _tmp13b, vl), vl);
+                    vfloat16m1_t _out00 = vfadd_vv_f16m1(_bias0, vfadd_vv_f16m1(vfadd_vv_f16m1(_r00, _tmp02a, vl), _tmp02b, vl), vl);
+                    vfloat16m1_t _out01 = vfadd_vv_f16m1(_bias0, vfmacc_vf_f16m1(vfmul_vf_f16m1(_tmp13a, sq2_d2, vl), sq2, _tmp13b, vl), vl);
+                    vfloat16m1_t _out02 = vfadd_vv_f16m1(_bias0, vfmacc_vf_f16m1(vfmul_vf_f16m1(_tmp02a, 0.5f, vl), 2.f, _tmp02b, vl), vl);
+                    vfloat16m1_t _out03 = vfadd_vv_f16m1(_bias0, vfmacc_vf_f16m1(vfmacc_vf_f16m1(_r05, sq2_d4, _tmp13a, vl), sq2_m2, _tmp13b, vl), vl);
 
                     vse16_v_f16m1(output0, _out00, vl);
                     vse16_v_f16m1(output0 + packn, _out01, vl);

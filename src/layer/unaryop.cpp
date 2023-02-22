@@ -183,6 +183,14 @@ struct unary_op_tanh
     }
 };
 
+struct unary_op_log10
+{
+    float operator()(const float& x) const
+    {
+        return (float)log10(x);
+    }
+};
+
 int UnaryOp::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     if (op_type == Operation_ABS)
@@ -235,6 +243,9 @@ int UnaryOp::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
     if (op_type == Operation_TANH)
         return unary_op_inplace<unary_op_tanh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_LOG10)
+        return unary_op_inplace<unary_op_log10>(bottom_top_blob, opt);
 
     return 0;
 }

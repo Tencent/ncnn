@@ -1037,7 +1037,7 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
 
                 if (bias_data_ptr)
                 {
-                    _sum0 = _mm512_load_ps(bias_data_ptr + p);
+                    _sum0 = _mm512_loadu_ps(bias_data_ptr + p);
                 }
 
                 const float* kptr = weight_data_tm.channel(p / 16);
@@ -1503,7 +1503,7 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
 
                 if (bias_data_ptr)
                 {
-                    _sum0 = _mm256_load_ps(bias_data_ptr + p);
+                    _sum0 = _mm256_loadu_ps(bias_data_ptr + p);
                 }
 
 #if __AVX512F__
@@ -1959,7 +1959,7 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
 
                 if (bias_data_ptr)
                 {
-                    _sum0 = _mm_load_ps(bias_data_ptr + p);
+                    _sum0 = _mm_loadu_ps(bias_data_ptr + p);
                 }
 
 #if __AVX512F__

@@ -37,7 +37,7 @@ void assign_unique_name(Graph& graph)
             {
                 // duplicated found
                 std::string new_name = std::string("pnnx_unique_") + std::to_string(make_unique_index);
-                fprintf(stderr, "assign unique operator name %s to %s\n", new_name.c_str(), name.c_str());
+                // fprintf(stderr, "assign unique operator name %s to %s\n", new_name.c_str(), name.c_str());
                 op->name = new_name;
                 names.insert(new_name);
 

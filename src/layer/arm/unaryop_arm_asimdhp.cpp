@@ -436,6 +436,22 @@ struct unary_op_tanh_fp16s
     }
 };
 
+struct unary_op_log10_fp16s
+{
+    __fp16 func(const __fp16& x) const
+    {
+        return (__fp16)log10(x);
+    }
+    float16x4_t func_pack4(const float16x4_t& x) const
+    {
+        return vmul_f16(log_ps(x), vdup_n_f16(0.434294481903));
+    }
+    float16x8_t func_pack8(const float16x8_t& x) const
+    {
+        return vmulq_f16(log_ps(x), vdupq_n_f16(0.434294481903));
+    }
+};
+
 } // namespace UnaryOp_arm_functor
 
 int UnaryOp_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
@@ -492,6 +508,9 @@ int UnaryOp_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
 
     if (op_type == Operation_TANH)
         return unary_op_inplace_fp16s<unary_op_tanh_fp16s>(bottom_top_blob, opt);
+
+    if (op_type == Operation_LOG10)
+        return unary_op_inplace_fp16s<unary_op_log10_fp16s>(bottom_top_blob, opt);
 
     return 0;
 }

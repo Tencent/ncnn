@@ -43,6 +43,7 @@
 #include "pass_ncnn/fuse_innerproduct_activation.h"
 #include "pass_ncnn/fuse_transpose_matmul.h"
 #include "pass_ncnn/fuse_binaryop_eltwise.h"
+#include "pass_ncnn/insert_reshape_numpy_binaryop_broadcast.h"
 #include "pass_ncnn/insert_reshape_linear.h"
 #include "pass_ncnn/insert_reshape_pooling.h"
 
@@ -85,6 +86,7 @@ void pass_ncnn(Graph& g)
 
     ncnn::convert_half_to_float(g);
 
+    ncnn::insert_reshape_numpy_binaryop_broadcast(g);
     ncnn::insert_reshape_pooling(g);
     ncnn::insert_reshape_linear(g);
 

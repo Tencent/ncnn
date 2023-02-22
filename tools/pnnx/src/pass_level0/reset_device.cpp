@@ -13,7 +13,6 @@
 // specific language governing permissions and limitations under the License.
 
 #include "reset_device.h"
-#include "../pass_level1.h"
 
 namespace pnnx {
 

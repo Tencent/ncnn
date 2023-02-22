@@ -163,7 +163,7 @@ void main()
     // const float itm[6][6] = {
     //     {1.0f,  0.0f,  -2.5f,  0.0f,  1.0f, 0.0f},
     //     {0.0f, -sq2,   -2.0f,  sq2/2, 1.0f, 0.0f},
-    //     {0.0f,  sq2,   -2.0f,  sq2/2, 1.0f, 0.0f},
+    //     {0.0f,  sq2,   -2.0f, -sq2/2, 1.0f, 0.0f},
     //     {0.0f, -sq2/2, -0.5f,  sq2,   1.0f, 0.0f},
     //     {0.0f,  sq2/2, -0.5f, -sq2,   1.0f, 0.0f},
     //     {0.0f,  1.0f,   0.0f,  -2.5f, 0.0f, 1.0f}
@@ -177,61 +177,33 @@ void main()
     afpvec8 m04 = v40 - v42 * afp(2.5) + v44;
     afpvec8 m05 = v50 - v52 * afp(2.5) + v54;
 
-    afpvec8 s0 = v03 * afp(sq2_d2) - v01 * afp(sq2);
-    afpvec8 s1 = v13 * afp(sq2_d2) - v11 * afp(sq2);
-    afpvec8 s2 = v23 * afp(sq2_d2) - v21 * afp(sq2);
-    afpvec8 s3 = v33 * afp(sq2_d2) - v31 * afp(sq2);
-    afpvec8 s4 = v43 * afp(sq2_d2) - v41 * afp(sq2);
-    afpvec8 s5 = v53 * afp(sq2_d2) - v51 * afp(sq2);
+    afpvec8 m10 = v04 - v02 * afp(2) + v03 * afp(sq2_d2) - v01 * afp(sq2);
+    afpvec8 m11 = v14 - v12 * afp(2) + v13 * afp(sq2_d2) - v11 * afp(sq2);
+    afpvec8 m12 = v24 - v22 * afp(2) + v23 * afp(sq2_d2) - v21 * afp(sq2);
+    afpvec8 m13 = v34 - v32 * afp(2) + v33 * afp(sq2_d2) - v31 * afp(sq2);
+    afpvec8 m14 = v44 - v42 * afp(2) + v43 * afp(sq2_d2) - v41 * afp(sq2);
+    afpvec8 m15 = v54 - v52 * afp(2) + v53 * afp(sq2_d2) - v51 * afp(sq2);
 
-    afpvec8 t0 = v04 - v02 * afp(2);
-    afpvec8 t1 = v14 - v12 * afp(2);
-    afpvec8 t2 = v24 - v22 * afp(2);
-    afpvec8 t3 = v34 - v32 * afp(2);
-    afpvec8 t4 = v44 - v42 * afp(2);
-    afpvec8 t5 = v54 - v52 * afp(2);
+    afpvec8 m20 = v04 - v02 * afp(2) - v03 * afp(sq2_d2) + v01 * afp(sq2);
+    afpvec8 m21 = v14 - v12 * afp(2) - v13 * afp(sq2_d2) + v11 * afp(sq2);
+    afpvec8 m22 = v24 - v22 * afp(2) - v23 * afp(sq2_d2) + v21 * afp(sq2);
+    afpvec8 m23 = v34 - v32 * afp(2) - v33 * afp(sq2_d2) + v31 * afp(sq2);
+    afpvec8 m24 = v44 - v42 * afp(2) - v43 * afp(sq2_d2) + v41 * afp(sq2);
+    afpvec8 m25 = v54 - v52 * afp(2) - v53 * afp(sq2_d2) + v51 * afp(sq2);
 
-    afpvec8 m10 = t0 + s0;
-    afpvec8 m11 = t1 + s1;
-    afpvec8 m12 = t2 + s2;
-    afpvec8 m13 = t3 + s3;
-    afpvec8 m14 = t4 + s4;
-    afpvec8 m15 = t5 + s5;
+    afpvec8 m30 = v04 - v02 * afp(0.5) + v03 * afp(sq2) - v01 * afp(sq2_d2);
+    afpvec8 m31 = v14 - v12 * afp(0.5) + v13 * afp(sq2) - v11 * afp(sq2_d2);
+    afpvec8 m32 = v24 - v22 * afp(0.5) + v23 * afp(sq2) - v21 * afp(sq2_d2);
+    afpvec8 m33 = v34 - v32 * afp(0.5) + v33 * afp(sq2) - v31 * afp(sq2_d2);
+    afpvec8 m34 = v44 - v42 * afp(0.5) + v43 * afp(sq2) - v41 * afp(sq2_d2);
+    afpvec8 m35 = v54 - v52 * afp(0.5) + v53 * afp(sq2) - v51 * afp(sq2_d2);
 
-    afpvec8 m20 = t0 - s0;
-    afpvec8 m21 = t1 - s1;
-    afpvec8 m22 = t2 - s2;
-    afpvec8 m23 = t3 - s3;
-    afpvec8 m24 = t4 - s4;
-    afpvec8 m25 = t5 - s5;
-
-    s0 = v03 * afp(sq2) - v01 * afp(sq2_d2);
-    s1 = v13 * afp(sq2) - v11 * afp(sq2_d2);
-    s2 = v23 * afp(sq2) - v21 * afp(sq2_d2);
-    s3 = v33 * afp(sq2) - v31 * afp(sq2_d2);
-    s4 = v43 * afp(sq2) - v41 * afp(sq2_d2);
-    s5 = v53 * afp(sq2) - v51 * afp(sq2_d2);
-
-    t0 = v04 - v02 * afp(0.5);
-    t1 = v14 - v12 * afp(0.5);
-    t2 = v24 - v22 * afp(0.5);
-    t3 = v34 - v32 * afp(0.5);
-    t4 = v44 - v42 * afp(0.5);
-    t5 = v54 - v52 * afp(0.5);
-
-    afpvec8 m30 = t0 + s0;
-    afpvec8 m31 = t1 + s1;
-    afpvec8 m32 = t2 + s2;
-    afpvec8 m33 = t3 + s3;
-    afpvec8 m34 = t4 + s4;
-    afpvec8 m35 = t5 + s5;
-
-    afpvec8 m40 = t0 - s0;
-    afpvec8 m41 = t1 - s1;
-    afpvec8 m42 = t2 - s2;
-    afpvec8 m43 = t3 - s3;
-    afpvec8 m44 = t4 - s4;
-    afpvec8 m45 = t5 - s5;
+    afpvec8 m40 = v04 - v02 * afp(0.5) - v03 * afp(sq2) + v01 * afp(sq2_d2);
+    afpvec8 m41 = v14 - v12 * afp(0.5) - v13 * afp(sq2) + v11 * afp(sq2_d2);
+    afpvec8 m42 = v24 - v22 * afp(0.5) - v23 * afp(sq2) + v21 * afp(sq2_d2);
+    afpvec8 m43 = v34 - v32 * afp(0.5) - v33 * afp(sq2) + v31 * afp(sq2_d2);
+    afpvec8 m44 = v44 - v42 * afp(0.5) - v43 * afp(sq2) + v41 * afp(sq2_d2);
+    afpvec8 m45 = v54 - v52 * afp(0.5) - v53 * afp(sq2) + v51 * afp(sq2_d2);
 
     afpvec8 m50 = v01 - v03 * afp(2.5) + v05;
     afpvec8 m51 = v11 - v13 * afp(2.5) + v15;
@@ -247,61 +219,33 @@ void main()
     v40 = m40 - m42 * afp(2.5) + m44;
     v50 = m50 - m52 * afp(2.5) + m54;
 
-    s0 = m03 * afp(sq2_d2) - m01 * afp(sq2);
-    s1 = m13 * afp(sq2_d2) - m11 * afp(sq2);
-    s2 = m23 * afp(sq2_d2) - m21 * afp(sq2);
-    s3 = m33 * afp(sq2_d2) - m31 * afp(sq2);
-    s4 = m43 * afp(sq2_d2) - m41 * afp(sq2);
-    s5 = m53 * afp(sq2_d2) - m51 * afp(sq2);
+    v01 = m04 - m02 * afp(2) + m03 * afp(sq2_d2) - m01 * afp(sq2);
+    v11 = m14 - m12 * afp(2) + m13 * afp(sq2_d2) - m11 * afp(sq2);
+    v21 = m24 - m22 * afp(2) + m23 * afp(sq2_d2) - m21 * afp(sq2);
+    v31 = m34 - m32 * afp(2) + m33 * afp(sq2_d2) - m31 * afp(sq2);
+    v41 = m44 - m42 * afp(2) + m43 * afp(sq2_d2) - m41 * afp(sq2);
+    v51 = m54 - m52 * afp(2) + m53 * afp(sq2_d2) - m51 * afp(sq2);
 
-    t0 = m04 - m02 * afp(2);
-    t1 = m14 - m12 * afp(2);
-    t2 = m24 - m22 * afp(2);
-    t3 = m34 - m32 * afp(2);
-    t4 = m44 - m42 * afp(2);
-    t5 = m54 - m52 * afp(2);
+    v02 = m04 - m02 * afp(2) - m03 * afp(sq2_d2) + m01 * afp(sq2);
+    v12 = m14 - m12 * afp(2) - m13 * afp(sq2_d2) + m11 * afp(sq2);
+    v22 = m24 - m22 * afp(2) - m23 * afp(sq2_d2) + m21 * afp(sq2);
+    v32 = m34 - m32 * afp(2) - m33 * afp(sq2_d2) + m31 * afp(sq2);
+    v42 = m44 - m42 * afp(2) - m43 * afp(sq2_d2) + m41 * afp(sq2);
+    v52 = m54 - m52 * afp(2) - m53 * afp(sq2_d2) + m51 * afp(sq2);
 
-    v01 = t0 + s0;
-    v11 = t1 + s1;
-    v21 = t2 + s2;
-    v31 = t3 + s3;
-    v41 = t4 + s4;
-    v51 = t5 + s5;
+    v03 = m04 - m02 * afp(0.5) + m03 * afp(sq2) - m01 * afp(sq2_d2);
+    v13 = m14 - m12 * afp(0.5) + m13 * afp(sq2) - m11 * afp(sq2_d2);
+    v23 = m24 - m22 * afp(0.5) + m23 * afp(sq2) - m21 * afp(sq2_d2);
+    v33 = m34 - m32 * afp(0.5) + m33 * afp(sq2) - m31 * afp(sq2_d2);
+    v43 = m44 - m42 * afp(0.5) + m43 * afp(sq2) - m41 * afp(sq2_d2);
+    v53 = m54 - m52 * afp(0.5) + m53 * afp(sq2) - m51 * afp(sq2_d2);
 
-    v02 = t0 - s0;
-    v12 = t1 - s1;
-    v22 = t2 - s2;
-    v32 = t3 - s3;
-    v42 = t4 - s4;
-    v52 = t5 - s5;
-
-    s0 = m03 * afp(sq2) - m01 * afp(sq2_d2);
-    s1 = m13 * afp(sq2) - m11 * afp(sq2_d2);
-    s2 = m23 * afp(sq2) - m21 * afp(sq2_d2);
-    s3 = m33 * afp(sq2) - m31 * afp(sq2_d2);
-    s4 = m43 * afp(sq2) - m41 * afp(sq2_d2);
-    s5 = m53 * afp(sq2) - m51 * afp(sq2_d2);
-
-    t0 = m04 - m02 * afp(0.5);
-    t1 = m14 - m12 * afp(0.5);
-    t2 = m24 - m22 * afp(0.5);
-    t3 = m34 - m32 * afp(0.5);
-    t4 = m44 - m42 * afp(0.5);
-    t5 = m54 - m52 * afp(0.5);
-
-    v03 = t0 + s0;
-    v13 = t1 + s1;
-    v23 = t2 + s2;
-    v33 = t3 + s3;
-    v43 = t4 + s4;
-    v53 = t5 + s5;
-
-    v04 = t0 - s0;
-    v14 = t1 - s1;
-    v24 = t2 - s2;
-    v34 = t3 - s3;
-    v44 = t4 - s4;
-    v54 = t5 - s5;
+    v04 = m04 - m02 * afp(0.5) - m03 * afp(sq2) + m01 * afp(sq2_d2);
+    v14 = m14 - m12 * afp(0.5) - m13 * afp(sq2) + m11 * afp(sq2_d2);
+    v24 = m24 - m22 * afp(0.5) - m23 * afp(sq2) + m21 * afp(sq2_d2);
+    v34 = m34 - m32 * afp(0.5) - m33 * afp(sq2) + m31 * afp(sq2_d2);
+    v44 = m44 - m42 * afp(0.5) - m43 * afp(sq2) + m41 * afp(sq2_d2);
+    v54 = m54 - m52 * afp(0.5) - m53 * afp(sq2) + m51 * afp(sq2_d2);
 
     v05 = m01 - m03 * afp(2.5) + m05;
     v15 = m11 - m13 * afp(2.5) + m15;

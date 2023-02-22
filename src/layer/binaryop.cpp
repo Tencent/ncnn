@@ -43,7 +43,7 @@ int BinaryOp::load_param(const ParamDict& pd)
 // https://github.com/Tencent/ncnn/wiki/binaryop-broadcasting
 
 template<typename Op>
-static int binary_op(const Mat& a, const Mat& b, Mat& c, const Option& opt)
+static int binary_op_scalar(const Mat& a, float b, Mat& c, const Option& opt)
 {
     Op op;
 
@@ -52,421 +52,154 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c, const Option& opt)
     int d = a.d;
     int channels = a.c;
     int size = w * h * d;
-    size_t elemsize = a.elemsize;
 
-    int w1 = b.w;
-    int h1 = b.h;
-    int d1 = b.d;
-    int channels1 = b.c;
-    int size1 = w1 * h1 * d1;
-
-    if (a.dims == 4)
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int q = 0; q < channels; q++)
     {
-        if (b.dims == 4)
+        const float* ptr = a.channel(q);
+        float* outptr = c.channel(q);
+
+        for (int i = 0; i < size; i++)
         {
-            // type 29
-            c.create(w, h, d, channels, elemsize, opt.blob_allocator);
-            if (c.empty())
-                return -100;
-
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++)
-            {
-                const float* ptr = a.channel(q);
-                const float* ptr1 = b.channel(q);
-                float* outptr = c.channel(q);
-
-                for (int i = 0; i < size; i++)
-                {
-                    outptr[i] = op(ptr[i], ptr1[i]);
-                }
-            }
-
-            return 0;
-        }
-
-        c.create(w, h, d, channels, elemsize, opt.blob_allocator);
-        if (c.empty())
-            return -100;
-
-        if (b.dims == 3)
-        {
-            // type 28
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++)
-            {
-                const float* ptr = a.channel(q);
-                const float* ptr1 = b.channel(q);
-                float* outptr = c.channel(q);
-
-                for (int z = 0; z < d; z++)
-                {
-                    for (int y = 0; y < h; y++)
-                    {
-                        const float b0 = ptr1[y];
-                        for (int x = 0; x < w; x++)
-                        {
-                            outptr[x] = op(ptr[x], b0);
-                        }
-
-                        ptr += w;
-                        outptr += w;
-                    }
-
-                    ptr1 += h;
-                }
-            }
-
-            return 0;
-        }
-
-        if (b.dims == 2)
-        {
-            // type 27
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++)
-            {
-                const float* ptr = a.channel(q);
-                const float* ptr1 = b.row(q);
-                float* outptr = c.channel(q);
-
-                for (int z = 0; z < d; z++)
-                {
-                    const float b0 = ptr1[z];
-                    for (int y = 0; y < h; y++)
-                    {
-                        for (int x = 0; x < w; x++)
-                        {
-                            outptr[x] = op(ptr[x], b0);
-                        }
-
-                        ptr += w;
-                        outptr += w;
-                    }
-                }
-            }
-
-            return 0;
-        }
-
-        if (b.dims == 1)
-        {
-            if (b.w == 1)
-            {
-                // type 25
-                const float b0 = b[0];
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < channels; q++)
-                {
-                    const float* ptr = a.channel(q);
-                    float* outptr = c.channel(q);
-
-                    for (int i = 0; i < size; i++)
-                    {
-                        outptr[i] = op(ptr[i], b0);
-                    }
-                }
-
-                return 0;
-            }
-
-            // type 26
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++)
-            {
-                const float* ptr = a.channel(q);
-                const float b0 = b[q];
-                float* outptr = c.channel(q);
-
-                for (int i = 0; i < size; i++)
-                {
-                    outptr[i] = op(ptr[i], b0);
-                }
-            }
-
-            return 0;
+            outptr[i] = op(ptr[i], b);
         }
     }
-    else if (a.dims == 3)
+
+    return 0;
+}
+
+template<typename Op>
+static int binary_op_no_broadcast(const Mat& a, const Mat& b, Mat& c, const Option& opt)
+{
+    Op op;
+
+    int channels = a.c;
+    int size = a.w * a.h * a.d;
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int q = 0; q < channels; q++)
     {
-        if (b.dims == 4)
+        const float* ptr = a.channel(q);
+        const float* ptr1 = b.channel(q);
+        float* outptr = c.channel(q);
+
+        for (int i = 0; i < size; i++)
         {
-            // type 23
-            c.create(w1, h1, d1, channels1, elemsize, opt.blob_allocator);
-            if (c.empty())
-                return -100;
-
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels1; q++)
-            {
-                const float* ptr = a.channel(q);
-                const float* ptr1 = b.channel(q);
-                float* outptr = c.channel(q);
-
-                for (int z = 0; z < d1; z++)
-                {
-                    for (int y = 0; y < h1; y++)
-                    {
-                        const float a0 = ptr[y];
-                        for (int x = 0; x < w1; x++)
-                        {
-                            outptr[x] = op(a0, ptr1[x]);
-                        }
-
-                        ptr1 += w1;
-                        outptr += w1;
-                    }
-
-                    ptr += h1;
-                }
-            }
-
-            return 0;
+            outptr[i] = op(ptr[i], ptr1[i]);
         }
+    }
 
-        if (b.dims == 3)
+    return 0;
+}
+
+template<typename Op>
+static int binary_op_broadcast_inner(const Mat& a, const Mat& b, Mat& c, const Option& opt)
+{
+    Op op;
+
+    int w = a.w;
+    int h = a.h;
+    int d = a.d;
+    int channels = a.c;
+    int size = w * h * d;
+
+    if (a.dims == 2 && b.dims == 1)
+    {
+        // type 12
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int y = 0; y < h; y++)
         {
-            if (w1 == 1 && h1 == 1 && channels1 == channels)
+            const float* ptr = a.row(y);
+            const float b0 = b[y];
+            float* outptr = c.row(y);
+
+            for (int x = 0; x < w; x++)
             {
-                // special type 1
-                c.create(w, h, channels, elemsize, opt.blob_allocator);
-                if (c.empty())
-                    return -100;
-
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < channels; q++)
-                {
-                    const float* ptr = a.channel(q);
-                    const float* b0 = b.channel(q);
-                    float* outptr = c.channel(q);
-                    for (int i = 0; i < size; i++)
-                    {
-                        outptr[i] = op(ptr[i], b0[0]);
-                    }
-                }
-
-                return 0;
+                outptr[x] = op(ptr[x], b0);
             }
-
-            if (w1 == w && h1 == h && channels1 == 1)
-            {
-                // special type 2
-                c.create(w, h, channels, elemsize, opt.blob_allocator);
-                if (c.empty())
-                    return -100;
-
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < channels; q++)
-                {
-                    const float* ptr = a.channel(q);
-                    const float* ptr1 = b;
-                    float* outptr = c.channel(q);
-                    for (int i = 0; i < size; i++)
-                    {
-                        outptr[i] = op(ptr[i], ptr1[i]);
-                    }
-                }
-
-                return 0;
-            }
-
-            if (w == 1 && h == 1 && channels1 == channels)
-            {
-                // special type 3
-                c.create(w1, h1, channels1, elemsize, opt.blob_allocator);
-                if (c.empty())
-                    return -100;
-
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < channels1; q++)
-                {
-                    const float* a0 = a.channel(q);
-                    const float* ptr1 = b.channel(q);
-                    float* outptr = c.channel(q);
-                    for (int i = 0; i < size1; i++)
-                    {
-                        outptr[i] = op(a0[0], ptr1[i]);
-                    }
-                }
-
-                return 0;
-            }
-
-            if (w1 == w && h1 == h && channels == 1)
-            {
-                // special type 4
-                c.create(w1, h1, channels1, elemsize, opt.blob_allocator);
-                if (c.empty())
-                    return -100;
-
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < channels1; q++)
-                {
-                    const float* ptr = a;
-                    const float* ptr1 = b.channel(q);
-                    float* outptr = c.channel(q);
-                    for (int i = 0; i < size1; i++)
-                    {
-                        outptr[i] = op(ptr[i], ptr1[i]);
-                    }
-                }
-
-                return 0;
-            }
-
-            if (w != 1 && w1 == 1 && h1 == h && channels1 == channels)
-            {
-                // special type 5
-                c.create(w, h, channels, elemsize, opt.blob_allocator);
-                if (c.empty())
-                    return -100;
-
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < channels1; q++)
-                {
-                    const float* ptr = a.channel(q);
-                    const float* ptr1 = b.channel(q);
-                    float* outptr = c.channel(q);
-
-                    for (int y = 0; y < h; y++)
-                    {
-                        const float b0 = ptr1[y];
-                        for (int x = 0; x < w; x++)
-                        {
-                            outptr[x] = op(ptr[x], b0);
-                        }
-
-                        ptr += w;
-                        outptr += w;
-                    }
-                }
-
-                return 0;
-            }
-
-            if (w1 == w && h != 1 && h1 == 1 && channels1 == channels)
-            {
-                // special type 6
-                c.create(w, h, channels, elemsize, opt.blob_allocator);
-                if (c.empty())
-                    return -100;
-
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < channels1; q++)
-                {
-                    const float* ptr = a.channel(q);
-                    const float* ptr1 = b.channel(q);
-                    float* outptr = c.channel(q);
-
-                    for (int y = 0; y < h; y++)
-                    {
-                        for (int x = 0; x < w; x++)
-                        {
-                            outptr[x] = op(ptr[x], ptr1[x]);
-                        }
-
-                        ptr += w;
-                        outptr += w;
-                    }
-                }
-
-                return 0;
-            }
-
-            if (w1 != 1 && w == 1 && h1 == h && channels1 == channels)
-            {
-                // special type 7
-                c.create(w1, h1, channels1, elemsize, opt.blob_allocator);
-                if (c.empty())
-                    return -100;
-
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < channels1; q++)
-                {
-                    const float* ptr = a.channel(q);
-                    const float* ptr1 = b.channel(q);
-                    float* outptr = c.channel(q);
-
-                    for (int y = 0; y < h1; y++)
-                    {
-                        const float a0 = ptr[y];
-                        for (int x = 0; x < w1; x++)
-                        {
-                            outptr[x] = op(a0, ptr1[x]);
-                        }
-
-                        ptr1 += w1;
-                        outptr += w1;
-                    }
-                }
-
-                return 0;
-            }
-
-            if (w1 == w && h1 != 1 && h == 1 && channels1 == channels)
-            {
-                // special type 8
-                c.create(w1, h1, channels1, elemsize, opt.blob_allocator);
-                if (c.empty())
-                    return -100;
-
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < channels1; q++)
-                {
-                    const float* ptr = a.channel(q);
-                    const float* ptr1 = b.channel(q);
-                    float* outptr = c.channel(q);
-
-                    for (int y = 0; y < h1; y++)
-                    {
-                        for (int x = 0; x < w1; x++)
-                        {
-                            outptr[x] = op(ptr[x], ptr1[x]);
-                        }
-
-                        ptr1 += w1;
-                        outptr += w1;
-                    }
-                }
-
-                return 0;
-            }
-
-            // type 19
-            c.create(w, h, channels, elemsize, opt.blob_allocator);
-            if (c.empty())
-                return -100;
-
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++)
-            {
-                const float* ptr = a.channel(q);
-                const float* ptr1 = b.channel(q);
-                float* outptr = c.channel(q);
-
-                for (int i = 0; i < size; i++)
-                {
-                    outptr[i] = op(ptr[i], ptr1[i]);
-                }
-            }
-
-            return 0;
         }
+    }
 
-        c.create(w, h, channels, elemsize, opt.blob_allocator);
-        if (c.empty())
-            return -100;
-
-        if (b.dims == 2)
+    if ((a.dims == 3 || a.dims == 4) && b.dims == 1)
+    {
+        // type 9 11
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
         {
-            // type 18
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++)
-            {
-                const float* ptr = a.channel(q);
-                const float* ptr1 = b.row(q);
-                float* outptr = c.channel(q);
+            const float* ptr = a.channel(q);
+            const float b0 = b[q];
+            float* outptr = c.channel(q);
 
+            for (int i = 0; i < size; i++)
+            {
+                outptr[i] = op(ptr[i], b0);
+            }
+        }
+    }
+
+    if (a.dims == 3 && b.dims == 2)
+    {
+        // type 10
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            const float* ptr = a.channel(q);
+            const float* ptr1 = b.row(q);
+            float* outptr = c.channel(q);
+
+            for (int y = 0; y < h; y++)
+            {
+                const float b0 = ptr1[y];
+                for (int x = 0; x < w; x++)
+                {
+                    outptr[x] = op(ptr[x], b0);
+                }
+
+                ptr += w;
+                outptr += w;
+            }
+        }
+    }
+
+    if (a.dims == 4 && b.dims == 2)
+    {
+        // type 12
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            const float* ptr = a.channel(q);
+            const float* ptr1 = b.row(q);
+            float* outptr = c.channel(q);
+
+            for (int z = 0; z < d; z++)
+            {
+                const float b0 = ptr1[z];
+                for (int y = 0; y < h; y++)
+                {
+                    for (int x = 0; x < w; x++)
+                    {
+                        outptr[x] = op(ptr[x], b0);
+                    }
+
+                    ptr += w;
+                    outptr += w;
+                }
+            }
+        }
+    }
+
+    if (a.dims == 4 && b.dims == 3)
+    {
+        // type 13
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            const float* ptr = a.channel(q);
+            const float* ptr1 = b.channel(q);
+            float* outptr = c.channel(q);
+
+            for (int z = 0; z < d; z++)
+            {
                 for (int y = 0; y < h; y++)
                 {
                     const float b0 = ptr1[y];
@@ -478,343 +211,99 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c, const Option& opt)
                     ptr += w;
                     outptr += w;
                 }
+
+                ptr1 += h;
             }
-
-            return 0;
-        }
-
-        if (b.dims == 1)
-        {
-            if (b.w == 1)
-            {
-                // type 16
-                const float b0 = b[0];
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < channels; q++)
-                {
-                    const float* ptr = a.channel(q);
-                    float* outptr = c.channel(q);
-
-                    for (int i = 0; i < size; i++)
-                    {
-                        outptr[i] = op(ptr[i], b0);
-                    }
-                }
-
-                return 0;
-            }
-
-            // type 17
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++)
-            {
-                const float* ptr = a.channel(q);
-                const float b0 = b[q];
-                float* outptr = c.channel(q);
-
-                for (int i = 0; i < size; i++)
-                {
-                    outptr[i] = op(ptr[i], b0);
-                }
-            }
-
-            return 0;
         }
     }
-    else if (a.dims == 2)
+
+    return 0;
+}
+
+template<typename Op>
+static int binary_op_broadcast_outer(const Mat& a, const Mat& b, Mat& c, const Option& opt)
+{
+    Op op;
+
+    int w = a.w;
+    int h = a.h;
+    int d = a.d;
+    int channels = a.c;
+
+    if (a.dims == 2)
     {
-        if (b.dims == 4)
+        // type 14
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int y = 0; y < h; y++)
         {
-            // type 22
-            c.create(w1, h1, d1, channels1, elemsize, opt.blob_allocator);
-            if (c.empty())
-                return -100;
-
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels1; q++)
-            {
-                const float* ptr = a.row(q);
-                const float* ptr1 = b.channel(q);
-                float* outptr = c.channel(q);
-
-                for (int z = 0; z < d1; z++)
-                {
-                    const float a0 = ptr[z];
-                    for (int y = 0; y < h1; y++)
-                    {
-                        for (int x = 0; x < w1; x++)
-                        {
-                            outptr[x] = op(a0, ptr1[x]);
-                        }
-
-                        ptr1 += w1;
-                        outptr += w1;
-                    }
-                }
-            }
-
-            return 0;
-        }
-
-        if (b.dims == 3)
-        {
-            // type 14
-            c.create(w1, h1, channels1, elemsize, opt.blob_allocator);
-            if (c.empty())
-                return -100;
-
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels1; q++)
-            {
-                const float* ptr = a.row(q);
-                const float* ptr1 = b.channel(q);
-                float* outptr = c.channel(q);
-
-                for (int y = 0; y < h1; y++)
-                {
-                    const float a0 = ptr[y];
-                    for (int x = 0; x < w1; x++)
-                    {
-                        outptr[x] = op(a0, ptr1[x]);
-                    }
-
-                    ptr1 += w1;
-                    outptr += w1;
-                }
-            }
-
-            return 0;
-        }
-
-        c.create(w, h, elemsize, opt.blob_allocator);
-        if (c.empty())
-            return -100;
-
-        if (b.dims == 2)
-        {
-            // type 13
-            for (int i = 0; i < size; i++)
-            {
-                c[i] = op(a[i], b[i]);
-            }
-
-            return 0;
-        }
-
-        if (b.dims == 1)
-        {
-            c.create(w, h, elemsize, opt.blob_allocator);
-            if (c.empty())
-                return -100;
-
-            if (b.w == 1)
-            {
-                // type 11
-                const float b0 = b[0];
-                for (int i = 0; i < size; i++)
-                {
-                    c[i] = op(a[i], b0);
-                }
-
-                return 0;
-            }
-
-            // type 12
-            const float* ptr = a;
-            float* outptr = c;
-
-            for (int y = 0; y < h; y++)
-            {
-                const float b0 = b[y];
-                for (int x = 0; x < w; x++)
-                {
-                    outptr[x] = op(ptr[x], b0);
-                }
-
-                ptr += w;
-                outptr += w;
-            }
-
-            return 0;
-        }
-    }
-    else if (a.dims == 1)
-    {
-        if (a.w == 1)
-        {
-            if (b.dims == 4)
-            {
-                // type 20
-                c.create(w1, h1, d1, channels1, elemsize, opt.blob_allocator);
-                if (c.empty())
-                    return -100;
-
-                const float a0 = a[0];
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < channels1; q++)
-                {
-                    const float* ptr1 = b.channel(q);
-                    float* outptr = c.channel(q);
-
-                    for (int i = 0; i < size1; i++)
-                    {
-                        outptr[i] = op(a0, ptr1[i]);
-                    }
-                }
-
-                return 0;
-            }
-
-            if (b.dims == 3)
-            {
-                // type 4
-                c.create(w1, h1, channels1, elemsize, opt.blob_allocator);
-                if (c.empty())
-                    return -100;
-
-                const float a0 = a[0];
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < channels1; q++)
-                {
-                    const float* ptr1 = b.channel(q);
-                    float* outptr = c.channel(q);
-
-                    for (int i = 0; i < size1; i++)
-                    {
-                        outptr[i] = op(a0, ptr1[i]);
-                    }
-                }
-
-                return 0;
-            }
-
-            if (b.dims == 2)
-            {
-                // type 3
-                c.create(w1, h1, elemsize, opt.blob_allocator);
-                if (c.empty())
-                    return -100;
-
-                const float a0 = a[0];
-                for (int i = 0; i < size1; i++)
-                {
-                    c[i] = op(a0, b[i]);
-                }
-
-                return 0;
-            }
-
-            if (b.dims == 1)
-            {
-                // type 2
-                c.create(w1, elemsize, opt.blob_allocator);
-                if (c.empty())
-                    return -100;
-
-                const float a0 = a[0];
-                for (int i = 0; i < w1; i++)
-                {
-                    c[i] = op(a0, b[i]);
-                }
-
-                return 0;
-            }
-        }
-
-        if (b.dims == 4)
-        {
-            // type 21
-            c.create(w1, h1, d1, channels1, elemsize, opt.blob_allocator);
-            if (c.empty())
-                return -100;
-
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels1; q++)
-            {
-                const float a0 = a[q];
-                const float* ptr1 = b.channel(q);
-                float* outptr = c.channel(q);
-
-                for (int i = 0; i < size1; i++)
-                {
-                    outptr[i] = op(a0, ptr1[i]);
-                }
-            }
-
-            return 0;
-        }
-
-        if (b.dims == 3)
-        {
-            // type 9
-            c.create(w1, h1, channels1, elemsize, opt.blob_allocator);
-            if (c.empty())
-                return -100;
-
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels1; q++)
-            {
-                const float a0 = a[q];
-                const float* ptr1 = b.channel(q);
-                float* outptr = c.channel(q);
-
-                for (int i = 0; i < size1; i++)
-                {
-                    outptr[i] = op(a0, ptr1[i]);
-                }
-            }
-
-            return 0;
-        }
-
-        if (b.dims == 2)
-        {
-            // type 8
-            c.create(w1, h1, elemsize, opt.blob_allocator);
-            if (c.empty())
-                return -100;
-
+            const float* ptr = a.row(y);
             const float* ptr1 = b;
-            float* outptr = c;
+            float* outptr = c.row(y);
 
-            for (int y = 0; y < h1; y++)
+            for (int x = 0; x < w; x++)
             {
-                const float a0 = a[y];
-                for (int x = 0; x < w1; x++)
-                {
-                    outptr[x] = op(a0, ptr1[x]);
-                }
-
-                ptr1 += w1;
-                outptr += w1;
+                outptr[x] = op(ptr[x], ptr1[x]);
             }
-
-            return 0;
         }
+    }
 
-        if (b.dims == 1)
+    if (a.dims == 3 || a.dims == 4)
+    {
+        // type 15 16 17 18 19
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
         {
-            c.create(w, elemsize, opt.blob_allocator);
-            if (c.empty())
-                return -100;
+            const float* ptr = a.channel(q);
+            float* outptr = c.channel(q);
 
-            if (b.w == 1)
+            for (int z = 0; z < d; z++)
             {
-                // type 6
-                const float b0 = b[0];
-                for (int i = 0; i < w; i++)
+                int z1 = std::min(z, b.d - 1);
+                for (int y = 0; y < h; y++)
                 {
-                    c[i] = op(a[i], b0);
+                    int y1 = std::min(y, b.h - 1);
+
+                    const float* ptr1 = b.depth(z1).row(y1);
+                    for (int x = 0; x < w; x++)
+                    {
+                        outptr[x] = op(ptr[x], ptr1[x]);
+                    }
+
+                    ptr += w;
+                    outptr += w;
                 }
-
-                return 0;
             }
+        }
+    }
 
-            // type 7
-            for (int i = 0; i < w; i++)
+    return 0;
+}
+
+template<typename Op>
+static int binary_op_broadcast_20(const Mat& a, const Mat& b, Mat& c, const Option& opt)
+{
+    Op op;
+
+    int w = a.w;
+    int h = a.h;
+    int channels = a.c;
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int q = 0; q < channels; q++)
+    {
+        const float* ptr = a.channel(q);
+        const float* ptr1 = b.channel(q);
+        float* outptr = c.channel(q);
+
+        for (int y = 0; y < h; y++)
+        {
+            for (int x = 0; x < w; x++)
             {
-                c[i] = op(a[i], b[i]);
+                outptr[x] = op(ptr[x], ptr1[x]);
             }
+
+            ptr += w;
+            outptr += w;
         }
     }
 
@@ -826,11 +315,8 @@ static int binary_op_scalar_inplace(Mat& a, float b, const Option& opt)
 {
     Op op;
 
-    int w = a.w;
-    int h = a.h;
-    int d = a.d;
     int channels = a.c;
-    int size = w * h * d;
+    int size = a.w * a.h * a.d;
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
@@ -918,72 +404,228 @@ struct binary_op_rdiv
     }
 };
 
+struct binary_op_rpow
+{
+    float operator()(const float& x, const float& y) const
+    {
+        return (float)pow(y, x);
+    }
+};
+
+struct binary_op_atan2
+{
+    float operator()(const float& x, const float& y) const
+    {
+        return (float)atan2(x, y);
+    }
+};
+
+struct binary_op_ratan2
+{
+    float operator()(const float& x, const float& y) const
+    {
+        return (float)atan2(y, x);
+    }
+};
+
+static int binary_op_scalar(const Mat& a, float b, Mat& c, int op_type, const Option& opt)
+{
+    if (op_type == BinaryOp::Operation_ADD) return binary_op_scalar<binary_op_add>(a, b, c, opt);
+    if (op_type == BinaryOp::Operation_SUB) return binary_op_scalar<binary_op_sub>(a, b, c, opt);
+    if (op_type == BinaryOp::Operation_MUL) return binary_op_scalar<binary_op_mul>(a, b, c, opt);
+    if (op_type == BinaryOp::Operation_DIV) return binary_op_scalar<binary_op_div>(a, b, c, opt);
+    if (op_type == BinaryOp::Operation_MAX) return binary_op_scalar<binary_op_max>(a, b, c, opt);
+    if (op_type == BinaryOp::Operation_MIN) return binary_op_scalar<binary_op_min>(a, b, c, opt);
+    if (op_type == BinaryOp::Operation_POW) return binary_op_scalar<binary_op_pow>(a, b, c, opt);
+    if (op_type == BinaryOp::Operation_RSUB) return binary_op_scalar<binary_op_rsub>(a, b, c, opt);
+    if (op_type == BinaryOp::Operation_RDIV) return binary_op_scalar<binary_op_rdiv>(a, b, c, opt);
+    if (op_type == BinaryOp::Operation_RPOW) return binary_op_scalar<binary_op_rpow>(a, b, c, opt);
+    if (op_type == BinaryOp::Operation_ATAN2) return binary_op_scalar<binary_op_atan2>(a, b, c, opt);
+    if (op_type == BinaryOp::Operation_RATAN2) return binary_op_scalar<binary_op_ratan2>(a, b, c, opt);
+
+    // should never reach here
+    return 0;
+}
+
+static int binary_op_no_broadcast(const Mat& a, const Mat& b, Mat& c, int op_type, const Option& opt)
+{
+    if (op_type == BinaryOp::Operation_ADD) return binary_op_no_broadcast<binary_op_add>(a, b, c, opt);
+    if (op_type == BinaryOp::Operation_SUB) return binary_op_no_broadcast<binary_op_sub>(a, b, c, opt);
+    if (op_type == BinaryOp::Operation_MUL) return binary_op_no_broadcast<binary_op_mul>(a, b, c, opt);
+    if (op_type == BinaryOp::Operation_DIV) return binary_op_no_broadcast<binary_op_div>(a, b, c, opt);
+    if (op_type == BinaryOp::Operation_MAX) return binary_op_no_broadcast<binary_op_max>(a, b, c, opt);
+    if (op_type == BinaryOp::Operation_MIN) return binary_op_no_broadcast<binary_op_min>(a, b, c, opt);
+    if (op_type == BinaryOp::Operation_POW) return binary_op_no_broadcast<binary_op_pow>(a, b, c, opt);
+    if (op_type == BinaryOp::Operation_RSUB) return binary_op_no_broadcast<binary_op_sub>(b, a, c, opt);
+    if (op_type == BinaryOp::Operation_RDIV) return binary_op_no_broadcast<binary_op_div>(b, a, c, opt);
+    if (op_type == BinaryOp::Operation_RPOW) return binary_op_no_broadcast<binary_op_pow>(b, a, c, opt);
+    if (op_type == BinaryOp::Operation_ATAN2) return binary_op_no_broadcast<binary_op_atan2>(a, b, c, opt);
+    if (op_type == BinaryOp::Operation_RATAN2) return binary_op_no_broadcast<binary_op_atan2>(b, a, c, opt);
+
+    // should never reach here
+    return 0;
+}
+
+static int binary_op_broadcast_inner(const Mat& a, const Mat& b, Mat& c, int op_type, const Option& opt)
+{
+    // squeeze inner axes
+    Mat b2 = b;
+    if (b.dims == 2 && b.w == 1)
+        b2 = b.reshape(b.h);
+    else if (b.dims == 3 && b.h == 1)
+        b2 = b.reshape(b.c);
+    else if (b.dims == 3 && b.w == 1)
+        b2 = b.reshape(b.h, b.c);
+    else if (b.dims == 4 && b.d == 1)
+        b2 = b.reshape(b.c);
+    else if (b.dims == 4 && b.h == 1)
+        b2 = b.reshape(b.d, b.c);
+    else if (b.dims == 4 && b.w == 1)
+        b2 = b.reshape(b.h, b.d, b.c);
+
+    if (op_type == BinaryOp::Operation_ADD) return binary_op_broadcast_inner<binary_op_add>(a, b2, c, opt);
+    if (op_type == BinaryOp::Operation_SUB) return binary_op_broadcast_inner<binary_op_sub>(a, b2, c, opt);
+    if (op_type == BinaryOp::Operation_MUL) return binary_op_broadcast_inner<binary_op_mul>(a, b2, c, opt);
+    if (op_type == BinaryOp::Operation_DIV) return binary_op_broadcast_inner<binary_op_div>(a, b2, c, opt);
+    if (op_type == BinaryOp::Operation_MAX) return binary_op_broadcast_inner<binary_op_max>(a, b2, c, opt);
+    if (op_type == BinaryOp::Operation_MIN) return binary_op_broadcast_inner<binary_op_min>(a, b2, c, opt);
+    if (op_type == BinaryOp::Operation_POW) return binary_op_broadcast_inner<binary_op_pow>(a, b2, c, opt);
+    if (op_type == BinaryOp::Operation_RSUB) return binary_op_broadcast_inner<binary_op_rsub>(a, b2, c, opt);
+    if (op_type == BinaryOp::Operation_RDIV) return binary_op_broadcast_inner<binary_op_rdiv>(a, b2, c, opt);
+    if (op_type == BinaryOp::Operation_RPOW) return binary_op_broadcast_inner<binary_op_rpow>(a, b2, c, opt);
+    if (op_type == BinaryOp::Operation_ATAN2) return binary_op_broadcast_inner<binary_op_atan2>(a, b2, c, opt);
+    if (op_type == BinaryOp::Operation_RATAN2) return binary_op_broadcast_inner<binary_op_ratan2>(a, b2, c, opt);
+
+    // should never reach here
+    return 0;
+}
+
+static int binary_op_broadcast_outer(const Mat& a, const Mat& b, Mat& c, int op_type, const Option& opt)
+{
+    if (op_type == BinaryOp::Operation_ADD) return binary_op_broadcast_outer<binary_op_add>(a, b, c, opt);
+    if (op_type == BinaryOp::Operation_SUB) return binary_op_broadcast_outer<binary_op_sub>(a, b, c, opt);
+    if (op_type == BinaryOp::Operation_MUL) return binary_op_broadcast_outer<binary_op_mul>(a, b, c, opt);
+    if (op_type == BinaryOp::Operation_DIV) return binary_op_broadcast_outer<binary_op_div>(a, b, c, opt);
+    if (op_type == BinaryOp::Operation_MAX) return binary_op_broadcast_outer<binary_op_max>(a, b, c, opt);
+    if (op_type == BinaryOp::Operation_MIN) return binary_op_broadcast_outer<binary_op_min>(a, b, c, opt);
+    if (op_type == BinaryOp::Operation_POW) return binary_op_broadcast_outer<binary_op_pow>(a, b, c, opt);
+    if (op_type == BinaryOp::Operation_RSUB) return binary_op_broadcast_outer<binary_op_rsub>(a, b, c, opt);
+    if (op_type == BinaryOp::Operation_RDIV) return binary_op_broadcast_outer<binary_op_rdiv>(a, b, c, opt);
+    if (op_type == BinaryOp::Operation_RPOW) return binary_op_broadcast_outer<binary_op_rpow>(a, b, c, opt);
+    if (op_type == BinaryOp::Operation_ATAN2) return binary_op_broadcast_outer<binary_op_atan2>(a, b, c, opt);
+    if (op_type == BinaryOp::Operation_RATAN2) return binary_op_broadcast_outer<binary_op_ratan2>(a, b, c, opt);
+
+    // should never reach here
+    return 0;
+}
+
+static int binary_op_broadcast_20(const Mat& a, const Mat& b, Mat& c, int op_type, const Option& opt)
+{
+    if (op_type == BinaryOp::Operation_ADD) return binary_op_broadcast_20<binary_op_add>(a, b, c, opt);
+    if (op_type == BinaryOp::Operation_SUB) return binary_op_broadcast_20<binary_op_sub>(a, b, c, opt);
+    if (op_type == BinaryOp::Operation_MUL) return binary_op_broadcast_20<binary_op_mul>(a, b, c, opt);
+    if (op_type == BinaryOp::Operation_DIV) return binary_op_broadcast_20<binary_op_div>(a, b, c, opt);
+    if (op_type == BinaryOp::Operation_MAX) return binary_op_broadcast_20<binary_op_max>(a, b, c, opt);
+    if (op_type == BinaryOp::Operation_MIN) return binary_op_broadcast_20<binary_op_min>(a, b, c, opt);
+    if (op_type == BinaryOp::Operation_POW) return binary_op_broadcast_20<binary_op_pow>(a, b, c, opt);
+    if (op_type == BinaryOp::Operation_RSUB) return binary_op_broadcast_20<binary_op_rsub>(a, b, c, opt);
+    if (op_type == BinaryOp::Operation_RDIV) return binary_op_broadcast_20<binary_op_rdiv>(a, b, c, opt);
+    if (op_type == BinaryOp::Operation_RPOW) return binary_op_broadcast_20<binary_op_rpow>(a, b, c, opt);
+    if (op_type == BinaryOp::Operation_ATAN2) return binary_op_broadcast_20<binary_op_atan2>(a, b, c, opt);
+    if (op_type == BinaryOp::Operation_RATAN2) return binary_op_broadcast_20<binary_op_ratan2>(a, b, c, opt);
+
+    // should never reach here
+    return 0;
+}
+
+static int get_reverse_op_type(int op_type)
+{
+    if (op_type == BinaryOp::Operation_SUB) return BinaryOp::Operation_RSUB;
+    if (op_type == BinaryOp::Operation_DIV) return BinaryOp::Operation_RDIV;
+    if (op_type == BinaryOp::Operation_POW) return BinaryOp::Operation_RPOW;
+    if (op_type == BinaryOp::Operation_ATAN2) return BinaryOp::Operation_RATAN2;
+    if (op_type == BinaryOp::Operation_RSUB) return BinaryOp::Operation_SUB;
+    if (op_type == BinaryOp::Operation_RDIV) return BinaryOp::Operation_DIV;
+    if (op_type == BinaryOp::Operation_RPOW) return BinaryOp::Operation_POW;
+    if (op_type == BinaryOp::Operation_RATAN2) return BinaryOp::Operation_ATAN2;
+    return op_type;
+}
+
 int BinaryOp::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
-    const Mat& bottom_blob = bottom_blobs[0];
-    const Mat& bottom_blob1 = bottom_blobs[1];
+    const bool b_is_scalar = bottom_blobs[1].w * bottom_blobs[1].h * bottom_blobs[1].d * bottom_blobs[1].c * bottom_blobs[1].elempack == 1;
+    const bool a_rank_is_lower = bottom_blobs[0].dims < bottom_blobs[1].dims && !b_is_scalar;
+    const bool a_size_is_lower = bottom_blobs[0].w * bottom_blobs[0].h * bottom_blobs[0].d * bottom_blobs[0].c < bottom_blobs[1].w * bottom_blobs[1].h * bottom_blobs[1].d * bottom_blobs[1].c;
+    const bool a_is_lower = a_rank_is_lower || (!a_rank_is_lower && a_size_is_lower);
+    const Mat& A = a_is_lower ? bottom_blobs[1] : bottom_blobs[0];
+    const Mat& B = a_is_lower ? bottom_blobs[0] : bottom_blobs[1];
+    const int op_type_r = a_is_lower ? get_reverse_op_type(op_type) : op_type;
 
     Mat& top_blob = top_blobs[0];
+    top_blob.create_like(A, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
 
-    if (op_type == Operation_ADD)
-        return binary_op<binary_op_add>(bottom_blob, bottom_blob1, top_blob, opt);
+    // B is a scalar
+    if (B.w * B.h * B.d * B.c == 1)
+    {
+        return binary_op_scalar(A, B[0], top_blob, op_type_r, opt);
+    }
 
-    if (op_type == Operation_SUB)
-        return binary_op<binary_op_sub>(bottom_blob, bottom_blob1, top_blob, opt);
+    // no broadcast
+    if (A.dims == B.dims && A.w == B.w && A.h == B.h && A.d == B.d && A.c == B.c)
+    {
+        return binary_op_no_broadcast(A, B, top_blob, op_type_r, opt);
+    }
 
-    if (op_type == Operation_MUL)
-        return binary_op<binary_op_mul>(bottom_blob, bottom_blob1, top_blob, opt);
+    // broadcast B for inner axis
+    if ((B.dims < A.dims)
+            || (A.dims == 2 && B.w == 1 && B.h == A.h)
+            || (A.dims == 3 && B.w == 1 && B.h == 1 && B.c == A.c)
+            || (A.dims == 3 && B.w == 1 && B.h == A.h && B.c == A.c)
+            || (A.dims == 4 && B.w == 1 && B.h == 1 && B.d == 1 && B.c == A.c)
+            || (A.dims == 4 && B.w == 1 && B.h == 1 && B.d == A.d && B.c == A.c)
+            || (A.dims == 4 && B.w == 1 && B.h == A.h && B.d == A.d && B.c == A.c))
+    {
+        return binary_op_broadcast_inner(A, B, top_blob, op_type_r, opt);
+    }
 
-    if (op_type == Operation_DIV)
-        return binary_op<binary_op_div>(bottom_blob, bottom_blob1, top_blob, opt);
+    // broadcast B for outer axis
+    if ((A.dims == 2 && B.w == A.w && B.h == 1)
+            || (A.dims == 3 && B.w == A.w && B.h == 1 && B.c == 1)
+            || (A.dims == 3 && B.w == A.w && B.h == A.h && B.c == 1)
+            || (A.dims == 4 && B.w == A.w && B.h == 1 && B.d == 1 && B.c == 1)
+            || (A.dims == 4 && B.w == A.w && B.h == A.h && B.d == 1 && B.c == 1)
+            || (A.dims == 4 && B.w == A.w && B.h == A.h && B.d == A.d && B.c == 1))
+    {
+        return binary_op_broadcast_outer(A, B, top_blob, op_type_r, opt);
+    }
 
-    if (op_type == Operation_MAX)
-        return binary_op<binary_op_max>(bottom_blob, bottom_blob1, top_blob, opt);
-
-    if (op_type == Operation_MIN)
-        return binary_op<binary_op_min>(bottom_blob, bottom_blob1, top_blob, opt);
-
-    if (op_type == Operation_POW)
-        return binary_op<binary_op_pow>(bottom_blob, bottom_blob1, top_blob, opt);
-
-    if (op_type == Operation_RSUB)
-        return binary_op<binary_op_sub>(bottom_blob1, bottom_blob, top_blob, opt);
-
-    if (op_type == Operation_RDIV)
-        return binary_op<binary_op_div>(bottom_blob1, bottom_blob, top_blob, opt);
+    // some special broadcast rule here
+    if (A.dims == 3 && B.dims == 3 && A.w == B.w && B.h == 1 && A.c == B.c)
+    {
+        return binary_op_broadcast_20(A, B, top_blob, op_type_r, opt);
+    }
 
     return 0;
 }
 
 int BinaryOp::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
-    if (op_type == Operation_ADD)
-        return binary_op_scalar_inplace<binary_op_add>(bottom_top_blob, b, opt);
+    if (op_type == Operation_ADD) return binary_op_scalar_inplace<binary_op_add>(bottom_top_blob, b, opt);
+    if (op_type == Operation_SUB) return binary_op_scalar_inplace<binary_op_sub>(bottom_top_blob, b, opt);
+    if (op_type == Operation_MUL) return binary_op_scalar_inplace<binary_op_mul>(bottom_top_blob, b, opt);
+    if (op_type == Operation_DIV) return binary_op_scalar_inplace<binary_op_div>(bottom_top_blob, b, opt);
+    if (op_type == Operation_MAX) return binary_op_scalar_inplace<binary_op_max>(bottom_top_blob, b, opt);
+    if (op_type == Operation_MIN) return binary_op_scalar_inplace<binary_op_min>(bottom_top_blob, b, opt);
+    if (op_type == Operation_POW) return binary_op_scalar_inplace<binary_op_pow>(bottom_top_blob, b, opt);
+    if (op_type == Operation_RSUB) return binary_op_scalar_inplace<binary_op_rsub>(bottom_top_blob, b, opt);
+    if (op_type == Operation_RDIV) return binary_op_scalar_inplace<binary_op_rdiv>(bottom_top_blob, b, opt);
+    if (op_type == Operation_RPOW) return binary_op_scalar_inplace<binary_op_rpow>(bottom_top_blob, b, opt);
+    if (op_type == Operation_ATAN2) return binary_op_scalar_inplace<binary_op_atan2>(bottom_top_blob, b, opt);
+    if (op_type == Operation_RATAN2) return binary_op_scalar_inplace<binary_op_ratan2>(bottom_top_blob, b, opt);
 
-    if (op_type == Operation_SUB)
-        return binary_op_scalar_inplace<binary_op_sub>(bottom_top_blob, b, opt);
-
-    if (op_type == Operation_MUL)
-        return binary_op_scalar_inplace<binary_op_mul>(bottom_top_blob, b, opt);
-
-    if (op_type == Operation_DIV)
-        return binary_op_scalar_inplace<binary_op_div>(bottom_top_blob, b, opt);
-
-    if (op_type == Operation_MAX)
-        return binary_op_scalar_inplace<binary_op_max>(bottom_top_blob, b, opt);
-
-    if (op_type == Operation_MIN)
-        return binary_op_scalar_inplace<binary_op_min>(bottom_top_blob, b, opt);
-
-    if (op_type == Operation_POW)
-        return binary_op_scalar_inplace<binary_op_pow>(bottom_top_blob, b, opt);
-
-    if (op_type == Operation_RSUB)
-        return binary_op_scalar_inplace<binary_op_rsub>(bottom_top_blob, b, opt);
-
-    if (op_type == Operation_RDIV)
-        return binary_op_scalar_inplace<binary_op_rdiv>(bottom_top_blob, b, opt);
-
+    // should nerver reach here
     return 0;
 }
 

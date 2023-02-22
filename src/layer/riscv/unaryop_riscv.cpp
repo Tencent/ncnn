@@ -173,7 +173,7 @@ struct unary_op_tan
         // TODO rvv optimize
         std::vector<float> tmp(vl);
         vse32_v_f32m8(tmp.data(), x, vl);
-        for (int i = 0; i < vl; i++)
+        for (size_t i = 0; i < vl; i++)
         {
             tmp[i] = tan(tmp[i]);
         }
@@ -188,7 +188,7 @@ struct unary_op_asin
         // TODO rvv optimize
         std::vector<float> tmp(vl);
         vse32_v_f32m8(tmp.data(), x, vl);
-        for (int i = 0; i < vl; i++)
+        for (size_t i = 0; i < vl; i++)
         {
             tmp[i] = asin(tmp[i]);
         }
@@ -203,7 +203,7 @@ struct unary_op_acos
         // TODO rvv optimize
         std::vector<float> tmp(vl);
         vse32_v_f32m8(tmp.data(), x, vl);
-        for (int i = 0; i < vl; i++)
+        for (size_t i = 0; i < vl; i++)
         {
             tmp[i] = acos(tmp[i]);
         }
@@ -218,7 +218,7 @@ struct unary_op_atan
         // TODO rvv optimize
         std::vector<float> tmp(vl);
         vse32_v_f32m8(tmp.data(), x, vl);
-        for (int i = 0; i < vl; i++)
+        for (size_t i = 0; i < vl; i++)
         {
             tmp[i] = atan(tmp[i]);
         }
@@ -242,6 +242,14 @@ struct unary_op_tanh
     vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
     {
         return tanh_ps(x, vl);
+    }
+};
+
+struct unary_op_log10
+{
+    vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
+    {
+        return vfmul_vf_f32m8(log_ps(x, vl), 0.434294481903, vl);
     }
 };
 
@@ -310,6 +318,9 @@ int UnaryOp_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 
     if (op_type == Operation_TANH)
         return unary_op_inplace<unary_op_tanh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_LOG10)
+        return unary_op_inplace<unary_op_log10>(bottom_top_blob, opt);
 
     return 0;
 #else  // __riscv_vector
@@ -456,7 +467,7 @@ struct unary_op_tan_fp16s
         // TODO rvv optimize
         std::vector<__fp16> tmp(vl);
         vse16_v_f16m8(tmp.data(), x, vl);
-        for (int i = 0; i < vl; i++)
+        for (size_t i = 0; i < vl; i++)
         {
             tmp[i] = tan((float)tmp[i]);
         }
@@ -471,7 +482,7 @@ struct unary_op_asin_fp16s
         // TODO rvv optimize
         std::vector<__fp16> tmp(vl);
         vse16_v_f16m8(tmp.data(), x, vl);
-        for (int i = 0; i < vl; i++)
+        for (size_t i = 0; i < vl; i++)
         {
             tmp[i] = asin((float)tmp[i]);
         }
@@ -486,7 +497,7 @@ struct unary_op_acos_fp16s
         // TODO rvv optimize
         std::vector<__fp16> tmp(vl);
         vse16_v_f16m8(tmp.data(), x, vl);
-        for (int i = 0; i < vl; i++)
+        for (size_t i = 0; i < vl; i++)
         {
             tmp[i] = acos((float)tmp[i]);
         }
@@ -501,7 +512,7 @@ struct unary_op_atan_fp16s
         // TODO rvv optimize
         std::vector<__fp16> tmp(vl);
         vse16_v_f16m8(tmp.data(), x, vl);
-        for (int i = 0; i < vl; i++)
+        for (size_t i = 0; i < vl; i++)
         {
             tmp[i] = atan((float)tmp[i]);
         }
@@ -525,6 +536,14 @@ struct unary_op_tanh_fp16s
     vfloat16m8_t operator()(const vfloat16m8_t& x, const size_t& vl) const
     {
         return tanh_ps(x, vl);
+    }
+};
+
+struct unary_op_log10_fp16s
+{
+    vfloat16m8_t operator()(const vfloat16m8_t& x, const size_t& vl) const
+    {
+        return vfmul_vf_f16m8(log_ps(x, vl), 0.434294481903, vl);
     }
 };
 
@@ -584,6 +603,9 @@ int UnaryOp_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt
 
     if (op_type == Operation_TANH)
         return unary_op_inplace_fp16s<unary_op_tanh_fp16s>(bottom_top_blob, opt);
+
+    if (op_type == Operation_LOG10)
+        return unary_op_inplace_fp16s<unary_op_log10_fp16s>(bottom_top_blob, opt);
 
     return 0;
 }
