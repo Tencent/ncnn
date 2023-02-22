@@ -1414,10 +1414,7 @@ static int get_data_cache_size(int cpuid, int level)
         sprintf(path, "/sys/devices/system/cpu/cpu%d/cache/index%d/size", cpuid, indexid);
         FILE* fp = fopen(path, "rb");
         if (!fp)
-        {
-            NCNN_LOGE("fopen %s failed", path);
             return 0;
-        }
 
         int nscan = fscanf(fp, "%dK", &cache_size_K);
         if (nscan != 1)
@@ -1434,10 +1431,7 @@ static int get_data_cache_size(int cpuid, int level)
         sprintf(path, "/sys/devices/system/cpu/cpu%d/cache/index%d/shared_cpu_map", cpuid, indexid);
         FILE* fp = fopen(path, "rb");
         if (!fp)
-        {
-            NCNN_LOGE("fopen %s failed", path);
             return 0;
-        }
 
         char shared_cpu_map_str[256];
         int nscan = fscanf(fp, "%255s", shared_cpu_map_str);
