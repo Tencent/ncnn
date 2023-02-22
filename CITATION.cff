@@ -5,12 +5,13 @@ message: >-
   metadata from this file.
 type: software
 authors:
-  - affiliation: qq group 677104663
-    given-names: nihui
-    family-names: contirbutors
+  - family-names: "Ni"
+    given-names: "Hui"
+  - name: "The ncnn contirbutors"
 abstract: >-
   ncnn is a high-performance neural network inference
   computing framework optimized for mobile platforms. 
+date-released: 2017-06-30
 keywords:
   - neural-network
   - high performance
@@ -23,3 +24,4 @@ keywords:
   - riscv
   - arm-neon
 license: BSD-3-Clause
+repository-code: "https://github.com/Tencent/ncnn"
