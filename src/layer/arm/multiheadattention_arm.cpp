@@ -85,7 +85,7 @@ int MultiHeadAttention_arm::create_pipeline(const Option& opt)
     }
 
 #if NCNN_ARM82
-    if (support_fp16_storage && optn.use_fp16_packed)
+    if (support_fp16_storage && optn.use_fp16_storage)
     {
         Option optopt = optn;
 
@@ -458,7 +458,7 @@ int MultiHeadAttention_arm::destroy_pipeline(const Option& opt)
     }
 
 #if NCNN_ARM82
-    if (support_fp16_storage && optn.use_fp16_packed)
+    if (support_fp16_storage && optn.use_fp16_storage)
     {
         Option optopt = optn;
 
@@ -583,6 +583,7 @@ int MultiHeadAttention_arm::forward(const std::vector<Mat>& bottom_blobs, std::v
 #if NCNN_ARM82
     if (support_fp16_storage && optn.use_fp16_storage && elembits == 16)
     {
+        // TODO implement true fp16s with gemm output_elemtype fp32
         Mat q_affine;
         q_gemm->forward(q_blob, q_affine, optn);
 

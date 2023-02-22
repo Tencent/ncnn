@@ -41,7 +41,9 @@ static int test_multiheadattention(const ncnn::Mat& q, const ncnn::Mat& k, const
     as[1] = k;
     as[2] = v;
 
-    int ret = test_layer<ncnn::MultiHeadAttention>("MultiHeadAttention", pd, weights, as);
+    float epsilon = 0.005;
+
+    int ret = test_layer<ncnn::MultiHeadAttention>("MultiHeadAttention", pd, weights, as, 1, epsilon);
     if (ret != 0)
     {
         fprintf(stderr, "test_multiheadattention failed q=(%d %d) k=(%d %d) v=(%d %d)\n", q.w, q.h, k.w, k.h, v.w, v.h);
@@ -75,10 +77,12 @@ static int test_multiheadattention_samekv(const ncnn::Mat& q, const ncnn::Mat& k
     as[0] = q;
     as[1] = kv;
 
-    int ret = test_layer<ncnn::MultiHeadAttention>("MultiHeadAttention", pd, weights, as);
+    float epsilon = 0.005;
+
+    int ret = test_layer<ncnn::MultiHeadAttention>("MultiHeadAttention", pd, weights, as, 1, epsilon);
     if (ret != 0)
     {
-        fprintf(stderr, "test_multiheadattention failed q=(%d %d) kv=(%d %d)\n", q.w, q.h, kv.w, kv.h);
+        fprintf(stderr, "test_multiheadattention_samekv failed q=(%d %d) kv=(%d %d)\n", q.w, q.h, kv.w, kv.h);
     }
 
     return ret;
@@ -106,10 +110,12 @@ static int test_multiheadattention_sameqkv(const ncnn::Mat& a, int num_heads)
     std::vector<ncnn::Mat> as(1);
     as[0] = a;
 
-    int ret = test_layer<ncnn::MultiHeadAttention>("MultiHeadAttention", pd, weights, as);
+    float epsilon = 0.005;
+
+    int ret = test_layer<ncnn::MultiHeadAttention>("MultiHeadAttention", pd, weights, as, 1, epsilon);
     if (ret != 0)
     {
-        fprintf(stderr, "test_multiheadattention failed a=(%d %d)\n", a.w, a.h);
+        fprintf(stderr, "test_multiheadattention_sameqkv failed a=(%d %d)\n", a.w, a.h);
     }
 
     return ret;

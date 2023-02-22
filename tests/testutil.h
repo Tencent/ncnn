@@ -1392,12 +1392,6 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
             a_fp16 = a;
         }
 
-        // precision whitelist
-        if (strcmp(layer_type, "MultiHeadAttention") == 0)
-        {
-            epsilon = epsilon * 5;
-        }
-
         std::vector<ncnn::Mat> weights_fp16;
         float epsilon_fp16;
         if (opt.use_bf16_storage)
@@ -1536,12 +1530,6 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
         else
         {
             a_fp16 = a;
-        }
-
-        // precision whitelist
-        if (strcmp(layer_type, "MultiHeadAttention") == 0)
-        {
-            epsilon = epsilon * 5;
         }
 
         std::vector<ncnn::Mat> weights_fp16;
