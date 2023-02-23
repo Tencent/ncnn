@@ -62,28 +62,29 @@ pnnx.Output             output      1 0 out
         // [-1,int(size(@0,1)),3,8,15]   (-1,12,3,8,15)
         // mul(@0,2.581989e-01)
         // [-1,int(size(@0,1)),120]
-        const std::string& expr = captured_params.at("expr").s;
-        const std::string& expr2 = captured_params.at("expr2").s;
-        const std::string& expr3 = captured_params.at("expr3").s;
+        // const std::string& expr = captured_params.at("expr").s;
+        // const std::string& expr2 = captured_params.at("expr2").s;
+        // const std::string& expr3 = captured_params.at("expr3").s;
 
         // TODO stricter rules here
+
+        if (captured_params.at("expr").type != 4 && captured_params.at("expr").type != 5)
+            return false;
 
         return true;
     }
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
     {
-        const std::string& expr = captured_params.at("expr").s;
-        const std::string& expr2 = captured_params.at("expr2").s;
-
-        int num_heads;
-        if (expr[0] == '[')
+        int num_heads = 0;
+        if (captured_params.at("expr").type == 4)
         {
+            const std::string& expr = captured_params.at("expr").s;
             sscanf(expr.c_str(), "[-1,int(size(@0,1)),3,%d,%*d,%*d))]", &num_heads);
         }
-        else
+        else // if (captured_params.at("expr").type == 5)
         {
-            sscanf(expr.c_str(), "(-1,%*d,3,%d,%*d)", &num_heads);
+            num_heads = captured_params.at("expr").ai[3];
         }
 
         op->params["num_heads"] = num_heads;
