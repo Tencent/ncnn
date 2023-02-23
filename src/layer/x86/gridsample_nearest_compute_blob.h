@@ -687,9 +687,7 @@ static void gridsample_nearest_apply_interpolation_p8(const Mat& src, Mat& dst, 
             _mm256_storeu_ps(dstptr, _v);
 
             offset_ptr++;
-
             in_bound_ptr++;
-
             dstptr += 8;
         }
     }
@@ -720,9 +718,7 @@ static void gridsample_nearest_apply_interpolation_p4(const Mat& src, Mat& dst, 
             _mm_storeu_ps(dstptr, _v);
 
             offset_ptr++;
-
             in_bound_ptr++;
-
             dstptr += 4;
         }
     }
@@ -730,3 +726,59 @@ static void gridsample_nearest_apply_interpolation_p4(const Mat& src, Mat& dst, 
 
 
 #endif // __SSE2__
+
+static void gridsample_nearest_apply_interpolation_p1(const Mat& src, Mat& dst, const Mat& offset, const Mat& in_bound, const Option& opt)
+{
+    const int channels = dst.c;
+    const int outw = dst.w;
+    const int outh = dst.h;
+    const int outd = dst.d;
+    const int grid_size = outw * outh * outd;
+
+#pragma omp parallel for num_threads(opt.num_threads)
+    for (int q = 0; q < channels; q++)
+    {
+        const float* srcptr = src.channel(q);
+        float* dstptr = dst.channel(q);
+
+        const int* offset_ptr = offset.channel(0);
+
+        const float* in_bound_ptr = in_bound.channel(0);
+
+        int nn = grid_size;
+#if __SSE2__
+#if __AVX__
+        for (int i = 0; i + 7 < grid_size; i += 8)
+        {
+            __m256 _v = mask_gather_ps256(srcptr, _mm256_loadu_epi32(offset_ptr), _mm256_loadu_ps(in_bound_ptr));
+
+            _mm256_storeu_ps(dstptr, _v);
+
+            offset_ptr += 8;
+            in_bound_ptr += 8;
+            dstptr += 8;
+        }
+        nn = grid_size & 7;
+#endif // __AVX__
+        for (int i = grid_size - nn; i + 3 < grid_size; i += 4)
+        {
+            __m128 _v = mask_gather_ps(srcptr, _mm_loadu_epi32(offset_ptr), _mm_loadu_ps(in_bound_ptr));
+
+            _mm_storeu_ps(dstptr, _v);
+
+            offset_ptr += 4;
+            in_bound_ptr += 4;
+            dstptr += 4;
+        }
+        nn = grid_size & 3;
+#endif // __SSE2__
+        for (int i = grid_size - nn; i < grid_size; i ++)
+        {
+            *dstptr = *in_bound_ptr < 0 ? *(srcptr + *offset_ptr) : 0;
+
+            in_bound_ptr++;
+            offset_ptr++;
+            dstptr++;
+        }
+    }
+}

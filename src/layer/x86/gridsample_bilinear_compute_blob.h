@@ -2224,3 +2224,382 @@ static void gridsample_3d_bilinear_apply_interpolation_p4(const Mat& src, Mat& d
     }
 }
 #endif // __SSE2__
+
+static void gridsample_2d_bilinear_apply_interpolation_p1(const Mat& src, Mat& dst, const Mat& offset, const Mat& in_bound, const Mat& value, const Option& opt)
+{
+    const int channels = dst.c;
+    const int outw = dst.w;
+    const int outh = dst.h;
+    const int grid_size = outw * outh;
+
+#pragma omp parallel for num_threads(opt.num_threads)
+    for (int q = 0; q < channels; q++)
+    {
+        const float* srcptr = src.channel(q);
+        float* dstptr = dst.channel(q);
+
+        const int* offset_ptr_00 = offset.channel(0);
+        const int* offset_ptr_01 = offset.channel(1);
+        const int* offset_ptr_10 = offset.channel(2);
+        const int* offset_ptr_11 = offset.channel(3);
+
+        const float* in_bound_ptr_00 = in_bound.channel(0);
+        const float* in_bound_ptr_01 = in_bound.channel(1);
+        const float* in_bound_ptr_10 = in_bound.channel(2);
+        const float* in_bound_ptr_11 = in_bound.channel(3);
+
+        const float* value_ptr_alpha = value.channel(0);
+        const float* value_ptr_beta = value.channel(1);
+
+        int nn = grid_size;
+#if __SSE2__
+#if __AVX__     
+
+        for (int i = 0; i + 7 < grid_size; i += 8)
+        {
+            __m256i v00_offset = _mm256_loadu_epi32(offset_ptr_00);
+            __m256i v01_offset = _mm256_loadu_epi32(offset_ptr_01);
+            __m256i v10_offset = _mm256_loadu_epi32(offset_ptr_10);
+            __m256i v11_offset = _mm256_loadu_epi32(offset_ptr_11);
+
+            __m256 v00_in_range = _mm256_loadu_ps(in_bound_ptr_00);
+            __m256 v01_in_range = _mm256_loadu_ps(in_bound_ptr_01);
+            __m256 v10_in_range = _mm256_loadu_ps(in_bound_ptr_10);
+            __m256 v11_in_range = _mm256_loadu_ps(in_bound_ptr_11);
+
+            __m256 v00_val = mask_gather_ps256(srcptr, v00_offset, v00_in_range);
+            __m256 v01_val = mask_gather_ps256(srcptr, v01_offset, v01_in_range);
+            __m256 v10_val = mask_gather_ps256(srcptr, v10_offset, v10_in_range);
+            __m256 v11_val = mask_gather_ps256(srcptr, v11_offset, v11_in_range);
+
+            __m256 alpha = _mm256_loadu_ps(value_ptr_alpha);
+            __m256 beta = _mm256_loadu_ps(value_ptr_beta);
+
+            __m256 v0 = _mm256_comp_fmadd_ps(v01_val, alpha, _mm256_comp_fnmadd_ps(v00_val, alpha, v00_val));
+            __m256 v1 = _mm256_comp_fmadd_ps(v11_val, alpha, _mm256_comp_fnmadd_ps(v10_val, alpha, v10_val));
+
+            __m256 _v = _mm256_comp_fmadd_ps(v1, beta, _mm256_comp_fnmadd_ps(v0, beta, v0));
+            _mm256_storeu_ps(dstptr, _v);
+
+            offset_ptr_00 += 8;
+            offset_ptr_01 += 8;
+            offset_ptr_10 += 8;
+            offset_ptr_11 += 8;
+
+            in_bound_ptr_00 += 8;
+            in_bound_ptr_01 += 8;
+            in_bound_ptr_10 += 8;
+            in_bound_ptr_11 += 8;
+
+            value_ptr_alpha += 8;
+            value_ptr_beta += 8;
+
+            dstptr += 8;
+        }
+        nn = grid_size & 7;
+#endif // __AVX__    
+        for (int i = grid_size - nn; i + 3 < grid_size; i += 4)
+        {
+            __m128i v00_offset = _mm_loadu_epi32(offset_ptr_00);
+            __m128i v01_offset = _mm_loadu_epi32(offset_ptr_01);
+            __m128i v10_offset = _mm_loadu_epi32(offset_ptr_10);
+            __m128i v11_offset = _mm_loadu_epi32(offset_ptr_11);
+
+            __m128 v00_in_range = _mm_loadu_ps(in_bound_ptr_00);
+            __m128 v01_in_range = _mm_loadu_ps(in_bound_ptr_01);
+            __m128 v10_in_range = _mm_loadu_ps(in_bound_ptr_10);
+            __m128 v11_in_range = _mm_loadu_ps(in_bound_ptr_11);
+
+            __m128 v00_val = mask_gather_ps(srcptr, v00_offset, v00_in_range);
+            __m128 v01_val = mask_gather_ps(srcptr, v01_offset, v01_in_range);
+            __m128 v10_val = mask_gather_ps(srcptr, v10_offset, v10_in_range);
+            __m128 v11_val = mask_gather_ps(srcptr, v11_offset, v11_in_range);
+
+            __m128 alpha = _mm_loadu_ps(value_ptr_alpha);
+            __m128 beta = _mm_loadu_ps(value_ptr_beta);
+
+            __m128 v0 = _mm_comp_fmadd_ps(v01_val, alpha, _mm_comp_fnmadd_ps(v00_val, alpha, v00_val));
+            __m128 v1 = _mm_comp_fmadd_ps(v11_val, alpha, _mm_comp_fnmadd_ps(v10_val, alpha, v10_val));
+
+            __m128 _v = _mm_comp_fmadd_ps(v1, beta, _mm_comp_fnmadd_ps(v0, beta, v0));
+            _mm_storeu_ps(dstptr, _v);
+
+            offset_ptr_00 += 4;
+            offset_ptr_01 += 4;
+            offset_ptr_10 += 4;
+            offset_ptr_11 += 4;
+
+            in_bound_ptr_00 += 4;
+            in_bound_ptr_01 += 4;
+            in_bound_ptr_10 += 4;
+            in_bound_ptr_11 += 4;
+
+            value_ptr_alpha += 4;
+            value_ptr_beta += 4;
+
+            dstptr += 4;
+        }
+        nn = grid_size & 3;
+#endif // __SSE2__        
+        for (int i = grid_size - nn; i < grid_size; i++)
+        {
+            float v00 = *in_bound_ptr_00 < 0 ? *(srcptr + *offset_ptr_00) : 0;
+            float v01 = *in_bound_ptr_01 < 0 ? *(srcptr + *offset_ptr_01) : 0;
+            float v10 = *in_bound_ptr_10 < 0 ? *(srcptr + *offset_ptr_10) : 0;
+            float v11 = *in_bound_ptr_11 < 0 ? *(srcptr + *offset_ptr_11) : 0;
+
+            float v0 = v00 * (1 - *value_ptr_alpha) + v01 * *value_ptr_alpha;
+            float v1 = v10 * (1 - *value_ptr_alpha) + v11 * *value_ptr_alpha;
+
+            *dstptr = v0 * (1 - *value_ptr_beta) + v1 * *value_ptr_beta;
+
+            in_bound_ptr_00++;
+            in_bound_ptr_01++;
+            in_bound_ptr_10++;
+            in_bound_ptr_11++;
+
+            offset_ptr_00++;
+            offset_ptr_01++;
+            offset_ptr_10++;
+            offset_ptr_11++;
+
+            value_ptr_alpha++;
+            value_ptr_beta++;
+            dstptr++;
+        }
+    }
+}
+static void gridsample_3d_bilinear_apply_interpolation_p1(const Mat& src, Mat& dst, const Mat& offset, const Mat& in_bound, const Mat& value, const Option& opt)
+{
+    const int channels = dst.c;
+    const int outw = dst.w;
+    const int outh = dst.h;
+    const int outd = dst.d;
+    const int grid_size = outw * outh * outd;
+
+#pragma omp parallel for num_threads(opt.num_threads)
+    for (int q = 0; q < channels; q++)
+    {
+        const float* srcptr = src.channel(q);
+        float* dstptr = dst.channel(q);
+
+        const int* offset_ptr_000 = offset.channel(0);
+        const int* offset_ptr_001 = offset.channel(1);
+        const int* offset_ptr_010 = offset.channel(2);
+        const int* offset_ptr_011 = offset.channel(3);
+        const int* offset_ptr_100 = offset.channel(4);
+        const int* offset_ptr_101 = offset.channel(5);
+        const int* offset_ptr_110 = offset.channel(6);
+        const int* offset_ptr_111 = offset.channel(7);
+
+        const float* in_bound_ptr_000 = in_bound.channel(0);
+        const float* in_bound_ptr_001 = in_bound.channel(1);
+        const float* in_bound_ptr_010 = in_bound.channel(2);
+        const float* in_bound_ptr_011 = in_bound.channel(3);
+        const float* in_bound_ptr_100 = in_bound.channel(4);
+        const float* in_bound_ptr_101 = in_bound.channel(5);
+        const float* in_bound_ptr_110 = in_bound.channel(6);
+        const float* in_bound_ptr_111 = in_bound.channel(7);
+
+        const float* value_ptr_alpha = value.channel(0);
+        const float* value_ptr_beta = value.channel(1);
+        const float* value_ptr_gamma = value.channel(2);
+
+        int nn = grid_size;
+#if __SSE2__
+#if __AVX__        
+        for (int i = 0; i + 7 < grid_size; i += 8)
+        {
+            __m256i v000_offset = _mm256_loadu_epi32(offset_ptr_000);
+            __m256i v001_offset = _mm256_loadu_epi32(offset_ptr_001);
+            __m256i v010_offset = _mm256_loadu_epi32(offset_ptr_010);
+            __m256i v011_offset = _mm256_loadu_epi32(offset_ptr_011);
+            __m256i v100_offset = _mm256_loadu_epi32(offset_ptr_100);
+            __m256i v101_offset = _mm256_loadu_epi32(offset_ptr_101);
+            __m256i v110_offset = _mm256_loadu_epi32(offset_ptr_110);
+            __m256i v111_offset = _mm256_loadu_epi32(offset_ptr_111);
+
+            __m256 v000_in_range = _mm256_loadu_ps(in_bound_ptr_000);
+            __m256 v001_in_range = _mm256_loadu_ps(in_bound_ptr_001);
+            __m256 v010_in_range = _mm256_loadu_ps(in_bound_ptr_010);
+            __m256 v011_in_range = _mm256_loadu_ps(in_bound_ptr_011);
+            __m256 v100_in_range = _mm256_loadu_ps(in_bound_ptr_100);
+            __m256 v101_in_range = _mm256_loadu_ps(in_bound_ptr_101);
+            __m256 v110_in_range = _mm256_loadu_ps(in_bound_ptr_110);
+            __m256 v111_in_range = _mm256_loadu_ps(in_bound_ptr_111);
+
+            __m256 v000_val = mask_gather_ps256(srcptr, v000_offset, v000_in_range);
+            __m256 v001_val = mask_gather_ps256(srcptr, v001_offset, v001_in_range);
+            __m256 v010_val = mask_gather_ps256(srcptr, v010_offset, v010_in_range);
+            __m256 v011_val = mask_gather_ps256(srcptr, v011_offset, v011_in_range);
+            __m256 v100_val = mask_gather_ps256(srcptr, v100_offset, v100_in_range);
+            __m256 v101_val = mask_gather_ps256(srcptr, v101_offset, v101_in_range);
+            __m256 v110_val = mask_gather_ps256(srcptr, v110_offset, v110_in_range);
+            __m256 v111_val = mask_gather_ps256(srcptr, v111_offset, v111_in_range);
+
+            __m256 alpha = _mm256_loadu_ps(value_ptr_alpha);
+            __m256 beta = _mm256_loadu_ps(value_ptr_beta);
+            __m256 gamma = _mm256_loadu_ps(value_ptr_gamma);
+
+            __m256 v00 = _mm256_comp_fmadd_ps(v001_val, alpha, _mm256_comp_fnmadd_ps(v000_val, alpha, v000_val));
+            __m256 v01 = _mm256_comp_fmadd_ps(v011_val, alpha, _mm256_comp_fnmadd_ps(v010_val, alpha, v010_val));
+            __m256 v10 = _mm256_comp_fmadd_ps(v101_val, alpha, _mm256_comp_fnmadd_ps(v100_val, alpha, v100_val));
+            __m256 v11 = _mm256_comp_fmadd_ps(v111_val, alpha, _mm256_comp_fnmadd_ps(v110_val, alpha, v110_val));
+
+            __m256 v0 = _mm256_comp_fmadd_ps(v01, beta, _mm256_comp_fnmadd_ps(v00, beta, v00));
+            __m256 v1 = _mm256_comp_fmadd_ps(v11, beta, _mm256_comp_fnmadd_ps(v10, beta, v10));
+
+            __m256 _v = _mm256_comp_fmadd_ps(v1, gamma, _mm256_comp_fnmadd_ps(v0, gamma, v0));
+            _mm256_storeu_ps(dstptr, _v);
+
+            offset_ptr_000 += 8;
+            offset_ptr_001 += 8;
+            offset_ptr_010 += 8;
+            offset_ptr_011 += 8;
+                            
+            offset_ptr_100 += 8;
+            offset_ptr_101 += 8;
+            offset_ptr_110 += 8;
+            offset_ptr_111 += 8;
+
+            in_bound_ptr_000 += 8;
+            in_bound_ptr_001 += 8;
+            in_bound_ptr_010 += 8;
+            in_bound_ptr_011 += 8;
+                            
+            in_bound_ptr_100 += 8;
+            in_bound_ptr_101 += 8;
+            in_bound_ptr_110 += 8;
+            in_bound_ptr_111 += 8;
+
+            value_ptr_alpha += 8;
+            value_ptr_beta += 8;
+            value_ptr_gamma += 8;
+
+            dstptr += 8;
+        }
+
+        nn = grid_size & 7;
+#endif // __AVX__        
+        for (int i = grid_size - nn; i + 3 < grid_size; i += 4)
+        {
+            __m128i v000_offset = _mm_loadu_epi32(offset_ptr_000);
+            __m128i v001_offset = _mm_loadu_epi32(offset_ptr_001);
+            __m128i v010_offset = _mm_loadu_epi32(offset_ptr_010);
+            __m128i v011_offset = _mm_loadu_epi32(offset_ptr_011);
+            __m128i v100_offset = _mm_loadu_epi32(offset_ptr_100);
+            __m128i v101_offset = _mm_loadu_epi32(offset_ptr_101);
+            __m128i v110_offset = _mm_loadu_epi32(offset_ptr_110);
+            __m128i v111_offset = _mm_loadu_epi32(offset_ptr_111);
+
+            __m128 v000_in_range = _mm_loadu_ps(in_bound_ptr_000);
+            __m128 v001_in_range = _mm_loadu_ps(in_bound_ptr_001);
+            __m128 v010_in_range = _mm_loadu_ps(in_bound_ptr_010);
+            __m128 v011_in_range = _mm_loadu_ps(in_bound_ptr_011);
+            __m128 v100_in_range = _mm_loadu_ps(in_bound_ptr_100);
+            __m128 v101_in_range = _mm_loadu_ps(in_bound_ptr_101);
+            __m128 v110_in_range = _mm_loadu_ps(in_bound_ptr_110);
+            __m128 v111_in_range = _mm_loadu_ps(in_bound_ptr_111);
+
+            __m128 v000_val = mask_gather_ps(srcptr, v000_offset, v000_in_range);
+            __m128 v001_val = mask_gather_ps(srcptr, v001_offset, v001_in_range);
+            __m128 v010_val = mask_gather_ps(srcptr, v010_offset, v010_in_range);
+            __m128 v011_val = mask_gather_ps(srcptr, v011_offset, v011_in_range);
+            __m128 v100_val = mask_gather_ps(srcptr, v100_offset, v100_in_range);
+            __m128 v101_val = mask_gather_ps(srcptr, v101_offset, v101_in_range);
+            __m128 v110_val = mask_gather_ps(srcptr, v110_offset, v110_in_range);
+            __m128 v111_val = mask_gather_ps(srcptr, v111_offset, v111_in_range);
+
+            __m128 alpha = _mm_loadu_ps(value_ptr_alpha);
+            __m128 beta = _mm_loadu_ps(value_ptr_beta);
+            __m128 gamma = _mm_loadu_ps(value_ptr_gamma);
+
+            __m128 v00 = _mm_comp_fmadd_ps(v001_val, alpha, _mm_comp_fnmadd_ps(v000_val, alpha, v000_val));
+            __m128 v01 = _mm_comp_fmadd_ps(v011_val, alpha, _mm_comp_fnmadd_ps(v010_val, alpha, v010_val));
+            __m128 v10 = _mm_comp_fmadd_ps(v101_val, alpha, _mm_comp_fnmadd_ps(v100_val, alpha, v100_val));
+            __m128 v11 = _mm_comp_fmadd_ps(v111_val, alpha, _mm_comp_fnmadd_ps(v110_val, alpha, v110_val));
+
+            __m128 v0 = _mm_comp_fmadd_ps(v01, beta, _mm_comp_fnmadd_ps(v00, beta, v00));
+            __m128 v1 = _mm_comp_fmadd_ps(v11, beta, _mm_comp_fnmadd_ps(v10, beta, v10));
+
+            __m128 _v = _mm_comp_fmadd_ps(v1, gamma, _mm_comp_fnmadd_ps(v0, gamma, v0));
+            _mm_storeu_ps(dstptr, _v);
+
+            offset_ptr_000 += 4;
+            offset_ptr_001 += 4;
+            offset_ptr_010 += 4;
+            offset_ptr_011 += 4;
+                           
+            offset_ptr_100 += 4;
+            offset_ptr_101 += 4;
+            offset_ptr_110 += 4;
+            offset_ptr_111 += 4;
+
+            in_bound_ptr_000 += 4;
+            in_bound_ptr_001 += 4;
+            in_bound_ptr_010 += 4;
+            in_bound_ptr_011 += 4;
+                            
+            in_bound_ptr_100 += 4;
+            in_bound_ptr_101 += 4;
+            in_bound_ptr_110 += 4;
+            in_bound_ptr_111 += 4;
+
+            value_ptr_alpha += 4;
+            value_ptr_beta += 4;
+            value_ptr_gamma += 4;
+
+            dstptr += 4;
+        }
+        nn = grid_size & 3;
+#endif // __SSE2__        
+        for (int i = grid_size - nn; i < grid_size; i++)
+        {
+            float v000 = *in_bound_ptr_000 < 0 ? *(srcptr + *offset_ptr_000) : 0;
+            float v001 = *in_bound_ptr_001 < 0 ? *(srcptr + *offset_ptr_001) : 0;
+            float v010 = *in_bound_ptr_010 < 0 ? *(srcptr + *offset_ptr_010) : 0;
+            float v011 = *in_bound_ptr_011 < 0 ? *(srcptr + *offset_ptr_011) : 0;
+
+            float v100 = *in_bound_ptr_100 < 0 ? *(srcptr + *offset_ptr_100) : 0;
+            float v101 = *in_bound_ptr_101 < 0 ? *(srcptr + *offset_ptr_101) : 0;
+            float v110 = *in_bound_ptr_110 < 0 ? *(srcptr + *offset_ptr_110) : 0;
+            float v111 = *in_bound_ptr_111 < 0 ? *(srcptr + *offset_ptr_111) : 0;
+
+            
+            float v00 = v000 * (1 - *value_ptr_alpha) + v001 * *value_ptr_alpha;
+            float v01 = v010 * (1 - *value_ptr_alpha) + v011 * *value_ptr_alpha;
+            float v10 = v100 * (1 - *value_ptr_alpha) + v101 * *value_ptr_alpha;
+            float v11 = v110 * (1 - *value_ptr_alpha) + v111 * *value_ptr_alpha;
+
+            float v0 = v00 * (1 - *value_ptr_beta) + v01 * *value_ptr_beta;
+            float v1 = v10 * (1 - *value_ptr_beta) + v11 * *value_ptr_beta;
+
+            *dstptr = v0 * (1 - *value_ptr_gamma) + v1 * *value_ptr_gamma;
+
+            offset_ptr_000++;
+            offset_ptr_001++;
+            offset_ptr_010++;
+            offset_ptr_011++;
+
+            offset_ptr_100++;
+            offset_ptr_101++;
+            offset_ptr_110++;
+            offset_ptr_111++;
+
+            in_bound_ptr_000++;
+            in_bound_ptr_001++;
+            in_bound_ptr_010++;
+            in_bound_ptr_011++;
+
+            in_bound_ptr_100++;
+            in_bound_ptr_101++;
+            in_bound_ptr_110++;
+            in_bound_ptr_111++;
+
+            value_ptr_alpha++;
+            value_ptr_beta++;
+            value_ptr_gamma++;
+            dstptr++;
+        }
+    }
+}

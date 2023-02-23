@@ -838,3 +838,192 @@ static void gridsample_2d_bicubic_apply_interpolation_p4(const Mat& src, Mat& ds
     }
 }
 #endif // __SSE2__
+
+static inline void cubic_interp1d(float& coeffs0, float& coeffs1, float& coeffs2, float& coeffs3, float fx)
+{
+    const float A = -0.75f;
+
+    float fx0 = fx + 1;
+    float fx1 = fx;
+    float fx2 = 1 - fx;
+    // float fx3 = 2 - fx;
+
+    coeffs0 = A * fx0 * fx0 * fx0 - 5 * A * fx0 * fx0 + 8 * A * fx0 - 4 * A;
+    coeffs1 = (A + 2) * fx1 * fx1 * fx1 - (A + 3) * fx1 * fx1 + 1;
+    coeffs2 = (A + 2) * fx2 * fx2 * fx2 - (A + 3) * fx2 * fx2 + 1;
+    coeffs3 = 1.f - coeffs0 - coeffs1 - coeffs2;
+}
+
+static void gridsample_2d_bicubic_apply_interpolation_p1(const Mat& src, Mat& dst, Mat& offset, Mat& in_bound, const Mat& value, const Option& opt)
+{
+    const int channels = dst.c;
+    const int outw = dst.w;
+    const int outh = dst.h;
+    const int grid_size = outw * outh;
+
+#pragma omp parallel for num_threads(opt.num_threads)
+    for (int q = 0; q < channels; q++)
+    {
+        const float* srcptr = src.channel(q);
+        float* dstptr = dst.channel(q);
+
+        int *v0_offset_ptr[4], *v1_offset_ptr[4], *v2_offset_ptr[4], *v3_offset_ptr[4];
+
+        float *v0_in_bound_ptr[4], *v1_in_bound_ptr[4], *v2_in_bound_ptr[4], *v3_in_bound_ptr[4];
+
+        for (int i = 0; i < 4; i++)
+        {
+            v0_offset_ptr[i] = offset.channel(i * 4 + 0);
+            v1_offset_ptr[i] = offset.channel(i * 4 + 1);
+            v2_offset_ptr[i] = offset.channel(i * 4 + 2);
+            v3_offset_ptr[i] = offset.channel(i * 4 + 3);
+
+            v0_in_bound_ptr[i] = in_bound.channel(i * 4 + 0);
+            v1_in_bound_ptr[i] = in_bound.channel(i * 4 + 1);
+            v2_in_bound_ptr[i] = in_bound.channel(i * 4 + 2);
+            v3_in_bound_ptr[i] = in_bound.channel(i * 4 + 3);
+        }
+
+        const float* value_x = value.channel(0);
+        const float* value_y = value.channel(1);
+
+        int nn = grid_size;
+#if __SSE2__
+#if __AVX__      
+        {
+            __m256 x_coeffs0, x_coeffs1, x_coeffs2, x_coeffs3;
+            __m256 y_coeffs0, y_coeffs1, y_coeffs2, y_coeffs3;
+            __m256 value_f[4];
+            for (int i = 0; i + 7 < grid_size; i += 8)
+            {
+                cubic_interp1d_p8(x_coeffs0, x_coeffs1, x_coeffs2, x_coeffs3, _mm256_loadu_ps(value_x));
+                for (int ii = 0; ii < 4; ii++)
+                {
+                    __m256 x0_val = mask_gather_ps256(srcptr, _mm256_loadu_epi32(v0_offset_ptr[ii]), _mm256_loadu_ps(v0_in_bound_ptr[ii]));
+                    __m256 x1_val = mask_gather_ps256(srcptr, _mm256_loadu_epi32(v1_offset_ptr[ii]), _mm256_loadu_ps(v1_in_bound_ptr[ii]));
+                    __m256 x2_val = mask_gather_ps256(srcptr, _mm256_loadu_epi32(v2_offset_ptr[ii]), _mm256_loadu_ps(v2_in_bound_ptr[ii]));
+                    __m256 x3_val = mask_gather_ps256(srcptr, _mm256_loadu_epi32(v3_offset_ptr[ii]), _mm256_loadu_ps(v3_in_bound_ptr[ii]));
+
+                    value_f[ii] = _mm256_mul_ps(x_coeffs0, x0_val);
+                    value_f[ii] = _mm256_comp_fmadd_ps(x_coeffs1, x1_val, value_f[ii]);
+                    value_f[ii] = _mm256_comp_fmadd_ps(x_coeffs2, x2_val, value_f[ii]);
+                    value_f[ii] = _mm256_comp_fmadd_ps(x_coeffs3, x3_val, value_f[ii]);
+
+                    v0_offset_ptr[ii] += 8;
+                    v1_offset_ptr[ii] += 8;
+                    v2_offset_ptr[ii] += 8;
+                    v3_offset_ptr[ii] += 8;
+
+                    v0_in_bound_ptr[ii] += 8;
+                    v1_in_bound_ptr[ii] += 8;
+                    v2_in_bound_ptr[ii] += 8;
+                    v3_in_bound_ptr[ii] += 8;
+                }
+
+                cubic_interp1d_p8(y_coeffs0, y_coeffs1, y_coeffs2, y_coeffs3, _mm256_loadu_ps(value_y));
+
+                __m256 _v = _mm256_mul_ps(y_coeffs0, value_f[0]);
+                _v = _mm256_comp_fmadd_ps(y_coeffs1, value_f[1], _v);
+                _v = _mm256_comp_fmadd_ps(y_coeffs2, value_f[2], _v);
+                _v = _mm256_comp_fmadd_ps(y_coeffs3, value_f[3], _v);
+                _mm256_storeu_ps(dstptr, _v);
+
+                value_x += 8;
+                value_y += 8;
+
+                dstptr += 8;
+            }
+        }
+        nn = grid_size & 7;
+#endif // __AVX__
+        {
+            __m128 x_coeffs0, x_coeffs1, x_coeffs2, x_coeffs3;
+            __m128 y_coeffs0, y_coeffs1, y_coeffs2, y_coeffs3;
+            __m128 value_f[4];
+            for (int i = grid_size - nn; i + 3 < grid_size; i += 4)
+            {
+                cubic_interp1d_p4(x_coeffs0, x_coeffs1, x_coeffs2, x_coeffs3, _mm_loadu_ps(value_x));
+                for (int ii = 0; ii < 4; ii++)
+                {
+                    __m128 x0_val = mask_gather_ps(srcptr, _mm_loadu_epi32(v0_offset_ptr[ii]), _mm_loadu_ps(v0_in_bound_ptr[ii]));
+                    __m128 x1_val = mask_gather_ps(srcptr, _mm_loadu_epi32(v1_offset_ptr[ii]), _mm_loadu_ps(v1_in_bound_ptr[ii]));
+                    __m128 x2_val = mask_gather_ps(srcptr, _mm_loadu_epi32(v2_offset_ptr[ii]), _mm_loadu_ps(v2_in_bound_ptr[ii]));
+                    __m128 x3_val = mask_gather_ps(srcptr, _mm_loadu_epi32(v3_offset_ptr[ii]), _mm_loadu_ps(v3_in_bound_ptr[ii]));
+
+                    value_f[ii] = _mm_mul_ps(x_coeffs0, x0_val);
+                    value_f[ii] = _mm_comp_fmadd_ps(x_coeffs1, x1_val, value_f[ii]);
+                    value_f[ii] = _mm_comp_fmadd_ps(x_coeffs2, x2_val, value_f[ii]);
+                    value_f[ii] = _mm_comp_fmadd_ps(x_coeffs3, x3_val, value_f[ii]);
+
+                    v0_offset_ptr[ii] += 4;
+                    v1_offset_ptr[ii] += 4;
+                    v2_offset_ptr[ii] += 4;
+                    v3_offset_ptr[ii] += 4;
+
+                    v0_in_bound_ptr[ii] += 4;
+                    v1_in_bound_ptr[ii] += 4;
+                    v2_in_bound_ptr[ii] += 4;
+                    v3_in_bound_ptr[ii] += 4;
+                }
+
+                cubic_interp1d_p4(y_coeffs0, y_coeffs1, y_coeffs2, y_coeffs3, _mm_loadu_ps(value_y));
+
+                __m128 _v = _mm_mul_ps(y_coeffs0, value_f[0]);
+                _v = _mm_comp_fmadd_ps(y_coeffs1, value_f[1], _v);
+                _v = _mm_comp_fmadd_ps(y_coeffs2, value_f[2], _v);
+                _v = _mm_comp_fmadd_ps(y_coeffs3, value_f[3], _v);
+                _mm_storeu_ps(dstptr, _v);
+
+                value_x += 4;
+                value_y += 4;
+
+                dstptr += 4;
+            }
+        }
+        nn = grid_size & 3;
+#endif // __SSE2__
+        float x_coeffs0, x_coeffs1, x_coeffs2, x_coeffs3;
+        float y_coeffs0, y_coeffs1, y_coeffs2, y_coeffs3;
+        float value_f[4];
+
+        for (int i = grid_size - nn; i < grid_size; i++)
+        {
+            cubic_interp1d(x_coeffs0, x_coeffs1, x_coeffs2, x_coeffs3, *value_x);
+            for (int ii = 0; ii < 4; ii++)
+            {
+                float x0_val = *v0_in_bound_ptr[ii] < 0 ? *(srcptr + *v0_offset_ptr[ii]) : 0;
+                float x1_val = *v1_in_bound_ptr[ii] < 0 ? *(srcptr + *v1_offset_ptr[ii]) : 0;
+                float x2_val = *v2_in_bound_ptr[ii] < 0 ? *(srcptr + *v2_offset_ptr[ii]) : 0;
+                float x3_val = *v3_in_bound_ptr[ii] < 0 ? *(srcptr + *v3_offset_ptr[ii]) : 0;
+
+                value_f[ii] = x_coeffs0 * x0_val;
+                value_f[ii] = x_coeffs1 * x1_val + value_f[ii];
+                value_f[ii] = x_coeffs2 * x2_val + value_f[ii];
+                value_f[ii] = x_coeffs3 * x3_val + value_f[ii];
+
+                v0_offset_ptr[ii]++;
+                v1_offset_ptr[ii]++;
+                v2_offset_ptr[ii]++;
+                v3_offset_ptr[ii]++;
+
+                v0_in_bound_ptr[ii]++;
+                v1_in_bound_ptr[ii]++;
+                v2_in_bound_ptr[ii]++;
+                v3_in_bound_ptr[ii]++;
+            }
+
+            cubic_interp1d(y_coeffs0, y_coeffs1, y_coeffs2, y_coeffs3, *value_y);
+
+            float _v =  y_coeffs0 * value_f[0];
+            _v = y_coeffs1 * value_f[1] + _v;
+            _v = y_coeffs2 * value_f[2] + _v;
+            _v = y_coeffs3 * value_f[3] + _v;
+            *dstptr = _v;
+
+            value_x++;
+            value_y++;
+
+            dstptr++;
+        }
+    }
+}

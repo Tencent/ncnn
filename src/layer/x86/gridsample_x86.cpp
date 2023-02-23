@@ -98,28 +98,6 @@ static NCNN_FORCEINLINE __m128 mask_gather_ps(const float* ptr, __m128i offset, 
     return v;
 }
 
-static inline void interpolate_cubic(float fx, float* coeffs)
-{
-    const float A = -0.75f;
-
-    float fx0 = fx + 1;
-    float fx1 = fx;
-    float fx2 = 1 - fx;
-    // float fx3 = 2 - fx;
-
-    coeffs[0] = A * fx0 * fx0 * fx0 - 5 * A * fx0 * fx0 + 8 * A * fx0 - 4 * A;
-    coeffs[1] = (A + 2) * fx1 * fx1 * fx1 - (A + 3) * fx1 * fx1 + 1;
-    coeffs[2] = (A + 2) * fx2 * fx2 * fx2 - (A + 3) * fx2 * fx2 + 1;
-    coeffs[3] = 1.f - coeffs[0] - coeffs[1] - coeffs[2];
-}
-
-static inline float reflect_coord(float x, int high)
-{
-    x = abs(x);
-    x = high - abs(x - high);
-    return x;
-}
-
 #endif // __SSE2__
 
 typedef GridSample::PaddingMode PaddingMode;
@@ -646,10 +624,6 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
             }
         }
     }
-    else
-    {
-        return GridSample::forward(bottom_blobs, top_blobs, opt);
-    }
 
 #endif // __SSE2__
 
@@ -659,21 +633,26 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
         {
             if (sample_type == InterpolationMode::Bilinear)
             {
+                gridsample_2d_bilinear_apply_interpolation_p1(bottom_blob, top_blob, offset_blob, in_bound_blob, value_blob, opt);
             }
             else if (sample_type == InterpolationMode::Nearest)
             {
+                gridsample_nearest_apply_interpolation_p1(bottom_blob, top_blob, offset_blob, in_bound_blob, opt);
             }
             else if (sample_type == InterpolationMode::Bicubic)
             {
+                gridsample_2d_bicubic_apply_interpolation_p1(bottom_blob, top_blob, offset_blob, in_bound_blob, value_blob, opt);
             }
         }
         else if (dims == 4)
         {
             if (sample_type == InterpolationMode::Bilinear)
             {
+                gridsample_3d_bilinear_apply_interpolation_p1(bottom_blob, top_blob, offset_blob, in_bound_blob, value_blob, opt);
             }
             else if (sample_type == InterpolationMode::Nearest)
             {
+                gridsample_nearest_apply_interpolation_p1(bottom_blob, top_blob, offset_blob, in_bound_blob, opt);
             }
         }
     }
