@@ -409,8 +409,13 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                         float sample_z = gridptr[2];
 
                         sample_x = grid_sample_unormalize(w, sample_x, align_corner);
+                        sample_x = compute_coord(sample_x, w, padding_mode, align_corner);
+
                         sample_y = grid_sample_unormalize(h, sample_y, align_corner);
+                        sample_y = compute_coord(sample_y, h, padding_mode, align_corner);
+
                         sample_z = grid_sample_unormalize(d, sample_z, align_corner);
+                        sample_z = compute_coord(sample_z, d, padding_mode, align_corner);
 
                         *offsetptr_x = sample_x;
                         *offsetptr_y = sample_y;
@@ -444,8 +449,13 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                         float sample_z = *gridptr_z;
 
                         sample_x = grid_sample_unormalize(w, sample_x, align_corner);
+                        sample_x = compute_coord(sample_x, w, padding_mode, align_corner);
+
                         sample_y = grid_sample_unormalize(h, sample_y, align_corner);
+                        sample_y = compute_coord(sample_y, h, padding_mode, align_corner);
+
                         sample_z = grid_sample_unormalize(d, sample_z, align_corner);
+                        sample_z = compute_coord(sample_z, d, padding_mode, align_corner);
 
                         *offsetptr_x = sample_x;
                         *offsetptr_y = sample_y;
@@ -493,14 +503,14 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                                 int y1 = y0 + 1;
                                 int z1 = z0 + 1;
 
-                                float v000 = get_value_bounded(image, x0, y0, z0, padding_mode, align_corner);
-                                float v001 = get_value_bounded(image, x1, y0, z0, padding_mode, align_corner);
-                                float v010 = get_value_bounded(image, x0, y1, z0, padding_mode, align_corner);
-                                float v011 = get_value_bounded(image, x1, y1, z0, padding_mode, align_corner);
-                                float v100 = get_value_bounded(image, x0, y0, z1, padding_mode, align_corner);
-                                float v101 = get_value_bounded(image, x1, y0, z1, padding_mode, align_corner);
-                                float v110 = get_value_bounded(image, x0, y1, z1, padding_mode, align_corner);
-                                float v111 = get_value_bounded(image, x1, y1, z1, padding_mode, align_corner);
+                                float v000 = get_value_bounded(image, x0, y0, z0);
+                                float v001 = get_value_bounded(image, x1, y0, z0);
+                                float v010 = get_value_bounded(image, x0, y1, z0);
+                                float v011 = get_value_bounded(image, x1, y1, z0);
+                                float v100 = get_value_bounded(image, x0, y0, z1);
+                                float v101 = get_value_bounded(image, x1, y0, z1);
+                                float v110 = get_value_bounded(image, x0, y1, z1);
+                                float v111 = get_value_bounded(image, x1, y1, z1);
 
                                 float alpha = sample_x - x0;
                                 float beta = sample_y - y0;
@@ -553,7 +563,7 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                             int y0 = static_cast<int>(floor(sample_y + 0.5f));
                             int z0 = static_cast<int>(floor(sample_z + 0.5f));
 
-                            float v = get_value_bounded(image, x0, y0, z0, padding_mode, align_corner);
+                            float v = get_value_bounded(image, x0, y0, z0);
 
                             outptr[0] = v;
                             outptr += 1;
