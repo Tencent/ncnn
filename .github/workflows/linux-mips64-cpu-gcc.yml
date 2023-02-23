@@ -41,7 +41,7 @@ jobs:
       uses: actions/cache@v3
       with:
         path: qemu-install
-        key: qemu-mips64el-install-20220502
+        key: qemu-mips64el-install-20220502-2
     - name: install-qemu-build-deps
       if: steps.cache-qemu.outputs.cache-hit != 'true'
       run: |
@@ -88,7 +88,7 @@ jobs:
       uses: actions/cache@v3
       with:
         path: qemu-install
-        key: qemu-mips64el-install-20220502-3
+        key: qemu-mips64el-install-20220502-4
     - name: install-qemu-build-deps
       if: steps.cache-qemu.outputs.cache-hit != 'true'
       run: |

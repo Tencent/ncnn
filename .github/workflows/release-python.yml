@@ -48,10 +48,10 @@ jobs:
           - { os: windows-2019, arch: AMD64,      build: 'cp*'            }
           - { os: windows-2019, arch: AMD64,      build: 'pp*'            }
           - { os: windows-2019, arch: ARM64,      build: 'cp*'            }
-          - { os: macos-11,     arch: x86_64,     build: 'cp*'            }
-          - { os: macos-11,     arch: x86_64,     build: 'pp*'            }
-          - { os: macos-11,     arch: arm64,      build: 'cp*'            }
-          - { os: macos-11,     arch: universal2, build: 'cp*'            }
+          - { os: macos-latest, arch: x86_64,     build: 'cp*'            }
+          - { os: macos-latest, arch: x86_64,     build: 'pp*'            }
+          - { os: macos-latest, arch: arm64,      build: 'cp*'            }
+          - { os: macos-latest, arch: universal2, build: 'cp*'            }
 
     steps:
     - uses: actions/checkout@v3
@@ -63,7 +63,7 @@ jobs:
         python-version: '3.x'
 
     - name: brew uninstall libomp
-      if: matrix.os == 'macos-11'
+      if: matrix.os == 'macos-latest'
       run: |
         brew uninstall --ignore-dependencies libomp
 

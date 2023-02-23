@@ -14,6 +14,7 @@
 
 #include "pass_level5.h"
 
+#include "pass_level5/attribute_unpooling.h"
 #include "pass_level5/fold_constants.h"
 #include "pass_level5/eliminate_dropout.h"
 #include "pass_level5/eliminate_identity_operator.h"
@@ -80,6 +81,8 @@ void pass_level5(Graph& g, const std::set<std::string>& foldable_constants, cons
     fuse_slice_to_tensor_split(g);
 
     fuse_slice_copy(g);
+
+    attribute_unpooling(g);
 
     fuse_static_batchnorm(g);
     fuse_static_groupnorm(g);

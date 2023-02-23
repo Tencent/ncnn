@@ -374,6 +374,20 @@ struct unary_op_tanh
 #endif // __mips_msa
 };
 
+struct unary_op_log10
+{
+    float func(const float& x) const
+    {
+        return (float)log10(x);
+    }
+#if __mips_msa
+    v4f32 func_pack4(const v4f32& x) const
+    {
+        return __msa_fmul_w(log_ps(x), __msa_fill_w_f32(0.434294481903));
+    }
+#endif // __mips_msa
+};
+
 } // namespace UnaryOp_mips_functor
 
 int UnaryOp_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
@@ -430,6 +444,9 @@ int UnaryOp_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
     if (op_type == Operation_TANH)
         return unary_op_inplace<unary_op_tanh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_LOG10)
+        return unary_op_inplace<unary_op_log10>(bottom_top_blob, opt);
 
     return 0;
 }

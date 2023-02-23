@@ -412,5 +412,17 @@ static inline float32x4_t acos_ps(float32x4_t x)
     return yacos;
 }
 
+static inline float32x4_t atan2_ps(float32x4_t a, float32x4_t b)
+{
+    //TODO neon optimize
+    float tmpx[4];
+    float tmpy[4];
+    vst1q_f32(tmpx, a);
+    vst1q_f32(tmpy, b);
+    for (int i = 0; i < 4; i++)
+        tmpx[i] = atan2(tmpx[i], tmpy[i]);
+    return vld1q_f32(tmpx);
+}
+
 #include "neon_mathfun_tanh.h"
 #endif // NEON_MATHFUN_H

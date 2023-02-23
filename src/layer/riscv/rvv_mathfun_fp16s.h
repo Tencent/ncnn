@@ -283,57 +283,69 @@ _RVV_FLOAT16_COS_OP(2, 8)
 _RVV_FLOAT16_COS_OP(4, 4)
 _RVV_FLOAT16_COS_OP(8, 2)
 
-#define c_cephes_HALFMAXLOGF 44.014845935754205f
-#define c_cephes_tanh_C1     0.625f
+#define c_tanh_tiny 1e-4f
+#define c_tanh_hi   9.0f
+// The monomial coefficients of the numerator polynomial (odd).
+#define c_tanh_alpha_1  4.89352455891786e-3f
+#define c_tanh_alpha_3  6.37261928875436e-4f
+#define c_tanh_alpha_5  1.48572235717979e-5f
+#define c_tanh_alpha_7  5.12229709037114e-8f
+#define c_tanh_alpha_9  -8.60467152213735e-11f
+#define c_tanh_alpha_11 2.00018790482477e-13f
+#define c_tanh_alpha_13 -2.76076847742355e-16f
+// The monomial coefficients of the denominator polynomial (even).
+#define c_tanh_beta_0 4.89352518554385e-3f
+#define c_tanh_beta_2 2.26843463243900e-3f
+#define c_tanh_beta_4 1.18534705686654e-4f
+#define c_tanh_beta_6 1.19825839466702e-6f
 
-#define c_cephes_tanh_p0 -5.70498872745E-3
-#define c_cephes_tanh_p1 +2.06390887954E-2
-#define c_cephes_tanh_p2 -5.37397155531E-2
-#define c_cephes_tanh_p3 +1.33314422036E-1
-#define c_cephes_tanh_p4 -3.33332819422E-1
-
-#define _RVV_FLOAT16_TANH_OP(LMUL, MLEN)                                                                                              \
-    static inline vfloat16m##LMUL##_t tanh_ps(vfloat16m##LMUL##_t x, size_t vl)                                                       \
-    {                                                                                                                                 \
-        vfloat16m##LMUL##_t x2 = vfsgnj_vf_f16m##LMUL(x, 1.f, vl);                                                                    \
-                                                                                                                                      \
-        vbool##MLEN##_t mask_l = vmfge_vf_f16m##LMUL##_b##MLEN(x2, c_cephes_tanh_C1, vl);                                             \
-        vbool##MLEN##_t mask_l2 = vmfgt_vf_f16m##LMUL##_b##MLEN(x2, c_cephes_HALFMAXLOGF, vl);                                        \
-                                                                                                                                      \
-        /* abs(x) >= 0.625 */                                                                                                         \
-        vfloat16m##LMUL##_t exp_x_x = exp_ps(vfadd_vv_f16m##LMUL(x, x, vl), vl);                                                      \
-        vfloat16m##LMUL##_t y0 = vfrsub_vf_f16m##LMUL(vfrdiv_vf_f16m##LMUL(vfadd_vf_f16m##LMUL(exp_x_x, 1.f, vl), 2.f, vl), 1.f, vl); \
-                                                                                                                                      \
-        /* abs(x) < 0.625                */                                                                                           \
-        /*   z = x2 * x2;                */                                                                                           \
-        /*   z =                         */                                                                                           \
-        /*   (((( -5.70498872745E-3 * z  */                                                                                           \
-        /*   + 2.06390887954E-2) * z     */                                                                                           \
-        /*   - 5.37397155531E-2) * z     */                                                                                           \
-        /*   + 1.33314422036E-1) * z     */                                                                                           \
-        /*   - 3.33332819422E-1) * z * x */                                                                                           \
-        /*   + x;                        */                                                                                           \
-        vfloat16m##LMUL##_t z = vfmul_vv_f16m##LMUL(x, x, vl);                                                                        \
-                                                                                                                                      \
-        vfloat16m##LMUL##_t y = vfmul_vf_f16m##LMUL(z, c_cephes_tanh_p0, vl);                                                         \
-        y = vfadd_vf_f16m##LMUL(y, c_cephes_tanh_p1, vl);                                                                             \
-        y = vfmul_vv_f16m##LMUL(y, z, vl);                                                                                            \
-        y = vfadd_vf_f16m##LMUL(y, c_cephes_tanh_p2, vl);                                                                             \
-        y = vfmul_vv_f16m##LMUL(y, z, vl);                                                                                            \
-        y = vfadd_vf_f16m##LMUL(y, c_cephes_tanh_p3, vl);                                                                             \
-        y = vfmul_vv_f16m##LMUL(y, z, vl);                                                                                            \
-        y = vfadd_vf_f16m##LMUL(y, c_cephes_tanh_p4, vl);                                                                             \
-                                                                                                                                      \
-        y = vfmul_vv_f16m##LMUL(y, z, vl);                                                                                            \
-        y = vfmul_vv_f16m##LMUL(y, x, vl);                                                                                            \
-        y = vfadd_vv_f16m##LMUL(y, x, vl);                                                                                            \
-                                                                                                                                      \
-        /* abs(x) > HALFMAXLOGF */                                                                                                    \
-        vfloat16m##LMUL##_t y1 = vfsgnj_vv_f16m##LMUL(vfmv_v_f_f16m##LMUL(1.f, vl), x, vl);                                           \
-                                                                                                                                      \
-        y = vmerge_vvm_f16m##LMUL(mask_l, y, y0, vl);                                                                                 \
-        y = vmerge_vvm_f16m##LMUL(mask_l2, y, y1, vl);                                                                                \
-        return y;                                                                                                                     \
+#define _RVV_FLOAT16_TANH_OP(LMUL, MLEN)                                                         \
+    static inline vfloat16m##LMUL##_t tanh_ps(vfloat16m##LMUL##_t x, size_t vl)                  \
+    {                                                                                            \
+        vfloat16m##LMUL##_t x2 = vfsgnj_vf_f16m##LMUL(x, 1.f, vl);                               \
+                                                                                                 \
+        vbool##MLEN##_t tiny_mask = vmfge_vf_f16m##LMUL##_b##MLEN(x2, c_tanh_tiny, vl);          \
+                                                                                                 \
+        /* clamp the inputs to the range [-9, 9] since anything outside */                       \
+        /* this range is -/+1.0f in single-precision.                   */                       \
+        x2 = vfmin_vf_f16m##LMUL(x, c_tanh_hi, vl);                                              \
+                                                                                                 \
+        /* since the polynomials are odd/even, we need x**2. */                                  \
+        vfloat16m##LMUL##_t z = vfmul_vv_f16m##LMUL(x2, x2, vl);                                 \
+                                                                                                 \
+        /* evaluate the numerator polynomial y. */                                               \
+        vfloat16m##LMUL##_t y = vfmul_vf_f16m##LMUL(z, c_tanh_alpha_13, vl);                     \
+        y = vfadd_vf_f16m##LMUL(y, c_tanh_alpha_11, vl);                                         \
+        y = vfmul_vv_f16m##LMUL(y, z, vl);                                                       \
+        y = vfadd_vf_f16m##LMUL(y, c_tanh_alpha_9, vl);                                          \
+        y = vfmul_vv_f16m##LMUL(y, z, vl);                                                       \
+        y = vfadd_vf_f16m##LMUL(y, c_tanh_alpha_7, vl);                                          \
+        y = vfmul_vv_f16m##LMUL(y, z, vl);                                                       \
+        y = vfadd_vf_f16m##LMUL(y, c_tanh_alpha_5, vl);                                          \
+        y = vfmul_vv_f16m##LMUL(y, z, vl);                                                       \
+        y = vfadd_vf_f16m##LMUL(y, c_tanh_alpha_3, vl);                                          \
+        y = vfmul_vv_f16m##LMUL(y, z, vl);                                                       \
+        y = vfadd_vf_f16m##LMUL(y, c_tanh_alpha_1, vl);                                          \
+        y = vfmul_vv_f16m##LMUL(y, x2, vl);                                                      \
+                                                                                                 \
+        /* evaluate the denominator polynomial w. */                                             \
+        vfloat16m##LMUL##_t w = vfmul_vf_f16m##LMUL(z, c_tanh_beta_6, vl);                       \
+        w = vfadd_vf_f16m##LMUL(w, c_tanh_beta_4, vl);                                           \
+        w = vfmul_vv_f16m##LMUL(w, z, vl);                                                       \
+        w = vfadd_vf_f16m##LMUL(w, c_tanh_beta_2, vl);                                           \
+        w = vfmul_vv_f16m##LMUL(w, z, vl);                                                       \
+        w = vfadd_vf_f16m##LMUL(w, c_tanh_beta_0, vl);                                           \
+                                                                                                 \
+        /* divide the numerator by the denominator. */                                           \
+        y = vfdiv_vv_f16m##LMUL(y, w, vl);                                                       \
+                                                                                                 \
+        /* reinstate the sign.  */                                                               \
+        y = vfsgnj_vv_f16m##LMUL(y, x, vl);                                                      \
+                                                                                                 \
+        /* when the argument is very small in magnitude it's more accurate to just return it. */ \
+        y = vmerge_vvm_f16m##LMUL(tiny_mask, x, y, vl);                                          \
+                                                                                                 \
+        return y;                                                                                \
     }
 
 _RVV_FLOAT16_TANH_OP(1, 16)
@@ -369,5 +381,25 @@ _RVV_FLOAT16_SIGMOID_OP(1, 16)
 _RVV_FLOAT16_SIGMOID_OP(2, 8)
 _RVV_FLOAT16_SIGMOID_OP(4, 4)
 _RVV_FLOAT16_SIGMOID_OP(8, 2)
+
+//TODO rvv optimize
+#define _RVV_FLOAT16_ATAN2_OP(LMUL, MLEN)                                                               \
+    static inline vfloat16m##LMUL##_t atan2_ps(vfloat16m##LMUL##_t a, vfloat16m##LMUL##_t b, size_t vl) \
+    {                                                                                                   \
+        std::vector<__fp16> tmpx(vl);                                                                   \
+        std::vector<__fp16> tmpy(vl);                                                                   \
+        vse16_v_f16m##LMUL(tmpx.data(), a, vl);                                                         \
+        vse16_v_f16m##LMUL(tmpy.data(), b, vl);                                                         \
+        for (size_t i = 0; i < vl; i++)                                                                 \
+        {                                                                                               \
+            tmpx[i] = (__fp16)atan2((float)tmpx[i], (float)tmpy[i]);                                    \
+        }                                                                                               \
+        return vle16_v_f16m##LMUL(tmpx.data(), vl);                                                     \
+    }
+
+_RVV_FLOAT16_ATAN2_OP(1, 32)
+_RVV_FLOAT16_ATAN2_OP(2, 16)
+_RVV_FLOAT16_ATAN2_OP(4, 8)
+_RVV_FLOAT16_ATAN2_OP(8, 4)
 
 #endif // RVV_MATHFUN_FP16S_H

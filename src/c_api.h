@@ -303,6 +303,15 @@ NCNN_EXPORT int ncnn_net_load_model_datareader(ncnn_net_t net, const ncnn_datare
 
 NCNN_EXPORT void ncnn_net_clear(ncnn_net_t net);
 
+NCNN_EXPORT int ncnn_net_get_input_count(const ncnn_net_t net);
+NCNN_EXPORT int ncnn_net_get_output_count(const ncnn_net_t net);
+#if NCNN_STRING
+NCNN_EXPORT const char* ncnn_net_get_input_name(const ncnn_net_t net, int i);
+NCNN_EXPORT const char* ncnn_net_get_output_name(const ncnn_net_t net, int i);
+#endif /* NCNN_STRING */
+NCNN_EXPORT int ncnn_net_get_input_index(const ncnn_net_t net, int i);
+NCNN_EXPORT int ncnn_net_get_output_index(const ncnn_net_t net, int i);
+
 /* extractor api */
 typedef struct __ncnn_extractor_t* ncnn_extractor_t;
 

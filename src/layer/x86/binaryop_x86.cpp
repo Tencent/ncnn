@@ -1048,6 +1048,58 @@ struct binary_op_rpow
 #endif // __SSE2__
 };
 
+struct binary_op_atan2
+{
+    float func(const float& x, const float& y) const
+    {
+        return (float)atan2(x, y);
+    }
+#if __SSE2__
+    __m128 func_pack4(const __m128& x, const __m128& y) const
+    {
+        return atan2_ps(x, y);
+    }
+#if __AVX__
+    __m256 func_pack8(const __m256& x, const __m256& y) const
+    {
+        return atan2256_ps(x, y);
+    }
+#if __AVX512F__
+    __m512 func_pack16(const __m512& x, const __m512& y) const
+    {
+        return atan2512_ps(x, y);
+    }
+#endif // __AVX512F__
+#endif // __AVX__
+#endif // __SSE2__
+};
+
+struct binary_op_ratan2
+{
+    float func(const float& x, const float& y) const
+    {
+        return (float)atan2(y, x);
+    }
+#if __SSE2__
+    __m128 func_pack4(const __m128& x, const __m128& y) const
+    {
+        return atan2_ps(y, x);
+    }
+#if __AVX__
+    __m256 func_pack8(const __m256& x, const __m256& y) const
+    {
+        return atan2256_ps(y, x);
+    }
+#if __AVX512F__
+    __m512 func_pack16(const __m512& x, const __m512& y) const
+    {
+        return atan2512_ps(y, x);
+    }
+#endif // __AVX512F__
+#endif // __AVX__
+#endif // __SSE2__
+};
+
 } // namespace BinaryOp_x86_functor
 
 static int binary_op_scalar(const Mat& a, float b, Mat& c, int op_type, const Option& opt)
@@ -1064,6 +1116,8 @@ static int binary_op_scalar(const Mat& a, float b, Mat& c, int op_type, const Op
     if (op_type == BinaryOp::Operation_RSUB) return binary_op_scalar<binary_op_rsub>(a, b, c, opt);
     if (op_type == BinaryOp::Operation_RDIV) return binary_op_scalar<binary_op_rdiv>(a, b, c, opt);
     if (op_type == BinaryOp::Operation_RPOW) return binary_op_scalar<binary_op_rpow>(a, b, c, opt);
+    if (op_type == BinaryOp::Operation_ATAN2) return binary_op_scalar<binary_op_atan2>(a, b, c, opt);
+    if (op_type == BinaryOp::Operation_RATAN2) return binary_op_scalar<binary_op_ratan2>(a, b, c, opt);
 
     // should never reach here
     return 0;
@@ -1080,9 +1134,11 @@ static int binary_op_no_broadcast(const Mat& a, const Mat& b, Mat& c, int op_typ
     if (op_type == BinaryOp::Operation_MAX) return binary_op_no_broadcast<binary_op_max>(a, b, c, opt);
     if (op_type == BinaryOp::Operation_MIN) return binary_op_no_broadcast<binary_op_min>(a, b, c, opt);
     if (op_type == BinaryOp::Operation_POW) return binary_op_no_broadcast<binary_op_pow>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_RSUB) return binary_op_no_broadcast<binary_op_rsub>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_RDIV) return binary_op_no_broadcast<binary_op_rdiv>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_RPOW) return binary_op_no_broadcast<binary_op_rpow>(a, b, c, opt);
+    if (op_type == BinaryOp::Operation_RSUB) return binary_op_no_broadcast<binary_op_sub>(b, a, c, opt);
+    if (op_type == BinaryOp::Operation_RDIV) return binary_op_no_broadcast<binary_op_div>(b, a, c, opt);
+    if (op_type == BinaryOp::Operation_RPOW) return binary_op_no_broadcast<binary_op_pow>(b, a, c, opt);
+    if (op_type == BinaryOp::Operation_ATAN2) return binary_op_no_broadcast<binary_op_atan2>(a, b, c, opt);
+    if (op_type == BinaryOp::Operation_RATAN2) return binary_op_no_broadcast<binary_op_atan2>(b, a, c, opt);
 
     // should never reach here
     return 0;
@@ -1117,6 +1173,8 @@ static int binary_op_broadcast_inner(const Mat& a, const Mat& b, Mat& c, int op_
     if (op_type == BinaryOp::Operation_RSUB) return binary_op_broadcast_inner<binary_op_rsub>(a, b2, c, opt);
     if (op_type == BinaryOp::Operation_RDIV) return binary_op_broadcast_inner<binary_op_rdiv>(a, b2, c, opt);
     if (op_type == BinaryOp::Operation_RPOW) return binary_op_broadcast_inner<binary_op_rpow>(a, b2, c, opt);
+    if (op_type == BinaryOp::Operation_ATAN2) return binary_op_broadcast_inner<binary_op_atan2>(a, b2, c, opt);
+    if (op_type == BinaryOp::Operation_RATAN2) return binary_op_broadcast_inner<binary_op_ratan2>(a, b2, c, opt);
 
     // should never reach here
     return 0;
@@ -1136,6 +1194,8 @@ static int binary_op_broadcast_outer(const Mat& a, const Mat& b, Mat& c, int op_
     if (op_type == BinaryOp::Operation_RSUB) return binary_op_broadcast_outer<binary_op_rsub>(a, b, c, opt);
     if (op_type == BinaryOp::Operation_RDIV) return binary_op_broadcast_outer<binary_op_rdiv>(a, b, c, opt);
     if (op_type == BinaryOp::Operation_RPOW) return binary_op_broadcast_outer<binary_op_rpow>(a, b, c, opt);
+    if (op_type == BinaryOp::Operation_ATAN2) return binary_op_broadcast_outer<binary_op_atan2>(a, b, c, opt);
+    if (op_type == BinaryOp::Operation_RATAN2) return binary_op_broadcast_outer<binary_op_ratan2>(a, b, c, opt);
 
     // should never reach here
     return 0;
@@ -1155,6 +1215,8 @@ static int binary_op_broadcast_20(const Mat& a, const Mat& b, Mat& c, int op_typ
     if (op_type == BinaryOp::Operation_RSUB) return binary_op_broadcast_20<binary_op_rsub>(a, b, c, opt);
     if (op_type == BinaryOp::Operation_RDIV) return binary_op_broadcast_20<binary_op_rdiv>(a, b, c, opt);
     if (op_type == BinaryOp::Operation_RPOW) return binary_op_broadcast_20<binary_op_rpow>(a, b, c, opt);
+    if (op_type == BinaryOp::Operation_ATAN2) return binary_op_broadcast_20<binary_op_atan2>(a, b, c, opt);
+    if (op_type == BinaryOp::Operation_RATAN2) return binary_op_broadcast_20<binary_op_ratan2>(a, b, c, opt);
 
     // should never reach here
     return 0;
@@ -1165,9 +1227,11 @@ static int get_reverse_op_type(int op_type)
     if (op_type == BinaryOp::Operation_SUB) return BinaryOp::Operation_RSUB;
     if (op_type == BinaryOp::Operation_DIV) return BinaryOp::Operation_RDIV;
     if (op_type == BinaryOp::Operation_POW) return BinaryOp::Operation_RPOW;
+    if (op_type == BinaryOp::Operation_ATAN2) return BinaryOp::Operation_RATAN2;
     if (op_type == BinaryOp::Operation_RSUB) return BinaryOp::Operation_SUB;
     if (op_type == BinaryOp::Operation_RDIV) return BinaryOp::Operation_DIV;
     if (op_type == BinaryOp::Operation_RPOW) return BinaryOp::Operation_POW;
+    if (op_type == BinaryOp::Operation_RATAN2) return BinaryOp::Operation_ATAN2;
     return op_type;
 }
 
@@ -1239,6 +1303,8 @@ int BinaryOp_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     if (op_type == Operation_RSUB) return binary_op_scalar_inplace<binary_op_rsub>(bottom_top_blob, b, opt);
     if (op_type == Operation_RDIV) return binary_op_scalar_inplace<binary_op_rdiv>(bottom_top_blob, b, opt);
     if (op_type == Operation_RPOW) return binary_op_scalar_inplace<binary_op_rpow>(bottom_top_blob, b, opt);
+    if (op_type == Operation_ATAN2) return binary_op_scalar_inplace<binary_op_atan2>(bottom_top_blob, b, opt);
+    if (op_type == Operation_RATAN2) return binary_op_scalar_inplace<binary_op_ratan2>(bottom_top_blob, b, opt);
 
     return 0;
 }

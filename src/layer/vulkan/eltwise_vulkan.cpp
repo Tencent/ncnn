@@ -38,7 +38,7 @@ int Eltwise_vulkan::create_pipeline(const Option& opt)
     int elempack = 1;
     if (shape.dims == 1) elempack = opt.use_shader_pack8 && shape.w % 8 == 0 ? 8 : shape.w % 4 == 0 ? 4 : 1;
     if (shape.dims == 2) elempack = opt.use_shader_pack8 && shape.h % 8 == 0 ? 8 : shape.h % 4 == 0 ? 4 : 1;
-    if (shape.dims == 3) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
+    if (shape.dims == 3 || shape.dims == 4) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
 
     size_t elemsize;
     if (opt.use_fp16_storage)
@@ -57,14 +57,14 @@ int Eltwise_vulkan::create_pipeline(const Option& opt)
     Mat shape_packed;
     if (shape.dims == 1) shape_packed = Mat(shape.w / elempack, (void*)0, elemsize, elempack);
     if (shape.dims == 2) shape_packed = Mat(shape.w, shape.h / elempack, (void*)0, elemsize, elempack);
-    if (shape.dims == 3) shape_packed = Mat(shape.w, shape.h, shape.c / elempack, (void*)0, elemsize, elempack);
+    if (shape.dims == 3 || shape.dims == 4) shape_packed = Mat(shape.w, shape.h, shape.c / elempack, (void*)0, elemsize, elempack);
 
     std::vector<vk_specialization_type> specializations(2 + 5);
     specializations[0].i = op_type;
     specializations[1].i = coeffs.w == 0 ? 0 : 1;
     specializations[2 + 0].i = shape_packed.dims;
     specializations[2 + 1].i = shape_packed.w;
-    specializations[2 + 2].i = shape_packed.h;
+    specializations[2 + 2].i = shape_packed.h * shape_packed.d;
     specializations[2 + 3].i = shape_packed.c;
     specializations[2 + 4].i = shape_packed.cstep;
 
@@ -85,6 +85,12 @@ int Eltwise_vulkan::create_pipeline(const Option& opt)
     {
         local_size_xyz.w = std::min(4, shape_packed.w);
         local_size_xyz.h = std::min(4, shape_packed.h);
+        local_size_xyz.c = std::min(4, shape_packed.c);
+    }
+    if (shape_packed.dims == 4)
+    {
+        local_size_xyz.w = std::min(4, shape_packed.w);
+        local_size_xyz.h = std::min(4, shape_packed.h * shape_packed.d);
         local_size_xyz.c = std::min(4, shape_packed.c);
     }
 
@@ -164,7 +170,7 @@ int Eltwise_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
     std::vector<vk_constant_type> constants(5 + 2);
     constants[0].i = top_blob.dims;
     constants[1].i = top_blob.w;
-    constants[2].i = top_blob.h;
+    constants[2].i = top_blob.h * top_blob.d;
     constants[3].i = top_blob.c;
     constants[4].i = top_blob.cstep;
     constants[5].f = coeffs.w == 0 ? 1.f : coeffs[0];
@@ -186,7 +192,7 @@ int Eltwise_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
         std::vector<vk_constant_type> constants(5 + 2);
         constants[0].i = top_blob.dims;
         constants[1].i = top_blob.w;
-        constants[2].i = top_blob.h;
+        constants[2].i = top_blob.h * top_blob.d;
         constants[3].i = top_blob.c;
         constants[4].i = top_blob.cstep;
         constants[5].f = 1.f;
@@ -222,7 +228,7 @@ int Eltwise_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::ve
     std::vector<vk_constant_type> constants(5 + 2);
     constants[0].i = top_blob.dims;
     constants[1].i = top_blob.w;
-    constants[2].i = top_blob.h;
+    constants[2].i = top_blob.h * top_blob.d;
     constants[3].i = top_blob.c;
     constants[4].i = 0; //top_blob.cstep;
     constants[5].f = coeffs.w == 0 ? 1.f : coeffs[0];
@@ -244,7 +250,7 @@ int Eltwise_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::ve
         std::vector<vk_constant_type> constants(5 + 2);
         constants[0].i = top_blob.dims;
         constants[1].i = top_blob.w;
-        constants[2].i = top_blob.h;
+        constants[2].i = top_blob.h * top_blob.d;
         constants[3].i = top_blob.c;
         constants[4].i = 0; //top_blob.cstep;
         constants[5].f = 1.f;

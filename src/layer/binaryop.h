@@ -43,7 +43,9 @@ public:
         Operation_POW = 6,
         Operation_RSUB = 7,
         Operation_RDIV = 8,
-        Operation_RPOW = 9
+        Operation_RPOW = 9,
+        Operation_ATAN2 = 10,
+        Operation_RATAN2 = 11
     };
 
 public:

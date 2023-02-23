@@ -15,7 +15,7 @@
 #include "layer/binaryop.h"
 #include "testutil.h"
 
-#define OP_TYPE_MAX 10
+#define OP_TYPE_MAX 12
 
 static int op_type = 0;
 

@@ -14,6 +14,7 @@
 * [ConvolutionDepthWise](#convolutiondepthwise)
 * [ConvolutionDepthWise1D](#convolutiondepthwise1d)
 * [ConvolutionDepthWise3D](#convolutiondepthwise3d)
+* [CopyTo](#copyto)
 * [Crop](#crop)
 * [CumulativeSum](#cumulativesum)
 * [Deconvolution](#deconvolution)
@@ -163,6 +164,8 @@ Operation type:
 - 7 = RSUB
 - 8 = RDIV
 - 9 = RPOW
+- 10 = ATAN2
+- 11 = RATAN2
 
 # BNLL
 ```
@@ -427,6 +430,22 @@ y = activation(x3, act_type, act_params)
 | ------------- | ----- | --------------------- |
 | weight_data   | float/fp16/int8 | [kernel_w, kernel_h, kernel_d, num_input / group, num_output / group, group] |
 | bias_data     | float | [num_output]          |
+
+# CopyTo
+```
+self[offset] = src
+```
+
+* one_blob_only
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | woffset       | int   | 0         |                   |
+| 1         | hoffset       | int   | 0         |                   |
+| 13        | doffset       | int   | 0         |                   |
+| 2         | coffset       | int   | 0         |                   |
+| 9         | starts        | array | [ ]       |                   |
+| 11        | axes          | array | [ ]       |                   |
 
 # Crop
 ```
@@ -1757,3 +1776,4 @@ Operation type:
 - 14 = ATAN
 - 15 = RECIPROCAL
 - 16 = TANH
+- 17 = LOG10

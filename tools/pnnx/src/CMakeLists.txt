@@ -298,6 +298,7 @@ set(pnnx_pass_level4_SRCS
 )
 
 set(pnnx_pass_level5_SRCS
+    pass_level5/attribute_unpooling.cpp
     pass_level5/eliminate_dropout.cpp
     pass_level5/eliminate_identity_operator.cpp
     pass_level5/eliminate_maxpool_indices.cpp
@@ -492,6 +493,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/Tensor_reshape.cpp
     pass_ncnn/Tensor_repeat.cpp
     pass_ncnn/Tensor_slice.cpp
+    pass_ncnn/Tensor_slice_copy.cpp
     pass_ncnn/Tensor_view.cpp
     pass_ncnn/torch_addmm.cpp
     pass_ncnn/torch_amax.cpp

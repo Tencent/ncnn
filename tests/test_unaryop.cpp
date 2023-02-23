@@ -15,7 +15,7 @@
 #include "layer/unaryop.h"
 #include "testutil.h"
 
-#define OP_TYPE_MAX 17
+#define OP_TYPE_MAX 18
 
 static int op_type = 0;
 
@@ -30,7 +30,7 @@ static int test_unaryop(const ncnn::Mat& _a)
             a[i] *= 1000;
         }
     }
-    if (op_type == 5 || op_type == 6 || op_type == 8)
+    if (op_type == 5 || op_type == 6 || op_type == 8 || op_type == 17)
     {
         // value must be positive for sqrt rsqrt log
         Randomize(a, 0.001f, 2.f);

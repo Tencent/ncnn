@@ -334,6 +334,16 @@ void solve_batch_index(Graph& graph)
         }
     }
 
+    // always treat 1-dim tensor as no batch axis
+    for (Operand* r : graph.operands)
+    {
+        if (r->shape.size() == 1)
+        {
+            fprintf(stderr, "force batch axis 233 for operand %s\n", r->name.c_str());
+            r->params["__batch_index"] = 233;
+        }
+    }
+
     // fallback axis 233 for unknown
     for (Operand* r : graph.operands)
     {

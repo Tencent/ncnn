@@ -255,4 +255,18 @@ static inline __m128 sigmoid_ps(__m128 _v)
     return __lsx_vfdiv_s(_one, _v);
 }
 
+static inline __m128 atan2_ps(__m128 a, __m128 b)
+{
+    //TODO lsx optimize
+    float tmpx[4];
+    float tmpy[4];
+    __lsx_vst(a, tmpx, 0);
+    __lsx_vst(b, tmpy, 0);
+    tmpx[0] = atan2(tmpx[0], tmpy[0]);
+    tmpx[1] = atan2(tmpx[1], tmpy[1]);
+    tmpx[2] = atan2(tmpx[2], tmpy[2]);
+    tmpx[3] = atan2(tmpx[3], tmpy[3]);
+    return (__m128)__lsx_vld(tmpx, 0);
+}
+
 #endif // LSX_MATHFUN_H
