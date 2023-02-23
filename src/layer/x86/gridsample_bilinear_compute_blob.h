@@ -1875,7 +1875,7 @@ static void gridsample_2d_bilinear_apply_interpolation_p16(const Mat& src, Mat& 
     const int outh = dst.h;
     const int grid_size = outw * outh;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
     {
         const float* srcptr = src.channel(q);
@@ -1945,7 +1945,7 @@ static void gridsample_3d_bilinear_apply_interpolation_p16(const Mat& src, Mat& 
     const int outd = dst.d;
     const int grid_size = outw * outh * outd;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
     {
         const float* srcptr = src.channel(q);

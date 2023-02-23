@@ -676,7 +676,7 @@ static void gridsample_2d_bicubic_apply_interpolation_p16(const Mat& src, Mat& d
     __m512 y_coeffs0, y_coeffs1, y_coeffs2, y_coeffs3;
     __m512 value_f[4];
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
     {
         const float* srcptr = src.channel(q);
