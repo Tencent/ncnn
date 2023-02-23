@@ -79,11 +79,11 @@ pnnx.Output             output      1 0 out
         int num_heads;
         if (expr[0] == '[')
         {
-            sscanf(expr.c_str(), "[-1,int(size(@0,1)),3,%d,8,15))]", &num_heads);
+            sscanf(expr.c_str(), "[-1,int(size(@0,1)),3,%d,%*d,%*d))]", &num_heads);
         }
         else
         {
-            sscanf(expr.c_str(), "(-1,12,3,%d,15)", &num_heads);
+            sscanf(expr.c_str(), "(-1,%*d,3,%d,%*d)", &num_heads);
         }
 
         op->params["num_heads"] = num_heads;
