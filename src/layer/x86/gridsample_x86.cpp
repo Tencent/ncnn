@@ -613,10 +613,36 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
             {
                 gridsample_nearest_apply_interpolation_p8(bottom_blob, top_blob, offset_blob, in_bound_blob, opt);
             }
+        }
+    }
+
+#endif // __AVX__
+    if (elempack == 4)
+    {
+        if (dims == 3)
+        {
+            if (sample_type == InterpolationMode::Bilinear)
+            {
+                gridsample_2d_bilinear_apply_interpolation_p4(bottom_blob, top_blob, offset_blob, in_bound_blob, value_blob, opt);
+            }
+            else if (sample_type == InterpolationMode::Nearest)
+            {
+                gridsample_nearest_apply_interpolation_p4(bottom_blob, top_blob, offset_blob, in_bound_blob, opt);
+            }
             else if (sample_type == InterpolationMode::Bicubic)
             {
-                return GridSample::forward(bottom_blobs, top_blobs, opt);
-                gridsample_2d_bicubic_apply_interpolation_p8(bottom_blob, top_blob, offset_blob, in_bound_blob, value_blob, opt);
+                gridsample_2d_bicubic_apply_interpolation_p4(bottom_blob, top_blob, offset_blob, in_bound_blob, value_blob, opt);
+            }
+        }
+        else if (dims == 4)
+        {
+            if (sample_type == InterpolationMode::Bilinear)
+            {
+                gridsample_3d_bilinear_apply_interpolation_p4(bottom_blob, top_blob, offset_blob, in_bound_blob, value_blob, opt);
+            }
+            else if (sample_type == InterpolationMode::Nearest)
+            {
+                gridsample_nearest_apply_interpolation_p4(bottom_blob, top_blob, offset_blob, in_bound_blob, opt);
             }
         }
     }
@@ -625,73 +651,32 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
         return GridSample::forward(bottom_blobs, top_blobs, opt);
     }
 
-#endif // __AVX__
-    if (elempack == 4)
-    {
-        if (sample_type == InterpolationMode::Bilinear)
-        {
-        }
-        else if (sample_type == InterpolationMode::Nearest)
-        {
-        }
-        else if (sample_type == InterpolationMode::Bicubic)
-        {
-        }
-        else
-        {
-        }
-    }
-    else if (dims == 4)
-    {
-        if (sample_type == InterpolationMode::Bilinear)
-        {
-        }
-        else if (sample_type == InterpolationMode::Nearest)
-        {
-        }
-        else if (sample_type == InterpolationMode::Bicubic)
-        {
-        }
-        else
-        {
-        }
-    }
-
 #endif // __SSE2__
 
     if (elempack == 1)
     {
-        if (sample_type == InterpolationMode::Bilinear)
+        if (dims == 3)
         {
+            if (sample_type == InterpolationMode::Bilinear)
+            {
+            }
+            else if (sample_type == InterpolationMode::Nearest)
+            {
+            }
+            else if (sample_type == InterpolationMode::Bicubic)
+            {
+            }
         }
-        else if (sample_type == InterpolationMode::Nearest)
+        else if (dims == 4)
         {
-        }
-        else if (sample_type == InterpolationMode::Bicubic)
-        {
+            if (sample_type == InterpolationMode::Bilinear)
+            {
+            }
+            else if (sample_type == InterpolationMode::Nearest)
+            {
+            }
         }
     }
-    else if (dims == 4)
-    {
-        if (sample_type == InterpolationMode::Bilinear)
-        {
-        }
-        else if (sample_type == InterpolationMode::Nearest)
-        {
-        }
-        else if (sample_type == InterpolationMode::Bicubic)
-        {
-        }
-    }
-#if __SSE2__
-#if __AVX__
-#if __AVX512F__
-
-#endif // __AVX512F__
-
-#endif // __AVX__
-
-#endif // __SSE2__
 
     return 0;
 }

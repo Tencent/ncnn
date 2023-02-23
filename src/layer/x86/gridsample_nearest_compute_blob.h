@@ -660,6 +660,7 @@ struct gridsample_3d_nearest_compute_blob<PaddingMode::Zeros, align_corner>
     }
 };
 
+#if __SSE2__
 #if __AVX__
 static void gridsample_nearest_apply_interpolation_p8(const Mat& src, Mat& dst, const Mat& offset, const Mat& in_bound, const Option& opt)
 {
@@ -693,5 +694,39 @@ static void gridsample_nearest_apply_interpolation_p8(const Mat& src, Mat& dst, 
         }
     }
 }
-
 #endif // __AVX__
+static void gridsample_nearest_apply_interpolation_p4(const Mat& src, Mat& dst, const Mat& offset, const Mat& in_bound, const Option& opt)
+{
+    const int channels = dst.c;
+    const int outw = dst.w;
+    const int outh = dst.h;
+    const int outd = dst.d;
+    const int grid_size = outw * outh * outd;
+
+#pragma omp parallel for num_threads(opt.num_threads)
+    for (int q = 0; q < channels; q++)
+    {
+        const float* srcptr = src.channel(q);
+        float* dstptr = dst.channel(q);
+
+        const int* offset_ptr = offset.channel(0);
+
+        const float* in_bound_ptr = in_bound.channel(0);
+
+        for (int i = 0; i < grid_size; i++)
+        {
+            __m128 _v = mask_gather_ps(srcptr, _mm_add_epi32(_mm_set1_epi32(*offset_ptr), _mm_set_epi32(3, 2, 1, 0)), _mm_set1_ps(*in_bound_ptr));
+
+            _mm_storeu_ps(dstptr, _v);
+
+            offset_ptr++;
+
+            in_bound_ptr++;
+
+            dstptr += 4;
+        }
+    }
+}
+
+
+#endif // __SSE2__
