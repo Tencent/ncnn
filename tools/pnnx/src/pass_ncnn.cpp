@@ -28,6 +28,7 @@
 #include "pass_ncnn/eliminate_output.h"
 #include "pass_ncnn/expand_expression.h"
 #include "pass_ncnn/fuse_convert_shufflechannel_slice.h"
+#include "pass_ncnn/fuse_reshape_shape.h"
 #include "pass_ncnn/insert_split.h"
 #include "pass_ncnn/chain_multi_output.h"
 #include "pass_ncnn/solve_batch_index.h"
@@ -91,6 +92,8 @@ void pass_ncnn(Graph& g)
     ncnn::insert_reshape_linear(g);
 
     ncnn::fuse_convert_shufflechannel_slice(g);
+
+    ncnn::fuse_reshape_shape(g);
 
     ncnn::convert_torch_cat(g);
     ncnn::convert_torch_chunk(g);

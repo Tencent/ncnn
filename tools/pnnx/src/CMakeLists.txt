@@ -323,6 +323,7 @@ set(pnnx_pass_level5_SRCS
     pass_level5/fuse_pad_conv1d.cpp
     pass_level5/fuse_pad_conv2d.cpp
     pass_level5/fuse_pixel_unshuffle.cpp
+    pass_level5/fuse_multiheadattention.cpp
     pass_level5/fuse_select_to_unbind.cpp
     pass_level5/fuse_slice_copy.cpp
     pass_level5/fuse_slice_indices.cpp
@@ -353,6 +354,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/eliminate_output.cpp
     pass_ncnn/expand_expression.cpp
     pass_ncnn/fuse_convert_shufflechannel_slice.cpp
+    pass_ncnn/fuse_reshape_shape.cpp
     pass_ncnn/insert_split.cpp
     pass_ncnn/chain_multi_output.cpp
     pass_ncnn/solve_batch_index.cpp
