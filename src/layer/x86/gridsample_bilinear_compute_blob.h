@@ -856,7 +856,7 @@ struct gridsample_3d_bilinear_compute_blob
                     }
 
                     __m256 tnw_offset = _mm256_mul_ps(_mm256_comp_fmadd_ps(_mm256_mul_ps(vImgWf, vImgHf), z_t,
-                                                                           _mm256_comp_fmadd_ps(y_n, vImgWf, x_w)),
+                                                      _mm256_comp_fmadd_ps(y_n, vImgWf, x_w)),
                                                       vElempackf);
                     __m256 tne_offset = _mm256_add_ps(tnw_offset, vElempackf);
                     __m256 tsw_offset = _mm256_add_ps(tnw_offset, _mm256_mul_ps(vImgWf, vElempackf));
@@ -959,7 +959,6 @@ struct gridsample_3d_bilinear_compute_blob
                     bool x1_in_range = (x1 > -1) & (x1 < src.w);
                     bool y1_in_range = (y1 > -1) & (y1 < src.h);
                     bool z1_in_range = (z1 > -1) & (z1 < src.d);
-
 
                     bool v11_in_range = x1_in_range & y1_in_range;
 
@@ -1108,7 +1107,7 @@ struct gridsample_3d_bilinear_compute_blob
                 }
 
                 __m256 tnw_offset = _mm256_mul_ps(_mm256_comp_fmadd_ps(_mm256_mul_ps(vImgWf, vImgHf), z_t,
-                                                                _mm256_comp_fmadd_ps(y_n, vImgWf, x_w)),
+                                                  _mm256_comp_fmadd_ps(y_n, vImgWf, x_w)),
                                                   vElempackf);
                 __m256 tne_offset = _mm256_add_ps(tnw_offset, vElempackf);
                 __m256 tsw_offset = _mm256_add_ps(tnw_offset, _mm256_mul_ps(vImgWf, vElempackf));
@@ -1188,7 +1187,7 @@ struct gridsample_3d_bilinear_compute_blob
             nn = grid_size & 7;
 #endif // __AVX__
 
-            for (int x = grid_size - nn; x < grid_size; x ++)
+            for (int x = grid_size - nn; x < grid_size; x++)
             {
                 float sample_x = *gridptr_x;
                 float sample_y = *gridptr_y;
@@ -1426,7 +1425,7 @@ struct gridsample_3d_bilinear_compute_blob<PaddingMode::Zeros, align_corner>
                         v001_in_range = _mm256_and_ps(v01_in_range, z0_in_range);
                         v010_in_range = _mm256_and_ps(v10_in_range, z0_in_range);
                         v011_in_range = _mm256_and_ps(v11_in_range, z0_in_range);
-                                                   
+
                         v100_in_range = _mm256_and_ps(v00_in_range, z1_in_range);
                         v101_in_range = _mm256_and_ps(v01_in_range, z1_in_range);
                         v110_in_range = _mm256_and_ps(v10_in_range, z1_in_range);
@@ -1434,7 +1433,7 @@ struct gridsample_3d_bilinear_compute_blob<PaddingMode::Zeros, align_corner>
                     }
 
                     __m256 tnw_offset = _mm256_mul_ps(_mm256_comp_fmadd_ps(_mm256_mul_ps(vImgWf, vImgHf), z_t,
-                                                                           _mm256_comp_fmadd_ps(y_n, vImgWf, x_w)),
+                                                      _mm256_comp_fmadd_ps(y_n, vImgWf, x_w)),
                                                       vElempackf);
                     __m256 tne_offset = _mm256_add_ps(tnw_offset, vElempackf);
                     __m256 tsw_offset = _mm256_add_ps(tnw_offset, _mm256_mul_ps(vImgWf, vElempackf));
@@ -1469,7 +1468,7 @@ struct gridsample_3d_bilinear_compute_blob<PaddingMode::Zeros, align_corner>
                     _mm256_storeu_epi32(offset_ptr_001, i_tne_offset);
                     _mm256_storeu_epi32(offset_ptr_010, i_tsw_offset);
                     _mm256_storeu_epi32(offset_ptr_011, i_tse_offset);
-                                  
+
                     _mm256_storeu_epi32(offset_ptr_100, i_bnw_offset);
                     _mm256_storeu_epi32(offset_ptr_101, i_bne_offset);
                     _mm256_storeu_epi32(offset_ptr_110, i_bsw_offset);
@@ -1485,15 +1484,15 @@ struct gridsample_3d_bilinear_compute_blob<PaddingMode::Zeros, align_corner>
 
                     gridptr += 24;
 
-                    offset_ptr_000  += 8;
-                    offset_ptr_001  += 8;
-                    offset_ptr_010  += 8;
-                    offset_ptr_011  += 8;
+                    offset_ptr_000 += 8;
+                    offset_ptr_001 += 8;
+                    offset_ptr_010 += 8;
+                    offset_ptr_011 += 8;
 
-                    offset_ptr_100  += 8;
-                    offset_ptr_101  += 8;
-                    offset_ptr_110  += 8;
-                    offset_ptr_111  += 8;
+                    offset_ptr_100 += 8;
+                    offset_ptr_101 += 8;
+                    offset_ptr_110 += 8;
+                    offset_ptr_111 += 8;
 
                     in_bound_ptr_000 += 8;
                     in_bound_ptr_001 += 8;
@@ -1581,7 +1580,7 @@ struct gridsample_3d_bilinear_compute_blob<PaddingMode::Zeros, align_corner>
                     in_bound_ptr_001++;
                     in_bound_ptr_010++;
                     in_bound_ptr_011++;
-                                    
+
                     in_bound_ptr_100++;
                     in_bound_ptr_101++;
                     in_bound_ptr_110++;
@@ -1693,7 +1692,7 @@ struct gridsample_3d_bilinear_compute_blob<PaddingMode::Zeros, align_corner>
                     v001_in_range = _mm256_and_ps(v01_in_range, z0_in_range);
                     v010_in_range = _mm256_and_ps(v10_in_range, z0_in_range);
                     v011_in_range = _mm256_and_ps(v11_in_range, z0_in_range);
-                                               
+
                     v100_in_range = _mm256_and_ps(v00_in_range, z1_in_range);
                     v101_in_range = _mm256_and_ps(v01_in_range, z1_in_range);
                     v110_in_range = _mm256_and_ps(v10_in_range, z1_in_range);
@@ -1701,7 +1700,7 @@ struct gridsample_3d_bilinear_compute_blob<PaddingMode::Zeros, align_corner>
                 }
 
                 __m256 tnw_offset = _mm256_mul_ps(_mm256_comp_fmadd_ps(_mm256_mul_ps(vImgWf, vImgHf), z_t,
-                                                                       _mm256_comp_fmadd_ps(y_n, vImgWf, x_w)),
+                                                  _mm256_comp_fmadd_ps(y_n, vImgWf, x_w)),
                                                   vElempackf);
                 __m256 tne_offset = _mm256_add_ps(tnw_offset, vElempackf);
                 __m256 tsw_offset = _mm256_add_ps(tnw_offset, _mm256_mul_ps(vImgWf, vElempackf));
@@ -1781,7 +1780,7 @@ struct gridsample_3d_bilinear_compute_blob<PaddingMode::Zeros, align_corner>
             nn = grid_size & 7;
 #endif // __AVX__
 
-            for (int x = grid_size - nn; x < grid_size; x ++)
+            for (int x = grid_size - nn; x < grid_size; x++)
             {
                 float sample_x = *gridptr_x;
                 float sample_y = *gridptr_y;
@@ -1945,7 +1944,7 @@ static void gridsample_3d_bilinear_apply_interpolation_p8(const Mat& src, Mat& d
     const int outd = dst.d;
     const int grid_size = outw * outh * outd;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
     {
         const float* srcptr = src.channel(q);
@@ -1959,7 +1958,7 @@ static void gridsample_3d_bilinear_apply_interpolation_p8(const Mat& src, Mat& d
         const int* offset_ptr_101 = offset.channel(5);
         const int* offset_ptr_110 = offset.channel(6);
         const int* offset_ptr_111 = offset.channel(7);
-         
+
         const float* in_bound_ptr_000 = in_bound.channel(0);
         const float* in_bound_ptr_001 = in_bound.channel(1);
         const float* in_bound_ptr_010 = in_bound.channel(2);
@@ -1968,7 +1967,7 @@ static void gridsample_3d_bilinear_apply_interpolation_p8(const Mat& src, Mat& d
         const float* in_bound_ptr_101 = in_bound.channel(5);
         const float* in_bound_ptr_110 = in_bound.channel(6);
         const float* in_bound_ptr_111 = in_bound.channel(7);
-         
+
         const float* value_ptr_alpha = value.channel(0);
         const float* value_ptr_beta = value.channel(1);
         const float* value_ptr_gamma = value.channel(2);
@@ -2053,7 +2052,7 @@ static void gridsample_2d_bilinear_apply_interpolation_p4(const Mat& src, Mat& d
     const int outh = dst.h;
     const int grid_size = outw * outh;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
     {
         const float* srcptr = src.channel(q);
@@ -2123,7 +2122,7 @@ static void gridsample_3d_bilinear_apply_interpolation_p4(const Mat& src, Mat& d
     const int outd = dst.d;
     const int grid_size = outw * outh * outd;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
     {
         const float* srcptr = src.channel(q);
@@ -2232,7 +2231,7 @@ static void gridsample_2d_bilinear_apply_interpolation_p1(const Mat& src, Mat& d
     const int outh = dst.h;
     const int grid_size = outw * outh;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
     {
         const float* srcptr = src.channel(q);
@@ -2253,7 +2252,7 @@ static void gridsample_2d_bilinear_apply_interpolation_p1(const Mat& src, Mat& d
 
         int nn = grid_size;
 #if __SSE2__
-#if __AVX__     
+#if __AVX__
 
         for (int i = 0; i + 7 < grid_size; i += 8)
         {
@@ -2297,7 +2296,7 @@ static void gridsample_2d_bilinear_apply_interpolation_p1(const Mat& src, Mat& d
             dstptr += 8;
         }
         nn = grid_size & 7;
-#endif // __AVX__    
+#endif // __AVX__
         for (int i = grid_size - nn; i + 3 < grid_size; i += 4)
         {
             __m128i v00_offset = _mm_loadu_epi32(offset_ptr_00);
@@ -2340,7 +2339,7 @@ static void gridsample_2d_bilinear_apply_interpolation_p1(const Mat& src, Mat& d
             dstptr += 4;
         }
         nn = grid_size & 3;
-#endif // __SSE2__        
+#endif // __SSE2__
         for (int i = grid_size - nn; i < grid_size; i++)
         {
             float v00 = *in_bound_ptr_00 < 0 ? *(srcptr + *offset_ptr_00) : 0;
@@ -2377,7 +2376,7 @@ static void gridsample_3d_bilinear_apply_interpolation_p1(const Mat& src, Mat& d
     const int outd = dst.d;
     const int grid_size = outw * outh * outd;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
     {
         const float* srcptr = src.channel(q);
@@ -2407,7 +2406,7 @@ static void gridsample_3d_bilinear_apply_interpolation_p1(const Mat& src, Mat& d
 
         int nn = grid_size;
 #if __SSE2__
-#if __AVX__        
+#if __AVX__
         for (int i = 0; i + 7 < grid_size; i += 8)
         {
             __m256i v000_offset = _mm256_loadu_epi32(offset_ptr_000);
@@ -2456,7 +2455,7 @@ static void gridsample_3d_bilinear_apply_interpolation_p1(const Mat& src, Mat& d
             offset_ptr_001 += 8;
             offset_ptr_010 += 8;
             offset_ptr_011 += 8;
-                            
+
             offset_ptr_100 += 8;
             offset_ptr_101 += 8;
             offset_ptr_110 += 8;
@@ -2466,7 +2465,7 @@ static void gridsample_3d_bilinear_apply_interpolation_p1(const Mat& src, Mat& d
             in_bound_ptr_001 += 8;
             in_bound_ptr_010 += 8;
             in_bound_ptr_011 += 8;
-                            
+
             in_bound_ptr_100 += 8;
             in_bound_ptr_101 += 8;
             in_bound_ptr_110 += 8;
@@ -2480,7 +2479,7 @@ static void gridsample_3d_bilinear_apply_interpolation_p1(const Mat& src, Mat& d
         }
 
         nn = grid_size & 7;
-#endif // __AVX__        
+#endif // __AVX__
         for (int i = grid_size - nn; i + 3 < grid_size; i += 4)
         {
             __m128i v000_offset = _mm_loadu_epi32(offset_ptr_000);
@@ -2529,7 +2528,7 @@ static void gridsample_3d_bilinear_apply_interpolation_p1(const Mat& src, Mat& d
             offset_ptr_001 += 4;
             offset_ptr_010 += 4;
             offset_ptr_011 += 4;
-                           
+
             offset_ptr_100 += 4;
             offset_ptr_101 += 4;
             offset_ptr_110 += 4;
@@ -2539,7 +2538,7 @@ static void gridsample_3d_bilinear_apply_interpolation_p1(const Mat& src, Mat& d
             in_bound_ptr_001 += 4;
             in_bound_ptr_010 += 4;
             in_bound_ptr_011 += 4;
-                            
+
             in_bound_ptr_100 += 4;
             in_bound_ptr_101 += 4;
             in_bound_ptr_110 += 4;
@@ -2552,7 +2551,7 @@ static void gridsample_3d_bilinear_apply_interpolation_p1(const Mat& src, Mat& d
             dstptr += 4;
         }
         nn = grid_size & 3;
-#endif // __SSE2__        
+#endif // __SSE2__
         for (int i = grid_size - nn; i < grid_size; i++)
         {
             float v000 = *in_bound_ptr_000 < 0 ? *(srcptr + *offset_ptr_000) : 0;
@@ -2565,7 +2564,6 @@ static void gridsample_3d_bilinear_apply_interpolation_p1(const Mat& src, Mat& d
             float v110 = *in_bound_ptr_110 < 0 ? *(srcptr + *offset_ptr_110) : 0;
             float v111 = *in_bound_ptr_111 < 0 ? *(srcptr + *offset_ptr_111) : 0;
 
-            
             float v00 = v000 * (1 - *value_ptr_alpha) + v001 * *value_ptr_alpha;
             float v01 = v010 * (1 - *value_ptr_alpha) + v011 * *value_ptr_alpha;
             float v10 = v100 * (1 - *value_ptr_alpha) + v101 * *value_ptr_alpha;

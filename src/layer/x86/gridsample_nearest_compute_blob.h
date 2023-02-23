@@ -52,7 +52,7 @@ struct gridsample_2d_nearest_compute_blob
                     {
                         gx = unormalize(vImgWf, gx);
                         gx = get_coord(vImgWf, gx);
-                        
+
                         gy = unormalize(vImgHf, gy);
                         gy = get_coord(vImgHf, gy);
                     }
@@ -78,11 +78,9 @@ struct gridsample_2d_nearest_compute_blob
                     float sample_x = *gridptr;
                     float sample_y = *(gridptr + 1);
 
-                    
                     sample_x = unormalize(src.w, sample_x);
                     sample_x = get_coord(src.w, sample_x);
 
-                    
                     sample_y = unormalize(src.h, sample_y);
                     sample_y = get_coord(src.h, sample_y);
 
@@ -113,7 +111,7 @@ struct gridsample_2d_nearest_compute_blob
                 {
                     gx = unormalize(vImgWf, gx);
                     gx = get_coord(vImgWf, gx);
-                    
+
                     gy = unormalize(vImgHf, gy);
                     gy = get_coord(vImgHf, gy);
                 }
@@ -139,10 +137,10 @@ struct gridsample_2d_nearest_compute_blob
             {
                 float sample_x = *gridptr_x;
                 float sample_y = *gridptr_y;
-                
+
                 sample_x = unormalize(src.w, sample_x);
                 sample_x = get_coord(src.w, sample_x);
-                
+
                 sample_y = unormalize(src.h, sample_y);
                 sample_y = get_coord(src.h, sample_y);
 
@@ -228,9 +226,8 @@ struct gridsample_2d_nearest_compute_blob<PaddingMode::Zeros, align_corner>
                     float sample_x = *gridptr;
                     float sample_y = *(gridptr + 1);
 
-                    
                     sample_x = unormalize(src.w, sample_x);
-                    
+
                     sample_y = unormalize(src.h, sample_y);
 
                     int x0 = static_cast<int>(floor(sample_x + 0.5f));
@@ -356,7 +353,7 @@ struct gridsample_3d_nearest_compute_blob
                     {
                         gx = unormalize(vImgWf, gx);
                         gx = get_coord(vImgWf, gx);
-                        
+
                         gy = unormalize(vImgHf, gy);
                         gy = get_coord(vImgHf, gy);
 
@@ -369,7 +366,8 @@ struct gridsample_3d_nearest_compute_blob
                     gz = _mm256_floor_ps(_mm256_add_ps(gz, _mm256_set1_ps(0.5f)));
 
                     __m256 offset = _mm256_mul_ps(_mm256_comp_fmadd_ps(_mm256_mul_ps(vImgWf, vImgHf), gz,
-                                                            _mm256_comp_fmadd_ps(gy, vImgWf, gx)),vElempackf);
+                                                  _mm256_comp_fmadd_ps(gy, vImgWf, gx)),
+                                                  vElempackf);
                     __m256i i_offset = _mm256_cvtps_epi32(offset);
 
                     _mm256_storeu_epi32(offset_ptr, i_offset);
@@ -428,7 +426,6 @@ struct gridsample_3d_nearest_compute_blob
                     gx = unormalize(vImgWf, gx);
                     gx = get_coord(vImgWf, gx);
 
-                    
                     gy = unormalize(vImgHf, gy);
                     gy = get_coord(vImgHf, gy);
 
@@ -441,7 +438,8 @@ struct gridsample_3d_nearest_compute_blob
                 gz = _mm256_floor_ps(_mm256_add_ps(gz, _mm256_set1_ps(0.5f)));
 
                 __m256 offset = _mm256_mul_ps(_mm256_comp_fmadd_ps(_mm256_mul_ps(vImgWf, vImgHf), gz,
-                                                        _mm256_comp_fmadd_ps(gy, vImgWf, gx)),vElempackf);
+                                              _mm256_comp_fmadd_ps(gy, vImgWf, gx)),
+                                              vElempackf);
                 __m256i i_offset = _mm256_cvtps_epi32(offset);
 
                 _mm256_storeu_epi32(offset_ptr, i_offset);
@@ -461,10 +459,10 @@ struct gridsample_3d_nearest_compute_blob
                 float sample_x = *gridptr_x;
                 float sample_y = *gridptr_y;
                 float sample_z = *gridptr_z;
-                
+
                 sample_x = unormalize(src.w, sample_x);
                 sample_x = get_coord(src.w, sample_x);
-                
+
                 sample_y = unormalize(src.h, sample_y);
                 sample_y = get_coord(src.h, sample_y);
 
@@ -546,7 +544,8 @@ struct gridsample_3d_nearest_compute_blob<PaddingMode::Zeros, align_corner>
                     v_in_range = _mm256_and_ps(v_in_range, _mm256_and_ps(_mm256_cmp_ps(gz, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgDf, gz, _CMP_GT_OS)));
 
                     __m256 offset = _mm256_mul_ps(_mm256_comp_fmadd_ps(_mm256_mul_ps(vImgWf, vImgHf), gz,
-                                                  _mm256_comp_fmadd_ps(gy, vImgWf, gx)), vElempackf);
+                                                  _mm256_comp_fmadd_ps(gy, vImgWf, gx)),
+                                                  vElempackf);
                     __m256i i_offset = _mm256_cvtps_epi32(offset);
 
                     _mm256_storeu_ps(in_bound_ptr, v_in_range);
@@ -613,7 +612,8 @@ struct gridsample_3d_nearest_compute_blob<PaddingMode::Zeros, align_corner>
                 v_in_range = _mm256_and_ps(v_in_range, _mm256_and_ps(_mm256_cmp_ps(gz, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgDf, gz, _CMP_GT_OS)));
 
                 __m256 offset = _mm256_mul_ps(_mm256_comp_fmadd_ps(_mm256_mul_ps(vImgWf, vImgHf), gz,
-                                                        _mm256_comp_fmadd_ps(gy, vImgWf, gx)),vElempackf);
+                                              _mm256_comp_fmadd_ps(gy, vImgWf, gx)),
+                                              vElempackf);
                 __m256i i_offset = _mm256_cvtps_epi32(offset);
 
                 _mm256_storeu_ps(in_bound_ptr, v_in_range);
@@ -635,7 +635,7 @@ struct gridsample_3d_nearest_compute_blob<PaddingMode::Zeros, align_corner>
                 float sample_x = *gridptr_x;
                 float sample_y = *gridptr_y;
                 float sample_z = *gridptr_z;
-                
+
                 sample_x = unormalize(src.w, sample_x);
                 sample_y = unormalize(src.h, sample_y);
                 sample_z = unormalize(src.d, sample_z);
@@ -701,7 +701,7 @@ static void gridsample_nearest_apply_interpolation_p4(const Mat& src, Mat& dst, 
     const int outd = dst.d;
     const int grid_size = outw * outh * outd;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
     {
         const float* srcptr = src.channel(q);
@@ -724,7 +724,6 @@ static void gridsample_nearest_apply_interpolation_p4(const Mat& src, Mat& dst, 
     }
 }
 
-
 #endif // __SSE2__
 
 static void gridsample_nearest_apply_interpolation_p1(const Mat& src, Mat& dst, const Mat& offset, const Mat& in_bound, const Option& opt)
@@ -735,7 +734,7 @@ static void gridsample_nearest_apply_interpolation_p1(const Mat& src, Mat& dst, 
     const int outd = dst.d;
     const int grid_size = outw * outh * outd;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
     {
         const float* srcptr = src.channel(q);
@@ -772,7 +771,7 @@ static void gridsample_nearest_apply_interpolation_p1(const Mat& src, Mat& dst, 
         }
         nn = grid_size & 3;
 #endif // __SSE2__
-        for (int i = grid_size - nn; i < grid_size; i ++)
+        for (int i = grid_size - nn; i < grid_size; i++)
         {
             *dstptr = *in_bound_ptr < 0 ? *(srcptr + *offset_ptr) : 0;
 

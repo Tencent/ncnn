@@ -770,7 +770,7 @@ static void gridsample_2d_bicubic_apply_interpolation_p4(const Mat& src, Mat& ds
     __m128 y_coeffs0, y_coeffs1, y_coeffs2, y_coeffs3;
     __m128 value_f[4];
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
     {
         const float* srcptr = src.channel(q);
@@ -861,7 +861,7 @@ static void gridsample_2d_bicubic_apply_interpolation_p1(const Mat& src, Mat& ds
     const int outh = dst.h;
     const int grid_size = outw * outh;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
     {
         const float* srcptr = src.channel(q);
@@ -889,7 +889,7 @@ static void gridsample_2d_bicubic_apply_interpolation_p1(const Mat& src, Mat& ds
 
         int nn = grid_size;
 #if __SSE2__
-#if __AVX__      
+#if __AVX__
         {
             __m256 x_coeffs0, x_coeffs1, x_coeffs2, x_coeffs3;
             __m256 y_coeffs0, y_coeffs1, y_coeffs2, y_coeffs3;
@@ -1014,7 +1014,7 @@ static void gridsample_2d_bicubic_apply_interpolation_p1(const Mat& src, Mat& ds
 
             cubic_interp1d(y_coeffs0, y_coeffs1, y_coeffs2, y_coeffs3, *value_y);
 
-            float _v =  y_coeffs0 * value_f[0];
+            float _v = y_coeffs0 * value_f[0];
             _v = y_coeffs1 * value_f[1] + _v;
             _v = y_coeffs2 * value_f[2] + _v;
             _v = y_coeffs3 * value_f[3] + _v;
