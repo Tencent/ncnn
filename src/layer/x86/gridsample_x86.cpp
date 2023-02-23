@@ -416,7 +416,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
             }
         }
     }
-    printf("%d %d %d %d\n", sample_type, padding_mode, align_corner, permute_fusion);
+
     if (dims == 4)
     {
         outw = permute_fusion == 0 ? grid_p1.h : grid_p1.w;
@@ -550,17 +550,31 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 #if __AVX512F__
     if (elempack == 16)
     {
-        if (sample_type == InterpolationMode::Bilinear)
+        if (dims == 3)
         {
+            if (sample_type == InterpolationMode::Bilinear)
+            {
+                gridsample_2d_bilinear_apply_interpolation_p16(bottom_blob, top_blob, offset_blob, in_bound_blob, value_blob, opt);
+            }
+            else if (sample_type == InterpolationMode::Nearest)
+            {
+                gridsample_nearest_apply_interpolation_p16(bottom_blob, top_blob, offset_blob, in_bound_blob, opt);
+            }
+            else if (sample_type == InterpolationMode::Bicubic)
+            {
+                gridsample_2d_bicubic_apply_interpolation_p16(bottom_blob, top_blob, offset_blob, in_bound_blob, value_blob, opt);
+            }
         }
-        else if (sample_type == InterpolationMode::Nearest)
+        else if (dims == 4)
         {
-        }
-        else if (sample_type == InterpolationMode::Bicubic)
-        {
-        }
-        else
-        {
+            if (sample_type == InterpolationMode::Bilinear)
+            {
+                gridsample_3d_bilinear_apply_interpolation_p16(bottom_blob, top_blob, offset_blob, in_bound_blob, value_blob, opt);
+            }
+            else if (sample_type == InterpolationMode::Nearest)
+            {
+                gridsample_nearest_apply_interpolation_p16(bottom_blob, top_blob, offset_blob, in_bound_blob, opt);
+            }
         }
     }
 #endif // __AVX512F__
