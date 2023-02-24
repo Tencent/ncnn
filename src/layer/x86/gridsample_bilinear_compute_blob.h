@@ -22,17 +22,12 @@ struct gridsample_2d_bilinear_compute_blob
         const __m256 vImgWf = _mm256_set1_ps(src.w);
         const __m256 vImgHf = _mm256_set1_ps(src.h);
         const __m256 vElempackf = _mm256_set1_ps(src.elempack);
-#if __AVX2__
-        const __m256i vImgWi = _mm256_set1_epi32(src.w);
-        const __m256i vImgHi = _mm256_set1_epi32(src.h);
-        const __m256i vElempacki = _mm256_set1_epi32(src.elempack);
-#endif // __AVX2__
 #endif // __AVX__
 
-        int* offset_ptr_00 = offset.channel(0);
-        int* offset_ptr_01 = offset.channel(1);
-        int* offset_ptr_10 = offset.channel(2);
-        int* offset_ptr_11 = offset.channel(3);
+        float* offset_ptr_00 = offset.channel(0);
+        float* offset_ptr_01 = offset.channel(1);
+        float* offset_ptr_10 = offset.channel(2);
+        float* offset_ptr_11 = offset.channel(3);
 
         float* in_bound_ptr_01 = in_bound.channel(1);
         float* in_bound_ptr_10 = in_bound.channel(2);
@@ -77,26 +72,6 @@ struct gridsample_2d_bilinear_compute_blob
                     __m256 x_w = _mm256_floor_ps(gx);
                     __m256 y_n = _mm256_floor_ps(gy);
 
-#if __AVX2__
-                    __m256i x0 = _mm256_cvtps_epi32(x_w);
-                    __m256i y0 = _mm256_cvtps_epi32(y_n);
-                    __m256i x1 = _mm256_add_epi32(x0, *(__m256i*)_pi32_256_1);
-                    __m256i y1 = _mm256_add_epi32(y0, *(__m256i*)_pi32_256_1);
-
-                    __m256i x1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(x1, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgWi, x1));
-                    __m256i y1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(y1, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgHi, y1));
-
-                    __m256i v11_in_range = _mm256_and_si256(x1_in_range, y1_in_range);
-
-                    __m256i i_nw_offset = _mm256_mullo_epi32(_mm256_add_epi32(_mm256_mullo_epi32(y0, vImgWi), x0), vElempacki);
-                    __m256i i_ne_offset = _mm256_add_epi32(i_nw_offset, vElempacki);
-                    __m256i i_sw_offset = _mm256_add_epi32(i_nw_offset, _mm256_mullo_epi32(vImgWi, vElempacki));
-                    __m256i i_se_offset = _mm256_add_epi32(i_sw_offset, vElempacki);
-
-                    _mm256_storeu_epi32(in_bound_ptr_01, x1_in_range);
-                    _mm256_storeu_epi32(in_bound_ptr_10, y1_in_range);
-                    _mm256_storeu_epi32(in_bound_ptr_11, v11_in_range);
-#else
                     __m256 x1 = _mm256_add_ps(x_w, *(__m256*)_ps256_1);
                     __m256 y1 = _mm256_add_ps(y_n, *(__m256*)_ps256_1);
 
@@ -110,20 +85,14 @@ struct gridsample_2d_bilinear_compute_blob
                     __m256 sw_offset = _mm256_comp_fmadd_ps(vImgWf, vElempackf, nw_offset);
                     __m256 se_offset = _mm256_add_ps(sw_offset, vElempackf);
 
-                    __m256i i_nw_offset = _mm256_cvtps_epi32(nw_offset);
-                    __m256i i_ne_offset = _mm256_cvtps_epi32(ne_offset);
-                    __m256i i_sw_offset = _mm256_cvtps_epi32(sw_offset);
-                    __m256i i_se_offset = _mm256_cvtps_epi32(se_offset);
-
                     _mm256_storeu_ps(in_bound_ptr_01, x1_in_range);
                     _mm256_storeu_ps(in_bound_ptr_10, y1_in_range);
                     _mm256_storeu_ps(in_bound_ptr_11, v11_in_range);
-#endif
 
-                    _mm256_storeu_epi32(offset_ptr_00, i_nw_offset);
-                    _mm256_storeu_epi32(offset_ptr_01, i_ne_offset);
-                    _mm256_storeu_epi32(offset_ptr_10, i_sw_offset);
-                    _mm256_storeu_epi32(offset_ptr_11, i_se_offset);
+                    _mm256_storeu_ps(offset_ptr_00, nw_offset);
+                    _mm256_storeu_ps(offset_ptr_01, ne_offset);
+                    _mm256_storeu_ps(offset_ptr_10, sw_offset);
+                    _mm256_storeu_ps(offset_ptr_11, se_offset);
 
                     __m256 alpha = _mm256_sub_ps(gx, x_w);
                     __m256 beta = _mm256_sub_ps(gy, y_n);
@@ -224,26 +193,6 @@ struct gridsample_2d_bilinear_compute_blob
                 __m256 x_w = _mm256_floor_ps(gx);
                 __m256 y_n = _mm256_floor_ps(gy);
 
-#if __AVX2__
-                __m256i x0 = _mm256_cvtps_epi32(x_w);
-                __m256i y0 = _mm256_cvtps_epi32(y_n);
-                __m256i x1 = _mm256_add_epi32(x0, *(__m256i*)_pi32_256_1);
-                __m256i y1 = _mm256_add_epi32(y0, *(__m256i*)_pi32_256_1);
-
-                __m256i x1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(x1, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgWi, x1));
-                __m256i y1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(y1, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgHi, y1));
-
-                __m256i v11_in_range = _mm256_and_si256(x1_in_range, y1_in_range);
-
-                __m256i i_nw_offset = _mm256_mullo_epi32(_mm256_add_epi32(_mm256_mullo_epi32(y0, vImgWi), x0), vElempacki);
-                __m256i i_ne_offset = _mm256_add_epi32(i_nw_offset, vElempacki);
-                __m256i i_sw_offset = _mm256_add_epi32(i_nw_offset, _mm256_mullo_epi32(vImgWi, vElempacki));
-                __m256i i_se_offset = _mm256_add_epi32(i_sw_offset, vElempacki);
-
-                _mm256_storeu_epi32(in_bound_ptr_01, x1_in_range);
-                _mm256_storeu_epi32(in_bound_ptr_10, y1_in_range);
-                _mm256_storeu_epi32(in_bound_ptr_11, v11_in_range);
-#else
                 __m256 x1 = _mm256_add_ps(x_w, *(__m256*)_ps256_1);
                 __m256 y1 = _mm256_add_ps(y_n, *(__m256*)_ps256_1);
 
@@ -257,20 +206,14 @@ struct gridsample_2d_bilinear_compute_blob
                 __m256 sw_offset = _mm256_add_ps(nw_offset, _mm256_mul_ps(vImgWf, vElempackf));
                 __m256 se_offset = _mm256_add_ps(sw_offset, vElempackf);
 
-                __m256i i_nw_offset = _mm256_cvtps_epi32(nw_offset);
-                __m256i i_ne_offset = _mm256_cvtps_epi32(ne_offset);
-                __m256i i_sw_offset = _mm256_cvtps_epi32(sw_offset);
-                __m256i i_se_offset = _mm256_cvtps_epi32(se_offset);
-
                 _mm256_storeu_ps(in_bound_ptr_01, x1_in_range);
                 _mm256_storeu_ps(in_bound_ptr_10, y1_in_range);
                 _mm256_storeu_ps(in_bound_ptr_11, v11_in_range);
-#endif
 
-                _mm256_storeu_epi32(offset_ptr_00, i_nw_offset);
-                _mm256_storeu_epi32(offset_ptr_01, i_ne_offset);
-                _mm256_storeu_epi32(offset_ptr_10, i_sw_offset);
-                _mm256_storeu_epi32(offset_ptr_11, i_se_offset);
+                _mm256_storeu_ps(offset_ptr_00, nw_offset);
+                _mm256_storeu_ps(offset_ptr_01, ne_offset);
+                _mm256_storeu_ps(offset_ptr_10, sw_offset);
+                _mm256_storeu_ps(offset_ptr_11, se_offset);
 
                 __m256 alpha = _mm256_sub_ps(gx, x_w);
                 __m256 beta = _mm256_sub_ps(gy, y_n);
@@ -359,17 +302,12 @@ struct gridsample_2d_bilinear_compute_blob<PaddingMode::Zeros, align_corner>
         const __m256 vImgWf = _mm256_set1_ps(src.w);
         const __m256 vImgHf = _mm256_set1_ps(src.h);
         const __m256 vElempackf = _mm256_set1_ps(src.elempack);
-#if __AVX2__
-        const __m256i vImgWi = _mm256_set1_epi32(src.w);
-        const __m256i vImgHi = _mm256_set1_epi32(src.h);
-        const __m256i vElempacki = _mm256_set1_epi32(src.elempack);
-#endif // __AVX2__
 #endif // __AVX__
 
-        int* offset_ptr_00 = offset.channel(0);
-        int* offset_ptr_01 = offset.channel(1);
-        int* offset_ptr_10 = offset.channel(2);
-        int* offset_ptr_11 = offset.channel(3);
+        float* offset_ptr_00 = offset.channel(0);
+        float* offset_ptr_01 = offset.channel(1);
+        float* offset_ptr_10 = offset.channel(2);
+        float* offset_ptr_11 = offset.channel(3);
 
         float* in_bound_ptr_00 = in_bound.channel(0);
         float* in_bound_ptr_01 = in_bound.channel(1);
@@ -411,32 +349,6 @@ struct gridsample_2d_bilinear_compute_blob<PaddingMode::Zeros, align_corner>
                     __m256 x_w = _mm256_floor_ps(gx);
                     __m256 y_n = _mm256_floor_ps(gy);
 
-#if __AVX2__
-                    __m256i x0 = _mm256_cvtps_epi32(x_w);
-                    __m256i y0 = _mm256_cvtps_epi32(y_n);
-                    __m256i x1 = _mm256_add_epi32(x0, *(__m256i*)_pi32_256_1);
-                    __m256i y1 = _mm256_add_epi32(y0, *(__m256i*)_pi32_256_1);
-
-                    __m256i x0_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(x0, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgWi, x0));
-                    __m256i x1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(x1, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgWi, x1));
-                    __m256i y0_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(y0, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgHi, y0));
-                    __m256i y1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(y1, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgHi, y1));
-
-                    __m256i v00_in_range = _mm256_and_si256(x0_in_range, y0_in_range);
-                    __m256i v01_in_range = _mm256_and_si256(x1_in_range, y0_in_range);
-                    __m256i v10_in_range = _mm256_and_si256(x0_in_range, y1_in_range);
-                    __m256i v11_in_range = _mm256_and_si256(x1_in_range, y1_in_range);
-
-                    __m256i i_nw_offset = _mm256_mullo_epi32(_mm256_add_epi32(_mm256_mullo_epi32(y0, vImgWi), x0), vElempacki);
-                    __m256i i_ne_offset = _mm256_add_epi32(i_nw_offset, vElempacki);
-                    __m256i i_sw_offset = _mm256_add_epi32(i_nw_offset, _mm256_mullo_epi32(vImgWi, vElempacki));
-                    __m256i i_se_offset = _mm256_add_epi32(i_sw_offset, vElempacki);
-
-                    _mm256_storeu_ps(in_bound_ptr_00, _mm256_castsi256_ps(v00_in_range));
-                    _mm256_storeu_ps(in_bound_ptr_01, _mm256_castsi256_ps(v01_in_range));
-                    _mm256_storeu_ps(in_bound_ptr_10, _mm256_castsi256_ps(v10_in_range));
-                    _mm256_storeu_ps(in_bound_ptr_11, _mm256_castsi256_ps(v11_in_range));
-#else
                     __m256 x1 = _mm256_add_ps(x_w, *(__m256*)_ps256_1);
                     __m256 y1 = _mm256_add_ps(y_n, *(__m256*)_ps256_1);
 
@@ -455,21 +367,15 @@ struct gridsample_2d_bilinear_compute_blob<PaddingMode::Zeros, align_corner>
                     __m256 sw_offset = _mm256_comp_fmadd_ps(vImgWf, vElempackf, nw_offset);
                     __m256 se_offset = _mm256_add_ps(sw_offset, vElempackf);
 
-                    __m256i i_nw_offset = _mm256_cvtps_epi32(nw_offset);
-                    __m256i i_ne_offset = _mm256_cvtps_epi32(ne_offset);
-                    __m256i i_sw_offset = _mm256_cvtps_epi32(sw_offset);
-                    __m256i i_se_offset = _mm256_cvtps_epi32(se_offset);
-
                     _mm256_storeu_ps(in_bound_ptr_00, v00_in_range);
                     _mm256_storeu_ps(in_bound_ptr_01, v01_in_range);
                     _mm256_storeu_ps(in_bound_ptr_10, v10_in_range);
                     _mm256_storeu_ps(in_bound_ptr_11, v11_in_range);
-#endif // __AVX2__
 
-                    _mm256_storeu_epi32(offset_ptr_00, i_nw_offset);
-                    _mm256_storeu_epi32(offset_ptr_01, i_ne_offset);
-                    _mm256_storeu_epi32(offset_ptr_10, i_sw_offset);
-                    _mm256_storeu_epi32(offset_ptr_11, i_se_offset);
+                    _mm256_storeu_ps(offset_ptr_00, nw_offset);
+                    _mm256_storeu_ps(offset_ptr_01, ne_offset);
+                    _mm256_storeu_ps(offset_ptr_10, sw_offset);
+                    _mm256_storeu_ps(offset_ptr_11, se_offset);
 
                     __m256 alpha = _mm256_sub_ps(gx, x_w);
                     __m256 beta = _mm256_sub_ps(gy, y_n);
@@ -572,32 +478,6 @@ struct gridsample_2d_bilinear_compute_blob<PaddingMode::Zeros, align_corner>
                 __m256 x_w = _mm256_floor_ps(gx);
                 __m256 y_n = _mm256_floor_ps(gy);
 
-#if __AVX2__
-                __m256i x0 = _mm256_cvtps_epi32(x_w);
-                __m256i y0 = _mm256_cvtps_epi32(y_n);
-                __m256i x1 = _mm256_add_epi32(x0, *(__m256i*)_pi32_256_1);
-                __m256i y1 = _mm256_add_epi32(y0, *(__m256i*)_pi32_256_1);
-
-                __m256i x0_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(x0, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgWi, x0));
-                __m256i x1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(x1, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgWi, x1));
-                __m256i y0_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(y0, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgHi, y0));
-                __m256i y1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(y1, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgHi, y1));
-
-                __m256i v00_in_range = _mm256_and_si256(x0_in_range, y0_in_range);
-                __m256i v01_in_range = _mm256_and_si256(x1_in_range, y0_in_range);
-                __m256i v10_in_range = _mm256_and_si256(x0_in_range, y1_in_range);
-                __m256i v11_in_range = _mm256_and_si256(x1_in_range, y1_in_range);
-
-                __m256i i_nw_offset = _mm256_mullo_epi32(_mm256_add_epi32(_mm256_mullo_epi32(y0, vImgWi), x0), vElempacki);
-                __m256i i_ne_offset = _mm256_add_epi32(i_nw_offset, vElempacki);
-                __m256i i_sw_offset = _mm256_add_epi32(i_nw_offset, _mm256_mullo_epi32(vImgWi, vElempacki));
-                __m256i i_se_offset = _mm256_add_epi32(i_sw_offset, vElempacki);
-
-                _mm256_storeu_ps(in_bound_ptr_00, _mm256_castsi256_ps(v00_in_range));
-                _mm256_storeu_ps(in_bound_ptr_01, _mm256_castsi256_ps(v01_in_range));
-                _mm256_storeu_ps(in_bound_ptr_10, _mm256_castsi256_ps(v10_in_range));
-                _mm256_storeu_ps(in_bound_ptr_11, _mm256_castsi256_ps(v11_in_range));
-#else
                 __m256 x1 = _mm256_add_ps(x_w, *(__m256*)_ps256_1);
                 __m256 y1 = _mm256_add_ps(y_n, *(__m256*)_ps256_1);
 
@@ -616,21 +496,15 @@ struct gridsample_2d_bilinear_compute_blob<PaddingMode::Zeros, align_corner>
                 __m256 sw_offset = _mm256_comp_fmadd_ps(vImgWf, vElempackf, nw_offset);
                 __m256 se_offset = _mm256_add_ps(sw_offset, vElempackf);
 
-                __m256i i_nw_offset = _mm256_cvtps_epi32(nw_offset);
-                __m256i i_ne_offset = _mm256_cvtps_epi32(ne_offset);
-                __m256i i_sw_offset = _mm256_cvtps_epi32(sw_offset);
-                __m256i i_se_offset = _mm256_cvtps_epi32(se_offset);
-
                 _mm256_storeu_ps(in_bound_ptr_00, v00_in_range);
                 _mm256_storeu_ps(in_bound_ptr_01, v01_in_range);
                 _mm256_storeu_ps(in_bound_ptr_10, v10_in_range);
                 _mm256_storeu_ps(in_bound_ptr_11, v11_in_range);
-#endif // __AVX2__
 
-                _mm256_storeu_epi32(offset_ptr_00, i_nw_offset);
-                _mm256_storeu_epi32(offset_ptr_01, i_ne_offset);
-                _mm256_storeu_epi32(offset_ptr_10, i_sw_offset);
-                _mm256_storeu_epi32(offset_ptr_11, i_se_offset);
+                _mm256_storeu_ps(offset_ptr_00, nw_offset);
+                _mm256_storeu_ps(offset_ptr_01, ne_offset);
+                _mm256_storeu_ps(offset_ptr_10, sw_offset);
+                _mm256_storeu_ps(offset_ptr_11, se_offset);
 
                 __m256 alpha = _mm256_sub_ps(gx, x_w);
                 __m256 beta = _mm256_sub_ps(gy, y_n);
@@ -722,23 +596,17 @@ struct gridsample_3d_bilinear_compute_blob
         const __m256 vImgHf = _mm256_set1_ps(src.h);
         const __m256 vImgDf = _mm256_set1_ps(src.d);
         const __m256 vElempackf = _mm256_set1_ps(src.elempack);
-#if __AVX2__
-        const __m256i vImgWi = _mm256_set1_epi32(src.w);
-        const __m256i vImgHi = _mm256_set1_epi32(src.h);
-        const __m256i vImgDi = _mm256_set1_epi32(src.d);
-        const __m256i vElempacki = _mm256_set1_epi32(src.elempack);
-#endif // __AVX2__
 #endif // __AVX__
 
-        int* offset_ptr_000 = offset.channel(0);
-        int* offset_ptr_001 = offset.channel(1);
-        int* offset_ptr_010 = offset.channel(2);
-        int* offset_ptr_011 = offset.channel(3);
+        float* offset_ptr_000 = offset.channel(0);
+        float* offset_ptr_001 = offset.channel(1);
+        float* offset_ptr_010 = offset.channel(2);
+        float* offset_ptr_011 = offset.channel(3);
 
-        int* offset_ptr_100 = offset.channel(4);
-        int* offset_ptr_101 = offset.channel(5);
-        int* offset_ptr_110 = offset.channel(6);
-        int* offset_ptr_111 = offset.channel(7);
+        float* offset_ptr_100 = offset.channel(4);
+        float* offset_ptr_101 = offset.channel(5);
+        float* offset_ptr_110 = offset.channel(6);
+        float* offset_ptr_111 = offset.channel(7);
 
         float* in_bound_ptr_000 = in_bound.channel(0);
         float* in_bound_ptr_001 = in_bound.channel(1);
@@ -795,47 +663,7 @@ struct gridsample_3d_bilinear_compute_blob
                     __m256 x_w = _mm256_floor_ps(gx);
                     __m256 y_n = _mm256_floor_ps(gy);
                     __m256 z_t = _mm256_floor_ps(gz);
-#if __AVX2__
-                    __m256i x0 = _mm256_cvtps_epi32(x_w);
-                    __m256i y0 = _mm256_cvtps_epi32(y_n);
-                    __m256i z0 = _mm256_cvtps_epi32(z_t);
 
-                    __m256i x1 = _mm256_add_epi32(x0, *(__m256i*)_pi32_256_1);
-                    __m256i y1 = _mm256_add_epi32(y0, *(__m256i*)_pi32_256_1);
-                    __m256i z1 = _mm256_add_epi32(z0, *(__m256i*)_pi32_256_1);
-
-                    __m256i x1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(x1, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgWi, x1));
-                    __m256i y1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(y1, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgHi, y1));
-                    __m256i z1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(z1, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgDi, z1));
-
-                    __m256i v011_in_range, v110_in_range, v101_in_range, v111_in_range;
-                    {
-                        v011_in_range = _mm256_and_si256(x1_in_range, y1_in_range);
-                        v101_in_range = _mm256_and_si256(x1_in_range, z1_in_range);
-                        v110_in_range = _mm256_and_si256(y1_in_range, z1_in_range);
-                        v111_in_range = _mm256_and_si256(v011_in_range, z1_in_range);
-                    }
-
-                    __m256i i_tnw_offset = _mm256_mullo_epi32(_mm256_add_epi32(_mm256_mullo_epi32(_mm256_mullo_epi32(vImgWi, vImgHi), z0), _mm256_add_epi32(_mm256_mullo_epi32(y0, vImgWi), x0)), vElempacki);
-                    __m256i i_tne_offset = _mm256_add_epi32(i_tnw_offset, vElempacki);
-                    __m256i i_tsw_offset = _mm256_add_epi32(i_tnw_offset, _mm256_mullo_epi32(vImgWi, vElempacki));
-                    __m256i i_tse_offset = _mm256_add_epi32(i_tsw_offset, vElempacki);
-
-                    __m256i i_bnw_offset = _mm256_add_epi32(_mm256_mullo_epi32(_mm256_mullo_epi32(vImgWi, vImgHi), vElempacki), i_tnw_offset);
-                    __m256i i_bne_offset = _mm256_add_epi32(i_bnw_offset, vElempacki);
-                    __m256i i_bsw_offset = _mm256_add_epi32(i_bnw_offset, _mm256_mullo_epi32(vImgWi, vElempacki));
-                    __m256i i_bse_offset = _mm256_add_epi32(i_bsw_offset, vElempacki);
-
-                    _mm256_storeu_ps(in_bound_ptr_000, *(__m256*)_ps256_n1);
-                    _mm256_storeu_ps(in_bound_ptr_001, _mm256_castsi256_ps(x1_in_range));
-                    _mm256_storeu_ps(in_bound_ptr_010, _mm256_castsi256_ps(y1_in_range));
-                    _mm256_storeu_ps(in_bound_ptr_011, _mm256_castsi256_ps(v011_in_range));
-
-                    _mm256_storeu_ps(in_bound_ptr_100, _mm256_castsi256_ps(z1_in_range));
-                    _mm256_storeu_ps(in_bound_ptr_101, _mm256_castsi256_ps(v101_in_range));
-                    _mm256_storeu_ps(in_bound_ptr_110, _mm256_castsi256_ps(v110_in_range));
-                    _mm256_storeu_ps(in_bound_ptr_111, _mm256_castsi256_ps(v111_in_range));
-#else
                     __m256 x1 = _mm256_add_ps(x_w, *(__m256*)_ps256_1);
                     __m256 y1 = _mm256_add_ps(y_n, *(__m256*)_ps256_1);
                     __m256 z1 = _mm256_add_ps(z_t, *(__m256*)_ps256_1);
@@ -867,16 +695,6 @@ struct gridsample_3d_bilinear_compute_blob
                     __m256 bsw_offset = _mm256_add_ps(bnw_offset, _mm256_mul_ps(vImgWf, vElempackf));
                     __m256 bse_offset = _mm256_add_ps(bsw_offset, vElempackf);
 
-                    __m256i i_tnw_offset = _mm256_cvtps_epi32(tnw_offset);
-                    __m256i i_tne_offset = _mm256_cvtps_epi32(tne_offset);
-                    __m256i i_tsw_offset = _mm256_cvtps_epi32(tsw_offset);
-                    __m256i i_tse_offset = _mm256_cvtps_epi32(tse_offset);
-
-                    __m256i i_bnw_offset = _mm256_cvtps_epi32(bnw_offset);
-                    __m256i i_bne_offset = _mm256_cvtps_epi32(bne_offset);
-                    __m256i i_bsw_offset = _mm256_cvtps_epi32(bsw_offset);
-                    __m256i i_bse_offset = _mm256_cvtps_epi32(bse_offset);
-
                     _mm256_storeu_ps(in_bound_ptr_000, *(__m256*)_ps256_n1);
                     _mm256_storeu_ps(in_bound_ptr_001, x1_in_range);
                     _mm256_storeu_ps(in_bound_ptr_010, y1_in_range);
@@ -886,16 +704,16 @@ struct gridsample_3d_bilinear_compute_blob
                     _mm256_storeu_ps(in_bound_ptr_101, v101_in_range);
                     _mm256_storeu_ps(in_bound_ptr_110, v110_in_range);
                     _mm256_storeu_ps(in_bound_ptr_111, v111_in_range);
-#endif // __AVX2__
-                    _mm256_storeu_epi32(offset_ptr_000, i_tnw_offset);
-                    _mm256_storeu_epi32(offset_ptr_001, i_tne_offset);
-                    _mm256_storeu_epi32(offset_ptr_010, i_tsw_offset);
-                    _mm256_storeu_epi32(offset_ptr_011, i_tse_offset);
 
-                    _mm256_storeu_epi32(offset_ptr_100, i_bnw_offset);
-                    _mm256_storeu_epi32(offset_ptr_101, i_bne_offset);
-                    _mm256_storeu_epi32(offset_ptr_110, i_bsw_offset);
-                    _mm256_storeu_epi32(offset_ptr_111, i_bse_offset);
+                    _mm256_storeu_ps(offset_ptr_000, tnw_offset);
+                    _mm256_storeu_ps(offset_ptr_001, tne_offset);
+                    _mm256_storeu_ps(offset_ptr_010, tsw_offset);
+                    _mm256_storeu_ps(offset_ptr_011, tse_offset);
+
+                    _mm256_storeu_ps(offset_ptr_100, bnw_offset);
+                    _mm256_storeu_ps(offset_ptr_101, bne_offset);
+                    _mm256_storeu_ps(offset_ptr_110, bsw_offset);
+                    _mm256_storeu_ps(offset_ptr_111, bse_offset);
 
                     __m256 alpha = _mm256_sub_ps(gx, x_w);
                     __m256 beta = _mm256_sub_ps(gy, y_n);
@@ -1043,50 +861,7 @@ struct gridsample_3d_bilinear_compute_blob
                 __m256 x_w = _mm256_floor_ps(gx);
                 __m256 y_n = _mm256_floor_ps(gy);
                 __m256 z_t = _mm256_floor_ps(gz);
-#if __AVX2__
-                __m256i x0 = _mm256_cvtps_epi32(x_w);
-                __m256i y0 = _mm256_cvtps_epi32(y_n);
-                __m256i z0 = _mm256_cvtps_epi32(z_t);
 
-                __m256i x1 = _mm256_add_epi32(x0, *(__m256i*)_pi32_256_1);
-                __m256i y1 = _mm256_add_epi32(y0, *(__m256i*)_pi32_256_1);
-                __m256i z1 = _mm256_add_epi32(z0, *(__m256i*)_pi32_256_1);
-
-                __m256i x0_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(x0, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgWi, x0));
-                __m256i x1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(x1, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgWi, x1));
-                __m256i y0_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(y0, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgHi, y0));
-                __m256i y1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(y1, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgHi, y1));
-                __m256i z0_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(z0, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgDi, z0));
-                __m256i z1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(z1, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgDi, z1));
-
-                __m256i v011_in_range, v110_in_range, v101_in_range, v111_in_range;
-                {
-                    v011_in_range = _mm256_and_si256(x1_in_range, y1_in_range);
-                    v101_in_range = _mm256_and_si256(x1_in_range, z1_in_range);
-                    v110_in_range = _mm256_and_si256(y1_in_range, z1_in_range);
-                    v111_in_range = _mm256_and_si256(v011_in_range, z1_in_range);
-                }
-
-                __m256i i_tnw_offset = _mm256_mullo_epi32(_mm256_add_epi32(_mm256_mullo_epi32(_mm256_mullo_epi32(vImgWi, vImgHi), z0), _mm256_add_epi32(_mm256_mullo_epi32(y0, vImgWi), x0)), vElempacki);
-                __m256i i_tne_offset = _mm256_add_epi32(i_tnw_offset, vElempacki);
-                __m256i i_tsw_offset = _mm256_add_epi32(i_tnw_offset, _mm256_mullo_epi32(vImgWi, vElempacki));
-                __m256i i_tse_offset = _mm256_add_epi32(i_tsw_offset, vElempacki);
-
-                __m256i i_bnw_offset = _mm256_add_epi32(_mm256_mullo_epi32(_mm256_mullo_epi32(vImgWi, vImgHi), vElempacki), i_tnw_offset);
-                __m256i i_bne_offset = _mm256_add_epi32(i_bnw_offset, vElempacki);
-                __m256i i_bsw_offset = _mm256_add_epi32(i_bnw_offset, _mm256_mullo_epi32(vImgWi, vElempacki));
-                __m256i i_bse_offset = _mm256_add_epi32(i_bsw_offset, vElempacki);
-
-                _mm256_storeu_ps(in_bound_ptr_000, *(__m256*)_ps256_n1);
-                _mm256_storeu_ps(in_bound_ptr_001, _mm256_castsi256_ps(x1_in_range));
-                _mm256_storeu_ps(in_bound_ptr_010, _mm256_castsi256_ps(y1_in_range));
-                _mm256_storeu_ps(in_bound_ptr_011, _mm256_castsi256_ps(v011_in_range));
-
-                _mm256_storeu_ps(in_bound_ptr_100, _mm256_castsi256_ps(z1_in_range));
-                _mm256_storeu_ps(in_bound_ptr_101, _mm256_castsi256_ps(v101_in_range));
-                _mm256_storeu_ps(in_bound_ptr_110, _mm256_castsi256_ps(v110_in_range));
-                _mm256_storeu_ps(in_bound_ptr_111, _mm256_castsi256_ps(v111_in_range));
-#else
                 __m256 x1 = _mm256_add_ps(x_w, *(__m256*)_ps256_1);
                 __m256 y1 = _mm256_add_ps(y_n, *(__m256*)_ps256_1);
                 __m256 z1 = _mm256_add_ps(z_t, *(__m256*)_ps256_1);
@@ -1118,16 +893,6 @@ struct gridsample_3d_bilinear_compute_blob
                 __m256 bsw_offset = _mm256_add_ps(bnw_offset, _mm256_mul_ps(vImgWf, vElempackf));
                 __m256 bse_offset = _mm256_add_ps(bsw_offset, vElempackf);
 
-                __m256i i_tnw_offset = _mm256_cvtps_epi32(tnw_offset);
-                __m256i i_tne_offset = _mm256_cvtps_epi32(tne_offset);
-                __m256i i_tsw_offset = _mm256_cvtps_epi32(tsw_offset);
-                __m256i i_tse_offset = _mm256_cvtps_epi32(tse_offset);
-
-                __m256i i_bnw_offset = _mm256_cvtps_epi32(bnw_offset);
-                __m256i i_bne_offset = _mm256_cvtps_epi32(bne_offset);
-                __m256i i_bsw_offset = _mm256_cvtps_epi32(bsw_offset);
-                __m256i i_bse_offset = _mm256_cvtps_epi32(bse_offset);
-
                 _mm256_storeu_ps(in_bound_ptr_000, *(__m256*)_ps256_n1);
                 _mm256_storeu_ps(in_bound_ptr_001, x1_in_range);
                 _mm256_storeu_ps(in_bound_ptr_010, y1_in_range);
@@ -1137,16 +902,16 @@ struct gridsample_3d_bilinear_compute_blob
                 _mm256_storeu_ps(in_bound_ptr_101, v101_in_range);
                 _mm256_storeu_ps(in_bound_ptr_110, v110_in_range);
                 _mm256_storeu_ps(in_bound_ptr_111, v111_in_range);
-#endif // __AVX2__
-                _mm256_storeu_epi32(offset_ptr_000, i_tnw_offset);
-                _mm256_storeu_epi32(offset_ptr_001, i_tne_offset);
-                _mm256_storeu_epi32(offset_ptr_010, i_tsw_offset);
-                _mm256_storeu_epi32(offset_ptr_011, i_tse_offset);
 
-                _mm256_storeu_epi32(offset_ptr_100, i_bnw_offset);
-                _mm256_storeu_epi32(offset_ptr_101, i_bne_offset);
-                _mm256_storeu_epi32(offset_ptr_110, i_bsw_offset);
-                _mm256_storeu_epi32(offset_ptr_111, i_bse_offset);
+                _mm256_storeu_ps(offset_ptr_000, tnw_offset);
+                _mm256_storeu_ps(offset_ptr_001, tne_offset);
+                _mm256_storeu_ps(offset_ptr_010, tsw_offset);
+                _mm256_storeu_ps(offset_ptr_011, tse_offset);
+
+                _mm256_storeu_ps(offset_ptr_100, bnw_offset);
+                _mm256_storeu_ps(offset_ptr_101, bne_offset);
+                _mm256_storeu_ps(offset_ptr_110, bsw_offset);
+                _mm256_storeu_ps(offset_ptr_111, bse_offset);
 
                 __m256 alpha = _mm256_sub_ps(gx, x_w);
                 __m256 beta = _mm256_sub_ps(gy, y_n);
@@ -1282,23 +1047,17 @@ struct gridsample_3d_bilinear_compute_blob<PaddingMode::Zeros, align_corner>
         const __m256 vImgHf = _mm256_set1_ps(src.h);
         const __m256 vImgDf = _mm256_set1_ps(src.d);
         const __m256 vElempackf = _mm256_set1_ps(src.elempack);
-#if __AVX2__
-        const __m256i vImgWi = _mm256_set1_epi32(src.w);
-        const __m256i vImgHi = _mm256_set1_epi32(src.h);
-        const __m256i vImgDi = _mm256_set1_epi32(src.d);
-        const __m256i vElempacki = _mm256_set1_epi32(src.elempack);
-#endif // __AVX2__
 #endif // __AVX__
 
-        int* offset_ptr_000 = offset.channel(0);
-        int* offset_ptr_001 = offset.channel(1);
-        int* offset_ptr_010 = offset.channel(2);
-        int* offset_ptr_011 = offset.channel(3);
+        float* offset_ptr_000 = offset.channel(0);
+        float* offset_ptr_001 = offset.channel(1);
+        float* offset_ptr_010 = offset.channel(2);
+        float* offset_ptr_011 = offset.channel(3);
 
-        int* offset_ptr_100 = offset.channel(4);
-        int* offset_ptr_101 = offset.channel(5);
-        int* offset_ptr_110 = offset.channel(6);
-        int* offset_ptr_111 = offset.channel(7);
+        float* offset_ptr_100 = offset.channel(4);
+        float* offset_ptr_101 = offset.channel(5);
+        float* offset_ptr_110 = offset.channel(6);
+        float* offset_ptr_111 = offset.channel(7);
 
         float* in_bound_ptr_000 = in_bound.channel(0);
         float* in_bound_ptr_001 = in_bound.channel(1);
@@ -1349,60 +1108,7 @@ struct gridsample_3d_bilinear_compute_blob<PaddingMode::Zeros, align_corner>
                     __m256 x_w = _mm256_floor_ps(gx);
                     __m256 y_n = _mm256_floor_ps(gy);
                     __m256 z_t = _mm256_floor_ps(gz);
-#if __AVX2__
-                    __m256i x0 = _mm256_cvtps_epi32(x_w);
-                    __m256i y0 = _mm256_cvtps_epi32(y_n);
-                    __m256i z0 = _mm256_cvtps_epi32(z_t);
 
-                    __m256i x1 = _mm256_add_epi32(x0, *(__m256i*)_pi32_256_1);
-                    __m256i y1 = _mm256_add_epi32(y0, *(__m256i*)_pi32_256_1);
-                    __m256i z1 = _mm256_add_epi32(z0, *(__m256i*)_pi32_256_1);
-
-                    __m256i x0_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(x0, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgWi, x0));
-                    __m256i x1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(x1, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgWi, x1));
-                    __m256i y0_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(y0, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgHi, y0));
-                    __m256i y1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(y1, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgHi, y1));
-                    __m256i z0_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(z0, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgDi, z0));
-                    __m256i z1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(z1, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgDi, z1));
-
-                    __m256i v000_in_range, v010_in_range, v100_in_range, v110_in_range, v001_in_range, v011_in_range, v101_in_range, v111_in_range;
-                    {
-                        __m256i v00_in_range = _mm256_and_si256(x0_in_range, y0_in_range);
-                        __m256i v01_in_range = _mm256_and_si256(x1_in_range, y0_in_range);
-                        __m256i v10_in_range = _mm256_and_si256(x0_in_range, y1_in_range);
-                        __m256i v11_in_range = _mm256_and_si256(x1_in_range, y1_in_range);
-
-                        v000_in_range = _mm256_and_si256(v00_in_range, z0_in_range);
-                        v001_in_range = _mm256_and_si256(v01_in_range, z0_in_range);
-                        v010_in_range = _mm256_and_si256(v10_in_range, z0_in_range);
-                        v011_in_range = _mm256_and_si256(v11_in_range, z0_in_range);
-
-                        v100_in_range = _mm256_and_si256(v00_in_range, z1_in_range);
-                        v101_in_range = _mm256_and_si256(v01_in_range, z1_in_range);
-                        v110_in_range = _mm256_and_si256(v10_in_range, z1_in_range);
-                        v111_in_range = _mm256_and_si256(v11_in_range, z1_in_range);
-                    }
-
-                    __m256i i_tnw_offset = _mm256_mullo_epi32(_mm256_add_epi32(_mm256_mullo_epi32(_mm256_mullo_epi32(vImgWi, vImgHi), z0), _mm256_add_epi32(_mm256_mullo_epi32(y0, vImgWi), x0)), vElempacki);
-                    __m256i i_tne_offset = _mm256_add_epi32(i_tnw_offset, vElempacki);
-                    __m256i i_tsw_offset = _mm256_add_epi32(i_tnw_offset, _mm256_mullo_epi32(vImgWi, vElempacki));
-                    __m256i i_tse_offset = _mm256_add_epi32(i_tsw_offset, vElempacki);
-
-                    __m256i i_bnw_offset = _mm256_add_epi32(_mm256_mullo_epi32(_mm256_mullo_epi32(vImgWi, vImgHi), vElempacki), i_tnw_offset);
-                    __m256i i_bne_offset = _mm256_add_epi32(i_bnw_offset, vElempacki);
-                    __m256i i_bsw_offset = _mm256_add_epi32(i_bnw_offset, _mm256_mullo_epi32(vImgWi, vElempacki));
-                    __m256i i_bse_offset = _mm256_add_epi32(i_bsw_offset, vElempacki);
-
-                    _mm256_storeu_ps(in_bound_ptr_000, _mm256_castsi256_ps(v000_in_range));
-                    _mm256_storeu_ps(in_bound_ptr_001, _mm256_castsi256_ps(v001_in_range));
-                    _mm256_storeu_ps(in_bound_ptr_010, _mm256_castsi256_ps(v010_in_range));
-                    _mm256_storeu_ps(in_bound_ptr_011, _mm256_castsi256_ps(v011_in_range));
-
-                    _mm256_storeu_ps(in_bound_ptr_100, _mm256_castsi256_ps(v100_in_range));
-                    _mm256_storeu_ps(in_bound_ptr_101, _mm256_castsi256_ps(v101_in_range));
-                    _mm256_storeu_ps(in_bound_ptr_110, _mm256_castsi256_ps(v110_in_range));
-                    _mm256_storeu_ps(in_bound_ptr_111, _mm256_castsi256_ps(v111_in_range));
-#else
                     __m256 x1 = _mm256_add_ps(x_w, *(__m256*)_ps256_1);
                     __m256 y1 = _mm256_add_ps(y_n, *(__m256*)_ps256_1);
                     __m256 z1 = _mm256_add_ps(z_t, *(__m256*)_ps256_1);
@@ -1444,16 +1150,6 @@ struct gridsample_3d_bilinear_compute_blob<PaddingMode::Zeros, align_corner>
                     __m256 bsw_offset = _mm256_add_ps(bnw_offset, _mm256_mul_ps(vImgWf, vElempackf));
                     __m256 bse_offset = _mm256_add_ps(bsw_offset, vElempackf);
 
-                    __m256i i_tnw_offset = _mm256_cvtps_epi32(tnw_offset);
-                    __m256i i_tne_offset = _mm256_cvtps_epi32(tne_offset);
-                    __m256i i_tsw_offset = _mm256_cvtps_epi32(tsw_offset);
-                    __m256i i_tse_offset = _mm256_cvtps_epi32(tse_offset);
-
-                    __m256i i_bnw_offset = _mm256_cvtps_epi32(bnw_offset);
-                    __m256i i_bne_offset = _mm256_cvtps_epi32(bne_offset);
-                    __m256i i_bsw_offset = _mm256_cvtps_epi32(bsw_offset);
-                    __m256i i_bse_offset = _mm256_cvtps_epi32(bse_offset);
-
                     _mm256_storeu_ps(in_bound_ptr_000, v000_in_range);
                     _mm256_storeu_ps(in_bound_ptr_001, v001_in_range);
                     _mm256_storeu_ps(in_bound_ptr_010, v010_in_range);
@@ -1463,16 +1159,16 @@ struct gridsample_3d_bilinear_compute_blob<PaddingMode::Zeros, align_corner>
                     _mm256_storeu_ps(in_bound_ptr_101, v101_in_range);
                     _mm256_storeu_ps(in_bound_ptr_110, v110_in_range);
                     _mm256_storeu_ps(in_bound_ptr_111, v111_in_range);
-#endif // __AVX2__
-                    _mm256_storeu_epi32(offset_ptr_000, i_tnw_offset);
-                    _mm256_storeu_epi32(offset_ptr_001, i_tne_offset);
-                    _mm256_storeu_epi32(offset_ptr_010, i_tsw_offset);
-                    _mm256_storeu_epi32(offset_ptr_011, i_tse_offset);
 
-                    _mm256_storeu_epi32(offset_ptr_100, i_bnw_offset);
-                    _mm256_storeu_epi32(offset_ptr_101, i_bne_offset);
-                    _mm256_storeu_epi32(offset_ptr_110, i_bsw_offset);
-                    _mm256_storeu_epi32(offset_ptr_111, i_bse_offset);
+                    _mm256_storeu_ps(offset_ptr_000, tnw_offset);
+                    _mm256_storeu_ps(offset_ptr_001, tne_offset);
+                    _mm256_storeu_ps(offset_ptr_010, tsw_offset);
+                    _mm256_storeu_ps(offset_ptr_011, tse_offset);
+
+                    _mm256_storeu_ps(offset_ptr_100, bnw_offset);
+                    _mm256_storeu_ps(offset_ptr_101, bne_offset);
+                    _mm256_storeu_ps(offset_ptr_110, bsw_offset);
+                    _mm256_storeu_ps(offset_ptr_111, bse_offset);
 
                     __m256 alpha = _mm256_sub_ps(gx, x_w);
                     __m256 beta = _mm256_sub_ps(gy, y_n);
@@ -1616,60 +1312,7 @@ struct gridsample_3d_bilinear_compute_blob<PaddingMode::Zeros, align_corner>
                 __m256 x_w = _mm256_floor_ps(gx);
                 __m256 y_n = _mm256_floor_ps(gy);
                 __m256 z_t = _mm256_floor_ps(gz);
-#if __AVX2__
-                __m256i x0 = _mm256_cvtps_epi32(x_w);
-                __m256i y0 = _mm256_cvtps_epi32(y_n);
-                __m256i z0 = _mm256_cvtps_epi32(z_t);
 
-                __m256i x1 = _mm256_add_epi32(x0, *(__m256i*)_pi32_256_1);
-                __m256i y1 = _mm256_add_epi32(y0, *(__m256i*)_pi32_256_1);
-                __m256i z1 = _mm256_add_epi32(z0, *(__m256i*)_pi32_256_1);
-
-                __m256i x0_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(x0, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgWi, x0));
-                __m256i x1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(x1, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgWi, x1));
-                __m256i y0_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(y0, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgHi, y0));
-                __m256i y1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(y1, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgHi, y1));
-                __m256i z0_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(z0, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgDi, z0));
-                __m256i z1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(z1, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgDi, z1));
-
-                __m256i v000_in_range, v010_in_range, v100_in_range, v110_in_range, v001_in_range, v011_in_range, v101_in_range, v111_in_range;
-                {
-                    __m256i v00_in_range = _mm256_and_si256(x0_in_range, y0_in_range);
-                    __m256i v01_in_range = _mm256_and_si256(x1_in_range, y0_in_range);
-                    __m256i v10_in_range = _mm256_and_si256(x0_in_range, y1_in_range);
-                    __m256i v11_in_range = _mm256_and_si256(x1_in_range, y1_in_range);
-
-                    v000_in_range = _mm256_and_si256(v00_in_range, z0_in_range);
-                    v001_in_range = _mm256_and_si256(v01_in_range, z0_in_range);
-                    v010_in_range = _mm256_and_si256(v10_in_range, z0_in_range);
-                    v011_in_range = _mm256_and_si256(v11_in_range, z0_in_range);
-
-                    v100_in_range = _mm256_and_si256(v00_in_range, z1_in_range);
-                    v101_in_range = _mm256_and_si256(v01_in_range, z1_in_range);
-                    v110_in_range = _mm256_and_si256(v10_in_range, z1_in_range);
-                    v111_in_range = _mm256_and_si256(v11_in_range, z1_in_range);
-                }
-
-                __m256i i_tnw_offset = _mm256_mullo_epi32(_mm256_add_epi32(_mm256_mullo_epi32(_mm256_mullo_epi32(vImgWi, vImgHi), z0), _mm256_add_epi32(_mm256_mullo_epi32(y0, vImgWi), x0)), vElempacki);
-                __m256i i_tne_offset = _mm256_add_epi32(i_tnw_offset, vElempacki);
-                __m256i i_tsw_offset = _mm256_add_epi32(i_tnw_offset, _mm256_mullo_epi32(vImgWi, vElempacki));
-                __m256i i_tse_offset = _mm256_add_epi32(i_tsw_offset, vElempacki);
-
-                __m256i i_bnw_offset = _mm256_add_epi32(_mm256_mullo_epi32(_mm256_mullo_epi32(vImgWi, vImgHi), vElempacki), i_tnw_offset);
-                __m256i i_bne_offset = _mm256_add_epi32(i_bnw_offset, vElempacki);
-                __m256i i_bsw_offset = _mm256_add_epi32(i_bnw_offset, _mm256_mullo_epi32(vImgWi, vElempacki));
-                __m256i i_bse_offset = _mm256_add_epi32(i_bsw_offset, vElempacki);
-
-                _mm256_storeu_ps(in_bound_ptr_000, _mm256_castsi256_ps(v000_in_range));
-                _mm256_storeu_ps(in_bound_ptr_001, _mm256_castsi256_ps(v001_in_range));
-                _mm256_storeu_ps(in_bound_ptr_010, _mm256_castsi256_ps(v010_in_range));
-                _mm256_storeu_ps(in_bound_ptr_011, _mm256_castsi256_ps(v011_in_range));
-
-                _mm256_storeu_ps(in_bound_ptr_100, _mm256_castsi256_ps(v100_in_range));
-                _mm256_storeu_ps(in_bound_ptr_101, _mm256_castsi256_ps(v101_in_range));
-                _mm256_storeu_ps(in_bound_ptr_110, _mm256_castsi256_ps(v110_in_range));
-                _mm256_storeu_ps(in_bound_ptr_111, _mm256_castsi256_ps(v111_in_range));
-#else
                 __m256 x1 = _mm256_add_ps(x_w, *(__m256*)_ps256_1);
                 __m256 y1 = _mm256_add_ps(y_n, *(__m256*)_ps256_1);
                 __m256 z1 = _mm256_add_ps(z_t, *(__m256*)_ps256_1);
@@ -1711,16 +1354,6 @@ struct gridsample_3d_bilinear_compute_blob<PaddingMode::Zeros, align_corner>
                 __m256 bsw_offset = _mm256_add_ps(bnw_offset, _mm256_mul_ps(vImgWf, vElempackf));
                 __m256 bse_offset = _mm256_add_ps(bsw_offset, vElempackf);
 
-                __m256i i_tnw_offset = _mm256_cvtps_epi32(tnw_offset);
-                __m256i i_tne_offset = _mm256_cvtps_epi32(tne_offset);
-                __m256i i_tsw_offset = _mm256_cvtps_epi32(tsw_offset);
-                __m256i i_tse_offset = _mm256_cvtps_epi32(tse_offset);
-
-                __m256i i_bnw_offset = _mm256_cvtps_epi32(bnw_offset);
-                __m256i i_bne_offset = _mm256_cvtps_epi32(bne_offset);
-                __m256i i_bsw_offset = _mm256_cvtps_epi32(bsw_offset);
-                __m256i i_bse_offset = _mm256_cvtps_epi32(bse_offset);
-
                 _mm256_storeu_ps(in_bound_ptr_000, v000_in_range);
                 _mm256_storeu_ps(in_bound_ptr_001, v001_in_range);
                 _mm256_storeu_ps(in_bound_ptr_010, v010_in_range);
@@ -1730,16 +1363,16 @@ struct gridsample_3d_bilinear_compute_blob<PaddingMode::Zeros, align_corner>
                 _mm256_storeu_ps(in_bound_ptr_101, v101_in_range);
                 _mm256_storeu_ps(in_bound_ptr_110, v110_in_range);
                 _mm256_storeu_ps(in_bound_ptr_111, v111_in_range);
-#endif // __AVX2__
-                _mm256_storeu_epi32(offset_ptr_000, i_tnw_offset);
-                _mm256_storeu_epi32(offset_ptr_001, i_tne_offset);
-                _mm256_storeu_epi32(offset_ptr_010, i_tsw_offset);
-                _mm256_storeu_epi32(offset_ptr_011, i_tse_offset);
 
-                _mm256_storeu_epi32(offset_ptr_100, i_bnw_offset);
-                _mm256_storeu_epi32(offset_ptr_101, i_bne_offset);
-                _mm256_storeu_epi32(offset_ptr_110, i_bsw_offset);
-                _mm256_storeu_epi32(offset_ptr_111, i_bse_offset);
+                _mm256_storeu_ps(offset_ptr_000, tnw_offset);
+                _mm256_storeu_ps(offset_ptr_001, tne_offset);
+                _mm256_storeu_ps(offset_ptr_010, tsw_offset);
+                _mm256_storeu_ps(offset_ptr_011, tse_offset);
+
+                _mm256_storeu_ps(offset_ptr_100, bnw_offset);
+                _mm256_storeu_ps(offset_ptr_101, bne_offset);
+                _mm256_storeu_ps(offset_ptr_110, bsw_offset);
+                _mm256_storeu_ps(offset_ptr_111, bse_offset);
 
                 __m256 alpha = _mm256_sub_ps(gx, x_w);
                 __m256 beta = _mm256_sub_ps(gy, y_n);
@@ -1881,10 +1514,10 @@ static void gridsample_2d_bilinear_apply_interpolation_p16(const Mat& src, Mat& 
         const float* srcptr = src.channel(q);
         float* dstptr = dst.channel(q);
 
-        const int* offset_ptr_00 = offset.channel(0);
-        const int* offset_ptr_01 = offset.channel(1);
-        const int* offset_ptr_10 = offset.channel(2);
-        const int* offset_ptr_11 = offset.channel(3);
+        const float* offset_ptr_00 = offset.channel(0);
+        const float* offset_ptr_01 = offset.channel(1);
+        const float* offset_ptr_10 = offset.channel(2);
+        const float* offset_ptr_11 = offset.channel(3);
 
         const float* in_bound_ptr_00 = in_bound.channel(0);
         const float* in_bound_ptr_01 = in_bound.channel(1);
@@ -1951,14 +1584,14 @@ static void gridsample_3d_bilinear_apply_interpolation_p16(const Mat& src, Mat& 
         const float* srcptr = src.channel(q);
         float* dstptr = dst.channel(q);
 
-        const int* offset_ptr_000 = offset.channel(0);
-        const int* offset_ptr_001 = offset.channel(1);
-        const int* offset_ptr_010 = offset.channel(2);
-        const int* offset_ptr_011 = offset.channel(3);
-        const int* offset_ptr_100 = offset.channel(4);
-        const int* offset_ptr_101 = offset.channel(5);
-        const int* offset_ptr_110 = offset.channel(6);
-        const int* offset_ptr_111 = offset.channel(7);
+        const float* offset_ptr_000 = offset.channel(0);
+        const float* offset_ptr_001 = offset.channel(1);
+        const float* offset_ptr_010 = offset.channel(2);
+        const float* offset_ptr_011 = offset.channel(3);
+        const float* offset_ptr_100 = offset.channel(4);
+        const float* offset_ptr_101 = offset.channel(5);
+        const float* offset_ptr_110 = offset.channel(6);
+        const float* offset_ptr_111 = offset.channel(7);
 
         const float* in_bound_ptr_000 = in_bound.channel(0);
         const float* in_bound_ptr_001 = in_bound.channel(1);
@@ -2051,10 +1684,10 @@ static void gridsample_2d_bilinear_apply_interpolation_p8(const Mat& src, Mat& d
         const float* srcptr = src.channel(q);
         float* dstptr = dst.channel(q);
 
-        const int* offset_ptr_00 = offset.channel(0);
-        const int* offset_ptr_01 = offset.channel(1);
-        const int* offset_ptr_10 = offset.channel(2);
-        const int* offset_ptr_11 = offset.channel(3);
+        const float* offset_ptr_00 = offset.channel(0);
+        const float* offset_ptr_01 = offset.channel(1);
+        const float* offset_ptr_10 = offset.channel(2);
+        const float* offset_ptr_11 = offset.channel(3);
 
         const float* in_bound_ptr_00 = in_bound.channel(0);
         const float* in_bound_ptr_01 = in_bound.channel(1);
@@ -2066,10 +1699,17 @@ static void gridsample_2d_bilinear_apply_interpolation_p8(const Mat& src, Mat& d
 
         for (int i = 0; i < grid_size; i++)
         {
+#if __AVX2__
             __m256i v00_offset = _mm256_add_epi32(_mm256_set1_epi32(*offset_ptr_00), _mm256_set_epi32(7, 6, 5, 4, 3, 2, 1, 0));
             __m256i v01_offset = _mm256_add_epi32(_mm256_set1_epi32(*offset_ptr_01), _mm256_set_epi32(7, 6, 5, 4, 3, 2, 1, 0));
             __m256i v10_offset = _mm256_add_epi32(_mm256_set1_epi32(*offset_ptr_10), _mm256_set_epi32(7, 6, 5, 4, 3, 2, 1, 0));
             __m256i v11_offset = _mm256_add_epi32(_mm256_set1_epi32(*offset_ptr_11), _mm256_set_epi32(7, 6, 5, 4, 3, 2, 1, 0));
+#else
+            __m256i v00_offset = _mm256_cvtps_epi32(_mm256_add_ps(_mm256_set1_ps(*offset_ptr_00), _mm256_set_ps(7, 6, 5, 4, 3, 2, 1, 0)));
+            __m256i v01_offset = _mm256_cvtps_epi32(_mm256_add_ps(_mm256_set1_ps(*offset_ptr_01), _mm256_set_ps(7, 6, 5, 4, 3, 2, 1, 0)));
+            __m256i v10_offset = _mm256_cvtps_epi32(_mm256_add_ps(_mm256_set1_ps(*offset_ptr_10), _mm256_set_ps(7, 6, 5, 4, 3, 2, 1, 0)));
+            __m256i v11_offset = _mm256_cvtps_epi32(_mm256_add_ps(_mm256_set1_ps(*offset_ptr_11), _mm256_set_ps(7, 6, 5, 4, 3, 2, 1, 0)));
+#endif // __AVX2__
 
             __m256 v00_in_range = _mm256_set1_ps(*in_bound_ptr_00);
             __m256 v01_in_range = _mm256_set1_ps(*in_bound_ptr_01);
@@ -2121,14 +1761,14 @@ static void gridsample_3d_bilinear_apply_interpolation_p8(const Mat& src, Mat& d
         const float* srcptr = src.channel(q);
         float* dstptr = dst.channel(q);
 
-        const int* offset_ptr_000 = offset.channel(0);
-        const int* offset_ptr_001 = offset.channel(1);
-        const int* offset_ptr_010 = offset.channel(2);
-        const int* offset_ptr_011 = offset.channel(3);
-        const int* offset_ptr_100 = offset.channel(4);
-        const int* offset_ptr_101 = offset.channel(5);
-        const int* offset_ptr_110 = offset.channel(6);
-        const int* offset_ptr_111 = offset.channel(7);
+        const float* offset_ptr_000 = offset.channel(0);
+        const float* offset_ptr_001 = offset.channel(1);
+        const float* offset_ptr_010 = offset.channel(2);
+        const float* offset_ptr_011 = offset.channel(3);
+        const float* offset_ptr_100 = offset.channel(4);
+        const float* offset_ptr_101 = offset.channel(5);
+        const float* offset_ptr_110 = offset.channel(6);
+        const float* offset_ptr_111 = offset.channel(7);
 
         const float* in_bound_ptr_000 = in_bound.channel(0);
         const float* in_bound_ptr_001 = in_bound.channel(1);
@@ -2145,6 +1785,7 @@ static void gridsample_3d_bilinear_apply_interpolation_p8(const Mat& src, Mat& d
 
         for (int i = 0; i < grid_size; i++)
         {
+#if __AVX2__
             __m256i v000_offset = _mm256_add_epi32(_mm256_set1_epi32(*offset_ptr_000), _mm256_set_epi32(7, 6, 5, 4, 3, 2, 1, 0));
             __m256i v001_offset = _mm256_add_epi32(_mm256_set1_epi32(*offset_ptr_001), _mm256_set_epi32(7, 6, 5, 4, 3, 2, 1, 0));
             __m256i v010_offset = _mm256_add_epi32(_mm256_set1_epi32(*offset_ptr_010), _mm256_set_epi32(7, 6, 5, 4, 3, 2, 1, 0));
@@ -2153,6 +1794,16 @@ static void gridsample_3d_bilinear_apply_interpolation_p8(const Mat& src, Mat& d
             __m256i v101_offset = _mm256_add_epi32(_mm256_set1_epi32(*offset_ptr_101), _mm256_set_epi32(7, 6, 5, 4, 3, 2, 1, 0));
             __m256i v110_offset = _mm256_add_epi32(_mm256_set1_epi32(*offset_ptr_110), _mm256_set_epi32(7, 6, 5, 4, 3, 2, 1, 0));
             __m256i v111_offset = _mm256_add_epi32(_mm256_set1_epi32(*offset_ptr_111), _mm256_set_epi32(7, 6, 5, 4, 3, 2, 1, 0));
+#else
+            __m256i v000_offset = _mm256_cvtps_epi32(_mm256_add_ps(_mm256_set1_ps(*offset_ptr_000), _mm256_set_ps(7, 6, 5, 4, 3, 2, 1, 0)));
+            __m256i v001_offset = _mm256_cvtps_epi32(_mm256_add_ps(_mm256_set1_ps(*offset_ptr_001), _mm256_set_ps(7, 6, 5, 4, 3, 2, 1, 0)));
+            __m256i v010_offset = _mm256_cvtps_epi32(_mm256_add_ps(_mm256_set1_ps(*offset_ptr_010), _mm256_set_ps(7, 6, 5, 4, 3, 2, 1, 0)));
+            __m256i v011_offset = _mm256_cvtps_epi32(_mm256_add_ps(_mm256_set1_ps(*offset_ptr_011), _mm256_set_ps(7, 6, 5, 4, 3, 2, 1, 0)));
+            __m256i v100_offset = _mm256_cvtps_epi32(_mm256_add_ps(_mm256_set1_ps(*offset_ptr_100), _mm256_set_ps(7, 6, 5, 4, 3, 2, 1, 0)));
+            __m256i v101_offset = _mm256_cvtps_epi32(_mm256_add_ps(_mm256_set1_ps(*offset_ptr_101), _mm256_set_ps(7, 6, 5, 4, 3, 2, 1, 0)));
+            __m256i v110_offset = _mm256_cvtps_epi32(_mm256_add_ps(_mm256_set1_ps(*offset_ptr_110), _mm256_set_ps(7, 6, 5, 4, 3, 2, 1, 0)));
+            __m256i v111_offset = _mm256_cvtps_epi32(_mm256_add_ps(_mm256_set1_ps(*offset_ptr_111), _mm256_set_ps(7, 6, 5, 4, 3, 2, 1, 0)));
+#endif // __AVX2__
 
             __m256 v000_in_range = _mm256_set1_ps(*in_bound_ptr_000);
             __m256 v001_in_range = _mm256_set1_ps(*in_bound_ptr_001);
@@ -2229,10 +1880,10 @@ static void gridsample_2d_bilinear_apply_interpolation_p4(const Mat& src, Mat& d
         const float* srcptr = src.channel(q);
         float* dstptr = dst.channel(q);
 
-        const int* offset_ptr_00 = offset.channel(0);
-        const int* offset_ptr_01 = offset.channel(1);
-        const int* offset_ptr_10 = offset.channel(2);
-        const int* offset_ptr_11 = offset.channel(3);
+        const float* offset_ptr_00 = offset.channel(0);
+        const float* offset_ptr_01 = offset.channel(1);
+        const float* offset_ptr_10 = offset.channel(2);
+        const float* offset_ptr_11 = offset.channel(3);
 
         const float* in_bound_ptr_00 = in_bound.channel(0);
         const float* in_bound_ptr_01 = in_bound.channel(1);
@@ -2408,10 +2059,10 @@ static void gridsample_2d_bilinear_apply_interpolation_p1(const Mat& src, Mat& d
         const float* srcptr = src.channel(q);
         float* dstptr = dst.channel(q);
 
-        const int* offset_ptr_00 = offset.channel(0);
-        const int* offset_ptr_01 = offset.channel(1);
-        const int* offset_ptr_10 = offset.channel(2);
-        const int* offset_ptr_11 = offset.channel(3);
+        const float* offset_ptr_00 = offset.channel(0);
+        const float* offset_ptr_01 = offset.channel(1);
+        const float* offset_ptr_10 = offset.channel(2);
+        const float* offset_ptr_11 = offset.channel(3);
 
         const float* in_bound_ptr_00 = in_bound.channel(0);
         const float* in_bound_ptr_01 = in_bound.channel(1);
@@ -2427,10 +2078,10 @@ static void gridsample_2d_bilinear_apply_interpolation_p1(const Mat& src, Mat& d
 
         for (int i = 0; i + 7 < grid_size; i += 8)
         {
-            __m256i v00_offset = _mm256_loadu_epi32(offset_ptr_00);
-            __m256i v01_offset = _mm256_loadu_epi32(offset_ptr_01);
-            __m256i v10_offset = _mm256_loadu_epi32(offset_ptr_10);
-            __m256i v11_offset = _mm256_loadu_epi32(offset_ptr_11);
+            __m256i v00_offset = _mm256_set_epi32(*(offset_ptr_00 + 7), *(offset_ptr_00 + 6), *(offset_ptr_00 + 5), *(offset_ptr_00 + 4), *(offset_ptr_00 + 3), *(offset_ptr_00 + 2), *(offset_ptr_00 + 1), *offset_ptr_00);
+            __m256i v01_offset = _mm256_set_epi32(*(offset_ptr_01 + 7), *(offset_ptr_01 + 6), *(offset_ptr_01 + 5), *(offset_ptr_01 + 4), *(offset_ptr_01 + 3), *(offset_ptr_01 + 2), *(offset_ptr_01 + 1), *offset_ptr_01);
+            __m256i v10_offset = _mm256_set_epi32(*(offset_ptr_10 + 7), *(offset_ptr_10 + 6), *(offset_ptr_10 + 5), *(offset_ptr_10 + 4), *(offset_ptr_10 + 3), *(offset_ptr_10 + 2), *(offset_ptr_10 + 1), *offset_ptr_10);
+            __m256i v11_offset = _mm256_set_epi32(*(offset_ptr_11 + 7), *(offset_ptr_11 + 6), *(offset_ptr_11 + 5), *(offset_ptr_11 + 4), *(offset_ptr_11 + 3), *(offset_ptr_11 + 2), *(offset_ptr_11 + 1), *offset_ptr_11);
 
             __m256 v00_in_range = _mm256_loadu_ps(in_bound_ptr_00);
             __m256 v01_in_range = _mm256_loadu_ps(in_bound_ptr_01);
@@ -2513,10 +2164,10 @@ static void gridsample_2d_bilinear_apply_interpolation_p1(const Mat& src, Mat& d
 #endif // __SSE2__
         for (int i = grid_size - nn; i < grid_size; i++)
         {
-            float v00 = *in_bound_ptr_00 < 0 ? *(srcptr + *offset_ptr_00) : 0;
-            float v01 = *in_bound_ptr_01 < 0 ? *(srcptr + *offset_ptr_01) : 0;
-            float v10 = *in_bound_ptr_10 < 0 ? *(srcptr + *offset_ptr_10) : 0;
-            float v11 = *in_bound_ptr_11 < 0 ? *(srcptr + *offset_ptr_11) : 0;
+            float v00 = *in_bound_ptr_00 < 0 ? *(srcptr + static_cast<int>(*offset_ptr_00)) : 0;
+            float v01 = *in_bound_ptr_01 < 0 ? *(srcptr + static_cast<int>(*offset_ptr_01)) : 0;
+            float v10 = *in_bound_ptr_10 < 0 ? *(srcptr + static_cast<int>(*offset_ptr_10)) : 0;
+            float v11 = *in_bound_ptr_11 < 0 ? *(srcptr + static_cast<int>(*offset_ptr_11)) : 0;
 
             float v0 = v00 * (1 - *value_ptr_alpha) + v01 * *value_ptr_alpha;
             float v1 = v10 * (1 - *value_ptr_alpha) + v11 * *value_ptr_alpha;
@@ -2553,14 +2204,14 @@ static void gridsample_3d_bilinear_apply_interpolation_p1(const Mat& src, Mat& d
         const float* srcptr = src.channel(q);
         float* dstptr = dst.channel(q);
 
-        const int* offset_ptr_000 = offset.channel(0);
-        const int* offset_ptr_001 = offset.channel(1);
-        const int* offset_ptr_010 = offset.channel(2);
-        const int* offset_ptr_011 = offset.channel(3);
-        const int* offset_ptr_100 = offset.channel(4);
-        const int* offset_ptr_101 = offset.channel(5);
-        const int* offset_ptr_110 = offset.channel(6);
-        const int* offset_ptr_111 = offset.channel(7);
+        const float* offset_ptr_000 = offset.channel(0);
+        const float* offset_ptr_001 = offset.channel(1);
+        const float* offset_ptr_010 = offset.channel(2);
+        const float* offset_ptr_011 = offset.channel(3);
+        const float* offset_ptr_100 = offset.channel(4);
+        const float* offset_ptr_101 = offset.channel(5);
+        const float* offset_ptr_110 = offset.channel(6);
+        const float* offset_ptr_111 = offset.channel(7);
 
         const float* in_bound_ptr_000 = in_bound.channel(0);
         const float* in_bound_ptr_001 = in_bound.channel(1);
@@ -2580,14 +2231,14 @@ static void gridsample_3d_bilinear_apply_interpolation_p1(const Mat& src, Mat& d
 #if __AVX__
         for (int i = 0; i + 7 < grid_size; i += 8)
         {
-            __m256i v000_offset = _mm256_loadu_epi32(offset_ptr_000);
-            __m256i v001_offset = _mm256_loadu_epi32(offset_ptr_001);
-            __m256i v010_offset = _mm256_loadu_epi32(offset_ptr_010);
-            __m256i v011_offset = _mm256_loadu_epi32(offset_ptr_011);
-            __m256i v100_offset = _mm256_loadu_epi32(offset_ptr_100);
-            __m256i v101_offset = _mm256_loadu_epi32(offset_ptr_101);
-            __m256i v110_offset = _mm256_loadu_epi32(offset_ptr_110);
-            __m256i v111_offset = _mm256_loadu_epi32(offset_ptr_111);
+            __m256i v000_offset = _mm256_set_epi32(*(offset_ptr_000 + 7), *(offset_ptr_000 + 6), *(offset_ptr_000 + 5), *(offset_ptr_000 + 4), *(offset_ptr_000 + 3), *(offset_ptr_000 + 2), *(offset_ptr_000 + 1), *offset_ptr_000);
+            __m256i v001_offset = _mm256_set_epi32(*(offset_ptr_001 + 7), *(offset_ptr_001 + 6), *(offset_ptr_001 + 5), *(offset_ptr_001 + 4), *(offset_ptr_001 + 3), *(offset_ptr_001 + 2), *(offset_ptr_001 + 1), *offset_ptr_001);
+            __m256i v010_offset = _mm256_set_epi32(*(offset_ptr_010 + 7), *(offset_ptr_010 + 6), *(offset_ptr_010 + 5), *(offset_ptr_010 + 4), *(offset_ptr_010 + 3), *(offset_ptr_010 + 2), *(offset_ptr_010 + 1), *offset_ptr_010);
+            __m256i v011_offset = _mm256_set_epi32(*(offset_ptr_011 + 7), *(offset_ptr_011 + 6), *(offset_ptr_011 + 5), *(offset_ptr_011 + 4), *(offset_ptr_011 + 3), *(offset_ptr_011 + 2), *(offset_ptr_011 + 1), *offset_ptr_011);
+            __m256i v100_offset = _mm256_set_epi32(*(offset_ptr_100 + 7), *(offset_ptr_100 + 6), *(offset_ptr_100 + 5), *(offset_ptr_100 + 4), *(offset_ptr_100 + 3), *(offset_ptr_100 + 2), *(offset_ptr_100 + 1), *offset_ptr_100);
+            __m256i v101_offset = _mm256_set_epi32(*(offset_ptr_101 + 7), *(offset_ptr_101 + 6), *(offset_ptr_101 + 5), *(offset_ptr_101 + 4), *(offset_ptr_101 + 3), *(offset_ptr_101 + 2), *(offset_ptr_101 + 1), *offset_ptr_101);
+            __m256i v110_offset = _mm256_set_epi32(*(offset_ptr_110 + 7), *(offset_ptr_110 + 6), *(offset_ptr_110 + 5), *(offset_ptr_110 + 4), *(offset_ptr_110 + 3), *(offset_ptr_110 + 2), *(offset_ptr_110 + 1), *offset_ptr_110);
+            __m256i v111_offset = _mm256_set_epi32(*(offset_ptr_111 + 7), *(offset_ptr_111 + 6), *(offset_ptr_111 + 5), *(offset_ptr_111 + 4), *(offset_ptr_111 + 3), *(offset_ptr_111 + 2), *(offset_ptr_111 + 1), *offset_ptr_111);
 
             __m256 v000_in_range = _mm256_loadu_ps(in_bound_ptr_000);
             __m256 v001_in_range = _mm256_loadu_ps(in_bound_ptr_001);
@@ -2725,15 +2376,15 @@ static void gridsample_3d_bilinear_apply_interpolation_p1(const Mat& src, Mat& d
 #endif // __SSE2__
         for (int i = grid_size - nn; i < grid_size; i++)
         {
-            float v000 = *reinterpret_cast<const int*>(in_bound_ptr_000) < 0 ? *(srcptr + *offset_ptr_000) : 0;
-            float v001 = *reinterpret_cast<const int*>(in_bound_ptr_001) < 0 ? *(srcptr + *offset_ptr_001) : 0;
-            float v010 = *reinterpret_cast<const int*>(in_bound_ptr_010) < 0 ? *(srcptr + *offset_ptr_010) : 0;
-            float v011 = *reinterpret_cast<const int*>(in_bound_ptr_011) < 0 ? *(srcptr + *offset_ptr_011) : 0;
+            float v000 = *reinterpret_cast<const int*>(in_bound_ptr_000) < 0 ? *(srcptr + static_cast<int>(*offset_ptr_000)) : 0;
+            float v001 = *reinterpret_cast<const int*>(in_bound_ptr_001) < 0 ? *(srcptr + static_cast<int>(*offset_ptr_001)) : 0;
+            float v010 = *reinterpret_cast<const int*>(in_bound_ptr_010) < 0 ? *(srcptr + static_cast<int>(*offset_ptr_010)) : 0;
+            float v011 = *reinterpret_cast<const int*>(in_bound_ptr_011) < 0 ? *(srcptr + static_cast<int>(*offset_ptr_011)) : 0;
 
-            float v100 = *reinterpret_cast<const int*>(in_bound_ptr_100) < 0 ? *(srcptr + *offset_ptr_100) : 0;
-            float v101 = *reinterpret_cast<const int*>(in_bound_ptr_101) < 0 ? *(srcptr + *offset_ptr_101) : 0;
-            float v110 = *reinterpret_cast<const int*>(in_bound_ptr_110) < 0 ? *(srcptr + *offset_ptr_110) : 0;
-            float v111 = *reinterpret_cast<const int*>(in_bound_ptr_111) < 0 ? *(srcptr + *offset_ptr_111) : 0;
+            float v100 = *reinterpret_cast<const int*>(in_bound_ptr_100) < 0 ? *(srcptr + static_cast<int>(*offset_ptr_100)) : 0;
+            float v101 = *reinterpret_cast<const int*>(in_bound_ptr_101) < 0 ? *(srcptr + static_cast<int>(*offset_ptr_101)) : 0;
+            float v110 = *reinterpret_cast<const int*>(in_bound_ptr_110) < 0 ? *(srcptr + static_cast<int>(*offset_ptr_110)) : 0;
+            float v111 = *reinterpret_cast<const int*>(in_bound_ptr_111) < 0 ? *(srcptr + static_cast<int>(*offset_ptr_111)) : 0;
 
             float v00 = v000 * (1 - *value_ptr_alpha) + v001 * *value_ptr_alpha;
             float v01 = v010 * (1 - *value_ptr_alpha) + v011 * *value_ptr_alpha;
