@@ -1950,14 +1950,14 @@ static void gridsample_3d_bilinear_apply_interpolation_p4(const Mat& src, Mat& d
         const float* srcptr = src.channel(q);
         float* dstptr = dst.channel(q);
 
-        const int* offset_ptr_000 = offset.channel(0);
-        const int* offset_ptr_001 = offset.channel(1);
-        const int* offset_ptr_010 = offset.channel(2);
-        const int* offset_ptr_011 = offset.channel(3);
-        const int* offset_ptr_100 = offset.channel(4);
-        const int* offset_ptr_101 = offset.channel(5);
-        const int* offset_ptr_110 = offset.channel(6);
-        const int* offset_ptr_111 = offset.channel(7);
+        const float* offset_ptr_000 = offset.channel(0);
+        const float* offset_ptr_001 = offset.channel(1);
+        const float* offset_ptr_010 = offset.channel(2);
+        const float* offset_ptr_011 = offset.channel(3);
+        const float* offset_ptr_100 = offset.channel(4);
+        const float* offset_ptr_101 = offset.channel(5);
+        const float* offset_ptr_110 = offset.channel(6);
+        const float* offset_ptr_111 = offset.channel(7);
 
         const float* in_bound_ptr_000 = in_bound.channel(0);
         const float* in_bound_ptr_001 = in_bound.channel(1);
