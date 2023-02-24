@@ -29,7 +29,7 @@ public:
         return R"PNNXIR(7767517
 16 15
 pnnx.Input              input       0 1 input
-nn.Linear               op_0        1 1 input 76 bias=True in_features=%in_features out_features=%qkv_out_features @bias @weight
+nn.Linear               op_0        1 1 input 76 bias=%qkv_bias in_features=%in_features out_features=%qkv_out_features @bias @weight
 pnnx.Expression         op_1        1 1 input 77 expr=%expr
 Tensor.reshape          op_2        2 1 76 77 78
 torch.permute           op_3        1 1 78 79 dims=(2,0,3,1,4)
@@ -42,7 +42,7 @@ torch.matmul            op_9        2 1 86 82 87
 pnnx.Expression         op_10       1 1 input 88 expr=%expr3
 torch.permute           op_11       1 1 87 89 dims=(0,2,1,3)
 Tensor.reshape          op_12       2 1 89 88 90
-nn.Linear               out_proj    1 1 90 out bias=True in_features=%out_proj_in_features out_features=%out_proj_out_features @bias @weight
+nn.Linear               out_proj    1 1 90 out bias=%out_proj_bias in_features=%out_proj_in_features out_features=%out_proj_out_features @bias @weight
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -87,11 +87,15 @@ pnnx.Output             output      1 0 out
             num_heads = captured_params.at("expr").ai[3];
         }
 
+        bool qkv_bias = captured_params.at("qkv_bias").b;
+        bool out_proj_bias = captured_params.at("out_proj_bias").b;
+        bool bias = qkv_bias || out_proj_bias;
+
         op->params["num_heads"] = num_heads;
         op->params["batch_first"] = true;
         op->params["add_zero_attn"] = false;
         op->params["add_bias_kv"] = false;
-        op->params["bias"] = true;
+        op->params["bias"] = bias;
 
         int qkv_out_features = captured_params.at("qkv_out_features").i;
         int embed_dim = qkv_out_features / 3;
@@ -101,10 +105,42 @@ pnnx.Output             output      1 0 out
         op->params["vdim"] = embed_dim;
 
         op->attrs["in_proj_weight"] = captured_attrs.at("op_0.weight");
-        op->attrs["in_proj_bias"] = captured_attrs.at("op_0.bias");
+        if (bias)
+        {
+            if (qkv_bias)
+            {
+                op->attrs["in_proj_bias"] = captured_attrs.at("op_0.bias");
+            }
+            else
+            {
+                // init bias as zero
+                op->attrs["in_proj_bias"] = Attribute();
+                op->attrs["in_proj_bias"].type = 1;
+                op->attrs["in_proj_bias"].shape = {embed_dim * 3};
+
+                op->attrs["in_proj_bias"].data.resize(embed_dim * 3 * sizeof(float));
+                memset(op->attrs["in_proj_bias"].data.data(), 0, embed_dim * 3 * sizeof(float));
+            }
+        }
 
         op->attrs["out_proj.weight"] = captured_attrs.at("out_proj.weight");
-        op->attrs["out_proj.bias"] = captured_attrs.at("out_proj.bias");
+        if (bias)
+        {
+            if (out_proj_bias)
+            {
+                op->attrs["out_proj.bias"] = captured_attrs.at("out_proj.bias");
+            }
+            else
+            {
+                // init bias as zero
+                op->attrs["out_proj.bias"] = Attribute();
+                op->attrs["out_proj.bias"].type = 1;
+                op->attrs["out_proj.bias"].shape = {embed_dim};
+
+                op->attrs["out_proj.bias"].data.resize(embed_dim * sizeof(float));
+                memset(op->attrs["out_proj.bias"].data.data(), 0, embed_dim * sizeof(float));
+            }
+        }
     }
 };
 
@@ -116,7 +152,7 @@ public:
         return R"PNNXIR(7767517
 14 13
 pnnx.Input              input       0 1 input
-nn.Linear               op_0        1 1 input 76 bias=True in_features=%in_features out_features=%qkv_out_features @bias @weight
+nn.Linear               op_0        1 1 input 76 bias=%qkv_bias in_features=%in_features out_features=%qkv_out_features @bias @weight
 Tensor.reshape          op_1        1 1 76 77 shape=%expr
 torch.permute           op_2        1 1 77 78 dims=(2,0,3,1,4)
 torch.unbind            op_3        1 3 78 79 80 81 dim=0
@@ -127,7 +163,7 @@ F.softmax               op_7        1 1 84 85 dim=-1
 torch.matmul            op_8        2 1 85 81 86
 torch.permute           op_9        1 1 86 87 dims=(0,2,1,3)
 Tensor.reshape          op_10       1 1 87 88 shape=%expr3
-nn.Linear               out_proj    1 1 88 out bias=True in_features=%out_proj_in_features out_features=%out_proj_out_features @bias @weight
+nn.Linear               out_proj    1 1 88 out bias=%out_proj_bias in_features=%out_proj_in_features out_features=%out_proj_out_features @bias @weight
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
