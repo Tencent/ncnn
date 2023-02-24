@@ -24,7 +24,7 @@ struct gridsample_2d_nearest_compute_blob
         const __m256 vElempackf = _mm256_set1_ps(src.elempack);
 #endif // __AVX__
 
-        int* offset_ptr = offset.channel(0);
+        float* offset_ptr = offset.channel(0);
 
         grid_sample_unormalize<align_corner> unormalize;
         compute_coord<pd, align_corner> get_coord;
@@ -61,9 +61,8 @@ struct gridsample_2d_nearest_compute_blob
                     gy = _mm256_floor_ps(_mm256_add_ps(gy, _mm256_set1_ps(0.5f)));
 
                     __m256 offset = _mm256_mul_ps(_mm256_comp_fmadd_ps(gy, vImgWf, gx), vElempackf);
-                    __m256i i_offset = _mm256_cvtps_epi32(offset);
 
-                    _mm256_storeu_epi32(offset_ptr, i_offset);
+                    _mm256_storeu_ps(offset_ptr, offset);
 
                     gridptr += 16;
 
@@ -120,9 +119,8 @@ struct gridsample_2d_nearest_compute_blob
                 gy = _mm256_floor_ps(_mm256_add_ps(gy, _mm256_set1_ps(0.5f)));
 
                 __m256 offset = _mm256_mul_ps(_mm256_comp_fmadd_ps(gy, vImgWf, gx), vElempackf);
-                __m256i i_offset = _mm256_cvtps_epi32(offset);
 
-                _mm256_storeu_epi32(offset_ptr, i_offset);
+                _mm256_storeu_ps(offset_ptr, offset);
 
                 gridptr_x += 8;
                 gridptr_y += 8;
@@ -170,7 +168,7 @@ struct gridsample_2d_nearest_compute_blob<PaddingMode::Zeros, align_corner>
         const __m256 vElempackf = _mm256_set1_ps(src.elempack);
 #endif // __AVX__
 
-        int* offset_ptr = offset.channel(0);
+        float* offset_ptr = offset.channel(0);
 
         float* in_bound_ptr = in_bound.channel(0);
 
@@ -208,10 +206,9 @@ struct gridsample_2d_nearest_compute_blob<PaddingMode::Zeros, align_corner>
                                                       _mm256_and_ps(_mm256_cmp_ps(gy, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgHf, gy, _CMP_GT_OS)));
 
                     __m256 offset = _mm256_mul_ps(_mm256_comp_fmadd_ps(gy, vImgWf, gx), vElempackf);
-                    __m256i i_offset = _mm256_cvtps_epi32(offset);
 
                     _mm256_storeu_ps(in_bound_ptr, v_in_range);
-                    _mm256_storeu_epi32(offset_ptr, i_offset);
+                    _mm256_storeu_ps(offset_ptr, offset);
 
                     gridptr += 16;
                     offset_ptr += 8;
@@ -267,10 +264,9 @@ struct gridsample_2d_nearest_compute_blob<PaddingMode::Zeros, align_corner>
                                                   _mm256_and_ps(_mm256_cmp_ps(gy, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgHf, gy, _CMP_GT_OS)));
 
                 __m256 offset = _mm256_mul_ps(_mm256_comp_fmadd_ps(gy, vImgWf, gx), vElempackf);
-                __m256i i_offset = _mm256_cvtps_epi32(offset);
 
                 _mm256_storeu_ps(in_bound_ptr, v_in_range);
-                _mm256_storeu_epi32(offset_ptr, i_offset);
+                _mm256_storeu_ps(offset_ptr, offset);
 
                 gridptr_x += 8;
                 gridptr_y += 8;
@@ -320,7 +316,7 @@ struct gridsample_3d_nearest_compute_blob
         const __m256 vElempackf = _mm256_set1_ps(src.elempack);
 #endif // __AVX__
 
-        int* offset_ptr = offset.channel(0);
+        float* offset_ptr = offset.channel(0);
 
         grid_sample_unormalize<align_corner> unormalize;
         compute_coord<pd, align_corner> get_coord;
@@ -366,11 +362,9 @@ struct gridsample_3d_nearest_compute_blob
                     gz = _mm256_floor_ps(_mm256_add_ps(gz, _mm256_set1_ps(0.5f)));
 
                     __m256 offset = _mm256_mul_ps(_mm256_comp_fmadd_ps(_mm256_mul_ps(vImgWf, vImgHf), gz,
-                                                  _mm256_comp_fmadd_ps(gy, vImgWf, gx)),
-                                                  vElempackf);
-                    __m256i i_offset = _mm256_cvtps_epi32(offset);
+                                                  _mm256_comp_fmadd_ps(gy, vImgWf, gx)),vElempackf);
 
-                    _mm256_storeu_epi32(offset_ptr, i_offset);
+                    _mm256_storeu_ps(offset_ptr, offset);
 
                     gridptr += 24;
 
@@ -440,9 +434,8 @@ struct gridsample_3d_nearest_compute_blob
                 __m256 offset = _mm256_mul_ps(_mm256_comp_fmadd_ps(_mm256_mul_ps(vImgWf, vImgHf), gz,
                                               _mm256_comp_fmadd_ps(gy, vImgWf, gx)),
                                               vElempackf);
-                __m256i i_offset = _mm256_cvtps_epi32(offset);
 
-                _mm256_storeu_epi32(offset_ptr, i_offset);
+                _mm256_storeu_ps(offset_ptr, offset);
 
                 gridptr_x += 8;
                 gridptr_y += 8;
@@ -498,7 +491,7 @@ struct gridsample_3d_nearest_compute_blob<PaddingMode::Zeros, align_corner>
         const __m256 vElempackf = _mm256_set1_ps(src.elempack);
 #endif // __AVX__
 
-        int* offset_ptr = offset.channel(0);
+        float* offset_ptr = offset.channel(0);
 
         float* in_bound_ptr = in_bound.channel(0);
 
@@ -546,10 +539,9 @@ struct gridsample_3d_nearest_compute_blob<PaddingMode::Zeros, align_corner>
                     __m256 offset = _mm256_mul_ps(_mm256_comp_fmadd_ps(_mm256_mul_ps(vImgWf, vImgHf), gz,
                                                   _mm256_comp_fmadd_ps(gy, vImgWf, gx)),
                                                   vElempackf);
-                    __m256i i_offset = _mm256_cvtps_epi32(offset);
 
                     _mm256_storeu_ps(in_bound_ptr, v_in_range);
-                    _mm256_storeu_epi32(offset_ptr, i_offset);
+                    _mm256_storeu_ps(offset_ptr, offset);
 
                     gridptr += 24;
                     offset_ptr += 8;
@@ -614,10 +606,9 @@ struct gridsample_3d_nearest_compute_blob<PaddingMode::Zeros, align_corner>
                 __m256 offset = _mm256_mul_ps(_mm256_comp_fmadd_ps(_mm256_mul_ps(vImgWf, vImgHf), gz,
                                               _mm256_comp_fmadd_ps(gy, vImgWf, gx)),
                                               vElempackf);
-                __m256i i_offset = _mm256_cvtps_epi32(offset);
 
                 _mm256_storeu_ps(in_bound_ptr, v_in_range);
-                _mm256_storeu_epi32(offset_ptr, i_offset);
+                _mm256_storeu_ps(offset_ptr, offset);
 
                 gridptr_x += 8;
                 gridptr_y += 8;
@@ -677,7 +668,7 @@ static void gridsample_nearest_apply_interpolation_p16(const Mat& src, Mat& dst,
         const float* srcptr = src.channel(q);
         float* dstptr = dst.channel(q);
 
-        const int* offset_ptr = offset.channel(0);
+        const float* offset_ptr = offset.channel(0);
 
         const float* in_bound_ptr = in_bound.channel(0);
 
@@ -708,13 +699,18 @@ static void gridsample_nearest_apply_interpolation_p8(const Mat& src, Mat& dst, 
         const float* srcptr = src.channel(q);
         float* dstptr = dst.channel(q);
 
-        const int* offset_ptr = offset.channel(0);
+        const float* offset_ptr = offset.channel(0);
 
         const float* in_bound_ptr = in_bound.channel(0);
 
         for (int i = 0; i < grid_size; i++)
         {
-            __m256 _v = mask_gather_ps256(srcptr, _mm256_add_epi32(_mm256_set1_epi32(*offset_ptr), _mm256_set_epi32(7, 6, 5, 4, 3, 2, 1, 0)), _mm256_set1_ps(*in_bound_ptr));
+#if __AVX2__
+            __m256i _offset = _mm256_add_epi32(_mm256_set1_epi32(*offset_ptr), _mm256_set_epi32(7, 6, 5, 4, 3, 2, 1, 0));
+#else
+            __m256i _offset = _mm256_cvtps_epi32(_mm256_add_ps(_mm256_set1_ps(*offset_ptr), _mm256_set_ps(7, 6, 5, 4, 3, 2, 1, 0)));
+#endif // __AVX2__
+            __m256 _v = mask_gather_ps256(srcptr, _offset, _mm256_set1_ps(*in_bound_ptr));
 
             _mm256_storeu_ps(dstptr, _v);
 
@@ -739,7 +735,7 @@ static void gridsample_nearest_apply_interpolation_p4(const Mat& src, Mat& dst, 
         const float* srcptr = src.channel(q);
         float* dstptr = dst.channel(q);
 
-        const int* offset_ptr = offset.channel(0);
+        const float* offset_ptr = offset.channel(0);
 
         const float* in_bound_ptr = in_bound.channel(0);
 
@@ -772,7 +768,7 @@ static void gridsample_nearest_apply_interpolation_p1(const Mat& src, Mat& dst, 
         const float* srcptr = src.channel(q);
         float* dstptr = dst.channel(q);
 
-        const int* offset_ptr = offset.channel(0);
+        const float* offset_ptr = offset.channel(0);
 
         const float* in_bound_ptr = in_bound.channel(0);
 
@@ -781,7 +777,7 @@ static void gridsample_nearest_apply_interpolation_p1(const Mat& src, Mat& dst, 
 #if __AVX__
         for (int i = 0; i + 7 < grid_size; i += 8)
         {
-            __m256 _v = mask_gather_ps256(srcptr, _mm256_loadu_epi32(offset_ptr), _mm256_loadu_ps(in_bound_ptr));
+            __m256 _v = mask_gather_ps256(srcptr, _mm256_set_epi32(*(offset_ptr + 7), *(offset_ptr + 6), *(offset_ptr + 5), *(offset_ptr + 4), *(offset_ptr + 3), *(offset_ptr + 2), *(offset_ptr + 1), *offset_ptr), _mm256_loadu_ps(in_bound_ptr));
 
             _mm256_storeu_ps(dstptr, _v);
 
@@ -805,7 +801,7 @@ static void gridsample_nearest_apply_interpolation_p1(const Mat& src, Mat& dst, 
 #endif // __SSE2__
         for (int i = grid_size - nn; i < grid_size; i++)
         {
-            *dstptr = *reinterpret_cast<const int*>(in_bound_ptr) < 0 ? *(srcptr + *offset_ptr) : 0;
+            *dstptr = *reinterpret_cast<const int*>(in_bound_ptr) < 0 ? *(srcptr + static_cast<int>(*offset_ptr)) : 0;
 
             in_bound_ptr++;
             offset_ptr++;

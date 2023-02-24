@@ -241,7 +241,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
     }
 
     ncnn::Mat grid_p1 = (grid.elempack == 1) ? grid : grid_tmp;
-
+    printf("%d %d %d %d\n", sample_type, padding_mode, align_corner, permute_fusion);
     if (dims == 3)
     {
         outw = permute_fusion == 0 ? grid.h : grid.w;
