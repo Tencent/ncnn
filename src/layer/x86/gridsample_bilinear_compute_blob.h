@@ -602,7 +602,7 @@ struct gridsample_3d_bilinear_compute_blob
         float* offset_ptr_001 = offset.channel(1);
         float* offset_ptr_010 = offset.channel(2);
         float* offset_ptr_011 = offset.channel(3);
-        
+
         float* offset_ptr_100 = offset.channel(4);
         float* offset_ptr_101 = offset.channel(5);
         float* offset_ptr_110 = offset.channel(6);
@@ -1053,7 +1053,7 @@ struct gridsample_3d_bilinear_compute_blob<PaddingMode::Zeros, align_corner>
         float* offset_ptr_001 = offset.channel(1);
         float* offset_ptr_010 = offset.channel(2);
         float* offset_ptr_011 = offset.channel(3);
-        
+
         float* offset_ptr_100 = offset.channel(4);
         float* offset_ptr_101 = offset.channel(5);
         float* offset_ptr_110 = offset.channel(6);
@@ -2380,7 +2380,7 @@ static void gridsample_3d_bilinear_apply_interpolation_p1(const Mat& src, Mat& d
             float v001 = *reinterpret_cast<const int*>(in_bound_ptr_001) < 0 ? *(srcptr + static_cast<int>(*offset_ptr_001)) : 0;
             float v010 = *reinterpret_cast<const int*>(in_bound_ptr_010) < 0 ? *(srcptr + static_cast<int>(*offset_ptr_010)) : 0;
             float v011 = *reinterpret_cast<const int*>(in_bound_ptr_011) < 0 ? *(srcptr + static_cast<int>(*offset_ptr_011)) : 0;
-                                                                                                                           
+
             float v100 = *reinterpret_cast<const int*>(in_bound_ptr_100) < 0 ? *(srcptr + static_cast<int>(*offset_ptr_100)) : 0;
             float v101 = *reinterpret_cast<const int*>(in_bound_ptr_101) < 0 ? *(srcptr + static_cast<int>(*offset_ptr_101)) : 0;
             float v110 = *reinterpret_cast<const int*>(in_bound_ptr_110) < 0 ? *(srcptr + static_cast<int>(*offset_ptr_110)) : 0;

@@ -362,7 +362,8 @@ struct gridsample_3d_nearest_compute_blob
                     gz = _mm256_floor_ps(_mm256_add_ps(gz, _mm256_set1_ps(0.5f)));
 
                     __m256 offset = _mm256_mul_ps(_mm256_comp_fmadd_ps(_mm256_mul_ps(vImgWf, vImgHf), gz,
-                                                  _mm256_comp_fmadd_ps(gy, vImgWf, gx)),vElempackf);
+                                                  _mm256_comp_fmadd_ps(gy, vImgWf, gx)),
+                                                  vElempackf);
 
                     _mm256_storeu_ps(offset_ptr, offset);
 
