@@ -309,6 +309,7 @@ set(pnnx_pass_level5_SRCS
     pass_level5/eliminate_noop_upsample.cpp
     pass_level5/eliminate_noop_slice.cpp
     pass_level5/eliminate_noop_view_reshape.cpp
+    pass_level5/eliminate_reshape_shape_expression.cpp
     pass_level5/eval_expression.cpp
     pass_level5/fold_constants.cpp
     pass_level5/fuse_adjacent_reshape.cpp

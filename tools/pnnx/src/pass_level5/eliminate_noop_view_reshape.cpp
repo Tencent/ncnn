@@ -40,6 +40,19 @@ void eliminate_noop_view_reshape(Graph& graph)
             if (input_shape.empty())
                 continue;
 
+            // if only one dynamic dim-size
+            int dynamic_dim_count = 0;
+            for (size_t j = 0; j < output_shape.size(); j++)
+            {
+                if (output_shape[j] == -1)
+                {
+                    dynamic_dim_count += 1;
+                }
+            }
+
+            if (dynamic_dim_count > 1)
+                continue;
+
             matched = true;
 
             for (auto& x : op->inputs)
