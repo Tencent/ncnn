@@ -20,7 +20,7 @@ void reset_device(std::shared_ptr<torch::jit::Graph>& graph, const std::string& 
 {
     for (torch::jit::Node* n : graph->nodes())
     {
-        if (n->kind().toDisplayString() == std::string("aten::to"))
+        if (n->kind().is_aten())
         {
             if (n->hasNamedInput("device"))
             {
