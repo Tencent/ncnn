@@ -27,22 +27,20 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-16 15
+14 13
 pnnx.Input              input       0 1 input
-nn.Linear               op_0        1 1 input 76 bias=%qkv_bias in_features=%in_features out_features=%qkv_out_features @bias @weight
-pnnx.Expression         op_1        1 1 input 77 expr=%expr
-Tensor.reshape          op_2        2 1 76 77 78
-torch.permute           op_3        1 1 78 79 dims=(2,0,3,1,4)
-torch.unbind            op_4        1 3 79 80 81 82 dim=0
-pnnx.Expression         op_5        1 1 80 83 expr=%expr2
-torch.permute           op_6        1 1 81 84 dims=(0,1,3,2)
-torch.matmul            op_7        2 1 83 84 85
-F.softmax               op_8        1 1 85 86 dim=-1
-torch.matmul            op_9        2 1 86 82 87
-pnnx.Expression         op_10       1 1 input 88 expr=%expr3
-torch.permute           op_11       1 1 87 89 dims=(0,2,1,3)
-Tensor.reshape          op_12       2 1 89 88 90
-nn.Linear               out_proj    1 1 90 out bias=%out_proj_bias in_features=%out_proj_in_features out_features=%out_proj_out_features @bias @weight
+nn.Linear               op_0        1 1 input 1 bias=%qkv_bias in_features=%embed_dim out_features=%qkv_out_features @bias @weight
+Tensor.reshape          op_1        1 1 1 2 shape=%expr
+torch.permute           op_2        1 1 2 3 dims=(2,0,3,1,4)
+torch.unbind            op_3        1 3 3 4 5 6 dim=0
+pnnx.Expression         op_4        1 1 4 7 expr=%expr2
+torch.permute           op_5        1 1 5 8 dims=(0,1,3,2)
+torch.matmul            op_6        2 1 7 8 9
+F.softmax               op_7        1 1 9 10 dim=-1
+torch.matmul            op_8        2 1 10 6 11
+torch.permute           op_9        1 1 11 12 dims=(0,2,1,3)
+Tensor.reshape          op_10       1 1 12 13 shape=%expr3
+nn.Linear               out_proj    1 1 13 out bias=%out_proj_bias in_features=%embed_dim out_features=%embed_dim @bias @weight
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -59,16 +57,13 @@ pnnx.Output             output      1 0 out
 
     bool match_captured_params_attrs(const std::map<std::string, Parameter>& captured_params) const
     {
-        // [-1,int(size(@0,1)),3,8,15]   (-1,12,3,8,15)
+        // (1,-1,3,4,16)
         // mul(@0,2.581989e-01)
-        // [-1,int(size(@0,1)),120]
-        // const std::string& expr = captured_params.at("expr").s;
-        // const std::string& expr2 = captured_params.at("expr2").s;
-        // const std::string& expr3 = captured_params.at("expr3").s;
+        // (1,-1,64)
 
         // TODO stricter rules here
 
-        if (captured_params.at("expr").type != 4 && captured_params.at("expr").type != 5)
+        if (captured_params.at("expr").type != 5)
             return false;
 
         return true;
@@ -76,16 +71,7 @@ pnnx.Output             output      1 0 out
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
     {
-        int num_heads = 0;
-        if (captured_params.at("expr").type == 4)
-        {
-            const std::string& expr = captured_params.at("expr").s;
-            sscanf(expr.c_str(), "[%*d,int(size(@0,1)),3,%d,%*d,%*d))]", &num_heads);
-        }
-        else // if (captured_params.at("expr").type == 5)
-        {
-            num_heads = captured_params.at("expr").ai[3];
-        }
+        int num_heads = captured_params.at("expr").ai[3];
 
         bool qkv_bias = captured_params.at("qkv_bias").b;
         bool out_proj_bias = captured_params.at("out_proj_bias").b;
@@ -97,8 +83,7 @@ pnnx.Output             output      1 0 out
         op->params["add_bias_kv"] = false;
         op->params["bias"] = bias;
 
-        int qkv_out_features = captured_params.at("qkv_out_features").i;
-        int embed_dim = qkv_out_features / 3;
+        int embed_dim = captured_params.at("embed_dim").i;
 
         op->params["embed_dim"] = embed_dim;
         op->params["kdim"] = embed_dim;
@@ -141,31 +126,6 @@ pnnx.Output             output      1 0 out
                 memset(op->attrs["out_proj.bias"].data.data(), 0, embed_dim * sizeof(float));
             }
         }
-    }
-};
-
-class fuse_multiheadattention_pass_1 : public fuse_multiheadattention_pass
-{
-public:
-    const char* match_pattern_graph() const
-    {
-        return R"PNNXIR(7767517
-14 13
-pnnx.Input              input       0 1 input
-nn.Linear               op_0        1 1 input 76 bias=%qkv_bias in_features=%in_features out_features=%qkv_out_features @bias @weight
-Tensor.reshape          op_1        1 1 76 77 shape=%expr
-torch.permute           op_2        1 1 77 78 dims=(2,0,3,1,4)
-torch.unbind            op_3        1 3 78 79 80 81 dim=0
-pnnx.Expression         op_4        1 1 79 82 expr=%expr2
-torch.permute           op_5        1 1 80 83 dims=(0,1,3,2)
-torch.matmul            op_6        2 1 82 83 84
-F.softmax               op_7        1 1 84 85 dim=-1
-torch.matmul            op_8        2 1 85 81 86
-torch.permute           op_9        1 1 86 87 dims=(0,2,1,3)
-Tensor.reshape          op_10       1 1 87 88 shape=%expr3
-nn.Linear               out_proj    1 1 88 out bias=%out_proj_bias in_features=%out_proj_in_features out_features=%out_proj_out_features @bias @weight
-pnnx.Output             output      1 0 out
-)PNNXIR";
     }
 };
 
@@ -513,14 +473,12 @@ pnnx.Output             output      1 0 out
 void fuse_multiheadattention(Graph& graph)
 {
     fuse_multiheadattention_pass a;
-    fuse_multiheadattention_pass_1 b;
     fuse_multiheadattention_pass_2 c;
     fuse_multiheadattention_pass_3 d;
     fuse_multiheadattention_pass_4 e;
     int opindex = 0;
 
     pnnx_graph_rewrite(graph, &a, opindex);
-    pnnx_graph_rewrite(graph, &b, opindex);
     pnnx_graph_rewrite(graph, &c, opindex);
     pnnx_graph_rewrite(graph, &d, opindex);
     pnnx_graph_rewrite(graph, &e, opindex);
