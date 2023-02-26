@@ -29,39 +29,49 @@ class Model(nn.Module):
         yg1 = yg1 * 2 - 1
         yg2 = yg2 * 2 - 1
 
-        x = F.grid_sample(x, xg1, mode='bilinear', padding_mode='zeros', align_corners=False)
-        x = F.grid_sample(x, xg2, mode='bilinear', padding_mode='border', align_corners=False)
-        x = F.grid_sample(x, xg1, mode='bilinear', padding_mode='reflection', align_corners=False)
-        x = F.grid_sample(x, xg2, mode='nearest', padding_mode='zeros', align_corners=False)
-        x = F.grid_sample(x, xg1, mode='nearest', padding_mode='border', align_corners=False)
-        x = F.grid_sample(x, xg2, mode='nearest', padding_mode='reflection', align_corners=False)
-        x = F.grid_sample(x, xg1, mode='bicubic', padding_mode='zeros', align_corners=False)
-        x = F.grid_sample(x, xg2, mode='bicubic', padding_mode='border', align_corners=False)
-        x = F.grid_sample(x, xg1, mode='bicubic', padding_mode='reflection', align_corners=False)
-        x = F.grid_sample(x, xg2, mode='bilinear', padding_mode='zeros', align_corners=True)
-        x = F.grid_sample(x, xg1, mode='bilinear', padding_mode='border', align_corners=True)
-        x = F.grid_sample(x, xg2, mode='bilinear', padding_mode='reflection', align_corners=True)
-        x = F.grid_sample(x, xg1, mode='nearest', padding_mode='zeros', align_corners=True)
-        x = F.grid_sample(x, xg2, mode='nearest', padding_mode='border', align_corners=True)
-        x = F.grid_sample(x, xg1, mode='nearest', padding_mode='reflection', align_corners=True)
-        x = F.grid_sample(x, xg2, mode='bicubic', padding_mode='zeros', align_corners=True)
-        x = F.grid_sample(x, xg1, mode='bicubic', padding_mode='border', align_corners=True)
-        x = F.grid_sample(x, xg2, mode='bicubic', padding_mode='reflection', align_corners=True)
+        x0 = F.grid_sample(x0, xg1, mode='bilinear', padding_mode='zeros', align_corners=False)
+        x0 = F.grid_sample(x0, xg2, mode='bilinear', padding_mode='border', align_corners=False)
+        x0 = F.grid_sample(x0, xg1, mode='bilinear', padding_mode='reflection', align_corners=False)
+        x0 = F.grid_sample(x0, xg2, mode='nearest', padding_mode='zeros', align_corners=False)
+        x0 = F.grid_sample(x0, xg1, mode='nearest', padding_mode='border', align_corners=False)
+        x0 = F.grid_sample(x0, xg2, mode='nearest', padding_mode='reflection', align_corners=False)
+        x0 = F.grid_sample(x0, xg1, mode='bicubic', padding_mode='zeros', align_corners=False)
+        x0 = F.grid_sample(x0, xg2, mode='bicubic', padding_mode='border', align_corners=False)
+        x0 = F.grid_sample(x0, xg1, mode='bicubic', padding_mode='reflection', align_corners=False)
+        x0 = F.grid_sample(x0, xg2, mode='bilinear', padding_mode='zeros', align_corners=True)
+        x0 = F.grid_sample(x0, xg1, mode='bilinear', padding_mode='border', align_corners=True)
+        x0 = F.grid_sample(x0, xg2, mode='bilinear', padding_mode='reflection', align_corners=True)
+        x0 = F.grid_sample(x0, xg1, mode='nearest', padding_mode='zeros', align_corners=True)
+        x0 = F.grid_sample(x0, xg2, mode='nearest', padding_mode='border', align_corners=True)
+        x0 = F.grid_sample(x0, xg1, mode='nearest', padding_mode='reflection', align_corners=True)
+        x0 = F.grid_sample(x0, xg2, mode='bicubic', padding_mode='zeros', align_corners=True)
+        x0 = F.grid_sample(x0, xg1, mode='bicubic', padding_mode='border', align_corners=True)
+        x0 = F.grid_sample(x0, xg2, mode='bicubic', padding_mode='reflection', align_corners=True)
 
-        y = F.grid_sample(y, yg1, mode='bilinear', padding_mode='zeros', align_corners=False)
-        y = F.grid_sample(y, yg2, mode='bilinear', padding_mode='border', align_corners=False)
-        y = F.grid_sample(y, yg1, mode='bilinear', padding_mode='reflection', align_corners=False)
-        y = F.grid_sample(y, yg2, mode='nearest', padding_mode='zeros', align_corners=False)
-        y = F.grid_sample(y, yg1, mode='nearest', padding_mode='border', align_corners=False)
-        y = F.grid_sample(y, yg2, mode='nearest', padding_mode='reflection', align_corners=False)
-        y = F.grid_sample(y, yg1, mode='bilinear', padding_mode='zeros', align_corners=True)
-        y = F.grid_sample(y, yg2, mode='bilinear', padding_mode='border', align_corners=True)
-        y = F.grid_sample(y, yg1, mode='bilinear', padding_mode='reflection', align_corners=True)
-        y = F.grid_sample(y, yg2, mode='nearest', padding_mode='zeros', align_corners=True)
-        y = F.grid_sample(y, yg1, mode='nearest', padding_mode='border', align_corners=True)
-        y = F.grid_sample(y, yg2, mode='nearest', padding_mode='reflection', align_corners=True)
+        y0 = F.grid_sample(y0, yg1, mode='bilinear', padding_mode='zeros', align_corners=False)
+        y0 = F.grid_sample(y0, yg2, mode='bilinear', padding_mode='border', align_corners=False)
+        y0 = F.grid_sample(y0, yg1, mode='bilinear', padding_mode='reflection', align_corners=False)
+        y0 = F.grid_sample(y0, yg2, mode='nearest', padding_mode='zeros', align_corners=False)
+        y0 = F.grid_sample(y0, yg1, mode='nearest', padding_mode='border', align_corners=False)
+        y0 = F.grid_sample(y0, yg2, mode='nearest', padding_mode='reflection', align_corners=False)
+        y0 = F.grid_sample(y0, yg1, mode='bilinear', padding_mode='zeros', align_corners=True)
+        y0 = F.grid_sample(y0, yg2, mode='bilinear', padding_mode='border', align_corners=True)
+        y0 = F.grid_sample(y0, yg1, mode='bilinear', padding_mode='reflection', align_corners=True)
+        y0 = F.grid_sample(y0, yg2, mode='nearest', padding_mode='zeros', align_corners=True)
+        y0 = F.grid_sample(y0, yg1, mode='nearest', padding_mode='border', align_corners=True)
+        y0 = F.grid_sample(y0, yg2, mode='nearest', padding_mode='reflection', align_corners=True)
 
-        return x, y
+        xg1 = torch.permute(xg1, (0, 2, 3, 1))
+        xg2 = torch.permute(xg2, (0, 2, 3, 1))
+        yg1 = torch.permute(yg1, (0, 2, 3, 4, 1))
+        yg2 = torch.permute(yg2, (0, 2, 3, 4, 1))
+
+        x1 = F.grid_sample(x, xg1, mode='bilinear', padding_mode='zeros', align_corners=False)
+        x1 = F.grid_sample(x, xg2, mode='bilinear', padding_mode='border', align_corners=False)
+
+        y1 = F.grid_sample(y, yg1, mode='bilinear', padding_mode='zeros', align_corners=False)
+        y1 = F.grid_sample(y, yg2, mode='bilinear', padding_mode='border', align_corners=False)
+        return x0, y0, x1, y1
 
 def test():
     net = Model()
@@ -75,7 +85,7 @@ def test():
     yg1 = torch.rand(1, 10, 21, 27, 3)
     yg2 = torch.rand(1, 10, 12, 16, 3)
 
-    a0, a1 = net(x, xg1, xg2, y, yg1, yg2)
+    a0, a1, a2, a3 = net(x, xg1, xg2, y, yg1, yg2)
 
     # export torchscript
     mod = torch.jit.trace(net, (x, xg1, xg2, y, yg1, yg2))
@@ -87,9 +97,9 @@ def test():
 
     # ncnn inference
     import test_F_grid_sample_ncnn
-    b0, b1 = test_F_grid_sample_ncnn.test_inference()
+    b0, b1, b2, b3 = test_F_grid_sample_ncnn.test_inference()
 
-    return torch.allclose(a0, b0, 1e-4, 1e-4) and torch.allclose(a1, b1, 1e-4, 1e-4)
+    return torch.allclose(a0, b0, 1e-6, 1e-6) and torch.allclose(a1, b1, 1e-6, 1e-6) and torch.allclose(a0, b0, 1e-6, 1e-6) and torch.allclose(a1, b1, 1e-6, 1e-6)
 
 if __name__ == "__main__":
     if test():
