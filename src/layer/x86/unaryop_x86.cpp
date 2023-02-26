@@ -224,7 +224,6 @@ struct unary_op_ceil
         return _mm_ceil_ps(x);
 #endif // __SSE4_1__
 
-
         // Use negative zero as the sign bit mask.
         const __m128 magic_negative_zero = _mm_set_ps1(-0.0f);
 

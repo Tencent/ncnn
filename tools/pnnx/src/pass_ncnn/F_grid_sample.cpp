@@ -109,8 +109,8 @@ pnnx.Output             output      1 0 out
         if (padding_mode == "reflection")
             op->params["1"] = 3;
 
-        op->params["2"] = captured_params.at("align_corners").b ? 1 : 0;       
-        
+        op->params["2"] = captured_params.at("align_corners").b ? 1 : 0;
+
         const int batch_index = op->inputs[1]->params["__batch_index"].i;
 
         const std::vector<int>& dims = captured_params.at("dims").ai;
