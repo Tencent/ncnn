@@ -30,16 +30,16 @@ public:
 14 13
 pnnx.Input              input       0 1 input
 nn.Linear               op_0        1 1 input 1 bias=%qkv_bias in_features=%embed_dim out_features=%qkv_out_features @bias @weight
-Tensor.reshape          op_1        1 1 1 2 shape=%expr
+Tensor.reshape          op_1        1 1 1 2 shape=%shape
 torch.permute           op_2        1 1 2 3 dims=(2,0,3,1,4)
 torch.unbind            op_3        1 3 3 4 5 6 dim=0
-pnnx.Expression         op_4        1 1 4 7 expr=%expr2
+pnnx.Expression         op_4        1 1 4 7 expr=%expr
 torch.permute           op_5        1 1 5 8 dims=(0,1,3,2)
 torch.matmul            op_6        2 1 7 8 9
 F.softmax               op_7        1 1 9 10 dim=-1
 torch.matmul            op_8        2 1 10 6 11
 torch.permute           op_9        1 1 11 12 dims=(0,2,1,3)
-Tensor.reshape          op_10       1 1 12 13 shape=%expr3
+Tensor.reshape          op_10       1 1 12 13 shape=%shape2
 nn.Linear               out_proj    1 1 13 out bias=%out_proj_bias in_features=%embed_dim out_features=%embed_dim @bias @weight
 pnnx.Output             output      1 0 out
 )PNNXIR";
@@ -55,15 +55,28 @@ pnnx.Output             output      1 0 out
         return "attention";
     }
 
-    bool match_captured_params_attrs(const std::map<std::string, Parameter>& captured_params) const
+    bool match(const std::map<std::string, Parameter>& captured_params) const
     {
+        int embed_dim = captured_params.at("embed_dim").i;
+        int qkv_out_features = captured_params.at("qkv_out_features").i;
+        if (qkv_out_features != embed_dim * 3)
+            return false;
+
         // (1,-1,3,4,16)
-        // mul(@0,2.581989e-01)
         // (1,-1,64)
+        const std::vector<int>& shape = captured_params.at("shape").ai;
+        const std::vector<int>& shape2 = captured_params.at("shape2").ai;
+        if (shape.size() != 5 || shape2.size() != 3)
+            return false;
 
-        // TODO stricter rules here
+        if (shape[0] != shape2[0] || shape[2] != 3 || shape[3] * shape[4] != shape2[2])
+            return false;
 
-        if (captured_params.at("expr").type != 5)
+        // mul(@0,2.581989e-01)
+        const std::string& expr = captured_params.at("expr").s;
+        float inv_sqrt = 0.f;
+        int nscan = sscanf(expr.c_str(), "mul(@0,%f)", &inv_sqrt);
+        if (nscan != 1)
             return false;
 
         return true;
@@ -71,7 +84,7 @@ pnnx.Output             output      1 0 out
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
     {
-        int num_heads = captured_params.at("expr").ai[3];
+        int num_heads = captured_params.at("shape").ai[3];
 
         bool qkv_bias = captured_params.at("qkv_bias").b;
         bool out_proj_bias = captured_params.at("out_proj_bias").b;
@@ -141,22 +154,22 @@ nn.Linear               op_0        1 1 input 31 bias=%q_bias in_features=%embed
 nn.Linear               op_1        1 1 input 32 bias=%k_bias in_features=%kdim out_features=%embed_dim @bias @weight
 nn.Linear               op_2        1 1 input 33 bias=%v_bias in_features=%vdim out_features=%embed_dim @bias @weight
 pnnx.Expression         op_3        1 1 32 34 expr=%expr
-Tensor.reshape          op_4        1 1 31 35 shape=%q_shape
-Tensor.reshape          op_5        1 1 34 36 shape=%k_shape
-Tensor.reshape          op_6        1 1 33 37 shape=%v_shape
+Tensor.reshape          op_4        1 1 31 35 shape=%shape
+Tensor.reshape          op_5        1 1 34 36 shape=%shape
+Tensor.reshape          op_6        1 1 33 37 shape=%shape
 torch.permute           op_7        1 1 36 38 dims=(0,2,1,3)
-Tensor.reshape          op_8        1 1 38 39 shape=%k2_shape
+Tensor.reshape          op_8        1 1 38 39 shape=%shape2
 torch.permute           op_9        1 1 35 40 dims=(0,2,1,3)
-Tensor.reshape          op_10       1 1 40 41 shape=%q2_shape
+Tensor.reshape          op_10       1 1 40 41 shape=%shape2
 torch.permute           op_11       1 1 39 42 dims=(0,2,1)
 torch.matmul            op_12       2 1 41 42 43
 F.softmax               op_13       1 1 43 44 dim=-1
 torch.permute           op_14       1 1 37 45 dims=(0,2,1,3)
-Tensor.reshape          op_15       1 1 45 46 shape=%v2_shape
+Tensor.reshape          op_15       1 1 45 46 shape=%shape2
 torch.matmul            op_16       2 1 44 46 47
-Tensor.reshape          op_18       1 1 47 48 shape=%qkv_shape
+Tensor.reshape          op_18       1 1 47 48 shape=%shape3
 torch.permute           op_19       1 1 48 49 dims=(0,2,1,3)
-Tensor.reshape          op_20       1 1 49 50 shape=%qkv2_shape
+Tensor.reshape          op_20       1 1 49 50 shape=%shape4
 nn.Linear               out_proj    1 1 50 out bias=%out_bias in_features=%embed_dim out_features=%embed_dim @bias @weight
 pnnx.Output             output      1 0 out
 )PNNXIR";
@@ -172,19 +185,25 @@ pnnx.Output             output      1 0 out
         return "attention";
     }
 
-    bool match_captured_params_attrs(const std::map<std::string, Parameter>& captured_params) const
+    bool match(const std::map<std::string, Parameter>& captured_params) const
     {
         // mul(@0,1.581139e-01)
-        // q_shape = (1,-1,8,40)
-        // k_shape = (1,-1,8,40)
-        // v_shape = (1,-1,8,40)
-        // k2_shape = (8,-1,40)
-        // q2_shape = (8,-1,40)
-        // v2_shape = (8,-1,40)
-        // qkv_shape = (1,8,-1,40)
-        // qkv2_shape = (1,-1,320)
+        const std::string& expr = captured_params.at("expr").s;
+        float inv_sqrt = 0.f;
+        int nscan = sscanf(expr.c_str(), "mul(@0,%f)", &inv_sqrt);
+        if (nscan != 1)
+            return false;
 
-        // TODO stricter rules here
+        // shape = (1,-1,8,40)
+        // shape2 = (8,-1,40)
+        // shape3 = (1,8,-1,40)
+        // shape4 = (1,-1,320)
+        const std::vector<int>& shape = captured_params.at("shape").ai;
+        const std::vector<int>& shape2 = captured_params.at("shape2").ai;
+        const std::vector<int>& shape3 = captured_params.at("shape3").ai;
+        const std::vector<int>& shape4 = captured_params.at("shape4").ai;
+        if (shape[2] != shape2[0] || shape[2] != shape3[1] || shape[3] != shape2[2] || shape[3] != shape3[3] || shape[2] * shape[3] != shape4[2])
+            return false;
 
         return true;
     }
@@ -196,7 +215,7 @@ pnnx.Output             output      1 0 out
         int vdim = captured_params.at("vdim").i;
 
         // (1,*,8,40)
-        int num_heads = captured_params.at("q_shape").ai[2];
+        int num_heads = captured_params.at("shape").ai[2];
 
         bool q_bias = captured_params.at("q_bias").b;
         bool k_bias = captured_params.at("k_bias").b;
@@ -301,22 +320,22 @@ nn.Linear               op_0        1 1 q 32 bias=%q_bias in_features=%embed_dim
 nn.Linear               op_1        1 1 k 33 bias=%k_bias in_features=%kdim out_features=%embed_dim @bias @weight
 nn.Linear               op_2        1 1 v 34 bias=%v_bias in_features=%vdim out_features=%embed_dim @bias @weight
 pnnx.Expression         op_3        1 1 33 35 expr=%expr
-Tensor.reshape          op_4        1 1 32 36 shape=%q_shape
-Tensor.reshape          op_5        1 1 35 37 shape=%k_shape
-Tensor.reshape          op_6        1 1 34 38 shape=%v_shape
+Tensor.reshape          op_4        1 1 32 36 shape=%shape
+Tensor.reshape          op_5        1 1 35 37 shape=%shape
+Tensor.reshape          op_6        1 1 34 38 shape=%shape
 torch.permute           op_7        1 1 37 39 dims=(0,2,1,3)
-Tensor.reshape          op_8        1 1 39 40 shape=%k2_shape
+Tensor.reshape          op_8        1 1 39 40 shape=%shape2
 torch.permute           op_9        1 1 36 41 dims=(0,2,1,3)
-Tensor.reshape          op_10       1 1 41 42 shape=%q2_shape
+Tensor.reshape          op_10       1 1 41 42 shape=%shape2
 torch.permute           op_11       1 1 40 43 dims=(0,2,1)
 torch.matmul            op_12       2 1 42 43 44
 F.softmax               op_13       1 1 44 45 dim=-1
 torch.permute           op_14       1 1 38 46 dims=(0,2,1,3)
-Tensor.reshape          op_15       1 1 46 47 shape=%v2_shape
+Tensor.reshape          op_15       1 1 46 47 shape=%shape2
 torch.matmul            op_16       2 1 45 47 48
-Tensor.reshape          op_17       1 1 48 49 shape=%qkv_shape
+Tensor.reshape          op_17       1 1 48 49 shape=%shape3
 torch.permute           op_18       1 1 49 50 dims=(0,2,1,3)
-Tensor.reshape          op_19       1 1 50 51 shape=%qkv2_shape
+Tensor.reshape          op_19       1 1 50 51 shape=%shape4
 nn.Linear               out_proj    1 1 51 out bias=%out_bias in_features=%embed_dim out_features=%embed_dim @bias @weight
 pnnx.Output             output      1 0 out
 )PNNXIR";
@@ -332,19 +351,25 @@ pnnx.Output             output      1 0 out
         return "attention";
     }
 
-    bool match_captured_params_attrs(const std::map<std::string, Parameter>& captured_params) const
+    bool match(const std::map<std::string, Parameter>& captured_params) const
     {
         // mul(@0,1.581139e-01)
-        // q_shape = (1,*,8,40)
-        // k_shape = (1,*,8,40)
-        // v_shape = (1,*,8,40)
-        // k2_shape = (8,*,40)
-        // q2_shape = (8,*,40)
-        // v2_shape = (8,*,40)
-        // qkv_shape = (1,*,8,40)
-        // qkv2_shape = (1,*,320)
+        const std::string& expr = captured_params.at("expr").s;
+        float inv_sqrt = 0.f;
+        int nscan = sscanf(expr.c_str(), "mul(@0,%f)", &inv_sqrt);
+        if (nscan != 1)
+            return false;
 
-        // TODO stricter rules here
+        // shape = (1,-1,8,40)
+        // shape2 = (8,-1,40)
+        // shape3 = (1,8,-1,40)
+        // shape4 = (1,-1,320)
+        const std::vector<int>& shape = captured_params.at("shape").ai;
+        const std::vector<int>& shape2 = captured_params.at("shape2").ai;
+        const std::vector<int>& shape3 = captured_params.at("shape3").ai;
+        const std::vector<int>& shape4 = captured_params.at("shape4").ai;
+        if (shape[2] != shape2[0] || shape[2] != shape3[1] || shape[3] != shape2[2] || shape[3] != shape3[3] || shape[2] * shape[3] != shape4[2])
+            return false;
 
         return true;
     }
@@ -356,7 +381,7 @@ pnnx.Output             output      1 0 out
         int vdim = captured_params.at("vdim").i;
 
         // (1,*,8,40)
-        int num_heads = captured_params.at("q_shape").ai[2];
+        int num_heads = captured_params.at("shape").ai[2];
 
         bool q_bias = captured_params.at("q_bias").b;
         bool k_bias = captured_params.at("k_bias").b;
@@ -448,22 +473,22 @@ nn.Linear               op_0        1 1 q 32 bias=%q_bias in_features=%embed_dim
 nn.Linear               op_1        1 1 kv 33 bias=%k_bias in_features=%kdim out_features=%embed_dim @bias @weight
 nn.Linear               op_2        1 1 kv 34 bias=%v_bias in_features=%vdim out_features=%embed_dim @bias @weight
 pnnx.Expression         op_3        1 1 33 35 expr=%expr
-Tensor.reshape          op_4        1 1 32 36 shape=%q_shape
-Tensor.reshape          op_5        1 1 35 37 shape=%k_shape
-Tensor.reshape          op_6        1 1 34 38 shape=%v_shape
+Tensor.reshape          op_4        1 1 32 36 shape=%shape
+Tensor.reshape          op_5        1 1 35 37 shape=%shape
+Tensor.reshape          op_6        1 1 34 38 shape=%shape
 torch.permute           op_7        1 1 37 39 dims=(0,2,1,3)
-Tensor.reshape          op_8        1 1 39 40 shape=%k2_shape
+Tensor.reshape          op_8        1 1 39 40 shape=%shape2
 torch.permute           op_9        1 1 36 41 dims=(0,2,1,3)
-Tensor.reshape          op_10       1 1 41 42 shape=%q2_shape
+Tensor.reshape          op_10       1 1 41 42 shape=%shape2
 torch.permute           op_11       1 1 40 43 dims=(0,2,1)
 torch.matmul            op_12       2 1 42 43 44
 F.softmax               op_13       1 1 44 45 dim=-1
 torch.permute           op_14       1 1 38 46 dims=(0,2,1,3)
-Tensor.reshape          op_15       1 1 46 47 shape=%v2_shape
+Tensor.reshape          op_15       1 1 46 47 shape=%shape2
 torch.matmul            op_16       2 1 45 47 48
-Tensor.reshape          op_17       1 1 48 49 shape=%qkv_shape
+Tensor.reshape          op_17       1 1 48 49 shape=%shape3
 torch.permute           op_18       1 1 49 50 dims=(0,2,1,3)
-Tensor.reshape          op_19       1 1 50 51 shape=%qkv2_shape
+Tensor.reshape          op_19       1 1 50 51 shape=%shape4
 nn.Linear               out_proj    1 1 51 out bias=%out_bias in_features=%embed_dim out_features=%embed_dim @bias @weight
 pnnx.Output             output      1 0 out
 )PNNXIR";
@@ -481,30 +506,46 @@ pnnx.Input              input       0 1 input
 nn.Linear               op_0        1 1 input 33 bias=%q_bias in_features=%embed_dim out_features=%embed_dim @bias @weight
 nn.Linear               op_1        1 1 input 34 bias=%k_bias in_features=%kdim out_features=%embed_dim @bias @weight
 nn.Linear               op_2        1 1 input 35 bias=%v_bias in_features=%vdim out_features=%embed_dim @bias @weight
-Tensor.reshape          op_3        1 1 33 36 shape=%q_shape
-Tensor.reshape          op_4        1 1 34 37 shape=%k_shape
-Tensor.reshape          op_5        1 1 35 38 shape=%v_shape
+Tensor.reshape          op_3        1 1 33 36 shape=%shape
+Tensor.reshape          op_4        1 1 34 37 shape=%shape
+Tensor.reshape          op_5        1 1 35 38 shape=%shape
 torch.permute           op_6        1 1 36 39 dims=(0,2,1,3)
-Tensor.reshape          op_7        1 1 39 40 shape=%q2_shape
+Tensor.reshape          op_7        1 1 39 40 shape=%shape2
 torch.permute           op_8        1 1 37 41 dims=(0,2,1,3)
-Tensor.reshape          op_9        1 1 41 42 shape=%k2_shape
+Tensor.reshape          op_9        1 1 41 42 shape=%shape2
 pnnx.Attribute          op_10       0 1 43 @zeros
 torch.transpose         op_11       1 1 42 44 dim0=-1 dim1=-2
 torch.baddbmm           op_12       3 1 43 40 44 45 alpha=%alpha beta=0
 F.softmax               op_13       1 1 45 46 dim=-1
 torch.permute           op_14       1 1 38 47 dims=(0,2,1,3)
-Tensor.reshape          op_15       1 1 47 48 shape=%v2_shape
+Tensor.reshape          op_15       1 1 47 48 shape=%shape2
 torch.bmm               op_16       2 1 46 48 49
-Tensor.reshape          op_17       1 1 49 50 shape=%qkv_shape
+Tensor.reshape          op_17       1 1 49 50 shape=%shape3
 torch.permute           op_18       1 1 50 51 dims=(0,2,1,3)
-Tensor.reshape          op_19       1 1 51 52 shape=%qkv2_shape
+Tensor.reshape          op_19       1 1 51 52 shape=%shape4
 nn.Linear               out_proj    1 1 52 out bias=%out_bias in_features=%embed_dim out_features=%embed_dim @bias @weight
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
+
+    bool match(const std::map<std::string, Parameter>& captured_params) const
+    {
+        // shape = (1,-1,8,40)
+        // shape2 = (8,-1,40)
+        // shape3 = (1,8,-1,40)
+        // shape4 = (1,-1,320)
+        const std::vector<int>& shape = captured_params.at("shape").ai;
+        const std::vector<int>& shape2 = captured_params.at("shape2").ai;
+        const std::vector<int>& shape3 = captured_params.at("shape3").ai;
+        const std::vector<int>& shape4 = captured_params.at("shape4").ai;
+        if (shape[2] != shape2[0] || shape[2] != shape3[1] || shape[3] != shape2[2] || shape[3] != shape3[3] || shape[2] * shape[3] != shape4[2])
+            return false;
+
+        return true;
+    }
 };
 
-class fuse_multiheadattention_pass_6 : public fuse_multiheadattention_pass_2
+class fuse_multiheadattention_pass_6 : public fuse_multiheadattention_pass_5
 {
 public:
     const char* match_pattern_graph() const
@@ -515,24 +556,24 @@ pnnx.Input              input       0 1 input
 nn.Linear               op_0        1 1 input 33 bias=%q_bias in_features=%embed_dim out_features=%embed_dim @bias @weight
 nn.Linear               op_1        1 1 input 34 bias=%k_bias in_features=%kdim out_features=%embed_dim @bias @weight
 nn.Linear               op_2        1 1 input 35 bias=%v_bias in_features=%vdim out_features=%embed_dim @bias @weight
-Tensor.reshape          op_3        1 1 33 36 shape=%q_shape
-Tensor.reshape          op_4        1 1 34 37 shape=%k_shape
-Tensor.reshape          op_5        1 1 35 38 shape=%v_shape
+Tensor.reshape          op_3        1 1 33 36 shape=%shape
+Tensor.reshape          op_4        1 1 34 37 shape=%shape
+Tensor.reshape          op_5        1 1 35 38 shape=%shape
 torch.permute           op_6        1 1 36 39 dims=(0,2,1,3)
-Tensor.reshape          op_7        1 1 39 40 shape=%q2_shape
+Tensor.reshape          op_7        1 1 39 40 shape=%shape2
 torch.permute           op_8        1 1 37 41 dims=(0,2,1,3)
-Tensor.reshape          op_9        1 1 41 42 shape=%k2_shape
+Tensor.reshape          op_9        1 1 41 42 shape=%shape2
 pnnx.Expression         op_10       2 1 40 42 43 expr=%expr_zero_shape
 torch.empty             op_11       1 1 43 zeros
 torch.transpose         op_12       1 1 42 44 dim0=-1 dim1=-2
 torch.baddbmm           op_13       3 1 zeros 40 44 45 alpha=%alpha beta=0
 F.softmax               op_14       1 1 45 46 dim=-1
 torch.permute           op_15       1 1 38 47 dims=(0,2,1,3)
-Tensor.reshape          op_16       1 1 47 48 shape=%v2_shape
+Tensor.reshape          op_16       1 1 47 48 shape=%shape2
 torch.bmm               op_17       2 1 46 48 49
-Tensor.reshape          op_18       1 1 49 50 shape=%qkv_shape
+Tensor.reshape          op_18       1 1 49 50 shape=%shape3
 torch.permute           op_19       1 1 50 51 dims=(0,2,1,3)
-Tensor.reshape          op_20       1 1 51 52 shape=%qkv2_shape
+Tensor.reshape          op_20       1 1 51 52 shape=%shape4
 nn.Linear               out_proj    1 1 52 out bias=%out_bias in_features=%embed_dim out_features=%embed_dim @bias @weight
 pnnx.Output             output      1 0 out
 )PNNXIR";
@@ -552,30 +593,46 @@ pnnx.Input              input_v     0 1 v
 nn.Linear               op_0        1 1 q 33 bias=%q_bias in_features=%embed_dim out_features=%embed_dim @bias @weight
 nn.Linear               op_1        1 1 k 34 bias=%k_bias in_features=%kdim out_features=%embed_dim @bias @weight
 nn.Linear               op_2        1 1 v 35 bias=%v_bias in_features=%vdim out_features=%embed_dim @bias @weight
-Tensor.reshape          op_3        1 1 33 36 shape=%q_shape
-Tensor.reshape          op_4        1 1 34 37 shape=%k_shape
-Tensor.reshape          op_5        1 1 35 38 shape=%v_shape
+Tensor.reshape          op_3        1 1 33 36 shape=%shape
+Tensor.reshape          op_4        1 1 34 37 shape=%shape
+Tensor.reshape          op_5        1 1 35 38 shape=%shape
 torch.permute           op_6        1 1 36 39 dims=(0,2,1,3)
-Tensor.reshape          op_7        1 1 39 40 shape=%q2_shape
+Tensor.reshape          op_7        1 1 39 40 shape=%shape2
 torch.permute           op_8        1 1 37 41 dims=(0,2,1,3)
-Tensor.reshape          op_9        1 1 41 42 shape=%k2_shape
+Tensor.reshape          op_9        1 1 41 42 shape=%shape2
 pnnx.Attribute          op_10       0 1 43 @zeros
 torch.transpose         op_11       1 1 42 44 dim0=-1 dim1=-2
 torch.baddbmm           op_12       3 1 43 40 44 45 alpha=%alpha beta=0
 F.softmax               op_13       1 1 45 46 dim=-1
 torch.permute           op_14       1 1 38 47 dims=(0,2,1,3)
-Tensor.reshape          op_15       1 1 47 48 shape=%v2_shape
+Tensor.reshape          op_15       1 1 47 48 shape=%shape2
 torch.bmm               op_16       2 1 46 48 49
-Tensor.reshape          op_17       1 1 49 50 shape=%qkv_shape
+Tensor.reshape          op_17       1 1 49 50 shape=%shape3
 torch.permute           op_18       1 1 50 51 dims=(0,2,1,3)
-Tensor.reshape          op_19       1 1 51 52 shape=%qkv2_shape
+Tensor.reshape          op_19       1 1 51 52 shape=%shape4
 nn.Linear               out_proj    1 1 52 out bias=%out_bias in_features=%embed_dim out_features=%embed_dim @bias @weight
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
+
+    bool match(const std::map<std::string, Parameter>& captured_params) const
+    {
+        // shape = (1,-1,8,40)
+        // shape2 = (8,-1,40)
+        // shape3 = (1,8,-1,40)
+        // shape4 = (1,-1,320)
+        const std::vector<int>& shape = captured_params.at("shape").ai;
+        const std::vector<int>& shape2 = captured_params.at("shape2").ai;
+        const std::vector<int>& shape3 = captured_params.at("shape3").ai;
+        const std::vector<int>& shape4 = captured_params.at("shape4").ai;
+        if (shape[2] != shape2[0] || shape[2] != shape3[1] || shape[3] != shape2[2] || shape[3] != shape3[3] || shape[2] * shape[3] != shape4[2])
+            return false;
+
+        return true;
+    }
 };
 
-class fuse_multiheadattention_pass_8 : public fuse_multiheadattention_pass_3
+class fuse_multiheadattention_pass_8 : public fuse_multiheadattention_pass_7
 {
 public:
     const char* match_pattern_graph() const
@@ -587,30 +644,30 @@ pnnx.Input              input_kv    0 1 kv
 nn.Linear               op_0        1 1 q 33 bias=%q_bias in_features=%embed_dim out_features=%embed_dim @bias @weight
 nn.Linear               op_1        1 1 kv 34 bias=%k_bias in_features=%kdim out_features=%embed_dim @bias @weight
 nn.Linear               op_2        1 1 kv 35 bias=%v_bias in_features=%vdim out_features=%embed_dim @bias @weight
-Tensor.reshape          op_3        1 1 33 36 shape=%q_shape
-Tensor.reshape          op_4        1 1 34 37 shape=%k_shape
-Tensor.reshape          op_5        1 1 35 38 shape=%v_shape
+Tensor.reshape          op_3        1 1 33 36 shape=%shape
+Tensor.reshape          op_4        1 1 34 37 shape=%shape
+Tensor.reshape          op_5        1 1 35 38 shape=%shape
 torch.permute           op_6        1 1 36 39 dims=(0,2,1,3)
-Tensor.reshape          op_7        1 1 39 40 shape=%q2_shape
+Tensor.reshape          op_7        1 1 39 40 shape=%shape2
 torch.permute           op_8        1 1 37 41 dims=(0,2,1,3)
-Tensor.reshape          op_9        1 1 41 42 shape=%k2_shape
+Tensor.reshape          op_9        1 1 41 42 shape=%shape2
 pnnx.Attribute          op_10       0 1 43 @zeros
 torch.transpose         op_11       1 1 42 44 dim0=-1 dim1=-2
 torch.baddbmm           op_12       3 1 43 40 44 45 alpha=%alpha beta=0
 F.softmax               op_13       1 1 45 46 dim=-1
 torch.permute           op_14       1 1 38 47 dims=(0,2,1,3)
-Tensor.reshape          op_15       1 1 47 48 shape=%v2_shape
+Tensor.reshape          op_15       1 1 47 48 shape=%shape2
 torch.bmm               op_16       2 1 46 48 49
-Tensor.reshape          op_17       1 1 49 50 shape=%qkv_shape
+Tensor.reshape          op_17       1 1 49 50 shape=%shape3
 torch.permute           op_18       1 1 50 51 dims=(0,2,1,3)
-Tensor.reshape          op_19       1 1 51 52 shape=%qkv2_shape
+Tensor.reshape          op_19       1 1 51 52 shape=%shape4
 nn.Linear               out_proj    1 1 52 out bias=%out_bias in_features=%embed_dim out_features=%embed_dim @bias @weight
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
 };
 
-class fuse_multiheadattention_pass_9 : public fuse_multiheadattention_pass_3
+class fuse_multiheadattention_pass_9 : public fuse_multiheadattention_pass_7
 {
 public:
     const char* match_pattern_graph() const
@@ -623,31 +680,31 @@ pnnx.Input              input_v     0 1 v
 nn.Linear               op_0        1 1 q 33 bias=%q_bias in_features=%embed_dim out_features=%embed_dim @bias @weight
 nn.Linear               op_1        1 1 k 34 bias=%k_bias in_features=%kdim out_features=%embed_dim @bias @weight
 nn.Linear               op_2        1 1 v 35 bias=%v_bias in_features=%vdim out_features=%embed_dim @bias @weight
-Tensor.reshape          op_3        1 1 33 36 shape=%q_shape
-Tensor.reshape          op_4        1 1 34 37 shape=%k_shape
-Tensor.reshape          op_5        1 1 35 38 shape=%v_shape
+Tensor.reshape          op_3        1 1 33 36 shape=%shape
+Tensor.reshape          op_4        1 1 34 37 shape=%shape
+Tensor.reshape          op_5        1 1 35 38 shape=%shape
 torch.permute           op_6        1 1 36 39 dims=(0,2,1,3)
-Tensor.reshape          op_7        1 1 39 40 shape=%q2_shape
+Tensor.reshape          op_7        1 1 39 40 shape=%shape2
 torch.permute           op_8        1 1 37 41 dims=(0,2,1,3)
-Tensor.reshape          op_9        1 1 41 42 shape=%k2_shape
+Tensor.reshape          op_9        1 1 41 42 shape=%shape2
 pnnx.Expression         op_10       1 1 40 43 expr=%expr_zero_shape
 torch.empty             op_11       1 1 43 zeros
 torch.transpose         op_12       1 1 42 44 dim0=-1 dim1=-2
 torch.baddbmm           op_13       3 1 zeros 40 44 45 alpha=%alpha beta=0
 F.softmax               op_14       1 1 45 46 dim=-1
 torch.permute           op_15       1 1 38 47 dims=(0,2,1,3)
-Tensor.reshape          op_16       1 1 47 48 shape=%v2_shape
+Tensor.reshape          op_16       1 1 47 48 shape=%shape2
 torch.bmm               op_17       2 1 46 48 49
-Tensor.reshape          op_18       1 1 49 50 shape=%qkv_shape
+Tensor.reshape          op_18       1 1 49 50 shape=%shape3
 torch.permute           op_19       1 1 50 51 dims=(0,2,1,3)
-Tensor.reshape          op_20       1 1 51 52 shape=%qkv2_shape
+Tensor.reshape          op_20       1 1 51 52 shape=%shape4
 nn.Linear               out_proj    1 1 52 out bias=%out_bias in_features=%embed_dim out_features=%embed_dim @bias @weight
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
 };
 
-class fuse_multiheadattention_pass_10 : public fuse_multiheadattention_pass_3
+class fuse_multiheadattention_pass_10 : public fuse_multiheadattention_pass_7
 {
 public:
     const char* match_pattern_graph() const
@@ -659,24 +716,24 @@ pnnx.Input              input_kv    0 1 kv
 nn.Linear               op_0        1 1 q 33 bias=%q_bias in_features=%embed_dim out_features=%embed_dim @bias @weight
 nn.Linear               op_1        1 1 kv 34 bias=%k_bias in_features=%kdim out_features=%embed_dim @bias @weight
 nn.Linear               op_2        1 1 kv 35 bias=%v_bias in_features=%vdim out_features=%embed_dim @bias @weight
-Tensor.reshape          op_3        1 1 33 36 shape=%q_shape
-Tensor.reshape          op_4        1 1 34 37 shape=%k_shape
-Tensor.reshape          op_5        1 1 35 38 shape=%v_shape
+Tensor.reshape          op_3        1 1 33 36 shape=%shape
+Tensor.reshape          op_4        1 1 34 37 shape=%shape
+Tensor.reshape          op_5        1 1 35 38 shape=%shape
 torch.permute           op_6        1 1 36 39 dims=(0,2,1,3)
-Tensor.reshape          op_7        1 1 39 40 shape=%q2_shape
+Tensor.reshape          op_7        1 1 39 40 shape=%shape2
 torch.permute           op_8        1 1 37 41 dims=(0,2,1,3)
-Tensor.reshape          op_9        1 1 41 42 shape=%k2_shape
+Tensor.reshape          op_9        1 1 41 42 shape=%shape2
 pnnx.Expression         op_10       1 1 40 43 expr=%expr_zero_shape
 torch.empty             op_11       1 1 43 zeros
 torch.transpose         op_12       1 1 42 44 dim0=-1 dim1=-2
 torch.baddbmm           op_13       3 1 zeros 40 44 45 alpha=%alpha beta=0
 F.softmax               op_14       1 1 45 46 dim=-1
 torch.permute           op_15       1 1 38 47 dims=(0,2,1,3)
-Tensor.reshape          op_16       1 1 47 48 shape=%v2_shape
+Tensor.reshape          op_16       1 1 47 48 shape=%shape2
 torch.bmm               op_17       2 1 46 48 49
-Tensor.reshape          op_18       1 1 49 50 shape=%qkv_shape
+Tensor.reshape          op_18       1 1 49 50 shape=%shape3
 torch.permute           op_19       1 1 50 51 dims=(0,2,1,3)
-Tensor.reshape          op_20       1 1 51 52 shape=%qkv2_shape
+Tensor.reshape          op_20       1 1 51 52 shape=%shape4
 nn.Linear               out_proj    1 1 52 out bias=%out_bias in_features=%embed_dim out_features=%embed_dim @bias @weight
 pnnx.Output             output      1 0 out
 )PNNXIR";
