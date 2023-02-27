@@ -21,6 +21,19 @@
 
 namespace pnnx {
 
+static bool NearlyEqual(float a, float b, float epsilon)
+{
+    if (a == b)
+        return true;
+
+    float diff = (float)fabs(a - b);
+    if (diff <= epsilon)
+        return true;
+
+    // relative error
+    return diff < epsilon * std::max(fabs(a), fabs(b));
+}
+
 class fuse_multiheadattention_pass : public GraphRewriterPass
 {
 public:
@@ -57,8 +70,8 @@ pnnx.Output             output      1 0 out
 
     bool match(const std::map<std::string, Parameter>& captured_params) const
     {
-        int embed_dim = captured_params.at("embed_dim").i;
-        int qkv_out_features = captured_params.at("qkv_out_features").i;
+        const int embed_dim = captured_params.at("embed_dim").i;
+        const int qkv_out_features = captured_params.at("qkv_out_features").i;
         if (qkv_out_features != embed_dim * 3)
             return false;
 
@@ -69,14 +82,18 @@ pnnx.Output             output      1 0 out
         if (shape.size() != 5 || shape2.size() != 3)
             return false;
 
+        const int num_heads = shape[3];
         if (shape[0] != shape2[0] || shape[2] != 3 || shape[3] * shape[4] != shape2[2])
             return false;
 
         // mul(@0,2.581989e-01)
         const std::string& expr = captured_params.at("expr").s;
-        float inv_sqrt = 0.f;
-        int nscan = sscanf(expr.c_str(), "mul(@0,%f)", &inv_sqrt);
+        float inv_sqrt_embed_dim_per_head = 0.f;
+        int nscan = sscanf(expr.c_str(), "mul(@0,%f)", &inv_sqrt_embed_dim_per_head);
         if (nscan != 1)
+            return false;
+
+        if (!NearlyEqual(inv_sqrt_embed_dim_per_head, 1.f / sqrt(embed_dim / num_heads), 0.001))
             return false;
 
         return true;
@@ -187,13 +204,6 @@ pnnx.Output             output      1 0 out
 
     bool match(const std::map<std::string, Parameter>& captured_params) const
     {
-        // mul(@0,1.581139e-01)
-        const std::string& expr = captured_params.at("expr").s;
-        float inv_sqrt = 0.f;
-        int nscan = sscanf(expr.c_str(), "mul(@0,%f)", &inv_sqrt);
-        if (nscan != 1)
-            return false;
-
         // q_shape = (1,q,8,40)
         // kv_shape = (1,kv,8,40)
         // q_shape2 = (8,q,40)
@@ -224,6 +234,17 @@ pnnx.Output             output      1 0 out
             return false;
 
         if (kv_shape[3] != feat_per_head || q_shape2[2] != feat_per_head || kv_shape2[2] != feat_per_head || qkv_shape[3] != feat_per_head || qkv_shape2[2] != feat_per_head * num_heads)
+            return false;
+
+        // mul(@0,1.581139e-01)
+        const std::string& expr = captured_params.at("expr").s;
+        float inv_sqrt_embed_dim_per_head = 0.f;
+        int nscan = sscanf(expr.c_str(), "mul(@0,%f)", &inv_sqrt_embed_dim_per_head);
+        if (nscan != 1)
+            return false;
+
+        const int embed_dim = captured_params.at("embed_dim").i;
+        if (!NearlyEqual(inv_sqrt_embed_dim_per_head, 1.f / sqrt(embed_dim / num_heads), 0.001))
             return false;
 
         return true;
@@ -374,13 +395,6 @@ pnnx.Output             output      1 0 out
 
     bool match(const std::map<std::string, Parameter>& captured_params) const
     {
-        // mul(@0,1.581139e-01)
-        const std::string& expr = captured_params.at("expr").s;
-        float inv_sqrt = 0.f;
-        int nscan = sscanf(expr.c_str(), "mul(@0,%f)", &inv_sqrt);
-        if (nscan != 1)
-            return false;
-
         // q_shape = (1,q,8,40)
         // kv_shape = (1,kv,8,40)
         // q_shape2 = (8,q,40)
@@ -411,6 +425,17 @@ pnnx.Output             output      1 0 out
             return false;
 
         if (kv_shape[3] != feat_per_head || q_shape2[2] != feat_per_head || kv_shape2[2] != feat_per_head || qkv_shape[3] != feat_per_head || qkv_shape2[2] != feat_per_head * num_heads)
+            return false;
+
+        // mul(@0,1.581139e-01)
+        const std::string& expr = captured_params.at("expr").s;
+        float inv_sqrt_embed_dim_per_head = 0.f;
+        int nscan = sscanf(expr.c_str(), "mul(@0,%f)", &inv_sqrt_embed_dim_per_head);
+        if (nscan != 1)
+            return false;
+
+        const int embed_dim = captured_params.at("embed_dim").i;
+        if (!NearlyEqual(inv_sqrt_embed_dim_per_head, 1.f / sqrt(embed_dim / num_heads), 0.001))
             return false;
 
         return true;
@@ -604,6 +629,11 @@ pnnx.Output             output      1 0 out
         if (kv_shape[3] != feat_per_head || q_shape2[2] != feat_per_head || kv_shape2[2] != feat_per_head || qkv_shape[3] != feat_per_head || qkv_shape2[2] != feat_per_head * num_heads)
             return false;
 
+        const float inv_sqrt_embed_dim_per_head = captured_params.at("alpha").i;
+        const int embed_dim = captured_params.at("embed_dim").i;
+        if (!NearlyEqual(inv_sqrt_embed_dim_per_head, 1.f / sqrt(embed_dim / num_heads), 0.001))
+            return false;
+
         return true;
     }
 };
@@ -710,6 +740,11 @@ pnnx.Output             output      1 0 out
             return false;
 
         if (kv_shape[3] != feat_per_head || q_shape2[2] != feat_per_head || kv_shape2[2] != feat_per_head || qkv_shape[3] != feat_per_head || qkv_shape2[2] != feat_per_head * num_heads)
+            return false;
+
+        const float inv_sqrt_embed_dim_per_head = captured_params.at("alpha").i;
+        const int embed_dim = captured_params.at("embed_dim").i;
+        if (!NearlyEqual(inv_sqrt_embed_dim_per_head, 1.f / sqrt(embed_dim / num_heads), 0.001))
             return false;
 
         return true;
