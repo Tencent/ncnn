@@ -3,6 +3,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 set(pnnx_pass_level0_SRCS
     pass_level0/constant_unpooling.cpp
+    pass_level0/convert_half_to_float.cpp
     pass_level0/inline_block.cpp
     pass_level0/reset_device.cpp
     pass_level0/flatten_input.cpp
@@ -194,6 +195,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_arange.cpp
     pass_level2/torch_argmax.cpp
     pass_level2/torch_argmin.cpp
+    pass_level2/torch_baddbmm.cpp
     pass_level2/torch_bmm.cpp
     pass_level2/torch_bitwise_not.cpp
     pass_level2/torch_bitwise_and.cpp
@@ -324,6 +326,7 @@ set(pnnx_pass_level5_SRCS
     pass_level5/fuse_pad_conv1d.cpp
     pass_level5/fuse_pad_conv2d.cpp
     pass_level5/fuse_pixel_unshuffle.cpp
+    pass_level5/fuse_multiheadattention.cpp
     pass_level5/fuse_select_to_unbind.cpp
     pass_level5/fuse_slice_copy.cpp
     pass_level5/fuse_slice_indices.cpp
