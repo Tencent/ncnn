@@ -160,9 +160,16 @@ Parameter::Parameter(const torch::jit::Node* value_node)
 
     if (value_node->kind() == c10::prim::Constant)
     {
+        if (value_node->output()->type()->kind() == c10::TypeKind::NoneType)
+        {
+            type = 0;
+            return;
+        }
+
         if (!value_node->hasAttribute(torch::jit::attr::value))
         {
             fprintf(stderr, "no attribute value\n");
+            value_node->dump();
             return;
         }
 
@@ -195,6 +202,12 @@ Parameter::Parameter(const torch::jit::Node* value_node)
             break;
         }
         case c10::TypeKind::StringType:
+        {
+            type = 4;
+            s = value_node->s(torch::jit::attr::value);
+            break;
+        }
+        case c10::TypeKind::DeviceObjType:
         {
             type = 4;
             s = value_node->s(torch::jit::attr::value);
@@ -246,7 +259,7 @@ Parameter::Parameter(const torch::jit::Node* value_node)
         }
         default:
         {
-            fprintf(stderr, "unknown Parameter value kind %s\n", value_node->kind().toDisplayString());
+            fprintf(stderr, "unknown Parameter value kind %s\n", c10::typeKindToString(value_node->output()->type()->kind()));
             break;
         }
         }
@@ -284,14 +297,14 @@ Parameter::Parameter(const torch::jit::Node* value_node)
         }
         default:
         {
-            fprintf(stderr, "unknown Parameter value kind %s\n", value_node->kind().toDisplayString());
+            fprintf(stderr, "unknown Parameter value list element kind %s\n", c10::typeKindToString(value_node->output()->type()->cast<c10::ListType>()->getElementType()->kind()));
             break;
         }
         }
     }
     else
     {
-        fprintf(stderr, "unknown Parameter value kind %s\n", value_node->kind().toDisplayString());
+        fprintf(stderr, "unknown Parameter value_node kind %s\n", value_node->kind().toDisplayString());
     }
 }
 
