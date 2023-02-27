@@ -79,8 +79,15 @@ static bool match_parameter(const Parameter& a, const Parameter& b, std::map<std
 {
     if (b.type == 4 && b.s[0] == '%')
     {
+        std::string key = b.s.substr(1);
+        if (captured_params.find(key) != captured_params.end())
+        {
+            // match previous captured parameter
+            return captured_params.at(key) == a;
+        }
+
         // captured parameter
-        captured_params[b.s.substr(1)] = a;
+        captured_params[key] = a;
         return true;
     }
 
