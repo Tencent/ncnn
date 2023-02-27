@@ -224,7 +224,7 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
             }
         }
 
-        if (sample_type == InterpolationMode::Bilinear) // bilinear
+        if (sample_type == Bilinear) // bilinear
         {
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
@@ -274,7 +274,7 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                 }
             }
         }
-        else if (sample_type == InterpolationMode::Nearest) // nearest
+        else if (sample_type == Nearest) // nearest
         {
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
@@ -307,7 +307,7 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                 }
             }
         }
-        else if (sample_type == InterpolationMode::Bicubic) // bicubic
+        else if (sample_type == Bicubic) // bicubic
         {
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
@@ -472,7 +472,7 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
             }
         }
 
-        if (sample_type == InterpolationMode::Bilinear) // bilinear
+        if (sample_type == Bilinear) // bilinear
         {
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
@@ -538,7 +538,7 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                 }
             }
         }
-        else if (sample_type == InterpolationMode::Nearest) // nearest
+        else if (sample_type == Nearest) // nearest
         {
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)

@@ -100,8 +100,6 @@ static NCNN_FORCEINLINE __m128 mask_gather_ps(const float* ptr, __m128i offset, 
 
 #endif // __SSE2__
 
-typedef GridSample::PaddingMode PaddingMode;
-
 template<bool align_corner>
 struct grid_sample_unormalize;
 
@@ -139,7 +137,7 @@ template<PaddingMode pd, bool align_corner>
 struct compute_coord;
 
 template<bool align_corner>
-struct compute_coord<PaddingMode::Border, align_corner>
+struct compute_coord<Border, align_corner>
 {
 #if __AVX__
     __m256 operator()(__m256 length, __m256 coord)
@@ -158,7 +156,7 @@ struct compute_coord<PaddingMode::Border, align_corner>
 };
 
 template<>
-struct compute_coord<PaddingMode::Reflection, /*align_corner*/ true>
+struct compute_coord<Reflection, /*align_corner*/ true>
 {
 #if __AVX__
     __m256 operator()(__m256 length, __m256 coord)
@@ -183,7 +181,7 @@ struct compute_coord<PaddingMode::Reflection, /*align_corner*/ true>
 };
 
 template<>
-struct compute_coord<PaddingMode::Reflection, /*align_corner*/ false>
+struct compute_coord<Reflection, /*align_corner*/ false>
 {
 #if __AVX__
     __m256 operator()(__m256 length, __m256 coord)

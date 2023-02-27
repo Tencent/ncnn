@@ -293,7 +293,7 @@ struct gridsample_2d_bilinear_compute_blob
 };
 
 template<bool align_corner>
-struct gridsample_2d_bilinear_compute_blob<PaddingMode::Zeros, align_corner>
+struct gridsample_2d_bilinear_compute_blob<Zeros, align_corner>
 {
     void operator()(const Mat& src, const Mat& grid, Mat& offset, Mat& in_bound, Mat& value, int permute_fusion, const Option& opt)
     {
@@ -1037,7 +1037,7 @@ struct gridsample_3d_bilinear_compute_blob
 };
 
 template<bool align_corner>
-struct gridsample_3d_bilinear_compute_blob<PaddingMode::Zeros, align_corner>
+struct gridsample_3d_bilinear_compute_blob<Zeros, align_corner>
 {
     void operator()(const Mat& src, const Mat& grid, Mat& offset, Mat& in_bound, Mat& value, int permute_fusion, const Option& opt)
     {
