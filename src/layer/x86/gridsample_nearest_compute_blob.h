@@ -12,7 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-template<PaddingMode pd, bool align_corner>
+template<GridSample::PaddingMode pd, bool align_corner>
 struct gridsample_2d_nearest_compute_blob
 {
     void operator()(const Mat& src, const Mat& grid, Mat& offset, Mat& in_bound, Mat& value, int permute_fusion, const Option& opt)
@@ -157,7 +157,7 @@ struct gridsample_2d_nearest_compute_blob
 };
 
 template<bool align_corner>
-struct gridsample_2d_nearest_compute_blob<Zeros, align_corner>
+struct gridsample_2d_nearest_compute_blob<GridSample::Zeros, align_corner>
 {
     void operator()(const Mat& src, const Mat& grid, Mat& offset, Mat& in_bound, Mat& value, int permute_fusion, const Option& opt)
     {
@@ -303,7 +303,7 @@ struct gridsample_2d_nearest_compute_blob<Zeros, align_corner>
     }
 };
 
-template<PaddingMode pd, bool align_corner>
+template<GridSample::PaddingMode pd, bool align_corner>
 struct gridsample_3d_nearest_compute_blob
 {
     void operator()(const Mat& src, const Mat& grid, Mat& offset, Mat& in_bound, Mat& value, int permute_fusion, const Option& opt)
@@ -480,7 +480,7 @@ struct gridsample_3d_nearest_compute_blob
 };
 
 template<bool align_corner>
-struct gridsample_3d_nearest_compute_blob<Zeros, align_corner>
+struct gridsample_3d_nearest_compute_blob<GridSample::Zeros, align_corner>
 {
     void operator()(const Mat& src, const Mat& grid, Mat& offset, Mat& in_bound, Mat& value, int permute_fusion, const Option& opt)
     {
