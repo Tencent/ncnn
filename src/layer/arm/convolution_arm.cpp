@@ -37,6 +37,8 @@ namespace ncnn {
 #include "convolution_5x5.h"
 #include "convolution_7x7.h"
 
+#include "convolution_3x3_winograd.h"
+
 #if NCNN_BF16
 #include "convolution_bf16s.h"
 #include "convolution_sgemm_bf16s.h"
@@ -124,6 +126,7 @@ Convolution_arm::Convolution_arm()
 #endif
 
     activation = 0;
+    nT = 0;
     convolution_dilation1 = 0;
 }
 
@@ -133,6 +136,7 @@ int Convolution_arm::create_pipeline(const Option& opt)
         return 0;
 
     activation = create_activation_layer(activation_type, activation_params, opt);
+    nT = opt.num_threads;
 
 #if NCNN_INT8
     if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
@@ -210,6 +214,26 @@ int Convolution_arm::create_pipeline(const Option& opt)
     }
 #endif
 
+    bool prefer_winograd = (opt.use_winograd23_convolution || opt.use_winograd43_convolution || opt.use_winograd63_convolution) && (num_input > 8 || num_output > 8);
+
+    if (opt.use_winograd_convolution && prefer_winograd && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+    {
+        // dynamic shape
+        if ((opt.use_winograd63_convolution) && (num_input <= 32 && num_output <= 32))
+            conv3x3s1_winograd63_transform_kernel(weight_data, weight_winograd63_data, num_input, num_output, opt);
+        else if (opt.use_winograd43_convolution)
+            conv3x3s1_winograd43_transform_kernel(weight_data, weight_winograd43_data, num_input, num_output, opt);
+        else
+            conv3x3s1_winograd23_transform_kernel(weight_data, weight_winograd23_data, num_input, num_output, opt);
+
+        if (opt.lightmode)
+        {
+            weight_data.release();
+        }
+
+        return 0;
+    }
+
     bool prefer_sgemm = true;
     if (num_output == 1 * out_elempack)
     {
@@ -250,15 +274,15 @@ int Convolution_arm::create_pipeline(const Option& opt)
         {
             convolution_im2col_sgemm_transform_kernel_pack4_neon(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h);
         }
-        else if (opt.use_winograd_convolution && (opt.use_winograd23_convolution || opt.use_winograd43_convolution || opt.use_winograd63_convolution) && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
-        {
-            if ((opt.use_winograd63_convolution && num_input >= 8 && num_output >= 8 && num_input <= 128 && num_output <= 128) || (!opt.use_winograd43_convolution && !opt.use_winograd23_convolution))
-                conv3x3s1_winograd63_transform_kernel_pack4_neon(weight_data, weight_winograd63_data, num_input, num_output, opt);
-            else if ((opt.use_winograd43_convolution && num_input >= 8 && num_output >= 8) || (!opt.use_winograd63_convolution && !opt.use_winograd23_convolution))
-                conv3x3s1_winograd43_transform_kernel_pack4_neon(weight_data, weight_winograd43_data, num_input, num_output, opt);
-            else // if (opt.use_winograd23_convolution)
-                conv3x3s1_winograd23_transform_kernel_pack4_neon(weight_data, weight_winograd23_data, num_input, num_output, opt);
-        }
+        // else if (opt.use_winograd_convolution && (opt.use_winograd23_convolution || opt.use_winograd43_convolution || opt.use_winograd63_convolution) && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        // {
+        //     if ((opt.use_winograd63_convolution && num_input >= 8 && num_output >= 8 && num_input <= 128 && num_output <= 128) || (!opt.use_winograd43_convolution && !opt.use_winograd23_convolution))
+        //         conv3x3s1_winograd63_transform_kernel_pack4_neon(weight_data, weight_winograd63_data, num_input, num_output, opt);
+        //     else if ((opt.use_winograd43_convolution && num_input >= 8 && num_output >= 8) || (!opt.use_winograd63_convolution && !opt.use_winograd23_convolution))
+        //         conv3x3s1_winograd43_transform_kernel_pack4_neon(weight_data, weight_winograd43_data, num_input, num_output, opt);
+        //     else // if (opt.use_winograd23_convolution)
+        //         conv3x3s1_winograd23_transform_kernel_pack4_neon(weight_data, weight_winograd23_data, num_input, num_output, opt);
+        // }
         else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
         {
             if (opt.use_sgemm_convolution && num_input >= 4 && num_output >= 32)
@@ -339,10 +363,10 @@ int Convolution_arm::create_pipeline(const Option& opt)
         {
             convolution_im2col_sgemm_transform_kernel_pack4to1_neon(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h);
         }
-        else if (opt.use_winograd_convolution && opt.use_winograd63_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
-        {
-            conv3x3s1_winograd63_transform_kernel_pack4to1_neon(weight_data, weight_winograd63_data, num_input, num_output, opt);
-        }
+        // else if (opt.use_winograd_convolution && opt.use_winograd63_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        // {
+        //     conv3x3s1_winograd63_transform_kernel_pack4to1_neon(weight_data, weight_winograd63_data, num_input, num_output, opt);
+        // }
         else if (opt.use_sgemm_convolution && prefer_sgemm)
         {
             convolution_im2col_sgemm_transform_kernel_pack4to1_neon(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h);
@@ -380,16 +404,16 @@ int Convolution_arm::create_pipeline(const Option& opt)
                 weight_data_tm = weight_data;
             }
         }
-        else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
-        {
-            if (opt.use_winograd_convolution && opt.use_winograd63_convolution && num_input >= 16 && num_output >= 16)
-            {
-                // conv3x3s1_winograd63_transform_kernel_neon(weight_data, weight_winograd63_data, num_input, num_output, opt);
-                conv3x3s1_winograd63_transform_kernel_neon5(weight_data, weight_winograd63_data, num_input, num_output, opt);
-            }
-
-            weight_data_tm = weight_data;
-        }
+        // else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        // {
+        //     if (opt.use_winograd_convolution && opt.use_winograd63_convolution && num_input >= 16 && num_output >= 16)
+        //     {
+        //         // conv3x3s1_winograd63_transform_kernel_neon(weight_data, weight_winograd63_data, num_input, num_output, opt);
+        //         conv3x3s1_winograd63_transform_kernel_neon5(weight_data, weight_winograd63_data, num_input, num_output, opt);
+        //     }
+        //
+        //     weight_data_tm = weight_data;
+        // }
         else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
         {
             if (opt.use_sgemm_convolution)
@@ -566,6 +590,75 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
 
     const int num_input = channels * elempack;
 
+    bool prefer_winograd = (opt.use_winograd23_convolution || opt.use_winograd43_convolution || opt.use_winograd63_convolution) && (num_input > 8 || num_output > 8);
+
+    if (opt.use_winograd_convolution && prefer_winograd && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+    {
+        bool prefer_winograd63 = false;
+        bool prefer_winograd23 = false;
+        bool prefer_winograd43 = !prefer_winograd63 && !prefer_winograd23;
+
+        if (prefer_winograd23 && (!opt.use_winograd23_convolution || weight_winograd23_data.empty()))
+        {
+            // f23 fallback to f43
+            prefer_winograd23 = false;
+            prefer_winograd43 = true;
+        }
+
+        if (prefer_winograd63 && (!opt.use_winograd63_convolution || weight_winograd63_data.empty()))
+        {
+            // f63 fallback to f43
+            prefer_winograd63 = false;
+            prefer_winograd43 = true;
+        }
+
+        if (prefer_winograd43 && (!opt.use_winograd43_convolution || weight_winograd43_data.empty()))
+        {
+            // f43 fallback to f63 or f23
+            prefer_winograd43 = false;
+            if (opt.use_winograd63_convolution && !weight_winograd63_data.empty())
+            {
+                prefer_winograd63 = true;
+            }
+            else
+            {
+                prefer_winograd23 = true;
+            }
+        }
+        // NCNN_LOGE("prefer_winograd %d %d %d", prefer_winograd23, prefer_winograd43, prefer_winograd63);
+
+        int _nT = nT ? nT : opt.num_threads;
+        if (nT != 0 && opt.num_threads != nT)
+        {
+            // force num_threads the same as in create_pipeline
+            // so we could use pre-packed A/B from the same tile config
+            NCNN_LOGE("opt.num_threads %d changed, convolution winograd will use load-time value %d", opt.num_threads, nT);
+        }
+
+        if (prefer_winograd23)
+        {
+            conv3x3s1_winograd23(bottom_blob_bordered, top_blob, weight_winograd23_data, bias_data, _nT, opt);
+        }
+        else if (prefer_winograd43)
+        {
+            conv3x3s1_winograd43(bottom_blob_bordered, top_blob, weight_winograd43_data, bias_data, _nT, opt);
+        }
+        else if (prefer_winograd63)
+        {
+            conv3x3s1_winograd63(bottom_blob_bordered, top_blob, weight_winograd63_data, bias_data, _nT, opt);
+        }
+        else
+        {
+            // should never reach here
+        }
+
+        if (activation)
+        {
+            activation->forward_inplace(top_blob, opt);
+        }
+        return 0;
+    }
+
     bool prefer_sgemm = true;
     if (num_output == 1 * out_elempack)
     {
@@ -615,20 +708,20 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                 activation->forward_inplace(top_blob, opt);
             }
         }
-        else if (opt.use_winograd_convolution && (opt.use_winograd23_convolution || opt.use_winograd43_convolution || opt.use_winograd63_convolution) && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
-        {
-            if ((opt.use_winograd63_convolution && num_input >= 8 && num_output >= 8 && num_input <= 128 && num_output <= 128) || (!opt.use_winograd43_convolution && !opt.use_winograd23_convolution))
-                conv3x3s1_winograd63_pack4_neon(bottom_blob_bordered, top_blob, weight_winograd63_data, bias_data, opt);
-            else if ((opt.use_winograd43_convolution && num_input >= 8 && num_output >= 8) || (!opt.use_winograd63_convolution && !opt.use_winograd23_convolution))
-                conv3x3s1_winograd43_pack4_neon(bottom_blob_bordered, top_blob, weight_winograd43_data, bias_data, opt);
-            else // if (opt.use_winograd23_convolution)
-                conv3x3s1_winograd23_pack4_neon(bottom_blob_bordered, top_blob, weight_winograd23_data, bias_data, opt);
-
-            if (activation)
-            {
-                activation->forward_inplace(top_blob, opt);
-            }
-        }
+        // else if (opt.use_winograd_convolution && (opt.use_winograd23_convolution || opt.use_winograd43_convolution || opt.use_winograd63_convolution) && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        // {
+        //     if ((opt.use_winograd63_convolution && num_input >= 8 && num_output >= 8 && num_input <= 128 && num_output <= 128) || (!opt.use_winograd43_convolution && !opt.use_winograd23_convolution))
+        //         conv3x3s1_winograd63_pack4_neon(bottom_blob_bordered, top_blob, weight_winograd63_data, bias_data, opt);
+        //     else if ((opt.use_winograd43_convolution && num_input >= 8 && num_output >= 8) || (!opt.use_winograd63_convolution && !opt.use_winograd23_convolution))
+        //         conv3x3s1_winograd43_pack4_neon(bottom_blob_bordered, top_blob, weight_winograd43_data, bias_data, opt);
+        //     else // if (opt.use_winograd23_convolution)
+        //         conv3x3s1_winograd23_pack4_neon(bottom_blob_bordered, top_blob, weight_winograd23_data, bias_data, opt);
+        //
+        //     if (activation)
+        //     {
+        //         activation->forward_inplace(top_blob, opt);
+        //     }
+        // }
         else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
         {
             if (opt.use_sgemm_convolution && num_input >= 4 && num_output >= 32)
@@ -767,18 +860,18 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                 activation->forward_inplace(top_blob, opt);
             }
         }
-        else if (opt.use_winograd_convolution && opt.use_winograd63_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
-        {
-            // TODO more proper condition
-            conv3x3s1_winograd63_pack4to1_neon(bottom_blob_bordered, top_blob, weight_winograd63_data, bias_data, opt);
-
-            //             conv3x3s1_pack4to1_neon(bottom_blob_bordered, top_blob, weight_data_tm, bias_data, opt);
-
-            if (activation)
-            {
-                activation->forward_inplace(top_blob, opt);
-            }
-        }
+        // else if (opt.use_winograd_convolution && opt.use_winograd63_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        // {
+        //     // TODO more proper condition
+        //     conv3x3s1_winograd63_pack4to1_neon(bottom_blob_bordered, top_blob, weight_winograd63_data, bias_data, opt);
+        //
+        //     //             conv3x3s1_pack4to1_neon(bottom_blob_bordered, top_blob, weight_data_tm, bias_data, opt);
+        //
+        //     if (activation)
+        //     {
+        //         activation->forward_inplace(top_blob, opt);
+        //     }
+        // }
         else if (opt.use_sgemm_convolution && prefer_sgemm)
         {
             convolution_im2col_sgemm_pack4to1_neon(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
@@ -829,23 +922,23 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                 activation->forward_inplace(top_blob, opt);
             }
         }
-        else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
-        {
-            if (opt.use_winograd_convolution && opt.use_winograd63_convolution && num_input >= 16 && num_output >= 16 && w <= 120 && h <= 120)
-            {
-                // conv3x3s1_winograd63_neon4(bottom_blob_bordered, top_blob, weight_winograd63_data, bias_data, opt);
-                conv3x3s1_winograd63_neon5(bottom_blob_bordered, top_blob, weight_winograd63_data, bias_data, opt);
-            }
-            else
-            {
-                conv3x3s1_neon(bottom_blob_bordered, top_blob, weight_data_tm, bias_data, opt);
-            }
-
-            if (activation)
-            {
-                activation->forward_inplace(top_blob, opt);
-            }
-        }
+        // else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        // {
+        //     if (opt.use_winograd_convolution && opt.use_winograd63_convolution && num_input >= 16 && num_output >= 16 && w <= 120 && h <= 120)
+        //     {
+        //         // conv3x3s1_winograd63_neon4(bottom_blob_bordered, top_blob, weight_winograd63_data, bias_data, opt);
+        //         conv3x3s1_winograd63_neon5(bottom_blob_bordered, top_blob, weight_winograd63_data, bias_data, opt);
+        //     }
+        //     else
+        //     {
+        //         conv3x3s1_neon(bottom_blob_bordered, top_blob, weight_data_tm, bias_data, opt);
+        //     }
+        //
+        //     if (activation)
+        //     {
+        //         activation->forward_inplace(top_blob, opt);
+        //     }
+        // }
         else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
         {
             if (opt.use_sgemm_convolution && !(outw >= 8 && outh >= 8))
