@@ -477,6 +477,110 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
             {
                 const float* pA = pAT;
 
+#if NCNN_GNU_INLINE_ASM
+                int nn = max_kk;
+
+                asm volatile(
+                    "cbz    %4, 0f                      \n"
+
+                    "prfm   pldl1keep, [%1, #512]       \n"
+                    "ld1    {v8.4s, v9.4s, v10.4s, v11.4s}, [%1], #64   \n"
+                    "prfm   pldl1keep, [%1, #512]       \n"
+                    "ld1    {v12.4s, v13.4s, v14.4s, v15.4s}, [%1], #64 \n"
+                    "prfm   pldl1keep, [%1, #512]       \n"
+                    "ld1    {v16.4s, v17.4s, v18.4s, v19.4s}, [%1], #64 \n"
+                    "prfm   pldl1keep, [%1, #512]       \n"
+                    "ld1    {v20.4s, v21.4s, v22.4s, v23.4s}, [%1], #64 \n"
+                    "prfm   pldl1keep, [%1, #512]       \n"
+                    "ld1    {v24.4s, v25.4s, v26.4s, v27.4s}, [%1], #64 \n"
+                    "prfm   pldl1keep, [%1, #512]       \n"
+                    "ld1    {v28.4s, v29.4s, v30.4s, v31.4s}, [%1]      \n"
+                    "subs   %1, %1, #320                \n"
+                    "b      1f                          \n"
+
+                    "0:                                 \n"
+                    "eor    v8.16b, v8.16b, v8.16b      \n"
+                    "eor    v9.16b, v9.16b, v9.16b      \n"
+                    "eor    v10.16b, v10.16b, v10.16b   \n"
+                    "eor    v11.16b, v11.16b, v11.16b   \n"
+                    "eor    v12.16b, v12.16b, v12.16b   \n"
+                    "eor    v13.16b, v13.16b, v13.16b   \n"
+                    "eor    v14.16b, v14.16b, v14.16b   \n"
+                    "eor    v15.16b, v15.16b, v15.16b   \n"
+                    "eor    v16.16b, v16.16b, v16.16b   \n"
+                    "eor    v17.16b, v17.16b, v17.16b   \n"
+                    "eor    v18.16b, v18.16b, v18.16b   \n"
+                    "eor    v19.16b, v19.16b, v19.16b   \n"
+                    "eor    v20.16b, v20.16b, v20.16b   \n"
+                    "eor    v21.16b, v21.16b, v21.16b   \n"
+                    "eor    v22.16b, v22.16b, v22.16b   \n"
+                    "eor    v23.16b, v23.16b, v23.16b   \n"
+                    "eor    v24.16b, v24.16b, v24.16b   \n"
+                    "eor    v25.16b, v25.16b, v25.16b   \n"
+                    "eor    v26.16b, v26.16b, v26.16b   \n"
+                    "eor    v27.16b, v27.16b, v27.16b   \n"
+                    "eor    v28.16b, v28.16b, v28.16b   \n"
+                    "eor    v29.16b, v29.16b, v29.16b   \n"
+                    "eor    v30.16b, v30.16b, v30.16b   \n"
+                    "eor    v31.16b, v31.16b, v31.16b   \n"
+
+                    "1:                                 \n"
+
+                    "prfm   pldl1keep, [%3, #384]       \n"
+                    "ld1    {v0.4s, v1.4s, v2.4s}, [%3], #48 \n"
+
+                    "prfm   pldl1keep, [%2, #256]       \n"
+                    "ld1    {v4.4s, v5.4s}, [%2], #32   \n"
+
+                    "fmla   v8.4s, v4.4s, v0.s[0]       \n"
+                    "fmla   v10.4s, v4.4s, v0.s[1]      \n"
+                    "fmla   v12.4s, v4.4s, v0.s[2]      \n"
+                    "fmla   v14.4s, v4.4s, v0.s[3]      \n"
+                    "fmla   v16.4s, v4.4s, v1.s[0]      \n"
+                    "fmla   v18.4s, v4.4s, v1.s[1]      \n"
+                    "fmla   v20.4s, v4.4s, v1.s[2]      \n"
+                    "fmla   v22.4s, v4.4s, v1.s[3]      \n"
+                    "fmla   v24.4s, v4.4s, v2.s[0]      \n"
+                    "fmla   v26.4s, v4.4s, v2.s[1]      \n"
+                    "fmla   v28.4s, v4.4s, v2.s[2]      \n"
+                    "fmla   v30.4s, v4.4s, v2.s[3]      \n"
+
+                    "subs   %w0, %w0, #1                \n"
+
+                    "fmla   v9.4s, v5.4s, v0.s[0]       \n"
+                    "fmla   v11.4s, v5.4s, v0.s[1]      \n"
+                    "fmla   v13.4s, v5.4s, v0.s[2]      \n"
+                    "fmla   v15.4s, v5.4s, v0.s[3]      \n"
+                    "fmla   v17.4s, v5.4s, v1.s[0]      \n"
+                    "fmla   v19.4s, v5.4s, v1.s[1]      \n"
+                    "fmla   v21.4s, v5.4s, v1.s[2]      \n"
+                    "fmla   v23.4s, v5.4s, v1.s[3]      \n"
+                    "fmla   v25.4s, v5.4s, v2.s[0]      \n"
+                    "fmla   v27.4s, v5.4s, v2.s[1]      \n"
+                    "fmla   v29.4s, v5.4s, v2.s[2]      \n"
+                    "fmla   v31.4s, v5.4s, v2.s[3]      \n"
+
+                    "bne    1b                          \n"
+
+                    "st1    {v8.4s, v9.4s, v10.4s, v11.4s}, [%1], #64   \n"
+                    "st1    {v12.4s, v13.4s, v14.4s, v15.4s}, [%1], #64 \n"
+                    "st1    {v16.4s, v17.4s, v18.4s, v19.4s}, [%1], #64 \n"
+                    "st1    {v20.4s, v21.4s, v22.4s, v23.4s}, [%1], #64 \n"
+                    "st1    {v24.4s, v25.4s, v26.4s, v27.4s}, [%1], #64 \n"
+                    "st1    {v28.4s, v29.4s, v30.4s, v31.4s}, [%1], #64 \n"
+
+                    : "=r"(nn),     // %0
+                    "=r"(outptr),   // %1
+                    "=r"(pA),       // %2
+                    "=r"(pB),       // %3
+                    "=r"(k)         // %4
+                    : "0"(nn),
+                    "1"(outptr),
+                    "2"(pA),
+                    "3"(pB),
+                    "4"(k)
+                    : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
+#else // NCNN_GNU_INLINE_ASM
                 float32x4_t _sum00;
                 float32x4_t _sum01;
                 float32x4_t _sum10;
@@ -621,11 +725,94 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 vst1q_f32(outptr + 4 * 22, _sumb0);
                 vst1q_f32(outptr + 4 * 23, _sumb1);
                 outptr += 8 * 12;
+#endif // NCNN_GNU_INLINE_ASM
             }
             for (; jj + 7 < max_jj; jj += 8)
             {
                 const float* pA = pAT;
 
+#if NCNN_GNU_INLINE_ASM
+                int nn = max_kk;
+
+                asm volatile(
+                    "cbz    %4, 0f                      \n"
+
+                    "prfm   pldl1keep, [%1, #512]       \n"
+                    "ld1    {v16.4s, v17.4s, v18.4s, v19.4s}, [%1], #64 \n"
+                    "prfm   pldl1keep, [%1, #512]       \n"
+                    "ld1    {v20.4s, v21.4s, v22.4s, v23.4s}, [%1], #64 \n"
+                    "prfm   pldl1keep, [%1, #512]       \n"
+                    "ld1    {v24.4s, v25.4s, v26.4s, v27.4s}, [%1], #64 \n"
+                    "prfm   pldl1keep, [%1, #512]       \n"
+                    "ld1    {v28.4s, v29.4s, v30.4s, v31.4s}, [%1]      \n"
+                    "subs   %1, %1, #192                \n"
+                    "b      1f                          \n"
+
+                    "0:                                 \n"
+                    "eor    v16.16b, v16.16b, v16.16b   \n"
+                    "eor    v17.16b, v17.16b, v17.16b   \n"
+                    "eor    v18.16b, v18.16b, v18.16b   \n"
+                    "eor    v19.16b, v19.16b, v19.16b   \n"
+                    "eor    v20.16b, v20.16b, v20.16b   \n"
+                    "eor    v21.16b, v21.16b, v21.16b   \n"
+                    "eor    v22.16b, v22.16b, v22.16b   \n"
+                    "eor    v23.16b, v23.16b, v23.16b   \n"
+                    "eor    v24.16b, v24.16b, v24.16b   \n"
+                    "eor    v25.16b, v25.16b, v25.16b   \n"
+                    "eor    v26.16b, v26.16b, v26.16b   \n"
+                    "eor    v27.16b, v27.16b, v27.16b   \n"
+                    "eor    v28.16b, v28.16b, v28.16b   \n"
+                    "eor    v29.16b, v29.16b, v29.16b   \n"
+                    "eor    v30.16b, v30.16b, v30.16b   \n"
+                    "eor    v31.16b, v31.16b, v31.16b   \n"
+
+                    "1:                                 \n"
+
+                    "prfm   pldl1keep, [%3, #256]       \n"
+                    "ld1    {v0.4s, v1.4s}, [%3], #32   \n"
+
+                    "prfm   pldl1keep, [%2, #256]       \n"
+                    "ld1    {v4.4s, v5.4s}, [%2], #32   \n"
+
+                    "fmla   v16.4s, v4.4s, v0.s[0]      \n"
+                    "fmla   v18.4s, v4.4s, v0.s[1]      \n"
+                    "fmla   v20.4s, v4.4s, v0.s[2]      \n"
+                    "fmla   v22.4s, v4.4s, v0.s[3]      \n"
+                    "fmla   v24.4s, v4.4s, v1.s[0]      \n"
+                    "fmla   v26.4s, v4.4s, v1.s[1]      \n"
+                    "fmla   v28.4s, v4.4s, v1.s[2]      \n"
+                    "fmla   v30.4s, v4.4s, v1.s[3]      \n"
+
+                    "subs   %w0, %w0, #1                \n"
+
+                    "fmla   v17.4s, v5.4s, v0.s[0]      \n"
+                    "fmla   v19.4s, v5.4s, v0.s[1]      \n"
+                    "fmla   v21.4s, v5.4s, v0.s[2]      \n"
+                    "fmla   v23.4s, v5.4s, v0.s[3]      \n"
+                    "fmla   v25.4s, v5.4s, v1.s[0]      \n"
+                    "fmla   v27.4s, v5.4s, v1.s[1]      \n"
+                    "fmla   v29.4s, v5.4s, v1.s[2]      \n"
+                    "fmla   v31.4s, v5.4s, v1.s[3]      \n"
+
+                    "bne    1b                          \n"
+
+                    "st1    {v16.4s, v17.4s, v18.4s, v19.4s}, [%1], #64 \n"
+                    "st1    {v20.4s, v21.4s, v22.4s, v23.4s}, [%1], #64 \n"
+                    "st1    {v24.4s, v25.4s, v26.4s, v27.4s}, [%1], #64 \n"
+                    "st1    {v28.4s, v29.4s, v30.4s, v31.4s}, [%1], #64 \n"
+
+                    : "=r"(nn),     // %0
+                    "=r"(outptr),   // %1
+                    "=r"(pA),       // %2
+                    "=r"(pB),       // %3
+                    "=r"(k)         // %4
+                    : "0"(nn),
+                    "1"(outptr),
+                    "2"(pA),
+                    "3"(pB),
+                    "4"(k)
+                    : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
+#else // NCNN_GNU_INLINE_ASM
                 float32x4_t _sum00;
                 float32x4_t _sum01;
                 float32x4_t _sum10;
@@ -729,11 +916,72 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 vst1q_f32(outptr + 4 * 14, _sum70);
                 vst1q_f32(outptr + 4 * 15, _sum71);
                 outptr += 8 * 8;
+#endif // NCNN_GNU_INLINE_ASM
             }
             for (; jj + 3 < max_jj; jj += 4)
             {
                 const float* pA = pAT;
 
+#if NCNN_GNU_INLINE_ASM
+                int nn = max_kk;
+
+                asm volatile(
+                    "cbz    %4, 0f                      \n"
+
+                    "prfm   pldl1keep, [%1, #512]       \n"
+                    "ld1    {v24.4s, v25.4s, v26.4s, v27.4s}, [%1], #64 \n"
+                    "prfm   pldl1keep, [%1, #512]       \n"
+                    "ld1    {v28.4s, v29.4s, v30.4s, v31.4s}, [%1]      \n"
+                    "subs   %1, %1, #64                 \n"
+                    "b      1f                          \n"
+
+                    "0:                                 \n"
+                    "eor    v24.16b, v24.16b, v24.16b   \n"
+                    "eor    v25.16b, v25.16b, v25.16b   \n"
+                    "eor    v26.16b, v26.16b, v26.16b   \n"
+                    "eor    v27.16b, v27.16b, v27.16b   \n"
+                    "eor    v28.16b, v28.16b, v28.16b   \n"
+                    "eor    v29.16b, v29.16b, v29.16b   \n"
+                    "eor    v30.16b, v30.16b, v30.16b   \n"
+                    "eor    v31.16b, v31.16b, v31.16b   \n"
+
+                    "1:                                 \n"
+
+                    "prfm   pldl1keep, [%3, #128]       \n"
+                    "ld1    {v0.4s}, [%3], #16          \n"
+
+                    "prfm   pldl1keep, [%2, #256]       \n"
+                    "ld1    {v4.4s, v5.4s}, [%2], #32   \n"
+
+                    "fmla   v24.4s, v4.4s, v0.s[0]      \n"
+                    "fmla   v26.4s, v4.4s, v0.s[1]      \n"
+                    "fmla   v28.4s, v4.4s, v0.s[2]      \n"
+                    "fmla   v30.4s, v4.4s, v0.s[3]      \n"
+
+                    "subs   %w0, %w0, #1                \n"
+
+                    "fmla   v25.4s, v5.4s, v0.s[0]      \n"
+                    "fmla   v27.4s, v5.4s, v0.s[1]      \n"
+                    "fmla   v29.4s, v5.4s, v0.s[2]      \n"
+                    "fmla   v31.4s, v5.4s, v0.s[3]      \n"
+
+                    "bne    1b                          \n"
+
+                    "st1    {v24.4s, v25.4s, v26.4s, v27.4s}, [%1], #64 \n"
+                    "st1    {v28.4s, v29.4s, v30.4s, v31.4s}, [%1], #64 \n"
+
+                    : "=r"(nn),     // %0
+                    "=r"(outptr),   // %1
+                    "=r"(pA),       // %2
+                    "=r"(pB),       // %3
+                    "=r"(k)         // %4
+                    : "0"(nn),
+                    "1"(outptr),
+                    "2"(pA),
+                    "3"(pB),
+                    "4"(k)
+                    : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
+#else // NCNN_GNU_INLINE_ASM
                 float32x4_t _sum00;
                 float32x4_t _sum01;
                 float32x4_t _sum10;
@@ -796,11 +1044,60 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 vst1q_f32(outptr + 4 * 6, _sum30);
                 vst1q_f32(outptr + 4 * 7, _sum31);
                 outptr += 8 * 4;
+#endif // NCNN_GNU_INLINE_ASM
             }
             for (; jj + 1 < max_jj; jj += 2)
             {
                 const float* pA = pAT;
 
+#if NCNN_GNU_INLINE_ASM
+                int nn = max_kk;
+
+                asm volatile(
+                    "cbz    %4, 0f                      \n"
+
+                    "prfm   pldl1keep, [%1, #512]       \n"
+                    "ld1    {v28.4s, v29.4s, v30.4s, v31.4s}, [%1]      \n"
+                    "b      1f                          \n"
+
+                    "0:                                 \n"
+                    "eor    v28.16b, v28.16b, v28.16b   \n"
+                    "eor    v29.16b, v29.16b, v29.16b   \n"
+                    "eor    v30.16b, v30.16b, v30.16b   \n"
+                    "eor    v31.16b, v31.16b, v31.16b   \n"
+
+                    "1:                                 \n"
+
+                    "prfm   pldl1keep, [%3, #64]        \n"
+                    "ld1    {v0.2s}, [%3], #8           \n"
+
+                    "prfm   pldl1keep, [%2, #256]       \n"
+                    "ld1    {v4.4s, v5.4s}, [%2], #32   \n"
+
+                    "fmla   v28.4s, v4.4s, v0.s[0]      \n"
+                    "fmla   v30.4s, v4.4s, v0.s[1]      \n"
+
+                    "subs   %w0, %w0, #1                \n"
+
+                    "fmla   v29.4s, v5.4s, v0.s[0]      \n"
+                    "fmla   v31.4s, v5.4s, v0.s[1]      \n"
+
+                    "bne    1b                          \n"
+
+                    "st1    {v28.4s, v29.4s, v30.4s, v31.4s}, [%1], #64 \n"
+
+                    : "=r"(nn),     // %0
+                    "=r"(outptr),   // %1
+                    "=r"(pA),       // %2
+                    "=r"(pB),       // %3
+                    "=r"(k)         // %4
+                    : "0"(nn),
+                    "1"(outptr),
+                    "2"(pA),
+                    "3"(pB),
+                    "4"(k)
+                    : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
+#else // NCNN_GNU_INLINE_ASM
                 float32x4_t _sum00;
                 float32x4_t _sum01;
                 float32x4_t _sum10;
@@ -843,6 +1140,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 vst1q_f32(outptr + 4 * 2, _sum10);
                 vst1q_f32(outptr + 4 * 3, _sum11);
                 outptr += 8 * 2;
+#endif // NCNN_GNU_INLINE_ASM
             }
             for (; jj < max_jj; jj++)
             {
@@ -1659,6 +1957,7 @@ static void get_optimal_tile_mnk(int M, int N, int K, int& TILE_M, int& TILE_N, 
 {
     // resolve optimal tile size from cache size
     size_t l2_cache_size = get_cpu_level2_cache_size();
+    // size_t l2_cache_size = 1000 * 1000 * 1000;
 
     // solve M
     {
