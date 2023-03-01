@@ -6069,7 +6069,7 @@ static inline void conv3x3s1_winograd63_transform_output_tile(const Mat& top_til
                 float32x2_t _tmp2 = vmla_lane_f32(vmla_lane_f32(_tmp024a, _tmp024b, vget_high_f32(_coeffs), 1), _tmp024c, vget_high_f32(_coeffs), 0);
                 float32x2_t _tmp3 = vmla_lane_f32(vmla_lane_f32(_tmp135a, _tmp135b, vget_high_f32(_coeffs), 0), _tmp135c, vget_high_f32(_coeffs), 1);
                 float32x2_t _tmp4 = vmla_f32(vmla_lane_f32(_tmp024a, _tmp024b, vget_low_f32(_coeffs), 1), _tmp024c, _v2);
-                float32x2_t _tmp5 = vadd_f32(vadd_f32(_r7, _tmp135a), vmlaq_lane_f32(_tmp135c, _tmp135b, vget_low_f32(_coeffs), 0));
+                float32x2_t _tmp5 = vadd_f32(vadd_f32(_r7, _tmp135a), vmla_lane_f32(_tmp135c, _tmp135b, vget_low_f32(_coeffs), 0));
 #endif
 
                 vst1_f32(tmp[0][m], _tmp0);
