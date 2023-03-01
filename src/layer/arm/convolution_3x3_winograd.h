@@ -2127,6 +2127,12 @@ static inline void conv3x3s1_winograd23_transform_input_tile(const Mat& bottom_b
 
             for (int m = 0; m < 4; m++)
             {
+#if __ARM_NEON
+                float32x2_t _r0 = vdup_n_f32(0.f);
+                float32x2_t _r1 = vdup_n_f32(0.f);
+                float32x2_t _r2 = vdup_n_f32(0.f);
+                float32x2_t _r3 = vdup_n_f32(0.f);
+#else
                 float r00 = 0.f;
                 float r01 = 0.f;
                 float r10 = 0.f;
@@ -2135,6 +2141,7 @@ static inline void conv3x3s1_winograd23_transform_input_tile(const Mat& bottom_b
                 float r21 = 0.f;
                 float r30 = 0.f;
                 float r31 = 0.f;
+#endif
 
                 if (ti * 2 + m < h)
                 {
@@ -2142,6 +2149,16 @@ static inline void conv3x3s1_winograd23_transform_input_tile(const Mat& bottom_b
                     {
                         const float* r1 = r0 + N;
 
+#if __ARM_NEON
+                        float32x4_t _t0 = vld1q_f32(r0);
+                        float32x4_t _t1 = vld1q_f32(r1);
+                        float32x4x2_t _t01 = vzipq_f32(_t0, _t1);
+
+                        _r0 = vget_low_f32(_t01.val[0]);
+                        if (tj * 2 + 1 < w) _r1 = vget_high_f32(_t01.val[0]);
+                        if (tj * 2 + 2 < w) _r2 = vget_low_f32(_t01.val[1]);
+                        if (tj * 2 + 3 < w) _r3 = vget_high_f32(_t01.val[1]);
+#else
                         r00 = r0[0];
                         r01 = r1[0];
                         if (tj * 2 + 1 < w)
@@ -2159,9 +2176,21 @@ static inline void conv3x3s1_winograd23_transform_input_tile(const Mat& bottom_b
                             r30 = r0[3];
                             r31 = r1[3];
                         }
+#endif
                     }
                 }
 
+#if __ARM_NEON
+                float32x2_t _tmp0 = vsub_f32(_r0, _r2);
+                float32x2_t _tmp1 = vadd_f32(_r1, _r2);
+                float32x2_t _tmp2 = vsub_f32(_r2, _r1);
+                float32x2_t _tmp3 = vsub_f32(_r3, _r1);
+
+                vst1_f32(tmp[0][m], _tmp0);
+                vst1_f32(tmp[1][m], _tmp1);
+                vst1_f32(tmp[2][m], _tmp2);
+                vst1_f32(tmp[3][m], _tmp3);
+#else
                 tmp[0][m][0] = r00 - r20;
                 tmp[0][m][1] = r01 - r21;
                 tmp[1][m][0] = r10 + r20;
@@ -2170,6 +2199,7 @@ static inline void conv3x3s1_winograd23_transform_input_tile(const Mat& bottom_b
                 tmp[2][m][1] = r21 - r11;
                 tmp[3][m][0] = r30 - r10;
                 tmp[3][m][1] = r31 - r11;
+#endif
 
                 r0 += w;
             }
@@ -2181,6 +2211,22 @@ static inline void conv3x3s1_winograd23_transform_input_tile(const Mat& bottom_b
 
             for (int m = 0; m < 4; m++)
             {
+#if __ARM_NEON
+                float32x2_t _r0 = vld1_f32(tmp[m][0]);
+                float32x2_t _r1 = vld1_f32(tmp[m][1]);
+                float32x2_t _r2 = vld1_f32(tmp[m][2]);
+                float32x2_t _r3 = vld1_f32(tmp[m][3]);
+
+                float32x2_t _tmp0 = vsub_f32(_r0, _r2);
+                float32x2_t _tmp1 = vadd_f32(_r1, _r2);
+                float32x2_t _tmp2 = vsub_f32(_r2, _r1);
+                float32x2_t _tmp3 = vsub_f32(_r3, _r1);
+
+                vst1_f32(p0, _tmp0);
+                vst1_f32(p1, _tmp1);
+                vst1_f32(p2, _tmp2);
+                vst1_f32(p3, _tmp3);
+#else
                 float r00 = tmp[m][0][0];
                 float r01 = tmp[m][0][1];
                 float r10 = tmp[m][1][0];
@@ -2198,6 +2244,7 @@ static inline void conv3x3s1_winograd23_transform_input_tile(const Mat& bottom_b
                 p2[1] = r21 - r11;
                 p3[0] = r30 - r10;
                 p3[1] = r31 - r11;
+#endif
 
                 p0 += max_jj * 4 * 2;
                 p1 += max_jj * 4 * 2;
@@ -2500,8 +2547,12 @@ static inline void conv3x3s1_winograd23_transform_output_tile(const Mat& top_til
 #endif // __ARM_NEON
     for (; ii + 1 < max_ii; ii += 2)
     {
+#if __ARM_NEON
+        float32x2_t _bias0 = biasptr ? vld1_f32(biasptr + i + ii) : vdup_n_f32(0.f);
+#else
         float bias0 = biasptr ? biasptr[i + ii] : 0.f;
         float bias1 = biasptr ? biasptr[i + ii + 1] : 0.f;
+#endif
 
         float tmp[2][4][2];
 
@@ -2518,10 +2569,23 @@ static inline void conv3x3s1_winograd23_transform_output_tile(const Mat& top_til
 
             for (int m = 0; m < 4; m++)
             {
+#if __ARM_NEON
+                float32x2_t _r0 = vld1_f32(r0);
+                float32x2_t _r1 = vld1_f32(r1);
+                float32x2_t _r2 = vld1_f32(r2);
+                float32x2_t _r3 = vld1_f32(r3);
+
+                float32x2_t _tmp0 = vadd_f32(vadd_f32(_r0, _r1), _r2);
+                float32x2_t _tmp1 = vadd_f32(vsub_f32(_r1, _r2), _r3);
+
+                vst1_f32(tmp[0][m], _tmp0);
+                vst1_f32(tmp[1][m], _tmp1);
+#else
                 tmp[0][m][0] = r0[0] + r1[0] + r2[0];
                 tmp[0][m][1] = r0[1] + r1[1] + r2[1];
                 tmp[1][m][0] = r1[0] - r2[0] + r3[0];
                 tmp[1][m][1] = r1[1] - r2[1] + r3[1];
+#endif
 
                 r0 += max_jj * 4 * 2;
                 r1 += max_jj * 4 * 2;
@@ -2536,6 +2600,15 @@ static inline void conv3x3s1_winograd23_transform_output_tile(const Mat& top_til
                 if (ti * 2 + m >= outh)
                     continue;
 
+#if __ARM_NEON
+                float32x2_t _r0 = vld1_f32(tmp[m][0]);
+                float32x2_t _r1 = vld1_f32(tmp[m][1]);
+                float32x2_t _r2 = vld1_f32(tmp[m][2]);
+                float32x2_t _r3 = vld1_f32(tmp[m][3]);
+
+                float32x2_t _tmp0 = vadd_f32(_bias0, vadd_f32(vadd_f32(_r0, _r1), _r2));
+                float32x2_t _tmp1 = vadd_f32(_bias0, vadd_f32(vsub_f32(_r1, _r2), _r3));
+#else
                 float r00 = tmp[m][0][0];
                 float r01 = tmp[m][0][1];
                 float r10 = tmp[m][1][0];
@@ -2549,11 +2622,21 @@ static inline void conv3x3s1_winograd23_transform_output_tile(const Mat& top_til
                 float tmp01 = bias1 + r01 + r11 + r21;
                 float tmp10 = bias0 + r10 - r20 + r30;
                 float tmp11 = bias1 + r11 - r21 + r31;
+#endif
 
                 // if (out_elempack == 1)
                 {
                     float* outptr1 = outptr0 + N;
 
+#if __ARM_NEON
+                    outptr0[0] = vget_lane_f32(_tmp0, 0);
+                    outptr1[0] = vget_lane_f32(_tmp0, 1);
+                    if (tj * 2 + 1 < outw)
+                    {
+                        outptr0[1] = vget_lane_f32(_tmp1, 0);
+                        outptr1[1] = vget_lane_f32(_tmp1, 1);
+                    }
+#else
                     outptr0[0] = tmp00;
                     outptr1[0] = tmp01;
                     if (tj * 2 + 1 < outw)
@@ -2561,6 +2644,7 @@ static inline void conv3x3s1_winograd23_transform_output_tile(const Mat& top_til
                         outptr0[1] = tmp10;
                         outptr1[1] = tmp11;
                     }
+#endif
                 }
 
                 outptr0 += outw;
@@ -3281,6 +3365,12 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
 
         float tmp[6][6][2];
 
+#if __ARM_NEON
+        const float coeffs[4] = {sq2, -sq2_d2, -2.f, -0.5f};
+        float32x4_t _coeffs = vld1q_f32(coeffs);
+        float32x2_t _vm2_5 = vdup_n_f32(-2.5f);
+#endif
+
         int jj = 0;
         for (; jj < max_jj; jj++)
         {
@@ -3291,6 +3381,14 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
 
             for (int m = 0; m < 6; m++)
             {
+#if __ARM_NEON
+                float32x2_t _r0 = vdup_n_f32(0.f);
+                float32x2_t _r1 = vdup_n_f32(0.f);
+                float32x2_t _r2 = vdup_n_f32(0.f);
+                float32x2_t _r3 = vdup_n_f32(0.f);
+                float32x2_t _r4 = vdup_n_f32(0.f);
+                float32x2_t _r5 = vdup_n_f32(0.f);
+#else
                 float r00 = 0.f;
                 float r01 = 0.f;
                 float r10 = 0.f;
@@ -3303,6 +3401,7 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
                 float r41 = 0.f;
                 float r50 = 0.f;
                 float r51 = 0.f;
+#endif
 
                 if (ti * 4 + m < h)
                 {
@@ -3310,6 +3409,26 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
                     {
                         const float* r1 = r0 + N;
 
+#if __ARM_NEON
+                        float32x4_t _t0 = vld1q_f32(r0);
+                        float32x4_t _t1 = vld1q_f32(r1);
+                        float32x4x2_t _t01 = vzipq_f32(_t0, _t1);
+
+                        _r0 = vget_low_f32(_t01.val[0]);
+                        if (tj * 2 + 1 < w) _r1 = vget_high_f32(_t01.val[0]);
+                        if (tj * 2 + 2 < w) _r2 = vget_low_f32(_t01.val[1]);
+                        if (tj * 2 + 3 < w) _r3 = vget_high_f32(_t01.val[1]);
+                        if (tj * 4 + 4 < w)
+                        {
+                            float tmp[2] = {r0[4], r1[4]};
+                            _r4 = vld1_f32(tmp);
+                        }
+                        if (tj * 4 + 5 < w)
+                        {
+                            float tmp[2] = {r0[5], r1[5]};
+                            _r5 = vld1_f32(tmp);
+                        }
+#else
                         r00 = r0[0];
                         r01 = r1[0];
                         if (tj * 4 + 1 < w)
@@ -3337,9 +3456,45 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
                             r50 = r0[5];
                             r51 = r1[5];
                         }
+#endif
                     }
                 }
 
+#if __ARM_NEON
+#if __aarch64__
+                float32x2_t _tmp12a = vfma_laneq_f32(vmul_laneq_f32(_r1, _coeffs, 0), _r3, _coeffs, 1);
+                float32x2_t _tmp12b = vfma_laneq_f32(_r4, _r2, _coeffs, 2);
+                float32x2_t _tmp34a = vfma_laneq_f32(vmul_laneq_f32(_r3, _coeffs, 0), _r1, _coeffs, 1);
+                float32x2_t _tmp34b = vfma_laneq_f32(_r4, _r2, _coeffs, 3);
+#else
+                float32x2_t _tmp12a = vmla_lane_f32(vmul_lane_f32(_r1, vget_low_f32(_coeffs), 0), _r3, vget_low_f32(_coeffs), 1);
+                float32x2_t _tmp12b = vmla_lane_f32(_r4, _r2, vget_high_f32(_coeffs), 0);
+                float32x2_t _tmp34a = vmla_lane_f32(vmul_lane_f32(_r3, vget_low_f32(_coeffs), 0), _r1, vget_low_f32(_coeffs), 1);
+                float32x2_t _tmp34b = vmla_lane_f32(_r4, _r2, vget_high_f32(_coeffs), 1);
+#endif
+
+#if __aarch64__
+                float32x2_t _tmp0 = vfma_f32(vadd_f32(_r0, _r4), _r2, _vm2_5);
+#else
+                float32x2_t _tmp0 = vmla_f32(vadd_f32(_r0, _r4), _r2, _vm2_5);
+#endif
+                float32x2_t _tmp1 = vsub_f32(_tmp12b, _tmp12a);
+                float32x2_t _tmp2 = vadd_f32(_tmp12b, _tmp12a);
+                float32x2_t _tmp3 = vadd_f32(_tmp34b, _tmp34a);
+                float32x2_t _tmp4 = vsub_f32(_tmp34b, _tmp34a);
+#if __aarch64__
+                float32x2_t _tmp5 = vfma_f32(vadd_f32(_r1, _r5), _r3, _vm2_5);
+#else
+                float32x2_t _tmp5 = vmla_f32(vadd_f32(_r1, _r5), _r3, _vm2_5);
+#endif
+
+                vst1_f32(tmp[0][m], _tmp0);
+                vst1_f32(tmp[1][m], _tmp1);
+                vst1_f32(tmp[2][m], _tmp2);
+                vst1_f32(tmp[3][m], _tmp3);
+                vst1_f32(tmp[4][m], _tmp4);
+                vst1_f32(tmp[5][m], _tmp5);
+#else
                 float tmp12a0 = sq2 * r10 - sq2_d2 * r30;
                 float tmp12a1 = sq2 * r11 - sq2_d2 * r31;
                 float tmp12b0 = r40 - 2 * r20;
@@ -3361,6 +3516,7 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
                 tmp[4][m][1] = tmp34b1 - tmp34a1;
                 tmp[5][m][0] = r10 + r50 - 2.5f * r30;
                 tmp[5][m][1] = r11 + r51 - 2.5f * r31;
+#endif
 
                 r0 += w;
             }
@@ -3374,6 +3530,48 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
 
             for (int m = 0; m < 6; m++)
             {
+#if __ARM_NEON
+                float32x2_t _r0 = vld1_f32(tmp[m][0]);
+                float32x2_t _r1 = vld1_f32(tmp[m][1]);
+                float32x2_t _r2 = vld1_f32(tmp[m][2]);
+                float32x2_t _r3 = vld1_f32(tmp[m][3]);
+                float32x2_t _r4 = vld1_f32(tmp[m][4]);
+                float32x2_t _r5 = vld1_f32(tmp[m][5]);
+
+#if __aarch64__
+                float32x2_t _tmp12a = vfma_laneq_f32(vmul_laneq_f32(_r1, _coeffs, 0), _r3, _coeffs, 1);
+                float32x2_t _tmp12b = vfma_laneq_f32(_r4, _r2, _coeffs, 2);
+                float32x2_t _tmp34a = vfma_laneq_f32(vmul_laneq_f32(_r3, _coeffs, 0), _r1, _coeffs, 1);
+                float32x2_t _tmp34b = vfma_laneq_f32(_r4, _r2, _coeffs, 3);
+#else
+                float32x2_t _tmp12a = vmla_lane_f32(vmul_lane_f32(_r1, vget_low_f32(_coeffs), 0), _r3, vget_low_f32(_coeffs), 1);
+                float32x2_t _tmp12b = vmla_lane_f32(_r4, _r2, vget_high_f32(_coeffs), 0);
+                float32x2_t _tmp34a = vmla_lane_f32(vmul_lane_f32(_r3, vget_low_f32(_coeffs), 0), _r1, vget_low_f32(_coeffs), 1);
+                float32x2_t _tmp34b = vmla_lane_f32(_r4, _r2, vget_high_f32(_coeffs), 1);
+#endif
+
+#if __aarch64__
+                float32x2_t _tmp0 = vfma_f32(vadd_f32(_r0, _r4), _r2, _vm2_5);
+#else
+                float32x2_t _tmp0 = vmla_f32(vadd_f32(_r0, _r4), _r2, _vm2_5);
+#endif
+                float32x2_t _tmp1 = vsub_f32(_tmp12b, _tmp12a);
+                float32x2_t _tmp2 = vadd_f32(_tmp12b, _tmp12a);
+                float32x2_t _tmp3 = vadd_f32(_tmp34b, _tmp34a);
+                float32x2_t _tmp4 = vsub_f32(_tmp34b, _tmp34a);
+#if __aarch64__
+                float32x2_t _tmp5 = vfma_f32(vadd_f32(_r1, _r5), _r3, _vm2_5);
+#else
+                float32x2_t _tmp5 = vmla_f32(vadd_f32(_r1, _r5), _r3, _vm2_5);
+#endif
+
+                vst1_f32(p0, _tmp0);
+                vst1_f32(p1, _tmp1);
+                vst1_f32(p2, _tmp2);
+                vst1_f32(p3, _tmp3);
+                vst1_f32(p4, _tmp4);
+                vst1_f32(p5, _tmp5);
+#else
                 float r00 = tmp[m][0][0];
                 float r01 = tmp[m][0][1];
                 float r10 = tmp[m][1][0];
@@ -3408,6 +3606,7 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
                 p4[1] = tmp34b1 - tmp34a1;
                 p5[0] = r10 + r50 - 2.5f * r30;
                 p5[1] = r11 + r51 - 2.5f * r31;
+#endif
 
                 p0 += max_jj * 6 * 2;
                 p1 += max_jj * 6 * 2;
@@ -3888,8 +4087,12 @@ static inline void conv3x3s1_winograd43_transform_output_tile(const Mat& top_til
 #endif // __ARM_NEON
     for (; ii + 1 < max_ii; ii += 2)
     {
+#if __ARM_NEON
+        float32x2_t _bias0 = biasptr ? vld1_f32(biasptr + i + ii) : vdup_n_f32(0.f);
+#else
         float bias0 = biasptr ? biasptr[i + ii] : 0.f;
         float bias1 = biasptr ? biasptr[i + ii + 1] : 0.f;
+#endif
 
         float tmp[4][6][2];
 
@@ -3908,6 +4111,35 @@ static inline void conv3x3s1_winograd43_transform_output_tile(const Mat& top_til
 
             for (int m = 0; m < 6; m++)
             {
+#if __ARM_NEON
+                float32x2_t _r0 = vld1_f32(r0);
+                float32x2_t _r1 = vld1_f32(r1);
+                float32x2_t _r2 = vld1_f32(r2);
+                float32x2_t _r3 = vld1_f32(r3);
+                float32x2_t _r4 = vld1_f32(r4);
+                float32x2_t _r5 = vld1_f32(r5);
+
+                float32x2_t _tmp02a = vadd_f32(_r1, _r2);
+                float32x2_t _tmp02b = vadd_f32(_r3, _r4);
+                float32x2_t _tmp13a = vsub_f32(_r1, _r2);
+                float32x2_t _tmp13b = vsub_f32(_r3, _r4);
+
+                float32x2_t _tmp0 = vadd_f32(vadd_f32(_r0, _tmp02a), _tmp02b);
+#if __aarch64__
+                float32x2_t _tmp1 = vfma_laneq_f32(vmul_laneq_f32(_tmp13a, _coeffs, 1), _tmp13b, _coeffs, 0);
+                float32x2_t _tmp2 = vfma_lane_f32(vmul_lane_f32(_tmp02a, _coeffs2, 0), _tmp02b, _coeffs2, 1);
+                float32x2_t _tmp3 = vfma_laneq_f32(vfma_laneq_f32(_r5, _tmp13a, _coeffs, 2), _tmp13b, _coeffs, 3);
+#else
+                float32x2_t _tmp1 = vmla_lane_f32(vmul_lane_f32(_tmp13a, vget_low_f32(_coeffs), 1), _tmp13b, vget_low_f32(_coeffs), 0);
+                float32x2_t _tmp2 = vmla_lane_f32(vmul_lane_f32(_tmp02a, _coeffs2, 0), _tmp02b, _coeffs2, 1);
+                float32x2_t _tmp3 = vmla_lane_f32(vmla_lane_f32(_r5, _tmp13a, vget_high_f32(_coeffs), 0), _tmp13b, vget_high_f32(_coeffs), 1);
+#endif
+
+                vst1_f32(tmp[0][m], _tmp0);
+                vst1_f32(tmp[1][m], _tmp1);
+                vst1_f32(tmp[2][m], _tmp2);
+                vst1_f32(tmp[3][m], _tmp3);
+#else
                 float tmp02a0 = r1[0] + r2[0];
                 float tmp02a1 = r1[1] + r2[1];
                 float tmp02b0 = r3[0] + r4[0];
@@ -3925,6 +4157,7 @@ static inline void conv3x3s1_winograd43_transform_output_tile(const Mat& top_til
                 tmp[2][m][1] = tmp02a1 * 0.5f + tmp02b1 * 2;
                 tmp[3][m][0] = r5[0] + tmp13a0 * sq2_d4 + tmp13b0 * sq2_m2;
                 tmp[3][m][1] = r5[1] + tmp13a1 * sq2_d4 + tmp13b1 * sq2_m2;
+#endif
 
                 r0 += max_jj * 6 * 2;
                 r1 += max_jj * 6 * 2;
@@ -3941,6 +4174,30 @@ static inline void conv3x3s1_winograd43_transform_output_tile(const Mat& top_til
                 if (ti * 4 + m >= outh)
                     continue;
 
+#if __ARM_NEON
+                float32x2_t _r0 = vld1_f32(tmp[m][0]);
+                float32x2_t _r1 = vld1_f32(tmp[m][1]);
+                float32x2_t _r2 = vld1_f32(tmp[m][2]);
+                float32x2_t _r3 = vld1_f32(tmp[m][3]);
+                float32x2_t _r4 = vld1_f32(tmp[m][4]);
+                float32x2_t _r5 = vld1_f32(tmp[m][5]);
+
+                float32x2_t _tmp02a = vadd_f32(_r1, _r2);
+                float32x2_t _tmp02b = vadd_f32(_r3, _r4);
+                float32x2_t _tmp13a = vsub_f32(_r1, _r2);
+                float32x2_t _tmp13b = vsub_f32(_r3, _r4);
+
+                float32x2_t _tmp0 = vadd_f32(vadd_f32(_r0, _tmp02a), vadd_f32(_tmp02b, _bias0));
+#if __aarch64__
+                float32x2_t _tmp1 = vfma_laneq_f32(vfma_laneq_f32(_bias0, _tmp13a, _coeffs, 1), _tmp13b, _coeffs, 0);
+                float32x2_t _tmp2 = vfma_lane_f32(vfma_lane_f32(_bias0, _tmp02a, _coeffs2, 0), _tmp02b, _coeffs2, 1);
+                float32x2_t _tmp3 = vfma_laneq_f32(vfma_laneq_f32(vadd_f32(_r5, _bias0), _tmp13a, _coeffs, 2), _tmp13b, _coeffs, 3);
+#else
+                float32x2_t _tmp1 = vmla_lane_f32(vmla_lane_f32(_bias0, _tmp13a, vget_low_f32(_coeffs), 1), _tmp13b, vget_low_f32(_coeffs), 0);
+                float32x2_t _tmp2 = vmla_lane_f32(vmla_lane_f32(_bias0, _tmp02a, _coeffs2, 0), _tmp02b, _coeffs2, 1);
+                float32x2_t _tmp3 = vmla_lane_f32(vmla_lane_f32(vadd_f32(_r5, _bias0), _tmp13a, vget_high_f32(_coeffs), 0), _tmp13b, vget_high_f32(_coeffs), 1);
+#endif
+#else
                 float r00 = tmp[m][0][0];
                 float r01 = tmp[m][0][1];
                 float r10 = tmp[m][1][0];
@@ -3971,11 +4228,31 @@ static inline void conv3x3s1_winograd43_transform_output_tile(const Mat& top_til
                 float tmp21 = bias1 + tmp02a1 * 0.5f + tmp02b1 * 2;
                 float tmp30 = bias0 + r50 + tmp13a0 * sq2_d4 + tmp13b0 * sq2_m2;
                 float tmp31 = bias1 + r51 + tmp13a1 * sq2_d4 + tmp13b1 * sq2_m2;
+#endif
 
                 // if (out_elempack == 1)
                 {
                     float* outptr1 = outptr0 + N;
 
+#if __ARM_NEON
+                    outptr0[0] = vget_lane_f32(_tmp0, 0);
+                    outptr1[0] = vget_lane_f32(_tmp0, 1);
+                    if (tj * 4 + 1 < outw)
+                    {
+                        outptr0[1] = vget_lane_f32(_tmp1, 0);
+                        outptr1[1] = vget_lane_f32(_tmp1, 1);
+                    }
+                    if (tj * 4 + 2 < outw)
+                    {
+                        outptr0[2] = vget_lane_f32(_tmp2, 0);
+                        outptr1[2] = vget_lane_f32(_tmp2, 1);
+                    }
+                    if (tj * 4 + 3 < outw)
+                    {
+                        outptr0[3] = vget_lane_f32(_tmp3, 0);
+                        outptr1[3] = vget_lane_f32(_tmp3, 1);
+                    }
+#else
                     outptr0[0] = tmp00;
                     outptr1[0] = tmp01;
                     if (tj * 4 + 1 < outw)
@@ -3993,6 +4270,7 @@ static inline void conv3x3s1_winograd43_transform_output_tile(const Mat& top_til
                         outptr0[3] = tmp30;
                         outptr1[3] = tmp31;
                     }
+#endif
                 }
 
                 outptr0 += outw;
@@ -4830,6 +5108,12 @@ static inline void conv3x3s1_winograd63_transform_input_tile(const Mat& bottom_b
 
         float tmp[8][8][2];
 
+#if __ARM_NEON
+        const float coeffs[8] = {5.25f, -4.25f, -1.25f, 0.25f, -2.5f, 0.5f, 2.f, 4.f};
+        float32x4_t _coeffs = vld1q_f32(coeffs);
+        float32x4_t _coeffs2 = vld1q_f32(coeffs + 4);
+#endif
+
         int jj = 0;
         for (; jj < max_jj; jj++)
         {
@@ -4840,6 +5124,16 @@ static inline void conv3x3s1_winograd63_transform_input_tile(const Mat& bottom_b
 
             for (int m = 0; m < 8; m++)
             {
+#if __ARM_NEON
+                float32x2_t _r0 = vdup_n_f32(0.f);
+                float32x2_t _r1 = vdup_n_f32(0.f);
+                float32x2_t _r2 = vdup_n_f32(0.f);
+                float32x2_t _r3 = vdup_n_f32(0.f);
+                float32x2_t _r4 = vdup_n_f32(0.f);
+                float32x2_t _r5 = vdup_n_f32(0.f);
+                float32x2_t _r6 = vdup_n_f32(0.f);
+                float32x2_t _r7 = vdup_n_f32(0.f);
+#else
                 float r00 = 0.f;
                 float r01 = 0.f;
                 float r10 = 0.f;
@@ -4856,6 +5150,7 @@ static inline void conv3x3s1_winograd63_transform_input_tile(const Mat& bottom_b
                 float r61 = 0.f;
                 float r70 = 0.f;
                 float r71 = 0.f;
+#endif
 
                 if (ti * 6 + m < h)
                 {
@@ -4863,6 +5158,27 @@ static inline void conv3x3s1_winograd63_transform_input_tile(const Mat& bottom_b
                     {
                         const float* r1 = r0 + N;
 
+#if __ARM_NEON
+                        float32x4_t _t0 = vld1q_f32(r0);
+                        float32x4_t _t1 = vld1q_f32(r1);
+                        float32x4x2_t _t01 = vzipq_f32(_t0, _t1);
+
+                        _r0 = vget_low_f32(_t01.val[0]);
+                        if (tj * 2 + 1 < w) _r1 = vget_high_f32(_t01.val[0]);
+                        if (tj * 2 + 2 < w) _r2 = vget_low_f32(_t01.val[1]);
+                        if (tj * 2 + 3 < w) _r3 = vget_high_f32(_t01.val[1]);
+                        if (tj * 6 + 4 < w)
+                        {
+                            _t0 = vld1q_f32(r0 + 4);
+                            _t1 = vld1q_f32(r1 + 4);
+                            _t01 = vzipq_f32(_t0, _t1);
+
+                            _r4 = vget_low_f32(_t01.val[0]);
+                            if (tj * 6 + 5 < w) _r5 = vget_high_f32(_t01.val[0]);
+                            if (tj * 6 + 6 < w) _r6 = vget_low_f32(_t01.val[1]);
+                            if (tj * 6 + 7 < w) _r7 = vget_high_f32(_t01.val[1]);
+                        }
+#else
                         r00 = r0[0];
                         r01 = r1[0];
                         if (tj * 6 + 1 < w)
@@ -4900,9 +5216,53 @@ static inline void conv3x3s1_winograd63_transform_input_tile(const Mat& bottom_b
                             r70 = r0[7];
                             r71 = r1[7];
                         }
+#endif
                     }
                 }
 
+#if __ARM_NEON
+#if __aarch64__
+                float32x2_t _tmp12a = vfma_laneq_f32(vadd_f32(_r2, _r6), _r4, _coeffs, 1);
+                float32x2_t _tmp12b = vfma_laneq_f32(vadd_f32(_r1, _r5), _r3, _coeffs, 1);
+                float32x2_t _tmp34a = vfma_laneq_f32(vfma_laneq_f32(_r6, _r2, _coeffs, 3), _r4, _coeffs, 2);
+                float32x2_t _tmp34b = vfma_laneq_f32(vfma_laneq_f32(vmul_laneq_f32(_r1, _coeffs2, 1), _r3, _coeffs2, 0), _r5, _coeffs2, 2);
+                float32x2_t _tmp56a = vfma_laneq_f32(_r6, vfma_laneq_f32(_r2, _r4, _coeffs, 2), _coeffs2, 3);
+                float32x2_t _tmp56b = vfma_laneq_f32(vfma_laneq_f32(vmul_laneq_f32(_r1, _coeffs2, 2), _r3, _coeffs2, 0), _r5, _coeffs2, 1);
+#else
+                float32x2_t _tmp12a = vmla_lane_f32(vadd_f32(_r2, _r6), _r4, vget_low_f32(_coeffs), 1);
+                float32x2_t _tmp12b = vmla_lane_f32(vadd_f32(_r1, _r5), _r3, vget_low_f32(_coeffs), 1);
+                float32x2_t _tmp34a = vmla_lane_f32(vmla_lane_f32(_r6, _r2, vget_high_f32(_coeffs), 1), _r4, vget_high_f32(_coeffs), 0);
+                float32x2_t _tmp34b = vmla_lane_f32(vmla_lane_f32(vmul_lane_f32(_r1, vget_low_f32(_coeffs2), 1), _r3, vget_low_f32(_coeffs2), 0), _r5, vget_high_f32(_coeffs2), 0);
+                float32x2_t _tmp56a = vmla_lane_f32(_r6, vmla_lane_f32(_r2, _r4, vget_high_f32(_coeffs), 0), vget_high_f32(_coeffs2), 1);
+                float32x2_t _tmp56b = vmla_lane_f32(vmla_lane_f32(vmul_lane_f32(_r1, vget_high_f32(_coeffs2), 0), _r3, vget_low_f32(_coeffs2), 0), _r5, vget_low_f32(_coeffs2), 1);
+#endif
+
+#if __aarch64__
+                float32x2_t _tmp0 = vfma_laneq_f32(vsub_f32(_r0, _r6), vsub_f32(_r4, _r2), _coeffs, 0);
+#else
+                float32x2_t _tmp0 = vmla_lane_f32(vsub_f32(_r0, _r6), vsub_f32(_r4, _r2), vget_low_f32(_coeffs), 0);
+#endif
+                float32x2_t _tmp1 = vadd_f32(_tmp12a, _tmp12b);
+                float32x2_t _tmp2 = vsub_f32(_tmp12a, _tmp12b);
+                float32x2_t _tmp3 = vadd_f32(_tmp34a, _tmp34b);
+                float32x2_t _tmp4 = vsub_f32(_tmp34a, _tmp34b);
+                float32x2_t _tmp5 = vadd_f32(_tmp56a, _tmp56b);
+                float32x2_t _tmp6 = vsub_f32(_tmp56a, _tmp56b);
+#if __aarch64__
+                float32x2_t _tmp7 = vfma_laneq_f32(vsub_f32(_r7, _r1), vsub_f32(_r3, _r5), _coeffs, 0);
+#else
+                float32x2_t _tmp7 = vmla_lane_f32(vsub_f32(_r7, _r1), vsub_f32(_r3, _r5), vget_low_f32(_coeffs), 0);
+#endif
+
+                vst1_f32(tmp[0][m], _tmp0);
+                vst1_f32(tmp[1][m], _tmp1);
+                vst1_f32(tmp[2][m], _tmp2);
+                vst1_f32(tmp[3][m], _tmp3);
+                vst1_f32(tmp[4][m], _tmp4);
+                vst1_f32(tmp[5][m], _tmp5);
+                vst1_f32(tmp[6][m], _tmp6);
+                vst1_f32(tmp[7][m], _tmp7);
+#else
                 float tmp12a0 = r20 + r60 - r40 * 4.25f;
                 float tmp12a1 = r21 + r61 - r41 * 4.25f;
                 float tmp12b0 = r10 + r50 - r30 * 4.25f;
@@ -4932,6 +5292,7 @@ static inline void conv3x3s1_winograd63_transform_input_tile(const Mat& bottom_b
                 tmp[6][m][1] = tmp56a1 - tmp56b1;
                 tmp[7][m][0] = r70 - r10 + (r30 - r50) * 5.25f;
                 tmp[7][m][1] = r71 - r11 + (r31 - r51) * 5.25f;
+#endif
 
                 r0 += w;
             }
@@ -4947,6 +5308,58 @@ static inline void conv3x3s1_winograd63_transform_input_tile(const Mat& bottom_b
 
             for (int m = 0; m < 8; m++)
             {
+#if __ARM_NEON
+                float32x2_t _r0 = vld1_f32(tmp[m][0]);
+                float32x2_t _r1 = vld1_f32(tmp[m][1]);
+                float32x2_t _r2 = vld1_f32(tmp[m][2]);
+                float32x2_t _r3 = vld1_f32(tmp[m][3]);
+                float32x2_t _r4 = vld1_f32(tmp[m][4]);
+                float32x2_t _r5 = vld1_f32(tmp[m][5]);
+                float32x2_t _r6 = vld1_f32(tmp[m][6]);
+                float32x2_t _r7 = vld1_f32(tmp[m][7]);
+
+#if __aarch64__
+                float32x2_t _tmp12a = vfma_laneq_f32(vadd_f32(_r2, _r6), _r4, _coeffs, 1);
+                float32x2_t _tmp12b = vfma_laneq_f32(vadd_f32(_r1, _r5), _r3, _coeffs, 1);
+                float32x2_t _tmp34a = vfma_laneq_f32(vfma_laneq_f32(_r6, _r2, _coeffs, 3), _r4, _coeffs, 2);
+                float32x2_t _tmp34b = vfma_laneq_f32(vfma_laneq_f32(vmul_laneq_f32(_r1, _coeffs2, 1), _r3, _coeffs2, 0), _r5, _coeffs2, 2);
+                float32x2_t _tmp56a = vfma_laneq_f32(_r6, vfma_laneq_f32(_r2, _r4, _coeffs, 2), _coeffs2, 3);
+                float32x2_t _tmp56b = vfma_laneq_f32(vfma_laneq_f32(vmul_laneq_f32(_r1, _coeffs2, 2), _r3, _coeffs2, 0), _r5, _coeffs2, 1);
+#else
+                float32x2_t _tmp12a = vmla_lane_f32(vadd_f32(_r2, _r6), _r4, vget_low_f32(_coeffs), 1);
+                float32x2_t _tmp12b = vmla_lane_f32(vadd_f32(_r1, _r5), _r3, vget_low_f32(_coeffs), 1);
+                float32x2_t _tmp34a = vmla_lane_f32(vmla_lane_f32(_r6, _r2, vget_high_f32(_coeffs), 1), _r4, vget_high_f32(_coeffs), 0);
+                float32x2_t _tmp34b = vmla_lane_f32(vmla_lane_f32(vmul_lane_f32(_r1, vget_low_f32(_coeffs2), 1), _r3, vget_low_f32(_coeffs2), 0), _r5, vget_high_f32(_coeffs2), 0);
+                float32x2_t _tmp56a = vmla_lane_f32(_r6, vmla_lane_f32(_r2, _r4, vget_high_f32(_coeffs), 0), vget_high_f32(_coeffs2), 1);
+                float32x2_t _tmp56b = vmla_lane_f32(vmla_lane_f32(vmul_lane_f32(_r1, vget_high_f32(_coeffs2), 0), _r3, vget_low_f32(_coeffs2), 0), _r5, vget_low_f32(_coeffs2), 1);
+#endif
+
+#if __aarch64__
+                float32x2_t _tmp0 = vfma_laneq_f32(vsub_f32(_r0, _r6), vsub_f32(_r4, _r2), _coeffs, 0);
+#else
+                float32x2_t _tmp0 = vmla_lane_f32(vsub_f32(_r0, _r6), vsub_f32(_r4, _r2), vget_low_f32(_coeffs), 0);
+#endif
+                float32x2_t _tmp1 = vadd_f32(_tmp12a, _tmp12b);
+                float32x2_t _tmp2 = vsub_f32(_tmp12a, _tmp12b);
+                float32x2_t _tmp3 = vadd_f32(_tmp34a, _tmp34b);
+                float32x2_t _tmp4 = vsub_f32(_tmp34a, _tmp34b);
+                float32x2_t _tmp5 = vadd_f32(_tmp56a, _tmp56b);
+                float32x2_t _tmp6 = vsub_f32(_tmp56a, _tmp56b);
+#if __aarch64__
+                float32x2_t _tmp7 = vfma_laneq_f32(vsub_f32(_r7, _r1), vsub_f32(_r3, _r5), _coeffs, 0);
+#else
+                float32x2_t _tmp7 = vmla_lane_f32(vsub_f32(_r7, _r1), vsub_f32(_r3, _r5), vget_low_f32(_coeffs), 0);
+#endif
+
+                vst1_f32(p0, _tmp0);
+                vst1_f32(p1, _tmp1);
+                vst1_f32(p2, _tmp2);
+                vst1_f32(p3, _tmp3);
+                vst1_f32(p4, _tmp4);
+                vst1_f32(p5, _tmp5);
+                vst1_f32(p6, _tmp6);
+                vst1_f32(p7, _tmp7);
+#else
                 float r00 = tmp[m][0][0];
                 float r01 = tmp[m][0][1];
                 float r10 = tmp[m][1][0];
@@ -4993,6 +5406,7 @@ static inline void conv3x3s1_winograd63_transform_input_tile(const Mat& bottom_b
                 p6[1] = tmp56a1 - tmp56b1;
                 p7[0] = r70 - r10 + (r30 - r50) * 5.25f;
                 p7[1] = r71 - r11 + (r31 - r51) * 5.25f;
+#endif
 
                 p0 += max_jj * 8 * 2;
                 p1 += max_jj * 8 * 2;
@@ -5126,7 +5540,7 @@ static inline void conv3x3s1_winograd63_transform_output_tile(const Mat& top_til
 #if __ARM_NEON
     const float coeffs[4] = {32.f, 16.f, 8.f, 4.f};
     float32x4_t _coeffs = vld1q_f32(coeffs);
-    float32x4_t _v2 = vdupq_n_f32(2.f);
+    float32x2_t _v2 = vdup_n_f32(2.f);
 #endif
 
     const int outw = top_blob.w;
@@ -5197,14 +5611,14 @@ static inline void conv3x3s1_winograd63_transform_output_tile(const Mat& top_til
 
                 float32x4_t _tmp00 = vaddq_f32(vaddq_f32(_r00, _tmp024a0), vfmaq_laneq_f32(_tmp024b0, _tmp024c0, _coeffs, 0));
                 float32x4_t _tmp01 = vaddq_f32(vaddq_f32(_r01, _tmp024a1), vfmaq_laneq_f32(_tmp024b1, _tmp024c1, _coeffs, 0));
-                float32x4_t _tmp10 = vfmaq_laneq_f32(vfmaq_f32(_tmp135a0, _tmp135b0, _v2), _tmp135c0, _coeffs, 1);
-                float32x4_t _tmp11 = vfmaq_laneq_f32(vfmaq_f32(_tmp135a1, _tmp135b1, _v2), _tmp135c1, _coeffs, 1);
+                float32x4_t _tmp10 = vfmaq_laneq_f32(vfmaq_lane_f32(_tmp135a0, _tmp135b0, _v2, 0), _tmp135c0, _coeffs, 1);
+                float32x4_t _tmp11 = vfmaq_laneq_f32(vfmaq_lane_f32(_tmp135a1, _tmp135b1, _v2, 0), _tmp135c1, _coeffs, 1);
                 float32x4_t _tmp20 = vfmaq_laneq_f32(vfmaq_laneq_f32(_tmp024a0, _tmp024b0, _coeffs, 3), _tmp024c0, _coeffs, 2);
                 float32x4_t _tmp21 = vfmaq_laneq_f32(vfmaq_laneq_f32(_tmp024a1, _tmp024b1, _coeffs, 3), _tmp024c1, _coeffs, 2);
                 float32x4_t _tmp30 = vfmaq_laneq_f32(vfmaq_laneq_f32(_tmp135a0, _tmp135b0, _coeffs, 2), _tmp135c0, _coeffs, 3);
                 float32x4_t _tmp31 = vfmaq_laneq_f32(vfmaq_laneq_f32(_tmp135a1, _tmp135b1, _coeffs, 2), _tmp135c1, _coeffs, 3);
-                float32x4_t _tmp40 = vfmaq_f32(vfmaq_laneq_f32(_tmp024a0, _tmp024b0, _coeffs, 1), _tmp024c0, _v2);
-                float32x4_t _tmp41 = vfmaq_f32(vfmaq_laneq_f32(_tmp024a1, _tmp024b1, _coeffs, 1), _tmp024c1, _v2);
+                float32x4_t _tmp40 = vfmaq_lane_f32(vfmaq_laneq_f32(_tmp024a0, _tmp024b0, _coeffs, 1), _tmp024c0, _v2, 0);
+                float32x4_t _tmp41 = vfmaq_lane_f32(vfmaq_laneq_f32(_tmp024a1, _tmp024b1, _coeffs, 1), _tmp024c1, _v2, 0);
                 float32x4_t _tmp50 = vaddq_f32(vaddq_f32(_r70, _tmp135a0), vfmaq_laneq_f32(_tmp135c0, _tmp135b0, _coeffs, 0));
                 float32x4_t _tmp51 = vaddq_f32(vaddq_f32(_r71, _tmp135a1), vfmaq_laneq_f32(_tmp135c1, _tmp135b1, _coeffs, 0));
 
@@ -5270,14 +5684,14 @@ static inline void conv3x3s1_winograd63_transform_output_tile(const Mat& top_til
 
                 float32x4_t _tmp00 = vaddq_f32(_bias0, vaddq_f32(vaddq_f32(_r00, _tmp024a0), vfmaq_laneq_f32(_tmp024b0, _tmp024c0, _coeffs, 0)));
                 float32x4_t _tmp01 = vaddq_f32(_bias1, vaddq_f32(vaddq_f32(_r01, _tmp024a1), vfmaq_laneq_f32(_tmp024b1, _tmp024c1, _coeffs, 0)));
-                float32x4_t _tmp10 = vaddq_f32(_bias0, vfmaq_laneq_f32(vfmaq_f32(_tmp135a0, _tmp135b0, _v2), _tmp135c0, _coeffs, 1));
-                float32x4_t _tmp11 = vaddq_f32(_bias1, vfmaq_laneq_f32(vfmaq_f32(_tmp135a1, _tmp135b1, _v2), _tmp135c1, _coeffs, 1));
+                float32x4_t _tmp10 = vaddq_f32(_bias0, vfmaq_laneq_f32(vfmaq_lane_f32(_tmp135a0, _tmp135b0, _v2, 0), _tmp135c0, _coeffs, 1));
+                float32x4_t _tmp11 = vaddq_f32(_bias1, vfmaq_laneq_f32(vfmaq_lane_f32(_tmp135a1, _tmp135b1, _v2, 0), _tmp135c1, _coeffs, 1));
                 float32x4_t _tmp20 = vaddq_f32(_bias0, vfmaq_laneq_f32(vfmaq_laneq_f32(_tmp024a0, _tmp024b0, _coeffs, 3), _tmp024c0, _coeffs, 2));
                 float32x4_t _tmp21 = vaddq_f32(_bias1, vfmaq_laneq_f32(vfmaq_laneq_f32(_tmp024a1, _tmp024b1, _coeffs, 3), _tmp024c1, _coeffs, 2));
                 float32x4_t _tmp30 = vaddq_f32(_bias0, vfmaq_laneq_f32(vfmaq_laneq_f32(_tmp135a0, _tmp135b0, _coeffs, 2), _tmp135c0, _coeffs, 3));
                 float32x4_t _tmp31 = vaddq_f32(_bias1, vfmaq_laneq_f32(vfmaq_laneq_f32(_tmp135a1, _tmp135b1, _coeffs, 2), _tmp135c1, _coeffs, 3));
-                float32x4_t _tmp40 = vaddq_f32(_bias0, vfmaq_f32(vfmaq_laneq_f32(_tmp024a0, _tmp024b0, _coeffs, 1), _tmp024c0, _v2));
-                float32x4_t _tmp41 = vaddq_f32(_bias1, vfmaq_f32(vfmaq_laneq_f32(_tmp024a1, _tmp024b1, _coeffs, 1), _tmp024c1, _v2));
+                float32x4_t _tmp40 = vaddq_f32(_bias0, vfmaq_lane_f32(vfmaq_laneq_f32(_tmp024a0, _tmp024b0, _coeffs, 1), _tmp024c0, _v2, 0));
+                float32x4_t _tmp41 = vaddq_f32(_bias1, vfmaq_lane_f32(vfmaq_laneq_f32(_tmp024a1, _tmp024b1, _coeffs, 1), _tmp024c1, _v2, 0));
                 float32x4_t _tmp50 = vaddq_f32(_bias0, vaddq_f32(vaddq_f32(_r70, _tmp135a0), vfmaq_laneq_f32(_tmp135c0, _tmp135b0, _coeffs, 0)));
                 float32x4_t _tmp51 = vaddq_f32(_bias1, vaddq_f32(vaddq_f32(_r71, _tmp135a1), vfmaq_laneq_f32(_tmp135c1, _tmp135b1, _coeffs, 0)));
 
@@ -5453,17 +5867,17 @@ static inline void conv3x3s1_winograd63_transform_output_tile(const Mat& top_til
 
 #if __aarch64__
                 float32x4_t _tmp0 = vaddq_f32(vaddq_f32(_r0, _tmp024a), vfmaq_laneq_f32(_tmp024b, _tmp024c, _coeffs, 0));
-                float32x4_t _tmp1 = vfmaq_laneq_f32(vfmaq_f32(_tmp135a, _tmp135b, _v2), _tmp135c, _coeffs, 1);
+                float32x4_t _tmp1 = vfmaq_laneq_f32(vfmaq_lane_f32(_tmp135a, _tmp135b, _v2, 0), _tmp135c, _coeffs, 1);
                 float32x4_t _tmp2 = vfmaq_laneq_f32(vfmaq_laneq_f32(_tmp024a, _tmp024b, _coeffs, 3), _tmp024c, _coeffs, 2);
                 float32x4_t _tmp3 = vfmaq_laneq_f32(vfmaq_laneq_f32(_tmp135a, _tmp135b, _coeffs, 2), _tmp135c, _coeffs, 3);
-                float32x4_t _tmp4 = vfmaq_f32(vfmaq_laneq_f32(_tmp024a, _tmp024b, _coeffs, 1), _tmp024c, _v2);
+                float32x4_t _tmp4 = vfmaq_lane_f32(vfmaq_laneq_f32(_tmp024a, _tmp024b, _coeffs, 1), _tmp024c, _v2, 0);
                 float32x4_t _tmp5 = vaddq_f32(vaddq_f32(_r7, _tmp135a), vfmaq_laneq_f32(_tmp135c, _tmp135b, _coeffs, 0));
 #else
                 float32x4_t _tmp0 = vaddq_f32(vaddq_f32(_r0, _tmp024a), vmlaq_lane_f32(_tmp024b, _tmp024c, vget_low_f32(_coeffs), 0));
-                float32x4_t _tmp1 = vmlaq_lane_f32(vfmaq_f32(_tmp135a, _tmp135b, _v2), _tmp135c, vget_low_f32(_coeffs), 1);
+                float32x4_t _tmp1 = vmlaq_lane_f32(vfmaq_lane_f32(_tmp135a, _tmp135b, _v2, 0), _tmp135c, vget_low_f32(_coeffs), 1);
                 float32x4_t _tmp2 = vmlaq_lane_f32(vmlaq_lane_f32(_tmp024a, _tmp024b, vget_high_f32(_coeffs), 1), _tmp024c, vget_high_f32(_coeffs), 0);
                 float32x4_t _tmp3 = vmlaq_lane_f32(vmlaq_lane_f32(_tmp135a, _tmp135b, vget_high_f32(_coeffs), 0), _tmp135c, vget_high_f32(_coeffs), 1);
-                float32x4_t _tmp4 = vfmaq_f32(vmlaq_lane_f32(_tmp024a, _tmp024b, vget_low_f32(_coeffs), 1), _tmp024c, _v2);
+                float32x4_t _tmp4 = vfmaq_lane_f32(vmlaq_lane_f32(_tmp024a, _tmp024b, vget_low_f32(_coeffs), 1), _tmp024c, _v2, 0);
                 float32x4_t _tmp5 = vaddq_f32(vaddq_f32(_r7, _tmp135a), vmlaq_lane_f32(_tmp135c, _tmp135b, vget_low_f32(_coeffs), 0));
 #endif
 
@@ -5509,17 +5923,17 @@ static inline void conv3x3s1_winograd63_transform_output_tile(const Mat& top_til
 
 #if __aarch64__
                 float32x4_t _tmp0 = vaddq_f32(_bias0, vaddq_f32(vaddq_f32(_r0, _tmp024a), vfmaq_laneq_f32(_tmp024b, _tmp024c, _coeffs, 0)));
-                float32x4_t _tmp1 = vaddq_f32(_bias0, vfmaq_laneq_f32(vfmaq_f32(_tmp135a, _tmp135b, _v2), _tmp135c, _coeffs, 1));
+                float32x4_t _tmp1 = vaddq_f32(_bias0, vfmaq_laneq_f32(vfmaq_lane_f32(_tmp135a, _tmp135b, _v2, 0), _tmp135c, _coeffs, 1));
                 float32x4_t _tmp2 = vaddq_f32(_bias0, vfmaq_laneq_f32(vfmaq_laneq_f32(_tmp024a, _tmp024b, _coeffs, 3), _tmp024c, _coeffs, 2));
                 float32x4_t _tmp3 = vaddq_f32(_bias0, vfmaq_laneq_f32(vfmaq_laneq_f32(_tmp135a, _tmp135b, _coeffs, 2), _tmp135c, _coeffs, 3));
-                float32x4_t _tmp4 = vaddq_f32(_bias0, vfmaq_f32(vfmaq_laneq_f32(_tmp024a, _tmp024b, _coeffs, 1), _tmp024c, _v2));
+                float32x4_t _tmp4 = vaddq_f32(_bias0, vfmaq_lane_f32(vfmaq_laneq_f32(_tmp024a, _tmp024b, _coeffs, 1), _tmp024c, _v2, 0));
                 float32x4_t _tmp5 = vaddq_f32(_bias0, vaddq_f32(vaddq_f32(_r7, _tmp135a), vfmaq_laneq_f32(_tmp135c, _tmp135b, _coeffs, 0)));
 #else
                 float32x4_t _tmp0 = vaddq_f32(_bias0, vaddq_f32(vaddq_f32(_r0, _tmp024a), vmlaq_lane_f32(_tmp024b, _tmp024c, vget_low_f32(_coeffs), 0)));
-                float32x4_t _tmp1 = vaddq_f32(_bias0, vmlaq_lane_f32(vfmaq_f32(_tmp135a, _tmp135b, _v2), _tmp135c, vget_low_f32(_coeffs), 1));
+                float32x4_t _tmp1 = vaddq_f32(_bias0, vmlaq_lane_f32(vfmaq_lane_f32(_tmp135a, _tmp135b, _v2, 0), _tmp135c, vget_low_f32(_coeffs), 1));
                 float32x4_t _tmp2 = vaddq_f32(_bias0, vmlaq_lane_f32(vmlaq_lane_f32(_tmp024a, _tmp024b, vget_high_f32(_coeffs), 1), _tmp024c, vget_high_f32(_coeffs), 0));
                 float32x4_t _tmp3 = vaddq_f32(_bias0, vmlaq_lane_f32(vmlaq_lane_f32(_tmp135a, _tmp135b, vget_high_f32(_coeffs), 0), _tmp135c, vget_high_f32(_coeffs), 1));
-                float32x4_t _tmp4 = vaddq_f32(_bias0, vfmaq_f32(vmlaq_lane_f32(_tmp024a, _tmp024b, vget_low_f32(_coeffs), 1), _tmp024c, _v2));
+                float32x4_t _tmp4 = vaddq_f32(_bias0, vfmaq_lane_f32(vmlaq_lane_f32(_tmp024a, _tmp024b, vget_low_f32(_coeffs), 1), _tmp024c, _v2, 0));
                 float32x4_t _tmp5 = vaddq_f32(_bias0, vaddq_f32(vaddq_f32(_r7, _tmp135a), vmlaq_lane_f32(_tmp135c, _tmp135b, vget_low_f32(_coeffs), 0)));
 #endif
 
@@ -5599,8 +6013,12 @@ static inline void conv3x3s1_winograd63_transform_output_tile(const Mat& top_til
 #endif // __ARM_NEON
     for (; ii + 1 < max_ii; ii += 2)
     {
+#if __ARM_NEON
+        float32x2_t _bias0 = biasptr ? vld1_f32(biasptr + i + ii) : vdup_n_f32(0.f);
+#else
         float bias0 = biasptr ? biasptr[i + ii] : 0.f;
         float bias1 = biasptr ? biasptr[i + ii + 1] : 0.f;
+#endif
 
         float tmp[6][8][2];
 
@@ -5621,6 +6039,46 @@ static inline void conv3x3s1_winograd63_transform_output_tile(const Mat& top_til
 
             for (int m = 0; m < 8; m++)
             {
+#if __ARM_NEON
+                float32x2_t _r0 = vld1_f32(r0);
+                float32x2_t _r1 = vld1_f32(r1);
+                float32x2_t _r2 = vld1_f32(r2);
+                float32x2_t _r3 = vld1_f32(r3);
+                float32x2_t _r4 = vld1_f32(r4);
+                float32x2_t _r5 = vld1_f32(r5);
+                float32x2_t _r6 = vld1_f32(r6);
+                float32x2_t _r7 = vld1_f32(r7);
+
+                float32x2_t _tmp024a = vadd_f32(_r1, _r2);
+                float32x2_t _tmp135a = vsub_f32(_r1, _r2);
+                float32x2_t _tmp024b = vadd_f32(_r3, _r4);
+                float32x2_t _tmp135b = vsub_f32(_r3, _r4);
+                float32x2_t _tmp024c = vadd_f32(_r5, _r6);
+                float32x2_t _tmp135c = vsub_f32(_r5, _r6);
+
+#if __aarch64__
+                float32x2_t _tmp0 = vadd_f32(vadd_f32(_r0, _tmp024a), vfma_laneq_f32(_tmp024b, _tmp024c, _coeffs, 0));
+                float32x2_t _tmp1 = vfma_laneq_f32(vfma_f32(_tmp135a, _tmp135b, _v2), _tmp135c, _coeffs, 1);
+                float32x2_t _tmp2 = vfma_laneq_f32(vfma_laneq_f32(_tmp024a, _tmp024b, _coeffs, 3), _tmp024c, _coeffs, 2);
+                float32x2_t _tmp3 = vfma_laneq_f32(vfma_laneq_f32(_tmp135a, _tmp135b, _coeffs, 2), _tmp135c, _coeffs, 3);
+                float32x2_t _tmp4 = vfma_f32(vfma_laneq_f32(_tmp024a, _tmp024b, _coeffs, 1), _tmp024c, _v2);
+                float32x2_t _tmp5 = vadd_f32(vadd_f32(_r7, _tmp135a), vfma_laneq_f32(_tmp135c, _tmp135b, _coeffs, 0));
+#else
+                float32x2_t _tmp0 = vadd_f32(vadd_f32(_r0, _tmp024a), vmla_lane_f32(_tmp024b, _tmp024c, vget_low_f32(_coeffs), 0));
+                float32x2_t _tmp1 = vmla_lane_f32(vfma_f32(_tmp135a, _tmp135b, _v2), _tmp135c, vget_low_f32(_coeffs), 1);
+                float32x2_t _tmp2 = vmla_lane_f32(vmla_lane_f32(_tmp024a, _tmp024b, vget_high_f32(_coeffs), 1), _tmp024c, vget_high_f32(_coeffs), 0);
+                float32x2_t _tmp3 = vmla_lane_f32(vmla_lane_f32(_tmp135a, _tmp135b, vget_high_f32(_coeffs), 0), _tmp135c, vget_high_f32(_coeffs), 1);
+                float32x2_t _tmp4 = vfma_f32(vmla_lane_f32(_tmp024a, _tmp024b, vget_low_f32(_coeffs), 1), _tmp024c, _v2);
+                float32x2_t _tmp5 = vadd_f32(vadd_f32(_r7, _tmp135a), vmlaq_lane_f32(_tmp135c, _tmp135b, vget_low_f32(_coeffs), 0));
+#endif
+
+                vst1_f32(tmp[0][m], _tmp0);
+                vst1_f32(tmp[1][m], _tmp1);
+                vst1_f32(tmp[2][m], _tmp2);
+                vst1_f32(tmp[3][m], _tmp3);
+                vst1_f32(tmp[4][m], _tmp4);
+                vst1_f32(tmp[5][m], _tmp5);
+#else
                 float tmp024a0 = r1[0] + r2[0];
                 float tmp024a1 = r1[1] + r2[1];
                 float tmp135a0 = r1[0] - r2[0];
@@ -5646,6 +6104,7 @@ static inline void conv3x3s1_winograd63_transform_output_tile(const Mat& top_til
                 tmp[4][m][1] = tmp024a1 + tmp024b1 * 16 + tmp024c1 + tmp024c1;
                 tmp[5][m][0] = r7[0] + tmp135a0 + tmp135b0 * 32 + tmp135c0;
                 tmp[5][m][1] = r7[1] + tmp135a1 + tmp135b1 * 32 + tmp135c1;
+#endif
 
                 r0 += max_jj * 8 * 2;
                 r1 += max_jj * 8 * 2;
@@ -5664,6 +6123,39 @@ static inline void conv3x3s1_winograd63_transform_output_tile(const Mat& top_til
                 if (ti * 6 + m >= outh)
                     continue;
 
+#if __ARM_NEON
+                float32x2_t _r0 = vld1_f32(tmp[m][0]);
+                float32x2_t _r1 = vld1_f32(tmp[m][1]);
+                float32x2_t _r2 = vld1_f32(tmp[m][2]);
+                float32x2_t _r3 = vld1_f32(tmp[m][3]);
+                float32x2_t _r4 = vld1_f32(tmp[m][4]);
+                float32x2_t _r5 = vld1_f32(tmp[m][5]);
+                float32x2_t _r6 = vld1_f32(tmp[m][6]);
+                float32x2_t _r7 = vld1_f32(tmp[m][7]);
+
+                float32x2_t _tmp024a = vadd_f32(_r1, _r2);
+                float32x2_t _tmp135a = vsub_f32(_r1, _r2);
+                float32x2_t _tmp024b = vadd_f32(_r3, _r4);
+                float32x2_t _tmp135b = vsub_f32(_r3, _r4);
+                float32x2_t _tmp024c = vadd_f32(_r5, _r6);
+                float32x2_t _tmp135c = vsub_f32(_r5, _r6);
+
+#if __aarch64__
+                float32x2_t _tmp0 = vadd_f32(_bias0, vadd_f32(vadd_f32(_r0, _tmp024a), vfma_laneq_f32(_tmp024b, _tmp024c, _coeffs, 0)));
+                float32x2_t _tmp1 = vadd_f32(_bias0, vfma_laneq_f32(vfma_f32(_tmp135a, _tmp135b, _v2), _tmp135c, _coeffs, 1));
+                float32x2_t _tmp2 = vadd_f32(_bias0, vfma_laneq_f32(vfma_laneq_f32(_tmp024a, _tmp024b, _coeffs, 3), _tmp024c, _coeffs, 2));
+                float32x2_t _tmp3 = vadd_f32(_bias0, vfma_laneq_f32(vfma_laneq_f32(_tmp135a, _tmp135b, _coeffs, 2), _tmp135c, _coeffs, 3));
+                float32x2_t _tmp4 = vadd_f32(_bias0, vfma_f32(vfma_laneq_f32(_tmp024a, _tmp024b, _coeffs, 1), _tmp024c, _v2));
+                float32x2_t _tmp5 = vadd_f32(_bias0, vadd_f32(vadd_f32(_r7, _tmp135a), vfma_laneq_f32(_tmp135c, _tmp135b, _coeffs, 0)));
+#else
+                float32x2_t _tmp0 = vadd_f32(_bias0, vadd_f32(vadd_f32(_r0, _tmp024a), vmla_lane_f32(_tmp024b, _tmp024c, vget_low_f32(_coeffs), 0)));
+                float32x2_t _tmp1 = vadd_f32(_bias0, vmla_lane_f32(vfma_f32(_tmp135a, _tmp135b, _v2), _tmp135c, vget_low_f32(_coeffs), 1));
+                float32x2_t _tmp2 = vadd_f32(_bias0, vmla_lane_f32(vmla_lane_f32(_tmp024a, _tmp024b, vget_high_f32(_coeffs), 1), _tmp024c, vget_high_f32(_coeffs), 0));
+                float32x2_t _tmp3 = vadd_f32(_bias0, vmla_lane_f32(vmla_lane_f32(_tmp135a, _tmp135b, vget_high_f32(_coeffs), 0), _tmp135c, vget_high_f32(_coeffs), 1));
+                float32x2_t _tmp4 = vadd_f32(_bias0, vfma_f32(vmla_lane_f32(_tmp024a, _tmp024b, vget_low_f32(_coeffs), 1), _tmp024c, _v2));
+                float32x2_t _tmp5 = vadd_f32(_bias0, vadd_f32(vadd_f32(_r7, _tmp135a), vmla_lane_f32(_tmp135c, _tmp135b, vget_low_f32(_coeffs), 0)));
+#endif
+#else
                 float r00 = tmp[m][0][0];
                 float r01 = tmp[m][0][1];
                 float r10 = tmp[m][1][0];
@@ -5706,11 +6198,41 @@ static inline void conv3x3s1_winograd63_transform_output_tile(const Mat& top_til
                 float tmp41 = bias1 + tmp024a1 + tmp024b1 * 16 + tmp024c1 + tmp024c1;
                 float tmp50 = bias0 + r70 + tmp135a0 + tmp135b0 * 32 + tmp135c0;
                 float tmp51 = bias1 + r71 + tmp135a1 + tmp135b1 * 32 + tmp135c1;
+#endif
 
                 // if (out_elempack == 1)
                 {
                     float* outptr1 = outptr0 + N;
 
+#if __ARM_NEON
+                    outptr0[0] = vget_lane_f32(_tmp0, 0);
+                    outptr1[0] = vget_lane_f32(_tmp0, 1);
+                    if (tj * 6 + 1 < outw)
+                    {
+                        outptr0[1] = vget_lane_f32(_tmp1, 0);
+                        outptr1[1] = vget_lane_f32(_tmp1, 1);
+                    }
+                    if (tj * 6 + 2 < outw)
+                    {
+                        outptr0[2] = vget_lane_f32(_tmp2, 0);
+                        outptr1[2] = vget_lane_f32(_tmp2, 1);
+                    }
+                    if (tj * 6 + 3 < outw)
+                    {
+                        outptr0[3] = vget_lane_f32(_tmp3, 0);
+                        outptr1[3] = vget_lane_f32(_tmp3, 1);
+                    }
+                    if (tj * 6 + 4 < outw)
+                    {
+                        outptr0[4] = vget_lane_f32(_tmp4, 0);
+                        outptr1[4] = vget_lane_f32(_tmp4, 1);
+                    }
+                    if (tj * 6 + 5 < outw)
+                    {
+                        outptr0[5] = vget_lane_f32(_tmp5, 0);
+                        outptr1[5] = vget_lane_f32(_tmp5, 1);
+                    }
+#else
                     outptr0[0] = tmp00;
                     outptr1[0] = tmp01;
                     if (tj * 6 + 1 < outw)
@@ -5738,6 +6260,7 @@ static inline void conv3x3s1_winograd63_transform_output_tile(const Mat& top_til
                         outptr0[5] = tmp50;
                         outptr1[5] = tmp51;
                     }
+#endif
                 }
 
                 outptr0 += outw;
