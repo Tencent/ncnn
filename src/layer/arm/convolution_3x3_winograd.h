@@ -6065,10 +6065,10 @@ static inline void conv3x3s1_winograd63_transform_output_tile(const Mat& top_til
                 float32x2_t _tmp5 = vadd_f32(vadd_f32(_r7, _tmp135a), vfma_laneq_f32(_tmp135c, _tmp135b, _coeffs, 0));
 #else
                 float32x2_t _tmp0 = vadd_f32(vadd_f32(_r0, _tmp024a), vmla_lane_f32(_tmp024b, _tmp024c, vget_low_f32(_coeffs), 0));
-                float32x2_t _tmp1 = vmla_lane_f32(vfma_f32(_tmp135a, _tmp135b, _v2), _tmp135c, vget_low_f32(_coeffs), 1);
+                float32x2_t _tmp1 = vmla_lane_f32(vmla_f32(_tmp135a, _tmp135b, _v2), _tmp135c, vget_low_f32(_coeffs), 1);
                 float32x2_t _tmp2 = vmla_lane_f32(vmla_lane_f32(_tmp024a, _tmp024b, vget_high_f32(_coeffs), 1), _tmp024c, vget_high_f32(_coeffs), 0);
                 float32x2_t _tmp3 = vmla_lane_f32(vmla_lane_f32(_tmp135a, _tmp135b, vget_high_f32(_coeffs), 0), _tmp135c, vget_high_f32(_coeffs), 1);
-                float32x2_t _tmp4 = vfma_f32(vmla_lane_f32(_tmp024a, _tmp024b, vget_low_f32(_coeffs), 1), _tmp024c, _v2);
+                float32x2_t _tmp4 = vmla_f32(vmla_lane_f32(_tmp024a, _tmp024b, vget_low_f32(_coeffs), 1), _tmp024c, _v2);
                 float32x2_t _tmp5 = vadd_f32(vadd_f32(_r7, _tmp135a), vmlaq_lane_f32(_tmp135c, _tmp135b, vget_low_f32(_coeffs), 0));
 #endif
 
@@ -6149,10 +6149,10 @@ static inline void conv3x3s1_winograd63_transform_output_tile(const Mat& top_til
                 float32x2_t _tmp5 = vadd_f32(_bias0, vadd_f32(vadd_f32(_r7, _tmp135a), vfma_laneq_f32(_tmp135c, _tmp135b, _coeffs, 0)));
 #else
                 float32x2_t _tmp0 = vadd_f32(_bias0, vadd_f32(vadd_f32(_r0, _tmp024a), vmla_lane_f32(_tmp024b, _tmp024c, vget_low_f32(_coeffs), 0)));
-                float32x2_t _tmp1 = vadd_f32(_bias0, vmla_lane_f32(vfma_f32(_tmp135a, _tmp135b, _v2), _tmp135c, vget_low_f32(_coeffs), 1));
+                float32x2_t _tmp1 = vadd_f32(_bias0, vmla_lane_f32(vmla_f32(_tmp135a, _tmp135b, _v2), _tmp135c, vget_low_f32(_coeffs), 1));
                 float32x2_t _tmp2 = vadd_f32(_bias0, vmla_lane_f32(vmla_lane_f32(_tmp024a, _tmp024b, vget_high_f32(_coeffs), 1), _tmp024c, vget_high_f32(_coeffs), 0));
                 float32x2_t _tmp3 = vadd_f32(_bias0, vmla_lane_f32(vmla_lane_f32(_tmp135a, _tmp135b, vget_high_f32(_coeffs), 0), _tmp135c, vget_high_f32(_coeffs), 1));
-                float32x2_t _tmp4 = vadd_f32(_bias0, vfma_f32(vmla_lane_f32(_tmp024a, _tmp024b, vget_low_f32(_coeffs), 1), _tmp024c, _v2));
+                float32x2_t _tmp4 = vadd_f32(_bias0, vmla_f32(vmla_lane_f32(_tmp024a, _tmp024b, vget_low_f32(_coeffs), 1), _tmp024c, _v2));
                 float32x2_t _tmp5 = vadd_f32(_bias0, vadd_f32(vadd_f32(_r7, _tmp135a), vmla_lane_f32(_tmp135c, _tmp135b, vget_low_f32(_coeffs), 0)));
 #endif
 #else
