@@ -106,7 +106,7 @@ static NCNN_FORCEINLINE __m128 mask_gather_ps(const float* ptr, __m128i offset, 
 #define OPT_2 __attribute__((optnone))
 #elif __GNUC__
 #define OPT_2 __attribute__((optimize("2")))
-#endif 
+#endif
 
 template<bool align_corner>
 struct grid_sample_unormalize;
