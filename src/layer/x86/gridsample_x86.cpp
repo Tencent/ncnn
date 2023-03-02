@@ -100,6 +100,14 @@ static NCNN_FORCEINLINE __m128 mask_gather_ps(const float* ptr, __m128i offset, 
 
 #endif // __SSE2__
 
+#if _MSC_VER
+#define OPT_2
+#elif __clang__
+#define OPT_2 __attribute__((optnone))
+#elif __GNUC__
+#define OPT_2 __attribute__((optimize("2")))
+#endif 
+
 template<bool align_corner>
 struct grid_sample_unormalize;
 
@@ -107,6 +115,7 @@ template<>
 struct grid_sample_unormalize</*align_corner*/ true>
 {
 #if __AVX__
+    OPT_2
     __m256 operator()(__m256 length, __m256 coord)
     {
         return _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(coord, *(__m256*)_ps256_1), *(__m256*)_ps256_2), _mm256_sub_ps(length, *(__m256*)_ps256_1));
@@ -122,7 +131,8 @@ template<>
 struct grid_sample_unormalize</*align_corner*/ false>
 {
 #if __AVX__
-    __m256 operator()(__m256 length, __m256 coord)
+    OPT_2
+    __m256 OPT_2 operator()(__m256 length, __m256 coord)
     {
         return _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(coord, *(__m256*)_ps256_1), length, *(__m256*)_ps256_1), *(__m256*)_ps256_2);
     }
