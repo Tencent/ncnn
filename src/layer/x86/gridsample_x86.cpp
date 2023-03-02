@@ -132,7 +132,7 @@ struct grid_sample_unormalize</*align_corner*/ false>
 {
 #if __AVX__
     OPT_2
-    __m256 OPT_2 operator()(__m256 length, __m256 coord)
+    __m256 operator()(__m256 length, __m256 coord)
     {
         return _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(coord, *(__m256*)_ps256_1), length, *(__m256*)_ps256_1), *(__m256*)_ps256_2);
     }
