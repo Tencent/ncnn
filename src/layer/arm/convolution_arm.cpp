@@ -221,7 +221,7 @@ int Convolution_arm::create_pipeline(const Option& opt)
     if (opt.use_winograd_convolution && prefer_winograd && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
     {
         // dynamic shape
-        if ((opt.use_winograd63_convolution) && (num_input <= 32 && num_output <= 32))
+        if ((opt.use_winograd63_convolution) && (num_input <= 128 && num_output <= 128))
             conv3x3s1_winograd63_transform_kernel(weight_data, weight_winograd63_data, num_input, num_output, opt);
         else if (opt.use_winograd43_convolution)
             conv3x3s1_winograd43_transform_kernel(weight_data, weight_winograd43_data, num_input, num_output, opt);
@@ -1208,7 +1208,7 @@ int Convolution_arm::create_pipeline_bf16s(const Option& opt)
     if (opt.use_winograd_convolution && prefer_winograd && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
     {
         // dynamic shape
-        if ((opt.use_winograd63_convolution) && (num_input <= 32 && num_output <= 32))
+        if ((opt.use_winograd63_convolution) && (num_input <= 128 && num_output <= 128))
             conv3x3s1_winograd63_transform_kernel(weight_data, weight_winograd63_data, num_input, num_output, opt);
         else if (opt.use_winograd43_convolution)
             conv3x3s1_winograd43_transform_kernel(weight_data, weight_winograd43_data, num_input, num_output, opt);
