@@ -175,13 +175,13 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, 
                     "st1    {v31.4s}, [%1], #16         \n"
                     "st1    {v7.4s}, [%1], #16          \n"
                     "st1    {v15.4s}, [%1], #16         \n"
-                    : "=r"(p0),  // %0
-                    "=r"(pp) // %1
+                    : "=r"(p0), // %0
+                    "=r"(pp)  // %1
                     : "0"(p0),
                     "1"(pp)
                     : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
                 p0 += max_jj * batch * 8;
-#else // NCNN_GNU_INLINE_ASM
+#else  // NCNN_GNU_INLINE_ASM
                 float32x4x4_t _r0 = vld4q_f32(p0);
                 float32x4x4_t _r1 = vld4q_f32(p0 + 16);
                 float32x4x4_t _r2 = vld4q_f32(p0 + 32);
@@ -326,13 +326,13 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, 
                     "st1    {v20.4s, v21.4s, v22.4s, v23.4s}, [%1], #64 \n"
                     "st1    {v24.4s, v25.4s, v26.4s, v27.4s}, [%1], #64 \n"
                     "st1    {v28.4s, v29.4s, v30.4s, v31.4s}, [%1], #64 \n"
-                    : "=r"(p0),  // %0
-                    "=r"(pp) // %1
+                    : "=r"(p0), // %0
+                    "=r"(pp)  // %1
                     : "0"(p0),
                     "1"(pp)
                     : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
                 p0 += max_jj * batch * 8;
-#else // NCNN_GNU_INLINE_ASM
+#else  // NCNN_GNU_INLINE_ASM
                 float32x4x4_t _r0 = vld4q_f32(p0);
                 float32x4x4_t _r1 = vld4q_f32(p0 + 16);
                 float32x4x4_t _r2 = vld4q_f32(p0 + 32);
@@ -441,13 +441,13 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, 
 
                     "st1    {v8.4s, v9.4s, v10.4s, v11.4s}, [%1], #64 \n"
                     "st1    {v12.4s, v13.4s, v14.4s, v15.4s}, [%1], #64 \n"
-                    : "=r"(p0),  // %0
-                    "=r"(pp) // %1
+                    : "=r"(p0), // %0
+                    "=r"(pp)  // %1
                     : "0"(p0),
                     "1"(pp)
                     : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15");
                 p0 += max_jj * batch * 8;
-#else // NCNN_GNU_INLINE_ASM
+#else  // NCNN_GNU_INLINE_ASM
                 float32x4x4_t _r0;
                 float32x4x4_t _r1;
                 _r0.val[0] = vld1q_f32(p0);
@@ -523,13 +523,13 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, 
                     "zip2   v7.4s, v1.4s, v3.4s         \n"
 
                     "st1    {v4.4s, v5.4s, v6.4s, v7.4s}, [%1], #64 \n"
-                    : "=r"(p0),  // %0
-                    "=r"(pp) // %1
+                    : "=r"(p0), // %0
+                    "=r"(pp)  // %1
                     : "0"(p0),
                     "1"(pp)
                     : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7");
                 p0 += max_jj * batch * 8;
-#else // NCNN_GNU_INLINE_ASM
+#else  // NCNN_GNU_INLINE_ASM
                 float32x4x2_t _r0;
                 float32x4x2_t _r1;
                 _r0.val[0] = vld1q_f32(p0);
@@ -592,13 +592,13 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, 
                     "prfm   pldl1keep, [%0, #256]       \n"
                     "ld1    {v0.4s, v1.4s}, [%0]        \n"
                     "st1    {v0.4s, v1.4s}, [%1], #32   \n"
-                    : "=r"(p0),  // %0
-                    "=r"(pp) // %1
+                    : "=r"(p0), // %0
+                    "=r"(pp)  // %1
                     : "0"(p0),
                     "1"(pp)
                     : "memory", "v0", "v1");
                 p0 += max_jj * batch * 8;
-#else // NCNN_GNU_INLINE_ASM
+#else  // NCNN_GNU_INLINE_ASM
                 float32x4_t _r0 = vld1q_f32(p0);
                 float32x4_t _r1 = vld1q_f32(p0 + 4);
                 vst1q_f32(pp, _r0);
@@ -894,15 +894,15 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     "st1    {v28.4s, v29.4s, v30.4s, v31.4s}, [%0], #64 \n"
 
                     : "=r"(outptr), // %0
-                    "=r"(pA),       // %1
-                    "=r"(pB)        // %2
+                    "=r"(pA),     // %1
+                    "=r"(pB)      // %2
                     : "0"(outptr),
                     "1"(pA),
                     "2"(pB),
-                    "r"(max_kk),    // %6
-                    "r"(k)          // %7
+                    "r"(max_kk), // %6
+                    "r"(k)       // %7
                     : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
-#else // NCNN_GNU_INLINE_ASM
+#else  // NCNN_GNU_INLINE_ASM
                 float32x4_t _sum00;
                 float32x4_t _sum01;
                 float32x4_t _sum10;
@@ -1227,15 +1227,15 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     "st1    {v28.4s, v29.4s, v30.4s, v31.4s}, [%0], #64 \n"
 
                     : "=r"(outptr), // %0
-                    "=r"(pA),       // %1
-                    "=r"(pB)        // %2
+                    "=r"(pA),     // %1
+                    "=r"(pB)      // %2
                     : "0"(outptr),
                     "1"(pA),
                     "2"(pB),
-                    "r"(max_kk),    // %6
-                    "r"(k)          // %7
+                    "r"(max_kk), // %6
+                    "r"(k)       // %7
                     : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
-#else // NCNN_GNU_INLINE_ASM
+#else  // NCNN_GNU_INLINE_ASM
                 float32x4_t _sum00;
                 float32x4_t _sum01;
                 float32x4_t _sum10;
@@ -1454,15 +1454,15 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     "st1    {v28.4s, v29.4s, v30.4s, v31.4s}, [%0], #64 \n"
 
                     : "=r"(outptr), // %0
-                    "=r"(pA),       // %1
-                    "=r"(pB)        // %2
+                    "=r"(pA),     // %1
+                    "=r"(pB)      // %2
                     : "0"(outptr),
                     "1"(pA),
                     "2"(pB),
-                    "r"(max_kk),    // %6
-                    "r"(k)          // %7
+                    "r"(max_kk), // %6
+                    "r"(k)       // %7
                     : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
-#else // NCNN_GNU_INLINE_ASM
+#else  // NCNN_GNU_INLINE_ASM
                 float32x4_t _sum00;
                 float32x4_t _sum01;
                 float32x4_t _sum10;
@@ -1609,15 +1609,15 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     "st1    {v28.4s, v29.4s, v30.4s, v31.4s}, [%0], #64 \n"
 
                     : "=r"(outptr), // %0
-                    "=r"(pA),       // %1
-                    "=r"(pB)        // %2
+                    "=r"(pA),     // %1
+                    "=r"(pB)      // %2
                     : "0"(outptr),
                     "1"(pA),
                     "2"(pB),
-                    "r"(max_kk),    // %6
-                    "r"(k)          // %7
+                    "r"(max_kk), // %6
+                    "r"(k)       // %7
                     : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
-#else // NCNN_GNU_INLINE_ASM
+#else  // NCNN_GNU_INLINE_ASM
                 float32x4_t _sum00;
                 float32x4_t _sum01;
                 float32x4_t _sum10;
@@ -1732,15 +1732,15 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     "st1    {v30.4s, v31.4s}, [%0], #32 \n"
 
                     : "=r"(outptr), // %0
-                    "=r"(pA),       // %1
-                    "=r"(pB)        // %2
+                    "=r"(pA),     // %1
+                    "=r"(pB)      // %2
                     : "0"(outptr),
                     "1"(pA),
                     "2"(pB),
-                    "r"(max_kk),    // %6
-                    "r"(k)          // %7
+                    "r"(max_kk), // %6
+                    "r"(k)       // %7
                     : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
-#else // NCNN_GNU_INLINE_ASM
+#else  // NCNN_GNU_INLINE_ASM
                 float32x4_t _sum00;
                 float32x4_t _sum01;
 
