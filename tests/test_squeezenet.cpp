@@ -274,7 +274,7 @@ int main()
     opts[2].use_fp16_packed = true;
     opts[2].use_fp16_storage = true;
     opts[2].use_fp16_arithmetic = false;
-    opts[2].use_bf16_storage = true;
+    opts[2].use_bf16_storage = false; // FIXME enable me
     opts[2].use_shader_pack8 = true;
     opts[2].use_image_storage = true;
     opts[2].blob_allocator = &g_blob_pool_allocator;
