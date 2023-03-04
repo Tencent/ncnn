@@ -661,7 +661,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 
 #if NCNN_GNU_INLINE_ASM
                 asm volatile(
-                    "cbz    %7, 0f                      \n"
+                    "cbz    %w7, 0f                     \n"
 
                     "ld1    {v8.4s, v9.4s, v10.4s, v11.4s}, [%0], #64   \n"
                     "ld1    {v12.4s, v13.4s, v14.4s, v15.4s}, [%0], #64 \n"
@@ -1055,7 +1055,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 
 #if NCNN_GNU_INLINE_ASM
                 asm volatile(
-                    "cbz    %4, 0f                      \n"
+                    "cbz    %w7, 0f                     \n"
 
                     "ld1    {v16.4s, v17.4s, v18.4s, v19.4s}, [%0], #64 \n"
                     "ld1    {v20.4s, v21.4s, v22.4s, v23.4s}, [%0], #64 \n"
@@ -1347,7 +1347,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 
 #if NCNN_GNU_INLINE_ASM
                 asm volatile(
-                    "cbz    %4, 0f                      \n"
+                    "cbz    %w7, 0f                     \n"
 
                     "ld1    {v24.4s, v25.4s, v26.4s, v27.4s}, [%0], #64 \n"
                     "ld1    {v28.4s, v29.4s, v30.4s, v31.4s}, [%0]      \n"
@@ -1533,7 +1533,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 
 #if NCNN_GNU_INLINE_ASM
                 asm volatile(
-                    "cbz    %4, 0f                      \n"
+                    "cbz    %w7, 0f                     \n"
 
                     "ld1    {v28.4s, v29.4s, v30.4s, v31.4s}, [%0]      \n"
                     "b      1f                          \n"
@@ -1668,7 +1668,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 
 #if NCNN_GNU_INLINE_ASM
                 asm volatile(
-                    "cbz    %4, 0f                      \n"
+                    "cbz    %w7, 0f                     \n"
 
                     "ld1    {v30.4s, v31.4s}, [%0]      \n"
                     "b      1f                          \n"
