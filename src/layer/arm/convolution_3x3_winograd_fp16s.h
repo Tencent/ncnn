@@ -393,6 +393,146 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
             {
                 const __fp16* pA = pAT;
 
+#if NCNN_GNU_INLINE_ASM
+                asm volatile(
+                    "cbz    %w7, 0f                     \n"
+
+                    "ld1    {v20.8h, v21.8h, v22.8h, v23.8h}, [%0], #64 \n"
+                    "ld1    {v24.8h, v25.8h, v26.8h, v27.8h}, [%0], #64 \n"
+                    "ld1    {v28.8h, v29.8h, v30.8h, v31.8h}, [%0]      \n"
+                    "subs   %0, %0, #128                \n"
+                    "b      1f                          \n"
+
+                    "0:                                 \n"
+                    "eor    v20.16b, v20.16b, v20.16b   \n"
+                    "eor    v21.16b, v21.16b, v21.16b   \n"
+                    "eor    v22.16b, v22.16b, v22.16b   \n"
+                    "eor    v23.16b, v23.16b, v23.16b   \n"
+                    "eor    v24.16b, v24.16b, v24.16b   \n"
+                    "eor    v25.16b, v25.16b, v25.16b   \n"
+                    "eor    v26.16b, v26.16b, v26.16b   \n"
+                    "eor    v27.16b, v27.16b, v27.16b   \n"
+                    "eor    v28.16b, v28.16b, v28.16b   \n"
+                    "eor    v29.16b, v29.16b, v29.16b   \n"
+                    "eor    v30.16b, v30.16b, v30.16b   \n"
+                    "eor    v31.16b, v31.16b, v31.16b   \n"
+
+                    "1:                                 \n"
+                    "lsr    w4, %w6, #2                 \n" // w4 = max_kk >> 2
+                    "cmp    w4, #0                      \n"
+                    "beq    3f                          \n"
+
+                    "2:                                 \n"
+                    "prfm   pldl1keep, [%2, #512]       \n"
+                    "ld1    {v0.8h, v1.8h, v2.8h, v3.8h}, [%2], #64 \n"
+
+                    "prfm   pldl1keep, [%1, #512]       \n"
+                    "ld1    {v4.8h, v5.8h, v6.8h, v7.8h}, [%1], #64 \n"
+
+                    "fmla   v20.8h, v4.8h, v0.h[0]      \n"
+                    "fmla   v21.8h, v4.8h, v0.h[1]      \n"
+                    "fmla   v22.8h, v4.8h, v0.h[2]      \n"
+                    "fmla   v23.8h, v4.8h, v0.h[3]      \n"
+                    "fmla   v24.8h, v4.8h, v0.h[4]      \n"
+                    "fmla   v25.8h, v4.8h, v0.h[5]      \n"
+                    "fmla   v26.8h, v4.8h, v0.h[6]      \n"
+                    "fmla   v27.8h, v4.8h, v0.h[7]      \n"
+                    "fmla   v28.8h, v4.8h, v1.h[0]      \n"
+                    "fmla   v29.8h, v4.8h, v1.h[1]      \n"
+                    "fmla   v30.8h, v4.8h, v1.h[2]      \n"
+                    "fmla   v31.8h, v4.8h, v1.h[3]      \n"
+
+                    "fmla   v20.8h, v5.8h, v1.h[4]      \n"
+                    "fmla   v21.8h, v5.8h, v1.h[5]      \n"
+                    "fmla   v22.8h, v5.8h, v1.h[6]      \n"
+                    "fmla   v23.8h, v5.8h, v1.h[7]      \n"
+                    "fmla   v24.8h, v5.8h, v2.h[0]      \n"
+                    "fmla   v25.8h, v5.8h, v2.h[1]      \n"
+                    "fmla   v26.8h, v5.8h, v2.h[2]      \n"
+                    "fmla   v27.8h, v5.8h, v2.h[3]      \n"
+                    "fmla   v28.8h, v5.8h, v2.h[4]      \n"
+                    "fmla   v29.8h, v5.8h, v2.h[5]      \n"
+                    "fmla   v30.8h, v5.8h, v2.h[6]      \n"
+                    "fmla   v31.8h, v5.8h, v2.h[7]      \n"
+
+                    "prfm   pldl1keep, [%2, #256]       \n"
+                    "ld1    {v8.8h, v9.8h}, [%2], #32   \n"
+
+                    "fmla   v20.8h, v6.8h, v3.h[0]      \n"
+                    "fmla   v21.8h, v6.8h, v3.h[1]      \n"
+                    "fmla   v22.8h, v6.8h, v3.h[2]      \n"
+                    "fmla   v23.8h, v6.8h, v3.h[3]      \n"
+                    "fmla   v24.8h, v6.8h, v3.h[4]      \n"
+                    "fmla   v25.8h, v6.8h, v3.h[5]      \n"
+                    "fmla   v26.8h, v6.8h, v3.h[6]      \n"
+                    "fmla   v27.8h, v6.8h, v3.h[7]      \n"
+                    "fmla   v28.8h, v6.8h, v8.h[0]      \n"
+                    "fmla   v29.8h, v6.8h, v8.h[1]      \n"
+                    "fmla   v30.8h, v6.8h, v8.h[2]      \n"
+                    "fmla   v31.8h, v6.8h, v8.h[3]      \n"
+
+                    "subs   w4, w4, #1                  \n"
+
+                    "fmla   v20.8h, v7.8h, v8.h[4]      \n"
+                    "fmla   v21.8h, v7.8h, v8.h[5]      \n"
+                    "fmla   v22.8h, v7.8h, v8.h[6]      \n"
+                    "fmla   v23.8h, v7.8h, v8.h[7]      \n"
+                    "fmla   v24.8h, v7.8h, v9.h[0]      \n"
+                    "fmla   v25.8h, v7.8h, v9.h[1]      \n"
+                    "fmla   v26.8h, v7.8h, v9.h[2]      \n"
+                    "fmla   v27.8h, v7.8h, v9.h[3]      \n"
+                    "fmla   v28.8h, v7.8h, v9.h[4]      \n"
+                    "fmla   v29.8h, v7.8h, v9.h[5]      \n"
+                    "fmla   v30.8h, v7.8h, v9.h[6]      \n"
+                    "fmla   v31.8h, v7.8h, v9.h[7]      \n"
+
+                    "bne    2b                          \n"
+
+                    "3:                                 \n"
+                    "and    w4, %w6, #3                 \n" // w4 = remain = max_kk & 3
+                    "cmp    w4, #0                      \n"
+                    "beq    5f                          \n"
+
+                    "4:                                 \n"
+                    "prfm   pldl1keep, [%2, #192]       \n"
+                    "ld1    {v0.4h, v1.4h, v2.4h}, [%2], #24 \n"
+
+                    "prfm   pldl1keep, [%1, #128]       \n"
+                    "ld1    {v4.8h}, [%1], #16          \n"
+
+                    "fmla   v20.8h, v4.8h, v0.h[0]      \n"
+                    "fmla   v21.8h, v4.8h, v0.h[1]      \n"
+                    "fmla   v22.8h, v4.8h, v0.h[2]      \n"
+                    "fmla   v23.8h, v4.8h, v0.h[3]      \n"
+                    "fmla   v24.8h, v4.8h, v1.h[0]      \n"
+                    "fmla   v25.8h, v4.8h, v1.h[1]      \n"
+                    "fmla   v26.8h, v4.8h, v1.h[2]      \n"
+                    "fmla   v27.8h, v4.8h, v1.h[3]      \n"
+
+                    "subs   w4, w4, #1                  \n"
+
+                    "fmla   v28.8h, v4.8h, v2.h[0]      \n"
+                    "fmla   v29.8h, v4.8h, v2.h[1]      \n"
+                    "fmla   v30.8h, v4.8h, v2.h[2]      \n"
+                    "fmla   v31.8h, v4.8h, v2.h[3]      \n"
+
+                    "bne    4b                          \n"
+
+                    "5:                                 \n"
+                    "st1    {v20.8h, v21.8h, v22.8h, v23.8h}, [%0], #64 \n"
+                    "st1    {v24.8h, v25.8h, v26.8h, v27.8h}, [%0], #64 \n"
+                    "st1    {v28.8h, v29.8h, v30.8h, v31.8h}, [%0], #64 \n"
+
+                    : "=r"(outptr), // %0
+                    "=r"(pA),     // %1
+                    "=r"(pB)      // %2
+                    : "0"(outptr),
+                    "1"(pA),
+                    "2"(pB),
+                    "r"(max_kk), // %6
+                    "r"(k)       // %7
+                    : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
+#else  // NCNN_GNU_INLINE_ASM
                 float16x8_t _sum0;
                 float16x8_t _sum1;
                 float16x8_t _sum2;
@@ -473,11 +613,123 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
                 vst1q_f16(outptr + 8 * 10, _suma);
                 vst1q_f16(outptr + 8 * 11, _sumb);
                 outptr += 8 * 12;
+#endif // NCNN_GNU_INLINE_ASM
             }
             for (; jj + 7 < max_jj; jj += 8)
             {
                 const __fp16* pA = pAT;
 
+#if NCNN_GNU_INLINE_ASM
+                asm volatile(
+                    "cbz    %w7, 0f                     \n"
+
+                    "ld1    {v24.8h, v25.8h, v26.8h, v27.8h}, [%0], #64 \n"
+                    "ld1    {v28.8h, v29.8h, v30.8h, v31.8h}, [%0]      \n"
+                    "subs   %0, %0, #64                 \n"
+                    "b      1f                          \n"
+
+                    "0:                                 \n"
+                    "eor    v24.16b, v24.16b, v24.16b   \n"
+                    "eor    v25.16b, v25.16b, v25.16b   \n"
+                    "eor    v26.16b, v26.16b, v26.16b   \n"
+                    "eor    v27.16b, v27.16b, v27.16b   \n"
+                    "eor    v28.16b, v28.16b, v28.16b   \n"
+                    "eor    v29.16b, v29.16b, v29.16b   \n"
+                    "eor    v30.16b, v30.16b, v30.16b   \n"
+                    "eor    v31.16b, v31.16b, v31.16b   \n"
+
+                    "1:                                 \n"
+                    "lsr    w4, %w6, #2                 \n" // w4 = max_kk >> 2
+                    "cmp    w4, #0                      \n"
+                    "beq    3f                          \n"
+
+                    "2:                                 \n"
+                    "prfm   pldl1keep, [%2, #512]       \n"
+                    "ld1    {v0.8h, v1.8h, v2.8h, v3.8h}, [%2], #64 \n"
+
+                    "prfm   pldl1keep, [%1, #512]       \n"
+                    "ld1    {v4.8h, v5.8h, v6.8h, v7.8h}, [%1], #64 \n"
+
+                    "fmla   v24.8h, v4.8h, v0.h[0]      \n"
+                    "fmla   v25.8h, v4.8h, v0.h[1]      \n"
+                    "fmla   v26.8h, v4.8h, v0.h[2]      \n"
+                    "fmla   v27.8h, v4.8h, v0.h[3]      \n"
+                    "fmla   v28.8h, v4.8h, v0.h[4]      \n"
+                    "fmla   v29.8h, v4.8h, v0.h[5]      \n"
+                    "fmla   v30.8h, v4.8h, v0.h[6]      \n"
+                    "fmla   v31.8h, v4.8h, v0.h[7]      \n"
+
+                    "fmla   v24.8h, v5.8h, v1.h[0]      \n"
+                    "fmla   v25.8h, v5.8h, v1.h[1]      \n"
+                    "fmla   v26.8h, v5.8h, v1.h[2]      \n"
+                    "fmla   v27.8h, v5.8h, v1.h[3]      \n"
+                    "fmla   v28.8h, v5.8h, v1.h[4]      \n"
+                    "fmla   v29.8h, v5.8h, v1.h[5]      \n"
+                    "fmla   v30.8h, v5.8h, v1.h[6]      \n"
+                    "fmla   v31.8h, v5.8h, v1.h[7]      \n"
+
+                    "fmla   v24.8h, v6.8h, v2.h[0]      \n"
+                    "fmla   v25.8h, v6.8h, v2.h[1]      \n"
+                    "fmla   v26.8h, v6.8h, v2.h[2]      \n"
+                    "fmla   v27.8h, v6.8h, v2.h[3]      \n"
+                    "fmla   v28.8h, v6.8h, v2.h[4]      \n"
+                    "fmla   v29.8h, v6.8h, v2.h[5]      \n"
+                    "fmla   v30.8h, v6.8h, v2.h[6]      \n"
+                    "fmla   v31.8h, v6.8h, v2.h[7]      \n"
+
+                    "subs   w4, w4, #1                  \n"
+
+                    "fmla   v24.8h, v7.8h, v3.h[0]      \n"
+                    "fmla   v25.8h, v7.8h, v3.h[1]      \n"
+                    "fmla   v26.8h, v7.8h, v3.h[2]      \n"
+                    "fmla   v27.8h, v7.8h, v3.h[3]      \n"
+                    "fmla   v28.8h, v7.8h, v3.h[4]      \n"
+                    "fmla   v29.8h, v7.8h, v3.h[5]      \n"
+                    "fmla   v30.8h, v7.8h, v3.h[6]      \n"
+                    "fmla   v31.8h, v7.8h, v3.h[7]      \n"
+
+                    "bne    2b                          \n"
+
+                    "3:                                 \n"
+                    "and    w4, %w6, #3                 \n" // w4 = remain = max_kk & 3
+                    "cmp    w4, #0                      \n"
+                    "beq    5f                          \n"
+
+                    "4:                                 \n"
+                    "prfm   pldl1keep, [%2, #128]       \n"
+                    "ld1    {v0.8h}, [%2], #16          \n"
+
+                    "prfm   pldl1keep, [%1, #128]       \n"
+                    "ld1    {v4.8h}, [%1], #16          \n"
+
+                    "fmla   v24.8h, v4.8h, v0.h[0]      \n"
+                    "fmla   v25.8h, v4.8h, v0.h[1]      \n"
+                    "fmla   v26.8h, v4.8h, v0.h[2]      \n"
+                    "fmla   v27.8h, v4.8h, v0.h[3]      \n"
+
+                    "subs   w4, w4, #1                  \n"
+
+                    "fmla   v28.8h, v4.8h, v0.h[4]      \n"
+                    "fmla   v29.8h, v4.8h, v0.h[5]      \n"
+                    "fmla   v30.8h, v4.8h, v0.h[6]      \n"
+                    "fmla   v31.8h, v4.8h, v0.h[7]      \n"
+
+                    "bne    4b                          \n"
+
+                    "5:                                 \n"
+                    "st1    {v24.8h, v25.8h, v26.8h, v27.8h}, [%0], #64 \n"
+                    "st1    {v28.8h, v29.8h, v30.8h, v31.8h}, [%0], #64 \n"
+
+                    : "=r"(outptr), // %0
+                    "=r"(pA),     // %1
+                    "=r"(pB)      // %2
+                    : "0"(outptr),
+                    "1"(pA),
+                    "2"(pB),
+                    "r"(max_kk), // %6
+                    "r"(k)       // %7
+                    : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
+#else  // NCNN_GNU_INLINE_ASM
                 float16x8_t _sum0;
                 float16x8_t _sum1;
                 float16x8_t _sum2;
@@ -537,11 +789,96 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
                 vst1q_f16(outptr + 8 * 6, _sum6);
                 vst1q_f16(outptr + 8 * 7, _sum7);
                 outptr += 8 * 8;
+#endif // NCNN_GNU_INLINE_ASM
             }
             for (; jj + 3 < max_jj; jj += 4)
             {
                 const __fp16* pA = pAT;
 
+#if NCNN_GNU_INLINE_ASM
+                asm volatile(
+                    "cbz    %w7, 0f                     \n"
+
+                    "ld1    {v28.8h, v29.8h, v30.8h, v31.8h}, [%0] \n"
+                    "b      1f                          \n"
+
+                    "0:                                 \n"
+                    "eor    v28.16b, v28.16b, v28.16b   \n"
+                    "eor    v29.16b, v29.16b, v29.16b   \n"
+                    "eor    v30.16b, v30.16b, v30.16b   \n"
+                    "eor    v31.16b, v31.16b, v31.16b   \n"
+
+                    "1:                                 \n"
+                    "lsr    w4, %w6, #2                 \n" // w4 = max_kk >> 2
+                    "cmp    w4, #0                      \n"
+                    "beq    3f                          \n"
+
+                    "2:                                 \n"
+                    "prfm   pldl1keep, [%2, #256]       \n"
+                    "ld1    {v0.8h, v1.8h}, [%2], #32   \n"
+
+                    "prfm   pldl1keep, [%1, #512]       \n"
+                    "ld1    {v4.8h, v5.8h, v6.8h, v7.8h}, [%1], #64 \n"
+
+                    "fmla   v28.8h, v4.8h, v0.h[0]      \n"
+                    "fmla   v29.8h, v4.8h, v0.h[1]      \n"
+                    "fmla   v30.8h, v4.8h, v0.h[2]      \n"
+                    "fmla   v31.8h, v4.8h, v0.h[3]      \n"
+
+                    "fmla   v28.8h, v5.8h, v0.h[4]      \n"
+                    "fmla   v29.8h, v5.8h, v0.h[5]      \n"
+                    "fmla   v30.8h, v5.8h, v0.h[6]      \n"
+                    "fmla   v31.8h, v5.8h, v0.h[7]      \n"
+
+                    "fmla   v28.8h, v6.8h, v1.h[0]      \n"
+                    "fmla   v29.8h, v6.8h, v1.h[1]      \n"
+                    "fmla   v30.8h, v6.8h, v1.h[2]      \n"
+                    "fmla   v31.8h, v6.8h, v1.h[3]      \n"
+
+                    "subs   w4, w4, #1                  \n"
+
+                    "fmla   v28.8h, v7.8h, v1.h[4]      \n"
+                    "fmla   v29.8h, v7.8h, v1.h[5]      \n"
+                    "fmla   v30.8h, v7.8h, v1.h[6]      \n"
+                    "fmla   v31.8h, v7.8h, v1.h[7]      \n"
+
+                    "bne    2b                          \n"
+
+                    "3:                                 \n"
+                    "and    w4, %w6, #3                 \n" // w4 = remain = max_kk & 3
+                    "cmp    w4, #0                      \n"
+                    "beq    5f                          \n"
+
+                    "4:                                 \n"
+                    "prfm   pldl1keep, [%2, #64]        \n"
+                    "ld1    {v0.4h}, [%2], #8           \n"
+
+                    "prfm   pldl1keep, [%1, #128]       \n"
+                    "ld1    {v4.8h}, [%1], #16          \n"
+
+                    "fmla   v28.8h, v4.8h, v0.h[0]      \n"
+                    "fmla   v29.8h, v4.8h, v0.h[1]      \n"
+
+                    "subs   w4, w4, #1                  \n"
+
+                    "fmla   v30.8h, v4.8h, v0.h[2]      \n"
+                    "fmla   v31.8h, v4.8h, v0.h[3]      \n"
+
+                    "bne    4b                          \n"
+
+                    "5:                                 \n"
+                    "st1    {v28.8h, v29.8h, v30.8h, v31.8h}, [%0], #64 \n"
+
+                    : "=r"(outptr), // %0
+                    "=r"(pA),     // %1
+                    "=r"(pB)      // %2
+                    : "0"(outptr),
+                    "1"(pA),
+                    "2"(pB),
+                    "r"(max_kk), // %6
+                    "r"(k)       // %7
+                    : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
+#else  // NCNN_GNU_INLINE_ASM
                 float16x8_t _sum0;
                 float16x8_t _sum1;
                 float16x8_t _sum2;
@@ -581,6 +918,7 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
                 vst1q_f16(outptr + 8 * 2, _sum2);
                 vst1q_f16(outptr + 8 * 3, _sum3);
                 outptr += 8 * 4;
+#endif // NCNN_GNU_INLINE_ASM
             }
             for (; jj + 1 < max_jj; jj += 2)
             {
