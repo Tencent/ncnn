@@ -3732,14 +3732,14 @@ static inline void conv3x3s1_winograd63_transform_input_tile_fp16sa(const Mat& b
 
             for (int m = 0; m < 8; m++)
             {
-                float16x8_t _r0 = vdupq_n_f32(0.f);
-                float16x8_t _r1 = vdupq_n_f32(0.f);
-                float16x8_t _r2 = vdupq_n_f32(0.f);
-                float16x8_t _r3 = vdupq_n_f32(0.f);
-                float16x8_t _r4 = vdupq_n_f32(0.f);
-                float16x8_t _r5 = vdupq_n_f32(0.f);
-                float16x8_t _r6 = vdupq_n_f32(0.f);
-                float16x8_t _r7 = vdupq_n_f32(0.f);
+                float16x8_t _r0 = vdupq_n_f16(0.f);
+                float16x8_t _r1 = vdupq_n_f16(0.f);
+                float16x8_t _r2 = vdupq_n_f16(0.f);
+                float16x8_t _r3 = vdupq_n_f16(0.f);
+                float16x8_t _r4 = vdupq_n_f16(0.f);
+                float16x8_t _r5 = vdupq_n_f16(0.f);
+                float16x8_t _r6 = vdupq_n_f16(0.f);
+                float16x8_t _r7 = vdupq_n_f16(0.f);
 
                 if (ti * 6 + m < h)
                 {
@@ -3959,14 +3959,14 @@ static inline void conv3x3s1_winograd63_transform_input_tile_fp16sa(const Mat& b
 
             for (int m = 0; m < 8; m++)
             {
-                float16x4_t _r0 = vdup_n_f32(0.f);
-                float16x4_t _r1 = vdup_n_f32(0.f);
-                float16x4_t _r2 = vdup_n_f32(0.f);
-                float16x4_t _r3 = vdup_n_f32(0.f);
-                float16x4_t _r4 = vdup_n_f32(0.f);
-                float16x4_t _r5 = vdup_n_f32(0.f);
-                float16x4_t _r6 = vdup_n_f32(0.f);
-                float16x4_t _r7 = vdup_n_f32(0.f);
+                float16x4_t _r0 = vdup_n_f16(0.f);
+                float16x4_t _r1 = vdup_n_f16(0.f);
+                float16x4_t _r2 = vdup_n_f16(0.f);
+                float16x4_t _r3 = vdup_n_f16(0.f);
+                float16x4_t _r4 = vdup_n_f16(0.f);
+                float16x4_t _r5 = vdup_n_f16(0.f);
+                float16x4_t _r6 = vdup_n_f16(0.f);
+                float16x4_t _r7 = vdup_n_f16(0.f);
 
                 if (ti * 6 + m < h)
                 {
