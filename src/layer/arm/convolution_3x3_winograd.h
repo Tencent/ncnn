@@ -2480,7 +2480,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     "bne    2b                          \n"
 
                     "fadd   v30.4s, v30.4s, v28.4s      \n"
-                    "fadd   v31.4s, v30.4s, v29.4s      \n"
+                    "fadd   v31.4s, v31.4s, v29.4s      \n"
 
                     "3:                                 \n"
                     "and    w4, %w6, #3                 \n" // w4 = remain = max_kk & 3
@@ -2645,7 +2645,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     "bne    2b                          \n"
 
                     "fadd   v30.4s, v30.4s, v28.4s      \n"
-                    "fadd   v31.4s, v30.4s, v29.4s      \n"
+                    "fadd   v31.4s, v31.4s, v29.4s      \n"
                     "fadd   v31.4s, v31.4s, v30.4s      \n"
 
                     "3:                                 \n"
