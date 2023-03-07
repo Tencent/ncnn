@@ -523,6 +523,34 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, 
             for (; kk + 3 < max_kk; kk += 4)
             {
                 // transpose 4x4
+#if NCNN_GNU_INLINE_ASM
+#if __aarch64__
+                asm volatile(
+                    "prfm   pldl1keep, [%0, #512]       \n"
+                    "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%0] \n"
+                    "st4    {v0.4s, v1.4s, v2.4s, v3.4s}, [%1], #64 \n"
+                    : "=r"(p0), // %0
+                    "=r"(pp)  // %1
+                    : "0"(p0),
+                    "1"(pp)
+                    : "memory", "v0", "v1", "v2", "v3");
+#else  // __aarch64__
+                asm volatile(
+                    "pld        [%0, #512]          \n"
+                    "vldm       %0, {d0-d7}         \n"
+                    "vtrn.32    q0, q1              \n"
+                    "vtrn.32    q2, q3              \n"
+                    "vswp       d1, d4              \n"
+                    "vswp       d3, d6              \n"
+                    "vstm       %1!, {d0-d7}        \n"
+                    : "=r"(p0), // %0
+                    "=r"(pp)  // %1
+                    : "0"(p0),
+                    "1"(pp)
+                    : "memory", "q0", "q1", "q2", "q3");
+#endif // __aarch64__
+                p0 += max_jj * batch * 4;
+#else  // NCNN_GNU_INLINE_ASM
                 float32x4x4_t _r0;
                 _r0.val[0] = vld1q_f32(p0);
                 _r0.val[1] = vld1q_f32(p0 + 4);
@@ -531,6 +559,7 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, 
                 vst4q_f32(pp, _r0);
                 p0 += max_jj * batch * 4;
                 pp += 16;
+#endif // NCNN_GNU_INLINE_ASM
             }
             p0 -= (b * max_jj + jj) * 4;
             p0 += (b * max_jj + jj) * 2;
@@ -601,12 +630,37 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, 
             for (; kk + 3 < max_kk; kk += 4)
             {
                 // transpose 4x2
+#if NCNN_GNU_INLINE_ASM
+#if __aarch64__
+                asm volatile(
+                    "prfm   pldl1keep, [%0, #256]       \n"
+                    "ld1    {v0.4s, v1.4s}, [%0]        \n"
+                    "st2    {v0.4s, v1.4s}, [%1], #32   \n"
+                    : "=r"(p0), // %0
+                    "=r"(pp)  // %1
+                    : "0"(p0),
+                    "1"(pp)
+                    : "memory", "v0", "v1");
+#else  // __aarch64__
+                asm volatile(
+                    "pld        [%0, #256]          \n"
+                    "vld1.f32   {d0-d3}, [%0]       \n"
+                    "vst2.f32   {d0-d3}, [%1]!      \n"
+                    : "=r"(p0), // %0
+                    "=r"(pp)  // %1
+                    : "0"(p0),
+                    "1"(pp)
+                    : "memory", "q0", "q1");
+#endif // __aarch64__
+                p0 += max_jj * batch * 4;
+#else  // NCNN_GNU_INLINE_ASM
                 float32x4x2_t _r0;
                 _r0.val[0] = vld1q_f32(p0);
                 _r0.val[1] = vld1q_f32(p0 + 4);
                 vst2q_f32(pp, _r0);
                 p0 += max_jj * batch * 4;
                 pp += 8;
+#endif // NCNN_GNU_INLINE_ASM
             }
             p0 -= (b * max_jj + jj) * 4;
 #endif // __ARM_NEON
@@ -665,10 +719,35 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, 
             p0 += (b * max_jj + jj) * 4;
             for (; kk + 3 < max_kk; kk += 4)
             {
+#if NCNN_GNU_INLINE_ASM
+#if __aarch64__
+                asm volatile(
+                    "prfm   pldl1keep, [%0, #128]       \n"
+                    "ld1    {v0.4s}, [%0]               \n"
+                    "st1    {v0.4s}, [%1], #16          \n"
+                    : "=r"(p0), // %0
+                    "=r"(pp)  // %1
+                    : "0"(p0),
+                    "1"(pp)
+                    : "memory", "v0");
+#else  // __aarch64__
+                asm volatile(
+                    "pld        [%0, #128]          \n"
+                    "vld1.f32   {d0-d1}, [%0]       \n"
+                    "vst1.f32   {d0-d1}, [%1]!      \n"
+                    : "=r"(p0), // %0
+                    "=r"(pp)  // %1
+                    : "0"(p0),
+                    "1"(pp)
+                    : "memory", "q0");
+#endif // __aarch64__
+                p0 += max_jj * batch * 4;
+#else  // NCNN_GNU_INLINE_ASM
                 float32x4_t _r0 = vld1q_f32(p0);
                 vst1q_f32(pp, _r0);
                 p0 += max_jj * batch * 4;
                 pp += 4;
+#endif // NCNN_GNU_INLINE_ASM
             }
             p0 -= (b * max_jj + jj) * 4;
 #endif // __ARM_NEON
