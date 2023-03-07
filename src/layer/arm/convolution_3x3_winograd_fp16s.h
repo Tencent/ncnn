@@ -602,12 +602,8 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
                     "beq    5f                          \n"
 
                     "4:                                 \n"
-                    "prfm   pldl1keep, [%2, #192]       \n"
                     "ld1    {v0.4h, v1.4h, v2.4h}, [%2], #24 \n"
-
-                    "prfm   pldl1keep, [%1, #128]       \n"
                     "ld1    {v4.8h}, [%1], #16          \n"
-
                     "fmla   v20.8h, v4.8h, v0.h[0]      \n"
                     "fmla   v21.8h, v4.8h, v0.h[1]      \n"
                     "fmla   v22.8h, v4.8h, v0.h[2]      \n"
@@ -616,14 +612,11 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
                     "fmla   v25.8h, v4.8h, v1.h[1]      \n"
                     "fmla   v26.8h, v4.8h, v1.h[2]      \n"
                     "fmla   v27.8h, v4.8h, v1.h[3]      \n"
-
                     "subs   w4, w4, #1                  \n"
-
                     "fmla   v28.8h, v4.8h, v2.h[0]      \n"
                     "fmla   v29.8h, v4.8h, v2.h[1]      \n"
                     "fmla   v30.8h, v4.8h, v2.h[2]      \n"
                     "fmla   v31.8h, v4.8h, v2.h[3]      \n"
-
                     "bne    4b                          \n"
 
                     "5:                                 \n"
@@ -804,24 +797,17 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
                     "beq    5f                          \n"
 
                     "4:                                 \n"
-                    "prfm   pldl1keep, [%2, #128]       \n"
                     "ld1    {v0.8h}, [%2], #16          \n"
-
-                    "prfm   pldl1keep, [%1, #128]       \n"
                     "ld1    {v4.8h}, [%1], #16          \n"
-
                     "fmla   v24.8h, v4.8h, v0.h[0]      \n"
                     "fmla   v25.8h, v4.8h, v0.h[1]      \n"
                     "fmla   v26.8h, v4.8h, v0.h[2]      \n"
                     "fmla   v27.8h, v4.8h, v0.h[3]      \n"
-
                     "subs   w4, w4, #1                  \n"
-
                     "fmla   v28.8h, v4.8h, v0.h[4]      \n"
                     "fmla   v29.8h, v4.8h, v0.h[5]      \n"
                     "fmla   v30.8h, v4.8h, v0.h[6]      \n"
                     "fmla   v31.8h, v4.8h, v0.h[7]      \n"
-
                     "bne    4b                          \n"
 
                     "5:                                 \n"
@@ -958,20 +944,13 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
                     "beq    5f                          \n"
 
                     "4:                                 \n"
-                    "prfm   pldl1keep, [%2, #64]        \n"
                     "ld1    {v0.4h}, [%2], #8           \n"
-
-                    "prfm   pldl1keep, [%1, #128]       \n"
                     "ld1    {v4.8h}, [%1], #16          \n"
-
                     "fmla   v28.8h, v4.8h, v0.h[0]      \n"
                     "fmla   v29.8h, v4.8h, v0.h[1]      \n"
-
                     "subs   w4, w4, #1                  \n"
-
                     "fmla   v30.8h, v4.8h, v0.h[2]      \n"
                     "fmla   v31.8h, v4.8h, v0.h[3]      \n"
-
                     "bne    4b                          \n"
 
                     "5:                                 \n"
