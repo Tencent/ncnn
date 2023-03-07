@@ -100,6 +100,58 @@ static void transpose_pack_B_tile_fp16(const Mat& B, Mat& BT, int batch, int max
             for (; kk + 7 < max_kk; kk += 8)
             {
                 // transpose 8x12
+#if NCNN_GNU_INLINE_ASM
+                asm volatile(
+                    "prfm   pldl1keep, [%0, #512]       \n"
+                    "ld4    {v0.8h, v1.8h, v2.8h, v3.8h}, [%0], #64 \n"
+                    "prfm   pldl1keep, [%0, #512]       \n"
+                    "ld4    {v4.8h, v5.8h, v6.8h, v7.8h}, [%0], #64 \n"
+                    "prfm   pldl1keep, [%0, #512]       \n"
+                    "ld4    {v8.8h, v9.8h, v10.8h, v11.8h}, [%0] \n"
+
+                    "uzp1   v12.8h, v0.8h, v4.8h        \n"
+                    "uzp2   v16.8h, v0.8h, v4.8h        \n"
+                    "uzp1   v13.8h, v1.8h, v5.8h        \n"
+                    "uzp2   v17.8h, v1.8h, v5.8h        \n"
+                    "uzp1   v14.8h, v2.8h, v6.8h        \n"
+                    "uzp2   v18.8h, v2.8h, v6.8h        \n"
+                    "uzp1   v15.8h, v3.8h, v7.8h        \n"
+                    "uzp2   v19.8h, v3.8h, v7.8h        \n"
+                    "uzp1   v20.8h, v8.8h, v9.8h        \n"
+                    "uzp2   v22.8h, v8.8h, v9.8h        \n"
+                    "uzp1   v21.8h, v10.8h, v11.8h      \n"
+                    "uzp2   v23.8h, v10.8h, v11.8h      \n"
+
+                    "sub    %0, %0, #128                \n"
+
+                    "ext    v24.16b, v20.16b, v20.16b, #8 \n"
+                    "ext    v26.16b, v22.16b, v22.16b, #8 \n"
+                    "ext    v25.16b, v21.16b, v21.16b, #8 \n"
+                    "ext    v27.16b, v23.16b, v23.16b, #8 \n"
+
+                    "st1    {v12.8h}, [%1], #16         \n"
+                    "st1    {v20.4h}, [%1], #8          \n"
+                    "st1    {v13.8h}, [%1], #16         \n"
+                    "st1    {v24.4h}, [%1], #8          \n"
+                    "st1    {v14.8h}, [%1], #16         \n"
+                    "st1    {v21.4h}, [%1], #8          \n"
+                    "st1    {v15.8h}, [%1], #16         \n"
+                    "st1    {v25.4h}, [%1], #8          \n"
+                    "st1    {v16.8h}, [%1], #16         \n"
+                    "st1    {v22.4h}, [%1], #8          \n"
+                    "st1    {v17.8h}, [%1], #16         \n"
+                    "st1    {v26.4h}, [%1], #8          \n"
+                    "st1    {v18.8h}, [%1], #16         \n"
+                    "st1    {v23.4h}, [%1], #8          \n"
+                    "st1    {v19.8h}, [%1], #16         \n"
+                    "st1    {v27.4h}, [%1], #8          \n"
+                    : "=r"(p0), // %0
+                    "=r"(pp)  // %1
+                    : "0"(p0),
+                    "1"(pp)
+                    : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
+                p0 += max_jj * batch * 8;
+#else  // NCNN_GNU_INLINE_ASM
                 uint16x8x4_t _r0 = vld4q_u16(p0);
                 uint16x8x4_t _r1 = vld4q_u16(p0 + 32);
                 uint16x8x4_t _r2 = vld4q_u16(p0 + 64);
@@ -127,6 +179,7 @@ static void transpose_pack_B_tile_fp16(const Mat& B, Mat& BT, int batch, int max
                 vst1_u16(pp + 92, vget_high_u16(_r2367h.val[1]));
                 p0 += max_jj * batch * 8;
                 pp += 96;
+#endif // NCNN_GNU_INLINE_ASM
             }
             p0 -= (b * max_jj + jj) * 8;
             p0 += (b * max_jj + jj) * 4;

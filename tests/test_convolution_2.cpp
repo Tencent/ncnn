@@ -110,6 +110,8 @@ static int test_convolution_0()
 static int test_convolution_1()
 {
     return 0
+           || test_convolution(7, 6, 135, 31, 3, 1, 1, 1, 0)
+           || test_convolution(8, 7, 31, 135, 3, 1, 1, 1, 0)
            || test_convolution(9, 7, 135, 7, 3, 1, 1, 0, 0)
            || test_convolution(11, 9, 7, 135, 3, 1, 1, 0, 0);
 }
