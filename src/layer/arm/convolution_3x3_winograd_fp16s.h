@@ -232,6 +232,34 @@ static void transpose_pack_B_tile_fp16(const Mat& B, Mat& BT, int batch, int max
             for (; kk + 7 < max_kk; kk += 8)
             {
                 // transpose 8x8
+#if NCNN_GNU_INLINE_ASM
+                asm volatile(
+                    "prfm   pldl1keep, [%0, #512]       \n"
+                    "ld4    {v0.8h, v1.8h, v2.8h, v3.8h}, [%0], #64 \n"
+                    "prfm   pldl1keep, [%0, #512]       \n"
+                    "ld4    {v4.8h, v5.8h, v6.8h, v7.8h}, [%0] \n"
+
+                    "uzp1   v8.8h, v0.8h, v4.8h         \n"
+                    "uzp2   v12.8h, v0.8h, v4.8h        \n"
+                    "uzp1   v9.8h, v1.8h, v5.8h         \n"
+                    "uzp2   v13.8h, v1.8h, v5.8h        \n"
+
+                    "sub    %0, %0, #64                 \n"
+
+                    "uzp1   v10.8h, v2.8h, v6.8h        \n"
+                    "uzp2   v14.8h, v2.8h, v6.8h        \n"
+                    "uzp1   v11.8h, v3.8h, v7.8h        \n"
+                    "uzp2   v15.8h, v3.8h, v7.8h        \n"
+
+                    "st1    {v8.8h, v9.8h, v10.8h, v11.8h}, [%1], #64 \n"
+                    "st1    {v12.8h, v13.8h, v14.8h, v15.8h}, [%1], #64 \n"
+                    : "=r"(p0), // %0
+                    "=r"(pp)  // %1
+                    : "0"(p0),
+                    "1"(pp)
+                    : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15");
+                p0 += max_jj * batch * 8;
+#else  // NCNN_GNU_INLINE_ASM
                 uint16x8x4_t _r0 = vld4q_u16(p0);
                 uint16x8x4_t _r1 = vld4q_u16(p0 + 32);
                 uint16x8x2_t _r04 = vuzpq_u16(_r0.val[0], _r1.val[0]);
@@ -248,6 +276,7 @@ static void transpose_pack_B_tile_fp16(const Mat& B, Mat& BT, int batch, int max
                 vst1q_u16(pp + 8 * 7, _r37.val[1]);
                 p0 += max_jj * batch * 8;
                 pp += 64;
+#endif // NCNN_GNU_INLINE_ASM
             }
             p0 -= (b * max_jj + jj) * 8;
             p0 += (b * max_jj + jj) * 4;
@@ -292,6 +321,18 @@ static void transpose_pack_B_tile_fp16(const Mat& B, Mat& BT, int batch, int max
             for (; kk + 7 < max_kk; kk += 8)
             {
                 // transpose 8x4
+#if NCNN_GNU_INLINE_ASM
+                asm volatile(
+                    "prfm   pldl1keep, [%0, #512]       \n"
+                    "ld1    {v0.8h, v1.8h, v2.8h, v3.8h}, [%0] \n"
+                    "st4    {v0.8h, v1.8h, v2.8h, v3.8h}, [%1], #64 \n"
+                    : "=r"(p0), // %0
+                    "=r"(pp)  // %1
+                    : "0"(p0),
+                    "1"(pp)
+                    : "memory", "v0", "v1", "v2", "v3");
+                p0 += max_jj * batch * 8;
+#else  // NCNN_GNU_INLINE_ASM
                 uint16x8x4_t _r0;
                 _r0.val[0] = vld1q_u16(p0);
                 _r0.val[1] = vld1q_u16(p0 + 8);
@@ -300,6 +341,7 @@ static void transpose_pack_B_tile_fp16(const Mat& B, Mat& BT, int batch, int max
                 vst4q_u16(pp, _r0);
                 p0 += max_jj * batch * 8;
                 pp += 32;
+#endif // NCNN_GNU_INLINE_ASM
             }
             p0 -= (b * max_jj + jj) * 8;
             p0 += (b * max_jj + jj) * 4;
@@ -345,12 +387,25 @@ static void transpose_pack_B_tile_fp16(const Mat& B, Mat& BT, int batch, int max
             for (; kk + 7 < max_kk; kk += 8)
             {
                 // transpose 8x2
+#if NCNN_GNU_INLINE_ASM
+                asm volatile(
+                    "prfm   pldl1keep, [%0, #256]       \n"
+                    "ld1    {v0.8h, v1.8h}, [%0]        \n"
+                    "st2    {v0.8h, v1.8h}, [%1], #32   \n"
+                    : "=r"(p0), // %0
+                    "=r"(pp)  // %1
+                    : "0"(p0),
+                    "1"(pp)
+                    : "memory", "v0", "v1");
+                p0 += max_jj * batch * 8;
+#else  // NCNN_GNU_INLINE_ASM
                 uint16x8x2_t _r0;
                 _r0.val[0] = vld1q_u16(p0);
                 _r0.val[1] = vld1q_u16(p0 + 8);
                 vst2q_u16(pp, _r0);
                 p0 += max_jj * batch * 8;
                 pp += 16;
+#endif // NCNN_GNU_INLINE_ASM
             }
             p0 -= (b * max_jj + jj) * 8;
             p0 += (b * max_jj + jj) * 4;
