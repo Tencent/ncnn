@@ -1138,7 +1138,7 @@ int Convolution_arm::create_pipeline_bf16s(const Option& opt)
         // dynamic shape
         if (opt.use_winograd63_convolution && (num_input <= 128 && num_output <= 128))
             conv3x3s1_winograd63_transform_kernel(weight_data, weight_winograd63_data, num_input, num_output, opt);
-        else if (opt.use_winograd43_convolution && (num_input >= 8 || num_output >= 8))
+        else if (opt.use_winograd43_convolution && (num_input >= 8 && num_output >= 8))
             conv3x3s1_winograd43_transform_kernel(weight_data, weight_winograd43_data, num_input, num_output, opt);
         else
             conv3x3s1_winograd23_transform_kernel(weight_data, weight_winograd23_data, num_input, num_output, opt);

@@ -107,9 +107,16 @@ static int test_convolution_0()
            || test_convolution(11, 10, 12, 7, 4, 2, 1, 2, 1);
 }
 
+static int test_convolution_1()
+{
+    return 0
+           || test_convolution(9, 7, 131, 7, 3, 1, 1, 0, 0)
+           || test_convolution(11, 9, 7, 131, 3, 1, 1, 0, 0);
+}
+
 int main()
 {
     SRAND(7767517);
 
-    return test_convolution_0();
+    return test_convolution_0() || test_convolution_1();
 }
