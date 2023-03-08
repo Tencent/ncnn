@@ -149,7 +149,7 @@ static void transpose_pack_B_tile_fp16(const Mat& B, Mat& BT, int batch, int max
                     "=r"(pp)  // %1
                     : "0"(p0),
                     "1"(pp)
-                    : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
+                    : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27");
                 p0 += max_jj * batch * 8;
 #else  // NCNN_GNU_INLINE_ASM
                 uint16x8x4_t _r0 = vld4q_u16(p0);
@@ -632,7 +632,7 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
                     "2"(pB),
                     "r"(max_kk), // %6
                     "r"(k)       // %7
-                    : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
+                    : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
 #else  // NCNN_GNU_INLINE_ASM
                 float16x8_t _sum0;
                 float16x8_t _sum1;
@@ -822,7 +822,7 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
                     "2"(pB),
                     "r"(max_kk), // %6
                     "r"(k)       // %7
-                    : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
+                    : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
 #else  // NCNN_GNU_INLINE_ASM
                 float16x8_t _sum0;
                 float16x8_t _sum1;
@@ -964,7 +964,7 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
                     "2"(pB),
                     "r"(max_kk), // %6
                     "r"(k)       // %7
-                    : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
+                    : "cc", "memory", "x4", "v0", "v1", "v4", "v5", "v6", "v7", "v28", "v29", "v30", "v31");
 #else  // NCNN_GNU_INLINE_ASM
                 float16x8_t _sum0;
                 float16x8_t _sum1;
