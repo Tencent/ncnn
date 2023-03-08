@@ -50,7 +50,7 @@ Layer::Layer()
     support_image_storage = false;
     support_tensor_storage = false;
 
-    support_weight_fp16_storage = false;
+    support_reserved_00 = false;
 
     typeindex = -1;
 
@@ -232,13 +232,20 @@ Layer* create_layer(int index)
     // clang-format off
     // *INDENT-OFF*
     layer_creator_func layer_creator = 0;
-#if NCNN_RUNTIME_CPU && NCNN_AVX2
-    if (ncnn::cpu_support_x86_avx2())
+#if NCNN_RUNTIME_CPU && NCNN_AVX512
+    if (ncnn::cpu_support_x86_avx512())
     {
-        layer_creator = layer_registry_avx2[index].creator;
+        layer_creator = layer_registry_avx512[index].creator;
     }
     else
-#endif// NCNN_RUNTIME_CPU && NCNN_AVX2
+#endif// NCNN_RUNTIME_CPU && NCNN_AVX512
+#if NCNN_RUNTIME_CPU && NCNN_FMA
+    if (ncnn::cpu_support_x86_fma())
+    {
+        layer_creator = layer_registry_fma[index].creator;
+    }
+    else
+#endif// NCNN_RUNTIME_CPU && NCNN_FMA
 #if NCNN_RUNTIME_CPU && NCNN_AVX
     if (ncnn::cpu_support_x86_avx())
     {
@@ -246,27 +253,13 @@ Layer* create_layer(int index)
     }
     else
 #endif // NCNN_RUNTIME_CPU && NCNN_AVX
-#if NCNN_RUNTIME_CPU && NCNN_ARM82DOT
-    if (ncnn::cpu_support_arm_asimdhp() && ncnn::cpu_support_arm_asimddp())
+#if NCNN_RUNTIME_CPU && NCNN_LSX
+    if (ncnn::cpu_support_loongarch_lsx())
     {
-        layer_creator = layer_registry_arm82dot[index].creator;
+        layer_creator = layer_registry_lsx[index].creator;
     }
     else
-#endif // NCNN_RUNTIME_CPU && NCNN_ARM82DOT
-#if NCNN_RUNTIME_CPU && NCNN_ARM82 && !__APPLE__
-    if (ncnn::cpu_support_arm_asimdhp())
-    {
-        layer_creator = layer_registry_arm82[index].creator;
-    }
-    else
-#endif // NCNN_RUNTIME_CPU && NCNN_ARM82 && !__APPLE__
-#if NCNN_RUNTIME_CPU && NCNN_MMI
-    if (ncnn::cpu_support_mips_msa() && ncnn::cpu_support_loongson_mmi())
-    {
-        layer_creator = layer_registry_mmi[index].creator;
-    }
-    else
-#endif // NCNN_RUNTIME_CPU && NCNN_MMI
+#endif // NCNN_RUNTIME_CPU && NCNN_LSX
 #if NCNN_RUNTIME_CPU && NCNN_MSA
     if (ncnn::cpu_support_mips_msa())
     {

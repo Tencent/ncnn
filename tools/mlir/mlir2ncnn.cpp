@@ -1474,13 +1474,14 @@ int main(int argc, char** argv)
                 for (int i = 0; i < (int)v.size(); i++)
                 {
                     if (v[i] == 1)
-                        fprintf(pp, ",2");
-                    if (v[i] == 2)
-                        fprintf(pp, ",3");
-                    if (v[i] == 3)
                         fprintf(pp, ",1");
+                    if (v[i] == 2)
+                        fprintf(pp, ",2");
+                    if (v[i] == 3)
+                        fprintf(pp, ",0");
                 }
                 fprintf(pp, " 4=%d", keep_dims);
+                fprintf(pp, " 5=1");
             }
         }
         else if (op == "tf.Minimum")

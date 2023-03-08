@@ -18,13 +18,15 @@
 #include <arm_neon.h>
 #endif // __ARM_NEON
 
+#include "cpu.h"
+
 namespace ncnn {
 
 #if __ARM_NEON
 #include "padding_pack4.h"
 #include "padding_pack4_bf16s_fp16s.h"
 #include "padding_pack8_int8.h"
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#if NCNN_ARM82
 #include "padding_pack8_fp16s.h"
 #endif
 #endif // __ARM_NEON
@@ -33,8 +35,8 @@ Padding_arm::Padding_arm()
 {
 #if __ARM_NEON
     support_packing = true;
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-    support_fp16_storage = true;
+#if NCNN_ARM82
+    support_fp16_storage = cpu_support_arm_asimdhp();
 #endif
 #endif // __ARM_NEON
 
@@ -45,9 +47,11 @@ Padding_arm::Padding_arm()
 
 int Padding_arm::create_pipeline(const Option& opt)
 {
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-    if (opt.use_fp16_storage)
+#if NCNN_ARM82
+    if (support_fp16_storage && opt.use_fp16_storage)
     {
+        value_fp16 = float32_to_float16(value);
+
         ncnn::cast_float32_to_float16(per_channel_pad_data, per_channel_pad_data_fp16, opt);
     }
 #endif
@@ -82,8 +86,8 @@ int Padding_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
     if (elembits == 8)
         return forward_int8(bottom_blob, top_blob, opt);
 
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-    if (opt.use_fp16_storage && elembits == 16)
+#if NCNN_ARM82
+    if (support_fp16_storage && opt.use_fp16_storage && elembits == 16)
         return forward_bf16s_fp16s(bottom_blob, top_blob, opt);
 #endif
 
@@ -94,6 +98,7 @@ int Padding_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
+    int d = bottom_blob.d;
     int channels = bottom_blob.c;
     int dims = bottom_blob.dims;
     size_t elemsize = bottom_blob.elemsize;
@@ -109,13 +114,16 @@ int Padding_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             int out_elempack = outw % 4 == 0 ? 4 : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
-            top_blob.create(outw / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
-            if (left % 4 == 0 && out_elempack == 4)
+            if (left % 4 == 0 && out_elempack == 4 && type == 0)
             {
-                // TODO
+                top_blob.create(outw / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                float32x4_t pad_value = vdupq_n_f32(value);
+                padding_constant_pack4_neon(bottom_blob, top_blob, 0, 0, left / 4, right / 4, pad_value);
+
+                return 0;
             }
         }
 
@@ -127,13 +135,16 @@ int Padding_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             int out_elempack = outh % 4 == 0 ? 4 : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
-            top_blob.create(outw, outh / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
-            if (top % 4 == 0 && out_elempack == 4)
+            if (top % 4 == 0 && out_elempack == 4 && type == 0)
             {
-                // TODO
+                top_blob.create(outw, outh / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                float32x4_t pad_value = vdupq_n_f32(value);
+                padding_constant_pack4_neon(bottom_blob, top_blob, top / 4, bottom / 4, left, right, pad_value);
+
+                return 0;
             }
         }
 
@@ -146,12 +157,12 @@ int Padding_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             int out_elempack = outc % 4 == 0 ? 4 : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
-            top_blob.create(outw, outh, outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
             if (front % 4 == 0 && out_elempack == 4 && !(outc != channels * elempack && type != 0))
             {
+                top_blob.create(outw, outh, outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
                 int front_ = front / elempack;
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < outc / out_elempack; q++)
@@ -179,6 +190,44 @@ int Padding_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                 return 0;
             }
         }
+
+        if (dims == 4)
+        {
+            int outw = w + left + right;
+            int outh = h + top + bottom;
+            int outd = d + front + behind;
+
+            if (type == 0)
+            {
+                top_blob.create(outw, outh, outd, channels, elemsize, elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < channels; q++)
+                {
+                    float32x4_t pad_value = per_channel_pad_data_size ? vld1q_f32((const float*)per_channel_pad_data + q * 4) : vdupq_n_f32(value);
+
+                    for (int z = 0; z < outd; z++)
+                    {
+                        Mat borderm = top_blob.channel(q).depth(z);
+
+                        // depth padding
+                        if ((z - front) < 0 || (z - front) >= d)
+                        {
+                            borderm.fill(pad_value);
+                        }
+                        else
+                        {
+                            const Mat m = bottom_blob.channel(q).depth(z - front);
+                            padding_constant_pack4_neon(m, borderm, top, bottom, left, right, pad_value);
+                        }
+                    }
+                }
+
+                return 0;
+            }
+        }
     }
 #endif // __ARM_NEON
 
@@ -198,13 +247,14 @@ int Padding_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
 {
     int w = bottom_blob.w;
     int h = bottom_blob.h;
+    int d = bottom_blob.d;
     int channels = bottom_blob.c;
     int dims = bottom_blob.dims;
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
 #if __ARM_NEON
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#if NCNN_ARM82
     if (elempack == 8)
     {
         if (dims == 1)
@@ -214,13 +264,16 @@ int Padding_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
             int out_elempack = outw % 8 == 0 ? 8 : outw % 4 == 0 ? 4 : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
-            top_blob.create(outw / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
-            if (left % 8 == 0 && out_elempack == 8)
+            if (left % 8 == 0 && out_elempack == 8 && type == 0)
             {
-                // TODO
+                top_blob.create(outw / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                uint16x8_t pad_value = vdupq_n_u16(value_fp16);
+                padding_constant_pack8_fp16s_neon(bottom_blob, top_blob, 0, 0, left / 8, right / 8, pad_value);
+
+                return 0;
             }
         }
 
@@ -232,13 +285,16 @@ int Padding_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
             int out_elempack = outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4 : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
-            top_blob.create(outw, outh / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
-            if (top % 8 == 0 && out_elempack == 8)
+            if (top % 8 == 0 && out_elempack == 8 && type == 0)
             {
-                // TODO
+                top_blob.create(outw, outh / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                uint16x8_t pad_value = vdupq_n_u16(value_fp16);
+                padding_constant_pack8_fp16s_neon(bottom_blob, top_blob, top / 8, bottom / 8, left, right, pad_value);
+
+                return 0;
             }
         }
 
@@ -251,19 +307,19 @@ int Padding_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
             int out_elempack = outc % 8 == 0 ? 8 : outc % 4 == 0 ? 4 : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
-            top_blob.create(outw, outh, outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
             if (front % 8 == 0 && out_elempack == 8 && !(outc != channels * elempack && type != 0))
             {
+                top_blob.create(outw, outh, outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
                 int front_ = front / elempack;
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < outc / out_elempack; q++)
                 {
                     Mat borderm = top_blob.channel(q);
 
-                    float16x8_t pad_value = per_channel_pad_data_size ? vld1q_f16((const __fp16*)per_channel_pad_data_fp16 + q * 8) : vdupq_n_f16((__fp16)value);
+                    uint16x8_t pad_value = per_channel_pad_data_size ? vld1q_u16((const unsigned short*)per_channel_pad_data_fp16 + q * 8) : vdupq_n_u16(value_fp16);
 
                     //Channel padding
                     if ((q - front_) < 0 || (q - front_) >= channels)
@@ -285,6 +341,44 @@ int Padding_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                 return 0;
             }
         }
+
+        if (dims == 4)
+        {
+            int outw = w + left + right;
+            int outh = h + top + bottom;
+            int outd = d + front + behind;
+
+            if (type == 0)
+            {
+                top_blob.create(outw, outh, outd, channels, elemsize, elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < channels; q++)
+                {
+                    uint16x8_t pad_value = per_channel_pad_data_size ? vld1q_u16((const unsigned short*)per_channel_pad_data_fp16 + q * 8) : vdupq_n_u16(value_fp16);
+
+                    for (int z = 0; z < outd; z++)
+                    {
+                        Mat borderm = top_blob.channel(q).depth(z);
+
+                        // depth padding
+                        if ((z - front) < 0 || (z - front) >= d)
+                        {
+                            borderm.fill(pad_value);
+                        }
+                        else
+                        {
+                            const Mat m = bottom_blob.channel(q).depth(z - front);
+                            padding_constant_pack8_fp16s_neon(m, borderm, top, bottom, left, right, pad_value);
+                        }
+                    }
+                }
+
+                return 0;
+            }
+        }
     }
 #endif
 
@@ -294,20 +388,45 @@ int Padding_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
         {
             int outw = w * elempack + left + right;
 
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-            int out_elempack = opt.use_fp16_arithmetic && outw % 8 == 0 ? 8 : outw % 4 == 0 ? 4 : 1;
+#if NCNN_ARM82
+            int out_elempack = support_fp16_storage && opt.use_fp16_arithmetic && outw % 8 == 0 ? 8 : outw % 4 == 0 ? 4 : 1;
 #else
             int out_elempack = outw % 4 == 0 ? 4 : 1;
 #endif
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
-            top_blob.create(outw / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
-            if (left % 4 == 0 && out_elempack == 4)
+            if (left % 4 == 0 && out_elempack == 4 && type == 0)
             {
-                // TODO
+                top_blob.create(outw / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                // clang-format off
+                // *INDENT-OFF*
+                uint16x4_t pad_value;
+#if NCNN_ARM82
+                if (support_fp16_storage && opt.use_fp16_storage)
+                {
+                    pad_value = vdup_n_u16(value_fp16);
+                }
+                else
+#endif
+#if NCNN_BF16
+                if (opt.use_bf16_storage)
+                {
+                    pad_value = vdup_n_u16(value_bf16);
+                }
+                else
+#endif
+                {
+                    // shall never reach here
+                    pad_value = vdup_n_u16(0);
+                }
+                // *INDENT-ON*
+                // clang-format on
+                padding_constant_pack4_bf16_fp16s_neon(bottom_blob, top_blob, 0, 0, left / 4, right / 4, vcombine_u16(pad_value, pad_value));
+
+                return 0;
             }
         }
 
@@ -316,20 +435,45 @@ int Padding_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
             int outw = w + left + right;
             int outh = h * elempack + top + bottom;
 
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-            int out_elempack = opt.use_fp16_arithmetic && outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4 : 1;
+#if NCNN_ARM82
+            int out_elempack = support_fp16_storage && opt.use_fp16_arithmetic && outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4 : 1;
 #else
             int out_elempack = outh % 4 == 0 ? 4 : 1;
 #endif
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
-            top_blob.create(outw, outh / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
-            if (top % 4 == 0 && out_elempack == 4)
+            if (top % 4 == 0 && out_elempack == 4 && type == 0)
             {
-                // TODO
+                top_blob.create(outw, outh / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                // clang-format off
+                // *INDENT-OFF*
+                uint16x4_t pad_value;
+#if NCNN_ARM82
+                if (support_fp16_storage && opt.use_fp16_storage)
+                {
+                    pad_value = vdup_n_u16(value_fp16);
+                }
+                else
+#endif
+#if NCNN_BF16
+                if (opt.use_bf16_storage)
+                {
+                    pad_value = vdup_n_u16(value_bf16);
+                }
+                else
+#endif
+                {
+                    // shall never reach here
+                    pad_value = vdup_n_u16(0);
+                }
+                // *INDENT-ON*
+                // clang-format on
+                padding_constant_pack4_bf16_fp16s_neon(bottom_blob, top_blob, top / 4, bottom / 4, left, right, vcombine_u16(pad_value, pad_value));
+
+                return 0;
             }
         }
 
@@ -339,19 +483,19 @@ int Padding_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
             int outh = h + top + bottom;
             int outc = channels * elempack + front + behind;
 
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-            int out_elempack = opt.use_fp16_arithmetic && outc % 8 == 0 ? 8 : outc % 4 == 0 ? 4 : 1;
+#if NCNN_ARM82
+            int out_elempack = support_fp16_storage && opt.use_fp16_arithmetic && outc % 8 == 0 ? 8 : outc % 4 == 0 ? 4 : 1;
 #else
             int out_elempack = outc % 4 == 0 ? 4 : 1;
 #endif
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
-            top_blob.create(outw, outh, outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
             if (front % 4 == 0 && out_elempack == 4 && !(outc != channels * elempack && type != 0))
             {
+                top_blob.create(outw, outh, outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
                 int front_ = front / elempack;
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < outc / out_elempack; q++)
@@ -361,10 +505,10 @@ int Padding_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                     // clang-format off
                     // *INDENT-OFF*
                     uint16x4_t pad_value;
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-                    if (opt.use_fp16_storage)
+#if NCNN_ARM82
+                    if (support_fp16_storage && opt.use_fp16_storage)
                     {
-                        pad_value = per_channel_pad_data_size ? vreinterpret_u16_f16(vld1_f16((const __fp16*)per_channel_pad_data_fp16 + q * 4)) : vreinterpret_u16_f16(vdup_n_f16((__fp16)value));
+                        pad_value = per_channel_pad_data_size ? vld1_u16((const unsigned short*)per_channel_pad_data_fp16 + q * 4) : vdup_n_u16(value_fp16);
                     }
                     else
 #endif
@@ -376,6 +520,8 @@ int Padding_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                     else
 #endif
                     {
+                        // shall never reach here
+                        pad_value = vdup_n_u16(0);
                     }
                     // *INDENT-ON*
                     // clang-format on
@@ -394,6 +540,66 @@ int Padding_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                             padding_replicate_pack4_bf16_fp16s_neon(m, borderm, top, bottom, left, right);
                         if (type == 2)
                             padding_reflect_pack4_bf16_fp16s_neon(m, borderm, top, bottom, left, right);
+                    }
+                }
+
+                return 0;
+            }
+        }
+
+        if (dims == 4)
+        {
+            int outw = w + left + right;
+            int outh = h + top + bottom;
+            int outd = d + front + behind;
+
+            if (type == 0)
+            {
+                top_blob.create(outw, outh, outd, channels, elemsize, elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < channels; q++)
+                {
+                    // clang-format off
+                    // *INDENT-OFF*
+                    uint16x4_t pad_value;
+#if NCNN_ARM82
+                    if (support_fp16_storage && opt.use_fp16_storage)
+                    {
+                        pad_value = per_channel_pad_data_size ? vld1_u16((const unsigned short*)per_channel_pad_data_fp16 + q * 4) : vdup_n_u16(value_fp16);
+                    }
+                    else
+#endif
+#if NCNN_BF16
+                    if (opt.use_bf16_storage)
+                    {
+                        pad_value = per_channel_pad_data_size ? vld1_u16((const unsigned short*)per_channel_pad_data_bf16 + q * 4) : vdup_n_u16(value_bf16);
+                    }
+                    else
+#endif
+                    {
+                        // shall never reach here
+                        pad_value = vdup_n_u16(0);
+                    }
+                    // *INDENT-ON*
+                    // clang-format on
+
+                    for (int z = 0; z < outd; z++)
+                    {
+                        Mat borderm = top_blob.channel(q).depth(z);
+
+                        // depth padding
+                        if ((z - front) < 0 || (z - front) >= d)
+                        {
+                            borderm.fill(pad_value);
+                        }
+                        else
+                        {
+                            const Mat m = bottom_blob.channel(q).depth(z - front);
+                            padding_constant_pack4_bf16_fp16s_neon(m, borderm, top, bottom, left, right, vcombine_u16(pad_value, pad_value));
+                        }
                     }
                 }
 
@@ -419,6 +625,7 @@ int Padding_arm::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Optio
 {
     int w = bottom_blob.w;
     int h = bottom_blob.h;
+    int d = bottom_blob.d;
     int channels = bottom_blob.c;
     int dims = bottom_blob.dims;
     size_t elemsize = bottom_blob.elemsize;
@@ -434,13 +641,16 @@ int Padding_arm::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Optio
             int out_elempack = outw % 8 == 0 ? 8 : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
-            top_blob.create(outw / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
-            if (left % 8 == 0 && out_elempack == 8)
+            if (left % 8 == 0 && out_elempack == 8 && type == 0)
             {
-                // TODO
+                top_blob.create(outw / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                int8x8_t pad_value = vdup_n_s8((signed char)value);
+                padding_constant_pack8_int8_neon(bottom_blob, top_blob, 0, 0, left / 8, right / 8, pad_value);
+
+                return 0;
             }
         }
 
@@ -452,13 +662,16 @@ int Padding_arm::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Optio
             int out_elempack = outh % 8 == 0 ? 8 : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
-            top_blob.create(outw, outh / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
-            if (top % 8 == 0 && out_elempack == 8)
+            if (top % 8 == 0 && out_elempack == 8 && type == 0)
             {
-                // TODO
+                top_blob.create(outw, outh / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                int8x8_t pad_value = vdup_n_s8((signed char)value);
+                padding_constant_pack8_int8_neon(bottom_blob, top_blob, top / 8, bottom / 8, left, right, pad_value);
+
+                return 0;
             }
         }
 
@@ -501,6 +714,46 @@ int Padding_arm::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Optio
                             padding_replicate_pack8_int8_neon(m, borderm, top, bottom, left, right);
                         if (type == 2)
                             padding_reflect_pack8_int8_neon(m, borderm, top, bottom, left, right);
+                    }
+                }
+
+                return 0;
+            }
+        }
+
+        if (dims == 4)
+        {
+            int outw = w + left + right;
+            int outh = h + top + bottom;
+            int outd = d + front + behind;
+
+            top_blob.create(outw, outh, outd, channels, elemsize, elempack, opt.blob_allocator);
+            if (top_blob.empty())
+                return -100;
+
+            if (type == 0)
+            {
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < channels; q++)
+                {
+                    // TODO perchannel
+                    //                     int8x8_t pad_value = per_channel_pad_data_size ? vld1_s8(per_channel_pad_data + q * 8) : vdup_n_s8((signed char)value);
+                    int8x8_t pad_value = vdup_n_s8((signed char)value);
+
+                    for (int z = 0; z < outd; z++)
+                    {
+                        Mat borderm = top_blob.channel(q).depth(z);
+
+                        // depth padding
+                        if ((z - front) < 0 || (z - front) >= d)
+                        {
+                            borderm.fill<int8x8_t>(pad_value);
+                        }
+                        else
+                        {
+                            const Mat m = bottom_blob.channel(q).depth(z - front);
+                            padding_constant_pack8_int8_neon(m, borderm, top, bottom, left, right, pad_value);
+                        }
                     }
                 }
 

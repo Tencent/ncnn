@@ -181,7 +181,7 @@ static void im2col_sgemm_pack4_bf16s_neon(const Mat& bottom_im2col, Mat& top_blo
 #else
                     asm volatile(
                         "pld        [%0, #256]          \n"
-                        "vld1.u16   {d0-d3}, [%0 :128]  \n"
+                        "vld1.u16   {d0-d3}, [%0 :64]   \n"
                         "vst1.u16   {d0-d3}, [%1 :128]! \n"
                         : "=r"(img0),  // %0
                         "=r"(tmpptr) // %1
@@ -227,7 +227,7 @@ static void im2col_sgemm_pack4_bf16s_neon(const Mat& bottom_im2col, Mat& top_blo
 #else
                     asm volatile(
                         "pld        [%0, #128]          \n"
-                        "vld1.u16   {d0-d1}, [%0 :128]  \n"
+                        "vld1.u16   {d0-d1}, [%0 :64]   \n"
                         "vst1.u16   {d0-d1}, [%1 :128]! \n"
                         : "=r"(img0),  // %0
                         "=r"(tmpptr) // %1
@@ -1574,7 +1574,7 @@ static void im2col_sgemm_pack4_bf16s_neon(const Mat& bottom_im2col, Mat& top_blo
                 "0:                         \n"
 
                 "pld        [%2, #128]      \n"
-                "vld1.u16   {d4-d5}, [%2 :128]! \n"
+                "vld1.u16   {d4-d5}, [%2 :64]! \n"
 
                 "vshll.u16  q0, d4, #16     \n"
                 "vshll.u16  q1, d5, #16     \n"
@@ -1606,7 +1606,7 @@ static void im2col_sgemm_pack4_bf16s_neon(const Mat& bottom_im2col, Mat& top_blo
                 "vshrn.u32  d16, q8, #16    \n"
                 "vshrn.u32  d17, q9, #16    \n"
 
-                "vst1.u16   {d16-d17}, [%1 :128]! \n"
+                "vst1.u16   {d16-d17}, [%1 :64]! \n"
 
                 : "=r"(nn),      // %0
                 "=r"(outptr0), // %1
@@ -1732,9 +1732,9 @@ static void convolution_im2col_sgemm_transform_kernel_pack4_bf16s_neon(const Mat
     // dst = 4b-4a-maxk-inch/4a-outch/4b
     Mat kernel = _kernel.reshape(maxk, inch, outch);
 #if __aarch64__
-    kernel_tm.create(32 * maxk, inch / 4, outch / 8 + (outch % 8) / 4, 2u);
+    kernel_tm.create(32 * maxk, inch / 4, outch / 8 + (outch % 8) / 4, (size_t)2u);
 #else
-    kernel_tm.create(16 * maxk, inch / 4, outch / 4, 2u);
+    kernel_tm.create(16 * maxk, inch / 4, outch / 4, (size_t)2u);
 #endif
 
     int q = 0;

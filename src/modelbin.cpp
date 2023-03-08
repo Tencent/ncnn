@@ -46,6 +46,15 @@ Mat ModelBin::load(int w, int h, int c, int type) const
     return m.reshape(w, h, c);
 }
 
+Mat ModelBin::load(int w, int h, int d, int c, int type) const
+{
+    Mat m = load(w * h * d * c, type);
+    if (m.empty())
+        return m;
+
+    return m.reshape(w, h, d, c);
+}
+
 class ModelBinFromDataReaderPrivate
 {
 public:
@@ -78,6 +87,8 @@ ModelBinFromDataReader& ModelBinFromDataReader::operator=(const ModelBinFromData
 
 Mat ModelBinFromDataReader::load(int w, int type) const
 {
+    Mat m;
+
     if (type == 0)
     {
         size_t nread;
@@ -107,61 +118,95 @@ Mat ModelBinFromDataReader::load(int w, int type) const
         {
             // half-precision data
             size_t align_data_size = alignSize(w * sizeof(unsigned short), 4);
-            std::vector<unsigned short> float16_weights;
-            float16_weights.resize(align_data_size);
-            nread = d->dr.read(float16_weights.data(), align_data_size);
-            if (nread != align_data_size)
+
+            // try reference data
+            const void* refbuf = 0;
+            nread = d->dr.reference(align_data_size, &refbuf);
+            if (nread == align_data_size)
             {
-                NCNN_LOGE("ModelBin read float16_weights failed %zd", nread);
-                return Mat();
+                m = Mat::from_float16((const unsigned short*)refbuf, w);
+            }
+            else
+            {
+                std::vector<unsigned short> float16_weights;
+                float16_weights.resize(align_data_size);
+                nread = d->dr.read(&float16_weights[0], align_data_size);
+                if (nread != align_data_size)
+                {
+                    NCNN_LOGE("ModelBin read float16_weights failed %zd", nread);
+                    return Mat();
+                }
+
+                m = Mat::from_float16(&float16_weights[0], w);
             }
 
-            return Mat::from_float16(float16_weights.data(), w);
+            return m;
         }
         else if (flag_struct.tag == 0x000D4B38)
         {
             // int8 data
             size_t align_data_size = alignSize(w, 4);
-            std::vector<signed char> int8_weights;
-            int8_weights.resize(align_data_size);
-            nread = d->dr.read(int8_weights.data(), align_data_size);
-            if (nread != align_data_size)
+
+            // try reference data
+            const void* refbuf = 0;
+            nread = d->dr.reference(align_data_size, &refbuf);
+            if (nread == align_data_size)
             {
-                NCNN_LOGE("ModelBin read int8_weights failed %zd", nread);
-                return Mat();
+                m = Mat(w, (void*)refbuf, (size_t)1u);
             }
+            else
+            {
+                std::vector<signed char> int8_weights;
+                int8_weights.resize(align_data_size);
+                nread = d->dr.read(&int8_weights[0], align_data_size);
+                if (nread != align_data_size)
+                {
+                    NCNN_LOGE("ModelBin read int8_weights failed %zd", nread);
+                    return Mat();
+                }
 
-            Mat m(w, (size_t)1u);
-            if (m.empty())
-                return m;
+                m.create(w, (size_t)1u);
+                if (m.empty())
+                    return m;
 
-            memcpy(m.data, int8_weights.data(), w);
+                memcpy(m.data, &int8_weights[0], w);
+            }
 
             return m;
         }
         else if (flag_struct.tag == 0x0002C056)
         {
-            Mat m(w);
-            if (m.empty())
-                return m;
-
-            // raw data with extra scaling
-            nread = d->dr.read(m, w * sizeof(float));
-            if (nread != w * sizeof(float))
+            // try reference data
+            const void* refbuf = 0;
+            nread = d->dr.reference(w * sizeof(float), &refbuf);
+            if (nread == w * sizeof(float))
             {
-                NCNN_LOGE("ModelBin read weight_data failed %zd", nread);
-                return Mat();
+                m = Mat(w, (void*)refbuf);
+            }
+            else
+            {
+                m.create(w);
+                if (m.empty())
+                    return m;
+
+                // raw data with extra scaling
+                nread = d->dr.read(m, w * sizeof(float));
+                if (nread != w * sizeof(float))
+                {
+                    NCNN_LOGE("ModelBin read weight_data failed %zd", nread);
+                    return Mat();
+                }
             }
 
             return m;
         }
 
-        Mat m(w);
-        if (m.empty())
-            return m;
-
         if (flag != 0)
         {
+            m.create(w);
+            if (m.empty())
+                return m;
+
             // quantized data
             float quantization_value[256];
             nread = d->dr.read(quantization_value, 256 * sizeof(float));
@@ -174,7 +219,7 @@ Mat ModelBinFromDataReader::load(int w, int type) const
             size_t align_weight_data_size = alignSize(w * sizeof(unsigned char), 4);
             std::vector<unsigned char> index_array;
             index_array.resize(align_weight_data_size);
-            nread = d->dr.read(index_array.data(), align_weight_data_size);
+            nread = d->dr.read(&index_array[0], align_weight_data_size);
             if (nread != align_weight_data_size)
             {
                 NCNN_LOGE("ModelBin read index_array failed %zd", nread);
@@ -189,12 +234,26 @@ Mat ModelBinFromDataReader::load(int w, int type) const
         }
         else if (flag_struct.f0 == 0)
         {
-            // raw data
-            nread = d->dr.read(m, w * sizeof(float));
-            if (nread != w * sizeof(float))
+            // try reference data
+            const void* refbuf = 0;
+            nread = d->dr.reference(w * sizeof(float), &refbuf);
+            if (nread == w * sizeof(float))
             {
-                NCNN_LOGE("ModelBin read weight_data failed %zd", nread);
-                return Mat();
+                m = Mat(w, (void*)refbuf);
+            }
+            else
+            {
+                m.create(w);
+                if (m.empty())
+                    return m;
+
+                // raw data
+                nread = d->dr.read(m, w * sizeof(float));
+                if (nread != w * sizeof(float))
+                {
+                    NCNN_LOGE("ModelBin read weight_data failed %zd", nread);
+                    return Mat();
+                }
             }
         }
 
@@ -202,16 +261,26 @@ Mat ModelBinFromDataReader::load(int w, int type) const
     }
     else if (type == 1)
     {
-        Mat m(w);
-        if (m.empty())
-            return m;
-
-        // raw data
-        size_t nread = d->dr.read(m, w * sizeof(float));
-        if (nread != w * sizeof(float))
+        // try reference data
+        const void* refbuf = 0;
+        size_t nread = d->dr.reference(w * sizeof(float), &refbuf);
+        if (nread == w * sizeof(float))
         {
-            NCNN_LOGE("ModelBin read weight_data failed %zd", nread);
-            return Mat();
+            m = Mat(w, (void*)refbuf);
+        }
+        else
+        {
+            m.create(w);
+            if (m.empty())
+                return m;
+
+            // raw data
+            size_t nread = d->dr.read(m, w * sizeof(float));
+            if (nread != w * sizeof(float))
+            {
+                NCNN_LOGE("ModelBin read weight_data failed %zd", nread);
+                return Mat();
+            }
         }
 
         return m;

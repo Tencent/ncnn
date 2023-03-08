@@ -28,14 +28,16 @@ layout (constant_id = 1) const int bugihfa = 0;
 layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
 layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
 layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
-layout (constant_id = shape_constant_id_offset + 3) const int c = 0;
-layout (constant_id = shape_constant_id_offset + 4) const int cstep = 0;
+layout (constant_id = shape_constant_id_offset + 3) const int d = 0;
+layout (constant_id = shape_constant_id_offset + 4) const int c = 0;
+layout (constant_id = shape_constant_id_offset + 5) const int cstep = 0;
 
-layout (constant_id = shape_constant_id_offset + 5) const int outdims = 0;
-layout (constant_id = shape_constant_id_offset + 6) const int outw = 0;
-layout (constant_id = shape_constant_id_offset + 7) const int outh = 0;
-layout (constant_id = shape_constant_id_offset + 8) const int outc = 0;
-layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
+layout (constant_id = shape_constant_id_offset + 6) const int outdims = 0;
+layout (constant_id = shape_constant_id_offset + 7) const int outw = 0;
+layout (constant_id = shape_constant_id_offset + 8) const int outh = 0;
+layout (constant_id = shape_constant_id_offset + 9) const int outd = 0;
+layout (constant_id = shape_constant_id_offset + 10) const int outc = 0;
+layout (constant_id = shape_constant_id_offset + 11) const int outcstep = 0;
 
 #if NCNN_image_shader
 layout (binding = 0) uniform unfp sampler3D bottom_blob_3d;
@@ -54,12 +56,14 @@ layout (push_constant) uniform parameter
     int dims;
     int w;
     int h;
+    int d;
     int c;
     int cstep;
 
     int outdims;
     int outw;
     int outh;
+    int outd;
     int outc;
     int outcstep;
 } p;
@@ -70,227 +74,368 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= psc(outw) || gy >= psc(outh) || gz >= psc(outc))
+    if (gx >= psc(outw) || gy >= psc(outh) * psc(outd) || gz >= psc(outc))
         return;
 
+    ivec4 x4;
+    ivec4 y4;
+    ivec4 z4;
+
+    if (psc(dims) == 2)
+    {
+        // order_type
+        // 0 = w h
+        // 1 = h w
+
+        gz = 0;
+        z4 = ivec4(0);
+
+        if (order_type == 0)
+        {
+            x4 = ivec4(gx);
+            y4 = gy * 4 + ivec4(0, 1, 2, 3);
+        }
+        if (order_type == 1)
+        {
+            x4 = gy * 4 + ivec4(0, 1, 2, 3);
+            y4 = ivec4(gx);
+        }
+    }
+    else if (psc(dims) == 3)
+    {
+        // order_type
+        // 0 = w h c
+        // 1 = h w c
+        // 2 = w c h
+        // 3 = c w h
+        // 4 = h c w
+        // 5 = c h w
+
+        if (order_type == 0)
+        {
+            x4 = ivec4(gx);
+            y4 = ivec4(gy);
+            z4 = gz * 4 + ivec4(0, 1, 2, 3);
+        }
+        if (order_type == 1)
+        {
+            x4 = ivec4(gy);
+            y4 = ivec4(gx);
+            z4 = gz * 4 + ivec4(0, 1, 2, 3);
+        }
+        if (order_type == 2)
+        {
+            x4 = ivec4(gx);
+            y4 = gz * 4 + ivec4(0, 1, 2, 3);
+            z4 = ivec4(gy);
+        }
+        if (order_type == 3)
+        {
+            x4 = ivec4(gy);
+            y4 = gz * 4 + ivec4(0, 1, 2, 3);
+            z4 = ivec4(gx);
+        }
+        if (order_type == 4)
+        {
+            x4 = gz * 4 + ivec4(0, 1, 2, 3);
+            y4 = ivec4(gx);
+            z4 = ivec4(gy);
+        }
+        if (order_type == 5)
+        {
+            x4 = gz * 4 + ivec4(0, 1, 2, 3);
+            y4 = ivec4(gy);
+            z4 = ivec4(gx);
+        }
+    }
+    else // if (psc(dims) == 4)
+    {
+        // order_type
+        // 0 = w h d c
+        // 1 = h w d c
+        // 2 = w d h c
+        // 3 = d w h c
+        // 4 = h d w c
+        // 5 = d h w c
+        // 6 = w h c d
+        // 7 = h w c d
+        // 8 = w c h d
+        // 9 = c w h d
+        //10 = h c w d
+        //11 = c h w d
+        //12 = w d c h
+        //13 = d w c h
+        //14 = w c d h
+        //15 = c w d h
+        //16 = d c w h
+        //17 = c d w h
+        //18 = h d c w
+        //19 = d h c w
+        //20 = h c d w
+        //21 = c h d w
+        //22 = d c h w
+        //23 = c d h w
+
+        int yd = gy / psc(outh);
+        int yh = gy % psc(outh);
+
+        if (order_type == 0)
+        {
+            x4 = ivec4(gx);
+            y4 = ivec4(yd * psc(h) + yh);
+            z4 = gz * 4 + ivec4(0, 1, 2, 3);
+        }
+        if (order_type == 1)
+        {
+            x4 = ivec4(yh);
+            y4 = ivec4(yd * psc(h) + gx);
+            z4 = gz * 4 + ivec4(0, 1, 2, 3);
+        }
+        if (order_type == 2)
+        {
+            x4 = ivec4(gx);
+            y4 = ivec4(yh * psc(h) + yd);
+            z4 = gz * 4 + ivec4(0, 1, 2, 3);
+        }
+        if (order_type == 3)
+        {
+            x4 = ivec4(yh);
+            y4 = ivec4(gx * psc(h) + yd);
+            z4 = gz * 4 + ivec4(0, 1, 2, 3);
+        }
+        if (order_type == 4)
+        {
+            x4 = ivec4(yd);
+            y4 = ivec4(yh * psc(h) + gx);
+            z4 = gz * 4 + ivec4(0, 1, 2, 3);
+        }
+        if (order_type == 5)
+        {
+            x4 = ivec4(yd);
+            y4 = ivec4(gx * psc(h) + yh);
+            z4 = gz * 4 + ivec4(0, 1, 2, 3);
+        }
+        if (order_type == 6)
+        {
+            x4 = ivec4(gx);
+            y4 = (gz * 4 + ivec4(0, 1, 2, 3)) * psc(h) + yh;
+            z4 = ivec4(yd);
+        }
+        if (order_type == 7)
+        {
+            x4 = ivec4(yh);
+            y4 = (gz * 4 + ivec4(0, 1, 2, 3)) * psc(h) + gx;
+            z4 = ivec4(yd);
+        }
+        if (order_type == 8)
+        {
+            x4 = ivec4(gx);
+            y4 = (gz * 4 + ivec4(0, 1, 2, 3)) * psc(h) + yd;
+            z4 = ivec4(yh);
+        }
+        if (order_type == 9)
+        {
+            x4 = ivec4(yh);
+            y4 = (gz * 4 + ivec4(0, 1, 2, 3)) * psc(h) + yd;
+            z4 = ivec4(gx);
+        }
+        if (order_type == 10)
+        {
+            x4 = ivec4(yd);
+            y4 = (gz * 4 + ivec4(0, 1, 2, 3)) * psc(h) + gx;
+            z4 = ivec4(yh);
+        }
+        if (order_type == 11)
+        {
+            x4 = ivec4(yd);
+            y4 = (gz * 4 + ivec4(0, 1, 2, 3)) * psc(h) + yh;
+            z4 = ivec4(gx);
+        }
+        if (order_type == 12)
+        {
+            x4 = ivec4(gx);
+            y4 = yh * psc(h) + gz * 4 + ivec4(0, 1, 2, 3);
+            z4 = ivec4(yd);
+        }
+        if (order_type == 13)
+        {
+            x4 = ivec4(yh);
+            y4 = gx * psc(h) + gz * 4 + ivec4(0, 1, 2, 3);
+            z4 = ivec4(yd);
+        }
+        if (order_type == 14)
+        {
+            x4 = ivec4(gx);
+            y4 = yd * psc(h) + gz * 4 + ivec4(0, 1, 2, 3);
+            z4 = ivec4(yh);
+        }
+        if (order_type == 15)
+        {
+            x4 = ivec4(yh);
+            y4 = yd * psc(h) + gz * 4 + ivec4(0, 1, 2, 3);
+            z4 = ivec4(gx);
+        }
+        if (order_type == 16)
+        {
+            x4 = ivec4(yd);
+            y4 = gx * psc(h) + gz * 4 + ivec4(0, 1, 2, 3);
+            z4 = ivec4(yh);
+        }
+        if (order_type == 17)
+        {
+            x4 = ivec4(yd);
+            y4 = yh * psc(h) + gz * 4 + ivec4(0, 1, 2, 3);
+            z4 = ivec4(gx);
+        }
+        if (order_type == 18)
+        {
+            x4 = gz * 4 + ivec4(0, 1, 2, 3);
+            y4 = ivec4(yh * psc(h) + gx);
+            z4 = ivec4(yd);
+        }
+        if (order_type == 19)
+        {
+            x4 = gz * 4 + ivec4(0, 1, 2, 3);
+            y4 = ivec4(gx * psc(h) + yh);
+            z4 = ivec4(yd);
+        }
+        if (order_type == 20)
+        {
+            x4 = gz * 4 + ivec4(0, 1, 2, 3);
+            y4 = ivec4(yd * psc(h) + gx);
+            z4 = ivec4(yh);
+        }
+        if (order_type == 21)
+        {
+            x4 = gz * 4 + ivec4(0, 1, 2, 3);
+            y4 = ivec4(yd * psc(h) + yh);
+            z4 = ivec4(gx);
+        }
+        if (order_type == 22)
+        {
+            x4 = gz * 4 + ivec4(0, 1, 2, 3);
+            y4 = ivec4(gx * psc(h) + yd);
+            z4 = ivec4(yh);
+        }
+        if (order_type == 23)
+        {
+            x4 = gz * 4 + ivec4(0, 1, 2, 3);
+            y4 = ivec4(yh * psc(h) + yd);
+            z4 = ivec4(gx);
+        }
+    }
+
 #if NCNN_image_shader
-    if (psc(dims) == 2)
-    {
-        // order_type
-        // 0 = w h
-        // 1 = h w
-
-        ivec4 i4;
-
-        if (order_type == 0)
-        {
-            i4 = ivec4((gy * 4) * psc(w) + gx) + ivec4(0, 1, 2, 3) * psc(w);
-        }
-        if (order_type == 1)
-        {
-            i4 = ivec4(gx * psc(w) + gy * 4) + ivec4(0, 1, 2, 3);
-        }
-
-        ivec4 y4 = i4 / psc(w);
-        ivec4 x4 = i4 % psc(w);
-
-        afpvec4 vr = image3d_ld4(bottom_blob_3d, ivec3(x4.r, y4.r / 4, 0));
-        afpvec4 vg = image3d_ld4(bottom_blob_3d, ivec3(x4.g, y4.g / 4, 0));
-        afpvec4 vb = image3d_ld4(bottom_blob_3d, ivec3(x4.b, y4.b / 4, 0));
-        afpvec4 va = image3d_ld4(bottom_blob_3d, ivec3(x4.a, y4.a / 4, 0));
-
-        ivec4 lane4 = y4 % 4;
-
-        afpvec4 v;
-
-#if NCNN_fp16_arithmetic
-        if (bugihfa == 1)
-        {
-            if (lane4.r == 0) v.r = vr.r;
-            if (lane4.r == 1) v.r = vr.g;
-            if (lane4.r == 2) v.r = vr.b;
-            if (lane4.r == 3) v.r = vr.a;
-            if (lane4.g == 0) v.g = vg.r;
-            if (lane4.g == 1) v.g = vg.g;
-            if (lane4.g == 2) v.g = vg.b;
-            if (lane4.g == 3) v.g = vg.a;
-            if (lane4.b == 0) v.b = vb.r;
-            if (lane4.b == 1) v.b = vb.g;
-            if (lane4.b == 2) v.b = vb.b;
-            if (lane4.b == 3) v.b = vb.a;
-            if (lane4.a == 0) v.a = va.r;
-            if (lane4.a == 1) v.a = va.g;
-            if (lane4.a == 2) v.a = va.b;
-            if (lane4.a == 3) v.a = va.a;
-        }
-        else
-#endif
-        {
-            v = afpvec4(vr[lane4.r], vg[lane4.g], vb[lane4.b], va[lane4.a]);
-        }
-
-        image3d_st4(top_blob_3d, ivec3(gx, gy, 0), v);
-    }
-    else // if (psc(dims) == 3)
-    {
-        // order_type
-        // 0 = w h c
-        // 1 = h w c
-        // 2 = w c h
-        // 3 = c w h
-        // 4 = h c w
-        // 5 = c h w
-
-        int size = psc(w) * psc(h);
-
-        ivec4 i4;
-
-        if (order_type == 0)
-        {
-            i4 = ivec4((gz * 4) * size + gy * psc(w) + gx) + ivec4(0, 1, 2, 3) * size;
-        }
-        if (order_type == 1)
-        {
-            i4 = ivec4((gz * 4) * size + gx * psc(w) + gy) + ivec4(0, 1, 2, 3) * size;
-        }
-        if (order_type == 2)
-        {
-            i4 = ivec4(gy * size + (gz * 4) * psc(w) + gx) + ivec4(0, 1, 2, 3) * psc(w);
-        }
-        if (order_type == 3)
-        {
-            i4 = ivec4(gx * size+ (gz * 4) * psc(w) + gy) + ivec4(0, 1, 2, 3) * psc(w);
-        }
-        if (order_type == 4)
-        {
-            i4 = ivec4(gy * size + gx * psc(w) + gz * 4) + ivec4(0, 1, 2, 3);
-        }
-        if (order_type == 5)
-        {
-            i4 = ivec4(gx * size + gy * psc(w) + gz * 4) + ivec4(0, 1, 2, 3);
-        }
-
-        ivec4 z4 = i4 / size;
-        ivec4 y4 = i4 % size / psc(w);
-        ivec4 x4 = i4 % size % psc(w);
-
-        afpvec4 vr = image3d_ld4(bottom_blob_3d, ivec3(x4.r, y4.r, z4.r / 4));
-        afpvec4 vg = image3d_ld4(bottom_blob_3d, ivec3(x4.g, y4.g, z4.g / 4));
-        afpvec4 vb = image3d_ld4(bottom_blob_3d, ivec3(x4.b, y4.b, z4.b / 4));
-        afpvec4 va = image3d_ld4(bottom_blob_3d, ivec3(x4.a, y4.a, z4.a / 4));
-
-        ivec4 lane4 = z4 % 4;
-
-        afpvec4 v;
-        
-#if NCNN_fp16_arithmetic
-        if (bugihfa == 1)
-        {
-            if (lane4.r == 0) v.r = vr.r;
-            if (lane4.r == 1) v.r = vr.g;
-            if (lane4.r == 2) v.r = vr.b;
-            if (lane4.r == 3) v.r = vr.a;
-            if (lane4.g == 0) v.g = vg.r;
-            if (lane4.g == 1) v.g = vg.g;
-            if (lane4.g == 2) v.g = vg.b;
-            if (lane4.g == 3) v.g = vg.a;
-            if (lane4.b == 0) v.b = vb.r;
-            if (lane4.b == 1) v.b = vb.g;
-            if (lane4.b == 2) v.b = vb.b;
-            if (lane4.b == 3) v.b = vb.a;
-            if (lane4.a == 0) v.a = va.r;
-            if (lane4.a == 1) v.a = va.g;
-            if (lane4.a == 2) v.a = va.b;
-            if (lane4.a == 3) v.a = va.a;
-        }
-        else
-#endif
-        {
-            v = afpvec4(vr[lane4.r], vg[lane4.g], vb[lane4.b], va[lane4.a]);
-        }
-
-        image3d_st4(top_blob_3d, ivec3(gx, gy, gz), v);
-    }
+    ivec4 i4 = z4 * psc(w) * psc(h) * psc(d) + y4 * psc(w) + x4;
+    ivec4 lane4;
 #else
-    ivec4 i4;
-
-    if (psc(dims) == 2)
-    {
-        // order_type
-        // 0 = w h
-        // 1 = h w
-
-        if (order_type == 0)
-        {
-            i4 = ivec4((gy * 4) * psc(w) + gx) + ivec4(0, 1, 2, 3) * psc(w);
-        }
-        if (order_type == 1)
-        {
-            i4 = ivec4(gx * psc(w) + gy * 4) + ivec4(0, 1, 2, 3);
-        }
-    }
-    else // if (psc(dims) == 3)
-    {
-        // order_type
-        // 0 = w h c
-        // 1 = h w c
-        // 2 = w c h
-        // 3 = c w h
-        // 4 = h c w
-        // 5 = c h w
-
-        if (order_type == 0)
-        {
-            i4 = ivec4((gz * 4) * psc(cstep) + gy * psc(w) + gx) + ivec4(0, 1, 2, 3) * psc(cstep);
-        }
-        if (order_type == 1)
-        {
-            i4 = ivec4((gz * 4) * psc(cstep) + gx * psc(w) + gy) + ivec4(0, 1, 2, 3) * psc(cstep);
-        }
-        if (order_type == 2)
-        {
-            i4 = ivec4(gy * psc(cstep) + (gz * 4) * psc(w) + gx) + ivec4(0, 1, 2, 3) * psc(w);
-        }
-        if (order_type == 3)
-        {
-            i4 = ivec4(gx * psc(cstep) + (gz * 4) * psc(w) + gy) + ivec4(0, 1, 2, 3) * psc(w);
-        }
-        if (order_type == 4)
-        {
-            i4 = ivec4(gy * psc(cstep) + gx * psc(w) + gz * 4) + ivec4(0, 1, 2, 3);
-        }
-        if (order_type == 5)
-        {
-            i4 = ivec4(gx * psc(cstep) + gy * psc(w) + gz * 4) + ivec4(0, 1, 2, 3);
-        }
-    }
-
-#if NCNN_fp16_packed
+    ivec4 i4 = z4 * psc(cstep) + y4 * psc(w) + x4;
     ivec4 v_offset;
+#if NCNN_fp16_packed
     ivec4 lane2;
+#endif
+#endif
 
     if (psc(dims) == 2)
     {
-        ivec4 y4 = i4 / psc(w);
-        ivec4 x4 = i4 % psc(w);
+        y4 = i4 / psc(w);
+        x4 = i4 % psc(w);
 
+#if NCNN_image_shader
+        lane4 = y4 % 4;
+        y4 = y4 / 4;
+#else
+#if NCNN_fp16_packed
         v_offset = ((y4 / 4) * psc(w) + x4) * 2 + (y4 % 4) / 2;
         lane2 = y4 % 2;
+#else
+        v_offset = ((y4 / 4) * psc(w) + x4) * 4 + y4 % 4;
+#endif
+#endif
     }
-    else // if (psc(dims) == 3)
+    else if (psc(dims) == 3)
     {
         int size = psc(w) * psc(h);
 
-        ivec4 z4 = i4 / size;
-        ivec4 y4 = i4 % size / psc(w);
-        ivec4 x4 = i4 % size % psc(w);
+        z4 = i4 / size;
+        y4 = i4 % size / psc(w);
+        x4 = i4 % size % psc(w);
 
+#if NCNN_image_shader
+        lane4 = z4 % 4;
+        z4 = z4 / 4;
+#else
+#if NCNN_fp16_packed
         v_offset = ((z4 / 4) * psc(cstep) + y4 * psc(w) + x4) * 2 + (z4 % 4) / 2;
         lane2 = z4 % 2;
+#else
+        v_offset = ((z4 / 4) * psc(cstep) + y4 * psc(w) + x4) * 4 + z4 % 4;
+#endif
+#endif
+    }
+    else // if (psc(dims) == 4)
+    {
+        int size = psc(w) * psc(h) * psc(d);
+        int dsize = psc(w) * psc(h);
+
+        z4 = i4 / size;
+        ivec4 yd4 = i4 % size / dsize;
+        ivec4 yh4 = i4 % size % dsize / psc(w);
+        x4 = i4 % size % dsize % psc(w);
+
+        y4 = yd4 * psc(h) + yh4;
+
+#if NCNN_image_shader
+        lane4 = z4 % 4;
+        z4 = z4 / 4;
+#else
+#if NCNN_fp16_packed
+        v_offset = ((z4 / 4) * psc(cstep) + y4 * psc(w) + x4) * 2 + (z4 % 4) / 2;
+        lane2 = z4 % 2;
+#else
+        v_offset = ((z4 / 4) * psc(cstep) + y4 * psc(w) + x4) * 4 + z4 % 4;
+#endif
+#endif
     }
 
+#if NCNN_image_shader
+    afpvec4 vr = image3d_ld4(bottom_blob_3d, ivec3(x4.r, y4.r, z4.r));
+    afpvec4 vg = image3d_ld4(bottom_blob_3d, ivec3(x4.g, y4.g, z4.g));
+    afpvec4 vb = image3d_ld4(bottom_blob_3d, ivec3(x4.b, y4.b, z4.b));
+    afpvec4 va = image3d_ld4(bottom_blob_3d, ivec3(x4.a, y4.a, z4.a));
+
+    afpvec4 v;
+#if NCNN_fp16_arithmetic
+    if (bugihfa == 1)
+    {
+        if (lane4.r == 0) v.r = vr.r;
+        if (lane4.r == 1) v.r = vr.g;
+        if (lane4.r == 2) v.r = vr.b;
+        if (lane4.r == 3) v.r = vr.a;
+        if (lane4.g == 0) v.g = vg.r;
+        if (lane4.g == 1) v.g = vg.g;
+        if (lane4.g == 2) v.g = vg.b;
+        if (lane4.g == 3) v.g = vg.a;
+        if (lane4.b == 0) v.b = vb.r;
+        if (lane4.b == 1) v.b = vb.g;
+        if (lane4.b == 2) v.b = vb.b;
+        if (lane4.b == 3) v.b = vb.a;
+        if (lane4.a == 0) v.a = va.r;
+        if (lane4.a == 1) v.a = va.g;
+        if (lane4.a == 2) v.a = va.b;
+        if (lane4.a == 3) v.a = va.a;
+    }
+    else
+#endif
+    {
+        v = afpvec4(vr[lane4.r], vg[lane4.g], vb[lane4.b], va[lane4.a]);
+    }
+
+    image3d_st4(top_blob_3d, ivec3(gx, gy, gz), v);
+#else
     int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
 
+#if NCNN_fp16_packed
     afpvec2 vr = buffer_ld2(bottom_blob_data, v_offset.r);
     afpvec2 vg = buffer_ld2(bottom_blob_data, v_offset.g);
     afpvec2 vb = buffer_ld2(bottom_blob_data, v_offset.b);
@@ -300,28 +445,6 @@ void main()
 
     buffer_st4(top_blob_data, gi, v);
 #else
-    ivec4 v_offset;
-
-    if (psc(dims) == 2)
-    {
-        ivec4 y4 = i4 / psc(w);
-        ivec4 x4 = i4 % psc(w);
-
-        v_offset = ((y4 / 4) * psc(w) + x4) * 4 + y4 % 4;
-    }
-    else // if (psc(dims) == 3)
-    {
-        int size = psc(w) * psc(h);
-
-        ivec4 z4 = i4 / size;
-        ivec4 y4 = i4 % size / psc(w);
-        ivec4 x4 = i4 % size % psc(w);
-
-        v_offset = ((z4 / 4) * psc(cstep) + y4 * psc(w) + x4) * 4 + z4 % 4;
-    }
-
-    int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
-
     buffer_cp1to4(top_blob_data, gi, bottom_blob_data, v_offset);
 #endif
 #endif

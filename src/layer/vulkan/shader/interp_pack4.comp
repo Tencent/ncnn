@@ -85,6 +85,75 @@ void main()
         return;
     }
 
+    if (psc(dims) == 2)
+    {
+        if (resize_type == 1) // nearest
+        {
+            int sx = min(int(floor(afp(gx) * afp(p.scale_x))), psc(w) - 1);
+
+#if NCNN_image_shader
+            image3d_cp4(top_blob, ivec3(gx, gy, gz), bottom_blob, ivec3(sx, gy, gz));
+#else
+            int v_offset = gz * psc(cstep) + gy * psc(w) + sx;
+
+            const int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
+
+            buffer_cp4(top_blob_data, gi, bottom_blob_data, v_offset);
+#endif
+        }
+        if (resize_type == 2) // bilinear
+        {
+            afp fx;
+            if (align_corner == 1)
+            {
+                fx = afp(gx) * afp(p.scale_x);
+            }
+            else
+            {
+                fx = (afp(gx) + afp(0.5f)) * afp(p.scale_x) - afp(0.5f);
+            }
+
+            int sx = int(floor(fx));
+
+            fx -= afp(sx);
+
+            int sx_max = psc(w) - 2;
+
+            if (sx < 0)
+            {
+                sx = 0;
+                fx = afp(0.f);
+            }
+            else if (sx > sx_max)
+            {
+                sx = sx_max;
+                fx = afp(1.f);
+            }
+
+#if NCNN_image_shader
+            afpvec4 a0 = image3d_ld4(bottom_blob, ivec3(sx, gy, gz));
+            afpvec4 a1 = image3d_ld4(bottom_blob, ivec3(sx + 1, gy, gz));
+#else
+            int v_offset_0 = gz * psc(cstep) + gy * psc(w) + sx;
+
+            afpvec4 a0 = buffer_ld4(bottom_blob_data, v_offset_0);
+            afpvec4 a1 = buffer_ld4(bottom_blob_data, v_offset_0 + 1);
+#endif
+
+            afpvec4 res = a0 * (afp(1.f) - fx) + a1 * fx;
+
+#if NCNN_image_shader
+            image3d_st4(top_blob, ivec3(gx, gy, gz), res);
+#else
+            const int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
+
+            buffer_st4(top_blob_data, gi, res);
+#endif
+        }
+
+        return;
+    }
+
     if (resize_type == 1) // nearest
     {
         afpvec2 gxy = afpvec2(gx, gy);

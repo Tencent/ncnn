@@ -1,0 +1,202 @@
+// Tencent is pleased to support the open source community by making ncnn available.
+//
+// Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
+//
+// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
+// in compliance with the License. You may obtain a copy of the License at
+//
+// https://opensource.org/licenses/BSD-3-Clause
+//
+// Unless required by applicable law or agreed to in writing, software distributed
+// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+// CONDITIONS OF ANY KIND, either express or implied. See the License for the
+// specific language governing permissions and limitations under the License.
+
+#version 450
+
+#if NCNN_fp16_storage
+#extension GL_EXT_shader_16bit_storage: require
+#endif
+#if NCNN_fp16_arithmetic
+#extension GL_EXT_shader_explicit_arithmetic_types_float16: require
+#endif
+
+#define shape_constant_id_offset 0
+layout (constant_id = shape_constant_id_offset + 0) const int w = 0;
+layout (constant_id = shape_constant_id_offset + 1) const int h = 0;
+layout (constant_id = shape_constant_id_offset + 2) const int c = 0;
+layout (constant_id = shape_constant_id_offset + 3) const int cstep = 0;
+
+layout (constant_id = shape_constant_id_offset + 4) const int outcstep = 0;
+
+layout (constant_id = shape_constant_id_offset + 5) const int block_x = 0;
+layout (constant_id = shape_constant_id_offset + 6) const int block_y = 0;
+
+#if NCNN_image_shader
+layout (binding = 0) uniform unfp sampler3D bottom_blob;
+layout (binding = 1, imfmtc1) writeonly uniform unfp image3D bottom_tm_blob;
+#else
+layout (binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
+layout (binding = 1) writeonly buffer bottom_tm_blob { sfp bottom_tm_blob_data[]; };
+#endif
+
+layout (push_constant) uniform parameter
+{
+    int w;
+    int h;
+    int c;
+    int cstep;
+
+    int outcstep;
+
+    int block_x;
+    int block_y;
+} p;
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+    int gy = int(gl_GlobalInvocationID.y);
+    int gz = int(gl_GlobalInvocationID.z);
+
+    if (gx >= psc(block_x) || gy >= psc(block_y) || gz >= psc(c))
+        return;
+
+    // load 4x4
+    int sx = gx * 2;
+    int sy = gy * 2;
+
+#if NCNN_image_shader
+    afp v00 = image3d_ld1(bottom_blob, ivec3(sx + 0, sy + 0, gz));
+    afp v01 = image3d_ld1(bottom_blob, ivec3(sx + 1, sy + 0, gz));
+    afp v02 = image3d_ld1(bottom_blob, ivec3(sx + 2, sy + 0, gz));
+    afp v03 = image3d_ld1(bottom_blob, ivec3(sx + 3, sy + 0, gz));
+
+    afp v10 = image3d_ld1(bottom_blob, ivec3(sx + 0, sy + 1, gz));
+    afp v11 = image3d_ld1(bottom_blob, ivec3(sx + 1, sy + 1, gz));
+    afp v12 = image3d_ld1(bottom_blob, ivec3(sx + 2, sy + 1, gz));
+    afp v13 = image3d_ld1(bottom_blob, ivec3(sx + 3, sy + 1, gz));
+
+    afp v20 = image3d_ld1(bottom_blob, ivec3(sx + 0, sy + 2, gz));
+    afp v21 = image3d_ld1(bottom_blob, ivec3(sx + 1, sy + 2, gz));
+    afp v22 = image3d_ld1(bottom_blob, ivec3(sx + 2, sy + 2, gz));
+    afp v23 = image3d_ld1(bottom_blob, ivec3(sx + 3, sy + 2, gz));
+
+    afp v30 = image3d_ld1(bottom_blob, ivec3(sx + 0, sy + 3, gz));
+    afp v31 = image3d_ld1(bottom_blob, ivec3(sx + 1, sy + 3, gz));
+    afp v32 = image3d_ld1(bottom_blob, ivec3(sx + 2, sy + 3, gz));
+    afp v33 = image3d_ld1(bottom_blob, ivec3(sx + 3, sy + 3, gz));
+#else
+    int v_offset_0 = gz * psc(cstep) + sy * psc(w) + sx;
+    ivec4 v_offset = v_offset_0 + ivec4(0, 1, 2, 3) * psc(w);
+
+    afp v00 = buffer_ld1(bottom_blob_data, v_offset.r + 0);
+    afp v01 = sx + 1 < psc(w) ? buffer_ld1(bottom_blob_data, v_offset.r + 1) : afp(0.f);
+    afp v02 = sx + 2 < psc(w) ? buffer_ld1(bottom_blob_data, v_offset.r + 2) : afp(0.f);
+    afp v03 = sx + 3 < psc(w) ? buffer_ld1(bottom_blob_data, v_offset.r + 3) : afp(0.f);
+
+    afp v10 = sy + 1 < psc(h) ? buffer_ld1(bottom_blob_data, v_offset.g + 0) : afp(0.f);
+    afp v11 = sy + 1 < psc(h) && sx + 1 < psc(w) ? buffer_ld1(bottom_blob_data, v_offset.g + 1) : afp(0.f);
+    afp v12 = sy + 1 < psc(h) && sx + 2 < psc(w) ? buffer_ld1(bottom_blob_data, v_offset.g + 2) : afp(0.f);
+    afp v13 = sy + 1 < psc(h) && sx + 3 < psc(w) ? buffer_ld1(bottom_blob_data, v_offset.g + 3) : afp(0.f);
+
+    afp v20 = sy + 2 < psc(h) ? buffer_ld1(bottom_blob_data, v_offset.b + 0) : afp(0.f);
+    afp v21 = sy + 2 < psc(h) && sx + 1 < psc(w) ? buffer_ld1(bottom_blob_data, v_offset.b + 1) : afp(0.f);
+    afp v22 = sy + 2 < psc(h) && sx + 2 < psc(w) ? buffer_ld1(bottom_blob_data, v_offset.b + 2) : afp(0.f);
+    afp v23 = sy + 2 < psc(h) && sx + 3 < psc(w) ? buffer_ld1(bottom_blob_data, v_offset.b + 3) : afp(0.f);
+
+    afp v30 = sy + 3 < psc(h) ? buffer_ld1(bottom_blob_data, v_offset.a + 0) : afp(0.f);
+    afp v31 = sy + 3 < psc(h) && sx + 1 < psc(w) ? buffer_ld1(bottom_blob_data, v_offset.a + 1) : afp(0.f);
+    afp v32 = sy + 3 < psc(h) && sx + 2 < psc(w) ? buffer_ld1(bottom_blob_data, v_offset.a + 2) : afp(0.f);
+    afp v33 = sy + 3 < psc(h) && sx + 3 < psc(w) ? buffer_ld1(bottom_blob_data, v_offset.a + 3) : afp(0.f);
+#endif
+
+    // const float itm[4][4] = {
+    //     {1.0f,  0.0f, -1.0f,  0.0f},
+    //     {0.0f,  1.0f,  1.0f,  0.0f},
+    //     {0.0f, -1.0f,  1.0f,  0.0f},
+    //     {0.0f, -1.0f,  0.0f,  1.0f}
+    // };
+
+    // implicit transpose
+    afp m00 = v00 - v02;
+    afp m01 = v10 - v12;
+    afp m02 = v20 - v22;
+    afp m03 = v30 - v32;
+
+    afp m10 = v02 + v01;
+    afp m11 = v12 + v11;
+    afp m12 = v22 + v21;
+    afp m13 = v32 + v31;
+
+    afp m20 = v02 - v01;
+    afp m21 = v12 - v11;
+    afp m22 = v22 - v21;
+    afp m23 = v32 - v31;
+
+    afp m30 = v03 - v01;
+    afp m31 = v13 - v11;
+    afp m32 = v23 - v21;
+    afp m33 = v33 - v31;
+
+    v00 = m00 - m02;
+    v10 = m10 - m12;
+    v20 = m20 - m22;
+    v30 = m30 - m32;
+
+    v01 = m02 + m01;
+    v11 = m12 + m11;
+    v21 = m22 + m21;
+    v31 = m32 + m31;
+
+    v02 = m02 - m01;
+    v12 = m12 - m11;
+    v22 = m22 - m21;
+    v32 = m32 - m31;
+
+    v03 = m03 - m01;
+    v13 = m13 - m11;
+    v23 = m23 - m21;
+    v33 = m33 - m31;
+
+    // store 16
+#if NCNN_image_shader
+    int x = gy * psc(block_x) + gx;
+
+    image3d_st1(bottom_tm_blob, ivec3(x, gz, 0), v00);
+    image3d_st1(bottom_tm_blob, ivec3(x, gz, 1), v01);
+    image3d_st1(bottom_tm_blob, ivec3(x, gz, 2), v02);
+    image3d_st1(bottom_tm_blob, ivec3(x, gz, 3), v03);
+    image3d_st1(bottom_tm_blob, ivec3(x, gz, 4), v10);
+    image3d_st1(bottom_tm_blob, ivec3(x, gz, 5), v11);
+    image3d_st1(bottom_tm_blob, ivec3(x, gz, 6), v12);
+    image3d_st1(bottom_tm_blob, ivec3(x, gz, 7), v13);
+    image3d_st1(bottom_tm_blob, ivec3(x, gz, 8), v20);
+    image3d_st1(bottom_tm_blob, ivec3(x, gz, 9), v21);
+    image3d_st1(bottom_tm_blob, ivec3(x, gz, 10), v22);
+    image3d_st1(bottom_tm_blob, ivec3(x, gz, 11), v23);
+    image3d_st1(bottom_tm_blob, ivec3(x, gz, 12), v30);
+    image3d_st1(bottom_tm_blob, ivec3(x, gz, 13), v31);
+    image3d_st1(bottom_tm_blob, ivec3(x, gz, 14), v32);
+    image3d_st1(bottom_tm_blob, ivec3(x, gz, 15), v33);
+#else
+    int v_tm_offset = gz * psc(block_x) * psc(block_y) + gy * psc(block_x) + gx;
+
+    buffer_st1(bottom_tm_blob_data, v_tm_offset + 0 * psc(outcstep), v00);
+    buffer_st1(bottom_tm_blob_data, v_tm_offset + 1 * psc(outcstep), v01);
+    buffer_st1(bottom_tm_blob_data, v_tm_offset + 2 * psc(outcstep), v02);
+    buffer_st1(bottom_tm_blob_data, v_tm_offset + 3 * psc(outcstep), v03);
+    buffer_st1(bottom_tm_blob_data, v_tm_offset + 4 * psc(outcstep), v10);
+    buffer_st1(bottom_tm_blob_data, v_tm_offset + 5 * psc(outcstep), v11);
+    buffer_st1(bottom_tm_blob_data, v_tm_offset + 6 * psc(outcstep), v12);
+    buffer_st1(bottom_tm_blob_data, v_tm_offset + 7 * psc(outcstep), v13);
+    buffer_st1(bottom_tm_blob_data, v_tm_offset + 8 * psc(outcstep), v20);
+    buffer_st1(bottom_tm_blob_data, v_tm_offset + 9 * psc(outcstep), v21);
+    buffer_st1(bottom_tm_blob_data, v_tm_offset + 10 * psc(outcstep), v22);
+    buffer_st1(bottom_tm_blob_data, v_tm_offset + 11 * psc(outcstep), v23);
+    buffer_st1(bottom_tm_blob_data, v_tm_offset + 12 * psc(outcstep), v30);
+    buffer_st1(bottom_tm_blob_data, v_tm_offset + 13 * psc(outcstep), v31);
+    buffer_st1(bottom_tm_blob_data, v_tm_offset + 14 * psc(outcstep), v32);
+    buffer_st1(bottom_tm_blob_data, v_tm_offset + 15 * psc(outcstep), v33);
+#endif
+}

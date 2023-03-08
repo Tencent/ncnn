@@ -25,7 +25,6 @@ DeconvolutionDepthWise_vulkan::DeconvolutionDepthWise_vulkan()
     support_image_storage = true;
 
     crop = 0;
-    output_pad = 0;
     output_crop = 0;
 
     pipeline_deconvolutiondepthwise = 0;
@@ -51,19 +50,15 @@ int DeconvolutionDepthWise_vulkan::create_pipeline(const Option& _opt)
 
     // the shape before unpadding
     Mat out_shape_bordered;
-    // the shape after output adj
-    Mat out_shape_bordered_adj;
     if (shape.dims != 0)
     {
         const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
         const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
 
-        int outw = (shape.w - 1) * stride_w + kernel_extent_w;
-        int outh = (shape.h - 1) * stride_h + kernel_extent_h;
+        int outw = (shape.w - 1) * stride_w + kernel_extent_w + output_pad_right;
+        int outh = (shape.h - 1) * stride_h + kernel_extent_h + output_pad_bottom;
 
         out_shape_bordered = Mat(outw, outh, out_shape.c, (void*)0);
-
-        out_shape_bordered_adj = Mat(outw + output_pad_right, outh + output_pad_bottom, out_shape.c, (void*)0);
     }
 
     const int maxk = kernel_w * kernel_h;
@@ -170,7 +165,7 @@ int DeconvolutionDepthWise_vulkan::create_pipeline(const Option& _opt)
         crop->vkdev = vkdev;
 
         crop->bottom_shapes.resize(1);
-        crop->bottom_shapes[0] = out_shape_bordered_adj;
+        crop->bottom_shapes[0] = out_shape_bordered;
         crop->top_shapes.resize(1);
         crop->top_shapes[0] = out_shape;
 
@@ -185,33 +180,11 @@ int DeconvolutionDepthWise_vulkan::create_pipeline(const Option& _opt)
     }
 
     {
-        output_pad = ncnn::create_layer(ncnn::LayerType::Padding);
-        output_pad->vkdev = vkdev;
-
-        output_pad->bottom_shapes.resize(1);
-        output_pad->bottom_shapes[0] = out_shape_bordered;
-        output_pad->top_shapes.resize(1);
-        output_pad->top_shapes[0] = out_shape_bordered_adj;
-
-        ncnn::ParamDict pd;
-        pd.set(0, 0);
-        pd.set(1, output_pad_bottom);
-        pd.set(2, 0);
-        pd.set(3, output_pad_right);
-        pd.set(4, 0);
-        pd.set(5, 0.f);
-
-        output_pad->load_param(pd);
-
-        output_pad->create_pipeline(opt);
-    }
-
-    {
         output_crop = ncnn::create_layer(ncnn::LayerType::Crop);
         output_crop->vkdev = vkdev;
 
         output_crop->bottom_shapes.resize(1);
-        output_crop->bottom_shapes[0] = out_shape_bordered_adj;
+        output_crop->bottom_shapes[0] = out_shape_bordered;
         output_crop->top_shapes.resize(1);
         output_crop->top_shapes[0] = out_shape;
 
@@ -223,6 +196,23 @@ int DeconvolutionDepthWise_vulkan::create_pipeline(const Option& _opt)
         output_crop->load_param(pd);
 
         output_crop->create_pipeline(opt);
+    }
+
+    Mat weight_data_transposed(weight_data.w);
+    {
+        float* pt = weight_data_transposed;
+        const float* p = weight_data;
+
+        for (int i = 0; i < (channels / group) * (num_output / group) * group; i++)
+        {
+            for (int k = 0; k < maxk; k++)
+            {
+                pt[maxk - 1 - k] = p[k];
+            }
+
+            p += maxk;
+            pt += maxk;
+        }
     }
 
     std::vector<vk_specialization_type> specializations(11 + 10);
@@ -241,6 +231,14 @@ int DeconvolutionDepthWise_vulkan::create_pipeline(const Option& _opt)
     // depth-wise
     if (channels == group && group == num_output)
     {
+        Mat weight_data_r2 = weight_data_transposed.reshape(maxk, group);
+        convert_packing(weight_data_r2, weight_data_packed, elempack, opt);
+
+        if (bias_term)
+        {
+            convert_packing(bias_data, bias_data_packed, out_elempack, opt);
+        }
+
         specializations[11 + 0].i = shape_packed.dims;
         specializations[11 + 1].i = shape_packed.w;
         specializations[11 + 2].i = shape_packed.h;
@@ -285,6 +283,51 @@ int DeconvolutionDepthWise_vulkan::create_pipeline(const Option& _opt)
         }
 
         return 0;
+    }
+
+    // src = kw-kh-inch-outch
+    // dst = pa-pb-kw-kh-inch/pa-outch/pb
+    {
+        Mat weight_data_r2_groups = weight_data_transposed.reshape(maxk, channels_g, num_output_g * group);
+
+        weight_data_packed.create(maxk, channels_g / elempack_g, num_output_g / out_elempack_g * group, (size_t)4 * elempack_g * out_elempack_g, elempack_g * out_elempack_g);
+
+        for (int g = 0; g < group; g++)
+        {
+            const Mat weight_data_r2 = weight_data_r2_groups.channel_range(num_output_g * g, num_output_g);
+
+            Mat weight_data_pack4 = weight_data_packed.channel_range(num_output_g / out_elempack_g * g, num_output_g / out_elempack_g);
+
+            for (int q = 0; q + (out_elempack_g - 1) < num_output_g; q += out_elempack_g)
+            {
+                float* g00 = weight_data_pack4.channel(q / out_elempack_g);
+
+                for (int p = 0; p + (elempack_g - 1) < channels_g; p += elempack_g)
+                {
+                    for (int k = 0; k < maxk; k++)
+                    {
+                        for (int i = 0; i < out_elempack_g; i++)
+                        {
+                            const Mat k0 = weight_data_r2.channel(q + i);
+
+                            for (int j = 0; j < elempack_g; j++)
+                            {
+                                const float* k00 = k0.row(p + j);
+
+                                g00[0] = k00[k];
+
+                                g00++;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (bias_term)
+    {
+        convert_packing(bias_data, bias_data_packed, out_elempack_g, opt);
     }
 
     specializations[11 + 0].i = shape_g_packed.dims;
@@ -390,13 +433,6 @@ int DeconvolutionDepthWise_vulkan::destroy_pipeline(const Option& opt)
         crop = 0;
     }
 
-    if (output_pad)
-    {
-        output_pad->destroy_pipeline(opt);
-        delete output_pad;
-        output_pad = 0;
-    }
-
     if (output_crop)
     {
         output_crop->destroy_pipeline(opt);
@@ -450,132 +486,24 @@ int DeconvolutionDepthWise_vulkan::upload_model(VkTransfer& cmd, const Option& o
         crop->upload_model(cmd, opt);
     }
 
-    if (output_pad)
-    {
-        output_pad->upload_model(cmd, opt);
-    }
-
     if (output_crop)
     {
         output_crop->upload_model(cmd, opt);
     }
 
-    const int maxk = kernel_w * kernel_h;
-    int channels = (weight_data_size / group) / maxk / (num_output / group) * group;
-
-    int elempack = opt.use_shader_pack8 && channels % 8 == 0 ? 8 : channels % 4 == 0 ? 4 : 1;
-    int out_elempack = opt.use_shader_pack8 && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
-
-    Mat weight_data_transposed(weight_data.w);
-    {
-        float* pt = weight_data_transposed;
-        const float* p = weight_data;
-
-        for (int i = 0; i < (channels / group) * (num_output / group) * group; i++)
-        {
-            for (int k = 0; k < maxk; k++)
-            {
-                pt[maxk - 1 - k] = p[k];
-            }
-
-            p += maxk;
-            pt += maxk;
-        }
-    }
-
-    // depth-wise
-    if (channels == group && group == num_output)
-    {
-        Mat weight_data_r2 = weight_data_transposed.reshape(maxk, group);
-        Mat weight_data_r2_packed;
-        convert_packing(weight_data_r2, weight_data_r2_packed, elempack);
-
-        cmd.record_upload(weight_data_r2_packed, weight_data_gpu, opt);
-
-        cmd.record_upload(weight_data_r2_packed, weight_data_gpu_image, opt);
-
-        if (bias_term)
-        {
-            Mat bias_data_packed;
-            convert_packing(bias_data, bias_data_packed, out_elempack);
-
-            if (support_image_storage && opt.use_image_storage)
-            {
-                cmd.record_upload(bias_data_packed, bias_data_gpu_image, opt);
-            }
-            else
-            {
-                cmd.record_upload(bias_data_packed, bias_data_gpu, opt);
-            }
-        }
-
-        return 0;
-    }
-
-    // group deconvolution
-    const int channels_g = channels / group;
-    const int num_output_g = num_output / group;
-
-    int elempack_g = opt.use_shader_pack8 && channels_g % 8 == 0 ? 8 : channels_g % 4 == 0 ? 4 : 1;
-    int out_elempack_g = opt.use_shader_pack8 && num_output_g % 8 == 0 ? 8 : num_output_g % 4 == 0 ? 4 : 1;
-
-    // src = kw-kh-inch-outch
-    // dst = pa-pb-kw-kh-inch/pa-outch/pb
-    Mat weight_data_packed_groups;
-    {
-        Mat weight_data_r2_groups = weight_data_transposed.reshape(maxk, channels_g, num_output_g * group);
-
-        weight_data_packed_groups.create(maxk, channels_g / elempack_g, num_output_g / out_elempack_g * group, (size_t)4 * elempack_g * out_elempack_g, elempack_g * out_elempack_g);
-
-        for (int g = 0; g < group; g++)
-        {
-            const Mat weight_data_r2 = weight_data_r2_groups.channel_range(num_output_g * g, num_output_g);
-
-            Mat weight_data_pack4 = weight_data_packed_groups.channel_range(num_output_g / out_elempack_g * g, num_output_g / out_elempack_g);
-
-            for (int q = 0; q + (out_elempack_g - 1) < num_output_g; q += out_elempack_g)
-            {
-                Mat g0 = weight_data_pack4.channel(q / out_elempack_g);
-
-                for (int p = 0; p + (elempack_g - 1) < channels_g; p += elempack_g)
-                {
-                    float* g00 = g0.row(p / elempack_g);
-
-                    for (int k = 0; k < maxk; k++)
-                    {
-                        for (int i = 0; i < out_elempack_g; i++)
-                        {
-                            const Mat k0 = weight_data_r2.channel(q + i);
-
-                            for (int j = 0; j < elempack_g; j++)
-                            {
-                                const float* k00 = k0.row(p + j);
-
-                                g00[0] = k00[k];
-
-                                g00++;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
     if (support_image_storage && opt.use_image_storage)
     {
-        cmd.record_upload(weight_data_packed_groups, weight_data_gpu_image, opt);
+        cmd.record_upload(weight_data_packed, weight_data_gpu_image, opt);
     }
     else
     {
-        cmd.record_upload(weight_data_packed_groups, weight_data_gpu, opt);
+        cmd.record_upload(weight_data_packed, weight_data_gpu, opt);
     }
+
+    weight_data_packed.release();
 
     if (bias_term)
     {
-        Mat bias_data_packed;
-        convert_packing(bias_data, bias_data_packed, out_elempack_g);
-
         if (support_image_storage && opt.use_image_storage)
         {
             cmd.record_upload(bias_data_packed, bias_data_gpu_image, opt);
@@ -584,6 +512,8 @@ int DeconvolutionDepthWise_vulkan::upload_model(VkTransfer& cmd, const Option& o
         {
             cmd.record_upload(bias_data_packed, bias_data_gpu, opt);
         }
+
+        bias_data_packed.release();
     }
 
     return 0;
@@ -600,8 +530,8 @@ int DeconvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_
     const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
     const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
 
-    int outw = (w - 1) * stride_w + kernel_extent_w;
-    int outh = (h - 1) * stride_h + kernel_extent_h;
+    int outw = (w - 1) * stride_w + kernel_extent_w + output_pad_right;
+    int outh = (h - 1) * stride_h + kernel_extent_h + output_pad_bottom;
     int out_elempack = opt.use_shader_pack8 && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
@@ -613,7 +543,7 @@ int DeconvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_
     }
 
     VkMat top_blob_bordered;
-    if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0 || output_pad_right > 0 || output_pad_bottom > 0 || (output_w > 0 && output_h > 0))
+    if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0 || (output_w > 0 && output_h > 0))
     {
         top_blob_bordered.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.workspace_vkallocator);
     }
@@ -654,25 +584,15 @@ int DeconvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_
 
         if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0)
         {
-            VkMat top_blob_bordered_adj = top_blob_bordered;
-            if (output_pad_right > 0 || output_pad_bottom > 0)
-            {
-                Option opt_pad = opt;
-                opt_pad.blob_vkallocator = opt.workspace_vkallocator;
-                output_pad->forward(top_blob_bordered, top_blob_bordered_adj, cmd, opt_pad);
-                if (top_blob_bordered_adj.empty())
-                    return -100;
-            }
-
             {
                 VkMat reference_blob;
                 reference_blob.dims = 2;
-                reference_blob.w = top_blob_bordered_adj.w - pad_left - pad_right;
-                reference_blob.h = top_blob_bordered_adj.h - pad_top - pad_bottom;
+                reference_blob.w = top_blob_bordered.w - pad_left - pad_right;
+                reference_blob.h = top_blob_bordered.h - pad_top - pad_bottom;
                 reference_blob.elempack = 1;
 
                 std::vector<VkMat> crop_bottom_blobs(2);
-                crop_bottom_blobs[0] = top_blob_bordered_adj;
+                crop_bottom_blobs[0] = top_blob_bordered;
                 crop_bottom_blobs[1] = reference_blob;
                 std::vector<VkMat> crop_top_blobs(1);
                 crop->forward(crop_bottom_blobs, crop_top_blobs, cmd, opt);
@@ -686,18 +606,8 @@ int DeconvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_
         }
         else if (output_w > 0 && output_h > 0)
         {
-            VkMat top_blob_bordered_adj = top_blob_bordered;
-            if (output_pad_right > 0 || output_pad_bottom > 0)
-            {
-                Option opt_pad = opt;
-                opt_pad.blob_vkallocator = opt.workspace_vkallocator;
-                output_pad->forward(top_blob_bordered, top_blob_bordered_adj, cmd, opt_pad);
-                if (top_blob_bordered_adj.empty())
-                    return -100;
-            }
-
-            int wcut = top_blob_bordered_adj.w - output_w;
-            int hcut = top_blob_bordered_adj.h - output_h;
+            int wcut = top_blob_bordered.w - output_w;
+            int hcut = top_blob_bordered.h - output_h;
 
             VkMat crop_param_blob(4, (size_t)4u, 1, opt.staging_vkallocator);
             int* crop_params = crop_param_blob.mapped();
@@ -708,9 +618,9 @@ int DeconvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_
                 crop_params[0] = wcut / 2;
                 crop_params[1] = hcut / 2;
                 crop_params[2] = 0;
-                crop_params[3] = top_blob_bordered_adj.w - wcut;
-                crop_params[4] = top_blob_bordered_adj.h - hcut;
-                crop_params[5] = top_blob_bordered_adj.c * out_elempack;
+                crop_params[3] = top_blob_bordered.w - wcut;
+                crop_params[4] = top_blob_bordered.h - hcut;
+                crop_params[5] = top_blob_bordered.c * out_elempack;
             }
             else if (pad_left == -234 || pad_right == -234 || pad_top == -234 || pad_bottom == -234)
             {
@@ -718,13 +628,13 @@ int DeconvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_
                 crop_params[0] = wcut - wcut / 2;
                 crop_params[1] = hcut - hcut / 2;
                 crop_params[2] = 0;
-                crop_params[3] = top_blob_bordered_adj.w - wcut;
-                crop_params[4] = top_blob_bordered_adj.h - hcut;
-                crop_params[5] = top_blob_bordered_adj.c * out_elempack;
+                crop_params[3] = top_blob_bordered.w - wcut;
+                crop_params[4] = top_blob_bordered.h - hcut;
+                crop_params[5] = top_blob_bordered.c * out_elempack;
             }
 
             std::vector<VkMat> crop_inputs(2);
-            crop_inputs[0] = top_blob_bordered_adj;
+            crop_inputs[0] = top_blob_bordered;
             crop_inputs[1] = crop_param_blob;
 
             std::vector<VkMat> crop_outputs(1);
@@ -738,16 +648,7 @@ int DeconvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_
         }
         else
         {
-            if (output_pad_right > 0 || output_pad_bottom > 0)
-            {
-                output_pad->forward(top_blob_bordered, top_blob, cmd, opt);
-                if (top_blob.empty())
-                    return -100;
-            }
-            else
-            {
-                top_blob = top_blob_bordered;
-            }
+            top_blob = top_blob_bordered;
         }
 
         return 0;
@@ -855,25 +756,15 @@ int DeconvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_
 
     if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0)
     {
-        VkMat top_blob_bordered_adj = top_blob_bordered;
-        if (output_pad_right > 0 || output_pad_bottom > 0)
-        {
-            Option opt_pad = opt;
-            opt_pad.blob_vkallocator = opt.workspace_vkallocator;
-            output_pad->forward(top_blob_bordered, top_blob_bordered_adj, cmd, opt_pad);
-            if (top_blob_bordered_adj.empty())
-                return -100;
-        }
-
         {
             VkMat reference_blob;
             reference_blob.dims = 2;
-            reference_blob.w = top_blob_bordered_adj.w - pad_left - pad_right;
-            reference_blob.h = top_blob_bordered_adj.h - pad_top - pad_bottom;
+            reference_blob.w = top_blob_bordered.w - pad_left - pad_right;
+            reference_blob.h = top_blob_bordered.h - pad_top - pad_bottom;
             reference_blob.elempack = 1;
 
             std::vector<VkMat> crop_bottom_blobs(2);
-            crop_bottom_blobs[0] = top_blob_bordered_adj;
+            crop_bottom_blobs[0] = top_blob_bordered;
             crop_bottom_blobs[1] = reference_blob;
             std::vector<VkMat> crop_top_blobs(1);
             crop->forward(crop_bottom_blobs, crop_top_blobs, cmd, opt);
@@ -887,18 +778,8 @@ int DeconvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_
     }
     else if (output_w > 0 && output_h > 0)
     {
-        VkMat top_blob_bordered_adj = top_blob_bordered;
-        if (output_pad_right > 0 || output_pad_bottom > 0)
-        {
-            Option opt_pad = opt;
-            opt_pad.blob_vkallocator = opt.workspace_vkallocator;
-            output_pad->forward(top_blob_bordered, top_blob_bordered_adj, cmd, opt_pad);
-            if (top_blob_bordered_adj.empty())
-                return -100;
-        }
-
-        int wcut = top_blob_bordered_adj.w - output_w;
-        int hcut = top_blob_bordered_adj.h - output_h;
+        int wcut = top_blob_bordered.w - output_w;
+        int hcut = top_blob_bordered.h - output_h;
 
         VkMat crop_param_blob(4, (size_t)4u, 1, opt.staging_vkallocator);
         int* crop_params = crop_param_blob.mapped();
@@ -909,9 +790,9 @@ int DeconvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_
             crop_params[0] = wcut / 2;
             crop_params[1] = hcut / 2;
             crop_params[2] = 0;
-            crop_params[3] = top_blob_bordered_adj.w - wcut;
-            crop_params[4] = top_blob_bordered_adj.h - hcut;
-            crop_params[5] = top_blob_bordered_adj.c * out_elempack;
+            crop_params[3] = top_blob_bordered.w - wcut;
+            crop_params[4] = top_blob_bordered.h - hcut;
+            crop_params[5] = top_blob_bordered.c * out_elempack;
         }
         else if (pad_left == -234 || pad_right == -234 || pad_top == -234 || pad_bottom == -234)
         {
@@ -919,13 +800,13 @@ int DeconvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_
             crop_params[0] = wcut - wcut / 2;
             crop_params[1] = hcut - hcut / 2;
             crop_params[2] = 0;
-            crop_params[3] = top_blob_bordered_adj.w - wcut;
-            crop_params[4] = top_blob_bordered_adj.h - hcut;
-            crop_params[5] = top_blob_bordered_adj.c * out_elempack;
+            crop_params[3] = top_blob_bordered.w - wcut;
+            crop_params[4] = top_blob_bordered.h - hcut;
+            crop_params[5] = top_blob_bordered.c * out_elempack;
         }
 
         std::vector<VkMat> crop_inputs(2);
-        crop_inputs[0] = top_blob_bordered_adj;
+        crop_inputs[0] = top_blob_bordered;
         crop_inputs[1] = crop_param_blob;
 
         std::vector<VkMat> crop_outputs(1);
@@ -939,16 +820,7 @@ int DeconvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_
     }
     else
     {
-        if (output_pad_right > 0 || output_pad_bottom > 0)
-        {
-            output_pad->forward(top_blob_bordered, top_blob, cmd, opt);
-            if (top_blob.empty())
-                return -100;
-        }
-        else
-        {
-            top_blob = top_blob_bordered;
-        }
+        top_blob = top_blob_bordered;
     }
 
     return 0;
@@ -965,8 +837,8 @@ int DeconvolutionDepthWise_vulkan::forward(const VkImageMat& bottom_blob, VkImag
     const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
     const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
 
-    int outw = (w - 1) * stride_w + kernel_extent_w;
-    int outh = (h - 1) * stride_h + kernel_extent_h;
+    int outw = (w - 1) * stride_w + kernel_extent_w + output_pad_right;
+    int outh = (h - 1) * stride_h + kernel_extent_h + output_pad_bottom;
     int out_elempack = opt.use_shader_pack8 && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
@@ -978,7 +850,7 @@ int DeconvolutionDepthWise_vulkan::forward(const VkImageMat& bottom_blob, VkImag
     }
 
     VkImageMat top_blob_bordered;
-    if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0 || output_pad_right > 0 || output_pad_bottom > 0 || (output_w > 0 && output_h > 0))
+    if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0 || (output_w > 0 && output_h > 0))
     {
         top_blob_bordered.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.workspace_vkallocator);
     }
@@ -1019,25 +891,15 @@ int DeconvolutionDepthWise_vulkan::forward(const VkImageMat& bottom_blob, VkImag
 
         if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0)
         {
-            VkImageMat top_blob_bordered_adj = top_blob_bordered;
-            if (output_pad_right > 0 || output_pad_bottom > 0)
-            {
-                Option opt_pad = opt;
-                opt_pad.blob_vkallocator = opt.workspace_vkallocator;
-                output_pad->forward(top_blob_bordered, top_blob_bordered_adj, cmd, opt_pad);
-                if (top_blob_bordered_adj.empty())
-                    return -100;
-            }
-
             {
                 VkImageMat reference_blob;
                 reference_blob.dims = 2;
-                reference_blob.w = top_blob_bordered_adj.w - pad_left - pad_right;
-                reference_blob.h = top_blob_bordered_adj.h - pad_top - pad_bottom;
+                reference_blob.w = top_blob_bordered.w - pad_left - pad_right;
+                reference_blob.h = top_blob_bordered.h - pad_top - pad_bottom;
                 reference_blob.elempack = 1;
 
                 std::vector<VkImageMat> crop_bottom_blobs(2);
-                crop_bottom_blobs[0] = top_blob_bordered_adj;
+                crop_bottom_blobs[0] = top_blob_bordered;
                 crop_bottom_blobs[1] = reference_blob;
                 std::vector<VkImageMat> crop_top_blobs(1);
                 crop->forward(crop_bottom_blobs, crop_top_blobs, cmd, opt);
@@ -1051,18 +913,8 @@ int DeconvolutionDepthWise_vulkan::forward(const VkImageMat& bottom_blob, VkImag
         }
         else if (output_w > 0 && output_h > 0)
         {
-            VkImageMat top_blob_bordered_adj = top_blob_bordered;
-            if (output_pad_right > 0 || output_pad_bottom > 0)
-            {
-                Option opt_pad = opt;
-                opt_pad.blob_vkallocator = opt.workspace_vkallocator;
-                output_pad->forward(top_blob_bordered, top_blob_bordered_adj, cmd, opt_pad);
-                if (top_blob_bordered_adj.empty())
-                    return -100;
-            }
-
-            int wcut = top_blob_bordered_adj.w - output_w;
-            int hcut = top_blob_bordered_adj.h - output_h;
+            int wcut = top_blob_bordered.w - output_w;
+            int hcut = top_blob_bordered.h - output_h;
 
             VkImageMat crop_param_blob(4, (size_t)4u, 1, opt.staging_vkallocator);
             int* crop_params = crop_param_blob.mapped();
@@ -1073,9 +925,9 @@ int DeconvolutionDepthWise_vulkan::forward(const VkImageMat& bottom_blob, VkImag
                 crop_params[0] = wcut / 2;
                 crop_params[1] = hcut / 2;
                 crop_params[2] = 0;
-                crop_params[3] = top_blob_bordered_adj.w - wcut;
-                crop_params[4] = top_blob_bordered_adj.h - hcut;
-                crop_params[5] = top_blob_bordered_adj.c * out_elempack;
+                crop_params[3] = top_blob_bordered.w - wcut;
+                crop_params[4] = top_blob_bordered.h - hcut;
+                crop_params[5] = top_blob_bordered.c * out_elempack;
             }
             else if (pad_left == -234 || pad_right == -234 || pad_top == -234 || pad_bottom == -234)
             {
@@ -1083,13 +935,13 @@ int DeconvolutionDepthWise_vulkan::forward(const VkImageMat& bottom_blob, VkImag
                 crop_params[0] = wcut - wcut / 2;
                 crop_params[1] = hcut - hcut / 2;
                 crop_params[2] = 0;
-                crop_params[3] = top_blob_bordered_adj.w - wcut;
-                crop_params[4] = top_blob_bordered_adj.h - hcut;
-                crop_params[5] = top_blob_bordered_adj.c * out_elempack;
+                crop_params[3] = top_blob_bordered.w - wcut;
+                crop_params[4] = top_blob_bordered.h - hcut;
+                crop_params[5] = top_blob_bordered.c * out_elempack;
             }
 
             std::vector<VkImageMat> crop_inputs(2);
-            crop_inputs[0] = top_blob_bordered_adj;
+            crop_inputs[0] = top_blob_bordered;
             crop_inputs[1] = crop_param_blob;
 
             std::vector<VkImageMat> crop_outputs(1);
@@ -1103,16 +955,7 @@ int DeconvolutionDepthWise_vulkan::forward(const VkImageMat& bottom_blob, VkImag
         }
         else
         {
-            if (output_pad_right > 0 || output_pad_bottom > 0)
-            {
-                output_pad->forward(top_blob_bordered, top_blob, cmd, opt);
-                if (top_blob.empty())
-                    return -100;
-            }
-            else
-            {
-                top_blob = top_blob_bordered;
-            }
+            top_blob = top_blob_bordered;
         }
 
         return 0;
@@ -1220,25 +1063,15 @@ int DeconvolutionDepthWise_vulkan::forward(const VkImageMat& bottom_blob, VkImag
 
     if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0)
     {
-        VkImageMat top_blob_bordered_adj = top_blob_bordered;
-        if (output_pad_right > 0 || output_pad_bottom > 0)
-        {
-            Option opt_pad = opt;
-            opt_pad.blob_vkallocator = opt.workspace_vkallocator;
-            output_pad->forward(top_blob_bordered, top_blob_bordered_adj, cmd, opt_pad);
-            if (top_blob_bordered_adj.empty())
-                return -100;
-        }
-
         {
             VkImageMat reference_blob;
             reference_blob.dims = 2;
-            reference_blob.w = top_blob_bordered_adj.w - pad_left - pad_right;
-            reference_blob.h = top_blob_bordered_adj.h - pad_top - pad_bottom;
+            reference_blob.w = top_blob_bordered.w - pad_left - pad_right;
+            reference_blob.h = top_blob_bordered.h - pad_top - pad_bottom;
             reference_blob.elempack = 1;
 
             std::vector<VkImageMat> crop_bottom_blobs(2);
-            crop_bottom_blobs[0] = top_blob_bordered_adj;
+            crop_bottom_blobs[0] = top_blob_bordered;
             crop_bottom_blobs[1] = reference_blob;
             std::vector<VkImageMat> crop_top_blobs(1);
             crop->forward(crop_bottom_blobs, crop_top_blobs, cmd, opt);
@@ -1252,18 +1085,8 @@ int DeconvolutionDepthWise_vulkan::forward(const VkImageMat& bottom_blob, VkImag
     }
     else if (output_w > 0 && output_h > 0)
     {
-        VkImageMat top_blob_bordered_adj = top_blob_bordered;
-        if (output_pad_right > 0 || output_pad_bottom > 0)
-        {
-            Option opt_pad = opt;
-            opt_pad.blob_vkallocator = opt.workspace_vkallocator;
-            output_pad->forward(top_blob_bordered, top_blob_bordered_adj, cmd, opt_pad);
-            if (top_blob_bordered_adj.empty())
-                return -100;
-        }
-
-        int wcut = top_blob_bordered_adj.w - output_w;
-        int hcut = top_blob_bordered_adj.h - output_h;
+        int wcut = top_blob_bordered.w - output_w;
+        int hcut = top_blob_bordered.h - output_h;
 
         VkImageMat crop_param_blob(4, (size_t)4u, 1, opt.staging_vkallocator);
         int* crop_params = crop_param_blob.mapped();
@@ -1274,9 +1097,9 @@ int DeconvolutionDepthWise_vulkan::forward(const VkImageMat& bottom_blob, VkImag
             crop_params[0] = wcut / 2;
             crop_params[1] = hcut / 2;
             crop_params[2] = 0;
-            crop_params[3] = top_blob_bordered_adj.w - wcut;
-            crop_params[4] = top_blob_bordered_adj.h - hcut;
-            crop_params[5] = top_blob_bordered_adj.c * out_elempack;
+            crop_params[3] = top_blob_bordered.w - wcut;
+            crop_params[4] = top_blob_bordered.h - hcut;
+            crop_params[5] = top_blob_bordered.c * out_elempack;
         }
         else if (pad_left == -234 || pad_right == -234 || pad_top == -234 || pad_bottom == -234)
         {
@@ -1284,13 +1107,13 @@ int DeconvolutionDepthWise_vulkan::forward(const VkImageMat& bottom_blob, VkImag
             crop_params[0] = wcut - wcut / 2;
             crop_params[1] = hcut - hcut / 2;
             crop_params[2] = 0;
-            crop_params[3] = top_blob_bordered_adj.w - wcut;
-            crop_params[4] = top_blob_bordered_adj.h - hcut;
-            crop_params[5] = top_blob_bordered_adj.c * out_elempack;
+            crop_params[3] = top_blob_bordered.w - wcut;
+            crop_params[4] = top_blob_bordered.h - hcut;
+            crop_params[5] = top_blob_bordered.c * out_elempack;
         }
 
         std::vector<VkImageMat> crop_inputs(2);
-        crop_inputs[0] = top_blob_bordered_adj;
+        crop_inputs[0] = top_blob_bordered;
         crop_inputs[1] = crop_param_blob;
 
         std::vector<VkImageMat> crop_outputs(1);
@@ -1304,16 +1127,7 @@ int DeconvolutionDepthWise_vulkan::forward(const VkImageMat& bottom_blob, VkImag
     }
     else
     {
-        if (output_pad_right > 0 || output_pad_bottom > 0)
-        {
-            output_pad->forward(top_blob_bordered, top_blob, cmd, opt);
-            if (top_blob.empty())
-                return -100;
-        }
-        else
-        {
-            top_blob = top_blob_bordered;
-        }
+        top_blob = top_blob_bordered;
     }
 
     return 0;

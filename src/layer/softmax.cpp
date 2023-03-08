@@ -74,8 +74,6 @@ int Softmax::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         {
             ptr[i] /= sum;
         }
-
-        return 0;
     }
 
     if (dims == 2 && positive_axis == 0)
@@ -122,8 +120,6 @@ int Softmax::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 ptr[j] /= sum[j];
             }
         }
-
-        return 0;
     }
 
     if (dims == 2 && positive_axis == 1)
@@ -152,8 +148,6 @@ int Softmax::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 ptr[j] /= s;
             }
         }
-
-        return 0;
     }
 
     if (dims == 3 && positive_axis == 0)
@@ -204,8 +198,6 @@ int Softmax::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 ptr[i] /= sum[i];
             }
         }
-
-        return 0;
     }
 
     if (dims == 3 && positive_axis == 1)
@@ -276,8 +268,6 @@ int Softmax::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 ptr += w;
             }
         }
-
-        return 0;
     }
 
     if (dims == 3 && positive_axis == 2)
@@ -314,8 +304,6 @@ int Softmax::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 ptr += w;
             }
         }
-
-        return 0;
     }
 
     return 0;

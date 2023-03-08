@@ -36,6 +36,7 @@ public:
 public:
     int w;
     int h;
+    int d;
     int c;
 };
 

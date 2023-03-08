@@ -35,7 +35,7 @@ int UnaryOp_vulkan::create_pipeline(const Option& opt)
     int elempack = 1;
     if (shape.dims == 1) elempack = opt.use_shader_pack8 && shape.w % 8 == 0 ? 8 : shape.w % 4 == 0 ? 4 : 1;
     if (shape.dims == 2) elempack = opt.use_shader_pack8 && shape.h % 8 == 0 ? 8 : shape.h % 4 == 0 ? 4 : 1;
-    if (shape.dims == 3) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
+    if (shape.dims == 3 || shape.dims == 4) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
 
     size_t elemsize;
     if (opt.use_fp16_storage)
@@ -55,12 +55,13 @@ int UnaryOp_vulkan::create_pipeline(const Option& opt)
     if (shape.dims == 1) shape_packed = Mat(shape.w / elempack, (void*)0, elemsize, elempack);
     if (shape.dims == 2) shape_packed = Mat(shape.w, shape.h / elempack, (void*)0, elemsize, elempack);
     if (shape.dims == 3) shape_packed = Mat(shape.w, shape.h, shape.c / elempack, (void*)0, elemsize, elempack);
+    if (shape.dims == 4) shape_packed = Mat(shape.w, shape.h, shape.d, shape.c / elempack, (void*)0, elemsize, elempack);
 
     std::vector<vk_specialization_type> specializations(1 + 5);
     specializations[0].i = op_type;
     specializations[1 + 0].i = shape_packed.dims;
     specializations[1 + 1].i = shape_packed.w;
-    specializations[1 + 2].i = shape_packed.h;
+    specializations[1 + 2].i = shape_packed.h * shape_packed.d;
     specializations[1 + 3].i = shape_packed.c;
     specializations[1 + 4].i = shape_packed.cstep;
 
@@ -81,6 +82,12 @@ int UnaryOp_vulkan::create_pipeline(const Option& opt)
     {
         local_size_xyz.w = std::min(4, shape_packed.w);
         local_size_xyz.h = std::min(4, shape_packed.h);
+        local_size_xyz.c = std::min(4, shape_packed.c);
+    }
+    if (shape_packed.dims == 4)
+    {
+        local_size_xyz.w = std::min(4, shape_packed.w);
+        local_size_xyz.h = std::min(4, shape_packed.h * shape_packed.d);
         local_size_xyz.c = std::min(4, shape_packed.c);
     }
 
@@ -135,7 +142,7 @@ int UnaryOp_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, cons
     std::vector<vk_constant_type> constants(5);
     constants[0].i = bottom_top_blob.dims;
     constants[1].i = bottom_top_blob.w;
-    constants[2].i = bottom_top_blob.h;
+    constants[2].i = bottom_top_blob.h * bottom_top_blob.d;
     constants[3].i = bottom_top_blob.c;
     constants[4].i = bottom_top_blob.cstep;
 
@@ -159,7 +166,7 @@ int UnaryOp_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cmd,
     std::vector<vk_constant_type> constants(5);
     constants[0].i = bottom_top_blob.dims;
     constants[1].i = bottom_top_blob.w;
-    constants[2].i = bottom_top_blob.h;
+    constants[2].i = bottom_top_blob.h * bottom_top_blob.d;
     constants[3].i = bottom_top_blob.c;
     constants[4].i = 0; //bottom_top_blob.cstep;
 

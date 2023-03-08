@@ -29,8 +29,10 @@ public:
 
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
+    virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
+
 protected:
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#if NCNN_ARM82
     int create_pipeline_fp16s(const Option& opt);
     int forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
     int forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
@@ -47,38 +49,23 @@ protected:
 
 public:
     Layer* activation;
-    bool use_winograd3x3;
-    bool use_sgemm1x1;
-    Mat weight_3x3_winograd64_data;
+
+    Mat weight_data_tm;
     Mat weight_3x3s2_data;
+
     Mat weight_sgemm_data;
+    Mat weight_winograd23_data;
+    Mat weight_winograd43_data;
+    Mat weight_winograd63_data;
 
     // forwardDilation
     Layer* convolution_dilation1;
 
-    // pack4
-    Mat weight_data_pack4;
-    Mat weight_data_pack1to4;
-    Mat weight_data_pack4to1;
-
-    Mat weight_3x3_winograd42_data_pack4;
-    Mat weight_sgemm_data_pack4;
-
     // fp16
-    Mat weight_data_fp16;
     Mat bias_data_fp16;
 
-#if NCNN_BF16
-    // bf16
-    Mat weight_data_bf16;
-#endif
-
 #if NCNN_INT8
-    // int8
-    Mat weight_data_int8;
-
-    //     Mat weight_3x3s2_data_int8;
-    std::vector<Mat> weight_3x3_winograd23_data_int8;
+    Mat scale_in_data;
 #endif
 };
 

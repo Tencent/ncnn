@@ -1,6 +1,6 @@
 ### how to enable ncnn vulkan capability
 
-follow [the build and install instruction](how-to-build)
+follow [the build and install instruction](https://github.com/Tencent/ncnn/blob/master/docs/how-to-build/how-to-build.md)
 
 make sure you have installed vulkan sdk from [lunarg vulkan sdk website](https://vulkan.lunarg.com/sdk/home)
 

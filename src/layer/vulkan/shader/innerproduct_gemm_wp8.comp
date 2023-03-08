@@ -22,6 +22,9 @@ struct sfpvec8 { f16vec4 abcd; f16vec4 efgh; };
 #extension GL_EXT_shader_explicit_arithmetic_types_float16: require
 #endif
 
+#extension GL_GOOGLE_include_directive: enable
+#include "vulkan_activation.comp"
+
 layout (constant_id = 0) const int bias_term = 0;
 layout (constant_id = 1) const int activation_type = 0;
 layout (constant_id = 2) const float activation_param_0 = 0;
@@ -160,34 +163,7 @@ void main()
     }
 #endif
 
-    if (activation_type == 1)
-    {
-        sum[0] = max(sum[0], afp(0.f));
-        sum[1] = max(sum[1], afp(0.f));
-    }
-    if (activation_type == 2)
-    {
-        const afp slope = afp(activation_param_0);
-        sum[0] = mix(sum[0], sum[0] * afp(slope), lessThan(sum[0], afpvec4(0.f)));
-        sum[1] = mix(sum[1], sum[1] * afp(slope), lessThan(sum[1], afpvec4(0.f)));
-    }
-    if (activation_type == 3)
-    {
-        const afp const_min = afp(activation_param_0);
-        const afp const_max = afp(activation_param_1);
-        sum[0] = clamp(sum[0], const_min, const_max);
-        sum[1] = clamp(sum[1], const_min, const_max);
-    }
-    if (activation_type == 4)
-    {
-        sum[0] = afp(1.f) / (afp(1.f) + exp(-sum[0]));
-        sum[1] = afp(1.f) / (afp(1.f) + exp(-sum[1]));
-    }
-    if (activation_type == 5)
-    {
-        sum[0] = sum[0] * tanh(log(exp(sum[0]) + afp(1.f)));
-        sum[1] = sum[1] * tanh(log(exp(sum[1]) + afp(1.f)));
-    }
+    sum = activation_afpvec8(sum, activation_type, activation_param_0, activation_param_1);
 
 #if NCNN_image_shader
     image3d_st1(top_blob, ivec3(gx * 8 + 0, gy, 0), sum[0].r);

@@ -261,8 +261,8 @@ class YoloV5s:
             Detect_Object(
                 obj[5],
                 obj[4],
-                obj[0] / scale,
-                obj[1] / scale,
+                (obj[0] - (wpad / 2)) / scale,
+                (obj[1] - (hpad / 2)) / scale,
                 (obj[2] - obj[0]) / scale,
                 (obj[3] - obj[1]) / scale,
             )

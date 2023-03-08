@@ -207,14 +207,3 @@ static void conv5x5s1_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& _ker
         }
     }
 }
-
-static void conv5x5s2_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& _kernel, const Mat& _bias, const Option& opt)
-{
-    int kernel_w = 5;
-    int kernel_h = 5;
-
-    int stride_w = 2;
-    int stride_h = 2;
-
-    conv_im2col_sgemm_sse(bottom_blob, top_blob, _kernel, _bias, kernel_w, kernel_h, stride_w, stride_h, opt);
-}

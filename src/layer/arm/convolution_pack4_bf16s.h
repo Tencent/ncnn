@@ -29,7 +29,7 @@ static void convolution_transform_kernel_pack4_bf16s_neon(const Mat& weight_data
         const Mat k2 = weight_data_r2.channel(q + 2);
         const Mat k3 = weight_data_r2.channel(q + 3);
 
-        Mat g0 = weight_data_bf16.channel(q / 4);
+        unsigned short* g00 = weight_data_bf16.channel(q / 4);
 
         for (int p = 0; p + 3 < num_input; p += 4)
         {
@@ -52,8 +52,6 @@ static void convolution_transform_kernel_pack4_bf16s_neon(const Mat& weight_data
             const float* k31 = k3.row(p + 1);
             const float* k32 = k3.row(p + 2);
             const float* k33 = k3.row(p + 3);
-
-            unsigned short* g00 = g0.row<unsigned short>(p / 4);
 
             for (int k = 0; k < maxk; k++)
             {
@@ -142,12 +140,12 @@ static void convolution_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, 
 
                     for (int k = 0; k < maxk; k++)
                     {
-                        float32x4_t _val = vcvt_f32_bf16(vld1_u16(sptr + space_ofs[k] * 4));
+                        float32x4_t _val = bfloat2float(vld1_u16(sptr + space_ofs[k] * 4));
 
-                        float32x4_t _w0 = vcvt_f32_bf16(vld1_u16(kptr));
-                        float32x4_t _w1 = vcvt_f32_bf16(vld1_u16(kptr + 4));
-                        float32x4_t _w2 = vcvt_f32_bf16(vld1_u16(kptr + 8));
-                        float32x4_t _w3 = vcvt_f32_bf16(vld1_u16(kptr + 12));
+                        float32x4_t _w0 = bfloat2float(vld1_u16(kptr));
+                        float32x4_t _w1 = bfloat2float(vld1_u16(kptr + 4));
+                        float32x4_t _w2 = bfloat2float(vld1_u16(kptr + 8));
+                        float32x4_t _w3 = bfloat2float(vld1_u16(kptr + 12));
 
 #if __aarch64__
                         _sum = vmlaq_laneq_f32(_sum, _w0, _val, 0);
@@ -167,7 +165,7 @@ static void convolution_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, 
 
                 _sum = activation_ps(_sum, activation_type, activation_params);
 
-                vst1_u16(outptr + j * 4, vcvt_bf16_f32(_sum));
+                vst1_u16(outptr + j * 4, float2bfloat(_sum));
             }
 
             outptr += outw * 4;

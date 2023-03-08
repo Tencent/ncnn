@@ -27,14 +27,16 @@ layout (constant_id = 0) const int ndim = 0;
 layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
 layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
 layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
-layout (constant_id = shape_constant_id_offset + 3) const int c = 0;
-layout (constant_id = shape_constant_id_offset + 4) const int cstep = 0;
+layout (constant_id = shape_constant_id_offset + 3) const int d = 0;
+layout (constant_id = shape_constant_id_offset + 4) const int c = 0;
+layout (constant_id = shape_constant_id_offset + 5) const int cstep = 0;
 
-layout (constant_id = shape_constant_id_offset + 5) const int outdims = 0;
-layout (constant_id = shape_constant_id_offset + 6) const int outw = 0;
-layout (constant_id = shape_constant_id_offset + 7) const int outh = 0;
-layout (constant_id = shape_constant_id_offset + 8) const int outc = 0;
-layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
+layout (constant_id = shape_constant_id_offset + 6) const int outdims = 0;
+layout (constant_id = shape_constant_id_offset + 7) const int outw = 0;
+layout (constant_id = shape_constant_id_offset + 8) const int outh = 0;
+layout (constant_id = shape_constant_id_offset + 9) const int outd = 0;
+layout (constant_id = shape_constant_id_offset + 10) const int outc = 0;
+layout (constant_id = shape_constant_id_offset + 11) const int outcstep = 0;
 
 #if NCNN_image_shader
 layout (binding = 0) uniform unfp sampler3D bottom_blob_3d;
@@ -49,12 +51,14 @@ layout (push_constant) uniform parameter
     int dims;
     int w;
     int h;
+    int d;
     int c;
     int cstep;
 
     int outdims;
     int outw;
     int outh;
+    int outd;
     int outc;
     int outcstep;
 } p;
@@ -65,22 +69,66 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= psc(w) || gy >= psc(h) || gz >= psc(c))
+    if (gx >= psc(w) || gy >= psc(h) * psc(d) || gz >= psc(c))
         return;
 
-    ivec3 gxyz = ivec3(gx, gy, gz);
-
-    gxyz[psc(dims) - 1] *= 4;
-
-    int i4_0 = gxyz.z * psc(h) * psc(w) + gxyz.y * psc(w) + gxyz.x;
-
-    ivec3 gxyz4 = ivec3(1, psc(w), psc(h) * psc(w));
-
-    ivec4 i4 = i4_0 + ivec4(0, 1, 2, 3) * gxyz4[psc(dims) - 1];
+    ivec4 i4;
+    if (psc(dims) == 1)
+    {
+        i4 = gx * 4 + ivec4(0, 1, 2, 3);
+    }
+    else if (psc(dims) == 2)
+    {
+        i4 = (gy * 4) * psc(w) + gx + ivec4(0, 1, 2, 3) * psc(w);
+    }
+    else if (psc(dims) == 3)
+    {
+        i4 = (gz * 4) * psc(h) * psc(w) + gy * psc(w) + gx + ivec4(0, 1, 2, 3) * psc(h) * psc(w);
+    }
+    else // if (psc(dims) == 4)
+    {
+        i4 = (gz * 4) * psc(d) * psc(h) * psc(w) + gy * psc(w) + gx + ivec4(0, 1, 2, 3) * psc(d) * psc(h) * psc(w);
+    }
 
 #if NCNN_image_shader
-    afpvec4 v;
+    ivec4 x4;
+    ivec4 y4;
+    ivec4 z4;
 
+    if (ndim == 1)
+    {
+        z4 = ivec4(0);
+        y4 = ivec4(0);
+        x4 = i4;
+    }
+    if (ndim == 2)
+    {
+        z4 = ivec4(0);
+        y4 = i4 / psc(outw);
+        x4 = i4 % psc(outw);
+    }
+    if (ndim == 3)
+    {
+        int size = psc(outw) * psc(outh);
+
+        z4 = i4 / size;
+        y4 = i4 % size / psc(outw);
+        x4 = i4 % size % psc(outw);
+    }
+    if (ndim == 4)
+    {
+        int size = psc(outw) * psc(outh) * psc(outd);
+        int dsize = psc(outw) * psc(outh);
+
+        z4 = i4 / size;
+        ivec4 yd4 = i4 % size / dsize;
+        ivec4 yh4 = i4 % size % dsize / psc(outw);
+        x4 = i4 % size % dsize % psc(outw);
+
+        y4 = yd4 * psc(outh) + yh4;
+    }
+
+    afpvec4 v;
     if (psc(dims) == 1)
     {
         v = image3d_ld4(bottom_blob_3d, ivec3(gx, 0, 0));
@@ -89,43 +137,15 @@ void main()
     {
         v = image3d_ld4(bottom_blob_3d, ivec3(gx, gy, 0));
     }
-    else // if (psc(dims) == 3)
+    else // if (psc(dims) == 3 || psc(dims) == 4)
     {
         v = image3d_ld4(bottom_blob_3d, ivec3(gx, gy, gz));
     }
 
-    if (ndim == 1)
-    {
-        ivec4 x4 = i4;
-
-        image3d_st1(top_blob_3d, ivec3(x4.r, 0, 0), v.r);
-        image3d_st1(top_blob_3d, ivec3(x4.g, 0, 0), v.g);
-        image3d_st1(top_blob_3d, ivec3(x4.b, 0, 0), v.b);
-        image3d_st1(top_blob_3d, ivec3(x4.a, 0, 0), v.a);
-    }
-    if (ndim == 2)
-    {
-        ivec4 y4 = i4 / psc(outw);
-        ivec4 x4 = i4 % psc(outw);
-
-        image3d_st1(top_blob_3d, ivec3(x4.r, y4.r, 0), v.r);
-        image3d_st1(top_blob_3d, ivec3(x4.g, y4.g, 0), v.g);
-        image3d_st1(top_blob_3d, ivec3(x4.b, y4.b, 0), v.b);
-        image3d_st1(top_blob_3d, ivec3(x4.a, y4.a, 0), v.a);
-    }
-    if (ndim == 3)
-    {
-        int size = psc(outw) * psc(outh);
-
-        ivec4 z4 = i4 / size;
-        ivec4 y4 = i4 % size / psc(outw);
-        ivec4 x4 = i4 % size % psc(outw);
-
-        image3d_st1(top_blob_3d, ivec3(x4.r, y4.r, z4.r), v.r);
-        image3d_st1(top_blob_3d, ivec3(x4.g, y4.g, z4.g), v.g);
-        image3d_st1(top_blob_3d, ivec3(x4.b, y4.b, z4.b), v.b);
-        image3d_st1(top_blob_3d, ivec3(x4.a, y4.a, z4.a), v.a);
-    }
+    image3d_st1(top_blob_3d, ivec3(x4.r, y4.r, z4.r), v.r);
+    image3d_st1(top_blob_3d, ivec3(x4.g, y4.g, z4.g), v.g);
+    image3d_st1(top_blob_3d, ivec3(x4.b, y4.b, z4.b), v.b);
+    image3d_st1(top_blob_3d, ivec3(x4.a, y4.a, z4.a), v.a);
 #else
     ivec4 v_offset;
 
@@ -147,6 +167,20 @@ void main()
         ivec4 z4 = i4 / size;
         ivec4 y4 = i4 % size / psc(outw);
         ivec4 x4 = i4 % size % psc(outw);
+
+        v_offset = z4 * psc(outcstep) + y4 * psc(outw) + x4;
+    }
+    if (ndim == 4)
+    {
+        int size = psc(outw) * psc(outh) * psc(outd);
+        int dsize = psc(outw) * psc(outh);
+
+        ivec4 z4 = i4 / size;
+        ivec4 yd4 = i4 % size / dsize;
+        ivec4 yh4 = i4 % size % dsize / psc(outw);
+        ivec4 x4 = i4 % size % dsize % psc(outw);
+
+        ivec4 y4 = yd4 * psc(outh) + yh4;
 
         v_offset = z4 * psc(outcstep) + y4 * psc(outw) + x4;
     }

@@ -61,6 +61,7 @@ public:
     // register custom layer by layer type name
     // return 0 if success
     int register_custom_layer(const char* type, layer_creator_func creator, layer_destroyer_func destroyer = 0, void* userdata = 0);
+    virtual int custom_layer_to_index(const char* type);
 #endif // NCNN_STRING
     // register custom layer by layer type
     // return 0 if success
@@ -147,7 +148,6 @@ protected:
 #if NCNN_STRING
     int find_blob_index_by_name(const char* name) const;
     int find_layer_index_by_name(const char* name) const;
-    virtual int custom_layer_to_index(const char* type);
     virtual Layer* create_custom_layer(const char* type);
 #endif // NCNN_STRING
     virtual Layer* create_custom_layer(int index);

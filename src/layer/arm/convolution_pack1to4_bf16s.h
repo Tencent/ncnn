@@ -29,7 +29,7 @@ static void convolution_transform_kernel_pack1to4_bf16s_neon(const Mat& weight_d
         const Mat k2 = weight_data_r2.channel(q + 2);
         const Mat k3 = weight_data_r2.channel(q + 3);
 
-        Mat g0 = weight_data_bf16.channel(q / 4);
+        unsigned short* g00 = weight_data_bf16.channel(q / 4);
 
         for (int p = 0; p < num_input; p++)
         {
@@ -37,8 +37,6 @@ static void convolution_transform_kernel_pack1to4_bf16s_neon(const Mat& weight_d
             const float* k10 = k1.row(p);
             const float* k20 = k2.row(p);
             const float* k30 = k3.row(p);
-
-            unsigned short* g00 = g0.row<unsigned short>(p);
 
             for (int k = 0; k < maxk; k++)
             {
@@ -113,7 +111,7 @@ static void convolution_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blo
                     for (int k = 0; k < maxk; k++)
                     {
                         float32x4_t _val = vdupq_n_f32(bfloat16_to_float32(sptr[space_ofs[k]]));
-                        float32x4_t _w = vcvt_f32_bf16(vld1_u16(kptr));
+                        float32x4_t _w = bfloat2float(vld1_u16(kptr));
                         _sum = vmlaq_f32(_sum, _val, _w);
 
                         kptr += 4;
@@ -122,7 +120,7 @@ static void convolution_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blo
 
                 _sum = activation_ps(_sum, activation_type, activation_params);
 
-                vst1_u16(outptr + j * 4, vcvt_bf16_f32(_sum));
+                vst1_u16(outptr + j * 4, float2bfloat(_sum));
             }
 
             outptr += outw * 4;

@@ -84,7 +84,7 @@ static void qsort_descent_inplace(std::vector<Object>& faceobjects)
     qsort_descent_inplace(faceobjects, 0, faceobjects.size() - 1);
 }
 
-static void nms_sorted_bboxes(const std::vector<Object>& faceobjects, std::vector<int>& picked, float nms_threshold)
+static void nms_sorted_bboxes(const std::vector<Object>& faceobjects, std::vector<int>& picked, float nms_threshold, bool agnostic = false)
 {
     picked.clear();
 
@@ -93,7 +93,7 @@ static void nms_sorted_bboxes(const std::vector<Object>& faceobjects, std::vecto
     std::vector<float> areas(n);
     for (int i = 0; i < n; i++)
     {
-        areas[i] = faceobjects[i].rect.width * faceobjects[i].rect.height;
+        areas[i] = faceobjects[i].rect.area();
     }
 
     for (int i = 0; i < n; i++)
@@ -104,6 +104,9 @@ static void nms_sorted_bboxes(const std::vector<Object>& faceobjects, std::vecto
         for (int j = 0; j < (int)picked.size(); j++)
         {
             const Object& b = faceobjects[picked[j]];
+
+            if (!agnostic && a.label != b.label)
+                continue;
 
             // intersection over union
             float inter_area = intersection_area(a, b);
@@ -226,8 +229,10 @@ static int detect_nanodet(const cv::Mat& bgr, std::vector<Object>& objects)
 
     // original pretrained model from https://github.com/RangiLyu/nanodet
     // the ncnn model https://github.com/nihui/ncnn-assets/tree/master/models
-    nanodet.load_param("nanodet_m.param");
-    nanodet.load_model("nanodet_m.bin");
+    if (nanodet.load_param("nanodet_m.param"))
+        exit(-1);
+    if (nanodet.load_model("nanodet_m.bin"))
+        exit(-1);
 
     int width = bgr.cols;
     int height = bgr.rows;

@@ -15,7 +15,7 @@
 static void deconvolution_packnto1_fp16s_rvv(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_fp16, const Mat& bias_data, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int activation_type, const Mat& activation_params, const Option& opt)
 {
     const int packn = csrr_vlenb() / 2;
-    const word_type vl = vsetvl_e16m1(packn);
+    const size_t vl = vsetvl_e16m1(packn);
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
@@ -91,7 +91,7 @@ static void deconvolution_packnto1_fp16s_rvv(const Mat& bottom_blob, Mat& top_bl
                     kptr += maxk * packn;
                 }
 
-#ifdef RVV_SPEC_0_7
+#if C906
                 // TODO
                 std::vector<float> ss(packn);
                 vse32_v_f32m2((float*)ss.data(), _sum, vl);
@@ -100,7 +100,7 @@ static void deconvolution_packnto1_fp16s_rvv(const Mat& bottom_blob, Mat& top_bl
                     sum += ss[i];
                 }
 #else
-                sum = vfmv_f_s_f32m1_f32(vfredsum_vs_f32m2_f32m1(vfloat32m1_t(), _sum, vfmv_s_f_f32m1(vfloat32m1_t(), sum, vl), vl));
+                sum = vfmv_f_s_f32m1_f32(vfredusum_vs_f32m2_f32m1(vfloat32m1_t(), _sum, vfmv_s_f_f32m1(vfloat32m1_t(), sum, vl), vl));
 #endif
 
                 sum = activation_ss(sum, activation_type, activation_params);
@@ -116,7 +116,7 @@ static void deconvolution_packnto1_fp16s_rvv(const Mat& bottom_blob, Mat& top_bl
 static void deconvolution_packnto1_fp16sa_rvv(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_fp16, const Mat& bias_data_fp16, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int activation_type, const Mat& activation_params, const Option& opt)
 {
     const int packn = csrr_vlenb() / 2;
-    const word_type vl = vsetvl_e16m1(packn);
+    const size_t vl = vsetvl_e16m1(packn);
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
@@ -192,7 +192,7 @@ static void deconvolution_packnto1_fp16sa_rvv(const Mat& bottom_blob, Mat& top_b
                     kptr += maxk * packn;
                 }
 
-                sum = vfmv_f_s_f16m1_f16(vfredsum_vs_f16m1_f16m1(vfloat16m1_t(), _sum, vfmv_s_f_f16m1(vfloat16m1_t(), sum, vl), vl));
+                sum = vfmv_f_s_f16m1_f16(vfredusum_vs_f16m1_f16m1(vfloat16m1_t(), _sum, vfmv_s_f_f16m1(vfloat16m1_t(), sum, vl), vl));
 
                 sum = activation_ss(sum, activation_type, activation_params);
 

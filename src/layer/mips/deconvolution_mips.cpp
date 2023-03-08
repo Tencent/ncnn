@@ -75,16 +75,14 @@ int Deconvolution_mips::create_pipeline(const Option& opt)
     {
         Mat weight_data_r2 = weight_data_transposed.reshape(maxk, num_input, num_output);
 
-        weight_data_packed.create(maxk, num_input / elempack, num_output / out_elempack, (size_t)4u * elempack * out_elempack, elempack * out_elempack);
+        weight_data_tm.create(maxk, num_input / elempack, num_output / out_elempack, (size_t)4u * elempack * out_elempack, elempack * out_elempack);
 
         for (int q = 0; q + (out_elempack - 1) < num_output; q += out_elempack)
         {
-            Mat g0 = weight_data_packed.channel(q / out_elempack);
+            float* g00 = weight_data_tm.channel(q / out_elempack);
 
             for (int p = 0; p + (elempack - 1) < num_input; p += elempack)
             {
-                float* g00 = g0.row(p / elempack);
-
                 for (int k = 0; k < maxk; k++)
                 {
                     for (int i = 0; i < elempack; i++)
@@ -125,6 +123,11 @@ int Deconvolution_mips::create_pipeline(const Option& opt)
     {
     }
 
+    if (opt.lightmode)
+    {
+        weight_data.release();
+    }
+
     return 0;
 }
 
@@ -149,8 +152,8 @@ int Deconvolution_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
     const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
     const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
 
-    int outw = (w - 1) * stride_w + kernel_extent_w;
-    int outh = (h - 1) * stride_h + kernel_extent_h;
+    int outw = (w - 1) * stride_w + kernel_extent_w + output_pad_right;
+    int outh = (h - 1) * stride_h + kernel_extent_h + output_pad_bottom;
     int out_elempack = 1;
 #if __mips_msa
     if (opt.use_packing_layout)
@@ -161,7 +164,7 @@ int Deconvolution_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
     Mat top_blob_bordered;
-    if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0 || output_pad_right > 0 || output_pad_bottom > 0 || (output_w > 0 && output_h > 0))
+    if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0 || (output_w > 0 && output_h > 0))
     {
         top_blob_bordered.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.workspace_allocator);
     }
@@ -179,21 +182,21 @@ int Deconvolution_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
     if (elempack == 4 && out_elempack == 4)
     {
         {
-            deconvolution_pack4_msa(bottom_blob, top_blob_bordered, weight_data_packed, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
+            deconvolution_pack4_msa(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
         }
     }
 
     if (elempack == 1 && out_elempack == 4)
     {
         {
-            deconvolution_pack1to4_msa(bottom_blob, top_blob_bordered, weight_data_packed, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
+            deconvolution_pack1to4_msa(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
         }
     }
 
     if (elempack == 4 && out_elempack == 1)
     {
         {
-            deconvolution_pack4to1_msa(bottom_blob, top_blob_bordered, weight_data_packed, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
+            deconvolution_pack4to1_msa(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
         }
     }
 #endif // __mips_msa
@@ -218,7 +221,7 @@ int Deconvolution_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
                             sum = bias_data[p];
                         }
 
-                        const float* kptr = (const float*)weight_data_packed.channel(p);
+                        const float* kptr = (const float*)weight_data_tm.channel(p);
 
                         // channels
                         for (int q = 0; q < channels; q++)

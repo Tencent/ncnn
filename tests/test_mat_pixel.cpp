@@ -58,7 +58,7 @@ static int test_mat_pixel_gray(int w, int h)
     for (int i = 0; i < 1; i++)
     {
         ncnn::Mat m = ncnn::Mat::from_pixels(a, pixel_type_from[i], w, h);
-        ncnn::Mat b(w, h, 1u, 1);
+        ncnn::Mat b(w, h, (size_t)1u, 1);
         m.to_pixels(b, pixel_type_to[i]);
 
         if (memcmp(a, b, w * h * 1) != 0)
@@ -82,7 +82,7 @@ static int test_mat_pixel_rgb(int w, int h)
     for (int i = 0; i < 2; i++)
     {
         ncnn::Mat m = ncnn::Mat::from_pixels(a, pixel_type_from[i], w, h);
-        ncnn::Mat b(w, h, 3u, 3);
+        ncnn::Mat b(w, h, (size_t)3u, 3);
         m.to_pixels(b, pixel_type_to[i]);
 
         if (memcmp(a, b, w * h * 3) != 0)
@@ -106,7 +106,7 @@ static int test_mat_pixel_bgr(int w, int h)
     for (int i = 0; i < 2; i++)
     {
         ncnn::Mat m = ncnn::Mat::from_pixels(a, pixel_type_from[i], w, h);
-        ncnn::Mat b(w, h, 3u, 3);
+        ncnn::Mat b(w, h, (size_t)3u, 3);
         m.to_pixels(b, pixel_type_to[i]);
 
         if (memcmp(a, b, w * h * 3) != 0)
@@ -129,7 +129,7 @@ static int test_mat_pixel_rgba(int w, int h)
     for (int i = 0; i < 2; i++)
     {
         ncnn::Mat m = ncnn::Mat::from_pixels(a, pixel_type_from[i], w, h);
-        ncnn::Mat b(w, h, 4u, 4);
+        ncnn::Mat b(w, h, (size_t)4u, 4);
         m.to_pixels(b, pixel_type_to[i]);
 
         if (memcmp(a, b, w * h * 4) != 0)
@@ -152,7 +152,7 @@ static int test_mat_pixel_bgra(int w, int h)
     for (int i = 0; i < 2; i++)
     {
         ncnn::Mat m = ncnn::Mat::from_pixels(a, pixel_type_from[i], w, h);
-        ncnn::Mat b(w, h, 4u, 4);
+        ncnn::Mat b(w, h, (size_t)4u, 4);
         m.to_pixels(b, pixel_type_to[i]);
 
         if (memcmp(a, b, w * h * 4) != 0)
@@ -167,25 +167,28 @@ static int test_mat_pixel_bgra(int w, int h)
 
 static int test_mat_pixel_roi_gray(int w, int h, int roix, int roiy, int roiw, int roih)
 {
+    ncnn::Option opt;
+    opt.num_threads = 1;
+
     int pixel_type_from[5] = {ncnn::Mat::PIXEL_GRAY, ncnn::Mat::PIXEL_GRAY2RGB, ncnn::Mat::PIXEL_GRAY2BGR, ncnn::Mat::PIXEL_GRAY2RGBA, ncnn::Mat::PIXEL_GRAY2BGRA};
     int pixel_type_to[5] = {ncnn::Mat::PIXEL_GRAY, ncnn::Mat::PIXEL_RGB2GRAY, ncnn::Mat::PIXEL_BGR2GRAY, ncnn::Mat::PIXEL_RGBA2GRAY, ncnn::Mat::PIXEL_BGRA2GRAY};
 
     ncnn::Mat a = RandomMat(w, h, 1);
 
     ncnn::Mat a2;
-    ncnn::convert_packing(a.reshape(w, h, 1), a2, 1);
+    ncnn::convert_packing(a.reshape(w, h, 1), a2, 1, opt);
 
     // FIXME enable more convert types
     for (int i = 0; i < 1; i++)
     {
         ncnn::Mat m = ncnn::Mat::from_pixels_roi(a, pixel_type_from[i], w, h, roix, roiy, roiw, roih);
-        ncnn::Mat b(roiw, roih, 1u, 1);
+        ncnn::Mat b(roiw, roih, (size_t)1u, 1);
         m.to_pixels(b, pixel_type_to[i]);
 
         ncnn::Mat b2;
         ncnn::Mat c2;
-        ncnn::copy_cut_border(a2, b2, roiy, h - (roiy + roih), roix, w - (roix + roiw));
-        ncnn::convert_packing(b2, c2, 1);
+        ncnn::copy_cut_border(a2, b2, roiy, h - (roiy + roih), roix, w - (roix + roiw), opt);
+        ncnn::convert_packing(b2, c2, 1, opt);
 
         if (memcmp(b, c2, roiw * roih * 1) != 0)
         {
@@ -199,25 +202,28 @@ static int test_mat_pixel_roi_gray(int w, int h, int roix, int roiy, int roiw, i
 
 static int test_mat_pixel_roi_rgb(int w, int h, int roix, int roiy, int roiw, int roih)
 {
+    ncnn::Option opt;
+    opt.num_threads = 1;
+
     int pixel_type_from[4] = {ncnn::Mat::PIXEL_RGB, ncnn::Mat::PIXEL_RGB2BGR, ncnn::Mat::PIXEL_RGB2RGBA, ncnn::Mat::PIXEL_RGB2BGRA};
     int pixel_type_to[4] = {ncnn::Mat::PIXEL_RGB, ncnn::Mat::PIXEL_BGR2RGB, ncnn::Mat::PIXEL_RGBA2RGB, ncnn::Mat::PIXEL_BGRA2RGB};
 
     ncnn::Mat a = RandomMat(w, h, 3);
 
     ncnn::Mat a2;
-    ncnn::convert_packing(a.reshape(w, h, 1), a2, 1);
+    ncnn::convert_packing(a.reshape(w, h, 1), a2, 1, opt);
 
     // FIXME enable more convert types
     for (int i = 0; i < 2; i++)
     {
         ncnn::Mat m = ncnn::Mat::from_pixels_roi(a, pixel_type_from[i], w, h, roix, roiy, roiw, roih);
-        ncnn::Mat b(roiw, roih, 3u, 3);
+        ncnn::Mat b(roiw, roih, (size_t)3u, 3);
         m.to_pixels(b, pixel_type_to[i]);
 
         ncnn::Mat b2;
         ncnn::Mat c2;
-        ncnn::copy_cut_border(a2, b2, roiy, h - (roiy + roih), roix, w - (roix + roiw));
-        ncnn::convert_packing(b2, c2, 3);
+        ncnn::copy_cut_border(a2, b2, roiy, h - (roiy + roih), roix, w - (roix + roiw), opt);
+        ncnn::convert_packing(b2, c2, 3, opt);
 
         if (memcmp(b, c2, roiw * roih * 3) != 0)
         {
@@ -231,25 +237,28 @@ static int test_mat_pixel_roi_rgb(int w, int h, int roix, int roiy, int roiw, in
 
 static int test_mat_pixel_roi_bgr(int w, int h, int roix, int roiy, int roiw, int roih)
 {
+    ncnn::Option opt;
+    opt.num_threads = 1;
+
     int pixel_type_from[4] = {ncnn::Mat::PIXEL_BGR, ncnn::Mat::PIXEL_BGR2RGB, ncnn::Mat::PIXEL_BGR2RGBA, ncnn::Mat::PIXEL_BGR2BGRA};
     int pixel_type_to[4] = {ncnn::Mat::PIXEL_BGR, ncnn::Mat::PIXEL_RGB2BGR, ncnn::Mat::PIXEL_RGBA2BGR, ncnn::Mat::PIXEL_BGRA2BGR};
 
     ncnn::Mat a = RandomMat(w, h, 3);
 
     ncnn::Mat a2;
-    ncnn::convert_packing(a.reshape(w, h, 1), a2, 1);
+    ncnn::convert_packing(a.reshape(w, h, 1), a2, 1, opt);
 
     // FIXME enable more convert types
     for (int i = 0; i < 2; i++)
     {
         ncnn::Mat m = ncnn::Mat::from_pixels_roi(a, pixel_type_from[i], w, h, roix, roiy, roiw, roih);
-        ncnn::Mat b(roiw, roih, 3u, 3);
+        ncnn::Mat b(roiw, roih, (size_t)3u, 3);
         m.to_pixels(b, pixel_type_to[i]);
 
         ncnn::Mat b2;
         ncnn::Mat c2;
-        ncnn::copy_cut_border(a2, b2, roiy, h - (roiy + roih), roix, w - (roix + roiw));
-        ncnn::convert_packing(b2, c2, 3);
+        ncnn::copy_cut_border(a2, b2, roiy, h - (roiy + roih), roix, w - (roix + roiw), opt);
+        ncnn::convert_packing(b2, c2, 3, opt);
 
         if (memcmp(b, c2, roiw * roih * 3) != 0)
         {
@@ -263,24 +272,27 @@ static int test_mat_pixel_roi_bgr(int w, int h, int roix, int roiy, int roiw, in
 
 static int test_mat_pixel_roi_rgba(int w, int h, int roix, int roiy, int roiw, int roih)
 {
+    ncnn::Option opt;
+    opt.num_threads = 1;
+
     int pixel_type_from[2] = {ncnn::Mat::PIXEL_RGBA, ncnn::Mat::PIXEL_RGBA2BGRA};
     int pixel_type_to[2] = {ncnn::Mat::PIXEL_RGBA, ncnn::Mat::PIXEL_BGRA2RGBA};
 
     ncnn::Mat a = RandomMat(w, h, 4);
 
     ncnn::Mat a2;
-    ncnn::convert_packing(a.reshape(w, h, 1), a2, 1);
+    ncnn::convert_packing(a.reshape(w, h, 1), a2, 1, opt);
 
     for (int i = 0; i < 2; i++)
     {
         ncnn::Mat m = ncnn::Mat::from_pixels_roi(a, pixel_type_from[i], w, h, roix, roiy, roiw, roih);
-        ncnn::Mat b(roiw, roih, 4u, 4);
+        ncnn::Mat b(roiw, roih, (size_t)4u, 4);
         m.to_pixels(b, pixel_type_to[i]);
 
         ncnn::Mat b2;
         ncnn::Mat c2;
-        ncnn::copy_cut_border(a2, b2, roiy, h - (roiy + roih), roix, w - (roix + roiw));
-        ncnn::convert_packing(b2, c2, 4);
+        ncnn::copy_cut_border(a2, b2, roiy, h - (roiy + roih), roix, w - (roix + roiw), opt);
+        ncnn::convert_packing(b2, c2, 4, opt);
 
         if (memcmp(b, c2, roiw * roih * 4) != 0)
         {
@@ -294,24 +306,27 @@ static int test_mat_pixel_roi_rgba(int w, int h, int roix, int roiy, int roiw, i
 
 static int test_mat_pixel_roi_bgra(int w, int h, int roix, int roiy, int roiw, int roih)
 {
+    ncnn::Option opt;
+    opt.num_threads = 1;
+
     int pixel_type_from[2] = {ncnn::Mat::PIXEL_BGRA, ncnn::Mat::PIXEL_BGRA2RGBA};
     int pixel_type_to[2] = {ncnn::Mat::PIXEL_BGRA, ncnn::Mat::PIXEL_RGBA2BGRA};
 
     ncnn::Mat a = RandomMat(w, h, 4);
 
     ncnn::Mat a2;
-    ncnn::convert_packing(a.reshape(w, h, 1), a2, 1);
+    ncnn::convert_packing(a.reshape(w, h, 1), a2, 1, opt);
 
     for (int i = 0; i < 2; i++)
     {
         ncnn::Mat m = ncnn::Mat::from_pixels_roi(a, pixel_type_from[i], w, h, roix, roiy, roiw, roih);
-        ncnn::Mat b(roiw, roih, 4u, 4);
+        ncnn::Mat b(roiw, roih, (size_t)4u, 4);
         m.to_pixels(b, pixel_type_to[i]);
 
         ncnn::Mat b2;
         ncnn::Mat c2;
-        ncnn::copy_cut_border(a2, b2, roiy, h - (roiy + roih), roix, w - (roix + roiw));
-        ncnn::convert_packing(b2, c2, 4);
+        ncnn::copy_cut_border(a2, b2, roiy, h - (roiy + roih), roix, w - (roix + roiw), opt);
+        ncnn::convert_packing(b2, c2, 4, opt);
 
         if (memcmp(b, c2, roiw * roih * 4) != 0)
         {
@@ -340,10 +355,10 @@ static int test_mat_pixel_yuv420sp2rgb(int w, int h)
         p += 2;
     }
 
-    ncnn::Mat rgb(w, h, 3u, 3);
+    ncnn::Mat rgb(w, h, (size_t)3u, 3);
     yuv420sp2rgb(nv21, w, h, rgb);
 
-    ncnn::Mat rgb2(w, h, 3u, 3);
+    ncnn::Mat rgb2(w, h, (size_t)3u, 3);
     yuv420sp2rgb_nv12(nv12, w, h, rgb2);
 
     if (memcmp(rgb, rgb2, w * h * 3) != 0)

@@ -17,10 +17,7 @@ def find_version():
     version_minor = re.findall(r"NCNN_VERSION_MINOR (.+?)", version_file)
 
     if version_major and version_minor:
-        if sys.platform == "darwin":
-            ncnn_version = time.strftime("%Y.%m.%d", time.localtime())
-        else:
-            ncnn_version = time.strftime("%Y%m%d", time.localtime())
+        ncnn_version = time.strftime("%Y%m%d", time.localtime())
 
         return version_major[0] + "." + version_minor[0] + "." + ncnn_version
     raise RuntimeError("Unable to find version string.")
@@ -67,21 +64,15 @@ class CMakeBuild(build_ext):
             "-DPYTHON_EXECUTABLE={}".format(sys.executable),
             "-DCMAKE_BUILD_TYPE={}".format(cfg),  # not used on MSVC, but no harm
             "-DNCNN_PYTHON=ON",
+            "-DNCNN_DISABLE_RTTI=OFF",
+            "-DNCNN_DISABLE_EXCEPTION=OFF",
             "-DNCNN_BUILD_BENCHMARK=OFF",
             "-DNCNN_BUILD_EXAMPLES=OFF",
             "-DNCNN_BUILD_TOOLS=OFF",
         ]
         build_args = []
 
-        if self.compiler.compiler_type != "msvc":
-            # Using Ninja-build since it a) is available as a wheel and b)
-            # multithreads automatically. MSVC would require all variables be
-            # exported for Ninja to pick it up, which is a little tricky to do.
-            # Users can override the generator with CMAKE_GENERATOR in CMake
-            # 3.15+.
-            if not cmake_generator:
-                cmake_args += ["-GNinja"]
-        else:
+        if self.compiler.compiler_type == "msvc":
             # Single config generators are handled "normally"
             single_config = any(x in cmake_generator for x in {"NMake", "Ninja"})
 
@@ -109,6 +100,8 @@ class CMakeBuild(build_ext):
             if hasattr(self, "parallel") and self.parallel:
                 # CMake 3.12+ only.
                 build_args += ["-j{}".format(self.parallel)]
+            else:
+                build_args += ["-j4"]
 
         if not os.path.exists(self.build_temp):
             os.makedirs(self.build_temp)
@@ -143,11 +136,11 @@ setup(
     classifiers=[
         "Programming Language :: C++",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.5",
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
         "License :: OSI Approved :: BSD License",
         "Operating System :: OS Independent",
     ],

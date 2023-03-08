@@ -33,7 +33,14 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
         tmp.create(4 * maxk, inch, size / 4 + size % 4, 4u, 1, opt.workspace_allocator);
     else
         tmp.create(maxk, inch, size, 4u, 1, opt.workspace_allocator);
+#else
+    if (size >= 4)
+        tmp.create(4 * maxk, inch, size / 4 + size % 4, 4u, 1, opt.workspace_allocator);
+    else
+        tmp.create(maxk, inch, size, 4u, 1, opt.workspace_allocator);
+#endif
     {
+#if __ARM_NEON
         int nn_size = size >> 3;
         int remain_size_start = 0;
 
@@ -60,13 +67,21 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
 
         remain_size_start += nn_size << 3;
         nn_size = (size - remain_size_start) >> 2;
+#else
+        int remain_size_start = 0;
+        int nn_size = size >> 2;
+#endif // __ARM_NEON
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int ii = 0; ii < nn_size; ii++)
         {
             int i = remain_size_start + ii * 4;
 
+#if __ARM_NEON
             float* tmpptr = tmp.channel(i / 8 + (i % 8) / 4);
+#else
+            float* tmpptr = tmp.channel(i / 4);
+#endif
 
             for (int q = 0; q < inch; q++)
             {
@@ -74,7 +89,14 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
 
                 for (int k = 0; k < maxk; k++)
                 {
+#if __ARM_NEON
                     vst1q_f32(tmpptr, vld1q_f32(img0));
+#else
+                    tmpptr[0] = img0[0];
+                    tmpptr[1] = img0[1];
+                    tmpptr[2] = img0[2];
+                    tmpptr[3] = img0[3];
+#endif
                     img0 += size;
                     tmpptr += 4;
                 }
@@ -86,7 +108,11 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = remain_size_start; i < size; i++)
         {
+#if __ARM_NEON
             float* tmpptr = tmp.channel(i / 8 + (i % 8) / 4 + i % 4);
+#else
+            float* tmpptr = tmp.channel(i / 4 + i % 4);
+#endif
 
             for (int q = 0; q < inch; q++)
             {
@@ -101,28 +127,6 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
             }
         }
     }
-#else // __ARM_NEON
-    tmp.create(maxk, inch, size, 4u, 1, opt.workspace_allocator);
-    {
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int i = 0; i < size; i++)
-        {
-            float* tmpptr = tmp.channel(i);
-
-            for (int q = 0; q < inch; q++)
-            {
-                const float* img0 = (const float*)bottom_im2col.channel(q) + i;
-
-                for (int k = 0; k < maxk; k++)
-                {
-                    tmpptr[0] = img0[0];
-                    img0 += size;
-                    tmpptr += 1;
-                }
-            }
-        }
-    }
-#endif // __ARM_NEON
 
 #if __ARM_NEON
     int nn_outch = 0;
@@ -177,7 +181,7 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
                 "dup    v31.4s, v1.s[3]         \n"
 
                 // inch loop
-                "lsr    w4, %w21, #2            \n" // w4 = nn = inch >> 2
+                "lsr    w4, %w21, #2            \n" // w4 = nn >> 2
                 "cmp    w4, #0                  \n"
                 "beq    1f                      \n"
 
@@ -282,7 +286,7 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
                 "1:                             \n"
 
                 // remain loop
-                "and    w4, %w21, #3            \n" // w4 = remain = inch & 3;
+                "and    w4, %w21, #3            \n" // w4 = remain = nn & 3
                 "cmp    w4, #0                  \n"
                 "beq    3f                      \n"
 
@@ -372,7 +376,7 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
                 "dup    v23.4s, v1.s[3]         \n"
 
                 // inch loop
-                "lsr    w4, %w21, #2            \n" // w4 = nn = inch >> 2
+                "lsr    w4, %w21, #2            \n" // w4 = nn >> 2
                 "cmp    w4, #0                  \n"
                 "beq    1f                      \n"
 
@@ -430,7 +434,7 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
                 "1:                             \n"
 
                 // remain loop
-                "and    w4, %w21, #3            \n" // w4 = remain = inch & 3;
+                "and    w4, %w21, #3            \n" // w4 = remain = nn & 3
                 "cmp    w4, #0                  \n"
                 "beq    3f                      \n"
 
@@ -502,7 +506,7 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
                 "ld1    {v24.4s, v25.4s}, [%20] \n"
 
                 // inch loop
-                "lsr    w4, %w21, #2            \n" // w4 = nn = inch >> 2
+                "lsr    w4, %w21, #2            \n" // w4 = nn >> 2
                 "cmp    w4, #0                  \n"
                 "beq    1f                      \n"
 
@@ -552,7 +556,7 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
                 "1:                             \n"
 
                 // remain loop
-                "and    w4, %w21, #3            \n" // w4 = remain = inch & 3;
+                "and    w4, %w21, #3            \n" // w4 = remain = nn & 3
                 "cmp    w4, #0                  \n"
                 "beq    3f                      \n"
 
@@ -649,7 +653,7 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
                 "dup    v15.4s, v0.s[3]         \n"
 
                 // inch loop
-                "lsr    w4, %w13, #2            \n" // w4 = nn = inch >> 2
+                "lsr    w4, %w13, #2            \n" // w4 = nn >> 2
                 "cmp    w4, #0                  \n"
                 "beq    1f                      \n"
 
@@ -711,7 +715,7 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
                 "1:                             \n"
 
                 // remain loop
-                "and    w4, %w13, #3            \n" // w4 = remain = inch & 3;
+                "and    w4, %w13, #3            \n" // w4 = remain = nn & 3
                 "cmp    w4, #0                  \n"
                 "beq    3f                      \n"
 
@@ -772,7 +776,7 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
                 "vdup.f32   q15, d1[1]          \n"
 
                 // inch loop
-                "lsr        r4, %13, #2         \n" // r4 = nn = inch >> 2
+                "lsr        r4, %13, #2         \n" // r4 = nn >> 2
                 "cmp        r4, #0              \n"
                 "beq        1f                  \n"
 
@@ -840,7 +844,7 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
                 "1:                             \n"
 
                 // remain loop
-                "and        r4, %13, #3         \n" // r4 = remain = inch & 3;
+                "and        r4, %13, #3         \n" // r4 = remain = nn & 3
                 "cmp        r4, #0              \n"
                 "beq        3f                  \n"
 
@@ -910,7 +914,7 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
                 "dup    v11.4s, v0.s[3]         \n"
 
                 // inch loop
-                "lsr    w4, %w13, #2            \n" // w4 = nn = inch >> 2
+                "lsr    w4, %w13, #2            \n" // w4 = nn >> 2
                 "cmp    w4, #0                  \n"
                 "beq    1f                      \n"
 
@@ -949,7 +953,7 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
                 "1:                             \n"
 
                 // remain loop
-                "and    w4, %w13, #3            \n" // w4 = remain = inch & 3;
+                "and    w4, %w13, #3            \n" // w4 = remain = nn & 3
                 "cmp    w4, #0                  \n"
                 "beq    3f                      \n"
 
@@ -1001,7 +1005,7 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
                 "vdup.f32   q11, d1[1]          \n"
 
                 // inch loop
-                "lsr        r4, %13, #2         \n" // r4 = nn = inch >> 2
+                "lsr        r4, %13, #2         \n" // r4 = nn >> 2
                 "cmp        r4, #0              \n"
                 "beq        1f                  \n"
 
@@ -1044,7 +1048,7 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
                 "1:                             \n"
 
                 // remain loop
-                "and        r4, %13, #3         \n" // r4 = remain = inch & 3;
+                "and        r4, %13, #3         \n" // r4 = remain = nn & 3
                 "cmp        r4, #0              \n"
                 "beq        3f                  \n"
 
@@ -1105,7 +1109,7 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
                 "ld1    {v12.4s}, [%12]         \n"
 
                 // inch loop
-                "lsr    w4, %w13, #2            \n" // w4 = nn = inch >> 2
+                "lsr    w4, %w13, #2            \n" // w4 = nn >> 2
                 "cmp    w4, #0                  \n"
                 "beq    1f                      \n"
 
@@ -1139,7 +1143,7 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
                 "1:                             \n"
 
                 // remain loop
-                "and    w4, %w13, #3            \n" // w4 = remain = inch & 3;
+                "and    w4, %w13, #3            \n" // w4 = remain = nn & 3
                 "cmp    w4, #0                  \n"
                 "beq    3f                      \n"
 
@@ -1184,7 +1188,7 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
                 "vld1.f32   {d24-d25}, [%12]    \n"
 
                 // inch loop
-                "lsr        r4, %13, #2         \n" // r4 = nn = inch >> 2
+                "lsr        r4, %13, #2         \n" // r4 = nn >> 2
                 "cmp        r4, #0              \n"
                 "beq        1f                  \n"
 
@@ -1220,7 +1224,7 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
                 "1:                             \n"
 
                 // remain loop
-                "and        r4, %13, #3         \n" // r4 = remain = inch & 3;
+                "and        r4, %13, #3         \n" // r4 = remain = nn & 3
                 "cmp        r4, #0              \n"
                 "beq        3f                  \n"
 
@@ -1265,6 +1269,95 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
     }
 
     remain_outch_start += nn_outch << 2;
+#else
+    int nn_outch = outch >> 1;
+    int remain_outch_start = nn_outch << 1;
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int pp = 0; pp < nn_outch; pp++)
+    {
+        int p = pp * 2;
+
+        float* outptr0 = top_blob.channel(p);
+        float* outptr1 = top_blob.channel(p + 1);
+
+        const float zeros[2] = {0.f, 0.f};
+        const float* biasptr = bias ? bias + p : zeros;
+
+        int i = 0;
+        for (; i + 3 < size; i += 4)
+        {
+            const float* tmpptr = tmp.channel(i / 4);
+            const float* kptr = kernel.channel(p / 2);
+
+            int nn = inch * maxk; // inch always > 0
+
+            float sum00 = biasptr[0];
+            float sum01 = biasptr[0];
+            float sum02 = biasptr[0];
+            float sum03 = biasptr[0];
+            float sum10 = biasptr[1];
+            float sum11 = biasptr[1];
+            float sum12 = biasptr[1];
+            float sum13 = biasptr[1];
+
+            int q = 0;
+            for (; q < nn; q++)
+            {
+                float k0 = kptr[0];
+                float k1 = kptr[1];
+                sum00 += tmpptr[0] * k0;
+                sum01 += tmpptr[1] * k0;
+                sum02 += tmpptr[2] * k0;
+                sum03 += tmpptr[3] * k0;
+                sum10 += tmpptr[0] * k1;
+                sum11 += tmpptr[1] * k1;
+                sum12 += tmpptr[2] * k1;
+                sum13 += tmpptr[3] * k1;
+                tmpptr += 4;
+                kptr += 2;
+            }
+
+            outptr0[0] = sum00;
+            outptr0[1] = sum01;
+            outptr0[2] = sum02;
+            outptr0[3] = sum03;
+            outptr1[0] = sum10;
+            outptr1[1] = sum11;
+            outptr1[2] = sum12;
+            outptr1[3] = sum13;
+
+            outptr0 += 4;
+            outptr1 += 4;
+        }
+        for (; i < size; i++)
+        {
+            const float* tmpptr = tmp.channel(i / 4 + i % 4);
+
+            const float* kptr = kernel.channel(p / 2);
+
+            int nn = inch * maxk; // inch always > 0
+
+            float sum00 = biasptr[0];
+            float sum10 = biasptr[1];
+
+            int q = 0;
+            for (; q < nn; q++)
+            {
+                sum00 += tmpptr[0] * kptr[0];
+                sum10 += tmpptr[0] * kptr[1];
+                tmpptr++;
+                kptr += 2;
+            }
+
+            outptr0[0] = sum00;
+            outptr1[0] = sum10;
+
+            outptr0++;
+            outptr1++;
+        }
+    }
+#endif // __ARM_NEON
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int p = remain_outch_start; p < outch; p++)
@@ -1274,6 +1367,7 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
         const float bias0 = bias ? bias[p] : 0.f;
 
         int i = 0;
+#if __ARM_NEON
         for (; i + 7 < size; i += 8)
         {
             const float* tmpptr = tmp.channel(i / 8);
@@ -1291,7 +1385,7 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
                 "dup    v9.4s, %w6              \n"
 
                 // inch loop
-                "lsr    w4, %w7, #2             \n" // w4 = nn = inch >> 2
+                "lsr    w4, %w7, #2             \n" // w4 = nn >> 2
                 "cmp    w4, #0                  \n"
                 "beq    1f                      \n"
 
@@ -1325,7 +1419,7 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
                 "1:                             \n"
 
                 // remain loop
-                "and    w4, %w7, #3             \n" // w4 = remain = inch & 3;
+                "and    w4, %w7, #3             \n" // w4 = remain = nn & 3
                 "cmp    w4, #0                  \n"
                 "beq    3f                      \n"
 
@@ -1363,7 +1457,7 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
                 "vdup.f32   q9, %6              \n"
 
                 // inch loop
-                "lsr        r4, %7, #2          \n" // r4 = nn = inch >> 2
+                "lsr        r4, %7, #2          \n" // r4 = nn >> 2
                 "cmp        r4, #0              \n"
                 "beq        1f                  \n"
 
@@ -1401,7 +1495,7 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
                 "1:                             \n"
 
                 // remain loop
-                "and        r4, %7, #3          \n" // r4 = remain = inch & 3;
+                "and        r4, %7, #3          \n" // r4 = remain = nn & 3
                 "cmp        r4, #0              \n"
                 "beq        3f                  \n"
 
@@ -1435,23 +1529,30 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
                 : "cc", "memory", "r4", "q0", "q4", "q5", "q6", "q7", "q8", "q9", "q12", "q13", "q14", "q15");
 #endif // __aarch64__
         }
+#endif // __ARM_NEON
         for (; i + 3 < size; i += 4)
         {
+#if __ARM_NEON
             const float* tmpptr = tmp.channel(i / 8 + (i % 8) / 4);
 #if __aarch64__
             const float* kptr = kernel.channel(p / 8 + (p % 8) / 4 + p % 4);
 #else
             const float* kptr = kernel.channel(p / 4 + p % 4);
 #endif
+#else
+            const float* tmpptr = tmp.channel(i / 4);
+            const float* kptr = kernel.channel(p / 2 + p % 2);
+#endif // __ARM_NEON
 
             int nn = inch * maxk; // inch always > 0
 
+#if __ARM_NEON
 #if __aarch64__
             asm volatile(
                 "dup    v8.4s, %w6              \n"
 
                 // inch loop
-                "lsr    w4, %w7, #2             \n" // w4 = nn = inch >> 2
+                "lsr    w4, %w7, #2             \n" // w4 = nn >> 2
                 "cmp    w4, #0                  \n"
                 "beq    1f                      \n"
 
@@ -1475,7 +1576,7 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
                 "1:                             \n"
 
                 // remain loop
-                "and    w4, %w7, #3             \n" // w4 = remain = inch & 3;
+                "and    w4, %w7, #3             \n" // w4 = remain = nn & 3
                 "cmp    w4, #0                  \n"
                 "beq    3f                      \n"
 
@@ -1511,7 +1612,7 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
                 "vdup.f32   q8, %6              \n"
 
                 // inch loop
-                "lsr        r4, %7, #2          \n" // r4 = nn = inch >> 2
+                "lsr        r4, %7, #2          \n" // r4 = nn >> 2
                 "cmp        r4, #0              \n"
                 "beq        1f                  \n"
 
@@ -1537,7 +1638,7 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
                 "1:                             \n"
 
                 // remain loop
-                "and        r4, %7, #3          \n" // r4 = remain = inch & 3;
+                "and        r4, %7, #3          \n" // r4 = remain = nn & 3
                 "cmp        r4, #0              \n"
                 "beq        3f                  \n"
 
@@ -1569,21 +1670,52 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
                 "r"(nn)     // %7
                 : "cc", "memory", "r4", "q0", "q4", "q5", "q6", "q7", "q8");
 #endif // __aarch64__
+#else
+            float sum0 = bias0;
+            float sum1 = bias0;
+            float sum2 = bias0;
+            float sum3 = bias0;
+
+            int q = 0;
+            for (; q < nn; q++)
+            {
+                sum0 += tmpptr[0] * kptr[0];
+                sum1 += tmpptr[1] * kptr[0];
+                sum2 += tmpptr[2] * kptr[0];
+                sum3 += tmpptr[3] * kptr[0];
+                tmpptr += 4;
+                kptr++;
+            }
+
+            outptr0[0] = sum0;
+            outptr0[1] = sum1;
+            outptr0[2] = sum2;
+            outptr0[3] = sum3;
+
+            outptr0 += 4;
+#endif // __ARM_NEON
         }
         for (; i < size; i++)
         {
+#if __ARM_NEON
             const float* tmpptr = tmp.channel(i / 8 + (i % 8) / 4 + i % 4);
 #if __aarch64__
             const float* kptr = kernel.channel(p / 8 + (p % 8) / 4 + p % 4);
 #else
             const float* kptr = kernel.channel(p / 4 + p % 4);
 #endif
+#else  // __ARM_NEON
+            const float* tmpptr = tmp.channel(i / 4 + i % 4);
+            const float* kptr = kernel.channel(p / 2 + p % 2);
+#endif // __ARM_NEON
 
             int nn = inch * maxk; // inch always > 0
 
-            float32x4_t _sum0 = vdupq_n_f32(0.f);
+            float sum0 = bias0;
 
             int q = 0;
+#if __ARM_NEON
+            float32x4_t _sum0 = vdupq_n_f32(0.f);
             for (; q + 3 < nn; q += 4)
             {
                 float32x4_t _p0 = vld1q_f32(tmpptr);
@@ -1600,12 +1732,12 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
             }
 
 #if __aarch64__
-            float sum0 = bias0 + vaddvq_f32(_sum0);
+            sum0 += vaddvq_f32(_sum0);
 #else
             float32x2_t _ss = vadd_f32(vget_low_f32(_sum0), vget_high_f32(_sum0));
-            float sum0 = bias0 + vget_lane_f32(vpadd_f32(_ss, _ss), 0);
+            sum0 += vget_lane_f32(vpadd_f32(_ss, _ss), 0);
 #endif
-
+#endif // __ARM_NEON
             for (; q < nn; q++)
             {
                 sum0 += tmpptr[0] * kptr[0];
@@ -1618,36 +1750,6 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
             outptr0++;
         }
     }
-#else // __ARM_NEON
-    #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p = 0; p < outch; p++)
-    {
-        float* outptr0 = top_blob.channel(p);
-
-        const float bias0 = bias ? bias[p] : 0.f;
-
-        for (int i = 0; i < size; i++)
-        {
-            const float* tmpptr = tmp.channel(i);
-            const float* kptr = kernel.channel(p);
-
-            int nn = inch * maxk; // inch always > 0
-
-            float sum0 = bias0;
-
-            for (int q = 0; q < nn; q++)
-            {
-                sum0 += tmpptr[0] * kptr[0];
-                tmpptr++;
-                kptr++;
-            }
-
-            outptr0[0] = sum0;
-
-            outptr0++;
-        }
-    }
-#endif // __ARM_NEON
 }
 
 static void convolution_im2col_sgemm_transform_kernel_neon(const Mat& _kernel, Mat& kernel_tm, int inch, int outch, int kernel_w, int kernel_h)
@@ -1664,8 +1766,12 @@ static void convolution_im2col_sgemm_transform_kernel_neon(const Mat& _kernel, M
 #else
     kernel_tm.create(16 * maxk, inch / 4 + inch % 4, outch / 4 + outch % 4);
 #endif
+#else
+    kernel_tm.create(2 * maxk, inch, outch / 2 + outch % 2);
+#endif // __ARM_NEON
 
     int q = 0;
+#if __ARM_NEON
 #if __aarch64__
     for (; q + 7 < outch; q += 8)
     {
@@ -1738,14 +1844,41 @@ static void convolution_im2col_sgemm_transform_kernel_neon(const Mat& _kernel, M
             }
         }
     }
+#else
+    for (; q + 1 < outch; q += 2)
+    {
+        const Mat k0 = kernel.channel(q);
+        const Mat k1 = kernel.channel(q + 1);
+
+        float* g00 = kernel_tm.channel(q / 2);
+
+        for (int p = 0; p < inch; p++)
+        {
+            const float* k00 = k0.row(p);
+            const float* k10 = k1.row(p);
+
+            for (int k = 0; k < maxk; k++)
+            {
+                g00[0] = k00[k];
+                g00[1] = k10[k];
+
+                g00 += 2;
+            }
+        }
+    }
+#endif // __ARM_NEON
     for (; q < outch; q++)
     {
         const Mat k0 = kernel.channel(q);
 
+#if __ARM_NEON
 #if __aarch64__
         float* g00 = kernel_tm.channel(q / 8 + (q % 8) / 4 + q % 4);
 #else
         float* g00 = kernel_tm.channel(q / 4 + q % 4);
+#endif
+#else
+        float* g00 = kernel_tm.channel(q / 2 + q % 2);
 #endif
 
         for (int p = 0; p < inch; p++)
@@ -1760,9 +1893,6 @@ static void convolution_im2col_sgemm_transform_kernel_neon(const Mat& _kernel, M
             }
         }
     }
-#else
-    kernel_tm = kernel;
-#endif // __ARM_NEON
 }
 
 static void convolution_im2col_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Mat& _bias, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, const Option& opt)

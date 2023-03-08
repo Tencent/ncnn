@@ -29,6 +29,8 @@ public:
 
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
+    virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
+
 protected:
     int create_group_ops(const Option& opt);
 #if NCNN_INT8
@@ -40,13 +42,7 @@ public:
     Layer* activation;
     std::vector<ncnn::Layer*> group_ops;
 
-    // packing
-    Mat weight_data_packed;
-
-#if NCNN_INT8
-    // int8
-    Mat weight_data_int8;
-#endif
+    Mat weight_data_tm;
 };
 
 } // namespace ncnn

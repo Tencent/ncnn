@@ -1,0 +1,33 @@
+cff-version: 1.2.0
+title: ncnn
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - family-names: "Ni"
+    given-names: "Hui"
+  - name: "The ncnn contirbutors"
+abstract: >-
+  ncnn is a high-performance neural network inference
+  computing framework optimized for mobile platforms. 
+date-released: 2017-06-30
+keywords:
+  - "neural network"
+  - "artificial intelligence"
+  - "deep learning"
+  - android
+  - ios
+  - windows
+  - linux
+  - macos
+  - pnnx
+  - simd
+  - vulkan
+  - riscv
+  - x86
+  - arm
+  - mips
+  - loongarch
+license: BSD-3-Clause
+repository-code: "https://github.com/Tencent/ncnn"

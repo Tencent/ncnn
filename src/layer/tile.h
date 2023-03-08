@@ -29,8 +29,9 @@ public:
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
 public:
-    int dim;
+    int axis;
     int tiles;
+    Mat repeats;
 };
 
 } // namespace ncnn

@@ -15,11 +15,7 @@
 #include "concat_riscv.h"
 
 #if __riscv_vector
-#ifdef RVV_SPEC_0_7
-#include "riscv_v_071_fix.h"
-#else
 #include <riscv_vector.h>
-#endif
 #endif // __riscv_vector
 
 #include "riscv_usability.h"
@@ -147,7 +143,7 @@ int Concat_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
 #if __riscv_vector
             if (bottom_blob.elempack == packn && elempack == 1)
             {
-                const word_type vl = vsetvl_e32m1(packn);
+                const size_t vl = vsetvl_e32m1(packn);
 
                 for (int i = 0; i < bottom_blob.h; i++)
                 {
@@ -222,11 +218,12 @@ int Concat_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
         }
     }
 
-    if (dims == 3 && positive_axis == 0)
+    if ((dims == 3 || dims == 4) && positive_axis == 0)
     {
         // concat dim
         int w = bottom_blobs[0].w;
         int h = bottom_blobs[0].h;
+        int d = bottom_blobs[0].d;
 
         // total channels
         size_t elemsize = bottom_blobs[0].elemsize;
@@ -250,16 +247,20 @@ int Concat_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
         size_t out_elemsize = elemsize / elempack * out_elempack;
 
         Mat& top_blob = top_blobs[0];
-        top_blob.create(w, h, top_channels / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+        top_blob.create(w, h, d, top_channels / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
+
+        top_blob.dims = dims;
 
         Mat top_blob_unpacked = top_blob;
         if (elempack < out_elempack)
         {
-            top_blob_unpacked.create(w, h, top_channels / elempack, elemsize, elempack, opt.workspace_allocator);
+            top_blob_unpacked.create(w, h, d, top_channels / elempack, elemsize, elempack, opt.workspace_allocator);
             if (top_blob_unpacked.empty())
                 return -100;
+
+            top_blob_unpacked.dims = dims;
         }
 
         int p = 0;
@@ -270,9 +271,9 @@ int Concat_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
 #if __riscv_vector
             if (bottom_blob.elempack == packn && elempack == 1)
             {
-                const word_type vl = vsetvl_e32m1(packn);
+                const size_t vl = vsetvl_e32m1(packn);
 
-                int size = bottom_blob.w * bottom_blob.h;
+                int size = bottom_blob.w * bottom_blob.h * bottom_blob.d;
 
                 for (int q = 0; q < bottom_blob.c; q++)
                 {
@@ -312,10 +313,11 @@ int Concat_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
         }
     }
 
-    if (dims == 3 && positive_axis == 1)
+    if ((dims == 3 && positive_axis == 1) || (dims == 4 && positive_axis == 2))
     {
         // interleave dim height
         int w = bottom_blobs[0].w;
+        int d = bottom_blobs[0].d;
         int channels = bottom_blobs[0].c;
         size_t elemsize = bottom_blobs[0].elemsize;
         int elempack = bottom_blobs[0].elempack;
@@ -329,33 +331,39 @@ int Concat_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
         }
 
         Mat& top_blob = top_blobs[0];
-        top_blob.create(w, top_h, channels, elemsize, elempack, opt.blob_allocator);
+        top_blob.create(w, top_h, d, channels, elemsize, elempack, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
+
+        top_blob.dims = dims;
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             float* outptr = top_blob.channel(q);
 
-            for (size_t b = 0; b < bottom_blobs.size(); b++)
+            for (int i = 0; i < d; i++)
             {
-                const Mat& bottom_blob = bottom_blobs[b];
+                for (size_t b = 0; b < bottom_blobs.size(); b++)
+                {
+                    const Mat& bottom_blob = bottom_blobs[b];
 
-                int size = bottom_blob.w * bottom_blob.h;
+                    int size = bottom_blob.w * bottom_blob.h;
 
-                const float* ptr = bottom_blob.channel(q);
-                memcpy(outptr, ptr, size * elemsize);
+                    const float* ptr = bottom_blob.channel(q).depth(i);
+                    memcpy(outptr, ptr, size * elemsize);
 
-                outptr += size * elempack;
+                    outptr += size * elempack;
+                }
             }
         }
     }
 
-    if (dims == 3 && positive_axis == 2)
+    if ((dims == 3 && positive_axis == 2) || (dims == 4 && positive_axis == 3))
     {
         // interleave dim width
         int h = bottom_blobs[0].h;
+        int d = bottom_blobs[0].d;
         int channels = bottom_blobs[0].c;
         size_t elemsize = bottom_blobs[0].elemsize;
         int elempack = bottom_blobs[0].elempack;
@@ -369,7 +377,54 @@ int Concat_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
         }
 
         Mat& top_blob = top_blobs[0];
-        top_blob.create(top_w, h, channels, elemsize, elempack, opt.blob_allocator);
+        top_blob.create(top_w, h, d, channels, elemsize, elempack, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+
+        top_blob.dims = dims;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            float* outptr = top_blob.channel(q);
+
+            for (int i = 0; i < d; i++)
+            {
+                for (int j = 0; j < h; j++)
+                {
+                    for (size_t b = 0; b < bottom_blobs.size(); b++)
+                    {
+                        const Mat& bottom_blob = bottom_blobs[b];
+
+                        const float* ptr = bottom_blob.channel(q).depth(i).row(j);
+                        memcpy(outptr, ptr, bottom_blob.w * elemsize);
+
+                        outptr += bottom_blob.w * elempack;
+                    }
+                }
+            }
+        }
+    }
+
+    if (dims == 4 && positive_axis == 1)
+    {
+        // interleave dim depth
+        int w = bottom_blobs[0].w;
+        int h = bottom_blobs[0].h;
+        int channels = bottom_blobs[0].c;
+        size_t elemsize = bottom_blobs[0].elemsize;
+        int elempack = bottom_blobs[0].elempack;
+
+        // total depth
+        int top_d = 0;
+        for (size_t b = 0; b < bottom_blobs.size(); b++)
+        {
+            const Mat& bottom_blob = bottom_blobs[b];
+            top_d += bottom_blob.d;
+        }
+
+        Mat& top_blob = top_blobs[0];
+        top_blob.create(w, h, top_d, channels, elemsize, elempack, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
@@ -378,17 +433,16 @@ int Concat_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
         {
             float* outptr = top_blob.channel(q);
 
-            for (int i = 0; i < h; i++)
+            for (size_t b = 0; b < bottom_blobs.size(); b++)
             {
-                for (size_t b = 0; b < bottom_blobs.size(); b++)
-                {
-                    const Mat& bottom_blob = bottom_blobs[b];
+                const Mat& bottom_blob = bottom_blobs[b];
 
-                    const float* ptr = bottom_blob.channel(q).row(i);
-                    memcpy(outptr, ptr, bottom_blob.w * elemsize);
+                int size = bottom_blob.w * bottom_blob.h * bottom_blob.d;
 
-                    outptr += bottom_blob.w * elempack;
-                }
+                const float* ptr = bottom_blob.channel(q);
+                memcpy(outptr, ptr, size * elemsize);
+
+                outptr += size * elempack;
             }
         }
     }
@@ -491,7 +545,7 @@ int Concat_riscv::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std:
 #if __riscv_vector
             if (bottom_blob.elempack == packn && elempack == 1)
             {
-                const word_type vl = vsetvl_e16m1(packn);
+                const size_t vl = vsetvl_e16m1(packn);
 
                 for (int i = 0; i < bottom_blob.h; i++)
                 {
@@ -566,11 +620,12 @@ int Concat_riscv::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std:
         }
     }
 
-    if (dims == 3 && positive_axis == 0)
+    if ((dims == 3 || dims == 4) && positive_axis == 0)
     {
         // concat dim
         int w = bottom_blobs[0].w;
         int h = bottom_blobs[0].h;
+        int d = bottom_blobs[0].d;
 
         // total channels
         size_t elemsize = bottom_blobs[0].elemsize;
@@ -594,16 +649,20 @@ int Concat_riscv::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std:
         size_t out_elemsize = elemsize / elempack * out_elempack;
 
         Mat& top_blob = top_blobs[0];
-        top_blob.create(w, h, top_channels / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+        top_blob.create(w, h, d, top_channels / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
+
+        top_blob.dims = dims;
 
         Mat top_blob_unpacked = top_blob;
         if (elempack < out_elempack)
         {
-            top_blob_unpacked.create(w, h, top_channels / elempack, elemsize, elempack, opt.workspace_allocator);
+            top_blob_unpacked.create(w, h, d, top_channels / elempack, elemsize, elempack, opt.workspace_allocator);
             if (top_blob_unpacked.empty())
                 return -100;
+
+            top_blob_unpacked.dims = dims;
         }
 
         int p = 0;
@@ -614,9 +673,9 @@ int Concat_riscv::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std:
 #if __riscv_vector
             if (bottom_blob.elempack == packn && elempack == 1)
             {
-                const word_type vl = vsetvl_e16m1(packn);
+                const size_t vl = vsetvl_e16m1(packn);
 
-                int size = bottom_blob.w * bottom_blob.h;
+                int size = bottom_blob.w * bottom_blob.h * bottom_blob.d;
 
                 for (int q = 0; q < bottom_blob.c; q++)
                 {
@@ -656,10 +715,11 @@ int Concat_riscv::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std:
         }
     }
 
-    if (dims == 3 && positive_axis == 1)
+    if ((dims == 3 && positive_axis == 1) || (dims == 4 && positive_axis == 2))
     {
         // interleave dim height
         int w = bottom_blobs[0].w;
+        int d = bottom_blobs[0].d;
         int channels = bottom_blobs[0].c;
         size_t elemsize = bottom_blobs[0].elemsize;
         int elempack = bottom_blobs[0].elempack;
@@ -673,33 +733,39 @@ int Concat_riscv::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std:
         }
 
         Mat& top_blob = top_blobs[0];
-        top_blob.create(w, top_h, channels, elemsize, elempack, opt.blob_allocator);
+        top_blob.create(w, top_h, d, channels, elemsize, elempack, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
+
+        top_blob.dims = dims;
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             unsigned short* outptr = top_blob.channel(q);
 
-            for (size_t b = 0; b < bottom_blobs.size(); b++)
+            for (int i = 0; i < d; i++)
             {
-                const Mat& bottom_blob = bottom_blobs[b];
+                for (size_t b = 0; b < bottom_blobs.size(); b++)
+                {
+                    const Mat& bottom_blob = bottom_blobs[b];
 
-                int size = bottom_blob.w * bottom_blob.h;
+                    int size = bottom_blob.w * bottom_blob.h;
 
-                const unsigned short* ptr = bottom_blob.channel(q);
-                memcpy(outptr, ptr, size * elemsize);
+                    const unsigned short* ptr = bottom_blob.channel(q).depth(i);
+                    memcpy(outptr, ptr, size * elemsize);
 
-                outptr += size * elempack;
+                    outptr += size * elempack;
+                }
             }
         }
     }
 
-    if (dims == 3 && positive_axis == 2)
+    if ((dims == 3 && positive_axis == 2) || (dims == 4 && positive_axis == 3))
     {
         // interleave dim width
         int h = bottom_blobs[0].h;
+        int d = bottom_blobs[0].d;
         int channels = bottom_blobs[0].c;
         size_t elemsize = bottom_blobs[0].elemsize;
         int elempack = bottom_blobs[0].elempack;
@@ -713,7 +779,54 @@ int Concat_riscv::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std:
         }
 
         Mat& top_blob = top_blobs[0];
-        top_blob.create(top_w, h, channels, elemsize, elempack, opt.blob_allocator);
+        top_blob.create(top_w, h, d, channels, elemsize, elempack, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+
+        top_blob.dims = dims;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            unsigned short* outptr = top_blob.channel(q);
+
+            for (int i = 0; i < d; i++)
+            {
+                for (int j = 0; j < h; j++)
+                {
+                    for (size_t b = 0; b < bottom_blobs.size(); b++)
+                    {
+                        const Mat& bottom_blob = bottom_blobs[b];
+
+                        const unsigned short* ptr = bottom_blob.channel(q).depth(i).row<const unsigned short>(j);
+                        memcpy(outptr, ptr, bottom_blob.w * elemsize);
+
+                        outptr += bottom_blob.w * elempack;
+                    }
+                }
+            }
+        }
+    }
+
+    if (dims == 4 && positive_axis == 1)
+    {
+        // interleave dim depth
+        int w = bottom_blobs[0].w;
+        int h = bottom_blobs[0].h;
+        int channels = bottom_blobs[0].c;
+        size_t elemsize = bottom_blobs[0].elemsize;
+        int elempack = bottom_blobs[0].elempack;
+
+        // total depth
+        int top_d = 0;
+        for (size_t b = 0; b < bottom_blobs.size(); b++)
+        {
+            const Mat& bottom_blob = bottom_blobs[b];
+            top_d += bottom_blob.d;
+        }
+
+        Mat& top_blob = top_blobs[0];
+        top_blob.create(w, h, top_d, channels, elemsize, elempack, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
@@ -722,17 +835,16 @@ int Concat_riscv::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std:
         {
             unsigned short* outptr = top_blob.channel(q);
 
-            for (int i = 0; i < h; i++)
+            for (size_t b = 0; b < bottom_blobs.size(); b++)
             {
-                for (size_t b = 0; b < bottom_blobs.size(); b++)
-                {
-                    const Mat& bottom_blob = bottom_blobs[b];
+                const Mat& bottom_blob = bottom_blobs[b];
 
-                    const unsigned short* ptr = bottom_blob.channel(q).row<const unsigned short>(i);
-                    memcpy(outptr, ptr, bottom_blob.w * elemsize);
+                int size = bottom_blob.w * bottom_blob.h * bottom_blob.d;
 
-                    outptr += bottom_blob.w * elempack;
-                }
+                const unsigned short* ptr = bottom_blob.channel(q);
+                memcpy(outptr, ptr, size * elemsize);
+
+                outptr += size * elempack;
             }
         }
     }

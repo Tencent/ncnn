@@ -108,6 +108,26 @@ NetPrivate::NetPrivate(Option& _opt)
 #endif // NCNN_VULKAN
 }
 
+static Option get_masked_option(const Option& opt, int featmask)
+{
+    // mask option usage as layer specific featmask
+    Option opt1 = opt;
+    opt1.use_fp16_arithmetic = opt1.use_fp16_arithmetic && !(featmask & (1 << 0));
+    opt1.use_fp16_storage = opt1.use_fp16_storage && !(featmask & (1 << 1));
+    opt1.use_fp16_packed = opt1.use_fp16_packed && !(featmask & (1 << 1));
+    opt1.use_bf16_storage = opt1.use_bf16_storage && !(featmask & (1 << 2));
+    opt1.use_int8_packed = opt1.use_int8_packed && !(featmask & (1 << 3));
+    opt1.use_int8_storage = opt1.use_int8_storage && !(featmask & (1 << 3));
+    opt1.use_int8_arithmetic = opt1.use_int8_arithmetic && !(featmask & (1 << 3));
+    opt1.use_vulkan_compute = opt1.use_vulkan_compute && !(featmask & (1 << 4));
+    opt1.use_image_storage = opt1.use_image_storage && !(featmask & (1 << 4));
+    opt1.use_tensor_storage = opt1.use_tensor_storage && !(featmask & (1 << 4));
+    opt1.use_sgemm_convolution = opt1.use_sgemm_convolution && !(featmask & (1 << 5));
+    opt1.use_winograd_convolution = opt1.use_winograd_convolution && !(featmask & (1 << 6));
+
+    return opt1;
+}
+
 #if NCNN_VULKAN
 int NetPrivate::upload_model()
 {
@@ -132,7 +152,7 @@ int NetPrivate::upload_model()
     {
         if (layers[i]->support_vulkan)
         {
-            int uret = layers[i]->upload_model(cmd, opt_upload);
+            int uret = layers[i]->upload_model(cmd, get_masked_option(opt_upload, layers[i]->featmask));
             if (uret != 0)
             {
                 NCNN_LOGE("layer upload_model %d failed", (int)i);
@@ -195,7 +215,15 @@ int NetPrivate::forward_layer(int layer_index, std::vector<Mat>& blob_mats, cons
         bottom_blob.elemsize = blob_mats[bottom_blob_index].elemsize;
     }
 #endif
-    int ret = do_forward_layer(layer, blob_mats, opt);
+    int ret = 0;
+    if (layer->featmask)
+    {
+        ret = do_forward_layer(layer, blob_mats, get_masked_option(opt, layer->featmask));
+    }
+    else
+    {
+        ret = do_forward_layer(layer, blob_mats, opt);
+    }
 #if NCNN_BENCHMARK
     double end = get_current_time();
     if (layer->one_blob_only)
@@ -352,7 +380,14 @@ int NetPrivate::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std:
 #if NCNN_BENCHMARK
         cmd.record_write_timestamp(layer_index * 2);
 #endif
-        ret = do_forward_layer(layer, blob_mats_gpu, cmd, opt);
+        if (layer->featmask)
+        {
+            ret = do_forward_layer(layer, blob_mats_gpu, cmd, get_masked_option(opt, layer->featmask));
+        }
+        else
+        {
+            ret = do_forward_layer(layer, blob_mats_gpu, cmd, opt);
+        }
 #if NCNN_BENCHMARK
         cmd.record_write_timestamp(layer_index * 2 + 1);
 #endif
@@ -368,7 +403,14 @@ int NetPrivate::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std:
             bottom_blob = blob_mats[bottom_blob_index].shape();
         }
 #endif
-        ret = do_forward_layer(layer, blob_mats, opt);
+        if (layer->featmask)
+        {
+            ret = do_forward_layer(layer, blob_mats, get_masked_option(opt, layer->featmask));
+        }
+        else
+        {
+            ret = do_forward_layer(layer, blob_mats, opt);
+        }
 #if NCNN_BENCHMARK
         double end = get_current_time();
         if (layer->one_blob_only)
@@ -677,7 +719,14 @@ IMAGE_ALLOCATION_FAILED:
 #endif
         if (layer->support_image_storage)
         {
-            ret = do_forward_layer(layer, blob_mats_gpu_image, cmd, opt);
+            if (layer->featmask)
+            {
+                ret = do_forward_layer(layer, blob_mats_gpu_image, cmd, get_masked_option(opt, layer->featmask));
+            }
+            else
+            {
+                ret = do_forward_layer(layer, blob_mats_gpu_image, cmd, opt);
+            }
             if (ret == -100)
             {
                 image_allocation_failed = true;
@@ -686,7 +735,14 @@ IMAGE_ALLOCATION_FAILED:
         }
         else
         {
-            ret = do_forward_layer(layer, blob_mats_gpu, cmd, opt);
+            if (layer->featmask)
+            {
+                ret = do_forward_layer(layer, blob_mats_gpu, cmd, get_masked_option(opt, layer->featmask));
+            }
+            else
+            {
+                ret = do_forward_layer(layer, blob_mats_gpu, cmd, opt);
+            }
         }
 #if NCNN_BENCHMARK
         cmd.record_write_timestamp(layer_index * 2 + 1);
@@ -703,7 +759,14 @@ IMAGE_ALLOCATION_FAILED:
             bottom_blob = blob_mats[bottom_blob_index].shape();
         }
 #endif
-        ret = do_forward_layer(layer, blob_mats, opt);
+        if (layer->featmask)
+        {
+            ret = do_forward_layer(layer, blob_mats, get_masked_option(opt, layer->featmask));
+        }
+        else
+        {
+            ret = do_forward_layer(layer, blob_mats, opt);
+        }
 #if NCNN_BENCHMARK
         double end = get_current_time();
         if (layer->one_blob_only)
@@ -790,6 +853,7 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
     // *INDENT-ON*
     // clang-format on
 
+    int dst_elempack = 1;
     if (opt.use_packing_layout)
     {
         // resolve dst_elempack
@@ -797,17 +861,23 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
         int elemcount = 0;
         if (dims == 1) elemcount = bottom_blob.elempack * bottom_blob.w;
         if (dims == 2) elemcount = bottom_blob.elempack * bottom_blob.h;
-        if (dims == 3) elemcount = bottom_blob.elempack * bottom_blob.c;
+        if (dims == 3 || dims == 4) elemcount = bottom_blob.elempack * bottom_blob.c;
 
         int elembits = bottom_blob.elembits();
 
-        int dst_elempack = 1;
         if (layer->support_packing)
         {
             if (elembits == 32)
             {
-#if (NCNN_AVX2 || NCNN_AVX)
-                if (elemcount % 8 == 0 && (ncnn::cpu_support_x86_avx2() || ncnn::cpu_support_x86_avx()))
+#if NCNN_AVX512
+                if (elemcount % 16 == 0 && ncnn::cpu_support_x86_avx512())
+                    dst_elempack = 16;
+                else if (elemcount % 8 == 0 && ncnn::cpu_support_x86_avx())
+                    dst_elempack = 8;
+                else if (elemcount % 4 == 0)
+                    dst_elempack = 4;
+#elif NCNN_AVX
+                if (elemcount % 8 == 0 && ncnn::cpu_support_x86_avx())
                     dst_elempack = 8;
                 else if (elemcount % 4 == 0)
                     dst_elempack = 4;
@@ -823,7 +893,7 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
             if (elembits == 16)
             {
 #if NCNN_ARM82
-                if (elemcount % 8 == 0 && opt.use_fp16_storage && opt.use_fp16_arithmetic && layer->support_fp16_storage)
+                if (elemcount % 8 == 0 && ncnn::cpu_support_arm_asimdhp() && opt.use_fp16_arithmetic)
                     dst_elempack = 8;
                 else if (elemcount % 4 == 0)
                     dst_elempack = 4;
@@ -848,13 +918,13 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
 #endif
             }
         }
+    }
 
-        if (bottom_blob.elempack != dst_elempack)
-        {
-            Mat bottom_blob_packed;
-            convert_packing(bottom_blob, bottom_blob_packed, dst_elempack, opt);
-            bottom_blob = bottom_blob_packed;
-        }
+    if (bottom_blob.elempack != dst_elempack)
+    {
+        Mat bottom_blob_packed;
+        convert_packing(bottom_blob, bottom_blob_packed, dst_elempack, opt);
+        bottom_blob = bottom_blob_packed;
     }
 
     return 0;
@@ -1413,8 +1483,12 @@ int Net::load_param(const DataReader& dr)
         if (!d->vkdev->info.support_fp16_arithmetic()) opt.use_fp16_arithmetic = false;
         if (!d->vkdev->info.support_int8_storage()) opt.use_int8_storage = false;
         if (!d->vkdev->info.support_int8_arithmetic()) opt.use_int8_arithmetic = false;
+        if (!d->vkdev->info.support_cooperative_matrix()) opt.use_cooperative_matrix = false;
 
         if (d->vkdev->info.bug_buffer_image_load_zero()) opt.use_image_storage = false;
+
+        // enable local memory optimization on discrete gpu only
+        if (d->vkdev->info.type() != 0) opt.use_shader_local_memory = false;
 
         // fp16a makes no sense when fp16 storage disabled
         if (!opt.use_fp16_packed && !opt.use_fp16_storage) opt.use_fp16_arithmetic = false;
@@ -1560,6 +1634,9 @@ int Net::load_param(const DataReader& dr)
             layer->top_shapes[j] = d->blobs[layer->tops[j]].shape;
         }
 
+        // pull out layer specific feature disabled set
+        layer->featmask = pd.get(31, 0);
+
         int lr = layer->load_param(pd);
         if (lr != 0)
         {
@@ -1626,8 +1703,12 @@ int Net::load_param_bin(const DataReader& dr)
         if (!d->vkdev->info.support_fp16_arithmetic()) opt.use_fp16_arithmetic = false;
         if (!d->vkdev->info.support_int8_storage()) opt.use_int8_storage = false;
         if (!d->vkdev->info.support_int8_arithmetic()) opt.use_int8_arithmetic = false;
+        if (!d->vkdev->info.support_cooperative_matrix()) opt.use_cooperative_matrix = false;
 
         if (d->vkdev->info.bug_buffer_image_load_zero()) opt.use_image_storage = false;
+
+        // enable local memory optimization on discrete gpu only
+        if (d->vkdev->info.type() != 0) opt.use_shader_local_memory = false;
 
         // fp16a makes no sense when fp16 storage disabled
         if (!opt.use_fp16_packed && !opt.use_fp16_storage) opt.use_fp16_arithmetic = false;
@@ -1759,6 +1840,9 @@ int Net::load_param_bin(const DataReader& dr)
             layer->top_shapes[j] = d->blobs[layer->tops[j]].shape;
         }
 
+        // pull out layer specific feature disabled set
+        layer->featmask = pd.get(31, 0);
+
         int lr = layer->load_param(pd);
         if (lr != 0)
         {
@@ -1840,11 +1924,16 @@ int Net::load_model(const DataReader& dr)
     {
         Layer* layer = d->layers[i];
 
-        Option opt1 = opt;
+        Option opt1 = get_masked_option(opt, layer->featmask);
 #if NCNN_VULKAN
-        if (opt.use_vulkan_compute)
+        if (opt1.use_vulkan_compute)
         {
             if (!layer->support_image_storage) opt1.use_image_storage = false;
+        }
+        else
+        {
+            layer->vkdev = 0;
+            layer->support_vulkan = false;
         }
 #endif // NCNN_VULKAN
 
@@ -1876,7 +1965,7 @@ int Net::load_model(const DataReader& dr)
             if (!d->local_workspace_allocator)
             {
                 d->local_workspace_allocator = new PoolAllocator;
-                d->local_workspace_allocator->set_size_compare_ratio(0.5f);
+                d->local_workspace_allocator->set_size_compare_ratio(0.f);
             }
         }
     }
@@ -2051,11 +2140,13 @@ void Net::clear()
     {
         Layer* layer = d->layers[i];
 
-        Option opt1 = opt;
+        Option opt1 = get_masked_option(opt, layer->featmask);
+#if NCNN_VULKAN
         if (!layer->support_image_storage)
         {
             opt1.use_image_storage = false;
         }
+#endif // NCNN_VULKAN
 
         int dret = layer->destroy_pipeline(opt1);
         if (dret != 0)
@@ -2608,6 +2699,13 @@ int Extractor::extract(int blob_index, Mat& feat, int type)
     }
     // *INDENT-ON*
     // clang-format on
+
+    if (d->opt.use_local_pool_allocator && feat.allocator == d->net->d->local_blob_allocator)
+    {
+        // detach the returned mat from local pool allocator
+        // so we could destroy net instance much earlier
+        feat = feat.clone();
+    }
 
     set_kmp_blocktime(old_blocktime);
     set_flush_denormals(old_flush_denormals);

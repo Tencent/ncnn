@@ -15,11 +15,7 @@
 #include "cast_riscv.h"
 
 #if __riscv_vector
-#ifdef RVV_SPEC_0_7
-#include "riscv_v_071_fix.h"
-#else
 #include <riscv_vector.h>
-#endif
 #endif // __riscv_vector
 
 namespace ncnn {
@@ -44,6 +40,7 @@ int Cast_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
+    int d = bottom_blob.d;
     int channels = bottom_blob.c;
     int dims = bottom_blob.dims;
     size_t elemsize = bottom_blob.elemsize;
@@ -83,10 +80,14 @@ int Cast_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt
     {
         top_blob.create(w, h, channels, out_elemsize, elempack, opt.blob_allocator);
     }
+    else if (dims == 4)
+    {
+        top_blob.create(w, h, d, channels, out_elemsize, elempack, opt.blob_allocator);
+    }
     if (top_blob.empty())
         return -100;
 
-    int size = w * h * elempack;
+    int size = w * h * d * elempack;
 
 #if __riscv_vector && __riscv_zfh
     if (type_from == 1 && type_to == 2)
@@ -100,7 +101,7 @@ int Cast_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt
             int n = size;
             while (n > 0)
             {
-                word_type vl = vsetvl_e32m8(n);
+                size_t vl = vsetvl_e32m8(n);
 
                 vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
                 vfloat16m4_t _outp = vfncvt_f_f_w_f16m4(_p, vl);
@@ -124,7 +125,7 @@ int Cast_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt
             int n = size;
             while (n > 0)
             {
-                word_type vl = vsetvl_e16m4(n);
+                size_t vl = vsetvl_e16m4(n);
 
                 vfloat16m4_t _p = vle16_v_f16m4(ptr, vl);
                 vfloat32m8_t _outp = vfwcvt_f_f_v_f32m8(_p, vl);

@@ -25,6 +25,7 @@ static int test_command_upload_download(const ncnn::Mat& a)
     ncnn::VkAllocator* staging_allocator = vkdev->acquire_staging_allocator();
 
     ncnn::Option opt;
+    opt.num_threads = 1;
     opt.use_vulkan_compute = true;
     opt.blob_vkallocator = blob_allocator;
     opt.staging_vkallocator = staging_allocator;
@@ -77,6 +78,7 @@ static int test_command_clone(const ncnn::Mat& a)
     ncnn::VkAllocator* staging_allocator = vkdev->acquire_staging_allocator();
 
     ncnn::Option opt;
+    opt.num_threads = 1;
     opt.use_vulkan_compute = true;
     opt.blob_vkallocator = blob_allocator;
     opt.staging_vkallocator = staging_allocator;
@@ -133,6 +135,7 @@ static int test_command_transfer(const ncnn::Mat& a)
     ncnn::VkAllocator* staging_allocator = vkdev->acquire_staging_allocator();
 
     ncnn::Option opt;
+    opt.num_threads = 1;
     opt.use_vulkan_compute = true;
     opt.blob_vkallocator = blob_allocator;
     opt.staging_vkallocator = staging_allocator;

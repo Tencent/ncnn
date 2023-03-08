@@ -27,14 +27,16 @@ layout (constant_id = 0) const int ndim = 0;
 layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
 layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
 layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
-layout (constant_id = shape_constant_id_offset + 3) const int c = 0;
-layout (constant_id = shape_constant_id_offset + 4) const int cstep = 0;
+layout (constant_id = shape_constant_id_offset + 3) const int d = 0;
+layout (constant_id = shape_constant_id_offset + 4) const int c = 0;
+layout (constant_id = shape_constant_id_offset + 5) const int cstep = 0;
 
-layout (constant_id = shape_constant_id_offset + 5) const int outdims = 0;
-layout (constant_id = shape_constant_id_offset + 6) const int outw = 0;
-layout (constant_id = shape_constant_id_offset + 7) const int outh = 0;
-layout (constant_id = shape_constant_id_offset + 8) const int outc = 0;
-layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
+layout (constant_id = shape_constant_id_offset + 6) const int outdims = 0;
+layout (constant_id = shape_constant_id_offset + 7) const int outw = 0;
+layout (constant_id = shape_constant_id_offset + 8) const int outh = 0;
+layout (constant_id = shape_constant_id_offset + 9) const int outd = 0;
+layout (constant_id = shape_constant_id_offset + 10) const int outc = 0;
+layout (constant_id = shape_constant_id_offset + 11) const int outcstep = 0;
 
 #if NCNN_image_shader
 layout (binding = 0) uniform unfp sampler3D bottom_blob_3d;
@@ -49,12 +51,14 @@ layout (push_constant) uniform parameter
     int dims;
     int w;
     int h;
+    int d;
     int c;
     int cstep;
 
     int outdims;
     int outw;
     int outh;
+    int outd;
     int outc;
     int outcstep;
 } p;
@@ -65,65 +69,65 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= psc(outw) || gy >= psc(outh) || gz >= psc(outc))
+    if (gx >= psc(outw) || gy >= psc(outh) * psc(outd) || gz >= psc(outc))
         return;
 
     int i;
-
     if (ndim == 1) i = gx;
     if (ndim == 2) i = gy * psc(outw) + gx;
     if (ndim == 3) i = gz * psc(outh) * psc(outw) + gy * psc(outw) + gx;
+    if (ndim == 4) i = gz * psc(outd) * psc(outh) * psc(outw) + gy * psc(outw) + gx;
 
-    int size = psc(w) * psc(h);
-
-    int z = i / size;
-    int y = i % size / psc(w);
-    int x = i % size % psc(w);
-
-#if NCNN_image_shader
-    afp v;
+    int x;
+    int y;
+    int z;
 
     if (psc(dims) == 1)
     {
-        v = image3d_ld1(bottom_blob_3d, ivec3(x, 0, 0));
+        z = 0;
+        y = 0;
+        x = i;
     }
     else if (psc(dims) == 2)
     {
-        v = image3d_ld1(bottom_blob_3d, ivec3(x, y, 0));
+        z = 0;
+        y = i / psc(w);
+        x = i % psc(w);
     }
-    else // if (psc(dims) == 3)
+    else if (psc(dims) == 3)
     {
-        v = image3d_ld1(bottom_blob_3d, ivec3(x, y, z));
+        int size = psc(w) * psc(h);
+
+        z = i / size;
+        y = i % size / psc(w);
+        x = i % size % psc(w);
+    }
+    else // if (psc(dims) == 4)
+    {
+        int size = psc(w) * psc(h) * psc(d);
+        int dsize = psc(w) * psc(h);
+
+        z = i / size;
+        int yd = i % size / dsize;
+        int yh = i % size % dsize / psc(w);
+        x = i % size % dsize % psc(w);
+
+        y = yd * psc(h) + yh;
     }
 
-    if (ndim == 1)
-    {
-        image3d_st1(top_blob_3d, ivec3(gx, 0, 0), v);
-    }
-    if (ndim == 2)
-    {
-        image3d_st1(top_blob_3d, ivec3(gx, gy, 0), v);
-    }
-    if (ndim == 3)
-    {
-        image3d_st1(top_blob_3d, ivec3(gx, gy, gz), v);
-    }
+#if NCNN_image_shader
+    afp v = image3d_ld1(bottom_blob_3d, ivec3(x, y, z));
+
+    if (ndim == 1) image3d_st1(top_blob_3d, ivec3(gx, 0, 0), v);
+    if (ndim == 2) image3d_st1(top_blob_3d, ivec3(gx, gy, 0), v);
+    if (ndim == 3 || ndim == 4) image3d_st1(top_blob_3d, ivec3(gx, gy, gz), v);
 #else
     int v_offset = z * psc(cstep) + y * psc(w) + x;
 
     int gi;
-    if (ndim == 1)
-    {
-        gi = gx;
-    }
-    if (ndim == 2)
-    {
-        gi = gy * psc(outw) + gx;
-    }
-    if (ndim == 3)
-    {
-        gi = gz * psc(outcstep) + gy * psc(outw) + gx;
-    }
+    if (ndim == 1) gi = gx;
+    if (ndim == 2) gi = gy * psc(outw) + gx;
+    if (ndim == 3 || ndim == 4) gi = gz * psc(outcstep) + gy * psc(outw) + gx;
 
     buffer_cp1(top_blob_data, gi, bottom_blob_data, v_offset);
 #endif

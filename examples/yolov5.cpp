@@ -26,6 +26,13 @@
 #include <stdio.h>
 #include <vector>
 
+//#define YOLOV5_V60 1 //YOLOv5 v6.0
+#define YOLOV5_V62 1 //YOLOv5 v6.2 export  onnx model method https://github.com/shaoshengsong/yolov5_62_export_ncnn
+
+#if YOLOV5_V60 || YOLOV5_V62
+#define MAX_STRIDE 64
+#else
+#define MAX_STRIDE 32
 class YoloV5Focus : public ncnn::Layer
 {
 public:
@@ -73,6 +80,7 @@ public:
 };
 
 DEFINE_LAYER_CREATOR(YoloV5Focus)
+#endif //YOLOV5_V60    YOLOV5_V62
 
 struct Object
 {
@@ -132,7 +140,7 @@ static void qsort_descent_inplace(std::vector<Object>& faceobjects)
     qsort_descent_inplace(faceobjects, 0, faceobjects.size() - 1);
 }
 
-static void nms_sorted_bboxes(const std::vector<Object>& faceobjects, std::vector<int>& picked, float nms_threshold)
+static void nms_sorted_bboxes(const std::vector<Object>& faceobjects, std::vector<int>& picked, float nms_threshold, bool agnostic = false)
 {
     picked.clear();
 
@@ -152,6 +160,9 @@ static void nms_sorted_bboxes(const std::vector<Object>& faceobjects, std::vecto
         for (int j = 0; j < (int)picked.size(); j++)
         {
             const Object& b = faceobjects[picked[j]];
+
+            if (!agnostic && a.label != b.label)
+                continue;
 
             // intersection over union
             float inter_area = intersection_area(a, b);
@@ -204,56 +215,55 @@ static void generate_proposals(const ncnn::Mat& anchors, int stride, const ncnn:
             for (int j = 0; j < num_grid_x; j++)
             {
                 const float* featptr = feat.row(i * num_grid_x + j);
-
-                // find class index with max class score
-                int class_index = 0;
-                float class_score = -FLT_MAX;
-                for (int k = 0; k < num_class; k++)
+                float box_confidence = sigmoid(featptr[4]);
+                if (box_confidence >= prob_threshold)
                 {
-                    float score = featptr[5 + k];
-                    if (score > class_score)
+                    // find class index with max class score
+                    int class_index = 0;
+                    float class_score = -FLT_MAX;
+                    for (int k = 0; k < num_class; k++)
                     {
-                        class_index = k;
-                        class_score = score;
+                        float score = featptr[5 + k];
+                        if (score > class_score)
+                        {
+                            class_index = k;
+                            class_score = score;
+                        }
                     }
-                }
+                    float confidence = box_confidence * sigmoid(class_score);
+                    if (confidence >= prob_threshold)
+                    {
+                        // yolov5/models/yolo.py Detect forward
+                        // y = x[i].sigmoid()
+                        // y[..., 0:2] = (y[..., 0:2] * 2. - 0.5 + self.grid[i].to(x[i].device)) * self.stride[i]  # xy
+                        // y[..., 2:4] = (y[..., 2:4] * 2) ** 2 * self.anchor_grid[i]  # wh
 
-                float box_score = featptr[4];
+                        float dx = sigmoid(featptr[0]);
+                        float dy = sigmoid(featptr[1]);
+                        float dw = sigmoid(featptr[2]);
+                        float dh = sigmoid(featptr[3]);
 
-                float confidence = sigmoid(box_score) * sigmoid(class_score);
+                        float pb_cx = (dx * 2.f - 0.5f + j) * stride;
+                        float pb_cy = (dy * 2.f - 0.5f + i) * stride;
 
-                if (confidence >= prob_threshold)
-                {
-                    // yolov5/models/yolo.py Detect forward
-                    // y = x[i].sigmoid()
-                    // y[..., 0:2] = (y[..., 0:2] * 2. - 0.5 + self.grid[i].to(x[i].device)) * self.stride[i]  # xy
-                    // y[..., 2:4] = (y[..., 2:4] * 2) ** 2 * self.anchor_grid[i]  # wh
+                        float pb_w = pow(dw * 2.f, 2) * anchor_w;
+                        float pb_h = pow(dh * 2.f, 2) * anchor_h;
 
-                    float dx = sigmoid(featptr[0]);
-                    float dy = sigmoid(featptr[1]);
-                    float dw = sigmoid(featptr[2]);
-                    float dh = sigmoid(featptr[3]);
+                        float x0 = pb_cx - pb_w * 0.5f;
+                        float y0 = pb_cy - pb_h * 0.5f;
+                        float x1 = pb_cx + pb_w * 0.5f;
+                        float y1 = pb_cy + pb_h * 0.5f;
 
-                    float pb_cx = (dx * 2.f - 0.5f + j) * stride;
-                    float pb_cy = (dy * 2.f - 0.5f + i) * stride;
+                        Object obj;
+                        obj.rect.x = x0;
+                        obj.rect.y = y0;
+                        obj.rect.width = x1 - x0;
+                        obj.rect.height = y1 - y0;
+                        obj.label = class_index;
+                        obj.prob = confidence;
 
-                    float pb_w = pow(dw * 2.f, 2) * anchor_w;
-                    float pb_h = pow(dh * 2.f, 2) * anchor_h;
-
-                    float x0 = pb_cx - pb_w * 0.5f;
-                    float y0 = pb_cy - pb_h * 0.5f;
-                    float x1 = pb_cx + pb_w * 0.5f;
-                    float y1 = pb_cy + pb_h * 0.5f;
-
-                    Object obj;
-                    obj.rect.x = x0;
-                    obj.rect.y = y0;
-                    obj.rect.width = x1 - x0;
-                    obj.rect.height = y1 - y0;
-                    obj.label = class_index;
-                    obj.prob = confidence;
-
-                    objects.push_back(obj);
+                        objects.push_back(obj);
+                    }
                 }
             }
         }
@@ -267,12 +277,26 @@ static int detect_yolov5(const cv::Mat& bgr, std::vector<Object>& objects)
     yolov5.opt.use_vulkan_compute = true;
     // yolov5.opt.use_bf16_storage = true;
 
-    yolov5.register_custom_layer("YoloV5Focus", YoloV5Focus_layer_creator);
-
     // original pretrained model from https://github.com/ultralytics/yolov5
     // the ncnn model https://github.com/nihui/ncnn-assets/tree/master/models
-    yolov5.load_param("yolov5s.param");
-    yolov5.load_model("yolov5s.bin");
+#if YOLOV5_V62
+    if (yolov5.load_param("yolov5s_6.2.param"))
+        exit(-1);
+    if (yolov5.load_model("yolov5s_6.2.bin"))
+        exit(-1);
+#elif YOLOV5_V60
+    if (yolov5.load_param("yolov5s_6.0.param"))
+        exit(-1);
+    if (yolov5.load_model("yolov5s_6.0.bin"))
+        exit(-1);
+#else
+    yolov5.register_custom_layer("YoloV5Focus", YoloV5Focus_layer_creator);
+
+    if (yolov5.load_param("yolov5s.param"))
+        exit(-1);
+    if (yolov5.load_model("yolov5s.bin"))
+        exit(-1);
+#endif
 
     const int target_size = 640;
     const float prob_threshold = 0.25f;
@@ -281,7 +305,7 @@ static int detect_yolov5(const cv::Mat& bgr, std::vector<Object>& objects)
     int img_w = bgr.cols;
     int img_h = bgr.rows;
 
-    // letterbox pad to multiple of 32
+    // letterbox pad to multiple of MAX_STRIDE
     int w = img_w;
     int h = img_h;
     float scale = 1.f;
@@ -302,8 +326,8 @@ static int detect_yolov5(const cv::Mat& bgr, std::vector<Object>& objects)
 
     // pad to target_size rectangle
     // yolov5/utils/datasets.py letterbox
-    int wpad = (w + 31) / 32 * 32 - w;
-    int hpad = (h + 31) / 32 * 32 - h;
+    int wpad = (w + MAX_STRIDE - 1) / MAX_STRIDE * MAX_STRIDE - w;
+    int hpad = (h + MAX_STRIDE - 1) / MAX_STRIDE * MAX_STRIDE - h;
     ncnn::Mat in_pad;
     ncnn::copy_make_border(in, in_pad, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2, ncnn::BORDER_CONSTANT, 114.f);
 
@@ -340,7 +364,14 @@ static int detect_yolov5(const cv::Mat& bgr, std::vector<Object>& objects)
     // stride 16
     {
         ncnn::Mat out;
+
+#if YOLOV5_V62
+        ex.extract("353", out);
+#elif YOLOV5_V60
+        ex.extract("376", out);
+#else
         ex.extract("781", out);
+#endif
 
         ncnn::Mat anchors(6);
         anchors[0] = 30.f;
@@ -359,8 +390,13 @@ static int detect_yolov5(const cv::Mat& bgr, std::vector<Object>& objects)
     // stride 32
     {
         ncnn::Mat out;
+#if YOLOV5_V62
+        ex.extract("367", out);
+#elif YOLOV5_V60
+        ex.extract("401", out);
+#else
         ex.extract("801", out);
-
+#endif
         ncnn::Mat anchors(6);
         anchors[0] = 116.f;
         anchors[1] = 90.f;

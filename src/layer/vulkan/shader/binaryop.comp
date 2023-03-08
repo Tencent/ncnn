@@ -92,52 +92,55 @@ void main()
     afp v1 = buffer_ld1(a_blob_data, gi);
 #endif
 
-    afp res;
+    afp v2;
 
     if (with_scalar == 1)
     {
-        // type 5 10 15
-        afp b = afp(const_b);
-
-        if (op_type == 0) res = v1 + b;
-        if (op_type == 1) res = v1 - b;
-        if (op_type == 2) res = v1 * b;
-        if (op_type == 3) res = v1 / b;
-        if (op_type == 4) res = max(v1, b);
-        if (op_type == 5) res = min(v1, b);
-        if (op_type == 6) res = pow(v1, b);
-        if (op_type == 7) res = b - v1;
-        if (op_type == 8) res = b / v1;
-
+        // type 0 1 2 3
+        v2 = afp(const_b);
+    }
+    else if (psc(bdims) == 1 && psc(bw) == 1)
+    {
+        // type 0 1 2 3
 #if NCNN_image_shader
-        image3d_st1(top_blob_3d, ivec3(gx, gy, gz), res);
+        v2 = image3d_ld1(b_blob_3d, ivec3(0, 0, 0));
 #else
-        buffer_st1(a_blob_data, gi, res);
+        v2 = buffer_ld1(b_blob_data, 0);
 #endif
     }
     else
     {
-        // type 7 13 19
+        // type 4 5 6 7
 #if NCNN_image_shader
-        afp v2 = image3d_ld1(b_blob_3d, ivec3(gx, gy, gz));
+        v2 = image3d_ld1(b_blob_3d, ivec3(gx, gy, gz));
 #else
-        afp v2 = buffer_ld1(b_blob_data, gi);
-#endif
-
-        if (op_type == 0) res = v1 + v2;
-        if (op_type == 1) res = v1 - v2;
-        if (op_type == 2) res = v1 * v2;
-        if (op_type == 3) res = v1 / v2;
-        if (op_type == 4) res = max(v1, v2);
-        if (op_type == 5) res = min(v1, v2);
-        if (op_type == 6) res = pow(v1, v2);
-        if (op_type == 7) res = v2 - v1;
-        if (op_type == 8) res = v2 / v1;
-
-#if NCNN_image_shader
-        image3d_st1(top_blob_3d, ivec3(gx, gy, gz), res);
-#else
-        buffer_st1(top_blob_data, gi, res);
+        v2 = buffer_ld1(b_blob_data, gi);
 #endif
     }
+
+    afp res;
+
+    if (op_type == 0) res = v1 + v2;
+    if (op_type == 1) res = v1 - v2;
+    if (op_type == 2) res = v1 * v2;
+    if (op_type == 3) res = v1 / v2;
+    if (op_type == 4) res = max(v1, v2);
+    if (op_type == 5) res = min(v1, v2);
+    if (op_type == 6) res = pow(v1, v2);
+    if (op_type == 7) res = v2 - v1;
+    if (op_type == 8) res = v2 / v1;
+    if (op_type == 9) res = pow(v2, v1);
+#if NCNN_moltenvk
+    if (op_type == 10) res = afp(atan(float(v1), float(v2)));
+    if (op_type == 11) res = afp(atan(float(v2), float(v1)));
+#else
+    if (op_type == 10) res = atan(v1, v2);
+    if (op_type == 11) res = atan(v2, v1);
+#endif
+
+#if NCNN_image_shader
+    image3d_st1(top_blob_3d, ivec3(gx, gy, gz), res);
+#else
+    buffer_st1(top_blob_data, gi, res);
+#endif
 }

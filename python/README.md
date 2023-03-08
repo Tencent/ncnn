@@ -49,13 +49,13 @@ make
 
 ## Install
 ```bash
-cd /pathto/ncnn/python
+cd /pathto/ncnn
 pip install .
 ```
 
 if you use conda or miniconda, you can also install as following:
 ```bash
-cd /pathto/ncnn/python
+cd /pathto/ncnn
 python3 setup.py install
 ```
 

@@ -17,11 +17,7 @@
 #include <float.h>
 
 #if __riscv_vector
-#ifdef RVV_SPEC_0_7
-#include "riscv_v_071_fix.h"
-#else
 #include <riscv_vector.h>
-#endif
 #endif // __riscv_vector
 
 #include "riscv_usability.h"
@@ -47,10 +43,7 @@ int Pooling_riscv::create_pipeline(const Option& /*opt*/)
         support_bf16_storage = false;
         support_fp16_storage = false;
         support_int8_storage = false;
-        support_image_storage = false;
         support_tensor_storage = false;
-
-        support_weight_fp16_storage = false;
     }
     return 0;
 }
@@ -79,7 +72,7 @@ int Pooling_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
 
 #if __riscv_vector
     const int packn = csrr_vlenb() / 4;
-    const word_type vl = vsetvl_e32m1(packn);
+    const size_t vl = vsetvl_e32m1(packn);
 #endif
 
     int w = bottom_blob.w;
@@ -322,7 +315,7 @@ int Pooling_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Op
     // avg value in NxN window
 
     const int packn = csrr_vlenb() / 2;
-    const word_type vl = vsetvl_e16m1(packn);
+    const size_t vl = vsetvl_e16m1(packn);
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
@@ -722,13 +715,13 @@ int Pooling_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const O
     // max value in NxN window
     // avg value in NxN window
 
-    if (pooling_type == PoolMethod_MAX)
+    if (pooling_type == PoolMethod_MAX || global_pooling)
     {
         return forward_fp16s(bottom_blob, top_blob, opt);
     }
 
     const int packn = csrr_vlenb() / 2;
-    const word_type vl = vsetvl_e16m1(packn);
+    const size_t vl = vsetvl_e16m1(packn);
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
@@ -737,60 +730,6 @@ int Pooling_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const O
     int elempack = bottom_blob.elempack;
 
     //     NCNN_LOGE("Pooling     input %d x %d  pad = %d %d %d %d  ksize=%d %d  stride=%d %d", w, h, pad_left, pad_right, pad_top, pad_bottom, kernel_w, kernel_h, stride_w, stride_h);
-
-    if (global_pooling)
-    {
-        top_blob.create(channels, elemsize, elempack, opt.blob_allocator);
-        if (top_blob.empty())
-            return -100;
-
-        int size = w * h;
-
-        if (pooling_type == PoolMethod_AVE)
-        {
-            if (elempack == packn)
-            {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < channels; q++)
-                {
-                    const __fp16* ptr = bottom_blob.channel(q);
-
-                    vfloat16m1_t _sum = vfmv_v_f_f16m1(0.f, vl);
-                    for (int i = 0; i < size; i++)
-                    {
-                        vfloat16m1_t _val = vle16_v_f16m1(ptr, vl);
-                        _sum = vfadd_vv_f16m1(_sum, _val, vl);
-                        ptr += packn;
-                    }
-
-                    vfloat16m1_t _avg = vfmul_vf_f16m1(_sum, (__fp16)(1.f / size), vl);
-
-                    __fp16* outptr = top_blob;
-                    vse16_v_f16m1(outptr + q * packn, _avg, vl);
-                }
-            }
-
-            if (elempack == 1)
-            {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < channels; q++)
-                {
-                    const __fp16* ptr = bottom_blob.channel(q);
-
-                    __fp16 sum = (__fp16)0.f;
-                    for (int i = 0; i < size; i++)
-                    {
-                        sum += ptr[i];
-                    }
-
-                    __fp16* outptr = top_blob;
-                    outptr[q] = sum / size;
-                }
-            }
-        }
-
-        return 0;
-    }
 
     Mat bottom_blob_bordered;
     make_padding(bottom_blob, bottom_blob_bordered, opt);

@@ -12,8 +12,38 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+#if !(__ARM_FEATURE_MATMUL_INT8 || __ARM_FEATURE_DOTPROD)
+#if NCNN_RUNTIME_CPU && NCNN_ARM84I8MM && __aarch64__ && !__ARM_FEATURE_MATMUL_INT8
+void im2col_sgemm_pack8to4_int8_neon_i8mm(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Option& opt);
+void convolution_im2col_sgemm_transform_kernel_pack8to4_int8_neon_i8mm(const Mat& _kernel, Mat& kernel_tm, int inch, int outch, int kernel_w, int kernel_h);
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_ARM82DOT && __aarch64__ && !__ARM_FEATURE_DOTPROD
+void im2col_sgemm_pack8to4_int8_neon_asimddp(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Option& opt);
+void convolution_im2col_sgemm_transform_kernel_pack8to4_int8_neon_asimddp(const Mat& _kernel, Mat& kernel_tm, int inch, int outch, int kernel_w, int kernel_h);
+#endif
+#endif
+
 static void im2col_sgemm_pack8to4_int8_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Option& opt)
 {
+#if !(__ARM_FEATURE_MATMUL_INT8 || __ARM_FEATURE_DOTPROD)
+#if NCNN_RUNTIME_CPU && NCNN_ARM84I8MM && __aarch64__ && !__ARM_FEATURE_MATMUL_INT8
+    if (ncnn::cpu_support_arm_i8mm())
+    {
+        im2col_sgemm_pack8to4_int8_neon_i8mm(bottom_im2col, top_blob, kernel, opt);
+        return;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_ARM82DOT && __aarch64__ && !__ARM_FEATURE_DOTPROD
+    if (ncnn::cpu_support_arm_asimddp())
+    {
+        im2col_sgemm_pack8to4_int8_neon_asimddp(bottom_im2col, top_blob, kernel, opt);
+        return;
+    }
+#endif
+#endif
+
     // Mat bottom_im2col(size, maxk, inch, 8u, 8, opt.workspace_allocator);
 
     const int size = bottom_im2col.w;
@@ -26,9 +56,7 @@ static void im2col_sgemm_pack8to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
     Mat tmp;
 #if __aarch64__
 #if __ARM_FEATURE_DOTPROD
-    if (size >= 16)
-        tmp.create(16 * maxk, inch, size / 16 + (size % 16) / 8 + (size % 8) / 4 + (size % 4) / 2 + size % 2, 8u, 8, opt.workspace_allocator);
-    else if (size >= 8)
+    if (size >= 8)
         tmp.create(8 * maxk, inch, size / 8 + (size % 8) / 4 + (size % 4) / 2 + size % 2, 8u, 8, opt.workspace_allocator);
     else if (size >= 4)
         tmp.create(4 * maxk, inch, size / 4 + (size % 4) / 2 + size % 2, 8u, 8, opt.workspace_allocator);
@@ -53,57 +81,15 @@ static void im2col_sgemm_pack8to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
     {
 #if __aarch64__
 #if __ARM_FEATURE_DOTPROD
-        int nn_size = size >> 4;
+        int nn_size = size >> 3;
         int remain_size_start = 0;
-
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int ii = 0; ii < nn_size; ii++)
-        {
-            int i = remain_size_start + ii * 16;
-
-            signed char* tmpptr = tmp.channel(i / 16);
-
-            for (int q = 0; q < inch; q++)
-            {
-                const signed char* img0 = (const signed char*)bottom_im2col.channel(q) + i * 8;
-
-                for (int k = 0; k < maxk; k++)
-                {
-                    // split pack8 to pack4
-                    asm volatile(
-                        "prfm   pldl1keep, [%0, #512]       \n"
-                        "ld2    {v0.4s, v1.4s}, [%0], #32   \n"
-                        "ld2    {v2.4s, v3.4s}, [%0], #32   \n"
-                        "ld2    {v4.4s, v5.4s}, [%0], #32   \n"
-                        "ld2    {v6.4s, v7.4s}, [%0]        \n"
-                        "sub    %0, %0, #96                 \n"
-                        "st1    {v0.16b}, [%1], #16         \n"
-                        "st1    {v2.16b}, [%1], #16         \n"
-                        "st1    {v4.16b}, [%1], #16         \n"
-                        "st1    {v6.16b}, [%1], #16         \n"
-                        "st1    {v1.16b}, [%1], #16         \n"
-                        "st1    {v3.16b}, [%1], #16         \n"
-                        "st1    {v5.16b}, [%1], #16         \n"
-                        "st1    {v7.16b}, [%1], #16         \n"
-                        : "=r"(img0),  // %0
-                        "=r"(tmpptr) // %1
-                        : "0"(img0),
-                        "1"(tmpptr)
-                        : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7");
-                    img0 += size * 8;
-                }
-            }
-        }
-
-        remain_size_start += nn_size << 4;
-        nn_size = (size - remain_size_start) >> 3;
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int ii = 0; ii < nn_size; ii++)
         {
             int i = remain_size_start + ii * 8;
 
-            signed char* tmpptr = tmp.channel(i / 16 + (i % 16) / 8);
+            signed char* tmpptr = tmp.channel(i / 8);
 
             for (int q = 0; q < inch; q++)
             {
@@ -111,6 +97,17 @@ static void im2col_sgemm_pack8to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
 
                 for (int k = 0; k < maxk; k++)
                 {
+#if __ARM_FEATURE_MATMUL_INT8
+                    asm volatile(
+                        "prfm   pldl1keep, [%0, #512]       \n"
+                        "ld1    {v0.16b, v1.16b, v2.16b, v3.16b}, [%0] \n"
+                        "st1    {v0.16b, v1.16b, v2.16b, v3.16b}, [%1], #64 \n"
+                        : "=r"(img0),  // %0
+                        "=r"(tmpptr) // %1
+                        : "0"(img0),
+                        "1"(tmpptr)
+                        : "memory", "v0", "v1", "v2", "v3");
+#else  // __ARM_FEATURE_MATMUL_INT8
                     asm volatile(
                         "prfm   pldl1keep, [%0, #512]       \n"
                         "ld2    {v0.4s, v1.4s}, [%0], #32   \n"
@@ -125,6 +122,7 @@ static void im2col_sgemm_pack8to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
                         : "0"(img0),
                         "1"(tmpptr)
                         : "memory", "v0", "v1", "v2", "v3");
+#endif // __ARM_FEATURE_MATMUL_INT8
                     img0 += size * 8;
                 }
             }
@@ -143,7 +141,7 @@ static void im2col_sgemm_pack8to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
             int i = remain_size_start + ii * 4;
 
 #if __ARM_FEATURE_DOTPROD
-            signed char* tmpptr = tmp.channel(i / 16 + (i % 16) / 8 + (i % 8) / 4);
+            signed char* tmpptr = tmp.channel(i / 8 + (i % 8) / 4);
 #else
             signed char* tmpptr = tmp.channel(i / 4);
 #endif
@@ -154,7 +152,17 @@ static void im2col_sgemm_pack8to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
 
                 for (int k = 0; k < maxk; k++)
                 {
-#if __ARM_FEATURE_DOTPROD
+#if __ARM_FEATURE_MATMUL_INT8
+                    asm volatile(
+                        "prfm   pldl1keep, [%0, #256]       \n"
+                        "ld1    {v0.16b, v1.16b}, [%0]      \n"
+                        "st1    {v0.16b, v1.16b}, [%1], #32 \n"
+                        : "=r"(img0),  // %0
+                        "=r"(tmpptr) // %1
+                        : "0"(img0),
+                        "1"(tmpptr)
+                        : "memory", "v0", "v1");
+#elif __ARM_FEATURE_DOTPROD
                     asm volatile(
                         "prfm   pldl1keep, [%0, #256]       \n"
                         "ld2    {v0.4s, v1.4s}, [%0]        \n"
@@ -174,7 +182,7 @@ static void im2col_sgemm_pack8to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
                         : "0"(img0),
                         "1"(tmpptr)
                         : "memory", "v0", "v1");
-#endif // __ARM_FEATURE_DOTPROD
+#endif
                     img0 += size * 8;
                 }
             }
@@ -182,10 +190,10 @@ static void im2col_sgemm_pack8to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
 
         remain_size_start += nn_size << 2;
         nn_size = (size - remain_size_start) >> 1;
-#else
+#else  // __aarch64__
         int remain_size_start = 0;
         int nn_size = (size - remain_size_start) >> 1;
-#endif
+#endif // __aarch64__
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int ii = 0; ii < nn_size; ii++)
@@ -194,7 +202,7 @@ static void im2col_sgemm_pack8to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
 
 #if __aarch64__
 #if __ARM_FEATURE_DOTPROD
-            signed char* tmpptr = tmp.channel(i / 16 + (i % 16) / 8 + (i % 8) / 4 + (i % 4) / 2);
+            signed char* tmpptr = tmp.channel(i / 8 + (i % 8) / 4 + (i % 4) / 2);
 #else
             signed char* tmpptr = tmp.channel(i / 4 + (i % 4) / 2);
 #endif
@@ -209,7 +217,17 @@ static void im2col_sgemm_pack8to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
                 for (int k = 0; k < maxk; k++)
                 {
 #if __aarch64__
-#if __ARM_FEATURE_DOTPROD
+#if __ARM_FEATURE_MATMUL_INT8
+                    asm volatile(
+                        "prfm   pldl1keep, [%0, #128]   \n"
+                        "ld1    {v0.16b}, [%0]          \n"
+                        "st1    {v0.16b}, [%1], #16     \n"
+                        : "=r"(img0),  // %0
+                        "=r"(tmpptr) // %1
+                        : "0"(img0),
+                        "1"(tmpptr)
+                        : "memory", "v0");
+#elif __ARM_FEATURE_DOTPROD
                     asm volatile(
                         "prfm   pldl1keep, [%0, #128]   \n"
                         "ld2    {v0.2s, v1.2s}, [%0]    \n"
@@ -229,8 +247,8 @@ static void im2col_sgemm_pack8to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
                         : "0"(img0),
                         "1"(tmpptr)
                         : "memory", "v0");
-#endif // __ARM_FEATURE_DOTPROD
-#else
+#endif
+#else  // __aarch64__
                     asm volatile(
                         "pld        [%0, #128]          \n"
                         "vld1.s8    {d0-d1}, [%0 :64]   \n"
@@ -240,7 +258,7 @@ static void im2col_sgemm_pack8to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
                         : "0"(img0),
                         "1"(tmpptr)
                         : "memory", "q0");
-#endif
+#endif // __aarch64__
                     img0 += size * 8;
                 }
             }
@@ -253,7 +271,7 @@ static void im2col_sgemm_pack8to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
         {
 #if __aarch64__
 #if __ARM_FEATURE_DOTPROD
-            signed char* tmpptr = tmp.channel(i / 16 + (i % 16) / 8 + (i % 8) / 4 + (i % 4) / 2 + i % 2);
+            signed char* tmpptr = tmp.channel(i / 8 + (i % 8) / 4 + (i % 4) / 2 + i % 2);
 #else
             signed char* tmpptr = tmp.channel(i / 4 + (i % 4) / 2 + i % 2);
 #endif
@@ -294,29 +312,30 @@ static void im2col_sgemm_pack8to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
         }
     }
 
+#if __ARM_FEATURE_DOTPROD
+    int nn_outch = outch / 2;
+    int remain_outch_start = nn_outch * 2;
+
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p = 0; p < outch; p++)
+    for (int pp = 0; pp < nn_outch; pp++)
     {
+        int p = pp * 2;
+
         int* outptr0 = top_blob.channel(p);
+        int* outptr1 = top_blob.channel(p + 1);
 
         int i = 0;
-#if __aarch64__
-#if __ARM_FEATURE_DOTPROD
-        for (; i + 15 < size; i += 16)
+        for (; i + 7 < size; i += 8)
         {
-            const signed char* tmpptr = tmp.channel(i / 16);
-            const signed char* kptr0 = kernel.channel(p);
+            const signed char* tmpptr = tmp.channel(i / 8);
+            const signed char* kptr0 = kernel.channel(p / 2);
 
             int nn = inch * maxk; // inch always > 0
 
+#if __ARM_FEATURE_MATMUL_INT8
             asm volatile(
-                "ld1    {v24.16b}, [%3], #16        \n" // _w0123_l
-
                 "eor    v0.16b, v0.16b, v0.16b      \n"
                 "eor    v1.16b, v1.16b, v1.16b      \n"
-
-                "ld1    {v16.16b}, [%2], #16        \n" // _val0123_l
-
                 "eor    v2.16b, v2.16b, v2.16b      \n"
                 "eor    v3.16b, v3.16b, v3.16b      \n"
                 "eor    v4.16b, v4.16b, v4.16b      \n"
@@ -334,97 +353,470 @@ static void im2col_sgemm_pack8to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
 
                 "0:                                 \n"
 
-                "ld1    {v17.16b}, [%2], #16        \n" // _val4567_l
+                "ld1    {v16.16b, v17.16b, v18.16b, v19.16b}, [%3], #64 \n" // _val0 _val1 _val1 _val3
+                "ld1    {v20.16b, v21.16b, v22.16b, v23.16b}, [%4], #64 \n" // _w01 _w23 _w45 _w67
 
-                "sdot   v0.4s, v24.16b, v16.4b[0]   \n"
-                "sdot   v1.4s, v24.16b, v16.4b[1]   \n"
-                "sdot   v2.4s, v24.16b, v16.4b[2]   \n"
-                "sdot   v3.4s, v24.16b, v16.4b[3]   \n"
+                "smmla  v0.4s, v16.16b, v20.16b     \n"
+                "smmla  v1.4s, v16.16b, v21.16b     \n"
+                "smmla  v2.4s, v17.16b, v20.16b     \n"
+                "smmla  v3.4s, v17.16b, v21.16b     \n"
+                "smmla  v4.4s, v18.16b, v20.16b     \n"
+                "smmla  v5.4s, v18.16b, v21.16b     \n"
+                "smmla  v6.4s, v19.16b, v20.16b     \n"
+                "smmla  v7.4s, v19.16b, v21.16b     \n"
 
-                "ld1    {v18.16b}, [%2], #16        \n" // _val891011_l
+                "subs   %w2, %w2, #1                \n"
 
-                "sdot   v4.4s, v24.16b, v17.4b[0]   \n"
-                "sdot   v5.4s, v24.16b, v17.4b[1]   \n"
-                "sdot   v6.4s, v24.16b, v17.4b[2]   \n"
-                "sdot   v7.4s, v24.16b, v17.4b[3]   \n"
-
-                "ld1    {v19.16b}, [%2], #16        \n" // _val12131415_l
-
-                "sdot   v8.4s, v24.16b, v18.4b[0]   \n"
-                "sdot   v9.4s, v24.16b, v18.4b[1]   \n"
-
-                "ld1    {v25.16b}, [%3], #16        \n" // _w0123_h
-
-                "sdot   v10.4s, v24.16b, v18.4b[2]  \n"
-                "sdot   v11.4s, v24.16b, v18.4b[3]  \n"
-
-                "ld1    {v20.16b}, [%2], #16        \n" // _val0123_h
-
-                "sdot   v12.4s, v24.16b, v19.4b[0]  \n"
-                "sdot   v13.4s, v24.16b, v19.4b[1]  \n"
-                "sdot   v14.4s, v24.16b, v19.4b[2]  \n"
-                "sdot   v15.4s, v24.16b, v19.4b[3]  \n"
-
-                "ld1    {v21.16b}, [%2], #16        \n" // _val4567_h
-
-                "sdot   v0.4s, v25.16b, v20.4b[0]   \n"
-                "sdot   v1.4s, v25.16b, v20.4b[1]   \n"
-                "sdot   v2.4s, v25.16b, v20.4b[2]   \n"
-                "sdot   v3.4s, v25.16b, v20.4b[3]   \n"
-
-                "ld1    {v22.16b}, [%2], #16        \n" // _val891011_h
-
-                "sdot   v4.4s, v25.16b, v21.4b[0]   \n"
-                "sdot   v5.4s, v25.16b, v21.4b[1]   \n"
-                "sdot   v6.4s, v25.16b, v21.4b[2]   \n"
-                "sdot   v7.4s, v25.16b, v21.4b[3]   \n"
-
-                "ld1    {v23.16b}, [%2], #16        \n" // _val12131415_h
-
-                "sdot   v8.4s, v25.16b, v22.4b[0]   \n"
-                "sdot   v9.4s, v25.16b, v22.4b[1]   \n"
-
-                "ld1    {v24.16b}, [%3], #16        \n" // _w0123_l
-
-                "sdot   v10.4s, v25.16b, v22.4b[2]  \n"
-                "sdot   v11.4s, v25.16b, v22.4b[3]  \n"
-
-                "ld1    {v16.16b}, [%2], #16        \n" // _val0123_l
-
-                "sdot   v12.4s, v25.16b, v23.4b[0]  \n"
-                "sdot   v13.4s, v25.16b, v23.4b[1]  \n"
-
-                "subs   %w1, %w1, #1                \n"
-
-                "sdot   v14.4s, v25.16b, v23.4b[2]  \n"
-                "sdot   v15.4s, v25.16b, v23.4b[3]  \n"
+                "smmla  v8.4s, v16.16b, v22.16b     \n"
+                "smmla  v9.4s, v16.16b, v23.16b     \n"
+                "smmla  v10.4s, v17.16b, v22.16b    \n"
+                "smmla  v11.4s, v17.16b, v23.16b    \n"
+                "smmla  v12.4s, v18.16b, v22.16b    \n"
+                "smmla  v13.4s, v18.16b, v23.16b    \n"
+                "smmla  v14.4s, v19.16b, v22.16b    \n"
+                "smmla  v15.4s, v19.16b, v23.16b    \n"
 
                 "bne    0b                          \n"
 
-                "sub    %2, %2, #16                 \n"
-                "sub    %3, %3, #16                 \n"
-
-                "st1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%0], #64 \n"
-                "st1    {v4.4s, v5.4s, v6.4s, v7.4s}, [%0], #64 \n"
-                "st1    {v8.4s, v9.4s, v10.4s, v11.4s}, [%0], #64 \n"
-                "st1    {v12.4s, v13.4s, v14.4s, v15.4s}, [%0], #64 \n"
+                "st2    {v0.2d, v1.2d}, [%0], #32   \n"
+                "st2    {v2.2d, v3.2d}, [%0], #32   \n"
+                "st2    {v4.2d, v5.2d}, [%0], #32   \n"
+                "st2    {v6.2d, v7.2d}, [%0], #32   \n"
+                "st2    {v8.2d, v9.2d}, [%1], #32   \n"
+                "st2    {v10.2d, v11.2d}, [%1], #32 \n"
+                "st2    {v12.2d, v13.2d}, [%1], #32 \n"
+                "st2    {v14.2d, v15.2d}, [%1], #32 \n"
                 : "=r"(outptr0),
+                "=r"(outptr1),
                 "=r"(nn),
                 "=r"(tmpptr),
                 "=r"(kptr0)
                 : "0"(outptr0),
-                "1"(nn),
-                "2"(tmpptr),
-                "3"(kptr0)
-                : "memory", "x4", "x5", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
+                "1"(outptr1),
+                "2"(nn),
+                "3"(tmpptr),
+                "4"(kptr0)
+                : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23");
+#else  // __ARM_FEATURE_MATMUL_INT8
+            asm volatile(
+                "eor    v0.16b, v0.16b, v0.16b      \n"
+                "eor    v1.16b, v1.16b, v1.16b      \n"
+                "eor    v2.16b, v2.16b, v2.16b      \n"
+                "eor    v3.16b, v3.16b, v3.16b      \n"
+                "eor    v4.16b, v4.16b, v4.16b      \n"
+                "eor    v5.16b, v5.16b, v5.16b      \n"
+                "eor    v6.16b, v6.16b, v6.16b      \n"
+                "eor    v7.16b, v7.16b, v7.16b      \n"
+                "eor    v8.16b, v8.16b, v8.16b      \n"
+                "eor    v9.16b, v9.16b, v9.16b      \n"
+                "eor    v10.16b, v10.16b, v10.16b   \n"
+                "eor    v11.16b, v11.16b, v11.16b   \n"
+                "eor    v12.16b, v12.16b, v12.16b   \n"
+                "eor    v13.16b, v13.16b, v13.16b   \n"
+                "eor    v14.16b, v14.16b, v14.16b   \n"
+                "eor    v15.16b, v15.16b, v15.16b   \n"
+
+                "0:                                 \n"
+
+                "ld1    {v16.16b, v17.16b, v18.16b, v19.16b}, [%3], #64 \n" // _val0 _val1 _val2 _val3
+                "ld1    {v20.16b, v21.16b, v22.16b, v23.16b}, [%4], #64 \n" // _w01 _w23 _w45 _w67
+
+                "sdot   v0.4s, v20.16b, v16.4b[0]   \n"
+                "sdot   v1.4s, v20.16b, v16.4b[1]   \n"
+                "sdot   v2.4s, v20.16b, v16.4b[2]   \n"
+                "sdot   v3.4s, v20.16b, v16.4b[3]   \n"
+                "sdot   v4.4s, v20.16b, v17.4b[0]   \n"
+                "sdot   v5.4s, v20.16b, v17.4b[1]   \n"
+                "sdot   v6.4s, v20.16b, v17.4b[2]   \n"
+                "sdot   v7.4s, v20.16b, v17.4b[3]   \n"
+
+                "sdot   v0.4s, v21.16b, v18.4b[0]   \n"
+                "sdot   v1.4s, v21.16b, v18.4b[1]   \n"
+                "sdot   v2.4s, v21.16b, v18.4b[2]   \n"
+                "sdot   v3.4s, v21.16b, v18.4b[3]   \n"
+                "sdot   v4.4s, v21.16b, v19.4b[0]   \n"
+                "sdot   v5.4s, v21.16b, v19.4b[1]   \n"
+                "sdot   v6.4s, v21.16b, v19.4b[2]   \n"
+                "sdot   v7.4s, v21.16b, v19.4b[3]   \n"
+
+                "subs   %w2, %w2, #1                \n"
+
+                "sdot   v8.4s, v22.16b, v16.4b[0]   \n"
+                "sdot   v9.4s, v22.16b, v16.4b[1]   \n"
+                "sdot   v10.4s, v22.16b, v16.4b[2]  \n"
+                "sdot   v11.4s, v22.16b, v16.4b[3]  \n"
+                "sdot   v12.4s, v22.16b, v17.4b[0]  \n"
+                "sdot   v13.4s, v22.16b, v17.4b[1]  \n"
+                "sdot   v14.4s, v22.16b, v17.4b[2]  \n"
+                "sdot   v15.4s, v22.16b, v17.4b[3]  \n"
+
+                "sdot   v8.4s, v23.16b, v18.4b[0]   \n"
+                "sdot   v9.4s, v23.16b, v18.4b[1]   \n"
+                "sdot   v10.4s, v23.16b, v18.4b[2]  \n"
+                "sdot   v11.4s, v23.16b, v18.4b[3]  \n"
+                "sdot   v12.4s, v23.16b, v19.4b[0]  \n"
+                "sdot   v13.4s, v23.16b, v19.4b[1]  \n"
+                "sdot   v14.4s, v23.16b, v19.4b[2]  \n"
+                "sdot   v15.4s, v23.16b, v19.4b[3]  \n"
+
+                "bne    0b                          \n"
+
+                "st1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%0], #64 \n"
+                "st1    {v4.4s, v5.4s, v6.4s, v7.4s}, [%0], #64 \n"
+                "st1    {v8.4s, v9.4s, v10.4s, v11.4s}, [%1], #64 \n"
+                "st1    {v12.4s, v13.4s, v14.4s, v15.4s}, [%1], #64 \n"
+                : "=r"(outptr0),
+                "=r"(outptr1),
+                "=r"(nn),
+                "=r"(tmpptr),
+                "=r"(kptr0)
+                : "0"(outptr0),
+                "1"(outptr1),
+                "2"(nn),
+                "3"(tmpptr),
+                "4"(kptr0)
+                : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23");
+#endif // __ARM_FEATURE_MATMUL_INT8
         }
-        for (; i + 7 < size; i += 8)
+        for (; i + 3 < size; i += 4)
         {
-            const signed char* tmpptr = tmp.channel(i / 16 + (i % 16) / 8);
-            const signed char* kptr0 = kernel.channel(p);
+            const signed char* tmpptr = tmp.channel(i / 8 + (i % 8) / 4);
+            const signed char* kptr0 = kernel.channel(p / 2);
 
             int nn = inch * maxk; // inch always > 0
 
+#if __ARM_FEATURE_MATMUL_INT8
+            int32x4_t _sum0 = vdupq_n_s32(0);
+            int32x4_t _sum1 = vdupq_n_s32(0);
+            int32x4_t _sum2 = vdupq_n_s32(0);
+            int32x4_t _sum3 = vdupq_n_s32(0);
+            int32x4_t _sum4 = vdupq_n_s32(0);
+            int32x4_t _sum5 = vdupq_n_s32(0);
+            int32x4_t _sum6 = vdupq_n_s32(0);
+            int32x4_t _sum7 = vdupq_n_s32(0);
+
+            for (int j = 0; j < nn; j++)
+            {
+                int8x16_t _val0 = vld1q_s8(tmpptr);
+                int8x16_t _val1 = vld1q_s8(tmpptr + 16);
+                int8x16_t _w01 = vld1q_s8(kptr0);
+                int8x16_t _w23 = vld1q_s8(kptr0 + 16);
+                int8x16_t _w45 = vld1q_s8(kptr0 + 32);
+                int8x16_t _w67 = vld1q_s8(kptr0 + 48);
+
+                _sum0 = vmmlaq_s32(_sum0, _val0, _w01);
+                _sum1 = vmmlaq_s32(_sum1, _val0, _w23);
+                _sum2 = vmmlaq_s32(_sum2, _val1, _w01);
+                _sum3 = vmmlaq_s32(_sum3, _val1, _w23);
+
+                _sum4 = vmmlaq_s32(_sum4, _val0, _w45);
+                _sum5 = vmmlaq_s32(_sum5, _val0, _w67);
+                _sum6 = vmmlaq_s32(_sum6, _val1, _w45);
+                _sum7 = vmmlaq_s32(_sum7, _val1, _w67);
+
+                tmpptr += 32;
+                kptr0 += 64;
+            }
+
+            int64x2x2_t _sum01;
+            _sum01.val[0] = vreinterpretq_s64_s32(_sum0);
+            _sum01.val[1] = vreinterpretq_s64_s32(_sum1);
+
+            int64x2x2_t _sum23;
+            _sum23.val[0] = vreinterpretq_s64_s32(_sum2);
+            _sum23.val[1] = vreinterpretq_s64_s32(_sum3);
+
+            int64x2x2_t _sum45;
+            _sum45.val[0] = vreinterpretq_s64_s32(_sum4);
+            _sum45.val[1] = vreinterpretq_s64_s32(_sum5);
+
+            int64x2x2_t _sum67;
+            _sum67.val[0] = vreinterpretq_s64_s32(_sum6);
+            _sum67.val[1] = vreinterpretq_s64_s32(_sum7);
+
+            vst2q_s64((int64_t*)outptr0, _sum01);
+            vst2q_s64((int64_t*)(outptr0 + 8), _sum23);
+
+            vst2q_s64((int64_t*)outptr1, _sum45);
+            vst2q_s64((int64_t*)(outptr1 + 8), _sum67);
+
+            outptr0 += 16;
+            outptr1 += 16;
+#else  // __ARM_FEATURE_MATMUL_INT8
+            int32x4_t _sum0 = vdupq_n_s32(0);
+            int32x4_t _sum1 = vdupq_n_s32(0);
+            int32x4_t _sum2 = vdupq_n_s32(0);
+            int32x4_t _sum3 = vdupq_n_s32(0);
+            int32x4_t _sum4 = vdupq_n_s32(0);
+            int32x4_t _sum5 = vdupq_n_s32(0);
+            int32x4_t _sum6 = vdupq_n_s32(0);
+            int32x4_t _sum7 = vdupq_n_s32(0);
+
+            for (int j = 0; j < nn; j++)
+            {
+                int8x16_t _val0123_l = vld1q_s8(tmpptr);
+                int8x16_t _val0123_h = vld1q_s8(tmpptr + 16);
+                int8x16_t _w0123_l = vld1q_s8(kptr0);
+                int8x16_t _w0123_h = vld1q_s8(kptr0 + 16);
+                int8x16_t _w4567_l = vld1q_s8(kptr0 + 32);
+                int8x16_t _w4567_h = vld1q_s8(kptr0 + 48);
+
+                _sum0 = vdotq_laneq_s32(_sum0, _w0123_l, _val0123_l, 0);
+                _sum1 = vdotq_laneq_s32(_sum1, _w0123_l, _val0123_l, 1);
+                _sum2 = vdotq_laneq_s32(_sum2, _w0123_l, _val0123_l, 2);
+                _sum3 = vdotq_laneq_s32(_sum3, _w0123_l, _val0123_l, 3);
+                _sum0 = vdotq_laneq_s32(_sum0, _w0123_h, _val0123_h, 0);
+                _sum1 = vdotq_laneq_s32(_sum1, _w0123_h, _val0123_h, 1);
+                _sum2 = vdotq_laneq_s32(_sum2, _w0123_h, _val0123_h, 2);
+                _sum3 = vdotq_laneq_s32(_sum3, _w0123_h, _val0123_h, 3);
+
+                _sum4 = vdotq_laneq_s32(_sum4, _w4567_l, _val0123_l, 0);
+                _sum5 = vdotq_laneq_s32(_sum5, _w4567_l, _val0123_l, 1);
+                _sum6 = vdotq_laneq_s32(_sum6, _w4567_l, _val0123_l, 2);
+                _sum7 = vdotq_laneq_s32(_sum7, _w4567_l, _val0123_l, 3);
+                _sum4 = vdotq_laneq_s32(_sum4, _w4567_h, _val0123_h, 0);
+                _sum5 = vdotq_laneq_s32(_sum5, _w4567_h, _val0123_h, 1);
+                _sum6 = vdotq_laneq_s32(_sum6, _w4567_h, _val0123_h, 2);
+                _sum7 = vdotq_laneq_s32(_sum7, _w4567_h, _val0123_h, 3);
+
+                tmpptr += 32;
+                kptr0 += 64;
+            }
+
+            vst1q_s32(outptr0, _sum0);
+            vst1q_s32(outptr0 + 4, _sum1);
+            vst1q_s32(outptr0 + 8, _sum2);
+            vst1q_s32(outptr0 + 12, _sum3);
+            vst1q_s32(outptr1, _sum4);
+            vst1q_s32(outptr1 + 4, _sum5);
+            vst1q_s32(outptr1 + 8, _sum6);
+            vst1q_s32(outptr1 + 12, _sum7);
+            outptr0 += 16;
+            outptr1 += 16;
+#endif // __ARM_FEATURE_MATMUL_INT8
+        }
+        for (; i + 1 < size; i += 2)
+        {
+            const signed char* tmpptr = tmp.channel(i / 8 + (i % 8) / 4 + (i % 4) / 2);
+            const signed char* kptr0 = kernel.channel(p / 2);
+
+            int nn = inch * maxk; // inch always > 0
+
+#if __ARM_FEATURE_MATMUL_INT8
+            int32x4_t _sum0 = vdupq_n_s32(0);
+            int32x4_t _sum1 = vdupq_n_s32(0);
+            int32x4_t _sum2 = vdupq_n_s32(0);
+            int32x4_t _sum3 = vdupq_n_s32(0);
+
+            for (int j = 0; j < nn; j++)
+            {
+                int8x16_t _val = vld1q_s8(tmpptr);
+                int8x16_t _w01 = vld1q_s8(kptr0);
+                int8x16_t _w23 = vld1q_s8(kptr0 + 16);
+                int8x16_t _w45 = vld1q_s8(kptr0 + 32);
+                int8x16_t _w67 = vld1q_s8(kptr0 + 48);
+
+                _sum0 = vmmlaq_s32(_sum0, _val, _w01);
+                _sum1 = vmmlaq_s32(_sum1, _val, _w23);
+                _sum2 = vmmlaq_s32(_sum2, _val, _w45);
+                _sum3 = vmmlaq_s32(_sum3, _val, _w67);
+
+                tmpptr += 16;
+                kptr0 += 64;
+            }
+
+            int64x2x2_t _sum01;
+            _sum01.val[0] = vreinterpretq_s64_s32(_sum0);
+            _sum01.val[1] = vreinterpretq_s64_s32(_sum1);
+
+            int64x2x2_t _sum23;
+            _sum23.val[0] = vreinterpretq_s64_s32(_sum2);
+            _sum23.val[1] = vreinterpretq_s64_s32(_sum3);
+
+            vst2q_s64((int64_t*)outptr0, _sum01);
+            vst2q_s64((int64_t*)outptr1, _sum23);
+
+            outptr0 += 8;
+            outptr1 += 8;
+#else  // __ARM_FEATURE_MATMUL_INT8
+            int32x4_t _sum0 = vdupq_n_s32(0);
+            int32x4_t _sum1 = vdupq_n_s32(0);
+            int32x4_t _sum2 = vdupq_n_s32(0);
+            int32x4_t _sum3 = vdupq_n_s32(0);
+
+            for (int j = 0; j < nn; j++)
+            {
+                int8x16_t _val01_l_h = vld1q_s8(tmpptr);
+                int8x16_t _w0123_l = vld1q_s8(kptr0);
+                int8x16_t _w0123_h = vld1q_s8(kptr0 + 16);
+                int8x16_t _w4567_l = vld1q_s8(kptr0 + 32);
+                int8x16_t _w4567_h = vld1q_s8(kptr0 + 48);
+
+                _sum0 = vdotq_laneq_s32(_sum0, _w0123_l, _val01_l_h, 0);
+                _sum1 = vdotq_laneq_s32(_sum1, _w0123_l, _val01_l_h, 1);
+                _sum0 = vdotq_laneq_s32(_sum0, _w0123_h, _val01_l_h, 2);
+                _sum1 = vdotq_laneq_s32(_sum1, _w0123_h, _val01_l_h, 3);
+
+                _sum2 = vdotq_laneq_s32(_sum2, _w4567_l, _val01_l_h, 0);
+                _sum3 = vdotq_laneq_s32(_sum3, _w4567_l, _val01_l_h, 1);
+                _sum2 = vdotq_laneq_s32(_sum2, _w4567_h, _val01_l_h, 2);
+                _sum3 = vdotq_laneq_s32(_sum3, _w4567_h, _val01_l_h, 3);
+
+                tmpptr += 16;
+                kptr0 += 64;
+            }
+
+            vst1q_s32(outptr0, _sum0);
+            vst1q_s32(outptr0 + 4, _sum1);
+            vst1q_s32(outptr1, _sum2);
+            vst1q_s32(outptr1 + 4, _sum3);
+            outptr0 += 8;
+            outptr1 += 8;
+#endif // __ARM_FEATURE_MATMUL_INT8
+        }
+        for (; i < size; i++)
+        {
+            const signed char* tmpptr = tmp.channel(i / 8 + (i % 8) / 4 + (i % 4) / 2 + i % 2);
+            const signed char* kptr0 = kernel.channel(p / 2);
+
+            int nn = inch * maxk; // inch always > 0
+
+#if __ARM_FEATURE_MATMUL_INT8
+            int32x4_t _sum01 = vdupq_n_s32(0);
+            int32x4_t _sum23 = vdupq_n_s32(0);
+            int32x4_t _sum45 = vdupq_n_s32(0);
+            int32x4_t _sum67 = vdupq_n_s32(0);
+
+            for (int j = 0; j < nn; j++)
+            {
+                int8x8_t _val0 = vld1_s8(tmpptr);
+                int8x16_t _w01 = vld1q_s8(kptr0);
+                int8x16_t _w23 = vld1q_s8(kptr0 + 16);
+                int8x16_t _w45 = vld1q_s8(kptr0 + 32);
+                int8x16_t _w67 = vld1q_s8(kptr0 + 48);
+
+                int8x16_t _val = vcombine_s8(_val0, _val0);
+
+                _sum01 = vdotq_s32(_sum01, _val, _w01);
+                _sum23 = vdotq_s32(_sum23, _val, _w23);
+                _sum45 = vdotq_s32(_sum45, _val, _w45);
+                _sum67 = vdotq_s32(_sum67, _val, _w67);
+
+                tmpptr += 8;
+                kptr0 += 64;
+            }
+
+            int32x4_t _s0123 = vpaddq_s32(_sum01, _sum23);
+            int32x4_t _s4567 = vpaddq_s32(_sum45, _sum67);
+
+            vst1q_s32(outptr0, _s0123);
+            vst1q_s32(outptr1, _s4567);
+            outptr0 += 4;
+            outptr1 += 4;
+#else  // __ARM_FEATURE_MATMUL_INT8
+            int32x4_t _sum0 = vdupq_n_s32(0);
+            int32x4_t _sum1 = vdupq_n_s32(0);
+
+            for (int j = 0; j < nn; j++)
+            {
+                int8x8_t _val0_l_h = vld1_s8(tmpptr);
+
+                int8x16_t _w0123_l = vld1q_s8(kptr0);
+                int8x16_t _w0123_h = vld1q_s8(kptr0 + 16);
+                int8x16_t _w4567_l = vld1q_s8(kptr0 + 32);
+                int8x16_t _w4567_h = vld1q_s8(kptr0 + 48);
+
+                _sum0 = vdotq_lane_s32(_sum0, _w0123_l, _val0_l_h, 0);
+                _sum0 = vdotq_lane_s32(_sum0, _w0123_h, _val0_l_h, 1);
+                _sum1 = vdotq_lane_s32(_sum1, _w4567_l, _val0_l_h, 0);
+                _sum1 = vdotq_lane_s32(_sum1, _w4567_h, _val0_l_h, 1);
+
+                tmpptr += 8;
+                kptr0 += 64;
+            }
+
+            vst1q_s32(outptr0, _sum0);
+            vst1q_s32(outptr1, _sum1);
+            outptr0 += 4;
+            outptr1 += 4;
+#endif // __ARM_FEATURE_MATMUL_INT8
+        }
+    }
+#else  // __ARM_FEATURE_DOTPROD
+    int remain_outch_start = 0;
+#endif // __ARM_FEATURE_DOTPROD
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int p = remain_outch_start; p < outch; p++)
+    {
+        int* outptr0 = top_blob.channel(p);
+
+        int i = 0;
+#if __aarch64__
+#if __ARM_FEATURE_DOTPROD
+        for (; i + 7 < size; i += 8)
+        {
+            const signed char* tmpptr = tmp.channel(i / 8);
+            const signed char* kptr0 = kernel.channel(p / 2 + p % 2);
+
+            int nn = inch * maxk; // inch always > 0
+
+#if __ARM_FEATURE_MATMUL_INT8
+            int32x4_t _sum0 = vdupq_n_s32(0);
+            int32x4_t _sum1 = vdupq_n_s32(0);
+            int32x4_t _sum2 = vdupq_n_s32(0);
+            int32x4_t _sum3 = vdupq_n_s32(0);
+            int32x4_t _sum4 = vdupq_n_s32(0);
+            int32x4_t _sum5 = vdupq_n_s32(0);
+            int32x4_t _sum6 = vdupq_n_s32(0);
+            int32x4_t _sum7 = vdupq_n_s32(0);
+
+            for (int j = 0; j < nn; j++)
+            {
+                int8x16_t _val0 = vld1q_s8(tmpptr);
+                int8x16_t _val1 = vld1q_s8(tmpptr + 16);
+                int8x16_t _val2 = vld1q_s8(tmpptr + 32);
+                int8x16_t _val3 = vld1q_s8(tmpptr + 48);
+
+                int8x16_t _w01 = vld1q_s8(kptr0);
+                int8x16_t _w23 = vld1q_s8(kptr0 + 16);
+
+                _sum0 = vmmlaq_s32(_sum0, _val0, _w01);
+                _sum1 = vmmlaq_s32(_sum1, _val0, _w23);
+                _sum2 = vmmlaq_s32(_sum2, _val1, _w01);
+                _sum3 = vmmlaq_s32(_sum3, _val1, _w23);
+                _sum4 = vmmlaq_s32(_sum4, _val2, _w01);
+                _sum5 = vmmlaq_s32(_sum5, _val2, _w23);
+                _sum6 = vmmlaq_s32(_sum6, _val3, _w01);
+                _sum7 = vmmlaq_s32(_sum7, _val3, _w23);
+
+                tmpptr += 64;
+                kptr0 += 32;
+            }
+
+            int64x2x2_t _sum01;
+            _sum01.val[0] = vreinterpretq_s64_s32(_sum0);
+            _sum01.val[1] = vreinterpretq_s64_s32(_sum1);
+
+            int64x2x2_t _sum23;
+            _sum23.val[0] = vreinterpretq_s64_s32(_sum2);
+            _sum23.val[1] = vreinterpretq_s64_s32(_sum3);
+
+            int64x2x2_t _sum45;
+            _sum45.val[0] = vreinterpretq_s64_s32(_sum4);
+            _sum45.val[1] = vreinterpretq_s64_s32(_sum5);
+
+            int64x2x2_t _sum67;
+            _sum67.val[0] = vreinterpretq_s64_s32(_sum6);
+            _sum67.val[1] = vreinterpretq_s64_s32(_sum7);
+
+            vst2q_s64((int64_t*)outptr0, _sum01);
+            vst2q_s64((int64_t*)(outptr0 + 8), _sum23);
+            vst2q_s64((int64_t*)(outptr0 + 16), _sum45);
+            vst2q_s64((int64_t*)(outptr0 + 24), _sum67);
+
+            outptr0 += 32;
+#else  // __ARM_FEATURE_MATMUL_INT8
             int32x4_t _sum0 = vdupq_n_s32(0);
             int32x4_t _sum1 = vdupq_n_s32(0);
             int32x4_t _sum2 = vdupq_n_s32(0);
@@ -438,8 +830,11 @@ static void im2col_sgemm_pack8to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
             {
                 int8x16_t _val0123_l = vld1q_s8(tmpptr);
                 int8x16_t _val4567_l = vld1q_s8(tmpptr + 16);
+                int8x16_t _val0123_h = vld1q_s8(tmpptr + 32);
+                int8x16_t _val4567_h = vld1q_s8(tmpptr + 48);
 
                 int8x16_t _w0123_l = vld1q_s8(kptr0);
+                int8x16_t _w0123_h = vld1q_s8(kptr0 + 16);
 
                 _sum0 = vdotq_laneq_s32(_sum0, _w0123_l, _val0123_l, 0);
                 _sum1 = vdotq_laneq_s32(_sum1, _w0123_l, _val0123_l, 1);
@@ -449,11 +844,6 @@ static void im2col_sgemm_pack8to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
                 _sum5 = vdotq_laneq_s32(_sum5, _w0123_l, _val4567_l, 1);
                 _sum6 = vdotq_laneq_s32(_sum6, _w0123_l, _val4567_l, 2);
                 _sum7 = vdotq_laneq_s32(_sum7, _w0123_l, _val4567_l, 3);
-
-                int8x16_t _val0123_h = vld1q_s8(tmpptr + 32);
-                int8x16_t _val4567_h = vld1q_s8(tmpptr + 48);
-
-                int8x16_t _w0123_h = vld1q_s8(kptr0 + 16);
 
                 _sum0 = vdotq_laneq_s32(_sum0, _w0123_h, _val0123_h, 0);
                 _sum1 = vdotq_laneq_s32(_sum1, _w0123_h, _val0123_h, 1);
@@ -477,20 +867,56 @@ static void im2col_sgemm_pack8to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
             vst1q_s32(outptr0 + 24, _sum6);
             vst1q_s32(outptr0 + 28, _sum7);
             outptr0 += 32;
+#endif // __ARM_FEATURE_MATMUL_INT8
         }
-#endif
+#endif // __ARM_FEATURE_DOTPROD
         for (; i + 3 < size; i += 4)
         {
 #if __ARM_FEATURE_DOTPROD
-            const signed char* tmpptr = tmp.channel(i / 16 + (i % 16) / 8 + (i % 8) / 4);
+            const signed char* tmpptr = tmp.channel(i / 8 + (i % 8) / 4);
+            const signed char* kptr0 = kernel.channel(p / 2 + p % 2);
 #else
             const signed char* tmpptr = tmp.channel(i / 4);
-#endif
             const signed char* kptr0 = kernel.channel(p);
+#endif
 
             int nn = inch * maxk; // inch always > 0
 
-#if __ARM_FEATURE_DOTPROD
+#if __ARM_FEATURE_MATMUL_INT8
+            int32x4_t _sum0 = vdupq_n_s32(0);
+            int32x4_t _sum1 = vdupq_n_s32(0);
+            int32x4_t _sum2 = vdupq_n_s32(0);
+            int32x4_t _sum3 = vdupq_n_s32(0);
+
+            for (int j = 0; j < nn; j++)
+            {
+                int8x16_t _val0 = vld1q_s8(tmpptr);
+                int8x16_t _val1 = vld1q_s8(tmpptr + 16);
+                int8x16_t _w01 = vld1q_s8(kptr0);
+                int8x16_t _w23 = vld1q_s8(kptr0 + 16);
+
+                _sum0 = vmmlaq_s32(_sum0, _val0, _w01);
+                _sum1 = vmmlaq_s32(_sum1, _val0, _w23);
+                _sum2 = vmmlaq_s32(_sum2, _val1, _w01);
+                _sum3 = vmmlaq_s32(_sum3, _val1, _w23);
+
+                tmpptr += 32;
+                kptr0 += 32;
+            }
+
+            int64x2x2_t _sum01;
+            _sum01.val[0] = vreinterpretq_s64_s32(_sum0);
+            _sum01.val[1] = vreinterpretq_s64_s32(_sum1);
+
+            int64x2x2_t _sum23;
+            _sum23.val[0] = vreinterpretq_s64_s32(_sum2);
+            _sum23.val[1] = vreinterpretq_s64_s32(_sum3);
+
+            vst2q_s64((int64_t*)outptr0, _sum01);
+            vst2q_s64((int64_t*)(outptr0 + 8), _sum23);
+
+            outptr0 += 16;
+#elif __ARM_FEATURE_DOTPROD
             int32x4_t _sum0 = vdupq_n_s32(0);
             int32x4_t _sum1 = vdupq_n_s32(0);
             int32x4_t _sum2 = vdupq_n_s32(0);
@@ -499,15 +925,14 @@ static void im2col_sgemm_pack8to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
             for (int j = 0; j < nn; j++)
             {
                 int8x16_t _val0123_l = vld1q_s8(tmpptr);
+                int8x16_t _val0123_h = vld1q_s8(tmpptr + 16);
                 int8x16_t _w0123_l = vld1q_s8(kptr0);
+                int8x16_t _w0123_h = vld1q_s8(kptr0 + 16);
 
                 _sum0 = vdotq_laneq_s32(_sum0, _w0123_l, _val0123_l, 0);
                 _sum1 = vdotq_laneq_s32(_sum1, _w0123_l, _val0123_l, 1);
                 _sum2 = vdotq_laneq_s32(_sum2, _w0123_l, _val0123_l, 2);
                 _sum3 = vdotq_laneq_s32(_sum3, _w0123_l, _val0123_l, 3);
-
-                int8x16_t _val0123_h = vld1q_s8(tmpptr + 16);
-                int8x16_t _w0123_h = vld1q_s8(kptr0 + 16);
 
                 _sum0 = vdotq_laneq_s32(_sum0, _w0123_h, _val0123_h, 0);
                 _sum1 = vdotq_laneq_s32(_sum1, _w0123_h, _val0123_h, 1);
@@ -724,19 +1149,45 @@ static void im2col_sgemm_pack8to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
         {
 #if __aarch64__
 #if __ARM_FEATURE_DOTPROD
-            const signed char* tmpptr = tmp.channel(i / 16 + (i % 16) / 8 + (i % 8) / 4 + (i % 4) / 2);
+            const signed char* tmpptr = tmp.channel(i / 8 + (i % 8) / 4 + (i % 4) / 2);
+            const signed char* kptr0 = kernel.channel(p / 2 + p % 2);
 #else
             const signed char* tmpptr = tmp.channel(i / 4 + (i % 4) / 2);
+            const signed char* kptr0 = kernel.channel(p);
 #endif
 #else
             const signed char* tmpptr = tmp.channel(i / 2);
-#endif
             const signed char* kptr0 = kernel.channel(p);
+#endif
 
             int nn = inch * maxk; // inch always > 0
 
 #if __aarch64__
-#if __ARM_FEATURE_DOTPROD
+#if __ARM_FEATURE_MATMUL_INT8
+            int32x4_t _sum0 = vdupq_n_s32(0);
+            int32x4_t _sum1 = vdupq_n_s32(0);
+
+            for (int j = 0; j < nn; j++)
+            {
+                int8x16_t _val = vld1q_s8(tmpptr);
+                int8x16_t _w01 = vld1q_s8(kptr0);
+                int8x16_t _w23 = vld1q_s8(kptr0 + 16);
+
+                _sum0 = vmmlaq_s32(_sum0, _val, _w01);
+                _sum1 = vmmlaq_s32(_sum1, _val, _w23);
+
+                tmpptr += 16;
+                kptr0 += 32;
+            }
+
+            int64x2x2_t _sum01;
+            _sum01.val[0] = vreinterpretq_s64_s32(_sum0);
+            _sum01.val[1] = vreinterpretq_s64_s32(_sum1);
+
+            vst2q_s64((int64_t*)outptr0, _sum01);
+
+            outptr0 += 8;
+#elif __ARM_FEATURE_DOTPROD
             int32x4_t _sum0 = vdupq_n_s32(0);
             int32x4_t _sum1 = vdupq_n_s32(0);
 
@@ -744,11 +1195,10 @@ static void im2col_sgemm_pack8to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
             {
                 int8x16_t _val01_l_h = vld1q_s8(tmpptr);
                 int8x16_t _w0123_l = vld1q_s8(kptr0);
+                int8x16_t _w0123_h = vld1q_s8(kptr0 + 16);
 
                 _sum0 = vdotq_laneq_s32(_sum0, _w0123_l, _val01_l_h, 0);
                 _sum1 = vdotq_laneq_s32(_sum1, _w0123_l, _val01_l_h, 1);
-
-                int8x16_t _w0123_h = vld1q_s8(kptr0 + 16);
 
                 _sum0 = vdotq_laneq_s32(_sum0, _w0123_h, _val01_l_h, 2);
                 _sum1 = vdotq_laneq_s32(_sum1, _w0123_h, _val01_l_h, 3);
@@ -994,30 +1444,52 @@ static void im2col_sgemm_pack8to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
         {
 #if __aarch64__
 #if __ARM_FEATURE_DOTPROD
-            const signed char* tmpptr = tmp.channel(i / 16 + (i % 16) / 8 + (i % 8) / 4 + (i % 4) / 2 + i % 2);
+            const signed char* tmpptr = tmp.channel(i / 8 + (i % 8) / 4 + (i % 4) / 2 + i % 2);
+            const signed char* kptr0 = kernel.channel(p / 2 + p % 2);
 #else
             const signed char* tmpptr = tmp.channel(i / 4 + (i % 4) / 2 + i % 2);
+            const signed char* kptr0 = kernel.channel(p);
 #endif
 #else
             const signed char* tmpptr = tmp.channel(i / 2 + i % 2);
-#endif
             const signed char* kptr0 = kernel.channel(p);
+#endif
 
             int nn = inch * maxk; // inch always > 0
 
-#if __ARM_FEATURE_DOTPROD
+#if __ARM_FEATURE_MATMUL_INT8
+            int32x4_t _sum01 = vdupq_n_s32(0);
+            int32x4_t _sum23 = vdupq_n_s32(0);
+
+            for (int j = 0; j < nn; j++)
+            {
+                int8x8_t _val0 = vld1_s8(tmpptr);
+                int8x16_t _w01 = vld1q_s8(kptr0);
+                int8x16_t _w23 = vld1q_s8(kptr0 + 16);
+
+                int8x16_t _val = vcombine_s8(_val0, _val0);
+
+                _sum01 = vdotq_s32(_sum01, _val, _w01);
+                _sum23 = vdotq_s32(_sum23, _val, _w23);
+
+                tmpptr += 8;
+                kptr0 += 32;
+            }
+
+            int32x4_t _s0123 = vpaddq_s32(_sum01, _sum23);
+
+            vst1q_s32(outptr0, _s0123);
+            outptr0 += 4;
+#elif __ARM_FEATURE_DOTPROD
             int32x4_t _sum0 = vdupq_n_s32(0);
 
             for (int j = 0; j < nn; j++)
             {
                 int8x8_t _val0_l_h = vld1_s8(tmpptr);
-
                 int8x16_t _w0123_l = vld1q_s8(kptr0);
-
-                _sum0 = vdotq_lane_s32(_sum0, _w0123_l, _val0_l_h, 0);
-
                 int8x16_t _w0123_h = vld1q_s8(kptr0 + 16);
 
+                _sum0 = vdotq_lane_s32(_sum0, _w0123_l, _val0_l_h, 0);
                 _sum0 = vdotq_lane_s32(_sum0, _w0123_h, _val0_l_h, 1);
 
                 tmpptr += 8;
@@ -1105,32 +1577,68 @@ static void im2col_sgemm_pack8to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
 
 static void convolution_im2col_sgemm_transform_kernel_pack8to4_int8_neon(const Mat& _kernel, Mat& kernel_tm, int inch, int outch, int kernel_w, int kernel_h)
 {
+#if !(__ARM_FEATURE_MATMUL_INT8 || __ARM_FEATURE_DOTPROD)
+#if NCNN_RUNTIME_CPU && NCNN_ARM84I8MM && __aarch64__ && !__ARM_FEATURE_MATMUL_INT8
+    if (ncnn::cpu_support_arm_i8mm())
+    {
+        convolution_im2col_sgemm_transform_kernel_pack8to4_int8_neon_i8mm(_kernel, kernel_tm, inch, outch, kernel_w, kernel_h);
+        return;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_ARM82DOT && __aarch64__ && !__ARM_FEATURE_DOTPROD
+    if (ncnn::cpu_support_arm_asimddp())
+    {
+        convolution_im2col_sgemm_transform_kernel_pack8to4_int8_neon_asimddp(_kernel, kernel_tm, inch, outch, kernel_w, kernel_h);
+        return;
+    }
+#endif
+#endif
+
     const int maxk = kernel_w * kernel_h;
 
     // interleave
     // src = maxk-inch-outch
     // dst = 8a-4b-maxk-inch/8a-outch/4b
-    // dst = 4a-4b-2-maxk-inch/8a-outch/4b (arm82)
+    // dst = 4a-4b-2aa-2bb-maxk-inch/8a-outch/8b (arm82)
+    // dst = 8a-8b-maxk-inch/8a-outch/8b (arm84)
     Mat kernel = _kernel.reshape(maxk, inch, outch);
-    kernel_tm.create(32 * maxk, inch / 8, outch / 4, 1u);
+#if __ARM_FEATURE_DOTPROD
+    if (outch >= 8)
+        kernel_tm.create(64 * maxk, inch / 8, outch / 8 + (outch % 8) / 4, (size_t)1u);
+    else
+        kernel_tm.create(32 * maxk, inch / 8, outch / 4, (size_t)1u);
+#else
+    kernel_tm.create(32 * maxk, inch / 8, outch / 4, (size_t)1u);
+#endif
 
-    for (int q = 0; q + 3 < outch; q += 4)
+    int q = 0;
+#if __ARM_FEATURE_DOTPROD
+    for (; q + 7 < outch; q += 8)
     {
-        signed char* g00 = kernel_tm.channel(q / 4);
+        signed char* g00 = kernel_tm.channel(q / 8);
 
         for (int p = 0; p + 7 < inch; p += 8)
         {
             for (int k = 0; k < maxk; k++)
             {
-#if __ARM_FEATURE_DOTPROD
+#if __ARM_FEATURE_MATMUL_INT8
+                for (int i = 0; i < 8; i++)
+                {
+                    for (int j = 0; j < 8; j++)
+                    {
+                        const signed char* k00 = kernel.channel(q + i).row<const signed char>(p + j);
+                        g00[0] = k00[k];
+                        g00++;
+                    }
+                }
+#else  // __ARM_FEATURE_MATMUL_INT8
                 for (int i = 0; i < 4; i++)
                 {
                     for (int j = 0; j < 4; j++)
                     {
                         const signed char* k00 = kernel.channel(q + i).row<const signed char>(p + j);
-
                         g00[0] = k00[k];
-
                         g00++;
                     }
                 }
@@ -1139,9 +1647,71 @@ static void convolution_im2col_sgemm_transform_kernel_pack8to4_int8_neon(const M
                     for (int j = 4; j < 8; j++)
                     {
                         const signed char* k00 = kernel.channel(q + i).row<const signed char>(p + j);
-
                         g00[0] = k00[k];
+                        g00++;
+                    }
+                }
+                for (int i = 4; i < 8; i++)
+                {
+                    for (int j = 0; j < 4; j++)
+                    {
+                        const signed char* k00 = kernel.channel(q + i).row<const signed char>(p + j);
+                        g00[0] = k00[k];
+                        g00++;
+                    }
+                }
+                for (int i = 4; i < 8; i++)
+                {
+                    for (int j = 4; j < 8; j++)
+                    {
+                        const signed char* k00 = kernel.channel(q + i).row<const signed char>(p + j);
+                        g00[0] = k00[k];
+                        g00++;
+                    }
+                }
+#endif // __ARM_FEATURE_MATMUL_INT8
+            }
+        }
+    }
+#endif // __ARM_FEATURE_DOTPROD
+    for (; q + 3 < outch; q += 4)
+    {
+#if __ARM_FEATURE_DOTPROD
+        signed char* g00 = kernel_tm.channel(q / 8 + (q % 8) / 4);
+#else
+        signed char* g00 = kernel_tm.channel(q / 4);
+#endif
 
+        for (int p = 0; p + 7 < inch; p += 8)
+        {
+            for (int k = 0; k < maxk; k++)
+            {
+#if __ARM_FEATURE_MATMUL_INT8
+                for (int i = 0; i < 4; i++)
+                {
+                    for (int j = 0; j < 8; j++)
+                    {
+                        const signed char* k00 = kernel.channel(q + i).row<const signed char>(p + j);
+                        g00[0] = k00[k];
+                        g00++;
+                    }
+                }
+#elif __ARM_FEATURE_DOTPROD
+                for (int i = 0; i < 4; i++)
+                {
+                    for (int j = 0; j < 4; j++)
+                    {
+                        const signed char* k00 = kernel.channel(q + i).row<const signed char>(p + j);
+                        g00[0] = k00[k];
+                        g00++;
+                    }
+                }
+                for (int i = 0; i < 4; i++)
+                {
+                    for (int j = 4; j < 8; j++)
+                    {
+                        const signed char* k00 = kernel.channel(q + i).row<const signed char>(p + j);
+                        g00[0] = k00[k];
                         g00++;
                     }
                 }
@@ -1151,9 +1721,7 @@ static void convolution_im2col_sgemm_transform_kernel_pack8to4_int8_neon(const M
                     for (int j = 0; j < 8; j++)
                     {
                         const signed char* k00 = kernel.channel(q + i).row<const signed char>(p + j);
-
                         g00[0] = k00[k];
-
                         g00++;
                     }
                 }

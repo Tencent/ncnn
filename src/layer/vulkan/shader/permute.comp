@@ -28,14 +28,16 @@ layout (constant_id = 1) const int bugihfa = 0;
 layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
 layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
 layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
-layout (constant_id = shape_constant_id_offset + 3) const int c = 0;
-layout (constant_id = shape_constant_id_offset + 4) const int cstep = 0;
+layout (constant_id = shape_constant_id_offset + 3) const int d = 0;
+layout (constant_id = shape_constant_id_offset + 4) const int c = 0;
+layout (constant_id = shape_constant_id_offset + 5) const int cstep = 0;
 
-layout (constant_id = shape_constant_id_offset + 5) const int outdims = 0;
-layout (constant_id = shape_constant_id_offset + 6) const int outw = 0;
-layout (constant_id = shape_constant_id_offset + 7) const int outh = 0;
-layout (constant_id = shape_constant_id_offset + 8) const int outc = 0;
-layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
+layout (constant_id = shape_constant_id_offset + 6) const int outdims = 0;
+layout (constant_id = shape_constant_id_offset + 7) const int outw = 0;
+layout (constant_id = shape_constant_id_offset + 8) const int outh = 0;
+layout (constant_id = shape_constant_id_offset + 9) const int outd = 0;
+layout (constant_id = shape_constant_id_offset + 10) const int outc = 0;
+layout (constant_id = shape_constant_id_offset + 11) const int outcstep = 0;
 
 #if NCNN_image_shader
 layout (binding = 0) uniform unfp sampler3D bottom_blob_3d;
@@ -50,12 +52,14 @@ layout (push_constant) uniform parameter
     int dims;
     int w;
     int h;
+    int d;
     int c;
     int cstep;
 
     int outdims;
     int outw;
     int outh;
+    int outd;
     int outc;
     int outcstep;
 } p;
@@ -66,113 +70,261 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= psc(outw) || gy >= psc(outh) || gz >= psc(outc))
+    if (gx >= psc(outw) || gy >= psc(outh) * psc(outd) || gz >= psc(outc))
         return;
 
+    int x;
+    int y;
+    int z;
+
+    if (psc(dims) == 2)
+    {
+        // order_type
+        // 0 = w h
+        // 1 = h w
+
+        gz = 0;
+        z = 0;
+
+        if (order_type == 0)
+        {
+            x = gx;
+            y = gy;
+        }
+        if (order_type == 1)
+        {
+            x = gy;
+            y = gx;
+        }
+    }
+    else if (psc(dims) == 3)
+    {
+        // order_type
+        // 0 = w h c
+        // 1 = h w c
+        // 2 = w c h
+        // 3 = c w h
+        // 4 = h c w
+        // 5 = c h w
+
+        if (order_type == 0)
+        {
+            x = gx;
+            y = gy;
+            z = gz;
+        }
+        if (order_type == 1)
+        {
+            x = gy;
+            y = gx;
+            z = gz;
+        }
+        if (order_type == 2)
+        {
+            x = gx;
+            y = gz;
+            z = gy;
+        }
+        if (order_type == 3)
+        {
+            x = gy;
+            y = gz;
+            z = gx;
+        }
+        if (order_type == 4)
+        {
+            x = gz;
+            y = gx;
+            z = gy;
+        }
+        if (order_type == 5)
+        {
+            x = gz;
+            y = gy;
+            z = gx;
+        }
+    }
+    else // if (psc(dims) == 4)
+    {
+        // order_type
+        // 0 = w h d c
+        // 1 = h w d c
+        // 2 = w d h c
+        // 3 = d w h c
+        // 4 = h d w c
+        // 5 = d h w c
+        // 6 = w h c d
+        // 7 = h w c d
+        // 8 = w c h d
+        // 9 = c w h d
+        //10 = h c w d
+        //11 = c h w d
+        //12 = w d c h
+        //13 = d w c h
+        //14 = w c d h
+        //15 = c w d h
+        //16 = d c w h
+        //17 = c d w h
+        //18 = h d c w
+        //19 = d h c w
+        //20 = h c d w
+        //21 = c h d w
+        //22 = d c h w
+        //23 = c d h w
+
+        int yd = gy / psc(outh);
+        int yh = gy % psc(outh);
+
+        if (order_type == 0)
+        {
+            x = gx;
+            y = yd * psc(h) + yh;
+            z = gz;
+        }
+        if (order_type == 1)
+        {
+            x = yh;
+            y = yd * psc(h) + gx;
+            z = gz;
+        }
+        if (order_type == 2)
+        {
+            x = gx;
+            y = yh * psc(h) + yd;
+            z = gz;
+        }
+        if (order_type == 3)
+        {
+            x = yh;
+            y = gx * psc(h) + yd;
+            z = gz;
+        }
+        if (order_type == 4)
+        {
+            x = yd;
+            y = yh * psc(h) + gx;
+            z = gz;
+        }
+        if (order_type == 5)
+        {
+            x = yd;
+            y = gx * psc(h) + yh;
+            z = gz;
+        }
+        if (order_type == 6)
+        {
+            x = gx;
+            y = gz * psc(h) + yh;
+            z = yd;
+        }
+        if (order_type == 7)
+        {
+            x = yh;
+            y = gz * psc(h) + gx;
+            z = yd;
+        }
+        if (order_type == 8)
+        {
+            x = gx;
+            y = gz * psc(h) + yd;
+            z = yh;
+        }
+        if (order_type == 9)
+        {
+            x = yh;
+            y = gz * psc(h) + yd;
+            z = gx;
+        }
+        if (order_type == 10)
+        {
+            x = yd;
+            y = gz * psc(h) + gx;
+            z = yh;
+        }
+        if (order_type == 11)
+        {
+            x = yd;
+            y = gz * psc(h) + yh;
+            z = gx;
+        }
+        if (order_type == 12)
+        {
+            x = gx;
+            y = yh * psc(h) + gz;
+            z = yd;
+        }
+        if (order_type == 13)
+        {
+            x = yh;
+            y = gx * psc(h) + gz;
+            z = yd;
+        }
+        if (order_type == 14)
+        {
+            x = gx;
+            y = yd * psc(h) + gz;
+            z = yh;
+        }
+        if (order_type == 15)
+        {
+            x = yh;
+            y = yd * psc(h) + gz;
+            z = gx;
+        }
+        if (order_type == 16)
+        {
+            x = yd;
+            y = gx * psc(h) + gz;
+            z = yh;
+        }
+        if (order_type == 17)
+        {
+            x = yd;
+            y = yh * psc(h) + gz;
+            z = gx;
+        }
+        if (order_type == 18)
+        {
+            x = gz;
+            y = yh * psc(h) + gx;
+            z = yd;
+        }
+        if (order_type == 19)
+        {
+            x = gz;
+            y = gx * psc(h) + yh;
+            z = yd;
+        }
+        if (order_type == 20)
+        {
+            x = gz;
+            y = yd * psc(h) + gx;
+            z = yh;
+        }
+        if (order_type == 21)
+        {
+            x = gz;
+            y = yd * psc(h) + yh;
+            z = gx;
+        }
+        if (order_type == 22)
+        {
+            x = gz;
+            y = gx * psc(h) + yd;
+            z = yh;
+        }
+        if (order_type == 23)
+        {
+            x = gz;
+            y = yh * psc(h) + yd;
+            z = gx;
+        }
+    }
+
 #if NCNN_image_shader
-    if (psc(dims) == 2)
-    {
-        // order_type
-        // 0 = w h
-        // 1 = h w
-
-        if (order_type == 0)
-        {
-            image3d_cp1(top_blob_3d, ivec3(gx, gy, 0), bottom_blob_3d, ivec3(gx, gy, 0));
-        }
-        if (order_type == 1)
-        {
-            image3d_cp1(top_blob_3d, ivec3(gx, gy, 0), bottom_blob_3d, ivec3(gy, gx, 0));
-        }
-    }
-    else // if (psc(dims) == 3)
-    {
-        // order_type
-        // 0 = w h c
-        // 1 = h w c
-        // 2 = w c h
-        // 3 = c w h
-        // 4 = h c w
-        // 5 = c h w
-
-        if (order_type == 0)
-        {
-            image3d_cp1(top_blob_3d, ivec3(gx, gy, gz), bottom_blob_3d, ivec3(gx, gy, gz));
-        }
-        if (order_type == 1)
-        {
-            image3d_cp1(top_blob_3d, ivec3(gx, gy, gz), bottom_blob_3d, ivec3(gy, gx, gz));
-        }
-        if (order_type == 2)
-        {
-            image3d_cp1(top_blob_3d, ivec3(gx, gy, gz), bottom_blob_3d, ivec3(gx, gz, gy));
-        }
-        if (order_type == 3)
-        {
-            image3d_cp1(top_blob_3d, ivec3(gx, gy, gz), bottom_blob_3d, ivec3(gy, gz, gx));
-        }
-        if (order_type == 4)
-        {
-            image3d_cp1(top_blob_3d, ivec3(gx, gy, gz), bottom_blob_3d, ivec3(gz, gx, gy));
-        }
-        if (order_type == 5)
-        {
-            image3d_cp1(top_blob_3d, ivec3(gx, gy, gz), bottom_blob_3d, ivec3(gz, gy, gx));
-        }
-    }
+    image3d_cp1(top_blob_3d, ivec3(gx, gy, gz), bottom_blob_3d, ivec3(x, y, z));
 #else
-    int v_offset;
-
-    if (psc(dims) == 2)
-    {
-        // order_type
-        // 0 = w h
-        // 1 = h w
-
-        if (order_type == 0)
-        {
-            v_offset = gy * psc(w) + gx;
-        }
-        if (order_type == 1)
-        {
-            v_offset = gx * psc(w) + gy;
-        }
-    }
-    else // if (psc(dims) == 3)
-    {
-        // order_type
-        // 0 = w h c
-        // 1 = h w c
-        // 2 = w c h
-        // 3 = c w h
-        // 4 = h c w
-        // 5 = c h w
-
-        if (order_type == 0)
-        {
-            v_offset = gz * psc(cstep) + gy * psc(w) + gx;
-        }
-        if (order_type == 1)
-        {
-            v_offset = gz * psc(cstep) + gx * psc(w) + gy;
-        }
-        if (order_type == 2)
-        {
-            v_offset = gy * psc(cstep) + gz * psc(w) + gx;
-        }
-        if (order_type == 3)
-        {
-            v_offset = gx * psc(cstep) + gz * psc(w) + gy;
-        }
-        if (order_type == 4)
-        {
-            v_offset = gy * psc(cstep) + gx * psc(w) + gz;
-        }
-        if (order_type == 5)
-        {
-            v_offset = gx * psc(cstep) + gy * psc(w) + gz;
-        }
-    }
+    int v_offset = z * psc(cstep) + y * psc(w) + x;
 
     const int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
 

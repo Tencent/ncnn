@@ -29,6 +29,8 @@ public:
 
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
+    virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
+
 protected:
     int create_group_ops(const Option& opt);
 #if __riscv_vector && __riscv_zfh
@@ -41,11 +43,9 @@ public:
     Layer* activation;
     std::vector<ncnn::Layer*> group_ops;
 
-    // packing
-    Mat weight_data_packed;
+    Mat weight_data_tm;
 
     // fp16
-    Mat weight_data_fp16;
     Mat bias_data_fp16;
 };
 

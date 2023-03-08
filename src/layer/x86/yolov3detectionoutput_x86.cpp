@@ -79,7 +79,7 @@ int Yolov3DetectionOutput_x86::forward(const std::vector<Mat>& bottom_blobs, std
 
             const int cs = scores.cstep;
 
-#if __AVX__
+#if __AVX2__
             const __m256i vi = _mm256_setr_epi32(
                                    0, cs * 1, cs * 2, cs * 3, cs * 4, cs * 5, cs * 6, cs * 7);
 #endif

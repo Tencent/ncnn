@@ -27,6 +27,8 @@ int MultiHeadAttention::load_param(const ParamDict& pd)
     embed_dim = pd.get(0, 0);
     num_head = pd.get(1, 1);
     weight_data_size = pd.get(2, 0);
+    kdim = pd.get(3, embed_dim);
+    vdim = pd.get(4, embed_dim);
 
     return 0;
 }
@@ -41,7 +43,7 @@ int MultiHeadAttention::load_model(const ModelBin& mb)
     if (q_bias_data.empty())
         return -100;
 
-    k_weight_data = mb.load(weight_data_size, 0);
+    k_weight_data = mb.load(embed_dim * kdim, 0);
     if (k_weight_data.empty())
         return -100;
 
@@ -49,7 +51,7 @@ int MultiHeadAttention::load_model(const ModelBin& mb)
     if (k_bias_data.empty())
         return -100;
 
-    v_weight_data = mb.load(weight_data_size, 0);
+    v_weight_data = mb.load(embed_dim * vdim, 0);
     if (v_weight_data.empty())
         return -100;
 
@@ -68,27 +70,31 @@ int MultiHeadAttention::load_model(const ModelBin& mb)
     return 0;
 }
 
+// refers to https://pytorch.org/docs/stable/generated/torch.nn.MultiheadAttention.html
 int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     const Mat& q_blob = bottom_blobs[0];
     const Mat& k_blob = bottom_blobs.size() == 1 ? q_blob : bottom_blobs[1];
-    const Mat& v_blob = bottom_blobs.size() == 1 ? q_blob : bottom_blobs[2];
+    const Mat& v_blob = bottom_blobs.size() == 1 ? q_blob : bottom_blobs.size() == 2 ? k_blob : bottom_blobs[2];
 
-    const int seqlen = q_blob.h;
+    const int src_seqlen = q_blob.h;
+    const int dst_seqlen = k_blob.h;
     const int embed_dim_per_head = embed_dim / num_head;
 
+    // assert k_blob.h == v_blob.h
+
     Mat& top_blob = top_blobs[0];
-    top_blob.create(embed_dim, seqlen, 4u, opt.blob_allocator);
+    top_blob.create(embed_dim, src_seqlen, 4u, opt.blob_allocator);
     if (top_blob.empty())
         return -1;
 
-    Mat xq(embed_dim_per_head, seqlen, num_head, 4u, opt.workspace_allocator);
-    Mat xk(embed_dim_per_head, seqlen, num_head, 4u, opt.workspace_allocator);
-    Mat xv(seqlen, embed_dim_per_head, num_head, 4u, opt.workspace_allocator);
+    Mat xq(embed_dim_per_head, src_seqlen, num_head, 4u, opt.workspace_allocator);
+    Mat xk(embed_dim_per_head, dst_seqlen, num_head, 4u, opt.workspace_allocator);
+    Mat xv(dst_seqlen, embed_dim_per_head, num_head, 4u, opt.workspace_allocator);
 
-    Mat xqk(seqlen, seqlen, num_head, 4u, opt.workspace_allocator);
+    Mat xqk(dst_seqlen, src_seqlen, num_head, 4u, opt.workspace_allocator);
 
-    Mat xqkv(embed_dim_per_head, num_head, seqlen, 4u, opt.workspace_allocator);
+    Mat xqkv(embed_dim_per_head, num_head, src_seqlen, 4u, opt.workspace_allocator);
 
     const float inv_sqrt_embed_dim_per_head = 1.f / sqrt(embed_dim_per_head);
 
@@ -99,7 +105,7 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
         {
             Mat outm = xq.channel(q);
 
-            for (int i = 0; i < seqlen; i++)
+            for (int i = 0; i < src_seqlen; i++)
             {
                 float* outptr = outm.row(i);
 
@@ -123,17 +129,17 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
         {
             Mat outm = xk.channel(q);
 
-            for (int i = 0; i < seqlen; i++)
+            for (int i = 0; i < dst_seqlen; i++)
             {
                 float* outptr = outm.row(i);
 
                 for (int j = 0; j < embed_dim_per_head; j++)
                 {
                     const float* ptr = k_blob.row(i);
-                    const float* kptr = (const float*)k_weight_data + embed_dim * (q * embed_dim_per_head + j);
+                    const float* kptr = (const float*)k_weight_data + kdim * (q * embed_dim_per_head + j);
 
                     float sum = k_bias_data[q * embed_dim_per_head + j];
-                    for (int k = 0; k < embed_dim; k++)
+                    for (int k = 0; k < kdim; k++)
                     {
                         sum += *ptr++ * *kptr++;
                     }
@@ -149,13 +155,13 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
 
             for (int i = 0; i < embed_dim_per_head; i++)
             {
-                for (int j = 0; j < seqlen; j++)
+                for (int j = 0; j < dst_seqlen; j++)
                 {
                     const float* ptr = v_blob.row(j);
-                    const float* kptr = (const float*)v_weight_data + embed_dim * (q * embed_dim_per_head + i);
+                    const float* kptr = (const float*)v_weight_data + vdim * (q * embed_dim_per_head + i);
 
                     float sum = v_bias_data[q * embed_dim_per_head + i];
-                    for (int k = 0; k < embed_dim; k++)
+                    for (int k = 0; k < vdim; k++)
                     {
                         sum += *ptr++ * *kptr++;
                     }
@@ -168,19 +174,19 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
         }
 
         // xqk = xq * xk
-        // xq  (embed_dim_per_head, seqlen)
-        // xk  (embed_dim_per_head, seqlen)
+        // xq  (embed_dim_per_head, src_seqlen)
+        // xk  (embed_dim_per_head, dst_seqlen)
         {
             const Mat xqm = xq.channel(q);
             const Mat xkm = xk.channel(q);
 
             Mat outm = xqk.channel(q);
 
-            for (int i = 0; i < seqlen; i++)
+            for (int i = 0; i < src_seqlen; i++)
             {
                 float* outptr = outm.row(i);
 
-                for (int j = 0; j < seqlen; j++)
+                for (int j = 0; j < dst_seqlen; j++)
                 {
                     const float* qptr = xqm.row(i);
                     const float* kptr = xkm.row(j);
@@ -200,24 +206,24 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
         {
             Mat outm = xqk.channel(q);
 
-            for (int i = 0; i < seqlen; i++)
+            for (int i = 0; i < src_seqlen; i++)
             {
                 float* ptr = outm.row(i);
 
                 float max = -FLT_MAX;
-                for (int j = 0; j < seqlen; j++)
+                for (int j = 0; j < dst_seqlen; j++)
                 {
                     max = std::max(max, ptr[j]);
                 }
 
                 float sum = 0.f;
-                for (int j = 0; j < seqlen; j++)
+                for (int j = 0; j < dst_seqlen; j++)
                 {
                     ptr[j] = (float)(exp(ptr[j] - max));
                     sum += ptr[j];
                 }
 
-                for (int j = 0; j < seqlen; j++)
+                for (int j = 0; j < dst_seqlen; j++)
                 {
                     ptr[j] /= sum;
                 }
@@ -225,14 +231,14 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
         }
 
         // xqkv = xqk * xv
-        // xqk (seqlen, seqlen)
-        // xv  (seqlen, embed_dim_per_head)
-        // out (embed_dim_per_head, num_head, seqlen)
+        // xqk (dst_seqlen, src_seqlen)
+        // xv  (dst_seqlen, embed_dim_per_head)
+        // out (embed_dim_per_head, num_head, src_seqlen)
         {
             const Mat xqkm = xqk.channel(q);
             const Mat xvm = xv.channel(q);
 
-            for (int i = 0; i < seqlen; i++)
+            for (int i = 0; i < src_seqlen; i++)
             {
                 float* outptr = xqkv.channel(i).row(q);
 
@@ -242,7 +248,7 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
                     const float* vptr = xvm.row(j);
 
                     float sum = 0.f;
-                    for (int k = 0; k < seqlen; k++)
+                    for (int k = 0; k < dst_seqlen; k++)
                     {
                         sum += *qkptr++ * *vptr++;
                     }
@@ -254,9 +260,9 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
     }
 
     // out = affine(xqkv)
-    // xqkv  (embed_dim, seqlen)
+    // xqkv  (embed_dim, src_seqlen)
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int i = 0; i < seqlen; i++)
+    for (int i = 0; i < src_seqlen; i++)
     {
         float* outptr = top_blob.row(i);
 

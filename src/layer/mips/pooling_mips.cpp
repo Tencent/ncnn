@@ -40,10 +40,7 @@ int Pooling_mips::create_pipeline(const Option& /*opt*/)
         support_bf16_storage = false;
         support_fp16_storage = false;
         support_int8_storage = false;
-        support_image_storage = false;
         support_tensor_storage = false;
-
-        support_weight_fp16_storage = false;
     }
     return 0;
 }

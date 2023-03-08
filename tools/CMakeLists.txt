@@ -1,6 +1,11 @@
 cmake_minimum_required(VERSION 3.1) # for CMAKE_CXX_STANDARD
 set(CMAKE_CXX_STANDARD 11)
 
+include(GNUInstallDirs)
+macro(ncnn_install_tool toolname)
+    install(TARGETS ${toolname} RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+endmacro()
+
 if(MSVC)
     # warning C4018: '<': signed/unsigned mismatch
     # warning C4244: 'argument': conversion from 'uint64_t' to 'const unsigned int', possible loss of data
@@ -36,3 +41,6 @@ add_executable(ncnnmerge ncnnmerge.cpp)
 set_property(TARGET ncnn2mem PROPERTY FOLDER "tools")
 set_property(TARGET ncnnoptimize PROPERTY FOLDER "tools")
 set_property(TARGET ncnnmerge PROPERTY FOLDER "tools")
+ncnn_install_tool(ncnn2mem)
+ncnn_install_tool(ncnnmerge)
+ncnn_install_tool(ncnnoptimize)

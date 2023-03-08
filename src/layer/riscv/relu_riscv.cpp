@@ -15,11 +15,7 @@
 #include "relu_riscv.h"
 
 #if __riscv_vector
-#ifdef RVV_SPEC_0_7
-#include "riscv_v_071_fix.h"
-#else
 #include <riscv_vector.h>
-#endif
 #endif // __riscv_vector
 
 namespace ncnn {
@@ -36,9 +32,9 @@ ReLU_riscv::ReLU_riscv()
 
 int ReLU_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
+#if __riscv_vector && __riscv_zfh
     int elembits = bottom_top_blob.elembits();
 
-#if __riscv_vector && __riscv_zfh
     if (opt.use_fp16_storage && elembits == 16)
     {
         return forward_inplace_fp16s(bottom_top_blob, opt);
@@ -47,9 +43,10 @@ int ReLU_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
+    int d = bottom_top_blob.d;
     int channels = bottom_top_blob.c;
-    int size = w * h;
     int elempack = bottom_top_blob.elempack;
+    int size = w * h * d * elempack;
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
@@ -58,13 +55,13 @@ int ReLU_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         if (slope == 0.f)
         {
 #if __riscv_vector
-            int n = size * elempack;
+            int n = size;
             while (n > 0)
             {
-                word_type vl = vsetvl_e32m8(n);
+                size_t vl = vsetvl_e32m8(n);
 
                 vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
-                _p = vfmax_vf_f32m8(_p, (float32_t)0.f, vl);
+                _p = vfmax_vf_f32m8(_p, 0.f, vl);
                 vse32_v_f32m8(ptr, _p, vl);
 
                 ptr += vl;
@@ -82,10 +79,10 @@ int ReLU_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         else
         {
 #if __riscv_vector
-            int n = size * elempack;
+            int n = size;
             while (n > 0)
             {
-                word_type vl = vsetvl_e32m8(n);
+                size_t vl = vsetvl_e32m8(n);
 
                 vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
                 _p = vfmul_vf_f32m8_m(vmflt_vf_f32m8_b4(_p, .0f, vl), _p, _p, slope, vl); //slope: float(float32_t)
@@ -113,9 +110,10 @@ int ReLU_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) c
 {
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
+    int d = bottom_top_blob.d;
     int channels = bottom_top_blob.c;
-    int size = w * h;
     int elempack = bottom_top_blob.elempack;
+    int size = w * h * d * elempack;
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
@@ -123,13 +121,13 @@ int ReLU_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) c
         __fp16* ptr = bottom_top_blob.channel(q);
         if (slope == 0.f)
         {
-            int n = size * elempack;
+            int n = size;
             while (n > 0)
             {
-                word_type vl = vsetvl_e16m8(n);
+                size_t vl = vsetvl_e16m8(n);
 
                 vfloat16m8_t _p = vle16_v_f16m8(ptr, vl);
-                _p = vfmax_vf_f16m8(_p, (float16_t)0.f, vl);
+                _p = vfmax_vf_f16m8(_p, (__fp16)0.f, vl);
                 vse16_v_f16m8(ptr, _p, vl);
 
                 ptr += vl;
@@ -138,11 +136,11 @@ int ReLU_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) c
         }
         else
         {
-            int n = size * elempack;
-            float16_t _slope = (float16_t)slope;
+            int n = size;
+            __fp16 _slope = (__fp16)slope;
             while (n > 0)
             {
-                word_type vl = vsetvl_e16m8(n);
+                size_t vl = vsetvl_e16m8(n);
 
                 vfloat16m8_t _p = vle16_v_f16m8(ptr, vl);
                 _p = vfmul_vf_f16m8_m(vmflt_vf_f16m8_b2(_p, .0f, vl), _p, _p, _slope, vl);

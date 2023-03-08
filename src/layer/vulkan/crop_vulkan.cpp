@@ -43,12 +43,12 @@ int Crop_vulkan::create_pipeline(const Option& opt)
     int elempack = 1;
     if (shape.dims == 1) elempack = opt.use_shader_pack8 && shape.w % 8 == 0 ? 8 : shape.w % 4 == 0 ? 4 : 1;
     if (shape.dims == 2) elempack = opt.use_shader_pack8 && shape.h % 8 == 0 ? 8 : shape.h % 4 == 0 ? 4 : 1;
-    if (shape.dims == 3) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
+    if (shape.dims == 3 || shape.dims == 4) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
 
     int out_elempack = 1;
     if (out_shape.dims == 1) out_elempack = opt.use_shader_pack8 && out_shape.w % 8 == 0 ? 8 : out_shape.w % 4 == 0 ? 4 : 1;
     if (out_shape.dims == 2) out_elempack = opt.use_shader_pack8 && out_shape.h % 8 == 0 ? 8 : out_shape.h % 4 == 0 ? 4 : 1;
-    if (out_shape.dims == 3) out_elempack = opt.use_shader_pack8 && out_shape.c % 8 == 0 ? 8 : out_shape.c % 4 == 0 ? 4 : 1;
+    if (out_shape.dims == 3 || out_shape.dims == 4) out_elempack = opt.use_shader_pack8 && out_shape.c % 8 == 0 ? 8 : out_shape.c % 4 == 0 ? 4 : 1;
 
     int offset_elempack = 1;
     bool numpy_style_slice = !starts.empty() && !ends.empty();
@@ -59,7 +59,7 @@ int Crop_vulkan::create_pipeline(const Option& opt)
         const int* starts_ptr = starts;
         const int* axes_ptr = axes;
 
-        int _axes[3] = {0, 1, 2};
+        int _axes[4] = {0, 1, 2, 3};
         int num_axis = axes.w;
         if (num_axis == 0)
         {
@@ -91,7 +91,7 @@ int Crop_vulkan::create_pipeline(const Option& opt)
                 int _hoffset = start >= 0 ? start : shape.h + start;
                 offset_elempack = opt.use_shader_pack8 && _hoffset % 8 == 0 ? 8 : _hoffset % 4 == 0 ? 4 : 1;
             }
-            if (shape.dims == 3 && axis == 0)
+            if ((shape.dims == 3 || shape.dims == 4) && axis == 0)
             {
                 int _coffset = start >= 0 ? start : shape.c + start;
                 offset_elempack = opt.use_shader_pack8 && _coffset % 8 == 0 ? 8 : _coffset % 4 == 0 ? 4 : 1;
@@ -114,7 +114,7 @@ int Crop_vulkan::create_pipeline(const Option& opt)
             else
                 offset_elempack = opt.use_shader_pack8 && hoffset % 8 == 0 ? 8 : hoffset % 4 == 0 ? 4 : 1;
         }
-        else // if (shape.dims == 3)
+        else // if (shape.dims == 3 || shape.dims == 4)
         {
             if (coffset == 0)
                 offset_elempack = elempack;
@@ -147,11 +147,13 @@ int Crop_vulkan::create_pipeline(const Option& opt)
     if (shape.dims == 1) shape_packed = Mat(shape.w / elempack, (void*)0, elemsize, elempack);
     if (shape.dims == 2) shape_packed = Mat(shape.w, shape.h / elempack, (void*)0, elemsize, elempack);
     if (shape.dims == 3) shape_packed = Mat(shape.w, shape.h, shape.c / elempack, (void*)0, elemsize, elempack);
+    if (shape.dims == 4) shape_packed = Mat(shape.w, shape.h, shape.d, shape.c / elempack, (void*)0, elemsize, elempack);
 
     Mat out_shape_packed;
     if (out_shape.dims == 1) out_shape_packed = Mat(out_shape.w / out_elempack, (void*)0, out_elemsize, out_elempack);
     if (out_shape.dims == 2) out_shape_packed = Mat(out_shape.w, out_shape.h / out_elempack, (void*)0, out_elemsize, out_elempack);
     if (out_shape.dims == 3) out_shape_packed = Mat(out_shape.w, out_shape.h, out_shape.c / out_elempack, (void*)0, out_elemsize, out_elempack);
+    if (out_shape.dims == 4) out_shape_packed = Mat(out_shape.w, out_shape.h, out_shape.d, out_shape.c / out_elempack, (void*)0, out_elemsize, out_elempack);
 
     Mat shape_unpacked = shape_packed;
     if (one_blob_only && shape.dims != 0 && elempack == out_elempack && elempack > offset_elempack)
@@ -173,20 +175,23 @@ int Crop_vulkan::create_pipeline(const Option& opt)
         if (shape.dims == 1) shape_unpacked = Mat(shape.w / offset_elempack, (void*)0, offset_elemsize, offset_elempack);
         if (shape.dims == 2) shape_unpacked = Mat(shape.w, shape.h / offset_elempack, (void*)0, offset_elemsize, offset_elempack);
         if (shape.dims == 3) shape_unpacked = Mat(shape.w, shape.h, shape.c / offset_elempack, (void*)0, offset_elemsize, offset_elempack);
+        if (shape.dims == 4) shape_unpacked = Mat(shape.w, shape.h, shape.d, shape.c / offset_elempack, (void*)0, offset_elemsize, offset_elempack);
     }
 
-    std::vector<vk_specialization_type> specializations(1 + 10);
+    std::vector<vk_specialization_type> specializations(1 + 12);
     specializations[0].i = vkdev->info.bug_implicit_fp16_arithmetic();
     specializations[1 + 0].i = shape_unpacked.dims;
     specializations[1 + 1].i = shape_unpacked.w;
     specializations[1 + 2].i = shape_unpacked.h;
-    specializations[1 + 3].i = shape_unpacked.c;
-    specializations[1 + 4].i = shape_unpacked.cstep;
-    specializations[1 + 5].i = out_shape_packed.dims;
-    specializations[1 + 6].i = out_shape_packed.w;
-    specializations[1 + 7].i = out_shape_packed.h;
-    specializations[1 + 8].i = out_shape_packed.c;
-    specializations[1 + 9].i = out_shape_packed.cstep;
+    specializations[1 + 3].i = shape_unpacked.d;
+    specializations[1 + 4].i = shape_unpacked.c;
+    specializations[1 + 5].i = shape_unpacked.cstep;
+    specializations[1 + 6].i = out_shape_packed.dims;
+    specializations[1 + 7].i = out_shape_packed.w;
+    specializations[1 + 8].i = out_shape_packed.h;
+    specializations[1 + 9].i = out_shape_packed.d;
+    specializations[1 + 10].i = out_shape_packed.c;
+    specializations[1 + 11].i = out_shape_packed.cstep;
 
     Mat local_size_xyz;
     if (out_shape_packed.dims == 1)
@@ -205,6 +210,12 @@ int Crop_vulkan::create_pipeline(const Option& opt)
     {
         local_size_xyz.w = std::min(4, out_shape_packed.w);
         local_size_xyz.h = std::min(4, out_shape_packed.h);
+        local_size_xyz.c = std::min(4, out_shape_packed.c);
+    }
+    if (out_shape_packed.dims == 4)
+    {
+        local_size_xyz.w = std::min(4, out_shape_packed.w);
+        local_size_xyz.h = std::min(4, out_shape_packed.h * out_shape_packed.d);
         local_size_xyz.c = std::min(4, out_shape_packed.c);
     }
 
@@ -321,9 +332,9 @@ int Crop_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
-    int _woffset, _hoffset, _coffset;
-    int _outw, _outh, _outc;
-    resolve_crop_roi(bottom_blob.shape(), _woffset, _hoffset, _coffset, _outw, _outh, _outc);
+    int _woffset, _hoffset, _doffset, _coffset;
+    int _outw, _outh, _outd, _outc;
+    resolve_crop_roi(bottom_blob.shape(), _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
 
     int offset_elempack;
     int out_elempack;
@@ -350,9 +361,20 @@ int Crop_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
         offset_elempack = _hoffset == 0 ? elempack : opt.use_shader_pack8 && _hoffset % 8 == 0 ? 8 : _hoffset % 4 == 0 ? 4 : 1;
         out_elempack = opt.use_shader_pack8 && _outh % 8 == 0 ? 8 : _outh % 4 == 0 ? 4 : 1;
     }
-    else // if (dims == 3)
+    else if (dims == 3)
     {
         if (_woffset == 0 && _hoffset == 0 && _coffset == 0 && _outw == bottom_blob.w && _outh == bottom_blob.h && _outc == bottom_blob.c * elempack)
+        {
+            top_blob = bottom_blob;
+            return 0;
+        }
+
+        offset_elempack = _coffset == 0 ? elempack : opt.use_shader_pack8 && _coffset % 8 == 0 ? 8 : _coffset % 4 == 0 ? 4 : 1;
+        out_elempack = opt.use_shader_pack8 && _outc % 8 == 0 ? 8 : _outc % 4 == 0 ? 4 : 1;
+    }
+    else // if (dims == 4)
+    {
+        if (_woffset == 0 && _hoffset == 0 && _doffset == 0 && _coffset == 0 && _outw == bottom_blob.w && _outh == bottom_blob.h && _outd == bottom_blob.d && _outc == bottom_blob.c * elempack)
         {
             top_blob = bottom_blob;
             return 0;
@@ -391,9 +413,13 @@ int Crop_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
     {
         top_blob.create(_outw, _outh / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
     }
-    else // if (dims == 3)
+    else if (dims == 3)
     {
         top_blob.create(_outw, _outh, _outc / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
+    }
+    else // if (dims == 4)
+    {
+        top_blob.create(_outw, _outh, _outd, _outc / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
     }
     if (top_blob.empty())
         return -100;
@@ -402,20 +428,23 @@ int Crop_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
     bindings[0] = bottom_blob_unpacked;
     bindings[1] = top_blob;
 
-    std::vector<vk_constant_type> constants(13);
+    std::vector<vk_constant_type> constants(16);
     constants[0].i = bottom_blob_unpacked.dims;
     constants[1].i = bottom_blob_unpacked.w;
     constants[2].i = bottom_blob_unpacked.h;
-    constants[3].i = bottom_blob_unpacked.c;
-    constants[4].i = bottom_blob_unpacked.cstep;
-    constants[5].i = top_blob.dims;
-    constants[6].i = top_blob.w;
-    constants[7].i = top_blob.h;
-    constants[8].i = top_blob.c;
-    constants[9].i = top_blob.cstep;
-    constants[10].i = _woffset;
-    constants[11].i = _hoffset;
-    constants[12].i = _coffset;
+    constants[3].i = bottom_blob_unpacked.d;
+    constants[4].i = bottom_blob_unpacked.c;
+    constants[5].i = bottom_blob_unpacked.cstep;
+    constants[6].i = top_blob.dims;
+    constants[7].i = top_blob.w;
+    constants[8].i = top_blob.h;
+    constants[9].i = top_blob.d;
+    constants[10].i = top_blob.c;
+    constants[11].i = top_blob.cstep;
+    constants[12].i = _woffset;
+    constants[13].i = _hoffset;
+    constants[14].i = _doffset;
+    constants[15].i = _coffset;
 
     const Pipeline* pipeline = 0;
     if (elempack == 1 && out_elempack == 1)
@@ -482,15 +511,15 @@ int Crop_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
-    int _woffset, _hoffset, _coffset;
-    int _outw, _outh, _outc;
+    int _woffset, _hoffset, _doffset, _coffset;
+    int _outw, _outh, _outd, _outc;
     if (woffset == -233)
     {
-        resolve_crop_roi(bottom_blob.shape(), (const int*)reference_blob.mapped(), _woffset, _hoffset, _coffset, _outw, _outh, _outc);
+        resolve_crop_roi(bottom_blob.shape(), (const int*)reference_blob.mapped(), _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
     }
     else
     {
-        resolve_crop_roi(bottom_blob.shape(), reference_blob.shape(), _woffset, _hoffset, _coffset, _outw, _outh, _outc);
+        resolve_crop_roi(bottom_blob.shape(), reference_blob.shape(), _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
     }
 
     int offset_elempack;
@@ -518,9 +547,20 @@ int Crop_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
         offset_elempack = _hoffset == 0 ? elempack : opt.use_shader_pack8 && _hoffset % 8 == 0 ? 8 : _hoffset % 4 == 0 ? 4 : 1;
         out_elempack = opt.use_shader_pack8 && _outh % 8 == 0 ? 8 : _outh % 4 == 0 ? 4 : 1;
     }
-    else // if (dims == 3)
+    else if (dims == 3)
     {
         if (_woffset == 0 && _hoffset == 0 && _coffset == 0 && _outw == bottom_blob.w && _outh == bottom_blob.h && _outc == bottom_blob.c * elempack)
+        {
+            top_blob = bottom_blob;
+            return 0;
+        }
+
+        offset_elempack = _coffset == 0 ? elempack : opt.use_shader_pack8 && _coffset % 8 == 0 ? 8 : _coffset % 4 == 0 ? 4 : 1;
+        out_elempack = opt.use_shader_pack8 && _outc % 8 == 0 ? 8 : _outc % 4 == 0 ? 4 : 1;
+    }
+    else // if (dims == 4)
+    {
+        if (_woffset == 0 && _hoffset == 0 && _doffset == 0 && _coffset == 0 && _outw == bottom_blob.w && _outh == bottom_blob.h && _outd == bottom_blob.d && _outc == bottom_blob.c * elempack)
         {
             top_blob = bottom_blob;
             return 0;
@@ -559,9 +599,13 @@ int Crop_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
     {
         top_blob.create(_outw, _outh / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
     }
-    else // if (dims == 3)
+    else if (dims == 3)
     {
         top_blob.create(_outw, _outh, _outc / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
+    }
+    else // if (dims == 4)
+    {
+        top_blob.create(_outw, _outh, _outd, _outc / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
     }
     if (top_blob.empty())
         return -100;
@@ -570,20 +614,23 @@ int Crop_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
     bindings[0] = bottom_blob_unpacked;
     bindings[1] = top_blob;
 
-    std::vector<vk_constant_type> constants(13);
+    std::vector<vk_constant_type> constants(16);
     constants[0].i = bottom_blob_unpacked.dims;
     constants[1].i = bottom_blob_unpacked.w;
     constants[2].i = bottom_blob_unpacked.h;
-    constants[3].i = bottom_blob_unpacked.c;
-    constants[4].i = bottom_blob_unpacked.cstep;
-    constants[5].i = top_blob.dims;
-    constants[6].i = top_blob.w;
-    constants[7].i = top_blob.h;
-    constants[8].i = top_blob.c;
-    constants[9].i = top_blob.cstep;
-    constants[10].i = _woffset;
-    constants[11].i = _hoffset;
-    constants[12].i = _coffset;
+    constants[3].i = bottom_blob_unpacked.d;
+    constants[4].i = bottom_blob_unpacked.c;
+    constants[5].i = bottom_blob_unpacked.cstep;
+    constants[6].i = top_blob.dims;
+    constants[7].i = top_blob.w;
+    constants[8].i = top_blob.h;
+    constants[9].i = top_blob.d;
+    constants[10].i = top_blob.c;
+    constants[11].i = top_blob.cstep;
+    constants[12].i = _woffset;
+    constants[13].i = _hoffset;
+    constants[14].i = _doffset;
+    constants[15].i = _coffset;
 
     const Pipeline* pipeline = 0;
     if (elempack == 1 && out_elempack == 1)
@@ -646,9 +693,9 @@ int Crop_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, Vk
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
-    int _woffset, _hoffset, _coffset;
-    int _outw, _outh, _outc;
-    resolve_crop_roi(bottom_blob.shape(), _woffset, _hoffset, _coffset, _outw, _outh, _outc);
+    int _woffset, _hoffset, _doffset, _coffset;
+    int _outw, _outh, _outd, _outc;
+    resolve_crop_roi(bottom_blob.shape(), _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
 
     int offset_elempack;
     int out_elempack;
@@ -675,9 +722,20 @@ int Crop_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, Vk
         offset_elempack = _hoffset == 0 ? elempack : opt.use_shader_pack8 && _hoffset % 8 == 0 ? 8 : _hoffset % 4 == 0 ? 4 : 1;
         out_elempack = opt.use_shader_pack8 && _outh % 8 == 0 ? 8 : _outh % 4 == 0 ? 4 : 1;
     }
-    else // if (dims == 3)
+    else if (dims == 3)
     {
         if (_woffset == 0 && _hoffset == 0 && _coffset == 0 && _outw == bottom_blob.w && _outh == bottom_blob.h && _outc == bottom_blob.c * elempack)
+        {
+            top_blob = bottom_blob;
+            return 0;
+        }
+
+        offset_elempack = _coffset == 0 ? elempack : opt.use_shader_pack8 && _coffset % 8 == 0 ? 8 : _coffset % 4 == 0 ? 4 : 1;
+        out_elempack = opt.use_shader_pack8 && _outc % 8 == 0 ? 8 : _outc % 4 == 0 ? 4 : 1;
+    }
+    else // if (dims == 4)
+    {
+        if (_woffset == 0 && _hoffset == 0 && _doffset == 0 && _coffset == 0 && _outw == bottom_blob.w && _outh == bottom_blob.h && _outd == bottom_blob.d && _outc == bottom_blob.c * elempack)
         {
             top_blob = bottom_blob;
             return 0;
@@ -716,9 +774,13 @@ int Crop_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, Vk
     {
         top_blob.create(_outw, _outh / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
     }
-    else // if (dims == 3)
+    else if (dims == 3)
     {
         top_blob.create(_outw, _outh, _outc / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
+    }
+    else // if (dims == 4)
+    {
+        top_blob.create(_outw, _outh, _outd, _outc / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
     }
     if (top_blob.empty())
         return -100;
@@ -727,20 +789,23 @@ int Crop_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, Vk
     bindings[0] = bottom_blob_unpacked;
     bindings[1] = top_blob;
 
-    std::vector<vk_constant_type> constants(13);
+    std::vector<vk_constant_type> constants(16);
     constants[0].i = bottom_blob_unpacked.dims;
     constants[1].i = bottom_blob_unpacked.w;
     constants[2].i = bottom_blob_unpacked.h;
-    constants[3].i = bottom_blob_unpacked.c;
-    constants[4].i = 0; //bottom_blob_unpacked.cstep;
-    constants[5].i = top_blob.dims;
-    constants[6].i = top_blob.w;
-    constants[7].i = top_blob.h;
-    constants[8].i = top_blob.c;
-    constants[9].i = 0; //top_blob.cstep;
-    constants[10].i = _woffset;
-    constants[11].i = _hoffset;
-    constants[12].i = _coffset;
+    constants[3].i = bottom_blob_unpacked.d;
+    constants[4].i = bottom_blob_unpacked.c;
+    constants[5].i = 0; //bottom_blob_unpacked.cstep;
+    constants[6].i = top_blob.dims;
+    constants[7].i = top_blob.w;
+    constants[8].i = top_blob.h;
+    constants[9].i = top_blob.d;
+    constants[10].i = top_blob.c;
+    constants[11].i = 0; //top_blob.cstep;
+    constants[12].i = _woffset;
+    constants[13].i = _hoffset;
+    constants[14].i = _doffset;
+    constants[15].i = _coffset;
 
     const Pipeline* pipeline = 0;
     if (elempack == 1 && out_elempack == 1)
@@ -807,15 +872,15 @@ int Crop_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vecto
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
-    int _woffset, _hoffset, _coffset;
-    int _outw, _outh, _outc;
+    int _woffset, _hoffset, _doffset, _coffset;
+    int _outw, _outh, _outd, _outc;
     if (woffset == -233)
     {
-        resolve_crop_roi(bottom_blob.shape(), (const int*)reference_blob.mapped(), _woffset, _hoffset, _coffset, _outw, _outh, _outc);
+        resolve_crop_roi(bottom_blob.shape(), (const int*)reference_blob.mapped(), _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
     }
     else
     {
-        resolve_crop_roi(bottom_blob.shape(), reference_blob.shape(), _woffset, _hoffset, _coffset, _outw, _outh, _outc);
+        resolve_crop_roi(bottom_blob.shape(), reference_blob.shape(), _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
     }
 
     int offset_elempack;
@@ -843,9 +908,20 @@ int Crop_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vecto
         offset_elempack = _hoffset == 0 ? elempack : opt.use_shader_pack8 && _hoffset % 8 == 0 ? 8 : _hoffset % 4 == 0 ? 4 : 1;
         out_elempack = opt.use_shader_pack8 && _outh % 8 == 0 ? 8 : _outh % 4 == 0 ? 4 : 1;
     }
-    else // if (dims == 3)
+    else if (dims == 3)
     {
         if (_woffset == 0 && _hoffset == 0 && _coffset == 0 && _outw == bottom_blob.w && _outh == bottom_blob.h && _outc == bottom_blob.c * elempack)
+        {
+            top_blob = bottom_blob;
+            return 0;
+        }
+
+        offset_elempack = _coffset == 0 ? elempack : opt.use_shader_pack8 && _coffset % 8 == 0 ? 8 : _coffset % 4 == 0 ? 4 : 1;
+        out_elempack = opt.use_shader_pack8 && _outc % 8 == 0 ? 8 : _outc % 4 == 0 ? 4 : 1;
+    }
+    else // if (dims == 4)
+    {
+        if (_woffset == 0 && _hoffset == 0 && _doffset == 0 && _coffset == 0 && _outw == bottom_blob.w && _outh == bottom_blob.h && _outd == bottom_blob.d && _outc == bottom_blob.c * elempack)
         {
             top_blob = bottom_blob;
             return 0;
@@ -884,9 +960,13 @@ int Crop_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vecto
     {
         top_blob.create(_outw, _outh / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
     }
-    else // if (dims == 3)
+    else if (dims == 3)
     {
         top_blob.create(_outw, _outh, _outc / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
+    }
+    else // if (dims == 4)
+    {
+        top_blob.create(_outw, _outh, _outd, _outc / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
     }
     if (top_blob.empty())
         return -100;
@@ -895,20 +975,23 @@ int Crop_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vecto
     bindings[0] = bottom_blob_unpacked;
     bindings[1] = top_blob;
 
-    std::vector<vk_constant_type> constants(13);
+    std::vector<vk_constant_type> constants(16);
     constants[0].i = bottom_blob_unpacked.dims;
     constants[1].i = bottom_blob_unpacked.w;
     constants[2].i = bottom_blob_unpacked.h;
-    constants[3].i = bottom_blob_unpacked.c;
-    constants[4].i = 0; //bottom_blob_unpacked.cstep;
-    constants[5].i = top_blob.dims;
-    constants[6].i = top_blob.w;
-    constants[7].i = top_blob.h;
-    constants[8].i = top_blob.c;
-    constants[9].i = 0; //top_blob.cstep;
-    constants[10].i = _woffset;
-    constants[11].i = _hoffset;
-    constants[12].i = _coffset;
+    constants[3].i = bottom_blob_unpacked.d;
+    constants[4].i = bottom_blob_unpacked.c;
+    constants[5].i = 0; //bottom_blob_unpacked.cstep;
+    constants[6].i = top_blob.dims;
+    constants[7].i = top_blob.w;
+    constants[8].i = top_blob.h;
+    constants[9].i = top_blob.d;
+    constants[10].i = top_blob.c;
+    constants[11].i = 0; //top_blob.cstep;
+    constants[12].i = _woffset;
+    constants[13].i = _hoffset;
+    constants[14].i = _doffset;
+    constants[15].i = _coffset;
 
     const Pipeline* pipeline = 0;
     if (elempack == 1 && out_elempack == 1)

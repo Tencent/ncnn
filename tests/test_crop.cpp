@@ -15,117 +15,28 @@
 #include "layer/crop.h"
 #include "testutil.h"
 
-static int test_crop(const ncnn::Mat& a, int woffset, int hoffset, int coffset, int outw, int outh, int outc, int woffset2, int hoffset2, int coffset2)
+static int test_crop(const ncnn::Mat& a, int woffset, int hoffset, int doffset, int coffset, int outw, int outh, int outd, int outc, int woffset2, int hoffset2, int doffset2, int coffset2)
 {
     ncnn::ParamDict pd;
-    pd.set(0, woffset);  // woffset
-    pd.set(1, hoffset);  // hoffset
-    pd.set(2, coffset);  // coffset
-    pd.set(3, outw);     // outw
-    pd.set(4, outh);     // outh
-    pd.set(5, outc);     // outc
-    pd.set(6, woffset2); // woffset2
-    pd.set(7, hoffset2); // hoffset2
-    pd.set(8, coffset2); // coffset2
+    pd.set(0, woffset);   // woffset
+    pd.set(1, hoffset);   // hoffset
+    pd.set(13, doffset);  // doffset
+    pd.set(2, coffset);   // coffset
+    pd.set(3, outw);      // outw
+    pd.set(4, outh);      // outh
+    pd.set(14, outd);     // outd
+    pd.set(5, outc);      // outc
+    pd.set(6, woffset2);  // woffset2
+    pd.set(7, hoffset2);  // hoffset2
+    pd.set(15, doffset2); // doffset2
+    pd.set(8, coffset2);  // coffset2
 
     std::vector<ncnn::Mat> weights(0);
 
     int ret = test_layer<ncnn::Crop>("Crop", pd, weights, a);
     if (ret != 0)
     {
-        fprintf(stderr, "test_crop failed a.dims=%d a=(%d %d %d) woffset=%d hoffset=%d coffset=%d outw=%d outh=%d outc=%d woffset2=%d hoffset2=%d coffset2=%d\n", a.dims, a.w, a.h, a.c, woffset, hoffset, coffset, outw, outh, outc, woffset2, hoffset2, coffset2);
-    }
-
-    return ret;
-}
-
-static ncnn::Mat IntArrayMat(int a0)
-{
-    ncnn::Mat m(1);
-    int* p = m;
-    p[0] = a0;
-    return m;
-}
-
-static ncnn::Mat IntArrayMat(int a0, int a1)
-{
-    ncnn::Mat m(2);
-    int* p = m;
-    p[0] = a0;
-    p[1] = a1;
-    return m;
-}
-
-static ncnn::Mat IntArrayMat(int a0, int a1, int a2)
-{
-    ncnn::Mat m(3);
-    int* p = m;
-    p[0] = a0;
-    p[1] = a1;
-    p[2] = a2;
-    return m;
-}
-
-static void print_int_array(const ncnn::Mat& a)
-{
-    const int* pa = a;
-
-    fprintf(stderr, "[");
-    for (int i = 0; i < a.w; i++)
-    {
-        fprintf(stderr, " %d", pa[i]);
-    }
-    fprintf(stderr, " ]");
-}
-
-static int test_crop(const ncnn::Mat& a, const ncnn::Mat& starts, const ncnn::Mat& ends, const ncnn::Mat& axes)
-{
-    ncnn::ParamDict pd;
-    pd.set(9, starts); // starts
-    pd.set(10, ends);  // ends
-    pd.set(11, axes);  // axes
-
-    std::vector<ncnn::Mat> weights(0);
-
-    int ret = test_layer<ncnn::Crop>("Crop", pd, weights, a);
-    if (ret != 0)
-    {
-        fprintf(stderr, "test_crop failed a.dims=%d a=(%d %d %d)", a.dims, a.w, a.h, a.c);
-        fprintf(stderr, " starts=");
-        print_int_array(starts);
-        fprintf(stderr, " ends=");
-        print_int_array(ends);
-        fprintf(stderr, " axes=");
-        print_int_array(axes);
-        fprintf(stderr, "\n");
-    }
-
-    return ret;
-}
-
-static int test_crop(const ncnn::Mat& a, int woffset, int hoffset, int coffset, const ncnn::Mat& ref)
-{
-    ncnn::ParamDict pd;
-    pd.set(0, woffset);
-    pd.set(1, hoffset);
-    pd.set(2, coffset);
-    pd.set(3, 0); // outw
-    pd.set(4, 0); // outh
-    pd.set(5, 0); // outc
-    pd.set(6, 0); // woffset2
-    pd.set(7, 0); // hoffset2
-    pd.set(8, 0); // coffset2
-
-    std::vector<ncnn::Mat> weights(0);
-
-    std::vector<ncnn::Mat> ab(2);
-    ab[0] = a;
-    ab[1] = ref;
-
-    int ret = test_layer<ncnn::Crop>("Crop", pd, weights, ab);
-    if (ret != 0)
-    {
-        fprintf(stderr, "test_crop failed a.dims=%d a=(%d %d %d) woffset=%d hoffset=%d coffset=%d ref.dims=%d ref=(%d %d %d)\n", a.dims, a.w, a.h, a.c, woffset, hoffset, coffset, ref.dims, ref.w, ref.h, ref.c);
+        fprintf(stderr, "test_crop failed a.dims=%d a=(%d %d %d %d) woffset=%d hoffset=%d doffset=%d coffset=%d outw=%d outh=%d outd=%d outc=%d woffset2=%d hoffset2=%d doffset2=%d coffset2=%d\n", a.dims, a.w, a.h, a.d, a.c, woffset, hoffset, doffset, coffset, outw, outh, outd, outc, woffset2, hoffset2, doffset2, coffset2);
     }
 
     return ret;
@@ -134,306 +45,236 @@ static int test_crop(const ncnn::Mat& a, int woffset, int hoffset, int coffset, 
 static int test_crop_0(const ncnn::Mat& a)
 {
     return 0
-           || test_crop(a, 0, 0, 0, -233, 0, 0, 0, 0, 0)
-           || test_crop(a, 11, 0, 0, -233, 0, 0, 0, 0, 0)
-           || test_crop(a, 11, 0, 0, 17, 0, 0, 0, 0, 0)
-           || test_crop(a, 12, 0, 0, 28, 0, 0, 0, 0, 0)
-           || test_crop(a, 24, 0, 0, 24, 0, 0, 0, 0, 0)
-           || test_crop(a, 11, 0, 0, -233, 0, 0, 28, 0, 0)
-           || test_crop(a, 12, 0, 0, -233, 0, 0, 24, 0, 0)
-           || test_crop(a, 24, 0, 0, -233, 0, 0, 17, 0, 0);
-}
-
-static int test_crop_1(const ncnn::Mat& a)
-{
-    return 0
-           || test_crop(a, IntArrayMat(12), IntArrayMat(-233), IntArrayMat(0))
-           || test_crop(a, IntArrayMat(24), IntArrayMat(-233), IntArrayMat(0))
-           || test_crop(a, IntArrayMat(11), IntArrayMat(11 + 24), IntArrayMat(0))
-           || test_crop(a, IntArrayMat(12), IntArrayMat(12 + 17), IntArrayMat(0))
-           || test_crop(a, IntArrayMat(24), IntArrayMat(24 + 28), IntArrayMat(0))
-           || test_crop(a, IntArrayMat(11), IntArrayMat(-17 + 1), IntArrayMat(0))
-           || test_crop(a, IntArrayMat(12), IntArrayMat(-28 + 1), IntArrayMat(0))
-           || test_crop(a, IntArrayMat(24), IntArrayMat(-24 + 1), IntArrayMat(0));
-}
-
-static int test_crop_2(const ncnn::Mat& a)
-{
-    return 0
-           || test_crop(a, 0, 0, 0, ncnn::Mat(27))
-
-           || test_crop(a, 11, 0, 0, ncnn::Mat(17))
-           || test_crop(a, 12, 0, 0, ncnn::Mat(28))
-           || test_crop(a, 24, 0, 0, ncnn::Mat(24));
+           || test_crop(a, 0, 0, 0, 0, -233, 0, 0, 0, 0, 0, 0, 0)
+           || test_crop(a, 11, 0, 0, 0, -233, 0, 0, 0, 0, 0, 0, 0)
+           || test_crop(a, 11, 0, 0, 0, 7, 0, 0, 0, 0, 0, 0, 0)
+           || test_crop(a, 12, 0, 0, 0, 12, 0, 0, 0, 0, 0, 0, 0)
+           || test_crop(a, 16, 0, 0, 0, 16, 0, 0, 0, 0, 0, 0, 0)
+           || test_crop(a, 11, 0, 0, 0, -233, 0, 0, 0, 12, 0, 0, 0)
+           || test_crop(a, 12, 0, 0, 0, -233, 0, 0, 0, 16, 0, 0, 0)
+           || test_crop(a, 16, 0, 0, 0, -233, 0, 0, 0, 7, 0, 0, 0);
 }
 
 static int test_crop_3(const ncnn::Mat& a)
 {
     return 0
-           || test_crop(a, 0, 0, 0, -233, -233, 0, 0, 0, 0)
-           || test_crop(a, 11, 0, 0, -233, -233, 0, 0, 0, 0)
-           || test_crop(a, 0, 11, 0, -233, -233, 0, 0, 0, 0)
-           || test_crop(a, 0, 12, 0, -233, -233, 0, 0, 0, 0)
-           || test_crop(a, 12, 12, 0, -233, -233, 0, 0, 0, 0)
-           || test_crop(a, 16, 16, 0, -233, -233, 0, 0, 0, 0)
+           || test_crop(a, 0, 0, 0, 0, -233, -233, 0, 0, 0, 0, 0, 0)
+           || test_crop(a, 5, 0, 0, 0, -233, -233, 0, 0, 0, 0, 0, 0)
+           || test_crop(a, 0, 11, 0, 0, -233, -233, 0, 0, 0, 0, 0, 0)
+           || test_crop(a, 0, 12, 0, 0, -233, -233, 0, 0, 0, 0, 0, 0)
+           || test_crop(a, 6, 12, 0, 0, -233, -233, 0, 0, 0, 0, 0, 0)
+           || test_crop(a, 4, 8, 0, 0, -233, -233, 0, 0, 0, 0, 0, 0)
 
-           || test_crop(a, 11, 0, 0, 17, -233, 0, 0, 0, 0)
-           || test_crop(a, 12, 0, 0, 28, -233, 0, 0, 0, 0)
-           || test_crop(a, 16, 0, 0, 24, -233, 0, 0, 0, 0)
+           || test_crop(a, 5, 0, 0, 0, 5, -233, 0, 0, 0, 0, 0, 0)
+           || test_crop(a, 6, 0, 0, 0, 6, -233, 0, 0, 0, 0, 0, 0)
+           || test_crop(a, 4, 0, 0, 0, 4, -233, 0, 0, 0, 0, 0, 0)
 
-           || test_crop(a, 0, 11, 0, -233, 28, 0, 0, 0, 0)
-           || test_crop(a, 0, 12, 0, -233, 24, 0, 0, 0, 0)
-           || test_crop(a, 0, 16, 0, -233, 17, 0, 0, 0, 0)
+           || test_crop(a, 0, 11, 0, 0, -233, 12, 0, 0, 0, 0, 0, 0)
+           || test_crop(a, 0, 12, 0, 0, -233, 16, 0, 0, 0, 0, 0, 0)
+           || test_crop(a, 0, 8, 0, 0, -233, 7, 0, 0, 0, 0, 0, 0)
 
-           || test_crop(a, 11, 11, 0, 24, 24, 0, 0, 0, 0)
-           || test_crop(a, 12, 12, 0, 17, 17, 0, 0, 0, 0)
-           || test_crop(a, 16, 16, 0, 28, 28, 0, 0, 0, 0)
+           || test_crop(a, 5, 11, 0, 0, 4, 16, 0, 0, 0, 0, 0, 0)
+           || test_crop(a, 6, 12, 0, 0, 5, 7, 0, 0, 0, 0, 0, 0)
+           || test_crop(a, 4, 8, 0, 0, 6, 12, 0, 0, 0, 0, 0, 0)
 
-           || test_crop(a, 11, 0, 0, -233, -233, 0, 17, 0, 0)
-           || test_crop(a, 12, 0, 0, -233, -233, 0, 28, 0, 0)
-           || test_crop(a, 16, 0, 0, -233, -233, 0, 24, 0, 0)
+           || test_crop(a, 5, 0, 0, 0, -233, -233, 0, 0, 5, 0, 0, 0)
+           || test_crop(a, 6, 0, 0, 0, -233, -233, 0, 0, 6, 0, 0, 0)
+           || test_crop(a, 4, 0, 0, 0, -233, -233, 0, 0, 4, 0, 0, 0)
 
-           || test_crop(a, 0, 11, 0, -233, -233, 0, 0, 28, 0)
-           || test_crop(a, 0, 12, 0, -233, -233, 0, 0, 24, 0)
-           || test_crop(a, 0, 16, 0, -233, -233, 0, 0, 17, 0)
+           || test_crop(a, 0, 11, 0, 0, -233, -233, 0, 0, 0, 12, 0, 0)
+           || test_crop(a, 0, 12, 0, 0, -233, -233, 0, 0, 0, 16, 0, 0)
+           || test_crop(a, 0, 8, 0, 0, -233, -233, 0, 0, 0, 7, 0, 0)
 
-           || test_crop(a, 11, 11, 0, -233, -233, 0, 24, 24, 0)
-           || test_crop(a, 12, 12, 0, -233, -233, 0, 17, 17, 0)
-           || test_crop(a, 16, 16, 0, -233, -233, 0, 28, 28, 0);
-}
-
-static int test_crop_4(const ncnn::Mat& a)
-{
-    return 0
-           || test_crop(a, IntArrayMat(12), IntArrayMat(-233), IntArrayMat(0))
-           || test_crop(a, IntArrayMat(16), IntArrayMat(-233), IntArrayMat(0))
-           || test_crop(a, IntArrayMat(16), IntArrayMat(-233), IntArrayMat(1))
-           || test_crop(a, IntArrayMat(11, 11), IntArrayMat(-233, -233), IntArrayMat(0, 1))
-
-           || test_crop(a, IntArrayMat(11), IntArrayMat(28), IntArrayMat(0))
-           || test_crop(a, IntArrayMat(12), IntArrayMat(24), IntArrayMat(0))
-           || test_crop(a, IntArrayMat(16), IntArrayMat(17), IntArrayMat(0))
-
-           || test_crop(a, IntArrayMat(11), IntArrayMat(24), IntArrayMat(1))
-           || test_crop(a, IntArrayMat(12), IntArrayMat(17), IntArrayMat(1))
-           || test_crop(a, IntArrayMat(16), IntArrayMat(28), IntArrayMat(1))
-
-           || test_crop(a, IntArrayMat(11, 11), IntArrayMat(17, 17), IntArrayMat(0, 1))
-           || test_crop(a, IntArrayMat(12, 12), IntArrayMat(28, 28), IntArrayMat(0, 1))
-           || test_crop(a, IntArrayMat(16, 16), IntArrayMat(24, 24), IntArrayMat(0, 1))
-
-           || test_crop(a, IntArrayMat(11), IntArrayMat(-24 + 1), IntArrayMat(0))
-           || test_crop(a, IntArrayMat(12), IntArrayMat(-17 + 1), IntArrayMat(0))
-           || test_crop(a, IntArrayMat(16), IntArrayMat(-28 + 1), IntArrayMat(0))
-
-           || test_crop(a, IntArrayMat(11), IntArrayMat(-17 + 1), IntArrayMat(1))
-           || test_crop(a, IntArrayMat(12), IntArrayMat(-28 + 1), IntArrayMat(1))
-           || test_crop(a, IntArrayMat(16), IntArrayMat(-24 + 1), IntArrayMat(1))
-
-           || test_crop(a, IntArrayMat(11, 11), IntArrayMat(-28 + 1, -28 + 1), IntArrayMat(0, 1))
-           || test_crop(a, IntArrayMat(12, 12), IntArrayMat(-24 + 1, -24 + 1), IntArrayMat(0, 1))
-           || test_crop(a, IntArrayMat(16, 16), IntArrayMat(-17 + 1, -17 + 1), IntArrayMat(0, 1));
-}
-
-static int test_crop_5(const ncnn::Mat& a)
-{
-    return 0
-           || test_crop(a, 0, 12, 0, ncnn::Mat(24, 17))
-           || test_crop(a, 11, 0, 0, ncnn::Mat(17, 27))
-
-           || test_crop(a, 11, 11, 0, ncnn::Mat(28, 28))
-           || test_crop(a, 12, 12, 0, ncnn::Mat(24, 24))
-           || test_crop(a, 16, 16, 0, ncnn::Mat(17, 17));
+           || test_crop(a, 5, 11, 0, 0, -233, -233, 0, 0, 4, 16, 0, 0)
+           || test_crop(a, 6, 12, 0, 0, -233, -233, 0, 0, 5, 7, 0, 0)
+           || test_crop(a, 4, 8, 0, 0, -233, -233, 0, 0, 6, 12, 0, 0);
 }
 
 static int test_crop_6(const ncnn::Mat& a)
 {
     return 0
-           || test_crop(a, 0, 0, 0, -233, -233, -233, 0, 0, 0)
-           || test_crop(a, 12, 0, 0, -233, -233, -233, 0, 0, 0)
-           || test_crop(a, 0, 11, 0, -233, -233, -233, 0, 0, 0)
-           || test_crop(a, 0, 16, 0, -233, -233, -233, 0, 0, 0)
-           || test_crop(a, 0, 0, 12, -233, -233, -233, 0, 0, 0)
-           || test_crop(a, 11, 11, 0, -233, -233, -233, 0, 0, 0)
-           || test_crop(a, 16, 16, 0, -233, -233, -233, 0, 0, 0)
-           || test_crop(a, 0, 12, 12, -233, -233, -233, 0, 0, 0)
-           || test_crop(a, 11, 0, 11, -233, -233, -233, 0, 0, 0)
-           || test_crop(a, 16, 0, 16, -233, -233, -233, 0, 0, 0)
-           || test_crop(a, 12, 12, 12, -233, -233, -233, 0, 0, 0)
+           || test_crop(a, 0, 0, 0, 0, -233, -233, 0, -233, 0, 0, 0, 0)
+           || test_crop(a, 6, 0, 0, 0, -233, -233, 0, -233, 0, 0, 0, 0)
+           || test_crop(a, 0, 5, 0, 0, -233, -233, 0, -233, 0, 0, 0, 0)
+           || test_crop(a, 0, 4, 0, 0, -233, -233, 0, -233, 0, 0, 0, 0)
+           || test_crop(a, 0, 0, 0, 12, -233, -233, 0, -233, 0, 0, 0, 0)
+           || test_crop(a, 5, 5, 0, 0, -233, -233, 0, -233, 0, 0, 0, 0)
+           || test_crop(a, 4, 4, 0, 0, -233, -233, 0, -233, 0, 0, 0, 0)
+           || test_crop(a, 0, 6, 0, 12, -233, -233, 0, -233, 0, 0, 0, 0)
+           || test_crop(a, 5, 0, 0, 11, -233, -233, 0, -233, 0, 0, 0, 0)
+           || test_crop(a, 4, 0, 0, 8, -233, -233, 0, -233, 0, 0, 0, 0)
+           || test_crop(a, 6, 6, 0, 12, -233, -233, 0, -233, 0, 0, 0, 0)
 
-           || test_crop(a, 11, 0, 0, 28, -233, -233, 0, 0, 0)
-           || test_crop(a, 12, 0, 0, 24, -233, -233, 0, 0, 0)
-           || test_crop(a, 16, 0, 0, 17, -233, -233, 0, 0, 0)
+           || test_crop(a, 5, 0, 0, 0, 6, -233, 0, -233, 0, 0, 0, 0)
+           || test_crop(a, 6, 0, 0, 0, 4, -233, 0, -233, 0, 0, 0, 0)
+           || test_crop(a, 4, 0, 0, 0, 5, -233, 0, -233, 0, 0, 0, 0)
 
-           || test_crop(a, 0, 11, 0, -233, 24, -233, 0, 0, 0)
-           || test_crop(a, 0, 12, 0, -233, 17, -233, 0, 0, 0)
-           || test_crop(a, 0, 16, 0, -233, 28, -233, 0, 0, 0)
+           || test_crop(a, 0, 5, 0, 0, -233, 4, 0, -233, 0, 0, 0, 0)
+           || test_crop(a, 0, 6, 0, 0, -233, 5, 0, -233, 0, 0, 0, 0)
+           || test_crop(a, 0, 4, 0, 0, -233, 6, 0, -233, 0, 0, 0, 0)
 
-           || test_crop(a, 0, 0, 11, -233, -233, 17, 0, 0, 0)
-           || test_crop(a, 0, 0, 12, -233, -233, 28, 0, 0, 0)
-           || test_crop(a, 0, 0, 16, -233, -233, 24, 0, 0, 0)
+           || test_crop(a, 0, 0, 0, 11, -233, -233, 0, 7, 0, 0, 0, 0)
+           || test_crop(a, 0, 0, 0, 12, -233, -233, 0, 12, 0, 0, 0, 0)
+           || test_crop(a, 0, 0, 0, 8, -233, -233, 0, 16, 0, 0, 0, 0)
 
-           || test_crop(a, 11, 11, 0, 17, 17, -233, 0, 0, 0)
-           || test_crop(a, 12, 12, 0, 28, 28, -233, 0, 0, 0)
-           || test_crop(a, 16, 16, 0, 24, 24, -233, 0, 0, 0)
+           || test_crop(a, 5, 5, 0, 0, 4, 4, 0, -233, 0, 0, 0, 0)
+           || test_crop(a, 6, 6, 0, 0, 6, 6, 0, -233, 0, 0, 0, 0)
+           || test_crop(a, 4, 4, 0, 0, 5, 5, 0, -233, 0, 0, 0, 0)
 
-           || test_crop(a, 0, 11, 11, -233, 28, 28, 0, 0, 0)
-           || test_crop(a, 0, 12, 12, -233, 24, 24, 0, 0, 0)
-           || test_crop(a, 0, 16, 16, -233, 17, 17, 0, 0, 0)
+           || test_crop(a, 0, 5, 0, 11, -233, 6, 0, 12, 0, 0, 0, 0)
+           || test_crop(a, 0, 6, 0, 12, -233, 4, 0, 16, 0, 0, 0, 0)
+           || test_crop(a, 0, 4, 0, 8, -233, 5, 0, 7, 0, 0, 0, 0)
 
-           || test_crop(a, 11, 0, 11, 24, -233, 24, 0, 0, 0)
-           || test_crop(a, 12, 0, 12, 17, -233, 17, 0, 0, 0)
-           || test_crop(a, 16, 0, 16, 24, -233, 24, 0, 0, 0)
+           || test_crop(a, 5, 0, 0, 11, 4, -233, 0, 16, 0, 0, 0, 0)
+           || test_crop(a, 6, 0, 0, 12, 5, -233, 0, 7, 0, 0, 0, 0)
+           || test_crop(a, 4, 0, 0, 8, 4, -233, 0, 12, 0, 0, 0, 0)
 
-           || test_crop(a, 11, 11, 11, 28, 28, 28, 0, 0, 0)
-           || test_crop(a, 12, 12, 12, 24, 24, 24, 0, 0, 0)
-           || test_crop(a, 16, 16, 16, 17, 17, 17, 0, 0, 0)
+           || test_crop(a, 5, 3, 0, 11, 6, 5, 0, 12, 0, 0, 0, 0)
+           || test_crop(a, 6, 4, 0, 12, 4, 4, 0, 16, 0, 0, 0, 0)
+           || test_crop(a, 4, 5, 0, 8, 5, 3, 0, 7, 0, 0, 0, 0)
 
-           || test_crop(a, 11, 0, 0, -233, -233, -233, 24, 0, 0)
-           || test_crop(a, 12, 0, 0, -233, -233, -233, 17, 0, 0)
-           || test_crop(a, 16, 0, 0, -233, -233, -233, 28, 0, 0)
+           || test_crop(a, 5, 0, 0, 0, -233, -233, 0, -233, 4, 0, 0, 0)
+           || test_crop(a, 6, 0, 0, 0, -233, -233, 0, -233, 5, 0, 0, 0)
+           || test_crop(a, 4, 0, 0, 0, -233, -233, 0, -233, 6, 0, 0, 0)
 
-           || test_crop(a, 0, 11, 0, -233, -233, -233, 0, 17, 0)
-           || test_crop(a, 0, 12, 0, -233, -233, -233, 0, 28, 0)
-           || test_crop(a, 0, 16, 0, -233, -233, -233, 0, 24, 0)
+           || test_crop(a, 0, 5, 0, 0, -233, -233, 0, -233, 0, 5, 0, 0)
+           || test_crop(a, 0, 6, 0, 0, -233, -233, 0, -233, 0, 6, 0, 0)
+           || test_crop(a, 0, 4, 0, 0, -233, -233, 0, -233, 0, 4, 0, 0)
 
-           || test_crop(a, 0, 0, 11, -233, -233, -233, 0, 0, 28)
-           || test_crop(a, 0, 0, 12, -233, -233, -233, 0, 0, 24)
-           || test_crop(a, 0, 0, 16, -233, -233, -233, 0, 0, 17)
+           || test_crop(a, 0, 0, 0, 11, -233, -233, 0, -233, 0, 0, 0, 12)
+           || test_crop(a, 0, 0, 0, 12, -233, -233, 0, -233, 0, 0, 0, 16)
+           || test_crop(a, 0, 0, 0, 8, -233, -233, 0, -233, 0, 0, 0, 7)
 
-           || test_crop(a, 11, 11, 0, -233, -233, -233, 24, 24, 0)
-           || test_crop(a, 12, 12, 0, -233, -233, -233, 17, 17, 0)
-           || test_crop(a, 16, 16, 0, -233, -233, -233, 28, 28, 0)
+           || test_crop(a, 5, 4, 0, 0, -233, -233, 0, -233, 4, 2, 0, 0)
+           || test_crop(a, 6, 3, 0, 0, -233, -233, 0, -233, 5, 3, 0, 0)
+           || test_crop(a, 4, 2, 0, 0, -233, -233, 0, -233, 6, 4, 0, 0)
 
-           || test_crop(a, 0, 11, 11, -233, -233, -233, 0, 17, 17)
-           || test_crop(a, 0, 12, 12, -233, -233, -233, 0, 28, 28)
-           || test_crop(a, 0, 16, 16, -233, -233, -233, 0, 24, 24)
+           || test_crop(a, 0, 5, 0, 11, -233, -233, 0, -233, 0, 5, 0, 7)
+           || test_crop(a, 0, 6, 0, 12, -233, -233, 0, -233, 0, 6, 0, 12)
+           || test_crop(a, 0, 4, 0, 8, -233, -233, 0, -233, 0, 4, 0, 16)
 
-           || test_crop(a, 11, 0, 11, -233, -233, -233, 28, 0, 28)
-           || test_crop(a, 12, 0, 12, -233, -233, -233, 24, 0, 24)
-           || test_crop(a, 16, 0, 16, -233, -233, -233, 17, 0, 17)
+           || test_crop(a, 5, 0, 0, 11, -233, -233, 0, -233, 6, 0, 0, 12)
+           || test_crop(a, 6, 0, 0, 12, -233, -233, 0, -233, 4, 0, 0, 16)
+           || test_crop(a, 4, 0, 0, 8, -233, -233, 0, -233, 5, 0, 0, 7)
 
-           || test_crop(a, 11, 11, 11, -233, -233, -233, 24, 24, 24)
-           || test_crop(a, 12, 12, 12, -233, -233, -233, 17, 17, 17)
-           || test_crop(a, 16, 16, 16, -233, -233, -233, 28, 28, 28);
+           || test_crop(a, 5, 2, 0, 11, -233, -233, 0, -233, 4, 3, 0, 16)
+           || test_crop(a, 6, 3, 0, 12, -233, -233, 0, -233, 5, 4, 0, 7)
+           || test_crop(a, 4, 4, 0, 8, -233, -233, 0, -233, 6, 2, 0, 12);
 }
 
-static int test_crop_7(const ncnn::Mat& a)
+static int test_crop_9(const ncnn::Mat& a)
 {
     return 0
-           || test_crop(a, IntArrayMat(11), IntArrayMat(-233), IntArrayMat(0))
-           || test_crop(a, IntArrayMat(16), IntArrayMat(-233), IntArrayMat(0))
-           || test_crop(a, IntArrayMat(12), IntArrayMat(-233), IntArrayMat(1))
-           || test_crop(a, IntArrayMat(11), IntArrayMat(-233), IntArrayMat(2))
-           || test_crop(a, IntArrayMat(16), IntArrayMat(-233), IntArrayMat(2))
-           || test_crop(a, IntArrayMat(12, 12), IntArrayMat(-233, -233), IntArrayMat(0, 1))
-           || test_crop(a, IntArrayMat(11, 11), IntArrayMat(-233, -233), IntArrayMat(0, 2))
-           || test_crop(a, IntArrayMat(16, 16), IntArrayMat(-233, -233), IntArrayMat(0, 2))
-           || test_crop(a, IntArrayMat(12, 12), IntArrayMat(-233, -233), IntArrayMat(1, 2))
-           || test_crop(a, IntArrayMat(11, 11, 11), IntArrayMat(-233, -233, -233), IntArrayMat(0, 1, 2))
-           || test_crop(a, IntArrayMat(16, 16, 16), IntArrayMat(-233, -233, -233), IntArrayMat(0, 1, 2))
+           || test_crop(a, 0, 0, 0, 0, -233, -233, -233, -233, 0, 0, 0, 0)
+           || test_crop(a, 6, 0, 0, 0, -233, -233, -233, -233, 0, 0, 0, 0)
+           || test_crop(a, 0, 5, 0, 0, -233, -233, -233, -233, 0, 0, 0, 0)
+           || test_crop(a, 0, 4, 0, 0, -233, -233, -233, -233, 0, 0, 0, 0)
+           || test_crop(a, 0, 0, 5, 0, -233, -233, -233, -233, 0, 0, 0, 0)
+           || test_crop(a, 0, 0, 4, 0, -233, -233, -233, -233, 0, 0, 0, 0)
+           || test_crop(a, 0, 0, 0, 12, -233, -233, -233, -233, 0, 0, 0, 0)
+           || test_crop(a, 5, 5, 5, 0, -233, -233, -233, -233, 0, 0, 0, 0)
+           || test_crop(a, 4, 4, 4, 0, -233, -233, -233, -233, 0, 0, 0, 0)
+           || test_crop(a, 0, 6, 6, 12, -233, -233, -233, -233, 0, 0, 0, 0)
+           || test_crop(a, 5, 0, 5, 11, -233, -233, -233, -233, 0, 0, 0, 0)
+           || test_crop(a, 4, 0, 4, 8, -233, -233, -233, -233, 0, 0, 0, 0)
+           || test_crop(a, 6, 6, 6, 12, -233, -233, -233, -233, 0, 0, 0, 0)
 
-           || test_crop(a, IntArrayMat(11), IntArrayMat(24), IntArrayMat(0))
-           || test_crop(a, IntArrayMat(12), IntArrayMat(17), IntArrayMat(0))
-           || test_crop(a, IntArrayMat(16), IntArrayMat(28), IntArrayMat(0))
+           || test_crop(a, 5, 0, 0, 0, 6, -233, -233, -233, 0, 0, 0, 0)
+           || test_crop(a, 6, 0, 0, 0, 5, -233, -233, -233, 0, 0, 0, 0)
+           || test_crop(a, 4, 0, 0, 0, 4, -233, -233, -233, 0, 0, 0, 0)
 
-           || test_crop(a, IntArrayMat(11), IntArrayMat(17), IntArrayMat(1))
-           || test_crop(a, IntArrayMat(12), IntArrayMat(28), IntArrayMat(1))
-           || test_crop(a, IntArrayMat(16), IntArrayMat(24), IntArrayMat(1))
+           || test_crop(a, 0, 5, 0, 0, -233, 4, -233, -233, 0, 0, 0, 0)
+           || test_crop(a, 0, 6, 0, 0, -233, 5, -233, -233, 0, 0, 0, 0)
+           || test_crop(a, 0, 4, 0, 0, -233, 6, -233, -233, 0, 0, 0, 0)
 
-           || test_crop(a, IntArrayMat(11), IntArrayMat(28), IntArrayMat(2))
-           || test_crop(a, IntArrayMat(12), IntArrayMat(24), IntArrayMat(2))
-           || test_crop(a, IntArrayMat(16), IntArrayMat(17), IntArrayMat(2))
+           || test_crop(a, 0, 0, 5, 0, -233, -233, 6, -233, 0, 0, 0, 0)
+           || test_crop(a, 0, 0, 6, 0, -233, -233, 4, -233, 0, 0, 0, 0)
+           || test_crop(a, 0, 0, 4, 0, -233, -233, 5, -233, 0, 0, 0, 0)
 
-           || test_crop(a, IntArrayMat(11, 11), IntArrayMat(24, 24), IntArrayMat(0, 1))
-           || test_crop(a, IntArrayMat(12, 12), IntArrayMat(17, 17), IntArrayMat(0, 1))
-           || test_crop(a, IntArrayMat(16, 16), IntArrayMat(28, 28), IntArrayMat(0, 1))
+           || test_crop(a, 0, 0, 0, 11, -233, -233, -233, 7, 0, 0, 0, 0)
+           || test_crop(a, 0, 0, 0, 12, -233, -233, -233, 12, 0, 0, 0, 0)
+           || test_crop(a, 0, 0, 0, 8, -233, -233, -233, 16, 0, 0, 0, 0)
 
-           || test_crop(a, IntArrayMat(11, 11), IntArrayMat(17, 17), IntArrayMat(0, 2))
-           || test_crop(a, IntArrayMat(12, 12), IntArrayMat(28, 28), IntArrayMat(0, 2))
-           || test_crop(a, IntArrayMat(16, 16), IntArrayMat(24, 24), IntArrayMat(0, 2))
+           || test_crop(a, 5, 2, 0, 0, 6, 5, -233, -233, 0, 0, 0, 0)
+           || test_crop(a, 6, 3, 0, 0, 5, 6, -233, -233, 0, 0, 0, 0)
+           || test_crop(a, 4, 4, 0, 0, 4, 4, -233, -233, 0, 0, 0, 0)
 
-           || test_crop(a, IntArrayMat(11, 11), IntArrayMat(28, 28), IntArrayMat(1, 2))
-           || test_crop(a, IntArrayMat(12, 12), IntArrayMat(24, 24), IntArrayMat(1, 2))
-           || test_crop(a, IntArrayMat(16, 16), IntArrayMat(17, 17), IntArrayMat(1, 2))
+           || test_crop(a, 5, 0, 3, 0, 2, -233, 5, -233, 0, 0, 0, 0)
+           || test_crop(a, 6, 0, 2, 0, 3, -233, 3, -233, 0, 0, 0, 0)
+           || test_crop(a, 4, 0, 4, 0, 4, -233, 4, -233, 0, 0, 0, 0)
 
-           || test_crop(a, IntArrayMat(11, 11, 11), IntArrayMat(24, 24, 24), IntArrayMat(0, 1, 2))
-           || test_crop(a, IntArrayMat(12, 12, 12), IntArrayMat(17, 17, 17), IntArrayMat(0, 1, 2))
-           || test_crop(a, IntArrayMat(16, 16, 16), IntArrayMat(28, 28, 28), IntArrayMat(0, 1, 2))
+           || test_crop(a, 0, 5, 0, 11, -233, 1, -233, 12, 0, 0, 0, 0)
+           || test_crop(a, 0, 6, 0, 12, -233, 2, -233, 16, 0, 0, 0, 0)
+           || test_crop(a, 0, 4, 0, 8, -233, 3, -233, 7, 0, 0, 0, 0)
 
-           || test_crop(a, IntArrayMat(11), IntArrayMat(-17 + 1), IntArrayMat(0))
-           || test_crop(a, IntArrayMat(12), IntArrayMat(-28 + 1), IntArrayMat(0))
-           || test_crop(a, IntArrayMat(16), IntArrayMat(-24 + 1), IntArrayMat(0))
+           || test_crop(a, 0, 0, 4, 11, -233, -233, 3, 16, 0, 0, 0, 0)
+           || test_crop(a, 0, 0, 5, 12, -233, -233, 2, 7, 0, 0, 0, 0)
+           || test_crop(a, 0, 0, 6, 8, -233, -233, 1, 16, 0, 0, 0, 0)
 
-           || test_crop(a, IntArrayMat(11), IntArrayMat(-28 + 1), IntArrayMat(1))
-           || test_crop(a, IntArrayMat(12), IntArrayMat(-24 + 1), IntArrayMat(1))
-           || test_crop(a, IntArrayMat(16), IntArrayMat(-17 + 1), IntArrayMat(1))
+           || test_crop(a, 5, 0, 5, 11, 1, -233, 2, 16, 0, 0, 0, 0)
+           || test_crop(a, 6, 0, 6, 12, 2, -233, 3, 7, 0, 0, 0, 0)
+           || test_crop(a, 4, 0, 4, 8, 3, -233, 1, 16, 0, 0, 0, 0)
 
-           || test_crop(a, IntArrayMat(11), IntArrayMat(-24 + 1), IntArrayMat(2))
-           || test_crop(a, IntArrayMat(12), IntArrayMat(-17 + 1), IntArrayMat(2))
-           || test_crop(a, IntArrayMat(16), IntArrayMat(-28 + 1), IntArrayMat(2))
+           || test_crop(a, 4, 6, 3, 11, 2, 3, 4, 12, 0, 0, 0, 0)
+           || test_crop(a, 5, 5, 4, 12, 3, 4, 5, 16, 0, 0, 0, 0)
+           || test_crop(a, 6, 4, 2, 8, 4, 5, 6, 7, 0, 0, 0, 0)
 
-           || test_crop(a, IntArrayMat(11, 11), IntArrayMat(-17 + 1, -17 + 1), IntArrayMat(0, 1))
-           || test_crop(a, IntArrayMat(12, 12), IntArrayMat(-28 + 1, -28 + 1), IntArrayMat(0, 1))
-           || test_crop(a, IntArrayMat(16, 16), IntArrayMat(-24 + 1, -24 + 1), IntArrayMat(0, 1))
+           || test_crop(a, 5, 0, 0, 0, -233, -233, -233, -233, 2, 0, 0, 0)
+           || test_crop(a, 6, 0, 0, 0, -233, -233, -233, -233, 3, 0, 0, 0)
+           || test_crop(a, 4, 0, 0, 0, -233, -233, -233, -233, 4, 0, 0, 0)
 
-           || test_crop(a, IntArrayMat(11, 11), IntArrayMat(-28 + 1, -28 + 1), IntArrayMat(0, 2))
-           || test_crop(a, IntArrayMat(12, 12), IntArrayMat(-24 + 1, -24 + 1), IntArrayMat(0, 2))
-           || test_crop(a, IntArrayMat(16, 16), IntArrayMat(-17 + 1, -17 + 1), IntArrayMat(0, 2))
+           || test_crop(a, 0, 4, 0, 0, -233, -233, -233, -233, 0, 4, 0, 0)
+           || test_crop(a, 0, 3, 0, 0, -233, -233, -233, -233, 0, 3, 0, 0)
+           || test_crop(a, 0, 2, 0, 0, -233, -233, -233, -233, 0, 2, 0, 0)
 
-           || test_crop(a, IntArrayMat(11, 11), IntArrayMat(-24 + 1, -24 + 1), IntArrayMat(1, 2))
-           || test_crop(a, IntArrayMat(12, 12), IntArrayMat(-17 + 1, -17 + 1), IntArrayMat(1, 2))
-           || test_crop(a, IntArrayMat(16, 16), IntArrayMat(-28 + 1, -28 + 1), IntArrayMat(1, 2))
+           || test_crop(a, 0, 0, 4, 0, -233, -233, -233, -233, 0, 0, 4, 0)
+           || test_crop(a, 0, 0, 5, 0, -233, -233, -233, -233, 0, 0, 2, 0)
+           || test_crop(a, 0, 0, 6, 0, -233, -233, -233, -233, 0, 0, 3, 0)
 
-           || test_crop(a, IntArrayMat(11, 11, 11), IntArrayMat(-17 + 1, -17 + 1, -17 + 1), IntArrayMat(0, 1, 2))
-           || test_crop(a, IntArrayMat(12, 12, 12), IntArrayMat(-28 + 1, -28 + 1, -28 + 1), IntArrayMat(0, 1, 2))
-           || test_crop(a, IntArrayMat(16, 16, 16), IntArrayMat(-24 + 1, -24 + 1, -24 + 1), IntArrayMat(0, 1, 2));
-}
+           || test_crop(a, 0, 0, 0, 11, -233, -233, -233, -233, 0, 0, 0, 12)
+           || test_crop(a, 0, 0, 0, 12, -233, -233, -233, -233, 0, 0, 0, 16)
+           || test_crop(a, 0, 0, 0, 8, -233, -233, -233, -233, 0, 0, 0, 7)
 
-static int test_crop_8(const ncnn::Mat& a)
-{
-    return 0
-           || test_crop(a, 0, 11, 0, ncnn::Mat(28, 28))
-           || test_crop(a, 12, 0, 0, ncnn::Mat(24, 24))
-           || test_crop(a, 11, 11, 0, ncnn::Mat(28, 28))
-           || test_crop(a, 12, 12, 0, ncnn::Mat(24, 24))
-           || test_crop(a, 16, 16, 0, ncnn::Mat(17, 17))
+           || test_crop(a, 5, 3, 0, 0, -233, -233, -233, -233, 5, 2, 0, 0)
+           || test_crop(a, 6, 4, 0, 0, -233, -233, -233, -233, 3, 3, 0, 0)
+           || test_crop(a, 4, 4, 0, 0, -233, -233, -233, -233, 2, 5, 0, 0)
 
-           || test_crop(a, 11, 11, 11, ncnn::Mat(17, 17, 17))
-           || test_crop(a, 12, 12, 12, ncnn::Mat(28, 28, 28))
-           || test_crop(a, 16, 16, 16, ncnn::Mat(24, 24, 24));
+           || test_crop(a, 0, 4, 0, 11, -233, -233, -233, -233, 0, 3, 0, 7)
+           || test_crop(a, 0, 3, 0, 12, -233, -233, -233, -233, 0, 4, 0, 12)
+           || test_crop(a, 0, 2, 0, 8, -233, -233, -233, -233, 0, 5, 0, 16)
+
+           || test_crop(a, 0, 4, 4, 0, -233, -233, -233, -233, 0, 4, 1, 0)
+           || test_crop(a, 0, 5, 5, 0, -233, -233, -233, -233, 0, 2, 2, 0)
+           || test_crop(a, 0, 2, 6, 0, -233, -233, -233, -233, 0, 1, 3, 0)
+
+           || test_crop(a, 3, 0, 0, 11, -233, -233, -233, -233, 3, 0, 0, 12)
+           || test_crop(a, 4, 0, 0, 12, -233, -233, -233, -233, 4, 0, 0, 16)
+           || test_crop(a, 5, 0, 0, 8, -233, -233, -233, -233, 2, 0, 0, 7)
+
+           || test_crop(a, 0, 4, 4, 11, -233, -233, -233, -233, 0, 4, 4, 12)
+           || test_crop(a, 0, 5, 5, 12, -233, -233, -233, -233, 0, 4, 4, 16)
+           || test_crop(a, 0, 6, 6, 8, -233, -233, -233, -233, 0, 3, 3, 7)
+
+           || test_crop(a, 1, 1, 1, 11, -233, -233, -233, -233, 1, 1, 1, 16)
+           || test_crop(a, 2, 2, 2, 12, -233, -233, -233, -233, 2, 2, 2, 7)
+           || test_crop(a, 3, 3, 3, 8, -233, -233, -233, -233, 3, 3, 3, 12);
 }
 
 int main()
 {
-    SRAND(7767517);
+    SRAND(776757);
 
     return 0
-           || test_crop_0(RandomMat(128))
-           || test_crop_0(RandomMat(124))
+           || test_crop_0(RandomMat(112))
+           || test_crop_0(RandomMat(126))
            || test_crop_0(RandomMat(127))
-           || test_crop_1(RandomMat(128))
-           || test_crop_1(RandomMat(124))
-           || test_crop_1(RandomMat(127))
-           || test_crop_2(RandomMat(128))
-           || test_crop_2(RandomMat(124))
-           || test_crop_2(RandomMat(127))
-           || test_crop_3(RandomMat(64, 64))
-           || test_crop_3(RandomMat(60, 60))
-           || test_crop_3(RandomMat(63, 63))
-           || test_crop_4(RandomMat(64, 64))
-           || test_crop_4(RandomMat(60, 60))
-           || test_crop_4(RandomMat(63, 63))
-           || test_crop_5(RandomMat(64, 64))
-           || test_crop_5(RandomMat(60, 60))
-           || test_crop_5(RandomMat(63, 63))
-           || test_crop_6(RandomMat(64, 64, 64))
-           || test_crop_6(RandomMat(60, 60, 60))
-           || test_crop_6(RandomMat(63, 63, 63))
-           || test_crop_7(RandomMat(64, 64, 64))
-           || test_crop_7(RandomMat(60, 60, 60))
-           || test_crop_7(RandomMat(63, 63, 63))
-           || test_crop_8(RandomMat(64, 64, 64))
-           || test_crop_8(RandomMat(60, 60, 60))
-           || test_crop_8(RandomMat(63, 63, 63));
+           || test_crop_3(RandomMat(20, 48))
+           || test_crop_3(RandomMat(15, 36))
+           || test_crop_3(RandomMat(16, 33))
+           || test_crop_6(RandomMat(20, 20, 48))
+           || test_crop_6(RandomMat(15, 15, 36))
+           || test_crop_6(RandomMat(16, 16, 33))
+           || test_crop_9(RandomMat(20, 20, 20, 48))
+           || test_crop_9(RandomMat(15, 15, 15, 36))
+           || test_crop_9(RandomMat(16, 16, 16, 33));
 }

@@ -5,12 +5,20 @@ on:
     paths:
     - '.github/workflows/sync-wiki.yml'
     - 'docs/**'
+concurrency:
+  group: sync-wiki-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
   sync-wiki:
+    permissions:
+      contents: write  # for Git to git push
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: sync
       run: |
         cp -r docs $GITHUB_WORKSPACE/ncnn.wiki

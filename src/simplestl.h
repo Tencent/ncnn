@@ -508,7 +508,7 @@ protected:
         {
             capacity_ = new_size * 2;
             T* new_data = (T*)new char[capacity_ * sizeof(T)];
-            memset(new_data, 0, capacity_ * sizeof(T));
+            memset(static_cast<void*>(new_data), 0, capacity_ * sizeof(T));
             if (data_)
             {
                 memmove(new_data, data_, sizeof(T) * size_);

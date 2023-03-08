@@ -70,13 +70,13 @@ int DeconvolutionDepthWise_mips::create_pipeline(const Option& opt)
         if (elempack == 4)
         {
             Mat weight_data_r2 = weight_data_transposed.reshape(maxk, group);
-            convert_packing(weight_data_r2, weight_data_packed, 4);
+            convert_packing(weight_data_r2, weight_data_tm, 4, opt);
         }
 #endif // __mips_msa
 
         if (elempack == 1)
         {
-            weight_data_packed = weight_data_transposed;
+            weight_data_tm = weight_data_transposed;
         }
 
         return 0;
@@ -84,6 +84,11 @@ int DeconvolutionDepthWise_mips::create_pipeline(const Option& opt)
 
     // group convolution
     create_group_ops(opt);
+
+    if (opt.lightmode)
+    {
+        weight_data.release();
+    }
 
     return 0;
 }
@@ -106,7 +111,7 @@ int DeconvolutionDepthWise_mips::create_group_ops(const Option& opt)
 
     for (int g = 0; g < group; g++)
     {
-        Mat weight_data_g = weight_data.range(maxk * channels_g * num_output_g * g, maxk * channels_g * num_output_g);
+        Mat weight_data_g = weight_data.range(maxk * channels_g * num_output_g * g, maxk * channels_g * num_output_g).clone();
         Mat bias_data_g;
         if (bias_term)
             bias_data_g = bias_data.range(num_output_g * g, num_output_g);
@@ -124,6 +129,8 @@ int DeconvolutionDepthWise_mips::create_group_ops(const Option& opt)
         pd.set(13, stride_h);
         pd.set(4, 0);  // pad_w
         pd.set(14, 0); // pad_h
+        pd.set(18, output_pad_right);
+        pd.set(19, output_pad_bottom);
         pd.set(5, bias_term);
         pd.set(6, maxk * channels_g * num_output_g); // weight_data_size
         pd.set(9, activation_type);
@@ -182,8 +189,8 @@ int DeconvolutionDepthWise_mips::forward(const Mat& bottom_blob, Mat& top_blob, 
     const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
     const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
 
-    int outw = (w - 1) * stride_w + kernel_extent_w;
-    int outh = (h - 1) * stride_h + kernel_extent_h;
+    int outw = (w - 1) * stride_w + kernel_extent_w + output_pad_right;
+    int outh = (h - 1) * stride_h + kernel_extent_h + output_pad_bottom;
     int out_elempack = 1;
 #if __mips_msa
     if (opt.use_packing_layout)
@@ -194,7 +201,7 @@ int DeconvolutionDepthWise_mips::forward(const Mat& bottom_blob, Mat& top_blob, 
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
     Mat top_blob_bordered;
-    if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0 || output_pad_right > 0 || output_pad_bottom > 0 || (output_w > 0 && output_h > 0))
+    if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0 || (output_w > 0 && output_h > 0))
     {
         top_blob_bordered.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.workspace_allocator);
     }
@@ -219,7 +226,7 @@ int DeconvolutionDepthWise_mips::forward(const Mat& bottom_blob, Mat& top_blob, 
                 for (int g = 0; g < channels; g++)
                 {
                     float* outptr = top_blob_bordered.channel(g);
-                    const float* kptr = (const float*)weight_data_packed + maxk * g * 4;
+                    const float* kptr = (const float*)weight_data_tm + maxk * g * 4;
                     const Mat m = bottom_blob.channel(g);
 
                     for (int i = 0; i < outh; i++)
@@ -281,7 +288,7 @@ int DeconvolutionDepthWise_mips::forward(const Mat& bottom_blob, Mat& top_blob, 
             for (int g = 0; g < channels; g++)
             {
                 float* outptr = top_blob_bordered.channel(g);
-                const float* kptr = (const float*)weight_data_packed + maxk * g;
+                const float* kptr = (const float*)weight_data_tm + maxk * g;
                 const Mat m = bottom_blob.channel(g);
 
                 for (int i = 0; i < outh; i++)

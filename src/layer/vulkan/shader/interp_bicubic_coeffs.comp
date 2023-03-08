@@ -21,7 +21,9 @@
 #extension GL_EXT_shader_explicit_arithmetic_types_float16: require
 #endif
 
-#define shape_constant_id_offset 0
+layout (constant_id = 0) const int align_corner = 0;
+
+#define shape_constant_id_offset 1
 layout (constant_id = shape_constant_id_offset + 0) const int w = 0;
 layout (constant_id = shape_constant_id_offset + 1) const int outw = 0;
 
@@ -44,7 +46,16 @@ void main()
     if (gx >= psc(outw) || gy >= 1 || gz >= 1)
         return;
 
-    afp fx = (afp(gx) + afp(0.5f)) * afp(p.scale) - afp(0.5f);
+    afp fx;
+    if (align_corner == 1)
+    {
+        fx = afp(gx) * afp(p.scale);
+    }
+    else
+    {
+        fx = (afp(gx) + afp(0.5f)) * afp(p.scale) - afp(0.5f);
+    }
+
     int sx = int(floor(fx));
     fx -= afp(sx);
 

@@ -20,14 +20,16 @@
 #include <arm_neon.h>
 #endif // __ARM_NEON
 
+#include "cpu.h"
+
 namespace ncnn {
 
 PixelShuffle_arm::PixelShuffle_arm()
 {
 #if __ARM_NEON
     support_packing = true;
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-    support_fp16_storage = true;
+#if NCNN_ARM82
+    support_fp16_storage = cpu_support_arm_asimdhp();
 #endif
 #endif // __ARM_NEON
 
@@ -40,8 +42,8 @@ int PixelShuffle_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
 {
     int elembits = bottom_blob.elembits();
 
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-    if (opt.use_fp16_storage && elembits == 16)
+#if NCNN_ARM82
+    if (support_fp16_storage && opt.use_fp16_storage && elembits == 16)
         return forward_bf16s_fp16s(bottom_blob, top_blob, opt);
 #endif
 
@@ -61,10 +63,12 @@ int PixelShuffle_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
     int outc = channels * elempack / (upscale_factor * upscale_factor);
 
     int out_elempack = 1;
+#if __ARM_NEON
     if (opt.use_packing_layout)
     {
         out_elempack = outc % 4 == 0 ? 4 : 1;
     }
+#endif
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
     if (upscale_factor != 2 || mode != 0)
@@ -234,10 +238,16 @@ int PixelShuffle_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob,
     int outc = channels * elempack / (upscale_factor * upscale_factor);
 
     int out_elempack = 1;
+#if __ARM_NEON
     if (opt.use_packing_layout)
     {
-        out_elempack = opt.use_fp16_arithmetic && outc % 8 == 0 ? 8 : outc % 4 == 0 ? 4 : 1;
+#if NCNN_ARM82
+        out_elempack = support_fp16_storage && opt.use_fp16_arithmetic && outc % 8 == 0 ? 8 : outc % 4 == 0 ? 4 : 1;
+#else
+        out_elempack = outc % 4 == 0 ? 4 : 1;
+#endif
     }
+#endif
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
     if (upscale_factor != 2 || mode != 0)

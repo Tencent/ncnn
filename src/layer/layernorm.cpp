@@ -55,6 +55,51 @@ int LayerNorm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
     int dims = bottom_top_blob.dims;
 
+    if (dims == 1)
+    {
+        int w = bottom_top_blob.w;
+        // assert affine_size == w
+
+        float* ptr = bottom_top_blob;
+
+        // mean and var
+        float sum = 0.f;
+        float sqsum = 0.f;
+        for (int i = 0; i < w; i++)
+        {
+            sum += ptr[i];
+            //sqsum += ptr[i] * ptr[i];
+        }
+        float mean = sum / w;
+        float tmp = 0.f;
+        for (int i = 0; i < w; i++)
+        {
+            tmp = ptr[i] - mean;
+            sqsum += tmp * tmp;
+        }
+        float var = sqsum / w;
+        // the var maybe minus due to accuracy
+        //float var = sqsum / w - mean * mean;
+
+        float a = static_cast<float>(1.f / (sqrt(var + eps)));
+        float b = -mean * a;
+
+        if (affine)
+        {
+            for (int i = 0; i < w; i++)
+            {
+                ptr[i] = (ptr[i] * a + b) * gamma_data[i] + beta_data[i];
+            }
+        }
+        else
+        {
+            for (int i = 0; i < w; i++)
+            {
+                ptr[i] = ptr[i] * a + b;
+            }
+        }
+    }
+
     if (dims == 2)
     {
         int w = bottom_top_blob.w;
@@ -92,7 +137,7 @@ int LayerNorm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             {
                 for (int j = 0; j < w; j++)
                 {
-                    ptr[j] = ptr[j] * gamma_data[j] + beta_data[j];
+                    ptr[j] = (ptr[j] * a + b) * gamma_data[j] + beta_data[j];
                 }
             }
             else
@@ -111,47 +156,97 @@ int LayerNorm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         int h = bottom_top_blob.h;
         int channels = bottom_top_blob.c;
         int size = w * h;
-        // assert affine_size == size
 
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++)
+        if (affine_size == w)
         {
-            float* ptr = bottom_top_blob.channel(q);
-
-            // mean and var
-            float sum = 0.f;
-            float sqsum = 0.f;
-            for (int i = 0; i < size; i++)
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
             {
-                sum += ptr[i];
-                //sqsum += ptr[i] * ptr[i];
-            }
-            float mean = sum / size;
-            float tmp = 0.f;
-            for (int i = 0; i < size; i++)
-            {
-                tmp = ptr[i] - mean;
-                sqsum += tmp * tmp;
-            }
-            float var = sqsum / size;
-            // the var maybe minus due to accuracy
-            //float var = sqsum / size - mean * mean;
-
-            float a = static_cast<float>(1.f / (sqrt(var + eps)));
-            float b = -mean * a;
-
-            if (affine)
-            {
-                for (int i = 0; i < size; i++)
+                for (int i = 0; i < h; i++)
                 {
-                    ptr[i] = ptr[i] * gamma_data[i] + beta_data[i];
+                    float* ptr = bottom_top_blob.channel(q).row(i);
+
+                    // mean and var
+                    float sum = 0.f;
+                    float sqsum = 0.f;
+                    for (int j = 0; j < w; j++)
+                    {
+                        sum += ptr[j];
+                        //sqsum += ptr[j] * ptr[j];
+                    }
+                    float mean = sum / w;
+                    float tmp = 0.f;
+                    for (int j = 0; j < w; j++)
+                    {
+                        tmp = ptr[j] - mean;
+                        sqsum += tmp * tmp;
+                    }
+                    float var = sqsum / w;
+                    // the var maybe minus due to accuracy
+                    //float var = sqsum / w - mean * mean;
+
+                    float a = static_cast<float>(1.f / (sqrt(var + eps)));
+                    float b = -mean * a;
+
+                    if (affine)
+                    {
+                        for (int j = 0; j < w; j++)
+                        {
+                            ptr[j] = (ptr[j] * a + b) * gamma_data[j] + beta_data[j];
+                        }
+                    }
+                    else
+                    {
+                        for (int j = 0; j < w; j++)
+                        {
+                            ptr[j] = ptr[j] * a + b;
+                        }
+                    }
                 }
             }
-            else
+        }
+        else // if (affine_size == size)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
             {
+                float* ptr = bottom_top_blob.channel(q);
+
+                // mean and var
+                float sum = 0.f;
+                float sqsum = 0.f;
                 for (int i = 0; i < size; i++)
                 {
-                    ptr[i] = ptr[i] * a + b;
+                    sum += ptr[i];
+                    //sqsum += ptr[i] * ptr[i];
+                }
+                float mean = sum / size;
+                float tmp = 0.f;
+                for (int i = 0; i < size; i++)
+                {
+                    tmp = ptr[i] - mean;
+                    sqsum += tmp * tmp;
+                }
+                float var = sqsum / size;
+                // the var maybe minus due to accuracy
+                //float var = sqsum / size - mean * mean;
+
+                float a = static_cast<float>(1.f / (sqrt(var + eps)));
+                float b = -mean * a;
+
+                if (affine)
+                {
+                    for (int i = 0; i < size; i++)
+                    {
+                        ptr[i] = (ptr[i] * a + b) * gamma_data[i] + beta_data[i];
+                    }
+                }
+                else
+                {
+                    for (int i = 0; i < size; i++)
+                    {
+                        ptr[i] = ptr[i] * a + b;
+                    }
                 }
             }
         }

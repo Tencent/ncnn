@@ -21,29 +21,24 @@
 #extension GL_EXT_shader_explicit_arithmetic_types_float16: require
 #endif
 
-layout (constant_id = 0) const int kernel_w = 1;
-layout (constant_id = 1) const int kernel_h = 1;
-layout (constant_id = 2) const int dilation_w = 1;
-layout (constant_id = 3) const int dilation_h = 1;
-layout (constant_id = 4) const int stride_w = 1;
-layout (constant_id = 5) const int stride_h = 1;
-layout (constant_id = 6) const int bias_term = 0;
-layout (constant_id = 7) const int activation_type = 0;
-layout (constant_id = 8) const float activation_param_0 = 0;
-layout (constant_id = 9) const float activation_param_1 = 0;
+#extension GL_GOOGLE_include_directive: enable
+#include "vulkan_activation.comp"
 
-#define shape_constant_id_offset 10
-layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
-layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
-layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
-layout (constant_id = shape_constant_id_offset + 3) const int c = 0;
-layout (constant_id = shape_constant_id_offset + 4) const int cstep = 0;
+layout (constant_id = 0) const int bias_term = 0;
+layout (constant_id = 1) const int activation_type = 0;
+layout (constant_id = 2) const float activation_param_0 = 0;
+layout (constant_id = 3) const float activation_param_1 = 0;
 
-layout (constant_id = shape_constant_id_offset + 5) const int outdims = 0;
-layout (constant_id = shape_constant_id_offset + 6) const int outw = 0;
-layout (constant_id = shape_constant_id_offset + 7) const int outh = 0;
-layout (constant_id = shape_constant_id_offset + 8) const int outc = 0;
-layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
+#define shape_constant_id_offset 4
+layout (constant_id = shape_constant_id_offset + 0) const int w = 0;
+layout (constant_id = shape_constant_id_offset + 1) const int h = 0;
+layout (constant_id = shape_constant_id_offset + 2) const int c = 0;
+layout (constant_id = shape_constant_id_offset + 3) const int cstep = 0;
+
+layout (constant_id = shape_constant_id_offset + 4) const int outw = 0;
+layout (constant_id = shape_constant_id_offset + 5) const int outh = 0;
+layout (constant_id = shape_constant_id_offset + 6) const int outc = 0;
+layout (constant_id = shape_constant_id_offset + 7) const int outcstep = 0;
 
 #if NCNN_image_shader
 layout (binding = 0) uniform unfp sampler3D bottom_blob;
@@ -64,13 +59,11 @@ layout (binding = 3) readonly buffer bias_blob { sfp bias_data[]; };
 
 layout (push_constant) uniform parameter
 {
-    int dims;
     int w;
     int h;
     int c;
     int cstep;
 
-    int outdims;
     int outw;
     int outh;
     int outc;
@@ -82,16 +75,14 @@ void main()
 #if NCNN_image_shader
     int gx = int(gl_GlobalInvocationID.x) * 4;
     int gy = int(gl_GlobalInvocationID.y);
-    int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= psc(outw) * psc(outh) || gy >= 1 || gz >= psc(outc))
+    if (gx >= psc(outw) * psc(outh) || gy >= psc(outc))
         return;
 #else
     int gx = int(gl_GlobalInvocationID.x);
     int gy = int(gl_GlobalInvocationID.y);
-    int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx * 4 >= psc(outcstep) || gy >= 1 || gz >= psc(outc))
+    if (gx * 4 >= psc(outcstep) || gy >= psc(outc))
         return;
 #endif
 
@@ -100,9 +91,9 @@ void main()
     if (bias_term == 1)
     {
 #if NCNN_image_shader
-        sum = afpvec4(image3d_ld1(bias_blob, ivec3(gz, 0, 0)));
+        sum = afpvec4(image3d_ld1(bias_blob, ivec3(gy, 0, 0)));
 #else
-        sum = afpvec4(buffer_ld1(bias_data, gz));
+        sum = afpvec4(buffer_ld1(bias_data, gy));
 #endif
     }
     else
@@ -118,7 +109,7 @@ void main()
 
     for (int z = 0; z < psc(c); z++)
     {
-        afp k = image3d_ld1(weight_blob, ivec3(0, z, gz));
+        afp k = image3d_ld1(weight_blob, ivec3(0, z, gy));
 
         sum.r += k * image3d_ld1(bottom_blob, ivec3(sx4.r, sy4.r, z));
         sum.g += k * image3d_ld1(bottom_blob, ivec3(sx4.g, sy4.g, z));
@@ -126,7 +117,7 @@ void main()
         sum.a += k * image3d_ld1(bottom_blob, ivec3(sx4.a, sy4.a, z));
     }
 #else
-    int w_offset = gz * psc(c);
+    int w_offset = gy * psc(c);
     int v_offset = gx;
 
     for (int z = 0; z < psc(c); z++)
@@ -142,37 +133,15 @@ void main()
     }
 #endif
 
-    if (activation_type == 1)
-    {
-        sum = max(sum, afp(0.f));
-    }
-    if (activation_type == 2)
-    {
-        const afp slope = afp(activation_param_0);
-        sum = mix(sum, sum * afp(slope), lessThan(sum, afpvec4(0.f)));
-    }
-    if (activation_type == 3)
-    {
-        const afp const_min = afp(activation_param_0);
-        const afp const_max = afp(activation_param_1);
-        sum = clamp(sum, const_min, const_max);
-    }
-    if (activation_type == 4)
-    {
-        sum = afp(1.f) / (afp(1.f) + exp(-sum));
-    }
-    if (activation_type == 5)
-    {
-        sum = sum * tanh(log(exp(sum) + afp(1.f)));
-    }
+    sum = activation_afpvec4(sum, activation_type, activation_param_0, activation_param_1);
 
 #if NCNN_image_shader
-    image3d_st1(top_blob, ivec3(sx4.r, sy4.r, gz), sum.r);
-    image3d_st1(top_blob, ivec3(sx4.g, sy4.g, gz), sum.g);
-    image3d_st1(top_blob, ivec3(sx4.b, sy4.b, gz), sum.b);
-    image3d_st1(top_blob, ivec3(sx4.a, sy4.a, gz), sum.a);
+    image3d_st1(top_blob, ivec3(sx4.r, sy4.r, gy), sum.r);
+    image3d_st1(top_blob, ivec3(sx4.g, sy4.g, gy), sum.g);
+    image3d_st1(top_blob, ivec3(sx4.b, sy4.b, gy), sum.b);
+    image3d_st1(top_blob, ivec3(sx4.a, sy4.a, gy), sum.a);
 #else
-    const int gi = gz * psc(outcstep) / 4 + gx;
+    const int gi = gy * psc(outcstep) / 4 + gx;
 
 #if NCNN_fp16_packed
     top_blob_data[gi] = sum;

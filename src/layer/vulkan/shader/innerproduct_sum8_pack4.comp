@@ -1,0 +1,115 @@
+// Tencent is pleased to support the open source community by making ncnn available.
+//
+// Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
+//
+// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
+// in compliance with the License. You may obtain a copy of the License at
+//
+// https://opensource.org/licenses/BSD-3-Clause
+//
+// Unless required by applicable law or agreed to in writing, software distributed
+// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+// CONDITIONS OF ANY KIND, either express or implied. See the License for the
+// specific language governing permissions and limitations under the License.
+
+#version 450
+
+#if NCNN_fp16_storage
+#extension GL_EXT_shader_16bit_storage: require
+#endif
+#if NCNN_fp16_arithmetic
+#extension GL_EXT_shader_explicit_arithmetic_types_float16: require
+#endif
+
+#define shape_constant_id_offset 0
+layout (constant_id = shape_constant_id_offset + 0) const int w = 0;
+
+layout (constant_id = shape_constant_id_offset + 1) const int outw = 0;
+layout (constant_id = shape_constant_id_offset + 2) const int outh = 0;
+
+#if NCNN_image_shader
+layout (binding = 0) uniform unfp sampler3D bottom_blob;
+layout (binding = 1, imfmtc4) writeonly uniform unfp image3D top_blob;
+layout (binding = 2) uniform unfp sampler3D weight_blob;
+#else
+layout (binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; };
+layout (binding = 1) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
+#if NCNN_fp16_packed || (NCNN_fp16_storage && !NCNN_fp16_arithmetic)
+// GL_EXT_shader_16bit_storage does not define f16mat4 type :(
+layout (binding = 2) readonly buffer weight_blob { sfpvec4 weight_data[]; };
+#else
+layout (binding = 2) readonly buffer weight_blob { sfpmat4 weight_data[]; };
+#endif
+#endif
+
+layout (push_constant) uniform parameter
+{
+    int w;
+
+    int outw;
+    int outh;
+} p;
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+    int gy = int(gl_GlobalInvocationID.y);
+    int gz = int(gl_GlobalInvocationID.z);
+
+    if (gx >= psc(outw) || gy >= psc(outh) || gz >= 1)
+        return;
+
+    const int start = gx * 8;
+    const int end = min(gx * 8 + 8, psc(w));
+
+    afpvec4 sum = afpvec4(0.f);
+
+#if NCNN_image_shader
+    int wx = start * 4;
+
+    for (int i = start; i < end; i++)
+    {
+        afpvec4 v = image3d_ld4(bottom_blob, ivec3(i, 0, 0));
+        afpmat4 k = afpmat4(
+            image3d_ld4(weight_blob, ivec3(wx + 0, gy, 0)),
+            image3d_ld4(weight_blob, ivec3(wx + 1, gy, 0)),
+            image3d_ld4(weight_blob, ivec3(wx + 2, gy, 0)),
+            image3d_ld4(weight_blob, ivec3(wx + 3, gy, 0))
+        );
+
+        sum += v * k;
+
+        wx += 4;
+    }
+#else
+    int w_offset = gy * psc(w) + start;
+
+    for (int i = start; i < end; i++)
+    {
+        afpvec4 v = buffer_ld4(bottom_blob_data, i);
+
+#if NCNN_fp16_packed || (NCNN_fp16_storage && !NCNN_fp16_arithmetic)
+        // GL_EXT_shader_16bit_storage does not define f16mat4 type :(
+        afpmat4 k = afpmat4(
+            buffer_ld4(weight_data, w_offset * 4 + 0),
+            buffer_ld4(weight_data, w_offset * 4 + 1),
+            buffer_ld4(weight_data, w_offset * 4 + 2),
+            buffer_ld4(weight_data, w_offset * 4 + 3)
+        );
+#else
+        afpmat4 k = afpmat4(weight_data[w_offset]);
+#endif
+
+        sum += v * k;
+
+        w_offset += 1;
+    }
+#endif
+
+#if NCNN_image_shader
+    image3d_st4(top_blob, ivec3(gx, gy, 0), sum);
+#else
+    const int gi = gy * psc(outw) + gx;
+    buffer_st4(top_blob_data, gi, sum);
+#endif
+}

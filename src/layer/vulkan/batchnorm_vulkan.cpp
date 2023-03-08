@@ -52,11 +52,12 @@ int BatchNorm_vulkan::create_pipeline(const Option& opt)
     if (shape.dims == 1) shape_packed = Mat(shape.w / elempack, (void*)0, elemsize, elempack);
     if (shape.dims == 2) shape_packed = Mat(shape.w, shape.h / elempack, (void*)0, elemsize, elempack);
     if (shape.dims == 3) shape_packed = Mat(shape.w, shape.h, shape.c / elempack, (void*)0, elemsize, elempack);
+    if (shape.dims == 4) shape_packed = Mat(shape.w, shape.h, shape.d, shape.c / elempack, (void*)0, elemsize, elempack);
 
     std::vector<vk_specialization_type> specializations(0 + 5);
-    specializations[0 + 0].i = shape_packed.dims;
+    specializations[0 + 0].i = std::min(3, shape_packed.dims);
     specializations[0 + 1].i = shape_packed.w;
-    specializations[0 + 2].i = shape_packed.h;
+    specializations[0 + 2].i = shape_packed.h * shape_packed.d;
     specializations[0 + 3].i = shape_packed.c;
     specializations[0 + 4].i = shape_packed.cstep;
 
@@ -77,6 +78,12 @@ int BatchNorm_vulkan::create_pipeline(const Option& opt)
     {
         local_size_xyz.w = std::min(4, shape_packed.w);
         local_size_xyz.h = std::min(4, shape_packed.h);
+        local_size_xyz.c = std::min(4, shape_packed.c);
+    }
+    if (shape_packed.dims == 4)
+    {
+        local_size_xyz.w = std::min(4, shape_packed.w);
+        local_size_xyz.h = std::min(4, shape_packed.h * shape_packed.d);
         local_size_xyz.c = std::min(4, shape_packed.c);
     }
 
@@ -126,7 +133,7 @@ int BatchNorm_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
     int elempack = opt.use_shader_pack8 && channels % 8 == 0 ? 8 : channels % 4 == 0 ? 4 : 1;
 
     Mat a_data_packed;
-    convert_packing(a_data, a_data_packed, elempack);
+    convert_packing(a_data, a_data_packed, elempack, opt);
 
     if (opt.use_image_storage)
     {
@@ -138,7 +145,7 @@ int BatchNorm_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
     }
 
     Mat b_data_packed;
-    convert_packing(b_data, b_data_packed, elempack);
+    convert_packing(b_data, b_data_packed, elempack, opt);
 
     if (opt.use_image_storage)
     {
@@ -162,9 +169,9 @@ int BatchNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
     bindings[2] = b_data_gpu;
 
     std::vector<vk_constant_type> constants(5);
-    constants[0].i = bottom_top_blob.dims;
+    constants[0].i = std::min(3, bottom_top_blob.dims);
     constants[1].i = bottom_top_blob.w;
-    constants[2].i = bottom_top_blob.h;
+    constants[2].i = bottom_top_blob.h * bottom_top_blob.d;
     constants[3].i = bottom_top_blob.c;
     constants[4].i = bottom_top_blob.cstep;
 
@@ -188,9 +195,9 @@ int BatchNorm_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cm
     bindings[3] = b_data_gpu_image;
 
     std::vector<vk_constant_type> constants(5);
-    constants[0].i = bottom_top_blob.dims;
+    constants[0].i = std::min(3, bottom_top_blob.dims);
     constants[1].i = bottom_top_blob.w;
-    constants[2].i = bottom_top_blob.h;
+    constants[2].i = bottom_top_blob.h * bottom_top_blob.d;
     constants[3].i = bottom_top_blob.c;
     constants[4].i = 0; //bottom_top_blob.cstep;
 

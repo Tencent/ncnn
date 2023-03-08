@@ -44,6 +44,10 @@ public:
     // read binary param and model data
     // return bytes read
     virtual size_t read(void* buf, size_t size) const;
+
+    // get model data reference
+    // return bytes referenced
+    virtual size_t reference(size_t size, const void** buf) const;
 };
 
 #if NCNN_STDIO
@@ -79,6 +83,7 @@ public:
     virtual int scan(const char* format, void* p) const;
 #endif // NCNN_STRING
     virtual size_t read(void* buf, size_t size) const;
+    virtual size_t reference(size_t size, const void** buf) const;
 
 private:
     DataReaderFromMemory(const DataReaderFromMemory&);

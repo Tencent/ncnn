@@ -62,6 +62,7 @@ int Packing_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
+    int d = bottom_blob.d;
     int channels = bottom_blob.c;
     int dims = bottom_blob.dims;
 
@@ -78,7 +79,7 @@ int Packing_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
             top_blob = bottom_blob;
             return 0;
         }
-        if (dims == 3 && channels * elempack % out_elempack != 0)
+        if ((dims == 3 || dims == 4) && channels * elempack % out_elempack != 0)
         {
             top_blob = bottom_blob;
             return 0;
@@ -216,13 +217,16 @@ int Packing_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
         return 0;
     }
 
-    if (dims == 3)
+    if (dims == 3 || dims == 4)
     {
-        int size = w * h;
+        int size = w * h * d;
         int outc = channels * elempack / out_elempack;
         size_t out_elemsize = elemsize / elempack * out_elempack;
 
-        top_blob.create(w, h, outc, out_elemsize, out_elempack, opt.blob_allocator);
+        if (dims == 3)
+            top_blob.create(w, h, outc, out_elemsize, out_elempack, opt.blob_allocator);
+        else // if (dims == 4)
+            top_blob.create(w, h, d, outc, out_elemsize, out_elempack, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
@@ -367,6 +371,7 @@ int Packing_mips::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opti
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
+    int d = bottom_blob.d;
     int channels = bottom_blob.c;
     int dims = bottom_blob.dims;
 
@@ -383,7 +388,7 @@ int Packing_mips::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opti
             top_blob = bottom_blob;
             return 0;
         }
-        if (dims == 3 && channels * elempack % out_elempack != 0)
+        if ((dims == 3 || dims == 4) && channels * elempack % out_elempack != 0)
         {
             top_blob = bottom_blob;
             return 0;
@@ -477,13 +482,16 @@ int Packing_mips::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opti
         return 0;
     }
 
-    if (dims == 3)
+    if (dims == 3 || dims == 4)
     {
-        int size = w * h;
+        int size = w * h * d;
         int outc = channels * elempack / out_elempack;
         size_t out_elemsize = elemsize / elempack * out_elempack;
 
-        top_blob.create(w, h, outc, out_elemsize, out_elempack, opt.blob_allocator);
+        if (dims == 3)
+            top_blob.create(w, h, outc, out_elemsize, out_elempack, opt.blob_allocator);
+        else // if (dims == 4)
+            top_blob.create(w, h, d, outc, out_elemsize, out_elempack, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 

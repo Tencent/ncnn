@@ -25,6 +25,44 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
     im2col_sgemm_neon(bottom_im2col, top_blob, kernel, _bias, opt);
 }
 
+static void conv1x1s2_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Mat& _bias, const Option& opt)
+{
+    int w = bottom_blob.w;
+    int channels = bottom_blob.c;
+    size_t elemsize = bottom_blob.elemsize;
+    int elempack = bottom_blob.elempack;
+
+    int outw = top_blob.w;
+    int outh = top_blob.h;
+
+    const int tailstep = w - 2 * outw + w;
+
+    Mat bottom_blob_shrinked;
+    bottom_blob_shrinked.create(outw, outh, channels, elemsize, elempack, opt.workspace_allocator);
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int p = 0; p < channels; p++)
+    {
+        const float* r0 = bottom_blob.channel(p);
+        float* outptr = bottom_blob_shrinked.channel(p);
+
+        for (int i = 0; i < outh; i++)
+        {
+            for (int j = 0; j < outw; j++)
+            {
+                outptr[0] = r0[0];
+
+                r0 += 2;
+                outptr += 1;
+            }
+
+            r0 += tailstep;
+        }
+    }
+
+    conv1x1s1_sgemm_neon(bottom_blob_shrinked, top_blob, kernel, _bias, opt);
+}
+
 static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _kernel, const Mat& _bias, const Option& opt)
 {
     int inch = bottom_blob.c;
@@ -742,132 +780,109 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
             float32x4_t _k4 = vld1q_f32(kernel4);
             float32x4_t _k5 = vld1q_f32(kernel5);
 
-            if (nn > 0)
+            for (; nn > 0; nn--)
             {
                 asm volatile(
-                    "pld        [%7, #128]              \n"
-                    "vld1.f32   {d24-d25}, [%7 :128]!   \n" // q12 = r0
+                    "pld        [%6, #128]              \n"
+                    "vld1.f32   {d24-d25}, [%6 :128]!   \n" // q12 = r0
+
+                    "pld        [%0, #128]              \n"
+                    "vld1.f32   {d12-d13}, [%0 :128]    \n" // q6 = outptr0
 
                     "pld        [%1, #128]              \n"
-                    "vld1.f32   {d12-d13}, [%1 :128]    \n" // q6 = outptr0
+                    "vld1.f32   {d14-d15}, [%1 :128]    \n" // q7 = outptr1
+
+                    "vmla.f32   q6, q12, %e20[0]        \n"
 
                     "pld        [%2, #128]              \n"
-                    "vld1.f32   {d14-d15}, [%2 :128]    \n" // q7 = outptr1
+                    "vld1.f32   {d16-d17}, [%2 :128]    \n" // q8 = outptr2
 
-                    "vmla.f32   q6, q12, %e22[0]        \n"
-
-                    "0:                                 \n"
+                    "vmla.f32   q7, q12, %e21[0]        \n"
 
                     "pld        [%3, #128]              \n"
-                    "vld1.f32   {d16-d17}, [%3 :128]    \n" // q8 = outptr2
+                    "vld1.f32   {d18-d19}, [%3 :128]    \n" // q9 = outptr3
 
-                    "vmla.f32   q7, q12, %e23[0]        \n"
-
-                    "pld        [%4, #128]              \n"
-                    "vld1.f32   {d18-d19}, [%4 :128]    \n" // q9 = outptr3
-
-                    "vmla.f32   q8, q12, %e24[0]        \n"
-
-                    "pld        [%8, #128]              \n"
-                    "vld1.f32   {d26-d27}, [%8 :128]!   \n" // q13 = r1
-
-                    "vmla.f32   q9, q12, %e25[0]        \n"
-
-                    "pld        [%5, #128]              \n"
-                    "vld1.f32   {d20-d21}, [%5 :128]    \n" // q10 = outptr4
-
-                    "vmla.f32   q6, q13, %e22[1]        \n"
-                    "vmla.f32   q7, q13, %e23[1]        \n"
-
-                    "pld        [%6, #128]              \n"
-                    "vld1.f32   {d22-d23}, [%6 :128]    \n" // q11 = outptr5
-
-                    "vmla.f32   q10, q12, %e26[0]       \n"
-                    "vmla.f32   q11, q12, %e27[0]       \n"
-
-                    "vmla.f32   q8, q13, %e24[1]        \n"
-                    "vmla.f32   q9, q13, %e25[1]        \n"
-
-                    "pld        [%9, #128]              \n"
-                    "vld1.f32   {d28-d29}, [%9 :128]!   \n" // q14 = r2
-
-                    "vmla.f32   q10, q13, %e26[1]       \n"
-                    "vmla.f32   q11, q13, %e27[1]       \n"
-
-                    "vmla.f32   q6, q14, %f22[0]        \n"
-                    "vmla.f32   q7, q14, %f23[0]        \n"
-                    "vmla.f32   q8, q14, %f24[0]        \n"
-                    "vmla.f32   q9, q14, %f25[0]        \n"
-
-                    "pld        [%10, #128]             \n"
-                    "vld1.f32   {d30-d31}, [%10 :128]!  \n" // q15 = r3
-
-                    "vmla.f32   q10, q14, %f26[0]       \n"
-                    "vmla.f32   q11, q14, %f27[0]       \n"
-
-                    "vmla.f32   q6, q15, %f22[1]        \n"
-                    "vmla.f32   q7, q15, %f23[1]        \n"
-                    "vmla.f32   q8, q15, %f24[1]        \n"
-                    "vmla.f32   q9, q15, %f25[1]        \n"
+                    "vmla.f32   q8, q12, %e22[0]        \n"
 
                     "pld        [%7, #128]              \n"
-                    "vld1.f32   {d24-d25}, [%7 :128]!   \n" // q12 = r0
+                    "vld1.f32   {d26-d27}, [%7 :128]!   \n" // q13 = r1
 
-                    "vmla.f32   q10, q15, %f26[1]       \n"
-                    "vmla.f32   q11, q15, %f27[1]       \n"
+                    "vmla.f32   q9, q12, %e23[0]        \n"
 
-                    "vst1.f32   {d12-d13}, [%1 :128]!   \n"
-                    "vst1.f32   {d14-d15}, [%2 :128]!   \n"
+                    "pld        [%4, #128]              \n"
+                    "vld1.f32   {d20-d21}, [%4 :128]    \n" // q10 = outptr4
 
-                    "pld        [%1, #128]              \n"
-                    "vld1.f32   {d12-d13}, [%1 :128]    \n" // q6 = outptr0
+                    "vmla.f32   q6, q13, %e20[1]        \n"
+                    "vmla.f32   q7, q13, %e21[1]        \n"
 
-                    "vst1.f32   {d16-d17}, [%3 :128]!   \n"
-                    "vst1.f32   {d18-d19}, [%4 :128]!   \n"
+                    "pld        [%5, #128]              \n"
+                    "vld1.f32   {d22-d23}, [%5 :128]    \n" // q11 = outptr5
 
-                    "vmla.f32   q6, q12, %e22[0]        \n"
+                    "vmla.f32   q10, q12, %e24[0]       \n"
+                    "vmla.f32   q11, q12, %e25[0]       \n"
 
-                    "pld        [%2, #128]              \n"
-                    "vld1.f32   {d14-d15}, [%2 :128]    \n" // q7 = outptr1
+                    "vmla.f32   q8, q13, %e22[1]        \n"
+                    "vmla.f32   q9, q13, %e23[1]        \n"
 
-                    "subs       %0, #1                  \n"
+                    "pld        [%8, #128]              \n"
+                    "vld1.f32   {d28-d29}, [%8 :128]!   \n" // q14 = r2
 
-                    "vst1.f32   {d20-d21}, [%5 :128]!   \n"
-                    "vst1.f32   {d22-d23}, [%6 :128]!   \n"
+                    "vmla.f32   q10, q13, %e24[1]       \n"
+                    "vmla.f32   q11, q13, %e25[1]       \n"
 
-                    "bne        0b                      \n"
+                    "vmla.f32   q6, q14, %f20[0]        \n"
+                    "vmla.f32   q7, q14, %f21[0]        \n"
+                    "vmla.f32   q8, q14, %f22[0]        \n"
+                    "vmla.f32   q9, q14, %f23[0]        \n"
 
-                    "sub        %7, #16                 \n"
+                    "pld        [%9, #128]             \n"
+                    "vld1.f32   {d30-d31}, [%9 :128]!  \n" // q15 = r3
 
-                    : "=r"(nn),      // %0
-                    "=r"(outptr0), // %1
-                    "=r"(outptr1), // %2
-                    "=r"(outptr2), // %3
-                    "=r"(outptr3), // %4
-                    "=r"(outptr4), // %5
-                    "=r"(outptr5), // %6
-                    "=r"(r0),      // %7
-                    "=r"(r1),      // %8
-                    "=r"(r2),      // %9
-                    "=r"(r3)       // %10
-                    : "0"(nn),
-                    "1"(outptr0),
-                    "2"(outptr1),
-                    "3"(outptr2),
-                    "4"(outptr3),
-                    "5"(outptr4),
-                    "6"(outptr5),
-                    "7"(r0),
-                    "8"(r1),
-                    "9"(r2),
-                    "10"(r3),
-                    "w"(_k0), // %22
-                    "w"(_k1), // %23
-                    "w"(_k2), // %24
-                    "w"(_k3), // %25
-                    "w"(_k4), // %26
-                    "w"(_k5)  // %27
-                    : "cc", "memory", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
+                    "vmla.f32   q10, q14, %f24[0]       \n"
+                    "vmla.f32   q11, q14, %f25[0]       \n"
+
+                    "vmla.f32   q6, q15, %f20[1]        \n"
+                    "vmla.f32   q7, q15, %f21[1]        \n"
+                    "vmla.f32   q8, q15, %f22[1]        \n"
+                    "vmla.f32   q9, q15, %f23[1]        \n"
+
+                    "vmla.f32   q10, q15, %f24[1]       \n"
+                    "vmla.f32   q11, q15, %f25[1]       \n"
+
+                    "vst1.f32   {d12-d13}, [%0 :128]!   \n"
+                    "vst1.f32   {d14-d15}, [%1 :128]!   \n"
+                    "vst1.f32   {d16-d17}, [%2 :128]!   \n"
+                    "vst1.f32   {d18-d19}, [%3 :128]!   \n"
+                    "vst1.f32   {d20-d21}, [%4 :128]!   \n"
+                    "vst1.f32   {d22-d23}, [%5 :128]!   \n"
+
+                    : "=r"(outptr0), // %0
+                    "=r"(outptr1), // %1
+                    "=r"(outptr2), // %2
+                    "=r"(outptr3), // %3
+                    "=r"(outptr4), // %4
+                    "=r"(outptr5), // %5
+                    "=r"(r0),      // %6
+                    "=r"(r1),      // %7
+                    "=r"(r2),      // %8
+                    "=r"(r3)       // %9
+                    : "0"(outptr0),
+                    "1"(outptr1),
+                    "2"(outptr2),
+                    "3"(outptr3),
+                    "4"(outptr4),
+                    "5"(outptr5),
+                    "6"(r0),
+                    "7"(r1),
+                    "8"(r2),
+                    "9"(r3),
+                    "w"(_k0), // %20
+                    "w"(_k1), // %21
+                    "w"(_k2), // %22
+                    "w"(_k3), // %23
+                    "w"(_k4), // %24
+                    "w"(_k5)  // %25
+                    : "memory", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
             }
 #endif // __ARM_NEON
 

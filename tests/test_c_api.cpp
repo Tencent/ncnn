@@ -55,8 +55,9 @@ static int test_c_api_0()
         op->create_pipeline(op, opt);
 
         const ncnn_mat_t bottom_blobs[2] = {a, b};
-        ncnn_mat_t* top_blobs[1] = {&c};
+        ncnn_mat_t top_blobs[1] = {0};
         op->forward_n(op, bottom_blobs, 2, top_blobs, 1, opt);
+        c = top_blobs[0];
 
         op->destroy_pipeline(op, opt);
 
@@ -242,9 +243,15 @@ static int test_c_api_2()
         emptydr->read = emptydr_read;
     }
 
+    ncnn_allocator_t blob_allocator = ncnn_allocator_create_pool_allocator();
+    ncnn_allocator_t workspace_allocator = ncnn_allocator_create_unlocked_pool_allocator();
+
     ncnn_option_t opt = ncnn_option_create();
     {
         ncnn_option_set_num_threads(opt, 1);
+
+        ncnn_option_set_blob_allocator(opt, blob_allocator);
+        ncnn_option_set_workspace_allocator(opt, workspace_allocator);
     }
 
     ncnn_net_t net = ncnn_net_create();
@@ -259,7 +266,7 @@ static int test_c_api_2()
         ncnn_net_load_model_datareader(net, emptydr);
     }
 
-    ncnn_mat_t a = ncnn_mat_create_1d(24, NULL);
+    ncnn_mat_t a = ncnn_mat_create_1d(24, blob_allocator);
 
     // set a
     {
@@ -273,7 +280,7 @@ static int test_c_api_2()
         memcpy(a_data, data, 24 * sizeof(float));
     }
 
-    ncnn_mat_t b = ncnn_mat_reshape_3d(a, 4, 2, 3, NULL);
+    ncnn_mat_t b = ncnn_mat_reshape_3d(a, 4, 2, 3, blob_allocator);
     ncnn_mat_t c = 0;
 
     {
@@ -285,6 +292,8 @@ static int test_c_api_2()
 
         ncnn_extractor_destroy(ex);
     }
+
+    ncnn_net_destroy(net);
 
     // check c
     bool success = false;
@@ -316,9 +325,10 @@ static int test_c_api_2()
     ncnn_mat_destroy(b);
     ncnn_mat_destroy(c);
 
-    ncnn_net_destroy(net);
-
     ncnn_option_destroy(opt);
+
+    ncnn_allocator_destroy(blob_allocator);
+    ncnn_allocator_destroy(workspace_allocator);
 
     ncnn_datareader_destroy(emptydr);
 

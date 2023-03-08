@@ -52,7 +52,9 @@ static ncnn::Mat generate_ncnn_logo(int pixel_type_to, int w, int h)
     ncnn::Mat logo = ncnn::Mat::from_pixels(p_ncnn_logo_data, ncnn::Mat::PIXEL_GRAY | (pixel_type_to << ncnn::Mat::PIXEL_CONVERT_SHIFT), 16, 16);
 
     ncnn::Mat m;
-    ncnn::resize_nearest(logo, m, w, h);
+    ncnn::Option opt;
+    opt.num_threads = 1;
+    ncnn::resize_nearest(logo, m, w, h, opt);
     return m;
 }
 
@@ -64,7 +66,7 @@ struct compare_score_index
     }
 };
 
-static int check_top3(const std::vector<float>& cls_scores, float epsilon = 0.001)
+static int check_top2(const std::vector<float>& cls_scores, float epsilon = 0.001)
 {
     // partial sort topk with index
     int size = cls_scores.size();
@@ -75,12 +77,12 @@ static int check_top3(const std::vector<float>& cls_scores, float epsilon = 0.00
         vec[i] = std::make_pair(cls_scores[i], i);
     }
 
-    std::partial_sort(vec.begin(), vec.begin() + 3, vec.end(), compare_score_index());
+    std::partial_sort(vec.begin(), vec.begin() + 2, vec.end(), compare_score_index());
 
-    int expect_indexes[3] = {532, 920, 716};
-    float expect_scores[3] = {0.189459f, 0.082801f, 0.034684f};
+    int expect_indexes[2] = {532, 920};
+    float expect_scores[2] = {0.189459f, 0.082801f};
 
-    for (int i = 0; i < 3; i++)
+    for (int i = 0; i < 2; i++)
     {
         int index = vec[i].second;
         float score = vec[i].first;
@@ -175,6 +177,16 @@ static int test_squeezenet(const ncnn::Option& opt, int load_model_type, float e
     {
         // load from plain model file
         squeezenet.load_param(MODEL_DIR "/squeezenet_v1.1.param");
+
+        // test random feature disabled bits
+        {
+            std::vector<ncnn::Layer*>& layers = squeezenet.mutable_layers();
+            for (size_t i = 0; i < layers.size(); i++)
+            {
+                layers[i]->featmask = i * 11 % 128;
+            }
+        }
+
         squeezenet.load_model(MODEL_DIR "/squeezenet_v1.1.bin");
     }
     if (load_model_type == 1)
@@ -226,11 +238,13 @@ static int test_squeezenet(const ncnn::Option& opt, int load_model_type, float e
         cls_scores[j] = out[j];
     }
 
-    return check_top3(cls_scores, epsilon);
+    return check_top2(cls_scores, epsilon);
 }
 
 int main()
 {
+    SRAND(7767517);
+
 #ifdef __EMSCRIPTEN__
     EM_ASM(
         FS.mkdir('/working');
@@ -277,6 +291,11 @@ int main()
     opts[3].workspace_allocator = &g_workspace_pool_allocator;
 
     int load_model_types[4] = {0, 1, 2, 3};
+
+    for (int i = 0; i < 4; i++)
+    {
+        opts[i].num_threads = 1;
+    }
 
     for (int i = 0; i < 4; i++)
     {

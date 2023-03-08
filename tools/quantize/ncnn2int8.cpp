@@ -200,7 +200,7 @@ int NetQuantize::quantize_convolutiondepthwise()
     const int layer_count = static_cast<int>(layers.size());
     for (int i = 0; i < layer_count; i++)
     {
-        // find convoultion layer
+        // find convolution layer
         if (layers[i]->type != "ConvolutionDepthWise")
             continue;
 
@@ -262,7 +262,7 @@ int NetQuantize::quantize_innerproduct()
     const int layer_count = static_cast<int>(layers.size());
     for (int i = 0; i < layer_count; i++)
     {
-        // find convoultion layer
+        // find convolution layer
         if (layers[i]->type != "InnerProduct")
             continue;
 

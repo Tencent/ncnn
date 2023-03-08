@@ -1,0 +1,78 @@
+name: linux-loongarch64-cpu-gcc
+on:
+  push:
+    branches: [master]
+    paths:
+    - '.github/workflows/linux-loongarch64-cpu-gcc.yml'
+    - 'toolchains/loongarch64-linux-gnu.toolchain.cmake'
+    - 'toolchains/loongarch64-unknown-linux-gnu.toolchain.cmake'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/loongarch/**'
+    - 'tests/**'
+  pull_request:
+    branches: [master]
+    paths:
+    - '.github/workflows/linux-loongarch64-cpu-gcc.yml'
+    - 'toolchains/loongarch64-linux-gnu.toolchain.cmake'
+    - 'toolchains/loongarch64-unknown-linux-gnu.toolchain.cmake'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/loongarch/**'
+    - 'tests/**'
+concurrency:
+  group: linux-loongarch64-cpu-gcc-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+
+jobs:
+  linux-gcc-loongarch64:
+    runs-on: [self-hosted, linux, centos]
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: loongarch64-toolchain
+      run: |
+        wget https://github.com/loongson/build-tools/releases/download/2022.05.29/loongarch64-clfs-5.0-cross-tools-gcc-full.tar.xz
+        tar -xf loongarch64-clfs-5.0-cross-tools-gcc-full.tar.xz
+        wget https://github.com/loongson/build-tools/releases/download/2022.05.29/qemu-loongarch64
+        chmod +x qemu-loongarch64
+
+    - name: configure
+      run: |
+        export LOONGARCH64_ROOT_PATH=$GITHUB_WORKSPACE/cross-tools
+        export LD_LIBRARY_PATH=$GITHUB_WORKSPACE/cross-tools/target/usr/lib64:$LD_LIBRARY_PATH
+        mkdir build && cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/loongarch64-unknown-linux-gnu.toolchain.cmake -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+
+    - name: build
+      run: cmake --build build -j 4
+
+    - name: test
+      run: |
+        export PATH=$GITHUB_WORKSPACE:$PATH
+        export LD_LIBRARY_PATH=$GITHUB_WORKSPACE/cross-tools/target/usr/lib64:$LD_LIBRARY_PATH
+        cd build
+        TESTS_EXECUTABLE_LOADER=qemu-loongarch64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;$GITHUB_WORKSPACE/cross-tools/target/usr" ctest --output-on-failure -j 4
+
+  linux-gcc-loongarch64-lsx:
+    runs-on: [self-hosted, linux, centos]
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: configure
+      run: |
+        export LOONGARCH64_ROOT_PATH=/data/action/osd/loongson-gnu-toolchain-8.3-x86_64-loongarch64-linux-gnu-rc1.1
+        export LD_LIBRARY_PATH=/data/action/osd/loongson-gnu-toolchain-8.3-x86_64-loongarch64-linux-gnu-rc1.1/sysroot/usr/lib64:$LD_LIBRARY_PATH
+        mkdir build && cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/loongarch64-linux-gnu.toolchain.cmake -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+
+    - name: build
+      run: cmake --build build -j 4

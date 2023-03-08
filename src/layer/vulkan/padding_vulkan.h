@@ -50,6 +50,10 @@ public:
     Pipeline* pipeline_padding_pack4to8;
     Pipeline* pipeline_padding_pack8to4;
     Pipeline* pipeline_padding_pack8to1;
+
+    Pipeline* pipeline_padding_3d;
+    Pipeline* pipeline_padding_3d_pack4;
+    Pipeline* pipeline_padding_3d_pack8;
 };
 
 } // namespace ncnn

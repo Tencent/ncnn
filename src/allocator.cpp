@@ -33,6 +33,7 @@ public:
     Mutex budgets_lock;
     Mutex payouts_lock;
     unsigned int size_compare_ratio; // 0~256
+    size_t size_drop_threshold;
     std::list<std::pair<size_t, void*> > budgets;
     std::list<std::pair<size_t, void*> > payouts;
 };
@@ -40,7 +41,8 @@ public:
 PoolAllocator::PoolAllocator()
     : Allocator(), d(new PoolAllocatorPrivate)
 {
-    d->size_compare_ratio = 192; // 0.75f * 256
+    d->size_compare_ratio = 0;
+    d->size_drop_threshold = 10;
 }
 
 PoolAllocator::~PoolAllocator()
@@ -99,12 +101,17 @@ void PoolAllocator::set_size_compare_ratio(float scr)
     d->size_compare_ratio = (unsigned int)(scr * 256);
 }
 
+void PoolAllocator::set_size_drop_threshold(size_t threshold)
+{
+    d->size_drop_threshold = threshold;
+}
+
 void* PoolAllocator::fastMalloc(size_t size)
 {
     d->budgets_lock.lock();
 
     // find free budget
-    std::list<std::pair<size_t, void*> >::iterator it = d->budgets.begin();
+    std::list<std::pair<size_t, void*> >::iterator it = d->budgets.begin(), it_max = d->budgets.begin(), it_min = d->budgets.begin();
     for (; it != d->budgets.end(); ++it)
     {
         size_t bs = it->first;
@@ -125,6 +132,35 @@ void* PoolAllocator::fastMalloc(size_t size)
             d->payouts_lock.unlock();
 
             return ptr;
+        }
+
+        if (bs < it_min->first)
+        {
+            it_min = it;
+        }
+        if (bs > it_max->first)
+        {
+            it_max = it;
+        }
+    }
+
+    if (d->budgets.size() >= d->size_drop_threshold)
+    {
+        // All chunks in pool are not chosen. Then try to drop some outdated
+        // chunks and return them to OS.
+        if (it_max->first < size)
+        {
+            // Current query is asking for a chunk larger than any cached chunks.
+            // Then remove the smallest one.
+            ncnn::fastFree(it_min->second);
+            d->budgets.erase(it_min);
+        }
+        else if (it_min->first > size)
+        {
+            // Current query is asking for a chunk smaller than any cached chunks.
+            // Then remove the largest one.
+            ncnn::fastFree(it_max->second);
+            d->budgets.erase(it_max);
         }
     }
 
@@ -178,6 +214,7 @@ class UnlockedPoolAllocatorPrivate
 {
 public:
     unsigned int size_compare_ratio; // 0~256
+    size_t size_drop_threshold;
     std::list<std::pair<size_t, void*> > budgets;
     std::list<std::pair<size_t, void*> > payouts;
 };
@@ -185,7 +222,8 @@ public:
 UnlockedPoolAllocator::UnlockedPoolAllocator()
     : Allocator(), d(new UnlockedPoolAllocatorPrivate)
 {
-    d->size_compare_ratio = 192; // 0.75f * 256
+    d->size_compare_ratio = 0;
+    d->size_drop_threshold = 10;
 }
 
 UnlockedPoolAllocator::~UnlockedPoolAllocator()
@@ -240,10 +278,15 @@ void UnlockedPoolAllocator::set_size_compare_ratio(float scr)
     d->size_compare_ratio = (unsigned int)(scr * 256);
 }
 
+void UnlockedPoolAllocator::set_size_drop_threshold(size_t threshold)
+{
+    d->size_drop_threshold = threshold;
+}
+
 void* UnlockedPoolAllocator::fastMalloc(size_t size)
 {
     // find free budget
-    std::list<std::pair<size_t, void*> >::iterator it = d->budgets.begin();
+    std::list<std::pair<size_t, void*> >::iterator it = d->budgets.begin(), it_max = d->budgets.begin(), it_min = d->budgets.begin();
     for (; it != d->budgets.end(); ++it)
     {
         size_t bs = it->first;
@@ -258,6 +301,29 @@ void* UnlockedPoolAllocator::fastMalloc(size_t size)
             d->payouts.push_back(std::make_pair(bs, ptr));
 
             return ptr;
+        }
+
+        if (bs > it_max->first)
+        {
+            it_max = it;
+        }
+        if (bs < it_min->first)
+        {
+            it_min = it;
+        }
+    }
+
+    if (d->budgets.size() >= d->size_drop_threshold)
+    {
+        if (it_max->first < size)
+        {
+            ncnn::fastFree(it_min->second);
+            d->budgets.erase(it_min);
+        }
+        else if (it_min->first > size)
+        {
+            ncnn::fastFree(it_max->second);
+            d->budgets.erase(it_max);
         }
     }
 
@@ -1984,7 +2050,7 @@ int VkAndroidHardwareBufferImageAllocator::init()
     bufferProperties.sType = VK_STRUCTURE_TYPE_ANDROID_HARDWARE_BUFFER_PROPERTIES_ANDROID;
     bufferProperties.pNext = &bufferFormatProperties;
 
-    ret = vkGetAndroidHardwareBufferPropertiesANDROID(vkdev->vkdevice(), hb, &bufferProperties);
+    ret = vkdev->vkGetAndroidHardwareBufferPropertiesANDROID(vkdev->vkdevice(), hb, &bufferProperties);
     if (ret != VK_SUCCESS)
     {
         NCNN_LOGE("vkGetAndroidHardwareBufferPropertiesANDROID failed %d", ret);

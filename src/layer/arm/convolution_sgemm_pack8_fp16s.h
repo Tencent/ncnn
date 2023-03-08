@@ -716,16 +716,14 @@ static void convolution_im2col_sgemm_transform_kernel_pack8_fp16sa_neon(const Ma
     // src = maxk-inch-outch
     // dst = 8b-8a-maxk-inch/8a-outch/8b
     Mat kernel = _kernel.reshape(maxk, inch, outch);
-    kernel_tm.create(64 * maxk, inch / 8, outch / 8, 2u);
+    kernel_tm.create(64 * maxk, inch / 8, outch / 8, (size_t)2u);
 
     for (int q = 0; q + 7 < outch; q += 8)
     {
-        Mat g0 = kernel_tm.channel(q / 8);
+        __fp16* g00 = kernel_tm.channel(q / 8);
 
         for (int p = 0; p + 7 < inch; p += 8)
         {
-            __fp16* g00 = g0.row<__fp16>(p / 8);
-
             for (int k = 0; k < maxk; k++)
             {
                 for (int i = 0; i < 8; i++)
