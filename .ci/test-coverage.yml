@@ -244,6 +244,13 @@ jobs:
 
   linux-gcc-arm:
     name: linux-gcc-arm
+    strategy:
+      matrix:
+        # openmp: ['OFF', 'ON']
+        include:
+          - { GNU_INLINE_ASM: 'ON'}
+          - { GNU_INLINE_ASM: 'OFF'}
+
     runs-on:
       pool-name: docker
       container:
@@ -300,7 +307,7 @@ jobs:
     - name: build
       run: |
         mkdir build && cd build
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/arm-linux-gnueabi.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_VFPV4=ON -DNCNN_ARM82=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/arm-linux-gnueabi.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_GNU_INLINE_ASM=${{matrix.GNU_INLINE_ASM}} -DNCNN_VFPV4=ON -DNCNN_ARM82=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
         cmake --build . -j $(nproc)
     - name: test
       run: |
@@ -318,7 +325,7 @@ jobs:
     - name: build-armhf-vfpv3-d16
       run: |
         mkdir build-armhf-vfpv3-d16 && cd build-armhf-vfpv3-d16
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/arm-linux-gnueabihf-vfpv3-d16.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_VFPV4=OFF -DNCNN_ARM82=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/arm-linux-gnueabihf-vfpv3-d16.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_GNU_INLINE_ASM=${{matrix.GNU_INLINE_ASM}} -DNCNN_VFPV4=OFF -DNCNN_ARM82=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
         cmake --build . -j $(nproc)
     - name: test-armhf-vfpv3-d16
       run: |
@@ -344,10 +351,11 @@ jobs:
       matrix:
         # openmp: ['OFF', 'ON']
         include:
-          - { ARM82: 'OFF', ARM82DOT: 'OFF', ARM82FP16FML: 'OFF', ARM84BF16: 'OFF', ARM84I8MM: 'OFF', ARM86SVE: 'OFF'}
-          - { ARM82: 'ON',  ARM82DOT: 'OFF', ARM82FP16FML: 'OFF', ARM84BF16: 'OFF', ARM84I8MM: 'OFF', ARM86SVE: 'OFF'}
-          - { ARM82: 'ON',  ARM82DOT: 'ON',  ARM82FP16FML: 'ON',  ARM84BF16: 'OFF', ARM84I8MM: 'OFF', ARM86SVE: 'OFF'}
-          - { ARM82: 'ON',  ARM82DOT: 'ON',  ARM82FP16FML: 'ON',  ARM84BF16: 'ON',  ARM84I8MM: 'ON',  ARM86SVE: 'OFF'}
+          - { GNU_INLINE_ASM: 'ON', ARM82: 'OFF', ARM82DOT: 'OFF', ARM82FP16FML: 'OFF', ARM84BF16: 'OFF', ARM84I8MM: 'OFF', ARM86SVE: 'OFF'}
+          - { GNU_INLINE_ASM: 'ON', ARM82: 'ON',  ARM82DOT: 'OFF', ARM82FP16FML: 'OFF', ARM84BF16: 'OFF', ARM84I8MM: 'OFF', ARM86SVE: 'OFF'}
+          - { GNU_INLINE_ASM: 'ON', ARM82: 'ON',  ARM82DOT: 'ON',  ARM82FP16FML: 'ON',  ARM84BF16: 'OFF', ARM84I8MM: 'OFF', ARM86SVE: 'OFF'}
+          - { GNU_INLINE_ASM: 'ON', ARM82: 'ON',  ARM82DOT: 'ON',  ARM82FP16FML: 'ON',  ARM84BF16: 'ON',  ARM84I8MM: 'ON',  ARM86SVE: 'OFF'}
+          - { GNU_INLINE_ASM: 'OFF', ARM82: 'ON',  ARM82DOT: 'ON',  ARM82FP16FML: 'ON',  ARM84BF16: 'ON',  ARM84I8MM: 'ON',  ARM86SVE: 'OFF'}
 
     runs-on:
       pool-name: docker
@@ -407,6 +415,7 @@ jobs:
         mkdir build && cd build
         cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-linux-gnu.toolchain.cmake \
             -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON \
+            -DNCNN_GNU_INLINE_ASM=${{matrix.GNU_INLINE_ASM}} \
             -DNCNN_ARM82=${{matrix.ARM82}} \
             -DNCNN_ARM82DOT=${{matrix.ARM82DOT}} \
             -DNCNN_ARM82FP16FML=${{matrix.ARM82FP16FML}} \
