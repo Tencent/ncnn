@@ -1694,12 +1694,12 @@ static void gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_til
 static void get_optimal_tile_mnk_fp16(int M, int N, int K, int& TILE_M, int& TILE_N, int& TILE_K, int nT)
 {
     // resolve optimal tile size from cache size
-    size_t l2_cache_size = get_cpu_level2_cache_size();
+    const int l2_cache_size_fp16 = (int)(get_cpu_level2_cache_size() / sizeof(unsigned short));
 
     // solve K
     {
         // try not to split K
-        int tile_size = ((int)((float)l2_cache_size / sizeof(unsigned short)) - 64) / 16;
+        int tile_size = (l2_cache_size_fp16 - 32) / 12;
 
         TILE_K = tile_size / 8 * 8;
 
@@ -1725,14 +1725,17 @@ static void get_optimal_tile_mnk_fp16(int M, int N, int K, int& TILE_M, int& TIL
 
     if (N > 0)
     {
-        int tile_size = (int)(((float)l2_cache_size / sizeof(unsigned short) - TILE_M * TILE_K) / (TILE_M + TILE_K));
-
-        TILE_N = tile_size / 4 * 4;
-
-        if (tile_size <= 0)
+        int tile_size;
+        if (TILE_K >= K)
         {
-            TILE_N = 4;
+            tile_size = (l2_cache_size_fp16 - TILE_M * TILE_K) / TILE_K;
         }
+        else
+        {
+            tile_size = (l2_cache_size_fp16 - TILE_M * TILE_K) / (TILE_M + TILE_K);
+        }
+
+        TILE_N = std::max(4, tile_size / 4 * 4);
 
         int nn_N = (N + TILE_N - 1) / TILE_N;
         TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 3) / 4 * 4);
@@ -1855,6 +1858,11 @@ static inline void conv3x3s1_winograd23_transform_input_tile_fp16sa(const Mat& b
     {
         const int kk = remain_max_kk_start + ppkk * 8;
 
+#ifdef _MSC_VER
+        __declspec(align(16))
+#else
+        __attribute__((aligned(16)))
+#endif
         __fp16 tmp[4][4][8];
 
         int jj = 0;
@@ -1985,6 +1993,11 @@ static inline void conv3x3s1_winograd23_transform_input_tile_fp16sa(const Mat& b
     {
         const int kk = remain_max_kk_start + ppkk * 4;
 
+#ifdef _MSC_VER
+        __declspec(align(16))
+#else
+        __attribute__((aligned(16)))
+#endif
         __fp16 tmp[4][4][4];
 
         int jj = 0;
@@ -2079,6 +2092,11 @@ static inline void conv3x3s1_winograd23_transform_input_tile_fp16sa(const Mat& b
     {
         const int kk = remain_max_kk_start + ppkk * 2;
 
+#ifdef _MSC_VER
+        __declspec(align(8))
+#else
+        __attribute__((aligned(8)))
+#endif
         __fp16 tmp[4][4][2];
 
         int jj = 0;
@@ -2256,6 +2274,11 @@ static inline void conv3x3s1_winograd23_transform_output_tile_fp16sa(const Mat& 
     {
         float16x8_t _bias0 = biasptr ? vld1q_f16(biasptr + i + ii) : vdupq_n_f16(0.f);
 
+#ifdef _MSC_VER
+        __declspec(align(16))
+#else
+        __attribute__((aligned(16)))
+#endif
         __fp16 tmp[2][4][8];
 
         int jj = 0;
@@ -2368,6 +2391,11 @@ static inline void conv3x3s1_winograd23_transform_output_tile_fp16sa(const Mat& 
     {
         float16x4_t _bias0 = biasptr ? vld1_f16(biasptr + i + ii) : vdup_n_f16(0.f);
 
+#ifdef _MSC_VER
+        __declspec(align(16))
+#else
+        __attribute__((aligned(16)))
+#endif
         __fp16 tmp[2][4][4];
 
         int jj = 0;
@@ -2454,6 +2482,11 @@ static inline void conv3x3s1_winograd23_transform_output_tile_fp16sa(const Mat& 
         __fp16 bias0 = biasptr ? biasptr[i + ii] : 0.f;
         __fp16 bias1 = biasptr ? biasptr[i + ii + 1] : 0.f;
 
+#ifdef _MSC_VER
+        __declspec(align(8))
+#else
+        __attribute__((aligned(8)))
+#endif
         __fp16 tmp[2][4][2];
 
         int jj = 0;
@@ -2827,6 +2860,11 @@ static inline void conv3x3s1_winograd43_transform_input_tile_fp16sa(const Mat& b
     {
         const int kk = remain_max_kk_start + ppkk * 8;
 
+#ifdef _MSC_VER
+        __declspec(align(16))
+#else
+        __attribute__((aligned(16)))
+#endif
         __fp16 tmp[6][6][8];
 
         const __fp16 coeffs[8] = {sq2, msq2_d2, -2.f, -0.5f, -2.5f, 0.f, 0.f, 0.f};
@@ -3006,6 +3044,11 @@ static inline void conv3x3s1_winograd43_transform_input_tile_fp16sa(const Mat& b
     {
         const int kk = remain_max_kk_start + ppkk * 4;
 
+#ifdef _MSC_VER
+        __declspec(align(16))
+#else
+        __attribute__((aligned(16)))
+#endif
         __fp16 tmp[6][6][4];
 
         const __fp16 coeffs[8] = {sq2, msq2_d2, -2.f, -0.5f, -2.5f, 0.f, 0.f, 0.f};
@@ -3141,6 +3184,11 @@ static inline void conv3x3s1_winograd43_transform_input_tile_fp16sa(const Mat& b
     {
         const int kk = remain_max_kk_start + ppkk * 2;
 
+#ifdef _MSC_VER
+        __declspec(align(8))
+#else
+        __attribute__((aligned(8)))
+#endif
         __fp16 tmp[6][6][2];
 
         int jj = 0;
@@ -3405,6 +3453,11 @@ static inline void conv3x3s1_winograd43_transform_output_tile_fp16sa(const Mat& 
     {
         float16x8_t _bias0 = biasptr ? vld1q_f16(biasptr + i + ii) : vdupq_n_f16(0.f);
 
+#ifdef _MSC_VER
+        __declspec(align(16))
+#else
+        __attribute__((aligned(16)))
+#endif
         __fp16 tmp[4][6][8];
 
         int jj = 0;
@@ -3575,6 +3628,11 @@ static inline void conv3x3s1_winograd43_transform_output_tile_fp16sa(const Mat& 
     {
         float16x4_t _bias0 = biasptr ? vld1_f16(biasptr + i + ii) : vdup_n_f16(0.f);
 
+#ifdef _MSC_VER
+        __declspec(align(16))
+#else
+        __attribute__((aligned(16)))
+#endif
         __fp16 tmp[4][6][4];
 
         int jj = 0;
@@ -3704,6 +3762,11 @@ static inline void conv3x3s1_winograd43_transform_output_tile_fp16sa(const Mat& 
         __fp16 bias0 = biasptr ? biasptr[i + ii] : 0.f;
         __fp16 bias1 = biasptr ? biasptr[i + ii + 1] : 0.f;
 
+#ifdef _MSC_VER
+        __declspec(align(8))
+#else
+        __attribute__((aligned(8)))
+#endif
         __fp16 tmp[4][6][2];
 
         int jj = 0;
@@ -4142,6 +4205,11 @@ static inline void conv3x3s1_winograd63_transform_input_tile_fp16sa(const Mat& b
     {
         const int kk = remain_max_kk_start + ppkk * 8;
 
+#ifdef _MSC_VER
+        __declspec(align(16))
+#else
+        __attribute__((aligned(16)))
+#endif
         __fp16 tmp[8][8][8];
 
         const __fp16 coeffs[8] = {5.25f, -4.25f, -1.25f, 0.25f, -2.5f, 0.5f, 2.f, 4.f};
@@ -4369,6 +4437,11 @@ static inline void conv3x3s1_winograd63_transform_input_tile_fp16sa(const Mat& b
     {
         const int kk = remain_max_kk_start + ppkk * 4;
 
+#ifdef _MSC_VER
+        __declspec(align(16))
+#else
+        __attribute__((aligned(16)))
+#endif
         __fp16 tmp[8][8][4];
 
         const __fp16 coeffs[8] = {5.25f, -4.25f, -1.25f, 0.25f, -2.5f, 0.5f, 2.f, 4.f};
@@ -4530,6 +4603,11 @@ static inline void conv3x3s1_winograd63_transform_input_tile_fp16sa(const Mat& b
     {
         const int kk = remain_max_kk_start + ppkk * 2;
 
+#ifdef _MSC_VER
+        __declspec(align(8))
+#else
+        __attribute__((aligned(8)))
+#endif
         __fp16 tmp[8][8][2];
 
         int jj = 0;
@@ -4842,6 +4920,11 @@ static inline void conv3x3s1_winograd63_transform_output_tile_fp16sa(const Mat& 
     {
         float16x8_t _bias0 = biasptr ? vld1q_f16(biasptr + i + ii) : vdupq_n_f16(0.f);
 
+#ifdef _MSC_VER
+        __declspec(align(16))
+#else
+        __attribute__((aligned(16)))
+#endif
         __fp16 tmp[6][8][8];
 
         int jj = 0;
@@ -5068,6 +5151,11 @@ static inline void conv3x3s1_winograd63_transform_output_tile_fp16sa(const Mat& 
     {
         float16x4_t _bias0 = biasptr ? vld1_f16(biasptr + i + ii) : vdup_n_f16(0.f);
 
+#ifdef _MSC_VER
+        __declspec(align(16))
+#else
+        __attribute__((aligned(16)))
+#endif
         __fp16 tmp[6][8][4];
 
         int jj = 0;
@@ -5235,6 +5323,11 @@ static inline void conv3x3s1_winograd63_transform_output_tile_fp16sa(const Mat& 
         __fp16 bias0 = biasptr ? biasptr[i + ii] : 0.f;
         __fp16 bias1 = biasptr ? biasptr[i + ii + 1] : 0.f;
 
+#ifdef _MSC_VER
+        __declspec(align(8))
+#else
+        __attribute__((aligned(8)))
+#endif
         __fp16 tmp[6][8][2];
 
         int jj = 0;

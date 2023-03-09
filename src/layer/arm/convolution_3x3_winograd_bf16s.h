@@ -38,6 +38,11 @@ static inline void conv3x3s1_winograd23_transform_input_tile_bf16s(const Mat& bo
     {
         const int kk = remain_max_kk_start + ppkk * 8;
 
+#ifdef _MSC_VER
+        __declspec(align(16))
+#else
+        __attribute__((aligned(16)))
+#endif
         float tmp[4][4][8];
 
         int jj = 0;
@@ -197,6 +202,11 @@ static inline void conv3x3s1_winograd23_transform_input_tile_bf16s(const Mat& bo
     {
         const int kk = remain_max_kk_start + ppkk * 4;
 
+#ifdef _MSC_VER
+        __declspec(align(16))
+#else
+        __attribute__((aligned(16)))
+#endif
         float tmp[4][4][4];
 
         int jj = 0;
@@ -295,6 +305,11 @@ static inline void conv3x3s1_winograd23_transform_input_tile_bf16s(const Mat& bo
     {
         const int kk = remain_max_kk_start + ppkk * 2;
 
+#ifdef _MSC_VER
+        __declspec(align(8))
+#else
+        __attribute__((aligned(8)))
+#endif
         float tmp[4][4][2];
 
         int jj = 0;
@@ -524,6 +539,11 @@ static inline void conv3x3s1_winograd23_transform_output_tile_bf16s(const Mat& t
         float32x4_t _bias0 = biasptr ? vld1q_f32(biasptr + i + ii) : vdupq_n_f32(0.f);
         float32x4_t _bias1 = biasptr ? vld1q_f32(biasptr + i + ii + 4) : vdupq_n_f32(0.f);
 
+#ifdef _MSC_VER
+        __declspec(align(16))
+#else
+        __attribute__((aligned(16)))
+#endif
         float tmp[2][4][8];
 
         int jj = 0;
@@ -645,6 +665,11 @@ static inline void conv3x3s1_winograd23_transform_output_tile_bf16s(const Mat& t
     {
         float32x4_t _bias0 = biasptr ? vld1q_f32(biasptr + i + ii) : vdupq_n_f32(0.f);
 
+#ifdef _MSC_VER
+        __declspec(align(16))
+#else
+        __attribute__((aligned(16)))
+#endif
         float tmp[2][4][4];
 
         int jj = 0;
@@ -736,6 +761,11 @@ static inline void conv3x3s1_winograd23_transform_output_tile_bf16s(const Mat& t
         float bias1 = biasptr ? biasptr[i + ii + 1] : 0.f;
 #endif
 
+#ifdef _MSC_VER
+        __declspec(align(8))
+#else
+        __attribute__((aligned(8)))
+#endif
         float tmp[2][4][2];
 
         int jj = 0;
@@ -1040,6 +1070,11 @@ static inline void conv3x3s1_winograd43_transform_input_tile_bf16s(const Mat& bo
     {
         const int kk = remain_max_kk_start + ppkk * 8;
 
+#ifdef _MSC_VER
+        __declspec(align(16))
+#else
+        __attribute__((aligned(16)))
+#endif
         float tmp[6][6][8];
 
         const float coeffs[4] = {sq2, -sq2_d2, -2.f, -0.5f};
@@ -1271,6 +1306,11 @@ static inline void conv3x3s1_winograd43_transform_input_tile_bf16s(const Mat& bo
     {
         const int kk = remain_max_kk_start + ppkk * 4;
 
+#ifdef _MSC_VER
+        __declspec(align(16))
+#else
+        __attribute__((aligned(16)))
+#endif
         float tmp[6][6][4];
 
         const float coeffs[4] = {sq2, -sq2_d2, -2.f, -0.5f};
@@ -1441,6 +1481,11 @@ static inline void conv3x3s1_winograd43_transform_input_tile_bf16s(const Mat& bo
     {
         const int kk = remain_max_kk_start + ppkk * 2;
 
+#ifdef _MSC_VER
+        __declspec(align(8))
+#else
+        __attribute__((aligned(8)))
+#endif
         float tmp[6][6][2];
 
 #if __ARM_NEON
@@ -1828,6 +1873,11 @@ static inline void conv3x3s1_winograd43_transform_output_tile_bf16s(const Mat& t
         float32x4_t _bias0 = biasptr ? vld1q_f32(biasptr + i + ii) : vdupq_n_f32(0.f);
         float32x4_t _bias1 = biasptr ? vld1q_f32(biasptr + i + ii + 4) : vdupq_n_f32(0.f);
 
+#ifdef _MSC_VER
+        __declspec(align(16))
+#else
+        __attribute__((aligned(16)))
+#endif
         float tmp[4][6][8];
 
         int jj = 0;
@@ -2028,6 +2078,11 @@ static inline void conv3x3s1_winograd43_transform_output_tile_bf16s(const Mat& t
     {
         float32x4_t _bias0 = biasptr ? vld1q_f32(biasptr + i + ii) : vdupq_n_f32(0.f);
 
+#ifdef _MSC_VER
+        __declspec(align(16))
+#else
+        __attribute__((aligned(16)))
+#endif
         float tmp[4][6][4];
 
         int jj = 0;
@@ -2174,6 +2229,11 @@ static inline void conv3x3s1_winograd43_transform_output_tile_bf16s(const Mat& t
         float bias1 = biasptr ? biasptr[i + ii + 1] : 0.f;
 #endif
 
+#ifdef _MSC_VER
+        __declspec(align(8))
+#else
+        __attribute__((aligned(8)))
+#endif
         float tmp[4][6][2];
 
         int jj = 0;
@@ -2579,6 +2639,11 @@ static inline void conv3x3s1_winograd63_transform_input_tile_bf16s(const Mat& bo
     {
         const int kk = remain_max_kk_start + ppkk * 8;
 
+#ifdef _MSC_VER
+        __declspec(align(16))
+#else
+        __attribute__((aligned(16)))
+#endif
         float tmp[8][8][8];
 
         const float coeffs[8] = {5.25f, -4.25f, -1.25f, 0.25f, -2.5f, 0.5f, 2.f, 4.f};
@@ -2876,6 +2941,11 @@ static inline void conv3x3s1_winograd63_transform_input_tile_bf16s(const Mat& bo
     {
         const int kk = remain_max_kk_start + ppkk * 4;
 
+#ifdef _MSC_VER
+        __declspec(align(16))
+#else
+        __attribute__((aligned(16)))
+#endif
         float tmp[8][8][4];
 
         const float coeffs[8] = {5.25f, -4.25f, -1.25f, 0.25f, -2.5f, 0.5f, 2.f, 4.f};
@@ -3076,6 +3146,11 @@ static inline void conv3x3s1_winograd63_transform_input_tile_bf16s(const Mat& bo
     {
         const int kk = remain_max_kk_start + ppkk * 2;
 
+#ifdef _MSC_VER
+        __declspec(align(8))
+#else
+        __attribute__((aligned(8)))
+#endif
         float tmp[8][8][2];
 
 #if __ARM_NEON
@@ -3534,6 +3609,11 @@ static inline void conv3x3s1_winograd63_transform_output_tile_bf16s(const Mat& t
         float32x4_t _bias0 = biasptr ? vld1q_f32(biasptr + i + ii) : vdupq_n_f32(0.f);
         float32x4_t _bias1 = biasptr ? vld1q_f32(biasptr + i + ii + 4) : vdupq_n_f32(0.f);
 
+#ifdef _MSC_VER
+        __declspec(align(16))
+#else
+        __attribute__((aligned(16)))
+#endif
         float tmp[6][8][8];
 
         int jj = 0;
@@ -3804,6 +3884,11 @@ static inline void conv3x3s1_winograd63_transform_output_tile_bf16s(const Mat& t
     {
         float32x4_t _bias0 = biasptr ? vld1q_f32(biasptr + i + ii) : vdupq_n_f32(0.f);
 
+#ifdef _MSC_VER
+        __declspec(align(16))
+#else
+        __attribute__((aligned(16)))
+#endif
         float tmp[6][8][4];
 
         int jj = 0;
@@ -3994,6 +4079,11 @@ static inline void conv3x3s1_winograd63_transform_output_tile_bf16s(const Mat& t
         float bias1 = biasptr ? biasptr[i + ii + 1] : 0.f;
 #endif
 
+#ifdef _MSC_VER
+        __declspec(align(8))
+#else
+        __attribute__((aligned(8)))
+#endif
         float tmp[6][8][2];
 
         int jj = 0;

@@ -410,11 +410,11 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, 
                     "vswp       q1, q8              \n"
                     "vswp       q3, q10             \n"
 
-                    "vst1.f32   {d0-d3}, [%1]!      \n"
-                    "vst1.f32   {d16-d19}, [%1]!    \n"
+                    "vst1.f32   {d0-d3}, [%1 :128]! \n"
+                    "vst1.f32   {d16-d19}, [%1 :128]! \n"
                     "sub        %0, %0, #64         \n"
-                    "vst1.f32   {d4-d7}, [%1]!      \n"
-                    "vst1.f32   {d20-d23}, [%1]!    \n"
+                    "vst1.f32   {d4-d7}, [%1 :128]! \n"
+                    "vst1.f32   {d20-d23}, [%1 :128]! \n"
                     : "=r"(p0), // %0
                     "=r"(pp)  // %1
                     : "0"(p0),
@@ -644,8 +644,8 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, 
 #else  // __aarch64__
                 asm volatile(
                     "pld        [%0, #256]          \n"
-                    "vld1.f32   {d0-d3}, [%0]       \n"
-                    "vst2.f32   {d0-d3}, [%1]!      \n"
+                    "vld1.f32   {d0-d3}, [%0 :128]  \n"
+                    "vst2.f32   {d0-d3}, [%1 :128]! \n"
                     : "=r"(p0), // %0
                     "=r"(pp)  // %1
                     : "0"(p0),
@@ -2223,7 +2223,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 
                     "4:                             \n"
                     "vldm       %2!, {d0-d3}        \n"
-                    "vld1.f32   {d8-d9}, [%1]!      \n"
+                    "vld1.f32   {d8-d9}, [%1 :128]! \n"
                     "vmla.f32   q8, q4, d0[0]       \n"
                     "vmla.f32   q9, q4, d0[1]       \n"
                     "vmla.f32   q10, q4, d1[0]      \n"
@@ -2447,8 +2447,8 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     "beq        5f                  \n"
 
                     "4:                             \n"
-                    "vld1.f32   {d0-d1}, [%2]!      \n"
-                    "vld1.f32   {d8-d9}, [%1]!      \n"
+                    "vld1.f32   {d0-d1}, [%2 :128]! \n"
+                    "vld1.f32   {d8-d9}, [%1 :128]! \n"
                     "vmla.f32   q12, q4, d0[0]      \n"
                     "vmla.f32   q13, q4, d0[1]      \n"
                     "subs       r4, r4, #1          \n"
@@ -2593,7 +2593,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     "cmp        %7, #0              \n"
                     "beq        0f                  \n"
 
-                    "vld1.f32   {d28-d31}, [%0]     \n"
+                    "vld1.f32   {d28-d31}, [%0 :128] \n"
                     "b          1f                  \n"
 
                     "0:                             \n"
@@ -2607,7 +2607,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 
                     "2:                             \n"
                     "pld        [%2, #256]          \n"
-                    "vld1.f32   {d0-d3}, [%2]!      \n"
+                    "vld1.f32   {d0-d3}, [%2 :128]! \n"
                     "pld        [%1, #512]          \n"
                     "vldm       %1!, {d8-d15}       \n"
                     "vmla.f32   q12, q4, d0[0]      \n"
@@ -2630,15 +2630,15 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     "beq        5f                  \n"
 
                     "4:                             \n"
-                    "vld1.f32   {d0}, [%2]!         \n"
-                    "vld1.f32   {d8-d9}, [%1]!      \n"
+                    "vld1.f32   {d0}, [%2 :64]!     \n"
+                    "vld1.f32   {d8-d9}, [%1 :128]! \n"
                     "subs       r4, r4, #1          \n"
                     "vmla.f32   q14, q4, d0[0]      \n"
                     "vmla.f32   q15, q4, d0[1]      \n"
                     "bne        4b                  \n"
 
                     "5:                             \n"
-                    "vst1.f32   {d28-d31}, [%0]!    \n"
+                    "vst1.f32   {d28-d31}, [%0 :128]! \n"
 
                     : "=r"(outptr), // %0
                     "=r"(pA),     // %1
@@ -2759,7 +2759,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     "cmp        %7, #0              \n"
                     "beq        0f                  \n"
 
-                    "vld1.f32   {d30-d31}, [%0]     \n"
+                    "vld1.f32   {d30-d31}, [%0 :128] \n"
                     "b          1f                  \n"
 
                     "0:                             \n"
@@ -2772,7 +2772,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 
                     "2:                             \n"
                     "pld        [%2, #128]          \n"
-                    "vld1.f32   {d0-d1}, [%2]!      \n"
+                    "vld1.f32   {d0-d1}, [%2 :64]!  \n"
                     "pld        [%1, #512]          \n"
                     "vldm       %1!, {d8-d15}       \n"
                     "vmla.f32   q12, q4, d0[0]      \n"
@@ -2793,13 +2793,13 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 
                     "4:                             \n"
                     "vld1.f32   {d0[0]}, [%2]!      \n"
-                    "vld1.f32   {d8-d9}, [%1]!      \n"
+                    "vld1.f32   {d8-d9}, [%1 :128]! \n"
                     "subs       r4, r4, #1          \n"
                     "vmla.f32   q15, q4, d0[0]      \n"
                     "bne        4b                  \n"
 
                     "5:                             \n"
-                    "vst1.f32   {d30-d31}, [%0]!    \n"
+                    "vst1.f32   {d30-d31}, [%0 :128]! \n"
 
                     : "=r"(outptr), // %0
                     "=r"(pA),     // %1
@@ -3308,15 +3308,17 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 static void get_optimal_tile_mnk(int M, int N, int K, int& TILE_M, int& TILE_N, int& TILE_K, int nT)
 {
     // resolve optimal tile size from cache size
-    size_t l2_cache_size = get_cpu_level2_cache_size();
+    const int l2_cache_size_fp32 = (int)(get_cpu_level2_cache_size() / sizeof(float));
 
     // solve K
     {
         // try not to split K
 #if __aarch64__
-        int tile_size = ((int)((float)l2_cache_size / sizeof(float)) - 64) / 16;
+        int tile_size = (l2_cache_size_fp32 - 32) / 12;
+#elif __ARM_NEON
+        int tile_size = (l2_cache_size_fp32 - 16) / 8;
 #else
-        int tile_size = ((int)((float)l2_cache_size / sizeof(float)) - 32) / 8;
+        int tile_size = (l2_cache_size_fp32 - 2) / 3;
 #endif
 
 #if __aarch64__
@@ -3373,26 +3375,23 @@ static void get_optimal_tile_mnk(int M, int N, int K, int& TILE_M, int& TILE_N, 
 
     if (N > 0)
     {
-        int tile_size = (int)(((float)l2_cache_size / sizeof(float) - TILE_M * TILE_K) / (TILE_M + TILE_K));
-
-#if __aarch64__
-        TILE_N = tile_size / 4 * 4;
-#elif __ARM_NEON
-        TILE_N = tile_size / 4 * 4;
-#else
-        TILE_N = tile_size;
-#endif
-
-        if (tile_size <= 0)
+        int tile_size;
+        if (TILE_K >= K)
         {
-#if __aarch64__
-            TILE_N = 4;
-#elif __ARM_NEON
-            TILE_N = 4;
-#else
-            TILE_N = 1;
-#endif
+            tile_size = (l2_cache_size_fp32 - TILE_M * TILE_K) / TILE_K;
         }
+        else
+        {
+            tile_size = (l2_cache_size_fp32 - TILE_M * TILE_K) / (TILE_M + TILE_K);
+        }
+
+#if __aarch64__
+        TILE_N = std::max(4, tile_size / 4 * 4);
+#elif __ARM_NEON
+        TILE_N = std::max(4, tile_size / 4 * 4);
+#else
+        TILE_N = std::max(1, tile_size);
+#endif
 
         int nn_N = (N + TILE_N - 1) / TILE_N;
 #if __aarch64__
@@ -3523,6 +3522,11 @@ static inline void conv3x3s1_winograd23_transform_input_tile(const Mat& bottom_b
     {
         const int kk = remain_max_kk_start + ppkk * 8;
 
+#ifdef _MSC_VER
+        __declspec(align(16))
+#else
+        __attribute__((aligned(16)))
+#endif
         float tmp[4][4][8];
 
         int jj = 0;
@@ -3682,6 +3686,11 @@ static inline void conv3x3s1_winograd23_transform_input_tile(const Mat& bottom_b
     {
         const int kk = remain_max_kk_start + ppkk * 4;
 
+#ifdef _MSC_VER
+        __declspec(align(16))
+#else
+        __attribute__((aligned(16)))
+#endif
         float tmp[4][4][4];
 
         int jj = 0;
@@ -3780,6 +3789,11 @@ static inline void conv3x3s1_winograd23_transform_input_tile(const Mat& bottom_b
     {
         const int kk = remain_max_kk_start + ppkk * 2;
 
+#ifdef _MSC_VER
+        __declspec(align(8))
+#else
+        __attribute__((aligned(8)))
+#endif
         float tmp[4][4][2];
 
         int jj = 0;
@@ -4007,6 +4021,11 @@ static inline void conv3x3s1_winograd23_transform_output_tile(const Mat& top_til
         float32x4_t _bias0 = biasptr ? vld1q_f32(biasptr + i + ii) : vdupq_n_f32(0.f);
         float32x4_t _bias1 = biasptr ? vld1q_f32(biasptr + i + ii + 4) : vdupq_n_f32(0.f);
 
+#ifdef _MSC_VER
+        __declspec(align(16))
+#else
+        __attribute__((aligned(16)))
+#endif
         float tmp[2][4][8];
 
         int jj = 0;
@@ -4128,6 +4147,11 @@ static inline void conv3x3s1_winograd23_transform_output_tile(const Mat& top_til
     {
         float32x4_t _bias0 = biasptr ? vld1q_f32(biasptr + i + ii) : vdupq_n_f32(0.f);
 
+#ifdef _MSC_VER
+        __declspec(align(16))
+#else
+        __attribute__((aligned(16)))
+#endif
         float tmp[2][4][4];
 
         int jj = 0;
@@ -4219,6 +4243,11 @@ static inline void conv3x3s1_winograd23_transform_output_tile(const Mat& top_til
         float bias1 = biasptr ? biasptr[i + ii + 1] : 0.f;
 #endif
 
+#ifdef _MSC_VER
+        __declspec(align(8))
+#else
+        __attribute__((aligned(8)))
+#endif
         float tmp[2][4][2];
 
         int jj = 0;
@@ -4627,6 +4656,11 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
     {
         const int kk = remain_max_kk_start + ppkk * 8;
 
+#ifdef _MSC_VER
+        __declspec(align(16))
+#else
+        __attribute__((aligned(16)))
+#endif
         float tmp[6][6][8];
 
         const float coeffs[4] = {sq2, -sq2_d2, -2.f, -0.5f};
@@ -4858,6 +4892,11 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
     {
         const int kk = remain_max_kk_start + ppkk * 4;
 
+#ifdef _MSC_VER
+        __declspec(align(16))
+#else
+        __attribute__((aligned(16)))
+#endif
         float tmp[6][6][4];
 
         const float coeffs[4] = {sq2, -sq2_d2, -2.f, -0.5f};
@@ -5028,6 +5067,11 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
     {
         const int kk = remain_max_kk_start + ppkk * 2;
 
+#ifdef _MSC_VER
+        __declspec(align(8))
+#else
+        __attribute__((aligned(8)))
+#endif
         float tmp[6][6][2];
 
 #if __ARM_NEON
@@ -5413,6 +5457,11 @@ static inline void conv3x3s1_winograd43_transform_output_tile(const Mat& top_til
         float32x4_t _bias0 = biasptr ? vld1q_f32(biasptr + i + ii) : vdupq_n_f32(0.f);
         float32x4_t _bias1 = biasptr ? vld1q_f32(biasptr + i + ii + 4) : vdupq_n_f32(0.f);
 
+#ifdef _MSC_VER
+        __declspec(align(16))
+#else
+        __attribute__((aligned(16)))
+#endif
         float tmp[4][6][8];
 
         int jj = 0;
@@ -5613,6 +5662,11 @@ static inline void conv3x3s1_winograd43_transform_output_tile(const Mat& top_til
     {
         float32x4_t _bias0 = biasptr ? vld1q_f32(biasptr + i + ii) : vdupq_n_f32(0.f);
 
+#ifdef _MSC_VER
+        __declspec(align(16))
+#else
+        __attribute__((aligned(16)))
+#endif
         float tmp[4][6][4];
 
         int jj = 0;
@@ -5759,6 +5813,11 @@ static inline void conv3x3s1_winograd43_transform_output_tile(const Mat& top_til
         float bias1 = biasptr ? biasptr[i + ii + 1] : 0.f;
 #endif
 
+#ifdef _MSC_VER
+        __declspec(align(8))
+#else
+        __attribute__((aligned(8)))
+#endif
         float tmp[4][6][2];
 
         int jj = 0;
@@ -6274,6 +6333,11 @@ static inline void conv3x3s1_winograd63_transform_input_tile(const Mat& bottom_b
     {
         const int kk = remain_max_kk_start + ppkk * 8;
 
+#ifdef _MSC_VER
+        __declspec(align(16))
+#else
+        __attribute__((aligned(16)))
+#endif
         float tmp[8][8][8];
 
         const float coeffs[8] = {5.25f, -4.25f, -1.25f, 0.25f, -2.5f, 0.5f, 2.f, 4.f};
@@ -6571,6 +6635,11 @@ static inline void conv3x3s1_winograd63_transform_input_tile(const Mat& bottom_b
     {
         const int kk = remain_max_kk_start + ppkk * 4;
 
+#ifdef _MSC_VER
+        __declspec(align(16))
+#else
+        __attribute__((aligned(16)))
+#endif
         float tmp[8][8][4];
 
         const float coeffs[8] = {5.25f, -4.25f, -1.25f, 0.25f, -2.5f, 0.5f, 2.f, 4.f};
@@ -6771,6 +6840,11 @@ static inline void conv3x3s1_winograd63_transform_input_tile(const Mat& bottom_b
     {
         const int kk = remain_max_kk_start + ppkk * 2;
 
+#ifdef _MSC_VER
+        __declspec(align(8))
+#else
+        __attribute__((aligned(8)))
+#endif
         float tmp[8][8][2];
 
 #if __ARM_NEON
@@ -7225,6 +7299,11 @@ static inline void conv3x3s1_winograd63_transform_output_tile(const Mat& top_til
         float32x4_t _bias0 = biasptr ? vld1q_f32(biasptr + i + ii) : vdupq_n_f32(0.f);
         float32x4_t _bias1 = biasptr ? vld1q_f32(biasptr + i + ii + 4) : vdupq_n_f32(0.f);
 
+#ifdef _MSC_VER
+        __declspec(align(16))
+#else
+        __attribute__((aligned(16)))
+#endif
         float tmp[6][8][8];
 
         int jj = 0;
@@ -7495,6 +7574,11 @@ static inline void conv3x3s1_winograd63_transform_output_tile(const Mat& top_til
     {
         float32x4_t _bias0 = biasptr ? vld1q_f32(biasptr + i + ii) : vdupq_n_f32(0.f);
 
+#ifdef _MSC_VER
+        __declspec(align(16))
+#else
+        __attribute__((aligned(16)))
+#endif
         float tmp[6][8][4];
 
         int jj = 0;
@@ -7685,6 +7769,11 @@ static inline void conv3x3s1_winograd63_transform_output_tile(const Mat& top_til
         float bias1 = biasptr ? biasptr[i + ii + 1] : 0.f;
 #endif
 
+#ifdef _MSC_VER
+        __declspec(align(8))
+#else
+        __attribute__((aligned(8)))
+#endif
         float tmp[6][8][2];
 
         int jj = 0;
