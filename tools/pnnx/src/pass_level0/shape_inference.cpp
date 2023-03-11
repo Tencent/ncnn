@@ -17,6 +17,7 @@
 
 #include "storezip.h"
 #include "pass_level0/constant_unpooling.h"
+#include "pass_level0/convert_half_to_float.h"
 #include "pass_level0/flatten_input.h"
 #include "pass_level0/inline_block.h"
 #include "pass_level0/reset_device.h"
@@ -156,6 +157,8 @@ void shape_inference(const torch::jit::Module& mod, std::shared_ptr<torch::jit::
 
         torch::jit::Module mod2 = torch::jit::load(ptpath, (device == "gpu") ? c10::kCUDA : c10::kCPU);
         mod2.eval();
+
+        convert_half_to_float(mod2);
 
         auto graph2 = mod2.get_method("forward").graph();
 

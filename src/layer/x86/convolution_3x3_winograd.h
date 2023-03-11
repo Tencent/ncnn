@@ -3254,18 +3254,20 @@ static inline void conv3x3s1_winograd43_transform_kernel_tile(const Mat& kernel,
         int kk = 0;
         for (; kk < max_kk; kk++)
         {
+            const float sq2 = 1.41421356237f;
             // const float ktm[6][3] = {
-            //     {1.0f / 4, 0.0f, 0.0f},
-            //     {-1.0f / 6, -1.0f / 6, -1.0f / 6},
-            //     {-1.0f / 6, 1.0f / 6, -1.0f / 6},
-            //     {1.0f / 24, 1.0f / 12, 1.0f / 6},
-            //     {1.0f / 24, -1.0f / 12, 1.0f / 6},
+            //     {1.0f, 0.0f, 0.0f},
+            //     {-2.0f / 3, -sq2 / 3, -1.0f / 3},
+            //     {-2.0f / 3, sq2 / 3, -1.0f / 3},
+            //     {1.0f / 6, sq2 / 6, 1.0f / 3},
+            //     {1.0f / 6, -sq2 / 6, 1.0f / 3},
             //     {0.0f, 0.0f, 1.0f}
             // };
-            const float ktm0 = 1.0f / 4;
-            const float ktm1 = 1.0f / 6;
-            const float ktm2 = 1.0f / 12;
-            const float ktm3 = 1.0f / 24;
+            const float ktm0 = 2.0f / 3;
+            const float ktm1 = sq2 / 3;
+            const float ktm2 = 1.0f / 3;
+            const float ktm3 = 1.0f / 6;
+            const float ktm4 = sq2 / 6;
 
             float tmp[6][3];
 
@@ -3277,11 +3279,11 @@ static inline void conv3x3s1_winograd43_transform_kernel_tile(const Mat& kernel,
                 float r1 = k0[1];
                 float r2 = k0[2];
 
-                tmp[0][m] = r0 * ktm0;
-                tmp[1][m] = -r0 * ktm1 - r1 * ktm1 - r2 * ktm1;
-                tmp[2][m] = -r0 * ktm1 + r1 * ktm1 - r2 * ktm1;
-                tmp[3][m] = r0 * ktm3 + r1 * ktm2 + r2 * ktm1;
-                tmp[4][m] = r0 * ktm3 - r1 * ktm2 + r2 * ktm1;
+                tmp[0][m] = r0;
+                tmp[1][m] = -r0 * ktm0 - r1 * ktm1 - r2 * ktm2;
+                tmp[2][m] = -r0 * ktm0 + r1 * ktm1 - r2 * ktm2;
+                tmp[3][m] = r0 * ktm3 + r1 * ktm4 + r2 * ktm2;
+                tmp[4][m] = r0 * ktm3 - r1 * ktm4 + r2 * ktm2;
                 tmp[5][m] = r2;
 
                 k0 += 3;
@@ -3293,11 +3295,11 @@ static inline void conv3x3s1_winograd43_transform_kernel_tile(const Mat& kernel,
                 float r1 = tmp[m][1];
                 float r2 = tmp[m][2];
 
-                float z0 = r0 * ktm0;
-                float z1 = -r0 * ktm1 - r1 * ktm1 - r2 * ktm1;
-                float z2 = -r0 * ktm1 + r1 * ktm1 - r2 * ktm1;
-                float z3 = r0 * ktm3 + r1 * ktm2 + r2 * ktm1;
-                float z4 = r0 * ktm3 - r1 * ktm2 + r2 * ktm1;
+                float z0 = r0;
+                float z1 = -r0 * ktm0 - r1 * ktm1 - r2 * ktm2;
+                float z2 = -r0 * ktm0 + r1 * ktm1 - r2 * ktm2;
+                float z3 = r0 * ktm3 + r1 * ktm4 + r2 * ktm2;
+                float z4 = r0 * ktm3 - r1 * ktm4 + r2 * ktm2;
                 float z5 = r2;
 
                 ptmp[0] = z0;
@@ -3350,14 +3352,24 @@ static void conv3x3s1_winograd43_transform_kernel(const Mat& kernel, Mat& AT, in
 
 static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk, int nT)
 {
+    const float sq2 = 1.41421356237;
+    const float sq2_d2 = 1.41421356237 / 2;
+
     // const float itm[6][6] = {
-    //     {4.0f, 0.0f, -5.0f, 0.0f, 1.0f, 0.0f},
-    //     {0.0f,-4.0f, -4.0f, 1.0f, 1.0f, 0.0f},
-    //     {0.0f, 4.0f, -4.0f,-1.0f, 1.0f, 0.0f},
-    //     {0.0f,-2.0f, -1.0f, 2.0f, 1.0f, 0.0f},
-    //     {0.0f, 2.0f, -1.0f,-2.0f, 1.0f, 0.0f},
-    //     {0.0f, 4.0f,  0.0f,-5.0f, 0.0f, 1.0f}
+    //     {1.0f,  0.0f,  -2.5f,  0.0f,  1.0f, 0.0f},
+    //     {0.0f, -sq2,   -2.0f,  sq2/2, 1.0f, 0.0f},
+    //     {0.0f,  sq2,   -2.0f, -sq2/2, 1.0f, 0.0f},
+    //     {0.0f, -sq2/2, -0.5f,  sq2,   1.0f, 0.0f},
+    //     {0.0f,  sq2/2, -0.5f, -sq2,   1.0f, 0.0f},
+    //     {0.0f,  1.0f,   0.0f,  -2.5f, 0.0f, 1.0f}
     // };
+
+    // 0 =  r00 + r04 - 2.5f * r02
+    // 1 = -(sq2 * r01 - sq2_d2 * r03) + (r04 - 2 * r02)
+    // 2 =  (sq2 * r01 - sq2_d2 * r03) + (r04 - 2 * r02)
+    // 3 =  (sq2 * r03 - sq2_d2 * r01) + (r04 - 0.5f * r02)
+    // 4 = -(sq2 * r03 - sq2_d2 * r01) + (r04 - 0.5f * r02)
+    // 5 =  r01 + r05 - 2.5f * r03
 
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
@@ -3392,11 +3404,11 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
 
             const float* r0 = bottom_blob.channel((k + kk) / elempack).row(ti * 4) + (tj * 4) * elempack;
 
-            __m512 _vm5 = _mm512_set1_ps(-5.f);
-            __m512 _vm4 = _mm512_set1_ps(-4.f);
-            __m512 _v4 = _mm512_set1_ps(4.f);
+            __m512 _vm2_5 = _mm512_set1_ps(-2.5f);
+            __m512 _vsq2 = _mm512_set1_ps(sq2);
+            __m512 _vmsq2_d2 = _mm512_set1_ps(-sq2_d2);
             __m512 _vm2 = _mm512_set1_ps(-2.f);
-            __m512 _v2 = _mm512_set1_ps(2.f);
+            __m512 _vm0_5 = _mm512_set1_ps(-0.5f);
 
             for (int m = 0; m < 6; m++)
             {
@@ -3491,12 +3503,17 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
                     }
                 }
 
-                __m512 _tmp0 = _mm512_fmadd_ps(_vm5, _r2, _mm512_fmadd_ps(_v4, _r0, _r4));
-                __m512 _tmp1 = _mm512_fmadd_ps(_vm4, _mm512_add_ps(_r1, _r2), _mm512_add_ps(_r4, _r3));
-                __m512 _tmp2 = _mm512_fmadd_ps(_v4, _mm512_sub_ps(_r1, _r2), _mm512_sub_ps(_r4, _r3));
-                __m512 _tmp3 = _mm512_fmadd_ps(_vm2, _mm512_sub_ps(_r1, _r3), _mm512_sub_ps(_r4, _r2));
-                __m512 _tmp4 = _mm512_fmadd_ps(_v2, _mm512_sub_ps(_r1, _r3), _mm512_sub_ps(_r4, _r2));
-                __m512 _tmp5 = _mm512_fmadd_ps(_vm5, _r3, _mm512_fmadd_ps(_v4, _r1, _r5));
+                __m512 _tmp12a = _mm512_fmadd_ps(_vmsq2_d2, _r3, _mm512_mul_ps(_r1, _vsq2));
+                __m512 _tmp12b = _mm512_fmadd_ps(_vm2, _r2, _r4);
+                __m512 _tmp34a = _mm512_fmadd_ps(_vmsq2_d2, _r1, _mm512_mul_ps(_r3, _vsq2));
+                __m512 _tmp34b = _mm512_fmadd_ps(_vm0_5, _r2, _r4);
+
+                __m512 _tmp0 = _mm512_fmadd_ps(_vm2_5, _r2, _mm512_add_ps(_r0, _r4));
+                __m512 _tmp1 = _mm512_sub_ps(_tmp12b, _tmp12a);
+                __m512 _tmp2 = _mm512_add_ps(_tmp12b, _tmp12a);
+                __m512 _tmp3 = _mm512_add_ps(_tmp34b, _tmp34a);
+                __m512 _tmp4 = _mm512_sub_ps(_tmp34b, _tmp34a);
+                __m512 _tmp5 = _mm512_fmadd_ps(_vm2_5, _r3, _mm512_add_ps(_r1, _r5));
 
                 _mm512_store_ps(tmp[0][m], _tmp0);
                 _mm512_store_ps(tmp[1][m], _tmp1);
@@ -3524,12 +3541,17 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
                 __m512 _r4 = _mm512_load_ps(tmp[m][4]);
                 __m512 _r5 = _mm512_load_ps(tmp[m][5]);
 
-                __m512 _tmp0 = _mm512_fmadd_ps(_vm5, _r2, _mm512_fmadd_ps(_v4, _r0, _r4));
-                __m512 _tmp1 = _mm512_fmadd_ps(_vm4, _mm512_add_ps(_r1, _r2), _mm512_add_ps(_r4, _r3));
-                __m512 _tmp2 = _mm512_fmadd_ps(_v4, _mm512_sub_ps(_r1, _r2), _mm512_sub_ps(_r4, _r3));
-                __m512 _tmp3 = _mm512_fmadd_ps(_vm2, _mm512_sub_ps(_r1, _r3), _mm512_sub_ps(_r4, _r2));
-                __m512 _tmp4 = _mm512_fmadd_ps(_v2, _mm512_sub_ps(_r1, _r3), _mm512_sub_ps(_r4, _r2));
-                __m512 _tmp5 = _mm512_fmadd_ps(_vm5, _r3, _mm512_fmadd_ps(_v4, _r1, _r5));
+                __m512 _tmp12a = _mm512_fmadd_ps(_vmsq2_d2, _r3, _mm512_mul_ps(_r1, _vsq2));
+                __m512 _tmp12b = _mm512_fmadd_ps(_vm2, _r2, _r4);
+                __m512 _tmp34a = _mm512_fmadd_ps(_vmsq2_d2, _r1, _mm512_mul_ps(_r3, _vsq2));
+                __m512 _tmp34b = _mm512_fmadd_ps(_vm0_5, _r2, _r4);
+
+                __m512 _tmp0 = _mm512_fmadd_ps(_vm2_5, _r2, _mm512_add_ps(_r0, _r4));
+                __m512 _tmp1 = _mm512_sub_ps(_tmp12b, _tmp12a);
+                __m512 _tmp2 = _mm512_add_ps(_tmp12b, _tmp12a);
+                __m512 _tmp3 = _mm512_add_ps(_tmp34b, _tmp34a);
+                __m512 _tmp4 = _mm512_sub_ps(_tmp34b, _tmp34a);
+                __m512 _tmp5 = _mm512_fmadd_ps(_vm2_5, _r3, _mm512_add_ps(_r1, _r5));
 
                 _mm512_store_ps(p0, _tmp0);
                 _mm512_store_ps(p1, _tmp1);
@@ -3572,11 +3594,11 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
 
             const float* r0 = bottom_blob.channel((k + kk) / elempack).row(ti * 4) + (tj * 4) * elempack;
 
-            __m256 _vm5 = _mm256_set1_ps(-5.f);
-            __m256 _vm4 = _mm256_set1_ps(-4.f);
-            __m256 _v4 = _mm256_set1_ps(4.f);
+            __m256 _vm2_5 = _mm256_set1_ps(-2.5f);
+            __m256 _vsq2 = _mm256_set1_ps(sq2);
+            __m256 _vmsq2_d2 = _mm256_set1_ps(-sq2_d2);
             __m256 _vm2 = _mm256_set1_ps(-2.f);
-            __m256 _v2 = _mm256_set1_ps(2.f);
+            __m256 _vm0_5 = _mm256_set1_ps(-0.5f);
 
             for (int m = 0; m < 6; m++)
             {
@@ -3640,12 +3662,17 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
                     }
                 }
 
-                __m256 _tmp0 = _mm256_comp_fmadd_ps(_vm5, _r2, _mm256_comp_fmadd_ps(_v4, _r0, _r4));
-                __m256 _tmp1 = _mm256_comp_fmadd_ps(_vm4, _mm256_add_ps(_r1, _r2), _mm256_add_ps(_r4, _r3));
-                __m256 _tmp2 = _mm256_comp_fmadd_ps(_v4, _mm256_sub_ps(_r1, _r2), _mm256_sub_ps(_r4, _r3));
-                __m256 _tmp3 = _mm256_comp_fmadd_ps(_vm2, _mm256_sub_ps(_r1, _r3), _mm256_sub_ps(_r4, _r2));
-                __m256 _tmp4 = _mm256_comp_fmadd_ps(_v2, _mm256_sub_ps(_r1, _r3), _mm256_sub_ps(_r4, _r2));
-                __m256 _tmp5 = _mm256_comp_fmadd_ps(_vm5, _r3, _mm256_comp_fmadd_ps(_v4, _r1, _r5));
+                __m256 _tmp12a = _mm256_comp_fmadd_ps(_vmsq2_d2, _r3, _mm256_mul_ps(_r1, _vsq2));
+                __m256 _tmp12b = _mm256_comp_fmadd_ps(_vm2, _r2, _r4);
+                __m256 _tmp34a = _mm256_comp_fmadd_ps(_vmsq2_d2, _r1, _mm256_mul_ps(_r3, _vsq2));
+                __m256 _tmp34b = _mm256_comp_fmadd_ps(_vm0_5, _r2, _r4);
+
+                __m256 _tmp0 = _mm256_comp_fmadd_ps(_vm2_5, _r2, _mm256_add_ps(_r0, _r4));
+                __m256 _tmp1 = _mm256_sub_ps(_tmp12b, _tmp12a);
+                __m256 _tmp2 = _mm256_add_ps(_tmp12b, _tmp12a);
+                __m256 _tmp3 = _mm256_add_ps(_tmp34b, _tmp34a);
+                __m256 _tmp4 = _mm256_sub_ps(_tmp34b, _tmp34a);
+                __m256 _tmp5 = _mm256_comp_fmadd_ps(_vm2_5, _r3, _mm256_add_ps(_r1, _r5));
 
 #if defined(__GNUC__) && (__GNUC__ <= 4) && (__GNUC_MINOR__ < 6)
                 _mm256_storeu_ps(tmp[0][m], _tmp0);
@@ -3691,12 +3718,17 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
                 __m256 _r5 = _mm256_load_ps(tmp[m][5]);
 #endif
 
-                __m256 _tmp0 = _mm256_comp_fmadd_ps(_vm5, _r2, _mm256_comp_fmadd_ps(_v4, _r0, _r4));
-                __m256 _tmp1 = _mm256_comp_fmadd_ps(_vm4, _mm256_add_ps(_r1, _r2), _mm256_add_ps(_r4, _r3));
-                __m256 _tmp2 = _mm256_comp_fmadd_ps(_v4, _mm256_sub_ps(_r1, _r2), _mm256_sub_ps(_r4, _r3));
-                __m256 _tmp3 = _mm256_comp_fmadd_ps(_vm2, _mm256_sub_ps(_r1, _r3), _mm256_sub_ps(_r4, _r2));
-                __m256 _tmp4 = _mm256_comp_fmadd_ps(_v2, _mm256_sub_ps(_r1, _r3), _mm256_sub_ps(_r4, _r2));
-                __m256 _tmp5 = _mm256_comp_fmadd_ps(_vm5, _r3, _mm256_comp_fmadd_ps(_v4, _r1, _r5));
+                __m256 _tmp12a = _mm256_comp_fmadd_ps(_vmsq2_d2, _r3, _mm256_mul_ps(_r1, _vsq2));
+                __m256 _tmp12b = _mm256_comp_fmadd_ps(_vm2, _r2, _r4);
+                __m256 _tmp34a = _mm256_comp_fmadd_ps(_vmsq2_d2, _r1, _mm256_mul_ps(_r3, _vsq2));
+                __m256 _tmp34b = _mm256_comp_fmadd_ps(_vm0_5, _r2, _r4);
+
+                __m256 _tmp0 = _mm256_comp_fmadd_ps(_vm2_5, _r2, _mm256_add_ps(_r0, _r4));
+                __m256 _tmp1 = _mm256_sub_ps(_tmp12b, _tmp12a);
+                __m256 _tmp2 = _mm256_add_ps(_tmp12b, _tmp12a);
+                __m256 _tmp3 = _mm256_add_ps(_tmp34b, _tmp34a);
+                __m256 _tmp4 = _mm256_sub_ps(_tmp34b, _tmp34a);
+                __m256 _tmp5 = _mm256_comp_fmadd_ps(_vm2_5, _r3, _mm256_add_ps(_r1, _r5));
 
                 _mm256_store_ps(p0, _tmp0);
                 _mm256_store_ps(p1, _tmp1);
@@ -3739,11 +3771,11 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
 
             const float* r0 = bottom_blob.channel((k + kk) / elempack).row(ti * 4) + (tj * 4) * elempack;
 
-            __m128 _vm5 = _mm_set1_ps(-5.f);
-            __m128 _vm4 = _mm_set1_ps(-4.f);
-            __m128 _v4 = _mm_set1_ps(4.f);
+            __m128 _vm2_5 = _mm_set1_ps(-2.5f);
+            __m128 _vsq2 = _mm_set1_ps(sq2);
+            __m128 _vmsq2_d2 = _mm_set1_ps(-sq2_d2);
             __m128 _vm2 = _mm_set1_ps(-2.f);
-            __m128 _v2 = _mm_set1_ps(2.f);
+            __m128 _vm0_5 = _mm_set1_ps(-0.5f);
 
             for (int m = 0; m < 6; m++)
             {
@@ -3787,12 +3819,17 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
                     }
                 }
 
-                __m128 _tmp0 = _mm_comp_fmadd_ps(_vm5, _r2, _mm_comp_fmadd_ps(_v4, _r0, _r4));
-                __m128 _tmp1 = _mm_comp_fmadd_ps(_vm4, _mm_add_ps(_r1, _r2), _mm_add_ps(_r4, _r3));
-                __m128 _tmp2 = _mm_comp_fmadd_ps(_v4, _mm_sub_ps(_r1, _r2), _mm_sub_ps(_r4, _r3));
-                __m128 _tmp3 = _mm_comp_fmadd_ps(_vm2, _mm_sub_ps(_r1, _r3), _mm_sub_ps(_r4, _r2));
-                __m128 _tmp4 = _mm_comp_fmadd_ps(_v2, _mm_sub_ps(_r1, _r3), _mm_sub_ps(_r4, _r2));
-                __m128 _tmp5 = _mm_comp_fmadd_ps(_vm5, _r3, _mm_comp_fmadd_ps(_v4, _r1, _r5));
+                __m128 _tmp12a = _mm_comp_fmadd_ps(_vmsq2_d2, _r3, _mm_mul_ps(_r1, _vsq2));
+                __m128 _tmp12b = _mm_comp_fmadd_ps(_vm2, _r2, _r4);
+                __m128 _tmp34a = _mm_comp_fmadd_ps(_vmsq2_d2, _r1, _mm_mul_ps(_r3, _vsq2));
+                __m128 _tmp34b = _mm_comp_fmadd_ps(_vm0_5, _r2, _r4);
+
+                __m128 _tmp0 = _mm_comp_fmadd_ps(_vm2_5, _r2, _mm_add_ps(_r0, _r4));
+                __m128 _tmp1 = _mm_sub_ps(_tmp12b, _tmp12a);
+                __m128 _tmp2 = _mm_add_ps(_tmp12b, _tmp12a);
+                __m128 _tmp3 = _mm_add_ps(_tmp34b, _tmp34a);
+                __m128 _tmp4 = _mm_sub_ps(_tmp34b, _tmp34a);
+                __m128 _tmp5 = _mm_comp_fmadd_ps(_vm2_5, _r3, _mm_add_ps(_r1, _r5));
 
 #if defined(__GNUC__) && (__GNUC__ <= 4) && (__GNUC_MINOR__ < 6)
                 _mm_storeu_ps(tmp[0][m], _tmp0);
@@ -3838,12 +3875,17 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
                 __m128 _r5 = _mm_load_ps(tmp[m][5]);
 #endif
 
-                __m128 _tmp0 = _mm_comp_fmadd_ps(_vm5, _r2, _mm_comp_fmadd_ps(_v4, _r0, _r4));
-                __m128 _tmp1 = _mm_comp_fmadd_ps(_vm4, _mm_add_ps(_r1, _r2), _mm_add_ps(_r4, _r3));
-                __m128 _tmp2 = _mm_comp_fmadd_ps(_v4, _mm_sub_ps(_r1, _r2), _mm_sub_ps(_r4, _r3));
-                __m128 _tmp3 = _mm_comp_fmadd_ps(_vm2, _mm_sub_ps(_r1, _r3), _mm_sub_ps(_r4, _r2));
-                __m128 _tmp4 = _mm_comp_fmadd_ps(_v2, _mm_sub_ps(_r1, _r3), _mm_sub_ps(_r4, _r2));
-                __m128 _tmp5 = _mm_comp_fmadd_ps(_vm5, _r3, _mm_comp_fmadd_ps(_v4, _r1, _r5));
+                __m128 _tmp12a = _mm_comp_fmadd_ps(_vmsq2_d2, _r3, _mm_mul_ps(_r1, _vsq2));
+                __m128 _tmp12b = _mm_comp_fmadd_ps(_vm2, _r2, _r4);
+                __m128 _tmp34a = _mm_comp_fmadd_ps(_vmsq2_d2, _r1, _mm_mul_ps(_r3, _vsq2));
+                __m128 _tmp34b = _mm_comp_fmadd_ps(_vm0_5, _r2, _r4);
+
+                __m128 _tmp0 = _mm_comp_fmadd_ps(_vm2_5, _r2, _mm_add_ps(_r0, _r4));
+                __m128 _tmp1 = _mm_sub_ps(_tmp12b, _tmp12a);
+                __m128 _tmp2 = _mm_add_ps(_tmp12b, _tmp12a);
+                __m128 _tmp3 = _mm_add_ps(_tmp34b, _tmp34a);
+                __m128 _tmp4 = _mm_sub_ps(_tmp34b, _tmp34a);
+                __m128 _tmp5 = _mm_comp_fmadd_ps(_vm2_5, _r3, _mm_add_ps(_r1, _r5));
 
                 _mm_store_ps(p0, _tmp0);
                 _mm_store_ps(p1, _tmp1);
@@ -3932,18 +3974,27 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
                     }
                 }
 
-                tmp[0][m][0] = r00 * 4.f - r20 * 5.f + r40;
-                tmp[0][m][1] = r01 * 4.f - r21 * 5.f + r41;
-                tmp[1][m][0] = -r10 * 4.f - r20 * 4.f + r30 + r40;
-                tmp[1][m][1] = -r11 * 4.f - r21 * 4.f + r31 + r41;
-                tmp[2][m][0] = r10 * 4.f - r20 * 4.f - r30 + r40;
-                tmp[2][m][1] = r11 * 4.f - r21 * 4.f - r31 + r41;
-                tmp[3][m][0] = -r10 * 2.f - r20 + r30 * 2.f + r40;
-                tmp[3][m][1] = -r11 * 2.f - r21 + r31 * 2.f + r41;
-                tmp[4][m][0] = r10 * 2.f - r20 - r30 * 2.f + r40;
-                tmp[4][m][1] = r11 * 2.f - r21 - r31 * 2.f + r41;
-                tmp[5][m][0] = r10 * 4.f - r30 * 5.f + r50;
-                tmp[5][m][1] = r11 * 4.f - r31 * 5.f + r51;
+                float tmp12a0 = sq2 * r10 - sq2_d2 * r30;
+                float tmp12a1 = sq2 * r11 - sq2_d2 * r31;
+                float tmp12b0 = r40 - 2 * r20;
+                float tmp12b1 = r41 - 2 * r21;
+                float tmp34a0 = sq2 * r30 - sq2_d2 * r10;
+                float tmp34a1 = sq2 * r31 - sq2_d2 * r11;
+                float tmp34b0 = r40 - 0.5f * r20;
+                float tmp34b1 = r41 - 0.5f * r21;
+
+                tmp[0][m][0] = r00 + r40 - 2.5f * r20;
+                tmp[0][m][1] = r01 + r41 - 2.5f * r21;
+                tmp[1][m][0] = tmp12b0 - tmp12a0;
+                tmp[1][m][1] = tmp12b1 - tmp12a1;
+                tmp[2][m][0] = tmp12b0 + tmp12a0;
+                tmp[2][m][1] = tmp12b1 + tmp12a1;
+                tmp[3][m][0] = tmp34b0 + tmp34a0;
+                tmp[3][m][1] = tmp34b1 + tmp34a1;
+                tmp[4][m][0] = tmp34b0 - tmp34a0;
+                tmp[4][m][1] = tmp34b1 - tmp34a1;
+                tmp[5][m][0] = r10 + r50 - 2.5f * r30;
+                tmp[5][m][1] = r11 + r51 - 2.5f * r31;
 
                 r0 += w;
             }
@@ -3970,18 +4021,27 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
                 float r50 = tmp[m][5][0];
                 float r51 = tmp[m][5][1];
 
-                p0[0] = r00 * 4.f - r20 * 5.f + r40;
-                p0[1] = r01 * 4.f - r21 * 5.f + r41;
-                p1[0] = -r10 * 4.f - r20 * 4.f + r30 + r40;
-                p1[1] = -r11 * 4.f - r21 * 4.f + r31 + r41;
-                p2[0] = r10 * 4.f - r20 * 4.f - r30 + r40;
-                p2[1] = r11 * 4.f - r21 * 4.f - r31 + r41;
-                p3[0] = -r10 * 2.f - r20 + r30 * 2.f + r40;
-                p3[1] = -r11 * 2.f - r21 + r31 * 2.f + r41;
-                p4[0] = r10 * 2.f - r20 - r30 * 2.f + r40;
-                p4[1] = r11 * 2.f - r21 - r31 * 2.f + r41;
-                p5[0] = r10 * 4.f - r30 * 5.f + r50;
-                p5[1] = r11 * 4.f - r31 * 5.f + r51;
+                float tmp12a0 = sq2 * r10 - sq2_d2 * r30;
+                float tmp12a1 = sq2 * r11 - sq2_d2 * r31;
+                float tmp12b0 = r40 - 2 * r20;
+                float tmp12b1 = r41 - 2 * r21;
+                float tmp34a0 = sq2 * r30 - sq2_d2 * r10;
+                float tmp34a1 = sq2 * r31 - sq2_d2 * r11;
+                float tmp34b0 = r40 - 0.5f * r20;
+                float tmp34b1 = r41 - 0.5f * r21;
+
+                p0[0] = r00 + r40 - 2.5f * r20;
+                p0[1] = r01 + r41 - 2.5f * r21;
+                p1[0] = tmp12b0 - tmp12a0;
+                p1[1] = tmp12b1 - tmp12a1;
+                p2[0] = tmp12b0 + tmp12a0;
+                p2[1] = tmp12b1 + tmp12a1;
+                p3[0] = tmp34b0 + tmp34a0;
+                p3[1] = tmp34b1 + tmp34a1;
+                p4[0] = tmp34b0 - tmp34a0;
+                p4[1] = tmp34b1 - tmp34a1;
+                p5[0] = r10 + r50 - 2.5f * r30;
+                p5[1] = r11 + r51 - 2.5f * r31;
 
                 p0 += max_jj * 6 * 2;
                 p1 += max_jj * 6 * 2;
@@ -4027,12 +4087,17 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
                     }
                 }
 
-                tmp[0][m] = r0 * 4.f - r2 * 5.f + r4;
-                tmp[1][m] = -r1 * 4.f - r2 * 4.f + r3 + r4;
-                tmp[2][m] = r1 * 4.f - r2 * 4.f - r3 + r4;
-                tmp[3][m] = -r1 * 2.f - r2 + r3 * 2.f + r4;
-                tmp[4][m] = r1 * 2.f - r2 - r3 * 2.f + r4;
-                tmp[5][m] = r1 * 4.f - r3 * 5.f + r5;
+                float tmp12a = sq2 * r1 - sq2_d2 * r3;
+                float tmp12b = r4 - 2 * r2;
+                float tmp34a = sq2 * r3 - sq2_d2 * r1;
+                float tmp34b = r4 - 0.5f * r2;
+
+                tmp[0][m] = r0 + r4 - 2.5f * r2;
+                tmp[1][m] = tmp12b - tmp12a;
+                tmp[2][m] = tmp12b + tmp12a;
+                tmp[3][m] = tmp34b + tmp34a;
+                tmp[4][m] = tmp34b - tmp34a;
+                tmp[5][m] = r1 + r5 - 2.5f * r3;
 
                 r0123 += w;
             }
@@ -4053,12 +4118,17 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
                 float r4 = tmp[m][4];
                 float r5 = tmp[m][5];
 
-                p0[0] = r0 * 4.f - r2 * 5.f + r4;
-                p1[0] = -r1 * 4.f - r2 * 4.f + r3 + r4;
-                p2[0] = r1 * 4.f - r2 * 4.f - r3 + r4;
-                p3[0] = -r1 * 2.f - r2 + r3 * 2.f + r4;
-                p4[0] = r1 * 2.f - r2 - r3 * 2.f + r4;
-                p5[0] = r1 * 4.f - r3 * 5.f + r5;
+                float tmp12a = sq2 * r1 - sq2_d2 * r3;
+                float tmp12b = r4 - 2 * r2;
+                float tmp34a = sq2 * r3 - sq2_d2 * r1;
+                float tmp34b = r4 - 0.5f * r2;
+
+                p0[0] = r0 + r4 - 2.5f * r2;
+                p1[0] = tmp12b - tmp12a;
+                p2[0] = tmp12b + tmp12a;
+                p3[0] = tmp34b + tmp34a;
+                p4[0] = tmp34b - tmp34a;
+                p5[0] = r1 + r5 - 2.5f * r3;
 
                 p0 += max_jj * 6;
                 p1 += max_jj * 6;
@@ -4073,12 +4143,22 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
 
 static inline void conv3x3s1_winograd43_transform_output_tile(const Mat& top_tile, Mat& top_blob, const Mat& bias, int i, int max_ii, int j, int max_jj)
 {
+    const float sq2 = 1.41421356237;
+    const float sq2_m2 = 1.41421356237 * 2;
+    const float sq2_d2 = 1.41421356237 / 2;
+    const float sq2_d4 = 1.41421356237 / 4;
+
     // const float otm[4][6] = {
-    //     {1.0f, 1.0f,  1.0f, 1.0f,  1.0f, 0.0f},
-    //     {0.0f, 1.0f, -1.0f, 2.0f, -2.0f, 0.0f},
-    //     {0.0f, 1.0f,  1.0f, 4.0f,  4.0f, 0.0f},
-    //     {0.0f, 1.0f, -1.0f, 8.0f, -8.0f, 1.0f}
+    //     {1.0f, 1.0f,   1.0f,  1.0f,  1.0f,   0.0f},
+    //     {0.0f, sq2/2, -sq2/2, sq2,   -sq2,   0.0f},
+    //     {0.0f, 0.5f,   0.5f,  2.0f,  2.0f,   0.0f},
+    //     {0.0f, sq2/4, -sq2/4, sq2*2, -sq2*2, 1.0f}
     // };
+
+    // 0 = r00 + (r01 + r02) + (r03 + r04)
+    // 1 =       (r01 - r02) * sq2_d2 + (r03 - r04) * sq2
+    // 2 =       (r01 + r02) * 0.5f + (r03 + r04) * 2
+    // 3 = r05 + (r01 - r02) * sq2_d4 + (r03 - r04) * sq2_m2
 
     const int outw = top_blob.w;
     const int outh = top_blob.h;
@@ -4117,9 +4197,12 @@ static inline void conv3x3s1_winograd43_transform_output_tile(const Mat& top_til
             const float* r4 = r0 + max_jj * 16 * 4;
             const float* r5 = r0 + max_jj * 16 * 5;
 
+            __m512 _vsq2 = _mm512_set1_ps(sq2);
+            __m512 _vsq2_d2 = _mm512_set1_ps(sq2_d2);
+            __m512 _vsq2_d4 = _mm512_set1_ps(sq2_d4);
+            __m512 _vsq2_m2 = _mm512_set1_ps(sq2_m2);
+            __m512 _v0_5 = _mm512_set1_ps(0.5f);
             __m512 _v2 = _mm512_set1_ps(2.f);
-            __m512 _v4 = _mm512_set1_ps(4.f);
-            __m512 _v8 = _mm512_set1_ps(8.f);
 
             for (int m = 0; m < 6; m++)
             {
@@ -4131,13 +4214,14 @@ static inline void conv3x3s1_winograd43_transform_output_tile(const Mat& top_til
                 __m512 _r5 = _mm512_load_ps(r5);
 
                 __m512 _tmp02a = _mm512_add_ps(_r1, _r2);
-                __m512 _tmp13a = _mm512_sub_ps(_r1, _r2);
                 __m512 _tmp02b = _mm512_add_ps(_r3, _r4);
+                __m512 _tmp13a = _mm512_sub_ps(_r1, _r2);
                 __m512 _tmp13b = _mm512_sub_ps(_r3, _r4);
+
                 __m512 _tmp0 = _mm512_add_ps(_mm512_add_ps(_r0, _tmp02a), _tmp02b);
-                __m512 _tmp1 = _mm512_fmadd_ps(_v2, _tmp13b, _tmp13a);
-                __m512 _tmp2 = _mm512_fmadd_ps(_v4, _tmp02b, _tmp02a);
-                __m512 _tmp3 = _mm512_fmadd_ps(_v8, _tmp13b, _mm512_add_ps(_r5, _tmp13a));
+                __m512 _tmp1 = _mm512_fmadd_ps(_tmp13b, _vsq2, _mm512_mul_ps(_tmp13a, _vsq2_d2));
+                __m512 _tmp2 = _mm512_fmadd_ps(_tmp02b, _v2, _mm512_mul_ps(_tmp02a, _v0_5));
+                __m512 _tmp3 = _mm512_fmadd_ps(_tmp13b, _vsq2_m2, _mm512_fmadd_ps(_tmp13a, _vsq2_d4, _r5));
 
                 _mm512_store_ps(tmp[0][m], _tmp0);
                 _mm512_store_ps(tmp[1][m], _tmp1);
@@ -4167,13 +4251,14 @@ static inline void conv3x3s1_winograd43_transform_output_tile(const Mat& top_til
                 __m512 _r5 = _mm512_load_ps(tmp[m][5]);
 
                 __m512 _tmp02a = _mm512_add_ps(_r1, _r2);
-                __m512 _tmp13a = _mm512_sub_ps(_r1, _r2);
                 __m512 _tmp02b = _mm512_add_ps(_r3, _r4);
+                __m512 _tmp13a = _mm512_sub_ps(_r1, _r2);
                 __m512 _tmp13b = _mm512_sub_ps(_r3, _r4);
-                __m512 _tmp0 = _mm512_add_ps(_bias0, _mm512_add_ps(_mm512_add_ps(_r0, _tmp02a), _tmp02b));
-                __m512 _tmp1 = _mm512_add_ps(_bias0, _mm512_fmadd_ps(_v2, _tmp13b, _tmp13a));
-                __m512 _tmp2 = _mm512_add_ps(_bias0, _mm512_fmadd_ps(_v4, _tmp02b, _tmp02a));
-                __m512 _tmp3 = _mm512_add_ps(_bias0, _mm512_fmadd_ps(_v8, _tmp13b, _mm512_add_ps(_r5, _tmp13a)));
+
+                __m512 _tmp0 = _mm512_add_ps(_mm512_add_ps(_r0, _tmp02a), _mm512_add_ps(_tmp02b, _bias0));
+                __m512 _tmp1 = _mm512_fmadd_ps(_tmp13b, _vsq2, _mm512_fmadd_ps(_tmp13a, _vsq2_d2, _bias0));
+                __m512 _tmp2 = _mm512_fmadd_ps(_tmp02b, _v2, _mm512_fmadd_ps(_tmp02a, _v0_5, _bias0));
+                __m512 _tmp3 = _mm512_fmadd_ps(_tmp13b, _vsq2_m2, _mm512_fmadd_ps(_tmp13a, _vsq2_d4, _mm512_add_ps(_r5, _bias0)));
 
                 if (out_elempack == 16)
                 {
@@ -4367,9 +4452,12 @@ static inline void conv3x3s1_winograd43_transform_output_tile(const Mat& top_til
             const float* r4 = r0 + max_jj * 8 * 4;
             const float* r5 = r0 + max_jj * 8 * 5;
 
+            __m256 _vsq2 = _mm256_set1_ps(sq2);
+            __m256 _vsq2_d2 = _mm256_set1_ps(sq2_d2);
+            __m256 _vsq2_d4 = _mm256_set1_ps(sq2_d4);
+            __m256 _vsq2_m2 = _mm256_set1_ps(sq2_m2);
+            __m256 _v0_5 = _mm256_set1_ps(0.5f);
             __m256 _v2 = _mm256_set1_ps(2.f);
-            __m256 _v4 = _mm256_set1_ps(4.f);
-            __m256 _v8 = _mm256_set1_ps(8.f);
 
             for (int m = 0; m < 6; m++)
             {
@@ -4381,13 +4469,14 @@ static inline void conv3x3s1_winograd43_transform_output_tile(const Mat& top_til
                 __m256 _r5 = _mm256_load_ps(r5);
 
                 __m256 _tmp02a = _mm256_add_ps(_r1, _r2);
-                __m256 _tmp13a = _mm256_sub_ps(_r1, _r2);
                 __m256 _tmp02b = _mm256_add_ps(_r3, _r4);
+                __m256 _tmp13a = _mm256_sub_ps(_r1, _r2);
                 __m256 _tmp13b = _mm256_sub_ps(_r3, _r4);
+
                 __m256 _tmp0 = _mm256_add_ps(_mm256_add_ps(_r0, _tmp02a), _tmp02b);
-                __m256 _tmp1 = _mm256_comp_fmadd_ps(_v2, _tmp13b, _tmp13a);
-                __m256 _tmp2 = _mm256_comp_fmadd_ps(_v4, _tmp02b, _tmp02a);
-                __m256 _tmp3 = _mm256_comp_fmadd_ps(_v8, _tmp13b, _mm256_add_ps(_r5, _tmp13a));
+                __m256 _tmp1 = _mm256_comp_fmadd_ps(_tmp13b, _vsq2, _mm256_mul_ps(_tmp13a, _vsq2_d2));
+                __m256 _tmp2 = _mm256_comp_fmadd_ps(_tmp02b, _v2, _mm256_mul_ps(_tmp02a, _v0_5));
+                __m256 _tmp3 = _mm256_comp_fmadd_ps(_tmp13b, _vsq2_m2, _mm256_comp_fmadd_ps(_tmp13a, _vsq2_d4, _r5));
 
 #if defined(__GNUC__) && (__GNUC__ <= 4) && (__GNUC_MINOR__ < 6)
                 _mm256_storeu_ps(tmp[0][m], _tmp0);
@@ -4433,13 +4522,14 @@ static inline void conv3x3s1_winograd43_transform_output_tile(const Mat& top_til
 #endif
 
                 __m256 _tmp02a = _mm256_add_ps(_r1, _r2);
-                __m256 _tmp13a = _mm256_sub_ps(_r1, _r2);
                 __m256 _tmp02b = _mm256_add_ps(_r3, _r4);
+                __m256 _tmp13a = _mm256_sub_ps(_r1, _r2);
                 __m256 _tmp13b = _mm256_sub_ps(_r3, _r4);
-                __m256 _tmp0 = _mm256_add_ps(_bias0, _mm256_add_ps(_mm256_add_ps(_r0, _tmp02a), _tmp02b));
-                __m256 _tmp1 = _mm256_add_ps(_bias0, _mm256_comp_fmadd_ps(_v2, _tmp13b, _tmp13a));
-                __m256 _tmp2 = _mm256_add_ps(_bias0, _mm256_comp_fmadd_ps(_v4, _tmp02b, _tmp02a));
-                __m256 _tmp3 = _mm256_add_ps(_bias0, _mm256_comp_fmadd_ps(_v8, _tmp13b, _mm256_add_ps(_r5, _tmp13a)));
+
+                __m256 _tmp0 = _mm256_add_ps(_mm256_add_ps(_r0, _tmp02a), _mm256_add_ps(_tmp02b, _bias0));
+                __m256 _tmp1 = _mm256_comp_fmadd_ps(_tmp13b, _vsq2, _mm256_comp_fmadd_ps(_tmp13a, _vsq2_d2, _bias0));
+                __m256 _tmp2 = _mm256_comp_fmadd_ps(_tmp02b, _v2, _mm256_comp_fmadd_ps(_tmp02a, _v0_5, _bias0));
+                __m256 _tmp3 = _mm256_comp_fmadd_ps(_tmp13b, _vsq2_m2, _mm256_comp_fmadd_ps(_tmp13a, _vsq2_d4, _mm256_add_ps(_r5, _bias0)));
 
                 if (out_elempack == 8)
                 {
@@ -4561,9 +4651,12 @@ static inline void conv3x3s1_winograd43_transform_output_tile(const Mat& top_til
             const float* r4 = r0 + max_jj * 4 * 4;
             const float* r5 = r0 + max_jj * 4 * 5;
 
+            __m128 _vsq2 = _mm_set1_ps(sq2);
+            __m128 _vsq2_d2 = _mm_set1_ps(sq2_d2);
+            __m128 _vsq2_d4 = _mm_set1_ps(sq2_d4);
+            __m128 _vsq2_m2 = _mm_set1_ps(sq2_m2);
+            __m128 _v0_5 = _mm_set1_ps(0.5f);
             __m128 _v2 = _mm_set1_ps(2.f);
-            __m128 _v4 = _mm_set1_ps(4.f);
-            __m128 _v8 = _mm_set1_ps(8.f);
 
             for (int m = 0; m < 6; m++)
             {
@@ -4575,13 +4668,14 @@ static inline void conv3x3s1_winograd43_transform_output_tile(const Mat& top_til
                 __m128 _r5 = _mm_load_ps(r5);
 
                 __m128 _tmp02a = _mm_add_ps(_r1, _r2);
-                __m128 _tmp13a = _mm_sub_ps(_r1, _r2);
                 __m128 _tmp02b = _mm_add_ps(_r3, _r4);
+                __m128 _tmp13a = _mm_sub_ps(_r1, _r2);
                 __m128 _tmp13b = _mm_sub_ps(_r3, _r4);
+
                 __m128 _tmp0 = _mm_add_ps(_mm_add_ps(_r0, _tmp02a), _tmp02b);
-                __m128 _tmp1 = _mm_comp_fmadd_ps(_v2, _tmp13b, _tmp13a);
-                __m128 _tmp2 = _mm_comp_fmadd_ps(_v4, _tmp02b, _tmp02a);
-                __m128 _tmp3 = _mm_comp_fmadd_ps(_v8, _tmp13b, _mm_add_ps(_r5, _tmp13a));
+                __m128 _tmp1 = _mm_comp_fmadd_ps(_tmp13b, _vsq2, _mm_mul_ps(_tmp13a, _vsq2_d2));
+                __m128 _tmp2 = _mm_comp_fmadd_ps(_tmp02b, _v2, _mm_mul_ps(_tmp02a, _v0_5));
+                __m128 _tmp3 = _mm_comp_fmadd_ps(_tmp13b, _vsq2_m2, _mm_comp_fmadd_ps(_tmp13a, _vsq2_d4, _r5));
 
 #if defined(__GNUC__) && (__GNUC__ <= 4) && (__GNUC_MINOR__ < 6)
                 _mm_storeu_ps(tmp[0][m], _tmp0);
@@ -4627,13 +4721,14 @@ static inline void conv3x3s1_winograd43_transform_output_tile(const Mat& top_til
 #endif
 
                 __m128 _tmp02a = _mm_add_ps(_r1, _r2);
-                __m128 _tmp13a = _mm_sub_ps(_r1, _r2);
                 __m128 _tmp02b = _mm_add_ps(_r3, _r4);
+                __m128 _tmp13a = _mm_sub_ps(_r1, _r2);
                 __m128 _tmp13b = _mm_sub_ps(_r3, _r4);
-                __m128 _tmp0 = _mm_add_ps(_bias0, _mm_add_ps(_mm_add_ps(_r0, _tmp02a), _tmp02b));
-                __m128 _tmp1 = _mm_add_ps(_bias0, _mm_comp_fmadd_ps(_v2, _tmp13b, _tmp13a));
-                __m128 _tmp2 = _mm_add_ps(_bias0, _mm_comp_fmadd_ps(_v4, _tmp02b, _tmp02a));
-                __m128 _tmp3 = _mm_add_ps(_bias0, _mm_comp_fmadd_ps(_v8, _tmp13b, _mm_add_ps(_r5, _tmp13a)));
+
+                __m128 _tmp0 = _mm_add_ps(_mm_add_ps(_r0, _tmp02a), _mm_add_ps(_tmp02b, _bias0));
+                __m128 _tmp1 = _mm_comp_fmadd_ps(_tmp13b, _vsq2, _mm_comp_fmadd_ps(_tmp13a, _vsq2_d2, _bias0));
+                __m128 _tmp2 = _mm_comp_fmadd_ps(_tmp02b, _v2, _mm_comp_fmadd_ps(_tmp02a, _v0_5, _bias0));
+                __m128 _tmp3 = _mm_comp_fmadd_ps(_tmp13b, _vsq2_m2, _mm_comp_fmadd_ps(_tmp13a, _vsq2_d4, _mm_add_ps(_r5, _bias0)));
 
                 if (out_elempack == 4)
                 {
@@ -4711,14 +4806,23 @@ static inline void conv3x3s1_winograd43_transform_output_tile(const Mat& top_til
 
             for (int m = 0; m < 6; m++)
             {
-                tmp[0][m][0] = r0[0] + r1[0] + r2[0] + r3[0] + r4[0];
-                tmp[0][m][1] = r0[1] + r1[1] + r2[1] + r3[1] + r4[1];
-                tmp[1][m][0] = r1[0] - r2[0] + r3[0] * 2.f - r4[0] * 2.f;
-                tmp[1][m][1] = r1[1] - r2[1] + r3[1] * 2.f - r4[1] * 2.f;
-                tmp[2][m][0] = r1[0] + r2[0] + r3[0] * 4.f + r4[0] * 4.f;
-                tmp[2][m][1] = r1[1] + r2[1] + r3[1] * 4.f + r4[1] * 4.f;
-                tmp[3][m][0] = r1[0] - r2[0] + r3[0] * 8.f - r4[0] * 8.f + r5[0];
-                tmp[3][m][1] = r1[1] - r2[1] + r3[1] * 8.f - r4[1] * 8.f + r5[1];
+                float tmp02a0 = r1[0] + r2[0];
+                float tmp02a1 = r1[1] + r2[1];
+                float tmp02b0 = r3[0] + r4[0];
+                float tmp02b1 = r3[1] + r4[1];
+                float tmp13a0 = r1[0] - r2[0];
+                float tmp13a1 = r1[1] - r2[1];
+                float tmp13b0 = r3[0] - r4[0];
+                float tmp13b1 = r3[1] - r4[1];
+
+                tmp[0][m][0] = r0[0] + tmp02a0 + tmp02b0;
+                tmp[0][m][1] = r0[1] + tmp02a1 + tmp02b1;
+                tmp[1][m][0] = tmp13a0 * sq2_d2 + tmp13b0 * sq2;
+                tmp[1][m][1] = tmp13a1 * sq2_d2 + tmp13b1 * sq2;
+                tmp[2][m][0] = tmp02a0 * 0.5f + tmp02b0 * 2;
+                tmp[2][m][1] = tmp02a1 * 0.5f + tmp02b1 * 2;
+                tmp[3][m][0] = r5[0] + tmp13a0 * sq2_d4 + tmp13b0 * sq2_m2;
+                tmp[3][m][1] = r5[1] + tmp13a1 * sq2_d4 + tmp13b1 * sq2_m2;
 
                 r0 += max_jj * 6 * 2;
                 r1 += max_jj * 6 * 2;
@@ -4748,14 +4852,23 @@ static inline void conv3x3s1_winograd43_transform_output_tile(const Mat& top_til
                 float r50 = tmp[m][5][0];
                 float r51 = tmp[m][5][1];
 
-                float tmp00 = bias0 + r00 + r10 + r20 + r30 + r40;
-                float tmp01 = bias1 + r01 + r11 + r21 + r31 + r41;
-                float tmp10 = bias0 + r10 - r20 + r30 * 2.f - r40 * 2.f;
-                float tmp11 = bias1 + r11 - r21 + r31 * 2.f - r41 * 2.f;
-                float tmp20 = bias0 + r10 + r20 + r30 * 4.f + r40 * 4.f;
-                float tmp21 = bias1 + r11 + r21 + r31 * 4.f + r41 * 4.f;
-                float tmp30 = bias0 + r10 - r20 + r30 * 8.f - r40 * 8.f + r50;
-                float tmp31 = bias1 + r11 - r21 + r31 * 8.f - r41 * 8.f + r51;
+                float tmp02a0 = r10 + r20;
+                float tmp02a1 = r11 + r21;
+                float tmp02b0 = r30 + r40;
+                float tmp02b1 = r31 + r41;
+                float tmp13a0 = r10 - r20;
+                float tmp13a1 = r11 - r21;
+                float tmp13b0 = r30 - r40;
+                float tmp13b1 = r31 - r41;
+
+                float tmp00 = bias0 + r00 + tmp02a0 + tmp02b0;
+                float tmp01 = bias1 + r01 + tmp02a1 + tmp02b1;
+                float tmp10 = bias0 + tmp13a0 * sq2_d2 + tmp13b0 * sq2;
+                float tmp11 = bias1 + tmp13a1 * sq2_d2 + tmp13b1 * sq2;
+                float tmp20 = bias0 + tmp02a0 * 0.5f + tmp02b0 * 2;
+                float tmp21 = bias1 + tmp02a1 * 0.5f + tmp02b1 * 2;
+                float tmp30 = bias0 + r50 + tmp13a0 * sq2_d4 + tmp13b0 * sq2_m2;
+                float tmp31 = bias1 + r51 + tmp13a1 * sq2_d4 + tmp13b1 * sq2_m2;
 
                 // if (out_elempack == 1)
                 {
@@ -4805,10 +4918,15 @@ static inline void conv3x3s1_winograd43_transform_output_tile(const Mat& top_til
 
             for (int m = 0; m < 6; m++)
             {
-                tmp[0][m] = r0[0] + r1[0] + r2[0] + r3[0] + r4[0];
-                tmp[1][m] = r1[0] - r2[0] + r3[0] * 2.f - r4[0] * 2.f;
-                tmp[2][m] = r1[0] + r2[0] + r3[0] * 4.f + r4[0] * 4.f;
-                tmp[3][m] = r1[0] - r2[0] + r3[0] * 8.f - r4[0] * 8.f + r5[0];
+                float tmp02a = r1[0] + r2[0];
+                float tmp02b = r3[0] + r4[0];
+                float tmp13a = r1[0] - r2[0];
+                float tmp13b = r3[0] - r4[0];
+
+                tmp[0][m] = r0[0] + tmp02a + tmp02b;
+                tmp[1][m] = tmp13a * sq2_d2 + tmp13b * sq2;
+                tmp[2][m] = tmp02a * 0.5f + tmp02b * 2;
+                tmp[3][m] = r5[0] + tmp13a * sq2_d4 + tmp13b * sq2_m2;
 
                 r0 += max_jj * 6;
                 r1 += max_jj * 6;
@@ -4832,10 +4950,15 @@ static inline void conv3x3s1_winograd43_transform_output_tile(const Mat& top_til
                 float r4 = tmp[m][4];
                 float r5 = tmp[m][5];
 
-                float tmp0 = bias0 + r0 + r1 + r2 + r3 + r4;
-                float tmp1 = bias0 + r1 - r2 + r3 * 2.f - r4 * 2.f;
-                float tmp2 = bias0 + r1 + r2 + r3 * 4.f + r4 * 4.f;
-                float tmp3 = bias0 + r1 - r2 + r3 * 8.f - r4 * 8.f + r5;
+                float tmp02a = r1 + r2;
+                float tmp02b = r3 + r4;
+                float tmp13a = r1 - r2;
+                float tmp13b = r3 - r4;
+
+                float tmp0 = bias0 + r0 + tmp02a + tmp02b;
+                float tmp1 = bias0 + tmp13a * sq2_d2 + tmp13b * sq2;
+                float tmp2 = bias0 + tmp02a * 0.5f + tmp02b * 2;
+                float tmp3 = bias0 + r5 + tmp13a * sq2_d4 + tmp13b * sq2_m2;
 
                 // if (out_elempack == 1)
                 {

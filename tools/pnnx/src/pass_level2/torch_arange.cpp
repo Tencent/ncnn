@@ -68,4 +68,55 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_arange_1, 20)
 
+class torch_arange_2 : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+8 7
+pnnx.Input              input_0     0 1 start
+pnnx.Input              input_1     0 1 end
+prim::Constant          op_0        0 1 dtype value=*
+prim::Constant          op_1        0 1 layout value=*
+prim::Constant          op_2        0 1 device value=*
+prim::Constant          op_3        0 1 pin_memory value=*
+aten::arange            op_4        6 1 start end dtype layout device pin_memory out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "torch.arange";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_arange_2, 20)
+
+class torch_arange_3 : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+7 6
+pnnx.Input              input_0     0 1 start
+pnnx.Input              input_1     0 1 end
+prim::Constant          op_0        0 1 dtype value=*
+prim::Constant          op_1        0 1 layout value=*
+prim::Constant          op_2        0 1 pin_memory value=*
+aten::arange            op_3        6 1 start end dtype layout layout pin_memory out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "torch.arange";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_arange_3, 20)
+
 } // namespace pnnx

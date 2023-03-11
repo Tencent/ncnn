@@ -257,7 +257,7 @@ void eliminate_noop_math(Graph& graph)
             if (!need_eliminate)
                 continue;
 
-            fprintf(stderr, "eliminate_noop_math %s %s\n", op->type.c_str(), op->name.c_str());
+            // fprintf(stderr, "eliminate_noop_math %s %s\n", op->type.c_str(), op->name.c_str());
 
             for (auto& x : op->inputs)
             {
