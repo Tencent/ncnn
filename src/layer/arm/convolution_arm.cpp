@@ -146,14 +146,14 @@ int Convolution_arm::create_pipeline(const Option& opt)
     }
 #endif
 
-#if 0//NCNN_ARM82
+#if 0 //NCNN_ARM82
     if (support_fp16_storage && opt.use_fp16_storage)
     {
         return create_pipeline_fp16s(opt);
     }
 #endif
 
-#if 0//NCNN_BF16
+#if 0 //NCNN_BF16
     if (opt.use_bf16_storage)
     {
         return create_pipeline_bf16s(opt);
@@ -315,7 +315,7 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
 
     int elembits = bottom_blob.elembits();
 
-#if 0//NCNN_ARM82
+#if 0 //NCNN_ARM82
     if (support_fp16_storage && opt.use_fp16_storage && elembits == 16)
     {
         if (opt.use_fp16_arithmetic)
@@ -325,7 +325,7 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     }
 #endif
 
-#if 0//NCNN_BF16
+#if 0 //NCNN_BF16
     if (opt.use_bf16_storage && elembits == 16)
         return forward_bf16s(bottom_blob, top_blob, opt);
 #endif

@@ -15,14 +15,14 @@
 void pretty_print(const ncnn::Mat& m)
 {
     return;
-    for (int q=0; q<m.c; q++)
+    for (int q = 0; q < m.c; q++)
     {
         const float* ptr = m.channel(q);
-        for (int z=0; z<m.d; z++)
+        for (int z = 0; z < m.d; z++)
         {
-            for (int y=0; y<m.h; y++)
+            for (int y = 0; y < m.h; y++)
             {
-                for (int x=0; x<m.w; x++)
+                for (int x = 0; x < m.w; x++)
                 {
                     printf("%f ", ptr[x]);
                 }
@@ -156,7 +156,7 @@ static void convolution_im2col_pack_B_tile(const Mat& B, Mat& BT, int max_jj, in
     {
         if (elempack == 4)
         {
-            const float* p0 = (const float*)B + (jj) * max_kk;
+            const float* p0 = (const float*)B + (jj)*max_kk;
             const float* p1 = (const float*)B + (jj + 4) * max_kk;
             const float* p2 = (const float*)B + (jj + 8) * max_kk;
 
@@ -173,7 +173,7 @@ static void convolution_im2col_pack_B_tile(const Mat& B, Mat& BT, int max_jj, in
         }
         if (elempack == 1)
         {
-            const float* p0 = (const float*)B + (jj) * max_kk;
+            const float* p0 = (const float*)B + (jj)*max_kk;
             const float* p1 = (const float*)B + (jj + 1) * max_kk;
             const float* p2 = (const float*)B + (jj + 2) * max_kk;
             const float* p3 = (const float*)B + (jj + 3) * max_kk;
@@ -221,7 +221,7 @@ static void convolution_im2col_pack_B_tile(const Mat& B, Mat& BT, int max_jj, in
     {
         if (elempack == 4)
         {
-            const float* p0 = (const float*)B + (jj) * max_kk;
+            const float* p0 = (const float*)B + (jj)*max_kk;
             const float* p1 = (const float*)B + (jj + 4) * max_kk;
 
             for (int kk = 0; kk < max_kk; kk++)
@@ -235,7 +235,7 @@ static void convolution_im2col_pack_B_tile(const Mat& B, Mat& BT, int max_jj, in
         }
         if (elempack == 1)
         {
-            const float* p0 = (const float*)B + (jj) * max_kk;
+            const float* p0 = (const float*)B + (jj)*max_kk;
             const float* p1 = (const float*)B + (jj + 1) * max_kk;
             const float* p2 = (const float*)B + (jj + 2) * max_kk;
             const float* p3 = (const float*)B + (jj + 3) * max_kk;
@@ -271,7 +271,7 @@ static void convolution_im2col_pack_B_tile(const Mat& B, Mat& BT, int max_jj, in
     {
         if (elempack == 4)
         {
-            const float* p0 = (const float*)B + (jj) * max_kk;
+            const float* p0 = (const float*)B + (jj)*max_kk;
 
             for (int kk = 0; kk < max_kk; kk++)
             {
@@ -282,7 +282,7 @@ static void convolution_im2col_pack_B_tile(const Mat& B, Mat& BT, int max_jj, in
         }
         if (elempack == 1)
         {
-            const float* p0 = (const float*)B + (jj) * max_kk;
+            const float* p0 = (const float*)B + (jj)*max_kk;
             const float* p1 = (const float*)B + (jj + 1) * max_kk;
             const float* p2 = (const float*)B + (jj + 2) * max_kk;
             const float* p3 = (const float*)B + (jj + 3) * max_kk;
@@ -307,7 +307,7 @@ static void convolution_im2col_pack_B_tile(const Mat& B, Mat& BT, int max_jj, in
     {
         // if (elempack == 1)
         {
-            const float* p0 = (const float*)B + (jj) * max_kk;
+            const float* p0 = (const float*)B + (jj)*max_kk;
             const float* p1 = (const float*)B + (jj + 1) * max_kk;
 
             int kk = 0;
@@ -325,7 +325,7 @@ static void convolution_im2col_pack_B_tile(const Mat& B, Mat& BT, int max_jj, in
     {
         // if (elempack == 1)
         {
-            const float* p0 = (const float*)B + (jj) * max_kk;
+            const float* p0 = (const float*)B + (jj)*max_kk;
 
             int kk = 0;
             for (; kk < max_kk; kk++)
@@ -1866,7 +1866,7 @@ static void convolution_gemm_transB_packed_tile(const Mat& AT_tile, const Mat& B
                 _sum9 = vfmaq_laneq_f32(_sum9, _pA, _pB2, 1);
                 _suma = vfmaq_laneq_f32(_suma, _pA, _pB2, 2);
                 _sumb = vfmaq_laneq_f32(_sumb, _pA, _pB2, 3);
-#else // __aarch64__
+#else  // __aarch64__
                 _sum0 = vmlaq_lane_f32(_sum0, _pA, vget_low_f32(_pB0), 0);
                 _sum1 = vmlaq_lane_f32(_sum1, _pA, vget_low_f32(_pB0), 1);
                 _sum2 = vmlaq_lane_f32(_sum2, _pA, vget_high_f32(_pB0), 0);
@@ -3082,7 +3082,6 @@ static void convolution_im2col_gemm_transform_kernel(const Mat& kernel, Mat& AT,
     {
         elempack = inch % 4 == 0 ? 4 : 1;
     }
-
 
     // maxk-inch-outch to pa-maxk-inch/pa-outch
     Mat A_data;
