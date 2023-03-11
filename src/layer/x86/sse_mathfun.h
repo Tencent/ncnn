@@ -754,6 +754,10 @@ static NCNN_FORCEINLINE __m128 atan2_ps(__m128 a, __m128 b)
 
 static NCNN_FORCEINLINE __m128 ceil_ps(__m128 x)
 {
+#if __SSE4_1__
+    return _mm_ceil_ps(x);
+#endif // __SSE4_1__
+
     // Use negative zero as the sign bit mask.
     const __m128 magic_negative_zero = _mm_set_ps1(-0.0f);
 
@@ -793,6 +797,10 @@ static NCNN_FORCEINLINE __m128 ceil_ps(__m128 x)
 
 static NCNN_FORCEINLINE __m128 floor_ps(__m128 x)
 {
+#if __SSE4_1__
+    return _mm_floor_ps(x);
+#endif // __SSE4_1__
+
     // Use negative zero as the sign bit mask.
     const __m128 magic_negative_zero = _mm_set_ps1(-0.0f);
 

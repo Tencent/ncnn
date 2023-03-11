@@ -158,10 +158,6 @@ struct unary_op_floor
 #if __SSE2__
     __m128 func_pack4(const __m128& x) const
     {
-#if __SSE4_1__
-        return _mm_floor_ps(x);
-#endif // __SSE4_1__
-
         return floor_ps(x);
     }
 #if __AVX__
@@ -188,10 +184,6 @@ struct unary_op_ceil
 #if __SSE2__
     __m128 func_pack4(const __m128& x) const
     {
-#if __SSE4_1__
-        return _mm_ceil_ps(x);
-#endif // __SSE4_1__
-
         return ceil_ps(x);
     }
 #if __AVX__
