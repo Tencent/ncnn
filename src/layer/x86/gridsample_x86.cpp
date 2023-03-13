@@ -108,6 +108,8 @@ static NCNN_FORCEINLINE __m128 mask_gather_ps(const float* ptr, __m128i offset, 
 #define OPT_2 __attribute__((optimize("2")))
 #endif
 
+namespace GridSample_x86_kernel {
+
 template<bool align_corner>
 struct grid_sample_unormalize;
 
@@ -228,8 +230,11 @@ struct compute_coord<GridSample::Reflection, /*align_corner*/ false>
 #include "gridsample_bicubic_compute_blob.h"
 #include "gridsample_nearest_compute_blob.h"
 
+} //namespace GridSample_x86_kernel 
+
 int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
+    using namespace GridSample_x86_kernel;
     const Mat& bottom_blob = bottom_blobs[0];
     const Mat& grid = bottom_blobs[1];
     Mat& top_blob = top_blobs[0];
