@@ -62,7 +62,7 @@ jobs:
         python3 -m pip install --upgrade pip
         apt-get remove -y python3-setuptools
         pip3 install -U setuptools
-        pip3 install -U pytest wheel twine requests
+        pip3 install -U pytest wheel twine requests einops
 
     - name: setup pytorch
       run: |

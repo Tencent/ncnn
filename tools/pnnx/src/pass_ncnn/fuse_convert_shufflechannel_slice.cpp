@@ -54,7 +54,7 @@ pnnx.Output             output      2 0 out0 out1
         return "shufflechannel_slice";
     }
 
-    bool match_captured_params_attrs(const std::map<std::string, Parameter>& captured_params) const
+    bool match(const std::map<std::string, Parameter>& captured_params) const
     {
         // (116,2,1024)
         // (1,0,2)

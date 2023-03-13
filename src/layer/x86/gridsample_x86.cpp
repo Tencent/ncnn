@@ -15,7 +15,7 @@
 #include "gridsample_x86.h"
 
 #if __SSE2__
-#include <smmintrin.h>
+#include <emmintrin.h>
 #include "sse_mathfun.h"
 #if __AVX__
 #include <immintrin.h>
