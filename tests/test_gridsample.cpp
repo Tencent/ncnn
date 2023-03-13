@@ -47,7 +47,7 @@ static int test_gridsample_0()
            || test_gridsample(RandomMat(3, 7, 24), RandomMat(2, 11, 13), 1, 1, 1, 0)
            || test_gridsample(RandomMat(3, 7, 24), RandomMat(2, 11, 13), 1, 2, 0, 0)
            || test_gridsample(RandomMat(3, 7, 24), RandomMat(2, 11, 13), 1, 2, 1, 0)
-           //|| test_gridsample(RandomMat(3, 7, 24), RandomMat(2, 11, 13), 1, 3, 0, 0) // just cpp-03-simplestl no pass
+           || test_gridsample(RandomMat(3, 7, 24), RandomMat(2, 11, 13), 1, 3, 0, 0)
            || test_gridsample(RandomMat(3, 7, 24), RandomMat(2, 11, 13), 1, 3, 1, 0)
            || test_gridsample(RandomMat(3, 7, 24), RandomMat(2, 11, 13), 2, 1, 0, 0)
            || test_gridsample(RandomMat(3, 7, 24), RandomMat(2, 11, 13), 2, 1, 1, 0)

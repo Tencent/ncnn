@@ -185,8 +185,8 @@ struct compute_coord<GridSample::Reflection, /*align_corner*/ true>
 #endif // __AVX__
     float operator()(int length, float coord)
     {
-        coord = abs(coord);
-        coord = (length - 1) - abs(coord - (length - 1));
+        coord = fabs(coord);
+        coord = (length - 1) - fabs(coord - (length - 1));
 
         return std::min(length - 1.0f, std::max(coord, 0.0f));
     }
@@ -219,8 +219,8 @@ struct compute_coord<GridSample::Reflection, /*align_corner*/ false>
 #endif // __AVX__
     float operator()(int length, float coord)
     {
-        coord = abs(coord + 0.5f);
-        coord = length - abs(coord - length) - 0.5;
+        coord = fabs(coord + 0.5f);
+        coord = length - fabs(coord - length) - 0.5;
 
         return std::min(length - 1.0f, std::max(coord, 0.0f));
     }
