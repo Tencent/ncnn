@@ -422,14 +422,7 @@ struct unary_op_asin
 #if __SSE2__
     __m128 func_pack4(const __m128& x) const
     {
-        //TODO sse optimize
-        float tmp[4];
-        _mm_storeu_ps(tmp, x);
-        tmp[0] = asin(tmp[0]);
-        tmp[1] = asin(tmp[1]);
-        tmp[2] = asin(tmp[2]);
-        tmp[3] = asin(tmp[3]);
-        return _mm_loadu_ps(tmp);
+        return asin_ps(x);
     }
 #if __AVX__
     __m256 func_pack8(const __m256& x) const
