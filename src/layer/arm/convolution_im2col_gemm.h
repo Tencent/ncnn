@@ -37,7 +37,7 @@ void pretty_print(const ncnn::Mat& m)
 }
 static void convolution_im2col_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk, int maxk, int inch, int outch)
 {
-    // A = (maxk, inch), outch
+    // A = (pa, maxk, inch/pa), outch
     // const int elempack = A.elempack;
     const int A_hstep = maxk * inch;
 
@@ -139,882 +139,6 @@ static void convolution_im2col_pack_A_tile(const Mat& A, Mat& AT, int i, int max
                 pp += 1;
                 p0++;
             }
-        }
-    }
-}
-
-static void convolution_im2col_pack_B_tile(const Mat& B, Mat& BT, int max_jj, int max_kk)
-{
-    NCNN_LOGE("convolution_im2col_pack_B_tile %d %d", max_jj, max_kk);
-    const int elempack = B.elempack;
-
-    float* pp = BT;
-
-    int jj = 0;
-#if __ARM_NEON
-    for (; jj + 11 < max_jj; jj += 12)
-    {
-        if (elempack == 4)
-        {
-            const float* p0 = (const float*)B + (jj)*max_kk;
-            const float* p1 = (const float*)B + (jj + 4) * max_kk;
-            const float* p2 = (const float*)B + (jj + 8) * max_kk;
-
-            for (int kk = 0; kk < max_kk; kk++)
-            {
-                vst1q_f32(pp, vld1q_f32(p0));
-                vst1q_f32(pp + 4, vld1q_f32(p1));
-                vst1q_f32(pp + 8, vld1q_f32(p2));
-                pp += 12;
-                p0 += 4;
-                p1 += 4;
-                p2 += 4;
-            }
-        }
-        if (elempack == 1)
-        {
-            const float* p0 = (const float*)B + (jj)*max_kk;
-            const float* p1 = (const float*)B + (jj + 1) * max_kk;
-            const float* p2 = (const float*)B + (jj + 2) * max_kk;
-            const float* p3 = (const float*)B + (jj + 3) * max_kk;
-            const float* p4 = (const float*)B + (jj + 4) * max_kk;
-            const float* p5 = (const float*)B + (jj + 5) * max_kk;
-            const float* p6 = (const float*)B + (jj + 6) * max_kk;
-            const float* p7 = (const float*)B + (jj + 7) * max_kk;
-            const float* p8 = (const float*)B + (jj + 8) * max_kk;
-            const float* p9 = (const float*)B + (jj + 9) * max_kk;
-            const float* pa = (const float*)B + (jj + 10) * max_kk;
-            const float* pb = (const float*)B + (jj + 11) * max_kk;
-
-            int kk = 0;
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp[1] = p1[0];
-                pp[2] = p2[0];
-                pp[3] = p3[0];
-                pp[4] = p4[0];
-                pp[5] = p5[0];
-                pp[6] = p6[0];
-                pp[7] = p7[0];
-                pp[8] = p8[0];
-                pp[9] = p9[0];
-                pp[10] = pa[0];
-                pp[11] = pb[0];
-                pp += 12;
-                p0++;
-                p1++;
-                p2++;
-                p3++;
-                p4++;
-                p5++;
-                p6++;
-                p7++;
-                p8++;
-                p9++;
-                pa++;
-                pb++;
-            }
-        }
-    }
-    for (; jj + 7 < max_jj; jj += 8)
-    {
-        if (elempack == 4)
-        {
-            const float* p0 = (const float*)B + (jj)*max_kk;
-            const float* p1 = (const float*)B + (jj + 4) * max_kk;
-
-            for (int kk = 0; kk < max_kk; kk++)
-            {
-                vst1q_f32(pp, vld1q_f32(p0));
-                vst1q_f32(pp + 4, vld1q_f32(p1));
-                pp += 8;
-                p0 += 4;
-                p1 += 4;
-            }
-        }
-        if (elempack == 1)
-        {
-            const float* p0 = (const float*)B + (jj)*max_kk;
-            const float* p1 = (const float*)B + (jj + 1) * max_kk;
-            const float* p2 = (const float*)B + (jj + 2) * max_kk;
-            const float* p3 = (const float*)B + (jj + 3) * max_kk;
-            const float* p4 = (const float*)B + (jj + 4) * max_kk;
-            const float* p5 = (const float*)B + (jj + 5) * max_kk;
-            const float* p6 = (const float*)B + (jj + 6) * max_kk;
-            const float* p7 = (const float*)B + (jj + 7) * max_kk;
-
-            int kk = 0;
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp[1] = p1[0];
-                pp[2] = p2[0];
-                pp[3] = p3[0];
-                pp[4] = p4[0];
-                pp[5] = p5[0];
-                pp[6] = p6[0];
-                pp[7] = p7[0];
-                pp += 8;
-                p0++;
-                p1++;
-                p2++;
-                p3++;
-                p4++;
-                p5++;
-                p6++;
-                p7++;
-            }
-        }
-    }
-    for (; jj + 3 < max_jj; jj += 4)
-    {
-        if (elempack == 4)
-        {
-            const float* p0 = (const float*)B + (jj)*max_kk;
-
-            for (int kk = 0; kk < max_kk; kk++)
-            {
-                vst1q_f32(pp, vld1q_f32(p0));
-                pp += 4;
-                p0 += 4;
-            }
-        }
-        if (elempack == 1)
-        {
-            const float* p0 = (const float*)B + (jj)*max_kk;
-            const float* p1 = (const float*)B + (jj + 1) * max_kk;
-            const float* p2 = (const float*)B + (jj + 2) * max_kk;
-            const float* p3 = (const float*)B + (jj + 3) * max_kk;
-
-            int kk = 0;
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp[1] = p1[0];
-                pp[2] = p2[0];
-                pp[3] = p3[0];
-                pp += 4;
-                p0++;
-                p1++;
-                p2++;
-                p3++;
-            }
-        }
-    }
-#endif // __ARM_NEON
-    for (; jj + 1 < max_jj; jj += 2)
-    {
-        // if (elempack == 1)
-        {
-            const float* p0 = (const float*)B + (jj)*max_kk;
-            const float* p1 = (const float*)B + (jj + 1) * max_kk;
-
-            int kk = 0;
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp[1] = p1[0];
-                pp += 2;
-                p0++;
-                p1++;
-            }
-        }
-    }
-    for (; jj < max_jj; jj += 1)
-    {
-        // if (elempack == 1)
-        {
-            const float* p0 = (const float*)B + (jj)*max_kk;
-
-            int kk = 0;
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp += 1;
-                p0++;
-            }
-        }
-    }
-}
-
-static void convolution_im2col_transpose_pack_B_tile(const Mat& B, Mat& BT, int max_jj, int max_kk)
-{
-    NCNN_LOGE("convolution_im2col_transpose_pack_B_tile %d %d", max_jj, max_kk);
-    float* pp = BT;
-
-    int jj = 0;
-#if __ARM_NEON
-#if __aarch64__
-    for (; jj + 11 < max_jj; jj += 12)
-    {
-        const float* p0 = B;
-
-        int kk = 0;
-        p0 += jj * 8;
-        for (; kk + 7 < max_kk; kk += 8)
-        {
-            // transpose 8x12
-#if NCNN_GNU_INLINE_ASM
-            asm volatile(
-                "prfm   pldl1keep, [%0, #512]       \n"
-                "ld4    {v0.4s, v1.4s, v2.4s, v3.4s}, [%0], #64 \n"
-                "prfm   pldl1keep, [%0, #512]       \n"
-                "ld4    {v4.4s, v5.4s, v6.4s, v7.4s}, [%0], #64 \n"
-                "prfm   pldl1keep, [%0, #512]       \n"
-                "ld4    {v8.4s, v9.4s, v10.4s, v11.4s}, [%0], #64 \n"
-                "prfm   pldl1keep, [%0, #512]       \n"
-                "ld4    {v12.4s, v13.4s, v14.4s, v15.4s}, [%0], #64 \n"
-                "prfm   pldl1keep, [%0, #512]       \n"
-                "ld4    {v16.4s, v17.4s, v18.4s, v19.4s}, [%0], #64 \n"
-                "prfm   pldl1keep, [%0, #512]       \n"
-                "ld4    {v20.4s, v21.4s, v22.4s, v23.4s}, [%0]  \n"
-
-                "uzp1   v24.4s, v0.4s, v4.4s        \n"
-                "uzp2   v25.4s, v0.4s, v4.4s        \n"
-                "uzp1   v26.4s, v1.4s, v5.4s        \n"
-                "uzp2   v27.4s, v1.4s, v5.4s        \n"
-                "uzp1   v28.4s, v2.4s, v6.4s        \n"
-                "uzp2   v29.4s, v2.4s, v6.4s        \n"
-                "uzp1   v30.4s, v3.4s, v7.4s        \n"
-                "uzp2   v31.4s, v3.4s, v7.4s        \n"
-
-                "uzp1   v0.4s, v8.4s, v12.4s        \n"
-                "uzp2   v1.4s, v8.4s, v12.4s        \n"
-                "uzp1   v2.4s, v9.4s, v13.4s        \n"
-                "uzp2   v3.4s, v9.4s, v13.4s        \n"
-                "uzp1   v4.4s, v10.4s, v14.4s       \n"
-                "uzp2   v5.4s, v10.4s, v14.4s       \n"
-                "uzp1   v6.4s, v11.4s, v15.4s       \n"
-                "uzp2   v7.4s, v11.4s, v15.4s       \n"
-
-                "sub    %0, %0, #320                \n"
-
-                "uzp1   v8.4s, v16.4s, v20.4s       \n"
-                "uzp2   v9.4s, v16.4s, v20.4s       \n"
-                "uzp1   v10.4s, v17.4s, v21.4s      \n"
-                "uzp2   v11.4s, v17.4s, v21.4s      \n"
-                "uzp1   v12.4s, v18.4s, v22.4s      \n"
-                "uzp2   v13.4s, v18.4s, v22.4s      \n"
-                "uzp1   v14.4s, v19.4s, v23.4s      \n"
-                "uzp2   v15.4s, v19.4s, v23.4s      \n"
-
-                "st1    {v24.4s}, [%1], #16         \n"
-                "st1    {v0.4s}, [%1], #16          \n"
-                "st1    {v8.4s}, [%1], #16          \n"
-                "st1    {v26.4s}, [%1], #16         \n"
-                "st1    {v2.4s}, [%1], #16          \n"
-                "st1    {v10.4s}, [%1], #16         \n"
-                "st1    {v28.4s}, [%1], #16         \n"
-                "st1    {v4.4s}, [%1], #16          \n"
-                "st1    {v12.4s}, [%1], #16         \n"
-                "st1    {v30.4s}, [%1], #16         \n"
-                "st1    {v6.4s}, [%1], #16          \n"
-                "st1    {v14.4s}, [%1], #16         \n"
-
-                "st1    {v25.4s}, [%1], #16         \n"
-                "st1    {v1.4s}, [%1], #16          \n"
-                "st1    {v9.4s}, [%1], #16          \n"
-                "st1    {v27.4s}, [%1], #16         \n"
-                "st1    {v3.4s}, [%1], #16          \n"
-                "st1    {v11.4s}, [%1], #16         \n"
-                "st1    {v29.4s}, [%1], #16         \n"
-                "st1    {v5.4s}, [%1], #16          \n"
-                "st1    {v13.4s}, [%1], #16         \n"
-                "st1    {v31.4s}, [%1], #16         \n"
-                "st1    {v7.4s}, [%1], #16          \n"
-                "st1    {v15.4s}, [%1], #16         \n"
-                : "=r"(p0), // %0
-                "=r"(pp)  // %1
-                : "0"(p0),
-                "1"(pp)
-                : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
-            p0 += max_jj * 8;
-#else  // NCNN_GNU_INLINE_ASM
-            float32x4x4_t _r0 = vld4q_f32(p0);
-            float32x4x4_t _r1 = vld4q_f32(p0 + 16);
-            float32x4x4_t _r2 = vld4q_f32(p0 + 32);
-            float32x4x4_t _r3 = vld4q_f32(p0 + 48);
-            float32x4x4_t _r4 = vld4q_f32(p0 + 64);
-            float32x4x4_t _r5 = vld4q_f32(p0 + 80);
-            float32x4x2_t _r04l = vuzpq_f32(_r0.val[0], _r1.val[0]);
-            float32x4x2_t _r15l = vuzpq_f32(_r0.val[1], _r1.val[1]);
-            float32x4x2_t _r26l = vuzpq_f32(_r0.val[2], _r1.val[2]);
-            float32x4x2_t _r37l = vuzpq_f32(_r0.val[3], _r1.val[3]);
-            float32x4x2_t _r04m = vuzpq_f32(_r2.val[0], _r3.val[0]);
-            float32x4x2_t _r15m = vuzpq_f32(_r2.val[1], _r3.val[1]);
-            float32x4x2_t _r26m = vuzpq_f32(_r2.val[2], _r3.val[2]);
-            float32x4x2_t _r37m = vuzpq_f32(_r2.val[3], _r3.val[3]);
-            float32x4x2_t _r04h = vuzpq_f32(_r4.val[0], _r5.val[0]);
-            float32x4x2_t _r15h = vuzpq_f32(_r4.val[1], _r5.val[1]);
-            float32x4x2_t _r26h = vuzpq_f32(_r4.val[2], _r5.val[2]);
-            float32x4x2_t _r37h = vuzpq_f32(_r4.val[3], _r5.val[3]);
-            vst1q_f32(pp, _r04l.val[0]);
-            vst1q_f32(pp + 4, _r04m.val[0]);
-            vst1q_f32(pp + 4 * 2, _r04h.val[0]);
-            vst1q_f32(pp + 4 * 3, _r15l.val[0]);
-            vst1q_f32(pp + 4 * 4, _r15m.val[0]);
-            vst1q_f32(pp + 4 * 5, _r15h.val[0]);
-            vst1q_f32(pp + 4 * 6, _r26l.val[0]);
-            vst1q_f32(pp + 4 * 7, _r26m.val[0]);
-            vst1q_f32(pp + 4 * 8, _r26h.val[0]);
-            vst1q_f32(pp + 4 * 9, _r37l.val[0]);
-            vst1q_f32(pp + 4 * 10, _r37m.val[0]);
-            vst1q_f32(pp + 4 * 11, _r37h.val[0]);
-            vst1q_f32(pp + 4 * 12, _r04l.val[1]);
-            vst1q_f32(pp + 4 * 13, _r04m.val[1]);
-            vst1q_f32(pp + 4 * 14, _r04h.val[1]);
-            vst1q_f32(pp + 4 * 15, _r15l.val[1]);
-            vst1q_f32(pp + 4 * 16, _r15m.val[1]);
-            vst1q_f32(pp + 4 * 17, _r15h.val[1]);
-            vst1q_f32(pp + 4 * 18, _r26l.val[1]);
-            vst1q_f32(pp + 4 * 19, _r26m.val[1]);
-            vst1q_f32(pp + 4 * 20, _r26h.val[1]);
-            vst1q_f32(pp + 4 * 21, _r37l.val[1]);
-            vst1q_f32(pp + 4 * 22, _r37m.val[1]);
-            vst1q_f32(pp + 4 * 23, _r37h.val[1]);
-            p0 += max_jj * 8;
-            pp += 96;
-#endif // NCNN_GNU_INLINE_ASM
-        }
-        p0 -= jj * 8;
-        p0 += jj * 4;
-        for (; kk + 3 < max_kk; kk += 4)
-        {
-            // transpose 4x12
-            float32x4x4_t _r0 = vld4q_f32(p0);
-            float32x4x4_t _r1 = vld4q_f32(p0 + 16);
-            float32x4x4_t _r2 = vld4q_f32(p0 + 32);
-            vst1q_f32(pp, _r0.val[0]);
-            vst1q_f32(pp + 4, _r1.val[0]);
-            vst1q_f32(pp + 4 * 2, _r2.val[0]);
-            vst1q_f32(pp + 4 * 3, _r0.val[1]);
-            vst1q_f32(pp + 4 * 4, _r1.val[1]);
-            vst1q_f32(pp + 4 * 5, _r2.val[1]);
-            vst1q_f32(pp + 4 * 6, _r0.val[2]);
-            vst1q_f32(pp + 4 * 7, _r1.val[2]);
-            vst1q_f32(pp + 4 * 8, _r2.val[2]);
-            vst1q_f32(pp + 4 * 9, _r0.val[3]);
-            vst1q_f32(pp + 4 * 10, _r1.val[3]);
-            vst1q_f32(pp + 4 * 11, _r2.val[3]);
-            p0 += max_jj * 4;
-            pp += 48;
-        }
-        p0 -= jj * 2;
-        for (; kk + 1 < max_kk; kk += 2)
-        {
-            // transpose 2x12
-            float32x4x2_t _r0 = vld2q_f32(p0);
-            float32x4x2_t _r1 = vld2q_f32(p0 + 8);
-            float32x4x2_t _r2 = vld2q_f32(p0 + 16);
-            vst1q_f32(pp, _r0.val[0]);
-            vst1q_f32(pp + 4, _r1.val[0]);
-            vst1q_f32(pp + 4 * 2, _r2.val[0]);
-            vst1q_f32(pp + 4 * 3, _r0.val[1]);
-            vst1q_f32(pp + 4 * 4, _r1.val[1]);
-            vst1q_f32(pp + 4 * 5, _r2.val[1]);
-            p0 += max_jj * 2;
-            pp += 24;
-        }
-        p0 -= jj;
-        for (; kk < max_kk; kk++)
-        {
-            float32x4_t _r0 = vld1q_f32(p0);
-            float32x4_t _r1 = vld1q_f32(p0 + 4);
-            float32x4_t _r2 = vld1q_f32(p0 + 8);
-            vst1q_f32(pp, _r0);
-            vst1q_f32(pp + 4, _r1);
-            vst1q_f32(pp + 8, _r2);
-            p0 += max_jj;
-            pp += 12;
-        }
-    }
-#endif // __aarch64__
-    for (; jj + 7 < max_jj; jj += 8)
-    {
-        const float* p0 = B;
-
-        int kk = 0;
-#if __aarch64__
-        p0 += jj * 8;
-        for (; kk + 7 < max_kk; kk += 8)
-        {
-            // transpose 8x8
-#if NCNN_GNU_INLINE_ASM
-            asm volatile(
-                "prfm   pldl1keep, [%0, #512]       \n"
-                "ld4    {v0.4s, v1.4s, v2.4s, v3.4s}, [%0], #64 \n"
-                "prfm   pldl1keep, [%0, #512]       \n"
-                "ld4    {v4.4s, v5.4s, v6.4s, v7.4s}, [%0], #64 \n"
-                "prfm   pldl1keep, [%0, #512]       \n"
-                "ld4    {v8.4s, v9.4s, v10.4s, v11.4s}, [%0], #64 \n"
-                "prfm   pldl1keep, [%0, #512]       \n"
-                "ld4    {v12.4s, v13.4s, v14.4s, v15.4s}, [%0] \n"
-
-                "uzp1   v16.4s, v0.4s, v4.4s        \n"
-                "uzp2   v24.4s, v0.4s, v4.4s        \n"
-                "uzp1   v18.4s, v1.4s, v5.4s        \n"
-                "uzp2   v26.4s, v1.4s, v5.4s        \n"
-                "uzp1   v20.4s, v2.4s, v6.4s        \n"
-                "uzp2   v28.4s, v2.4s, v6.4s        \n"
-                "uzp1   v22.4s, v3.4s, v7.4s        \n"
-                "uzp2   v30.4s, v3.4s, v7.4s        \n"
-
-                "sub    %0, %0, #192                \n"
-
-                "uzp1   v17.4s, v8.4s, v12.4s       \n"
-                "uzp2   v25.4s, v8.4s, v12.4s       \n"
-                "uzp1   v19.4s, v9.4s, v13.4s       \n"
-                "uzp2   v27.4s, v9.4s, v13.4s       \n"
-                "uzp1   v21.4s, v10.4s, v14.4s      \n"
-                "uzp2   v29.4s, v10.4s, v14.4s      \n"
-                "uzp1   v23.4s, v11.4s, v15.4s      \n"
-                "uzp2   v31.4s, v11.4s, v15.4s      \n"
-
-                "st1    {v16.4s, v17.4s, v18.4s, v19.4s}, [%1], #64 \n"
-                "st1    {v20.4s, v21.4s, v22.4s, v23.4s}, [%1], #64 \n"
-                "st1    {v24.4s, v25.4s, v26.4s, v27.4s}, [%1], #64 \n"
-                "st1    {v28.4s, v29.4s, v30.4s, v31.4s}, [%1], #64 \n"
-                : "=r"(p0), // %0
-                "=r"(pp)  // %1
-                : "0"(p0),
-                "1"(pp)
-                : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
-            p0 += max_jj * 8;
-#else  // NCNN_GNU_INLINE_ASM
-            float32x4x4_t _r0 = vld4q_f32(p0);
-            float32x4x4_t _r1 = vld4q_f32(p0 + 16);
-            float32x4x4_t _r2 = vld4q_f32(p0 + 32);
-            float32x4x4_t _r3 = vld4q_f32(p0 + 48);
-            float32x4x2_t _r04l = vuzpq_f32(_r0.val[0], _r1.val[0]);
-            float32x4x2_t _r15l = vuzpq_f32(_r0.val[1], _r1.val[1]);
-            float32x4x2_t _r26l = vuzpq_f32(_r0.val[2], _r1.val[2]);
-            float32x4x2_t _r37l = vuzpq_f32(_r0.val[3], _r1.val[3]);
-            float32x4x2_t _r04h = vuzpq_f32(_r2.val[0], _r3.val[0]);
-            float32x4x2_t _r15h = vuzpq_f32(_r2.val[1], _r3.val[1]);
-            float32x4x2_t _r26h = vuzpq_f32(_r2.val[2], _r3.val[2]);
-            float32x4x2_t _r37h = vuzpq_f32(_r2.val[3], _r3.val[3]);
-            vst1q_f32(pp, _r04l.val[0]);
-            vst1q_f32(pp + 4, _r04h.val[0]);
-            vst1q_f32(pp + 4 * 2, _r15l.val[0]);
-            vst1q_f32(pp + 4 * 3, _r15h.val[0]);
-            vst1q_f32(pp + 4 * 4, _r26l.val[0]);
-            vst1q_f32(pp + 4 * 5, _r26h.val[0]);
-            vst1q_f32(pp + 4 * 6, _r37l.val[0]);
-            vst1q_f32(pp + 4 * 7, _r37h.val[0]);
-            vst1q_f32(pp + 4 * 8, _r04l.val[1]);
-            vst1q_f32(pp + 4 * 9, _r04h.val[1]);
-            vst1q_f32(pp + 4 * 10, _r15l.val[1]);
-            vst1q_f32(pp + 4 * 11, _r15h.val[1]);
-            vst1q_f32(pp + 4 * 12, _r26l.val[1]);
-            vst1q_f32(pp + 4 * 13, _r26h.val[1]);
-            vst1q_f32(pp + 4 * 14, _r37l.val[1]);
-            vst1q_f32(pp + 4 * 15, _r37h.val[1]);
-            p0 += max_jj * 8;
-            pp += 64;
-#endif // NCNN_GNU_INLINE_ASM
-        }
-        p0 -= jj * 8;
-#endif // __aarch64__
-        p0 += jj * 4;
-        for (; kk + 3 < max_kk; kk += 4)
-        {
-            // transpose 4x8
-#if NCNN_GNU_INLINE_ASM
-#if __aarch64__
-            asm volatile(
-                "prfm   pldl1keep, [%0, #512]       \n"
-                "ld4    {v0.4s, v1.4s, v2.4s, v3.4s}, [%0], #64 \n"
-                "prfm   pldl1keep, [%0, #512]       \n"
-                "ld4    {v4.4s, v5.4s, v6.4s, v7.4s}, [%0] \n"
-                "sub    %0, %0, #64                 \n"
-                "st1    {v0.4s}, [%1], #16          \n"
-                "st1    {v4.4s}, [%1], #16          \n"
-                "st1    {v1.4s}, [%1], #16          \n"
-                "st1    {v5.4s}, [%1], #16          \n"
-                "st1    {v2.4s}, [%1], #16          \n"
-                "st1    {v6.4s}, [%1], #16          \n"
-                "st1    {v3.4s}, [%1], #16          \n"
-                "st1    {v7.4s}, [%1], #16          \n"
-                : "=r"(p0), // %0
-                "=r"(pp)  // %1
-                : "0"(p0),
-                "1"(pp)
-                : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7");
-#else  // __aarch64__
-            asm volatile(
-                "pld        [%0, #512]          \n"
-                "vldm       %0!, {d0-d7}        \n"
-                "pld        [%0, #512]          \n"
-                "vldm       %0, {d16-d23}       \n"
-
-                "vtrn.32    q0, q1              \n"
-                "vtrn.32    q2, q3              \n"
-                "vtrn.32    q8, q9              \n"
-                "vtrn.32    q10, q11            \n"
-                "vswp       d1, d4              \n"
-                "vswp       d3, d6              \n"
-                "vswp       d17, d20            \n"
-                "vswp       d19, d22            \n"
-                "vswp       q1, q8              \n"
-                "vswp       q3, q10             \n"
-
-                "vst1.f32   {d0-d3}, [%1 :128]! \n"
-                "vst1.f32   {d16-d19}, [%1 :128]! \n"
-                "sub        %0, %0, #64         \n"
-                "vst1.f32   {d4-d7}, [%1 :128]! \n"
-                "vst1.f32   {d20-d23}, [%1 :128]! \n"
-                : "=r"(p0), // %0
-                "=r"(pp)  // %1
-                : "0"(p0),
-                "1"(pp)
-                : "memory", "q0", "q1", "q2", "q3", "q8", "q9", "q10", "q11");
-#endif // __aarch64__
-            p0 += max_jj * 4;
-#else  // NCNN_GNU_INLINE_ASM
-            float32x4x4_t _r0 = vld4q_f32(p0);
-            float32x4x4_t _r1 = vld4q_f32(p0 + 16);
-            vst1q_f32(pp, _r0.val[0]);
-            vst1q_f32(pp + 4, _r1.val[0]);
-            vst1q_f32(pp + 4 * 2, _r0.val[1]);
-            vst1q_f32(pp + 4 * 3, _r1.val[1]);
-            vst1q_f32(pp + 4 * 4, _r0.val[2]);
-            vst1q_f32(pp + 4 * 5, _r1.val[2]);
-            vst1q_f32(pp + 4 * 6, _r0.val[3]);
-            vst1q_f32(pp + 4 * 7, _r1.val[3]);
-            p0 += max_jj * 4;
-            pp += 32;
-#endif // NCNN_GNU_INLINE_ASM
-        }
-        p0 -= jj * 4;
-        p0 += jj * 2;
-        for (; kk + 1 < max_kk; kk += 2)
-        {
-            // transpose 2x8
-            float32x4x2_t _r0 = vld2q_f32(p0);
-            float32x4x2_t _r1 = vld2q_f32(p0 + 8);
-            vst1q_f32(pp, _r0.val[0]);
-            vst1q_f32(pp + 4, _r1.val[0]);
-            vst1q_f32(pp + 4 * 2, _r0.val[1]);
-            vst1q_f32(pp + 4 * 3, _r1.val[1]);
-            p0 += max_jj * 2;
-            pp += 16;
-        }
-        p0 -= jj * 2;
-        p0 += jj;
-        for (; kk < max_kk; kk++)
-        {
-            float32x4_t _r0 = vld1q_f32(p0);
-            float32x4_t _r1 = vld1q_f32(p0 + 4);
-            vst1q_f32(pp, _r0);
-            vst1q_f32(pp + 4, _r1);
-            p0 += max_jj;
-            pp += 8;
-        }
-    }
-    for (; jj + 3 < max_jj; jj += 4)
-    {
-        const float* p0 = B;
-
-        int kk = 0;
-#if __aarch64__
-        p0 += jj * 8;
-        for (; kk + 7 < max_kk; kk += 8)
-        {
-            // transpose 8x4
-#if NCNN_GNU_INLINE_ASM
-            asm volatile(
-                "prfm   pldl1keep, [%0, #512]       \n"
-                "ld4    {v0.4s, v1.4s, v2.4s, v3.4s}, [%0], #64 \n"
-                "prfm   pldl1keep, [%0, #512]       \n"
-                "ld4    {v4.4s, v5.4s, v6.4s, v7.4s}, [%0] \n"
-
-                "uzp1   v8.4s, v0.4s, v4.4s         \n"
-                "uzp2   v12.4s, v0.4s, v4.4s        \n"
-                "uzp1   v9.4s, v1.4s, v5.4s         \n"
-                "uzp2   v13.4s, v1.4s, v5.4s        \n"
-
-                "sub    %0, %0, #64                 \n"
-
-                "uzp1   v10.4s, v2.4s, v6.4s        \n"
-                "uzp2   v14.4s, v2.4s, v6.4s        \n"
-                "uzp1   v11.4s, v3.4s, v7.4s        \n"
-                "uzp2   v15.4s, v3.4s, v7.4s        \n"
-
-                "st1    {v8.4s, v9.4s, v10.4s, v11.4s}, [%1], #64 \n"
-                "st1    {v12.4s, v13.4s, v14.4s, v15.4s}, [%1], #64 \n"
-                : "=r"(p0), // %0
-                "=r"(pp)  // %1
-                : "0"(p0),
-                "1"(pp)
-                : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15");
-            p0 += max_jj * 8;
-#else  // NCNN_GNU_INLINE_ASM
-            float32x4x4_t _r0;
-            float32x4x4_t _r1;
-            _r0.val[0] = vld1q_f32(p0);
-            _r1.val[0] = vld1q_f32(p0 + 4);
-            _r0.val[1] = vld1q_f32(p0 + 8);
-            _r1.val[1] = vld1q_f32(p0 + 12);
-            _r0.val[2] = vld1q_f32(p0 + 16);
-            _r1.val[2] = vld1q_f32(p0 + 20);
-            _r0.val[3] = vld1q_f32(p0 + 24);
-            _r1.val[3] = vld1q_f32(p0 + 28);
-            vst4q_f32(pp, _r0);
-            vst4q_f32(pp + 16, _r1);
-            p0 += max_jj * 8;
-            pp += 32;
-#endif // NCNN_GNU_INLINE_ASM
-        }
-        p0 -= jj * 8;
-#endif // __aarch64__
-        p0 += jj * 4;
-        for (; kk + 3 < max_kk; kk += 4)
-        {
-            // transpose 4x4
-#if NCNN_GNU_INLINE_ASM
-#if __aarch64__
-            asm volatile(
-                "prfm   pldl1keep, [%0, #512]       \n"
-                "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%0] \n"
-                "st4    {v0.4s, v1.4s, v2.4s, v3.4s}, [%1], #64 \n"
-                : "=r"(p0), // %0
-                "=r"(pp)  // %1
-                : "0"(p0),
-                "1"(pp)
-                : "memory", "v0", "v1", "v2", "v3");
-#else  // __aarch64__
-            asm volatile(
-                "pld        [%0, #512]          \n"
-                "vldm       %0, {d0-d7}         \n"
-                "vtrn.32    q0, q1              \n"
-                "vtrn.32    q2, q3              \n"
-                "vswp       d1, d4              \n"
-                "vswp       d3, d6              \n"
-                "vstm       %1!, {d0-d7}        \n"
-                : "=r"(p0), // %0
-                "=r"(pp)  // %1
-                : "0"(p0),
-                "1"(pp)
-                : "memory", "q0", "q1", "q2", "q3");
-#endif // __aarch64__
-            p0 += max_jj * 4;
-#else  // NCNN_GNU_INLINE_ASM
-            float32x4x4_t _r0;
-            _r0.val[0] = vld1q_f32(p0);
-            _r0.val[1] = vld1q_f32(p0 + 4);
-            _r0.val[2] = vld1q_f32(p0 + 8);
-            _r0.val[3] = vld1q_f32(p0 + 12);
-            vst4q_f32(pp, _r0);
-            p0 += max_jj * 4;
-            pp += 16;
-#endif // NCNN_GNU_INLINE_ASM
-        }
-        p0 -= jj * 4;
-        p0 += jj * 2;
-        for (; kk + 1 < max_kk; kk += 2)
-        {
-            // transpose 2x4
-            float32x4x2_t _r0 = vld2q_f32(p0);
-            vst1q_f32(pp, _r0.val[0]);
-            vst1q_f32(pp + 4, _r0.val[1]);
-            p0 += max_jj * 2;
-            pp += 8;
-        }
-        p0 -= jj * 2;
-        p0 += jj;
-        for (; kk < max_kk; kk++)
-        {
-            float32x4_t _r0 = vld1q_f32(p0);
-            vst1q_f32(pp, _r0);
-            p0 += max_jj;
-            pp += 4;
-        }
-    }
-#endif // __ARM_NEON
-    for (; jj + 1 < max_jj; jj += 2)
-    {
-        const float* p0 = B;
-
-        int kk = 0;
-#if __ARM_NEON
-#if __aarch64__
-        p0 += jj * 8;
-        for (; kk + 7 < max_kk; kk += 8)
-        {
-            // transpose 8x2
-#if NCNN_GNU_INLINE_ASM
-            asm volatile(
-                "prfm   pldl1keep, [%0, #512]       \n"
-                "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%0] \n"
-
-                "zip1   v4.4s, v0.4s, v2.4s         \n"
-                "zip2   v5.4s, v0.4s, v2.4s         \n"
-                "zip1   v6.4s, v1.4s, v3.4s         \n"
-                "zip2   v7.4s, v1.4s, v3.4s         \n"
-
-                "st1    {v4.4s, v5.4s, v6.4s, v7.4s}, [%1], #64 \n"
-                : "=r"(p0), // %0
-                "=r"(pp)  // %1
-                : "0"(p0),
-                "1"(pp)
-                : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7");
-            p0 += max_jj * 8;
-#else  // NCNN_GNU_INLINE_ASM
-            float32x4x2_t _r0;
-            float32x4x2_t _r1;
-            _r0.val[0] = vld1q_f32(p0);
-            _r1.val[0] = vld1q_f32(p0 + 4);
-            _r0.val[1] = vld1q_f32(p0 + 8);
-            _r1.val[1] = vld1q_f32(p0 + 12);
-            vst2q_f32(pp, _r0);
-            vst2q_f32(pp + 8, _r1);
-            p0 += max_jj * 8;
-            pp += 16;
-#endif // NCNN_GNU_INLINE_ASM
-        }
-        p0 -= jj * 8;
-#endif // __aarch64__
-        p0 += jj * 4;
-        for (; kk + 3 < max_kk; kk += 4)
-        {
-            // transpose 4x2
-#if NCNN_GNU_INLINE_ASM
-#if __aarch64__
-            asm volatile(
-                "prfm   pldl1keep, [%0, #256]       \n"
-                "ld1    {v0.4s, v1.4s}, [%0]        \n"
-                "st2    {v0.4s, v1.4s}, [%1], #32   \n"
-                : "=r"(p0), // %0
-                "=r"(pp)  // %1
-                : "0"(p0),
-                "1"(pp)
-                : "memory", "v0", "v1");
-#else  // __aarch64__
-            asm volatile(
-                "pld        [%0, #256]          \n"
-                "vld1.f32   {d0-d3}, [%0 :128]  \n"
-                "vst2.f32   {d0-d3}, [%1 :128]! \n"
-                : "=r"(p0), // %0
-                "=r"(pp)  // %1
-                : "0"(p0),
-                "1"(pp)
-                : "memory", "q0", "q1");
-#endif // __aarch64__
-            p0 += max_jj * 4;
-#else  // NCNN_GNU_INLINE_ASM
-            float32x4x2_t _r0;
-            _r0.val[0] = vld1q_f32(p0);
-            _r0.val[1] = vld1q_f32(p0 + 4);
-            vst2q_f32(pp, _r0);
-            p0 += max_jj * 4;
-            pp += 8;
-#endif // NCNN_GNU_INLINE_ASM
-        }
-        p0 -= jj * 4;
-#endif // __ARM_NEON
-        p0 += jj * 2;
-        for (; kk + 1 < max_kk; kk += 2)
-        {
-            pp[0] = p0[0];
-            pp[1] = p0[2];
-            pp[2] = p0[1];
-            pp[3] = p0[3];
-            p0 += max_jj * 2;
-            pp += 4;
-        }
-        p0 -= jj * 2;
-        p0 += jj;
-        for (; kk < max_kk; kk++)
-        {
-            pp[0] = p0[0];
-            pp[1] = p0[1];
-            p0 += max_jj;
-            pp += 2;
-        }
-    }
-    for (; jj < max_jj; jj++)
-    {
-        const float* p0 = B;
-
-        int kk = 0;
-#if __ARM_NEON
-#if __aarch64__
-        p0 += jj * 8;
-        for (; kk + 7 < max_kk; kk += 8)
-        {
-#if NCNN_GNU_INLINE_ASM
-            asm volatile(
-                "prfm   pldl1keep, [%0, #256]       \n"
-                "ld1    {v0.4s, v1.4s}, [%0]        \n"
-                "st1    {v0.4s, v1.4s}, [%1], #32   \n"
-                : "=r"(p0), // %0
-                "=r"(pp)  // %1
-                : "0"(p0),
-                "1"(pp)
-                : "memory", "v0", "v1");
-            p0 += max_jj * 8;
-#else  // NCNN_GNU_INLINE_ASM
-            float32x4_t _r0 = vld1q_f32(p0);
-            float32x4_t _r1 = vld1q_f32(p0 + 4);
-            vst1q_f32(pp, _r0);
-            vst1q_f32(pp + 4, _r1);
-            p0 += max_jj * 8;
-            pp += 8;
-#endif // NCNN_GNU_INLINE_ASM
-        }
-        p0 -= jj * 8;
-#endif // __aarch64__
-        p0 += jj * 4;
-        for (; kk + 3 < max_kk; kk += 4)
-        {
-#if NCNN_GNU_INLINE_ASM
-#if __aarch64__
-            asm volatile(
-                "prfm   pldl1keep, [%0, #128]       \n"
-                "ld1    {v0.4s}, [%0]               \n"
-                "st1    {v0.4s}, [%1], #16          \n"
-                : "=r"(p0), // %0
-                "=r"(pp)  // %1
-                : "0"(p0),
-                "1"(pp)
-                : "memory", "v0");
-#else  // __aarch64__
-            asm volatile(
-                "pld        [%0, #128]          \n"
-                "vld1.f32   {d0-d1}, [%0]       \n"
-                "vst1.f32   {d0-d1}, [%1]!      \n"
-                : "=r"(p0), // %0
-                "=r"(pp)  // %1
-                : "0"(p0),
-                "1"(pp)
-                : "memory", "q0");
-#endif // __aarch64__
-            p0 += max_jj * 4;
-#else  // NCNN_GNU_INLINE_ASM
-            float32x4_t _r0 = vld1q_f32(p0);
-            vst1q_f32(pp, _r0);
-            p0 += max_jj * 4;
-            pp += 4;
-#endif // NCNN_GNU_INLINE_ASM
-        }
-        p0 -= jj * 4;
-#endif // __ARM_NEON
-        p0 += jj * 2;
-        for (; kk + 1 < max_kk; kk += 2)
-        {
-            pp[0] = p0[0];
-            pp[1] = p0[1];
-            p0 += max_jj * 2;
-            pp += 2;
-        }
-        p0 -= jj * 2;
-        p0 += jj;
-        for (; kk < max_kk; kk++)
-        {
-            pp[0] = p0[0];
-            p0 += max_jj;
-            pp += 1;
         }
     }
 }
@@ -3003,57 +2127,402 @@ static void convolution_im2col_input_tile(const Mat& bottom_blob, Mat& B, int j,
 
     const int maxk = kernel_w * kernel_h;
 
-    float* p0 = (float*)B;
+    float* pp = B;
 
-    for (int jj = 0; jj < max_jj; jj++)
+    int jj = 0;
+    for (; jj + 11 < max_jj; jj += 12)
+    {
+        int dy0 = (j + jj) / outw;
+        int dy1 = (j + jj + 1) / outw;
+        int dy2 = (j + jj + 2) / outw;
+        int dy3 = (j + jj + 3) / outw;
+        int dy4 = (j + jj + 4) / outw;
+        int dy5 = (j + jj + 5) / outw;
+        int dy6 = (j + jj + 6) / outw;
+        int dy7 = (j + jj + 7) / outw;
+        int dy8 = (j + jj + 8) / outw;
+        int dy9 = (j + jj + 9) / outw;
+        int dya = (j + jj + 10) / outw;
+        int dyb = (j + jj + 11) / outw;
+        int dx0 = (j + jj) % outw;
+        int dx1 = (j + jj + 1) % outw;
+        int dx2 = (j + jj + 2) % outw;
+        int dx3 = (j + jj + 3) % outw;
+        int dx4 = (j + jj + 4) % outw;
+        int dx5 = (j + jj + 5) % outw;
+        int dx6 = (j + jj + 6) % outw;
+        int dx7 = (j + jj + 7) % outw;
+        int dx8 = (j + jj + 8) % outw;
+        int dx9 = (j + jj + 9) % outw;
+        int dxa = (j + jj + 10) % outw;
+        int dxb = (j + jj + 11) % outw;
+
+        int kk = 0;
+        for (; kk < max_kk / elempack; kk++)
+        {
+            int p = (k + kk) / maxk;
+            int uv = (k + kk) % maxk;
+            int u = uv / kernel_w;
+            int v = uv % kernel_w;
+
+            const Mat img = bottom_blob.channel(p);
+
+            int x0 = stride_w * dx0 + dilation_w * v;
+            int x1 = stride_w * dx1 + dilation_w * v;
+            int x2 = stride_w * dx2 + dilation_w * v;
+            int x3 = stride_w * dx3 + dilation_w * v;
+            int x4 = stride_w * dx4 + dilation_w * v;
+            int x5 = stride_w * dx5 + dilation_w * v;
+            int x6 = stride_w * dx6 + dilation_w * v;
+            int x7 = stride_w * dx7 + dilation_w * v;
+            int x8 = stride_w * dx8 + dilation_w * v;
+            int x9 = stride_w * dx9 + dilation_w * v;
+            int xa = stride_w * dxa + dilation_w * v;
+            int xb = stride_w * dxb + dilation_w * v;
+
+            int y0 = stride_h * dy0 + dilation_h * u;
+            int y1 = stride_h * dy1 + dilation_h * u;
+            int y2 = stride_h * dy2 + dilation_h * u;
+            int y3 = stride_h * dy3 + dilation_h * u;
+            int y4 = stride_h * dy4 + dilation_h * u;
+            int y5 = stride_h * dy5 + dilation_h * u;
+            int y6 = stride_h * dy6 + dilation_h * u;
+            int y7 = stride_h * dy7 + dilation_h * u;
+            int y8 = stride_h * dy8 + dilation_h * u;
+            int y9 = stride_h * dy9 + dilation_h * u;
+            int ya = stride_h * dya + dilation_h * u;
+            int yb = stride_h * dyb + dilation_h * u;
+
+            const float* sptr0 = img.row(y0) + x0 * elempack;
+            const float* sptr1 = img.row(y1) + x1 * elempack;
+            const float* sptr2 = img.row(y2) + x2 * elempack;
+            const float* sptr3 = img.row(y3) + x3 * elempack;
+            const float* sptr4 = img.row(y4) + x4 * elempack;
+            const float* sptr5 = img.row(y5) + x5 * elempack;
+            const float* sptr6 = img.row(y6) + x6 * elempack;
+            const float* sptr7 = img.row(y7) + x7 * elempack;
+            const float* sptr8 = img.row(y8) + x8 * elempack;
+            const float* sptr9 = img.row(y9) + x9 * elempack;
+            const float* sptra = img.row(ya) + xa * elempack;
+            const float* sptrb = img.row(yb) + xb * elempack;
+
+            if (elempack == 4)
+            {
+                pp[0] = sptr0[0];
+                pp[1] = sptr1[0];
+                pp[2] = sptr2[0];
+                pp[3] = sptr3[0];
+                pp[4] = sptr4[0];
+                pp[5] = sptr5[0];
+                pp[6] = sptr6[0];
+                pp[7] = sptr7[0];
+                pp[8] = sptr8[0];
+                pp[9] = sptr9[0];
+                pp[10] = sptra[0];
+                pp[11] = sptrb[0];
+                pp[12+0] = sptr0[1];
+                pp[12+1] = sptr1[1];
+                pp[12+2] = sptr2[1];
+                pp[12+3] = sptr3[1];
+                pp[12+4] = sptr4[1];
+                pp[12+5] = sptr5[1];
+                pp[12+6] = sptr6[1];
+                pp[12+7] = sptr7[1];
+                pp[12+8] = sptr8[1];
+                pp[12+9] = sptr9[1];
+                pp[12+10] = sptra[1];
+                pp[12+11] = sptrb[1];
+                pp[24+0] = sptr0[2];
+                pp[24+1] = sptr1[2];
+                pp[24+2] = sptr2[2];
+                pp[24+3] = sptr3[2];
+                pp[24+4] = sptr4[2];
+                pp[24+5] = sptr5[2];
+                pp[24+6] = sptr6[2];
+                pp[24+7] = sptr7[2];
+                pp[24+8] = sptr8[2];
+                pp[24+9] = sptr9[2];
+                pp[24+10] = sptra[2];
+                pp[24+11] = sptrb[2];
+                pp[36+0] = sptr0[3];
+                pp[36+1] = sptr1[3];
+                pp[36+2] = sptr2[3];
+                pp[36+3] = sptr3[3];
+                pp[36+4] = sptr4[3];
+                pp[36+5] = sptr5[3];
+                pp[36+6] = sptr6[3];
+                pp[36+7] = sptr7[3];
+                pp[36+8] = sptr8[3];
+                pp[36+9] = sptr9[3];
+                pp[36+10] = sptra[3];
+                pp[36+11] = sptrb[3];
+                pp += 48;
+            }
+            if (elempack == 1)
+            {
+                pp[0] = sptr0[0];
+                pp[1] = sptr1[0];
+                pp[2] = sptr2[0];
+                pp[3] = sptr3[0];
+                pp[4] = sptr4[0];
+                pp[5] = sptr5[0];
+                pp[6] = sptr6[0];
+                pp[7] = sptr7[0];
+                pp[8] = sptr8[0];
+                pp[9] = sptr9[0];
+                pp[10] = sptra[0];
+                pp[11] = sptrb[0];
+                pp += 12;
+            }
+        }
+    }
+    for (; jj + 7 < max_jj; jj += 8)
+    {
+        int dy0 = (j + jj) / outw;
+        int dy1 = (j + jj + 1) / outw;
+        int dy2 = (j + jj + 2) / outw;
+        int dy3 = (j + jj + 3) / outw;
+        int dy4 = (j + jj + 4) / outw;
+        int dy5 = (j + jj + 5) / outw;
+        int dy6 = (j + jj + 6) / outw;
+        int dy7 = (j + jj + 7) / outw;
+        int dx0 = (j + jj) % outw;
+        int dx1 = (j + jj + 1) % outw;
+        int dx2 = (j + jj + 2) % outw;
+        int dx3 = (j + jj + 3) % outw;
+        int dx4 = (j + jj + 4) % outw;
+        int dx5 = (j + jj + 5) % outw;
+        int dx6 = (j + jj + 6) % outw;
+        int dx7 = (j + jj + 7) % outw;
+
+        int kk = 0;
+        for (; kk < max_kk / elempack; kk++)
+        {
+            int p = (k + kk) / maxk;
+            int uv = (k + kk) % maxk;
+            int u = uv / kernel_w;
+            int v = uv % kernel_w;
+
+            const Mat img = bottom_blob.channel(p);
+
+            int x0 = stride_w * dx0 + dilation_w * v;
+            int x1 = stride_w * dx1 + dilation_w * v;
+            int x2 = stride_w * dx2 + dilation_w * v;
+            int x3 = stride_w * dx3 + dilation_w * v;
+            int x4 = stride_w * dx4 + dilation_w * v;
+            int x5 = stride_w * dx5 + dilation_w * v;
+            int x6 = stride_w * dx6 + dilation_w * v;
+            int x7 = stride_w * dx7 + dilation_w * v;
+            int y0 = stride_h * dy0 + dilation_h * u;
+            int y1 = stride_h * dy1 + dilation_h * u;
+            int y2 = stride_h * dy2 + dilation_h * u;
+            int y3 = stride_h * dy3 + dilation_h * u;
+            int y4 = stride_h * dy4 + dilation_h * u;
+            int y5 = stride_h * dy5 + dilation_h * u;
+            int y6 = stride_h * dy6 + dilation_h * u;
+            int y7 = stride_h * dy7 + dilation_h * u;
+
+            const float* sptr0 = img.row(y0) + x0 * elempack;
+            const float* sptr1 = img.row(y1) + x1 * elempack;
+            const float* sptr2 = img.row(y2) + x2 * elempack;
+            const float* sptr3 = img.row(y3) + x3 * elempack;
+            const float* sptr4 = img.row(y4) + x4 * elempack;
+            const float* sptr5 = img.row(y5) + x5 * elempack;
+            const float* sptr6 = img.row(y6) + x6 * elempack;
+            const float* sptr7 = img.row(y7) + x7 * elempack;
+
+            if (elempack == 4)
+            {
+                pp[0] = sptr0[0];
+                pp[1] = sptr1[0];
+                pp[2] = sptr2[0];
+                pp[3] = sptr3[0];
+                pp[4] = sptr4[0];
+                pp[5] = sptr5[0];
+                pp[6] = sptr6[0];
+                pp[7] = sptr7[0];
+                pp[8+0] = sptr0[1];
+                pp[8+1] = sptr1[1];
+                pp[8+2] = sptr2[1];
+                pp[8+3] = sptr3[1];
+                pp[8+4] = sptr4[1];
+                pp[8+5] = sptr5[1];
+                pp[8+6] = sptr6[1];
+                pp[8+7] = sptr7[1];
+                pp[16+0] = sptr0[2];
+                pp[16+1] = sptr1[2];
+                pp[16+2] = sptr2[2];
+                pp[16+3] = sptr3[2];
+                pp[16+4] = sptr4[2];
+                pp[16+5] = sptr5[2];
+                pp[16+6] = sptr6[2];
+                pp[16+7] = sptr7[2];
+                pp[24+0] = sptr0[3];
+                pp[24+1] = sptr1[3];
+                pp[24+2] = sptr2[3];
+                pp[24+3] = sptr3[3];
+                pp[24+4] = sptr4[3];
+                pp[24+5] = sptr5[3];
+                pp[24+6] = sptr6[3];
+                pp[24+7] = sptr7[3];
+                pp += 32;
+            }
+            if (elempack == 1)
+            {
+                pp[0] = sptr0[0];
+                pp[1] = sptr1[0];
+                pp[2] = sptr2[0];
+                pp[3] = sptr3[0];
+                pp[4] = sptr4[0];
+                pp[5] = sptr5[0];
+                pp[6] = sptr6[0];
+                pp[7] = sptr7[0];
+                pp += 8;
+            }
+        }
+    }
+    for (; jj + 3 < max_jj; jj += 4)
+    {
+        int dy0 = (j + jj) / outw;
+        int dy1 = (j + jj + 1) / outw;
+        int dy2 = (j + jj + 2) / outw;
+        int dy3 = (j + jj + 3) / outw;
+        int dx0 = (j + jj) % outw;
+        int dx1 = (j + jj + 1) % outw;
+        int dx2 = (j + jj + 2) % outw;
+        int dx3 = (j + jj + 3) % outw;
+
+        int kk = 0;
+        for (; kk < max_kk / elempack; kk++)
+        {
+            int p = (k + kk) / maxk;
+            int uv = (k + kk) % maxk;
+            int u = uv / kernel_w;
+            int v = uv % kernel_w;
+
+            const Mat img = bottom_blob.channel(p);
+
+            int x0 = stride_w * dx0 + dilation_w * v;
+            int x1 = stride_w * dx1 + dilation_w * v;
+            int x2 = stride_w * dx2 + dilation_w * v;
+            int x3 = stride_w * dx3 + dilation_w * v;
+            int y0 = stride_h * dy0 + dilation_h * u;
+            int y1 = stride_h * dy1 + dilation_h * u;
+            int y2 = stride_h * dy2 + dilation_h * u;
+            int y3 = stride_h * dy3 + dilation_h * u;
+
+            const float* sptr0 = img.row(y0) + x0 * elempack;
+            const float* sptr1 = img.row(y1) + x1 * elempack;
+            const float* sptr2 = img.row(y2) + x2 * elempack;
+            const float* sptr3 = img.row(y3) + x3 * elempack;
+
+            if (elempack == 4)
+            {
+                pp[0] = sptr0[0];
+                pp[1] = sptr1[0];
+                pp[2] = sptr2[0];
+                pp[3] = sptr3[0];
+                pp[4] = sptr0[1];
+                pp[5] = sptr1[1];
+                pp[6] = sptr2[1];
+                pp[7] = sptr3[1];
+                pp[8+0] = sptr0[2];
+                pp[8+1] = sptr1[2];
+                pp[8+2] = sptr2[2];
+                pp[8+3] = sptr3[2];
+                pp[8+4] = sptr0[3];
+                pp[8+5] = sptr1[3];
+                pp[8+6] = sptr2[3];
+                pp[8+7] = sptr3[3];
+                pp += 16;
+            }
+            if (elempack == 1)
+            {
+                pp[0] = sptr0[0];
+                pp[1] = sptr1[0];
+                pp[2] = sptr2[0];
+                pp[3] = sptr3[0];
+                pp += 4;
+            }
+        }
+    }
+    for (; jj + 1 < max_jj; jj += 2)
+    {
+        int dy0 = (j + jj) / outw;
+        int dy1 = (j + jj + 1) / outw;
+        int dx0 = (j + jj) % outw;
+        int dx1 = (j + jj + 1) % outw;
+
+        int kk = 0;
+        for (; kk < max_kk / elempack; kk++)
+        {
+            int p = (k + kk) / maxk;
+            int uv = (k + kk) % maxk;
+            int u = uv / kernel_w;
+            int v = uv % kernel_w;
+
+            const Mat img = bottom_blob.channel(p);
+
+            int x0 = stride_w * dx0 + dilation_w * v;
+            int x1 = stride_w * dx1 + dilation_w * v;
+            int y0 = stride_h * dy0 + dilation_h * u;
+            int y1 = stride_h * dy1 + dilation_h * u;
+
+            const float* sptr0 = img.row(y0) + x0 * elempack;
+            const float* sptr1 = img.row(y1) + x1 * elempack;
+
+            if (elempack == 4)
+            {
+                pp[0] = sptr0[0];
+                pp[1] = sptr1[0];
+                pp[2] = sptr0[1];
+                pp[3] = sptr1[1];
+                pp[4] = sptr0[2];
+                pp[5] = sptr1[2];
+                pp[6] = sptr0[3];
+                pp[7] = sptr1[3];
+                pp += 8;
+            }
+            if (elempack == 1)
+            {
+                pp[0] = sptr0[0];
+                pp[1] = sptr1[0];
+                pp += 2;
+            }
+        }
+    }
+    for (; jj < max_jj; jj++)
     {
         int dy = (j + jj) / outw;
         int dx = (j + jj) % outw;
 
-        if (elempack == 4)
+        int kk = 0;
+        for (; kk < max_kk / elempack; kk++)
         {
-            for (int kk = 0; kk < max_kk / 4; kk++)
+            int p = (k + kk) / maxk;
+            int uv = (k + kk) % maxk;
+            int u = uv / kernel_w;
+            int v = uv % kernel_w;
+
+            const Mat img = bottom_blob.channel(p);
+
+            int x = stride_w * dx + dilation_w * v;
+            int y = stride_h * dy + dilation_h * u;
+
+            const float* sptr = img.row(y) + x * elempack;
+
+            if (elempack == 4)
             {
-                int p = (k + kk) / maxk;
-                int uv = (k + kk) % maxk;
-                int u = uv / kernel_w;
-                int v = uv % kernel_w;
-
-                const Mat img = bottom_blob.channel(p);
-
-                int x = stride_w * dx + dilation_w * v;
-                int y = stride_h * dy + dilation_h * u;
-
-                const float* sptr = img.row(y) + x * 4;
-
-                p0[0] = sptr[0];
-                p0[1] = sptr[1];
-                p0[2] = sptr[2];
-                p0[3] = sptr[3];
-
-                p0 += 4;
+                pp[0] = sptr[0];
+                pp[1] = sptr[1];
+                pp[2] = sptr[2];
+                pp[3] = sptr[3];
+                pp += 4;
             }
-        }
-
-        if (elempack == 1)
-        {
-            for (int kk = 0; kk < max_kk; kk++)
+            if (elempack == 1)
             {
-                int p = (k + kk) / maxk;
-                int uv = (k + kk) % maxk;
-                int u = uv / kernel_w;
-                int v = uv % kernel_w;
-
-                const Mat img = bottom_blob.channel(p);
-
-                int x = stride_w * dx + dilation_w * v;
-                int y = stride_h * dy + dilation_h * u;
-
-                const float* sptr = img.row(y) + x;
-
-                p0[0] = sptr[0];
-
-                p0 += 1;
+                pp[0] = sptr[0];
+                pp += 1;
             }
         }
     }
@@ -3162,9 +2631,6 @@ static void convolution_im2col_gemm(const Mat& bottom_blob, Mat& top_blob, const
     const int nn_NK = nn_N * nn_K;
 
     {
-        // Mat B_tileX(TILE_N * TILE_K, 1, nT, bottom_blob.elemsize, bottom_blob.elempack, opt.workspace_allocator);
-        Mat B_tileX(TILE_N * TILE_K, 1, nT, 4u, opt.workspace_allocator);
-
         #pragma omp parallel for num_threads(nT)
         for (int ppjk = 0; ppjk < nn_NK; ppjk++)
         {
@@ -3177,19 +2643,10 @@ static void convolution_im2col_gemm(const Mat& bottom_blob, Mat& top_blob, const
             const int max_jj = std::min((N - j), TILE_N);
             const int max_kk = std::min((K - k), TILE_K);
 
-            Mat B_tile = B_tileX.channel(get_omp_thread_num());
-
-            // im2col
-            convolution_im2col_input_tile(bottom_blob, B_tile, j, max_jj, k, max_kk, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h);
-
-            pretty_print(B_tile);
-
             Mat BT_tile = BT.channel(j / TILE_N).row_range(k / TILE_K, 1);
 
-            // convolution_im2col_transpose_pack_B_tile(B_tile, BT_tile, max_jj, max_kk);
-            convolution_im2col_pack_B_tile(B_tile, BT_tile, max_jj, max_kk);
-
-            // pretty_print(BT_tile);
+            // im2col
+            convolution_im2col_input_tile(bottom_blob, BT_tile, j, max_jj, k, max_kk, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h);
         }
     }
 
