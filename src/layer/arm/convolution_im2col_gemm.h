@@ -510,9 +510,9 @@ static void convolution_gemm_transB_packed_tile(const Mat& AT_tile, const Mat& B
                 "777:                               \n"
 
                 : "=r"(outptr), // %0
-                "=r"(pA),      // %1
-                "=r"(pB),      // %2
-                "=r"(outptr0)  // %3
+                "=r"(pA),     // %1
+                "=r"(pB),     // %2
+                "=r"(outptr0) // %3
                 : "0"(outptr),
                 "1"(pA),
                 "2"(pB),
@@ -2495,12 +2495,12 @@ static void convolution_im2col_input_tile_conv1x1s1d1(const Mat& bottom_blob, Ma
                     "st1    {v3.4s}, [%1], #16          \n"
                     "st1    {v7.4s}, [%1], #16          \n"
                     "st1    {v11.4s}, [%1], #16         \n"
-                    : "=r"(p0),  // %0
-                    "=r"(pp) // %1
+                    : "=r"(p0), // %0
+                    "=r"(pp)  // %1
                     : "0"(p0),
                     "1"(pp)
                     : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11");
-#else // NCNN_GNU_INLINE_ASM
+#else  // NCNN_GNU_INLINE_ASM
                 float32x4x4_t _r0 = vld4q_f32(p0);
                 float32x4x4_t _r1 = vld4q_f32(p0 + 16);
                 float32x4x4_t _r2 = vld4q_f32(p0 + 32);
@@ -2573,12 +2573,12 @@ static void convolution_im2col_input_tile_conv1x1s1d1(const Mat& bottom_blob, Ma
                     "st1    {v6.4s}, [%1], #16          \n"
                     "st1    {v3.4s}, [%1], #16          \n"
                     "st1    {v7.4s}, [%1], #16          \n"
-                    : "=r"(p0),  // %0
-                    "=r"(pp) // %1
+                    : "=r"(p0), // %0
+                    "=r"(pp)  // %1
                     : "0"(p0),
                     "1"(pp)
                     : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7");
-#else // __aarch64__
+#else  // __aarch64__
                 asm volatile(
                     "pld        [%0, #512]          \n"
                     "vldm       %0!, {d0-d7}        \n"
@@ -2601,8 +2601,8 @@ static void convolution_im2col_input_tile_conv1x1s1d1(const Mat& bottom_blob, Ma
                     "sub        %0, %0, #64         \n"
                     "vst1.f32   {d4-d7}, [%1 :128]! \n"
                     "vst1.f32   {d20-d23}, [%1 :128]! \n"
-                    : "=r"(p0),  // %0
-                    "=r"(pp) // %1
+                    : "=r"(p0), // %0
+                    "=r"(pp)  // %1
                     : "0"(p0),
                     "1"(pp)
                     : "memory", "q0", "q1", "q2", "q3", "q8", "q9", "q10", "q11");
@@ -2660,8 +2660,8 @@ static void convolution_im2col_input_tile_conv1x1s1d1(const Mat& bottom_blob, Ma
                     "prfm   pldl1keep, [%0, #512]       \n"
                     "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%0] \n"
                     "st4    {v0.4s, v1.4s, v2.4s, v3.4s}, [%1], #64 \n"
-                    : "=r"(p0),  // %0
-                    "=r"(pp) // %1
+                    : "=r"(p0), // %0
+                    "=r"(pp)  // %1
                     : "0"(p0),
                     "1"(pp)
                     : "memory", "v0", "v1", "v2", "v3");
@@ -2674,8 +2674,8 @@ static void convolution_im2col_input_tile_conv1x1s1d1(const Mat& bottom_blob, Ma
                     "vswp       d1, d4              \n"
                     "vswp       d3, d6              \n"
                     "vstm       %1!, {d0-d7}        \n"
-                    : "=r"(p0),  // %0
-                    "=r"(pp) // %1
+                    : "=r"(p0), // %0
+                    "=r"(pp)  // %1
                     : "0"(p0),
                     "1"(pp)
                     : "memory", "q0", "q1", "q2", "q3");
@@ -2787,7 +2787,6 @@ static void convolution_im2col_input_tile(const Mat& bottom_blob, Mat& B, int j,
         convolution_im2col_input_tile_conv1x1s1d1(bottom_blob, B, j, max_jj, k, max_kk);
         return;
     }
-
 
     // return;
     const int w = bottom_blob.w;
@@ -2907,42 +2906,42 @@ static void convolution_im2col_input_tile(const Mat& bottom_blob, Mat& B, int j,
                 pp[9] = sptr9[0];
                 pp[10] = sptra[0];
                 pp[11] = sptrb[0];
-                pp[12+0] = sptr0[1];
-                pp[12+1] = sptr1[1];
-                pp[12+2] = sptr2[1];
-                pp[12+3] = sptr3[1];
-                pp[12+4] = sptr4[1];
-                pp[12+5] = sptr5[1];
-                pp[12+6] = sptr6[1];
-                pp[12+7] = sptr7[1];
-                pp[12+8] = sptr8[1];
-                pp[12+9] = sptr9[1];
-                pp[12+10] = sptra[1];
-                pp[12+11] = sptrb[1];
-                pp[24+0] = sptr0[2];
-                pp[24+1] = sptr1[2];
-                pp[24+2] = sptr2[2];
-                pp[24+3] = sptr3[2];
-                pp[24+4] = sptr4[2];
-                pp[24+5] = sptr5[2];
-                pp[24+6] = sptr6[2];
-                pp[24+7] = sptr7[2];
-                pp[24+8] = sptr8[2];
-                pp[24+9] = sptr9[2];
-                pp[24+10] = sptra[2];
-                pp[24+11] = sptrb[2];
-                pp[36+0] = sptr0[3];
-                pp[36+1] = sptr1[3];
-                pp[36+2] = sptr2[3];
-                pp[36+3] = sptr3[3];
-                pp[36+4] = sptr4[3];
-                pp[36+5] = sptr5[3];
-                pp[36+6] = sptr6[3];
-                pp[36+7] = sptr7[3];
-                pp[36+8] = sptr8[3];
-                pp[36+9] = sptr9[3];
-                pp[36+10] = sptra[3];
-                pp[36+11] = sptrb[3];
+                pp[12 + 0] = sptr0[1];
+                pp[12 + 1] = sptr1[1];
+                pp[12 + 2] = sptr2[1];
+                pp[12 + 3] = sptr3[1];
+                pp[12 + 4] = sptr4[1];
+                pp[12 + 5] = sptr5[1];
+                pp[12 + 6] = sptr6[1];
+                pp[12 + 7] = sptr7[1];
+                pp[12 + 8] = sptr8[1];
+                pp[12 + 9] = sptr9[1];
+                pp[12 + 10] = sptra[1];
+                pp[12 + 11] = sptrb[1];
+                pp[24 + 0] = sptr0[2];
+                pp[24 + 1] = sptr1[2];
+                pp[24 + 2] = sptr2[2];
+                pp[24 + 3] = sptr3[2];
+                pp[24 + 4] = sptr4[2];
+                pp[24 + 5] = sptr5[2];
+                pp[24 + 6] = sptr6[2];
+                pp[24 + 7] = sptr7[2];
+                pp[24 + 8] = sptr8[2];
+                pp[24 + 9] = sptr9[2];
+                pp[24 + 10] = sptra[2];
+                pp[24 + 11] = sptrb[2];
+                pp[36 + 0] = sptr0[3];
+                pp[36 + 1] = sptr1[3];
+                pp[36 + 2] = sptr2[3];
+                pp[36 + 3] = sptr3[3];
+                pp[36 + 4] = sptr4[3];
+                pp[36 + 5] = sptr5[3];
+                pp[36 + 6] = sptr6[3];
+                pp[36 + 7] = sptr7[3];
+                pp[36 + 8] = sptr8[3];
+                pp[36 + 9] = sptr9[3];
+                pp[36 + 10] = sptra[3];
+                pp[36 + 11] = sptrb[3];
                 pp += 48;
             }
             if (elempack == 1)
@@ -3029,30 +3028,30 @@ static void convolution_im2col_input_tile(const Mat& bottom_blob, Mat& B, int j,
                 pp[5] = sptr5[0];
                 pp[6] = sptr6[0];
                 pp[7] = sptr7[0];
-                pp[8+0] = sptr0[1];
-                pp[8+1] = sptr1[1];
-                pp[8+2] = sptr2[1];
-                pp[8+3] = sptr3[1];
-                pp[8+4] = sptr4[1];
-                pp[8+5] = sptr5[1];
-                pp[8+6] = sptr6[1];
-                pp[8+7] = sptr7[1];
-                pp[16+0] = sptr0[2];
-                pp[16+1] = sptr1[2];
-                pp[16+2] = sptr2[2];
-                pp[16+3] = sptr3[2];
-                pp[16+4] = sptr4[2];
-                pp[16+5] = sptr5[2];
-                pp[16+6] = sptr6[2];
-                pp[16+7] = sptr7[2];
-                pp[24+0] = sptr0[3];
-                pp[24+1] = sptr1[3];
-                pp[24+2] = sptr2[3];
-                pp[24+3] = sptr3[3];
-                pp[24+4] = sptr4[3];
-                pp[24+5] = sptr5[3];
-                pp[24+6] = sptr6[3];
-                pp[24+7] = sptr7[3];
+                pp[8 + 0] = sptr0[1];
+                pp[8 + 1] = sptr1[1];
+                pp[8 + 2] = sptr2[1];
+                pp[8 + 3] = sptr3[1];
+                pp[8 + 4] = sptr4[1];
+                pp[8 + 5] = sptr5[1];
+                pp[8 + 6] = sptr6[1];
+                pp[8 + 7] = sptr7[1];
+                pp[16 + 0] = sptr0[2];
+                pp[16 + 1] = sptr1[2];
+                pp[16 + 2] = sptr2[2];
+                pp[16 + 3] = sptr3[2];
+                pp[16 + 4] = sptr4[2];
+                pp[16 + 5] = sptr5[2];
+                pp[16 + 6] = sptr6[2];
+                pp[16 + 7] = sptr7[2];
+                pp[24 + 0] = sptr0[3];
+                pp[24 + 1] = sptr1[3];
+                pp[24 + 2] = sptr2[3];
+                pp[24 + 3] = sptr3[3];
+                pp[24 + 4] = sptr4[3];
+                pp[24 + 5] = sptr5[3];
+                pp[24 + 6] = sptr6[3];
+                pp[24 + 7] = sptr7[3];
                 pp += 32;
             }
             if (elempack == 1)
@@ -3114,14 +3113,14 @@ static void convolution_im2col_input_tile(const Mat& bottom_blob, Mat& B, int j,
                 pp[5] = sptr1[1];
                 pp[6] = sptr2[1];
                 pp[7] = sptr3[1];
-                pp[8+0] = sptr0[2];
-                pp[8+1] = sptr1[2];
-                pp[8+2] = sptr2[2];
-                pp[8+3] = sptr3[2];
-                pp[8+4] = sptr0[3];
-                pp[8+5] = sptr1[3];
-                pp[8+6] = sptr2[3];
-                pp[8+7] = sptr3[3];
+                pp[8 + 0] = sptr0[2];
+                pp[8 + 1] = sptr1[2];
+                pp[8 + 2] = sptr2[2];
+                pp[8 + 3] = sptr3[2];
+                pp[8 + 4] = sptr0[3];
+                pp[8 + 5] = sptr1[3];
+                pp[8 + 6] = sptr2[3];
+                pp[8 + 7] = sptr3[3];
                 pp += 16;
             }
             if (elempack == 1)
