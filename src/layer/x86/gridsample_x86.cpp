@@ -230,7 +230,7 @@ struct compute_coord<GridSample::Reflection, /*align_corner*/ false>
 #include "gridsample_bicubic_compute_blob.h"
 #include "gridsample_nearest_compute_blob.h"
 
-} //namespace GridSample_x86_kernel 
+} //namespace GridSample_x86_kernel
 
 int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
