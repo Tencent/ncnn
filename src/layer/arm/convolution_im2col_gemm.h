@@ -3356,7 +3356,6 @@ static void convolution_im2col_input_tile(const Mat& bottom_blob, Mat& B, int j,
         return;
     }
 
-    // return;
     const int w = bottom_blob.w;
     // const int h = bottom_blob.h;
     // const int channels = bottom_blob.c;
@@ -3367,9 +3366,6 @@ static void convolution_im2col_input_tile(const Mat& bottom_blob, Mat& B, int j,
 
     const int outw = (w - kernel_extent_w) / stride_w + 1;
     // const int outh = (h - kernel_extent_h) / stride_h + 1;
-
-    // const int gap = (w * stride_h - outw * stride_w) * elempack;
-    // bottom_im2col(size, maxk * channels, elemsize, elempack);
 
     // j max_jj     outw*outh    split w and h
 
@@ -3462,54 +3458,31 @@ static void convolution_im2col_input_tile(const Mat& bottom_blob, Mat& B, int j,
 
             if (elempack == 4)
             {
-                pp[0] = sptr0[0];
-                pp[1] = sptr1[0];
-                pp[2] = sptr2[0];
-                pp[3] = sptr3[0];
-                pp[4] = sptr4[0];
-                pp[5] = sptr5[0];
-                pp[6] = sptr6[0];
-                pp[7] = sptr7[0];
-                pp[8] = sptr8[0];
-                pp[9] = sptr9[0];
-                pp[10] = sptra[0];
-                pp[11] = sptrb[0];
-                pp[12 + 0] = sptr0[1];
-                pp[12 + 1] = sptr1[1];
-                pp[12 + 2] = sptr2[1];
-                pp[12 + 3] = sptr3[1];
-                pp[12 + 4] = sptr4[1];
-                pp[12 + 5] = sptr5[1];
-                pp[12 + 6] = sptr6[1];
-                pp[12 + 7] = sptr7[1];
-                pp[12 + 8] = sptr8[1];
-                pp[12 + 9] = sptr9[1];
-                pp[12 + 10] = sptra[1];
-                pp[12 + 11] = sptrb[1];
-                pp[24 + 0] = sptr0[2];
-                pp[24 + 1] = sptr1[2];
-                pp[24 + 2] = sptr2[2];
-                pp[24 + 3] = sptr3[2];
-                pp[24 + 4] = sptr4[2];
-                pp[24 + 5] = sptr5[2];
-                pp[24 + 6] = sptr6[2];
-                pp[24 + 7] = sptr7[2];
-                pp[24 + 8] = sptr8[2];
-                pp[24 + 9] = sptr9[2];
-                pp[24 + 10] = sptra[2];
-                pp[24 + 11] = sptrb[2];
-                pp[36 + 0] = sptr0[3];
-                pp[36 + 1] = sptr1[3];
-                pp[36 + 2] = sptr2[3];
-                pp[36 + 3] = sptr3[3];
-                pp[36 + 4] = sptr4[3];
-                pp[36 + 5] = sptr5[3];
-                pp[36 + 6] = sptr6[3];
-                pp[36 + 7] = sptr7[3];
-                pp[36 + 8] = sptr8[3];
-                pp[36 + 9] = sptr9[3];
-                pp[36 + 10] = sptra[3];
-                pp[36 + 11] = sptrb[3];
+                float32x4_t _r0 = vld1q_f32(sptr0);
+                float32x4_t _r1 = vld1q_f32(sptr1);
+                float32x4_t _r2 = vld1q_f32(sptr2);
+                float32x4_t _r3 = vld1q_f32(sptr3);
+                float32x4_t _r4 = vld1q_f32(sptr4);
+                float32x4_t _r5 = vld1q_f32(sptr5);
+                float32x4_t _r6 = vld1q_f32(sptr6);
+                float32x4_t _r7 = vld1q_f32(sptr7);
+                float32x4_t _r8 = vld1q_f32(sptr8);
+                float32x4_t _r9 = vld1q_f32(sptr9);
+                float32x4_t _ra = vld1q_f32(sptra);
+                float32x4_t _rb = vld1q_f32(sptrb);
+                transpose4x12_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7, _r8, _r9, _ra, _rb);
+                vst1q_f32(pp, _r0);
+                vst1q_f32(pp + 4, _r1);
+                vst1q_f32(pp + 4 * 2, _r2);
+                vst1q_f32(pp + 4 * 3, _r3);
+                vst1q_f32(pp + 4 * 4, _r4);
+                vst1q_f32(pp + 4 * 5, _r5);
+                vst1q_f32(pp + 4 * 6, _r6);
+                vst1q_f32(pp + 4 * 7, _r7);
+                vst1q_f32(pp + 4 * 8, _r8);
+                vst1q_f32(pp + 4 * 9, _r9);
+                vst1q_f32(pp + 4 * 10, _ra);
+                vst1q_f32(pp + 4 * 11, _rb);
                 pp += 48;
             }
             if (elempack == 1)
@@ -3588,38 +3561,23 @@ static void convolution_im2col_input_tile(const Mat& bottom_blob, Mat& B, int j,
 
             if (elempack == 4)
             {
-                pp[0] = sptr0[0];
-                pp[1] = sptr1[0];
-                pp[2] = sptr2[0];
-                pp[3] = sptr3[0];
-                pp[4] = sptr4[0];
-                pp[5] = sptr5[0];
-                pp[6] = sptr6[0];
-                pp[7] = sptr7[0];
-                pp[8 + 0] = sptr0[1];
-                pp[8 + 1] = sptr1[1];
-                pp[8 + 2] = sptr2[1];
-                pp[8 + 3] = sptr3[1];
-                pp[8 + 4] = sptr4[1];
-                pp[8 + 5] = sptr5[1];
-                pp[8 + 6] = sptr6[1];
-                pp[8 + 7] = sptr7[1];
-                pp[16 + 0] = sptr0[2];
-                pp[16 + 1] = sptr1[2];
-                pp[16 + 2] = sptr2[2];
-                pp[16 + 3] = sptr3[2];
-                pp[16 + 4] = sptr4[2];
-                pp[16 + 5] = sptr5[2];
-                pp[16 + 6] = sptr6[2];
-                pp[16 + 7] = sptr7[2];
-                pp[24 + 0] = sptr0[3];
-                pp[24 + 1] = sptr1[3];
-                pp[24 + 2] = sptr2[3];
-                pp[24 + 3] = sptr3[3];
-                pp[24 + 4] = sptr4[3];
-                pp[24 + 5] = sptr5[3];
-                pp[24 + 6] = sptr6[3];
-                pp[24 + 7] = sptr7[3];
+                float32x4_t _r0 = vld1q_f32(sptr0);
+                float32x4_t _r1 = vld1q_f32(sptr1);
+                float32x4_t _r2 = vld1q_f32(sptr2);
+                float32x4_t _r3 = vld1q_f32(sptr3);
+                float32x4_t _r4 = vld1q_f32(sptr4);
+                float32x4_t _r5 = vld1q_f32(sptr5);
+                float32x4_t _r6 = vld1q_f32(sptr6);
+                float32x4_t _r7 = vld1q_f32(sptr7);
+                transpose4x8_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
+                vst1q_f32(pp, _r0);
+                vst1q_f32(pp + 4, _r1);
+                vst1q_f32(pp + 4 * 2, _r2);
+                vst1q_f32(pp + 4 * 3, _r3);
+                vst1q_f32(pp + 4 * 4, _r4);
+                vst1q_f32(pp + 4 * 5, _r5);
+                vst1q_f32(pp + 4 * 6, _r6);
+                vst1q_f32(pp + 4 * 7, _r7);
                 pp += 32;
             }
             if (elempack == 1)
@@ -3673,22 +3631,12 @@ static void convolution_im2col_input_tile(const Mat& bottom_blob, Mat& B, int j,
 
             if (elempack == 4)
             {
-                pp[0] = sptr0[0];
-                pp[1] = sptr1[0];
-                pp[2] = sptr2[0];
-                pp[3] = sptr3[0];
-                pp[4] = sptr0[1];
-                pp[5] = sptr1[1];
-                pp[6] = sptr2[1];
-                pp[7] = sptr3[1];
-                pp[8 + 0] = sptr0[2];
-                pp[8 + 1] = sptr1[2];
-                pp[8 + 2] = sptr2[2];
-                pp[8 + 3] = sptr3[2];
-                pp[8 + 4] = sptr0[3];
-                pp[8 + 5] = sptr1[3];
-                pp[8 + 6] = sptr2[3];
-                pp[8 + 7] = sptr3[3];
+                float32x4x4_t _r0;
+                _r0.val[0] = vld1q_f32(sptr0);
+                _r0.val[1] = vld1q_f32(sptr1);
+                _r0.val[2] = vld1q_f32(sptr2);
+                _r0.val[3] = vld1q_f32(sptr3);
+                vst4q_f32(pp, _r0);
                 pp += 16;
             }
             if (elempack == 1)
