@@ -245,7 +245,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
         {
             const unsigned short* pA = pAT;
 
-#if 0//NCNN_GNU_INLINE_ASM
+#if 0  //NCNN_GNU_INLINE_ASM
             asm volatile(
                 "cbz    %w10, 0f                    \n"
 
@@ -850,7 +850,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
         {
             const unsigned short* pA = pAT;
 
-#if 0//NCNN_GNU_INLINE_ASM
+#if 0  //NCNN_GNU_INLINE_ASM
             asm volatile(
                 "cbz    %w10, 0f                    \n"
 
@@ -1286,7 +1286,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
         {
             const unsigned short* pA = pAT;
 
-#if 0//NCNN_GNU_INLINE_ASM
+#if 0  //NCNN_GNU_INLINE_ASM
             asm volatile(
                 "cbz    %w10, 0f                    \n"
 
@@ -1583,7 +1583,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
         {
             const unsigned short* pA = pAT;
 
-#if 0//NCNN_GNU_INLINE_ASM
+#if 0  //NCNN_GNU_INLINE_ASM
             asm volatile(
                 "cbz    %w10, 0f                    \n"
 
@@ -3153,7 +3153,7 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16s(const Mat& bottom_bl
             for (; kk < max_kk / 4; kk++)
             {
                 // transpose4x12
-#if 0//NCNN_GNU_INLINE_ASM
+#if 0  //NCNN_GNU_INLINE_ASM
                 asm volatile(
                     "prfm   pldl1keep, [%0, #512]       \n"
                     "ld4    {v0.4s, v1.4s, v2.4s, v3.4s}, [%0], #64 \n"
@@ -3236,7 +3236,7 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16s(const Mat& bottom_bl
             for (; kk < max_kk / 4; kk++)
             {
                 // transpose4x8
-#if 0//NCNN_GNU_INLINE_ASM
+#if 0 //NCNN_GNU_INLINE_ASM
 #if __aarch64__
                 asm volatile(
                     "prfm   pldl1keep, [%0, #512]       \n"
@@ -3328,7 +3328,7 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16s(const Mat& bottom_bl
             for (; kk < max_kk / 4; kk++)
             {
                 // transpose4x4
-#if 0//NCNN_GNU_INLINE_ASM
+#if 0 //NCNN_GNU_INLINE_ASM
 #if __aarch64__
                 asm volatile(
                     "prfm   pldl1keep, [%0, #512]       \n"
