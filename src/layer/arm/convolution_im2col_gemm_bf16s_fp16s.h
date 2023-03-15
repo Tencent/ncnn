@@ -211,6 +211,7 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16_fp16(const Mat& botto
 #if __aarch64__
     for (; jj + 11 < max_jj; jj += 12)
     {
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
         if (elempack == 8)
         {
             const unsigned short* p0 = (const unsigned short*)bottom_blob.channel(k / 8) + (j + jj) * 8;
@@ -218,33 +219,37 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16_fp16(const Mat& botto
             int kk = 0;
             for (; kk < max_kk / 8; kk++)
             {
-                // transpose4x12
-#if 0  //NCNN_GNU_INLINE_ASM
+                // transpose8x12
+#if NCNN_GNU_INLINE_ASM
                 asm volatile(
-                    "prfm   pldl1keep, [%0, #512]       \n"
-                    "ld4    {v0.4s, v1.4s, v2.4s, v3.4s}, [%0], #64 \n"
-                    "prfm   pldl1keep, [%0, #512]       \n"
-                    "ld4    {v4.4s, v5.4s, v6.4s, v7.4s}, [%0], #64 \n"
-                    "prfm   pldl1keep, [%0, #512]       \n"
-                    "ld4    {v8.4s, v9.4s, v10.4s, v11.4s}, [%0] \n"
-                    "st1    {v0.4s}, [%1], #16          \n"
-                    "st1    {v4.4s}, [%1], #16          \n"
-                    "st1    {v8.4s}, [%1], #16          \n"
-                    "sub    %0, %0, #128                \n"
-                    "st1    {v1.4s}, [%1], #16          \n"
-                    "st1    {v5.4s}, [%1], #16          \n"
-                    "st1    {v9.4s}, [%1], #16          \n"
-                    "st1    {v2.4s}, [%1], #16          \n"
-                    "st1    {v6.4s}, [%1], #16          \n"
-                    "st1    {v10.4s}, [%1], #16         \n"
-                    "st1    {v3.4s}, [%1], #16          \n"
-                    "st1    {v7.4s}, [%1], #16          \n"
-                    "st1    {v11.4s}, [%1], #16         \n"
+                    "prfm   pldl1keep, [%0, #512]   \n"
+                    "ld4    {v0.8h, v1.8h, v2.8h, v3.8h}, [%0], #64 \n"
+                    "ld4    {v4.8h, v5.8h, v6.8h, v7.8h}, [%0], #64 \n"
+                    "ld4    {v16.8h, v17.8h, v18.8h, v19.8h}, [%0] \n"
+
+                    "sub    %0, %0, #128            \n"
+
+                    "uzp1   v20.8h, v0.8h, v4.8h    \n"
+                    "uzp1   v21.8h, v16.8h, v1.8h   \n"
+                    "uzp1   v22.8h, v5.8h, v17.8h   \n"
+                    "uzp1   v23.8h, v2.8h, v6.8h    \n"
+                    "uzp1   v24.8h, v18.8h, v3.8h   \n"
+                    "uzp1   v25.8h, v7.8h, v19.8h   \n"
+                    "uzp2   v26.8h, v0.8h, v4.8h    \n"
+                    "uzp2   v27.8h, v16.8h, v1.8h   \n"
+                    "uzp2   v28.8h, v5.8h, v17.8h   \n"
+                    "uzp2   v29.8h, v2.8h, v6.8h    \n"
+                    "uzp2   v30.8h, v18.8h, v3.8h   \n"
+                    "uzp2   v31.8h, v7.8h, v19.8h   \n"
+
+                    "st1    {v20.8h, v21.8h, v22.8h, v23.8h}, [%1], #64 \n"
+                    "st1    {v24.8h, v25.8h, v26.8h, v27.8h}, [%1], #64 \n"
+                    "st1    {v28.8h, v29.8h, v30.8h, v31.8h}, [%1], #64 \n"
                     : "=r"(p0), // %0
                     "=r"(pp)  // %1
                     : "0"(p0),
                     "1"(pp)
-                    : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11");
+                    : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
 #else  // NCNN_GNU_INLINE_ASM
                 uint16x8_t _r0 = vld1q_u16(p0);
                 uint16x8_t _r1 = vld1q_u16(p0 + 8);
@@ -276,6 +281,7 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16_fp16(const Mat& botto
                 p0 += bottom_blob.cstep * 8;
             }
         }
+#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 
         if (elempack == 4)
         {
@@ -285,32 +291,25 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16_fp16(const Mat& botto
             for (; kk < max_kk / 4; kk++)
             {
                 // transpose4x12
-#if 0  //NCNN_GNU_INLINE_ASM
+#if NCNN_GNU_INLINE_ASM
                 asm volatile(
                     "prfm   pldl1keep, [%0, #512]       \n"
-                    "ld4    {v0.4s, v1.4s, v2.4s, v3.4s}, [%0], #64 \n"
-                    "prfm   pldl1keep, [%0, #512]       \n"
-                    "ld4    {v4.4s, v5.4s, v6.4s, v7.4s}, [%0], #64 \n"
-                    "prfm   pldl1keep, [%0, #512]       \n"
-                    "ld4    {v8.4s, v9.4s, v10.4s, v11.4s}, [%0] \n"
-                    "st1    {v0.4s}, [%1], #16          \n"
-                    "st1    {v4.4s}, [%1], #16          \n"
-                    "st1    {v8.4s}, [%1], #16          \n"
-                    "sub    %0, %0, #128                \n"
-                    "st1    {v1.4s}, [%1], #16          \n"
-                    "st1    {v5.4s}, [%1], #16          \n"
-                    "st1    {v9.4s}, [%1], #16          \n"
-                    "st1    {v2.4s}, [%1], #16          \n"
-                    "st1    {v6.4s}, [%1], #16          \n"
-                    "st1    {v10.4s}, [%1], #16         \n"
-                    "st1    {v3.4s}, [%1], #16          \n"
-                    "st1    {v7.4s}, [%1], #16          \n"
-                    "st1    {v11.4s}, [%1], #16         \n"
+                    "ld4    {v0.8h, v1.8h, v2.8h, v3.8h}, [%0], #64 \n"
+                    "ld4    {v4.4h, v5.4h, v6.4h, v7.4h}, [%0]      \n"
+                    "st1    {v0.8h}, [%1], #16          \n"
+                    "st1    {v4.4h}, [%1], #8           \n"
+                    "st1    {v1.8h}, [%1], #16          \n"
+                    "st1    {v5.4h}, [%1], #8           \n"
+                    "sub    %0, %0, #64                 \n"
+                    "st1    {v2.8h}, [%1], #16          \n"
+                    "st1    {v6.4h}, [%1], #8           \n"
+                    "st1    {v3.8h}, [%1], #16          \n"
+                    "st1    {v7.4h}, [%1], #8           \n"
                     : "=r"(p0), // %0
                     "=r"(pp)  // %1
                     : "0"(p0),
                     "1"(pp)
-                    : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11");
+                    : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7");
 #else  // NCNN_GNU_INLINE_ASM
                 uint16x4x4_t _r0 = vld4_u16(p0);
                 uint16x4x4_t _r1 = vld4_u16(p0 + 16);
@@ -360,6 +359,7 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16_fp16(const Mat& botto
 #endif // __aarch64__
     for (; jj + 7 < max_jj; jj += 8)
     {
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
         if (elempack == 8)
         {
             const unsigned short* p0 = (const unsigned short*)bottom_blob.channel(k / 8) + (j + jj) * 8;
@@ -368,56 +368,29 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16_fp16(const Mat& botto
             for (; kk < max_kk / 8; kk++)
             {
                 // transpose8x8
-#if 0 //NCNN_GNU_INLINE_ASM
-#if __aarch64__
+#if NCNN_GNU_INLINE_ASM
                 asm volatile(
-                    "prfm   pldl1keep, [%0, #512]       \n"
-                    "ld4    {v0.4s, v1.4s, v2.4s, v3.4s}, [%0], #64 \n"
-                    "prfm   pldl1keep, [%0, #512]       \n"
-                    "ld4    {v4.4s, v5.4s, v6.4s, v7.4s}, [%0] \n"
-                    "st1    {v0.4s}, [%1], #16          \n"
-                    "st1    {v4.4s}, [%1], #16          \n"
-                    "st1    {v1.4s}, [%1], #16          \n"
-                    "st1    {v5.4s}, [%1], #16          \n"
-                    "sub    %0, %0, #64                 \n"
-                    "st1    {v2.4s}, [%1], #16          \n"
-                    "st1    {v6.4s}, [%1], #16          \n"
-                    "st1    {v3.4s}, [%1], #16          \n"
-                    "st1    {v7.4s}, [%1], #16          \n"
+                    "prfm   pldl1keep, [%0, #512]   \n"
+                    "ld4    {v0.8h, v1.8h, v2.8h, v3.8h}, [%0], #64 \n"
+                    "ld4    {v4.8h, v5.8h, v6.8h, v7.8h}, [%0] \n"
+                    "sub    %0, %0, #64             \n"
+
+                    "uzp1   v16.8h, v0.8h, v4.8h    \n"
+                    "uzp2   v20.8h, v0.8h, v4.8h    \n"
+                    "uzp1   v17.8h, v1.8h, v5.8h    \n"
+                    "uzp2   v21.8h, v1.8h, v5.8h    \n"
+                    "uzp1   v18.8h, v2.8h, v6.8h    \n"
+                    "uzp2   v22.8h, v2.8h, v6.8h    \n"
+                    "uzp1   v19.8h, v3.8h, v7.8h    \n"
+                    "uzp2   v23.8h, v3.8h, v7.8h    \n"
+
+                    "st1    {v16.8h, v17.8h, v18.8h, v19.8h}, [%1], #64 \n"
+                    "st1    {v20.8h, v21.8h, v22.8h, v23.8h}, [%1], #64 \n"
                     : "=r"(p0), // %0
                     "=r"(pp)  // %1
                     : "0"(p0),
                     "1"(pp)
-                    : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7");
-#else  // __aarch64__
-                asm volatile(
-                    "pld        [%0, #512]          \n"
-                    "vldm       %0!, {d0-d7}        \n"
-                    "pld        [%0, #512]          \n"
-                    "vldm       %0, {d16-d23}       \n"
-
-                    "vtrn.32    q0, q1              \n"
-                    "vtrn.32    q2, q3              \n"
-                    "vtrn.32    q8, q9              \n"
-                    "vtrn.32    q10, q11            \n"
-                    "vswp       d1, d4              \n"
-                    "vswp       d3, d6              \n"
-                    "vswp       d17, d20            \n"
-                    "vswp       d19, d22            \n"
-                    "vswp       q1, q8              \n"
-                    "vswp       q3, q10             \n"
-
-                    "vst1.f32   {d0-d3}, [%1 :128]! \n"
-                    "vst1.f32   {d16-d19}, [%1 :128]! \n"
-                    "sub        %0, %0, #64         \n"
-                    "vst1.f32   {d4-d7}, [%1 :128]! \n"
-                    "vst1.f32   {d20-d23}, [%1 :128]! \n"
-                    : "=r"(p0), // %0
-                    "=r"(pp)  // %1
-                    : "0"(p0),
-                    "1"(pp)
-                    : "memory", "q0", "q1", "q2", "q3", "q8", "q9", "q10", "q11");
-#endif // __aarch64__
+                    : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23");
 #else  // NCNN_GNU_INLINE_ASM
                 uint16x8_t _r0 = vld1q_u16(p0);
                 uint16x8_t _r1 = vld1q_u16(p0 + 8);
@@ -441,6 +414,7 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16_fp16(const Mat& botto
                 p0 += bottom_blob.cstep * 8;
             }
         }
+#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 
         if (elempack == 4)
         {
@@ -450,50 +424,25 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16_fp16(const Mat& botto
             for (; kk < max_kk / 4; kk++)
             {
                 // transpose4x8
-#if 0 //NCNN_GNU_INLINE_ASM
+#if NCNN_GNU_INLINE_ASM
 #if __aarch64__
                 asm volatile(
                     "prfm   pldl1keep, [%0, #512]       \n"
-                    "ld4    {v0.4s, v1.4s, v2.4s, v3.4s}, [%0], #64 \n"
-                    "prfm   pldl1keep, [%0, #512]       \n"
-                    "ld4    {v4.4s, v5.4s, v6.4s, v7.4s}, [%0] \n"
-                    "st1    {v0.4s}, [%1], #16          \n"
-                    "st1    {v4.4s}, [%1], #16          \n"
-                    "st1    {v1.4s}, [%1], #16          \n"
-                    "st1    {v5.4s}, [%1], #16          \n"
-                    "sub    %0, %0, #64                 \n"
-                    "st1    {v2.4s}, [%1], #16          \n"
-                    "st1    {v6.4s}, [%1], #16          \n"
-                    "st1    {v3.4s}, [%1], #16          \n"
-                    "st1    {v7.4s}, [%1], #16          \n"
+                    "ld4    {v0.8h, v1.8h, v2.8h, v3.8h}, [%0] \n"
+                    "st1    {v0.8h, v1.8h, v2.8h, v3.8h}, [%1], #64 \n"
                     : "=r"(p0), // %0
                     "=r"(pp)  // %1
                     : "0"(p0),
                     "1"(pp)
-                    : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7");
+                    : "memory", "v0", "v1", "v2", "v3");
 #else  // __aarch64__
                 asm volatile(
-                    "pld        [%0, #512]          \n"
-                    "vldm       %0!, {d0-d7}        \n"
-                    "pld        [%0, #512]          \n"
-                    "vldm       %0, {d16-d23}       \n"
-
-                    "vtrn.32    q0, q1              \n"
-                    "vtrn.32    q2, q3              \n"
-                    "vtrn.32    q8, q9              \n"
-                    "vtrn.32    q10, q11            \n"
-                    "vswp       d1, d4              \n"
-                    "vswp       d3, d6              \n"
-                    "vswp       d17, d20            \n"
-                    "vswp       d19, d22            \n"
-                    "vswp       q1, q8              \n"
-                    "vswp       q3, q10             \n"
-
-                    "vst1.f32   {d0-d3}, [%1 :128]! \n"
-                    "vst1.f32   {d16-d19}, [%1 :128]! \n"
-                    "sub        %0, %0, #64         \n"
-                    "vst1.f32   {d4-d7}, [%1 :128]! \n"
-                    "vst1.f32   {d20-d23}, [%1 :128]! \n"
+                    "pld        [%0, #256]          \n"
+                    "vld4.u16   {d0,d2,d4,d6}, [%0]! \n"
+                    "pld        [%0, #256]          \n"
+                    "vld4.u16   {d1,d3,d5,d7}, [%0] \n"
+                    "sub        %0, %0, #32         \n"
+                    "vstm       %1!, {d0-d7}        \n"
                     : "=r"(p0), // %0
                     "=r"(pp)  // %1
                     : "0"(p0),
@@ -534,6 +483,7 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16_fp16(const Mat& botto
     }
     for (; jj + 3 < max_jj; jj += 4)
     {
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
         if (elempack == 8)
         {
             const unsigned short* p0 = (const unsigned short*)bottom_blob.channel(k / 8) + (j + jj) * 8;
@@ -542,32 +492,16 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16_fp16(const Mat& botto
             for (; kk < max_kk / 8; kk++)
             {
                 // transpose8x4
-#if 0 //NCNN_GNU_INLINE_ASM
-#if __aarch64__
+#if NCNN_GNU_INLINE_ASM
                 asm volatile(
                     "prfm   pldl1keep, [%0, #512]       \n"
-                    "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%0] \n"
-                    "st4    {v0.4s, v1.4s, v2.4s, v3.4s}, [%1], #64 \n"
+                    "ld1    {v0.8h, v1.8h, v2.8h, v3.8h}, [%0] \n"
+                    "st4    {v0.8h, v1.8h, v2.8h, v3.8h}, [%1], #64 \n"
                     : "=r"(p0), // %0
                     "=r"(pp)  // %1
                     : "0"(p0),
                     "1"(pp)
                     : "memory", "v0", "v1", "v2", "v3");
-#else  // __aarch64__
-                asm volatile(
-                    "pld        [%0, #512]          \n"
-                    "vldm       %0, {d0-d7}         \n"
-                    "vtrn.32    q0, q1              \n"
-                    "vtrn.32    q2, q3              \n"
-                    "vswp       d1, d4              \n"
-                    "vswp       d3, d6              \n"
-                    "vstm       %1!, {d0-d7}        \n"
-                    : "=r"(p0), // %0
-                    "=r"(pp)  // %1
-                    : "0"(p0),
-                    "1"(pp)
-                    : "memory", "q0", "q1", "q2", "q3");
-#endif // __aarch64__
 #else  // NCNN_GNU_INLINE_ASM
                 uint16x8x4_t _r0;
                 _r0.val[0] = vld1q_u16(p0);
@@ -580,6 +514,7 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16_fp16(const Mat& botto
                 p0 += bottom_blob.cstep * 8;
             }
         }
+#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 
         if (elempack == 4)
         {
@@ -589,12 +524,12 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16_fp16(const Mat& botto
             for (; kk < max_kk / 4; kk++)
             {
                 // transpose4x4
-#if 0 //NCNN_GNU_INLINE_ASM
+#if NCNN_GNU_INLINE_ASM
 #if __aarch64__
                 asm volatile(
-                    "prfm   pldl1keep, [%0, #512]       \n"
-                    "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%0] \n"
-                    "st4    {v0.4s, v1.4s, v2.4s, v3.4s}, [%1], #64 \n"
+                    "prfm   pldl1keep, [%0, #256]       \n"
+                    "ld1    {v0.4h, v1.4h, v2.4h, v3.4h}, [%0] \n"
+                    "st4    {v0.4h, v1.4h, v2.4h, v3.4h}, [%1], #32 \n"
                     : "=r"(p0), // %0
                     "=r"(pp)  // %1
                     : "0"(p0),
@@ -602,18 +537,14 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16_fp16(const Mat& botto
                     : "memory", "v0", "v1", "v2", "v3");
 #else  // __aarch64__
                 asm volatile(
-                    "pld        [%0, #512]          \n"
-                    "vldm       %0, {d0-d7}         \n"
-                    "vtrn.32    q0, q1              \n"
-                    "vtrn.32    q2, q3              \n"
-                    "vswp       d1, d4              \n"
-                    "vswp       d3, d6              \n"
-                    "vstm       %1!, {d0-d7}        \n"
+                    "pld        [%0, #256]          \n"
+                    "vld1.u16   {d0-d3}, [%0]       \n"
+                    "vst4.u16   {d0-d3}, [%1]!      \n"
                     : "=r"(p0), // %0
                     "=r"(pp)  // %1
                     : "0"(p0),
                     "1"(pp)
-                    : "memory", "q0", "q1", "q2", "q3");
+                    : "memory", "q0", "q1");
 #endif // __aarch64__
 #else  // NCNN_GNU_INLINE_ASM
                 uint16x4x4_t _r0;
@@ -647,6 +578,7 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16_fp16(const Mat& botto
 #endif // __ARM_NEON
     for (; jj + 1 < max_jj; jj += 2)
     {
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
         if (elempack == 8)
         {
             const unsigned short* p0 = (const unsigned short*)bottom_blob.channel(k / 8) + (j + jj) * 8;
@@ -655,26 +587,15 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16_fp16(const Mat& botto
             for (; kk < max_kk / 8; kk++)
             {
                 // transpose8x2
-                pp[0] = p0[0];
-                pp[1] = p0[8];
-                pp[2] = p0[1];
-                pp[3] = p0[9];
-                pp[4] = p0[2];
-                pp[5] = p0[10];
-                pp[6] = p0[3];
-                pp[7] = p0[11];
-                pp[8] = p0[4];
-                pp[9] = p0[12];
-                pp[10] = p0[5];
-                pp[11] = p0[13];
-                pp[12] = p0[6];
-                pp[13] = p0[14];
-                pp[14] = p0[7];
-                pp[15] = p0[15];
+                uint16x8x2_t _r0;
+                _r0.val[0] = vld1q_u16(p0);
+                _r0.val[1] = vld1q_u16(p0 + 8);
+                vst2q_u16(pp, _r0);
                 pp += 16;
                 p0 += bottom_blob.cstep * 8;
             }
         }
+#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 
         if (elempack == 4)
         {
@@ -684,6 +605,12 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16_fp16(const Mat& botto
             for (; kk < max_kk / 4; kk++)
             {
                 // transpose4x2
+#if __ARM_NEON
+                uint16x4x2_t _r0;
+                _r0.val[0] = vld1_u16(p0);
+                _r0.val[1] = vld1_u16(p0 + 4);
+                vst2_u16(pp, _r0);
+#else
                 pp[0] = p0[0];
                 pp[1] = p0[4];
                 pp[2] = p0[1];
@@ -692,6 +619,7 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16_fp16(const Mat& botto
                 pp[5] = p0[6];
                 pp[6] = p0[3];
                 pp[7] = p0[7];
+#endif // __ARM_NEON
                 pp += 8;
                 p0 += bottom_blob.cstep * 4;
             }
@@ -713,6 +641,7 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16_fp16(const Mat& botto
     }
     for (; jj < max_jj; jj++)
     {
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
         if (elempack == 8)
         {
             const unsigned short* p0 = (const unsigned short*)bottom_blob.channel(k / 8) + (j + jj) * 8;
@@ -720,18 +649,12 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16_fp16(const Mat& botto
             int kk = 0;
             for (; kk < max_kk / 8; kk++)
             {
-                pp[0] = p0[0];
-                pp[1] = p0[1];
-                pp[2] = p0[2];
-                pp[3] = p0[3];
-                pp[4] = p0[4];
-                pp[5] = p0[5];
-                pp[6] = p0[6];
-                pp[7] = p0[7];
+                vst1q_u16(pp, vld1q_u16(p0));
                 pp += 8;
                 p0 += bottom_blob.cstep * 8;
             }
         }
+#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 
         if (elempack == 4)
         {
@@ -740,10 +663,14 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16_fp16(const Mat& botto
             int kk = 0;
             for (; kk < max_kk / 4; kk++)
             {
+#if __ARM_NEON
+                vst1_u16(pp, vld1_u16(p0));
+#else
                 pp[0] = p0[0];
                 pp[1] = p0[1];
                 pp[2] = p0[2];
                 pp[3] = p0[3];
+#endif // __ARM_NEON
                 pp += 4;
                 p0 += bottom_blob.cstep * 4;
             }
@@ -868,6 +795,7 @@ static void convolution_im2col_input_tile_bf16_fp16(const Mat& bottom_blob, Mat&
             const unsigned short* sptra = img.row<const unsigned short>(ya) + xa * elempack;
             const unsigned short* sptrb = img.row<const unsigned short>(yb) + xb * elempack;
 
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
             if (elempack == 8)
             {
                 uint16x8_t _r0 = vld1q_u16(sptr0);
@@ -897,6 +825,7 @@ static void convolution_im2col_input_tile_bf16_fp16(const Mat& bottom_blob, Mat&
                 vst1q_u16(pp + 8 * 11, _rb);
                 pp += 96;
             }
+#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
             if (elempack == 4)
             {
                 uint16x4_t _r0 = vld1_u16(sptr0);
@@ -1000,6 +929,7 @@ static void convolution_im2col_input_tile_bf16_fp16(const Mat& bottom_blob, Mat&
             const unsigned short* sptr6 = img.row<const unsigned short>(y6) + x6 * elempack;
             const unsigned short* sptr7 = img.row<const unsigned short>(y7) + x7 * elempack;
 
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
             if (elempack == 8)
             {
                 uint16x8_t _r0 = vld1q_u16(sptr0);
@@ -1021,6 +951,7 @@ static void convolution_im2col_input_tile_bf16_fp16(const Mat& bottom_blob, Mat&
                 vst1q_u16(pp + 8 * 7, _r7);
                 pp += 64;
             }
+#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
             if (elempack == 4)
             {
                 uint16x4_t _r0 = vld1_u16(sptr0);
@@ -1091,6 +1022,7 @@ static void convolution_im2col_input_tile_bf16_fp16(const Mat& bottom_blob, Mat&
             const unsigned short* sptr2 = img.row<const unsigned short>(y2) + x2 * elempack;
             const unsigned short* sptr3 = img.row<const unsigned short>(y3) + x3 * elempack;
 
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
             if (elempack == 8)
             {
                 uint16x8x4_t _r0;
@@ -1101,6 +1033,7 @@ static void convolution_im2col_input_tile_bf16_fp16(const Mat& bottom_blob, Mat&
                 vst4q_u16(pp, _r0);
                 pp += 32;
             }
+#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
             if (elempack == 4)
             {
                 uint16x4x4_t _r0;
@@ -1147,6 +1080,7 @@ static void convolution_im2col_input_tile_bf16_fp16(const Mat& bottom_blob, Mat&
             const unsigned short* sptr0 = img.row<const unsigned short>(y0) + x0 * elempack;
             const unsigned short* sptr1 = img.row<const unsigned short>(y1) + x1 * elempack;
 
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
             if (elempack == 8)
             {
                 pp[0] = sptr0[0];
@@ -1167,6 +1101,7 @@ static void convolution_im2col_input_tile_bf16_fp16(const Mat& bottom_blob, Mat&
                 pp[8 + 7] = sptr1[7];
                 pp += 16;
             }
+#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
             if (elempack == 4)
             {
                 pp[0] = sptr0[0];
@@ -1207,6 +1142,7 @@ static void convolution_im2col_input_tile_bf16_fp16(const Mat& bottom_blob, Mat&
 
             const unsigned short* sptr = img.row<const unsigned short>(y) + x * elempack;
 
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
             if (elempack == 8)
             {
                 pp[0] = sptr[0];
@@ -1219,6 +1155,7 @@ static void convolution_im2col_input_tile_bf16_fp16(const Mat& bottom_blob, Mat&
                 pp[7] = sptr[7];
                 pp += 8;
             }
+#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
             if (elempack == 4)
             {
                 pp[0] = sptr[0];
