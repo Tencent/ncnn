@@ -464,14 +464,7 @@ struct unary_op_acos
 #if __SSE2__
     __m128 func_pack4(const __m128& x) const
     {
-        //TODO sse optimize
-        float tmp[4];
-        _mm_storeu_ps(tmp, x);
-        tmp[0] = acos(tmp[0]);
-        tmp[1] = acos(tmp[1]);
-        tmp[2] = acos(tmp[2]);
-        tmp[3] = acos(tmp[3]);
-        return _mm_loadu_ps(tmp);
+        return acos_ps(x);
     }
 #if __AVX__
     __m256 func_pack8(const __m256& x) const
