@@ -4098,14 +4098,14 @@ static void convolution_im2col_input_tile_bf16s(const Mat& bottom_blob, Mat& B, 
                 pp[5] = sptr1[2];
                 pp[6] = sptr0[3];
                 pp[7] = sptr1[3];
-                pp[8+0] = sptr0[4];
-                pp[8+1] = sptr1[4];
-                pp[8+2] = sptr0[5];
-                pp[8+3] = sptr1[5];
-                pp[8+4] = sptr0[6];
-                pp[8+5] = sptr1[6];
-                pp[8+6] = sptr0[7];
-                pp[8+7] = sptr1[7];
+                pp[8 + 0] = sptr0[4];
+                pp[8 + 1] = sptr1[4];
+                pp[8 + 2] = sptr0[5];
+                pp[8 + 3] = sptr1[5];
+                pp[8 + 4] = sptr0[6];
+                pp[8 + 5] = sptr1[6];
+                pp[8 + 6] = sptr0[7];
+                pp[8 + 7] = sptr1[7];
                 pp += 16;
             }
             if (elempack == 4)
