@@ -39,7 +39,6 @@ namespace ncnn {
 #include "convolution_3x3_winograd.h"
 #include "convolution_im2col_gemm.h"
 
-#include "convolution_im2col_gemm_bf16s_fp16s.h"
 
 #if NCNN_BF16
 #include "convolution_bf16s.h"
@@ -47,6 +46,8 @@ namespace ncnn {
 #include "convolution_1x1_bf16s.h"
 
 #include "convolution_3x3_winograd_bf16s.h"
+
+#include "convolution_im2col_gemm_bf16s_fp16s.h"
 #include "convolution_im2col_gemm_bf16s.h"
 #endif // NCNN_BF16
 
@@ -128,10 +129,6 @@ Convolution_arm::Convolution_arm()
     activation = 0;
     nT = 0;
     convolution_dilation1 = 0;
-
-    // support_packing = false;
-    support_fp16_storage = false;
-    // support_bf16_storage = false;
 }
 
 int Convolution_arm::create_pipeline(const Option& opt)
@@ -149,7 +146,7 @@ int Convolution_arm::create_pipeline(const Option& opt)
     }
 #endif
 
-#if 0 //NCNN_ARM82
+#if NCNN_ARM82
     if (support_fp16_storage && opt.use_fp16_storage)
     {
         return create_pipeline_fp16s(opt);
@@ -396,7 +393,7 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
 
     int elembits = bottom_blob.elembits();
 
-#if 0 //NCNN_ARM82
+#if NCNN_ARM82
     if (support_fp16_storage && opt.use_fp16_storage && elembits == 16)
     {
         if (opt.use_fp16_arithmetic)
@@ -947,8 +944,8 @@ int Convolution_arm::create_pipeline_bf16s(const Option& opt)
         return 0;
     }
 
-    int l2_cache_size_fp32 = get_cpu_level2_cache_size() / sizeof(float);
-    bool prefer_sgemm = num_input * num_output * kernel_w * kernel_h * dilation_w * dilation_h * stride_w * stride_h * 2 > l2_cache_size_fp32 || (num_input > 16 || num_output > 16);
+    int l2_cache_size_bf16 = get_cpu_level2_cache_size() / sizeof(unsigned short);
+    bool prefer_sgemm = num_input * num_output * kernel_w * kernel_h * dilation_w * dilation_h * stride_w * stride_h * 2 > l2_cache_size_bf16 || (num_input > 16 || num_output > 16);
 
     if (elempack == 4 && out_elempack == 4)
     {
