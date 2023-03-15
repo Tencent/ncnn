@@ -949,13 +949,13 @@ static NCNN_FORCEINLINE __m128 acos_ps(__m128 x)
 
     // big_input_approx = sqrt(0.5f * (1 - absolute));
     __m128 big_input_approx = _mm_sqrt_ps(_mm_mul_ps(
-        magic_half_one,
-        _mm_sub_ps(magic_one, absolute)));
+            magic_half_one,
+            _mm_sub_ps(magic_one, absolute)));
 
     // input_approx = (is_small_input ? absolute : big_input_approx);
     __m128 input_approx = _mm_or_ps(
-        _mm_and_ps(is_small_input, absolute),
-        _mm_andnot_ps(is_small_input, big_input_approx));
+                              _mm_and_ps(is_small_input, absolute),
+                              _mm_andnot_ps(is_small_input, big_input_approx));
 
     // square_of_input_approx = input_approx * input_approx;
     __m128 square_of_input_approx = _mm_mul_ps(input_approx, input_approx);
@@ -963,7 +963,7 @@ static NCNN_FORCEINLINE __m128 acos_ps(__m128 x)
     // fourth_power_of_input_approx =
     //     square_of_input_approx * square_of_input_approx;
     __m128 fourth_power_of_input_approx = _mm_mul_ps(
-        square_of_input_approx, square_of_input_approx);
+            square_of_input_approx, square_of_input_approx);
 
     // TODO: Need more explanations.
     // x1 = ((magic_a4 * fourth_power_of_input_approx) + magic_a2);
@@ -972,22 +972,22 @@ static NCNN_FORCEINLINE __m128 acos_ps(__m128 x)
     // x4 = ((fourth_power_of_input_approx * x2) + magic_a1);
     // output_approx = (x3 + (square_of_input_approx * x4));
     __m128 output_approx = _mm_add_ps(
-        _mm_add_ps(
-            _mm_mul_ps(
-                _mm_add_ps(
-                    _mm_mul_ps(magic_a4, fourth_power_of_input_approx),
-                    magic_a2),
-                fourth_power_of_input_approx),
-            magic_a0),
-        _mm_mul_ps(
-            square_of_input_approx,
-            _mm_add_ps(
-                _mm_mul_ps(
-                    fourth_power_of_input_approx,
-                    _mm_add_ps(
-                        _mm_mul_ps(magic_a5, fourth_power_of_input_approx),
-                        magic_a3)),
-                magic_a1)));
+                               _mm_add_ps(
+                                   _mm_mul_ps(
+                                       _mm_add_ps(
+                                           _mm_mul_ps(magic_a4, fourth_power_of_input_approx),
+                                           magic_a2),
+                                       fourth_power_of_input_approx),
+                                   magic_a0),
+                               _mm_mul_ps(
+                                   square_of_input_approx,
+                                   _mm_add_ps(
+                                       _mm_mul_ps(
+                                           fourth_power_of_input_approx,
+                                           _mm_add_ps(
+                                                   _mm_mul_ps(magic_a5, fourth_power_of_input_approx),
+                                                   magic_a3)),
+                                       magic_a1)));
 
     // TODO: Need more explanations.
     // x1 = (output_approx * input_approx);
@@ -996,19 +996,19 @@ static NCNN_FORCEINLINE __m128 acos_ps(__m128 x)
     // TODO: Need more explanations.
     // small_final_approx = ((0.5 * PI) - (x1 | negative_mask));
     __m128 small_final_approx = _mm_sub_ps(
-        magic_half_pi,
-        _mm_or_ps(x1, negative_mask));
+                                    magic_half_pi,
+                                    _mm_or_ps(x1, negative_mask));
 
     // TODO: Need more explanations.
     // big_final_approx = (((x < 0.0f) & PI) + ((x1 * 2) | negative_mask));
     __m128 big_final_approx = _mm_add_ps(
-        _mm_and_ps(_mm_cmplt_ps(x, magic_zero), magic_pi),
-        _mm_or_ps(_mm_add_ps(x1, x1), negative_mask));
+                                  _mm_and_ps(_mm_cmplt_ps(x, magic_zero), magic_pi),
+                                  _mm_or_ps(_mm_add_ps(x1, x1), negative_mask));
 
     // return (is_small_input ? small_final_approx : big_final_approx);
     return _mm_or_ps(
-        _mm_and_ps(is_small_input, small_final_approx),
-        _mm_andnot_ps(is_small_input, big_final_approx));
+               _mm_and_ps(is_small_input, small_final_approx),
+               _mm_andnot_ps(is_small_input, big_final_approx));
 }
 
 #endif // SSE_MATHFUN_H
