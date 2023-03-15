@@ -37,7 +37,6 @@ namespace ncnn {
 #include "convolution_3x3_winograd.h"
 #include "convolution_im2col_gemm.h"
 
-
 #if NCNN_BF16
 #include "convolution_bf16s.h"
 
