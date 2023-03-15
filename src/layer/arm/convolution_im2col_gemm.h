@@ -12,33 +12,9 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-void pretty_print(const ncnn::Mat& m)
-{
-    return;
-    for (int q = 0; q < m.c; q++)
-    {
-        const float* ptr = m.channel(q);
-        for (int z = 0; z < m.d; z++)
-        {
-            for (int y = 0; y < m.h; y++)
-            {
-                for (int x = 0; x < m.w; x++)
-                {
-                    printf("%f ", ptr[x]);
-                }
-                ptr += m.w;
-                printf("\n");
-            }
-            printf("\n");
-        }
-        printf("------------------------\n");
-    }
-    printf("------------------------------------------------\n");
-}
 static void convolution_im2col_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk, int maxk, int inch, int outch)
 {
     // A = (pa, maxk, inch/pa), outch
-    // const int elempack = A.elempack;
     const int A_hstep = maxk * inch;
 
     float* pp = AT;
@@ -48,97 +24,164 @@ static void convolution_im2col_pack_A_tile(const Mat& A, Mat& AT, int i, int max
 #if __aarch64__
     for (; ii + 7 < max_ii; ii += 8)
     {
-        // if (elempack == 1)
-        {
-            const float* p0 = (const float*)A + (i + ii) * A_hstep + k;
-            const float* p1 = (const float*)A + (i + ii + 1) * A_hstep + k;
-            const float* p2 = (const float*)A + (i + ii + 2) * A_hstep + k;
-            const float* p3 = (const float*)A + (i + ii + 3) * A_hstep + k;
-            const float* p4 = (const float*)A + (i + ii + 4) * A_hstep + k;
-            const float* p5 = (const float*)A + (i + ii + 5) * A_hstep + k;
-            const float* p6 = (const float*)A + (i + ii + 6) * A_hstep + k;
-            const float* p7 = (const float*)A + (i + ii + 7) * A_hstep + k;
+        const float* p0 = (const float*)A + (i + ii) * A_hstep + k;
+        const float* p1 = (const float*)A + (i + ii + 1) * A_hstep + k;
+        const float* p2 = (const float*)A + (i + ii + 2) * A_hstep + k;
+        const float* p3 = (const float*)A + (i + ii + 3) * A_hstep + k;
+        const float* p4 = (const float*)A + (i + ii + 4) * A_hstep + k;
+        const float* p5 = (const float*)A + (i + ii + 5) * A_hstep + k;
+        const float* p6 = (const float*)A + (i + ii + 6) * A_hstep + k;
+        const float* p7 = (const float*)A + (i + ii + 7) * A_hstep + k;
 
-            int kk = 0;
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp[1] = p1[0];
-                pp[2] = p2[0];
-                pp[3] = p3[0];
-                pp[4] = p4[0];
-                pp[5] = p5[0];
-                pp[6] = p6[0];
-                pp[7] = p7[0];
-                pp += 8;
-                p0++;
-                p1++;
-                p2++;
-                p3++;
-                p4++;
-                p5++;
-                p6++;
-                p7++;
-            }
+        int kk = 0;
+        for (; kk + 7 < max_kk; kk += 8)
+        {
+            float32x4_t _r0l = vld1q_f32(p0);
+            float32x4_t _r0h = vld1q_f32(p0 + 4);
+            float32x4_t _r1l = vld1q_f32(p1);
+            float32x4_t _r1h = vld1q_f32(p1 + 4);
+            float32x4_t _r2l = vld1q_f32(p2);
+            float32x4_t _r2h = vld1q_f32(p2 + 4);
+            float32x4_t _r3l = vld1q_f32(p3);
+            float32x4_t _r3h = vld1q_f32(p3 + 4);
+            float32x4_t _r4l = vld1q_f32(p4);
+            float32x4_t _r4h = vld1q_f32(p4 + 4);
+            float32x4_t _r5l = vld1q_f32(p5);
+            float32x4_t _r5h = vld1q_f32(p5 + 4);
+            float32x4_t _r6l = vld1q_f32(p6);
+            float32x4_t _r6h = vld1q_f32(p6 + 4);
+            float32x4_t _r7l = vld1q_f32(p7);
+            float32x4_t _r7h = vld1q_f32(p7 + 4);
+            transpose8x8_ps(_r0l, _r0h, _r1l, _r1h, _r2l, _r2h, _r3l, _r3h, _r4l, _r4h, _r5l, _r5h, _r6l, _r6h, _r7l, _r7h);
+            vst1q_f32(pp, _r0l);
+            vst1q_f32(pp + 4, _r0h);
+            vst1q_f32(pp + 8, _r1l);
+            vst1q_f32(pp + 12, _r1h);
+            vst1q_f32(pp + 8 * 2, _r2l);
+            vst1q_f32(pp + 8 * 2 + 4, _r2h);
+            vst1q_f32(pp + 8 * 3, _r3l);
+            vst1q_f32(pp + 8 * 3 + 4, _r3h);
+            vst1q_f32(pp + 8 * 4, _r4l);
+            vst1q_f32(pp + 8 * 4 + 4, _r4h);
+            vst1q_f32(pp + 8 * 5, _r5l);
+            vst1q_f32(pp + 8 * 5 + 4, _r5h);
+            vst1q_f32(pp + 8 * 6, _r6l);
+            vst1q_f32(pp + 8 * 6 + 4, _r6h);
+            vst1q_f32(pp + 8 * 7, _r7l);
+            vst1q_f32(pp + 8 * 7 + 4, _r7h);
+            pp += 64;
+            p0 += 8;
+            p1 += 8;
+            p2 += 8;
+            p3 += 8;
+            p4 += 8;
+            p5 += 8;
+            p6 += 8;
+            p7 += 8;
+        }
+        for (; kk < max_kk; kk++)
+        {
+            pp[0] = p0[0];
+            pp[1] = p1[0];
+            pp[2] = p2[0];
+            pp[3] = p3[0];
+            pp[4] = p4[0];
+            pp[5] = p5[0];
+            pp[6] = p6[0];
+            pp[7] = p7[0];
+            pp += 8;
+            p0++;
+            p1++;
+            p2++;
+            p3++;
+            p4++;
+            p5++;
+            p6++;
+            p7++;
         }
     }
 #endif // __aarch64__
     for (; ii + 3 < max_ii; ii += 4)
     {
-        // if (elempack == 1)
-        {
-            const float* p0 = (const float*)A + (i + ii) * A_hstep + k;
-            const float* p1 = (const float*)A + (i + ii + 1) * A_hstep + k;
-            const float* p2 = (const float*)A + (i + ii + 2) * A_hstep + k;
-            const float* p3 = (const float*)A + (i + ii + 3) * A_hstep + k;
+        const float* p0 = (const float*)A + (i + ii) * A_hstep + k;
+        const float* p1 = (const float*)A + (i + ii + 1) * A_hstep + k;
+        const float* p2 = (const float*)A + (i + ii + 2) * A_hstep + k;
+        const float* p3 = (const float*)A + (i + ii + 3) * A_hstep + k;
 
-            int kk = 0;
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp[1] = p1[0];
-                pp[2] = p2[0];
-                pp[3] = p3[0];
-                pp += 4;
-                p0++;
-                p1++;
-                p2++;
-                p3++;
-            }
+        int kk = 0;
+        for (; kk + 3 < max_kk; kk += 4)
+        {
+            float32x4x4_t _r0123;
+            _r0123.val[0] = vld1q_f32(p0);
+            _r0123.val[1] = vld1q_f32(p1);
+            _r0123.val[2] = vld1q_f32(p2);
+            _r0123.val[3] = vld1q_f32(p3);
+            vst4q_f32(pp, _r0123);
+            pp += 16;
+            p0 += 4;
+            p1 += 4;
+            p2 += 4;
+            p3 += 4;
+        }
+        for (; kk < max_kk; kk++)
+        {
+            pp[0] = p0[0];
+            pp[1] = p1[0];
+            pp[2] = p2[0];
+            pp[3] = p3[0];
+            pp += 4;
+            p0++;
+            p1++;
+            p2++;
+            p3++;
         }
     }
 #endif // __ARM_NEON
     for (; ii + 1 < max_ii; ii += 2)
     {
-        // if (elempack == 1)
-        {
-            const float* p0 = (const float*)A + (i + ii) * A_hstep + k;
-            const float* p1 = (const float*)A + (i + ii + 1) * A_hstep + k;
+        const float* p0 = (const float*)A + (i + ii) * A_hstep + k;
+        const float* p1 = (const float*)A + (i + ii + 1) * A_hstep + k;
 
-            int kk = 0;
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp[1] = p1[0];
-                pp += 2;
-                p0++;
-                p1++;
-            }
+        int kk = 0;
+#if __ARM_NEON
+        for (; kk + 3 < max_kk; kk += 4)
+        {
+            float32x4x2_t _r01;
+            _r01.val[0] = vld1q_f32(p0);
+            _r01.val[1] = vld1q_f32(p1);
+            vst2q_f32(pp, _r01);
+            pp += 8;
+            p0 += 4;
+            p1 += 4;
+        }
+#endif // __ARM_NEON
+        for (; kk < max_kk; kk++)
+        {
+            pp[0] = p0[0];
+            pp[1] = p1[0];
+            pp += 2;
+            p0++;
+            p1++;
         }
     }
     for (; ii < max_ii; ii += 1)
     {
-        // if (elempack == 1)
-        {
-            const float* p0 = (const float*)A + (i + ii) * A_hstep + k;
+        const float* p0 = (const float*)A + (i + ii) * A_hstep + k;
 
-            int kk = 0;
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp += 1;
-                p0++;
-            }
+        int kk = 0;
+#if __ARM_NEON
+        for (; kk + 3 < max_kk; kk += 4)
+        {
+            vst1q_f32(pp, vld1q_f32(p0));
+            pp += 4;
+            p0 += 4;
+        }
+#endif // __ARM_NEON
+        for (; kk < max_kk; kk++)
+        {
+            pp[0] = p0[0];
+            pp += 1;
+            p0++;
         }
     }
 }
@@ -3357,15 +3400,11 @@ static void convolution_im2col_input_tile(const Mat& bottom_blob, Mat& B, int j,
     }
 
     const int w = bottom_blob.w;
-    // const int h = bottom_blob.h;
     // const int channels = bottom_blob.c;
     const int elempack = bottom_blob.elempack;
 
     const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
-    // const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
-
     const int outw = (w - kernel_extent_w) / stride_w + 1;
-    // const int outh = (h - kernel_extent_h) / stride_h + 1;
 
     // j max_jj     outw*outh    split w and h
 
@@ -3807,18 +3846,10 @@ static void convolution_im2col_gemm_transform_kernel(const Mat& kernel, Mat& AT,
             convolution_im2col_pack_A_tile(A_data, AT_tile, i, max_ii, k, max_kk, maxk, inch, outch);
         }
     }
-
-    pretty_print(AT);
 }
 
 static void convolution_im2col_gemm(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, const Mat& bias, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int nT, const Option& opt)
 {
-    // NCNN_LOGE("convolution_im2col_gemm  bottom_blob %d %d %d", bottom_blob.w, bottom_blob.h, bottom_blob.c);
-    // NCNN_LOGE("convolution_im2col_gemm           AT %d %d %d", AT.w, AT.h, AT.c);
-    // NCNN_LOGE("convolution_im2col_gemm         bias %d", bias.w);
-
-    pretty_print(bottom_blob);
-
     const int maxk = kernel_w * kernel_h;
 
     const int M = top_blob.c * top_blob.elempack;
@@ -3861,8 +3892,6 @@ static void convolution_im2col_gemm(const Mat& bottom_blob, Mat& top_blob, const
         convolution_im2col_input_tile(bottom_blob, BT_tile, j, max_jj, k, max_kk, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h);
     }
 
-    pretty_print(BT);
-
     Mat topT_tileX;
     if (K > TILE_K)
         topT_tileX.create(TILE_N * TILE_M, 1, nT, 4u, opt.workspace_allocator);
@@ -3896,6 +3925,4 @@ static void convolution_im2col_gemm(const Mat& bottom_blob, Mat& top_blob, const
             }
         }
     }
-
-    pretty_print(top_blob);
 }

@@ -15,7 +15,6 @@
 static void convolution_im2col_pack_A_tile_bf16_fp16(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk, int maxk, int inch, int outch)
 {
     // A = (pa, maxk, inch/pa), outch
-    // const int elempack = A.elempack;
     const int A_hstep = maxk * inch;
 
     unsigned short* pp = AT;
@@ -25,190 +24,178 @@ static void convolution_im2col_pack_A_tile_bf16_fp16(const Mat& A, Mat& AT, int 
 #if __aarch64__
     for (; ii + 7 < max_ii; ii += 8)
     {
-        // if (elempack == 1)
-        {
-            const unsigned short* p0 = (const unsigned short*)A + (i + ii) * A_hstep + k;
-            const unsigned short* p1 = (const unsigned short*)A + (i + ii + 1) * A_hstep + k;
-            const unsigned short* p2 = (const unsigned short*)A + (i + ii + 2) * A_hstep + k;
-            const unsigned short* p3 = (const unsigned short*)A + (i + ii + 3) * A_hstep + k;
-            const unsigned short* p4 = (const unsigned short*)A + (i + ii + 4) * A_hstep + k;
-            const unsigned short* p5 = (const unsigned short*)A + (i + ii + 5) * A_hstep + k;
-            const unsigned short* p6 = (const unsigned short*)A + (i + ii + 6) * A_hstep + k;
-            const unsigned short* p7 = (const unsigned short*)A + (i + ii + 7) * A_hstep + k;
+        const unsigned short* p0 = (const unsigned short*)A + (i + ii) * A_hstep + k;
+        const unsigned short* p1 = (const unsigned short*)A + (i + ii + 1) * A_hstep + k;
+        const unsigned short* p2 = (const unsigned short*)A + (i + ii + 2) * A_hstep + k;
+        const unsigned short* p3 = (const unsigned short*)A + (i + ii + 3) * A_hstep + k;
+        const unsigned short* p4 = (const unsigned short*)A + (i + ii + 4) * A_hstep + k;
+        const unsigned short* p5 = (const unsigned short*)A + (i + ii + 5) * A_hstep + k;
+        const unsigned short* p6 = (const unsigned short*)A + (i + ii + 6) * A_hstep + k;
+        const unsigned short* p7 = (const unsigned short*)A + (i + ii + 7) * A_hstep + k;
 
-            int kk = 0;
-            for (; kk + 7 < max_kk; kk += 8)
-            {
-                uint16x8_t _r0 = vld1q_u16(p0);
-                uint16x8_t _r1 = vld1q_u16(p1);
-                uint16x8_t _r2 = vld1q_u16(p2);
-                uint16x8_t _r3 = vld1q_u16(p3);
-                uint16x8_t _r4 = vld1q_u16(p4);
-                uint16x8_t _r5 = vld1q_u16(p5);
-                uint16x8_t _r6 = vld1q_u16(p6);
-                uint16x8_t _r7 = vld1q_u16(p7);
-                transpose8x8_u16(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
-                vst1q_u16(pp, _r0);
-                vst1q_u16(pp + 8, _r1);
-                vst1q_u16(pp + 8 * 2, _r2);
-                vst1q_u16(pp + 8 * 3, _r3);
-                vst1q_u16(pp + 8 * 4, _r4);
-                vst1q_u16(pp + 8 * 5, _r5);
-                vst1q_u16(pp + 8 * 6, _r6);
-                vst1q_u16(pp + 8 * 7, _r7);
-                pp += 64;
-                p0 += 8;
-                p1 += 8;
-                p2 += 8;
-                p3 += 8;
-                p4 += 8;
-                p5 += 8;
-                p6 += 8;
-                p7 += 8;
-            }
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp[1] = p1[0];
-                pp[2] = p2[0];
-                pp[3] = p3[0];
-                pp[4] = p4[0];
-                pp[5] = p5[0];
-                pp[6] = p6[0];
-                pp[7] = p7[0];
-                pp += 8;
-                p0++;
-                p1++;
-                p2++;
-                p3++;
-                p4++;
-                p5++;
-                p6++;
-                p7++;
-            }
+        int kk = 0;
+        for (; kk + 7 < max_kk; kk += 8)
+        {
+            uint16x8_t _r0 = vld1q_u16(p0);
+            uint16x8_t _r1 = vld1q_u16(p1);
+            uint16x8_t _r2 = vld1q_u16(p2);
+            uint16x8_t _r3 = vld1q_u16(p3);
+            uint16x8_t _r4 = vld1q_u16(p4);
+            uint16x8_t _r5 = vld1q_u16(p5);
+            uint16x8_t _r6 = vld1q_u16(p6);
+            uint16x8_t _r7 = vld1q_u16(p7);
+            transpose8x8_u16(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
+            vst1q_u16(pp, _r0);
+            vst1q_u16(pp + 8, _r1);
+            vst1q_u16(pp + 8 * 2, _r2);
+            vst1q_u16(pp + 8 * 3, _r3);
+            vst1q_u16(pp + 8 * 4, _r4);
+            vst1q_u16(pp + 8 * 5, _r5);
+            vst1q_u16(pp + 8 * 6, _r6);
+            vst1q_u16(pp + 8 * 7, _r7);
+            pp += 64;
+            p0 += 8;
+            p1 += 8;
+            p2 += 8;
+            p3 += 8;
+            p4 += 8;
+            p5 += 8;
+            p6 += 8;
+            p7 += 8;
+        }
+        for (; kk < max_kk; kk++)
+        {
+            pp[0] = p0[0];
+            pp[1] = p1[0];
+            pp[2] = p2[0];
+            pp[3] = p3[0];
+            pp[4] = p4[0];
+            pp[5] = p5[0];
+            pp[6] = p6[0];
+            pp[7] = p7[0];
+            pp += 8;
+            p0++;
+            p1++;
+            p2++;
+            p3++;
+            p4++;
+            p5++;
+            p6++;
+            p7++;
         }
     }
 #endif // __aarch64__
     for (; ii + 3 < max_ii; ii += 4)
     {
-        // if (elempack == 1)
-        {
-            const unsigned short* p0 = (const unsigned short*)A + (i + ii) * A_hstep + k;
-            const unsigned short* p1 = (const unsigned short*)A + (i + ii + 1) * A_hstep + k;
-            const unsigned short* p2 = (const unsigned short*)A + (i + ii + 2) * A_hstep + k;
-            const unsigned short* p3 = (const unsigned short*)A + (i + ii + 3) * A_hstep + k;
+        const unsigned short* p0 = (const unsigned short*)A + (i + ii) * A_hstep + k;
+        const unsigned short* p1 = (const unsigned short*)A + (i + ii + 1) * A_hstep + k;
+        const unsigned short* p2 = (const unsigned short*)A + (i + ii + 2) * A_hstep + k;
+        const unsigned short* p3 = (const unsigned short*)A + (i + ii + 3) * A_hstep + k;
 
-            int kk = 0;
-            for (; kk + 7 < max_kk; kk += 8)
-            {
-                uint16x8x4_t _r0123;
-                _r0123.val[0] = vld1q_u16(p0);
-                _r0123.val[1] = vld1q_u16(p1);
-                _r0123.val[2] = vld1q_u16(p2);
-                _r0123.val[3] = vld1q_u16(p3);
-                vst4q_u16(pp, _r0123);
-                pp += 32;
-                p0 += 8;
-                p1 += 8;
-                p2 += 8;
-                p3 += 8;
-            }
-            for (; kk + 3 < max_kk; kk += 4)
-            {
-                uint16x4x4_t _r0123;
-                _r0123.val[0] = vld1_u16(p0);
-                _r0123.val[1] = vld1_u16(p1);
-                _r0123.val[2] = vld1_u16(p2);
-                _r0123.val[3] = vld1_u16(p3);
-                vst4_u16(pp, _r0123);
-                pp += 16;
-                p0 += 4;
-                p1 += 4;
-                p2 += 4;
-                p3 += 4;
-            }
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp[1] = p1[0];
-                pp[2] = p2[0];
-                pp[3] = p3[0];
-                pp += 4;
-                p0++;
-                p1++;
-                p2++;
-                p3++;
-            }
+        int kk = 0;
+        for (; kk + 7 < max_kk; kk += 8)
+        {
+            uint16x8x4_t _r0123;
+            _r0123.val[0] = vld1q_u16(p0);
+            _r0123.val[1] = vld1q_u16(p1);
+            _r0123.val[2] = vld1q_u16(p2);
+            _r0123.val[3] = vld1q_u16(p3);
+            vst4q_u16(pp, _r0123);
+            pp += 32;
+            p0 += 8;
+            p1 += 8;
+            p2 += 8;
+            p3 += 8;
+        }
+        for (; kk + 3 < max_kk; kk += 4)
+        {
+            uint16x4x4_t _r0123;
+            _r0123.val[0] = vld1_u16(p0);
+            _r0123.val[1] = vld1_u16(p1);
+            _r0123.val[2] = vld1_u16(p2);
+            _r0123.val[3] = vld1_u16(p3);
+            vst4_u16(pp, _r0123);
+            pp += 16;
+            p0 += 4;
+            p1 += 4;
+            p2 += 4;
+            p3 += 4;
+        }
+        for (; kk < max_kk; kk++)
+        {
+            pp[0] = p0[0];
+            pp[1] = p1[0];
+            pp[2] = p2[0];
+            pp[3] = p3[0];
+            pp += 4;
+            p0++;
+            p1++;
+            p2++;
+            p3++;
         }
     }
 #endif // __ARM_NEON
     for (; ii + 1 < max_ii; ii += 2)
     {
-        // if (elempack == 1)
-        {
-            const unsigned short* p0 = (const unsigned short*)A + (i + ii) * A_hstep + k;
-            const unsigned short* p1 = (const unsigned short*)A + (i + ii + 1) * A_hstep + k;
+        const unsigned short* p0 = (const unsigned short*)A + (i + ii) * A_hstep + k;
+        const unsigned short* p1 = (const unsigned short*)A + (i + ii + 1) * A_hstep + k;
 
-            int kk = 0;
+        int kk = 0;
 #if __ARM_NEON
-            for (; kk + 7 < max_kk; kk += 8)
-            {
-                uint16x8x2_t _r01;
-                _r01.val[0] = vld1q_u16(p0);
-                _r01.val[1] = vld1q_u16(p1);
-                vst2q_u16(pp, _r01);
-                pp += 16;
-                p0 += 8;
-                p1 += 8;
-            }
-            for (; kk + 3 < max_kk; kk += 4)
-            {
-                uint16x4x2_t _r01;
-                _r01.val[0] = vld1_u16(p0);
-                _r01.val[1] = vld1_u16(p1);
-                vst2_u16(pp, _r01);
-                pp += 8;
-                p0 += 4;
-                p1 += 4;
-            }
+        for (; kk + 7 < max_kk; kk += 8)
+        {
+            uint16x8x2_t _r01;
+            _r01.val[0] = vld1q_u16(p0);
+            _r01.val[1] = vld1q_u16(p1);
+            vst2q_u16(pp, _r01);
+            pp += 16;
+            p0 += 8;
+            p1 += 8;
+        }
+        for (; kk + 3 < max_kk; kk += 4)
+        {
+            uint16x4x2_t _r01;
+            _r01.val[0] = vld1_u16(p0);
+            _r01.val[1] = vld1_u16(p1);
+            vst2_u16(pp, _r01);
+            pp += 8;
+            p0 += 4;
+            p1 += 4;
+        }
 #endif // __ARM_NEON
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = p0[0];
-                pp[1] = p1[0];
-                pp += 2;
-                p0++;
-                p1++;
-            }
+        for (; kk < max_kk; kk++)
+        {
+            pp[0] = p0[0];
+            pp[1] = p1[0];
+            pp += 2;
+            p0++;
+            p1++;
         }
     }
     for (; ii < max_ii; ii += 1)
     {
-        // if (elempack == 1)
-        {
-            const unsigned short* p0 = (const unsigned short*)A + (i + ii) * A_hstep + k;
+        const unsigned short* p0 = (const unsigned short*)A + (i + ii) * A_hstep + k;
 
-            int kk = 0;
+        int kk = 0;
 #if __ARM_NEON
-            for (; kk + 7 < max_kk; kk += 8)
-            {
-                vst1q_u16(pp, vld1q_u16(p0));
-                pp += 8;
-                p0 += 8;
-            }
-            for (; kk + 3 < max_kk; kk += 4)
-            {
-                vst1_u16(pp, vld1_u16(p0));
-                pp += 4;
-                p0 += 4;
-            }
+        for (; kk + 7 < max_kk; kk += 8)
+        {
+            vst1q_u16(pp, vld1q_u16(p0));
+            pp += 8;
+            p0 += 8;
+        }
+        for (; kk + 3 < max_kk; kk += 4)
+        {
+            vst1_u16(pp, vld1_u16(p0));
+            pp += 4;
+            p0 += 4;
+        }
 #endif // __ARM_NEON
-            for (; kk < max_kk; kk++)
-            {
-                pp[0] = (unsigned short)p0[0];
-                pp += 1;
-                p0++;
-            }
+        for (; kk < max_kk; kk++)
+        {
+            pp[0] = (unsigned short)p0[0];
+            pp += 1;
+            p0++;
         }
     }
 }
@@ -786,15 +773,11 @@ static void convolution_im2col_input_tile_bf16_fp16(const Mat& bottom_blob, Mat&
     }
 
     const int w = bottom_blob.w;
-    // const int h = bottom_blob.h;
     // const int channels = bottom_blob.c;
     const int elempack = bottom_blob.elempack;
 
     const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
-    // const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
-
     const int outw = (w - kernel_extent_w) / stride_w + 1;
-    // const int outh = (h - kernel_extent_h) / stride_h + 1;
 
     // j max_jj     outw*outh    split w and h
 
@@ -803,8 +786,6 @@ static void convolution_im2col_input_tile_bf16_fp16(const Mat& bottom_blob, Mat&
     // k/max_kk shall be multiple of maxk
 
     const int maxk = kernel_w * kernel_h;
-
-    // NCNN_LOGE("convolution_im2col_input_tile_bf16s %d %d %d %d   %d", j, max_jj, k, max_kk, elempack);
 
     unsigned short* pp = B;
 

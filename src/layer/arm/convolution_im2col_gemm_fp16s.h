@@ -1558,7 +1558,6 @@ static void convolution_gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const
         }
 
         int jj = 0;
-#if __aarch64__
         for (; jj + 11 < max_jj; jj += 12)
         {
             float16x4_t _sum0;
@@ -1704,7 +1703,6 @@ static void convolution_gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const
 
             outptr += 48;
         }
-#endif // __aarch64__
         for (; jj + 7 < max_jj; jj += 8)
         {
             float16x4_t _sum0;
@@ -2041,8 +2039,6 @@ static void convolution_gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const
         }
 
         int jj = 0;
-#if __ARM_NEON
-#if __aarch64__
         for (; jj + 11 < max_jj; jj += 12)
         {
             float16x4_t _sum00;
@@ -2139,7 +2135,6 @@ static void convolution_gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const
 
             outptr += 24;
         }
-#endif // __aarch64__
         for (; jj + 7 < max_jj; jj += 8)
         {
             float16x4_t _sum00;
@@ -2275,7 +2270,6 @@ static void convolution_gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const
 
             outptr += 8;
         }
-#endif // __ARM_NEON
         for (; jj + 1 < max_jj; jj += 2)
         {
             __fp16 sum00;
@@ -2408,8 +2402,6 @@ static void convolution_gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const
         }
 
         int jj = 0;
-#if __ARM_NEON
-#if __aarch64__
         for (; jj + 11 < max_jj; jj += 12)
         {
             float16x4_t _sum0;
@@ -2475,7 +2467,6 @@ static void convolution_gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const
 
             outptr += 12;
         }
-#endif // __aarch64__
         for (; jj + 7 < max_jj; jj += 8)
         {
             float16x4_t _sum0;
@@ -2581,7 +2572,6 @@ static void convolution_gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const
 
             outptr += 4;
         }
-#endif // __ARM_NEON
         for (; jj + 1 < max_jj; jj += 2)
         {
             __fp16 sum0;
