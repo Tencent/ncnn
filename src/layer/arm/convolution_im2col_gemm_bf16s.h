@@ -3146,6 +3146,72 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16s(const Mat& bottom_bl
 #if __aarch64__
     for (; jj + 11 < max_jj; jj += 12)
     {
+        if (elempack == 8)
+        {
+            const unsigned short* p0 = (const unsigned short*)bottom_blob.channel(k / 8) + (j + jj) * 8;
+
+            int kk = 0;
+            for (; kk < max_kk / 8; kk++)
+            {
+                // transpose4x12
+#if 0  //NCNN_GNU_INLINE_ASM
+                asm volatile(
+                    "prfm   pldl1keep, [%0, #512]       \n"
+                    "ld4    {v0.4s, v1.4s, v2.4s, v3.4s}, [%0], #64 \n"
+                    "prfm   pldl1keep, [%0, #512]       \n"
+                    "ld4    {v4.4s, v5.4s, v6.4s, v7.4s}, [%0], #64 \n"
+                    "prfm   pldl1keep, [%0, #512]       \n"
+                    "ld4    {v8.4s, v9.4s, v10.4s, v11.4s}, [%0] \n"
+                    "st1    {v0.4s}, [%1], #16          \n"
+                    "st1    {v4.4s}, [%1], #16          \n"
+                    "st1    {v8.4s}, [%1], #16          \n"
+                    "sub    %0, %0, #128                \n"
+                    "st1    {v1.4s}, [%1], #16          \n"
+                    "st1    {v5.4s}, [%1], #16          \n"
+                    "st1    {v9.4s}, [%1], #16          \n"
+                    "st1    {v2.4s}, [%1], #16          \n"
+                    "st1    {v6.4s}, [%1], #16          \n"
+                    "st1    {v10.4s}, [%1], #16         \n"
+                    "st1    {v3.4s}, [%1], #16          \n"
+                    "st1    {v7.4s}, [%1], #16          \n"
+                    "st1    {v11.4s}, [%1], #16         \n"
+                    : "=r"(p0), // %0
+                    "=r"(pp)  // %1
+                    : "0"(p0),
+                    "1"(pp)
+                    : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11");
+#else  // NCNN_GNU_INLINE_ASM
+                uint16x8_t _r0 = vld1q_u16(p0);
+                uint16x8_t _r1 = vld1q_u16(p0 + 8);
+                uint16x8_t _r2 = vld1q_u16(p0 + 8 * 2);
+                uint16x8_t _r3 = vld1q_u16(p0 + 8 * 3);
+                uint16x8_t _r4 = vld1q_u16(p0 + 8 * 4);
+                uint16x8_t _r5 = vld1q_u16(p0 + 8 * 5);
+                uint16x8_t _r6 = vld1q_u16(p0 + 8 * 6);
+                uint16x8_t _r7 = vld1q_u16(p0 + 8 * 7);
+                uint16x8_t _r8 = vld1q_u16(p0 + 8 * 8);
+                uint16x8_t _r9 = vld1q_u16(p0 + 8 * 9);
+                uint16x8_t _ra = vld1q_u16(p0 + 8 * 10);
+                uint16x8_t _rb = vld1q_u16(p0 + 8 * 11);
+                transpose8x12_u16(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7, _r8, _r9, _ra, _rb);
+                vst1q_u16(pp, _r0);
+                vst1q_u16(pp + 8, _r1);
+                vst1q_u16(pp + 8 * 2, _r2);
+                vst1q_u16(pp + 8 * 3, _r3);
+                vst1q_u16(pp + 8 * 4, _r4);
+                vst1q_u16(pp + 8 * 5, _r5);
+                vst1q_u16(pp + 8 * 6, _r6);
+                vst1q_u16(pp + 8 * 7, _r7);
+                vst1q_u16(pp + 8 * 8, _r8);
+                vst1q_u16(pp + 8 * 9, _r9);
+                vst1q_u16(pp + 8 * 10, _ra);
+                vst1q_u16(pp + 8 * 11, _rb);
+                pp += 96;
+#endif // NCNN_GNU_INLINE_ASM
+                p0 += bottom_blob.cstep * 8;
+            }
+        }
+
         if (elempack == 4)
         {
             const unsigned short* p0 = (const unsigned short*)bottom_blob.channel(k / 4) + (j + jj) * 4;
@@ -3229,6 +3295,88 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16s(const Mat& bottom_bl
 #endif // __aarch64__
     for (; jj + 7 < max_jj; jj += 8)
     {
+        if (elempack == 8)
+        {
+            const unsigned short* p0 = (const unsigned short*)bottom_blob.channel(k / 8) + (j + jj) * 8;
+
+            int kk = 0;
+            for (; kk < max_kk / 8; kk++)
+            {
+                // transpose8x8
+#if 0 //NCNN_GNU_INLINE_ASM
+#if __aarch64__
+                asm volatile(
+                    "prfm   pldl1keep, [%0, #512]       \n"
+                    "ld4    {v0.4s, v1.4s, v2.4s, v3.4s}, [%0], #64 \n"
+                    "prfm   pldl1keep, [%0, #512]       \n"
+                    "ld4    {v4.4s, v5.4s, v6.4s, v7.4s}, [%0] \n"
+                    "st1    {v0.4s}, [%1], #16          \n"
+                    "st1    {v4.4s}, [%1], #16          \n"
+                    "st1    {v1.4s}, [%1], #16          \n"
+                    "st1    {v5.4s}, [%1], #16          \n"
+                    "sub    %0, %0, #64                 \n"
+                    "st1    {v2.4s}, [%1], #16          \n"
+                    "st1    {v6.4s}, [%1], #16          \n"
+                    "st1    {v3.4s}, [%1], #16          \n"
+                    "st1    {v7.4s}, [%1], #16          \n"
+                    : "=r"(p0), // %0
+                    "=r"(pp)  // %1
+                    : "0"(p0),
+                    "1"(pp)
+                    : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7");
+#else  // __aarch64__
+                asm volatile(
+                    "pld        [%0, #512]          \n"
+                    "vldm       %0!, {d0-d7}        \n"
+                    "pld        [%0, #512]          \n"
+                    "vldm       %0, {d16-d23}       \n"
+
+                    "vtrn.32    q0, q1              \n"
+                    "vtrn.32    q2, q3              \n"
+                    "vtrn.32    q8, q9              \n"
+                    "vtrn.32    q10, q11            \n"
+                    "vswp       d1, d4              \n"
+                    "vswp       d3, d6              \n"
+                    "vswp       d17, d20            \n"
+                    "vswp       d19, d22            \n"
+                    "vswp       q1, q8              \n"
+                    "vswp       q3, q10             \n"
+
+                    "vst1.f32   {d0-d3}, [%1 :128]! \n"
+                    "vst1.f32   {d16-d19}, [%1 :128]! \n"
+                    "sub        %0, %0, #64         \n"
+                    "vst1.f32   {d4-d7}, [%1 :128]! \n"
+                    "vst1.f32   {d20-d23}, [%1 :128]! \n"
+                    : "=r"(p0), // %0
+                    "=r"(pp)  // %1
+                    : "0"(p0),
+                    "1"(pp)
+                    : "memory", "q0", "q1", "q2", "q3", "q8", "q9", "q10", "q11");
+#endif // __aarch64__
+#else  // NCNN_GNU_INLINE_ASM
+                uint16x8_t _r0 = vld1q_u16(p0);
+                uint16x8_t _r1 = vld1q_u16(p0 + 8);
+                uint16x8_t _r2 = vld1q_u16(p0 + 8 * 2);
+                uint16x8_t _r3 = vld1q_u16(p0 + 8 * 3);
+                uint16x8_t _r4 = vld1q_u16(p0 + 8 * 4);
+                uint16x8_t _r5 = vld1q_u16(p0 + 8 * 5);
+                uint16x8_t _r6 = vld1q_u16(p0 + 8 * 6);
+                uint16x8_t _r7 = vld1q_u16(p0 + 8 * 7);
+                transpose8x8_u16(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
+                vst1q_u16(pp, _r0);
+                vst1q_u16(pp + 8, _r1);
+                vst1q_u16(pp + 8 * 2, _r2);
+                vst1q_u16(pp + 8 * 3, _r3);
+                vst1q_u16(pp + 8 * 4, _r4);
+                vst1q_u16(pp + 8 * 5, _r5);
+                vst1q_u16(pp + 8 * 6, _r6);
+                vst1q_u16(pp + 8 * 7, _r7);
+                pp += 64;
+#endif // NCNN_GNU_INLINE_ASM
+                p0 += bottom_blob.cstep * 8;
+            }
+        }
+
         if (elempack == 4)
         {
             const unsigned short* p0 = (const unsigned short*)bottom_blob.channel(k / 4) + (j + jj) * 4;
@@ -3321,6 +3469,53 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16s(const Mat& bottom_bl
     }
     for (; jj + 3 < max_jj; jj += 4)
     {
+        if (elempack == 8)
+        {
+            const unsigned short* p0 = (const unsigned short*)bottom_blob.channel(k / 8) + (j + jj) * 8;
+
+            int kk = 0;
+            for (; kk < max_kk / 8; kk++)
+            {
+                // transpose8x4
+#if 0 //NCNN_GNU_INLINE_ASM
+#if __aarch64__
+                asm volatile(
+                    "prfm   pldl1keep, [%0, #512]       \n"
+                    "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%0] \n"
+                    "st4    {v0.4s, v1.4s, v2.4s, v3.4s}, [%1], #64 \n"
+                    : "=r"(p0), // %0
+                    "=r"(pp)  // %1
+                    : "0"(p0),
+                    "1"(pp)
+                    : "memory", "v0", "v1", "v2", "v3");
+#else  // __aarch64__
+                asm volatile(
+                    "pld        [%0, #512]          \n"
+                    "vldm       %0, {d0-d7}         \n"
+                    "vtrn.32    q0, q1              \n"
+                    "vtrn.32    q2, q3              \n"
+                    "vswp       d1, d4              \n"
+                    "vswp       d3, d6              \n"
+                    "vstm       %1!, {d0-d7}        \n"
+                    : "=r"(p0), // %0
+                    "=r"(pp)  // %1
+                    : "0"(p0),
+                    "1"(pp)
+                    : "memory", "q0", "q1", "q2", "q3");
+#endif // __aarch64__
+#else  // NCNN_GNU_INLINE_ASM
+                uint16x8x4_t _r0;
+                _r0.val[0] = vld1q_u16(p0);
+                _r0.val[1] = vld1q_u16(p0 + 8);
+                _r0.val[2] = vld1q_u16(p0 + 8 * 2);
+                _r0.val[3] = vld1q_u16(p0 + 8 * 3);
+                vst4q_u16(pp, _r0);
+                pp += 32;
+#endif // NCNN_GNU_INLINE_ASM
+                p0 += bottom_blob.cstep * 8;
+            }
+        }
+
         if (elempack == 4)
         {
             const unsigned short* p0 = (const unsigned short*)bottom_blob.channel(k / 4) + (j + jj) * 4;
@@ -3387,12 +3582,41 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16s(const Mat& bottom_bl
 #endif // __ARM_NEON
     for (; jj + 1 < max_jj; jj += 2)
     {
-        if (elempack == 4)
+        if (elempack == 8)
         {
-            const unsigned short* p0 = (const unsigned short*)bottom_blob.channel(k / elempack) + (j + jj) * elempack;
+            const unsigned short* p0 = (const unsigned short*)bottom_blob.channel(k / 8) + (j + jj) * 8;
 
             int kk = 0;
-            for (; kk < max_kk / elempack; kk++)
+            for (; kk < max_kk / 8; kk++)
+            {
+                // transpose8x2
+                pp[0] = p0[0];
+                pp[1] = p0[8];
+                pp[2] = p0[1];
+                pp[3] = p0[9];
+                pp[4] = p0[2];
+                pp[5] = p0[10];
+                pp[6] = p0[3];
+                pp[7] = p0[11];
+                pp[8] = p0[4];
+                pp[9] = p0[12];
+                pp[10] = p0[5];
+                pp[11] = p0[13];
+                pp[12] = p0[6];
+                pp[13] = p0[14];
+                pp[14] = p0[7];
+                pp[15] = p0[15];
+                pp += 16;
+                p0 += bottom_blob.cstep * 8;
+            }
+        }
+
+        if (elempack == 4)
+        {
+            const unsigned short* p0 = (const unsigned short*)bottom_blob.channel(k / 4) + (j + jj) * 4;
+
+            int kk = 0;
+            for (; kk < max_kk / 4; kk++)
             {
                 // transpose4x2
                 pp[0] = p0[0];
@@ -3404,7 +3628,7 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16s(const Mat& bottom_bl
                 pp[6] = p0[3];
                 pp[7] = p0[7];
                 pp += 8;
-                p0 += bottom_blob.cstep * elempack;
+                p0 += bottom_blob.cstep * 4;
             }
         }
 
@@ -3424,6 +3648,26 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16s(const Mat& bottom_bl
     }
     for (; jj < max_jj; jj++)
     {
+        if (elempack == 8)
+        {
+            const unsigned short* p0 = (const unsigned short*)bottom_blob.channel(k / 8) + (j + jj) * 8;
+
+            int kk = 0;
+            for (; kk < max_kk / 8; kk++)
+            {
+                pp[0] = p0[0];
+                pp[1] = p0[1];
+                pp[2] = p0[2];
+                pp[3] = p0[3];
+                pp[4] = p0[4];
+                pp[5] = p0[5];
+                pp[6] = p0[6];
+                pp[7] = p0[7];
+                pp += 8;
+                p0 += bottom_blob.cstep * 8;
+            }
+        }
+
         if (elempack == 4)
         {
             const unsigned short* p0 = (const unsigned short*)bottom_blob.channel(k / 4) + (j + jj) * 4;
@@ -3457,11 +3701,11 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16s(const Mat& bottom_bl
 
 static void convolution_im2col_input_tile_bf16s(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h)
 {
-    // if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
-    // {
-    //     convolution_im2col_input_tile_conv1x1s1d1(bottom_blob, B, j, max_jj, k, max_kk);
-    //     return;
-    // }
+    if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+    {
+        convolution_im2col_input_tile_conv1x1s1d1_bf16s(bottom_blob, B, j, max_jj, k, max_kk);
+        return;
+    }
 
     const int w = bottom_blob.w;
     // const int h = bottom_blob.h;
