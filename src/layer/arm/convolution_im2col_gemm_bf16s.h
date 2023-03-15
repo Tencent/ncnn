@@ -215,7 +215,7 @@ static void convolution_im2col_pack_A_tile_bf16s(const Mat& A, Mat& AT, int i, i
 
 static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const Mat& BT_tile, const Mat& CT_tile, Mat& topT_tile, Mat& top_blob, int i, int max_ii, int j, int max_jj, int k, int max_kk, bool k_end)
 {
-    // NCNN_LOGE("convolution_gemm_transB_packed_tile %d %d %d %d %d %d", i, max_ii, j, max_jj, k, max_kk);
+    NCNN_LOGE("convolution_gemm_transB_packed_tile_bf16s %d %d %d %d %d %d", i, max_ii, j, max_jj, k, max_kk);
 
     const int out_elempack = top_blob.elempack;
     const int out_hstep = (int)top_blob.cstep;
@@ -3110,6 +3110,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
             for (; kk < max_kk; kk += 1)
             {
                 sum += bfloat16_to_float32(pA[0]) * bfloat16_to_float32(pB[0]);
+
                 pA += 1;
                 pB += 1;
             }
@@ -3481,6 +3482,8 @@ static void convolution_im2col_input_tile_bf16s(const Mat& bottom_blob, Mat& B, 
 
     const int maxk = kernel_w * kernel_h;
 
+    // NCNN_LOGE("convolution_im2col_input_tile_bf16s %d %d %d %d   %d", j, max_jj, k, max_kk, elempack);
+
     unsigned short* pp = B;
 
     int jj = 0;
@@ -3562,6 +3565,35 @@ static void convolution_im2col_input_tile_bf16s(const Mat& bottom_blob, Mat& B, 
             const unsigned short* sptra = img.row<const unsigned short>(ya) + xa * elempack;
             const unsigned short* sptrb = img.row<const unsigned short>(yb) + xb * elempack;
 
+            if (elempack == 8)
+            {
+                uint16x8_t _r0 = vld1q_u16(sptr0);
+                uint16x8_t _r1 = vld1q_u16(sptr1);
+                uint16x8_t _r2 = vld1q_u16(sptr2);
+                uint16x8_t _r3 = vld1q_u16(sptr3);
+                uint16x8_t _r4 = vld1q_u16(sptr4);
+                uint16x8_t _r5 = vld1q_u16(sptr5);
+                uint16x8_t _r6 = vld1q_u16(sptr6);
+                uint16x8_t _r7 = vld1q_u16(sptr7);
+                uint16x8_t _r8 = vld1q_u16(sptr8);
+                uint16x8_t _r9 = vld1q_u16(sptr9);
+                uint16x8_t _ra = vld1q_u16(sptra);
+                uint16x8_t _rb = vld1q_u16(sptrb);
+                transpose8x12_u16(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7, _r8, _r9, _ra, _rb);
+                vst1q_u16(pp, _r0);
+                vst1q_u16(pp + 8, _r1);
+                vst1q_u16(pp + 8 * 2, _r2);
+                vst1q_u16(pp + 8 * 3, _r3);
+                vst1q_u16(pp + 8 * 4, _r4);
+                vst1q_u16(pp + 8 * 5, _r5);
+                vst1q_u16(pp + 8 * 6, _r6);
+                vst1q_u16(pp + 8 * 7, _r7);
+                vst1q_u16(pp + 8 * 8, _r8);
+                vst1q_u16(pp + 8 * 9, _r9);
+                vst1q_u16(pp + 8 * 10, _ra);
+                vst1q_u16(pp + 8 * 11, _rb);
+                pp += 96;
+            }
             if (elempack == 4)
             {
                 uint16x4_t _r0 = vld1_u16(sptr0);
@@ -3665,6 +3697,27 @@ static void convolution_im2col_input_tile_bf16s(const Mat& bottom_blob, Mat& B, 
             const unsigned short* sptr6 = img.row<const unsigned short>(y6) + x6 * elempack;
             const unsigned short* sptr7 = img.row<const unsigned short>(y7) + x7 * elempack;
 
+            if (elempack == 8)
+            {
+                uint16x8_t _r0 = vld1q_u16(sptr0);
+                uint16x8_t _r1 = vld1q_u16(sptr1);
+                uint16x8_t _r2 = vld1q_u16(sptr2);
+                uint16x8_t _r3 = vld1q_u16(sptr3);
+                uint16x8_t _r4 = vld1q_u16(sptr4);
+                uint16x8_t _r5 = vld1q_u16(sptr5);
+                uint16x8_t _r6 = vld1q_u16(sptr6);
+                uint16x8_t _r7 = vld1q_u16(sptr7);
+                transpose8x8_u16(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
+                vst1q_u16(pp, _r0);
+                vst1q_u16(pp + 8, _r1);
+                vst1q_u16(pp + 8 * 2, _r2);
+                vst1q_u16(pp + 8 * 3, _r3);
+                vst1q_u16(pp + 8 * 4, _r4);
+                vst1q_u16(pp + 8 * 5, _r5);
+                vst1q_u16(pp + 8 * 6, _r6);
+                vst1q_u16(pp + 8 * 7, _r7);
+                pp += 64;
+            }
             if (elempack == 4)
             {
                 uint16x4_t _r0 = vld1_u16(sptr0);
@@ -3735,6 +3788,16 @@ static void convolution_im2col_input_tile_bf16s(const Mat& bottom_blob, Mat& B, 
             const unsigned short* sptr2 = img.row<const unsigned short>(y2) + x2 * elempack;
             const unsigned short* sptr3 = img.row<const unsigned short>(y3) + x3 * elempack;
 
+            if (elempack == 8)
+            {
+                uint16x8x4_t _r0;
+                _r0.val[0] = vld1q_u16(sptr0);
+                _r0.val[1] = vld1q_u16(sptr1);
+                _r0.val[2] = vld1q_u16(sptr2);
+                _r0.val[3] = vld1q_u16(sptr3);
+                vst4q_u16(pp, _r0);
+                pp += 32;
+            }
             if (elempack == 4)
             {
                 uint16x4x4_t _r0;
@@ -3781,6 +3844,26 @@ static void convolution_im2col_input_tile_bf16s(const Mat& bottom_blob, Mat& B, 
             const unsigned short* sptr0 = img.row<const unsigned short>(y0) + x0 * elempack;
             const unsigned short* sptr1 = img.row<const unsigned short>(y1) + x1 * elempack;
 
+            if (elempack == 8)
+            {
+                pp[0] = sptr0[0];
+                pp[1] = sptr1[0];
+                pp[2] = sptr0[1];
+                pp[3] = sptr1[1];
+                pp[4] = sptr0[2];
+                pp[5] = sptr1[2];
+                pp[6] = sptr0[3];
+                pp[7] = sptr1[3];
+                pp[8+0] = sptr0[4];
+                pp[8+1] = sptr1[4];
+                pp[8+2] = sptr0[5];
+                pp[8+3] = sptr1[5];
+                pp[8+4] = sptr0[6];
+                pp[8+5] = sptr1[6];
+                pp[8+6] = sptr0[7];
+                pp[8+7] = sptr1[7];
+                pp += 16;
+            }
             if (elempack == 4)
             {
                 pp[0] = sptr0[0];
@@ -3821,6 +3904,18 @@ static void convolution_im2col_input_tile_bf16s(const Mat& bottom_blob, Mat& B, 
 
             const unsigned short* sptr = img.row<const unsigned short>(y) + x * elempack;
 
+            if (elempack == 8)
+            {
+                pp[0] = sptr[0];
+                pp[1] = sptr[1];
+                pp[2] = sptr[2];
+                pp[3] = sptr[3];
+                pp[4] = sptr[4];
+                pp[5] = sptr[5];
+                pp[6] = sptr[6];
+                pp[7] = sptr[7];
+                pp += 8;
+            }
             if (elempack == 4)
             {
                 pp[0] = sptr[0];
