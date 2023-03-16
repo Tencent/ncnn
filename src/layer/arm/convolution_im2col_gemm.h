@@ -3792,10 +3792,12 @@ static void convolution_im2col_gemm_transform_kernel(const Mat& kernel, Mat& AT,
     // wrap inch elempack
 
     int elempack = 1;
+#if __ARM_NEON
     if (opt.use_packing_layout)
     {
         elempack = inch % 4 == 0 ? 4 : 1;
     }
+#endif // __ARM_NEON
 
     // maxk-inch-outch to pa-maxk-inch/pa-outch
     Mat A_data;
