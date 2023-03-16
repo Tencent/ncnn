@@ -522,10 +522,8 @@ static void convolution_gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const
                 "4:                                 \n"
                 "prfm   pldl1keep, [%2, #512]       \n"
                 "ld1    {v0.8h, v1.8h, v2.8h, v3.8h}, [%2], #64 \n"
-
                 "prfm   pldl1keep, [%1, #512]       \n"
                 "ld1    {v4.8h, v5.8h, v6.8h, v7.8h}, [%1], #64 \n"
-
                 "fmla   v24.8h, v4.8h, v0.h[0]      \n"
                 "fmla   v25.8h, v4.8h, v0.h[1]      \n"
                 "fmla   v26.8h, v4.8h, v0.h[2]      \n"
@@ -534,7 +532,6 @@ static void convolution_gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const
                 "fmla   v29.8h, v4.8h, v0.h[5]      \n"
                 "fmla   v30.8h, v4.8h, v0.h[6]      \n"
                 "fmla   v31.8h, v4.8h, v0.h[7]      \n"
-
                 "fmla   v24.8h, v5.8h, v1.h[0]      \n"
                 "fmla   v25.8h, v5.8h, v1.h[1]      \n"
                 "fmla   v26.8h, v5.8h, v1.h[2]      \n"
@@ -543,7 +540,6 @@ static void convolution_gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const
                 "fmla   v29.8h, v5.8h, v1.h[5]      \n"
                 "fmla   v30.8h, v5.8h, v1.h[6]      \n"
                 "fmla   v31.8h, v5.8h, v1.h[7]      \n"
-
                 "fmla   v24.8h, v6.8h, v2.h[0]      \n"
                 "fmla   v25.8h, v6.8h, v2.h[1]      \n"
                 "fmla   v26.8h, v6.8h, v2.h[2]      \n"
@@ -552,9 +548,7 @@ static void convolution_gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const
                 "fmla   v29.8h, v6.8h, v2.h[5]      \n"
                 "fmla   v30.8h, v6.8h, v2.h[6]      \n"
                 "fmla   v31.8h, v6.8h, v2.h[7]      \n"
-
                 "subs   w4, w4, #1                  \n"
-
                 "fmla   v24.8h, v7.8h, v3.h[0]      \n"
                 "fmla   v25.8h, v7.8h, v3.h[1]      \n"
                 "fmla   v26.8h, v7.8h, v3.h[2]      \n"
@@ -856,27 +850,21 @@ static void convolution_gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const
                 "4:                                 \n"
                 "prfm   pldl1keep, [%2, #256]       \n"
                 "ld1    {v0.8h, v1.8h}, [%2], #32   \n"
-
                 "prfm   pldl1keep, [%1, #512]       \n"
                 "ld1    {v4.8h, v5.8h, v6.8h, v7.8h}, [%1], #64 \n"
-
                 "fmla   v28.8h, v4.8h, v0.h[0]      \n"
                 "fmla   v29.8h, v4.8h, v0.h[1]      \n"
                 "fmla   v30.8h, v4.8h, v0.h[2]      \n"
                 "fmla   v31.8h, v4.8h, v0.h[3]      \n"
-
                 "fmla   v28.8h, v5.8h, v0.h[4]      \n"
                 "fmla   v29.8h, v5.8h, v0.h[5]      \n"
                 "fmla   v30.8h, v5.8h, v0.h[6]      \n"
                 "fmla   v31.8h, v5.8h, v0.h[7]      \n"
-
                 "fmla   v28.8h, v6.8h, v1.h[0]      \n"
                 "fmla   v29.8h, v6.8h, v1.h[1]      \n"
                 "fmla   v30.8h, v6.8h, v1.h[2]      \n"
                 "fmla   v31.8h, v6.8h, v1.h[3]      \n"
-
                 "subs   w4, w4, #1                  \n"
-
                 "fmla   v28.8h, v7.8h, v1.h[4]      \n"
                 "fmla   v29.8h, v7.8h, v1.h[5]      \n"
                 "fmla   v30.8h, v7.8h, v1.h[6]      \n"
@@ -1111,27 +1099,27 @@ static void convolution_gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const
                 "cmp    w4, #0                      \n"
                 "beq    5f                          \n"
 
+                "eor    v28.16b, v28.16b, v28.16b   \n"
+                "eor    v29.16b, v29.16b, v29.16b   \n"
+
                 "4:                                 \n"
                 "prfm   pldl1keep, [%2, #128]       \n"
                 "ld1    {v0.8h}, [%2], #16          \n"
-
                 "prfm   pldl1keep, [%1, #512]       \n"
                 "ld1    {v4.8h, v5.8h, v6.8h, v7.8h}, [%1], #64 \n"
-
-                "fmla   v30.8h, v4.8h, v0.h[0]      \n"
-                "fmla   v31.8h, v4.8h, v0.h[1]      \n"
-
+                "fmla   v28.8h, v4.8h, v0.h[0]      \n"
+                "fmla   v29.8h, v4.8h, v0.h[1]      \n"
                 "fmla   v30.8h, v5.8h, v0.h[2]      \n"
                 "fmla   v31.8h, v5.8h, v0.h[3]      \n"
-
-                "fmla   v30.8h, v6.8h, v0.h[4]      \n"
-                "fmla   v31.8h, v6.8h, v0.h[5]      \n"
-
+                "fmla   v28.8h, v6.8h, v0.h[4]      \n"
+                "fmla   v29.8h, v6.8h, v0.h[5]      \n"
                 "subs   w4, w4, #1                  \n"
-
                 "fmla   v30.8h, v7.8h, v0.h[6]      \n"
                 "fmla   v31.8h, v7.8h, v0.h[7]      \n"
                 "bne    4b                          \n"
+
+                "fadd   v30.8h, v30.8h, v28.8h      \n"
+                "fadd   v31.8h, v31.8h, v29.8h      \n"
 
                 "5:                                 \n"
                 "and    w4, %w9, #3                 \n" // w4 = remain = max_kk & 3
