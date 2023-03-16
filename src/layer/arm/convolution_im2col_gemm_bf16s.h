@@ -1704,6 +1704,136 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
         {
             const unsigned short* pA = pAT;
 
+#if NCNN_GNU_INLINE_ASM
+            asm volatile(
+                "cbz    %w10, 0f                    \n"
+
+                "ld1    {v30.4s, v31.4s}, [%0]      \n"
+                "b      3f                          \n"
+
+                "0:                                 \n"
+                // if pC
+                "cbz    %8, 1f                      \n"
+
+                "ld1    {v30.4s, v31.4s}, [%8]      \n"
+                "b      2f                          \n"
+
+                // else
+                "1:                                 \n"
+                "eor    v30.16b, v30.16b, v30.16b   \n"
+                "eor    v31.16b, v31.16b, v31.16b   \n"
+
+                "2:                                 \n"
+
+                "3:                                 \n"
+                "lsr    w4, %w9, #2                 \n" // w4 = max_kk >> 2
+                "cmp    w4, #0                      \n"
+                "beq    5f                          \n"
+
+                "eor    v28.16b, v28.16b, v28.16b   \n"
+                "eor    v29.16b, v29.16b, v29.16b   \n"
+                "4:                                 \n"
+                "prfm   pldl1keep, [%2, #64]        \n"
+                "ld1    {v0.4h}, [%2], #8           \n"
+                "shll   v0.4s, v0.4h, #16           \n"
+                "prfm   pldl1keep, [%1, #512]       \n"
+                "ld1    {v12.8h, v13.8h, v14.8h, v15.8h}, [%1], #64 \n"
+                "shll   v4.4s, v12.4h, #16          \n"
+                "shll2  v5.4s, v12.8h, #16          \n"
+                "shll   v6.4s, v13.4h, #16          \n"
+                "shll2  v7.4s, v13.8h, #16          \n"
+                "fmla   v28.4s, v4.4s, v0.s[0]      \n"
+                "fmla   v29.4s, v5.4s, v0.s[0]      \n"
+                "fmla   v30.4s, v6.4s, v0.s[1]      \n"
+                "fmla   v31.4s, v7.4s, v0.s[1]      \n"
+                "shll   v8.4s, v14.4h, #16          \n"
+                "shll2  v9.4s, v14.8h, #16          \n"
+                "shll   v10.4s, v15.4h, #16         \n"
+                "shll2  v11.4s, v15.8h, #16         \n"
+                "fmla   v28.4s, v8.4s, v0.s[2]      \n"
+                "fmla   v29.4s, v9.4s, v0.s[2]      \n"
+                "subs   w4, w4, #1                  \n"
+                "fmla   v30.4s, v10.4s, v0.s[3]     \n"
+                "fmla   v31.4s, v11.4s, v0.s[3]     \n"
+                "bne    4b                          \n"
+                "fadd   v30.4s, v30.4s, v28.4s      \n"
+                "fadd   v31.4s, v31.4s, v29.4s      \n"
+
+                "5:                                 \n"
+                "and    w4, %w9, #3                 \n" // w4 = remain = max_kk & 3
+                "cmp    w4, #0                      \n"
+                "beq    7f                          \n"
+
+                "6:                                 \n"
+                "ld1r   {v0.4h}, [%2], #2           \n"
+                "shll   v0.4s, v0.4h, #16           \n"
+                "ld1    {v3.8h}, [%1], #16          \n"
+                "shll   v4.4s, v3.4h, #16           \n"
+                "shll2  v5.4s, v3.8h, #16           \n"
+                "subs   w4, w4, #1                  \n"
+                "fmla   v30.4s, v4.4s, v0.4s        \n"
+                "fmla   v31.4s, v5.4s, v0.4s        \n"
+                "bne    6b                          \n"
+
+                "7:                                 \n"
+                "shrn   v30.4h, v30.4s, #16         \n"
+                "shrn   v31.4h, v31.4s, #16         \n"
+                "tst    %w11, #255                  \n"
+                "beq    10f                         \n"
+
+                // if out_elempack == 4
+                "cmp    %w12, #4                    \n"
+                "bne    8f                          \n"
+
+                "lsl    w4, %w13, #2                \n"
+                "add    x4, %3, w4, sxtw 1          \n"
+                "st1    {v30.4h}, [%3], #8          \n"
+                "st1    {v31.4h}, [x4]              \n"
+                "b      9f                          \n"
+
+                // if out_elempack == 1
+                "8:                                 \n"
+                "add    x4, %3, %w13, sxtw 1        \n"
+                "st1    {v30.h}[0], [%3], #2        \n"
+                "st1    {v30.h}[1], [x4]            \n"
+                "add    x4, x4, %w13, sxtw 1        \n"
+                "st1    {v30.h}[2], [x4]            \n"
+                "add    x4, x4, %w13, sxtw 1        \n"
+                "st1    {v30.h}[3], [x4]            \n"
+                "add    x4, x4, %w13, sxtw 1        \n"
+                "st1    {v31.h}[0], [x4]            \n"
+                "add    x4, x4, %w13, sxtw 1        \n"
+                "st1    {v31.h}[1], [x4]            \n"
+                "add    x4, x4, %w13, sxtw 1        \n"
+                "st1    {v31.h}[2], [x4]            \n"
+                "add    x4, x4, %w13, sxtw 1        \n"
+                "st1    {v31.h}[3], [x4]            \n"
+
+                "9:                                 \n"
+                "add    %0, %0, #32                 \n"
+                "b      11f                         \n"
+
+                "10:                                \n"
+                "st1    {v30.4s, v31.4s}, [%0], #32 \n"
+
+                "11:                                \n"
+
+                : "=r"(outptr), // %0
+                "=r"(pA),     // %1
+                "=r"(pB),     // %2
+                "=r"(outptr0) // %3
+                : "0"(outptr),
+                "1"(pA),
+                "2"(pB),
+                "3"(outptr0),
+                "r"(pC),           // %8
+                "r"(max_kk),       // %9
+                "r"(k),            // %10
+                "r"(k_end),        // %11
+                "r"(out_elempack), // %12
+                "r"(out_hstep)     // %13
+                : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
+#else  // NCNN_GNU_INLINE_ASM
             float32x4_t _sum00;
             float32x4_t _sum01;
 
@@ -1773,6 +1903,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
             }
 
             outptr += 8;
+#endif // NCNN_GNU_INLINE_ASM
         }
 
         pAT += max_kk * 8;

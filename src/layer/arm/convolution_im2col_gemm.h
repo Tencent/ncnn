@@ -1779,6 +1779,126 @@ static void convolution_gemm_transB_packed_tile(const Mat& AT_tile, const Mat& B
         }
         for (; jj < max_jj; jj += 1)
         {
+            const float* pA = pAT;
+
+#if NCNN_GNU_INLINE_ASM
+            asm volatile(
+                "cbz    %w10, 0f                    \n"
+
+                "ld1    {v30.4s, v31.4s}, [%0]      \n"
+                "b      3f                          \n"
+
+                "0:                                 \n"
+                // if pC
+                "cbz    %8, 1f                      \n"
+
+                "ld1    {v30.4s, v31.4s}, [%8]      \n"
+                "b      2f                          \n"
+
+                // else
+                "1:                                 \n"
+                "eor    v30.16b, v30.16b, v30.16b   \n"
+                "eor    v31.16b, v31.16b, v31.16b   \n"
+
+                "2:                                 \n"
+
+                "3:                                 \n"
+                "lsr    w4, %w9, #2                 \n" // w4 = max_kk >> 2
+                "cmp    w4, #0                      \n"
+                "beq    5f                          \n"
+
+                "eor    v28.16b, v28.16b, v28.16b   \n"
+                "eor    v29.16b, v29.16b, v29.16b   \n"
+                "4:                                 \n"
+                "prfm   pldl1keep, [%2, #128]       \n"
+                "ld1    {v0.4s}, [%2], #16          \n"
+                "prfm   pldl1keep, [%1, #512]       \n"
+                "ld1    {v4.4s, v5.4s, v6.4s, v7.4s}, [%1], #64 \n"
+                "fmla   v28.4s, v4.4s, v0.s[0]      \n"
+                "fmla   v29.4s, v5.4s, v0.s[0]      \n"
+                "fmla   v30.4s, v6.4s, v0.s[1]      \n"
+                "fmla   v31.4s, v7.4s, v0.s[1]      \n"
+                "prfm   pldl1keep, [%1, #512]       \n"
+                "ld1    {v8.4s, v9.4s, v10.4s, v11.4s}, [%1], #64 \n"
+                "fmla   v28.4s, v8.4s, v0.s[2]      \n"
+                "fmla   v29.4s, v9.4s, v0.s[2]      \n"
+                "subs   w4, w4, #1                  \n"
+                "fmla   v30.4s, v10.4s, v0.s[3]     \n"
+                "fmla   v31.4s, v11.4s, v0.s[3]     \n"
+                "bne    4b                          \n"
+                "fadd   v30.4s, v30.4s, v28.4s      \n"
+                "fadd   v31.4s, v31.4s, v29.4s      \n"
+
+                "5:                                 \n"
+                "and    w4, %w9, #3                 \n" // w4 = remain = max_kk & 3
+                "cmp    w4, #0                      \n"
+                "beq    7f                          \n"
+
+                "6:                                 \n"
+                "ld1r   {v0.4s}, [%2], #4           \n"
+                "ld1    {v4.4s, v5.4s}, [%1], #32   \n"
+                "subs   w4, w4, #1                  \n"
+                "fmla   v30.4s, v4.4s, v0.4s        \n"
+                "fmla   v31.4s, v5.4s, v0.4s        \n"
+                "bne    6b                          \n"
+
+                "7:                                 \n"
+                "tst    %w11, #255                  \n"
+                "beq    10f                         \n"
+
+                // if out_elempack == 4
+                "cmp    %w12, #4                    \n"
+                "bne    8f                          \n"
+
+                "lsl    w4, %w13, #2                \n"
+                "add    x4, %3, w4, sxtw 2          \n"
+                "st1    {v30.4s}, [%3], #16         \n"
+                "st1    {v31.4s}, [x4]              \n"
+                "b      9f                          \n"
+
+                // if out_elempack == 1
+                "8:                                 \n"
+                "add    x4, %3, %w13, sxtw 2        \n"
+                "st1    {v30.s}[0], [%3], #4        \n"
+                "st1    {v30.s}[1], [x4]            \n"
+                "add    x4, x4, %w13, sxtw 2        \n"
+                "st1    {v30.s}[2], [x4]            \n"
+                "add    x4, x4, %w13, sxtw 2        \n"
+                "st1    {v30.s}[3], [x4]            \n"
+                "add    x4, x4, %w13, sxtw 2        \n"
+                "st1    {v31.s}[0], [x4]            \n"
+                "add    x4, x4, %w13, sxtw 2        \n"
+                "st1    {v31.s}[1], [x4]            \n"
+                "add    x4, x4, %w13, sxtw 2        \n"
+                "st1    {v31.s}[2], [x4]            \n"
+                "add    x4, x4, %w13, sxtw 2        \n"
+                "st1    {v31.s}[3], [x4]            \n"
+
+                "9:                                 \n"
+                "add    %0, %0, #32                 \n"
+                "b      11f                         \n"
+
+                "10:                                \n"
+                "st1    {v30.4s, v31.4s}, [%0], #32 \n"
+
+                "11:                                \n"
+
+                : "=r"(outptr), // %0
+                "=r"(pA),     // %1
+                "=r"(pB),     // %2
+                "=r"(outptr0) // %3
+                : "0"(outptr),
+                "1"(pA),
+                "2"(pB),
+                "3"(outptr0),
+                "r"(pC),           // %8
+                "r"(max_kk),       // %9
+                "r"(k),            // %10
+                "r"(k_end),        // %11
+                "r"(out_elempack), // %12
+                "r"(out_hstep)     // %13
+                : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
+#else  // NCNN_GNU_INLINE_ASM
             float32x4_t _sum00;
             float32x4_t _sum01;
 
@@ -1798,10 +1918,9 @@ static void convolution_gemm_transB_packed_tile(const Mat& AT_tile, const Mat& B
             else
             {
                 _sum00 = vld1q_f32(outptr);
-                _sum01 = vld1q_f32(outptr + 4 * 1);
+                _sum01 = vld1q_f32(outptr + 4);
             }
 
-            const float* pA = pAT;
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -1849,6 +1968,7 @@ static void convolution_gemm_transB_packed_tile(const Mat& AT_tile, const Mat& B
             }
 
             outptr += 8;
+#endif // NCNN_GNU_INLINE_ASM
         }
 
         pAT += max_kk * 8;
