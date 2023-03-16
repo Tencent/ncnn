@@ -914,15 +914,15 @@ static void convolution_gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const
                 "cmp    %w12, #4                    \n"
                 "bne    9f                          \n"
 
-                "mov    v24.d[0], v28.d[1]          \n"
-                "mov    v25.d[0], v29.d[1]          \n"
-                "mov    v26.d[0], v30.d[1]          \n"
-                "mov    v27.d[0], v31.d[1]          \n"
+                "zip1   v24.2d, v28.2d, v29.2d      \n"
+                "zip2   v26.2d, v28.2d, v29.2d      \n"
+                "zip1   v25.2d, v30.2d, v31.2d      \n"
+                "zip2   v27.2d, v30.2d, v31.2d      \n"
 
                 "lsl    w4, %w13, #2                \n"
                 "add    x4, %3, w4, sxtw 1          \n"
-                "st1    {v28.4h, v29.4h, v30.4h, v31.4h}, [%3], #32 \n"
-                "st1    {v24.4h, v25.4h, v26.4h, v27.4h}, [x4] \n"
+                "st1    {v24.8h, v25.8h}, [%3], #32 \n"
+                "st1    {v26.8h, v27.8h}, [x4]      \n"
                 "b      10f                         \n"
 
                 // if out_elempack == 1
@@ -1085,6 +1085,139 @@ static void convolution_gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const
         {
             const __fp16* pA = pAT;
 
+#if NCNN_GNU_INLINE_ASM
+            asm volatile(
+                "cbz    %w10, 0f                    \n"
+
+                "ld1    {v30.8h, v31.8h}, [%0]      \n"
+                "b      3f                          \n"
+
+                "0:                                 \n"
+                // if pC
+                "cbz    %8, 1f                      \n"
+
+                "ld1    {v30.8h}, [%8]              \n"
+                "b      2f                          \n"
+
+                // else
+                "1:                                 \n"
+                "eor    v30.16b, v30.16b, v30.16b   \n"
+
+                "2:                                 \n"
+                "mov    v31.16b, v30.16b            \n"
+
+                "3:                                 \n"
+                "lsr    w4, %w9, #2                 \n" // w4 = max_kk >> 2
+                "cmp    w4, #0                      \n"
+                "beq    5f                          \n"
+
+                "4:                                 \n"
+                "prfm   pldl1keep, [%2, #128]       \n"
+                "ld1    {v0.8h}, [%2], #16          \n"
+
+                "prfm   pldl1keep, [%1, #512]       \n"
+                "ld1    {v4.8h, v5.8h, v6.8h, v7.8h}, [%1], #64 \n"
+
+                "fmla   v30.8h, v4.8h, v0.h[0]      \n"
+                "fmla   v31.8h, v4.8h, v0.h[1]      \n"
+
+                "fmla   v30.8h, v5.8h, v0.h[2]      \n"
+                "fmla   v31.8h, v5.8h, v0.h[3]      \n"
+
+                "fmla   v30.8h, v6.8h, v0.h[4]      \n"
+                "fmla   v31.8h, v6.8h, v0.h[5]      \n"
+
+                "subs   w4, w4, #1                  \n"
+
+                "fmla   v30.8h, v7.8h, v0.h[6]      \n"
+                "fmla   v31.8h, v7.8h, v0.h[7]      \n"
+                "bne    4b                          \n"
+
+                "5:                                 \n"
+                "and    w4, %w9, #3                 \n" // w4 = remain = max_kk & 3
+                "cmp    w4, #0                      \n"
+                "beq    7f                          \n"
+
+                "6:                                 \n"
+                "ld1    {v0.s}[0], [%2], #4         \n"
+                "ld1    {v4.8h}, [%1], #16          \n"
+                "subs   w4, w4, #1                  \n"
+                "fmla   v30.8h, v4.8h, v0.h[0]      \n"
+                "fmla   v31.8h, v4.8h, v0.h[1]      \n"
+                "bne    6b                          \n"
+
+                "7:                                 \n"
+                "tst    %w11, #255                  \n"
+                "beq    11f                         \n"
+
+                // if out_elempack == 8
+                "cmp    %w12, #8                    \n"
+                "bne    8f                          \n"
+
+                "st1    {v30.8h, v31.8h}, [%3], #32 \n"
+                "b      10f                         \n"
+
+                // if out_elempack == 4
+                "8:                                 \n"
+                "cmp    %w12, #4                    \n"
+                "bne    9f                          \n"
+
+                "zip1   v28.2d, v30.2d, v31.2d      \n"
+                "zip2   v29.2d, v30.2d, v31.2d      \n"
+
+                "lsl    w4, %w13, #2                \n"
+                "add    x4, %3, w4, sxtw 1          \n"
+                "st1    {v28.8h}, [%3], #16         \n"
+                "st1    {v29.8h}, [x4]              \n"
+                "b      10f                         \n"
+
+                // if out_elempack == 1
+                "9:                                 \n"
+                // transpose8x2
+                "zip1   v28.8h, v30.8h, v31.8h      \n"
+                "zip2   v29.8h, v30.8h, v31.8h      \n"
+
+                "add    x4, %3, %w13, sxtw 1        \n"
+                "st1    {v28.s}[0], [%3], #4        \n"
+                "st1    {v28.s}[1], [x4]            \n"
+                "add    x4, x4, %w13, sxtw 1        \n"
+                "st1    {v28.s}[2], [x4]            \n"
+                "add    x4, x4, %w13, sxtw 1        \n"
+                "st1    {v28.s}[3], [x4]            \n"
+                "add    x4, x4, %w13, sxtw 1        \n"
+                "st1    {v29.s}[0], [x4]            \n"
+                "add    x4, x4, %w13, sxtw 1        \n"
+                "st1    {v29.s}[1], [x4]            \n"
+                "add    x4, x4, %w13, sxtw 1        \n"
+                "st1    {v29.s}[2], [x4]            \n"
+                "add    x4, x4, %w13, sxtw 1        \n"
+                "st1    {v29.s}[3], [x4]            \n"
+
+                "10:                                \n"
+                "add    %0, %0, #64                 \n"
+                "b      12f                         \n"
+
+                "11:                                \n"
+                "st1    {v30.8h, v31.8h}, [%0], #32 \n"
+
+                "12:                                \n"
+
+                : "=r"(outptr), // %0
+                "=r"(pA),     // %1
+                "=r"(pB),     // %2
+                "=r"(outptr0) // %3
+                : "0"(outptr),
+                "1"(pA),
+                "2"(pB),
+                "3"(outptr0),
+                "r"(pC),           // %8
+                "r"(max_kk),       // %9
+                "r"(k),            // %10
+                "r"(k_end),        // %11
+                "r"(out_elempack), // %12
+                "r"(out_hstep)     // %13
+                : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
+#else  // NCNN_GNU_INLINE_ASM
             float16x8_t _sum0;
             float16x8_t _sum1;
 
@@ -1172,6 +1305,7 @@ static void convolution_gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const
             }
 
             outptr += 16;
+#endif // NCNN_GNU_INLINE_ASM
         }
         for (; jj < max_jj; jj += 1)
         {
