@@ -224,24 +224,23 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16_fp16(const Mat& botto
                 asm volatile(
                     "prfm   pldl1keep, [%0, #512]   \n"
                     "ld4    {v0.8h, v1.8h, v2.8h, v3.8h}, [%0], #64 \n"
+                    "prfm   pldl1keep, [%0, #512]   \n"
                     "ld4    {v4.8h, v5.8h, v6.8h, v7.8h}, [%0], #64 \n"
+                    "prfm   pldl1keep, [%0, #512]   \n"
                     "ld4    {v16.8h, v17.8h, v18.8h, v19.8h}, [%0] \n"
-
-                    "sub    %0, %0, #128            \n"
-
                     "uzp1   v20.8h, v0.8h, v4.8h    \n"
-                    "uzp1   v21.8h, v16.8h, v1.8h   \n"
-                    "uzp1   v22.8h, v5.8h, v17.8h   \n"
-                    "uzp1   v23.8h, v2.8h, v6.8h    \n"
-                    "uzp1   v24.8h, v18.8h, v3.8h   \n"
-                    "uzp1   v25.8h, v7.8h, v19.8h   \n"
                     "uzp2   v26.8h, v0.8h, v4.8h    \n"
+                    "uzp1   v21.8h, v16.8h, v1.8h   \n"
                     "uzp2   v27.8h, v16.8h, v1.8h   \n"
+                    "sub    %0, %0, #128            \n"
+                    "uzp1   v22.8h, v5.8h, v17.8h   \n"
                     "uzp2   v28.8h, v5.8h, v17.8h   \n"
+                    "uzp1   v23.8h, v2.8h, v6.8h    \n"
                     "uzp2   v29.8h, v2.8h, v6.8h    \n"
+                    "uzp1   v24.8h, v18.8h, v3.8h   \n"
                     "uzp2   v30.8h, v18.8h, v3.8h   \n"
+                    "uzp1   v25.8h, v7.8h, v19.8h   \n"
                     "uzp2   v31.8h, v7.8h, v19.8h   \n"
-
                     "st1    {v20.8h, v21.8h, v22.8h, v23.8h}, [%1], #64 \n"
                     "st1    {v24.8h, v25.8h, v26.8h, v27.8h}, [%1], #64 \n"
                     "st1    {v28.8h, v29.8h, v30.8h, v31.8h}, [%1], #64 \n"
@@ -295,6 +294,7 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16_fp16(const Mat& botto
                 asm volatile(
                     "prfm   pldl1keep, [%0, #512]       \n"
                     "ld4    {v0.8h, v1.8h, v2.8h, v3.8h}, [%0], #64 \n"
+                    "prfm   pldl1keep, [%0, #256]   \n"
                     "ld4    {v4.4h, v5.4h, v6.4h, v7.4h}, [%0]      \n"
                     "st1    {v0.8h}, [%1], #16          \n"
                     "st1    {v4.4h}, [%1], #8           \n"
@@ -372,18 +372,17 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16_fp16(const Mat& botto
                 asm volatile(
                     "prfm   pldl1keep, [%0, #512]   \n"
                     "ld4    {v0.8h, v1.8h, v2.8h, v3.8h}, [%0], #64 \n"
+                    "prfm   pldl1keep, [%0, #512]   \n"
                     "ld4    {v4.8h, v5.8h, v6.8h, v7.8h}, [%0] \n"
-                    "sub    %0, %0, #64             \n"
-
                     "uzp1   v16.8h, v0.8h, v4.8h    \n"
                     "uzp2   v20.8h, v0.8h, v4.8h    \n"
                     "uzp1   v17.8h, v1.8h, v5.8h    \n"
                     "uzp2   v21.8h, v1.8h, v5.8h    \n"
+                    "sub    %0, %0, #64             \n"
                     "uzp1   v18.8h, v2.8h, v6.8h    \n"
                     "uzp2   v22.8h, v2.8h, v6.8h    \n"
                     "uzp1   v19.8h, v3.8h, v7.8h    \n"
                     "uzp2   v23.8h, v3.8h, v7.8h    \n"
-
                     "st1    {v16.8h, v17.8h, v18.8h, v19.8h}, [%1], #64 \n"
                     "st1    {v20.8h, v21.8h, v22.8h, v23.8h}, [%1], #64 \n"
                     : "=r"(p0), // %0
