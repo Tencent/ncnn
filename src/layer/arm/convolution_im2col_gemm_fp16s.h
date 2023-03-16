@@ -825,34 +825,25 @@ static void convolution_gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const
         {
             const __fp16* pA = pAT;
 
-#if 0  //NCNN_GNU_INLINE_ASM
+#if NCNN_GNU_INLINE_ASM
             asm volatile(
                 "cbz    %w10, 0f                    \n"
 
-                "ld1    {v24.4s, v25.4s, v26.4s, v27.4s}, [%0], #64 \n"
-                "ld1    {v28.4s, v29.4s, v30.4s, v31.4s}, [%0]      \n"
-                "subs   %0, %0, #64                 \n"
+                "ld1    {v28.8h, v29.8h, v30.8h, v31.8h}, [%0]      \n"
                 "b      3f                          \n"
 
                 "0:                                 \n"
                 // if pC
                 "cbz    %8, 1f                      \n"
 
-                "add    x4, %8, #16                 \n"
-                "ld1    {v24.4s}, [%8]              \n"
-                "ld1    {v28.4s}, [x4]              \n"
+                "ld1    {v28.8h}, [%8]              \n"
                 "b      2f                          \n"
 
                 // else
                 "1:                                 \n"
-                "eor    v24.16b, v24.16b, v24.16b   \n"
                 "eor    v28.16b, v28.16b, v28.16b   \n"
 
                 "2:                                 \n"
-                "mov    v25.16b, v24.16b            \n"
-                "mov    v26.16b, v24.16b            \n"
-                "mov    v27.16b, v24.16b            \n"
-
                 "mov    v29.16b, v28.16b            \n"
                 "mov    v30.16b, v28.16b            \n"
                 "mov    v31.16b, v28.16b            \n"
@@ -863,45 +854,33 @@ static void convolution_gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const
                 "beq    5f                          \n"
 
                 "4:                                 \n"
-                "prfm   pldl1keep, [%2, #512]       \n"
-                "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%2], #64 \n"
+                "prfm   pldl1keep, [%2, #256]       \n"
+                "ld1    {v0.8h, v1.8h}, [%2], #32   \n"
+
                 "prfm   pldl1keep, [%1, #512]       \n"
-                "ld1    {v4.4s, v5.4s, v6.4s, v7.4s}, [%1], #64 \n"
-                "fmla   v24.4s, v4.4s, v0.s[0]      \n"
-                "fmla   v25.4s, v4.4s, v0.s[1]      \n"
-                "fmla   v26.4s, v4.4s, v0.s[2]      \n"
-                "fmla   v27.4s, v4.4s, v0.s[3]      \n"
-                "fmla   v28.4s, v5.4s, v0.s[0]      \n"
-                "fmla   v29.4s, v5.4s, v0.s[1]      \n"
-                "fmla   v30.4s, v5.4s, v0.s[2]      \n"
-                "fmla   v31.4s, v5.4s, v0.s[3]      \n"
-                "fmla   v24.4s, v6.4s, v1.s[0]      \n"
-                "fmla   v25.4s, v6.4s, v1.s[1]      \n"
-                "fmla   v26.4s, v6.4s, v1.s[2]      \n"
-                "fmla   v27.4s, v6.4s, v1.s[3]      \n"
-                "fmla   v28.4s, v7.4s, v1.s[0]      \n"
-                "fmla   v29.4s, v7.4s, v1.s[1]      \n"
-                "fmla   v30.4s, v7.4s, v1.s[2]      \n"
-                "fmla   v31.4s, v7.4s, v1.s[3]      \n"
-                "prfm   pldl1keep, [%1, #512]       \n"
-                "ld1    {v8.4s, v9.4s, v10.4s, v11.4s}, [%1], #64 \n"
-                "fmla   v24.4s, v8.4s, v2.s[0]      \n"
-                "fmla   v25.4s, v8.4s, v2.s[1]      \n"
-                "fmla   v26.4s, v8.4s, v2.s[2]      \n"
-                "fmla   v27.4s, v8.4s, v2.s[3]      \n"
-                "fmla   v28.4s, v9.4s, v2.s[0]      \n"
-                "fmla   v29.4s, v9.4s, v2.s[1]      \n"
-                "fmla   v30.4s, v9.4s, v2.s[2]      \n"
-                "fmla   v31.4s, v9.4s, v2.s[3]      \n"
+                "ld1    {v4.8h, v5.8h, v6.8h, v7.8h}, [%1], #64 \n"
+
+                "fmla   v28.8h, v4.8h, v0.h[0]      \n"
+                "fmla   v29.8h, v4.8h, v0.h[1]      \n"
+                "fmla   v30.8h, v4.8h, v0.h[2]      \n"
+                "fmla   v31.8h, v4.8h, v0.h[3]      \n"
+
+                "fmla   v28.8h, v5.8h, v0.h[4]      \n"
+                "fmla   v29.8h, v5.8h, v0.h[5]      \n"
+                "fmla   v30.8h, v5.8h, v0.h[6]      \n"
+                "fmla   v31.8h, v5.8h, v0.h[7]      \n"
+
+                "fmla   v28.8h, v6.8h, v1.h[0]      \n"
+                "fmla   v29.8h, v6.8h, v1.h[1]      \n"
+                "fmla   v30.8h, v6.8h, v1.h[2]      \n"
+                "fmla   v31.8h, v6.8h, v1.h[3]      \n"
+
                 "subs   w4, w4, #1                  \n"
-                "fmla   v24.4s, v10.4s, v3.s[0]     \n"
-                "fmla   v25.4s, v10.4s, v3.s[1]     \n"
-                "fmla   v26.4s, v10.4s, v3.s[2]     \n"
-                "fmla   v27.4s, v10.4s, v3.s[3]     \n"
-                "fmla   v28.4s, v11.4s, v3.s[0]     \n"
-                "fmla   v29.4s, v11.4s, v3.s[1]     \n"
-                "fmla   v30.4s, v11.4s, v3.s[2]     \n"
-                "fmla   v31.4s, v11.4s, v3.s[3]     \n"
+
+                "fmla   v28.8h, v7.8h, v1.h[4]      \n"
+                "fmla   v29.8h, v7.8h, v1.h[5]      \n"
+                "fmla   v30.8h, v7.8h, v1.h[6]      \n"
+                "fmla   v31.8h, v7.8h, v1.h[7]      \n"
                 "bne    4b                          \n"
 
                 "5:                                 \n"
@@ -910,79 +889,84 @@ static void convolution_gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const
                 "beq    7f                          \n"
 
                 "6:                                 \n"
-                "ld1    {v0.4s}, [%2], #16          \n"
-                "ld1    {v4.4s, v5.4s}, [%1], #32   \n"
-                "fmla   v24.4s, v4.4s, v0.s[0]      \n"
-                "fmla   v25.4s, v4.4s, v0.s[1]      \n"
-                "fmla   v26.4s, v4.4s, v0.s[2]      \n"
-                "fmla   v27.4s, v4.4s, v0.s[3]      \n"
+                "ld1    {v0.4h}, [%2], #8           \n"
+                "ld1    {v4.8h}, [%1], #16          \n"
+                "fmla   v28.8h, v4.8h, v0.h[0]      \n"
+                "fmla   v29.8h, v4.8h, v0.h[1]      \n"
                 "subs   w4, w4, #1                  \n"
-                "fmla   v28.4s, v5.4s, v0.s[0]      \n"
-                "fmla   v29.4s, v5.4s, v0.s[1]      \n"
-                "fmla   v30.4s, v5.4s, v0.s[2]      \n"
-                "fmla   v31.4s, v5.4s, v0.s[3]      \n"
+                "fmla   v30.8h, v4.8h, v0.h[2]      \n"
+                "fmla   v31.8h, v4.8h, v0.h[3]      \n"
                 "bne    6b                          \n"
 
                 "7:                                 \n"
                 "tst    %w11, #255                  \n"
-                "beq    10f                         \n"
+                "beq    11f                         \n"
 
-                // if out_elempack == 4
-                "cmp    %w12, #4                    \n"
+                // if out_elempack == 8
+                "cmp    %w12, #8                    \n"
                 "bne    8f                          \n"
 
+                "st1    {v28.8h, v29.8h, v30.8h, v31.8h}, [%3], #64 \n"
+                "b      10f                         \n"
+
+                // if out_elempack == 4
+                "8:                                 \n"
+                "cmp    %w12, #4                    \n"
+                "bne    9f                          \n"
+
+                "mov    v24.d[0], v28.d[1]          \n"
+                "mov    v25.d[0], v29.d[1]          \n"
+                "mov    v26.d[0], v30.d[1]          \n"
+                "mov    v27.d[0], v31.d[1]          \n"
+
                 "lsl    w4, %w13, #2                \n"
-                "add    x4, %3, w4, sxtw 2          \n"
-                "st1    {v24.4s, v25.4s, v26.4s, v27.4s}, [%3], #64 \n"
-                "st1    {v28.4s, v29.4s, v30.4s, v31.4s}, [x4] \n"
-                "b      9f                          \n"
+                "add    x4, %3, w4, sxtw 1          \n"
+                "st1    {v28.4h, v29.4h, v30.4h, v31.4h}, [%3], #32 \n"
+                "st1    {v24.4h, v25.4h, v26.4h, v27.4h}, [x4] \n"
+                "b      10f                         \n"
 
                 // if out_elempack == 1
-                "8:                                 \n"
-                // transpose8x4
-                "zip1   v22.4s, v24.4s, v25.4s      \n"
-                "zip2   v23.4s, v24.4s, v25.4s      \n"
-                "zip1   v24.4s, v26.4s, v27.4s      \n"
-                "zip2   v25.4s, v26.4s, v27.4s      \n"
-                "zip1   v26.4s, v28.4s, v29.4s      \n"
-                "zip2   v27.4s, v28.4s, v29.4s      \n"
-                "zip1   v28.4s, v30.4s, v31.4s      \n"
-                "zip2   v29.4s, v30.4s, v31.4s      \n"
-
-                "zip1   v0.2d, v22.2d, v24.2d       \n"
-                "zip2   v1.2d, v22.2d, v24.2d       \n"
-                "zip1   v2.2d, v23.2d, v25.2d       \n"
-                "zip2   v3.2d, v23.2d, v25.2d       \n"
-                "zip1   v4.2d, v26.2d, v28.2d       \n"
-                "zip2   v5.2d, v26.2d, v28.2d       \n"
-                "zip1   v6.2d, v27.2d, v29.2d       \n"
-                "zip2   v7.2d, v27.2d, v29.2d       \n"
-
-                "add    x4, %3, %w13, sxtw 2        \n"
-                "st1    {v0.4s}, [%3], #16          \n"
-                "st1    {v1.4s}, [x4]               \n"
-                "add    x4, x4, %w13, sxtw 2        \n"
-                "st1    {v2.4s}, [x4]               \n"
-                "add    x4, x4, %w13, sxtw 2        \n"
-                "st1    {v3.4s}, [x4]               \n"
-                "add    x4, x4, %w13, sxtw 2        \n"
-                "st1    {v4.4s}, [x4]               \n"
-                "add    x4, x4, %w13, sxtw 2        \n"
-                "st1    {v5.4s}, [x4]               \n"
-                "add    x4, x4, %w13, sxtw 2        \n"
-                "st1    {v6.4s}, [x4]               \n"
-                "add    x4, x4, %w13, sxtw 2        \n"
-                "st1    {v7.4s}, [x4]               \n"
-
                 "9:                                 \n"
-                "add    %0, %0, #128                \n"
-                "b      11f                         \n"
+                // transpose8x4
+                "zip1   v24.8h, v28.8h, v29.8h      \n"
+                "zip2   v25.8h, v28.8h, v29.8h      \n"
+                "zip1   v26.8h, v30.8h, v31.8h      \n"
+                "zip2   v27.8h, v30.8h, v31.8h      \n"
+
+                "zip1   v20.4s, v24.4s, v26.4s      \n"
+                "zip2   v22.4s, v24.4s, v26.4s      \n"
+                "zip1   v24.4s, v25.4s, v27.4s      \n"
+                "zip2   v26.4s, v25.4s, v27.4s      \n"
+
+                "mov    v21.d[0], v20.d[1]          \n"
+                "mov    v23.d[0], v22.d[1]          \n"
+                "mov    v25.d[0], v24.d[1]          \n"
+                "mov    v27.d[0], v26.d[1]          \n"
+
+                "add    x4, %3, %w13, sxtw 1        \n"
+                "st1    {v20.4h}, [%3], #8          \n"
+                "st1    {v21.4h}, [x4]              \n"
+                "add    x4, x4, %w13, sxtw 1        \n"
+                "st1    {v22.4h}, [x4]              \n"
+                "add    x4, x4, %w13, sxtw 1        \n"
+                "st1    {v23.4h}, [x4]              \n"
+                "add    x4, x4, %w13, sxtw 1        \n"
+                "st1    {v24.4h}, [x4]              \n"
+                "add    x4, x4, %w13, sxtw 1        \n"
+                "st1    {v25.4h}, [x4]              \n"
+                "add    x4, x4, %w13, sxtw 1        \n"
+                "st1    {v26.4h}, [x4]              \n"
+                "add    x4, x4, %w13, sxtw 1        \n"
+                "st1    {v27.4h}, [x4]              \n"
 
                 "10:                                \n"
-                "st1    {v24.4s, v25.4s, v26.4s, v27.4s}, [%0], #64 \n"
-                "st1    {v28.4s, v29.4s, v30.4s, v31.4s}, [%0], #64 \n"
+                "add    %0, %0, #64                 \n"
+                "b      12f                         \n"
 
                 "11:                                \n"
+                "st1    {v28.8h, v29.8h, v30.8h, v31.8h}, [%0], #64 \n"
+
+                "12:                                \n"
 
                 : "=r"(outptr), // %0
                 "=r"(pA),     // %1
@@ -2554,7 +2538,7 @@ static void convolution_im2col_gemm_transform_kernel_fp16sa(const Mat& kernel, M
     int elempack = 1;
     if (opt.use_packing_layout)
     {
-        elempack = inch % 4 == 0 ? 4 : 1;
+        elempack = inch % 8 == 0 ? 8 : inch % 4 == 0 ? 4 : 1;
     }
 
     // maxk-inch-outch to pa-maxk-inch/pa-outch
