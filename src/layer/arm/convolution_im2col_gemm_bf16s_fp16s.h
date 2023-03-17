@@ -577,6 +577,7 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16_fp16(const Mat& botto
 #endif // __ARM_NEON
     for (; jj + 1 < max_jj; jj += 2)
     {
+#if __ARM_NEON
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
         if (elempack == 8)
         {
@@ -604,25 +605,15 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16_fp16(const Mat& botto
             for (; kk < max_kk / 4; kk++)
             {
                 // transpose4x2
-#if __ARM_NEON
                 uint16x4x2_t _r0;
                 _r0.val[0] = vld1_u16(p0);
                 _r0.val[1] = vld1_u16(p0 + 4);
                 vst2_u16(pp, _r0);
-#else
-                pp[0] = p0[0];
-                pp[1] = p0[4];
-                pp[2] = p0[1];
-                pp[3] = p0[5];
-                pp[4] = p0[2];
-                pp[5] = p0[6];
-                pp[6] = p0[3];
-                pp[7] = p0[7];
-#endif // __ARM_NEON
                 pp += 8;
                 p0 += bottom_blob.cstep * 4;
             }
         }
+#endif // __ARM_NEON
 
         if (elempack == 1)
         {
@@ -640,6 +631,7 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16_fp16(const Mat& botto
     }
     for (; jj < max_jj; jj++)
     {
+#if __ARM_NEON
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
         if (elempack == 8)
         {
@@ -662,18 +654,12 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16_fp16(const Mat& botto
             int kk = 0;
             for (; kk < max_kk / 4; kk++)
             {
-#if __ARM_NEON
                 vst1_u16(pp, vld1_u16(p0));
-#else
-                pp[0] = p0[0];
-                pp[1] = p0[1];
-                pp[2] = p0[2];
-                pp[3] = p0[3];
-#endif // __ARM_NEON
                 pp += 4;
                 p0 += bottom_blob.cstep * 4;
             }
         }
+#endif // __ARM_NEON
 
         if (elempack == 1)
         {
@@ -1079,6 +1065,7 @@ static void convolution_im2col_input_tile_bf16_fp16(const Mat& bottom_blob, Mat&
             const unsigned short* sptr0 = img.row<const unsigned short>(y0) + x0 * elempack;
             const unsigned short* sptr1 = img.row<const unsigned short>(y1) + x1 * elempack;
 
+#if __ARM_NEON
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
             if (elempack == 8)
             {
@@ -1113,6 +1100,7 @@ static void convolution_im2col_input_tile_bf16_fp16(const Mat& bottom_blob, Mat&
                 pp[7] = sptr1[3];
                 pp += 8;
             }
+#endif // __ARM_NEON
             if (elempack == 1)
             {
                 pp[0] = sptr0[0];
@@ -1141,6 +1129,7 @@ static void convolution_im2col_input_tile_bf16_fp16(const Mat& bottom_blob, Mat&
 
             const unsigned short* sptr = img.row<const unsigned short>(y) + x * elempack;
 
+#if __ARM_NEON
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
             if (elempack == 8)
             {
@@ -1163,6 +1152,7 @@ static void convolution_im2col_input_tile_bf16_fp16(const Mat& bottom_blob, Mat&
                 pp[3] = sptr[3];
                 pp += 4;
             }
+#endif // __ARM_NEON
             if (elempack == 1)
             {
                 pp[0] = sptr[0];

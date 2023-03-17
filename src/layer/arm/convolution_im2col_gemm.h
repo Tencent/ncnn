@@ -3443,6 +3443,7 @@ static void convolution_im2col_input_tile_conv1x1s1d1(const Mat& bottom_blob, Ma
 #endif // __ARM_NEON
     for (; jj + 1 < max_jj; jj += 2)
     {
+#if __ARM_NEON
         if (elempack == 4)
         {
             const float* p0 = (const float*)bottom_blob.channel(k / elempack) + (j + jj) * elempack;
@@ -3463,6 +3464,7 @@ static void convolution_im2col_input_tile_conv1x1s1d1(const Mat& bottom_blob, Ma
                 p0 += bottom_blob.cstep * elempack;
             }
         }
+#endif // __ARM_NEON
 
         if (elempack == 1)
         {
@@ -3480,6 +3482,7 @@ static void convolution_im2col_input_tile_conv1x1s1d1(const Mat& bottom_blob, Ma
     }
     for (; jj < max_jj; jj++)
     {
+#if __ARM_NEON
         if (elempack == 4)
         {
             const float* p0 = (const float*)bottom_blob.channel(k / 4) + (j + jj) * 4;
@@ -3495,6 +3498,7 @@ static void convolution_im2col_input_tile_conv1x1s1d1(const Mat& bottom_blob, Ma
                 p0 += bottom_blob.cstep * 4;
             }
         }
+#endif // __ARM_NEON
 
         if (elempack == 1)
         {
@@ -3834,6 +3838,7 @@ static void convolution_im2col_input_tile(const Mat& bottom_blob, Mat& B, int j,
             const float* sptr0 = img.row(y0) + x0 * elempack;
             const float* sptr1 = img.row(y1) + x1 * elempack;
 
+#if __ARM_NEON
             if (elempack == 4)
             {
                 pp[0] = sptr0[0];
@@ -3846,6 +3851,7 @@ static void convolution_im2col_input_tile(const Mat& bottom_blob, Mat& B, int j,
                 pp[7] = sptr1[3];
                 pp += 8;
             }
+#endif // __ARM_NEON
             if (elempack == 1)
             {
                 pp[0] = sptr0[0];
@@ -3874,6 +3880,7 @@ static void convolution_im2col_input_tile(const Mat& bottom_blob, Mat& B, int j,
 
             const float* sptr = img.row(y) + x * elempack;
 
+#if __ARM_NEON
             if (elempack == 4)
             {
                 pp[0] = sptr[0];
@@ -3882,6 +3889,7 @@ static void convolution_im2col_input_tile(const Mat& bottom_blob, Mat& B, int j,
                 pp[3] = sptr[3];
                 pp += 4;
             }
+#endif // __ARM_NEON
             if (elempack == 1)
             {
                 pp[0] = sptr[0];
