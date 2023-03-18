@@ -2495,6 +2495,57 @@ static void convolution_gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const
     }
 }
 
+static void convolution_im2col_gemm_get_optimal_tile_mnk_fp16sa(int M, int N, int K, int& TILE_M, int& TILE_N, int& TILE_K, int nT)
+{
+    // resolve optimal tile size from cache size
+    const int l2_cache_size_fp16 = (int)(get_cpu_level2_cache_size() / sizeof(unsigned short));
+
+    // solve K
+    {
+        // try not to split K
+        int tile_size = (l2_cache_size_fp16 - 32) / 12;
+
+        TILE_K = tile_size / 8 * 8;
+
+        int nn_K = (K + TILE_K - 1) / TILE_K;
+        TILE_K = std::min(TILE_K, ((K + nn_K - 1) / nn_K + 7) / 8 * 8);
+    }
+
+    // solve M
+    {
+        // split M is somewhat free as the out-most loop
+        TILE_M = 8;
+
+        TILE_M *= std::min(nT, get_physical_cpu_count());
+
+        int nn_M = (M + TILE_M - 1) / TILE_M;
+        TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 7) / 8 * 8);
+
+        if (nT > 1)
+        {
+            TILE_M = std::min(TILE_M, (std::max(1, TILE_M / nT) + 7) / 8 * 8);
+        }
+    }
+
+    if (N > 0)
+    {
+        int tile_size;
+        if (TILE_K >= K)
+        {
+            tile_size = (l2_cache_size_fp16 - TILE_M * TILE_K) / TILE_K;
+        }
+        else
+        {
+            tile_size = (l2_cache_size_fp16 - TILE_M * TILE_K) / (TILE_M + TILE_K);
+        }
+
+        TILE_N = std::max(4, tile_size / 4 * 4);
+
+        int nn_N = (N + TILE_N - 1) / TILE_N;
+        TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 3) / 4 * 4);
+    }
+}
+
 static void convolution_im2col_gemm_transform_kernel_fp16sa(const Mat& kernel, Mat& AT, int inch, int outch, int kernel_w, int kernel_h, const Option& opt)
 {
     // NCNN_LOGE("convolution_im2col_gemm_transform_kernel_fp16sa %p", kernel.data);
@@ -2506,7 +2557,7 @@ static void convolution_im2col_gemm_transform_kernel_fp16sa(const Mat& kernel, M
     int TILE_M, TILE_N, TILE_K;
     // TILE_M = (M + 7) / 8 * 8;
     // TILE_K = (K + 3) / 4 * 4;
-    get_optimal_tile_mnk_fp16(M, 0, K, TILE_M, TILE_N, TILE_K, opt.num_threads);
+    convolution_im2col_gemm_get_optimal_tile_mnk_fp16sa(M, 0, K, TILE_M, TILE_N, TILE_K, opt.num_threads);
 
     // TILE_K = 16;
 
@@ -2585,7 +2636,7 @@ static void convolution_im2col_gemm_fp16sa(const Mat& bottom_blob, Mat& top_blob
     // TILE_M = (M + 7) / 8 * 8;
     // TILE_N = (N + 3) / 4 * 4;
     // TILE_K = (K + 3) / 4 * 4;
-    get_optimal_tile_mnk_fp16(M, N, K, TILE_M, TILE_N, TILE_K, nT);
+    convolution_im2col_gemm_get_optimal_tile_mnk_fp16sa(M, N, K, TILE_M, TILE_N, TILE_K, nT);
 
     // TILE_K = 16;
 

@@ -4354,6 +4354,145 @@ static void convolution_gemm_transB_packed_tile(const Mat& AT_tile, const Mat& B
     }
 }
 
+static void convolution_im2col_gemm_get_optimal_tile_mnk(int M, int N, int K, int& TILE_M, int& TILE_N, int& TILE_K, int nT)
+{
+    // resolve optimal tile size from cache size
+    // const int l2_cache_size_fp32 = 10000000;
+    const int l2_cache_size_fp32 = (int)(get_cpu_level2_cache_size() / sizeof(float));
+
+    // solve K
+    {
+        // try not to split K
+#if __aarch64__
+        int tile_size = (l2_cache_size_fp32 - 32) / 12;
+#elif __ARM_NEON
+        int tile_size = (l2_cache_size_fp32 - 16) / 8;
+#else
+        int tile_size = (l2_cache_size_fp32 - 2) / 3;
+#endif
+
+#if __aarch64__
+        TILE_K = tile_size / 8 * 8;
+#elif __ARM_NEON
+        TILE_K = tile_size / 4 * 4;
+#else
+        TILE_K = tile_size / 2 * 2;
+#endif
+
+        int nn_K = (K + TILE_K - 1) / TILE_K;
+#if __aarch64__
+        TILE_K = std::min(TILE_K, ((K + nn_K - 1) / nn_K + 7) / 8 * 8);
+#elif __ARM_NEON
+        TILE_K = std::min(TILE_K, ((K + nn_K - 1) / nn_K + 3) / 4 * 4);
+#else
+        TILE_K = std::min(TILE_K, ((K + nn_K - 1) / nn_K + 1) / 2 * 2);
+#endif
+    }
+
+    // solve M
+    {
+        // try not to split M
+        int tile_size;
+        if (TILE_K >= K)
+        {
+            tile_size = (l2_cache_size_fp32 - 12 * TILE_K) / TILE_K;
+        }
+        else
+        {
+            tile_size = (l2_cache_size_fp32 - 12 * TILE_K) / (12 + TILE_K);
+        }
+
+#if __aarch64__
+        TILE_M = std::max(8, tile_size / 8 * 8);
+#elif __ARM_NEON
+        TILE_M = std::max(4, tile_size / 4 * 4);
+#else
+        TILE_M = std::max(2, tile_size / 2 * 2);
+#endif
+
+        int nn_M = (M + TILE_M - 1) / TILE_M;
+        // force nn_M be power of two
+        {
+            int power = 1;
+            while (power < nn_M)
+                power *= 2;
+            nn_M = power;
+        }
+
+#if __aarch64__
+        TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 7) / 8 * 8);
+#elif __ARM_NEON
+        TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 3) / 4 * 4);
+#else
+        TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 1) / 2 * 2);
+#endif
+
+        TILE_M = 0;
+
+#if __aarch64__
+        TILE_M = std::max(8, TILE_M);
+#elif __ARM_NEON
+        TILE_M = std::max(4, TILE_M);
+#else
+        TILE_M = std::max(2, TILE_M);
+#endif
+    }
+
+    {
+        TILE_M *= std::min(nT, get_physical_cpu_count());
+
+        int nn_M = (M + TILE_M - 1) / TILE_M;
+#if __aarch64__
+        TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 7) / 8 * 8);
+#elif __ARM_NEON
+        TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 3) / 4 * 4);
+#else
+        TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 1) / 2 * 2);
+#endif
+
+        if (nT > 1)
+        {
+#if __aarch64__
+            TILE_M = std::min(TILE_M, (std::max(1, TILE_M / nT) + 7) / 8 * 8);
+#elif __ARM_NEON
+            TILE_M = std::min(TILE_M, (std::max(1, TILE_M / nT) + 3) / 4 * 4);
+#else
+            TILE_M = std::min(TILE_M, (std::max(1, TILE_M / nT) + 1) / 2 * 2);
+#endif
+        }
+    }
+
+    if (N > 0)
+    {
+        int tile_size;
+        if (TILE_K >= K)
+        {
+            tile_size = (l2_cache_size_fp32 - TILE_M * TILE_K) / TILE_K;
+        }
+        else
+        {
+            tile_size = (l2_cache_size_fp32 - TILE_M * TILE_K) / (TILE_M + TILE_K);
+        }
+
+#if __aarch64__
+        TILE_N = std::max(4, tile_size / 4 * 4);
+#elif __ARM_NEON
+        TILE_N = std::max(4, tile_size / 4 * 4);
+#else
+        TILE_N = std::max(1, tile_size);
+#endif
+
+        int nn_N = (N + TILE_N - 1) / TILE_N;
+#if __aarch64__
+        TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 3) / 4 * 4);
+#elif __ARM_NEON
+        TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 3) / 4 * 4);
+#else
+        TILE_N = std::min(TILE_N, (N + nn_N - 1) / nn_N);
+#endif
+    }
+}
+
 static void convolution_im2col_input_tile_conv1x1s1d1(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk)
 {
     const int elempack = bottom_blob.elempack;
@@ -5078,7 +5217,7 @@ static void convolution_im2col_gemm_transform_kernel(const Mat& kernel, Mat& AT,
     int TILE_M, TILE_N, TILE_K;
     // TILE_M = (M + 7) / 8 * 8;
     // TILE_K = (K + 3) / 4 * 4;
-    get_optimal_tile_mnk(M, 0, K, TILE_M, TILE_N, TILE_K, opt.num_threads);
+    convolution_im2col_gemm_get_optimal_tile_mnk(M, 0, K, TILE_M, TILE_N, TILE_K, opt.num_threads);
 
     // TILE_K = 16;
 
@@ -5158,7 +5297,7 @@ static void convolution_im2col_gemm(const Mat& bottom_blob, Mat& top_blob, const
     // TILE_M = (M + 7) / 8 * 8;
     // TILE_N = (N + 3) / 4 * 4;
     // TILE_K = (K + 3) / 4 * 4;
-    get_optimal_tile_mnk(M, N, K, TILE_M, TILE_N, TILE_K, nT);
+    convolution_im2col_gemm_get_optimal_tile_mnk(M, N, K, TILE_M, TILE_N, TILE_K, nT);
 
     // TILE_K = 16;
 
