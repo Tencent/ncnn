@@ -45,4 +45,34 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_normalize, 10)
 
+class F_normalize_1 : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+12 11
+pnnx.Input              input       0 1 input
+prim::Constant          op_0        0 1 dtype value=*
+prim::Constant          op_1        0 1 keepdim value=True
+prim::Constant          op_2        0 1 p value=%p
+prim::Constant          op_3        0 1 dim value=%dim
+prim::Constant          op_4        0 1 eps value=%eps
+prim::ListConstruct     op_5        1 1 dim dims
+aten::linalg_vector_norm op_6       5 1 input p dims keepdim dtype 10
+aten::clamp_min         op_7        2 1 10 eps 13
+aten::expand_as         op_8        2 1 13 input denorm
+aten::div               op_9        2 1 input denorm out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "F.normalize";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_normalize_1, 10)
+
 } // namespace pnnx
