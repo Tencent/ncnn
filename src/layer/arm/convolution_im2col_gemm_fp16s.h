@@ -1101,7 +1101,6 @@ static void convolution_gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const
 
                 "eor    v28.16b, v28.16b, v28.16b   \n"
                 "eor    v29.16b, v29.16b, v29.16b   \n"
-
                 "4:                                 \n"
                 "prfm   pldl1keep, [%2, #128]       \n"
                 "ld1    {v0.8h}, [%2], #16          \n"
@@ -1117,7 +1116,6 @@ static void convolution_gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const
                 "fmla   v30.8h, v7.8h, v0.h[6]      \n"
                 "fmla   v31.8h, v7.8h, v0.h[7]      \n"
                 "bne    4b                          \n"
-
                 "fadd   v30.8h, v30.8h, v28.8h      \n"
                 "fadd   v31.8h, v31.8h, v29.8h      \n"
 
