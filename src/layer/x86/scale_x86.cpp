@@ -281,7 +281,6 @@ int Scale_x86::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
 #endif // __AVX__
 #endif // __SSE2__
 
-
                 int i = 0;
 #if __SSE2__
 #if __AVX__
