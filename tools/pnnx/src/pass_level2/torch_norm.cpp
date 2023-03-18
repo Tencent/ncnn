@@ -69,4 +69,29 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_norm_1, 20)
 
+class torch_norm_2 : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+7 6
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 dim
+prim::Constant          op_0        0 1 p value=%p
+prim::Constant          op_1        0 1 keepdim value=%keepdim
+prim::Constant          op_2        0 1 dtype value=*
+aten::linalg_vector_norm op_3       5 1 input p dim keepdim dtype out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "torch.norm";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_norm_2, 20)
+
 } // namespace pnnx
