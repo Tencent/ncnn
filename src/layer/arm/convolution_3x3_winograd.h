@@ -3345,19 +3345,11 @@ static void conv3x3s1_winograd_get_optimal_tile_mnk(int M, int N, int K, int B, 
 #endif
 
 #if __aarch64__
-        TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 7) / 8 * 8);
+        TILE_M = std::max(8, ((M + nn_M - 1) / nn_M + 7) / 8 * 8);
 #elif __ARM_NEON
-        TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 3) / 4 * 4);
+        TILE_M = std::max(4, ((M + nn_M - 1) / nn_M + 3) / 4 * 4);
 #else
-        TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 1) / 2 * 2);
-#endif
-
-#if __aarch64__
-        TILE_M = std::max(8, TILE_M);
-#elif __ARM_NEON
-        TILE_M = std::max(4, TILE_M);
-#else
-        TILE_M = std::max(2, TILE_M);
+        TILE_M = std::max(2, ((M + nn_M - 1) / nn_M + 1) / 2 * 2);
 #endif
     }
 
