@@ -4390,7 +4390,13 @@ static void convolution_im2col_gemm_get_optimal_tile_mnk(int M, int N, int K, in
 
     // solve M
     {
+#if __aarch64__
         int nn_M = (M + 63) / 64;
+#elif __ARM_NEON
+        int nn_M = (M + 31) / 32;
+#else
+        int nn_M = (M + 15) / 16;
+#endif
 
 #if __aarch64__
         TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 7) / 8 * 8);
