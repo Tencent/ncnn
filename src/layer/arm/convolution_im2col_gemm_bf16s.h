@@ -4461,15 +4461,26 @@ static void convolution_im2col_gemm_get_optimal_tile_mnk_bf16s(int M, int N, int
 
     // solve M
     {
-        // split M is somewhat free as the out-most loop
+        int nn_M = (M + 63) / 64;
+
 #if __aarch64__
-        TILE_M = 8;
+        TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 7) / 8 * 8);
 #elif __ARM_NEON
-        TILE_M = 4;
+        TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 3) / 4 * 4);
 #else
-        TILE_M = 2;
+        TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 1) / 2 * 2);
 #endif
 
+#if __aarch64__
+        TILE_M = std::max(8, TILE_M);
+#elif __ARM_NEON
+        TILE_M = std::max(4, TILE_M);
+#else
+        TILE_M = std::max(2, TILE_M);
+#endif
+    }
+
+    {
         TILE_M *= std::min(nT, get_physical_cpu_count());
 
         int nn_M = (M + TILE_M - 1) / TILE_M;

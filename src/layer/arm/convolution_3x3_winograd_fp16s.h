@@ -1709,9 +1709,14 @@ static void conv3x3s1_winograd_get_optimal_tile_mnk_fp16(int M, int N, int K, in
 
     // solve M
     {
-        // split M is somewhat free as the out-most loop
-        TILE_M = 8;
+        int nn_M = (M + 63) / 64;
 
+        TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 7) / 8 * 8);
+
+        TILE_M = std::max(8, TILE_M);
+    }
+
+    {
         TILE_M *= std::min(nT, get_physical_cpu_count());
 
         int nn_M = (M + TILE_M - 1) / TILE_M;
