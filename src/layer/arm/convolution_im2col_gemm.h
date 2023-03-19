@@ -4357,7 +4357,6 @@ static void convolution_gemm_transB_packed_tile(const Mat& AT_tile, const Mat& B
 static void convolution_im2col_gemm_get_optimal_tile_mnk(int M, int N, int K, int& TILE_M, int& TILE_N, int& TILE_K, int nT)
 {
     // resolve optimal tile size from cache size
-    // const int l2_cache_size_fp32 = 10000000;
     const int l2_cache_size_fp32 = (int)(get_cpu_level2_cache_size() / sizeof(float));
 
     // solve K
@@ -4391,33 +4390,7 @@ static void convolution_im2col_gemm_get_optimal_tile_mnk(int M, int N, int K, in
 
     // solve M
     {
-        // try not to split M
-        int tile_size;
-        if (TILE_K >= K)
-        {
-            tile_size = (l2_cache_size_fp32 - 12 * TILE_K) / TILE_K;
-        }
-        else
-        {
-            tile_size = (l2_cache_size_fp32 - 12 * TILE_K) / (12 + TILE_K);
-        }
-
-#if __aarch64__
-        TILE_M = std::max(8, tile_size / 8 * 8);
-#elif __ARM_NEON
-        TILE_M = std::max(4, tile_size / 4 * 4);
-#else
-        TILE_M = std::max(2, tile_size / 2 * 2);
-#endif
-
-        int nn_M = (M + TILE_M - 1) / TILE_M;
-        // force nn_M be power of two
-        {
-            int power = 1;
-            while (power < nn_M)
-                power *= 2;
-            nn_M = power;
-        }
+        int nn_M = (M + 63) / 64;
 
 #if __aarch64__
         TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 7) / 8 * 8);
@@ -4426,8 +4399,6 @@ static void convolution_im2col_gemm_get_optimal_tile_mnk(int M, int N, int K, in
 #else
         TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 1) / 2 * 2);
 #endif
-
-        TILE_M = 0;
 
 #if __aarch64__
         TILE_M = std::max(8, TILE_M);
@@ -4489,6 +4460,14 @@ static void convolution_im2col_gemm_get_optimal_tile_mnk(int M, int N, int K, in
         TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 3) / 4 * 4);
 #else
         TILE_N = std::min(TILE_N, (N + nn_N - 1) / nn_N);
+#endif
+
+#if __aarch64__
+        TILE_N = std::max(4, TILE_N);
+#elif __ARM_NEON
+        TILE_N = std::max(4, TILE_N);
+#else
+        TILE_N = std::max(1, TILE_N);
 #endif
     }
 }
