@@ -67,10 +67,10 @@ class Model(nn.Module):
         ygp2 = torch.permute(ygp2, (0, 2, 3, 4, 1))
 
         x1 = F.grid_sample(x, xgp1, mode='bilinear', padding_mode='zeros', align_corners=False)
-        x1 = F.grid_sample(x, xgp2, mode='bilinear', padding_mode='border', align_corners=False)
+        x1 = F.grid_sample(x1, xgp2, mode='bilinear', padding_mode='border', align_corners=False)
 
         y1 = F.grid_sample(y, ygp1, mode='bilinear', padding_mode='zeros', align_corners=False)
-        y1 = F.grid_sample(y, ygp2, mode='bilinear', padding_mode='border', align_corners=False)
+        y1 = F.grid_sample(y1, ygp2, mode='bilinear', padding_mode='border', align_corners=False)
         return x0, y0, x1, y1
 
 def test():

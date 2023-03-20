@@ -110,7 +110,7 @@ static float get_value_bounded(const Mat& image, int x, int y)
 
 static float get_value_bounded(const Mat& image, int x, int y, int z)
 {
-    return in_bounds(image, x, y, z) ? image.channel(z).row(y)[x] : 0.f;
+    return in_bounds(image, x, y, z) ? image.depth(z).row(y)[x] : 0.f;
 }
 
 static float get_value_bounded(const Mat& image, int x, int y, int padding_mode, int align_corner)
@@ -119,15 +119,6 @@ static float get_value_bounded(const Mat& image, int x, int y, int padding_mode,
     y = compute_coord(y, image.h, padding_mode, align_corner);
 
     return get_value_bounded(image, x, y);
-}
-
-static float get_value_bounded(const Mat& image, int x, int y, int z, int padding_mode, int align_corner)
-{
-    x = compute_coord(x, image.w, padding_mode, align_corner);
-    y = compute_coord(y, image.h, padding_mode, align_corner);
-    z = compute_coord(z, image.c, padding_mode, align_corner);
-
-    return get_value_bounded(image, x, y, z);
 }
 
 static inline void interpolate_cubic(float fx, float* coeffs)

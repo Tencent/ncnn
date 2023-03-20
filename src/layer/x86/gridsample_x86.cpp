@@ -247,18 +247,20 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
     int outw, outh, outd;
     Mat offset_blob, in_bound_blob, value_blob;
 
-    ncnn::Mat grid_tmp;
-    if (permute_fusion == 0 && grid.elempack != 1)
+    ncnn::Mat grid_p1;
+    if (grid.elempack != 1)
     {
-        ncnn::convert_packing(grid, grid_tmp, 1, opt);
+        ncnn::convert_packing(grid, grid_p1, 1, opt);
     }
-
-    ncnn::Mat grid_p1 = (grid.elempack == 1) ? grid : grid_tmp;
+    else
+    {
+        grid_p1 = grid;
+    }
 
     if (dims == 3)
     {
-        outw = permute_fusion == 0 ? grid.h : grid.w;
-        outh = permute_fusion == 0 ? grid.c : grid.h;
+        outw = permute_fusion == 0 ? grid_p1.h : grid_p1.w;
+        outh = permute_fusion == 0 ? grid_p1.c : grid_p1.h;
 
         top_blob.create(outw, outh, channels, elemsize, elempack, opt.blob_allocator);
         if (top_blob.empty())
