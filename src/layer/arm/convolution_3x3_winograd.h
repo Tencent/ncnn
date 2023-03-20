@@ -12,7 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-static void pack_A_tile(const Mat& A, Mat& AT, int batch, int max_ii, int max_kk)
+static void conv3x3s1_winograd_pack_A_tile(const Mat& A, Mat& AT, int batch, int max_ii, int max_kk)
 {
     const int N = max_kk * batch;
 
@@ -87,7 +87,7 @@ static void pack_A_tile(const Mat& A, Mat& AT, int batch, int max_ii, int max_kk
     }
 }
 
-static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, int max_kk, int nT)
+static void conv3x3s1_winograd_transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, int max_kk, int nT)
 {
     #pragma omp parallel for num_threads(nT)
     for (int b = 0; b < batch; b++)
@@ -771,9 +771,9 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, 
     }
 }
 
-static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat& top_blob, int batch, int max_ii, int max_jj, int k, int max_kk)
+static void conv3x3s1_winograd_gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat& top_blob, int batch, int max_ii, int max_jj, int k, int max_kk)
 {
-    // NCNN_LOGE("gemm_transB_packed_tile %d %d %d", max_ii, max_jj, max_kk);
+    // NCNN_LOGE("conv3x3s1_winograd_gemm_transB_packed_tile %d %d %d", max_ii, max_jj, max_kk);
     float* outptr = top_blob;
 
     int ii = 0;
@@ -1721,8 +1721,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 
 #if NCNN_GNU_INLINE_ASM
                 asm volatile(
-                    "eor    v28.16b, v28.16b, v28.16b   \n"
-                    "eor    v29.16b, v29.16b, v29.16b   \n"
                     "cbz    %w7, 0f                     \n"
 
                     "ld1    {v30.4s, v31.4s}, [%0]      \n"
@@ -1737,6 +1735,8 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     "cmp    w4, #0                      \n"
                     "beq    3f                          \n"
 
+                    "eor    v28.16b, v28.16b, v28.16b   \n"
+                    "eor    v29.16b, v29.16b, v29.16b   \n"
                     "2:                                 \n"
                     "prfm   pldl1keep, [%2, #128]       \n"
                     "ld1    {v0.4s}, [%2], #16          \n"
@@ -1754,7 +1754,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     "fmla   v30.4s, v10.4s, v0.s[3]     \n"
                     "fmla   v31.4s, v11.4s, v0.s[3]     \n"
                     "bne    2b                          \n"
-
                     "fadd   v30.4s, v30.4s, v28.4s      \n"
                     "fadd   v31.4s, v31.4s, v29.4s      \n"
 
@@ -2526,8 +2525,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 #if NCNN_GNU_INLINE_ASM
 #if __aarch64__
                 asm volatile(
-                    "eor    v28.16b, v28.16b, v28.16b   \n"
-                    "eor    v29.16b, v29.16b, v29.16b   \n"
                     "cbz    %w7, 0f                     \n"
 
                     "ld1    {v30.4s, v31.4s}, [%0]      \n"
@@ -2542,6 +2539,8 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     "cmp    w4, #0                      \n"
                     "beq    3f                          \n"
 
+                    "eor    v28.16b, v28.16b, v28.16b   \n"
+                    "eor    v29.16b, v29.16b, v29.16b   \n"
                     "2:                                 \n"
                     "prfm   pldl1keep, [%2, #256]       \n"
                     "ld1    {v0.4s, v1.4s}, [%2], #32   \n"
@@ -2557,7 +2556,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     "fmla   v30.4s, v19.4s, v1.s[2]     \n"
                     "fmla   v31.4s, v19.4s, v1.s[3]     \n"
                     "bne    2b                          \n"
-
                     "fadd   v30.4s, v30.4s, v28.4s      \n"
                     "fadd   v31.4s, v31.4s, v29.4s      \n"
 
@@ -2588,8 +2586,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v16", "v17", "v18", "v19", "v28", "v29", "v30", "v31");
 #else  // __aarch64__
                 asm volatile(
-                    "veor       q12, q12            \n"
-                    "veor       q13, q13            \n"
                     "cmp        %7, #0              \n"
                     "beq        0f                  \n"
 
@@ -2605,6 +2601,8 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     "cmp        r4, #0              \n"
                     "beq        3f                  \n"
 
+                    "veor       q12, q12            \n"
+                    "veor       q13, q13            \n"
                     "2:                             \n"
                     "pld        [%2, #256]          \n"
                     "vld1.f32   {d0-d3}, [%2 :128]! \n"
@@ -2620,7 +2618,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     "vmla.f32   q14, q7, d3[0]      \n"
                     "vmla.f32   q15, q7, d3[1]      \n"
                     "bne        2b                  \n"
-
                     "vadd.f32   q14, q14, q12       \n"
                     "vadd.f32   q15, q15, q13       \n"
 
@@ -2695,9 +2692,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 #if NCNN_GNU_INLINE_ASM
 #if __aarch64__
                 asm volatile(
-                    "eor    v28.16b, v28.16b, v28.16b   \n"
-                    "eor    v29.16b, v29.16b, v29.16b   \n"
-                    "eor    v30.16b, v30.16b, v30.16b   \n"
                     "cbz    %w7, 0f                     \n"
 
                     "ld1    {v31.4s}, [%0]              \n"
@@ -2711,6 +2705,9 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     "cmp    w4, #0                      \n"
                     "beq    3f                          \n"
 
+                    "eor    v28.16b, v28.16b, v28.16b   \n"
+                    "eor    v29.16b, v29.16b, v29.16b   \n"
+                    "eor    v30.16b, v30.16b, v30.16b   \n"
                     "2:                                 \n"
                     "prfm   pldl1keep, [%2, #128]       \n"
                     "ld1    {v0.4s}, [%2], #16          \n"
@@ -2722,7 +2719,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     "fmla   v30.4s, v18.4s, v0.s[2]     \n"
                     "fmla   v31.4s, v19.4s, v0.s[3]     \n"
                     "bne    2b                          \n"
-
                     "fadd   v30.4s, v30.4s, v28.4s      \n"
                     "fadd   v31.4s, v31.4s, v29.4s      \n"
                     "fadd   v31.4s, v31.4s, v30.4s      \n"
@@ -2753,9 +2749,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v16", "v17", "v18", "v19", "v28", "v29", "v30", "v31");
 #else  // __aarch64__
                 asm volatile(
-                    "veor       q12, q12            \n"
-                    "veor       q13, q13            \n"
-                    "veor       q14, q14            \n"
                     "cmp        %7, #0              \n"
                     "beq        0f                  \n"
 
@@ -2770,6 +2763,9 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     "cmp        r4, #0              \n"
                     "beq        3f                  \n"
 
+                    "veor       q12, q12            \n"
+                    "veor       q13, q13            \n"
+                    "veor       q14, q14            \n"
                     "2:                             \n"
                     "pld        [%2, #128]          \n"
                     "vld1.f32   {d0-d1}, [%2 :64]!  \n"
@@ -2781,7 +2777,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     "vmla.f32   q14, q6, d1[0]      \n"
                     "vmla.f32   q15, q7, d1[1]      \n"
                     "bne        2b                  \n"
-
                     "vadd.f32   q14, q14, q12       \n"
                     "vadd.f32   q15, q15, q13       \n"
                     "vadd.f32   q15, q15, q14       \n"
@@ -3305,10 +3300,13 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
     }
 }
 
-static void get_optimal_tile_mnk(int M, int N, int K, int& TILE_M, int& TILE_N, int& TILE_K, int nT)
+static void conv3x3s1_winograd_get_optimal_tile_mnk(int M, int N, int K, int B, int& TILE_M, int& TILE_N, int& TILE_K, int nT)
 {
     // resolve optimal tile size from cache size
     const int l2_cache_size_fp32 = (int)(get_cpu_level2_cache_size() / sizeof(float));
+
+    // we shall take B into account for batched gemm, but that will be slower on arm in practice, why ?
+    (void)B;
 
     // solve K
     {
@@ -3341,7 +3339,6 @@ static void get_optimal_tile_mnk(int M, int N, int K, int& TILE_M, int& TILE_N, 
 
     // solve M
     {
-        // split M is somewhat free as the out-most loop
 #if __aarch64__
         TILE_M = 8;
 #elif __ARM_NEON
@@ -3349,7 +3346,9 @@ static void get_optimal_tile_mnk(int M, int N, int K, int& TILE_M, int& TILE_N, 
 #else
         TILE_M = 2;
 #endif
+    }
 
+    {
         TILE_M *= std::min(nT, get_physical_cpu_count());
 
         int nn_M = (M + TILE_M - 1) / TILE_M;
@@ -3371,6 +3370,14 @@ static void get_optimal_tile_mnk(int M, int N, int K, int& TILE_M, int& TILE_N, 
             TILE_M = std::min(TILE_M, (std::max(1, TILE_M / nT) + 1) / 2 * 2);
 #endif
         }
+
+#if __aarch64__
+        TILE_M = std::max(8, TILE_M);
+#elif __ARM_NEON
+        TILE_M = std::max(4, TILE_M);
+#else
+        TILE_M = std::max(2, TILE_M);
+#endif
     }
 
     if (N > 0)
@@ -3394,12 +3401,21 @@ static void get_optimal_tile_mnk(int M, int N, int K, int& TILE_M, int& TILE_N, 
 #endif
 
         int nn_N = (N + TILE_N - 1) / TILE_N;
+
 #if __aarch64__
         TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 3) / 4 * 4);
 #elif __ARM_NEON
         TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 3) / 4 * 4);
 #else
         TILE_N = std::min(TILE_N, (N + nn_N - 1) / nn_N);
+#endif
+
+#if __aarch64__
+        TILE_N = std::max(4, TILE_N);
+#elif __ARM_NEON
+        TILE_N = std::max(4, TILE_N);
+#else
+        TILE_N = std::max(1, TILE_N);
 #endif
     }
 }
@@ -3467,7 +3483,7 @@ static void conv3x3s1_winograd23_transform_kernel(const Mat& kernel, Mat& AT, in
     const int B = 16;
 
     int TILE_M, TILE_N, TILE_K;
-    get_optimal_tile_mnk(M, 0, K, TILE_M, TILE_N, TILE_K, opt.num_threads);
+    conv3x3s1_winograd_get_optimal_tile_mnk(M, 0, K, B, TILE_M, TILE_N, TILE_K, opt.num_threads);
 
     const int nn_M = (M + TILE_M - 1) / TILE_M;
 
@@ -3491,7 +3507,7 @@ static void conv3x3s1_winograd23_transform_kernel(const Mat& kernel, Mat& AT, in
 
             Mat AT_tile = AT.channel(i / TILE_M).depth(k / TILE_K);
 
-            pack_A_tile(A_tile, AT_tile, B, max_ii, max_kk);
+            conv3x3s1_winograd_pack_A_tile(A_tile, AT_tile, B, max_ii, max_kk);
         }
     }
 }
@@ -4418,7 +4434,7 @@ static void conv3x3s1_winograd23(const Mat& bottom_blob, Mat& top_blob, const Ma
     // NCNN_LOGE("conv3x3s1_winograd23 %d %d %d", M, N, K);
 
     int TILE_M, TILE_N, TILE_K;
-    get_optimal_tile_mnk(M, N, K, TILE_M, TILE_N, TILE_K, nT);
+    conv3x3s1_winograd_get_optimal_tile_mnk(M, N, K, B, TILE_M, TILE_N, TILE_K, nT);
 
     const int nn_M = (M + TILE_M - 1) / TILE_M;
     const int nn_N = (N + TILE_N - 1) / TILE_N;
@@ -4450,7 +4466,7 @@ static void conv3x3s1_winograd23(const Mat& bottom_blob, Mat& top_blob, const Ma
 
             Mat BT_tile = BT.channel(j / TILE_N).depth(k / TILE_K);
 
-            transpose_pack_B_tile(B_tile, BT_tile, B, max_jj, max_kk, nT);
+            conv3x3s1_winograd_transpose_pack_B_tile(B_tile, BT_tile, B, max_jj, max_kk, nT);
         }
     }
     else
@@ -4476,7 +4492,7 @@ static void conv3x3s1_winograd23(const Mat& bottom_blob, Mat& top_blob, const Ma
 
             Mat BT_tile = BT.channel(j / TILE_N).depth(k / TILE_K);
 
-            transpose_pack_B_tile(B_tile, BT_tile, B, max_jj, max_kk, 1);
+            conv3x3s1_winograd_transpose_pack_B_tile(B_tile, BT_tile, B, max_jj, max_kk, 1);
         }
     }
 
@@ -4503,7 +4519,7 @@ static void conv3x3s1_winograd23(const Mat& bottom_blob, Mat& top_blob, const Ma
 
                 const Mat BT_tile = BT.channel(j / TILE_N).depth(k / TILE_K);
 
-                gemm_transB_packed_tile(AT_tile, BT_tile, top_tile, B, max_ii, max_jj, k, max_kk);
+                conv3x3s1_winograd_gemm_transB_packed_tile(AT_tile, BT_tile, top_tile, B, max_ii, max_jj, k, max_kk);
             }
 
             // transform output
@@ -4589,7 +4605,7 @@ static void conv3x3s1_winograd43_transform_kernel(const Mat& kernel, Mat& AT, in
     const int B = 36;
 
     int TILE_M, TILE_N, TILE_K;
-    get_optimal_tile_mnk(M, 0, K, TILE_M, TILE_N, TILE_K, opt.num_threads);
+    conv3x3s1_winograd_get_optimal_tile_mnk(M, 0, K, B, TILE_M, TILE_N, TILE_K, opt.num_threads);
 
     const int nn_M = (M + TILE_M - 1) / TILE_M;
 
@@ -4613,7 +4629,7 @@ static void conv3x3s1_winograd43_transform_kernel(const Mat& kernel, Mat& AT, in
 
             Mat AT_tile = AT.channel(i / TILE_M).depth(k / TILE_K);
 
-            pack_A_tile(A_tile, AT_tile, B, max_ii, max_kk);
+            conv3x3s1_winograd_pack_A_tile(A_tile, AT_tile, B, max_ii, max_kk);
         }
     }
 }
@@ -6096,7 +6112,7 @@ static void conv3x3s1_winograd43(const Mat& bottom_blob, Mat& top_blob, const Ma
     // NCNN_LOGE("conv3x3s1_winograd43 %d %d %d", M, N, K);
 
     int TILE_M, TILE_N, TILE_K;
-    get_optimal_tile_mnk(M, N, K, TILE_M, TILE_N, TILE_K, nT);
+    conv3x3s1_winograd_get_optimal_tile_mnk(M, N, K, B, TILE_M, TILE_N, TILE_K, nT);
 
     const int nn_M = (M + TILE_M - 1) / TILE_M;
     const int nn_N = (N + TILE_N - 1) / TILE_N;
@@ -6128,7 +6144,7 @@ static void conv3x3s1_winograd43(const Mat& bottom_blob, Mat& top_blob, const Ma
 
             Mat BT_tile = BT.channel(j / TILE_N).depth(k / TILE_K);
 
-            transpose_pack_B_tile(B_tile, BT_tile, B, max_jj, max_kk, nT);
+            conv3x3s1_winograd_transpose_pack_B_tile(B_tile, BT_tile, B, max_jj, max_kk, nT);
         }
     }
     else
@@ -6154,7 +6170,7 @@ static void conv3x3s1_winograd43(const Mat& bottom_blob, Mat& top_blob, const Ma
 
             Mat BT_tile = BT.channel(j / TILE_N).depth(k / TILE_K);
 
-            transpose_pack_B_tile(B_tile, BT_tile, B, max_jj, max_kk, 1);
+            conv3x3s1_winograd_transpose_pack_B_tile(B_tile, BT_tile, B, max_jj, max_kk, 1);
         }
     }
 
@@ -6181,7 +6197,7 @@ static void conv3x3s1_winograd43(const Mat& bottom_blob, Mat& top_blob, const Ma
 
                 const Mat BT_tile = BT.channel(j / TILE_N).depth(k / TILE_K);
 
-                gemm_transB_packed_tile(AT_tile, BT_tile, top_tile, B, max_ii, max_jj, k, max_kk);
+                conv3x3s1_winograd_gemm_transB_packed_tile(AT_tile, BT_tile, top_tile, B, max_ii, max_jj, k, max_kk);
             }
 
             // transform output
@@ -6274,7 +6290,7 @@ static void conv3x3s1_winograd63_transform_kernel(const Mat& kernel, Mat& AT, in
     const int B = 64;
 
     int TILE_M, TILE_N, TILE_K;
-    get_optimal_tile_mnk(M, 0, K, TILE_M, TILE_N, TILE_K, opt.num_threads);
+    conv3x3s1_winograd_get_optimal_tile_mnk(M, 0, K, B, TILE_M, TILE_N, TILE_K, opt.num_threads);
 
     const int nn_M = (M + TILE_M - 1) / TILE_M;
 
@@ -6298,7 +6314,7 @@ static void conv3x3s1_winograd63_transform_kernel(const Mat& kernel, Mat& AT, in
 
             Mat AT_tile = AT.channel(i / TILE_M).depth(k / TILE_K);
 
-            pack_A_tile(A_tile, AT_tile, B, max_ii, max_kk);
+            conv3x3s1_winograd_pack_A_tile(A_tile, AT_tile, B, max_ii, max_kk);
         }
     }
 }
@@ -8132,7 +8148,7 @@ static void conv3x3s1_winograd63(const Mat& bottom_blob, Mat& top_blob, const Ma
     // NCNN_LOGE("conv3x3s1_winograd63 %d %d %d", M, N, K);
 
     int TILE_M, TILE_N, TILE_K;
-    get_optimal_tile_mnk(M, N, K, TILE_M, TILE_N, TILE_K, nT);
+    conv3x3s1_winograd_get_optimal_tile_mnk(M, N, K, B, TILE_M, TILE_N, TILE_K, nT);
 
     const int nn_M = (M + TILE_M - 1) / TILE_M;
     const int nn_N = (N + TILE_N - 1) / TILE_N;
@@ -8164,7 +8180,7 @@ static void conv3x3s1_winograd63(const Mat& bottom_blob, Mat& top_blob, const Ma
 
             Mat BT_tile = BT.channel(j / TILE_N).depth(k / TILE_K);
 
-            transpose_pack_B_tile(B_tile, BT_tile, B, max_jj, max_kk, nT);
+            conv3x3s1_winograd_transpose_pack_B_tile(B_tile, BT_tile, B, max_jj, max_kk, nT);
         }
     }
     else
@@ -8190,7 +8206,7 @@ static void conv3x3s1_winograd63(const Mat& bottom_blob, Mat& top_blob, const Ma
 
             Mat BT_tile = BT.channel(j / TILE_N).depth(k / TILE_K);
 
-            transpose_pack_B_tile(B_tile, BT_tile, B, max_jj, max_kk, 1);
+            conv3x3s1_winograd_transpose_pack_B_tile(B_tile, BT_tile, B, max_jj, max_kk, 1);
         }
     }
 
@@ -8217,7 +8233,7 @@ static void conv3x3s1_winograd63(const Mat& bottom_blob, Mat& top_blob, const Ma
 
                 const Mat BT_tile = BT.channel(j / TILE_N).depth(k / TILE_K);
 
-                gemm_transB_packed_tile(AT_tile, BT_tile, top_tile, B, max_ii, max_jj, k, max_kk);
+                conv3x3s1_winograd_gemm_transB_packed_tile(AT_tile, BT_tile, top_tile, B, max_ii, max_jj, k, max_kk);
             }
 
             // transform output
