@@ -1329,7 +1329,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 "r"(k_end),        // %11
                 "r"(out_elempack), // %12
                 "r"(out_hstep)     // %13
-                : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
+                : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
 #else  // NCNN_GNU_INLINE_ASM
             float32x4_t _sum00;
             float32x4_t _sum01;
@@ -1600,7 +1600,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 "r"(k_end),        // %11
                 "r"(out_elempack), // %12
                 "r"(out_hstep)     // %13
-                : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
+                : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v28", "v29", "v30", "v31");
 #else  // NCNN_GNU_INLINE_ASM
             float32x4_t _sum00;
             float32x4_t _sum01;
@@ -1832,7 +1832,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 "r"(k_end),        // %11
                 "r"(out_elempack), // %12
                 "r"(out_hstep)     // %13
-                : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
+                : "cc", "memory", "x4", "v0", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v28", "v29", "v30", "v31");
 #else  // NCNN_GNU_INLINE_ASM
             float32x4_t _sum00;
             float32x4_t _sum01;
@@ -2147,7 +2147,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 "r"(k_end),        // %11
                 "r"(out_elempack), // %12
                 "r"(out_hstep)     // %13
-                : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
+                : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
 #else  // NCNN_GNU_INLINE_ASM
             float32x4_t _sum0;
             float32x4_t _sum1;
@@ -2482,7 +2482,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 "r"(k_end),        // %11
                 "r"(out_elempack), // %12
                 "r"(out_hstep)     // %13
-                : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
+                : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
 #else  // __aarch64__
             asm volatile(
                 "cmp        %10, #0             \n"
@@ -2923,7 +2923,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 "r"(k_end),        // %11
                 "r"(out_elempack), // %12
                 "r"(out_hstep)     // %13
-                : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
+                : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v16", "v17", "v18", "v19", "v20", "v21", "v28", "v29", "v30", "v31");
 #else  // __aarch64__
             asm volatile(
                 "cmp        %10, #0             \n"
@@ -3055,7 +3055,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 "r"(k_end),        // %11
                 "r"(out_elempack), // %12
                 "r"(out_hstep)     // %13
-                : "cc", "memory", "r4", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
+                : "cc", "memory", "r4", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q12", "q13", "q14", "q15");
 #endif // __aarch64__
 #else  // NCNN_GNU_INLINE_ASM
             float32x4_t _sum0;
@@ -3268,7 +3268,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 "r"(k_end),        // %11
                 "r"(out_elempack), // %12
                 "r"(out_hstep)     // %13
-                : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
+                : "cc", "memory", "x4", "v0", "v1", "v16", "v17", "v18", "v19", "v28", "v29", "v30", "v31");
 #else  // __aarch64__
             asm volatile(
                 "cmp        %10, #0             \n"
@@ -3387,7 +3387,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 "r"(k_end),        // %11
                 "r"(out_elempack), // %12
                 "r"(out_hstep)     // %13
-                : "cc", "memory", "r4", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
+                : "cc", "memory", "r4", "q0", "q1", "q4", "q5", "q6", "q7", "q12", "q13", "q14", "q15");
 #endif // __aarch64__
 #else  // NCNN_GNU_INLINE_ASM
             float32x4_t _sum0;
@@ -3575,7 +3575,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 "r"(k_end),        // %11
                 "r"(out_elempack), // %12
                 "r"(out_hstep)     // %13
-                : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
+                : "cc", "memory", "x4", "v0", "v16", "v17", "v18", "v19", "v28", "v29", "v30", "v31");
 #else  // __aarch64__
             asm volatile(
                 "cmp        %10, #0             \n"
@@ -3684,7 +3684,7 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 "r"(k_end),        // %11
                 "r"(out_elempack), // %12
                 "r"(out_hstep)     // %13
-                : "cc", "memory", "r4", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
+                : "cc", "memory", "r4", "q0", "q4", "q5", "q6", "q7", "q12", "q13", "q14", "q15");
 #endif // __aarch64__
 #else  // NCNN_GNU_INLINE_ASM
             float32x4_t _sum0;
