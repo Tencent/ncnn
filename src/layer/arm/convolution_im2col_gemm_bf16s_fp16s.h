@@ -339,18 +339,10 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16_fp16(const Mat& botto
             int kk = 0;
             for (; kk < max_kk; kk++)
             {
-                pp[0] = p0[0];
-                pp[1] = p0[1];
-                pp[2] = p0[2];
-                pp[3] = p0[3];
-                pp[4] = p0[4];
-                pp[5] = p0[5];
-                pp[6] = p0[6];
-                pp[7] = p0[7];
-                pp[8] = p0[8];
-                pp[9] = p0[9];
-                pp[10] = p0[10];
-                pp[11] = p0[11];
+                uint16x8_t _r01 = vld1q_u16(p0);
+                uint16x4_t _r2 = vld1_u16(p0 + 8);
+                vst1q_u16(pp, _r01);
+                vst1_u16(pp + 8, _r2);
                 pp += 12;
                 p0 += bottom_blob.cstep;
             }
@@ -437,9 +429,9 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16_fp16(const Mat& botto
 #else  // __aarch64__
                 asm volatile(
                     "pld        [%0, #256]          \n"
-                    "vld4.u16   {d0,d2,d4,d6}, [%0]! \n"
+                    "vld4.u16   {d0,d2,d4,d6}, [%0 :64]! \n"
                     "pld        [%0, #256]          \n"
-                    "vld4.u16   {d1,d3,d5,d7}, [%0] \n"
+                    "vld4.u16   {d1,d3,d5,d7}, [%0 :64] \n"
                     "sub        %0, %0, #32         \n"
                     "vstm       %1!, {d0-d7}        \n"
                     : "=r"(p0), // %0
@@ -467,14 +459,8 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16_fp16(const Mat& botto
             int kk = 0;
             for (; kk < max_kk; kk++)
             {
-                pp[0] = p0[0];
-                pp[1] = p0[1];
-                pp[2] = p0[2];
-                pp[3] = p0[3];
-                pp[4] = p0[4];
-                pp[5] = p0[5];
-                pp[6] = p0[6];
-                pp[7] = p0[7];
+                uint16x8_t _r0 = vld1q_u16(p0);
+                vst1q_u16(pp, _r0);
                 pp += 8;
                 p0 += bottom_blob.cstep;
             }
@@ -537,8 +523,8 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16_fp16(const Mat& botto
 #else  // __aarch64__
                 asm volatile(
                     "pld        [%0, #256]          \n"
-                    "vld1.u16   {d0-d3}, [%0]       \n"
-                    "vst4.u16   {d0-d3}, [%1]!      \n"
+                    "vld1.u16   {d0-d3}, [%0 :64]   \n"
+                    "vst4.u16   {d0-d3}, [%1 :64]!  \n"
                     : "=r"(p0), // %0
                     "=r"(pp)  // %1
                     : "0"(p0),
@@ -565,10 +551,8 @@ static void convolution_im2col_input_tile_conv1x1s1d1_bf16_fp16(const Mat& botto
             int kk = 0;
             for (; kk < max_kk; kk++)
             {
-                pp[0] = p0[0];
-                pp[1] = p0[1];
-                pp[2] = p0[2];
-                pp[3] = p0[3];
+                uint16x4_t _r0 = vld1_u16(p0);
+                vst1_u16(pp, _r0);
                 pp += 4;
                 p0 += bottom_blob.cstep;
             }

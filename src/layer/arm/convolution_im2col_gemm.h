@@ -2624,12 +2624,12 @@ static void convolution_gemm_transB_packed_tile(const Mat& AT_tile, const Mat& B
                 "vswp       q11, q14            \n"
 
                 "add        r4, %3, %13, lsl #2 \n"
-                "vst1.f32   {d16-d19}, [%3]!    \n"
-                "vst1.f32   {d24-d27}, [r4]     \n"
+                "vst1.f32   {d16-d19}, [%3 :128]! \n"
+                "vst1.f32   {d24-d27}, [r4 :128] \n"
                 "add        r4, r4, %13, lsl #2 \n"
-                "vst1.f32   {d20-d23}, [r4]     \n"
+                "vst1.f32   {d20-d23}, [r4 :128] \n"
                 "add        r4, r4, %13, lsl #2 \n"
-                "vst1.f32   {d28-d31}, [r4]     \n"
+                "vst1.f32   {d28-d31}, [r4 :128] \n"
 
                 "9:                             \n"
                 "add        %0, %0, #128        \n"
@@ -2996,12 +2996,12 @@ static void convolution_gemm_transB_packed_tile(const Mat& AT_tile, const Mat& B
                 "vswp       d27, d30            \n"
 
                 "add        r4, %3, %13, lsl #2 \n"
-                "vst1.f32   {d24-d25}, [%3]!    \n"
-                "vst1.f32   {d26-d27}, [r4]     \n"
+                "vst1.f32   {d24-d25}, [%3 :128]! \n"
+                "vst1.f32   {d26-d27}, [r4 :128] \n"
                 "add        r4, r4, %13, lsl #2 \n"
-                "vst1.f32   {d28-d29}, [r4]     \n"
+                "vst1.f32   {d28-d29}, [r4 :128] \n"
                 "add        r4, r4, %13, lsl #2 \n"
-                "vst1.f32   {d30-d31}, [r4]     \n"
+                "vst1.f32   {d30-d31}, [r4 :128] \n"
 
                 "9:                             \n"
                 "add        %0, %0, #64         \n"
@@ -3304,12 +3304,12 @@ static void convolution_gemm_transB_packed_tile(const Mat& AT_tile, const Mat& B
                 "vtrn.32    q14, q15            \n"
 
                 "add        r4, %3, %13, lsl #2 \n"
-                "vst1.f32   {d28}, [%3]!        \n"
-                "vst1.f32   {d30}, [r4]         \n"
+                "vst1.f32   {d28}, [%3 :64]!    \n"
+                "vst1.f32   {d30}, [r4 :64]     \n"
                 "add        r4, r4, %13, lsl #2 \n"
-                "vst1.f32   {d29}, [r4]         \n"
+                "vst1.f32   {d29}, [r4 :64]     \n"
                 "add        r4, r4, %13, lsl #2 \n"
-                "vst1.f32   {d31}, [r4]         \n"
+                "vst1.f32   {d31}, [r4 :64]     \n"
 
                 "9:                             \n"
                 "add        %0, %0, #32         \n"
@@ -4544,18 +4544,12 @@ static void convolution_im2col_input_tile_conv1x1s1d1(const Mat& bottom_blob, Ma
             int kk = 0;
             for (; kk < max_kk; kk++)
             {
-                pp[0] = p0[0];
-                pp[1] = p0[1];
-                pp[2] = p0[2];
-                pp[3] = p0[3];
-                pp[4] = p0[4];
-                pp[5] = p0[5];
-                pp[6] = p0[6];
-                pp[7] = p0[7];
-                pp[8] = p0[8];
-                pp[9] = p0[9];
-                pp[10] = p0[10];
-                pp[11] = p0[11];
+                float32x4_t _r0 = vld1q_f32(p0);
+                float32x4_t _r1 = vld1q_f32(p0 + 4);
+                float32x4_t _r2 = vld1q_f32(p0 + 8);
+                vst1q_f32(pp, _r0);
+                vst1q_f32(pp + 4, _r1);
+                vst1q_f32(pp + 8, _r2);
                 pp += 12;
                 p0 += bottom_blob.cstep;
             }
@@ -4599,23 +4593,19 @@ static void convolution_im2col_input_tile_conv1x1s1d1(const Mat& bottom_blob, Ma
                     "vldm       %0!, {d0-d7}        \n"
                     "pld        [%0, #512]          \n"
                     "vldm       %0, {d16-d23}       \n"
-
-                    "vtrn.32    q0, q1              \n"
-                    "vtrn.32    q2, q3              \n"
-                    "vtrn.32    q8, q9              \n"
-                    "vtrn.32    q10, q11            \n"
+                    "vzip.32    q0, q1              \n"
+                    "vzip.32    q2, q3              \n"
+                    "vzip.32    q8, q9              \n"
+                    "vzip.32    q10, q11            \n"
                     "vswp       d1, d4              \n"
                     "vswp       d3, d6              \n"
                     "vswp       d17, d20            \n"
                     "vswp       d19, d22            \n"
                     "vswp       q1, q8              \n"
                     "vswp       q3, q10             \n"
-
-                    "vst1.f32   {d0-d3}, [%1 :128]! \n"
-                    "vst1.f32   {d16-d19}, [%1 :128]! \n"
                     "sub        %0, %0, #64         \n"
-                    "vst1.f32   {d4-d7}, [%1 :128]! \n"
-                    "vst1.f32   {d20-d23}, [%1 :128]! \n"
+                    "vstm       %1!, {d0-d7}        \n"
+                    "vstm       %1!, {d16-d23}      \n"
                     : "=r"(p0), // %0
                     "=r"(pp)  // %1
                     : "0"(p0),
@@ -4646,14 +4636,10 @@ static void convolution_im2col_input_tile_conv1x1s1d1(const Mat& bottom_blob, Ma
             int kk = 0;
             for (; kk < max_kk; kk++)
             {
-                pp[0] = p0[0];
-                pp[1] = p0[1];
-                pp[2] = p0[2];
-                pp[3] = p0[3];
-                pp[4] = p0[4];
-                pp[5] = p0[5];
-                pp[6] = p0[6];
-                pp[7] = p0[7];
+                float32x4_t _r0 = vld1q_f32(p0);
+                float32x4_t _r1 = vld1q_f32(p0 + 4);
+                vst1q_f32(pp, _r0);
+                vst1q_f32(pp + 4, _r1);
                 pp += 8;
                 p0 += bottom_blob.cstep;
             }
@@ -4715,10 +4701,7 @@ static void convolution_im2col_input_tile_conv1x1s1d1(const Mat& bottom_blob, Ma
             int kk = 0;
             for (; kk < max_kk; kk++)
             {
-                pp[0] = p0[0];
-                pp[1] = p0[1];
-                pp[2] = p0[2];
-                pp[3] = p0[3];
+                vst1q_f32(pp, vld1q_f32(p0));
                 pp += 4;
                 p0 += bottom_blob.cstep;
             }
@@ -4736,14 +4719,10 @@ static void convolution_im2col_input_tile_conv1x1s1d1(const Mat& bottom_blob, Ma
             for (; kk < max_kk / elempack; kk++)
             {
                 // transpose4x2
-                pp[0] = p0[0];
-                pp[1] = p0[4];
-                pp[2] = p0[1];
-                pp[3] = p0[5];
-                pp[4] = p0[2];
-                pp[5] = p0[6];
-                pp[6] = p0[3];
-                pp[7] = p0[7];
+                float32x4x2_t _r0;
+                _r0.val[0] = vld1q_f32(p0);
+                _r0.val[1] = vld1q_f32(p0 + 4);
+                vst2q_f32(pp, _r0);
                 pp += 8;
                 p0 += bottom_blob.cstep * elempack;
             }
@@ -4757,8 +4736,12 @@ static void convolution_im2col_input_tile_conv1x1s1d1(const Mat& bottom_blob, Ma
             int kk = 0;
             for (; kk < max_kk; kk++)
             {
+#if __ARM_NEON
+                vst1_f32(pp, vld1_f32(p0));
+#else
                 pp[0] = p0[0];
                 pp[1] = p0[1];
+#endif // __ARM_NEON
                 pp += 2;
                 p0 += bottom_blob.cstep;
             }
@@ -4774,10 +4757,7 @@ static void convolution_im2col_input_tile_conv1x1s1d1(const Mat& bottom_blob, Ma
             int kk = 0;
             for (; kk < max_kk / 4; kk++)
             {
-                pp[0] = p0[0];
-                pp[1] = p0[1];
-                pp[2] = p0[2];
-                pp[3] = p0[3];
+                vst1q_f32(pp, vld1q_f32(p0));
                 pp += 4;
                 p0 += bottom_blob.cstep * 4;
             }
