@@ -69,7 +69,7 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             max = std::max(max, vmaxvq_f32(_max));
 #else
             float32x2_t _max2 = vmax_f32(vget_low_f32(_max), vget_high_f32(_max));
-            float32x2_t _mm2 = vmaxptr_f32(_max2, _max2);
+            float32x2_t _mm2 = vpmax_f32(_max2, _max2);
             max = std::max(max, vget_lane_f32(_mm2, 0));
 #endif
             _max = vdupq_n_f32(max);
@@ -162,7 +162,7 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                     float max0 = vmaxvq_f32(_p);
 #else
                     float32x2_t _max2 = vmax_f32(vget_low_f32(_p), vget_high_f32(_p));
-                    float32x2_t _mm2 = vmaxptr_f32(_max2, _max2);
+                    float32x2_t _mm2 = vpmax_f32(_max2, _max2);
                     float max0 = vget_lane_f32(_mm2, 0);
 #endif
                     *maxptr = std::max(*maxptr, max0);
@@ -338,7 +338,7 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                     max = std::max(max, vmaxvq_f32(_max));
 #else
                     float32x2_t _max2 = vmax_f32(vget_low_f32(_max), vget_high_f32(_max));
-                    float32x2_t _mm2 = vmaxptr_f32(_max2, _max2);
+                    float32x2_t _mm2 = vpmax_f32(_max2, _max2);
                     max = std::max(max, vget_lane_f32(_mm2, 0));
 #endif
                     _max = vdupq_n_f32(max);
@@ -438,7 +438,7 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                     float max0 = vmaxvq_f32(_p);
 #else
                     float32x2_t _max2 = vmax_f32(vget_low_f32(_p), vget_high_f32(_p));
-                    float32x2_t _mm2 = vmaxptr_f32(_max2, _max2);
+                    float32x2_t _mm2 = vpmax_f32(_max2, _max2);
                     float max0 = vget_lane_f32(_mm2, 0);
 #endif
                     *maxptr = std::max(*maxptr, max0);
@@ -768,7 +768,7 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                         max = std::max(max, vmaxvq_f32(_max));
 #else
                         float32x2_t _max2 = vmax_f32(vget_low_f32(_max), vget_high_f32(_max));
-                        float32x2_t _mm2 = vmaxptr_f32(_max2, _max2);
+                        float32x2_t _mm2 = vpmax_f32(_max2, _max2);
                         max = std::max(max, vget_lane_f32(_mm2, 0));
 #endif
                         _max = vdupq_n_f32(max);
