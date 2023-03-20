@@ -1691,10 +1691,13 @@ static void conv3x3s1_winograd_gemm_transB_packed_tile_fp16sa(const Mat& AT_tile
     }
 }
 
-static void conv3x3s1_winograd_get_optimal_tile_mnk_fp16(int M, int N, int K, int& TILE_M, int& TILE_N, int& TILE_K, int nT)
+static void conv3x3s1_winograd_get_optimal_tile_mnk_fp16(int M, int N, int K, int B, int& TILE_M, int& TILE_N, int& TILE_K, int nT)
 {
     // resolve optimal tile size from cache size
     const int l2_cache_size_fp16 = (int)(get_cpu_level2_cache_size() / sizeof(unsigned short));
+
+    // we shall take B into account for batched gemm, but that will be slower on arm in practice, why ?
+    (void)B;
 
     // solve K
     {
@@ -1806,7 +1809,7 @@ static void conv3x3s1_winograd23_transform_kernel_fp16sa(const Mat& kernel, Mat&
     const int B = 16;
 
     int TILE_M, TILE_N, TILE_K;
-    conv3x3s1_winograd_get_optimal_tile_mnk_fp16(M, 0, K, TILE_M, TILE_N, TILE_K, opt.num_threads);
+    conv3x3s1_winograd_get_optimal_tile_mnk_fp16(M, 0, K, B, TILE_M, TILE_N, TILE_K, opt.num_threads);
 
     const int nn_M = (M + TILE_M - 1) / TILE_M;
 
@@ -2625,7 +2628,7 @@ static void conv3x3s1_winograd23_fp16sa(const Mat& bottom_blob, Mat& top_blob, c
     // NCNN_LOGE("conv3x3s1_winograd23_fp16sa %d %d %d", M, N, K);
 
     int TILE_M, TILE_N, TILE_K;
-    conv3x3s1_winograd_get_optimal_tile_mnk_fp16(M, N, K, TILE_M, TILE_N, TILE_K, nT);
+    conv3x3s1_winograd_get_optimal_tile_mnk_fp16(M, N, K, B, TILE_M, TILE_N, TILE_K, nT);
 
     const int nn_M = (M + TILE_M - 1) / TILE_M;
     const int nn_N = (N + TILE_N - 1) / TILE_N;
@@ -2796,7 +2799,7 @@ static void conv3x3s1_winograd43_transform_kernel_fp16sa(const Mat& kernel, Mat&
     const int B = 36;
 
     int TILE_M, TILE_N, TILE_K;
-    conv3x3s1_winograd_get_optimal_tile_mnk_fp16(M, 0, K, TILE_M, TILE_N, TILE_K, opt.num_threads);
+    conv3x3s1_winograd_get_optimal_tile_mnk_fp16(M, 0, K, B, TILE_M, TILE_N, TILE_K, opt.num_threads);
 
     const int nn_M = (M + TILE_M - 1) / TILE_M;
 
@@ -3971,7 +3974,7 @@ static void conv3x3s1_winograd43_fp16sa(const Mat& bottom_blob, Mat& top_blob, c
     // NCNN_LOGE("conv3x3s1_winograd43_fp16sa %d %d %d", M, N, K);
 
     int TILE_M, TILE_N, TILE_K;
-    conv3x3s1_winograd_get_optimal_tile_mnk_fp16(M, N, K, TILE_M, TILE_N, TILE_K, nT);
+    conv3x3s1_winograd_get_optimal_tile_mnk_fp16(M, N, K, B, TILE_M, TILE_N, TILE_K, nT);
 
     const int nn_M = (M + TILE_M - 1) / TILE_M;
     const int nn_N = (N + TILE_N - 1) / TILE_N;
@@ -4149,7 +4152,7 @@ static void conv3x3s1_winograd63_transform_kernel_fp16sa(const Mat& kernel, Mat&
     const int B = 64;
 
     int TILE_M, TILE_N, TILE_K;
-    conv3x3s1_winograd_get_optimal_tile_mnk_fp16(M, 0, K, TILE_M, TILE_N, TILE_K, opt.num_threads);
+    conv3x3s1_winograd_get_optimal_tile_mnk_fp16(M, 0, K, B, TILE_M, TILE_N, TILE_K, opt.num_threads);
 
     const int nn_M = (M + TILE_M - 1) / TILE_M;
 
@@ -5582,7 +5585,7 @@ static void conv3x3s1_winograd63_fp16sa(const Mat& bottom_blob, Mat& top_blob, c
     // NCNN_LOGE("conv3x3s1_winograd63_fp16sa %d %d %d", M, N, K);
 
     int TILE_M, TILE_N, TILE_K;
-    conv3x3s1_winograd_get_optimal_tile_mnk_fp16(M, N, K, TILE_M, TILE_N, TILE_K, nT);
+    conv3x3s1_winograd_get_optimal_tile_mnk_fp16(M, N, K, B, TILE_M, TILE_N, TILE_K, nT);
 
     const int nn_M = (M + TILE_M - 1) / TILE_M;
     const int nn_N = (N + TILE_N - 1) / TILE_N;

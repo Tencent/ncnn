@@ -2558,16 +2558,9 @@ static void convolution_im2col_gemm_transform_kernel_fp16sa(const Mat& kernel, M
     const int K = inch * maxk;
 
     int TILE_M, TILE_N, TILE_K;
-    // TILE_M = (M + 7) / 8 * 8;
-    // TILE_K = (K + 3) / 4 * 4;
     convolution_im2col_gemm_get_optimal_tile_mnk_fp16sa(M, 0, K, TILE_M, TILE_N, TILE_K, opt.num_threads);
 
-    // TILE_K = 16;
-
     const int nn_M = (M + TILE_M - 1) / TILE_M;
-
-    // Mat A_data = kernel.reshape(maxk * inch, outch);
-    // wrap inch elempack
 
     int elempack = 1;
     if (opt.use_packing_layout)
@@ -2580,6 +2573,7 @@ static void convolution_im2col_gemm_transform_kernel_fp16sa(const Mat& kernel, M
     if (maxk == 1)
     {
         cast_float32_to_float16(kernel, A_data);
+        A_data = A_data.reshape(maxk * inch, outch);
     }
     else
     {
@@ -2621,7 +2615,7 @@ static void convolution_im2col_gemm_transform_kernel_fp16sa(const Mat& kernel, M
 
             Mat AT_tile = AT.channel(i / TILE_M).row_range(k / TILE_K, 1);
 
-            convolution_im2col_pack_A_tile_bf16_fp16(A_data, AT_tile, i, max_ii, k, max_kk, maxk, inch, outch);
+            convolution_im2col_pack_A_tile_bf16_fp16(A_data, AT_tile, i, max_ii, k, max_kk);
         }
     }
 }
@@ -2636,12 +2630,7 @@ static void convolution_im2col_gemm_fp16sa(const Mat& bottom_blob, Mat& top_blob
     const int K = bottom_blob.c * bottom_blob.elempack * maxk;
 
     int TILE_M, TILE_N, TILE_K;
-    // TILE_M = (M + 7) / 8 * 8;
-    // TILE_N = (N + 3) / 4 * 4;
-    // TILE_K = (K + 3) / 4 * 4;
     convolution_im2col_gemm_get_optimal_tile_mnk_fp16sa(M, N, K, TILE_M, TILE_N, TILE_K, nT);
-
-    // TILE_K = 16;
 
     const int nn_M = (M + TILE_M - 1) / TILE_M;
     const int nn_N = (N + TILE_N - 1) / TILE_N;

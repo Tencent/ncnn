@@ -12,10 +12,10 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-static void convolution_im2col_pack_A_tile_bf16_fp16(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk, int maxk, int inch, int outch)
+static void convolution_im2col_pack_A_tile_bf16_fp16(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
 {
     // A = (pa, maxk, inch/pa), outch
-    const int A_hstep = maxk * inch;
+    const int A_hstep = A.w;
 
     unsigned short* pp = AT;
 

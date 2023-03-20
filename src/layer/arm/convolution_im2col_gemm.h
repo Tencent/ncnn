@@ -12,10 +12,10 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-static void convolution_im2col_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk, int maxk, int inch, int outch)
+static void convolution_im2col_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
 {
     // A = (pa, maxk, inch/pa), outch
-    const int A_hstep = maxk * inch;
+    const int A_hstep = A.w;
 
     float* pp = AT;
 
@@ -5172,16 +5172,9 @@ static void convolution_im2col_gemm_transform_kernel(const Mat& kernel, Mat& AT,
     const int K = inch * maxk;
 
     int TILE_M, TILE_N, TILE_K;
-    // TILE_M = (M + 7) / 8 * 8;
-    // TILE_K = (K + 3) / 4 * 4;
     convolution_im2col_gemm_get_optimal_tile_mnk(M, 0, K, TILE_M, TILE_N, TILE_K, opt.num_threads);
 
-    // TILE_K = 16;
-
     const int nn_M = (M + TILE_M - 1) / TILE_M;
-
-    // Mat A_data = kernel.reshape(maxk * inch, outch);
-    // wrap inch elempack
 
     int elempack = 1;
 #if __ARM_NEON
@@ -5195,7 +5188,7 @@ static void convolution_im2col_gemm_transform_kernel(const Mat& kernel, Mat& AT,
     Mat A_data;
     if (maxk == 1)
     {
-        A_data = kernel;
+        A_data = kernel.reshape(maxk * inch, outch);
     }
     else
     {
@@ -5237,7 +5230,7 @@ static void convolution_im2col_gemm_transform_kernel(const Mat& kernel, Mat& AT,
 
             Mat AT_tile = AT.channel(i / TILE_M).row_range(k / TILE_K, 1);
 
-            convolution_im2col_pack_A_tile(A_data, AT_tile, i, max_ii, k, max_kk, maxk, inch, outch);
+            convolution_im2col_pack_A_tile(A_data, AT_tile, i, max_ii, k, max_kk);
         }
     }
 }
@@ -5251,12 +5244,7 @@ static void convolution_im2col_gemm(const Mat& bottom_blob, Mat& top_blob, const
     const int K = bottom_blob.c * bottom_blob.elempack * maxk;
 
     int TILE_M, TILE_N, TILE_K;
-    // TILE_M = (M + 7) / 8 * 8;
-    // TILE_N = (N + 3) / 4 * 4;
-    // TILE_K = (K + 3) / 4 * 4;
     convolution_im2col_gemm_get_optimal_tile_mnk(M, N, K, TILE_M, TILE_N, TILE_K, nT);
-
-    // TILE_K = 16;
 
     const int nn_M = (M + TILE_M - 1) / TILE_M;
     const int nn_N = (N + TILE_N - 1) / TILE_N;
