@@ -145,47 +145,47 @@ int Convolution_arm::create_pipeline(const Option& opt)
     }
 #endif
 
-    // if ((!support_packing || !opt.use_packing_layout) && !opt.use_bf16_storage && kernel_w == kernel_h && dilation_w != 1 && dilation_h == dilation_w && stride_w == 1 && stride_h == 1)
-    // {
-    //     convolution_dilation1 = ncnn::create_layer(ncnn::LayerType::Convolution);
-    //
-    //     // set param
-    //     ncnn::ParamDict pd;
-    //     pd.set(0, num_output); // num_output
-    //     pd.set(1, kernel_w);
-    //     pd.set(11, kernel_h);
-    //     pd.set(2, 1);
-    //     pd.set(12, 1);
-    //     pd.set(3, 1);  // stride_w
-    //     pd.set(13, 1); // stride_h
-    //     pd.set(4, 0);  // pad_w
-    //     pd.set(14, 0); // pad_h
-    //     pd.set(5, bias_term);
-    //     pd.set(6, weight_data_size);
-    //
-    //     convolution_dilation1->load_param(pd);
-    //
-    //     // set weights
-    //     if (bias_term)
-    //     {
-    //         ncnn::Mat weights[2];
-    //         weights[0] = weight_data;
-    //         weights[1] = bias_data;
-    //
-    //         convolution_dilation1->load_model(ModelBinFromMatArray(weights));
-    //     }
-    //     else
-    //     {
-    //         ncnn::Mat weights[1];
-    //         weights[0] = weight_data;
-    //
-    //         convolution_dilation1->load_model(ModelBinFromMatArray(weights));
-    //     }
-    //
-    //     convolution_dilation1->create_pipeline(opt);
-    //
-    //     return 0;
-    // }
+    if ((!support_packing || !opt.use_packing_layout) && !opt.use_bf16_storage && kernel_w == kernel_h && dilation_w != 1 && dilation_h == dilation_w && stride_w == 1 && stride_h == 1)
+    {
+        convolution_dilation1 = ncnn::create_layer(ncnn::LayerType::Convolution);
+
+        // set param
+        ncnn::ParamDict pd;
+        pd.set(0, num_output); // num_output
+        pd.set(1, kernel_w);
+        pd.set(11, kernel_h);
+        pd.set(2, 1);
+        pd.set(12, 1);
+        pd.set(3, 1);  // stride_w
+        pd.set(13, 1); // stride_h
+        pd.set(4, 0);  // pad_w
+        pd.set(14, 0); // pad_h
+        pd.set(5, bias_term);
+        pd.set(6, weight_data_size);
+
+        convolution_dilation1->load_param(pd);
+
+        // set weights
+        if (bias_term)
+        {
+            ncnn::Mat weights[2];
+            weights[0] = weight_data;
+            weights[1] = bias_data;
+
+            convolution_dilation1->load_model(ModelBinFromMatArray(weights));
+        }
+        else
+        {
+            ncnn::Mat weights[1];
+            weights[0] = weight_data;
+
+            convolution_dilation1->load_model(ModelBinFromMatArray(weights));
+        }
+
+        convolution_dilation1->create_pipeline(opt);
+
+        return 0;
+    }
 
     const int maxk = kernel_w * kernel_h;
     const int num_input = weight_data_size / maxk / num_output;
@@ -427,13 +427,13 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     if (top_blob.empty())
         return -100;
 
-    // if ((!support_packing || !opt.use_packing_layout) && kernel_w == kernel_h && dilation_w != 1 && dilation_h == dilation_w && stride_w == 1 && stride_h == 1)
-    // {
-    //     if (outw >= dilation_w && outh >= dilation_h)
-    //     {
-    //         return forwardDilation_arm(bottom_blob_bordered, top_blob, opt);
-    //     }
-    // }
+    if ((!support_packing || !opt.use_packing_layout) && kernel_w == kernel_h && dilation_w != 1 && dilation_h == dilation_w && stride_w == 1 && stride_h == 1)
+    {
+        if (outw >= dilation_w && outh >= dilation_h)
+        {
+            return forwardDilation_arm(bottom_blob_bordered, top_blob, opt);
+        }
+    }
 
     const int num_input = channels * elempack;
 
