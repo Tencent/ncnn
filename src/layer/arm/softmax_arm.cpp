@@ -118,7 +118,7 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #endif // __ARM_NEON
             for (; i < size; i++)
             {
-                *ptr = (float)(exp(*ptr - max));
+                *ptr = (float)exp(*ptr - max);
                 sum += *ptr;
                 ptr++;
             }
@@ -163,10 +163,11 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         const int w = bottom_top_blob.w;
         const int h = bottom_top_blob.h;
 
-        Mat max;
-        max.create(w, 4u, opt.workspace_allocator);
-        if (max.empty())
+        Mat maxsum(w, 1, 2, 4u, opt.workspace_allocator);
+        if (maxsum.empty())
             return -100;
+
+        Mat max = maxsum.channel(0);
         max.fill(-FLT_MAX);
 
         for (int i = 0; i < h; i++)
@@ -216,10 +217,7 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             }
         }
 
-        Mat sum;
-        sum.create(w, 4u, opt.workspace_allocator);
-        if (sum.empty())
-            return -100;
+        Mat sum = maxsum.channel(1);
         sum.fill(0.f);
 
         for (int i = 0; i < h; i++)
@@ -271,7 +269,7 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #endif // __ARM_NEON
                 for (; j < w; j++)
                 {
-                    *ptr = (float)(exp(*ptr - *maxptr));
+                    *ptr = (float)exp(*ptr - *maxptr);
                     *sumptr += *ptr;
                     ptr++;
                     maxptr++;
@@ -291,10 +289,11 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 for (int j = 0; j < w; j++)
                 {
                     float32x4_t _p = vld1q_f32(ptr);
-                    float32x4_t _sum = vdupq_n_f32(sum[j]);
+                    float32x4_t _sum = vld1q_dup_f32(sumptr);
                     _p = div_ps(_p, _sum);
                     vst1q_f32(ptr, _p);
                     ptr += 4;
+                    sumptr++;
                 }
             }
 #endif // __ARM_NEON
@@ -388,7 +387,7 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #endif // __ARM_NEON
                 for (; j < size; j++)
                 {
-                    *ptr = (float)(exp(*ptr - max));
+                    *ptr = (float)exp(*ptr - max);
                     sum += *ptr;
                     ptr++;
                 }
@@ -439,10 +438,11 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         const int channels = bottom_top_blob.c;
         const int size = w * h;
 
-        Mat max;
-        max.create(w, h, 4u, opt.workspace_allocator);
-        if (max.empty())
+        Mat maxsum(w, h, 2, 4u, opt.workspace_allocator);
+        if (maxsum.empty())
             return -100;
+
+        Mat max = maxsum.channel(0);
         max.fill(-FLT_MAX);
 
         for (int q = 0; q < channels; q++)
@@ -528,17 +528,14 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #endif // __ARM_NEON
                 for (; i < size; i++)
                 {
-                    *ptr = exp(*ptr - *maxptr);
+                    *ptr = (float)exp(*ptr - *maxptr);
                     ptr++;
                     maxptr++;
                 }
             }
         }
 
-        Mat sum;
-        sum.create(w, h, 4u, opt.workspace_allocator);
-        if (sum.empty())
-            return -100;
+        Mat sum = maxsum.channel(1);
         sum.fill(0.f);
 
         for (int q = 0; q < channels; q++)
@@ -639,10 +636,11 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         const int channels = bottom_top_blob.c;
         const int size = w * elempack;
 
-        Mat max;
-        max.create(w * elempack, channels, 4u, opt.workspace_allocator);
-        if (max.empty())
+        Mat maxsum(w * elempack, channels, 2, 4u, opt.workspace_allocator);
+        if (maxsum.empty())
             return -100;
+
+        Mat max = maxsum.channel(0);
         max.fill(-FLT_MAX);
 
         #pragma omp parallel for num_threads(opt.num_threads)
@@ -675,10 +673,7 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             }
         }
 
-        Mat sum;
-        sum.create(w * elempack, channels, 4u, opt.workspace_allocator);
-        if (sum.empty())
-            return -100;
+        Mat sum = maxsum.channel(1);
         sum.fill(0.f);
 
         #pragma omp parallel for num_threads(opt.num_threads)
@@ -709,7 +704,7 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #endif // __ARM_NEON
                 for (; j < size; j++)
                 {
-                    *ptr = (float)(exp(*ptr - *maxptr));
+                    *ptr = (float)exp(*ptr - *maxptr);
                     *sumptr += *ptr;
                     ptr++;
                     maxptr++;
@@ -818,7 +813,7 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #endif // __ARM_NEON
                     for (; j < size; j++)
                     {
-                        *ptr = (float)(exp(*ptr - max));
+                        *ptr = (float)exp(*ptr - max);
                         sum += *ptr;
                         ptr++;
                     }
@@ -978,10 +973,11 @@ int Softmax_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) 
         const int w = bottom_top_blob.w;
         const int h = bottom_top_blob.h;
 
-        Mat max;
-        max.create(w, 4u, opt.workspace_allocator);
-        if (max.empty())
+        Mat maxsum(w, 1, 2, 4u, opt.workspace_allocator);
+        if (maxsum.empty())
             return -100;
+
+        Mat max = maxsum.channel(0);
         max.fill(-FLT_MAX);
 
         for (int i = 0; i < h; i++)
@@ -1031,10 +1027,7 @@ int Softmax_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) 
             }
         }
 
-        Mat sum;
-        sum.create(w, 4u, opt.workspace_allocator);
-        if (sum.empty())
-            return -100;
+        Mat sum = maxsum.channel(1);
         sum.fill(0.f);
 
         for (int i = 0; i < h; i++)
@@ -1107,10 +1100,11 @@ int Softmax_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) 
                 for (int j = 0; j < w; j++)
                 {
                     float32x4_t _p = bfloat2float(vld1_u16(ptr));
-                    float32x4_t _sum = vdupq_n_f32(sum[j]);
+                    float32x4_t _sum = vld1q_dup_f32(sumptr);
                     _p = div_ps(_p, _sum);
                     vst1_u16(ptr, float2bfloat(_p));
                     ptr += 4;
+                    sumptr++;
                 }
             }
 #endif // __ARM_NEON
@@ -1256,10 +1250,11 @@ int Softmax_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) 
         const int channels = bottom_top_blob.c;
         const int size = w * h;
 
-        Mat max;
-        max.create(w, h, 4u, opt.workspace_allocator);
-        if (max.empty())
+        Mat maxsum(w, h, 2, 4u, opt.workspace_allocator);
+        if (maxsum.empty())
             return -100;
+
+        Mat max = maxsum.channel(0);
         max.fill(-FLT_MAX);
 
         for (int q = 0; q < channels; q++)
@@ -1352,10 +1347,7 @@ int Softmax_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) 
             }
         }
 
-        Mat sum;
-        sum.create(w, h, 4u, opt.workspace_allocator);
-        if (sum.empty())
-            return -100;
+        Mat sum = maxsum.channel(1);
         sum.fill(0.f);
 
         for (int q = 0; q < channels; q++)
@@ -1456,10 +1448,11 @@ int Softmax_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) 
         const int channels = bottom_top_blob.c;
         const int size = w * elempack;
 
-        Mat max;
-        max.create(w * elempack, channels, 4u, opt.workspace_allocator);
-        if (max.empty())
+        Mat maxsum(w * elempack, channels, 2, 4u, opt.workspace_allocator);
+        if (maxsum.empty())
             return -100;
+
+        Mat max = maxsum.channel(0);
         max.fill(-FLT_MAX);
 
         #pragma omp parallel for num_threads(opt.num_threads)
@@ -1492,10 +1485,7 @@ int Softmax_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) 
             }
         }
 
-        Mat sum;
-        sum.create(w * elempack, channels, 4u, opt.workspace_allocator);
-        if (sum.empty())
-            return -100;
+        Mat sum = maxsum.channel(1);
         sum.fill(0.f);
 
         #pragma omp parallel for num_threads(opt.num_threads)
