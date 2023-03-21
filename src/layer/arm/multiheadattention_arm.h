@@ -30,9 +30,6 @@ public:
     virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 
 public:
-    Layer* cvtfp16_to_fp32;
-    Layer* cvtfp32_to_fp16;
-
     Layer* q_gemm;
     Layer* k_gemm;
     Layer* v_gemm;
