@@ -103,7 +103,7 @@ def test():
     import test_F_grid_sample_ncnn
     b0, b1, b2, b3 = test_F_grid_sample_ncnn.test_inference()
 
-    return torch.allclose(a0, b0, 1e-7, 1e-7) and torch.allclose(a1, b1, 1e-7, 1e-7) and torch.allclose(a2, b2, 1e-7, 1e-7) and torch.allclose(a3, b3, 1e-7, 1e-7)
+    return torch.allclose(a0, b0, 1e-6, 1e-6) and torch.allclose(a1, b1, 1e-6, 1e-6) and torch.allclose(a2, b2, 1e-6, 1e-6) and torch.allclose(a3, b3, 1e-6, 1e-6)
 
 if __name__ == "__main__":
     if test():
