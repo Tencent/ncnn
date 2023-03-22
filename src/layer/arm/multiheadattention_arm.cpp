@@ -30,9 +30,6 @@ MultiHeadAttention_arm::MultiHeadAttention_arm()
 
     support_bf16_storage = false;
 
-    cvtfp16_to_fp32 = 0;
-    cvtfp32_to_fp16 = 0;
-
     q_gemm = 0;
     k_gemm = 0;
     v_gemm = 0;
@@ -54,25 +51,6 @@ int MultiHeadAttention_arm::create_pipeline(const Option& opt)
     opt32.use_fp16_arithmetic = false;
     opt32.use_fp16_packed = false;
     opt32.use_fp16_storage = false;
-
-    {
-        cvtfp16_to_fp32 = ncnn::create_layer(ncnn::LayerType::Cast);
-        ncnn::ParamDict pd;
-        pd.set(0, 2); // from fp16
-        pd.set(1, 1); // from fp32
-        cvtfp16_to_fp32->load_param(pd);
-        cvtfp16_to_fp32->load_model(ModelBinFromMatArray(0));
-        cvtfp16_to_fp32->create_pipeline(optn);
-    }
-    {
-        cvtfp32_to_fp16 = ncnn::create_layer(ncnn::LayerType::Cast);
-        ncnn::ParamDict pd;
-        pd.set(0, 1); // from fp32
-        pd.set(1, 2); // from fp16
-        cvtfp32_to_fp16->load_param(pd);
-        cvtfp32_to_fp16->load_model(ModelBinFromMatArray(0));
-        cvtfp32_to_fp16->create_pipeline(optn);
-    }
 
     {
         qk_softmax = ncnn::create_layer(ncnn::LayerType::Softmax);
@@ -437,19 +415,6 @@ int MultiHeadAttention_arm::destroy_pipeline(const Option& opt)
     opt32.use_fp16_packed = false;
     opt32.use_fp16_storage = false;
 
-    if (cvtfp16_to_fp32)
-    {
-        cvtfp16_to_fp32->destroy_pipeline(optn);
-        delete cvtfp16_to_fp32;
-        cvtfp16_to_fp32 = 0;
-    }
-    if (cvtfp32_to_fp16)
-    {
-        cvtfp32_to_fp16->destroy_pipeline(optn);
-        delete cvtfp32_to_fp16;
-        cvtfp32_to_fp16 = 0;
-    }
-
     if (qk_softmax)
     {
         qk_softmax->destroy_pipeline(opt32);
@@ -607,13 +572,7 @@ int MultiHeadAttention_arm::forward(const std::vector<Mat>& bottom_blobs, std::v
         q_affine.release();
         k_affine.release();
 
-        // TODO implement fp16s softmax
-        Mat qk_cross_fp32;
-        cvtfp16_to_fp32->forward(qk_cross, qk_cross_fp32, optn);
-        qk_softmax->forward_inplace(qk_cross_fp32, opt32);
-        cvtfp32_to_fp16->forward(qk_cross_fp32, qk_cross, optn);
-
-        qk_cross_fp32.release();
+        qk_softmax->forward_inplace(qk_cross, optn);
 
         Mat v_affine;
         v_gemm->forward(v_blob, v_affine, optn);
