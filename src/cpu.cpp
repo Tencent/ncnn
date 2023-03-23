@@ -261,6 +261,7 @@ static unsigned int get_elf_hwcap(unsigned int type)
         hwcap = get_elf_hwcap_from_proc_self_auxv(type);
 
 #if defined __ANDROID__
+#if __aarch64__
     if (type == AT_HWCAP)
     {
         // samsung exynos9810 on android pre-9 incorrectly reports armv8.2
@@ -275,6 +276,7 @@ static unsigned int get_elf_hwcap(unsigned int type)
             hwcap &= ~HWCAP_ASIMDDP;
         }
     }
+#endif // __aarch64__
 #endif // defined __ANDROID__
 
     return hwcap;
