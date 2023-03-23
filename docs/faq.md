@@ -108,6 +108,13 @@
    可能的情况：
    - 尝试升级 Android Studio 的 NDK 版本
 
+- ## CMake 3.14.0 or higher is required.  You are running version 2.8.12.2
+```shell
+wget https://github.com/Kitware/CMake/releases/download/v3.18.2/cmake-3.18.2-Linux-x86_64.tar.gz
+tar zxvf cmake-3.18.2-Linux-x86_64.tar.gz
+mv cmake-3.18.2-Linux-x86_64 /opt/cmake-3.18.2
+ln -sf /opt/cmake-3.18.2/bin/* /usr/bin/
+```
 
 # 怎样添加ncnn库到项目中？cmake方式怎么用？
 
