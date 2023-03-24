@@ -1289,6 +1289,12 @@ static void convolution_packed_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
                         const int sok = space_ofs[k];
                         float16x4_t _r0;
                         float16x4_t _r1;
+                        if (elempack == 8)
+                        {
+                            float16x8_t _r01 = vld1q_f16(r0 + sok);
+                            _r0 = vget_low_f16(_r01);
+                            _r1 = vget_high_f16(_r01);
+                        }
                         if (elempack == 4)
                         {
                             _r0 = vld1_f16(r0 + sok);
@@ -1496,6 +1502,12 @@ static void convolution_packed_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
                         const int sok = space_ofs[k];
                         float16x4_t _r0;
                         float16x4_t _r1;
+                        if (elempack == 8)
+                        {
+                            float16x8_t _r01 = vld1q_f16(r0 + sok);
+                            _r0 = vget_low_f16(_r01);
+                            _r1 = vget_high_f16(_r01);
+                        }
                         if (elempack == 4)
                         {
                             _r0 = vld1_f16(r0 + sok);
@@ -1670,6 +1682,12 @@ static void convolution_packed_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
                         const int sok = space_ofs[k];
                         float16x4_t _r0;
                         float16x4_t _r1;
+                        if (elempack == 8)
+                        {
+                            float16x8_t _r01 = vld1q_f16(r0 + sok);
+                            _r0 = vget_low_f16(_r01);
+                            _r1 = vget_high_f16(_r01);
+                        }
                         if (elempack == 4)
                         {
                             _r0 = vld1_f16(r0 + sok);
@@ -1824,6 +1842,12 @@ static void convolution_packed_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
                         const int sok = space_ofs[k];
                         float16x4_t _r0;
                         float16x4_t _r1;
+                        if (elempack == 8)
+                        {
+                            float16x8_t _r01 = vld1q_f16(r0 + sok);
+                            _r0 = vget_low_f16(_r01);
+                            _r1 = vget_high_f16(_r01);
+                        }
                         if (elempack == 4)
                         {
                             _r0 = vld1_f16(r0 + sok);
