@@ -41,10 +41,6 @@ pnnx.Output             output      1 0 out
     {
         return "mm";
     }
-
-    // void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
-    // {
-    // }
 };
 
 REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(torch_mm, 20)
