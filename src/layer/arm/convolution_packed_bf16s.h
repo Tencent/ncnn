@@ -1121,7 +1121,7 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                 float32x2_t _ss1 = vadd_f32(vget_low_f32(_sum1), vget_high_f32(_sum1));
                 float32x2_t _ss = vpadd_f32(_ss0, _ss1);
                 sum0 += vget_lane_f32(_ss, 0);
-                sum0 += vget_lane_f32(_ss, 1);
+                sum1 += vget_lane_f32(_ss, 1);
 #endif
 #endif // __ARM_NEON
                 for (; q + 1 < inch; q += 2)

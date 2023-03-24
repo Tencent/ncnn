@@ -1447,6 +1447,12 @@ static void convolution_packed_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
                 _sum0 = activation_ps(_sum0, activation_type, activation_params);
                 _sum1 = activation_ps(_sum1, activation_type, activation_params);
 
+                if (out_elempack == 8)
+                {
+                    vst1_f16(outptr, _sum0);
+                    vst1_f16(outptr + 4, _sum1);
+                    outptr += 8;
+                }
                 if (out_elempack == 4)
                 {
                     vst1_f16(outptr, _sum0);
