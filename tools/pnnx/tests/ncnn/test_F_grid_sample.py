@@ -97,7 +97,7 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_F_grid_sample.pt inputshape=[1,3,12,16],[1,21,27,2],[1,12,16,2],[1,2,21,27],[1,2,12,16],[1,5,10,12,16],[1,10,21,27,3],[1,10,12,16,3],[1,3,10,21,27],[1,3,10,12,16]")
+    os.system("../../src/pnnx test_F_grid_sample.pt inputshape=[1,3,12,16],[1,21,27,2],[1,12,16,2],[1,2,21,27],[1,2,12,16],[1,5,10,12,16],[1,10,21,27,3],[1,10,12,16,3],[1,3,10,21,27],[1,3,10,12,16]")
 
     # ncnn inference
     import test_F_grid_sample_ncnn
