@@ -1631,10 +1631,8 @@ static void convolution_packed_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
                 const __fp16* kptr = weight_data_tm.channel(p / 8 + (p % 8) / 4 + (p % 4) / 2);
 
                 int q = 0;
-                float16x4_t _sum0 = vdup_n_f16(0.f);
-                float16x4_t _sum1 = vdup_n_f16(0.f);
-                float16x4_t _sum2 = vdup_n_f16(0.f);
-                float16x4_t _sum3 = vdup_n_f16(0.f);
+                float16x8_t _sum0 = vdupq_n_f16(0.f);
+                float16x8_t _sum1 = vdupq_n_f16(0.f);
                 for (; q + 7 < inch; q += 8)
                 {
                     const __fp16* r0 = bottom_blob.channel(q / elempack).row<const __fp16>(i * stride_h) + j * stride_w * elempack;
@@ -1642,53 +1640,36 @@ static void convolution_packed_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
                     for (int k = 0; k < maxk; k++)
                     {
                         const int sok = space_ofs[k];
-                        float16x4_t _r0;
-                        float16x4_t _r1;
+                        float16x8_t _r0;
                         if (elempack == 8)
                         {
-                            float16x8_t _r01 = vld1q_f16(r0 + sok);
-                            _r0 = vget_low_f16(_r01);
-                            _r1 = vget_high_f16(_r01);
+                            _r0 = vld1q_f16(r0 + sok);
                         }
                         if (elempack == 4)
                         {
-                            _r0 = vld1_f16(r0 + sok);
-                            _r1 = vld1_f16(r0 + sok + N);
+                            _r0 = vcombine_f16(vld1_f16(r0 + sok), vld1_f16(r0 + sok + N));
                         }
                         if (elempack == 1)
                         {
-                            _r0 = float16x4_t();
-                            _r1 = float16x4_t();
-                            _r0 = vset_lane_f16(r0[sok], _r0, 0);
-                            _r0 = vset_lane_f16(r0[sok + N], _r0, 1);
-                            _r0 = vset_lane_f16(r0[sok + N * 2], _r0, 2);
-                            _r0 = vset_lane_f16(r0[sok + N * 3], _r0, 3);
-                            _r1 = vset_lane_f16(r0[sok + N * 4], _r1, 0);
-                            _r1 = vset_lane_f16(r0[sok + N * 5], _r1, 1);
-                            _r1 = vset_lane_f16(r0[sok + N * 6], _r1, 2);
-                            _r1 = vset_lane_f16(r0[sok + N * 7], _r1, 3);
+                            _r0 = float16x8_t();
+                            _r0 = vsetq_lane_f16(r0[sok], _r0, 0);
+                            _r0 = vsetq_lane_f16(r0[sok + N], _r0, 1);
+                            _r0 = vsetq_lane_f16(r0[sok + N * 2], _r0, 2);
+                            _r0 = vsetq_lane_f16(r0[sok + N * 3], _r0, 3);
+                            _r0 = vsetq_lane_f16(r0[sok + N * 4], _r0, 4);
+                            _r0 = vsetq_lane_f16(r0[sok + N * 5], _r0, 5);
+                            _r0 = vsetq_lane_f16(r0[sok + N * 6], _r0, 6);
+                            _r0 = vsetq_lane_f16(r0[sok + N * 7], _r0, 7);
                         }
 
-                        float16x4_t _w0 = vld1_f16(kptr);
-                        float16x4_t _w1 = vld1_f16(kptr + 4);
-                        float16x4_t _w2 = vld1_f16(kptr + 8);
-                        float16x4_t _w3 = vld1_f16(kptr + 12);
-                        _sum0 = vfma_f16(_sum0, _r0, _w0);
-                        _sum1 = vfma_f16(_sum1, _r1, _w1);
-                        _sum2 = vfma_f16(_sum2, _r0, _w2);
-                        _sum3 = vfma_f16(_sum3, _r1, _w3);
+                        float16x8_t _w0 = vld1q_f16(kptr);
+                        float16x8_t _w1 = vld1q_f16(kptr + 8);
+                        _sum0 = vfmaq_f16(_sum0, _r0, _w0);
+                        _sum1 = vfmaq_f16(_sum1, _r0, _w1);
 
                         kptr += 16;
                     }
                 }
-                _sum0 = vadd_f16(_sum0, _sum1);
-                _sum2 = vadd_f16(_sum2, _sum3);
-                _sum0 = vpadd_f16(_sum0, _sum2);
-                _sum0 = vpadd_f16(_sum0, _sum0);
-                sum0 += vget_lane_f16(_sum0, 0);
-                sum1 += vget_lane_f16(_sum0, 1);
-                _sum0 = vdup_n_f16(0.f);
-                _sum1 = vdup_n_f16(0.f);
                 for (; q + 3 < inch; q += 4)
                 {
                     const __fp16* r0 = bottom_blob.channel(q / elempack).row<const __fp16>(i * stride_h) + j * stride_w * elempack;
@@ -1712,16 +1693,12 @@ static void convolution_packed_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
 
                         float16x4_t _w0 = vld1_f16(kptr);
                         float16x4_t _w1 = vld1_f16(kptr + 4);
-                        _sum0 = vfma_f16(_sum0, _r0, _w0);
-                        _sum1 = vfma_f16(_sum1, _r0, _w1);
+                        _sum0 = vcombine_f16(vfma_f16(vget_low_f16(_sum0), _r0, _w0), vget_high_f16(_sum0));
+                        _sum1 = vcombine_f16(vfma_f16(vget_low_f16(_sum1), _r0, _w1), vget_high_f16(_sum1));
 
                         kptr += 8;
                     }
                 }
-                _sum0 = vpadd_f16(_sum0, _sum1);
-                _sum0 = vpadd_f16(_sum0, _sum0);
-                sum0 += vget_lane_f16(_sum0, 0);
-                sum1 += vget_lane_f16(_sum0, 1);
                 for (; q + 1 < inch; q += 2)
                 {
                     const __fp16* r0 = bottom_blob.channel(q).row<const __fp16>(i * stride_h) + j * stride_w;
@@ -1764,6 +1741,13 @@ static void convolution_packed_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
                     }
                 }
 
+                float16x4_t _ss0 = vadd_f16(vget_low_f16(_sum0), vget_high_f16(_sum0));
+                float16x4_t _ss1 = vadd_f16(vget_low_f16(_sum1), vget_high_f16(_sum1));
+                float16x4_t _ss = vpadd_f16(_ss0, _ss1);
+                _ss = vpadd_f16(_ss, _ss);
+                sum0 += vget_lane_f16(_ss, 0);
+                sum1 += vget_lane_f16(_ss, 1);
+
                 sum0 = activation_ss(sum0, activation_type, activation_params);
                 sum1 = activation_ss(sum1, activation_type, activation_params);
 
@@ -1793,8 +1777,7 @@ static void convolution_packed_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
                 const __fp16* kptr = weight_data_tm.channel(p / 8 + (p % 8) / 4 + (p % 4) / 2 + p % 2);
 
                 int q = 0;
-                float16x4_t _sum0 = vdup_n_f16(0.f);
-                float16x4_t _sum1 = vdup_n_f16(0.f);
+                float16x8_t _sum = vdupq_n_f16(0.f);
                 for (; q + 7 < inch; q += 8)
                 {
                     const __fp16* r0 = bottom_blob.channel(q / elempack).row<const __fp16>(i * stride_h) + j * stride_w * elempack;
@@ -1802,46 +1785,34 @@ static void convolution_packed_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
                     for (int k = 0; k < maxk; k++)
                     {
                         const int sok = space_ofs[k];
-                        float16x4_t _r0;
-                        float16x4_t _r1;
+                        float16x8_t _r0;
                         if (elempack == 8)
                         {
-                            float16x8_t _r01 = vld1q_f16(r0 + sok);
-                            _r0 = vget_low_f16(_r01);
-                            _r1 = vget_high_f16(_r01);
+                            _r0 = vld1q_f16(r0 + sok);
                         }
                         if (elempack == 4)
                         {
-                            _r0 = vld1_f16(r0 + sok);
-                            _r1 = vld1_f16(r0 + sok + N);
+                            _r0 = vcombine_f16(vld1_f16(r0 + sok), vld1_f16(r0 + sok + N));
                         }
                         if (elempack == 1)
                         {
-                            _r0 = float16x4_t();
-                            _r1 = float16x4_t();
-                            _r0 = vset_lane_f16(r0[sok], _r0, 0);
-                            _r0 = vset_lane_f16(r0[sok + N], _r0, 1);
-                            _r0 = vset_lane_f16(r0[sok + N * 2], _r0, 2);
-                            _r0 = vset_lane_f16(r0[sok + N * 3], _r0, 3);
-                            _r1 = vset_lane_f16(r0[sok + N * 4], _r1, 0);
-                            _r1 = vset_lane_f16(r0[sok + N * 5], _r1, 1);
-                            _r1 = vset_lane_f16(r0[sok + N * 6], _r1, 2);
-                            _r1 = vset_lane_f16(r0[sok + N * 7], _r1, 3);
+                            _r0 = float16x8_t();
+                            _r0 = vsetq_lane_f16(r0[sok], _r0, 0);
+                            _r0 = vsetq_lane_f16(r0[sok + N], _r0, 1);
+                            _r0 = vsetq_lane_f16(r0[sok + N * 2], _r0, 2);
+                            _r0 = vsetq_lane_f16(r0[sok + N * 3], _r0, 3);
+                            _r0 = vsetq_lane_f16(r0[sok + N * 4], _r0, 4);
+                            _r0 = vsetq_lane_f16(r0[sok + N * 5], _r0, 5);
+                            _r0 = vsetq_lane_f16(r0[sok + N * 6], _r0, 6);
+                            _r0 = vsetq_lane_f16(r0[sok + N * 7], _r0, 7);
                         }
 
-                        float16x4_t _w0 = vld1_f16(kptr);
-                        float16x4_t _w1 = vld1_f16(kptr + 4);
-                        _sum0 = vfma_f16(_sum0, _r0, _w0);
-                        _sum1 = vfma_f16(_sum1, _r1, _w1);
+                        float16x8_t _w0 = vld1q_f16(kptr);
+                        _sum = vfmaq_f16(_sum, _r0, _w0);
 
                         kptr += 8;
                     }
                 }
-                _sum0 = vadd_f16(_sum0, _sum1);
-                _sum0 = vpadd_f16(_sum0, _sum0);
-                _sum0 = vpadd_f16(_sum0, _sum0);
-                sum += vget_lane_f16(_sum0, 0);
-                float16x4_t _sum = vdup_n_f16(0.f);
                 for (; q + 3 < inch; q += 4)
                 {
                     const __fp16* r0 = bottom_blob.channel(q / elempack).row<const __fp16>(i * stride_h) + j * stride_w * elempack;
@@ -1864,14 +1835,11 @@ static void convolution_packed_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
                         }
 
                         float16x4_t _w = vld1_f16(kptr);
-                        _sum = vfma_f16(_sum, _r0, _w);
+                        _sum = vcombine_f16(vfma_f16(vget_low_f16(_sum), _r0, _w), vget_high_f16(_sum));
 
                         kptr += 4;
                     }
                 }
-                _sum = vpadd_f16(_sum, _sum);
-                _sum = vpadd_f16(_sum, _sum);
-                sum += vget_lane_f16(_sum, 0);
                 for (; q + 1 < inch; q += 2)
                 {
                     const __fp16* r0 = bottom_blob.channel(q).row<const __fp16>(i * stride_h) + j * stride_w;
@@ -1910,6 +1878,11 @@ static void convolution_packed_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
                         kptr += 1;
                     }
                 }
+
+                float16x4_t _ss = vadd_f16(vget_low_f16(_sum), vget_high_f16(_sum));
+                _ss = vpadd_f16(_ss, _ss);
+                _ss = vpadd_f16(_ss, _ss);
+                sum += vget_lane_f16(_ss, 0);
 
                 sum = activation_ss(sum, activation_type, activation_params);
 
