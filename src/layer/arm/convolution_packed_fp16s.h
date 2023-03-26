@@ -1262,19 +1262,14 @@ static void convolution_packed_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
         {
             for (int j = 0; j < outw; j++)
             {
-                float16x4_t _sum0 = vdup_n_f16(0.f);
-                float16x4_t _sum1 = vdup_n_f16(0.f);
-                float16x4_t _sum2 = vdup_n_f16(0.f);
-                float16x4_t _sum3 = vdup_n_f16(0.f);
-                float16x4_t _sum4 = vdup_n_f16(0.f);
-                float16x4_t _sum5 = vdup_n_f16(0.f);
-                float16x4_t _sum6 = vdup_n_f16(0.f);
-                float16x4_t _sum7 = vdup_n_f16(0.f);
+                float16x8_t _sum0 = vdupq_n_f16(0.f);
+                float16x8_t _sum1 = vdupq_n_f16(0.f);
+                float16x8_t _sum2 = vdupq_n_f16(0.f);
+                float16x8_t _sum3 = vdupq_n_f16(0.f);
 
                 if (bias_data_ptr)
                 {
-                    _sum0 = vld1_f16(bias_data_ptr + p);
-                    _sum1 = vld1_f16(bias_data_ptr + p + 4);
+                    _sum0 = vld1q_f16(bias_data_ptr + p);
                 }
 
                 const __fp16* kptr = weight_data_tm.channel(p / 8);
@@ -1287,63 +1282,43 @@ static void convolution_packed_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
                     for (int k = 0; k < maxk; k++)
                     {
                         const int sok = space_ofs[k];
-                        float16x4_t _r0;
-                        float16x4_t _r1;
+                        float16x8_t _r0;
                         if (elempack == 8)
                         {
-                            float16x8_t _r01 = vld1q_f16(r0 + sok);
-                            _r0 = vget_low_f16(_r01);
-                            _r1 = vget_high_f16(_r01);
+                            _r0 = vld1q_f16(r0 + sok);
                         }
                         if (elempack == 4)
                         {
-                            _r0 = vld1_f16(r0 + sok);
-                            _r1 = vld1_f16(r0 + sok + N);
+                            _r0 = vcombine_f16(vld1_f16(r0 + sok), vld1_f16(r0 + sok + N));
                         }
                         if (elempack == 1)
                         {
-                            _r0 = vset_lane_f16(r0[sok], _r0, 0);
-                            _r0 = vset_lane_f16(r0[sok + N], _r0, 1);
-                            _r0 = vset_lane_f16(r0[sok + N * 2], _r0, 2);
-                            _r0 = vset_lane_f16(r0[sok + N * 3], _r0, 3);
-                            _r1 = vset_lane_f16(r0[sok + N * 4], _r1, 0);
-                            _r1 = vset_lane_f16(r0[sok + N * 5], _r1, 1);
-                            _r1 = vset_lane_f16(r0[sok + N * 6], _r1, 2);
-                            _r1 = vset_lane_f16(r0[sok + N * 7], _r1, 3);
+                            _r0 = vsetq_lane_f16(r0[sok], _r0, 0);
+                            _r0 = vsetq_lane_f16(r0[sok + N], _r0, 1);
+                            _r0 = vsetq_lane_f16(r0[sok + N * 2], _r0, 2);
+                            _r0 = vsetq_lane_f16(r0[sok + N * 3], _r0, 3);
+                            _r0 = vsetq_lane_f16(r0[sok + N * 4], _r0, 4);
+                            _r0 = vsetq_lane_f16(r0[sok + N * 5], _r0, 5);
+                            _r0 = vsetq_lane_f16(r0[sok + N * 6], _r0, 6);
+                            _r0 = vsetq_lane_f16(r0[sok + N * 7], _r0, 7);
                         }
 
-                        float16x4_t _w0 = vld1_f16(kptr);
-                        float16x4_t _w1 = vld1_f16(kptr + 4);
-                        float16x4_t _w2 = vld1_f16(kptr + 4 * 2);
-                        float16x4_t _w3 = vld1_f16(kptr + 4 * 3);
-                        float16x4_t _w4 = vld1_f16(kptr + 4 * 4);
-                        float16x4_t _w5 = vld1_f16(kptr + 4 * 5);
-                        float16x4_t _w6 = vld1_f16(kptr + 4 * 6);
-                        float16x4_t _w7 = vld1_f16(kptr + 4 * 7);
-                        float16x4_t _w8 = vld1_f16(kptr + 4 * 8);
-                        float16x4_t _w9 = vld1_f16(kptr + 4 * 9);
-                        float16x4_t _wa = vld1_f16(kptr + 4 * 10);
-                        float16x4_t _wb = vld1_f16(kptr + 4 * 11);
-                        float16x4_t _wc = vld1_f16(kptr + 4 * 12);
-                        float16x4_t _wd = vld1_f16(kptr + 4 * 13);
-                        float16x4_t _we = vld1_f16(kptr + 4 * 14);
-                        float16x4_t _wf = vld1_f16(kptr + 4 * 15);
-                        _sum0 = vfma_lane_f16(_sum0, _w0, _r0, 0);
-                        _sum1 = vfma_lane_f16(_sum1, _w1, _r0, 0);
-                        _sum2 = vfma_lane_f16(_sum2, _w2, _r0, 1);
-                        _sum3 = vfma_lane_f16(_sum3, _w3, _r0, 1);
-                        _sum4 = vfma_lane_f16(_sum4, _w4, _r0, 2);
-                        _sum5 = vfma_lane_f16(_sum5, _w5, _r0, 2);
-                        _sum6 = vfma_lane_f16(_sum6, _w6, _r0, 3);
-                        _sum7 = vfma_lane_f16(_sum7, _w7, _r0, 3);
-                        _sum0 = vfma_lane_f16(_sum0, _w8, _r1, 0);
-                        _sum1 = vfma_lane_f16(_sum1, _w9, _r1, 0);
-                        _sum2 = vfma_lane_f16(_sum2, _wa, _r1, 1);
-                        _sum3 = vfma_lane_f16(_sum3, _wb, _r1, 1);
-                        _sum4 = vfma_lane_f16(_sum4, _wc, _r1, 2);
-                        _sum5 = vfma_lane_f16(_sum5, _wd, _r1, 2);
-                        _sum6 = vfma_lane_f16(_sum6, _we, _r1, 3);
-                        _sum7 = vfma_lane_f16(_sum7, _wf, _r1, 3);
+                        float16x8_t _w0 = vld1q_f16(kptr);
+                        float16x8_t _w1 = vld1q_f16(kptr + 8);
+                        float16x8_t _w2 = vld1q_f16(kptr + 8 * 2);
+                        float16x8_t _w3 = vld1q_f16(kptr + 8 * 3);
+                        float16x8_t _w4 = vld1q_f16(kptr + 8 * 4);
+                        float16x8_t _w5 = vld1q_f16(kptr + 8 * 5);
+                        float16x8_t _w6 = vld1q_f16(kptr + 8 * 6);
+                        float16x8_t _w7 = vld1q_f16(kptr + 8 * 7);
+                        _sum0 = vfmaq_laneq_f16(_sum0, _w0, _r0, 0);
+                        _sum1 = vfmaq_laneq_f16(_sum1, _w1, _r0, 1);
+                        _sum2 = vfmaq_laneq_f16(_sum2, _w2, _r0, 2);
+                        _sum3 = vfmaq_laneq_f16(_sum3, _w3, _r0, 3);
+                        _sum0 = vfmaq_laneq_f16(_sum0, _w4, _r0, 4);
+                        _sum1 = vfmaq_laneq_f16(_sum1, _w5, _r0, 5);
+                        _sum2 = vfmaq_laneq_f16(_sum2, _w6, _r0, 6);
+                        _sum3 = vfmaq_laneq_f16(_sum3, _w7, _r0, 7);
 
                         kptr += 64;
                     }
@@ -1369,22 +1344,14 @@ static void convolution_packed_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
                             _r0 = vset_lane_f16(r0[sok + N * 3], _r0, 3);
                         }
 
-                        float16x4_t _w0 = vld1_f16(kptr);
-                        float16x4_t _w1 = vld1_f16(kptr + 4);
-                        float16x4_t _w2 = vld1_f16(kptr + 4 * 2);
-                        float16x4_t _w3 = vld1_f16(kptr + 4 * 3);
-                        float16x4_t _w4 = vld1_f16(kptr + 4 * 4);
-                        float16x4_t _w5 = vld1_f16(kptr + 4 * 5);
-                        float16x4_t _w6 = vld1_f16(kptr + 4 * 6);
-                        float16x4_t _w7 = vld1_f16(kptr + 4 * 7);
-                        _sum0 = vfma_lane_f16(_sum0, _w0, _r0, 0);
-                        _sum1 = vfma_lane_f16(_sum1, _w1, _r0, 0);
-                        _sum2 = vfma_lane_f16(_sum2, _w2, _r0, 1);
-                        _sum3 = vfma_lane_f16(_sum3, _w3, _r0, 1);
-                        _sum4 = vfma_lane_f16(_sum4, _w4, _r0, 2);
-                        _sum5 = vfma_lane_f16(_sum5, _w5, _r0, 2);
-                        _sum6 = vfma_lane_f16(_sum6, _w6, _r0, 3);
-                        _sum7 = vfma_lane_f16(_sum7, _w7, _r0, 3);
+                        float16x8_t _w0 = vld1q_f16(kptr);
+                        float16x8_t _w1 = vld1q_f16(kptr + 8);
+                        float16x8_t _w2 = vld1q_f16(kptr + 8 * 2);
+                        float16x8_t _w3 = vld1q_f16(kptr + 8 * 3);
+                        _sum0 = vfmaq_lane_f16(_sum0, _w0, _r0, 0);
+                        _sum1 = vfmaq_lane_f16(_sum1, _w1, _r0, 1);
+                        _sum2 = vfmaq_lane_f16(_sum2, _w2, _r0, 2);
+                        _sum3 = vfmaq_lane_f16(_sum3, _w3, _r0, 3);
 
                         kptr += 32;
                     }
@@ -1404,14 +1371,10 @@ static void convolution_packed_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
                             val1 = r0[sok + N];
                         }
 
-                        float16x4_t _w0 = vld1_f16(kptr);
-                        float16x4_t _w1 = vld1_f16(kptr + 4);
-                        float16x4_t _w2 = vld1_f16(kptr + 8);
-                        float16x4_t _w3 = vld1_f16(kptr + 12);
-                        _sum0 = vfma_n_f16(_sum0, _w0, val0);
-                        _sum1 = vfma_n_f16(_sum1, _w1, val0);
-                        _sum2 = vfma_n_f16(_sum2, _w2, val1);
-                        _sum3 = vfma_n_f16(_sum3, _w3, val1);
+                        float16x8_t _w0 = vld1q_f16(kptr);
+                        float16x8_t _w1 = vld1q_f16(kptr + 8);
+                        _sum0 = vfmaq_n_f16(_sum0, _w0, val0);
+                        _sum1 = vfmaq_n_f16(_sum1, _w1, val1);
 
                         kptr += 16;
                     }
@@ -1422,53 +1385,46 @@ static void convolution_packed_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
 
                     for (int k = 0; k < maxk; k++)
                     {
-                        float16x4_t _val;
+                        float16x8_t _val;
                         // if (elempack == 1)
                         {
-                            _val = vdup_n_f16(r0[space_ofs[k]]);
+                            _val = vdupq_n_f16(r0[space_ofs[k]]);
                         }
 
-                        float16x4_t _w0 = vld1_f16(kptr);
-                        float16x4_t _w1 = vld1_f16(kptr + 4);
-                        _sum0 = vfma_f16(_sum0, _w0, _val);
-                        _sum1 = vfma_f16(_sum1, _w1, _val);
+                        float16x8_t _w0 = vld1q_f16(kptr);
+                        _sum0 = vfmaq_f16(_sum0, _w0, _val);
 
                         kptr += 8;
                     }
                 }
 
-                _sum0 = vadd_f16(_sum0, _sum2);
-                _sum1 = vadd_f16(_sum1, _sum3);
-                _sum4 = vadd_f16(_sum4, _sum6);
-                _sum5 = vadd_f16(_sum5, _sum7);
-                _sum0 = vadd_f16(_sum0, _sum4);
-                _sum1 = vadd_f16(_sum1, _sum5);
+                _sum0 = vaddq_f16(_sum0, _sum1);
+                _sum2 = vaddq_f16(_sum2, _sum3);
+                _sum0 = vaddq_f16(_sum0, _sum2);
 
                 _sum0 = activation_ps(_sum0, activation_type, activation_params);
-                _sum1 = activation_ps(_sum1, activation_type, activation_params);
 
                 if (out_elempack == 8)
                 {
-                    vst1_f16(outptr, _sum0);
-                    vst1_f16(outptr + 4, _sum1);
+                    vst1q_f16(outptr, _sum0);
                     outptr += 8;
                 }
                 if (out_elempack == 4)
                 {
-                    vst1_f16(outptr, _sum0);
-                    vst1_f16(outptr + M, _sum1);
+                    vst1_f16(outptr, vget_low_f16(_sum0));
+                    vst1_f16(outptr + M, vget_high_f16(_sum0));
                     outptr += 4;
                 }
                 if (out_elempack == 1)
                 {
-                    outptr[0] = vget_lane_f16(_sum0, 0);
-                    outptr[M] = vget_lane_f16(_sum0, 1);
-                    outptr[M * 2] = vget_lane_f16(_sum0, 2);
-                    outptr[M * 3] = vget_lane_f16(_sum0, 3);
-                    outptr[M * 4] = vget_lane_f16(_sum1, 0);
-                    outptr[M * 5] = vget_lane_f16(_sum1, 1);
-                    outptr[M * 6] = vget_lane_f16(_sum1, 2);
-                    outptr[M * 7] = vget_lane_f16(_sum1, 3);
+                    outptr[0] = vgetq_lane_f16(_sum0, 0);
+                    outptr[M] = vgetq_lane_f16(_sum0, 1);
+                    outptr[M * 2] = vgetq_lane_f16(_sum0, 2);
+                    outptr[M * 3] = vgetq_lane_f16(_sum0, 3);
+                    outptr[M * 4] = vgetq_lane_f16(_sum0, 4);
+                    outptr[M * 5] = vgetq_lane_f16(_sum0, 5);
+                    outptr[M * 6] = vgetq_lane_f16(_sum0, 6);
+                    outptr[M * 7] = vgetq_lane_f16(_sum0, 7);
                     outptr += 1;
                 }
             }
