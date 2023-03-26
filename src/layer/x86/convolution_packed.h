@@ -71,7 +71,7 @@ static void convolution_transform_kernel_packed(const Mat& kernel, Mat& kernel_t
 #endif // __AVX__
         if (inch >= 4)
             kernel_tm.create(4 * 4 * maxk, inch / 4 + (inch % 4) / 2 + inch % 2, outch / 4 + (outch % 4) / 2 + outch % 2);
-        if (inch >= 2)
+        else if (inch >= 2)
             kernel_tm.create(4 * 2 * maxk, inch / 2 + inch % 2, outch / 4 + (outch % 4) / 2 + outch % 2);
         else
             kernel_tm.create(4 * maxk, inch, outch / 4 + (outch % 4) / 2 + outch % 2);
@@ -93,7 +93,7 @@ static void convolution_transform_kernel_packed(const Mat& kernel, Mat& kernel_t
 #endif // __AVX__
         if (inch >= 4)
             kernel_tm.create(2 * 4 * maxk, inch / 4 + (inch % 4) / 2 + inch % 2, outch / 2 + outch % 2);
-        if (inch >= 2)
+        else if (inch >= 2)
             kernel_tm.create(2 * 2 * maxk, inch / 2 + inch % 2, outch / 2 + outch % 2);
         else
 #endif // __SSE2__
@@ -114,7 +114,7 @@ static void convolution_transform_kernel_packed(const Mat& kernel, Mat& kernel_t
 #endif // __AVX__
         if (inch >= 4)
             kernel_tm.create(4 * maxk, inch / 4 + (inch % 4) / 2 + inch % 2, outch);
-        if (inch >= 2)
+        else if (inch >= 2)
             kernel_tm.create(2 * maxk, inch / 2 + inch % 2, outch);
         else
 #endif // __SSE2__
