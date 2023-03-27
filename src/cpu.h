@@ -147,6 +147,16 @@ NCNN_EXPORT const CpuSet& get_cpu_thread_affinity_mask(int powersave);
 // set explicit thread affinity
 NCNN_EXPORT int set_cpu_thread_affinity(const CpuSet& thread_affinity_mask);
 
+// arm midr info
+NCNN_EXPORT unsigned int get_arm_implementer();
+NCNN_EXPORT unsigned int get_arm_variant();
+NCNN_EXPORT unsigned int get_arm_architecture();
+NCNN_EXPORT unsigned int get_arm_part();
+NCNN_EXPORT unsigned int get_arm_revision();
+
+NCNN_EXPORT int cpu_is_arm_a53();
+NCNN_EXPORT int cpu_is_arm_a55();
+
 // misc function wrapper for openmp routines
 NCNN_EXPORT int get_omp_num_threads();
 NCNN_EXPORT void set_omp_num_threads(int num_threads);

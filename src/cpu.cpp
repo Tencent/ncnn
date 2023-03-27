@@ -2192,6 +2192,110 @@ int set_cpu_thread_affinity(const CpuSet& thread_affinity_mask)
 #endif
 }
 
+#if defined __ANDROID__ || defined __linux__
+static unsigned int get_midr(int cpuid)
+{
+    char path[256];
+    sprintf(path, "/sys/devices/system/cpu/cpu%d/regs/identification/midr_el1", cpuid);
+
+    FILE* fp = fopen(path, "rb");
+    if (!fp)
+        return 0;
+
+    unsigned int midr_el1 = 0;
+    int nscan = fscanf(fp, "%x", &midr_el1);
+    if (nscan != 1)
+    {
+        // ignore
+    }
+
+    fclose(fp);
+
+    return midr_el1;
+}
+
+static unsigned int get_big_cpu_midr()
+{
+    const CpuSet& big_cs = get_cpu_thread_affinity_mask(2);
+    if (big_cs.num_enabled() == 0)
+    {
+        // smp cpu
+        return get_midr(0);
+    }
+
+    for (int i = 0; i < g_cpucount; i++)
+    {
+        if (big_cs.is_enabled(i))
+        {
+            return get_midr(i);
+        }
+    }
+
+    // should never reach here, fallback to cpu0
+    return get_midr(0);
+}
+
+union midr_info_t
+{
+    struct __attribute__((packed))
+    {
+        unsigned int revision : 4;
+        unsigned int part : 12;
+        unsigned int architecture : 4;
+        unsigned int variant : 4;
+        unsigned int implementer : 8;
+    };
+    unsigned int midr;
+
+    midr_info_t(unsigned int _midr) : midr(_midr) {}
+};
+
+static midr_info_t g_midr = midr_info_t(get_big_cpu_midr());
+#else
+static midr_info_t g_midr = midr_info_t(0);
+#endif // defined __ANDROID__ || defined __linux__
+
+unsigned int get_arm_implementer()
+{
+    return g_midr.implementer;
+}
+
+unsigned int get_arm_variant()
+{
+    return g_midr.variant;
+}
+
+unsigned int get_arm_architecture()
+{
+    return g_midr.architecture;
+}
+
+unsigned int get_arm_part()
+{
+    return g_midr.part;
+}
+
+unsigned int get_arm_revision()
+{
+    return g_midr.revision;
+}
+
+int cpu_is_arm_a53()
+{
+    // 0x 41 ? f d03 ? = arm cortex-a53
+    // 0x 51 ? f 801 ? = qcom a53
+    return (g_midr.implementer == 0x41 && g_midr.part == 0xd03)
+        || (g_midr.implementer == 0x51 && g_midr.part == 0x801);
+}
+
+int cpu_is_arm_a55()
+{
+    // 0x 41 ? f d05 ? = arm cortex-a55
+    // 0x 51 ? f 803 ? = qcom a55
+    return (g_midr.implementer == 0x41 && g_midr.part == 0xd05)
+        || (g_midr.implementer == 0x51 && g_midr.part == 0x803);
+}
+
 int get_omp_num_threads()
 {
 #ifdef _OPENMP
