@@ -469,6 +469,7 @@ static void pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int max_jj, int 
 
     int jj = 0;
 #if __ARM_NEON
+#if __aarch64__
     for (; jj + 11 < max_jj; jj += 12)
     {
         if (elempack == 8)
@@ -607,6 +608,7 @@ static void pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int max_jj, int 
             }
         }
     }
+#endif // __aarch64__
     for (; jj + 7 < max_jj; jj += 8)
     {
         if (elempack == 8)
@@ -917,6 +919,7 @@ static void transpose_pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int ma
 
     int jj = 0;
 #if __ARM_NEON
+#if __aarch64__
     for (; jj + 11 < max_jj; jj += 12)
     {
         if (elempack == 8)
@@ -992,6 +995,7 @@ static void transpose_pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int ma
             }
         }
     }
+#endif // __aarch64__
     for (; jj + 7 < max_jj; jj += 8)
     {
         if (elempack == 8)
