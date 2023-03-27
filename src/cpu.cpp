@@ -53,6 +53,7 @@
 #if __ANDROID_API__ >= 18
 #include <sys/auxv.h> // getauxval()
 #endif
+#include <sys/system_properties.h> // __system_property_get()
 #include <dlfcn.h>
 #endif
 #include <stdint.h>
@@ -118,6 +119,44 @@ namespace ncnn {
 
 #define AT_HWCAP  16
 #define AT_HWCAP2 26
+
+#if __aarch64__
+// from arch/arm64/include/uapi/asm/hwcap.h
+#define HWCAP_ASIMD     (1 << 1)
+#define HWCAP_ASIMDHP   (1 << 10)
+#define HWCAP_ASIMDDP   (1 << 20)
+#define HWCAP_SVE       (1 << 22)
+#define HWCAP_ASIMDFHM  (1 << 23)
+#define HWCAP2_SVE2     (1 << 1)
+#define HWCAP2_SVEI8MM  (1 << 9)
+#define HWCAP2_SVEF32MM (1 << 10)
+#define HWCAP2_SVEBF16  (1 << 12)
+#define HWCAP2_I8MM     (1 << 13)
+#define HWCAP2_BF16     (1 << 14)
+#else
+// from arch/arm/include/uapi/asm/hwcap.h
+#define HWCAP_EDSP  (1 << 7)
+#define HWCAP_NEON  (1 << 12)
+#define HWCAP_VFPv4 (1 << 16)
+#endif
+
+#if __mips__
+// from arch/mips/include/uapi/asm/hwcap.h
+#define HWCAP_MIPS_MSA     (1 << 1)
+#define HWCAP_LOONGSON_MMI (1 << 11)
+#endif
+
+#if __loongarch64
+// from arch/loongarch/include/uapi/asm/hwcap.h
+#define HWCAP_LOONGARCH_LSX  (1 << 4)
+#define HWCAP_LOONGARCH_LASX (1 << 5)
+#endif
+
+#if __riscv
+// from arch/riscv/include/uapi/asm/hwcap.h
+#define COMPAT_HWCAP_ISA_F (1 << ('F' - 'A'))
+#define COMPAT_HWCAP_ISA_V (1 << ('V' - 'A'))
+#endif
 
 #if defined __ANDROID__
 // Probe the system's C library for a 'getauxval' function and call it if
@@ -212,56 +251,39 @@ static unsigned int get_elf_hwcap_from_proc_self_auxv(unsigned int type)
 
 static unsigned int get_elf_hwcap(unsigned int type)
 {
+    unsigned int hwcap = 0;
+
 #if defined __ANDROID__
-    unsigned int hwcap = get_elf_hwcap_from_getauxval(type);
-    if (hwcap)
-        return hwcap;
+    hwcap = get_elf_hwcap_from_getauxval(type);
 #endif
 
-    return get_elf_hwcap_from_proc_self_auxv(type);
+    if (!hwcap)
+        hwcap = get_elf_hwcap_from_proc_self_auxv(type);
+
+#if defined __ANDROID__
+#if __aarch64__
+    if (type == AT_HWCAP)
+    {
+        // samsung exynos9810 on android pre-9 incorrectly reports armv8.2
+        // for small cores, but big cores only support armv8.0
+        // drop all armv8.2 features used by ncnn for preventing SIGILLs
+        // ref https://reviews.llvm.org/D114523
+        char arch[PROP_VALUE_MAX];
+        int len = __system_property_get("ro.arch", arch);
+        if (len > 0 && strncmp(arch, "exynos9810", 10) == 0)
+        {
+            hwcap &= ~HWCAP_ASIMDHP;
+            hwcap &= ~HWCAP_ASIMDDP;
+        }
+    }
+#endif // __aarch64__
+#endif // defined __ANDROID__
+
+    return hwcap;
 }
 
 static unsigned int g_hwcaps = get_elf_hwcap(AT_HWCAP);
 static unsigned int g_hwcaps2 = get_elf_hwcap(AT_HWCAP2);
-
-#if __aarch64__
-// from arch/arm64/include/uapi/asm/hwcap.h
-#define HWCAP_ASIMD     (1 << 1)
-#define HWCAP_ASIMDHP   (1 << 10)
-#define HWCAP_ASIMDDP   (1 << 20)
-#define HWCAP_SVE       (1 << 22)
-#define HWCAP_ASIMDFHM  (1 << 23)
-#define HWCAP2_SVE2     (1 << 1)
-#define HWCAP2_SVEI8MM  (1 << 9)
-#define HWCAP2_SVEF32MM (1 << 10)
-#define HWCAP2_SVEBF16  (1 << 12)
-#define HWCAP2_I8MM     (1 << 13)
-#define HWCAP2_BF16     (1 << 14)
-#else
-// from arch/arm/include/uapi/asm/hwcap.h
-#define HWCAP_EDSP  (1 << 7)
-#define HWCAP_NEON  (1 << 12)
-#define HWCAP_VFPv4 (1 << 16)
-#endif
-
-#if __mips__
-// from arch/mips/include/uapi/asm/hwcap.h
-#define HWCAP_MIPS_MSA     (1 << 1)
-#define HWCAP_LOONGSON_MMI (1 << 11)
-#endif
-
-#if __loongarch64
-// from arch/loongarch/include/uapi/asm/hwcap.h
-#define HWCAP_LOONGARCH_LSX  (1 << 4)
-#define HWCAP_LOONGARCH_LASX (1 << 5)
-#endif
-
-#if __riscv
-// from arch/riscv/include/uapi/asm/hwcap.h
-#define COMPAT_HWCAP_ISA_F (1 << ('F' - 'A'))
-#define COMPAT_HWCAP_ISA_V (1 << ('V' - 'A'))
-#endif
-
 #endif // defined __ANDROID__ || defined __linux__
 
 #if __APPLE__
