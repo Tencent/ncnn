@@ -2247,7 +2247,10 @@ union midr_info_t
     };
     unsigned int midr;
 
-    midr_info_t(unsigned int _midr) : midr(_midr) {}
+    midr_info_t(unsigned int _midr)
+        : midr(_midr)
+    {
+    }
 };
 
 static midr_info_t g_midr = midr_info_t(get_big_cpu_midr());
@@ -2285,7 +2288,7 @@ int cpu_is_arm_a53()
     // 0x 41 ? f d03 ? = arm cortex-a53
     // 0x 51 ? f 801 ? = qcom a53
     return (g_midr.implementer == 0x41 && g_midr.part == 0xd03)
-        || (g_midr.implementer == 0x51 && g_midr.part == 0x801);
+           || (g_midr.implementer == 0x51 && g_midr.part == 0x801);
 }
 
 int cpu_is_arm_a55()
@@ -2293,7 +2296,7 @@ int cpu_is_arm_a55()
     // 0x 41 ? f d05 ? = arm cortex-a55
     // 0x 51 ? f 803 ? = qcom a55
     return (g_midr.implementer == 0x41 && g_midr.part == 0xd05)
-        || (g_midr.implementer == 0x51 && g_midr.part == 0x803);
+           || (g_midr.implementer == 0x51 && g_midr.part == 0x803);
 }
 
 int get_omp_num_threads()
