@@ -1023,7 +1023,7 @@ static void conv3x3s1_winograd23_bf16s(const Mat& bottom_blob, Mat& top_blob, co
 
                 const Mat BT_tile = BT.channel(j / TILE_N).depth(k / TILE_K);
 
-                conv3x3s1_winograd_gemm_transB_packed_tile(AT_tile, BT_tile, top_tile, B, max_ii, max_jj, k, max_kk);
+                conv3x3s1_winograd_gemm_transB_packed_tile(AT_tile, BT_tile, top_tile, B, max_ii, max_jj, k, max_kk, opt.use_a53_a55_optimized_kernel);
             }
 
             // transform output
@@ -2600,7 +2600,7 @@ static void conv3x3s1_winograd43_bf16s(const Mat& bottom_blob, Mat& top_blob, co
 
                 const Mat BT_tile = BT.channel(j / TILE_N).depth(k / TILE_K);
 
-                conv3x3s1_winograd_gemm_transB_packed_tile(AT_tile, BT_tile, top_tile, B, max_ii, max_jj, k, max_kk);
+                conv3x3s1_winograd_gemm_transB_packed_tile(AT_tile, BT_tile, top_tile, B, max_ii, max_jj, k, max_kk, opt.use_a53_a55_optimized_kernel);
             }
 
             // transform output
@@ -4531,7 +4531,7 @@ static void conv3x3s1_winograd63_bf16s(const Mat& bottom_blob, Mat& top_blob, co
 
                 const Mat BT_tile = BT.channel(j / TILE_N).depth(k / TILE_K);
 
-                conv3x3s1_winograd_gemm_transB_packed_tile(AT_tile, BT_tile, top_tile, B, max_ii, max_jj, k, max_kk);
+                conv3x3s1_winograd_gemm_transB_packed_tile(AT_tile, BT_tile, top_tile, B, max_ii, max_jj, k, max_kk, opt.use_a53_a55_optimized_kernel);
             }
 
             // transform output
