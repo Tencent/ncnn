@@ -155,6 +155,7 @@ NCNN_EXPORT unsigned int get_arm_part();
 NCNN_EXPORT unsigned int get_arm_revision();
 
 NCNN_EXPORT int cpu_is_arm_a53();
+NCNN_EXPORT int cpu_is_arm_a35();
 NCNN_EXPORT int cpu_is_arm_a55();
 
 // misc function wrapper for openmp routines

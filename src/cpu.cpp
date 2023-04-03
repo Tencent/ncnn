@@ -2254,49 +2254,85 @@ union midr_info_t
 };
 
 static midr_info_t g_midr = midr_info_t(get_big_cpu_midr());
-#else
-static midr_info_t g_midr = midr_info_t(0);
 #endif // defined __ANDROID__ || defined __linux__
 
 unsigned int get_arm_implementer()
 {
+#if defined __ANDROID__ || defined __linux__
     return g_midr.implementer;
+#else
+    return 0;
+#endif // defined __ANDROID__ || defined __linux__
 }
 
 unsigned int get_arm_variant()
 {
+#if defined __ANDROID__ || defined __linux__
     return g_midr.variant;
+#else
+    return 0;
+#endif // defined __ANDROID__ || defined __linux__
 }
 
 unsigned int get_arm_architecture()
 {
+#if defined __ANDROID__ || defined __linux__
     return g_midr.architecture;
+#else
+    return 0;
+#endif // defined __ANDROID__ || defined __linux__
 }
 
 unsigned int get_arm_part()
 {
+#if defined __ANDROID__ || defined __linux__
     return g_midr.part;
+#else
+    return 0;
+#endif // defined __ANDROID__ || defined __linux__
 }
 
 unsigned int get_arm_revision()
 {
+#if defined __ANDROID__ || defined __linux__
     return g_midr.revision;
+#else
+    return 0;
+#endif // defined __ANDROID__ || defined __linux__
 }
 
 int cpu_is_arm_a53()
 {
+#if defined __ANDROID__ || defined __linux__
     // 0x 41 ? f d03 ? = arm cortex-a53
     // 0x 51 ? f 801 ? = qcom a53
     return (g_midr.implementer == 0x41 && g_midr.part == 0xd03)
            || (g_midr.implementer == 0x51 && g_midr.part == 0x801);
+#else
+    return 0;
+#endif // defined __ANDROID__ || defined __linux__
+}
+
+int cpu_is_arm_a35()
+{
+#if defined __ANDROID__ || defined __linux__
+    // 0x 41 ? f d04 ? = arm cortex-a35
+    return (g_midr.implementer == 0x41 && g_midr.part == 0xd04);
+#else
+    return 0;
+#endif // defined __ANDROID__ || defined __linux__
 }
 
 int cpu_is_arm_a55()
 {
+#if defined __ANDROID__ || defined __linux__
     // 0x 41 ? f d05 ? = arm cortex-a55
     // 0x 51 ? f 803 ? = qcom a55
     return (g_midr.implementer == 0x41 && g_midr.part == 0xd05)
            || (g_midr.implementer == 0x51 && g_midr.part == 0x803);
+#else
+    return 0;
+#endif // defined __ANDROID__ || defined __linux__
 }
 
 int get_omp_num_threads()
