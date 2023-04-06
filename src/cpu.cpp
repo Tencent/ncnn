@@ -2400,7 +2400,8 @@ static int get_midr_from_proc_cpuinfo(std::vector<unsigned int>& midrs)
 static unsigned int get_midr_from_register()
 {
     uint64_t midr;
-    asm volatile("mrs   %0, MIDR_EL1" : "=r"(midr));
+    asm volatile("mrs   %0, MIDR_EL1"
+                 : "=r"(midr));
 
     return (unsigned int)midr;
 }
