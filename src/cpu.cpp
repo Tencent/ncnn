@@ -124,6 +124,7 @@ namespace ncnn {
 // from arch/arm64/include/uapi/asm/hwcap.h
 #define HWCAP_ASIMD     (1 << 1)
 #define HWCAP_ASIMDHP   (1 << 10)
+#define HWCAP_CPUID     (1 << 11)
 #define HWCAP_ASIMDDP   (1 << 20)
 #define HWCAP_SVE       (1 << 22)
 #define HWCAP_ASIMDFHM  (1 << 23)
@@ -547,6 +548,21 @@ int cpu_support_arm_asimdhp()
 #else
     return 0;
 #endif
+#else
+    return 0;
+#endif
+}
+
+int cpu_support_arm_cpuid()
+{
+#if defined __ANDROID__ || defined __linux__
+#if __aarch64__
+    return g_hwcaps & HWCAP_CPUID;
+#else
+    return 0;
+#endif
+#elif __APPLE__
+    return 0;
 #else
     return 0;
 #endif
@@ -2193,7 +2209,25 @@ int set_cpu_thread_affinity(const CpuSet& thread_affinity_mask)
 }
 
 #if defined __ANDROID__ || defined __linux__
-static unsigned int get_midr(int cpuid)
+union midr_info_t
+{
+    struct __attribute__((packed))
+    {
+        unsigned int revision : 4;
+        unsigned int part : 12;
+        unsigned int architecture : 4;
+        unsigned int variant : 4;
+        unsigned int implementer : 8;
+    };
+    unsigned int midr;
+
+    midr_info_t(unsigned int _midr)
+        : midr(_midr)
+    {
+    }
+};
+
+static unsigned int get_midr_from_sysfs(int cpuid)
 {
     char path[256];
     sprintf(path, "/sys/devices/system/cpu/cpu%d/regs/identification/midr_el1", cpuid);
@@ -2214,122 +2248,305 @@ static unsigned int get_midr(int cpuid)
     return midr_el1;
 }
 
-static unsigned int get_big_cpu_midr()
+static int get_midr_from_proc_cpuinfo(std::vector<unsigned int>& midrs)
 {
-    const CpuSet& big_cs = get_cpu_thread_affinity_mask(2);
-    if (big_cs.num_enabled() == 0)
-    {
-        // smp cpu
-        return get_midr(0);
-    }
+    FILE* fp = fopen("/proc/cpuinfo", "rb");
+    if (!fp)
+        return -1;
 
-    for (int i = 0; i < g_cpucount; i++)
+    midrs.resize(g_cpucount, 0);
+
+    int cpuid = -1;
+    midr_info_t midr_info(0);
+
+    char line[1024];
+    while (!feof(fp))
     {
-        if (big_cs.is_enabled(i))
+        char* s = fgets(line, 1024, fp);
+        if (!s)
+            break;
+
+        if (memcmp(line, "processor", 9) == 0)
         {
-            return get_midr(i);
+            // processor       : 4
+            int id = -1;
+            int nscan = sscanf(line, "%*[^:]: %d", &id);
+            if (nscan != 1)
+                continue;
+
+            if (cpuid >= 0 && cpuid < g_cpucount)
+            {
+                if (midr_info.midr == 0)
+                {
+                    // shared midr
+                    midrs[cpuid] = (unsigned int)-1;
+                }
+                else
+                {
+                    // save midr and reset
+                    midrs[cpuid] = midr_info.midr;
+                    for (int i = 0; i < g_cpucount; i++)
+                    {
+                        if (midrs[i] == (unsigned int)-1)
+                            midrs[i] = midr_info.midr;
+                    }
+                }
+
+                midr_info.midr = 0;
+            }
+
+            cpuid = id;
+        }
+
+        if (cpuid == -1)
+            continue;
+
+        if (memcmp(line, "CPU implementer", 15) == 0)
+        {
+            // CPU implementer : 0x51
+            unsigned int id = 0;
+            int nscan = sscanf(line, "%*[^:]: %x", &id);
+            if (nscan != 1)
+                continue;
+
+            midr_info.implementer = id;
+        }
+        else if (memcmp(line, "CPU architecture", 16) == 0)
+        {
+            // CPU architecture: 8
+            int id = 0;
+            int nscan = sscanf(line, "%*[^:]: %d", &id);
+            if (nscan != 1)
+                continue;
+
+            midr_info.architecture = id;
+        }
+        else if (memcmp(line, "CPU variant", 11) == 0)
+        {
+            // CPU variant     : 0xd
+            int id = 0;
+            int nscan = sscanf(line, "%*[^:]: %x", &id);
+            if (nscan != 1)
+                continue;
+
+            midr_info.variant = id;
+        }
+        else if (memcmp(line, "CPU part", 8) == 0)
+        {
+            // CPU part        : 0x804
+            int id = 0;
+            int nscan = sscanf(line, "%*[^:]: %x", &id);
+            if (nscan != 1)
+                continue;
+
+            midr_info.part = id;
+        }
+        else if (memcmp(line, "CPU revision", 12) == 0)
+        {
+            // CPU revision    : 14
+            int id = 0;
+            int nscan = sscanf(line, "%*[^:]: %d", &id);
+            if (nscan != 1)
+                continue;
+
+            midr_info.revision = id;
         }
     }
 
-    // should never reach here, fallback to cpu0
-    return get_midr(0);
-}
+    fclose(fp);
 
-union midr_info_t
-{
-    struct __attribute__((packed))
+    // /proc/cpuinfo may only report little/online cores old kernel
+    if (get_big_cpu_count() == get_cpu_count())
     {
-        unsigned int revision : 4;
-        unsigned int part : 12;
-        unsigned int architecture : 4;
-        unsigned int variant : 4;
-        unsigned int implementer : 8;
-    };
-    unsigned int midr;
-
-    midr_info_t(unsigned int _midr)
-        : midr(_midr)
-    {
+        // assign the remaining unknown midrs for smp cpu
+        for (int i = 0; i < g_cpucount; i++)
+        {
+            if (midrs[i] == 0)
+                midrs[i] = midr_info.midr;
+        }
     }
-};
+    else
+    {
+        // clear the big core midrs for hmp cpu if they are the same as little cores
+        const CpuSet& little_cs = get_cpu_thread_affinity_mask(1);
+        const CpuSet& big_cs = get_cpu_thread_affinity_mask(2);
 
-static midr_info_t g_midr = midr_info_t(get_big_cpu_midr());
-#endif // defined __ANDROID__ || defined __linux__
+        unsigned int little_midr = 0;
+        for (int i = 0; i < g_cpucount; i++)
+        {
+            if (little_cs.is_enabled(i))
+            {
+                little_midr = midrs[i];
+                break;
+            }
+        }
 
-unsigned int get_arm_implementer()
-{
-#if defined __ANDROID__ || defined __linux__
-    return g_midr.implementer;
-#else
+        for (int i = 0; i < g_cpucount; i++)
+        {
+            if (big_cs.is_enabled(i))
+            {
+                if (midrs[i] == little_midr)
+                {
+                    midrs[i] = 0;
+                }
+            }
+        }
+    }
+
     return 0;
-#endif // defined __ANDROID__ || defined __linux__
 }
 
-unsigned int get_arm_variant()
+// return midr for the current running core
+static unsigned int get_midr_from_register()
 {
-#if defined __ANDROID__ || defined __linux__
-    return g_midr.variant;
-#else
-    return 0;
+    uint64_t midr;
+    asm volatile("mrs   %0, MIDR_EL1" : "=r"(midr));
+
+    return (unsigned int)midr;
+}
 #endif // defined __ANDROID__ || defined __linux__
+
+#if defined __ANDROID__ || defined __linux__
+static int get_sched_affinity(CpuSet& thread_affinity_mask)
+{
+    // get affinity for thread
+#if defined(__BIONIC__)
+    pid_t pid = gettid();
+#else
+    pid_t pid = syscall(SYS_gettid);
+#endif
+
+    thread_affinity_mask.disable_all();
+
+    int syscallret = syscall(__NR_sched_getaffinity, pid, sizeof(cpu_set_t), &thread_affinity_mask.cpu_set);
+    if (syscallret)
+    {
+        // handle get error silently
+        return -1;
+    }
+
+    return 0;
 }
 
-unsigned int get_arm_architecture()
+static int midr_is_a53_a55(unsigned int midr)
 {
-#if defined __ANDROID__ || defined __linux__
-    return g_midr.architecture;
-#else
-    return 0;
-#endif // defined __ANDROID__ || defined __linux__
-}
-
-unsigned int get_arm_part()
-{
-#if defined __ANDROID__ || defined __linux__
-    return g_midr.part;
-#else
-    return 0;
-#endif // defined __ANDROID__ || defined __linux__
-}
-
-unsigned int get_arm_revision()
-{
-#if defined __ANDROID__ || defined __linux__
-    return g_midr.revision;
-#else
-    return 0;
-#endif // defined __ANDROID__ || defined __linux__
-}
-
-int cpu_is_arm_a53()
-{
-#if defined __ANDROID__ || defined __linux__
     // 0x 41 ? f d03 ? = arm cortex-a53
-    // 0x 51 ? f 801 ? = qcom a53
-    return (g_midr.implementer == 0x41 && g_midr.part == 0xd03)
-           || (g_midr.implementer == 0x51 && g_midr.part == 0x801);
-#else
-    return 0;
-#endif // defined __ANDROID__ || defined __linux__
-}
-
-int cpu_is_arm_a35()
-{
-#if defined __ANDROID__ || defined __linux__
+    // 0x 51 ? f 801 ? = qcom kryo200 a53
     // 0x 41 ? f d04 ? = arm cortex-a35
-    return (g_midr.implementer == 0x41 && g_midr.part == 0xd04);
-#else
-    return 0;
-#endif // defined __ANDROID__ || defined __linux__
+    // 0x 41 ? f d05 ? = arm cortex-a55
+    // 0x 51 ? f 803 ? = qcom kryo300 a55
+    // 0x 51 ? f 805 ? = qcom kryo400 a55
+
+    midr_info_t midr_info(midr);
+
+    return (midr_info.implementer == 0x41 && midr_info.part == 0xd03)
+           || (midr_info.implementer == 0x51 && midr_info.part == 0x801)
+           || (midr_info.implementer == 0x41 && midr_info.part == 0xd04)
+           || (midr_info.implementer == 0x41 && midr_info.part == 0xd05)
+           || (midr_info.implementer == 0x51 && midr_info.part == 0x803)
+           || (midr_info.implementer == 0x51 && midr_info.part == 0x805);
 }
 
-int cpu_is_arm_a55()
+static int detect_cpu_is_arm_a53_a55()
+{
+    int a53_a55_cpu_count = 0;
+
+    // first try, iterate /sys/devices/system/cpu/cpuX/regs/identification/midr_el1
+    bool sysfs_midr = true;
+    for (int i = 0; i < g_cpucount; i++)
+    {
+        unsigned int midr = 0;
+
+        // for kernel 4.7+
+        midr = get_midr_from_sysfs(i);
+        if (midr == 0)
+        {
+            sysfs_midr = false;
+            break;
+        }
+
+        if (midr_is_a53_a55(midr))
+        {
+            a53_a55_cpu_count++;
+        }
+    }
+
+    if (!sysfs_midr)
+    {
+        // second try, collect midr from /proc/cpuinfo
+        std::vector<unsigned int> midrs;
+        int ret = get_midr_from_proc_cpuinfo(midrs);
+        if (ret == 0 && (int)midrs.size() == g_cpucount)
+        {
+            for (int i = 0; i < g_cpucount; i++)
+            {
+                if (midr_is_a53_a55(midrs[i]))
+                {
+                    a53_a55_cpu_count++;
+                }
+            }
+        }
+        else
+        {
+            // third try, assume all aarch64 little cores are a53/a55
+            a53_a55_cpu_count = get_little_cpu_count();
+        }
+    }
+
+    if (a53_a55_cpu_count == 0)
+        return 0; // all non a53/a55
+
+    if (a53_a55_cpu_count == g_cpucount)
+        return 1; // all a53/a55
+
+    // small cores are a53/a55
+    return 2;
+}
+
+static int g_cpu_is_arm_a53_a55 = detect_cpu_is_arm_a53_a55();
+#endif // defined __ANDROID__ || defined __linux__
+
+int is_current_thread_running_on_a53_a55()
 {
 #if defined __ANDROID__ || defined __linux__
-    // 0x 41 ? f d05 ? = arm cortex-a55
-    // 0x 51 ? f 803 ? = qcom a55
-    return (g_midr.implementer == 0x41 && g_midr.part == 0xd05)
-           || (g_midr.implementer == 0x51 && g_midr.part == 0x803);
+    if (g_cpu_is_arm_a53_a55 == 0)
+        return 0; // all non a53/a55
+
+    if (g_cpu_is_arm_a53_a55 == 1)
+        return 1; // all a53/a55
+
+    // small cores are a53/a55
+    unsigned int midr = 0;
+
+    // use cpuid for retrieving midr since kernel 4.7+
+    if (cpu_support_arm_cpuid())
+    {
+        midr = get_midr_from_register();
+        if (midr)
+            return midr_is_a53_a55(midr);
+    }
+
+    // check if affinity cpuid is in the little ones
+    CpuSet thread_cs;
+    int ret = get_sched_affinity(thread_cs);
+    if (ret != 0)
+    {
+        // no affinity capability
+        return 0;
+    }
+
+    const CpuSet& little_cs = get_cpu_thread_affinity_mask(1);
+    for (int i = 0; i < g_cpucount; i++)
+    {
+        if (!thread_cs.is_enabled(i))
+            continue;
+
+        if (!little_cs.is_enabled(i))
+            return 0;
+    }
+
+    // all affinity cpuids are little core
+    return 1;
 #else
     return 0;
 #endif // defined __ANDROID__ || defined __linux__
