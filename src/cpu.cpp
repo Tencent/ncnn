@@ -2209,6 +2209,7 @@ int set_cpu_thread_affinity(const CpuSet& thread_affinity_mask)
 }
 
 #if defined __ANDROID__ || defined __linux__
+#if __aarch64__
 union midr_info_t
 {
     struct __attribute__((packed))
@@ -2355,7 +2356,7 @@ static int get_midr_from_proc_cpuinfo(std::vector<unsigned int>& midrs)
 
     fclose(fp);
 
-    // /proc/cpuinfo may only report little/online cores old kernel
+    // /proc/cpuinfo may only report little/online cores on old kernel
     if (get_big_cpu_count() == get_cpu_count())
     {
         // assign the remaining unknown midrs for smp cpu
@@ -2405,9 +2406,7 @@ static unsigned int get_midr_from_register()
 
     return (unsigned int)midr;
 }
-#endif // defined __ANDROID__ || defined __linux__
 
-#if defined __ANDROID__ || defined __linux__
 static int get_sched_affinity(CpuSet& thread_affinity_mask)
 {
     // get affinity for thread
@@ -2505,11 +2504,13 @@ static int detect_cpu_is_arm_a53_a55()
 }
 
 static int g_cpu_is_arm_a53_a55 = detect_cpu_is_arm_a53_a55();
+#endif // __aarch64__
 #endif // defined __ANDROID__ || defined __linux__
 
 int is_current_thread_running_on_a53_a55()
 {
 #if defined __ANDROID__ || defined __linux__
+#if __aarch64__
     if (g_cpu_is_arm_a53_a55 == 0)
         return 0; // all non a53/a55
 
@@ -2548,6 +2549,9 @@ int is_current_thread_running_on_a53_a55()
 
     // all affinity cpuids are little core
     return 1;
+#else
+    return 0;
+#endif // __aarch64__
 #else
     return 0;
 #endif // defined __ANDROID__ || defined __linux__
