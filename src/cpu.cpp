@@ -2356,6 +2356,27 @@ static int get_midr_from_proc_cpuinfo(std::vector<unsigned int>& midrs)
 
     fclose(fp);
 
+    if (cpuid >= 0 && cpuid < g_cpucount)
+    {
+        if (midr_info.midr == 0)
+        {
+            // shared midr
+            midrs[cpuid] = (unsigned int)-1;
+        }
+        else
+        {
+            // save midr and reset
+            midrs[cpuid] = midr_info.midr;
+            for (int i = 0; i < g_cpucount; i++)
+            {
+                if (midrs[i] == (unsigned int)-1)
+                    midrs[i] = midr_info.midr;
+            }
+        }
+
+        midr_info.midr = 0;
+    }
+
     // /proc/cpuinfo may only report little/online cores on old kernel
     if (get_big_cpu_count() == get_cpu_count())
     {
