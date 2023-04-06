@@ -266,7 +266,7 @@ static unsigned int get_elf_hwcap(unsigned int type)
     if (type == AT_HWCAP)
     {
         // samsung exynos9810 on android pre-9 incorrectly reports armv8.2
-        // for small cores, but big cores only support armv8.0
+        // for little cores, but big cores only support armv8.0
         // drop all armv8.2 features used by ncnn for preventing SIGILLs
         // ref https://reviews.llvm.org/D114523
         char arch[PROP_VALUE_MAX];
@@ -2499,7 +2499,7 @@ static int detect_cpu_is_arm_a53_a55()
     if (a53_a55_cpu_count == g_cpucount)
         return 1; // all a53/a55
 
-    // small cores are a53/a55
+    // little cores are a53/a55
     return 2;
 }
 
@@ -2517,7 +2517,13 @@ int is_current_thread_running_on_a53_a55()
     if (g_cpu_is_arm_a53_a55 == 1)
         return 1; // all a53/a55
 
-    // small cores are a53/a55
+    if (g_powersave == 2)
+        return 0; // big clusters
+
+    if (g_powersave == 1)
+        return 1; // little clusters
+
+    // little cores are a53/a55
     unsigned int midr = 0;
 
     // use cpuid for retrieving midr since kernel 4.7+

@@ -72,6 +72,8 @@ Option::Option()
     use_winograd23_convolution = true;
     use_winograd43_convolution = true;
     use_winograd63_convolution = true;
+
+    use_a53_a55_optimized_kernel = is_current_thread_running_on_a53_a55();
 }
 
 } // namespace ncnn
