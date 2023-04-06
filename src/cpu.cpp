@@ -2524,12 +2524,11 @@ int is_current_thread_running_on_a53_a55()
         return 1; // little clusters
 
     // little cores are a53/a55
-    unsigned int midr = 0;
 
     // use cpuid for retrieving midr since kernel 4.7+
     if (cpu_support_arm_cpuid())
     {
-        midr = get_midr_from_register();
+        unsigned int midr = get_midr_from_register();
         if (midr)
             return midr_is_a53_a55(midr);
     }
