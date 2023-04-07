@@ -4162,7 +4162,7 @@ int Gemm_arm::create_pipeline(const Option& opt)
 
         const int nn_M = (M + TILE_M - 1) / TILE_M;
 
-        AT_data.create(TILE_K * TILE_M, (K + TILE_K - 1) / TILE_K, (M + TILE_M - 1) / TILE_M, 4u, opt.blob_allocator);
+        AT_data.create(TILE_K * TILE_M, (K + TILE_K - 1) / TILE_K, (M + TILE_M - 1) / TILE_M, 4u, (Allocator*)0);
         if (AT_data.empty())
             return -100;
 
@@ -4205,7 +4205,7 @@ int Gemm_arm::create_pipeline(const Option& opt)
 
         const int nn_N = (N + TILE_N - 1) / TILE_N;
 
-        BT_data.create(TILE_K * TILE_N, (K + TILE_K - 1) / TILE_K, (N + TILE_N - 1) / TILE_N, 4u, opt.blob_allocator);
+        BT_data.create(TILE_K * TILE_N, (K + TILE_K - 1) / TILE_K, (N + TILE_N - 1) / TILE_N, 4u, (Allocator*)0);
         if (BT_data.empty())
             return -100;
 
@@ -4851,7 +4851,7 @@ int Gemm_arm::create_pipeline_bf16s(const Option& opt)
 
         const int nn_M = (M + TILE_M - 1) / TILE_M;
 
-        AT_data.create(TILE_K * TILE_M, (K + TILE_K - 1) / TILE_K, (M + TILE_M - 1) / TILE_M, 2u, opt.blob_allocator);
+        AT_data.create(TILE_K * TILE_M, (K + TILE_K - 1) / TILE_K, (M + TILE_M - 1) / TILE_M, 2u, (Allocator*)0);
         if (AT_data.empty())
             return -100;
 
@@ -4894,7 +4894,7 @@ int Gemm_arm::create_pipeline_bf16s(const Option& opt)
 
         const int nn_N = (N + TILE_N - 1) / TILE_N;
 
-        BT_data.create(TILE_K * TILE_N, (K + TILE_K - 1) / TILE_K, (N + TILE_N - 1) / TILE_N, 2u, opt.blob_allocator);
+        BT_data.create(TILE_K * TILE_N, (K + TILE_K - 1) / TILE_K, (N + TILE_N - 1) / TILE_N, 2u, (Allocator*)0);
         if (BT_data.empty())
             return -100;
 

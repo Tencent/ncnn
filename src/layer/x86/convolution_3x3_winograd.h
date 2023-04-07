@@ -1983,9 +1983,9 @@ static void conv3x3s1_winograd23_transform_kernel(const Mat& kernel, Mat& AT, in
 
     const int nn_M = (M + TILE_M - 1) / TILE_M;
 
-    Mat A_tileX(B * TILE_M * TILE_K, 1, opt.num_threads, 4u, opt.blob_allocator);
+    Mat A_tileX(B * TILE_M * TILE_K, 1, opt.num_threads, 4u, (Allocator*)0);
 
-    AT.create(TILE_K * TILE_M, B, (K + TILE_K - 1) / TILE_K, (M + TILE_M - 1) / TILE_M, 4u, opt.blob_allocator);
+    AT.create(TILE_K * TILE_M, B, (K + TILE_K - 1) / TILE_K, (M + TILE_M - 1) / TILE_M, 4u, (Allocator*)0);
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int ppj = 0; ppj < nn_M; ppj++)
@@ -3158,13 +3158,13 @@ static void conv3x3s1_winograd23(const Mat& bottom_blob, Mat& top_blob, const Ma
 
     // NCNN_LOGE("TILE M/N/K = %d %d %d -> %d %d %d", M, N, K, TILE_M, TILE_N, TILE_K);
 
-    Mat BT(TILE_K * TILE_N, B, (K + TILE_K - 1) / TILE_K, (N + TILE_N - 1) / TILE_N, 4u, opt.blob_allocator);
+    Mat BT(TILE_K * TILE_N, B, (K + TILE_K - 1) / TILE_K, (N + TILE_N - 1) / TILE_N, 4u, opt.workspace_allocator);
 
     const int nn_NK = nn_N * nn_K;
 
     if (nT > 1 && nn_NK < nT)
     {
-        Mat B_tile(TILE_N * B * TILE_K, 4u, opt.blob_allocator);
+        Mat B_tile(TILE_N * B * TILE_K, 4u, opt.workspace_allocator);
 
         for (int ppjk = 0; ppjk < nn_NK; ppjk++)
         {
@@ -3187,7 +3187,7 @@ static void conv3x3s1_winograd23(const Mat& bottom_blob, Mat& top_blob, const Ma
     }
     else
     {
-        Mat B_tileX(TILE_N * B * TILE_K, 1, nT, 4u, opt.blob_allocator);
+        Mat B_tileX(TILE_N * B * TILE_K, 1, nT, 4u, opt.workspace_allocator);
 
         #pragma omp parallel for num_threads(nT)
         for (int ppjk = 0; ppjk < nn_NK; ppjk++)
@@ -3212,7 +3212,7 @@ static void conv3x3s1_winograd23(const Mat& bottom_blob, Mat& top_blob, const Ma
         }
     }
 
-    Mat top_tileX(TILE_N * B * TILE_M, 1, nT, 4u, opt.blob_allocator);
+    Mat top_tileX(TILE_N * B * TILE_M, 1, nT, 4u, opt.workspace_allocator);
 
     #pragma omp parallel for num_threads(nT)
     for (int ppj = 0; ppj < nn_M; ppj++)
@@ -3325,9 +3325,9 @@ static void conv3x3s1_winograd43_transform_kernel(const Mat& kernel, Mat& AT, in
 
     const int nn_M = (M + TILE_M - 1) / TILE_M;
 
-    Mat A_tileX(B * TILE_M * TILE_K, 1, opt.num_threads, 4u, opt.blob_allocator);
+    Mat A_tileX(B * TILE_M * TILE_K, 1, opt.num_threads, 4u, (Allocator*)0);
 
-    AT.create(TILE_K * TILE_M, B, (K + TILE_K - 1) / TILE_K, (M + TILE_M - 1) / TILE_M, 4u, opt.blob_allocator);
+    AT.create(TILE_K * TILE_M, B, (K + TILE_K - 1) / TILE_K, (M + TILE_M - 1) / TILE_M, 4u, (Allocator*)0);
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int ppj = 0; ppj < nn_M; ppj++)
@@ -5000,13 +5000,13 @@ static void conv3x3s1_winograd43(const Mat& bottom_blob, Mat& top_blob, const Ma
 
     // NCNN_LOGE("TILE M/N/K = %d %d %d -> %d %d %d", M, N, K, TILE_M, TILE_N, TILE_K);
 
-    Mat BT(TILE_K * TILE_N, B, (K + TILE_K - 1) / TILE_K, (N + TILE_N - 1) / TILE_N, 4u, opt.blob_allocator);
+    Mat BT(TILE_K * TILE_N, B, (K + TILE_K - 1) / TILE_K, (N + TILE_N - 1) / TILE_N, 4u, opt.workspace_allocator);
 
     const int nn_NK = nn_N * nn_K;
 
     if (nT > 1 && nn_NK < nT)
     {
-        Mat B_tile(TILE_N * B * TILE_K, 4u, opt.blob_allocator);
+        Mat B_tile(TILE_N * B * TILE_K, 4u, opt.workspace_allocator);
 
         for (int ppjk = 0; ppjk < nn_NK; ppjk++)
         {
@@ -5029,7 +5029,7 @@ static void conv3x3s1_winograd43(const Mat& bottom_blob, Mat& top_blob, const Ma
     }
     else
     {
-        Mat B_tileX(TILE_N * B * TILE_K, 1, nT, 4u, opt.blob_allocator);
+        Mat B_tileX(TILE_N * B * TILE_K, 1, nT, 4u, opt.workspace_allocator);
 
         #pragma omp parallel for num_threads(nT)
         for (int ppjk = 0; ppjk < nn_NK; ppjk++)
@@ -5054,7 +5054,7 @@ static void conv3x3s1_winograd43(const Mat& bottom_blob, Mat& top_blob, const Ma
         }
     }
 
-    Mat top_tileX(TILE_N * B * TILE_M, 1, nT, 4u, opt.blob_allocator);
+    Mat top_tileX(TILE_N * B * TILE_M, 1, nT, 4u, opt.workspace_allocator);
 
     #pragma omp parallel for num_threads(nT)
     for (int ppj = 0; ppj < nn_M; ppj++)
@@ -5174,9 +5174,9 @@ static void conv3x3s1_winograd63_transform_kernel(const Mat& kernel, Mat& AT, in
 
     const int nn_M = (M + TILE_M - 1) / TILE_M;
 
-    Mat A_tileX(B * TILE_M * TILE_K, 1, opt.num_threads, 4u, opt.blob_allocator);
+    Mat A_tileX(B * TILE_M * TILE_K, 1, opt.num_threads, 4u, (Allocator*)0);
 
-    AT.create(TILE_K * TILE_M, B, (K + TILE_K - 1) / TILE_K, (M + TILE_M - 1) / TILE_M, 4u, opt.blob_allocator);
+    AT.create(TILE_K * TILE_M, B, (K + TILE_K - 1) / TILE_K, (M + TILE_M - 1) / TILE_M, 4u, (Allocator*)0);
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int ppj = 0; ppj < nn_M; ppj++)
@@ -7290,13 +7290,13 @@ static void conv3x3s1_winograd63(const Mat& bottom_blob, Mat& top_blob, const Ma
 
     // NCNN_LOGE("TILE M/N/K = %d %d %d -> %d %d %d", M, N, K, TILE_M, TILE_N, TILE_K);
 
-    Mat BT(TILE_K * TILE_N, B, (K + TILE_K - 1) / TILE_K, (N + TILE_N - 1) / TILE_N, 4u, opt.blob_allocator);
+    Mat BT(TILE_K * TILE_N, B, (K + TILE_K - 1) / TILE_K, (N + TILE_N - 1) / TILE_N, 4u, opt.workspace_allocator);
 
     const int nn_NK = nn_N * nn_K;
 
     if (nT > 1 && nn_NK < nT)
     {
-        Mat B_tile(TILE_N * B * TILE_K, 4u, opt.blob_allocator);
+        Mat B_tile(TILE_N * B * TILE_K, 4u, opt.workspace_allocator);
 
         for (int ppjk = 0; ppjk < nn_NK; ppjk++)
         {
@@ -7319,7 +7319,7 @@ static void conv3x3s1_winograd63(const Mat& bottom_blob, Mat& top_blob, const Ma
     }
     else
     {
-        Mat B_tileX(TILE_N * B * TILE_K, 1, nT, 4u, opt.blob_allocator);
+        Mat B_tileX(TILE_N * B * TILE_K, 1, nT, 4u, opt.workspace_allocator);
 
         #pragma omp parallel for num_threads(nT)
         for (int ppjk = 0; ppjk < nn_NK; ppjk++)
@@ -7344,7 +7344,7 @@ static void conv3x3s1_winograd63(const Mat& bottom_blob, Mat& top_blob, const Ma
         }
     }
 
-    Mat top_tileX(TILE_N * B * TILE_M, 1, nT, 4u, opt.blob_allocator);
+    Mat top_tileX(TILE_N * B * TILE_M, 1, nT, 4u, opt.workspace_allocator);
 
     #pragma omp parallel for num_threads(nT)
     for (int ppj = 0; ppj < nn_M; ppj++)
