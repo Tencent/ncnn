@@ -1531,13 +1531,13 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     for (int i = 0; i < opt_count; i++)
     {
         ncnn::Option opt;
-        opt.use_packing_layout = options[0];
-        opt.use_fp16_packed = options[1];
-        opt.use_fp16_storage = options[2];
-        opt.use_fp16_arithmetic = options[3];
-        opt.use_bf16_storage = options[4];
-        opt.use_shader_pack8 = options[5];
-        opt.use_image_storage = options[6];
+        opt.use_packing_layout = options[i][0];
+        opt.use_fp16_packed = options[i][1];
+        opt.use_fp16_storage = options[i][2];
+        opt.use_fp16_arithmetic = options[i][3];
+        opt.use_bf16_storage = options[i][4];
+        opt.use_shader_pack8 = options[i][5];
+        opt.use_image_storage = options[i][6];
 
         int ret = test_layer_opt<T>(layer_type, pd, weights, opt, a, top_blob_count, epsilon, func, flag);
         if (ret != 0)
@@ -1567,13 +1567,13 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     for (int i = 0; i < opt_count; i++)
     {
         ncnn::Option opt;
-        opt.use_packing_layout = options[0];
-        opt.use_fp16_packed = options[1];
-        opt.use_fp16_storage = options[2];
-        opt.use_fp16_arithmetic = options[3];
-        opt.use_bf16_storage = options[4];
-        opt.use_shader_pack8 = options[5];
-        opt.use_image_storage = options[6];
+        opt.use_packing_layout = options[i][0];
+        opt.use_fp16_packed = options[i][1];
+        opt.use_fp16_storage = options[i][2];
+        opt.use_fp16_arithmetic = options[i][3];
+        opt.use_bf16_storage = options[i][4];
+        opt.use_shader_pack8 = options[i][5];
+        opt.use_image_storage = options[i][6];
 
         int ret = test_layer_opt<T>(layer_type, pd, weights, opt, a, epsilon, func, flag);
         if (ret != 0)
