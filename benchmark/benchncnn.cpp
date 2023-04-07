@@ -214,6 +214,11 @@ int main(int argc, char** argv)
     }
 #endif // NCNN_VULKAN
 
+    ncnn::set_cpu_powersave(powersave);
+
+    ncnn::set_omp_dynamic(0);
+    ncnn::set_omp_num_threads(num_threads);
+
     // default option
     ncnn::Option opt;
     opt.lightmode = true;
@@ -237,11 +242,6 @@ int main(int argc, char** argv)
     opt.use_packing_layout = true;
     opt.use_shader_pack8 = false;
     opt.use_image_storage = false;
-
-    ncnn::set_cpu_powersave(powersave);
-
-    ncnn::set_omp_dynamic(0);
-    ncnn::set_omp_num_threads(num_threads);
 
     fprintf(stderr, "loop_count = %d\n", g_loop_count);
     fprintf(stderr, "num_threads = %d\n", num_threads);

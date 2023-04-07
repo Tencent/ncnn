@@ -12,7 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-static void convolution_gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_tile, const Mat& CT_tile, Mat& topT_tile, Mat& top_blob, int i, int max_ii, int j, int max_jj, int k, int max_kk, bool k_end)
+static void convolution_gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const Mat& BT_tile, const Mat& CT_tile, Mat& topT_tile, Mat& top_blob, int i, int max_ii, int j, int max_jj, int k, int max_kk, bool k_end, int use_a53_a55_optimized_kernel)
 {
     // NCNN_LOGE("convolution_gemm_transB_packed_tile_fp16sa %d %d %d %d %d %d", i, max_ii, j, max_jj, k, max_kk);
 
@@ -43,256 +43,543 @@ static void convolution_gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const
             const __fp16* pA = pAT;
 
 #if NCNN_GNU_INLINE_ASM
-            asm volatile(
-                "cbz    %w10, 0f                    \n"
+            if (use_a53_a55_optimized_kernel)
+            {
+                asm volatile(
+                    "cbz    %w10, 0f                    \n"
 
-                "ld1    {v20.8h, v21.8h, v22.8h, v23.8h}, [%0], #64 \n"
-                "ld1    {v24.8h, v25.8h, v26.8h, v27.8h}, [%0], #64 \n"
-                "ld1    {v28.8h, v29.8h, v30.8h, v31.8h}, [%0]      \n"
-                "subs   %0, %0, #128                \n"
-                "b      3f                          \n"
+                    "ld1    {v20.8h, v21.8h, v22.8h, v23.8h}, [%0], #64 \n"
+                    "ld1    {v24.8h, v25.8h, v26.8h, v27.8h}, [%0], #64 \n"
+                    "ld1    {v28.8h, v29.8h, v30.8h, v31.8h}, [%0]      \n"
+                    "subs   %0, %0, #128                \n"
+                    "b      3f                          \n"
 
-                "0:                                 \n"
-                // if pC
-                "cbz    %8, 1f                      \n"
+                    "0:                                 \n"
+                    // if pC
+                    "cbz    %8, 1f                      \n"
 
-                "ld1    {v20.8h}, [%8]              \n"
-                "b      2f                          \n"
+                    "ld1    {v20.8h}, [%8]              \n"
+                    "b      2f                          \n"
 
-                // else
-                "1:                                 \n"
-                "eor    v20.16b, v20.16b, v20.16b   \n"
+                    // else
+                    "1:                                 \n"
+                    "eor    v20.16b, v20.16b, v20.16b   \n"
 
-                "2:                                 \n"
-                "mov    v21.16b, v20.16b            \n"
-                "mov    v22.16b, v20.16b            \n"
-                "mov    v23.16b, v20.16b            \n"
-                "mov    v24.16b, v20.16b            \n"
-                "mov    v25.16b, v20.16b            \n"
-                "mov    v26.16b, v20.16b            \n"
-                "mov    v27.16b, v20.16b            \n"
-                "mov    v28.16b, v20.16b            \n"
-                "mov    v29.16b, v20.16b            \n"
-                "mov    v30.16b, v20.16b            \n"
-                "mov    v31.16b, v20.16b            \n"
+                    "2:                                 \n"
+                    "mov    v21.16b, v20.16b            \n"
+                    "mov    v22.16b, v20.16b            \n"
+                    "mov    v23.16b, v20.16b            \n"
+                    "mov    v24.16b, v20.16b            \n"
+                    "mov    v25.16b, v20.16b            \n"
+                    "mov    v26.16b, v20.16b            \n"
+                    "mov    v27.16b, v20.16b            \n"
+                    "mov    v28.16b, v20.16b            \n"
+                    "mov    v29.16b, v20.16b            \n"
+                    "mov    v30.16b, v20.16b            \n"
+                    "mov    v31.16b, v20.16b            \n"
 
-                "3:                                 \n"
-                "lsr    w4, %w9, #2                 \n" // w4 = max_kk >> 2
-                "cmp    w4, #0                      \n"
-                "beq    5f                          \n"
+                    "3:                                 \n"
+                    "lsr    w4, %w9, #2                 \n" // w4 = max_kk >> 2
+                    "cmp    w4, #0                      \n"
+                    "beq    5f                          \n"
 
-                "4:                                 \n"
-                "prfm   pldl1keep, [%1, #512]       \n"
-                "ld1    {v4.8h, v5.8h, v6.8h, v7.8h}, [%1], #64 \n"
+                    "prfm   pldl1keep, [%1, #512]       \n"
+                    "ld1    {v4.8h}, [%1], #16          \n"
+                    "prfm   pldl1keep, [%2, #512]       \n"
+                    "ld1    {v0.8h}, [%2], #16          \n"
 
-                "prfm   pldl1keep, [%2, #512]       \n"
-                "ld1    {v0.8h, v1.8h, v2.8h, v3.8h}, [%2], #64 \n"
+                    "ldr    d1, [%2], #8                \n"
+                    "ldr    x21, [%2], #8               \n"
 
-                "fmla   v20.8h, v4.8h, v0.h[0]      \n"
-                "fmla   v21.8h, v4.8h, v0.h[1]      \n"
-                "fmla   v22.8h, v4.8h, v0.h[2]      \n"
-                "fmla   v23.8h, v4.8h, v0.h[3]      \n"
-                "fmla   v24.8h, v4.8h, v0.h[4]      \n"
-                "fmla   v25.8h, v4.8h, v0.h[5]      \n"
-                "fmla   v26.8h, v4.8h, v0.h[6]      \n"
-                "fmla   v27.8h, v4.8h, v0.h[7]      \n"
-                "fmla   v28.8h, v4.8h, v1.h[0]      \n"
-                "fmla   v29.8h, v4.8h, v1.h[1]      \n"
-                "fmla   v30.8h, v4.8h, v1.h[2]      \n"
-                "fmla   v31.8h, v4.8h, v1.h[3]      \n"
+                    ".align 4                           \n"
+                    "4:                                 \n"
+                    "ldr    d5, [%1], #8                \n"
+                    "fmla   v20.8h, v4.8h, v0.h[0]      \n"
+                    "ldr    x25, [%1], #8               \n"
+                    "fmla   v21.8h, v4.8h, v0.h[1]      \n"
+                    "ldr    d2, [%2], #8                \n"
+                    "fmla   v22.8h, v4.8h, v0.h[2]      \n"
+                    "ldr    x22, [%2], #8               \n"
+                    "fmla   v23.8h, v4.8h, v0.h[3]      \n"
+                    "ldr    d6, [%1], #8                \n"
+                    "fmla   v24.8h, v4.8h, v0.h[4]      \n"
+                    "ldr    x26, [%1], #8               \n"
+                    "fmla   v25.8h, v4.8h, v0.h[5]      \n"
+                    "ins    v1.d[1], x21                \n"
+                    "fmla   v26.8h, v4.8h, v0.h[6]      \n"
+                    "ldr    d3, [%2], #8                \n"
+                    "fmla   v27.8h, v4.8h, v0.h[7]      \n"
+                    "ldr    x23, [%2], #8               \n"
+                    "fmla   v28.8h, v4.8h, v1.h[0]      \n"
+                    "prfm   pldl1keep, [%2, #256]       \n" // NOTE PRELOAD
+                    "fmla   v29.8h, v4.8h, v1.h[1]      \n"
+                    "ins    v5.d[1], x25                \n"
+                    "fmla   v30.8h, v4.8h, v1.h[2]      \n"
+                    "ldr    d8, [%2], #8                \n"
+                    "fmla   v31.8h, v4.8h, v1.h[3]      \n"
+                    "ldr    x20, [%2], #8               \n"
+                    "fmla   v20.8h, v5.8h, v1.h[4]      \n"
+                    "ldr    d7, [%1], #8                \n"
+                    "fmla   v21.8h, v5.8h, v1.h[5]      \n"
+                    "ins    v2.d[1], x22                \n"
+                    "fmla   v22.8h, v5.8h, v1.h[6]      \n"
+                    "ldr    x27, [%1], #8               \n"
+                    "fmla   v23.8h, v5.8h, v1.h[7]      \n"
+                    "ldr    d9, [%2], #8                \n"
+                    "fmla   v24.8h, v5.8h, v2.h[0]      \n"
+                    "ldr    x21, [%2], #8               \n"
+                    "fmla   v25.8h, v5.8h, v2.h[1]      \n"
+                    "ins    v6.d[1], x26                \n"
+                    "fmla   v26.8h, v5.8h, v2.h[2]      \n"
+                    "prfm   pldl1keep, [%1, #512]       \n" // NOTE PRELOAD
+                    "fmla   v27.8h, v5.8h, v2.h[3]      \n"
+                    "ldr    d4, [%1], #8                \n"
+                    "fmla   v28.8h, v5.8h, v2.h[4]      \n"
+                    "ldr    x24, [%1], #8               \n"
+                    "fmla   v29.8h, v5.8h, v2.h[5]      \n"
+                    "ins    v3.d[1], x23                \n"
+                    "fmla   v30.8h, v5.8h, v2.h[6]      \n"
+                    "prfm   pldl1keep, [%2, #512]       \n" // NOTE PRELOAD
+                    "fmla   v31.8h, v5.8h, v2.h[7]      \n"
+                    "ldr    d0, [%2], #8                \n"
+                    "fmla   v20.8h, v6.8h, v3.h[0]      \n"
+                    "fmla   v21.8h, v6.8h, v3.h[1]      \n"
+                    "fmla   v22.8h, v6.8h, v3.h[2]      \n"
+                    "fmla   v23.8h, v6.8h, v3.h[3]      \n"
+                    "fmla   v24.8h, v6.8h, v3.h[4]      \n"
+                    "fmla   v25.8h, v6.8h, v3.h[5]      \n"
+                    "ins    v8.d[1], x20                \n"
+                    "fmla   v26.8h, v6.8h, v3.h[6]      \n"
+                    "ldr    x20, [%2], #8               \n"
+                    "fmla   v27.8h, v6.8h, v3.h[7]      \n"
+                    "ldr    d1, [%2], #8                \n"
+                    "fmla   v28.8h, v6.8h, v8.h[0]      \n"
+                    "fmla   v29.8h, v6.8h, v8.h[1]      \n"
+                    "ins    v7.d[1], x27                \n"
+                    "fmla   v30.8h, v6.8h, v8.h[2]      \n"
+                    "fmla   v31.8h, v6.8h, v8.h[3]      \n"
+                    "fmla   v20.8h, v7.8h, v8.h[4]      \n"
+                    "fmla   v21.8h, v7.8h, v8.h[5]      \n"
+                    "ins    v9.d[1], x21                \n"
+                    "fmla   v22.8h, v7.8h, v8.h[6]      \n"
+                    "fmla   v23.8h, v7.8h, v8.h[7]      \n"
+                    "ldr    x21, [%2], #8               \n"
+                    "fmla   v24.8h, v7.8h, v9.h[0]      \n"
+                    "fmla   v25.8h, v7.8h, v9.h[1]      \n"
+                    "ins    v4.d[1], x24                \n"
+                    "fmla   v26.8h, v7.8h, v9.h[2]      \n"
+                    "fmla   v27.8h, v7.8h, v9.h[3]      \n"
+                    "subs   w4, w4, #1                  \n"
+                    "fmla   v28.8h, v7.8h, v9.h[4]      \n"
+                    "fmla   v29.8h, v7.8h, v9.h[5]      \n"
+                    "fmla   v30.8h, v7.8h, v9.h[6]      \n"
+                    "ins    v0.d[1], x20                \n"
+                    "fmla   v31.8h, v7.8h, v9.h[7]      \n"
+                    "bne    4b                          \n"
 
-                "fmla   v20.8h, v5.8h, v1.h[4]      \n"
-                "fmla   v21.8h, v5.8h, v1.h[5]      \n"
-                "fmla   v22.8h, v5.8h, v1.h[6]      \n"
-                "fmla   v23.8h, v5.8h, v1.h[7]      \n"
-                "fmla   v24.8h, v5.8h, v2.h[0]      \n"
-                "fmla   v25.8h, v5.8h, v2.h[1]      \n"
-                "fmla   v26.8h, v5.8h, v2.h[2]      \n"
-                "fmla   v27.8h, v5.8h, v2.h[3]      \n"
-                "fmla   v28.8h, v5.8h, v2.h[4]      \n"
-                "fmla   v29.8h, v5.8h, v2.h[5]      \n"
-                "fmla   v30.8h, v5.8h, v2.h[6]      \n"
-                "fmla   v31.8h, v5.8h, v2.h[7]      \n"
+                    "sub    %1, %1, #16                 \n"
+                    "sub    %2, %2, #32                 \n"
 
-                "prfm   pldl1keep, [%2, #256]       \n"
-                "ld1    {v8.8h, v9.8h}, [%2], #32   \n"
+                    "5:                                 \n"
+                    "and    w4, %w9, #3                 \n" // w4 = remain = max_kk & 3
+                    "cmp    w4, #0                      \n"
+                    "beq    7f                          \n"
 
-                "fmla   v20.8h, v6.8h, v3.h[0]      \n"
-                "fmla   v21.8h, v6.8h, v3.h[1]      \n"
-                "fmla   v22.8h, v6.8h, v3.h[2]      \n"
-                "fmla   v23.8h, v6.8h, v3.h[3]      \n"
-                "fmla   v24.8h, v6.8h, v3.h[4]      \n"
-                "fmla   v25.8h, v6.8h, v3.h[5]      \n"
-                "fmla   v26.8h, v6.8h, v3.h[6]      \n"
-                "fmla   v27.8h, v6.8h, v3.h[7]      \n"
-                "fmla   v28.8h, v6.8h, v8.h[0]      \n"
-                "fmla   v29.8h, v6.8h, v8.h[1]      \n"
-                "fmla   v30.8h, v6.8h, v8.h[2]      \n"
-                "fmla   v31.8h, v6.8h, v8.h[3]      \n"
+                    "6:                                 \n"
+                    "ld1    {v0.4h, v1.4h, v2.4h}, [%2], #24 \n"
+                    "ld1    {v4.8h}, [%1], #16          \n"
+                    "fmla   v20.8h, v4.8h, v0.h[0]      \n"
+                    "fmla   v21.8h, v4.8h, v0.h[1]      \n"
+                    "fmla   v22.8h, v4.8h, v0.h[2]      \n"
+                    "fmla   v23.8h, v4.8h, v0.h[3]      \n"
+                    "fmla   v24.8h, v4.8h, v1.h[0]      \n"
+                    "fmla   v25.8h, v4.8h, v1.h[1]      \n"
+                    "fmla   v26.8h, v4.8h, v1.h[2]      \n"
+                    "fmla   v27.8h, v4.8h, v1.h[3]      \n"
+                    "subs   w4, w4, #1                  \n"
+                    "fmla   v28.8h, v4.8h, v2.h[0]      \n"
+                    "fmla   v29.8h, v4.8h, v2.h[1]      \n"
+                    "fmla   v30.8h, v4.8h, v2.h[2]      \n"
+                    "fmla   v31.8h, v4.8h, v2.h[3]      \n"
+                    "bne    6b                          \n"
 
-                "subs   w4, w4, #1                  \n"
+                    "7:                                 \n"
+                    "tst    %w11, #255                  \n"
+                    "beq    11f                         \n"
 
-                "fmla   v20.8h, v7.8h, v8.h[4]      \n"
-                "fmla   v21.8h, v7.8h, v8.h[5]      \n"
-                "fmla   v22.8h, v7.8h, v8.h[6]      \n"
-                "fmla   v23.8h, v7.8h, v8.h[7]      \n"
-                "fmla   v24.8h, v7.8h, v9.h[0]      \n"
-                "fmla   v25.8h, v7.8h, v9.h[1]      \n"
-                "fmla   v26.8h, v7.8h, v9.h[2]      \n"
-                "fmla   v27.8h, v7.8h, v9.h[3]      \n"
-                "fmla   v28.8h, v7.8h, v9.h[4]      \n"
-                "fmla   v29.8h, v7.8h, v9.h[5]      \n"
-                "fmla   v30.8h, v7.8h, v9.h[6]      \n"
-                "fmla   v31.8h, v7.8h, v9.h[7]      \n"
+                    // if out_elempack == 8
+                    "cmp    %w12, #8                    \n"
+                    "bne    8f                          \n"
 
-                "bne    4b                          \n"
+                    "st1    {v20.8h, v21.8h, v22.8h, v23.8h}, [%3], #64 \n"
+                    "st1    {v24.8h, v25.8h, v26.8h, v27.8h}, [%3], #64 \n"
+                    "st1    {v28.8h, v29.8h, v30.8h, v31.8h}, [%3], #64 \n"
+                    "b      10f                         \n"
 
-                "5:                                 \n"
-                "and    w4, %w9, #3                 \n" // w4 = remain = max_kk & 3
-                "cmp    w4, #0                      \n"
-                "beq    7f                          \n"
+                    // if out_elempack == 4
+                    "8:                                 \n"
+                    "cmp    %w12, #4                    \n"
+                    "bne    9f                          \n"
 
-                "6:                                 \n"
-                "ld1    {v0.4h, v1.4h, v2.4h}, [%2], #24 \n"
-                "ld1    {v4.8h}, [%1], #16          \n"
-                "fmla   v20.8h, v4.8h, v0.h[0]      \n"
-                "fmla   v21.8h, v4.8h, v0.h[1]      \n"
-                "fmla   v22.8h, v4.8h, v0.h[2]      \n"
-                "fmla   v23.8h, v4.8h, v0.h[3]      \n"
-                "fmla   v24.8h, v4.8h, v1.h[0]      \n"
-                "fmla   v25.8h, v4.8h, v1.h[1]      \n"
-                "fmla   v26.8h, v4.8h, v1.h[2]      \n"
-                "fmla   v27.8h, v4.8h, v1.h[3]      \n"
-                "subs   w4, w4, #1                  \n"
-                "fmla   v28.8h, v4.8h, v2.h[0]      \n"
-                "fmla   v29.8h, v4.8h, v2.h[1]      \n"
-                "fmla   v30.8h, v4.8h, v2.h[2]      \n"
-                "fmla   v31.8h, v4.8h, v2.h[3]      \n"
-                "bne    6b                          \n"
+                    "zip1   v12.2d, v20.2d, v21.2d      \n"
+                    "zip2   v18.2d, v20.2d, v21.2d      \n"
+                    "zip1   v13.2d, v22.2d, v23.2d      \n"
+                    "zip2   v19.2d, v22.2d, v23.2d      \n"
+                    "zip1   v14.2d, v24.2d, v25.2d      \n"
+                    "zip2   v20.2d, v24.2d, v25.2d      \n"
+                    "zip1   v15.2d, v26.2d, v27.2d      \n"
+                    "zip2   v21.2d, v26.2d, v27.2d      \n"
+                    "zip1   v16.2d, v28.2d, v29.2d      \n"
+                    "zip2   v22.2d, v28.2d, v29.2d      \n"
+                    "zip1   v17.2d, v30.2d, v31.2d      \n"
+                    "zip2   v23.2d, v30.2d, v31.2d      \n"
 
-                "7:                                 \n"
-                "tst    %w11, #255                  \n"
-                "beq    11f                         \n"
+                    "lsl    w4, %w13, #2                \n"
+                    "add    x4, %3, w4, sxtw 1          \n"
+                    "st1    {v12.8h, v13.8h, v14.8h, v15.8h}, [%3], #64 \n"
+                    "st1    {v16.8h, v17.8h}, [%3], #32 \n"
+                    "st1    {v18.8h, v19.8h, v20.8h, v21.8h}, [x4], #64 \n"
+                    "st1    {v22.8h, v23.8h}, [x4]      \n"
+                    "b      10f                         \n"
 
-                // if out_elempack == 8
-                "cmp    %w12, #8                    \n"
-                "bne    8f                          \n"
+                    // if out_elempack == 1
+                    "9:                                 \n"
+                    // transpose8x12
+                    "zip1   v18.8h, v20.8h, v21.8h      \n"
+                    "zip2   v19.8h, v20.8h, v21.8h      \n"
+                    "zip1   v20.8h, v22.8h, v23.8h      \n"
+                    "zip2   v21.8h, v22.8h, v23.8h      \n"
+                    "zip1   v22.8h, v24.8h, v25.8h      \n"
+                    "zip2   v23.8h, v24.8h, v25.8h      \n"
+                    "zip1   v24.8h, v26.8h, v27.8h      \n"
+                    "zip2   v25.8h, v26.8h, v27.8h      \n"
+                    "zip1   v26.8h, v28.8h, v29.8h      \n"
+                    "zip2   v27.8h, v28.8h, v29.8h      \n"
+                    "zip1   v28.8h, v30.8h, v31.8h      \n"
+                    "zip2   v29.8h, v30.8h, v31.8h      \n"
 
-                "st1    {v20.8h, v21.8h, v22.8h, v23.8h}, [%3], #64 \n"
-                "st1    {v24.8h, v25.8h, v26.8h, v27.8h}, [%3], #64 \n"
-                "st1    {v28.8h, v29.8h, v30.8h, v31.8h}, [%3], #64 \n"
-                "b      10f                         \n"
+                    "zip1   v0.4s, v18.4s, v20.4s       \n"
+                    "zip2   v3.4s, v18.4s, v20.4s       \n"
+                    "zip1   v6.4s, v19.4s, v21.4s       \n"
+                    "zip2   v9.4s, v19.4s, v21.4s       \n"
+                    "zip1   v1.4s, v22.4s, v24.4s       \n"
+                    "zip2   v4.4s, v22.4s, v24.4s       \n"
+                    "zip1   v7.4s, v23.4s, v25.4s       \n"
+                    "zip2   v10.4s, v23.4s, v25.4s      \n"
+                    "zip1   v2.4s, v26.4s, v28.4s       \n"
+                    "zip2   v5.4s, v26.4s, v28.4s       \n"
+                    "zip1   v8.4s, v27.4s, v29.4s       \n"
+                    "zip2   v11.4s, v27.4s, v29.4s      \n"
 
-                // if out_elempack == 4
-                "8:                                 \n"
-                "cmp    %w12, #4                    \n"
-                "bne    9f                          \n"
+                    "mov    v12.d[0], v0.d[1]           \n"
+                    "mov    v13.d[0], v1.d[1]           \n"
+                    "mov    v14.d[0], v2.d[1]           \n"
+                    "mov    v15.d[0], v3.d[1]           \n"
+                    "mov    v16.d[0], v4.d[1]           \n"
+                    "mov    v17.d[0], v5.d[1]           \n"
+                    "mov    v18.d[0], v6.d[1]           \n"
+                    "mov    v19.d[0], v7.d[1]           \n"
+                    "mov    v20.d[0], v8.d[1]           \n"
+                    "mov    v21.d[0], v9.d[1]           \n"
+                    "mov    v22.d[0], v10.d[1]          \n"
+                    "mov    v23.d[0], v11.d[1]          \n"
 
-                "zip1   v12.2d, v20.2d, v21.2d      \n"
-                "zip2   v18.2d, v20.2d, v21.2d      \n"
-                "zip1   v13.2d, v22.2d, v23.2d      \n"
-                "zip2   v19.2d, v22.2d, v23.2d      \n"
-                "zip1   v14.2d, v24.2d, v25.2d      \n"
-                "zip2   v20.2d, v24.2d, v25.2d      \n"
-                "zip1   v15.2d, v26.2d, v27.2d      \n"
-                "zip2   v21.2d, v26.2d, v27.2d      \n"
-                "zip1   v16.2d, v28.2d, v29.2d      \n"
-                "zip2   v22.2d, v28.2d, v29.2d      \n"
-                "zip1   v17.2d, v30.2d, v31.2d      \n"
-                "zip2   v23.2d, v30.2d, v31.2d      \n"
+                    "add    x4, %3, %w13, sxtw 1        \n"
+                    "st1    {v0.4h, v1.4h, v2.4h}, [%3], #24 \n"
+                    "st1    {v12.4h, v13.4h, v14.4h}, [x4] \n"
+                    "add    x4, x4, %w13, sxtw 1        \n"
+                    "st1    {v3.4h, v4.4h, v5.4h}, [x4] \n"
+                    "add    x4, x4, %w13, sxtw 1        \n"
+                    "st1    {v15.4h, v16.4h, v17.4h}, [x4] \n"
+                    "add    x4, x4, %w13, sxtw 1        \n"
+                    "st1    {v6.4h, v7.4h, v8.4h}, [x4] \n"
+                    "add    x4, x4, %w13, sxtw 1        \n"
+                    "st1    {v18.4h, v19.4h, v20.4h}, [x4] \n"
+                    "add    x4, x4, %w13, sxtw 1        \n"
+                    "st1    {v9.4h, v10.4h, v11.4h}, [x4] \n"
+                    "add    x4, x4, %w13, sxtw 1        \n"
+                    "st1    {v21.4h, v22.4h, v23.4h}, [x4] \n"
 
-                "lsl    w4, %w13, #2                \n"
-                "add    x4, %3, w4, sxtw 1          \n"
-                "st1    {v12.8h, v13.8h, v14.8h, v15.8h}, [%3], #64 \n"
-                "st1    {v16.8h, v17.8h}, [%3], #32 \n"
-                "st1    {v18.8h, v19.8h, v20.8h, v21.8h}, [x4], #64 \n"
-                "st1    {v22.8h, v23.8h}, [x4]      \n"
-                "b      10f                         \n"
+                    "10:                                \n"
+                    "add    %0, %0, #192                \n"
+                    "b      12f                         \n"
 
-                // if out_elempack == 1
-                "9:                                 \n"
-                // transpose8x12
-                "zip1   v18.8h, v20.8h, v21.8h      \n"
-                "zip2   v19.8h, v20.8h, v21.8h      \n"
-                "zip1   v20.8h, v22.8h, v23.8h      \n"
-                "zip2   v21.8h, v22.8h, v23.8h      \n"
-                "zip1   v22.8h, v24.8h, v25.8h      \n"
-                "zip2   v23.8h, v24.8h, v25.8h      \n"
-                "zip1   v24.8h, v26.8h, v27.8h      \n"
-                "zip2   v25.8h, v26.8h, v27.8h      \n"
-                "zip1   v26.8h, v28.8h, v29.8h      \n"
-                "zip2   v27.8h, v28.8h, v29.8h      \n"
-                "zip1   v28.8h, v30.8h, v31.8h      \n"
-                "zip2   v29.8h, v30.8h, v31.8h      \n"
+                    "11:                                \n"
+                    "st1    {v20.8h, v21.8h, v22.8h, v23.8h}, [%0], #64 \n"
+                    "st1    {v24.8h, v25.8h, v26.8h, v27.8h}, [%0], #64 \n"
+                    "st1    {v28.8h, v29.8h, v30.8h, v31.8h}, [%0], #64 \n"
 
-                "zip1   v0.4s, v18.4s, v20.4s       \n"
-                "zip2   v3.4s, v18.4s, v20.4s       \n"
-                "zip1   v6.4s, v19.4s, v21.4s       \n"
-                "zip2   v9.4s, v19.4s, v21.4s       \n"
-                "zip1   v1.4s, v22.4s, v24.4s       \n"
-                "zip2   v4.4s, v22.4s, v24.4s       \n"
-                "zip1   v7.4s, v23.4s, v25.4s       \n"
-                "zip2   v10.4s, v23.4s, v25.4s      \n"
-                "zip1   v2.4s, v26.4s, v28.4s       \n"
-                "zip2   v5.4s, v26.4s, v28.4s       \n"
-                "zip1   v8.4s, v27.4s, v29.4s       \n"
-                "zip2   v11.4s, v27.4s, v29.4s      \n"
+                    "12:                                \n"
 
-                "mov    v12.d[0], v0.d[1]           \n"
-                "mov    v13.d[0], v1.d[1]           \n"
-                "mov    v14.d[0], v2.d[1]           \n"
-                "mov    v15.d[0], v3.d[1]           \n"
-                "mov    v16.d[0], v4.d[1]           \n"
-                "mov    v17.d[0], v5.d[1]           \n"
-                "mov    v18.d[0], v6.d[1]           \n"
-                "mov    v19.d[0], v7.d[1]           \n"
-                "mov    v20.d[0], v8.d[1]           \n"
-                "mov    v21.d[0], v9.d[1]           \n"
-                "mov    v22.d[0], v10.d[1]          \n"
-                "mov    v23.d[0], v11.d[1]          \n"
+                    : "=r"(outptr), // %0
+                    "=r"(pA),     // %1
+                    "=r"(pB),     // %2
+                    "=r"(outptr0) // %3
+                    : "0"(outptr),
+                    "1"(pA),
+                    "2"(pB),
+                    "3"(outptr0),
+                    "r"(pC),           // %8
+                    "r"(max_kk),       // %9
+                    "r"(k),            // %10
+                    "r"(k_end),        // %11
+                    "r"(out_elempack), // %12
+                    "r"(out_hstep)     // %13
+                    : "cc", "memory", "x4", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
+            }
+            else
+            {
+                asm volatile(
+                    "cbz    %w10, 0f                    \n"
 
-                "add    x4, %3, %w13, sxtw 1        \n"
-                "st1    {v0.4h, v1.4h, v2.4h}, [%3], #24 \n"
-                "st1    {v12.4h, v13.4h, v14.4h}, [x4] \n"
-                "add    x4, x4, %w13, sxtw 1        \n"
-                "st1    {v3.4h, v4.4h, v5.4h}, [x4] \n"
-                "add    x4, x4, %w13, sxtw 1        \n"
-                "st1    {v15.4h, v16.4h, v17.4h}, [x4] \n"
-                "add    x4, x4, %w13, sxtw 1        \n"
-                "st1    {v6.4h, v7.4h, v8.4h}, [x4] \n"
-                "add    x4, x4, %w13, sxtw 1        \n"
-                "st1    {v18.4h, v19.4h, v20.4h}, [x4] \n"
-                "add    x4, x4, %w13, sxtw 1        \n"
-                "st1    {v9.4h, v10.4h, v11.4h}, [x4] \n"
-                "add    x4, x4, %w13, sxtw 1        \n"
-                "st1    {v21.4h, v22.4h, v23.4h}, [x4] \n"
+                    "ld1    {v20.8h, v21.8h, v22.8h, v23.8h}, [%0], #64 \n"
+                    "ld1    {v24.8h, v25.8h, v26.8h, v27.8h}, [%0], #64 \n"
+                    "ld1    {v28.8h, v29.8h, v30.8h, v31.8h}, [%0]      \n"
+                    "subs   %0, %0, #128                \n"
+                    "b      3f                          \n"
 
-                "10:                                \n"
-                "add    %0, %0, #192                \n"
-                "b      12f                         \n"
+                    "0:                                 \n"
+                    // if pC
+                    "cbz    %8, 1f                      \n"
 
-                "11:                                \n"
-                "st1    {v20.8h, v21.8h, v22.8h, v23.8h}, [%0], #64 \n"
-                "st1    {v24.8h, v25.8h, v26.8h, v27.8h}, [%0], #64 \n"
-                "st1    {v28.8h, v29.8h, v30.8h, v31.8h}, [%0], #64 \n"
+                    "ld1    {v20.8h}, [%8]              \n"
+                    "b      2f                          \n"
 
-                "12:                                \n"
+                    // else
+                    "1:                                 \n"
+                    "eor    v20.16b, v20.16b, v20.16b   \n"
 
-                : "=r"(outptr), // %0
-                "=r"(pA),     // %1
-                "=r"(pB),     // %2
-                "=r"(outptr0) // %3
-                : "0"(outptr),
-                "1"(pA),
-                "2"(pB),
-                "3"(outptr0),
-                "r"(pC),           // %8
-                "r"(max_kk),       // %9
-                "r"(k),            // %10
-                "r"(k_end),        // %11
-                "r"(out_elempack), // %12
-                "r"(out_hstep)     // %13
-                : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
+                    "2:                                 \n"
+                    "mov    v21.16b, v20.16b            \n"
+                    "mov    v22.16b, v20.16b            \n"
+                    "mov    v23.16b, v20.16b            \n"
+                    "mov    v24.16b, v20.16b            \n"
+                    "mov    v25.16b, v20.16b            \n"
+                    "mov    v26.16b, v20.16b            \n"
+                    "mov    v27.16b, v20.16b            \n"
+                    "mov    v28.16b, v20.16b            \n"
+                    "mov    v29.16b, v20.16b            \n"
+                    "mov    v30.16b, v20.16b            \n"
+                    "mov    v31.16b, v20.16b            \n"
+
+                    "3:                                 \n"
+                    "lsr    w4, %w9, #2                 \n" // w4 = max_kk >> 2
+                    "cmp    w4, #0                      \n"
+                    "beq    5f                          \n"
+
+                    "4:                                 \n"
+                    "prfm   pldl1keep, [%1, #512]       \n"
+                    "ld1    {v4.8h, v5.8h, v6.8h, v7.8h}, [%1], #64 \n"
+
+                    "prfm   pldl1keep, [%2, #512]       \n"
+                    "ld1    {v0.8h, v1.8h, v2.8h, v3.8h}, [%2], #64 \n"
+
+                    "fmla   v20.8h, v4.8h, v0.h[0]      \n"
+                    "fmla   v21.8h, v4.8h, v0.h[1]      \n"
+                    "fmla   v22.8h, v4.8h, v0.h[2]      \n"
+                    "fmla   v23.8h, v4.8h, v0.h[3]      \n"
+                    "fmla   v24.8h, v4.8h, v0.h[4]      \n"
+                    "fmla   v25.8h, v4.8h, v0.h[5]      \n"
+                    "fmla   v26.8h, v4.8h, v0.h[6]      \n"
+                    "fmla   v27.8h, v4.8h, v0.h[7]      \n"
+                    "fmla   v28.8h, v4.8h, v1.h[0]      \n"
+                    "fmla   v29.8h, v4.8h, v1.h[1]      \n"
+                    "fmla   v30.8h, v4.8h, v1.h[2]      \n"
+                    "fmla   v31.8h, v4.8h, v1.h[3]      \n"
+
+                    "fmla   v20.8h, v5.8h, v1.h[4]      \n"
+                    "fmla   v21.8h, v5.8h, v1.h[5]      \n"
+                    "fmla   v22.8h, v5.8h, v1.h[6]      \n"
+                    "fmla   v23.8h, v5.8h, v1.h[7]      \n"
+                    "fmla   v24.8h, v5.8h, v2.h[0]      \n"
+                    "fmla   v25.8h, v5.8h, v2.h[1]      \n"
+                    "fmla   v26.8h, v5.8h, v2.h[2]      \n"
+                    "fmla   v27.8h, v5.8h, v2.h[3]      \n"
+                    "fmla   v28.8h, v5.8h, v2.h[4]      \n"
+                    "fmla   v29.8h, v5.8h, v2.h[5]      \n"
+                    "fmla   v30.8h, v5.8h, v2.h[6]      \n"
+                    "fmla   v31.8h, v5.8h, v2.h[7]      \n"
+
+                    "prfm   pldl1keep, [%2, #256]       \n"
+                    "ld1    {v8.8h, v9.8h}, [%2], #32   \n"
+
+                    "fmla   v20.8h, v6.8h, v3.h[0]      \n"
+                    "fmla   v21.8h, v6.8h, v3.h[1]      \n"
+                    "fmla   v22.8h, v6.8h, v3.h[2]      \n"
+                    "fmla   v23.8h, v6.8h, v3.h[3]      \n"
+                    "fmla   v24.8h, v6.8h, v3.h[4]      \n"
+                    "fmla   v25.8h, v6.8h, v3.h[5]      \n"
+                    "fmla   v26.8h, v6.8h, v3.h[6]      \n"
+                    "fmla   v27.8h, v6.8h, v3.h[7]      \n"
+                    "fmla   v28.8h, v6.8h, v8.h[0]      \n"
+                    "fmla   v29.8h, v6.8h, v8.h[1]      \n"
+                    "fmla   v30.8h, v6.8h, v8.h[2]      \n"
+                    "fmla   v31.8h, v6.8h, v8.h[3]      \n"
+
+                    "subs   w4, w4, #1                  \n"
+
+                    "fmla   v20.8h, v7.8h, v8.h[4]      \n"
+                    "fmla   v21.8h, v7.8h, v8.h[5]      \n"
+                    "fmla   v22.8h, v7.8h, v8.h[6]      \n"
+                    "fmla   v23.8h, v7.8h, v8.h[7]      \n"
+                    "fmla   v24.8h, v7.8h, v9.h[0]      \n"
+                    "fmla   v25.8h, v7.8h, v9.h[1]      \n"
+                    "fmla   v26.8h, v7.8h, v9.h[2]      \n"
+                    "fmla   v27.8h, v7.8h, v9.h[3]      \n"
+                    "fmla   v28.8h, v7.8h, v9.h[4]      \n"
+                    "fmla   v29.8h, v7.8h, v9.h[5]      \n"
+                    "fmla   v30.8h, v7.8h, v9.h[6]      \n"
+                    "fmla   v31.8h, v7.8h, v9.h[7]      \n"
+
+                    "bne    4b                          \n"
+
+                    "5:                                 \n"
+                    "and    w4, %w9, #3                 \n" // w4 = remain = max_kk & 3
+                    "cmp    w4, #0                      \n"
+                    "beq    7f                          \n"
+
+                    "6:                                 \n"
+                    "ld1    {v0.4h, v1.4h, v2.4h}, [%2], #24 \n"
+                    "ld1    {v4.8h}, [%1], #16          \n"
+                    "fmla   v20.8h, v4.8h, v0.h[0]      \n"
+                    "fmla   v21.8h, v4.8h, v0.h[1]      \n"
+                    "fmla   v22.8h, v4.8h, v0.h[2]      \n"
+                    "fmla   v23.8h, v4.8h, v0.h[3]      \n"
+                    "fmla   v24.8h, v4.8h, v1.h[0]      \n"
+                    "fmla   v25.8h, v4.8h, v1.h[1]      \n"
+                    "fmla   v26.8h, v4.8h, v1.h[2]      \n"
+                    "fmla   v27.8h, v4.8h, v1.h[3]      \n"
+                    "subs   w4, w4, #1                  \n"
+                    "fmla   v28.8h, v4.8h, v2.h[0]      \n"
+                    "fmla   v29.8h, v4.8h, v2.h[1]      \n"
+                    "fmla   v30.8h, v4.8h, v2.h[2]      \n"
+                    "fmla   v31.8h, v4.8h, v2.h[3]      \n"
+                    "bne    6b                          \n"
+
+                    "7:                                 \n"
+                    "tst    %w11, #255                  \n"
+                    "beq    11f                         \n"
+
+                    // if out_elempack == 8
+                    "cmp    %w12, #8                    \n"
+                    "bne    8f                          \n"
+
+                    "st1    {v20.8h, v21.8h, v22.8h, v23.8h}, [%3], #64 \n"
+                    "st1    {v24.8h, v25.8h, v26.8h, v27.8h}, [%3], #64 \n"
+                    "st1    {v28.8h, v29.8h, v30.8h, v31.8h}, [%3], #64 \n"
+                    "b      10f                         \n"
+
+                    // if out_elempack == 4
+                    "8:                                 \n"
+                    "cmp    %w12, #4                    \n"
+                    "bne    9f                          \n"
+
+                    "zip1   v12.2d, v20.2d, v21.2d      \n"
+                    "zip2   v18.2d, v20.2d, v21.2d      \n"
+                    "zip1   v13.2d, v22.2d, v23.2d      \n"
+                    "zip2   v19.2d, v22.2d, v23.2d      \n"
+                    "zip1   v14.2d, v24.2d, v25.2d      \n"
+                    "zip2   v20.2d, v24.2d, v25.2d      \n"
+                    "zip1   v15.2d, v26.2d, v27.2d      \n"
+                    "zip2   v21.2d, v26.2d, v27.2d      \n"
+                    "zip1   v16.2d, v28.2d, v29.2d      \n"
+                    "zip2   v22.2d, v28.2d, v29.2d      \n"
+                    "zip1   v17.2d, v30.2d, v31.2d      \n"
+                    "zip2   v23.2d, v30.2d, v31.2d      \n"
+
+                    "lsl    w4, %w13, #2                \n"
+                    "add    x4, %3, w4, sxtw 1          \n"
+                    "st1    {v12.8h, v13.8h, v14.8h, v15.8h}, [%3], #64 \n"
+                    "st1    {v16.8h, v17.8h}, [%3], #32 \n"
+                    "st1    {v18.8h, v19.8h, v20.8h, v21.8h}, [x4], #64 \n"
+                    "st1    {v22.8h, v23.8h}, [x4]      \n"
+                    "b      10f                         \n"
+
+                    // if out_elempack == 1
+                    "9:                                 \n"
+                    // transpose8x12
+                    "zip1   v18.8h, v20.8h, v21.8h      \n"
+                    "zip2   v19.8h, v20.8h, v21.8h      \n"
+                    "zip1   v20.8h, v22.8h, v23.8h      \n"
+                    "zip2   v21.8h, v22.8h, v23.8h      \n"
+                    "zip1   v22.8h, v24.8h, v25.8h      \n"
+                    "zip2   v23.8h, v24.8h, v25.8h      \n"
+                    "zip1   v24.8h, v26.8h, v27.8h      \n"
+                    "zip2   v25.8h, v26.8h, v27.8h      \n"
+                    "zip1   v26.8h, v28.8h, v29.8h      \n"
+                    "zip2   v27.8h, v28.8h, v29.8h      \n"
+                    "zip1   v28.8h, v30.8h, v31.8h      \n"
+                    "zip2   v29.8h, v30.8h, v31.8h      \n"
+
+                    "zip1   v0.4s, v18.4s, v20.4s       \n"
+                    "zip2   v3.4s, v18.4s, v20.4s       \n"
+                    "zip1   v6.4s, v19.4s, v21.4s       \n"
+                    "zip2   v9.4s, v19.4s, v21.4s       \n"
+                    "zip1   v1.4s, v22.4s, v24.4s       \n"
+                    "zip2   v4.4s, v22.4s, v24.4s       \n"
+                    "zip1   v7.4s, v23.4s, v25.4s       \n"
+                    "zip2   v10.4s, v23.4s, v25.4s      \n"
+                    "zip1   v2.4s, v26.4s, v28.4s       \n"
+                    "zip2   v5.4s, v26.4s, v28.4s       \n"
+                    "zip1   v8.4s, v27.4s, v29.4s       \n"
+                    "zip2   v11.4s, v27.4s, v29.4s      \n"
+
+                    "mov    v12.d[0], v0.d[1]           \n"
+                    "mov    v13.d[0], v1.d[1]           \n"
+                    "mov    v14.d[0], v2.d[1]           \n"
+                    "mov    v15.d[0], v3.d[1]           \n"
+                    "mov    v16.d[0], v4.d[1]           \n"
+                    "mov    v17.d[0], v5.d[1]           \n"
+                    "mov    v18.d[0], v6.d[1]           \n"
+                    "mov    v19.d[0], v7.d[1]           \n"
+                    "mov    v20.d[0], v8.d[1]           \n"
+                    "mov    v21.d[0], v9.d[1]           \n"
+                    "mov    v22.d[0], v10.d[1]          \n"
+                    "mov    v23.d[0], v11.d[1]          \n"
+
+                    "add    x4, %3, %w13, sxtw 1        \n"
+                    "st1    {v0.4h, v1.4h, v2.4h}, [%3], #24 \n"
+                    "st1    {v12.4h, v13.4h, v14.4h}, [x4] \n"
+                    "add    x4, x4, %w13, sxtw 1        \n"
+                    "st1    {v3.4h, v4.4h, v5.4h}, [x4] \n"
+                    "add    x4, x4, %w13, sxtw 1        \n"
+                    "st1    {v15.4h, v16.4h, v17.4h}, [x4] \n"
+                    "add    x4, x4, %w13, sxtw 1        \n"
+                    "st1    {v6.4h, v7.4h, v8.4h}, [x4] \n"
+                    "add    x4, x4, %w13, sxtw 1        \n"
+                    "st1    {v18.4h, v19.4h, v20.4h}, [x4] \n"
+                    "add    x4, x4, %w13, sxtw 1        \n"
+                    "st1    {v9.4h, v10.4h, v11.4h}, [x4] \n"
+                    "add    x4, x4, %w13, sxtw 1        \n"
+                    "st1    {v21.4h, v22.4h, v23.4h}, [x4] \n"
+
+                    "10:                                \n"
+                    "add    %0, %0, #192                \n"
+                    "b      12f                         \n"
+
+                    "11:                                \n"
+                    "st1    {v20.8h, v21.8h, v22.8h, v23.8h}, [%0], #64 \n"
+                    "st1    {v24.8h, v25.8h, v26.8h, v27.8h}, [%0], #64 \n"
+                    "st1    {v28.8h, v29.8h, v30.8h, v31.8h}, [%0], #64 \n"
+
+                    "12:                                \n"
+
+                    : "=r"(outptr), // %0
+                    "=r"(pA),     // %1
+                    "=r"(pB),     // %2
+                    "=r"(outptr0) // %3
+                    : "0"(outptr),
+                    "1"(pA),
+                    "2"(pB),
+                    "3"(outptr0),
+                    "r"(pC),           // %8
+                    "r"(max_kk),       // %9
+                    "r"(k),            // %10
+                    "r"(k_end),        // %11
+                    "r"(out_elempack), // %12
+                    "r"(out_hstep)     // %13
+                    : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
+            }
 #else  // NCNN_GNU_INLINE_ASM
             float16x8_t _sum0;
             float16x8_t _sum1;
@@ -486,201 +773,436 @@ static void convolution_gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const
             const __fp16* pA = pAT;
 
 #if NCNN_GNU_INLINE_ASM
-            asm volatile(
-                "cbz    %w10, 0f                    \n"
+            if (use_a53_a55_optimized_kernel)
+            {
+                asm volatile(
+                    "cbz    %w10, 0f                    \n"
 
-                "ld1    {v24.8h, v25.8h, v26.8h, v27.8h}, [%0], #64 \n"
-                "ld1    {v28.8h, v29.8h, v30.8h, v31.8h}, [%0]      \n"
-                "subs   %0, %0, #64                 \n"
-                "b      3f                          \n"
+                    "ld1    {v24.8h, v25.8h, v26.8h, v27.8h}, [%0], #64 \n"
+                    "ld1    {v28.8h, v29.8h, v30.8h, v31.8h}, [%0]      \n"
+                    "subs   %0, %0, #64                 \n"
+                    "b      3f                          \n"
 
-                "0:                                 \n"
-                // if pC
-                "cbz    %8, 1f                      \n"
+                    "0:                                 \n"
+                    // if pC
+                    "cbz    %8, 1f                      \n"
 
-                "ld1    {v24.8h}, [%8]              \n"
-                "b      2f                          \n"
+                    "ld1    {v24.8h}, [%8]              \n"
+                    "b      2f                          \n"
 
-                // else
-                "1:                                 \n"
-                "eor    v24.16b, v24.16b, v24.16b   \n"
+                    // else
+                    "1:                                 \n"
+                    "eor    v24.16b, v24.16b, v24.16b   \n"
 
-                "2:                                 \n"
-                "mov    v25.16b, v24.16b            \n"
-                "mov    v26.16b, v24.16b            \n"
-                "mov    v27.16b, v24.16b            \n"
-                "mov    v28.16b, v24.16b            \n"
-                "mov    v29.16b, v24.16b            \n"
-                "mov    v30.16b, v24.16b            \n"
-                "mov    v31.16b, v24.16b            \n"
+                    "2:                                 \n"
+                    "mov    v25.16b, v24.16b            \n"
+                    "mov    v26.16b, v24.16b            \n"
+                    "mov    v27.16b, v24.16b            \n"
+                    "mov    v28.16b, v24.16b            \n"
+                    "mov    v29.16b, v24.16b            \n"
+                    "mov    v30.16b, v24.16b            \n"
+                    "mov    v31.16b, v24.16b            \n"
 
-                "3:                                 \n"
-                "lsr    w4, %w9, #2                 \n" // w4 = max_kk >> 2
-                "cmp    w4, #0                      \n"
-                "beq    5f                          \n"
+                    "3:                                 \n"
+                    "lsr    w4, %w9, #2                 \n" // w4 = max_kk >> 2
+                    "cmp    w4, #0                      \n"
+                    "beq    5f                          \n"
 
-                "4:                                 \n"
-                "prfm   pldl1keep, [%2, #512]       \n"
-                "ld1    {v0.8h, v1.8h, v2.8h, v3.8h}, [%2], #64 \n"
-                "prfm   pldl1keep, [%1, #512]       \n"
-                "ld1    {v4.8h, v5.8h, v6.8h, v7.8h}, [%1], #64 \n"
-                "fmla   v24.8h, v4.8h, v0.h[0]      \n"
-                "fmla   v25.8h, v4.8h, v0.h[1]      \n"
-                "fmla   v26.8h, v4.8h, v0.h[2]      \n"
-                "fmla   v27.8h, v4.8h, v0.h[3]      \n"
-                "fmla   v28.8h, v4.8h, v0.h[4]      \n"
-                "fmla   v29.8h, v4.8h, v0.h[5]      \n"
-                "fmla   v30.8h, v4.8h, v0.h[6]      \n"
-                "fmla   v31.8h, v4.8h, v0.h[7]      \n"
-                "fmla   v24.8h, v5.8h, v1.h[0]      \n"
-                "fmla   v25.8h, v5.8h, v1.h[1]      \n"
-                "fmla   v26.8h, v5.8h, v1.h[2]      \n"
-                "fmla   v27.8h, v5.8h, v1.h[3]      \n"
-                "fmla   v28.8h, v5.8h, v1.h[4]      \n"
-                "fmla   v29.8h, v5.8h, v1.h[5]      \n"
-                "fmla   v30.8h, v5.8h, v1.h[6]      \n"
-                "fmla   v31.8h, v5.8h, v1.h[7]      \n"
-                "fmla   v24.8h, v6.8h, v2.h[0]      \n"
-                "fmla   v25.8h, v6.8h, v2.h[1]      \n"
-                "fmla   v26.8h, v6.8h, v2.h[2]      \n"
-                "fmla   v27.8h, v6.8h, v2.h[3]      \n"
-                "fmla   v28.8h, v6.8h, v2.h[4]      \n"
-                "fmla   v29.8h, v6.8h, v2.h[5]      \n"
-                "fmla   v30.8h, v6.8h, v2.h[6]      \n"
-                "fmla   v31.8h, v6.8h, v2.h[7]      \n"
-                "subs   w4, w4, #1                  \n"
-                "fmla   v24.8h, v7.8h, v3.h[0]      \n"
-                "fmla   v25.8h, v7.8h, v3.h[1]      \n"
-                "fmla   v26.8h, v7.8h, v3.h[2]      \n"
-                "fmla   v27.8h, v7.8h, v3.h[3]      \n"
-                "fmla   v28.8h, v7.8h, v3.h[4]      \n"
-                "fmla   v29.8h, v7.8h, v3.h[5]      \n"
-                "fmla   v30.8h, v7.8h, v3.h[6]      \n"
-                "fmla   v31.8h, v7.8h, v3.h[7]      \n"
-                "bne    4b                          \n"
+                    "prfm   pldl1keep, [%1, #512]       \n"
+                    "ld1    {v4.8h}, [%1], #16          \n"
+                    "prfm   pldl1keep, [%2, #512]       \n"
+                    "ld1    {v0.8h}, [%2], #16          \n"
 
-                "5:                                 \n"
-                "and    w4, %w9, #3                 \n" // w4 = remain = max_kk & 3
-                "cmp    w4, #0                      \n"
-                "beq    7f                          \n"
+                    "ldr    d5, [%1], #8                \n"
+                    "ldr    x25, [%1], #8               \n"
 
-                "6:                                 \n"
-                "ld1    {v0.8h}, [%2], #16          \n"
-                "ld1    {v4.8h}, [%1], #16          \n"
-                "fmla   v24.8h, v4.8h, v0.h[0]      \n"
-                "fmla   v25.8h, v4.8h, v0.h[1]      \n"
-                "fmla   v26.8h, v4.8h, v0.h[2]      \n"
-                "fmla   v27.8h, v4.8h, v0.h[3]      \n"
-                "subs   w4, w4, #1                  \n"
-                "fmla   v28.8h, v4.8h, v0.h[4]      \n"
-                "fmla   v29.8h, v4.8h, v0.h[5]      \n"
-                "fmla   v30.8h, v4.8h, v0.h[6]      \n"
-                "fmla   v31.8h, v4.8h, v0.h[7]      \n"
-                "bne    6b                          \n"
+                    ".align 4                           \n"
+                    "4:                                 \n"
+                    "ldr    d1, [%2], #8                \n"
+                    "fmla   v24.8h, v4.8h, v0.h[0]      \n"
+                    "ldr    x21, [%2], #8               \n"
+                    "fmla   v25.8h, v4.8h, v0.h[1]      \n"
+                    "ins    v5.d[1], x25                \n"
+                    "fmla   v26.8h, v4.8h, v0.h[2]      \n"
+                    "ldr    d6, [%1], #8                \n"
+                    "fmla   v27.8h, v4.8h, v0.h[3]      \n"
+                    "ldr    x26, [%1], #8               \n"
+                    "fmla   v28.8h, v4.8h, v0.h[4]      \n"
+                    "ldr    d2, [%2], #8                \n"
+                    "fmla   v29.8h, v4.8h, v0.h[5]      \n"
+                    "ins    v1.d[1], x21                \n"
+                    "fmla   v30.8h, v4.8h, v0.h[6]      \n"
+                    "ldr    x22, [%2], #8               \n"
+                    "fmla   v31.8h, v4.8h, v0.h[7]      \n"
+                    "ldr    d7, [%1], #8                \n"
+                    "fmla   v24.8h, v5.8h, v1.h[0]      \n"
+                    "ldr    x27, [%1], #8               \n"
+                    "fmla   v25.8h, v5.8h, v1.h[1]      \n"
+                    "ins    v6.d[1], x26                \n"
+                    "fmla   v26.8h, v5.8h, v1.h[2]      \n"
+                    "ldr    d3, [%2], #8                \n"
+                    "fmla   v27.8h, v5.8h, v1.h[3]      \n"
+                    "ldr    x23, [%2], #8               \n"
+                    "fmla   v28.8h, v5.8h, v1.h[4]      \n"
+                    "prfm   pldl1keep, [%1, #512]       \n" // NOTE PRELOAD
+                    "fmla   v29.8h, v5.8h, v1.h[5]      \n"
+                    "ins    v2.d[1], x22                \n"
+                    "fmla   v30.8h, v5.8h, v1.h[6]      \n"
+                    "ldr    d4, [%1], #8                \n"
+                    "fmla   v31.8h, v5.8h, v1.h[7]      \n"
+                    "ldr    x24, [%1], #8               \n"
+                    "fmla   v24.8h, v6.8h, v2.h[0]      \n"
+                    "prfm   pldl1keep, [%2, #512]       \n" // NOTE PRELOAD
+                    "fmla   v25.8h, v6.8h, v2.h[1]      \n"
+                    "ins    v7.d[1], x27                \n"
+                    "fmla   v26.8h, v6.8h, v2.h[2]      \n"
+                    "ldr    d0, [%2], #8                \n"
+                    "fmla   v27.8h, v6.8h, v2.h[3]      \n"
+                    "ldr    x20, [%2], #8               \n"
+                    "fmla   v28.8h, v6.8h, v2.h[4]      \n"
+                    "ldr    d5, [%1], #8                \n"
+                    "fmla   v29.8h, v6.8h, v2.h[5]      \n"
+                    "ins    v3.d[1], x23                \n"
+                    "fmla   v30.8h, v6.8h, v2.h[6]      \n"
+                    "ldr    x25, [%1], #8               \n"
+                    "fmla   v31.8h, v6.8h, v2.h[7]      \n"
+                    "fmla   v24.8h, v7.8h, v3.h[0]      \n"
+                    "fmla   v25.8h, v7.8h, v3.h[1]      \n"
+                    "fmla   v26.8h, v7.8h, v3.h[2]      \n"
+                    "ins    v4.d[1], x24                \n"
+                    "fmla   v27.8h, v7.8h, v3.h[3]      \n"
+                    "fmla   v28.8h, v7.8h, v3.h[4]      \n"
+                    "subs   w4, w4, #1                  \n"
+                    "fmla   v29.8h, v7.8h, v3.h[5]      \n"
+                    "fmla   v30.8h, v7.8h, v3.h[6]      \n"
+                    "ins    v0.d[1], x20                \n"
+                    "fmla   v31.8h, v7.8h, v3.h[7]      \n"
+                    "bne    4b                          \n"
 
-                "7:                                 \n"
-                "tst    %w11, #255                  \n"
-                "beq    11f                         \n"
+                    "sub    %1, %1, #32                 \n"
+                    "sub    %2, %2, #16                 \n"
 
-                // if out_elempack == 8
-                "cmp    %w12, #8                    \n"
-                "bne    8f                          \n"
+                    "5:                                 \n"
+                    "and    w4, %w9, #3                 \n" // w4 = remain = max_kk & 3
+                    "cmp    w4, #0                      \n"
+                    "beq    7f                          \n"
 
-                "st1    {v24.8h, v25.8h, v26.8h, v27.8h}, [%3], #64 \n"
-                "st1    {v28.8h, v29.8h, v30.8h, v31.8h}, [%3], #64 \n"
-                "b      10f                         \n"
+                    "6:                                 \n"
+                    "ld1    {v0.8h}, [%2], #16          \n"
+                    "ld1    {v4.8h}, [%1], #16          \n"
+                    "fmla   v24.8h, v4.8h, v0.h[0]      \n"
+                    "fmla   v25.8h, v4.8h, v0.h[1]      \n"
+                    "fmla   v26.8h, v4.8h, v0.h[2]      \n"
+                    "fmla   v27.8h, v4.8h, v0.h[3]      \n"
+                    "subs   w4, w4, #1                  \n"
+                    "fmla   v28.8h, v4.8h, v0.h[4]      \n"
+                    "fmla   v29.8h, v4.8h, v0.h[5]      \n"
+                    "fmla   v30.8h, v4.8h, v0.h[6]      \n"
+                    "fmla   v31.8h, v4.8h, v0.h[7]      \n"
+                    "bne    6b                          \n"
 
-                // if out_elempack == 4
-                "8:                                 \n"
-                "cmp    %w12, #4                    \n"
-                "bne    9f                          \n"
+                    "7:                                 \n"
+                    "tst    %w11, #255                  \n"
+                    "beq    11f                         \n"
 
-                "zip1   v16.2d, v24.2d, v25.2d      \n"
-                "zip2   v20.2d, v24.2d, v25.2d      \n"
-                "zip1   v17.2d, v26.2d, v27.2d      \n"
-                "zip2   v21.2d, v26.2d, v27.2d      \n"
-                "zip1   v18.2d, v28.2d, v29.2d      \n"
-                "zip2   v22.2d, v28.2d, v29.2d      \n"
-                "zip1   v19.2d, v30.2d, v31.2d      \n"
-                "zip2   v23.2d, v30.2d, v31.2d      \n"
+                    // if out_elempack == 8
+                    "cmp    %w12, #8                    \n"
+                    "bne    8f                          \n"
 
-                "lsl    w4, %w13, #2                \n"
-                "add    x4, %3, w4, sxtw 1          \n"
-                "st1    {v16.8h, v17.8h, v18.8h, v19.8h}, [%3], #64 \n"
-                "st1    {v20.8h, v21.8h, v22.8h, v23.8h}, [x4] \n"
-                "b      10f                         \n"
+                    "st1    {v24.8h, v25.8h, v26.8h, v27.8h}, [%3], #64 \n"
+                    "st1    {v28.8h, v29.8h, v30.8h, v31.8h}, [%3], #64 \n"
+                    "b      10f                         \n"
 
-                // if out_elempack == 1
-                "9:                                 \n"
-                // transpose8x8
-                "zip1   v22.8h, v24.8h, v25.8h      \n"
-                "zip2   v23.8h, v24.8h, v25.8h      \n"
-                "zip1   v24.8h, v26.8h, v27.8h      \n"
-                "zip2   v25.8h, v26.8h, v27.8h      \n"
-                "zip1   v26.8h, v28.8h, v29.8h      \n"
-                "zip2   v27.8h, v28.8h, v29.8h      \n"
-                "zip1   v28.8h, v30.8h, v31.8h      \n"
-                "zip2   v29.8h, v30.8h, v31.8h      \n"
+                    // if out_elempack == 4
+                    "8:                                 \n"
+                    "cmp    %w12, #4                    \n"
+                    "bne    9f                          \n"
 
-                "zip1   v16.4s, v22.4s, v24.4s      \n"
-                "zip2   v17.4s, v22.4s, v24.4s      \n"
-                "zip1   v18.4s, v23.4s, v25.4s      \n"
-                "zip2   v19.4s, v23.4s, v25.4s      \n"
-                "zip1   v20.4s, v26.4s, v28.4s      \n"
-                "zip2   v21.4s, v26.4s, v28.4s      \n"
-                "zip1   v22.4s, v27.4s, v29.4s      \n"
-                "zip2   v23.4s, v27.4s, v29.4s      \n"
+                    "zip1   v16.2d, v24.2d, v25.2d      \n"
+                    "zip2   v20.2d, v24.2d, v25.2d      \n"
+                    "zip1   v17.2d, v26.2d, v27.2d      \n"
+                    "zip2   v21.2d, v26.2d, v27.2d      \n"
+                    "zip1   v18.2d, v28.2d, v29.2d      \n"
+                    "zip2   v22.2d, v28.2d, v29.2d      \n"
+                    "zip1   v19.2d, v30.2d, v31.2d      \n"
+                    "zip2   v23.2d, v30.2d, v31.2d      \n"
 
-                "zip1   v24.2d, v16.2d, v20.2d      \n"
-                "zip2   v25.2d, v16.2d, v20.2d      \n"
-                "zip1   v26.2d, v17.2d, v21.2d      \n"
-                "zip2   v27.2d, v17.2d, v21.2d      \n"
-                "zip1   v28.2d, v18.2d, v22.2d      \n"
-                "zip2   v29.2d, v18.2d, v22.2d      \n"
-                "zip1   v30.2d, v19.2d, v23.2d      \n"
-                "zip2   v31.2d, v19.2d, v23.2d      \n"
+                    "lsl    w4, %w13, #2                \n"
+                    "add    x4, %3, w4, sxtw 1          \n"
+                    "st1    {v16.8h, v17.8h, v18.8h, v19.8h}, [%3], #64 \n"
+                    "st1    {v20.8h, v21.8h, v22.8h, v23.8h}, [x4] \n"
+                    "b      10f                         \n"
 
-                "add    x4, %3, %w13, sxtw 1        \n"
-                "st1    {v24.8h}, [%3], #16         \n"
-                "st1    {v25.8h}, [x4]              \n"
-                "add    x4, x4, %w13, sxtw 1        \n"
-                "st1    {v26.8h}, [x4]              \n"
-                "add    x4, x4, %w13, sxtw 1        \n"
-                "st1    {v27.8h}, [x4]              \n"
-                "add    x4, x4, %w13, sxtw 1        \n"
-                "st1    {v28.8h}, [x4]              \n"
-                "add    x4, x4, %w13, sxtw 1        \n"
-                "st1    {v29.8h}, [x4]              \n"
-                "add    x4, x4, %w13, sxtw 1        \n"
-                "st1    {v30.8h}, [x4]              \n"
-                "add    x4, x4, %w13, sxtw 1        \n"
-                "st1    {v31.8h}, [x4]              \n"
+                    // if out_elempack == 1
+                    "9:                                 \n"
+                    // transpose8x8
+                    "zip1   v22.8h, v24.8h, v25.8h      \n"
+                    "zip2   v23.8h, v24.8h, v25.8h      \n"
+                    "zip1   v24.8h, v26.8h, v27.8h      \n"
+                    "zip2   v25.8h, v26.8h, v27.8h      \n"
+                    "zip1   v26.8h, v28.8h, v29.8h      \n"
+                    "zip2   v27.8h, v28.8h, v29.8h      \n"
+                    "zip1   v28.8h, v30.8h, v31.8h      \n"
+                    "zip2   v29.8h, v30.8h, v31.8h      \n"
 
-                "10:                                \n"
-                "add    %0, %0, #128                \n"
-                "b      12f                         \n"
+                    "zip1   v16.4s, v22.4s, v24.4s      \n"
+                    "zip2   v17.4s, v22.4s, v24.4s      \n"
+                    "zip1   v18.4s, v23.4s, v25.4s      \n"
+                    "zip2   v19.4s, v23.4s, v25.4s      \n"
+                    "zip1   v20.4s, v26.4s, v28.4s      \n"
+                    "zip2   v21.4s, v26.4s, v28.4s      \n"
+                    "zip1   v22.4s, v27.4s, v29.4s      \n"
+                    "zip2   v23.4s, v27.4s, v29.4s      \n"
 
-                "11:                                \n"
-                "st1    {v24.8h, v25.8h, v26.8h, v27.8h}, [%0], #64 \n"
-                "st1    {v28.8h, v29.8h, v30.8h, v31.8h}, [%0], #64 \n"
+                    "zip1   v24.2d, v16.2d, v20.2d      \n"
+                    "zip2   v25.2d, v16.2d, v20.2d      \n"
+                    "zip1   v26.2d, v17.2d, v21.2d      \n"
+                    "zip2   v27.2d, v17.2d, v21.2d      \n"
+                    "zip1   v28.2d, v18.2d, v22.2d      \n"
+                    "zip2   v29.2d, v18.2d, v22.2d      \n"
+                    "zip1   v30.2d, v19.2d, v23.2d      \n"
+                    "zip2   v31.2d, v19.2d, v23.2d      \n"
 
-                "12:                                \n"
+                    "add    x4, %3, %w13, sxtw 1        \n"
+                    "st1    {v24.8h}, [%3], #16         \n"
+                    "st1    {v25.8h}, [x4]              \n"
+                    "add    x4, x4, %w13, sxtw 1        \n"
+                    "st1    {v26.8h}, [x4]              \n"
+                    "add    x4, x4, %w13, sxtw 1        \n"
+                    "st1    {v27.8h}, [x4]              \n"
+                    "add    x4, x4, %w13, sxtw 1        \n"
+                    "st1    {v28.8h}, [x4]              \n"
+                    "add    x4, x4, %w13, sxtw 1        \n"
+                    "st1    {v29.8h}, [x4]              \n"
+                    "add    x4, x4, %w13, sxtw 1        \n"
+                    "st1    {v30.8h}, [x4]              \n"
+                    "add    x4, x4, %w13, sxtw 1        \n"
+                    "st1    {v31.8h}, [x4]              \n"
 
-                : "=r"(outptr), // %0
-                "=r"(pA),     // %1
-                "=r"(pB),     // %2
-                "=r"(outptr0) // %3
-                : "0"(outptr),
-                "1"(pA),
-                "2"(pB),
-                "3"(outptr0),
-                "r"(pC),           // %8
-                "r"(max_kk),       // %9
-                "r"(k),            // %10
-                "r"(k_end),        // %11
-                "r"(out_elempack), // %12
-                "r"(out_hstep)     // %13
-                : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
+                    "10:                                \n"
+                    "add    %0, %0, #128                \n"
+                    "b      12f                         \n"
+
+                    "11:                                \n"
+                    "st1    {v24.8h, v25.8h, v26.8h, v27.8h}, [%0], #64 \n"
+                    "st1    {v28.8h, v29.8h, v30.8h, v31.8h}, [%0], #64 \n"
+
+                    "12:                                \n"
+
+                    : "=r"(outptr), // %0
+                    "=r"(pA),     // %1
+                    "=r"(pB),     // %2
+                    "=r"(outptr0) // %3
+                    : "0"(outptr),
+                    "1"(pA),
+                    "2"(pB),
+                    "3"(outptr0),
+                    "r"(pC),           // %8
+                    "r"(max_kk),       // %9
+                    "r"(k),            // %10
+                    "r"(k_end),        // %11
+                    "r"(out_elempack), // %12
+                    "r"(out_hstep)     // %13
+                    : "cc", "memory", "x4", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
+            }
+            else
+            {
+                asm volatile(
+                    "cbz    %w10, 0f                    \n"
+
+                    "ld1    {v24.8h, v25.8h, v26.8h, v27.8h}, [%0], #64 \n"
+                    "ld1    {v28.8h, v29.8h, v30.8h, v31.8h}, [%0]      \n"
+                    "subs   %0, %0, #64                 \n"
+                    "b      3f                          \n"
+
+                    "0:                                 \n"
+                    // if pC
+                    "cbz    %8, 1f                      \n"
+
+                    "ld1    {v24.8h}, [%8]              \n"
+                    "b      2f                          \n"
+
+                    // else
+                    "1:                                 \n"
+                    "eor    v24.16b, v24.16b, v24.16b   \n"
+
+                    "2:                                 \n"
+                    "mov    v25.16b, v24.16b            \n"
+                    "mov    v26.16b, v24.16b            \n"
+                    "mov    v27.16b, v24.16b            \n"
+                    "mov    v28.16b, v24.16b            \n"
+                    "mov    v29.16b, v24.16b            \n"
+                    "mov    v30.16b, v24.16b            \n"
+                    "mov    v31.16b, v24.16b            \n"
+
+                    "3:                                 \n"
+                    "lsr    w4, %w9, #2                 \n" // w4 = max_kk >> 2
+                    "cmp    w4, #0                      \n"
+                    "beq    5f                          \n"
+
+                    "4:                                 \n"
+                    "prfm   pldl1keep, [%2, #512]       \n"
+                    "ld1    {v0.8h, v1.8h, v2.8h, v3.8h}, [%2], #64 \n"
+                    "prfm   pldl1keep, [%1, #512]       \n"
+                    "ld1    {v4.8h, v5.8h, v6.8h, v7.8h}, [%1], #64 \n"
+                    "fmla   v24.8h, v4.8h, v0.h[0]      \n"
+                    "fmla   v25.8h, v4.8h, v0.h[1]      \n"
+                    "fmla   v26.8h, v4.8h, v0.h[2]      \n"
+                    "fmla   v27.8h, v4.8h, v0.h[3]      \n"
+                    "fmla   v28.8h, v4.8h, v0.h[4]      \n"
+                    "fmla   v29.8h, v4.8h, v0.h[5]      \n"
+                    "fmla   v30.8h, v4.8h, v0.h[6]      \n"
+                    "fmla   v31.8h, v4.8h, v0.h[7]      \n"
+                    "fmla   v24.8h, v5.8h, v1.h[0]      \n"
+                    "fmla   v25.8h, v5.8h, v1.h[1]      \n"
+                    "fmla   v26.8h, v5.8h, v1.h[2]      \n"
+                    "fmla   v27.8h, v5.8h, v1.h[3]      \n"
+                    "fmla   v28.8h, v5.8h, v1.h[4]      \n"
+                    "fmla   v29.8h, v5.8h, v1.h[5]      \n"
+                    "fmla   v30.8h, v5.8h, v1.h[6]      \n"
+                    "fmla   v31.8h, v5.8h, v1.h[7]      \n"
+                    "fmla   v24.8h, v6.8h, v2.h[0]      \n"
+                    "fmla   v25.8h, v6.8h, v2.h[1]      \n"
+                    "fmla   v26.8h, v6.8h, v2.h[2]      \n"
+                    "fmla   v27.8h, v6.8h, v2.h[3]      \n"
+                    "fmla   v28.8h, v6.8h, v2.h[4]      \n"
+                    "fmla   v29.8h, v6.8h, v2.h[5]      \n"
+                    "fmla   v30.8h, v6.8h, v2.h[6]      \n"
+                    "fmla   v31.8h, v6.8h, v2.h[7]      \n"
+                    "subs   w4, w4, #1                  \n"
+                    "fmla   v24.8h, v7.8h, v3.h[0]      \n"
+                    "fmla   v25.8h, v7.8h, v3.h[1]      \n"
+                    "fmla   v26.8h, v7.8h, v3.h[2]      \n"
+                    "fmla   v27.8h, v7.8h, v3.h[3]      \n"
+                    "fmla   v28.8h, v7.8h, v3.h[4]      \n"
+                    "fmla   v29.8h, v7.8h, v3.h[5]      \n"
+                    "fmla   v30.8h, v7.8h, v3.h[6]      \n"
+                    "fmla   v31.8h, v7.8h, v3.h[7]      \n"
+                    "bne    4b                          \n"
+
+                    "5:                                 \n"
+                    "and    w4, %w9, #3                 \n" // w4 = remain = max_kk & 3
+                    "cmp    w4, #0                      \n"
+                    "beq    7f                          \n"
+
+                    "6:                                 \n"
+                    "ld1    {v0.8h}, [%2], #16          \n"
+                    "ld1    {v4.8h}, [%1], #16          \n"
+                    "fmla   v24.8h, v4.8h, v0.h[0]      \n"
+                    "fmla   v25.8h, v4.8h, v0.h[1]      \n"
+                    "fmla   v26.8h, v4.8h, v0.h[2]      \n"
+                    "fmla   v27.8h, v4.8h, v0.h[3]      \n"
+                    "subs   w4, w4, #1                  \n"
+                    "fmla   v28.8h, v4.8h, v0.h[4]      \n"
+                    "fmla   v29.8h, v4.8h, v0.h[5]      \n"
+                    "fmla   v30.8h, v4.8h, v0.h[6]      \n"
+                    "fmla   v31.8h, v4.8h, v0.h[7]      \n"
+                    "bne    6b                          \n"
+
+                    "7:                                 \n"
+                    "tst    %w11, #255                  \n"
+                    "beq    11f                         \n"
+
+                    // if out_elempack == 8
+                    "cmp    %w12, #8                    \n"
+                    "bne    8f                          \n"
+
+                    "st1    {v24.8h, v25.8h, v26.8h, v27.8h}, [%3], #64 \n"
+                    "st1    {v28.8h, v29.8h, v30.8h, v31.8h}, [%3], #64 \n"
+                    "b      10f                         \n"
+
+                    // if out_elempack == 4
+                    "8:                                 \n"
+                    "cmp    %w12, #4                    \n"
+                    "bne    9f                          \n"
+
+                    "zip1   v16.2d, v24.2d, v25.2d      \n"
+                    "zip2   v20.2d, v24.2d, v25.2d      \n"
+                    "zip1   v17.2d, v26.2d, v27.2d      \n"
+                    "zip2   v21.2d, v26.2d, v27.2d      \n"
+                    "zip1   v18.2d, v28.2d, v29.2d      \n"
+                    "zip2   v22.2d, v28.2d, v29.2d      \n"
+                    "zip1   v19.2d, v30.2d, v31.2d      \n"
+                    "zip2   v23.2d, v30.2d, v31.2d      \n"
+
+                    "lsl    w4, %w13, #2                \n"
+                    "add    x4, %3, w4, sxtw 1          \n"
+                    "st1    {v16.8h, v17.8h, v18.8h, v19.8h}, [%3], #64 \n"
+                    "st1    {v20.8h, v21.8h, v22.8h, v23.8h}, [x4] \n"
+                    "b      10f                         \n"
+
+                    // if out_elempack == 1
+                    "9:                                 \n"
+                    // transpose8x8
+                    "zip1   v22.8h, v24.8h, v25.8h      \n"
+                    "zip2   v23.8h, v24.8h, v25.8h      \n"
+                    "zip1   v24.8h, v26.8h, v27.8h      \n"
+                    "zip2   v25.8h, v26.8h, v27.8h      \n"
+                    "zip1   v26.8h, v28.8h, v29.8h      \n"
+                    "zip2   v27.8h, v28.8h, v29.8h      \n"
+                    "zip1   v28.8h, v30.8h, v31.8h      \n"
+                    "zip2   v29.8h, v30.8h, v31.8h      \n"
+
+                    "zip1   v16.4s, v22.4s, v24.4s      \n"
+                    "zip2   v17.4s, v22.4s, v24.4s      \n"
+                    "zip1   v18.4s, v23.4s, v25.4s      \n"
+                    "zip2   v19.4s, v23.4s, v25.4s      \n"
+                    "zip1   v20.4s, v26.4s, v28.4s      \n"
+                    "zip2   v21.4s, v26.4s, v28.4s      \n"
+                    "zip1   v22.4s, v27.4s, v29.4s      \n"
+                    "zip2   v23.4s, v27.4s, v29.4s      \n"
+
+                    "zip1   v24.2d, v16.2d, v20.2d      \n"
+                    "zip2   v25.2d, v16.2d, v20.2d      \n"
+                    "zip1   v26.2d, v17.2d, v21.2d      \n"
+                    "zip2   v27.2d, v17.2d, v21.2d      \n"
+                    "zip1   v28.2d, v18.2d, v22.2d      \n"
+                    "zip2   v29.2d, v18.2d, v22.2d      \n"
+                    "zip1   v30.2d, v19.2d, v23.2d      \n"
+                    "zip2   v31.2d, v19.2d, v23.2d      \n"
+
+                    "add    x4, %3, %w13, sxtw 1        \n"
+                    "st1    {v24.8h}, [%3], #16         \n"
+                    "st1    {v25.8h}, [x4]              \n"
+                    "add    x4, x4, %w13, sxtw 1        \n"
+                    "st1    {v26.8h}, [x4]              \n"
+                    "add    x4, x4, %w13, sxtw 1        \n"
+                    "st1    {v27.8h}, [x4]              \n"
+                    "add    x4, x4, %w13, sxtw 1        \n"
+                    "st1    {v28.8h}, [x4]              \n"
+                    "add    x4, x4, %w13, sxtw 1        \n"
+                    "st1    {v29.8h}, [x4]              \n"
+                    "add    x4, x4, %w13, sxtw 1        \n"
+                    "st1    {v30.8h}, [x4]              \n"
+                    "add    x4, x4, %w13, sxtw 1        \n"
+                    "st1    {v31.8h}, [x4]              \n"
+
+                    "10:                                \n"
+                    "add    %0, %0, #128                \n"
+                    "b      12f                         \n"
+
+                    "11:                                \n"
+                    "st1    {v24.8h, v25.8h, v26.8h, v27.8h}, [%0], #64 \n"
+                    "st1    {v28.8h, v29.8h, v30.8h, v31.8h}, [%0], #64 \n"
+
+                    "12:                                \n"
+
+                    : "=r"(outptr), // %0
+                    "=r"(pA),     // %1
+                    "=r"(pB),     // %2
+                    "=r"(outptr0) // %3
+                    : "0"(outptr),
+                    "1"(pA),
+                    "2"(pB),
+                    "3"(outptr0),
+                    "r"(pC),           // %8
+                    "r"(max_kk),       // %9
+                    "r"(k),            // %10
+                    "r"(k_end),        // %11
+                    "r"(out_elempack), // %12
+                    "r"(out_hstep)     // %13
+                    : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
+            }
 #else  // NCNN_GNU_INLINE_ASM
             float16x8_t _sum0;
             float16x8_t _sum1;
@@ -2689,7 +3211,7 @@ static void convolution_im2col_gemm_fp16sa(const Mat& bottom_blob, Mat& top_blob
 
                 bool k_end = k + TILE_K >= K;
 
-                convolution_gemm_transB_packed_tile_fp16sa(AT_tile, BT_tile, bias, topT_tile, top_blob, i, max_ii, j, max_jj, k, max_kk, k_end);
+                convolution_gemm_transB_packed_tile_fp16sa(AT_tile, BT_tile, bias, topT_tile, top_blob, i, max_ii, j, max_jj, k, max_kk, k_end, opt.use_a53_a55_optimized_kernel);
             }
         }
     }

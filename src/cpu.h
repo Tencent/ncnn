@@ -60,6 +60,8 @@ NCNN_EXPORT int cpu_support_arm_neon();
 NCNN_EXPORT int cpu_support_arm_vfpv4();
 // asimdhp = aarch64 asimd half precision
 NCNN_EXPORT int cpu_support_arm_asimdhp();
+// cpuid = aarch64 cpuid info
+NCNN_EXPORT int cpu_support_arm_cpuid();
 // asimddp = aarch64 asimd dot product
 NCNN_EXPORT int cpu_support_arm_asimddp();
 // asimdfhm = aarch64 asimd fhm
@@ -146,6 +148,9 @@ NCNN_EXPORT const CpuSet& get_cpu_thread_affinity_mask(int powersave);
 
 // set explicit thread affinity
 NCNN_EXPORT int set_cpu_thread_affinity(const CpuSet& thread_affinity_mask);
+
+// runtime thread affinity info
+NCNN_EXPORT int is_current_thread_running_on_a53_a55();
 
 // misc function wrapper for openmp routines
 NCNN_EXPORT int get_omp_num_threads();
