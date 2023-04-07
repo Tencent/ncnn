@@ -417,7 +417,7 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
         delete op;
         return 233;
     }
-    if (!op->support_fp16_storage && (_opt.use_fp16_storage || _opt.use_fp16_arithmetic))
+    if (!op->support_fp16_storage && _opt.use_fp16_arithmetic)
     {
         delete op;
         return 233;
@@ -941,7 +941,7 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
         delete op;
         return 233;
     }
-    if (!op->support_fp16_storage && (_opt.use_fp16_storage || _opt.use_fp16_arithmetic))
+    if (!op->support_fp16_storage && _opt.use_fp16_arithmetic)
     {
         delete op;
         return 233;
@@ -1521,7 +1521,7 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
         {0, 0, 1, 0, 0, 0, 0},
         {0, 0, 1, 1, 0, 0, 0},
         {1, 0, 0, 0, 0, 0, 0},
-        {1, 1, 0, 0, 1, 0, 1},
+        {1, 1, 0, 0, 1, 0, 0},
         {1, 0, 1, 0, 0, 1, 0},
         {1, 1, 1, 1, 0, 1, 1},
     };
@@ -1558,7 +1558,7 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
         {0, 0, 1, 0, 0, 0, 0},
         {0, 0, 1, 1, 0, 0, 0},
         {1, 0, 0, 0, 0, 0, 0},
-        {1, 1, 0, 0, 1, 0, 1},
+        {1, 1, 0, 0, 1, 0, 0},
         {1, 0, 1, 0, 0, 1, 0},
         {1, 1, 1, 1, 0, 1, 1},
     };
