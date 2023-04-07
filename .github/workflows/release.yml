@@ -44,70 +44,6 @@ jobs:
         name: ${{ env.PACKAGENAME }}
         path: /tmp/${{ env.PACKAGENAME }}.zip
 
-  ubuntu-1804:
-    needs: [setup]
-    runs-on: ubuntu-18.04
-    env:
-      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-1804
-    steps:
-    - uses: actions/checkout@v3
-      with:
-        submodules: true
-    - name: apt
-      run: |
-        sudo apt-get install -y libvulkan-dev libprotobuf-dev protobuf-compiler
-    - name: build
-      run: |
-        mkdir build && cd build
-        cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 2
-        cmake --build . --target install/strip
-    - name: package
-      run: |
-        rm -rf ${{ env.PACKAGENAME }}
-        mkdir -p ${{ env.PACKAGENAME }}
-        cp -a build/install/* ${{ env.PACKAGENAME }}
-        rm -f ${{ env.PACKAGENAME }}.zip
-        zip -9 -y -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
-    - name: upload-zip
-      uses: actions/upload-artifact@v3
-      with:
-        name: ${{ env.PACKAGENAME }}
-        path: ${{ env.PACKAGENAME }}.zip
-
-  ubuntu-1804-shared:
-    needs: [setup]
-    runs-on: ubuntu-18.04
-    env:
-      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-1804-shared
-    steps:
-    - uses: actions/checkout@v3
-      with:
-        submodules: true
-    - name: apt
-      run: |
-        sudo apt-get install -y libvulkan-dev libprotobuf-dev protobuf-compiler
-    - name: build
-      run: |
-        mkdir build && cd build
-        cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
-        cmake --build . -j 2
-        cmake --build . --target install/strip
-    - name: package
-      run: |
-        rm -rf ${{ env.PACKAGENAME }}
-        mkdir -p ${{ env.PACKAGENAME }}
-        cp -a -P build/install/* ${{ env.PACKAGENAME }}
-        rm -f ${{ env.PACKAGENAME }}.zip
-        zip -9 -y -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
-    - name: upload-zip
-      uses: actions/upload-artifact@v3
-      with:
-        name: ${{ env.PACKAGENAME }}
-        path: ${{ env.PACKAGENAME }}.zip
-
   ubuntu-2004:
     needs: [setup]
     runs-on: ubuntu-20.04
@@ -1849,7 +1785,7 @@ jobs:
   release:
     permissions:
       contents: write  # for softprops/action-gh-release to create a release
-    needs: [setup, full-source, ubuntu-1804, ubuntu-1804-shared, ubuntu-2004, ubuntu-2004-shared, ubuntu-2204, ubuntu-2204-shared, macos, macos-gpu, ios, ios-gpu, ios-bitcode, ios-gpu-bitcode, android, android-shared, android-gpu, android-gpu-shared, webassembly, windows-vs2015, windows-vs2015-shared, windows-vs2017, windows-vs2017-shared, windows-vs2019, windows-vs2019-shared, windows-vs2022, windows-vs2022-shared]
+    needs: [setup, full-source, ubuntu-2004, ubuntu-2004-shared, ubuntu-2204, ubuntu-2204-shared, macos, macos-gpu, ios, ios-gpu, ios-bitcode, ios-gpu-bitcode, android, android-shared, android-gpu, android-gpu-shared, webassembly, windows-vs2015, windows-vs2015-shared, windows-vs2017, windows-vs2017-shared, windows-vs2019, windows-vs2019-shared, windows-vs2022, windows-vs2022-shared]
     runs-on: ubuntu-latest
     steps:
     - name: download
