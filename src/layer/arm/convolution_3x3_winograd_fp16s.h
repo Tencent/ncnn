@@ -2007,7 +2007,7 @@ static void conv3x3s1_winograd_get_optimal_tile_mnk_fp16(int M, int N, int K, in
         // try not to split K
         int tile_size = (l2_cache_size_fp16 - 32) / 12;
 
-        TILE_K = tile_size / 8 * 8;
+        TILE_K = std::max(8, tile_size / 8 * 8);
 
         int nn_K = (K + TILE_K - 1) / TILE_K;
         TILE_K = std::min(TILE_K, ((K + nn_K - 1) / nn_K + 7) / 8 * 8);

@@ -6703,21 +6703,21 @@ static void get_optimal_tile_mnk(int M, int N, int K, int constant_TILE_M, int c
     int tile_size = (int)sqrt((float)l2_cache_size / 3 / sizeof(float));
 
 #if __AVX512F__
-    TILE_M = tile_size / 16 * 16;
-    TILE_N = tile_size / 4 * 4;
-    TILE_K = tile_size / 16 * 16;
+    TILE_M = std::max(16, tile_size / 16 * 16);
+    TILE_N = std::max(4, tile_size / 4 * 4);
+    TILE_K = std::max(16, tile_size / 16 * 16);
 #elif __AVX__
-    TILE_M = tile_size / 8 * 8;
-    TILE_N = tile_size / 4 * 4;
-    TILE_K = tile_size / 8 * 8;
+    TILE_M = std::max(8, tile_size / 8 * 8);
+    TILE_N = std::max(4, tile_size / 4 * 4);
+    TILE_K = std::max(8, tile_size / 8 * 8);
 #elif __SSE2__
-    TILE_M = tile_size / 4 * 4;
-    TILE_N = tile_size / 4 * 4;
-    TILE_K = tile_size / 4 * 4;
+    TILE_M = std::max(4, tile_size / 4 * 4);
+    TILE_N = std::max(4, tile_size / 4 * 4);
+    TILE_K = std::max(4, tile_size / 4 * 4);
 #else
-    TILE_M = tile_size / 2 * 2;
-    TILE_N = tile_size;
-    TILE_K = tile_size / 2 * 2;
+    TILE_M = std::max(2, tile_size / 2 * 2);
+    TILE_N = std::max(1, tile_size);
+    TILE_K = std::max(2, tile_size / 2 * 2);
 #endif
 
     if (K > 0)
@@ -6738,17 +6738,17 @@ static void get_optimal_tile_mnk(int M, int N, int K, int constant_TILE_M, int c
             tile_size = (int)((float)l2_cache_size / 2 / sizeof(float) / TILE_K);
 
 #if __AVX512F__
-            TILE_M = tile_size / 16 * 16;
-            TILE_N = tile_size / 4 * 4;
+            TILE_M = std::max(16, tile_size / 16 * 16);
+            TILE_N = std::max(4, tile_size / 4 * 4);
 #elif __AVX__
-            TILE_M = tile_size / 8 * 8;
-            TILE_N = tile_size / 4 * 4;
+            TILE_M = std::max(8, tile_size / 8 * 8);
+            TILE_N = std::max(4, tile_size / 4 * 4);
 #elif __SSE2__
-            TILE_M = tile_size / 4 * 4;
-            TILE_N = tile_size / 4 * 4;
+            TILE_M = std::max(4, tile_size / 4 * 4);
+            TILE_N = std::max(4, tile_size / 4 * 4);
 #else
-            TILE_M = tile_size / 2 * 2;
-            TILE_N = tile_size;
+            TILE_M = std::max(2, tile_size / 2 * 2);
+            TILE_N = std::max(1, tile_size);
 #endif
         }
     }
