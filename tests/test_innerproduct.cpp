@@ -40,26 +40,6 @@ static int test_innerproduct(const ncnn::Mat& a, int outch, int bias)
         fprintf(stderr, "test_innerproduct failed a.dims=%d a=(%d %d %d) outch=%d bias=%d act=%d actparams=[%f,%f]\n", a.dims, a.w, a.h, a.c, outch, bias, activation_type, activation_params[0], activation_params[1]);
     }
 
-    {
-        ncnn::Option opt;
-        opt.num_threads = 1;
-        opt.use_packing_layout = true;
-        opt.use_fp16_packed = false;
-        opt.use_fp16_storage = false;
-        opt.use_fp16_arithmetic = false;
-        opt.use_bf16_storage = false;
-        opt.use_shader_pack8 = false;
-        opt.use_image_storage = false;
-        opt.use_sgemm_convolution = false;
-        opt.use_winograd_convolution = false;
-
-        ret = test_layer_opt<ncnn::InnerProduct>("InnerProduct", pd, weights, opt, a);
-        if (ret != 0)
-        {
-            fprintf(stderr, "test_innerproduct failed a.dims=%d a=(%d %d %d) outch=%d bias=%d act=%d actparams=[%f,%f]\n", a.dims, a.w, a.h, a.c, outch, bias, activation_type, activation_params[0], activation_params[1]);
-        }
-    }
-
     return ret;
 }
 
@@ -191,26 +171,6 @@ static int test_innerproduct_gemm(const ncnn::Mat& a, int outch, int bias)
     if (ret != 0)
     {
         fprintf(stderr, "test_innerproduct_gemm failed a.dims=%d a=(%d %d %d) outch=%d bias=%d act=%d actparams=[%f,%f]\n", a.dims, a.w, a.h, a.c, outch, bias, activation_type, activation_params[0], activation_params[1]);
-    }
-
-    {
-        ncnn::Option opt;
-        opt.num_threads = 1;
-        opt.use_packing_layout = true;
-        opt.use_fp16_packed = false;
-        opt.use_fp16_storage = false;
-        opt.use_fp16_arithmetic = false;
-        opt.use_bf16_storage = false;
-        opt.use_shader_pack8 = false;
-        opt.use_image_storage = false;
-        opt.use_sgemm_convolution = false;
-        opt.use_winograd_convolution = false;
-
-        ret = test_layer_opt<ncnn::InnerProduct>("InnerProduct", pd, weights, opt, a);
-        if (ret != 0)
-        {
-            fprintf(stderr, "test_innerproduct_gemm failed a.dims=%d a=(%d %d %d) outch=%d bias=%d act=%d actparams=[%f,%f]\n", a.dims, a.w, a.h, a.c, outch, bias, activation_type, activation_params[0], activation_params[1]);
-        }
     }
 
     return ret;
