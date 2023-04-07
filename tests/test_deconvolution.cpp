@@ -132,6 +132,8 @@ static int test_deconvolution_0()
                   || test_deconvolution(9, 7, 13, 4, k, d, s, p, 1, 1, 0, 0, 0)
                   || test_deconvolution(9, 7, 4, 8, k, d, s, p, 0, 0, 1, 0, 0)
                   || test_deconvolution(9, 7, 8, 4, k, d, s, p, 1, 0, 0, 7, 5)
+                  || test_deconvolution(7, 7, 12, 12, k, d, s, p, 1, 0, 1, 0, 0)
+                  || test_deconvolution(4, 5, 12, 11, k, d, s, p, 0, 0, 1, 1, 0)
                   || test_deconvolution(9, 7, 8, 13, k, d, s, p, 0, 2, 2, 0, 0)
                   || test_deconvolution(9, 7, 13, 8, k, d, s, p, 1, 2, 0, 0, 0)
                   || test_deconvolution(9, 7, 16, 16, k, d, s, p, 0, 0, 2, 7, 5);
