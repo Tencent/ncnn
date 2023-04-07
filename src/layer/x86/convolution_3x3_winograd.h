@@ -1827,13 +1827,13 @@ static void get_optimal_tile_mnk(int M, int N, int K, int& TILE_M, int& TILE_N, 
         int tile_size = (int)sqrt((float)l2_cache_size / sizeof(float) / 3);
 
 #if __AVX512F__
-        TILE_M = tile_size / 16 * 16;
+        TILE_M = std::max(16, tile_size / 16 * 16);
 #elif __AVX__
-        TILE_M = tile_size / 8 * 8;
+        TILE_M = std::max(8, tile_size / 8 * 8);
 #elif __SSE2__
-        TILE_M = tile_size / 4 * 4;
+        TILE_M = std::max(4, tile_size / 4 * 4);
 #else
-        TILE_M = tile_size / 2 * 2;
+        TILE_M = std::max(2, tile_size / 2 * 2);
 #endif
 
         TILE_M *= std::min(nT, get_physical_cpu_count());
@@ -1868,13 +1868,13 @@ static void get_optimal_tile_mnk(int M, int N, int K, int& TILE_M, int& TILE_N, 
         int tile_size = (int)(sqrt((float)l2_cache_size / sizeof(float)) - TILE_M);
 
 #if __AVX512F__
-        TILE_K = tile_size / 16 * 16;
+        TILE_K = std::max(16, tile_size / 16 * 16);
 #elif __AVX__
-        TILE_K = tile_size / 8 * 8;
+        TILE_K = std::max(8, tile_size / 8 * 8);
 #elif __SSE2__
-        TILE_K = tile_size / 4 * 4;
+        TILE_K = std::max(4, tile_size / 4 * 4);
 #else
-        TILE_K = tile_size / 2 * 2;
+        TILE_K = std::max(2, tile_size / 2 * 2);
 #endif
 
         int nn_K = (K + TILE_K - 1) / TILE_K;
@@ -1894,13 +1894,13 @@ static void get_optimal_tile_mnk(int M, int N, int K, int& TILE_M, int& TILE_N, 
         int tile_size = (int)(((float)l2_cache_size / sizeof(float) - TILE_M * TILE_K) / (TILE_M + TILE_K));
 
 #if __AVX512F__
-        TILE_N = tile_size / 4 * 4;
+        TILE_N = std::max(4, tile_size / 4 * 4);
 #elif __AVX__
-        TILE_N = tile_size / 4 * 4;
+        TILE_N = std::max(4, tile_size / 4 * 4);
 #elif __SSE2__
-        TILE_N = tile_size / 4 * 4;
+        TILE_N = std::max(4, tile_size / 4 * 4);
 #else
-        TILE_N = tile_size;
+        TILE_N = std::max(1, tile_size);
 #endif
 
         int nn_N = (N + TILE_N - 1) / TILE_N;

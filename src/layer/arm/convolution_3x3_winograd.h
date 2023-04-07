@@ -4479,11 +4479,11 @@ static void conv3x3s1_winograd_get_optimal_tile_mnk(int M, int N, int K, int B, 
 #endif
 
 #if __aarch64__
-        TILE_K = tile_size / 8 * 8;
+        TILE_K = std::max(8, tile_size / 8 * 8);
 #elif __ARM_NEON
-        TILE_K = tile_size / 4 * 4;
+        TILE_K = std::max(4, tile_size / 4 * 4);
 #else
-        TILE_K = tile_size / 2 * 2;
+        TILE_K = std::max(2, tile_size / 2 * 2);
 #endif
 
         int nn_K = (K + TILE_K - 1) / TILE_K;
