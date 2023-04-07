@@ -1503,8 +1503,7 @@ template<typename T>
 int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vector<ncnn::Mat>& weights, const std::vector<ncnn::Mat>& a, int top_blob_count = 1, float epsilon = 0.001, void (*func)(T*) = 0, int flag = 0)
 {
     // pack fp16p fp16s fp16a bf16s shader8 image
-    const int options[][7] =
-    {
+    const int options[][7] = {
         {0, 0, 0, 0, 0, 0, 0},
         {0, 1, 0, 1, 0, 0, 0},
         {0, 1, 0, 0, 1, 0, 1},
@@ -1542,8 +1541,7 @@ template<typename T>
 int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vector<ncnn::Mat>& weights, const ncnn::Mat& a, float epsilon = 0.001, void (*func)(T*) = 0, int flag = 0)
 {
     // pack fp16p fp16s fp16a bf16s shader8 image
-    const int options[][7] =
-    {
+    const int options[][7] = {
         {0, 0, 0, 0, 0, 0, 0},
         {0, 1, 0, 1, 0, 0, 0},
         {0, 1, 0, 0, 1, 0, 1},
