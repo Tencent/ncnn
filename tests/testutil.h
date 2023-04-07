@@ -648,6 +648,13 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
 template<typename T>
 int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn::Mat>& weights, const ncnn::Option& _opt, const std::vector<ncnn::Mat>& a, int top_blob_count, std::vector<ncnn::Mat>& d, const std::vector<ncnn::Mat>& top_shapes, void (*func)(T*), int flag)
 {
+    if (!_opt.use_packing_layout)
+    {
+        // pack1 test is useless for gpu
+        delete op;
+        return 233;
+    }
+
     ncnn::Layer* op = ncnn::create_layer(typeindex);
 
     if (!op->support_vulkan)
@@ -1149,6 +1156,13 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
 template<typename T>
 int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn::Mat>& weights, const ncnn::Option& _opt, const ncnn::Mat& a, ncnn::Mat& d, const ncnn::Mat& top_shape, void (*func)(T*), int flag)
 {
+    if (!_opt.use_packing_layout)
+    {
+        // pack1 test is useless for gpu
+        delete op;
+        return 233;
+    }
+
     ncnn::Layer* op = ncnn::create_layer(typeindex);
 
     if (!op->support_vulkan)
@@ -1505,15 +1519,13 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     // pack fp16p fp16s fp16a bf16s shader8 image
     const int options[][7] = {
         {0, 0, 0, 0, 0, 0, 0},
-        {0, 1, 0, 1, 0, 0, 0},
-        {0, 1, 0, 0, 1, 0, 1},
-        {0, 0, 1, 0, 0, 1, 0},
+        {0, 0, 0, 0, 1, 0, 0},
+        {0, 0, 1, 0, 0, 0, 0},
         {0, 0, 1, 1, 0, 0, 0},
         {1, 0, 0, 0, 0, 0, 0},
-        {1, 1, 0, 1, 0, 0, 0},
         {1, 1, 0, 0, 1, 0, 1},
         {1, 0, 1, 0, 0, 1, 0},
-        {1, 0, 1, 1, 0, 0, 0},
+        {1, 1, 1, 1, 0, 1, 1},
     };
 
     const int opt_count = sizeof(options) / sizeof(options[0]);
@@ -1543,15 +1555,13 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     // pack fp16p fp16s fp16a bf16s shader8 image
     const int options[][7] = {
         {0, 0, 0, 0, 0, 0, 0},
-        {0, 1, 0, 1, 0, 0, 0},
-        {0, 1, 0, 0, 1, 0, 1},
-        {0, 0, 1, 0, 0, 1, 0},
+        {0, 0, 0, 0, 1, 0, 0},
+        {0, 0, 1, 0, 0, 0, 0},
         {0, 0, 1, 1, 0, 0, 0},
         {1, 0, 0, 0, 0, 0, 0},
-        {1, 1, 0, 1, 0, 0, 0},
         {1, 1, 0, 0, 1, 0, 1},
         {1, 0, 1, 0, 0, 1, 0},
-        {1, 0, 1, 1, 0, 0, 0},
+        {1, 1, 1, 1, 0, 1, 1},
     };
 
     const int opt_count = sizeof(options) / sizeof(options[0]);
