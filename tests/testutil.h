@@ -1531,6 +1531,7 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     for (int i = 0; i < opt_count; i++)
     {
         ncnn::Option opt;
+        opt.num_threads = 1;
         opt.use_packing_layout = options[i][0];
         opt.use_fp16_packed = options[i][1];
         opt.use_fp16_storage = options[i][2];
@@ -1567,6 +1568,7 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     for (int i = 0; i < opt_count; i++)
     {
         ncnn::Option opt;
+        opt.num_threads = 1;
         opt.use_packing_layout = options[i][0];
         opt.use_fp16_packed = options[i][1];
         opt.use_fp16_storage = options[i][2];
