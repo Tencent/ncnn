@@ -651,7 +651,6 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     if (!_opt.use_packing_layout)
     {
         // pack1 test is useless for gpu
-        delete op;
         return 233;
     }
 
@@ -1159,7 +1158,6 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     if (!_opt.use_packing_layout)
     {
         // pack1 test is useless for gpu
-        delete op;
         return 233;
     }
 
