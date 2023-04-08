@@ -455,16 +455,19 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
 
     if (!op->support_packing && _opt.use_packing_layout)
     {
+        op->destroy_pipeline(opt);
         delete op;
         return 233;
     }
     if (!op->support_bf16_storage && _opt.use_bf16_storage)
     {
+        op->destroy_pipeline(opt);
         delete op;
         return 233;
     }
-    if (!op->support_fp16_storage && (_opt.use_fp16_storage || _opt.use_fp16_arithmetic))
+    if (!op->support_fp16_storage && _opt.use_fp16_arithmetic)
     {
+        op->destroy_pipeline(opt);
         delete op;
         return 233;
     }
@@ -720,6 +723,7 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
 
     if (!op->support_vulkan)
     {
+        op->destroy_pipeline(opt);
         delete op;
         return 233;
     }
@@ -974,16 +978,19 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
 
     if (!op->support_packing && _opt.use_packing_layout)
     {
+        op->destroy_pipeline(opt);
         delete op;
         return 233;
     }
     if (!op->support_bf16_storage && _opt.use_bf16_storage)
     {
+        op->destroy_pipeline(opt);
         delete op;
         return 233;
     }
-    if (!op->support_fp16_storage && (_opt.use_fp16_storage || _opt.use_fp16_arithmetic))
+    if (!op->support_fp16_storage && _opt.use_fp16_arithmetic)
     {
+        op->destroy_pipeline(opt);
         delete op;
         return 233;
     }
@@ -1222,6 +1229,7 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
 
     if (!op->support_vulkan)
     {
+        op->destroy_pipeline(opt);
         delete op;
         return 233;
     }
