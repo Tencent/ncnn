@@ -30,6 +30,7 @@
 #include "net.h"
 #include "option.h"
 #include "paramdict.h"
+#include "simpleocv.h"
 
 using ncnn::Allocator;
 using ncnn::Blob;
@@ -206,6 +207,86 @@ void ncnn_option_set_use_vulkan_compute(ncnn_option_t opt, int use_vulkan_comput
 #endif
 }
 
+int ncnn_option_get_use_winograd_convolution(const ncnn_option_t opt)
+{
+    return ((Option*)opt)->use_winograd_convolution;
+}
+
+void ncnn_option_set_use_winograd_convolution(ncnn_option_t opt, int use_winograd_convolution)
+{
+    ((Option*)opt)->use_winograd_convolution = use_winograd_convolution;
+}
+
+int ncnn_option_get_use_sgemm_convolution(const ncnn_option_t opt)
+{
+    return ((Option*)opt)->use_sgemm_convolution;
+}
+
+void ncnn_option_set_use_sgemm_convolution(ncnn_option_t opt, int use_sgemm_convolution)
+{
+    ((Option*)opt)->use_sgemm_convolution = use_sgemm_convolution;
+}
+
+int ncnn_option_get_use_fp16_storage(const ncnn_option_t opt)
+{
+    return ((Option*)opt)->use_fp16_storage;
+}
+
+void ncnn_option_set_use_fp16_storage(ncnn_option_t opt, int use_fp16_storage)
+{
+    ((Option*)opt)->use_fp16_storage = use_fp16_storage;
+}
+
+int ncnn_option_get_use_fp16_packed(const ncnn_option_t opt)
+{
+    return ((Option*)opt)->use_fp16_packed;
+}
+
+void ncnn_option_set_use_fp16_packed(ncnn_option_t opt, int use_fp16_packed)
+{
+    ((Option*)opt)->use_fp16_packed = use_fp16_packed;
+}
+
+int ncnn_option_get_use_fp16_arithmetic(const ncnn_option_t opt)
+{
+    return ((Option*)opt)->use_fp16_arithmetic;
+}
+
+void ncnn_option_set_use_fp16_arithmetic(ncnn_option_t opt, int use_fp16_arithmetic)
+{
+    ((Option*)opt)->use_fp16_arithmetic = use_fp16_arithmetic;
+}
+
+int ncnn_option_get_use_packing_layout(const ncnn_option_t opt)
+{
+    return ((Option*)opt)->use_packing_layout;
+}
+
+void ncnn_option_set_use_packing_layout(ncnn_option_t opt, int use_packing_layout)
+{
+    ((Option*)opt)->use_packing_layout = use_packing_layout;
+}
+
+int ncnn_option_get_use_shader_pack8(const ncnn_option_t opt)
+{
+    return ((Option*)opt)->use_shader_pack8;
+}
+
+void ncnn_option_set_use_shader_pack8(ncnn_option_t opt, int use_shader_pack8)
+{
+    ((Option*)opt)->use_shader_pack8 = use_shader_pack8;
+}
+
+int ncnn_option_get_use_image_storage(const ncnn_option_t opt)
+{
+    return ((Option*)opt)->use_image_storage;
+}
+
+void ncnn_option_set_use_image_storage(ncnn_option_t opt, int use_image_storage)
+{
+    ((Option*)opt)->use_image_storage = use_image_storage;
+}
+
 /* mat api */
 ncnn_mat_t ncnn_mat_create()
 {
@@ -375,6 +456,16 @@ void* ncnn_mat_get_data(const ncnn_mat_t mat)
 void* ncnn_mat_get_channel_data(const ncnn_mat_t mat, int c)
 {
     return ((const Mat*)mat)->channel(c).data;
+}
+
+float ncnn_mat_get_data_float(const ncnn_mat_t mat, int index)
+{
+    return (*((const Mat*)mat))[index];
+}
+
+void ncnn_mat_set_data_float(const ncnn_mat_t mat, int index, float value)
+{
+    (*((Mat*)mat))[index] = value;
 }
 
 #if NCNN_PIXEL
@@ -1416,6 +1507,155 @@ int ncnn_extractor_extract_index(ncnn_extractor_t ex, int index, ncnn_mat_t* mat
     *mat = (ncnn_mat_t)(new Mat(mat0));
     return ret;
 }
+
+#if NCNN_SIMPLEOCV
+ncnn_cv_mat_t _ncnn_cv_mat_clone_ptr(cv::Mat* mat)
+{
+    ncnn_cv_mat_t r = (ncnn_cv_mat_t)(new cv::Mat(*mat));
+    mat->release();
+    return r;
+}
+
+ncnn_cv_mat_t ncnn_cv_imread(const char* path, int flags)
+{
+    std::string pathstr(path);
+    cv::Mat mat = cv::imread(pathstr, flags);
+    return _ncnn_cv_mat_clone_ptr(&mat);
+}
+
+ncnn_cv_mat_t ncnn_cv_imread_mem(const unsigned char* buffer, int len, int flags)
+{
+    cv::Mat mat = cv::imread(buffer, len, flags);
+    return _ncnn_cv_mat_clone_ptr(&mat);
+}
+
+int ncnn_cv_imwrite(ncnn_cv_mat_t mat, const char* path)
+{
+    std::string pathstr(path);
+    return (int)cv::imwrite(
+        pathstr, 
+        *((const cv::Mat*)mat), 
+        std::vector<int>());
+}
+
+unsigned char* ncnn_cv_imwrite_mem(ncnn_cv_mat_t mat, int* len)
+{
+    return cv::imwrite(
+        len,
+        *((const cv::Mat*)mat));
+}
+
+void ncnn_cv_imwrite_mem_destroy(unsigned char* buff)
+{
+    free((void*)buff);
+}
+
+ncnn_cv_mat_t ncnn_cv_resize(ncnn_cv_mat_t src, ncnn_cv_mat_point size, float sw, float sh, int flags)
+{
+    const cv::Mat s = *((const cv::Mat*)src);
+    cv::Mat dst;
+    cv::Size sz(size.x, size.y);
+    cv::resize(s, dst, sz, sw, sh, flags);
+    return _ncnn_cv_mat_clone_ptr(&dst);
+}
+
+ncnn_cv_mat_t ncnn_cv_mat_clone(ncnn_cv_mat_t mat)
+{
+    cv::Mat clone = ((const cv::Mat*)mat)->clone();
+    return _ncnn_cv_mat_clone_ptr(&clone);
+}
+
+void ncnn_cv_mat_destroy(ncnn_cv_mat_t mat)
+{
+    ((cv::Mat*)mat)->release();
+    delete (cv::Mat*)mat;
+}
+
+int ncnn_cv_mat_get_empty(ncnn_cv_mat_t mat)
+{
+    return ((const cv::Mat*)mat)->empty();
+}
+
+int ncnn_cv_mat_get_channels(ncnn_cv_mat_t mat)
+{
+    return ((const cv::Mat*)mat)->channels();
+}
+
+int ncnn_cv_mat_get_type(ncnn_cv_mat_t mat)
+{
+    return ((const cv::Mat*)mat)->type();
+}
+
+void* ncnn_cv_mat_get_data(ncnn_cv_mat_t mat)
+{
+    return (void*)((const cv::Mat*)mat)->data;
+}
+
+int ncnn_cv_mat_get_rows(ncnn_cv_mat_t mat)
+{
+    return ((const cv::Mat*)mat)->rows;
+}
+
+int ncnn_cv_mat_get_cols(ncnn_cv_mat_t mat)
+{
+    return ((const cv::Mat*)mat)->cols;
+}
+
+void ncnn_cv_mat_rectangle(
+    ncnn_cv_mat_t mat, 
+    ncnn_cv_mat_rect rect,
+    ncnn_cv_mat_color color,
+    int thickness)
+{
+    cv::Mat m = *(cv::Mat*)mat;
+    cv::Rect rec(rect.x, rect.y, rect.w, rect.h);
+    cv::Scalar scalar(color.b, color.g, color.r, color.a);
+    cv::rectangle(m, rec, scalar, thickness);
+}
+
+void ncnn_cv_mat_circle(
+    ncnn_cv_mat_t mat,
+    ncnn_cv_mat_point center,
+    int radius,
+    ncnn_cv_mat_color color,
+    int thickness)
+{
+    cv::Mat m = *(cv::Mat*)mat;
+    cv::Point pt(center.x, center.y);
+    cv::Scalar scalar(color.b, color.g, color.r, color.a);
+    cv::circle(m, pt, radius, scalar, thickness);
+}
+
+void ncnn_cv_mat_line(
+    ncnn_cv_mat_t mat,
+    ncnn_cv_mat_point pt1,
+    ncnn_cv_mat_point pt2,
+    ncnn_cv_mat_color color,
+    int thickness)
+{
+    cv::Mat m = *(cv::Mat*)mat;
+    cv::Point p1(pt1.x, pt1.y);
+    cv::Point p2(pt2.x, pt2.y);
+    cv::Scalar scalar(color.b, color.g, color.r, color.a);
+    cv::line(m, p1, p2, scalar, thickness);
+}
+
+void ncnn_cv_mat_text(
+    ncnn_cv_mat_t mat,
+    const char* text,
+    ncnn_cv_mat_point pt,
+    int fontFace,
+    double fontScale,
+    ncnn_cv_mat_color color,
+    int thickness)
+{
+    cv::Mat m = *(cv::Mat*)mat;
+    std::string textstr(text);
+    cv::Point org(pt.x, pt.y);
+    cv::Scalar scalar(color.b, color.g, color.r, color.a);
+    cv::putText(m, textstr, org, fontFace, fontScale, scalar, thickness);
+}
+#endif /* NCNN_SIMPLEOCV */
 
 #ifdef __cplusplus
 } /* extern "C" */

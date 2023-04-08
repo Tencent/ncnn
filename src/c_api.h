@@ -60,6 +60,30 @@ NCNN_EXPORT void ncnn_option_set_workspace_allocator(ncnn_option_t opt, ncnn_all
 NCNN_EXPORT int ncnn_option_get_use_vulkan_compute(const ncnn_option_t opt);
 NCNN_EXPORT void ncnn_option_set_use_vulkan_compute(ncnn_option_t opt, int use_vulkan_compute);
 
+NCNN_EXPORT int ncnn_option_get_use_winograd_convolution(const ncnn_option_t opt);
+NCNN_EXPORT void ncnn_option_set_use_winograd_convolution(ncnn_option_t opt, int use_winograd_convolution);
+
+NCNN_EXPORT int ncnn_option_get_use_sgemm_convolution(const ncnn_option_t opt);
+NCNN_EXPORT void ncnn_option_set_use_sgemm_convolution(ncnn_option_t opt, int use_sgemm_convolution);
+
+NCNN_EXPORT int ncnn_option_get_use_fp16_storage(const ncnn_option_t opt);
+NCNN_EXPORT void ncnn_option_set_use_fp16_storage(ncnn_option_t opt, int use_fp16_storage);
+
+NCNN_EXPORT int ncnn_option_get_use_fp16_packed(const ncnn_option_t opt);
+NCNN_EXPORT void ncnn_option_set_use_fp16_packed(ncnn_option_t opt, int use_fp16_packed);
+
+NCNN_EXPORT int ncnn_option_get_use_fp16_arithmetic(const ncnn_option_t opt);
+NCNN_EXPORT void ncnn_option_set_use_fp16_arithmetic(ncnn_option_t opt, int use_fp16_arithmetic);
+
+NCNN_EXPORT int ncnn_option_get_use_packing_layout(const ncnn_option_t opt);
+NCNN_EXPORT void ncnn_option_set_use_packing_layout(ncnn_option_t option, int use_packing_layout);
+
+NCNN_EXPORT int ncnn_option_get_use_shader_pack8(const ncnn_option_t opt);
+NCNN_EXPORT void ncnn_option_set_use_shader_pack8(ncnn_option_t opt, int use_shader_pack8);
+
+NCNN_EXPORT int ncnn_option_get_use_image_storage(const ncnn_option_t opt);
+NCNN_EXPORT void ncnn_option_set_use_image_storage(ncnn_option_t opt, int use_image_storage);
+
 /* mat api */
 typedef struct __ncnn_mat_t* ncnn_mat_t;
 
@@ -99,6 +123,8 @@ NCNN_EXPORT size_t ncnn_mat_get_elemsize(const ncnn_mat_t mat);
 NCNN_EXPORT int ncnn_mat_get_elempack(const ncnn_mat_t mat);
 NCNN_EXPORT size_t ncnn_mat_get_cstep(const ncnn_mat_t mat);
 NCNN_EXPORT void* ncnn_mat_get_data(const ncnn_mat_t mat);
+NCNN_EXPORT float ncnn_mat_get_data_float(const ncnn_mat_t mat, int index);
+NCNN_EXPORT void ncnn_mat_set_data_float(const ncnn_mat_t mat, int index, float value);
 
 NCNN_EXPORT void* ncnn_mat_get_channel_data(const ncnn_mat_t mat, int c);
 
@@ -326,6 +352,72 @@ NCNN_EXPORT int ncnn_extractor_extract(ncnn_extractor_t ex, const char* name, nc
 #endif /* NCNN_STRING */
 NCNN_EXPORT int ncnn_extractor_input_index(ncnn_extractor_t ex, int index, const ncnn_mat_t mat);
 NCNN_EXPORT int ncnn_extractor_extract_index(ncnn_extractor_t ex, int index, ncnn_mat_t* mat);
+
+#if NCNN_SIMPLEOCV
+typedef struct __ncnn_cv_mat_t* ncnn_cv_mat_t;
+
+struct _ncnn_cv_mat_point
+{
+    unsigned int x, y;
+};
+typedef struct _ncnn_cv_mat_point ncnn_cv_mat_point;
+
+NCNN_EXPORT ncnn_cv_mat_t ncnn_cv_imread(const char* path, int flags);
+NCNN_EXPORT ncnn_cv_mat_t ncnn_cv_imread_mem(const unsigned char* buffer, int len, int flags);
+NCNN_EXPORT int ncnn_cv_imwrite(ncnn_cv_mat_t mat, const char* path);
+NCNN_EXPORT unsigned char* ncnn_cv_imwrite_mem(ncnn_cv_mat_t mat, int* len);
+NCNN_EXPORT void ncnn_cv_imwrite_mem_destroy(unsigned char* buffer);
+NCNN_EXPORT ncnn_cv_mat_t ncnn_cv_resize(ncnn_cv_mat_t src, ncnn_cv_mat_point size, float sw, float sh, int flags);
+NCNN_EXPORT ncnn_cv_mat_t ncnn_cv_mat_clone(ncnn_cv_mat_t mat);
+NCNN_EXPORT void ncnn_cv_mat_destroy(ncnn_cv_mat_t mat);
+NCNN_EXPORT int ncnn_cv_mat_get_empty(ncnn_cv_mat_t mat);
+NCNN_EXPORT int ncnn_cv_mat_get_channels(ncnn_cv_mat_t mat);
+NCNN_EXPORT int ncnn_cv_mat_get_type(ncnn_cv_mat_t mat);
+NCNN_EXPORT void* ncnn_cv_mat_get_data(ncnn_cv_mat_t mat);
+NCNN_EXPORT int ncnn_cv_mat_get_rows(ncnn_cv_mat_t mat);
+NCNN_EXPORT int ncnn_cv_mat_get_cols(ncnn_cv_mat_t mat);
+
+struct _ncnn_cv_mat_rect
+{
+    unsigned int x, y, w, h; 
+};
+typedef struct _ncnn_cv_mat_rect ncnn_cv_mat_rect;
+
+struct _ncnn_cv_mat_color
+{
+    unsigned char r, g, b, a;
+};
+typedef struct _ncnn_cv_mat_color ncnn_cv_mat_color;
+
+NCNN_EXPORT void ncnn_cv_mat_rectangle(
+    ncnn_cv_mat_t mat, 
+    ncnn_cv_mat_rect rect,
+    ncnn_cv_mat_color color,
+    int thickness);
+
+NCNN_EXPORT void ncnn_cv_mat_circle(
+    ncnn_cv_mat_t mat,
+    ncnn_cv_mat_point center,
+    int radius,
+    ncnn_cv_mat_color color,
+    int thickness);
+
+NCNN_EXPORT void ncnn_cv_mat_line(
+    ncnn_cv_mat_t mat,
+    ncnn_cv_mat_point pt1,
+    ncnn_cv_mat_point pt2,
+    ncnn_cv_mat_color color,
+    int thickness);
+
+NCNN_EXPORT void ncnn_cv_mat_text(
+    ncnn_cv_mat_t mat,
+    const char* text,
+    ncnn_cv_mat_point pt,
+    int fontFace,
+    double fontScale,
+    ncnn_cv_mat_color color,
+    int thickness);
+#endif /* NCNN_SIMPLEOCV */
 
 #ifdef __cplusplus
 } /* extern "C" */
