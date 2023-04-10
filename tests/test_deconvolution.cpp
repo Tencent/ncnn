@@ -55,6 +55,46 @@ static int test_deconvolution(int w, int h, int c, int outch, int kernel, int di
         fprintf(stderr, "test_deconvolution failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%f,%f] output_pad_right=%d output_pad_bottom=%d output_w=%d output_h=%d\n", w, h, c, outch, kernel, dilation, stride, pad, bias, activation_type, activation_params[0], activation_params[1], output_pad_right, output_pad_bottom, output_w, output_h);
     }
 
+    {
+        ncnn::Option opt;
+        opt.num_threads = 1;
+        opt.use_packing_layout = true;
+        opt.use_fp16_packed = false;
+        opt.use_fp16_storage = false;
+        opt.use_fp16_arithmetic = false;
+        opt.use_bf16_storage = false;
+        opt.use_shader_pack8 = false;
+        opt.use_image_storage = false;
+        opt.use_sgemm_convolution = false;
+        opt.use_winograd_convolution = false;
+
+        ret = test_layer_opt<ncnn::Deconvolution>("Deconvolution", pd, weights, opt, a);
+        if (ret != 0)
+        {
+            fprintf(stderr, "test_deconvolution failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%f,%f] output_pad_right=%d output_pad_bottom=%d output_w=%d output_h=%d\n", w, h, c, outch, kernel, dilation, stride, pad, bias, activation_type, activation_params[0], activation_params[1], output_pad_right, output_pad_bottom, output_w, output_h);
+        }
+    }
+
+    {
+        ncnn::Option opt;
+        opt.num_threads = 1;
+        opt.use_packing_layout = true;
+        opt.use_fp16_packed = true;
+        opt.use_fp16_storage = true;
+        opt.use_fp16_arithmetic = true;
+        opt.use_bf16_storage = true;
+        opt.use_shader_pack8 = true;
+        opt.use_image_storage = true;
+        opt.use_sgemm_convolution = false;
+        opt.use_winograd_convolution = false;
+
+        ret = test_layer_opt<ncnn::Deconvolution>("Deconvolution", pd, weights, opt, a);
+        if (ret != 0)
+        {
+            fprintf(stderr, "test_deconvolution failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%f,%f] output_pad_right=%d output_pad_bottom=%d output_w=%d output_h=%d\n", w, h, c, outch, kernel, dilation, stride, pad, bias, activation_type, activation_params[0], activation_params[1], output_pad_right, output_pad_bottom, output_w, output_h);
+        }
+    }
+
     return ret;
 }
 
@@ -92,6 +132,8 @@ static int test_deconvolution_0()
                   || test_deconvolution(9, 7, 13, 4, k, d, s, p, 1, 1, 0, 0, 0)
                   || test_deconvolution(9, 7, 4, 8, k, d, s, p, 0, 0, 1, 0, 0)
                   || test_deconvolution(9, 7, 8, 4, k, d, s, p, 1, 0, 0, 7, 5)
+                  || test_deconvolution(7, 7, 12, 12, k, d, s, p, 1, 0, 1, 0, 0)
+                  || test_deconvolution(4, 5, 12, 11, k, d, s, p, 0, 0, 1, 1, 0)
                   || test_deconvolution(9, 7, 8, 13, k, d, s, p, 0, 2, 2, 0, 0)
                   || test_deconvolution(9, 7, 13, 8, k, d, s, p, 1, 2, 0, 0, 0)
                   || test_deconvolution(9, 7, 16, 16, k, d, s, p, 0, 0, 2, 7, 5);

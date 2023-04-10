@@ -7246,7 +7246,7 @@ int Gemm_x86::create_pipeline(const Option& opt)
 
         const int nn_NK = nn_N * nn_K;
 
-        #pragma omp parallel for num_threads(nT)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int ppjk = 0; ppjk < nn_NK; ppjk++)
         {
             const int ppj = ppjk / nn_K;
