@@ -46,7 +46,6 @@ public:
     Mat weight_data_tm;
 
     // fp16
-    Mat weight_data_fp16;
     Mat bias_data_fp16;
 };
 
