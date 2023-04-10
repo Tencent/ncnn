@@ -1188,22 +1188,6 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                     }
                     if (elempack == 1)
                     {
-                        const float* r1 = r0 + N;
-                        const float* r2 = r0 + N * 2;
-                        const float* r3 = r0 + N * 3;
-                        const float* r4 = r0 + N * 4;
-                        const float* r5 = r0 + N * 5;
-                        const float* r6 = r0 + N * 6;
-                        const float* r7 = r0 + N * 7;
-                        const float* r8 = r0 + N * 8;
-                        const float* r9 = r0 + N * 9;
-                        const float* ra = r0 + N * 10;
-                        const float* rb = r0 + N * 11;
-                        const float* rc = r0 + N * 12;
-                        const float* rd = r0 + N * 13;
-                        const float* re = r0 + N * 14;
-                        const float* rf = r0 + N * 15;
-
                         for (int k = 0; k < maxk; k++)
                         {
                             const int sok = space_ofs[k];
@@ -1226,21 +1210,21 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                             __m512 _wf = _mm512_load_ps(kptr + 16 * 15);
 
                             _sum0 = _mm512_fmadd_ps(_w0, _mm512_set1_ps(r0[sok]), _sum0);
-                            _sum1 = _mm512_fmadd_ps(_w1, _mm512_set1_ps(r1[sok]), _sum1);
-                            _sum2 = _mm512_fmadd_ps(_w2, _mm512_set1_ps(r2[sok]), _sum2);
-                            _sum3 = _mm512_fmadd_ps(_w3, _mm512_set1_ps(r3[sok]), _sum3);
-                            _sum0 = _mm512_fmadd_ps(_w4, _mm512_set1_ps(r4[sok]), _sum0);
-                            _sum1 = _mm512_fmadd_ps(_w5, _mm512_set1_ps(r5[sok]), _sum1);
-                            _sum2 = _mm512_fmadd_ps(_w6, _mm512_set1_ps(r6[sok]), _sum2);
-                            _sum3 = _mm512_fmadd_ps(_w7, _mm512_set1_ps(r7[sok]), _sum3);
-                            _sum0 = _mm512_fmadd_ps(_w8, _mm512_set1_ps(r8[sok]), _sum0);
-                            _sum1 = _mm512_fmadd_ps(_w9, _mm512_set1_ps(r9[sok]), _sum1);
-                            _sum2 = _mm512_fmadd_ps(_wa, _mm512_set1_ps(ra[sok]), _sum2);
-                            _sum3 = _mm512_fmadd_ps(_wb, _mm512_set1_ps(rb[sok]), _sum3);
-                            _sum0 = _mm512_fmadd_ps(_wc, _mm512_set1_ps(rc[sok]), _sum0);
-                            _sum1 = _mm512_fmadd_ps(_wd, _mm512_set1_ps(rd[sok]), _sum1);
-                            _sum2 = _mm512_fmadd_ps(_we, _mm512_set1_ps(re[sok]), _sum2);
-                            _sum3 = _mm512_fmadd_ps(_wf, _mm512_set1_ps(rf[sok]), _sum3);
+                            _sum1 = _mm512_fmadd_ps(_w1, _mm512_set1_ps(r0[sok + N]), _sum1);
+                            _sum2 = _mm512_fmadd_ps(_w2, _mm512_set1_ps(r0[sok + N * 2]), _sum2);
+                            _sum3 = _mm512_fmadd_ps(_w3, _mm512_set1_ps(r0[sok + N * 3]), _sum3);
+                            _sum0 = _mm512_fmadd_ps(_w4, _mm512_set1_ps(r0[sok + N * 4]), _sum0);
+                            _sum1 = _mm512_fmadd_ps(_w5, _mm512_set1_ps(r0[sok + N * 5]), _sum1);
+                            _sum2 = _mm512_fmadd_ps(_w6, _mm512_set1_ps(r0[sok + N * 6]), _sum2);
+                            _sum3 = _mm512_fmadd_ps(_w7, _mm512_set1_ps(r0[sok + N * 7]), _sum3);
+                            _sum0 = _mm512_fmadd_ps(_w8, _mm512_set1_ps(r0[sok + N * 8]), _sum0);
+                            _sum1 = _mm512_fmadd_ps(_w9, _mm512_set1_ps(r0[sok + N * 9]), _sum1);
+                            _sum2 = _mm512_fmadd_ps(_wa, _mm512_set1_ps(r0[sok + N * 10]), _sum2);
+                            _sum3 = _mm512_fmadd_ps(_wb, _mm512_set1_ps(r0[sok + N * 11]), _sum3);
+                            _sum0 = _mm512_fmadd_ps(_wc, _mm512_set1_ps(r0[sok + N * 12]), _sum0);
+                            _sum1 = _mm512_fmadd_ps(_wd, _mm512_set1_ps(r0[sok + N * 13]), _sum1);
+                            _sum2 = _mm512_fmadd_ps(_we, _mm512_set1_ps(r0[sok + N * 14]), _sum2);
+                            _sum3 = _mm512_fmadd_ps(_wf, _mm512_set1_ps(r0[sok + N * 15]), _sum3);
 
                             kptr += 256;
                         }
@@ -1309,14 +1293,6 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                     }
                     if (elempack == 1)
                     {
-                        const float* r1 = r0 + N;
-                        const float* r2 = r0 + N * 2;
-                        const float* r3 = r0 + N * 3;
-                        const float* r4 = r0 + N * 4;
-                        const float* r5 = r0 + N * 5;
-                        const float* r6 = r0 + N * 6;
-                        const float* r7 = r0 + N * 7;
-
                         for (int k = 0; k < maxk; k++)
                         {
                             const int sok = space_ofs[k];
@@ -1331,13 +1307,13 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                             __m512 _w7 = _mm512_load_ps(kptr + 16 * 7);
 
                             _sum0 = _mm512_fmadd_ps(_w0, _mm512_set1_ps(r0[sok]), _sum0);
-                            _sum1 = _mm512_fmadd_ps(_w1, _mm512_set1_ps(r1[sok]), _sum1);
-                            _sum2 = _mm512_fmadd_ps(_w2, _mm512_set1_ps(r2[sok]), _sum2);
-                            _sum3 = _mm512_fmadd_ps(_w3, _mm512_set1_ps(r3[sok]), _sum3);
-                            _sum0 = _mm512_fmadd_ps(_w4, _mm512_set1_ps(r4[sok]), _sum0);
-                            _sum1 = _mm512_fmadd_ps(_w5, _mm512_set1_ps(r5[sok]), _sum1);
-                            _sum2 = _mm512_fmadd_ps(_w6, _mm512_set1_ps(r6[sok]), _sum2);
-                            _sum3 = _mm512_fmadd_ps(_w7, _mm512_set1_ps(r7[sok]), _sum3);
+                            _sum1 = _mm512_fmadd_ps(_w1, _mm512_set1_ps(r0[sok + N]), _sum1);
+                            _sum2 = _mm512_fmadd_ps(_w2, _mm512_set1_ps(r0[sok + N * 2]), _sum2);
+                            _sum3 = _mm512_fmadd_ps(_w3, _mm512_set1_ps(r0[sok + N * 3]), _sum3);
+                            _sum0 = _mm512_fmadd_ps(_w4, _mm512_set1_ps(r0[sok + N * 4]), _sum0);
+                            _sum1 = _mm512_fmadd_ps(_w5, _mm512_set1_ps(r0[sok + N * 5]), _sum1);
+                            _sum2 = _mm512_fmadd_ps(_w6, _mm512_set1_ps(r0[sok + N * 6]), _sum2);
+                            _sum3 = _mm512_fmadd_ps(_w7, _mm512_set1_ps(r0[sok + N * 7]), _sum3);
 
                             kptr += 128;
                         }
@@ -1368,10 +1344,6 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                     }
                     if (elempack == 1)
                     {
-                        const float* r1 = r0 + N;
-                        const float* r2 = r0 + N * 2;
-                        const float* r3 = r0 + N * 3;
-
                         for (int k = 0; k < maxk; k++)
                         {
                             const int sok = space_ofs[k];
@@ -1382,9 +1354,9 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                             __m512 _w3 = _mm512_load_ps(kptr + 48);
 
                             _sum0 = _mm512_fmadd_ps(_w0, _mm512_set1_ps(r0[sok]), _sum0);
-                            _sum1 = _mm512_fmadd_ps(_w1, _mm512_set1_ps(r1[sok]), _sum1);
-                            _sum2 = _mm512_fmadd_ps(_w2, _mm512_set1_ps(r2[sok]), _sum2);
-                            _sum3 = _mm512_fmadd_ps(_w3, _mm512_set1_ps(r3[sok]), _sum3);
+                            _sum1 = _mm512_fmadd_ps(_w1, _mm512_set1_ps(r0[sok + N]), _sum1);
+                            _sum2 = _mm512_fmadd_ps(_w2, _mm512_set1_ps(r0[sok + N * 2]), _sum2);
+                            _sum3 = _mm512_fmadd_ps(_w3, _mm512_set1_ps(r0[sok + N * 3]), _sum3);
 
                             kptr += 64;
                         }
@@ -1396,8 +1368,6 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
 
                     // if (elempack == 1)
                     {
-                        const float* r1 = r0 + N;
-
                         for (int k = 0; k < maxk; k++)
                         {
                             const int sok = space_ofs[k];
@@ -1406,7 +1376,7 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                             __m512 _w1 = _mm512_load_ps(kptr + 16);
 
                             _sum0 = _mm512_fmadd_ps(_w0, _mm512_set1_ps(r0[sok]), _sum0);
-                            _sum1 = _mm512_fmadd_ps(_w1, _mm512_set1_ps(r1[sok]), _sum1);
+                            _sum1 = _mm512_fmadd_ps(_w1, _mm512_set1_ps(r0[sok + N]), _sum1);
 
                             kptr += 32;
                         }
@@ -1659,22 +1629,6 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                     }
                     if (elempack == 1)
                     {
-                        const float* r1 = r0 + N;
-                        const float* r2 = r0 + N * 2;
-                        const float* r3 = r0 + N * 3;
-                        const float* r4 = r0 + N * 4;
-                        const float* r5 = r0 + N * 5;
-                        const float* r6 = r0 + N * 6;
-                        const float* r7 = r0 + N * 7;
-                        const float* r8 = r0 + N * 8;
-                        const float* r9 = r0 + N * 9;
-                        const float* ra = r0 + N * 10;
-                        const float* rb = r0 + N * 11;
-                        const float* rc = r0 + N * 12;
-                        const float* rd = r0 + N * 13;
-                        const float* re = r0 + N * 14;
-                        const float* rf = r0 + N * 15;
-
                         for (int k = 0; k < maxk; k++)
                         {
                             const int sok = space_ofs[k];
@@ -1697,21 +1651,21 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                             __m256 _wf = _mm256_load_ps(kptr + 8 * 15);
 
                             _sum0 = _mm256_fmadd_ps(_w0, _mm256_set1_ps(r0[sok]), _sum0);
-                            _sum1 = _mm256_fmadd_ps(_w1, _mm256_set1_ps(r1[sok]), _sum1);
-                            _sum2 = _mm256_fmadd_ps(_w2, _mm256_set1_ps(r2[sok]), _sum2);
-                            _sum3 = _mm256_fmadd_ps(_w3, _mm256_set1_ps(r3[sok]), _sum3);
-                            _sum0 = _mm256_fmadd_ps(_w4, _mm256_set1_ps(r4[sok]), _sum0);
-                            _sum1 = _mm256_fmadd_ps(_w5, _mm256_set1_ps(r5[sok]), _sum1);
-                            _sum2 = _mm256_fmadd_ps(_w6, _mm256_set1_ps(r6[sok]), _sum2);
-                            _sum3 = _mm256_fmadd_ps(_w7, _mm256_set1_ps(r7[sok]), _sum3);
-                            _sum0 = _mm256_fmadd_ps(_w8, _mm256_set1_ps(r8[sok]), _sum0);
-                            _sum1 = _mm256_fmadd_ps(_w9, _mm256_set1_ps(r9[sok]), _sum1);
-                            _sum2 = _mm256_fmadd_ps(_wa, _mm256_set1_ps(ra[sok]), _sum2);
-                            _sum3 = _mm256_fmadd_ps(_wb, _mm256_set1_ps(rb[sok]), _sum3);
-                            _sum0 = _mm256_fmadd_ps(_wc, _mm256_set1_ps(rc[sok]), _sum0);
-                            _sum1 = _mm256_fmadd_ps(_wd, _mm256_set1_ps(rd[sok]), _sum1);
-                            _sum2 = _mm256_fmadd_ps(_we, _mm256_set1_ps(re[sok]), _sum2);
-                            _sum3 = _mm256_fmadd_ps(_wf, _mm256_set1_ps(rf[sok]), _sum3);
+                            _sum1 = _mm256_fmadd_ps(_w1, _mm256_set1_ps(r0[sok + N]), _sum1);
+                            _sum2 = _mm256_fmadd_ps(_w2, _mm256_set1_ps(r0[sok + N * 2]), _sum2);
+                            _sum3 = _mm256_fmadd_ps(_w3, _mm256_set1_ps(r0[sok + N * 3]), _sum3);
+                            _sum0 = _mm256_fmadd_ps(_w4, _mm256_set1_ps(r0[sok + N * 4]), _sum0);
+                            _sum1 = _mm256_fmadd_ps(_w5, _mm256_set1_ps(r0[sok + N * 5]), _sum1);
+                            _sum2 = _mm256_fmadd_ps(_w6, _mm256_set1_ps(r0[sok + N * 6]), _sum2);
+                            _sum3 = _mm256_fmadd_ps(_w7, _mm256_set1_ps(r0[sok + N * 7]), _sum3);
+                            _sum0 = _mm256_fmadd_ps(_w8, _mm256_set1_ps(r0[sok + N * 8]), _sum0);
+                            _sum1 = _mm256_fmadd_ps(_w9, _mm256_set1_ps(r0[sok + N * 9]), _sum1);
+                            _sum2 = _mm256_fmadd_ps(_wa, _mm256_set1_ps(r0[sok + N * 10]), _sum2);
+                            _sum3 = _mm256_fmadd_ps(_wb, _mm256_set1_ps(r0[sok + N * 11]), _sum3);
+                            _sum0 = _mm256_fmadd_ps(_wc, _mm256_set1_ps(r0[sok + N * 12]), _sum0);
+                            _sum1 = _mm256_fmadd_ps(_wd, _mm256_set1_ps(r0[sok + N * 13]), _sum1);
+                            _sum2 = _mm256_fmadd_ps(_we, _mm256_set1_ps(r0[sok + N * 14]), _sum2);
+                            _sum3 = _mm256_fmadd_ps(_wf, _mm256_set1_ps(r0[sok + N * 15]), _sum3);
 
                             kptr += 128;
                         }
@@ -1781,14 +1735,6 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                     }
                     if (elempack == 1)
                     {
-                        const float* r1 = r0 + N;
-                        const float* r2 = r0 + N * 2;
-                        const float* r3 = r0 + N * 3;
-                        const float* r4 = r0 + N * 4;
-                        const float* r5 = r0 + N * 5;
-                        const float* r6 = r0 + N * 6;
-                        const float* r7 = r0 + N * 7;
-
                         for (int k = 0; k < maxk; k++)
                         {
                             const int sok = space_ofs[k];
@@ -1803,13 +1749,13 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                             __m256 _w7 = _mm256_load_ps(kptr + 56);
 
                             _sum0 = _mm256_comp_fmadd_ps(_w0, _mm256_set1_ps(r0[sok]), _sum0);
-                            _sum1 = _mm256_comp_fmadd_ps(_w1, _mm256_set1_ps(r1[sok]), _sum1);
-                            _sum2 = _mm256_comp_fmadd_ps(_w2, _mm256_set1_ps(r2[sok]), _sum2);
-                            _sum3 = _mm256_comp_fmadd_ps(_w3, _mm256_set1_ps(r3[sok]), _sum3);
-                            _sum0 = _mm256_comp_fmadd_ps(_w4, _mm256_set1_ps(r4[sok]), _sum0);
-                            _sum1 = _mm256_comp_fmadd_ps(_w5, _mm256_set1_ps(r5[sok]), _sum1);
-                            _sum2 = _mm256_comp_fmadd_ps(_w6, _mm256_set1_ps(r6[sok]), _sum2);
-                            _sum3 = _mm256_comp_fmadd_ps(_w7, _mm256_set1_ps(r7[sok]), _sum3);
+                            _sum1 = _mm256_comp_fmadd_ps(_w1, _mm256_set1_ps(r0[sok + N]), _sum1);
+                            _sum2 = _mm256_comp_fmadd_ps(_w2, _mm256_set1_ps(r0[sok + N * 2]), _sum2);
+                            _sum3 = _mm256_comp_fmadd_ps(_w3, _mm256_set1_ps(r0[sok + N * 3]), _sum3);
+                            _sum0 = _mm256_comp_fmadd_ps(_w4, _mm256_set1_ps(r0[sok + N * 4]), _sum0);
+                            _sum1 = _mm256_comp_fmadd_ps(_w5, _mm256_set1_ps(r0[sok + N * 5]), _sum1);
+                            _sum2 = _mm256_comp_fmadd_ps(_w6, _mm256_set1_ps(r0[sok + N * 6]), _sum2);
+                            _sum3 = _mm256_comp_fmadd_ps(_w7, _mm256_set1_ps(r0[sok + N * 7]), _sum3);
 
                             kptr += 64;
                         }
@@ -1840,10 +1786,6 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                     }
                     if (elempack == 1)
                     {
-                        const float* r1 = r0 + N;
-                        const float* r2 = r0 + N * 2;
-                        const float* r3 = r0 + N * 3;
-
                         for (int k = 0; k < maxk; k++)
                         {
                             const int sok = space_ofs[k];
@@ -1854,9 +1796,9 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                             __m256 _w3 = _mm256_load_ps(kptr + 24);
 
                             _sum0 = _mm256_comp_fmadd_ps(_w0, _mm256_set1_ps(r0[sok]), _sum0);
-                            _sum1 = _mm256_comp_fmadd_ps(_w1, _mm256_set1_ps(r1[sok]), _sum1);
-                            _sum2 = _mm256_comp_fmadd_ps(_w2, _mm256_set1_ps(r2[sok]), _sum2);
-                            _sum3 = _mm256_comp_fmadd_ps(_w3, _mm256_set1_ps(r3[sok]), _sum3);
+                            _sum1 = _mm256_comp_fmadd_ps(_w1, _mm256_set1_ps(r0[sok + N]), _sum1);
+                            _sum2 = _mm256_comp_fmadd_ps(_w2, _mm256_set1_ps(r0[sok + N * 2]), _sum2);
+                            _sum3 = _mm256_comp_fmadd_ps(_w3, _mm256_set1_ps(r0[sok + N * 3]), _sum3);
 
                             kptr += 32;
                         }
@@ -1868,8 +1810,6 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
 
                     // if (elempack == 1)
                     {
-                        const float* r1 = r0 + N;
-
                         for (int k = 0; k < maxk; k++)
                         {
                             const int sok = space_ofs[k];
@@ -1878,7 +1818,7 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                             __m256 _w1 = _mm256_load_ps(kptr + 8);
 
                             _sum0 = _mm256_comp_fmadd_ps(_w0, _mm256_set1_ps(r0[sok]), _sum0);
-                            _sum1 = _mm256_comp_fmadd_ps(_w1, _mm256_set1_ps(r1[sok]), _sum1);
+                            _sum1 = _mm256_comp_fmadd_ps(_w1, _mm256_set1_ps(r0[sok + N]), _sum1);
 
                             kptr += 16;
                         }
@@ -2118,22 +2058,6 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                     }
                     if (elempack == 1)
                     {
-                        const float* r1 = r0 + N;
-                        const float* r2 = r0 + N * 2;
-                        const float* r3 = r0 + N * 3;
-                        const float* r4 = r0 + N * 4;
-                        const float* r5 = r0 + N * 5;
-                        const float* r6 = r0 + N * 6;
-                        const float* r7 = r0 + N * 7;
-                        const float* r8 = r0 + N * 8;
-                        const float* r9 = r0 + N * 9;
-                        const float* ra = r0 + N * 10;
-                        const float* rb = r0 + N * 11;
-                        const float* rc = r0 + N * 12;
-                        const float* rd = r0 + N * 13;
-                        const float* re = r0 + N * 14;
-                        const float* rf = r0 + N * 15;
-
                         for (int k = 0; k < maxk; k++)
                         {
                             const int sok = space_ofs[k];
@@ -2156,21 +2080,21 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                             __m128 _wf = _mm_load_ps(kptr + 4 * 15);
 
                             _sum0 = _mm_fmadd_ps(_w0, _mm_set1_ps(r0[sok]), _sum0);
-                            _sum1 = _mm_fmadd_ps(_w1, _mm_set1_ps(r1[sok]), _sum1);
-                            _sum2 = _mm_fmadd_ps(_w2, _mm_set1_ps(r2[sok]), _sum2);
-                            _sum3 = _mm_fmadd_ps(_w3, _mm_set1_ps(r3[sok]), _sum3);
-                            _sum0 = _mm_fmadd_ps(_w4, _mm_set1_ps(r4[sok]), _sum0);
-                            _sum1 = _mm_fmadd_ps(_w5, _mm_set1_ps(r5[sok]), _sum1);
-                            _sum2 = _mm_fmadd_ps(_w6, _mm_set1_ps(r6[sok]), _sum2);
-                            _sum3 = _mm_fmadd_ps(_w7, _mm_set1_ps(r7[sok]), _sum3);
-                            _sum0 = _mm_fmadd_ps(_w8, _mm_set1_ps(r8[sok]), _sum0);
-                            _sum1 = _mm_fmadd_ps(_w9, _mm_set1_ps(r9[sok]), _sum1);
-                            _sum2 = _mm_fmadd_ps(_wa, _mm_set1_ps(ra[sok]), _sum2);
-                            _sum3 = _mm_fmadd_ps(_wb, _mm_set1_ps(rb[sok]), _sum3);
-                            _sum0 = _mm_fmadd_ps(_wc, _mm_set1_ps(rc[sok]), _sum0);
-                            _sum1 = _mm_fmadd_ps(_wd, _mm_set1_ps(rd[sok]), _sum1);
-                            _sum2 = _mm_fmadd_ps(_we, _mm_set1_ps(re[sok]), _sum2);
-                            _sum3 = _mm_fmadd_ps(_wf, _mm_set1_ps(rf[sok]), _sum3);
+                            _sum1 = _mm_fmadd_ps(_w1, _mm_set1_ps(r0[sok + N]), _sum1);
+                            _sum2 = _mm_fmadd_ps(_w2, _mm_set1_ps(r0[sok + N * 2]), _sum2);
+                            _sum3 = _mm_fmadd_ps(_w3, _mm_set1_ps(r0[sok + N * 3]), _sum3);
+                            _sum0 = _mm_fmadd_ps(_w4, _mm_set1_ps(r0[sok + N * 4]), _sum0);
+                            _sum1 = _mm_fmadd_ps(_w5, _mm_set1_ps(r0[sok + N * 5]), _sum1);
+                            _sum2 = _mm_fmadd_ps(_w6, _mm_set1_ps(r0[sok + N * 6]), _sum2);
+                            _sum3 = _mm_fmadd_ps(_w7, _mm_set1_ps(r0[sok + N * 7]), _sum3);
+                            _sum0 = _mm_fmadd_ps(_w8, _mm_set1_ps(r0[sok + N * 8]), _sum0);
+                            _sum1 = _mm_fmadd_ps(_w9, _mm_set1_ps(r0[sok + N * 9]), _sum1);
+                            _sum2 = _mm_fmadd_ps(_wa, _mm_set1_ps(r0[sok + N * 10]), _sum2);
+                            _sum3 = _mm_fmadd_ps(_wb, _mm_set1_ps(r0[sok + N * 11]), _sum3);
+                            _sum0 = _mm_fmadd_ps(_wc, _mm_set1_ps(r0[sok + N * 12]), _sum0);
+                            _sum1 = _mm_fmadd_ps(_wd, _mm_set1_ps(r0[sok + N * 13]), _sum1);
+                            _sum2 = _mm_fmadd_ps(_we, _mm_set1_ps(r0[sok + N * 14]), _sum2);
+                            _sum3 = _mm_fmadd_ps(_wf, _mm_set1_ps(r0[sok + N * 15]), _sum3);
 
                             kptr += 64;
                         }
@@ -2240,14 +2164,6 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                     }
                     if (elempack == 1)
                     {
-                        const float* r1 = r0 + N;
-                        const float* r2 = r0 + N * 2;
-                        const float* r3 = r0 + N * 3;
-                        const float* r4 = r0 + N * 4;
-                        const float* r5 = r0 + N * 5;
-                        const float* r6 = r0 + N * 6;
-                        const float* r7 = r0 + N * 7;
-
                         for (int k = 0; k < maxk; k++)
                         {
                             const int sok = space_ofs[k];
@@ -2262,13 +2178,13 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                             __m128 _w7 = _mm_load_ps(kptr + 28);
 
                             _sum0 = _mm_comp_fmadd_ps(_w0, _mm_set1_ps(r0[sok]), _sum0);
-                            _sum1 = _mm_comp_fmadd_ps(_w1, _mm_set1_ps(r1[sok]), _sum1);
-                            _sum2 = _mm_comp_fmadd_ps(_w2, _mm_set1_ps(r2[sok]), _sum2);
-                            _sum3 = _mm_comp_fmadd_ps(_w3, _mm_set1_ps(r3[sok]), _sum3);
-                            _sum0 = _mm_comp_fmadd_ps(_w4, _mm_set1_ps(r4[sok]), _sum0);
-                            _sum1 = _mm_comp_fmadd_ps(_w5, _mm_set1_ps(r5[sok]), _sum1);
-                            _sum2 = _mm_comp_fmadd_ps(_w6, _mm_set1_ps(r6[sok]), _sum2);
-                            _sum3 = _mm_comp_fmadd_ps(_w7, _mm_set1_ps(r7[sok]), _sum3);
+                            _sum1 = _mm_comp_fmadd_ps(_w1, _mm_set1_ps(r0[sok + N]), _sum1);
+                            _sum2 = _mm_comp_fmadd_ps(_w2, _mm_set1_ps(r0[sok + N * 2]), _sum2);
+                            _sum3 = _mm_comp_fmadd_ps(_w3, _mm_set1_ps(r0[sok + N * 3]), _sum3);
+                            _sum0 = _mm_comp_fmadd_ps(_w4, _mm_set1_ps(r0[sok + N * 4]), _sum0);
+                            _sum1 = _mm_comp_fmadd_ps(_w5, _mm_set1_ps(r0[sok + N * 5]), _sum1);
+                            _sum2 = _mm_comp_fmadd_ps(_w6, _mm_set1_ps(r0[sok + N * 6]), _sum2);
+                            _sum3 = _mm_comp_fmadd_ps(_w7, _mm_set1_ps(r0[sok + N * 7]), _sum3);
 
                             kptr += 32;
                         }
@@ -2300,10 +2216,6 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                     }
                     if (elempack == 1)
                     {
-                        const float* r1 = r0 + N;
-                        const float* r2 = r0 + N * 2;
-                        const float* r3 = r0 + N * 3;
-
                         for (int k = 0; k < maxk; k++)
                         {
                             const int sok = space_ofs[k];
@@ -2314,9 +2226,9 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                             __m128 _w3 = _mm_load_ps(kptr + 12);
 
                             _sum0 = _mm_comp_fmadd_ps(_w0, _mm_set1_ps(r0[sok]), _sum0);
-                            _sum1 = _mm_comp_fmadd_ps(_w1, _mm_set1_ps(r1[sok]), _sum1);
-                            _sum2 = _mm_comp_fmadd_ps(_w2, _mm_set1_ps(r2[sok]), _sum2);
-                            _sum3 = _mm_comp_fmadd_ps(_w3, _mm_set1_ps(r3[sok]), _sum3);
+                            _sum1 = _mm_comp_fmadd_ps(_w1, _mm_set1_ps(r0[sok + N]), _sum1);
+                            _sum2 = _mm_comp_fmadd_ps(_w2, _mm_set1_ps(r0[sok + N * 2]), _sum2);
+                            _sum3 = _mm_comp_fmadd_ps(_w3, _mm_set1_ps(r0[sok + N * 3]), _sum3);
 
                             kptr += 16;
                         }
@@ -2328,8 +2240,6 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
 
                     // if (elempack == 1)
                     {
-                        const float* r1 = r0 + N;
-
                         for (int k = 0; k < maxk; k++)
                         {
                             const int sok = space_ofs[k];
@@ -2338,7 +2248,7 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                             __m128 _w1 = _mm_load_ps(kptr + 4);
 
                             _sum0 = _mm_comp_fmadd_ps(_w0, _mm_set1_ps(r0[sok]), _sum0);
-                            _sum1 = _mm_comp_fmadd_ps(_w1, _mm_set1_ps(r1[sok]), _sum1);
+                            _sum1 = _mm_comp_fmadd_ps(_w1, _mm_set1_ps(r0[sok + N]), _sum1);
 
                             kptr += 8;
                         }
@@ -2482,26 +2392,10 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                     }
                     if (elempack == 1)
                     {
-                        const float* r1 = r0 + N;
-                        const float* r2 = r0 + N * 2;
-                        const float* r3 = r0 + N * 3;
-                        const float* r4 = r0 + N * 4;
-                        const float* r5 = r0 + N * 5;
-                        const float* r6 = r0 + N * 6;
-                        const float* r7 = r0 + N * 7;
-                        const float* r8 = r0 + N * 8;
-                        const float* r9 = r0 + N * 9;
-                        const float* ra = r0 + N * 10;
-                        const float* rb = r0 + N * 11;
-                        const float* rc = r0 + N * 12;
-                        const float* rd = r0 + N * 13;
-                        const float* re = r0 + N * 14;
-                        const float* rf = r0 + N * 15;
-
                         for (int k = 0; k < maxk; k++)
                         {
                             const int sok = space_ofs[k];
-                            __m512 _r0 = _mm512_set_ps(rf[sok], re[sok], rd[sok], rc[sok], rb[sok], ra[sok], r9[sok], r8[sok], r7[sok], r6[sok], r5[sok], r4[sok], r3[sok], r2[sok], r1[sok], r0[sok]);
+                            __m512 _r0 = _mm512_set_ps(r0[sok + N * 15], r0[sok + N * 14], r0[sok + N * 13], r0[sok + N * 12], r0[sok + N * 11], r0[sok + N * 10], r0[sok + N * 9], r0[sok + N * 8], r0[sok + N * 7], r0[sok + N * 6], r0[sok + N * 5], r0[sok + N * 4], r0[sok + N * 3], r0[sok + N * 2], r0[sok + N], r0[sok]);
                             __m512 _w0 = _mm512_load_ps(kptr);
                             __m512 _w1 = _mm512_load_ps(kptr + 16);
                             _sum0_avx512 = _mm512_fmadd_ps(_r0, _w0, _sum0_avx512);
@@ -2552,18 +2446,10 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                     }
                     if (elempack == 1)
                     {
-                        const float* r1 = r0 + N;
-                        const float* r2 = r0 + N * 2;
-                        const float* r3 = r0 + N * 3;
-                        const float* r4 = r0 + N * 4;
-                        const float* r5 = r0 + N * 5;
-                        const float* r6 = r0 + N * 6;
-                        const float* r7 = r0 + N * 7;
-
                         for (int k = 0; k < maxk; k++)
                         {
                             const int sok = space_ofs[k];
-                            __m256 _r0 = _mm256_set_ps(r7[sok], r6[sok], r5[sok], r4[sok], r3[sok], r2[sok], r1[sok], r0[sok]);
+                            __m256 _r0 = _mm256_set_ps(r0[sok + N * 7], r0[sok + N * 6], r0[sok + N * 5], r0[sok + N * 4], r0[sok + N * 3], r0[sok + N * 2], r0[sok + N], r0[sok]);
                             __m256 _w0 = _mm256_load_ps(kptr);
                             __m256 _w1 = _mm256_load_ps(kptr + 8);
                             _sum0_avx = _mm256_comp_fmadd_ps(_r0, _w0, _sum0_avx);
@@ -2598,14 +2484,10 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                     }
                     if (elempack == 1)
                     {
-                        const float* r1 = r0 + N;
-                        const float* r2 = r0 + N * 2;
-                        const float* r3 = r0 + N * 3;
-
                         for (int k = 0; k < maxk; k++)
                         {
                             const int sok = space_ofs[k];
-                            __m128 _r0 = _mm_set_ps(r3[sok], r2[sok], r1[sok], r0[sok]);
+                            __m128 _r0 = _mm_set_ps(r0[sok + N * 3], r0[sok + N * 2], r0[sok + N], r0[sok]);
                             __m128 _w0 = _mm_load_ps(kptr);
                             __m128 _w1 = _mm_load_ps(kptr + 4);
                             _sum0 = _mm_comp_fmadd_ps(_r0, _w0, _sum0);
@@ -2624,16 +2506,14 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
 
                     // if (elempack == 1)
                     {
-                        const float* r1 = r0 + N;
-
                         for (int k = 0; k < maxk; k++)
                         {
                             const int sok = space_ofs[k];
 
                             sum0 += r0[sok] * kptr[0];
                             sum1 += r0[sok] * kptr[1];
-                            sum0 += r1[sok] * kptr[2];
-                            sum1 += r1[sok] * kptr[3];
+                            sum0 += r0[sok + N] * kptr[2];
+                            sum1 += r0[sok + N] * kptr[3];
 
                             kptr += 4;
                         }
@@ -2745,26 +2625,10 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                     }
                     if (elempack == 1)
                     {
-                        const float* r1 = r0 + N;
-                        const float* r2 = r0 + N * 2;
-                        const float* r3 = r0 + N * 3;
-                        const float* r4 = r0 + N * 4;
-                        const float* r5 = r0 + N * 5;
-                        const float* r6 = r0 + N * 6;
-                        const float* r7 = r0 + N * 7;
-                        const float* r8 = r0 + N * 8;
-                        const float* r9 = r0 + N * 9;
-                        const float* ra = r0 + N * 10;
-                        const float* rb = r0 + N * 11;
-                        const float* rc = r0 + N * 12;
-                        const float* rd = r0 + N * 13;
-                        const float* re = r0 + N * 14;
-                        const float* rf = r0 + N * 15;
-
                         for (int k = 0; k < maxk; k++)
                         {
                             const int sok = space_ofs[k];
-                            __m512 _r0 = _mm512_set_ps(rf[sok], re[sok], rd[sok], rc[sok], rb[sok], ra[sok], r9[sok], r8[sok], r7[sok], r6[sok], r5[sok], r4[sok], r3[sok], r2[sok], r1[sok], r0[sok]);
+                            __m512 _r0 = _mm512_set_ps(r0[sok + N * 15], r0[sok + N * 14], r0[sok + N * 13], r0[sok + N * 12], r0[sok + N * 11], r0[sok + N * 10], r0[sok + N * 9], r0[sok + N * 8], r0[sok + N * 7], r0[sok + N * 6], r0[sok + N * 5], r0[sok + N * 4], r0[sok + N * 3], r0[sok + N * 2], r0[sok + N], r0[sok]);
                             __m512 _w = _mm512_load_ps(kptr);
                             _sum_avx512 = _mm512_fmadd_ps(_r0, _w, _sum_avx512);
 
@@ -2807,18 +2671,10 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                     }
                     if (elempack == 1)
                     {
-                        const float* r1 = r0 + N;
-                        const float* r2 = r0 + N * 2;
-                        const float* r3 = r0 + N * 3;
-                        const float* r4 = r0 + N * 4;
-                        const float* r5 = r0 + N * 5;
-                        const float* r6 = r0 + N * 6;
-                        const float* r7 = r0 + N * 7;
-
                         for (int k = 0; k < maxk; k++)
                         {
                             const int sok = space_ofs[k];
-                            __m256 _r0 = _mm256_set_ps(r7[sok], r6[sok], r5[sok], r4[sok], r3[sok], r2[sok], r1[sok], r0[sok]);
+                            __m256 _r0 = _mm256_set_ps(r0[sok + N * 7], r0[sok + N * 6], r0[sok + N * 5], r0[sok + N * 4], r0[sok + N * 3], r0[sok + N * 2], r0[sok + N], r0[sok]);
                             __m256 _w = _mm256_load_ps(kptr);
                             _sum_avx = _mm256_comp_fmadd_ps(_r0, _w, _sum_avx);
 
@@ -2847,14 +2703,10 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                     }
                     if (elempack == 1)
                     {
-                        const float* r1 = r0 + N;
-                        const float* r2 = r0 + N * 2;
-                        const float* r3 = r0 + N * 3;
-
                         for (int k = 0; k < maxk; k++)
                         {
                             const int sok = space_ofs[k];
-                            __m128 _r0 = _mm_set_ps(r3[sok], r2[sok], r1[sok], r0[sok]);
+                            __m128 _r0 = _mm_set_ps(r0[sok + N * 3], r0[sok + N * 2], r0[sok + N], r0[sok]);
                             __m128 _w = _mm_load_ps(kptr);
                             _sum = _mm_comp_fmadd_ps(_r0, _w, _sum);
 
@@ -2870,14 +2722,12 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
 
                     // if (elempack == 1)
                     {
-                        const float* r1 = r0 + N;
-
                         for (int k = 0; k < maxk; k++)
                         {
                             const int sok = space_ofs[k];
 
                             sum += r0[sok] * kptr[0];
-                            sum += r1[sok] * kptr[1];
+                            sum += r0[sok + N] * kptr[1];
 
                             kptr += 2;
                         }
