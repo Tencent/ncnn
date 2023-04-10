@@ -1502,6 +1502,7 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
 {
     // pack fp16p fp16s fp16a bf16s shader8 image
     const int options[][7] = {
+        {0, 0, 0, 0, 0, 0, 0},
         {0, 0, 1, 0, 0, 0, 0},
         {0, 0, 1, 1, 1, 0, 0},
         {1, 0, 0, 0, 0, 0, 0},
@@ -1537,6 +1538,7 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
 {
     // pack fp16p fp16s fp16a bf16s shader8 image
     const int options[][7] = {
+        {0, 0, 0, 0, 0, 0, 0},
         {0, 0, 1, 0, 0, 0, 0},
         {0, 0, 1, 1, 1, 0, 0},
         {1, 0, 0, 0, 0, 0, 0},
