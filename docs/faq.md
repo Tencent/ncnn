@@ -665,6 +665,38 @@ net.opt.use_bf16_storage = true;
 
    对内存消耗的影响
 
+- ## 如何解决显卡进入节能模式造成的一系列问题？
+
+   nVidia显卡（Intel和AMD估计也有）会在它认为的所谓空闲模式下，自动进入 `节能模式`，显存和核心频率就都会降低。
+   
+   简单来说就是如果你的计算任务是 `非连续的`，那么可能会让耗时看起来非常 `不均匀`，当期间有运算空闲间隔发生，显卡进入节能模式，则会在下一次冷启动时发生计算耗时远超正常耗时几倍的情况，如下日志所示：
+
+   ```cpp
+   //开始播放
+   Total: 162ms, Diff: 0ms, GLTex2Mat: 7ms, calc: 152ms, Mat2GLTex: 3ms
+   Total: 43ms, Diff: 0ms, GLTex2Mat: 3ms, calc: 35ms, Mat2GLTex: 2ms
+   Total: 45ms, Diff: 0ms, GLTex2Mat: 3ms, calc: 37ms, Mat2GLTex: 3ms
+   Total: 40ms, Diff: 0ms, GLTex2Mat: 3ms, calc: 32ms, Mat2GLTex: 4ms
+   //暂停3秒
+   //继续播放
+   Total: 190ms, Diff: 0ms, GLTex2Mat: 9ms, calc: 177ms, Mat2GLTex: 3ms
+   Total: 134ms, Diff: 0ms, GLTex2Mat: 5ms, calc: 110ms, Mat2GLTex: 18ms
+   Total: 40ms, Diff: 0ms, GLTex2Mat: 3ms, calc: 34ms, Mat2GLTex: 2ms
+   Total: 42ms, Diff: 0ms, GLTex2Mat: 3ms, calc: 36ms, Mat2GLTex: 2ms
+   Total: 47ms, Diff: 0ms, GLTex2Mat: 5ms, calc: 38ms, Mat2GLTex: 3ms
+   ...
+   ```
+
+   在对时间不敏感的项目上，这个问题没什么大不了的，完全可以忽略，但是有些业务场景上必须精准推估下一帧及其未来几帧的从上传、计算到渲染的耗时情况，则这种现象将会给开发者打开些许困扰。
+
+   ### 3种解决方法
+   * 联系显卡厂商，让其更新驱动将你的应用加入到免节能模式的白名单。
+     * 优点：你什么都不用改。缺点：沟通困难，很可能显卡厂商根本不理你。
+   * [显卡控制面板] - [管理3D设置] - [电源管理模式]，改成：[最高性能优先]。
+     * 优点：不用改代码。缺点：如果是部署端是小白用户，需要编写手册手把手教他。
+   * 可以空闲（暂停）时定期灌一些心跳计算包的任务进去（放1x1小图）让GPU维持在高性能状态。
+     * 优点：需要改代码。缺点：不低碳不环保。
+
 # 白嫖项目
 
 - ## nanodet
