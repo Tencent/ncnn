@@ -32,8 +32,7 @@ static void convolution_transform_kernel_packed_fp16s(const Mat& kernel, Mat& ke
         else
             kernel_tm.create(8 * maxk, inch, outch / 8 + (outch % 8) / 4 + (outch % 4) / 2 + outch % 2, (size_t)2u);
     }
-    else
-    if (outch >= 4)
+    else if (outch >= 4)
     {
         if (inch >= 8)
             kernel_tm.create(4 * 8 * maxk, inch / 8 + (inch % 8) / 4 + (inch % 4) / 2 + inch % 2, outch / 4 + (outch % 4) / 2 + outch % 2, (size_t)2u);
@@ -44,8 +43,7 @@ static void convolution_transform_kernel_packed_fp16s(const Mat& kernel, Mat& ke
         else
             kernel_tm.create(4 * maxk, inch, outch / 4 + (outch % 4) / 2 + outch % 2, (size_t)2u);
     }
-    else
-    if (outch >= 2)
+    else if (outch >= 2)
     {
         if (inch >= 8)
             kernel_tm.create(2 * 8 * maxk, inch / 8 + (inch % 8) / 4 + (inch % 4) / 2 + inch % 2, outch / 2 + outch % 2, (size_t)2u);
