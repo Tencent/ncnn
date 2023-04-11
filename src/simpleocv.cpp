@@ -138,7 +138,6 @@ Mat imread(const std::string& path, int flags)
     return img;
 }
 
-
 Mat imdecode(const std::vector<uchar>& buf, int flags)
 {
     int desired_channels = 0;
@@ -222,7 +221,6 @@ Mat imdecode(const std::vector<uchar>& buf, int flags)
 
     return img;
 }
-
 
 bool imwrite(const std::string& path, const Mat& m, const std::vector<int>& params)
 {
