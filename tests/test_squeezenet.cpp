@@ -250,7 +250,7 @@ public:
         support_inplace = true;
     }
 
-    virtual int forward(ncnn::Mat& bottom_top_blob, const ncnn::Option& /*opt*/) const
+    virtual int forward_inplace(ncnn::Mat& bottom_top_blob, const ncnn::Option& /*opt*/) const
     {
         bottom_top_blob.fill(0.f);
         bottom_top_blob[123] = 0.5f;
@@ -267,8 +267,6 @@ static int test_squeezenet_overwrite_softmax(const ncnn::Option& opt, int load_m
 
     squeezenet.opt = opt;
 
-    squeezenet.register_custom_layer("Softmax", MySoftmax_layer_creator);
-
 #ifdef __EMSCRIPTEN__
 #define MODEL_DIR "/working"
 #else
@@ -281,6 +279,7 @@ static int test_squeezenet_overwrite_softmax(const ncnn::Option& opt, int load_m
     if (load_model_type == 0)
     {
         // load from plain model file
+        squeezenet.register_custom_layer("Softmax", MySoftmax_layer_creator);
         squeezenet.load_param(MODEL_DIR "/squeezenet_v1.1.param");
 
         // test random feature disabled bits
@@ -297,6 +296,7 @@ static int test_squeezenet_overwrite_softmax(const ncnn::Option& opt, int load_m
     if (load_model_type == 1)
     {
         // load from plain model memory
+        squeezenet.register_custom_layer("Softmax", MySoftmax_layer_creator);
         param_str = read_file_string(MODEL_DIR "/squeezenet_v1.1.param");
         model_data = read_file_content(MODEL_DIR "/squeezenet_v1.1.bin");
         squeezenet.load_param_mem((const char*)param_str.c_str());
@@ -305,12 +305,14 @@ static int test_squeezenet_overwrite_softmax(const ncnn::Option& opt, int load_m
     if (load_model_type == 2)
     {
         // load from binary model file
+        squeezenet.register_custom_layer(ncnn::layer_to_index("Softmax"), MySoftmax_layer_creator);
         squeezenet.load_param_bin(MODEL_DIR "/squeezenet_v1.1.param.bin");
         squeezenet.load_model(MODEL_DIR "/squeezenet_v1.1.bin");
     }
     if (load_model_type == 3)
     {
         // load from binary model memory
+        squeezenet.register_custom_layer(ncnn::layer_to_index("Softmax"), MySoftmax_layer_creator);
         param_data = read_file_content(MODEL_DIR "/squeezenet_v1.1.param.bin");
         model_data = read_file_content(MODEL_DIR "/squeezenet_v1.1.bin");
         squeezenet.load_param((const unsigned char*)param_data);
@@ -343,7 +345,7 @@ static int test_squeezenet_overwrite_softmax(const ncnn::Option& opt, int load_m
         cls_scores[j] = out[j];
     }
 
-    return cls_scores[123] == 0.5f && cls_scores[456] == 0.1f;
+    return cls_scores[123] == 0.5f && cls_scores[456] == 0.1f ? 0 : -1;
 }
 
 int main()
