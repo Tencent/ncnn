@@ -80,6 +80,7 @@ public:
 #endif // NCNN_STRING
 
     std::vector<custom_layer_registry_entry> custom_layer_registry;
+    std::vector<overwrite_builtin_layer_registry_entry> overwrite_builtin_layer_registry;
 
     PoolAllocator* local_blob_allocator;
     PoolAllocator* local_workspace_allocator;
@@ -1380,8 +1381,24 @@ int Net::register_custom_layer(const char* type, layer_creator_func creator, lay
     int typeindex = layer_to_index(type);
     if (typeindex != -1)
     {
-        NCNN_LOGE("can not register build-in layer type %s", type);
-        return -1;
+        NCNN_LOGE("overwrite built-in layer type %s", type);
+
+        for (size_t i = 0; i < d->overwrite_builtin_layer_registry.size(); i++)
+        {
+            if (d->overwrite_builtin_layer_registry[i].typeindex == typeindex)
+            {
+                NCNN_LOGE("overwrite existing overwritten built-in layer index %d", typeindex);
+
+                d->overwrite_builtin_layer_registry[i].creator = creator;
+                d->overwrite_builtin_layer_registry[i].destroyer = destroyer;
+                d->overwrite_builtin_layer_registry[i].userdata = userdata;
+                return 0;
+            }
+        }
+
+        struct overwrite_builtin_layer_registry_entry entry = {typeindex, creator, destroyer, userdata};
+        d->overwrite_builtin_layer_registry.push_back(entry);
+        return 0;
     }
 
     int custom_index = custom_layer_to_index(type);
@@ -1408,8 +1425,24 @@ int Net::register_custom_layer(int index, layer_creator_func creator, layer_dest
     int custom_index = index & ~LayerType::CustomBit;
     if (index == custom_index)
     {
-        NCNN_LOGE("can not register build-in layer index %d", custom_index);
-        return -1;
+        NCNN_LOGE("overwrite built-in layer type %d", index);
+
+        for (size_t i = 0; i < d->overwrite_builtin_layer_registry.size(); i++)
+        {
+            if (d->overwrite_builtin_layer_registry[i].typeindex == index)
+            {
+                NCNN_LOGE("overwrite existing overwritten built-in layer index %d", index);
+
+                d->overwrite_builtin_layer_registry[i].creator = creator;
+                d->overwrite_builtin_layer_registry[i].destroyer = destroyer;
+                d->overwrite_builtin_layer_registry[i].userdata = userdata;
+                return 0;
+            }
+        }
+
+        struct overwrite_builtin_layer_registry_entry entry = {index, creator, destroyer, userdata};
+        d->overwrite_builtin_layer_registry.push_back(entry);
+        return 0;
     }
 
     if ((int)d->custom_layer_registry.size() <= custom_index)
@@ -1514,7 +1547,11 @@ int Net::load_param(const DataReader& dr)
         SCAN_VALUE("%d", bottom_count)
         SCAN_VALUE("%d", top_count)
 
-        Layer* layer = create_layer(layer_type);
+        Layer* layer = create_overwrite_builtin_layer(layer_type);
+        if (!layer)
+        {
+            layer = create_layer(layer_type);
+        }
         if (!layer)
         {
             layer = create_custom_layer(layer_type);
@@ -1731,7 +1768,11 @@ int Net::load_param_bin(const DataReader& dr)
         READ_VALUE(bottom_count)
         READ_VALUE(top_count)
 
-        Layer* layer = create_layer(typeindex);
+        Layer* layer = create_overwrite_builtin_layer(typeindex);
+        if (!layer)
+        {
+            layer = create_layer(typeindex);
+        }
         if (!layer)
         {
             int custom_index = typeindex & ~LayerType::CustomBit;
@@ -2320,6 +2361,15 @@ Layer* Net::create_custom_layer(const char* type)
 
     return create_custom_layer(index);
 }
+
+Layer* Net::create_overwrite_builtin_layer(const char* type)
+{
+    int typeindex = layer_to_index(type);
+    if (typeindex == -1)
+        return 0;
+
+    return create_overwrite_builtin_layer(typeindex);
+}
 #endif // NCNN_STRING
 
 Layer* Net::create_custom_layer(int index)
@@ -2334,6 +2384,31 @@ Layer* Net::create_custom_layer(int index)
 
     Layer* layer = layer_creator(d->custom_layer_registry[index].userdata);
     layer->typeindex = ncnn::LayerType::CustomBit | index;
+    return layer;
+}
+
+Layer* Net::create_overwrite_builtin_layer(int typeindex)
+{
+    int index = -1;
+    const size_t overwrite_builtin_layer_registry_entry_count = d->overwrite_builtin_layer_registry.size();
+    for (size_t i = 0; i < overwrite_builtin_layer_registry_entry_count; i++)
+    {
+        if (d->overwrite_builtin_layer_registry[i].typeindex == typeindex)
+        {
+            index = i;
+            break;
+        }
+    }
+
+    if (index == -1)
+        return 0;
+
+    layer_creator_func layer_creator = d->overwrite_builtin_layer_registry[index].creator;
+    if (!layer_creator)
+        return 0;
+
+    Layer* layer = layer_creator(d->overwrite_builtin_layer_registry[index].userdata);
+    layer->typeindex = typeindex;
     return layer;
 }
 
