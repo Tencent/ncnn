@@ -363,11 +363,11 @@ int Gemm_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vecto
     constants[2].i = K;
     constants[3].i = broadcast_type_C;
     constants[4].i = A.dims;
-    constants[5].i = 0;//A.w;
+    constants[5].i = 0; //A.w;
     constants[6].i = B.dims;
-    constants[7].i = 0;//B.w;
+    constants[7].i = 0; //B.w;
     constants[8].i = top_blob.dims;
-    constants[9].i = 0;//top_blob.w;
+    constants[9].i = 0; //top_blob.w;
 
     const Pipeline* pipeline = pipeline_gemm;
 
