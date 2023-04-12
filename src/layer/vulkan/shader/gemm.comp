@@ -37,6 +37,8 @@ layout (constant_id = 12) const int output_elempack = 0;
 layout (constant_id = 13) const int output_elemtype = 0;
 layout (constant_id = 14) const int output_transpose = 0;
 
+// TODO psc more
+
 #if NCNN_image_shader
 layout (binding = 0, imfmtc1) writeonly uniform unfp image3D top_blob_3d;
 layout (binding = 1) uniform unfp sampler3D A_blob_3d;
@@ -54,6 +56,7 @@ layout (push_constant) uniform parameter
     int M;
     int N;
     int K;
+    int broadcast_type_C;
     int A_dims;
     int A_hstep;
     int B_dims;
@@ -73,14 +76,20 @@ void main()
 
     afp sum = afp(0.f);
 
+    const int broadcast_type_C = constantC == 1 ? constant_broadcast_type_C : p.broadcast_type_C;
+
 #if NCNN_image_shader
     if (broadcast_type_C == 0)
     {
         sum = image3d_ld1(C_blob_3d, ivec3(0, 0, 0));
     }
-    if (broadcast_type_C == 1 || broadcast_type_C == 2)
+    if (broadcast_type_C == 1)
     {
-        sum = image3d_ld1(C_blob_3d, ivec3(gx, 0, 0));
+        sum = image3d_ld1(C_blob_3d, ivec3(gy, 0, 0));
+    }
+    if (broadcast_type_C == 2)
+    {
+        sum = image3d_ld1(C_blob_3d, ivec3(0, gy, 0));
     }
     if (broadcast_type_C == 3)
     {
@@ -88,7 +97,7 @@ void main()
     }
     if (broadcast_type_C == 4)
     {
-        sum = image3d_ld1(C_blob_3d, ivec3(gy, 0, 0));
+        sum = image3d_ld1(C_blob_3d, ivec3(gx, 0, 0));
     }
 #else
     if (broadcast_type_C == 0)
@@ -97,7 +106,7 @@ void main()
     }
     if (broadcast_type_C == 1 || broadcast_type_C == 2)
     {
-        sum = buffer_ld1(C_blob_data, gx);
+        sum = buffer_ld1(C_blob_data, gy);
     }
     if (broadcast_type_C == 3)
     {
@@ -106,7 +115,7 @@ void main()
     }
     if (broadcast_type_C == 4)
     {
-        sum = buffer_ld1(C_blob_data, gy);
+        sum = buffer_ld1(C_blob_data, gx);
     }
 #endif
 
@@ -115,14 +124,30 @@ void main()
     for (int k = 0; k < psc(K); k++)
     {
 #if NCNN_image_shader
-        ivec3 pa = transA ? ivec3(gx, k, 0) : ivec3(k, gx, 0);
-        ivec3 pb = transA ? ivec3(k, gy, 0) : ivec3(gy, k, 0);
+        ivec3 pa;
+        ivec3 pb;
+        if (p.A_dims == 3)
+        {
+            pa = transA == 1 ? ivec3(gy, 0, k) : ivec3(k, 0, gy);
+        }
+        else
+        {
+            pa = transA == 1 ? ivec3(gy, k, 0) : ivec3(k, gy, 0);
+        }
+        if (p.B_dims == 3)
+        {
+            pb = transB == 1 ? ivec3(k, 0, gx) : ivec3(gx, 0, k);
+        }
+        else
+        {
+            pb = transB == 1 ? ivec3(k, gx, 0) : ivec3(gx, k, 0);
+        }
 
         afp a = image3d_ld1(A_blob_3d, pa);
         afp b = image3d_ld1(B_blob_3d, pb);
 #else
-        const int ai = transA ? k * A_hstep + gx : gx * A_hstep + k;
-        const int bi = transB ? gy * B_hstep + k : k * B_hstep + gy;
+        const int ai = transA == 1 ? k * p.A_hstep + gy : gy * p.A_hstep + k;
+        const int bi = transB == 1 ? gx * p.B_hstep + k : k * p.B_hstep + gx;
 
         afp a = buffer_ld1(A_blob_data, ai);
         afp b = buffer_ld1(B_blob_data, bi);
@@ -134,11 +159,19 @@ void main()
     sum *= afp(alpha);
 
 #if NCNN_image_shader
-    ivec3 pi = output_transpose ? ivec3(gy, gx, 0) : ivec3(gx, gy, 0);
+    ivec3 pi;
+    if (p.outdims == 3)
+    {
+        pi = output_transpose == 1 ? ivec3(gy, 0, gx) : ivec3(gx, 0, gy);
+    }
+    else
+    {
+        pi = output_transpose == 1 ? ivec3(gy, gx, 0) : ivec3(gx, gy, 0);
+    }
 
     image3d_st1(top_blob_3d, pi, sum);
 #else
-    const int gi = output_transpose ? gx * outhstep + gy : gy * outhstep + gx;
+    const int gi = output_transpose == 1 ? gx * p.outhstep + gy : gy * p.outhstep + gx;
 
     buffer_st1(top_blob_data, gi, sum);
 #endif

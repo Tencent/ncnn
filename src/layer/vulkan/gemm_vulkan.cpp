@@ -28,27 +28,40 @@ Gemm_vulkan::Gemm_vulkan()
 
 int Gemm_vulkan::create_pipeline(const Option& opt)
 {
-    const Mat& shape = top_shapes.empty() ? Mat() : top_shapes[0];
+    // const Mat& shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
-    int elempack = 1;
-    if (shape.dims == 2) elempack = opt.use_shader_pack8 && shape.h % 8 == 0 ? 8 : shape.h % 4 == 0 ? 4 : 1;
+    // int elempack = 1;
+    // if (shape.dims == 2) elempack = opt.use_shader_pack8 && shape.h % 8 == 0 ? 8 : shape.h % 4 == 0 ? 4 : 1;
 
-    size_t elemsize;
-    if (opt.use_fp16_storage)
-    {
-        elemsize = elempack * 2u;
-    }
-    else if (opt.use_fp16_packed)
-    {
-        elemsize = elempack == 1 ? 4u : elempack * 2u;
-    }
-    else
-    {
-        elemsize = elempack * 4u;
-    }
+    // size_t elemsize;
+    // if (opt.use_fp16_storage)
+    // {
+    //     elemsize = elempack * 2u;
+    // }
+    // else if (opt.use_fp16_packed)
+    // {
+    //     elemsize = elempack == 1 ? 4u : elempack * 2u;
+    // }
+    // else
+    // {
+    //     elemsize = elempack * 4u;
+    // }
 
-    Mat shape_packed;
-    if (shape.dims == 2) shape_packed = Mat(shape.w, shape.h / elempack, (void*)0, elemsize, elempack);
+    // Mat shape_packed;
+    // if (shape.dims == 2) shape_packed = Mat(shape.w, shape.h / elempack, (void*)0, elemsize, elempack);
+
+    if (constantA)
+    {
+        A_data_packed = transA ? A_data.reshape(constantM, constantK) : A_data.reshape(constantK, constantM);
+    }
+    if (constantB)
+    {
+        B_data_packed = transB ? B_data.reshape(constantK, constantN) : B_data.reshape(constantN, constantK);
+    }
+    if (constantC)
+    {
+        C_data_packed = C_data;
+    }
 
     std::vector<vk_specialization_type> specializations(15);
     specializations[0].f = alpha;
@@ -68,15 +81,15 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
     specializations[14].i = output_transpose;
 
     Mat local_size_xyz;
-    if (shape_packed.dims == 2)
-    {
-        local_size_xyz.w = std::min(8, shape_packed.w);
-        local_size_xyz.h = std::min(8, shape_packed.h);
-        local_size_xyz.c = 1;
-    }
+    // if (shape_packed.dims == 2)
+    // {
+    //     local_size_xyz.w = std::min(8, shape_packed.w);
+    //     local_size_xyz.h = std::min(8, shape_packed.h);
+    //     local_size_xyz.c = 1;
+    // }
 
     // pack1
-    if (shape.dims == 0 || elempack == 1)
+    // if (shape.dims == 0 || elempack == 1)
     {
         pipeline_gemm = new Pipeline(vkdev);
         pipeline_gemm->set_optimal_local_size_xyz(local_size_xyz);
@@ -94,15 +107,102 @@ int Gemm_vulkan::destroy_pipeline(const Option& /*opt*/)
     return 0;
 }
 
+int Gemm_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
+{
+    if (constantA)
+    {
+        if (support_image_storage && opt.use_image_storage)
+        {
+            cmd.record_upload(A_data_packed, A_data_gpu_image, opt);
+        }
+        else
+        {
+            cmd.record_upload(A_data_packed, A_data_gpu, opt);
+        }
+
+        A_data_packed.release();
+    }
+
+    if (constantB)
+    {
+        if (support_image_storage && opt.use_image_storage)
+        {
+            cmd.record_upload(B_data_packed, B_data_gpu_image, opt);
+        }
+        else
+        {
+            cmd.record_upload(B_data_packed, B_data_gpu, opt);
+        }
+
+        B_data_packed.release();
+    }
+
+    if (constantC)
+    {
+        if (support_image_storage && opt.use_image_storage)
+        {
+            cmd.record_upload(C_data_packed, C_data_gpu_image, opt);
+        }
+        else
+        {
+            cmd.record_upload(C_data_packed, C_data_gpu, opt);
+        }
+
+        C_data_packed.release();
+    }
+
+    return 0;
+}
+
 int Gemm_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const
 {
-    const VkMat& A = bottom_blobs[0];
-    const VkMat& B = bottom_blobs[1];
-    const VkMat& C = bottom_blobs[2];
+    const VkMat& A = constantA ? A_data_gpu : bottom_blobs[0];
+    const VkMat& B = constantB ? B_data_gpu : constantA ? bottom_blobs[0] : bottom_blobs[1];
+    const VkMat& C = constantC ? C_data_gpu : bottom_blobs[bottom_blobs.size() - 1];
 
-    const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h);
-    const int K = transA ? (A.dims == 3 ? A.c : A.h) : A.w;
-    const int N = transB ? B.w : (B.dims == 3 ? B.c : B.h);
+    const int M = constantM ? constantM : transA ? A.w : (A.dims == 3 ? A.c : A.h);
+    const int K = constantK ? constantK : transA ? (A.dims == 3 ? A.c : A.h) : A.w;
+    const int N = constantN ? constantN : transB ? (B.dims == 3 ? B.c : B.h) : B.w;
+
+    int broadcast_type_C;
+    if (constantC)
+    {
+        broadcast_type_C = constant_broadcast_type_C;
+    }
+    else
+    {
+        if (C.dims == 1 && C.w == 1)
+        {
+            // scalar
+            broadcast_type_C = 0;
+        }
+        if (C.dims == 1 && C.w == M)
+        {
+            // M
+            // auto broadcast from h to w is the ncnn-style convention
+            broadcast_type_C = 1;
+        }
+        if (C.dims == 1 && C.w == N)
+        {
+            // N
+            broadcast_type_C = 4;
+        }
+        if (C.dims == 2 && C.w == 1 && C.h == M)
+        {
+            // Mx1
+            broadcast_type_C = 2;
+        }
+        if (C.dims == 2 && C.w == N && C.h == M)
+        {
+            // MxN
+            broadcast_type_C = 3;
+        }
+        if (C.dims == 2 && C.w == N && C.h == 1)
+        {
+            // 1xN
+            broadcast_type_C = 4;
+        }
+    }
 
     int elempack = A.elempack;
     size_t elemsize = A.elemsize;
@@ -131,33 +231,78 @@ int Gemm_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
     bindings[2] = B;
     bindings[3] = C;
 
-    std::vector<vk_constant_type> constants(9);
+    std::vector<vk_constant_type> constants(10);
     constants[0].i = M;
     constants[1].i = N;
     constants[2].i = K;
-    constants[3].i = A.dims;
-    constants[4].i = A.dims == 3 ? A.cstep : A.w;
-    constants[5].i = B.dims;
-    constants[6].i = B.dims == 3 ? B.cstep : B.w;
-    constants[7].i = top_blob.dims;
-    constants[8].i = top_blob.dims == 3 ? top_blob.cstep : top_blob.w;
+    constants[3].i = broadcast_type_C;
+    constants[4].i = A.dims;
+    constants[5].i = A.dims == 3 ? A.cstep : transA ? M : K;
+    constants[6].i = B.dims;
+    constants[7].i = B.dims == 3 ? B.cstep : transB ? K : N;
+    constants[8].i = top_blob.dims;
+    constants[9].i = top_blob.dims == 3 ? top_blob.cstep : top_blob.w;
 
     const Pipeline* pipeline = pipeline_gemm;
 
-    cmd.record_pipeline(pipeline, bindings, constants, top_blob);
+    VkMat dispatcher;
+    dispatcher.w = N;
+    dispatcher.h = M;
+    dispatcher.c = 1;
+    cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
 
     return 0;
 }
 
 int Gemm_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vector<VkImageMat>& top_blobs, VkCompute& cmd, const Option& opt) const
 {
-    const VkImageMat& A = bottom_blobs[0];
-    const VkImageMat& B = bottom_blobs[1];
-    const VkImageMat& C = bottom_blobs[2];
+    const VkImageMat& A = constantA ? A_data_gpu_image : bottom_blobs[0];
+    const VkImageMat& B = constantB ? B_data_gpu_image : constantA ? bottom_blobs[0] : bottom_blobs[1];
+    const VkImageMat& C = constantC ? C_data_gpu_image : bottom_blobs[bottom_blobs.size() - 1];
 
-    const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h);
-    const int K = transA ? (A.dims == 3 ? A.c : A.h) : A.w;
-    const int N = transB ? B.w : (B.dims == 3 ? B.c : B.h);
+    const int M = constantM ? constantM : transA ? A.w : (A.dims == 3 ? A.c : A.h);
+    const int K = constantK ? constantK : transA ? (A.dims == 3 ? A.c : A.h) : A.w;
+    const int N = constantN ? constantN : transB ? (B.dims == 3 ? B.c : B.h) : B.w;
+
+    int broadcast_type_C;
+    if (constantC)
+    {
+        broadcast_type_C = constant_broadcast_type_C;
+    }
+    else
+    {
+        if (C.dims == 1 && C.w == 1)
+        {
+            // scalar
+            broadcast_type_C = 0;
+        }
+        if (C.dims == 1 && C.w == M)
+        {
+            // M
+            // auto broadcast from h to w is the ncnn-style convention
+            broadcast_type_C = 1;
+        }
+        if (C.dims == 1 && C.w == N)
+        {
+            // N
+            broadcast_type_C = 4;
+        }
+        if (C.dims == 2 && C.w == 1 && C.h == M)
+        {
+            // Mx1
+            broadcast_type_C = 2;
+        }
+        if (C.dims == 2 && C.w == N && C.h == M)
+        {
+            // MxN
+            broadcast_type_C = 3;
+        }
+        if (C.dims == 2 && C.w == N && C.h == 1)
+        {
+            // 1xN
+            broadcast_type_C = 4;
+        }
+    }
 
     int elempack = A.elempack;
     size_t elemsize = A.elemsize;
@@ -186,20 +331,25 @@ int Gemm_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vecto
     bindings[2] = B;
     bindings[3] = C;
 
-    std::vector<vk_constant_type> constants(9);
+    std::vector<vk_constant_type> constants(10);
     constants[0].i = M;
     constants[1].i = N;
     constants[2].i = K;
-    constants[3].i = A.dims;
-    constants[4].i = 0;//A.w;
-    constants[5].i = B.dims;
-    constants[6].i = 0;//B.w;
-    constants[7].i = top_blob.dims;
-    constants[8].i = 0;//top_blob.w;
+    constants[3].i = broadcast_type_C;
+    constants[4].i = A.dims;
+    constants[5].i = 0;//A.w;
+    constants[6].i = B.dims;
+    constants[7].i = 0;//B.w;
+    constants[8].i = top_blob.dims;
+    constants[9].i = 0;//top_blob.w;
 
     const Pipeline* pipeline = pipeline_gemm;
 
-    cmd.record_pipeline(pipeline, bindings, constants, top_blob);
+    VkImageMat dispatcher;
+    dispatcher.w = N;
+    dispatcher.h = M;
+    dispatcher.c = 1;
+    cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
 
     return 0;
 }
