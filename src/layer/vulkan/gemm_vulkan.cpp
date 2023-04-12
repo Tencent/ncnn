@@ -156,9 +156,16 @@ int Gemm_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 
 int Gemm_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const
 {
-    const VkMat& A = constantA ? A_data_gpu : bottom_blobs[0];
-    const VkMat& B = constantB ? B_data_gpu : constantA ? bottom_blobs[0] : bottom_blobs[1];
-    const VkMat& C = constantC ? C_data_gpu : bottom_blobs[bottom_blobs.size() - 1];
+    const VkMat& A0 = constantA ? A_data_gpu : bottom_blobs[0];
+    const VkMat& B0 = constantB ? B_data_gpu : constantA ? bottom_blobs[0] : bottom_blobs[1];
+    const VkMat& C0 = constantC ? C_data_gpu : bottom_blobs[bottom_blobs.size() - 1];
+
+    VkMat A;
+    VkMat B;
+    VkMat C;
+    vkdev->convert_packing(A0, A, 1, cmd, opt);
+    vkdev->convert_packing(B0, B, 1, cmd, opt);
+    vkdev->convert_packing(C0, C, 1, cmd, opt);
 
     const int M = constantM ? constantM : transA ? A.w : (A.dims == 3 ? A.c : A.h);
     const int K = constantK ? constantK : transA ? (A.dims == 3 ? A.c : A.h) : A.w;
@@ -251,14 +258,33 @@ int Gemm_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
     dispatcher.c = 1;
     cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
 
+    int out_elempack = 1;
+    {
+        int outh = output_transpose ? N : M;
+        out_elempack = opt.use_shader_pack8 && outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4 : 1;
+    }
+    if (output_elempack)
+        out_elempack = output_elempack;
+
+    VkMat top_blob0;
+    vkdev->convert_packing(top_blob, top_blob0, out_elempack, cmd, opt);
+    top_blobs[0] = top_blob0;
+
     return 0;
 }
 
 int Gemm_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vector<VkImageMat>& top_blobs, VkCompute& cmd, const Option& opt) const
 {
-    const VkImageMat& A = constantA ? A_data_gpu_image : bottom_blobs[0];
-    const VkImageMat& B = constantB ? B_data_gpu_image : constantA ? bottom_blobs[0] : bottom_blobs[1];
-    const VkImageMat& C = constantC ? C_data_gpu_image : bottom_blobs[bottom_blobs.size() - 1];
+    const VkImageMat& A0 = constantA ? A_data_gpu_image : bottom_blobs[0];
+    const VkImageMat& B0 = constantB ? B_data_gpu_image : constantA ? bottom_blobs[0] : bottom_blobs[1];
+    const VkImageMat& C0 = constantC ? C_data_gpu_image : bottom_blobs[bottom_blobs.size() - 1];
+
+    VkImageMat A;
+    VkImageMat B;
+    VkImageMat C;
+    vkdev->convert_packing(A0, A, 1, cmd, opt);
+    vkdev->convert_packing(B0, B, 1, cmd, opt);
+    vkdev->convert_packing(C0, C, 1, cmd, opt);
 
     const int M = constantM ? constantM : transA ? A.w : (A.dims == 3 ? A.c : A.h);
     const int K = constantK ? constantK : transA ? (A.dims == 3 ? A.c : A.h) : A.w;
@@ -350,6 +376,18 @@ int Gemm_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vecto
     dispatcher.h = M;
     dispatcher.c = 1;
     cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
+
+    int out_elempack = 1;
+    {
+        int outh = output_transpose ? N : M;
+        out_elempack = opt.use_shader_pack8 && outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4 : 1;
+    }
+    if (output_elempack)
+        out_elempack = output_elempack;
+
+    VkImageMat top_blob0;
+    vkdev->convert_packing(top_blob, top_blob0, out_elempack, cmd, opt);
+    top_blobs[0] = top_blob0;
 
     return 0;
 }
