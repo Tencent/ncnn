@@ -60,7 +60,7 @@ int MultiHeadAttention_vulkan::create_pipeline(const Option& opt)
         pd.set(10, 1);        // constant_broadcast_type_C
         pd.set(11, 0);        // output_N1M
         // pd.set(12, 1);        // output_elempack
-        pd.set(14, 0);        // output_transpose
+        pd.set(14, 0); // output_transpose
         q_gemm->load_param(pd);
         Mat weights[2];
         weights[0] = q_weight_data;
@@ -90,7 +90,7 @@ int MultiHeadAttention_vulkan::create_pipeline(const Option& opt)
         pd.set(10, 1);        // constant_broadcast_type_C
         pd.set(11, 0);        // output_N1M
         // pd.set(12, 1);        // output_elempack
-        pd.set(14, 0);        // output_transpose
+        pd.set(14, 0); // output_transpose
         k_gemm->load_param(pd);
         Mat weights[2];
         weights[0] = k_weight_data;
@@ -120,7 +120,7 @@ int MultiHeadAttention_vulkan::create_pipeline(const Option& opt)
         pd.set(10, 1);        // constant_broadcast_type_C
         pd.set(11, 0);        // output_N1M
         // pd.set(12, 1);        // output_elempack
-        pd.set(14, 0);        // output_transpose
+        pd.set(14, 0); // output_transpose
         v_gemm->load_param(pd);
         Mat weights[2];
         weights[0] = v_weight_data;
@@ -171,7 +171,7 @@ int MultiHeadAttention_vulkan::create_pipeline(const Option& opt)
         pd.set(10, -1); // constant_broadcast_type_C
         pd.set(11, 0);  // output_N1M
         // pd.set(12, 1);  // output_elempack
-        pd.set(14, 1);  // output_transpose
+        pd.set(14, 1); // output_transpose
         qkv_gemm->load_param(pd);
         qkv_gemm->load_model(ModelBinFromMatArray(0));
         Option opt1 = opt;
