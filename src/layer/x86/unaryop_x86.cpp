@@ -432,12 +432,7 @@ struct unary_op_asin
 #if __AVX512F__
     __m512 func_pack16(const __m512& x) const
     {
-        //TODO avx512 optimize
-        float tmp[16];
-        _mm512_storeu_ps(tmp, x);
-        for (int i = 0; i < 16; i++)
-            tmp[i] = asin(tmp[i]);
-        return _mm512_loadu_ps(tmp);
+        return asin512_ps(x);
     }
 #endif // __AVX512F__
 #endif // __AVX__
@@ -463,12 +458,7 @@ struct unary_op_acos
 #if __AVX512F__
     __m512 func_pack16(const __m512& x) const
     {
-        //TODO avx512 optimize
-        float tmp[16];
-        _mm512_storeu_ps(tmp, x);
-        for (int i = 0; i < 16; i++)
-            tmp[i] = acos(tmp[i]);
-        return _mm512_loadu_ps(tmp);
+        return acos512_ps(x);
     }
 #endif // __AVX512F__
 #endif // __AVX__
@@ -494,12 +484,7 @@ struct unary_op_atan
 #if __AVX512F__
     __m512 func_pack16(const __m512& x) const
     {
-        //TODO avx512 optimize
-        float tmp[16];
-        _mm512_storeu_ps(tmp, x);
-        for (int i = 0; i < 16; i++)
-            tmp[i] = atan(tmp[i]);
-        return _mm512_loadu_ps(tmp);
+        return atan512_ps(x);
     }
 #endif // __AVX512F__
 #endif // __AVX__
