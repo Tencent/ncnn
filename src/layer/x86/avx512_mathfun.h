@@ -541,23 +541,23 @@ static NCNN_FORCEINLINE __m512 asin512_ps(__m512 x)
 
     // is_small_input = (absolute <= 0.5f);
     __mmask16 is_small_input = _mm512_cmp_ps_mask(
-        absolute,
-        magic_half_one,
-        _CMP_LE_OQ);
+                                   absolute,
+                                   magic_half_one,
+                                   _CMP_LE_OQ);
 
     // is_big_input = (is_small_input ? 0.0f : 1.0f);
     __m512 is_big_input = _mm512_maskz_mov_ps(~is_small_input, magic_one);
 
     // big_input_approx = sqrt(0.5f * (1 - absolute));
     __m512 big_input_approx = _mm512_sqrt_ps(_mm512_mul_ps(
-        magic_half_one,
-        _mm512_sub_ps(magic_one, absolute)));
+                                  magic_half_one,
+                                  _mm512_sub_ps(magic_one, absolute)));
 
     // input_approx = (is_small_input ? absolute : big_input_approx);
     __m512 input_approx = _mm512_mask_mov_ps(
-        big_input_approx,
-        is_small_input,
-        absolute);
+                              big_input_approx,
+                              is_small_input,
+                              absolute);
 
     // square_of_input_approx = input_approx * input_approx;
     __m512 square_of_input_approx = _mm512_mul_ps(input_approx, input_approx);
@@ -565,7 +565,7 @@ static NCNN_FORCEINLINE __m512 asin512_ps(__m512 x)
     // fourth_power_of_input_approx =
     //     square_of_input_approx * square_of_input_approx;
     __m512 fourth_power_of_input_approx = _mm512_mul_ps(
-        square_of_input_approx, square_of_input_approx);
+            square_of_input_approx, square_of_input_approx);
 
     // TODO: Need more explanations.
     // x1 = ((fourth_power_of_input_approx * magic_a4) + magic_a2);
@@ -574,21 +574,21 @@ static NCNN_FORCEINLINE __m512 asin512_ps(__m512 x)
     // x4 = ((fourth_power_of_input_approx * x2) + magic_a1);
     // output_approx = ((square_of_input_approx * x4) + x3);
     __m512 output_approx = _mm512_fmadd_ps(
-        square_of_input_approx,
-        _mm512_fmadd_ps(
-            fourth_power_of_input_approx,
-            _mm512_fmadd_ps(
-                fourth_power_of_input_approx,
-                magic_a5,
-                magic_a3),
-            magic_a1),
-        _mm512_fmadd_ps(
-            fourth_power_of_input_approx,
-            _mm512_fmadd_ps(
-                fourth_power_of_input_approx,
-                magic_a4,
-                magic_a2),
-            magic_a0));
+                               square_of_input_approx,
+                               _mm512_fmadd_ps(
+                                   fourth_power_of_input_approx,
+                                   _mm512_fmadd_ps(
+                                       fourth_power_of_input_approx,
+                                       magic_a5,
+                                       magic_a3),
+                                   magic_a1),
+                               _mm512_fmadd_ps(
+                                   fourth_power_of_input_approx,
+                                   _mm512_fmadd_ps(
+                                       fourth_power_of_input_approx,
+                                       magic_a4,
+                                       magic_a2),
+                                   magic_a0));
 
     // TODO: Need more explanations.
     // x1 = ((0.5 * PI) * is_big_input);
@@ -596,9 +596,9 @@ static NCNN_FORCEINLINE __m512 asin512_ps(__m512 x)
     // x3 = (-(3.0f * is_big_input) + 1.0f);
     // final_approx = ((x2 * x3) + x1);
     __m512 final_approx = _mm512_fmadd_ps(
-        _mm512_mul_ps(output_approx, input_approx),
-        _mm512_fnmadd_ps(magic_three, is_big_input, magic_one),
-        _mm512_mul_ps(magic_half_pi, is_big_input));
+                              _mm512_mul_ps(output_approx, input_approx),
+                              _mm512_fnmadd_ps(magic_three, is_big_input, magic_one),
+                              _mm512_mul_ps(magic_half_pi, is_big_input));
 
     // return (final_approx || negative_mask);
     return _mm512_or_ps(final_approx, negative_mask);
@@ -629,20 +629,20 @@ static NCNN_FORCEINLINE __m512 acos512_ps(__m512 x)
 
     // is_small_input = (absolute <= 0.5f);
     __mmask16 is_small_input = _mm512_cmp_ps_mask(
-        absolute,
-        magic_half_one,
-        _CMP_LE_OQ);
+                                   absolute,
+                                   magic_half_one,
+                                   _CMP_LE_OQ);
 
     // big_input_approx = sqrt(0.5f * (1 - absolute));
     __m512 big_input_approx = _mm512_sqrt_ps(_mm512_mul_ps(
-        magic_half_one,
-        _mm512_sub_ps(magic_one, absolute)));
+                                  magic_half_one,
+                                  _mm512_sub_ps(magic_one, absolute)));
 
     // input_approx = (is_small_input ? absolute : big_input_approx);
     __m512 input_approx = _mm512_mask_mov_ps(
-        big_input_approx,
-        is_small_input,
-        absolute);
+                              big_input_approx,
+                              is_small_input,
+                              absolute);
 
     // square_of_input_approx = input_approx * input_approx;
     __m512 square_of_input_approx = _mm512_mul_ps(input_approx, input_approx);
@@ -650,7 +650,7 @@ static NCNN_FORCEINLINE __m512 acos512_ps(__m512 x)
     // fourth_power_of_input_approx =
     //     square_of_input_approx * square_of_input_approx;
     __m512 fourth_power_of_input_approx = _mm512_mul_ps(
-        square_of_input_approx, square_of_input_approx);
+            square_of_input_approx, square_of_input_approx);
 
     // TODO: Need more explanations.
     // x1 = ((fourth_power_of_input_approx * magic_a4) + magic_a2);
@@ -659,21 +659,21 @@ static NCNN_FORCEINLINE __m512 acos512_ps(__m512 x)
     // x4 = ((fourth_power_of_input_approx * x2) + magic_a1);
     // output_approx = ((square_of_input_approx * x4) + x3);
     __m512 output_approx = _mm512_fmadd_ps(
-        square_of_input_approx,
-        _mm512_fmadd_ps(
-            fourth_power_of_input_approx,
-            _mm512_fmadd_ps(
-                fourth_power_of_input_approx,
-                magic_a5,
-                magic_a3),
-            magic_a1),
-        _mm512_fmadd_ps(
-            fourth_power_of_input_approx,
-            _mm512_fmadd_ps(
-                fourth_power_of_input_approx,
-                magic_a4,
-                magic_a2),
-            magic_a0));
+                               square_of_input_approx,
+                               _mm512_fmadd_ps(
+                                   fourth_power_of_input_approx,
+                                   _mm512_fmadd_ps(
+                                       fourth_power_of_input_approx,
+                                       magic_a5,
+                                       magic_a3),
+                                   magic_a1),
+                               _mm512_fmadd_ps(
+                                   fourth_power_of_input_approx,
+                                   _mm512_fmadd_ps(
+                                       fourth_power_of_input_approx,
+                                       magic_a4,
+                                       magic_a2),
+                                   magic_a0));
 
     // TODO: Need more explanations.
     // x1 = (output_approx * input_approx);
@@ -682,22 +682,22 @@ static NCNN_FORCEINLINE __m512 acos512_ps(__m512 x)
     // TODO: Need more explanations.
     // small_final_approx = ((0.5 * PI) - (x1 | negative_mask));
     __m512 small_final_approx = _mm512_sub_ps(
-        magic_half_pi,
-        _mm512_or_ps(x1, negative_mask));
+                                    magic_half_pi,
+                                    _mm512_or_ps(x1, negative_mask));
 
     // TODO: Need more explanations.
     // big_final_approx = (((x < 0.0f) & PI) + ((x1 * 2) | negative_mask));
     __m512 big_final_approx = _mm512_add_ps(
-        _mm512_maskz_mov_ps(
-            _mm512_cmp_ps_mask(x, magic_zero, _CMP_LT_OQ),
-            magic_pi),
-        _mm512_or_ps(_mm512_add_ps(x1, x1), negative_mask));
+                                  _mm512_maskz_mov_ps(
+                                      _mm512_cmp_ps_mask(x, magic_zero, _CMP_LT_OQ),
+                                      magic_pi),
+                                  _mm512_or_ps(_mm512_add_ps(x1, x1), negative_mask));
 
     // return (is_small_input ? small_final_approx : big_final_approx);
     return _mm512_mask_mov_ps(
-        big_final_approx,
-        is_small_input,
-        small_final_approx);
+               big_final_approx,
+               is_small_input,
+               small_final_approx);
 }
 
 static NCNN_FORCEINLINE __m512 atan512_ps(__m512 x)
@@ -726,16 +726,16 @@ static NCNN_FORCEINLINE __m512 atan512_ps(__m512 x)
 
     // is_small_input = (1.0f < absolute);
     __mmask16 is_small_input = _mm512_cmp_ps_mask(
-        magic_one,
-        absolute,
-        _CMP_LT_OQ);
+                                   magic_one,
+                                   absolute,
+                                   _CMP_LT_OQ);
 
     // x1 = (is_small_input ? -1.0f : absolute);
     // x2 = (is_small_input ? absolute : 1.0f)
     // input_approx = x1 / x2;
     __m512 input_approx = _mm512_div_ps(
-        _mm512_mask_mov_ps(absolute, is_small_input, magic_negative_one),
-        _mm512_mask_mov_ps(magic_one, is_small_input, absolute));     
+                              _mm512_mask_mov_ps(absolute, is_small_input, magic_negative_one),
+                              _mm512_mask_mov_ps(magic_one, is_small_input, absolute));
 
     // square_of_input_approx = input_approx * input_approx;
     __m512 square_of_input_approx = _mm512_mul_ps(input_approx, input_approx);
@@ -743,7 +743,7 @@ static NCNN_FORCEINLINE __m512 atan512_ps(__m512 x)
     // fourth_power_of_input_approx =
     //     square_of_input_approx * square_of_input_approx;
     __m512 fourth_power_of_input_approx = _mm512_mul_ps(
-        square_of_input_approx, square_of_input_approx);
+            square_of_input_approx, square_of_input_approx);
 
     // TODO: Need more explanations.
     // x1 = ((fourth_power_of_input_approx * magic_a7) + magic_a5);
@@ -755,40 +755,40 @@ static NCNN_FORCEINLINE __m512 atan512_ps(__m512 x)
     // x7 = ((fourth_power_of_input_approx * x6) + magic_a0);
     // output_approx = ((square_of_input_approx * x5) + x7);
     __m512 output_approx = _mm512_fmadd_ps(
-        square_of_input_approx,
-        _mm512_fmadd_ps(
-            fourth_power_of_input_approx,
-            _mm512_fmadd_ps(
-                fourth_power_of_input_approx,
-                _mm512_fmadd_ps(
-                    fourth_power_of_input_approx,
-                    magic_a7,
-                    magic_a5),
-                magic_a3),
-            magic_a1),
-        _mm512_fmadd_ps(
-            fourth_power_of_input_approx,
-            _mm512_fmadd_ps(
-                fourth_power_of_input_approx,
-                _mm512_fmadd_ps(
-                    fourth_power_of_input_approx,
-                    _mm512_fmadd_ps(
-                        fourth_power_of_input_approx,
-                        magic_a8,
-                        magic_a6),
-                    magic_a4),
-                magic_a2),
-            magic_a0));
+                               square_of_input_approx,
+                               _mm512_fmadd_ps(
+                                   fourth_power_of_input_approx,
+                                   _mm512_fmadd_ps(
+                                       fourth_power_of_input_approx,
+                                       _mm512_fmadd_ps(
+                                           fourth_power_of_input_approx,
+                                           magic_a7,
+                                           magic_a5),
+                                       magic_a3),
+                                   magic_a1),
+                               _mm512_fmadd_ps(
+                                   fourth_power_of_input_approx,
+                                   _mm512_fmadd_ps(
+                                       fourth_power_of_input_approx,
+                                       _mm512_fmadd_ps(
+                                           fourth_power_of_input_approx,
+                                           _mm512_fmadd_ps(
+                                                   fourth_power_of_input_approx,
+                                                   magic_a8,
+                                                   magic_a6),
+                                           magic_a4),
+                                       magic_a2),
+                                   magic_a0));
 
     // TODO: Need more explanations.
     // x1 = (output_approx * input_approx);
     // if (is_small_input) x1 += (0.5 * PI);
     // return (negative_mask ? -x1 : x1);
     return _mm512_or_ps(
-        _mm512_add_ps(
-            _mm512_mul_ps(output_approx, input_approx),
-            _mm512_maskz_mov_ps(is_small_input, magic_half_pi)),
-        negative_mask);
+               _mm512_add_ps(
+                   _mm512_mul_ps(output_approx, input_approx),
+                   _mm512_maskz_mov_ps(is_small_input, magic_half_pi)),
+               negative_mask);
 }
 
 #endif // AVX512_MATHFUN_H
