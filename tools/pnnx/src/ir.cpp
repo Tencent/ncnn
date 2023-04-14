@@ -251,12 +251,12 @@ Parameter::Parameter(const torch::jit::Node* value_node)
                 else if (t.scalar_type() == c10::ScalarType::ComplexDouble)
                 {
                     type = 10;
-                    cp = std::complex<float>(t.item<c10::complex<double>>());
+                    cp = std::complex<float>(t.item<c10::complex<double> >());
                 }
                 else if (t.scalar_type() == c10::ScalarType::ComplexFloat)
                 {
                     type = 10;
-                    cp = std::complex<float>(t.item<c10::complex<float>>());
+                    cp = std::complex<float>(t.item<c10::complex<float> >());
                 }
                 else
                 {

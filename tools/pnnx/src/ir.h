@@ -131,21 +131,21 @@ public:
         : type(10), cp(_cp)
     {
     }
-    Parameter(const std::initializer_list<std::complex<float>>& _acp)
+    Parameter(const std::initializer_list<std::complex<float> >& _acp)
         : type(11), acp(_acp)
     {
     }
-    Parameter(const std::initializer_list<std::complex<double>>& _acp)
+    Parameter(const std::initializer_list<std::complex<double> >& _acp)
         : type(11)
     {
         for (const auto& x : _acp)
             acp.push_back(std::complex<float>(x));
     }
-    Parameter(const std::vector<std::complex<float>>& _acp)
+    Parameter(const std::vector<std::complex<float> >& _acp)
         : type(11), acp(_acp)
     {
     }
-    Parameter(const std::vector<std::complex<double>>& _acp)
+    Parameter(const std::vector<std::complex<double> >& _acp)
         : type(11)
     {
         for (const auto& x : _acp)
@@ -169,7 +169,7 @@ public:
     std::complex<float> cp;
     std::vector<int> ai;
     std::vector<float> af;
-    std::vector<std::complex<float>> acp;
+    std::vector<std::complex<float> > acp;
 
     // keep std::string typed member the last for cross cxxabi compatibility
     std::string s;
