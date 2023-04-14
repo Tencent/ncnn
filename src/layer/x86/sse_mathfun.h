@@ -883,39 +883,37 @@ static NCNN_FORCEINLINE __m128 asin_ps(__m128 x)
             square_of_input_approx, square_of_input_approx);
 
     // TODO: Need more explanations.
-    // x1 = ((magic_a4 * fourth_power_of_input_approx) + magic_a2);
-    // x2 = ((magic_a5 * fourth_power_of_input_approx) + magic_a3);
-    // x3 = ((x1 * fourth_power_of_input_approx) + magic_a0);
+    // x1 = ((fourth_power_of_input_approx * magic_a4) + magic_a2);
+    // x2 = ((fourth_power_of_input_approx * magic_a5) + magic_a3);
+    // x3 = ((fourth_power_of_input_approx * x1) + magic_a0);
     // x4 = ((fourth_power_of_input_approx * x2) + magic_a1);
-    // output_approx = (x3 + (square_of_input_approx * x4));
-    __m128 output_approx = _mm_add_ps(
-                               _mm_add_ps(
-                                   _mm_mul_ps(
-                                       _mm_add_ps(
-                                           _mm_mul_ps(magic_a4, fourth_power_of_input_approx),
-                                           magic_a2),
-                                       fourth_power_of_input_approx),
-                                   magic_a0),
-                               _mm_mul_ps(
-                                   square_of_input_approx,
-                                   _mm_add_ps(
-                                       _mm_mul_ps(
-                                           fourth_power_of_input_approx,
-                                           _mm_add_ps(
-                                                   _mm_mul_ps(magic_a5, fourth_power_of_input_approx),
-                                                   magic_a3)),
-                                       magic_a1)));
+    // output_approx = ((square_of_input_approx * x4) + x3);
+    __m128 output_approx = _mm_comp_fmadd_ps(
+                               square_of_input_approx,
+                               _mm_comp_fmadd_ps(
+                                   fourth_power_of_input_approx,
+                                   _mm_comp_fmadd_ps(
+                                       fourth_power_of_input_approx,
+                                       magic_a5,
+                                       magic_a3),
+                                   magic_a1),
+                               _mm_comp_fmadd_ps(
+                                   fourth_power_of_input_approx,
+                                   _mm_comp_fmadd_ps(
+                                       fourth_power_of_input_approx,
+                                       magic_a4,
+                                       magic_a2),
+                                   magic_a0));
 
     // TODO: Need more explanations.
     // x1 = ((0.5 * PI) * is_big_input);
     // x2 = (output_approx * input_approx);
-    // x3 = (1.0f - (3.0f * is_big_input));
-    // final_approx = (x1 + (x2 * x3));
-    __m128 final_approx = _mm_add_ps(
-                              _mm_mul_ps(magic_half_pi, is_big_input),
-                              _mm_mul_ps(
-                                  _mm_mul_ps(output_approx, input_approx),
-                                  _mm_sub_ps(magic_one, _mm_mul_ps(magic_three, is_big_input))));
+    // x3 = (-(3.0f * is_big_input) + 1.0f);
+    // final_approx = ((x2 * x3) + x1);
+    __m128 final_approx = _mm_comp_fmadd_ps(
+                              _mm_mul_ps(output_approx, input_approx),
+                              _mm_comp_fnmadd_ps(magic_three, is_big_input, magic_one),
+                              _mm_mul_ps(magic_half_pi, is_big_input));
 
     // return (final_approx || negative_mask);
     return _mm_or_ps(final_approx, negative_mask);
@@ -966,28 +964,27 @@ static NCNN_FORCEINLINE __m128 acos_ps(__m128 x)
             square_of_input_approx, square_of_input_approx);
 
     // TODO: Need more explanations.
-    // x1 = ((magic_a4 * fourth_power_of_input_approx) + magic_a2);
-    // x2 = ((magic_a5 * fourth_power_of_input_approx) + magic_a3);
-    // x3 = ((x1 * fourth_power_of_input_approx) + magic_a0);
+    // x1 = ((fourth_power_of_input_approx * magic_a4) + magic_a2);
+    // x2 = ((fourth_power_of_input_approx * magic_a5) + magic_a3);
+    // x3 = ((fourth_power_of_input_approx * x1) + magic_a0);
     // x4 = ((fourth_power_of_input_approx * x2) + magic_a1);
-    // output_approx = (x3 + (square_of_input_approx * x4));
-    __m128 output_approx = _mm_add_ps(
-                               _mm_add_ps(
-                                   _mm_mul_ps(
-                                       _mm_add_ps(
-                                           _mm_mul_ps(magic_a4, fourth_power_of_input_approx),
-                                           magic_a2),
-                                       fourth_power_of_input_approx),
-                                   magic_a0),
-                               _mm_mul_ps(
-                                   square_of_input_approx,
-                                   _mm_add_ps(
-                                       _mm_mul_ps(
-                                           fourth_power_of_input_approx,
-                                           _mm_add_ps(
-                                                   _mm_mul_ps(magic_a5, fourth_power_of_input_approx),
-                                                   magic_a3)),
-                                       magic_a1)));
+    // output_approx = ((square_of_input_approx * x4) + x3);
+    __m128 output_approx = _mm_comp_fmadd_ps(
+                               square_of_input_approx,
+                               _mm_comp_fmadd_ps(
+                                   fourth_power_of_input_approx,
+                                   _mm_comp_fmadd_ps(
+                                       fourth_power_of_input_approx,
+                                       magic_a5,
+                                       magic_a3),
+                                   magic_a1),
+                               _mm_comp_fmadd_ps(
+                                   fourth_power_of_input_approx,
+                                   _mm_comp_fmadd_ps(
+                                       fourth_power_of_input_approx,
+                                       magic_a4,
+                                       magic_a2),
+                                   magic_a0));
 
     // TODO: Need more explanations.
     // x1 = (output_approx * input_approx);
@@ -1058,46 +1055,38 @@ static NCNN_FORCEINLINE __m128 atan_ps(__m128 x)
             square_of_input_approx, square_of_input_approx);
 
     // TODO: Need more explanations.
-    // x1 = ((magic_a7 * fourth_power_of_input_approx) + magic_a5);
-    // x2 = ((magic_a8 * fourth_power_of_input_approx) + magic_a6);
-    // x3 = ((x1 * fourth_power_of_input_approx) + magic_a3);
-    // x4 = ((x2 * fourth_power_of_input_approx) + magic_a4);
-    // x5 = ((x3 * fourth_power_of_input_approx) + magic_a1);
-    // x6 = ((x4 * fourth_power_of_input_approx) + magic_a2);
-    // x7 = ((x6 * fourth_power_of_input_approx) + magic_a0);
-    // output_approx = ((x5 * square_of_input_approx) + x7);
-    __m128 output_approx = _mm_add_ps(
-                               _mm_mul_ps(
-                                   _mm_add_ps(
-                                       _mm_mul_ps(
-                                           _mm_add_ps(
-                                                   _mm_mul_ps(
-                                                           _mm_add_ps(
-                                                                   _mm_mul_ps(
-                                                                           magic_a7,
-                                                                           fourth_power_of_input_approx),
-                                                                   magic_a5),
-                                                           fourth_power_of_input_approx),
-                                                   magic_a3),
-                                           fourth_power_of_input_approx),
-                                       magic_a1),
-                                   square_of_input_approx),
-                               _mm_add_ps(
-                                   _mm_mul_ps(
-                                       _mm_add_ps(
-                                           _mm_mul_ps(
-                                                   _mm_add_ps(
-                                                           _mm_mul_ps(
-                                                                   _mm_add_ps(
-                                                                           _mm_mul_ps(
-                                                                                   magic_a8,
-                                                                                   fourth_power_of_input_approx),
-                                                                           magic_a6),
-                                                                   fourth_power_of_input_approx),
-                                                           magic_a4),
-                                                   fourth_power_of_input_approx),
-                                           magic_a2),
-                                       fourth_power_of_input_approx),
+    // x1 = ((fourth_power_of_input_approx * magic_a7) + magic_a5);
+    // x2 = ((fourth_power_of_input_approx * magic_a8) + magic_a6);
+    // x3 = ((fourth_power_of_input_approx * x1) + magic_a3);
+    // x4 = ((fourth_power_of_input_approx * x2) + magic_a4);
+    // x5 = ((fourth_power_of_input_approx * x3) + magic_a1);
+    // x6 = ((fourth_power_of_input_approx * x4) + magic_a2);
+    // x7 = ((fourth_power_of_input_approx * x6) + magic_a0);
+    // output_approx = ((square_of_input_approx * x5) + x7);
+    __m128 output_approx = _mm_comp_fmadd_ps(
+                               square_of_input_approx,
+                               _mm_comp_fmadd_ps(
+                                   fourth_power_of_input_approx,
+                                   _mm_comp_fmadd_ps(
+                                       fourth_power_of_input_approx,
+                                       _mm_comp_fmadd_ps(
+                                           fourth_power_of_input_approx,
+                                           magic_a7,
+                                           magic_a5),
+                                       magic_a3),
+                                   magic_a1),
+                               _mm_comp_fmadd_ps(
+                                   fourth_power_of_input_approx,
+                                   _mm_comp_fmadd_ps(
+                                       fourth_power_of_input_approx,
+                                       _mm_comp_fmadd_ps(
+                                           fourth_power_of_input_approx,
+                                           _mm_comp_fmadd_ps(
+                                                   fourth_power_of_input_approx,
+                                                   magic_a8,
+                                                   magic_a6),
+                                           magic_a4),
+                                       magic_a2),
                                    magic_a0));
 
     // TODO: Need more explanations.
