@@ -861,7 +861,7 @@ static NCNN_FORCEINLINE __m128 asin_ps(__m128 x)
     // is_small_input = (absolute <= 0.5f);
     __m128 is_small_input = _mm_cmple_ps(absolute, magic_half_one);
 
-    // is_big_input = (!is_small_input);
+    // is_big_input = (is_small_input ? 0.0f : 1.0f);
     __m128 is_big_input = _mm_andnot_ps(is_small_input, magic_one);
 
     // big_input_approx = sqrt(0.5f * (1 - absolute));
