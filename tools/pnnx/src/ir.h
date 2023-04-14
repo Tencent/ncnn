@@ -15,6 +15,7 @@
 #ifndef PNNX_IR_H
 #define PNNX_IR_H
 
+#include <complex>
 #include <initializer_list>
 #include <map>
 #include <set>
@@ -102,6 +103,12 @@ public:
         : type(6), af(_af)
     {
     }
+    Parameter(const std::vector<double>& _af)
+        : type(6)
+    {
+        for (const auto& x : _af)
+            af.push_back((float)x);
+    }
     Parameter(const std::initializer_list<const char*>& _as)
         : type(7)
     {
@@ -116,6 +123,34 @@ public:
         : type(7), as(_as)
     {
     }
+    Parameter(const std::complex<float>& _cp)
+        : type(10), cp(_cp)
+    {
+    }
+    Parameter(const std::complex<double>& _cp)
+        : type(10), cp(_cp)
+    {
+    }
+    Parameter(const std::initializer_list<std::complex<float>>& _acp)
+        : type(11), acp(_acp)
+    {
+    }
+    Parameter(const std::initializer_list<std::complex<double>>& _acp)
+        : type(11)
+    {
+        for (const auto& x : _acp)
+            acp.push_back(std::complex<float>(x));
+    }
+    Parameter(const std::vector<std::complex<float>>& _acp)
+        : type(11), acp(_acp)
+    {
+    }
+    Parameter(const std::vector<std::complex<double>>& _acp)
+        : type(11)
+    {
+        for (const auto& x : _acp)
+            acp.push_back(std::complex<float>(x));
+    }
 
 #if BUILD_PNNX
     Parameter(const torch::jit::Node* value_node);
@@ -124,15 +159,17 @@ public:
 
     static Parameter parse_from_string(const std::string& value);
 
-    // 0=null 1=b 2=i 3=f 4=s 5=ai 6=af 7=as 8=others
+    // 0=null 1=b 2=i 3=f 4=s 5=ai 6=af 7=as 8=others 10=cp 11=acp
     int type;
 
     // value
     bool b;
     int i;
     float f;
+    std::complex<float> cp;
     std::vector<int> ai;
     std::vector<float> af;
+    std::vector<std::complex<float>> acp;
 
     // keep std::string typed member the last for cross cxxabi compatibility
     std::string s;
@@ -155,7 +192,7 @@ public:
 
     Attribute(const std::initializer_list<int>& shape, const std::vector<float>& t);
 
-    // 0=null 1=f32 2=f64 3=f16 4=i32 5=i64 6=i16 7=i8 8=u8 9=bool
+    // 0=null 1=f32 2=f64 3=f16 4=i32 5=i64 6=i16 7=i8 8=u8 9=bool 10=cp64 11=cp128 12=cp32
     int type;
     std::vector<int> shape;
 

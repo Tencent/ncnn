@@ -213,6 +213,12 @@ Parameter::Parameter(const torch::jit::Node* value_node)
             s = value_node->s(torch::jit::attr::value);
             break;
         }
+        case c10::TypeKind::ComplexType:
+        {
+            type = 10;
+            cp = std::complex<float>(value_node->c(torch::jit::attr::value));
+            break;
+        }
         case c10::TypeKind::TensorType:
         {
             at::Tensor t = value_node->t(torch::jit::attr::value);
@@ -241,6 +247,16 @@ Parameter::Parameter(const torch::jit::Node* value_node)
                 {
                     type = 3;
                     f = t.item<float>();
+                }
+                else if (t.scalar_type() == c10::ScalarType::ComplexDouble)
+                {
+                    type = 10;
+                    cp = std::complex<float>(t.item<c10::complex<double>>());
+                }
+                else if (t.scalar_type() == c10::ScalarType::ComplexFloat)
+                {
+                    type = 10;
+                    cp = std::complex<float>(t.item<c10::complex<float>>());
                 }
                 else
                 {
@@ -295,6 +311,15 @@ Parameter::Parameter(const torch::jit::Node* value_node)
             }
             break;
         }
+        case c10::TypeKind::ComplexType:
+        {
+            type = 11;
+            for (const auto& x : value_node->inputs())
+            {
+                acp.push_back(std::complex<float>(x->node()->c(torch::jit::attr::value)));
+            }
+            break;
+        }
         default:
         {
             fprintf(stderr, "unknown Parameter value list element kind %s\n", c10::typeKindToString(value_node->output()->type()->cast<c10::ListType>()->getElementType()->kind()));
@@ -341,6 +366,12 @@ bool operator==(const Parameter& lhs, const Parameter& rhs)
         return true;
 
     if (lhs.type == 7 && lhs.as == rhs.as)
+        return true;
+
+    if (lhs.type == 10 && lhs.cp == rhs.cp)
+        return true;
+
+    if (lhs.type == 11 && lhs.acp == rhs.acp)
         return true;
 
     return false;
@@ -907,6 +938,21 @@ int Graph::save(const std::string& parampath, const std::string& binpath)
                 {
                     fprintf(paramfp, "%s", param.as[i].c_str());
                     if (i + 1 != param.as.size())
+                        fprintf(paramfp, ",");
+                }
+                fprintf(paramfp, ")");
+            }
+            if (param.type == 10)
+            {
+                fprintf(paramfp, "%e+%ej", param.cp.real(), param.cp.imag());
+            }
+            if (param.type == 11)
+            {
+                fprintf(paramfp, "(");
+                for (size_t i = 0; i < param.acp.size(); i++)
+                {
+                    fprintf(paramfp, "%e+%ej", param.acp[i].real(), param.acp[i].imag());
+                    if (i + 1 != param.acp.size())
                         fprintf(paramfp, ",");
                 }
                 fprintf(paramfp, ")");
@@ -2028,6 +2074,21 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                                 fprintf(pyfp, "\'%s\'", param.as[i].c_str());
                             }
                             if (i + 1 != param.as.size() || param.as.size() == 1)
+                                fprintf(pyfp, ",");
+                        }
+                        fprintf(pyfp, ")");
+                    }
+                    if (param.type == 10)
+                    {
+                        fprintf(pyfp, "%f+%fj", param.cp.real(), param.cp.imag());
+                    }
+                    if (param.type == 11)
+                    {
+                        fprintf(pyfp, "(");
+                        for (size_t i = 0; i < param.acp.size(); i++)
+                        {
+                            fprintf(pyfp, "%f+%fj", param.acp[i].real(), param.acp[i].imag());
+                            if (i + 1 != param.acp.size() || param.acp.size() == 1)
                                 fprintf(pyfp, ",");
                         }
                         fprintf(pyfp, ")");
