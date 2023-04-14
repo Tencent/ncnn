@@ -61,10 +61,10 @@ class Model(nn.Module):
         y0 = F.grid_sample(y0, yg1, mode='nearest', padding_mode='border', align_corners=True)
         y0 = F.grid_sample(y0, yg2, mode='nearest', padding_mode='reflection', align_corners=True)
 
-        xgp1 = torch.permute(xgp1, (0, 2, 3, 1))
-        xgp2 = torch.permute(xgp2, (0, 2, 3, 1))
-        ygp1 = torch.permute(ygp1, (0, 2, 3, 4, 1))
-        ygp2 = torch.permute(ygp2, (0, 2, 3, 4, 1))
+        xgp1 = xgp1.permute(0, 2, 3, 1)
+        xgp2 = xgp2.permute(0, 2, 3, 1)
+        ygp1 = ygp1.permute(0, 2, 3, 4, 1)
+        ygp2 = ygp2.permute(0, 2, 3, 4, 1)
 
         x1 = F.grid_sample(x, xgp1, mode='bilinear', padding_mode='zeros', align_corners=False)
         x1 = F.grid_sample(x1, xgp2, mode='bilinear', padding_mode='border', align_corners=False)
