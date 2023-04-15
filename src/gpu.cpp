@@ -252,7 +252,6 @@ public:
     int support_VK_ANDROID_external_memory_android_hardware_buffer;
 #endif // __ANDROID_API__ >= 26
     int support_VK_NV_cooperative_matrix;
- 
 };
 
 GpuInfo::GpuInfo()
