@@ -194,7 +194,6 @@ public:
 #endif // __ANDROID_API__ >= 26
     int support_VK_NV_cooperative_matrix() const;
 
-
 private:
     GpuInfo(const GpuInfo&);
     GpuInfo& operator=(const GpuInfo&);
