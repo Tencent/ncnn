@@ -1252,7 +1252,16 @@ static std::string expand_expression(const Operator* op)
         else
         {
             // literal
-            exprstack.push(t);
+            if (t[t.size() - 1] == 'j')
+            {
+                // complex
+                std::string r = std::string("(") + t + ")";
+                exprstack.push(r);
+            }
+            else
+            {
+                exprstack.push(t);
+            }
         }
     }
 
@@ -2080,14 +2089,14 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                     }
                     if (param.type == 10)
                     {
-                        fprintf(pyfp, "%f+%fj", param.cp.real(), param.cp.imag());
+                        fprintf(pyfp, "(%f%+fj)", param.cp.real(), param.cp.imag());
                     }
                     if (param.type == 11)
                     {
                         fprintf(pyfp, "(");
                         for (size_t i = 0; i < param.acp.size(); i++)
                         {
-                            fprintf(pyfp, "%f+%fj", param.acp[i].real(), param.acp[i].imag());
+                            fprintf(pyfp, "(%f%+fj)", param.acp[i].real(), param.acp[i].imag());
                             if (i + 1 != param.acp.size() || param.acp.size() == 1)
                                 fprintf(pyfp, ",");
                         }

@@ -273,6 +273,8 @@ pnnx_add_test(torch_tan)
 pnnx_add_test(torch_tanh)
 pnnx_add_test(torch_trunc)
 
+pnnx_add_test(ir_complex)
+
 pnnx_add_test(convnext_tiny)
 pnnx_add_test(mobilenet_v2)
 pnnx_add_test(mobilenet_v3_small)

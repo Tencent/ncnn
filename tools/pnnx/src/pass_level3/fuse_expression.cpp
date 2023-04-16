@@ -198,7 +198,7 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
         else if (param.type == 10)
         {
             char tmp[32];
-            sprintf(tmp, "%e+%ej", param.cp.real(), param.cp.imag());
+            sprintf(tmp, "%e%+ej", param.cp.real(), param.cp.imag());
             expr += tmp;
         }
         else

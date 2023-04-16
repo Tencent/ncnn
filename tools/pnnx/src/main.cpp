@@ -82,7 +82,7 @@ static void parse_shape_list(char* s, std::vector<std::vector<int64_t> >& shapes
     while (pch != NULL)
     {
         // assign user data type
-        if (!types.empty() && (pch[0] == 'f' || pch[0] == 'i' || pch[0] == 'u'))
+        if (!types.empty() && (pch[0] == 'f' || pch[0] == 'i' || pch[0] == 'u' || pch[0] == 'c'))
         {
             char type[32];
             int nscan = sscanf(pch, "%31[^,]", type);
@@ -145,6 +145,9 @@ static void print_shape_list(const std::vector<std::vector<int64_t> >& shapes, c
 
 static c10::ScalarType input_type_to_c10_ScalarType(const std::string& t)
 {
+    if (t == "c64") return torch::kComplexFloat;
+    if (t == "c32") return torch::kComplexHalf;
+    if (t == "c128") return torch::kComplexDouble;
     if (t == "f32") return torch::kFloat32;
     if (t == "f16") return torch::kFloat16;
     if (t == "f64") return torch::kFloat64;
@@ -318,7 +321,7 @@ int main(int argc, char** argv)
         const std::vector<int64_t>& shape = input_shapes[i];
         const std::string& type = input_types[i];
 
-        at::Tensor t = torch::ones(shape, input_type_to_c10_ScalarType(type));
+        at::Tensor t = torch::rand(shape, input_type_to_c10_ScalarType(type));
         if (device == "gpu")
             t = t.cuda();
 
@@ -331,7 +334,7 @@ int main(int argc, char** argv)
         const std::vector<int64_t>& shape = input_shapes2[i];
         const std::string& type = input_types2[i];
 
-        at::Tensor t = torch::ones(shape, input_type_to_c10_ScalarType(type));
+        at::Tensor t = torch::rand(shape, input_type_to_c10_ScalarType(type));
         if (device == "gpu")
             t = t.cuda();
 
