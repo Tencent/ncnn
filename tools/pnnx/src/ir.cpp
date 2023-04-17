@@ -59,9 +59,9 @@ static const char* type_to_string(int type)
     if (type == 7) return "i8";
     if (type == 8) return "u8";
     if (type == 9) return "bool";
-    if (type == 10) return "cp64";
-    if (type == 11) return "cp128";
-    if (type == 12) return "cp32";
+    if (type == 10) return "c64";
+    if (type == 11) return "c128";
+    if (type == 12) return "c32";
     return "null";
 }
 
@@ -127,9 +127,9 @@ static int string_to_type(const char* s)
     if (strcmp(s, "i8") == 0) return 7;
     if (strcmp(s, "u8") == 0) return 8;
     if (strcmp(s, "bool") == 0) return 9;
-    if (strcmp(s, "cp64") == 0) return 10;
-    if (strcmp(s, "cp128") == 0) return 11;
-    if (strcmp(s, "cp32") == 0) return 12;
+    if (strcmp(s, "c64") == 0) return 10;
+    if (strcmp(s, "c128") == 0) return 11;
+    if (strcmp(s, "c32") == 0) return 12;
     return 0; // null
 }
 
@@ -216,7 +216,7 @@ Parameter::Parameter(const torch::jit::Node* value_node)
         case c10::TypeKind::ComplexType:
         {
             type = 10;
-            cp = std::complex<float>(value_node->c(torch::jit::attr::value));
+            c = std::complex<float>(value_node->c(torch::jit::attr::value));
             break;
         }
         case c10::TypeKind::TensorType:
@@ -251,12 +251,12 @@ Parameter::Parameter(const torch::jit::Node* value_node)
                 else if (t.scalar_type() == c10::ScalarType::ComplexDouble)
                 {
                     type = 10;
-                    cp = std::complex<float>(t.item<c10::complex<double> >());
+                    c = std::complex<float>(t.item<c10::complex<double> >());
                 }
                 else if (t.scalar_type() == c10::ScalarType::ComplexFloat)
                 {
                     type = 10;
-                    cp = std::complex<float>(t.item<c10::complex<float> >());
+                    c = std::complex<float>(t.item<c10::complex<float> >());
                 }
                 else
                 {
@@ -316,7 +316,7 @@ Parameter::Parameter(const torch::jit::Node* value_node)
             type = 11;
             for (const auto& x : value_node->inputs())
             {
-                acp.push_back(std::complex<float>(x->node()->c(torch::jit::attr::value)));
+                ac.push_back(std::complex<float>(x->node()->c(torch::jit::attr::value)));
             }
             break;
         }
@@ -368,10 +368,10 @@ bool operator==(const Parameter& lhs, const Parameter& rhs)
     if (lhs.type == 7 && lhs.as == rhs.as)
         return true;
 
-    if (lhs.type == 10 && lhs.cp == rhs.cp)
+    if (lhs.type == 10 && lhs.c == rhs.c)
         return true;
 
-    if (lhs.type == 11 && lhs.acp == rhs.acp)
+    if (lhs.type == 11 && lhs.ac == rhs.ac)
         return true;
 
     return false;
@@ -944,15 +944,15 @@ int Graph::save(const std::string& parampath, const std::string& binpath)
             }
             if (param.type == 10)
             {
-                fprintf(paramfp, "%e+%ej", param.cp.real(), param.cp.imag());
+                fprintf(paramfp, "%e+%ej", param.c.real(), param.c.imag());
             }
             if (param.type == 11)
             {
                 fprintf(paramfp, "(");
-                for (size_t i = 0; i < param.acp.size(); i++)
+                for (size_t i = 0; i < param.ac.size(); i++)
                 {
-                    fprintf(paramfp, "%e+%ej", param.acp[i].real(), param.acp[i].imag());
-                    if (i + 1 != param.acp.size())
+                    fprintf(paramfp, "%e+%ej", param.ac[i].real(), param.ac[i].imag());
+                    if (i + 1 != param.ac.size())
                         fprintf(paramfp, ",");
                 }
                 fprintf(paramfp, ")");
@@ -2089,15 +2089,15 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                     }
                     if (param.type == 10)
                     {
-                        fprintf(pyfp, "(%f%+fj)", param.cp.real(), param.cp.imag());
+                        fprintf(pyfp, "(%f%+fj)", param.c.real(), param.c.imag());
                     }
                     if (param.type == 11)
                     {
                         fprintf(pyfp, "(");
-                        for (size_t i = 0; i < param.acp.size(); i++)
+                        for (size_t i = 0; i < param.ac.size(); i++)
                         {
-                            fprintf(pyfp, "(%f%+fj)", param.acp[i].real(), param.acp[i].imag());
-                            if (i + 1 != param.acp.size() || param.acp.size() == 1)
+                            fprintf(pyfp, "(%f%+fj)", param.ac[i].real(), param.ac[i].imag());
+                            if (i + 1 != param.ac.size() || param.ac.size() == 1)
                                 fprintf(pyfp, ",");
                         }
                         fprintf(pyfp, ")");
