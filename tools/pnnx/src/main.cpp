@@ -321,7 +321,7 @@ int main(int argc, char** argv)
         const std::vector<int64_t>& shape = input_shapes[i];
         const std::string& type = input_types[i];
 
-        at::Tensor t = torch::rand(shape, input_type_to_c10_ScalarType(type));
+        at::Tensor t = torch::ones(shape, input_type_to_c10_ScalarType(type));
         if (device == "gpu")
             t = t.cuda();
 
@@ -334,7 +334,7 @@ int main(int argc, char** argv)
         const std::vector<int64_t>& shape = input_shapes2[i];
         const std::string& type = input_types2[i];
 
-        at::Tensor t = torch::rand(shape, input_type_to_c10_ScalarType(type));
+        at::Tensor t = torch::ones(shape, input_type_to_c10_ScalarType(type));
         if (device == "gpu")
             t = t.cuda();
 
