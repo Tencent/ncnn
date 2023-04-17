@@ -213,12 +213,14 @@ Parameter::Parameter(const torch::jit::Node* value_node)
             s = value_node->s(torch::jit::attr::value);
             break;
         }
+#if TORCH_VERSION_MAJOR >= 2 || (TORCH_VERSION_MAJOR >= 1 && TORCH_VERSION_MINOR >= 9)
         case c10::TypeKind::ComplexType:
         {
             type = 10;
             c = std::complex<float>(value_node->c(torch::jit::attr::value));
             break;
         }
+#endif
         case c10::TypeKind::TensorType:
         {
             at::Tensor t = value_node->t(torch::jit::attr::value);
@@ -311,6 +313,7 @@ Parameter::Parameter(const torch::jit::Node* value_node)
             }
             break;
         }
+#if TORCH_VERSION_MAJOR >= 2 || (TORCH_VERSION_MAJOR >= 1 && TORCH_VERSION_MINOR >= 9)
         case c10::TypeKind::ComplexType:
         {
             type = 11;
@@ -320,6 +323,7 @@ Parameter::Parameter(const torch::jit::Node* value_node)
             }
             break;
         }
+#endif
         default:
         {
             fprintf(stderr, "unknown Parameter value list element kind %s\n", c10::typeKindToString(value_node->output()->type()->cast<c10::ListType>()->getElementType()->kind()));
