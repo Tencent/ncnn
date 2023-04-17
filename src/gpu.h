@@ -43,20 +43,6 @@ NCNN_EXPORT VkInstance get_gpu_instance();
 // Usually called in the destructor of the main program exit
 NCNN_EXPORT void destroy_gpu_instance();
 
-class __ncnn_vulkan_instance_holder
-{
-public:
-    __ncnn_vulkan_instance_holder();
-    ~__ncnn_vulkan_instance_holder();
-
-    operator VkInstance();
-
-    VkInstance instance;
-#if ENABLE_VALIDATION_LAYER
-    VkDebugUtilsMessengerEXT callback;
-#endif
-};
-
 // instance extension capability
 extern int support_VK_KHR_external_memory_capabilities;
 extern int support_VK_KHR_get_physical_device_properties2;
