@@ -41,7 +41,10 @@
 #define ENABLE_VALIDATION_LAYER 0
 
 namespace ncnn {
+
+// global
 static Mutex g_instance_lock;
+
 class __ncnn_vulkan_instance_holder
 {
 public:
@@ -52,6 +55,7 @@ public:
         callback = 0;
 #endif
     }
+
     ~__ncnn_vulkan_instance_holder()
     {
         destroy_gpu_instance();
@@ -68,7 +72,6 @@ public:
 #endif
 };
 static __ncnn_vulkan_instance_holder g_instance;
-
 
 static int g_gpu_count = 0;
 static int g_default_gpu_index = -1;
