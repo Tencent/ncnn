@@ -275,8 +275,6 @@ pnnx_add_test(torch_tan)
 pnnx_add_test(torch_tanh)
 pnnx_add_test(torch_trunc)
 
-pnnx_add_test(ir_complex)
-
 pnnx_add_test(convnext_tiny)
 pnnx_add_test(mobilenet_v2)
 pnnx_add_test(mobilenet_v3_small)
@@ -310,6 +308,7 @@ pnnx_add_test(pnnx_fuse_pixel_unshuffle)
 if(Torch_VERSION VERSION_GREATER_EQUAL "1.9")
     pnnx_add_test(F_mish)
     pnnx_add_test(nn_Mish)
+    pnnx_add_test(ir_complex)
 endif()
 
 if(Torch_VERSION VERSION_GREATER_EQUAL "1.10")
