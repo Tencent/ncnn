@@ -44,6 +44,10 @@ On Debian, Ubuntu or Raspberry Pi OS, you can install all required dependencies 
 ```shell
 sudo apt install build-essential git cmake libprotobuf-dev protobuf-compiler libvulkan-dev vulkan-utils libopencv-dev
 ```
+On Redhat or Centos, you can install all required dependencies using: 
+```shell
+sudo yum install build-essential git cmake libprotobuf-dev protobuf-compiler libvulkan-dev vulkan-utils libopencv-dev
+```
 To use Vulkan backend install Vulkan header files, a vulkan driver loader, GLSL to SPIR-V compiler and vulkaninfo tool. Preferably from your distribution repositories. Alternatively download and install full Vulkan SDK (about 200MB in size; it contains all header files, documentation and prebuilt loader, as well some extra tools and source code of everything) from https://vulkan.lunarg.com/sdk/home
 
 ```shell

@@ -224,7 +224,7 @@ void pass_level1(const torch::jit::Module& mod, const std::shared_ptr<torch::jit
                 {
                     int pnnx_moduleop_unknown_index = 0;
 
-#if TORCH_VERSION_MAJOR >= 1 && TORCH_VERSION_MINOR >= 11
+#if TORCH_VERSION_MAJOR >= 2 || (TORCH_VERSION_MAJOR >= 1 && TORCH_VERSION_MINOR >= 11)
                     torch::jit::Block* moduleop_block = toGraphFunction(function).graph()->block();
 #else
                     torch::jit::Block* moduleop_block = function.graph()->block();
@@ -339,7 +339,7 @@ void pass_level1(const torch::jit::Module& mod, const std::shared_ptr<torch::jit
 
                     op->name = wrapped_name;
 
-#if TORCH_VERSION_MAJOR >= 1 && TORCH_VERSION_MINOR >= 11
+#if TORCH_VERSION_MAJOR >= 2 || (TORCH_VERSION_MAJOR >= 1 && TORCH_VERSION_MINOR >= 11)
                     ow->write(op, toGraphFunction(function).graph(), sub_mod);
 #else
                     ow->write(op, function.graph(), sub_mod);

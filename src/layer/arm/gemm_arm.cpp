@@ -409,6 +409,7 @@ static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max
 
     int jj = 0;
 #if __ARM_NEON
+#if __aarch64__
     for (; jj + 11 < max_jj; jj += 12)
     {
         if (elempack == 4)
@@ -519,6 +520,7 @@ static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max
             }
         }
     }
+#endif // __aarch64__
     for (; jj + 7 < max_jj; jj += 8)
     {
         if (elempack == 4)
@@ -715,6 +717,7 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
 
     int jj = 0;
 #if __ARM_NEON
+#if __aarch64__
     for (; jj + 11 < max_jj; jj += 12)
     {
         if (elempack == 4)
@@ -758,6 +761,7 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
             }
         }
     }
+#endif // __aarch64__
     for (; jj + 7 < max_jj; jj += 8)
     {
         if (elempack == 4)
@@ -2174,6 +2178,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
         }
 
         int jj = 0;
+#if __aarch64__
         for (; jj + 11 < max_jj; jj += 12)
         {
             float32x4_t _sum0;
@@ -2290,7 +2295,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
-#if __aarch64__
                 float32x4_t _pA = vld1q_f32(pA);
                 float32x4_t _pB0 = vld1q_f32(pB);
                 float32x4_t _pB1 = vld1q_f32(pB + 4);
@@ -2311,77 +2315,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
 
                 pA += 4;
                 pB += 12;
-#else // __aarch64__
-#if NCNN_GNU_INLINE_ASM
-                asm volatile(
-                    "pld        [%0, #128]      \n"
-                    "pld        [%1, #384]      \n"
-                    "vld1.f32   {d6-d7}, [%0 :128]! \n"
-                    "vldm       %1!, {d0-d5}    \n"
-                    "vmla.f32   %q2, q3, d0[0]  \n"
-                    "vmla.f32   %q3, q3, d0[1]  \n"
-                    "vmla.f32   %q4, q3, d1[0]  \n"
-                    "vmla.f32   %q5, q3, d1[1]  \n"
-                    "vmla.f32   %q6, q3, d2[0]  \n"
-                    "vmla.f32   %q7, q3, d2[1]  \n"
-                    "vmla.f32   %q8, q3, d3[0]  \n"
-                    "vmla.f32   %q9, q3, d3[1]  \n"
-                    "vmla.f32   %q10, q3, d4[0] \n"
-                    "vmla.f32   %q11, q3, d4[1] \n"
-                    "vmla.f32   %q12, q3, d5[0] \n"
-                    "vmla.f32   %q13, q3, d5[1] \n"
-                    : "=r"(pA),
-                    "=r"(pB),
-                    "=w"(_sum0),
-                    "=w"(_sum1),
-                    "=w"(_sum2),
-                    "=w"(_sum3),
-                    "=w"(_sum4),
-                    "=w"(_sum5),
-                    "=w"(_sum6),
-                    "=w"(_sum7),
-                    "=w"(_sum8),
-                    "=w"(_sum9),
-                    "=w"(_suma),
-                    "=w"(_sumb)
-                    : "0"(pA),
-                    "1"(pB),
-                    "2"(_sum0),
-                    "3"(_sum1),
-                    "4"(_sum2),
-                    "5"(_sum3),
-                    "6"(_sum4),
-                    "7"(_sum5),
-                    "8"(_sum6),
-                    "9"(_sum7),
-                    "10"(_sum8),
-                    "11"(_sum9),
-                    "12"(_suma),
-                    "13"(_sumb)
-                    : "memory", "q0", "q1", "q2", "q3");
-#else  // NCNN_GNU_INLINE_ASM
-                float32x4_t _pA = vld1q_f32(pA);
-                float32x4_t _pB0 = vld1q_f32(pB);
-                float32x4_t _pB1 = vld1q_f32(pB + 4);
-                float32x4_t _pB2 = vld1q_f32(pB + 8);
-
-                _sum0 = vmlaq_lane_f32(_sum0, _pA, vget_low_f32(_pB0), 0);
-                _sum1 = vmlaq_lane_f32(_sum1, _pA, vget_low_f32(_pB0), 1);
-                _sum2 = vmlaq_lane_f32(_sum2, _pA, vget_high_f32(_pB0), 0);
-                _sum3 = vmlaq_lane_f32(_sum3, _pA, vget_high_f32(_pB0), 1);
-                _sum4 = vmlaq_lane_f32(_sum4, _pA, vget_low_f32(_pB1), 0);
-                _sum5 = vmlaq_lane_f32(_sum5, _pA, vget_low_f32(_pB1), 1);
-                _sum6 = vmlaq_lane_f32(_sum6, _pA, vget_high_f32(_pB1), 0);
-                _sum7 = vmlaq_lane_f32(_sum7, _pA, vget_high_f32(_pB1), 1);
-                _sum8 = vmlaq_lane_f32(_sum8, _pA, vget_low_f32(_pB2), 0);
-                _sum9 = vmlaq_lane_f32(_sum9, _pA, vget_low_f32(_pB2), 1);
-                _suma = vmlaq_lane_f32(_suma, _pA, vget_high_f32(_pB2), 0);
-                _sumb = vmlaq_lane_f32(_sumb, _pA, vget_high_f32(_pB2), 1);
-
-                pA += 4;
-                pB += 12;
-#endif // NCNN_GNU_INLINE_ASM
-#endif // __aarch64__
             }
 
             if (k_end)
@@ -2439,6 +2372,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
 
             outptr += 48;
         }
+#endif // __aarch64__
         for (; jj + 7 < max_jj; jj += 8)
         {
             float32x4_t _sum0;
@@ -2905,6 +2839,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
 
         int jj = 0;
 #if __ARM_NEON
+#if __aarch64__
         for (; jj + 11 < max_jj; jj += 12)
         {
             float32x4_t _sum00;
@@ -2990,21 +2925,13 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 float32x4_t _pB2 = vld1q_f32(pB + 8);
 
                 float32x2_t _pA = vld1_f32(pA);
-#if __aarch64__
+
                 _sum00 = vfmaq_lane_f32(_sum00, _pB0, _pA, 0);
                 _sum01 = vfmaq_lane_f32(_sum01, _pB1, _pA, 0);
                 _sum02 = vfmaq_lane_f32(_sum02, _pB2, _pA, 0);
                 _sum10 = vfmaq_lane_f32(_sum10, _pB0, _pA, 1);
                 _sum11 = vfmaq_lane_f32(_sum11, _pB1, _pA, 1);
                 _sum12 = vfmaq_lane_f32(_sum12, _pB2, _pA, 1);
-#else
-                _sum00 = vmlaq_lane_f32(_sum00, _pB0, _pA, 0);
-                _sum01 = vmlaq_lane_f32(_sum01, _pB1, _pA, 0);
-                _sum02 = vmlaq_lane_f32(_sum02, _pB2, _pA, 0);
-                _sum10 = vmlaq_lane_f32(_sum10, _pB0, _pA, 1);
-                _sum11 = vmlaq_lane_f32(_sum11, _pB1, _pA, 1);
-                _sum12 = vmlaq_lane_f32(_sum12, _pB2, _pA, 1);
-#endif
 
                 pA += 2;
                 pB += 12;
@@ -3041,6 +2968,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
 
             outptr += 24;
         }
+#endif // __aarch64__
         for (; jj + 7 < max_jj; jj += 8)
         {
             float32x4_t _sum00;
@@ -3415,6 +3343,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
 
         int jj = 0;
 #if __ARM_NEON
+#if __aarch64__
         for (; jj + 11 < max_jj; jj += 12)
         {
             float32x4_t _sum0;
@@ -3460,15 +3389,10 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 float32x4_t _pB2 = vld1q_f32(pB + 8);
 
                 float32x4_t _pA0 = vdupq_n_f32(pA[0]);
-#if __aarch64__
+
                 _sum0 = vfmaq_f32(_sum0, _pA0, _pB0);
                 _sum1 = vfmaq_f32(_sum1, _pA0, _pB1);
                 _sum2 = vfmaq_f32(_sum2, _pA0, _pB2);
-#else
-                _sum0 = vmlaq_f32(_sum0, _pA0, _pB0);
-                _sum1 = vmlaq_f32(_sum1, _pA0, _pB1);
-                _sum2 = vmlaq_f32(_sum2, _pA0, _pB2);
-#endif
 
                 pA += 1;
                 pB += 12;
@@ -3493,6 +3417,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
 
             outptr += 12;
         }
+#endif // __aarch64__
         for (; jj + 7 < max_jj; jj += 8)
         {
             float32x4_t _sum0;
@@ -3741,17 +3666,17 @@ static void get_optimal_tile_mnk(int M, int N, int K, int constant_TILE_M, int c
     int tile_size = (int)sqrt((float)l2_cache_size / 3 / sizeof(float));
 
 #if __aarch64__
-    TILE_M = tile_size / 8 * 8;
-    TILE_N = tile_size / 4 * 4;
-    TILE_K = tile_size / 8 * 8;
+    TILE_M = std::max(8, tile_size / 8 * 8);
+    TILE_N = std::max(4, tile_size / 4 * 4);
+    TILE_K = std::max(8, tile_size / 8 * 8);
 #elif __ARM_NEON
-    TILE_M = tile_size / 4 * 4;
-    TILE_N = tile_size / 4 * 4;
-    TILE_K = tile_size / 4 * 4;
+    TILE_M = std::max(4, tile_size / 4 * 4);
+    TILE_N = std::max(4, tile_size / 4 * 4);
+    TILE_K = std::max(4, tile_size / 4 * 4);
 #else
-    TILE_M = tile_size / 2 * 2;
-    TILE_N = tile_size;
-    TILE_K = tile_size / 2 * 2;
+    TILE_M = std::max(2, tile_size / 2 * 2);
+    TILE_N = std::max(1, tile_size);
+    TILE_K = std::max(2, tile_size / 2 * 2);
 #endif
 
     if (K > 0)
@@ -3770,14 +3695,14 @@ static void get_optimal_tile_mnk(int M, int N, int K, int constant_TILE_M, int c
             tile_size = (int)((float)l2_cache_size / 2 / sizeof(float) / TILE_K);
 
 #if __aarch64__
-            TILE_M = tile_size / 8 * 8;
-            TILE_N = tile_size / 4 * 4;
+            TILE_M = std::max(8, tile_size / 8 * 8);
+            TILE_N = std::max(4, tile_size / 4 * 4);
 #elif __ARM_NEON
-            TILE_M = tile_size / 4 * 4;
-            TILE_N = tile_size / 4 * 4;
+            TILE_M = std::max(4, tile_size / 4 * 4);
+            TILE_N = std::max(4, tile_size / 4 * 4);
 #else
-            TILE_M = tile_size / 2 * 2;
-            TILE_N = tile_size;
+            TILE_M = std::max(2, tile_size / 2 * 2);
+            TILE_N = std::max(1, tile_size);
 #endif
         }
     }
@@ -3871,8 +3796,8 @@ static int gemm_arm(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
     int nn_N = (N + TILE_N - 1) / TILE_N;
     int nn_K = (K + TILE_K - 1) / TILE_K;
 
-    Mat ATX(TILE_K * TILE_M, (K + TILE_K - 1) / TILE_K, nT, 4u, opt.blob_allocator);
-    Mat BT(TILE_K * TILE_N, (K + TILE_K - 1) / TILE_K, (N + TILE_N - 1) / TILE_N, 4u, opt.blob_allocator);
+    Mat ATX(TILE_K * TILE_M, (K + TILE_K - 1) / TILE_K, nT, 4u, opt.workspace_allocator);
+    Mat BT(TILE_K * TILE_N, (K + TILE_K - 1) / TILE_K, (N + TILE_N - 1) / TILE_N, 4u, opt.workspace_allocator);
 
     const int nn_NK = nn_N * nn_K;
 
@@ -3903,7 +3828,7 @@ static int gemm_arm(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
 
     Mat topT;
     if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
-        topT.create(TILE_N * TILE_M, 1, nT, 4u, opt.blob_allocator);
+        topT.create(TILE_N * TILE_M, 1, nT, 4u, opt.workspace_allocator);
 
     #pragma omp parallel for num_threads(nT)
     for (int ppi = 0; ppi < nn_M; ppi++)
@@ -3979,7 +3904,7 @@ static int gemm_AT_arm(const Mat& AT, const Mat& B, const Mat& C, Mat& top_blob,
     int nn_N = (N + TILE_N - 1) / TILE_N;
     int nn_K = (K + TILE_K - 1) / TILE_K;
 
-    Mat BT(TILE_K * TILE_N, (K + TILE_K - 1) / TILE_K, (N + TILE_N - 1) / TILE_N, 4u, opt.blob_allocator);
+    Mat BT(TILE_K * TILE_N, (K + TILE_K - 1) / TILE_K, (N + TILE_N - 1) / TILE_N, 4u, opt.workspace_allocator);
 
     const int nn_NK = nn_N * nn_K;
 
@@ -4010,7 +3935,7 @@ static int gemm_AT_arm(const Mat& AT, const Mat& B, const Mat& C, Mat& top_blob,
 
     Mat topT;
     if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
-        topT.create(TILE_N * TILE_M, 1, nT, 4u, opt.blob_allocator);
+        topT.create(TILE_N * TILE_M, 1, nT, 4u, opt.workspace_allocator);
 
     #pragma omp parallel for num_threads(nT)
     for (int ppi = 0; ppi < nn_M; ppi++)
@@ -4073,11 +3998,11 @@ static int gemm_BT_arm(const Mat& A, const Mat& BT, const Mat& C, Mat& top_blob,
     int nn_M = (M + TILE_M - 1) / TILE_M;
     // int nn_N = (N + TILE_N - 1) / TILE_N;
 
-    Mat ATX(TILE_K * TILE_M, (K + TILE_K - 1) / TILE_K, nT, 4u, opt.blob_allocator);
+    Mat ATX(TILE_K * TILE_M, (K + TILE_K - 1) / TILE_K, nT, 4u, opt.workspace_allocator);
 
     Mat topT;
     if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
-        topT.create(TILE_N * TILE_M, 1, nT, 4u, opt.blob_allocator);
+        topT.create(TILE_N * TILE_M, 1, nT, 4u, opt.workspace_allocator);
 
     #pragma omp parallel for num_threads(nT)
     for (int ppi = 0; ppi < nn_M; ppi++)
@@ -4152,7 +4077,7 @@ static int gemm_AT_BT_arm(const Mat& AT, const Mat& BT, const Mat& C, Mat& top_b
 
     Mat topT;
     if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
-        topT.create(TILE_N * TILE_M, 1, nT, 4u, opt.blob_allocator);
+        topT.create(TILE_N * TILE_M, 1, nT, 4u, opt.workspace_allocator);
 
     #pragma omp parallel for num_threads(nT)
     for (int ppi = 0; ppi < nn_M; ppi++)
@@ -4237,7 +4162,7 @@ int Gemm_arm::create_pipeline(const Option& opt)
 
         const int nn_M = (M + TILE_M - 1) / TILE_M;
 
-        AT_data.create(TILE_K * TILE_M, (K + TILE_K - 1) / TILE_K, (M + TILE_M - 1) / TILE_M, 4u, opt.blob_allocator);
+        AT_data.create(TILE_K * TILE_M, (K + TILE_K - 1) / TILE_K, (M + TILE_M - 1) / TILE_M, 4u, (Allocator*)0);
         if (AT_data.empty())
             return -100;
 
@@ -4280,7 +4205,7 @@ int Gemm_arm::create_pipeline(const Option& opt)
 
         const int nn_N = (N + TILE_N - 1) / TILE_N;
 
-        BT_data.create(TILE_K * TILE_N, (K + TILE_K - 1) / TILE_K, (N + TILE_N - 1) / TILE_N, 4u, opt.blob_allocator);
+        BT_data.create(TILE_K * TILE_N, (K + TILE_K - 1) / TILE_K, (N + TILE_N - 1) / TILE_N, 4u, (Allocator*)0);
         if (BT_data.empty())
             return -100;
 
@@ -4580,8 +4505,8 @@ static int gemm_arm_bf16s(const Mat& A, const Mat& B, const Mat& C, Mat& top_blo
     int nn_N = (N + TILE_N - 1) / TILE_N;
     int nn_K = (K + TILE_K - 1) / TILE_K;
 
-    Mat ATX(TILE_K * TILE_M, (K + TILE_K - 1) / TILE_K, nT, 2u, opt.blob_allocator);
-    Mat BT(TILE_K * TILE_N, (K + TILE_K - 1) / TILE_K, (N + TILE_N - 1) / TILE_N, 2u, opt.blob_allocator);
+    Mat ATX(TILE_K * TILE_M, (K + TILE_K - 1) / TILE_K, nT, 2u, opt.workspace_allocator);
+    Mat BT(TILE_K * TILE_N, (K + TILE_K - 1) / TILE_K, (N + TILE_N - 1) / TILE_N, 2u, opt.workspace_allocator);
 
     const int nn_NK = nn_N * nn_K;
 
@@ -4612,7 +4537,7 @@ static int gemm_arm_bf16s(const Mat& A, const Mat& B, const Mat& C, Mat& top_blo
 
     Mat topT;
     if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
-        topT.create(TILE_N * TILE_M, 1, nT, 4u, opt.blob_allocator);
+        topT.create(TILE_N * TILE_M, 1, nT, 4u, opt.workspace_allocator);
 
     #pragma omp parallel for num_threads(nT)
     for (int ppi = 0; ppi < nn_M; ppi++)
@@ -4689,7 +4614,7 @@ static int gemm_AT_arm_bf16s(const Mat& AT, const Mat& B, const Mat& C, Mat& top
     int nn_N = (N + TILE_N - 1) / TILE_N;
     int nn_K = (K + TILE_K - 1) / TILE_K;
 
-    Mat BT(TILE_K * TILE_N, (K + TILE_K - 1) / TILE_K, (N + TILE_N - 1) / TILE_N, 2u, opt.blob_allocator);
+    Mat BT(TILE_K * TILE_N, (K + TILE_K - 1) / TILE_K, (N + TILE_N - 1) / TILE_N, 2u, opt.workspace_allocator);
 
     const int nn_NK = nn_N * nn_K;
 
@@ -4720,7 +4645,7 @@ static int gemm_AT_arm_bf16s(const Mat& AT, const Mat& B, const Mat& C, Mat& top
 
     Mat topT;
     if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
-        topT.create(TILE_N * TILE_M, 1, nT, 4u, opt.blob_allocator);
+        topT.create(TILE_N * TILE_M, 1, nT, 4u, opt.workspace_allocator);
 
     #pragma omp parallel for num_threads(nT)
     for (int ppi = 0; ppi < nn_M; ppi++)
@@ -4784,11 +4709,11 @@ static int gemm_BT_arm_bf16s(const Mat& A, const Mat& BT, const Mat& C, Mat& top
     int nn_M = (M + TILE_M - 1) / TILE_M;
     // int nn_N = (N + TILE_N - 1) / TILE_N;
 
-    Mat ATX(TILE_K * TILE_M, (K + TILE_K - 1) / TILE_K, nT, 2u, opt.blob_allocator);
+    Mat ATX(TILE_K * TILE_M, (K + TILE_K - 1) / TILE_K, nT, 2u, opt.workspace_allocator);
 
     Mat topT;
     if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
-        topT.create(TILE_N * TILE_M, 1, nT, 4u, opt.blob_allocator);
+        topT.create(TILE_N * TILE_M, 1, nT, 4u, opt.workspace_allocator);
 
     #pragma omp parallel for num_threads(nT)
     for (int ppi = 0; ppi < nn_M; ppi++)
@@ -4864,7 +4789,7 @@ static int gemm_AT_BT_arm_bf16s(const Mat& AT, const Mat& BT, const Mat& C, Mat&
 
     Mat topT;
     if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
-        topT.create(TILE_N * TILE_M, 1, nT, 4u, opt.blob_allocator);
+        topT.create(TILE_N * TILE_M, 1, nT, 4u, opt.workspace_allocator);
 
     #pragma omp parallel for num_threads(nT)
     for (int ppi = 0; ppi < nn_M; ppi++)
@@ -4926,7 +4851,7 @@ int Gemm_arm::create_pipeline_bf16s(const Option& opt)
 
         const int nn_M = (M + TILE_M - 1) / TILE_M;
 
-        AT_data.create(TILE_K * TILE_M, (K + TILE_K - 1) / TILE_K, (M + TILE_M - 1) / TILE_M, 2u, opt.blob_allocator);
+        AT_data.create(TILE_K * TILE_M, (K + TILE_K - 1) / TILE_K, (M + TILE_M - 1) / TILE_M, 2u, (Allocator*)0);
         if (AT_data.empty())
             return -100;
 
@@ -4969,7 +4894,7 @@ int Gemm_arm::create_pipeline_bf16s(const Option& opt)
 
         const int nn_N = (N + TILE_N - 1) / TILE_N;
 
-        BT_data.create(TILE_K * TILE_N, (K + TILE_K - 1) / TILE_K, (N + TILE_N - 1) / TILE_N, 2u, opt.blob_allocator);
+        BT_data.create(TILE_K * TILE_N, (K + TILE_K - 1) / TILE_K, (N + TILE_N - 1) / TILE_N, 2u, (Allocator*)0);
         if (BT_data.empty())
             return -100;
 

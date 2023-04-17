@@ -12,7 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-static void pack_A_tile(const Mat& A, Mat& AT, int batch, int max_ii, int max_kk)
+static void conv3x3s1_winograd_pack_A_tile(const Mat& A, Mat& AT, int batch, int max_ii, int max_kk)
 {
     const int N = max_kk * batch;
 
@@ -87,7 +87,7 @@ static void pack_A_tile(const Mat& A, Mat& AT, int batch, int max_ii, int max_kk
     }
 }
 
-static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, int max_kk, int nT)
+static void conv3x3s1_winograd_transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, int max_kk, int nT)
 {
     #pragma omp parallel for num_threads(nT)
     for (int b = 0; b < batch; b++)
@@ -771,9 +771,9 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int batch, int max_jj, 
     }
 }
 
-static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat& top_blob, int batch, int max_ii, int max_jj, int k, int max_kk)
+static void conv3x3s1_winograd_gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat& top_blob, int batch, int max_ii, int max_jj, int k, int max_kk, int use_a53_a55_optimized_kernel)
 {
-    // NCNN_LOGE("gemm_transB_packed_tile %d %d %d", max_ii, max_jj, max_kk);
+    // NCNN_LOGE("conv3x3s1_winograd_gemm_transB_packed_tile %d %d %d", max_ii, max_jj, max_kk);
     float* outptr = top_blob;
 
     int ii = 0;
@@ -792,233 +792,895 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 const float* pA = pAT;
 
 #if NCNN_GNU_INLINE_ASM
-                asm volatile(
-                    "cbz    %w7, 0f                     \n"
+                if (use_a53_a55_optimized_kernel && cpu_support_arm_asimdhp())
+                {
+                    // a55
+                    asm volatile(
+                        "cbz    %w7, 0f                     \n"
 
-                    "ld1    {v8.4s, v9.4s, v10.4s, v11.4s}, [%0], #64   \n"
-                    "ld1    {v12.4s, v13.4s, v14.4s, v15.4s}, [%0], #64 \n"
-                    "ld1    {v16.4s, v17.4s, v18.4s, v19.4s}, [%0], #64 \n"
-                    "ld1    {v20.4s, v21.4s, v22.4s, v23.4s}, [%0], #64 \n"
-                    "ld1    {v24.4s, v25.4s, v26.4s, v27.4s}, [%0], #64 \n"
-                    "ld1    {v28.4s, v29.4s, v30.4s, v31.4s}, [%0]      \n"
-                    "subs   %0, %0, #320                \n"
-                    "b      1f                          \n"
+                        "ld1    {v8.4s, v9.4s, v10.4s, v11.4s}, [%0], #64   \n"
+                        "ld1    {v12.4s, v13.4s, v14.4s, v15.4s}, [%0], #64 \n"
+                        "ld1    {v16.4s, v17.4s, v18.4s, v19.4s}, [%0], #64 \n"
+                        "ld1    {v20.4s, v21.4s, v22.4s, v23.4s}, [%0], #64 \n"
+                        "ld1    {v24.4s, v25.4s, v26.4s, v27.4s}, [%0], #64 \n"
+                        "ld1    {v28.4s, v29.4s, v30.4s, v31.4s}, [%0]      \n"
+                        "subs   %0, %0, #320                \n"
+                        "b      1f                          \n"
 
-                    "0:                                 \n"
-                    "eor    v8.16b, v8.16b, v8.16b      \n"
-                    "eor    v9.16b, v9.16b, v9.16b      \n"
-                    "eor    v10.16b, v10.16b, v10.16b   \n"
-                    "eor    v11.16b, v11.16b, v11.16b   \n"
-                    "eor    v12.16b, v12.16b, v12.16b   \n"
-                    "eor    v13.16b, v13.16b, v13.16b   \n"
-                    "eor    v14.16b, v14.16b, v14.16b   \n"
-                    "eor    v15.16b, v15.16b, v15.16b   \n"
-                    "eor    v16.16b, v16.16b, v16.16b   \n"
-                    "eor    v17.16b, v17.16b, v17.16b   \n"
-                    "eor    v18.16b, v18.16b, v18.16b   \n"
-                    "eor    v19.16b, v19.16b, v19.16b   \n"
-                    "eor    v20.16b, v20.16b, v20.16b   \n"
-                    "eor    v21.16b, v21.16b, v21.16b   \n"
-                    "eor    v22.16b, v22.16b, v22.16b   \n"
-                    "eor    v23.16b, v23.16b, v23.16b   \n"
-                    "eor    v24.16b, v24.16b, v24.16b   \n"
-                    "eor    v25.16b, v25.16b, v25.16b   \n"
-                    "eor    v26.16b, v26.16b, v26.16b   \n"
-                    "eor    v27.16b, v27.16b, v27.16b   \n"
-                    "eor    v28.16b, v28.16b, v28.16b   \n"
-                    "eor    v29.16b, v29.16b, v29.16b   \n"
-                    "eor    v30.16b, v30.16b, v30.16b   \n"
-                    "eor    v31.16b, v31.16b, v31.16b   \n"
+                        "0:                                 \n"
+                        "eor    v8.16b, v8.16b, v8.16b      \n"
+                        "eor    v9.16b, v9.16b, v9.16b      \n"
+                        "eor    v10.16b, v10.16b, v10.16b   \n"
+                        "eor    v11.16b, v11.16b, v11.16b   \n"
+                        "eor    v12.16b, v12.16b, v12.16b   \n"
+                        "eor    v13.16b, v13.16b, v13.16b   \n"
+                        "eor    v14.16b, v14.16b, v14.16b   \n"
+                        "eor    v15.16b, v15.16b, v15.16b   \n"
+                        "eor    v16.16b, v16.16b, v16.16b   \n"
+                        "eor    v17.16b, v17.16b, v17.16b   \n"
+                        "eor    v18.16b, v18.16b, v18.16b   \n"
+                        "eor    v19.16b, v19.16b, v19.16b   \n"
+                        "eor    v20.16b, v20.16b, v20.16b   \n"
+                        "eor    v21.16b, v21.16b, v21.16b   \n"
+                        "eor    v22.16b, v22.16b, v22.16b   \n"
+                        "eor    v23.16b, v23.16b, v23.16b   \n"
+                        "eor    v24.16b, v24.16b, v24.16b   \n"
+                        "eor    v25.16b, v25.16b, v25.16b   \n"
+                        "eor    v26.16b, v26.16b, v26.16b   \n"
+                        "eor    v27.16b, v27.16b, v27.16b   \n"
+                        "eor    v28.16b, v28.16b, v28.16b   \n"
+                        "eor    v29.16b, v29.16b, v29.16b   \n"
+                        "eor    v30.16b, v30.16b, v30.16b   \n"
+                        "eor    v31.16b, v31.16b, v31.16b   \n"
 
-                    "1:                                 \n"
-                    "lsr    w4, %w6, #2                 \n" // w4 = max_kk >> 2
-                    "cmp    w4, #0                      \n"
-                    "beq    3f                          \n"
+                        "1:                                 \n"
+                        "lsr    w4, %w6, #2                 \n" // w4 = max_kk >> 2
+                        "cmp    w4, #0                      \n"
+                        "beq    3f                          \n"
 
-                    "2:                                 \n"
-                    "prfm   pldl1keep, [%2, #512]       \n"
-                    "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%2], #64 \n"
+                        "prfm   pldl1keep, [%1, #512]       \n"
+                        "ld1    {v4.4s}, [%1], #16          \n"
+                        "prfm   pldl1keep, [%2, #512]       \n"
+                        "ld1    {v0.4s}, [%2], #16          \n"
 
-                    "prfm   pldl1keep, [%1, #512]       \n"
-                    "ld1    {v4.4s, v5.4s, v6.4s, v7.4s}, [%1], #64 \n"
+                        "ldr    d5, [%1], #8                \n"
+                        "ldr    x25, [%1], #8               \n"
 
-                    "fmla   v8.4s, v4.4s, v0.s[0]       \n"
-                    "fmla   v10.4s, v4.4s, v0.s[1]      \n"
-                    "fmla   v12.4s, v4.4s, v0.s[2]      \n"
-                    "fmla   v14.4s, v4.4s, v0.s[3]      \n"
-                    "fmla   v9.4s, v5.4s, v0.s[0]       \n"
-                    "fmla   v11.4s, v5.4s, v0.s[1]      \n"
-                    "fmla   v13.4s, v5.4s, v0.s[2]      \n"
-                    "fmla   v15.4s, v5.4s, v0.s[3]      \n"
+                        ".align 4                           \n"
+                        "2:                                 \n"
+                        "ldr    d1, [%2], #8                \n"
+                        "fmla   v8.4s, v4.4s, v0.s[0]       \n"
+                        "ldr    x21, [%2], #8               \n"
+                        "fmla   v10.4s, v4.4s, v0.s[1]      \n"
+                        "ins    v5.d[1], x25                \n"
+                        "fmla   v12.4s, v4.4s, v0.s[2]      \n"
+                        "ldr    d2, [%2], #8                \n"
+                        "fmla   v14.4s, v4.4s, v0.s[3]      \n"
+                        "ldr    x22, [%2], #8               \n"
+                        "fmla   v9.4s, v5.4s, v0.s[0]       \n"
+                        "ldr    d6, [%1], #8                \n"
+                        "fmla   v11.4s, v5.4s, v0.s[1]      \n"
+                        "ins    v1.d[1], x21                \n"
+                        "fmla   v13.4s, v5.4s, v0.s[2]      \n"
+                        "ldr    x26, [%1], #8               \n"
+                        "fmla   v15.4s, v5.4s, v0.s[3]      \n"
+                        "ldr    d3, [%2], #8                \n"
+                        "fmla   v16.4s, v4.4s, v1.s[0]      \n"
+                        "ldr    x23, [%2], #8               \n"
+                        "fmla   v18.4s, v4.4s, v1.s[1]      \n"
+                        "ldr    d7, [%1], #8                \n"
+                        "fmla   v20.4s, v4.4s, v1.s[2]      \n"
+                        "ldr    x27, [%1], #8               \n"
+                        "fmla   v22.4s, v4.4s, v1.s[3]      \n"
+                        "prfm   pldl1keep, [%2, #512]       \n" // NOTE PRELOAD
+                        "fmla   v17.4s, v5.4s, v1.s[0]      \n"
+                        "ldr    d0, [%2], #8                \n"
+                        "fmla   v19.4s, v5.4s, v1.s[1]      \n"
+                        "ins    v2.d[1], x22                \n"
+                        "fmla   v21.4s, v5.4s, v1.s[2]      \n"
+                        "ldr    x20, [%2], #8               \n"
+                        "fmla   v23.4s, v5.4s, v1.s[3]      \n"
+                        "fmla   v24.4s, v4.4s, v2.s[0]      \n"
+                        "ldr    d1, [%2], #8                \n"
+                        "fmla   v26.4s, v4.4s, v2.s[1]      \n"
+                        "ins    v6.d[1], x26                \n"
+                        "fmla   v28.4s, v4.4s, v2.s[2]      \n"
+                        "ldr    x21, [%2], #8               \n"
+                        "fmla   v30.4s, v4.4s, v2.s[3]      \n"
+                        "prfm   pldl1keep, [%1, #512]       \n" // NOTE PRELOAD
+                        "fmla   v25.4s, v5.4s, v2.s[0]      \n"
+                        "ldr    d4, [%1], #8                \n"
+                        "fmla   v27.4s, v5.4s, v2.s[1]      \n"
+                        "ins    v3.d[1], x23                \n"
+                        "fmla   v29.4s, v5.4s, v2.s[2]      \n"
+                        "ldr    x24, [%1], #8               \n"
+                        "fmla   v31.4s, v5.4s, v2.s[3]      \n"
+                        "fmla   v8.4s, v6.4s, v3.s[0]       \n"
+                        "ldr    d2, [%2], #8                \n"
+                        "fmla   v10.4s, v6.4s, v3.s[1]      \n"
+                        "ins    v7.d[1], x27                \n"
+                        "fmla   v12.4s, v6.4s, v3.s[2]      \n"
+                        "ldr    x22, [%2], #8               \n"
+                        "fmla   v14.4s, v6.4s, v3.s[3]      \n"
+                        "fmla   v9.4s, v7.4s, v3.s[0]       \n"
+                        "ldr    d5, [%1], #8                \n"
+                        "fmla   v11.4s, v7.4s, v3.s[1]      \n"
+                        "ins    v0.d[1], x20                \n"
+                        "fmla   v13.4s, v7.4s, v3.s[2]      \n"
+                        "ldr    x25, [%1], #8               \n"
+                        "fmla   v15.4s, v7.4s, v3.s[3]      \n"
+                        "fmla   v16.4s, v6.4s, v0.s[0]      \n"
+                        "ldr    d3, [%2], #8                \n"
+                        "fmla   v18.4s, v6.4s, v0.s[1]      \n"
+                        "ldr    x23, [%2], #8               \n"
+                        "fmla   v20.4s, v6.4s, v0.s[2]      \n"
+                        "fmla   v22.4s, v6.4s, v0.s[3]      \n"
+                        "fmla   v17.4s, v7.4s, v0.s[0]      \n"
+                        "fmla   v19.4s, v7.4s, v0.s[1]      \n"
+                        "ins    v1.d[1], x21                \n"
+                        "fmla   v21.4s, v7.4s, v0.s[2]      \n"
+                        "fmla   v23.4s, v7.4s, v0.s[3]      \n"
+                        "prfm   pldl1keep, [%2, #256]       \n" // NOTE PRELOAD
+                        "fmla   v24.4s, v6.4s, v1.s[0]      \n"
+                        "fmla   v26.4s, v6.4s, v1.s[1]      \n"
+                        "ins    v4.d[1], x24                \n"
+                        "fmla   v28.4s, v6.4s, v1.s[2]      \n"
+                        "ldr    d0, [%2], #8                \n"
+                        "fmla   v30.4s, v6.4s, v1.s[3]      \n"
+                        "ldr    x20, [%2], #8               \n"
+                        "fmla   v25.4s, v7.4s, v1.s[0]      \n"
+                        "ldr    d6, [%1], #8                \n"
+                        "fmla   v27.4s, v7.4s, v1.s[1]      \n"
+                        "ins    v2.d[1], x22                \n"
+                        "fmla   v29.4s, v7.4s, v1.s[2]      \n"
+                        "fmla   v31.4s, v7.4s, v1.s[3]      \n"
+                        "ldr    x26, [%1], #8               \n"
+                        "fmla   v8.4s, v4.4s, v2.s[0]       \n"
+                        "ldr    d1, [%2], #8                \n"
+                        "fmla   v10.4s, v4.4s, v2.s[1]      \n"
+                        "ins    v5.d[1], x25                \n"
+                        "fmla   v12.4s, v4.4s, v2.s[2]      \n"
+                        "ldr    x21, [%2], #8               \n"
+                        "fmla   v14.4s, v4.4s, v2.s[3]      \n"
+                        "ldr    d7, [%1], #8                \n"
+                        "fmla   v9.4s, v5.4s, v2.s[0]       \n"
+                        "ldr    x27, [%1], #8               \n"
+                        "fmla   v11.4s, v5.4s, v2.s[1]      \n"
+                        "ins    v3.d[1], x23                \n"
+                        "fmla   v13.4s, v5.4s, v2.s[2]      \n"
+                        "fmla   v15.4s, v5.4s, v2.s[3]      \n"
+                        "fmla   v16.4s, v4.4s, v3.s[0]      \n"
+                        "ldr    d2, [%2], #8                \n"
+                        "fmla   v18.4s, v4.4s, v3.s[1]      \n"
+                        "ldr    x22, [%2], #8               \n"
+                        "fmla   v20.4s, v4.4s, v3.s[2]      \n"
+                        "fmla   v22.4s, v4.4s, v3.s[3]      \n"
+                        "fmla   v17.4s, v5.4s, v3.s[0]      \n"
+                        "fmla   v19.4s, v5.4s, v3.s[1]      \n"
+                        "ins    v0.d[1], x20                \n"
+                        "fmla   v21.4s, v5.4s, v3.s[2]      \n"
+                        "fmla   v23.4s, v5.4s, v3.s[3]      \n"
+                        "fmla   v24.4s, v4.4s, v0.s[0]      \n"
+                        "ldr    d3, [%2], #8                \n"
+                        "fmla   v26.4s, v4.4s, v0.s[1]      \n"
+                        "ldr    x23, [%2], #8               \n"
+                        "fmla   v28.4s, v4.4s, v0.s[2]      \n"
+                        "ins    v6.d[1], x26                \n"
+                        "fmla   v30.4s, v4.4s, v0.s[3]      \n"
+                        "prfm   pldl1keep, [%1, #512]       \n" // NOTE PRELOAD
+                        "fmla   v25.4s, v5.4s, v0.s[0]      \n"
+                        "ldr    d4, [%1], #8                \n"
+                        "fmla   v27.4s, v5.4s, v0.s[1]      \n"
+                        "ins    v1.d[1], x21                \n"
+                        "fmla   v29.4s, v5.4s, v0.s[2]      \n"
+                        "ldr    x24, [%1], #8               \n"
+                        "fmla   v31.4s, v5.4s, v0.s[3]      \n"
+                        "prfm   pldl1keep, [%2, #512]       \n" // NOTE PRELOAD
+                        "fmla   v8.4s, v6.4s, v1.s[0]       \n"
+                        "ldr    d0, [%2], #8                \n"
+                        "fmla   v10.4s, v6.4s, v1.s[1]      \n"
+                        "ins    v7.d[1], x27                \n"
+                        "fmla   v12.4s, v6.4s, v1.s[2]      \n"
+                        "ldr    x20, [%2], #8               \n"
+                        "fmla   v14.4s, v6.4s, v1.s[3]      \n"
+                        "ldr    d5, [%1], #8                \n"
+                        "fmla   v9.4s, v7.4s, v1.s[0]       \n"
+                        "ldr    x25, [%1], #8               \n"
+                        "fmla   v11.4s, v7.4s, v1.s[1]      \n"
+                        "ins    v2.d[1], x22                \n"
+                        "fmla   v13.4s, v7.4s, v1.s[2]      \n"
+                        "fmla   v15.4s, v7.4s, v1.s[3]      \n"
+                        "fmla   v16.4s, v6.4s, v2.s[0]      \n"
+                        "fmla   v18.4s, v6.4s, v2.s[1]      \n"
+                        "fmla   v20.4s, v6.4s, v2.s[2]      \n"
+                        "fmla   v22.4s, v6.4s, v2.s[3]      \n"
+                        "fmla   v17.4s, v7.4s, v2.s[0]      \n"
+                        "fmla   v19.4s, v7.4s, v2.s[1]      \n"
+                        "ins    v3.d[1], x23                \n"
+                        "fmla   v21.4s, v7.4s, v2.s[2]      \n"
+                        "fmla   v23.4s, v7.4s, v2.s[3]      \n"
+                        "fmla   v24.4s, v6.4s, v3.s[0]      \n"
+                        "fmla   v26.4s, v6.4s, v3.s[1]      \n"
+                        "fmla   v28.4s, v6.4s, v3.s[2]      \n"
+                        "ins    v4.d[1], x24                \n"
+                        "fmla   v30.4s, v6.4s, v3.s[3]      \n"
+                        "fmla   v25.4s, v7.4s, v3.s[0]      \n"
+                        "subs   w4, w4, #1                  \n"
+                        "fmla   v27.4s, v7.4s, v3.s[1]      \n"
+                        "fmla   v29.4s, v7.4s, v3.s[2]      \n"
+                        "ins    v0.d[1], x20                \n"
+                        "fmla   v31.4s, v7.4s, v3.s[3]      \n"
+                        "bne    2b                          \n"
 
-                    "fmla   v16.4s, v4.4s, v1.s[0]      \n"
-                    "fmla   v18.4s, v4.4s, v1.s[1]      \n"
-                    "fmla   v20.4s, v4.4s, v1.s[2]      \n"
-                    "fmla   v22.4s, v4.4s, v1.s[3]      \n"
-                    "fmla   v17.4s, v5.4s, v1.s[0]      \n"
-                    "fmla   v19.4s, v5.4s, v1.s[1]      \n"
-                    "fmla   v21.4s, v5.4s, v1.s[2]      \n"
-                    "fmla   v23.4s, v5.4s, v1.s[3]      \n"
+                        "sub    %1, %1, #32                 \n"
+                        "sub    %2, %2, #16                 \n"
 
-                    "fmla   v24.4s, v4.4s, v2.s[0]      \n"
-                    "fmla   v26.4s, v4.4s, v2.s[1]      \n"
-                    "fmla   v28.4s, v4.4s, v2.s[2]      \n"
-                    "fmla   v30.4s, v4.4s, v2.s[3]      \n"
-                    "fmla   v25.4s, v5.4s, v2.s[0]      \n"
-                    "fmla   v27.4s, v5.4s, v2.s[1]      \n"
-                    "fmla   v29.4s, v5.4s, v2.s[2]      \n"
-                    "fmla   v31.4s, v5.4s, v2.s[3]      \n"
+                        "3:                                 \n"
+                        "and    w4, %w6, #3                 \n" // w4 = remain = max_kk & 3
+                        "cmp    w4, #0                      \n"
+                        "beq    5f                          \n"
 
-                    "fmla   v8.4s, v6.4s, v3.s[0]       \n"
-                    "fmla   v10.4s, v6.4s, v3.s[1]      \n"
-                    "fmla   v12.4s, v6.4s, v3.s[2]      \n"
-                    "fmla   v14.4s, v6.4s, v3.s[3]      \n"
-                    "fmla   v9.4s, v7.4s, v3.s[0]       \n"
-                    "fmla   v11.4s, v7.4s, v3.s[1]      \n"
-                    "fmla   v13.4s, v7.4s, v3.s[2]      \n"
-                    "fmla   v15.4s, v7.4s, v3.s[3]      \n"
+                        "4:                                 \n"
+                        "ld1    {v0.4s, v1.4s, v2.4s}, [%2], #48 \n"
+                        "ld1    {v4.4s, v5.4s}, [%1], #32   \n"
 
-                    "prfm   pldl1keep, [%2, #512]       \n"
-                    "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%2], #64 \n"
+                        "fmla   v8.4s, v4.4s, v0.s[0]       \n"
+                        "fmla   v10.4s, v4.4s, v0.s[1]      \n"
+                        "fmla   v12.4s, v4.4s, v0.s[2]      \n"
+                        "fmla   v14.4s, v4.4s, v0.s[3]      \n"
+                        "fmla   v16.4s, v4.4s, v1.s[0]      \n"
+                        "fmla   v18.4s, v4.4s, v1.s[1]      \n"
+                        "fmla   v20.4s, v4.4s, v1.s[2]      \n"
+                        "fmla   v22.4s, v4.4s, v1.s[3]      \n"
+                        "fmla   v24.4s, v4.4s, v2.s[0]      \n"
+                        "fmla   v26.4s, v4.4s, v2.s[1]      \n"
+                        "fmla   v28.4s, v4.4s, v2.s[2]      \n"
+                        "fmla   v30.4s, v4.4s, v2.s[3]      \n"
 
-                    "fmla   v16.4s, v6.4s, v0.s[0]      \n"
-                    "fmla   v18.4s, v6.4s, v0.s[1]      \n"
-                    "fmla   v20.4s, v6.4s, v0.s[2]      \n"
-                    "fmla   v22.4s, v6.4s, v0.s[3]      \n"
-                    "fmla   v17.4s, v7.4s, v0.s[0]      \n"
-                    "fmla   v19.4s, v7.4s, v0.s[1]      \n"
-                    "fmla   v21.4s, v7.4s, v0.s[2]      \n"
-                    "fmla   v23.4s, v7.4s, v0.s[3]      \n"
+                        "subs   w4, w4, #1                  \n"
 
-                    "fmla   v24.4s, v6.4s, v1.s[0]      \n"
-                    "fmla   v26.4s, v6.4s, v1.s[1]      \n"
-                    "fmla   v28.4s, v6.4s, v1.s[2]      \n"
-                    "fmla   v30.4s, v6.4s, v1.s[3]      \n"
-                    "fmla   v25.4s, v7.4s, v1.s[0]      \n"
-                    "fmla   v27.4s, v7.4s, v1.s[1]      \n"
-                    "fmla   v29.4s, v7.4s, v1.s[2]      \n"
-                    "fmla   v31.4s, v7.4s, v1.s[3]      \n"
+                        "fmla   v9.4s, v5.4s, v0.s[0]       \n"
+                        "fmla   v11.4s, v5.4s, v0.s[1]      \n"
+                        "fmla   v13.4s, v5.4s, v0.s[2]      \n"
+                        "fmla   v15.4s, v5.4s, v0.s[3]      \n"
+                        "fmla   v17.4s, v5.4s, v1.s[0]      \n"
+                        "fmla   v19.4s, v5.4s, v1.s[1]      \n"
+                        "fmla   v21.4s, v5.4s, v1.s[2]      \n"
+                        "fmla   v23.4s, v5.4s, v1.s[3]      \n"
+                        "fmla   v25.4s, v5.4s, v2.s[0]      \n"
+                        "fmla   v27.4s, v5.4s, v2.s[1]      \n"
+                        "fmla   v29.4s, v5.4s, v2.s[2]      \n"
+                        "fmla   v31.4s, v5.4s, v2.s[3]      \n"
 
-                    "prfm   pldl1keep, [%1, #512]       \n"
-                    "ld1    {v4.4s, v5.4s, v6.4s, v7.4s}, [%1], #64 \n"
+                        "bne    4b                          \n"
 
-                    "fmla   v8.4s, v4.4s, v2.s[0]       \n"
-                    "fmla   v10.4s, v4.4s, v2.s[1]      \n"
-                    "fmla   v12.4s, v4.4s, v2.s[2]      \n"
-                    "fmla   v14.4s, v4.4s, v2.s[3]      \n"
-                    "fmla   v9.4s, v5.4s, v2.s[0]       \n"
-                    "fmla   v11.4s, v5.4s, v2.s[1]      \n"
-                    "fmla   v13.4s, v5.4s, v2.s[2]      \n"
-                    "fmla   v15.4s, v5.4s, v2.s[3]      \n"
+                        "5:                                 \n"
+                        "st1    {v8.4s, v9.4s, v10.4s, v11.4s}, [%0], #64   \n"
+                        "st1    {v12.4s, v13.4s, v14.4s, v15.4s}, [%0], #64 \n"
+                        "st1    {v16.4s, v17.4s, v18.4s, v19.4s}, [%0], #64 \n"
+                        "st1    {v20.4s, v21.4s, v22.4s, v23.4s}, [%0], #64 \n"
+                        "st1    {v24.4s, v25.4s, v26.4s, v27.4s}, [%0], #64 \n"
+                        "st1    {v28.4s, v29.4s, v30.4s, v31.4s}, [%0], #64 \n"
 
-                    "fmla   v16.4s, v4.4s, v3.s[0]      \n"
-                    "fmla   v18.4s, v4.4s, v3.s[1]      \n"
-                    "fmla   v20.4s, v4.4s, v3.s[2]      \n"
-                    "fmla   v22.4s, v4.4s, v3.s[3]      \n"
-                    "fmla   v17.4s, v5.4s, v3.s[0]      \n"
-                    "fmla   v19.4s, v5.4s, v3.s[1]      \n"
-                    "fmla   v21.4s, v5.4s, v3.s[2]      \n"
-                    "fmla   v23.4s, v5.4s, v3.s[3]      \n"
+                        : "=r"(outptr), // %0
+                        "=r"(pA),     // %1
+                        "=r"(pB)      // %2
+                        : "0"(outptr),
+                        "1"(pA),
+                        "2"(pB),
+                        "r"(max_kk), // %6
+                        "r"(k)       // %7
+                        : "cc", "memory", "x4", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
+                }
+                else if (use_a53_a55_optimized_kernel && !cpu_support_arm_asimdhp())
+                {
+                    // a53
+                    asm volatile(
+                        "cbz    %w7, 0f                     \n"
 
-                    "prfm   pldl1keep, [%2, #512]       \n"
-                    "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%2], #64 \n"
+                        "ld1    {v8.4s, v9.4s, v10.4s, v11.4s}, [%0], #64   \n"
+                        "ld1    {v12.4s, v13.4s, v14.4s, v15.4s}, [%0], #64 \n"
+                        "ld1    {v16.4s, v17.4s, v18.4s, v19.4s}, [%0], #64 \n"
+                        "ld1    {v20.4s, v21.4s, v22.4s, v23.4s}, [%0], #64 \n"
+                        "ld1    {v24.4s, v25.4s, v26.4s, v27.4s}, [%0], #64 \n"
+                        "ld1    {v28.4s, v29.4s, v30.4s, v31.4s}, [%0]      \n"
+                        "subs   %0, %0, #320                \n"
+                        "b      1f                          \n"
 
-                    "fmla   v24.4s, v4.4s, v0.s[0]      \n"
-                    "fmla   v26.4s, v4.4s, v0.s[1]      \n"
-                    "fmla   v28.4s, v4.4s, v0.s[2]      \n"
-                    "fmla   v30.4s, v4.4s, v0.s[3]      \n"
-                    "fmla   v25.4s, v5.4s, v0.s[0]      \n"
-                    "fmla   v27.4s, v5.4s, v0.s[1]      \n"
-                    "fmla   v29.4s, v5.4s, v0.s[2]      \n"
-                    "fmla   v31.4s, v5.4s, v0.s[3]      \n"
+                        "0:                                 \n"
+                        "eor    v8.16b, v8.16b, v8.16b      \n"
+                        "eor    v9.16b, v9.16b, v9.16b      \n"
+                        "eor    v10.16b, v10.16b, v10.16b   \n"
+                        "eor    v11.16b, v11.16b, v11.16b   \n"
+                        "eor    v12.16b, v12.16b, v12.16b   \n"
+                        "eor    v13.16b, v13.16b, v13.16b   \n"
+                        "eor    v14.16b, v14.16b, v14.16b   \n"
+                        "eor    v15.16b, v15.16b, v15.16b   \n"
+                        "eor    v16.16b, v16.16b, v16.16b   \n"
+                        "eor    v17.16b, v17.16b, v17.16b   \n"
+                        "eor    v18.16b, v18.16b, v18.16b   \n"
+                        "eor    v19.16b, v19.16b, v19.16b   \n"
+                        "eor    v20.16b, v20.16b, v20.16b   \n"
+                        "eor    v21.16b, v21.16b, v21.16b   \n"
+                        "eor    v22.16b, v22.16b, v22.16b   \n"
+                        "eor    v23.16b, v23.16b, v23.16b   \n"
+                        "eor    v24.16b, v24.16b, v24.16b   \n"
+                        "eor    v25.16b, v25.16b, v25.16b   \n"
+                        "eor    v26.16b, v26.16b, v26.16b   \n"
+                        "eor    v27.16b, v27.16b, v27.16b   \n"
+                        "eor    v28.16b, v28.16b, v28.16b   \n"
+                        "eor    v29.16b, v29.16b, v29.16b   \n"
+                        "eor    v30.16b, v30.16b, v30.16b   \n"
+                        "eor    v31.16b, v31.16b, v31.16b   \n"
 
-                    "fmla   v8.4s, v6.4s, v1.s[0]       \n"
-                    "fmla   v10.4s, v6.4s, v1.s[1]      \n"
-                    "fmla   v12.4s, v6.4s, v1.s[2]      \n"
-                    "fmla   v14.4s, v6.4s, v1.s[3]      \n"
-                    "fmla   v9.4s, v7.4s, v1.s[0]       \n"
-                    "fmla   v11.4s, v7.4s, v1.s[1]      \n"
-                    "fmla   v13.4s, v7.4s, v1.s[2]      \n"
-                    "fmla   v15.4s, v7.4s, v1.s[3]      \n"
+                        "1:                                 \n"
+                        "lsr    w4, %w6, #2                 \n" // w4 = max_kk >> 2
+                        "cmp    w4, #0                      \n"
+                        "beq    3f                          \n"
 
-                    "fmla   v16.4s, v6.4s, v2.s[0]      \n"
-                    "fmla   v18.4s, v6.4s, v2.s[1]      \n"
-                    "fmla   v20.4s, v6.4s, v2.s[2]      \n"
-                    "fmla   v22.4s, v6.4s, v2.s[3]      \n"
-                    "fmla   v17.4s, v7.4s, v2.s[0]      \n"
-                    "fmla   v19.4s, v7.4s, v2.s[1]      \n"
-                    "fmla   v21.4s, v7.4s, v2.s[2]      \n"
-                    "fmla   v23.4s, v7.4s, v2.s[3]      \n"
+                        "prfm   pldl1keep, [%1, #256]       \n"
+                        "ld1    {v4.4s}, [%1], #16          \n"
 
-                    "subs   w4, w4, #1                  \n"
+                        "prfm   pldl1keep, [%2, #384]       \n"
+                        "ld1    {v0.4s}, [%2], #16          \n"
 
-                    "fmla   v24.4s, v6.4s, v3.s[0]      \n"
-                    "fmla   v26.4s, v6.4s, v3.s[1]      \n"
-                    "fmla   v28.4s, v6.4s, v3.s[2]      \n"
-                    "fmla   v30.4s, v6.4s, v3.s[3]      \n"
-                    "fmla   v25.4s, v7.4s, v3.s[0]      \n"
-                    "fmla   v27.4s, v7.4s, v3.s[1]      \n"
-                    "fmla   v29.4s, v7.4s, v3.s[2]      \n"
-                    "fmla   v31.4s, v7.4s, v3.s[3]      \n"
+                        "ldr    d1, [%2]                    \n"
+                        "ldr    x21, [%2, #8]               \n"
+                        "ldr    d2, [%2, #16]               \n"
+                        "ldr    x22, [%2, #24]              \n"
+                        "add    %2, %2, #32                 \n"
 
-                    "bne    2b                          \n"
+                        ".align 4                           \n"
+                        "2:                                 \n"
 
-                    "3:                                 \n"
-                    "and    w4, %w6, #3                 \n" // w4 = remain = max_kk & 3
-                    "cmp    w4, #0                      \n"
-                    "beq    5f                          \n"
+                        "ldr    d5, [%1]                    \n"
+                        "ins    v1.d[1], x21                \n"
+                        "fmla   v8.4s, v4.4s, v0.s[0]       \n"
+                        "ldr    x25, [%1, #8]               \n"
+                        "fmla   v10.4s, v4.4s, v0.s[1]      \n"
+                        "add    %1, %1, #16                 \n"
+                        "fmla   v12.4s, v4.4s, v0.s[2]      \n"
 
-                    "4:                                 \n"
-                    "ld1    {v0.4s, v1.4s, v2.4s}, [%2], #48 \n"
-                    "ld1    {v4.4s, v5.4s}, [%1], #32   \n"
+                        "ldr    d6, [%1]                    \n"
+                        "ins    v2.d[1], x22                \n"
+                        "fmla   v14.4s, v4.4s, v0.s[3]      \n"
+                        "ldr    x26, [%1, #8]               \n"
+                        "fmla   v16.4s, v4.4s, v1.s[0]      \n"
+                        "add    %1, %1, #16                 \n"
+                        "fmla   v18.4s, v4.4s, v1.s[1]      \n"
 
-                    "fmla   v8.4s, v4.4s, v0.s[0]       \n"
-                    "fmla   v10.4s, v4.4s, v0.s[1]      \n"
-                    "fmla   v12.4s, v4.4s, v0.s[2]      \n"
-                    "fmla   v14.4s, v4.4s, v0.s[3]      \n"
-                    "fmla   v16.4s, v4.4s, v1.s[0]      \n"
-                    "fmla   v18.4s, v4.4s, v1.s[1]      \n"
-                    "fmla   v20.4s, v4.4s, v1.s[2]      \n"
-                    "fmla   v22.4s, v4.4s, v1.s[3]      \n"
-                    "fmla   v24.4s, v4.4s, v2.s[0]      \n"
-                    "fmla   v26.4s, v4.4s, v2.s[1]      \n"
-                    "fmla   v28.4s, v4.4s, v2.s[2]      \n"
-                    "fmla   v30.4s, v4.4s, v2.s[3]      \n"
+                        "nop                                \n"
+                        "prfm   pldl1keep, [%1, #256]       \n" // NOTE PRELOAD
+                        "fmla   v20.4s, v4.4s, v1.s[2]      \n"
+                        "nop                                \n"
+                        "fmla   v22.4s, v4.4s, v1.s[3]      \n"
+                        "nop                                \n"
+                        "fmla   v24.4s, v4.4s, v2.s[0]      \n"
 
-                    "subs   w4, w4, #1                  \n"
+                        "ldr    d3, [%2]                    \n"
+                        "ins    v5.d[1], x25                \n"
+                        "fmla   v26.4s, v4.4s, v2.s[1]      \n"
+                        "ldr    x23, [%2, #8]               \n"
+                        "fmla   v28.4s, v4.4s, v2.s[2]      \n"
+                        "add    %2, %2, #16                 \n"
+                        "fmla   v30.4s, v4.4s, v2.s[3]      \n"
 
-                    "fmla   v9.4s, v5.4s, v0.s[0]       \n"
-                    "fmla   v11.4s, v5.4s, v0.s[1]      \n"
-                    "fmla   v13.4s, v5.4s, v0.s[2]      \n"
-                    "fmla   v15.4s, v5.4s, v0.s[3]      \n"
-                    "fmla   v17.4s, v5.4s, v1.s[0]      \n"
-                    "fmla   v19.4s, v5.4s, v1.s[1]      \n"
-                    "fmla   v21.4s, v5.4s, v1.s[2]      \n"
-                    "fmla   v23.4s, v5.4s, v1.s[3]      \n"
-                    "fmla   v25.4s, v5.4s, v2.s[0]      \n"
-                    "fmla   v27.4s, v5.4s, v2.s[1]      \n"
-                    "fmla   v29.4s, v5.4s, v2.s[2]      \n"
-                    "fmla   v31.4s, v5.4s, v2.s[3]      \n"
+                        "nop                                \n"
+                        "prfm   pldl1keep, [%2, #384]       \n" // NOTE PRELOAD
+                        "fmla   v9.4s, v5.4s, v0.s[0]       \n"
+                        "nop                                \n"
+                        "fmla   v11.4s, v5.4s, v0.s[1]      \n"
+                        "nop                                \n"
+                        "fmla   v13.4s, v5.4s, v0.s[2]      \n"
 
-                    "bne    4b                          \n"
+                        "nop                                \n"
+                        "nop                                \n"
+                        "fmla   v15.4s, v5.4s, v0.s[3]      \n"
+                        "nop                                \n"
+                        "fmla   v17.4s, v5.4s, v1.s[0]      \n"
+                        "nop                                \n"
+                        "fmla   v19.4s, v5.4s, v1.s[1]      \n"
 
-                    "5:                                 \n"
-                    "st1    {v8.4s, v9.4s, v10.4s, v11.4s}, [%0], #64   \n"
-                    "st1    {v12.4s, v13.4s, v14.4s, v15.4s}, [%0], #64 \n"
-                    "st1    {v16.4s, v17.4s, v18.4s, v19.4s}, [%0], #64 \n"
-                    "st1    {v20.4s, v21.4s, v22.4s, v23.4s}, [%0], #64 \n"
-                    "st1    {v24.4s, v25.4s, v26.4s, v27.4s}, [%0], #64 \n"
-                    "st1    {v28.4s, v29.4s, v30.4s, v31.4s}, [%0], #64 \n"
+                        "ldr    d0, [%2]                    \n"
+                        "ins    v6.d[1], x26                \n"
+                        "fmla   v21.4s, v5.4s, v1.s[2]      \n"
+                        "ldr    x20, [%2, #8]               \n"
+                        "fmla   v23.4s, v5.4s, v1.s[3]      \n"
+                        "add    %2, %2, #16                 \n"
+                        "fmla   v25.4s, v5.4s, v2.s[0]      \n"
 
-                    : "=r"(outptr), // %0
-                    "=r"(pA),     // %1
-                    "=r"(pB)      // %2
-                    : "0"(outptr),
-                    "1"(pA),
-                    "2"(pB),
-                    "r"(max_kk), // %6
-                    "r"(k)       // %7
-                    : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
+                        "ldr    d1, [%2]                    \n"
+                        "ins    v3.d[1], x23                \n"
+                        "fmla   v27.4s, v5.4s, v2.s[1]      \n"
+                        "ldr    x21, [%2, #8]               \n"
+                        "fmla   v29.4s, v5.4s, v2.s[2]      \n"
+                        "add    %2, %2, #16                 \n"
+                        "fmla   v31.4s, v5.4s, v2.s[3]      \n"
+
+                        "ldr    d7, [%1]                    \n"
+                        "ins    v0.d[1], x20                \n"
+                        "fmla   v8.4s, v6.4s, v3.s[0]       \n"
+                        "ldr    x27, [%1, #8]               \n"
+                        "fmla   v10.4s, v6.4s, v3.s[1]      \n"
+                        "add    %1, %1, #16                 \n"
+                        "fmla   v12.4s, v6.4s, v3.s[2]      \n"
+
+                        "ldr    d4, [%1]                    \n"
+                        "ins    v1.d[1], x21                \n"
+                        "fmla   v14.4s, v6.4s, v3.s[3]      \n"
+                        "ldr    x24, [%1, #8]               \n"
+                        "fmla   v16.4s, v6.4s, v0.s[0]      \n"
+                        "add    %1, %1, #16                 \n"
+                        "fmla   v18.4s, v6.4s, v0.s[1]      \n"
+
+                        "nop                                \n"
+                        "prfm   pldl1keep, [%1, #256]       \n" // NOTE PRELOAD
+                        "fmla   v20.4s, v6.4s, v0.s[2]      \n"
+                        "nop                                \n"
+                        "fmla   v22.4s, v6.4s, v0.s[3]      \n"
+                        "nop                                \n"
+                        "fmla   v24.4s, v6.4s, v1.s[0]      \n"
+
+                        "ldr    d2, [%2]                    \n"
+                        "ins    v7.d[1], x27                \n"
+                        "fmla   v26.4s, v6.4s, v1.s[1]      \n"
+                        "ldr    x22, [%2, #8]               \n"
+                        "fmla   v28.4s, v6.4s, v1.s[2]      \n"
+                        "add    %2, %2, #16                 \n"
+                        "fmla   v30.4s, v6.4s, v1.s[3]      \n"
+
+                        "nop                                \n"
+                        "prfm   pldl1keep, [%2, #384]       \n" // NOTE PRELOAD
+                        "fmla   v9.4s, v7.4s, v3.s[0]       \n"
+                        "nop                                \n"
+                        "fmla   v11.4s, v7.4s, v3.s[1]      \n"
+                        "nop                                \n"
+                        "fmla   v13.4s, v7.4s, v3.s[2]      \n"
+
+                        "nop                                \n"
+                        "nop                                \n"
+                        "fmla   v15.4s, v7.4s, v3.s[3]      \n"
+                        "nop                                \n"
+                        "fmla   v17.4s, v7.4s, v0.s[0]      \n"
+                        "nop                                \n"
+                        "fmla   v19.4s, v7.4s, v0.s[1]      \n"
+
+                        "ldr    d3, [%2]                    \n"
+                        "ins    v4.d[1], x24                \n"
+                        "fmla   v21.4s, v7.4s, v0.s[2]      \n"
+                        "ldr    x23, [%2, #8]               \n"
+                        "fmla   v23.4s, v7.4s, v0.s[3]      \n"
+                        "add    %2, %2, #16                 \n"
+                        "fmla   v25.4s, v7.4s, v1.s[0]      \n"
+
+                        "ldr    d0, [%2]                    \n"
+                        "ins    v2.d[1], x22                \n"
+                        "fmla   v27.4s, v7.4s, v1.s[1]      \n"
+                        "ldr    x20, [%2, #8]               \n"
+                        "fmla   v29.4s, v7.4s, v1.s[2]      \n"
+                        "add    %2, %2, #16                 \n"
+                        "fmla   v31.4s, v7.4s, v1.s[3]      \n"
+
+                        "ldr    d5, [%1]                    \n"
+                        "ins    v3.d[1], x23                \n"
+                        "fmla   v8.4s, v4.4s, v2.s[0]       \n"
+                        "ldr    x25, [%1, #8]               \n"
+                        "fmla   v10.4s, v4.4s, v2.s[1]      \n"
+                        "add    %1, %1, #16                 \n"
+                        "fmla   v12.4s, v4.4s, v2.s[2]      \n"
+
+                        "ldr    d6, [%1]                    \n"
+                        "ins    v0.d[1], x20                \n"
+                        "fmla   v14.4s, v4.4s, v2.s[3]      \n"
+                        "ldr    x26, [%1, #8]               \n"
+                        "fmla   v16.4s, v4.4s, v3.s[0]      \n"
+                        "add    %1, %1, #16                 \n"
+                        "fmla   v18.4s, v4.4s, v3.s[1]      \n"
+
+                        "nop                                \n"
+                        "prfm   pldl1keep, [%1, #256]       \n" // NOTE PRELOAD
+                        "fmla   v20.4s, v4.4s, v3.s[2]      \n"
+                        "nop                                \n"
+                        "fmla   v22.4s, v4.4s, v3.s[3]      \n"
+                        "nop                                \n"
+                        "fmla   v24.4s, v4.4s, v0.s[0]      \n"
+
+                        "ldr    d1, [%2]                    \n"
+                        "ins    v5.d[1], x25                \n"
+                        "fmla   v26.4s, v4.4s, v0.s[1]      \n"
+                        "ldr    x21, [%2, #8]               \n"
+                        "fmla   v28.4s, v4.4s, v0.s[2]      \n"
+                        "add    %2, %2, #16                 \n"
+                        "fmla   v30.4s, v4.4s, v0.s[3]      \n"
+
+                        "nop                                \n"
+                        "prfm   pldl1keep, [%2, #384]       \n" // NOTE PRELOAD
+                        "fmla   v9.4s, v5.4s, v2.s[0]       \n"
+                        "nop                                \n"
+                        "fmla   v11.4s, v5.4s, v2.s[1]      \n"
+                        "nop                                \n"
+                        "fmla   v13.4s, v5.4s, v2.s[2]      \n"
+
+                        "nop                                \n"
+                        "nop                                \n"
+                        "fmla   v15.4s, v5.4s, v2.s[3]      \n"
+                        "nop                                \n"
+                        "fmla   v17.4s, v5.4s, v3.s[0]      \n"
+                        "nop                                \n"
+                        "fmla   v19.4s, v5.4s, v3.s[1]      \n"
+
+                        "ldr    d2, [%2]                    \n"
+                        "ins    v6.d[1], x26                \n"
+                        "fmla   v21.4s, v5.4s, v3.s[2]      \n"
+                        "ldr    x22, [%2, #8]               \n"
+                        "fmla   v23.4s, v5.4s, v3.s[3]      \n"
+                        "add    %2, %2, #16                 \n"
+                        "fmla   v25.4s, v5.4s, v0.s[0]      \n"
+
+                        "ldr    d3, [%2]                    \n"
+                        "ins    v1.d[1], x21                \n"
+                        "fmla   v27.4s, v5.4s, v0.s[1]      \n"
+                        "ldr    x23, [%2, #8]               \n"
+                        "fmla   v29.4s, v5.4s, v0.s[2]      \n"
+                        "add    %2, %2, #16                 \n"
+                        "fmla   v31.4s, v5.4s, v0.s[3]      \n"
+
+                        "ldr    d7, [%1]                    \n"
+                        "ins    v2.d[1], x22                \n"
+                        "fmla   v8.4s, v6.4s, v1.s[0]       \n"
+                        "ldr    x27, [%1, #8]               \n"
+                        "fmla   v10.4s, v6.4s, v1.s[1]      \n"
+                        "add    %1, %1, #16                 \n"
+                        "fmla   v12.4s, v6.4s, v1.s[2]      \n"
+
+                        "ldr    d4, [%1]                    \n"
+                        "ins    v3.d[1], x23                \n"
+                        "fmla   v14.4s, v6.4s, v1.s[3]      \n"
+                        "ldr    x24, [%1, #8]               \n"
+                        "fmla   v16.4s, v6.4s, v2.s[0]      \n"
+                        "add    %1, %1, #16                 \n"
+                        "fmla   v18.4s, v6.4s, v2.s[1]      \n"
+
+                        "nop                                \n"
+                        "prfm   pldl1keep, [%1, #256]       \n" // NOTE PRELOAD
+                        "fmla   v20.4s, v6.4s, v2.s[2]      \n"
+                        "nop                                \n"
+                        "fmla   v22.4s, v6.4s, v2.s[3]      \n"
+                        "nop                                \n"
+                        "fmla   v24.4s, v6.4s, v3.s[0]      \n"
+
+                        "ldr    d0, [%2]                    \n"
+                        "ins    v7.d[1], x27                \n"
+                        "fmla   v26.4s, v6.4s, v3.s[1]      \n"
+                        "ldr    x20, [%2, #8]               \n"
+                        "fmla   v28.4s, v6.4s, v3.s[2]      \n"
+                        "add    %2, %2, #16                 \n"
+                        "fmla   v30.4s, v6.4s, v3.s[3]      \n"
+
+                        "nop                                \n"
+                        "prfm   pldl1keep, [%2, #384]       \n" // NOTE PRELOAD
+                        "fmla   v9.4s, v7.4s, v1.s[0]       \n"
+                        "nop                                \n"
+                        "fmla   v11.4s, v7.4s, v1.s[1]      \n"
+                        "nop                                \n"
+                        "fmla   v13.4s, v7.4s, v1.s[2]      \n"
+
+                        "nop                                \n"
+                        "nop                                \n"
+                        "fmla   v15.4s, v7.4s, v1.s[3]      \n"
+                        "subs   w4, w4, #1                  \n"
+                        "fmla   v17.4s, v7.4s, v2.s[0]      \n"
+                        "nop                                \n"
+                        "fmla   v19.4s, v7.4s, v2.s[1]      \n"
+
+                        "ldr    d1, [%2]                    \n"
+                        "ins    v4.d[1], x24                \n"
+                        "fmla   v21.4s, v7.4s, v2.s[2]      \n"
+                        "ldr    x21, [%2, #8]               \n"
+                        "fmla   v23.4s, v7.4s, v2.s[3]      \n"
+                        "add    %2, %2, #16                 \n"
+                        "fmla   v25.4s, v7.4s, v3.s[0]      \n"
+
+                        "ldr    d2, [%2]                    \n"
+                        "ins    v0.d[1], x20                \n"
+                        "fmla   v27.4s, v7.4s, v3.s[1]      \n"
+                        "ldr    x22, [%2, #8]               \n"
+                        "fmla   v29.4s, v7.4s, v3.s[2]      \n"
+                        "add    %2, %2, #16                 \n"
+                        "fmla   v31.4s, v7.4s, v3.s[3]      \n"
+
+                        "bne    2b                          \n"
+
+                        "sub    %1, %1, #16                 \n"
+                        "sub    %2, %2, #48                 \n"
+
+                        "3:                                 \n"
+                        "and    w4, %w6, #3                 \n" // w4 = remain = max_kk & 3
+                        "cmp    w4, #0                      \n"
+                        "beq    5f                          \n"
+
+                        "4:                                 \n"
+                        "ld1    {v0.4s, v1.4s, v2.4s}, [%2], #48 \n"
+                        "ld1    {v4.4s, v5.4s}, [%1], #32   \n"
+
+                        "fmla   v8.4s, v4.4s, v0.s[0]       \n"
+                        "fmla   v10.4s, v4.4s, v0.s[1]      \n"
+                        "fmla   v12.4s, v4.4s, v0.s[2]      \n"
+                        "fmla   v14.4s, v4.4s, v0.s[3]      \n"
+                        "fmla   v16.4s, v4.4s, v1.s[0]      \n"
+                        "fmla   v18.4s, v4.4s, v1.s[1]      \n"
+                        "fmla   v20.4s, v4.4s, v1.s[2]      \n"
+                        "fmla   v22.4s, v4.4s, v1.s[3]      \n"
+                        "fmla   v24.4s, v4.4s, v2.s[0]      \n"
+                        "fmla   v26.4s, v4.4s, v2.s[1]      \n"
+                        "fmla   v28.4s, v4.4s, v2.s[2]      \n"
+                        "fmla   v30.4s, v4.4s, v2.s[3]      \n"
+
+                        "subs   w4, w4, #1                  \n"
+
+                        "fmla   v9.4s, v5.4s, v0.s[0]       \n"
+                        "fmla   v11.4s, v5.4s, v0.s[1]      \n"
+                        "fmla   v13.4s, v5.4s, v0.s[2]      \n"
+                        "fmla   v15.4s, v5.4s, v0.s[3]      \n"
+                        "fmla   v17.4s, v5.4s, v1.s[0]      \n"
+                        "fmla   v19.4s, v5.4s, v1.s[1]      \n"
+                        "fmla   v21.4s, v5.4s, v1.s[2]      \n"
+                        "fmla   v23.4s, v5.4s, v1.s[3]      \n"
+                        "fmla   v25.4s, v5.4s, v2.s[0]      \n"
+                        "fmla   v27.4s, v5.4s, v2.s[1]      \n"
+                        "fmla   v29.4s, v5.4s, v2.s[2]      \n"
+                        "fmla   v31.4s, v5.4s, v2.s[3]      \n"
+
+                        "bne    4b                          \n"
+
+                        "5:                                 \n"
+                        "st1    {v8.4s, v9.4s, v10.4s, v11.4s}, [%0], #64   \n"
+                        "st1    {v12.4s, v13.4s, v14.4s, v15.4s}, [%0], #64 \n"
+                        "st1    {v16.4s, v17.4s, v18.4s, v19.4s}, [%0], #64 \n"
+                        "st1    {v20.4s, v21.4s, v22.4s, v23.4s}, [%0], #64 \n"
+                        "st1    {v24.4s, v25.4s, v26.4s, v27.4s}, [%0], #64 \n"
+                        "st1    {v28.4s, v29.4s, v30.4s, v31.4s}, [%0], #64 \n"
+
+                        : "=r"(outptr), // %0
+                        "=r"(pA),     // %1
+                        "=r"(pB)      // %2
+                        : "0"(outptr),
+                        "1"(pA),
+                        "2"(pB),
+                        "r"(max_kk), // %6
+                        "r"(k)       // %7
+                        : "cc", "memory", "x4", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
+                }
+                else
+                {
+                    asm volatile(
+                        "cbz    %w7, 0f                     \n"
+
+                        "ld1    {v8.4s, v9.4s, v10.4s, v11.4s}, [%0], #64   \n"
+                        "ld1    {v12.4s, v13.4s, v14.4s, v15.4s}, [%0], #64 \n"
+                        "ld1    {v16.4s, v17.4s, v18.4s, v19.4s}, [%0], #64 \n"
+                        "ld1    {v20.4s, v21.4s, v22.4s, v23.4s}, [%0], #64 \n"
+                        "ld1    {v24.4s, v25.4s, v26.4s, v27.4s}, [%0], #64 \n"
+                        "ld1    {v28.4s, v29.4s, v30.4s, v31.4s}, [%0]      \n"
+                        "subs   %0, %0, #320                \n"
+                        "b      1f                          \n"
+
+                        "0:                                 \n"
+                        "eor    v8.16b, v8.16b, v8.16b      \n"
+                        "eor    v9.16b, v9.16b, v9.16b      \n"
+                        "eor    v10.16b, v10.16b, v10.16b   \n"
+                        "eor    v11.16b, v11.16b, v11.16b   \n"
+                        "eor    v12.16b, v12.16b, v12.16b   \n"
+                        "eor    v13.16b, v13.16b, v13.16b   \n"
+                        "eor    v14.16b, v14.16b, v14.16b   \n"
+                        "eor    v15.16b, v15.16b, v15.16b   \n"
+                        "eor    v16.16b, v16.16b, v16.16b   \n"
+                        "eor    v17.16b, v17.16b, v17.16b   \n"
+                        "eor    v18.16b, v18.16b, v18.16b   \n"
+                        "eor    v19.16b, v19.16b, v19.16b   \n"
+                        "eor    v20.16b, v20.16b, v20.16b   \n"
+                        "eor    v21.16b, v21.16b, v21.16b   \n"
+                        "eor    v22.16b, v22.16b, v22.16b   \n"
+                        "eor    v23.16b, v23.16b, v23.16b   \n"
+                        "eor    v24.16b, v24.16b, v24.16b   \n"
+                        "eor    v25.16b, v25.16b, v25.16b   \n"
+                        "eor    v26.16b, v26.16b, v26.16b   \n"
+                        "eor    v27.16b, v27.16b, v27.16b   \n"
+                        "eor    v28.16b, v28.16b, v28.16b   \n"
+                        "eor    v29.16b, v29.16b, v29.16b   \n"
+                        "eor    v30.16b, v30.16b, v30.16b   \n"
+                        "eor    v31.16b, v31.16b, v31.16b   \n"
+
+                        "1:                                 \n"
+                        "lsr    w4, %w6, #2                 \n" // w4 = max_kk >> 2
+                        "cmp    w4, #0                      \n"
+                        "beq    3f                          \n"
+
+                        "2:                                 \n"
+                        "prfm   pldl1keep, [%1, #512]       \n"
+                        "ld1    {v4.4s, v5.4s, v6.4s, v7.4s}, [%1], #64 \n"
+
+                        "prfm   pldl1keep, [%2, #512]       \n"
+                        "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%2], #64 \n"
+
+                        "fmla   v8.4s, v4.4s, v0.s[0]       \n"
+                        "fmla   v10.4s, v4.4s, v0.s[1]      \n"
+                        "fmla   v12.4s, v4.4s, v0.s[2]      \n"
+                        "fmla   v14.4s, v4.4s, v0.s[3]      \n"
+                        "fmla   v9.4s, v5.4s, v0.s[0]       \n"
+                        "fmla   v11.4s, v5.4s, v0.s[1]      \n"
+                        "fmla   v13.4s, v5.4s, v0.s[2]      \n"
+                        "fmla   v15.4s, v5.4s, v0.s[3]      \n"
+
+                        "fmla   v16.4s, v4.4s, v1.s[0]      \n"
+                        "fmla   v18.4s, v4.4s, v1.s[1]      \n"
+                        "fmla   v20.4s, v4.4s, v1.s[2]      \n"
+                        "fmla   v22.4s, v4.4s, v1.s[3]      \n"
+                        "fmla   v17.4s, v5.4s, v1.s[0]      \n"
+                        "fmla   v19.4s, v5.4s, v1.s[1]      \n"
+                        "fmla   v21.4s, v5.4s, v1.s[2]      \n"
+                        "fmla   v23.4s, v5.4s, v1.s[3]      \n"
+
+                        "fmla   v24.4s, v4.4s, v2.s[0]      \n"
+                        "fmla   v26.4s, v4.4s, v2.s[1]      \n"
+                        "fmla   v28.4s, v4.4s, v2.s[2]      \n"
+                        "fmla   v30.4s, v4.4s, v2.s[3]      \n"
+                        "fmla   v25.4s, v5.4s, v2.s[0]      \n"
+                        "fmla   v27.4s, v5.4s, v2.s[1]      \n"
+                        "fmla   v29.4s, v5.4s, v2.s[2]      \n"
+                        "fmla   v31.4s, v5.4s, v2.s[3]      \n"
+
+                        "fmla   v8.4s, v6.4s, v3.s[0]       \n"
+                        "fmla   v10.4s, v6.4s, v3.s[1]      \n"
+                        "fmla   v12.4s, v6.4s, v3.s[2]      \n"
+                        "fmla   v14.4s, v6.4s, v3.s[3]      \n"
+                        "fmla   v9.4s, v7.4s, v3.s[0]       \n"
+                        "fmla   v11.4s, v7.4s, v3.s[1]      \n"
+                        "fmla   v13.4s, v7.4s, v3.s[2]      \n"
+                        "fmla   v15.4s, v7.4s, v3.s[3]      \n"
+
+                        "prfm   pldl1keep, [%2, #512]       \n"
+                        "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%2], #64 \n"
+
+                        "fmla   v16.4s, v6.4s, v0.s[0]      \n"
+                        "fmla   v18.4s, v6.4s, v0.s[1]      \n"
+                        "fmla   v20.4s, v6.4s, v0.s[2]      \n"
+                        "fmla   v22.4s, v6.4s, v0.s[3]      \n"
+                        "fmla   v17.4s, v7.4s, v0.s[0]      \n"
+                        "fmla   v19.4s, v7.4s, v0.s[1]      \n"
+                        "fmla   v21.4s, v7.4s, v0.s[2]      \n"
+                        "fmla   v23.4s, v7.4s, v0.s[3]      \n"
+
+                        "fmla   v24.4s, v6.4s, v1.s[0]      \n"
+                        "fmla   v26.4s, v6.4s, v1.s[1]      \n"
+                        "fmla   v28.4s, v6.4s, v1.s[2]      \n"
+                        "fmla   v30.4s, v6.4s, v1.s[3]      \n"
+                        "fmla   v25.4s, v7.4s, v1.s[0]      \n"
+                        "fmla   v27.4s, v7.4s, v1.s[1]      \n"
+                        "fmla   v29.4s, v7.4s, v1.s[2]      \n"
+                        "fmla   v31.4s, v7.4s, v1.s[3]      \n"
+
+                        "prfm   pldl1keep, [%1, #512]       \n"
+                        "ld1    {v4.4s, v5.4s, v6.4s, v7.4s}, [%1], #64 \n"
+
+                        "fmla   v8.4s, v4.4s, v2.s[0]       \n"
+                        "fmla   v10.4s, v4.4s, v2.s[1]      \n"
+                        "fmla   v12.4s, v4.4s, v2.s[2]      \n"
+                        "fmla   v14.4s, v4.4s, v2.s[3]      \n"
+                        "fmla   v9.4s, v5.4s, v2.s[0]       \n"
+                        "fmla   v11.4s, v5.4s, v2.s[1]      \n"
+                        "fmla   v13.4s, v5.4s, v2.s[2]      \n"
+                        "fmla   v15.4s, v5.4s, v2.s[3]      \n"
+
+                        "fmla   v16.4s, v4.4s, v3.s[0]      \n"
+                        "fmla   v18.4s, v4.4s, v3.s[1]      \n"
+                        "fmla   v20.4s, v4.4s, v3.s[2]      \n"
+                        "fmla   v22.4s, v4.4s, v3.s[3]      \n"
+                        "fmla   v17.4s, v5.4s, v3.s[0]      \n"
+                        "fmla   v19.4s, v5.4s, v3.s[1]      \n"
+                        "fmla   v21.4s, v5.4s, v3.s[2]      \n"
+                        "fmla   v23.4s, v5.4s, v3.s[3]      \n"
+
+                        "prfm   pldl1keep, [%2, #512]       \n"
+                        "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%2], #64 \n"
+
+                        "fmla   v24.4s, v4.4s, v0.s[0]      \n"
+                        "fmla   v26.4s, v4.4s, v0.s[1]      \n"
+                        "fmla   v28.4s, v4.4s, v0.s[2]      \n"
+                        "fmla   v30.4s, v4.4s, v0.s[3]      \n"
+                        "fmla   v25.4s, v5.4s, v0.s[0]      \n"
+                        "fmla   v27.4s, v5.4s, v0.s[1]      \n"
+                        "fmla   v29.4s, v5.4s, v0.s[2]      \n"
+                        "fmla   v31.4s, v5.4s, v0.s[3]      \n"
+
+                        "fmla   v8.4s, v6.4s, v1.s[0]       \n"
+                        "fmla   v10.4s, v6.4s, v1.s[1]      \n"
+                        "fmla   v12.4s, v6.4s, v1.s[2]      \n"
+                        "fmla   v14.4s, v6.4s, v1.s[3]      \n"
+                        "fmla   v9.4s, v7.4s, v1.s[0]       \n"
+                        "fmla   v11.4s, v7.4s, v1.s[1]      \n"
+                        "fmla   v13.4s, v7.4s, v1.s[2]      \n"
+                        "fmla   v15.4s, v7.4s, v1.s[3]      \n"
+
+                        "fmla   v16.4s, v6.4s, v2.s[0]      \n"
+                        "fmla   v18.4s, v6.4s, v2.s[1]      \n"
+                        "fmla   v20.4s, v6.4s, v2.s[2]      \n"
+                        "fmla   v22.4s, v6.4s, v2.s[3]      \n"
+                        "fmla   v17.4s, v7.4s, v2.s[0]      \n"
+                        "fmla   v19.4s, v7.4s, v2.s[1]      \n"
+                        "fmla   v21.4s, v7.4s, v2.s[2]      \n"
+                        "fmla   v23.4s, v7.4s, v2.s[3]      \n"
+
+                        "subs   w4, w4, #1                  \n"
+
+                        "fmla   v24.4s, v6.4s, v3.s[0]      \n"
+                        "fmla   v26.4s, v6.4s, v3.s[1]      \n"
+                        "fmla   v28.4s, v6.4s, v3.s[2]      \n"
+                        "fmla   v30.4s, v6.4s, v3.s[3]      \n"
+                        "fmla   v25.4s, v7.4s, v3.s[0]      \n"
+                        "fmla   v27.4s, v7.4s, v3.s[1]      \n"
+                        "fmla   v29.4s, v7.4s, v3.s[2]      \n"
+                        "fmla   v31.4s, v7.4s, v3.s[3]      \n"
+
+                        "bne    2b                          \n"
+
+                        "3:                                 \n"
+                        "and    w4, %w6, #3                 \n" // w4 = remain = max_kk & 3
+                        "cmp    w4, #0                      \n"
+                        "beq    5f                          \n"
+
+                        "4:                                 \n"
+                        "ld1    {v0.4s, v1.4s, v2.4s}, [%2], #48 \n"
+                        "ld1    {v4.4s, v5.4s}, [%1], #32   \n"
+
+                        "fmla   v8.4s, v4.4s, v0.s[0]       \n"
+                        "fmla   v10.4s, v4.4s, v0.s[1]      \n"
+                        "fmla   v12.4s, v4.4s, v0.s[2]      \n"
+                        "fmla   v14.4s, v4.4s, v0.s[3]      \n"
+                        "fmla   v16.4s, v4.4s, v1.s[0]      \n"
+                        "fmla   v18.4s, v4.4s, v1.s[1]      \n"
+                        "fmla   v20.4s, v4.4s, v1.s[2]      \n"
+                        "fmla   v22.4s, v4.4s, v1.s[3]      \n"
+                        "fmla   v24.4s, v4.4s, v2.s[0]      \n"
+                        "fmla   v26.4s, v4.4s, v2.s[1]      \n"
+                        "fmla   v28.4s, v4.4s, v2.s[2]      \n"
+                        "fmla   v30.4s, v4.4s, v2.s[3]      \n"
+
+                        "subs   w4, w4, #1                  \n"
+
+                        "fmla   v9.4s, v5.4s, v0.s[0]       \n"
+                        "fmla   v11.4s, v5.4s, v0.s[1]      \n"
+                        "fmla   v13.4s, v5.4s, v0.s[2]      \n"
+                        "fmla   v15.4s, v5.4s, v0.s[3]      \n"
+                        "fmla   v17.4s, v5.4s, v1.s[0]      \n"
+                        "fmla   v19.4s, v5.4s, v1.s[1]      \n"
+                        "fmla   v21.4s, v5.4s, v1.s[2]      \n"
+                        "fmla   v23.4s, v5.4s, v1.s[3]      \n"
+                        "fmla   v25.4s, v5.4s, v2.s[0]      \n"
+                        "fmla   v27.4s, v5.4s, v2.s[1]      \n"
+                        "fmla   v29.4s, v5.4s, v2.s[2]      \n"
+                        "fmla   v31.4s, v5.4s, v2.s[3]      \n"
+
+                        "bne    4b                          \n"
+
+                        "5:                                 \n"
+                        "st1    {v8.4s, v9.4s, v10.4s, v11.4s}, [%0], #64   \n"
+                        "st1    {v12.4s, v13.4s, v14.4s, v15.4s}, [%0], #64 \n"
+                        "st1    {v16.4s, v17.4s, v18.4s, v19.4s}, [%0], #64 \n"
+                        "st1    {v20.4s, v21.4s, v22.4s, v23.4s}, [%0], #64 \n"
+                        "st1    {v24.4s, v25.4s, v26.4s, v27.4s}, [%0], #64 \n"
+                        "st1    {v28.4s, v29.4s, v30.4s, v31.4s}, [%0], #64 \n"
+
+                        : "=r"(outptr), // %0
+                        "=r"(pA),     // %1
+                        "=r"(pB)      // %2
+                        : "0"(outptr),
+                        "1"(pA),
+                        "2"(pB),
+                        "r"(max_kk), // %6
+                        "r"(k)       // %7
+                        : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
+                }
 #else  // NCNN_GNU_INLINE_ASM
                 float32x4_t _sum00;
                 float32x4_t _sum01;
@@ -1171,157 +1833,654 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                 const float* pA = pAT;
 
 #if NCNN_GNU_INLINE_ASM
-                asm volatile(
-                    "cbz    %w7, 0f                     \n"
+                if (use_a53_a55_optimized_kernel && cpu_support_arm_asimdhp())
+                {
+                    // a55
+                    asm volatile(
+                        "cbz    %w7, 0f                     \n"
 
-                    "ld1    {v16.4s, v17.4s, v18.4s, v19.4s}, [%0], #64 \n"
-                    "ld1    {v20.4s, v21.4s, v22.4s, v23.4s}, [%0], #64 \n"
-                    "ld1    {v24.4s, v25.4s, v26.4s, v27.4s}, [%0], #64 \n"
-                    "ld1    {v28.4s, v29.4s, v30.4s, v31.4s}, [%0]      \n"
-                    "subs   %0, %0, #192                \n"
-                    "b      1f                          \n"
+                        "ld1    {v16.4s, v17.4s, v18.4s, v19.4s}, [%0], #64 \n"
+                        "ld1    {v20.4s, v21.4s, v22.4s, v23.4s}, [%0], #64 \n"
+                        "ld1    {v24.4s, v25.4s, v26.4s, v27.4s}, [%0], #64 \n"
+                        "ld1    {v28.4s, v29.4s, v30.4s, v31.4s}, [%0]      \n"
+                        "subs   %0, %0, #192                \n"
+                        "b      1f                          \n"
 
-                    "0:                                 \n"
-                    "eor    v16.16b, v16.16b, v16.16b   \n"
-                    "eor    v17.16b, v17.16b, v17.16b   \n"
-                    "eor    v18.16b, v18.16b, v18.16b   \n"
-                    "eor    v19.16b, v19.16b, v19.16b   \n"
-                    "eor    v20.16b, v20.16b, v20.16b   \n"
-                    "eor    v21.16b, v21.16b, v21.16b   \n"
-                    "eor    v22.16b, v22.16b, v22.16b   \n"
-                    "eor    v23.16b, v23.16b, v23.16b   \n"
-                    "eor    v24.16b, v24.16b, v24.16b   \n"
-                    "eor    v25.16b, v25.16b, v25.16b   \n"
-                    "eor    v26.16b, v26.16b, v26.16b   \n"
-                    "eor    v27.16b, v27.16b, v27.16b   \n"
-                    "eor    v28.16b, v28.16b, v28.16b   \n"
-                    "eor    v29.16b, v29.16b, v29.16b   \n"
-                    "eor    v30.16b, v30.16b, v30.16b   \n"
-                    "eor    v31.16b, v31.16b, v31.16b   \n"
+                        "0:                                 \n"
+                        "eor    v16.16b, v16.16b, v16.16b   \n"
+                        "eor    v17.16b, v17.16b, v17.16b   \n"
+                        "eor    v18.16b, v18.16b, v18.16b   \n"
+                        "eor    v19.16b, v19.16b, v19.16b   \n"
+                        "eor    v20.16b, v20.16b, v20.16b   \n"
+                        "eor    v21.16b, v21.16b, v21.16b   \n"
+                        "eor    v22.16b, v22.16b, v22.16b   \n"
+                        "eor    v23.16b, v23.16b, v23.16b   \n"
+                        "eor    v24.16b, v24.16b, v24.16b   \n"
+                        "eor    v25.16b, v25.16b, v25.16b   \n"
+                        "eor    v26.16b, v26.16b, v26.16b   \n"
+                        "eor    v27.16b, v27.16b, v27.16b   \n"
+                        "eor    v28.16b, v28.16b, v28.16b   \n"
+                        "eor    v29.16b, v29.16b, v29.16b   \n"
+                        "eor    v30.16b, v30.16b, v30.16b   \n"
+                        "eor    v31.16b, v31.16b, v31.16b   \n"
 
-                    "1:                                 \n"
-                    "lsr    w4, %w6, #2                 \n" // w4 = max_kk >> 2
-                    "cmp    w4, #0                      \n"
-                    "beq    3f                          \n"
+                        "1:                                 \n"
+                        "lsr    w4, %w6, #2                 \n" // w4 = max_kk >> 2
+                        "cmp    w4, #0                      \n"
+                        "beq    3f                          \n"
 
-                    "2:                                 \n"
-                    "prfm   pldl1keep, [%2, #512]       \n"
-                    "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%2], #64 \n"
-                    "prfm   pldl1keep, [%1, #512]       \n"
-                    "ld1    {v8.4s, v9.4s, v10.4s, v11.4s}, [%1], #64 \n"
-                    "fmla   v16.4s, v8.4s, v0.s[0]      \n"
-                    "fmla   v18.4s, v8.4s, v0.s[1]      \n"
-                    "fmla   v20.4s, v8.4s, v0.s[2]      \n"
-                    "fmla   v22.4s, v8.4s, v0.s[3]      \n"
-                    "fmla   v17.4s, v9.4s, v0.s[0]      \n"
-                    "fmla   v19.4s, v9.4s, v0.s[1]      \n"
-                    "fmla   v21.4s, v9.4s, v0.s[2]      \n"
-                    "fmla   v23.4s, v9.4s, v0.s[3]      \n"
-                    "fmla   v24.4s, v8.4s, v1.s[0]      \n"
-                    "fmla   v26.4s, v8.4s, v1.s[1]      \n"
-                    "fmla   v28.4s, v8.4s, v1.s[2]      \n"
-                    "fmla   v30.4s, v8.4s, v1.s[3]      \n"
-                    "fmla   v25.4s, v9.4s, v1.s[0]      \n"
-                    "fmla   v27.4s, v9.4s, v1.s[1]      \n"
-                    "fmla   v29.4s, v9.4s, v1.s[2]      \n"
-                    "fmla   v31.4s, v9.4s, v1.s[3]      \n"
-                    "fmla   v16.4s, v10.4s, v2.s[0]     \n"
-                    "fmla   v18.4s, v10.4s, v2.s[1]     \n"
-                    "fmla   v20.4s, v10.4s, v2.s[2]     \n"
-                    "fmla   v22.4s, v10.4s, v2.s[3]     \n"
-                    "fmla   v17.4s, v11.4s, v2.s[0]     \n"
-                    "fmla   v19.4s, v11.4s, v2.s[1]     \n"
-                    "fmla   v21.4s, v11.4s, v2.s[2]     \n"
-                    "fmla   v23.4s, v11.4s, v2.s[3]     \n"
-                    "fmla   v24.4s, v10.4s, v3.s[0]     \n"
-                    "fmla   v26.4s, v10.4s, v3.s[1]     \n"
-                    "fmla   v28.4s, v10.4s, v3.s[2]     \n"
-                    "fmla   v30.4s, v10.4s, v3.s[3]     \n"
-                    "fmla   v25.4s, v11.4s, v3.s[0]     \n"
-                    "fmla   v27.4s, v11.4s, v3.s[1]     \n"
-                    "fmla   v29.4s, v11.4s, v3.s[2]     \n"
-                    "fmla   v31.4s, v11.4s, v3.s[3]     \n"
-                    "prfm   pldl1keep, [%2, #512]       \n"
-                    "ld1    {v4.4s, v5.4s, v6.4s, v7.4s}, [%2], #64 \n"
-                    "prfm   pldl1keep, [%1, #512]       \n"
-                    "ld1    {v12.4s, v13.4s, v14.4s, v15.4s}, [%1], #64 \n"
-                    "fmla   v16.4s, v12.4s, v4.s[0]     \n"
-                    "fmla   v18.4s, v12.4s, v4.s[1]     \n"
-                    "fmla   v20.4s, v12.4s, v4.s[2]     \n"
-                    "fmla   v22.4s, v12.4s, v4.s[3]     \n"
-                    "fmla   v17.4s, v13.4s, v4.s[0]     \n"
-                    "fmla   v19.4s, v13.4s, v4.s[1]     \n"
-                    "fmla   v21.4s, v13.4s, v4.s[2]     \n"
-                    "fmla   v23.4s, v13.4s, v4.s[3]     \n"
-                    "fmla   v24.4s, v12.4s, v5.s[0]     \n"
-                    "fmla   v26.4s, v12.4s, v5.s[1]     \n"
-                    "fmla   v28.4s, v12.4s, v5.s[2]     \n"
-                    "fmla   v30.4s, v12.4s, v5.s[3]     \n"
-                    "fmla   v25.4s, v13.4s, v5.s[0]     \n"
-                    "fmla   v27.4s, v13.4s, v5.s[1]     \n"
-                    "fmla   v29.4s, v13.4s, v5.s[2]     \n"
-                    "fmla   v31.4s, v13.4s, v5.s[3]     \n"
-                    "fmla   v16.4s, v14.4s, v6.s[0]     \n"
-                    "fmla   v18.4s, v14.4s, v6.s[1]     \n"
-                    "fmla   v20.4s, v14.4s, v6.s[2]     \n"
-                    "fmla   v22.4s, v14.4s, v6.s[3]     \n"
-                    "fmla   v17.4s, v15.4s, v6.s[0]     \n"
-                    "fmla   v19.4s, v15.4s, v6.s[1]     \n"
-                    "fmla   v21.4s, v15.4s, v6.s[2]     \n"
-                    "fmla   v23.4s, v15.4s, v6.s[3]     \n"
-                    "subs   w4, w4, #1                  \n"
-                    "fmla   v24.4s, v14.4s, v7.s[0]     \n"
-                    "fmla   v26.4s, v14.4s, v7.s[1]     \n"
-                    "fmla   v28.4s, v14.4s, v7.s[2]     \n"
-                    "fmla   v30.4s, v14.4s, v7.s[3]     \n"
-                    "fmla   v25.4s, v15.4s, v7.s[0]     \n"
-                    "fmla   v27.4s, v15.4s, v7.s[1]     \n"
-                    "fmla   v29.4s, v15.4s, v7.s[2]     \n"
-                    "fmla   v31.4s, v15.4s, v7.s[3]     \n"
-                    "bne    2b                          \n"
+                        "prfm   pldl1keep, [%1, #512]       \n"
+                        "ld1    {v8.4s}, [%1], #16          \n"
+                        "prfm   pldl1keep, [%2, #512]       \n"
+                        "ld1    {v0.4s}, [%2], #16          \n"
 
-                    "3:                                 \n"
-                    "and    w4, %w6, #3                 \n" // w4 = remain = max_kk & 3
-                    "cmp    w4, #0                      \n"
-                    "beq    5f                          \n"
+                        "ldr    d1, [%2], #8                \n"
+                        "ldr    x21, [%2], #8               \n"
 
-                    "4:                                 \n"
-                    "ld1    {v0.4s, v1.4s}, [%2], #32   \n"
-                    "ld1    {v4.4s, v5.4s}, [%1], #32   \n"
-                    "fmla   v16.4s, v4.4s, v0.s[0]      \n"
-                    "fmla   v18.4s, v4.4s, v0.s[1]      \n"
-                    "fmla   v20.4s, v4.4s, v0.s[2]      \n"
-                    "fmla   v22.4s, v4.4s, v0.s[3]      \n"
-                    "fmla   v17.4s, v5.4s, v0.s[0]      \n"
-                    "fmla   v19.4s, v5.4s, v0.s[1]      \n"
-                    "fmla   v21.4s, v5.4s, v0.s[2]      \n"
-                    "fmla   v23.4s, v5.4s, v0.s[3]      \n"
-                    "subs   w4, w4, #1                  \n"
-                    "fmla   v24.4s, v4.4s, v1.s[0]      \n"
-                    "fmla   v26.4s, v4.4s, v1.s[1]      \n"
-                    "fmla   v28.4s, v4.4s, v1.s[2]      \n"
-                    "fmla   v30.4s, v4.4s, v1.s[3]      \n"
-                    "fmla   v25.4s, v5.4s, v1.s[0]      \n"
-                    "fmla   v27.4s, v5.4s, v1.s[1]      \n"
-                    "fmla   v29.4s, v5.4s, v1.s[2]      \n"
-                    "fmla   v31.4s, v5.4s, v1.s[3]      \n"
-                    "bne    4b                          \n"
+                        ".align 4                           \n"
+                        "2:                                 \n"
+                        "ldr    d9, [%1], #8                \n"
+                        "fmla   v16.4s, v8.4s, v0.s[0]      \n"
+                        "ldr    x25, [%1], #8               \n"
+                        "fmla   v18.4s, v8.4s, v0.s[1]      \n"
+                        "ins    v1.d[1], x21                \n"
+                        "fmla   v20.4s, v8.4s, v0.s[2]      \n"
+                        "ldr    d10, [%1], #8               \n"
+                        "fmla   v22.4s, v8.4s, v0.s[3]      \n"
+                        "ldr    x26, [%1], #8               \n"
+                        "fmla   v24.4s, v8.4s, v1.s[0]      \n"
+                        "ldr    d2, [%2], #8                \n"
+                        "fmla   v26.4s, v8.4s, v1.s[1]      \n"
+                        "ins    v9.d[1], x25                \n"
+                        "fmla   v28.4s, v8.4s, v1.s[2]      \n"
+                        "ldr    x22, [%2], #8               \n"
+                        "fmla   v30.4s, v8.4s, v1.s[3]      \n"
+                        "ldr    d3, [%2], #8                \n"
+                        "fmla   v17.4s, v9.4s, v0.s[0]      \n"
+                        "ldr    x23, [%2], #8               \n"
+                        "fmla   v19.4s, v9.4s, v0.s[1]      \n"
+                        "ins    v10.d[1], x26               \n"
+                        "fmla   v21.4s, v9.4s, v0.s[2]      \n"
+                        "ldr    d11, [%1], #8               \n"
+                        "fmla   v23.4s, v9.4s, v0.s[3]      \n"
+                        "ldr    x27, [%1], #8               \n"
+                        "fmla   v25.4s, v9.4s, v1.s[0]      \n"
+                        "prfm   pldl1keep, [%1, #512]       \n" // NOTE PRELOAD
+                        "fmla   v27.4s, v9.4s, v1.s[1]      \n"
+                        "ins    v2.d[1], x22                \n"
+                        "fmla   v29.4s, v9.4s, v1.s[2]      \n"
+                        "ldr    d12, [%1], #8               \n"
+                        "fmla   v31.4s, v9.4s, v1.s[3]      \n"
+                        "ldr    x24, [%1], #8               \n"
+                        "fmla   v16.4s, v10.4s, v2.s[0]     \n"
+                        "prfm   pldl1keep, [%2, #512]       \n" // NOTE PRELOAD
+                        "fmla   v18.4s, v10.4s, v2.s[1]     \n"
+                        "ins    v3.d[1], x23                \n"
+                        "fmla   v20.4s, v10.4s, v2.s[2]     \n"
+                        "ldr    d4, [%2], #8                \n"
+                        "fmla   v22.4s, v10.4s, v2.s[3]     \n"
+                        "ldr    x20, [%2], #8               \n"
+                        "fmla   v24.4s, v10.4s, v3.s[0]     \n"
+                        "ldr    d5, [%2], #8                \n"
+                        "fmla   v26.4s, v10.4s, v3.s[1]     \n"
+                        "ins    v11.d[1], x27               \n"
+                        "fmla   v28.4s, v10.4s, v3.s[2]     \n"
+                        "ldr    x21, [%2], #8               \n"
+                        "fmla   v30.4s, v10.4s, v3.s[3]     \n"
+                        "ldr    d13, [%1], #8               \n"
+                        "fmla   v17.4s, v11.4s, v2.s[0]     \n"
+                        "ldr    x25, [%1], #8               \n"
+                        "fmla   v19.4s, v11.4s, v2.s[1]     \n"
+                        "ins    v12.d[1], x24               \n"
+                        "fmla   v21.4s, v11.4s, v2.s[2]     \n"
+                        "ldr    d14, [%1], #8               \n"
+                        "fmla   v23.4s, v11.4s, v2.s[3]     \n"
+                        "ldr    x26, [%1], #8               \n"
+                        "fmla   v25.4s, v11.4s, v3.s[0]     \n"
+                        "ldr    d6, [%2], #8                \n"
+                        "fmla   v27.4s, v11.4s, v3.s[1]     \n"
+                        "ins    v4.d[1], x20                \n"
+                        "fmla   v29.4s, v11.4s, v3.s[2]     \n"
+                        "ldr    x22, [%2], #8               \n"
+                        "fmla   v31.4s, v11.4s, v3.s[3]     \n"
+                        "ldr    d7, [%2], #8                \n"
+                        "fmla   v16.4s, v12.4s, v4.s[0]     \n"
+                        "ldr    x23, [%2], #8               \n"
+                        "fmla   v18.4s, v12.4s, v4.s[1]     \n"
+                        "ins    v5.d[1], x21                \n"
+                        "fmla   v20.4s, v12.4s, v4.s[2]     \n"
+                        "ldr    d15, [%1], #8               \n"
+                        "fmla   v22.4s, v12.4s, v4.s[3]     \n"
+                        "ldr    x27, [%1], #8               \n"
+                        "fmla   v24.4s, v12.4s, v5.s[0]     \n"
+                        "prfm   pldl1keep, [%1, #512]       \n" // NOTE PRELOAD
+                        "fmla   v26.4s, v12.4s, v5.s[1]     \n"
+                        "ins    v13.d[1], x25               \n"
+                        "fmla   v28.4s, v12.4s, v5.s[2]     \n"
+                        "ldr    d8, [%1], #8                \n"
+                        "fmla   v30.4s, v12.4s, v5.s[3]     \n"
+                        "ldr    x24, [%1], #8               \n"
+                        "fmla   v17.4s, v13.4s, v4.s[0]     \n"
+                        "prfm   pldl1keep, [%2, #512]       \n" // NOTE PRELOAD
+                        "fmla   v19.4s, v13.4s, v4.s[1]     \n"
+                        "ins    v14.d[1], x26               \n"
+                        "fmla   v21.4s, v13.4s, v4.s[2]     \n"
+                        "ldr    d0, [%2], #8                \n"
+                        "fmla   v23.4s, v13.4s, v4.s[3]     \n"
+                        "ldr    x20, [%2], #8               \n"
+                        "fmla   v25.4s, v13.4s, v5.s[0]     \n"
+                        "ldr    d1, [%2], #8                \n"
+                        "fmla   v27.4s, v13.4s, v5.s[1]     \n"
+                        "ins    v6.d[1], x22                \n"
+                        "fmla   v29.4s, v13.4s, v5.s[2]     \n"
+                        "ldr    x21, [%2], #8               \n"
+                        "fmla   v31.4s, v13.4s, v5.s[3]     \n"
+                        "fmla   v16.4s, v14.4s, v6.s[0]     \n"
+                        "fmla   v18.4s, v14.4s, v6.s[1]     \n"
+                        "ins    v7.d[1], x23                \n"
+                        "fmla   v20.4s, v14.4s, v6.s[2]     \n"
+                        "fmla   v22.4s, v14.4s, v6.s[3]     \n"
+                        "fmla   v24.4s, v14.4s, v7.s[0]     \n"
+                        "fmla   v26.4s, v14.4s, v7.s[1]     \n"
+                        "ins    v15.d[1], x27               \n"
+                        "fmla   v28.4s, v14.4s, v7.s[2]     \n"
+                        "fmla   v30.4s, v14.4s, v7.s[3]     \n"
+                        "fmla   v17.4s, v15.4s, v6.s[0]     \n"
+                        "fmla   v19.4s, v15.4s, v6.s[1]     \n"
+                        "ins    v8.d[1], x24                \n"
+                        "fmla   v21.4s, v15.4s, v6.s[2]     \n"
+                        "fmla   v23.4s, v15.4s, v6.s[3]     \n"
+                        "fmla   v25.4s, v15.4s, v7.s[0]     \n"
+                        "subs   w4, w4, #1                  \n"
+                        "fmla   v27.4s, v15.4s, v7.s[1]     \n"
+                        "fmla   v29.4s, v15.4s, v7.s[2]     \n"
+                        "ins    v0.d[1], x20                \n"
+                        "fmla   v31.4s, v15.4s, v7.s[3]     \n"
+                        "bne    2b                          \n"
 
-                    "5:                                 \n"
-                    "st1    {v16.4s, v17.4s, v18.4s, v19.4s}, [%0], #64 \n"
-                    "st1    {v20.4s, v21.4s, v22.4s, v23.4s}, [%0], #64 \n"
-                    "st1    {v24.4s, v25.4s, v26.4s, v27.4s}, [%0], #64 \n"
-                    "st1    {v28.4s, v29.4s, v30.4s, v31.4s}, [%0], #64 \n"
+                        "sub    %1, %1, #16                 \n"
+                        "sub    %2, %2, #32                 \n"
 
-                    : "=r"(outptr), // %0
-                    "=r"(pA),     // %1
-                    "=r"(pB)      // %2
-                    : "0"(outptr),
-                    "1"(pA),
-                    "2"(pB),
-                    "r"(max_kk), // %6
-                    "r"(k)       // %7
-                    : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
+                        "3:                                 \n"
+                        "and    w4, %w6, #3                 \n" // w4 = remain = max_kk & 3
+                        "cmp    w4, #0                      \n"
+                        "beq    5f                          \n"
+
+                        "4:                                 \n"
+                        "ld1    {v0.4s, v1.4s}, [%2], #32   \n"
+                        "ld1    {v4.4s, v5.4s}, [%1], #32   \n"
+                        "fmla   v16.4s, v4.4s, v0.s[0]      \n"
+                        "fmla   v18.4s, v4.4s, v0.s[1]      \n"
+                        "fmla   v20.4s, v4.4s, v0.s[2]      \n"
+                        "fmla   v22.4s, v4.4s, v0.s[3]      \n"
+                        "fmla   v17.4s, v5.4s, v0.s[0]      \n"
+                        "fmla   v19.4s, v5.4s, v0.s[1]      \n"
+                        "fmla   v21.4s, v5.4s, v0.s[2]      \n"
+                        "fmla   v23.4s, v5.4s, v0.s[3]      \n"
+                        "subs   w4, w4, #1                  \n"
+                        "fmla   v24.4s, v4.4s, v1.s[0]      \n"
+                        "fmla   v26.4s, v4.4s, v1.s[1]      \n"
+                        "fmla   v28.4s, v4.4s, v1.s[2]      \n"
+                        "fmla   v30.4s, v4.4s, v1.s[3]      \n"
+                        "fmla   v25.4s, v5.4s, v1.s[0]      \n"
+                        "fmla   v27.4s, v5.4s, v1.s[1]      \n"
+                        "fmla   v29.4s, v5.4s, v1.s[2]      \n"
+                        "fmla   v31.4s, v5.4s, v1.s[3]      \n"
+                        "bne    4b                          \n"
+
+                        "5:                                 \n"
+                        "st1    {v16.4s, v17.4s, v18.4s, v19.4s}, [%0], #64 \n"
+                        "st1    {v20.4s, v21.4s, v22.4s, v23.4s}, [%0], #64 \n"
+                        "st1    {v24.4s, v25.4s, v26.4s, v27.4s}, [%0], #64 \n"
+                        "st1    {v28.4s, v29.4s, v30.4s, v31.4s}, [%0], #64 \n"
+
+                        : "=r"(outptr), // %0
+                        "=r"(pA),     // %1
+                        "=r"(pB)      // %2
+                        : "0"(outptr),
+                        "1"(pA),
+                        "2"(pB),
+                        "r"(max_kk), // %6
+                        "r"(k)       // %7
+                        : "cc", "memory", "x4", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
+                }
+                else if (use_a53_a55_optimized_kernel && !cpu_support_arm_asimdhp())
+                {
+                    // a53
+                    asm volatile(
+                        "cbz    %w7, 0f                     \n"
+
+                        "ld1    {v16.4s, v17.4s, v18.4s, v19.4s}, [%0], #64 \n"
+                        "ld1    {v20.4s, v21.4s, v22.4s, v23.4s}, [%0], #64 \n"
+                        "ld1    {v24.4s, v25.4s, v26.4s, v27.4s}, [%0], #64 \n"
+                        "ld1    {v28.4s, v29.4s, v30.4s, v31.4s}, [%0]      \n"
+                        "subs   %0, %0, #192                \n"
+                        "b      1f                          \n"
+
+                        "0:                                 \n"
+                        "eor    v16.16b, v16.16b, v16.16b   \n"
+                        "eor    v17.16b, v17.16b, v17.16b   \n"
+                        "eor    v18.16b, v18.16b, v18.16b   \n"
+                        "eor    v19.16b, v19.16b, v19.16b   \n"
+                        "eor    v20.16b, v20.16b, v20.16b   \n"
+                        "eor    v21.16b, v21.16b, v21.16b   \n"
+                        "eor    v22.16b, v22.16b, v22.16b   \n"
+                        "eor    v23.16b, v23.16b, v23.16b   \n"
+                        "eor    v24.16b, v24.16b, v24.16b   \n"
+                        "eor    v25.16b, v25.16b, v25.16b   \n"
+                        "eor    v26.16b, v26.16b, v26.16b   \n"
+                        "eor    v27.16b, v27.16b, v27.16b   \n"
+                        "eor    v28.16b, v28.16b, v28.16b   \n"
+                        "eor    v29.16b, v29.16b, v29.16b   \n"
+                        "eor    v30.16b, v30.16b, v30.16b   \n"
+                        "eor    v31.16b, v31.16b, v31.16b   \n"
+
+                        "1:                                 \n"
+                        "lsr    w4, %w6, #2                 \n" // w4 = max_kk >> 2
+                        "cmp    w4, #0                      \n"
+                        "beq    3f                          \n"
+
+                        "prfm   pldl1keep, [%1, #512]       \n"
+                        "prfm   pldl1keep, [%2, #512]       \n"
+                        "ldr    d0, [%2]                    \n"
+                        "ldr    x20, [%2, #8]               \n"
+                        "ins    v0.d[1], x20                \n"
+                        "add    %2, %2, #16                 \n"
+
+                        "ldr    d8, [%1]                    \n"
+                        "ldr    x24, [%1, #8]               \n"
+                        "ins    v8.d[1], x24                \n"
+                        "add    %1, %1, #16                 \n"
+
+                        "ldr    d1, [%2]                    \n"
+                        "ldr    x21, [%2, #8]               \n"
+                        "add    %2, %2, #16                 \n"
+
+                        "ldr    d9, [%1]                    \n"
+                        "ldr    x25, [%1, #8]               \n"
+                        "add    %1, %1, #16                 \n"
+
+                        ".align 4                           \n"
+                        "2:                                 \n"
+
+                        "ldr    d2, [%2]                    \n"
+                        "ins    v1.d[1], x21                \n"
+                        "fmla   v16.4s, v8.4s, v0.s[0]      \n"
+                        "ldr    x22, [%2, #8]               \n"
+                        "fmla   v18.4s, v8.4s, v0.s[1]      \n"
+                        "add    %2, %2, #16                 \n"
+                        "fmla   v20.4s, v8.4s, v0.s[2]      \n"
+
+                        "ldr    d10, [%1]                   \n"
+                        "ins    v9.d[1], x25                \n"
+                        "fmla   v22.4s, v8.4s, v0.s[3]      \n"
+                        "ldr    x26, [%1, #8]               \n"
+                        "fmla   v24.4s, v8.4s, v1.s[0]      \n"
+                        "add    %1, %1, #16                 \n"
+                        "fmla   v26.4s, v8.4s, v1.s[1]      \n"
+
+                        "ldr    d3, [%2]                    \n"
+                        "ins    v2.d[1], x22                \n"
+                        "fmla   v28.4s, v8.4s, v1.s[2]      \n"
+                        "ldr    x23, [%2, #8]               \n"
+                        "fmla   v30.4s, v8.4s, v1.s[3]      \n"
+                        "add    %2, %2, #16                 \n"
+                        "fmla   v17.4s, v9.4s, v0.s[0]      \n"
+
+                        "nop                                \n"
+                        "prfm   pldl1keep, [%2, #512]       \n" // NOTE PRELOAD
+                        "fmla   v19.4s, v9.4s, v0.s[1]      \n"
+                        "nop                                \n"
+                        "fmla   v21.4s, v9.4s, v0.s[2]      \n"
+                        "nop                                \n"
+                        "fmla   v23.4s, v9.4s, v0.s[3]      \n"
+
+                        "ldr    d11, [%1]                   \n"
+                        "ins    v10.d[1], x26               \n"
+                        "fmla   v25.4s, v9.4s, v1.s[0]      \n"
+                        "ldr    x27, [%1, #8]               \n"
+                        "fmla   v27.4s, v9.4s, v1.s[1]      \n"
+                        "add    %1, %1, #16                 \n"
+                        "fmla   v29.4s, v9.4s, v1.s[2]      \n"
+
+                        "nop                                \n"
+                        "prfm   pldl1keep, [%1, #512]       \n" // NOTE PRELOAD
+                        "fmla   v31.4s, v9.4s, v1.s[3]      \n"
+                        "nop                                \n"
+                        "fmla   v16.4s, v10.4s, v2.s[0]     \n"
+                        "nop                                \n"
+                        "fmla   v18.4s, v10.4s, v2.s[1]     \n"
+
+                        "ldr    d4, [%2]                    \n"
+                        "ins    v3.d[1], x23                \n"
+                        "fmla   v20.4s, v10.4s, v2.s[2]     \n"
+                        "ldr    x20, [%2, #8]               \n"
+                        "fmla   v22.4s, v10.4s, v2.s[3]     \n"
+                        "add    %2, %2, #16                 \n"
+                        "fmla   v24.4s, v10.4s, v3.s[0]     \n"
+
+                        "ldr    d12, [%1]                   \n"
+                        "ins    v11.d[1], x27               \n"
+                        "fmla   v26.4s, v10.4s, v3.s[1]     \n"
+                        "ldr    x24, [%1, #8]               \n"
+                        "fmla   v28.4s, v10.4s, v3.s[2]     \n"
+                        "add    %1, %1, #16                 \n"
+                        "fmla   v30.4s, v10.4s, v3.s[3]     \n"
+
+                        "ldr    d5, [%2]                    \n"
+                        "ins    v4.d[1], x20                \n"
+                        "fmla   v17.4s, v11.4s, v2.s[0]     \n"
+                        "ldr    x21, [%2, #8]               \n"
+                        "fmla   v19.4s, v11.4s, v2.s[1]     \n"
+                        "add    %2, %2, #16                 \n"
+                        "fmla   v21.4s, v11.4s, v2.s[2]     \n"
+
+                        "ldr    d13, [%1]                   \n"
+                        "ins    v12.d[1], x24               \n"
+                        "fmla   v23.4s, v11.4s, v2.s[3]     \n"
+                        "ldr    x25, [%1, #8]               \n"
+                        "fmla   v25.4s, v11.4s, v3.s[0]     \n"
+                        "add    %1, %1, #16                 \n"
+                        "fmla   v27.4s, v11.4s, v3.s[1]     \n"
+
+                        "ldr    d6, [%2]                    \n"
+                        "ins    v5.d[1], x21                \n"
+                        "fmla   v29.4s, v11.4s, v3.s[2]     \n"
+                        "ldr    x22, [%2, #8]               \n"
+                        "fmla   v31.4s, v11.4s, v3.s[3]     \n"
+                        "add    %2, %2, #16                 \n"
+                        "fmla   v16.4s, v12.4s, v4.s[0]     \n"
+
+                        "ldr    d14, [%1]                   \n"
+                        "ins    v13.d[1], x25               \n"
+                        "fmla   v18.4s, v12.4s, v4.s[1]     \n"
+                        "ldr    x26, [%1, #8]               \n"
+                        "fmla   v20.4s, v12.4s, v4.s[2]     \n"
+                        "add    %1, %1, #16                 \n"
+                        "fmla   v22.4s, v12.4s, v4.s[3]     \n"
+
+                        "ldr    d7, [%2]                    \n"
+                        "ins    v6.d[1], x22                \n"
+                        "fmla   v24.4s, v12.4s, v5.s[0]     \n"
+                        "ldr    x23, [%2, #8]               \n"
+                        "fmla   v26.4s, v12.4s, v5.s[1]     \n"
+                        "add    %2, %2, #16                 \n"
+                        "fmla   v28.4s, v12.4s, v5.s[2]     \n"
+
+                        "nop                                \n"
+                        "prfm   pldl1keep, [%2, #512]       \n" // NOTE PRELOAD
+                        "fmla   v30.4s, v12.4s, v5.s[3]     \n"
+                        "nop                                \n"
+                        "fmla   v17.4s, v13.4s, v4.s[0]     \n"
+                        "nop                                \n"
+                        "fmla   v19.4s, v13.4s, v4.s[1]     \n"
+
+                        "ldr    d15, [%1]                   \n"
+                        "ins    v14.d[1], x26               \n"
+                        "fmla   v21.4s, v13.4s, v4.s[2]     \n"
+                        "ldr    x27, [%1, #8]               \n"
+                        "fmla   v23.4s, v13.4s, v4.s[3]     \n"
+                        "add    %1, %1, #16                 \n"
+                        "fmla   v25.4s, v13.4s, v5.s[0]     \n"
+
+                        "nop                                \n"
+                        "prfm   pldl1keep, [%1, #512]       \n" // NOTE PRELOAD
+                        "fmla   v27.4s, v13.4s, v5.s[1]     \n"
+                        "nop                                \n"
+                        "fmla   v29.4s, v13.4s, v5.s[2]     \n"
+                        "nop                                \n"
+                        "fmla   v31.4s, v13.4s, v5.s[3]     \n"
+
+                        "ldr    d0, [%2]                    \n"
+                        "ins    v7.d[1], x23                \n"
+                        "fmla   v16.4s, v14.4s, v6.s[0]     \n"
+                        "ldr    x20, [%2, #8]               \n"
+                        "fmla   v18.4s, v14.4s, v6.s[1]     \n"
+                        "add    %2, %2, #16                 \n"
+                        "fmla   v20.4s, v14.4s, v6.s[2]     \n"
+
+                        "ldr    d8, [%1]                    \n"
+                        "ins    v15.d[1], x27               \n"
+                        "fmla   v22.4s, v14.4s, v6.s[3]     \n"
+                        "ldr    x24, [%1, #8]               \n"
+                        "fmla   v24.4s, v14.4s, v7.s[0]     \n"
+                        "add    %1, %1, #16                 \n"
+                        "fmla   v26.4s, v14.4s, v7.s[1]     \n"
+
+                        "ldr    d1, [%2]                    \n"
+                        "ins    v0.d[1], x20                \n"
+                        "fmla   v28.4s, v14.4s, v7.s[2]     \n"
+                        "ldr    x21, [%2, #8]               \n"
+                        "fmla   v30.4s, v14.4s, v7.s[3]     \n"
+                        "add    %2, %2, #16                 \n"
+                        "fmla   v17.4s, v15.4s, v6.s[0]     \n"
+
+                        "ldr    d9, [%1]                    \n"
+                        "ins    v8.d[1], x24                \n"
+                        "fmla   v19.4s, v15.4s, v6.s[1]     \n"
+                        "ldr    x25, [%1, #8]               \n"
+                        "fmla   v21.4s, v15.4s, v6.s[2]     \n"
+                        "add    %1, %1, #16                 \n"
+                        "fmla   v23.4s, v15.4s, v6.s[3]     \n"
+
+                        "nop                                \n"
+                        "nop                                \n"
+                        "fmla   v25.4s, v15.4s, v7.s[0]     \n"
+                        "subs   w4, w4, #1                  \n"
+                        "fmla   v27.4s, v15.4s, v7.s[1]     \n"
+                        "nop                                \n"
+                        "fmla   v29.4s, v15.4s, v7.s[2]     \n"
+
+                        "nop                                \n"
+                        "nop                                \n"
+                        "fmla   v31.4s, v15.4s, v7.s[3]     \n"
+                        "nop                                \n"
+                        "nop                                \n"
+                        "nop                                \n"
+                        "nop                                \n"
+
+                        "bne    2b                          \n"
+
+                        "sub    %1, %1, #32                 \n"
+                        "sub    %2, %2, #32                 \n"
+
+                        "3:                                 \n"
+                        "and    w4, %w6, #3                 \n" // w4 = remain = max_kk & 3
+                        "cmp    w4, #0                      \n"
+                        "beq    5f                          \n"
+
+                        "4:                                 \n"
+                        "ld1    {v0.4s, v1.4s}, [%2], #32   \n"
+                        "ld1    {v4.4s, v5.4s}, [%1], #32   \n"
+                        "fmla   v16.4s, v4.4s, v0.s[0]      \n"
+                        "fmla   v18.4s, v4.4s, v0.s[1]      \n"
+                        "fmla   v20.4s, v4.4s, v0.s[2]      \n"
+                        "fmla   v22.4s, v4.4s, v0.s[3]      \n"
+                        "fmla   v17.4s, v5.4s, v0.s[0]      \n"
+                        "fmla   v19.4s, v5.4s, v0.s[1]      \n"
+                        "fmla   v21.4s, v5.4s, v0.s[2]      \n"
+                        "fmla   v23.4s, v5.4s, v0.s[3]      \n"
+                        "subs   w4, w4, #1                  \n"
+                        "fmla   v24.4s, v4.4s, v1.s[0]      \n"
+                        "fmla   v26.4s, v4.4s, v1.s[1]      \n"
+                        "fmla   v28.4s, v4.4s, v1.s[2]      \n"
+                        "fmla   v30.4s, v4.4s, v1.s[3]      \n"
+                        "fmla   v25.4s, v5.4s, v1.s[0]      \n"
+                        "fmla   v27.4s, v5.4s, v1.s[1]      \n"
+                        "fmla   v29.4s, v5.4s, v1.s[2]      \n"
+                        "fmla   v31.4s, v5.4s, v1.s[3]      \n"
+                        "bne    4b                          \n"
+
+                        "5:                                 \n"
+                        "st1    {v16.4s, v17.4s, v18.4s, v19.4s}, [%0], #64 \n"
+                        "st1    {v20.4s, v21.4s, v22.4s, v23.4s}, [%0], #64 \n"
+                        "st1    {v24.4s, v25.4s, v26.4s, v27.4s}, [%0], #64 \n"
+                        "st1    {v28.4s, v29.4s, v30.4s, v31.4s}, [%0], #64 \n"
+
+                        : "=r"(outptr), // %0
+                        "=r"(pA),     // %1
+                        "=r"(pB)      // %2
+                        : "0"(outptr),
+                        "1"(pA),
+                        "2"(pB),
+                        "r"(max_kk), // %6
+                        "r"(k)       // %7
+                        : "cc", "memory", "x4", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
+                }
+                else
+                {
+                    asm volatile(
+                        "cbz    %w7, 0f                     \n"
+
+                        "ld1    {v16.4s, v17.4s, v18.4s, v19.4s}, [%0], #64 \n"
+                        "ld1    {v20.4s, v21.4s, v22.4s, v23.4s}, [%0], #64 \n"
+                        "ld1    {v24.4s, v25.4s, v26.4s, v27.4s}, [%0], #64 \n"
+                        "ld1    {v28.4s, v29.4s, v30.4s, v31.4s}, [%0]      \n"
+                        "subs   %0, %0, #192                \n"
+                        "b      1f                          \n"
+
+                        "0:                                 \n"
+                        "eor    v16.16b, v16.16b, v16.16b   \n"
+                        "eor    v17.16b, v17.16b, v17.16b   \n"
+                        "eor    v18.16b, v18.16b, v18.16b   \n"
+                        "eor    v19.16b, v19.16b, v19.16b   \n"
+                        "eor    v20.16b, v20.16b, v20.16b   \n"
+                        "eor    v21.16b, v21.16b, v21.16b   \n"
+                        "eor    v22.16b, v22.16b, v22.16b   \n"
+                        "eor    v23.16b, v23.16b, v23.16b   \n"
+                        "eor    v24.16b, v24.16b, v24.16b   \n"
+                        "eor    v25.16b, v25.16b, v25.16b   \n"
+                        "eor    v26.16b, v26.16b, v26.16b   \n"
+                        "eor    v27.16b, v27.16b, v27.16b   \n"
+                        "eor    v28.16b, v28.16b, v28.16b   \n"
+                        "eor    v29.16b, v29.16b, v29.16b   \n"
+                        "eor    v30.16b, v30.16b, v30.16b   \n"
+                        "eor    v31.16b, v31.16b, v31.16b   \n"
+
+                        "1:                                 \n"
+                        "lsr    w4, %w6, #2                 \n" // w4 = max_kk >> 2
+                        "cmp    w4, #0                      \n"
+                        "beq    3f                          \n"
+
+                        "2:                                 \n"
+                        "prfm   pldl1keep, [%1, #512]       \n"
+                        "ld1    {v8.4s, v9.4s, v10.4s, v11.4s}, [%1], #64 \n"
+                        "prfm   pldl1keep, [%2, #512]       \n"
+                        "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%2], #64 \n"
+                        "fmla   v16.4s, v8.4s, v0.s[0]      \n"
+                        "fmla   v18.4s, v8.4s, v0.s[1]      \n"
+                        "fmla   v20.4s, v8.4s, v0.s[2]      \n"
+                        "fmla   v22.4s, v8.4s, v0.s[3]      \n"
+                        "fmla   v24.4s, v8.4s, v1.s[0]      \n"
+                        "fmla   v26.4s, v8.4s, v1.s[1]      \n"
+                        "fmla   v28.4s, v8.4s, v1.s[2]      \n"
+                        "fmla   v30.4s, v8.4s, v1.s[3]      \n"
+                        "fmla   v17.4s, v9.4s, v0.s[0]      \n"
+                        "fmla   v19.4s, v9.4s, v0.s[1]      \n"
+                        "fmla   v21.4s, v9.4s, v0.s[2]      \n"
+                        "fmla   v23.4s, v9.4s, v0.s[3]      \n"
+                        "fmla   v25.4s, v9.4s, v1.s[0]      \n"
+                        "fmla   v27.4s, v9.4s, v1.s[1]      \n"
+                        "fmla   v29.4s, v9.4s, v1.s[2]      \n"
+                        "fmla   v31.4s, v9.4s, v1.s[3]      \n"
+                        "fmla   v16.4s, v10.4s, v2.s[0]     \n"
+                        "fmla   v18.4s, v10.4s, v2.s[1]     \n"
+                        "fmla   v20.4s, v10.4s, v2.s[2]     \n"
+                        "fmla   v22.4s, v10.4s, v2.s[3]     \n"
+                        "fmla   v24.4s, v10.4s, v3.s[0]     \n"
+                        "fmla   v26.4s, v10.4s, v3.s[1]     \n"
+                        "fmla   v28.4s, v10.4s, v3.s[2]     \n"
+                        "fmla   v30.4s, v10.4s, v3.s[3]     \n"
+                        "fmla   v17.4s, v11.4s, v2.s[0]     \n"
+                        "fmla   v19.4s, v11.4s, v2.s[1]     \n"
+                        "fmla   v21.4s, v11.4s, v2.s[2]     \n"
+                        "fmla   v23.4s, v11.4s, v2.s[3]     \n"
+                        "fmla   v25.4s, v11.4s, v3.s[0]     \n"
+                        "fmla   v27.4s, v11.4s, v3.s[1]     \n"
+                        "fmla   v29.4s, v11.4s, v3.s[2]     \n"
+                        "fmla   v31.4s, v11.4s, v3.s[3]     \n"
+                        "prfm   pldl1keep, [%1, #512]       \n"
+                        "ld1    {v12.4s, v13.4s, v14.4s, v15.4s}, [%1], #64 \n"
+                        "prfm   pldl1keep, [%2, #512]       \n"
+                        "ld1    {v4.4s, v5.4s, v6.4s, v7.4s}, [%2], #64 \n"
+                        "fmla   v16.4s, v12.4s, v4.s[0]     \n"
+                        "fmla   v18.4s, v12.4s, v4.s[1]     \n"
+                        "fmla   v20.4s, v12.4s, v4.s[2]     \n"
+                        "fmla   v22.4s, v12.4s, v4.s[3]     \n"
+                        "fmla   v24.4s, v12.4s, v5.s[0]     \n"
+                        "fmla   v26.4s, v12.4s, v5.s[1]     \n"
+                        "fmla   v28.4s, v12.4s, v5.s[2]     \n"
+                        "fmla   v30.4s, v12.4s, v5.s[3]     \n"
+                        "fmla   v17.4s, v13.4s, v4.s[0]     \n"
+                        "fmla   v19.4s, v13.4s, v4.s[1]     \n"
+                        "fmla   v21.4s, v13.4s, v4.s[2]     \n"
+                        "fmla   v23.4s, v13.4s, v4.s[3]     \n"
+                        "fmla   v25.4s, v13.4s, v5.s[0]     \n"
+                        "fmla   v27.4s, v13.4s, v5.s[1]     \n"
+                        "fmla   v29.4s, v13.4s, v5.s[2]     \n"
+                        "fmla   v31.4s, v13.4s, v5.s[3]     \n"
+                        "fmla   v16.4s, v14.4s, v6.s[0]     \n"
+                        "fmla   v18.4s, v14.4s, v6.s[1]     \n"
+                        "fmla   v20.4s, v14.4s, v6.s[2]     \n"
+                        "fmla   v22.4s, v14.4s, v6.s[3]     \n"
+                        "fmla   v24.4s, v14.4s, v7.s[0]     \n"
+                        "fmla   v26.4s, v14.4s, v7.s[1]     \n"
+                        "fmla   v28.4s, v14.4s, v7.s[2]     \n"
+                        "fmla   v30.4s, v14.4s, v7.s[3]     \n"
+                        "subs   w4, w4, #1                  \n"
+                        "fmla   v17.4s, v15.4s, v6.s[0]     \n"
+                        "fmla   v19.4s, v15.4s, v6.s[1]     \n"
+                        "fmla   v21.4s, v15.4s, v6.s[2]     \n"
+                        "fmla   v23.4s, v15.4s, v6.s[3]     \n"
+                        "fmla   v25.4s, v15.4s, v7.s[0]     \n"
+                        "fmla   v27.4s, v15.4s, v7.s[1]     \n"
+                        "fmla   v29.4s, v15.4s, v7.s[2]     \n"
+                        "fmla   v31.4s, v15.4s, v7.s[3]     \n"
+                        "bne    2b                          \n"
+
+                        "3:                                 \n"
+                        "and    w4, %w6, #3                 \n" // w4 = remain = max_kk & 3
+                        "cmp    w4, #0                      \n"
+                        "beq    5f                          \n"
+
+                        "4:                                 \n"
+                        "ld1    {v0.4s, v1.4s}, [%2], #32   \n"
+                        "ld1    {v4.4s, v5.4s}, [%1], #32   \n"
+                        "fmla   v16.4s, v4.4s, v0.s[0]      \n"
+                        "fmla   v18.4s, v4.4s, v0.s[1]      \n"
+                        "fmla   v20.4s, v4.4s, v0.s[2]      \n"
+                        "fmla   v22.4s, v4.4s, v0.s[3]      \n"
+                        "fmla   v17.4s, v5.4s, v0.s[0]      \n"
+                        "fmla   v19.4s, v5.4s, v0.s[1]      \n"
+                        "fmla   v21.4s, v5.4s, v0.s[2]      \n"
+                        "fmla   v23.4s, v5.4s, v0.s[3]      \n"
+                        "subs   w4, w4, #1                  \n"
+                        "fmla   v24.4s, v4.4s, v1.s[0]      \n"
+                        "fmla   v26.4s, v4.4s, v1.s[1]      \n"
+                        "fmla   v28.4s, v4.4s, v1.s[2]      \n"
+                        "fmla   v30.4s, v4.4s, v1.s[3]      \n"
+                        "fmla   v25.4s, v5.4s, v1.s[0]      \n"
+                        "fmla   v27.4s, v5.4s, v1.s[1]      \n"
+                        "fmla   v29.4s, v5.4s, v1.s[2]      \n"
+                        "fmla   v31.4s, v5.4s, v1.s[3]      \n"
+                        "bne    4b                          \n"
+
+                        "5:                                 \n"
+                        "st1    {v16.4s, v17.4s, v18.4s, v19.4s}, [%0], #64 \n"
+                        "st1    {v20.4s, v21.4s, v22.4s, v23.4s}, [%0], #64 \n"
+                        "st1    {v24.4s, v25.4s, v26.4s, v27.4s}, [%0], #64 \n"
+                        "st1    {v28.4s, v29.4s, v30.4s, v31.4s}, [%0], #64 \n"
+
+                        : "=r"(outptr), // %0
+                        "=r"(pA),     // %1
+                        "=r"(pB)      // %2
+                        : "0"(outptr),
+                        "1"(pA),
+                        "2"(pB),
+                        "r"(max_kk), // %6
+                        "r"(k)       // %7
+                        : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
+                }
 #else  // NCNN_GNU_INLINE_ASM
                 float32x4_t _sum00;
                 float32x4_t _sum01;
@@ -1457,10 +2616,10 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     "beq    3f                          \n"
 
                     "2:                                 \n"
-                    "prfm   pldl1keep, [%2, #512]       \n"
-                    "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%2], #64 \n"
                     "prfm   pldl1keep, [%1, #512]       \n"
                     "ld1    {v4.4s, v5.4s, v6.4s, v7.4s}, [%1], #64 \n"
+                    "prfm   pldl1keep, [%2, #512]       \n"
+                    "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%2], #64 \n"
                     "fmla   v24.4s, v4.4s, v0.s[0]      \n"
                     "fmla   v26.4s, v4.4s, v0.s[1]      \n"
                     "fmla   v28.4s, v4.4s, v0.s[2]      \n"
@@ -1618,10 +2777,10 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     "beq    3f                          \n"
 
                     "2:                                 \n"
-                    "prfm   pldl1keep, [%2, #256]       \n"
-                    "ld1    {v0.4s, v1.4s}, [%2], #32   \n"
                     "prfm   pldl1keep, [%1, #512]       \n"
                     "ld1    {v4.4s, v5.4s, v6.4s, v7.4s}, [%1], #64 \n"
+                    "prfm   pldl1keep, [%2, #256]       \n"
+                    "ld1    {v0.4s, v1.4s}, [%2], #32   \n"
                     "fmla   v28.4s, v4.4s, v0.s[0]      \n"
                     "fmla   v30.4s, v4.4s, v0.s[1]      \n"
                     "fmla   v29.4s, v5.4s, v0.s[0]      \n"
@@ -1721,8 +2880,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 
 #if NCNN_GNU_INLINE_ASM
                 asm volatile(
-                    "eor    v28.16b, v28.16b, v28.16b   \n"
-                    "eor    v29.16b, v29.16b, v29.16b   \n"
                     "cbz    %w7, 0f                     \n"
 
                     "ld1    {v30.4s, v31.4s}, [%0]      \n"
@@ -1737,11 +2894,13 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     "cmp    w4, #0                      \n"
                     "beq    3f                          \n"
 
+                    "eor    v28.16b, v28.16b, v28.16b   \n"
+                    "eor    v29.16b, v29.16b, v29.16b   \n"
                     "2:                                 \n"
-                    "prfm   pldl1keep, [%2, #128]       \n"
-                    "ld1    {v0.4s}, [%2], #16          \n"
                     "prfm   pldl1keep, [%1, #512]       \n"
                     "ld1    {v4.4s, v5.4s, v6.4s, v7.4s}, [%1], #64 \n"
+                    "prfm   pldl1keep, [%2, #128]       \n"
+                    "ld1    {v0.4s}, [%2], #16          \n"
                     "fmla   v28.4s, v4.4s, v0.s[0]      \n"
                     "fmla   v29.4s, v5.4s, v0.s[0]      \n"
                     "fmla   v30.4s, v6.4s, v0.s[1]      \n"
@@ -1754,7 +2913,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     "fmla   v30.4s, v10.4s, v0.s[3]     \n"
                     "fmla   v31.4s, v11.4s, v0.s[3]     \n"
                     "bne    2b                          \n"
-
                     "fadd   v30.4s, v30.4s, v28.4s      \n"
                     "fadd   v31.4s, v31.4s, v29.4s      \n"
 
@@ -1864,10 +3022,10 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     "beq    3f                          \n"
 
                     "2:                                 \n"
-                    "prfm   pldl1keep, [%2, #512]       \n"
-                    "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%2], #64 \n"
                     "prfm   pldl1keep, [%1, #512]       \n"
                     "ld1    {v16.4s, v17.4s, v18.4s, v19.4s}, [%1], #64 \n"
+                    "prfm   pldl1keep, [%2, #512]       \n"
+                    "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%2], #64 \n"
                     "fmla   v20.4s, v16.4s, v0.s[0]     \n"
                     "fmla   v21.4s, v16.4s, v0.s[1]     \n"
                     "fmla   v22.4s, v16.4s, v0.s[2]     \n"
@@ -2076,10 +3234,10 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     "beq    3f                          \n"
 
                     "2:                                 \n"
-                    "prfm   pldl1keep, [%2, #512]       \n"
-                    "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%2], #64 \n"
                     "prfm   pldl1keep, [%1, #512]       \n"
                     "ld1    {v16.4s, v17.4s, v18.4s, v19.4s}, [%1], #64 \n"
+                    "prfm   pldl1keep, [%2, #512]       \n"
+                    "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%2], #64 \n"
                     "fmla   v24.4s, v16.4s, v0.s[0]     \n"
                     "fmla   v25.4s, v16.4s, v0.s[1]     \n"
                     "fmla   v26.4s, v16.4s, v0.s[2]     \n"
@@ -2175,10 +3333,10 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     "beq        3f                  \n"
 
                     "2:                             \n"
-                    "pld        [%2, #512]          \n"
-                    "vldm       %2!, {d0-d7}        \n"
                     "pld        [%1, #512]          \n"
                     "vldm       %1!, {d8-d15}       \n"
+                    "pld        [%2, #512]          \n"
+                    "vldm       %2!, {d0-d7}        \n"
                     "vmla.f32   q8, q4, d0[0]       \n"
                     "vmla.f32   q9, q4, d0[1]       \n"
                     "vmla.f32   q10, q4, d1[0]      \n"
@@ -2348,10 +3506,10 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     "beq    3f                          \n"
 
                     "2:                                 \n"
-                    "prfm   pldl1keep, [%2, #512]       \n"
-                    "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%2], #64 \n"
                     "prfm   pldl1keep, [%1, #512]       \n"
                     "ld1    {v16.4s, v17.4s, v18.4s, v19.4s}, [%1], #64 \n"
+                    "prfm   pldl1keep, [%2, #512]       \n"
+                    "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%2], #64 \n"
                     "fmla   v28.4s, v16.4s, v0.s[0]     \n"
                     "fmla   v29.4s, v16.4s, v0.s[1]     \n"
                     "fmla   v30.4s, v16.4s, v0.s[2]     \n"
@@ -2418,10 +3576,10 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     "beq        3f                  \n"
 
                     "2:                             \n"
-                    "pld        [%2, #512]          \n"
-                    "vldm       %2!, {d0-d7}        \n"
                     "pld        [%1, #512]          \n"
                     "vldm       %1!, {d8-d15}       \n"
+                    "pld        [%2, #512]          \n"
+                    "vldm       %2!, {d0-d7}        \n"
                     "vmla.f32   q12, q4, d0[0]      \n"
                     "vmla.f32   q13, q4, d0[1]      \n"
                     "vmla.f32   q14, q4, d1[0]      \n"
@@ -2526,8 +3684,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 #if NCNN_GNU_INLINE_ASM
 #if __aarch64__
                 asm volatile(
-                    "eor    v28.16b, v28.16b, v28.16b   \n"
-                    "eor    v29.16b, v29.16b, v29.16b   \n"
                     "cbz    %w7, 0f                     \n"
 
                     "ld1    {v30.4s, v31.4s}, [%0]      \n"
@@ -2542,11 +3698,13 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     "cmp    w4, #0                      \n"
                     "beq    3f                          \n"
 
+                    "eor    v28.16b, v28.16b, v28.16b   \n"
+                    "eor    v29.16b, v29.16b, v29.16b   \n"
                     "2:                                 \n"
-                    "prfm   pldl1keep, [%2, #256]       \n"
-                    "ld1    {v0.4s, v1.4s}, [%2], #32   \n"
                     "prfm   pldl1keep, [%1, #512]       \n"
                     "ld1    {v16.4s, v17.4s, v18.4s, v19.4s}, [%1], #64 \n"
+                    "prfm   pldl1keep, [%2, #256]       \n"
+                    "ld1    {v0.4s, v1.4s}, [%2], #32   \n"
                     "fmla   v28.4s, v16.4s, v0.s[0]     \n"
                     "fmla   v29.4s, v16.4s, v0.s[1]     \n"
                     "fmla   v30.4s, v17.4s, v0.s[2]     \n"
@@ -2557,7 +3715,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     "fmla   v30.4s, v19.4s, v1.s[2]     \n"
                     "fmla   v31.4s, v19.4s, v1.s[3]     \n"
                     "bne    2b                          \n"
-
                     "fadd   v30.4s, v30.4s, v28.4s      \n"
                     "fadd   v31.4s, v31.4s, v29.4s      \n"
 
@@ -2588,8 +3745,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v16", "v17", "v18", "v19", "v28", "v29", "v30", "v31");
 #else  // __aarch64__
                 asm volatile(
-                    "veor       q12, q12            \n"
-                    "veor       q13, q13            \n"
                     "cmp        %7, #0              \n"
                     "beq        0f                  \n"
 
@@ -2605,11 +3760,13 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     "cmp        r4, #0              \n"
                     "beq        3f                  \n"
 
+                    "veor       q12, q12            \n"
+                    "veor       q13, q13            \n"
                     "2:                             \n"
-                    "pld        [%2, #256]          \n"
-                    "vld1.f32   {d0-d3}, [%2 :128]! \n"
                     "pld        [%1, #512]          \n"
                     "vldm       %1!, {d8-d15}       \n"
+                    "pld        [%2, #256]          \n"
+                    "vld1.f32   {d0-d3}, [%2 :128]! \n"
                     "vmla.f32   q12, q4, d0[0]      \n"
                     "vmla.f32   q13, q4, d0[1]      \n"
                     "vmla.f32   q14, q5, d1[0]      \n"
@@ -2620,7 +3777,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     "vmla.f32   q14, q7, d3[0]      \n"
                     "vmla.f32   q15, q7, d3[1]      \n"
                     "bne        2b                  \n"
-
                     "vadd.f32   q14, q14, q12       \n"
                     "vadd.f32   q15, q15, q13       \n"
 
@@ -2695,9 +3851,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
 #if NCNN_GNU_INLINE_ASM
 #if __aarch64__
                 asm volatile(
-                    "eor    v28.16b, v28.16b, v28.16b   \n"
-                    "eor    v29.16b, v29.16b, v29.16b   \n"
-                    "eor    v30.16b, v30.16b, v30.16b   \n"
                     "cbz    %w7, 0f                     \n"
 
                     "ld1    {v31.4s}, [%0]              \n"
@@ -2711,18 +3864,20 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     "cmp    w4, #0                      \n"
                     "beq    3f                          \n"
 
+                    "eor    v28.16b, v28.16b, v28.16b   \n"
+                    "eor    v29.16b, v29.16b, v29.16b   \n"
+                    "eor    v30.16b, v30.16b, v30.16b   \n"
                     "2:                                 \n"
-                    "prfm   pldl1keep, [%2, #128]       \n"
-                    "ld1    {v0.4s}, [%2], #16          \n"
                     "prfm   pldl1keep, [%1, #512]       \n"
                     "ld1    {v16.4s, v17.4s, v18.4s, v19.4s}, [%1], #64 \n"
+                    "prfm   pldl1keep, [%2, #128]       \n"
+                    "ld1    {v0.4s}, [%2], #16          \n"
                     "fmla   v28.4s, v16.4s, v0.s[0]     \n"
                     "fmla   v29.4s, v17.4s, v0.s[1]     \n"
                     "subs   w4, w4, #1                  \n"
                     "fmla   v30.4s, v18.4s, v0.s[2]     \n"
                     "fmla   v31.4s, v19.4s, v0.s[3]     \n"
                     "bne    2b                          \n"
-
                     "fadd   v30.4s, v30.4s, v28.4s      \n"
                     "fadd   v31.4s, v31.4s, v29.4s      \n"
                     "fadd   v31.4s, v31.4s, v30.4s      \n"
@@ -2753,9 +3908,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v16", "v17", "v18", "v19", "v28", "v29", "v30", "v31");
 #else  // __aarch64__
                 asm volatile(
-                    "veor       q12, q12            \n"
-                    "veor       q13, q13            \n"
-                    "veor       q14, q14            \n"
                     "cmp        %7, #0              \n"
                     "beq        0f                  \n"
 
@@ -2770,18 +3922,20 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
                     "cmp        r4, #0              \n"
                     "beq        3f                  \n"
 
+                    "veor       q12, q12            \n"
+                    "veor       q13, q13            \n"
+                    "veor       q14, q14            \n"
                     "2:                             \n"
-                    "pld        [%2, #128]          \n"
-                    "vld1.f32   {d0-d1}, [%2 :64]!  \n"
                     "pld        [%1, #512]          \n"
                     "vldm       %1!, {d8-d15}       \n"
+                    "pld        [%2, #128]          \n"
+                    "vld1.f32   {d0-d1}, [%2 :64]!  \n"
                     "vmla.f32   q12, q4, d0[0]      \n"
                     "vmla.f32   q13, q5, d0[1]      \n"
                     "subs       r4, r4, #1          \n"
                     "vmla.f32   q14, q6, d1[0]      \n"
                     "vmla.f32   q15, q7, d1[1]      \n"
                     "bne        2b                  \n"
-
                     "vadd.f32   q14, q14, q12       \n"
                     "vadd.f32   q15, q15, q13       \n"
                     "vadd.f32   q15, q15, q14       \n"
@@ -3305,10 +4459,13 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, Mat&
     }
 }
 
-static void get_optimal_tile_mnk(int M, int N, int K, int& TILE_M, int& TILE_N, int& TILE_K, int nT)
+static void conv3x3s1_winograd_get_optimal_tile_mnk(int M, int N, int K, int B, int& TILE_M, int& TILE_N, int& TILE_K, int nT)
 {
     // resolve optimal tile size from cache size
     const int l2_cache_size_fp32 = (int)(get_cpu_level2_cache_size() / sizeof(float));
+
+    // we shall take B into account for batched gemm, but that will be slower on arm in practice, why ?
+    (void)B;
 
     // solve K
     {
@@ -3322,11 +4479,11 @@ static void get_optimal_tile_mnk(int M, int N, int K, int& TILE_M, int& TILE_N, 
 #endif
 
 #if __aarch64__
-        TILE_K = tile_size / 8 * 8;
+        TILE_K = std::max(8, tile_size / 8 * 8);
 #elif __ARM_NEON
-        TILE_K = tile_size / 4 * 4;
+        TILE_K = std::max(4, tile_size / 4 * 4);
 #else
-        TILE_K = tile_size / 2 * 2;
+        TILE_K = std::max(2, tile_size / 2 * 2);
 #endif
 
         int nn_K = (K + TILE_K - 1) / TILE_K;
@@ -3341,7 +4498,6 @@ static void get_optimal_tile_mnk(int M, int N, int K, int& TILE_M, int& TILE_N, 
 
     // solve M
     {
-        // split M is somewhat free as the out-most loop
 #if __aarch64__
         TILE_M = 8;
 #elif __ARM_NEON
@@ -3349,7 +4505,9 @@ static void get_optimal_tile_mnk(int M, int N, int K, int& TILE_M, int& TILE_N, 
 #else
         TILE_M = 2;
 #endif
+    }
 
+    {
         TILE_M *= std::min(nT, get_physical_cpu_count());
 
         int nn_M = (M + TILE_M - 1) / TILE_M;
@@ -3371,6 +4529,14 @@ static void get_optimal_tile_mnk(int M, int N, int K, int& TILE_M, int& TILE_N, 
             TILE_M = std::min(TILE_M, (std::max(1, TILE_M / nT) + 1) / 2 * 2);
 #endif
         }
+
+#if __aarch64__
+        TILE_M = std::max(8, TILE_M);
+#elif __ARM_NEON
+        TILE_M = std::max(4, TILE_M);
+#else
+        TILE_M = std::max(2, TILE_M);
+#endif
     }
 
     if (N > 0)
@@ -3394,12 +4560,21 @@ static void get_optimal_tile_mnk(int M, int N, int K, int& TILE_M, int& TILE_N, 
 #endif
 
         int nn_N = (N + TILE_N - 1) / TILE_N;
+
 #if __aarch64__
         TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 3) / 4 * 4);
 #elif __ARM_NEON
         TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 3) / 4 * 4);
 #else
         TILE_N = std::min(TILE_N, (N + nn_N - 1) / nn_N);
+#endif
+
+#if __aarch64__
+        TILE_N = std::max(4, TILE_N);
+#elif __ARM_NEON
+        TILE_N = std::max(4, TILE_N);
+#else
+        TILE_N = std::max(1, TILE_N);
 #endif
     }
 }
@@ -3467,7 +4642,7 @@ static void conv3x3s1_winograd23_transform_kernel(const Mat& kernel, Mat& AT, in
     const int B = 16;
 
     int TILE_M, TILE_N, TILE_K;
-    get_optimal_tile_mnk(M, 0, K, TILE_M, TILE_N, TILE_K, opt.num_threads);
+    conv3x3s1_winograd_get_optimal_tile_mnk(M, 0, K, B, TILE_M, TILE_N, TILE_K, opt.num_threads);
 
     const int nn_M = (M + TILE_M - 1) / TILE_M;
 
@@ -3491,7 +4666,7 @@ static void conv3x3s1_winograd23_transform_kernel(const Mat& kernel, Mat& AT, in
 
             Mat AT_tile = AT.channel(i / TILE_M).depth(k / TILE_K);
 
-            pack_A_tile(A_tile, AT_tile, B, max_ii, max_kk);
+            conv3x3s1_winograd_pack_A_tile(A_tile, AT_tile, B, max_ii, max_kk);
         }
     }
 }
@@ -4418,7 +5593,7 @@ static void conv3x3s1_winograd23(const Mat& bottom_blob, Mat& top_blob, const Ma
     // NCNN_LOGE("conv3x3s1_winograd23 %d %d %d", M, N, K);
 
     int TILE_M, TILE_N, TILE_K;
-    get_optimal_tile_mnk(M, N, K, TILE_M, TILE_N, TILE_K, nT);
+    conv3x3s1_winograd_get_optimal_tile_mnk(M, N, K, B, TILE_M, TILE_N, TILE_K, nT);
 
     const int nn_M = (M + TILE_M - 1) / TILE_M;
     const int nn_N = (N + TILE_N - 1) / TILE_N;
@@ -4450,7 +5625,7 @@ static void conv3x3s1_winograd23(const Mat& bottom_blob, Mat& top_blob, const Ma
 
             Mat BT_tile = BT.channel(j / TILE_N).depth(k / TILE_K);
 
-            transpose_pack_B_tile(B_tile, BT_tile, B, max_jj, max_kk, nT);
+            conv3x3s1_winograd_transpose_pack_B_tile(B_tile, BT_tile, B, max_jj, max_kk, nT);
         }
     }
     else
@@ -4476,7 +5651,7 @@ static void conv3x3s1_winograd23(const Mat& bottom_blob, Mat& top_blob, const Ma
 
             Mat BT_tile = BT.channel(j / TILE_N).depth(k / TILE_K);
 
-            transpose_pack_B_tile(B_tile, BT_tile, B, max_jj, max_kk, 1);
+            conv3x3s1_winograd_transpose_pack_B_tile(B_tile, BT_tile, B, max_jj, max_kk, 1);
         }
     }
 
@@ -4503,7 +5678,7 @@ static void conv3x3s1_winograd23(const Mat& bottom_blob, Mat& top_blob, const Ma
 
                 const Mat BT_tile = BT.channel(j / TILE_N).depth(k / TILE_K);
 
-                gemm_transB_packed_tile(AT_tile, BT_tile, top_tile, B, max_ii, max_jj, k, max_kk);
+                conv3x3s1_winograd_gemm_transB_packed_tile(AT_tile, BT_tile, top_tile, B, max_ii, max_jj, k, max_kk, opt.use_a53_a55_optimized_kernel);
             }
 
             // transform output
@@ -4589,7 +5764,7 @@ static void conv3x3s1_winograd43_transform_kernel(const Mat& kernel, Mat& AT, in
     const int B = 36;
 
     int TILE_M, TILE_N, TILE_K;
-    get_optimal_tile_mnk(M, 0, K, TILE_M, TILE_N, TILE_K, opt.num_threads);
+    conv3x3s1_winograd_get_optimal_tile_mnk(M, 0, K, B, TILE_M, TILE_N, TILE_K, opt.num_threads);
 
     const int nn_M = (M + TILE_M - 1) / TILE_M;
 
@@ -4613,7 +5788,7 @@ static void conv3x3s1_winograd43_transform_kernel(const Mat& kernel, Mat& AT, in
 
             Mat AT_tile = AT.channel(i / TILE_M).depth(k / TILE_K);
 
-            pack_A_tile(A_tile, AT_tile, B, max_ii, max_kk);
+            conv3x3s1_winograd_pack_A_tile(A_tile, AT_tile, B, max_ii, max_kk);
         }
     }
 }
@@ -6096,7 +7271,7 @@ static void conv3x3s1_winograd43(const Mat& bottom_blob, Mat& top_blob, const Ma
     // NCNN_LOGE("conv3x3s1_winograd43 %d %d %d", M, N, K);
 
     int TILE_M, TILE_N, TILE_K;
-    get_optimal_tile_mnk(M, N, K, TILE_M, TILE_N, TILE_K, nT);
+    conv3x3s1_winograd_get_optimal_tile_mnk(M, N, K, B, TILE_M, TILE_N, TILE_K, nT);
 
     const int nn_M = (M + TILE_M - 1) / TILE_M;
     const int nn_N = (N + TILE_N - 1) / TILE_N;
@@ -6128,7 +7303,7 @@ static void conv3x3s1_winograd43(const Mat& bottom_blob, Mat& top_blob, const Ma
 
             Mat BT_tile = BT.channel(j / TILE_N).depth(k / TILE_K);
 
-            transpose_pack_B_tile(B_tile, BT_tile, B, max_jj, max_kk, nT);
+            conv3x3s1_winograd_transpose_pack_B_tile(B_tile, BT_tile, B, max_jj, max_kk, nT);
         }
     }
     else
@@ -6154,7 +7329,7 @@ static void conv3x3s1_winograd43(const Mat& bottom_blob, Mat& top_blob, const Ma
 
             Mat BT_tile = BT.channel(j / TILE_N).depth(k / TILE_K);
 
-            transpose_pack_B_tile(B_tile, BT_tile, B, max_jj, max_kk, 1);
+            conv3x3s1_winograd_transpose_pack_B_tile(B_tile, BT_tile, B, max_jj, max_kk, 1);
         }
     }
 
@@ -6181,7 +7356,7 @@ static void conv3x3s1_winograd43(const Mat& bottom_blob, Mat& top_blob, const Ma
 
                 const Mat BT_tile = BT.channel(j / TILE_N).depth(k / TILE_K);
 
-                gemm_transB_packed_tile(AT_tile, BT_tile, top_tile, B, max_ii, max_jj, k, max_kk);
+                conv3x3s1_winograd_gemm_transB_packed_tile(AT_tile, BT_tile, top_tile, B, max_ii, max_jj, k, max_kk, opt.use_a53_a55_optimized_kernel);
             }
 
             // transform output
@@ -6274,7 +7449,7 @@ static void conv3x3s1_winograd63_transform_kernel(const Mat& kernel, Mat& AT, in
     const int B = 64;
 
     int TILE_M, TILE_N, TILE_K;
-    get_optimal_tile_mnk(M, 0, K, TILE_M, TILE_N, TILE_K, opt.num_threads);
+    conv3x3s1_winograd_get_optimal_tile_mnk(M, 0, K, B, TILE_M, TILE_N, TILE_K, opt.num_threads);
 
     const int nn_M = (M + TILE_M - 1) / TILE_M;
 
@@ -6298,7 +7473,7 @@ static void conv3x3s1_winograd63_transform_kernel(const Mat& kernel, Mat& AT, in
 
             Mat AT_tile = AT.channel(i / TILE_M).depth(k / TILE_K);
 
-            pack_A_tile(A_tile, AT_tile, B, max_ii, max_kk);
+            conv3x3s1_winograd_pack_A_tile(A_tile, AT_tile, B, max_ii, max_kk);
         }
     }
 }
@@ -8132,7 +9307,7 @@ static void conv3x3s1_winograd63(const Mat& bottom_blob, Mat& top_blob, const Ma
     // NCNN_LOGE("conv3x3s1_winograd63 %d %d %d", M, N, K);
 
     int TILE_M, TILE_N, TILE_K;
-    get_optimal_tile_mnk(M, N, K, TILE_M, TILE_N, TILE_K, nT);
+    conv3x3s1_winograd_get_optimal_tile_mnk(M, N, K, B, TILE_M, TILE_N, TILE_K, nT);
 
     const int nn_M = (M + TILE_M - 1) / TILE_M;
     const int nn_N = (N + TILE_N - 1) / TILE_N;
@@ -8164,7 +9339,7 @@ static void conv3x3s1_winograd63(const Mat& bottom_blob, Mat& top_blob, const Ma
 
             Mat BT_tile = BT.channel(j / TILE_N).depth(k / TILE_K);
 
-            transpose_pack_B_tile(B_tile, BT_tile, B, max_jj, max_kk, nT);
+            conv3x3s1_winograd_transpose_pack_B_tile(B_tile, BT_tile, B, max_jj, max_kk, nT);
         }
     }
     else
@@ -8190,7 +9365,7 @@ static void conv3x3s1_winograd63(const Mat& bottom_blob, Mat& top_blob, const Ma
 
             Mat BT_tile = BT.channel(j / TILE_N).depth(k / TILE_K);
 
-            transpose_pack_B_tile(B_tile, BT_tile, B, max_jj, max_kk, 1);
+            conv3x3s1_winograd_transpose_pack_B_tile(B_tile, BT_tile, B, max_jj, max_kk, 1);
         }
     }
 
@@ -8217,7 +9392,7 @@ static void conv3x3s1_winograd63(const Mat& bottom_blob, Mat& top_blob, const Ma
 
                 const Mat BT_tile = BT.channel(j / TILE_N).depth(k / TILE_K);
 
-                gemm_transB_packed_tile(AT_tile, BT_tile, top_tile, B, max_ii, max_jj, k, max_kk);
+                conv3x3s1_winograd_gemm_transB_packed_tile(AT_tile, BT_tile, top_tile, B, max_ii, max_jj, k, max_kk, opt.use_a53_a55_optimized_kernel);
             }
 
             // transform output

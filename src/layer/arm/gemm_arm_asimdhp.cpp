@@ -2284,9 +2284,9 @@ static void get_optimal_tile_mnk_fp16sa(int M, int N, int K, int constant_TILE_M
     size_t l2_cache_size = get_cpu_level2_cache_size();
     int tile_size = (int)sqrt((float)l2_cache_size / 3 / sizeof(__fp16));
 
-    TILE_M = tile_size / 8 * 8;
-    TILE_N = tile_size / 4 * 4;
-    TILE_K = tile_size / 8 * 8;
+    TILE_M = std::max(8, tile_size / 8 * 8);
+    TILE_N = std::max(4, tile_size / 4 * 4);
+    TILE_K = std::max(8, tile_size / 8 * 8);
 
     if (K > 0)
     {
@@ -2297,8 +2297,8 @@ static void get_optimal_tile_mnk_fp16sa(int M, int N, int K, int constant_TILE_M
         {
             tile_size = (int)((float)l2_cache_size / 2 / sizeof(__fp16) / TILE_K);
 
-            TILE_M = tile_size / 8 * 8;
-            TILE_N = tile_size / 4 * 4;
+            TILE_M = std::max(8, tile_size / 8 * 8);
+            TILE_N = std::max(4, tile_size / 4 * 4);
         }
     }
 
@@ -2355,8 +2355,8 @@ static int gemm_arm_fp16sa(const Mat& A, const Mat& B, const Mat& C, Mat& top_bl
     int nn_N = (N + TILE_N - 1) / TILE_N;
     int nn_K = (K + TILE_K - 1) / TILE_K;
 
-    Mat ATX(TILE_K * TILE_M, (K + TILE_K - 1) / TILE_K, nT, 2u, opt.blob_allocator);
-    Mat BT(TILE_K * TILE_N, (K + TILE_K - 1) / TILE_K, (N + TILE_N - 1) / TILE_N, 2u, opt.blob_allocator);
+    Mat ATX(TILE_K * TILE_M, (K + TILE_K - 1) / TILE_K, nT, 2u, opt.workspace_allocator);
+    Mat BT(TILE_K * TILE_N, (K + TILE_K - 1) / TILE_K, (N + TILE_N - 1) / TILE_N, 2u, opt.workspace_allocator);
 
     const int nn_NK = nn_N * nn_K;
 
@@ -2387,7 +2387,7 @@ static int gemm_arm_fp16sa(const Mat& A, const Mat& B, const Mat& C, Mat& top_bl
 
     Mat topT;
     if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
-        topT.create(TILE_N * TILE_M, 1, nT, 2u, opt.blob_allocator);
+        topT.create(TILE_N * TILE_M, 1, nT, 2u, opt.workspace_allocator);
 
     #pragma omp parallel for num_threads(nT)
     for (int ppi = 0; ppi < nn_M; ppi++)
@@ -2463,7 +2463,7 @@ static int gemm_AT_arm_fp16sa(const Mat& AT, const Mat& B, const Mat& C, Mat& to
     int nn_N = (N + TILE_N - 1) / TILE_N;
     int nn_K = (K + TILE_K - 1) / TILE_K;
 
-    Mat BT(TILE_K * TILE_N, (K + TILE_K - 1) / TILE_K, (N + TILE_N - 1) / TILE_N, 2u, opt.blob_allocator);
+    Mat BT(TILE_K * TILE_N, (K + TILE_K - 1) / TILE_K, (N + TILE_N - 1) / TILE_N, 2u, opt.workspace_allocator);
 
     const int nn_NK = nn_N * nn_K;
 
@@ -2494,7 +2494,7 @@ static int gemm_AT_arm_fp16sa(const Mat& AT, const Mat& B, const Mat& C, Mat& to
 
     Mat topT;
     if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
-        topT.create(TILE_N * TILE_M, 1, nT, 2u, opt.blob_allocator);
+        topT.create(TILE_N * TILE_M, 1, nT, 2u, opt.workspace_allocator);
 
     #pragma omp parallel for num_threads(nT)
     for (int ppi = 0; ppi < nn_M; ppi++)
@@ -2557,11 +2557,11 @@ static int gemm_BT_arm_fp16sa(const Mat& A, const Mat& BT, const Mat& C, Mat& to
     int nn_M = (M + TILE_M - 1) / TILE_M;
     // int nn_N = (N + TILE_N - 1) / TILE_N;
 
-    Mat ATX(TILE_K * TILE_M, (K + TILE_K - 1) / TILE_K, nT, 2u, opt.blob_allocator);
+    Mat ATX(TILE_K * TILE_M, (K + TILE_K - 1) / TILE_K, nT, 2u, opt.workspace_allocator);
 
     Mat topT;
     if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
-        topT.create(TILE_N * TILE_M, 1, nT, 2u, opt.blob_allocator);
+        topT.create(TILE_N * TILE_M, 1, nT, 2u, opt.workspace_allocator);
 
     #pragma omp parallel for num_threads(nT)
     for (int ppi = 0; ppi < nn_M; ppi++)
@@ -2636,7 +2636,7 @@ static int gemm_AT_BT_arm_fp16sa(const Mat& AT, const Mat& BT, const Mat& C, Mat
 
     Mat topT;
     if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
-        topT.create(TILE_N * TILE_M, 1, nT, 2u, opt.blob_allocator);
+        topT.create(TILE_N * TILE_M, 1, nT, 2u, opt.workspace_allocator);
 
     #pragma omp parallel for num_threads(nT)
     for (int ppi = 0; ppi < nn_M; ppi++)
@@ -2697,7 +2697,7 @@ int Gemm_arm::create_pipeline_fp16sa(const Option& opt)
 
         const int nn_M = (M + TILE_M - 1) / TILE_M;
 
-        AT_data.create(TILE_K * TILE_M, (K + TILE_K - 1) / TILE_K, (M + TILE_M - 1) / TILE_M, 2u, opt.blob_allocator);
+        AT_data.create(TILE_K * TILE_M, (K + TILE_K - 1) / TILE_K, (M + TILE_M - 1) / TILE_M, 2u, (Allocator*)0);
         if (AT_data.empty())
             return -100;
 
@@ -2740,7 +2740,7 @@ int Gemm_arm::create_pipeline_fp16sa(const Option& opt)
 
         const int nn_N = (N + TILE_N - 1) / TILE_N;
 
-        BT_data.create(TILE_K * TILE_N, (K + TILE_K - 1) / TILE_K, (N + TILE_N - 1) / TILE_N, 2u, opt.blob_allocator);
+        BT_data.create(TILE_K * TILE_N, (K + TILE_K - 1) / TILE_K, (N + TILE_N - 1) / TILE_N, 2u, (Allocator*)0);
         if (BT_data.empty())
             return -100;
 

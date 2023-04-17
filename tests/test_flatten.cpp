@@ -87,6 +87,7 @@ static int test_flatten_1()
            || test_flatten_int8(RandomS8Mat(13, 52))
            || test_flatten_int8(RandomS8Mat(16, 64))
            || test_flatten_int8(RandomS8Mat(8, 48))
+           || test_flatten_int8(RandomS8Mat(16, 11))
            || test_flatten_int8(RandomS8Mat(8, 8))
            || test_flatten_int8(RandomS8Mat(128))
            || test_flatten_int8(RandomS8Mat(127));
