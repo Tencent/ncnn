@@ -1612,6 +1612,11 @@ int create_gpu_instance()
     return 0;
 }
 
+VkInstance get_gpu_instance()
+{
+    return (VkInstance)g_instance;
+}
+
 void destroy_gpu_instance()
 {
     MutexLockGuard lock(g_instance_lock);

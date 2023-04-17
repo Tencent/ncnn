@@ -28,7 +28,19 @@
 namespace ncnn {
 
 // instance
+
+// Create VkInstance and initialize some objects that need to be calculated by GPU
+// Creates a VkInstance object, Checks the extended attributes supported by the Vulkan instance concerned,
+// Initializes, and creates Vulkan validation layers (if ENABLE_VALIDATION_LAYER is enabled),
+// Iterates over all supported physical devices, etc.
 NCNN_EXPORT int create_gpu_instance();
+
+// Get global VkInstance variable
+// Must be called after create_gpu_instance() and before destroy_gpu_instance()
+NCNN_EXPORT VkInstance get_gpu_instance();
+
+// Destroy VkInstance object and free the memory of the associated object
+// Usually called in the destructor of the main program exit
 NCNN_EXPORT void destroy_gpu_instance();
 
 // instance extension capability
