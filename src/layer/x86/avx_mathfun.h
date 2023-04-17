@@ -1041,41 +1041,41 @@ static NCNN_FORCEINLINE __m256 atan2256_ps(__m256 y, __m256 x)
 
     // pi_additions = ((x < 0.0f) ? ((y < 0.0f) ? -PI : PI) : 0.0f);
     __m256 pi_additions = _mm256_and_ps(
-        _mm256_cmp_ps(x, magic_zero, _CMP_LT_OQ),
-        _mm256_or_ps(
-            _mm256_and_ps(
-                _mm256_cmp_ps(y, magic_zero, _CMP_LT_OQ),
-                magic_negative_zero),
-            magic_pi));
+                              _mm256_cmp_ps(x, magic_zero, _CMP_LT_OQ),
+                              _mm256_or_ps(
+                                  _mm256_and_ps(
+                                      _mm256_cmp_ps(y, magic_zero, _CMP_LT_OQ),
+                                      magic_negative_zero),
+                                  magic_pi));
 
     // normal_result = (atan(y / x) + pi_additions);
     __m256 normal_result = _mm256_add_ps(
-        atan256_ps(_mm256_div_ps(y, x)),
-        pi_additions);
+                               atan256_ps(_mm256_div_ps(y, x)),
+                               pi_additions);
 
     // negative_mask_full_x = ((negative_mask_x | PI) < 0.0f);
     __m256 negative_mask_full_x = _mm256_cmp_ps(
-        _mm256_or_ps(negative_mask_x, magic_pi),
-        magic_zero,
-        _CMP_LT_OQ);
+                                      _mm256_or_ps(negative_mask_x, magic_pi),
+                                      magic_zero,
+                                      _CMP_LT_OQ);
 
     // x1 = (negative_mask_y ? -(0.5 * PI) : (0.5 * PI));
-    // x2 = (negative_mask_full_x ? PI : 0.0f); 
+    // x2 = (negative_mask_full_x ? PI : 0.0f);
     // special_result = ((y != 0.0f) ? x1 : x2);
     __m256 special_result = _mm256_or_ps(
-        _mm256_and_ps(
-            not_equal_zero_y,
-            _mm256_or_ps(negative_mask_y, magic_half_pi)),
-        _mm256_andnot_ps(
-            not_equal_zero_y,
-            _mm256_or_ps(
-                _mm256_and_ps(negative_mask_full_x, magic_pi),
-                _mm256_andnot_ps(negative_mask_full_x, magic_zero))));
+                                _mm256_and_ps(
+                                    not_equal_zero_y,
+                                    _mm256_or_ps(negative_mask_y, magic_half_pi)),
+                                _mm256_andnot_ps(
+                                    not_equal_zero_y,
+                                    _mm256_or_ps(
+                                        _mm256_and_ps(negative_mask_full_x, magic_pi),
+                                        _mm256_andnot_ps(negative_mask_full_x, magic_zero))));
 
     // return (normal_mode ? normal_result : special_result);
     return _mm256_or_ps(
-        _mm256_and_ps(normal_mode, normal_result),
-        _mm256_andnot_ps(normal_mode, special_result));
+               _mm256_and_ps(normal_mode, normal_result),
+               _mm256_andnot_ps(normal_mode, special_result));
 }
 
 #endif // AVX_MATHFUN_H

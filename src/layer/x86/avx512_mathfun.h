@@ -790,15 +790,15 @@ static NCNN_FORCEINLINE __m512 atan2512_ps(__m512 y, __m512 x)
 
     // not_equal_zero_x = (x != 0.0f);
     __mmask16 not_equal_zero_x = _mm512_cmp_ps_mask(
-        x,
-        magic_zero,
-        _CMP_NEQ_OQ);
+                                     x,
+                                     magic_zero,
+                                     _CMP_NEQ_OQ);
 
     // not_equal_zero_y = (y != 0.0f);
     __mmask16 not_equal_zero_y = _mm512_cmp_ps_mask(
-        y,
-        magic_zero,
-        _CMP_NEQ_OQ);
+                                     y,
+                                     magic_zero,
+                                     _CMP_NEQ_OQ);
 
     // normal_mode = ((x != 0.0f) & (y != 0.0f));
     __mmask16 normal_mode = (not_equal_zero_x & not_equal_zero_y);
@@ -811,31 +811,31 @@ static NCNN_FORCEINLINE __m512 atan2512_ps(__m512 y, __m512 x)
 
     // pi_additions = ((x < 0.0f) ? ((y < 0.0f) ? -PI : PI) : 0.0f);
     __m512 pi_additions = _mm512_mask_mov_ps(
-        magic_zero,
-        _mm512_cmp_ps_mask(x, magic_zero, _CMP_LT_OQ),
-        _mm512_mask_mov_ps(
-            magic_pi,
-            _mm512_cmp_ps_mask(y, magic_zero, _CMP_LT_OQ),
-            _mm512_or_ps(magic_negative_zero, magic_pi)));
+                              magic_zero,
+                              _mm512_cmp_ps_mask(x, magic_zero, _CMP_LT_OQ),
+                              _mm512_mask_mov_ps(
+                                  magic_pi,
+                                  _mm512_cmp_ps_mask(y, magic_zero, _CMP_LT_OQ),
+                                  _mm512_or_ps(magic_negative_zero, magic_pi)));
 
     // normal_result = (atan(y / x) + pi_additions);
     __m512 normal_result = _mm512_add_ps(
-        _avx512_atanf16(_mm512_div_ps(y, x)),
-        pi_additions);
+                               _avx512_atanf16(_mm512_div_ps(y, x)),
+                               pi_additions);
 
     // negative_mask_full_x = ((negative_mask_x | PI) < 0.0f);
     __mmask16 negative_mask_full_x = _mm512_cmp_ps_mask(
-        _mm512_or_ps(negative_mask_x, magic_pi),
-        magic_zero,
-        _CMP_LT_OQ);
+                                         _mm512_or_ps(negative_mask_x, magic_pi),
+                                         magic_zero,
+                                         _CMP_LT_OQ);
 
     // x1 = (negative_mask_y ? -(0.5 * PI) : (0.5 * PI));
     // x2 = (negative_mask_full_x ? PI : 0.0f);
     // special_result = ((y != 0.0f) ? x1 : x2);
     __m512 special_result = _mm512_mask_mov_ps(
-        _mm512_mask_mov_ps(magic_zero, negative_mask_full_x, magic_pi),
-        not_equal_zero_y,
-        _mm512_or_ps(negative_mask_y, magic_half_pi));
+                                _mm512_mask_mov_ps(magic_zero, negative_mask_full_x, magic_pi),
+                                not_equal_zero_y,
+                                _mm512_or_ps(negative_mask_y, magic_half_pi));
 
     // return (normal_mode ? normal_result : special_result);
     return _mm512_mask_mov_ps(special_result, normal_mode, normal_result);
