@@ -1873,6 +1873,24 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                 }
                 fprintf(pyfp, "]\n");
             }
+            else if (op->type == "nn.GRU" || op->type == "nn.RNN")
+            {
+                if (op->outputs.size() == 1)
+                {
+                    fprintf(pyfp, "v_%s, _", sanitize_identifier(op->outputs[0]->name).c_str());
+                }
+                else
+                {
+                    fprintf(pyfp, "v_%s, v_%s", sanitize_identifier(op->outputs[0]->name).c_str(), sanitize_identifier(op->outputs[1]->name).c_str());
+                }
+                fprintf(pyfp, " = self.%s(", sanitize_identifier(op->name).c_str());
+                fprintf(pyfp, "v_%s", sanitize_identifier(op->inputs[0]->name).c_str());
+                if (op->inputs.size() == 2)
+                {
+                    fprintf(pyfp, ", v_%s", sanitize_identifier(op->inputs[1]->name).c_str());
+                }
+                fprintf(pyfp, ")\n");
+            }
             else if (op->type == "nn.LSTM")
             {
                 if (op->outputs.size() == 1)
