@@ -25,7 +25,7 @@ static bool operand_maybe_tensor(const Operand* operand)
     if (op->type == "prim::Constant")
     {
         const Parameter& param = op->params.at("value");
-        if (param.type == 0 || param.type == 1 || param.type == 2 || param.type == 3 || param.type == 4)
+        if (param.type == 0 || param.type == 1 || param.type == 2 || param.type == 3 || param.type == 4 || param.type == 10)
         {
             return false;
         }
@@ -194,6 +194,12 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
         else if (param.type == 4)
         {
             expr += param.s;
+        }
+        else if (param.type == 10)
+        {
+            char tmp[32];
+            sprintf(tmp, "%e%+ej", param.c.real(), param.c.imag());
+            expr += tmp;
         }
         else
         {
