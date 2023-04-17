@@ -41,37 +41,26 @@
 #define ENABLE_VALIDATION_LAYER 0
 
 namespace ncnn {
-
-// global
+static __ncnn_vulkan_instance_holder g_instance;
 static Mutex g_instance_lock;
 
-class __ncnn_vulkan_instance_holder
+__ncnn_vulkan_instance_holder::__ncnn_vulkan_instance_holder()
 {
-public:
-    __ncnn_vulkan_instance_holder()
-    {
-        instance = 0;
+    instance = 0;
 #if ENABLE_VALIDATION_LAYER
-        callback = 0;
+    callback = 0;
 #endif
-    }
+}
 
-    ~__ncnn_vulkan_instance_holder()
-    {
-        destroy_gpu_instance();
-    }
+__ncnn_vulkan_instance_holder::~__ncnn_vulkan_instance_holder()
+{
+    destroy_gpu_instance();
+}
 
-    operator VkInstance()
-    {
-        return instance;
-    }
-
-    VkInstance instance;
-#if ENABLE_VALIDATION_LAYER
-    VkDebugUtilsMessengerEXT callback;
-#endif
-};
-static __ncnn_vulkan_instance_holder g_instance;
+__ncnn_vulkan_instance_holder::operator VkInstance()
+{
+    return instance;
+}
 
 static int g_gpu_count = 0;
 static int g_default_gpu_index = -1;
