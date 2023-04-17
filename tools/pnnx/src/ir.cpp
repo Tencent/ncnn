@@ -25,6 +25,7 @@
 
 #if BUILD_PNNX
 #include <torch/script.h>
+#include <torch/csrc/api/include/torch/version.h>
 #endif
 
 #include "storezip.h"

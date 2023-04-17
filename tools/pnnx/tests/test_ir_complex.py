@@ -23,7 +23,7 @@ class Model(nn.Module):
     def forward(self, x):
         out0 = x + 3
         out1 = x - 4j
-        out2 = x * (1.2-0.9j)
+        out2 = x * (1.2-0.9j - out0)
         return out0, out1, out2
 
 def test():
