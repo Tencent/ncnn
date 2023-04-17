@@ -820,7 +820,7 @@ static NCNN_FORCEINLINE __m512 atan2512_ps(__m512 y, __m512 x)
 
     // normal_result = (atan(y / x) + pi_additions);
     __m512 normal_result = _mm512_add_ps(
-                               _avx512_atanf16(_mm512_div_ps(y, x)),
+                               atan512_ps(_mm512_div_ps(y, x)),
                                pi_additions);
 
     // negative_mask_full_x = ((negative_mask_x | PI) < 0.0f);
