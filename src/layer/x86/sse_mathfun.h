@@ -1101,7 +1101,7 @@ static NCNN_FORCEINLINE __m128 atan2_ps(__m128 y, __m128 x)
     // not_equal_zero_y = (y != 0.0f);
     __m128 not_equal_zero_y = _mm_cmpneq_ps(y, magic_zero);
 
-    // normal_mode = ((x != 0.0f) && (y != 0.0f));
+    // normal_mode = ((x != 0.0f) & (y != 0.0f));
     __m128 normal_mode = _mm_and_ps(not_equal_zero_x, not_equal_zero_y);
 
     // negative_mask_x = magic_negative_zero && x;

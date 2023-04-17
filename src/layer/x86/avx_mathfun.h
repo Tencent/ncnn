@@ -1030,7 +1030,7 @@ static NCNN_FORCEINLINE __m256 atan2256_ps(__m256 y, __m256 x)
     // not_equal_zero_y = (y != 0.0f);
     __m256 not_equal_zero_y = _mm256_cmp_ps(y, magic_zero, _CMP_NEQ_OQ);
 
-    // normal_mode = ((x != 0.0f) && (y != 0.0f));
+    // normal_mode = ((x != 0.0f) & (y != 0.0f));
     __m256 normal_mode = _mm256_and_ps(not_equal_zero_x, not_equal_zero_y);
 
     // negative_mask_x = magic_negative_zero && x;
