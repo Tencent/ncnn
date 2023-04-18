@@ -179,6 +179,7 @@ typedef struct VkPhysicalDeviceFloat16Int8FeaturesKHR
 #define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_BUDGET_PROPERTIES_EXT (VkStructureType)1000237000
 #define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_PRIORITY_FEATURES_EXT (VkStructureType)1000238000
 #define VK_STRUCTURE_TYPE_MEMORY_PRIORITY_ALLOCATE_INFO_EXT            (VkStructureType)1000238001
+typedef uint64_t VkDeviceAddress;
 typedef struct VkPhysicalDeviceMemoryBudgetPropertiesEXT
 {
     VkStructureType sType;
