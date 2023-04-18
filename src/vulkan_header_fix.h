@@ -179,6 +179,11 @@ typedef struct VkPhysicalDeviceFloat16Int8FeaturesKHR
 #define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_BUDGET_PROPERTIES_EXT (VkStructureType)1000237000
 #define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_PRIORITY_FEATURES_EXT (VkStructureType)1000238000
 #define VK_STRUCTURE_TYPE_MEMORY_PRIORITY_ALLOCATE_INFO_EXT            (VkStructureType)1000238001
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_ADDRESS_FEATURES_EXT  (VkStructureType)1000244000
+#define VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO_EXT               (VkStructureType)1000244001
+#define VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_CREATE_INFO_EXT        (VkStructureType)1000244002
+#define VK_BUFFER_CREATE_DEVICE_ADDRESS_CAPTURE_REPLAY_BIT_EXT         (VkBufferCreateFlagBits)0x00020000
+#define VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT_EXT                  (VkBufferUsageFlagBits)0x00020000
 typedef uint64_t VkDeviceAddress;
 typedef struct VkPhysicalDeviceMemoryBudgetPropertiesEXT
 {
@@ -199,6 +204,24 @@ typedef struct VkMemoryPriorityAllocateInfoEXT
     const void* pNext;
     float priority;
 } VkMemoryPriorityAllocateInfoEXT;
+typedef struct VkPhysicalDeviceBufferAddressFeaturesEXT {
+    VkStructureType    sType;
+    void*              pNext;
+    VkBool32           bufferDeviceAddress;
+    VkBool32           bufferDeviceAddressCaptureReplay;
+    VkBool32           bufferDeviceAddressMultiDevice;
+} VkPhysicalDeviceBufferAddressFeaturesEXT;
+typedef struct VkBufferDeviceAddressInfoEXT {
+    VkStructureType    sType;
+    const void*        pNext;
+    VkBuffer           buffer;
+} VkBufferDeviceAddressInfoEXT;
+typedef struct VkBufferDeviceAddressCreateInfoEXT {
+    VkStructureType    sType;
+    const void*        pNext;
+    VkDeviceSize       deviceAddress;
+} VkBufferDeviceAddressCreateInfoEXT;
+typedef VkDeviceAddress (VKAPI_PTR *PFN_vkGetBufferDeviceAddressEXT)(VkDevice device, const VkBufferDeviceAddressInfoEXT* pInfo);
 #endif // VK_HEADER_VERSION < 97
 
 #if VK_HEADER_VERSION < 101
@@ -281,6 +304,8 @@ typedef struct VkPhysicalDeviceCoherentMemoryFeaturesAMD
 #define VK_STRUCTURE_TYPE_BUFFER_OPAQUE_CAPTURE_ADDRESS_CREATE_INFO_KHR      (VkStructureType)1000257002
 #define VK_STRUCTURE_TYPE_MEMORY_OPAQUE_CAPTURE_ADDRESS_ALLOCATE_INFO_KHR    (VkStructureType)1000257003
 #define VK_STRUCTURE_TYPE_DEVICE_MEMORY_OPAQUE_CAPTURE_ADDRESS_INFO_KHR      (VkStructureType)1000257004
+#define VK_BUFFER_CREATE_DEVICE_ADDRESS_CAPTURE_REPLAY_BIT_KHR               (VkBufferCreateFlagBits)0x00020000
+#define VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT_KHR                        (VkBufferUsageFlagBits)0x00020000
 #define VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT_KHR                            (VkMemoryAllocateFlagBits)0x00000002
 #define VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_CAPTURE_REPLAY_BIT_KHR             (VkMemoryAllocateFlagBits)0x00000004
 typedef struct VkPhysicalDeviceBufferDeviceAddressFeaturesKHR

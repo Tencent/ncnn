@@ -196,6 +196,7 @@ public:
     int support_VK_KHR_shader_float_controls() const;
     int support_VK_KHR_storage_buffer_storage_class() const;
     int support_VK_KHR_swapchain() const;
+    int support_VK_EXT_buffer_device_address() const;
     int support_VK_EXT_descriptor_indexing() const;
     int support_VK_EXT_memory_budget() const;
     int support_VK_EXT_memory_priority() const;
@@ -325,6 +326,9 @@ public:
     PFN_vkGetSwapchainImagesKHR vkGetSwapchainImagesKHR;
     PFN_vkAcquireNextImageKHR vkAcquireNextImageKHR;
     PFN_vkQueuePresentKHR vkQueuePresentKHR;
+
+    // VK_EXT_buffer_device_address
+    PFN_vkGetBufferDeviceAddressEXT vkGetBufferDeviceAddressEXT;
 
 #if __ANDROID_API__ >= 26
     // VK_ANDROID_external_memory_android_hardware_buffer
