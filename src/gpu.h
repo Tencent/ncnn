@@ -284,6 +284,11 @@ public:
     PFN_vkBindBufferMemory2KHR vkBindBufferMemory2KHR;
     PFN_vkBindImageMemory2KHR vkBindImageMemory2KHR;
 
+    // VK_KHR_buffer_device_address
+    PFN_vkGetBufferDeviceAddressKHR vkGetBufferDeviceAddressKHR;
+    PFN_vkGetBufferOpaqueCaptureAddressKHR vkGetBufferOpaqueCaptureAddressKHR;
+    PFN_vkGetDeviceMemoryOpaqueCaptureAddressKHR vkGetDeviceMemoryOpaqueCaptureAddressKHR;
+
     // VK_KHR_create_renderpass2
     PFN_vkCmdBeginRenderPass2KHR vkCmdBeginRenderPass2KHR;
     PFN_vkCmdEndRenderPass2KHR vkCmdEndRenderPass2KHR;
