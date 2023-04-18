@@ -2559,6 +2559,8 @@ Operand* Graph::new_operand(const torch::jit::Value* v)
     Operand* r = new Operand;
     r->name = v->debugName();
 
+    r->type = -1;
+
     auto pt = v->type()->cast<c10::TensorType>();
     if (pt)
     {
