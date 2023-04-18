@@ -188,15 +188,15 @@ typedef struct VkPhysicalDeviceMemoryBudgetPropertiesEXT
 } VkPhysicalDeviceMemoryBudgetPropertiesEXT;
 typedef struct VkPhysicalDeviceMemoryPriorityFeaturesEXT
 {
-    VkStructureType    sType;
-    void*              pNext;
-    VkBool32           memoryPriority;
+    VkStructureType sType;
+    void* pNext;
+    VkBool32 memoryPriority;
 } VkPhysicalDeviceMemoryPriorityFeaturesEXT;
 typedef struct VkMemoryPriorityAllocateInfoEXT
 {
-    VkStructureType    sType;
-    const void*        pNext;
-    float              priority;
+    VkStructureType sType;
+    const void* pNext;
+    float priority;
 } VkMemoryPriorityAllocateInfoEXT;
 #endif // VK_HEADER_VERSION < 97
 
@@ -284,39 +284,39 @@ typedef struct VkPhysicalDeviceCoherentMemoryFeaturesAMD
 #define VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_CAPTURE_REPLAY_BIT_KHR             (VkMemoryAllocateFlagBits)0x00000004
 typedef struct VkPhysicalDeviceBufferDeviceAddressFeaturesKHR
 {
-    VkStructureType    sType;
-    void*              pNext;
-    VkBool32           bufferDeviceAddress;
-    VkBool32           bufferDeviceAddressCaptureReplay;
-    VkBool32           bufferDeviceAddressMultiDevice;
+    VkStructureType sType;
+    void* pNext;
+    VkBool32 bufferDeviceAddress;
+    VkBool32 bufferDeviceAddressCaptureReplay;
+    VkBool32 bufferDeviceAddressMultiDevice;
 } VkPhysicalDeviceBufferDeviceAddressFeaturesKHR;
 typedef struct VkBufferDeviceAddressInfoKHR
 {
-    VkStructureType    sType;
-    const void*        pNext;
-    VkBuffer           buffer;
+    VkStructureType sType;
+    const void* pNext;
+    VkBuffer buffer;
 } VkBufferDeviceAddressInfoKHR;
 typedef struct VkBufferOpaqueCaptureAddressCreateInfoKHR
 {
-    VkStructureType    sType;
-    const void*        pNext;
-    uint64_t           opaqueCaptureAddress;
+    VkStructureType sType;
+    const void* pNext;
+    uint64_t opaqueCaptureAddress;
 } VkBufferOpaqueCaptureAddressCreateInfoKHR;
 typedef struct VkMemoryOpaqueCaptureAddressAllocateInfoKHR
 {
-    VkStructureType    sType;
-    const void*        pNext;
-    uint64_t           opaqueCaptureAddress;
+    VkStructureType sType;
+    const void* pNext;
+    uint64_t opaqueCaptureAddress;
 } VkMemoryOpaqueCaptureAddressAllocateInfoKHR;
 typedef struct VkDeviceMemoryOpaqueCaptureAddressInfoKHR
 {
-    VkStructureType    sType;
-    const void*        pNext;
-    VkDeviceMemory     memory;
+    VkStructureType sType;
+    const void* pNext;
+    VkDeviceMemory memory;
 } VkDeviceMemoryOpaqueCaptureAddressInfoKHR;
-typedef VkDeviceAddress (VKAPI_PTR *PFN_vkGetBufferDeviceAddressKHR)(VkDevice device, const VkBufferDeviceAddressInfoKHR* pInfo);
-typedef uint64_t (VKAPI_PTR *PFN_vkGetBufferOpaqueCaptureAddressKHR)(VkDevice device, const VkBufferDeviceAddressInfoKHR* pInfo);
-typedef uint64_t (VKAPI_PTR *PFN_vkGetDeviceMemoryOpaqueCaptureAddressKHR)(VkDevice device, const VkDeviceMemoryOpaqueCaptureAddressInfoKHR* pInfo);
+typedef VkDeviceAddress(VKAPI_PTR* PFN_vkGetBufferDeviceAddressKHR)(VkDevice device, const VkBufferDeviceAddressInfoKHR* pInfo);
+typedef uint64_t(VKAPI_PTR* PFN_vkGetBufferOpaqueCaptureAddressKHR)(VkDevice device, const VkBufferDeviceAddressInfoKHR* pInfo);
+typedef uint64_t(VKAPI_PTR* PFN_vkGetDeviceMemoryOpaqueCaptureAddressKHR)(VkDevice device, const VkDeviceMemoryOpaqueCaptureAddressInfoKHR* pInfo);
 #endif // VK_HEADER_VERSION < 129
 
 #if VK_HEADER_VERSION < 208
