@@ -15,8 +15,10 @@
 #ifndef PNNX_IR_H
 #define PNNX_IR_H
 
+#include <limits.h>
 #include <complex>
 #include <initializer_list>
+#include <limits>
 #include <map>
 #include <set>
 #include <string>
@@ -52,19 +54,25 @@ public:
     {
     }
     Parameter(long _l)
-        : type(2), i(_l)
+        : type(2)
     {
+        if (_l == std::numeric_limits<long>::max()) _l = INT_MAX;
+        if (_l == std::numeric_limits<long>::min()) _l = INT_MIN;
+        i = (int)_l;
     }
     Parameter(long long _l)
-        : type(2), i(_l)
+        : type(2)
     {
+        if (_l == std::numeric_limits<long long>::max()) _l = INT_MAX;
+        if (_l == std::numeric_limits<long long>::min()) _l = INT_MIN;
+        i = (int)_l;
     }
     Parameter(float _f)
         : type(3), f(_f)
     {
     }
     Parameter(double _d)
-        : type(3), f(_d)
+        : type(3), f((float)_d)
     {
     }
     Parameter(const char* _s)
@@ -83,7 +91,12 @@ public:
         : type(5)
     {
         for (const auto& x : _ai)
-            ai.push_back((int)x);
+        {
+            int64_t _l = x;
+            if (_l == std::numeric_limits<int64_t>::max()) _l = INT_MAX;
+            if (_l == std::numeric_limits<int64_t>::min()) _l = INT_MIN;
+            ai.push_back((int)_l);
+        }
     }
     Parameter(const std::vector<int>& _ai)
         : type(5), ai(_ai)

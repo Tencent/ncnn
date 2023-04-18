@@ -47,7 +47,7 @@ pnnx.Output             output      1 0 out
 
         if (captured_params.at("negative_slope").type == 2)
         {
-            negative_slope = captured_params.at("negative_slope").i;
+            negative_slope = (float)captured_params.at("negative_slope").i;
         }
         if (captured_params.at("negative_slope").type == 3)
         {
