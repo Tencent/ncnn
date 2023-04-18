@@ -779,7 +779,8 @@ static NCNN_FORCEINLINE __m512 atan512_ps(__m512 x)
                negative_mask);
 }
 
-// MSVC 2017 x86 CI will be breaked if use NCNN_FORCEINLINE for atan2512_ps.
+// MSVC 2017 x86 CI will be broken if use NCNN_FORCEINLINE for atan2512_ps.
+// This function still be inlined compiled by MSVC 2017 even without that.
 #if _MSC_VER < 1920
 static __m512 atan2512_ps(__m512 y, __m512 x)
 #else
