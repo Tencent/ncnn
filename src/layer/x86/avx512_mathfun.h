@@ -505,18 +505,6 @@ static NCNN_FORCEINLINE __m512 pow512_ps(__m512 a, __m512 b)
     return exp512_ps(_mm512_mul_ps(b, log512_ps(a)));
 }
 
-static NCNN_FORCEINLINE __m512 atan2512_ps(__m512 a, __m512 b)
-{
-    //TODO avx512 optimize
-    float tmpx[16];
-    float tmpy[16];
-    _mm512_storeu_ps(tmpx, a);
-    _mm512_storeu_ps(tmpy, b);
-    for (int i = 0; i < 16; i++)
-        tmpx[i] = atan2(tmpx[i], tmpy[i]);
-    return _mm512_loadu_ps(tmpx);
-}
-
 static NCNN_FORCEINLINE __m512 asin512_ps(__m512 x)
 {
     const __m512 magic_negative_zero = _mm512_set1_ps(-0.0f);
@@ -789,6 +777,18 @@ static NCNN_FORCEINLINE __m512 atan512_ps(__m512 x)
                    _mm512_mul_ps(output_approx, input_approx),
                    _mm512_maskz_mov_ps(is_small_input, magic_half_pi)),
                negative_mask);
+}
+
+static NCNN_FORCEINLINE __m512 atan2512_ps(__m512 a, __m512 b)
+{
+    //TODO avx512 optimize
+    float tmpx[16];
+    float tmpy[16];
+    _mm512_storeu_ps(tmpx, a);
+    _mm512_storeu_ps(tmpy, b);
+    for (int i = 0; i < 16; i++)
+        tmpx[i] = atan2(tmpx[i], tmpy[i]);
+    return _mm512_loadu_ps(tmpx);
 }
 
 #endif // AVX512_MATHFUN_H
