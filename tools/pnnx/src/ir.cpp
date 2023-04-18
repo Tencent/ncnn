@@ -192,7 +192,7 @@ Parameter::Parameter(const torch::jit::Node* value_node)
             type = 2;
             int64_t i64 = value_node->i(torch::jit::attr::value);
             if (i64 == std::numeric_limits<int64_t>::max()) i64 = INT_MAX;
-            if (i64 == std::numeric_limits<int64_t>::max()) i64 = INT_MIN;
+            if (i64 == std::numeric_limits<int64_t>::min()) i64 = INT_MIN;
             i = (int)i64;
             break;
         }
@@ -233,7 +233,7 @@ Parameter::Parameter(const torch::jit::Node* value_node)
                     type = 2;
                     int64_t i64 = t.item<int64_t>();
                     if (i64 == std::numeric_limits<int64_t>::max()) i64 = INT_MAX;
-                    if (i64 == std::numeric_limits<int64_t>::max()) i64 = INT_MIN;
+                    if (i64 == std::numeric_limits<int64_t>::min()) i64 = INT_MIN;
                     i = (int)i64;
                 }
                 else if (t.scalar_type() == c10::ScalarType::Int)

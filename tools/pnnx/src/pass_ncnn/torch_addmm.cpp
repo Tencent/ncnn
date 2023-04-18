@@ -50,7 +50,7 @@ pnnx.Output             output      1 0 out
 
         if (captured_params.at("alpha").type == 2)
         {
-            alpha = captured_params.at("alpha").i;
+            alpha = (float)captured_params.at("alpha").i;
         }
         if (captured_params.at("alpha").type == 3)
         {
@@ -59,7 +59,7 @@ pnnx.Output             output      1 0 out
 
         if (captured_params.at("beta").type == 2)
         {
-            beta = captured_params.at("beta").i;
+            beta = (float)captured_params.at("beta").i;
         }
         if (captured_params.at("beta").type == 3)
         {
@@ -168,7 +168,7 @@ pnnx.Output             output      1 0 out
 
         if (captured_params.at("alpha").type == 2)
         {
-            alpha = captured_params.at("alpha").i;
+            alpha = (float)captured_params.at("alpha").i;
         }
         if (captured_params.at("alpha").type == 3)
         {
@@ -177,7 +177,7 @@ pnnx.Output             output      1 0 out
 
         if (captured_params.at("beta").type == 2)
         {
-            beta = captured_params.at("beta").i;
+            beta = (float)captured_params.at("beta").i;
         }
         if (captured_params.at("beta").type == 3)
         {

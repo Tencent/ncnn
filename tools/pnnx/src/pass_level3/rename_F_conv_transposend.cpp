@@ -30,7 +30,7 @@ void rename_F_conv_transposend(Graph& graph)
         if (stride->type != "prim::ListConstruct")
             continue;
 
-        int n = stride->inputs.size();
+        size_t n = stride->inputs.size();
         if (n == 1)
         {
             op->type = "F.conv_transpose1d";

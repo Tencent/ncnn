@@ -74,13 +74,13 @@ pnnx.Output             output      1 0 out
 
             if (has_bn_affine)
             {
-                a[i] = bn_bias[i] - bn_weight[i] * bn_running_mean[i] / sqrt_var;
-                b[i] = bn_weight[i] / sqrt_var;
+                a[i] = (float)(bn_bias[i] - bn_weight[i] * bn_running_mean[i] / sqrt_var);
+                b[i] = (float)(bn_weight[i] / sqrt_var);
             }
             else
             {
-                a[i] = -bn_running_mean[i] / sqrt_var;
-                b[i] = 1.f / sqrt_var;
+                a[i] = (float)(-bn_running_mean[i] / sqrt_var);
+                b[i] = (float)(1.f / sqrt_var);
             }
         }
 
