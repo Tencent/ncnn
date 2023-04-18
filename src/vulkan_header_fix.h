@@ -204,24 +204,27 @@ typedef struct VkMemoryPriorityAllocateInfoEXT
     const void* pNext;
     float priority;
 } VkMemoryPriorityAllocateInfoEXT;
-typedef struct VkPhysicalDeviceBufferAddressFeaturesEXT {
-    VkStructureType    sType;
-    void*              pNext;
-    VkBool32           bufferDeviceAddress;
-    VkBool32           bufferDeviceAddressCaptureReplay;
-    VkBool32           bufferDeviceAddressMultiDevice;
+typedef struct VkPhysicalDeviceBufferAddressFeaturesEXT
+{
+    VkStructureType sType;
+    void* pNext;
+    VkBool32 bufferDeviceAddress;
+    VkBool32 bufferDeviceAddressCaptureReplay;
+    VkBool32 bufferDeviceAddressMultiDevice;
 } VkPhysicalDeviceBufferAddressFeaturesEXT;
-typedef struct VkBufferDeviceAddressInfoEXT {
-    VkStructureType    sType;
-    const void*        pNext;
-    VkBuffer           buffer;
+typedef struct VkBufferDeviceAddressInfoEXT
+{
+    VkStructureType sType;
+    const void* pNext;
+    VkBuffer buffer;
 } VkBufferDeviceAddressInfoEXT;
-typedef struct VkBufferDeviceAddressCreateInfoEXT {
-    VkStructureType    sType;
-    const void*        pNext;
-    VkDeviceSize       deviceAddress;
+typedef struct VkBufferDeviceAddressCreateInfoEXT
+{
+    VkStructureType sType;
+    const void* pNext;
+    VkDeviceSize deviceAddress;
 } VkBufferDeviceAddressCreateInfoEXT;
-typedef VkDeviceAddress (VKAPI_PTR *PFN_vkGetBufferDeviceAddressEXT)(VkDevice device, const VkBufferDeviceAddressInfoEXT* pInfo);
+typedef VkDeviceAddress(VKAPI_PTR* PFN_vkGetBufferDeviceAddressEXT)(VkDevice device, const VkBufferDeviceAddressInfoEXT* pInfo);
 #endif // VK_HEADER_VERSION < 97
 
 #if VK_HEADER_VERSION < 101
