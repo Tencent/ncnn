@@ -16,6 +16,8 @@
 
 #include <algorithm>
 
+#include "storezip.h"
+
 namespace pnnx {
 
 static bool operand_maybe_tensor(const Operand* operand)
@@ -116,26 +118,7 @@ static bool operand_maybe_tensor(const Operand* operand)
     return true;
 }
 
-static bool operand_is_foldable(const Operand* operand, const std::set<std::string>& foldable_constants)
-{
-    if (foldable_constants.find(operand->name) != foldable_constants.end())
-        return true;
-
-    const Operator* op = operand->producer;
-
-    if (op->type == "pnnx.Input")
-        return false;
-
-    for (auto x : op->inputs)
-    {
-        if (!operand_is_foldable(x, foldable_constants))
-            return false;
-    }
-
-    return true;
-}
-
-static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, std::vector<Operand*>& inputs, const std::set<std::string>& foldable_constants, bool checksubgraph = true)
+static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, std::vector<Operand*>& inputs, const std::set<std::string>& foldable_constants, StoreZipReader& zip, bool checksubgraph = true)
 {
     // fprintf(stderr, "fuse_expression %s\n", operand->name.c_str());
 
@@ -222,63 +205,165 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
             }
         }
     }
-    else if (checksubgraph && operand_maybe_tensor(operand) && operand_is_foldable(operand, foldable_constants))
+    else if (checksubgraph && operand_maybe_tensor(operand) && foldable_constants.find(operand->name) != foldable_constants.end())
     {
         // fprintf(stderr, "operand_is_foldable %s\n", operand->name.c_str());
 
-        auto it = std::find(inputs.begin(), inputs.end(), operand);
-        if (it == inputs.end())
+        if (operand->shape.size() == 0 && operand->type != -1)
         {
-            // tensor
-            char tmp[32];
-            sprintf(tmp, "@%d", (int)inputs.size());
-            expr += tmp;
+            // fuse literal constant into expression
+            if (operand->type == 0)
+            {
+                expr += "None";
+            }
+            else if (operand->type == 1)
+            {
+                float v;
+                zip.read_file(operand->name, (char*)&v);
 
-            inputs.push_back(operand);
+                char tmp[32];
+                sprintf(tmp, "%e", v);
+                expr += tmp;
+            }
+            else if (operand->type == 2)
+            {
+                double v;
+                zip.read_file(operand->name, (char*)&v);
+
+                char tmp[32];
+                sprintf(tmp, "%e", v);
+                expr += tmp;
+            }
+            else if (operand->type == 4)
+            {
+                int v;
+                zip.read_file(operand->name, (char*)&v);
+
+                char tmp[32];
+                sprintf(tmp, "%d", v);
+                expr += tmp;
+            }
+            else if (operand->type == 5)
+            {
+                int64_t v;
+                zip.read_file(operand->name, (char*)&v);
+
+                char tmp[32];
+                sprintf(tmp, "%ld", v);
+                expr += tmp;
+            }
+            else if (operand->type == 6)
+            {
+                short v;
+                zip.read_file(operand->name, (char*)&v);
+
+                char tmp[32];
+                sprintf(tmp, "%d", v);
+                expr += tmp;
+            }
+            else if (operand->type == 7)
+            {
+                signed char v;
+                zip.read_file(operand->name, (char*)&v);
+
+                char tmp[32];
+                sprintf(tmp, "%d", v);
+                expr += tmp;
+            }
+            else if (operand->type == 8)
+            {
+                unsigned char v;
+                zip.read_file(operand->name, (char*)&v);
+
+                char tmp[32];
+                sprintf(tmp, "%u", v);
+                expr += tmp;
+            }
+            else if (operand->type == 9)
+            {
+                char v;
+                zip.read_file(operand->name, &v);
+
+                expr += v ? "True" : "False";
+            }
+            else
+            {
+                // fprintf(stderr, "unknown foldable literal %s %d\n", operand->name.c_str(), operand->type);
+                auto it = std::find(inputs.begin(), inputs.end(), operand);
+                if (it == inputs.end())
+                {
+                    // tensor
+                    char tmp[32];
+                    sprintf(tmp, "@%d", (int)inputs.size());
+                    expr += tmp;
+
+                    inputs.push_back(operand);
+                }
+                else
+                {
+                    // tensor
+                    char tmp[32];
+                    sprintf(tmp, "@%d", (int)(it - inputs.begin()));
+                    expr += tmp;
+                }
+            }
         }
         else
         {
-            // tensor
-            char tmp[32];
-            sprintf(tmp, "@%d", (int)(it - inputs.begin()));
-            expr += tmp;
+            auto it = std::find(inputs.begin(), inputs.end(), operand);
+            if (it == inputs.end())
+            {
+                // tensor
+                char tmp[32];
+                sprintf(tmp, "@%d", (int)inputs.size());
+                expr += tmp;
+
+                inputs.push_back(operand);
+            }
+            else
+            {
+                // tensor
+                char tmp[32];
+                sprintf(tmp, "@%d", (int)(it - inputs.begin()));
+                expr += tmp;
+            }
         }
     }
     else if (op->type == "prim::NumToTensor")
     {
-        fuse_expression(graph, op->inputs[0], expr, inputs, foldable_constants);
+        fuse_expression(graph, op->inputs[0], expr, inputs, foldable_constants, zip);
     }
     else if (op->type == "prim::ListConstruct")
     {
         expr += "[";
         for (int i = 0; i < (int)op->inputs.size() - 1; i++)
         {
-            fuse_expression(graph, op->inputs[i], expr, inputs, foldable_constants);
+            fuse_expression(graph, op->inputs[i], expr, inputs, foldable_constants, zip);
             expr += ",";
         }
         if (op->inputs.size() > 0)
         {
-            fuse_expression(graph, op->inputs[op->inputs.size() - 1], expr, inputs, foldable_constants);
+            fuse_expression(graph, op->inputs[op->inputs.size() - 1], expr, inputs, foldable_constants, zip);
         }
         expr += "]";
     }
     else if (op->type == "aten::size")
     {
         expr += "size(";
-        fuse_expression(graph, op->inputs[0], expr, inputs, foldable_constants);
+        fuse_expression(graph, op->inputs[0], expr, inputs, foldable_constants, zip);
         expr += ",";
-        fuse_expression(graph, op->inputs[1], expr, inputs, foldable_constants);
+        fuse_expression(graph, op->inputs[1], expr, inputs, foldable_constants, zip);
         expr += ")";
     }
     else if (op->type == "aten::Int")
     {
         expr += "int(";
-        fuse_expression(graph, op->inputs[0], expr, inputs, foldable_constants);
+        fuse_expression(graph, op->inputs[0], expr, inputs, foldable_constants, zip);
         expr += ")";
     }
     else if (op->type == "aten::to" || op->type == "aten::detach" || op->type == "aten::ScalarImplicit")
     {
-        fuse_expression(graph, op->inputs[0], expr, inputs, foldable_constants);
+        fuse_expression(graph, op->inputs[0], expr, inputs, foldable_constants, zip);
     }
     else if (op->type == "aten::abs"
              || op->type == "aten::acos"
@@ -310,7 +395,7 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
 
         expr += mathop;
         expr += "(";
-        fuse_expression(graph, op->inputs[0], expr, inputs, foldable_constants);
+        fuse_expression(graph, op->inputs[0], expr, inputs, foldable_constants, zip);
         expr += ")";
     }
     else if (op->type == "aten::atan2"
@@ -324,9 +409,9 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
 
         expr += mathop;
         expr += "(";
-        fuse_expression(graph, op->inputs[0], expr, inputs, foldable_constants);
+        fuse_expression(graph, op->inputs[0], expr, inputs, foldable_constants, zip);
         expr += ",";
-        fuse_expression(graph, op->inputs[1], expr, inputs, foldable_constants);
+        fuse_expression(graph, op->inputs[1], expr, inputs, foldable_constants, zip);
         expr += ")";
     }
     else if (op->type == "aten::__and__" || op->type == "aten::__or__" || op->type == "aten::__xor__" || op->type == "aten::__lshift__" || op->type == "aten::__rshift__")
@@ -335,9 +420,9 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
 
         expr += mathop;
         expr += "(";
-        fuse_expression(graph, op->inputs[0], expr, inputs, foldable_constants);
+        fuse_expression(graph, op->inputs[0], expr, inputs, foldable_constants, zip);
         expr += ",";
-        fuse_expression(graph, op->inputs[1], expr, inputs, foldable_constants);
+        fuse_expression(graph, op->inputs[1], expr, inputs, foldable_constants, zip);
         expr += ")";
     }
     else if (op->type == "aten::add" || op->type == "aten::sub")
@@ -346,13 +431,13 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
 
         expr += mathop;
         expr += "(";
-        fuse_expression(graph, op->inputs[0], expr, inputs, foldable_constants);
+        fuse_expression(graph, op->inputs[0], expr, inputs, foldable_constants, zip);
         expr += ",";
 
         std::string expr1;
         std::string expr2;
-        fuse_expression(graph, op->inputs[1], expr1, inputs, foldable_constants);
-        fuse_expression(graph, op->inputs[2], expr2, inputs, foldable_constants);
+        fuse_expression(graph, op->inputs[1], expr1, inputs, foldable_constants, zip);
+        fuse_expression(graph, op->inputs[2], expr2, inputs, foldable_constants, zip);
 
         if (expr2 == "1")
         {
@@ -375,8 +460,8 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
         expr += "sub(";
         std::string expr1;
         std::string expr2;
-        fuse_expression(graph, op->inputs[1], expr1, inputs, foldable_constants);
-        fuse_expression(graph, op->inputs[2], expr2, inputs, foldable_constants);
+        fuse_expression(graph, op->inputs[1], expr1, inputs, foldable_constants, zip);
+        fuse_expression(graph, op->inputs[2], expr2, inputs, foldable_constants, zip);
 
         if (expr2 == "1")
         {
@@ -393,7 +478,7 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
         }
 
         expr += ",";
-        fuse_expression(graph, op->inputs[0], expr, inputs, foldable_constants);
+        fuse_expression(graph, op->inputs[0], expr, inputs, foldable_constants, zip);
         expr += ")";
     }
     else
@@ -418,8 +503,11 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
     }
 }
 
-void fuse_expression(Graph& graph, const std::set<std::string>& foldable_constants)
+void fuse_expression(Graph& graph, const std::set<std::string>& foldable_constants, const std::string& foldable_constants_zippath)
 {
+    StoreZipReader zip;
+    zip.open(foldable_constants_zippath);
+
     int pnnx_expr_index = 0;
 
     for (;;)
@@ -501,7 +589,7 @@ void fuse_expression(Graph& graph, const std::set<std::string>& foldable_constan
             {
                 std::string expr;
                 std::vector<Operand*> inputs;
-                fuse_expression(graph, op->outputs[0], expr, inputs, foldable_constants, false);
+                fuse_expression(graph, op->outputs[0], expr, inputs, foldable_constants, zip, false);
                 //                 fprintf(stderr, "expr = %s\n", expr.c_str());
 
                 // lets rewrite graph
@@ -536,6 +624,8 @@ void fuse_expression(Graph& graph, const std::set<std::string>& foldable_constan
         if (!need_fuse)
             break;
     }
+
+    zip.close();
 }
 
 } // namespace pnnx
