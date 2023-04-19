@@ -304,7 +304,7 @@ int main(int argc, char** argv)
         HMODULE handle = LoadLibraryExA(m.c_str(), NULL, LOAD_WITH_ALTERED_SEARCH_PATH);
         if (!handle)
         {
-            fprintf(stderr, "LoadLibraryExA %s failed %s\n", m.c_str(), GetLastError());
+            fprintf(stderr, "LoadLibraryExA %s failed %d\n", m.c_str(), GetLastError());
         }
 #else
         void* handle = dlopen(m.c_str(), RTLD_LAZY);
