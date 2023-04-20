@@ -15,6 +15,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from packaging import version
 
 class Model(nn.Module):
     def __init__(self):
@@ -42,6 +43,8 @@ class Model(nn.Module):
         y = self.pool_2(y)
         y = self.pool_3(y)
         y = self.pool_4(y)
+        if version.parse(torch.__version__) < version.parse('1.10'):
+            y = y.unsqueeze(0)
         y, ty = self.pool_5(y)
 
         return x, indices, y
