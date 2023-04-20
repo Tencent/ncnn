@@ -1361,6 +1361,7 @@ int create_gpu_instance()
         gpu_info.support_VK_KHR_shader_float_controls = 0;
         gpu_info.support_VK_KHR_storage_buffer_storage_class = 0;
         gpu_info.support_VK_KHR_swapchain = 0;
+        gpu_info.support_VK_EXT_buffer_device_address = 0;
         gpu_info.support_VK_EXT_descriptor_indexing = 0;
         gpu_info.support_VK_EXT_memory_budget = 0;
         gpu_info.support_VK_EXT_memory_priority = 0;
