@@ -47,6 +47,11 @@ public:
         op->params["dilation"] = max_pool2d->namedInput("dilation");
         op->params["ceil_mode"] = max_pool2d->namedInput("ceil_mode");
         op->params["return_indices"] = max_pool2d_with_indices ? true : false;
+
+        if (op->outputs.size() == 1)
+        {
+            op->params["return_indices"] = false;
+        }
     }
 };
 
