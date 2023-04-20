@@ -44,7 +44,6 @@ _PS512_CONST_TYPE(mant_mask, int, 0x7f800000);
 _PS512_CONST_TYPE(inv_mant_mask, int, ~0x7f800000);
 
 _PS512_CONST_TYPE(sign_mask, int, (int)0x80000000);
-_PS512_CONST_TYPE(inv_sign_mask, int, ~0x80000000);
 
 _PI32_CONST512(0, 0);
 _PI32_CONST512(1, 1);

@@ -44,9 +44,9 @@ struct gridsample_2d_bilinear_compute_blob
             for (int y = 0; y < grid.c; y++)
             {
                 const float* gridptr = grid.channel(y);
-                int nn = grid_size;
+                int x = 0;
 #if __AVX__
-                for (int x = 0; x + 15 < nn; x += 16)
+                for (; x + 15 < grid_size; x += 16)
                 {
                     __m256 tmp_x = _mm256_loadu_ps(gridptr);
                     __m256 gy = _mm256_loadu_ps(gridptr + 8);
@@ -115,10 +115,9 @@ struct gridsample_2d_bilinear_compute_blob
                     value_ptr_beta += 8;
                 }
 
-                nn = grid_size & 15;
 #endif // __AVX__
 
-                for (int x = grid_size - nn; x < grid_size; x += 2)
+                for (; x < grid_size; x += 2)
                 {
                     float sample_x = *gridptr;
                     float sample_y = *(gridptr + 1);
@@ -172,9 +171,9 @@ struct gridsample_2d_bilinear_compute_blob
             const float* gridptr_x = grid.channel(0);
             const float* gridptr_y = grid.channel(1);
 
-            int nn = grid_size;
+            int x = 0;
 #if __AVX__
-            for (int x = 0; x + 7 < nn; x += 8)
+            for (; x + 7 < grid_size; x += 8)
             {
                 __m256 gx = _mm256_loadu_ps(gridptr_x);
                 __m256 gy = _mm256_loadu_ps(gridptr_y);
@@ -237,10 +236,9 @@ struct gridsample_2d_bilinear_compute_blob
                 value_ptr_beta += 8;
             }
 
-            nn = grid_size & 7;
 #endif // __AVX__
 
-            for (int x = grid_size - nn; x < grid_size; x++)
+            for (; x < grid_size; x++)
             {
                 float sample_x = *gridptr_x;
                 float sample_y = *gridptr_y;
@@ -293,7 +291,7 @@ struct gridsample_2d_bilinear_compute_blob
 };
 
 template<bool align_corner>
-struct gridsample_2d_bilinear_compute_blob<GridSample::Zeros, align_corner>
+struct gridsample_2d_bilinear_compute_blob<GridSample::Padding_ZEROS, align_corner>
 {
     void operator()(const Mat& src, const Mat& grid, Mat& offset, Mat& in_bound, Mat& value, int permute_fusion, const Option& opt)
     {
@@ -324,9 +322,9 @@ struct gridsample_2d_bilinear_compute_blob<GridSample::Zeros, align_corner>
             for (int y = 0; y < grid.c; y++)
             {
                 const float* gridptr = grid.channel(y);
-                int nn = grid_size;
+                int x = 0;
 #if __AVX__
-                for (int x = 0; x + 15 < nn; x += 16)
+                for (; x + 15 < grid_size; x += 16)
                 {
                     __m256 tmp_x = _mm256_loadu_ps(gridptr);
                     __m256 gy = _mm256_loadu_ps(gridptr + 8);
@@ -401,10 +399,9 @@ struct gridsample_2d_bilinear_compute_blob<GridSample::Zeros, align_corner>
                     value_ptr_alpha += 8;
                     value_ptr_beta += 8;
                 }
-                nn = grid_size & 15;
 #endif // __AVX__
 
-                for (int x = grid_size - nn; x < grid_size; x += 2)
+                for (; x < grid_size; x += 2)
                 {
                     float sample_x = *gridptr;
                     float sample_y = *(gridptr + 1);
@@ -460,9 +457,9 @@ struct gridsample_2d_bilinear_compute_blob<GridSample::Zeros, align_corner>
             const float* gridptr_x = grid.channel(0);
             const float* gridptr_y = grid.channel(1);
 
-            int nn = grid_size;
+            int x = 0;
 #if __AVX__
-            for (int x = 0; x + 7 < nn; x += 8)
+            for (; x + 7 < grid_size; x += 8)
             {
                 __m256 gx = _mm256_loadu_ps(gridptr_x);
                 __m256 gy = _mm256_loadu_ps(gridptr_y);
@@ -529,10 +526,9 @@ struct gridsample_2d_bilinear_compute_blob<GridSample::Zeros, align_corner>
                 value_ptr_beta += 8;
             }
 
-            nn = grid_size & 7;
 #endif // __AVX__
 
-            for (int x = grid_size - nn; x < grid_size; x++)
+            for (; x < grid_size; x++)
             {
                 float sample_x = *gridptr_x;
                 float sample_y = *gridptr_y;
@@ -629,9 +625,9 @@ struct gridsample_3d_bilinear_compute_blob
             for (int y = 0; y < grid.c; y++)
             {
                 const float* gridptr = grid.channel(y);
-                int nn = grid_size;
+                int x = 0;
 #if __AVX__
-                for (int x = 0; x + 23 < nn; x += 24)
+                for (; x + 23 < grid_size; x += 24)
                 {
                     __m256 tmp_x = _mm256_loadu_ps(gridptr);
                     __m256 tmp_y = _mm256_loadu_ps(gridptr + 8);
@@ -749,10 +745,9 @@ struct gridsample_3d_bilinear_compute_blob
                     value_ptr_beta += 8;
                     value_ptr_gamma += 8;
                 }
-                nn = grid_size % 24;
 #endif // __AVX__
 
-                for (int x = grid_size - nn; x < grid_size; x += 3)
+                for (; x < grid_size; x += 3)
                 {
                     float sample_x = *gridptr;
                     float sample_y = *(gridptr + 1);
@@ -838,9 +833,9 @@ struct gridsample_3d_bilinear_compute_blob
             const float* gridptr_y = grid.channel(1);
             const float* gridptr_z = grid.channel(2);
 
-            int nn = grid_size;
+            int x = 0;
 #if __AVX__
-            for (int x = 0; x + 7 < nn; x += 8)
+            for (; x + 7 < grid_size; x += 8)
             {
                 __m256 gx = _mm256_loadu_ps(gridptr_x);
                 __m256 gy = _mm256_loadu_ps(gridptr_y);
@@ -949,10 +944,9 @@ struct gridsample_3d_bilinear_compute_blob
                 value_ptr_beta += 8;
                 value_ptr_gamma += 8;
             }
-            nn = grid_size & 7;
 #endif // __AVX__
 
-            for (int x = grid_size - nn; x < grid_size; x++)
+            for (; x < grid_size; x++)
             {
                 float sample_x = *gridptr_x;
                 float sample_y = *gridptr_y;
@@ -1037,7 +1031,7 @@ struct gridsample_3d_bilinear_compute_blob
 };
 
 template<bool align_corner>
-struct gridsample_3d_bilinear_compute_blob<GridSample::Zeros, align_corner>
+struct gridsample_3d_bilinear_compute_blob<GridSample::Padding_ZEROS, align_corner>
 {
     void operator()(const Mat& src, const Mat& grid, Mat& offset, Mat& in_bound, Mat& value, int permute_fusion, const Option& opt)
     {
@@ -1079,9 +1073,9 @@ struct gridsample_3d_bilinear_compute_blob<GridSample::Zeros, align_corner>
             for (int y = 0; y < grid.c; y++)
             {
                 const float* gridptr = grid.channel(y);
-                int nn = grid_size;
+                int x = 0;
 #if __AVX__
-                for (int x = 0; x + 23 < nn; x += 24)
+                for (; x + 23 < grid_size; x += 24)
                 {
                     __m256 tmp_x = _mm256_loadu_ps(gridptr);
                     __m256 tmp_y = _mm256_loadu_ps(gridptr + 8);
@@ -1204,10 +1198,9 @@ struct gridsample_3d_bilinear_compute_blob<GridSample::Zeros, align_corner>
                     value_ptr_beta += 8;
                     value_ptr_gamma += 8;
                 }
-                nn = grid_size % 24;
 #endif // __AVX__
 
-                for (int x = grid_size - nn; x < grid_size; x += 3)
+                for (; x < grid_size; x += 3)
                 {
                     float sample_x = *gridptr;
                     float sample_y = *(gridptr + 1);
@@ -1294,9 +1287,9 @@ struct gridsample_3d_bilinear_compute_blob<GridSample::Zeros, align_corner>
             const float* gridptr_y = grid.channel(1);
             const float* gridptr_z = grid.channel(2);
 
-            int nn = grid_size;
+            int x = 0;
 #if __AVX__
-            for (int x = 0; x + 7 < nn; x += 8)
+            for (; x + 7 < grid_size; x += 8)
             {
                 __m256 gx = _mm256_loadu_ps(gridptr_x);
                 __m256 gy = _mm256_loadu_ps(gridptr_y);
@@ -1410,10 +1403,9 @@ struct gridsample_3d_bilinear_compute_blob<GridSample::Zeros, align_corner>
                 value_ptr_beta += 8;
                 value_ptr_gamma += 8;
             }
-            nn = grid_size & 7;
 #endif // __AVX__
 
-            for (int x = grid_size - nn; x < grid_size; x++)
+            for (; x < grid_size; x++)
             {
                 float sample_x = *gridptr_x;
                 float sample_y = *gridptr_y;
@@ -2072,11 +2064,11 @@ static void gridsample_2d_bilinear_apply_interpolation_p1(const Mat& src, Mat& d
         const float* value_ptr_alpha = value.channel(0);
         const float* value_ptr_beta = value.channel(1);
 
-        int nn = grid_size;
+        int x = 0;
 #if __SSE2__
 #if __AVX__
 
-        for (int i = 0; i + 7 < grid_size; i += 8)
+        for (; x + 7 < grid_size; x += 8)
         {
             __m256i v00_offset = _mm256_set_epi32(*(offset_ptr_00 + 7), *(offset_ptr_00 + 6), *(offset_ptr_00 + 5), *(offset_ptr_00 + 4), *(offset_ptr_00 + 3), *(offset_ptr_00 + 2), *(offset_ptr_00 + 1), *offset_ptr_00);
             __m256i v01_offset = _mm256_set_epi32(*(offset_ptr_01 + 7), *(offset_ptr_01 + 6), *(offset_ptr_01 + 5), *(offset_ptr_01 + 4), *(offset_ptr_01 + 3), *(offset_ptr_01 + 2), *(offset_ptr_01 + 1), *offset_ptr_01);
@@ -2117,9 +2109,8 @@ static void gridsample_2d_bilinear_apply_interpolation_p1(const Mat& src, Mat& d
 
             dstptr += 8;
         }
-        nn = grid_size & 7;
 #endif // __AVX__
-        for (int i = grid_size - nn; i + 3 < grid_size; i += 4)
+        for (; x + 3 < grid_size; x += 4)
         {
             __m128i v00_offset = _mm_set_epi32(*(offset_ptr_00 + 3), *(offset_ptr_00 + 2), *(offset_ptr_00 + 1), *offset_ptr_00);
             __m128i v01_offset = _mm_set_epi32(*(offset_ptr_01 + 3), *(offset_ptr_01 + 2), *(offset_ptr_01 + 1), *offset_ptr_01);
@@ -2160,9 +2151,8 @@ static void gridsample_2d_bilinear_apply_interpolation_p1(const Mat& src, Mat& d
 
             dstptr += 4;
         }
-        nn = grid_size & 3;
 #endif // __SSE2__
-        for (int i = grid_size - nn; i < grid_size; i++)
+        for (; x < grid_size; x++)
         {
             float v00 = *in_bound_ptr_00 < 0 ? *(srcptr + static_cast<int>(*offset_ptr_00)) : 0;
             float v01 = *in_bound_ptr_01 < 0 ? *(srcptr + static_cast<int>(*offset_ptr_01)) : 0;
@@ -2226,10 +2216,10 @@ static void gridsample_3d_bilinear_apply_interpolation_p1(const Mat& src, Mat& d
         const float* value_ptr_beta = value.channel(1);
         const float* value_ptr_gamma = value.channel(2);
 
-        int nn = grid_size;
+        int x = 0;
 #if __SSE2__
 #if __AVX__
-        for (int i = 0; i + 7 < grid_size; i += 8)
+        for (; x + 7 < grid_size; x += 8)
         {
             __m256i v000_offset = _mm256_set_epi32(*(offset_ptr_000 + 7), *(offset_ptr_000 + 6), *(offset_ptr_000 + 5), *(offset_ptr_000 + 4), *(offset_ptr_000 + 3), *(offset_ptr_000 + 2), *(offset_ptr_000 + 1), *offset_ptr_000);
             __m256i v001_offset = _mm256_set_epi32(*(offset_ptr_001 + 7), *(offset_ptr_001 + 6), *(offset_ptr_001 + 5), *(offset_ptr_001 + 4), *(offset_ptr_001 + 3), *(offset_ptr_001 + 2), *(offset_ptr_001 + 1), *offset_ptr_001);
@@ -2300,9 +2290,8 @@ static void gridsample_3d_bilinear_apply_interpolation_p1(const Mat& src, Mat& d
             dstptr += 8;
         }
 
-        nn = grid_size & 7;
 #endif // __AVX__
-        for (int i = grid_size - nn; i + 3 < grid_size; i += 4)
+        for (; x + 3 < grid_size; x += 4)
         {
             __m128i v000_offset = _mm_set_epi32(*(offset_ptr_000 + 3), *(offset_ptr_000 + 2), *(offset_ptr_000 + 1), *offset_ptr_000);
             __m128i v001_offset = _mm_set_epi32(*(offset_ptr_001 + 3), *(offset_ptr_001 + 2), *(offset_ptr_001 + 1), *offset_ptr_001);
@@ -2372,9 +2361,8 @@ static void gridsample_3d_bilinear_apply_interpolation_p1(const Mat& src, Mat& d
 
             dstptr += 4;
         }
-        nn = grid_size & 3;
 #endif // __SSE2__
-        for (int i = grid_size - nn; i < grid_size; i++)
+        for (; x < grid_size; x++)
         {
             float v000 = *reinterpret_cast<const int*>(in_bound_ptr_000) < 0 ? *(srcptr + static_cast<int>(*offset_ptr_000)) : 0;
             float v001 = *reinterpret_cast<const int*>(in_bound_ptr_001) < 0 ? *(srcptr + static_cast<int>(*offset_ptr_001)) : 0;

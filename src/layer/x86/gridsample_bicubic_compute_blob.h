@@ -50,9 +50,9 @@ struct gridsample_2d_bicubic_compute_blob
             for (int y = 0; y < grid.c; y++)
             {
                 const float* gridptr = grid.channel(y);
-                int nn = grid_size;
+                int x = 0;
 #if __AVX__
-                for (int x = 0; x + 15 < nn; x += 16)
+                for (; x + 15 < grid_size; x += 16)
                 {
                     __m256 tmp_x = _mm256_loadu_ps(gridptr);
                     __m256 gy = _mm256_loadu_ps(gridptr + 8);
@@ -131,10 +131,9 @@ struct gridsample_2d_bicubic_compute_blob
                     gridptr += 16;
                 }
 
-                nn = grid_size & 15;
 #endif // __AVX__
 
-                for (int x = grid_size - nn; x < grid_size; x += 2)
+                for (; x < grid_size; x += 2)
                 {
                     float sample_x = *gridptr;
                     float sample_y = *(gridptr + 1);
@@ -191,9 +190,9 @@ struct gridsample_2d_bicubic_compute_blob
             const float* gridptr_x = grid.channel(0);
             const float* gridptr_y = grid.channel(1);
 
-            int nn = grid_size;
+            int x = 0;
 #if __AVX__
-            for (int x = 0; x + 7 < nn; x += 8)
+            for (; x + 7 < grid_size; x += 8)
             {
                 __m256 gx = _mm256_loadu_ps(gridptr_x);
                 __m256 gy = _mm256_loadu_ps(gridptr_y);
@@ -266,10 +265,9 @@ struct gridsample_2d_bicubic_compute_blob
                 gridptr_y += 8;
             }
 
-            nn = grid_size & 7;
 #endif // __AVX__
 
-            for (int x = grid_size - nn; x < grid_size; x++)
+            for (; x < grid_size; x++)
             {
                 float sample_x = *gridptr_x;
                 float sample_y = *gridptr_y;
@@ -325,7 +323,7 @@ struct gridsample_2d_bicubic_compute_blob
 };
 
 template<bool align_corner>
-struct gridsample_2d_bicubic_compute_blob<GridSample::Zeros, align_corner>
+struct gridsample_2d_bicubic_compute_blob<GridSample::Padding_ZEROS, align_corner>
 {
     void operator()(const Mat& src, const Mat& grid, Mat& offset, Mat& in_bound, Mat& value, int permute_fusion, const Option& opt)
     {
@@ -363,9 +361,9 @@ struct gridsample_2d_bicubic_compute_blob<GridSample::Zeros, align_corner>
             for (int y = 0; y < grid.c; y++)
             {
                 const float* gridptr = grid.channel(y);
-                int nn = grid_size;
+                int x = 0;
 #if __AVX__
-                for (int x = 0; x + 15 < nn; x += 16)
+                for (; x + 15 < grid_size; x += 16)
                 {
                     __m256 tmp_x = _mm256_loadu_ps(gridptr);
                     __m256 gy = _mm256_loadu_ps(gridptr + 8);
@@ -442,10 +440,9 @@ struct gridsample_2d_bicubic_compute_blob<GridSample::Zeros, align_corner>
                     gridptr += 16;
                 }
 
-                nn = grid_size & 15;
 #endif // __AVX__
 
-                for (int x = grid_size - nn; x < grid_size; x += 2)
+                for (; x < grid_size; x += 2)
                 {
                     float sample_x = *gridptr;
                     float sample_y = *(gridptr + 1);
@@ -509,9 +506,9 @@ struct gridsample_2d_bicubic_compute_blob<GridSample::Zeros, align_corner>
             const float* gridptr_x = grid.channel(0);
             const float* gridptr_y = grid.channel(1);
 
-            int nn = grid_size;
+            int x = 0;
 #if __AVX__
-            for (int x = 0; x + 7 < nn; x += 8)
+            for (; x + 7 < grid_size; x += 8)
             {
                 __m256 gx = _mm256_loadu_ps(gridptr_x);
                 __m256 gy = _mm256_loadu_ps(gridptr_y);
@@ -582,10 +579,9 @@ struct gridsample_2d_bicubic_compute_blob<GridSample::Zeros, align_corner>
                 gridptr_y += 8;
             }
 
-            nn = grid_size & 7;
 #endif // __AVX__
 
-            for (int x = grid_size - nn; x < grid_size; x++)
+            for (; x < grid_size; x++)
             {
                 float sample_x = *gridptr_x;
                 float sample_y = *gridptr_y;
@@ -994,14 +990,14 @@ static void gridsample_2d_bicubic_apply_interpolation_p1(const Mat& src, Mat& ds
         const float* value_x = value.channel(0);
         const float* value_y = value.channel(1);
 
-        int nn = grid_size;
+        int x = 0;
 #if __SSE2__
 #if __AVX__
         {
             __m256 x_coeffs0, x_coeffs1, x_coeffs2, x_coeffs3;
             __m256 y_coeffs0, y_coeffs1, y_coeffs2, y_coeffs3;
             __m256 value_f[4];
-            for (int i = 0; i + 7 < grid_size; i += 8)
+            for (; x + 7 < grid_size; x += 8)
             {
                 cubic_interp1d_p8(x_coeffs0, x_coeffs1, x_coeffs2, x_coeffs3, _mm256_loadu_ps(value_x));
                 for (int ii = 0; ii < 4; ii++)
@@ -1041,13 +1037,12 @@ static void gridsample_2d_bicubic_apply_interpolation_p1(const Mat& src, Mat& ds
                 dstptr += 8;
             }
         }
-        nn = grid_size & 7;
 #endif // __AVX__
         {
             __m128 x_coeffs0, x_coeffs1, x_coeffs2, x_coeffs3;
             __m128 y_coeffs0, y_coeffs1, y_coeffs2, y_coeffs3;
             __m128 value_f[4];
-            for (int i = grid_size - nn; i + 3 < grid_size; i += 4)
+            for (; x + 3 < grid_size; x += 4)
             {
                 cubic_interp1d_p4(x_coeffs0, x_coeffs1, x_coeffs2, x_coeffs3, _mm_loadu_ps(value_x));
                 for (int ii = 0; ii < 4; ii++)
@@ -1087,13 +1082,12 @@ static void gridsample_2d_bicubic_apply_interpolation_p1(const Mat& src, Mat& ds
                 dstptr += 4;
             }
         }
-        nn = grid_size & 3;
 #endif // __SSE2__
         float x_coeffs0, x_coeffs1, x_coeffs2, x_coeffs3;
         float y_coeffs0, y_coeffs1, y_coeffs2, y_coeffs3;
         float value_f[4];
 
-        for (int i = grid_size - nn; i < grid_size; i++)
+        for (; x < grid_size; x++)
         {
             cubic_interp1d(x_coeffs0, x_coeffs1, x_coeffs2, x_coeffs3, *value_x);
             for (int ii = 0; ii < 4; ii++)

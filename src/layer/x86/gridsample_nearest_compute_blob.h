@@ -34,9 +34,9 @@ struct gridsample_2d_nearest_compute_blob
             for (int y = 0; y < grid.c; y++)
             {
                 const float* gridptr = grid.channel(y);
-                int nn = grid_size;
+                int x = 0;
 #if __AVX__
-                for (int x = 0; x + 15 < nn; x += 16)
+                for (; x + 15 < grid_size; x += 16)
                 {
                     __m256 tmp_x = _mm256_loadu_ps(gridptr);
                     __m256 gy = _mm256_loadu_ps(gridptr + 8);
@@ -69,10 +69,9 @@ struct gridsample_2d_nearest_compute_blob
                     offset_ptr += 8;
                 }
 
-                nn = grid_size & 15;
 #endif // __AVX__
 
-                for (int x = grid_size - nn; x < grid_size; x += 2)
+                for (; x < grid_size; x += 2)
                 {
                     float sample_x = *gridptr;
                     float sample_y = *(gridptr + 1);
@@ -99,9 +98,9 @@ struct gridsample_2d_nearest_compute_blob
             const float* gridptr_x = grid.channel(0);
             const float* gridptr_y = grid.channel(1);
 
-            int nn = grid_size;
+            int x = 0;
 #if __AVX__
-            for (int x = 0; x + 7 < nn; x += 8)
+            for (; x + 7 < grid_size; x += 8)
             {
                 __m256 gx = _mm256_loadu_ps(gridptr_x);
                 __m256 gy = _mm256_loadu_ps(gridptr_y);
@@ -128,10 +127,9 @@ struct gridsample_2d_nearest_compute_blob
                 offset_ptr += 8;
             }
 
-            nn = grid_size & 7;
 #endif // __AVX__
 
-            for (int x = grid_size - nn; x < grid_size; x++)
+            for (; x < grid_size; x++)
             {
                 float sample_x = *gridptr_x;
                 float sample_y = *gridptr_y;
@@ -157,7 +155,7 @@ struct gridsample_2d_nearest_compute_blob
 };
 
 template<bool align_corner>
-struct gridsample_2d_nearest_compute_blob<GridSample::Zeros, align_corner>
+struct gridsample_2d_nearest_compute_blob<GridSample::Padding_ZEROS, align_corner>
 {
     void operator()(const Mat& src, const Mat& grid, Mat& offset, Mat& in_bound, Mat& value, int permute_fusion, const Option& opt)
     {
@@ -179,9 +177,9 @@ struct gridsample_2d_nearest_compute_blob<GridSample::Zeros, align_corner>
             for (int y = 0; y < grid.c; y++)
             {
                 const float* gridptr = grid.channel(y);
-                int nn = grid_size;
+                int x = 0;
 #if __AVX__
-                for (int x = 0; x + 15 < nn; x += 16)
+                for (; x + 15 < grid_size; x += 16)
                 {
                     __m256 tmp_x = _mm256_loadu_ps(gridptr);
                     __m256 gy = _mm256_loadu_ps(gridptr + 8);
@@ -215,10 +213,9 @@ struct gridsample_2d_nearest_compute_blob<GridSample::Zeros, align_corner>
                     in_bound_ptr += 8;
                 }
 
-                nn = grid_size & 15;
 #endif // __AVX__
 
-                for (int x = grid_size - nn; x < grid_size; x += 2)
+                for (; x < grid_size; x += 2)
                 {
                     float sample_x = *gridptr;
                     float sample_y = *(gridptr + 1);
@@ -244,9 +241,9 @@ struct gridsample_2d_nearest_compute_blob<GridSample::Zeros, align_corner>
             const float* gridptr_x = grid.channel(0);
             const float* gridptr_y = grid.channel(1);
 
-            int nn = grid_size;
+            int x = 0;
 #if __AVX__
-            for (int x = 0; x + 7 < nn; x += 8)
+            for (; x + 7 < grid_size; x += 8)
             {
                 __m256 gx = _mm256_loadu_ps(gridptr_x);
                 __m256 gy = _mm256_loadu_ps(gridptr_y);
@@ -274,10 +271,9 @@ struct gridsample_2d_nearest_compute_blob<GridSample::Zeros, align_corner>
                 in_bound_ptr += 8;
             }
 
-            nn = grid_size & 7;
 #endif // __AVX__
 
-            for (int x = grid_size - nn; x < grid_size; x++)
+            for (; x < grid_size; x++)
             {
                 float sample_x = *gridptr_x;
                 float sample_y = *gridptr_y;
@@ -326,9 +322,9 @@ struct gridsample_3d_nearest_compute_blob
             for (int y = 0; y < grid.c; y++)
             {
                 const float* gridptr = grid.channel(y);
-                int nn = grid_size;
+                int x = 0;
 #if __AVX__
-                for (int x = 0; x + 23 < nn; x += 24)
+                for (; x + 23 < grid_size; x += 24)
                 {
                     __m256 tmp_x = _mm256_loadu_ps(gridptr);
                     __m256 tmp_y = _mm256_loadu_ps(gridptr + 8);
@@ -372,10 +368,9 @@ struct gridsample_3d_nearest_compute_blob
                     offset_ptr += 8;
                 }
 
-                nn = grid_size % 24;
 #endif // __AVX__
 
-                for (int x = grid_size - nn; x < grid_size; x += 3)
+                for (; x < grid_size; x += 3)
                 {
                     float sample_x = *gridptr;
                     float sample_y = *(gridptr + 1);
@@ -408,9 +403,9 @@ struct gridsample_3d_nearest_compute_blob
             const float* gridptr_y = grid.channel(1);
             const float* gridptr_z = grid.channel(2);
 
-            int nn = grid_size;
+            int x = 0;
 #if __AVX__
-            for (int x = 0; x + 7 < nn; x += 8)
+            for (; x + 7 < grid_size; x += 8)
             {
                 __m256 gx = _mm256_loadu_ps(gridptr_x);
                 __m256 gy = _mm256_loadu_ps(gridptr_y);
@@ -445,10 +440,9 @@ struct gridsample_3d_nearest_compute_blob
                 offset_ptr += 8;
             }
 
-            nn = grid_size & 7;
 #endif // __AVX__
 
-            for (int x = grid_size - nn; x < grid_size; x++)
+            for (; x < grid_size; x++)
             {
                 float sample_x = *gridptr_x;
                 float sample_y = *gridptr_y;
@@ -480,7 +474,7 @@ struct gridsample_3d_nearest_compute_blob
 };
 
 template<bool align_corner>
-struct gridsample_3d_nearest_compute_blob<GridSample::Zeros, align_corner>
+struct gridsample_3d_nearest_compute_blob<GridSample::Padding_ZEROS, align_corner>
 {
     void operator()(const Mat& src, const Mat& grid, Mat& offset, Mat& in_bound, Mat& value, int permute_fusion, const Option& opt)
     {
@@ -503,9 +497,9 @@ struct gridsample_3d_nearest_compute_blob<GridSample::Zeros, align_corner>
             for (int y = 0; y < grid.c; y++)
             {
                 const float* gridptr = grid.channel(y);
-                int nn = grid_size;
+                int x = 0;
 #if __AVX__
-                for (int x = 0; x + 23 < nn; x += 24)
+                for (; x + 23 < grid_size; x += 24)
                 {
                     __m256 tmp_x = _mm256_loadu_ps(gridptr);
                     __m256 tmp_y = _mm256_loadu_ps(gridptr + 8);
@@ -549,10 +543,9 @@ struct gridsample_3d_nearest_compute_blob<GridSample::Zeros, align_corner>
                     in_bound_ptr += 8;
                 }
 
-                nn = grid_size % 24;
 #endif // __AVX__
 
-                for (int x = grid_size - nn; x < grid_size; x += 3)
+                for (; x < grid_size; x += 3)
                 {
                     float sample_x = *gridptr;
                     float sample_y = *(gridptr + 1);
@@ -581,9 +574,9 @@ struct gridsample_3d_nearest_compute_blob<GridSample::Zeros, align_corner>
             const float* gridptr_y = grid.channel(1);
             const float* gridptr_z = grid.channel(2);
 
-            int nn = grid_size;
+            int x = 0;
 #if __AVX__
-            for (int x = 0; x + 7 < nn; x += 8)
+            for (; x + 7 < grid_size; x += 8)
             {
                 __m256 gx = _mm256_loadu_ps(gridptr_x);
                 __m256 gy = _mm256_loadu_ps(gridptr_y);
@@ -619,10 +612,9 @@ struct gridsample_3d_nearest_compute_blob<GridSample::Zeros, align_corner>
                 in_bound_ptr += 8;
             }
 
-            nn = grid_size & 7;
 #endif // __AVX__
 
-            for (int x = grid_size - nn; x < grid_size; x++)
+            for (; x < grid_size; x++)
             {
                 float sample_x = *gridptr_x;
                 float sample_y = *gridptr_y;
@@ -773,10 +765,10 @@ static void gridsample_nearest_apply_interpolation_p1(const Mat& src, Mat& dst, 
 
         const float* in_bound_ptr = in_bound.channel(0);
 
-        int nn = grid_size;
+        int x = 0;
 #if __SSE2__
 #if __AVX__
-        for (int i = 0; i + 7 < grid_size; i += 8)
+        for (; x + 7 < grid_size; x += 8)
         {
             __m256 _v = mask_gather_ps256(srcptr, _mm256_set_epi32(*(offset_ptr + 7), *(offset_ptr + 6), *(offset_ptr + 5), *(offset_ptr + 4), *(offset_ptr + 3), *(offset_ptr + 2), *(offset_ptr + 1), *offset_ptr), _mm256_loadu_ps(in_bound_ptr));
 
@@ -786,9 +778,8 @@ static void gridsample_nearest_apply_interpolation_p1(const Mat& src, Mat& dst, 
             in_bound_ptr += 8;
             dstptr += 8;
         }
-        nn = grid_size & 7;
 #endif // __AVX__
-        for (int i = grid_size - nn; i + 3 < grid_size; i += 4)
+        for (; x + 3 < grid_size; x += 4)
         {
             __m128 _v = mask_gather_ps(srcptr, _mm_set_epi32(*(offset_ptr + 3), *(offset_ptr + 2), *(offset_ptr + 1), *offset_ptr), _mm_loadu_ps(in_bound_ptr));
 
@@ -798,9 +789,8 @@ static void gridsample_nearest_apply_interpolation_p1(const Mat& src, Mat& dst, 
             in_bound_ptr += 4;
             dstptr += 4;
         }
-        nn = grid_size & 3;
 #endif // __SSE2__
-        for (int i = grid_size - nn; i < grid_size; i++)
+        for (; x < grid_size; x++)
         {
             *dstptr = *reinterpret_cast<const int*>(in_bound_ptr) < 0 ? *(srcptr + static_cast<int>(*offset_ptr)) : 0;
 

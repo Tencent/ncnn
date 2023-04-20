@@ -30,16 +30,16 @@ public:
 
     enum InterpolationMode // 1=bilinear  2=nearest  3=bicubic
     {
-        Bilinear = 1,
-        Nearest = 2,
-        Bicubic = 3
+        Interpolation_BILINEAR = 1,
+        Interpolation_NEAREST = 2,
+        Interpolation_BICUBIC = 3
     };
 
     enum PaddingMode // 1=zeros     2=border   3=reflection
     {
-        Zeros = 1,
-        Border = 2,
-        Reflection = 3
+        Padding_ZEROS = 1,
+        Padding_BORDER = 2,
+        Padding_REFLECTION = 3
     };
 
 public:
