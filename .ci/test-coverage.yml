@@ -52,14 +52,14 @@ jobs:
       uses: cache@1.*
       with:
         cachePaths: swiftshader-install
-        cacheKey: swiftshader-linux-install-20221026
+        cacheKey: swiftshader-linux-install-20230420
 
     - name: checkout-swiftshader
       if: steps.cache-swiftshader.outputs.cacheHit != 'true'
       checkout: https://github.com/google/swiftshader.git
       with:
         pullType: COMMIT_ID
-        refName: 04d007924c2d33ea1ac4be78ae423507a0b08b61
+        refName: dd55e592406dc0bae219df11adec6363840aff4a
         localPath: swiftshader
         enableSubmodule: false
         enableGitLfs: false
