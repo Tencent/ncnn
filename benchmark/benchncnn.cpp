@@ -326,6 +326,6 @@ int main(int argc, char** argv)
     delete g_staging_vkallocator;
     ncnn::destroy_gpu_instance();
 #endif // NCNN_VULKAN
-    
+
     return 0;
 }
