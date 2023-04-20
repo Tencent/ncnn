@@ -48,10 +48,11 @@ static int test_concat_0()
         {
             for (int k = 0; k < n; k++)
             {
-                std::vector<ncnn::Mat> as(3);
+                std::vector<ncnn::Mat> as(4);
                 as[0] = a[i];
                 as[1] = a[j];
                 as[2] = a[k];
+                as[3] = a[k];
 
                 int ret = test_concat(as, 0) || test_concat(as, -4);
                 if (ret != 0)
@@ -158,10 +159,11 @@ static int test_concat_4()
         {
             for (int k = 0; k < n; k++)
             {
-                std::vector<ncnn::Mat> as(3);
+                std::vector<ncnn::Mat> as(4);
                 as[0] = a[i];
                 as[1] = a[j];
                 as[2] = a[k];
+                as[3] = a[k];
 
                 int ret = test_concat(as, 0) || test_concat(as, -3);
                 if (ret != 0)
@@ -242,10 +244,11 @@ static int test_concat_7()
         {
             for (int k = 0; k < n; k++)
             {
-                std::vector<ncnn::Mat> as(3);
+                std::vector<ncnn::Mat> as(4);
                 as[0] = a[i];
                 as[1] = a[j];
                 as[2] = a[k];
+                as[3] = a[k];
 
                 int ret = test_concat(as, 0) || test_concat(as, -2);
                 if (ret != 0)
@@ -300,10 +303,11 @@ static int test_concat_9()
         {
             for (int k = 0; k < n; k++)
             {
-                std::vector<ncnn::Mat> as(3);
+                std::vector<ncnn::Mat> as(4);
                 as[0] = a[i];
                 as[1] = a[j];
                 as[2] = a[k];
+                as[3] = a[k];
 
                 int ret = test_concat(as, 0) || test_concat(as, -1);
                 if (ret != 0)

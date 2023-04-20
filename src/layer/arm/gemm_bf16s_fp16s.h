@@ -469,6 +469,7 @@ static void pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int max_jj, int 
 
     int jj = 0;
 #if __ARM_NEON
+#if __aarch64__
     for (; jj + 11 < max_jj; jj += 12)
     {
         if (elempack == 8)
@@ -607,6 +608,7 @@ static void pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int max_jj, int 
             }
         }
     }
+#endif // __aarch64__
     for (; jj + 7 < max_jj; jj += 8)
     {
         if (elempack == 8)
@@ -917,6 +919,7 @@ static void transpose_pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int ma
 
     int jj = 0;
 #if __ARM_NEON
+#if __aarch64__
     for (; jj + 11 < max_jj; jj += 12)
     {
         if (elempack == 8)
@@ -992,6 +995,7 @@ static void transpose_pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int ma
             }
         }
     }
+#endif // __aarch64__
     for (; jj + 7 < max_jj; jj += 8)
     {
         if (elempack == 8)
@@ -1521,9 +1525,9 @@ static void get_optimal_tile_mnk_bf16s_fp16s(int M, int N, int K, int constant_T
     size_t l2_cache_size = get_cpu_level2_cache_size();
     int tile_size = (int)sqrt((float)l2_cache_size / (2 * sizeof(unsigned short) + sizeof(float)));
 
-    TILE_M = tile_size / 8 * 8;
-    TILE_N = tile_size / 4 * 4;
-    TILE_K = tile_size / 8 * 8;
+    TILE_M = std::max(8, tile_size / 8 * 8);
+    TILE_N = std::max(4, tile_size / 4 * 4);
+    TILE_K = std::max(8, tile_size / 8 * 8);
 
     if (K > 0)
     {
@@ -1534,8 +1538,8 @@ static void get_optimal_tile_mnk_bf16s_fp16s(int M, int N, int K, int constant_T
         {
             tile_size = (int)((float)l2_cache_size / 2 / sizeof(unsigned short) / TILE_K);
 
-            TILE_M = tile_size / 8 * 8;
-            TILE_N = tile_size / 4 * 4;
+            TILE_M = std::max(8, tile_size / 8 * 8);
+            TILE_N = std::max(4, tile_size / 4 * 4);
         }
     }
 

@@ -151,6 +151,54 @@ static inline void transpose4x4_u16(uint16x4_t& _r0, uint16x4_t& _r1, uint16x4_t
     _r3 = vreinterpret_u16_u32(_r23.val[1]);
 }
 
+static inline void transpose4x8_u16(uint16x4_t& _r0, uint16x4_t& _r1, uint16x4_t& _r2, uint16x4_t& _r3, uint16x4_t& _r4, uint16x4_t& _r5, uint16x4_t& _r6, uint16x4_t& _r7)
+{
+    uint16x4x2_t _r01z = vzip_u16(_r0, _r1);
+    uint16x4x2_t _r23z = vzip_u16(_r2, _r3);
+    uint16x4x2_t _r45z = vzip_u16(_r4, _r5);
+    uint16x4x2_t _r67z = vzip_u16(_r6, _r7);
+    uint32x2x2_t _r01_0 = vzip_u32(vreinterpret_u32_u16(_r01z.val[0]), vreinterpret_u32_u16(_r23z.val[0]));
+    uint32x2x2_t _r23_0 = vzip_u32(vreinterpret_u32_u16(_r01z.val[1]), vreinterpret_u32_u16(_r23z.val[1]));
+    uint32x2x2_t _r01_1 = vzip_u32(vreinterpret_u32_u16(_r45z.val[0]), vreinterpret_u32_u16(_r67z.val[0]));
+    uint32x2x2_t _r23_1 = vzip_u32(vreinterpret_u32_u16(_r45z.val[1]), vreinterpret_u32_u16(_r67z.val[1]));
+    _r0 = vreinterpret_u16_u32(_r01_0.val[0]);
+    _r1 = vreinterpret_u16_u32(_r01_1.val[0]);
+    _r2 = vreinterpret_u16_u32(_r01_0.val[1]);
+    _r3 = vreinterpret_u16_u32(_r01_1.val[1]);
+    _r4 = vreinterpret_u16_u32(_r23_0.val[0]);
+    _r5 = vreinterpret_u16_u32(_r23_1.val[0]);
+    _r6 = vreinterpret_u16_u32(_r23_0.val[1]);
+    _r7 = vreinterpret_u16_u32(_r23_1.val[1]);
+}
+
+static inline void transpose4x12_u16(uint16x4_t& _r0, uint16x4_t& _r1, uint16x4_t& _r2, uint16x4_t& _r3, uint16x4_t& _r4, uint16x4_t& _r5, uint16x4_t& _r6, uint16x4_t& _r7, uint16x4_t& _r8, uint16x4_t& _r9, uint16x4_t& _ra, uint16x4_t& _rb)
+{
+    uint16x4x2_t _r01z = vzip_u16(_r0, _r1);
+    uint16x4x2_t _r23z = vzip_u16(_r2, _r3);
+    uint16x4x2_t _r45z = vzip_u16(_r4, _r5);
+    uint16x4x2_t _r67z = vzip_u16(_r6, _r7);
+    uint16x4x2_t _r89z = vzip_u16(_r8, _r9);
+    uint16x4x2_t _rabz = vzip_u16(_ra, _rb);
+    uint32x2x2_t _r01_0 = vzip_u32(vreinterpret_u32_u16(_r01z.val[0]), vreinterpret_u32_u16(_r23z.val[0]));
+    uint32x2x2_t _r23_0 = vzip_u32(vreinterpret_u32_u16(_r01z.val[1]), vreinterpret_u32_u16(_r23z.val[1]));
+    uint32x2x2_t _r01_1 = vzip_u32(vreinterpret_u32_u16(_r45z.val[0]), vreinterpret_u32_u16(_r67z.val[0]));
+    uint32x2x2_t _r23_1 = vzip_u32(vreinterpret_u32_u16(_r45z.val[1]), vreinterpret_u32_u16(_r67z.val[1]));
+    uint32x2x2_t _r01_2 = vzip_u32(vreinterpret_u32_u16(_r89z.val[0]), vreinterpret_u32_u16(_rabz.val[0]));
+    uint32x2x2_t _r23_2 = vzip_u32(vreinterpret_u32_u16(_r89z.val[1]), vreinterpret_u32_u16(_rabz.val[1]));
+    _r0 = vreinterpret_u16_u32(_r01_0.val[0]);
+    _r1 = vreinterpret_u16_u32(_r01_1.val[0]);
+    _r2 = vreinterpret_u16_u32(_r01_2.val[0]);
+    _r3 = vreinterpret_u16_u32(_r01_0.val[1]);
+    _r4 = vreinterpret_u16_u32(_r01_1.val[1]);
+    _r5 = vreinterpret_u16_u32(_r01_2.val[1]);
+    _r6 = vreinterpret_u16_u32(_r23_0.val[0]);
+    _r7 = vreinterpret_u16_u32(_r23_1.val[0]);
+    _r8 = vreinterpret_u16_u32(_r23_2.val[0]);
+    _r9 = vreinterpret_u16_u32(_r23_0.val[1]);
+    _ra = vreinterpret_u16_u32(_r23_1.val[1]);
+    _rb = vreinterpret_u16_u32(_r23_2.val[1]);
+}
+
 static inline void transpose8x4_u16(uint16x8_t& _r0, uint16x8_t& _r1, uint16x8_t& _r2, uint16x8_t& _r3)
 {
     uint16x8x2_t _r01t = vzipq_u16(_r0, _r1);
@@ -181,6 +229,34 @@ static inline void transpose8x8_u16(uint16x8_t& _r0, uint16x8_t& _r1, uint16x8_t
     _r5 = vreinterpretq_u16_u32(vcombine_u32(vget_high_u32(_r23_0.val[0]), vget_high_u32(_r23_1.val[0])));
     _r6 = vreinterpretq_u16_u32(vcombine_u32(vget_low_u32(_r23_0.val[1]), vget_low_u32(_r23_1.val[1])));
     _r7 = vreinterpretq_u16_u32(vcombine_u32(vget_high_u32(_r23_0.val[1]), vget_high_u32(_r23_1.val[1])));
+}
+
+static inline void transpose8x12_u16(uint16x8_t& _r0, uint16x8_t& _r1, uint16x8_t& _r2, uint16x8_t& _r3, uint16x8_t& _r4, uint16x8_t& _r5, uint16x8_t& _r6, uint16x8_t& _r7, uint16x8_t& _r8, uint16x8_t& _r9, uint16x8_t& _ra, uint16x8_t& _rb)
+{
+    uint16x8x2_t _r01t = vzipq_u16(_r0, _r1);
+    uint16x8x2_t _r23t = vzipq_u16(_r2, _r3);
+    uint16x8x2_t _r45t = vzipq_u16(_r4, _r5);
+    uint16x8x2_t _r67t = vzipq_u16(_r6, _r7);
+    uint16x8x2_t _r89t = vzipq_u16(_r8, _r9);
+    uint16x8x2_t _rabt = vzipq_u16(_ra, _rb);
+    uint32x4x2_t _r01_0 = vzipq_u32(vreinterpretq_u32_u16(_r01t.val[0]), vreinterpretq_u32_u16(_r23t.val[0]));
+    uint32x4x2_t _r23_0 = vzipq_u32(vreinterpretq_u32_u16(_r01t.val[1]), vreinterpretq_u32_u16(_r23t.val[1]));
+    uint32x4x2_t _r01_1 = vzipq_u32(vreinterpretq_u32_u16(_r45t.val[0]), vreinterpretq_u32_u16(_r67t.val[0]));
+    uint32x4x2_t _r23_1 = vzipq_u32(vreinterpretq_u32_u16(_r45t.val[1]), vreinterpretq_u32_u16(_r67t.val[1]));
+    uint32x4x2_t _r01_2 = vzipq_u32(vreinterpretq_u32_u16(_r89t.val[0]), vreinterpretq_u32_u16(_rabt.val[0]));
+    uint32x4x2_t _r23_2 = vzipq_u32(vreinterpretq_u32_u16(_r89t.val[1]), vreinterpretq_u32_u16(_rabt.val[1]));
+    _r0 = vreinterpretq_u16_u32(vcombine_u32(vget_low_u32(_r01_0.val[0]), vget_low_u32(_r01_1.val[0])));
+    _r1 = vreinterpretq_u16_u32(vcombine_u32(vget_low_u32(_r01_2.val[0]), vget_high_u32(_r01_0.val[0])));
+    _r2 = vreinterpretq_u16_u32(vcombine_u32(vget_high_u32(_r01_1.val[0]), vget_high_u32(_r01_2.val[0])));
+    _r3 = vreinterpretq_u16_u32(vcombine_u32(vget_low_u32(_r01_0.val[1]), vget_low_u32(_r01_1.val[1])));
+    _r4 = vreinterpretq_u16_u32(vcombine_u32(vget_low_u32(_r01_2.val[1]), vget_high_u32(_r01_0.val[1])));
+    _r5 = vreinterpretq_u16_u32(vcombine_u32(vget_high_u32(_r01_1.val[1]), vget_high_u32(_r01_2.val[1])));
+    _r6 = vreinterpretq_u16_u32(vcombine_u32(vget_low_u32(_r23_0.val[0]), vget_low_u32(_r23_1.val[0])));
+    _r7 = vreinterpretq_u16_u32(vcombine_u32(vget_low_u32(_r23_2.val[0]), vget_high_u32(_r23_0.val[0])));
+    _r8 = vreinterpretq_u16_u32(vcombine_u32(vget_high_u32(_r23_1.val[0]), vget_high_u32(_r23_2.val[0])));
+    _r9 = vreinterpretq_u16_u32(vcombine_u32(vget_low_u32(_r23_0.val[1]), vget_low_u32(_r23_1.val[1])));
+    _ra = vreinterpretq_u16_u32(vcombine_u32(vget_low_u32(_r23_2.val[1]), vget_high_u32(_r23_0.val[1])));
+    _rb = vreinterpretq_u16_u32(vcombine_u32(vget_high_u32(_r23_1.val[1]), vget_high_u32(_r23_2.val[1])));
 }
 
 static inline void transpose4x4_ps(float32x4_t& _r0, float32x4_t& _r1, float32x4_t& _r2, float32x4_t& _r3)
@@ -499,6 +575,34 @@ static inline void transpose8x8_ph(float16x8_t& _r0, float16x8_t& _r1, float16x8
     _r5 = vreinterpretq_f16_u32(vcombine_u32(vget_high_u32(_r23_0.val[0]), vget_high_u32(_r23_1.val[0])));
     _r6 = vreinterpretq_f16_u32(vcombine_u32(vget_low_u32(_r23_0.val[1]), vget_low_u32(_r23_1.val[1])));
     _r7 = vreinterpretq_f16_u32(vcombine_u32(vget_high_u32(_r23_0.val[1]), vget_high_u32(_r23_1.val[1])));
+}
+
+static inline void transpose8x12_ph(float16x8_t& _r0, float16x8_t& _r1, float16x8_t& _r2, float16x8_t& _r3, float16x8_t& _r4, float16x8_t& _r5, float16x8_t& _r6, float16x8_t& _r7, float16x8_t& _r8, float16x8_t& _r9, float16x8_t& _ra, float16x8_t& _rb)
+{
+    uint16x8x2_t _r01t = vzipq_u16(vreinterpretq_u16_f16(_r0), vreinterpretq_u16_f16(_r1));
+    uint16x8x2_t _r23t = vzipq_u16(vreinterpretq_u16_f16(_r2), vreinterpretq_u16_f16(_r3));
+    uint16x8x2_t _r45t = vzipq_u16(vreinterpretq_u16_f16(_r4), vreinterpretq_u16_f16(_r5));
+    uint16x8x2_t _r67t = vzipq_u16(vreinterpretq_u16_f16(_r6), vreinterpretq_u16_f16(_r7));
+    uint16x8x2_t _r89t = vzipq_u16(vreinterpretq_u16_f16(_r8), vreinterpretq_u16_f16(_r9));
+    uint16x8x2_t _rabt = vzipq_u16(vreinterpretq_u16_f16(_ra), vreinterpretq_u16_f16(_rb));
+    uint32x4x2_t _r01_0 = vzipq_u32(vreinterpretq_u32_u16(_r01t.val[0]), vreinterpretq_u32_u16(_r23t.val[0]));
+    uint32x4x2_t _r23_0 = vzipq_u32(vreinterpretq_u32_u16(_r01t.val[1]), vreinterpretq_u32_u16(_r23t.val[1]));
+    uint32x4x2_t _r01_1 = vzipq_u32(vreinterpretq_u32_u16(_r45t.val[0]), vreinterpretq_u32_u16(_r67t.val[0]));
+    uint32x4x2_t _r23_1 = vzipq_u32(vreinterpretq_u32_u16(_r45t.val[1]), vreinterpretq_u32_u16(_r67t.val[1]));
+    uint32x4x2_t _r01_2 = vzipq_u32(vreinterpretq_u32_u16(_r89t.val[0]), vreinterpretq_u32_u16(_rabt.val[0]));
+    uint32x4x2_t _r23_2 = vzipq_u32(vreinterpretq_u32_u16(_r89t.val[1]), vreinterpretq_u32_u16(_rabt.val[1]));
+    _r0 = vreinterpretq_f16_u32(vcombine_u32(vget_low_u32(_r01_0.val[0]), vget_low_u32(_r01_1.val[0])));
+    _r1 = vreinterpretq_f16_u32(vcombine_u32(vget_low_u32(_r01_2.val[0]), vget_high_u32(_r01_0.val[0])));
+    _r2 = vreinterpretq_f16_u32(vcombine_u32(vget_high_u32(_r01_1.val[0]), vget_high_u32(_r01_2.val[0])));
+    _r3 = vreinterpretq_f16_u32(vcombine_u32(vget_low_u32(_r01_0.val[1]), vget_low_u32(_r01_1.val[1])));
+    _r4 = vreinterpretq_f16_u32(vcombine_u32(vget_low_u32(_r01_2.val[1]), vget_high_u32(_r01_0.val[1])));
+    _r5 = vreinterpretq_f16_u32(vcombine_u32(vget_high_u32(_r01_1.val[1]), vget_high_u32(_r01_2.val[1])));
+    _r6 = vreinterpretq_f16_u32(vcombine_u32(vget_low_u32(_r23_0.val[0]), vget_low_u32(_r23_1.val[0])));
+    _r7 = vreinterpretq_f16_u32(vcombine_u32(vget_low_u32(_r23_2.val[0]), vget_high_u32(_r23_0.val[0])));
+    _r8 = vreinterpretq_f16_u32(vcombine_u32(vget_high_u32(_r23_1.val[0]), vget_high_u32(_r23_2.val[0])));
+    _r9 = vreinterpretq_f16_u32(vcombine_u32(vget_low_u32(_r23_0.val[1]), vget_low_u32(_r23_1.val[1])));
+    _ra = vreinterpretq_f16_u32(vcombine_u32(vget_low_u32(_r23_2.val[1]), vget_high_u32(_r23_0.val[1])));
+    _rb = vreinterpretq_f16_u32(vcombine_u32(vget_high_u32(_r23_1.val[1]), vget_high_u32(_r23_2.val[1])));
 }
 
 static inline void transpose12x4_ph(float16x4_t& _r0l, float16x4_t& _r0m, float16x4_t& _r0h,

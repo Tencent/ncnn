@@ -241,6 +241,113 @@ static int test_squeezenet(const ncnn::Option& opt, int load_model_type, float e
     return check_top2(cls_scores, epsilon);
 }
 
+class MySoftmax : public ncnn::Layer
+{
+public:
+    MySoftmax()
+    {
+        one_blob_only = true;
+        support_inplace = true;
+    }
+
+    virtual int forward_inplace(ncnn::Mat& bottom_top_blob, const ncnn::Option& /*opt*/) const
+    {
+        bottom_top_blob.fill(0.f);
+        bottom_top_blob[123] = 0.5f;
+        bottom_top_blob[456] = 0.1f;
+        return 0;
+    }
+};
+
+DEFINE_LAYER_CREATOR(MySoftmax)
+
+static int test_squeezenet_overwrite_softmax(const ncnn::Option& opt, int load_model_type, float epsilon = 0.001)
+{
+    ncnn::Net squeezenet;
+
+    squeezenet.opt = opt;
+
+#ifdef __EMSCRIPTEN__
+#define MODEL_DIR "/working"
+#else
+#define MODEL_DIR "../../examples"
+#endif
+
+    std::string param_str;
+    ncnn::Mat param_data;
+    ncnn::Mat model_data;
+    if (load_model_type == 0)
+    {
+        // load from plain model file
+        squeezenet.register_custom_layer("Softmax", MySoftmax_layer_creator);
+        squeezenet.load_param(MODEL_DIR "/squeezenet_v1.1.param");
+
+        // test random feature disabled bits
+        {
+            std::vector<ncnn::Layer*>& layers = squeezenet.mutable_layers();
+            for (size_t i = 0; i < layers.size(); i++)
+            {
+                layers[i]->featmask = i * 11 % 128;
+            }
+        }
+
+        squeezenet.load_model(MODEL_DIR "/squeezenet_v1.1.bin");
+    }
+    if (load_model_type == 1)
+    {
+        // load from plain model memory
+        squeezenet.register_custom_layer("Softmax", MySoftmax_layer_creator);
+        param_str = read_file_string(MODEL_DIR "/squeezenet_v1.1.param");
+        model_data = read_file_content(MODEL_DIR "/squeezenet_v1.1.bin");
+        squeezenet.load_param_mem((const char*)param_str.c_str());
+        squeezenet.load_model((const unsigned char*)model_data);
+    }
+    if (load_model_type == 2)
+    {
+        // load from binary model file
+        squeezenet.register_custom_layer(ncnn::layer_to_index("Softmax"), MySoftmax_layer_creator);
+        squeezenet.load_param_bin(MODEL_DIR "/squeezenet_v1.1.param.bin");
+        squeezenet.load_model(MODEL_DIR "/squeezenet_v1.1.bin");
+    }
+    if (load_model_type == 3)
+    {
+        // load from binary model memory
+        squeezenet.register_custom_layer(ncnn::layer_to_index("Softmax"), MySoftmax_layer_creator);
+        param_data = read_file_content(MODEL_DIR "/squeezenet_v1.1.param.bin");
+        model_data = read_file_content(MODEL_DIR "/squeezenet_v1.1.bin");
+        squeezenet.load_param((const unsigned char*)param_data);
+        squeezenet.load_model((const unsigned char*)model_data);
+    }
+
+    ncnn::Mat in = generate_ncnn_logo(ncnn::Mat::PIXEL_BGR, 227, 227);
+
+    const float mean_vals[3] = {104.f, 117.f, 123.f};
+    in.substract_mean_normalize(mean_vals, 0);
+
+    ncnn::Extractor ex = squeezenet.create_extractor();
+
+    ncnn::Mat out;
+    if (load_model_type == 0 || load_model_type == 1)
+    {
+        ex.input("data", in);
+        ex.extract("prob", out);
+    }
+    if (load_model_type == 2 || load_model_type == 3)
+    {
+        ex.input(0, in);
+        ex.extract(82, out);
+    }
+
+    std::vector<float> cls_scores;
+    cls_scores.resize(out.w);
+    for (int j = 0; j < out.w; j++)
+    {
+        cls_scores[j] = out[j];
+    }
+
+    return cls_scores[123] == 0.5f && cls_scores[456] == 0.1f ? 0 : -1;
+}
+
 int main()
 {
     SRAND(7767517);
@@ -329,6 +436,22 @@ int main()
         if (ret != 0)
         {
             fprintf(stderr, "test_squeezenet gpu failed use_packing_layout=%d use_fp16_packed=%d use_fp16_storage=%d use_shader_pack8=%d use_bf16_storage=%d use_image_storage=%d\n", opt.use_packing_layout, opt.use_fp16_packed, opt.use_fp16_storage, opt.use_shader_pack8, opt.use_bf16_storage, opt.use_image_storage);
+            return ret;
+        }
+#endif // NCNN_VULKAN
+
+        ret = test_squeezenet_overwrite_softmax(opt_cpu, load_model_types[i], epsilon);
+        if (ret != 0)
+        {
+            fprintf(stderr, "test_squeezenet_overwrite_softmax cpu failed use_packing_layout=%d use_fp16_packed=%d use_fp16_storage=%d use_shader_pack8=%d use_bf16_storage=%d use_image_storage=%d\n", opt.use_packing_layout, opt.use_fp16_packed, opt.use_fp16_storage, opt.use_shader_pack8, opt.use_bf16_storage, opt.use_image_storage);
+            return ret;
+        }
+
+#if NCNN_VULKAN
+        ret = test_squeezenet_overwrite_softmax(opt_gpu, load_model_types[i], epsilon);
+        if (ret != 0)
+        {
+            fprintf(stderr, "test_squeezenet_overwrite_softmax gpu failed use_packing_layout=%d use_fp16_packed=%d use_fp16_storage=%d use_shader_pack8=%d use_bf16_storage=%d use_image_storage=%d\n", opt.use_packing_layout, opt.use_fp16_packed, opt.use_fp16_storage, opt.use_shader_pack8, opt.use_bf16_storage, opt.use_image_storage);
             return ret;
         }
 #endif // NCNN_VULKAN

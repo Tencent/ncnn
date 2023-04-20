@@ -42,6 +42,7 @@ protected:
 
 public:
     Layer* activation;
+    Layer* gemm;
 
     Mat weight_data_tm;
 
