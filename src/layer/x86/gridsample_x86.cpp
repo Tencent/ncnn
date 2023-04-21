@@ -38,11 +38,6 @@ GridSample_x86::GridSample_x86()
 
 #if __SSE2__
 #if __AVX__
-
-#if __AVX512F__
-_PS512_CONST_TYPE(inv_sign_mask, int, ~0x80000000);
-#endif // __AVX512F__
-
 _PS256_CONST(n1, -1.0f);
 _PS256_CONST(2, 2.0f);
 _PI32_CONST256(n1, -1);
@@ -174,9 +169,9 @@ struct compute_coord<GridSample::Padding_REFLECTION, /*align_corner*/ true>
     {
         const __m256 border_x = _mm256_sub_ps(length, *(__m256*)_ps256_1);
 
-        coord = _mm256_and_ps(coord, *(__m256*)_ps256_inv_sign_mask);
+        coord = abs256_ps(coord);
 
-        __m256 reflectx_v = _mm256_and_ps(_mm256_sub_ps(coord, border_x), *(__m256*)_ps256_inv_sign_mask);
+        __m256 reflectx_v = abs256_ps(_mm256_sub_ps(coord, border_x));
         coord = _mm256_sub_ps(border_x, reflectx_v);
 
         return coord;
@@ -202,9 +197,9 @@ struct compute_coord<GridSample::Padding_REFLECTION, /*align_corner*/ false>
         __m256 v0p5fp8 = _mm256_set1_ps(0.5f);
         coord = _mm256_add_ps(coord, v0p5fp8);
 
-        coord = _mm256_and_ps(coord, *(__m256*)_ps256_inv_sign_mask);
+        coord = abs256_ps(coord);
 
-        __m256 reflectx_v = _mm256_and_ps(_mm256_sub_ps(coord, length), *(__m256*)_ps256_inv_sign_mask);
+        __m256 reflectx_v = abs256_ps(_mm256_sub_ps(coord, length));
         coord = _mm256_sub_ps(length, reflectx_v);
 
         coord = _mm256_sub_ps(coord, v0p5fp8);
