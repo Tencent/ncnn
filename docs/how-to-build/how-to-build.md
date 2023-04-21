@@ -147,9 +147,9 @@ Build ncnn library (replace <protobuf-root-dir> with a proper path):
 
 ```shell
 cd <ncnn-root-dir>
-mkdir -p build
-cd build
-cmake -A x64 -DCMAKE_INSTALL_PREFIX=%cd%/install -DProtobuf_INCLUDE_DIR=<protobuf-root-dir>/build/install/include -DProtobuf_LIBRARIES=<protobuf-root-dir>/build/install/lib/libprotobuf.lib -DProtobuf_PROTOC_EXECUTABLE=<protobuf-root-dir>/build/install/bin/protoc.exe -DNCNN_VULKAN=ON ..
+mkdir -p protobuf_build
+cd protobuf_build
+cmake -A x64 -DCMAKE_INSTALL_PREFIX=%cd%/install -DProtobuf_INCLUDE_DIR=<protobuf-root-dir>/protobuf_build/install/include -DProtobuf_LIBRARIES=<protobuf-root-dir>/protobuf_build/install/lib/libprotobuf.lib -DProtobuf_PROTOC_EXECUTABLE=<protobuf-root-dir>/protobuf_build/install/bin/protoc.exe -DNCNN_VULKAN=ON ..
 cmake --build . --config Release -j 2
 cmake --build . --config Release --target install
 ```
