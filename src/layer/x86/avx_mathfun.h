@@ -1078,9 +1078,13 @@ static NCNN_FORCEINLINE __m256 atan2256_ps(__m256 y, __m256 x)
                _mm256_andnot_ps(normal_mode, special_result));
 }
 
-static NCNN_FORCEINLINE __m256 abs_avx(__m256 inputs)
+static NCNN_FORCEINLINE __m256 abs_avx(__m256 x)
 {
-    return _mm256_max_ps(_mm256_sub_ps(_mm256_setzero_ps(), inputs), inputs);
+    // Use negative zero as the sign bit mask.
+    const __m256 magic_negative_zero = _mm256_set1_ps(-0.0f);
+
+    // return (!magic_negative_zero && x);
+    return _mm256_andnot_ps(magic_negative_zero, x);
 }
 
 #endif // AVX_MATHFUN_H
