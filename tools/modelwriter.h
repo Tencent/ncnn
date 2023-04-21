@@ -2307,7 +2307,7 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 11=%d", squeeze_d)
             fprintf_param_value(" 2=%d", squeeze_c)
             {
-                if (!op->axes.empty()) fprintf_param_int_array(0, op->axes, pp);
+                if (!op->axes.empty()) fprintf_param_int_array(3, op->axes, pp);
             }
         }
         else if (layer->type == "Threshold")
