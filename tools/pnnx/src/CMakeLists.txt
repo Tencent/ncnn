@@ -255,6 +255,8 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_var.cpp
     pass_level2/torch_zeros.cpp
     pass_level2/torch_zeros_like.cpp
+    pass_level2/torch_stft.cpp
+    pass_level2/torch_istft.cpp
     pass_level2/torch_fft_irfft.cpp
     pass_level2/torch_fft_irfft2.cpp
     pass_level2/torch_fft_irfftn.cpp
@@ -287,6 +289,7 @@ set(pnnx_pass_level3_SRCS
     pass_level3/fuse_einsum_operands.cpp
     pass_level3/fuse_expression.cpp
     pass_level3/fuse_index_expression.cpp
+    pass_level3/fuse_maxpool_unpack.cpp
     pass_level3/fuse_multiheadattention_unpack.cpp
     pass_level3/fuse_rnn_unpack.cpp
     pass_level3/rename_F_conv_transposend.cpp

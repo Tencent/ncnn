@@ -82,7 +82,7 @@ static void parse_shape_list(char* s, std::vector<std::vector<int64_t> >& shapes
     while (pch != NULL)
     {
         // assign user data type
-        if (!types.empty() && (pch[0] == 'f' || pch[0] == 'i' || pch[0] == 'u'))
+        if (!types.empty() && (pch[0] == 'f' || pch[0] == 'i' || pch[0] == 'u' || pch[0] == 'c'))
         {
             char type[32];
             int nscan = sscanf(pch, "%31[^,]", type);
@@ -145,6 +145,9 @@ static void print_shape_list(const std::vector<std::vector<int64_t> >& shapes, c
 
 static c10::ScalarType input_type_to_c10_ScalarType(const std::string& t)
 {
+    if (t == "c64") return torch::kComplexFloat;
+    if (t == "c32") return torch::kComplexHalf;
+    if (t == "c128") return torch::kComplexDouble;
     if (t == "f32") return torch::kFloat32;
     if (t == "f16") return torch::kFloat16;
     if (t == "f64") return torch::kFloat64;
@@ -301,7 +304,7 @@ int main(int argc, char** argv)
         HMODULE handle = LoadLibraryExA(m.c_str(), NULL, LOAD_WITH_ALTERED_SEARCH_PATH);
         if (!handle)
         {
-            fprintf(stderr, "LoadLibraryExA %s failed %s\n", m.c_str(), GetLastError());
+            fprintf(stderr, "LoadLibraryExA %s failed %d\n", m.c_str(), GetLastError());
         }
 #else
         void* handle = dlopen(m.c_str(), RTLD_LAZY);
@@ -396,7 +399,7 @@ int main(int argc, char** argv)
     {
         fprintf(stderr, "############# pass_level3\n");
 
-        pnnx::pass_level3(pnnx_graph, foldable_constants);
+        pnnx::pass_level3(pnnx_graph, foldable_constants, foldable_constants_zippath);
 
         fprintf(stderr, "############# pass_level4\n");
 

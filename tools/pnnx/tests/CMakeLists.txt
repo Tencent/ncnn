@@ -224,6 +224,9 @@ pnnx_add_test(torch_unsqueeze)
 pnnx_add_test(torch_zeros)
 pnnx_add_test(torch_zeros_like)
 
+pnnx_add_test(torch_stft)
+pnnx_add_test(torch_istft)
+
 pnnx_add_test(torch_fft_irfft)
 pnnx_add_test(torch_fft_irfft2)
 pnnx_add_test(torch_fft_irfftn)
@@ -305,6 +308,7 @@ pnnx_add_test(pnnx_fuse_pixel_unshuffle)
 if(Torch_VERSION VERSION_GREATER_EQUAL "1.9")
     pnnx_add_test(F_mish)
     pnnx_add_test(nn_Mish)
+    pnnx_add_test(ir_complex)
 endif()
 
 if(Torch_VERSION VERSION_GREATER_EQUAL "1.10")

@@ -226,6 +226,7 @@ public:
     int support_VK_KHR_8bit_storage;
     int support_VK_KHR_16bit_storage;
     int support_VK_KHR_bind_memory2;
+    int support_VK_KHR_buffer_device_address;
     int support_VK_KHR_create_renderpass2;
     int support_VK_KHR_dedicated_allocation;
     int support_VK_KHR_descriptor_update_template;
@@ -242,9 +243,12 @@ public:
     int support_VK_KHR_shader_float_controls;
     int support_VK_KHR_storage_buffer_storage_class;
     int support_VK_KHR_swapchain;
+    int support_VK_EXT_buffer_device_address;
     int support_VK_EXT_descriptor_indexing;
     int support_VK_EXT_memory_budget;
+    int support_VK_EXT_memory_priority;
     int support_VK_EXT_queue_family_foreign;
+    int support_VK_AMD_device_coherent_memory;
 #if __ANDROID_API__ >= 26
     int support_VK_ANDROID_external_memory_android_hardware_buffer;
 #endif // __ANDROID_API__ >= 26
@@ -536,6 +540,11 @@ int GpuInfo::support_VK_KHR_bind_memory2() const
     return d->support_VK_KHR_bind_memory2;
 }
 
+int GpuInfo::support_VK_KHR_buffer_device_address() const
+{
+    return d->support_VK_KHR_buffer_device_address;
+}
+
 int GpuInfo::support_VK_KHR_create_renderpass2() const
 {
     return d->support_VK_KHR_create_renderpass2;
@@ -616,6 +625,11 @@ int GpuInfo::support_VK_KHR_swapchain() const
     return d->support_VK_KHR_swapchain;
 }
 
+int GpuInfo::support_VK_EXT_buffer_device_address() const
+{
+    return d->support_VK_EXT_buffer_device_address;
+}
+
 int GpuInfo::support_VK_EXT_descriptor_indexing() const
 {
     return d->support_VK_EXT_descriptor_indexing;
@@ -626,9 +640,19 @@ int GpuInfo::support_VK_EXT_memory_budget() const
     return d->support_VK_EXT_memory_budget;
 }
 
+int GpuInfo::support_VK_EXT_memory_priority() const
+{
+    return d->support_VK_EXT_memory_priority;
+}
+
 int GpuInfo::support_VK_EXT_queue_family_foreign() const
 {
     return d->support_VK_EXT_queue_family_foreign;
+}
+
+int GpuInfo::support_VK_AMD_device_coherent_memory() const
+{
+    return d->support_VK_AMD_device_coherent_memory;
 }
 
 #if __ANDROID_API__ >= 26
@@ -1320,6 +1344,7 @@ int create_gpu_instance()
         gpu_info.support_VK_KHR_8bit_storage = 0;
         gpu_info.support_VK_KHR_16bit_storage = 0;
         gpu_info.support_VK_KHR_bind_memory2 = 0;
+        gpu_info.support_VK_KHR_buffer_device_address = 0;
         gpu_info.support_VK_KHR_create_renderpass2 = 0;
         gpu_info.support_VK_KHR_dedicated_allocation = 0;
         gpu_info.support_VK_KHR_descriptor_update_template = 0;
@@ -1336,9 +1361,12 @@ int create_gpu_instance()
         gpu_info.support_VK_KHR_shader_float_controls = 0;
         gpu_info.support_VK_KHR_storage_buffer_storage_class = 0;
         gpu_info.support_VK_KHR_swapchain = 0;
+        gpu_info.support_VK_EXT_buffer_device_address = 0;
         gpu_info.support_VK_EXT_descriptor_indexing = 0;
         gpu_info.support_VK_EXT_memory_budget = 0;
+        gpu_info.support_VK_EXT_memory_priority = 0;
         gpu_info.support_VK_EXT_queue_family_foreign = 0;
+        gpu_info.support_VK_AMD_device_coherent_memory = 0;
 #if __ANDROID_API__ >= 26
         gpu_info.support_VK_ANDROID_external_memory_android_hardware_buffer = 0;
 #endif // __ANDROID_API__ >= 26
@@ -1354,6 +1382,8 @@ int create_gpu_instance()
                 gpu_info.support_VK_KHR_16bit_storage = exp.specVersion;
             else if (strcmp(exp.extensionName, "VK_KHR_bind_memory2") == 0)
                 gpu_info.support_VK_KHR_bind_memory2 = exp.specVersion;
+            else if (strcmp(exp.extensionName, "VK_KHR_buffer_device_address") == 0)
+                gpu_info.support_VK_KHR_buffer_device_address = exp.specVersion;
             else if (strcmp(exp.extensionName, "VK_KHR_create_renderpass2") == 0)
                 gpu_info.support_VK_KHR_create_renderpass2 = exp.specVersion;
             else if (strcmp(exp.extensionName, "VK_KHR_dedicated_allocation") == 0)
@@ -1386,12 +1416,18 @@ int create_gpu_instance()
                 gpu_info.support_VK_KHR_storage_buffer_storage_class = exp.specVersion;
             else if (strcmp(exp.extensionName, "VK_KHR_swapchain") == 0)
                 gpu_info.support_VK_KHR_swapchain = exp.specVersion;
+            else if (strcmp(exp.extensionName, "VK_EXT_buffer_device_address") == 0)
+                gpu_info.support_VK_EXT_buffer_device_address = exp.specVersion;
             else if (strcmp(exp.extensionName, "VK_EXT_descriptor_indexing") == 0)
                 gpu_info.support_VK_EXT_descriptor_indexing = exp.specVersion;
             else if (strcmp(exp.extensionName, "VK_EXT_memory_budget") == 0)
                 gpu_info.support_VK_EXT_memory_budget = exp.specVersion;
+            else if (strcmp(exp.extensionName, "VK_EXT_memory_priority") == 0)
+                gpu_info.support_VK_EXT_memory_priority = exp.specVersion;
             else if (strcmp(exp.extensionName, "VK_EXT_queue_family_foreign") == 0)
                 gpu_info.support_VK_EXT_queue_family_foreign = exp.specVersion;
+            else if (strcmp(exp.extensionName, "VK_AMD_device_coherent_memory") == 0)
+                gpu_info.support_VK_AMD_device_coherent_memory = exp.specVersion;
 #if __ANDROID_API__ >= 26
             else if (strcmp(exp.extensionName, "VK_ANDROID_external_memory_android_hardware_buffer") == 0)
                 gpu_info.support_VK_ANDROID_external_memory_android_hardware_buffer = exp.specVersion;
@@ -1583,6 +1619,11 @@ int create_gpu_instance()
     glslang::InitializeProcess();
 
     return 0;
+}
+
+VkInstance get_gpu_instance()
+{
+    return (VkInstance)g_instance;
 }
 
 void destroy_gpu_instance()
@@ -1931,6 +1972,8 @@ VulkanDevice::VulkanDevice(int device_index)
         enabledExtensions.push_back("VK_KHR_16bit_storage");
     if (info.support_VK_KHR_bind_memory2())
         enabledExtensions.push_back("VK_KHR_bind_memory2");
+    if (info.support_VK_KHR_buffer_device_address())
+        enabledExtensions.push_back("VK_KHR_buffer_device_address");
     if (info.support_VK_KHR_create_renderpass2())
         enabledExtensions.push_back("VK_KHR_create_renderpass2");
     if (info.support_VK_KHR_dedicated_allocation())
@@ -1963,12 +2006,18 @@ VulkanDevice::VulkanDevice(int device_index)
         enabledExtensions.push_back("VK_KHR_storage_buffer_storage_class");
     if (info.support_VK_KHR_swapchain())
         enabledExtensions.push_back("VK_KHR_swapchain");
+    if (info.support_VK_EXT_buffer_device_address())
+        enabledExtensions.push_back("VK_EXT_buffer_device_address");
     if (info.support_VK_EXT_descriptor_indexing())
         enabledExtensions.push_back("VK_EXT_descriptor_indexing");
     if (info.support_VK_EXT_memory_budget())
         enabledExtensions.push_back("VK_EXT_memory_budget");
+    if (info.support_VK_EXT_memory_priority())
+        enabledExtensions.push_back("VK_EXT_memory_priority");
     if (info.support_VK_EXT_queue_family_foreign())
         enabledExtensions.push_back("VK_EXT_queue_family_foreign");
+    if (info.support_VK_AMD_device_coherent_memory())
+        enabledExtensions.push_back("VK_AMD_device_coherent_memory");
 #if __ANDROID_API__ >= 26
     if (info.support_VK_ANDROID_external_memory_android_hardware_buffer())
         enabledExtensions.push_back("VK_ANDROID_external_memory_android_hardware_buffer");
@@ -3086,6 +3135,13 @@ int VulkanDevice::init_device_extension()
         vkBindImageMemory2KHR = (PFN_vkBindImageMemory2KHR)vkGetDeviceProcAddr(d->device, "vkBindImageMemory2KHR");
     }
 
+    if (info.support_VK_KHR_buffer_device_address())
+    {
+        vkGetBufferDeviceAddressKHR = (PFN_vkGetBufferDeviceAddressKHR)vkGetDeviceProcAddr(d->device, "vkGetBufferDeviceAddressKHR");
+        vkGetBufferOpaqueCaptureAddressKHR = (PFN_vkGetBufferOpaqueCaptureAddressKHR)vkGetDeviceProcAddr(d->device, "vkGetBufferOpaqueCaptureAddressKHR");
+        vkGetDeviceMemoryOpaqueCaptureAddressKHR = (PFN_vkGetDeviceMemoryOpaqueCaptureAddressKHR)vkGetDeviceProcAddr(d->device, "vkGetDeviceMemoryOpaqueCaptureAddressKHR");
+    }
+
     if (info.support_VK_KHR_create_renderpass2())
     {
         vkCmdBeginRenderPass2KHR = (PFN_vkCmdBeginRenderPass2KHR)vkGetDeviceProcAddr(d->device, "vkCmdBeginRenderPass2KHR");
@@ -3141,6 +3197,11 @@ int VulkanDevice::init_device_extension()
         vkGetSwapchainImagesKHR = (PFN_vkGetSwapchainImagesKHR)vkGetDeviceProcAddr(d->device, "vkGetSwapchainImagesKHR");
         vkAcquireNextImageKHR = (PFN_vkAcquireNextImageKHR)vkGetDeviceProcAddr(d->device, "vkAcquireNextImageKHR");
         vkQueuePresentKHR = (PFN_vkQueuePresentKHR)vkGetDeviceProcAddr(d->device, "vkQueuePresentKHR");
+    }
+
+    if (info.support_VK_EXT_buffer_device_address())
+    {
+        vkGetBufferDeviceAddressEXT = (PFN_vkGetBufferDeviceAddressEXT)vkGetDeviceProcAddr(d->device, "vkGetBufferDeviceAddressEXT");
     }
 
 #if __ANDROID_API__ >= 26
