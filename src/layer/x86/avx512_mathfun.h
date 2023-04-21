@@ -517,4 +517,9 @@ static NCNN_FORCEINLINE __m512 atan2512_ps(__m512 a, __m512 b)
     return _mm512_loadu_ps(tmpx);
 }
 
+static NCNN_FORCEINLINE __m512 abs_avx512(__m512 inputs)
+{
+    return _mm512_castsi512_ps(_mm512_and_epi32(_mm512_castps_si512(inputs), _mm512_set1_epi32(0x7fffffff)));
+}
+
 #endif // AVX512_MATHFUN_H

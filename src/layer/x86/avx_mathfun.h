@@ -763,4 +763,9 @@ static NCNN_FORCEINLINE __m256 atan2256_ps(__m256 a, __m256 b)
     return _mm256_loadu_ps(tmpx);
 }
 
+static NCNN_FORCEINLINE __m256 abs_avx(__m256 inputs)
+{
+    return _mm256_max_ps(_mm256_sub_ps(_mm256_setzero_ps(), inputs), inputs);
+}
+
 #endif // AVX_MATHFUN_H

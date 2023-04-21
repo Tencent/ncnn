@@ -836,4 +836,13 @@ static NCNN_FORCEINLINE __m128 floor_ps(__m128 x)
                _mm_andnot_ps(no_fraction, fixed_result));
 }
 
+static NCNN_FORCEINLINE __m128 abs_sse(__m128 inputs)
+{
+    // Use negative zero as the sign bit mask.
+    const __m128 magic_negative_zero = _mm_set_ps1(-0.0f);
+
+    // return (!magic_negative_zero && x);
+    return _mm_andnot_ps(magic_negative_zero, inputs);
+}
+
 #endif // SSE_MATHFUN_H
