@@ -42,7 +42,7 @@ _PS256_CONST(n1, -1.0f);
 _PS256_CONST(2, 2.0f);
 _PI32_CONST256(n1, -1);
 
-static NCNN_FORCEINLINE __m256 mask_gather_ps256(const float* ptr, __m256i offset, __m256 mask)
+static __m256 mask_gather_ps256(const float* ptr, __m256i offset, __m256 mask)
 {
 #if __AVX2__
     __m256 v = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), ptr, offset, mask, sizeof(float));
@@ -68,7 +68,7 @@ static NCNN_FORCEINLINE __m256 mask_gather_ps256(const float* ptr, __m256i offse
 
 #endif // __AVX__
 
-static NCNN_FORCEINLINE __m128 mask_gather_ps(const float* ptr, __m128i offset, __m128 mask)
+static __m128 mask_gather_ps(const float* ptr, __m128i offset, __m128 mask)
 {
 #if __AVX2__
     __m128 v = _mm_mask_i32gather_ps(_mm_setzero_ps(), ptr, offset, mask, sizeof(float));
