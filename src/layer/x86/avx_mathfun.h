@@ -751,18 +751,6 @@ static NCNN_FORCEINLINE __m256 pow256_ps(__m256 a, __m256 b)
     return exp256_ps(_mm256_mul_ps(b, log256_ps(a)));
 }
 
-static NCNN_FORCEINLINE __m256 atan2256_ps(__m256 a, __m256 b)
-{
-    //TODO avx optimize
-    float tmpx[8];
-    float tmpy[8];
-    _mm256_storeu_ps(tmpx, a);
-    _mm256_storeu_ps(tmpy, b);
-    for (int i = 0; i < 8; i++)
-        tmpx[i] = atan2(tmpx[i], tmpy[i]);
-    return _mm256_loadu_ps(tmpx);
-}
-
 static NCNN_FORCEINLINE __m256 asin256_ps(__m256 x)
 {
     const __m256 magic_negative_zero = _mm256_set1_ps(-0.0f);
@@ -1025,6 +1013,69 @@ static NCNN_FORCEINLINE __m256 atan256_ps(__m256 x)
                    _mm256_mul_ps(output_approx, input_approx),
                    _mm256_and_ps(is_small_input, magic_half_pi)),
                negative_mask);
+}
+
+static NCNN_FORCEINLINE __m256 atan2256_ps(__m256 y, __m256 x)
+{
+    // Reference: https://mazzo.li/posts/vectorized-atan2.html
+
+    const __m256 magic_zero = _mm256_set1_ps(0.0f);
+    const __m256 magic_negative_zero = _mm256_set1_ps(-0.0f);
+    const __m256 magic_pi = _mm256_set1_ps(3.1415927f);
+    const __m256 magic_half_pi = _mm256_set1_ps(1.5707964f);
+
+    // not_equal_zero_x = (x != 0.0f);
+    __m256 not_equal_zero_x = _mm256_cmp_ps(x, magic_zero, _CMP_NEQ_OQ);
+
+    // not_equal_zero_y = (y != 0.0f);
+    __m256 not_equal_zero_y = _mm256_cmp_ps(y, magic_zero, _CMP_NEQ_OQ);
+
+    // normal_mode = ((x != 0.0f) & (y != 0.0f));
+    __m256 normal_mode = _mm256_and_ps(not_equal_zero_x, not_equal_zero_y);
+
+    // negative_mask_x = magic_negative_zero && x;
+    __m256 negative_mask_x = _mm256_and_ps(magic_negative_zero, x);
+
+    // negative_mask_y = magic_negative_zero && y;
+    __m256 negative_mask_y = _mm256_and_ps(magic_negative_zero, y);
+
+    // pi_additions = ((x < 0.0f) ? ((y < 0.0f) ? -PI : PI) : 0.0f);
+    __m256 pi_additions = _mm256_and_ps(
+                              _mm256_cmp_ps(x, magic_zero, _CMP_LT_OQ),
+                              _mm256_or_ps(
+                                  _mm256_and_ps(
+                                      _mm256_cmp_ps(y, magic_zero, _CMP_LT_OQ),
+                                      magic_negative_zero),
+                                  magic_pi));
+
+    // normal_result = (atan(y / x) + pi_additions);
+    __m256 normal_result = _mm256_add_ps(
+                               atan256_ps(_mm256_div_ps(y, x)),
+                               pi_additions);
+
+    // negative_mask_full_x = ((negative_mask_x | PI) < 0.0f);
+    __m256 negative_mask_full_x = _mm256_cmp_ps(
+                                      _mm256_or_ps(negative_mask_x, magic_pi),
+                                      magic_zero,
+                                      _CMP_LT_OQ);
+
+    // x1 = (negative_mask_y ? -(0.5 * PI) : (0.5 * PI));
+    // x2 = (negative_mask_full_x ? PI : 0.0f);
+    // special_result = ((y != 0.0f) ? x1 : x2);
+    __m256 special_result = _mm256_or_ps(
+                                _mm256_and_ps(
+                                    not_equal_zero_y,
+                                    _mm256_or_ps(negative_mask_y, magic_half_pi)),
+                                _mm256_andnot_ps(
+                                    not_equal_zero_y,
+                                    _mm256_or_ps(
+                                        _mm256_and_ps(negative_mask_full_x, magic_pi),
+                                        _mm256_andnot_ps(negative_mask_full_x, magic_zero))));
+
+    // return (normal_mode ? normal_result : special_result);
+    return _mm256_or_ps(
+               _mm256_and_ps(normal_mode, normal_result),
+               _mm256_andnot_ps(normal_mode, special_result));
 }
 
 #endif // AVX_MATHFUN_H

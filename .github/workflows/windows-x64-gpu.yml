@@ -88,14 +88,14 @@ jobs:
       uses: actions/cache@v3
       with:
         path: swiftshader-install
-        key: swiftshader-${{ matrix.vs-version }}-x64-install-20220211
+        key: swiftshader-${{ matrix.vs-version }}-x64-install-20230420
     - name: checkout-swiftshader
       if: matrix.vs-version != 'vs2015' && steps.cache-swiftshader.outputs.cache-hit != 'true'
       uses: actions/checkout@v3
       with:
         repository: google/swiftshader
         path: swiftshader
-        ref: 0863290dc7f6cc1649bab1858790e812b8aef02a
+        ref: dd55e592406dc0bae219df11adec6363840aff4a
     - name: checkout-swiftshader-submodules
       if: matrix.vs-version != 'vs2015' && steps.cache-swiftshader.outputs.cache-hit != 'true'
       run: |

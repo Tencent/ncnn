@@ -48,7 +48,7 @@ pnnx.Output             output      1 0 out
 
     bool match(const std::map<std::string, const Operator*>& matched_operators) const
     {
-        int input_rank = matched_operators.at("op_0")->inputs[0]->shape.size();
+        size_t input_rank = matched_operators.at("op_0")->inputs[0]->shape.size();
         return input_rank == 2 || input_rank == 3;
     }
 
@@ -102,7 +102,7 @@ pnnx.Output             output      1 0 out
 
     bool match(const std::map<std::string, const Operator*>& matched_operators) const
     {
-        int input_rank = matched_operators.at("op_0")->inputs[0]->shape.size();
+        size_t input_rank = matched_operators.at("op_0")->inputs[0]->shape.size();
         return input_rank == 2 || input_rank == 3;
     }
 
@@ -162,7 +162,7 @@ pnnx.Output             output      1 0 out
 
     bool match(const std::map<std::string, const Operator*>& matched_operators) const
     {
-        int input_rank = matched_operators.at("op_0")->inputs[0]->shape.size();
+        size_t input_rank = matched_operators.at("op_0")->inputs[0]->shape.size();
         return input_rank == 4;
     }
 
@@ -216,7 +216,7 @@ pnnx.Output             output      1 0 out
 
     bool match(const std::map<std::string, const Operator*>& matched_operators) const
     {
-        int input_rank = matched_operators.at("op_0")->inputs[0]->shape.size();
+        size_t input_rank = matched_operators.at("op_0")->inputs[0]->shape.size();
         return input_rank == 4;
     }
 
@@ -276,7 +276,7 @@ pnnx.Output             output      1 0 out
 
     bool match(const std::map<std::string, const Operator*>& matched_operators) const
     {
-        int input_rank = matched_operators.at("op_0")->inputs[0]->shape.size();
+        size_t input_rank = matched_operators.at("op_0")->inputs[0]->shape.size();
         return input_rank == 5;
     }
 
@@ -330,7 +330,7 @@ pnnx.Output             output      1 0 out
 
     bool match(const std::map<std::string, const Operator*>& matched_operators) const
     {
-        int input_rank = matched_operators.at("op_0")->inputs[0]->shape.size();
+        size_t input_rank = matched_operators.at("op_0")->inputs[0]->shape.size();
         return input_rank == 5;
     }
 

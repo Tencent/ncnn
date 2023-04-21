@@ -738,20 +738,6 @@ static NCNN_FORCEINLINE __m128 pow_ps(__m128 a, __m128 b)
     return exp_ps(_mm_mul_ps(b, log_ps(a)));
 }
 
-static NCNN_FORCEINLINE __m128 atan2_ps(__m128 a, __m128 b)
-{
-    //TODO sse optimize
-    float tmpx[4];
-    float tmpy[4];
-    _mm_storeu_ps(tmpx, a);
-    _mm_storeu_ps(tmpy, b);
-    tmpx[0] = atan2(tmpx[0], tmpy[0]);
-    tmpx[1] = atan2(tmpx[1], tmpy[1]);
-    tmpx[2] = atan2(tmpx[2], tmpy[2]);
-    tmpx[3] = atan2(tmpx[3], tmpy[3]);
-    return _mm_loadu_ps(tmpx);
-}
-
 static NCNN_FORCEINLINE __m128 ceil_ps(__m128 x)
 {
 #if __SSE4_1__
@@ -1098,6 +1084,68 @@ static NCNN_FORCEINLINE __m128 atan_ps(__m128 x)
                    _mm_mul_ps(output_approx, input_approx),
                    _mm_and_ps(is_small_input, magic_half_pi)),
                negative_mask);
+}
+
+static NCNN_FORCEINLINE __m128 atan2_ps(__m128 y, __m128 x)
+{
+    // Reference: https://mazzo.li/posts/vectorized-atan2.html
+
+    const __m128 magic_zero = _mm_set_ps1(0.0f);
+    const __m128 magic_negative_zero = _mm_set_ps1(-0.0f);
+    const __m128 magic_pi = _mm_set_ps1(3.1415927f);
+    const __m128 magic_half_pi = _mm_set_ps1(1.5707964f);
+
+    // not_equal_zero_x = (x != 0.0f);
+    __m128 not_equal_zero_x = _mm_cmpneq_ps(x, magic_zero);
+
+    // not_equal_zero_y = (y != 0.0f);
+    __m128 not_equal_zero_y = _mm_cmpneq_ps(y, magic_zero);
+
+    // normal_mode = ((x != 0.0f) & (y != 0.0f));
+    __m128 normal_mode = _mm_and_ps(not_equal_zero_x, not_equal_zero_y);
+
+    // negative_mask_x = magic_negative_zero && x;
+    __m128 negative_mask_x = _mm_and_ps(magic_negative_zero, x);
+
+    // negative_mask_y = magic_negative_zero && y;
+    __m128 negative_mask_y = _mm_and_ps(magic_negative_zero, y);
+
+    // pi_additions = ((x < 0.0f) ? ((y < 0.0f) ? -PI : PI) : 0.0f);
+    __m128 pi_additions = _mm_and_ps(
+                              _mm_cmplt_ps(x, magic_zero),
+                              _mm_or_ps(
+                                  _mm_and_ps(
+                                      _mm_cmplt_ps(y, magic_zero),
+                                      magic_negative_zero),
+                                  magic_pi));
+
+    // normal_result = (atan(y / x) + pi_additions);
+    __m128 normal_result = _mm_add_ps(
+                               atan_ps(_mm_div_ps(y, x)),
+                               pi_additions);
+
+    // negative_mask_full_x = ((negative_mask_x | PI) < 0.0f);
+    __m128 negative_mask_full_x = _mm_cmplt_ps(
+                                      _mm_or_ps(negative_mask_x, magic_pi),
+                                      magic_zero);
+
+    // x1 = (negative_mask_y ? -(0.5 * PI) : (0.5 * PI));
+    // x2 = (negative_mask_full_x ? PI : 0.0f);
+    // special_result = ((y != 0.0f) ? x1 : x2);
+    __m128 special_result = _mm_or_ps(
+                                _mm_and_ps(
+                                    not_equal_zero_y,
+                                    _mm_or_ps(negative_mask_y, magic_half_pi)),
+                                _mm_andnot_ps(
+                                    not_equal_zero_y,
+                                    _mm_or_ps(
+                                        _mm_and_ps(negative_mask_full_x, magic_pi),
+                                        _mm_andnot_ps(negative_mask_full_x, magic_zero))));
+
+    // return (normal_mode ? normal_result : special_result);
+    return _mm_or_ps(
+               _mm_and_ps(normal_mode, normal_result),
+               _mm_andnot_ps(normal_mode, special_result));
 }
 
 #endif // SSE_MATHFUN_H
