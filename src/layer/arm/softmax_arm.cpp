@@ -22,399 +22,71 @@
 #include "neon_mathfun.h"
 #endif // __ARM_NEON
 
+#include "arm_usability.h"
+#include "cpu.h"
+
 namespace ncnn {
 
 Softmax_arm::Softmax_arm()
 {
 #if __ARM_NEON
     support_packing = true;
+#if NCNN_ARM82
+    support_fp16_storage = cpu_support_arm_asimdhp();
+#endif
 #endif // __ARM_NEON
+
+#if NCNN_BF16
+    support_bf16_storage = true;
+#endif
 }
 
 int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
-    int dims = bottom_top_blob.dims;
-    size_t elemsize = bottom_top_blob.elemsize;
-    int elempack = bottom_top_blob.elempack;
-    int positive_axis = axis < 0 ? dims + axis : axis;
+    int elembits = bottom_top_blob.elembits();
 
-#if __ARM_NEON
-    if (elempack == 4)
-    {
-        if (dims == 1) // positive_axis == 0
-        {
-            int w = bottom_top_blob.w;
-
-            float* ptr = bottom_top_blob;
-
-            float32x4_t _max = vdupq_n_f32(-FLT_MAX);
-            for (int i = 0; i < w; i++)
-            {
-                float32x4_t _p = vld1q_f32(ptr + i * 4);
-                _max = vmaxq_f32(_max, _p);
-            }
-#if __aarch64__
-            _max = vpmaxq_f32(_max, _max);
-            _max = vpmaxq_f32(_max, _max);
-#else
-            _max = vmaxq_f32(_max, vrev64q_f32(_max));
-            _max = vmaxq_f32(_max, vextq_f32(_max, _max, 2));
+#if NCNN_ARM82
+    if (support_fp16_storage && opt.use_fp16_storage && elembits == 16)
+        return forward_inplace_fp16s(bottom_top_blob, opt);
 #endif
 
-            float32x4_t _sum = vdupq_n_f32(0.f);
-            for (int i = 0; i < w; i++)
-            {
-                float32x4_t _p = vld1q_f32(ptr + i * 4);
-                _p = exp_ps(vsubq_f32(_p, _max));
-                vst1q_f32(ptr + i * 4, _p);
-                _sum = vaddq_f32(_sum, _p);
-            }
-#if __aarch64__
-            _sum = vpaddq_f32(_sum, _sum);
-            _sum = vpaddq_f32(_sum, _sum);
-#else
-            _sum = vaddq_f32(_sum, vrev64q_f32(_sum));
-            _sum = vaddq_f32(_sum, vextq_f32(_sum, _sum, 2));
+#if NCNN_BF16
+    if (opt.use_bf16_storage && elembits == 16)
+        return forward_inplace_bf16s(bottom_top_blob, opt);
 #endif
-            float32x4_t _reciprocal_sum = vrecpeq_f32(_sum);
-            _reciprocal_sum = vmulq_f32(vrecpsq_f32(_sum, _reciprocal_sum), _reciprocal_sum);
-            for (int i = 0; i < w; i++)
-            {
-                float32x4_t _p = vld1q_f32(ptr + i * 4);
-                _p = vmulq_f32(_p, _reciprocal_sum);
-                vst1q_f32(ptr + i * 4, _p);
-            }
-        }
 
-        if (dims == 2 && positive_axis == 0)
-        {
-            int w = bottom_top_blob.w;
-            int h = bottom_top_blob.h;
-
-            Mat max;
-            max.create(w, 4u, 1, opt.workspace_allocator);
-            if (max.empty())
-                return -100;
-            max.fill(-FLT_MAX);
-
-            for (int i = 0; i < h; i++)
-            {
-                const float* ptr = bottom_top_blob.row(i);
-                for (int j = 0; j < w; j++)
-                {
-                    float32x4_t _p = vld1q_f32(ptr);
-#if __aarch64__
-                    float max0 = vmaxvq_f32(_p);
-#else
-                    float32x2_t _max2 = vmax_f32(vget_low_f32(_p), vget_high_f32(_p));
-                    float32x2_t _mm2 = vpmax_f32(_max2, _max2);
-                    float max0 = vget_lane_f32(_mm2, 0);
-#endif
-                    max[j] = std::max(max[j], max0);
-                    ptr += 4;
-                }
-            }
-
-            Mat sum;
-            sum.create(w, 4u, 1, opt.workspace_allocator);
-            if (sum.empty())
-                return -100;
-            sum.fill(0.f);
-
-            for (int i = 0; i < h; i++)
-            {
-                float* ptr = bottom_top_blob.row(i);
-                for (int j = 0; j < w; j++)
-                {
-                    float32x4_t _p = vld1q_f32(ptr);
-                    float32x4_t _max = vdupq_n_f32(max[j]);
-                    _p = exp_ps(vsubq_f32(_p, _max));
-                    vst1q_f32(ptr, _p);
-#if __aarch64__
-                    float sum0 = vaddvq_f32(_p);
-#else
-                    float32x2_t _sum2 = vadd_f32(vget_low_f32(_p), vget_high_f32(_p));
-                    float32x2_t _ss2 = vpadd_f32(_sum2, _sum2);
-                    float sum0 = vget_lane_f32(_ss2, 0);
-#endif
-                    sum[j] += sum0;
-                    ptr += 4;
-                }
-            }
-
-            for (int i = 0; i < h; i++)
-            {
-                float* ptr = bottom_top_blob.row(i);
-                for (int j = 0; j < w; j++)
-                {
-                    float32x4_t _p = vld1q_f32(ptr);
-                    float32x4_t _sum = vdupq_n_f32(sum[j]);
-                    _p = div_ps(_p, _sum);
-                    vst1q_f32(ptr, _p);
-                    ptr += 4;
-                }
-            }
-        }
-
-        if (dims == 2 && positive_axis == 1)
-        {
-            int w = bottom_top_blob.w;
-            int h = bottom_top_blob.h;
-
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < h; i++)
-            {
-                float* ptr = bottom_top_blob.row(i);
-
-                float32x4_t _max = vdupq_n_f32(-FLT_MAX);
-                for (int j = 0; j < w; j++)
-                {
-                    float32x4_t _p = vld1q_f32(ptr + j * 4);
-                    _max = vmaxq_f32(_max, _p);
-                }
-
-                float32x4_t _sum = vdupq_n_f32(0.f);
-                for (int j = 0; j < w; j++)
-                {
-                    float32x4_t _p = vld1q_f32(ptr + j * 4);
-                    _p = exp_ps(vsubq_f32(_p, _max));
-                    vst1q_f32(ptr + j * 4, _p);
-                    _sum = vaddq_f32(_sum, _p);
-                }
-
-                float32x4_t _reciprocal_sum = vrecpeq_f32(_sum);
-                _reciprocal_sum = vmulq_f32(vrecpsq_f32(_sum, _reciprocal_sum), _reciprocal_sum);
-                for (int j = 0; j < w; j++)
-                {
-                    float32x4_t _p = vld1q_f32(ptr + j * 4);
-                    _p = vmulq_f32(_p, _reciprocal_sum);
-                    vst1q_f32(ptr + j * 4, _p);
-                }
-            }
-        }
-
-        if (dims == 3 && positive_axis == 0)
-        {
-            int w = bottom_top_blob.w;
-            int h = bottom_top_blob.h;
-            int channels = bottom_top_blob.c;
-            int size = w * h;
-
-            Mat max;
-            max.create(w, h, 4u, 1, opt.workspace_allocator);
-            if (max.empty())
-                return -100;
-            max.fill(-FLT_MAX);
-            for (int q = 0; q < channels; q++)
-            {
-                const float* ptr = bottom_top_blob.channel(q);
-
-                for (int i = 0; i < size; i++)
-                {
-                    float32x4_t _p = vld1q_f32(ptr);
-#if __aarch64__
-                    float max0 = vmaxvq_f32(_p);
-#else
-                    float32x2_t _max2 = vmax_f32(vget_low_f32(_p), vget_high_f32(_p));
-                    float32x2_t _mm2 = vpmax_f32(_max2, _max2);
-                    float max0 = vget_lane_f32(_mm2, 0);
-#endif
-                    max[i] = std::max(max[i], max0);
-                    ptr += 4;
-                }
-            }
-
-            Mat sum;
-            sum.create(w, h, 4u, 1, opt.workspace_allocator);
-            if (sum.empty())
-                return -100;
-            sum.fill(0.f);
-            for (int q = 0; q < channels; q++)
-            {
-                float* ptr = bottom_top_blob.channel(q);
-
-                for (int i = 0; i < size; i++)
-                {
-                    float32x4_t _p = vld1q_f32(ptr);
-                    float32x4_t _max = vdupq_n_f32(max[i]);
-                    _p = exp_ps(vsubq_f32(_p, _max));
-                    vst1q_f32(ptr, _p);
-#if __aarch64__
-                    float sum0 = vaddvq_f32(_p);
-#else
-                    float32x2_t _sum2 = vadd_f32(vget_low_f32(_p), vget_high_f32(_p));
-                    float32x2_t _ss2 = vpadd_f32(_sum2, _sum2);
-                    float sum0 = vget_lane_f32(_ss2, 0);
-#endif
-                    sum[i] += sum0;
-                    ptr += 4;
-                }
-            }
-
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++)
-            {
-                float* ptr = bottom_top_blob.channel(q);
-
-                for (int i = 0; i < size; i++)
-                {
-                    float32x4_t _p = vld1q_f32(ptr);
-                    float32x4_t _sum = vdupq_n_f32(sum[i]);
-                    _p = div_ps(_p, _sum);
-                    vst1q_f32(ptr, _p);
-                    ptr += 4;
-                }
-            }
-        }
-
-        if (dims == 3 && positive_axis == 1)
-        {
-            int w = bottom_top_blob.w;
-            int h = bottom_top_blob.h;
-            int channels = bottom_top_blob.c;
-
-            Mat max;
-            max.create(w, channels, elemsize, elempack, opt.workspace_allocator);
-            if (max.empty())
-                return -100;
-            max.fill(vdupq_n_f32(-FLT_MAX));
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++)
-            {
-                const float* ptr = bottom_top_blob.channel(q);
-
-                for (int i = 0; i < h; i++)
-                {
-                    float* maxptr = max.row(q);
-
-                    for (int j = 0; j < w; j++)
-                    {
-                        float32x4_t _p = vld1q_f32(ptr);
-                        float32x4_t _max = vld1q_f32(maxptr);
-                        _max = vmaxq_f32(_max, _p);
-                        vst1q_f32(maxptr, _max);
-                        ptr += 4;
-                        maxptr += 4;
-                    }
-                }
-            }
-
-            Mat sum;
-            sum.create(w, channels, elemsize, elempack, opt.workspace_allocator);
-            if (sum.empty())
-                return -100;
-            sum.fill(vdupq_n_f32(0.f));
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++)
-            {
-                float* ptr = bottom_top_blob.channel(q);
-
-                for (int i = 0; i < h; i++)
-                {
-                    float* maxptr = max.row(q);
-                    float* sumptr = sum.row(q);
-
-                    for (int j = 0; j < w; j++)
-                    {
-                        float32x4_t _p = vld1q_f32(ptr);
-                        float32x4_t _max = vld1q_f32(maxptr);
-                        _p = exp_ps(vsubq_f32(_p, _max));
-                        vst1q_f32(ptr, _p);
-                        float32x4_t _sum = vld1q_f32(sumptr);
-                        _sum = vaddq_f32(_sum, _p);
-                        vst1q_f32(sumptr, _sum);
-                        ptr += 4;
-                        maxptr += 4;
-                        sumptr += 4;
-                    }
-                }
-            }
-
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++)
-            {
-                float* ptr = bottom_top_blob.channel(q);
-
-                for (int i = 0; i < h; i++)
-                {
-                    float* sumptr = sum.row(q);
-
-                    for (int j = 0; j < w; j++)
-                    {
-                        float32x4_t _p = vld1q_f32(ptr);
-                        float32x4_t _sum = vld1q_f32(sumptr);
-                        _p = div_ps(_p, _sum);
-                        vst1q_f32(ptr, _p);
-                        ptr += 4;
-                        sumptr += 4;
-                    }
-                }
-            }
-        }
-
-        if (dims == 3 && positive_axis == 2)
-        {
-            int w = bottom_top_blob.w;
-            int h = bottom_top_blob.h;
-            int channels = bottom_top_blob.c;
-
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++)
-            {
-                float* ptr = bottom_top_blob.channel(q);
-
-                for (int i = 0; i < h; i++)
-                {
-                    float32x4_t _max = vdupq_n_f32(-FLT_MAX);
-                    for (int j = 0; j < w; j++)
-                    {
-                        float32x4_t _p = vld1q_f32(ptr + j * 4);
-                        _max = vmaxq_f32(_max, _p);
-                    }
-
-                    float32x4_t _sum = vdupq_n_f32(0.f);
-                    for (int j = 0; j < w; j++)
-                    {
-                        float32x4_t _p = vld1q_f32(ptr + j * 4);
-                        _p = exp_ps(vsubq_f32(_p, _max));
-                        vst1q_f32(ptr + j * 4, _p);
-                        _sum = vaddq_f32(_sum, _p);
-                    }
-
-                    float32x4_t _reciprocal_sum = vrecpeq_f32(_sum);
-                    _reciprocal_sum = vmulq_f32(vrecpsq_f32(_sum, _reciprocal_sum), _reciprocal_sum);
-                    for (int j = 0; j < w; j++)
-                    {
-                        float32x4_t _p = vld1q_f32(ptr + j * 4);
-                        _p = vmulq_f32(_p, _reciprocal_sum);
-                        vst1q_f32(ptr + j * 4, _p);
-                    }
-
-                    ptr += w * 4;
-                }
-            }
-        }
-
-        return 0;
-    }
-#endif // __ARM_NEON
+    const int dims = bottom_top_blob.dims;
+    const int elempack = bottom_top_blob.elempack;
+    const int positive_axis = axis < 0 ? dims + axis : axis;
 
     if (dims == 1) // positive_axis == 0
     {
-        int w = bottom_top_blob.w;
-
-        float* ptr = bottom_top_blob;
+        const int w = bottom_top_blob.w;
+        const int size = w * elempack;
 
         float max = -FLT_MAX;
+#if __ARM_NEON
+        float32x4_t _max = vdupq_n_f32(-FLT_MAX);
+#endif // __ARM_NEON
         {
+            const float* ptr = bottom_top_blob;
+
             int i = 0;
 #if __ARM_NEON
-            float32x4_t _max = vdupq_n_f32(-FLT_MAX);
-            for (; i + 3 < w; i += 4)
+            for (; i + 3 < size; i += 4)
             {
-                float32x4_t _p = vld1q_f32(ptr + i);
+                float32x4_t _p = vld1q_f32(ptr);
                 _max = vmaxq_f32(_max, _p);
+                ptr += 4;
             }
+#endif // __ARM_NEON
+            for (; i < size; i++)
+            {
+                max = std::max(max, *ptr);
+                ptr++;
+            }
+
+#if __ARM_NEON
 #if __aarch64__
             max = std::max(max, vmaxvq_f32(_max));
 #else
@@ -422,26 +94,36 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             float32x2_t _mm2 = vpmax_f32(_max2, _max2);
             max = std::max(max, vget_lane_f32(_mm2, 0));
 #endif
+            _max = vdupq_n_f32(max);
 #endif // __ARM_NEON
-            for (; i < w; i++)
-            {
-                max = std::max(max, ptr[i]);
-            }
         }
 
         float sum = 0.f;
+#if __ARM_NEON
+        float32x4_t _sum = vdupq_n_f32(0.f);
+#endif // __ARM_NEON
         {
+            float* ptr = bottom_top_blob;
+
             int i = 0;
 #if __ARM_NEON
-            float32x4_t _sum = vdupq_n_f32(0.f);
-            float32x4_t _max = vdupq_n_f32(max);
-            for (; i + 3 < w; i += 4)
+            for (; i + 3 < size; i += 4)
             {
-                float32x4_t _p = vld1q_f32(ptr + i);
+                float32x4_t _p = vld1q_f32(ptr);
                 _p = exp_ps(vsubq_f32(_p, _max));
-                vst1q_f32(ptr + i, _p);
+                vst1q_f32(ptr, _p);
                 _sum = vaddq_f32(_sum, _p);
+                ptr += 4;
             }
+#endif // __ARM_NEON
+            for (; i < size; i++)
+            {
+                *ptr = (float)exp(*ptr - max);
+                sum += *ptr;
+                ptr++;
+            }
+
+#if __ARM_NEON
 #if __aarch64__
             sum += vaddvq_f32(_sum);
 #else
@@ -449,465 +131,230 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             float32x2_t _ss2 = vpadd_f32(_sum2, _sum2);
             sum += vget_lane_f32(_ss2, 0);
 #endif
+            _sum = vdupq_n_f32(sum);
 #endif // __ARM_NEON
-            for (; i < w; i++)
-            {
-                ptr[i] = (float)(exp(ptr[i] - max));
-                sum += ptr[i];
-            }
         }
 
         {
+            float* ptr = bottom_top_blob;
+
             int i = 0;
 #if __ARM_NEON
-            float32x4_t _sum = vdupq_n_f32(sum);
             float32x4_t _reciprocal_sum = vrecpeq_f32(_sum);
             _reciprocal_sum = vmulq_f32(vrecpsq_f32(_sum, _reciprocal_sum), _reciprocal_sum);
-            for (; i + 3 < w; i += 4)
+            for (; i + 3 < size; i += 4)
             {
-                float32x4_t _p = vld1q_f32(ptr + i);
+                float32x4_t _p = vld1q_f32(ptr);
                 _p = vmulq_f32(_p, _reciprocal_sum);
-                vst1q_f32(ptr + i, _p);
+                vst1q_f32(ptr, _p);
+                ptr += 4;
             }
 #endif // __ARM_NEON
-            for (; i < w; i++)
+            for (; i < size; i++)
             {
-                ptr[i] /= sum;
+                *ptr = *ptr / sum;
+                ptr++;
             }
         }
     }
 
     if (dims == 2 && positive_axis == 0)
     {
-        int w = bottom_top_blob.w;
-        int h = bottom_top_blob.h;
+        const int w = bottom_top_blob.w;
+        const int h = bottom_top_blob.h;
 
-        Mat max;
-        max.create(w, elemsize, opt.workspace_allocator);
-        if (max.empty())
+        Mat maxsum(w, 1, 2, 4u, opt.workspace_allocator);
+        if (maxsum.empty())
             return -100;
+
+        Mat max = maxsum.channel(0);
         max.fill(-FLT_MAX);
 
         for (int i = 0; i < h; i++)
         {
             const float* ptr = bottom_top_blob.row(i);
-            float* pmax = max;
+            float* maxptr = max;
 
-            int j = 0;
 #if __ARM_NEON
-            for (; j + 3 < w; j += 4)
+            if (elempack == 4)
             {
-                float32x4_t _p = vld1q_f32(ptr);
-                float32x4_t _max = vld1q_f32(pmax);
-                _max = vmaxq_f32(_max, _p);
-                vst1q_f32(pmax, _max);
-
-                ptr += 4;
-                pmax += 4;
+                for (int j = 0; j < w; j++)
+                {
+                    float32x4_t _p = vld1q_f32(ptr);
+#if __aarch64__
+                    float max0 = vmaxvq_f32(_p);
+#else
+                    float32x2_t _max2 = vmax_f32(vget_low_f32(_p), vget_high_f32(_p));
+                    float32x2_t _mm2 = vpmax_f32(_max2, _max2);
+                    float max0 = vget_lane_f32(_mm2, 0);
+#endif
+                    *maxptr = std::max(*maxptr, max0);
+                    ptr += 4;
+                    maxptr++;
+                }
             }
 #endif // __ARM_NEON
-            for (; j < w; j++)
+            if (elempack == 1)
             {
-                *pmax = std::max(*pmax, *ptr);
-
-                ptr++;
-                pmax++;
+                int j = 0;
+#if __ARM_NEON
+                for (; j + 3 < w; j += 4)
+                {
+                    float32x4_t _p = vld1q_f32(ptr);
+                    float32x4_t _max = vld1q_f32(maxptr);
+                    _max = vmaxq_f32(_max, _p);
+                    vst1q_f32(maxptr, _max);
+                    ptr += 4;
+                    maxptr += 4;
+                }
+#endif // __ARM_NEON
+                for (; j < w; j++)
+                {
+                    *maxptr = std::max(*maxptr, *ptr);
+                    ptr++;
+                    maxptr++;
+                }
             }
         }
 
-        Mat sum;
-        sum.create(w, elemsize, opt.workspace_allocator);
-        if (sum.empty())
-            return -100;
+        Mat sum = maxsum.channel(1);
         sum.fill(0.f);
 
         for (int i = 0; i < h; i++)
         {
             float* ptr = bottom_top_blob.row(i);
-            const float* pmax = max;
-            float* psum = sum;
+            const float* maxptr = max;
+            float* sumptr = sum;
 
-            int j = 0;
 #if __ARM_NEON
-            for (; j + 3 < w; j += 4)
+            if (elempack == 4)
             {
-                float32x4_t _p = vld1q_f32(ptr);
-                float32x4_t _max = vld1q_f32(pmax);
-                float32x4_t _sum = vld1q_f32(psum);
-                _p = exp_ps(vsubq_f32(_p, _max));
-                _sum = vaddq_f32(_sum, _p);
-                vst1q_f32(ptr, _p);
-                vst1q_f32(psum, _sum);
-
-                ptr += 4;
-                pmax += 4;
-                psum += 4;
+                for (int j = 0; j < w; j++)
+                {
+                    float32x4_t _p = vld1q_f32(ptr);
+                    float32x4_t _max = vdupq_n_f32(*maxptr);
+                    _p = exp_ps(vsubq_f32(_p, _max));
+                    vst1q_f32(ptr, _p);
+#if __aarch64__
+                    float sum0 = vaddvq_f32(_p);
+#else
+                    float32x2_t _sum2 = vadd_f32(vget_low_f32(_p), vget_high_f32(_p));
+                    float32x2_t _ss2 = vpadd_f32(_sum2, _sum2);
+                    float sum0 = vget_lane_f32(_ss2, 0);
+#endif
+                    *sumptr += sum0;
+                    ptr += 4;
+                    maxptr++;
+                    sumptr++;
+                }
             }
 #endif // __ARM_NEON
-            for (; j < w; j++)
+            if (elempack == 1)
             {
-                *ptr = (float)(exp(*ptr - *pmax));
-                *psum += *ptr;
-
-                ptr++;
-                pmax++;
-                psum++;
+                int j = 0;
+#if __ARM_NEON
+                for (; j + 3 < w; j += 4)
+                {
+                    float32x4_t _p = vld1q_f32(ptr);
+                    float32x4_t _max = vld1q_f32(maxptr);
+                    float32x4_t _sum = vld1q_f32(sumptr);
+                    _p = exp_ps(vsubq_f32(_p, _max));
+                    _sum = vaddq_f32(_sum, _p);
+                    vst1q_f32(ptr, _p);
+                    vst1q_f32(sumptr, _sum);
+                    ptr += 4;
+                    maxptr += 4;
+                    sumptr += 4;
+                }
+#endif // __ARM_NEON
+                for (; j < w; j++)
+                {
+                    *ptr = (float)exp(*ptr - *maxptr);
+                    *sumptr += *ptr;
+                    ptr++;
+                    maxptr++;
+                    sumptr++;
+                }
             }
         }
 
         for (int i = 0; i < h; i++)
         {
             float* ptr = bottom_top_blob.row(i);
-            const float* psum = sum;
+            const float* sumptr = sum;
 
-            int j = 0;
 #if __ARM_NEON
-            for (; j + 3 < w; j += 4)
+            if (elempack == 4)
             {
-                float32x4_t _p = vld1q_f32(ptr);
-                float32x4_t _sum = vld1q_f32(psum);
-                _p = div_ps(_p, _sum);
-                vst1q_f32(ptr, _p);
-
-                ptr += 4;
-                psum += 4;
+                for (int j = 0; j < w; j++)
+                {
+                    float32x4_t _p = vld1q_f32(ptr);
+                    float32x4_t _sum = vld1q_dup_f32(sumptr);
+                    _p = div_ps(_p, _sum);
+                    vst1q_f32(ptr, _p);
+                    ptr += 4;
+                    sumptr++;
+                }
             }
 #endif // __ARM_NEON
-            for (; j < w; j++)
+            if (elempack == 1)
             {
-                *ptr /= *psum;
-
-                ptr++;
-                psum++;
+                int j = 0;
+#if __ARM_NEON
+                for (; j + 3 < w; j += 4)
+                {
+                    float32x4_t _p = vld1q_f32(ptr);
+                    float32x4_t _sum = vld1q_f32(sumptr);
+                    _p = div_ps(_p, _sum);
+                    vst1q_f32(ptr, _p);
+                    ptr += 4;
+                    sumptr += 4;
+                }
+#endif // __ARM_NEON
+                for (; j < w; j++)
+                {
+                    *ptr /= *sumptr;
+                    ptr++;
+                    sumptr++;
+                }
             }
         }
     }
 
     if (dims == 2 && positive_axis == 1)
     {
-        int w = bottom_top_blob.w;
-        int h = bottom_top_blob.h;
+        const int w = bottom_top_blob.w;
+        const int h = bottom_top_blob.h;
+        const int size = w * elempack;
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < h; i++)
         {
-            float* ptr = bottom_top_blob.row(i);
-
             float max = -FLT_MAX;
+#if __ARM_NEON
+            float32x4_t _max = vdupq_n_f32(-FLT_MAX);
+#endif // __ARM_NEON
             {
+                const float* ptr = bottom_top_blob.row(i);
+
                 int j = 0;
 #if __ARM_NEON
-                float32x4_t _max = vdupq_n_f32(-FLT_MAX);
-                for (; j + 3 < w; j += 4)
+                for (; j + 3 < size; j += 4)
                 {
-                    float32x4_t _p = vld1q_f32(ptr + j);
+                    float32x4_t _p = vld1q_f32(ptr);
                     _max = vmaxq_f32(_max, _p);
-                }
-#if __aarch64__
-                max = std::max(max, vmaxvq_f32(_max));
-#else
-                float32x2_t _max2 = vmax_f32(vget_low_f32(_max), vget_high_f32(_max));
-                float32x2_t _mm2 = vpmax_f32(_max2, _max2);
-                max = std::max(max, vget_lane_f32(_mm2, 0));
-#endif
-#endif // __ARM_NEON
-                for (; j < w; j++)
-                {
-                    max = std::max(max, ptr[j]);
-                }
-            }
-
-            float sum = 0.f;
-            {
-                int j = 0;
-#if __ARM_NEON
-                float32x4_t _sum = vdupq_n_f32(0.f);
-                float32x4_t _max = vdupq_n_f32(max);
-                for (; j + 3 < w; j += 4)
-                {
-                    float32x4_t _p = vld1q_f32(ptr + j);
-                    _p = exp_ps(vsubq_f32(_p, _max));
-                    vst1q_f32(ptr + j, _p);
-                    _sum = vaddq_f32(_sum, _p);
-                }
-#if __aarch64__
-                sum += vaddvq_f32(_sum);
-#else
-                float32x2_t _sum2 = vadd_f32(vget_low_f32(_sum), vget_high_f32(_sum));
-                float32x2_t _ss2 = vpadd_f32(_sum2, _sum2);
-                sum += vget_lane_f32(_ss2, 0);
-#endif
-#endif // __ARM_NEON
-                for (; j < w; j++)
-                {
-                    ptr[j] = (float)(exp(ptr[j] - max));
-                    sum += ptr[j];
-                }
-            }
-
-            {
-                int j = 0;
-#if __ARM_NEON
-                float32x4_t _sum = vdupq_n_f32(sum);
-                float32x4_t _reciprocal_sum = vrecpeq_f32(_sum);
-                _reciprocal_sum = vmulq_f32(vrecpsq_f32(_sum, _reciprocal_sum), _reciprocal_sum);
-                for (; j + 3 < w; j += 4)
-                {
-                    float32x4_t _p = vld1q_f32(ptr + j);
-                    _p = vmulq_f32(_p, _reciprocal_sum);
-                    vst1q_f32(ptr + j, _p);
+                    ptr += 4;
                 }
 #endif // __ARM_NEON
-                for (; j < w; j++)
+                for (; j < size; j++)
                 {
-                    ptr[j] /= sum;
-                }
-            }
-        }
-    }
-
-    if (dims == 3 && positive_axis == 0)
-    {
-        int w = bottom_top_blob.w;
-        int h = bottom_top_blob.h;
-        int channels = bottom_top_blob.c;
-        int size = w * h;
-
-        Mat max;
-        max.create(w, h, elemsize, opt.workspace_allocator);
-        if (max.empty())
-            return -100;
-        max.fill(-FLT_MAX);
-        for (int q = 0; q < channels; q++)
-        {
-            float* ptr = bottom_top_blob.channel(q);
-            float* maxptr = max;
-
-            for (int i = 0; i < size; i++)
-            {
-                maxptr[i] = std::max(maxptr[i], ptr[i]);
-            }
-        }
-
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++)
-        {
-            float* ptr = bottom_top_blob.channel(q);
-            float* maxptr = max;
-
-            int i = 0;
-#if __ARM_NEON
-            for (; i + 3 < size; i += 4)
-            {
-                float32x4_t _p = vld1q_f32(ptr);
-                float32x4_t _max = vld1q_f32(maxptr);
-
-                _p = exp_ps(vsubq_f32(_p, _max));
-
-                vst1q_f32(ptr, _p);
-
-                ptr += 4;
-                maxptr += 4;
-            }
-#endif // __ARM_NEON
-            for (; i < size; i++)
-            {
-                *ptr = exp(*ptr - *maxptr);
-
-                ptr++;
-                maxptr++;
-            }
-        }
-
-        Mat sum;
-        sum.create(w, h, elemsize, opt.workspace_allocator);
-        if (sum.empty())
-            return -100;
-        sum.fill(0.f);
-        for (int q = 0; q < channels; q++)
-        {
-            float* ptr = bottom_top_blob.channel(q);
-            float* sumptr = sum;
-
-            int i = 0;
-#if __ARM_NEON
-            for (; i + 3 < size; i += 4)
-            {
-                float32x4_t _p = vld1q_f32(ptr);
-                float32x4_t _sum = vld1q_f32(sumptr);
-                _sum = vaddq_f32(_sum, _p);
-                vst1q_f32(sumptr, _sum);
-
-                ptr += 4;
-                sumptr += 4;
-            }
-#endif // __ARM_NEON
-            for (; i < size; i++)
-            {
-                *sumptr += *ptr;
-
-                ptr++;
-                sumptr++;
-            }
-        }
-
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++)
-        {
-            float* ptr = bottom_top_blob.channel(q);
-            float* sumptr = sum;
-
-            int i = 0;
-#if __ARM_NEON
-            for (; i + 3 < size; i += 4)
-            {
-                float32x4_t _p = vld1q_f32(ptr);
-                float32x4_t _sum = vld1q_f32(sumptr);
-                _p = div_ps(_p, _sum);
-                vst1q_f32(ptr, _p);
-
-                ptr += 4;
-                sumptr += 4;
-            }
-#endif // __ARM_NEON
-            for (; i < size; i++)
-            {
-                *ptr /= *sumptr;
-
-                ptr++;
-                sumptr++;
-            }
-        }
-    }
-
-    if (dims == 3 && positive_axis == 1)
-    {
-        int w = bottom_top_blob.w;
-        int h = bottom_top_blob.h;
-        int channels = bottom_top_blob.c;
-
-        Mat max;
-        max.create(w, channels, elemsize, opt.workspace_allocator);
-        if (max.empty())
-            return -100;
-        max.fill(-FLT_MAX);
-
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++)
-        {
-            const float* ptr = bottom_top_blob.channel(q);
-            float* maxptr = max.row(q);
-
-            for (int i = 0; i < h; i++)
-            {
-                int j = 0;
-#if __ARM_NEON
-                for (; j + 3 < w; j += 4)
-                {
-                    float32x4_t _p = vld1q_f32(ptr + j);
-                    float32x4_t _max = vld1q_f32(maxptr + j);
-                    _max = vmaxq_f32(_max, _p);
-                    vst1q_f32(maxptr + j, _max);
-                }
-#endif // __ARM_NEON
-                for (; j < w; j++)
-                {
-                    maxptr[j] = std::max(maxptr[j], ptr[j]);
+                    max = std::max(max, *ptr);
+                    ptr++;
                 }
 
-                ptr += w;
-            }
-        }
-
-        Mat sum;
-        sum.create(w, channels, elemsize, opt.workspace_allocator);
-        if (sum.empty())
-            return -100;
-        sum.fill(0.f);
-
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++)
-        {
-            float* ptr = bottom_top_blob.channel(q);
-            float* maxptr = max.row(q);
-            float* sumptr = sum.row(q);
-
-            for (int i = 0; i < h; i++)
-            {
-                int j = 0;
 #if __ARM_NEON
-                for (; j + 3 < w; j += 4)
+                if (elempack == 1)
                 {
-                    float32x4_t _p = vld1q_f32(ptr + j);
-                    float32x4_t _max = vld1q_f32(maxptr + j);
-                    float32x4_t _sum = vld1q_f32(sumptr + j);
-                    _p = exp_ps(vsubq_f32(_p, _max));
-                    _sum = vaddq_f32(_sum, _p);
-                    vst1q_f32(ptr + j, _p);
-                    vst1q_f32(sumptr + j, _sum);
-                }
-#endif // __ARM_NEON
-                for (; j < w; j++)
-                {
-                    ptr[j] = (float)(exp(ptr[j] - maxptr[j]));
-                    sumptr[j] += ptr[j];
-                }
-
-                ptr += w;
-            }
-        }
-
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++)
-        {
-            float* ptr = bottom_top_blob.channel(q);
-            float* sumptr = sum.row(q);
-
-            for (int i = 0; i < h; i++)
-            {
-                int j = 0;
-#if __ARM_NEON
-                for (; j + 3 < w; j += 4)
-                {
-                    float32x4_t _p = vld1q_f32(ptr + j);
-                    float32x4_t _sum = vld1q_f32(sumptr + j);
-                    _p = div_ps(_p, _sum);
-                    vst1q_f32(ptr + j, _p);
-                }
-#endif // __ARM_NEON
-                for (; j < w; j++)
-                {
-                    ptr[j] /= sumptr[j];
-                }
-
-                ptr += w;
-            }
-        }
-    }
-
-    if (dims == 3 && positive_axis == 2)
-    {
-        int w = bottom_top_blob.w;
-        int h = bottom_top_blob.h;
-        int channels = bottom_top_blob.c;
-
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++)
-        {
-            float* ptr = bottom_top_blob.channel(q);
-
-            for (int i = 0; i < h; i++)
-            {
-                float max = -FLT_MAX;
-                {
-                    int j = 0;
-#if __ARM_NEON
-                    float32x4_t _max = vdupq_n_f32(-FLT_MAX);
-                    for (; j + 3 < w; j += 4)
-                    {
-                        float32x4_t _p = vld1q_f32(ptr + j);
-                        _max = vmaxq_f32(_max, _p);
-                    }
 #if __aarch64__
                     max = std::max(max, vmaxvq_f32(_max));
 #else
@@ -915,26 +362,39 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                     float32x2_t _mm2 = vpmax_f32(_max2, _max2);
                     max = std::max(max, vget_lane_f32(_mm2, 0));
 #endif
+                    _max = vdupq_n_f32(max);
+                }
 #endif // __ARM_NEON
-                    for (; j < w; j++)
-                    {
-                        max = std::max(max, ptr[j]);
-                    }
+            }
+
+            float sum = 0.f;
+#if __ARM_NEON
+            float32x4_t _sum = vdupq_n_f32(0.f);
+#endif // __ARM_NEON
+            {
+                float* ptr = bottom_top_blob.row(i);
+
+                int j = 0;
+#if __ARM_NEON
+                for (; j + 3 < size; j += 4)
+                {
+                    float32x4_t _p = vld1q_f32(ptr);
+                    _p = exp_ps(vsubq_f32(_p, _max));
+                    vst1q_f32(ptr, _p);
+                    _sum = vaddq_f32(_sum, _p);
+                    ptr += 4;
+                }
+#endif // __ARM_NEON
+                for (; j < size; j++)
+                {
+                    *ptr = (float)exp(*ptr - max);
+                    sum += *ptr;
+                    ptr++;
                 }
 
-                float sum = 0.f;
-                {
-                    int j = 0;
 #if __ARM_NEON
-                    float32x4_t _sum = vdupq_n_f32(0.f);
-                    float32x4_t _max = vdupq_n_f32(max);
-                    for (; j + 3 < w; j += 4)
-                    {
-                        float32x4_t _p = vld1q_f32(ptr + j);
-                        _p = exp_ps(vsubq_f32(_p, _max));
-                        vst1q_f32(ptr + j, _p);
-                        _sum = vaddq_f32(_sum, _p);
-                    }
+                if (elempack == 1)
+                {
 #if __aarch64__
                     sum += vaddvq_f32(_sum);
 #else
@@ -942,39 +402,1278 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                     float32x2_t _ss2 = vpadd_f32(_sum2, _sum2);
                     sum += vget_lane_f32(_ss2, 0);
 #endif
+                    _sum = vdupq_n_f32(sum);
+                }
 #endif // __ARM_NEON
-                    for (; j < w; j++)
+            }
+
+            {
+                float* ptr = bottom_top_blob.row(i);
+
+                int j = 0;
+#if __ARM_NEON
+                float32x4_t _reciprocal_sum = vrecpeq_f32(_sum);
+                _reciprocal_sum = vmulq_f32(vrecpsq_f32(_sum, _reciprocal_sum), _reciprocal_sum);
+                for (; j + 3 < size; j += 4)
+                {
+                    float32x4_t _p = vld1q_f32(ptr);
+                    _p = vmulq_f32(_p, _reciprocal_sum);
+                    vst1q_f32(ptr, _p);
+                    ptr += 4;
+                }
+#endif // __ARM_NEON
+                for (; j < size; j++)
+                {
+                    *ptr /= sum;
+                    ptr++;
+                }
+            }
+        }
+    }
+
+    if (dims == 3 && positive_axis == 0)
+    {
+        const int w = bottom_top_blob.w;
+        const int h = bottom_top_blob.h;
+        const int channels = bottom_top_blob.c;
+        const int size = w * h;
+
+        Mat maxsum(w, h, 2, 4u, opt.workspace_allocator);
+        if (maxsum.empty())
+            return -100;
+
+        Mat max = maxsum.channel(0);
+        max.fill(-FLT_MAX);
+
+        for (int q = 0; q < channels; q++)
+        {
+            const float* ptr = bottom_top_blob.channel(q);
+            float* maxptr = max;
+
+#if __ARM_NEON
+            if (elempack == 4)
+            {
+                for (int i = 0; i < size; i++)
+                {
+                    float32x4_t _p = vld1q_f32(ptr);
+#if __aarch64__
+                    float max0 = vmaxvq_f32(_p);
+#else
+                    float32x2_t _max2 = vmax_f32(vget_low_f32(_p), vget_high_f32(_p));
+                    float32x2_t _mm2 = vpmax_f32(_max2, _max2);
+                    float max0 = vget_lane_f32(_mm2, 0);
+#endif
+                    *maxptr = std::max(*maxptr, max0);
+                    ptr += 4;
+                    maxptr++;
+                }
+            }
+#endif // __ARM_NEON
+            if (elempack == 1)
+            {
+                int i = 0;
+#if __ARM_NEON
+                for (; i + 3 < size; i += 4)
+                {
+                    float32x4_t _p = vld1q_f32(ptr);
+                    float32x4_t _max = vld1q_f32(maxptr);
+                    _max = vmaxq_f32(_max, _p);
+                    vst1q_f32(maxptr, _max);
+                    ptr += 4;
+                    maxptr += 4;
+                }
+#endif // __ARM_NEON
+                for (; i < size; i++)
+                {
+                    *maxptr = std::max(*maxptr, *ptr);
+                    ptr++;
+                    maxptr++;
+                }
+            }
+        }
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            float* ptr = bottom_top_blob.channel(q);
+            const float* maxptr = max;
+
+#if __ARM_NEON
+            if (elempack == 4)
+            {
+                for (int i = 0; i < size; i++)
+                {
+                    float32x4_t _p = vld1q_f32(ptr);
+                    float32x4_t _max = vdupq_n_f32(*maxptr);
+                    _p = exp_ps(vsubq_f32(_p, _max));
+                    vst1q_f32(ptr, _p);
+                    ptr += 4;
+                    maxptr++;
+                }
+            }
+#endif // __ARM_NEON
+            if (elempack == 1)
+            {
+                int i = 0;
+#if __ARM_NEON
+                for (; i + 3 < size; i += 4)
+                {
+                    float32x4_t _p = vld1q_f32(ptr);
+                    float32x4_t _max = vld1q_f32(maxptr);
+                    _p = exp_ps(vsubq_f32(_p, _max));
+                    vst1q_f32(ptr, _p);
+                    ptr += 4;
+                    maxptr += 4;
+                }
+#endif // __ARM_NEON
+                for (; i < size; i++)
+                {
+                    *ptr = (float)exp(*ptr - *maxptr);
+                    ptr++;
+                    maxptr++;
+                }
+            }
+        }
+
+        Mat sum = maxsum.channel(1);
+        sum.fill(0.f);
+
+        for (int q = 0; q < channels; q++)
+        {
+            float* ptr = bottom_top_blob.channel(q);
+            float* sumptr = sum;
+
+#if __ARM_NEON
+            if (elempack == 4)
+            {
+                for (int i = 0; i < size; i++)
+                {
+                    float32x4_t _p = vld1q_f32(ptr);
+#if __aarch64__
+                    float sum0 = vaddvq_f32(_p);
+#else
+                    float32x2_t _sum2 = vadd_f32(vget_low_f32(_p), vget_high_f32(_p));
+                    float32x2_t _ss2 = vpadd_f32(_sum2, _sum2);
+                    float sum0 = vget_lane_f32(_ss2, 0);
+#endif
+                    *sumptr += sum0;
+                    ptr += 4;
+                    sumptr++;
+                }
+            }
+#endif // __ARM_NEON
+            if (elempack == 1)
+            {
+                int i = 0;
+#if __ARM_NEON
+                for (; i + 3 < size; i += 4)
+                {
+                    float32x4_t _p = vld1q_f32(ptr);
+                    float32x4_t _sum = vld1q_f32(sumptr);
+                    _sum = vaddq_f32(_sum, _p);
+                    vst1q_f32(sumptr, _sum);
+                    ptr += 4;
+                    sumptr += 4;
+                }
+#endif // __ARM_NEON
+                for (; i < size; i++)
+                {
+                    *sumptr += *ptr;
+                    ptr++;
+                    sumptr++;
+                }
+            }
+        }
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            float* ptr = bottom_top_blob.channel(q);
+            const float* sumptr = sum;
+
+#if __ARM_NEON
+            if (elempack == 4)
+            {
+                for (int i = 0; i < size; i++)
+                {
+                    float32x4_t _p = vld1q_f32(ptr);
+                    float32x4_t _sum = vdupq_n_f32(*sumptr);
+                    _p = div_ps(_p, _sum);
+                    vst1q_f32(ptr, _p);
+                    ptr += 4;
+                    sumptr++;
+                }
+            }
+#endif // __ARM_NEON
+            if (elempack == 1)
+            {
+                int i = 0;
+#if __ARM_NEON
+                for (; i + 3 < size; i += 4)
+                {
+                    float32x4_t _p = vld1q_f32(ptr);
+                    float32x4_t _sum = vld1q_f32(sumptr);
+                    _p = div_ps(_p, _sum);
+                    vst1q_f32(ptr, _p);
+                    ptr += 4;
+                    sumptr += 4;
+                }
+#endif // __ARM_NEON
+                for (; i < size; i++)
+                {
+                    *ptr /= *sumptr;
+                    ptr++;
+                    sumptr++;
+                }
+            }
+        }
+    }
+
+    if (dims == 3 && positive_axis == 1)
+    {
+        const int w = bottom_top_blob.w;
+        const int h = bottom_top_blob.h;
+        const int channels = bottom_top_blob.c;
+        const int size = w * elempack;
+
+        Mat maxsum(w * elempack, channels, 2, 4u, opt.workspace_allocator);
+        if (maxsum.empty())
+            return -100;
+
+        Mat max = maxsum.channel(0);
+        max.fill(-FLT_MAX);
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            const float* ptr = bottom_top_blob.channel(q);
+
+            for (int i = 0; i < h; i++)
+            {
+                float* maxptr = max.row(q);
+
+                int j = 0;
+#if __ARM_NEON
+                for (; j + 3 < size; j += 4)
+                {
+                    float32x4_t _p = vld1q_f32(ptr);
+                    float32x4_t _max = vld1q_f32(maxptr);
+                    _max = vmaxq_f32(_max, _p);
+                    vst1q_f32(maxptr, _max);
+                    ptr += 4;
+                    maxptr += 4;
+                }
+#endif // __ARM_NEON
+                for (; j < size; j++)
+                {
+                    *maxptr = std::max(*maxptr, *ptr);
+                    ptr++;
+                    maxptr++;
+                }
+            }
+        }
+
+        Mat sum = maxsum.channel(1);
+        sum.fill(0.f);
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            float* ptr = bottom_top_blob.channel(q);
+
+            for (int i = 0; i < h; i++)
+            {
+                const float* maxptr = max.row(q);
+                float* sumptr = sum.row(q);
+
+                int j = 0;
+#if __ARM_NEON
+                for (; j + 3 < size; j += 4)
+                {
+                    float32x4_t _p = vld1q_f32(ptr);
+                    float32x4_t _max = vld1q_f32(maxptr);
+                    float32x4_t _sum = vld1q_f32(sumptr);
+                    _p = exp_ps(vsubq_f32(_p, _max));
+                    _sum = vaddq_f32(_sum, _p);
+                    vst1q_f32(ptr, _p);
+                    vst1q_f32(sumptr, _sum);
+                    ptr += 4;
+                    maxptr += 4;
+                    sumptr += 4;
+                }
+#endif // __ARM_NEON
+                for (; j < size; j++)
+                {
+                    *ptr = (float)exp(*ptr - *maxptr);
+                    *sumptr += *ptr;
+                    ptr++;
+                    maxptr++;
+                    sumptr++;
+                }
+            }
+        }
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            float* ptr = bottom_top_blob.channel(q);
+
+            for (int i = 0; i < h; i++)
+            {
+                const float* sumptr = sum.row(q);
+
+                int j = 0;
+#if __ARM_NEON
+                for (; j + 3 < size; j += 4)
+                {
+                    float32x4_t _p = vld1q_f32(ptr);
+                    float32x4_t _sum = vld1q_f32(sumptr);
+                    _p = div_ps(_p, _sum);
+                    vst1q_f32(ptr, _p);
+                    ptr += 4;
+                    sumptr += 4;
+                }
+#endif // __ARM_NEON
+                for (; j < size; j++)
+                {
+                    *ptr /= *sumptr;
+                    ptr++;
+                    sumptr++;
+                }
+            }
+        }
+    }
+
+    if (dims == 3 && positive_axis == 2)
+    {
+        const int w = bottom_top_blob.w;
+        const int h = bottom_top_blob.h;
+        const int channels = bottom_top_blob.c;
+        const int size = w * elempack;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            for (int i = 0; i < h; i++)
+            {
+                float max = -FLT_MAX;
+#if __ARM_NEON
+                float32x4_t _max = vdupq_n_f32(-FLT_MAX);
+#endif // __ARM_NEON
+                {
+                    const float* ptr = bottom_top_blob.channel(q).row(i);
+
+                    int j = 0;
+#if __ARM_NEON
+                    for (; j + 3 < size; j += 4)
                     {
-                        ptr[j] = (float)(exp(ptr[j] - max));
-                        sum += ptr[j];
+                        float32x4_t _p = vld1q_f32(ptr);
+                        _max = vmaxq_f32(_max, _p);
+                        ptr += 4;
                     }
+#endif // __ARM_NEON
+                    for (; j < size; j++)
+                    {
+                        max = std::max(max, *ptr);
+                        ptr++;
+                    }
+
+#if __ARM_NEON
+                    if (elempack == 1)
+                    {
+#if __aarch64__
+                        max = std::max(max, vmaxvq_f32(_max));
+#else
+                        float32x2_t _max2 = vmax_f32(vget_low_f32(_max), vget_high_f32(_max));
+                        float32x2_t _mm2 = vpmax_f32(_max2, _max2);
+                        max = std::max(max, vget_lane_f32(_mm2, 0));
+#endif
+                        _max = vdupq_n_f32(max);
+                    }
+#endif // __ARM_NEON
+                }
+
+                float sum = 0.f;
+#if __ARM_NEON
+                float32x4_t _sum = vdupq_n_f32(0.f);
+#endif // __ARM_NEON
+                {
+                    float* ptr = bottom_top_blob.channel(q).row(i);
+
+                    int j = 0;
+#if __ARM_NEON
+                    for (; j + 3 < size; j += 4)
+                    {
+                        float32x4_t _p = vld1q_f32(ptr);
+                        _p = exp_ps(vsubq_f32(_p, _max));
+                        vst1q_f32(ptr, _p);
+                        _sum = vaddq_f32(_sum, _p);
+                        ptr += 4;
+                    }
+#endif // __ARM_NEON
+                    for (; j < size; j++)
+                    {
+                        *ptr = (float)exp(*ptr - max);
+                        sum += *ptr;
+                        ptr++;
+                    }
+
+#if __ARM_NEON
+                    if (elempack == 1)
+                    {
+#if __aarch64__
+                        sum += vaddvq_f32(_sum);
+#else
+                        float32x2_t _sum2 = vadd_f32(vget_low_f32(_sum), vget_high_f32(_sum));
+                        float32x2_t _ss2 = vpadd_f32(_sum2, _sum2);
+                        sum += vget_lane_f32(_ss2, 0);
+#endif
+                        _sum = vdupq_n_f32(sum);
+                    }
+#endif // __ARM_NEON
                 }
 
                 {
+                    float* ptr = bottom_top_blob.channel(q).row(i);
+
                     int j = 0;
 #if __ARM_NEON
-                    float32x4_t _sum = vdupq_n_f32(sum);
                     float32x4_t _reciprocal_sum = vrecpeq_f32(_sum);
                     _reciprocal_sum = vmulq_f32(vrecpsq_f32(_sum, _reciprocal_sum), _reciprocal_sum);
-                    for (; j + 3 < w; j += 4)
+                    for (; j + 3 < size; j += 4)
                     {
-                        float32x4_t _p = vld1q_f32(ptr + j);
+                        float32x4_t _p = vld1q_f32(ptr);
                         _p = vmulq_f32(_p, _reciprocal_sum);
-                        vst1q_f32(ptr + j, _p);
+                        vst1q_f32(ptr, _p);
+                        ptr += 4;
                     }
 #endif // __ARM_NEON
-                    for (; j < w; j++)
+                    for (; j < size; j++)
                     {
-                        ptr[j] /= sum;
+                        *ptr /= sum;
+                        ptr++;
                     }
                 }
-
-                ptr += w;
             }
         }
     }
 
     return 0;
 }
+
+#if NCNN_BF16
+int Softmax_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const
+{
+    const int dims = bottom_top_blob.dims;
+    const int elempack = bottom_top_blob.elempack;
+    const int positive_axis = axis < 0 ? dims + axis : axis;
+
+    if (dims == 1) // positive_axis == 0
+    {
+        const int w = bottom_top_blob.w;
+        const int size = w * elempack;
+
+        float max = -FLT_MAX;
+#if __ARM_NEON
+        float32x4_t _max = vdupq_n_f32(-FLT_MAX);
+#endif // __ARM_NEON
+        {
+            const unsigned short* ptr = bottom_top_blob;
+
+            int i = 0;
+#if __ARM_NEON
+            for (; i + 3 < size; i += 4)
+            {
+                float32x4_t _p = bfloat2float(vld1_u16(ptr));
+                _max = vmaxq_f32(_max, _p);
+                ptr += 4;
+            }
+#endif // __ARM_NEON
+            for (; i < size; i++)
+            {
+                max = std::max(max, bfloat16_to_float32(*ptr));
+                ptr++;
+            }
+
+#if __ARM_NEON
+#if __aarch64__
+            max = std::max(max, vmaxvq_f32(_max));
+#else
+            float32x2_t _max2 = vmax_f32(vget_low_f32(_max), vget_high_f32(_max));
+            float32x2_t _mm2 = vpmax_f32(_max2, _max2);
+            max = std::max(max, vget_lane_f32(_mm2, 0));
+#endif
+            _max = vdupq_n_f32(max);
+#endif // __ARM_NEON
+        }
+
+        float sum = 0.f;
+#if __ARM_NEON
+        float32x4_t _sum = vdupq_n_f32(0.f);
+#endif // __ARM_NEON
+        {
+            unsigned short* ptr = bottom_top_blob;
+
+            int i = 0;
+#if __ARM_NEON
+            for (; i + 3 < size; i += 4)
+            {
+                float32x4_t _p = bfloat2float(vld1_u16(ptr));
+                _p = exp_ps(vsubq_f32(_p, _max));
+                vst1_u16(ptr, float2bfloat(_p));
+                _sum = vaddq_f32(_sum, _p);
+                ptr += 4;
+            }
+#endif // __ARM_NEON
+            for (; i < size; i++)
+            {
+                float v = (float)exp(bfloat16_to_float32(*ptr) - max);
+                *ptr = float32_to_bfloat16(v);
+                sum += v;
+                ptr++;
+            }
+
+#if __ARM_NEON
+#if __aarch64__
+            sum += vaddvq_f32(_sum);
+#else
+            float32x2_t _sum2 = vadd_f32(vget_low_f32(_sum), vget_high_f32(_sum));
+            float32x2_t _ss2 = vpadd_f32(_sum2, _sum2);
+            sum += vget_lane_f32(_ss2, 0);
+#endif
+            _sum = vdupq_n_f32(sum);
+#endif // __ARM_NEON
+        }
+
+        {
+            unsigned short* ptr = bottom_top_blob;
+
+            int i = 0;
+#if __ARM_NEON
+            float32x4_t _reciprocal_sum = vrecpeq_f32(_sum);
+            _reciprocal_sum = vmulq_f32(vrecpsq_f32(_sum, _reciprocal_sum), _reciprocal_sum);
+            for (; i + 3 < size; i += 4)
+            {
+                float32x4_t _p = bfloat2float(vld1_u16(ptr));
+                _p = vmulq_f32(_p, _reciprocal_sum);
+                vst1_u16(ptr, float2bfloat(_p));
+                ptr += 4;
+            }
+#endif // __ARM_NEON
+            for (; i < size; i++)
+            {
+                *ptr = float32_to_bfloat16(bfloat16_to_float32(*ptr) / sum);
+                ptr++;
+            }
+        }
+    }
+
+    if (dims == 2 && positive_axis == 0)
+    {
+        const int w = bottom_top_blob.w;
+        const int h = bottom_top_blob.h;
+
+        Mat maxsum(w, 1, 2, 4u, opt.workspace_allocator);
+        if (maxsum.empty())
+            return -100;
+
+        Mat max = maxsum.channel(0);
+        max.fill(-FLT_MAX);
+
+        for (int i = 0; i < h; i++)
+        {
+            const unsigned short* ptr = bottom_top_blob.row<const unsigned short>(i);
+            float* maxptr = max;
+
+#if __ARM_NEON
+            if (elempack == 4)
+            {
+                for (int j = 0; j < w; j++)
+                {
+                    float32x4_t _p = bfloat2float(vld1_u16(ptr));
+#if __aarch64__
+                    float max0 = vmaxvq_f32(_p);
+#else
+                    float32x2_t _max2 = vmax_f32(vget_low_f32(_p), vget_high_f32(_p));
+                    float32x2_t _mm2 = vpmax_f32(_max2, _max2);
+                    float max0 = vget_lane_f32(_mm2, 0);
+#endif
+                    *maxptr = std::max(*maxptr, max0);
+                    ptr += 4;
+                    maxptr++;
+                }
+            }
+#endif // __ARM_NEON
+            if (elempack == 1)
+            {
+                int j = 0;
+#if __ARM_NEON
+                for (; j + 3 < w; j += 4)
+                {
+                    float32x4_t _p = bfloat2float(vld1_u16(ptr));
+                    float32x4_t _max = vld1q_f32(maxptr);
+                    _max = vmaxq_f32(_max, _p);
+                    vst1q_f32(maxptr, _max);
+                    ptr += 4;
+                    maxptr += 4;
+                }
+#endif // __ARM_NEON
+                for (; j < w; j++)
+                {
+                    *maxptr = std::max(*maxptr, bfloat16_to_float32(*ptr));
+                    ptr++;
+                    maxptr++;
+                }
+            }
+        }
+
+        Mat sum = maxsum.channel(1);
+        sum.fill(0.f);
+
+        for (int i = 0; i < h; i++)
+        {
+            unsigned short* ptr = bottom_top_blob.row<unsigned short>(i);
+            const float* maxptr = max;
+            float* sumptr = sum;
+
+#if __ARM_NEON
+            if (elempack == 4)
+            {
+                for (int j = 0; j < w; j++)
+                {
+                    float32x4_t _p = bfloat2float(vld1_u16(ptr));
+                    float32x4_t _max = vdupq_n_f32(*maxptr);
+                    _p = exp_ps(vsubq_f32(_p, _max));
+                    vst1_u16(ptr, float2bfloat(_p));
+#if __aarch64__
+                    float sum0 = vaddvq_f32(_p);
+#else
+                    float32x2_t _sum2 = vadd_f32(vget_low_f32(_p), vget_high_f32(_p));
+                    float32x2_t _ss2 = vpadd_f32(_sum2, _sum2);
+                    float sum0 = vget_lane_f32(_ss2, 0);
+#endif
+                    *sumptr += sum0;
+                    ptr += 4;
+                    maxptr++;
+                    sumptr++;
+                }
+            }
+#endif // __ARM_NEON
+            if (elempack == 1)
+            {
+                int j = 0;
+#if __ARM_NEON
+                for (; j + 3 < w; j += 4)
+                {
+                    float32x4_t _p = bfloat2float(vld1_u16(ptr));
+                    float32x4_t _max = vld1q_f32(maxptr);
+                    float32x4_t _sum = vld1q_f32(sumptr);
+                    _p = exp_ps(vsubq_f32(_p, _max));
+                    vst1_u16(ptr, float2bfloat(_p));
+                    _sum = vaddq_f32(_sum, _p);
+                    vst1q_f32(sumptr, _sum);
+                    ptr += 4;
+                    maxptr += 4;
+                    sumptr += 4;
+                }
+#endif // __ARM_NEON
+                for (; j < w; j++)
+                {
+                    float v = (float)exp(bfloat16_to_float32(*ptr) - *maxptr);
+                    *ptr = float32_to_bfloat16(v);
+                    *sumptr += v;
+                    ptr++;
+                    maxptr++;
+                    sumptr++;
+                }
+            }
+        }
+
+        for (int i = 0; i < h; i++)
+        {
+            unsigned short* ptr = bottom_top_blob.row<unsigned short>(i);
+            const float* sumptr = sum;
+
+#if __ARM_NEON
+            if (elempack == 4)
+            {
+                for (int j = 0; j < w; j++)
+                {
+                    float32x4_t _p = bfloat2float(vld1_u16(ptr));
+                    float32x4_t _sum = vld1q_dup_f32(sumptr);
+                    _p = div_ps(_p, _sum);
+                    vst1_u16(ptr, float2bfloat(_p));
+                    ptr += 4;
+                    sumptr++;
+                }
+            }
+#endif // __ARM_NEON
+            if (elempack == 1)
+            {
+                int j = 0;
+#if __ARM_NEON
+                for (; j + 3 < w; j += 4)
+                {
+                    float32x4_t _p = bfloat2float(vld1_u16(ptr));
+                    float32x4_t _sum = vld1q_f32(sumptr);
+                    _p = div_ps(_p, _sum);
+                    vst1_u16(ptr, float2bfloat(_p));
+                    ptr += 4;
+                    sumptr += 4;
+                }
+#endif // __ARM_NEON
+                for (; j < w; j++)
+                {
+                    *ptr = float32_to_bfloat16(bfloat16_to_float32(*ptr) / *sumptr);
+                    ptr++;
+                    sumptr++;
+                }
+            }
+        }
+    }
+
+    if (dims == 2 && positive_axis == 1)
+    {
+        const int w = bottom_top_blob.w;
+        const int h = bottom_top_blob.h;
+        const int size = w * elempack;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int i = 0; i < h; i++)
+        {
+            float max = -FLT_MAX;
+#if __ARM_NEON
+            float32x4_t _max = vdupq_n_f32(-FLT_MAX);
+#endif // __ARM_NEON
+            {
+                const unsigned short* ptr = bottom_top_blob.row<const unsigned short>(i);
+
+                int j = 0;
+#if __ARM_NEON
+                for (; j + 3 < size; j += 4)
+                {
+                    float32x4_t _p = bfloat2float(vld1_u16(ptr));
+                    _max = vmaxq_f32(_max, _p);
+                    ptr += 4;
+                }
+#endif // __ARM_NEON
+                for (; j < size; j++)
+                {
+                    max = std::max(max, bfloat16_to_float32(*ptr));
+                    ptr++;
+                }
+
+#if __ARM_NEON
+                if (elempack == 1)
+                {
+#if __aarch64__
+                    max = std::max(max, vmaxvq_f32(_max));
+#else
+                    float32x2_t _max2 = vmax_f32(vget_low_f32(_max), vget_high_f32(_max));
+                    float32x2_t _mm2 = vpmax_f32(_max2, _max2);
+                    max = std::max(max, vget_lane_f32(_mm2, 0));
+#endif
+                    _max = vdupq_n_f32(max);
+                }
+#endif // __ARM_NEON
+            }
+
+            float sum = 0.f;
+#if __ARM_NEON
+            float32x4_t _sum = vdupq_n_f32(0.f);
+#endif // __ARM_NEON
+            {
+                unsigned short* ptr = bottom_top_blob.row<unsigned short>(i);
+
+                int j = 0;
+#if __ARM_NEON
+                for (; j + 3 < size; j += 4)
+                {
+                    float32x4_t _p = bfloat2float(vld1_u16(ptr));
+                    _p = exp_ps(vsubq_f32(_p, _max));
+                    vst1_u16(ptr, float2bfloat(_p));
+                    _sum = vaddq_f32(_sum, _p);
+                    ptr += 4;
+                }
+#endif // __ARM_NEON
+                for (; j < size; j++)
+                {
+                    float v = (float)exp(bfloat16_to_float32(*ptr) - max);
+                    *ptr = float32_to_bfloat16(v);
+                    sum += v;
+                    ptr++;
+                }
+
+#if __ARM_NEON
+                if (elempack == 1)
+                {
+#if __aarch64__
+                    sum += vaddvq_f32(_sum);
+#else
+                    float32x2_t _sum2 = vadd_f32(vget_low_f32(_sum), vget_high_f32(_sum));
+                    float32x2_t _ss2 = vpadd_f32(_sum2, _sum2);
+                    sum += vget_lane_f32(_ss2, 0);
+#endif
+                    _sum = vdupq_n_f32(sum);
+                }
+#endif // __ARM_NEON
+            }
+
+            {
+                unsigned short* ptr = bottom_top_blob.row<unsigned short>(i);
+
+                int j = 0;
+#if __ARM_NEON
+                float32x4_t _reciprocal_sum = vrecpeq_f32(_sum);
+                _reciprocal_sum = vmulq_f32(vrecpsq_f32(_sum, _reciprocal_sum), _reciprocal_sum);
+                for (; j + 3 < size; j += 4)
+                {
+                    float32x4_t _p = bfloat2float(vld1_u16(ptr));
+                    _p = vmulq_f32(_p, _reciprocal_sum);
+                    vst1_u16(ptr, float2bfloat(_p));
+                    ptr += 4;
+                }
+#endif // __ARM_NEON
+                for (; j < size; j++)
+                {
+                    *ptr = float32_to_bfloat16(bfloat16_to_float32(*ptr) / sum);
+                    ptr++;
+                }
+            }
+        }
+    }
+
+    if (dims == 3 && positive_axis == 0)
+    {
+        const int w = bottom_top_blob.w;
+        const int h = bottom_top_blob.h;
+        const int channels = bottom_top_blob.c;
+        const int size = w * h;
+
+        Mat maxsum(w, h, 2, 4u, opt.workspace_allocator);
+        if (maxsum.empty())
+            return -100;
+
+        Mat max = maxsum.channel(0);
+        max.fill(-FLT_MAX);
+
+        for (int q = 0; q < channels; q++)
+        {
+            const unsigned short* ptr = bottom_top_blob.channel(q);
+            float* maxptr = max;
+
+#if __ARM_NEON
+            if (elempack == 4)
+            {
+                for (int i = 0; i < size; i++)
+                {
+                    float32x4_t _p = bfloat2float(vld1_u16(ptr));
+#if __aarch64__
+                    float max0 = vmaxvq_f32(_p);
+#else
+                    float32x2_t _max2 = vmax_f32(vget_low_f32(_p), vget_high_f32(_p));
+                    float32x2_t _mm2 = vpmax_f32(_max2, _max2);
+                    float max0 = vget_lane_f32(_mm2, 0);
+#endif
+                    *maxptr = std::max(*maxptr, max0);
+                    ptr += 4;
+                    maxptr++;
+                }
+            }
+#endif // __ARM_NEON
+            if (elempack == 1)
+            {
+                int i = 0;
+#if __ARM_NEON
+                for (; i + 3 < size; i += 4)
+                {
+                    float32x4_t _p = bfloat2float(vld1_u16(ptr));
+                    float32x4_t _max = vld1q_f32(maxptr);
+                    _max = vmaxq_f32(_max, _p);
+                    vst1q_f32(maxptr, _max);
+                    ptr += 4;
+                    maxptr += 4;
+                }
+#endif // __ARM_NEON
+                for (; i < size; i++)
+                {
+                    *maxptr = std::max(*maxptr, bfloat16_to_float32(*ptr));
+                    ptr++;
+                    maxptr++;
+                }
+            }
+        }
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            unsigned short* ptr = bottom_top_blob.channel(q);
+            const float* maxptr = max;
+
+#if __ARM_NEON
+            if (elempack == 4)
+            {
+                for (int i = 0; i < size; i++)
+                {
+                    float32x4_t _p = bfloat2float(vld1_u16(ptr));
+                    float32x4_t _max = vdupq_n_f32(*maxptr);
+                    _p = exp_ps(vsubq_f32(_p, _max));
+                    vst1_u16(ptr, float2bfloat(_p));
+                    ptr += 4;
+                    maxptr++;
+                }
+            }
+#endif // __ARM_NEON
+            if (elempack == 1)
+            {
+                int i = 0;
+#if __ARM_NEON
+                for (; i + 3 < size; i += 4)
+                {
+                    float32x4_t _p = bfloat2float(vld1_u16(ptr));
+                    float32x4_t _max = vld1q_f32(maxptr);
+                    _p = exp_ps(vsubq_f32(_p, _max));
+                    vst1_u16(ptr, float2bfloat(_p));
+                    ptr += 4;
+                    maxptr += 4;
+                }
+#endif // __ARM_NEON
+                for (; i < size; i++)
+                {
+                    *ptr = float32_to_bfloat16(exp(bfloat16_to_float32(*ptr) - *maxptr));
+                    ptr++;
+                    maxptr++;
+                }
+            }
+        }
+
+        Mat sum = maxsum.channel(1);
+        sum.fill(0.f);
+
+        for (int q = 0; q < channels; q++)
+        {
+            unsigned short* ptr = bottom_top_blob.channel(q);
+            float* sumptr = sum;
+
+#if __ARM_NEON
+            if (elempack == 4)
+            {
+                for (int i = 0; i < size; i++)
+                {
+                    float32x4_t _p = bfloat2float(vld1_u16(ptr));
+#if __aarch64__
+                    float sum0 = vaddvq_f32(_p);
+#else
+                    float32x2_t _sum2 = vadd_f32(vget_low_f32(_p), vget_high_f32(_p));
+                    float32x2_t _ss2 = vpadd_f32(_sum2, _sum2);
+                    float sum0 = vget_lane_f32(_ss2, 0);
+#endif
+                    *sumptr += sum0;
+                    ptr += 4;
+                    sumptr++;
+                }
+            }
+#endif // __ARM_NEON
+            if (elempack == 1)
+            {
+                int i = 0;
+#if __ARM_NEON
+                for (; i + 3 < size; i += 4)
+                {
+                    float32x4_t _p = bfloat2float(vld1_u16(ptr));
+                    float32x4_t _sum = vld1q_f32(sumptr);
+                    _sum = vaddq_f32(_sum, _p);
+                    vst1q_f32(sumptr, _sum);
+                    ptr += 4;
+                    sumptr += 4;
+                }
+#endif // __ARM_NEON
+                for (; i < size; i++)
+                {
+                    *sumptr += bfloat16_to_float32(*ptr);
+                    ptr++;
+                    sumptr++;
+                }
+            }
+        }
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            unsigned short* ptr = bottom_top_blob.channel(q);
+            const float* sumptr = sum;
+
+#if __ARM_NEON
+            if (elempack == 4)
+            {
+                for (int i = 0; i < size; i++)
+                {
+                    float32x4_t _p = bfloat2float(vld1_u16(ptr));
+                    float32x4_t _sum = vdupq_n_f32(*sumptr);
+                    _p = div_ps(_p, _sum);
+                    vst1_u16(ptr, float2bfloat(_p));
+                    ptr += 4;
+                    sumptr++;
+                }
+            }
+#endif // __ARM_NEON
+            if (elempack == 1)
+            {
+                int i = 0;
+#if __ARM_NEON
+                for (; i + 3 < size; i += 4)
+                {
+                    float32x4_t _p = bfloat2float(vld1_u16(ptr));
+                    float32x4_t _sum = vld1q_f32(sumptr);
+                    _p = div_ps(_p, _sum);
+                    vst1_u16(ptr, float2bfloat(_p));
+                    ptr += 4;
+                    sumptr += 4;
+                }
+#endif // __ARM_NEON
+                for (; i < size; i++)
+                {
+                    *ptr = float32_to_bfloat16(bfloat16_to_float32(*ptr) / *sumptr);
+                    ptr++;
+                    sumptr++;
+                }
+            }
+        }
+    }
+
+    if (dims == 3 && positive_axis == 1)
+    {
+        const int w = bottom_top_blob.w;
+        const int h = bottom_top_blob.h;
+        const int channels = bottom_top_blob.c;
+        const int size = w * elempack;
+
+        Mat maxsum(w * elempack, channels, 2, 4u, opt.workspace_allocator);
+        if (maxsum.empty())
+            return -100;
+
+        Mat max = maxsum.channel(0);
+        max.fill(-FLT_MAX);
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            const unsigned short* ptr = bottom_top_blob.channel(q);
+
+            for (int i = 0; i < h; i++)
+            {
+                float* maxptr = max.row(q);
+
+                int j = 0;
+#if __ARM_NEON
+                for (; j + 3 < size; j += 4)
+                {
+                    float32x4_t _p = bfloat2float(vld1_u16(ptr));
+                    float32x4_t _max = vld1q_f32(maxptr);
+                    _max = vmaxq_f32(_max, _p);
+                    vst1q_f32(maxptr, _max);
+                    ptr += 4;
+                    maxptr += 4;
+                }
+#endif // __ARM_NEON
+                for (; j < size; j++)
+                {
+                    *maxptr = std::max(*maxptr, bfloat16_to_float32(*ptr));
+                    ptr++;
+                    maxptr++;
+                }
+            }
+        }
+
+        Mat sum = maxsum.channel(1);
+        sum.fill(0.f);
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            unsigned short* ptr = bottom_top_blob.channel(q);
+
+            for (int i = 0; i < h; i++)
+            {
+                const float* maxptr = max.row(q);
+                float* sumptr = sum.row(q);
+
+                int j = 0;
+#if __ARM_NEON
+                for (; j + 3 < size; j += 4)
+                {
+                    float32x4_t _p = bfloat2float(vld1_u16(ptr));
+                    float32x4_t _max = vld1q_f32(maxptr);
+                    float32x4_t _sum = vld1q_f32(sumptr);
+                    _p = exp_ps(vsubq_f32(_p, _max));
+                    vst1_u16(ptr, float2bfloat(_p));
+                    _sum = vaddq_f32(_sum, _p);
+                    vst1q_f32(sumptr, _sum);
+                    ptr += 4;
+                    maxptr += 4;
+                    sumptr += 4;
+                }
+#endif // __ARM_NEON
+                for (; j < size; j++)
+                {
+                    float v = (float)exp(bfloat16_to_float32(*ptr) - *maxptr);
+                    *ptr = float32_to_bfloat16(v);
+                    *sumptr += v;
+                    ptr++;
+                    maxptr++;
+                    sumptr++;
+                }
+            }
+        }
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            unsigned short* ptr = bottom_top_blob.channel(q);
+
+            for (int i = 0; i < h; i++)
+            {
+                const float* sumptr = sum.row(q);
+
+                int j = 0;
+#if __ARM_NEON
+                for (; j + 3 < size; j += 4)
+                {
+                    float32x4_t _p = bfloat2float(vld1_u16(ptr));
+                    float32x4_t _sum = vld1q_f32(sumptr);
+                    _p = div_ps(_p, _sum);
+                    vst1_u16(ptr, float2bfloat(_p));
+                    ptr += 4;
+                    sumptr += 4;
+                }
+#endif // __ARM_NEON
+                for (; j < size; j++)
+                {
+                    *ptr = float32_to_bfloat16(bfloat16_to_float32(*ptr) / *sumptr);
+                    ptr++;
+                    sumptr++;
+                }
+            }
+        }
+    }
+
+    if (dims == 3 && positive_axis == 2)
+    {
+        const int w = bottom_top_blob.w;
+        const int h = bottom_top_blob.h;
+        const int channels = bottom_top_blob.c;
+        const int size = w * elempack;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            for (int i = 0; i < h; i++)
+            {
+                float max = -FLT_MAX;
+#if __ARM_NEON
+                float32x4_t _max = vdupq_n_f32(-FLT_MAX);
+#endif // __ARM_NEON
+                {
+                    const unsigned short* ptr = bottom_top_blob.channel(q).row<const unsigned short>(i);
+
+                    int j = 0;
+#if __ARM_NEON
+                    for (; j + 3 < size; j += 4)
+                    {
+                        float32x4_t _p = bfloat2float(vld1_u16(ptr));
+                        _max = vmaxq_f32(_max, _p);
+                        ptr += 4;
+                    }
+#endif // __ARM_NEON
+                    for (; j < size; j++)
+                    {
+                        max = std::max(max, bfloat16_to_float32(*ptr));
+                        ptr++;
+                    }
+
+#if __ARM_NEON
+                    if (elempack == 1)
+                    {
+#if __aarch64__
+                        max = std::max(max, vmaxvq_f32(_max));
+#else
+                        float32x2_t _max2 = vmax_f32(vget_low_f32(_max), vget_high_f32(_max));
+                        float32x2_t _mm2 = vpmax_f32(_max2, _max2);
+                        max = std::max(max, vget_lane_f32(_mm2, 0));
+#endif
+                        _max = vdupq_n_f32(max);
+                    }
+#endif // __ARM_NEON
+                }
+
+                float sum = 0.f;
+#if __ARM_NEON
+                float32x4_t _sum = vdupq_n_f32(0.f);
+#endif // __ARM_NEON
+                {
+                    unsigned short* ptr = bottom_top_blob.channel(q).row<unsigned short>(i);
+
+                    int j = 0;
+#if __ARM_NEON
+                    for (; j + 3 < size; j += 4)
+                    {
+                        float32x4_t _p = bfloat2float(vld1_u16(ptr));
+                        _p = exp_ps(vsubq_f32(_p, _max));
+                        vst1_u16(ptr, float2bfloat(_p));
+                        _sum = vaddq_f32(_sum, _p);
+                        ptr += 4;
+                    }
+#endif // __ARM_NEON
+                    for (; j < size; j++)
+                    {
+                        float v = (float)exp(bfloat16_to_float32(*ptr) - max);
+                        *ptr = float32_to_bfloat16(v);
+                        sum += v;
+                        ptr++;
+                    }
+
+#if __ARM_NEON
+                    if (elempack == 1)
+                    {
+#if __aarch64__
+                        sum += vaddvq_f32(_sum);
+#else
+                        float32x2_t _sum2 = vadd_f32(vget_low_f32(_sum), vget_high_f32(_sum));
+                        float32x2_t _ss2 = vpadd_f32(_sum2, _sum2);
+                        sum += vget_lane_f32(_ss2, 0);
+#endif
+                        _sum = vdupq_n_f32(sum);
+                    }
+#endif // __ARM_NEON
+                }
+
+                {
+                    unsigned short* ptr = bottom_top_blob.channel(q).row<unsigned short>(i);
+
+                    int j = 0;
+#if __ARM_NEON
+                    float32x4_t _reciprocal_sum = vrecpeq_f32(_sum);
+                    _reciprocal_sum = vmulq_f32(vrecpsq_f32(_sum, _reciprocal_sum), _reciprocal_sum);
+                    for (; j + 3 < size; j += 4)
+                    {
+                        float32x4_t _p = bfloat2float(vld1_u16(ptr));
+                        _p = vmulq_f32(_p, _reciprocal_sum);
+                        vst1_u16(ptr, float2bfloat(_p));
+                        ptr += 4;
+                    }
+#endif // __ARM_NEON
+                    for (; j < size; j++)
+                    {
+                        *ptr = float32_to_bfloat16(bfloat16_to_float32(*ptr) / sum);
+                        ptr++;
+                    }
+                }
+            }
+        }
+    }
+
+    return 0;
+}
+#endif // NCNN_BF16
 
 } // namespace ncnn

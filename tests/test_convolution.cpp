@@ -48,6 +48,60 @@ static int test_convolution(int w, int h, int c, int outch, int kernel, int dila
         fprintf(stderr, "test_convolution failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%f,%f]\n", w, h, c, outch, kernel, dilation, stride, pad, bias, activation_type, activation_params[0], activation_params[1]);
     }
 
+    {
+        ncnn::Option opt;
+        opt.num_threads = 1;
+        opt.use_packing_layout = true;
+        opt.use_fp16_packed = false;
+        opt.use_fp16_storage = false;
+        opt.use_fp16_arithmetic = false;
+        opt.use_bf16_storage = false;
+        opt.use_shader_pack8 = false;
+        opt.use_image_storage = false;
+        opt.use_sgemm_convolution = false;
+        opt.use_winograd_convolution = false;
+
+        ret = test_layer_opt<ncnn::Convolution>("Convolution", pd, weights, opt, a, epsilon);
+        if (ret != 0)
+        {
+            fprintf(stderr, "test_convolution failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%f,%f]\n", w, h, c, outch, kernel, dilation, stride, pad, bias, activation_type, activation_params[0], activation_params[1]);
+        }
+    }
+
+    {
+        ncnn::Option opt;
+        opt.num_threads = 1;
+        opt.use_packing_layout = true;
+        opt.use_fp16_packed = true;
+        opt.use_fp16_storage = true;
+        opt.use_fp16_arithmetic = true;
+        opt.use_bf16_storage = true;
+        opt.use_shader_pack8 = true;
+        opt.use_image_storage = true;
+        opt.use_sgemm_convolution = false;
+        opt.use_winograd_convolution = false;
+
+        ret = test_layer_opt<ncnn::Convolution>("Convolution", pd, weights, opt, a, epsilon);
+        if (ret != 0)
+        {
+            fprintf(stderr, "test_convolution failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%f,%f]\n", w, h, c, outch, kernel, dilation, stride, pad, bias, activation_type, activation_params[0], activation_params[1]);
+        }
+    }
+
+#if __aarch64__
+    {
+        ncnn::Option opt;
+        opt.num_threads = 1;
+        opt.use_a53_a55_optimized_kernel = true;
+
+        ret = test_layer_opt<ncnn::Convolution>("Convolution", pd, weights, opt, a, epsilon);
+        if (ret != 0)
+        {
+            fprintf(stderr, "test_convolution failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%f,%f]\n", w, h, c, outch, kernel, dilation, stride, pad, bias, activation_type, activation_params[0], activation_params[1]);
+        }
+    }
+#endif // __aarch64__
+
     return ret;
 }
 
@@ -86,7 +140,7 @@ static int test_convolution_0()
                   || test_convolution(9, 7, 12, 12, k, d, s, p, 0)
                   || test_convolution(9, 7, 8, 12, k, d, s, p, 1)
                   || test_convolution(9, 7, 8, 13, k, d, s, p, 0)
-                  || test_convolution(9, 7, 13, 8, k, d, s, p, 1)
+                  || test_convolution(9, 7, 13, 24, k, d, s, p, 1)
                   || test_convolution(9, 7, 12, 16, k, d, s, p, 0)
                   || test_convolution(9, 7, 15, 15, k, d, s, p, 0)
                   || test_convolution(9, 7, 16, 16, k, d, s, p, 0)
@@ -96,7 +150,7 @@ static int test_convolution_0()
                   || test_convolution(18, 17, 12, 12, k, d, s, p, 0)
                   || test_convolution(18, 17, 8, 12, k, d, s, p, 1)
                   || test_convolution(18, 17, 8, 13, k, d, s, p, 0)
-                  || test_convolution(18, 17, 13, 8, k, d, s, p, 1)
+                  || test_convolution(18, 17, 13, 24, k, d, s, p, 1)
                   || test_convolution(18, 17, 12, 16, k, d, s, p, 0)
                   || test_convolution(18, 17, 15, 15, k, d, s, p, 0)
                   || test_convolution(18, 17, 16, 16, k, d, s, p, 0)
@@ -106,7 +160,7 @@ static int test_convolution_0()
                   || test_convolution(25, 33, 12, 12, k, d, s, p, 0)
                   || test_convolution(25, 33, 8, 12, k, d, s, p, 1)
                   || test_convolution(25, 33, 8, 13, k, d, s, p, 0)
-                  || test_convolution(25, 33, 13, 8, k, d, s, p, 1)
+                  || test_convolution(25, 33, 13, 24, k, d, s, p, 1)
                   || test_convolution(25, 33, 12, 16, k, d, s, p, 0)
                   || test_convolution(25, 33, 15, 15, k, d, s, p, 0)
                   || test_convolution(25, 33, 16, 16, k, d, s, p, 0);

@@ -93,7 +93,8 @@ void main()
             }
             else
             {
-                image3d_st4(top_blob, ivec3(gx, 0, 0), afpvec4(value));
+                v = afpvec4(value);
+                image3d_st4(top_blob, ivec3(gx, 0, 0), v);
             }
 #else
             if (x >= 0 && x < psc(w) * 2)
@@ -102,7 +103,10 @@ void main()
             }
             else
             {
-                buffer_st4(top_blob_data, gx, afpvec4(value));
+                // nvidia driver is unhappy if we do not touch the v variable here  :<
+                v = afpvec4(value);
+                buffer_st4(top_blob_data, gx, v);
+                // buffer_st4(top_blob_data, gx, afpvec4(value));
             }
 #endif
         }

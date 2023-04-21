@@ -54,12 +54,12 @@ pnnx.Output             output      1 0 out
         float c1 = 1.f;
 
         if (captured_params.at("c0").type == 2)
-            c0 = captured_params.at("c0").i;
+            c0 = (float)captured_params.at("c0").i;
         if (captured_params.at("c0").type == 3)
             c0 = captured_params.at("c0").f;
 
         if (captured_params.at("c1").type == 2)
-            c1 = captured_params.at("c1").i;
+            c1 = (float)captured_params.at("c1").i;
         if (captured_params.at("c1").type == 3)
             c1 = captured_params.at("c1").f;
 
@@ -99,7 +99,7 @@ pnnx.Output             output      1 0 out
         float c1 = 1.f;
 
         if (captured_params.at("c0").type == 2)
-            c0 = captured_params.at("c0").i;
+            c0 = (float)captured_params.at("c0").i;
         if (captured_params.at("c0").type == 3)
             c0 = captured_params.at("c0").f;
 
@@ -139,7 +139,7 @@ pnnx.Output             output      1 0 out
         float c1 = 1.f;
 
         if (captured_params.at("c1").type == 2)
-            c1 = captured_params.at("c1").i;
+            c1 = (float)captured_params.at("c1").i;
         if (captured_params.at("c1").type == 3)
             c1 = captured_params.at("c1").f;
 

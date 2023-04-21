@@ -29,6 +29,9 @@ class Model(nn.Module):
         self.deconv_6 = nn.ConvTranspose2d(in_channels=32, out_channels=28, kernel_size=2, stride=1, padding=2, output_padding=0, dilation=1, groups=1, bias=False)
         self.deconv_7 = nn.ConvTranspose2d(in_channels=28, out_channels=24, kernel_size=3, stride=2, padding=(5,6), output_padding=(1,0), dilation=2, groups=1, bias=True)
 
+        self.downsample = nn.Conv2d(24, 16, 3, stride=2, padding=1)
+        self.upsample = nn.ConvTranspose2d(16, 24, 3, stride=2, padding=1)
+
     def forward(self, x):
         x = self.deconv_0(x)
         x = self.deconv_1(x)
@@ -38,6 +41,9 @@ class Model(nn.Module):
         x = self.deconv_5(x)
         x = self.deconv_6(x)
         x = self.deconv_7(x)
+
+        y = self.downsample(x)
+        x = self.upsample(y, output_size=x.size())
 
         return x
 

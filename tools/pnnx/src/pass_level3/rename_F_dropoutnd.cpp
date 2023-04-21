@@ -28,7 +28,7 @@ void rename_F_dropoutnd(Graph& graph)
 
         Operand* r = op->inputs[0];
 
-        int input_rank = r->shape.size();
+        size_t input_rank = r->shape.size();
         if (input_rank == 4)
         {
             op->type = "F.dropout2d";
