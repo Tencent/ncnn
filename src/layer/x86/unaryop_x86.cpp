@@ -106,17 +106,17 @@ struct unary_op_abs
 #if __SSE2__
     __m128 func_pack4(const __m128& x) const
     {
-        return abs_sse(x);
+        return abs_ps(x);
     }
 #if __AVX__
     __m256 func_pack8(const __m256& x) const
     {
-        return abs_avx(x);
+        return abs256_ps(x);
     }
 #if __AVX512F__
     __m512 func_pack16(const __m512& x) const
     {
-        return abs_avx512(x);
+        return abs512_ps(x);
     }
 #endif // __AVX512F__
 #endif // __AVX__
