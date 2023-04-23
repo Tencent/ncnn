@@ -93,6 +93,10 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_gemm = new Pipeline(vkdev);
         pipeline_gemm->set_optimal_local_size_xyz(local_size_xyz);
+        if (opt.use_shader_local_memory)
+        {
+            pipeline_gemm->set_local_size_xyz(8, 8, 1);
+        }
         pipeline_gemm->create(LayerShaderType::gemm, opt, specializations);
     }
 
@@ -253,8 +257,8 @@ int Gemm_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
     const Pipeline* pipeline = pipeline_gemm;
 
     VkMat dispatcher;
-    dispatcher.w = N;
-    dispatcher.h = M;
+    dispatcher.w = (N + 1) / 2;
+    dispatcher.h = (M + 1) / 2;
     dispatcher.c = 1;
     cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
 
@@ -372,8 +376,8 @@ int Gemm_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vecto
     const Pipeline* pipeline = pipeline_gemm;
 
     VkImageMat dispatcher;
-    dispatcher.w = N;
-    dispatcher.h = M;
+    dispatcher.w = (N + 1) / 2;
+    dispatcher.h = (M + 1) / 2;
     dispatcher.c = 1;
     cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
 
