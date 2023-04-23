@@ -336,8 +336,10 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkMat>& bottom_blobs, s
         constants[3].i = B;
 
         VkMat dispatcher;
-        dispatcher.w = (N + 1) / 2;
-        dispatcher.h = (M + 1) / 2;
+        // dispatcher.w = (N + 1) / 2;
+        // dispatcher.h = (M + 1) / 2;
+        dispatcher.w = (N + 3) / 4;
+        dispatcher.h = (M + 3) / 4;
         dispatcher.c = B;
         cmd.record_pipeline(pipeline_multiheadattention_qk_gemm, bindings, constants, dispatcher);
     }
@@ -378,12 +380,15 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkMat>& bottom_blobs, s
         constants[3].i = B;
 
         VkMat dispatcher;
-        dispatcher.w = (N + 1) / 2;
-        dispatcher.h = (M + 1) / 2;
+        // dispatcher.w = (N + 1) / 2;
+        // dispatcher.h = (M + 1) / 2;
+        dispatcher.w = (N + 3) / 4;
+        dispatcher.h = (M + 3) / 4;
         dispatcher.c = B;
         cmd.record_pipeline(pipeline_multiheadattention_qkv_gemm, bindings, constants, dispatcher);
     }
 
+    qk_cross.release();
     v_affine.release();
 
     std::vector<VkMat> o_gemm_inputs(1);
@@ -441,8 +446,10 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkImageMat>& bottom_blo
         constants[3].i = B;
 
         VkImageMat dispatcher;
-        dispatcher.w = (N + 1) / 2;
-        dispatcher.h = (M + 1) / 2;
+        // dispatcher.w = (N + 1) / 2;
+        // dispatcher.h = (M + 1) / 2;
+        dispatcher.w = (N + 3) / 4;
+        dispatcher.h = (M + 3) / 4;
         dispatcher.c = B;
         cmd.record_pipeline(pipeline_multiheadattention_qk_gemm, bindings, constants, dispatcher);
     }
@@ -482,12 +489,15 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkImageMat>& bottom_blo
         constants[3].i = B;
 
         VkImageMat dispatcher;
-        dispatcher.w = (N + 1) / 2;
-        dispatcher.h = (M + 1) / 2;
+        // dispatcher.w = (N + 1) / 2;
+        // dispatcher.h = (M + 1) / 2;
+        dispatcher.w = (N + 3) / 4;
+        dispatcher.h = (M + 3) / 4;
         dispatcher.c = B;
         cmd.record_pipeline(pipeline_multiheadattention_qkv_gemm, bindings, constants, dispatcher);
     }
 
+    qk_cross.release();
     v_affine.release();
 
     std::vector<VkImageMat> o_gemm_inputs(1);
