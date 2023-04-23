@@ -270,9 +270,12 @@ int Gemm_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
     if (output_elempack)
         out_elempack = output_elempack;
 
-    VkMat top_blob0;
-    vkdev->convert_packing(top_blob, top_blob0, out_elempack, cmd, opt);
-    top_blobs[0] = top_blob0;
+    if (out_elempack != 1)
+    {
+        VkMat top_blob0;
+        vkdev->convert_packing(top_blob, top_blob0, out_elempack, cmd, opt);
+        top_blobs[0] = top_blob0;
+    }
 
     return 0;
 }
@@ -389,9 +392,12 @@ int Gemm_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vecto
     if (output_elempack)
         out_elempack = output_elempack;
 
-    VkImageMat top_blob0;
-    vkdev->convert_packing(top_blob, top_blob0, out_elempack, cmd, opt);
-    top_blobs[0] = top_blob0;
+    if (out_elempack != 1)
+    {
+        VkImageMat top_blob0;
+        vkdev->convert_packing(top_blob, top_blob0, out_elempack, cmd, opt);
+        top_blobs[0] = top_blob0;
+    }
 
     return 0;
 }

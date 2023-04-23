@@ -39,13 +39,10 @@ public:
     Layer* v_gemm;
     Layer* o_gemm;
 
-    Layer* qk_gemm;
-    Layer* qkv_gemm;
-
     Layer* qk_softmax;
 
-    Layer* slice;
-    Layer* concat;
+    Pipeline* pipeline_multiheadattention_qk_gemm;
+    Pipeline* pipeline_multiheadattention_qkv_gemm;
 };
 
 } // namespace ncnn
