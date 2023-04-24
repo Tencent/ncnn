@@ -58,7 +58,7 @@ int MultiHeadAttention_vulkan::create_pipeline(const Option& opt)
         pd.set(10, 1);        // constant_broadcast_type_C
         pd.set(11, 0);        // output_N1M
         pd.set(12, 1);        // output_elempack
-        pd.set(14, 0);        // output_transpose
+        pd.set(14, 0); // output_transpose
         q_gemm->load_param(pd);
         Mat weights[2];
         weights[0] = q_weight_data;
@@ -88,7 +88,7 @@ int MultiHeadAttention_vulkan::create_pipeline(const Option& opt)
         pd.set(10, 1);        // constant_broadcast_type_C
         pd.set(11, 0);        // output_N1M
         pd.set(12, 1);        // output_elempack
-        pd.set(14, 0);        // output_transpose
+        pd.set(14, 0); // output_transpose
         k_gemm->load_param(pd);
         Mat weights[2];
         weights[0] = k_weight_data;
@@ -118,7 +118,7 @@ int MultiHeadAttention_vulkan::create_pipeline(const Option& opt)
         pd.set(10, 1);        // constant_broadcast_type_C
         pd.set(11, 0);        // output_N1M
         pd.set(12, 1);        // output_elempack
-        pd.set(14, 0);        // output_transpose
+        pd.set(14, 0); // output_transpose
         v_gemm->load_param(pd);
         Mat weights[2];
         weights[0] = v_weight_data;
@@ -135,12 +135,12 @@ int MultiHeadAttention_vulkan::create_pipeline(const Option& opt)
 
     {
         std::vector<vk_specialization_type> specializations(7);
-        specializations[0].i = 1;                  //transA;
-        specializations[1].i = 0;                  //transB;
-        specializations[2].i = 0;                  //output_transpose;
-        specializations[3].i = 0;                  //constantM;
-        specializations[4].i = 0;                  //constantN;
-        specializations[5].i = embed_dim_per_head; //constantK;
+        specializations[0].i = 1;//transA;
+        specializations[1].i = 0;//transB;
+        specializations[2].i = 0;//output_transpose;
+        specializations[3].i = 0;//constantM;
+        specializations[4].i = 0;//constantN;
+        specializations[5].i = embed_dim_per_head;//constantK;
         specializations[6].i = num_head;
 
         Mat local_size_xyz;
@@ -156,12 +156,12 @@ int MultiHeadAttention_vulkan::create_pipeline(const Option& opt)
     }
     {
         std::vector<vk_specialization_type> specializations(7);
-        specializations[0].i = 0;                  //transA;
-        specializations[1].i = 1;                  //transB;
-        specializations[2].i = 1;                  //output_transpose;
-        specializations[3].i = 0;                  //constantM;
-        specializations[4].i = embed_dim_per_head; //constantN;
-        specializations[5].i = 0;                  //constantK;
+        specializations[0].i = 0;//transA;
+        specializations[1].i = 1;//transB;
+        specializations[2].i = 1;//output_transpose;
+        specializations[3].i = 0;//constantM;
+        specializations[4].i = embed_dim_per_head;//constantN;
+        specializations[5].i = 0;//constantK;
         specializations[6].i = num_head;
 
         Mat local_size_xyz;
