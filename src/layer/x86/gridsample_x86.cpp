@@ -229,10 +229,10 @@ struct compute_coord<GridSample::Padding_REFLECTION, /*align_corner*/ false>
 int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     using namespace GridSample_x86_kernel;
-    const Mat& bottom_blob = bottom_blobs[0];
+    Mat& bottom_blob = bottom_blobs[0].clone();
     const Mat& grid = bottom_blobs[1];
     Mat& top_blob = top_blobs[0];
-    const int elempack = bottom_blob.elempack;
+    int elempack = bottom_blob.elempack;
 
     int channels = bottom_blob.c;
     int dims = bottom_blob.dims;
@@ -557,6 +557,12 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 #if __SSE2__
 #if __AVX__
 #if __AVX512F__
+    ncnn::Mat b_blob;
+    if (elempack == 16)
+    {
+        ncnn::convert_packing(bottom_blob, bottom_blob, 8, opt);
+        elempack = 8;
+    }
     if (elempack == 16)
     {
         if (dims == 3)
