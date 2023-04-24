@@ -18,11 +18,6 @@ struct gridsample_2d_bilinear_compute_blob
     void operator()(const Mat& src, const Mat& grid, Mat& offset, Mat& in_bound, Mat& value, int permute_fusion, const Option& opt)
     {
         const int grid_size = grid.w * grid.h;
-#if __AVX__
-        const __m256 vImgWf = _mm256_set1_ps(src.w);
-        const __m256 vImgHf = _mm256_set1_ps(src.h);
-        const __m256 vElempackf = _mm256_set1_ps(src.elempack);
-#endif // __AVX__
 
         float* offset_ptr_00 = offset.channel(0);
         float* offset_ptr_01 = offset.channel(1);
@@ -61,29 +56,30 @@ struct gridsample_2d_bilinear_compute_blob
                     // compute coord
                     {
                         // x
-                        gx = unormalize(vImgWf, gx);
-                        gx = get_coord(vImgWf, gx);
+                        gx = unormalize(_mm256_set1_ps(src.w), gx);
+                        gx = get_coord(_mm256_set1_ps(src.w), gx);
 
                         // y
-                        gy = unormalize(vImgHf, gy);
-                        gy = get_coord(vImgHf, gy);
+                        gy = unormalize(_mm256_set1_ps(src.h), gy);
+                        gy = get_coord(_mm256_set1_ps(src.h), gy);
                     }
 
                     __m256 x_w = _mm256_floor_ps(gx);
                     __m256 y_n = _mm256_floor_ps(gy);
 
-                    __m256 x1 = _mm256_add_ps(x_w, *(__m256*)_ps256_1);
-                    __m256 y1 = _mm256_add_ps(y_n, *(__m256*)_ps256_1);
+                    __m256 x1 = _mm256_add_ps(x_w, _mm256_set1_ps(1));
+                    __m256 y1 = _mm256_add_ps(y_n, _mm256_set1_ps(1));
 
-                    __m256 x1_in_range = _mm256_and_ps(_mm256_cmp_ps(x1, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgWf, x1, _CMP_GT_OS));
-                    __m256 y1_in_range = _mm256_and_ps(_mm256_cmp_ps(y1, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgHf, y1, _CMP_GT_OS));
+                    __m256 x1_in_range = _mm256_and_ps(_mm256_cmp_ps(x1, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.w), x1, _CMP_GT_OS));
+                    __m256 y1_in_range = _mm256_and_ps(_mm256_cmp_ps(y1, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.h), y1, _CMP_GT_OS));
 
                     __m256 v11_in_range = _mm256_and_ps(x1_in_range, y1_in_range);
 
-                    __m256 nw_offset = _mm256_mul_ps(_mm256_comp_fmadd_ps(y_n, vImgWf, x_w), vElempackf);
-                    __m256 ne_offset = _mm256_add_ps(nw_offset, vElempackf);
-                    __m256 sw_offset = _mm256_comp_fmadd_ps(vImgWf, vElempackf, nw_offset);
-                    __m256 se_offset = _mm256_add_ps(sw_offset, vElempackf);
+                    volatile float epack = src.elempack;
+                    __m256 nw_offset = _mm256_mul_ps(_mm256_comp_fmadd_ps(y_n, _mm256_set1_ps(src.w), x_w), _mm256_set1_ps(epack));
+                    __m256 ne_offset = _mm256_add_ps(nw_offset, _mm256_set1_ps(epack));
+                    __m256 sw_offset = _mm256_comp_fmadd_ps(_mm256_set1_ps(src.w), _mm256_set1_ps(epack), nw_offset);
+                    __m256 se_offset = _mm256_add_ps(sw_offset, _mm256_set1_ps(epack));
 
                     _mm256_storeu_ps(in_bound_ptr_01, x1_in_range);
                     _mm256_storeu_ps(in_bound_ptr_10, y1_in_range);
@@ -181,29 +177,30 @@ struct gridsample_2d_bilinear_compute_blob
                 // compute coord
                 {
                     // x
-                    gx = unormalize(vImgWf, gx);
-                    gx = get_coord(vImgWf, gx);
+                    gx = unormalize(_mm256_set1_ps(src.w), gx);
+                    gx = get_coord(_mm256_set1_ps(src.w), gx);
 
                     // y
-                    gy = unormalize(vImgHf, gy);
-                    gy = get_coord(vImgHf, gy);
+                    gy = unormalize(_mm256_set1_ps(src.h), gy);
+                    gy = get_coord(_mm256_set1_ps(src.h), gy);
                 }
 
                 __m256 x_w = _mm256_floor_ps(gx);
                 __m256 y_n = _mm256_floor_ps(gy);
 
-                __m256 x1 = _mm256_add_ps(x_w, *(__m256*)_ps256_1);
-                __m256 y1 = _mm256_add_ps(y_n, *(__m256*)_ps256_1);
+                __m256 x1 = _mm256_add_ps(x_w, _mm256_set1_ps(1));
+                __m256 y1 = _mm256_add_ps(y_n, _mm256_set1_ps(1));
 
-                __m256 x1_in_range = _mm256_and_ps(_mm256_cmp_ps(x1, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgWf, x1, _CMP_GT_OS));
-                __m256 y1_in_range = _mm256_and_ps(_mm256_cmp_ps(y1, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgHf, y1, _CMP_GT_OS));
+                __m256 x1_in_range = _mm256_and_ps(_mm256_cmp_ps(x1, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.w), x1, _CMP_GT_OS));
+                __m256 y1_in_range = _mm256_and_ps(_mm256_cmp_ps(y1, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.h), y1, _CMP_GT_OS));
 
                 __m256 v11_in_range = _mm256_and_ps(x1_in_range, y1_in_range);
 
-                __m256 nw_offset = _mm256_mul_ps(_mm256_add_ps(_mm256_mul_ps(y_n, vImgWf), x_w), vElempackf);
-                __m256 ne_offset = _mm256_add_ps(nw_offset, vElempackf);
-                __m256 sw_offset = _mm256_add_ps(nw_offset, _mm256_mul_ps(vImgWf, vElempackf));
-                __m256 se_offset = _mm256_add_ps(sw_offset, vElempackf);
+                volatile float epack = src.elempack;
+                __m256 nw_offset = _mm256_mul_ps(_mm256_add_ps(_mm256_mul_ps(y_n, _mm256_set1_ps(src.w)), x_w), _mm256_set1_ps(epack));
+                __m256 ne_offset = _mm256_add_ps(nw_offset, _mm256_set1_ps(epack));
+                __m256 sw_offset = _mm256_add_ps(nw_offset, _mm256_mul_ps(_mm256_set1_ps(src.w), _mm256_set1_ps(epack)));
+                __m256 se_offset = _mm256_add_ps(sw_offset, _mm256_set1_ps(epack));
 
                 _mm256_storeu_ps(in_bound_ptr_01, x1_in_range);
                 _mm256_storeu_ps(in_bound_ptr_10, y1_in_range);
@@ -296,11 +293,6 @@ struct gridsample_2d_bilinear_compute_blob<GridSample::Padding_ZEROS, align_corn
     void operator()(const Mat& src, const Mat& grid, Mat& offset, Mat& in_bound, Mat& value, int permute_fusion, const Option& opt)
     {
         const int grid_size = grid.w * grid.h;
-#if __AVX__
-        const __m256 vImgWf = _mm256_set1_ps(src.w);
-        const __m256 vImgHf = _mm256_set1_ps(src.h);
-        const __m256 vElempackf = _mm256_set1_ps(src.elempack);
-#endif // __AVX__
 
         float* offset_ptr_00 = offset.channel(0);
         float* offset_ptr_01 = offset.channel(1);
@@ -339,31 +331,32 @@ struct gridsample_2d_bilinear_compute_blob<GridSample::Padding_ZEROS, align_corn
                     // compute coord
                     {
                         // x
-                        gx = unormalize(vImgWf, gx);
+                        gx = unormalize(_mm256_set1_ps(src.w), gx);
                         // y
-                        gy = unormalize(vImgHf, gy);
+                        gy = unormalize(_mm256_set1_ps(src.h), gy);
                     }
 
                     __m256 x_w = _mm256_floor_ps(gx);
                     __m256 y_n = _mm256_floor_ps(gy);
 
-                    __m256 x1 = _mm256_add_ps(x_w, *(__m256*)_ps256_1);
-                    __m256 y1 = _mm256_add_ps(y_n, *(__m256*)_ps256_1);
+                    __m256 x1 = _mm256_add_ps(x_w, _mm256_set1_ps(1));
+                    __m256 y1 = _mm256_add_ps(y_n, _mm256_set1_ps(1));
 
-                    __m256 x0_in_range = _mm256_and_ps(_mm256_cmp_ps(x_w, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgWf, x_w, _CMP_GT_OS));
-                    __m256 x1_in_range = _mm256_and_ps(_mm256_cmp_ps(x1, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgWf, x1, _CMP_GT_OS));
-                    __m256 y0_in_range = _mm256_and_ps(_mm256_cmp_ps(y_n, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgHf, y_n, _CMP_GT_OS));
-                    __m256 y1_in_range = _mm256_and_ps(_mm256_cmp_ps(y1, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgHf, y1, _CMP_GT_OS));
+                    __m256 x0_in_range = _mm256_and_ps(_mm256_cmp_ps(x_w, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.w), x_w, _CMP_GT_OS));
+                    __m256 x1_in_range = _mm256_and_ps(_mm256_cmp_ps(x1, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.w), x1, _CMP_GT_OS));
+                    __m256 y0_in_range = _mm256_and_ps(_mm256_cmp_ps(y_n, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.h), y_n, _CMP_GT_OS));
+                    __m256 y1_in_range = _mm256_and_ps(_mm256_cmp_ps(y1, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.h), y1, _CMP_GT_OS));
 
                     __m256 v00_in_range = _mm256_and_ps(x0_in_range, y0_in_range);
                     __m256 v01_in_range = _mm256_and_ps(x1_in_range, y0_in_range);
                     __m256 v10_in_range = _mm256_and_ps(x0_in_range, y1_in_range);
                     __m256 v11_in_range = _mm256_and_ps(x1_in_range, y1_in_range);
 
-                    __m256 nw_offset = _mm256_mul_ps(_mm256_comp_fmadd_ps(y_n, vImgWf, x_w), vElempackf);
-                    __m256 ne_offset = _mm256_add_ps(nw_offset, vElempackf);
-                    __m256 sw_offset = _mm256_comp_fmadd_ps(vImgWf, vElempackf, nw_offset);
-                    __m256 se_offset = _mm256_add_ps(sw_offset, vElempackf);
+                    volatile float epack = src.elempack;
+                    __m256 nw_offset = _mm256_mul_ps(_mm256_comp_fmadd_ps(y_n, _mm256_set1_ps(src.w), x_w), _mm256_set1_ps(epack));
+                    __m256 ne_offset = _mm256_add_ps(nw_offset, _mm256_set1_ps(epack));
+                    __m256 sw_offset = _mm256_comp_fmadd_ps(_mm256_set1_ps(src.w), _mm256_set1_ps(epack), nw_offset);
+                    __m256 se_offset = _mm256_add_ps(sw_offset, _mm256_set1_ps(epack));
 
                     _mm256_storeu_ps(in_bound_ptr_00, v00_in_range);
                     _mm256_storeu_ps(in_bound_ptr_01, v01_in_range);
@@ -467,31 +460,32 @@ struct gridsample_2d_bilinear_compute_blob<GridSample::Padding_ZEROS, align_corn
                 // compute coord
                 {
                     // x
-                    gx = unormalize(vImgWf, gx);
+                    gx = unormalize(_mm256_set1_ps(src.w), gx);
                     // y
-                    gy = unormalize(vImgHf, gy);
+                    gy = unormalize(_mm256_set1_ps(src.h), gy);
                 }
 
                 __m256 x_w = _mm256_floor_ps(gx);
                 __m256 y_n = _mm256_floor_ps(gy);
 
-                __m256 x1 = _mm256_add_ps(x_w, *(__m256*)_ps256_1);
-                __m256 y1 = _mm256_add_ps(y_n, *(__m256*)_ps256_1);
+                __m256 x1 = _mm256_add_ps(x_w, _mm256_set1_ps(1));
+                __m256 y1 = _mm256_add_ps(y_n, _mm256_set1_ps(1));
 
-                __m256 x0_in_range = _mm256_and_ps(_mm256_cmp_ps(x_w, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgWf, x_w, _CMP_GT_OS));
-                __m256 x1_in_range = _mm256_and_ps(_mm256_cmp_ps(x1, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgWf, x1, _CMP_GT_OS));
-                __m256 y0_in_range = _mm256_and_ps(_mm256_cmp_ps(y_n, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgHf, y_n, _CMP_GT_OS));
-                __m256 y1_in_range = _mm256_and_ps(_mm256_cmp_ps(y1, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgHf, y1, _CMP_GT_OS));
+                __m256 x0_in_range = _mm256_and_ps(_mm256_cmp_ps(x_w, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.w), x_w, _CMP_GT_OS));
+                __m256 x1_in_range = _mm256_and_ps(_mm256_cmp_ps(x1, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.w), x1, _CMP_GT_OS));
+                __m256 y0_in_range = _mm256_and_ps(_mm256_cmp_ps(y_n, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.h), y_n, _CMP_GT_OS));
+                __m256 y1_in_range = _mm256_and_ps(_mm256_cmp_ps(y1, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.h), y1, _CMP_GT_OS));
 
                 __m256 v00_in_range = _mm256_and_ps(x0_in_range, y0_in_range);
                 __m256 v01_in_range = _mm256_and_ps(x1_in_range, y0_in_range);
                 __m256 v10_in_range = _mm256_and_ps(x0_in_range, y1_in_range);
                 __m256 v11_in_range = _mm256_and_ps(x1_in_range, y1_in_range);
 
-                __m256 nw_offset = _mm256_mul_ps(_mm256_comp_fmadd_ps(y_n, vImgWf, x_w), vElempackf);
-                __m256 ne_offset = _mm256_add_ps(nw_offset, vElempackf);
-                __m256 sw_offset = _mm256_comp_fmadd_ps(vImgWf, vElempackf, nw_offset);
-                __m256 se_offset = _mm256_add_ps(sw_offset, vElempackf);
+                volatile float epack = src.elempack;
+                __m256 nw_offset = _mm256_mul_ps(_mm256_comp_fmadd_ps(y_n, _mm256_set1_ps(src.w), x_w), _mm256_set1_ps(epack));
+                __m256 ne_offset = _mm256_add_ps(nw_offset, _mm256_set1_ps(epack));
+                __m256 sw_offset = _mm256_comp_fmadd_ps(_mm256_set1_ps(src.w), _mm256_set1_ps(epack), nw_offset);
+                __m256 se_offset = _mm256_add_ps(sw_offset, _mm256_set1_ps(epack));
 
                 _mm256_storeu_ps(in_bound_ptr_00, v00_in_range);
                 _mm256_storeu_ps(in_bound_ptr_01, v01_in_range);
@@ -587,12 +581,6 @@ struct gridsample_3d_bilinear_compute_blob
     void operator()(const Mat& src, const Mat& grid, Mat& offset, Mat& in_bound, Mat& value, int permute_fusion, const Option& opt)
     {
         const int grid_size = grid.w * grid.h * grid.d;
-#if __AVX__
-        const __m256 vImgWf = _mm256_set1_ps(src.w);
-        const __m256 vImgHf = _mm256_set1_ps(src.h);
-        const __m256 vImgDf = _mm256_set1_ps(src.d);
-        const __m256 vElempackf = _mm256_set1_ps(src.elempack);
-#endif // __AVX__
 
         float* offset_ptr_000 = offset.channel(0);
         float* offset_ptr_001 = offset.channel(1);
@@ -646,30 +634,30 @@ struct gridsample_3d_bilinear_compute_blob
 
                     // compute coord
                     {
-                        gx = unormalize(vImgWf, gx);
-                        gx = get_coord(vImgWf, gx);
+                        gx = unormalize(_mm256_set1_ps(src.w), gx);
+                        gx = get_coord(_mm256_set1_ps(src.w), gx);
 
-                        gy = unormalize(vImgHf, gy);
-                        gy = get_coord(vImgHf, gy);
+                        gy = unormalize(_mm256_set1_ps(src.h), gy);
+                        gy = get_coord(_mm256_set1_ps(src.h), gy);
 
-                        gz = unormalize(vImgDf, gz);
-                        gz = get_coord(vImgDf, gz);
+                        gz = unormalize(_mm256_set1_ps(src.d), gz);
+                        gz = get_coord(_mm256_set1_ps(src.d), gz);
                     }
 
                     __m256 x_w = _mm256_floor_ps(gx);
                     __m256 y_n = _mm256_floor_ps(gy);
                     __m256 z_t = _mm256_floor_ps(gz);
 
-                    __m256 x1 = _mm256_add_ps(x_w, *(__m256*)_ps256_1);
-                    __m256 y1 = _mm256_add_ps(y_n, *(__m256*)_ps256_1);
-                    __m256 z1 = _mm256_add_ps(z_t, *(__m256*)_ps256_1);
+                    __m256 x1 = _mm256_add_ps(x_w, _mm256_set1_ps(1));
+                    __m256 y1 = _mm256_add_ps(y_n, _mm256_set1_ps(1));
+                    __m256 z1 = _mm256_add_ps(z_t, _mm256_set1_ps(1));
 
-                    __m256 x0_in_range = _mm256_and_ps(_mm256_cmp_ps(x_w, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgWf, x_w, _CMP_GT_OS));
-                    __m256 x1_in_range = _mm256_and_ps(_mm256_cmp_ps(x1, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgWf, x1, _CMP_GT_OS));
-                    __m256 y0_in_range = _mm256_and_ps(_mm256_cmp_ps(y_n, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgHf, y_n, _CMP_GT_OS));
-                    __m256 y1_in_range = _mm256_and_ps(_mm256_cmp_ps(y1, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgHf, y1, _CMP_GT_OS));
-                    __m256 z0_in_range = _mm256_and_ps(_mm256_cmp_ps(z_t, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgDf, z_t, _CMP_GT_OS));
-                    __m256 z1_in_range = _mm256_and_ps(_mm256_cmp_ps(z1, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgDf, z1, _CMP_GT_OS));
+                    __m256 x0_in_range = _mm256_and_ps(_mm256_cmp_ps(x_w, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.w), x_w, _CMP_GT_OS));
+                    __m256 x1_in_range = _mm256_and_ps(_mm256_cmp_ps(x1, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.w), x1, _CMP_GT_OS));
+                    __m256 y0_in_range = _mm256_and_ps(_mm256_cmp_ps(y_n, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.h), y_n, _CMP_GT_OS));
+                    __m256 y1_in_range = _mm256_and_ps(_mm256_cmp_ps(y1, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.h), y1, _CMP_GT_OS));
+                    __m256 z0_in_range = _mm256_and_ps(_mm256_cmp_ps(z_t, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.d), z_t, _CMP_GT_OS));
+                    __m256 z1_in_range = _mm256_and_ps(_mm256_cmp_ps(z1, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.d), z1, _CMP_GT_OS));
 
                     __m256 v011_in_range, v110_in_range, v101_in_range, v111_in_range;
                     {
@@ -679,19 +667,20 @@ struct gridsample_3d_bilinear_compute_blob
                         v111_in_range = _mm256_and_ps(v011_in_range, z1_in_range);
                     }
 
-                    __m256 tnw_offset = _mm256_mul_ps(_mm256_comp_fmadd_ps(_mm256_mul_ps(vImgWf, vImgHf), z_t,
-                                                      _mm256_comp_fmadd_ps(y_n, vImgWf, x_w)),
-                                                      vElempackf);
-                    __m256 tne_offset = _mm256_add_ps(tnw_offset, vElempackf);
-                    __m256 tsw_offset = _mm256_add_ps(tnw_offset, _mm256_mul_ps(vImgWf, vElempackf));
-                    __m256 tse_offset = _mm256_add_ps(tsw_offset, vElempackf);
+                    volatile float epack = src.elempack;
+                    __m256 tnw_offset = _mm256_mul_ps(_mm256_comp_fmadd_ps(_mm256_mul_ps(_mm256_set1_ps(src.w), _mm256_set1_ps(src.h)), z_t,
+                                                      _mm256_comp_fmadd_ps(y_n, _mm256_set1_ps(src.w), x_w)),
+                                                      _mm256_set1_ps(epack));
+                    __m256 tne_offset = _mm256_add_ps(tnw_offset, _mm256_set1_ps(epack));
+                    __m256 tsw_offset = _mm256_add_ps(tnw_offset, _mm256_mul_ps(_mm256_set1_ps(src.w), _mm256_set1_ps(epack)));
+                    __m256 tse_offset = _mm256_add_ps(tsw_offset, _mm256_set1_ps(epack));
 
-                    __m256 bnw_offset = _mm256_comp_fmadd_ps(_mm256_mul_ps(vImgWf, vImgHf), vElempackf, tnw_offset);
-                    __m256 bne_offset = _mm256_add_ps(bnw_offset, vElempackf);
-                    __m256 bsw_offset = _mm256_add_ps(bnw_offset, _mm256_mul_ps(vImgWf, vElempackf));
-                    __m256 bse_offset = _mm256_add_ps(bsw_offset, vElempackf);
+                    __m256 bnw_offset = _mm256_comp_fmadd_ps(_mm256_mul_ps(_mm256_set1_ps(src.w), _mm256_set1_ps(src.h)), _mm256_set1_ps(epack), tnw_offset);
+                    __m256 bne_offset = _mm256_add_ps(bnw_offset, _mm256_set1_ps(epack));
+                    __m256 bsw_offset = _mm256_add_ps(bnw_offset, _mm256_mul_ps(_mm256_set1_ps(src.w), _mm256_set1_ps(epack)));
+                    __m256 bse_offset = _mm256_add_ps(bsw_offset, _mm256_set1_ps(epack));
 
-                    _mm256_storeu_ps(in_bound_ptr_000, *(__m256*)_ps256_n1);
+                    _mm256_storeu_ps(in_bound_ptr_000, _mm256_set1_ps(-1));
                     _mm256_storeu_ps(in_bound_ptr_001, x1_in_range);
                     _mm256_storeu_ps(in_bound_ptr_010, y1_in_range);
                     _mm256_storeu_ps(in_bound_ptr_011, v011_in_range);
@@ -843,30 +832,30 @@ struct gridsample_3d_bilinear_compute_blob
 
                 // compute coord
                 {
-                    gx = unormalize(vImgWf, gx);
-                    gx = get_coord(vImgWf, gx);
+                    gx = unormalize(_mm256_set1_ps(src.w), gx);
+                    gx = get_coord(_mm256_set1_ps(src.w), gx);
 
-                    gy = unormalize(vImgHf, gy);
-                    gy = get_coord(vImgHf, gy);
+                    gy = unormalize(_mm256_set1_ps(src.h), gy);
+                    gy = get_coord(_mm256_set1_ps(src.h), gy);
 
-                    gz = unormalize(vImgDf, gz);
-                    gz = get_coord(vImgDf, gz);
+                    gz = unormalize(_mm256_set1_ps(src.d), gz);
+                    gz = get_coord(_mm256_set1_ps(src.d), gz);
                 }
 
                 __m256 x_w = _mm256_floor_ps(gx);
                 __m256 y_n = _mm256_floor_ps(gy);
                 __m256 z_t = _mm256_floor_ps(gz);
 
-                __m256 x1 = _mm256_add_ps(x_w, *(__m256*)_ps256_1);
-                __m256 y1 = _mm256_add_ps(y_n, *(__m256*)_ps256_1);
-                __m256 z1 = _mm256_add_ps(z_t, *(__m256*)_ps256_1);
+                __m256 x1 = _mm256_add_ps(x_w, _mm256_set1_ps(1));
+                __m256 y1 = _mm256_add_ps(y_n, _mm256_set1_ps(1));
+                __m256 z1 = _mm256_add_ps(z_t, _mm256_set1_ps(1));
 
-                __m256 x0_in_range = _mm256_and_ps(_mm256_cmp_ps(x_w, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgWf, x_w, _CMP_GT_OS));
-                __m256 x1_in_range = _mm256_and_ps(_mm256_cmp_ps(x1, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgWf, x1, _CMP_GT_OS));
-                __m256 y0_in_range = _mm256_and_ps(_mm256_cmp_ps(y_n, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgHf, y_n, _CMP_GT_OS));
-                __m256 y1_in_range = _mm256_and_ps(_mm256_cmp_ps(y1, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgHf, y1, _CMP_GT_OS));
-                __m256 z0_in_range = _mm256_and_ps(_mm256_cmp_ps(z_t, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgDf, z_t, _CMP_GT_OS));
-                __m256 z1_in_range = _mm256_and_ps(_mm256_cmp_ps(z1, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgDf, z1, _CMP_GT_OS));
+                __m256 x0_in_range = _mm256_and_ps(_mm256_cmp_ps(x_w, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.w), x_w, _CMP_GT_OS));
+                __m256 x1_in_range = _mm256_and_ps(_mm256_cmp_ps(x1, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.w), x1, _CMP_GT_OS));
+                __m256 y0_in_range = _mm256_and_ps(_mm256_cmp_ps(y_n, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.h), y_n, _CMP_GT_OS));
+                __m256 y1_in_range = _mm256_and_ps(_mm256_cmp_ps(y1, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.h), y1, _CMP_GT_OS));
+                __m256 z0_in_range = _mm256_and_ps(_mm256_cmp_ps(z_t, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.d), z_t, _CMP_GT_OS));
+                __m256 z1_in_range = _mm256_and_ps(_mm256_cmp_ps(z1, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.d), z1, _CMP_GT_OS));
 
                 __m256 v011_in_range, v110_in_range, v101_in_range, v111_in_range;
                 {
@@ -876,19 +865,20 @@ struct gridsample_3d_bilinear_compute_blob
                     v111_in_range = _mm256_and_ps(v011_in_range, z1_in_range);
                 }
 
-                __m256 tnw_offset = _mm256_mul_ps(_mm256_comp_fmadd_ps(_mm256_mul_ps(vImgWf, vImgHf), z_t,
-                                                  _mm256_comp_fmadd_ps(y_n, vImgWf, x_w)),
-                                                  vElempackf);
-                __m256 tne_offset = _mm256_add_ps(tnw_offset, vElempackf);
-                __m256 tsw_offset = _mm256_add_ps(tnw_offset, _mm256_mul_ps(vImgWf, vElempackf));
-                __m256 tse_offset = _mm256_add_ps(tsw_offset, vElempackf);
+                volatile float epack = src.elempack;
+                __m256 tnw_offset = _mm256_mul_ps(_mm256_comp_fmadd_ps(_mm256_mul_ps(_mm256_set1_ps(src.w), _mm256_set1_ps(src.h)), z_t,
+                                                  _mm256_comp_fmadd_ps(y_n, _mm256_set1_ps(src.w), x_w)),
+                                                  _mm256_set1_ps(epack));
+                __m256 tne_offset = _mm256_add_ps(tnw_offset, _mm256_set1_ps(epack));
+                __m256 tsw_offset = _mm256_add_ps(tnw_offset, _mm256_mul_ps(_mm256_set1_ps(src.w), _mm256_set1_ps(epack)));
+                __m256 tse_offset = _mm256_add_ps(tsw_offset, _mm256_set1_ps(epack));
 
-                __m256 bnw_offset = _mm256_comp_fmadd_ps(_mm256_mul_ps(vImgWf, vImgHf), vElempackf, tnw_offset);
-                __m256 bne_offset = _mm256_add_ps(bnw_offset, vElempackf);
-                __m256 bsw_offset = _mm256_add_ps(bnw_offset, _mm256_mul_ps(vImgWf, vElempackf));
-                __m256 bse_offset = _mm256_add_ps(bsw_offset, vElempackf);
+                __m256 bnw_offset = _mm256_comp_fmadd_ps(_mm256_mul_ps(_mm256_set1_ps(src.w), _mm256_set1_ps(src.h)), _mm256_set1_ps(epack), tnw_offset);
+                __m256 bne_offset = _mm256_add_ps(bnw_offset, _mm256_set1_ps(epack));
+                __m256 bsw_offset = _mm256_add_ps(bnw_offset, _mm256_mul_ps(_mm256_set1_ps(src.w), _mm256_set1_ps(epack)));
+                __m256 bse_offset = _mm256_add_ps(bsw_offset, _mm256_set1_ps(epack));
 
-                _mm256_storeu_ps(in_bound_ptr_000, *(__m256*)_ps256_n1);
+                _mm256_storeu_ps(in_bound_ptr_000, _mm256_set1_ps(-1));
                 _mm256_storeu_ps(in_bound_ptr_001, x1_in_range);
                 _mm256_storeu_ps(in_bound_ptr_010, y1_in_range);
                 _mm256_storeu_ps(in_bound_ptr_011, v011_in_range);
@@ -1036,12 +1026,6 @@ struct gridsample_3d_bilinear_compute_blob<GridSample::Padding_ZEROS, align_corn
     void operator()(const Mat& src, const Mat& grid, Mat& offset, Mat& in_bound, Mat& value, int permute_fusion, const Option& opt)
     {
         const int grid_size = grid.w * grid.h * grid.d;
-#if __AVX__
-        const __m256 vImgWf = _mm256_set1_ps(src.w);
-        const __m256 vImgHf = _mm256_set1_ps(src.h);
-        const __m256 vImgDf = _mm256_set1_ps(src.d);
-        const __m256 vElempackf = _mm256_set1_ps(src.elempack);
-#endif // __AVX__
 
         float* offset_ptr_000 = offset.channel(0);
         float* offset_ptr_001 = offset.channel(1);
@@ -1094,25 +1078,25 @@ struct gridsample_3d_bilinear_compute_blob<GridSample::Padding_ZEROS, align_corn
 
                     // compute coord
                     {
-                        gx = unormalize(vImgWf, gx);
-                        gy = unormalize(vImgHf, gy);
-                        gz = unormalize(vImgDf, gz);
+                        gx = unormalize(_mm256_set1_ps(src.w), gx);
+                        gy = unormalize(_mm256_set1_ps(src.h), gy);
+                        gz = unormalize(_mm256_set1_ps(src.d), gz);
                     }
 
                     __m256 x_w = _mm256_floor_ps(gx);
                     __m256 y_n = _mm256_floor_ps(gy);
                     __m256 z_t = _mm256_floor_ps(gz);
 
-                    __m256 x1 = _mm256_add_ps(x_w, *(__m256*)_ps256_1);
-                    __m256 y1 = _mm256_add_ps(y_n, *(__m256*)_ps256_1);
-                    __m256 z1 = _mm256_add_ps(z_t, *(__m256*)_ps256_1);
+                    __m256 x1 = _mm256_add_ps(x_w, _mm256_set1_ps(1));
+                    __m256 y1 = _mm256_add_ps(y_n, _mm256_set1_ps(1));
+                    __m256 z1 = _mm256_add_ps(z_t, _mm256_set1_ps(1));
 
-                    __m256 x0_in_range = _mm256_and_ps(_mm256_cmp_ps(x_w, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgWf, x_w, _CMP_GT_OS));
-                    __m256 x1_in_range = _mm256_and_ps(_mm256_cmp_ps(x1, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgWf, x1, _CMP_GT_OS));
-                    __m256 y0_in_range = _mm256_and_ps(_mm256_cmp_ps(y_n, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgHf, y_n, _CMP_GT_OS));
-                    __m256 y1_in_range = _mm256_and_ps(_mm256_cmp_ps(y1, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgHf, y1, _CMP_GT_OS));
-                    __m256 z0_in_range = _mm256_and_ps(_mm256_cmp_ps(z_t, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgDf, z_t, _CMP_GT_OS));
-                    __m256 z1_in_range = _mm256_and_ps(_mm256_cmp_ps(z1, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgDf, z1, _CMP_GT_OS));
+                    __m256 x0_in_range = _mm256_and_ps(_mm256_cmp_ps(x_w, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.w), x_w, _CMP_GT_OS));
+                    __m256 x1_in_range = _mm256_and_ps(_mm256_cmp_ps(x1, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.w), x1, _CMP_GT_OS));
+                    __m256 y0_in_range = _mm256_and_ps(_mm256_cmp_ps(y_n, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.h), y_n, _CMP_GT_OS));
+                    __m256 y1_in_range = _mm256_and_ps(_mm256_cmp_ps(y1, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.h), y1, _CMP_GT_OS));
+                    __m256 z0_in_range = _mm256_and_ps(_mm256_cmp_ps(z_t, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.d), z_t, _CMP_GT_OS));
+                    __m256 z1_in_range = _mm256_and_ps(_mm256_cmp_ps(z1, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.d), z1, _CMP_GT_OS));
 
                     __m256 v000_in_range, v010_in_range, v100_in_range, v110_in_range, v001_in_range, v011_in_range, v101_in_range, v111_in_range;
                     {
@@ -1132,17 +1116,18 @@ struct gridsample_3d_bilinear_compute_blob<GridSample::Padding_ZEROS, align_corn
                         v111_in_range = _mm256_and_ps(v11_in_range, z1_in_range);
                     }
 
-                    __m256 tnw_offset = _mm256_mul_ps(_mm256_comp_fmadd_ps(_mm256_mul_ps(vImgWf, vImgHf), z_t,
-                                                      _mm256_comp_fmadd_ps(y_n, vImgWf, x_w)),
-                                                      vElempackf);
-                    __m256 tne_offset = _mm256_add_ps(tnw_offset, vElempackf);
-                    __m256 tsw_offset = _mm256_add_ps(tnw_offset, _mm256_mul_ps(vImgWf, vElempackf));
-                    __m256 tse_offset = _mm256_add_ps(tsw_offset, vElempackf);
+                    volatile float epack = src.elempack;
+                    __m256 tnw_offset = _mm256_mul_ps(_mm256_comp_fmadd_ps(_mm256_mul_ps(_mm256_set1_ps(src.w), _mm256_set1_ps(src.h)), z_t,
+                                                      _mm256_comp_fmadd_ps(y_n, _mm256_set1_ps(src.w), x_w)),
+                                                      _mm256_set1_ps(epack));
+                    __m256 tne_offset = _mm256_add_ps(tnw_offset, _mm256_set1_ps(epack));
+                    __m256 tsw_offset = _mm256_add_ps(tnw_offset, _mm256_mul_ps(_mm256_set1_ps(src.w), _mm256_set1_ps(epack)));
+                    __m256 tse_offset = _mm256_add_ps(tsw_offset, _mm256_set1_ps(epack));
 
-                    __m256 bnw_offset = _mm256_comp_fmadd_ps(_mm256_mul_ps(vImgWf, vImgHf), vElempackf, tnw_offset);
-                    __m256 bne_offset = _mm256_add_ps(bnw_offset, vElempackf);
-                    __m256 bsw_offset = _mm256_add_ps(bnw_offset, _mm256_mul_ps(vImgWf, vElempackf));
-                    __m256 bse_offset = _mm256_add_ps(bsw_offset, vElempackf);
+                    __m256 bnw_offset = _mm256_comp_fmadd_ps(_mm256_mul_ps(_mm256_set1_ps(src.w), _mm256_set1_ps(src.h)), _mm256_set1_ps(epack), tnw_offset);
+                    __m256 bne_offset = _mm256_add_ps(bnw_offset, _mm256_set1_ps(epack));
+                    __m256 bsw_offset = _mm256_add_ps(bnw_offset, _mm256_mul_ps(_mm256_set1_ps(src.w), _mm256_set1_ps(epack)));
+                    __m256 bse_offset = _mm256_add_ps(bsw_offset, _mm256_set1_ps(epack));
 
                     _mm256_storeu_ps(in_bound_ptr_000, v000_in_range);
                     _mm256_storeu_ps(in_bound_ptr_001, v001_in_range);
@@ -1297,25 +1282,25 @@ struct gridsample_3d_bilinear_compute_blob<GridSample::Padding_ZEROS, align_corn
 
                 // compute coord
                 {
-                    gx = unormalize(vImgWf, gx);
-                    gy = unormalize(vImgHf, gy);
-                    gz = unormalize(vImgDf, gz);
+                    gx = unormalize(_mm256_set1_ps(src.w), gx);
+                    gy = unormalize(_mm256_set1_ps(src.h), gy);
+                    gz = unormalize(_mm256_set1_ps(src.d), gz);
                 }
 
                 __m256 x_w = _mm256_floor_ps(gx);
                 __m256 y_n = _mm256_floor_ps(gy);
                 __m256 z_t = _mm256_floor_ps(gz);
 
-                __m256 x1 = _mm256_add_ps(x_w, *(__m256*)_ps256_1);
-                __m256 y1 = _mm256_add_ps(y_n, *(__m256*)_ps256_1);
-                __m256 z1 = _mm256_add_ps(z_t, *(__m256*)_ps256_1);
+                __m256 x1 = _mm256_add_ps(x_w, _mm256_set1_ps(1));
+                __m256 y1 = _mm256_add_ps(y_n, _mm256_set1_ps(1));
+                __m256 z1 = _mm256_add_ps(z_t, _mm256_set1_ps(1));
 
-                __m256 x0_in_range = _mm256_and_ps(_mm256_cmp_ps(x_w, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgWf, x_w, _CMP_GT_OS));
-                __m256 x1_in_range = _mm256_and_ps(_mm256_cmp_ps(x1, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgWf, x1, _CMP_GT_OS));
-                __m256 y0_in_range = _mm256_and_ps(_mm256_cmp_ps(y_n, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgHf, y_n, _CMP_GT_OS));
-                __m256 y1_in_range = _mm256_and_ps(_mm256_cmp_ps(y1, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgHf, y1, _CMP_GT_OS));
-                __m256 z0_in_range = _mm256_and_ps(_mm256_cmp_ps(z_t, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgDf, z_t, _CMP_GT_OS));
-                __m256 z1_in_range = _mm256_and_ps(_mm256_cmp_ps(z1, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgDf, z1, _CMP_GT_OS));
+                __m256 x0_in_range = _mm256_and_ps(_mm256_cmp_ps(x_w, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.w), x_w, _CMP_GT_OS));
+                __m256 x1_in_range = _mm256_and_ps(_mm256_cmp_ps(x1, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.w), x1, _CMP_GT_OS));
+                __m256 y0_in_range = _mm256_and_ps(_mm256_cmp_ps(y_n, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.h), y_n, _CMP_GT_OS));
+                __m256 y1_in_range = _mm256_and_ps(_mm256_cmp_ps(y1, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.h), y1, _CMP_GT_OS));
+                __m256 z0_in_range = _mm256_and_ps(_mm256_cmp_ps(z_t, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.d), z_t, _CMP_GT_OS));
+                __m256 z1_in_range = _mm256_and_ps(_mm256_cmp_ps(z1, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.d), z1, _CMP_GT_OS));
 
                 __m256 v000_in_range, v010_in_range, v100_in_range, v110_in_range, v001_in_range, v011_in_range, v101_in_range, v111_in_range;
                 {
@@ -1335,17 +1320,18 @@ struct gridsample_3d_bilinear_compute_blob<GridSample::Padding_ZEROS, align_corn
                     v111_in_range = _mm256_and_ps(v11_in_range, z1_in_range);
                 }
 
-                __m256 tnw_offset = _mm256_mul_ps(_mm256_comp_fmadd_ps(_mm256_mul_ps(vImgWf, vImgHf), z_t,
-                                                  _mm256_comp_fmadd_ps(y_n, vImgWf, x_w)),
-                                                  vElempackf);
-                __m256 tne_offset = _mm256_add_ps(tnw_offset, vElempackf);
-                __m256 tsw_offset = _mm256_add_ps(tnw_offset, _mm256_mul_ps(vImgWf, vElempackf));
-                __m256 tse_offset = _mm256_add_ps(tsw_offset, vElempackf);
+                volatile float epack = src.elempack;
+                __m256 tnw_offset = _mm256_mul_ps(_mm256_comp_fmadd_ps(_mm256_mul_ps(_mm256_set1_ps(src.w), _mm256_set1_ps(src.h)), z_t,
+                                                  _mm256_comp_fmadd_ps(y_n, _mm256_set1_ps(src.w), x_w)),
+                                                  _mm256_set1_ps(epack));
+                __m256 tne_offset = _mm256_add_ps(tnw_offset, _mm256_set1_ps(epack));
+                __m256 tsw_offset = _mm256_add_ps(tnw_offset, _mm256_mul_ps(_mm256_set1_ps(src.w), _mm256_set1_ps(epack)));
+                __m256 tse_offset = _mm256_add_ps(tsw_offset, _mm256_set1_ps(epack));
 
-                __m256 bnw_offset = _mm256_comp_fmadd_ps(_mm256_mul_ps(vImgWf, vImgHf), vElempackf, tnw_offset);
-                __m256 bne_offset = _mm256_add_ps(bnw_offset, vElempackf);
-                __m256 bsw_offset = _mm256_add_ps(bnw_offset, _mm256_mul_ps(vImgWf, vElempackf));
-                __m256 bse_offset = _mm256_add_ps(bsw_offset, vElempackf);
+                __m256 bnw_offset = _mm256_comp_fmadd_ps(_mm256_mul_ps(_mm256_set1_ps(src.w), _mm256_set1_ps(src.h)), _mm256_set1_ps(epack), tnw_offset);
+                __m256 bne_offset = _mm256_add_ps(bnw_offset, _mm256_set1_ps(epack));
+                __m256 bsw_offset = _mm256_add_ps(bnw_offset, _mm256_mul_ps(_mm256_set1_ps(src.w), _mm256_set1_ps(epack)));
+                __m256 bse_offset = _mm256_add_ps(bsw_offset, _mm256_set1_ps(epack));
 
                 _mm256_storeu_ps(in_bound_ptr_000, v000_in_range);
                 _mm256_storeu_ps(in_bound_ptr_001, v001_in_range);

@@ -1,0 +1,128 @@
+name: linux-x64-cpu-clang
+on:
+  push:
+    branches: [master]
+    paths:
+    - '.github/workflows/linux-x64-cpu-clang.yml'
+    - 'toolchains/host-c.clang.toolchain.cmake'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/x86/**'
+    - 'tests/**'
+    - 'tools/**'
+    - '!tools/pnnx/**'
+    - 'examples/**'
+  pull_request:
+    branches: [master]
+    paths:
+    - '.github/workflows/linux-x64-cpu-clang.yml'
+    - 'toolchains/host-c.clang.toolchain.cmake'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/x86/**'
+    - 'tests/**'
+    - 'tools/**'
+    - '!tools/pnnx/**'
+    - 'examples/**'
+concurrency:
+  group: linux-x64-cpu-clang-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+
+jobs:
+  linux-clang:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: update
+      run: sudo apt-get update
+    - name: protobuf
+      run: sudo apt-get install libprotobuf-dev protobuf-compiler libopencv-dev
+    - name: build-sse2
+      env:
+        CC: clang
+        CXX: clang++
+      run: |
+        mkdir build-sse2 && cd build-sse2
+        cmake -DNCNN_AVX=OFF -DNCNN_AVX2=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 2
+    - name: test-sse2
+      run: cd build-sse2 && ctest --output-on-failure -j 2
+    - name: build-shared
+      env:
+        CC: clang
+        CXX: clang++
+      run: |
+        mkdir build-shared && cd build-shared
+        cmake -DNCNN_AVX2=ON -DNCNN_SHARED_LIB=ON ..
+        cmake --build . -j 2
+    - name: build-avx2
+      env:
+        CC: clang
+        CXX: clang++
+      run: |
+        mkdir build-avx2 && cd build-avx2
+        cmake -DNCNN_AVX2=ON -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 2
+    - name: test-avx2
+      run: cd build-avx2 && ctest --output-on-failure -j 2
+    - name: build-avx
+      env:
+        CC: clang
+        CXX: clang++
+      run: |
+        mkdir build-avx && cd build-avx
+        cmake -DNCNN_AVX2=OFF -DNCNN_AVX=ON -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 2
+    - name: test-avx
+      run: cd build-avx && ctest --output-on-failure -j 2
+    - name: build-avx1-2
+      env:
+        CC: clang
+        CXX: clang++
+      run: |
+        mkdir build-avx1-2 && cd build-avx1-2
+        cmake -DNCNN_AVX2=ON -DNCNN_AVX=ON -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 2
+    - name: test-avx1-2
+      run: cd build-avx1-2 && ctest --output-on-failure -j 2
+    - name: build-noint8
+      env:
+        CC: clang
+        CXX: clang++
+      run: |
+        mkdir build-noint8 && cd build-noint8
+        cmake -DNCNN_INT8=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 2
+    - name: test-noint8
+      run: cd build-noint8 && ctest --output-on-failure -j 2
+
+  linux-clang-simplestl:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: build-simplestl
+      env:
+        CC: clang
+        CXX: clang++
+      run: |
+        mkdir build-simplestl && cd build-simplestl
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/host-c.clang.toolchain.cmake -DNCNN_STDIO=ON -DNCNN_STRING=ON -DNCNN_SIMPLESTL=ON -DNCNN_BUILD_TESTS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
+        cmake --build . -j 2
+    - name: test-simplestl
+      run: cd build-simplestl && ctest --output-on-failure -j 2
+    - name: build-simplestl-simpleomp
+      env:
+        CC: clang
+        CXX: clang++
+      run: |
+        mkdir build-simplestl-simpleomp && cd build-simplestl-simpleomp
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/host-c.clang.toolchain.cmake -DNCNN_STDIO=ON -DNCNN_STRING=ON -DNCNN_SIMPLESTL=ON -DNCNN_SIMPLEOMP=ON -DNCNN_BUILD_TESTS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
+        cmake --build . -j 2
+    - name: test-simplestl-simpleomp
+      run: cd build-simplestl-simpleomp && ctest --output-on-failure -j 2

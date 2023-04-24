@@ -1,0 +1,147 @@
+name: test-coverage
+on:
+  push:
+    branches: [master]
+    paths:
+    - '.github/workflows/test-coverage.yml'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/**'
+    - 'tests/**'
+    - 'toolchains/**'
+  pull_request:
+    branches: [master]
+    paths:
+    - '.github/workflows/test-coverage.yml'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/**'
+    - 'tests/**'
+    - 'toolchains/**'
+concurrency:
+  group: test-coverage-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+
+jobs:
+  linux-gcc-gpu-t4:
+    runs-on: [self-hosted, linux, t4]
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: true
+    - name: build
+      env:
+        CC: gcc
+        CXX: g++
+        LD_LIBRARY_PATH: /data/action/install/lib64
+      run: |
+        export VULKAN_SDK=/data/action/osd/1.2.189.0/x86_64
+        mkdir build && cd build
+        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_VULKAN=ON -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX2=ON -DNCNN_XOP=OFF -DNCNN_AVXVNNI=OFF -DNCNN_AVX512=ON -DNCNN_AVX512VNNI=ON -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 4
+    - name: test
+      env:
+        LD_LIBRARY_PATH: /data/action/install/lib64
+      run: cd build && ctest --output-on-failure -j 4
+    - name: lcov-collect
+      run: |
+        cd build
+        lcov -d ./src -c -o lcov.info
+        lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/install/*' -o lcov.info
+        lcov -r lcov.info '*/build/*' -o lcov.info
+        lcov --list lcov.info
+    - name: codecov
+      id: codecov
+      continue-on-error: true
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+    - name: codecov-vlen256-retry-1
+      continue-on-error: true
+      id: codecov-vlen256-retry-1
+      if: steps.codecov.outcome=='failure'
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+    - name: codecov-vlen256-retry-2
+      continue-on-error: true
+      id: codecov-vlen256-retry-2
+      if: steps.codecov-vlen256-retry-1.outcome=='failure'
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+    - name: codecov-vlen256-retry-3
+      continue-on-error: true
+      id: codecov-vlen256-retry-3
+      if: steps.codecov-vlen256-retry-2.outcome=='failure'
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+    - name: codecov-vlen256-retry-4
+      continue-on-error: true
+      id: codecov-vlen256-retry-4
+      if: steps.codecov-vlen256-retry-3.outcome=='failure'
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+    - name: codecov-vlen256-retry-5
+      continue-on-error: true
+      id: codecov-vlen256-retry-5
+      if: steps.codecov-vlen256-retry-4.outcome=='failure'
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+    - name: set the status
+      if: always()
+      run: |
+        if ${{ steps.codecov.outcome=='success' || steps.codecov-vlen256-retry-1.outcome=='success' || steps.codecov-vlen256-retry-2.outcome=='success' || steps.codecov-vlen256-retry-3.outcome=='success' || steps.codecov-vlen256-retry-4.outcome=='success' || steps.codecov-vlen256-retry-5.outcome=='success' }}; then
+           echo fine
+        else
+           exit 1
+        fi
+
+  linux-gcc-x64-avx512-spr:
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v3
+    - name: update
+      run: sudo apt-get update
+    - name: gcc12
+      run: sudo apt-get install gcc-12 g++-12
+    - name: lcov
+      run: sudo apt-get install lcov
+    - name: Setup SDE binaries
+      uses: petarpetrovt/setup-sde@v2
+    - name: build-avx512-spr
+      env:
+        CC: gcc-12
+        CXX: g++-12
+      run: |
+        mkdir build-avx512-spr && cd build-avx512-spr
+        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX2=ON -DNCNN_AVX512=ON -DNCNN_AVX512VNNI=ON -DNCNN_AVX512BF16=ON -DNCNN_AVX512FP16=ON -DNCNN_XOP=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 2
+    - name: test-avx512-spr
+      run: |
+        cd build-avx512-spr
+        TESTS_EXECUTABLE_LOADER=$SDE_PATH/sde64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-spr;--" ctest --output-on-failure -j 2
+    - name: lcov-collect
+      run: |
+        cd build-avx512-spr
+        lcov --gcov-tool gcov-12 -d ./src -c -o lcov.info
+        lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/build-avx512-spr/*' -o lcov.info
+        lcov --list lcov.info
+    - name: codecov-avx512-spr
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build-avx512-spr/lcov.info

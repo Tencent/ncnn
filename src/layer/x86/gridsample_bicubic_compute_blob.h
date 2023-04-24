@@ -18,11 +18,6 @@ struct gridsample_2d_bicubic_compute_blob
     void operator()(const Mat& src, const Mat& grid, Mat& offset, Mat& in_bound, Mat& value, int permute_fusion, const Option& opt)
     {
         const int grid_size = grid.w * grid.h;
-#if __AVX__
-        const __m256 vImgWf = _mm256_set1_ps(src.w);
-        const __m256 vImgHf = _mm256_set1_ps(src.h);
-        const __m256 vElempackf = _mm256_set1_ps(src.elempack);
-#endif // __AVX__
 
         float *v0_offset_ptr[4], *v1_offset_ptr[4], *v2_offset_ptr[4], *v3_offset_ptr[4];
         float *v0_in_bound_ptr[4], *v1_in_bound_ptr[4], *v2_in_bound_ptr[4], *v3_in_bound_ptr[4];
@@ -67,10 +62,10 @@ struct gridsample_2d_bicubic_compute_blob
                     // compute coord
                     {
                         // x
-                        gx = unormalize(vImgWf, gx);
+                        gx = unormalize(_mm256_set1_ps(src.w), gx);
 
                         // y
-                        gy = unormalize(vImgHf, gy);
+                        gy = unormalize(_mm256_set1_ps(src.h), gy);
                     }
 
                     __m256 gx_floor = _mm256_floor_ps(gx);
@@ -79,37 +74,38 @@ struct gridsample_2d_bicubic_compute_blob
                     const __m256 tx = _mm256_sub_ps(gx, gx_floor);
                     const __m256 ty = _mm256_sub_ps(gy, gy_floor);
 
-                    __m256 gx0 = _mm256_add_ps(gx_floor, *(__m256*)_ps256_n1);
+                    __m256 gx0 = _mm256_add_ps(gx_floor, _mm256_set1_ps(-1));
                     __m256 gx1 = gx_floor;
-                    __m256 gx2 = _mm256_add_ps(gx_floor, *(__m256*)_ps256_1);
-                    __m256 gx3 = _mm256_add_ps(gx2, *(__m256*)_ps256_1);
+                    __m256 gx2 = _mm256_add_ps(gx_floor, _mm256_set1_ps(1));
+                    __m256 gx3 = _mm256_add_ps(gx2, _mm256_set1_ps(1));
 
-                    gx0 = get_coord(vImgWf, gx0);
-                    gx1 = get_coord(vImgWf, gx1);
-                    gx2 = get_coord(vImgWf, gx2);
-                    gx3 = get_coord(vImgWf, gx3);
+                    gx0 = get_coord(_mm256_set1_ps(src.w), gx0);
+                    gx1 = get_coord(_mm256_set1_ps(src.w), gx1);
+                    gx2 = get_coord(_mm256_set1_ps(src.w), gx2);
+                    gx3 = get_coord(_mm256_set1_ps(src.w), gx3);
 
                     for (int i = 0; i < 4; i++)
                     {
                         gy = _mm256_add_ps(gy_floor, _mm256_set1_ps(-1.0f + i));
-                        gy = get_coord(vImgHf, gy);
+                        gy = get_coord(_mm256_set1_ps(src.h), gy);
 
-                        __m256 gy_offset = _mm256_mul_ps(gy, vImgWf);
+                        __m256 gy_offset = _mm256_mul_ps(gy, _mm256_set1_ps(src.w));
 
-                        __m256 v0_offset_f = _mm256_mul_ps(_mm256_add_ps(gy_offset, gx0), vElempackf);
-                        __m256 v1_offset_f = _mm256_mul_ps(_mm256_add_ps(gy_offset, gx1), vElempackf);
-                        __m256 v2_offset_f = _mm256_mul_ps(_mm256_add_ps(gy_offset, gx2), vElempackf);
-                        __m256 v3_offset_f = _mm256_mul_ps(_mm256_add_ps(gy_offset, gx3), vElempackf);
+                        volatile float epack = src.elempack;
+                        __m256 v0_offset_f = _mm256_mul_ps(_mm256_add_ps(gy_offset, gx0), _mm256_set1_ps(epack));
+                        __m256 v1_offset_f = _mm256_mul_ps(_mm256_add_ps(gy_offset, gx1), _mm256_set1_ps(epack));
+                        __m256 v2_offset_f = _mm256_mul_ps(_mm256_add_ps(gy_offset, gx2), _mm256_set1_ps(epack));
+                        __m256 v3_offset_f = _mm256_mul_ps(_mm256_add_ps(gy_offset, gx3), _mm256_set1_ps(epack));
 
                         _mm256_storeu_ps(v0_offset_ptr[i], v0_offset_f);
                         _mm256_storeu_ps(v1_offset_ptr[i], v1_offset_f);
                         _mm256_storeu_ps(v2_offset_ptr[i], v2_offset_f);
                         _mm256_storeu_ps(v3_offset_ptr[i], v3_offset_f);
 
-                        _mm256_storeu_ps(v0_in_bound_ptr[i], *(__m256*)_ps256_n1);
-                        _mm256_storeu_ps(v1_in_bound_ptr[i], *(__m256*)_ps256_n1);
-                        _mm256_storeu_ps(v2_in_bound_ptr[i], *(__m256*)_ps256_n1);
-                        _mm256_storeu_ps(v3_in_bound_ptr[i], *(__m256*)_ps256_n1);
+                        _mm256_storeu_ps(v0_in_bound_ptr[i], _mm256_set1_ps(-1));
+                        _mm256_storeu_ps(v1_in_bound_ptr[i], _mm256_set1_ps(-1));
+                        _mm256_storeu_ps(v2_in_bound_ptr[i], _mm256_set1_ps(-1));
+                        _mm256_storeu_ps(v3_in_bound_ptr[i], _mm256_set1_ps(-1));
 
                         v0_in_bound_ptr[i] += 8;
                         v1_in_bound_ptr[i] += 8;
@@ -200,10 +196,10 @@ struct gridsample_2d_bicubic_compute_blob
                 // compute coord
                 {
                     // x
-                    gx = unormalize(vImgWf, gx);
+                    gx = unormalize(_mm256_set1_ps(src.w), gx);
 
                     // y
-                    gy = unormalize(vImgHf, gy);
+                    gy = unormalize(_mm256_set1_ps(src.h), gy);
                 }
 
                 __m256 gx_floor = _mm256_floor_ps(gx);
@@ -212,37 +208,38 @@ struct gridsample_2d_bicubic_compute_blob
                 const __m256 tx = _mm256_sub_ps(gx, gx_floor);
                 const __m256 ty = _mm256_sub_ps(gy, gy_floor);
 
-                __m256 gx0 = _mm256_add_ps(gx_floor, *(__m256*)_ps256_n1);
+                __m256 gx0 = _mm256_add_ps(gx_floor, _mm256_set1_ps(-1));
                 __m256 gx1 = gx_floor;
-                __m256 gx2 = _mm256_add_ps(gx_floor, *(__m256*)_ps256_1);
-                __m256 gx3 = _mm256_add_ps(gx2, *(__m256*)_ps256_1);
+                __m256 gx2 = _mm256_add_ps(gx_floor, _mm256_set1_ps(1));
+                __m256 gx3 = _mm256_add_ps(gx2, _mm256_set1_ps(1));
 
-                gx0 = get_coord(vImgWf, gx0);
-                gx1 = get_coord(vImgWf, gx1);
-                gx2 = get_coord(vImgWf, gx2);
-                gx3 = get_coord(vImgWf, gx3);
+                gx0 = get_coord(_mm256_set1_ps(src.w), gx0);
+                gx1 = get_coord(_mm256_set1_ps(src.w), gx1);
+                gx2 = get_coord(_mm256_set1_ps(src.w), gx2);
+                gx3 = get_coord(_mm256_set1_ps(src.w), gx3);
 
                 for (int i = 0; i < 4; i++)
                 {
                     gy = _mm256_add_ps(gy_floor, _mm256_set1_ps(-1.0f + i));
-                    gy = get_coord(vImgHf, gy);
+                    gy = get_coord(_mm256_set1_ps(src.h), gy);
 
-                    __m256 gy_offset = _mm256_mul_ps(gy, vImgWf);
+                    __m256 gy_offset = _mm256_mul_ps(gy, _mm256_set1_ps(src.w));
 
-                    __m256 v0_offset_f = _mm256_mul_ps(_mm256_add_ps(gy_offset, gx0), vElempackf);
-                    __m256 v1_offset_f = _mm256_mul_ps(_mm256_add_ps(gy_offset, gx1), vElempackf);
-                    __m256 v2_offset_f = _mm256_mul_ps(_mm256_add_ps(gy_offset, gx2), vElempackf);
-                    __m256 v3_offset_f = _mm256_mul_ps(_mm256_add_ps(gy_offset, gx3), vElempackf);
+                    volatile float epack = src.elempack;
+                    __m256 v0_offset_f = _mm256_mul_ps(_mm256_add_ps(gy_offset, gx0), _mm256_set1_ps(epack));
+                    __m256 v1_offset_f = _mm256_mul_ps(_mm256_add_ps(gy_offset, gx1), _mm256_set1_ps(epack));
+                    __m256 v2_offset_f = _mm256_mul_ps(_mm256_add_ps(gy_offset, gx2), _mm256_set1_ps(epack));
+                    __m256 v3_offset_f = _mm256_mul_ps(_mm256_add_ps(gy_offset, gx3), _mm256_set1_ps(epack));
 
                     _mm256_storeu_ps(v0_offset_ptr[i], v0_offset_f);
                     _mm256_storeu_ps(v1_offset_ptr[i], v1_offset_f);
                     _mm256_storeu_ps(v2_offset_ptr[i], v2_offset_f);
                     _mm256_storeu_ps(v3_offset_ptr[i], v3_offset_f);
 
-                    _mm256_storeu_ps(v0_in_bound_ptr[i], *(__m256*)_ps256_n1);
-                    _mm256_storeu_ps(v1_in_bound_ptr[i], *(__m256*)_ps256_n1);
-                    _mm256_storeu_ps(v2_in_bound_ptr[i], *(__m256*)_ps256_n1);
-                    _mm256_storeu_ps(v3_in_bound_ptr[i], *(__m256*)_ps256_n1);
+                    _mm256_storeu_ps(v0_in_bound_ptr[i], _mm256_set1_ps(-1));
+                    _mm256_storeu_ps(v1_in_bound_ptr[i], _mm256_set1_ps(-1));
+                    _mm256_storeu_ps(v2_in_bound_ptr[i], _mm256_set1_ps(-1));
+                    _mm256_storeu_ps(v3_in_bound_ptr[i], _mm256_set1_ps(-1));
 
                     v0_in_bound_ptr[i] += 8;
                     v1_in_bound_ptr[i] += 8;
@@ -328,11 +325,6 @@ struct gridsample_2d_bicubic_compute_blob<GridSample::Padding_ZEROS, align_corne
     void operator()(const Mat& src, const Mat& grid, Mat& offset, Mat& in_bound, Mat& value, int permute_fusion, const Option& opt)
     {
         const int grid_size = grid.w * grid.h;
-#if __AVX__
-        const __m256 vImgWf = _mm256_set1_ps(src.w);
-        const __m256 vImgHf = _mm256_set1_ps(src.h);
-        const __m256 vElempackf = _mm256_set1_ps(src.elempack);
-#endif // __AVX__
 
         float *v0_offset_ptr[4], *v1_offset_ptr[4], *v2_offset_ptr[4], *v3_offset_ptr[4];
 
@@ -378,9 +370,9 @@ struct gridsample_2d_bicubic_compute_blob<GridSample::Padding_ZEROS, align_corne
                     // compute coord
                     {
                         // x
-                        gx = unormalize(vImgWf, gx);
+                        gx = unormalize(_mm256_set1_ps(src.w), gx);
                         // y
-                        gy = unormalize(vImgHf, gy);
+                        gy = unormalize(_mm256_set1_ps(src.h), gy);
                     }
 
                     __m256 gx_floor = _mm256_floor_ps(gx);
@@ -389,31 +381,31 @@ struct gridsample_2d_bicubic_compute_blob<GridSample::Padding_ZEROS, align_corne
                     const __m256 tx = _mm256_sub_ps(gx, gx_floor);
                     const __m256 ty = _mm256_sub_ps(gy, gy_floor);
 
-                    __m256 gx0 = _mm256_add_ps(gx_floor, *(__m256*)_ps256_n1);
+                    __m256 gx0 = _mm256_add_ps(gx_floor, _mm256_set1_ps(-1));
                     __m256 gx1 = gx_floor;
-                    __m256 gx2 = _mm256_add_ps(gx_floor, *(__m256*)_ps256_1);
-                    __m256 gx3 = _mm256_add_ps(gx2, *(__m256*)_ps256_1);
+                    __m256 gx2 = _mm256_add_ps(gx_floor, _mm256_set1_ps(1));
+                    __m256 gx3 = _mm256_add_ps(gx2, _mm256_set1_ps(1));
 
-                    __m256 x0_in_range = _mm256_and_ps(_mm256_cmp_ps(gx0, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgWf, gx0, _CMP_GT_OS));
-                    __m256 x1_in_range = _mm256_and_ps(_mm256_cmp_ps(gx1, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgWf, gx1, _CMP_GT_OS));
-                    __m256 x2_in_range = _mm256_and_ps(_mm256_cmp_ps(gx2, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgWf, gx2, _CMP_GT_OS));
-                    __m256 x3_in_range = _mm256_and_ps(_mm256_cmp_ps(gx3, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgWf, gx3, _CMP_GT_OS));
+                    __m256 x0_in_range = _mm256_and_ps(_mm256_cmp_ps(gx0, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.w), gx0, _CMP_GT_OS));
+                    __m256 x1_in_range = _mm256_and_ps(_mm256_cmp_ps(gx1, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.w), gx1, _CMP_GT_OS));
+                    __m256 x2_in_range = _mm256_and_ps(_mm256_cmp_ps(gx2, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.w), gx2, _CMP_GT_OS));
+                    __m256 x3_in_range = _mm256_and_ps(_mm256_cmp_ps(gx3, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.w), gx3, _CMP_GT_OS));
 
                     for (int i = 0; i < 4; i++)
                     {
                         gy = _mm256_add_ps(gy_floor, _mm256_set1_ps(-1.0f + i));
 
-                        __m256 y_in_range = _mm256_and_ps(_mm256_cmp_ps(gy, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgHf, gy, _CMP_GT_OS));
+                        __m256 y_in_range = _mm256_and_ps(_mm256_cmp_ps(gy, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.h), gy, _CMP_GT_OS));
 
                         _mm256_storeu_ps(v0_in_bound_ptr[i], _mm256_and_ps(x0_in_range, y_in_range));
                         _mm256_storeu_ps(v1_in_bound_ptr[i], _mm256_and_ps(x1_in_range, y_in_range));
                         _mm256_storeu_ps(v2_in_bound_ptr[i], _mm256_and_ps(x2_in_range, y_in_range));
                         _mm256_storeu_ps(v3_in_bound_ptr[i], _mm256_and_ps(x3_in_range, y_in_range));
 
-                        __m256 v0_offset_f = _mm256_mul_ps(_mm256_add_ps(_mm256_mul_ps(gy, vImgWf), gx0), vElempackf);
-                        __m256 v1_offset_f = _mm256_add_ps(v0_offset_f, vElempackf);
-                        __m256 v2_offset_f = _mm256_add_ps(v1_offset_f, vElempackf);
-                        __m256 v3_offset_f = _mm256_add_ps(v2_offset_f, vElempackf);
+                        __m256 v0_offset_f = _mm256_mul_ps(_mm256_add_ps(_mm256_mul_ps(gy, _mm256_set1_ps(src.w)), gx0), _mm256_set1_ps(src.elempack));
+                        __m256 v1_offset_f = _mm256_add_ps(v0_offset_f, _mm256_set1_ps(src.elempack));
+                        __m256 v2_offset_f = _mm256_add_ps(v1_offset_f, _mm256_set1_ps(src.elempack));
+                        __m256 v3_offset_f = _mm256_add_ps(v2_offset_f, _mm256_set1_ps(src.elempack));
 
                         _mm256_storeu_ps(v0_offset_ptr[i], v0_offset_f);
                         _mm256_storeu_ps(v1_offset_ptr[i], v1_offset_f);
@@ -516,9 +508,9 @@ struct gridsample_2d_bicubic_compute_blob<GridSample::Padding_ZEROS, align_corne
                 // compute coord
                 {
                     // x
-                    gx = unormalize(vImgWf, gx);
+                    gx = unormalize(_mm256_set1_ps(src.w), gx);
                     // y
-                    gy = unormalize(vImgHf, gy);
+                    gy = unormalize(_mm256_set1_ps(src.h), gy);
                 }
 
                 __m256 gx_floor = _mm256_floor_ps(gx);
@@ -527,31 +519,31 @@ struct gridsample_2d_bicubic_compute_blob<GridSample::Padding_ZEROS, align_corne
                 const __m256 tx = _mm256_sub_ps(gx, gx_floor);
                 const __m256 ty = _mm256_sub_ps(gy, gy_floor);
 
-                __m256 gx0 = _mm256_add_ps(gx_floor, *(__m256*)_ps256_n1);
+                __m256 gx0 = _mm256_add_ps(gx_floor, _mm256_set1_ps(-1));
                 __m256 gx1 = gx_floor;
-                __m256 gx2 = _mm256_add_ps(gx_floor, *(__m256*)_ps256_1);
-                __m256 gx3 = _mm256_add_ps(gx2, *(__m256*)_ps256_1);
+                __m256 gx2 = _mm256_add_ps(gx_floor, _mm256_set1_ps(1));
+                __m256 gx3 = _mm256_add_ps(gx2, _mm256_set1_ps(1));
 
-                __m256 x0_in_range = _mm256_and_ps(_mm256_cmp_ps(gx0, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgWf, gx0, _CMP_GT_OS));
-                __m256 x1_in_range = _mm256_and_ps(_mm256_cmp_ps(gx1, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgWf, gx1, _CMP_GT_OS));
-                __m256 x2_in_range = _mm256_and_ps(_mm256_cmp_ps(gx2, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgWf, gx2, _CMP_GT_OS));
-                __m256 x3_in_range = _mm256_and_ps(_mm256_cmp_ps(gx3, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgWf, gx3, _CMP_GT_OS));
+                __m256 x0_in_range = _mm256_and_ps(_mm256_cmp_ps(gx0, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.w), gx0, _CMP_GT_OS));
+                __m256 x1_in_range = _mm256_and_ps(_mm256_cmp_ps(gx1, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.w), gx1, _CMP_GT_OS));
+                __m256 x2_in_range = _mm256_and_ps(_mm256_cmp_ps(gx2, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.w), gx2, _CMP_GT_OS));
+                __m256 x3_in_range = _mm256_and_ps(_mm256_cmp_ps(gx3, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.w), gx3, _CMP_GT_OS));
 
                 for (int i = 0; i < 4; i++)
                 {
                     gy = _mm256_add_ps(gy_floor, _mm256_set1_ps(-1.0f + i));
 
-                    __m256 y_in_range = _mm256_and_ps(_mm256_cmp_ps(gy, *(__m256*)_ps256_n1, _CMP_GT_OS), _mm256_cmp_ps(vImgHf, gy, _CMP_GT_OS));
+                    __m256 y_in_range = _mm256_and_ps(_mm256_cmp_ps(gy, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.h), gy, _CMP_GT_OS));
 
                     _mm256_storeu_ps(v0_in_bound_ptr[i], _mm256_and_ps(x0_in_range, y_in_range));
                     _mm256_storeu_ps(v1_in_bound_ptr[i], _mm256_and_ps(x1_in_range, y_in_range));
                     _mm256_storeu_ps(v2_in_bound_ptr[i], _mm256_and_ps(x2_in_range, y_in_range));
                     _mm256_storeu_ps(v3_in_bound_ptr[i], _mm256_and_ps(x3_in_range, y_in_range));
 
-                    __m256 v0_offset_f = _mm256_mul_ps(_mm256_add_ps(_mm256_mul_ps(gy, vImgWf), gx0), vElempackf);
-                    __m256 v1_offset_f = _mm256_add_ps(v0_offset_f, vElempackf);
-                    __m256 v2_offset_f = _mm256_add_ps(v1_offset_f, vElempackf);
-                    __m256 v3_offset_f = _mm256_add_ps(v2_offset_f, vElempackf);
+                    __m256 v0_offset_f = _mm256_mul_ps(_mm256_add_ps(_mm256_mul_ps(gy, _mm256_set1_ps(src.w)), gx0), _mm256_set1_ps(src.elempack));
+                    __m256 v1_offset_f = _mm256_add_ps(v0_offset_f, _mm256_set1_ps(src.elempack));
+                    __m256 v2_offset_f = _mm256_add_ps(v1_offset_f, _mm256_set1_ps(src.elempack));
+                    __m256 v3_offset_f = _mm256_add_ps(v2_offset_f, _mm256_set1_ps(src.elempack));
 
                     _mm256_storeu_ps(v0_offset_ptr[i], v0_offset_f);
                     _mm256_storeu_ps(v1_offset_ptr[i], v1_offset_f);
@@ -744,15 +736,15 @@ static void cubic_interp1d_p8(__m256& coeffs0, __m256& coeffs1, __m256& coeffs2,
 {
     const __m256 A = _mm256_set1_ps(-0.75f);
 
-    const __m256 x0 = _mm256_add_ps(tx, *(__m256*)_ps256_1);
+    const __m256 x0 = _mm256_add_ps(tx, _mm256_set1_ps(1));
     const __m256& x1 = tx;
-    const __m256 x2 = _mm256_sub_ps(*(__m256*)_ps256_1, tx);
-    //const __m256 x3 = _mm256_add_ps(x2, *(__m256*)_ps256_1);
+    const __m256 x2 = _mm256_sub_ps(_mm256_set1_ps(1), tx);
+    //const __m256 x3 = _mm256_add_ps(x2, _mm256_set1_ps(1));
 
     coeffs0 = _mm256_sub_ps(_mm256_mul_ps(_mm256_add_ps(_mm256_mul_ps(_mm256_sub_ps(_mm256_mul_ps(A, x0), _mm256_mul_ps(_mm256_set1_ps(5.0f), A)), x0), _mm256_mul_ps(_mm256_set1_ps(8.0f), A)), x0), _mm256_mul_ps(_mm256_set1_ps(4), A));
-    coeffs1 = _mm256_add_ps(_mm256_mul_ps(_mm256_mul_ps(_mm256_sub_ps(_mm256_mul_ps(_mm256_add_ps(A, _mm256_set1_ps(2.0f)), x1), _mm256_add_ps(A, _mm256_set1_ps(3.0f))), x1), x1), *(__m256*)_ps256_1);
-    coeffs2 = _mm256_add_ps(_mm256_mul_ps(_mm256_mul_ps(_mm256_sub_ps(_mm256_mul_ps(_mm256_add_ps(A, _mm256_set1_ps(2.0f)), x2), _mm256_add_ps(A, _mm256_set1_ps(3.0f))), x2), x2), *(__m256*)_ps256_1);
-    coeffs3 = _mm256_sub_ps(_mm256_sub_ps(_mm256_sub_ps(*(__m256*)_ps256_1, coeffs0), coeffs1), coeffs2);
+    coeffs1 = _mm256_add_ps(_mm256_mul_ps(_mm256_mul_ps(_mm256_sub_ps(_mm256_mul_ps(_mm256_add_ps(A, _mm256_set1_ps(2.0f)), x1), _mm256_add_ps(A, _mm256_set1_ps(3.0f))), x1), x1), _mm256_set1_ps(1));
+    coeffs2 = _mm256_add_ps(_mm256_mul_ps(_mm256_mul_ps(_mm256_sub_ps(_mm256_mul_ps(_mm256_add_ps(A, _mm256_set1_ps(2.0f)), x2), _mm256_add_ps(A, _mm256_set1_ps(3.0f))), x2), x2), _mm256_set1_ps(1));
+    coeffs3 = _mm256_sub_ps(_mm256_sub_ps(_mm256_sub_ps(_mm256_set1_ps(1), coeffs0), coeffs1), coeffs2);
 }
 
 static void gridsample_2d_bicubic_apply_interpolation_p8(const Mat& src, Mat& dst, Mat& offset, Mat& in_bound, const Mat& value, const Option& opt)

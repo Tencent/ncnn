@@ -1,0 +1,65 @@
+name: linux-x86-cpu-gcc
+on:
+  push:
+    branches: [master]
+    paths:
+    - '.github/workflows/linux-x86-cpu-gcc.yml'
+    - 'toolchains/host.gcc-m32.toolchain.cmake'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/x86/**'
+    - 'tests/**'
+  pull_request:
+    branches: [master]
+    paths:
+    - '.github/workflows/linux-x86-cpu-gcc.yml'
+    - 'toolchains/host.gcc-m32.toolchain.cmake'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/x86/**'
+    - 'tests/**'
+concurrency:
+  group: linux-x86-cpu-gcc-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+
+jobs:
+  linux-gcc:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: update
+      run: sudo apt-get update
+    - name: gcc-multilib
+      run: sudo apt-get install gcc-multilib g++-multilib
+    - name: build
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/host.gcc-m32.toolchain.cmake -DNCNN_BUILD_TESTS=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
+        cmake --build . -j 2
+    - name: test
+      run: cd build && ctest --output-on-failure -j 2
+    - name: build-nosse
+      run: |
+        mkdir build-nosse && cd build-nosse
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/host.gcc-m32.toolchain.cmake -DNCNN_RUNTIME_CPU=OFF -DNCNN_SSE2=OFF -DNCNN_AVX=OFF -DNCNN_BUILD_TESTS=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
+        cmake --build . -j 2
+    - name: test-nosse
+      run: cd build-nosse && ctest --output-on-failure -j 2
+    - name: build-shared
+      run: |
+        mkdir build-shared && cd build-shared
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/host.gcc-m32.toolchain.cmake -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_SHARED_LIB=ON ..
+        cmake --build . -j 2
+    - name: build-noint8
+      run: |
+        mkdir build-noint8 && cd build-noint8
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/host.gcc-m32.toolchain.cmake -DNCNN_BUILD_TESTS=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_INT8=OFF ..
+        cmake --build . -j 2
+    - name: test-noint8
+      run: cd build-noint8 && ctest --output-on-failure -j 2

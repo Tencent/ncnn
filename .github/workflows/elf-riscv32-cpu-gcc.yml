@@ -1,0 +1,126 @@
+name: elf-riscv32-cpu-gcc
+on:
+  push:
+    branches: [master]
+    paths:
+    - '.github/workflows/elf-riscv32-cpu-gcc.yml'
+    - 'toolchains/riscv32-unknown-elf.toolchain.cmake'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/riscv/**'
+    - 'tests/**'
+  pull_request:
+    branches: [master]
+    paths:
+    - '.github/workflows/elf-riscv32-cpu-gcc.yml'
+    - 'toolchains/riscv32-unknown-elf.toolchain.cmake'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/riscv/**'
+    - 'tests/**'
+concurrency:
+  group: elf-riscv32-cpu-gcc-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+
+jobs:
+  newlib-rv32imc-gcc:
+    runs-on: [self-hosted, linux, centos]
+    steps:
+    - uses: actions/checkout@v3
+
+    #- name: cache-riscv
+      #id: cache-riscv
+      #uses: actions/cache@v3
+      #with:
+        #path: rv32imc-install
+        #key: rv32imc-newlib-install-20210425
+
+    #- name: install-riscv-build-deps
+      #if: steps.cache-riscv.outputs.cache-hit != 'true'
+      #run: |
+        #sudo apt-get update
+        #sudo apt-get install autoconf automake autotools-dev curl python3 libmpc-dev libmpfr-dev libgmp-dev gawk build-essential bison flex texinfo gperf libtool patchutils bc zlib1g-dev libexpat-dev device-tree-compiler
+
+    #- name: checkout-riscv-gnu-toolchain
+      #if: steps.cache-riscv.outputs.cache-hit != 'true'
+      #uses: actions/checkout@v3
+      #with:
+        #repository: riscv/riscv-gnu-toolchain
+        #path: riscv-gnu-toolchain
+        #ref: b715e4f01b43efef487166f75d5d85d3c33fa7ef
+    #- name: checkout-riscv-gnu-toolchain-submodules
+      #if: steps.cache-riscv.outputs.cache-hit != 'true'
+      #run: |
+        #cd riscv-gnu-toolchain
+        #git submodule update --init --recursive --depth 1 riscv-binutils
+        #git submodule update --init --recursive --depth 1 riscv-gcc
+        #git submodule update --init --recursive --depth 1 riscv-glibc
+        #git submodule update --init --recursive --depth 1 riscv-dejagnu
+        #git submodule update --init --recursive --depth 1 riscv-newlib
+        #git submodule update --init --recursive --depth 1 riscv-gdb
+    #- name: riscv-gnu-toolchain
+      #if: steps.cache-riscv.outputs.cache-hit != 'true'
+      #run: |
+        #cd riscv-gnu-toolchain
+        #./configure --prefix=$GITHUB_WORKSPACE/rv32imc-install --with-arch=rv32imc
+        #make -j2
+
+    #- name: checkout-riscv-pk
+      #if: steps.cache-riscv.outputs.cache-hit != 'true'
+      #uses: actions/checkout@v3
+      #with:
+        #repository: riscv/riscv-pk
+        #path: riscv-pk
+        #ref: ef7bebaf9bf24d3e90bcaae96387ce418e136b6d
+    #- name: riscv-pk
+      #if: steps.cache-riscv.outputs.cache-hit != 'true'
+      #run: |
+        #cd riscv-pk
+        #mkdir build
+        #cd build
+        #export PATH=$GITHUB_WORKSPACE/rv32imc-install/bin:$PATH
+        #../configure --prefix=$GITHUB_WORKSPACE/rv32imc-install --with-arch=rv32imc --host=riscv32-unknown-elf
+        #make -j2
+        #make install
+
+    #- name: checkout-riscv-isa-sim
+      #if: steps.cache-riscv.outputs.cache-hit != 'true'
+      #uses: actions/checkout@v3
+      #with:
+        #repository: riscv/riscv-isa-sim
+        #path: riscv-isa-sim
+        #ref: 9d4f45c2ebf105503974fc80a42590ca1584c354
+    #- name: riscv-isa-sim
+      #if: steps.cache-riscv.outputs.cache-hit != 'true'
+      #run: |
+        #cd riscv-isa-sim
+        #mkdir build
+        #cd build
+        #export PATH=$GITHUB_WORKSPACE/rv32imc-install/bin:$PATH
+        #../configure --prefix=$GITHUB_WORKSPACE/rv32imc-install --with-isa=rv32imc
+        #make -j2
+        #make install
+
+    #- name: riscv-strip-install
+      #if: steps.cache-riscv.outputs.cache-hit != 'true'
+      #run: find $GITHUB_WORKSPACE/rv32imc-install -type f | xargs -i strip -g {} || true
+
+    - name: configure
+      run: export RISCV_ROOT_PATH=/data/action/osd/rv32imc-install && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/riscv32-unknown-elf.toolchain.cmake -DNCNN_THREADS=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+    - name: build
+      run: cmake --build build -j 4
+
+    # too slow for softfloat arch :(
+    #- name: test
+      #run: |
+        #sudo apt-get update
+        #sudo apt-get install device-tree-compiler
+        #export PATH=/data/action/osd/rv32imc-install/bin:$PATH
+        #cd build
+        #TESTS_EXECUTABLE_LOADER=spike TESTS_EXECUTABLE_LOADER_ARGUMENTS=/data/action/osd/rv32imc-install/riscv32-unknown-elf/bin/pk ctest --output-on-failure -j 2

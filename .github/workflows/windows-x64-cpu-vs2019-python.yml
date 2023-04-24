@@ -1,0 +1,67 @@
+name: windows-x64-cpu-vs2019-python
+on:
+  push:
+    branches: [master]
+    paths:
+    - '.github/workflows/windows-x64-cpu-vs2019-python.yml'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/x86/**'
+    - 'python/**'
+  pull_request:
+    branches: [master]
+    paths:
+    - '.github/workflows/windows-x64-cpu-vs2019-python.yml'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/x86/**'
+    - 'python/**'
+concurrency:
+  group: windows-x64-cpu-vs2019-python-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+
+jobs:
+  windows-vs2019-python:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        python-version: [3.6, 3.7, 3.8, 3.9]
+    env:
+      UseMultiToolTask: true
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: true
+    - name: set up python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest setuptools wheel twine
+    - name: build
+      run: |
+        mkdir build; cd build
+        cmake -T v142,host=x64 -A x64 -DNCNN_PYTHON=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=OFF ..
+        cmake --build . --config Release -j 2
+    - name: install python
+      run: cd python && pip install .
+    - name: test
+      run: cd python && pytest tests
+    - name: build and publish
+      if: startsWith(github.ref, 'refs/tags')
+      env:
+        TWINE_USERNAME: __token__
+        TWINE_PASSWORD: ${{ secrets.TEST_PYPI_API_TOKEN }}
+        TWINE_REPOSITORY_URL: "https://test.pypi.org/legacy/"
+      run: |
+        cd python
+        python setup.py bdist_wheel
+        twine upload dist/*

@@ -1,0 +1,91 @@
+name: linux-x64-gpu-clang
+on:
+  push:
+    branches: [master]
+    paths:
+    - '.github/workflows/linux-x64-gpu-clang.yml'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/x86/**'
+    - 'src/layer/vulkan/**'
+    - 'tests/**'
+    - 'tools/**'
+    - '!tools/pnnx/**'
+    - 'examples/**'
+  pull_request:
+    branches: [master]
+    paths:
+    - '.github/workflows/linux-x64-gpu-clang.yml'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/x86/**'
+    - 'src/layer/vulkan/**'
+    - 'tests/**'
+    - 'tools/**'
+    - '!tools/pnnx/**'
+    - 'examples/**'
+concurrency:
+  group: linux-x64-gpu-clang-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+
+jobs:
+  linux-clang-gpu:
+    runs-on: [self-hosted, linux, cvm]
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: true
+    - name: cache-swiftshader
+      id: cache-swiftshader
+      uses: actions/cache@v3
+      with:
+        path: swiftshader-install
+        key: swiftshader-linux-install-20230420
+    - name: checkout-swiftshader
+      if: steps.cache-swiftshader.outputs.cache-hit != 'true'
+      uses: actions/checkout@v3
+      with:
+        repository: google/swiftshader
+        path: swiftshader
+        ref: dd55e592406dc0bae219df11adec6363840aff4a
+    - name: checkout-swiftshader-submodules
+      if: steps.cache-swiftshader.outputs.cache-hit != 'true'
+      run: |
+        cd swiftshader
+        git -c submodule."third_party/git-hooks".update=none submodule update --init --recursive
+    - name: swiftshader
+      if: steps.cache-swiftshader.outputs.cache-hit != 'true'
+      run: |
+        cd swiftshader
+        mkdir -p build; cd build
+        cmake -DCMAKE_INSTALL_PREFIX=install -DSWIFTSHADER_BUILD_EGL=FALSE -DSWIFTSHADER_BUILD_GLESv2=FALSE -DSWIFTSHADER_BUILD_GLES_CM=FALSE -DSWIFTSHADER_BUILD_VULKAN=TRUE -DSWIFTSHADER_BUILD_PVR=FALSE -DSWIFTSHADER_BUILD_TESTS=FALSE -DSWIFTSHADER_ENABLE_ASTC=FALSE -DSWIFTSHADER_WARNINGS_AS_ERRORS=FALSE -DREACTOR_BACKEND=Subzero -DREACTOR_DEFAULT_OPT_LEVEL=Default -DCMAKE_BUILD_TYPE=Release ..
+        cmake --build . -j 4
+        mkdir $GITHUB_WORKSPACE/swiftshader-install
+        cp Linux/* $GITHUB_WORKSPACE/swiftshader-install
+    - name: build
+      env:
+        CC: clang
+        CXX: clang++
+      run: |
+        mkdir build && cd build
+        cmake -DNCNN_VULKAN=ON -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 4
+    - name: test
+      run: |
+        printf "[Processor]\nThreadCount=1\n" > build/tests/SwiftShader.ini
+        export VK_ICD_FILENAMES="$GITHUB_WORKSPACE/swiftshader-install/vk_swiftshader_icd.json"
+        cd build && ctest --output-on-failure -j 4
+    - name: build-shared
+      env:
+        CC: clang
+        CXX: clang++
+      run: |
+        mkdir build-shared && cd build-shared
+        cmake -DNCNN_VULKAN=ON -DNCNN_SHARED_LIB=ON ..
+        cmake --build . -j 4
