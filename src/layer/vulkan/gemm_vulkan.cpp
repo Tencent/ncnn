@@ -280,6 +280,16 @@ int Gemm_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
     return 0;
 }
 
+int Gemm_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const
+{
+    std::vector<VkMat> bottom_blobs(1);
+    std::vector<VkMat> top_blobs(1);
+    bottom_blobs[0] = bottom_blob;
+    int ret = forward(bottom_blobs, top_blobs, cmd, opt);
+    top_blob = top_blobs[0];
+    return ret;
+}
+
 int Gemm_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vector<VkImageMat>& top_blobs, VkCompute& cmd, const Option& opt) const
 {
     const VkImageMat& A0 = constantA ? A_data_gpu_image : bottom_blobs[0];
@@ -400,6 +410,16 @@ int Gemm_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vecto
     }
 
     return 0;
+}
+
+int Gemm_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, VkCompute& cmd, const Option& opt) const
+{
+    std::vector<VkImageMat> bottom_blobs(1);
+    std::vector<VkImageMat> top_blobs(1);
+    bottom_blobs[0] = bottom_blob;
+    int ret = forward(bottom_blobs, top_blobs, cmd, opt);
+    top_blob = top_blobs[0];
+    return ret;
 }
 
 } // namespace ncnn

@@ -57,7 +57,7 @@ int MultiHeadAttention_vulkan::create_pipeline(const Option& opt)
         pd.set(9, embed_dim); // K
         pd.set(10, 1);        // constant_broadcast_type_C
         pd.set(11, 0);        // output_N1M
-        pd.set(12, 1);        // output_elempack
+        // pd.set(12, 1);        // output_elempack
         pd.set(14, 0); // output_transpose
         q_gemm->load_param(pd);
         Mat weights[2];
@@ -87,7 +87,7 @@ int MultiHeadAttention_vulkan::create_pipeline(const Option& opt)
         pd.set(9, kdim);      // K
         pd.set(10, 1);        // constant_broadcast_type_C
         pd.set(11, 0);        // output_N1M
-        pd.set(12, 1);        // output_elempack
+        // pd.set(12, 1);        // output_elempack
         pd.set(14, 0); // output_transpose
         k_gemm->load_param(pd);
         Mat weights[2];
@@ -117,7 +117,7 @@ int MultiHeadAttention_vulkan::create_pipeline(const Option& opt)
         pd.set(9, vdim);      // K
         pd.set(10, 1);        // constant_broadcast_type_C
         pd.set(11, 0);        // output_N1M
-        pd.set(12, 1);        // output_elempack
+        // pd.set(12, 1);        // output_elempack
         pd.set(14, 0); // output_transpose
         v_gemm->load_param(pd);
         Mat weights[2];
@@ -140,7 +140,7 @@ int MultiHeadAttention_vulkan::create_pipeline(const Option& opt)
         specializations[2].i = 0;//output_transpose;
         specializations[3].i = 0;//constantM;
         specializations[4].i = 0;//constantN;
-        specializations[5].i = embed_dim_per_head;//constantK;
+        specializations[5].i = 0;//embed_dim_per_head;//constantK;
         specializations[6].i = num_head;
 
         Mat local_size_xyz;
@@ -160,7 +160,7 @@ int MultiHeadAttention_vulkan::create_pipeline(const Option& opt)
         specializations[1].i = 1;//transB;
         specializations[2].i = 1;//output_transpose;
         specializations[3].i = 0;//constantM;
-        specializations[4].i = embed_dim_per_head;//constantN;
+        specializations[4].i = 0;//embed_dim_per_head;//constantN;
         specializations[5].i = 0;//constantK;
         specializations[6].i = num_head;
 
@@ -299,17 +299,25 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkMat>& bottom_blobs, s
     const int src_seqlen = q_blob.h * q_blob.elempack;
     const int dst_seqlen = k_blob.h * k_blob.elempack;
 
-    std::vector<VkMat> q_gemm_inputs(1);
-    std::vector<VkMat> q_gemm_outputs(1);
-    q_gemm_inputs[0] = q_blob;
-    q_gemm->forward(q_gemm_inputs, q_gemm_outputs, cmd, opt);
-    VkMat q_affine = q_gemm_outputs[0];
+    VkMat q_affine;
+    q_gemm->forward(q_blob, q_affine, cmd, opt);
 
-    std::vector<VkMat> k_gemm_inputs(1);
-    std::vector<VkMat> k_gemm_outputs(1);
-    k_gemm_inputs[0] = k_blob;
-    k_gemm->forward(k_gemm_inputs, k_gemm_outputs, cmd, opt);
-    VkMat k_affine = k_gemm_outputs[0];
+    VkMat k_affine;
+    k_gemm->forward(k_blob, k_affine, cmd, opt);
+
+    {
+        VkMat tmp;
+        vkdev->convert_packing(q_affine, tmp, 1, cmd, opt);
+        q_affine = tmp;
+    }
+
+    {
+        VkMat tmp;
+        vkdev->convert_packing(k_affine, tmp, 1, cmd, opt);
+        k_affine = tmp;
+    }
+
+    // NCNN_LOGE("q k %d %d", q_affine.elemsize, k_affine.elemsize);
 
     VkMat qk_cross;
     {
@@ -345,13 +353,28 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkMat>& bottom_blobs, s
     q_affine.release();
     k_affine.release();
 
+    {
+        VkMat tmp;
+        vkdev->convert_packing(qk_cross, tmp, 4, cmd, opt);
+        qk_cross = tmp;
+    }
+
     qk_softmax->forward_inplace(qk_cross, cmd, opt);
 
-    std::vector<VkMat> v_gemm_inputs(1);
-    std::vector<VkMat> v_gemm_outputs(1);
-    v_gemm_inputs[0] = v_blob;
-    v_gemm->forward(v_gemm_inputs, v_gemm_outputs, cmd, opt);
-    VkMat v_affine = v_gemm_outputs[0];
+    {
+        VkMat tmp;
+        vkdev->convert_packing(qk_cross, tmp, 1, cmd, opt);
+        qk_cross = tmp;
+    }
+
+    VkMat v_affine;
+    v_gemm->forward(v_blob, v_affine, cmd, opt);
+
+    {
+        VkMat tmp;
+        vkdev->convert_packing(v_affine, tmp, 1, cmd, opt);
+        v_affine = tmp;
+    }
 
     VkMat qkv_cross;
     {
@@ -384,13 +407,10 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkMat>& bottom_blobs, s
         cmd.record_pipeline(pipeline_multiheadattention_qkv_gemm, bindings, constants, dispatcher);
     }
 
+    qk_cross.release();
     v_affine.release();
 
-    std::vector<VkMat> o_gemm_inputs(1);
-    std::vector<VkMat> o_gemm_outputs(1);
-    o_gemm_inputs[0] = qkv_cross;
-    o_gemm->forward(o_gemm_inputs, o_gemm_outputs, cmd, opt);
-    top_blobs[0] = o_gemm_outputs[0];
+    o_gemm->forward(qkv_cross, top_blobs[0], cmd, opt);
 
     return 0;
 }
@@ -405,17 +425,11 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkImageMat>& bottom_blo
     const int src_seqlen = q_blob.h * q_blob.elempack;
     const int dst_seqlen = k_blob.h * k_blob.elempack;
 
-    std::vector<VkImageMat> q_gemm_inputs(1);
-    std::vector<VkImageMat> q_gemm_outputs(1);
-    q_gemm_inputs[0] = q_blob;
-    q_gemm->forward(q_gemm_inputs, q_gemm_outputs, cmd, opt);
-    VkImageMat q_affine = q_gemm_outputs[0];
+    VkImageMat q_affine;
+    q_gemm->forward(q_blob, q_affine, cmd, opt);
 
-    std::vector<VkImageMat> k_gemm_inputs(1);
-    std::vector<VkImageMat> k_gemm_outputs(1);
-    k_gemm_inputs[0] = k_blob;
-    k_gemm->forward(k_gemm_inputs, k_gemm_outputs, cmd, opt);
-    VkImageMat k_affine = k_gemm_outputs[0];
+    VkImageMat k_affine;
+    k_gemm->forward(k_blob, k_affine, cmd, opt);
 
     VkImageMat qk_cross;
     {
@@ -452,11 +466,8 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkImageMat>& bottom_blo
 
     qk_softmax->forward_inplace(qk_cross, cmd, opt);
 
-    std::vector<VkImageMat> v_gemm_inputs(1);
-    std::vector<VkImageMat> v_gemm_outputs(1);
-    v_gemm_inputs[0] = v_blob;
-    v_gemm->forward(v_gemm_inputs, v_gemm_outputs, cmd, opt);
-    VkImageMat v_affine = v_gemm_outputs[0];
+    VkImageMat v_affine;
+    v_gemm->forward(v_blob, v_affine, cmd, opt);
 
     VkImageMat qkv_cross;
     {
@@ -488,13 +499,10 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkImageMat>& bottom_blo
         cmd.record_pipeline(pipeline_multiheadattention_qkv_gemm, bindings, constants, dispatcher);
     }
 
+    qk_cross.release();
     v_affine.release();
 
-    std::vector<VkImageMat> o_gemm_inputs(1);
-    std::vector<VkImageMat> o_gemm_outputs(1);
-    o_gemm_inputs[0] = qkv_cross;
-    o_gemm->forward(o_gemm_inputs, o_gemm_outputs, cmd, opt);
-    top_blobs[0] = o_gemm_outputs[0];
+    o_gemm->forward(qkv_cross, top_blobs[0], cmd, opt);
 
     return 0;
 }
