@@ -349,8 +349,8 @@ struct gridsample_3d_nearest_compute_blob
                     volatile float sw = src.w;
                     volatile float sh = src.h;
                     __m256 offset = _mm256_mul_ps(_mm256_comp_fmadd_ps(_mm256_mul_ps(_mm256_set1_ps(sw), _mm256_set1_ps(sh)), gz,
-                        _mm256_comp_fmadd_ps(gy, _mm256_set1_ps(sw), gx)),
-                        _mm256_set1_ps(epack));
+                                                  _mm256_comp_fmadd_ps(gy, _mm256_set1_ps(sw), gx)),
+                                                  _mm256_set1_ps(epack));
 
                     _mm256_storeu_ps(offset_ptr, offset);
 
@@ -422,8 +422,8 @@ struct gridsample_3d_nearest_compute_blob
                 volatile float sw = src.w;
                 volatile float sh = src.h;
                 __m256 offset = _mm256_mul_ps(_mm256_comp_fmadd_ps(_mm256_mul_ps(_mm256_set1_ps(sw), _mm256_set1_ps(sh)), gz,
-                    _mm256_comp_fmadd_ps(gy, _mm256_set1_ps(sw), gx)),
-                    _mm256_set1_ps(epack));
+                                              _mm256_comp_fmadd_ps(gy, _mm256_set1_ps(sw), gx)),
+                                              _mm256_set1_ps(epack));
 
                 _mm256_storeu_ps(offset_ptr, offset);
 
@@ -592,8 +592,8 @@ struct gridsample_3d_nearest_compute_blob<GridSample::Padding_ZEROS, align_corne
                 volatile float sw = src.w;
                 volatile float sh = src.h;
                 __m256 offset = _mm256_mul_ps(_mm256_comp_fmadd_ps(_mm256_mul_ps(_mm256_set1_ps(sw), _mm256_set1_ps(sh)), gz,
-                    _mm256_comp_fmadd_ps(gy, _mm256_set1_ps(sw), gx)),
-                    _mm256_set1_ps(epack));
+                                              _mm256_comp_fmadd_ps(gy, _mm256_set1_ps(sw), gx)),
+                                              _mm256_set1_ps(epack));
 
                 _mm256_storeu_ps(in_bound_ptr, v_in_range);
                 _mm256_storeu_ps(offset_ptr, offset);
