@@ -144,7 +144,7 @@ int MultiHeadAttention_vulkan::create_pipeline(const Option& opt)
         std::vector<vk_specialization_type> specializations(4);
         specializations[0].i = 0; //constantM;
         specializations[1].i = 0; //constantN;
-        specializations[2].i = 0;//embed_dim_per_head;//constantK;
+        specializations[2].i = 0; //embed_dim_per_head;//constantK;
         specializations[3].i = num_head;
 
         {
