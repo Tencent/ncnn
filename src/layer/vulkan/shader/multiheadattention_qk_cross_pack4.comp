@@ -21,6 +21,8 @@
 #extension GL_EXT_shader_explicit_arithmetic_types_float16: require
 #endif
 
+#define LOCAL_MEMORY_UNROLL_INCH 8
+
 layout (constant_id = 0) const int M = 0;
 layout (constant_id = 1) const int N = 0;
 layout (constant_id = 2) const int K = 0;
@@ -44,17 +46,105 @@ layout (push_constant) uniform parameter
     int B;
 } p;
 
+#if NCNN_shader_local_memory
+shared lfpvec4 tmp_q[8][LOCAL_MEMORY_UNROLL_INCH][4];
+shared lfpvec4 tmp_k[8][LOCAL_MEMORY_UNROLL_INCH];
+#endif
+
 void main()
 {
     int gx = int(gl_GlobalInvocationID.x);
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
+#if !NCNN_shader_local_memory
     if (gx >= psc(N) || gy >= psc(M) || gz >= psc(B))
         return;
+#endif
 
     afpvec4 sum = afpvec4(0.f);
 
+#if !NCNN_image_shader && NCNN_shader_local_memory
+    const int NN = psc(K);
+
+    const int lx = int(gl_LocalInvocationID.x);
+    const int ly = int(gl_LocalInvocationID.y);
+
+    int ai = (gz * psc(M) * psc(K) + lx * psc(M) + gy) * 4;
+    int bi = gz * psc(N) * psc(K) + ly * psc(N) + gx;
+
+    int k = 0;
+    for (; k + (LOCAL_MEMORY_UNROLL_INCH - 1) < NN; k += LOCAL_MEMORY_UNROLL_INCH)
+    {
+        {
+            tmp_q[ly][lx][0] = sfp2lfpvec4(q_blob_data[ai]);
+            tmp_q[ly][lx][1] = sfp2lfpvec4(q_blob_data[ai + 1]);
+            tmp_q[ly][lx][2] = sfp2lfpvec4(q_blob_data[ai + 2]);
+            tmp_q[ly][lx][3] = sfp2lfpvec4(q_blob_data[ai + 3]);
+        }
+
+        {
+            tmp_k[lx][ly] = sfp2lfpvec4(k_blob_data[bi]);
+        }
+
+        barrier();
+
+        for (int k4 = 0; k4 < LOCAL_MEMORY_UNROLL_INCH; k4++)
+        {
+            afpvec4 q0 = lfp2afpvec4(tmp_q[ly][k4][0]);
+            afpvec4 q1 = lfp2afpvec4(tmp_q[ly][k4][1]);
+            afpvec4 q2 = lfp2afpvec4(tmp_q[ly][k4][2]);
+            afpvec4 q3 = lfp2afpvec4(tmp_q[ly][k4][3]);
+
+            afpvec4 k0 = lfp2afpvec4(tmp_k[lx][k4]);
+
+            sum.r += dot(q0, k0);
+            sum.g += dot(q1, k0);
+            sum.b += dot(q2, k0);
+            sum.a += dot(q3, k0);
+        }
+
+        ai += LOCAL_MEMORY_UNROLL_INCH * psc(M) * 4;
+        bi += LOCAL_MEMORY_UNROLL_INCH * psc(N);
+
+        barrier();
+    }
+
+    if (k < NN)
+    {
+        const int remain = NN - k;
+
+        if (lx < remain)
+        {
+            tmp_q[ly][lx][0] = sfp2lfpvec4(q_blob_data[ai]);
+            tmp_q[ly][lx][1] = sfp2lfpvec4(q_blob_data[ai + 1]);
+            tmp_q[ly][lx][2] = sfp2lfpvec4(q_blob_data[ai + 2]);
+            tmp_q[ly][lx][3] = sfp2lfpvec4(q_blob_data[ai + 3]);
+        }
+
+        if (ly < remain)
+        {
+            tmp_k[lx][ly] = sfp2lfpvec4(k_blob_data[bi]);
+        }
+
+        barrier();
+
+        for (int k4 = 0; k4 < remain; k4++)
+        {
+            afpvec4 q0 = lfp2afpvec4(tmp_q[ly][k4][0]);
+            afpvec4 q1 = lfp2afpvec4(tmp_q[ly][k4][1]);
+            afpvec4 q2 = lfp2afpvec4(tmp_q[ly][k4][2]);
+            afpvec4 q3 = lfp2afpvec4(tmp_q[ly][k4][3]);
+
+            afpvec4 k0 = lfp2afpvec4(tmp_k[lx][k4]);
+
+            sum.r += dot(q0, k0);
+            sum.g += dot(q1, k0);
+            sum.b += dot(q2, k0);
+            sum.a += dot(q3, k0);
+        }
+    }
+#else
     for (int k = 0; k < psc(K); k++)
     {
 #if NCNN_image_shader
@@ -80,6 +170,12 @@ void main()
         sum.b += dot(q2, k0);
         sum.a += dot(q3, k0);
     }
+#endif
+
+#if NCNN_shader_local_memory
+    if (gx >= psc(N) || gy >= psc(M) || gz >= psc(B))
+        return;
+#endif
 
 #if NCNN_image_shader
     image3d_st4(qkcross_blob_3d, ivec3(gx, gz * psc(M) + gy, 0), sum);
