@@ -40,7 +40,7 @@ def test():
     import os
     os.system("../../src/pnnx test_vit_b_32.pt inputshape=[1,3,224,224]")
 
-    # ncn inference
+    # ncnn inference
     import test_vit_b_32_ncnn
     b = test_vit_b_32_ncnn.test_inference()
 
