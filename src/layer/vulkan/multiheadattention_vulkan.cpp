@@ -351,8 +351,10 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkMat>& bottom_blobs, s
         int K = q_affine.h * q_affine.elempack / num_head;
         int B = num_head;
 
-        int K_elempack = opt.use_shader_pack8 && K % 8 == 0 ? 8 : K % 4 == 0 ? 4 : 1;
-        int M_elempack = opt.use_shader_pack8 && M % 8 == 0 ? 8 : M % 4 == 0 ? 4 : 1;
+        // int K_elempack = opt.use_shader_pack8 && K % 8 == 0 ? 8 : K % 4 == 0 ? 4 : 1;
+        // int M_elempack = opt.use_shader_pack8 && M % 8 == 0 ? 8 : M % 4 == 0 ? 4 : 1;
+        int K_elempack = K % 4 == 0 ? 4 : 1;
+        int M_elempack = M % 4 == 0 ? 4 : 1;
         int MB_elempack = opt.use_shader_pack8 && (M * B) % 8 == 0 ? 8 : (M * B) % 4 == 0 ? 4 : 1;
         size_t M_elemsize = q_affine.elemsize / q_affine.elempack * M_elempack;
 
@@ -439,8 +441,10 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkMat>& bottom_blobs, s
         int K = v_affine.w;
         int B = num_head;
 
-        int M_elempack = opt.use_shader_pack8 && M % 8 == 0 ? 8 : M % 4 == 0 ? 4 : 1;
-        int N_elempack = opt.use_shader_pack8 && N % 8 == 0 ? 8 : N % 4 == 0 ? 4 : 1;
+        // int M_elempack = opt.use_shader_pack8 && M % 8 == 0 ? 8 : M % 4 == 0 ? 4 : 1;
+        // int N_elempack = opt.use_shader_pack8 && N % 8 == 0 ? 8 : N % 4 == 0 ? 4 : 1;
+        int M_elempack = M % 4 == 0 ? 4 : 1;
+        int N_elempack = N % 4 == 0 ? 4 : 1;
         int NB_elempack = opt.use_shader_pack8 && (N * B) % 8 == 0 ? 8 : (N * B) % 4 == 0 ? 4 : 1;
         size_t N_elemsize = v_affine.elemsize / v_affine.elempack * N_elempack;
 
@@ -544,8 +548,10 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkImageMat>& bottom_blo
         int K = q_affine.h * q_affine.elempack / num_head;
         int B = num_head;
 
-        int K_elempack = opt.use_shader_pack8 && K % 8 == 0 ? 8 : K % 4 == 0 ? 4 : 1;
-        int M_elempack = opt.use_shader_pack8 && M % 8 == 0 ? 8 : M % 4 == 0 ? 4 : 1;
+        // int K_elempack = opt.use_shader_pack8 && K % 8 == 0 ? 8 : K % 4 == 0 ? 4 : 1;
+        // int M_elempack = opt.use_shader_pack8 && M % 8 == 0 ? 8 : M % 4 == 0 ? 4 : 1;
+        int K_elempack = K % 4 == 0 ? 4 : 1;
+        int M_elempack = M % 4 == 0 ? 4 : 1;
         int MB_elempack = opt.use_shader_pack8 && (M * B) % 8 == 0 ? 8 : (M * B) % 4 == 0 ? 4 : 1;
         size_t M_elemsize = q_affine.elemsize / q_affine.elempack * M_elempack;
 
@@ -632,8 +638,10 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkImageMat>& bottom_blo
         int K = v_affine.w;
         int B = num_head;
 
-        int M_elempack = opt.use_shader_pack8 && M % 8 == 0 ? 8 : M % 4 == 0 ? 4 : 1;
-        int N_elempack = opt.use_shader_pack8 && N % 8 == 0 ? 8 : N % 4 == 0 ? 4 : 1;
+        // int M_elempack = opt.use_shader_pack8 && M % 8 == 0 ? 8 : M % 4 == 0 ? 4 : 1;
+        // int N_elempack = opt.use_shader_pack8 && N % 8 == 0 ? 8 : N % 4 == 0 ? 4 : 1;
+        int M_elempack = M % 4 == 0 ? 4 : 1;
+        int N_elempack = N % 4 == 0 ? 4 : 1;
         int NB_elempack = opt.use_shader_pack8 && (N * B) % 8 == 0 ? 8 : (N * B) % 4 == 0 ? 4 : 1;
         size_t N_elemsize = v_affine.elemsize / v_affine.elempack * N_elempack;
 

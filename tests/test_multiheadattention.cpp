@@ -146,8 +146,8 @@ static int test_multiheadattention_1()
 static int test_multiheadattention_2()
 {
     return 0
-           || test_multiheadattention_sameqkv(RandomMat(64, 128), 8)
-           || test_multiheadattention_sameqkv(RandomMat(64, 127), 32);
+           || test_multiheadattention_sameqkv(RandomMat(64, 128), 4)
+           || test_multiheadattention_sameqkv(RandomMat(64, 127), 8);
 }
 
 int main()
