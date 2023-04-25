@@ -45,7 +45,7 @@ MultiHeadAttention_vulkan::MultiHeadAttention_vulkan()
 
 int MultiHeadAttention_vulkan::create_pipeline(const Option& opt)
 {
-    const int embed_dim_per_head = embed_dim / num_head;
+    const int embed_dim_per_head = embed_dim / num_heads;
     {
         const float inv_sqrt_embed_dim_per_head = 1.f / sqrt(embed_dim_per_head);
 
@@ -145,7 +145,7 @@ int MultiHeadAttention_vulkan::create_pipeline(const Option& opt)
         specializations[0].i = 0; //constantM;
         specializations[1].i = 0; //constantN;
         specializations[2].i = 0; //embed_dim_per_head;//constantK;
-        specializations[3].i = num_head;
+        specializations[3].i = num_heads;
 
         {
             pipeline_multiheadattention_qk_cross = new Pipeline(vkdev);
@@ -173,7 +173,7 @@ int MultiHeadAttention_vulkan::create_pipeline(const Option& opt)
         specializations[0].i = 0; //constantM;
         specializations[1].i = 0; //embed_dim_per_head;//constantN;
         specializations[2].i = 0; //constantK;
-        specializations[3].i = num_head;
+        specializations[3].i = num_heads;
 
         {
             pipeline_multiheadattention_qkv_cross = new Pipeline(vkdev);
@@ -334,7 +334,7 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkMat>& bottom_blobs, s
     const VkMat& k_blob = bottom_blobs.size() == 1 ? q_blob : bottom_blobs[1];
     const VkMat& v_blob = bottom_blobs.size() == 1 ? q_blob : bottom_blobs.size() == 2 ? k_blob : bottom_blobs[2];
 
-    const int embed_dim_per_head = embed_dim / num_head;
+    const int embed_dim_per_head = embed_dim / num_heads;
     const int src_seqlen = q_blob.h * q_blob.elempack;
     const int dst_seqlen = k_blob.h * k_blob.elempack;
 
@@ -348,8 +348,8 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkMat>& bottom_blobs, s
     {
         int M = q_affine.w;
         int N = k_affine.w;
-        int K = q_affine.h * q_affine.elempack / num_head;
-        int B = num_head;
+        int K = q_affine.h * q_affine.elempack / num_heads;
+        int B = num_heads;
 
         // int K_elempack = opt.use_shader_pack8 && K % 8 == 0 ? 8 : K % 4 == 0 ? 4 : 1;
         // int M_elempack = opt.use_shader_pack8 && M % 8 == 0 ? 8 : M % 4 == 0 ? 4 : 1;
@@ -436,10 +436,10 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkMat>& bottom_blobs, s
 
     VkMat qkv_cross;
     {
-        int M = qk_cross.h * qk_cross.elempack / num_head;
-        int N = v_affine.h * v_affine.elempack / num_head;
+        int M = qk_cross.h * qk_cross.elempack / num_heads;
+        int N = v_affine.h * v_affine.elempack / num_heads;
         int K = v_affine.w;
-        int B = num_head;
+        int B = num_heads;
 
         // int M_elempack = opt.use_shader_pack8 && M % 8 == 0 ? 8 : M % 4 == 0 ? 4 : 1;
         // int N_elempack = opt.use_shader_pack8 && N % 8 == 0 ? 8 : N % 4 == 0 ? 4 : 1;
@@ -531,7 +531,7 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkImageMat>& bottom_blo
     const VkImageMat& k_blob = bottom_blobs.size() == 1 ? q_blob : bottom_blobs[1];
     const VkImageMat& v_blob = bottom_blobs.size() == 1 ? q_blob : bottom_blobs.size() == 2 ? k_blob : bottom_blobs[2];
 
-    const int embed_dim_per_head = embed_dim / num_head;
+    const int embed_dim_per_head = embed_dim / num_heads;
     const int src_seqlen = q_blob.h * q_blob.elempack;
     const int dst_seqlen = k_blob.h * k_blob.elempack;
 
@@ -545,8 +545,8 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkImageMat>& bottom_blo
     {
         int M = q_affine.w;
         int N = k_affine.w;
-        int K = q_affine.h * q_affine.elempack / num_head;
-        int B = num_head;
+        int K = q_affine.h * q_affine.elempack / num_heads;
+        int B = num_heads;
 
         // int K_elempack = opt.use_shader_pack8 && K % 8 == 0 ? 8 : K % 4 == 0 ? 4 : 1;
         // int M_elempack = opt.use_shader_pack8 && M % 8 == 0 ? 8 : M % 4 == 0 ? 4 : 1;
@@ -633,10 +633,10 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkImageMat>& bottom_blo
 
     VkImageMat qkv_cross;
     {
-        int M = qk_cross.h * qk_cross.elempack / num_head;
-        int N = v_affine.h * v_affine.elempack / num_head;
+        int M = qk_cross.h * qk_cross.elempack / num_heads;
+        int N = v_affine.h * v_affine.elempack / num_heads;
         int K = v_affine.w;
-        int B = num_head;
+        int B = num_heads;
 
         // int M_elempack = opt.use_shader_pack8 && M % 8 == 0 ? 8 : M % 4 == 0 ? 4 : 1;
         // int N_elempack = opt.use_shader_pack8 && N % 8 == 0 ? 8 : N % 4 == 0 ? 4 : 1;

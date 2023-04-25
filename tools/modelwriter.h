@@ -1922,7 +1922,7 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             ncnn::MultiHeadAttention* op_default = (ncnn::MultiHeadAttention*)layer_default;
 
             fprintf_param_value(" 0=%d", embed_dim)
-            fprintf_param_value(" 1=%d", num_head)
+            fprintf_param_value(" 1=%d", num_heads)
             fprintf_param_value(" 2=%d", weight_data_size)
             fprintf_param_value(" 3=%d", kdim)
             fprintf_param_value(" 4=%d", vdim)

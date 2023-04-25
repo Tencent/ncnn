@@ -39,7 +39,7 @@ MultiHeadAttention_x86::MultiHeadAttention_x86()
 int MultiHeadAttention_x86::create_pipeline(const Option& opt)
 {
     {
-        const int embed_dim_per_head = embed_dim / num_head;
+        const int embed_dim_per_head = embed_dim / num_heads;
         const float inv_sqrt_embed_dim_per_head = 1.f / sqrt(embed_dim_per_head);
 
         q_gemm = ncnn::create_layer(ncnn::LayerType::Gemm);
@@ -271,7 +271,7 @@ int MultiHeadAttention_x86::forward(const std::vector<Mat>& bottom_blobs, std::v
     const Mat& k_blob = bottom_blobs.size() == 1 ? q_blob : bottom_blobs[1];
     const Mat& v_blob = bottom_blobs.size() == 1 ? q_blob : bottom_blobs.size() == 2 ? k_blob : bottom_blobs[2];
 
-    const int embed_dim_per_head = embed_dim / num_head;
+    const int embed_dim_per_head = embed_dim / num_heads;
     const int src_seqlen = q_blob.h * q_blob.elempack;
     const int dst_seqlen = k_blob.h * k_blob.elempack;
 
@@ -281,9 +281,9 @@ int MultiHeadAttention_x86::forward(const std::vector<Mat>& bottom_blobs, std::v
     Mat k_affine;
     k_gemm->forward(k_blob, k_affine, opt);
 
-    Mat qk_cross(dst_seqlen, src_seqlen * num_head, 4u, opt.blob_allocator);
+    Mat qk_cross(dst_seqlen, src_seqlen * num_heads, 4u, opt.blob_allocator);
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int i = 0; i < num_head; i++)
+    for (int i = 0; i < num_heads; i++)
     {
         std::vector<Mat> qk_bottom_blobs(2);
         qk_bottom_blobs[0] = q_affine.row_range(i * embed_dim_per_head, embed_dim_per_head);
@@ -303,9 +303,9 @@ int MultiHeadAttention_x86::forward(const std::vector<Mat>& bottom_blobs, std::v
     Mat v_affine;
     v_gemm->forward(v_blob, v_affine, opt);
 
-    Mat qkv_cross(src_seqlen, embed_dim_per_head * num_head, 4u, opt.blob_allocator);
+    Mat qkv_cross(src_seqlen, embed_dim_per_head * num_heads, 4u, opt.blob_allocator);
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int i = 0; i < num_head; i++)
+    for (int i = 0; i < num_heads; i++)
     {
         std::vector<Mat> qkv_bottom_blobs(2);
         qkv_bottom_blobs[0] = qk_cross.row_range(i * src_seqlen, src_seqlen);

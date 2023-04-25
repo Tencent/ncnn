@@ -32,7 +32,7 @@ public:
 
 public:
     int embed_dim;
-    int num_head;
+    int num_heads;
     int weight_data_size;
     int kdim;
     int vdim;

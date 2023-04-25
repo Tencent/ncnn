@@ -1185,7 +1185,7 @@ y = affine(out)
 | param id  | name          | type  | default   | description       |
 | --------- | ------------- | ----- | --------- | ----------------- |
 | 0         | embed_dim     | int   | 0         |                   |
-| 1         | num_head      | int   | 1         |                   |
+| 1         | num_heads     | int   | 1         |                   |
 | 2         | weight_data_size| int | 0         |                   |
 | 3         | kdim          | int   | embed_dim |                   |
 | 4         | vdim          | int   | embed_dim |                   |
