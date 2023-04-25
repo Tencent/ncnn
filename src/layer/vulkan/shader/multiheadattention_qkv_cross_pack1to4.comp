@@ -1,0 +1,81 @@
+// Tencent is pleased to support the open source community by making ncnn available.
+//
+// Copyright (C) 2023 THL A29 Limited, a Tencent company. All rights reserved.
+//
+// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
+// in compliance with the License. You may obtain a copy of the License at
+//
+// https://opensource.org/licenses/BSD-3-Clause
+//
+// Unless required by applicable law or agreed to in writing, software distributed
+// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+// CONDITIONS OF ANY KIND, either express or implied. See the License for the
+// specific language governing permissions and limitations under the License.
+
+#version 450
+
+#if NCNN_fp16_storage
+#extension GL_EXT_shader_16bit_storage: require
+#endif
+#if NCNN_fp16_arithmetic
+#extension GL_EXT_shader_explicit_arithmetic_types_float16: require
+#endif
+
+layout (constant_id = 0) const int M = 0;
+layout (constant_id = 1) const int N = 0;
+layout (constant_id = 2) const int K = 0;
+layout (constant_id = 3) const int B = 0;
+
+#if NCNN_image_shader
+layout (binding = 0) uniform unfp sampler3D qkcross_blob_3d;
+layout (binding = 1) uniform unfp sampler3D v_blob_3d;
+layout (binding = 2, imfmtc4) writeonly uniform unfp image3D qkvcross_blob_3d;
+#else
+layout (binding = 0) readonly buffer qkcross_blob { sfp qkcross_blob_data[]; };
+layout (binding = 1) readonly buffer v_blob { sfpvec4 v_blob_data[]; };
+layout (binding = 2) writeonly buffer qkvcross_blob { sfpvec4 qkvcross_blob_data[]; };
+#endif
+
+layout (push_constant) uniform parameter
+{
+    int M;
+    int N;
+    int K;
+    int B;
+} p;
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+    int gy = int(gl_GlobalInvocationID.y);
+    int gz = int(gl_GlobalInvocationID.z);
+
+    if (gx >= psc(N) || gy >= psc(M) || gz >= psc(B))
+        return;
+
+    afpvec4 sum = afpvec4(0.f);
+
+    for (int k = 0; k < psc(K); k++)
+    {
+#if NCNN_image_shader
+        afp qk0 = image3d_ld1(qkcross_blob_3d, ivec3(k, gz * psc(M) + gy, 0));
+        afpvec4 v0 = image3d_ld4(v_blob_3d, ivec3(k, gz * psc(N) + gx, 0));
+#else
+        const int ai = gz * psc(M) * psc(K) + gy * psc(K) + k;
+        afp qk0 = buffer_ld1(qkcross_blob_data, ai);
+
+        const int bi = gz * psc(N) * psc(K) + gx * psc(K) + k;
+        afpvec4 v0 = buffer_ld4(v_blob_data, bi);
+#endif
+
+        sum += qk0 * v0;
+    }
+
+#if NCNN_image_shader
+    image3d_st4(qkvcross_blob_3d, ivec3(gy, gz * psc(N) + gx, 0), sum);
+#else
+    const int gi = gz * psc(M) * psc(N) + gx * psc(M) + gy;
+
+    buffer_st4(qkvcross_blob_data, gi, sum);
+#endif
+}

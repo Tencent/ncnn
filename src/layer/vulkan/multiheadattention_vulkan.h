@@ -41,8 +41,15 @@ public:
 
     Layer* qk_softmax;
 
-    Pipeline* pipeline_multiheadattention_qk_gemm;
-    Pipeline* pipeline_multiheadattention_qkv_gemm;
+    Pipeline* pipeline_multiheadattention_qk_cross;
+    Pipeline* pipeline_multiheadattention_qk_cross_pack4;
+    Pipeline* pipeline_multiheadattention_qk_cross_pack1to4;
+    Pipeline* pipeline_multiheadattention_qk_cross_pack4to1;
+
+    Pipeline* pipeline_multiheadattention_qkv_cross;
+    Pipeline* pipeline_multiheadattention_qkv_cross_pack4;
+    Pipeline* pipeline_multiheadattention_qkv_cross_pack1to4;
+    Pipeline* pipeline_multiheadattention_qkv_cross_pack4to1;
 };
 
 } // namespace ncnn
