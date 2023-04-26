@@ -123,11 +123,13 @@ int MultiHeadAttention_vulkan::create_pipeline(const Option& opt)
     }
 
     {
-        std::vector<vk_specialization_type> specializations(4);
-        specializations[0].i = 0; //constantM;
-        specializations[1].i = 0; //constantN;
-        specializations[2].i = 0; //embed_dim_per_head;//constantK;
-        specializations[3].i = num_heads;
+        std::vector<vk_specialization_type> specializations(6);
+        specializations[0].i = attn_mask;
+        specializations[1].i = 0; //constantM;
+        specializations[2].i = 0; //constantN;
+        specializations[3].i = 0; //embed_dim_per_head;//constantK;
+        specializations[4].i = num_heads;
+        specializations[5].i = 0; //attn_mask.dims;
 
         {
             pipeline_multiheadattention_qk_cross = new Pipeline(vkdev);
@@ -307,8 +309,9 @@ int MultiHeadAttention_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 int MultiHeadAttention_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const
 {
     const VkMat& q_blob = bottom_blobs[0];
-    const VkMat& k_blob = bottom_blobs.size() == 1 ? q_blob : bottom_blobs[1];
-    const VkMat& v_blob = bottom_blobs.size() == 1 ? q_blob : bottom_blobs.size() == 2 ? k_blob : bottom_blobs[2];
+    const VkMat& k_blob = (bottom_blobs.size() == 1 || (bottom_blobs.size() == 2 && attn_mask)) ? q_blob : bottom_blobs[1];
+    const VkMat& v_blob = (bottom_blobs.size() == 1 || (bottom_blobs.size() == 2 && attn_mask)) ? q_blob : (bottom_blobs.size() == 2 || (bottom_blobs.size() == 3 && attn_mask)) ? k_blob : bottom_blobs[2];
+    VkMat attn_mask_blob = attn_mask ? bottom_blobs[bottom_blobs.size() - 1] : VkMat();
 
     const int embed_dim_per_head = embed_dim / num_heads;
     const int src_seqlen = q_blob.h * q_blob.elempack;
@@ -354,21 +357,29 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkMat>& bottom_blobs, s
             vkdev->convert_packing(k_affine, tmp, K_elempack, cmd, opt);
             k_affine = tmp;
         }
+        if (M_elempack < attn_mask_blob.elempack)
+        {
+            VkMat tmp;
+            vkdev->convert_packing(attn_mask_blob, tmp, M_elempack, cmd, opt);
+            attn_mask_blob = tmp;
+        }
 
         qk_cross.create(N, M / M_elempack * B, M_elemsize, M_elempack, opt.blob_vkallocator);
         if (qk_cross.empty())
             return -100;
 
-        std::vector<VkMat> bindings(3);
+        std::vector<VkMat> bindings(4);
         bindings[0] = q_affine;
         bindings[1] = k_affine;
         bindings[2] = qk_cross;
+        bindings[3] = attn_mask_blob;
 
-        std::vector<vk_constant_type> constants(4);
+        std::vector<vk_constant_type> constants(5);
         constants[0].i = M / M_elempack;
         constants[1].i = N;
         constants[2].i = K / K_elempack;
         constants[3].i = B;
+        constants[4].i = attn_mask_blob.dims;
 
         VkMat dispatcher;
         dispatcher.w = N;
@@ -506,8 +517,9 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkMat>& bottom_blobs, s
 int MultiHeadAttention_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vector<VkImageMat>& top_blobs, VkCompute& cmd, const Option& opt) const
 {
     const VkImageMat& q_blob = bottom_blobs[0];
-    const VkImageMat& k_blob = bottom_blobs.size() == 1 ? q_blob : bottom_blobs[1];
-    const VkImageMat& v_blob = bottom_blobs.size() == 1 ? q_blob : bottom_blobs.size() == 2 ? k_blob : bottom_blobs[2];
+    const VkImageMat& k_blob = (bottom_blobs.size() == 1 || (bottom_blobs.size() == 2 && attn_mask)) ? q_blob : bottom_blobs[1];
+    const VkImageMat& v_blob = (bottom_blobs.size() == 1 || (bottom_blobs.size() == 2 && attn_mask)) ? q_blob : (bottom_blobs.size() == 2 || (bottom_blobs.size() == 3 && attn_mask)) ? k_blob : bottom_blobs[2];
+    VkImageMat attn_mask_blob = attn_mask ? bottom_blobs[bottom_blobs.size() - 1] : VkImageMat();
 
     const int embed_dim_per_head = embed_dim / num_heads;
     const int src_seqlen = q_blob.h * q_blob.elempack;
@@ -553,21 +565,29 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkImageMat>& bottom_blo
             vkdev->convert_packing(k_affine, tmp, K_elempack, cmd, opt);
             k_affine = tmp;
         }
+        if (M_elempack < attn_mask_blob.elempack)
+        {
+            VkImageMat tmp;
+            vkdev->convert_packing(attn_mask_blob, tmp, M_elempack, cmd, opt);
+            attn_mask_blob = tmp;
+        }
 
         qk_cross.create(N, M / M_elempack * B, M_elemsize, M_elempack, opt.blob_vkallocator);
         if (qk_cross.empty())
             return -100;
 
-        std::vector<VkImageMat> bindings(3);
+        std::vector<VkImageMat> bindings(4);
         bindings[0] = q_affine;
         bindings[1] = k_affine;
         bindings[2] = qk_cross;
+        bindings[3] = attn_mask_blob;
 
-        std::vector<vk_constant_type> constants(4);
+        std::vector<vk_constant_type> constants(5);
         constants[0].i = M / M_elempack;
         constants[1].i = N;
         constants[2].i = K / K_elempack;
         constants[3].i = B;
+        constants[4].i = attn_mask_blob.dims;
 
         VkImageMat dispatcher;
         dispatcher.w = N;
