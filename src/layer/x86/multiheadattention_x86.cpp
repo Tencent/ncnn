@@ -286,12 +286,6 @@ int MultiHeadAttention_x86::forward(const std::vector<Mat>& bottom_blobs, std::v
     const int src_seqlen = q_blob.h * q_blob.elempack;
     const int dst_seqlen = k_blob.h * k_blob.elempack;
 
-    NCNN_LOGE("attn_mask_blob %d %d %d @%d", attn_mask_blob.w, attn_mask_blob.h, attn_mask_blob.c, attn_mask_blob.elempack);
-    NCNN_LOGE("attn_mask_blob_unpacked %d %d %d @%d", attn_mask_blob_unpacked.w, attn_mask_blob_unpacked.h, attn_mask_blob_unpacked.c, attn_mask_blob_unpacked.elempack);
-    NCNN_LOGE("embed_dim_per_head = %d", embed_dim_per_head);
-    NCNN_LOGE("src_seqlen = %d", src_seqlen);
-    NCNN_LOGE("dst_seqlen = %d", dst_seqlen);
-
     Mat q_affine;
     q_gemm->forward(q_blob, q_affine, opt);
 

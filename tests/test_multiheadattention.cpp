@@ -44,7 +44,7 @@ static int test_multiheadattention(const ncnn::Mat& q, const ncnn::Mat& k, const
 
     if (attn_mask)
     {
-        as.push_back(RandomMat(q.h, k.h));
+        as.push_back(RandomMat(k.h, q.h));
     }
 
     float epsilon = 0.005;
