@@ -133,17 +133,17 @@ int MultiHeadAttention_x86::create_pipeline(const Option& opt)
     {
         qk_gemm = ncnn::create_layer(ncnn::LayerType::Gemm);
         ncnn::ParamDict pd;
-        pd.set(2, 1);   // transA
-        pd.set(3, 0);   // transB
-        pd.set(4, 0);   // constantA
-        pd.set(5, 0);   // constantB
+        pd.set(2, 1);                   // transA
+        pd.set(3, 0);                   // transB
+        pd.set(4, 0);                   // constantA
+        pd.set(5, 0);                   // constantB
         pd.set(6, attn_mask ? 0 : 1);   // constantC
-        pd.set(7, 0);   // M
-        pd.set(8, 0);   // N
-        pd.set(9, 0);   // K
+        pd.set(7, 0);                   // M
+        pd.set(8, 0);                   // N
+        pd.set(9, 0);                   // K
         pd.set(10, attn_mask ? 3 : -1); // constant_broadcast_type_C
-        pd.set(11, 0);  // output_N1M
-        pd.set(12, 1);  // output_elempack
+        pd.set(11, 0);                  // output_N1M
+        pd.set(12, 1);                  // output_elempack
         qk_gemm->load_param(pd);
         qk_gemm->load_model(ModelBinFromMatArray(0));
         Option opt1 = opt;
