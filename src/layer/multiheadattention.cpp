@@ -25,7 +25,7 @@ MultiHeadAttention::MultiHeadAttention()
 int MultiHeadAttention::load_param(const ParamDict& pd)
 {
     embed_dim = pd.get(0, 0);
-    num_head = pd.get(1, 1);
+    num_heads = pd.get(1, 1);
     weight_data_size = pd.get(2, 0);
     kdim = pd.get(3, embed_dim);
     vdim = pd.get(4, embed_dim);
@@ -79,7 +79,7 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
 
     const int src_seqlen = q_blob.h;
     const int dst_seqlen = k_blob.h;
-    const int embed_dim_per_head = embed_dim / num_head;
+    const int embed_dim_per_head = embed_dim / num_heads;
 
     // assert k_blob.h == v_blob.h
 
@@ -88,18 +88,18 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
     if (top_blob.empty())
         return -1;
 
-    Mat xq(embed_dim_per_head, src_seqlen, num_head, 4u, opt.workspace_allocator);
-    Mat xk(embed_dim_per_head, dst_seqlen, num_head, 4u, opt.workspace_allocator);
-    Mat xv(dst_seqlen, embed_dim_per_head, num_head, 4u, opt.workspace_allocator);
+    Mat xq(embed_dim_per_head, src_seqlen, num_heads, 4u, opt.workspace_allocator);
+    Mat xk(embed_dim_per_head, dst_seqlen, num_heads, 4u, opt.workspace_allocator);
+    Mat xv(dst_seqlen, embed_dim_per_head, num_heads, 4u, opt.workspace_allocator);
 
-    Mat xqk(dst_seqlen, src_seqlen, num_head, 4u, opt.workspace_allocator);
+    Mat xqk(dst_seqlen, src_seqlen, num_heads, 4u, opt.workspace_allocator);
 
-    Mat xqkv(embed_dim_per_head, num_head, src_seqlen, 4u, opt.workspace_allocator);
+    Mat xqkv(embed_dim_per_head, num_heads, src_seqlen, 4u, opt.workspace_allocator);
 
     const float inv_sqrt_embed_dim_per_head = 1.f / sqrt(embed_dim_per_head);
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q = 0; q < num_head; q++)
+    for (int q = 0; q < num_heads; q++)
     {
         // xq = affine(q) * inv_sqrt_embed_dim_per_head
         {
@@ -233,7 +233,7 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
         // xqkv = xqk * xv
         // xqk (dst_seqlen, src_seqlen)
         // xv  (dst_seqlen, embed_dim_per_head)
-        // out (embed_dim_per_head, num_head, src_seqlen)
+        // out (embed_dim_per_head, num_heads, src_seqlen)
         {
             const Mat xqkm = xqk.channel(q);
             const Mat xvm = xv.channel(q);

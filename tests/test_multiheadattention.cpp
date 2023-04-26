@@ -46,7 +46,7 @@ static int test_multiheadattention(const ncnn::Mat& q, const ncnn::Mat& k, const
     int ret = test_layer<ncnn::MultiHeadAttention>("MultiHeadAttention", pd, weights, as, 1, epsilon);
     if (ret != 0)
     {
-        fprintf(stderr, "test_multiheadattention failed q=(%d %d) k=(%d %d) v=(%d %d)\n", q.w, q.h, k.w, k.h, v.w, v.h);
+        fprintf(stderr, "test_multiheadattention failed q=(%d %d) k=(%d %d) v=(%d %d) num_heads=%d kdim=%d vdim=%d\n", q.w, q.h, k.w, k.h, v.w, v.h, num_heads, kdim, vdim);
     }
 
     return ret;
@@ -82,7 +82,7 @@ static int test_multiheadattention_samekv(const ncnn::Mat& q, const ncnn::Mat& k
     int ret = test_layer<ncnn::MultiHeadAttention>("MultiHeadAttention", pd, weights, as, 1, epsilon);
     if (ret != 0)
     {
-        fprintf(stderr, "test_multiheadattention_samekv failed q=(%d %d) kv=(%d %d)\n", q.w, q.h, kv.w, kv.h);
+        fprintf(stderr, "test_multiheadattention_samekv failed q=(%d %d) kv=(%d %d) num_heads=%d kvdim=%d\n", q.w, q.h, kv.w, kv.h, num_heads, kvdim);
     }
 
     return ret;
@@ -115,7 +115,7 @@ static int test_multiheadattention_sameqkv(const ncnn::Mat& a, int num_heads)
     int ret = test_layer<ncnn::MultiHeadAttention>("MultiHeadAttention", pd, weights, as, 1, epsilon);
     if (ret != 0)
     {
-        fprintf(stderr, "test_multiheadattention_sameqkv failed a=(%d %d)\n", a.w, a.h);
+        fprintf(stderr, "test_multiheadattention_sameqkv failed a=(%d %d) num_heads=%d\n", a.w, a.h, num_heads);
     }
 
     return ret;
@@ -124,6 +124,8 @@ static int test_multiheadattention_sameqkv(const ncnn::Mat& a, int num_heads)
 static int test_multiheadattention_0()
 {
     return 0
+           || test_multiheadattention(RandomMat(62, 66), RandomMat(32, 66), RandomMat(20, 66), 2, 32, 20)
+           || test_multiheadattention(RandomMat(26, 64), RandomMat(32, 64), RandomMat(18, 64), 2, 32, 18)
            || test_multiheadattention(RandomMat(64, 128), RandomMat(64, 128), RandomMat(64, 128), 4, 64, 64)
            || test_multiheadattention(RandomMat(64, 127), RandomMat(64, 127), RandomMat(64, 127), 16, 64, 64)
            || test_multiheadattention(RandomMat(16, 128), RandomMat(44, 128), RandomMat(55, 128), 2, 44, 55)
@@ -146,8 +148,8 @@ static int test_multiheadattention_1()
 static int test_multiheadattention_2()
 {
     return 0
-           || test_multiheadattention_sameqkv(RandomMat(64, 128), 8)
-           || test_multiheadattention_sameqkv(RandomMat(64, 127), 32);
+           || test_multiheadattention_sameqkv(RandomMat(64, 128), 4)
+           || test_multiheadattention_sameqkv(RandomMat(64, 127), 8);
 }
 
 int main()
