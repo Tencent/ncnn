@@ -1176,6 +1176,7 @@ for each num_head part
     xk = affine(k)
     xv = affine(v)
     xqk = xq * xk
+    xqk = xqk + attn_mask if attn_mask exists
     softmax_inplace(xqk)
     xqkv = xqk * xv
     merge xqkv to out
@@ -1189,6 +1190,7 @@ y = affine(out)
 | 2         | weight_data_size| int | 0         |                   |
 | 3         | kdim          | int   | embed_dim |                   |
 | 4         | vdim          | int   | embed_dim |                   |
+| 5         | attn_mask     | int   | 0         |                   |
 
 | weight        | type  | shape                 |
 | ------------- | ----- | --------------------- |

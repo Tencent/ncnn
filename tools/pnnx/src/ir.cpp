@@ -1934,7 +1934,43 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                 {
                     std::string in0 = sanitize_identifier(op->inputs[0]->name);
                     std::string in1 = sanitize_identifier(op->inputs[1]->name);
-                    fprintf(pyfp, "v_%s, v_%s, v_%s", in0.c_str(), in1.c_str(), in1.c_str());
+                    if (op->inputnames.size() == 2 && op->inputnames[1] == "attn_mask")
+                    {
+                        fprintf(pyfp, "v_%s, v_%s, v_%s, attn_mask=v_%s", in0.c_str(), in0.c_str(), in0.c_str(), in1.c_str());
+                    }
+                    else
+                    {
+                        fprintf(pyfp, "v_%s, v_%s, v_%s", in0.c_str(), in1.c_str(), in1.c_str());
+                    }
+                }
+                else if (op->inputs.size() == 3)
+                {
+                    std::string in0 = sanitize_identifier(op->inputs[0]->name);
+                    std::string in1 = sanitize_identifier(op->inputs[1]->name);
+                    std::string in2 = sanitize_identifier(op->inputs[2]->name);
+                    if (op->inputnames.size() == 3 && op->inputnames[2] == "attn_mask")
+                    {
+                        fprintf(pyfp, "v_%s, v_%s, v_%s, attn_mask=v_%s", in0.c_str(), in1.c_str(), in1.c_str(), in2.c_str());
+                    }
+                    else
+                    {
+                        fprintf(pyfp, "v_%s, v_%s, v_%s", in0.c_str(), in1.c_str(), in2.c_str());
+                    }
+                }
+                else if (op->inputs.size() == 4)
+                {
+                    std::string in0 = sanitize_identifier(op->inputs[0]->name);
+                    std::string in1 = sanitize_identifier(op->inputs[1]->name);
+                    std::string in2 = sanitize_identifier(op->inputs[2]->name);
+                    std::string in3 = sanitize_identifier(op->inputs[3]->name);
+                    if (op->inputnames.size() == 4 && op->inputnames[3] == "attn_mask")
+                    {
+                        fprintf(pyfp, "v_%s, v_%s, v_%s, attn_mask=v_%s", in0.c_str(), in1.c_str(), in2.c_str(), in3.c_str());
+                    }
+                    else
+                    {
+                        fprintf(pyfp, "v_%s, v_%s, v_%s, v_%s", in0.c_str(), in1.c_str(), in2.c_str(), in3.c_str());
+                    }
                 }
                 else
                 {

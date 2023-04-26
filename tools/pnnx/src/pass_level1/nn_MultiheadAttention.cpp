@@ -81,6 +81,14 @@ public:
             {
                 op->params["add_zero_attn"] = false;
             }
+
+            const torch::jit::Node* has_attn_mask = find_node_by_kind(graph, "aten::baddbmm");
+            if (has_attn_mask)
+            {
+                size_t input_count = op->inputs.size();
+                op->inputnames.resize(input_count);
+                op->inputnames[input_count - 1] = "attn_mask";
+            }
         }
 
         if (mod.hasattr("in_proj_weight"))
