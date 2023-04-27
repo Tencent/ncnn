@@ -213,10 +213,12 @@ int InnerProduct::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opti
         {
             const signed char* m = bottom_blob_int8.row<signed char>(j);
             float* outptr = top_blob.row(j);
+            //const signed char* kptr =  weight_data 
 
             for (int p = 0; p < num_output; p++)
             {
                 const signed char* kptr = (const signed char*)weight_data + w * p;
+                
                 int sum = 0;
 
                 for (int i = 0; i < w; i++)
