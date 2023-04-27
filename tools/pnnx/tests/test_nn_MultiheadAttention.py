@@ -77,7 +77,7 @@ class Model(nn.Module):
         elif version.parse(torch.__version__) >= version.parse('2.0') and version.parse(torch.__version__) < version.parse('2.1'):
             # HACK pytorch 2.0 produce all nan, skip test :(
             y33 = y3
-        else
+        else:
             y33, _ = self.attention_1_3(z, z, z, attn_mask=zmask)
 
         y4, y4w = self.attention_1_4(yq, yk, yv)
