@@ -66,8 +66,8 @@ static float border_coord(int x, int border)
 
 static float reflect_coord(float x, int high)
 {
-    x = absf(x);
-    x = high - absf(x - high);
+    x = abs(x);
+    x = high - abs(x - high);
     return x;
 }
 
