@@ -161,6 +161,7 @@ pnnx_add_test(nn_UpsamplingNearest2d)
 pnnx_add_test(nn_ZeroPad2d)
 
 pnnx_add_test(Tensor_contiguous)
+pnnx_add_test(Tensor_expand)
 pnnx_add_test(Tensor_index)
 pnnx_add_test(Tensor_masked_fill)
 pnnx_add_test(Tensor_new_empty)

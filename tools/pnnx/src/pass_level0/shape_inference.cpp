@@ -204,12 +204,12 @@ void shape_inference(const torch::jit::Module& mod, std::shared_ptr<torch::jit::
             std::vector<c10::Argument> returns;
             for (size_t i = 0; i < graph2->inputs().size(); i++)
             {
-                auto& v = graph2->inputs()[i];
+                auto v = graph2->inputs()[i];
                 arguments.push_back(c10::Argument(v->debugName(), v->type()));
             }
             for (size_t i = 0; i < graph2->outputs().size(); i++)
             {
-                auto& v = graph2->outputs()[i];
+                auto v = graph2->outputs()[i];
                 returns.push_back(c10::Argument(v->debugName(), v->type()));
             }
 

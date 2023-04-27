@@ -1756,6 +1756,26 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                     fprintf(pyfp, "v_%s = v_%s[%s]\n", sanitize_identifier(op->outputs[0]->name).c_str(), sanitize_identifier(op->inputs[0]->name).c_str(), index_expr.c_str());
                 }
             }
+            else if (op->type == "Tensor.expand")
+            {
+                // expand
+                fprintf(pyfp, "v_%s = v_%s.%s(", sanitize_identifier(op->outputs[0]->name).c_str(), sanitize_identifier(op->inputs[0]->name).c_str(), op->type.substr(7).c_str());
+                if (op->inputs.size() == 2)
+                {
+                    fprintf(pyfp, "*v_%s", sanitize_identifier(op->inputs[1]->name).c_str());
+                }
+                else
+                {
+                    const std::vector<int>& shape = op->params.at("shape").ai;
+                    for (size_t i = 0; i < shape.size(); i++)
+                    {
+                        fprintf(pyfp, "%d", shape[i]);
+                        if (i + 1 != shape.size())
+                            fprintf(pyfp, ", ");
+                    }
+                }
+                fprintf(pyfp, ")\n");
+            }
             else if (op->type == "Tensor.view" || op->type == "Tensor.reshape")
             {
                 // view reshape
