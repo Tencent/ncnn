@@ -99,7 +99,7 @@ struct unary_op_rsqrt
 {
     float operator()(const float& x) const
     {
-        return (float)(1.f / sqrtf(x));
+        return 1.f / sqrtf(x);
     }
 };
 

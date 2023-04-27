@@ -257,7 +257,7 @@ struct unary_op_rsqrt
 {
     float func(const float& x) const
     {
-        return (float)(1.f / sqrtf(x));
+        return 1.f / sqrtf(x);
     }
 #if __SSE2__
     __m128 func_pack4(const __m128& x) const

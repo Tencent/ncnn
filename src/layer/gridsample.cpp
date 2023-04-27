@@ -66,8 +66,8 @@ static float border_coord(int x, int border)
 
 static float reflect_coord(float x, int high)
 {
-    x = abs(x);
-    x = high - abs(x - high);
+    x = absf(x);
+    x = high - absf(x - high);
     return x;
 }
 
@@ -85,7 +85,7 @@ static int compute_coord(int sx, int w, int padding_mode, int align_corner)
         }
         else
         {
-            sx = static_cast<int>(reflect_coord(sx + 0.5f, w) - 0.5);
+            sx = static_cast<int>(reflect_coord(sx + 0.5f, w) - 0.5f);
             sx = border_coord(sx, w - 1);
         }
     }

@@ -175,7 +175,7 @@ struct unary_op_tan
         vse32_v_f32m8(tmp.data(), x, vl);
         for (size_t i = 0; i < vl; i++)
         {
-            tmp[i] = tan(tmp[i]);
+            tmp[i] = tanf(tmp[i]);
         }
         return vle32_v_f32m8(tmp.data(), vl);
     }
@@ -190,7 +190,7 @@ struct unary_op_asin
         vse32_v_f32m8(tmp.data(), x, vl);
         for (size_t i = 0; i < vl; i++)
         {
-            tmp[i] = asin(tmp[i]);
+            tmp[i] = asinf(tmp[i]);
         }
         return vle32_v_f32m8(tmp.data(), vl);
     }
@@ -205,7 +205,7 @@ struct unary_op_acos
         vse32_v_f32m8(tmp.data(), x, vl);
         for (size_t i = 0; i < vl; i++)
         {
-            tmp[i] = acos(tmp[i]);
+            tmp[i] = acosf(tmp[i]);
         }
         return vle32_v_f32m8(tmp.data(), vl);
     }
@@ -220,7 +220,7 @@ struct unary_op_atan
         vse32_v_f32m8(tmp.data(), x, vl);
         for (size_t i = 0; i < vl; i++)
         {
-            tmp[i] = atan(tmp[i]);
+            tmp[i] = atanf(tmp[i]);
         }
         return vle32_v_f32m8(tmp.data(), vl);
     }
@@ -469,7 +469,7 @@ struct unary_op_tan_fp16s
         vse16_v_f16m8(tmp.data(), x, vl);
         for (size_t i = 0; i < vl; i++)
         {
-            tmp[i] = tan((float)tmp[i]);
+            tmp[i] = tanf((float)tmp[i]);
         }
         return vle16_v_f16m8(tmp.data(), vl);
     }
@@ -484,7 +484,7 @@ struct unary_op_asin_fp16s
         vse16_v_f16m8(tmp.data(), x, vl);
         for (size_t i = 0; i < vl; i++)
         {
-            tmp[i] = asin((float)tmp[i]);
+            tmp[i] = asinf((float)tmp[i]);
         }
         return vle16_v_f16m8(tmp.data(), vl);
     }
@@ -499,7 +499,7 @@ struct unary_op_acos_fp16s
         vse16_v_f16m8(tmp.data(), x, vl);
         for (size_t i = 0; i < vl; i++)
         {
-            tmp[i] = acos((float)tmp[i]);
+            tmp[i] = acosf((float)tmp[i]);
         }
         return vle16_v_f16m8(tmp.data(), vl);
     }
@@ -514,7 +514,7 @@ struct unary_op_atan_fp16s
         vse16_v_f16m8(tmp.data(), x, vl);
         for (size_t i = 0; i < vl; i++)
         {
-            tmp[i] = atan((float)tmp[i]);
+            tmp[i] = atanf((float)tmp[i]);
         }
         return vle16_v_f16m8(tmp.data(), vl);
     }

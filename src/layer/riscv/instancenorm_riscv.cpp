@@ -127,12 +127,12 @@ int InstanceNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt)
                 float gamma = gamma_data[q];
                 float beta = beta_data[q];
 
-                a = static_cast<float>(gamma / (sqrt(var + eps)));
+                a = gamma / (sqrtf(var + eps));
                 b = -mean * a + beta;
             }
             else
             {
-                a = static_cast<float>(1.f / (sqrt(var + eps)));
+                a = 1.f / (sqrtf(var + eps));
                 b = -mean * a;
             }
 #if __riscv_vector
@@ -283,12 +283,12 @@ int InstanceNorm_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option
                 float gamma = gamma_data[q];
                 float beta = beta_data[q];
 
-                a = static_cast<float>(gamma / (sqrt(var + eps)));
+                a = gamma / (sqrtf(var + eps));
                 b = -mean * a + beta;
             }
             else
             {
-                a = static_cast<float>(1.f / (sqrt(var + eps)));
+                a = 1.f / (sqrtf(var + eps));
                 b = -mean * a;
             }
             {

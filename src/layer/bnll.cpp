@@ -41,7 +41,7 @@ int BNLL::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             if (ptr[i] > 0)
                 ptr[i] = ptr[i] + logf(1.f + expf(-ptr[i]));
             else
-                ptr[i] = logf(1.f + exp(ptr[i]));
+                ptr[i] = logf(1.f + expf(ptr[i]));
         }
     }
 

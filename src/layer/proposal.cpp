@@ -245,8 +245,8 @@ int Proposal::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                 float pb_cx = cx + anchor_w * dx;
                 float pb_cy = cy + anchor_h * dy;
 
-                float pb_w = static_cast<float>(anchor_w * expf(dw));
-                float pb_h = static_cast<float>(anchor_h * expf(dh));
+                float pb_w = anchor_w * expf(dw);
+                float pb_h = anchor_h * expf(dh);
 
                 pb[0] = pb_cx - pb_w * 0.5f;
                 pb[1] = pb_cy - pb_h * 0.5f;
