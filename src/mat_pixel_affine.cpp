@@ -26,8 +26,8 @@ namespace ncnn {
 void get_rotation_matrix(float angle, float scale, float dx, float dy, float* tm)
 {
     angle *= (float)(3.14159265358979323846 / 180);
-    float alpha = cos(angle) * scale;
-    float beta = sin(angle) * scale;
+    float alpha = cosf(angle) * scale;
+    float beta = sinf(angle) * scale;
 
     tm[0] = alpha;
     tm[1] = beta;

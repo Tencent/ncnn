@@ -384,7 +384,7 @@ struct binary_op_pow
 {
     float operator()(const float& x, const float& y) const
     {
-        return (float)pow(x, y);
+        return (float)powf(x, y);
     }
 };
 
@@ -408,7 +408,7 @@ struct binary_op_rpow
 {
     float operator()(const float& x, const float& y) const
     {
-        return (float)pow(y, x);
+        return (float)powf(y, x);
     }
 };
 
@@ -416,7 +416,7 @@ struct binary_op_atan2
 {
     float operator()(const float& x, const float& y) const
     {
-        return (float)atan2(x, y);
+        return (float)atan2f(x, y);
     }
 };
 
@@ -424,7 +424,7 @@ struct binary_op_ratan2
 {
     float operator()(const float& x, const float& y) const
     {
-        return (float)atan2(y, x);
+        return (float)atan2f(y, x);
     }
 };
 

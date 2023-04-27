@@ -219,7 +219,7 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
                 float sum = 0.f;
                 for (int j = 0; j < dst_seqlen; j++)
                 {
-                    ptr[j] = (float)(exp(ptr[j] - max));
+                    ptr[j] = (float)(expf(ptr[j] - max));
                     sum += ptr[j];
                 }
 
