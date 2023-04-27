@@ -89,6 +89,20 @@ public:
                 op->inputnames.resize(input_count);
                 op->inputnames[input_count - 1] = "attn_mask";
             }
+
+            // find attention mask addition pattern pre torch-1.12
+            // attn = torch.bmm(Q, K)
+            // input0 = torch.add_(attn, attn_mask)
+            // attn0 = torch.softmax(input0, -1)
+            const torch::jit::Node* softmax = find_node_by_kind(graph, "aten::softmax");
+            const torch::jit::Node* add_ = softmax->input(0)->node();
+            const torch::jit::Node* bmm = add_->input(0)->node();
+            if (add_->kind().toDisplayString() == std::string("aten::add_") && bmm->kind().toDisplayString() == std::string("aten::bmm"))
+            {
+                size_t input_count = op->inputs.size();
+                op->inputnames.resize(input_count);
+                op->inputnames[input_count - 1] = "attn_mask";
+            }
         }
 
         if (mod.hasattr("in_proj_weight"))
