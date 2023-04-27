@@ -71,8 +71,9 @@ class Model(nn.Module):
 
         y3, _ = self.attention_1_3(z, z, z)
         if version.parse(torch.__version__) >= version.parse('1.12') and version.parse(torch.__version__) < version.parse('1.13'):
-            # HACK pytorch 1.12 needs zmask to be 3-dim tensor with batch size
-            zmask2 = zmask.unsqueeze(0)
+            # HACK pytorch 1.12 breaks 2-dim zmask
+            # https://github.com/pytorch/pytorch/issues/97409
+            zmask2 = zmask.expand(1, 8, 30, 30)
             y33, _ = self.attention_1_3(z, z, z, attn_mask=zmask2)
         elif version.parse(torch.__version__) >= version.parse('2.0') and version.parse(torch.__version__) < version.parse('2.1'):
             # HACK pytorch 2.0 produce all nan, skip test :(
