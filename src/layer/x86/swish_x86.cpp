@@ -87,7 +87,7 @@ int Swish_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #endif // __SSE2__
         for (; i < size; i++)
         {
-            *ptr = *ptr / (1.f + exp(-*ptr));
+            *ptr = *ptr / (1.f + expf(-*ptr));
             ptr++;
         }
     }

@@ -2075,7 +2075,7 @@ int Softmax_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #endif // __SSE2__
             for (; i < size; i++)
             {
-                *ptr = exp(*ptr - *maxptr);
+                *ptr = expf(*ptr - *maxptr);
 
                 ptr++;
                 maxptr++;

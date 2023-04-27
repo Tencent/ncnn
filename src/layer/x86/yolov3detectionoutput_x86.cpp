@@ -144,14 +144,14 @@ int Yolov3DetectionOutput_x86::forward(const std::vector<Mat>& bottom_blobs, std
                     }
 #endif
                     //sigmoid(box_score) * sigmoid(class_score)
-                    float confidence = 1.f / ((1.f + exp(-box_score_ptr[0]) * (1.f + exp(-class_score))));
+                    float confidence = 1.f / ((1.f + expf(-box_score_ptr[0]) * (1.f + expf(-class_score))));
                     if (confidence >= confidence_threshold)
                     {
                         // region box
                         float bbox_cx = (j + sigmoid(xptr[0])) / w;
                         float bbox_cy = (i + sigmoid(yptr[0])) / h;
-                        float bbox_w = static_cast<float>(exp(wptr[0]) * bias_w / net_w);
-                        float bbox_h = static_cast<float>(exp(hptr[0]) * bias_h / net_h);
+                        float bbox_w = static_cast<float>(expf(wptr[0]) * bias_w / net_w);
+                        float bbox_h = static_cast<float>(expf(hptr[0]) * bias_h / net_h);
 
                         float bbox_xmin = bbox_cx - bbox_w * 0.5f;
                         float bbox_ymin = bbox_cy - bbox_h * 0.5f;

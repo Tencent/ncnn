@@ -205,7 +205,7 @@ int Yolov3DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::ve
                     }
 
                     //sigmoid(box_score) * sigmoid(class_score)
-                    float confidence = 1.f / ((1.f + exp(-box_score_ptr[0]) * (1.f + exp(-class_score))));
+                    float confidence = 1.f / ((1.f + expf(-box_score_ptr[0]) * (1.f + expf(-class_score))));
                     if (confidence >= confidence_threshold)
                     {
                         // region box
