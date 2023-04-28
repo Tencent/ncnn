@@ -417,7 +417,23 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkMat>& bottom_blobs, s
     q_affine.release();
     k_affine.release();
 
-    qk_softmax->forward_inplace(qk_cross, cmd, opt);
+    if (vkdev->info.vendor_id() == 0x10de)
+    {
+        // FIXME softmax produces nan result on nvidia (about 20% chance)
+        // we have to fallback to cpu before we solve the issue  --- nihui
+        Mat tmp;
+        cmd.record_download(qk_cross, tmp, opt);
+        cmd.submit_and_wait();
+        cmd.reset();
+
+        qk_softmax->forward_inplace(tmp, opt);
+
+        cmd.record_upload(tmp, qk_cross, opt);
+    }
+    else
+    {
+        qk_softmax->forward_inplace(qk_cross, cmd, opt);
+    }
 
     VkMat v_affine;
     v_gemm->forward(v_blob, v_affine, cmd, opt);
