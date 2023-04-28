@@ -92,11 +92,11 @@ static inline __fp16 activation_ss(__fp16 v, int activation_type, const ncnn::Ma
     }
     else if (activation_type == 4)
     {
-        v = (__fp16)1.f / ((__fp16)1.f + exp(-v));
+        v = (__fp16)1.f / ((__fp16)1.f + expf(-v));
     }
     else if (activation_type == 5)
     {
-        v = v * tanh(log(exp(v) + (__fp16)1.f));
+        v = v * tanhf(logf(expf(v) + (__fp16)1.f));
     }
     else if (activation_type == 6)
     {

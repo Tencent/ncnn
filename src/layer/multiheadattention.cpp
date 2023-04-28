@@ -96,7 +96,7 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
 
     Mat xqkv(embed_dim_per_head, num_heads, src_seqlen, 4u, opt.workspace_allocator);
 
-    const float inv_sqrt_embed_dim_per_head = 1.f / sqrt(embed_dim_per_head);
+    const float inv_sqrt_embed_dim_per_head = 1.f / sqrtf(embed_dim_per_head);
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < num_heads; q++)
@@ -219,7 +219,7 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
                 float sum = 0.f;
                 for (int j = 0; j < dst_seqlen; j++)
                 {
-                    ptr[j] = (float)(exp(ptr[j] - max));
+                    ptr[j] = (float)(expf(ptr[j] - max));
                     sum += ptr[j];
                 }
 

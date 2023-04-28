@@ -547,16 +547,16 @@ MAKE_FUNCTION(binary_op_div, x / y, div_ps(x, y))
 #endif
 MAKE_FUNCTION(binary_op_max, std::max(x, y), vmaxq_f32(x, y))
 MAKE_FUNCTION(binary_op_min, std::min(x, y), vminq_f32(x, y))
-MAKE_FUNCTION(binary_op_pow, (float)pow(x, y), pow_ps(x, y))
+MAKE_FUNCTION(binary_op_pow, (float)powf(x, y), pow_ps(x, y))
 MAKE_FUNCTION(binary_op_rsub, y - x, vsubq_f32(y, x))
 #if __aarch64__
 MAKE_FUNCTION(binary_op_rdiv, y / x, vdivq_f32(y, x))
 #else
 MAKE_FUNCTION(binary_op_rdiv, y / x, div_ps(y, x))
 #endif
-MAKE_FUNCTION(binary_op_rpow, (float)pow(y, x), pow_ps(y, x))
-MAKE_FUNCTION(binary_op_atan2, (float)atan2(x, y), atan2_ps(x, y))
-MAKE_FUNCTION(binary_op_ratan2, (float)atan2(y, x), atan2_ps(y, x))
+MAKE_FUNCTION(binary_op_rpow, (float)powf(y, x), pow_ps(y, x))
+MAKE_FUNCTION(binary_op_atan2, (float)atan2f(x, y), atan2_ps(x, y))
+MAKE_FUNCTION(binary_op_ratan2, (float)atan2f(y, x), atan2_ps(y, x))
 // *INDENT-ON*
 // clang-format on
 

@@ -46,7 +46,7 @@ int ELU::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         for (int i = 0; i < size; i++)
         {
             if (ptr[i] < 0.f)
-                ptr[i] = static_cast<float>(alpha * (exp(ptr[i]) - 1.f));
+                ptr[i] = alpha * (expf(ptr[i]) - 1.f);
         }
     }
 

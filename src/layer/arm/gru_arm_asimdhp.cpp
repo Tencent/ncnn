@@ -265,8 +265,8 @@ static int gru_fp16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
 
             // sigmoid(R)
             // sigmoid(U)
-            R = 1.f / (1.f + exp(-R));
-            U = 1.f / (1.f + exp(-U));
+            R = 1.f / (1.f + expf(-R));
+            U = 1.f / (1.f + expf(-U));
 
             // gate new
             float N = (float)bias_c_RUBNWN[2];
@@ -292,7 +292,7 @@ static int gru_fp16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
             }
 
             // tanh(N)
-            N = tanh(N);
+            N = tanhf(N);
 
             float* gates_data = gates.row(q / 4 + q % 4);
 
@@ -596,8 +596,8 @@ static int gru_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
 
             // sigmoid(R)
             // sigmoid(U)
-            float R32 = 1.f / (1.f + exp((float)-R));
-            float U32 = 1.f / (1.f + exp((float)-U));
+            float R32 = 1.f / (1.f + expf((float)-R));
+            float U32 = 1.f / (1.f + expf((float)-U));
 
             // gate new
             __fp16 N = bias_c_RUBNWN[2];
@@ -623,7 +623,7 @@ static int gru_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
             }
 
             // tanh(N)
-            float N32 = tanh((float)N);
+            float N32 = tanhf((float)N);
 
             float* gates_data = gates.row(q / 4 + q % 4);
 

@@ -25,7 +25,7 @@ static NCNN_FORCEINLINE float activation_ss(float v, int activation_type, const 
     {
     case 1:
     {
-        v = fmax(v, 0.f);
+        v = fmaxf(v, 0.f);
         break;
     }
     case 2:
@@ -48,12 +48,12 @@ static NCNN_FORCEINLINE float activation_ss(float v, int activation_type, const 
     {
         v = std::min(v, 88.3762626647949f);
         v = std::max(v, -88.3762626647949f);
-        v = 1.f / (1.f + exp(-v));
+        v = 1.f / (1.f + expf(-v));
         break;
     }
     case 5:
     {
-        v = v * tanh(log(exp(v) + 1.f));
+        v = v * tanhf(logf(expf(v) + 1.f));
         break;
     }
     case 6:

@@ -137,7 +137,7 @@ int GroupNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                 }
             }
 
-            float scale1 = 1.f / sqrt(sqsum / channels_per_group + eps);
+            float scale1 = 1.f / sqrtf(sqsum / channels_per_group + eps);
             float scale2 = -mean * scale1;
 
             ptr = bottom_top_blob_g;
@@ -356,7 +356,7 @@ int GroupNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                 }
             }
 
-            float scale1 = 1.f / sqrt(sqsum / size + eps);
+            float scale1 = 1.f / sqrtf(sqsum / size + eps);
             float scale2 = -mean * scale1;
 
             ptr = bottom_top_blob_g;
@@ -564,7 +564,7 @@ int GroupNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                 }
             }
 
-            float scale1 = 1.f / sqrt(sqsum / (channels_per_group * size) + eps);
+            float scale1 = 1.f / sqrtf(sqsum / (channels_per_group * size) + eps);
             float scale2 = -mean * scale1;
 
             const float* gamma = gamma_data_g;

@@ -109,7 +109,7 @@ int TanH_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #endif // __ARM_NEON
         for (; remain > 0; remain--)
         {
-            *ptr = tanh(*ptr);
+            *ptr = tanhf(*ptr);
             ptr++;
         }
     }
@@ -171,7 +171,7 @@ int TanH_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
         for (; remain > 0; remain--)
         {
             float v = bfloat16_to_float32(*ptr);
-            v = tanh(v);
+            v = tanhf(v);
             *ptr = float32_to_bfloat16(v);
             ptr++;
         }

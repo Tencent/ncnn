@@ -69,7 +69,7 @@ int MultiHeadAttention_arm::create_pipeline(const Option& opt)
 
         {
             const int embed_dim_per_head = embed_dim / num_heads;
-            const float inv_sqrt_embed_dim_per_head = 1.f / sqrt(embed_dim_per_head);
+            const float inv_sqrt_embed_dim_per_head = 1.f / sqrtf(embed_dim_per_head);
 
             q_gemm = ncnn::create_layer(ncnn::LayerType::Gemm);
             ncnn::ParamDict pd;
@@ -241,7 +241,7 @@ int MultiHeadAttention_arm::create_pipeline(const Option& opt)
 
     {
         const int embed_dim_per_head = embed_dim / num_heads;
-        const float inv_sqrt_embed_dim_per_head = 1.f / sqrt(embed_dim_per_head);
+        const float inv_sqrt_embed_dim_per_head = 1.f / sqrtf(embed_dim_per_head);
 
         q_gemm = ncnn::create_layer(ncnn::LayerType::Gemm);
         ncnn::ParamDict pd;

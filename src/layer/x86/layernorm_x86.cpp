@@ -520,7 +520,7 @@ static NCNN_FORCEINLINE void fast_1d_layer_norm(float* ptr, int elempack, int el
 #endif // __SSE2__
     if (elempack == 1)
     {
-        a[0] = static_cast<float>(1.0f / sqrt(var[0] + eps));
+        a[0] = 1.0f / sqrtf(var[0] + eps);
         b[0] = -mean[0] * (a[0]);
     }
 

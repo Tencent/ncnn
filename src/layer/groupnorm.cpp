@@ -89,12 +89,12 @@ int GroupNorm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                     float gamma = gamma_data_g[q];
                     float beta = beta_data_g[q];
 
-                    a = (float)(gamma / sqrt(var + eps));
+                    a = gamma / sqrtf(var + eps);
                     b = -mean * a + beta;
                 }
                 else
                 {
-                    a = (float)(1.f / (sqrt(var + eps)));
+                    a = 1.f / (sqrtf(var + eps));
                     b = -mean * a;
                 }
 
@@ -147,12 +147,12 @@ int GroupNorm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                     float gamma = gamma_data_g[q];
                     float beta = beta_data_g[q];
 
-                    a = (float)(gamma / sqrt(var + eps));
+                    a = gamma / sqrtf(var + eps);
                     b = -mean * a + beta;
                 }
                 else
                 {
-                    a = (float)(1.f / (sqrt(var + eps)));
+                    a = 1.f / (sqrtf(var + eps));
                     b = -mean * a;
                 }
 
@@ -212,12 +212,12 @@ int GroupNorm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                     float gamma = gamma_data_g[q];
                     float beta = beta_data_g[q];
 
-                    a = (float)(gamma / sqrt(var + eps));
+                    a = gamma / sqrtf(var + eps);
                     b = -mean * a + beta;
                 }
                 else
                 {
-                    a = (float)(1.f / (sqrt(var + eps)));
+                    a = 1.f / (sqrtf(var + eps));
                     b = -mean * a;
                 }
 
