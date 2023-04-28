@@ -318,8 +318,8 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                         // bicubic interpolate
                         float v;
                         {
-                            int x1 = floor(sample_x);
-                            int y1 = floor(sample_y);
+                            int x1 = (int)floorf(sample_x);
+                            int y1 = (int)floorf(sample_y);
                             int x0 = x1 - 1;
                             int y0 = y1 - 1;
                             int x2 = x1 + 1;

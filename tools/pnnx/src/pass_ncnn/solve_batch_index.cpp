@@ -310,6 +310,21 @@ void solve_batch_index(Graph& graph)
 
             for (size_t j = 1; j < op->inputs.size(); j++)
             {
+                if (op->type == "nn.MultiheadAttention")
+                {
+                    if (op->inputnames.size() == op->inputs.size() && op->inputnames[j] == "attn_mask")
+                    {
+                        // no batch for mha attn_mask
+                        op->inputs[j]->params["__batch_index"] = 233;
+                    }
+                    else
+                    {
+                        op->inputs[j]->params["__batch_index"] = batch_first ? 0 : 1;
+                    }
+
+                    continue;
+                }
+
                 op->inputs[j]->params["__batch_index"] = 1;
             }
 

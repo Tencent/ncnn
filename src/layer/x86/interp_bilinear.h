@@ -28,7 +28,7 @@ static void linear_coeffs(int w, int outw, int* xofs, float* alpha, int align_co
             fx = (float)(dx * scale);
         }
 
-        int sx = floor(fx);
+        int sx = (int)floorf(fx);
         fx -= sx;
 
         if (sx < 0)

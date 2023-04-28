@@ -45,6 +45,13 @@ public:
             op->params["num_heads"] = multi_head_attention->namedInput("num_head");
             op->params["batch_first"] = true;
             op->params["add_zero_attn"] = false;
+
+            if (multi_head_attention->hasNamedInput("mask") && multi_head_attention->namedInput("mask") == graph->inputs()[graph->inputs().size() - 1])
+            {
+                size_t input_count = op->inputs.size();
+                op->inputnames.resize(input_count);
+                op->inputnames[input_count - 1] = "attn_mask";
+            }
         }
         else
         {
@@ -80,6 +87,34 @@ public:
             else
             {
                 op->params["add_zero_attn"] = false;
+            }
+
+            const torch::jit::Node* has_attn_mask = find_node_by_kind(graph, "aten::baddbmm");
+            if (has_attn_mask)
+            {
+                size_t input_count = op->inputs.size();
+                op->inputnames.resize(input_count);
+                op->inputnames[input_count - 1] = "attn_mask";
+            }
+
+            // find attention mask addition pattern pre torch-1.12
+            // attn = torch.bmm(Q, K)
+            // input0 = torch.add_(attn, attn_mask)
+            // attn0 = torch.softmax(input0, -1)
+            const torch::jit::Node* softmax = find_node_by_kind(graph, "aten::softmax");
+            if (softmax)
+            {
+                const torch::jit::Node* add_ = softmax->input(0)->node();
+                if (add_ && add_->kind().toDisplayString() == std::string("aten::add_"))
+                {
+                    const torch::jit::Node* bmm = add_->input(0)->node();
+                    if (bmm && bmm->kind().toDisplayString() == std::string("aten::bmm"))
+                    {
+                        size_t input_count = op->inputs.size();
+                        op->inputnames.resize(input_count);
+                        op->inputnames[input_count - 1] = "attn_mask";
+                    }
+                }
             }
         }
 

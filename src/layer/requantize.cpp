@@ -31,7 +31,7 @@ static inline float activation_ss(float v, int activation_type, const ncnn::Mat&
 {
     if (activation_type == 1)
     {
-        v = fmax(v, 0.f);
+        v = fmaxf(v, 0.f);
     }
     else if (activation_type == 2)
     {
@@ -49,11 +49,11 @@ static inline float activation_ss(float v, int activation_type, const ncnn::Mat&
     }
     else if (activation_type == 4)
     {
-        v = 1.f / (1.f + exp(-v));
+        v = 1.f / (1.f + expf(-v));
     }
     else if (activation_type == 5)
     {
-        v = v * tanh(log(exp(v) + 1.f));
+        v = v * tanhf(logf(expf(v) + 1.f));
     }
 
     return v;

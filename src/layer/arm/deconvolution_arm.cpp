@@ -1187,7 +1187,7 @@ int Deconvolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                         }
                         else if (activation_type == 4)
                         {
-                            sum = static_cast<float>(1.f / (1.f + exp(-sum)));
+                            sum = 1.f / (1.f + expf(-sum));
                         }
 
                         outptr[j] = float32_to_bfloat16(sum);

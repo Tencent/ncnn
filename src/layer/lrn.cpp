@@ -91,7 +91,7 @@ int LRN::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             float* ptr = bottom_top_blob.channel(q);
             for (int i = 0; i < size; i++)
             {
-                ptr[i] = static_cast<float>(ptr[i] * pow(bias + alpha_div_size * ssptr[i], -beta));
+                ptr[i] = ptr[i] * powf(bias + alpha_div_size * ssptr[i], -beta);
             }
         }
     }
@@ -158,7 +158,7 @@ int LRN::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                         ss += val;
                     }
 
-                    ptr[j] = static_cast<float>(ptr[j] * pow(bias + alpha_div_size * ss, -beta));
+                    ptr[j] = ptr[j] * powf(bias + alpha_div_size * ss, -beta);
                 }
 
                 ptr += outw;

@@ -3663,7 +3663,7 @@ static void get_optimal_tile_mnk(int M, int N, int K, int constant_TILE_M, int c
 {
     // resolve optimal tile size from cache size
     size_t l2_cache_size = get_cpu_level2_cache_size();
-    int tile_size = (int)sqrt((float)l2_cache_size / 3 / sizeof(float));
+    int tile_size = (int)sqrtf((float)l2_cache_size / 3 / sizeof(float));
 
 #if __aarch64__
     TILE_M = std::max(8, tile_size / 8 * 8);

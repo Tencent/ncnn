@@ -112,7 +112,7 @@ int Sigmoid_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #endif // __ARM_NEON
         for (; i < size; i++)
         {
-            *ptr = 1.f / (1.f + exp(-*ptr));
+            *ptr = 1.f / (1.f + expf(-*ptr));
 
             ptr++;
         }
@@ -180,7 +180,7 @@ int Sigmoid_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) 
         for (; i < size; i++)
         {
             float v = bfloat16_to_float32(*ptr);
-            v = 1.f / (1.f + exp(-v));
+            v = 1.f / (1.f + expf(-v));
             *ptr = float32_to_bfloat16(v);
 
             ptr++;

@@ -948,7 +948,7 @@ struct binary_op_pow
 {
     float func(const float& x, const float& y) const
     {
-        return (float)pow(x, y);
+        return (float)powf(x, y);
     }
 #if __SSE2__
     __m128 func_pack4(const __m128& x, const __m128& y) const
@@ -1026,7 +1026,7 @@ struct binary_op_rpow
 {
     float func(const float& x, const float& y) const
     {
-        return (float)pow(y, x);
+        return (float)powf(y, x);
     }
 #if __SSE2__
     __m128 func_pack4(const __m128& x, const __m128& y) const
@@ -1052,7 +1052,7 @@ struct binary_op_atan2
 {
     float func(const float& x, const float& y) const
     {
-        return (float)atan2(x, y);
+        return (float)atan2f(x, y);
     }
 #if __SSE2__
     __m128 func_pack4(const __m128& x, const __m128& y) const
@@ -1078,7 +1078,7 @@ struct binary_op_ratan2
 {
     float func(const float& x, const float& y) const
     {
-        return (float)atan2(y, x);
+        return (float)atan2f(y, x);
     }
 #if __SSE2__
     __m128 func_pack4(const __m128& x, const __m128& y) const
