@@ -136,7 +136,19 @@ struct grid_sample_unormalize</*align_corner*/ false>
 };
 
 template<GridSample::PaddingMode pd, bool align_corner>
-struct compute_coord;
+struct compute_coord
+{
+#if __AVX__
+    __m256 operator()(__m256 length, __m256 coord)
+    {
+        return coord;
+    }
+#endif // __AVX__
+    float operator()(int length, float coord)
+    {
+        return coord;
+    }
+};
 
 template<bool align_corner>
 struct compute_coord<GridSample::Padding_BORDER, align_corner>
@@ -235,7 +247,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
     size_t elemsize = bottom_blob.elemsize;
 
     int outw, outh, outd;
-    Mat offset_blob, in_bound_blob, value_blob;
+    Mat offset_blob, value_blob;
 
     ncnn::Mat grid_p1;
     if (grid.elempack != 1)
@@ -259,50 +271,41 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
         if (sample_type == GridSample::Interpolation_BILINEAR)
         {
             offset_blob.create(outw, outh, 4, elemsize, 1, opt.workspace_allocator);
-            in_bound_blob.create(outw, outh, 4, elemsize, 1, opt.workspace_allocator);
             value_blob.create(outw, outh, 2, elemsize, 1, opt.workspace_allocator);
-            if (offset_blob.empty() || in_bound_blob.empty() || value_blob.empty())
+            if (offset_blob.empty() || value_blob.empty())
                 return -100;
-
-            in_bound_blob.fill(-1.0f);
 
             if (padding_mode == GridSample::Padding_ZEROS)
             {
                 if (align_corner == 0)
                 {
-                    gridsample_2d_bilinear_compute_blob<GridSample::Padding_ZEROS, false> op;
-                    op(bottom_blob, grid_p1, offset_blob, in_bound_blob, value_blob, permute_fusion, opt);
+                    gridsample_2d_bilinear_compute_blob<GridSample::Padding_ZEROS, false>(bottom_blob, grid_p1, offset_blob, value_blob, permute_fusion, opt);
                 }
                 else
                 {
-                    gridsample_2d_bilinear_compute_blob<GridSample::Padding_ZEROS, true> op;
-                    op(bottom_blob, grid_p1, offset_blob, in_bound_blob, value_blob, permute_fusion, opt);
+                    gridsample_2d_bilinear_compute_blob<GridSample::Padding_ZEROS, true>(bottom_blob, grid_p1, offset_blob, value_blob, permute_fusion, opt);
                 }
             }
             else if (padding_mode == GridSample::Padding_BORDER)
             {
                 if (align_corner == 0)
                 {
-                    gridsample_2d_bilinear_compute_blob<GridSample::Padding_BORDER, false> op;
-                    op(bottom_blob, grid_p1, offset_blob, in_bound_blob, value_blob, permute_fusion, opt);
+                    gridsample_2d_bilinear_compute_blob<GridSample::Padding_BORDER, false>(bottom_blob, grid_p1, offset_blob, value_blob, permute_fusion, opt);
                 }
                 else
                 {
-                    gridsample_2d_bilinear_compute_blob<GridSample::Padding_BORDER, true> op;
-                    op(bottom_blob, grid_p1, offset_blob, in_bound_blob, value_blob, permute_fusion, opt);
+                    gridsample_2d_bilinear_compute_blob<GridSample::Padding_BORDER, true>(bottom_blob, grid_p1, offset_blob, value_blob, permute_fusion, opt);
                 }
             }
             else if (padding_mode == GridSample::Padding_REFLECTION)
             {
                 if (align_corner == 0)
                 {
-                    gridsample_2d_bilinear_compute_blob<GridSample::Padding_REFLECTION, false> op;
-                    op(bottom_blob, grid_p1, offset_blob, in_bound_blob, value_blob, permute_fusion, opt);
+                    gridsample_2d_bilinear_compute_blob<GridSample::Padding_REFLECTION, false>(bottom_blob, grid_p1, offset_blob, value_blob, permute_fusion, opt);
                 }
                 else
                 {
-                    gridsample_2d_bilinear_compute_blob<GridSample::Padding_REFLECTION, true> op;
-                    op(bottom_blob, grid_p1, offset_blob, in_bound_blob, value_blob, permute_fusion, opt);
+                    gridsample_2d_bilinear_compute_blob<GridSample::Padding_REFLECTION, true>(bottom_blob, grid_p1, offset_blob, value_blob, permute_fusion, opt);
                 }
             }
             else
@@ -315,49 +318,40 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
         if (sample_type == GridSample::Interpolation_NEAREST)
         {
             offset_blob.create(outw, outh, 1, elemsize, 1, opt.workspace_allocator);
-            in_bound_blob.create(outw, outh, 1, elemsize, 1, opt.workspace_allocator);
-            if (offset_blob.empty() || in_bound_blob.empty())
+            if (offset_blob.empty())
                 return -100;
-
-            in_bound_blob.fill(-1.0f);
 
             if (padding_mode == GridSample::Padding_ZEROS)
             {
                 if (align_corner == 0)
                 {
-                    gridsample_2d_nearest_compute_blob<GridSample::Padding_ZEROS, false> op;
-                    op(bottom_blob, grid_p1, offset_blob, in_bound_blob, value_blob, permute_fusion, opt);
+                    gridsample_2d_nearest_compute_blob<GridSample::Padding_ZEROS, false>(bottom_blob, grid_p1, offset_blob, value_blob, permute_fusion, opt);
                 }
                 else
                 {
-                    gridsample_2d_nearest_compute_blob<GridSample::Padding_ZEROS, true> op;
-                    op(bottom_blob, grid_p1, offset_blob, in_bound_blob, value_blob, permute_fusion, opt);
+                    gridsample_2d_nearest_compute_blob<GridSample::Padding_ZEROS, true>(bottom_blob, grid_p1, offset_blob, value_blob, permute_fusion, opt);
                 }
             }
             else if (padding_mode == GridSample::Padding_BORDER)
             {
                 if (align_corner == 0)
                 {
-                    gridsample_2d_nearest_compute_blob<GridSample::Padding_BORDER, false> op;
-                    op(bottom_blob, grid_p1, offset_blob, in_bound_blob, value_blob, permute_fusion, opt);
+                    gridsample_2d_nearest_compute_blob<GridSample::Padding_BORDER, false>(bottom_blob, grid_p1, offset_blob, value_blob, permute_fusion, opt);
                 }
                 else
                 {
-                    gridsample_2d_nearest_compute_blob<GridSample::Padding_BORDER, true> op;
-                    op(bottom_blob, grid_p1, offset_blob, in_bound_blob, value_blob, permute_fusion, opt);
+                    gridsample_2d_nearest_compute_blob<GridSample::Padding_BORDER, true>(bottom_blob, grid_p1, offset_blob, value_blob, permute_fusion, opt);
                 }
             }
             else if (padding_mode == GridSample::Padding_REFLECTION)
             {
                 if (align_corner == 0)
                 {
-                    gridsample_2d_nearest_compute_blob<GridSample::Padding_REFLECTION, false> op;
-                    op(bottom_blob, grid_p1, offset_blob, in_bound_blob, value_blob, permute_fusion, opt);
+                    gridsample_2d_nearest_compute_blob<GridSample::Padding_REFLECTION, false>(bottom_blob, grid_p1, offset_blob, value_blob, permute_fusion, opt);
                 }
                 else
                 {
-                    gridsample_2d_nearest_compute_blob<GridSample::Padding_REFLECTION, true> op;
-                    op(bottom_blob, grid_p1, offset_blob, in_bound_blob, value_blob, permute_fusion, opt);
+                    gridsample_2d_nearest_compute_blob<GridSample::Padding_REFLECTION, true>(bottom_blob, grid_p1, offset_blob, value_blob, permute_fusion, opt);
                 }
             }
             else
@@ -370,48 +364,41 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
         if (sample_type == GridSample::Interpolation_BICUBIC)
         {
             offset_blob.create(outw, outh, 16, elemsize, 1, opt.workspace_allocator);
-            in_bound_blob.create(outw, outh, 16, elemsize, 1, opt.workspace_allocator);
             value_blob.create(outw, outh, 2, elemsize, 1, opt.workspace_allocator);
-            if (offset_blob.empty() || in_bound_blob.empty() || value_blob.empty())
+            if (offset_blob.empty() || value_blob.empty())
                 return -100;
 
             if (padding_mode == GridSample::Padding_ZEROS)
             {
                 if (align_corner == 0)
                 {
-                    gridsample_2d_bicubic_compute_blob<GridSample::Padding_ZEROS, false> op;
-                    op(bottom_blob, grid_p1, offset_blob, in_bound_blob, value_blob, permute_fusion, opt);
+                    gridsample_2d_bicubic_compute_blob<GridSample::Padding_ZEROS, false>(bottom_blob, grid_p1, offset_blob, value_blob, permute_fusion, opt);
                 }
                 else
                 {
-                    gridsample_2d_bicubic_compute_blob<GridSample::Padding_ZEROS, true> op;
-                    op(bottom_blob, grid_p1, offset_blob, in_bound_blob, value_blob, permute_fusion, opt);
+                    gridsample_2d_bicubic_compute_blob<GridSample::Padding_ZEROS, true>(bottom_blob, grid_p1, offset_blob, value_blob, permute_fusion, opt);
                 }
             }
             else if (padding_mode == GridSample::Padding_BORDER)
             {
                 if (align_corner == 0)
                 {
-                    gridsample_2d_bicubic_compute_blob<GridSample::Padding_BORDER, false> op;
-                    op(bottom_blob, grid_p1, offset_blob, in_bound_blob, value_blob, permute_fusion, opt);
+                    gridsample_2d_bicubic_compute_blob<GridSample::Padding_BORDER, false>(bottom_blob, grid_p1, offset_blob, value_blob, permute_fusion, opt);
                 }
                 else
                 {
-                    gridsample_2d_bicubic_compute_blob<GridSample::Padding_BORDER, true> op;
-                    op(bottom_blob, grid_p1, offset_blob, in_bound_blob, value_blob, permute_fusion, opt);
+                    gridsample_2d_bicubic_compute_blob<GridSample::Padding_BORDER, true>(bottom_blob, grid_p1, offset_blob, value_blob, permute_fusion, opt);
                 }
             }
             else if (padding_mode == GridSample::Padding_REFLECTION)
             {
                 if (align_corner == 0)
                 {
-                    gridsample_2d_bicubic_compute_blob<GridSample::Padding_REFLECTION, false> op;
-                    op(bottom_blob, grid_p1, offset_blob, in_bound_blob, value_blob, permute_fusion, opt);
+                    gridsample_2d_bicubic_compute_blob<GridSample::Padding_REFLECTION, false>(bottom_blob, grid_p1, offset_blob, value_blob, permute_fusion, opt);
                 }
                 else
                 {
-                    gridsample_2d_bicubic_compute_blob<GridSample::Padding_REFLECTION, true> op;
-                    op(bottom_blob, grid_p1, offset_blob, in_bound_blob, value_blob, permute_fusion, opt);
+                    gridsample_2d_bicubic_compute_blob<GridSample::Padding_REFLECTION, true>(bottom_blob, grid_p1, offset_blob, value_blob, permute_fusion, opt);
                 }
             }
             else
@@ -435,50 +422,41 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
         if (sample_type == GridSample::Interpolation_BILINEAR)
         {
             offset_blob.create(outw, outh, outd, 8, elemsize, 1, opt.workspace_allocator);
-            in_bound_blob.create(outw, outh, outd, 8, elemsize, 1, opt.workspace_allocator);
             value_blob.create(outw, outh, outd, 3, elemsize, 1, opt.workspace_allocator);
-            if (offset_blob.empty() || in_bound_blob.empty() || value_blob.empty())
+            if (offset_blob.empty() ||  value_blob.empty())
                 return -100;
-
-            in_bound_blob.fill(-1.0f);
 
             if (padding_mode == GridSample::Padding_ZEROS)
             {
                 if (align_corner == 0)
                 {
-                    gridsample_3d_bilinear_compute_blob<GridSample::Padding_ZEROS, false> op;
-                    op(bottom_blob, grid_p1, offset_blob, in_bound_blob, value_blob, permute_fusion, opt);
+                    gridsample_3d_bilinear_compute_blob<GridSample::Padding_ZEROS, false>(bottom_blob, grid_p1, offset_blob, value_blob, permute_fusion, opt);
                 }
                 else
                 {
-                    gridsample_3d_bilinear_compute_blob<GridSample::Padding_ZEROS, true> op;
-                    op(bottom_blob, grid_p1, offset_blob, in_bound_blob, value_blob, permute_fusion, opt);
+                    gridsample_3d_bilinear_compute_blob<GridSample::Padding_ZEROS, true>(bottom_blob, grid_p1, offset_blob, value_blob, permute_fusion, opt);
                 }
             }
             else if (padding_mode == GridSample::Padding_BORDER)
             {
                 if (align_corner == 0)
                 {
-                    gridsample_3d_bilinear_compute_blob<GridSample::Padding_BORDER, false> op;
-                    op(bottom_blob, grid_p1, offset_blob, in_bound_blob, value_blob, permute_fusion, opt);
+                    gridsample_3d_bilinear_compute_blob<GridSample::Padding_BORDER, false>(bottom_blob, grid_p1, offset_blob, value_blob, permute_fusion, opt);
                 }
                 else
                 {
-                    gridsample_3d_bilinear_compute_blob<GridSample::Padding_BORDER, true> op;
-                    op(bottom_blob, grid_p1, offset_blob, in_bound_blob, value_blob, permute_fusion, opt);
+                    gridsample_3d_bilinear_compute_blob<GridSample::Padding_BORDER, true>(bottom_blob, grid_p1, offset_blob, value_blob, permute_fusion, opt);
                 }
             }
             else if (padding_mode == GridSample::Padding_REFLECTION)
             {
                 if (align_corner == 0)
                 {
-                    gridsample_3d_bilinear_compute_blob<GridSample::Padding_REFLECTION, false> op;
-                    op(bottom_blob, grid_p1, offset_blob, in_bound_blob, value_blob, permute_fusion, opt);
+                    gridsample_3d_bilinear_compute_blob<GridSample::Padding_REFLECTION, false>(bottom_blob, grid_p1, offset_blob, value_blob, permute_fusion, opt);
                 }
                 else
                 {
-                    gridsample_3d_bilinear_compute_blob<GridSample::Padding_REFLECTION, true> op;
-                    op(bottom_blob, grid_p1, offset_blob, in_bound_blob, value_blob, permute_fusion, opt);
+                    gridsample_3d_bilinear_compute_blob<GridSample::Padding_REFLECTION, true>(bottom_blob, grid_p1, offset_blob, value_blob, permute_fusion, opt);
                 }
             }
             else
@@ -491,49 +469,40 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
         if (sample_type == GridSample::Interpolation_NEAREST)
         {
             offset_blob.create(outw, outh, outd, 1, elemsize, 1, opt.workspace_allocator);
-            in_bound_blob.create(outw, outh, outd, 1, elemsize, 1, opt.workspace_allocator);
-            if (offset_blob.empty() || in_bound_blob.empty())
+            if (offset_blob.empty())
                 return -100;
-
-            in_bound_blob.fill(-1.0f);
 
             if (padding_mode == GridSample::Padding_ZEROS)
             {
                 if (align_corner == 0)
                 {
-                    gridsample_3d_nearest_compute_blob<GridSample::Padding_ZEROS, false> op;
-                    op(bottom_blob, grid_p1, offset_blob, in_bound_blob, value_blob, permute_fusion, opt);
+                    gridsample_3d_nearest_compute_blob<GridSample::Padding_ZEROS, false>(bottom_blob, grid_p1, offset_blob, value_blob, permute_fusion, opt);
                 }
                 else
                 {
-                    gridsample_3d_nearest_compute_blob<GridSample::Padding_ZEROS, true> op;
-                    op(bottom_blob, grid_p1, offset_blob, in_bound_blob, value_blob, permute_fusion, opt);
+                    gridsample_3d_nearest_compute_blob<GridSample::Padding_ZEROS, true>(bottom_blob, grid_p1, offset_blob, value_blob, permute_fusion, opt);
                 }
             }
             else if (padding_mode == GridSample::Padding_BORDER)
             {
                 if (align_corner == 0)
                 {
-                    gridsample_3d_nearest_compute_blob<GridSample::Padding_BORDER, false> op;
-                    op(bottom_blob, grid_p1, offset_blob, in_bound_blob, value_blob, permute_fusion, opt);
+                    gridsample_3d_nearest_compute_blob<GridSample::Padding_BORDER, false>(bottom_blob, grid_p1, offset_blob, value_blob, permute_fusion, opt);
                 }
                 else
                 {
-                    gridsample_3d_nearest_compute_blob<GridSample::Padding_BORDER, true> op;
-                    op(bottom_blob, grid_p1, offset_blob, in_bound_blob, value_blob, permute_fusion, opt);
+                    gridsample_3d_nearest_compute_blob<GridSample::Padding_BORDER, true>(bottom_blob, grid_p1, offset_blob, value_blob, permute_fusion, opt);
                 }
             }
             else if (padding_mode == GridSample::Padding_REFLECTION)
             {
                 if (align_corner == 0)
                 {
-                    gridsample_3d_nearest_compute_blob<GridSample::Padding_REFLECTION, false> op;
-                    op(bottom_blob, grid_p1, offset_blob, in_bound_blob, value_blob, permute_fusion, opt);
+                    gridsample_3d_nearest_compute_blob<GridSample::Padding_REFLECTION, false>(bottom_blob, grid_p1, offset_blob, value_blob, permute_fusion, opt);
                 }
                 else
                 {
-                    gridsample_3d_nearest_compute_blob<GridSample::Padding_REFLECTION, true> op;
-                    op(bottom_blob, grid_p1, offset_blob, in_bound_blob, value_blob, permute_fusion, opt);
+                    gridsample_3d_nearest_compute_blob<GridSample::Padding_REFLECTION, true>(bottom_blob, grid_p1, offset_blob, value_blob, permute_fusion, opt);
                 }
             }
             else
@@ -559,26 +528,26 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
         {
             if (sample_type == GridSample::Interpolation_BILINEAR)
             {
-                gridsample_2d_bilinear_apply_interpolation_p16(bottom_blob, top_blob, offset_blob, in_bound_blob, value_blob, opt);
+                gridsample_2d_bilinear_apply_interpolation_p16(bottom_blob, top_blob, offset_blob, value_blob, opt);
             }
             else if (sample_type == GridSample::Interpolation_NEAREST)
             {
-                gridsample_nearest_apply_interpolation_p16(bottom_blob, top_blob, offset_blob, in_bound_blob, opt);
+                gridsample_nearest_apply_interpolation_p16(bottom_blob, top_blob, offset_blob, opt);
             }
             else if (sample_type == GridSample::Interpolation_BICUBIC)
             {
-                gridsample_2d_bicubic_apply_interpolation_p16(bottom_blob, top_blob, offset_blob, in_bound_blob, value_blob, opt);
+                gridsample_2d_bicubic_apply_interpolation_p16(bottom_blob, top_blob, offset_blob, value_blob, opt);
             }
         }
         else if (dims == 4)
         {
             if (sample_type == GridSample::Interpolation_BILINEAR)
             {
-                gridsample_3d_bilinear_apply_interpolation_p16(bottom_blob, top_blob, offset_blob, in_bound_blob, value_blob, opt);
+                gridsample_3d_bilinear_apply_interpolation_p16(bottom_blob, top_blob, offset_blob, value_blob, opt);
             }
             else if (sample_type == GridSample::Interpolation_NEAREST)
             {
-                gridsample_nearest_apply_interpolation_p16(bottom_blob, top_blob, offset_blob, in_bound_blob, opt);
+                gridsample_nearest_apply_interpolation_p16(bottom_blob, top_blob, offset_blob, opt);
             }
         }
     }
@@ -589,26 +558,26 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
         {
             if (sample_type == GridSample::Interpolation_BILINEAR)
             {
-                gridsample_2d_bilinear_apply_interpolation_p8(bottom_blob, top_blob, offset_blob, in_bound_blob, value_blob, opt);
+                gridsample_2d_bilinear_apply_interpolation_p8(bottom_blob, top_blob, offset_blob, value_blob, opt);
             }
             else if (sample_type == GridSample::Interpolation_NEAREST)
             {
-                gridsample_nearest_apply_interpolation_p8(bottom_blob, top_blob, offset_blob, in_bound_blob, opt);
+                gridsample_nearest_apply_interpolation_p8(bottom_blob, top_blob, offset_blob, opt);
             }
             else if (sample_type == GridSample::Interpolation_BICUBIC)
             {
-                gridsample_2d_bicubic_apply_interpolation_p8(bottom_blob, top_blob, offset_blob, in_bound_blob, value_blob, opt);
+                gridsample_2d_bicubic_apply_interpolation_p8(bottom_blob, top_blob, offset_blob, value_blob, opt);
             }
         }
         else if (dims == 4)
         {
             if (sample_type == GridSample::Interpolation_BILINEAR)
             {
-                gridsample_3d_bilinear_apply_interpolation_p8(bottom_blob, top_blob, offset_blob, in_bound_blob, value_blob, opt);
+                gridsample_3d_bilinear_apply_interpolation_p8(bottom_blob, top_blob, offset_blob, value_blob, opt);
             }
             else if (sample_type == GridSample::Interpolation_NEAREST)
             {
-                gridsample_nearest_apply_interpolation_p8(bottom_blob, top_blob, offset_blob, in_bound_blob, opt);
+                gridsample_nearest_apply_interpolation_p8(bottom_blob, top_blob, offset_blob, opt);
             }
         }
     }
@@ -620,26 +589,26 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
         {
             if (sample_type == GridSample::Interpolation_BILINEAR)
             {
-                gridsample_2d_bilinear_apply_interpolation_p4(bottom_blob, top_blob, offset_blob, in_bound_blob, value_blob, opt);
+                gridsample_2d_bilinear_apply_interpolation_p4(bottom_blob, top_blob, offset_blob, value_blob, opt);
             }
             else if (sample_type == GridSample::Interpolation_NEAREST)
             {
-                gridsample_nearest_apply_interpolation_p4(bottom_blob, top_blob, offset_blob, in_bound_blob, opt);
+                gridsample_nearest_apply_interpolation_p4(bottom_blob, top_blob, offset_blob, opt);
             }
             else if (sample_type == GridSample::Interpolation_BICUBIC)
             {
-                gridsample_2d_bicubic_apply_interpolation_p4(bottom_blob, top_blob, offset_blob, in_bound_blob, value_blob, opt);
+                gridsample_2d_bicubic_apply_interpolation_p4(bottom_blob, top_blob, offset_blob, value_blob, opt);
             }
         }
         else if (dims == 4)
         {
             if (sample_type == GridSample::Interpolation_BILINEAR)
             {
-                gridsample_3d_bilinear_apply_interpolation_p4(bottom_blob, top_blob, offset_blob, in_bound_blob, value_blob, opt);
+                gridsample_3d_bilinear_apply_interpolation_p4(bottom_blob, top_blob, offset_blob, value_blob, opt);
             }
             else if (sample_type == GridSample::Interpolation_NEAREST)
             {
-                gridsample_nearest_apply_interpolation_p4(bottom_blob, top_blob, offset_blob, in_bound_blob, opt);
+                gridsample_nearest_apply_interpolation_p4(bottom_blob, top_blob, offset_blob, opt);
             }
         }
     }
@@ -652,26 +621,26 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
         {
             if (sample_type == GridSample::Interpolation_BILINEAR)
             {
-                gridsample_2d_bilinear_apply_interpolation_p1(bottom_blob, top_blob, offset_blob, in_bound_blob, value_blob, opt);
+                gridsample_2d_bilinear_apply_interpolation_p1(bottom_blob, top_blob, offset_blob, value_blob, opt);
             }
             else if (sample_type == GridSample::Interpolation_NEAREST)
             {
-                gridsample_nearest_apply_interpolation_p1(bottom_blob, top_blob, offset_blob, in_bound_blob, opt);
+                gridsample_nearest_apply_interpolation_p1(bottom_blob, top_blob, offset_blob, opt);
             }
             else if (sample_type == GridSample::Interpolation_BICUBIC)
             {
-                gridsample_2d_bicubic_apply_interpolation_p1(bottom_blob, top_blob, offset_blob, in_bound_blob, value_blob, opt);
+                gridsample_2d_bicubic_apply_interpolation_p1(bottom_blob, top_blob, offset_blob, value_blob, opt);
             }
         }
         else if (dims == 4)
         {
             if (sample_type == GridSample::Interpolation_BILINEAR)
             {
-                gridsample_3d_bilinear_apply_interpolation_p1(bottom_blob, top_blob, offset_blob, in_bound_blob, value_blob, opt);
+                gridsample_3d_bilinear_apply_interpolation_p1(bottom_blob, top_blob, offset_blob, value_blob, opt);
             }
             else if (sample_type == GridSample::Interpolation_NEAREST)
             {
-                gridsample_nearest_apply_interpolation_p1(bottom_blob, top_blob, offset_blob, in_bound_blob, opt);
+                gridsample_nearest_apply_interpolation_p1(bottom_blob, top_blob, offset_blob, opt);
             }
         }
     }
