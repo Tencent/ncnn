@@ -423,7 +423,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
         {
             offset_blob.create(outw, outh, outd, 8, elemsize, 1, opt.workspace_allocator);
             value_blob.create(outw, outh, outd, 3, elemsize, 1, opt.workspace_allocator);
-            if (offset_blob.empty() ||  value_blob.empty())
+            if (offset_blob.empty() || value_blob.empty())
                 return -100;
 
             if (padding_mode == GridSample::Padding_ZEROS)

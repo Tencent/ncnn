@@ -216,7 +216,7 @@ void gridsample_3d_nearest_compute_blob(const Mat& src, const Mat& grid, Mat& of
                 volatile float sw = src.w;
                 volatile float sh = src.h;
                 __m256 offset = _mm256_mul_ps(_mm256_comp_fmadd_ps(_mm256_mul_ps(_mm256_set1_ps(sw), _mm256_set1_ps(sh)), gz,
-                                                                   _mm256_comp_fmadd_ps(gy, _mm256_set1_ps(sw), gx)),
+                                              _mm256_comp_fmadd_ps(gy, _mm256_set1_ps(sw), gx)),
                                               _mm256_set1_ps(epack));
 
                 offset = _mm256_blendv_ps(_mm256_set1_ps(-1.0f), offset, v_in_range);
@@ -295,7 +295,7 @@ void gridsample_3d_nearest_compute_blob(const Mat& src, const Mat& grid, Mat& of
             volatile float sw = src.w;
             volatile float sh = src.h;
             __m256 offset = _mm256_mul_ps(_mm256_comp_fmadd_ps(_mm256_mul_ps(_mm256_set1_ps(sw), _mm256_set1_ps(sh)), gz,
-                                                               _mm256_comp_fmadd_ps(gy, _mm256_set1_ps(sw), gx)),
+                                          _mm256_comp_fmadd_ps(gy, _mm256_set1_ps(sw), gx)),
                                           _mm256_set1_ps(epack));
 
             offset = _mm256_blendv_ps(_mm256_set1_ps(-1.0f), offset, v_in_range);
