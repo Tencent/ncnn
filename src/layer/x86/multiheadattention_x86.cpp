@@ -133,17 +133,17 @@ int MultiHeadAttention_x86::create_pipeline(const Option& opt)
     {
         qk_gemm = ncnn::create_layer(ncnn::LayerType::Gemm);
         ncnn::ParamDict pd;
-        pd.set(2, 1);   // transA
-        pd.set(3, 0);   // transB
-        pd.set(4, 0);   // constantA
-        pd.set(5, 0);   // constantB
-        pd.set(6, 1);   // constantC
-        pd.set(7, 0);   // M
-        pd.set(8, 0);   // N
-        pd.set(9, 0);   // K
-        pd.set(10, -1); // constant_broadcast_type_C
-        pd.set(11, 0);  // output_N1M
-        pd.set(12, 1);  // output_elempack
+        pd.set(2, 1);                   // transA
+        pd.set(3, 0);                   // transB
+        pd.set(4, 0);                   // constantA
+        pd.set(5, 0);                   // constantB
+        pd.set(6, attn_mask ? 0 : 1);   // constantC
+        pd.set(7, 0);                   // M
+        pd.set(8, 0);                   // N
+        pd.set(9, 0);                   // K
+        pd.set(10, attn_mask ? 3 : -1); // constant_broadcast_type_C
+        pd.set(11, 0);                  // output_N1M
+        pd.set(12, 1);                  // output_elempack
         qk_gemm->load_param(pd);
         qk_gemm->load_model(ModelBinFromMatArray(0));
         Option opt1 = opt;
@@ -268,8 +268,19 @@ int MultiHeadAttention_x86::destroy_pipeline(const Option& opt)
 int MultiHeadAttention_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     const Mat& q_blob = bottom_blobs[0];
-    const Mat& k_blob = bottom_blobs.size() == 1 ? q_blob : bottom_blobs[1];
-    const Mat& v_blob = bottom_blobs.size() == 1 ? q_blob : bottom_blobs.size() == 2 ? k_blob : bottom_blobs[2];
+    const Mat& k_blob = (bottom_blobs.size() == 1 || (bottom_blobs.size() == 2 && attn_mask)) ? q_blob : bottom_blobs[1];
+    const Mat& v_blob = (bottom_blobs.size() == 1 || (bottom_blobs.size() == 2 && attn_mask)) ? q_blob : (bottom_blobs.size() == 2 || (bottom_blobs.size() == 3 && attn_mask)) ? k_blob : bottom_blobs[2];
+    const Mat& attn_mask_blob = attn_mask ? bottom_blobs[bottom_blobs.size() - 1] : Mat();
+
+    Mat attn_mask_blob_unpacked;
+    if (attn_mask_blob.elempack != 1)
+    {
+        convert_packing(attn_mask_blob, attn_mask_blob_unpacked, 1, opt);
+    }
+    else
+    {
+        attn_mask_blob_unpacked = attn_mask_blob;
+    }
 
     const int embed_dim_per_head = embed_dim / num_heads;
     const int src_seqlen = q_blob.h * q_blob.elempack;
@@ -288,6 +299,11 @@ int MultiHeadAttention_x86::forward(const std::vector<Mat>& bottom_blobs, std::v
         std::vector<Mat> qk_bottom_blobs(2);
         qk_bottom_blobs[0] = q_affine.row_range(i * embed_dim_per_head, embed_dim_per_head);
         qk_bottom_blobs[1] = k_affine.row_range(i * embed_dim_per_head, embed_dim_per_head);
+        if (attn_mask)
+        {
+            const Mat& maskm = attn_mask_blob_unpacked.dims == 3 ? attn_mask_blob_unpacked.channel(i) : attn_mask_blob_unpacked;
+            qk_bottom_blobs.push_back(maskm);
+        }
         std::vector<Mat> qk_top_blobs(1);
         qk_top_blobs[0] = qk_cross.row_range(i * src_seqlen, src_seqlen);
         Option opt1 = opt;

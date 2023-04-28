@@ -36,6 +36,7 @@ public:
     int weight_data_size;
     int kdim;
     int vdim;
+    int attn_mask;
 
     Mat q_weight_data;
     Mat q_bias_data;

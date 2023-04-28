@@ -15,6 +15,7 @@
 #ifndef PNNX_STOREZIP_H
 #define PNNX_STOREZIP_H
 
+#include <stdint.h>
 #include <map>
 #include <string>
 #include <vector>

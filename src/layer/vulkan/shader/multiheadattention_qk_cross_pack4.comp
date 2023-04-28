@@ -23,19 +23,23 @@
 
 #define LOCAL_MEMORY_UNROLL_INCH 8
 
-layout (constant_id = 0) const int M = 0;
-layout (constant_id = 1) const int N = 0;
-layout (constant_id = 2) const int K = 0;
-layout (constant_id = 3) const int B = 0;
+layout (constant_id = 0) const int attn_mask = 0;
+layout (constant_id = 1) const int M = 0;
+layout (constant_id = 2) const int N = 0;
+layout (constant_id = 3) const int K = 0;
+layout (constant_id = 4) const int B = 0;
+layout (constant_id = 5) const int attn_mask_dims = 0;
 
 #if NCNN_image_shader
 layout (binding = 0) uniform unfp sampler3D q_blob_3d;
 layout (binding = 1) uniform unfp sampler3D k_blob_3d;
 layout (binding = 2, imfmtc4) writeonly uniform unfp image3D qkcross_blob_3d;
+layout (binding = 3) uniform unfp sampler3D attn_mask_blob_3d;
 #else
 layout (binding = 0) readonly buffer q_blob { sfpvec4 q_blob_data[]; };
 layout (binding = 1) readonly buffer k_blob { sfpvec4 k_blob_data[]; };
 layout (binding = 2) writeonly buffer qkcross_blob { sfpvec4 qkcross_blob_data[]; };
+layout (binding = 3) readonly buffer attn_mask_blob { sfpvec4 attn_mask_blob_data[]; };
 #endif
 
 layout (push_constant) uniform parameter
@@ -44,6 +48,7 @@ layout (push_constant) uniform parameter
     int N;
     int K;
     int B;
+    int attn_mask_dims;
 } p;
 
 #if NCNN_shader_local_memory
@@ -63,6 +68,28 @@ void main()
 #endif
 
     afpvec4 sum = afpvec4(0.f);
+
+    if (attn_mask == 1)
+    {
+        if (psc(attn_mask_dims) == 3)
+        {
+#if NCNN_image_shader
+            sum = image3d_ld4(attn_mask_blob_3d, ivec3(gx, gy, gz));
+#else
+            const int mi = gz * psc(M) * psc(N) + gy * psc(N) + gx;
+            sum = buffer_ld4(attn_mask_blob_data, mi);
+#endif
+        }
+        else
+        {
+#if NCNN_image_shader
+            sum = image3d_ld4(attn_mask_blob_3d, ivec3(gx, gy, 0));
+#else
+            const int mi = gy * psc(N) + gx;
+            sum = buffer_ld4(attn_mask_blob_data, mi);
+#endif
+        }
+    }
 
 #if !NCNN_image_shader && NCNN_shader_local_memory
     const int NN = psc(K);
