@@ -12,7 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#if __cplusplus >= 201103L || (defined(_MSVC_LANG) && _MSVC_LANG >= 201103L)
+#if (__cplusplus >= 201103L || (defined(_MSVC_LANG) && _MSVC_LANG >= 201103L)) && !defined(__riscv) 
     #include <chrono>
     #include <thread>
     #include <numeric>
@@ -42,7 +42,7 @@ namespace ncnn {
 
 double get_current_time()
 {
-#if __cplusplus >= 201103L || (defined(_MSVC_LANG) && _MSVC_LANG >= 201103L)
+#if (__cplusplus >= 201103L || (defined(_MSVC_LANG) && _MSVC_LANG >= 201103L)) && !defined(__riscv) 
     auto now = std::chrono::high_resolution_clock::now();
     auto usec = std::chrono::duration_cast<std::chrono::microseconds>(now.time_since_epoch());
     return usec.count() / 1000.0;
@@ -64,14 +64,14 @@ double get_current_time()
 }
 
 void sleep(
-#if __cplusplus >= 201103L || (defined(_MSVC_LANG) && _MSVC_LANG >= 201103L)
+#if (__cplusplus >= 201103L || (defined(_MSVC_LANG) && _MSVC_LANG >= 201103L)) && !defined(__riscv) 
     std::int64_t milliseconds
 #else
     long long milliseconds
 #endif
     )
 {
-#if __cplusplus >= 201103L || (defined(_MSVC_LANG) && _MSVC_LANG >= 201103L)
+#if (__cplusplus >= 201103L || (defined(_MSVC_LANG) && _MSVC_LANG >= 201103L)) && !defined(__riscv) 
     std::this_thread::sleep_for(std::chrono::milliseconds(milliseconds));
 #else
     #ifdef _WIN32
