@@ -1,0 +1,108 @@
+// Tencent is pleased to support the open source community by making ncnn available.
+//
+// Copyright (C) 2023 THL A29 Limited, a Tencent company. All rights reserved.
+//
+// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
+// in compliance with the License. You may obtain a copy of the License at
+//
+// https://opensource.org/licenses/BSD-3-Clause
+//
+// Unless required by applicable law or agreed to in writing, software distributed
+// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+// CONDITIONS OF ANY KIND, either express or implied. See the License for the
+// specific language governing permissions and limitations under the License.
+
+#version 450
+
+#if NCNN_fp16_storage
+#extension GL_EXT_shader_16bit_storage: require
+#endif
+#if NCNN_fp16_arithmetic
+#extension GL_EXT_shader_explicit_arithmetic_types_float16: require
+#endif
+
+layout (constant_id = 0) const int attn_mask = 0;
+layout (constant_id = 1) const int M = 0;
+layout (constant_id = 2) const int N = 0;
+layout (constant_id = 3) const int K = 0;
+layout (constant_id = 4) const int B = 0;
+layout (constant_id = 5) const int attn_mask_dims = 0;
+
+#if NCNN_image_shader
+layout (binding = 0) uniform unfp sampler3D q_blob_3d;
+layout (binding = 1) uniform unfp sampler3D k_blob_3d;
+layout (binding = 2, imfmtc1) writeonly uniform unfp image3D qkcross_blob_3d;
+layout (binding = 3) uniform unfp sampler3D attn_mask_blob_3d;
+#else
+layout (binding = 0) readonly buffer q_blob { sfp q_blob_data[]; };
+layout (binding = 1) readonly buffer k_blob { sfp k_blob_data[]; };
+layout (binding = 2) writeonly buffer qkcross_blob { sfp qkcross_blob_data[]; };
+layout (binding = 3) readonly buffer attn_mask_blob { sfp attn_mask_blob_data[]; };
+#endif
+
+layout (push_constant) uniform parameter
+{
+    int M;
+    int N;
+    int K;
+    int B;
+    int attn_mask_dims;
+} p;
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+    int gy = int(gl_GlobalInvocationID.y);
+    int gz = int(gl_GlobalInvocationID.z);
+
+    if (gx >= psc(N) || gy >= psc(M) || gz >= psc(B))
+        return;
+
+    afp sum = afp(0.f);
+
+    if (attn_mask == 1)
+    {
+        if (psc(attn_mask_dims) == 3)
+        {
+#if NCNN_image_shader
+            sum = image3d_ld1(attn_mask_blob_3d, ivec3(gx, gy, gz));
+#else
+            const int mi = gz * psc(M) * psc(N) + gy * psc(N) + gx;
+            sum = buffer_ld1(attn_mask_blob_data, mi);
+#endif
+        }
+        else
+        {
+#if NCNN_image_shader
+            sum = image3d_ld1(attn_mask_blob_3d, ivec3(gx, gy, 0));
+#else
+            const int mi = gy * psc(N) + gx;
+            sum = buffer_ld1(attn_mask_blob_data, mi);
+#endif
+        }
+    }
+
+    for (int k = 0; k < psc(K); k++)
+    {
+#if NCNN_image_shader
+        afp q0 = image3d_ld1(q_blob_3d, ivec3(gy, gz * psc(K) + k, 0));
+
+        afp k0 = image3d_ld1(k_blob_3d, ivec3(gx, gz * psc(K) + k, 0));
+#else
+        const int ai = gz * psc(M) * psc(K) + k * psc(M) + gy;
+        afp q0 = buffer_ld1(q_blob_data, ai);
+
+        const int bi = gz * psc(N) * psc(K) + k * psc(N) + gx;
+        afp k0 = buffer_ld1(k_blob_data, bi);
+#endif
+
+        sum += q0 * k0;
+    }
+
+#if NCNN_image_shader
+    image3d_st1(qkcross_blob_3d, ivec3(gx, gz * psc(M) + gy, 0), sum);
+#else
+    const int gi = gz * psc(M) * psc(N) + gy * psc(N) + gx;
+    buffer_st1(qkcross_blob_data, gi, sum);
+#endif
+}

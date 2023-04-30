@@ -1,0 +1,177 @@
+// Tencent is pleased to support the open source community by making ncnn available.
+//
+// Copyright (C) 2023 THL A29 Limited, a Tencent company. All rights reserved.
+//
+// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
+// in compliance with the License. You may obtain a copy of the License at
+//
+// https://opensource.org/licenses/BSD-3-Clause
+//
+// Unless required by applicable law or agreed to in writing, software distributed
+// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+// CONDITIONS OF ANY KIND, either express or implied. See the License for the
+// specific language governing permissions and limitations under the License.
+
+#version 450
+
+#if NCNN_fp16_storage
+#extension GL_EXT_shader_16bit_storage: require
+#endif
+#if NCNN_fp16_arithmetic
+#extension GL_EXT_shader_explicit_arithmetic_types_float16: require
+#endif
+
+#define LOCAL_MEMORY_UNROLL_INCH 8
+
+layout (constant_id = 0) const int M = 0;
+layout (constant_id = 1) const int N = 0;
+layout (constant_id = 2) const int K = 0;
+layout (constant_id = 3) const int B = 0;
+
+#if NCNN_image_shader
+layout (binding = 0) uniform unfp sampler3D qkcross_blob_3d;
+layout (binding = 1) uniform unfp sampler3D v_blob_3d;
+layout (binding = 2, imfmtc4) writeonly uniform unfp image3D qkvcross_blob_3d;
+#else
+layout (binding = 0) readonly buffer qkcross_blob { sfpvec4 qkcross_blob_data[]; };
+layout (binding = 1) readonly buffer v_blob { sfpvec4 v_blob_data[]; };
+layout (binding = 2) writeonly buffer qkvcross_blob { sfpvec4 qkvcross_blob_data[]; };
+#endif
+
+layout (push_constant) uniform parameter
+{
+    int M;
+    int N;
+    int K;
+    int B;
+} p;
+
+#if NCNN_shader_local_memory
+shared lfpvec4 tmp_qk[8][LOCAL_MEMORY_UNROLL_INCH];
+shared lfpvec4 tmp_v[8][LOCAL_MEMORY_UNROLL_INCH];
+#endif
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+    int gy = int(gl_GlobalInvocationID.y);
+    int gz = int(gl_GlobalInvocationID.z);
+
+#if !NCNN_shader_local_memory
+    if (gx >= psc(N) || gy >= psc(M) || gz >= psc(B))
+        return;
+#endif
+
+    afpvec4 sum0 = afpvec4(0.f);
+    afpvec4 sum1 = afpvec4(0.f);
+    afpvec4 sum2 = afpvec4(0.f);
+    afpvec4 sum3 = afpvec4(0.f);
+
+#if !NCNN_image_shader && NCNN_shader_local_memory
+    const int NN = psc(K);
+
+    const int lx = int(gl_LocalInvocationID.x);
+    const int ly = int(gl_LocalInvocationID.y);
+
+    int ai = gz * psc(M) * psc(K) + gy * psc(K) + lx;
+    int bi = gz * psc(N) * psc(K) + gx * psc(K) + ly;
+
+    int k = 0;
+    for (; k + (LOCAL_MEMORY_UNROLL_INCH - 1) < NN; k += LOCAL_MEMORY_UNROLL_INCH)
+    {
+        {
+            tmp_qk[ly][lx] = sfp2lfpvec4(qkcross_blob_data[ai]);
+        }
+
+        {
+            tmp_v[lx][ly] = sfp2lfpvec4(v_blob_data[bi]);
+        }
+
+        barrier();
+
+        for (int k4 = 0; k4 < LOCAL_MEMORY_UNROLL_INCH; k4++)
+        {
+            afpvec4 qk0 = lfp2afpvec4(tmp_qk[ly][k4]);
+
+            afpvec4 v0 = lfp2afpvec4(tmp_v[lx][k4]);
+
+            sum0 += qk0.r * v0;
+            sum1 += qk0.g * v0;
+            sum2 += qk0.b * v0;
+            sum3 += qk0.a * v0;
+        }
+
+        ai += LOCAL_MEMORY_UNROLL_INCH;
+        bi += LOCAL_MEMORY_UNROLL_INCH;
+
+        barrier();
+    }
+
+    if (k < NN)
+    {
+        const int remain = NN - k;
+
+        if (lx < remain)
+        {
+            tmp_qk[ly][lx] = sfp2lfpvec4(qkcross_blob_data[ai]);
+        }
+
+        if (ly < remain)
+        {
+            tmp_v[lx][ly] = sfp2lfpvec4(v_blob_data[bi]);
+        }
+
+        barrier();
+
+        for (int k4 = 0; k4 < remain; k4++)
+        {
+            afpvec4 qk0 = lfp2afpvec4(tmp_qk[ly][k4]);
+
+            afpvec4 v0 = lfp2afpvec4(tmp_v[lx][k4]);
+
+            sum0 += qk0.r * v0;
+            sum1 += qk0.g * v0;
+            sum2 += qk0.b * v0;
+            sum3 += qk0.a * v0;
+        }
+    }
+#else
+    for (int k = 0; k < psc(K); k++)
+    {
+#if NCNN_image_shader
+        afpvec4 qk0 = image3d_ld4(qkcross_blob_3d, ivec3(k, gz * psc(M) + gy, 0));
+        afpvec4 v0 = image3d_ld4(v_blob_3d, ivec3(k, gz * psc(N) + gx, 0));
+#else
+        const int ai = gz * psc(M) * psc(K) + gy * psc(K) + k;
+        afpvec4 qk0 = buffer_ld4(qkcross_blob_data, ai);
+
+        const int bi = gz * psc(N) * psc(K) + gx * psc(K) + k;
+        afpvec4 v0 = buffer_ld4(v_blob_data, bi);
+#endif
+
+        sum0 += qk0.r * v0;
+        sum1 += qk0.g * v0;
+        sum2 += qk0.b * v0;
+        sum3 += qk0.a * v0;
+    }
+#endif
+
+#if NCNN_shader_local_memory
+    if (gx >= psc(N) || gy >= psc(M) || gz >= psc(B))
+        return;
+#endif
+
+#if NCNN_image_shader
+    image3d_st4(qkvcross_blob_3d, ivec3(gy * 4, gz * psc(N) + gx, 0), sum0);
+    image3d_st4(qkvcross_blob_3d, ivec3(gy * 4 + 1, gz * psc(N) + gx, 0), sum1);
+    image3d_st4(qkvcross_blob_3d, ivec3(gy * 4 + 2, gz * psc(N) + gx, 0), sum2);
+    image3d_st4(qkvcross_blob_3d, ivec3(gy * 4 + 3, gz * psc(N) + gx, 0), sum3);
+#else
+    const int gi = (gz * psc(M) * psc(N) + gx * psc(M) + gy) * 4;
+
+    buffer_st4(qkvcross_blob_data, gi, sum0);
+    buffer_st4(qkvcross_blob_data, gi + 1, sum1);
+    buffer_st4(qkvcross_blob_data, gi + 2, sum2);
+    buffer_st4(qkvcross_blob_data, gi + 3, sum3);
+#endif
+}

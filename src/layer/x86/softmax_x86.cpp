@@ -1611,7 +1611,7 @@ int Softmax_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #endif // __SSE2__
             for (; i < w; i++)
             {
-                ptr[i] = (float)(exp(ptr[i] - max));
+                ptr[i] = expf(ptr[i] - max);
                 sum += ptr[i];
             }
         }
@@ -1777,7 +1777,7 @@ int Softmax_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #endif // __SSE2__
             for (; j < w; j++)
             {
-                *ptr = (float)(exp(*ptr - *pmax));
+                *ptr = expf(*ptr - *pmax);
                 *psum += *ptr;
 
                 ptr++;
@@ -1925,7 +1925,7 @@ int Softmax_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #endif // __SSE2__
                 for (; j < w; j++)
                 {
-                    ptr[j] = (float)(exp(ptr[j] - max));
+                    ptr[j] = expf(ptr[j] - max);
                     sum += ptr[j];
                 }
             }
@@ -2075,7 +2075,7 @@ int Softmax_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #endif // __SSE2__
             for (; i < size; i++)
             {
-                *ptr = exp(*ptr - *maxptr);
+                *ptr = expf(*ptr - *maxptr);
 
                 ptr++;
                 maxptr++;
@@ -2302,7 +2302,7 @@ int Softmax_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #endif // __SSE2__
                 for (; j < w; j++)
                 {
-                    ptr[j] = (float)(exp(ptr[j] - maxptr[j]));
+                    ptr[j] = expf(ptr[j] - maxptr[j]);
                     sumptr[j] += ptr[j];
                 }
 
@@ -2446,7 +2446,7 @@ int Softmax_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #endif // __SSE2__
                     for (; j < w; j++)
                     {
-                        ptr[j] = static_cast<float>(exp(ptr[j] - max));
+                        ptr[j] = expf(ptr[j] - max);
                         sum += ptr[j];
                     }
                 }

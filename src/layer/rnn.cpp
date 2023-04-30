@@ -90,7 +90,7 @@ static int rnn(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& we
                 H += weight_hc_ptr[i] * hidden_state[i];
             }
 
-            H = tanh(H);
+            H = tanhf(H);
 
             gates[q] = H;
         }

@@ -245,12 +245,12 @@ int InstanceNorm_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& 
             float gamma = gamma_data[q];
             float beta = beta_data[q];
 
-            a = (__fp16)(gamma / (sqrt(var + eps)));
+            a = (__fp16)(gamma / (sqrtf(var + eps)));
             b = (__fp16)(-mean * a + beta);
         }
         else
         {
-            a = (__fp16)(1.f / (sqrt(var + eps)));
+            a = (__fp16)(1.f / (sqrtf(var + eps)));
             b = (__fp16)(-mean * a);
         }
 

@@ -81,7 +81,7 @@ int Sigmoid_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
         for (; i < size; i++)
         {
             float v = (float)*ptr;
-            v = 1.f / (1.f + exp(-v));
+            v = 1.f / (1.f + expf(-v));
             *ptr = (__fp16)v;
 
             ptr++;
@@ -149,7 +149,7 @@ int Sigmoid_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt)
         for (; i < size; i++)
         {
             __fp16 v = *ptr;
-            v = 1.f / (1.f + exp(-v));
+            v = 1.f / (1.f + expf(-v));
             *ptr = v;
 
             ptr++;

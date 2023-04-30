@@ -73,7 +73,7 @@ int ELU_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         for (; i < size; i++)
         {
             if (*ptr < 0.f)
-                *ptr = static_cast<float>(alpha * (exp(*ptr) - 1.f));
+                *ptr = alpha * (expf(*ptr) - 1.f);
             ptr++;
         }
     }

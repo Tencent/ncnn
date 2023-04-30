@@ -118,7 +118,7 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #endif // __ARM_NEON
             for (; i < size; i++)
             {
-                *ptr = (float)exp(*ptr - max);
+                *ptr = (float)expf(*ptr - max);
                 sum += *ptr;
                 ptr++;
             }
@@ -269,7 +269,7 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #endif // __ARM_NEON
                 for (; j < w; j++)
                 {
-                    *ptr = (float)exp(*ptr - *maxptr);
+                    *ptr = (float)expf(*ptr - *maxptr);
                     *sumptr += *ptr;
                     ptr++;
                     maxptr++;
@@ -387,7 +387,7 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #endif // __ARM_NEON
                 for (; j < size; j++)
                 {
-                    *ptr = (float)exp(*ptr - max);
+                    *ptr = (float)expf(*ptr - max);
                     sum += *ptr;
                     ptr++;
                 }
@@ -528,7 +528,7 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #endif // __ARM_NEON
                 for (; i < size; i++)
                 {
-                    *ptr = (float)exp(*ptr - *maxptr);
+                    *ptr = (float)expf(*ptr - *maxptr);
                     ptr++;
                     maxptr++;
                 }
@@ -704,7 +704,7 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #endif // __ARM_NEON
                 for (; j < size; j++)
                 {
-                    *ptr = (float)exp(*ptr - *maxptr);
+                    *ptr = (float)expf(*ptr - *maxptr);
                     *sumptr += *ptr;
                     ptr++;
                     maxptr++;
@@ -813,7 +813,7 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #endif // __ARM_NEON
                     for (; j < size; j++)
                     {
-                        *ptr = (float)exp(*ptr - max);
+                        *ptr = (float)expf(*ptr - max);
                         sum += *ptr;
                         ptr++;
                     }
@@ -927,7 +927,7 @@ int Softmax_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) 
 #endif // __ARM_NEON
             for (; i < size; i++)
             {
-                float v = (float)exp(bfloat16_to_float32(*ptr) - max);
+                float v = (float)expf(bfloat16_to_float32(*ptr) - max);
                 *ptr = float32_to_bfloat16(v);
                 sum += v;
                 ptr++;
@@ -1079,7 +1079,7 @@ int Softmax_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) 
 #endif // __ARM_NEON
                 for (; j < w; j++)
                 {
-                    float v = (float)exp(bfloat16_to_float32(*ptr) - *maxptr);
+                    float v = (float)expf(bfloat16_to_float32(*ptr) - *maxptr);
                     *ptr = float32_to_bfloat16(v);
                     *sumptr += v;
                     ptr++;
@@ -1198,7 +1198,7 @@ int Softmax_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) 
 #endif // __ARM_NEON
                 for (; j < size; j++)
                 {
-                    float v = (float)exp(bfloat16_to_float32(*ptr) - max);
+                    float v = (float)expf(bfloat16_to_float32(*ptr) - max);
                     *ptr = float32_to_bfloat16(v);
                     sum += v;
                     ptr++;
@@ -1340,7 +1340,7 @@ int Softmax_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) 
 #endif // __ARM_NEON
                 for (; i < size; i++)
                 {
-                    *ptr = float32_to_bfloat16(exp(bfloat16_to_float32(*ptr) - *maxptr));
+                    *ptr = float32_to_bfloat16(expf(bfloat16_to_float32(*ptr) - *maxptr));
                     ptr++;
                     maxptr++;
                 }
@@ -1516,7 +1516,7 @@ int Softmax_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) 
 #endif // __ARM_NEON
                 for (; j < size; j++)
                 {
-                    float v = (float)exp(bfloat16_to_float32(*ptr) - *maxptr);
+                    float v = (float)expf(bfloat16_to_float32(*ptr) - *maxptr);
                     *ptr = float32_to_bfloat16(v);
                     *sumptr += v;
                     ptr++;
@@ -1626,7 +1626,7 @@ int Softmax_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) 
 #endif // __ARM_NEON
                     for (; j < size; j++)
                     {
-                        float v = (float)exp(bfloat16_to_float32(*ptr) - max);
+                        float v = (float)expf(bfloat16_to_float32(*ptr) - max);
                         *ptr = float32_to_bfloat16(v);
                         sum += v;
                         ptr++;

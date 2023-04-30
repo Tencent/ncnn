@@ -88,7 +88,7 @@ int Softmax_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
             }
             for (; i < size; i++)
             {
-                *ptr = (__fp16)exp(*ptr - max);
+                *ptr = (__fp16)expf(*ptr - max);
                 sum += *ptr;
                 ptr++;
             }
@@ -343,7 +343,7 @@ int Softmax_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
                 }
                 for (; j < w; j++)
                 {
-                    *ptr = (__fp16)exp(*ptr - *maxptr);
+                    *ptr = (__fp16)expf(*ptr - *maxptr);
                     *sumptr += *ptr;
                     ptr++;
                     maxptr++;
@@ -481,7 +481,7 @@ int Softmax_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
                 }
                 for (; j < size; j++)
                 {
-                    *ptr = (__fp16)exp(*ptr - max);
+                    *ptr = (__fp16)expf(*ptr - max);
                     sum += *ptr;
                     ptr++;
                 }
@@ -715,7 +715,7 @@ int Softmax_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
                 }
                 for (; i < size; i++)
                 {
-                    *ptr = (__fp16)exp(*ptr - *maxptr);
+                    *ptr = (__fp16)expf(*ptr - *maxptr);
                     ptr++;
                     maxptr++;
                 }
@@ -967,7 +967,7 @@ int Softmax_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
                 }
                 for (; j < size; j++)
                 {
-                    *ptr = (__fp16)exp(*ptr - *maxptr);
+                    *ptr = (__fp16)expf(*ptr - *maxptr);
                     *sumptr += *ptr;
                     ptr++;
                     maxptr++;
@@ -1086,7 +1086,7 @@ int Softmax_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
                     }
                     for (; j < size; j++)
                     {
-                        *ptr = (__fp16)exp(*ptr - max);
+                        *ptr = (__fp16)expf(*ptr - max);
                         sum += *ptr;
                         ptr++;
                     }

@@ -46,7 +46,7 @@ int Mish::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 y = expf(x);
             else
                 y = logf(expf(x) + 1);
-            ptr[i] = static_cast<float>(x * tanh(y));
+            ptr[i] = x * tanhf(y);
         }
     }
 

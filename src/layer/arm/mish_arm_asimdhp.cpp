@@ -72,7 +72,7 @@ int Mish_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) con
         for (; i < size; i++)
         {
             float v = (float)*ptr;
-            v = v * tanh(log(exp(v) + 1.f));
+            v = v * tanhf(logf(expf(v) + 1.f));
             *ptr = (__fp16)v;
             ptr++;
         }
@@ -146,7 +146,7 @@ int Mish_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) co
         for (; i < size; i++)
         {
             __fp16 v = *ptr;
-            v = v * tanh(log(exp(v) + (__fp16)1.f));
+            v = v * tanhf(logf(expf(v) + (__fp16)1.f));
             *ptr = v;
             ptr++;
         }

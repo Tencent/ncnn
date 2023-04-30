@@ -193,13 +193,13 @@ static int lstm_fp16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
             float O = gates_data[2];
             float G = gates_data[3];
 
-            I = 1.f / (1.f + exp(-I));
-            F = 1.f / (1.f + exp(-F));
-            O = 1.f / (1.f + exp(-O));
-            G = tanh(G);
+            I = 1.f / (1.f + expf(-I));
+            F = 1.f / (1.f + expf(-F));
+            O = 1.f / (1.f + expf(-O));
+            G = tanhf(G);
 
             float cell2 = F * cell_ptr[q] + I * G;
-            float H = O * tanh(cell2);
+            float H = O * tanhf(cell2);
 
             cell_ptr[q] = cell2;
             if (num_output == hidden_size)
@@ -533,13 +533,13 @@ static int lstm_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const
             float O = (float)gates_data[2];
             float G = (float)gates_data[3];
 
-            I = 1.f / (1.f + exp(-I));
-            F = 1.f / (1.f + exp(-F));
-            O = 1.f / (1.f + exp(-O));
-            G = tanh(G);
+            I = 1.f / (1.f + expf(-I));
+            F = 1.f / (1.f + expf(-F));
+            O = 1.f / (1.f + expf(-O));
+            G = tanhf(G);
 
             float cell2 = F * cell_ptr[q] + I * G;
-            float H = O * tanh(cell2);
+            float H = O * tanhf(cell2);
 
             cell_ptr[q] = cell2;
             if (num_output == hidden_size)

@@ -57,7 +57,7 @@ public:
         }
         else
         {
-            fprintf(stderr, "Cannot resolve GroupNorm num_channels when affint=False\n");
+            fprintf(stderr, "Cannot resolve GroupNorm num_channels when affine=False\n");
         }
     }
 };

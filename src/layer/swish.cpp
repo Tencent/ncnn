@@ -39,7 +39,7 @@ int Swish::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         for (int i = 0; i < size; i++)
         {
             float x = ptr[i];
-            ptr[i] = static_cast<float>(x / (1.f + expf(-x)));
+            ptr[i] = x / (1.f + expf(-x));
         }
     }
 
