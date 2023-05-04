@@ -49,15 +49,15 @@ jobs:
     - name: openmp
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
-        wget https://github.com/llvm/llvm-project/releases/download/llvmorg-15.0.7/openmp-15.0.7.src.tar.xz
-        tar -xf openmp-15.0.7.src.tar.xz
-        cd openmp-15.0.7.src
+        wget https://github.com/llvm/llvm-project/releases/download/llvmorg-11.0.0/openmp-11.0.0.src.tar.xz
+        tar -xf openmp-11.0.0.src.tar.xz
+        cd openmp-11.0.0.src
         sed -i'' -e '/.size __kmp_unnamed_critical_addr/d' runtime/src/z_Linux_asm.S
         sed -i'' -e 's/__kmp_unnamed_critical_addr/___kmp_unnamed_critical_addr/g' runtime/src/z_Linux_asm.S
     - name: openmp-build-i386
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
-        cd openmp-15.0.7.src
+        cd openmp-11.0.0.src
         mkdir -p build-i386 && cd build-i386
         cmake -DCMAKE_TOOLCHAIN_FILE=../../toolchains/ios.toolchain.cmake -DPLATFORM=SIMULATOR -DIOS_ARCH="i386" \
             -DDEPLOYMENT_TARGET=$DEPLOYMENT_TARGET -DENABLE_BITCODE=$ENABLE_BITCODE -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
@@ -69,7 +69,7 @@ jobs:
     - name: openmp-build-x86_64
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
-        cd openmp-15.0.7.src
+        cd openmp-11.0.0.src
         mkdir -p build-x86_64 && cd build-x86_64
         cmake -DCMAKE_TOOLCHAIN_FILE=../../toolchains/ios.toolchain.cmake -DPLATFORM=SIMULATOR64 -DIOS_ARCH="x86_64" \
             -DDEPLOYMENT_TARGET=$DEPLOYMENT_TARGET -DENABLE_BITCODE=$ENABLE_BITCODE -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
@@ -81,7 +81,7 @@ jobs:
     - name: openmp-build-arm64
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
-        cd openmp-15.0.7.src
+        cd openmp-11.0.0.src
         mkdir -p build-arm64 && cd build-arm64
         cmake -DCMAKE_TOOLCHAIN_FILE=../../toolchains/ios.toolchain.cmake -DPLATFORM=SIMULATORARM64 -DIOS_ARCH="arm64" \
             -DDEPLOYMENT_TARGET=$DEPLOYMENT_TARGET -DENABLE_BITCODE=$ENABLE_BITCODE -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
@@ -94,11 +94,11 @@ jobs:
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
         mkdir $GITHUB_WORKSPACE/openmp-install
-        cp -a openmp-15.0.7.src/build-x86_64/install/include $GITHUB_WORKSPACE/openmp-install
+        cp -a openmp-11.0.0.src/build-x86_64/install/include $GITHUB_WORKSPACE/openmp-install
         lipo -create \
-            openmp-15.0.7.src/build-i386/install/lib/libomp.a \
-            openmp-15.0.7.src/build-x86_64/install/lib/libomp.a \
-            openmp-15.0.7.src/build-arm64/install/lib/libomp.a \
+            openmp-11.0.0.src/build-i386/install/lib/libomp.a \
+            openmp-11.0.0.src/build-x86_64/install/lib/libomp.a \
+            openmp-11.0.0.src/build-arm64/install/lib/libomp.a \
             -o $GITHUB_WORKSPACE/openmp-install/lib/libomp.a
 
     - name: openmp-install
