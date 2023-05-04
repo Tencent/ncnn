@@ -719,7 +719,11 @@ if(ARCHS MATCHES "((^|;|, )(arm64|arm64e|x86_64))+")
 else()
   set(CMAKE_C_SIZEOF_DATA_PTR 4)
   set(CMAKE_CXX_SIZEOF_DATA_PTR 4)
-  set(CMAKE_SYSTEM_PROCESSOR "arm")
+  if(ARCHS MATCHES "((^|;|, )(armv7|armv7s|armv7k))+")
+    set(CMAKE_SYSTEM_PROCESSOR "arm")
+  else()
+    set(CMAKE_SYSTEM_PROCESSOR "i386")
+  endif()
 endif()
 
 # Note that only Xcode 7+ supports the newer more specific:
