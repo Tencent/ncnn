@@ -25,7 +25,7 @@ concurrency:
   cancel-in-progress: true
 env:
   DEVELOPER_DIR: /Applications/Xcode_14.2.app/Contents/Developer
-  DEPLOYMENT_TARGET: '9.0'
+  DEPLOYMENT_TARGET: '10.13'
   ENABLE_BITCODE: OFF
   ENABLE_ARC: OFF
   ENABLE_VISIBILITY: OFF
