@@ -101,7 +101,7 @@ static void gridsample_2d_bicubic_apply_interpolation_p16(const Mat& src, Mat& d
 void gridsample_2d_bicubic_apply_interpolation_p8_avx2(const Mat& src, Mat& dst, Mat& offset, const Mat& value, const Option& opt);
 void gridsample_2d_bicubic_apply_interpolation_p4_avx2(const Mat& src, Mat& dst, Mat& offset, const Mat& value, const Option& opt);
 void gridsample_2d_bicubic_apply_interpolation_p1_avx2(const Mat& src, Mat& dst, Mat& offset, const Mat& value, const Option& opt);
-#endif 
+#endif
 
 static void cubic_interp1d_p8(__m256& coeffs0, __m256& coeffs1, __m256& coeffs2, __m256& coeffs3, const __m256& tx)
 {
