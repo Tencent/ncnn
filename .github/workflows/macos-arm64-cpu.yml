@@ -22,7 +22,7 @@ concurrency:
   group: macos-arm64-cpu-${{ github.ref }}
   cancel-in-progress: true
 env:
-  DEVELOPER_DIR: /Applications/Xcode_14.2.app/Contents/Developer
+  DEVELOPER_DIR: /Applications/Xcode_13.4.1.app/Contents/Developer
   MAC_DEPLOYMENT_TARGET: '10.13'
   MAC_ARM64_DEPLOYMENT_TARGET: '11.0'
   ENABLE_BITCODE: OFF
@@ -33,7 +33,7 @@ permissions:
 
 jobs:
   macos-clang:
-    runs-on: macos-latest
+    runs-on: macos-12
     steps:
     - uses: actions/checkout@v3
 
