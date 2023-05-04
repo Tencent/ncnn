@@ -93,8 +93,9 @@ jobs:
     - name: openmp-merge-fat-library
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
-        mkdir $GITHUB_WORKSPACE/openmp-install
+        mkdir -p $GITHUB_WORKSPACE/openmp-install
         cp -a openmp-11.0.0.src/build-x86_64/install/include $GITHUB_WORKSPACE/openmp-install
+        mkdir -p $GITHUB_WORKSPACE/openmp-install/lib
         lipo -create \
             openmp-11.0.0.src/build-i386/install/lib/libomp.a \
             openmp-11.0.0.src/build-x86_64/install/lib/libomp.a \
