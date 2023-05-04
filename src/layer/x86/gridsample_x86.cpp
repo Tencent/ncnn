@@ -26,8 +26,12 @@
 #endif // __AVX__
 #endif // __SSE2__
 #include "x86_usability.h"
+#include "cpu.h"
 
 namespace ncnn {
+
+#include "gridsample_compute_blob.h"
+#include "gridsample_apply_interpolation.h"
 
 GridSample_x86::GridSample_x86()
 {
@@ -36,207 +40,9 @@ GridSample_x86::GridSample_x86()
 #endif // __SSE2__
 }
 
-#if __SSE2__
-#if __AVX__
-static __m256 mask_gather_ps256(const float* ptr, __m256i offset, __m256 mask)
-{
-#if __AVX2__
-    __m256 v = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), ptr, offset, mask, sizeof(float));
-#else
-    int offseti[8], maski[8];
-    memcpy(offseti, &offset, 8 * sizeof(int));
-    memcpy(maski, &mask, 8 * sizeof(int));
-
-    float data[8] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
-    for (int i = 0; i < 8; i++)
-    {
-        if (maski[i] & 0xF0000000)
-        {
-            data[i] = *(ptr + offseti[i]);
-        }
-    }
-
-    __m256 v = _mm256_loadu_ps(data);
-#endif // __AVX2__
-
-    return v;
-}
-
-#endif // __AVX__
-
-static __m128 mask_gather_ps(const float* ptr, __m128i offset, __m128 mask)
-{
-#if __AVX2__
-    __m128 v = _mm_mask_i32gather_ps(_mm_setzero_ps(), ptr, offset, mask, sizeof(float));
-#else
-    int offseti[4], maski[4];
-    memcpy(offseti, &offset, 4 * sizeof(int));
-    memcpy(maski, &mask, 4 * sizeof(int));
-
-    float data[4] = {0.0f, 0.0f, 0.0f, 0.0f};
-    for (int i = 0; i < 4; i++)
-    {
-        if (maski[i] & 0xF0000000)
-        {
-            data[i] = *(ptr + offseti[i]);
-        }
-    }
-
-    __m128 v = _mm_loadu_ps(data);
-#endif // __AVX__
-
-    return v;
-}
-
-#endif // __SSE2__
-
-#if _MSC_VER
-#define OPT_2
-#elif __clang__
-#define OPT_2 __attribute__((optnone))
-#elif __GNUC__
-#define OPT_2 __attribute__((optimize("2")))
-#endif
-
-namespace GridSample_x86_kernel {
-
-template<bool align_corner>
-struct grid_sample_unormalize;
-
-template<>
-struct grid_sample_unormalize</*align_corner*/ true>
-{
-#if __AVX__
-    OPT_2
-    __m256 operator()(__m256 length, __m256 coord)
-    {
-        return _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(coord, _mm256_set1_ps(1)), _mm256_set1_ps(2)), _mm256_sub_ps(length, _mm256_set1_ps(1)));
-    }
-#endif // __AVX__
-    float operator()(int length, float coord)
-    {
-        return (coord + 1) / 2.f * (length - 1);
-    }
-};
-
-template<>
-struct grid_sample_unormalize</*align_corner*/ false>
-{
-#if __AVX__
-    OPT_2
-    __m256 operator()(__m256 length, __m256 coord)
-    {
-        return _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(coord, _mm256_set1_ps(1)), length, _mm256_set1_ps(1)), _mm256_set1_ps(2));
-    }
-#endif // __AVX__
-    float operator()(int length, float coord)
-    {
-        return ((coord + 1) * length - 1) / 2.f;
-    }
-};
-
-template<GridSample::PaddingMode pd, bool align_corner>
-struct compute_coord
-{
-#if __AVX__
-    __m256 operator()(__m256 length, __m256 coord)
-    {
-        return coord;
-    }
-#endif // __AVX__
-    float operator()(int length, float coord)
-    {
-        return coord;
-    }
-};
-
-template<bool align_corner>
-struct compute_coord<GridSample::Padding_BORDER, align_corner>
-{
-#if __AVX__
-    __m256 operator()(__m256 length, __m256 coord)
-    {
-        const __m256 border_x = _mm256_sub_ps(length, _mm256_set1_ps(1));
-
-        coord = _mm256_min_ps(border_x, _mm256_max_ps(coord, _mm256_setzero_ps()));
-
-        return coord;
-    }
-#endif // __AVX__
-    float operator()(int length, float coord)
-    {
-        return std::min(length - 1.0f, std::max(coord, 0.0f));
-    }
-};
-
-template<>
-struct compute_coord<GridSample::Padding_REFLECTION, /*align_corner*/ true>
-{
-#if __AVX__
-    __m256 operator()(__m256 length, __m256 coord)
-    {
-        const __m256 border_x = _mm256_sub_ps(length, _mm256_set1_ps(1));
-
-        coord = abs256_ps(coord);
-
-        __m256 reflectx_v = abs256_ps(_mm256_sub_ps(coord, border_x));
-        coord = _mm256_sub_ps(border_x, reflectx_v);
-
-        return coord;
-    }
-#endif // __AVX__
-    float operator()(int length, float coord)
-    {
-        coord = fabs(coord);
-        coord = (length - 1) - fabs(coord - (length - 1));
-
-        return std::min(length - 1.0f, std::max(coord, 0.0f));
-    }
-};
-
-template<>
-struct compute_coord<GridSample::Padding_REFLECTION, /*align_corner*/ false>
-{
-#if __AVX__
-    __m256 operator()(__m256 length, __m256 coord)
-    {
-        const __m256 border_x = _mm256_sub_ps(length, _mm256_set1_ps(1));
-
-        __m256 v0p5fp8 = _mm256_set1_ps(0.5f);
-        coord = _mm256_add_ps(coord, v0p5fp8);
-
-        coord = abs256_ps(coord);
-
-        __m256 reflectx_v = abs256_ps(_mm256_sub_ps(coord, length));
-        coord = _mm256_sub_ps(length, reflectx_v);
-
-        coord = _mm256_sub_ps(coord, v0p5fp8);
-
-        _mm256_sub_ps(coord, v0p5fp8);
-
-        coord = _mm256_min_ps(border_x, _mm256_max_ps(coord, _mm256_setzero_ps()));
-
-        return coord;
-    }
-#endif // __AVX__
-    float operator()(int length, float coord)
-    {
-        coord = fabs(coord + 0.5f);
-        coord = length - fabs(coord - length) - 0.5;
-
-        return std::min(length - 1.0f, std::max(coord, 0.0f));
-    }
-};
-
-#include "gridsample_bilinear_compute_blob.h"
-#include "gridsample_bicubic_compute_blob.h"
-#include "gridsample_nearest_compute_blob.h"
-
-} //namespace GridSample_x86_kernel
-
 int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
-    using namespace GridSample_x86_kernel;
+    /*using namespace GridSample_x86_kernel;*/
     const Mat& bottom_blob = bottom_blobs[0];
     const Mat& grid = bottom_blobs[1];
     Mat& top_blob = top_blobs[0];
@@ -249,10 +55,10 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
     int outw, outh, outd;
     Mat offset_blob, value_blob;
 
-    ncnn::Mat grid_p1;
+    Mat grid_p1;
     if (grid.elempack != 1)
     {
-        ncnn::convert_packing(grid, grid_p1, 1, opt);
+        convert_packing(grid, grid_p1, 1, opt);
     }
     else
     {
