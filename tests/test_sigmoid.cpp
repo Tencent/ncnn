@@ -33,12 +33,12 @@ static int test_sigmoid(const ncnn::Mat& a)
 static int test_sigmoid_0()
 {
     return 0
-           || test_sigmoid(RandomMat(5, 6, 7, 24), 0.f)
-           || test_sigmoid(RandomMat(5, 6, 7, 24), 0.1f)
-           || test_sigmoid(RandomMat(7, 8, 9, 12), 0.f)
-           || test_sigmoid(RandomMat(7, 8, 9, 12), 0.1f)
-           || test_sigmoid(RandomMat(3, 4, 5, 13), 0.f)
-           || test_sigmoid(RandomMat(3, 4, 5, 13), 0.1f);
+           || test_sigmoid(RandomMat(5, 6, 7, 24))
+           || test_sigmoid(RandomMat(5, 6, 7, 24))
+           || test_sigmoid(RandomMat(7, 8, 9, 12))
+           || test_sigmoid(RandomMat(7, 8, 9, 12))
+           || test_sigmoid(RandomMat(3, 4, 5, 13))
+           || test_sigmoid(RandomMat(3, 4, 5, 13));
 }
 
 static int test_sigmoid_1()

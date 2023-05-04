@@ -33,12 +33,12 @@ static int test_swish(const ncnn::Mat& a)
 static int test_swish_0()
 {
     return 0
-           || test_swish(RandomMat(5, 6, 7, 24), 0.f)
-           || test_swish(RandomMat(5, 6, 7, 24), 0.1f)
-           || test_swish(RandomMat(7, 8, 9, 12), 0.f)
-           || test_swish(RandomMat(7, 8, 9, 12), 0.1f)
-           || test_swish(RandomMat(3, 4, 5, 13), 0.f)
-           || test_swish(RandomMat(3, 4, 5, 13), 0.1f);
+           || test_swish(RandomMat(5, 6, 7, 24))
+           || test_swish(RandomMat(5, 6, 7, 24))
+           || test_swish(RandomMat(7, 8, 9, 12))
+           || test_swish(RandomMat(7, 8, 9, 12))
+           || test_swish(RandomMat(3, 4, 5, 13))
+           || test_swish(RandomMat(3, 4, 5, 13));
 }
 
 static int test_swish_1()
