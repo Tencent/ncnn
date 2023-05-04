@@ -38,6 +38,8 @@ jobs:
   ios-iphone-simulator:
     runs-on: macos-latest
     steps:
+    - uses: actions/checkout@v3
+
     - name: cache-openmp
       id: cache-openmp
       uses: actions/cache@v3
@@ -57,7 +59,7 @@ jobs:
       run: |
         cd openmp-15.0.7.src
         mkdir -p build-i386 && cd build-i386
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DIOS_PLATFORM=SIMULATOR -DIOS_ARCH="i386" \
+        cmake -DCMAKE_TOOLCHAIN_FILE=../../toolchains/ios.toolchain.cmake -DIOS_PLATFORM=SIMULATOR -DIOS_ARCH="i386" \
             -DDEPLOYMENT_TARGET=$DEPLOYMENT_TARGET -DENABLE_BITCODE=$ENABLE_BITCODE -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
             -DPERL_EXECUTABLE=/usr/local/bin/perl \
@@ -69,7 +71,7 @@ jobs:
       run: |
         cd openmp-15.0.7.src
         mkdir -p build-x86_64 && cd build-x86_64
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DIOS_PLATFORM=SIMULATOR64 -DIOS_ARCH="x86_64" \
+        cmake -DCMAKE_TOOLCHAIN_FILE=../../toolchains/ios.toolchain.cmake -DIOS_PLATFORM=SIMULATOR64 -DIOS_ARCH="x86_64" \
             -DDEPLOYMENT_TARGET=$DEPLOYMENT_TARGET -DENABLE_BITCODE=$ENABLE_BITCODE -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
             -DPERL_EXECUTABLE=/usr/local/bin/perl \
@@ -81,7 +83,7 @@ jobs:
       run: |
         cd openmp-15.0.7.src
         mkdir -p build-arm64 && cd build-arm64
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DIOS_PLATFORM=SIMULATORARM64 -DIOS_ARCH="arm64" \
+        cmake -DCMAKE_TOOLCHAIN_FILE=../../toolchains/ios.toolchain.cmake -DIOS_PLATFORM=SIMULATORARM64 -DIOS_ARCH="arm64" \
             -DDEPLOYMENT_TARGET=$DEPLOYMENT_TARGET -DENABLE_BITCODE=$ENABLE_BITCODE -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
             -DPERL_EXECUTABLE=/usr/local/bin/perl \
@@ -104,10 +106,9 @@ jobs:
         sudo cp $GITHUB_WORKSPACE/openmp-install/include/* $DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/include
         sudo cp $GITHUB_WORKSPACE/openmp-install/lib/libomp.a $DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/lib
 
-    - uses: actions/checkout@v3
     - name: build-i386
       run: |
-        mkdir build && cd build
+        mkdir build-i386 && cd build-i386
         cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DIOS_PLATFORM=SIMULATOR -DIOS_ARCH="i386" \
             -DDEPLOYMENT_TARGET=$DEPLOYMENT_TARGET -DENABLE_BITCODE=$ENABLE_BITCODE -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
             -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
@@ -118,7 +119,7 @@ jobs:
         cmake --build . -j 3
     - name: build-x86_64
       run: |
-        mkdir build && cd build
+        mkdir build-x86_64 && cd build-x86_64
         cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DIOS_PLATFORM=SIMULATOR64 -DIOS_ARCH="x86_64" \
             -DDEPLOYMENT_TARGET=$DEPLOYMENT_TARGET -DENABLE_BITCODE=$ENABLE_BITCODE -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
             -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
@@ -129,7 +130,7 @@ jobs:
         cmake --build . -j 3
     - name: build-arm64
       run: |
-        mkdir build && cd build
+        mkdir build-arm64 && cd build-arm64
         cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DIOS_PLATFORM=SIMULATORARM64 -DIOS_ARCH="arm64" \
             -DDEPLOYMENT_TARGET=$DEPLOYMENT_TARGET -DENABLE_BITCODE=$ENABLE_BITCODE -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
             -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
