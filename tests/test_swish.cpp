@@ -34,10 +34,7 @@ static int test_swish_0()
 {
     return 0
            || test_swish(RandomMat(5, 6, 7, 24))
-           || test_swish(RandomMat(5, 6, 7, 24))
            || test_swish(RandomMat(7, 8, 9, 12))
-           || test_swish(RandomMat(7, 8, 9, 12))
-           || test_swish(RandomMat(3, 4, 5, 13))
            || test_swish(RandomMat(3, 4, 5, 13));
 }
 
