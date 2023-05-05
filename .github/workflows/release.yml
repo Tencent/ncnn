@@ -1233,7 +1233,7 @@ jobs:
             build-x86_64/install/lib/libglslang_combined.a \
             build-arm64/install/lib/libglslang_combined.a \
             -o glslang.framework/Versions/A/glslang
-        cp -a build/install/include/glslang glslang.framework/Versions/A/Headers/
+        cp -a build-x86_64/install/include/glslang glslang.framework/Versions/A/Headers/
         sed -e 's/__NAME__/glslang/g' -e 's/__IDENTIFIER__/org.khronos.glslang/g' -e 's/__VERSION__/1.0/g' Info.plist > glslang.framework/Versions/A/Resources/Info.plist
     - name: package
       run: |
@@ -1248,7 +1248,7 @@ jobs:
             build-x86_64/install/lib/libncnn.a \
             build-arm64/install/lib/libncnn.a \
             -o ncnn.framework/Versions/A/ncnn
-        cp -a build/install/include/* ncnn.framework/Versions/A/Headers/
+        cp -a build-x86_64/install/include/* ncnn.framework/Versions/A/Headers/
         sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework glslang.framework ncnn.framework
@@ -1515,7 +1515,7 @@ jobs:
             build-x86_64/install/lib/libglslang_combined.a \
             build-arm64/install/lib/libglslang_combined.a \
             -o glslang.framework/Versions/A/glslang
-        cp -a build/install/include/glslang glslang.framework/Versions/A/Headers/
+        cp -a build-x86_64/install/include/glslang glslang.framework/Versions/A/Headers/
         sed -e 's/__NAME__/glslang/g' -e 's/__IDENTIFIER__/org.khronos.glslang/g' -e 's/__VERSION__/1.0/g' Info.plist > glslang.framework/Versions/A/Resources/Info.plist
     - name: package
       run: |
@@ -1530,7 +1530,7 @@ jobs:
             build-x86_64/install/lib/libncnn.a \
             build-arm64/install/lib/libncnn.a \
             -o ncnn.framework/Versions/A/ncnn
-        cp -a build/install/include/* ncnn.framework/Versions/A/Headers/
+        cp -a build-x86_64/install/include/* ncnn.framework/Versions/A/Headers/
         sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework glslang.framework ncnn.framework
@@ -1771,7 +1771,7 @@ jobs:
             build-x86_64/install/lib/libglslang_combined.a \
             build-arm64/install/lib/libglslang_combined.a \
             -o glslang.framework/Versions/A/glslang
-        cp -a build/install/include/glslang glslang.framework/Versions/A/Headers/
+        cp -a build-x86_64/install/include/glslang glslang.framework/Versions/A/Headers/
         sed -e 's/__NAME__/glslang/g' -e 's/__IDENTIFIER__/org.khronos.glslang/g' -e 's/__VERSION__/1.0/g' Info.plist > glslang.framework/Versions/A/Resources/Info.plist
     - name: package
       run: |
@@ -1786,7 +1786,7 @@ jobs:
             build-x86_64/install/lib/libncnn.a \
             build-arm64/install/lib/libncnn.a \
             -o ncnn.framework/Versions/A/ncnn
-        cp -a build/install/include/* ncnn.framework/Versions/A/Headers/
+        cp -a build-x86_64/install/include/* ncnn.framework/Versions/A/Headers/
         sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework glslang.framework ncnn.framework
@@ -2028,7 +2028,7 @@ jobs:
             build-x86_64/install/lib/libglslang_combined.a \
             build-arm64/install/lib/libglslang_combined.a \
             -o glslang.framework/Versions/A/glslang
-        cp -a build/install/include/glslang glslang.framework/Versions/A/Headers/
+        cp -a build-x86_64/install/include/glslang glslang.framework/Versions/A/Headers/
         sed -e 's/__NAME__/glslang/g' -e 's/__IDENTIFIER__/org.khronos.glslang/g' -e 's/__VERSION__/1.0/g' Info.plist > glslang.framework/Versions/A/Resources/Info.plist
     - name: package
       run: |
@@ -2043,7 +2043,7 @@ jobs:
             build-x86_64/install/lib/libncnn.a \
             build-arm64/install/lib/libncnn.a \
             -o ncnn.framework/Versions/A/ncnn
-        cp -a build/install/include/* ncnn.framework/Versions/A/Headers/
+        cp -a build-x86_64/install/include/* ncnn.framework/Versions/A/Headers/
         sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework glslang.framework ncnn.framework
