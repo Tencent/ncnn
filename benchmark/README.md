@@ -4601,7 +4601,6 @@ cooling_down = 1
   vision_transformer  min = 22201.32  max = 22510.75  avg = 22315.09
           FastestDet  min =  146.94  max =  148.50  avg =  147.44
 ```
-
 ### VisionFive2 , JH7110 (SiFive-U74(RV64GC) 1.5GHz x 4) riscv64
 Test on Deepin V23 
 ```
@@ -4646,7 +4645,6 @@ cooling_down = 0
       yolo-fastestv2  min =   91.16  max =  184.20  avg =  131.51
   vision_transformer  min = 15491.20  max = 15800.66  avg = 15714.61
           FastestDet  min =  109.37  max =  197.13  avg =  140.97
- 
 deepin@deepin-riscv:~/ncnn/benchmark$ ./benchncnn 10 4 1 -1 0
 loop_count = 10
 num_threads = 4
@@ -4689,7 +4687,6 @@ cooling_down = 0
   vision_transformer  min = 14926.32  max = 15952.46  avg = 15278.62
           FastestDet  min =  109.82  max =  181.18  avg =  129.30
 ```
-
 ### T-Head TH1520 (C910V<aka C920>, 1.848 GHz x 4)
 
 Tested on `Linux anolis-riscv 5.10.112-00579-g8e3db308d5a5 #23 SMP PREEMPT Fri Aug 12 10:17:32 CST 2022 riscv64 riscv64 riscv64 GNU/Linux`
