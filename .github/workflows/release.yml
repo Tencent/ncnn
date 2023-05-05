@@ -1050,7 +1050,7 @@ jobs:
         path: openmp-install
 
   ios-simulator:
-    needs: [setup, openmp-ios]
+    needs: [setup, openmp-ios-simulator]
     runs-on: macos-12
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator
@@ -1135,7 +1135,7 @@ jobs:
         path: ${{ env.PACKAGENAME }}.zip
 
   ios-simulator-gpu:
-    needs: [setup, openmp-ios]
+    needs: [setup, openmp-ios-simulator]
     runs-on: macos-12
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator-vulkan
@@ -1327,7 +1327,7 @@ jobs:
         path: openmp-install
 
   ios-simulator-bitcode:
-    needs: [setup, openmp-ios]
+    needs: [setup, openmp-ios-simulator-bitcode]
     runs-on: macos-12
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator-bitcode
@@ -1412,7 +1412,7 @@ jobs:
         path: ${{ env.PACKAGENAME }}.zip
 
   ios-simulator-gpu-bitcode:
-    needs: [setup, openmp-ios]
+    needs: [setup, openmp-ios-simulator-bitcode]
     runs-on: macos-12
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator-vulkan-bitcode
