@@ -402,7 +402,7 @@ jobs:
         ln -s Versions/Current/Resources ncnn.framework/Resources
         ln -s Versions/Current/ncnn ncnn.framework/ncnn
         lipo -create build-x86_64/install/lib/libncnn.a build-arm64/install/lib/libncnn.a -o ncnn.framework/Versions/A/ncnn
-        cp -a build-x86_64/install/include/* ncnn.framework/Versions/A/Headers/
+        cp -a build-x86_64/install/include/ncnn ncnn.framework/Versions/A/Headers/
         sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework glslang.framework ncnn.framework
@@ -684,7 +684,7 @@ jobs:
             build-arm64/install/lib/libncnn.a \
             build-arm64e/install/lib/libncnn.a \
             -o ncnn.framework/Versions/A/ncnn
-        cp -a build-arm64/install/include/* ncnn.framework/Versions/A/Headers/
+        cp -a build-arm64/install/include/ncnn ncnn.framework/Versions/A/Headers/
         sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework glslang.framework ncnn.framework
@@ -966,7 +966,7 @@ jobs:
             build-arm64/install/lib/libncnn.a \
             build-arm64e/install/lib/libncnn.a \
             -o ncnn.framework/Versions/A/ncnn
-        cp -a build-arm64/install/include/* ncnn.framework/Versions/A/Headers/
+        cp -a build-arm64/install/include/ncnn ncnn.framework/Versions/A/Headers/
         sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework glslang.framework ncnn.framework
@@ -1248,7 +1248,7 @@ jobs:
             build-x86_64/install/lib/libncnn.a \
             build-arm64/install/lib/libncnn.a \
             -o ncnn.framework/Versions/A/ncnn
-        cp -a build-x86_64/install/include/* ncnn.framework/Versions/A/Headers/
+        cp -a build-x86_64/install/include/ncnn ncnn.framework/Versions/A/Headers/
         sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework glslang.framework ncnn.framework
@@ -1530,7 +1530,7 @@ jobs:
             build-x86_64/install/lib/libncnn.a \
             build-arm64/install/lib/libncnn.a \
             -o ncnn.framework/Versions/A/ncnn
-        cp -a build-x86_64/install/include/* ncnn.framework/Versions/A/Headers/
+        cp -a build-x86_64/install/include/ncnn ncnn.framework/Versions/A/Headers/
         sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework glslang.framework ncnn.framework
@@ -1786,7 +1786,7 @@ jobs:
             build-x86_64/install/lib/libncnn.a \
             build-arm64/install/lib/libncnn.a \
             -o ncnn.framework/Versions/A/ncnn
-        cp -a build-x86_64/install/include/* ncnn.framework/Versions/A/Headers/
+        cp -a build-x86_64/install/include/ncnn ncnn.framework/Versions/A/Headers/
         sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework glslang.framework ncnn.framework
@@ -2043,7 +2043,7 @@ jobs:
             build-x86_64/install/lib/libncnn.a \
             build-arm64/install/lib/libncnn.a \
             -o ncnn.framework/Versions/A/ncnn
-        cp -a build-x86_64/install/include/* ncnn.framework/Versions/A/Headers/
+        cp -a build-x86_64/install/include/ncnn ncnn.framework/Versions/A/Headers/
         sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework glslang.framework ncnn.framework
