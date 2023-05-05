@@ -17,7 +17,6 @@
 #include "x86_usability.h"
 
 namespace ncnn {
-#include "gridsample_x86.h"
 #include "gridsample_apply_interpolation.h"
 
 void gridsample_2d_bilinear_apply_interpolation_p8_avx2(const Mat& src, Mat& dst, const Mat& offset, const Mat& value, const Option& opt)

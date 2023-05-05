@@ -42,7 +42,6 @@ GridSample_x86::GridSample_x86()
 
 int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
-    /*using namespace GridSample_x86_kernel;*/
     const Mat& bottom_blob = bottom_blobs[0];
     const Mat& grid = bottom_blobs[1];
     Mat& top_blob = top_blobs[0];
