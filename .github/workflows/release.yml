@@ -1834,7 +1834,6 @@ jobs:
         cp -a openmp-11.0.0.src/build-x86_64/install/include $GITHUB_WORKSPACE/openmp-install
         mkdir -p $GITHUB_WORKSPACE/openmp-install/lib
         lipo -create \
-            openmp-11.0.0.src/build-i386/install/lib/libomp.a \
             openmp-11.0.0.src/build-x86_64/install/lib/libomp.a \
             openmp-11.0.0.src/build-arm64/install/lib/libomp.a \
             -o $GITHUB_WORKSPACE/openmp-install/lib/libomp.a
