@@ -1323,7 +1323,7 @@ jobs:
     - name: upload
       uses: actions/upload-artifact@v3
       with:
-        name: openmp-ios-simulator
+        name: openmp-ios-simulator-bitcode
         path: openmp-install
 
   ios-simulator-bitcode:
