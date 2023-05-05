@@ -1919,7 +1919,6 @@ jobs:
         ln -s Versions/Current/Resources ncnn.framework/Resources
         ln -s Versions/Current/ncnn ncnn.framework/ncnn
         lipo -create \
-            build-i386/install/lib/libncnn.a \
             build-x86_64/install/lib/libncnn.a \
             build-arm64/install/lib/libncnn.a \
             -o ncnn.framework/Versions/A/ncnn
