@@ -2950,10 +2950,174 @@ jobs:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
 
+  apple-xcframwork:
+    needs: [setup, macos, ios, ios-simulator, mac-catalyst]
+    runs-on: macos-12
+    env:
+      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-apple
+    steps:
+    - run: sudo xcode-select --switch /Applications/Xcode_13.4.1.app
+    - name: download
+      uses: actions/download-artifact@v3
+      with:
+        path: artifacts
+
+    - name: create-xcframwork
+      run: |
+        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-macos/ncnn-${{ needs.setup.outputs.VERSION }}-macos.zip
+        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios/ncnn-${{ needs.setup.outputs.VERSION }}-ios.zip
+        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator/ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator.zip
+        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst/ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst.zip
+
+        xcodebuild -create-xcframework \
+            -framework artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-macos/openmp.framework \
+            -framework artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios/openmp.framework \
+            -framework artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator/openmp.framework \
+            -framework artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst/openmp.framework \
+            -output openmp.xcframework
+
+        xcodebuild -create-xcframework \
+            -framework artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-macos/ncnn.framework \
+            -framework artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios/ncnn.framework \
+            -framework artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator/ncnn.framework \
+            -framework artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst/ncnn.framework \
+            -output ncnn.xcframework
+
+        rm -f ${{ env.PACKAGENAME }}.zip
+        zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.xcframework ncnn.xcframework
+    - name: upload-zip
+      uses: actions/upload-artifact@v3
+      with:
+        name: ${{ env.PACKAGENAME }}
+        path: ${{ env.PACKAGENAME }}.zip
+
+  apple-xcframwork-gpu:
+    needs: [setup, macos-gpu, ios-gpu, ios-simulator-gpu, mac-catalyst-gpu]
+    runs-on: macos-12
+    env:
+      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-apple-vulkan
+    steps:
+    - run: sudo xcode-select --switch /Applications/Xcode_13.4.1.app
+    - name: download
+      uses: actions/download-artifact@v3
+      with:
+        path: artifacts
+
+    - name: create-xcframwork
+      run: |
+        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-macos-vulkan/ncnn-${{ needs.setup.outputs.VERSION }}-macos-vulkan.zip
+        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios-vulkan/ncnn-${{ needs.setup.outputs.VERSION }}-ios-vulkan.zip
+        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator-vulkan/ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator-vulkan.zip
+        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst-vulkan/ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst-vulkan.zip
+
+        xcodebuild -create-xcframework \
+            -framework artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-macos-vulkan/openmp.framework \
+            -framework artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios-vulkan/openmp.framework \
+            -framework artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator-vulkan/openmp.framework \
+            -framework artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst-vulkan/openmp.framework \
+            -output openmp.xcframework
+
+        xcodebuild -create-xcframework \
+            -framework artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-macos-vulkan/ncnn.framework \
+            -framework artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios-vulkan/ncnn.framework \
+            -framework artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator-vulkan/ncnn.framework \
+            -framework artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst-vulkan/ncnn.framework \
+            -output ncnn.xcframework
+
+        rm -f ${{ env.PACKAGENAME }}.zip
+        zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.xcframework ncnn.xcframework
+    - name: upload-zip
+      uses: actions/upload-artifact@v3
+      with:
+        name: ${{ env.PACKAGENAME }}
+        path: ${{ env.PACKAGENAME }}.zip
+
+  apple-xcframwork-bitcode:
+    needs: [setup, macos, ios-bitcode, ios-simulator-bitcode, mac-catalyst-bitcode]
+    runs-on: macos-12
+    env:
+      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-apple-bitcode
+    steps:
+    - run: sudo xcode-select --switch /Applications/Xcode_13.4.1.app
+    - name: download
+      uses: actions/download-artifact@v3
+      with:
+        path: artifacts
+
+    - name: create-xcframwork
+      run: |
+        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-macos/ncnn-${{ needs.setup.outputs.VERSION }}-macos.zip
+        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios-bitcode/ncnn-${{ needs.setup.outputs.VERSION }}-ios-bitcode.zip
+        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator-bitcode/ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator-bitcode.zip
+        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst-bitcode/ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst-bitcode.zip
+
+        xcodebuild -create-xcframework \
+            -framework artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-macos/openmp.framework \
+            -framework artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios-bitcode/openmp.framework \
+            -framework artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator-bitcode/openmp.framework \
+            -framework artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst-bitcode/openmp.framework \
+            -output openmp.xcframework
+
+        xcodebuild -create-xcframework \
+            -framework artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-macos/ncnn.framework \
+            -framework artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios-bitcode/ncnn.framework \
+            -framework artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator-bitcode/ncnn.framework \
+            -framework artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst-bitcode/ncnn.framework \
+            -output ncnn.xcframework
+
+        rm -f ${{ env.PACKAGENAME }}.zip
+        zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.xcframework ncnn.xcframework
+    - name: upload-zip
+      uses: actions/upload-artifact@v3
+      with:
+        name: ${{ env.PACKAGENAME }}
+        path: ${{ env.PACKAGENAME }}.zip
+
+  apple-xcframwork-gpu-bitcode:
+    needs: [setup, macos-gpu, ios-gpu-bitcode, ios-simulator-gpu-bitcode, mac-catalyst-gpu-bitcode]
+    runs-on: macos-12
+    env:
+      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-apple-vulkan-bitcode
+    steps:
+    - run: sudo xcode-select --switch /Applications/Xcode_13.4.1.app
+    - name: download
+      uses: actions/download-artifact@v3
+      with:
+        path: artifacts
+
+    - name: create-xcframwork
+      run: |
+        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-macos-vulkan/ncnn-${{ needs.setup.outputs.VERSION }}-macos-vulkan.zip
+        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios-vulkan-bitcode/ncnn-${{ needs.setup.outputs.VERSION }}-ios-vulkan-bitcode.zip
+        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator-vulkan-bitcode/ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator-vulkan-bitcode.zip
+        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst-vulkan-bitcode/ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst-vulkan-bitcode.zip
+
+        xcodebuild -create-xcframework \
+            -framework artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-macos-vulkan/openmp.framework \
+            -framework artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios-vulkan-bitcode/openmp.framework \
+            -framework artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator-vulkan-bitcode/openmp.framework \
+            -framework artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst-vulkan-bitcode/openmp.framework \
+            -output openmp.xcframework
+
+        xcodebuild -create-xcframework \
+            -framework artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-macos-vulkan/ncnn.framework \
+            -framework artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios-vulkan-bitcode/ncnn.framework \
+            -framework artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator-vulkan-bitcode/ncnn.framework \
+            -framework artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst-vulkan-bitcode/ncnn.framework \
+            -output ncnn.xcframework
+
+        rm -f ${{ env.PACKAGENAME }}.zip
+        zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.xcframework ncnn.xcframework
+    - name: upload-zip
+      uses: actions/upload-artifact@v3
+      with:
+        name: ${{ env.PACKAGENAME }}
+        path: ${{ env.PACKAGENAME }}.zip
+
   release:
     permissions:
       contents: write  # for softprops/action-gh-release to create a release
-    needs: [setup, full-source, ubuntu-2004, ubuntu-2004-shared, ubuntu-2204, ubuntu-2204-shared, macos, macos-gpu, ios, ios-gpu, ios-bitcode, ios-gpu-bitcode, ios-simulator, ios-simulator-gpu, ios-simulator-bitcode, ios-simulator-gpu-bitcode, mac-catalyst, mac-catalyst-gpu, mac-catalyst-bitcode, mac-catalyst-gpu-bitcode, android, android-shared, android-gpu, android-gpu-shared, webassembly, windows-vs2015, windows-vs2015-shared, windows-vs2017, windows-vs2017-shared, windows-vs2019, windows-vs2019-shared, windows-vs2022, windows-vs2022-shared]
+    needs: [setup, full-source, ubuntu-2004, ubuntu-2004-shared, ubuntu-2204, ubuntu-2204-shared, macos, macos-gpu, ios, ios-gpu, ios-bitcode, ios-gpu-bitcode, ios-simulator, ios-simulator-gpu, ios-simulator-bitcode, ios-simulator-gpu-bitcode, mac-catalyst, mac-catalyst-gpu, mac-catalyst-bitcode, mac-catalyst-gpu-bitcode, android, android-shared, android-gpu, android-gpu-shared, webassembly, windows-vs2015, windows-vs2015-shared, windows-vs2017, windows-vs2017-shared, windows-vs2019, windows-vs2019-shared, windows-vs2022, windows-vs2022-shared, apple-xcframwork, apple-xcframwork-gpu, apple-xcframwork-bitcode, apple-xcframwork-gpu-bitcode]
     runs-on: ubuntu-latest
     steps:
     - name: download
