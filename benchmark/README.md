@@ -2887,12 +2887,6 @@ cooling_down = 0
             resnet18  min =  124.45  max =  124.81  avg =  124.58
              alexnet  min =  130.46  max =  130.68  avg =  130.54
 ```
-
-
-
-
-
-
 ### HiSilicon Hi3519V101 (Cortex-A17 1.2GHz x 1)
 ```
 root@Hi3519:/ncnn-benchmark # taskset 2 ./benchncnn 8 1 0
