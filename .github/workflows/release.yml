@@ -2981,23 +2981,28 @@ jobs:
 
     - name: create-xcframwork
       run: |
-        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-macos/ncnn-${{ needs.setup.outputs.VERSION }}-macos.zip
-        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios/ncnn-${{ needs.setup.outputs.VERSION }}-ios.zip
-        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator/ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator.zip
-        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst/ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst.zip
+        mkdir -p ncnn-macos
+        mkdir -p ncnn-ios
+        mkdir -p ncnn-ios-simulator
+        mkdir -p ncnn-mac-catalyst
+
+        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-macos/ncnn-${{ needs.setup.outputs.VERSION }}-macos.zip -d ncnn-macos
+        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios/ncnn-${{ needs.setup.outputs.VERSION }}-ios.zip -d ncnn-ios
+        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator/ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator.zip -d ncnn-ios-simulator
+        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst/ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst.zip -d ncnn-mac-catalyst
 
         xcodebuild -create-xcframework \
-            -framework artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-macos/openmp.framework \
-            -framework artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios/openmp.framework \
-            -framework artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator/openmp.framework \
-            -framework artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst/openmp.framework \
+            -framework ncnn-macos/openmp.framework \
+            -framework ncnn-ios/openmp.framework \
+            -framework ncnn-ios-simulator/openmp.framework \
+            -framework ncnn-mac-catalyst/openmp.framework \
             -output openmp.xcframework
 
         xcodebuild -create-xcframework \
-            -framework artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-macos/ncnn.framework \
-            -framework artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios/ncnn.framework \
-            -framework artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator/ncnn.framework \
-            -framework artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst/ncnn.framework \
+            -framework ncnn-macos/ncnn.framework \
+            -framework ncnn-ios/ncnn.framework \
+            -framework ncnn-ios-simulator/ncnn.framework \
+            -framework ncnn-mac-catalyst/ncnn.framework \
             -output ncnn.xcframework
 
         rm -f ${{ env.PACKAGENAME }}.zip
@@ -3022,30 +3027,35 @@ jobs:
 
     - name: create-xcframwork
       run: |
-        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-macos-vulkan/ncnn-${{ needs.setup.outputs.VERSION }}-macos-vulkan.zip
-        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios-vulkan/ncnn-${{ needs.setup.outputs.VERSION }}-ios-vulkan.zip
-        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator-vulkan/ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator-vulkan.zip
-        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst-vulkan/ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst-vulkan.zip
+        mkdir -p ncnn-macos-vulkan
+        mkdir -p ncnn-ios-vulkan
+        mkdir -p ncnn-ios-simulator-vulkan
+        mkdir -p ncnn-mac-catalyst-vulkan
+
+        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-macos-vulkan/ncnn-${{ needs.setup.outputs.VERSION }}-macos-vulkan.zip -d ncnn-macos-vulkan
+        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios-vulkan/ncnn-${{ needs.setup.outputs.VERSION }}-ios-vulkan.zip -d ncnn-ios-vulkan
+        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator-vulkan/ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator-vulkan.zip -d ncnn-ios-simulator-vulkan
+        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst-vulkan/ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst-vulkan.zip -d ncnn-mac-catalyst-vulkan
 
         xcodebuild -create-xcframework \
-            -framework artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-macos-vulkan/openmp.framework \
-            -framework artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios-vulkan/openmp.framework \
-            -framework artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator-vulkan/openmp.framework \
-            -framework artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst-vulkan/openmp.framework \
+            -framework ncnn-macos-vulkan/openmp.framework \
+            -framework ncnn-ios-vulkan/openmp.framework \
+            -framework ncnn-ios-simulator-vulkan/openmp.framework \
+            -framework ncnn-mac-catalyst-vulkan/openmp.framework \
             -output openmp.xcframework
 
         xcodebuild -create-xcframework \
-            -framework artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-macos-vulkan/glslang.framework \
-            -framework artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios-vulkan/glslang.framework \
-            -framework artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator-vulkan/glslang.framework \
-            -framework artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst-vulkan/glslang.framework \
+            -framework ncnn-macos-vulkan/glslang.framework \
+            -framework ncnn-ios-vulkan/glslang.framework \
+            -framework ncnn-ios-simulator-vulkan/glslang.framework \
+            -framework ncnn-mac-catalyst-vulkan/glslang.framework \
             -output glslang.xcframework
 
         xcodebuild -create-xcframework \
-            -framework artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-macos-vulkan/ncnn.framework \
-            -framework artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios-vulkan/ncnn.framework \
-            -framework artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator-vulkan/ncnn.framework \
-            -framework artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst-vulkan/ncnn.framework \
+            -framework ncnn-macos-vulkan/ncnn.framework \
+            -framework ncnn-ios-vulkan/ncnn.framework \
+            -framework ncnn-ios-simulator-vulkan/ncnn.framework \
+            -framework ncnn-mac-catalyst-vulkan/ncnn.framework \
             -output ncnn.xcframework
 
         rm -f ${{ env.PACKAGENAME }}.zip
@@ -3070,23 +3080,28 @@ jobs:
 
     - name: create-xcframwork
       run: |
-        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-macos/ncnn-${{ needs.setup.outputs.VERSION }}-macos.zip
-        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios-bitcode/ncnn-${{ needs.setup.outputs.VERSION }}-ios-bitcode.zip
-        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator-bitcode/ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator-bitcode.zip
-        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst-bitcode/ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst-bitcode.zip
+        mkdir -p ncnn-macos
+        mkdir -p ncnn-ios-bitcode
+        mkdir -p ncnn-ios-simulator-bitcode
+        mkdir -p ncnn-mac-catalyst-bitcode
+
+        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-macos/ncnn-${{ needs.setup.outputs.VERSION }}-macos.zip -d ncnn-macos
+        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios-bitcode/ncnn-${{ needs.setup.outputs.VERSION }}-ios-bitcode.zip -d ncnn-ios-bitcode
+        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator-bitcode/ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator-bitcode.zip -d ncnn-ios-simulator-bitcode
+        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst-bitcode/ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst-bitcode.zip -d ncnn-mac-catalyst-bitcode
 
         xcodebuild -create-xcframework \
-            -framework artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-macos/openmp.framework \
-            -framework artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios-bitcode/openmp.framework \
-            -framework artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator-bitcode/openmp.framework \
-            -framework artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst-bitcode/openmp.framework \
+            -framework ncnn-macos/openmp.framework \
+            -framework ncnn-ios-bitcode/openmp.framework \
+            -framework ncnn-ios-simulator-bitcode/openmp.framework \
+            -framework ncnn-mac-catalyst-bitcode/openmp.framework \
             -output openmp.xcframework
 
         xcodebuild -create-xcframework \
-            -framework artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-macos/ncnn.framework \
-            -framework artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios-bitcode/ncnn.framework \
-            -framework artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator-bitcode/ncnn.framework \
-            -framework artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst-bitcode/ncnn.framework \
+            -framework ncnn-macos/ncnn.framework \
+            -framework ncnn-ios-bitcode/ncnn.framework \
+            -framework ncnn-ios-simulator-bitcode/ncnn.framework \
+            -framework ncnn-mac-catalyst-bitcode/ncnn.framework \
             -output ncnn.xcframework
 
         rm -f ${{ env.PACKAGENAME }}.zip
@@ -3111,30 +3126,35 @@ jobs:
 
     - name: create-xcframwork
       run: |
-        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-macos-vulkan/ncnn-${{ needs.setup.outputs.VERSION }}-macos-vulkan.zip
-        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios-vulkan-bitcode/ncnn-${{ needs.setup.outputs.VERSION }}-ios-vulkan-bitcode.zip
-        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator-vulkan-bitcode/ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator-vulkan-bitcode.zip
-        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst-vulkan-bitcode/ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst-vulkan-bitcode.zip
+        mkdir -p ncnn-macos-vulkan
+        mkdir -p ncnn-ios-vulkan-bitcode
+        mkdir -p ncnn-ios-simulator-vulkan-bitcode
+        mkdir -p ncnn-mac-catalyst-vulkan-bitcode
+
+        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-macos-vulkan/ncnn-${{ needs.setup.outputs.VERSION }}-macos-vulkan.zip -d ncnn-macos-vulkan
+        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios-vulkan-bitcode/ncnn-${{ needs.setup.outputs.VERSION }}-ios-vulkan-bitcode.zip -d ncnn-ios-vulkan-bitcode
+        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator-vulkan-bitcode/ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator-vulkan-bitcode.zip -d ncnn-ios-simulator-vulkan-bitcode
+        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst-vulkan-bitcode/ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst-vulkan-bitcode.zip -d ncnn-mac-catalyst-vulkan-bitcode
 
         xcodebuild -create-xcframework \
-            -framework artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-macos-vulkan/openmp.framework \
-            -framework artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios-vulkan-bitcode/openmp.framework \
-            -framework artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator-vulkan-bitcode/openmp.framework \
-            -framework artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst-vulkan-bitcode/openmp.framework \
+            -framework ncnn-macos-vulkan/openmp.framework \
+            -framework ncnn-ios-vulkan-bitcode/openmp.framework \
+            -framework ncnn-ios-simulator-vulkan-bitcode/openmp.framework \
+            -framework ncnn-mac-catalyst-vulkan-bitcode/openmp.framework \
             -output openmp.xcframework
 
         xcodebuild -create-xcframework \
-            -framework artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-macos-vulkan/glslang.framework \
-            -framework artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios-vulkan-bitcode/glslang.framework \
-            -framework artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator-vulkan-bitcode/glslang.framework \
-            -framework artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst-vulkan-bitcode/glslang.framework \
+            -framework ncnn-macos-vulkan/glslang.framework \
+            -framework ncnn-ios-vulkan-bitcode/glslang.framework \
+            -framework ncnn-ios-simulator-vulkan-bitcode/glslang.framework \
+            -framework ncnn-mac-catalyst-vulkan-bitcode/glslang.framework \
             -output glslang.xcframework
 
         xcodebuild -create-xcframework \
-            -framework artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-macos-vulkan/ncnn.framework \
-            -framework artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios-vulkan-bitcode/ncnn.framework \
-            -framework artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator-vulkan-bitcode/ncnn.framework \
-            -framework artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst-vulkan-bitcode/ncnn.framework \
+            -framework ncnn-macos-vulkan/ncnn.framework \
+            -framework ncnn-ios-vulkan-bitcode/ncnn.framework \
+            -framework ncnn-ios-simulator-vulkan-bitcode/ncnn.framework \
+            -framework ncnn-mac-catalyst-vulkan-bitcode/ncnn.framework \
             -output ncnn.xcframework
 
         rm -f ${{ env.PACKAGENAME }}.zip
