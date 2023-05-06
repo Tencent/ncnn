@@ -113,5 +113,5 @@ jobs:
             -DVulkan_INCLUDE_DIR=$GITHUB_WORKSPACE/vulkansdk-macos-1.3.236.0/MoltenVK/include \
             -DVulkan_LIBRARY=$GITHUB_WORKSPACE/vulkansdk-macos-1.3.236.0/MoltenVK/dylib/macOS/libMoltenVK.dylib \
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
-            -DNCNN_VULKAN=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
+            -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j 3
