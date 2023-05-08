@@ -49,7 +49,7 @@ jobs:
       env:
         CC: clang
         CXX: clang++
-      run: mkdir build && cd build && cmake -DNCNN_PYTHON=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
+      run: mkdir build && cd build && cmake -DNCNN_PYTHON=ON -DNCNN_DISABLE_RTTI=OFF -DNCNN_DISABLE_EXCEPTION=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
     - name: build
       run: cmake --build build -j 2
     - name: install python

@@ -1436,6 +1436,12 @@ int create_gpu_instance()
                 gpu_info.support_VK_NV_cooperative_matrix = exp.specVersion;
         }
 
+        if (gpu_info.support_VK_KHR_buffer_device_address)
+        {
+            // we prefer khr extension
+            gpu_info.support_VK_EXT_buffer_device_address = 0;
+        }
+
         // check features
         gpu_info.support_fp16_packed = true;
         gpu_info.support_fp16_storage = false;
@@ -1571,6 +1577,11 @@ int create_gpu_instance()
             }
 
             std::vector<VkCooperativeMatrixPropertiesNV> properties(propertyCount);
+            for (uint32_t j = 0; j < properties.size(); j++)
+            {
+                properties[j].sType = VK_STRUCTURE_TYPE_COOPERATIVE_MATRIX_PROPERTIES_NV;
+                properties[j].pNext = 0;
+            }
             ret = vkGetPhysicalDeviceCooperativeMatrixPropertiesNV(physicalDevice, &propertyCount, properties.data());
             if (ret != VK_SUCCESS)
             {
