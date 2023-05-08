@@ -4,7 +4,6 @@
 
 set(CMAKE_SYSTEM_NAME QNX)
 set(CMAKE_SYSTEM_PROCESSOR arm)
-set(ARM 1)
 
 if(NOT DEFINED ENV{QNX_HOST})
   message(FATAL_ERROR "Please set env var `QNX_HOST` first")
