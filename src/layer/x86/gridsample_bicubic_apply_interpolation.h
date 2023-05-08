@@ -19,15 +19,14 @@ static void cubic_interp1d_p16(__m512& coeffs0, __m512& coeffs1, __m512& coeffs2
 {
     const __m512 A = _mm512_set1_ps(-0.75f);
 
-    const __m512 x0 = _mm512_add_ps(tx, *(__m512*)_ps512_1);
+    const __m512 x0 = _mm512_add_ps(tx, _mm512_set1_ps(1.0f));
     const __m512& x1 = tx;
-    const __m512 x2 = _mm512_sub_ps(*(__m512*)_ps512_1, tx);
-    //const __m512 x3 = _mm512_add_ps(x2, *(__m512*)_ps512_1);
+    const __m512 x2 = _mm512_sub_ps(_mm512_set1_ps(1.0f), tx);
 
     coeffs0 = _mm512_sub_ps(_mm512_mul_ps(_mm512_add_ps(_mm512_mul_ps(_mm512_sub_ps(_mm512_mul_ps(A, x0), _mm512_mul_ps(_mm512_set1_ps(5.0f), A)), x0), _mm512_mul_ps(_mm512_set1_ps(8.0f), A)), x0), _mm512_mul_ps(_mm512_set1_ps(4), A));
-    coeffs1 = _mm512_add_ps(_mm512_mul_ps(_mm512_mul_ps(_mm512_sub_ps(_mm512_mul_ps(_mm512_add_ps(A, _mm512_set1_ps(2.0f)), x1), _mm512_add_ps(A, _mm512_set1_ps(3.0f))), x1), x1), *(__m512*)_ps512_1);
-    coeffs2 = _mm512_add_ps(_mm512_mul_ps(_mm512_mul_ps(_mm512_sub_ps(_mm512_mul_ps(_mm512_add_ps(A, _mm512_set1_ps(2.0f)), x2), _mm512_add_ps(A, _mm512_set1_ps(3.0f))), x2), x2), *(__m512*)_ps512_1);
-    coeffs3 = _mm512_sub_ps(_mm512_sub_ps(_mm512_sub_ps(*(__m512*)_ps512_1, coeffs0), coeffs1), coeffs2);
+    coeffs1 = _mm512_add_ps(_mm512_mul_ps(_mm512_mul_ps(_mm512_sub_ps(_mm512_mul_ps(_mm512_add_ps(A, _mm512_set1_ps(2.0f)), x1), _mm512_add_ps(A, _mm512_set1_ps(3.0f))), x1), x1), _mm512_set1_ps(1.0f));
+    coeffs2 = _mm512_add_ps(_mm512_mul_ps(_mm512_mul_ps(_mm512_sub_ps(_mm512_mul_ps(_mm512_add_ps(A, _mm512_set1_ps(2.0f)), x2), _mm512_add_ps(A, _mm512_set1_ps(3.0f))), x2), x2), _mm512_set1_ps(1.0f));
+    coeffs3 = _mm512_sub_ps(_mm512_sub_ps(_mm512_sub_ps(_mm512_set1_ps(1.0f), coeffs0), coeffs1), coeffs2);
 }
 
 static void gridsample_2d_bicubic_apply_interpolation_p16(const Mat& src, Mat& dst, Mat& offset, const Mat& value, const Option& opt)
