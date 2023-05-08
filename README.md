@@ -214,6 +214,7 @@ ncnn 目前已在腾讯多款应用中使用，如：QQ，Qzone，微信，天�
 - [Build for AllWinner D1](https://github.com/Tencent/ncnn/wiki/how-to-build#build-for-allwinner-d1)
 - [Build for Loongson 2K1000](https://github.com/Tencent/ncnn/wiki/how-to-build#build-for-loongson-2k1000)
 - [Build for Termux on Android](https://github.com/Tencent/ncnn/wiki/how-to-build#build-for-termux-on-android)
+- [Build for QNX](https://github.com/Tencent/ncnn/wiki/how-to-build#build-for-qnx)
 
 **[download prebuild binary package for android and ios](https://github.com/Tencent/ncnn/releases)**
 
