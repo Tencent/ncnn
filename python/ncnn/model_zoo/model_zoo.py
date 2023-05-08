@@ -38,6 +38,7 @@ _models = {
     "yolov4_tiny": YoloV4_Tiny,
     "yolov4": YoloV4,
     "yolov5s": YoloV5s,
+    "yolov7_tiny": YoloV7_Tiny,
     "yolact": Yolact,
     "mobilenet_ssd": MobileNet_SSD,
     "squeezenet_ssd": SqueezeNet_SSD,
