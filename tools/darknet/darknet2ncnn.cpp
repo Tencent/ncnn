@@ -25,6 +25,7 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <cstdint>
 
 #define OUTPUT_LAYER_MAP 0 //enable this to generate darknet style layer output
 

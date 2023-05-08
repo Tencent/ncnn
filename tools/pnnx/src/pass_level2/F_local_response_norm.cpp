@@ -66,7 +66,7 @@ pnnx.Output             output      1 0 out
         return "F.local_response_norm";
     }
 
-    bool match_captured_params(const std::map<std::string, Parameter>& captured_params) const
+    bool match(const std::map<std::string, Parameter>& captured_params) const
     {
         if (captured_params.at("padzero").type == 2)
             return captured_params.at("padzero").i == 0;
@@ -168,7 +168,7 @@ pnnx.Output             output      1 0 out
         return "F.local_response_norm";
     }
 
-    bool match_captured_params(const std::map<std::string, Parameter>& captured_params) const
+    bool match(const std::map<std::string, Parameter>& captured_params) const
     {
         if (captured_params.at("padzero").type == 2)
             return captured_params.at("padzero").i == 0;
@@ -274,7 +274,7 @@ pnnx.Output             output      1 0 out
         return "F.local_response_norm";
     }
 
-    bool match_captured_params(const std::map<std::string, Parameter>& captured_params) const
+    bool match(const std::map<std::string, Parameter>& captured_params) const
     {
         if (captured_params.at("padzero").type == 2)
             return captured_params.at("padzero").i == 0;
@@ -347,7 +347,7 @@ pnnx.Output             output      1 0 out
         return "F.local_response_norm";
     }
 
-    bool match_captured_params(const std::map<std::string, Parameter>& captured_params) const
+    bool match(const std::map<std::string, Parameter>& captured_params) const
     {
         if (captured_params.at("padzero").type == 2)
             return captured_params.at("padzero").i == 0;
@@ -450,7 +450,7 @@ pnnx.Output             output      1 0 out
         return "F.local_response_norm";
     }
 
-    bool match_captured_params(const std::map<std::string, Parameter>& captured_params) const
+    bool match(const std::map<std::string, Parameter>& captured_params) const
     {
         if (captured_params.at("padzero").type == 2)
             return captured_params.at("padzero").i == 0;
@@ -557,7 +557,7 @@ pnnx.Output             output      1 0 out
         return "F.local_response_norm";
     }
 
-    bool match_captured_params(const std::map<std::string, Parameter>& captured_params) const
+    bool match(const std::map<std::string, Parameter>& captured_params) const
     {
         if (captured_params.at("padzero").type == 2)
             return captured_params.at("padzero").i == 0;
