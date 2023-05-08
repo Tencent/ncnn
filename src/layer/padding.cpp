@@ -299,7 +299,7 @@ int Padding::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
 
     if (type == 2)
     {
-        if(top >= h || bottom >= h || left >= w || right >= w || front >= channels || behind >= channels)
+        if (top >= h || bottom >= h || left >= w || right >= w || front >= channels || behind >= channels)
             return -100;
     }
 
