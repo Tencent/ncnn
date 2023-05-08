@@ -1042,12 +1042,12 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<Mat>& blob_mats
             }
         }
 
-        for (size_t i = 0; i < layer->bottoms.size(); i++)
+        if (opt.lightmode)
         {
-            int bottom_blob_index = layer->bottoms[i];
-
-            if (opt.lightmode)
+            for (size_t i = 0; i < layer->bottoms.size(); i++)
             {
+                int bottom_blob_index = layer->bottoms[i];
+
                 // delete after taken in light mode
                 blob_mats[bottom_blob_index].release();
             }
@@ -1169,12 +1169,12 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<VkMat>& blob_ma
             }
         }
 
-        for (size_t i = 0; i < layer->bottoms.size(); i++)
+        if (opt.lightmode)
         {
-            int bottom_blob_index = layer->bottoms[i];
-
-            if (opt.lightmode)
+            for (size_t i = 0; i < layer->bottoms.size(); i++)
             {
+                int bottom_blob_index = layer->bottoms[i];
+
                 // delete after taken in light mode
                 blob_mats_gpu[bottom_blob_index].release();
             }
@@ -1294,12 +1294,12 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<VkImageMat>& bl
             }
         }
 
-        for (size_t i = 0; i < layer->bottoms.size(); i++)
+        if (opt.lightmode)
         {
-            int bottom_blob_index = layer->bottoms[i];
-
-            if (opt.lightmode)
+            for (size_t i = 0; i < layer->bottoms.size(); i++)
             {
+                int bottom_blob_index = layer->bottoms[i];
+
                 // delete after taken in light mode
                 blob_mats_gpu_image[bottom_blob_index].release();
             }
