@@ -76,7 +76,7 @@ int InnerProduct_arm::create_pipeline(const Option& opt)
     }
 #endif
 
-#if NCNN_VFPV4 && __ARM_NEON
+#if NCNN_VFPV4
     if (cpu_support_arm_vfpv4() && opt.use_fp16_storage)
     {
         return create_pipeline_fp16s(opt);
@@ -168,7 +168,7 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
         return forward_bf16s(bottom_blob, top_blob, opt);
 #endif
 
-#if NCNN_VFPV4 && __ARM_NEON
+#if NCNN_VFPV4
     if (cpu_support_arm_vfpv4() && opt.use_fp16_storage)
     {
         return forward_fp16s(bottom_blob, top_blob, opt);
