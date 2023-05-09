@@ -1455,12 +1455,12 @@ static int get_data_cache_size(int cpuid, int level)
             return 0;
 
         int nscan = fscanf(fp, "%dK", &cache_size_K);
+        fclose(fp);
         if (nscan != 1)
         {
             NCNN_LOGE("fscanf cache_size_K error %d", nscan);
             return 0;
         }
-        fclose(fp);
     }
 
     // parse shared_cpu_map mask
@@ -1473,12 +1473,12 @@ static int get_data_cache_size(int cpuid, int level)
 
         char shared_cpu_map_str[256];
         int nscan = fscanf(fp, "%255s", shared_cpu_map_str);
+        fclose(fp);
         if (nscan != 1)
         {
             NCNN_LOGE("fscanf shared_cpu_map error %d", nscan);
             return 0;
         }
-        fclose(fp);
 
         int len = strlen(shared_cpu_map_str);
 
