@@ -26,12 +26,6 @@ void innerproduct_transform_kernel_fp16s_neon_asimdhp(const Mat& weight_data, Ma
 #endif
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_VFPV4 && __ARM_NEON && !(__ARM_FP & 2)
-void innerproduct_pack4_fp16s_neon_vfpv4(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_fp16, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt);
-void innerproduct_fp16s_neon_vfpv4(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_fp16, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt);
-void innerproduct_transform_kernel_fp16s_neon_vfpv4(const Mat& weight_data, Mat& weight_data_tm, int num_input, int num_output, const Option& opt);
-#endif
-
 static void innerproduct_pack4_fp16s_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_fp16, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt)
 {
 #if !(__ARM_FEATURE_FP16_FML || __ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
@@ -50,14 +44,6 @@ static void innerproduct_pack4_fp16s_neon(const Mat& bottom_blob, Mat& top_blob,
         return;
     }
 #endif
-#endif
-
-#if NCNN_RUNTIME_CPU && NCNN_VFPV4 && __ARM_NEON && !(__ARM_FP & 2)
-    if (ncnn::cpu_support_arm_vfpv4())
-    {
-        innerproduct_pack4_fp16s_neon_vfpv4(bottom_blob, top_blob, weight_data_fp16, bias_data, activation_type, activation_params, opt);
-        return;
-    }
 #endif
 
     const int num_input = bottom_blob.w * bottom_blob.elempack;
@@ -324,14 +310,6 @@ static void innerproduct_fp16s_neon(const Mat& bottom_blob, Mat& top_blob, const
 #endif
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_VFPV4 && __ARM_NEON && !(__ARM_FP & 2)
-    if (ncnn::cpu_support_arm_vfpv4())
-    {
-        innerproduct_fp16s_neon_vfpv4(bottom_blob, top_blob, weight_data_fp16, bias_data, activation_type, activation_params, opt);
-        return;
-    }
-#endif
-
     const int num_input = bottom_blob.w * bottom_blob.elempack;
     const int num_output = top_blob.w;
 
@@ -552,14 +530,6 @@ static void innerproduct_transform_kernel_fp16s_neon(const Mat& weight_data, Mat
         return;
     }
 #endif
-#endif
-
-#if NCNN_RUNTIME_CPU && NCNN_VFPV4 && __ARM_NEON && !(__ARM_FP & 2)
-    if (ncnn::cpu_support_arm_vfpv4())
-    {
-        innerproduct_transform_kernel_fp16s_neon_vfpv4(weight_data, weight_data_tm, num_input, num_output, opt);
-        return;
-    }
 #endif
 
     int out_elempack = 1;
