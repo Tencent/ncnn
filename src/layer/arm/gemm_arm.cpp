@@ -33,7 +33,7 @@ Gemm_arm::Gemm_arm()
 {
 #if __ARM_NEON
     support_packing = true;
-#if NCNN_VFPV4 || __aarch64__
+#if NCNN_VFPV4
     support_fp16_storage = cpu_support_arm_vfpv4();
 #endif
 #endif // __ARM_NEON
@@ -4145,7 +4145,7 @@ int Gemm_arm::create_pipeline(const Option& opt)
     }
 #endif
 
-#if NCNN_VFPV4 || __aarch64__
+#if NCNN_VFPV4
     if (support_fp16_storage && opt.use_fp16_storage)
     {
         return create_pipeline_fp16s(opt);
@@ -4299,7 +4299,7 @@ int Gemm_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
         return forward_bf16s(bottom_blobs, top_blobs, opt);
 #endif
 
-#if NCNN_VFPV4 || __aarch64__
+#if NCNN_VFPV4
     if (support_fp16_storage && opt.use_fp16_storage && elembits == 16)
     {
         return forward_fp16s(bottom_blobs, top_blobs, opt);
