@@ -54,7 +54,6 @@ static void innerproduct_gemm_fp16s_neon(const Mat& bottom_blob, Mat& top_blob, 
     }
 #endif
 
-#if (__ARM_FP & 2)
     const int num_input = bottom_blob.w;
     const int elempack = bottom_blob.elempack;
     const int num_output = top_blob.w;
@@ -468,13 +467,4 @@ static void innerproduct_gemm_fp16s_neon(const Mat& bottom_blob, Mat& top_blob, 
             }
         }
     }
-#else  // (__ARM_FP & 2)
-    (void)bottom_blob;
-    (void)top_blob;
-    (void)weight_data_fp16;
-    (void)bias_data;
-    (void)activation_type;
-    (void)activation_params;
-    (void)opt;
-#endif // (__ARM_FP & 2)
 }

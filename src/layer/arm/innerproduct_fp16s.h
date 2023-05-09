@@ -26,7 +26,7 @@ void innerproduct_transform_kernel_fp16s_neon_asimdhp(const Mat& weight_data, Ma
 #endif
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_VFPV4 && __ARM_NEON && !__aarch64__ && !(__ARM_FP & 2)
+#if NCNN_RUNTIME_CPU && NCNN_VFPV4 && __ARM_NEON && !(__ARM_FP & 2)
 void innerproduct_pack4_fp16s_neon_vfpv4(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_fp16, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt);
 void innerproduct_fp16s_neon_vfpv4(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_fp16, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt);
 void innerproduct_transform_kernel_fp16s_neon_vfpv4(const Mat& weight_data, Mat& weight_data_tm, int num_input, int num_output, const Option& opt);
@@ -52,7 +52,7 @@ static void innerproduct_pack4_fp16s_neon(const Mat& bottom_blob, Mat& top_blob,
 #endif
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_VFPV4 && __ARM_NEON && !__aarch64__ && !(__ARM_FP & 2)
+#if NCNN_RUNTIME_CPU && NCNN_VFPV4 && __ARM_NEON && !(__ARM_FP & 2)
     if (ncnn::cpu_support_arm_vfpv4())
     {
         innerproduct_pack4_fp16s_neon_vfpv4(bottom_blob, top_blob, weight_data_fp16, bias_data, activation_type, activation_params, opt);
@@ -60,7 +60,6 @@ static void innerproduct_pack4_fp16s_neon(const Mat& bottom_blob, Mat& top_blob,
     }
 #endif
 
-#if (__ARM_FP & 2)
     const int num_input = bottom_blob.w * bottom_blob.elempack;
     const int num_output = top_blob.w;
 
@@ -303,15 +302,6 @@ static void innerproduct_pack4_fp16s_neon(const Mat& bottom_blob, Mat& top_blob,
         vst1q_f32(outptr + p * 4, _sum0);
 #endif
     }
-#else  // (__ARM_FP & 2)
-    (void)bottom_blob;
-    (void)top_blob;
-    (void)weight_data_fp16;
-    (void)bias_data;
-    (void)activation_type;
-    (void)activation_params;
-    (void)opt;
-#endif // (__ARM_FP & 2)
 }
 
 static void innerproduct_fp16s_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_fp16, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt)
@@ -342,7 +332,6 @@ static void innerproduct_fp16s_neon(const Mat& bottom_blob, Mat& top_blob, const
     }
 #endif
 
-#if (__ARM_FP & 2)
     const int num_input = bottom_blob.w * bottom_blob.elempack;
     const int num_output = top_blob.w;
 
@@ -543,15 +532,6 @@ static void innerproduct_fp16s_neon(const Mat& bottom_blob, Mat& top_blob, const
         outptr[p] = sum;
 #endif
     }
-#else  // (__ARM_FP & 2)
-    (void)bottom_blob;
-    (void)top_blob;
-    (void)weight_data_fp16;
-    (void)bias_data;
-    (void)activation_type;
-    (void)activation_params;
-    (void)opt;
-#endif // (__ARM_FP & 2)
 }
 
 static void innerproduct_transform_kernel_fp16s_neon(const Mat& weight_data, Mat& weight_data_tm, int num_input, int num_output, const Option& opt)
@@ -582,7 +562,6 @@ static void innerproduct_transform_kernel_fp16s_neon(const Mat& weight_data, Mat
     }
 #endif
 
-#if (__ARM_FP & 2)
     int out_elempack = 1;
     if (opt.use_packing_layout)
     {
@@ -741,11 +720,4 @@ static void innerproduct_transform_kernel_fp16s_neon(const Mat& weight_data, Mat
         Mat weight_data_r2 = weight_data.reshape(num_input, num_output);
         ncnn::cast_float32_to_float16(weight_data_r2, weight_data_tm, opt);
     }
-#else  // (__ARM_FP & 2)
-    (void)weight_data;
-    (void)weight_data_tm;
-    (void)num_input;
-    (void)num_output;
-    (void)opt;
-#endif // (__ARM_FP & 2)
 }

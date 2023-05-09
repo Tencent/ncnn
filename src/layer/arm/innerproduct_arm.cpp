@@ -27,7 +27,7 @@
 
 namespace ncnn {
 
-#if (NCNN_VFPV4 && __ARM_NEON) || __aarch64__
+#if NCNN_VFPV4 && __ARM_NEON
 #include "innerproduct_fp16s.h"
 #include "innerproduct_gemm_fp16s.h"
 #endif
@@ -81,7 +81,7 @@ int InnerProduct_arm::create_pipeline(const Option& opt)
     }
 #endif
 
-#if (NCNN_VFPV4 && __ARM_NEON) || __aarch64__
+#if NCNN_VFPV4 && __ARM_NEON
     if (cpu_support_arm_vfpv4() && opt.use_fp16_storage)
     {
         return create_pipeline_fp16s(opt);
@@ -173,7 +173,7 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
         return forward_bf16s(bottom_blob, top_blob, opt);
 #endif
 
-#if (NCNN_VFPV4 && __ARM_NEON) || __aarch64__
+#if NCNN_VFPV4 && __ARM_NEON
     if (cpu_support_arm_vfpv4() && opt.use_fp16_storage)
     {
         return forward_fp16s(bottom_blob, top_blob, opt);
@@ -848,7 +848,7 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
     return 0;
 }
 
-#if (NCNN_VFPV4 && __ARM_NEON) || __aarch64__
+#if NCNN_VFPV4 && __ARM_NEON
 int InnerProduct_arm::create_pipeline_fp16s(const Option& opt)
 {
     const int num_input = weight_data_size / num_output;
@@ -926,7 +926,7 @@ int InnerProduct_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const
 
     return 0;
 }
-#endif // (NCNN_VFPV4 && __ARM_NEON) || __aarch64__
+#endif // NCNN_VFPV4 && __ARM_NEON
 
 #if NCNN_BF16
 int InnerProduct_arm::create_pipeline_bf16s(const Option& opt)
