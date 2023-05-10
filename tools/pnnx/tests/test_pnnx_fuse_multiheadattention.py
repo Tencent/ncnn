@@ -162,6 +162,38 @@ class diffusers_CrossAttention(nn.Module):
 
         return attention_probs
 
+class vit_pytorch_Attention(nn.Module):
+    def __init__(self, dim, heads = 8, dim_head = 64, dropout = 0.):
+        super().__init__()
+        inner_dim = dim_head *  heads
+        project_out = not (heads == 1 and dim_head == dim)
+
+        self.heads = heads
+        self.scale = dim_head ** -0.5
+
+        self.attend = nn.Softmax(dim = -1)
+        self.dropout = nn.Dropout(dropout)
+
+        self.to_qkv = nn.Linear(dim, inner_dim * 3, bias = False)
+
+        self.to_out = nn.Sequential(
+            nn.Linear(inner_dim, dim),
+            nn.Dropout(dropout)
+        ) if project_out else nn.Identity()
+
+    def forward(self, x):
+        qkv = self.to_qkv(x).chunk(3, dim = -1)
+        q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h = self.heads), qkv)
+
+        dots = torch.matmul(q, k.transpose(-1, -2)) * self.scale
+
+        attn = self.attend(dots)
+        attn = self.dropout(attn)
+
+        out = torch.matmul(attn, v)
+        out = rearrange(out, 'b h n d -> b n (h d)')
+        return self.to_out(out)
+
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
@@ -175,6 +207,8 @@ class Model(nn.Module):
         self.attention_2_0 = diffusers_CrossAttention(query_dim=64, heads=4, dim_head=16)
         self.attention_2_1 = diffusers_CrossAttention(query_dim=64, heads=8, dim_head=8, cross_attention_dim=17)
 
+        self.attention_3 = vit_pytorch_Attention(dim=64, heads=4, dim_head=16)
+
     def forward(self, x, y):
         a = self.attention_0_0(x)
         a = self.attention_0_1(a)
@@ -184,7 +218,9 @@ class Model(nn.Module):
 
         c = self.attention_2_0(x)
         c = self.attention_2_1(c, y)
-        return a, b, c
+
+        d = self.attention_3(x)
+        return a, b, c, d
 
 def test():
     net = Model()
