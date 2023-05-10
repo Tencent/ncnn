@@ -609,26 +609,48 @@ static int test_packing_0()
 {
     ncnn::Mat a = RandomMat(9, 7, 10, 16);
     ncnn::Mat b = RandomMat(9, 7, 10, 3);
-    return test_packing_cpu(a) || test_packing_cpu(b) || test_packing_gpu(a);
+    return 0
+           || test_packing_cpu(a)
+           || test_packing_cpu(b)
+#if NCNN_VULKAN
+           || test_packing_gpu(a)
+#endif
+           ;
 }
 
 static int test_packing_1()
 {
     ncnn::Mat a = RandomMat(9, 10, 16);
     ncnn::Mat b = RandomMat(9, 10, 3);
-    return test_packing_cpu(a) || test_packing_cpu(b) || test_packing_gpu(a);
+    return 0
+           || test_packing_cpu(a)
+           || test_packing_cpu(b)
+#if NCNN_VULKAN
+           || test_packing_gpu(a)
+#endif
+           ;
 }
 
 static int test_packing_2()
 {
     ncnn::Mat a = RandomMat(19, 16);
-    return test_packing_cpu(a) || test_packing_gpu(a);
+    return 0
+           || test_packing_cpu(a)
+#if NCNN_VULKAN
+           || test_packing_gpu(a)
+#endif
+           ;
 }
 
 static int test_packing_3()
 {
     ncnn::Mat a = RandomMat(80);
-    return test_packing_cpu(a) || test_packing_gpu(a);
+    return 0
+           || test_packing_cpu(a)
+#if NCNN_VULKAN
+           || test_packing_gpu(a)
+#endif
+           ;
 }
 
 int main()
