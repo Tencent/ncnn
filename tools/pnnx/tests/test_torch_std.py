@@ -27,7 +27,7 @@ class Model(nn.Module):
         if version.parse(torch.__version__) >= version.parse('2.0'):
             z = torch.std(z, dim=0, correction=0, keepdim=True)
         else:
-            z = torch.std(z, dim=0, unbiased=0, keepdim=True)
+            z = torch.std(z, dim=0, unbiased=False, keepdim=True)
         return x, y, z
 
 def test():
