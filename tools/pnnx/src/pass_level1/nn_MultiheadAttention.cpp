@@ -72,7 +72,7 @@ public:
             {
                 op->params["batch_first"] = true;
             }
-#if TORCH_VERSION_MAJOR == 1 && TORCH_VERSION_MINOR >= 9
+#if TORCH_VERSION_MAJOR >= 2 || TORCH_VERSION_MAJOR == 1 && TORCH_VERSION_MINOR >= 9
             else
             {
                 op->params["batch_first"] = false;
