@@ -557,8 +557,7 @@ static int test_packing_cpu(const ncnn::Mat& a)
            || test_packing_cpu(a, 4, 16)
            || test_packing_cpu(a, 16, 4)
            || test_packing_cpu(a, 8, 16)
-           || test_packing_cpu(a, 16, 8)
-           ;
+           || test_packing_cpu(a, 16, 8);
 }
 
 #if NCNN_VULKAN
@@ -600,8 +599,7 @@ static int test_packing_gpu(const ncnn::Mat& a)
            || test_packing_gpu_image2buffer(a, 1, 8)
            || test_packing_gpu_image2buffer(a, 8, 1)
            || test_packing_gpu_image2buffer(a, 4, 8)
-           || test_packing_gpu_image2buffer(a, 8, 4)
-           ;
+           || test_packing_gpu_image2buffer(a, 8, 4);
 }
 #endif // NCNN_VULKAN
 
