@@ -540,7 +540,7 @@ static int test_packing_gpu_image2buffer(const ncnn::Mat& a, int in_elempack, in
 }
 #endif
 
-static int test_packing(const ncnn::Mat& a)
+static int test_packing_cpu(const ncnn::Mat& a)
 {
     return 0
            || test_packing_cpu(a, 1, 1)
@@ -558,7 +558,13 @@ static int test_packing(const ncnn::Mat& a)
            || test_packing_cpu(a, 16, 4)
            || test_packing_cpu(a, 8, 16)
            || test_packing_cpu(a, 16, 8)
+           ;
+}
+
 #if NCNN_VULKAN
+static int test_packing_gpu(const ncnn::Mat& a)
+{
+    return 0
            || test_packing_gpu_buffer(a, 1, 1)
            || test_packing_gpu_buffer(a, 4, 4)
            || test_packing_gpu_buffer(a, 8, 8)
@@ -595,32 +601,34 @@ static int test_packing(const ncnn::Mat& a)
            || test_packing_gpu_image2buffer(a, 8, 1)
            || test_packing_gpu_image2buffer(a, 4, 8)
            || test_packing_gpu_image2buffer(a, 8, 4)
-#endif // NCNN_VULKAN
            ;
 }
+#endif // NCNN_VULKAN
 
 static int test_packing_0()
 {
-    return 0
-           || test_packing(RandomMat(9, 7, 10, 16))
-           || test_packing(RandomMat(9, 7, 10, 3));
+    ncnn::Mat a = RandomMat(9, 7, 10, 16);
+    ncnn::Mat b = RandomMat(9, 7, 10, 3);
+    return test_packing_cpu(a) || test_packing_cpu(b) || test_packing_gpu(a);
 }
 
 static int test_packing_1()
 {
-    return 0
-           || test_packing(RandomMat(9, 10, 16))
-           || test_packing(RandomMat(9, 10, 3));
+    ncnn::Mat a = RandomMat(9, 10, 16);
+    ncnn::Mat b = RandomMat(9, 10, 3);
+    return test_packing_cpu(a) || test_packing_cpu(b) || test_packing_gpu(a);
 }
 
 static int test_packing_2()
 {
-    return test_packing(RandomMat(19, 16));
+    ncnn::Mat a = RandomMat(19, 16);
+    return test_packing_cpu(a) || test_packing_gpu(a);
 }
 
 static int test_packing_3()
 {
-    return test_packing(RandomMat(80));
+    ncnn::Mat a = RandomMat(80);
+    return test_packing_cpu(a) || test_packing_gpu(a);
 }
 
 int main()
