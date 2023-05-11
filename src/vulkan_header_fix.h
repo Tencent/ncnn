@@ -226,7 +226,8 @@ typedef struct VkBufferDeviceAddressCreateInfoEXT
     VkDeviceSize deviceAddress;
 } VkBufferDeviceAddressCreateInfoEXT;
 typedef VkDeviceAddress(VKAPI_PTR* PFN_vkGetBufferDeviceAddressEXT)(VkDevice device, const VkBufferDeviceAddressInfoEXT* pInfo);
-typedef enum VkValidationFeatureEnableEXT {
+typedef enum VkValidationFeatureEnableEXT
+{
     VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT = 0,
     VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_RESERVE_BINDING_SLOT_EXT = 1,
     VK_VALIDATION_FEATURE_ENABLE_BEGIN_RANGE_EXT = VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT,
@@ -234,7 +235,8 @@ typedef enum VkValidationFeatureEnableEXT {
     VK_VALIDATION_FEATURE_ENABLE_RANGE_SIZE_EXT = (VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_RESERVE_BINDING_SLOT_EXT - VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT + 1),
     VK_VALIDATION_FEATURE_ENABLE_MAX_ENUM_EXT = 0x7FFFFFFF
 } VkValidationFeatureEnableEXT;
-typedef enum VkValidationFeatureDisableEXT {
+typedef enum VkValidationFeatureDisableEXT
+{
     VK_VALIDATION_FEATURE_DISABLE_ALL_EXT = 0,
     VK_VALIDATION_FEATURE_DISABLE_SHADERS_EXT = 1,
     VK_VALIDATION_FEATURE_DISABLE_THREAD_SAFETY_EXT = 2,
@@ -247,13 +249,14 @@ typedef enum VkValidationFeatureDisableEXT {
     VK_VALIDATION_FEATURE_DISABLE_RANGE_SIZE_EXT = (VK_VALIDATION_FEATURE_DISABLE_UNIQUE_HANDLES_EXT - VK_VALIDATION_FEATURE_DISABLE_ALL_EXT + 1),
     VK_VALIDATION_FEATURE_DISABLE_MAX_ENUM_EXT = 0x7FFFFFFF
 } VkValidationFeatureDisableEXT;
-typedef struct VkValidationFeaturesEXT {
-    VkStructureType                         sType;
-    const void*                             pNext;
-    uint32_t                                enabledValidationFeatureCount;
-    const VkValidationFeatureEnableEXT*     pEnabledValidationFeatures;
-    uint32_t                                disabledValidationFeatureCount;
-    const VkValidationFeatureDisableEXT*    pDisabledValidationFeatures;
+typedef struct VkValidationFeaturesEXT
+{
+    VkStructureType sType;
+    const void* pNext;
+    uint32_t enabledValidationFeatureCount;
+    const VkValidationFeatureEnableEXT* pEnabledValidationFeatures;
+    uint32_t disabledValidationFeatureCount;
+    const VkValidationFeatureDisableEXT* pDisabledValidationFeatures;
 } VkValidationFeaturesEXT;
 #endif // VK_HEADER_VERSION < 97
 
