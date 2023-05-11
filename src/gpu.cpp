@@ -104,6 +104,8 @@ int support_VK_KHR_get_surface_capabilities2 = 0;
 int support_VK_KHR_portability_enumeration = 0;
 int support_VK_KHR_surface = 0;
 int support_VK_EXT_debug_utils = 0;
+int support_VK_EXT_validation_features = 0;
+int support_VK_EXT_validation_flags = 0;
 #if __ANDROID_API__ >= 26
 int support_VK_KHR_android_surface = 0;
 #endif // __ANDROID_API__ >= 26
@@ -967,6 +969,8 @@ int create_gpu_instance()
     support_VK_KHR_portability_enumeration = 0;
     support_VK_KHR_surface = 0;
     support_VK_EXT_debug_utils = 0;
+    support_VK_EXT_validation_features = 0;
+    support_VK_EXT_validation_flags = 0;
 #if __ANDROID_API__ >= 26
     support_VK_KHR_android_surface = 0;
 #endif // __ANDROID_API__ >= 26
@@ -987,10 +991,20 @@ int create_gpu_instance()
             support_VK_KHR_surface = exp.specVersion;
         else if (strcmp(exp.extensionName, "VK_EXT_debug_utils") == 0)
             support_VK_EXT_debug_utils = exp.specVersion;
+        else if (strcmp(exp.extensionName, "VK_EXT_validation_features") == 0)
+            support_VK_EXT_validation_features = exp.specVersion;
+        else if (strcmp(exp.extensionName, "VK_EXT_validation_flags") == 0)
+            support_VK_EXT_validation_flags = exp.specVersion;
 #if __ANDROID_API__ >= 26
         else if (strcmp(exp.extensionName, "VK_KHR_android_surface") == 0)
             support_VK_KHR_android_surface = exp.specVersion;
 #endif // __ANDROID_API__ >= 26
+    }
+
+    if (support_VK_EXT_validation_features)
+    {
+        // we prefer the modern one
+        support_VK_EXT_validation_flags = 0;
     }
 
     if (support_VK_KHR_external_memory_capabilities)
@@ -1006,6 +1020,10 @@ int create_gpu_instance()
 #if ENABLE_VALIDATION_LAYER
     if (support_VK_EXT_debug_utils)
         enabledExtensions.push_back("VK_EXT_debug_utils");
+    if (support_VK_EXT_validation_features)
+        enabledExtensions.push_back("VK_EXT_validation_features");
+    if (support_VK_EXT_validation_flags)
+        enabledExtensions.push_back("VK_EXT_validation_flags");
 #endif // ENABLE_VALIDATION_LAYER
 #if __ANDROID_API__ >= 26
     if (support_VK_KHR_android_surface)
@@ -1036,9 +1054,44 @@ int create_gpu_instance()
     applicationInfo.engineVersion = 20201010;
     applicationInfo.apiVersion = instance_api_version;
 
+    void* enabledExtensionFeatures = 0;
+
+#if ENABLE_VALIDATION_LAYER
+    std::vector<VkValidationFeatureEnableEXT> enabledValidationFeature;
+    enabledValidationFeature.push_back(VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT);
+    enabledValidationFeature.push_back(VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_RESERVE_BINDING_SLOT_EXT);
+    enabledValidationFeature.push_back(VK_VALIDATION_FEATURE_ENABLE_BEST_PRACTICES_EXT);
+    enabledValidationFeature.push_back(VK_VALIDATION_FEATURE_ENABLE_DEBUG_PRINTF_EXT);
+    enabledValidationFeature.push_back(VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT);
+
+    VkValidationFeaturesEXT validationFeatures;
+    validationFeatures.sType = VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT;
+    validationFeatures.pNext = 0;
+    validationFeatures.enabledValidationFeatureCount = enabledValidationFeature.size();
+    validationFeatures.pEnabledValidationFeatures = enabledValidationFeature.data();
+    validationFeatures.disabledValidationFeatureCount = 0;
+    validationFeatures.pDisabledValidationFeatures = 0;
+    if (support_VK_EXT_validation_features)
+    {
+        validationFeatures.pNext = enabledExtensionFeatures;
+        enabledExtensionFeatures = &validationFeatures;
+    }
+
+    VkValidationFlagsEXT validationFlags;
+    validationFlags.sType = VK_STRUCTURE_TYPE_VALIDATION_FLAGS_EXT;
+    validationFlags.pNext = 0;
+    validationFlags.disabledValidationCheckCount = 0;
+    validationFlags.pDisabledValidationChecks = 0;
+    if (support_VK_EXT_validation_flags)
+    {
+        validationFlags.pNext = enabledExtensionFeatures;
+        enabledExtensionFeatures = &validationFlags;
+    }
+#endif // ENABLE_VALIDATION_LAYER
+
     VkInstanceCreateInfo instanceCreateInfo;
     instanceCreateInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-    instanceCreateInfo.pNext = 0;
+    instanceCreateInfo.pNext = enabledExtensionFeatures;
     instanceCreateInfo.flags = 0;
     if (support_VK_KHR_portability_enumeration)
         instanceCreateInfo.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
