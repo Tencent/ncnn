@@ -1,6 +1,6 @@
 # Tencent is pleased to support the open source community by making ncnn available.
 #
-# Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
+# Copyright (C) 2023 THL A29 Limited, a Tencent company. All rights reserved.
 #
 # Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 # in compliance with the License. You may obtain a copy of the License at
@@ -15,44 +15,46 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from packaging import version
 
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-    def forward(self, x, y, z, w):
-        x = F.gelu(x)
-        y = F.gelu(y)
-        z = F.gelu(z)
-        w = F.gelu(w)
-        return x, y, z, w
+    def forward(self, x, y, z):
+        x = torch.std(x, dim=1, keepdim=False)
+        y = torch.std(y, dim=(2,3), keepdim=False)
+        if version.parse(torch.__version__) >= version.parse('2.0'):
+            z = torch.std(z, dim=0, correction=0, keepdim=True)
+        else:
+            z = torch.std(z, dim=0, unbiased=False, keepdim=True)
+        return x, y, z
 
 def test():
     net = Model()
     net.eval()
 
     torch.manual_seed(0)
-    x = torch.rand(16)
-    y = torch.rand(2, 16)
-    z = torch.rand(3, 12, 16)
-    w = torch.rand(5, 7, 9, 11)
+    x = torch.rand(1, 3, 16)
+    y = torch.rand(1, 5, 9, 11)
+    z = torch.rand(14, 8, 5, 9, 10)
 
-    a = net(x, y, z, w)
+    a = net(x, y, z)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, y, z, w))
-    mod.save("test_F_gelu.pt")
+    mod = torch.jit.trace(net, (x, y, z))
+    mod.save("test_torch_std.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_F_gelu.pt inputshape=[16],[2,16],[3,12,16],[5,7,9,11]")
+    os.system("../src/pnnx test_torch_std.pt inputshape=[1,3,16],[1,5,9,11],[14,8,5,9,10]")
 
-    # ncnn inference
-    import test_F_gelu_ncnn
-    b = test_F_gelu_ncnn.test_inference()
+    # pnnx inference
+    import test_torch_std_pnnx
+    b = test_torch_std_pnnx.test_inference()
 
     for a0, b0 in zip(a, b):
-        if not torch.allclose(a0, b0, 1e-4, 1e-4):
+        if not torch.equal(a0, b0):
             return False
     return True
 

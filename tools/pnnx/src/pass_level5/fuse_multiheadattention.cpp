@@ -101,7 +101,7 @@ pnnx.Output             output      1 0 out
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
     {
-        int num_heads = captured_params.at("shape").ai[3];
+        int num_heads = captured_params.at("shape").ai[captured_params.at("shape").ai.size() - 2];
 
         bool qkv_bias = captured_params.at("qkv_bias").b;
         bool out_proj_bias = captured_params.at("out_proj_bias").b;
@@ -156,6 +156,66 @@ pnnx.Output             output      1 0 out
                 memset(op->attrs["out_proj.bias"].data.data(), 0, embed_dim * sizeof(float));
             }
         }
+    }
+};
+
+class fuse_multiheadattention_pass_11 : public fuse_multiheadattention_pass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+18 17
+pnnx.Input              input       0 1 input
+nn.Linear               op_0        1 1 input 1 bias=%qkv_bias in_features=%embed_dim out_features=%qkv_out_features @bias @weight
+torch.chunk             op_1        1 3 1 2 3 4 chunks=3 dim=-1
+Tensor.reshape          op_2        1 1 2 5 shape=%shape
+Tensor.reshape          op_3        1 1 3 6 shape=%shape
+Tensor.reshape          op_4        1 1 4 7 shape=%shape
+torch.permute           op_5        1 1 6 8 dims=(0,2,1,3)
+torch.permute           op_6        1 1 5 9 dims=(0,2,1,3)
+torch.transpose         op_7        1 1 8 10 dim0=-1 dim1=-2
+torch.matmul            op_8        2 1 9 10 11
+pnnx.Expression         op_9        1 1 11 12 expr=%expr
+nn.Softmax              op_10       1 1 12 13 dim=-1
+torch.permute           op_11       1 1 7 14 dims=(0,2,1,3)
+torch.matmul            op_12       2 1 13 14 15
+torch.permute           op_13       1 1 15 16 dims=(0,2,1,3)
+Tensor.reshape          op_14       1 1 16 17 shape=%shape2
+nn.Linear               out_proj    1 1 17 out bias=%out_proj_bias in_features=%embed_dim out_features=%embed_dim @bias @weight
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    bool match(const std::map<std::string, Parameter>& captured_params) const
+    {
+        const int embed_dim = captured_params.at("embed_dim").i;
+        const int qkv_out_features = captured_params.at("qkv_out_features").i;
+        if (qkv_out_features != embed_dim * 3)
+            return false;
+
+        // (1,20,4,16)
+        // (1,20,64)
+        const std::vector<int>& shape = captured_params.at("shape").ai;
+        const std::vector<int>& shape2 = captured_params.at("shape2").ai;
+        if (shape.size() != 4 || shape2.size() != 3)
+            return false;
+
+        const int num_heads = shape[2];
+        if (shape[0] != shape2[0] || shape[1] != shape2[1] || shape[2] * shape[3] != shape2[2])
+            return false;
+
+        // mul(@0,2.581989e-01)
+        const std::string& expr = captured_params.at("expr").s;
+        float inv_sqrt_embed_dim_per_head = 0.f;
+        int nscan = sscanf(expr.c_str(), "mul(@0,%f)", &inv_sqrt_embed_dim_per_head);
+        if (nscan != 1)
+            return false;
+
+        if (!NearlyEqual(inv_sqrt_embed_dim_per_head, 1.f / sqrt(embed_dim / num_heads), 0.001))
+            return false;
+
+        return true;
     }
 };
 
@@ -964,6 +1024,7 @@ pnnx.Output             output      1 0 out
 void fuse_multiheadattention(Graph& graph)
 {
     fuse_multiheadattention_pass a;
+    fuse_multiheadattention_pass_11 a1;
     fuse_multiheadattention_pass_sameqkv b;
     fuse_multiheadattention_pass_qkv c;
     fuse_multiheadattention_pass_q_samekv d;
@@ -979,6 +1040,7 @@ void fuse_multiheadattention(Graph& graph)
     int opindex = 0;
 
     pnnx_graph_rewrite(graph, &a, opindex);
+    pnnx_graph_rewrite(graph, &a1, opindex);
     pnnx_graph_rewrite(graph, &b, opindex);
     pnnx_graph_rewrite(graph, &c, opindex);
     pnnx_graph_rewrite(graph, &d, opindex);

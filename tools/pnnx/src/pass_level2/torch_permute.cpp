@@ -34,7 +34,7 @@ pnnx.Output             output      1 0 out
 
     const char* type_str() const
     {
-#if TORCH_VERSION_MAJOR == 1 && TORCH_VERSION_MINOR >= 9
+#if TORCH_VERSION_MAJOR >= 2 || TORCH_VERSION_MAJOR == 1 && TORCH_VERSION_MINOR >= 9
         return "torch.permute";
 #else
         return "Tensor.permute";

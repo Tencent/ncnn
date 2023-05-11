@@ -31,8 +31,9 @@ int TanH_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) con
 {
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
+    int d = bottom_top_blob.d;
     int channels = bottom_top_blob.c;
-    int size = w * h;
+    int size = w * h * d;
     int elempack = bottom_top_blob.elempack;
 
     if (elempack == 4)
@@ -85,8 +86,9 @@ int TanH_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) co
 {
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
+    int d = bottom_top_blob.d;
     int channels = bottom_top_blob.c;
-    int size = w * h;
+    int size = w * h * d;
     int elempack = bottom_top_blob.elempack;
 
     if (elempack == 8)

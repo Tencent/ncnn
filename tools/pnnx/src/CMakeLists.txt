@@ -246,6 +246,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_split.cpp
     pass_level2/torch_squeeze.cpp
     pass_level2/torch_stack.cpp
+    pass_level2/torch_std.cpp
     pass_level2/torch_sum.cpp
     pass_level2/torch_permute.cpp
     pass_level2/torch_tensor_split.cpp
