@@ -25,13 +25,7 @@ namespace ncnn {
 NCNN_EXPORT double get_current_time();
 
 // sleep milliseconds
-NCNN_EXPORT void sleep(
-#if (__cplusplus >= 201103L || (defined(_MSVC_LANG) && _MSVC_LANG >= 201103L)) && !defined(__riscv) && !NCNN_SIMPLESTL
-    std::int64_t milliseconds
-#else
-    long long milliseconds
-#endif
-    = 100000);
+NCNN_EXPORT void sleep(uint64_t milliseconds = 100000);
 
 #if NCNN_BENCHMARK
 

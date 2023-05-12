@@ -12,6 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+#include "benchmark.h"
 #if (__cplusplus >= 201103L || (defined(_MSVC_LANG) && _MSVC_LANG >= 201103L)) && !defined(__riscv) && !NCNN_SIMPLESTL
     #include <chrono>
     #include <thread>
@@ -27,7 +28,6 @@
     #endif // _WIN32
 #endif
 
-#include "benchmark.h"
 
 #if NCNN_BENCHMARK
 #include "layer/convolution.h"
@@ -36,6 +36,7 @@
 #include "layer/deconvolutiondepthwise.h"
 
 #include <stdio.h>
+#include <stdint.h>
 #endif // NCNN_BENCHMARK
 
 namespace ncnn {
@@ -63,13 +64,7 @@ double get_current_time()
 #endif
 }
 
-void sleep(
-#if (__cplusplus >= 201103L || (defined(_MSVC_LANG) && _MSVC_LANG >= 201103L)) && !defined(__riscv) && !NCNN_SIMPLESTL
-    std::int64_t milliseconds
-#else
-    long long milliseconds
-#endif
-    )
+void sleep(uint64_t milliseconds)
 {
 #if (__cplusplus >= 201103L || (defined(_MSVC_LANG) && _MSVC_LANG >= 201103L)) && !defined(__riscv) && !NCNN_SIMPLESTL
     std::this_thread::sleep_for(std::chrono::milliseconds(milliseconds));
