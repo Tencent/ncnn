@@ -19,6 +19,10 @@
 #include "mat.h"
 #include "platform.h"
 
+#if NCNN_BENCHMARK
+#include <stdint.h>
+#endif // NCNN_BENCHMARK
+
 namespace ncnn {
 
 // get now timestamp in ms
