@@ -652,6 +652,7 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |F.relu6                    | :heavy_check_mark: | :heavy_check_mark: |
 |F.rrelu                    | :heavy_check_mark: |
 |F.rrelu_                   | :heavy_check_mark: |
+|F.scaled_dot_product_attention | :heavy_check_mark: |                |
 |F.selu                     | :heavy_check_mark: | :heavy_check_mark: |
 |F.sigmoid                  | :heavy_check_mark: | :heavy_check_mark: |
 |F.silu                     | :heavy_check_mark: | :heavy_check_mark: |

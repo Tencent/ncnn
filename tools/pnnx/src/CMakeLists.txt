@@ -160,6 +160,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/F_relu.cpp
     pass_level2/F_relu6.cpp
     pass_level2/F_rrelu.cpp
+    pass_level2/F_scaled_dot_product_attention.cpp
     pass_level2/F_selu.cpp
     pass_level2/F_sigmoid.cpp
     pass_level2/F_silu.cpp
