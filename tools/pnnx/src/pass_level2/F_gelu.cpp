@@ -14,6 +14,11 @@
 
 #include "pass_level2.h"
 
+#if _MSC_VER
+#define _USE_MATH_DEFINES
+#include <math.h>
+#endif
+
 namespace pnnx {
 
 class F_gelu : public GraphRewriterPass

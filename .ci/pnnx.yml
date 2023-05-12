@@ -113,7 +113,7 @@ jobs:
         cd tools/pnnx
         mkdir build && cd build
         cmake -DCMAKE_BUILD_TYPE=Release -DTorchVision_INSTALL_DIR=${{ci.workspace}}/torchvision-${{matrix.torchvision-version}}-install ..
-        cmake --build . -j $(nproc)
+        cmake --build . -j 16
 
     - name: test
       run: |
