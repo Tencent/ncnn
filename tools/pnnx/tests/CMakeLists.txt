@@ -325,6 +325,10 @@ if(Torch_VERSION VERSION_GREATER_EQUAL "1.11")
     pnnx_add_test(torch_fft_hfftn)
 endif()
 
+if(Torch_VERSION VERSION_GREATER_EQUAL "2.0")
+    pnnx_add_test(F_scaled_dot_product_attention)
+endif()
+
 if(TorchVision_FOUND)
     pnnx_add_test(torchvision_DeformConv2d)
     pnnx_add_test(torchvision_RoIAlign)
