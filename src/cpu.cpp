@@ -1011,11 +1011,11 @@ static int get_cpu_level2_cachesize()
     {
 #if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
         size = 64 * 1024;
-        if (cpu_support_x86_avx())
+        if (g_cpu_support_x86_avx)
             size = 128 * 1024;
-        if (cpu_support_x86_avx2())
+        if (g_cpu_support_x86_avx2)
             size = 256 * 1024;
-        if (cpu_support_x86_avx512())
+        if (g_cpu_support_x86_avx512)
             size = 1024 * 1024;
 #elif __aarch64__
         size = 256 * 1024;
