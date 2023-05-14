@@ -1809,7 +1809,11 @@ static void initialize_global_cpu_info()
     g_cpu_level2_cachesize = get_cpu_level2_cachesize();
     g_cpu_level3_cachesize = get_cpu_level3_cachesize();
 
+#if defined __ANDROID__ || defined __linux__
+#if __aarch64__
     g_cpu_is_arm_a53_a55 = detect_cpu_is_arm_a53_a55();
+#endif // __aarch64__
+#endif // defined __ANDROID__ || defined __linux__
 }
 
 static int g_cpu_info_initialized = 0;
