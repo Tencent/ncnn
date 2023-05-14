@@ -6699,7 +6699,11 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
 static void get_optimal_tile_mnk(int M, int N, int K, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int& TILE_M, int& TILE_N, int& TILE_K, int nT)
 {
     // resolve optimal tile size from cache size
-    size_t l2_cache_size = get_cpu_level2_cache_size();
+    const size_t l2_cache_size = get_cpu_level2_cache_size();
+
+    if (nT == 0)
+        nT = get_physical_big_cpu_count();
+
     int tile_size = (int)sqrt((float)l2_cache_size / 3 / sizeof(float));
 
 #if __AVX512F__
