@@ -1083,7 +1083,7 @@ static int get_cpu_level3_cachesize()
 #if (defined _WIN32 && !(defined __MINGW32__))
 static ncnn::CpuSet get_smt_cpu_mask()
 {
-    CpuSet smt_cpu_mask;
+    ncnn::CpuSet smt_cpu_mask;
 
     typedef BOOL(WINAPI * LPFN_GLPI)(PSYSTEM_LOGICAL_PROCESSOR_INFORMATION, PDWORD);
     LPFN_GLPI glpi = (LPFN_GLPI)GetProcAddress(GetModuleHandle(TEXT("kernel32")), "GetLogicalProcessorInformation");
@@ -1105,7 +1105,7 @@ static ncnn::CpuSet get_smt_cpu_mask()
     {
         if (ptr->Relationship == RelationProcessorCore)
         {
-            CpuSet smt_set;
+            ncnn::CpuSet smt_set;
             smt_set.mask = ptr->ProcessorMask;
             if (smt_set.num_enabled() > 1)
             {
