@@ -24,6 +24,7 @@
         #include <windows.h>
     #else // _WIN32
         #include <sys/time.h> //gettimeofday()
+        #include <sys/types.h> //uint64_t and u_int64_t
         #include <unistd.h>  // sleep()
     #endif // _WIN32
 #endif
@@ -64,7 +65,11 @@ double get_current_time()
 #endif
 }
 
+#if defined(NCNN_SIMPLESTL) && NCNN_SIMPLESTL && !defined(_WIN32) //simplestl and !defined(win32)
+void sleep(u_int64_t milliseconds)
+#else
 void sleep(uint64_t milliseconds)
+#endif
 {
 #if (__cplusplus >= 201103L || (defined(_MSVC_LANG) && _MSVC_LANG >= 201103L)) && !defined(__riscv) && !NCNN_SIMPLESTL
     std::this_thread::sleep_for(std::chrono::milliseconds(milliseconds));
