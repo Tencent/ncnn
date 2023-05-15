@@ -21,9 +21,6 @@
 
 #if NCNN_BENCHMARK
 #include <stdint.h>
-	#if defined(NCNN_SIMPLESTL) && NCNN_SIMPLESTL && !defined(_WIN32) //simplestl and !defined(win32)
-		#include <sys/types.h>  //uint64_t and u_int64_t
-	#endif
 #endif // NCNN_BENCHMARK
 
 
@@ -33,11 +30,7 @@ namespace ncnn {
 NCNN_EXPORT double get_current_time();
 
 // sleep milliseconds
-#if defined(NCNN_SIMPLESTL) && NCNN_SIMPLESTL && !defined(_WIN32) //simplestl and !defined(win32)
-NCNN_EXPORT void sleep(u_int64_t milliseconds = 100000);
-#else
-NCNN_EXPORT void sleep(uint64_t milliseconds = 100000);
-#endif
+NCNN_EXPORT void sleep(unsigned long long int milliseconds = 100000);
 
 #if NCNN_BENCHMARK
 
