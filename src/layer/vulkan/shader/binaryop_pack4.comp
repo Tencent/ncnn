@@ -97,7 +97,7 @@ void main()
     if (with_scalar == 1)
     {
         // type 0 1 2 3
-        v2 = afpvec4(const_b);
+        v2 = afpvec4(afp(const_b));
     }
     else
     {

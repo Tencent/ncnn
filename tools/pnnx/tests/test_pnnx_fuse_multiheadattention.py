@@ -15,6 +15,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from packaging import version
 
 from einops import rearrange
 
@@ -105,6 +106,47 @@ class diffusers_CrossAttnProcessor:
 
         return hidden_states
 
+class diffusers_AttnProcessor2_0:
+    def __call__(self, attn: Attention, hidden_states, encoder_hidden_states=None, attention_mask=None):
+        batch_size, sequence_length, _ = (
+            hidden_states.shape if encoder_hidden_states is None else encoder_hidden_states.shape
+        )
+        inner_dim = hidden_states.shape[-1]
+
+        if attention_mask is not None:
+            attention_mask = attn.prepare_attention_mask(attention_mask, sequence_length, batch_size)
+            # scaled_dot_product_attention expects attention_mask shape to be
+            # (batch, heads, source_length, target_length)
+            attention_mask = attention_mask.view(batch_size, attn.heads, -1, attention_mask.shape[-1])
+
+        query = attn.to_q(hidden_states)
+
+        if encoder_hidden_states is None:
+            encoder_hidden_states = hidden_states
+
+        key = attn.to_k(encoder_hidden_states)
+        value = attn.to_v(encoder_hidden_states)
+
+        head_dim = inner_dim // attn.heads
+        query = query.view(batch_size, -1, attn.heads, head_dim).transpose(1, 2)
+        key = key.view(batch_size, -1, attn.heads, head_dim).transpose(1, 2)
+        value = value.view(batch_size, -1, attn.heads, head_dim).transpose(1, 2)
+
+        # the output of sdp = (batch, num_heads, seq_len, head_dim)
+        # TODO: add support for attn.scale when we move to Torch 2.1
+        hidden_states = F.scaled_dot_product_attention(
+            query, key, value, attn_mask=attention_mask, dropout_p=0.0, is_causal=False
+        )
+
+        hidden_states = hidden_states.transpose(1, 2).reshape(batch_size, -1, attn.heads * head_dim)
+        hidden_states = hidden_states.to(query.dtype)
+
+        # linear proj
+        hidden_states = attn.to_out[0](hidden_states)
+        # dropout
+        hidden_states = attn.to_out[1](hidden_states)
+        return hidden_states
+
 class diffusers_CrossAttention(nn.Module):
     def __init__(self, query_dim, cross_attention_dim=None, heads=8, dim_head=64, dropout=0.0, bias=False):
         super().__init__()
@@ -122,7 +164,10 @@ class diffusers_CrossAttention(nn.Module):
         self.to_out.append(nn.Linear(inner_dim, query_dim))
         self.to_out.append(nn.Dropout(dropout))
 
-        self.processor = diffusers_CrossAttnProcessor()
+        if version.parse(torch.__version__) >= version.parse('2.0'):
+            self.processor = diffusers_AttnProcessor2_0()
+        else:
+            self.processor = diffusers_CrossAttnProcessor()
 
     def forward(self, hidden_states, encoder_hidden_states=None):
         return self.processor(self, hidden_states, encoder_hidden_states=encoder_hidden_states)
@@ -162,6 +207,38 @@ class diffusers_CrossAttention(nn.Module):
 
         return attention_probs
 
+class vit_pytorch_Attention(nn.Module):
+    def __init__(self, dim, heads = 8, dim_head = 64, dropout = 0.):
+        super().__init__()
+        inner_dim = dim_head *  heads
+        project_out = not (heads == 1 and dim_head == dim)
+
+        self.heads = heads
+        self.scale = dim_head ** -0.5
+
+        self.attend = nn.Softmax(dim = -1)
+        self.dropout = nn.Dropout(dropout)
+
+        self.to_qkv = nn.Linear(dim, inner_dim * 3, bias = False)
+
+        self.to_out = nn.Sequential(
+            nn.Linear(inner_dim, dim),
+            nn.Dropout(dropout)
+        ) if project_out else nn.Identity()
+
+    def forward(self, x):
+        qkv = self.to_qkv(x).chunk(3, dim = -1)
+        q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h = self.heads), qkv)
+
+        dots = torch.matmul(q, k.transpose(-1, -2)) * self.scale
+
+        attn = self.attend(dots)
+        attn = self.dropout(attn)
+
+        out = torch.matmul(attn, v)
+        out = rearrange(out, 'b h n d -> b n (h d)')
+        return self.to_out(out)
+
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
@@ -175,6 +252,8 @@ class Model(nn.Module):
         self.attention_2_0 = diffusers_CrossAttention(query_dim=64, heads=4, dim_head=16)
         self.attention_2_1 = diffusers_CrossAttention(query_dim=64, heads=8, dim_head=8, cross_attention_dim=17)
 
+        self.attention_3 = vit_pytorch_Attention(dim=64, heads=4, dim_head=16)
+
     def forward(self, x, y):
         a = self.attention_0_0(x)
         a = self.attention_0_1(a)
@@ -184,7 +263,9 @@ class Model(nn.Module):
 
         c = self.attention_2_0(x)
         c = self.attention_2_1(c, y)
-        return a, b, c
+
+        d = self.attention_3(x)
+        return a, b, c, d
 
 def test():
     net = Model()

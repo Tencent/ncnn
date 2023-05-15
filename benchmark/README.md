@@ -5482,3 +5482,260 @@ cooling_down = 1
   vision_transformer  min =  135.54  max =  136.68  avg =  136.21
           FastestDet  min =    4.06  max =    4.10  avg =    4.08
 ```
+
+### Hyper-V Linux Guest with GPU-PV enabled (Intel Core i7-11800H, NVIDIA GeForce RTX 3070 Laptop GPU)
+
+- Host OS: Microsoft Windows 11 Enterprise (10.0.22621.1635)
+- Guest OS: openSUSE Tumbleweed x86_64 20230507
+- Mesa 3D source tree: https://gitlab.freedesktop.org/mesa/mesa/-/tree/ce6430067613e3e64cabf79918a3d96122b0c4c4
+- Mesa 3D configuration command
+  > meson --prefix="${PWD}/build/install" -D gallium-drivers=swrast,d3d12 -D vulkan-drivers=swrast,microsoft-experimental build/
+- ncnn configuration command
+  > cmake -DNCNN_VULKAN=ON -DNCNN_BUILD_TESTS=ON ..
+
+```
+mouri@MouriVM-openSUSE:~/Workspace/ncnn/benchmark> VK_ICD_FILENAMES=/home/mouri/Workspace/mesa/build/install/share/vulkan/icd.d/dzn_icd.x86_64.json ./../build/benchmark/benchncnn 10 1 0 0 0
+WARNING: dzn is not a conformant Vulkan implementation, testing use only.
+WARNING: dzn is not a conformant Vulkan implementation, testing use only.
+[0 Microsoft Direct3D12 (NVIDIA GeForce RTX 3070 Laptop GPU)]  queueC=1[8]  queueG=0[4]  queueT=2[1]
+[0 Microsoft Direct3D12 (NVIDIA GeForce RTX 3070 Laptop GPU)]  bugsbn1=0  bugbilz=0  bugcopc=0  bugihfa=0
+[0 Microsoft Direct3D12 (NVIDIA GeForce RTX 3070 Laptop GPU)]  fp16-p/s/a=1/1/1  int8-p/s/a=1/0/0
+[0 Microsoft Direct3D12 (NVIDIA GeForce RTX 3070 Laptop GPU)]  subgroup=32  basic=1  vote=1  ballot=1  shuffle=1
+[1 Microsoft Direct3D12 (Intel(R) UHD Graphics)]  queueC=1[8]  queueG=0[4]  queueT=2[1]
+[1 Microsoft Direct3D12 (Intel(R) UHD Graphics)]  bugsbn1=0  bugbilz=0  bugcopc=0  bugihfa=0
+[1 Microsoft Direct3D12 (Intel(R) UHD Graphics)]  fp16-p/s/a=1/1/1  int8-p/s/a=1/0/0
+[1 Microsoft Direct3D12 (Intel(R) UHD Graphics)]  subgroup=16  basic=1  vote=1  ballot=1  shuffle=1
+loop_count = 10
+num_threads = 1
+powersave = 0
+gpu_device = 0
+cooling_down = 0
+          squeezenet  min =   52.30  max =   65.51  avg =   56.65
+     squeezenet_int8  min =   14.53  max =   15.55  avg =   14.88
+           mobilenet  min =   37.42  max =   52.07  avg =   42.48
+      mobilenet_int8  min =   19.01  max =   19.82  avg =   19.46
+        mobilenet_v2  min =   55.34  max =   73.39  avg =   63.94
+        mobilenet_v3  min =   97.02  max =  123.14  avg =  109.90
+          shufflenet  min =   72.75  max =  100.26  avg =   88.26
+       shufflenet_v2  min =   93.34  max =  119.64  avg =  105.76
+             mnasnet  min =   63.49  max =   74.11  avg =   69.05
+     proxylessnasnet  min =   65.87  max =   83.87  avg =   76.33
+     efficientnet_b0  min =  162.86  max =  210.51  avg =  184.03
+   efficientnetv2_b0  min =  200.88  max =  220.40  avg =  210.85
+        regnety_400m  min =  106.92  max =  134.68  avg =  123.04
+           blazeface  min =   58.64  max =   66.50  avg =   60.54
+           googlenet  min =  117.34  max =  145.28  avg =  134.84
+      googlenet_int8  min =   62.50  max =   65.07  avg =   63.44
+            resnet18  min =   67.30  max =   92.40  avg =   80.23
+       resnet18_int8  min =   56.09  max =   58.40  avg =   56.97
+             alexnet  min =   29.94  max =   47.51  avg =   38.83
+               vgg16  min =   59.72  max =   73.08  avg =   65.46
+          vgg16_int8  min =  136.35  max =  148.39  avg =  143.96
+            resnet50  min =  115.92  max =  152.34  avg =  129.64
+       resnet50_int8  min =   93.86  max =  101.51  avg =   97.96
+      squeezenet_ssd  min =  139.82  max =  149.15  avg =  144.78
+ squeezenet_ssd_int8  min =   32.09  max =   35.96  avg =   33.41
+       mobilenet_ssd  min =   88.14  max =  102.62  avg =   97.79
+  mobilenet_ssd_int8  min =   33.93  max =   36.42  avg =   34.41
+      mobilenet_yolo  min =   52.22  max =   65.25  avg =   58.81
+  mobilenetv2_yolov3  min =   75.09  max =   94.12  avg =   85.23
+         yolov4-tiny  min =   73.27  max =   88.69  avg =   81.44
+           nanodet_m  min =  110.98  max =  150.70  avg =  127.60
+    yolo-fastest-1.1  min =  104.72  max =  135.40  avg =  116.92
+      yolo-fastestv2  min =  113.84  max =  142.19  avg =  128.24
+  vision_transformer  min =  412.19  max =  474.25  avg =  444.15
+          FastestDet  min =   96.31  max =  131.51  avg =  117.27
+mouri@MouriVM-openSUSE:~/Workspace/ncnn/benchmark> VK_ICD_FILENAMES=/home/mouri/Workspace/mesa/build/install/share/vulkan/icd.d/dzn_icd.x86_64.json ./../build/benchmark/benchncnn 10 1 0 1 0
+WARNING: dzn is not a conformant Vulkan implementation, testing use only.
+WARNING: dzn is not a conformant Vulkan implementation, testing use only.
+[0 Microsoft Direct3D12 (NVIDIA GeForce RTX 3070 Laptop GPU)]  queueC=1[8]  queueG=0[4]  queueT=2[1]
+[0 Microsoft Direct3D12 (NVIDIA GeForce RTX 3070 Laptop GPU)]  bugsbn1=0  bugbilz=0  bugcopc=0  bugihfa=0
+[0 Microsoft Direct3D12 (NVIDIA GeForce RTX 3070 Laptop GPU)]  fp16-p/s/a=1/1/1  int8-p/s/a=1/0/0
+[0 Microsoft Direct3D12 (NVIDIA GeForce RTX 3070 Laptop GPU)]  subgroup=32  basic=1  vote=1  ballot=1  shuffle=1
+[1 Microsoft Direct3D12 (Intel(R) UHD Graphics)]  queueC=1[8]  queueG=0[4]  queueT=2[1]
+[1 Microsoft Direct3D12 (Intel(R) UHD Graphics)]  bugsbn1=0  bugbilz=0  bugcopc=0  bugihfa=0
+[1 Microsoft Direct3D12 (Intel(R) UHD Graphics)]  fp16-p/s/a=1/1/1  int8-p/s/a=1/0/0
+[1 Microsoft Direct3D12 (Intel(R) UHD Graphics)]  subgroup=16  basic=1  vote=1  ballot=1  shuffle=1
+loop_count = 10
+num_threads = 1
+powersave = 0
+gpu_device = 1
+cooling_down = 0
+          squeezenet  min =   36.86  max =   62.04  avg =   44.48
+     squeezenet_int8  min =   15.31  max =   16.14  avg =   15.63
+           mobilenet  min =   30.79  max =   34.67  avg =   32.95
+      mobilenet_int8  min =   19.23  max =   19.72  avg =   19.42
+        mobilenet_v2  min =   36.56  max =   40.53  avg =   38.20
+        mobilenet_v3  min =   52.11  max =   61.72  avg =   56.58
+          shufflenet  min =   41.50  max =   74.61  avg =   49.24
+       shufflenet_v2  min =   44.49  max =   52.30  avg =   49.04
+             mnasnet  min =   35.66  max =   43.45  avg =   37.98
+     proxylessnasnet  min =   41.27  max =   47.63  avg =   43.63
+     efficientnet_b0  min =   67.66  max =   80.88  avg =   73.64
+   efficientnetv2_b0  min =  111.10  max =  156.52  avg =  126.70
+        regnety_400m  min =   62.66  max =   89.16  avg =   68.99
+           blazeface  min =   24.86  max =   33.52  avg =   26.91
+           googlenet  min =   70.55  max =   84.22  avg =   75.19
+      googlenet_int8  min =   58.78  max =   64.81  avg =   62.99
+            resnet18  min =   44.17  max =   49.37  avg =   46.73
+       resnet18_int8  min =   59.99  max =   66.91  avg =   62.35
+             alexnet  min =   41.54  max =   57.16  avg =   44.30
+               vgg16  min =  138.74  max =  165.03  avg =  146.90
+          vgg16_int8  min =  135.36  max =  165.89  avg =  142.61
+            resnet50  min =   97.46  max =  107.18  avg =  100.89
+       resnet50_int8  min =   92.90  max =  100.45  avg =   95.91
+      squeezenet_ssd  min =   72.27  max =   90.71  avg =   76.09
+ squeezenet_ssd_int8  min =   34.66  max =   40.46  avg =   36.58
+       mobilenet_ssd  min =   59.90  max =   68.74  avg =   62.40
+  mobilenet_ssd_int8  min =   37.02  max =   38.59  avg =   37.82
+      mobilenet_yolo  min =   73.19  max =   80.40  avg =   76.42
+  mobilenetv2_yolov3  min =   58.56  max =   66.71  avg =   62.02
+         yolov4-tiny  min =   63.75  max =   84.29  avg =   69.54
+           nanodet_m  min =   54.66  max =   67.89  avg =   60.82
+    yolo-fastest-1.1  min =   40.89  max =   51.03  avg =   43.15
+      yolo-fastestv2  min =   50.43  max =   77.46  avg =   60.66
+  vision_transformer  min = 1330.82  max = 1388.73  avg = 1354.10
+          FastestDet  min =   85.75  max =  112.67  avg =   98.62
+mouri@MouriVM-openSUSE:~/Workspace/ncnn/benchmark> VK_ICD_FILENAMES=/home/mouri/Workspace/mesa/build/install/share/vulkan/icd.d/dzn_icd.x86_64.json ./../build/benchmark/benchncnn 10 1 0 -1 0
+loop_count = 10
+num_threads = 1
+powersave = 0
+gpu_device = -1
+cooling_down = 0
+          squeezenet  min =    6.30  max =   10.16  avg =    8.21
+     squeezenet_int8  min =   14.53  max =   14.94  avg =   14.67
+           mobilenet  min =   10.71  max =   11.26  avg =   10.91
+      mobilenet_int8  min =   17.66  max =   18.46  avg =   17.91
+        mobilenet_v2  min =    7.74  max =    8.05  avg =    7.89
+        mobilenet_v3  min =    6.25  max =    6.70  avg =    6.38
+          shufflenet  min =    3.78  max =    7.87  avg =    5.37
+       shufflenet_v2  min =    4.19  max =    7.83  avg =    5.25
+             mnasnet  min =    7.29  max =    7.61  avg =    7.44
+     proxylessnasnet  min =    8.10  max =    8.43  avg =    8.24
+     efficientnet_b0  min =   11.77  max =   12.66  avg =   12.06
+   efficientnetv2_b0  min =   13.80  max =   15.02  avg =   14.11
+        regnety_400m  min =   10.09  max =   10.26  avg =   10.17
+           blazeface  min =    1.24  max =    4.02  avg =    2.45
+           googlenet  min =   24.05  max =   25.78  avg =   24.64
+      googlenet_int8  min =   58.75  max =   62.45  avg =   59.54
+            resnet18  min =   20.31  max =   21.48  avg =   20.74
+       resnet18_int8  min =   53.82  max =   55.27  avg =   54.43
+             alexnet  min =   17.37  max =   18.69  avg =   17.66
+               vgg16  min =  114.49  max =  117.62  avg =  115.96
+          vgg16_int8  min =  133.82  max =  144.40  avg =  137.07
+            resnet50  min =   54.40  max =   58.74  avg =   55.54
+       resnet50_int8  min =   92.95  max =  104.71  avg =   99.18
+      squeezenet_ssd  min =   17.30  max =   18.65  avg =   17.71
+ squeezenet_ssd_int8  min =   32.27  max =   33.88  avg =   32.82
+       mobilenet_ssd  min =   24.01  max =   25.94  avg =   25.02
+  mobilenet_ssd_int8  min =   34.68  max =   36.09  avg =   35.43
+      mobilenet_yolo  min =   53.32  max =   63.48  avg =   56.58
+  mobilenetv2_yolov3  min =   30.06  max =   34.24  avg =   31.46
+         yolov4-tiny  min =   41.49  max =   43.55  avg =   42.50
+           nanodet_m  min =   10.24  max =   11.08  avg =   10.43
+    yolo-fastest-1.1  min =    3.85  max =    8.34  avg =    5.40
+      yolo-fastestv2  min =    4.33  max =    7.61  avg =    6.01
+  vision_transformer  min =  556.38  max =  599.49  avg =  567.98
+          FastestDet  min =    4.20  max =   11.37  avg =    6.51
+mouri@MouriVM-openSUSE:~/Workspace/ncnn/benchmark> 
+```
+
+### Hyper-V Linux Guest with GPU-PV enabled (Intel Core i7-7700K, NVIDIA GeForce GTX 1050 Ti)
+
+- Host OS: Microsoft Windows 10 Enterprise LTSC 2021 (10.0.19044.2846)
+- Guest OS: openSUSE Tumbleweed x86_64 20230507
+- Mesa 3D source tree: https://gitlab.freedesktop.org/mesa/mesa/-/tree/ce6430067613e3e64cabf79918a3d96122b0c4c4
+- Mesa 3D configuration command
+  > meson --prefix="${PWD}/build/install" -D gallium-drivers=swrast,d3d12 -D vulkan-drivers=swrast,microsoft-experimental build/
+- ncnn configuration command
+  > cmake -DNCNN_VULKAN=ON -DNCNN_BUILD_TESTS=ON ..
+
+```
+mouri@MouriVM-openSUSE:~/Workspace/ncnn/benchmark> VK_ICD_FILENAMES=/home/mouri/Workspace/mesa/build/install/share/vulkan/icd.d/dzn_icd.x86_64.json ./../build/benchmark/benchncnn 10 1 0 0 0
+WARNING: dzn is not a conformant Vulkan implementation, testing use only.
+[0 Microsoft Direct3D12 (NVIDIA GeForce GTX 1050 Ti)]  queueC=1[8]  queueG=0[4]  queueT=2[1]
+[0 Microsoft Direct3D12 (NVIDIA GeForce GTX 1050 Ti)]  bugsbn1=0  bugbilz=0  bugcopc=0  bugihfa=0
+[0 Microsoft Direct3D12 (NVIDIA GeForce GTX 1050 Ti)]  fp16-p/s/a=1/0/0  int8-p/s/a=1/0/0
+[0 Microsoft Direct3D12 (NVIDIA GeForce GTX 1050 Ti)]  subgroup=32  basic=1  vote=1  ballot=1  shuffle=1
+loop_count = 10
+num_threads = 1
+powersave = 0
+gpu_device = 0
+cooling_down = 0
+          squeezenet  min =   53.80  max =   64.22  avg =   59.91
+     squeezenet_int8  min =   23.21  max =   25.98  avg =   24.44
+           mobilenet  min =   47.63  max =   55.22  avg =   49.79
+      mobilenet_int8  min =   23.27  max =   25.05  avg =   23.77
+        mobilenet_v2  min =   58.17  max =   83.14  avg =   68.48
+        mobilenet_v3  min =   92.14  max =  114.74  avg =  101.66
+          shufflenet  min =   75.96  max =  106.54  avg =   89.64
+       shufflenet_v2  min =   90.66  max =  114.69  avg =  103.25
+             mnasnet  min =   58.40  max =   85.74  avg =   67.75
+     proxylessnasnet  min =   66.73  max =   84.82  avg =   77.73
+     efficientnet_b0  min =  134.28  max =  164.39  avg =  155.40
+   efficientnetv2_b0  min =  171.97  max =  220.43  avg =  198.26
+        regnety_400m  min =  124.15  max =  145.61  avg =  135.99
+           blazeface  min =   53.18  max =   72.10  avg =   60.21
+           googlenet  min =  119.34  max =  159.93  avg =  134.71
+      googlenet_int8  min =   96.71  max =  102.44  avg =   98.57
+            resnet18  min =   68.14  max =   89.99  avg =   80.76
+       resnet18_int8  min =   88.07  max =  108.62  avg =   91.09
+             alexnet  min =   44.12  max =   51.57  avg =   48.09
+               vgg16  min =   88.49  max =   99.87  avg =   93.42
+          vgg16_int8  min =  196.17  max =  211.99  avg =  201.27
+            resnet50  min =  115.36  max =  138.65  avg =  125.57
+       resnet50_int8  min =  138.15  max =  148.55  avg =  141.08
+      squeezenet_ssd  min =  138.42  max =  168.49  avg =  155.66
+ squeezenet_ssd_int8  min =   46.01  max =   47.83  avg =   46.85
+       mobilenet_ssd  min =   82.39  max =  134.74  avg =  101.22
+  mobilenet_ssd_int8  min =   45.53  max =   46.67  avg =   45.96
+      mobilenet_yolo  min =   70.39  max =   87.83  avg =   80.01
+  mobilenetv2_yolov3  min =   75.71  max =   90.59  avg =   84.04
+         yolov4-tiny  min =   72.16  max =   87.76  avg =   76.81
+           nanodet_m  min =   98.27  max =  129.60  avg =  112.34
+    yolo-fastest-1.1  min =  101.01  max =  118.45  avg =  106.47
+      yolo-fastestv2  min =  109.89  max =  137.23  avg =  123.97
+  vision_transformer  min =  688.60  max =  750.54  avg =  723.30
+          FastestDet  min =  104.16  max =  139.23  avg =  123.75
+mouri@MouriVM-openSUSE:~/Workspace/ncnn/benchmark> VK_ICD_FILENAMES=/home/mouri/Workspace/mesa/build/install/share/vulkan/icd.d/dzn_icd.x86_64.json ./../build/benchmark/benchncnn 10 1 0 -1 0
+loop_count = 10
+num_threads = 1
+powersave = 0
+gpu_device = -1
+cooling_down = 0
+          squeezenet  min =    8.90  max =    9.48  avg =    9.15
+     squeezenet_int8  min =   22.54  max =   24.13  avg =   22.85
+           mobilenet  min =   14.85  max =   16.15  avg =   15.18
+      mobilenet_int8  min =   23.56  max =   23.98  avg =   23.74
+        mobilenet_v2  min =   11.03  max =   11.73  avg =   11.22
+        mobilenet_v3  min =    8.61  max =    9.29  avg =    8.79
+          shufflenet  min =    5.26  max =    5.96  avg =    5.42
+       shufflenet_v2  min =    5.56  max =    7.06  avg =    5.82
+             mnasnet  min =   10.46  max =   11.04  avg =   10.68
+     proxylessnasnet  min =   12.18  max =   12.55  avg =   12.33
+     efficientnet_b0  min =   22.46  max =   23.15  avg =   22.86
+   efficientnetv2_b0  min =   23.33  max =   23.80  avg =   23.55
+        regnety_400m  min =   13.03  max =   14.25  avg =   13.28
+           blazeface  min =    1.49  max =    1.95  avg =    1.61
+           googlenet  min =   35.26  max =   46.31  avg =   39.63
+      googlenet_int8  min =   96.25  max =   98.15  avg =   96.93
+            resnet18  min =   29.34  max =   31.00  avg =   29.92
+       resnet18_int8  min =   87.84  max =   89.85  avg =   88.73
+             alexnet  min =   22.91  max =   23.87  avg =   23.18
+               vgg16  min =  151.26  max =  174.79  avg =  155.94
+          vgg16_int8  min =  193.66  max =  210.63  avg =  199.14
+            resnet50  min =   74.89  max =   77.27  avg =   75.91
+       resnet50_int8  min =  136.59  max =  162.13  avg =  141.22
+      squeezenet_ssd  min =   24.48  max =   34.00  avg =   26.19
+ squeezenet_ssd_int8  min =   46.31  max =   48.87  avg =   47.09
+       mobilenet_ssd  min =   31.56  max =   34.45  avg =   32.50
+  mobilenet_ssd_int8  min =   45.15  max =   46.53  avg =   45.93
+      mobilenet_yolo  min =   72.09  max =   78.05  avg =   74.31
+  mobilenetv2_yolov3  min =   40.44  max =   41.54  avg =   40.86
+         yolov4-tiny  min =   56.73  max =   60.59  avg =   57.93
+           nanodet_m  min =   13.22  max =   19.28  avg =   14.65
+    yolo-fastest-1.1  min =    5.47  max =    5.70  avg =    5.58
+      yolo-fastestv2  min =    5.68  max =    7.20  avg =    5.88
+  vision_transformer  min =  600.83  max =  666.35  avg =  617.33
+          FastestDet  min =    6.05  max =    6.72  avg =    6.23
+```

@@ -920,6 +920,11 @@ VkImageMemory* VkBlobAllocator::fastMalloc(int w, int h, int c, size_t elemsize,
     // find first spare space in image_memory_blocks
     for (int i = 0; i < image_memory_block_count; i++)
     {
+#if __APPLE__
+        // HACK moltenvk v1.2.3 is unhappy for image binding with offset  :(
+        break;
+#endif
+
         std::list<std::pair<size_t, size_t> >::iterator it = d->image_memory_budgets[i].begin();
         while (it != d->image_memory_budgets[i].end())
         {
@@ -998,6 +1003,12 @@ VkImageMemory* VkBlobAllocator::fastMalloc(int w, int h, int c, size_t elemsize,
 
     // create new block
     size_t new_block_size = std::max(d->block_size, aligned_size);
+
+#if __APPLE__
+    // HACK moltenvk v1.2.3 is unhappy for image binding with offset
+    // always ignore block size for smaller memory footprint :(
+    new_block_size = aligned_size;
+#endif
 
     // bind at memory offset
     ptr->memory = allocate_memory(new_block_size, image_memory_type_index);

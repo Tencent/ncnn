@@ -4464,6 +4464,9 @@ static void conv3x3s1_winograd_get_optimal_tile_mnk(int M, int N, int K, int B, 
     // resolve optimal tile size from cache size
     const int l2_cache_size_fp32 = (int)(get_cpu_level2_cache_size() / sizeof(float));
 
+    if (nT == 0)
+        nT = get_physical_big_cpu_count();
+
     // we shall take B into account for batched gemm, but that will be slower on arm in practice, why ?
     (void)B;
 

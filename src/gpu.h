@@ -49,6 +49,8 @@ extern int support_VK_KHR_get_physical_device_properties2;
 extern int support_VK_KHR_get_surface_capabilities2;
 extern int support_VK_KHR_surface;
 extern int support_VK_EXT_debug_utils;
+extern int support_VK_EXT_validation_features;
+extern int support_VK_EXT_validation_flags;
 #if __ANDROID_API__ >= 26
 extern int support_VK_KHR_android_surface;
 #endif // __ANDROID_API__ >= 26
