@@ -19,6 +19,8 @@
 #include <math.h>
 #include <string.h>
 
+#include <torch/csrc/api/include/torch/version.h>
+
 namespace pnnx {
 
 static bool NearlyEqual(float a, float b, float epsilon)
