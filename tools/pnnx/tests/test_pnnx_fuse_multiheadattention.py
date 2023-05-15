@@ -19,6 +19,7 @@ from packaging import version
 
 from einops import rearrange
 from typing import Any, Optional, Tuple, Union
+import math
 
 class Attention(nn.Module):
     def __init__(self, embed_dim, num_heads, qkv_bias=True):
@@ -332,6 +333,110 @@ class CLIPAttention(nn.Module):
 
         return attn_output
 
+class diffusers_AttentionBlock(nn.Module):
+    def __init__(
+        self,
+        channels: int,
+        num_head_channels: Optional[int] = None,
+        norm_num_groups: int = 32,
+        rescale_output_factor: float = 1.0,
+        eps: float = 1e-5,
+    ):
+        super().__init__()
+        self.channels = channels
+
+        self.num_heads = channels // num_head_channels if num_head_channels is not None else 1
+        self.group_norm = nn.GroupNorm(num_channels=channels, num_groups=norm_num_groups, eps=eps, affine=True)
+
+        # define q,k,v as linear layers
+        self.query = nn.Linear(channels, channels)
+        self.key = nn.Linear(channels, channels)
+        self.value = nn.Linear(channels, channels)
+
+        self.rescale_output_factor = rescale_output_factor
+        self.proj_attn = nn.Linear(channels, channels, bias=True)
+
+    def reshape_heads_to_batch_dim(self, tensor, merge_head_and_batch=True):
+        batch_size, seq_len, dim = tensor.shape
+        head_size = self.num_heads
+        tensor = tensor.reshape(batch_size, seq_len, head_size, dim // head_size)
+        tensor = tensor.permute(0, 2, 1, 3)
+        if merge_head_and_batch:
+            tensor = tensor.reshape(batch_size * head_size, seq_len, dim // head_size)
+        return tensor
+
+    def reshape_batch_dim_to_heads(self, tensor, unmerge_head_and_batch=True):
+        head_size = self.num_heads
+
+        if unmerge_head_and_batch:
+            batch_head_size, seq_len, dim = tensor.shape
+            batch_size = batch_head_size // head_size
+
+            tensor = tensor.reshape(batch_size, head_size, seq_len, dim)
+        else:
+            batch_size, _, seq_len, dim = tensor.shape
+
+        tensor = tensor.permute(0, 2, 1, 3).reshape(batch_size, seq_len, dim * head_size)
+        return tensor
+
+    def forward(self, hidden_states):
+        residual = hidden_states
+        batch, channel, height, width = hidden_states.shape
+
+        # norm
+        hidden_states = self.group_norm(hidden_states)
+
+        hidden_states = hidden_states.view(batch, channel, height * width).transpose(1, 2)
+
+        # proj to q, k, v
+        query_proj = self.query(hidden_states)
+        key_proj = self.key(hidden_states)
+        value_proj = self.value(hidden_states)
+
+        scale = 1 / math.sqrt(self.channels / self.num_heads)
+
+        use_torch_2_0_attn = hasattr(F, "scaled_dot_product_attention")
+
+        query_proj = self.reshape_heads_to_batch_dim(query_proj, merge_head_and_batch=not use_torch_2_0_attn)
+        key_proj = self.reshape_heads_to_batch_dim(key_proj, merge_head_and_batch=not use_torch_2_0_attn)
+        value_proj = self.reshape_heads_to_batch_dim(value_proj, merge_head_and_batch=not use_torch_2_0_attn)
+
+        if use_torch_2_0_attn:
+            # the output of sdp = (batch, num_heads, seq_len, head_dim)
+            # TODO: add support for attn.scale when we move to Torch 2.1
+            hidden_states = F.scaled_dot_product_attention(
+                query_proj, key_proj, value_proj, dropout_p=0.0, is_causal=False
+            )
+            hidden_states = hidden_states.to(query_proj.dtype)
+        else:
+            attention_scores = torch.baddbmm(
+                torch.empty(
+                    query_proj.shape[0],
+                    query_proj.shape[1],
+                    key_proj.shape[1],
+                    dtype=query_proj.dtype,
+                    device=query_proj.device,
+                ),
+                query_proj,
+                key_proj.transpose(-1, -2),
+                beta=0,
+                alpha=scale,
+            )
+            attention_probs = torch.softmax(attention_scores.float(), dim=-1).type(attention_scores.dtype)
+            hidden_states = torch.bmm(attention_probs, value_proj)
+
+        # reshape hidden_states
+        hidden_states = self.reshape_batch_dim_to_heads(hidden_states, unmerge_head_and_batch=not use_torch_2_0_attn)
+
+        # compute next hidden_states
+        hidden_states = self.proj_attn(hidden_states)
+
+        hidden_states = hidden_states.transpose(-1, -2).reshape(batch, channel, height, width)
+
+        # res connect and rescale
+        hidden_states = (hidden_states + residual) / self.rescale_output_factor
+        return hidden_states
+
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
@@ -351,7 +456,9 @@ class Model(nn.Module):
         self.attention_4_1 = CLIPAttention(embed_dim=64, num_heads=4)
         self.mask = nn.Parameter(torch.rand(1, 1, 20, 20))
 
-    def forward(self, x, y):
+        self.attention_5 = diffusers_AttentionBlock(channels=64, num_head_channels=16)
+
+    def forward(self, x, y, z):
         a = self.attention_0_0(x)
         a = self.attention_0_1(a)
 
@@ -366,7 +473,9 @@ class Model(nn.Module):
         e = self.attention_4_0(x)
         f = self.attention_4_1(x, causal_attention_mask=self.mask)
 
-        return a, b, c, d, e, f
+        g = self.attention_5(z)
+
+        return a, b, c, d, e, f, g
 
 def test():
     net = Model()
@@ -375,16 +484,17 @@ def test():
     torch.manual_seed(0)
     x = torch.rand(1, 20, 64)
     y = torch.rand(1, 20, 17)
+    z = torch.rand(1, 64, 6, 6)
 
-    a = net(x, y)
+    a = net(x, y, z)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, y))
+    mod = torch.jit.trace(net, (x, y, z))
     mod.save("test_pnnx_fuse_multiheadattention.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_pnnx_fuse_multiheadattention.pt inputshape=[1,20,64],[1,20,17]")
+    os.system("../src/pnnx test_pnnx_fuse_multiheadattention.pt inputshape=[1,20,64],[1,20,17],[1,64,6,6]")
 
     # pnnx inference
     import test_pnnx_fuse_multiheadattention_pnnx

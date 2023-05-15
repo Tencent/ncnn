@@ -1075,6 +1075,32 @@ pnnx.Output             output      1 0 out
     }
 };
 
+class fuse_multiheadattention_pass_12_1 : public fuse_multiheadattention_pass_12
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+15 14
+pnnx.Input              input_0     0 1 input
+nn.Linear               op_0        1 1 input 14 bias=%q_bias in_features=%embed_dim out_features=%embed_dim @bias @weight
+nn.Linear               op_1        1 1 input 15 bias=%k_bias in_features=%kdim out_features=%embed_dim @bias @weight
+nn.Linear               op_2        1 1 input 16 bias=%v_bias in_features=%vdim out_features=%embed_dim @bias @weight
+Tensor.reshape          op_3        1 1 14 17 shape=%q_shape
+Tensor.reshape          op_4        1 1 15 18 shape=%kv_shape
+Tensor.reshape          op_5        1 1 16 19 shape=%kv_shape
+torch.permute           op_6        1 1 19 20 dims=(0,2,1,3)
+torch.permute           op_7        1 1 18 21 dims=(0,2,1,3)
+torch.permute           op_8        1 1 17 22 dims=(0,2,1,3)
+F.scaled_dot_product_attention op_9 3 1 22 21 20 23 attn_mask=None dropout_p=0.000000e+00 is_causal=False
+torch.permute           op_10       1 1 23 24 dims=(0,2,1,3)
+Tensor.reshape          op_11       1 1 24 25 shape=%qkv_shape
+nn.Linear               out_proj    1 1 25 out bias=%out_bias in_features=%embed_dim out_features=%embed_dim @bias @weight
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+};
+
 class fuse_multiheadattention_pass_13 : public fuse_multiheadattention_pass_qkv
 {
 public:
@@ -1287,6 +1313,7 @@ void fuse_multiheadattention(Graph& graph)
     fuse_multiheadattention_pass_9 i;
     fuse_multiheadattention_pass_10 j;
     fuse_multiheadattention_pass_12 k;
+    fuse_multiheadattention_pass_12_1 k1;
     fuse_multiheadattention_pass_13 l;
     fuse_multiheadattention_pass_14 m;
     fuse_multiheadattention_pass_15 n;
@@ -1308,6 +1335,7 @@ void fuse_multiheadattention(Graph& graph)
     pnnx_graph_rewrite(graph, &i, opindex);
     pnnx_graph_rewrite(graph, &j, opindex);
     pnnx_graph_rewrite(graph, &k, opindex);
+    pnnx_graph_rewrite(graph, &k1, opindex);
     pnnx_graph_rewrite(graph, &l, opindex);
     pnnx_graph_rewrite(graph, &m, opindex);
     pnnx_graph_rewrite(graph, &n, opindex);
