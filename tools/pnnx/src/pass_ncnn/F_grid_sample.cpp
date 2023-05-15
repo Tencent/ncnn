@@ -91,6 +91,17 @@ pnnx.Output             output      1 0 out
         return "permutegridsample";
     }
 
+    bool match(const std::map<std::string, Parameter>& captured_params) const
+    {
+        const std::vector<int>& dims = captured_params.at("dims").ai;
+
+        if ((dims == std::vector<int>{1, 2, 0}) || (dims == std::vector<int>{1, 2, 3, 0}))
+            return true;
+        if ((dims == std::vector<int>{0, 2, 3, 1}) || (dims == std::vector<int>{0, 2, 3, 4, 1}))
+            return true;
+        return false;
+    }
+
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
         const std::string& mode = captured_params.at("mode").s;
