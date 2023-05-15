@@ -1269,6 +1269,7 @@ pnnx.Output             output      1 0 out
 
 void fuse_multiheadattention(Graph& graph)
 {
+#if TORCH_VERSION_MAJOR >= 2 || (TORCH_VERSION_MAJOR >= 1 && TORCH_VERSION_MINOR >= 9)
     fuse_multiheadattention_pass a;
     fuse_multiheadattention_pass_11 a1;
     fuse_multiheadattention_pass_sameqkv b;
@@ -1309,6 +1310,7 @@ void fuse_multiheadattention(Graph& graph)
     pnnx_graph_rewrite(graph, &m, opindex);
     pnnx_graph_rewrite(graph, &n, opindex);
     pnnx_graph_rewrite(graph, &o, opindex);
+#endif
 }
 
 } // namespace pnnx
