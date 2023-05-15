@@ -160,7 +160,13 @@ void shape_inference(const torch::jit::Module& mod, std::shared_ptr<torch::jit::
 
         convert_half_to_float(mod2);
 
-        auto graph2 = mod2.get_method("forward").graph();
+        auto method = mod2.find_method("forward");
+        if (!method)
+        {
+            method = mod2.get_methods()[0];
+        }
+
+        auto graph2 = method->graph();
 
         inline_block(graph2, module_operators);
 
@@ -198,7 +204,7 @@ void shape_inference(const torch::jit::Module& mod, std::shared_ptr<torch::jit::
 
         // construct schema for new inputs and outputs
         {
-            auto oldfs = mod2.get_method("forward").function().getSchema();
+            auto oldfs = method->function().getSchema();
 
             std::vector<c10::Argument> arguments;
             std::vector<c10::Argument> returns;
@@ -214,11 +220,11 @@ void shape_inference(const torch::jit::Module& mod, std::shared_ptr<torch::jit::
             }
 
             c10::FunctionSchema newfs(oldfs.name(), oldfs.overload_name(), arguments, returns);
-            mod2.get_method("forward").function().setSchema(newfs);
+            method->function().setSchema(newfs);
         }
 
         // inference for all tensors
-        auto outputs = mod2.copy().forward(inputs).toTuple();
+        auto outputs = mod2.copy().get_method(method->name())(inputs).toTuple();
 
         if (input_tensors2.empty())
         {
@@ -244,7 +250,7 @@ void shape_inference(const torch::jit::Module& mod, std::shared_ptr<torch::jit::
         else
         {
             // assign dynamic shape info
-            auto outputs2 = mod2.copy().forward(inputs2).toTuple();
+            auto outputs2 = mod2.copy().get_method(method->name())(inputs2).toTuple();
 
             fprintf(stderr, "assign dynamic shape info\n");
 
