@@ -13,6 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include "benchmark.h"
+
 #if (__cplusplus >= 201103L || (defined(_MSVC_LANG) && _MSVC_LANG >= 201103L)) && !defined(__riscv) && !NCNN_SIMPLESTL
 #include <chrono>
 #include <thread>
@@ -80,7 +81,6 @@ void sleep(unsigned long long int milliseconds)
     // TODO How to handle it ?
 #endif
 #endif
-    return;
 }
 
 #if NCNN_BENCHMARK
