@@ -248,18 +248,38 @@ public:
     {
         one_blob_only = true;
         support_inplace = true;
+
+        v123 = 0.f;
+    }
+
+    virtual int load_param(const ncnn::ParamDict& pd)
+    {
+        v123 = pd.get(12, 0.5f);
+        return 0;
+    }
+
+    virtual int load_model(const ncnn::ModelBin& /*mb*/)
+    {
+        v456 = ncnn::Mat(1);
+        v456[0] = 0.1f;
+        return 0;
     }
 
     virtual int forward_inplace(ncnn::Mat& bottom_top_blob, const ncnn::Option& /*opt*/) const
     {
         bottom_top_blob.fill(0.f);
-        bottom_top_blob[123] = 0.5f;
-        bottom_top_blob[456] = 0.1f;
+        bottom_top_blob[123] = v123;
+        bottom_top_blob[456] = v456[0];
         return 0;
     }
+
+private:
+    float v123;
+    ncnn::Mat v456;
 };
 
 DEFINE_LAYER_CREATOR(MySoftmax)
+DEFINE_LAYER_DESTROYER(MySoftmax)
 
 static int test_squeezenet_overwrite_softmax(const ncnn::Option& opt, int load_model_type, float epsilon = 0.001)
 {
@@ -296,7 +316,7 @@ static int test_squeezenet_overwrite_softmax(const ncnn::Option& opt, int load_m
     if (load_model_type == 1)
     {
         // load from plain model memory
-        squeezenet.register_custom_layer("Softmax", MySoftmax_layer_creator);
+        squeezenet.register_custom_layer("Softmax", MySoftmax_layer_creator, MySoftmax_layer_destroyer);
         param_str = read_file_string(MODEL_DIR "/squeezenet_v1.1.param");
         model_data = read_file_content(MODEL_DIR "/squeezenet_v1.1.bin");
         squeezenet.load_param_mem((const char*)param_str.c_str());
