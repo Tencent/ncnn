@@ -137,7 +137,7 @@ int InnerProduct_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
 
     const int num_input = weight_data_size / num_output;
 
-    if (bottom_blob.dims == 2 && bottom_blob.w == num_input && bottom_blob.h * bottom_blob.elempack > 1)
+    if (bottom_blob.dims == 2 && bottom_blob.w == num_input)
     {
         // gemm
         int h = bottom_blob.h;
@@ -667,7 +667,7 @@ int InnerProduct_mips::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
 {
     const int num_input = weight_data_size / num_output;
 
-    if (bottom_blob.dims == 2 && bottom_blob.w == num_input && bottom_blob.h * bottom_blob.elempack > 1)
+    if (bottom_blob.dims == 2 && bottom_blob.w == num_input)
     {
         // gemm
         int h = bottom_blob.h;
@@ -1168,7 +1168,7 @@ int InnerProduct_mips::forward_int8_mips(const Mat& bottom_blob, Mat& top_blob, 
         quantize_to_int8(bottom_blob, bottom_blob_int8, bottom_blob_int8_scales, opt_q);
     }
 
-    if (bottom_blob_int8.dims == 2 && bottom_blob_int8.w == num_input && bottom_blob_int8.h * bottom_blob_int8.elempack > 1)
+    if (bottom_blob_int8.dims == 2 && bottom_blob_int8.w == num_input)
     {
         // gemm
         Mat bottom_blob_int8_unpacked;
