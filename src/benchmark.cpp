@@ -36,7 +36,6 @@
 #include "layer/deconvolutiondepthwise.h"
 
 #include <stdio.h>
-#include <stdint.h>
 #endif // NCNN_BENCHMARK
 
 namespace ncnn {

@@ -19,18 +19,13 @@
 #include "mat.h"
 #include "platform.h"
 
-#if NCNN_BENCHMARK
-#include <stdint.h>
-#endif // NCNN_BENCHMARK
-
-
 namespace ncnn {
 
 // get now timestamp in ms
 NCNN_EXPORT double get_current_time();
 
 // sleep milliseconds
-NCNN_EXPORT void sleep(unsigned long long int milliseconds = 100000);
+NCNN_EXPORT void sleep(unsigned long long int milliseconds = 1000);
 
 #if NCNN_BENCHMARK
 
