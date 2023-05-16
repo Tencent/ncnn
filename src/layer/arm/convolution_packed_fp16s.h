@@ -537,7 +537,7 @@ static void convolution_packed_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                             _r0 = vcvt_f32_f16(vld1_f16(r0 + sok));
                             _r1 = vcvt_f32_f16(vld1_f16(r0 + sok + N));
                         }
-                        if (elempack == 1)
+                        else // if (elempack == 1)
                         {
                             float16x8_t _r_f16 = float16x8_t();
                             _r_f16 = vsetq_lane_f16(r0[sok], _r_f16, 0);
@@ -608,7 +608,7 @@ static void convolution_packed_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                         {
                             _r0 = vcvt_f32_f16(vld1_f16(r0 + sok));
                         }
-                        if (elempack == 1)
+                        else // if (elempack == 1)
                         {
                             float16x4_t _r_f16 = float16x4_t();
                             _r_f16 = vset_lane_f16(r0[sok], _r_f16, 0);
@@ -709,7 +709,7 @@ static void convolution_packed_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                     vst1_f16(outptr + M, vcvt_f16_f32(_sum1));
                     outptr += 4;
                 }
-                if (out_elempack == 1)
+                else // if (out_elempack == 1)
                 {
                     float16x4_t _sum0_f16 = vcvt_f16_f32(_sum0);
                     float16x4_t _sum1_f16 = vcvt_f16_f32(_sum1);
@@ -765,7 +765,7 @@ static void convolution_packed_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                             _r0 = vcvt_f32_f16(vld1_f16(r0 + sok));
                             _r1 = vcvt_f32_f16(vld1_f16(r0 + sok + N));
                         }
-                        if (elempack == 1)
+                        else // if (elempack == 1)
                         {
                             float16x8_t _r_f16 = float16x8_t();
                             _r_f16 = vsetq_lane_f16(r0[sok], _r_f16, 0);
@@ -816,7 +816,7 @@ static void convolution_packed_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                         {
                             _r0 = vcvt_f32_f16(vld1_f16(r0 + sok));
                         }
-                        if (elempack == 1)
+                        else // if (elempack == 1)
                         {
                             float16x4_t _r_f16 = float16x4_t();
                             _r_f16 = vset_lane_f16(r0[sok], _r_f16, 0);
@@ -894,7 +894,7 @@ static void convolution_packed_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                     vst1_f16(outptr, vcvt_f16_f32(_sum0));
                     outptr += 4;
                 }
-                if (out_elempack == 1)
+                else // if (out_elempack == 1)
                 {
                     float16x4_t _sum0_f16 = vcvt_f16_f32(_sum0);
                     outptr[0] = vget_lane_f16(_sum0_f16, 0);
@@ -949,7 +949,7 @@ static void convolution_packed_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                             _r0 = vcvt_f32_f16(vld1_f16(r0 + sok));
                             _r1 = vcvt_f32_f16(vld1_f16(r0 + sok + N));
                         }
-                        if (elempack == 1)
+                        else // if (elempack == 1)
                         {
                             float16x8_t _r01_f16 = float16x8_t();
                             _r01_f16 = vsetq_lane_f16(r0[sok], _r01_f16, 0);
@@ -996,7 +996,7 @@ static void convolution_packed_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                         {
                             _r0 = vcvt_f32_f16(vld1_f16(r0 + sok));
                         }
-                        if (elempack == 1)
+                        else // if (elempack == 1)
                         {
                             float16x4_t _r0_f16 = float16x4_t();
                             _r0_f16 = vset_lane_f16(r0[sok], _r0_f16, 0);
@@ -1104,7 +1104,7 @@ static void convolution_packed_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                             _r0 = vcvt_f32_f16(vld1_f16(r0 + sok));
                             _r1 = vcvt_f32_f16(vld1_f16(r0 + sok + N));
                         }
-                        if (elempack == 1)
+                        else // if (elempack == 1)
                         {
                             float16x8_t _r01_f16 = float16x8_t();
                             _r01_f16 = vsetq_lane_f16(r0[sok], _r01_f16, 0);
@@ -1143,7 +1143,7 @@ static void convolution_packed_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                         {
                             _r0 = vcvt_f32_f16(vld1_f16(r0 + sok));
                         }
-                        if (elempack == 1)
+                        else // if (elempack == 1)
                         {
                             float16x4_t _r0_f16 = float16x4_t();
                             _r0_f16 = vset_lane_f16(r0[sok], _r0_f16, 0);
@@ -1285,12 +1285,13 @@ static void convolution_packed_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
                         {
                             _r0 = vld1q_f16(r0 + sok);
                         }
-                        if (elempack == 4)
+                        else if (elempack == 4)
                         {
                             _r0 = vcombine_f16(vld1_f16(r0 + sok), vld1_f16(r0 + sok + N));
                         }
-                        if (elempack == 1)
+                        else // if (elempack == 1)
                         {
+                            _r0 = float16x8_t();
                             _r0 = vsetq_lane_f16(r0[sok], _r0, 0);
                             _r0 = vsetq_lane_f16(r0[sok + N], _r0, 1);
                             _r0 = vsetq_lane_f16(r0[sok + N * 2], _r0, 2);
@@ -1333,7 +1334,7 @@ static void convolution_packed_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
                         {
                             _r0 = vld1_f16(r0 + sok);
                         }
-                        if (elempack == 1)
+                        else // if (elempack == 1)
                         {
                             _r0 = float16x4_t();
                             _r0 = vset_lane_f16(r0[sok], _r0, 0);
@@ -1407,13 +1408,13 @@ static void convolution_packed_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
                     vst1q_f16(outptr, _sum0);
                     outptr += 8;
                 }
-                if (out_elempack == 4)
+                else if (out_elempack == 4)
                 {
                     vst1_f16(outptr, vget_low_f16(_sum0));
                     vst1_f16(outptr + M, vget_high_f16(_sum0));
                     outptr += 4;
                 }
-                if (out_elempack == 1)
+                else // if (out_elempack == 1)
                 {
                     outptr[0] = vgetq_lane_f16(_sum0, 0);
                     outptr[M] = vgetq_lane_f16(_sum0, 1);
@@ -1468,12 +1469,12 @@ static void convolution_packed_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
                             _r0 = vget_low_f16(_r01);
                             _r1 = vget_high_f16(_r01);
                         }
-                        if (elempack == 4)
+                        else if (elempack == 4)
                         {
                             _r0 = vld1_f16(r0 + sok);
                             _r1 = vld1_f16(r0 + sok + N);
                         }
-                        if (elempack == 1)
+                        else // if (elempack == 1)
                         {
                             _r0 = float16x4_t();
                             _r1 = float16x4_t();
@@ -1519,7 +1520,7 @@ static void convolution_packed_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
                         {
                             _r0 = vld1_f16(r0 + sok);
                         }
-                        if (elempack == 1)
+                        else // if (elempack == 1)
                         {
                             _r0 = float16x4_t();
                             _r0 = vset_lane_f16(r0[sok], _r0, 0);
@@ -1593,7 +1594,7 @@ static void convolution_packed_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
                     vst1_f16(outptr, _sum0);
                     outptr += 4;
                 }
-                if (out_elempack == 1)
+                else // if (out_elempack == 1)
                 {
                     outptr[0] = vget_lane_f16(_sum0, 0);
                     outptr[M] = vget_lane_f16(_sum0, 1);
@@ -1643,11 +1644,11 @@ static void convolution_packed_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
                         {
                             _r0 = vld1q_f16(r0 + sok);
                         }
-                        if (elempack == 4)
+                        else if (elempack == 4)
                         {
                             _r0 = vcombine_f16(vld1_f16(r0 + sok), vld1_f16(r0 + sok + N));
                         }
-                        if (elempack == 1)
+                        else // if (elempack == 1)
                         {
                             _r0 = float16x8_t();
                             _r0 = vsetq_lane_f16(r0[sok], _r0, 0);
@@ -1680,7 +1681,7 @@ static void convolution_packed_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
                         {
                             _r0 = vld1_f16(r0 + sok);
                         }
-                        if (elempack == 1)
+                        else // if (elempack == 1)
                         {
                             _r0 = float16x4_t();
                             _r0 = vset_lane_f16(r0[sok], _r0, 0);
@@ -1788,11 +1789,11 @@ static void convolution_packed_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
                         {
                             _r0 = vld1q_f16(r0 + sok);
                         }
-                        if (elempack == 4)
+                        else if (elempack == 4)
                         {
                             _r0 = vcombine_f16(vld1_f16(r0 + sok), vld1_f16(r0 + sok + N));
                         }
-                        if (elempack == 1)
+                        else // if (elempack == 1)
                         {
                             _r0 = float16x8_t();
                             _r0 = vsetq_lane_f16(r0[sok], _r0, 0);
@@ -1823,7 +1824,7 @@ static void convolution_packed_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
                         {
                             _r0 = vld1_f16(r0 + sok);
                         }
-                        if (elempack == 1)
+                        else // if (elempack == 1)
                         {
                             _r0 = float16x4_t();
                             _r0 = vset_lane_f16(r0[sok], _r0, 0);

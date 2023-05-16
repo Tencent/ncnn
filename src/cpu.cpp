@@ -153,7 +153,11 @@ static int g_cpu_level2_cachesize;
 static int g_cpu_level3_cachesize;
 
 // misc info
+#if defined __ANDROID__ || defined __linux__
+#if __aarch64__
 static int g_cpu_is_arm_a53_a55;
+#endif // __aarch64__
+#endif // defined __ANDROID__ || defined __linux__
 
 #if defined __ANDROID__ || defined __linux__
 

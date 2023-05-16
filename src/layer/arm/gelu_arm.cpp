@@ -40,7 +40,7 @@ GELU_arm::GELU_arm()
 #endif
 }
 
-int GELU_arm::create_pipeline(const Option& opt)
+int GELU_arm::create_pipeline(const Option& /*opt*/)
 {
     if (!fast_gelu)
     {
