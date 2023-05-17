@@ -241,45 +241,93 @@ static int test_squeezenet(const ncnn::Option& opt, int load_model_type, float e
     return check_top2(cls_scores, epsilon);
 }
 
-class MySoftmax : public ncnn::Layer
+class MyConvolution : public ncnn::Layer
 {
 public:
-    MySoftmax()
+    MyConvolution()
     {
-        one_blob_only = true;
-        support_inplace = true;
+        impl = ncnn::create_layer("Convolution");
 
-        v123 = 0.f;
+        one_blob_only = impl->one_blob_only;
+        support_inplace = impl->support_inplace;
+
+        support_packing = impl->support_packing;
+        support_vulkan = impl->support_vulkan;
+        support_bf16_storage = impl->support_bf16_storage;
+        support_fp16_storage = impl->support_fp16_storage;
+        support_int8_storage = impl->support_int8_storage;
+        support_image_storage = impl->support_image_storage;
+    }
+
+    ~MyConvolution()
+    {
+        delete impl;
     }
 
     virtual int load_param(const ncnn::ParamDict& pd)
     {
-        v123 = pd.get(12, 0.5f);
-        return 0;
+#if NCNN_VULKAN
+        impl->vkdev = vkdev;
+#endif // NCNN_VULKAN
+
+        return impl->load_param(pd);
     }
 
-    virtual int load_model(const ncnn::ModelBin& /*mb*/)
+    virtual int load_model(const ncnn::ModelBin& mb)
     {
-        v456 = ncnn::Mat(1);
-        v456[0] = 0.1f;
-        return 0;
+        return impl->load_model(mb);
     }
 
-    virtual int forward_inplace(ncnn::Mat& bottom_top_blob, const ncnn::Option& /*opt*/) const
+    virtual int create_pipeline(const ncnn::Option& opt)
     {
-        bottom_top_blob.fill(0.f);
-        bottom_top_blob[123] = v123;
-        bottom_top_blob[456] = v456[0];
-        return 0;
+        int ret = impl->create_pipeline(opt);
+
+        one_blob_only = impl->one_blob_only;
+        support_inplace = impl->support_inplace;
+
+        support_packing = impl->support_packing;
+        support_vulkan = impl->support_vulkan;
+        support_bf16_storage = impl->support_bf16_storage;
+        support_fp16_storage = impl->support_fp16_storage;
+        support_int8_storage = impl->support_int8_storage;
+        support_image_storage = impl->support_image_storage;
+
+        return ret;
     }
+
+    virtual int destroy_pipeline(const ncnn::Option& opt)
+    {
+        return impl->destroy_pipeline(opt);
+    }
+
+    virtual int forward(const ncnn::Mat& bottom_blob, ncnn::Mat& top_blob, const ncnn::Option& opt) const
+    {
+        return impl->forward(bottom_blob, top_blob, opt);
+    }
+
+#if NCNN_VULKAN
+    virtual int upload_model(ncnn::VkTransfer& cmd, const ncnn::Option& opt)
+    {
+        return impl->upload_model(cmd, opt);
+    }
+
+    virtual int forward(const ncnn::VkMat& bottom_blob, ncnn::VkMat& top_blob, ncnn::VkCompute& cmd, const ncnn::Option& opt) const
+    {
+        return impl->forward(bottom_blob, top_blob, cmd, opt);
+    }
+
+    virtual int forward(const ncnn::VkImageMat& bottom_blob, ncnn::VkImageMat& top_blob, ncnn::VkCompute& cmd, const ncnn::Option& opt) const
+    {
+        return impl->forward(bottom_blob, top_blob, cmd, opt);
+    }
+#endif // NCNN_VULKAN
 
 private:
-    float v123;
-    ncnn::Mat v456;
+    ncnn::Layer* impl;
 };
 
-DEFINE_LAYER_CREATOR(MySoftmax)
-DEFINE_LAYER_DESTROYER(MySoftmax)
+DEFINE_LAYER_CREATOR(MyConvolution)
+DEFINE_LAYER_DESTROYER(MyConvolution)
 
 static int test_squeezenet_overwrite_softmax(const ncnn::Option& opt, int load_model_type, float epsilon = 0.001)
 {
@@ -299,7 +347,7 @@ static int test_squeezenet_overwrite_softmax(const ncnn::Option& opt, int load_m
     if (load_model_type == 0)
     {
         // load from plain model file
-        squeezenet.register_custom_layer("Softmax", MySoftmax_layer_creator);
+        squeezenet.register_custom_layer("Convolution", MyConvolution_layer_creator, MyConvolution_layer_destroyer);
         squeezenet.load_param(MODEL_DIR "/squeezenet_v1.1.param");
 
         // test random feature disabled bits
@@ -316,7 +364,7 @@ static int test_squeezenet_overwrite_softmax(const ncnn::Option& opt, int load_m
     if (load_model_type == 1)
     {
         // load from plain model memory
-        squeezenet.register_custom_layer("Softmax", MySoftmax_layer_creator, MySoftmax_layer_destroyer);
+        squeezenet.register_custom_layer("Convolution", MyConvolution_layer_creator, MyConvolution_layer_destroyer);
         param_str = read_file_string(MODEL_DIR "/squeezenet_v1.1.param");
         model_data = read_file_content(MODEL_DIR "/squeezenet_v1.1.bin");
         squeezenet.load_param_mem((const char*)param_str.c_str());
@@ -325,14 +373,14 @@ static int test_squeezenet_overwrite_softmax(const ncnn::Option& opt, int load_m
     if (load_model_type == 2)
     {
         // load from binary model file
-        squeezenet.register_custom_layer(ncnn::layer_to_index("Softmax"), MySoftmax_layer_creator);
+        squeezenet.register_custom_layer(ncnn::layer_to_index("Convolution"), MyConvolution_layer_creator, MyConvolution_layer_destroyer);
         squeezenet.load_param_bin(MODEL_DIR "/squeezenet_v1.1.param.bin");
         squeezenet.load_model(MODEL_DIR "/squeezenet_v1.1.bin");
     }
     if (load_model_type == 3)
     {
         // load from binary model memory
-        squeezenet.register_custom_layer(ncnn::layer_to_index("Softmax"), MySoftmax_layer_creator);
+        squeezenet.register_custom_layer(ncnn::layer_to_index("Convolution"), MyConvolution_layer_creator, MyConvolution_layer_destroyer);
         param_data = read_file_content(MODEL_DIR "/squeezenet_v1.1.param.bin");
         model_data = read_file_content(MODEL_DIR "/squeezenet_v1.1.bin");
         squeezenet.load_param((const unsigned char*)param_data);
@@ -365,7 +413,7 @@ static int test_squeezenet_overwrite_softmax(const ncnn::Option& opt, int load_m
         cls_scores[j] = out[j];
     }
 
-    return cls_scores[123] == 0.5f && cls_scores[456] == 0.1f ? 0 : -1;
+    return check_top2(cls_scores, epsilon);
 }
 
 int main()
