@@ -2025,7 +2025,26 @@ void Net::clear()
         }
         else
         {
-            delete layer;
+            // check overwrite builtin layer destroyer
+            int index = -1;
+            const size_t overwrite_builtin_layer_registry_entry_count = d->overwrite_builtin_layer_registry.size();
+            for (size_t i = 0; i < overwrite_builtin_layer_registry_entry_count; i++)
+            {
+                if (d->overwrite_builtin_layer_registry[i].typeindex == layer->typeindex)
+                {
+                    index = i;
+                    break;
+                }
+            }
+
+            if (index != -1 && d->overwrite_builtin_layer_registry[index].destroyer)
+            {
+                d->overwrite_builtin_layer_registry[index].destroyer(layer, d->overwrite_builtin_layer_registry[index].userdata);
+            }
+            else
+            {
+                delete layer;
+            }
         }
     }
     d->layers.clear();
