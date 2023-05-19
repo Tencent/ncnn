@@ -365,7 +365,7 @@ static int get_hw_capability(const char* cap)
 #if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
 static inline void x86_cpuid(int level, unsigned int out[4])
 {
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) && !defined(__clang__)
     __cpuid((int*)out, level);
 #elif defined(__clang__) || defined(__GNUC__)
     __get_cpuid(level, out, out + 1, out + 2, out + 3);
