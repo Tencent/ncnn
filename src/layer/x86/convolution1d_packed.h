@@ -999,6 +999,12 @@ static void convolution1d_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
     {
         const int p = pp * 16;
 
+        // shadowed variable for less openmp task args
+        const int elempack = bottom_blob.elempack;
+        const int inh = bottom_blob.h * elempack;
+        const int outw = top_blob.w;
+        const int out_elempack = top_blob.elempack;
+
         float* outptr = top_blob.row(p / out_elempack);
 
         for (int j = 0; j < outw; j++)
@@ -1423,6 +1429,12 @@ static void convolution1d_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
     {
         const int p = remain_outh_start + pp * 8;
 
+        // shadowed variable for less openmp task args
+        const int elempack = bottom_blob.elempack;
+        const int inh = bottom_blob.h * elempack;
+        const int outw = top_blob.w;
+        const int out_elempack = top_blob.elempack;
+
         float* outptr = top_blob.row(p / out_elempack);
 
         for (int j = 0; j < outw; j++)
@@ -1837,6 +1849,12 @@ static void convolution1d_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
     {
         const int p = remain_outh_start + pp * 4;
 
+        // shadowed variable for less openmp task args
+        const int elempack = bottom_blob.elempack;
+        const int inh = bottom_blob.h * elempack;
+        const int outw = top_blob.w;
+        const int out_elempack = top_blob.elempack;
+
         float* outptr = top_blob.row(p / out_elempack);
 
         for (int j = 0; j < outw; j++)
@@ -2244,6 +2262,11 @@ static void convolution1d_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
     for (int pp = 0; pp < nn_outh; pp++)
     {
         const int p = remain_outh_start + pp * 2;
+
+        // shadowed variable for less openmp task args
+        const int elempack = bottom_blob.elempack;
+        const int inh = bottom_blob.h * elempack;
+        const int outw = top_blob.w;
 
         float* outptr0 = top_blob.row(p);
         float* outptr1 = top_blob.row(p + 1);

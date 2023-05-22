@@ -6897,6 +6897,11 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
     {
         const int i = ppi * TILE_M;
 
+        // shadowed variable for less openmp task args
+        const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
+        const int K = transA ? (A.dims == 3 ? A.c : A.h) * A.elempack : A.w;
+        const int N = transB ? (B.dims == 3 ? B.c : B.h) * B.elempack : B.w;
+
         const int max_ii = std::min((M - i), TILE_M);
 
         Mat topT_tile;
@@ -7004,6 +7009,9 @@ static int gemm_AT_x86(const Mat& AT, const Mat& B, const Mat& C, Mat& top_blob,
     {
         const int i = ppi * TILE_M;
 
+        // shadowed variable for less openmp task args
+        const int N = transB ? (B.dims == 3 ? B.c : B.h) * B.elempack : B.w;
+
         const int max_ii = std::min((M - i), TILE_M);
 
         Mat topT_tile;
@@ -7070,6 +7078,9 @@ static int gemm_BT_x86(const Mat& A, const Mat& BT, const Mat& C, Mat& top_blob,
     for (int ppi = 0; ppi < nn_M; ppi++)
     {
         const int i = ppi * TILE_M;
+
+        // shadowed variable for less openmp task args
+        const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
 
         const int max_ii = std::min((M - i), TILE_M);
 
