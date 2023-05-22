@@ -67,9 +67,12 @@ pnnx.Output             output      1 0 out
         std::vector<float> v_bias(embed_dim);
         {
             // qkv - embed_dim - embed_dim
-            const float* wptr = (const float*)captured_attrs.at("op_0.in_proj_weight").data.data();
+            auto w = captured_attrs.at("op_0.in_proj_weight").get_float32_data();
             // qkv - embed_dim
-            const float* bptr = (const float*)captured_attrs.at("op_0.in_proj_bias").data.data();
+            auto b = captured_attrs.at("op_0.in_proj_bias").get_float32_data();
+
+            const float* wptr = (const float*)w.data();
+            const float* bptr = (const float*)b.data();
 
             {
                 memcpy(q_weight.data(), wptr, embed_dim * embed_dim * sizeof(float));
@@ -235,7 +238,9 @@ pnnx.Output             output      1 0 out
         std::vector<float> v_bias(embed_dim);
         {
             // qkv - embed_dim
-            const float* bptr = (const float*)captured_attrs.at("op_0.in_proj_bias").data.data();
+            auto b = captured_attrs.at("op_0.in_proj_bias").get_float32_data();
+
+            const float* bptr = (const float*)b.data();
 
             {
                 memcpy(q_bias.data(), bptr, embed_dim * sizeof(float));
@@ -264,7 +269,9 @@ pnnx.Output             output      1 0 out
             std::vector<float> v_weight(embed_dim * vdim);
             {
                 // qkv - embed_dim - embed_dim
-                const float* wptr = (const float*)captured_attrs.at("op_0.in_proj_weight").data.data();
+                auto w = captured_attrs.at("op_0.in_proj_weight").get_float32_data();
+
+                const float* wptr = (const float*)w.data();
 
                 {
                     memcpy(q_weight.data(), wptr, embed_dim * embed_dim * sizeof(float));

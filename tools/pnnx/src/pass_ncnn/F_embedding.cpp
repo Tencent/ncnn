@@ -54,7 +54,7 @@ pnnx.Output             output      1 0 out
         op->params["0"] = weight.shape[1];
         op->params["1"] = weight.shape[0];
         op->params["2"] = 0;
-        op->params["3"] = (int)(weight.data.size() / sizeof(float));
+        op->params["3"] = weight.elemcount();
 
         op->attrs["0"] = Attribute();
         op->attrs["0"].data = {0, 0, 0, 0};
