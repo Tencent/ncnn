@@ -12,14 +12,22 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+#include "benchmark.h"
+
+#if (__cplusplus >= 201103L || (defined(_MSVC_LANG) && _MSVC_LANG >= 201103L)) && !defined(__riscv) && !NCNN_SIMPLESTL
+#include <chrono>
+#include <thread>
+#include <numeric>
+#include <algorithm>
+#else
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
-#else // _WIN32
-#include <sys/time.h>
-#endif // _WIN32
-
-#include "benchmark.h"
+#else                 // _WIN32
+#include <sys/time.h> //gettimeofday()
+#include <unistd.h>   // sleep()
+#endif                // _WIN32
+#endif
 
 #if NCNN_BENCHMARK
 #include "layer/convolution.h"
@@ -34,6 +42,11 @@ namespace ncnn {
 
 double get_current_time()
 {
+#if (__cplusplus >= 201103L || (defined(_MSVC_LANG) && _MSVC_LANG >= 201103L)) && !defined(__riscv) && !NCNN_SIMPLESTL
+    auto now = std::chrono::high_resolution_clock::now();
+    auto usec = std::chrono::duration_cast<std::chrono::microseconds>(now.time_since_epoch());
+    return usec.count() / 1000.0;
+#else
 #ifdef _WIN32
     LARGE_INTEGER freq;
     LARGE_INTEGER pc;
@@ -47,6 +60,27 @@ double get_current_time()
 
     return tv.tv_sec * 1000.0 + tv.tv_usec / 1000.0;
 #endif // _WIN32
+#endif
+}
+
+void sleep(unsigned long long int milliseconds)
+{
+#if (__cplusplus >= 201103L || (defined(_MSVC_LANG) && _MSVC_LANG >= 201103L)) && !defined(__riscv) && !NCNN_SIMPLESTL
+    std::this_thread::sleep_for(std::chrono::milliseconds(milliseconds));
+#else
+#ifdef _WIN32
+    Sleep(milliseconds);
+#elif defined(__unix__) || defined(__APPLE__)
+    sleep(milliseconds * 0.001);
+#elif _POSIX_TIMERS
+    struct timespec ts;
+    ts.tv_sec = milliseconds * 0.001;
+    ts.tv_nsec = 0;
+    nanosleep(&ts, &ts);
+#else
+    // TODO How to handle it ?
+#endif
+#endif
 }
 
 #if NCNN_BENCHMARK

@@ -25,13 +25,26 @@ static int test_gelu(const ncnn::Mat& a, bool fast_gelu)
     int ret = test_layer<ncnn::GELU>("GELU", pd, weights, a);
     if (ret != 0)
     {
-        fprintf(stderr, "test_gelu failed a.dims=%d a=(%d %d %d) fast_gelu=%s\n", a.dims, a.w, a.h, a.c, fast_gelu ? "true" : "false");
+        fprintf(stderr, "test_gelu failed a.dims=%d a=(%d %d %d %d) fast_gelu=%s\n", a.dims, a.w, a.h, a.d, a.c, fast_gelu ? "true" : "false");
     }
 
     return ret;
 }
 
 static int test_gelu_0()
+{
+    return 0
+           || test_gelu(RandomMat(6, 7, 9, 32), false)
+           || test_gelu(RandomMat(6, 7, 9, 32), true)
+           || test_gelu(RandomMat(5, 6, 7, 24), false)
+           || test_gelu(RandomMat(5, 6, 7, 24), true)
+           || test_gelu(RandomMat(7, 8, 9, 12), false)
+           || test_gelu(RandomMat(7, 8, 9, 12), true)
+           || test_gelu(RandomMat(3, 4, 5, 13), false)
+           || test_gelu(RandomMat(3, 4, 5, 13), true);
+}
+
+static int test_gelu_1()
 {
     return 0
            || test_gelu(RandomMat(9, 7, 32), false)
@@ -44,7 +57,7 @@ static int test_gelu_0()
            || test_gelu(RandomMat(3, 5, 13), true);
 }
 
-static int test_gelu_1()
+static int test_gelu_2()
 {
     return 0
            || test_gelu(RandomMat(13, 32), false)
@@ -57,7 +70,7 @@ static int test_gelu_1()
            || test_gelu(RandomMat(19, 15), true);
 }
 
-static int test_gelu_2()
+static int test_gelu_3()
 {
     return 0
            || test_gelu(RandomMat(128), false)
@@ -77,5 +90,6 @@ int main()
     return 0
            || test_gelu_0()
            || test_gelu_1()
-           || test_gelu_2();
+           || test_gelu_2()
+           || test_gelu_3();
 }

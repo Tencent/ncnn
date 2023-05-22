@@ -115,7 +115,7 @@ int InnerProduct::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
     size_t elemsize = bottom_blob.elemsize;
     int size = w * h;
 
-    if (bottom_blob.dims == 2 && w == num_input && h > 1)
+    if (bottom_blob.dims == 2 && w == num_input)
     {
         // gemm
         top_blob.create(num_output, h, elemsize, opt.blob_allocator);
@@ -201,7 +201,7 @@ int InnerProduct::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opti
         quantize_to_int8(bottom_blob, bottom_blob_int8, bottom_blob_int8_scales, opt_g);
     }
 
-    if (bottom_blob.dims == 2 && w == num_input && h > 1)
+    if (bottom_blob.dims == 2 && w == num_input)
     {
         // gemm
         top_blob.create(num_output, h, 4u, opt.blob_allocator);

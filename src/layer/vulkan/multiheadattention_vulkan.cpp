@@ -419,6 +419,20 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkMat>& bottom_blobs, s
 
     qk_softmax->forward_inplace(qk_cross, cmd, opt);
 
+    if (vkdev->info.vendor_id() == 0x10de)
+    {
+        // FIXME softmax produces nan result on nvidia (about 20% chance)
+        // memory barrier seems to be not enough here
+        // device copy-to and copy-back is better than queue submit anyway  --- nihui
+
+        // cmd.submit_and_wait();
+        // cmd.reset();
+
+        VkImageMat qk_cross2;
+        cmd.record_buffer_to_image(qk_cross, qk_cross2, opt);
+        cmd.record_image_to_buffer(qk_cross2, qk_cross, opt);
+    }
+
     VkMat v_affine;
     v_gemm->forward(v_blob, v_affine, cmd, opt);
 

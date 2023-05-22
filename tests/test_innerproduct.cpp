@@ -179,6 +179,8 @@ static int test_innerproduct_gemm(const ncnn::Mat& a, int outch, int bias)
 static int test_innerproduct_4()
 {
     return 0
+           || test_innerproduct_gemm(RandomMat(1, 1), 1, 1)
+           || test_innerproduct_gemm(RandomMat(48, 1), 11, 1)
            || test_innerproduct_gemm(RandomMat(1, 5), 1, 1)
            || test_innerproduct_gemm(RandomMat(3, 2), 2, 0)
            || test_innerproduct_gemm(RandomMat(9, 8), 7, 1)

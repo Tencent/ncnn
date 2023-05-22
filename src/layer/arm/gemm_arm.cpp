@@ -33,7 +33,7 @@ Gemm_arm::Gemm_arm()
 {
 #if __ARM_NEON
     support_packing = true;
-#if NCNN_VFPV4 || __aarch64__
+#if NCNN_VFPV4
     support_fp16_storage = cpu_support_arm_vfpv4();
 #endif
 #endif // __ARM_NEON
@@ -3662,7 +3662,11 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
 static void get_optimal_tile_mnk(int M, int N, int K, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int& TILE_M, int& TILE_N, int& TILE_K, int nT)
 {
     // resolve optimal tile size from cache size
-    size_t l2_cache_size = get_cpu_level2_cache_size();
+    const size_t l2_cache_size = get_cpu_level2_cache_size();
+
+    if (nT == 0)
+        nT = get_physical_big_cpu_count();
+
     int tile_size = (int)sqrtf((float)l2_cache_size / 3 / sizeof(float));
 
 #if __aarch64__
@@ -4145,7 +4149,7 @@ int Gemm_arm::create_pipeline(const Option& opt)
     }
 #endif
 
-#if NCNN_VFPV4 || __aarch64__
+#if NCNN_VFPV4
     if (support_fp16_storage && opt.use_fp16_storage)
     {
         return create_pipeline_fp16s(opt);
@@ -4299,7 +4303,7 @@ int Gemm_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
         return forward_bf16s(bottom_blobs, top_blobs, opt);
 #endif
 
-#if NCNN_VFPV4 || __aarch64__
+#if NCNN_VFPV4
     if (support_fp16_storage && opt.use_fp16_storage && elembits == 16)
     {
         return forward_fp16s(bottom_blobs, top_blobs, opt);

@@ -5950,6 +5950,9 @@ static void convolution_im2col_gemm_get_optimal_tile_mnk(int M, int N, int K, in
     // resolve optimal tile size from cache size
     const int l2_cache_size_fp32 = (int)(get_cpu_level2_cache_size() / sizeof(float));
 
+    if (nT == 0)
+        nT = get_physical_big_cpu_count();
+
     // solve K
     {
         // try not to split K

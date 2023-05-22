@@ -16,13 +16,6 @@
 #include <stdio.h>
 #include <string.h>
 
-#ifdef _WIN32
-#include <algorithm>
-#include <windows.h> // Sleep()
-#else
-#include <unistd.h> // sleep()
-#endif
-
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #endif
@@ -106,18 +99,7 @@ void benchmark(const char* comment, const ncnn::Mat& _in, const ncnn::Option& op
     if (g_enable_cooling_down)
     {
         // sleep 10 seconds for cooling down SOC  :(
-#ifdef _WIN32
-        Sleep(10 * 1000);
-#elif defined(__unix__) || defined(__APPLE__)
-        sleep(10);
-#elif _POSIX_TIMERS
-        struct timespec ts;
-        ts.tv_sec = 10;
-        ts.tv_nsec = 0;
-        nanosleep(&ts, &ts);
-#else
-        // TODO How to handle it ?
-#endif
+        ncnn::sleep(10 * 1000);
     }
 
     ncnn::Mat out;

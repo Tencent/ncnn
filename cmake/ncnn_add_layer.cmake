@@ -228,7 +228,7 @@ macro(ncnn_add_layer class)
     endif()
 
     if(NCNN_TARGET_ARCH STREQUAL "arm" AND CMAKE_SIZEOF_VOID_P EQUAL 8)
-        if(NOT (CMAKE_CXX_COMPILER_ID MATCHES "MSVC" OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_SIMULATE_ID MATCHES "MSVC" AND CMAKE_CXX_COMPILER_FRONTEND_VARIANT MATCHES "MSVC")))
+        if(NCNN_VFPV4)
             ncnn_add_arch_opt_source(${class} vfpv4 " ")
         endif()
         if(NCNN_ARM82)

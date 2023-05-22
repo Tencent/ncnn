@@ -170,6 +170,9 @@ if((IOS AND CMAKE_OSX_ARCHITECTURES MATCHES "arm")
     endif()
 
     if(CMAKE_SIZEOF_VOID_P EQUAL 8 AND NOT (CMAKE_CXX_COMPILER_ID MATCHES "MSVC" OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_SIMULATE_ID MATCHES "MSVC" AND CMAKE_CXX_COMPILER_FRONTEND_VARIANT MATCHES "MSVC")))
+        set(CMAKE_REQUIRED_FLAGS "-march=armv8-a")
+        check_cxx_source_compiles("#include <arm_neon.h>\nint main() { float32x4_t _a; float16x4_t _s = vcvt_f16_f32(_a); return 0; }" NCNN_COMPILER_SUPPORT_ARM_VFPV4)
+
         set(CMAKE_REQUIRED_FLAGS "-march=armv8.2-a+fp16")
         check_cxx_source_compiles("#include <arm_neon.h>\nint main() { float16x8_t _s, _a, _b; _s = vfmaq_f16(_s, _a, _b); return 0; }" NCNN_COMPILER_SUPPORT_ARM82_FP16)
 
@@ -201,6 +204,12 @@ if((IOS AND CMAKE_OSX_ARCHITECTURES MATCHES "arm")
         check_cxx_source_compiles("#include <arm_sve.h>\nint main() { svfloat32_t _s, _a, _b; _s = svmmla_f32(_s, _a, _b); return 0; }" NCNN_COMPILER_SUPPORT_ARM86_SVEF32MM)
 
         unset(CMAKE_REQUIRED_FLAGS)
+
+        if(NCNN_COMPILER_SUPPORT_ARM_VFPV4)
+            option(NCNN_VFPV4 "optimize aarch64 platform with vfpv4" ON)
+        else()
+            message(WARNING "The compiler does not support arm vfpv4. NCNN_VFPV4 will be OFF.")
+        endif()
 
         if(NCNN_COMPILER_SUPPORT_ARM82_FP16)
             option(NCNN_ARM82 "optimize aarch64 platform with armv8.2 fp16" ON)

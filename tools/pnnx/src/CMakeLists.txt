@@ -160,6 +160,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/F_relu.cpp
     pass_level2/F_relu6.cpp
     pass_level2/F_rrelu.cpp
+    pass_level2/F_scaled_dot_product_attention.cpp
     pass_level2/F_selu.cpp
     pass_level2/F_sigmoid.cpp
     pass_level2/F_silu.cpp
@@ -246,6 +247,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_split.cpp
     pass_level2/torch_squeeze.cpp
     pass_level2/torch_stack.cpp
+    pass_level2/torch_std.cpp
     pass_level2/torch_sum.cpp
     pass_level2/torch_permute.cpp
     pass_level2/torch_tensor_split.cpp
