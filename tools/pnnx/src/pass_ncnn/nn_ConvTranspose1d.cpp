@@ -50,7 +50,7 @@ pnnx.Output             output      1 0 out
         op->params["4"] = captured_params.at("padding").ai[0];
         op->params["18"] = captured_params.at("output_padding").ai[0];
         op->params["5"] = captured_params.at("bias").b ? 1 : 0;
-        op->params["6"] = (int)(captured_attrs.at("op_0.weight").data.size() / sizeof(float));
+        op->params["6"] = captured_attrs.at("op_0.weight").elemcount();
 
         // transpose inch-outch-kw to outch-inch-kw
         const int inch = captured_params.at("in_channels").i;
@@ -58,7 +58,7 @@ pnnx.Output             output      1 0 out
         const int kw = captured_params.at("kernel_size").ai[0];
         std::vector<float> new_weight;
         {
-            const float* w = (const float*)captured_attrs.at("op_0.weight").data.data();
+            auto w = captured_attrs.at("op_0.weight").get_float32_data();
 
             new_weight.resize(outch * inch * kw);
             float* w2 = (float*)new_weight.data();
@@ -116,7 +116,7 @@ pnnx.Output             output      1 0 out
         op->params["4"] = captured_params.at("padding").ai[0];
         op->params["18"] = captured_params.at("output_padding").ai[0];
         op->params["5"] = captured_params.at("bias").b ? 1 : 0;
-        op->params["6"] = (int)(captured_attrs.at("op_0.weight").data.size() / sizeof(float));
+        op->params["6"] = captured_attrs.at("op_0.weight").elemcount();
         op->params["7"] = captured_params.at("groups");
 
         // transpose group-inch/group-outch/group-kw to group-outch/group-inch/group-kw
@@ -126,7 +126,7 @@ pnnx.Output             output      1 0 out
         const int kw = captured_params.at("kernel_size").ai[0];
         std::vector<float> new_weight;
         {
-            const float* w = (const float*)captured_attrs.at("op_0.weight").data.data();
+            auto w = captured_attrs.at("op_0.weight").get_float32_data();
 
             new_weight.resize(outch / groups * inch * kw);
             float* w2 = (float*)new_weight.data();
@@ -137,7 +137,7 @@ pnnx.Output             output      1 0 out
             {
                 // reorder weight from inch-outch to outch-inch
                 float* wg2 = w2 + g * outch_g * inch_g * kw;
-                const float* wg = w + g * inch_g * outch_g * kw;
+                const float* wg = (const float*)w.data() + g * inch_g * outch_g * kw;
                 for (int i = 0; i < outch_g; i++)
                 {
                     for (int j = 0; j < inch_g; j++)

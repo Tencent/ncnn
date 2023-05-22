@@ -132,11 +132,9 @@ pnnx.Output             output      1 0 out
             {
                 // init bias as zero
                 op->attrs["in_proj_bias"] = Attribute();
-                op->attrs["in_proj_bias"].type = 1;
+                op->attrs["in_proj_bias"].type = op->attrs["in_proj_weight"].type;
                 op->attrs["in_proj_bias"].shape = {embed_dim * 3};
-
-                op->attrs["in_proj_bias"].data.resize(embed_dim * 3 * sizeof(float));
-                memset(op->attrs["in_proj_bias"].data.data(), 0, embed_dim * 3 * sizeof(float));
+                op->attrs["in_proj_bias"].set_float32_data(std::vector<float>(embed_dim * 3, 0.f));
             }
         }
 
@@ -151,11 +149,9 @@ pnnx.Output             output      1 0 out
             {
                 // init bias as zero
                 op->attrs["out_proj.bias"] = Attribute();
-                op->attrs["out_proj.bias"].type = 1;
+                op->attrs["out_proj.bias"].type = op->attrs["out_proj.weight"].type;
                 op->attrs["out_proj.bias"].shape = {embed_dim};
-
-                op->attrs["out_proj.bias"].data.resize(embed_dim * sizeof(float));
-                memset(op->attrs["out_proj.bias"].data.data(), 0, embed_dim * sizeof(float));
+                op->attrs["out_proj.bias"].set_float32_data(std::vector<float>(embed_dim, 0.f));
             }
         }
     }
@@ -337,36 +333,23 @@ pnnx.Output             output      1 0 out
         op->params["add_bias_kv"] = false;
         op->params["bias"] = bias;
 
-        op->attrs["in_proj_weight"] = Attribute();
-        op->attrs["in_proj_weight"].type = 1;
-        op->attrs["in_proj_weight"].shape = {embed_dim * 3, embed_dim};
-        op->attrs["in_proj_weight"].data.resize(embed_dim * 3 * embed_dim * sizeof(float));
-
-        // combine qkv weight
-        {
-            float* in_proj_weight_ptr = (float*)op->attrs["in_proj_weight"].data.data();
-            memcpy(in_proj_weight_ptr, captured_attrs.at("op_0.weight").data.data(), embed_dim * embed_dim * sizeof(float));
-            in_proj_weight_ptr += embed_dim * embed_dim;
-            memcpy(in_proj_weight_ptr, captured_attrs.at("op_1.weight").data.data(), embed_dim * embed_dim * sizeof(float));
-            in_proj_weight_ptr += embed_dim * embed_dim;
-            memcpy(in_proj_weight_ptr, captured_attrs.at("op_2.weight").data.data(), embed_dim * embed_dim * sizeof(float));
-        }
+        op->attrs["in_proj_weight"] = captured_attrs.at("op_0.weight") + captured_attrs.at("op_1.weight") + captured_attrs.at("op_2.weight");
 
         op->attrs["out_proj.weight"] = captured_attrs.at("out_proj.weight");
 
         if (bias)
         {
             op->attrs["in_proj_bias"] = Attribute();
-            op->attrs["in_proj_bias"].type = 1;
+            op->attrs["in_proj_bias"].type = op->attrs["in_proj_weight"].type;
             op->attrs["in_proj_bias"].shape = {embed_dim * 3};
-            op->attrs["in_proj_bias"].data.resize(embed_dim * 3 * sizeof(float));
-
             // combine qkv bias
+            std::vector<float> in_proj_bias(embed_dim * 3);
             {
-                float* in_proj_bias_ptr = (float*)op->attrs["in_proj_bias"].data.data();
+                float* in_proj_bias_ptr = (float*)in_proj_bias.data();
                 if (q_bias)
                 {
-                    memcpy(in_proj_bias_ptr, captured_attrs.at("op_0.bias").data.data(), embed_dim * sizeof(float));
+                    auto qb = captured_attrs.at("op_0.bias").get_float32_data();
+                    memcpy(in_proj_bias_ptr, (const void*)qb.data(), embed_dim * sizeof(float));
                 }
                 else
                 {
@@ -375,7 +358,8 @@ pnnx.Output             output      1 0 out
                 in_proj_bias_ptr += embed_dim;
                 if (k_bias)
                 {
-                    memcpy(in_proj_bias_ptr, captured_attrs.at("op_1.bias").data.data(), embed_dim * sizeof(float));
+                    auto kb = captured_attrs.at("op_1.bias").get_float32_data();
+                    memcpy(in_proj_bias_ptr, (const void*)kb.data(), embed_dim * sizeof(float));
                 }
                 else
                 {
@@ -384,13 +368,15 @@ pnnx.Output             output      1 0 out
                 in_proj_bias_ptr += embed_dim;
                 if (v_bias)
                 {
-                    memcpy(in_proj_bias_ptr, captured_attrs.at("op_2.bias").data.data(), embed_dim * sizeof(float));
+                    auto vb = captured_attrs.at("op_2.bias").get_float32_data();
+                    memcpy(in_proj_bias_ptr, (const void*)vb.data(), embed_dim * sizeof(float));
                 }
                 else
                 {
                     memset(in_proj_bias_ptr, 0, embed_dim * sizeof(float));
                 }
             }
+            op->attrs["in_proj_bias"].set_float32_data(in_proj_bias);
 
             if (out_bias)
             {
@@ -400,11 +386,9 @@ pnnx.Output             output      1 0 out
             {
                 // init bias as zero
                 op->attrs["out_proj.bias"] = Attribute();
-                op->attrs["out_proj.bias"].type = 1;
+                op->attrs["out_proj.bias"].type = op->attrs["out_proj.weight"].type;
                 op->attrs["out_proj.bias"].shape = {embed_dim};
-
-                op->attrs["out_proj.bias"].data.resize(embed_dim * sizeof(float));
-                memset(op->attrs["out_proj.bias"].data.data(), 0, embed_dim * sizeof(float));
+                op->attrs["out_proj.bias"].set_float32_data(std::vector<float>(embed_dim, 0.f));
             }
         }
     }
@@ -536,16 +520,16 @@ pnnx.Output             output      1 0 out
         if (bias)
         {
             op->attrs["in_proj_bias"] = Attribute();
-            op->attrs["in_proj_bias"].type = 1;
+            op->attrs["in_proj_bias"].type = op->attrs["q_proj_weight"].type;
             op->attrs["in_proj_bias"].shape = {embed_dim * 3};
-            op->attrs["in_proj_bias"].data.resize(embed_dim * 3 * sizeof(float));
-
             // combine qkv bias
+            std::vector<float> in_proj_bias(embed_dim * 3);
             {
-                float* in_proj_bias_ptr = (float*)op->attrs["in_proj_bias"].data.data();
+                float* in_proj_bias_ptr = (float*)in_proj_bias.data();
                 if (q_bias)
                 {
-                    memcpy(in_proj_bias_ptr, captured_attrs.at("op_0.bias").data.data(), embed_dim * sizeof(float));
+                    auto qb = captured_attrs.at("op_0.bias").get_float32_data();
+                    memcpy(in_proj_bias_ptr, (const void*)qb.data(), embed_dim * sizeof(float));
                 }
                 else
                 {
@@ -554,7 +538,8 @@ pnnx.Output             output      1 0 out
                 in_proj_bias_ptr += embed_dim;
                 if (k_bias)
                 {
-                    memcpy(in_proj_bias_ptr, captured_attrs.at("op_1.bias").data.data(), embed_dim * sizeof(float));
+                    auto kb = captured_attrs.at("op_1.bias").get_float32_data();
+                    memcpy(in_proj_bias_ptr, (const void*)kb.data(), embed_dim * sizeof(float));
                 }
                 else
                 {
@@ -563,13 +548,15 @@ pnnx.Output             output      1 0 out
                 in_proj_bias_ptr += embed_dim;
                 if (v_bias)
                 {
-                    memcpy(in_proj_bias_ptr, captured_attrs.at("op_2.bias").data.data(), embed_dim * sizeof(float));
+                    auto vb = captured_attrs.at("op_2.bias").get_float32_data();
+                    memcpy(in_proj_bias_ptr, (const void*)vb.data(), embed_dim * sizeof(float));
                 }
                 else
                 {
                     memset(in_proj_bias_ptr, 0, embed_dim * sizeof(float));
                 }
             }
+            op->attrs["in_proj_bias"].set_float32_data(in_proj_bias);
 
             if (out_bias)
             {
@@ -579,11 +566,9 @@ pnnx.Output             output      1 0 out
             {
                 // init bias as zero
                 op->attrs["out_proj.bias"] = Attribute();
-                op->attrs["out_proj.bias"].type = 1;
+                op->attrs["out_proj.bias"].type = op->attrs["out_proj.weight"].type;
                 op->attrs["out_proj.bias"].shape = {embed_dim};
-
-                op->attrs["out_proj.bias"].data.resize(embed_dim * sizeof(float));
-                memset(op->attrs["out_proj.bias"].data.data(), 0, embed_dim * sizeof(float));
+                op->attrs["out_proj.bias"].set_float32_data(std::vector<float>(embed_dim, 0.f));
             }
         }
     }
@@ -1284,14 +1269,222 @@ pnnx.Output             output      1 0 out
         if (attn_mask->consumers.size() > 1 || attn_mask->producer->type != "pnnx.Attribute")
             return false;
 
+        return true;
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    {
+        fuse_multiheadattention_pass_sameqkv::write(op, captured_params, captured_attrs);
+
+        Operand* attn_mask = op->inputs[1];
         Operator* op_attr = attn_mask->producer;
 
         // hack attn_mask shape
         attn_mask->shape = std::vector<int>{attn_mask->shape[2], attn_mask->shape[3]};
         const std::string key = op_attr->attrs.begin()->first;
         op_attr->attrs[key].shape = attn_mask->shape;
+    }
+};
+
+class fuse_multiheadattention_pass_17 : public fuse_multiheadattention_pass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+17 16
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 attn_mask
+nn.Linear               op_0        1 1 input 8 bias=%qkv_bias in_features=%embed_dim out_features=%qkv_out_features @bias @weight
+Tensor.reshape          op_1        1 1 8 9 shape=%shape
+torch.permute           op_2        1 1 9 10 dims=(2,0,3,1,4)
+torch.unbind            op_3        1 3 10 11 12 13 dim=0
+pnnx.Expression         op_4        1 1 11 14 expr=%expr
+torch.transpose         op_5        1 1 12 15 dim0=-2 dim1=-1
+torch.matmul            op_6        2 1 14 15 16
+pnnx.Expression         op_7        2 1 16 attn_mask 18 expr=%expr2
+F.softmax               op_8        1 1 18 19 dim=-1
+torch.matmul            op_9        2 1 19 13 20
+torch.transpose         op_10       1 1 20 21 dim0=1 dim1=2
+Tensor.reshape          op_11       1 1 21 22 shape=%shape2
+nn.Linear               out_proj    1 1 22 out bias=%out_proj_bias in_features=%embed_dim out_features=%embed_dim @bias @weight
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    bool match(const std::map<std::string, Parameter>& captured_params) const
+    {
+        bool matched = fuse_multiheadattention_pass::match(captured_params);
+        if (!matched)
+            return false;
+
+        if (captured_params.at("expr2").s != "add(@0,@1)")
+            return false;
 
         return true;
+    }
+
+    bool match(const std::map<std::string, const Operator*>& matched_operators) const
+    {
+        const Operator* op_7 = matched_operators.at("op_7");
+
+        // support constant attention mask only atm
+        Operand* attn_mask = op_7->inputs[1];
+        if (attn_mask->consumers.size() > 1 || attn_mask->producer->type != "pnnx.Attribute")
+            return false;
+
+        return true;
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    {
+        fuse_multiheadattention_pass::write(op, captured_params, captured_attrs);
+
+        Operand* attn_mask = op->inputs[1];
+        Operator* op_attr = attn_mask->producer;
+
+        int batch = op->inputs[0]->shape[0];
+
+        // hack attn_mask shape
+        attn_mask->shape = std::vector<int>{batch * attn_mask->shape[1], attn_mask->shape[2], attn_mask->shape[3]};
+        const std::string key = op_attr->attrs.begin()->first;
+        op_attr->attrs[key].shape = attn_mask->shape;
+
+        // hack attn_mask value
+        std::vector<char>& data = op_attr->attrs[key].data;
+        size_t len = data.size();
+        data.resize(len * batch);
+        for (int i = 1; i < batch; i++)
+        {
+            memcpy(&data[len * i], &data[0], len);
+        }
+    }
+};
+
+class fuse_multiheadattention_pass_18 : public fuse_multiheadattention_pass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+20 19
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 attn_mask
+nn.Linear               op_0        1 1 input 25 bias=%qkv_bias in_features=%embed_dim out_features=%qkv_out_features @bias @weight
+Tensor.reshape          op_1        1 1 25 26 shape=%shape
+torch.permute           op_2        1 1 26 27 dims=(2,0,3,1,4)
+torch.unbind            op_3        1 3 27 28 29 30 dim=0
+pnnx.Expression         op_4        1 1 28 31 expr=%expr
+torch.transpose         op_5        1 1 29 32 dim0=-2 dim1=-1
+torch.matmul            op_6        2 1 31 32 33
+pnnx.Expression         op_7        2 1 33 attn_mask 35 expr=%expr2
+Tensor.view             op_8        1 1 35 36 shape=%shapep
+pnnx.Attribute          op_9        0 1 37 @mask2
+pnnx.Expression         op_10       2 1 36 37 38 expr=%expr2
+Tensor.view             op_11       1 1 38 39 shape=%shapeq
+F.softmax               op_12       1 1 39 40 dim=-1
+torch.matmul            op_13       2 1 40 30 41
+torch.transpose         op_14       1 1 41 42 dim0=1 dim1=2
+Tensor.reshape          op_15       1 1 42 43 shape=%shape2
+nn.Linear               out_proj    1 1 43 out bias=%out_proj_bias in_features=%embed_dim out_features=%embed_dim @bias @weight
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    bool match(const std::map<std::string, Parameter>& captured_params) const
+    {
+        bool matched = fuse_multiheadattention_pass::match(captured_params);
+        if (!matched)
+            return false;
+
+        if (captured_params.at("expr2").s != "add(@0,@1)")
+            return false;
+
+        // (1,64,3,49,49)
+        // (-1,3,49,49)
+        const std::vector<int>& shapep = captured_params.at("shapep").ai;
+        const std::vector<int>& shapeq = captured_params.at("shapeq").ai;
+        if (shapep.size() != 5 || shapeq.size() != 4)
+            return false;
+
+        if (shapep[0] != 1 || (shapep[1] != shapeq[0] && shapeq[0] != -1) || shapep[2] != shapeq[1] || shapep[3] != shapeq[2] || shapep[4] != shapeq[3])
+            return false;
+
+        return true;
+    }
+
+    bool match(const std::map<std::string, const Operator*>& matched_operators) const
+    {
+        const Operator* op_7 = matched_operators.at("op_7");
+
+        // support constant attention mask only atm
+        Operand* attn_mask = op_7->inputs[1];
+        if (attn_mask->consumers.size() > 1 || attn_mask->producer->type != "pnnx.Attribute")
+            return false;
+
+        // @mask2=(1,64,1,49,49)f32
+        if (attn_mask->shape.size() != 5)
+            return false;
+
+        if (attn_mask->shape[0] != 1 || attn_mask->shape[2] != 1)
+            return false;
+
+        return true;
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    {
+        fuse_multiheadattention_pass::write(op, captured_params, captured_attrs);
+
+        int num_heads = captured_params.at("shape").ai[captured_params.at("shape").ai.size() - 2];
+
+        Operand* attn_mask = op->inputs[1];
+        Operator* op_attr = attn_mask->producer;
+
+        // @mask2=(1,64,1,49,49)f32
+        Attribute mask2;
+        for (const auto& x : captured_attrs)
+        {
+            if (x.first.substr(0, 5) == "op_9.")
+                mask2 = x.second;
+        }
+
+        int batch = op->inputs[0]->shape[0];
+
+        // hack attn_mask shape
+        attn_mask->shape = std::vector<int>{batch * attn_mask->shape[1], attn_mask->shape[2], attn_mask->shape[3]};
+        const std::string key = op_attr->attrs.begin()->first;
+        op_attr->attrs[key].shape = attn_mask->shape;
+
+        // hack attn_mask value
+        std::vector<char>& data = op_attr->attrs[key].data;
+        size_t len = data.size();
+        data.resize(len * batch);
+        for (int i = 1; i < batch; i++)
+        {
+            memcpy(&data[len * i], &data[0], len);
+        }
+
+        // add mask2
+        {
+            auto maskdata = op_attr->attrs[key].get_float32_data();
+            const int ls = mask2.shape[3] * mask2.shape[4];
+
+            for (int i = 0; i < batch; i++)
+            {
+                for (int n = 0; n < num_heads; n++)
+                {
+                    float* p = (float*)maskdata.data() + ls * (i * num_heads + n);
+                    const float* p2 = ((float*)mask2.data.data()) + ls * i;
+                    for (int k = 0; k < ls; k++)
+                    {
+                        p[k] += p2[k];
+                    }
+                }
+            }
+
+            op_attr->attrs[key].set_float32_data(maskdata);
+        }
     }
 };
 
@@ -1318,6 +1511,8 @@ void fuse_multiheadattention(Graph& graph)
     fuse_multiheadattention_pass_14 m;
     fuse_multiheadattention_pass_15 n;
     fuse_multiheadattention_pass_16 o;
+    fuse_multiheadattention_pass_17 p;
+    fuse_multiheadattention_pass_18 q;
     int opindex = 0;
 
     pnnx_graph_rewrite(graph, &a, opindex);
@@ -1340,6 +1535,8 @@ void fuse_multiheadattention(Graph& graph)
     pnnx_graph_rewrite(graph, &m, opindex);
     pnnx_graph_rewrite(graph, &n, opindex);
     pnnx_graph_rewrite(graph, &o, opindex);
+    pnnx_graph_rewrite(graph, &p, opindex);
+    pnnx_graph_rewrite(graph, &q, opindex);
 #endif
 }
 

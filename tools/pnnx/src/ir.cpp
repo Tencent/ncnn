@@ -29,6 +29,7 @@
 #endif
 
 #include "storezip.h"
+#include "utils.h"
 
 namespace pnnx {
 
@@ -429,13 +430,7 @@ Attribute::Attribute(const at::Tensor& t)
 
     if (shape.size() > 0)
     {
-        int size = shape[0];
-        for (size_t i = 1; i < shape.size(); i++)
-        {
-            size *= shape[i];
-        }
-
-        data.resize(size * type_to_elemsize(type));
+        data.resize(elemcount() * type_to_elemsize(type));
         memcpy((void*)data.data(), (const void*)t.cpu().contiguous().data_ptr(), data.size());
     }
 }
@@ -448,14 +443,93 @@ Attribute::Attribute(const std::initializer_list<int>& _shape, const std::vector
 
     if (shape.size() > 0)
     {
-        int size = shape[0];
-        for (size_t i = 1; i < shape.size(); i++)
-        {
-            size *= shape[i];
-        }
-
-        data.resize(size * type_to_elemsize(type));
+        data.resize(elemcount() * type_to_elemsize(type));
         memcpy((void*)data.data(), (const void*)t.data(), data.size());
+    }
+}
+
+size_t Attribute::elemsize() const
+{
+    return type_to_elemsize(type);
+}
+
+int Attribute::elemcount() const
+{
+    if (shape.empty())
+        return 0;
+
+    int size = shape[0];
+    for (size_t i = 1; i < shape.size(); i++)
+    {
+        size *= shape[i];
+    }
+
+    return size;
+}
+
+std::vector<float> Attribute::get_float32_data() const
+{
+    std::vector<float> v(elemcount());
+
+    if (type == 1)
+    {
+        memcpy((void*)v.data(), (const void*)data.data(), data.size());
+    }
+    else if (type == 2)
+    {
+        // f64
+        const double* p = (const double*)data.data();
+        for (size_t i = 0; i < v.size(); i++)
+        {
+            v[i] = float(p[i]);
+        }
+    }
+    else if (type == 3)
+    {
+        // f16
+        const unsigned short* p = (const unsigned short*)data.data();
+        for (size_t i = 0; i < v.size(); i++)
+        {
+            v[i] = float16_to_float32(p[i]);
+        }
+    }
+    else
+    {
+        fprintf(stderr, "cannot convert type %d to float32 data\n", type);
+    }
+
+    return v;
+}
+
+void Attribute::set_float32_data(const std::vector<float>& newdata)
+{
+    data.resize(newdata.size() * elemsize());
+
+    if (type == 1)
+    {
+        memcpy((void*)data.data(), (const void*)newdata.data(), data.size());
+    }
+    else if (type == 2)
+    {
+        // f64
+        double* p = (double*)data.data();
+        for (size_t i = 0; i < newdata.size(); i++)
+        {
+            p[i] = newdata[i];
+        }
+    }
+    else if (type == 3)
+    {
+        // f16
+        unsigned short* p = (unsigned short*)data.data();
+        for (size_t i = 0; i < newdata.size(); i++)
+        {
+            p[i] = float32_to_float16(newdata[i]);
+        }
+    }
+    else
+    {
+        fprintf(stderr, "cannot convert float32 data to type %d\n", type);
     }
 }
 

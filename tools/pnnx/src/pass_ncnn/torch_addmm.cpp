@@ -105,7 +105,7 @@ pnnx.Output             output      1 0 out
         const int outch = weight.shape[1];
         std::vector<float> new_weight;
         {
-            const float* w = (const float*)weight.data.data();
+            auto w = weight.get_float32_data();
 
             new_weight.resize(outch * inch);
             float* w2 = (float*)new_weight.data();
@@ -122,7 +122,7 @@ pnnx.Output             output      1 0 out
 
         op->params["0"] = outch;
         op->params["1"] = 1;
-        op->params["2"] = (int)(weight.data.size() / sizeof(float));
+        op->params["2"] = weight.elemcount();
 
         op->attrs["0"] = Attribute();
         op->attrs["0"].data = {0, 0, 0, 0};
