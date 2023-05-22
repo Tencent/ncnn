@@ -25,7 +25,7 @@ public:
     using Base::Base; // Inherit constructors
     ncnn::Mat load(int w, int type) const override
     {
-        PYBIND11_OVERRIDE_PURE(ncnn::Mat, Base, load, w, type);
+        PYBIND11_OVERRIDE(ncnn::Mat, Base, load, w, type);
     }
     //ncnn::Mat load(int w, int h, int type) const override {
     //	PYBIND11_OVERRIDE(ncnn::Mat, Base, load, w, h, type);
