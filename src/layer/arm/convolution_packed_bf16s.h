@@ -550,6 +550,13 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
     {
         const int p = remain_outch_start + pp * 8;
 
+        // shadowed variable for less openmp task args
+        const int elempack = bottom_blob.elempack;
+        const int inch = bottom_blob.c * elempack;
+        const int outw = top_blob.w;
+        const int outh = top_blob.h;
+        const int out_elempack = top_blob.elempack;
+
         unsigned short* outptr = top_blob.channel(p / out_elempack);
 
         for (int i = 0; i < outh; i++)
@@ -787,6 +794,13 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
     {
         const int p = remain_outch_start + pp * 4;
 
+        // shadowed variable for less openmp task args
+        const int elempack = bottom_blob.elempack;
+        const int inch = bottom_blob.c * elempack;
+        const int outw = top_blob.w;
+        const int outh = top_blob.h;
+        const int out_elempack = top_blob.elempack;
+
         unsigned short* outptr = top_blob.channel(p / out_elempack);
 
         for (int i = 0; i < outh; i++)
@@ -992,6 +1006,12 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
     for (int pp = 0; pp < nn_outch; pp++)
     {
         const int p = remain_outch_start + pp * 2;
+
+        // shadowed variable for less openmp task args
+        const int elempack = bottom_blob.elempack;
+        const int inch = bottom_blob.c * elempack;
+        const int outw = top_blob.w;
+        const int outh = top_blob.h;
 
         unsigned short* outptr0 = top_blob.channel(p);
         unsigned short* outptr1 = top_blob.channel(p + 1);
