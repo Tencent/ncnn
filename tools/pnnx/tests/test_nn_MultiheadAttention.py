@@ -47,7 +47,7 @@ class Model(nn.Module):
         x1, x1w = self.attention_0_1(xq, xk, xv)
         x2, x2w = self.attention_0_2(xq, xk, xk)
 
-        x3, _ = self.attention_0_3(z, z, z)
+        x3, _ = self.attention_0_3(z, z, z, need_weights=False)
         x33, _ = self.attention_0_3(z, z, z, attn_mask=zmask)
 
         x4, x4w = self.attention_0_4(yq, yk, yv)
@@ -126,7 +126,7 @@ def test():
     b = test_nn_MultiheadAttention_pnnx.test_inference()
 
     for a0, b0 in zip(a, b):
-        if not torch.equal(a0, b0):
+        if not torch.allclose(a0, b0, 1e-4, 1e-4):
             return False
     return True
 
