@@ -12,14 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#if _MSC_VER
-#define OPT_2
-#elif __clang__
-#define OPT_2 __attribute__((optnone))
-#elif __GNUC__
-#define OPT_2 __attribute__((optimize("2")))
-#endif
-
 template<bool align_corner>
 struct grid_sample_unormalize;
 
@@ -42,7 +34,6 @@ template<>
 struct grid_sample_unormalize</*align_corner*/ false>
 {
 #if __AVX__
-    OPT_2
     __m256 operator()(__m256 length, __m256 coord)
     {
         return _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(coord, _mm256_set1_ps(1)), length, _mm256_set1_ps(1)), _mm256_set1_ps(2));
