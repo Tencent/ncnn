@@ -7077,6 +7077,7 @@ static int gemm_BT_x86(const Mat& A, const Mat& BT, const Mat& C, Mat& top_blob,
 
         // shadowed variable for less openmp task args
         const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
+        const int K = transA ? (A.dims == 3 ? A.c : A.h) * A.elempack : A.w;
 
         const int max_ii = std::min((M - i), TILE_M);
 
