@@ -27,7 +27,6 @@ template<>
 struct grid_sample_unormalize</*align_corner*/ true>
 {
 #if __AVX__
-    OPT_2
     __m256 operator()(__m256 length, __m256 coord)
     {
         return _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(coord, _mm256_set1_ps(1)), _mm256_set1_ps(2)), _mm256_sub_ps(length, _mm256_set1_ps(1)));

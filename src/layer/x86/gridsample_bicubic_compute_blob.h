@@ -90,11 +90,10 @@ void gridsample_2d_bicubic_compute_blob(const Mat& src, const Mat& grid, Mat& of
 
                     __m256 gy_offset = _mm256_mul_ps(gy, _mm256_set1_ps(src.w));
 
-                    volatile float epack = src.elempack;
-                    __m256 v0_offset_f = _mm256_mul_ps(_mm256_add_ps(gy_offset, gx0), _mm256_set1_ps(epack));
-                    __m256 v1_offset_f = _mm256_mul_ps(_mm256_add_ps(gy_offset, gx1), _mm256_set1_ps(epack));
-                    __m256 v2_offset_f = _mm256_mul_ps(_mm256_add_ps(gy_offset, gx2), _mm256_set1_ps(epack));
-                    __m256 v3_offset_f = _mm256_mul_ps(_mm256_add_ps(gy_offset, gx3), _mm256_set1_ps(epack));
+                    __m256 v0_offset_f = _mm256_mul_ps(_mm256_add_ps(gy_offset, gx0), _mm256_set1_ps(src.elempack));
+                    __m256 v1_offset_f = _mm256_mul_ps(_mm256_add_ps(gy_offset, gx1), _mm256_set1_ps(src.elempack));
+                    __m256 v2_offset_f = _mm256_mul_ps(_mm256_add_ps(gy_offset, gx2), _mm256_set1_ps(src.elempack));
+                    __m256 v3_offset_f = _mm256_mul_ps(_mm256_add_ps(gy_offset, gx3), _mm256_set1_ps(src.elempack));
 
                     v0_offset_f = _mm256_blendv_ps(_mm256_set1_ps(-1.0f), v0_offset_f, _mm256_and_ps(x0_in_range, y_in_range));
                     v1_offset_f = _mm256_blendv_ps(_mm256_set1_ps(-1.0f), v1_offset_f, _mm256_and_ps(x1_in_range, y_in_range));

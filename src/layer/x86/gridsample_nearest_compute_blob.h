@@ -56,8 +56,7 @@ void gridsample_2d_nearest_compute_blob(const Mat& src, const Mat& grid, Mat& of
                 __m256 v_in_range = _mm256_and_ps(_mm256_and_ps(_mm256_cmp_ps(gx, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.w), gx, _CMP_GT_OS)),
                                                   _mm256_and_ps(_mm256_cmp_ps(gy, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.h), gy, _CMP_GT_OS)));
 
-                volatile float epack = src.elempack;
-                __m256 offset = _mm256_mul_ps(_mm256_comp_fmadd_ps(gy, _mm256_set1_ps(src.w), gx), _mm256_set1_ps(epack));
+                __m256 offset = _mm256_mul_ps(_mm256_comp_fmadd_ps(gy, _mm256_set1_ps(src.w), gx), _mm256_set1_ps(src.elempack));
 
                 offset = _mm256_blendv_ps(_mm256_set1_ps(-1.0f), offset, v_in_range);
 
@@ -118,8 +117,7 @@ void gridsample_2d_nearest_compute_blob(const Mat& src, const Mat& grid, Mat& of
             __m256 v_in_range = _mm256_and_ps(_mm256_and_ps(_mm256_cmp_ps(gx, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.w), gx, _CMP_GT_OS)),
                                               _mm256_and_ps(_mm256_cmp_ps(gy, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.h), gy, _CMP_GT_OS)));
 
-            volatile float epack = src.elempack;
-            __m256 offset = _mm256_mul_ps(_mm256_comp_fmadd_ps(gy, _mm256_set1_ps(src.w), gx), _mm256_set1_ps(epack));
+            __m256 offset = _mm256_mul_ps(_mm256_comp_fmadd_ps(gy, _mm256_set1_ps(src.w), gx), _mm256_set1_ps(src.elempack));
 
             offset = _mm256_blendv_ps(_mm256_set1_ps(-1.0f), offset, v_in_range);
 
@@ -212,12 +210,9 @@ void gridsample_3d_nearest_compute_blob(const Mat& src, const Mat& grid, Mat& of
                                                   _mm256_and_ps(_mm256_cmp_ps(gy, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.h), gy, _CMP_GT_OS)));
                 v_in_range = _mm256_and_ps(v_in_range, _mm256_and_ps(_mm256_cmp_ps(gz, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.d), gz, _CMP_GT_OS)));
 
-                volatile float epack = src.elempack;
-                volatile float sw = src.w;
-                volatile float sh = src.h;
-                __m256 offset = _mm256_mul_ps(_mm256_comp_fmadd_ps(_mm256_mul_ps(_mm256_set1_ps(sw), _mm256_set1_ps(sh)), gz,
-                                              _mm256_comp_fmadd_ps(gy, _mm256_set1_ps(sw), gx)),
-                                              _mm256_set1_ps(epack));
+                __m256 offset = _mm256_mul_ps(_mm256_comp_fmadd_ps(_mm256_mul_ps(_mm256_set1_ps(src.w), _mm256_set1_ps(src.h)), gz,
+                                                                   _mm256_comp_fmadd_ps(gy, _mm256_set1_ps(src.w), gx)),
+                                              _mm256_set1_ps(src.elempack));
 
                 offset = _mm256_blendv_ps(_mm256_set1_ps(-1.0f), offset, v_in_range);
 
@@ -291,12 +286,9 @@ void gridsample_3d_nearest_compute_blob(const Mat& src, const Mat& grid, Mat& of
                                               _mm256_and_ps(_mm256_cmp_ps(gy, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.h), gy, _CMP_GT_OS)));
             v_in_range = _mm256_and_ps(v_in_range, _mm256_and_ps(_mm256_cmp_ps(gz, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.d), gz, _CMP_GT_OS)));
 
-            volatile float epack = src.elempack;
-            volatile float sw = src.w;
-            volatile float sh = src.h;
-            __m256 offset = _mm256_mul_ps(_mm256_comp_fmadd_ps(_mm256_mul_ps(_mm256_set1_ps(sw), _mm256_set1_ps(sh)), gz,
-                                          _mm256_comp_fmadd_ps(gy, _mm256_set1_ps(sw), gx)),
-                                          _mm256_set1_ps(epack));
+            __m256 offset = _mm256_mul_ps(_mm256_comp_fmadd_ps(_mm256_mul_ps(_mm256_set1_ps(src.w), _mm256_set1_ps(src.h)), gz,
+                                                               _mm256_comp_fmadd_ps(gy, _mm256_set1_ps(src.w), gx)),
+                                          _mm256_set1_ps(src.elempack));
 
             offset = _mm256_blendv_ps(_mm256_set1_ps(-1.0f), offset, v_in_range);
 

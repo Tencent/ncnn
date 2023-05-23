@@ -71,11 +71,10 @@ void gridsample_2d_bilinear_compute_blob(const Mat& src, const Mat& grid, Mat& o
                 __m256 v10_in_range = _mm256_and_ps(x0_in_range, y1_in_range);
                 __m256 v11_in_range = _mm256_and_ps(x1_in_range, y1_in_range);
 
-                volatile float epack = src.elempack;
-                __m256 nw_offset = _mm256_mul_ps(_mm256_comp_fmadd_ps(y_n, _mm256_set1_ps(src.w), x_w), _mm256_set1_ps(epack));
-                __m256 ne_offset = _mm256_add_ps(nw_offset, _mm256_set1_ps(epack));
-                __m256 sw_offset = _mm256_comp_fmadd_ps(_mm256_set1_ps(src.w), _mm256_set1_ps(epack), nw_offset);
-                __m256 se_offset = _mm256_add_ps(sw_offset, _mm256_set1_ps(epack));
+                __m256 nw_offset = _mm256_mul_ps(_mm256_comp_fmadd_ps(y_n, _mm256_set1_ps(src.w), x_w), _mm256_set1_ps(src.elempack));
+                __m256 ne_offset = _mm256_add_ps(nw_offset, _mm256_set1_ps(src.elempack));
+                __m256 sw_offset = _mm256_comp_fmadd_ps(_mm256_set1_ps(src.w), _mm256_set1_ps(src.elempack), nw_offset);
+                __m256 se_offset = _mm256_add_ps(sw_offset, _mm256_set1_ps(src.elempack));
 
                 nw_offset = _mm256_blendv_ps(_mm256_set1_ps(-1.0f), nw_offset, v00_in_range);
                 ne_offset = _mm256_blendv_ps(_mm256_set1_ps(-1.0f), ne_offset, v01_in_range);
@@ -190,11 +189,10 @@ void gridsample_2d_bilinear_compute_blob(const Mat& src, const Mat& grid, Mat& o
             __m256 v10_in_range = _mm256_and_ps(x0_in_range, y1_in_range);
             __m256 v11_in_range = _mm256_and_ps(x1_in_range, y1_in_range);
 
-            volatile float epack = src.elempack;
-            __m256 nw_offset = _mm256_mul_ps(_mm256_comp_fmadd_ps(y_n, _mm256_set1_ps(src.w), x_w), _mm256_set1_ps(epack));
-            __m256 ne_offset = _mm256_add_ps(nw_offset, _mm256_set1_ps(epack));
-            __m256 sw_offset = _mm256_comp_fmadd_ps(_mm256_set1_ps(src.w), _mm256_set1_ps(epack), nw_offset);
-            __m256 se_offset = _mm256_add_ps(sw_offset, _mm256_set1_ps(epack));
+            __m256 nw_offset = _mm256_mul_ps(_mm256_comp_fmadd_ps(y_n, _mm256_set1_ps(src.w), x_w), _mm256_set1_ps(src.elempack));
+            __m256 ne_offset = _mm256_add_ps(nw_offset, _mm256_set1_ps(src.elempack));
+            __m256 sw_offset = _mm256_comp_fmadd_ps(_mm256_set1_ps(src.w), _mm256_set1_ps(src.elempack), nw_offset);
+            __m256 se_offset = _mm256_add_ps(sw_offset, _mm256_set1_ps(src.elempack));
 
             nw_offset = _mm256_blendv_ps(_mm256_set1_ps(-1.0f), nw_offset, v00_in_range);
             ne_offset = _mm256_blendv_ps(_mm256_set1_ps(-1.0f), ne_offset, v01_in_range);
@@ -364,18 +362,17 @@ void gridsample_3d_bilinear_compute_blob(const Mat& src, const Mat& grid, Mat& o
                     v111_in_range = _mm256_and_ps(v11_in_range, z1_in_range);
                 }
 
-                volatile float epack = src.elempack;
                 __m256 tnw_offset = _mm256_mul_ps(_mm256_comp_fmadd_ps(_mm256_mul_ps(_mm256_set1_ps(src.w), _mm256_set1_ps(src.h)), z_t,
                                                   _mm256_comp_fmadd_ps(y_n, _mm256_set1_ps(src.w), x_w)),
-                                                  _mm256_set1_ps(epack));
-                __m256 tne_offset = _mm256_add_ps(tnw_offset, _mm256_set1_ps(epack));
-                __m256 tsw_offset = _mm256_add_ps(tnw_offset, _mm256_mul_ps(_mm256_set1_ps(src.w), _mm256_set1_ps(epack)));
-                __m256 tse_offset = _mm256_add_ps(tsw_offset, _mm256_set1_ps(epack));
+                                                  _mm256_set1_ps(src.elempack));
+                __m256 tne_offset = _mm256_add_ps(tnw_offset, _mm256_set1_ps(src.elempack));
+                __m256 tsw_offset = _mm256_add_ps(tnw_offset, _mm256_mul_ps(_mm256_set1_ps(src.w), _mm256_set1_ps(src.elempack)));
+                __m256 tse_offset = _mm256_add_ps(tsw_offset, _mm256_set1_ps(src.elempack));
 
-                __m256 bnw_offset = _mm256_comp_fmadd_ps(_mm256_mul_ps(_mm256_set1_ps(src.w), _mm256_set1_ps(src.h)), _mm256_set1_ps(epack), tnw_offset);
-                __m256 bne_offset = _mm256_add_ps(bnw_offset, _mm256_set1_ps(epack));
-                __m256 bsw_offset = _mm256_add_ps(bnw_offset, _mm256_mul_ps(_mm256_set1_ps(src.w), _mm256_set1_ps(epack)));
-                __m256 bse_offset = _mm256_add_ps(bsw_offset, _mm256_set1_ps(epack));
+                __m256 bnw_offset = _mm256_comp_fmadd_ps(_mm256_mul_ps(_mm256_set1_ps(src.w), _mm256_set1_ps(src.h)), _mm256_set1_ps(src.elempack), tnw_offset);
+                __m256 bne_offset = _mm256_add_ps(bnw_offset, _mm256_set1_ps(src.elempack));
+                __m256 bsw_offset = _mm256_add_ps(bnw_offset, _mm256_mul_ps(_mm256_set1_ps(src.w), _mm256_set1_ps(src.elempack)));
+                __m256 bse_offset = _mm256_add_ps(bsw_offset, _mm256_set1_ps(src.elempack));
 
                 tnw_offset = _mm256_blendv_ps(_mm256_set1_ps(-1.0f), tnw_offset, v000_in_range);
                 tne_offset = _mm256_blendv_ps(_mm256_set1_ps(-1.0f), tne_offset, v001_in_range);
@@ -557,18 +554,17 @@ void gridsample_3d_bilinear_compute_blob(const Mat& src, const Mat& grid, Mat& o
                 v111_in_range = _mm256_and_ps(v11_in_range, z1_in_range);
             }
 
-            volatile float epack = src.elempack;
             __m256 tnw_offset = _mm256_mul_ps(_mm256_comp_fmadd_ps(_mm256_mul_ps(_mm256_set1_ps(src.w), _mm256_set1_ps(src.h)), z_t,
                                               _mm256_comp_fmadd_ps(y_n, _mm256_set1_ps(src.w), x_w)),
-                                              _mm256_set1_ps(epack));
-            __m256 tne_offset = _mm256_add_ps(tnw_offset, _mm256_set1_ps(epack));
-            __m256 tsw_offset = _mm256_add_ps(tnw_offset, _mm256_mul_ps(_mm256_set1_ps(src.w), _mm256_set1_ps(epack)));
-            __m256 tse_offset = _mm256_add_ps(tsw_offset, _mm256_set1_ps(epack));
+                                              _mm256_set1_ps(src.elempack));
+            __m256 tne_offset = _mm256_add_ps(tnw_offset, _mm256_set1_ps(src.elempack));
+            __m256 tsw_offset = _mm256_add_ps(tnw_offset, _mm256_mul_ps(_mm256_set1_ps(src.w), _mm256_set1_ps(src.elempack)));
+            __m256 tse_offset = _mm256_add_ps(tsw_offset, _mm256_set1_ps(src.elempack));
 
-            __m256 bnw_offset = _mm256_comp_fmadd_ps(_mm256_mul_ps(_mm256_set1_ps(src.w), _mm256_set1_ps(src.h)), _mm256_set1_ps(epack), tnw_offset);
-            __m256 bne_offset = _mm256_add_ps(bnw_offset, _mm256_set1_ps(epack));
-            __m256 bsw_offset = _mm256_add_ps(bnw_offset, _mm256_mul_ps(_mm256_set1_ps(src.w), _mm256_set1_ps(epack)));
-            __m256 bse_offset = _mm256_add_ps(bsw_offset, _mm256_set1_ps(epack));
+            __m256 bnw_offset = _mm256_comp_fmadd_ps(_mm256_mul_ps(_mm256_set1_ps(src.w), _mm256_set1_ps(src.h)), _mm256_set1_ps(src.elempack), tnw_offset);
+            __m256 bne_offset = _mm256_add_ps(bnw_offset, _mm256_set1_ps(src.elempack));
+            __m256 bsw_offset = _mm256_add_ps(bnw_offset, _mm256_mul_ps(_mm256_set1_ps(src.w), _mm256_set1_ps(src.elempack)));
+            __m256 bse_offset = _mm256_add_ps(bsw_offset, _mm256_set1_ps(src.elempack));
 
             tnw_offset = _mm256_blendv_ps(_mm256_set1_ps(-1.0f), tnw_offset, v000_in_range);
             tne_offset = _mm256_blendv_ps(_mm256_set1_ps(-1.0f), tne_offset, v001_in_range);
