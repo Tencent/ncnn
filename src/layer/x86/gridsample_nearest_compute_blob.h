@@ -211,7 +211,7 @@ void gridsample_3d_nearest_compute_blob(const Mat& src, const Mat& grid, Mat& of
                 v_in_range = _mm256_and_ps(v_in_range, _mm256_and_ps(_mm256_cmp_ps(gz, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.d), gz, _CMP_GT_OS)));
 
                 __m256 offset = _mm256_mul_ps(_mm256_comp_fmadd_ps(_mm256_mul_ps(_mm256_set1_ps(src.w), _mm256_set1_ps(src.h)), gz,
-                                                                   _mm256_comp_fmadd_ps(gy, _mm256_set1_ps(src.w), gx)),
+                                              _mm256_comp_fmadd_ps(gy, _mm256_set1_ps(src.w), gx)),
                                               _mm256_set1_ps(src.elempack));
 
                 offset = _mm256_blendv_ps(_mm256_set1_ps(-1.0f), offset, v_in_range);
@@ -287,7 +287,7 @@ void gridsample_3d_nearest_compute_blob(const Mat& src, const Mat& grid, Mat& of
             v_in_range = _mm256_and_ps(v_in_range, _mm256_and_ps(_mm256_cmp_ps(gz, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.d), gz, _CMP_GT_OS)));
 
             __m256 offset = _mm256_mul_ps(_mm256_comp_fmadd_ps(_mm256_mul_ps(_mm256_set1_ps(src.w), _mm256_set1_ps(src.h)), gz,
-                                                               _mm256_comp_fmadd_ps(gy, _mm256_set1_ps(src.w), gx)),
+                                          _mm256_comp_fmadd_ps(gy, _mm256_set1_ps(src.w), gx)),
                                           _mm256_set1_ps(src.elempack));
 
             offset = _mm256_blendv_ps(_mm256_set1_ps(-1.0f), offset, v_in_range);
