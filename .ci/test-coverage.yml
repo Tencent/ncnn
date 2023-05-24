@@ -43,7 +43,7 @@ jobs:
     - name: install-deps
       run: |
         apt-get update
-        apt-get install -y lcov libcapstone4 libglib2.0-0
+        apt-get install -y lcov libcapstone4 libglib2.0-0 python3-venv
         curl https://uploader.codecov.io/verification.gpg | gpg --no-default-keyring --keyring trustedkeys.gpg --import
         curl -Os https://uploader.codecov.io/latest/linux/codecov
         curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM
