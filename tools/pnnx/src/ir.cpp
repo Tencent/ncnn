@@ -2005,9 +2005,11 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
             }
             else if (op->type == "nn.MultiheadAttention")
             {
+                bool need_weights = true;
                 if (op->outputs.size() == 1)
                 {
                     fprintf(pyfp, "v_%s, _", sanitize_identifier(op->outputs[0]->name).c_str());
+                    need_weights = false;
                 }
                 else
                 {
@@ -2074,6 +2076,14 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                         if (i + 1 != op->inputs.size())
                             fprintf(pyfp, ", ");
                     }
+                }
+                if (need_weights)
+                {
+                    fprintf(pyfp, ", need_weights=True");
+                }
+                else
+                {
+                    fprintf(pyfp, ", need_weights=False");
                 }
                 fprintf(pyfp, ")\n");
             }

@@ -1286,6 +1286,110 @@ pnnx.Output             output      1 0 out
     }
 };
 
+class fuse_multiheadattention_pass_16_1 : public fuse_multiheadattention_pass_sameqkv
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+20 19
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 attn_mask
+nn.Linear               op_0        1 1 input 31 bias=%q_bias in_features=%embed_dim out_features=%embed_dim @bias @weight
+nn.Linear               op_1        1 1 input 32 bias=%k_bias in_features=%kdim out_features=%embed_dim @bias @weight
+nn.Linear               op_2        1 1 input 34 bias=%v_bias in_features=%vdim out_features=%embed_dim @bias @weight
+Tensor.view             op_3        1 1 31 36 shape=%q_shape
+Tensor.view             op_4        1 1 32 33 shape=%kv_shape
+Tensor.view             op_5        1 1 34 35 shape=%kv_shape
+torch.permute           op_6        1 1 36 38 dims=(0,2,1,3)
+torch.permute           op_7        1 1 33 37 dims=(0,2,1,3)
+torch.permute           op_8        1 1 35 43 dims=(0,2,1,3)
+torch.transpose         op_9        1 1 37 39 dim0=-1 dim1=-2
+torch.matmul            op_10       2 1 38 39 40
+pnnx.Expression         op_11       2 1 40 attn_mask 41 expr=%expr
+F.softmax               op_12       1 1 41 42 dim=-1
+torch.matmul            op_13       2 1 42 43 44
+torch.permute           op_14       1 1 44 45 dims=(0,2,1,3)
+Tensor.reshape          op_15       1 1 45 46 shape=%qkv_shape
+nn.Linear               out_proj    1 1 46 out bias=%out_bias in_features=%embed_dim out_features=%embed_dim @bias @weight
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    bool match(const std::map<std::string, Parameter>& captured_params) const
+    {
+        const int embed_dim = captured_params.at("embed_dim").i;
+
+        // q_shape = (1,77,16,64)
+        // kv_shape = (1,77,16,64)
+        // qkv_shape = (1,77,1024)
+        const std::vector<int>& q_shape = captured_params.at("q_shape").ai;
+        const std::vector<int>& kv_shape = captured_params.at("kv_shape").ai;
+        const std::vector<int>& qkv_shape = captured_params.at("qkv_shape").ai;
+        if (q_shape.size() != 4 || kv_shape.size() != 4 || qkv_shape.size() != 3)
+            return false;
+
+        const int batch_size = q_shape[0];
+        const int q_size = q_shape[1];
+        const int num_heads = q_shape[2];
+        const int feat_per_head = q_shape[3];
+
+        if (kv_shape[0] != batch_size || kv_shape[2] != num_heads || kv_shape[3] != feat_per_head)
+            return false;
+
+        if (qkv_shape[0] != batch_size || qkv_shape[1] != q_size || qkv_shape[2] != feat_per_head * num_heads)
+            return false;
+
+        // add(div(@0,8.000000e+00),@1)
+        const std::string& expr = captured_params.at("expr").s;
+        float sqrt_embed_dim_per_head = 0.f;
+        int nscan = sscanf(expr.c_str(), "add(div(@0,%f),@1)", &sqrt_embed_dim_per_head);
+        if (nscan != 1)
+            return false;
+
+        if (!NearlyEqual(sqrt_embed_dim_per_head, sqrt(embed_dim / num_heads), 0.001))
+            return false;
+
+        return true;
+    }
+
+    bool match(const std::map<std::string, const Operator*>& matched_operators) const
+    {
+        const Operator* op_11 = matched_operators.at("op_11");
+
+        // support constant attention mask only atm
+        Operand* attn_mask = op_11->inputs[1];
+        if (attn_mask->consumers.size() > 1 || attn_mask->producer->type != "pnnx.Attribute")
+            return false;
+
+        return true;
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    {
+        fuse_multiheadattention_pass_sameqkv::write(op, captured_params, captured_attrs);
+
+        Operand* attn_mask = op->inputs[1];
+        Operator* op_attr = attn_mask->producer;
+
+        int q_size = op->inputs[0]->shape[1];
+
+        // hack attn_mask shape
+        attn_mask->shape = std::vector<int>{q_size, attn_mask->shape[3]};
+        const std::string key = op_attr->attrs.begin()->first;
+        op_attr->attrs[key].shape = attn_mask->shape;
+
+        // hack attn_mask value
+        std::vector<char>& data = op_attr->attrs[key].data;
+        size_t len = data.size();
+        data.resize(len * q_size);
+        for (int i = 1; i < q_size; i++)
+        {
+            memcpy(&data[len * i], &data[0], len);
+        }
+    }
+};
+
 class fuse_multiheadattention_pass_17 : public fuse_multiheadattention_pass
 {
 public:
@@ -1416,6 +1520,7 @@ pnnx.Output             output      1 0 out
     bool match(const std::map<std::string, const Operator*>& matched_operators) const
     {
         const Operator* op_7 = matched_operators.at("op_7");
+        const Operator* op_10 = matched_operators.at("op_10");
 
         // support constant attention mask only atm
         Operand* attn_mask = op_7->inputs[1];
@@ -1423,10 +1528,11 @@ pnnx.Output             output      1 0 out
             return false;
 
         // @mask2=(1,64,1,49,49)f32
-        if (attn_mask->shape.size() != 5)
+        Operand* attn_mask2 = op_10->inputs[1];
+        if (attn_mask2->shape.size() != 5)
             return false;
 
-        if (attn_mask->shape[0] != 1 || attn_mask->shape[2] != 1)
+        if (attn_mask2->shape[0] != 1 || attn_mask2->shape[2] != 1)
             return false;
 
         return true;
@@ -1511,6 +1617,7 @@ void fuse_multiheadattention(Graph& graph)
     fuse_multiheadattention_pass_14 m;
     fuse_multiheadattention_pass_15 n;
     fuse_multiheadattention_pass_16 o;
+    fuse_multiheadattention_pass_16_1 o1;
     fuse_multiheadattention_pass_17 p;
     fuse_multiheadattention_pass_18 q;
     int opindex = 0;
@@ -1535,6 +1642,7 @@ void fuse_multiheadattention(Graph& graph)
     pnnx_graph_rewrite(graph, &m, opindex);
     pnnx_graph_rewrite(graph, &n, opindex);
     pnnx_graph_rewrite(graph, &o, opindex);
+    pnnx_graph_rewrite(graph, &o1, opindex);
     pnnx_graph_rewrite(graph, &p, opindex);
     pnnx_graph_rewrite(graph, &q, opindex);
 #endif
