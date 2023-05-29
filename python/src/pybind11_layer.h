@@ -24,7 +24,7 @@ class PyLayer : public ncnn::Layer
 public:
     virtual int load_param(const ncnn::ParamDict& pd)
     {
-        PYBIND11_OVERRIDE(
+        PYBIND11_OVERRIDE_REFERENCE(
             int,
             ncnn::Layer,
             load_param,
@@ -33,7 +33,7 @@ public:
 
     virtual int load_model(const ncnn::ModelBin& mb)
     {
-        PYBIND11_OVERRIDE(
+        PYBIND11_OVERRIDE_REFERENCE(
             int,
             ncnn::Layer,
             load_model,
@@ -42,7 +42,7 @@ public:
 
     virtual int create_pipeline(const ncnn::Option& opt)
     {
-        PYBIND11_OVERRIDE(
+        PYBIND11_OVERRIDE_REFERENCE(
             int,
             ncnn::Layer,
             create_pipeline,
@@ -51,7 +51,7 @@ public:
 
     virtual int destroy_pipeline(const ncnn::Option& opt)
     {
-        PYBIND11_OVERRIDE(
+        PYBIND11_OVERRIDE_REFERENCE(
             int,
             ncnn::Layer,
             destroy_pipeline,

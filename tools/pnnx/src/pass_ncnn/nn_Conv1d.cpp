@@ -65,7 +65,7 @@ pnnx.Output             output      1 0 out
             op->params["4"] = captured_params.at("padding").ai[0];
         }
         op->params["5"] = captured_params.at("bias").b ? 1 : 0;
-        op->params["6"] = (int)(captured_attrs.at("op_0.weight").data.size() / sizeof(float));
+        op->params["6"] = captured_attrs.at("op_0.weight").elemcount();
 
         op->attrs["0"] = Attribute();
         op->attrs["0"].data = {0, 0, 0, 0};
@@ -122,7 +122,7 @@ pnnx.Output             output      1 0 out
             op->params["4"] = captured_params.at("padding").ai[0];
         }
         op->params["5"] = captured_params.at("bias").b ? 1 : 0;
-        op->params["6"] = (int)(captured_attrs.at("op_0.weight").data.size() / sizeof(float));
+        op->params["6"] = captured_attrs.at("op_0.weight").elemcount();
         op->params["7"] = captured_params.at("groups");
 
         op->attrs["0"] = Attribute();

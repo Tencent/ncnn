@@ -525,6 +525,12 @@ static void convolution1d_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
     {
         const int p = remain_outh_start + pp * 8;
 
+        // shadowed variable for less openmp task args
+        const int elempack = bottom_blob.elempack;
+        const int inh = bottom_blob.h * elempack;
+        const int outw = top_blob.w;
+        const int out_elempack = top_blob.elempack;
+
         float* outptr = top_blob.row(p / out_elempack);
 
         for (int j = 0; j < outw; j++)
@@ -561,8 +567,10 @@ static void convolution1d_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
                         _r1 = vld1q_f32(r0 + N);
                         r0 += dilation_w * 4;
                     }
-                    if (elempack == 1)
+                    else // if (elempack == 1)
                     {
+                        _r0 = float32x4_t();
+                        _r1 = float32x4_t();
                         _r0 = vsetq_lane_f32(r0[0], _r0, 0);
                         _r0 = vsetq_lane_f32(r0[N], _r0, 1);
                         _r0 = vsetq_lane_f32(r0[N * 2], _r0, 2);
@@ -622,7 +630,7 @@ static void convolution1d_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
                         _r0 = vld1q_f32(r0);
                         r0 += dilation_w * 4;
                     }
-                    if (elempack == 1)
+                    else // if (elempack == 1)
                     {
                         _r0 = float32x4_t();
                         _r0 = vsetq_lane_f32(r0[0], _r0, 0);
@@ -717,7 +725,7 @@ static void convolution1d_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
                 vst1q_f32(outptr + M, _sum1);
                 outptr += 4;
             }
-            if (out_elempack == 1)
+            else // if (out_elempack == 1)
             {
                 outptr[0] = vgetq_lane_f32(_sum0, 0);
                 outptr[M] = vgetq_lane_f32(_sum0, 1);
@@ -740,6 +748,12 @@ static void convolution1d_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
     for (int pp = 0; pp < nn_outh; pp++)
     {
         const int p = remain_outh_start + pp * 4;
+
+        // shadowed variable for less openmp task args
+        const int elempack = bottom_blob.elempack;
+        const int inh = bottom_blob.h * elempack;
+        const int outw = top_blob.w;
+        const int out_elempack = top_blob.elempack;
 
         float* outptr = top_blob.row(p / out_elempack);
 
@@ -777,7 +791,7 @@ static void convolution1d_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
                         _r1 = vld1q_f32(r0 + N);
                         r0 += dilation_w * 4;
                     }
-                    if (elempack == 1)
+                    else // if (elempack == 1)
                     {
                         _r0 = float32x4_t();
                         _r1 = float32x4_t();
@@ -825,7 +839,7 @@ static void convolution1d_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
                         _r0 = vld1q_f32(r0);
                         r0 += dilation_w * 4;
                     }
-                    if (elempack == 1)
+                    else // if (elempack == 1)
                     {
                         _r0 = float32x4_t();
                         _r0 = vsetq_lane_f32(r0[0], _r0, 0);
@@ -917,7 +931,7 @@ static void convolution1d_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
                 vst1q_f32(outptr, _sum0);
                 outptr += 4;
             }
-            if (out_elempack == 1)
+            else // if (out_elempack == 1)
             {
                 outptr[0] = vgetq_lane_f32(_sum0, 0);
                 outptr[M] = vgetq_lane_f32(_sum0, 1);
@@ -936,6 +950,11 @@ static void convolution1d_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
     for (int pp = 0; pp < nn_outh; pp++)
     {
         const int p = remain_outh_start + pp * 2;
+
+        // shadowed variable for less openmp task args
+        const int elempack = bottom_blob.elempack;
+        const int inh = bottom_blob.h * elempack;
+        const int outw = top_blob.w;
 
         float* outptr0 = top_blob.row(p);
         float* outptr1 = top_blob.row(p + 1);
@@ -980,7 +999,7 @@ static void convolution1d_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
                         _r1 = vld1q_f32(r0 + N);
                         r0 += dilation_w * 4;
                     }
-                    if (elempack == 1)
+                    else // if (elempack == 1)
                     {
                         _r0 = float32x4_t();
                         _r1 = float32x4_t();
@@ -1029,7 +1048,7 @@ static void convolution1d_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
                         _r0 = vld1q_f32(r0);
                         r0 += dilation_w * 4;
                     }
-                    if (elempack == 1)
+                    else // if (elempack == 1)
                     {
                         _r0 = float32x4_t();
                         _r0 = vsetq_lane_f32(r0[0], _r0, 0);
@@ -1156,7 +1175,7 @@ static void convolution1d_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
                         _r1 = vld1q_f32(r0 + N);
                         r0 += dilation_w * 4;
                     }
-                    if (elempack == 1)
+                    else // if (elempack == 1)
                     {
                         _r0 = float32x4_t();
                         _r1 = float32x4_t();
@@ -1195,7 +1214,7 @@ static void convolution1d_packed(const Mat& bottom_blob, Mat& top_blob, const Ma
                         _r0 = vld1q_f32(r0);
                         r0 += dilation_w * 4;
                     }
-                    if (elempack == 1)
+                    else // if (elempack == 1)
                     {
                         _r0 = float32x4_t();
                         _r0 = vsetq_lane_f32(r0[0], _r0, 0);

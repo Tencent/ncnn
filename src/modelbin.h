@@ -31,7 +31,7 @@ public:
     // 2 = float16
     // 3 = int8
     // load vec
-    virtual Mat load(int w, int type) const = 0;
+    virtual Mat load(int w, int type) const;
     // load image
     virtual Mat load(int w, int h, int type) const;
     // load dim

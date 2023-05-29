@@ -205,6 +205,13 @@ public:
 
     Attribute(const std::initializer_list<int>& shape, const std::vector<float>& t);
 
+    size_t elemsize() const;
+    int elemcount() const;
+
+    // convenient routines for manipulate fp32/fp16 weight
+    std::vector<float> get_float32_data() const;
+    void set_float32_data(const std::vector<float>& data);
+
     // 0=null 1=f32 2=f64 3=f16 4=i32 5=i64 6=i16 7=i8 8=u8 9=bool 10=c64 11=c128 12=c32
     int type;
     std::vector<int> shape;
