@@ -5955,6 +5955,8 @@ int main(int argc, char** argv)
                     fprintf(pp, " 0=4"); // h c w
                 else if (perm[1] == 3 && perm[2] == 2 && perm[3] == 1)
                     fprintf(pp, " 0=5"); // c h w
+                else
+                    fprintf(stderr, "Unsupported transpose type !\n");
             }
             else if (perm.size() == 5)
             {
