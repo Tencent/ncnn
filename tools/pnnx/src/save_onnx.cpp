@@ -20,6 +20,8 @@
 #include <fstream>
 #include <iostream>
 
+#include "utils.h"
+
 namespace pnnx {
 
 // from cxxabi bridge
@@ -32,60 +34,6 @@ extern const Parameter& get_operator_param(const Operator* op, const char* key);
 extern const Attribute& get_operator_attr(const Operator* op, const char* key);
 extern const char* get_param_s(const Parameter& p);
 extern std::vector<const char*> get_param_as(const Parameter& p);
-
-static unsigned short float32_to_float16(float value)
-{
-    // 1 : 8 : 23
-    union
-    {
-        unsigned int u;
-        float f;
-    } tmp;
-
-    tmp.f = value;
-
-    // 1 : 8 : 23
-    unsigned short sign = (tmp.u & 0x80000000) >> 31;
-    unsigned short exponent = (tmp.u & 0x7F800000) >> 23;
-    unsigned int significand = tmp.u & 0x7FFFFF;
-
-    //     NCNN_LOGE("%d %d %d", sign, exponent, significand);
-
-    // 1 : 5 : 10
-    unsigned short fp16;
-    if (exponent == 0)
-    {
-        // zero or denormal, always underflow
-        fp16 = (sign << 15) | (0x00 << 10) | 0x00;
-    }
-    else if (exponent == 0xFF)
-    {
-        // infinity or NaN
-        fp16 = (sign << 15) | (0x1F << 10) | (significand ? 0x200 : 0x00);
-    }
-    else
-    {
-        // normalized
-        short newexp = exponent + (-127 + 15);
-        if (newexp >= 31)
-        {
-            // overflow, return infinity
-            fp16 = (sign << 15) | (0x1F << 10) | 0x00;
-        }
-        else if (newexp <= 0)
-        {
-            // Some normal fp32 cannot be expressed as normal fp16
-            fp16 = (sign << 15) | (0x00 << 10) | 0x00;
-        }
-        else
-        {
-            // normal fp16
-            fp16 = (sign << 15) | (newexp << 10) | (significand >> 13);
-        }
-    }
-
-    return fp16;
-}
 
 int save_onnx(const Graph& g, const char* onnxpath, int fp16)
 {

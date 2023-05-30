@@ -45,7 +45,7 @@ pnnx.Output             output      1 0 out
     {
         op->params["0"] = captured_params.at("out_features");
         op->params["1"] = captured_params.at("bias").b ? 1 : 0;
-        op->params["2"] = (int)(captured_attrs.at("op_0.weight").data.size() / sizeof(float));
+        op->params["2"] = captured_attrs.at("op_0.weight").elemcount();
 
         op->attrs["0"] = Attribute();
         op->attrs["0"].data = {0, 0, 0, 0};

@@ -525,6 +525,12 @@ static void convolution1d_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
     {
         const int p = remain_outh_start + pp * 8;
 
+        // shadowed variable for less openmp task args
+        const int elempack = bottom_blob.elempack;
+        const int inh = bottom_blob.h * elempack;
+        const int outw = top_blob.w;
+        const int out_elempack = top_blob.elempack;
+
         unsigned short* outptr = top_blob.row<unsigned short>(p / out_elempack);
 
         for (int j = 0; j < outw; j++)
@@ -561,7 +567,7 @@ static void convolution1d_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                         _r1 = bfloat2float(vld1_u16(r0 + N));
                         r0 += dilation_w * 4;
                     }
-                    if (elempack == 1)
+                    else // if (elempack == 1)
                     {
                         uint16x8_t _r_u16 = uint16x8_t();
                         _r_u16 = vsetq_lane_u16(r0[0], _r_u16, 0);
@@ -633,7 +639,7 @@ static void convolution1d_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                         _r0 = bfloat2float(vld1_u16(r0));
                         r0 += dilation_w * 4;
                     }
-                    if (elempack == 1)
+                    else // if (elempack == 1)
                     {
                         uint16x4_t _r_u16 = uint16x4_t();
                         _r_u16 = vset_lane_u16(r0[0], _r_u16, 0);
@@ -736,7 +742,7 @@ static void convolution1d_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                 vst1_u16(outptr + M, float2bfloat(_sum1));
                 outptr += 4;
             }
-            if (out_elempack == 1)
+            else // if (out_elempack == 1)
             {
                 uint16x4_t _sum0_u16 = float2bfloat(_sum0);
                 uint16x4_t _sum1_u16 = float2bfloat(_sum1);
@@ -761,6 +767,12 @@ static void convolution1d_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
     for (int pp = 0; pp < nn_outh; pp++)
     {
         const int p = remain_outh_start + pp * 4;
+
+        // shadowed variable for less openmp task args
+        const int elempack = bottom_blob.elempack;
+        const int inh = bottom_blob.h * elempack;
+        const int outw = top_blob.w;
+        const int out_elempack = top_blob.elempack;
 
         unsigned short* outptr = top_blob.row<unsigned short>(p / out_elempack);
 
@@ -798,7 +810,7 @@ static void convolution1d_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                         _r1 = bfloat2float(vld1_u16(r0 + N));
                         r0 += dilation_w * 4;
                     }
-                    if (elempack == 1)
+                    else // if (elempack == 1)
                     {
                         uint16x8_t _r_u16 = uint16x8_t();
                         _r_u16 = vsetq_lane_u16(r0[0], _r_u16, 0);
@@ -851,7 +863,7 @@ static void convolution1d_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                         _r0 = bfloat2float(vld1_u16(r0));
                         r0 += dilation_w * 4;
                     }
-                    if (elempack == 1)
+                    else // if (elempack == 1)
                     {
                         uint16x4_t _r_u16 = uint16x4_t();
                         _r_u16 = vset_lane_u16(r0[0], _r_u16, 0);
@@ -947,7 +959,7 @@ static void convolution1d_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                 vst1_u16(outptr, float2bfloat(_sum0));
                 outptr += 4;
             }
-            if (out_elempack == 1)
+            else // if (out_elempack == 1)
             {
                 uint16x4_t _sum0_u16 = float2bfloat(_sum0);
                 outptr[0] = vget_lane_u16(_sum0_u16, 0);
@@ -967,6 +979,11 @@ static void convolution1d_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
     for (int pp = 0; pp < nn_outh; pp++)
     {
         const int p = remain_outh_start + pp * 2;
+
+        // shadowed variable for less openmp task args
+        const int elempack = bottom_blob.elempack;
+        const int inh = bottom_blob.h * elempack;
+        const int outw = top_blob.w;
 
         unsigned short* outptr0 = top_blob.row<unsigned short>(p);
         unsigned short* outptr1 = top_blob.row<unsigned short>(p + 1);
@@ -1011,7 +1028,7 @@ static void convolution1d_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                         _r1 = bfloat2float(vld1_u16(r0 + N));
                         r0 += dilation_w * 4;
                     }
-                    if (elempack == 1)
+                    else // if (elempack == 1)
                     {
                         uint16x8_t _r01_u16 = uint16x8_t();
                         _r01_u16 = vsetq_lane_u16(r0[0], _r01_u16, 0);
@@ -1063,7 +1080,7 @@ static void convolution1d_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                         _r0 = bfloat2float(vld1_u16(r0));
                         r0 += dilation_w * 4;
                     }
-                    if (elempack == 1)
+                    else // if (elempack == 1)
                     {
                         uint16x4_t _r0_u16 = uint16x4_t();
                         _r0_u16 = vset_lane_u16(r0[0], _r0_u16, 0);
@@ -1192,7 +1209,7 @@ static void convolution1d_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                         _r1 = bfloat2float(vld1_u16(r0 + N));
                         r0 += dilation_w * 4;
                     }
-                    if (elempack == 1)
+                    else // if (elempack == 1)
                     {
                         uint16x8_t _r01_u16 = uint16x8_t();
                         _r01_u16 = vsetq_lane_u16(r0[0], _r01_u16, 0);
@@ -1233,7 +1250,7 @@ static void convolution1d_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, co
                         _r0 = bfloat2float(vld1_u16(r0));
                         r0 += dilation_w * 4;
                     }
-                    if (elempack == 1)
+                    else // if (elempack == 1)
                     {
                         uint16x4_t _r0_u16 = uint16x4_t();
                         _r0_u16 = vset_lane_u16(r0[0], _r0_u16, 0);

@@ -68,7 +68,7 @@ jobs:
         brew uninstall --ignore-dependencies libomp
 
     - name: Build wheels
-      uses: pypa/cibuildwheel@v2.12.3
+      uses: pypa/cibuildwheel@v2.13.0
       env:
         CIBW_ARCHS_MACOS: ${{ matrix.arch }}
         CIBW_ARCHS_LINUX: ${{ matrix.arch }}
@@ -122,7 +122,7 @@ jobs:
         platforms: all
 
     - name: Build wheels
-      uses: pypa/cibuildwheel@v2.12.3
+      uses: pypa/cibuildwheel@v2.13.0
       env:
         CIBW_ARCHS_LINUX: ${{ matrix.arch }}
         CIBW_BUILD: ${{ matrix.build }}

@@ -815,3 +815,88 @@ jobs:
         lcov --list lcov.info
     - name: codecov-vlen256
       run: ./codecov -t ${{settings.CODECOV_TOKEN.access_token}} -C ${{ ci.sha }} -B ${{ ci.head_ref }} -f build/lcov.info
+
+  linux-gcc-loongarch64:
+    name: linux-gcc-loongarch64
+    strategy:
+      matrix:
+        OPENMP: ['OFF', 'ON']
+
+    runs-on:
+      pool-name: docker
+      container:
+        image: bkci/ci:ubuntu
+    steps:
+    - name: checkout
+      checkout: self
+      with:
+        strategy: FRESH_CHECKOUT
+        enableSubmodule: false
+        enableGitLfs: false
+
+    - name: install-deps
+      run: |
+        apt-get update
+        apt-get install -y lcov libcapstone4 libglib2.0-0 python3-venv
+        curl https://uploader.codecov.io/verification.gpg | gpg --no-default-keyring --keyring trustedkeys.gpg --import
+        curl -Os https://uploader.codecov.io/latest/linux/codecov
+        curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM
+        curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM.sig
+        gpgv codecov.SHA256SUM.sig codecov.SHA256SUM
+        shasum -a 256 -c codecov.SHA256SUM
+        chmod +x codecov
+        wget https://github.com/sunhaiyong1978/CLFS-for-LoongArch/releases/download/8.0/loongarch64-clfs-8.0-cross-tools-gcc-full.tar.xz
+        tar -xf loongarch64-clfs-8.0-cross-tools-gcc-full.tar.xz
+
+    - name: cache-qemu
+      id: cache-qemu
+      uses: cache@1.*
+      with:
+        cachePaths: qemu-install
+        cacheKey: qemu-loongarch64-install-20230524
+
+    - name: checkout-qemu
+      if: steps.cache-qemu.outputs.cacheHit != 'true'
+      checkout: https://github.com/qemu/qemu.git
+      with:
+        pullType: COMMIT_ID
+        refName: 1c12355b31046a6b35a4f50c85c4f01afb1bd728
+        localPath: qemu
+        enableSubmodule: false
+        enableGitLfs: false
+
+    - name: qemu
+      if: steps.cache-qemu.outputs.cacheHit != 'true'
+      run: |
+        echo 'deb-src http://mirrors.cloud.tencent.com/debian bullseye main' | tee -a /etc/apt/sources.list
+        echo 'deb-src http://mirrors.cloud.tencent.com/debian bullseye-updates main' | tee -a /etc/apt/sources.list
+        apt-get update
+        apt-get build-dep -y qemu
+        cd qemu
+        wget https://github.com/nihui/ncnn-assets/raw/master/qemu-patches/0001-linux-user-Expose-loongarch-lsx-isa-bit-in-get_elf_hwcap.patch
+        patch -p1 -i 0001-linux-user-Expose-loongarch-lsx-isa-bit-in-get_elf_hwcap.patch
+        ./configure --prefix=${{ci.workspace}}/qemu-install --target-list=loongarch64-linux-user --disable-system
+        make -j$(nproc)
+        make install
+
+    - name: build
+      run: |
+        export LOONGARCH64_ROOT_PATH=${{ci.workspace}}/cross-tools
+        mkdir build && cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/loongarch64-unknown-linux-gnu.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_LSX=ON -DNCNN_OPENMP=${{matrix.OPENMP}} -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j $(nproc)
+    - name: test
+      run: |
+        export PATH=${{ci.workspace}}/qemu-install/bin:$PATH
+        cd build
+        TESTS_EXECUTABLE_LOADER=qemu-loongarch64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;${{ci.workspace}}/cross-tools/target" ctest --output-on-failure -j $(nproc)
+    - name: lcov-collect
+      run: |
+        cd build
+        lcov --gcov-tool ${{ci.workspace}}/cross-tools/bin/loongarch64-unknown-linux-gnu-gcov -d ./src -c -o lcov.info
+        lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/build/*' -o lcov.info
+        lcov -r lcov.info '*/cross-tools/*' -o lcov.info
+        lcov --list lcov.info
+    - name: codecov
+      run: ./codecov -t ${{settings.CODECOV_TOKEN.access_token}} -C ${{ ci.sha }} -B ${{ ci.head_ref }} -f build/lcov.info
