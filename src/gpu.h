@@ -41,7 +41,8 @@ NCNN_EXPORT VkInstance get_gpu_instance();
 
 // Destroy VkInstance object and free the memory of the associated object
 // Usually called in the destructor of the main program exit
-NCNN_EXPORT void destroy_gpu_instance();
+// If need_wait != 0, it will wait for all devices to be idle before destroy
+NCNN_EXPORT void destroy_gpu_instance(int need_wait = 0);
 
 // instance extension capability
 extern int support_VK_KHR_external_memory_capabilities;

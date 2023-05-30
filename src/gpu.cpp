@@ -1697,6 +1697,22 @@ void destroy_gpu_instance()
     if ((VkInstance)g_instance == 0)
         return;
 
+    if (need_wait)
+    {
+        for (int i = 0; i < NCNN_MAX_GPU_COUNT; i++)
+        {
+            VulkanDevice* vulkan_device = g_default_vkdev[i];
+            if (vulkan_device)
+            {
+                VkDevice vkdev = g_default_vkdev[i]->vkdevice();
+                if (vkdev)
+                {
+                    vkDeviceWaitIdle(vkdev);
+                }
+            }
+        }
+    }
+
     // NCNN_LOGE("destroy_gpu_instance");
 
     glslang::FinalizeProcess();
