@@ -1208,7 +1208,7 @@ PYBIND11_MODULE(ncnn, m)
 
 #if NCNN_VULKAN
     m.def("create_gpu_instance", &create_gpu_instance);
-    m.def("destroy_gpu_instance", &destroy_gpu_instance);
+    m.def("destroy_gpu_instance", &destroy_gpu_instance, py::arg("need_wait") = 0);
     m.def("get_gpu_count", &get_gpu_count);
     m.def("get_default_gpu_index", &get_default_gpu_index);
     m.def("get_gpu_info", &get_gpu_info, py::arg("device_index") = 0, py::return_value_policy::reference);
