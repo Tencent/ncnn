@@ -1690,7 +1690,7 @@ VkInstance get_gpu_instance()
     return (VkInstance)g_instance;
 }
 
-void destroy_gpu_instance()
+void destroy_gpu_instance(int need_wait)
 {
     MutexLockGuard lock(g_instance_lock);
 
