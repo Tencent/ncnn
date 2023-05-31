@@ -1878,9 +1878,7 @@ int VulkanDevicePrivate::create_dummy_buffer_image()
     cmd.record_dummy_readonly(dummy_image_readonly);
 #endif
 
-    cmd.submit_and_wait();
-
-    return 0;
+    return cmd.submit_and_wait();
 }
 
 void VulkanDevicePrivate::destroy_dummy_buffer_image()

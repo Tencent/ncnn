@@ -162,9 +162,7 @@ int NetPrivate::upload_model()
         }
     }
 
-    cmd.submit_and_wait();
-
-    return 0;
+    return cmd.submit_and_wait();
 }
 #endif // NCNN_VULKAN
 
@@ -288,9 +286,11 @@ int NetPrivate::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std:
         }
     }
 
+    int ret;
+
     if (cmd_submit_and_wait)
     {
-        cmd.submit_and_wait();
+        ret = cmd.submit_and_wait();
 
 #if NCNN_BENCHMARK
         std::vector<uint64_t> results(layer_index * 2);
@@ -308,9 +308,11 @@ int NetPrivate::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std:
 #endif // NCNN_BENCHMARK
 
         cmd.reset();
+        if (ret != 0)
+            return ret;
     }
 
-    int ret;
+
     if (layer->support_vulkan)
     {
 #if NCNN_BENCHMARK
@@ -505,9 +507,11 @@ IMAGE_ALLOCATION_FAILED:
         }
     }
 
+    int ret;
+
     if (cmd_submit_and_wait)
     {
-        cmd.submit_and_wait();
+        ret = cmd.submit_and_wait();
 
 #if NCNN_BENCHMARK
         std::vector<uint64_t> results(layer_index * 2);
@@ -525,9 +529,11 @@ IMAGE_ALLOCATION_FAILED:
 #endif // NCNN_BENCHMARK
 
         cmd.reset();
+
+        if (ret != 0)
+            return ret;
     }
 
-    int ret;
     if (layer->support_vulkan && !image_allocation_failed)
     {
 #if NCNN_BENCHMARK
@@ -2499,18 +2505,18 @@ int Extractor::extract(int blob_index, Mat& feat, int type)
 #if NCNN_BENCHMARK
             cmd.create_query_pool(d->net->layers().size() * 2);
 #endif // NCNN_BENCHMARK
-
+            int ret;
             // TODO vkimagemat for adreno
             if (d->opt.use_image_storage)
             {
                 VkImageMat feat_gpu;
                 ret = extract(blob_index, feat_gpu, cmd);
 
-                if (d->blob_mats[blob_index].dims == 0 && feat_gpu.dims != 0)
+                if (ret == 0 && d->blob_mats[blob_index].dims == 0 && feat_gpu.dims != 0)
                 {
                     cmd.record_download(feat_gpu, d->blob_mats[blob_index], d->opt);
 
-                    cmd.submit_and_wait();
+                    ret = cmd.submit_and_wait();
 
 #if NCNN_BENCHMARK
                     std::vector<uint64_t> results(d->net->layers().size() * 2);
@@ -2533,11 +2539,11 @@ int Extractor::extract(int blob_index, Mat& feat, int type)
                 VkMat feat_gpu;
                 ret = extract(blob_index, feat_gpu, cmd);
 
-                if (d->blob_mats[blob_index].dims == 0 && feat_gpu.dims != 0)
+                if (ret == 0 && d->blob_mats[blob_index].dims == 0 && feat_gpu.dims != 0)
                 {
                     cmd.record_download(feat_gpu, d->blob_mats[blob_index], d->opt);
 
-                    cmd.submit_and_wait();
+                    ret = cmd.submit_and_wait();
 
 #if NCNN_BENCHMARK
                     std::vector<uint64_t> results(d->net->layers().size() * 2);
