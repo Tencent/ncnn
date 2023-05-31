@@ -35,6 +35,7 @@ void gridsample_2d_bicubic_compute_blob(const Mat& src, const Mat& grid, Mat& of
 
     if (permute_fusion == 0)
     {
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int y = 0; y < grid.c; y++)
         {
             const float* gridptr = grid.channel(y);
