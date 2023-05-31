@@ -131,6 +131,8 @@ static std::string eval_expression(const Operator* op)
                 else
                 {
                     int bi = std::stoi(b);
+                    if (bi < 0)
+                        bi = op->inputs[input_index]->shape.size() + bi;
                     int r = op->inputs[input_index]->shape[bi];
                     if (r == -1)
                     {
