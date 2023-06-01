@@ -171,6 +171,7 @@ public:
 #endif // BUILD_PNNX
 
     static Parameter parse_from_string(const std::string& value);
+    static std::string encode_to_string(const Parameter& param);
 
     // 0=null 1=b 2=i 3=f 4=s 5=ai 6=af 7=as 8=others 10=c 11=ac
     int type;
@@ -246,6 +247,7 @@ private:
     friend class Graph;
     Operand()
     {
+        type = 0;
     }
 };
 

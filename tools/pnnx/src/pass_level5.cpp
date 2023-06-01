@@ -35,6 +35,7 @@
 #include "pass_level5/fuse_convtranspose1d_batchnorm1d.h"
 #include "pass_level5/fuse_convtranspose2d_batchnorm2d.h"
 #include "pass_level5/fuse_contiguous_view.h"
+#include "pass_level5/fuse_layernorm.h"
 #include "pass_level5/fuse_linear_batchnorm1d.h"
 #include "pass_level5/fuse_multiheadattention.h"
 #include "pass_level5/fuse_pad_conv1d.h"
@@ -124,6 +125,7 @@ void pass_level5(Graph& g, const std::set<std::string>& foldable_constants, cons
     eliminate_reshape_shape_expression(g);
 
     fuse_channel_shuffle(g);
+    fuse_layernorm(g);
     fuse_multiheadattention(g);
 
     fuse_index_expression(g);
