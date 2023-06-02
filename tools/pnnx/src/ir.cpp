@@ -2686,7 +2686,7 @@ int Graph::parse(const std::string& param)
             else if (key[0] == '$')
             {
                 // operand input key
-                //                 load_input_key(op, key.substr(1), value);
+                load_input_key(op, key.substr(1), value);
             }
             else if (key[0] == '#')
             {

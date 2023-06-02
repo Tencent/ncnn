@@ -309,6 +309,77 @@ static bool match_parameter(const Parameter& a, const Parameter& b, std::map<std
         return true;
     }
 
+    if (b.type == 4 && (b.s[0] == '(' || b.s[0] == '[') && b.s.find('%') != std::string::npos)
+    {
+        // list with pattern
+        if (a.type != 5 && a.type != 6 && a.type != 7)
+            return false;
+
+        std::string lc = b.s.substr(1, b.s.size() - 2);
+        std::istringstream lcss(lc);
+
+        size_t i = 0;
+        while (!lcss.eof())
+        {
+            std::string elem;
+            std::getline(lcss, elem, ',');
+
+            if (elem[0] == '%')
+            {
+                std::string key = elem.substr(1);
+                if (captured_params.find(key) != captured_params.end())
+                {
+                    // match previous captured parameter
+                    if (a.type == 5 && captured_params.at(key).i != a.ai[i])
+                        return false;
+                    if (a.type == 6 && captured_params.at(key).f != a.af[i])
+                        return false;
+                    if (a.type == 7 && captured_params.at(key).s != a.as[i])
+                        return false;
+                }
+
+                // captured parameter
+                if (a.type == 5)
+                    captured_params[key] = a.ai[i];
+                if (a.type == 6)
+                    captured_params[key] = a.af[i];
+                if (a.type == 7)
+                    captured_params[key] = a.as[i];
+            }
+            else if ((elem[0] != '-' && (elem[0] < '0' || elem[0] > '9')) || (elem[0] == '-' && (elem[1] < '0' || elem[1] > '9')))
+            {
+                // string
+                if (a.type != 7)
+                    return false;
+
+                if (a.as[i] != elem)
+                    return false;
+            }
+            else if (elem.find('.') != std::string::npos || elem.find('e') != std::string::npos)
+            {
+                // float
+                if (a.type != 6)
+                    return false;
+
+                if (a.af[i] != std::stof(elem))
+                    return false;
+            }
+            else
+            {
+                // integer
+                if (a.type != 5)
+                    return false;
+
+                if (a.ai[i] != std::stoi(elem))
+                    return false;
+            }
+
+            i++;
+        }
+
+        return true;
+    }
+
     if (a.type != b.type)
     {
         if (a.type == 2 && b.type == 3)
