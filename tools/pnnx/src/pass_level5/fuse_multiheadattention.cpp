@@ -1124,7 +1124,7 @@ pnnx.Output             output      1 0 out
 
         const int size = captured_params.at("size").i;
 
-        ops.at("attn_mask")->attrs["data"].shape = std::vector<int>{size, size};
+        ops.at("attn_mask")->attrs["data"].shape = {size, size};
     }
 };
 
@@ -1147,7 +1147,7 @@ torch.permute           op_7        1 1 33 37 dims=(0,2,1,3)
 torch.permute           op_8        1 1 35 43 dims=(0,2,1,3)
 torch.transpose         op_9        1 1 37 39 dim0=-1 dim1=-2
 torch.matmul            op_10       2 1 38 39 40
-pnnx.Attribute          attn_mask   0 1 attn_mask @data
+pnnx.Attribute          attn_mask   0 1 attn_mask @data=(1,1,1,%size)f32
 pnnx.Expression         op_11       2 1 40 attn_mask 41 expr=add(div(@0,%sqrt_feat_per_head),@1)
 F.softmax               op_12       1 1 41 42 dim=-1
 torch.matmul            op_13       2 1 42 43 44
@@ -1193,15 +1193,11 @@ pnnx.Output             output      1 0 out
 
         Operator* op_attr = ops.at("attn_mask");
 
-        Operand* attn_mask = op_attr->outputs[0];
-
         // hack attn_mask shape
-        attn_mask->shape = std::vector<int>{size, attn_mask->shape[3]};
-        const std::string key = op_attr->attrs.begin()->first;
-        op_attr->attrs[key].shape = attn_mask->shape;
+        op_attr->attrs["data"].shape = {size, size};
 
         // hack attn_mask value
-        std::vector<char>& data = op_attr->attrs[key].data;
+        std::vector<char>& data = op_attr->attrs["data"].data;
         size_t len = data.size();
         data.resize(len * size);
         for (int i = 1; i < size; i++)
@@ -1226,7 +1222,7 @@ torch.unbind            op_3        1 3 10 11 12 13 dim=0
 pnnx.Expression         op_4        1 1 11 14 expr=mul(@0,%inv_sqrt_embed_dim_per_head)
 torch.transpose         op_5        1 1 12 15 dim0=-2 dim1=-1
 torch.matmul            op_6        2 1 14 15 16
-pnnx.Attribute          attn_mask   0 1 attn_mask @data
+pnnx.Attribute          attn_mask   0 1 attn_mask @data=(1,%num_heads,%size,%size)f32
 pnnx.Expression         op_7        2 1 16 attn_mask 18 expr=add(@0,@1)
 F.softmax               op_8        1 1 18 19 dim=-1
 torch.matmul            op_9        2 1 19 13 20
@@ -1254,18 +1250,15 @@ pnnx.Output             output      1 0 out
 
         const int batch = captured_params.at("batch").i;
         const int size = captured_params.at("size").i;
+        const int num_heads = captured_params.at("num_heads").i;
 
         Operator* op_attr = ops.at("attn_mask");
 
-        Operand* attn_mask = op_attr->outputs[0];
-
         // hack attn_mask shape
-        attn_mask->shape = std::vector<int>{batch * attn_mask->shape[1], size, size};
-        const std::string key = op_attr->attrs.begin()->first;
-        op_attr->attrs[key].shape = attn_mask->shape;
+        op_attr->attrs["data"].shape = {batch * num_heads, size, size};
 
         // hack attn_mask value
-        std::vector<char>& data = op_attr->attrs[key].data;
+        std::vector<char>& data = op_attr->attrs["data"].data;
         size_t len = data.size();
         data.resize(len * batch);
         for (int i = 1; i < batch; i++)
@@ -1283,7 +1276,6 @@ public:
         return R"PNNXIR(7767517
 20 19
 pnnx.Input              input_0     0 1 input
-pnnx.Attribute          input_1     0 1 attn_mask @data
 nn.Linear               op_0        1 1 input 25 bias=%qkvbias in_features=%embed_dim out_features=%qkv_out_features @bias @weight
 Tensor.reshape          op_1        1 1 25 26 shape=(%batch,%size,3,%num_heads,%feat_per_head)
 torch.permute           op_2        1 1 26 27 dims=(2,0,3,1,4)
@@ -1291,11 +1283,12 @@ torch.unbind            op_3        1 3 27 28 29 30 dim=0
 pnnx.Expression         op_4        1 1 28 31 expr=mul(@0,%inv_sqrt_embed_dim_per_head)
 torch.transpose         op_5        1 1 29 32 dim0=-2 dim1=-1
 torch.matmul            op_6        2 1 31 32 33
+pnnx.Attribute          attn_mask   0 1 attn_mask @data=(1,%num_heads,%size,%size)f32
 pnnx.Expression         op_7        2 1 33 attn_mask 35 expr=add(@0,@1)
-Tensor.view             op_8        1 1 35 36 shape=(1,64,3,%size,%size)
-pnnx.Attribute          op_9        0 1 37 @data=(1,64,1,%size,%size)f32
+Tensor.view             op_8        1 1 35 36 shape=(1,%batch,%num_heads,%size,%size)
+pnnx.Attribute          op_9        0 1 37 @data=(1,%batch,1,%size,%size)f32
 pnnx.Expression         op_10       2 1 36 37 38 expr=add(@0,@1)
-Tensor.view             op_11       1 1 38 39 shape=(-1,3,%size,%size)
+Tensor.view             op_11       1 1 38 39 shape=(-1,%num_heads,%size,%size)
 F.softmax               op_12       1 1 39 40 dim=-1
 torch.matmul            op_13       2 1 40 30 41
 torch.transpose         op_14       1 1 41 42 dim0=1 dim1=2
@@ -1310,7 +1303,7 @@ pnnx.Output             output      1 0 out
         return R"PNNXIR(7767517
 4 3
 pnnx.Input              input_0     0 1 input
-pnnx.Attribute          input_1     0 1 attn_mask @data
+pnnx.Attribute          attn_mask   0 1 attn_mask @data=%attn_mask.data
 nn.MultiheadAttention   attention   2 1 input attn_mask out embed_dim=%embed_dim kdim=%embed_dim vdim=%embed_dim num_heads=%num_heads batch_first=True add_zero_attn=False add_bias_kv=False $attn_mask=attn_mask
 pnnx.Output             output      1 0 out
 )PNNXIR";
@@ -1320,19 +1313,14 @@ pnnx.Output             output      1 0 out
     {
         fuse_multiheadattention_pass::write(ops, captured_params, captured_attrs);
 
-        const int num_heads = captured_params.at("num_heads").i;
         const int batch = captured_params.at("batch").i;
         const int size = captured_params.at("size").i;
+        const int num_heads = captured_params.at("num_heads").i;
 
-        Operator* op_attr = ops.at("input_1");
-
-        Operand* attn_mask = op_attr->outputs[0];
-
-        // @mask2=(1,64,1,49,49)f32
-        auto mask2 = captured_attrs.at("op_9.data");
+        Operator* op_attr = ops.at("attn_mask");
 
         // hack attn_mask shape
-        op_attr->attrs["data"].shape = std::vector<int>{batch * attn_mask->shape[1], size, size};
+        op_attr->attrs["data"].shape = {batch * num_heads, size, size};
 
         // hack attn_mask value
         std::vector<char>& data = op_attr->attrs["data"].data;
@@ -1345,6 +1333,7 @@ pnnx.Output             output      1 0 out
 
         // add mask2
         {
+            auto mask2 = captured_attrs.at("op_9.data");
             auto maskdata = op_attr->attrs["data"].get_float32_data();
             const int ls = mask2.shape[3] * mask2.shape[4];
 
@@ -1418,9 +1407,9 @@ void fuse_multiheadattention(Graph& graph)
     pnnx_graph_rewrite(graph, &m, opindex);
     pnnx_graph_rewrite(graph, &n, opindex);
     pnnx_graph_rewrite(graph, &o, opindex);
-    // pnnx_graph_rewrite(graph, &o1, opindex);
-    // pnnx_graph_rewrite(graph, &p, opindex);
-    // pnnx_graph_rewrite(graph, &q, opindex);
+    pnnx_graph_rewrite(graph, &o1, opindex);
+    pnnx_graph_rewrite(graph, &p, opindex);
+    pnnx_graph_rewrite(graph, &q, opindex);
 #endif
 }
 
