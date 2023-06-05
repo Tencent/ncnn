@@ -28,8 +28,8 @@ public:
 pnnx.Input              input_0     0 1 input
 pnnx.Input              input_1     0 1 repeats
 pnnx.Input              input_2     0 1 dim
-pnnx.Input              input_3     0 1 output_size
-aten::repeat_interleave op_0        4 1 input repeats dim output_size out
+prim::Constant          op_0        0 1 output_size value=*
+aten::repeat_interleave op_1        4 1 input repeats dim output_size out
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
