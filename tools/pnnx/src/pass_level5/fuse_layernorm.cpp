@@ -43,6 +43,7 @@ pnnx.Output             output      1 0 out
 
     const char* replace_pattern_graph() const
     {
+#if TORCH_VERSION_MAJOR >= 2 || TORCH_VERSION_MAJOR == 1 && TORCH_VERSION_MINOR >= 9
         return R"PNNXIR(7767517
 5 4
 pnnx.Input              input       0 1 input
@@ -51,6 +52,16 @@ nn.LayerNorm            op_1        1 1 a b elementwise_affine=True eps=%eps nor
 torch.permute           op_2        1 1 b out dims=(0,3,1,2)
 pnnx.Output             output      1 0 out
 )PNNXIR";
+#else
+        return R"PNNXIR(7767517
+5 4
+pnnx.Input              input       0 1 input
+Tensor.permute          op_0        1 1 input a dims=(0,2,3,1)
+nn.LayerNorm            op_1        1 1 a b elementwise_affine=True eps=%eps normalized_shape=(%c) @weight=%op_0.data @bias=%op_1.data
+Tensor.permute          op_2        1 1 b out dims=(0,3,1,2)
+pnnx.Output             output      1 0 out
+)PNNXIR";
+#endif
     }
 
     void write(const std::map<std::string, Operator*>& ops, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
