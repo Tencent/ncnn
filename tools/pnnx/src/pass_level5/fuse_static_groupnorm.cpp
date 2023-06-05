@@ -36,7 +36,6 @@ pnnx.Output             output      1 0 out
 )PNNXIR";
     }
 
-
     const char* replace_pattern_graph() const
     {
         return R"PNNXIR(7767517
