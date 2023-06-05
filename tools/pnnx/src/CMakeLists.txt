@@ -242,6 +242,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_randn.cpp
     pass_level2/torch_randn_like.cpp
     pass_level2/torch_real.cpp
+    pass_level2/torch_repeat_interleave.cpp
     pass_level2/torch_roll.cpp
     pass_level2/torch_scatter_add.cpp
     pass_level2/torch_split.cpp
