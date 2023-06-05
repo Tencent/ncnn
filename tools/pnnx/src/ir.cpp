@@ -2675,13 +2675,57 @@ int Graph::parse(const std::string& param)
             {
                 // attribute
                 //                 load_attribute(op, key.substr(1), value, szr);
-                op->attrs[key.substr(1)].type = 0;
-                if (!value.empty())
+                op->attrs[key.substr(1)] = Attribute();
+
+                Attribute& attr = op->attrs[key.substr(1)];
+
+                attr.type = 0;
+                if (value.empty())
+                    continue;
+
+                if (value[0] == '%')
                 {
-                    std::string value2 = value.substr(1);
-                    op->attrs[key.substr(1)].data = std::vector<char>(value2.begin(), value2.end());
+                    // @data=%op1.data
+                    attr.data = std::vector<char>(value.begin(), value.end());
                 }
-                // value = %op1.data
+
+                if (value[0] == '(')
+                {
+                    // @data=(1,%c,?,4)f32
+
+                    // type
+                    std::string typestr = value.substr(value.find_last_of(')') + 1);
+                    attr.type = string_to_type(typestr.c_str());
+
+                    // shape
+                    std::string lc = value.substr(1, value.find_last_of(')') - 1);
+                    std::istringstream lcss(lc);
+
+                    attr.shape.clear();
+                    while (!lcss.eof())
+                    {
+                        std::string elem;
+                        std::getline(lcss, elem, ',');
+
+                        if (elem == "?")
+                        {
+                            attr.shape.push_back(-1);
+                        }
+                        else if (elem[0] == '%')
+                        {
+                            // encode %abc as symbolic tag
+                            attr.shape.push_back(-233);
+                            int index = attr.shape.size() - 1;
+                            std::string key = elem.substr(1);
+                            attr.params[std::string("__shape_") + std::to_string(index)] = key;
+                        }
+                        else
+                        {
+                            int i = std::stoi(elem);
+                            attr.shape.push_back(i);
+                        }
+                    }
+                }
             }
             else if (key[0] == '$')
             {

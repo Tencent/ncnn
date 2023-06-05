@@ -1193,6 +1193,8 @@ pnnx.Output             output      1 0 out
 
         Operator* op_attr = ops.at("attn_mask");
 
+        fprintf(stderr, "op_attr->attrs[data] type %d\n", op_attr->attrs["data"].type);
+
         // hack attn_mask shape
         op_attr->attrs["data"].shape = {size, size};
 

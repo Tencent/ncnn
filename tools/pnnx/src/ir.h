@@ -218,6 +218,8 @@ public:
     std::vector<int> shape;
 
     std::vector<char> data;
+
+    std::map<std::string, Parameter> params;
 };
 
 bool operator==(const Attribute& lhs, const Attribute& rhs);

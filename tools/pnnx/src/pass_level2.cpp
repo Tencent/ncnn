@@ -140,11 +140,11 @@ void GraphRewriterPass::write(const std::map<std::string, Operator*>& ops, const
             if (x.second.type != 0)
                 continue;
 
-            std::string key((const char*)x.second.data.data());
-            if (key.empty())
+            std::string key(x.second.data.begin(), x.second.data.end());
+            if (key.empty() || key[0] != '%')
                 continue;
 
-            op->attrs[x.first] = captured_attrs.at(key);
+            op->attrs[x.first] = captured_attrs.at(key.substr(1));
         }
     }
 }
@@ -457,6 +457,76 @@ static bool match_parameter(const Parameter& a, const Parameter& b, std::map<std
     return false;
 }
 
+static bool match_attribute(const Attribute& a, const Attribute& b, std::map<std::string, Parameter>& captured_params, const std::string& attrname, std::map<std::string, Attribute>& captured_attrs)
+{
+    // @data
+    // @data=(1,2,3,4)f32
+    // @data=%op1.data
+
+    if (b.type == 0)
+    {
+        std::string bs(b.data.begin(), b.data.end());
+        if (bs.empty())
+        {
+            // capture any shape
+            captured_attrs[attrname] = a;
+            return true;
+        }
+
+        if (bs[0] == '%')
+        {
+            // the captured replace
+            return true;
+        }
+
+        fprintf(stderr, "malformed attribute pattern %s\n", bs.c_str());
+        return false;
+    }
+
+    const std::vector<int>& a_shape = a.shape;
+    const std::vector<int>& b_shape = b.shape;
+    if (b_shape.empty())
+        return false;
+
+    if (a_shape.empty())
+        return false;
+
+    if (a_shape.size() != b_shape.size())
+        return false;
+
+    for (size_t j = 0; j < a_shape.size(); j++)
+    {
+        int ai = a_shape[j];
+        int bi = b_shape[j];
+        if (ai == bi)
+            continue;
+
+        if (bi == -1)
+            continue;
+
+        if (bi > 0)
+            return false;
+
+        if (bi != -233)
+            return false;
+
+        std::string key = b.params.at(std::string("__shape_") + std::to_string(j)).s;
+
+        if (captured_params.find(key) != captured_params.end())
+        {
+            // match previous captured parameter
+            if (captured_params.at(key).i != ai)
+                return false;
+        }
+
+        // captured parameter
+        captured_params[key] = ai;
+    }
+
+    captured_attrs[attrname] = a;
+    return true;
+}
+
 static bool match_operator(const Operator* a, const Operator* b, std::map<std::string, Parameter>& captured_params, std::map<std::string, Attribute>& captured_attrs)
 {
     if (a->type != b->type)
@@ -605,8 +675,18 @@ static bool match_operator(const Operator* a, const Operator* b, std::map<std::s
         const std::string& akey = p.first;
         const Attribute& aa = p.second;
 
-        // capture all attributes
-        captured_attrs[b->name + '.' + akey] = aa;
+        std::string attrname = b->name + '.' + akey;
+
+        if (b->attrs.find(akey) == b->attrs.end())
+        {
+            // capture all attributes
+            captured_attrs[attrname] = aa;
+        }
+        else
+        {
+            if (!match_attribute(aa, b->attrs.at(akey), captured_params, attrname, captured_attrs))
+                return false;
+        }
     }
 
     return true;
