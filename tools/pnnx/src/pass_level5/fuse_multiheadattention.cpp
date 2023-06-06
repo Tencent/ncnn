@@ -1405,11 +1405,7 @@ void fuse_multiheadattention(Graph& graph)
     pnnx_graph_rewrite(graph, &d, opindex);
     pnnx_graph_rewrite(graph, &b1, opindex);
     pnnx_graph_rewrite(graph, &b11, opindex);
-
-
     pnnx_graph_rewrite(graph, &b12, opindex);
-
-
     pnnx_graph_rewrite(graph, &c1, opindex);
     pnnx_graph_rewrite(graph, &d1, opindex);
     pnnx_graph_rewrite(graph, &e, opindex);
