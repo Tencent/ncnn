@@ -320,11 +320,11 @@ int main(int argc, char** argv)
         benchmark("yolo-fastest-1.1", ncnn::Mat(320, 320, 3), opt);
 
         benchmark("yolo-fastestv2", ncnn::Mat(352, 352, 3), opt);
+
+        benchmark("vision_transformer", ncnn::Mat(384, 384, 3), opt);
+
+        benchmark("FastestDet", ncnn::Mat(352, 352, 3), opt);
     }
-
-    benchmark("vision_transformer", ncnn::Mat(384, 384, 3), opt);
-
-    benchmark("FastestDet", ncnn::Mat(352, 352, 3), opt);
 #if NCNN_VULKAN
     delete g_blob_vkallocator;
     delete g_staging_vkallocator;
