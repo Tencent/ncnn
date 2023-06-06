@@ -242,6 +242,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_randn.cpp
     pass_level2/torch_randn_like.cpp
     pass_level2/torch_real.cpp
+    pass_level2/torch_repeat_interleave.cpp
     pass_level2/torch_roll.cpp
     pass_level2/torch_scatter_add.cpp
     pass_level2/torch_split.cpp
@@ -332,7 +333,9 @@ set(pnnx_pass_level5_SRCS
     pass_level5/fuse_pad_conv1d.cpp
     pass_level5/fuse_pad_conv2d.cpp
     pass_level5/fuse_pixel_unshuffle.cpp
+    pass_level5/fuse_layernorm.cpp
     pass_level5/fuse_multiheadattention.cpp
+    pass_level5/fuse_scaled_dot_product_attention.cpp
     pass_level5/fuse_select_to_unbind.cpp
     pass_level5/fuse_slice_copy.cpp
     pass_level5/fuse_slice_indices.cpp

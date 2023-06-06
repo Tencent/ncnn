@@ -588,6 +588,14 @@ Attribute operator+(const Attribute& a, const Attribute& b)
 
 Parameter Parameter::parse_from_string(const std::string& value)
 {
+    if (value.find('%') != std::string::npos)
+    {
+        Parameter p;
+        p.type = 4;
+        p.s = value;
+        return p;
+    }
+
     Parameter p;
     p.type = 0;
 
@@ -657,6 +665,96 @@ Parameter Parameter::parse_from_string(const std::string& value)
     p.type = 2;
     p.i = std::stoi(value);
     return p;
+}
+
+std::string Parameter::encode_to_string(const Parameter& param)
+{
+    if (param.type == 0)
+    {
+        return std::string("None");
+    }
+    if (param.type == 1)
+    {
+        if (param.b)
+            return std::string("True");
+        else
+            return std::string("False");
+    }
+    if (param.type == 2)
+    {
+        return std::to_string(param.i);
+    }
+    if (param.type == 3)
+    {
+        char buf[64];
+        sprintf(buf, "%e", param.f);
+        return std::string(buf);
+    }
+    if (param.type == 4)
+    {
+        return param.s;
+    }
+    if (param.type == 5)
+    {
+        std::string s("(");
+        for (size_t i = 0; i < param.ai.size(); i++)
+        {
+            s += std::to_string(param.ai[i]);
+            if (i + 1 != param.ai.size())
+                s += std::string(",");
+        }
+        s += std::string(")");
+        return s;
+    }
+    if (param.type == 6)
+    {
+        std::string s("(");
+        for (size_t i = 0; i < param.af.size(); i++)
+        {
+            char buf[64];
+            sprintf(buf, "%e", param.af[i]);
+            s += std::string(buf);
+            if (i + 1 != param.af.size())
+                s += std::string(",");
+        }
+        s += std::string(")");
+        return s;
+    }
+    if (param.type == 7)
+    {
+        std::string s("(");
+        for (size_t i = 0; i < param.as.size(); i++)
+        {
+            s += param.as[i];
+            if (i + 1 != param.as.size())
+                s += std::string(",");
+        }
+        s += std::string(")");
+        return s;
+    }
+    if (param.type == 10)
+    {
+        char buf[128];
+        sprintf(buf, "%e+%ej", param.c.real(), param.c.imag());
+        return std::string(buf);
+    }
+    if (param.type == 11)
+    {
+        std::string s("(");
+        for (size_t i = 0; i < param.ac.size(); i++)
+        {
+            char buf[128];
+            sprintf(buf, "%e+%ej", param.ac[i].real(), param.ac[i].imag());
+            s += std::string(buf);
+            if (i + 1 != param.ac.size())
+                s += std::string(",");
+        }
+        s += std::string(")");
+        return s;
+    }
+
+    fprintf(stderr, "unknown parameter type %d\n", param.type);
+    return std::string();
 }
 
 Graph::Graph()
@@ -751,6 +849,14 @@ static void load_shape(Operator* op, const std::string& key, const std::string& 
         if (elem == "?")
         {
             operand->shape.push_back(-1);
+        }
+        else if (elem[0] == '%')
+        {
+            // encode %abc as symbolic tag
+            operand->shape.push_back(-233);
+            int index = operand->shape.size() - 1;
+            std::string key = elem.substr(1);
+            operand->params[std::string("__shape_") + std::to_string(index)] = key;
         }
         else
         {
@@ -965,77 +1071,8 @@ int Graph::save(const std::string& parampath, const std::string& binpath)
             fprintf(paramfp, " %s=", it.first.c_str());
 
             const Parameter& param = it.second;
-            if (param.type == 0)
-            {
-                fprintf(paramfp, "None");
-            }
-            if (param.type == 1)
-            {
-                if (param.b)
-                    fprintf(paramfp, "True");
-                else
-                    fprintf(paramfp, "False");
-            }
-            if (param.type == 2)
-            {
-                fprintf(paramfp, "%d", param.i);
-            }
-            if (param.type == 3)
-            {
-                fprintf(paramfp, "%e", param.f);
-            }
-            if (param.type == 4)
-            {
-                fprintf(paramfp, "%s", param.s.c_str());
-            }
-            if (param.type == 5)
-            {
-                fprintf(paramfp, "(");
-                for (size_t i = 0; i < param.ai.size(); i++)
-                {
-                    fprintf(paramfp, "%d", param.ai[i]);
-                    if (i + 1 != param.ai.size())
-                        fprintf(paramfp, ",");
-                }
-                fprintf(paramfp, ")");
-            }
-            if (param.type == 6)
-            {
-                fprintf(paramfp, "(");
-                for (size_t i = 0; i < param.af.size(); i++)
-                {
-                    fprintf(paramfp, "%e", param.af[i]);
-                    if (i + 1 != param.af.size())
-                        fprintf(paramfp, ",");
-                }
-                fprintf(paramfp, ")");
-            }
-            if (param.type == 7)
-            {
-                fprintf(paramfp, "(");
-                for (size_t i = 0; i < param.as.size(); i++)
-                {
-                    fprintf(paramfp, "%s", param.as[i].c_str());
-                    if (i + 1 != param.as.size())
-                        fprintf(paramfp, ",");
-                }
-                fprintf(paramfp, ")");
-            }
-            if (param.type == 10)
-            {
-                fprintf(paramfp, "%e+%ej", param.c.real(), param.c.imag());
-            }
-            if (param.type == 11)
-            {
-                fprintf(paramfp, "(");
-                for (size_t i = 0; i < param.ac.size(); i++)
-                {
-                    fprintf(paramfp, "%e+%ej", param.ac[i].real(), param.ac[i].imag());
-                    if (i + 1 != param.ac.size())
-                        fprintf(paramfp, ",");
-                }
-                fprintf(paramfp, ")");
-            }
+            std::string s = Parameter::encode_to_string(param);
+            fprintf(paramfp, "%s", s.c_str());
         }
 
         for (const auto& it : op->attrs)
@@ -2638,11 +2675,62 @@ int Graph::parse(const std::string& param)
             {
                 // attribute
                 //                 load_attribute(op, key.substr(1), value, szr);
+                op->attrs[key.substr(1)] = Attribute();
+
+                Attribute& attr = op->attrs[key.substr(1)];
+
+                attr.type = 0;
+                if (value.empty())
+                    continue;
+
+                if (value[0] == '%')
+                {
+                    // @data=%op1.data
+                    attr.data = std::vector<char>(value.begin(), value.end());
+                }
+
+                if (value[0] == '(')
+                {
+                    // @data=(1,%c,?,4)f32
+
+                    // type
+                    std::string typestr = value.substr(value.find_last_of(')') + 1);
+                    attr.type = string_to_type(typestr.c_str());
+
+                    // shape
+                    std::string lc = value.substr(1, value.find_last_of(')') - 1);
+                    std::istringstream lcss(lc);
+
+                    attr.shape.clear();
+                    while (!lcss.eof())
+                    {
+                        std::string elem;
+                        std::getline(lcss, elem, ',');
+
+                        if (elem == "?")
+                        {
+                            attr.shape.push_back(-1);
+                        }
+                        else if (elem[0] == '%')
+                        {
+                            // encode %abc as symbolic tag
+                            attr.shape.push_back(-233);
+                            int index = attr.shape.size() - 1;
+                            std::string key = elem.substr(1);
+                            attr.params[std::string("__shape_") + std::to_string(index)] = key;
+                        }
+                        else
+                        {
+                            int i = std::stoi(elem);
+                            attr.shape.push_back(i);
+                        }
+                    }
+                }
             }
             else if (key[0] == '$')
             {
                 // operand input key
-                //                 load_input_key(op, key.substr(1), value);
+                load_input_key(op, key.substr(1), value);
             }
             else if (key[0] == '#')
             {

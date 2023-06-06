@@ -29,48 +29,27 @@ public:
         return R"PNNXIR(7767517
 5 4
 pnnx.Input              input       0 1 input
-pnnx.Attribute          op_weight   0 1 weight @qwq
-pnnx.Attribute          op_bias     0 1 bias @qwq
+pnnx.Attribute          op_weight   0 1 weight @data=(%num_features)f32
+pnnx.Attribute          op_bias     0 1 bias @data=(%num_features)f32
 F.instance_norm         op_0        3 1 input weight bias out running_mean=None running_var=None eps=%eps
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
 
-    const char* type_str() const
+    const char* replace_pattern_graph() const
     {
-        return "nn.InstanceNorm1d";
-    }
-
-    const char* name_str() const
-    {
-        return "instance_norm";
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+nn.InstanceNorm1d       instance_norm 1 1 input out num_features=%num_features eps=%eps affine=True track_running_stats=False @weight=%op_weight.data @bias=%op_bias.data
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     bool match(const std::map<std::string, const Operator*>& matched_operators) const
     {
         size_t input_rank = matched_operators.at("op_0")->inputs[0]->shape.size();
         return input_rank == 2 || input_rank == 3;
-    }
-
-    void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
-    {
-        Attribute weight;
-        Attribute bias;
-        for (const auto& x : captured_attrs)
-        {
-            if (x.first.substr(0, 10) == "op_weight.")
-                weight = x.second;
-            if (x.first.substr(0, 8) == "op_bias.")
-                bias = x.second;
-        }
-
-        op->params["num_features"] = weight.shape[0];
-        op->params["eps"] = captured_params.at("eps");
-        op->params["affine"] = true;
-        op->params["track_running_stats"] = false;
-
-        op->attrs["weight"] = weight;
-        op->attrs["bias"] = bias;
     }
 };
 
@@ -82,48 +61,21 @@ public:
         return R"PNNXIR(7767517
 5 4
 pnnx.Input              input       0 1 input
-pnnx.Attribute          op_weight   0 1 weight @qwq
-pnnx.Attribute          op_bias     0 1 bias @qwq
-F.instance_norm         op_0        3 1 input weight bias out running_mean=None running_var=None eps=%eps
+pnnx.Attribute          op_weight   0 1 weight @data=(%num_features)f32
+pnnx.Attribute          op_bias     0 1 bias @data=(%num_features)f32
+F.instance_norm         op_0        3 1 input weight bias out running_mean=None running_var=None eps=%eps #input=(?,?,?,?)f32
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
 
-    const char* type_str() const
+    const char* replace_pattern_graph() const
     {
-        return "nn.InstanceNorm1d";
-    }
-
-    const char* name_str() const
-    {
-        return "instance_norm";
-    }
-
-    bool match(const std::map<std::string, const Operator*>& matched_operators) const
-    {
-        size_t input_rank = matched_operators.at("op_0")->inputs[0]->shape.size();
-        return input_rank == 4;
-    }
-
-    void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
-    {
-        Attribute weight;
-        Attribute bias;
-        for (const auto& x : captured_attrs)
-        {
-            if (x.first.substr(0, 10) == "op_weight.")
-                weight = x.second;
-            if (x.first.substr(0, 8) == "op_bias.")
-                bias = x.second;
-        }
-
-        op->params["num_features"] = weight.shape[0];
-        op->params["eps"] = captured_params.at("eps");
-        op->params["affine"] = true;
-        op->params["track_running_stats"] = false;
-
-        op->attrs["weight"] = weight;
-        op->attrs["bias"] = bias;
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+nn.InstanceNorm2d       instance_norm 1 1 input out num_features=%num_features eps=%eps affine=True track_running_stats=False @weight=%op_weight.data @bias=%op_bias.data
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 };
 
@@ -135,48 +87,21 @@ public:
         return R"PNNXIR(7767517
 5 4
 pnnx.Input              input       0 1 input
-pnnx.Attribute          op_weight   0 1 weight @qwq
-pnnx.Attribute          op_bias     0 1 bias @qwq
-F.instance_norm         op_0        3 1 input weight bias out running_mean=None running_var=None eps=%eps
+pnnx.Attribute          op_weight   0 1 weight @data=(%num_features)f32
+pnnx.Attribute          op_bias     0 1 bias @data=(%num_features)f32
+F.instance_norm         op_0        3 1 input weight bias out running_mean=None running_var=None eps=%eps #input=(?,?,?,?,?)f32
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
 
-    const char* type_str() const
+    const char* replace_pattern_graph() const
     {
-        return "nn.InstanceNorm1d";
-    }
-
-    const char* name_str() const
-    {
-        return "instance_norm";
-    }
-
-    bool match(const std::map<std::string, const Operator*>& matched_operators) const
-    {
-        size_t input_rank = matched_operators.at("op_0")->inputs[0]->shape.size();
-        return input_rank == 5;
-    }
-
-    void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
-    {
-        Attribute weight;
-        Attribute bias;
-        for (const auto& x : captured_attrs)
-        {
-            if (x.first.substr(0, 10) == "op_weight.")
-                weight = x.second;
-            if (x.first.substr(0, 8) == "op_bias.")
-                bias = x.second;
-        }
-
-        op->params["num_features"] = weight.shape[0];
-        op->params["eps"] = captured_params.at("eps");
-        op->params["affine"] = true;
-        op->params["track_running_stats"] = false;
-
-        op->attrs["weight"] = weight;
-        op->attrs["bias"] = bias;
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+nn.InstanceNorm3d       instance_norm 1 1 input out num_features=%num_features eps=%eps affine=True track_running_stats=False @weight=%op_weight.data @bias=%op_bias.data
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 };
 

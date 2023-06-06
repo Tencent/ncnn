@@ -43,9 +43,9 @@ void fold_constants(Graph& graph, const std::set<std::string>& foldable_constant
         // replace producer with attribute
         Operator* op_new = graph.new_operator_before("pnnx.Attribute", std::string("pnnx_fold_") + name, op);
 
-        op_new->attrs[std::string("pnnx_fold_") + name] = Attribute();
+        op_new->attrs["data"] = Attribute();
 
-        Attribute& t2 = op_new->attrs[std::string("pnnx_fold_") + name];
+        Attribute& t2 = op_new->attrs["data"];
         t2.type = operand->type;
         t2.shape = operand->shape;
         size_t size = zip.get_file_size(name);
