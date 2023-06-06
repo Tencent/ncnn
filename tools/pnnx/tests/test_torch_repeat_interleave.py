@@ -15,6 +15,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from packaging import version
 
 class Model(nn.Module):
     def __init__(self):
@@ -23,7 +24,10 @@ class Model(nn.Module):
     def forward(self, x, y, z):
         x = torch.repeat_interleave(x, 2)
         y = torch.repeat_interleave(y, 3, dim=1)
-        z = torch.repeat_interleave(z, torch.tensor([2, 1, 3]), dim=0, output_size=6)
+        if version.parse(torch.__version__) >= version.parse('1.10'):
+            z = torch.repeat_interleave(z, torch.tensor([2, 1, 3]), dim=0, output_size=6)
+        else:
+            z = torch.repeat_interleave(z, torch.tensor([2, 1, 3]), dim=0)
         return x, y, z
 
 def test():
