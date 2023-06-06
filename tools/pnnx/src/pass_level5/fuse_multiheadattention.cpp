@@ -318,17 +318,17 @@ nn.Linear               op_1        1 1 key 33 bias=%kbias in_features=%kdim out
 nn.Linear               op_2        1 1 value 34 bias=%vbias in_features=%vdim out_features=%embed_dim @bias @weight
 pnnx.Expression         op_3        1 1 33 35 expr=mul(@0,%inv_sqrt_embed_dim_per_head)
 Tensor.reshape          op_4        1 1 32 36 shape=(%batch,%qsize,%num_heads,%feat_per_head)
-Tensor.reshape          op_5        1 1 35 37 shape=(%batch,%ksize,%num_heads,%feat_per_head)
-Tensor.reshape          op_6        1 1 34 38 shape=(%batch,%vsize,%num_heads,%feat_per_head)
+Tensor.reshape          op_5        1 1 35 37 shape=(%batch,%kvsize,%num_heads,%feat_per_head)
+Tensor.reshape          op_6        1 1 34 38 shape=(%batch,%kvsize,%num_heads,%feat_per_head)
 torch.permute           op_7        1 1 37 39 dims=(0,2,1,3)
-Tensor.reshape          op_8        1 1 39 40 shape=(%num_heads,%ksize,%feat_per_head)
+Tensor.reshape          op_8        1 1 39 40 shape=(%num_heads,%kvsize,%feat_per_head)
 torch.permute           op_9        1 1 36 41 dims=(0,2,1,3)
 Tensor.reshape          op_10       1 1 41 42 shape=(%num_heads,%qsize,%feat_per_head)
 torch.permute           op_11       1 1 40 43 dims=(0,2,1)
 torch.matmul            op_12       2 1 42 43 44
 F.softmax               op_13       1 1 44 45 dim=-1
 torch.permute           op_14       1 1 38 46 dims=(0,2,1,3)
-Tensor.reshape          op_15       1 1 46 47 shape=(%num_heads,%vsize,%feat_per_head)
+Tensor.reshape          op_15       1 1 46 47 shape=(%num_heads,%kvsize,%feat_per_head)
 torch.matmul            op_16       2 1 45 47 48
 Tensor.reshape          op_17       1 1 48 49 shape=(%batch,%num_heads,%qsize,%feat_per_head)
 torch.permute           op_18       1 1 49 50 dims=(0,2,1,3)
@@ -357,24 +357,35 @@ pnnx.Output             output      1 0 out
         Operator* op = ops.at("attention");
 
         const int embed_dim = captured_params.at("embed_dim").i;
+        const int kdim = captured_params.at("kdim").i;
+        const int vdim = captured_params.at("vdim").i;
         const bool qbias = captured_params.at("qbias").b;
         const bool kbias = captured_params.at("kbias").b;
         const bool vbias = captured_params.at("vbias").b;
         const bool outbias = captured_params.at("outbias").b;
         const bool bias = qbias || kbias || vbias || outbias;
+        const bool same_qkv_dim = (embed_dim == kdim && embed_dim == vdim);
 
         op->params["bias"] = bias;
 
-        op->attrs["q_proj_weight"] = captured_attrs.at("op_0.weight");
-        op->attrs["k_proj_weight"] = captured_attrs.at("op_1.weight");
-        op->attrs["v_proj_weight"] = captured_attrs.at("op_2.weight");
+        if (same_qkv_dim)
+        {
+            // same qkv dim, merge into in_proj_weight
+            op->attrs["in_proj_weight"] = captured_attrs.at("op_0.weight") + captured_attrs.at("op_1.weight") + captured_attrs.at("op_2.weight");
+        }
+        else
+        {
+            op->attrs["q_proj_weight"] = captured_attrs.at("op_0.weight");
+            op->attrs["k_proj_weight"] = captured_attrs.at("op_1.weight");
+            op->attrs["v_proj_weight"] = captured_attrs.at("op_2.weight");
+        }
 
         op->attrs["out_proj.weight"] = captured_attrs.at("out_proj.weight");
 
         if (bias)
         {
             op->attrs["in_proj_bias"] = Attribute();
-            op->attrs["in_proj_bias"].type = op->attrs["q_proj_weight"].type;
+            op->attrs["in_proj_bias"].type = same_qkv_dim ? op->attrs["in_proj_weight"].type : op->attrs["q_proj_weight"].type;
             op->attrs["in_proj_bias"].shape = {embed_dim * 3};
             // combine qkv bias
             std::vector<float> in_proj_bias(embed_dim * 3);
@@ -560,15 +571,15 @@ public:
     {
         return R"PNNXIR(7767517
 21 20
-pnnx.Input              input_0     0 1 query
-pnnx.Input              input_1     0 1 key
-pnnx.Input              input_2     0 1 value
+pnnx.Input              input_0     0 1 query #query=(%batch,%qsize,%embed_dim)f32
+pnnx.Input              input_1     0 1 key #key=(%batch,%kvsize,%kdim)f32
+pnnx.Input              input_2     0 1 value #value=(%batch,%kvsize,%kdim)f32
 nn.Linear               op_0        1 1 query 47 bias=%qbias in_features=%embed_dim out_features=%embed_dim @bias @weight
 nn.Linear               op_1        1 1 key 48 bias=%kbias in_features=%kdim out_features=%embed_dim @bias @weight
 nn.Linear               op_2        1 1 value 49 bias=%vbias in_features=%vdim out_features=%embed_dim @bias @weight
 Tensor.reshape          op_3        1 1 47 50 shape=(%batch,%qsize,%num_heads,%feat_per_head)
-Tensor.reshape          op_4        1 1 48 51 shape=(%batch,%ksize,%num_heads,%feat_per_head)
-Tensor.reshape          op_5        1 1 49 52 shape=(%batch,%vsize,%num_heads,%feat_per_head)
+Tensor.reshape          op_4        1 1 48 51 shape=(%batch,%kvsize,%num_heads,%feat_per_head)
+Tensor.reshape          op_5        1 1 49 52 shape=(%batch,%kvsize,%num_heads,%feat_per_head)
 torch.transpose         op_6        1 1 51 53 dim0=1 dim1=2
 torch.permute           op_7        1 1 53 54 dims=(0,1,3,2)
 torch.transpose         op_8        1 1 50 55 dim0=1 dim1=2
@@ -615,17 +626,17 @@ nn.Linear               op_0        1 1 query 32 bias=%qbias in_features=%embed_
 nn.Linear               op_1        1 1 key 33 bias=%kbias in_features=%kdim out_features=%embed_dim @bias @weight
 nn.Linear               op_2        1 1 value 34 bias=%vbias in_features=%vdim out_features=%embed_dim @bias @weight
 Tensor.reshape          op_3        1 1 32 36 shape=(%batch,%qsize,%num_heads,%feat_per_head)
-Tensor.reshape          op_4        1 1 33 37 shape=(%batch,%ksize,%num_heads,%feat_per_head)
-Tensor.reshape          op_5        1 1 34 38 shape=(%batch,%vsize,%num_heads,%feat_per_head)
+Tensor.reshape          op_4        1 1 33 37 shape=(%batch,%kvsize,%num_heads,%feat_per_head)
+Tensor.reshape          op_5        1 1 34 38 shape=(%batch,%kvsize,%num_heads,%feat_per_head)
 torch.permute           op_6        1 1 37 39 dims=(0,2,1,3)
-Tensor.reshape          op_7        1 1 39 40 shape=(%num_heads,%ksize,%feat_per_head)
+Tensor.reshape          op_7        1 1 39 40 shape=(%num_heads,%kvsize,%feat_per_head)
 torch.permute           op_8        1 1 36 41 dims=(0,2,1,3)
 Tensor.reshape          op_9        1 1 41 42 shape=(%num_heads,%qsize,%feat_per_head)
 torch.einsum            op_10       2 1 42 40 43 equation=ijl,ikl->ijk
 pnnx.Expression         op_11       1 1 43 44 expr=mul(@0,%inv_sqrt_embed_dim_per_head)
 F.softmax               op_12       1 1 44 45 dim=-1
 torch.permute           op_13       1 1 38 46 dims=(0,2,1,3)
-Tensor.reshape          op_14       1 1 46 47 shape=(%num_heads,%vsize,%feat_per_head)
+Tensor.reshape          op_14       1 1 46 47 shape=(%num_heads,%kvsize,%feat_per_head)
 torch.einsum            op_15       2 1 45 47 48 equation=ijl,ilk->ijk
 Tensor.reshape          op_16       1 1 48 49 shape=(%batch,%num_heads,%qsize,%feat_per_head)
 torch.permute           op_17       1 1 49 50 dims=(0,2,1,3)
@@ -757,18 +768,18 @@ nn.Linear               op_0        1 1 query 33 bias=%qbias in_features=%embed_
 nn.Linear               op_1        1 1 key 34 bias=%kbias in_features=%kdim out_features=%embed_dim @bias @weight
 nn.Linear               op_2        1 1 value 35 bias=%vbias in_features=%vdim out_features=%embed_dim @bias @weight
 Tensor.reshape          op_3        1 1 33 36 shape=(%batch,%qsize,%num_heads,%feat_per_head)
-Tensor.reshape          op_4        1 1 34 37 shape=(%batch,%ksize,%num_heads,%feat_per_head)
-Tensor.reshape          op_5        1 1 35 38 shape=(%batch,%vsize,%num_heads,%feat_per_head)
+Tensor.reshape          op_4        1 1 34 37 shape=(%batch,%kvsize,%num_heads,%feat_per_head)
+Tensor.reshape          op_5        1 1 35 38 shape=(%batch,%kvsize,%num_heads,%feat_per_head)
 torch.permute           op_6        1 1 36 39 dims=(0,2,1,3)
 Tensor.reshape          op_7        1 1 39 40 shape=(%num_heads,%qsize,%feat_per_head)
 torch.permute           op_8        1 1 37 41 dims=(0,2,1,3)
-Tensor.reshape          op_9        1 1 41 42 shape=(%num_heads,%ksize,%feat_per_head)
+Tensor.reshape          op_9        1 1 41 42 shape=(%num_heads,%kvsize,%feat_per_head)
 pnnx.Attribute          op_10       0 1 43 @data
 torch.transpose         op_11       1 1 42 44 dim0=-1 dim1=-2
 torch.baddbmm           op_12       3 1 43 40 44 45 alpha=%inv_sqrt_embed_dim_per_head beta=0
 F.softmax               op_13       1 1 45 46 dim=-1
 torch.permute           op_14       1 1 38 47 dims=(0,2,1,3)
-Tensor.reshape          op_15       1 1 47 48 shape=(%num_heads,%vsize,%feat_per_head)
+Tensor.reshape          op_15       1 1 47 48 shape=(%num_heads,%kvsize,%feat_per_head)
 torch.bmm               op_16       2 1 46 48 49
 Tensor.reshape          op_17       1 1 49 50 shape=(%batch,%num_heads,%qsize,%feat_per_head)
 torch.permute           op_18       1 1 50 51 dims=(0,2,1,3)
@@ -832,19 +843,19 @@ nn.Linear               op_0        1 1 query 33 bias=%qbias in_features=%embed_
 nn.Linear               op_1        1 1 key 34 bias=%kbias in_features=%kdim out_features=%embed_dim @bias @weight
 nn.Linear               op_2        1 1 value 35 bias=%vbias in_features=%vdim out_features=%embed_dim @bias @weight
 Tensor.reshape          op_3        1 1 33 36 shape=(%batch,%qsize,%num_heads,%feat_per_head)
-Tensor.reshape          op_4        1 1 34 37 shape=(%batch,%ksize,%num_heads,%feat_per_head)
-Tensor.reshape          op_5        1 1 35 38 shape=(%batch,%vsize,%num_heads,%feat_per_head)
+Tensor.reshape          op_4        1 1 34 37 shape=(%batch,%kvsize,%num_heads,%feat_per_head)
+Tensor.reshape          op_5        1 1 35 38 shape=(%batch,%kvsize,%num_heads,%feat_per_head)
 torch.permute           op_6        1 1 36 39 dims=(0,2,1,3)
 Tensor.reshape          op_7        1 1 39 40 shape=(%num_heads,%qsize,%feat_per_head)
 torch.permute           op_8        1 1 37 41 dims=(0,2,1,3)
-Tensor.reshape          op_9        1 1 41 42 shape=(%num_heads,%ksize,%feat_per_head)
+Tensor.reshape          op_9        1 1 41 42 shape=(%num_heads,%kvsize,%feat_per_head)
 pnnx.Expression         op_10       1 1 40 43 expr=%expr_zero_shape
 torch.empty             op_11       1 1 43 zeros
 torch.transpose         op_12       1 1 42 44 dim0=-1 dim1=-2
 torch.baddbmm           op_13       3 1 zeros 40 44 45 alpha=%inv_sqrt_embed_dim_per_head beta=0
 F.softmax               op_14       1 1 45 46 dim=-1
 torch.permute           op_15       1 1 38 47 dims=(0,2,1,3)
-Tensor.reshape          op_16       1 1 47 48 shape=(%num_heads,%vsize,%feat_per_head)
+Tensor.reshape          op_16       1 1 47 48 shape=(%num_heads,%kvsize,%feat_per_head)
 torch.bmm               op_17       2 1 46 48 49
 Tensor.reshape          op_18       1 1 49 50 shape=(%batch,%num_heads,%qsize,%feat_per_head)
 torch.permute           op_19       1 1 50 51 dims=(0,2,1,3)
@@ -971,8 +982,8 @@ nn.Linear               op_0        1 1 query 33 bias=%qbias in_features=%embed_
 nn.Linear               op_1        1 1 key 34 bias=%kbias in_features=%kdim out_features=%embed_dim @bias @weight
 nn.Linear               op_2        1 1 value 35 bias=%vbias in_features=%vdim out_features=%embed_dim @bias @weight
 Tensor.view             op_3        1 1 33 36 shape=(%batch,%qsize,%num_heads,%feat_per_head)
-Tensor.view             op_4        1 1 34 37 shape=(%batch,%ksize,%num_heads,%feat_per_head)
-Tensor.view             op_5        1 1 35 38 shape=(%batch,%vsize,%num_heads,%feat_per_head)
+Tensor.view             op_4        1 1 34 37 shape=(%batch,%kvsize,%num_heads,%feat_per_head)
+Tensor.view             op_5        1 1 35 38 shape=(%batch,%kvsize,%num_heads,%feat_per_head)
 torch.transpose         op_6        1 1 38 39 dim0=1 dim1=2
 torch.transpose         op_7        1 1 37 40 dim0=1 dim1=2
 torch.transpose         op_8        1 1 36 41 dim0=1 dim1=2
@@ -1394,7 +1405,11 @@ void fuse_multiheadattention(Graph& graph)
     pnnx_graph_rewrite(graph, &d, opindex);
     pnnx_graph_rewrite(graph, &b1, opindex);
     pnnx_graph_rewrite(graph, &b11, opindex);
+
+
     pnnx_graph_rewrite(graph, &b12, opindex);
+
+
     pnnx_graph_rewrite(graph, &c1, opindex);
     pnnx_graph_rewrite(graph, &d1, opindex);
     pnnx_graph_rewrite(graph, &e, opindex);

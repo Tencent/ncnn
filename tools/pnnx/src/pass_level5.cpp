@@ -40,6 +40,7 @@
 #include "pass_level5/fuse_multiheadattention.h"
 #include "pass_level5/fuse_pad_conv1d.h"
 #include "pass_level5/fuse_pad_conv2d.h"
+#include "pass_level5/fuse_scaled_dot_product_attention.h"
 #include "pass_level5/fuse_select_to_unbind.h"
 #include "pass_level5/fuse_slice_copy.h"
 #include "pass_level5/fuse_slice_indices.h"
@@ -127,6 +128,7 @@ void pass_level5(Graph& g, const std::set<std::string>& foldable_constants, cons
     fuse_channel_shuffle(g);
     fuse_layernorm(g);
     fuse_multiheadattention(g);
+    fuse_scaled_dot_product_attention(g);
 
     fuse_index_expression(g);
 
