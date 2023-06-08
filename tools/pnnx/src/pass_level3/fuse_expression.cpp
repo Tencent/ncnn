@@ -100,7 +100,8 @@ static bool operand_maybe_tensor(const Operand* operand)
             || op->type == "aten::div"
             || op->type == "aten::floor_divide"
             || op->type == "aten::mul"
-            || op->type == "aten::pow")
+            || op->type == "aten::pow"
+            || op->type == "aten::remainder")
     {
         return operand_maybe_tensor(op->inputs[0]) || operand_maybe_tensor(op->inputs[1]);
     }
