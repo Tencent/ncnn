@@ -269,10 +269,8 @@ Parameter::Parameter(const torch::jit::Node* value_node)
             }
             else
             {
-                const int ndim = (int)t.dim();
-
+                // constant tensor will become pnnx attribute node later
                 type = 8;
-                fprintf(stderr, "unknown Parameter value kind %s of TensorType, t.dim = %d\n", value_node->kind().toDisplayString(), ndim);
             }
 
             break;
