@@ -1060,14 +1060,14 @@ nn.Linear               op_1        1 1 input 4 bias=%kbias in_features=%embed_d
 nn.Linear               op_2        1 1 input 6 bias=%vbias in_features=%embed_dim out_features=%embed_dim @bias @weight
 pnnx.Expression         op_3        1 1 2 3 expr=mul(@0,%inv_sqrt_embed_dim_per_head)
 Tensor.view             op_4        1 1 3 8 shape=(%batch,%size,%num_heads,%feat_per_head)
-Tensor.view             op_5        1 1 4 5 shape=(%batch,-1,%num_heads,%feat_per_head)
-Tensor.view             op_6        1 1 6 7 shape=(%batch,-1,%num_heads,%feat_per_head)
+Tensor.view             op_5        1 1 4 5 shape=(%batch,%size,%num_heads,%feat_per_head)
+Tensor.view             op_6        1 1 6 7 shape=(%batch,%size,%num_heads,%feat_per_head)
 torch.transpose         op_7        1 1 8 9 dim0=1 dim1=2
 torch.transpose         op_8        1 1 5 10 dim0=1 dim1=2
 torch.transpose         op_9        1 1 7 11 dim0=1 dim1=2
-Tensor.reshape          op_10       1 1 9 14 shape=(%num_heads,-1,%feat_per_head)
-Tensor.reshape          op_11       1 1 10 12 shape=(%num_heads,-1,%feat_per_head)
-Tensor.reshape          op_12       1 1 11 17 shape=(%num_heads,-1,%feat_per_head)
+Tensor.reshape          op_10       1 1 9 14 shape=(%num_heads,%batch_mul_size,%feat_per_head)
+Tensor.reshape          op_11       1 1 10 12 shape=(%num_heads,%batch_mul_size,%feat_per_head)
+Tensor.reshape          op_12       1 1 11 17 shape=(%num_heads,%batch_mul_size,%feat_per_head)
 torch.transpose         op_13       1 1 12 13 dim0=1 dim1=2
 torch.bmm               op_14       2 1 14 13 15
 F.softmax               op_15       1 1 15 16 dim=-1
@@ -1094,14 +1094,14 @@ nn.Linear               op_1        1 1 input 5 bias=%kbias in_features=%embed_d
 nn.Linear               op_2        1 1 input 7 bias=%vbias in_features=%embed_dim out_features=%embed_dim @bias @weight
 pnnx.Expression         op_3        1 1 3 4 expr=mul(@0,%inv_sqrt_embed_dim_per_head)
 Tensor.view             op_4        1 1 4 9 shape=(%batch,%size,%num_heads,%feat_per_head)
-Tensor.view             op_5        1 1 5 6 shape=(%batch,-1,%num_heads,%feat_per_head)
-Tensor.view             op_6        1 1 7 8 shape=(%batch,-1,%num_heads,%feat_per_head)
+Tensor.view             op_5        1 1 5 6 shape=(%batch,%size,%num_heads,%feat_per_head)
+Tensor.view             op_6        1 1 7 8 shape=(%batch,%size,%num_heads,%feat_per_head)
 torch.transpose         op_7        1 1 9 10 dim0=1 dim1=2
 torch.transpose         op_8        1 1 6 11 dim0=1 dim1=2
 torch.transpose         op_9        1 1 8 12 dim0=1 dim1=2
-Tensor.reshape          op_10       1 1 10 15 shape=(%num_heads,-1,%feat_per_head)
-Tensor.reshape          op_11       1 1 11 13 shape=(%num_heads,-1,%feat_per_head)
-Tensor.reshape          op_12       1 1 12 21 shape=(%num_heads,-1,%feat_per_head)
+Tensor.reshape          op_10       1 1 10 15 shape=(%num_heads,%batch_mul_size,%feat_per_head)
+Tensor.reshape          op_11       1 1 11 13 shape=(%num_heads,%batch_mul_size,%feat_per_head)
+Tensor.reshape          op_12       1 1 12 21 shape=(%num_heads,%batch_mul_size,%feat_per_head)
 torch.transpose         op_13       1 1 13 14 dim0=1 dim1=2
 torch.bmm               op_14       2 1 15 14 16
 Tensor.view             op_15       1 1 16 17 shape=(%batch,%num_heads,%size,%size)
@@ -1301,7 +1301,7 @@ pnnx.Expression         op_7        2 1 33 attn_mask 35 expr=add(@0,@1)
 Tensor.view             op_8        1 1 35 36 shape=(1,%batch,%num_heads,%size,%size)
 pnnx.Attribute          op_9        0 1 37 @data=(1,%batch,1,%size,%size)f32
 pnnx.Expression         op_10       2 1 36 37 38 expr=add(@0,@1)
-Tensor.view             op_11       1 1 38 39 shape=(-1,%num_heads,%size,%size)
+Tensor.view             op_11       1 1 38 39 shape=(%batch,%num_heads,%size,%size)
 F.softmax               op_12       1 1 39 40 dim=-1
 torch.matmul            op_13       2 1 40 30 41
 torch.transpose         op_14       1 1 41 42 dim0=1 dim1=2

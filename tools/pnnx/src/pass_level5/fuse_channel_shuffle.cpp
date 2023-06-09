@@ -56,7 +56,7 @@ public:
 pnnx.Input              input       0 1 input
 Tensor.view             op_0        1 1 input 13 shape=(%batch,%groups,%channels_per_group,%h,%w)
 torch.transpose         op_1        1 1 13 14 dim0=1 dim1=2
-Tensor.reshape          op_2        1 1 14 out shape=(%batch,-1,%h,%w)
+Tensor.reshape          op_2        1 1 14 out shape=(%batch,%channels,%h,%w)
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
