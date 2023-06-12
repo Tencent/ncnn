@@ -100,6 +100,50 @@ void GraphRewriterPass::write(Operator* op, const std::map<std::string, Paramete
 
         op->params[x.first] = Parameter::parse_from_string(str);
     }
+
+    for (size_t i = 0; i < op->inputs.size(); i++)
+    {
+        Operand* operand = op->inputs[i];
+        std::vector<int>& shape = operand->shape;
+        for (size_t j = 0; j < shape.size(); j++)
+        {
+            int ai = shape[j];
+            if (ai == -233)
+            {
+                std::string key = operand->params.at(std::string("__shape_") + std::to_string(j)).s;
+
+                if (captured_params.find(key) == captured_params.end())
+                {
+                    fprintf(stderr, "replace pattern param %%%s missing captured\n", key.c_str());
+                    return;
+                }
+
+                shape[j] = captured_params.at(key).i;
+            }
+        }
+    }
+
+    for (size_t i = 0; i < op->outputs.size(); i++)
+    {
+        Operand* operand = op->outputs[i];
+        std::vector<int>& shape = operand->shape;
+        for (size_t j = 0; j < shape.size(); j++)
+        {
+            int ai = shape[j];
+            if (ai == -233)
+            {
+                std::string key = operand->params.at(std::string("__shape_") + std::to_string(j)).s;
+
+                if (captured_params.find(key) == captured_params.end())
+                {
+                    fprintf(stderr, "replace pattern param %%%s missing captured\n", key.c_str());
+                    return;
+                }
+
+                shape[j] = captured_params.at(key).i;
+            }
+        }
+    }
 }
 
 void GraphRewriterPass::write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
