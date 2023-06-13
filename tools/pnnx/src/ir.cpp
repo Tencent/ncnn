@@ -1785,11 +1785,9 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
         fprintf(pyfp, "        return nn.Parameter(self.load_pnnx_bin_as_tensor(archive, key, shape, dtype), requires_grad)\n");
         fprintf(pyfp, "\n");
         fprintf(pyfp, "    def load_pnnx_bin_as_tensor(self, archive, key, shape, dtype):\n");
-        fprintf(pyfp, "        _, tmppath = tempfile.mkstemp()\n");
-        fprintf(pyfp, "        tmpf = open(tmppath, 'wb')\n");
-        fprintf(pyfp, "        with archive.open(key) as keyfile:\n");
+        fprintf(pyfp, "        fd, tmppath = tempfile.mkstemp()\n");
+        fprintf(pyfp, "        with os.fdopen(fd, 'wb') as tmpf, archive.open(key) as keyfile:\n");
         fprintf(pyfp, "            tmpf.write(keyfile.read())\n");
-        fprintf(pyfp, "        tmpf.close()\n");
         fprintf(pyfp, "        m = np.memmap(tmppath, dtype=dtype, mode='r', shape=shape).copy()\n");
         fprintf(pyfp, "        os.remove(tmppath)\n");
         fprintf(pyfp, "        return torch.from_numpy(m)\n");
