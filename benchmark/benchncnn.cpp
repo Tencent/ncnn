@@ -56,7 +56,6 @@ static ncnn::VkAllocator* g_staging_vkallocator = 0;
 
 void benchmark(const char* comment, const std::vector<ncnn::Mat>& _in, const ncnn::Option& opt, bool fix_path = true)
 {
-
     g_blob_pool_allocator.clear();
     g_workspace_pool_allocator.clear();
 
@@ -108,7 +107,8 @@ void benchmark(const char* comment, const std::vector<ncnn::Mat>& _in, const ncn
         ncnn::sleep(10 * 1000);
     }
 
-    if (input_names.size() > _in.size()) {
+    if (input_names.size() > _in.size())
+    {
         fprintf(stderr, "input %ld tensors while model has %ld inputs\n", _in.size(), input_names.size());
         return;
     }
@@ -116,13 +116,15 @@ void benchmark(const char* comment, const std::vector<ncnn::Mat>& _in, const ncn
     for (int i = 0; i < g_warmup_loop_count; i++)
     {
         ncnn::Extractor ex = net.create_extractor();
-        for (size_t j = 0; j < input_names.size(); ++j) {
+        for (size_t j = 0; j < input_names.size(); ++j)
+        {
             ncnn::Mat in = _in[j];
             in.fill(0.01f);
             ex.input(input_names[j], in);
         }
 
-        for (size_t j = 0; j < output_names.size(); ++j) {
+        for (size_t j = 0; j < output_names.size(); ++j)
+        {
             ncnn::Mat out;
             ex.extract(output_names[0], out);
         }
@@ -138,13 +140,15 @@ void benchmark(const char* comment, const std::vector<ncnn::Mat>& _in, const ncn
 
         {
             ncnn::Extractor ex = net.create_extractor();
-            for (size_t j = 0; j < input_names.size(); ++j) {
+            for (size_t j = 0; j < input_names.size(); ++j)
+            {
                 ncnn::Mat in = _in[j];
                 in.fill(0.01f);
                 ex.input(input_names[j], in);
             }
 
-            for (size_t j = 0; j < output_names.size(); ++j) {
+            for (size_t j = 0; j < output_names.size(); ++j)
+            {
                 ncnn::Mat out;
                 ex.extract(output_names[0], out);
             }
@@ -179,7 +183,6 @@ static std::vector<ncnn::Mat> parse_shape_list(char* s)
     char* pch = strtok(s, "[]");
     while (pch != NULL)
     {
-
         // parse a,b,c
         int v;
         int nconsumed = 0;
@@ -209,7 +212,8 @@ static std::vector<ncnn::Mat> parse_shape_list(char* s)
         pch = strtok(NULL, "[]");
     }
 
-    for (size_t i = 0; i < shapes.size(); ++i) {
+    for (size_t i = 0; i < shapes.size(); ++i)
+    {
         const std::vector<int>& shape = shapes[i];
         switch (shape.size())
         {
@@ -293,7 +297,8 @@ int main(int argc, char** argv)
             inputs = parse_shape_list(value);
     }
 
-    if (model != nullptr && inputs.empty()) {
+    if (model != nullptr && inputs.empty())
+    {
         fprintf(stderr, "input tensor shape empty!\n");
         return -1;
     }
