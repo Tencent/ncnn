@@ -23,7 +23,9 @@ make -j4
 Usage
 ```shell
 # copy all param files to the current directory
-./benchncnn [loop count] [num threads] [powersave] [gpu device] [cooling down] [model w h c]
+./benchncnn [loop count] [num threads] [powersave] [gpu device] [cooling down] [(key=value)...]
+  param=model.param
+  shape=[227,227,3],..
 ```
 run benchncnn on android device
 ```shell
@@ -34,7 +36,9 @@ adb shell
 
 # executed in android adb shell
 cd /data/local/tmp/
-./benchncnn [loop count] [num threads] [powersave] [gpu device] [cooling down] [model w h c]
+./benchncnn [loop count] [num threads] [powersave] [gpu device] [cooling down] [(key=value)...]
+  param=model.param
+  shape=[227,227,3],..
 ```
 
 Parameter
@@ -46,10 +50,8 @@ Parameter
 |powersave|0=all cores, 1=little cores only, 2=big cores only|0|
 |gpu device|-1=cpu-only, 0=gpu0, 1=gpu1 ...|-1|
 |cooling down|0=disable, 1=enable|1|
-|model|user specified .param filename, optional|nullptr|
-|w|1~N|-|
-|h|1~N|-|
-|c|1~N|-|
+|param|ncnn model.param filepath|-|
+|shape|model input shapes with, whc format|-|
 
 Tips: Disable android UI server and set CPU and GPU to max frequency
 ```shell
@@ -4332,17 +4334,6 @@ cooling_down = 0
            nanodet_m  min =   17.41  max =   18.13  avg =   17.78
     yolo-fastest-1.1  min =   13.91  max =   14.18  avg =   14.03
       yolo-fastestv2  min =   15.94  max =   16.02  avg =   15.97
-```
-### Intel(R) Core(TM) i5-11320H @ 3.20GHz
-```bash
-$ ./benchncnn 4 1 0 -1 1 squeezenet.param 227 227 3
-loop_count = 4
-num_threads = 1
-powersave = 0
-gpu_device = -1
-cooling_down = 1
-
-          squeezenet  min =   45.02  max =   46.32  avg =   45.47
 ```
 
 ### nVIDIA RTX2060 of Notebook
