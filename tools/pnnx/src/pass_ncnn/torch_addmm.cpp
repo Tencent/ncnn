@@ -26,8 +26,8 @@ public:
         return R"PNNXIR(7767517
 5 4
 pnnx.Input              input_0     0 1 mat1
-pnnx.Attribute          op_bias     0 1 bias @qwq
-pnnx.Attribute          op_weight   0 1 weight @qwq
+pnnx.Attribute          op_bias     0 1 bias @data
+pnnx.Attribute          op_weight   0 1 weight @data
 torch.addmm             op_0        3 1 bias mat1 weight out alpha=%alpha beta=%beta
 pnnx.Output             output      1 0 out
 )PNNXIR";
@@ -69,15 +69,8 @@ pnnx.Output             output      1 0 out
         if (alpha != 1.f || beta != 1.f)
             return false;
 
-        Attribute weight;
-        Attribute bias;
-        for (const auto& x : captured_attrs)
-        {
-            if (x.first.substr(0, 10) == "op_weight.")
-                weight = x.second;
-            if (x.first.substr(0, 8) == "op_bias.")
-                bias = x.second;
-        }
+        Attribute weight = captured_attrs.at("op_weight.data");
+        Attribute bias = captured_attrs.at("op_bias.data");
 
         if (weight.shape.size() != 2 || bias.shape.size() != 1)
             return false;
@@ -90,15 +83,8 @@ pnnx.Output             output      1 0 out
 
     void write(Operator* op, const std::map<std::string, Parameter>& /*captured_params*/, const std::map<std::string, Attribute>& captured_attrs) const
     {
-        Attribute weight;
-        Attribute bias;
-        for (const auto& x : captured_attrs)
-        {
-            if (x.first.substr(0, 10) == "op_weight.")
-                weight = x.second;
-            if (x.first.substr(0, 8) == "op_bias.")
-                bias = x.second;
-        }
+        Attribute weight = captured_attrs.at("op_weight.data");
+        Attribute bias = captured_attrs.at("op_bias.data");
 
         // transpose weight inch-outch to outch-inch
         const int inch = weight.shape[0];

@@ -26,7 +26,7 @@ public:
         return R"PNNXIR(7767517
 4 3
 pnnx.Input              input       0 1 input
-pnnx.Attribute          op_weight   0 1 weight @qwq
+pnnx.Attribute          op_weight   0 1 weight @data
 F.prelu                 op_0        2 1 input weight out
 pnnx.Output             output      1 0 out
 )PNNXIR";
@@ -44,12 +44,7 @@ pnnx.Output             output      1 0 out
 
     void write(Operator* op, const std::map<std::string, Parameter>& /*captured_params*/, const std::map<std::string, Attribute>& captured_attrs) const
     {
-        Attribute weight;
-        for (const auto& x : captured_attrs)
-        {
-            if (x.first.substr(0, 10) == "op_weight.")
-                weight = x.second;
-        }
+        Attribute weight = captured_attrs.at("op_weight.data");
 
         op->params["0"] = weight.shape[0];
 
