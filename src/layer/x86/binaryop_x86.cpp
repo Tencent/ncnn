@@ -40,7 +40,6 @@ BinaryOp_x86::BinaryOp_x86()
 template<typename Op>
 static void binary_op_vector_no_broadcast(const float* ptr, const float* ptr1, float* outptr, int size)
 {
-    NCNN_LOGE("binary_op_vector_no_broadcast");
     const Op op;
 
     int i = 0;
@@ -92,7 +91,6 @@ static void binary_op_vector_no_broadcast(const float* ptr, const float* ptr1, f
 template<typename Op>
 static void binary_op_vector_broadcast_b(const float* ptr, const float* ptr1, float* outptr, int size, int elempack)
 {
-    NCNN_LOGE("binary_op_vector_broadcast_b");
     const Op op;
 
     const float b = *ptr1;
@@ -148,7 +146,6 @@ static void binary_op_vector_broadcast_b(const float* ptr, const float* ptr1, fl
 template<typename Op>
 static void binary_op_vector_broadcast_a(const float* ptr, const float* ptr1, float* outptr, int size, int elempack)
 {
-    NCNN_LOGE("binary_op_vector_broadcast_a");
     const Op op;
 
     const float a = *ptr;
@@ -204,7 +201,6 @@ static void binary_op_vector_broadcast_a(const float* ptr, const float* ptr1, fl
 template<typename Op>
 static void binary_op_vector_broadcast_pb(const float* ptr, const float* ptr1, float* outptr, int w, int elempack)
 {
-    NCNN_LOGE("binary_op_vector_broadcast_pb");
     const Op op;
 
 #if __SSE2__
@@ -306,7 +302,6 @@ static void binary_op_vector_broadcast_pb(const float* ptr, const float* ptr1, f
 template<typename Op>
 static void binary_op_vector_broadcast_pb_b(const float* ptr, const float* ptr1, float* outptr, int w, int elempack)
 {
-    NCNN_LOGE("binary_op_vector_broadcast_pb_b");
     const Op op;
 
     const int size = w * elempack;
@@ -350,7 +345,6 @@ static void binary_op_vector_broadcast_pb_b(const float* ptr, const float* ptr1,
 template<typename Op>
 static void binary_op_vector_broadcast_pb_a(const float* ptr, const float* ptr1, float* outptr, int w, int elempack)
 {
-    NCNN_LOGE("binary_op_vector_broadcast_pb_a");
     const Op op;
 
 #if __SSE2__
@@ -446,7 +440,6 @@ static void binary_op_vector_broadcast_pb_a(const float* ptr, const float* ptr1,
 template<typename Op>
 static void binary_op_vector(const float* ptr, const float* ptr1, float* outptr, int aw, int bw, int ap, int bp)
 {
-    NCNN_LOGE("binary_op_vector %d %d %d %d", aw, bw, ap, bp);
     const int w = std::max(aw, bw);
     const int elempack = std::max(ap, bp);
     const int size = w * elempack;
@@ -834,7 +827,6 @@ static void binary_op_vector(const float* ptr, const float* ptr1, float* outptr,
 
 static void binary_op_scalar(const Mat& a, float b, Mat& c, int op_type, const Option& opt)
 {
-    NCNN_LOGE("binary_op_scalar");
     const int channels = a.c;
     const int size = a.w * a.h * a.d * a.elempack;
 
@@ -850,7 +842,6 @@ static void binary_op_scalar(const Mat& a, float b, Mat& c, int op_type, const O
 
 static void binary_op_no_broadcast(const Mat& a, const Mat& b, Mat& c, int op_type, const Option& opt)
 {
-    NCNN_LOGE("binary_op_no_broadcast");
     const int channels = a.c;
     const int size = a.w * a.h * a.d * a.elempack;
 
@@ -865,109 +856,31 @@ static void binary_op_no_broadcast(const Mat& a, const Mat& b, Mat& c, int op_ty
     }
 }
 
-static void binary_op_broadcast_inner(const Mat& a, const Mat& b, Mat& c, int op_type, const Option& opt)
-{
-    const int w = c.w;
-    const int h = c.h;
-    const int d = c.d;
-    const int channels = c.c;
-    const int elempack = c.elempack;
-
-    if (a.dims == 2 && b.dims == 1)
-    {
-        // type 8
-    NCNN_LOGE("binary_op_broadcast_inner 8");
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int y = 0; y < h; y++)
-        {
-            const float* ptr = a.row(y);
-            const float* ptr1 = (const float*)b + y * elempack;
-            float* outptr = c.row(y);
-
-            binary_op_vector(ptr, ptr1, outptr, w, 1, elempack, elempack, op_type);
-        }
-    }
-
-    if ((a.dims == 3 || a.dims == 4) && b.dims == 1)
-    {
-        // type 9 11
-    NCNN_LOGE("binary_op_broadcast_inner 9 11");
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++)
-        {
-            const float* ptr = a.channel(q);
-            const float* ptr1 = (const float*)b + q * elempack;
-            float* outptr = c.channel(q);
-
-            binary_op_vector(ptr, ptr1, outptr, w * h * d, 1, elempack, elempack, op_type);
-        }
-    }
-
-    if (a.dims == 3 && b.dims == 2)
-    {
-        // type 10
-    NCNN_LOGE("binary_op_broadcast_inner 10");
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++)
-        {
-            for (int y = 0; y < h; y++)
-            {
-                const float* ptr = a.channel(q).row(y);
-                const float* ptr1 = b.row(q) + y * elempack;
-                float* outptr = c.channel(q).row(y);
-
-                binary_op_vector(ptr, ptr1, outptr, w, 1, elempack, elempack, op_type);
-            }
-        }
-    }
-
-    if (a.dims == 4 && b.dims == 2)
-    {
-        // type 12
-    NCNN_LOGE("binary_op_broadcast_inner 12");
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++)
-        {
-            for (int z = 0; z < d; z++)
-            {
-                const float* ptr = a.channel(q).depth(z);
-                const float* ptr1 = b.row(q) + z * elempack;
-                float* outptr = c.channel(q).depth(z);
-
-                binary_op_vector(ptr, ptr1, outptr, w * h, 1, elempack, elempack, op_type);
-            }
-        }
-    }
-
-    if (a.dims == 4 && b.dims == 3)
-    {
-        // type 13
-    NCNN_LOGE("binary_op_broadcast_inner 13");
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++)
-        {
-            for (int z = 0; z < d; z++)
-            {
-                for (int y = 0; y < h; y++)
-                {
-                    const float* ptr = a.channel(q).depth(z).row(y);
-                    const float* ptr1 = b.channel(q).row(z) + y * elempack;
-                    float* outptr = c.channel(q).depth(z).row(y);
-
-                    binary_op_vector(ptr, ptr1, outptr, w, 1, elempack, elempack, op_type);
-                }
-            }
-        }
-    }
-}
-
 static void binary_op_broadcast(const Mat& a, const Mat& b, Mat& c, int op_type, const Option& opt)
 {
+    if (b.w * b.h * b.d * b.c * b.elempack == 1)
+    {
+        return binary_op_scalar(a, b[0], c, op_type, opt);
+    }
+
+    if (a.dims == b.dims && a.w == b.w && a.h == b.h && a.d == b.d && a.c == b.c)
+    {
+        return binary_op_no_broadcast(a, b, c, op_type, opt);
+    }
+
     const int dims = c.dims;
+
+    if (dims == 1)
+    {
+        const float* ptr = a;
+        const float* ptr1 = b;
+        float* outptr = c;
+
+        binary_op_vector(ptr, ptr1, outptr, a.w, b.w, a.elempack, b.elempack, op_type);
+    }
 
     if (dims == 2)
     {
-    NCNN_LOGE("binary_op_broadcast 2");
         const int h = c.h;
 
         #pragma omp parallel for num_threads(opt.num_threads)
@@ -986,7 +899,6 @@ static void binary_op_broadcast(const Mat& a, const Mat& b, Mat& c, int op_type,
 
     if (dims == 3 || dims == 4)
     {
-    NCNN_LOGE("binary_op_broadcast 34");
         const int channels = c.c;
 
         #pragma omp parallel for num_threads(opt.num_threads)
@@ -1018,7 +930,6 @@ static void binary_op_broadcast(const Mat& a, const Mat& b, Mat& c, int op_type,
 
 static void binary_op_scalar_inplace(Mat& a, float b, int op_type, const Option& opt)
 {
-    NCNN_LOGE("binary_op_scalar_inplace");
     const int channels = a.c;
     const int size = a.w * a.h * a.d * a.elempack;
 
@@ -1046,88 +957,91 @@ static int get_reverse_op_type(int op_type)
 
 int BinaryOp_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
-    const bool b_is_scalar = bottom_blobs[1].w * bottom_blobs[1].h * bottom_blobs[1].d * bottom_blobs[1].c * bottom_blobs[1].elempack == 1;
-    const bool a_rank_is_lower = bottom_blobs[0].dims < bottom_blobs[1].dims && !b_is_scalar;
-    const bool a_pack_is_lower = bottom_blobs[0].elempack < bottom_blobs[1].elempack;
-    const bool a_pack_is_equal = bottom_blobs[0].elempack == bottom_blobs[1].elempack;
-    const bool a_size_is_lower = bottom_blobs[0].w * bottom_blobs[0].h * bottom_blobs[0].d * bottom_blobs[0].c * bottom_blobs[0].elempack < bottom_blobs[1].w * bottom_blobs[1].h * bottom_blobs[1].d * bottom_blobs[1].c * bottom_blobs[1].elempack;
-    const bool a_is_lower = a_rank_is_lower || (!a_rank_is_lower && a_pack_is_lower) || (!a_rank_is_lower && a_pack_is_equal && a_size_is_lower);
-    const Mat& A = a_is_lower ? bottom_blobs[1] : bottom_blobs[0];
-    const Mat& B = a_is_lower ? bottom_blobs[0] : bottom_blobs[1];
-    const int op_type_r = a_is_lower ? get_reverse_op_type(op_type) : op_type;
+    const Mat& A = bottom_blobs[0];
+    const Mat& B = bottom_blobs[1];
+    const int outdims = std::max(A.dims, B.dims);
 
-    NCNN_LOGE("a is lower  %d %d %d", a_rank_is_lower, a_pack_is_lower, a_size_is_lower);
+    Mat A2 = A;
+    Mat B2 = B;
+    if (A.dims < outdims)
+    {
+        // expand inner axes
+        if (outdims == 2)
+            A2 = A.reshape(1, A.w, opt.workspace_allocator);
+        if (outdims == 3 && A.dims == 1)
+            A2 = A.reshape(1, 1, A.w, opt.workspace_allocator);
+        if (outdims == 3 && A.dims == 2)
+            A2 = A.reshape(1, A.w, A.h, opt.workspace_allocator);
+        if (outdims == 4 && A.dims == 1)
+            A2 = A.reshape(1, 1, 1, A.w, opt.workspace_allocator);
+        if (outdims == 4 && A.dims == 2)
+            A2 = A.reshape(1, 1, A.w, A.h, opt.workspace_allocator);
+        if (outdims == 4 && A.dims == 3)
+            A2 = A.reshape(1, A.w, A.h, A.c, opt.workspace_allocator);
+    }
+    if (B.dims < outdims)
+    {
+        // expand inner axes
+        if (outdims == 2)
+            B2 = B.reshape(1, B.w, opt.workspace_allocator);
+        if (outdims == 3 && B.dims == 1)
+            B2 = B.reshape(1, 1, B.w, opt.workspace_allocator);
+        if (outdims == 3 && B.dims == 2)
+            B2 = B.reshape(1, B.w, B.h, opt.workspace_allocator);
+        if (outdims == 4 && B.dims == 1)
+            B2 = B.reshape(1, 1, 1, B.w, opt.workspace_allocator);
+        if (outdims == 4 && B.dims == 2)
+            B2 = B.reshape(1, 1, B.w, B.h, opt.workspace_allocator);
+        if (outdims == 4 && B.dims == 3)
+            B2 = B.reshape(1, B.w, B.h, B.c, opt.workspace_allocator);
+    }
+
+    const int outw = std::max(A2.w, B2.w);
+    const int outh = std::max(A2.h, B2.h);
+    const int outd = std::max(A2.d, B2.d);
+    const int outc = std::max(A2.c, B2.c);
+    const size_t out_elemsize = std::max(A2.elemsize, B2.elemsize);
+    const int out_elempack = std::max(A2.elempack, B2.elempack);
 
     Mat& top_blob = top_blobs[0];
-    top_blob.create_like(A, opt.blob_allocator);
+    if (outdims == 1)
+    {
+        top_blob.create(outw, out_elemsize, out_elempack, opt.blob_allocator);
+    }
+    if (outdims == 2)
+    {
+        top_blob.create(outw, outh, out_elemsize, out_elempack, opt.blob_allocator);
+    }
+    if (outdims == 3)
+    {
+        top_blob.create(outw, outh, outc, out_elemsize, out_elempack, opt.blob_allocator);
+    }
+    if (outdims == 4)
+    {
+        top_blob.create(outw, outh, outd, outc, out_elemsize, out_elempack, opt.blob_allocator);
+    }
     if (top_blob.empty())
         return -100;
 
-    // B is a scalar
-    if (B.w * B.h * B.d * B.c * B.elempack == 1)
+    const bool a_pack_is_lower = A2.elempack < B2.elempack;
+    const bool a_pack_is_equal = A2.elempack == B2.elempack;
+    const bool a_size_is_lower = A2.w * A2.h * A2.d * A2.c * A2.elempack < B2.w * B2.h * B2.d * B2.c * B2.elempack;
+    if (a_pack_is_lower || (a_pack_is_equal && a_size_is_lower))
     {
-        binary_op_scalar(A, B[0], top_blob, op_type_r, opt);
-        return 0;
+        binary_op_broadcast(B2, A2, top_blob, get_reverse_op_type(op_type), opt);
+    }
+    else
+    {
+        binary_op_broadcast(A2, B2, top_blob, op_type, opt);
     }
 
-    // no broadcast
-    if (A.dims == B.dims && A.w == B.w && A.h == B.h && A.d == B.d && A.c == B.c && A.elempack == B.elempack)
-    {
-        binary_op_no_broadcast(A, B, top_blob, op_type_r, opt);
-        return 0;
-    }
-
-    // broadcast B for inner axis
-    if ((B.dims < A.dims)
-            || (A.dims == 2 && B.w == 1 && B.h == A.h)
-            || (A.dims == 3 && B.w == 1 && B.h == 1 && B.c == A.c)
-            || (A.dims == 3 && B.w == 1 && B.h == A.h && B.c == A.c)
-            || (A.dims == 4 && B.w == 1 && B.h == 1 && B.d == 1 && B.c == A.c)
-            || (A.dims == 4 && B.w == 1 && B.h == 1 && B.d == A.d && B.c == A.c)
-            || (A.dims == 4 && B.w == 1 && B.h == A.h && B.d == A.d && B.c == A.c))
-    {
-        // squeeze inner axes
-        Mat B2 = B;
-        if (B.dims == 2 && B.w == 1)
-            B2 = B.reshape(B.h);
-        else if (B.dims == 3 && B.h == 1)
-            B2 = B.reshape(B.c);
-        else if (B.dims == 3 && B.w == 1)
-            B2 = B.reshape(B.h, B.c);
-        else if (B.dims == 4 && B.d == 1)
-            B2 = B.reshape(B.c);
-        else if (B.dims == 4 && B.h == 1)
-            B2 = B.reshape(B.d, B.c);
-        else if (B.dims == 4 && B.w == 1)
-            B2 = B.reshape(B.h, B.d, B.c);
-
-        binary_op_broadcast_inner(A, B2, top_blob, op_type_r, opt);
-        return 0;
-    }
-
-    if (A.dims == 1)
-    {
-        top_blob.create(A.w, A.elemsize, A.elempack, opt.blob_allocator);
-    }
-    if (A.dims == 2)
-    {
-        top_blob.create(std::max(A.w, B.w), A.h, A.elemsize, A.elempack, opt.blob_allocator);
-    }
-    if (A.dims == 3)
-    {
-        top_blob.create(std::max(A.w, B.w), std::max(A.h, B.h), A.c, A.elemsize, A.elempack, opt.blob_allocator);
-    }
-    if (A.dims == 4)
-    {
-        top_blob.create(std::max(A.w, B.w), std::max(A.h, B.h), std::max(A.d, B.d), A.c, A.elemsize, A.elempack, opt.blob_allocator);
-    }
-    binary_op_broadcast(A, B, top_blob, op_type_r, opt);
     return 0;
 }
 
 int BinaryOp_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     binary_op_scalar_inplace(bottom_top_blob, b, op_type, opt);
+
     return 0;
 }
 

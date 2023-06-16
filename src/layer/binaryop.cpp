@@ -43,7 +43,7 @@ int BinaryOp::load_param(const ParamDict& pd)
 // https://github.com/Tencent/ncnn/wiki/binaryop-broadcasting
 
 template<typename Op>
-static int binary_op_broadcast(const Mat& a, const Mat& b, Mat& c, const Option& opt)
+static void binary_op_broadcast(const Mat& a, const Mat& b, Mat& c, const Option& opt)
 {
     // general broadcast
     const Op op;
@@ -121,17 +121,15 @@ static int binary_op_broadcast(const Mat& a, const Mat& b, Mat& c, const Option&
             }
         }
     }
-
-    return 0;
 }
 
 template<typename Op>
-static int binary_op_scalar_inplace(Mat& a, float b, const Option& opt)
+static void binary_op_scalar_inplace(Mat& a, float b, const Option& opt)
 {
-    Op op;
+    const Op op;
 
-    int channels = a.c;
-    int size = a.w * a.h * a.d;
+    const int channels = a.c;
+    const int size = a.w * a.h * a.d;
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
@@ -143,8 +141,6 @@ static int binary_op_scalar_inplace(Mat& a, float b, const Option& opt)
             ptr[i] = op(ptr[i], b);
         }
     }
-
-    return 0;
 }
 
 struct binary_op_add
@@ -243,7 +239,7 @@ struct binary_op_ratan2
     }
 };
 
-static int binary_op_broadcast(const Mat& a, const Mat& b, Mat& c, int op_type, const Option& opt)
+static void binary_op_broadcast(const Mat& a, const Mat& b, Mat& c, int op_type, const Option& opt)
 {
     if (op_type == BinaryOp::Operation_ADD) return binary_op_broadcast<binary_op_add>(a, b, c, opt);
     if (op_type == BinaryOp::Operation_SUB) return binary_op_broadcast<binary_op_sub>(a, b, c, opt);
@@ -259,7 +255,24 @@ static int binary_op_broadcast(const Mat& a, const Mat& b, Mat& c, int op_type, 
     if (op_type == BinaryOp::Operation_RATAN2) return binary_op_broadcast<binary_op_ratan2>(b, a, c, opt);
 
     // should never reach here
-    return 0;
+}
+
+static void binary_op_scalar_inplace(Mat& bottom_top_blob, float b, int op_type, const Option& opt)
+{
+    if (op_type == BinaryOp::Operation_ADD) return binary_op_scalar_inplace<binary_op_add>(bottom_top_blob, b, opt);
+    if (op_type == BinaryOp::Operation_SUB) return binary_op_scalar_inplace<binary_op_sub>(bottom_top_blob, b, opt);
+    if (op_type == BinaryOp::Operation_MUL) return binary_op_scalar_inplace<binary_op_mul>(bottom_top_blob, b, opt);
+    if (op_type == BinaryOp::Operation_DIV) return binary_op_scalar_inplace<binary_op_div>(bottom_top_blob, b, opt);
+    if (op_type == BinaryOp::Operation_MAX) return binary_op_scalar_inplace<binary_op_max>(bottom_top_blob, b, opt);
+    if (op_type == BinaryOp::Operation_MIN) return binary_op_scalar_inplace<binary_op_min>(bottom_top_blob, b, opt);
+    if (op_type == BinaryOp::Operation_POW) return binary_op_scalar_inplace<binary_op_pow>(bottom_top_blob, b, opt);
+    if (op_type == BinaryOp::Operation_RSUB) return binary_op_scalar_inplace<binary_op_rsub>(bottom_top_blob, b, opt);
+    if (op_type == BinaryOp::Operation_RDIV) return binary_op_scalar_inplace<binary_op_rdiv>(bottom_top_blob, b, opt);
+    if (op_type == BinaryOp::Operation_RPOW) return binary_op_scalar_inplace<binary_op_rpow>(bottom_top_blob, b, opt);
+    if (op_type == BinaryOp::Operation_ATAN2) return binary_op_scalar_inplace<binary_op_atan2>(bottom_top_blob, b, opt);
+    if (op_type == BinaryOp::Operation_RATAN2) return binary_op_scalar_inplace<binary_op_ratan2>(bottom_top_blob, b, opt);
+
+    // should never reach here
 }
 
 int BinaryOp::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
@@ -328,25 +341,15 @@ int BinaryOp::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     if (top_blob.empty())
         return -100;
 
-    return binary_op_broadcast(A2, B2, top_blob, op_type, opt);
+    binary_op_broadcast(A2, B2, top_blob, op_type, opt);
+
+    return 0;
 }
 
 int BinaryOp::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
-    if (op_type == Operation_ADD) return binary_op_scalar_inplace<binary_op_add>(bottom_top_blob, b, opt);
-    if (op_type == Operation_SUB) return binary_op_scalar_inplace<binary_op_sub>(bottom_top_blob, b, opt);
-    if (op_type == Operation_MUL) return binary_op_scalar_inplace<binary_op_mul>(bottom_top_blob, b, opt);
-    if (op_type == Operation_DIV) return binary_op_scalar_inplace<binary_op_div>(bottom_top_blob, b, opt);
-    if (op_type == Operation_MAX) return binary_op_scalar_inplace<binary_op_max>(bottom_top_blob, b, opt);
-    if (op_type == Operation_MIN) return binary_op_scalar_inplace<binary_op_min>(bottom_top_blob, b, opt);
-    if (op_type == Operation_POW) return binary_op_scalar_inplace<binary_op_pow>(bottom_top_blob, b, opt);
-    if (op_type == Operation_RSUB) return binary_op_scalar_inplace<binary_op_rsub>(bottom_top_blob, b, opt);
-    if (op_type == Operation_RDIV) return binary_op_scalar_inplace<binary_op_rdiv>(bottom_top_blob, b, opt);
-    if (op_type == Operation_RPOW) return binary_op_scalar_inplace<binary_op_rpow>(bottom_top_blob, b, opt);
-    if (op_type == Operation_ATAN2) return binary_op_scalar_inplace<binary_op_atan2>(bottom_top_blob, b, opt);
-    if (op_type == Operation_RATAN2) return binary_op_scalar_inplace<binary_op_ratan2>(bottom_top_blob, b, opt);
+    binary_op_scalar_inplace(bottom_top_blob, b, op_type, opt);
 
-    // should nerver reach here
     return 0;
 }
 
