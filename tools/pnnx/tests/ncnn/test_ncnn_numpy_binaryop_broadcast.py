@@ -188,9 +188,6 @@ def test():
     net.eval()
 
     torch.manual_seed(0)
-    # z0 = torch.rand(4, 7, 5)
-    # z1 = torch.rand(1, 7, 5)
-
     x0 = torch.rand(5)
     x1 = torch.rand(1)
     y0 = torch.rand(7, 5)

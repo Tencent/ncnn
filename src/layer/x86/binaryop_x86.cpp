@@ -863,7 +863,7 @@ static void binary_op_broadcast(const Mat& a, const Mat& b, Mat& c, int op_type,
         return binary_op_scalar(a, b[0], c, op_type, opt);
     }
 
-    if (a.dims == b.dims && a.w == b.w && a.h == b.h && a.d == b.d && a.c == b.c)
+    if (a.dims == b.dims && a.w == b.w && a.h == b.h && a.d == b.d && a.c == b.c && a.elempack == b.elempack)
     {
         return binary_op_no_broadcast(a, b, c, op_type, opt);
     }
