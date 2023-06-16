@@ -345,6 +345,30 @@ static int test_binaryop_8()
 static int test_binaryop_9()
 {
     ncnn::Mat a[] = {
+        RandomMat(13, 31),
+        RandomMat(14, 28),
+        RandomMat(15, 24),
+        RandomMat(16, 32)
+    };
+
+    for (int i = 0; i < sizeof(a) / sizeof(a[0]); i++)
+    {
+        ncnn::Mat a0(1, a[i].h);
+        ncnn::Mat b0(a[i].w, 1);
+        Randomize(a0);
+        Randomize(b0);
+
+        int ret = test_binaryop(a0, b0) || test_binaryop(b0, a0);
+        if (ret != 0)
+            return ret;
+    }
+
+    return 0;
+}
+
+static int test_binaryop_10()
+{
+    ncnn::Mat a[] = {
         RandomMat(7, 3, 31),
         RandomMat(6, 4, 28),
         RandomMat(5, 5, 24),
@@ -353,10 +377,105 @@ static int test_binaryop_9()
 
     for (int i = 0; i < sizeof(a) / sizeof(a[0]); i++)
     {
-        ncnn::Mat b0(a[i].w, 1, a[i].c);
+        ncnn::Mat a0(1, a[i].h, a[i].c);
+        ncnn::Mat a1(a[i].w, 1, a[i].c);
+        ncnn::Mat a2(1, 1, a[i].c);
+        ncnn::Mat b0(a[i].w, a[i].h, 1);
+        ncnn::Mat b1(a[i].w, 1, 1);
+        ncnn::Mat b2(1, a[i].h, 1);
+        Randomize(a0);
+        Randomize(a1);
+        Randomize(a2);
         Randomize(b0);
+        Randomize(b1);
+        Randomize(b2);
 
-        int ret = test_binaryop(a[i], b0) || test_binaryop(b0, a[i]);
+        int ret = test_binaryop(a0, b0) || test_binaryop(b0, a0)
+                  || test_binaryop(a0, b1) || test_binaryop(b1, a0)
+                  || test_binaryop(a1, b2) || test_binaryop(b2, a1)
+                  || test_binaryop(a2, b0) || test_binaryop(b0, a2)
+                  || test_binaryop(a0, a1) || test_binaryop(a1, a0)
+                  || test_binaryop(b1, b2) || test_binaryop(b2, b1);
+        if (ret != 0)
+            return ret;
+    }
+
+    return 0;
+}
+
+static int test_binaryop_11()
+{
+    ncnn::Mat a[] = {
+        RandomMat(2, 7, 3, 31),
+        RandomMat(3, 6, 4, 28),
+        RandomMat(4, 5, 5, 24),
+        RandomMat(5, 4, 6, 32)
+    };
+
+    for (int i = 0; i < sizeof(a) / sizeof(a[0]); i++)
+    {
+        ncnn::Mat a0(1, a[i].h, a[i].d, a[i].c);
+        ncnn::Mat a1(a[i].w, 1, a[i].d, a[i].c);
+        ncnn::Mat a2(a[i].w, a[i].h, 1, a[i].c);
+        ncnn::Mat a3(1, 1, a[i].d, a[i].c);
+        ncnn::Mat a4(a[i].w, 1, 1, a[i].c);
+        ncnn::Mat a5(1, a[i].h, 1, a[i].c);
+        ncnn::Mat a6(1, 1, 1, a[i].c);
+
+        ncnn::Mat b0(a[i].w, a[i].h, a[i].d, 1);
+        ncnn::Mat b1(a[i].w, a[i].h, 1, 1);
+        ncnn::Mat b2(a[i].w, 1, a[i].d, 1);
+        ncnn::Mat b3(1, a[i].h, a[i].d, 1);
+        ncnn::Mat b4(a[i].w, 1, 1, 1);
+        ncnn::Mat b5(1, 1, a[i].d, 1);
+        ncnn::Mat b6(1, a[i].h, 1, 1);
+
+        Randomize(a0);
+        Randomize(a1);
+        Randomize(a2);
+        Randomize(a3);
+        Randomize(a4);
+        Randomize(a5);
+        Randomize(a6);
+        Randomize(b0);
+        Randomize(b1);
+        Randomize(b2);
+        Randomize(b3);
+        Randomize(b4);
+        Randomize(b5);
+        Randomize(b6);
+
+        int ret = test_binaryop(a0, b0) || test_binaryop(b0, a0)
+                  || test_binaryop(a0, b1) || test_binaryop(b1, a0)
+                  || test_binaryop(a0, b2) || test_binaryop(b2, a0)
+                  || test_binaryop(a0, b4) || test_binaryop(b4, a0)
+                  || test_binaryop(a1, b0) || test_binaryop(b0, a1)
+                  || test_binaryop(a1, b1) || test_binaryop(b1, a1)
+                  || test_binaryop(a1, b3) || test_binaryop(b3, a1)
+                  || test_binaryop(a1, b6) || test_binaryop(b6, a1)
+                  || test_binaryop(a2, b0) || test_binaryop(b0, a2)
+                  || test_binaryop(a2, b2) || test_binaryop(b2, a2)
+                  || test_binaryop(a2, b3) || test_binaryop(b3, a2)
+                  || test_binaryop(a2, b5) || test_binaryop(b5, a2)
+                  || test_binaryop(a3, b0) || test_binaryop(b0, a3)
+                  || test_binaryop(a3, b1) || test_binaryop(b1, a3)
+                  || test_binaryop(a4, b0) || test_binaryop(b0, a4)
+                  || test_binaryop(a4, b3) || test_binaryop(b3, a4)
+                  || test_binaryop(a5, b0) || test_binaryop(b0, a5)
+                  || test_binaryop(a5, b2) || test_binaryop(b2, a5)
+                  || test_binaryop(a6, b0) || test_binaryop(b0, a6)
+                  || test_binaryop(a0, a1) || test_binaryop(a1, a0)
+                  || test_binaryop(a0, a2) || test_binaryop(a2, a0)
+                  || test_binaryop(a0, a4) || test_binaryop(a4, a0)
+                  || test_binaryop(a1, a2) || test_binaryop(a2, a1)
+                  || test_binaryop(a1, a5) || test_binaryop(a5, a1)
+                  || test_binaryop(a2, a3) || test_binaryop(a3, a2)
+                  || test_binaryop(b1, b2) || test_binaryop(b2, b1)
+                  || test_binaryop(b1, b3) || test_binaryop(b3, b1)
+                  || test_binaryop(b1, b5) || test_binaryop(b5, b1)
+                  || test_binaryop(b2, b3) || test_binaryop(b3, b2)
+                  || test_binaryop(b2, b6) || test_binaryop(b6, b2)
+                  || test_binaryop(b3, b4) || test_binaryop(b4, b3);
         if (ret != 0)
             return ret;
     }
@@ -379,7 +498,9 @@ int main()
                   || test_binaryop_6()
                   || test_binaryop_7()
                   || test_binaryop_8()
-                  || test_binaryop_9();
+                  || test_binaryop_9()
+                  || test_binaryop_10()
+                  || test_binaryop_11();
 
         if (ret != 0)
             return ret;

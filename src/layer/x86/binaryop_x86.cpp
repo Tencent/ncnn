@@ -907,6 +907,32 @@ static void binary_op_broadcast(const Mat& a, const Mat& b, Mat& c, int op_type,
             const int q0 = std::min(q, a.c - 1);
             const int q1 = std::min(q, b.c - 1);
 
+            if (b.d * b.h * b.w == 1)
+            {
+                const float* ptr = a.channel(q0);
+                const float* ptr1 = b.channel(q1);
+                float* outptr = c.channel(q);
+
+                binary_op_vector(ptr, ptr1, outptr, a.w * a.h * a.d, 1, a.elempack, b.elempack, op_type);
+                continue;
+            }
+
+            if (b.h * b.w == 1)
+            {
+                for (int z = 0; z < c.d; z++)
+                {
+                    const int z0 = std::min(z, a.d - 1);
+                    const int z1 = std::min(z, b.d - 1);
+
+                    const float* ptr = a.channel(q0).depth(z0);
+                    const float* ptr1 = b.channel(q1).depth(z1);
+                    float* outptr = c.channel(q).depth(z);
+
+                    binary_op_vector(ptr, ptr1, outptr, a.w * a.h, 1, a.elempack, b.elempack, op_type);
+                }
+                continue;
+            }
+
             for (int z = 0; z < c.d; z++)
             {
                 const int z0 = std::min(z, a.d - 1);
