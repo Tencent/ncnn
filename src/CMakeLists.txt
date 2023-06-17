@@ -516,7 +516,12 @@ if(NCNN_TARGET_ARCH STREQUAL "powerpc")
     # Auto-translate SSE2 to VSX
     if(NCNN_SSE2)
         # Don't define __SSE3__ because it triggers usage of _MM_DENORMALS_ZERO_OFF, which isn't supported on ppc64le yet.
-        target_compile_options(ncnn PRIVATE -DNO_WARN_X86_INTRINSICS -D__MMX__ -D__SSE__ -D__SSE2__ -D__SSSE3__ -D__SSE4_1__)
+        target_compile_options(ncnn PRIVATE -DNO_WARN_X86_INTRINSICS -D__MMX__ -D__SSE__ -D__SSE2__ -D__SSSE3__)
+    endif()
+
+    # Auto-translate SSE4.1 to VSX
+    if(NCNN_SSE4_1)
+        target_compile_options(ncnn PRIVATE -DNO_WARN_X86_INTRINSICS -D__SSE4_1__)
     endif()
 endif()
 

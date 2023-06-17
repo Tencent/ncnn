@@ -372,6 +372,18 @@ elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(powerpc|ppc)")
             set(NCNN_SSE2 ON)
         endif()
 
+        set(CMAKE_REQUIRED_FLAGS "-DNO_WARN_X86_INTRINSICS -D__SSE4_1__")
+        check_cxx_source_compiles("#include <smmintrin.h>\nint main() { __m128i _v, _a, _b; _v = _mm_packus_epi32(_a, _b); return 0; }" NCNN_COMPILER_SUPPORT_PPC64LE_SSE4_1)
+        unset(CMAKE_REQUIRED_FLAGS)
+
+        if(NCNN_COMPILER_SUPPORT_PPC64LE_SSE4_1)
+            if(NCNN_VSX)
+                option(NCNN_SSE4_1 "optimize ppc64le platform with sse4.1 extension" ON)
+            endif()
+        else()
+            message(WARNING "The compiler does not support sse4.1 extension. NCNN_SSE4_1 will be OFF.")
+        endif()
+
         check_cxx_compiler_flag("-mcpu=native -mtune=native" NCNN_COMPILER_SUPPORT_CPU_NATIVE)
         if(NCNN_COMPILER_SUPPORT_CPU_NATIVE)
             set(NCNN_PPC64LE_DEFAULT_MACHINE_TYPE "native")
