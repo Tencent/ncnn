@@ -13,7 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 template<GridSample::PaddingMode pd, bool align_corner>
-void gridsample_2d_bilinear_compute_blob(const Mat& src, const Mat& grid, Mat& offset, Mat& value, int permute_fusion, const Option& opt)
+void gridsample_2d_bilinear_compute_blob(const Mat& src, const Mat& grid, Mat& offset, Mat& value, int permute_fusion)
 {
     const int grid_size = grid.w * grid.h;
 
@@ -30,7 +30,6 @@ void gridsample_2d_bilinear_compute_blob(const Mat& src, const Mat& grid, Mat& o
 
     if (permute_fusion == 0)
     {
-        #pragma omp parallel for num_threads(opt.num_threads)
         for (int y = 0; y < grid.c; y++)
         {
             const float* gridptr = grid.channel(y);
@@ -274,7 +273,7 @@ void gridsample_2d_bilinear_compute_blob(const Mat& src, const Mat& grid, Mat& o
 }
 
 template<GridSample::PaddingMode pd, bool align_corner>
-void gridsample_3d_bilinear_compute_blob(const Mat& src, const Mat& grid, Mat& offset, Mat& value, int permute_fusion, const Option& opt)
+void gridsample_3d_bilinear_compute_blob(const Mat& src, const Mat& grid, Mat& offset, Mat& value, int permute_fusion)
 {
     const int grid_size = grid.w * grid.h * grid.d;
 
