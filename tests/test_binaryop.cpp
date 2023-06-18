@@ -274,8 +274,7 @@ static int test_binaryop_5()
         const int d = ds[i];
         const int c = cs[i];
 
-        ncnn::Mat a[4] =
-        {
+        ncnn::Mat a[4] = {
             RandomMat(c),
             RandomMat(d, c),
             RandomMat(h, d, c),
