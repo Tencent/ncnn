@@ -260,6 +260,45 @@ static int test_binaryop_4()
     return 0;
 }
 
+static int test_binaryop_5()
+{
+    const int ws[] = {2, 3, 4, 5};
+    const int hs[] = {7, 6, 5, 4};
+    const int ds[] = {3, 4, 5, 6};
+    const int cs[] = {31, 28, 24, 32};
+
+    for (int i = 0; i < 4; i++)
+    {
+        const int w = ws[i];
+        const int h = hs[i];
+        const int d = ds[i];
+        const int c = cs[i];
+
+        ncnn::Mat a[4] =
+        {
+            RandomMat(c),
+            RandomMat(d, c),
+            RandomMat(h, d, c),
+            RandomMat(w, h, d, c),
+        };
+
+        for (int j = 0; j < 4; j++)
+        {
+            for (int k = 0; k < 4; k++)
+            {
+                if (j == k)
+                    continue;
+
+                int ret = test_binaryop(a[j], a[k]);
+                if (ret != 0)
+                    return ret;
+            }
+        }
+    }
+
+    return 0;
+}
+
 int main()
 {
     SRAND(7767517);
@@ -270,7 +309,8 @@ int main()
                   || test_binaryop_1()
                   || test_binaryop_2()
                   || test_binaryop_3()
-                  || test_binaryop_4();
+                  || test_binaryop_4()
+                  || test_binaryop_5();
 
         if (ret != 0)
             return ret;

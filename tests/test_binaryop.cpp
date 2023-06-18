@@ -100,23 +100,23 @@ static int test_binaryop_1()
     {
         const int w = ws[i];
 
-        ncnn::Mat b[2];
+        ncnn::Mat a[2];
         for (int j = 0; j < 2; j++)
         {
             int bw = j % 2 == 0 ? w : 1;
-            b[j] = RandomMat(bw);
+            a[j] = RandomMat(bw);
         }
 
         for (int j = 0; j < 2; j++)
         {
             for (int k = 0; k < 2; k++)
             {
-                int ret = test_binaryop(b[j], b[k]);
+                int ret = test_binaryop(a[j], a[k]);
                 if (ret != 0)
                     return ret;
             }
 
-            int ret = test_binaryop(b[j], 0.2f);
+            int ret = test_binaryop(a[j], 0.2f);
             if (ret != 0)
                 return ret;
         }
@@ -135,14 +135,14 @@ static int test_binaryop_2()
         const int w = ws[i];
         const int h = hs[i];
 
-        ncnn::Mat b[4];
+        ncnn::Mat a[4];
         for (int j = 0; j < 2; j++)
         {
             for (int k = 0; k < 2; k++)
             {
                 int bw = j % 2 == 0 ? w : 1;
                 int bh = k % 2 == 0 ? h : 1;
-                b[j * 2 + k] = RandomMat(bw, bh);
+                a[j * 2 + k] = RandomMat(bw, bh);
             }
         }
 
@@ -150,12 +150,12 @@ static int test_binaryop_2()
         {
             for (int k = 0; k < 4; k++)
             {
-                int ret = test_binaryop(b[j], b[k]);
+                int ret = test_binaryop(a[j], a[k]);
                 if (ret != 0)
                     return ret;
             }
 
-            int ret = test_binaryop(b[j], 0.2f);
+            int ret = test_binaryop(a[j], 0.2f);
             if (ret != 0)
                 return ret;
         }
@@ -176,7 +176,7 @@ static int test_binaryop_3()
         const int h = hs[i];
         const int c = cs[i];
 
-        ncnn::Mat b[8];
+        ncnn::Mat a[8];
         for (int j = 0; j < 2; j++)
         {
             for (int k = 0; k < 2; k++)
@@ -186,7 +186,7 @@ static int test_binaryop_3()
                     int bw = j % 2 == 0 ? w : 1;
                     int bh = k % 2 == 0 ? h : 1;
                     int bc = l % 2 == 0 ? c : 1;
-                    b[j * 4 + k * 2 + l] = RandomMat(bw, bh, bc);
+                    a[j * 4 + k * 2 + l] = RandomMat(bw, bh, bc);
                 }
             }
         }
@@ -195,12 +195,12 @@ static int test_binaryop_3()
         {
             for (int k = 0; k < 8; k++)
             {
-                int ret = test_binaryop(b[j], b[k]);
+                int ret = test_binaryop(a[j], a[k]);
                 if (ret != 0)
                     return ret;
             }
 
-            int ret = test_binaryop(b[j], 0.2f);
+            int ret = test_binaryop(a[j], 0.2f);
             if (ret != 0)
                 return ret;
         }
@@ -223,7 +223,7 @@ static int test_binaryop_4()
         const int d = ds[i];
         const int c = cs[i];
 
-        ncnn::Mat b[16];
+        ncnn::Mat a[16];
         for (int j = 0; j < 2; j++)
         {
             for (int k = 0; k < 2; k++)
@@ -236,7 +236,7 @@ static int test_binaryop_4()
                         int bh = k % 2 == 0 ? h : 1;
                         int bd = l % 2 == 0 ? d : 1;
                         int bc = m % 2 == 0 ? c : 1;
-                        b[j * 8 + k * 4 + l * 2 + m] = RandomMat(bw, bh, bd, bc);
+                        a[j * 8 + k * 4 + l * 2 + m] = RandomMat(bw, bh, bd, bc);
                     }
                 }
             }
@@ -246,14 +246,53 @@ static int test_binaryop_4()
         {
             for (int k = 0; k < 16; k++)
             {
-                int ret = test_binaryop(b[j], b[k]);
+                int ret = test_binaryop(a[j], a[k]);
                 if (ret != 0)
                     return ret;
             }
 
-            int ret = test_binaryop(b[j], 0.2f);
+            int ret = test_binaryop(a[j], 0.2f);
             if (ret != 0)
                 return ret;
+        }
+    }
+
+    return 0;
+}
+
+static int test_binaryop_5()
+{
+    const int ws[] = {2, 3, 4, 5};
+    const int hs[] = {7, 6, 5, 4};
+    const int ds[] = {3, 4, 5, 6};
+    const int cs[] = {31, 28, 24, 32};
+
+    for (int i = 0; i < 4; i++)
+    {
+        const int w = ws[i];
+        const int h = hs[i];
+        const int d = ds[i];
+        const int c = cs[i];
+
+        ncnn::Mat a[4] =
+        {
+            RandomMat(c),
+            RandomMat(d, c),
+            RandomMat(h, d, c),
+            RandomMat(w, h, d, c),
+        };
+
+        for (int j = 0; j < 4; j++)
+        {
+            for (int k = 0; k < 4; k++)
+            {
+                if (j == k)
+                    continue;
+
+                int ret = test_binaryop(a[j], a[k]);
+                if (ret != 0)
+                    return ret;
+            }
         }
     }
 
@@ -270,7 +309,8 @@ int main()
                   || test_binaryop_1()
                   || test_binaryop_2()
                   || test_binaryop_3()
-                  || test_binaryop_4();
+                  || test_binaryop_4()
+                  || test_binaryop_5();
 
         if (ret != 0)
             return ret;

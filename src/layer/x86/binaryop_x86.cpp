@@ -94,20 +94,14 @@ static void binary_op_vector_broadcast_b(const float* ptr, const float* ptr1, fl
     const Op op;
 
     const float b = *ptr1;
+
+    int i = 0;
 #if __SSE2__
     __m128 _b_128 = (elempack == 4) ? _mm_loadu_ps(ptr1) : _mm_set1_ps(b);
 #if __AVX__
     __m256 _b_256 = (elempack == 8) ? _mm256_loadu_ps(ptr1) : _mm256_insertf128_ps(_mm256_castps128_ps256(_b_128), _b_128, 1);
 #if __AVX512F__
     __m512 _b_512 = (elempack == 16) ? _mm512_loadu_ps(ptr1) : _mm512_insertf32x8(_mm512_castps256_ps512(_b_256), _b_256, 1);
-#endif // __AVX512F__
-#endif // __AVX__
-#endif // __SSE2__
-
-    int i = 0;
-#if __SSE2__
-#if __AVX__
-#if __AVX512F__
     for (; i + 15 < size; i += 16)
     {
         __m512 _p = _mm512_loadu_ps(ptr);
@@ -149,20 +143,14 @@ static void binary_op_vector_broadcast_a(const float* ptr, const float* ptr1, fl
     const Op op;
 
     const float a = *ptr;
+
+    int i = 0;
 #if __SSE2__
     __m128 _a_128 = (elempack == 4) ? _mm_loadu_ps(ptr) : _mm_set1_ps(a);
 #if __AVX__
     __m256 _a_256 = (elempack == 8) ? _mm256_loadu_ps(ptr) : _mm256_insertf128_ps(_mm256_castps128_ps256(_a_128), _a_128, 1);
 #if __AVX512F__
     __m512 _a_512 = (elempack == 16) ? _mm512_loadu_ps(ptr) : _mm512_insertf32x8(_mm512_castps256_ps512(_a_256), _a_256, 1);
-#endif // __AVX512F__
-#endif // __AVX__
-#endif // __SSE2__
-
-    int i = 0;
-#if __SSE2__
-#if __AVX__
-#if __AVX512F__
     for (; i + 15 < size; i += 16)
     {
         __m512 _b = _mm512_loadu_ps(ptr1);
@@ -869,15 +857,6 @@ static void binary_op_broadcast(const Mat& a, const Mat& b, Mat& c, int op_type,
     }
 
     const int dims = c.dims;
-
-    if (dims == 1)
-    {
-        const float* ptr = a;
-        const float* ptr1 = b;
-        float* outptr = c;
-
-        binary_op_vector(ptr, ptr1, outptr, a.w, b.w, a.elempack, b.elempack, op_type);
-    }
 
     if (dims == 2)
     {

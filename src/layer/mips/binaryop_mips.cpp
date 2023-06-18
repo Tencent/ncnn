@@ -386,15 +386,6 @@ static void binary_op_broadcast(const Mat& a, const Mat& b, Mat& c, int op_type,
 
     const int dims = c.dims;
 
-    if (dims == 1)
-    {
-        const float* ptr = a;
-        const float* ptr1 = b;
-        float* outptr = c;
-
-        binary_op_vector(ptr, ptr1, outptr, a.w, b.w, a.elempack, b.elempack, op_type);
-    }
-
     if (dims == 2)
     {
         const int h = c.h;
