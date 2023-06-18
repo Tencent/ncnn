@@ -392,7 +392,7 @@ static void binary_op_broadcast_fp16s(const Mat& a, const Mat& b, Mat& c, int op
 {
     if (b.w * b.h * b.d * b.c * b.elempack == 1)
     {
-        return binary_op_scalar_fp16s(a, b[0], c, op_type, opt);
+        return binary_op_scalar_fp16s(a, ((const __fp16*)b)[0], c, op_type, opt);
     }
 
     if (a.dims == b.dims && a.w == b.w && a.h == b.h && a.d == b.d && a.c == b.c && a.elempack == b.elempack)
