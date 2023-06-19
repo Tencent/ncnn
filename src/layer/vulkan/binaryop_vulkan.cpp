@@ -198,12 +198,13 @@ int BinaryOp_vulkan::create_pipeline(const Option& opt)
     // broadcast
     if (out_shape.dims == 0 || broadcast)
     {
-        if (A_shape_packed.dims > 0 && B_shape_packed.dims > 0)
+        if (A_shape.dims > 0 && B_shape.dims > 0)
         {
+            const bool a_rank_is_lower = A_shape.dims < B_shape.dims;
             const bool a_pack_is_lower = A_elempack < B_elempack;
             const bool a_pack_is_equal = A_elempack == B_elempack;
             const bool a_size_is_lower = A_shape.w * A_shape.h * A_shape.d * A_shape.c < B_shape.w * B_shape.h * B_shape.d * B_shape.c;
-            if (a_pack_is_lower || (a_pack_is_equal && a_size_is_lower))
+            if (a_rank_is_lower || a_pack_is_lower || (a_pack_is_equal && a_size_is_lower))
             {
                 // swap AB
                 std::swap(A_shape_packed, B_shape_packed);
@@ -408,132 +409,44 @@ int BinaryOp_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector
     const VkMat& A = bottom_blobs[0];
     const VkMat& B = bottom_blobs[1];
     const int outdims = std::max(A.dims, B.dims);
-
-    if (A.dims < outdims)
-    {
-        VkMat& top_blob = top_blobs[0];
-        top_blob.create_like(B, opt.blob_vkallocator);
-        if (top_blob.empty())
-            return -100;
-
-        std::vector<VkMat> bindings(3);
-        bindings[0] = B;
-        bindings[1] = A;
-        bindings[2] = top_blob;
-
-        std::vector<vk_constant_type> constants(18);
-        constants[0].i = B.dims;
-        constants[1].i = B.w;
-        constants[2].i = B.h;
-        constants[3].i = B.d;
-        constants[4].i = B.c;
-        constants[5].i = B.cstep;
-        constants[6].i = A.dims;
-        constants[7].i = A.w;
-        constants[8].i = A.h;
-        constants[9].i = A.d;
-        constants[10].i = A.c;
-        constants[11].i = A.cstep;
-        constants[12].i = top_blob.dims;
-        constants[13].i = top_blob.w;
-        constants[14].i = top_blob.h;
-        constants[15].i = top_blob.d;
-        constants[16].i = top_blob.c;
-        constants[17].i = top_blob.cstep;
-
-        const Pipeline* pipeline = 0;
-        if (B.elempack == 1)
-        {
-            pipeline = pipeline_binaryop_broadcast[0];
-        }
-        if (B.elempack == 4)
-        {
-            pipeline = pipeline_binaryop_broadcast_pack4[0];
-        }
-        if (B.elempack == 8)
-        {
-            pipeline = pipeline_binaryop_broadcast_pack8[0];
-        }
-
-        cmd.record_pipeline(pipeline, bindings, constants, top_blob);
-
-        return 0;
-    }
-
-    if (B.dims < outdims)
-    {
-        VkMat& top_blob = top_blobs[0];
-        top_blob.create_like(A, opt.blob_vkallocator);
-        if (top_blob.empty())
-            return -100;
-
-        std::vector<VkMat> bindings(3);
-        bindings[0] = A;
-        bindings[1] = B;
-        bindings[2] = top_blob;
-
-        std::vector<vk_constant_type> constants(18);
-        constants[0].i = A.dims;
-        constants[1].i = A.w;
-        constants[2].i = A.h;
-        constants[3].i = A.d;
-        constants[4].i = A.c;
-        constants[5].i = A.cstep;
-        constants[6].i = B.dims;
-        constants[7].i = B.w;
-        constants[8].i = B.h;
-        constants[9].i = B.d;
-        constants[10].i = B.c;
-        constants[11].i = B.cstep;
-        constants[12].i = top_blob.dims;
-        constants[13].i = top_blob.w;
-        constants[14].i = top_blob.h;
-        constants[15].i = top_blob.d;
-        constants[16].i = top_blob.c;
-        constants[17].i = top_blob.cstep;
-
-        const Pipeline* pipeline = 0;
-        if (A.elempack == 1)
-        {
-            pipeline = pipeline_binaryop_broadcast[0];
-        }
-        if (A.elempack == 4)
-        {
-            pipeline = pipeline_binaryop_broadcast_pack4[0];
-        }
-        if (A.elempack == 8)
-        {
-            pipeline = pipeline_binaryop_broadcast_pack8[0];
-        }
-
-        cmd.record_pipeline(pipeline, bindings, constants, top_blob);
-
-        return 0;
-    }
-
-    const int outw = std::max(A.w, B.w);
-    const int outh = std::max(A.h, B.h);
-    const int outd = std::max(A.d, B.d);
-    const int outc = std::max(A.c, B.c);
-    const size_t out_elemsize = std::max(A.elemsize, B.elemsize);
     const int out_elempack = std::max(A.elempack, B.elempack);
 
+    const bool a_rank_is_lower = A.dims < B.dims;
+    const bool b_rank_is_lower = B.dims < A.dims;
+
     VkMat& top_blob = top_blobs[0];
-    if (outdims == 1)
+    if (a_rank_is_lower)
     {
-        top_blob.create(outw, out_elemsize, out_elempack, opt.blob_vkallocator);
+        top_blob.create_like(B, opt.blob_vkallocator);
     }
-    if (outdims == 2)
+    else if (b_rank_is_lower)
     {
-        top_blob.create(outw, outh, out_elemsize, out_elempack, opt.blob_vkallocator);
+        top_blob.create_like(A, opt.blob_vkallocator);
     }
-    if (outdims == 3)
+    else
     {
-        top_blob.create(outw, outh, outc, out_elemsize, out_elempack, opt.blob_vkallocator);
-    }
-    if (outdims == 4)
-    {
-        top_blob.create(outw, outh, outd, outc, out_elemsize, out_elempack, opt.blob_vkallocator);
+        const int outw = std::max(A.w, B.w);
+        const int outh = std::max(A.h, B.h);
+        const int outd = std::max(A.d, B.d);
+        const int outc = std::max(A.c, B.c);
+        const size_t out_elemsize = std::max(A.elemsize, B.elemsize);
+
+        if (outdims == 1)
+        {
+            top_blob.create(outw, out_elemsize, out_elempack, opt.blob_vkallocator);
+        }
+        if (outdims == 2)
+        {
+            top_blob.create(outw, outh, out_elemsize, out_elempack, opt.blob_vkallocator);
+        }
+        if (outdims == 3)
+        {
+            top_blob.create(outw, outh, outc, out_elemsize, out_elempack, opt.blob_vkallocator);
+        }
+        if (outdims == 4)
+        {
+            top_blob.create(outw, outh, outd, outc, out_elemsize, out_elempack, opt.blob_vkallocator);
+        }
     }
     if (top_blob.empty())
         return -100;
@@ -575,7 +488,7 @@ int BinaryOp_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector
     const bool a_pack_is_lower = A.elempack < B.elempack;
     const bool a_pack_is_equal = A.elempack == B.elempack;
     const bool a_size_is_lower = A.w * A.h * A.d * A.c * A.elempack < B.w * B.h * B.d * B.c * B.elempack;
-    if (a_pack_is_lower || (a_pack_is_equal && a_size_is_lower))
+    if (a_rank_is_lower || a_pack_is_lower || (a_pack_is_equal && a_size_is_lower))
     {
         std::vector<VkMat> bindings(3);
         bindings[0] = B;
@@ -713,132 +626,44 @@ int BinaryOp_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::v
     const VkImageMat& A = bottom_blobs[0];
     const VkImageMat& B = bottom_blobs[1];
     const int outdims = std::max(A.dims, B.dims);
-
-    if (A.dims < outdims)
-    {
-        VkImageMat& top_blob = top_blobs[0];
-        top_blob.create_like(B, opt.blob_vkallocator);
-        if (top_blob.empty())
-            return -100;
-
-        std::vector<VkImageMat> bindings(3);
-        bindings[0] = B;
-        bindings[1] = A;
-        bindings[2] = top_blob;
-
-        std::vector<vk_constant_type> constants(18);
-        constants[0].i = B.dims;
-        constants[1].i = B.w;
-        constants[2].i = B.h;
-        constants[3].i = B.d;
-        constants[4].i = B.c;
-        constants[5].i = 0; //B.cstep;
-        constants[6].i = A.dims;
-        constants[7].i = A.w;
-        constants[8].i = A.h;
-        constants[9].i = A.d;
-        constants[10].i = A.c;
-        constants[11].i = 0; //A.cstep;
-        constants[12].i = top_blob.dims;
-        constants[13].i = top_blob.w;
-        constants[14].i = top_blob.h;
-        constants[15].i = top_blob.d;
-        constants[16].i = top_blob.c;
-        constants[17].i = 0; //top_blob.cstep;
-
-        const Pipeline* pipeline = 0;
-        if (B.elempack == 1)
-        {
-            pipeline = pipeline_binaryop_broadcast[0];
-        }
-        if (B.elempack == 4)
-        {
-            pipeline = pipeline_binaryop_broadcast_pack4[0];
-        }
-        if (B.elempack == 8)
-        {
-            pipeline = pipeline_binaryop_broadcast_pack8[0];
-        }
-
-        cmd.record_pipeline(pipeline, bindings, constants, top_blob);
-
-        return 0;
-    }
-
-    if (B.dims < outdims)
-    {
-        VkImageMat& top_blob = top_blobs[0];
-        top_blob.create_like(A, opt.blob_vkallocator);
-        if (top_blob.empty())
-            return -100;
-
-        std::vector<VkImageMat> bindings(3);
-        bindings[0] = A;
-        bindings[1] = B;
-        bindings[2] = top_blob;
-
-        std::vector<vk_constant_type> constants(18);
-        constants[0].i = A.dims;
-        constants[1].i = A.w;
-        constants[2].i = A.h;
-        constants[3].i = A.d;
-        constants[4].i = A.c;
-        constants[5].i = 0; //A.cstep;
-        constants[6].i = B.dims;
-        constants[7].i = B.w;
-        constants[8].i = B.h;
-        constants[9].i = B.d;
-        constants[10].i = B.c;
-        constants[11].i = 0; //B.cstep;
-        constants[12].i = top_blob.dims;
-        constants[13].i = top_blob.w;
-        constants[14].i = top_blob.h;
-        constants[15].i = top_blob.d;
-        constants[16].i = top_blob.c;
-        constants[17].i = 0; //top_blob.cstep;
-
-        const Pipeline* pipeline = 0;
-        if (A.elempack == 1)
-        {
-            pipeline = pipeline_binaryop_broadcast[0];
-        }
-        if (A.elempack == 4)
-        {
-            pipeline = pipeline_binaryop_broadcast_pack4[0];
-        }
-        if (A.elempack == 8)
-        {
-            pipeline = pipeline_binaryop_broadcast_pack8[0];
-        }
-
-        cmd.record_pipeline(pipeline, bindings, constants, top_blob);
-
-        return 0;
-    }
-
-    const int outw = std::max(A.w, B.w);
-    const int outh = std::max(A.h, B.h);
-    const int outd = std::max(A.d, B.d);
-    const int outc = std::max(A.c, B.c);
-    const size_t out_elemsize = std::max(A.elemsize, B.elemsize);
     const int out_elempack = std::max(A.elempack, B.elempack);
 
+    const bool a_rank_is_lower = A.dims < B.dims;
+    const bool b_rank_is_lower = B.dims < A.dims;
+
     VkImageMat& top_blob = top_blobs[0];
-    if (outdims == 1)
+    if (a_rank_is_lower)
     {
-        top_blob.create(outw, out_elemsize, out_elempack, opt.blob_vkallocator);
+        top_blob.create_like(B, opt.blob_vkallocator);
     }
-    if (outdims == 2)
+    else if (b_rank_is_lower)
     {
-        top_blob.create(outw, outh, out_elemsize, out_elempack, opt.blob_vkallocator);
+        top_blob.create_like(A, opt.blob_vkallocator);
     }
-    if (outdims == 3)
+    else
     {
-        top_blob.create(outw, outh, outc, out_elemsize, out_elempack, opt.blob_vkallocator);
-    }
-    if (outdims == 4)
-    {
-        top_blob.create(outw, outh, outd, outc, out_elemsize, out_elempack, opt.blob_vkallocator);
+        const int outw = std::max(A.w, B.w);
+        const int outh = std::max(A.h, B.h);
+        const int outd = std::max(A.d, B.d);
+        const int outc = std::max(A.c, B.c);
+        const size_t out_elemsize = std::max(A.elemsize, B.elemsize);
+
+        if (outdims == 1)
+        {
+            top_blob.create(outw, out_elemsize, out_elempack, opt.blob_vkallocator);
+        }
+        if (outdims == 2)
+        {
+            top_blob.create(outw, outh, out_elemsize, out_elempack, opt.blob_vkallocator);
+        }
+        if (outdims == 3)
+        {
+            top_blob.create(outw, outh, outc, out_elemsize, out_elempack, opt.blob_vkallocator);
+        }
+        if (outdims == 4)
+        {
+            top_blob.create(outw, outh, outd, outc, out_elemsize, out_elempack, opt.blob_vkallocator);
+        }
     }
     if (top_blob.empty())
         return -100;
@@ -880,9 +705,8 @@ int BinaryOp_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::v
     const bool a_pack_is_lower = A.elempack < B.elempack;
     const bool a_pack_is_equal = A.elempack == B.elempack;
     const bool a_size_is_lower = A.w * A.h * A.d * A.c * A.elempack < B.w * B.h * B.d * B.c * B.elempack;
-    if (a_pack_is_lower || (a_pack_is_equal && a_size_is_lower))
+    if (a_rank_is_lower || a_pack_is_lower || (a_pack_is_equal && a_size_is_lower))
     {
-        // binary_op_broadcast(B2, A2, top_blob, get_reverse_op_type(op_type), opt);
         std::vector<VkImageMat> bindings(3);
         bindings[0] = B;
         bindings[1] = A;
