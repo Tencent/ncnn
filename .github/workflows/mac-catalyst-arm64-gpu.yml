@@ -34,7 +34,7 @@ permissions:
 
 jobs:
   mac-catalyst-clang-gpu:
-    runs-on: macos-12
+    runs-on: macos-12-xl
     steps:
     - uses: actions/checkout@v3
       with:
@@ -64,7 +64,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
             -DPERL_EXECUTABLE=/usr/local/bin/perl \
             -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
-        cmake --build . -j 3
+        cmake --build . -j 12
         cmake --build . --target install
     - name: openmp-build-arm64
       if: steps.cache-openmp.outputs.cache-hit != 'true'
@@ -76,7 +76,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
             -DPERL_EXECUTABLE=/usr/local/bin/perl \
             -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
-        cmake --build . -j 3
+        cmake --build . -j 12
         cmake --build . --target install
     - name: openmp-merge-fat-library
       if: steps.cache-openmp.outputs.cache-hit != 'true'
@@ -114,4 +114,4 @@ jobs:
             -DVulkan_LIBRARY=$GITHUB_WORKSPACE/vulkansdk-macos-1.3.236.0/MoltenVK/dylib/macOS/libMoltenVK.dylib \
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
             -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
+        cmake --build . -j 12

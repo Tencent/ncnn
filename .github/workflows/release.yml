@@ -180,7 +180,7 @@ jobs:
         path: ${{ env.PACKAGENAME }}.zip
 
   openmp-macos:
-    runs-on: macos-12
+    runs-on: macos-12-xl
     steps:
     - name: cache-openmp
       id: cache-openmp
@@ -209,7 +209,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
             -DPERL_EXECUTABLE=/usr/local/bin/perl \
             -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
-        cmake --build . -j 3
+        cmake --build . -j 12
         cmake --build . --target install/strip
     - name: build-arm64
       if: steps.cache-openmp.outputs.cache-hit != 'true'
@@ -221,7 +221,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
             -DPERL_EXECUTABLE=/usr/local/bin/perl \
             -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
-        cmake --build . -j 3
+        cmake --build . -j 12
         cmake --build . --target install/strip
     - name: merge-fat-library
       if: steps.cache-openmp.outputs.cache-hit != 'true'
@@ -242,7 +242,7 @@ jobs:
 
   macos:
     needs: [setup, openmp-macos]
-    runs-on: macos-12
+    runs-on: macos-12-xl
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-macos
     steps:
@@ -266,7 +266,7 @@ jobs:
             -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/libomp.a" \
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
+        cmake --build . -j 12
         cmake --build . --target install/strip
     - name: build-arm64
       run: |
@@ -278,7 +278,7 @@ jobs:
             -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/libomp.a" \
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
+        cmake --build . -j 12
         cmake --build . --target install/strip
     - name: package-openmp
       run: |
@@ -314,7 +314,7 @@ jobs:
 
   macos-gpu:
     needs: [setup, openmp-macos]
-    runs-on: macos-12
+    runs-on: macos-12-xl
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-macos-vulkan
     steps:
@@ -349,7 +349,7 @@ jobs:
             -DVulkan_LIBRARY=$GITHUB_WORKSPACE/vulkansdk-macos-1.3.236.0/MoltenVK/dylib/macOS/libMoltenVK.dylib \
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DNCNN_VULKAN=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
+        cmake --build . -j 12
         cmake --build . --target install/strip
     - name: build-arm64
       run: |
@@ -364,7 +364,7 @@ jobs:
             -DVulkan_LIBRARY=$GITHUB_WORKSPACE/vulkansdk-macos-1.3.236.0/MoltenVK/dylib/macOS/libMoltenVK.dylib \
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DNCNN_VULKAN=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
+        cmake --build . -j 12
         cmake --build . --target install/strip
     - name: package-openmp
       run: |
@@ -413,7 +413,7 @@ jobs:
         path: ${{ env.PACKAGENAME }}.zip
 
   openmp-ios:
-    runs-on: macos-12
+    runs-on: macos-12-xl
     steps:
     - name: cache-openmp
       id: cache-openmp
@@ -442,7 +442,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
             -DPERL_EXECUTABLE=/usr/local/bin/perl \
             -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
-        cmake --build . -j 3
+        cmake --build . -j 12
         cmake --build . --target install/strip
     - name: build-arm64
       if: steps.cache-openmp.outputs.cache-hit != 'true'
@@ -454,7 +454,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
             -DPERL_EXECUTABLE=/usr/local/bin/perl \
             -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
-        cmake --build . -j 3
+        cmake --build . -j 12
         cmake --build . --target install/strip
     - name: build-arm64e
       if: steps.cache-openmp.outputs.cache-hit != 'true'
@@ -466,7 +466,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
             -DPERL_EXECUTABLE=/usr/local/bin/perl \
             -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
-        cmake --build . -j 3
+        cmake --build . -j 12
         cmake --build . --target install/strip
     - name: merge-fat-library
       if: steps.cache-openmp.outputs.cache-hit != 'true'
@@ -488,7 +488,7 @@ jobs:
 
   ios:
     needs: [setup, openmp-ios]
-    runs-on: macos-12
+    runs-on: macos-12-xl
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ios
     steps:
@@ -512,7 +512,7 @@ jobs:
             -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib/libomp.a" \
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
+        cmake --build . -j 12
         cmake --build . --target install/strip
     - name: build-arm64
       run: |
@@ -524,7 +524,7 @@ jobs:
             -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib/libomp.a" \
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
+        cmake --build . -j 12
         cmake --build . --target install/strip
     - name: build-arm64e
       run: |
@@ -536,7 +536,7 @@ jobs:
             -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib/libomp.a" \
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
+        cmake --build . -j 12
         cmake --build . --target install/strip
     - name: package-openmp
       run: |
@@ -576,7 +576,7 @@ jobs:
 
   ios-gpu:
     needs: [setup, openmp-ios]
-    runs-on: macos-12
+    runs-on: macos-12-xl
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ios-vulkan
     steps:
@@ -611,7 +611,7 @@ jobs:
             -DVulkan_LIBRARY=$GITHUB_WORKSPACE/vulkansdk-macos-1.3.236.0/MoltenVK/iOS/dynamic/libMoltenVK.dylib \
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
+        cmake --build . -j 12
         cmake --build . --target install/strip
     - name: build-arm64e
       run: |
@@ -626,7 +626,7 @@ jobs:
             -DVulkan_LIBRARY=$GITHUB_WORKSPACE/vulkansdk-macos-1.3.236.0/MoltenVK/iOS/dynamic/libMoltenVK.dylib \
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
+        cmake --build . -j 12
         cmake --build . --target install/strip
     - name: package-openmp
       run: |
@@ -695,7 +695,7 @@ jobs:
         path: ${{ env.PACKAGENAME }}.zip
 
   openmp-ios-bitcode:
-    runs-on: macos-12
+    runs-on: macos-12-xl
     steps:
     - name: cache-openmp
       id: cache-openmp
@@ -724,7 +724,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
             -DPERL_EXECUTABLE=/usr/local/bin/perl \
             -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
-        cmake --build . -j 3
+        cmake --build . -j 12
         cmake --build . --target install/strip
     - name: build-arm64
       if: steps.cache-openmp.outputs.cache-hit != 'true'
@@ -736,7 +736,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
             -DPERL_EXECUTABLE=/usr/local/bin/perl \
             -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
-        cmake --build . -j 3
+        cmake --build . -j 12
         cmake --build . --target install/strip
     - name: build-arm64e
       if: steps.cache-openmp.outputs.cache-hit != 'true'
@@ -748,7 +748,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
             -DPERL_EXECUTABLE=/usr/local/bin/perl \
             -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
-        cmake --build . -j 3
+        cmake --build . -j 12
         cmake --build . --target install/strip
     - name: merge-fat-library
       if: steps.cache-openmp.outputs.cache-hit != 'true'
@@ -770,7 +770,7 @@ jobs:
 
   ios-bitcode:
     needs: [setup, openmp-ios-bitcode]
-    runs-on: macos-12
+    runs-on: macos-12-xl
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ios-bitcode
     steps:
@@ -794,7 +794,7 @@ jobs:
             -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib/libomp.a" \
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
+        cmake --build . -j 12
         cmake --build . --target install/strip
     - name: build-arm64
       run: |
@@ -806,7 +806,7 @@ jobs:
             -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib/libomp.a" \
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
+        cmake --build . -j 12
         cmake --build . --target install/strip
     - name: build-arm64e
       run: |
@@ -818,7 +818,7 @@ jobs:
             -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib/libomp.a" \
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
+        cmake --build . -j 12
         cmake --build . --target install/strip
     - name: package-openmp
       run: |
@@ -858,7 +858,7 @@ jobs:
 
   ios-gpu-bitcode:
     needs: [setup, openmp-ios-bitcode]
-    runs-on: macos-12
+    runs-on: macos-12-xl
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ios-vulkan-bitcode
     steps:
@@ -893,7 +893,7 @@ jobs:
             -DVulkan_LIBRARY=$GITHUB_WORKSPACE/vulkansdk-macos-1.3.236.0/MoltenVK/iOS/dynamic/libMoltenVK.dylib \
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
+        cmake --build . -j 12
         cmake --build . --target install/strip
     - name: build-arm64e
       run: |
@@ -908,7 +908,7 @@ jobs:
             -DVulkan_LIBRARY=$GITHUB_WORKSPACE/vulkansdk-macos-1.3.236.0/MoltenVK/iOS/dynamic/libMoltenVK.dylib \
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
+        cmake --build . -j 12
         cmake --build . --target install/strip
     - name: package-openmp
       run: |
@@ -977,7 +977,7 @@ jobs:
         path: ${{ env.PACKAGENAME }}.zip
 
   openmp-ios-simulator:
-    runs-on: macos-12
+    runs-on: macos-12-xl
     steps:
     - name: cache-openmp
       id: cache-openmp
@@ -1006,7 +1006,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
             -DPERL_EXECUTABLE=/usr/local/bin/perl \
             -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
-        cmake --build . -j 3
+        cmake --build . -j 12
         cmake --build . --target install/strip
     - name: build-x86_64
       if: steps.cache-openmp.outputs.cache-hit != 'true'
@@ -1018,7 +1018,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
             -DPERL_EXECUTABLE=/usr/local/bin/perl \
             -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
-        cmake --build . -j 3
+        cmake --build . -j 12
         cmake --build . --target install/strip
     - name: build-arm64
       if: steps.cache-openmp.outputs.cache-hit != 'true'
@@ -1030,7 +1030,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
             -DPERL_EXECUTABLE=/usr/local/bin/perl \
             -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
-        cmake --build . -j 3
+        cmake --build . -j 12
         cmake --build . --target install/strip
     - name: merge-fat-library
       if: steps.cache-openmp.outputs.cache-hit != 'true'
@@ -1052,7 +1052,7 @@ jobs:
 
   ios-simulator:
     needs: [setup, openmp-ios-simulator]
-    runs-on: macos-12
+    runs-on: macos-12-xl
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator
     steps:
@@ -1076,7 +1076,7 @@ jobs:
             -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/lib/libomp.a" \
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
+        cmake --build . -j 12
         cmake --build . --target install/strip
     - name: build-x86_64
       run: |
@@ -1088,7 +1088,7 @@ jobs:
             -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/lib/libomp.a" \
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
+        cmake --build . -j 12
         cmake --build . --target install/strip
     - name: build-arm64
       run: |
@@ -1100,7 +1100,7 @@ jobs:
             -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/lib/libomp.a" \
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
+        cmake --build . -j 12
         cmake --build . --target install/strip
     - name: package-openmp
       run: |
@@ -1140,7 +1140,7 @@ jobs:
 
   ios-simulator-gpu:
     needs: [setup, openmp-ios-simulator]
-    runs-on: macos-12
+    runs-on: macos-12-xl
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator-vulkan
     steps:
@@ -1175,7 +1175,7 @@ jobs:
             -DVulkan_LIBRARY=$GITHUB_WORKSPACE/vulkansdk-macos-1.3.236.0/MoltenVK/dylib/macOS/libMoltenVK.dylib \
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
+        cmake --build . -j 12
         cmake --build . --target install/strip
     - name: build-arm64
       run: |
@@ -1190,7 +1190,7 @@ jobs:
             -DVulkan_LIBRARY=$GITHUB_WORKSPACE/vulkansdk-macos-1.3.236.0/MoltenVK/dylib/macOS/libMoltenVK.dylib \
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
+        cmake --build . -j 12
         cmake --build . --target install/strip
     - name: package-openmp
       run: |
@@ -1259,7 +1259,7 @@ jobs:
         path: ${{ env.PACKAGENAME }}.zip
 
   openmp-ios-simulator-bitcode:
-    runs-on: macos-12
+    runs-on: macos-12-xl
     steps:
     - name: cache-openmp
       id: cache-openmp
@@ -1288,7 +1288,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
             -DPERL_EXECUTABLE=/usr/local/bin/perl \
             -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
-        cmake --build . -j 3
+        cmake --build . -j 12
         cmake --build . --target install/strip
     - name: build-x86_64
       if: steps.cache-openmp.outputs.cache-hit != 'true'
@@ -1300,7 +1300,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
             -DPERL_EXECUTABLE=/usr/local/bin/perl \
             -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
-        cmake --build . -j 3
+        cmake --build . -j 12
         cmake --build . --target install/strip
     - name: build-arm64
       if: steps.cache-openmp.outputs.cache-hit != 'true'
@@ -1312,7 +1312,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
             -DPERL_EXECUTABLE=/usr/local/bin/perl \
             -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
-        cmake --build . -j 3
+        cmake --build . -j 12
         cmake --build . --target install/strip
     - name: merge-fat-library
       if: steps.cache-openmp.outputs.cache-hit != 'true'
@@ -1334,7 +1334,7 @@ jobs:
 
   ios-simulator-bitcode:
     needs: [setup, openmp-ios-simulator-bitcode]
-    runs-on: macos-12
+    runs-on: macos-12-xl
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator-bitcode
     steps:
@@ -1358,7 +1358,7 @@ jobs:
             -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/lib/libomp.a" \
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
+        cmake --build . -j 12
         cmake --build . --target install/strip
     - name: build-x86_64
       run: |
@@ -1370,7 +1370,7 @@ jobs:
             -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/lib/libomp.a" \
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
+        cmake --build . -j 12
         cmake --build . --target install/strip
     - name: build-arm64
       run: |
@@ -1382,7 +1382,7 @@ jobs:
             -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/lib/libomp.a" \
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
+        cmake --build . -j 12
         cmake --build . --target install/strip
     - name: package-openmp
       run: |
@@ -1422,7 +1422,7 @@ jobs:
 
   ios-simulator-gpu-bitcode:
     needs: [setup, openmp-ios-simulator-bitcode]
-    runs-on: macos-12
+    runs-on: macos-12-xl
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator-vulkan-bitcode
     steps:
@@ -1457,7 +1457,7 @@ jobs:
             -DVulkan_LIBRARY=$GITHUB_WORKSPACE/vulkansdk-macos-1.3.236.0/MoltenVK/dylib/macOS/libMoltenVK.dylib \
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
+        cmake --build . -j 12
         cmake --build . --target install/strip
     - name: build-arm64
       run: |
@@ -1472,7 +1472,7 @@ jobs:
             -DVulkan_LIBRARY=$GITHUB_WORKSPACE/vulkansdk-macos-1.3.236.0/MoltenVK/dylib/macOS/libMoltenVK.dylib \
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
+        cmake --build . -j 12
         cmake --build . --target install/strip
     - name: package-openmp
       run: |
@@ -1541,7 +1541,7 @@ jobs:
         path: ${{ env.PACKAGENAME }}.zip
 
   openmp-mac-catalyst:
-    runs-on: macos-12
+    runs-on: macos-12-xl
     steps:
     - name: cache-openmp
       id: cache-openmp
@@ -1570,7 +1570,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
             -DPERL_EXECUTABLE=/usr/local/bin/perl \
             -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
-        cmake --build . -j 3
+        cmake --build . -j 12
         cmake --build . --target install/strip
     - name: build-arm64
       if: steps.cache-openmp.outputs.cache-hit != 'true'
@@ -1582,7 +1582,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
             -DPERL_EXECUTABLE=/usr/local/bin/perl \
             -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
-        cmake --build . -j 3
+        cmake --build . -j 12
         cmake --build . --target install/strip
     - name: merge-fat-library
       if: steps.cache-openmp.outputs.cache-hit != 'true'
@@ -1603,7 +1603,7 @@ jobs:
 
   mac-catalyst:
     needs: [setup, openmp-mac-catalyst]
-    runs-on: macos-12
+    runs-on: macos-12-xl
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst
     steps:
@@ -1627,7 +1627,7 @@ jobs:
             -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/libomp.a" \
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
+        cmake --build . -j 12
         cmake --build . --target install/strip
     - name: build-arm64
       run: |
@@ -1639,7 +1639,7 @@ jobs:
             -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/libomp.a" \
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
+        cmake --build . -j 12
         cmake --build . --target install/strip
     - name: package-openmp
       run: |
@@ -1678,7 +1678,7 @@ jobs:
 
   mac-catalyst-gpu:
     needs: [setup, openmp-mac-catalyst]
-    runs-on: macos-12
+    runs-on: macos-12-xl
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst-vulkan
     steps:
@@ -1713,7 +1713,7 @@ jobs:
             -DVulkan_LIBRARY=$GITHUB_WORKSPACE/vulkansdk-macos-1.3.236.0/MoltenVK/dylib/macOS/libMoltenVK.dylib \
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
+        cmake --build . -j 12
         cmake --build . --target install/strip
     - name: build-arm64
       run: |
@@ -1728,7 +1728,7 @@ jobs:
             -DVulkan_LIBRARY=$GITHUB_WORKSPACE/vulkansdk-macos-1.3.236.0/MoltenVK/dylib/macOS/libMoltenVK.dylib \
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
+        cmake --build . -j 12
         cmake --build . --target install/strip
     - name: package-openmp
       run: |
@@ -1797,7 +1797,7 @@ jobs:
         path: ${{ env.PACKAGENAME }}.zip
 
   openmp-mac-catalyst-bitcode:
-    runs-on: macos-12
+    runs-on: macos-12-xl
     steps:
     - name: cache-openmp
       id: cache-openmp
@@ -1826,7 +1826,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
             -DPERL_EXECUTABLE=/usr/local/bin/perl \
             -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
-        cmake --build . -j 3
+        cmake --build . -j 12
         cmake --build . --target install/strip
     - name: build-arm64
       if: steps.cache-openmp.outputs.cache-hit != 'true'
@@ -1838,7 +1838,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
             -DPERL_EXECUTABLE=/usr/local/bin/perl \
             -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
-        cmake --build . -j 3
+        cmake --build . -j 12
         cmake --build . --target install/strip
     - name: merge-fat-library
       if: steps.cache-openmp.outputs.cache-hit != 'true'
@@ -1859,7 +1859,7 @@ jobs:
 
   mac-catalyst-bitcode:
     needs: [setup, openmp-mac-catalyst-bitcode]
-    runs-on: macos-12
+    runs-on: macos-12-xl
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst-bitcode
     steps:
@@ -1883,7 +1883,7 @@ jobs:
             -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/libomp.a" \
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
+        cmake --build . -j 12
         cmake --build . --target install/strip
     - name: build-arm64
       run: |
@@ -1895,7 +1895,7 @@ jobs:
             -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/libomp.a" \
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
+        cmake --build . -j 12
         cmake --build . --target install/strip
     - name: package-openmp
       run: |
@@ -1934,7 +1934,7 @@ jobs:
 
   mac-catalyst-gpu-bitcode:
     needs: [setup, openmp-mac-catalyst-bitcode]
-    runs-on: macos-12
+    runs-on: macos-12-xl
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst-vulkan-bitcode
     steps:
@@ -1969,7 +1969,7 @@ jobs:
             -DVulkan_LIBRARY=$GITHUB_WORKSPACE/vulkansdk-macos-1.3.236.0/MoltenVK/dylib/macOS/libMoltenVK.dylib \
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
+        cmake --build . -j 12
         cmake --build . --target install/strip
     - name: build-arm64
       run: |
@@ -1984,7 +1984,7 @@ jobs:
             -DVulkan_LIBRARY=$GITHUB_WORKSPACE/vulkansdk-macos-1.3.236.0/MoltenVK/dylib/macOS/libMoltenVK.dylib \
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
+        cmake --build . -j 12
         cmake --build . --target install/strip
     - name: package-openmp
       run: |
@@ -2969,7 +2969,7 @@ jobs:
 
   apple:
     needs: [setup, macos, ios, ios-simulator, mac-catalyst]
-    runs-on: macos-12
+    runs-on: macos-12-xl
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-apple
     steps:
@@ -3015,7 +3015,7 @@ jobs:
 
   apple-gpu:
     needs: [setup, macos-gpu, ios-gpu, ios-simulator-gpu, mac-catalyst-gpu]
-    runs-on: macos-12
+    runs-on: macos-12-xl
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-apple-vulkan
     steps:
@@ -3068,7 +3068,7 @@ jobs:
 
   apple-bitcode:
     needs: [setup, macos, ios-bitcode, ios-simulator-bitcode, mac-catalyst-bitcode]
-    runs-on: macos-12
+    runs-on: macos-12-xl
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-apple-bitcode
     steps:
@@ -3114,7 +3114,7 @@ jobs:
 
   apple-gpu-bitcode:
     needs: [setup, macos-gpu, ios-gpu-bitcode, ios-simulator-gpu-bitcode, mac-catalyst-gpu-bitcode]
-    runs-on: macos-12
+    runs-on: macos-12-xl
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-apple-vulkan-bitcode
     steps:
