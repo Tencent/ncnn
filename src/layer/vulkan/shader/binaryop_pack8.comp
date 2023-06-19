@@ -97,13 +97,13 @@ void main()
 
     if (with_scalar == 1)
     {
-        // type 0 1 2 3
+        // scalar
         v2[0] = afpvec4(afp(const_b));
         v2[1] = afpvec4(afp(const_b));
     }
     else
     {
-        // type 4 5 6 7
+        // no broadcast
 #if NCNN_image_shader
         v2 = image3d_ld8(b_blob_3d, ivec3(gx, gy, gz));
 #else
