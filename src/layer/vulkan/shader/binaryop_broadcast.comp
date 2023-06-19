@@ -91,14 +91,83 @@ void main()
     int yd = gy / psc(outh);
     int yh = gy % psc(outh);
 
-    // explicit broadcast
-    int ax = min(gx, psc(aw) - 1);
-    int ay = min(yd, psc(ad) - 1) * psc(ah) + min(yh, psc(ah) - 1);
-    int az = min(gz, psc(ac) - 1);
+    int ax = gx;
+    int ay = gy;
+    int az = gz;
 
-    int bx = min(gx, psc(bw) - 1);
-    int by = min(yd, psc(bd) - 1) * psc(bh) + min(yh, psc(bh) - 1);
-    int bz = min(gz, psc(bc) - 1);
+    int bx = gx;
+    int by = gy;
+    int bz = gz;
+
+    if (psc(adims) == psc(bdims))
+    {
+        // explicit broadcast
+        ax = min(gx, psc(aw) - 1);
+        ay = min(yd, psc(ad) - 1) * psc(ah) + min(yh, psc(ah) - 1);
+        az = min(gz, psc(ac) - 1);
+
+        bx = min(gx, psc(bw) - 1);
+        by = min(yd, psc(bd) - 1) * psc(bh) + min(yh, psc(bh) - 1);
+        bz = min(gz, psc(bc) - 1);
+    }
+    else
+    {
+        // implicit broadcast
+        if (psc(adims) == 4)
+        {
+            if (psc(bdims) == 3)
+            {
+                // type 13
+                bx = yh;
+                by = yd;
+                bz = gz;
+            }
+
+            if (psc(bdims) == 2)
+            {
+                // type 12
+                bx = yd;
+                by = gz;
+                bz = 0;
+            }
+
+            if (psc(bdims) == 1)
+            {
+                // type 11
+                bx = gz;
+                by = 0;
+                bz = 0;
+            }
+        }
+        else if (psc(adims) == 3)
+        {
+            if (psc(bdims) == 2)
+            {
+                // type 10
+                bx = gy;
+                by = gz;
+                bz = 0;
+            }
+
+            if (psc(bdims) == 1)
+            {
+                // type 9
+                bx = gz;
+                by = 0;
+                bz = 0;
+            }
+        }
+        else // if (psc(adims) == 2)
+        {
+            // if (psc(bdims) == 1)
+            {
+                // type 8
+                bx = gy;
+                by = 0;
+                bz = 0;
+            }
+        }
+    }
 
 #if NCNN_image_shader
     afp v1 = image3d_ld1(a_blob_3d, ivec3(ax, ay, az));

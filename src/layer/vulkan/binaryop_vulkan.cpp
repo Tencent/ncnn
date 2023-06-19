@@ -235,18 +235,18 @@ int BinaryOp_vulkan::create_pipeline(const Option& opt)
 
         std::vector<vk_specialization_type> specializations_r(1 + 18);
         specializations_r[0].i = op_type_r;
-        specializations_r[1 + 0].i = B_shape_packed.dims;
-        specializations_r[1 + 1].i = B_shape_packed.w;
-        specializations_r[1 + 2].i = B_shape_packed.h;
-        specializations_r[1 + 3].i = B_shape_packed.d;
-        specializations_r[1 + 4].i = B_shape_packed.c;
-        specializations_r[1 + 5].i = B_shape_packed.cstep;
-        specializations_r[1 + 6].i = A_shape_packed.dims;
-        specializations_r[1 + 7].i = A_shape_packed.w;
-        specializations_r[1 + 8].i = A_shape_packed.h;
-        specializations_r[1 + 9].i = A_shape_packed.d;
-        specializations_r[1 + 10].i = A_shape_packed.c;
-        specializations_r[1 + 11].i = A_shape_packed.cstep;
+        specializations_r[1 + 0].i = A_shape_packed.dims;
+        specializations_r[1 + 1].i = A_shape_packed.w;
+        specializations_r[1 + 2].i = A_shape_packed.h;
+        specializations_r[1 + 3].i = A_shape_packed.d;
+        specializations_r[1 + 4].i = A_shape_packed.c;
+        specializations_r[1 + 5].i = A_shape_packed.cstep;
+        specializations_r[1 + 6].i = B_shape_packed.dims;
+        specializations_r[1 + 7].i = B_shape_packed.w;
+        specializations_r[1 + 8].i = B_shape_packed.h;
+        specializations_r[1 + 9].i = B_shape_packed.d;
+        specializations_r[1 + 10].i = B_shape_packed.c;
+        specializations_r[1 + 11].i = B_shape_packed.cstep;
         specializations_r[1 + 12].i = out_shape_packed.dims;
         specializations_r[1 + 13].i = out_shape_packed.w;
         specializations_r[1 + 14].i = out_shape_packed.h;
@@ -409,46 +409,107 @@ int BinaryOp_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector
     const VkMat& B = bottom_blobs[1];
     const int outdims = std::max(A.dims, B.dims);
 
-    if (A.dims != outdims || B.dims != outdims)
+    if (A.dims < outdims)
     {
-        NCNN_LOGE("todo implement implicit broadcast vulkan");
-        return -1;
+        VkMat& top_blob = top_blobs[0];
+        top_blob.create_like(B, opt.blob_vkallocator);
+        if (top_blob.empty())
+            return -100;
+
+        std::vector<VkMat> bindings(3);
+        bindings[0] = B;
+        bindings[1] = A;
+        bindings[2] = top_blob;
+
+        std::vector<vk_constant_type> constants(18);
+        constants[0].i = B.dims;
+        constants[1].i = B.w;
+        constants[2].i = B.h;
+        constants[3].i = B.d;
+        constants[4].i = B.c;
+        constants[5].i = B.cstep;
+        constants[6].i = A.dims;
+        constants[7].i = A.w;
+        constants[8].i = A.h;
+        constants[9].i = A.d;
+        constants[10].i = A.c;
+        constants[11].i = A.cstep;
+        constants[12].i = top_blob.dims;
+        constants[13].i = top_blob.w;
+        constants[14].i = top_blob.h;
+        constants[15].i = top_blob.d;
+        constants[16].i = top_blob.c;
+        constants[17].i = top_blob.cstep;
+
+        const Pipeline* pipeline = 0;
+        if (B.elempack == 1)
+        {
+            pipeline = pipeline_binaryop_broadcast[0];
+        }
+        if (B.elempack == 4)
+        {
+            pipeline = pipeline_binaryop_broadcast_pack4[0];
+        }
+        if (B.elempack == 8)
+        {
+            pipeline = pipeline_binaryop_broadcast_pack8[0];
+        }
+
+        cmd.record_pipeline(pipeline, bindings, constants, top_blob);
+
+        return 0;
     }
 
-    // VkMat A2 = A;
-    // VkMat B2 = B;
-    // if (A.dims < outdims)
-    // {
-    //     // expand inner axes
-    //     if (outdims == 2)
-    //         A2 = A.reshape(1, A.w, opt.workspace_allocator);
-    //     if (outdims == 3 && A.dims == 1)
-    //         A2 = A.reshape(1, 1, A.w, opt.workspace_allocator);
-    //     if (outdims == 3 && A.dims == 2)
-    //         A2 = A.reshape(1, A.w, A.h, opt.workspace_allocator);
-    //     if (outdims == 4 && A.dims == 1)
-    //         A2 = A.reshape(1, 1, 1, A.w, opt.workspace_allocator);
-    //     if (outdims == 4 && A.dims == 2)
-    //         A2 = A.reshape(1, 1, A.w, A.h, opt.workspace_allocator);
-    //     if (outdims == 4 && A.dims == 3)
-    //         A2 = A.reshape(1, A.w, A.h, A.c, opt.workspace_allocator);
-    // }
-    // if (B.dims < outdims)
-    // {
-    //     // expand inner axes
-    //     if (outdims == 2)
-    //         B2 = B.reshape(1, B.w, opt.workspace_allocator);
-    //     if (outdims == 3 && B.dims == 1)
-    //         B2 = B.reshape(1, 1, B.w, opt.workspace_allocator);
-    //     if (outdims == 3 && B.dims == 2)
-    //         B2 = B.reshape(1, B.w, B.h, opt.workspace_allocator);
-    //     if (outdims == 4 && B.dims == 1)
-    //         B2 = B.reshape(1, 1, 1, B.w, opt.workspace_allocator);
-    //     if (outdims == 4 && B.dims == 2)
-    //         B2 = B.reshape(1, 1, B.w, B.h, opt.workspace_allocator);
-    //     if (outdims == 4 && B.dims == 3)
-    //         B2 = B.reshape(1, B.w, B.h, B.c, opt.workspace_allocator);
-    // }
+    if (B.dims < outdims)
+    {
+        VkMat& top_blob = top_blobs[0];
+        top_blob.create_like(A, opt.blob_vkallocator);
+        if (top_blob.empty())
+            return -100;
+
+        std::vector<VkMat> bindings(3);
+        bindings[0] = A;
+        bindings[1] = B;
+        bindings[2] = top_blob;
+
+        std::vector<vk_constant_type> constants(18);
+        constants[0].i = A.dims;
+        constants[1].i = A.w;
+        constants[2].i = A.h;
+        constants[3].i = A.d;
+        constants[4].i = A.c;
+        constants[5].i = A.cstep;
+        constants[6].i = B.dims;
+        constants[7].i = B.w;
+        constants[8].i = B.h;
+        constants[9].i = B.d;
+        constants[10].i = B.c;
+        constants[11].i = B.cstep;
+        constants[12].i = top_blob.dims;
+        constants[13].i = top_blob.w;
+        constants[14].i = top_blob.h;
+        constants[15].i = top_blob.d;
+        constants[16].i = top_blob.c;
+        constants[17].i = top_blob.cstep;
+
+        const Pipeline* pipeline = 0;
+        if (A.elempack == 1)
+        {
+            pipeline = pipeline_binaryop_broadcast[0];
+        }
+        if (A.elempack == 4)
+        {
+            pipeline = pipeline_binaryop_broadcast_pack4[0];
+        }
+        if (A.elempack == 8)
+        {
+            pipeline = pipeline_binaryop_broadcast_pack8[0];
+        }
+
+        cmd.record_pipeline(pipeline, bindings, constants, top_blob);
+
+        return 0;
+    }
 
     const int outw = std::max(A.w, B.w);
     const int outh = std::max(A.h, B.h);
@@ -653,46 +714,107 @@ int BinaryOp_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::v
     const VkImageMat& B = bottom_blobs[1];
     const int outdims = std::max(A.dims, B.dims);
 
-    if (A.dims != outdims || B.dims != outdims)
+    if (A.dims < outdims)
     {
-        NCNN_LOGE("todo implement implicit broadcast vulkan");
-        return -1;
+        VkImageMat& top_blob = top_blobs[0];
+        top_blob.create_like(B, opt.blob_vkallocator);
+        if (top_blob.empty())
+            return -100;
+
+        std::vector<VkImageMat> bindings(3);
+        bindings[0] = B;
+        bindings[1] = A;
+        bindings[2] = top_blob;
+
+        std::vector<vk_constant_type> constants(18);
+        constants[0].i = B.dims;
+        constants[1].i = B.w;
+        constants[2].i = B.h;
+        constants[3].i = B.d;
+        constants[4].i = B.c;
+        constants[5].i = 0; //B.cstep;
+        constants[6].i = A.dims;
+        constants[7].i = A.w;
+        constants[8].i = A.h;
+        constants[9].i = A.d;
+        constants[10].i = A.c;
+        constants[11].i = 0; //A.cstep;
+        constants[12].i = top_blob.dims;
+        constants[13].i = top_blob.w;
+        constants[14].i = top_blob.h;
+        constants[15].i = top_blob.d;
+        constants[16].i = top_blob.c;
+        constants[17].i = 0; //top_blob.cstep;
+
+        const Pipeline* pipeline = 0;
+        if (B.elempack == 1)
+        {
+            pipeline = pipeline_binaryop_broadcast[0];
+        }
+        if (B.elempack == 4)
+        {
+            pipeline = pipeline_binaryop_broadcast_pack4[0];
+        }
+        if (B.elempack == 8)
+        {
+            pipeline = pipeline_binaryop_broadcast_pack8[0];
+        }
+
+        cmd.record_pipeline(pipeline, bindings, constants, top_blob);
+
+        return 0;
     }
 
-    // VkImageMat A2 = A;
-    // VkImageMat B2 = B;
-    // if (A.dims < outdims)
-    // {
-    //     // expand inner axes
-    //     if (outdims == 2)
-    //         A2 = A.reshape(1, A.w, opt.workspace_allocator);
-    //     if (outdims == 3 && A.dims == 1)
-    //         A2 = A.reshape(1, 1, A.w, opt.workspace_allocator);
-    //     if (outdims == 3 && A.dims == 2)
-    //         A2 = A.reshape(1, A.w, A.h, opt.workspace_allocator);
-    //     if (outdims == 4 && A.dims == 1)
-    //         A2 = A.reshape(1, 1, 1, A.w, opt.workspace_allocator);
-    //     if (outdims == 4 && A.dims == 2)
-    //         A2 = A.reshape(1, 1, A.w, A.h, opt.workspace_allocator);
-    //     if (outdims == 4 && A.dims == 3)
-    //         A2 = A.reshape(1, A.w, A.h, A.c, opt.workspace_allocator);
-    // }
-    // if (B.dims < outdims)
-    // {
-    //     // expand inner axes
-    //     if (outdims == 2)
-    //         B2 = B.reshape(1, B.w, opt.workspace_allocator);
-    //     if (outdims == 3 && B.dims == 1)
-    //         B2 = B.reshape(1, 1, B.w, opt.workspace_allocator);
-    //     if (outdims == 3 && B.dims == 2)
-    //         B2 = B.reshape(1, B.w, B.h, opt.workspace_allocator);
-    //     if (outdims == 4 && B.dims == 1)
-    //         B2 = B.reshape(1, 1, 1, B.w, opt.workspace_allocator);
-    //     if (outdims == 4 && B.dims == 2)
-    //         B2 = B.reshape(1, 1, B.w, B.h, opt.workspace_allocator);
-    //     if (outdims == 4 && B.dims == 3)
-    //         B2 = B.reshape(1, B.w, B.h, B.c, opt.workspace_allocator);
-    // }
+    if (B.dims < outdims)
+    {
+        VkImageMat& top_blob = top_blobs[0];
+        top_blob.create_like(A, opt.blob_vkallocator);
+        if (top_blob.empty())
+            return -100;
+
+        std::vector<VkImageMat> bindings(3);
+        bindings[0] = A;
+        bindings[1] = B;
+        bindings[2] = top_blob;
+
+        std::vector<vk_constant_type> constants(18);
+        constants[0].i = A.dims;
+        constants[1].i = A.w;
+        constants[2].i = A.h;
+        constants[3].i = A.d;
+        constants[4].i = A.c;
+        constants[5].i = 0; //A.cstep;
+        constants[6].i = B.dims;
+        constants[7].i = B.w;
+        constants[8].i = B.h;
+        constants[9].i = B.d;
+        constants[10].i = B.c;
+        constants[11].i = 0; //B.cstep;
+        constants[12].i = top_blob.dims;
+        constants[13].i = top_blob.w;
+        constants[14].i = top_blob.h;
+        constants[15].i = top_blob.d;
+        constants[16].i = top_blob.c;
+        constants[17].i = 0; //top_blob.cstep;
+
+        const Pipeline* pipeline = 0;
+        if (A.elempack == 1)
+        {
+            pipeline = pipeline_binaryop_broadcast[0];
+        }
+        if (A.elempack == 4)
+        {
+            pipeline = pipeline_binaryop_broadcast_pack4[0];
+        }
+        if (A.elempack == 8)
+        {
+            pipeline = pipeline_binaryop_broadcast_pack8[0];
+        }
+
+        cmd.record_pipeline(pipeline, bindings, constants, top_blob);
+
+        return 0;
+    }
 
     const int outw = std::max(A.w, B.w);
     const int outh = std::max(A.h, B.h);
@@ -734,17 +856,17 @@ int BinaryOp_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::v
         constants[1].i = A.w;
         constants[2].i = A.h * A.d;
         constants[3].i = A.c;
-        constants[4].i = 0;// A.cstep;
+        constants[4].i = 0; //A.cstep;
         constants[5].i = B.dims;
         constants[6].i = B.w;
         constants[7].i = B.h * B.d;
         constants[8].i = B.c;
-        constants[9].i = 0;// B.cstep;
+        constants[9].i = 0; //B.cstep;
         constants[10].i = top_blob.dims;
         constants[11].i = top_blob.w;
         constants[12].i = top_blob.h * top_blob.d;
         constants[13].i = top_blob.c;
-        constants[14].i = 0;// top_blob.cstep;
+        constants[14].i = 0; //top_blob.cstep;
 
         const Pipeline* pipeline = out_elempack == 8 ? pipeline_binaryop_pack8
                                    : out_elempack == 4 ? pipeline_binaryop_pack4
