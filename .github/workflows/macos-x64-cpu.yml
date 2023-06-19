@@ -41,7 +41,7 @@ permissions:
 
 jobs:
   macos-clang:
-    runs-on: macos-12-xl
+    runs-on: macos-12
     steps:
     - uses: actions/checkout@v3
 
@@ -72,7 +72,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
             -DPERL_EXECUTABLE=/usr/local/bin/perl \
             -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
-        cmake --build . -j 12
+        cmake --build . -j 3
         cmake --build . --target install
     - name: openmp-build-arm64
       if: steps.cache-openmp.outputs.cache-hit != 'true'
@@ -84,7 +84,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
             -DPERL_EXECUTABLE=/usr/local/bin/perl \
             -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
-        cmake --build . -j 12
+        cmake --build . -j 3
         cmake --build . --target install
     - name: openmp-merge-fat-library
       if: steps.cache-openmp.outputs.cache-hit != 'true'
@@ -112,12 +112,12 @@ jobs:
             -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/libomp.a" \
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
             -DNCNN_BUILD_TESTS=ON ..
-        cmake --build . -j 12
+        cmake --build . -j 3
 
     - name: test
       run: |
         cd build
-        ctest --output-on-failure -j 12
+        ctest --output-on-failure -j 3
 
     - name: build-shared
       run: |
@@ -129,4 +129,4 @@ jobs:
             -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/libomp.a" \
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
             -DNCNN_SHARED_LIB=ON ..
-        cmake --build . -j 12
+        cmake --build . -j 3

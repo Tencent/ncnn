@@ -36,7 +36,7 @@ permissions:
 
 jobs:
   ios-iphone-simulator-gpu:
-    runs-on: macos-12-xl
+    runs-on: macos-12
     steps:
     - uses: actions/checkout@v3
       with:

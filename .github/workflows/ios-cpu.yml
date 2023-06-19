@@ -34,7 +34,7 @@ permissions:
 
 jobs:
   ios-iphone-os:
-    runs-on: macos-12-xl
+    runs-on: macos-12
     steps:
     - uses: actions/checkout@v3
 
@@ -62,7 +62,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
             -DPERL_EXECUTABLE=/usr/local/bin/perl \
             -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
-        cmake --build . -j 12
+        cmake --build . -j 3
         cmake --build . --target install
     - name: openmp-build-arm64
       if: steps.cache-openmp.outputs.cache-hit != 'true'
@@ -74,7 +74,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
             -DPERL_EXECUTABLE=/usr/local/bin/perl \
             -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
-        cmake --build . -j 12
+        cmake --build . -j 3
         cmake --build . --target install
     - name: openmp-build-arm64e
       if: steps.cache-openmp.outputs.cache-hit != 'true'
@@ -86,7 +86,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
             -DPERL_EXECUTABLE=/usr/local/bin/perl \
             -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
-        cmake --build . -j 12
+        cmake --build . -j 3
         cmake --build . --target install
     - name: openmp-merge-fat-library
       if: steps.cache-openmp.outputs.cache-hit != 'true'
@@ -115,7 +115,7 @@ jobs:
             -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib/libomp.a" \
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
             ..
-        cmake --build . -j 12
+        cmake --build . -j 3
     - name: build-arm64
       run: |
         mkdir build-arm64 && cd build-arm64
@@ -126,7 +126,7 @@ jobs:
             -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib/libomp.a" \
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
             ..
-        cmake --build . -j 12
+        cmake --build . -j 3
     - name: build-arm64e
       run: |
         mkdir build-arm64e && cd build-arm64e
@@ -137,4 +137,4 @@ jobs:
             -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib/libomp.a" \
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
             ..
-        cmake --build . -j 12
+        cmake --build . -j 3
