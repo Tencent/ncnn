@@ -39,6 +39,22 @@ static int test_binaryop(const ncnn::Mat& _a, const ncnn::Mat& _b, int flag)
         Randomize(a, 0.1f, 10.f);
         Randomize(b, 0.1f, 10.f);
     }
+    if (op_type == 10 || op_type == 11)
+    {
+        // value must be non-zero for atan2/ratan2
+        a = a.clone();
+        b = b.clone();
+        for (int i = 0; i < a.total(); i++)
+        {
+            if (a[i] == 0.f)
+                a[i] = 0.001f;
+        }
+        for (int i = 0; i < b.total(); i++)
+        {
+            if (b[i] == 0.f)
+                b[i] = 0.001f;
+        }
+    }
 
     ncnn::ParamDict pd;
     pd.set(0, op_type);
@@ -74,6 +90,16 @@ static int test_binaryop(const ncnn::Mat& _a, float b, int flag)
         // value must be positive for div/rdiv
         a = a.clone();
         Randomize(a, 0.1f, 10.f);
+    }
+    if (op_type == 10 || op_type == 11)
+    {
+        // value must be non-zero for atan2/ratan2
+        a = a.clone();
+        for (int i = 0; i < a.total(); i++)
+        {
+            if (a[i] == 0.f)
+                a[i] = 0.001f;
+        }
     }
 
     ncnn::ParamDict pd;
