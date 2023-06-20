@@ -155,9 +155,9 @@ static int is_global_pooling(const Operator* op)
             // output_size=(1,1)
             // output_size=(1,1,1)
             const std::vector<int>& output_size = op->params.at("output_size").ai;
-            if (output_size == std::vector<int>{1, 1})
+            if (output_size == std::vector<int> {1, 1})
                 return 3;
-            if (output_size == std::vector<int>{1, 1, 1})
+            if (output_size == std::vector<int> {1, 1, 1})
                 return 4;
         }
     }
@@ -225,9 +225,9 @@ static int insert_reshape_global_pooling_forward(Operand* operand, int pooled_ra
         reshape0_out->params["__batch_index"] = 0;
 
         if (pooled_rank == 3)
-            reshape0->params["shape"] = std::vector<int>{1, -1, 1, 1};
+            reshape0->params["shape"] = std::vector<int> {1, -1, 1, 1};
         if (pooled_rank == 4)
-            reshape0->params["shape"] = std::vector<int>{1, -1, 1, 1, 1};
+            reshape0->params["shape"] = std::vector<int> {1, -1, 1, 1, 1};
 
         return 1;
     }
