@@ -46,6 +46,7 @@
 #include "pass_ncnn/insert_reshape_numpy_binaryop_broadcast.h"
 #include "pass_ncnn/insert_reshape_linear.h"
 #include "pass_ncnn/insert_reshape_pooling.h"
+#include "pass_ncnn/insert_reshape_global_pooling.h"
 
 #include "pass_level4/dead_code_elimination.h"
 #include "pass_level4/canonicalize.h"
@@ -89,6 +90,7 @@ void pass_ncnn(Graph& g)
     ncnn::insert_reshape_numpy_binaryop_broadcast(g);
     ncnn::insert_reshape_pooling(g);
     ncnn::insert_reshape_linear(g);
+    ncnn::insert_reshape_global_pooling(g);
 
     ncnn::fuse_convert_shufflechannel_slice(g);
 
