@@ -378,8 +378,8 @@ struct unary_op_round
         asm volatile(
             "fadd.s     %0, %1, %2  \n"
             "fsub.s     %0, %0, %2  \n"
-            : "=r"(y)
-            : "r"(x), "r"(magic)
+            : "=f"(y)
+            : "f"(x), "f"(magic)
             :);
         return y;
 #else
@@ -405,7 +405,7 @@ struct unary_op_trunc
         return (float)truncf(x);
     }
 #if __loongarch_sx
-    float32x4_t func_pack4(const float32x4_t& x) const
+    v4f32 func_pack4(const v4f32& x) const
     {
         return __lsx_vffint_s_w(__lsx_vftintrz_w_s(x));
     }

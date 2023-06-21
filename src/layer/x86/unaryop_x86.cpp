@@ -582,8 +582,8 @@ struct unary_op_round
         __m128 _y = _mm_set_ss(x);
         __m128 _magic = _mm_set_ss(12582912.f); // 1.5 * 2^23
         asm volatile(
-            "addss   %0, %2  \n"
-            "subss   %0, %2  \n"
+            "addss   %2, %0  \n"
+            "subss   %2, %0  \n"
             : "=x"(_y)
             : "0"(_y), "x"(_magic)
             :);
@@ -607,8 +607,8 @@ struct unary_op_round
         __m128 _y = x;
         __m128 _magic = _mm_set1_ps(12582912.f); // 1.5 * 2^23
         asm volatile(
-            "addps   %0, %2  \n"
-            "subps   %0, %2  \n"
+            "addps   %2, %0  \n"
+            "subps   %2, %0  \n"
             : "=x"(_y)
             : "0"(_y), "x"(_magic)
             :);
