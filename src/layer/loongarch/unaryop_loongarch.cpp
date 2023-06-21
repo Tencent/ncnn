@@ -380,8 +380,7 @@ struct unary_op_round
             "fsub.s     %0, %0, %2  \n"
             : "=r"(y)
             : "r"(x), "r"(magic)
-            :
-        );
+            :);
         return y;
 #else
         int old_rm = fegetround();

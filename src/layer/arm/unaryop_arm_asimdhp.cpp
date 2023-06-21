@@ -468,8 +468,7 @@ struct unary_op_round_fp16s
             "fsub   %h0, %h0, %h2  \n"
             : "=w"(y)
             : "w"(x), "w"(magic)
-            :
-        );
+            :);
         return y;
 #else
         int old_rm = fegetround();

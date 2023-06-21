@@ -391,16 +391,14 @@ struct unary_op_round
             "fsub   %s0, %s0, %s2   \n"
             : "=w"(y)
             : "w"(x), "w"(magic)
-            :
-        );
+            :);
 #else
         asm volatile(
             "vadd.f32   %0, %1, %2  \n"
             "vsub.f32   %0, %0, %2  \n"
             : "=t"(y)
             : "t"(x), "t"(magic)
-            :
-        );
+            :);
 #endif
         return y;
 #else
@@ -424,7 +422,8 @@ struct unary_op_round
 #if defined(__clang__) || defined(__GNUC__)
     __attribute__((optimize("no-fast-math")))
 #endif
-    float32x4_t func_pack4(const float32x4_t& x) const
+    float32x4_t
+    func_pack4(const float32x4_t& x) const
     {
         float32x4_t _magic = vdupq_n_f32(12582912.f); // 1.5 * 2^23
         return vsubq_f32(vaddq_f32(x, _magic), _magic);

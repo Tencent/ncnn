@@ -586,8 +586,7 @@ struct unary_op_round
             "subss   %0, %2  \n"
             : "=x"(_y)
             : "0"(_y), "x"(_magic)
-            :
-        );
+            :);
         return _mm_cvtss_f32(_y);
 #else
         int old_rm = fegetround();
@@ -612,8 +611,7 @@ struct unary_op_round
             "subps   %0, %2  \n"
             : "=x"(_y)
             : "0"(_y), "x"(_magic)
-            :
-        );
+            :);
         return _y;
 #endif
         // TODO optimize with sse2
