@@ -585,16 +585,25 @@ struct unary_op_round
         return (x + 12582912.f) - 12582912.f;
     }
 #if __SSE2__
+#if __SSE4_1__
     __m128 func_pack4(const __m128& x) const
     {
-#if __SSE4_1__
         return _mm_round_ps(x, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+    }
 #else
+#ifdef _MSC_VER
+#pragma float_control(precise, on)
+#endif
+#if defined(__clang__) || defined(__GNUC__)
+    __attribute__((optimize("no-fast-math")))
+#endif
+    __m128 func_pack4(const __m128& x) const
+    {
         // x = (x + 12582912.f) - 12582912.f;
         __m128 _magic = _mm_set1_ps(12582912.f); // 1.5 * 2^23
         return _mm_sub_ps(_mm_add_ps(x, _magic), _magic);
-#endif
     }
+#endif
 #if __AVX__
     __m256 func_pack8(const __m256& x) const
     {

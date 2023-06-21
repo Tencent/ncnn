@@ -389,15 +389,24 @@ struct unary_op_round
         return (x + 12582912.f) - 12582912.f;
     }
 #if __ARM_NEON
+#if __aarch64__
     float32x4_t func_pack4(const float32x4_t& x) const
     {
-#if __aarch64__
         return vrndnq_f32(x);
+    }
 #else
+#ifdef _MSC_VER
+#pragma float_control(precise, on)
+#endif
+#if defined(__clang__) || defined(__GNUC__)
+    __attribute__((optimize("no-fast-math")))
+#endif
+    float32x4_t func_pack4(const float32x4_t& x) const
+    {
         float32x4_t _magic = vdupq_n_f32(12582912.f); // 1.5 * 2^23
         return vsubq_f32(vaddq_f32(x, _magic), _magic);
-#endif
     }
+#endif
 #endif // __ARM_NEON
 };
 
