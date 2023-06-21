@@ -604,7 +604,7 @@ struct unary_op_round
 #else
 #if NCNN_GNU_INLINE_ASM
         // return (x + 12582912.f) - 12582912.f;
-        __m128 _y = _mm_set1_ps(x);
+        __m128 _y = x;
         __m128 _magic = _mm_set1_ps(12582912.f); // 1.5 * 2^23
         asm volatile(
             "addps   %0, %2  \n"
