@@ -380,8 +380,7 @@ struct unary_op_log10
 
 struct unary_op_round
 {
-    __attribute__((optimize("no-fast-math")))
-    float func(const float& x) const
+    __attribute__((optimize("no-fast-math"))) float func(const float& x) const
     {
         // round to nearest even
         return (x + 12582912.f) - 12582912.f;
