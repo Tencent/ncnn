@@ -416,17 +416,31 @@ struct unary_op_round
         return vrndnq_f32(x);
     }
 #else
-#ifdef _MSC_VER
-#pragma float_control(precise, on)
-#endif
-#if defined(__clang__) || defined(__GNUC__)
-    __attribute__((optimize("no-fast-math")))
-#endif
-    float32x4_t
-    func_pack4(const float32x4_t& x) const
+    float32x4_t func_pack4(const float32x4_t& x) const
     {
+#if NCNN_GNU_INLINE_ASM
+        float32x4_t y;
         float32x4_t _magic = vdupq_n_f32(12582912.f); // 1.5 * 2^23
-        return vsubq_f32(vaddq_f32(x, _magic), _magic);
+        asm volatile(
+            "vadd.f32   %q0, %q1, %q2   \n"
+            "vsub.f32   %q0, %q0, %q2   \n"
+            : "=w"(y)
+            : "w"(x), "w"(_magic)
+            :);
+        return y;
+#else
+        float tmp[4];
+        vst1q_f32(tmp, x);
+        int old_rm = fegetround();
+        fesetround(FE_TONEAREST);
+        tmp[0] = nearbyintf(tmp[0]);
+        tmp[1] = nearbyintf(tmp[1]);
+        tmp[2] = nearbyintf(tmp[2]);
+        tmp[3] = nearbyintf(tmp[3]);
+        fesetround(old_rm);
+        float32x4_t y = vld1q_f32(tmp);
+        return y;
+#endif
     }
 #endif
 #endif // __ARM_NEON
