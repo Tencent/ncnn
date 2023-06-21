@@ -253,6 +253,22 @@ struct unary_op_log10
     }
 };
 
+struct unary_op_round
+{
+    vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
+    {
+        return vfcvt_f_x_v_f32m8(vfcvt_x_f_v_i32m8(x, vl), vl);
+    }
+};
+
+struct unary_op_trunc
+{
+    vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
+    {
+        return vfcvt_f_x_v_f32m8(vfcvt_rtz_x_f_v_i32m8(x, vl), vl);
+    }
+};
+
 } // namespace UnaryOp_riscv_functor
 #endif // __riscv_vector
 
@@ -321,6 +337,12 @@ int UnaryOp_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 
     if (op_type == Operation_LOG10)
         return unary_op_inplace<unary_op_log10>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ROUND)
+        return unary_op_inplace<unary_op_round>(bottom_top_blob, opt);
+
+    if (op_type == Operation_TRUNC)
+        return unary_op_inplace<unary_op_trunc>(bottom_top_blob, opt);
 
     return 0;
 #else  // __riscv_vector
@@ -547,6 +569,22 @@ struct unary_op_log10_fp16s
     }
 };
 
+struct unary_op_round_fp16s
+{
+    vfloat16m8_t operator()(const vfloat16m8_t& x, const size_t& vl) const
+    {
+        return vfcvt_f_x_v_f16m8(vfcvt_x_f_v_i16m8(x, vl), vl);
+    }
+};
+
+struct unary_op_trunc_fp16s
+{
+    vfloat16m8_t operator()(const vfloat16m8_t& x, const size_t& vl) const
+    {
+        return vfcvt_f_x_v_f16m8(vfcvt_rtz_x_f_v_i16m8(x, vl), vl);
+    }
+};
+
 } // namespace UnaryOp_riscv_functor
 
 int UnaryOp_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
@@ -606,6 +644,12 @@ int UnaryOp_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt
 
     if (op_type == Operation_LOG10)
         return unary_op_inplace_fp16s<unary_op_log10_fp16s>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ROUND)
+        return unary_op_inplace_fp16s<unary_op_round_fp16s>(bottom_top_blob, opt);
+
+    if (op_type == Operation_TRUNC)
+        return unary_op_inplace_fp16s<unary_op_trunc_fp16s>(bottom_top_blob, opt);
 
     return 0;
 }

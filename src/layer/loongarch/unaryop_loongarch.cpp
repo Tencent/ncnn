@@ -107,14 +107,7 @@ struct unary_op_floor
 #if __loongarch_sx
     __m128 func_pack4(const __m128& x) const
     {
-        // TODO msa optimize
-        float tmp[4];
-        __lsx_vst(x, tmp, 0);
-        tmp[0] = floor(tmp[0]);
-        tmp[1] = floor(tmp[1]);
-        tmp[2] = floor(tmp[2]);
-        tmp[3] = floor(tmp[3]);
-        return (__m128)__lsx_vld(tmp, 0);
+        return __lsx_vffint_s_w(__lsx_vfrintrm_s(x));
     }
 #endif // __loongarch_sx
 };
@@ -128,14 +121,7 @@ struct unary_op_ceil
 #if __loongarch_sx
     __m128 func_pack4(const __m128& x) const
     {
-        // TODO msa optimize
-        float tmp[4];
-        __lsx_vst(x, tmp, 0);
-        tmp[0] = ceil(tmp[0]);
-        tmp[1] = ceil(tmp[1]);
-        tmp[2] = ceil(tmp[2]);
-        tmp[3] = ceil(tmp[3]);
-        return (__m128)__lsx_vld(tmp, 0);
+        return __lsx_vffint_s_w(__lsx_vfrintrp_s(x));
     }
 #endif // __loongarch_sx
 };
@@ -378,6 +364,41 @@ struct unary_op_log10
 #endif // __loongarch_sx
 };
 
+struct unary_op_round
+{
+#ifdef _MSC_VER
+    #pragma float_control(precise, on)
+#endif
+#if defined(__clang__) || defined(__GNUC__)
+    __attribute__((optimize("no-fast-math")))
+#endif
+    float func(const float& x) const
+    {
+        // round to nearest even
+        return (x + 12582912.f) - 12582912.f;
+    }
+#if __mips_msa
+    v4f32 func_pack4(const v4f32& x) const
+    {
+        return __lsx_vffint_s_w(__lsx_vfrintrne_s(x));
+    }
+#endif // __mips_msa
+};
+
+struct unary_op_trunc
+{
+    float func(const float& x) const
+    {
+        return (float)truncf(x);
+    }
+#if __mips_msa
+    float32x4_t func_pack4(const float32x4_t& x) const
+    {
+        return __lsx_vffint_s_w(__lsx_vftintrz_w_s(x));
+    }
+#endif // __mips_msa
+};
+
 } // namespace UnaryOp_loongarch_functor
 
 int UnaryOp_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
@@ -437,6 +458,12 @@ int UnaryOp_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) 
 
     if (op_type == Operation_LOG10)
         return unary_op_inplace<unary_op_log10>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ROUND)
+        return unary_op_inplace<unary_op_round>(bottom_top_blob, opt);
+
+    if (op_type == Operation_TRUNC)
+        return unary_op_inplace<unary_op_trunc>(bottom_top_blob, opt);
 
     return 0;
 }

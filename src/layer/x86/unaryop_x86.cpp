@@ -41,6 +41,7 @@ UnaryOp_x86::UnaryOp_x86()
     support_packing = true;
 #endif // __SSE2__
 }
+
 template<typename Op>
 static int unary_op_inplace(Mat& a, const Option& opt)
 {
@@ -569,6 +570,75 @@ struct unary_op_log10
 #endif // __SSE2__
 };
 
+struct unary_op_round
+{
+#ifdef _MSC_VER
+    #pragma float_control(precise, on)
+#endif
+#if defined(__clang__) || defined(__GNUC__)
+    __attribute__((optimize("no-fast-math")))
+#endif
+    float func(const float& x) const
+    {
+        // round to nearest even
+        return (x + 12582912.f) - 12582912.f;
+    }
+#if __SSE2__
+    __m128 func_pack4(const __m128& x) const
+    {
+#if __SSE4_1__
+        return _mm_round_ps(x, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+#else
+        // x = (x + 12582912.f) - 12582912.f;
+        __m128 _magic = _mm_set1_ps(12582912.f); // 1.5 * 2^23
+        return _mm_sub_ps(_mm_add_ps(x, _magic), _magic);
+#endif
+    }
+#if __AVX__
+    __m256 func_pack8(const __m256& x) const
+    {
+        return _mm256_round_ps(x, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+    }
+#if __AVX512F__
+    __m512 func_pack16(const __m512& x) const
+    {
+        return _mm512_roundscale_ps(x, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+    }
+#endif // __AVX512F__
+#endif // __AVX__
+#endif // __SSE2__
+};
+
+struct unary_op_trunc
+{
+    float func(const float& x) const
+    {
+        return (float)truncf(x);
+    }
+#if __SSE2__
+    __m128 func_pack4(const __m128& x) const
+    {
+#if __SSE4_1__
+        return _mm_round_ps(x, _MM_FROUND_TO_ZERO | _MM_FROUND_NO_EXC);
+#else
+        return _mm_cvtepi32_ps(_mm_cvtps_epi32(x));
+#endif
+    }
+#if __AVX__
+    __m256 func_pack8(const __m256& x) const
+    {
+        return _mm256_round_ps(x, _MM_FROUND_TO_ZERO | _MM_FROUND_NO_EXC);
+    }
+#if __AVX512F__
+    __m512 func_pack16(const __m512& x) const
+    {
+        return _mm512_roundscale_ps(x, _MM_FROUND_TO_ZERO | _MM_FROUND_NO_EXC);
+    }
+#endif // __AVX512F__
+#endif // __AVX__
+#endif // __SSE2__
+};
+
 } // namespace UnaryOp_x86_functor
 
 int UnaryOp_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
@@ -627,6 +697,12 @@ int UnaryOp_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
     if (op_type == Operation_LOG10)
         return unary_op_inplace<unary_op_log10>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ROUND)
+        return unary_op_inplace<unary_op_round>(bottom_top_blob, opt);
+
+    if (op_type == Operation_TRUNC)
+        return unary_op_inplace<unary_op_trunc>(bottom_top_blob, opt);
 
     return 0;
 }

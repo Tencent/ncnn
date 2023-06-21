@@ -107,14 +107,9 @@ struct unary_op_floor
 #if __mips_msa
     v4f32 func_pack4(const v4f32& x) const
     {
-        // TODO msa optimize
-        float tmp[4];
-        __msa_st_w((v4i32)x, tmp, 0);
-        tmp[0] = floor(tmp[0]);
-        tmp[1] = floor(tmp[1]);
-        tmp[2] = floor(tmp[2]);
-        tmp[3] = floor(tmp[3]);
-        return (v4f32)__msa_ld_w(tmp, 0);
+        v4i32 _xi = __msa_ftrunc_s_w(x);
+        v4i32 _mask = __msa_fcle_w(x, __msa_ffint_s_w(_xi));
+        return __msa_ffint_s_w(__msa_fadd_w(_xi, _mask));
         // int old_msacsr = __msa_cfcmsa_msacsr();
         // __msa_ctcmsa_msacsr(old_msacsr | 3); // round towards -inf
         // v4f32 y = __msa_frint_w(x);
@@ -133,14 +128,9 @@ struct unary_op_ceil
 #if __mips_msa
     v4f32 func_pack4(const v4f32& x) const
     {
-        // TODO msa optimize
-        float tmp[4];
-        __msa_st_w((v4i32)x, tmp, 0);
-        tmp[0] = ceil(tmp[0]);
-        tmp[1] = ceil(tmp[1]);
-        tmp[2] = ceil(tmp[2]);
-        tmp[3] = ceil(tmp[3]);
-        return (v4f32)__msa_ld_w(tmp, 0);
+        v4i32 _xi = __msa_ftrunc_s_w(x);
+        v4i32 _mask = __msa_fcle_w(__msa_ffint_s_w(_xi), x);
+        return __msa_ffint_s_w(__msa_fsub_w(_xi, _mask));
         // int old_msacsr = __msa_cfcmsa_msacsr();
         // __msa_ctcmsa_msacsr((old_msacsr | 3) ^ 1); // round towards +inf
         // v4f32 y = __msa_frint_w(x);
@@ -388,6 +378,47 @@ struct unary_op_log10
 #endif // __mips_msa
 };
 
+struct unary_op_round
+{
+#ifdef _MSC_VER
+    #pragma float_control(precise, on)
+#endif
+#if defined(__clang__) || defined(__GNUC__)
+    __attribute__((optimize("no-fast-math")))
+#endif
+    float func(const float& x) const
+    {
+        // round to nearest even
+        return (x + 12582912.f) - 12582912.f;
+    }
+#if __mips_msa
+    v4f32 func_pack4(const v4f32& x) const
+    {
+        // round towards nearest even by default
+        return __msa_frint_w(x);
+    }
+#endif // __mips_msa
+};
+
+struct unary_op_trunc
+{
+    float func(const float& x) const
+    {
+        return (float)truncf(x);
+    }
+#if __mips_msa
+    float32x4_t func_pack4(const float32x4_t& x) const
+    {
+        return __msa_ffint_s_w(__msa_ftrunc_s_w(x));
+        // int old_msacsr = __msa_cfcmsa_msacsr();
+        // __msa_ctcmsa_msacsr((old_msacsr | 3) ^ 2); // round towards zero
+        // v4f32 y = __msa_frint_w(x);
+        // __msa_ctcmsa_msacsr(old_msacsr);
+        // return y;
+    }
+#endif // __mips_msa
+};
+
 } // namespace UnaryOp_mips_functor
 
 int UnaryOp_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
@@ -447,6 +478,12 @@ int UnaryOp_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
     if (op_type == Operation_LOG10)
         return unary_op_inplace<unary_op_log10>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ROUND)
+        return unary_op_inplace<unary_op_round>(bottom_top_blob, opt);
+
+    if (op_type == Operation_TRUNC)
+        return unary_op_inplace<unary_op_trunc>(bottom_top_blob, opt);
 
     return 0;
 }

@@ -128,7 +128,7 @@ struct unary_op_floor
     float32x4_t func_pack4(const float32x4_t& x) const
     {
 #if __aarch64__
-        return vcvtq_f32_s32(vcvtmq_s32_f32(x));
+        return vrndmq_f32(x);
 #else  // __aarch64__
         int32x4_t _xi = vcvtq_s32_f32(x);
         uint32x4_t _mask = vcgtq_f32(vcvtq_f32_s32(_xi), x);
@@ -148,7 +148,7 @@ struct unary_op_ceil
     float32x4_t func_pack4(const float32x4_t& x) const
     {
 #if __aarch64__
-        return vcvtq_f32_s32(vcvtpq_s32_f32(x));
+        return vrndpq_f32(x);
 #else  // __aarch64__
         int32x4_t _xi = vcvtq_s32_f32(x);
         uint32x4_t _mask = vcgtq_f32(x, vcvtq_f32_s32(_xi));
@@ -374,6 +374,50 @@ struct unary_op_log10
 #endif // __ARM_NEON
 };
 
+struct unary_op_round
+{
+#ifdef _MSC_VER
+    #pragma float_control(precise, on)
+#endif
+#if defined(__clang__) || defined(__GNUC__)
+    __attribute__((optimize("no-fast-math")))
+#endif
+    float func(const float& x) const
+    {
+        // round to nearest even
+        return (x + 12582912.f) - 12582912.f;
+    }
+#if __ARM_NEON
+    float32x4_t func_pack4(const float32x4_t& x) const
+    {
+#if __aarch64__
+        return vrndnq_f32(x);
+#else
+        float32x4_t _magic = vdupq_n_f32(12582912.f); // 1.5 * 2^23
+        return vsubq_f32(vaddq_f32(x, _magic), _magic);
+#endif
+    }
+#endif // __ARM_NEON
+};
+
+struct unary_op_trunc
+{
+    float func(const float& x) const
+    {
+        return (float)truncf(x);
+    }
+#if __ARM_NEON
+    float32x4_t func_pack4(const float32x4_t& x) const
+    {
+#if __aarch64__
+        return vrndnq_f32(x);
+#else
+        return vcvtq_f32_s32(vcvtq_s32_f32(x));
+#endif
+    }
+#endif // __ARM_NEON
+};
+
 } // namespace UnaryOp_arm_functor
 
 int UnaryOp_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
@@ -445,6 +489,12 @@ int UnaryOp_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
     if (op_type == Operation_LOG10)
         return unary_op_inplace<unary_op_log10>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ROUND)
+        return unary_op_inplace<unary_op_round>(bottom_top_blob, opt);
+
+    if (op_type == Operation_TRUNC)
+        return unary_op_inplace<unary_op_trunc>(bottom_top_blob, opt);
 
     return 0;
 }
@@ -575,6 +625,12 @@ int UnaryOp_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) 
 
     if (op_type == Operation_LOG10)
         return unary_op_inplace_bf16s<unary_op_log10>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ROUND)
+        return unary_op_inplace_bf16s<unary_op_round>(bottom_top_blob, opt);
+
+    if (op_type == Operation_TRUNC)
+        return unary_op_inplace_bf16s<unary_op_trunc>(bottom_top_blob, opt);
 
     return 0;
 }
