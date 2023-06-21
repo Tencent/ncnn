@@ -411,7 +411,7 @@ struct unary_op_trunc
     float32x4_t func_pack4(const float32x4_t& x) const
     {
 #if __aarch64__
-        return vrndnq_f32(x);
+        return vrndq_f32(x);
 #else
         return vcvtq_f32_s32(vcvtq_s32_f32(x));
 #endif

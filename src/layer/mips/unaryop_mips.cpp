@@ -380,14 +380,8 @@ struct unary_op_log10
 
 struct unary_op_round
 {
-#ifdef _MSC_VER
-#pragma float_control(precise, on)
-#endif
-#if defined(__clang__) || defined(__GNUC__)
     __attribute__((optimize("no-fast-math")))
-#endif
-    float
-    func(const float& x) const
+    float func(const float& x) const
     {
         // round to nearest even
         return (x + 12582912.f) - 12582912.f;
@@ -408,7 +402,7 @@ struct unary_op_trunc
         return (float)truncf(x);
     }
 #if __mips_msa
-    float32x4_t func_pack4(const float32x4_t& x) const
+    v4f32 func_pack4(const v4f32& x) const
     {
         return __msa_ffint_s_w(__msa_ftrunc_s_w(x));
         // int old_msacsr = __msa_cfcmsa_msacsr();

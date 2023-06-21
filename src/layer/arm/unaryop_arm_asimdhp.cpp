@@ -452,6 +452,46 @@ struct unary_op_log10_fp16s
     }
 };
 
+struct unary_op_round_fp16s
+{
+#ifdef _MSC_VER
+#pragma float_control(precise, on)
+#endif
+#if defined(__clang__) || defined(__GNUC__)
+    __attribute__((optimize("no-fast-math")))
+#endif
+    __fp16
+    func(const __fp16& x) const
+    {
+        // round to nearest even
+        return (x + 1536.f) - 1536.f;
+    }
+    float16x4_t func_pack4(const float16x4_t& x) const
+    {
+        return vrndn_f16(x);
+    }
+    float16x8_t func_pack8(const float16x8_t& x) const
+    {
+        return vrndnq_f16(x);
+    }
+};
+
+struct unary_op_trunc_fp16s
+{
+    __fp16 func(const __fp16& x) const
+    {
+        return (__fp16)truncf(x);
+    }
+    float16x4_t func_pack4(const float16x4_t& x) const
+    {
+        return vrnd_f16(x);
+    }
+    float16x8_t func_pack8(const float16x8_t& x) const
+    {
+        return vrndq_f16(x);
+    }
+};
+
 } // namespace UnaryOp_arm_functor
 
 int UnaryOp_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
@@ -511,6 +551,12 @@ int UnaryOp_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
 
     if (op_type == Operation_LOG10)
         return unary_op_inplace_fp16s<unary_op_log10_fp16s>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ROUND)
+        return unary_op_inplace_fp16s<unary_op_round_fp16s>(bottom_top_blob, opt);
+
+    if (op_type == Operation_TRUNC)
+        return unary_op_inplace_fp16s<unary_op_trunc_fp16s>(bottom_top_blob, opt);
 
     return 0;
 }
