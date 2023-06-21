@@ -14,6 +14,8 @@
 
 #include "unaryop_loongarch.h"
 
+#include <fenv.h>
+#include <float.h>
 #include <math.h>
 
 #if __loongarch_sx
@@ -366,17 +368,35 @@ struct unary_op_log10
 
 struct unary_op_round
 {
-    __attribute__((optimize("no-fast-math"))) float func(const float& x) const
+    float func(const float& x) const
     {
         // round to nearest even
-        return (x + 12582912.f) - 12582912.f;
+#if NCNN_GNU_INLINE_ASM
+        // return (x + 12582912.f) - 12582912.f;
+        float y;
+        const float magic = 12582912.f;
+        asm volatile(
+            "fadd.s     %0, %1, %2  \n"
+            "fsub.s     %0, %0, %2  \n"
+            : "=r"(y)
+            : "r"(x), "r"(magic)
+            :
+        );
+        return y;
+#else
+        int old_rm = fegetround();
+        fesetround(FE_TONEAREST);
+        float y = nearbyintf(x);
+        fesetround(old_rm);
+        return y;
+#endif
     }
-#if __mips_msa
+#if __loongarch_sx
     v4f32 func_pack4(const v4f32& x) const
     {
         return __lsx_vffint_s_w(__lsx_vfrintrne_s(x));
     }
-#endif // __mips_msa
+#endif // __loongarch_sx
 };
 
 struct unary_op_trunc
@@ -385,12 +405,12 @@ struct unary_op_trunc
     {
         return (float)truncf(x);
     }
-#if __mips_msa
+#if __loongarch_sx
     float32x4_t func_pack4(const float32x4_t& x) const
     {
         return __lsx_vffint_s_w(__lsx_vftintrz_w_s(x));
     }
-#endif // __mips_msa
+#endif // __loongarch_sx
 };
 
 } // namespace UnaryOp_loongarch_functor

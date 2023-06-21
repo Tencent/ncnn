@@ -14,6 +14,8 @@
 
 #include "unaryop_x86.h"
 
+#include <fenv.h>
+#include <float.h>
 #include <math.h>
 
 #if __SSE2__
@@ -572,38 +574,61 @@ struct unary_op_log10
 
 struct unary_op_round
 {
-#ifdef _MSC_VER
-#pragma float_control(precise, on)
-#endif
-#if defined(__clang__) || defined(__GNUC__)
-    __attribute__((optimize("no-fast-math")))
-#endif
-    float
-    func(const float& x) const
+    float func(const float& x) const
     {
         // round to nearest even
-        return (x + 12582912.f) - 12582912.f;
+#if NCNN_GNU_INLINE_ASM && __SSE2__
+        // return (x + 12582912.f) - 12582912.f;
+        __m128 _y = _mm_set_ss(x);
+        __m128 _magic = _mm_set_ss(12582912.f); // 1.5 * 2^23
+        asm volatile(
+            "addss   %0, %2  \n"
+            "subss   %0, %2  \n"
+            : "=x"(_y)
+            : "0"(_y), "x"(_magic)
+            :
+        );
+        return _mm_cvtss_f32(_y);
+#else
+        int old_rm = fegetround();
+        fesetround(FE_TONEAREST);
+        float y = nearbyintf(x);
+        fesetround(old_rm);
+        return y;
+#endif
     }
 #if __SSE2__
+    __m128 func_pack4(const __m128& x) const
+    {
 #if __SSE4_1__
-    __m128 func_pack4(const __m128& x) const
-    {
         return _mm_round_ps(x, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-    }
 #else
-#ifdef _MSC_VER
-#pragma float_control(precise, on)
-#endif
-#if defined(__clang__) || defined(__GNUC__)
-    __attribute__((optimize("no-fast-math")))
-#endif
-    __m128 func_pack4(const __m128& x) const
-    {
-        // x = (x + 12582912.f) - 12582912.f;
+#if NCNN_GNU_INLINE_ASM
+        // return (x + 12582912.f) - 12582912.f;
+        __m128 _y = _mm_set1_ps(x);
         __m128 _magic = _mm_set1_ps(12582912.f); // 1.5 * 2^23
-        return _mm_sub_ps(_mm_add_ps(x, _magic), _magic);
-    }
+        asm volatile(
+            "addps   %0, %2  \n"
+            "subps   %0, %2  \n"
+            : "=x"(_y)
+            : "0"(_y), "x"(_magic)
+            :
+        );
+        return _y;
 #endif
+        // TODO optimize with sse2
+        float tmp[4];
+        _mm_storeu_ps(tmp, x);
+        int old_rm = fegetround();
+        fesetround(FE_TONEAREST);
+        tmp[0] = nearbyintf(tmp[0]);
+        tmp[1] = nearbyintf(tmp[1]);
+        tmp[2] = nearbyintf(tmp[2]);
+        tmp[3] = nearbyintf(tmp[3]);
+        fesetround(old_rm);
+        return _mm_loadu_ps(tmp);
+#endif
+    }
 #if __AVX__
     __m256 func_pack8(const __m256& x) const
     {

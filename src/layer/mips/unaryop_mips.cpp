@@ -14,6 +14,8 @@
 
 #include "unaryop_mips.h"
 
+#include <fenv.h>
+#include <float.h>
 #include <math.h>
 
 #if __mips_msa
@@ -380,10 +382,28 @@ struct unary_op_log10
 
 struct unary_op_round
 {
-    __attribute__((optimize("no-fast-math"))) float func(const float& x) const
+    float func(const float& x) const
     {
         // round to nearest even
-        return (x + 12582912.f) - 12582912.f;
+#if NCNN_GNU_INLINE_ASM
+        // return (x + 12582912.f) - 12582912.f;
+        float y;
+        const float magic = 12582912.f;
+        asm volatile(
+            "add.s   %0, %1, %2  \n"
+            "sub.s   %0, %0, %2  \n"
+            : "=f"(y)
+            : "f"(x), "f"(magic)
+            :
+        );
+        return y;
+#else
+        int old_rm = fegetround();
+        fesetround(FE_TONEAREST);
+        float y = nearbyintf(x);
+        fesetround(old_rm);
+        return y;
+#endif
     }
 #if __mips_msa
     v4f32 func_pack4(const v4f32& x) const

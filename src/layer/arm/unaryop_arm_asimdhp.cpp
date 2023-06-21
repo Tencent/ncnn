@@ -14,6 +14,8 @@
 
 #include "unaryop_arm.h"
 
+#include <fenv.h>
+#include <float.h>
 #include <math.h>
 
 #if __ARM_NEON
@@ -454,17 +456,28 @@ struct unary_op_log10_fp16s
 
 struct unary_op_round_fp16s
 {
-#ifdef _MSC_VER
-#pragma float_control(precise, on)
-#endif
-#if defined(__clang__) || defined(__GNUC__)
-    __attribute__((optimize("no-fast-math")))
-#endif
-    __fp16
-    func(const __fp16& x) const
+    __fp16 func(const __fp16& x) const
     {
         // round to nearest even
-        return (x + 1536.f) - 1536.f;
+#if NCNN_GNU_INLINE_ASM
+        // return (x + 1536.f) - 1536.f;
+        __fp16 y;
+        const __fp16 magic = 1536.f;
+        asm volatile(
+            "fadd   %h0, %h1, %h2  \n"
+            "fsub   %h0, %h0, %h2  \n"
+            : "=w"(y)
+            : "w"(x), "w"(magic)
+            :
+        );
+        return y;
+#else
+        int old_rm = fegetround();
+        fesetround(FE_TONEAREST);
+        __fp16 y = (__fp16)nearbyintf(x);
+        fesetround(old_rm);
+        return y;
+#endif
     }
     float16x4_t func_pack4(const float16x4_t& x) const
     {
