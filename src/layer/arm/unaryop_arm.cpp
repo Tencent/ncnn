@@ -377,12 +377,13 @@ struct unary_op_log10
 struct unary_op_round
 {
 #ifdef _MSC_VER
-    #pragma float_control(precise, on)
+#pragma float_control(precise, on)
 #endif
 #if defined(__clang__) || defined(__GNUC__)
     __attribute__((optimize("no-fast-math")))
 #endif
-    float func(const float& x) const
+    float
+    func(const float& x) const
     {
         // round to nearest even
         return (x + 12582912.f) - 12582912.f;
