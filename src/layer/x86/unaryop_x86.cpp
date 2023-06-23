@@ -654,7 +654,7 @@ struct unary_op_trunc
 #if __SSE4_1__
         return _mm_round_ps(x, _MM_FROUND_TO_ZERO | _MM_FROUND_NO_EXC);
 #else
-        return _mm_cvtepi32_ps(_mm_cvtps_epi32(x));
+        return _mm_cvtepi32_ps(_mm_cvttps_epi32(x));
 #endif
     }
 #if __AVX__
