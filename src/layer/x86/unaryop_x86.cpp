@@ -577,24 +577,12 @@ struct unary_op_round
     float func(const float& x) const
     {
         // round to nearest even
-#if NCNN_GNU_INLINE_ASM && __SSE2__
         // return (x + 12582912.f) - 12582912.f;
-        __m128 _y = _mm_set_ss(x);
-        __m128 _magic = _mm_set_ss(12582912.f); // 1.5 * 2^23
-        asm volatile(
-            "addss   %2, %0  \n"
-            "subss   %2, %0  \n"
-            : "=x"(_y)
-            : "0"(_y), "x"(_magic)
-            :);
-        return _mm_cvtss_f32(_y);
-#else
         int old_rm = fegetround();
         fesetround(FE_TONEAREST);
         float y = nearbyintf(x);
         fesetround(old_rm);
         return y;
-#endif
     }
 #if __SSE2__
     __m128 func_pack4(const __m128& x) const
@@ -602,29 +590,7 @@ struct unary_op_round
 #if __SSE4_1__
         return _mm_round_ps(x, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
 #else
-#if NCNN_GNU_INLINE_ASM
-        // return (x + 12582912.f) - 12582912.f;
-        __m128 _y = x;
-        __m128 _magic = _mm_set1_ps(12582912.f); // 1.5 * 2^23
-        asm volatile(
-            "addps   %2, %0  \n"
-            "subps   %2, %0  \n"
-            : "=x"(_y)
-            : "0"(_y), "x"(_magic)
-            :);
-        return _y;
-#endif
-        // TODO optimize with sse2
-        float tmp[4];
-        _mm_storeu_ps(tmp, x);
-        int old_rm = fegetround();
-        fesetround(FE_TONEAREST);
-        tmp[0] = nearbyintf(tmp[0]);
-        tmp[1] = nearbyintf(tmp[1]);
-        tmp[2] = nearbyintf(tmp[2]);
-        tmp[3] = nearbyintf(tmp[3]);
-        fesetround(old_rm);
-        return _mm_loadu_ps(tmp);
+        return _mm_cvtepi32_ps(_mm_cvtps_epi32(x));
 #endif
     }
 #if __AVX__
