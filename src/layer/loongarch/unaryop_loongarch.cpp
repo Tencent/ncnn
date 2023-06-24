@@ -407,7 +407,7 @@ struct unary_op_trunc
 #if __loongarch_sx
     __m128 func_pack4(const __m128& x) const
     {
-        return (__m128)__lsx_vftintrz_w_s(x);
+        return (__m128)__lsx_vfrintrz_s(x);
     }
 #endif // __loongarch_sx
 };
