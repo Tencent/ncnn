@@ -631,14 +631,14 @@ jobs:
       uses: cache@1.*
       with:
         cachePaths: qemu-install
-        cacheKey: qemu-riscv64-install-20220831
+        cacheKey: qemu-riscv64-install-20230624
 
     - name: checkout-qemu
       if: steps.cache-qemu.outputs.cacheHit != 'true'
       checkout: https://github.com/qemu/qemu.git
       with:
         pullType: COMMIT_ID
-        refName: 621da7789083b80d6f1ff1c0fb499334007b4f51
+        refName: b455ce4c2f300c8ba47cba7232dd03261368a4cb
         localPath: qemu
         enableSubmodule: false
         enableGitLfs: false
@@ -712,14 +712,14 @@ jobs:
       uses: cache@1.*
       with:
         cachePaths: qemu-install
-        cacheKey: qemu-riscv64-install-20220831
+        cacheKey: qemu-riscv64-install-20230624
 
     - name: checkout-qemu
       if: steps.cache-qemu.outputs.cacheHit != 'true'
       checkout: https://github.com/qemu/qemu.git
       with:
         pullType: COMMIT_ID
-        refName: 621da7789083b80d6f1ff1c0fb499334007b4f51
+        refName: b455ce4c2f300c8ba47cba7232dd03261368a4cb
         localPath: qemu
         enableSubmodule: false
         enableGitLfs: false
@@ -789,7 +789,7 @@ jobs:
       run: |
         export PATH=${{ci.workspace}}/qemu-install/bin:$PATH
         cd build
-        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;rv64,v=true,Zfh=true,vlen=128,elen=64,vext_spec=v1.0;-L;${{ci.workspace}}/rv64gcv-install/sysroot" ctest --output-on-failure -j $(nproc)
+        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;rv64,v=true,Zfh=true,x-zvfh=true,vlen=128,elen=64,vext_spec=v1.0;-L;${{ci.workspace}}/rv64gcv-install/sysroot" ctest --output-on-failure -j $(nproc)
     - name: lcov-collect-vlen128
       run: |
         cd build
@@ -804,7 +804,7 @@ jobs:
       run: |
         export PATH=${{ci.workspace}}/qemu-install/bin:$PATH
         cd build
-        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;rv64,v=true,Zfh=true,vlen=256,elen=64,vext_spec=v1.0;-L;${{ci.workspace}}/rv64gcv-install/sysroot" ctest --output-on-failure -j $(nproc)
+        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;rv64,v=true,Zfh=true,x-zvfh=true,vlen=256,elen=64,vext_spec=v1.0;-L;${{ci.workspace}}/rv64gcv-install/sysroot" ctest --output-on-failure -j $(nproc)
     - name: lcov-collect-vlen256
       run: |
         cd build
