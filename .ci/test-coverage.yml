@@ -650,6 +650,9 @@ jobs:
         echo 'deb-src http://mirrors.cloud.tencent.com/debian bullseye-updates main' | tee -a /etc/apt/sources.list
         apt-get update
         apt-get build-dep -y qemu
+        python3 -m pip install --upgrade pip
+        apt-get remove -y python3-setuptools
+        pip3 install -U setuptools
         cd qemu
         wget https://raw.githubusercontent.com/nihui/ncnn-assets/master/qemu-patches/0007-linux-user-Expose-risc-v-V-isa-bit-in-get_elf_hwcap.patch
         patch -p1 -i 0007-linux-user-Expose-risc-v-V-isa-bit-in-get_elf_hwcap.patch
@@ -731,6 +734,9 @@ jobs:
         echo 'deb-src http://mirrors.cloud.tencent.com/debian bullseye-updates main' | tee -a /etc/apt/sources.list
         apt-get update
         apt-get build-dep -y qemu
+        python3 -m pip install --upgrade pip
+        apt-get remove -y python3-setuptools
+        pip3 install -U setuptools
         cd qemu
         wget https://raw.githubusercontent.com/nihui/ncnn-assets/master/qemu-patches/0007-linux-user-Expose-risc-v-V-isa-bit-in-get_elf_hwcap.patch
         patch -p1 -i 0007-linux-user-Expose-risc-v-V-isa-bit-in-get_elf_hwcap.patch
