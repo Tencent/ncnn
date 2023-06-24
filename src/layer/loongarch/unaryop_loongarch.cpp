@@ -109,7 +109,7 @@ struct unary_op_floor
 #if __loongarch_sx
     __m128 func_pack4(const __m128& x) const
     {
-        return __lsx_vffint_s_w(__lsx_vfrintrm_s(x));
+        return (__m128)__lsx_vfrintrm_s(x);
     }
 #endif // __loongarch_sx
 };
@@ -123,7 +123,7 @@ struct unary_op_ceil
 #if __loongarch_sx
     __m128 func_pack4(const __m128& x) const
     {
-        return __lsx_vffint_s_w(__lsx_vfrintrp_s(x));
+        return (__m128)__lsx_vfrintrp_s(x);
     }
 #endif // __loongarch_sx
 };
@@ -391,9 +391,9 @@ struct unary_op_round
 #endif
     }
 #if __loongarch_sx
-    v4f32 func_pack4(const v4f32& x) const
+    __m128 func_pack4(const __m128& x) const
     {
-        return __lsx_vffint_s_w(__lsx_vfrintrne_s(x));
+        return (__m128)__lsx_vfrintrne_s(x);
     }
 #endif // __loongarch_sx
 };
@@ -405,9 +405,9 @@ struct unary_op_trunc
         return (float)truncf(x);
     }
 #if __loongarch_sx
-    v4f32 func_pack4(const v4f32& x) const
+    __m128 func_pack4(const __m128& x) const
     {
-        return __lsx_vffint_s_w(__lsx_vftintrz_w_s(x));
+        return (__m128)__lsx_vftintrz_w_s(x);
     }
 #endif // __loongarch_sx
 };
