@@ -650,6 +650,7 @@ jobs:
         echo 'deb-src http://mirrors.cloud.tencent.com/debian bullseye-updates main' | tee -a /etc/apt/sources.list
         apt-get update
         apt-get build-dep -y qemu
+        apt-get install -y python3-pip
         python3 -m pip install --upgrade pip
         apt-get remove -y python3-setuptools
         pip3 install -U setuptools
@@ -734,6 +735,7 @@ jobs:
         echo 'deb-src http://mirrors.cloud.tencent.com/debian bullseye-updates main' | tee -a /etc/apt/sources.list
         apt-get update
         apt-get build-dep -y qemu
+        apt-get install -y python3-pip
         python3 -m pip install --upgrade pip
         apt-get remove -y python3-setuptools
         pip3 install -U setuptools
