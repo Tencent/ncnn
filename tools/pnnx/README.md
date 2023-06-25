@@ -346,11 +346,9 @@ class Model(nn.Module):
         return nn.Parameter(self.load_pnnx_bin_as_tensor(archive, key, shape, dtype))
 
     def load_pnnx_bin_as_tensor(self, archive, key, shape, dtype):
-        _, tmppath = tempfile.mkstemp()
-        tmpf = open(tmppath, 'wb')
-        with archive.open(key) as keyfile:
+        fd, tmppath = tempfile.mkstemp()
+        with os.fdopen(fd, 'wb') as tmpf, archive.open(key) as keyfile:
             tmpf.write(keyfile.read())
-        tmpf.close()
         m = np.memmap(tmppath, dtype=dtype, mode='r', shape=shape).copy()
         os.remove(tmppath)
         return torch.from_numpy(m)

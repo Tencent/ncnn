@@ -629,7 +629,7 @@ int Convolution1D_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, co
                         }
                     }
 
-#ifdef RVV_SPEC_0_7
+#if C906
                     // TODO
                     std::vector<float> ss(packn);
                     vse32_v_f32m2((float*)ss.data(), _sum, vl);

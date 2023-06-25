@@ -83,6 +83,7 @@ static bool operand_maybe_tensor(const Operand* operand)
             || op->type == "aten::log10"
             || op->type == "aten::neg"
             || op->type == "aten::reciprocal"
+            || op->type == "aten::round"
             || op->type == "aten::rsqrt"
             || op->type == "aten::sign"
             || op->type == "aten::sin"
@@ -100,7 +101,8 @@ static bool operand_maybe_tensor(const Operand* operand)
             || op->type == "aten::div"
             || op->type == "aten::floor_divide"
             || op->type == "aten::mul"
-            || op->type == "aten::pow")
+            || op->type == "aten::pow"
+            || op->type == "aten::remainder")
     {
         return operand_maybe_tensor(op->inputs[0]) || operand_maybe_tensor(op->inputs[1]);
     }
@@ -381,6 +383,7 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
              || op->type == "aten::log10"
              || op->type == "aten::neg"
              || op->type == "aten::reciprocal"
+             || op->type == "aten::round"
              || op->type == "aten::rsqrt"
              || op->type == "aten::sign"
              || op->type == "aten::sin"
@@ -566,6 +569,7 @@ void fuse_expression(Graph& graph, const std::set<std::string>& foldable_constan
                     || op->type == "aten::pow"
                     || op->type == "aten::reciprocal"
                     || op->type == "aten::remainder"
+                    || op->type == "aten::round"
                     || op->type == "aten::rsqrt"
                     || op->type == "aten::rsub"
                     || op->type == "aten::sign"
