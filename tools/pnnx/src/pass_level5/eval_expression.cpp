@@ -170,6 +170,7 @@ static std::string eval_expression(const Operator* op)
                  || t == "log10"
                  || t == "neg"
                  || t == "reciprocal"
+                 || t == "round"
                  || t == "rsqrt"
                  || t == "sign"
                  || t == "sin"
@@ -270,6 +271,19 @@ static std::string eval_expression(const Operator* op)
                 if (t == "reciprocal")
                 {
                     float r = 1.f / af;
+                    exprstack.push(std::to_string(r));
+                }
+                if (t == "round")
+                {
+                    // round to nearest even
+#if FLT_ROUNDS != FE_TONEAREST
+                    int old_rm = fegetround();
+                    fesetround(FE_TONEAREST);
+#endif
+                    float r = nearbyintf(af);
+#if FLT_ROUNDS != FE_TONEAREST
+                    fesetround(old_rm);
+#endif
                     exprstack.push(std::to_string(r));
                 }
                 if (t == "rsqrt")
