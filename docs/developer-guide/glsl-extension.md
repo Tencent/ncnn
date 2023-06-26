@@ -10,28 +10,28 @@ Similarly, when the gpu supports the `VK_KHR_shader_float16_int8` extension, in 
 To ensure the widest compatibility, the following code for declaring descriptor binding and loading data will be written
 
 ```glsl
-#if gpu only supports fp32
-layout (binding = 0) buffer blob { vec4 blob_data[]; };
+#if gpu supports 16bit storage
+layout (binding = 0) buffer blob { f16vec4 blob_data[]; };
 #elif gpu supports GLSL 4.2
 layout (binding = 0) buffer blob { uvec2 blob_data[]; };
-#elif gpu supports 16bit storage
-layout (binding = 0) buffer blob { f16vec4 blob_data[]; };
+#else gpu only supports fp32
+layout (binding = 0) buffer blob { vec4 blob_data[]; };
 #endif
 
 void main()
 {
     const int i = int(gl_GlobalInvocationID.x);
 
-#if gpu only supports fp32
-    vec4 x = blob_data[i];
-#elif gpu supports GLSL 4.2
-    vec4 x = vec4(unpackHalf2x16(blob_data[i].x), unpackHalf2x16(blob_data[i].y));
-#elif gpu supports GLSL 4.2 and shader float16
-    f16vec4 x = f16vec4(unpackFloat2x16(blob_data[i].x), unpackFloat2x16(blob_data[i].y));
+#if gpu supports 16bit storage and shader float16
+    f16vec4 x = blob_data[i];
 #elif gpu supports 16bit storage but no shader float16
     vec4 x = vec4(blob_data[i]);
-#elif gpu supports 16bit storage and shader float16
-    f16vec4 x = blob_data[i];
+#elif gpu supports GLSL 4.2 and shader float16
+    f16vec4 x = f16vec4(unpackFloat2x16(blob_data[i].x), unpackFloat2x16(blob_data[i].y));
+#elif gpu supports GLSL 4.2
+    vec4 x = vec4(unpackHalf2x16(blob_data[i].x), unpackHalf2x16(blob_data[i].y));
+#else gpu only supports fp32
+    vec4 x = blob_data[i];
 #endif
 }
 ```
@@ -51,7 +51,7 @@ void main()
 }
 ```
 
-The ncnn glsl extension provides the necessary data types for storage, computation, shared memory, and load store functions for buffers and images. We also provide some buffer and image copy functions to prevent loss of precision when using fp16 intermediate data types, and to avoid unnecessary `unpackHalf2x16` and `packHalf2x16` pair.
+The ncnn glsl extension provides the necessary data types for storage, computation, shared memory, and load, store, conversion functions for buffers and images. We also provide some buffer and image copy functions to prevent loss of precision when using fp16 as the intermediate data type, and to avoid unnecessary `unpackHalf2x16` and `packHalf2x16` pair.
 
 # data types
 
@@ -208,6 +208,8 @@ void image2d_cp8(image2D dst, ivec2 dst_pos, sampler2D src, vec2 src_pos);
 void image3d_cp8(image3D dst, ivec3 dst_pos, sampler3D src, vec3 src_pos);
 ```
 
+Note: Since image is an opaque data structure, no copy and pack/unpack functions are provided. To achieve this operation, you need to load first and then store.
+
 # local data conversion functions
 
 - storage buffer to local memory
@@ -223,6 +225,8 @@ lfpvec4 sfp2lfpvec4(sfpvec4 v);
 afp lfp2afp(lfp v);
 afpvec4 lfp2afpvec4(lfpvec4 v);
 ```
+
+Note: The common usage of local memory is to read from global memory first, store it in local memory, and then read local variables from local memory for subsequent use. Therefore, only storage type to local type and local type to arithmetic type conversion functions are provided here.
 
 # misc functions
 
