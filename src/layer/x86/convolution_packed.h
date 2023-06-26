@@ -405,7 +405,7 @@ static void convolution_transform_kernel_packed(const Mat& kernel, Mat& kernel_t
                 _mm256_store_ps(g00 + 8 * 7, _k7);
 
                 g00 += 64;
-#else // __AVX2__
+#else  // __AVX2__
                 for (int i = 0; i < 8; i++)
                 {
                     g00[0] = k0[0];
@@ -465,7 +465,7 @@ static void convolution_transform_kernel_packed(const Mat& kernel, Mat& kernel_t
                     _mm256_store_ps(g00, _k0);
                     k0 += maxk;
                     g00 += 8;
-#else // __AVX2__
+#else  // __AVX2__
                     g00[0] = k0[0];
                     g00[1] = k1[0];
                     g00[2] = k2[0];
@@ -520,7 +520,7 @@ static void convolution_transform_kernel_packed(const Mat& kernel, Mat& kernel_t
                     _mm256_store_ps(g00, _k0);
                     k0 += maxk;
                     g00 += 8;
-#else // __AVX2__
+#else  // __AVX2__
                     g00[0] = k0[0];
                     g00[1] = k1[0];
                     g00[2] = k2[0];
@@ -563,7 +563,7 @@ static void convolution_transform_kernel_packed(const Mat& kernel, Mat& kernel_t
                 _mm256_store_ps(g00, _k0);
                 k0 += maxk;
                 g00 += 8;
-#else // __AVX2__
+#else  // __AVX2__
                 const float* k1 = kptr1 + k;
                 const float* k2 = kptr2 + k;
                 const float* k3 = kptr3 + k;
@@ -668,7 +668,7 @@ static void convolution_transform_kernel_packed(const Mat& kernel, Mat& kernel_t
                 _mm256_storeu_ps(g00 + 8 * 3, _k3);
 
                 g00 += 32;
-#else // __AVX2__
+#else  // __AVX2__
                 for (int i = 0; i < 8; i++)
                 {
                     g00[0] = k0[0];
@@ -713,7 +713,7 @@ static void convolution_transform_kernel_packed(const Mat& kernel, Mat& kernel_t
                 _mm_store_ps(g00 + 4 * 3, _k3);
 
                 g00 += 16;
-#else // __AVX2__
+#else  // __AVX2__
                 for (int i = 0; i < 4; i++)
                 {
                     g00[0] = k0[0];
@@ -757,7 +757,7 @@ static void convolution_transform_kernel_packed(const Mat& kernel, Mat& kernel_t
                     _mm_store_ps(g00, _k0);
                     k0 += maxk;
                     g00 += 4;
-#else // __AVX2__
+#else  // __AVX2__
                     g00[0] = k0[0];
                     g00[1] = k1[0];
                     g00[2] = k2[0];
@@ -788,7 +788,7 @@ static void convolution_transform_kernel_packed(const Mat& kernel, Mat& kernel_t
                 _mm_store_ps(g00, _k0);
                 k0 += maxk;
                 g00 += 4;
-#else // __AVX2__
+#else  // __AVX2__
                 const float* k1 = kptr1 + k;
                 const float* k2 = kptr2 + k;
                 const float* k3 = kptr3 + k;
@@ -864,7 +864,7 @@ static void convolution_transform_kernel_packed(const Mat& kernel, Mat& kernel_t
                 _mm256_storeu_ps(g00, _k0);
                 _mm256_storeu_ps(g00 + 8, _k1);
                 g00 += 16;
-#else // __AVX2__
+#else  // __AVX2__
                 g00[0] = k0[0];
                 g00[1] = k0[maxk];
                 g00[2] = k0[maxk * 2];
@@ -902,7 +902,7 @@ static void convolution_transform_kernel_packed(const Mat& kernel, Mat& kernel_t
                 _mm_storeu_ps(g00, _k0);
                 _mm_storeu_ps(g00 + 4, _k1);
                 g00 += 8;
-#else // __AVX2__
+#else  // __AVX2__
                 g00[0] = k0[0];
                 g00[1] = k0[maxk];
                 g00[2] = k0[maxk * 2];
@@ -1005,7 +1005,7 @@ static void convolution_transform_kernel_packed(const Mat& kernel, Mat& kernel_t
                 __m256 _k0 = _mm256_i32gather_ps(k0, _vindex_256, sizeof(float));
                 _mm256_storeu_ps(g00, _k0);
                 g00 += 8;
-#else // __AVX2__
+#else  // __AVX2__
                 for (int i = 0; i < 8; i++)
                 {
                     g00[0] = k0[0];
@@ -1028,7 +1028,7 @@ static void convolution_transform_kernel_packed(const Mat& kernel, Mat& kernel_t
                 __m128 _k0 = _mm_i32gather_ps(k0, _vindex, sizeof(float));
                 _mm_storeu_ps(g00, _k0);
                 g00 += 4;
-#else // __AVX2__
+#else  // __AVX2__
                 for (int i = 0; i < 4; i++)
                 {
                     g00[0] = k0[0];
