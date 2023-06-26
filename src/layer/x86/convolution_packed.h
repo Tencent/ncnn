@@ -561,7 +561,6 @@ static void convolution_transform_kernel_packed(const Mat& kernel, Mat& kernel_t
 #if __AVX2__
                 __m256 _k0 = _mm256_i32gather_ps(k0, _vindex, sizeof(float));
                 _mm256_store_ps(g00, _k0);
-                k0 += maxk;
                 g00 += 8;
 #else  // __AVX2__
                 const float* k1 = kptr1 + k;
@@ -786,7 +785,6 @@ static void convolution_transform_kernel_packed(const Mat& kernel, Mat& kernel_t
 #if __AVX2__
                 __m128 _k0 = _mm_i32gather_ps(k0, _vindex, sizeof(float));
                 _mm_store_ps(g00, _k0);
-                k0 += maxk;
                 g00 += 4;
 #else  // __AVX2__
                 const float* k1 = kptr1 + k;
