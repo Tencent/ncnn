@@ -147,7 +147,7 @@ static void convolution1d_transform_kernel_packed(const Mat& kernel, Mat& kernel
         float* g00 = kernel_tm.channel(q / 16);
 
         __m512i _vindex = _mm512_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
-        _vindex = _mm512_mul_epi32(_vindex, _mm512_set1_epi32(kernel_w));
+        _vindex = _mm512_mullo_epi32(_vindex, _mm512_set1_epi32(kernel_w));
 
         int p = 0;
         for (; p + 15 < inh; p += 16)
@@ -228,7 +228,7 @@ static void convolution1d_transform_kernel_packed(const Mat& kernel, Mat& kernel
             kptrf += kernel_w * 16;
         }
 
-        _vindex = _mm512_mul_epi32(_vindex, _mm512_set1_epi32(inh));
+        _vindex = _mm512_mullo_epi32(_vindex, _mm512_set1_epi32(inh));
 
         for (; p + 7 < inh; p += 8)
         {
@@ -313,10 +313,10 @@ static void convolution1d_transform_kernel_packed(const Mat& kernel, Mat& kernel
 
 #if __AVX2__
         __m256i _vindex = _mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7);
-        _vindex = _mm256_mul_epi32(_vindex, _mm256_set1_epi32(kernel_w));
+        _vindex = _mm256_mullo_epi32(_vindex, _mm256_set1_epi32(kernel_w));
 #if __AVX512F__
         __m512i _vindex_512 = _mm512_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
-        _vindex_512 = _mm512_mul_epi32(_vindex_512, _mm512_set1_epi32(kernel_w));
+        _vindex_512 = _mm512_mullo_epi32(_vindex_512, _mm512_set1_epi32(kernel_w));
 #endif // __AVX512F__
 #endif // __AVX2__
 
@@ -438,7 +438,7 @@ static void convolution1d_transform_kernel_packed(const Mat& kernel, Mat& kernel
         }
 
 #if __AVX2__
-        _vindex = _mm256_mul_epi32(_vindex, _mm256_set1_epi32(inh));
+        _vindex = _mm256_mullo_epi32(_vindex, _mm256_set1_epi32(inh));
 #endif // __AVX2__
 
         for (; p + 3 < inh; p += 4)
@@ -600,12 +600,12 @@ static void convolution1d_transform_kernel_packed(const Mat& kernel, Mat& kernel
 
 #if __AVX2__
         __m128i _vindex = _mm_setr_epi32(0, 1, 2, 3);
-        _vindex = _mm_mul_epi32(_vindex, _mm_set1_epi32(kernel_w));
+        _vindex = _mm_mullo_epi32(_vindex, _mm_set1_epi32(kernel_w));
         __m256i _vindex_256 = _mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7);
-        _vindex_256 = _mm256_mul_epi32(_vindex_256, _mm256_set1_epi32(kernel_w));
+        _vindex_256 = _mm256_mullo_epi32(_vindex_256, _mm256_set1_epi32(kernel_w));
 #if __AVX512F__
         __m512i _vindex_512 = _mm512_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
-        _vindex_512 = _mm512_mul_epi32(_vindex_512, _mm512_set1_epi32(kernel_w));
+        _vindex_512 = _mm512_mullo_epi32(_vindex_512, _mm512_set1_epi32(kernel_w));
 #endif // __AVX512F__
 #endif // __AVX2__
 
@@ -733,7 +733,7 @@ static void convolution1d_transform_kernel_packed(const Mat& kernel, Mat& kernel
         }
 
 #if __AVX2__
-        _vindex = _mm_mul_epi32(_vindex, _mm_set1_epi32(inh));
+        _vindex = _mm_mullo_epi32(_vindex, _mm_set1_epi32(inh));
 #endif // __AVX2__
 
         for (; p + 1 < inh; p += 2)
@@ -816,12 +816,12 @@ static void convolution1d_transform_kernel_packed(const Mat& kernel, Mat& kernel
 
 #if __AVX2__
         __m128i _vindex = _mm_setr_epi32(0, 1, 2, 3);
-        _vindex = _mm_mul_epi32(_vindex, _mm_set1_epi32(kernel_w));
+        _vindex = _mm_mullo_epi32(_vindex, _mm_set1_epi32(kernel_w));
         __m256i _vindex_256 = _mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7);
-        _vindex_256 = _mm256_mul_epi32(_vindex_256, _mm256_set1_epi32(kernel_w));
+        _vindex_256 = _mm256_mullo_epi32(_vindex_256, _mm256_set1_epi32(kernel_w));
 #if __AVX512F__
         __m512i _vindex_512 = _mm512_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
-        _vindex_512 = _mm512_mul_epi32(_vindex_512, _mm512_set1_epi32(kernel_w));
+        _vindex_512 = _mm512_mullo_epi32(_vindex_512, _mm512_set1_epi32(kernel_w));
 #endif // __AVX512F__
 #endif // __AVX2__
 
@@ -964,12 +964,12 @@ static void convolution1d_transform_kernel_packed(const Mat& kernel, Mat& kernel
 
 #if __AVX2__
         __m128i _vindex = _mm_setr_epi32(0, 1, 2, 3);
-        _vindex = _mm_mul_epi32(_vindex, _mm_set1_epi32(kernel_w));
+        _vindex = _mm_mullo_epi32(_vindex, _mm_set1_epi32(kernel_w));
         __m256i _vindex_256 = _mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7);
-        _vindex_256 = _mm256_mul_epi32(_vindex_256, _mm256_set1_epi32(kernel_w));
+        _vindex_256 = _mm256_mullo_epi32(_vindex_256, _mm256_set1_epi32(kernel_w));
 #if __AVX512F__
         __m512i _vindex_512 = _mm512_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
-        _vindex_512 = _mm512_mul_epi32(_vindex_512, _mm512_set1_epi32(kernel_w));
+        _vindex_512 = _mm512_mullo_epi32(_vindex_512, _mm512_set1_epi32(kernel_w));
 #endif // __AVX512F__
 #endif // __AVX2__
 
