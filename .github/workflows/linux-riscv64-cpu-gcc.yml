@@ -89,9 +89,15 @@ jobs:
       run: |
         export RISCV_ROOT_PATH=/data/action/osd/Xuantie-900-gcc-linux-5.10.4-glibc-x86_64-V2.6.1
         mkdir build && cd build
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/c906-v226.toolchain.cmake -DCMAKE_BUILD_TYPE=release -DNCNN_OPENMP=OFF -DNCNN_THREADS=OFF -DNCNN_RUNTIME_CPU=OFF -DNCNN_RVV=ON -DNCNN_SIMPLEOCV=ON -DNCNN_BUILD_EXAMPLES=ON ..
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/c906-v226.toolchain.cmake -DCMAKE_BUILD_TYPE=release -DNCNN_OPENMP=OFF -DNCNN_THREADS=OFF -DNCNN_RUNTIME_CPU=OFF -DNCNN_RVV=ON -DNCNN_SIMPLEOCV=ON -DNCNN_BUILD_EXAMPLES=ON -DNCNN_BUILD_TESTS=ON ..
     - name: build
       run: cmake --build build -j 4
+
+    - name: test
+      run: |
+        export PATH=/data/action/osd/xuantie-qemu-x86_64-Ubuntu-18.04-20230413-0706/bin:$PATH
+        cd build
+        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;c906fdv" ctest --output-on-failure -j 4
 
   linux-gcc-riscv64-rvv:
     runs-on: [self-hosted, linux, centos]

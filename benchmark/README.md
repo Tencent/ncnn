@@ -1461,43 +1461,44 @@ cooling_down = 1
 
 ### Raspberry Pi 3 Model B+ Broadcom BCM2837B0, Cortex-A53 (ARMv8) (1.4GHz x 4)
 ```
-pi@raspberrypi:~/ncnn/build/benchmark $ ./benchncnn 8 4 0 -1 1
-loop_count = 8
+pi@raspberrypi:~/ncnn/build/benchmark $ ./benchncnn 4 4 0 -1 1
+loop_count = 4
 num_threads = 4
 powersave = 0
 gpu_device = -1
 cooling_down = 1
-          squeezenet  min =   93.48  max =   94.42  avg =   93.92
-     squeezenet_int8  min =   75.56  max =   91.37  avg =   78.19
-           mobilenet  min =  111.72  max =  116.75  avg =  113.22
-      mobilenet_int8  min =   66.81  max =   67.65  avg =   67.27
-        mobilenet_v2  min =  118.23  max =  122.53  avg =  120.10
-        mobilenet_v3  min =   90.46  max =   92.37  avg =   91.43
-          shufflenet  min =   63.71  max =   64.23  avg =   63.93
-       shufflenet_v2  min =   55.14  max =   55.45  avg =   55.23
-             mnasnet  min =   96.91  max =  100.11  avg =   98.45
-     proxylessnasnet  min =  105.64  max =  109.58  avg =  107.21
-     efficientnet_b0  min =  152.08  max =  153.21  avg =  152.51
-   efficientnetv2_b0  min =  173.82  max =  174.44  avg =  174.09
-        regnety_400m  min =  128.52  max =  130.30  avg =  129.22
-           blazeface  min =   19.25  max =   20.16  avg =   19.86
-           googlenet  min =  242.42  max =  248.31  avg =  244.42
-      googlenet_int8  min =  189.70  max =  192.26  avg =  190.93
-            resnet18  min =  279.99  max =  282.42  avg =  281.43
-       resnet18_int8  min =  162.68  max =  167.57  avg =  165.72
-             alexnet  min =  219.22  max =  227.34  avg =  222.01
-            resnet50  min =  558.68  max =  567.64  avg =  562.70
-       resnet50_int8  min =  391.51  max =  393.13  avg =  392.29
-      squeezenet_ssd  min =  313.05  max =  316.22  avg =  314.47
- squeezenet_ssd_int8  min =  201.40  max =  202.80  avg =  201.96
-       mobilenet_ssd  min =  242.57  max =  244.58  avg =  243.38
-  mobilenet_ssd_int8  min =  138.13  max =  139.16  avg =  138.44
-      mobilenet_yolo  min =  515.24  max =  527.39  avg =  519.71
-  mobilenetv2_yolov3  min =  367.45  max =  379.95  avg =  374.68
-         yolov4-tiny  min =  473.25  max =  481.18  avg =  475.87
-           nanodet_m  min =  140.82  max =  142.07  avg =  141.42
-    yolo-fastest-1.1  min =   84.35  max =   84.78  avg =   84.57
-      yolo-fastestv2  min =   69.17  max =   69.71  avg =   69.42
+          squeezenet  min =   84.74  max =   85.60  avg =   85.22
+     squeezenet_int8  min =   74.48  max =   74.80  avg =   74.68
+           mobilenet  min =  107.84  max =  110.13  avg =  108.66
+      mobilenet_int8  min =   66.91  max =   67.12  avg =   67.03
+        mobilenet_v2  min =  110.64  max =  112.73  avg =  111.68
+        mobilenet_v3  min =   85.78  max =   86.74  avg =   86.44
+          shufflenet  min =   58.38  max =   60.32  avg =   59.33
+       shufflenet_v2  min =   46.76  max =   47.53  avg =   47.19
+             mnasnet  min =   95.53  max =   95.88  avg =   95.78
+     proxylessnasnet  min =  102.24  max =  105.58  avg =  103.38
+     efficientnet_b0  min =  134.87  max =  136.98  avg =  135.86
+   efficientnetv2_b0  min =  146.62  max =  148.06  avg =  147.13
+        regnety_400m  min =  118.60  max =  119.51  avg =  119.03
+           blazeface  min =   15.42  max =   15.61  avg =   15.52
+           googlenet  min =  223.78  max =  224.85  avg =  224.22
+      googlenet_int8  min =  188.23  max =  190.15  avg =  189.21
+            resnet18  min =  270.86  max =  272.66  avg =  271.93
+       resnet18_int8  min =  159.57  max =  160.39  avg =  160.07
+             alexnet  min =  157.79  max =  160.77  avg =  159.09
+            resnet50  min =  583.57  max =  591.41  avg =  587.42
+       resnet50_int8  min =  383.96  max =  401.37  avg =  391.87
+      squeezenet_ssd  min =  247.90  max =  249.77  avg =  248.98
+ squeezenet_ssd_int8  min =  191.65  max =  192.81  avg =  192.17
+       mobilenet_ssd  min =  240.11  max =  241.02  avg =  240.62
+  mobilenet_ssd_int8  min =  136.30  max =  137.26  avg =  136.73
+      mobilenet_yolo  min =  523.59  max =  539.91  avg =  529.98
+  mobilenetv2_yolov3  min =  356.44  max =  366.85  avg =  362.06
+         yolov4-tiny  min =  410.25  max =  422.18  avg =  417.17
+           nanodet_m  min =  114.98  max =  115.83  avg =  115.40
+    yolo-fastest-1.1  min =   79.85  max =   80.83  avg =   80.28
+      yolo-fastestv2  min =   62.36  max =   62.91  avg =   62.60
+          FastestDet  min =   67.11  max =   68.51  avg =   67.98
 
 pi@raspberrypi:~/ncnn/build/benchmark $ ./benchncnn 4 1 0 -1 1
 loop_count = 4
@@ -1505,120 +1506,125 @@ num_threads = 1
 powersave = 0
 gpu_device = -1
 cooling_down = 1
-          squeezenet  min =  152.36  max =  152.52  avg =  152.46
-     squeezenet_int8  min =  138.38  max =  138.69  avg =  138.52
-           mobilenet  min =  233.98  max =  238.35  avg =  235.30
-      mobilenet_int8  min =  185.11  max =  185.42  avg =  185.30
-        mobilenet_v2  min =  173.90  max =  175.93  avg =  175.17
-        mobilenet_v3  min =  151.83  max =  153.28  avg =  152.52
-          shufflenet  min =   91.71  max =   92.43  avg =   92.08
-       shufflenet_v2  min =   97.29  max =   97.59  avg =   97.46
-             mnasnet  min =  167.58  max =  168.03  avg =  167.86
-     proxylessnasnet  min =  213.93  max =  216.89  avg =  215.50
-     efficientnet_b0  min =  332.36  max =  332.48  avg =  332.42
-   efficientnetv2_b0  min =  383.45  max =  384.49  avg =  383.92
-        regnety_400m  min =  211.78  max =  212.81  avg =  212.09
-           blazeface  min =   28.57  max =   29.41  avg =   28.94
-           googlenet  min =  497.79  max =  499.53  avg =  498.56
-      googlenet_int8  min =  429.97  max =  433.06  avg =  431.34
-            resnet18  min =  423.38  max =  424.28  avg =  423.92
-       resnet18_int8  min =  316.29  max =  317.27  avg =  316.74
-             alexnet  min =  472.86  max =  473.48  avg =  473.15
-            resnet50  min = 1100.52  max = 1103.82  avg = 1102.50
-       resnet50_int8  min =  899.54  max =  902.28  avg =  901.05
-      squeezenet_ssd  min =  404.44  max =  408.47  avg =  405.81
- squeezenet_ssd_int8  min =  324.34  max =  327.91  avg =  325.62
-       mobilenet_ssd  min =  473.55  max =  474.66  avg =  474.11
-  mobilenet_ssd_int8  min =  370.25  max =  371.03  avg =  370.56
-      mobilenet_yolo  min = 1049.83  max = 1053.00  avg = 1051.51
-  mobilenetv2_yolov3  min =  587.69  max =  588.59  avg =  588.22
-         yolov4-tiny  min =  807.98  max =  809.10  avg =  808.64
-           nanodet_m  min =  235.36  max =  236.96  avg =  236.19
-    yolo-fastest-1.1  min =  105.76  max =  107.73  avg =  106.33
-      yolo-fastestv2  min =   89.43  max =   89.72  avg =   89.54
+          squeezenet  min =  125.34  max =  125.81  avg =  125.58
+     squeezenet_int8  min =  135.56  max =  136.34  avg =  135.98
+           mobilenet  min =  204.62  max =  207.06  avg =  205.65
+      mobilenet_int8  min =  181.34  max =  182.46  avg =  181.91
+        mobilenet_v2  min =  158.69  max =  158.94  avg =  158.80
+        mobilenet_v3  min =  127.13  max =  127.31  avg =  127.23
+          shufflenet  min =   84.64  max =   85.29  avg =   84.89
+       shufflenet_v2  min =   74.28  max =   74.64  avg =   74.44
+             mnasnet  min =  148.12  max =  148.65  avg =  148.42
+     proxylessnasnet  min =  199.56  max =  201.99  avg =  200.42
+     efficientnet_b0  min =  240.94  max =  241.75  avg =  241.27
+   efficientnetv2_b0  min =  270.71  max =  270.90  avg =  270.83
+        regnety_400m  min =  186.89  max =  187.08  avg =  187.01
+           blazeface  min =   22.75  max =   23.24  avg =   22.95
+           googlenet  min =  450.64  max =  450.96  avg =  450.79
+      googlenet_int8  min =  424.66  max =  426.83  avg =  425.78
+            resnet18  min =  379.21  max =  380.01  avg =  379.57
+       resnet18_int8  min =  312.23  max =  313.21  avg =  312.68
+             alexnet  min =  270.13  max =  270.88  avg =  270.55
+            resnet50  min =  977.51  max =  981.89  avg =  979.75
+       resnet50_int8  min =  890.77  max =  896.89  avg =  893.83
+      squeezenet_ssd  min =  331.52  max =  333.47  avg =  332.46
+ squeezenet_ssd_int8  min =  317.71  max =  319.64  avg =  318.62
+       mobilenet_ssd  min =  425.42  max =  426.52  avg =  425.93
+  mobilenet_ssd_int8  min =  370.17  max =  370.90  avg =  370.66
+      mobilenet_yolo  min =  930.40  max =  932.24  avg =  931.46
+  mobilenetv2_yolov3  min =  534.79  max =  543.56  avg =  539.20
+         yolov4-tiny  min =  675.33  max =  676.83  avg =  676.14
+           nanodet_m  min =  178.13  max =  178.98  avg =  178.64
+    yolo-fastest-1.1  min =  100.83  max =  101.96  avg =  101.49
+      yolo-fastestv2  min =   79.73  max =   79.94  avg =   79.84
+          FastestDet  min =   89.09  max =   90.07  avg =   89.78
 ```
 
-### Raspberry Pi 4 Model B Broadcom BCM2711B0, Cortex-A72 (ARMv8) (1.5GHz x 4)
+### Raspberry Pi 4 Model B Broadcom BCM2711B0, Cortex-A72 (ARMv8) (1.8GHz x 4)
 ```
-pi@raspberrypi:~ $ ./benchncnn 8 4 0
-loop_count = 8
+pi@raspberrypi:~/ncnn/build/benchmark $ ./benchncnn 10 4 0 -1 1
+loop_count = 10
 num_threads = 4
 powersave = 0
 gpu_device = -1
 cooling_down = 1
-          squeezenet  min =   58.38  max =   59.30  avg =   58.93
-     squeezenet_int8  min =   48.98  max =   49.63  avg =   49.33
-           mobilenet  min =   71.59  max =   72.33  avg =   72.08
-      mobilenet_int8  min =   40.22  max =   40.35  avg =   40.30
-        mobilenet_v2  min =   72.26  max =   73.16  avg =   72.62
-        mobilenet_v3  min =   55.58  max =   56.64  avg =   56.34
-          shufflenet  min =   37.93  max =   38.92  avg =   38.33
-       shufflenet_v2  min =   29.54  max =   30.00  avg =   29.78
-             mnasnet  min =   61.55  max =   62.15  avg =   61.82
-     proxylessnasnet  min =   63.30  max =   63.68  avg =   63.45
-     efficientnet_b0  min =   93.93  max =   95.05  avg =   94.39
-   efficientnetv2_b0  min =  104.65  max =  105.15  avg =  104.85
-        regnety_400m  min =   80.08  max =   81.99  avg =   81.09
-           blazeface  min =   13.71  max =   14.04  avg =   13.82
-           googlenet  min =  142.17  max =  143.88  avg =  143.09
-      googlenet_int8  min =  117.55  max =  119.72  avg =  118.78
-            resnet18  min =  175.44  max =  176.83  avg =  176.18
-       resnet18_int8  min =   95.95  max =   99.11  avg =   97.99
-             alexnet  min =  142.71  max =  144.85  avg =  143.52
-               vgg16  min =  871.96  max =  875.45  avg =  873.71
-          vgg16_int8  min =  455.05  max =  458.89  avg =  456.76
-            resnet50  min =  334.35  max =  336.91  avg =  335.34
-       resnet50_int8  min =  234.15  max =  238.99  avg =  236.38
-      squeezenet_ssd  min =  179.60  max =  180.50  avg =  180.10
- squeezenet_ssd_int8  min =  130.65  max =  132.21  avg =  131.37
-       mobilenet_ssd  min =  143.86  max =  145.48  avg =  144.75
-  mobilenet_ssd_int8  min =   84.97  max =   85.71  avg =   85.31
-      mobilenet_yolo  min =  321.30  max =  324.29  avg =  322.72
-  mobilenetv2_yolov3  min =  217.92  max =  219.28  avg =  218.45
-         yolov4-tiny  min =  280.18  max =  285.17  avg =  283.51
-           nanodet_m  min =   80.26  max =   80.78  avg =   80.57
-    yolo-fastest-1.1  min =   54.31  max =   55.96  avg =   55.11
-      yolo-fastestv2  min =   44.74  max =   45.56  avg =   45.15
+          squeezenet  min =   46.28  max =   46.91  avg =   46.65
+     squeezenet_int8  min =   42.18  max =   44.98  avg =   42.59
+           mobilenet  min =   60.74  max =   61.79  avg =   61.17
+      mobilenet_int8  min =   34.19  max =   34.55  avg =   34.37
+        mobilenet_v2  min =   61.63  max =   62.02  avg =   61.88
+        mobilenet_v3  min =   47.08  max =   48.40  avg =   47.53
+          shufflenet  min =   32.91  max =   33.30  avg =   33.09
+       shufflenet_v2  min =   24.37  max =   24.73  avg =   24.56
+             mnasnet  min =   51.80  max =   52.14  avg =   51.98
+     proxylessnasnet  min =   53.02  max =   53.58  avg =   53.32
+     efficientnet_b0  min =   73.92  max =   74.44  avg =   74.19
+   efficientnetv2_b0  min =   79.10  max =   79.60  avg =   79.34
+        regnety_400m  min =   65.27  max =   66.12  avg =   65.70
+           blazeface  min =    8.62  max =    8.75  avg =    8.69
+           googlenet  min =  113.74  max =  115.14  avg =  114.35
+      googlenet_int8  min =  100.87  max =  101.71  avg =  101.25
+            resnet18  min =  122.27  max =  125.39  avg =  123.12
+       resnet18_int8  min =   82.19  max =   94.12  avg =   83.92
+             alexnet  min =   75.75  max =   78.08  avg =   76.40
+               vgg16  min =  541.66  max =  552.56  avg =  547.09
+          vgg16_int8  min =  391.44  max =  395.73  avg =  394.23
+            resnet50  min =  261.90  max =  263.91  avg =  262.83
+       resnet50_int8  min =  195.60  max =  198.08  avg =  196.65
+      squeezenet_ssd  min =  127.01  max =  129.85  avg =  127.61
+ squeezenet_ssd_int8  min =  104.98  max =  107.67  avg =  105.47
+       mobilenet_ssd  min =  120.43  max =  123.28  avg =  121.46
+  mobilenet_ssd_int8  min =   70.70  max =   72.85  avg =   71.14
+      mobilenet_yolo  min =  270.89  max =  273.42  avg =  272.33
+  mobilenetv2_yolov3  min =  183.85  max =  185.73  avg =  184.88
+         yolov4-tiny  min =  205.95  max =  209.90  avg =  207.22
+           nanodet_m  min =   68.08  max =   68.69  avg =   68.38
+    yolo-fastest-1.1  min =   47.97  max =   48.20  avg =   48.06
+      yolo-fastestv2  min =   37.17  max =   37.69  avg =   37.47
+  vision_transformer  min = 1872.31  max = 1964.95  avg = 1909.21
+          FastestDet  min =   38.39  max =   39.17  avg =   38.69
 
-pi@raspberrypi:~ $ ./benchncnn 8 1 0
-loop_count = 8
+pi@raspberrypi:~/ncnn/build/benchmark $ ./benchncnn 10 1 0 -1 1
+loop_count = 10
 num_threads = 1
 powersave = 0
 gpu_device = -1
 cooling_down = 1
-          squeezenet  min =   92.26  max =   92.88  avg =   92.60
-     squeezenet_int8  min =   81.57  max =   82.20  avg =   81.90
-           mobilenet  min =  145.36  max =  146.46  avg =  145.94
-      mobilenet_int8  min =   99.54  max =   99.69  avg =   99.62
-        mobilenet_v2  min =  109.98  max =  110.29  avg =  110.10
-        mobilenet_v3  min =   88.16  max =   88.72  avg =   88.41
-          shufflenet  min =   54.60  max =   55.03  avg =   54.76
-       shufflenet_v2  min =   50.02  max =   50.66  avg =   50.30
-             mnasnet  min =   99.74  max =  103.59  avg =  100.50
-     proxylessnasnet  min =  117.14  max =  119.65  avg =  119.12
-     efficientnet_b0  min =  194.20  max =  194.59  avg =  194.41
-   efficientnetv2_b0  min =  221.52  max =  221.95  avg =  221.74
-        regnety_400m  min =  135.36  max =  135.93  avg =  135.69
-           blazeface  min =   17.29  max =   17.64  avg =   17.50
-           googlenet  min =  282.88  max =  285.25  avg =  283.92
-      googlenet_int8  min =  252.00  max =  252.58  avg =  252.23
-            resnet18  min =  226.03  max =  226.82  avg =  226.49
-       resnet18_int8  min =  188.88  max =  189.09  avg =  188.99
-             alexnet  min =  213.34  max =  214.16  avg =  213.76
-               vgg16  min = 1307.28  max = 1309.05  avg = 1307.79
-          vgg16_int8  min = 1024.11  max = 1031.10  avg = 1026.32
-            resnet50  min =  633.78  max =  638.23  avg =  636.02
-       resnet50_int8  min =  501.96  max =  504.98  avg =  503.46
-      squeezenet_ssd  min =  212.90  max =  215.44  avg =  214.85
- squeezenet_ssd_int8  min =  188.72  max =  190.73  avg =  189.38
-       mobilenet_ssd  min =  294.98  max =  296.01  avg =  295.44
-  mobilenet_ssd_int8  min =  200.44  max =  201.85  avg =  200.87
-      mobilenet_yolo  min =  660.89  max =  662.27  avg =  661.82
-  mobilenetv2_yolov3  min =  367.30  max =  368.69  avg =  368.05
-         yolov4-tiny  min =  439.10  max =  441.09  avg =  440.07
-           nanodet_m  min =  124.23  max =  124.88  avg =  124.42
-    yolo-fastest-1.1  min =   68.99  max =   69.68  avg =   69.32
-      yolo-fastestv2  min =   55.51  max =   56.02  avg =   55.87
+          squeezenet  min =   73.35  max =   75.10  avg =   73.96
+     squeezenet_int8  min =   69.17  max =   69.66  avg =   69.42
+           mobilenet  min =  123.76  max =  125.35  avg =  124.32
+      mobilenet_int8  min =   84.66  max =   85.24  avg =   84.82
+        mobilenet_v2  min =   92.98  max =   94.05  avg =   93.48
+        mobilenet_v3  min =   72.48  max =   73.14  avg =   72.81
+          shufflenet  min =   47.17  max =   47.83  avg =   47.51
+       shufflenet_v2  min =   41.62  max =   42.60  avg =   42.12
+             mnasnet  min =   83.60  max =   84.35  avg =   83.98
+     proxylessnasnet  min =   98.48  max =   99.33  avg =   98.78
+     efficientnet_b0  min =  129.45  max =  130.02  avg =  129.73
+   efficientnetv2_b0  min =  155.06  max =  156.70  avg =  155.76
+        regnety_400m  min =  105.39  max =  106.03  avg =  105.70
+           blazeface  min =   12.54  max =   12.84  avg =   12.65
+           googlenet  min =  235.38  max =  236.34  avg =  235.94
+      googlenet_int8  min =  209.63  max =  210.39  avg =  210.00
+            resnet18  min =  190.80  max =  191.43  avg =  191.10
+       resnet18_int8  min =  157.92  max =  158.97  avg =  158.50
+             alexnet  min =  139.34  max =  139.44  avg =  139.40
+               vgg16  min = 1066.58  max = 1079.30  avg = 1071.85
+          vgg16_int8  min =  866.15  max =  873.75  avg =  869.84
+            resnet50  min =  533.15  max =  535.12  avg =  534.11
+       resnet50_int8  min =  423.72  max =  424.24  avg =  423.96
+      squeezenet_ssd  min =  178.90  max =  179.53  avg =  179.30
+ squeezenet_ssd_int8  min =  157.05  max =  159.06  avg =  157.89
+       mobilenet_ssd  min =  250.71  max =  251.26  avg =  251.00
+  mobilenet_ssd_int8  min =  170.21  max =  170.96  avg =  170.56
+      mobilenet_yolo  min =  557.48  max =  560.08  avg =  558.80
+  mobilenetv2_yolov3  min =  301.60  max =  307.98  avg =  306.52
+         yolov4-tiny  min =  370.55  max =  375.69  avg =  372.99
+           nanodet_m  min =  103.05  max =  103.74  avg =  103.45
+    yolo-fastest-1.1  min =   56.58  max =   57.44  avg =   57.01
+      yolo-fastestv2  min =   46.69  max =   47.34  avg =   47.03
+  vision_transformer  min = 6605.19  max = 6606.66  avg = 6605.73
+          FastestDet  min =   52.11  max =   52.97  avg =   52.61
 ```
 
 ### Raspberry Pi Zero 2 W Broadcom BCM2710A1, Cortex-A53 (ARMv8) (1.0GHz x 4)
