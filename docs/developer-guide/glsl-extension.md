@@ -1,4 +1,4 @@
-# ncnn glsl extension
+# ncnn GLSL extension
 
 ## rationale
 Different GPUs support different features, some support fp16 as buffer storage type, some support fp16 as operand variable, some old GPUs only support fp32
@@ -53,6 +53,80 @@ void main()
 
 The ncnn glsl extension provides the necessary data types for storage, computation, shared memory, and load, store, conversion functions for buffers and images. We also provide some buffer and image copy functions to prevent loss of precision when using fp16 as the intermediate data type, and to avoid unnecessary `unpackHalf2x16` and `packHalf2x16` pair.
 
+# entrypoint for compiling GLSL
+
+The gpu.h header in the ncnn library exposes 3 APIs for compiling glsl code into spir-v binary, they support ncnn glsl extension, these 3 functions accept opt switch to control the expansion form of ncnn glsl extension. The first two accept raw glsl code strings, and the last one is used to create ncnn's built-in shader.
+
+```cpp
+namespace ncnn {
+
+// online spirv compilation
+NCNN_EXPORT int compile_spirv_module(const char* comp_string, const Option& opt, std::vector<uint32_t>& spirv);
+NCNN_EXPORT int compile_spirv_module(const char* comp_data, int comp_data_size, const Option& opt, std::vector<uint32_t>& spirv);
+NCNN_EXPORT int compile_spirv_module(int shader_type_index, const Option& opt, std::vector<uint32_t>& spirv);
+
+} // namespace ncnn
+```
+
+## compile ncnn extended GLSL code directly
+
+You can write shader code with ncnn glsl extension, compiled to spir-v using ncnn functions. The compiled product is a standard-compliant spir-v binary, which can be directly used to create a pipeline object in the vulkan api
+
+```cpp
+static const char my_glsl_data[] = R"(
+#version 450
+
+#if NCNN_fp16_storage
+#extension GL_EXT_shader_16bit_storage: require
+#endif
+#if NCNN_fp16_arithmetic
+#extension GL_EXT_shader_explicit_arithmetic_types_float16: require
+#endif
+
+layout (binding = 0) readonly buffer a_blob { sfpvec4 a_blob_data[]; };
+layout (binding = 1) writeonly buffer b_blob { sfpvec4 b_blob_data[]; };
+
+void main()
+{
+    const int i = int(gl_GlobalInvocationID.x);
+
+    afpvec4 v = buffer_ld4(a_blob_data, i);
+
+    v = v + 123;
+
+    buffer_st4(b_blob_data, i, v);
+}
+)";
+
+Option opt;
+ // you can control the extention behavior
+ // even if the gpu supports 16bit storage
+opt.use_fp16_storage = false;
+
+std::vector<uint32_t> spirv;
+ncnn::compile_spirv_module(my_glsl_data, sizeof(my_glsl_data) - 1, opt, spirv);
+
+// To create pipeline object later
+// ncnn::Pipeline pipeline(vkdev);
+// pipeline.set_local_size_xyz(64, 1, 1);
+// pipeline.create(spirv.data(), spirv.size() * 4, specializations);
+```
+
+## ncnn built-in shader
+
+The shader index inside ncnn is exposed in the `layer_shader_type.h` header and can be used if needed
+
+```cpp
+#include "layer_shader_type.h"
+
+int shader_type_index = LayerShaderType::convert_ycbcr;
+
+Option opt;
+
+std::vector<uint32_t> spirv;
+int retc = compile_spirv_module(shader_type_index, opt, spirv);
+```
+
 # data types
 
 ## storage type
@@ -96,10 +170,10 @@ declare variable in shared local memory
 shared lfp tmp_a[8][4][2];
 ```
 
-|local type|fp32|fp16a|
-|---|---|---|
-|lfp|float|float16_t|
-|lfpvec4|vec4|f16vec4|
+|local type|fp32|fp16p / fp16s|fp16s + fp16a|
+|---|---|---|---|
+|lfp|float|float|float16_t|
+|lfpvec4|vec4|uvec2|f16vec4|
 
 ## image format and precision hint type
 
