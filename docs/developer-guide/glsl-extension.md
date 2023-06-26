@@ -51,6 +51,8 @@ void main()
 }
 ```
 
+The ncnn glsl extension provides the necessary data types for storage, computation, shared memory, and load store functions for buffers and images. We also provide some buffer and image copy functions to prevent loss of precision when using fp16 intermediate data types, and to avoid unnecessary `unpackHalf2x16` and `packHalf2x16` pair.
+
 # data types
 
 ## storage type
