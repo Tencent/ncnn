@@ -9,12 +9,12 @@ Similarly, when the gpu supports the `VK_KHR_shader_float16_int8` extension, in 
 
 To ensure the widest compatibility, the following code for declaring descriptor binding and loading data will be written
 
-```glsl
-#if gpu supports 16bit storage
+```c
+#if NCNN_fp16_storage // gpu supports 16bit storage
 layout (binding = 0) buffer blob { f16vec4 blob_data[]; };
-#elif gpu supports GLSL 4.2
+#elif NCNN_fp16_packed // gpu supports GLSL 4.2
 layout (binding = 0) buffer blob { uvec2 blob_data[]; };
-#else gpu only supports fp32
+#else // gpu only supports fp32
 layout (binding = 0) buffer blob { vec4 blob_data[]; };
 #endif
 
@@ -22,15 +22,15 @@ void main()
 {
     const int i = int(gl_GlobalInvocationID.x);
 
-#if gpu supports 16bit storage and shader float16
+#if NCNN_fp16_storage && NCNN_fp16_arithmetic // gpu supports 16bit storage and shader float16
     f16vec4 x = blob_data[i];
-#elif gpu supports 16bit storage but no shader float16
+#elif NCNN_fp16_storage // gpu supports 16bit storage but no shader float16
     vec4 x = vec4(blob_data[i]);
-#elif gpu supports GLSL 4.2 and shader float16
+#elif NCNN_fp16_packed && NCNN_fp16_arithmetic // gpu supports GLSL 4.2 and shader float16
     f16vec4 x = f16vec4(unpackFloat2x16(blob_data[i].x), unpackFloat2x16(blob_data[i].y));
-#elif gpu supports GLSL 4.2
+#elif NCNN_fp16_packed // gpu supports GLSL 4.2
     vec4 x = vec4(unpackHalf2x16(blob_data[i].x), unpackHalf2x16(blob_data[i].y));
-#else gpu only supports fp32
+#else // gpu only supports fp32
     vec4 x = blob_data[i];
 #endif
 }
@@ -40,7 +40,7 @@ As you can see, just declaring the buffer type and reading a value consumes a lo
 
 The above code, by using the ncnn glsl extension, can be simplified to
 
-```glsl
+```c
 layout (binding = 0) buffer blob { sfpvec4 blob_data[]; };
 
 void main()
@@ -59,7 +59,7 @@ The ncnn glsl extension provides the necessary data types for storage, computati
 
 declare buffer data layout in descriptor binding
 
-```glsl
+```c
 layout (binding = 0) buffer top_blob { sfpvec4 top_blob_data[]; };
 ```
 
@@ -74,7 +74,7 @@ layout (binding = 0) buffer top_blob { sfpvec4 top_blob_data[]; };
 
 declare local variable in glsl code
 
-```glsl
+```c
 void main()
 {
     afpvec4 v = a * b;
@@ -92,7 +92,7 @@ void main()
 
 declare variable in shared local memory
 
-```glsl
+```c
 shared lfp tmp_a[8][4][2];
 ```
 
@@ -105,7 +105,7 @@ shared lfp tmp_a[8][4][2];
 
 declare image format in descriptor binding
 
-```glsl
+```c
 layout (binding = 0) uniform unfp sampler3D bottom_blob_3d;
 layout (binding = 1, imfmtc4) writeonly uniform unfp image3D top_blob_3d;
 ```
@@ -238,7 +238,7 @@ T psc(T x)
 
 Declare the same variable in specialization constant AND push constant section, then `psc(x)` will become a compile-time constant when specialization constant given non-zero or be dynamic via push constant otherwise. This is often used for tensor shape specialization. We can usually resolve all shape information and make them be compile-time constants for more aggressive shader optimization.
 
-```glsl
+```c
 layout (constant_id = 0) const int size = 0;
 
 layout (push_constant) uniform parameter
@@ -266,7 +266,7 @@ judge if the current platform is moltenvk, for enabling some platform-specific w
 
 enable glsl extension only if user enable some options
 
-```glsl
+```c
 #if NCNN_fp16_storage
 #extension GL_EXT_shader_16bit_storage: require
 #endif
@@ -277,7 +277,7 @@ enable glsl extension only if user enable some options
 
 declare descriptor binding for image or buffer
 
-```glsl
+```c
 #if NCNN_image_shader
 layout (binding = 0) uniform unfp sampler3D bottom_blob_3d;
 #else
