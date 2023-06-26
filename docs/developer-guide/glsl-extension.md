@@ -1,6 +1,55 @@
 # ncnn glsl extension
 
 ## rationale
+Different GPUs support different features, some support fp16 as buffer storage type, some support fp16 as operand variable, some old GPUs only support fp32
+
+When the GPU supports the `VK_KHR_16bit_storage` extension, in order to minimize the memory bandwidth consumption of the GPU, we will give priority to using fp16 as the storage type. Otherwise, we use `packHalf2x16` and `unpackHalf2x16` in GLSL 4.2 to compress 2 fp32 to uint, reducing read and write bandwidth.
+
+Similarly, when the gpu supports the `VK_KHR_shader_float16_int8` extension, in order to speed up the calculation efficiency, we will give priority to using fp16 as the operation operand, which usually doubles the speed. Otherwise, we use fp32.
+
+To ensure the widest compatibility, the following code for declaring descriptor binding and loading data will be written
+
+```glsl
+#if gpu only supports fp32
+layout (binding = 0) buffer blob { vec4 blob_data[]; };
+#elif gpu supports GLSL 4.2
+layout (binding = 0) buffer blob { uvec2 blob_data[]; };
+#elif gpu supports 16bit storage
+layout (binding = 0) buffer blob { f16vec4 blob_data[]; };
+#endif
+
+void main()
+{
+    const int i = int(gl_GlobalInvocationID.x);
+
+#if gpu only supports fp32
+    vec4 x = blob_data[i];
+#elif gpu supports GLSL 4.2
+    vec4 x = vec4(unpackHalf2x16(blob_data[i].x), unpackHalf2x16(blob_data[i].y));
+#elif gpu supports GLSL 4.2 and shader float16
+    f16vec4 x = f16vec4(unpackFloat2x16(blob_data[i].x), unpackFloat2x16(blob_data[i].y));
+#elif gpu supports 16bit storage but no shader float16
+    vec4 x = vec4(blob_data[i]);
+#elif gpu supports 16bit storage and shader float16
+    f16vec4 x = blob_data[i];
+#endif
+}
+```
+
+As you can see, just declaring the buffer type and reading a value consumes a lot of lines of code, which is a maintenance nightmare. Therefore, ncnn adds more flexible data types and auxiliary functions to reduce the size of the code and improve readability, and will automatically expand to the most efficient implementation according to the feature level supported by the GPU.
+
+The above code, by using the ncnn glsl extension, can be simplified to
+
+```glsl
+layout (binding = 0) buffer blob { sfpvec4 blob_data[]; };
+
+void main()
+{
+    const int i = int(gl_GlobalInvocationID.x);
+
+    afpvec4 x = buffer_ld4(blob_data, i);
+}
+```
 
 # data types
 
