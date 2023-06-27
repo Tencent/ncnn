@@ -28,6 +28,12 @@ static const layer_registry_entry layer_registry_msa[] = {
 };
 #endif // NCNN_RUNTIME_CPU && NCNN_MSA
 
+#if NCNN_RUNTIME_CPU && NCNN_LASX
+static const layer_registry_entry layer_registry_lasx[] = {
+@layer_registry_lasx@
+};
+#endif // NCNN_RUNTIME_CPU && NCNN_LASX
+
 #if NCNN_RUNTIME_CPU && NCNN_LSX
 static const layer_registry_entry layer_registry_lsx[] = {
 @layer_registry_lsx@
