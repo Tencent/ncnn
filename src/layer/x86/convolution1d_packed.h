@@ -91,10 +91,11 @@ static void convolution1d_transform_kernel_packed(const Mat& kernel, Mat& kernel
 #endif // __AVX__
         if (inh >= 4)
             kernel_tm.create(2 * 4 * kernel_w, inh / 4 + (inh % 4) / 2 + inh % 2, outh / 2 + outh % 2);
-        else if (inh >= 2)
-            kernel_tm.create(2 * 2 * kernel_w, inh / 2 + inh % 2, outh / 2 + outh % 2);
         else
 #endif // __SSE2__
+        if (inh >= 2)
+            kernel_tm.create(2 * 2 * kernel_w, inh / 2 + inh % 2, outh / 2 + outh % 2);
+        else
             kernel_tm.create(2 * kernel_w, inh, outh / 2 + outh % 2);
     }
     else
@@ -112,10 +113,11 @@ static void convolution1d_transform_kernel_packed(const Mat& kernel, Mat& kernel
 #endif // __AVX__
         if (inh >= 4)
             kernel_tm.create(4 * kernel_w, inh / 4 + (inh % 4) / 2 + inh % 2, outh);
-        else if (inh >= 2)
-            kernel_tm.create(2 * kernel_w, inh / 2 + inh % 2, outh);
         else
 #endif // __SSE2__
+        if (inh >= 2)
+            kernel_tm.create(2 * kernel_w, inh / 2 + inh % 2, outh);
+        else
             kernel_tm.create(kernel_w, inh, outh);
     }
     // *INDENT-ON*
