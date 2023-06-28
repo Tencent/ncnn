@@ -418,30 +418,30 @@ typedef enum VkScopeKHR
 } VkScopeKHR;
 typedef struct VkCooperativeMatrixPropertiesKHR
 {
-    VkStructureType       sType;
-    void*                 pNext;
-    uint32_t              MSize;
-    uint32_t              NSize;
-    uint32_t              KSize;
-    VkComponentTypeKHR    AType;
-    VkComponentTypeKHR    BType;
-    VkComponentTypeKHR    CType;
-    VkComponentTypeKHR    ResultType;
-    VkBool32              saturatingAccumulation;
-    VkScopeKHR            scope;
+    VkStructureType sType;
+    void* pNext;
+    uint32_t MSize;
+    uint32_t NSize;
+    uint32_t KSize;
+    VkComponentTypeKHR AType;
+    VkComponentTypeKHR BType;
+    VkComponentTypeKHR CType;
+    VkComponentTypeKHR ResultType;
+    VkBool32 saturatingAccumulation;
+    VkScopeKHR scope;
 } VkCooperativeMatrixPropertiesKHR;
 typedef struct VkPhysicalDeviceCooperativeMatrixFeaturesKHR
 {
-    VkStructureType    sType;
-    void*              pNext;
-    VkBool32           cooperativeMatrix;
-    VkBool32           cooperativeMatrixRobustBufferAccess;
+    VkStructureType sType;
+    void* pNext;
+    VkBool32 cooperativeMatrix;
+    VkBool32 cooperativeMatrixRobustBufferAccess;
 } VkPhysicalDeviceCooperativeMatrixFeaturesKHR;
 typedef struct VkPhysicalDeviceCooperativeMatrixPropertiesKHR
 {
-    VkStructureType       sType;
-    void*                 pNext;
-    VkShaderStageFlags    cooperativeMatrixSupportedStages;
+    VkStructureType sType;
+    void* pNext;
+    VkShaderStageFlags cooperativeMatrixSupportedStages;
 } VkPhysicalDeviceCooperativeMatrixPropertiesKHR;
 typedef VkResult(VKAPI_PTR* PFN_vkGetPhysicalDeviceCooperativeMatrixPropertiesKHR)(VkPhysicalDevice physicalDevice, uint32_t* pPropertyCount, VkCooperativeMatrixPropertiesKHR* pProperties);
 #endif // VK_HEADER_VERSION < 255
