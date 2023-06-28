@@ -2129,6 +2129,8 @@ VulkanDevice::VulkanDevice(int device_index)
         enabledExtensions.push_back("VK_KHR_buffer_device_address");
     if (info.support_VK_KHR_create_renderpass2())
         enabledExtensions.push_back("VK_KHR_create_renderpass2");
+    if (info.support_VK_KHR_cooperative_matrix())
+        enabledExtensions.push_back("VK_KHR_cooperative_matrix");
     if (info.support_VK_KHR_dedicated_allocation())
         enabledExtensions.push_back("VK_KHR_dedicated_allocation");
     if (info.support_VK_KHR_descriptor_update_template())
@@ -2231,15 +2233,28 @@ VulkanDevice::VulkanDevice(int device_index)
     }
 
     // enable cooperative matrix
-    VkPhysicalDeviceCooperativeMatrixFeaturesNV queryCooperativeMatrixFeatures;
-    queryCooperativeMatrixFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_FEATURES_NV;
+    VkPhysicalDeviceCooperativeMatrixFeaturesKHR queryCooperativeMatrixFeatures;
+    queryCooperativeMatrixFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_FEATURES_KHR;
     queryCooperativeMatrixFeatures.pNext = 0;
     queryCooperativeMatrixFeatures.cooperativeMatrix = info.support_cooperative_matrix();
     queryCooperativeMatrixFeatures.cooperativeMatrixRobustBufferAccess = VK_FALSE;
+    VkPhysicalDeviceCooperativeMatrixFeaturesNV queryCooperativeMatrixFeaturesNV;
+    queryCooperativeMatrixFeaturesNV.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_FEATURES_NV;
+    queryCooperativeMatrixFeaturesNV.pNext = 0;
+    queryCooperativeMatrixFeaturesNV.cooperativeMatrix = info.support_cooperative_matrix();
+    queryCooperativeMatrixFeaturesNV.cooperativeMatrixRobustBufferAccess = VK_FALSE;
     if (support_VK_KHR_get_physical_device_properties2 && info.support_cooperative_matrix())
     {
-        queryCooperativeMatrixFeatures.pNext = enabledExtensionFeatures;
-        enabledExtensionFeatures = &queryCooperativeMatrixFeatures;
+        if (info.support_VK_KHR_cooperative_matrix())
+        {
+            queryCooperativeMatrixFeatures.pNext = enabledExtensionFeatures;
+            enabledExtensionFeatures = &queryCooperativeMatrixFeatures;
+        }
+        else
+        {
+            queryCooperativeMatrixFeaturesNV.pNext = enabledExtensionFeatures;
+            enabledExtensionFeatures = &queryCooperativeMatrixFeaturesNV;
+        }
     }
 
     std::vector<float> compute_queue_priorities(info.compute_queue_count(), 1.f);   // 0.f ~ 1.f
