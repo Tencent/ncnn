@@ -177,6 +177,7 @@ public:
     bool support_cooperative_matrix() const;
     bool support_cooperative_matrix_16_8_8() const;
     bool support_cooperative_matrix_16_8_16() const;
+    bool support_cooperative_matrix_16_16_16() const;
 
     // extension capability
     int support_VK_KHR_8bit_storage() const;
