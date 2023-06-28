@@ -176,6 +176,7 @@ public:
     // cooperative matrix feature
     bool support_cooperative_matrix() const;
     bool support_cooperative_matrix_16_8_8() const;
+    bool support_cooperative_matrix_16_8_16() const;
 
     // extension capability
     int support_VK_KHR_8bit_storage() const;
@@ -183,6 +184,7 @@ public:
     int support_VK_KHR_bind_memory2() const;
     int support_VK_KHR_buffer_device_address() const;
     int support_VK_KHR_create_renderpass2() const;
+    int support_VK_KHR_cooperative_matrix() const;
     int support_VK_KHR_dedicated_allocation() const;
     int support_VK_KHR_descriptor_update_template() const;
     int support_VK_KHR_external_memory() const;
