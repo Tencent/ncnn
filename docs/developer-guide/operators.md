@@ -1780,3 +1780,5 @@ Operation type:
 - 15 = RECIPROCAL
 - 16 = TANH
 - 17 = LOG10
+- 18 = ROUND
+- 19 = TRUNC

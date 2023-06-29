@@ -891,7 +891,7 @@ jobs:
       run: |
         export LOONGARCH64_ROOT_PATH=${{ci.workspace}}/cross-tools
         mkdir build && cd build
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/loongarch64-unknown-linux-gnu.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_LSX=ON -DNCNN_OPENMP=${{matrix.OPENMP}} -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/loongarch64-unknown-linux-gnu.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_LSX=ON -DNCNN_LASX=OFF -DNCNN_OPENMP=${{matrix.OPENMP}} -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
         cmake --build . -j $(nproc)
     - name: test
       run: |

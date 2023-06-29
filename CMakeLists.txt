@@ -303,10 +303,21 @@ elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(mips)")
 elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(loongarch64|loongarch32)")
     set(NCNN_TARGET_ARCH loongarch)
 
-    check_cxx_compiler_flag("-mlsx" NCNN_COMPILER_SUPPORT_LOONGARCH_LSX)
+    set(CMAKE_REQUIRED_FLAGS "-mlsx")
+    check_cxx_source_compiles("#include <lsxintrin.h>\nint main() { __m128 _s, _a, _b, _c; _s = __lsx_vfmadd_s(_a, _b, _c); return 0; }" NCNN_COMPILER_SUPPORT_LOONGARCH_LSX)
+
+    set(CMAKE_REQUIRED_FLAGS "-mlasx")
+    check_cxx_source_compiles("#include <lasxintrin.h>\nint main() { __m256 _s, _a, _b, _c; _s = __lasx_xvfmadd_s(_a, _b, _c); return 0; }" NCNN_COMPILER_SUPPORT_LOONGARCH_LASX)
+
+    unset(CMAKE_REQUIRED_FLAGS)
 
     if(NCNN_COMPILER_SUPPORT_LOONGARCH_LSX)
         option(NCNN_LSX "optimize loongarch platform with lsx extension" ON)
+        if(NCNN_COMPILER_SUPPORT_LOONGARCH_LASX)
+            option(NCNN_LASX "optimize loongarch platform with lasx extension" ON)
+        else()
+            message(WARNING "The compiler does not support lasx extension. NCNN_LASX will be OFF.")
+        endif()
     else()
         message(WARNING "The compiler does not support lsx extension. NCNN_LSX will be OFF.")
     endif()
