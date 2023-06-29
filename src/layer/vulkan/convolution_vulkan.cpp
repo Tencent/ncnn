@@ -1550,7 +1550,8 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
         {
             dispatcher.w = ((top_blob.w * top_blob.h + 15) / 16 + 1) / 2 * 32;
             // dispatcher.w = (top_blob.w * top_blob.h + 15) / 16 * 32;
-            dispatcher.h = (top_blob.c + 3) / 4;
+            dispatcher.h = ((top_blob.c + 3) / 4 + 1) / 2;
+            // dispatcher.h = (top_blob.c + 3) / 4;
             dispatcher.c = 1;
         }
         else if (use_cooperative_matrix)

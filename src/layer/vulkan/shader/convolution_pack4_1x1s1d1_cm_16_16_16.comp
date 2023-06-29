@@ -67,32 +67,41 @@ layout (push_constant) uniform parameter
 
 shared uvec2 tmp_v0[UNROLL_INCH * 16*4];
 shared uvec2 tmp_v1[UNROLL_INCH * 16*4];
-shared uvec2 tmp_k[UNROLL_INCH * 16*4];
+shared uvec2 tmp_k0[UNROLL_INCH * 16*4];
+shared uvec2 tmp_k1[UNROLL_INCH * 16*4];
 
 void main()
 {
     int gx = int(gl_GlobalInvocationID.x) / 32 * 2 * 16;
-    int gy = int(gl_GlobalInvocationID.y) * 4;
+    int gy = int(gl_GlobalInvocationID.y) * 2 * 4;
 
     const int lx = int(gl_LocalInvocationID.x);
     const int ly = int(gl_LocalInvocationID.y);
 
     fcoopmatNV<32, gl_ScopeSubgroup, 16, 16> sum0;
     fcoopmatNV<32, gl_ScopeSubgroup, 16, 16> sum1;
+    fcoopmatNV<32, gl_ScopeSubgroup, 16, 16> sum2;
+    fcoopmatNV<32, gl_ScopeSubgroup, 16, 16> sum3;
 
     if (bias_term == 1)
     {
-        fcoopmatNV<16, gl_ScopeSubgroup, 16, 16> bias;
+        fcoopmatNV<16, gl_ScopeSubgroup, 16, 16> bias0;
+        fcoopmatNV<16, gl_ScopeSubgroup, 16, 16> bias1;
 
-        coopMatLoadNV(bias, bias_data, gy, 0, false);
+        coopMatLoadNV(bias0, bias_data, gy, 0, false);
+        coopMatLoadNV(bias1, bias_data, gy + 4, 0, false);
 
-        sum0 = fcoopmatNV<32, gl_ScopeSubgroup, 16, 16>(bias);
-        sum1 = fcoopmatNV<32, gl_ScopeSubgroup, 16, 16>(bias);
+        sum0 = fcoopmatNV<32, gl_ScopeSubgroup, 16, 16>(bias0);
+        sum1 = fcoopmatNV<32, gl_ScopeSubgroup, 16, 16>(bias0);
+        sum2 = fcoopmatNV<32, gl_ScopeSubgroup, 16, 16>(bias1);
+        sum3 = fcoopmatNV<32, gl_ScopeSubgroup, 16, 16>(bias1);
     }
     else
     {
         sum0 = fcoopmatNV<32, gl_ScopeSubgroup, 16, 16>(0.f);
         sum1 = fcoopmatNV<32, gl_ScopeSubgroup, 16, 16>(0.f);
+        sum2 = fcoopmatNV<32, gl_ScopeSubgroup, 16, 16>(0.f);
+        sum3 = fcoopmatNV<32, gl_ScopeSubgroup, 16, 16>(0.f);
     }
 
     int N = psc(c) / 4;
@@ -126,7 +135,8 @@ void main()
                     int tmp_ki = z4*16*4 + i * 4 + j;
                     int w_offset = gy * psc(c) * 4 + (z + z4) * 4 * 16 + (i * 4 + j);
 
-                    tmp_k[tmp_ki] = weight_data[w_offset];
+                    tmp_k0[tmp_ki] = weight_data[w_offset];
+                    tmp_k1[tmp_ki] = weight_data[w_offset + psc(c) * 16];
                 }
             }
         }
@@ -141,12 +151,16 @@ void main()
             coopMatLoadNV(A0, tmp_v0, z4*16*4, 4, false);
             coopMatLoadNV(A1, tmp_v1, z4*16*4, 4, false);
 
-            fcoopmatNV<16, gl_ScopeSubgroup, 16, 16> B;
-            coopMatLoadNV(B, tmp_k, z4*16*4, 4, false);
+            fcoopmatNV<16, gl_ScopeSubgroup, 16, 16> B0;
+            fcoopmatNV<16, gl_ScopeSubgroup, 16, 16> B1;
+            coopMatLoadNV(B0, tmp_k0, z4*16*4, 4, false);
+            coopMatLoadNV(B1, tmp_k1, z4*16*4, 4, false);
 
             // sum += v * k
-            sum0 = coopMatMulAddNV(A0, B, sum0);
-            sum1 = coopMatMulAddNV(A1, B, sum1);
+            sum0 = coopMatMulAddNV(A0, B0, sum0);
+            sum1 = coopMatMulAddNV(A1, B0, sum1);
+            sum2 = coopMatMulAddNV(A0, B1, sum2);
+            sum3 = coopMatMulAddNV(A1, B1, sum3);
         }
 
         barrier();
@@ -182,7 +196,8 @@ void main()
                     int tmp_ki = z4*16*4 + i * 4 + j;
                     int w_offset = gy * psc(c) * 4 + (z + z4)  * 4 * 16 + (i * 4 + j);
 
-                    tmp_k[tmp_ki] = weight_data[w_offset];
+                    tmp_k0[tmp_ki] = weight_data[w_offset];
+                    tmp_k1[tmp_ki] = weight_data[w_offset + psc(c) * 16];
                 }
             }
         }
@@ -197,12 +212,16 @@ void main()
             coopMatLoadNV(A0, tmp_v0, z4*16*4, 4, false);
             coopMatLoadNV(A1, tmp_v1, z4*16*4, 4, false);
 
-            fcoopmatNV<16, gl_ScopeSubgroup, 16, 16> B;
-            coopMatLoadNV(B, tmp_k, z4*16*4, 4, false);
+            fcoopmatNV<16, gl_ScopeSubgroup, 16, 16> B0;
+            fcoopmatNV<16, gl_ScopeSubgroup, 16, 16> B1;
+            coopMatLoadNV(B0, tmp_k0, z4*16*4, 4, false);
+            coopMatLoadNV(B1, tmp_k1, z4*16*4, 4, false);
 
             // sum += v * k
-            sum0 = coopMatMulAddNV(A0, B, sum0);
-            sum1 = coopMatMulAddNV(A1, B, sum1);
+            sum0 = coopMatMulAddNV(A0, B0, sum0);
+            sum1 = coopMatMulAddNV(A1, B0, sum1);
+            sum2 = coopMatMulAddNV(A0, B1, sum2);
+            sum3 = coopMatMulAddNV(A1, B1, sum3);
         }
 
         barrier();
@@ -213,9 +232,13 @@ void main()
 
     fcoopmatNV<16, gl_ScopeSubgroup, 16, 16> sum0_fp16 = fcoopmatNV<16, gl_ScopeSubgroup, 16, 16>(sum0);
     fcoopmatNV<16, gl_ScopeSubgroup, 16, 16> sum1_fp16 = fcoopmatNV<16, gl_ScopeSubgroup, 16, 16>(sum1);
+    fcoopmatNV<16, gl_ScopeSubgroup, 16, 16> sum2_fp16 = fcoopmatNV<16, gl_ScopeSubgroup, 16, 16>(sum2);
+    fcoopmatNV<16, gl_ScopeSubgroup, 16, 16> sum3_fp16 = fcoopmatNV<16, gl_ScopeSubgroup, 16, 16>(sum3);
 
     coopMatStoreNV(sum0_fp16, tmp_v0, 0, 4, false);
     coopMatStoreNV(sum1_fp16, tmp_v1, 0, 4, false);
+    coopMatStoreNV(sum2_fp16, tmp_k0, 0, 4, false);
+    coopMatStoreNV(sum3_fp16, tmp_k1, 0, 4, false);
 
     barrier();
 
@@ -228,17 +251,30 @@ void main()
                 int tmp_vi = i * 4 + j;
                 uvec2 sum0_u2 = tmp_v0[tmp_vi];
                 uvec2 sum1_u2 = tmp_v1[tmp_vi];
+                uvec2 sum2_u2 = tmp_k0[tmp_vi];
+                uvec2 sum3_u2 = tmp_k1[tmp_vi];
 
                 afpvec4 sum0 = afpvec4(unpackHalf2x16(sum0_u2.x), unpackHalf2x16(sum0_u2.y));
                 afpvec4 sum1 = afpvec4(unpackHalf2x16(sum1_u2.x), unpackHalf2x16(sum1_u2.y));
+                afpvec4 sum2 = afpvec4(unpackHalf2x16(sum2_u2.x), unpackHalf2x16(sum2_u2.y));
+                afpvec4 sum3 = afpvec4(unpackHalf2x16(sum3_u2.x), unpackHalf2x16(sum3_u2.y));
 
                 sum0 = activation_afpvec4(sum0, activation_type, activation_param_0, activation_param_1);
                 sum1 = activation_afpvec4(sum1, activation_type, activation_param_0, activation_param_1);
+                sum2 = activation_afpvec4(sum2, activation_type, activation_param_0, activation_param_1);
+                sum3 = activation_afpvec4(sum3, activation_type, activation_param_0, activation_param_1);
 
-                int gi = (gy + j) * psc(outcstep) + (gx + i);
+                if (gy + j < psc(outc))
                 {
+                    int gi = (gy + j) * psc(outcstep) + (gx + i);
                     if (gx + i < psc(outcstep)) buffer_st4(top_blob_data, gi, sum0);
                     if (gx + i + 16 < psc(outcstep)) buffer_st4(top_blob_data, gi + 16, sum1);
+                }
+                if (gy + 4 + j < psc(outc))
+                {
+                    int gi = (gy + 4 + j) * psc(outcstep) + (gx + i);
+                    if (gx + i < psc(outcstep)) buffer_st4(top_blob_data, gi, sum2);
+                    if (gx + i + 16 < psc(outcstep)) buffer_st4(top_blob_data, gi + 16, sum3);
                 }
             }
         }
