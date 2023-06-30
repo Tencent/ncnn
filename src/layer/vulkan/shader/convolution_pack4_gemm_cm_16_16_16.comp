@@ -29,12 +29,18 @@
 #extension GL_EXT_shader_explicit_arithmetic_types_float16: require
 #extension GL_NV_cooperative_matrix: require
 
-layout (constant_id = 0) const int bias_term = 0;
-layout (constant_id = 1) const int activation_type = 0;
-layout (constant_id = 2) const float activation_param_0 = 0;
-layout (constant_id = 3) const float activation_param_1 = 0;
+layout (constant_id = 0) const int kernel_w = 1;
+layout (constant_id = 1) const int kernel_h = 1;
+layout (constant_id = 2) const int dilation_w = 1;
+layout (constant_id = 3) const int dilation_h = 1;
+layout (constant_id = 4) const int stride_w = 1;
+layout (constant_id = 5) const int stride_h = 1;
+layout (constant_id = 6) const int bias_term = 0;
+layout (constant_id = 7) const int activation_type = 0;
+layout (constant_id = 8) const float activation_param_0 = 0;
+layout (constant_id = 9) const float activation_param_1 = 0;
 
-#define shape_constant_id_offset 4
+#define shape_constant_id_offset 10
 layout (constant_id = shape_constant_id_offset + 0) const int w = 0;
 layout (constant_id = shape_constant_id_offset + 1) const int h = 0;
 layout (constant_id = shape_constant_id_offset + 2) const int c = 0;
@@ -75,6 +81,8 @@ void main()
     int gx = int(gl_GlobalInvocationID.x) / 32 * 2 * 16;
     int gy = int(gl_GlobalInvocationID.y) * 2 * 4;
 
+    const int outsize = psc(outw) * psc(outh);
+
     const int lx = int(gl_LocalInvocationID.x);
     const int ly = int(gl_LocalInvocationID.y);
 
@@ -104,7 +112,8 @@ void main()
         sum3 = fcoopmatNV<32, gl_ScopeSubgroup, 16, 16>(0.f);
     }
 
-    const int N = psc(c) / 4;
+    const int maxk = kernel_w * kernel_h;
+    const int N = psc(c) / 4 * maxk;
 
     int z = 0;
     for (; z + (UNROLL_INCH - 1) < N; z += UNROLL_INCH)
@@ -118,10 +127,25 @@ void main()
                 for (int j = 0; j < 4; j++)
                 {
                     int tmp_vi = z4*16*4 + i * 4 + j;
-                    int v_offset = ((z + z4) * 4 + j) * psc(outcstep) + (gx + i);
 
-                    tmp_v0[tmp_vi] = (gx + i) < psc(outcstep) ? bottom_blob_data[v_offset] : uvec2(0);
-                    tmp_v1[tmp_vi] = (gx + i + 16) < psc(outcstep) ? bottom_blob_data[v_offset + 16] : uvec2(0);
+                    const int sz = (z + z4) / maxk;
+                    const int kk = (z + z4) % maxk;
+
+                    const int ky = kk / kernel_w;
+                    const int kx = kk % kernel_w;
+
+                    const ivec2 gx16 = gx + i + ivec2(0, 16);
+
+                    const ivec2 sy16 = gx16 / psc(outw);
+                    const ivec2 sx16 = gx16 % psc(outw);
+
+                    const ivec2 sxs16 = sx16 * stride_w;
+                    const ivec2 sys16 = sy16 * stride_h;
+
+                    const ivec2 v_offset = (sz * 4 + j) * psc(cstep) + (sys16 + ky * dilation_h) * psc(w) + sxs16 + kx * dilation_w;
+
+                    tmp_v0[tmp_vi] = gx16.r < psc(outcstep) ? bottom_blob_data[v_offset.r] : uvec2(0);
+                    tmp_v1[tmp_vi] = gx16.g < psc(outcstep) ? bottom_blob_data[v_offset.g] : uvec2(0);
                 }
             }
         }
@@ -179,10 +203,25 @@ void main()
                 for (int j = 0; j < 4; j++)
                 {
                     int tmp_vi = z4*16*4 + i * 4 + j;
-                    int v_offset = ((z + z4) * 4 + j) * psc(outcstep) + (gx + i);
 
-                    tmp_v0[tmp_vi] = (gx + i) < psc(outcstep) ? bottom_blob_data[v_offset] : uvec2(0);
-                    tmp_v1[tmp_vi] = (gx + i + 16) < psc(outcstep) ? bottom_blob_data[v_offset + 16] : uvec2(0);
+                    const int sz = (z + z4) / maxk;
+                    const int kk = (z + z4) % maxk;
+
+                    const int ky = kk / kernel_w;
+                    const int kx = kk % kernel_w;
+
+                    const ivec2 gx16 = gx + i + ivec2(0, 16);
+
+                    const ivec2 sy16 = gx16 / psc(outw);
+                    const ivec2 sx16 = gx16 % psc(outw);
+
+                    const ivec2 sxs16 = sx16 * stride_w;
+                    const ivec2 sys16 = sy16 * stride_h;
+
+                    const ivec2 v_offset = (sz * 4 + j) * psc(cstep) + (sys16 + ky * dilation_h) * psc(w) + sxs16 + kx * dilation_w;
+
+                    tmp_v0[tmp_vi] = gx16.r < psc(outcstep) ? bottom_blob_data[v_offset.r] : uvec2(0);
+                    tmp_v1[tmp_vi] = gx16.g < psc(outcstep) ? bottom_blob_data[v_offset.g] : uvec2(0);
                 }
             }
         }
@@ -227,7 +266,7 @@ void main()
         barrier();
     }
 
-    if (gx >= psc(outcstep) || gy >= psc(outc))
+    if (gx >= outsize || gy >= psc(outc))
         return;
 
     fcoopmatNV<16, gl_ScopeSubgroup, 16, 16> sum0_fp16 = fcoopmatNV<16, gl_ScopeSubgroup, 16, 16>(sum0);
