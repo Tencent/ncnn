@@ -118,15 +118,15 @@ void main()
     int z = 0;
     for (; z + (UNROLL_INCH - 1) < N; z += UNROLL_INCH)
     {
-        for (int z4 = 0; z4 < UNROLL_INCH; z4++)
-        {
         if (lx == 0 && ly == 0)
+        {
+        for (int z4 = 0; z4 < UNROLL_INCH; z4++)
         {
             for (int i = 0; i < 16; i++)
             {
                 for (int j = 0; j < 4; j++)
                 {
-                    int tmp_vi = z4*16*4 + i * 4 + j;
+                    const int tmp_i = z4*16*4 + i * 4 + j;
 
                     const int sz = (z + z4) / maxk;
                     const int kk = (z + z4) % maxk;
@@ -144,23 +144,13 @@ void main()
 
                     const ivec2 v_offset = (sz * 4 + j) * psc(cstep) + (sys16 + ky * dilation_h) * psc(w) + sxs16 + kx * dilation_w;
 
-                    tmp_v0[tmp_vi] = gx16.r < psc(outcstep) ? bottom_blob_data[v_offset.r] : uvec2(0);
-                    tmp_v1[tmp_vi] = gx16.g < psc(outcstep) ? bottom_blob_data[v_offset.g] : uvec2(0);
-                }
-            }
-        }
+                    tmp_v0[tmp_i] = gx16.r < psc(outcstep) ? bottom_blob_data[v_offset.r] : uvec2(0);
+                    tmp_v1[tmp_i] = gx16.g < psc(outcstep) ? bottom_blob_data[v_offset.g] : uvec2(0);
 
-        if (lx == 0 && ly == 0)
-        {
-            for (int i = 0; i < 16; i++)
-            {
-                for (int j = 0; j < 4; j++)
-                {
-                    int tmp_ki = z4*16*4 + i * 4 + j;
                     int w_offset = gy * psc(c) * 4 + (z + z4) * 4 * 16 + (i * 4 + j);
 
-                    tmp_k0[tmp_ki] = weight_data[w_offset];
-                    tmp_k1[tmp_ki] = weight_data[w_offset + psc(c) * 16];
+                    tmp_k0[tmp_i] = weight_data[w_offset];
+                    tmp_k1[tmp_i] = weight_data[w_offset + psc(c) * 16];
                 }
             }
         }
@@ -194,15 +184,15 @@ void main()
     {
         const int remain = N - z;
 
-        for (int z4 = 0; z4 < remain; z4++)
-        {
         if (lx == 0 && ly == 0)
+        {
+        for (int z4 = 0; z4 < remain; z4++)
         {
             for (int i = 0; i < 16; i++)
             {
                 for (int j = 0; j < 4; j++)
                 {
-                    int tmp_vi = z4*16*4 + i * 4 + j;
+                    const int tmp_i = z4*16*4 + i * 4 + j;
 
                     const int sz = (z + z4) / maxk;
                     const int kk = (z + z4) % maxk;
@@ -220,23 +210,13 @@ void main()
 
                     const ivec2 v_offset = (sz * 4 + j) * psc(cstep) + (sys16 + ky * dilation_h) * psc(w) + sxs16 + kx * dilation_w;
 
-                    tmp_v0[tmp_vi] = gx16.r < psc(outcstep) ? bottom_blob_data[v_offset.r] : uvec2(0);
-                    tmp_v1[tmp_vi] = gx16.g < psc(outcstep) ? bottom_blob_data[v_offset.g] : uvec2(0);
-                }
-            }
-        }
+                    tmp_v0[tmp_i] = gx16.r < psc(outcstep) ? bottom_blob_data[v_offset.r] : uvec2(0);
+                    tmp_v1[tmp_i] = gx16.g < psc(outcstep) ? bottom_blob_data[v_offset.g] : uvec2(0);
 
-        if (lx == 0 && ly == 0)
-        {
-            for (int i = 0; i < 16; i++)
-            {
-                for (int j = 0; j < 4; j++)
-                {
-                    int tmp_ki = z4*16*4 + i * 4 + j;
                     int w_offset = gy * psc(c) * 4 + (z + z4)  * 4 * 16 + (i * 4 + j);
 
-                    tmp_k0[tmp_ki] = weight_data[w_offset];
-                    tmp_k1[tmp_ki] = weight_data[w_offset + psc(c) * 16];
+                    tmp_k0[tmp_i] = weight_data[w_offset];
+                    tmp_k1[tmp_i] = weight_data[w_offset + psc(c) * 16];
                 }
             }
         }
@@ -287,7 +267,8 @@ void main()
         {
             for (int j = 0; j < 4; j++)
             {
-                int tmp_vi = i * 4 + j;
+                const int tmp_vi = i * 4 + j;
+
                 uvec2 sum0_u2 = tmp_v0[tmp_vi];
                 uvec2 sum1_u2 = tmp_v1[tmp_vi];
                 uvec2 sum2_u2 = tmp_k0[tmp_vi];

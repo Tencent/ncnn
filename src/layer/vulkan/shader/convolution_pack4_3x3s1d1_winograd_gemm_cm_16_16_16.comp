@@ -21,44 +21,31 @@
 #extension GL_EXT_shader_explicit_arithmetic_types_float16: require
 #endif
 
-#extension GL_GOOGLE_include_directive: enable
-#include "vulkan_activation.comp"
-
 #extension GL_KHR_memory_scope_semantics: require
 #extension GL_EXT_shader_explicit_arithmetic_types: require
 #extension GL_EXT_shader_explicit_arithmetic_types_float16: require
 #extension GL_NV_cooperative_matrix: require
 
-layout (constant_id = 0) const int bias_term = 0;
-layout (constant_id = 1) const int activation_type = 0;
-layout (constant_id = 2) const float activation_param_0 = 0;
-layout (constant_id = 3) const float activation_param_1 = 0;
+layout (constant_id = 0) const int batch = 1;
 
-#define shape_constant_id_offset 4
-layout (constant_id = shape_constant_id_offset + 0) const int w = 0;
-layout (constant_id = shape_constant_id_offset + 1) const int h = 0;
-layout (constant_id = shape_constant_id_offset + 2) const int c = 0;
-layout (constant_id = shape_constant_id_offset + 3) const int cstep = 0;
+#define shape_constant_id_offset 1
+layout (constant_id = shape_constant_id_offset + 0) const int c = 0;
+layout (constant_id = shape_constant_id_offset + 1) const int cstep = 0;
 
-layout (constant_id = shape_constant_id_offset + 4) const int outw = 0;
-layout (constant_id = shape_constant_id_offset + 5) const int outh = 0;
-layout (constant_id = shape_constant_id_offset + 6) const int outc = 0;
-layout (constant_id = shape_constant_id_offset + 7) const int outcstep = 0;
+layout (constant_id = shape_constant_id_offset + 2) const int outw = 0;
+layout (constant_id = shape_constant_id_offset + 3) const int outc = 0;
+layout (constant_id = shape_constant_id_offset + 4) const int outcstep = 0;
 
-layout (binding = 0) readonly buffer bottom_blob { uvec2 bottom_blob_data[]; };
-layout (binding = 1) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
-layout (binding = 2) readonly buffer weight_blob { uvec2 weight_data[]; };
-layout (binding = 3) readonly buffer bias_blob { uvec2 bias_data[]; };
+layout (binding = 0) readonly buffer bottom_tm_blob { uvec2 bottom_tm_blob_data[]; };
+layout (binding = 1) writeonly buffer top_tm_blob { uvec2 top_tm_blob_data[]; };
+layout (binding = 2) readonly buffer weight_tm_blob { uvec2 weight_tm_data[]; };
 
 layout (push_constant) uniform parameter
 {
-    int w;
-    int h;
     int c;
     int cstep;
 
     int outw;
-    int outh;
     int outc;
     int outcstep;
 } p;
@@ -74,35 +61,15 @@ void main()
 {
     int gx = int(gl_GlobalInvocationID.x) / 32 * 2 * 16;
     int gy = int(gl_GlobalInvocationID.y) * 2 * 4;
+    int gz = int(gl_GlobalInvocationID.z);
+
+    fcoopmatNV<32, gl_ScopeSubgroup, 16, 16> sum0 = fcoopmatNV<32, gl_ScopeSubgroup, 16, 16>(0.f);
+    fcoopmatNV<32, gl_ScopeSubgroup, 16, 16> sum1 = fcoopmatNV<32, gl_ScopeSubgroup, 16, 16>(0.f);
+    fcoopmatNV<32, gl_ScopeSubgroup, 16, 16> sum2 = fcoopmatNV<32, gl_ScopeSubgroup, 16, 16>(0.f);
+    fcoopmatNV<32, gl_ScopeSubgroup, 16, 16> sum3 = fcoopmatNV<32, gl_ScopeSubgroup, 16, 16>(0.f);
 
     const int lx = int(gl_LocalInvocationID.x);
     const int ly = int(gl_LocalInvocationID.y);
-
-    fcoopmatNV<32, gl_ScopeSubgroup, 16, 16> sum0;
-    fcoopmatNV<32, gl_ScopeSubgroup, 16, 16> sum1;
-    fcoopmatNV<32, gl_ScopeSubgroup, 16, 16> sum2;
-    fcoopmatNV<32, gl_ScopeSubgroup, 16, 16> sum3;
-
-    if (bias_term == 1)
-    {
-        fcoopmatNV<16, gl_ScopeSubgroup, 16, 16> bias0;
-        fcoopmatNV<16, gl_ScopeSubgroup, 16, 16> bias1;
-
-        coopMatLoadNV(bias0, bias_data, gy, 0, false);
-        coopMatLoadNV(bias1, bias_data, gy + 4, 0, false);
-
-        sum0 = fcoopmatNV<32, gl_ScopeSubgroup, 16, 16>(bias0);
-        sum1 = fcoopmatNV<32, gl_ScopeSubgroup, 16, 16>(bias0);
-        sum2 = fcoopmatNV<32, gl_ScopeSubgroup, 16, 16>(bias1);
-        sum3 = fcoopmatNV<32, gl_ScopeSubgroup, 16, 16>(bias1);
-    }
-    else
-    {
-        sum0 = fcoopmatNV<32, gl_ScopeSubgroup, 16, 16>(0.f);
-        sum1 = fcoopmatNV<32, gl_ScopeSubgroup, 16, 16>(0.f);
-        sum2 = fcoopmatNV<32, gl_ScopeSubgroup, 16, 16>(0.f);
-        sum3 = fcoopmatNV<32, gl_ScopeSubgroup, 16, 16>(0.f);
-    }
 
     const int N = psc(c) / 4;
 
@@ -119,15 +86,15 @@ void main()
                 {
                     const int tmp_i = z4*16*4 + i * 4 + j;
 
-                    int v_offset = ((z + z4) * 4 + j) * psc(outcstep) + (gx + i);
+                    int v_offset = gz * psc(cstep) + ((z + z4) * 4 + j) * psc(outw) + (gx + i);
 
-                    tmp_v0[tmp_i] = (gx + i) < psc(outcstep) ? bottom_blob_data[v_offset] : uvec2(0);
-                    tmp_v1[tmp_i] = (gx + i + 16) < psc(outcstep) ? bottom_blob_data[v_offset + 16] : uvec2(0);
+                    tmp_v0[tmp_i] = (gx + i) < psc(outw) ? bottom_tm_blob_data[v_offset] : uvec2(0);
+                    tmp_v1[tmp_i] = (gx + i + 16) < psc(outw) ? bottom_tm_blob_data[v_offset + 16] : uvec2(0);
 
-                    int w_offset = gy * psc(c) * 4 + (z + z4) * 4 * 16 + (i * 4 + j);
+                    int w_offset = gz * psc(outc) * psc(c) * 4 + gy * psc(c) * 4 + (z + z4) * 4 * 16 + (i * 4 + j);
 
-                    tmp_k0[tmp_i] = weight_data[w_offset];
-                    tmp_k1[tmp_i] = weight_data[w_offset + psc(c) * 16];
+                    tmp_k0[tmp_i] = weight_tm_data[w_offset];
+                    tmp_k1[tmp_i] = weight_tm_data[w_offset + psc(c) * 16];
                 }
             }
         }
@@ -171,15 +138,15 @@ void main()
                 {
                     const int tmp_i = z4*16*4 + i * 4 + j;
 
-                    int v_offset = ((z + z4) * 4 + j) * psc(outcstep) + (gx + i);
+                    int v_offset = gz * psc(cstep) + ((z + z4) * 4 + j) * psc(outw) + (gx + i);
 
-                    tmp_v0[tmp_i] = (gx + i) < psc(outcstep) ? bottom_blob_data[v_offset] : uvec2(0);
-                    tmp_v1[tmp_i] = (gx + i + 16) < psc(outcstep) ? bottom_blob_data[v_offset + 16] : uvec2(0);
+                    tmp_v0[tmp_i] = (gx + i) < psc(outw) ? bottom_tm_blob_data[v_offset] : uvec2(0);
+                    tmp_v1[tmp_i] = (gx + i + 16) < psc(outw) ? bottom_tm_blob_data[v_offset + 16] : uvec2(0);
 
-                    int w_offset = gy * psc(c) * 4 + (z + z4)  * 4 * 16 + (i * 4 + j);
+                    int w_offset = gz * psc(outc) * psc(c) * 4 + gy * psc(c) * 4 + (z + z4) * 4 * 16 + (i * 4 + j);
 
-                    tmp_k0[tmp_i] = weight_data[w_offset];
-                    tmp_k1[tmp_i] = weight_data[w_offset + psc(c) * 16];
+                    tmp_k0[tmp_i] = weight_tm_data[w_offset];
+                    tmp_k1[tmp_i] = weight_tm_data[w_offset + psc(c) * 16];
                 }
             }
         }
@@ -209,7 +176,7 @@ void main()
         barrier();
     }
 
-    if (gx >= psc(outcstep) || gy >= psc(outc))
+    if (gx >= psc(outw) || gy >= psc(outc) || gz >= batch)
         return;
 
     fcoopmatNV<16, gl_ScopeSubgroup, 16, 16> sum0_fp16 = fcoopmatNV<16, gl_ScopeSubgroup, 16, 16>(sum0);
@@ -232,32 +199,17 @@ void main()
             {
                 const int tmp_vi = i * 4 + j;
 
-                uvec2 sum0_u2 = tmp_v0[tmp_vi];
-                uvec2 sum1_u2 = tmp_v1[tmp_vi];
-                uvec2 sum2_u2 = tmp_k0[tmp_vi];
-                uvec2 sum3_u2 = tmp_k1[tmp_vi];
-
-                afpvec4 sum0 = afpvec4(unpackHalf2x16(sum0_u2.x), unpackHalf2x16(sum0_u2.y));
-                afpvec4 sum1 = afpvec4(unpackHalf2x16(sum1_u2.x), unpackHalf2x16(sum1_u2.y));
-                afpvec4 sum2 = afpvec4(unpackHalf2x16(sum2_u2.x), unpackHalf2x16(sum2_u2.y));
-                afpvec4 sum3 = afpvec4(unpackHalf2x16(sum3_u2.x), unpackHalf2x16(sum3_u2.y));
-
-                sum0 = activation_afpvec4(sum0, activation_type, activation_param_0, activation_param_1);
-                sum1 = activation_afpvec4(sum1, activation_type, activation_param_0, activation_param_1);
-                sum2 = activation_afpvec4(sum2, activation_type, activation_param_0, activation_param_1);
-                sum3 = activation_afpvec4(sum3, activation_type, activation_param_0, activation_param_1);
-
                 if (gy + j < psc(outc))
                 {
-                    int gi = (gy + j) * psc(outcstep) + (gx + i);
-                    if (gx + i < psc(outcstep)) buffer_st4(top_blob_data, gi, sum0);
-                    if (gx + i + 16 < psc(outcstep)) buffer_st4(top_blob_data, gi + 16, sum1);
+                    int gi = gz * psc(outcstep) + (gy + j) * psc(outw) + (gx + i);
+                    if (gx + i < psc(outw)) top_tm_blob_data[gi] = tmp_v0[tmp_vi];
+                    if (gx + i + 16 < psc(outw)) top_tm_blob_data[gi + 16] = tmp_v1[tmp_vi];
                 }
                 if (gy + 4 + j < psc(outc))
                 {
-                    int gi = (gy + 4 + j) * psc(outcstep) + (gx + i);
-                    if (gx + i < psc(outcstep)) buffer_st4(top_blob_data, gi, sum2);
-                    if (gx + i + 16 < psc(outcstep)) buffer_st4(top_blob_data, gi + 16, sum3);
+                    int gi = gz * psc(outcstep) + (gy + 4 + j) * psc(outw) + (gx + i);
+                    if (gx + i < psc(outw)) top_tm_blob_data[gi] = tmp_k0[tmp_vi];
+                    if (gx + i + 16 < psc(outw)) top_tm_blob_data[gi + 16] = tmp_k1[tmp_vi];
                 }
             }
         }
