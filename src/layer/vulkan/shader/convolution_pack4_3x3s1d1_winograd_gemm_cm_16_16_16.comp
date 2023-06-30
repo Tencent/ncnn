@@ -63,16 +63,15 @@ void main()
     int gy = int(gl_GlobalInvocationID.y) * 2 * 4;
     int gz = int(gl_GlobalInvocationID.z);
 
+    const int lx = int(gl_LocalInvocationID.x);
+
+    const int lxd16 = lx / 16; // 0 1
+    const int lxm16 = lx % 16; // 0 1 2 3 .... 15
+
     fcoopmatNV<32, gl_ScopeSubgroup, 16, 16> sum0 = fcoopmatNV<32, gl_ScopeSubgroup, 16, 16>(0.f);
     fcoopmatNV<32, gl_ScopeSubgroup, 16, 16> sum1 = fcoopmatNV<32, gl_ScopeSubgroup, 16, 16>(0.f);
     fcoopmatNV<32, gl_ScopeSubgroup, 16, 16> sum2 = fcoopmatNV<32, gl_ScopeSubgroup, 16, 16>(0.f);
     fcoopmatNV<32, gl_ScopeSubgroup, 16, 16> sum3 = fcoopmatNV<32, gl_ScopeSubgroup, 16, 16>(0.f);
-
-    const int lx = int(gl_LocalInvocationID.x);
-    const int ly = int(gl_LocalInvocationID.y);
-
-    const int lxd16 = lx / 16; // 0 1
-    const int lxm16 = lx % 16; // 0 1 2 3 .... 15
 
     const int N = psc(c) / 4;
 
