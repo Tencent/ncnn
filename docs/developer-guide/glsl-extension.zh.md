@@ -1,4 +1,4 @@
-# NCNN GLSL 扩展
+# ncnn GLSL 扩展
 
 ## 理由
 不同的 GPU 支持不同的功能，有的支持 fp16 作为缓冲存储类型，有的支持 fp16 作为操作数变量，有的老 GPU 只支持 fp32。
@@ -36,9 +36,9 @@ void main()
 }
 ```
 
-如您所见，仅声明缓冲区类型并读取值会消耗大量代码行，这是项目维护的噩梦。因此，NCNN 增加了更灵活的数据类型和辅助函数，以减小代码的大小并提高可读性，并且会根据 GPU 支持的功能级别自动扩展到最高效的实现。
+如您所见，仅声明缓冲区类型并读取值会消耗大量代码行，这是项目维护的噩梦。因此，ncnn 增加了更灵活的数据类型和辅助函数，以减小代码的大小并提高可读性，并且会根据 GPU 支持的功能级别自动扩展到最高效的实现。
 
-上面的代码，通过使用 NCNN GLSL 扩展，可以简化为
+上面的代码，通过使用 ncnn GLSL 扩展，可以简化为
 
 ```c
 layout (binding = 0) buffer blob { sfpvec4 blob_data[]; };
@@ -51,11 +51,11 @@ void main()
 }
 ```
 
-NCNN GLSL 扩展为存储、计算、共享内存以及缓冲区和图像的加载、存储、转换函数提供了必要的数据类型。我们还提供了一些缓冲区和图像复制函数，以防止在使用 fp16 作为中间数据类型时丢失精度，并避免不必要的 `unpackHalf2x16` 和 `packHalf2x16` 配对。
+ncnn GLSL 扩展为存储、计算、共享内存以及缓冲区和图像的加载、存储、转换函数提供了必要的数据类型。我们还提供了一些缓冲区和图像复制函数，以防止在使用 fp16 作为中间数据类型时丢失精度，并避免不必要的 `unpackHalf2x16` 和 `packHalf2x16` 配对。
 
 # 编译GLSL的入口点
 
-NCNN库中的 gpu.h 头文件公开了3个用于将 GLSL 代码编译为 Spir-V 二进制的API函数，它们支持 NCNN GLSL 扩展，这3个函数接受 opt switch 来控制 NCNN GLSL 扩展形式。前两个函数接受原始 GLSL 代码字符串作为参数，最后一个函数用于创建 NCNN 的已存在的内置着色器。
+ncnn库中的 gpu.h 头文件公开了3个用于将 GLSL 代码编译为 Spir-V 二进制的API函数，它们支持 ncnn GLSL 扩展，这3个函数接受 opt switch 来控制 ncnn GLSL 扩展形式。前两个函数接受原始 GLSL 代码字符串作为参数，最后一个函数用于创建 ncnn 的已存在的内置着色器。
 
 ```cpp
 namespace ncnn {
@@ -68,9 +68,9 @@ NCNN_EXPORT int compile_spirv_module(int shader_type_index, const Option& opt, s
 } // namespace ncnn
 ```
 
-## 直接编译NCNN扩展GLSL代码
+## 直接编译ncnn扩展GLSL代码
 
-您可以使用 NCNN GLSL 扩展编写着色器代码，使用 NCNN 函数编译为 Spir-V。编译后的产品是符合标准的 Spir-V 二进制文件，可以直接用于在 Vulkan API 中创建流水线对象
+您可以使用 ncnn GLSL 扩展编写着色器代码，使用 ncnn 函数编译为 Spir-V。编译后的产品是符合标准的 Spir-V 二进制文件，可以直接用于在 Vulkan API 中创建流水线对象
 
 ```cpp
 static const char my_glsl_data[] = R"(
@@ -112,9 +112,9 @@ ncnn::compile_spirv_module(my_glsl_data, sizeof(my_glsl_data) - 1, opt, spirv);
 // pipeline.create(spirv.data(), spirv.size() * 4, specializations);
 ```
 
-## NCNN内置着色器
+## ncnn内置着色器
 
-NCNN内部的着色器索引在标头中公开，如果需要可以使用 `layer_shader_type.h`
+ncnn内部的着色器索引在标头中公开，如果需要可以使用 `layer_shader_type.h`
 
 ```cpp
 #include "layer_shader_type.h"
