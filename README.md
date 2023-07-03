@@ -112,7 +112,7 @@ ncnn 目前已在腾讯多款应用中使用，如：QQ，Qzone，微信，天�
 [ci-ios-cpu]: https://github.com/Tencent/ncnn/actions?query=workflow%3Aios-cpu
 [ci-ios-simulator]: https://github.com/Tencent/ncnn/actions?query=workflow%3Aios-simulator
 [ci-ios-simulator]: https://github.com/Tencent/ncnn/actions?query=workflow%3Aios-simulator
-[ci-ios-simulator-gpu]：https://GitHub.Com/Tencent/ncnn/actions?query=workflow%3aios-simulator-gpu
+[ci-ios-simulator-gpu]: https://github.com/Tencent/ncnn/actions?query=workflow%3Aios-simulator-gpu
 [ci-linux-aarch64-cpu-gcc]: https://github.com/Tencent/ncnn/actions?query=workflow%3Alinux-aarch64-cpu-gcc
 [ci-linux-arm-cpu-gcc]: https://github.com/Tencent/ncnn/actions?query=workflow%3Alinux-arm-cpu-gcc
 [ci-linux-loongarch64-cpu-gcc]: https://github.com/Tencent/ncnn/actions?query=workflow%3Alinux-loongarch64-cpu-gcc
