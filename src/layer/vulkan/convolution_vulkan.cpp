@@ -421,7 +421,8 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
                 else if (use_cooperative_matrix)
                 {
                     // TODO proper unroll y
-                    pipeline_convolution_3x3s1d1_winograd43_gemm->set_local_size_xyz(32, 4, 1); // 16_8_8 ly*4
+                    pipeline_convolution_3x3s1d1_winograd43_gemm->set_local_size_xyz(32, 1, 1); // 16_8_8 ly*1
+                    // pipeline_convolution_3x3s1d1_winograd43_gemm->set_local_size_xyz(32, 4, 1); // 16_8_8 ly*4
                 }
                 else if (opt.use_shader_local_memory)
                 {
@@ -695,7 +696,8 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
                 else if (use_cooperative_matrix)
                 {
                     // TODO proper unroll y
-                    pipeline_convolution_3x3s1d1_winograd23_gemm->set_local_size_xyz(32, 4, 1); // 16_8_8 ly*4
+                    pipeline_convolution_3x3s1d1_winograd23_gemm->set_local_size_xyz(32, 1, 1); // 16_8_8 ly*1
+                    // pipeline_convolution_3x3s1d1_winograd23_gemm->set_local_size_xyz(32, 4, 1); // 16_8_8 ly*4
                 }
                 else if (opt.use_shader_local_memory)
                 {
@@ -1008,7 +1010,8 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
         else if (use_cooperative_matrix)
         {
             // TODO proper unroll y
-            pipeline_convolution_gemm->set_local_size_xyz(32, 4, 1); // 16_8_8 ly*4
+            // pipeline_convolution_gemm->set_local_size_xyz(32, 4, 1); // 16_8_8 ly*4
+            pipeline_convolution_gemm->set_local_size_xyz(32, 1, 1); // 16_8_8 ly*1
         }
         else if (opt.use_shader_local_memory)
         {
@@ -1071,7 +1074,8 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
         else if (use_cooperative_matrix)
         {
             // TODO proper unroll y
-            pipeline_convolution_1x1s1d1->set_local_size_xyz(32, 4, 1); // 16_8_8 ly*4
+            // pipeline_convolution_1x1s1d1->set_local_size_xyz(32, 4, 1); // 16_8_8 ly*4
+            pipeline_convolution_1x1s1d1->set_local_size_xyz(32, 1, 1); // 16_8_8 ly*1
         }
         else if (opt.use_shader_local_memory)
         {
@@ -1462,8 +1466,12 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
                 }
                 else if (use_cooperative_matrix)
                 {
-                    dispatcher.w = ((top_tm_blob.w + 15) / 16 + 3) / 4 * 32;
-                    dispatcher.h = (top_tm_blob.h + 1) / 2;
+                    // dispatcher.w = ((top_tm_blob.w + 15) / 16 + 3) / 4 * 32;
+                    // dispatcher.h = (top_tm_blob.h + 1) / 2;
+                    // dispatcher.c = 36;
+                    dispatcher.w = ((top_tm_blob.w + 15) / 16 + 1) / 2 * 32;
+                    // dispatcher.h = ((top_tm_blob.h + 1) / 2 + 1) / 2;
+                    dispatcher.h = ((top_tm_blob.h + 1) / 2 + 3) / 4;
                     dispatcher.c = 36;
                 }
 
@@ -1564,8 +1572,12 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
                 }
                 else if (use_cooperative_matrix)
                 {
-                    dispatcher.w = ((top_tm_blob.w + 15) / 16 + 3) / 4 * 32;
-                    dispatcher.h = (top_tm_blob.h + 1) / 2;
+                    // dispatcher.w = ((top_tm_blob.w + 15) / 16 + 3) / 4 * 32;
+                    // dispatcher.h = (top_tm_blob.h + 1) / 2;
+                    // dispatcher.c = 16;
+                    dispatcher.w = ((top_tm_blob.w + 15) / 16 + 1) / 2 * 32;
+                    // dispatcher.h = ((top_tm_blob.h + 1) / 2 + 1) / 2;
+                    dispatcher.h = ((top_tm_blob.h + 1) / 2 + 3) / 4;
                     dispatcher.c = 16;
                 }
 
@@ -1650,8 +1662,10 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
         }
         else if (use_cooperative_matrix)
         {
-            dispatcher.w = ((top_blob.w * top_blob.h + 15) / 16 + 3) / 4 * 32;
-            dispatcher.h = (top_blob.c + 1) / 2;
+            // dispatcher.w = ((top_blob.w * top_blob.h + 15) / 16 + 3) / 4 * 32;
+            dispatcher.w = ((top_blob.w * top_blob.h + 15) / 16 + 1) / 2 * 32;
+            // dispatcher.h = (top_blob.c + 1) / 2;
+            dispatcher.h = ((top_blob.c + 1) / 2 + 3) / 4;
             dispatcher.c = 1;
         }
 
@@ -1700,8 +1714,10 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
         }
         else if (use_cooperative_matrix)
         {
-            dispatcher.w = ((top_blob.w * top_blob.h + 15) / 16 + 3) / 4 * 32;
-            dispatcher.h = (top_blob.c + 1) / 2;
+            // dispatcher.w = ((top_blob.w * top_blob.h + 15) / 16 + 3) / 4 * 32;
+            dispatcher.w = ((top_blob.w * top_blob.h + 15) / 16 + 1) / 2 * 32;
+            // dispatcher.h = (top_blob.c + 1) / 2;
+            dispatcher.h = ((top_blob.c + 1) / 2 + 3) / 4;
             dispatcher.c = 1;
         }
 
