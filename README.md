@@ -1,9 +1,9 @@
 ![NCNN](https://raw.githubusercontent.com/Tencent/ncnn/master/images/256-ncnn.png)
 
-#ncnn
+# ncnn
 
-[![许可][badge-license]](LICENSE.txt)
-[![下载总数][badge-download-count]](https://github.com/Tencent/ncnn/releases)
+[![License][badge-license]](LICENSE.txt)
+[![Download Total Count][badge-download-count]](https://github.com/Tencent/ncnn/releases)
 [![codecov][badge-codecov]](https://codecov.io/gh/Tencent/ncnn)
 [![Language grade: C/C++][badge-code-quality]](https://lgtm.com/projects/g/Tencent/ncnn/context:cpp)
 
@@ -112,7 +112,7 @@ ncnn 目前已在腾讯多款应用中使用，如：QQ，Qzone，微信，天�
 [ci-ios-cpu]: https://github.com/Tencent/ncnn/actions?query=workflow%3Aios-cpu
 [ci-ios-simulator]: https://github.com/Tencent/ncnn/actions?query=workflow%3Aios-simulator
 [ci-ios-simulator]: https://github.com/Tencent/ncnn/actions?query=workflow%3Aios-simulator
-[ci-ios-模拟器-gpu]：https://GitHub.Com/Tencent/ncnn/actions?query=workflow%3aios-模拟器-gpu
+[ci-ios-simulator-gpu]：https://GitHub.Com/Tencent/ncnn/actions?query=workflow%3aios-simulator-gpu
 [ci-linux-aarch64-cpu-gcc]: https://github.com/Tencent/ncnn/actions?query=workflow%3Alinux-aarch64-cpu-gcc
 [ci-linux-arm-cpu-gcc]: https://github.com/Tencent/ncnn/actions?query=workflow%3Alinux-arm-cpu-gcc
 [ci-linux-loongarch64-cpu-gcc]: https://github.com/Tencent/ncnn/actions?query=workflow%3Alinux-loongarch64-cpu-gcc
