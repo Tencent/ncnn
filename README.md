@@ -74,6 +74,7 @@ ncnn 目前已在腾讯多款应用中使用，如：QQ，Qzone，微信，天�
 [pass-ios-cpu]: https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/ios-cpu.yml?branch=master
 [pass-ios-simulator]: https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/ios-simulator.yml?branch=master
 [pass-ios-simulator]: https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/ios-simulator.yml?branch=master
+[pass-ios-simulator-gpu]: https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/ios-simulator-gpu.yml?branch=master
 [pass-linux-aarch64-cpu-gcc]: https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/linux-aarch64-cpu-gcc.yml?branch=master
 [pass-linux-arm-cpu-gcc]: https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/linux-arm-cpu-gcc.yml?branch=master
 [pass-linux-loongarch64-cpu-gcc]: https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/linux-loongarch64-cpu-gcc.yml?branch=master
@@ -111,6 +112,7 @@ ncnn 目前已在腾讯多款应用中使用，如：QQ，Qzone，微信，天�
 [ci-ios-cpu]: https://github.com/Tencent/ncnn/actions?query=workflow%3Aios-cpu
 [ci-ios-simulator]: https://github.com/Tencent/ncnn/actions?query=workflow%3Aios-simulator
 [ci-ios-simulator]: https://github.com/Tencent/ncnn/actions?query=workflow%3Aios-simulator
+[ci-ios-simulator-gpu]: https://github.com/Tencent/ncnn/actions?query=workflow%3Aios-simulator-gpu
 [ci-linux-aarch64-cpu-gcc]: https://github.com/Tencent/ncnn/actions?query=workflow%3Alinux-aarch64-cpu-gcc
 [ci-linux-arm-cpu-gcc]: https://github.com/Tencent/ncnn/actions?query=workflow%3Alinux-arm-cpu-gcc
 [ci-linux-loongarch64-cpu-gcc]: https://github.com/Tencent/ncnn/actions?query=workflow%3Alinux-loongarch64-cpu-gcc
