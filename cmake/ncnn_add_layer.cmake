@@ -76,13 +76,6 @@ macro(ncnn_add_arch_opt_source class NCNN_TARGET_ARCH_OPT NCNN_TARGET_ARCH_OPT_C
 endmacro()
 
 macro(ncnn_add_layer class)
-    if(NCNN_VSX)
-        # Auto-translate SSE2 to VSX
-        if(NCNN_SSE2)
-            set(NCNN_TARGET_ARCH x86)
-        endif()
-    endif()
-
     string(TOLOWER ${class} name)
 
     # WITH_LAYER_xxx option
@@ -303,10 +296,4 @@ macro(ncnn_add_layer class)
     # generate layer_type_enum file
     set(layer_type_enum "${layer_type_enum}${class} = ${__LAYER_TYPE_ENUM_INDEX},\n")
     math(EXPR __LAYER_TYPE_ENUM_INDEX "${__LAYER_TYPE_ENUM_INDEX}+1")
-
-    if(NCNN_VSX)
-        if(NCNN_SSE2)
-            set(NCNN_TARGET_ARCH powerpc)
-        endif()
-    endif()
 endmacro()

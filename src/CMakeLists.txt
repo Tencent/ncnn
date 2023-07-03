@@ -48,12 +48,6 @@ endif()
 ncnn_src_group(ncnn_SRCS "sources")
 
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/layer/${NCNN_TARGET_ARCH}")
-if(NCNN_TARGET_ARCH STREQUAL "powerpc")
-    # Auto-translate SSE2 to VSX
-    if(NCNN_SSE2)
-        include_directories("${CMAKE_CURRENT_SOURCE_DIR}/layer/x86")
-    endif()
-endif()
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/../cmake/ncnn_generate_shader_spv_header.cmake)
 
@@ -505,18 +499,6 @@ if(NCNN_TARGET_ARCH STREQUAL "riscv" AND NOT C906)
         elseif(NCNN_COMPILER_SUPPORT_RVV)
             target_compile_options(ncnn PRIVATE -march=rv64gcv)
         endif()
-    endif()
-endif()
-
-if(NCNN_TARGET_ARCH STREQUAL "powerpc")
-    if(NOT NCNN_PPC64LE_MACHINE_TYPE STREQUAL "default")
-        target_compile_options(ncnn PRIVATE -mcpu=${NCNN_PPC64LE_MACHINE_TYPE} -mtune=${NCNN_PPC64LE_MACHINE_TYPE})
-    endif()
-
-    # Auto-translate SSE2 to VSX
-    if(NCNN_SSE2)
-        # Don't define __SSE3__ because it triggers usage of _MM_DENORMALS_ZERO_OFF, which isn't supported on ppc64le yet.
-        target_compile_options(ncnn PRIVATE -DNO_WARN_X86_INTRINSICS -D__MMX__ -D__SSE__ -D__SSE2__ -D__SSSE3__ -D__SSE4_1__)
     endif()
 endif()
 
