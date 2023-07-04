@@ -101,9 +101,9 @@ void main()
                 int w_offset = gz * psc(outc) * psc(c) * 4 + gy * psc(c) * 4 + (z + lxd8) * 2 * 8 + (lxm8 * 2 + j);
 
                 tmp_k0[tmp_ki] = weight_tm_data[w_offset];
-                tmp_k1[tmp_ki] = weight_tm_data[w_offset + psc(c) * 16];
-                tmp_k2[tmp_ki] = weight_tm_data[w_offset + psc(c) * 32];
-                tmp_k3[tmp_ki] = weight_tm_data[w_offset + psc(c) * 48];
+                tmp_k1[tmp_ki] = weight_tm_data[w_offset + psc(c) * 8];
+                tmp_k2[tmp_ki] = weight_tm_data[w_offset + psc(c) * 16];
+                tmp_k3[tmp_ki] = weight_tm_data[w_offset + psc(c) * 24];
             }
         }
 
@@ -161,9 +161,9 @@ void main()
                 int w_offset = gz * psc(outc) * psc(c) * 4 + gy * psc(c) * 4 + (z + lxd8) * 2 * 8 + (lxm8 * 2 + j);
 
                 tmp_k0[tmp_ki] = weight_tm_data[w_offset];
-                tmp_k1[tmp_ki] = weight_tm_data[w_offset + psc(c) * 16];
-                tmp_k2[tmp_ki] = weight_tm_data[w_offset + psc(c) * 32];
-                tmp_k3[tmp_ki] = weight_tm_data[w_offset + psc(c) * 48];
+                tmp_k1[tmp_ki] = weight_tm_data[w_offset + psc(c) * 8];
+                tmp_k2[tmp_ki] = weight_tm_data[w_offset + psc(c) * 16];
+                tmp_k3[tmp_ki] = weight_tm_data[w_offset + psc(c) * 24];
             }
         }
 
@@ -229,9 +229,9 @@ void main()
         for (int j = 0; j < 4; j++)
         {
             const int tmp_vi = lxm16 * 2 + lxd16 + j*16*2;
-            const int gi = gz * psc(outcstep) + (gy + lxd16 + j*4) * psc(outw) + (gx + lxm16);
+            const int gi = gz * psc(outcstep) + (gy + lxd16 + j*2) * psc(outw) + (gx + lxm16);
 
-            if (gy + j * 4 + lxd16 < psc(outc))
+            if (gy + j * 2 + lxd16 < psc(outc))
             {
                 if (gx + lxm16 < psc(outw)) top_tm_blob_data[gi] = tmp_v0[tmp_vi];
                 if (gx + lxm16 + 16 < psc(outw)) top_tm_blob_data[gi + 16] = tmp_v1[tmp_vi];
