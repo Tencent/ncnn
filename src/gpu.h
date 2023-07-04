@@ -55,6 +55,9 @@ extern int support_VK_EXT_validation_flags;
 extern int support_VK_KHR_android_surface;
 #endif // __ANDROID_API__ >= 26
 
+// VK_KHR_cooperative_matrix
+extern PFN_vkGetPhysicalDeviceCooperativeMatrixPropertiesKHR vkGetPhysicalDeviceCooperativeMatrixPropertiesKHR;
+
 // VK_KHR_external_memory_capabilities
 extern PFN_vkGetPhysicalDeviceExternalBufferPropertiesKHR vkGetPhysicalDeviceExternalBufferPropertiesKHR;
 
