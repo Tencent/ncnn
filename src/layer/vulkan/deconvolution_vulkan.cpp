@@ -294,13 +294,11 @@ int Deconvolution_vulkan::create_pipeline(const Option& _opt)
             pipeline_deconvolution_gemm = new Pipeline(vkdev);
             if (use_cooperative_matrix_16_16)
             {
-                // TODO proper unroll y
-                pipeline_deconvolution_gemm->set_local_size_xyz(32, 1, 1); // 16_16_16 ly*1
+                pipeline_deconvolution_gemm->set_local_size_xyz(32, 1, 1); // 16_16_16
             }
             else if (use_cooperative_matrix)
             {
-                // TODO proper unroll y
-                pipeline_deconvolution_gemm->set_local_size_xyz(32, 4, 1); // 16_8_8 ly*4
+                pipeline_deconvolution_gemm->set_local_size_xyz(32, 1, 1); // 16_8_8
             }
             else if (opt.use_shader_local_memory)
             {
@@ -582,8 +580,8 @@ int Deconvolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
             }
             else if (use_cooperative_matrix)
             {
-                dispatcher.w = ((top_blob_col.w + 15) / 16 + 3) / 4 * 32;
-                dispatcher.h = (top_blob_col.h + 1) / 2;
+                dispatcher.w = ((top_blob_col.w + 15) / 16 + 1) / 2 * 32;
+                dispatcher.h = ((top_blob_col.h + 1) / 2 + 3) / 4;
                 dispatcher.c = 1;
             }
 
