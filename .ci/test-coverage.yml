@@ -52,7 +52,7 @@ jobs:
       uses: cache@1.*
       with:
         cachePaths: swiftshader-install
-        cacheKey: swiftshader-linux-install-20230420
+        cacheKey: swiftshader-linux-install-20230420-1
 
     - name: checkout-swiftshader
       if: steps.cache-swiftshader.outputs.cacheHit != 'true'
@@ -126,7 +126,7 @@ jobs:
       uses: cache@1.*
       with:
         cachePaths: lavapipe-install
-        cacheKey: lavapipe-linux-install-20211127-3
+        cacheKey: lavapipe-linux-install-20211127-4
 
     - name: checkout-lavapipe
       if: steps.cache-lavapipe.outputs.cacheHit != 'true'
@@ -280,7 +280,7 @@ jobs:
       uses: cache@1.*
       with:
         cachePaths: qemu-install
-        cacheKey: qemu-arm-install-20220831
+        cacheKey: qemu-arm-install-20220831-1
 
     - name: checkout-qemu
       if: steps.cache-qemu.outputs.cacheHit != 'true'
@@ -386,7 +386,7 @@ jobs:
       uses: cache@1.*
       with:
         cachePaths: qemu-install
-        cacheKey: qemu-aarch64-install-20220831
+        cacheKey: qemu-aarch64-install-20220831-1
 
     - name: checkout-qemu
       if: steps.cache-qemu.outputs.cacheHit != 'true'
@@ -473,7 +473,7 @@ jobs:
       uses: cache@1.*
       with:
         cachePaths: qemu-install
-        cacheKey: qemu-mipsel-install-20220831
+        cacheKey: qemu-mipsel-install-20220831-1
 
     - name: checkout-qemu
       if: steps.cache-qemu.outputs.cacheHit != 'true'
@@ -552,7 +552,7 @@ jobs:
       uses: cache@1.*
       with:
         cachePaths: qemu-install
-        cacheKey: qemu-mips64el-install-20220831
+        cacheKey: qemu-mips64el-install-20220831-1
 
     - name: checkout-qemu
       if: steps.cache-qemu.outputs.cacheHit != 'true'
@@ -631,7 +631,7 @@ jobs:
       uses: cache@1.*
       with:
         cachePaths: qemu-install
-        cacheKey: qemu-riscv64-install-20230624
+        cacheKey: qemu-riscv64-install-20230624-1
 
     - name: checkout-qemu
       if: steps.cache-qemu.outputs.cacheHit != 'true'
@@ -716,7 +716,7 @@ jobs:
       uses: cache@1.*
       with:
         cachePaths: qemu-install
-        cacheKey: qemu-riscv64-install-20230624
+        cacheKey: qemu-riscv64-install-20230624-1
 
     - name: checkout-qemu
       if: steps.cache-qemu.outputs.cacheHit != 'true'
@@ -751,7 +751,7 @@ jobs:
       uses: cache@1.*
       with:
         cachePaths: rv64gcv-install
-        cacheKey: rv64gcv-linux-install-20221029
+        cacheKey: rv64gcv-linux-install-20221029-1
 
     - name: checkout-riscv-gnu-toolchain
       if: steps.cache-rv64gcv.outputs.cacheHit != 'true'
@@ -861,7 +861,7 @@ jobs:
       uses: cache@1.*
       with:
         cachePaths: qemu-install
-        cacheKey: qemu-loongarch64-install-20230524
+        cacheKey: qemu-loongarch64-install-20230524-1
 
     - name: checkout-qemu
       if: steps.cache-qemu.outputs.cacheHit != 'true'
