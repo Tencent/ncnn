@@ -504,7 +504,7 @@ endif()
 
 if(NCNN_PPC64LE_VSX)
     # Auto-translate SSE4.1 to VSX if compiler is new enough.
-    if(NCNN_SSE4_1)
+    if(NCNN_SSE41)
         target_compile_options(ncnn PRIVATE -DNO_WARN_X86_INTRINSICS -D__SSE4_1__)
     endif()
 endif()
