@@ -502,6 +502,13 @@ if(NCNN_TARGET_ARCH STREQUAL "riscv" AND NOT C906)
     endif()
 endif()
 
+if(NCNN_PPC64LE_VSX)
+    # Auto-translate SSE4.1 to VSX if compiler is new enough.
+    if(NCNN_SSE41)
+        target_compile_options(ncnn PRIVATE -DNO_WARN_X86_INTRINSICS -D__SSE4_1__)
+    endif()
+endif()
+
 if(NCNN_COVERAGE)
     target_compile_options(ncnn PUBLIC -coverage -fprofile-arcs -ftest-coverage)
     target_link_libraries(ncnn PUBLIC -coverage -lgcov)
