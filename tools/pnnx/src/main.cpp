@@ -47,7 +47,10 @@
 
 static std::string get_basename(const std::string& path)
 {
-    return path.substr(0, path.find_last_of('.'));
+    std::string base = path.substr(0, path.find_last_of('.'));
+    // sanitize -
+    std::replace(base.begin(), base.end(), '-', '_');
+    return base;
 }
 
 static void parse_string_list(char* s, std::vector<std::string>& list)
