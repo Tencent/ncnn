@@ -16,5 +16,4 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}" CACHE STRING "c flags")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}" CACHE STRING "c++ flags")
 
 # Auto-translate SSE to VSX
-set(NCNN_TARGET_ARCH x86)
 set(NCNN_PPC64LE_VSX ON)
