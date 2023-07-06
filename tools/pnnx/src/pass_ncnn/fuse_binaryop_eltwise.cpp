@@ -48,6 +48,13 @@ pnnx.Output             output      1 0 out
         return "weighted_sum";
     }
 
+    bool match(const std::map<std::string, const Operator*>& matched_operators) const
+    {
+        auto a_shape = matched_operators.at("op_0")->inputs[0]->shape;
+        auto b_shape = matched_operators.at("op_1")->inputs[0]->shape;
+        return !a_shape.empty() && a_shape == b_shape;
+    }
+
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
     {
         float c0 = 1.f;
@@ -93,6 +100,13 @@ pnnx.Output             output      1 0 out
         return "weighted_sum";
     }
 
+    bool match(const std::map<std::string, const Operator*>& matched_operators) const
+    {
+        auto a_shape = matched_operators.at("op_0")->inputs[0]->shape;
+        auto b_shape = matched_operators.at("op_1")->inputs[1]->shape;
+        return !a_shape.empty() && a_shape == b_shape;
+    }
+
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
     {
         float c0 = 1.f;
@@ -131,6 +145,13 @@ pnnx.Output             output      1 0 out
     const char* name_str() const
     {
         return "weighted_sum";
+    }
+
+    bool match(const std::map<std::string, const Operator*>& matched_operators) const
+    {
+        auto a_shape = matched_operators.at("op_1")->inputs[0]->shape;
+        auto b_shape = matched_operators.at("op_0")->inputs[0]->shape;
+        return !a_shape.empty() && a_shape == b_shape;
     }
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
