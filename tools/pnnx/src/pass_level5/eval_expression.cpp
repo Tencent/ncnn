@@ -14,6 +14,8 @@
 
 #include "eval_expression.h"
 
+#include <fenv.h>
+#include <float.h>
 #include <math.h>
 
 #include <iostream>
@@ -276,14 +278,10 @@ static std::string eval_expression(const Operator* op)
                 if (t == "round")
                 {
                     // round to nearest even
-#if FLT_ROUNDS != FE_TONEAREST
                     int old_rm = fegetround();
                     fesetround(FE_TONEAREST);
-#endif
                     float r = nearbyintf(af);
-#if FLT_ROUNDS != FE_TONEAREST
                     fesetround(old_rm);
-#endif
                     exprstack.push(std::to_string(r));
                 }
                 if (t == "rsqrt")
