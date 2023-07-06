@@ -138,7 +138,7 @@ void insert_reshape_numpy_binaryop_broadcast(Graph& graph)
                 reshape0_shape.insert(reshape0_shape.begin(), 1);
             }
 
-            if (batch_index0 != -233)
+            if (batch_index0 != 233)
             {
                 reshape0_shape.insert(reshape0_shape.begin() + batch_index0, 1);
             }
