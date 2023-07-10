@@ -30,8 +30,8 @@ class Model(nn.Module):
         else:
             self.conv_3 = nn.Conv3d(in_channels=24, out_channels=28, kernel_size=(5,4,3), stride=1, padding='valid', dilation=1, groups=4, bias=True)
             self.conv_4 = nn.Conv3d(in_channels=28, out_channels=32, kernel_size=3, stride=1, padding='same', dilation=(1,2,2), groups=2, bias=False, padding_mode='zeros')
-        #self.conv_5 = nn.Conv3d(in_channels=32, out_channels=32, kernel_size=2, stride=2, padding=3, dilation=1, groups=32, bias=True, padding_mode='reflect')
-        #self.conv_6 = nn.Conv3d(in_channels=32, out_channels=28, kernel_size=2, stride=1, padding=2, dilation=1, groups=1, bias=False, padding_mode='replicate')
+        self.conv_5 = nn.Conv3d(in_channels=32, out_channels=32, kernel_size=2, stride=2, padding=3, dilation=1, groups=32, bias=True, padding_mode='reflect')
+        self.conv_6 = nn.Conv3d(in_channels=32, out_channels=28, kernel_size=2, stride=1, padding=2, dilation=1, groups=1, bias=False, padding_mode='replicate')
         #self.conv_7 = nn.Conv3d(in_channels=28, out_channels=24, kernel_size=3, stride=2, padding=(5,6), dilation=2, groups=1, bias=True, padding_mode='circular')
 
     def forward(self, x):
@@ -40,8 +40,8 @@ class Model(nn.Module):
         x = self.conv_2(x)
         x = self.conv_3(x)
         x = self.conv_4(x)
-        #x = self.conv_5(x)
-        #x = self.conv_6(x)
+        x = self.conv_5(x)
+        x = self.conv_6(x)
         #x = self.conv_7(x)
 
         return x

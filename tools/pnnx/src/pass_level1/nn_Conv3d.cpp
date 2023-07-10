@@ -47,6 +47,7 @@ public:
 
         const torch::jit::Node* convolution = find_node_by_kind(graph, "aten::_convolution");
         const torch::jit::Node* convolution_mode = find_node_by_kind(graph, "aten::_convolution_mode");
+        const torch::jit::Node* pad = find_node_by_kind(graph, "aten::pad");
         //         const torch::jit::Node* reflection_pad3d = find_node_by_kind(graph, "aten::reflection_pad3d");
         //         const torch::jit::Node* replication_pad3d = find_node_by_kind(graph, "aten::replication_pad3d");
 
@@ -62,6 +63,25 @@ public:
         op->params["out_channels"] = weight.size(0);
         op->params["kernel_size"] = Parameter{weight.size(2), weight.size(3), weight.size(4)};
         op->params["stride"] = convolution->namedInput("stride");
+        if (pad)
+        {
+            op->params["padding_mode"] = pad->namedInput("mode");
+            op->params["padding"] = pad->namedInput("pad");
+            std::vector<int>& padding = op->params["padding"].ai;
+            if (padding.size() == 6)
+            {
+                // Conv3d only accepts tuple of three integers
+                if (padding[0] == padding[1] && padding[1] == padding[2] && padding[2] == padding[3] && padding[3] == padding[4] && padding[4] == padding[5])
+                {
+                    padding.resize(3);
+                }
+                else if (padding[0] == padding[3] && padding[1] == padding[4] && padding[2] == padding[5] && padding[0] != padding[1] && padding[1] != padding[2])
+                {
+                    padding.resize(0);
+                    op->params["padding"].s = "same";
+                }
+            }
+        }
         //         if (reflection_pad3d)
         //         {
         //             op->params["padding_mode"] = "reflect";
@@ -100,7 +120,7 @@ public:
         //                 }
         //             }
         //         }
-        //         else
+        else
         {
             op->params["padding_mode"] = "zeros";
             op->params["padding"] = convolution->namedInput("padding");
