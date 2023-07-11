@@ -292,6 +292,7 @@ pnnx_add_test(vit_b_32)
 #pnnx_add_test(quantization_shufflenet_v2_x1_0)
 
 pnnx_add_test(pnnx_eliminate_noop_cat)
+pnnx_add_test(pnnx_eliminate_noop_expand)
 pnnx_add_test(pnnx_eliminate_noop_math)
 pnnx_add_test(pnnx_eliminate_noop_upsample)
 pnnx_add_test(pnnx_fold_constant)
