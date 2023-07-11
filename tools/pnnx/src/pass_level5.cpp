@@ -20,6 +20,7 @@
 #include "pass_level5/eliminate_identity_operator.h"
 #include "pass_level5/eliminate_noop_cat.h"
 #include "pass_level5/eliminate_noop_einsum.h"
+#include "pass_level5/eliminate_noop_expand.h"
 #include "pass_level5/eliminate_noop_expression.h"
 #include "pass_level5/eliminate_noop_pad.h"
 #include "pass_level5/eliminate_noop_upsample.h"
@@ -124,6 +125,7 @@ void pass_level5(Graph& g, const std::set<std::string>& foldable_constants, cons
     eliminate_noop_view_reshape(g);
 
     eliminate_reshape_shape_expression(g);
+    eliminate_noop_expand(g);
 
     fuse_channel_shuffle(g);
     fuse_layernorm(g);
