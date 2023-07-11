@@ -1878,9 +1878,7 @@ int VulkanDevicePrivate::create_dummy_buffer_image()
     cmd.record_dummy_readonly(dummy_image_readonly);
 #endif
 
-    cmd.submit_and_wait();
-
-    return 0;
+    return cmd.submit_and_wait();
 }
 
 void VulkanDevicePrivate::destroy_dummy_buffer_image()
@@ -2289,7 +2287,11 @@ VulkanDevice::VulkanDevice(int device_index)
         }
     }
 
-    d->create_dummy_buffer_image();
+    int cret = d->create_dummy_buffer_image();
+    if (cret != 0)
+    {
+        NCNN_LOGE("VulkanDevice create_dummy_buffer_image failed %d", cret);
+    }
 
     d->pipeline_cache = new PipelineCache(this);
 
