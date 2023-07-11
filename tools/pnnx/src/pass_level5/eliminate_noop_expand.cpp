@@ -32,8 +32,10 @@ void eliminate_noop_expand(Graph& graph)
             if (op->type != "Tensor.expand_as" && op->type != "Tensor.expand")
                 continue;
 
+            Operand* expand_out = op->outputs[0];
+
             bool all_consumers_are_expr = true;
-            for (auto& x : op->outputs[0]->consumers)
+            for (auto& x : expand_out->consumers)
             {
                 if (x->type != "pnnx.Expression")
                 {
@@ -53,7 +55,7 @@ void eliminate_noop_expand(Graph& graph)
                 continue;
 
             bool noop_expand = true;
-            for (auto& x : op->outputs[0]->consumers)
+            for (auto& x : expand_out->consumers)
             {
                 const std::vector<int>& outshape = x->outputs[0]->shape;
                 if (outshape.empty())
@@ -71,9 +73,37 @@ void eliminate_noop_expand(Graph& graph)
 
                 for (size_t j = 0; j < inshape.size(); j++)
                 {
-                    if ((inshape[j] == outshape[j] && outshape[j] != -1) || inshape[j] == 1)
+                    if ((inshape[j] == outshape[j] && outshape[j] != -1) || inshape[j] == 1 || outshape[j] == 1)
                         continue;
 
+                    noop_expand = false;
+                    break;
+                }
+            }
+
+            // check if our expand is the base shape
+            // so we do not drop expand for add(expand(x,shape),1.2)
+            for (auto& x : expand_out->consumers)
+            {
+                const std::vector<int>& outshape = x->outputs[0]->shape;
+
+                std::vector<int> broadcasted_shape = inshape;
+                for (const auto& r : x->inputs)
+                {
+                    if (r == expand_out)
+                        continue;
+
+                    if (r->shape.size() != inshape.size())
+                        continue;
+
+                    for (size_t j = 0; j < broadcasted_shape.size(); j++)
+                    {
+                        broadcasted_shape[j] = std::max(broadcasted_shape[j], r->shape[j]);
+                    }
+                }
+
+                if (broadcasted_shape != outshape)
+                {
                     noop_expand = false;
                     break;
                 }
@@ -89,8 +119,6 @@ void eliminate_noop_expand(Graph& graph)
             {
                 x->remove_consumer(op);
             }
-
-            Operand* expand_out = op->outputs[0];
 
             for (auto& x : expand_out->consumers)
             {

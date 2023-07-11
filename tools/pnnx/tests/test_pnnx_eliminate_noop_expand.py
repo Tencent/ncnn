@@ -25,6 +25,7 @@ class Model(nn.Module):
                 y0 - y1.expand_as(y0), y1.expand(y0.size()) - y0,
                 y0 - y2.expand_as(y0), y2.expand(y0.size()) - y0,
                 y0 - y3.expand_as(y0), y3.expand(y0.size()) - y0,
+                y1 - y2.expand_as(y0), y2.expand(y0.size()) - y1,
                 y1 - y3.expand_as(y1), y3.expand(y1.size()) - y1,
                 y2 - y3.expand_as(y2), y3.expand(y2.size()) - y2,
                 z0 - z1.expand_as(z0), z1.expand(z0.size()) - z0,
@@ -34,16 +35,25 @@ class Model(nn.Module):
                 z0 - z5.expand_as(z0), z5.expand(z0.size()) - z0,
                 z0 - z6.expand_as(z0), z6.expand(z0.size()) - z0,
                 z0 - z7.expand_as(z0), z7.expand(z0.size()) - z0,
+                z1 - z2.expand_as(z0), z2.expand(z0.size()) - z1,
+                z1 - z3.expand_as(z0), z3.expand(z0.size()) - z1,
                 z1 - z4.expand_as(z1), z4.expand(z1.size()) - z1,
                 z1 - z5.expand_as(z1), z5.expand(z1.size()) - z1,
+                z1 - z6.expand_as(z3), z6.expand(z3.size()) - z1,
                 z1 - z7.expand_as(z1), z7.expand(z1.size()) - z1,
+                z2 - z3.expand_as(z0), z3.expand(z0.size()) - z2,
                 z2 - z4.expand_as(z2), z4.expand(z2.size()) - z2,
+                z2 - z5.expand_as(z3), z5.expand(z3.size()) - z2,
                 z2 - z6.expand_as(z2), z6.expand(z2.size()) - z2,
                 z2 - z7.expand_as(z2), z7.expand(z2.size()) - z2,
+                z3 - z4.expand_as(z1), z4.expand(z1.size()) - z3,
                 z3 - z5.expand_as(z3), z5.expand(z3.size()) - z3,
                 z3 - z6.expand_as(z3), z6.expand(z3.size()) - z3,
                 z3 - z7.expand_as(z3), z7.expand(z3.size()) - z3,
+                z4 - z5.expand_as(z1), z5.expand(z1.size()) - z4,
+                z4 - z6.expand_as(z2), z6.expand(z2.size()) - z4,
                 z4 - z7.expand_as(z4), z7.expand(z4.size()) - z4,
+                z5 - z6.expand_as(z3), z6.expand(z3.size()) - z5,
                 z5 - z7.expand_as(z5), z7.expand(z5.size()) - z5,
                 z6 - z7.expand_as(z6), z7.expand(z6.size()) - z6,
                 w0 - w1.expand_as(w0), w1.expand(w0.size()) - w0,
@@ -110,7 +120,13 @@ class Model(nn.Module):
                 w11 - w15.expand_as(w11), w15.expand(w11.size()) - w11,
                 w12 - w15.expand_as(w12), w15.expand(w12.size()) - w12,
                 w13 - w15.expand_as(w13), w15.expand(w13.size()) - w13,
-                w14 - w15.expand_as(w14), w15.expand(w14.size()) - w14)
+                w14 - w15.expand_as(w14), w15.expand(w14.size()) - w14,
+
+                # some negative cases
+                w11.expand_as(w5) - w14.expand_as(w10),
+                w5.expand(w1.size()) - w11,
+                w15.expand(6, 7, 8, 9) - w14
+                )
 
 def test():
     net = Model()
@@ -163,6 +179,9 @@ def test():
     b = test_pnnx_eliminate_noop_expand_pnnx.test_inference()
 
     for a0, b0 in zip(a, b):
+        # allclose may auto broadcast compare
+        if a0.shape != b0.shape:
+            return False
         if not torch.allclose(a0, b0, 1e-4, 1e-4):
             return False
     return True
