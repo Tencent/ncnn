@@ -1028,8 +1028,14 @@ ncnn_layer_t ncnn_layer_create()
 
 ncnn_layer_t ncnn_layer_create_by_typeindex(int typeindex)
 {
+    void* pthis = (void*)(ncnn::create_layer(typeindex));
+    if (!pthis)
+    {
+        return 0;
+    }
+
     ncnn_layer_t layer = (ncnn_layer_t)malloc(sizeof(__ncnn_layer_t));
-    layer->pthis = (void*)(ncnn::create_layer(typeindex));
+    layer->pthis = pthis;
     layer->load_param = __ncnn_layer_load_param;
     layer->load_model = __ncnn_layer_load_model;
     layer->create_pipeline = __ncnn_layer_create_pipeline;
@@ -1044,8 +1050,14 @@ ncnn_layer_t ncnn_layer_create_by_typeindex(int typeindex)
 #if NCNN_STRING
 ncnn_layer_t ncnn_layer_create_by_type(const char* type)
 {
+    void* pthis = (void*)(ncnn::create_layer(type));
+    if (!pthis)
+    {
+        return 0;
+    }
+
     ncnn_layer_t layer = (ncnn_layer_t)malloc(sizeof(__ncnn_layer_t));
-    layer->pthis = (void*)(ncnn::create_layer(type));
+    layer->pthis = pthis;
     layer->load_param = __ncnn_layer_load_param;
     layer->load_model = __ncnn_layer_load_model;
     layer->create_pipeline = __ncnn_layer_create_pipeline;
