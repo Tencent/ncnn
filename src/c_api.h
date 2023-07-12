@@ -210,6 +210,7 @@ NCNN_EXPORT ncnn_layer_t ncnn_layer_create();
 NCNN_EXPORT ncnn_layer_t ncnn_layer_create_by_typeindex(int typeindex);
 #if NCNN_STRING
 NCNN_EXPORT ncnn_layer_t ncnn_layer_create_by_type(const char* type);
+NCNN_EXPORT int ncnn_layer_type_to_index(const char* type);
 #endif /* NCNN_STRING */
 NCNN_EXPORT void ncnn_layer_destroy(ncnn_layer_t layer);
 
