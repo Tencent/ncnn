@@ -20,6 +20,8 @@
 #include <float.h>
 
 namespace ncnn {
+#define GLOBALPOOLING_WORKGROUPSIZE_X 16
+#define GLOBALPOOLING_WORKGROUPSIZE_Y 16
 
 Pooling_vulkan::Pooling_vulkan()
 {
@@ -169,13 +171,7 @@ int Pooling_vulkan::create_pipeline(const Option& _opt)
         specializations[1 + 8].i = out_shape_packed.c;
         specializations[1 + 9].i = out_shape_packed.cstep;
 
-        Mat local_size_xyz(64, 1, 1, (void*)0);
-        if (out_shape_packed.dims != 0)
-        {
-            local_size_xyz.w = std::min(64, out_shape_packed.w);
-            local_size_xyz.h = 1;
-            local_size_xyz.c = 1;
-        }
+        Mat local_size_xyz(GLOBALPOOLING_WORKGROUPSIZE_X, GLOBALPOOLING_WORKGROUPSIZE_Y, 1, (void*)0);
 
         // pack1
         if (shape.dims == 0 || elempack == 1)
@@ -380,7 +376,7 @@ int Pooling_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
         bindings[0] = bottom_blob;
         bindings[1] = top_blob;
 
-        std::vector<vk_constant_type> constants(10);
+        std::vector<vk_constant_type> constants(13);
         constants[0].i = bottom_blob.dims;
         constants[1].i = bottom_blob.w;
         constants[2].i = bottom_blob.h;
@@ -391,12 +387,19 @@ int Pooling_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
         constants[7].i = top_blob.h;
         constants[8].i = top_blob.c;
         constants[9].i = top_blob.cstep;
+        constants[10].i = (bottom_blob.cstep + GLOBALPOOLING_WORKGROUPSIZE_X * GLOBALPOOLING_WORKGROUPSIZE_Y - 1) / (GLOBALPOOLING_WORKGROUPSIZE_X * GLOBALPOOLING_WORKGROUPSIZE_Y);
+        constants[11].i = (bottom_blob.w + GLOBALPOOLING_WORKGROUPSIZE_X - 1) / GLOBALPOOLING_WORKGROUPSIZE_X;
+        constants[12].i = (bottom_blob.h + GLOBALPOOLING_WORKGROUPSIZE_Y - 1) / GLOBALPOOLING_WORKGROUPSIZE_Y;
 
         const Pipeline* pipeline = elempack == 8 ? pipeline_pooling_global_pack8
                                    : elempack == 4 ? pipeline_pooling_global_pack4
                                    : pipeline_pooling_global;
+        ncnn::VkMat dispatcher;
+        dispatcher.w = 1;
+        dispatcher.h = 1;
+        dispatcher.c = bottom_blob.c;
 
-        cmd.record_pipeline(pipeline, bindings, constants, top_blob);
+        cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
 
         return 0;
     }

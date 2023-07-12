@@ -59,19 +59,43 @@ layout (push_constant) uniform parameter
     int outh;
     int outc;
     int outcstep;
+
+    uint perThreadWorkLoad1d;
+    uint perThreadWorkLoad2dInX;
+    uint perThreadWorkLoad2dInY;
 } p;
+
+#define GROUP_SIZE 256
+shared float sharedData0[GROUP_SIZE];
+shared float sharedData1[GROUP_SIZE];
+
+shared uint shared0Size;
+shared uint shared1Size;
 
 void main()
 {
-    int gx = int(gl_GlobalInvocationID.x);
-    int gy = int(gl_GlobalInvocationID.y);
-    int gz = int(gl_GlobalInvocationID.z);
+    uvec3 DTid = gl_GlobalInvocationID;
+    uvec3 GTid = gl_LocalInvocationID;
+    uvec3 Gid  = gl_WorkGroupID;
+    uint  GTIndex = gl_LocalInvocationIndex; //flatted index in a work group
 
-    if (gx >= psc(outw) || gy >= 1 || gz >= 1)
-        return;
+    if(GTIndex == 0)
+    {
+        shared0Size = 0;
+        shared1Size = 0;
+    }
+    barrier();
 
-    int size = psc(w) * psc(h);
-    int v_offset = gx * psc(cstep);
+#if NCNN_image_shader
+    // use for 2-dimension image
+    uint threadWorkLoadX = p.perThreadWorkLoad2dInX;
+    uint threadWorkLoadY = p.perThreadWorkLoad2dInY;
+#else
+    // use for 1-dimension buffer
+    uint threadWorkLoad = p.perThreadWorkLoad1d;
+    uint groupWorkLoadEnd = (1 + Gid.z) * psc(cstep);
+    uint workLoadOffset = Gid.z * psc(cstep) + threadWorkLoad * GTIndex;
+#endif
 
     afp res;
 
@@ -80,47 +104,204 @@ void main()
         res = afp(-FLT_MAX);
 
 #if NCNN_image_shader
-        for (int y = 0; y < psc(h); y++)
+        // reduction to sharedData0
         {
-            for (int x = 0; x < psc(w); x++)
+            float temp = (-FLT_MAX);
+
+            uint threadWorkLoadBeginX = GTid.x * threadWorkLoadX;
+            uint threadWorkLoadBeginY = GTid.y * threadWorkLoadY;
+            uint threadWorkLoadEndX = threadWorkLoadBeginX + threadWorkLoadX;
+            uint threadWorkLoadEndY = threadWorkLoadBeginY + threadWorkLoadY;
+            uint threadWorkLoadEndXValid = min(threadWorkLoadEndX, psc(w));
+            uint threadWorkLoadEndYValid = min(threadWorkLoadEndY, psc(h));
+
+            uint validSize = 0;
+            for(uint y = threadWorkLoadBeginY; y < threadWorkLoadEndYValid; ++y)
+                for(uint x = threadWorkLoadBeginX; x < threadWorkLoadEndXValid; ++x)
+                {
+                    afp v = afp(image3d_ld1(bottom_blob, ivec3(x, y, Gid.z)));
+                    temp = max(temp, v);
+
+                    validSize++;
+                }
+            
+            if(validSize > 0)
             {
-                afp v = image3d_ld1(bottom_blob, ivec3(x, y, gx));
-                res = max(res, v);
+                atomicAdd(shared0Size, 1);
             }
+
+            sharedData0[GTIndex] = temp;
         }
 #else
-        for (int i = 0; i < size; i++)
+        // reduction to sharedData0
         {
-            afp v = buffer_ld1(bottom_blob_data, v_offset + i);
-            res = max(res, v);
+            float temp = (-FLT_MAX);
+            uint threadWorkLoadBegin = workLoadOffset;
+            uint threadWorkLoadEnd   = threadWorkLoadBegin + threadWorkLoad;
+            uint threadWorkLoadEndValid = min(threadWorkLoadEnd, groupWorkLoadEnd);
+
+            for(uint i = threadWorkLoadBegin; i < threadWorkLoadEndValid; ++i)
+            {
+                float var = float(buffer_ld1(bottom_blob_data, i));
+                temp = max(temp, var);
+            }
+
+            if(threadWorkLoadEndValid > threadWorkLoadBegin)
+            {
+                atomicAdd(shared0Size, 1);
+            }
+
+            sharedData0[GTIndex] = temp;
         }
 #endif
+        barrier();
+
+        // reduction to sharedData1
+        const uint SHARED_REDUCTION_WORKLOAD = 16;
+        const uint SHARED_REDUCTION_SIZE = (GROUP_SIZE / SHARED_REDUCTION_WORKLOAD);
+        if(GTIndex < SHARED_REDUCTION_SIZE)
+        {
+            float temp = (-FLT_MAX);
+            uint reductionBegin = GTIndex * SHARED_REDUCTION_WORKLOAD;
+            uint reductionEnd = reductionBegin + SHARED_REDUCTION_WORKLOAD;
+            uint reductionEndValid = min(shared0Size, reductionEnd);
+
+            for(uint i = reductionBegin; i < reductionEndValid; ++i)
+            {
+                temp = max(temp, sharedData0[i]);
+            }
+
+            if(reductionEndValid > reductionBegin)
+            {
+                atomicAdd(shared1Size, 1);
+            }
+
+            sharedData1[GTIndex] = temp;
+        }
+
+        barrier();
+
+        // reduction to final output
+        if(GTIndex == 0)
+        {
+            afp temp = afp(-FLT_MAX);
+
+            for(uint i = 0; i < shared1Size; ++i)
+            {
+                temp = max(temp, afp(sharedData1[i]));
+            }
+            res = max(res, temp);
+#if NCNN_image_shader
+            image3d_st1(top_blob, ivec3(Gid.z, 0, 0), res);
+#else
+            buffer_st1(top_blob_data, Gid.z, res);
+#endif
+        }
     }
-    if (pooling_type == 1)
+
+    if(pooling_type == 1)
     {
-        float sum = 0.f;
-
 #if NCNN_image_shader
-        for (int y = 0; y < psc(h); y++)
+        // reduction to sharedData0
         {
-            for (int x = 0; x < psc(w); x++)
+            float temp = 0.f;
+
+            uint threadWorkLoadBeginX = GTid.x * threadWorkLoadX;
+            uint threadWorkLoadBeginY = GTid.y * threadWorkLoadY;
+            uint threadWorkLoadEndX = threadWorkLoadBeginX + threadWorkLoadX;
+            uint threadWorkLoadEndY = threadWorkLoadBeginY + threadWorkLoadY;
+            uint threadWorkLoadEndXValid = min(threadWorkLoadEndX, psc(w));
+            uint threadWorkLoadEndYValid = min(threadWorkLoadEndY, psc(h));
+
+            uint validSize = 0;
+            for(uint y = threadWorkLoadBeginY; y < threadWorkLoadEndYValid; ++y)
+                for(uint x = threadWorkLoadBeginX; x < threadWorkLoadEndXValid; ++x)
+                {
+                    temp += float(image3d_ld1(bottom_blob, ivec3(x, y, Gid.z)));
+                    validSize++;
+                }
+            
+            if(validSize > 0)
             {
-                sum += float(image3d_ld1(bottom_blob, ivec3(x, y, gx)));
+                temp = (temp / validSize);
+                atomicAdd(shared0Size, 1);
             }
+
+            sharedData0[GTIndex] = temp;
         }
 #else
-        for (int i = 0; i < size; i++)
+        // reduction to sharedData0
         {
-            sum += float(buffer_ld1(bottom_blob_data, v_offset + i));
+            float temp = 0.f;
+
+            uint threadWorkLoadBegin = workLoadOffset;
+            uint threadWorkLoadEnd   = threadWorkLoadBegin + threadWorkLoad;
+            uint threadWorkLoadEndValid = min(threadWorkLoadEnd, groupWorkLoadEnd);
+
+            uint validSize = threadWorkLoadEndValid - threadWorkLoadBegin;
+
+            for(uint i = threadWorkLoadBegin; i < threadWorkLoadEndValid; ++i)
+            {
+                temp += float(buffer_ld1(bottom_blob_data, i));
+            }
+            
+            if(threadWorkLoadEndValid > threadWorkLoadBegin)
+            {
+                temp = (temp / validSize);
+                atomicAdd(shared0Size, 1);
+            }
+
+            sharedData0[GTIndex] = temp;
         }
 #endif
+        barrier();
 
-        res = afp(sum / size);
-    }
+        // reduction to sharedData1
+        const uint SHARED_REDUCTION_WORKLOAD = 16;
+        const uint SHARED_REDUCTION_SIZE = (GROUP_SIZE / SHARED_REDUCTION_WORKLOAD);
+        if(GTIndex < SHARED_REDUCTION_SIZE)
+        {
+            float temp = 0.f;
+
+            uint reductionBegin = GTIndex * SHARED_REDUCTION_WORKLOAD;
+            uint reductionEnd = reductionBegin + SHARED_REDUCTION_WORKLOAD;
+
+            uint reductionEndValid = min(shared0Size, reductionEnd);
+            uint validSize = reductionEndValid - reductionBegin;
+
+            for(uint i = reductionBegin; i < reductionEndValid; ++i)
+            {
+                temp += sharedData0[i];
+            }
+
+            if(reductionEndValid > reductionBegin)
+            {
+                temp = (temp / validSize);
+                atomicAdd(shared1Size, 1);
+            }
+
+            sharedData1[GTIndex] = temp;
+        }
+        
+        barrier();
+
+        // reduction to final output
+        if(GTIndex == 0)
+        {
+            float temp = 0.f;
+
+            for(uint i = 0; i < shared1Size; ++i)
+            {
+                temp += sharedData1[i];
+            }
+
+            res = afp(temp / shared1Size);
 
 #if NCNN_image_shader
-    image3d_st1(top_blob, ivec3(gx, 0, 0), res);
+            image3d_st1(top_blob, ivec3(Gid.z, 0, 0), res);
 #else
-    buffer_st1(top_blob_data, gx, res);
+            buffer_st1(top_blob_data, Gid.z, res);
 #endif
+        }
+    }
 }
