@@ -599,7 +599,7 @@ int Pooling_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob,
         bindings[0] = bottom_blob;
         bindings[1] = top_blob;
 
-        std::vector<vk_constant_type> constants(10);
+        std::vector<vk_constant_type> constants(13);
         constants[0].i = bottom_blob.dims;
         constants[1].i = bottom_blob.w;
         constants[2].i = bottom_blob.h;
@@ -610,12 +610,20 @@ int Pooling_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob,
         constants[7].i = top_blob.h;
         constants[8].i = top_blob.c;
         constants[9].i = 0; //top_blob.cstep;
+        constants[10].i = (bottom_blob.w * bottom_blob.h + GLOBALPOOLING_WORKGROUPSIZE_X * GLOBALPOOLING_WORKGROUPSIZE_Y - 1) / (GLOBALPOOLING_WORKGROUPSIZE_X * GLOBALPOOLING_WORKGROUPSIZE_Y);
+        constants[11].i = (bottom_blob.w + GLOBALPOOLING_WORKGROUPSIZE_X - 1) / GLOBALPOOLING_WORKGROUPSIZE_X;
+        constants[12].i = (bottom_blob.h + GLOBALPOOLING_WORKGROUPSIZE_Y - 1) / GLOBALPOOLING_WORKGROUPSIZE_Y;
 
         const Pipeline* pipeline = elempack == 8 ? pipeline_pooling_global_pack8
                                    : elempack == 4 ? pipeline_pooling_global_pack4
                                    : pipeline_pooling_global;
 
-        cmd.record_pipeline(pipeline, bindings, constants, top_blob);
+        ncnn::VkImageMat dispatcher;
+        dispatcher.w = 1;
+        dispatcher.h = 1;
+        dispatcher.c = bottom_blob.c;
+
+        cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
 
         return 0;
     }

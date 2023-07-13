@@ -86,6 +86,7 @@ void main()
     }
     barrier();
 
+    uint groupWorkLoad = p.w * p.h;
 #if NCNN_image_shader
     // use for 2-dimension image
     uint threadWorkLoadX = p.perThreadWorkLoad2dInX;
@@ -93,8 +94,8 @@ void main()
 #else
     // use for 1-dimension buffer
     uint threadWorkLoad = p.perThreadWorkLoad1d;
-    uint groupWorkLoadEnd = (1 + Gid.z) * psc(cstep);
-    uint workLoadOffset = Gid.z * psc(cstep) + threadWorkLoad * GTIndex;
+    uint groupWorkLoadEnd = groupWorkLoad + Gid.z * p.cstep;
+    uint workLoadOffset = Gid.z * p.cstep + threadWorkLoad * GTIndex;
 #endif
 
     afp res;
@@ -112,14 +113,14 @@ void main()
             uint threadWorkLoadBeginY = GTid.y * threadWorkLoadY;
             uint threadWorkLoadEndX = threadWorkLoadBeginX + threadWorkLoadX;
             uint threadWorkLoadEndY = threadWorkLoadBeginY + threadWorkLoadY;
-            uint threadWorkLoadEndXValid = min(threadWorkLoadEndX, psc(w));
-            uint threadWorkLoadEndYValid = min(threadWorkLoadEndY, psc(h));
+            uint threadWorkLoadEndXValid = min(threadWorkLoadEndX, p.w);
+            uint threadWorkLoadEndYValid = min(threadWorkLoadEndY, p.h);
 
             uint validSize = 0;
             for(uint y = threadWorkLoadBeginY; y < threadWorkLoadEndYValid; ++y)
                 for(uint x = threadWorkLoadBeginX; x < threadWorkLoadEndXValid; ++x)
                 {
-                    afp v = afp(image3d_ld1(bottom_blob, ivec3(x, y, Gid.z)));
+                    float v = image3d_ld1(bottom_blob, ivec3(x, y, Gid.z));
                     temp = max(temp, v);
 
                     validSize++;
@@ -127,10 +128,9 @@ void main()
             
             if(validSize > 0)
             {
-                atomicAdd(shared0Size, 1);
+                uint share0Index = atomicAdd(shared0Size, 1);
+                sharedData0[share0Index] = temp;
             }
-
-            sharedData0[GTIndex] = temp;
         }
 #else
         // reduction to sharedData0
@@ -148,10 +148,9 @@ void main()
 
             if(threadWorkLoadEndValid > threadWorkLoadBegin)
             {
-                atomicAdd(shared0Size, 1);
+                uint share0Index = atomicAdd(shared0Size, 1);
+                sharedData0[share0Index] = temp;
             }
-
-            sharedData0[GTIndex] = temp;
         }
 #endif
         barrier();
@@ -173,10 +172,9 @@ void main()
 
             if(reductionEndValid > reductionBegin)
             {
-                atomicAdd(shared1Size, 1);
+                uint share1Index = atomicAdd(shared1Size, 1);
+                sharedData1[share1Index] = temp;
             }
-
-            sharedData1[GTIndex] = temp;
         }
 
         barrier();
@@ -210,8 +208,8 @@ void main()
             uint threadWorkLoadBeginY = GTid.y * threadWorkLoadY;
             uint threadWorkLoadEndX = threadWorkLoadBeginX + threadWorkLoadX;
             uint threadWorkLoadEndY = threadWorkLoadBeginY + threadWorkLoadY;
-            uint threadWorkLoadEndXValid = min(threadWorkLoadEndX, psc(w));
-            uint threadWorkLoadEndYValid = min(threadWorkLoadEndY, psc(h));
+            uint threadWorkLoadEndXValid = min(threadWorkLoadEndX, p.w);
+            uint threadWorkLoadEndYValid = min(threadWorkLoadEndY, p.h);
 
             uint validSize = 0;
             for(uint y = threadWorkLoadBeginY; y < threadWorkLoadEndYValid; ++y)
@@ -223,11 +221,9 @@ void main()
             
             if(validSize > 0)
             {
-                temp = (temp / validSize);
-                atomicAdd(shared0Size, 1);
+                uint share0Index = atomicAdd(shared0Size, 1);
+                sharedData0[share0Index] = temp;
             }
-
-            sharedData0[GTIndex] = temp;
         }
 #else
         // reduction to sharedData0
@@ -247,11 +243,9 @@ void main()
             
             if(threadWorkLoadEndValid > threadWorkLoadBegin)
             {
-                temp = (temp / validSize);
-                atomicAdd(shared0Size, 1);
+                uint share0Index = atomicAdd(shared0Size, 1);
+                sharedData0[share0Index] = temp;
             }
-
-            sharedData0[GTIndex] = temp;
         }
 #endif
         barrier();
@@ -276,11 +270,9 @@ void main()
 
             if(reductionEndValid > reductionBegin)
             {
-                temp = (temp / validSize);
-                atomicAdd(shared1Size, 1);
+                uint share1Index = atomicAdd(shared1Size, 1);
+                sharedData1[share1Index] = temp;
             }
-
-            sharedData1[GTIndex] = temp;
         }
         
         barrier();
@@ -295,7 +287,7 @@ void main()
                 temp += sharedData1[i];
             }
 
-            res = afp(temp / shared1Size);
+            res = afp(temp / float(groupWorkLoad));
 
 #if NCNN_image_shader
             image3d_st1(top_blob, ivec3(Gid.z, 0, 0), res);
