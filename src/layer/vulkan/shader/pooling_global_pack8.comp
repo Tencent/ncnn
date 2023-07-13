@@ -301,8 +301,8 @@ void main()
                 temp[1] += sharedData1[i][1];
             }
 
-            res[0] = afpvec4(temp[0] / afpvec4(groupWorkLoad));
-            res[1] = afpvec4(temp[1] / afpvec4(groupWorkLoad));
+            res[0] = afpvec4(temp[0] / vec4(groupWorkLoad));
+            res[1] = afpvec4(temp[1] / vec4(groupWorkLoad));
 
 #if NCNN_image_shader
             image3d_st8(top_blob, ivec3(Gid.z, 0, 0), res);
