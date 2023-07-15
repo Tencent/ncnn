@@ -12,62 +12,36 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__
+void convolution_transform_kernel_packed_int8_avx2(const Mat& kernel, Mat& kernel_tm, int inch, int outch, int kernel_w, int kernel_h);
+#endif
+
 #if !(__AVX512VNNI__ || __AVXVNNI__ || __AVX2__ || __XOP__)
 #if NCNN_RUNTIME_CPU && NCNN_AVX512VNNI && __AVX512F__ && !__AVX512VNNI__
-void convolution_transform_kernel_packed_int8_avx512vnni(const Mat& kernel, Mat& kernel_tm, int inch, int outch, int kernel_w, int kernel_h);
 void convolution_packed_int8_avx512vnni(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_tm, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, const Option& opt);
 #endif
 
 #if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX2__ && !__AVXVNNI__
-void convolution_transform_kernel_packed_int8_avxvnni(const Mat& kernel, Mat& kernel_tm, int inch, int outch, int kernel_w, int kernel_h);
 void convolution_packed_int8_avxvnni(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_tm, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, const Option& opt);
 #endif
 
 #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__
-void convolution_transform_kernel_packed_int8_avx2(const Mat& kernel, Mat& kernel_tm, int inch, int outch, int kernel_w, int kernel_h);
 void convolution_packed_int8_avx2(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_tm, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, const Option& opt);
 #endif
 
 #if NCNN_RUNTIME_CPU && NCNN_XOP && __SSE2__ && !__XOP__
-void convolution_transform_kernel_packed_int8_xop(const Mat& kernel, Mat& kernel_tm, int inch, int outch, int kernel_w, int kernel_h);
 void convolution_packed_int8_xop(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_tm, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, const Option& opt);
 #endif
 #endif
 
 static void convolution_transform_kernel_packed_int8(const Mat& kernel, Mat& kernel_tm, int inch, int outch, int kernel_w, int kernel_h)
 {
-#if !(__AVX512VNNI__ || __AVXVNNI__ || __AVX2__ || __XOP__)
-#if NCNN_RUNTIME_CPU && NCNN_AVX512VNNI && __AVX512F__ && !__AVX512VNNI__
-    if (ncnn::cpu_support_x86_avx512_vnni())
-    {
-        convolution_transform_kernel_packed_int8_avx512vnni(kernel, kernel_tm, inch, outch, kernel_w, kernel_h);
-        return;
-    }
-#endif
-
-#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX2__ && !__AVXVNNI__
-    if (ncnn::cpu_support_x86_avx_vnni())
-    {
-        convolution_transform_kernel_packed_int8_avxvnni(kernel, kernel_tm, inch, outch, kernel_w, kernel_h);
-        return;
-    }
-#endif
-
 #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__
     if (ncnn::cpu_support_x86_avx2())
     {
         convolution_transform_kernel_packed_int8_avx2(kernel, kernel_tm, inch, outch, kernel_w, kernel_h);
         return;
     }
-#endif
-
-#if NCNN_RUNTIME_CPU && NCNN_XOP && __SSE2__ && !__XOP__
-    if (ncnn::cpu_support_x86_xop())
-    {
-        convolution_transform_kernel_packed_int8_xop(kernel, kernel_tm, inch, outch, kernel_w, kernel_h);
-        return;
-    }
-#endif
 #endif
 
     const int maxk = kernel_w * kernel_h;
@@ -188,11 +162,10 @@ static void convolution_transform_kernel_packed_int8(const Mat& kernel, Mat& ker
         signed char* g00 = kernel_tm.channel(q / 16);
 
         int p = 0;
-        __m512i _vindex = _mm512_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
-        _vindex = _mm512_mullo_epi32(_vindex, _mm512_set1_epi32(maxk));
-
         for (; p + 15 < inch; p += 16)
         {
+            __m512i _vindex = _mm512_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
+            _vindex = _mm512_mullo_epi32(_vindex, _mm512_set1_epi32(maxk));
             for (int k = 0; k < maxk; k++)
             {
                 __m128i _w0 = _mm512_cvtepi32_epi8(_mm512_i32gather_epi32(_vindex, kptr0 + k, sizeof(signed char)));
@@ -248,36 +221,22 @@ static void convolution_transform_kernel_packed_int8(const Mat& kernel, Mat& ker
             kptre += maxk * 16;
             kptrf += maxk * 16;
         }
-        __m256i _vindex256 = _mm512_extracti64x4_epi64(_vindex, 0);
         for (; p + 7 < inch; p += 8)
         {
+            __m256i _vindex0 = _mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7);
+            _vindex0 = _mm256_mullo_epi32(_vindex0, _mm256_set1_epi32(maxk));
+            __m256i _vindex1 = _mm256_add_epi32(_vindex0, _mm256_set1_epi32(inch * maxk));
+            __m512i _vindex = _mm512_inserti64x4(_mm512_castsi256_si512(_vindex0), _vindex1, 1);
             for (int k = 0; k < maxk; k++)
             {
-                __m128i _w0 = _mm256_cvtepi32_epi8(_mm256_i32gather_epi32((const int*)(kptr0 + k), _vindex256, sizeof(signed char)));
-                __m128i _w1 = _mm256_cvtepi32_epi8(_mm256_i32gather_epi32((const int*)(kptr1 + k), _vindex256, sizeof(signed char)));
-                __m128i _w2 = _mm256_cvtepi32_epi8(_mm256_i32gather_epi32((const int*)(kptr2 + k), _vindex256, sizeof(signed char)));
-                __m128i _w3 = _mm256_cvtepi32_epi8(_mm256_i32gather_epi32((const int*)(kptr3 + k), _vindex256, sizeof(signed char)));
-                __m128i _w4 = _mm256_cvtepi32_epi8(_mm256_i32gather_epi32((const int*)(kptr4 + k), _vindex256, sizeof(signed char)));
-                __m128i _w5 = _mm256_cvtepi32_epi8(_mm256_i32gather_epi32((const int*)(kptr5 + k), _vindex256, sizeof(signed char)));
-                __m128i _w6 = _mm256_cvtepi32_epi8(_mm256_i32gather_epi32((const int*)(kptr6 + k), _vindex256, sizeof(signed char)));
-                __m128i _w7 = _mm256_cvtepi32_epi8(_mm256_i32gather_epi32((const int*)(kptr7 + k), _vindex256, sizeof(signed char)));
-                __m128i _w8 = _mm256_cvtepi32_epi8(_mm256_i32gather_epi32((const int*)(kptr8 + k), _vindex256, sizeof(signed char)));
-                __m128i _w9 = _mm256_cvtepi32_epi8(_mm256_i32gather_epi32((const int*)(kptr9 + k), _vindex256, sizeof(signed char)));
-                __m128i _wa = _mm256_cvtepi32_epi8(_mm256_i32gather_epi32((const int*)(kptra + k), _vindex256, sizeof(signed char)));
-                __m128i _wb = _mm256_cvtepi32_epi8(_mm256_i32gather_epi32((const int*)(kptrb + k), _vindex256, sizeof(signed char)));
-                __m128i _wc = _mm256_cvtepi32_epi8(_mm256_i32gather_epi32((const int*)(kptrc + k), _vindex256, sizeof(signed char)));
-                __m128i _wd = _mm256_cvtepi32_epi8(_mm256_i32gather_epi32((const int*)(kptrd + k), _vindex256, sizeof(signed char)));
-                __m128i _we = _mm256_cvtepi32_epi8(_mm256_i32gather_epi32((const int*)(kptre + k), _vindex256, sizeof(signed char)));
-                __m128i _wf = _mm256_cvtepi32_epi8(_mm256_i32gather_epi32((const int*)(kptrf + k), _vindex256, sizeof(signed char)));
-
-                __m128i _w01 = _mm_unpacklo_epi64(_w0, _w1);
-                __m128i _w23 = _mm_unpacklo_epi64(_w2, _w3);
-                __m128i _w45 = _mm_unpacklo_epi64(_w4, _w5);
-                __m128i _w67 = _mm_unpacklo_epi64(_w6, _w7);
-                __m128i _w89 = _mm_unpacklo_epi64(_w8, _w9);
-                __m128i _wab = _mm_unpacklo_epi64(_wa, _wb);
-                __m128i _wcd = _mm_unpacklo_epi64(_wc, _wd);
-                __m128i _wef = _mm_unpacklo_epi64(_we, _wf);
+                __m128i _w01 = _mm512_cvtepi32_epi8(_mm512_i32gather_epi32(_vindex, kptr0 + k, sizeof(signed char)));
+                __m128i _w23 = _mm512_cvtepi32_epi8(_mm512_i32gather_epi32(_vindex, kptr2 + k, sizeof(signed char)));
+                __m128i _w45 = _mm512_cvtepi32_epi8(_mm512_i32gather_epi32(_vindex, kptr4 + k, sizeof(signed char)));
+                __m128i _w67 = _mm512_cvtepi32_epi8(_mm512_i32gather_epi32(_vindex, kptr6 + k, sizeof(signed char)));
+                __m128i _w89 = _mm512_cvtepi32_epi8(_mm512_i32gather_epi32(_vindex, kptr8 + k, sizeof(signed char)));
+                __m128i _wab = _mm512_cvtepi32_epi8(_mm512_i32gather_epi32(_vindex, kptra + k, sizeof(signed char)));
+                __m128i _wcd = _mm512_cvtepi32_epi8(_mm512_i32gather_epi32(_vindex, kptrc + k, sizeof(signed char)));
+                __m128i _wef = _mm512_cvtepi32_epi8(_mm512_i32gather_epi32(_vindex, kptre + k, sizeof(signed char)));
 
                 _mm_storeu_si128((__m128i*)g00, _w01);
                 _mm_storeu_si128((__m128i*)(g00 + 16), _w23);
@@ -291,132 +250,42 @@ static void convolution_transform_kernel_packed_int8(const Mat& kernel, Mat& ker
             }
 
             kptr0 += maxk * 8;
-            kptr1 += maxk * 8;
             kptr2 += maxk * 8;
-            kptr3 += maxk * 8;
             kptr4 += maxk * 8;
-            kptr5 += maxk * 8;
             kptr6 += maxk * 8;
-            kptr7 += maxk * 8;
             kptr8 += maxk * 8;
-            kptr9 += maxk * 8;
             kptra += maxk * 8;
-            kptrb += maxk * 8;
             kptrc += maxk * 8;
-            kptrd += maxk * 8;
             kptre += maxk * 8;
-            kptrf += maxk * 8;
         }
         for (; p + 1 < inch; p += 2)
         {
+            __m128i _vindex0 = _mm_setr_epi32(0, maxk, inch * maxk, inch * maxk + maxk);
+            __m128i _vindex1 = _mm_add_epi32(_vindex0, _mm_set1_epi32(inch * maxk * 2));
+            __m256i _vindex01 = _mm256_inserti128_si256(_mm256_castsi128_si256(_vindex0), _vindex1, 1);
+            __m256i _vindex23 = _mm256_add_epi32(_vindex01, _mm256_set1_epi32(inch * maxk * 4));
+            __m512i _vindex = _mm512_inserti64x4(_mm512_castsi256_si512(_vindex01), _vindex23, 1);
             for (int k = 0; k < maxk; k++)
             {
-                const signed char* k0 = kptr0 + k;
-                const signed char* k1 = kptr1 + k;
-                const signed char* k2 = kptr2 + k;
-                const signed char* k3 = kptr3 + k;
-                const signed char* k4 = kptr4 + k;
-                const signed char* k5 = kptr5 + k;
-                const signed char* k6 = kptr6 + k;
-                const signed char* k7 = kptr7 + k;
-                const signed char* k8 = kptr8 + k;
-                const signed char* k9 = kptr9 + k;
-                const signed char* ka = kptra + k;
-                const signed char* kb = kptrb + k;
-                const signed char* kc = kptrc + k;
-                const signed char* kd = kptrd + k;
-                const signed char* ke = kptre + k;
-                const signed char* kf = kptrf + k;
+                __m128i _w0 = _mm512_cvtepi32_epi8(_mm512_i32gather_epi32(_vindex, kptr0 + k, sizeof(signed char)));
+                __m128i _w1 = _mm512_cvtepi32_epi8(_mm512_i32gather_epi32(_vindex, kptr8 + k, sizeof(signed char)));
 
-                g00[0] = k0[0];
-                g00[1] = k0[maxk];
-                g00[2] = k1[0];
-                g00[3] = k1[maxk];
-                g00[4] = k2[0];
-                g00[5] = k2[maxk];
-                g00[6] = k3[0];
-                g00[7] = k3[maxk];
-                g00[8] = k4[0];
-                g00[9] = k4[maxk];
-                g00[10] = k5[0];
-                g00[11] = k5[maxk];
-                g00[12] = k6[0];
-                g00[13] = k6[maxk];
-                g00[14] = k7[0];
-                g00[15] = k7[maxk];
-                g00[16] = k8[0];
-                g00[17] = k8[maxk];
-                g00[18] = k9[0];
-                g00[19] = k9[maxk];
-                g00[20] = ka[0];
-                g00[21] = ka[maxk];
-                g00[22] = kb[0];
-                g00[23] = kb[maxk];
-                g00[24] = kc[0];
-                g00[25] = kc[maxk];
-                g00[26] = kd[0];
-                g00[27] = kd[maxk];
-                g00[28] = ke[0];
-                g00[29] = ke[maxk];
-                g00[30] = kf[0];
-                g00[31] = kf[maxk];
+                _mm_storeu_si128((__m128i*)g00, _w0);
+                _mm_storeu_si128((__m128i*)(g00 + 16), _w1);
                 g00 += 32;
             }
 
             kptr0 += maxk * 2;
-            kptr1 += maxk * 2;
-            kptr2 += maxk * 2;
-            kptr3 += maxk * 2;
-            kptr4 += maxk * 2;
-            kptr5 += maxk * 2;
-            kptr6 += maxk * 2;
-            kptr7 += maxk * 2;
             kptr8 += maxk * 2;
-            kptr9 += maxk * 2;
-            kptra += maxk * 2;
-            kptrb += maxk * 2;
-            kptrc += maxk * 2;
-            kptrd += maxk * 2;
-            kptre += maxk * 2;
-            kptrf += maxk * 2;
         }
         for (; p < inch; p++)
         {
+            __m512i _vindex = _mm512_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
+            _vindex = _mm512_mullo_epi32(_vindex, _mm512_set1_epi32(inch * maxk));
             for (int k = 0; k < maxk; k++)
             {
-                const signed char* k0 = kptr0 + k;
-                const signed char* k1 = kptr1 + k;
-                const signed char* k2 = kptr2 + k;
-                const signed char* k3 = kptr3 + k;
-                const signed char* k4 = kptr4 + k;
-                const signed char* k5 = kptr5 + k;
-                const signed char* k6 = kptr6 + k;
-                const signed char* k7 = kptr7 + k;
-                const signed char* k8 = kptr8 + k;
-                const signed char* k9 = kptr9 + k;
-                const signed char* ka = kptra + k;
-                const signed char* kb = kptrb + k;
-                const signed char* kc = kptrc + k;
-                const signed char* kd = kptrd + k;
-                const signed char* ke = kptre + k;
-                const signed char* kf = kptrf + k;
-
-                g00[0] = k0[0];
-                g00[1] = k1[0];
-                g00[2] = k2[0];
-                g00[3] = k3[0];
-                g00[4] = k4[0];
-                g00[5] = k5[0];
-                g00[6] = k6[0];
-                g00[7] = k7[0];
-                g00[8] = k8[0];
-                g00[9] = k9[0];
-                g00[10] = ka[0];
-                g00[11] = kb[0];
-                g00[12] = kc[0];
-                g00[13] = kd[0];
-                g00[14] = ke[0];
-                g00[15] = kf[0];
+                __m128i _w0 = _mm512_cvtepi32_epi8(_mm512_i32gather_epi32(_vindex, kptr0 + k, sizeof(signed char)));
+                _mm_storeu_si128((__m128i*)g00, _w0);
                 g00 += 16;
             }
         }
@@ -441,11 +310,11 @@ static void convolution_transform_kernel_packed_int8(const Mat& kernel, Mat& ker
 
         int p = 0;
 #if __AVX512F__
-        __m512i _vindex = _mm512_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
-        _vindex = _mm512_mullo_epi32(_vindex, _mm512_set1_epi32(maxk));
-
         for (; p + 15 < inch; p += 16)
         {
+            __m512i _vindex = _mm512_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
+            _vindex = _mm512_mullo_epi32(_vindex, _mm512_set1_epi32(maxk));
+
             for (int k = 0; k < maxk; k++)
             {
                 __m128i _w0 = _mm512_cvtepi32_epi8(_mm512_i32gather_epi32(_vindex, kptr0 + k, sizeof(signed char)));
@@ -478,45 +347,40 @@ static void convolution_transform_kernel_packed_int8(const Mat& kernel, Mat& ker
             kptr7 += maxk * 16;
         }
 #endif // __AVX512F__
-        __m256i _vindex256 = _mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7);
-        _vindex256 = _mm256_mullo_epi32(_vindex256, _mm256_set1_epi32(maxk));
-#if !__AVX512F__
-        __m128i _sindex8 = _mm_setr_epi8(0, 4, 8, 12, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1);
-        __m256i _sindex88 = _mm256_inserti128_si256(_mm256_castsi128_si256(_sindex8), _sindex8, 1);
-        __m256i _pidx8 = _mm256_setr_epi32(0, 4, 1, 5, 2, 6, 3, 7);
-#endif // !__AVX512F__
         for (; p + 7 < inch; p += 8)
         {
+            __m256i _vindex0 = _mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7);
+            _vindex0 = _mm256_mullo_epi32(_vindex0, _mm256_set1_epi32(maxk));
+#if __AVX512F__
+            __m256i _vindex1 = _mm256_add_epi32(_vindex0, _mm256_set1_epi32(inch * maxk));
+            __m512i _vindex = _mm512_inserti64x4(_mm512_castsi256_si512(_vindex0), _vindex1, 1);
+#else
+            __m128i _sindex8 = _mm_setr_epi8(0, 4, 8, 12, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1);
+            __m256i _sindex88 = _mm256_inserti128_si256(_mm256_castsi128_si256(_sindex8), _sindex8, 1);
+            __m256i _pidx8 = _mm256_setr_epi32(0, 4, 1, 5, 2, 6, 3, 7);
+#endif
+
             for (int k = 0; k < maxk; k++)
             {
 #if __AVX512F__
-                __m128i _w0 = _mm256_cvtepi32_epi8(_mm256_i32gather_epi32((const int*)(kptr0 + k), _vindex256, sizeof(signed char)));
-                __m128i _w1 = _mm256_cvtepi32_epi8(_mm256_i32gather_epi32((const int*)(kptr1 + k), _vindex256, sizeof(signed char)));
-                __m128i _w2 = _mm256_cvtepi32_epi8(_mm256_i32gather_epi32((const int*)(kptr2 + k), _vindex256, sizeof(signed char)));
-                __m128i _w3 = _mm256_cvtepi32_epi8(_mm256_i32gather_epi32((const int*)(kptr3 + k), _vindex256, sizeof(signed char)));
-                __m128i _w4 = _mm256_cvtepi32_epi8(_mm256_i32gather_epi32((const int*)(kptr4 + k), _vindex256, sizeof(signed char)));
-                __m128i _w5 = _mm256_cvtepi32_epi8(_mm256_i32gather_epi32((const int*)(kptr5 + k), _vindex256, sizeof(signed char)));
-                __m128i _w6 = _mm256_cvtepi32_epi8(_mm256_i32gather_epi32((const int*)(kptr6 + k), _vindex256, sizeof(signed char)));
-                __m128i _w7 = _mm256_cvtepi32_epi8(_mm256_i32gather_epi32((const int*)(kptr7 + k), _vindex256, sizeof(signed char)));
-
-                __m128i _w01 = _mm_unpacklo_epi64(_w0, _w1);
-                __m128i _w23 = _mm_unpacklo_epi64(_w2, _w3);
-                __m128i _w45 = _mm_unpacklo_epi64(_w4, _w5);
-                __m128i _w67 = _mm_unpacklo_epi64(_w6, _w7);
+                __m128i _w01 = _mm512_cvtepi32_epi8(_mm512_i32gather_epi32(_vindex, kptr0 + k, sizeof(signed char)));
+                __m128i _w23 = _mm512_cvtepi32_epi8(_mm512_i32gather_epi32(_vindex, kptr2 + k, sizeof(signed char)));
+                __m128i _w45 = _mm512_cvtepi32_epi8(_mm512_i32gather_epi32(_vindex, kptr4 + k, sizeof(signed char)));
+                __m128i _w67 = _mm512_cvtepi32_epi8(_mm512_i32gather_epi32(_vindex, kptr6 + k, sizeof(signed char)));
 
                 _mm_storeu_si128((__m128i*)g00, _w01);
                 _mm_storeu_si128((__m128i*)(g00 + 16), _w23);
                 _mm_storeu_si128((__m128i*)(g00 + 16 * 2), _w45);
                 _mm_storeu_si128((__m128i*)(g00 + 16 * 3), _w67);
 #else
-                __m256i _w0 = _mm256_shuffle_epi8(_mm256_i32gather_epi32((const int*)(kptr0 + k), _vindex256, sizeof(signed char)), _sindex88);
-                __m256i _w1 = _mm256_shuffle_epi8(_mm256_i32gather_epi32((const int*)(kptr1 + k), _vindex256, sizeof(signed char)), _sindex88);
-                __m256i _w2 = _mm256_shuffle_epi8(_mm256_i32gather_epi32((const int*)(kptr2 + k), _vindex256, sizeof(signed char)), _sindex88);
-                __m256i _w3 = _mm256_shuffle_epi8(_mm256_i32gather_epi32((const int*)(kptr3 + k), _vindex256, sizeof(signed char)), _sindex88);
-                __m256i _w4 = _mm256_shuffle_epi8(_mm256_i32gather_epi32((const int*)(kptr4 + k), _vindex256, sizeof(signed char)), _sindex88);
-                __m256i _w5 = _mm256_shuffle_epi8(_mm256_i32gather_epi32((const int*)(kptr5 + k), _vindex256, sizeof(signed char)), _sindex88);
-                __m256i _w6 = _mm256_shuffle_epi8(_mm256_i32gather_epi32((const int*)(kptr6 + k), _vindex256, sizeof(signed char)), _sindex88);
-                __m256i _w7 = _mm256_shuffle_epi8(_mm256_i32gather_epi32((const int*)(kptr7 + k), _vindex256, sizeof(signed char)), _sindex88);
+                __m256i _w0 = _mm256_shuffle_epi8(_mm256_i32gather_epi32((const int*)(kptr0 + k), _vindex0, sizeof(signed char)), _sindex88);
+                __m256i _w1 = _mm256_shuffle_epi8(_mm256_i32gather_epi32((const int*)(kptr1 + k), _vindex0, sizeof(signed char)), _sindex88);
+                __m256i _w2 = _mm256_shuffle_epi8(_mm256_i32gather_epi32((const int*)(kptr2 + k), _vindex0, sizeof(signed char)), _sindex88);
+                __m256i _w3 = _mm256_shuffle_epi8(_mm256_i32gather_epi32((const int*)(kptr3 + k), _vindex0, sizeof(signed char)), _sindex88);
+                __m256i _w4 = _mm256_shuffle_epi8(_mm256_i32gather_epi32((const int*)(kptr4 + k), _vindex0, sizeof(signed char)), _sindex88);
+                __m256i _w5 = _mm256_shuffle_epi8(_mm256_i32gather_epi32((const int*)(kptr5 + k), _vindex0, sizeof(signed char)), _sindex88);
+                __m256i _w6 = _mm256_shuffle_epi8(_mm256_i32gather_epi32((const int*)(kptr6 + k), _vindex0, sizeof(signed char)), _sindex88);
+                __m256i _w7 = _mm256_shuffle_epi8(_mm256_i32gather_epi32((const int*)(kptr7 + k), _vindex0, sizeof(signed char)), _sindex88);
 
                 __m256i _w01 = _mm256_unpacklo_epi32(_w0, _w1);
                 __m256i _w23 = _mm256_unpacklo_epi32(_w2, _w3);
@@ -544,66 +408,52 @@ static void convolution_transform_kernel_packed_int8(const Mat& kernel, Mat& ker
         }
         for (; p + 1 < inch; p += 2)
         {
+            __m128i _vindex0 = _mm_setr_epi32(0, maxk, inch * maxk, inch * maxk + maxk);
+            __m128i _vindex1 = _mm_add_epi32(_vindex0, _mm_set1_epi32(inch * maxk * 2));
+            __m256i _vindex01 = _mm256_inserti128_si256(_mm256_castsi128_si256(_vindex0), _vindex1, 1);
+#if __AVX512F__
+            __m256i _vindex23 = _mm256_add_epi32(_vindex01, _mm256_set1_epi32(inch * maxk * 4));
+            __m512i _vindex = _mm512_inserti64x4(_mm512_castsi256_si512(_vindex01), _vindex23, 1);
+#else
+            __m128i _sindex8 = _mm_setr_epi8(0, 4, 8, 12, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1);
+            __m256i _sindex88 = _mm256_inserti128_si256(_mm256_castsi128_si256(_sindex8), _sindex8, 1);
+#endif
             for (int k = 0; k < maxk; k++)
             {
-                const signed char* k0 = kptr0 + k;
-                const signed char* k1 = kptr1 + k;
-                const signed char* k2 = kptr2 + k;
-                const signed char* k3 = kptr3 + k;
-                const signed char* k4 = kptr4 + k;
-                const signed char* k5 = kptr5 + k;
-                const signed char* k6 = kptr6 + k;
-                const signed char* k7 = kptr7 + k;
-
-                g00[0] = k0[0];
-                g00[1] = k0[maxk];
-                g00[2] = k1[0];
-                g00[3] = k1[maxk];
-                g00[4] = k2[0];
-                g00[5] = k2[maxk];
-                g00[6] = k3[0];
-                g00[7] = k3[maxk];
-                g00[8] = k4[0];
-                g00[9] = k4[maxk];
-                g00[10] = k5[0];
-                g00[11] = k5[maxk];
-                g00[12] = k6[0];
-                g00[13] = k6[maxk];
-                g00[14] = k7[0];
-                g00[15] = k7[maxk];
+#if __AVX512F__
+                __m128i _w0 = _mm512_cvtepi32_epi8(_mm512_i32gather_epi32(_vindex, kptr0 + k, sizeof(signed char)));
+#else
+                __m256i _w01 = _mm256_shuffle_epi8(_mm256_i32gather_epi32((const int*)(kptr0 + k), _vindex01, sizeof(signed char)), _sindex88);
+                __m256i _w23 = _mm256_shuffle_epi8(_mm256_i32gather_epi32((const int*)(kptr4 + k), _vindex01, sizeof(signed char)), _sindex88);
+                __m128i _w01xx = _mm_unpacklo_epi32(_mm256_extracti128_si256(_w01, 0), _mm256_extracti128_si256(_w01, 1));
+                __m128i _w23xx = _mm_unpacklo_epi32(_mm256_extracti128_si256(_w23, 0), _mm256_extracti128_si256(_w23, 1));
+                __m128i _w0 = _mm_unpacklo_epi64(_w01xx, _w23xx);
+#endif
+                _mm_storeu_si128((__m128i*)g00, _w0);
                 g00 += 16;
             }
 
             kptr0 += maxk * 2;
-            kptr1 += maxk * 2;
-            kptr2 += maxk * 2;
-            kptr3 += maxk * 2;
             kptr4 += maxk * 2;
-            kptr5 += maxk * 2;
-            kptr6 += maxk * 2;
-            kptr7 += maxk * 2;
         }
         for (; p < inch; p++)
         {
+            __m256i _vindex = _mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7);
+            _vindex = _mm256_mullo_epi32(_vindex, _mm256_set1_epi32(inch * maxk));
+#if !__AVX512F__
+            __m128i _sindex8 = _mm_setr_epi8(0, 4, 8, 12, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1);
+            __m256i _sindex88 = _mm256_inserti128_si256(_mm256_castsi128_si256(_sindex8), _sindex8, 1);
+#endif
             for (int k = 0; k < maxk; k++)
             {
-                const signed char* k0 = kptr0 + k;
-                const signed char* k1 = kptr1 + k;
-                const signed char* k2 = kptr2 + k;
-                const signed char* k3 = kptr3 + k;
-                const signed char* k4 = kptr4 + k;
-                const signed char* k5 = kptr5 + k;
-                const signed char* k6 = kptr6 + k;
-                const signed char* k7 = kptr7 + k;
-
-                g00[0] = k0[0];
-                g00[1] = k1[0];
-                g00[2] = k2[0];
-                g00[3] = k3[0];
-                g00[4] = k4[0];
-                g00[5] = k5[0];
-                g00[6] = k6[0];
-                g00[7] = k7[0];
+                __m256i _w32 = _mm256_i32gather_epi32((const int*)(kptr0 + k), _vindex, sizeof(signed char));
+#if __AVX512F__
+                __m128i _w0 = _mm256_cvtepi32_epi8(_w32);
+#else
+                __m256i _w01 = _mm256_shuffle_epi8(_w32, _sindex88);
+                __m128i _w0 = _mm_unpacklo_epi32(_mm256_extracti128_si256(_w01, 0), _mm256_extracti128_si256(_w01, 1));
+#endif
+                _mm_storeu_si64(g00, _w0);
                 g00 += 8;
             }
         }
@@ -660,6 +510,7 @@ static void convolution_transform_kernel_packed_int8(const Mat& kernel, Mat& ker
                 const signed char* k2 = kptr2 + k;
                 const signed char* k3 = kptr3 + k;
 
+                // TODO avx2 gather
                 for (int i = 0; i < 8; i++)
                 {
                     g00[0] = k0[0];
@@ -700,6 +551,7 @@ static void convolution_transform_kernel_packed_int8(const Mat& kernel, Mat& ker
                 const signed char* k2 = kptr2 + k;
                 const signed char* k3 = kptr3 + k;
 
+                // TODO avx2 gather
                 g00[0] = k0[0];
                 g00[1] = k0[maxk];
                 g00[2] = k1[0];
@@ -725,6 +577,7 @@ static void convolution_transform_kernel_packed_int8(const Mat& kernel, Mat& ker
                 const signed char* k2 = kptr2 + k;
                 const signed char* k3 = kptr3 + k;
 
+                // TODO avx2 gather
                 g00[0] = k0[0];
                 g00[1] = k1[0];
                 g00[2] = k2[0];
@@ -778,6 +631,7 @@ static void convolution_transform_kernel_packed_int8(const Mat& kernel, Mat& ker
                 const signed char* k0 = kptr0 + k;
                 const signed char* k1 = kptr1 + k;
 
+                // TODO avx2 gather
                 g00[0] = k0[0];
                 g00[1] = k0[maxk];
                 g00[2] = k0[maxk * 2];
@@ -808,14 +662,12 @@ static void convolution_transform_kernel_packed_int8(const Mat& kernel, Mat& ker
                 const signed char* k0 = kptr0 + k;
                 const signed char* k1 = kptr1 + k;
 
-                for (int i = 0; i < 2; i++)
-                {
-                    g00[0] = k0[0];
-                    g00[1] = k1[0];
-                    k0 += maxk;
-                    k1 += maxk;
-                    g00 += 2;
-                }
+                // TODO avx2 gather
+                g00[0] = k0[0];
+                g00[1] = k1[0];
+                g00[2] = k0[maxk];
+                g00[3] = k1[maxk];
+                g00 += 4;
             }
 
             kptr0 += maxk * 2;
@@ -873,6 +725,7 @@ static void convolution_transform_kernel_packed_int8(const Mat& kernel, Mat& ker
             {
                 const signed char* k0 = kptr + k;
 
+                // TODO avx2 gather
                 for (int i = 0; i < 8; i++)
                 {
                     g00[0] = k0[0];
@@ -890,12 +743,9 @@ static void convolution_transform_kernel_packed_int8(const Mat& kernel, Mat& ker
             {
                 const signed char* k0 = kptr + k;
 
-                for (int i = 0; i < 2; i++)
-                {
-                    g00[0] = k0[0];
-                    k0 += maxk;
-                    g00 += 1;
-                }
+                g00[0] = k0[0];
+                g00[1] = k0[maxk];
+                g00 += 2;
             }
 
             kptr += maxk * 2;
