@@ -287,7 +287,7 @@ if(NCNN_VULKAN)
 
     target_link_libraries(ncnn PUBLIC Vulkan::Vulkan)
     # Support mac platform static library compilation
-    if(NOT NCNN_SHARED_LIB AND CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin")
+    if(NOT NCNN_SHARED_LIB AND CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin" AND NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
         find_library(CoreFoundation NAMES CoreFoundation)
         find_library(Foundation NAMES Foundation)
         find_library(QuartzCore NAMES QuartzCore)
