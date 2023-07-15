@@ -476,11 +476,11 @@ static void convolution_transform_kernel_packed_int8(const Mat& kernel, Mat& ker
 
         int p = 0;
 #if __AVX512F__
-        __m512i _vindex = _mm512_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
-        _vindex = _mm512_mullo_epi32(_vindex, _mm512_set1_epi32(maxk));
-
         for (; p + 15 < inch; p += 16)
         {
+            __m512i _vindex = _mm512_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
+            _vindex = _mm512_mullo_epi32(_vindex, _mm512_set1_epi32(maxk));
+
             for (int k = 0; k < maxk; k++)
             {
                 __m128i _w0 = _mm512_cvtepi32_epi8(_mm512_i32gather_epi32(_vindex, kptr0 + k, sizeof(signed char)));
@@ -503,14 +503,47 @@ static void convolution_transform_kernel_packed_int8(const Mat& kernel, Mat& ker
 #endif // __AVX512F__
         for (; p + 7 < inch; p += 8)
         {
+#if __AVX2__
+            __m256i _vindex0 = _mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7);
+            _vindex0 = _mm256_mullo_epi32(_vindex0, _mm256_set1_epi32(maxk));
+#if __AVX512F__
+            __m256i _vindex1 = _mm256_add_epi32(_vindex0, _mm256_set1_epi32(inch * maxk));
+            __m512i _vindex = _mm512_inserti64x4(_mm512_castsi256_si512(_vindex0), _vindex1, 1);
+#else
+            __m128i _sindex8 = _mm_setr_epi8(0, 4, 8, 12, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1);
+            __m256i _sindex88 = _mm256_inserti128_si256(_mm256_castsi128_si256(_sindex8), _sindex8, 1);
+            __m256i _pidx8 = _mm256_setr_epi32(0, 4, 1, 5, 2, 6, 3, 7);
+#endif // __AVX512F__
+#endif // __AVX2__
+
             for (int k = 0; k < maxk; k++)
             {
+#if __AVX512F__
+                __m128i _w01 = _mm512_cvtepi32_epi8(_mm512_i32gather_epi32(_vindex, kptr0 + k, sizeof(signed char)));
+                __m128i _w23 = _mm512_cvtepi32_epi8(_mm512_i32gather_epi32(_vindex, kptr2 + k, sizeof(signed char)));
+
+                _mm_storeu_si128((__m128i*)g00, _w01);
+                _mm_storeu_si128((__m128i*)(g00 + 16), _w23);
+                g00 += 32;
+#elif __AVX2__
+                __m256i _w0 = _mm256_shuffle_epi8(_mm256_i32gather_epi32((const int*)(kptr0 + k), _vindex0, sizeof(signed char)), _sindex88);
+                __m256i _w1 = _mm256_shuffle_epi8(_mm256_i32gather_epi32((const int*)(kptr1 + k), _vindex0, sizeof(signed char)), _sindex88);
+                __m256i _w2 = _mm256_shuffle_epi8(_mm256_i32gather_epi32((const int*)(kptr2 + k), _vindex0, sizeof(signed char)), _sindex88);
+                __m256i _w3 = _mm256_shuffle_epi8(_mm256_i32gather_epi32((const int*)(kptr3 + k), _vindex0, sizeof(signed char)), _sindex88);
+
+                __m256i _w01 = _mm256_unpacklo_epi32(_w0, _w1);
+                __m256i _w23 = _mm256_unpacklo_epi32(_w2, _w3);
+                __m256i _w0123 = _mm256_unpacklo_epi64(_w01, _w23);
+
+                _w0123 = _mm256_permutevar8x32_epi32(_w0123, _pidx8);
+                _mm256_storeu_si256((__m256i*)g00, _w0123);
+                g00 += 32;
+#else
                 const signed char* k0 = kptr0 + k;
                 const signed char* k1 = kptr1 + k;
                 const signed char* k2 = kptr2 + k;
                 const signed char* k3 = kptr3 + k;
 
-                // TODO avx2 gather
                 for (int i = 0; i < 8; i++)
                 {
                     g00[0] = k0[0];
@@ -535,6 +568,7 @@ static void convolution_transform_kernel_packed_int8(const Mat& kernel, Mat& ker
                     k3 += maxk;
                     g00 += 1;
                 }
+#endif
             }
 
             kptr0 += maxk * 8;
@@ -605,11 +639,11 @@ static void convolution_transform_kernel_packed_int8(const Mat& kernel, Mat& ker
         int p = 0;
 #if __SSE2__
 #if __AVX512F__
-        __m512i _vindex = _mm512_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
-        _vindex = _mm512_mullo_epi32(_vindex, _mm512_set1_epi32(maxk));
-
         for (; p + 15 < inch; p += 16)
         {
+            __m512i _vindex = _mm512_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
+            _vindex = _mm512_mullo_epi32(_vindex, _mm512_set1_epi32(maxk));
+
             for (int k = 0; k < maxk; k++)
             {
                 __m128i _w0 = _mm512_cvtepi32_epi8(_mm512_i32gather_epi32(_vindex, kptr0 + k, sizeof(signed char)));
