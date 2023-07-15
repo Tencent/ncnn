@@ -1417,6 +1417,30 @@ int ncnn_extractor_extract_index(ncnn_extractor_t ex, int index, ncnn_mat_t* mat
     return ret;
 }
 
+void ncnn_copy_make_border(const ncnn_mat_t src, ncnn_mat_t dst, int top, int bottom, int left, int right, int type, float v, const ncnn_option_t opt)
+{
+    const Option _opt = opt ? *((const Option*)opt) : Option();
+    copy_make_border(*(const Mat*)src, *(Mat*)dst, top, bottom, left, right, type, v, _opt);
+}
+
+void ncnn_copy_make_border_3d(const ncnn_mat_t src, ncnn_mat_t dst, int top, int bottom, int left, int right, int front, int behind, int type, float v, const ncnn_option_t opt)
+{
+    const Option _opt = opt ? *((const Option*)opt) : Option();
+    copy_make_border_3d(*(const Mat*)src, *(Mat*)dst, top, bottom, left, right, front, behind, type, v, _opt);
+}
+
+void ncnn_copy_cut_border(const ncnn_mat_t src, ncnn_mat_t dst, int top, int bottom, int left, int right, const ncnn_option_t opt)
+{
+    const Option _opt = opt ? *((const Option*)opt) : Option();
+    copy_cut_border(*(const Mat*)src, *(Mat*)dst, top, bottom, left, right, _opt);
+}
+
+void ncnn_copy_cut_border_3d(const ncnn_mat_t src, ncnn_mat_t dst, int top, int bottom, int left, int right, int front, int behind, const ncnn_option_t opt)
+{
+    const Option _opt = opt ? *((const Option*)opt) : Option();
+    copy_cut_border_3d(*(const Mat*)src, *(Mat*)dst, top, bottom, left, right, front, behind, _opt);
+}
+
 #ifdef __cplusplus
 } /* extern "C" */
 #endif

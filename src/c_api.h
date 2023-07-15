@@ -327,6 +327,16 @@ NCNN_EXPORT int ncnn_extractor_extract(ncnn_extractor_t ex, const char* name, nc
 NCNN_EXPORT int ncnn_extractor_input_index(ncnn_extractor_t ex, int index, const ncnn_mat_t mat);
 NCNN_EXPORT int ncnn_extractor_extract_index(ncnn_extractor_t ex, int index, ncnn_mat_t* mat);
 
+/* mat process api */
+#define NCNN_BORDER_CONSTANT    0
+#define NCNN_BORDER_REPLICATE   1
+#define NCNN_BORDER_REFLECT     2
+#define NCNN_BORDER_TRANSPARENT -233
+NCNN_EXPORT void ncnn_copy_make_border(const ncnn_mat_t src, ncnn_mat_t dst, int top, int bottom, int left, int right, int type, float v, const ncnn_option_t opt);
+NCNN_EXPORT void ncnn_copy_make_border_3d(const ncnn_mat_t src, ncnn_mat_t dst, int top, int bottom, int left, int right, int front, int behind, int type, float v, const ncnn_option_t opt);
+NCNN_EXPORT void ncnn_copy_cut_border(const ncnn_mat_t src, ncnn_mat_t dst, int top, int bottom, int left, int right, const ncnn_option_t opt);
+NCNN_EXPORT void ncnn_copy_cut_border_3d(const ncnn_mat_t src, ncnn_mat_t dst, int top, int bottom, int left, int right, int front, int behind, const ncnn_option_t opt);
+
 #ifdef __cplusplus
 } /* extern "C" */
 #endif
