@@ -45,16 +45,14 @@ namespace ncnn {
 #include "convolution_sgemm_int8.h"
 #include "convolution_1x1_int8.h"
 #include "convolution_3x3_int8.h"
-#include "convolution_int8.h"
+
+#include "convolution_packed_int8.h"
 #endif // NCNN_INT8
 
 #if __SSE2__
 #include "convolution_3x3_pack1to4.h"
 
 #if NCNN_INT8
-#include "convolution_pack8to4_int8.h"
-#include "convolution_pack1to4_int8.h"
-#include "convolution_pack8to1_int8.h"
 #include "convolution_sgemm_pack8to4_int8.h"
 #include "convolution_sgemm_pack1to4_int8.h"
 #include "convolution_sgemm_pack8to1_int8.h"
@@ -1309,7 +1307,7 @@ int Convolution_x86::create_pipeline_int8_x86(const Option& opt)
         }
         else
         {
-            convolution_transform_kernel_packed_int8_sse(weight_data, weight_data_tm, num_input, num_output, kernel_w, kernel_h, elempack, out_elempack);
+            convolution_transform_kernel_packed_int8(weight_data, weight_data_tm, num_input, num_output, kernel_w, kernel_h);
         }
     }
 
@@ -1341,7 +1339,7 @@ int Convolution_x86::create_pipeline_int8_x86(const Option& opt)
         }
         else
         {
-            convolution_transform_kernel_packed_int8_sse(weight_data, weight_data_tm, num_input, num_output, kernel_w, kernel_h, elempack, out_elempack);
+            convolution_transform_kernel_packed_int8(weight_data, weight_data_tm, num_input, num_output, kernel_w, kernel_h);
         }
     }
 
@@ -1365,7 +1363,7 @@ int Convolution_x86::create_pipeline_int8_x86(const Option& opt)
         }
         else
         {
-            convolution_transform_kernel_packed_int8_sse(weight_data, weight_data_tm, num_input, num_output, kernel_w, kernel_h, elempack, out_elempack);
+            convolution_transform_kernel_packed_int8(weight_data, weight_data_tm, num_input, num_output, kernel_w, kernel_h);
         }
     }
 #endif // __SSE2__
@@ -1391,7 +1389,7 @@ int Convolution_x86::create_pipeline_int8_x86(const Option& opt)
         }
         else
         {
-            weight_data_tm = weight_data;
+            convolution_transform_kernel_packed_int8(weight_data, weight_data_tm, num_input, num_output, kernel_w, kernel_h);
         }
     }
 
@@ -1501,7 +1499,7 @@ int Convolution_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, con
         }
         else
         {
-            convolution_pack8to4_int8_sse(bottom_blob_bordered, top_blob_int32, weight_data_tm, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
+            convolution_packed_int8(bottom_blob_bordered, top_blob_int32, weight_data_tm, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
         }
     }
 
@@ -1533,7 +1531,7 @@ int Convolution_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, con
         }
         else
         {
-            convolution_pack1to4_int8_sse(bottom_blob_bordered, top_blob_int32, weight_data_tm, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
+            convolution_packed_int8(bottom_blob_bordered, top_blob_int32, weight_data_tm, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
         }
     }
 
@@ -1557,7 +1555,7 @@ int Convolution_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, con
         }
         else
         {
-            convolution_pack8to1_int8_sse(bottom_blob_bordered, top_blob_int32, weight_data_tm, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
+            convolution_packed_int8(bottom_blob_bordered, top_blob_int32, weight_data_tm, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
         }
     }
 #endif // __SSE2__
@@ -1583,7 +1581,7 @@ int Convolution_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, con
         }
         else
         {
-            convolution_int8(bottom_blob_bordered, top_blob_int32, weight_data_tm, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
+            convolution_packed_int8(bottom_blob_bordered, top_blob_int32, weight_data_tm, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
         }
     }
 
