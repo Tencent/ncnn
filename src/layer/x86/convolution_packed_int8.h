@@ -935,8 +935,6 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
 
     const int M = top_blob.cstep * out_elempack;
 
-    NCNN_LOGE("convolution_packed_int8  %d @ %d  ->  %d @ %d", inch, elempack, outch, out_elempack);
-
     const int maxk = kernel_w * kernel_h;
 
     // kernel offsets
