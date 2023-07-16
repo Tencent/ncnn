@@ -1056,6 +1056,11 @@ ncnn_layer_t ncnn_layer_create_by_type(const char* type)
     layer->forward_inplace_n = __ncnn_layer_forward_inplace_n;
     return layer;
 }
+
+int ncnn_layer_type_to_index(const char* type)
+{
+    return ncnn::layer_to_index(type);
+}
 #endif /* NCNN_STRING */
 
 void ncnn_layer_destroy(ncnn_layer_t layer)
