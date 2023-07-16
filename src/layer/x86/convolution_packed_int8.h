@@ -633,10 +633,10 @@ static void convolution_transform_kernel_packed_int8(const Mat& kernel, Mat& ker
             {
 #if __AVX512F__
                 __m128i _w0 = _mm_cvtepi32_epi8(_mm_i32gather_epi32((const int*)(kptr0 + k), _vindex, sizeof(signed char)));
-                _mm_storeu_si32(g00, _w0);
+                _mm_store_ss((float*)g00, _mm_castsi128_ps(_w0));
 #elif __AVX2__
                 __m128i _w0 = _mm_shuffle_epi8(_mm_i32gather_epi32((const int*)(kptr0 + k), _vindex, sizeof(signed char)), _sindex8);
-                _mm_storeu_si32(g00, _w0);
+                _mm_store_ss((float*)g00, _mm_castsi128_ps(_w0));
 #else
                 const signed char* k0 = kptr0 + k;
                 const signed char* k1 = kptr1 + k;
@@ -757,10 +757,10 @@ static void convolution_transform_kernel_packed_int8(const Mat& kernel, Mat& ker
             {
 #if __AVX512F__
                 __m128i _w0 = _mm_cvtepi32_epi8(_mm_i32gather_epi32((const int*)(kptr0 + k), _vindex, sizeof(signed char)));
-                _mm_storeu_si32(g00, _w0);
+                _mm_store_ss((float*)g00, _mm_castsi128_ps(_w0));
 #elif __AVX2__
                 __m128i _w0 = _mm_shuffle_epi8(_mm_i32gather_epi32((const int*)(kptr0 + k), _vindex, sizeof(signed char)), _sindex8);
-                _mm_storeu_si32(g00, _w0);
+                _mm_store_ss((float*)g00, _mm_castsi128_ps(_w0));
 #else
                 const signed char* k0 = kptr0 + k;
                 const signed char* k1 = kptr1 + k;
