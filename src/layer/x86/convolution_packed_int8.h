@@ -453,7 +453,7 @@ static void convolution_transform_kernel_packed_int8(const Mat& kernel, Mat& ker
                 __m256i _w01 = _mm256_shuffle_epi8(_w32, _sindex88);
                 __m128i _w0 = _mm_unpacklo_epi32(_mm256_extracti128_si256(_w01, 0), _mm256_extracti128_si256(_w01, 1));
 #endif
-                _mm_storeu_si64(g00, _w0);
+                _mm_storel_epi64((__m128i*)g00, _w0);
                 g00 += 8;
             }
         }
@@ -578,14 +578,31 @@ static void convolution_transform_kernel_packed_int8(const Mat& kernel, Mat& ker
         }
         for (; p + 1 < inch; p += 2)
         {
+#if __AVX2__
+            __m128i _vindex0 = _mm_setr_epi32(0, maxk, inch * maxk, inch * maxk + maxk);
+            __m128i _vindex1 = _mm_add_epi32(_vindex0, _mm_set1_epi32(inch * maxk * 2));
+            __m256i _vindex01 = _mm256_inserti128_si256(_mm256_castsi128_si256(_vindex0), _vindex1, 1);
+#if !__AVX512F__
+            __m128i _sindex8 = _mm_setr_epi8(0, 4, 8, 12, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1);
+            __m256i _sindex88 = _mm256_inserti128_si256(_mm256_castsi128_si256(_sindex8), _sindex8, 1);
+#endif
+#endif
+
             for (int k = 0; k < maxk; k++)
             {
+#if __AVX512F__
+                __m128i _w0 = _mm256_cvtepi32_epi8(_mm256_i32gather_epi32((const int*)(kptr0 + k), _vindex01, sizeof(signed char)));
+                _mm_storel_epi64((__m128i*)g00, _w0);
+#elif __AVX2__
+                __m256i _w01 = _mm256_shuffle_epi8(_mm256_i32gather_epi32((const int*)(kptr0 + k), _vindex01, sizeof(signed char)), _sindex88);
+                __m128i _w0 = _mm_unpacklo_epi32(_mm256_extracti128_si256(_w01, 0), _mm256_extracti128_si256(_w01, 1));
+                _mm_storel_epi64((__m128i*)g00, _w0);
+#else
                 const signed char* k0 = kptr0 + k;
                 const signed char* k1 = kptr1 + k;
                 const signed char* k2 = kptr2 + k;
                 const signed char* k3 = kptr3 + k;
 
-                // TODO avx2 gather
                 g00[0] = k0[0];
                 g00[1] = k0[maxk];
                 g00[2] = k1[0];
@@ -594,6 +611,7 @@ static void convolution_transform_kernel_packed_int8(const Mat& kernel, Mat& ker
                 g00[5] = k2[maxk];
                 g00[6] = k3[0];
                 g00[7] = k3[maxk];
+#endif
                 g00 += 8;
             }
 
@@ -604,18 +622,32 @@ static void convolution_transform_kernel_packed_int8(const Mat& kernel, Mat& ker
         }
         for (; p < inch; p++)
         {
+#if __AVX2__
+            __m128i _vindex = _mm_mullo_epi32(_mm_setr_epi32(0, 1, 2, 3), _mm_set1_epi32(inch * maxk));
+#if !__AVX512F__
+            __m128i _sindex8 = _mm_setr_epi8(0, 4, 8, 12, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1);
+#endif
+#endif
+
             for (int k = 0; k < maxk; k++)
             {
+#if __AVX512F__
+                __m128i _w0 = _mm_cvtepi32_epi8(_mm_i32gather_epi32((const int*)(kptr0 + k), _vindex, sizeof(signed char)));
+                _mm_storeu_si32(g00, _w0);
+#elif __AVX2__
+                __m128i _w0 = _mm_shuffle_epi8(_mm_i32gather_epi32((const int*)(kptr0 + k), _vindex, sizeof(signed char)), _sindex8);
+                _mm_storeu_si32(g00, _w0);
+#else
                 const signed char* k0 = kptr0 + k;
                 const signed char* k1 = kptr1 + k;
                 const signed char* k2 = kptr2 + k;
                 const signed char* k3 = kptr3 + k;
 
-                // TODO avx2 gather
                 g00[0] = k0[0];
                 g00[1] = k1[0];
                 g00[2] = k2[0];
                 g00[3] = k3[0];
+#endif
                 g00 += 4;
             }
         }
@@ -660,12 +692,34 @@ static void convolution_transform_kernel_packed_int8(const Mat& kernel, Mat& ker
 #endif // __AVX512F__
         for (; p + 7 < inch; p += 8)
         {
+#if __AVX2__
+            __m256i _vindex0 = _mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7);
+            _vindex0 = _mm256_mullo_epi32(_vindex0, _mm256_set1_epi32(maxk));
+            __m256i _vindex1 = _mm256_add_epi32(_vindex0, _mm256_set1_epi32(inch * maxk));
+#if __AVX512F__
+            __m512i _vindex = _mm512_inserti64x4(_mm512_castsi256_si512(_vindex0), _vindex1, 1);
+#else
+            __m128i _sindex8 = _mm_setr_epi8(0, 4, 8, 12, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1);
+            __m256i _sindex88 = _mm256_inserti128_si256(_mm256_castsi128_si256(_sindex8), _sindex8, 1);
+#endif
+#endif
+
             for (int k = 0; k < maxk; k++)
             {
+#if __AVX512F__
+                __m128i _w0 = _mm512_cvtepi32_epi8(_mm512_i32gather_epi32(_vindex, kptr0 + k, sizeof(signed char)));
+                _mm_storeu_si128((__m128i*)g00, _w0);
+#elif __AVX2__
+                __m256i _w00 = _mm256_shuffle_epi8(_mm256_i32gather_epi32((const int*)(kptr0 + k), _vindex0, sizeof(signed char)), _sindex88);
+                __m256i _w11 = _mm256_shuffle_epi8(_mm256_i32gather_epi32((const int*)(kptr1 + k), _vindex1, sizeof(signed char)), _sindex88);
+                __m128i _w0x = _mm_unpacklo_epi32(_mm256_extracti128_si256(_w00, 0), _mm256_extracti128_si256(_w00, 1));
+                __m128i _w1x = _mm_unpacklo_epi32(_mm256_extracti128_si256(_w11, 0), _mm256_extracti128_si256(_w11, 1));
+                __m128i _w0 = _mm_unpacklo_epi64(_w0x, _w1x);
+                _mm_storeu_si128((__m128i*)g00, _w0);
+#else
                 const signed char* k0 = kptr0 + k;
                 const signed char* k1 = kptr1 + k;
 
-                // TODO avx2 gather
                 g00[0] = k0[0];
                 g00[1] = k0[maxk];
                 g00[2] = k0[maxk * 2];
@@ -682,6 +736,7 @@ static void convolution_transform_kernel_packed_int8(const Mat& kernel, Mat& ker
                 g00[13] = k1[maxk * 5];
                 g00[14] = k1[maxk * 6];
                 g00[15] = k1[maxk * 7];
+#endif
                 g00 += 16;
             }
 
@@ -691,16 +746,30 @@ static void convolution_transform_kernel_packed_int8(const Mat& kernel, Mat& ker
 #endif // __SSE2__
         for (; p + 1 < inch; p += 2)
         {
+#if __AVX2__
+            __m128i _vindex = _mm_setr_epi32(0, inch * maxk, maxk, inch * maxk + maxk);
+#if !__AVX512F__
+            __m128i _sindex8 = _mm_setr_epi8(0, 4, 8, 12, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1);
+#endif
+#endif
+
             for (int k = 0; k < maxk; k++)
             {
+#if __AVX512F__
+                __m128i _w0 = _mm_cvtepi32_epi8(_mm_i32gather_epi32((const int*)(kptr0 + k), _vindex, sizeof(signed char)));
+                _mm_storeu_si32(g00, _w0);
+#elif __AVX2__
+                __m128i _w0 = _mm_shuffle_epi8(_mm_i32gather_epi32((const int*)(kptr0 + k), _vindex, sizeof(signed char)), _sindex8);
+                _mm_storeu_si32(g00, _w0);
+#else
                 const signed char* k0 = kptr0 + k;
                 const signed char* k1 = kptr1 + k;
 
-                // TODO avx2 gather
                 g00[0] = k0[0];
                 g00[1] = k1[0];
                 g00[2] = k0[maxk];
                 g00[3] = k1[maxk];
+#endif
                 g00 += 4;
             }
 
@@ -737,11 +806,11 @@ static void convolution_transform_kernel_packed_int8(const Mat& kernel, Mat& ker
         int p = 0;
 #if __SSE2__
 #if __AVX512F__
-        __m512i _vindex = _mm512_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
-        _vindex = _mm512_mullo_epi32(_vindex, _mm512_set1_epi32(maxk));
-
         for (; p + 15 < inch; p += 16)
         {
+            __m512i _vindex = _mm512_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
+            _vindex = _mm512_mullo_epi32(_vindex, _mm512_set1_epi32(maxk));
+
             for (int k = 0; k < maxk; k++)
             {
                 __m128i _w0 = _mm512_cvtepi32_epi8(_mm512_i32gather_epi32(_vindex, kptr + k, sizeof(signed char)));
@@ -755,17 +824,37 @@ static void convolution_transform_kernel_packed_int8(const Mat& kernel, Mat& ker
 #endif // __AVX512F__
         for (; p + 7 < inch; p += 8)
         {
+#if __AVX2__
+            __m256i _vindex = _mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7);
+            _vindex = _mm256_mullo_epi32(_vindex, _mm256_set1_epi32(maxk));
+#if !__AVX512F__
+            __m128i _sindex8 = _mm_setr_epi8(0, 4, 8, 12, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1);
+            __m256i _sindex88 = _mm256_inserti128_si256(_mm256_castsi128_si256(_sindex8), _sindex8, 1);
+#endif
+#endif
             for (int k = 0; k < maxk; k++)
             {
+#if __AVX512F__
+                __m128i _w0 = _mm256_cvtepi32_epi8(_mm256_i32gather_epi32((const int*)(kptr + k), _vindex, sizeof(signed char)));
+
+                _mm_storel_epi64((__m128i*)g00, _w0);
+                g00 += 8;
+#elif __AVX2__
+                __m256i _w00 = _mm256_shuffle_epi8(_mm256_i32gather_epi32((const int*)(kptr + k), _vindex, sizeof(signed char)), _sindex88);
+                __m128i _w0 = _mm_unpacklo_epi32(_mm256_extracti128_si256(_w00, 0), _mm256_extracti128_si256(_w00, 1));
+
+                _mm_storel_epi64((__m128i*)g00, _w0);
+                g00 += 8;
+#else
                 const signed char* k0 = kptr + k;
 
-                // TODO avx2 gather
                 for (int i = 0; i < 8; i++)
                 {
                     g00[0] = k0[0];
                     k0 += maxk;
                     g00 += 1;
                 }
+#endif
             }
 
             kptr += maxk * 8;
