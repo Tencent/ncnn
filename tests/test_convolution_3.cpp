@@ -386,8 +386,7 @@ static int test_convolution_1_2()
            || test_convolution_int8(19, 17, 15, 32, 5, 2, 2, 0, 1)
            || test_convolution_int8(19, 17, 16, 32, 5, 2, 2, 0, 0)
            || test_convolution_int8(19, 17, 31, 32, 5, 2, 2, 0, 1)
-           || test_convolution_int8(19, 17, 32, 32, 5, 2, 2, 0, 0)
-           ;
+           || test_convolution_int8(19, 17, 32, 32, 5, 2, 2, 0, 0);
 }
 #endif // NCNN_INT8
 
