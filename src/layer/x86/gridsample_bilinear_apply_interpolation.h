@@ -127,7 +127,7 @@ static void gridsample_3d_bilinear_apply_interpolation_p16(const Mat& src, Mat& 
 #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__
 void gridsample_2d_bilinear_apply_interpolation_p8_avx2(const Mat& src, Mat& dst, const Mat& offset_value, const Option& opt);
 void gridsample_2d_bilinear_apply_interpolation_p4_avx2(const Mat& src, Mat& dst, const Mat& offset_value, const Option& opt);
-                                                                                             
+
 void gridsample_3d_bilinear_apply_interpolation_p8_avx2(const Mat& src, Mat& dst, const Mat& offset_value, const Option& opt);
 void gridsample_3d_bilinear_apply_interpolation_p4_avx2(const Mat& src, Mat& dst, const Mat& offset_value, const Option& opt);
 #endif
@@ -421,7 +421,7 @@ static void gridsample_2d_bilinear_apply_interpolation_p1(const Mat& src, Mat& d
 
         const float* offset_value_ptr = offset_value.channel(0);
 
-        for (int x = 0 ; x < grid_size; x++)
+        for (int x = 0; x < grid_size; x++)
         {
             float v00 = *offset_value_ptr >= 0 ? *(srcptr + static_cast<int>(*offset_value_ptr)) : 0;
             offset_value_ptr++;

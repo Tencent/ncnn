@@ -129,8 +129,6 @@ void gridsample_2d_bicubic_compute_blob(const Mat& src, const Mat& grid, Mat& of
                 x2 = get_coord(src.w, x2);
                 x3 = get_coord(src.w, x3);
 
-
-
                 bool x1_in_range = (x1 > -1) & (x1 < src.w);
                 bool x0_in_range = (x0 > -1) & (x0 < src.w);
                 bool x2_in_range = (x2 > -1) & (x2 < src.w);
@@ -179,7 +177,7 @@ void gridsample_2d_bicubic_compute_blob(const Mat& src, const Mat& grid, Mat& of
 
             __m256 tx = _mm256_sub_ps(gx, gx_floor);
             __m256 ty = _mm256_sub_ps(gy, gy_floor);
-            
+
             __m256 gx0 = _mm256_add_ps(gx_floor, _mm256_set1_ps(-1));
             __m256 gx1 = gx_floor;
             __m256 gx2 = _mm256_add_ps(gx_floor, _mm256_set1_ps(1));

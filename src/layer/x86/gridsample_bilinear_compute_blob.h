@@ -571,7 +571,7 @@ void gridsample_3d_bilinear_compute_blob(const Mat& src, const Mat& grid, Mat& o
             *offset_value_ptr++ = in_bound_001 ? (x1 + y0 * src.w + z0 * src.w * src.h) * src.elempack : -1.0f;
             *offset_value_ptr++ = in_bound_010 ? (x0 + y1 * src.w + z0 * src.w * src.h) * src.elempack : -1.0f;
             *offset_value_ptr++ = in_bound_011 ? (x1 + y1 * src.w + z0 * src.w * src.h) * src.elempack : -1.0f;
-            
+
             *offset_value_ptr++ = in_bound_100 ? (x0 + y0 * src.w + z1 * src.w * src.h) * src.elempack : -1.0f;
             *offset_value_ptr++ = in_bound_101 ? (x1 + y0 * src.w + z1 * src.w * src.h) * src.elempack : -1.0f;
             *offset_value_ptr++ = in_bound_110 ? (x0 + y1 * src.w + z1 * src.w * src.h) * src.elempack : -1.0f;

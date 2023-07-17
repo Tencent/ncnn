@@ -221,7 +221,6 @@ static void gridsample_2d_bicubic_apply_interpolation_p4(const Mat& src, Mat& ds
 
             for (int ii = 0; ii < 4; ii++)
             {
-
                 float v0_in_bound = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? -1.0f : 0.0f;
                 __m128 x0_val = mask_gather_ps(srcptr, _mm_add_epi32(_mm_set1_epi32(*offset_value_ptr++), _mm_set_epi32(3, 2, 1, 0)), _mm_set_ps1(v0_in_bound));
                 float v1_in_bound = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? -1.0f : 0.0f;
@@ -300,7 +299,6 @@ static void gridsample_2d_bicubic_apply_interpolation_p1(const Mat& src, Mat& ds
 
                 float x3_val = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? *(srcptr + static_cast<int>(*offset_value_ptr)) : 0;
                 offset_value_ptr++;
-
 
                 value_f[ii] = x_coeffs0 * x0_val;
                 value_f[ii] = x_coeffs1 * x1_val + value_f[ii];
