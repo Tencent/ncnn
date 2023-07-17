@@ -19,56 +19,44 @@
 namespace ncnn {
 #include "gridsample_apply_interpolation.h"
 
-void gridsample_2d_bilinear_apply_interpolation_p8_avx2(const Mat& src, Mat& dst, const Mat& offset, const Mat& value, const Option& opt)
+void gridsample_2d_bilinear_apply_interpolation_p8_avx2(const Mat& src, Mat& dst, const Mat& offset_value, const Option& opt)
 {
-    gridsample_2d_bilinear_apply_interpolation_p8(src, dst, offset, value, opt);
+    gridsample_2d_bilinear_apply_interpolation_p8(src, dst, offset_value, opt);
 }
-void gridsample_2d_bilinear_apply_interpolation_p4_avx2(const Mat& src, Mat& dst, const Mat& offset, const Mat& value, const Option& opt)
+void gridsample_2d_bilinear_apply_interpolation_p4_avx2(const Mat& src, Mat& dst, const Mat& offset_value, const Option& opt)
 {
-    gridsample_2d_bilinear_apply_interpolation_p4(src, dst, offset, value, opt);
-}
-void gridsample_2d_bilinear_apply_interpolation_p1_avx2(const Mat& src, Mat& dst, const Mat& offset, const Mat& value, const Option& opt)
-{
-    gridsample_2d_bilinear_apply_interpolation_p1(src, dst, offset, value, opt);
+    gridsample_2d_bilinear_apply_interpolation_p4(src, dst, offset_value, opt);
 }
 
-void gridsample_3d_bilinear_apply_interpolation_p8_avx2(const Mat& src, Mat& dst, const Mat& offset, const Mat& value, const Option& opt)
+void gridsample_3d_bilinear_apply_interpolation_p8_avx2(const Mat& src, Mat& dst, const Mat& offset_value, const Option& opt)
 {
-    gridsample_3d_bilinear_apply_interpolation_p8(src, dst, offset, value, opt);
+    gridsample_3d_bilinear_apply_interpolation_p8(src, dst, offset_value, opt);
 }
-void gridsample_3d_bilinear_apply_interpolation_p4_avx2(const Mat& src, Mat& dst, const Mat& offset, const Mat& value, const Option& opt)
+void gridsample_3d_bilinear_apply_interpolation_p4_avx2(const Mat& src, Mat& dst, const Mat& offset_value, const Option& opt)
 {
-    gridsample_3d_bilinear_apply_interpolation_p4(src, dst, offset, value, opt);
-}
-void gridsample_3d_bilinear_apply_interpolation_p1_avx2(const Mat& src, Mat& dst, const Mat& offset, const Mat& value, const Option& opt)
-{
-    gridsample_3d_bilinear_apply_interpolation_p1(src, dst, offset, value, opt);
+    gridsample_3d_bilinear_apply_interpolation_p4(src, dst, offset_value, opt);
 }
 
-void gridsample_nearest_apply_interpolation_p8_avx2(const Mat& src, Mat& dst, const Mat& offset, const Option& opt)
+void gridsample_nearest_apply_interpolation_p8_avx2(const Mat& src, Mat& dst, const Mat& offset_value, const Option& opt)
 {
-    gridsample_nearest_apply_interpolation_p8(src, dst, offset, opt);
+    gridsample_nearest_apply_interpolation_p8(src, dst, offset_value, opt);
 }
-void gridsample_nearest_apply_interpolation_p4_avx2(const Mat& src, Mat& dst, const Mat& offset, const Option& opt)
+void gridsample_nearest_apply_interpolation_p4_avx2(const Mat& src, Mat& dst, const Mat& offset_value, const Option& opt)
 {
-    gridsample_nearest_apply_interpolation_p4(src, dst, offset, opt);
+    gridsample_nearest_apply_interpolation_p4(src, dst, offset_value, opt);
 }
-void gridsample_nearest_apply_interpolation_p1_avx2(const Mat& src, Mat& dst, const Mat& offset, const Option& opt)
+void gridsample_nearest_apply_interpolation_p1_avx2(const Mat& src, Mat& dst, const Mat& offset_value, const Option& opt)
 {
-    gridsample_nearest_apply_interpolation_p1(src, dst, offset, opt);
+    gridsample_nearest_apply_interpolation_p1(src, dst, offset_value, opt);
 }
 
-void gridsample_2d_bicubic_apply_interpolation_p8_avx2(const Mat& src, Mat& dst, Mat& offset, const Mat& value, const Option& opt)
+void gridsample_2d_bicubic_apply_interpolation_p8_avx2(const Mat& src, Mat& dst, Mat& offset_value, const Option& opt)
 {
-    gridsample_2d_bicubic_apply_interpolation_p8(src, dst, offset, value, opt);
+    gridsample_2d_bicubic_apply_interpolation_p8(src, dst, offset_value, opt);
 }
-void gridsample_2d_bicubic_apply_interpolation_p4_avx2(const Mat& src, Mat& dst, Mat& offset, const Mat& value, const Option& opt)
+void gridsample_2d_bicubic_apply_interpolation_p4_avx2(const Mat& src, Mat& dst, Mat& offset_value, const Option& opt)
 {
-    gridsample_2d_bicubic_apply_interpolation_p4(src, dst, offset, value, opt);
-}
-void gridsample_2d_bicubic_apply_interpolation_p1_avx2(const Mat& src, Mat& dst, Mat& offset, const Mat& value, const Option& opt)
-{
-    gridsample_2d_bicubic_apply_interpolation_p1(src, dst, offset, value, opt);
+    gridsample_2d_bicubic_apply_interpolation_p4(src, dst, offset_value, opt);
 }
 
 } // namespace ncnn

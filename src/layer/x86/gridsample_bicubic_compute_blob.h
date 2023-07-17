@@ -13,22 +13,11 @@
 // specific language governing permissions and limitations under the License.
 
 template<GridSample::PaddingMode pd, bool align_corner>
-void gridsample_2d_bicubic_compute_blob(const Mat& src, const Mat& grid, Mat& offset, Mat& value, int permute_fusion)
+void gridsample_2d_bicubic_compute_blob(const Mat& src, const Mat& grid, Mat& offset_value, int permute_fusion)
 {
     const int grid_size = grid.w * grid.h;
 
-    float *v0_offset_ptr[4], *v1_offset_ptr[4], *v2_offset_ptr[4], *v3_offset_ptr[4];
-
-    float* value_x = value.channel(0);
-    float* value_y = value.channel(1);
-
-    for (int i = 0; i < 4; i++)
-    {
-        v0_offset_ptr[i] = offset.channel(i * 4 + 0);
-        v1_offset_ptr[i] = offset.channel(i * 4 + 1);
-        v2_offset_ptr[i] = offset.channel(i * 4 + 2);
-        v3_offset_ptr[i] = offset.channel(i * 4 + 3);
-    }
+    float* offset_value_ptr = offset_value.channel(0);
 
     grid_sample_unormalize<align_corner> unormalize;
     compute_coord<pd, align_corner> get_coord;
@@ -52,19 +41,14 @@ void gridsample_2d_bicubic_compute_blob(const Mat& src, const Mat& grid, Mat& of
                 gx = _mm256_shuffle_ps(gx, gy, 0b10001000);
                 gy = _mm256_shuffle_ps(tmp_x, gy, 0b11011101);
 
-                // compute coord
-                {
-                    // x
-                    gx = unormalize(_mm256_set1_ps(src.w), gx);
-                    // y
-                    gy = unormalize(_mm256_set1_ps(src.h), gy);
-                }
+                gx = unormalize(_mm256_set1_ps(src.w), gx);
+                gy = unormalize(_mm256_set1_ps(src.h), gy);
 
                 __m256 gx_floor = _mm256_floor_ps(gx);
                 __m256 gy_floor = _mm256_floor_ps(gy);
 
-                const __m256 tx = _mm256_sub_ps(gx, gx_floor);
-                const __m256 ty = _mm256_sub_ps(gy, gy_floor);
+                __m256 tx = _mm256_sub_ps(gx, gx_floor);
+                __m256 ty = _mm256_sub_ps(gy, gy_floor);
 
                 __m256 gx0 = _mm256_add_ps(gx_floor, _mm256_set1_ps(-1));
                 __m256 gx1 = gx_floor;
@@ -80,7 +64,7 @@ void gridsample_2d_bicubic_compute_blob(const Mat& src, const Mat& grid, Mat& of
                 __m256 x1_in_range = _mm256_and_ps(_mm256_cmp_ps(gx1, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.w), gx1, _CMP_GT_OS));
                 __m256 x2_in_range = _mm256_and_ps(_mm256_cmp_ps(gx2, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.w), gx2, _CMP_GT_OS));
                 __m256 x3_in_range = _mm256_and_ps(_mm256_cmp_ps(gx3, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.w), gx3, _CMP_GT_OS));
-
+                __m256 v0_offset_f[4], v1_offset_f[4], v2_offset_f[4], v3_offset_f[4];
                 for (int i = 0; i < 4; i++)
                 {
                     gy = _mm256_add_ps(gy_floor, _mm256_set1_ps(-1.0f + i));
@@ -90,33 +74,34 @@ void gridsample_2d_bicubic_compute_blob(const Mat& src, const Mat& grid, Mat& of
 
                     __m256 gy_offset = _mm256_mul_ps(gy, _mm256_set1_ps(src.w));
 
-                    __m256 v0_offset_f = _mm256_mul_ps(_mm256_add_ps(gy_offset, gx0), _mm256_set1_ps(src.elempack));
-                    __m256 v1_offset_f = _mm256_mul_ps(_mm256_add_ps(gy_offset, gx1), _mm256_set1_ps(src.elempack));
-                    __m256 v2_offset_f = _mm256_mul_ps(_mm256_add_ps(gy_offset, gx2), _mm256_set1_ps(src.elempack));
-                    __m256 v3_offset_f = _mm256_mul_ps(_mm256_add_ps(gy_offset, gx3), _mm256_set1_ps(src.elempack));
+                    v0_offset_f[i] = _mm256_mul_ps(_mm256_add_ps(gy_offset, gx0), _mm256_set1_ps(src.elempack));
+                    v1_offset_f[i] = _mm256_mul_ps(_mm256_add_ps(gy_offset, gx1), _mm256_set1_ps(src.elempack));
+                    v2_offset_f[i] = _mm256_mul_ps(_mm256_add_ps(gy_offset, gx2), _mm256_set1_ps(src.elempack));
+                    v3_offset_f[i] = _mm256_mul_ps(_mm256_add_ps(gy_offset, gx3), _mm256_set1_ps(src.elempack));
 
-                    v0_offset_f = _mm256_blendv_ps(_mm256_set1_ps(-1.0f), v0_offset_f, _mm256_and_ps(x0_in_range, y_in_range));
-                    v1_offset_f = _mm256_blendv_ps(_mm256_set1_ps(-1.0f), v1_offset_f, _mm256_and_ps(x1_in_range, y_in_range));
-                    v2_offset_f = _mm256_blendv_ps(_mm256_set1_ps(-1.0f), v2_offset_f, _mm256_and_ps(x2_in_range, y_in_range));
-                    v3_offset_f = _mm256_blendv_ps(_mm256_set1_ps(-1.0f), v3_offset_f, _mm256_and_ps(x3_in_range, y_in_range));
-
-                    _mm256_storeu_ps(v0_offset_ptr[i], v0_offset_f);
-                    _mm256_storeu_ps(v1_offset_ptr[i], v1_offset_f);
-                    _mm256_storeu_ps(v2_offset_ptr[i], v2_offset_f);
-                    _mm256_storeu_ps(v3_offset_ptr[i], v3_offset_f);
-
-                    v0_offset_ptr[i] += 8;
-                    v1_offset_ptr[i] += 8;
-                    v2_offset_ptr[i] += 8;
-                    v3_offset_ptr[i] += 8;
+                    v0_offset_f[i] = _mm256_blendv_ps(_mm256_set1_ps(-1.0f), v0_offset_f[i], _mm256_and_ps(x0_in_range, y_in_range));
+                    v1_offset_f[i] = _mm256_blendv_ps(_mm256_set1_ps(-1.0f), v1_offset_f[i], _mm256_and_ps(x1_in_range, y_in_range));
+                    v2_offset_f[i] = _mm256_blendv_ps(_mm256_set1_ps(-1.0f), v2_offset_f[i], _mm256_and_ps(x2_in_range, y_in_range));
+                    v3_offset_f[i] = _mm256_blendv_ps(_mm256_set1_ps(-1.0f), v3_offset_f[i], _mm256_and_ps(x3_in_range, y_in_range));
                 }
 
-                _mm256_storeu_ps(value_x, tx);
-                _mm256_storeu_ps(value_y, ty);
+                transpose8x18_ps(tx, ty, v0_offset_f[0], v1_offset_f[0], v2_offset_f[0], v3_offset_f[0], v0_offset_f[1], v1_offset_f[1], v2_offset_f[1], v3_offset_f[1], v0_offset_f[2], v1_offset_f[2], v2_offset_f[2], v3_offset_f[2], v0_offset_f[3], v1_offset_f[3], v2_offset_f[3], v3_offset_f[3]);
 
-                value_x += 8;
-                value_y += 8;
-
+                _mm256_storeu_ps(offset_value_ptr, tx);
+                offset_value_ptr += 8;
+                _mm256_storeu_ps(offset_value_ptr, ty);
+                offset_value_ptr += 8;
+                for (int i = 0; i < 4; i++)
+                {
+                    _mm256_storeu_ps(offset_value_ptr, v0_offset_f[i]);
+                    offset_value_ptr += 8;
+                    _mm256_storeu_ps(offset_value_ptr, v1_offset_f[i]);
+                    offset_value_ptr += 8;
+                    _mm256_storeu_ps(offset_value_ptr, v2_offset_f[i]);
+                    offset_value_ptr += 8;
+                    _mm256_storeu_ps(offset_value_ptr, v3_offset_f[i]);
+                    offset_value_ptr += 8;
+                }
                 gridptr += 16;
             }
 
@@ -127,24 +112,24 @@ void gridsample_2d_bicubic_compute_blob(const Mat& src, const Mat& grid, Mat& of
                 float sample_x = *gridptr;
                 float sample_y = *(gridptr + 1);
 
-                // x
                 sample_x = unormalize(src.w, sample_x);
-                // y
                 sample_y = unormalize(src.h, sample_y);
 
-                int x1 = floor(sample_x);
-                int y1 = floor(sample_y);
+                int x1 = floorf(sample_x);
+                int y1 = floorf(sample_y);
                 int x0 = x1 - 1;
                 int x2 = x1 + 1;
                 int x3 = x1 + 2;
 
-                *value_x = sample_x - static_cast<float>(x1);
-                *value_y = sample_y - static_cast<float>(y1);
+                *offset_value_ptr++ = sample_x - static_cast<float>(x1);
+                *offset_value_ptr++ = sample_y - static_cast<float>(y1);
 
                 x1 = get_coord(src.w, x1);
                 x0 = get_coord(src.w, x0);
                 x2 = get_coord(src.w, x2);
                 x3 = get_coord(src.w, x3);
+
+
 
                 bool x1_in_range = (x1 > -1) & (x1 < src.w);
                 bool x0_in_range = (x0 > -1) & (x0 < src.w);
@@ -164,19 +149,11 @@ void gridsample_2d_bicubic_compute_blob(const Mat& src, const Mat& grid, Mat& of
                     bool v2_in_bound = (x2_in_range & y_in_range);
                     bool v3_in_bound = (x3_in_range & y_in_range);
 
-                    *v0_offset_ptr[i] = v0_in_bound ? (offset_y + x0) * src.elempack : -1.0f;
-                    *v1_offset_ptr[i] = v1_in_bound ? (offset_y + x1) * src.elempack : -1.0f;
-                    *v2_offset_ptr[i] = v2_in_bound ? (offset_y + x2) * src.elempack : -1.0f;
-                    *v3_offset_ptr[i] = v3_in_bound ? (offset_y + x3) * src.elempack : -1.0f;
-
-                    v0_offset_ptr[i]++;
-                    v1_offset_ptr[i]++;
-                    v2_offset_ptr[i]++;
-                    v3_offset_ptr[i]++;
+                    *offset_value_ptr++ = v0_in_bound ? (offset_y + x0) * src.elempack : -1.0f;
+                    *offset_value_ptr++ = v1_in_bound ? (offset_y + x1) * src.elempack : -1.0f;
+                    *offset_value_ptr++ = v2_in_bound ? (offset_y + x2) * src.elempack : -1.0f;
+                    *offset_value_ptr++ = v3_in_bound ? (offset_y + x3) * src.elempack : -1.0f;
                 }
-
-                value_x++;
-                value_y++;
 
                 gridptr += 2;
             }
@@ -194,20 +171,15 @@ void gridsample_2d_bicubic_compute_blob(const Mat& src, const Mat& grid, Mat& of
             __m256 gx = _mm256_loadu_ps(gridptr_x);
             __m256 gy = _mm256_loadu_ps(gridptr_y);
 
-            // compute coord
-            {
-                // x
-                gx = unormalize(_mm256_set1_ps(src.w), gx);
-                // y
-                gy = unormalize(_mm256_set1_ps(src.h), gy);
-            }
+            gx = unormalize(_mm256_set1_ps(src.w), gx);
+            gy = unormalize(_mm256_set1_ps(src.h), gy);
 
             __m256 gx_floor = _mm256_floor_ps(gx);
             __m256 gy_floor = _mm256_floor_ps(gy);
 
-            const __m256 tx = _mm256_sub_ps(gx, gx_floor);
-            const __m256 ty = _mm256_sub_ps(gy, gy_floor);
-
+            __m256 tx = _mm256_sub_ps(gx, gx_floor);
+            __m256 ty = _mm256_sub_ps(gy, gy_floor);
+            
             __m256 gx0 = _mm256_add_ps(gx_floor, _mm256_set1_ps(-1));
             __m256 gx1 = gx_floor;
             __m256 gx2 = _mm256_add_ps(gx_floor, _mm256_set1_ps(1));
@@ -223,6 +195,7 @@ void gridsample_2d_bicubic_compute_blob(const Mat& src, const Mat& grid, Mat& of
             __m256 x2_in_range = _mm256_and_ps(_mm256_cmp_ps(gx2, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.w), gx2, _CMP_GT_OS));
             __m256 x3_in_range = _mm256_and_ps(_mm256_cmp_ps(gx3, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.w), gx3, _CMP_GT_OS));
 
+            __m256 v0_offset_f[4], v1_offset_f[4], v2_offset_f[4], v3_offset_f[4];
             for (int i = 0; i < 4; i++)
             {
                 gy = _mm256_add_ps(gy_floor, _mm256_set1_ps(-1.0f + i));
@@ -233,32 +206,34 @@ void gridsample_2d_bicubic_compute_blob(const Mat& src, const Mat& grid, Mat& of
                 __m256 gy_offset = _mm256_mul_ps(gy, _mm256_set1_ps(src.w));
 
                 volatile float epack = src.elempack;
-                __m256 v0_offset_f = _mm256_mul_ps(_mm256_add_ps(gy_offset, gx0), _mm256_set1_ps(epack));
-                __m256 v1_offset_f = _mm256_mul_ps(_mm256_add_ps(gy_offset, gx1), _mm256_set1_ps(epack));
-                __m256 v2_offset_f = _mm256_mul_ps(_mm256_add_ps(gy_offset, gx2), _mm256_set1_ps(epack));
-                __m256 v3_offset_f = _mm256_mul_ps(_mm256_add_ps(gy_offset, gx3), _mm256_set1_ps(epack));
+                v0_offset_f[i] = _mm256_mul_ps(_mm256_add_ps(gy_offset, gx0), _mm256_set1_ps(epack));
+                v1_offset_f[i] = _mm256_mul_ps(_mm256_add_ps(gy_offset, gx1), _mm256_set1_ps(epack));
+                v2_offset_f[i] = _mm256_mul_ps(_mm256_add_ps(gy_offset, gx2), _mm256_set1_ps(epack));
+                v3_offset_f[i] = _mm256_mul_ps(_mm256_add_ps(gy_offset, gx3), _mm256_set1_ps(epack));
 
-                v0_offset_f = _mm256_blendv_ps(_mm256_set1_ps(-1.0f), v0_offset_f, _mm256_and_ps(x0_in_range, y_in_range));
-                v1_offset_f = _mm256_blendv_ps(_mm256_set1_ps(-1.0f), v1_offset_f, _mm256_and_ps(x1_in_range, y_in_range));
-                v2_offset_f = _mm256_blendv_ps(_mm256_set1_ps(-1.0f), v2_offset_f, _mm256_and_ps(x2_in_range, y_in_range));
-                v3_offset_f = _mm256_blendv_ps(_mm256_set1_ps(-1.0f), v3_offset_f, _mm256_and_ps(x3_in_range, y_in_range));
-
-                _mm256_storeu_ps(v0_offset_ptr[i], v0_offset_f);
-                _mm256_storeu_ps(v1_offset_ptr[i], v1_offset_f);
-                _mm256_storeu_ps(v2_offset_ptr[i], v2_offset_f);
-                _mm256_storeu_ps(v3_offset_ptr[i], v3_offset_f);
-
-                v0_offset_ptr[i] += 8;
-                v1_offset_ptr[i] += 8;
-                v2_offset_ptr[i] += 8;
-                v3_offset_ptr[i] += 8;
+                v0_offset_f[i] = _mm256_blendv_ps(_mm256_set1_ps(-1.0f), v0_offset_f[i], _mm256_and_ps(x0_in_range, y_in_range));
+                v1_offset_f[i] = _mm256_blendv_ps(_mm256_set1_ps(-1.0f), v1_offset_f[i], _mm256_and_ps(x1_in_range, y_in_range));
+                v2_offset_f[i] = _mm256_blendv_ps(_mm256_set1_ps(-1.0f), v2_offset_f[i], _mm256_and_ps(x2_in_range, y_in_range));
+                v3_offset_f[i] = _mm256_blendv_ps(_mm256_set1_ps(-1.0f), v3_offset_f[i], _mm256_and_ps(x3_in_range, y_in_range));
             }
 
-            _mm256_storeu_ps(value_x, tx);
-            _mm256_storeu_ps(value_y, ty);
+            transpose8x18_ps(tx, ty, v0_offset_f[0], v1_offset_f[0], v2_offset_f[0], v3_offset_f[0], v0_offset_f[1], v1_offset_f[1], v2_offset_f[1], v3_offset_f[1], v0_offset_f[2], v1_offset_f[2], v2_offset_f[2], v3_offset_f[2], v0_offset_f[3], v1_offset_f[3], v2_offset_f[3], v3_offset_f[3]);
 
-            value_x += 8;
-            value_y += 8;
+            _mm256_storeu_ps(offset_value_ptr, tx);
+            offset_value_ptr += 8;
+            _mm256_storeu_ps(offset_value_ptr, ty);
+            offset_value_ptr += 8;
+            for (int i = 0; i < 4; i++)
+            {
+                _mm256_storeu_ps(offset_value_ptr, v0_offset_f[i]);
+                offset_value_ptr += 8;
+                _mm256_storeu_ps(offset_value_ptr, v1_offset_f[i]);
+                offset_value_ptr += 8;
+                _mm256_storeu_ps(offset_value_ptr, v2_offset_f[i]);
+                offset_value_ptr += 8;
+                _mm256_storeu_ps(offset_value_ptr, v3_offset_f[i]);
+                offset_value_ptr += 8;
+            }
 
             gridptr_x += 8;
             gridptr_y += 8;
@@ -271,19 +246,17 @@ void gridsample_2d_bicubic_compute_blob(const Mat& src, const Mat& grid, Mat& of
             float sample_x = *gridptr_x;
             float sample_y = *gridptr_y;
 
-            // x
             sample_x = unormalize(src.w, sample_x);
-            // y
             sample_y = unormalize(src.h, sample_y);
 
-            int x1 = floor(sample_x);
-            int y1 = floor(sample_y);
+            int x1 = floorf(sample_x);
+            int y1 = floorf(sample_y);
             int x0 = x1 - 1;
             int x2 = x1 + 1;
             int x3 = x1 + 2;
 
-            *value_x = sample_x - static_cast<float>(x1);
-            *value_y = sample_y - static_cast<float>(y1);
+            *offset_value_ptr++ = sample_x - static_cast<float>(x1);
+            *offset_value_ptr++ = sample_y - static_cast<float>(y1);
 
             x1 = get_coord(src.w, x1);
             x0 = get_coord(src.w, x0);
@@ -308,19 +281,11 @@ void gridsample_2d_bicubic_compute_blob(const Mat& src, const Mat& grid, Mat& of
                 bool v2_in_bound = (x2_in_range & y_in_range);
                 bool v3_in_bound = (x3_in_range & y_in_range);
 
-                *v0_offset_ptr[i] = v0_in_bound ? (offset_y + x0) * src.elempack : -1.0f;
-                *v1_offset_ptr[i] = v1_in_bound ? (offset_y + x1) * src.elempack : -1.0f;
-                *v2_offset_ptr[i] = v2_in_bound ? (offset_y + x2) * src.elempack : -1.0f;
-                *v3_offset_ptr[i] = v3_in_bound ? (offset_y + x3) * src.elempack : -1.0f;
-
-                v0_offset_ptr[i]++;
-                v1_offset_ptr[i]++;
-                v2_offset_ptr[i]++;
-                v3_offset_ptr[i]++;
+                *offset_value_ptr++ = v0_in_bound ? (offset_y + x0) * src.elempack : -1.0f;
+                *offset_value_ptr++ = v1_in_bound ? (offset_y + x1) * src.elempack : -1.0f;
+                *offset_value_ptr++ = v2_in_bound ? (offset_y + x2) * src.elempack : -1.0f;
+                *offset_value_ptr++ = v3_in_bound ? (offset_y + x3) * src.elempack : -1.0f;
             }
-
-            value_x++;
-            value_y++;
 
             gridptr_x++;
             gridptr_y++;

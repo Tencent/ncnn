@@ -15,7 +15,7 @@
 #if __SSE2__
 #if __AVX__
 #if __AVX512F__
-static void gridsample_nearest_apply_interpolation_p16(const Mat& src, Mat& dst, const Mat& offset, const Option& opt)
+static void gridsample_nearest_apply_interpolation_p16(const Mat& src, Mat& dst, const Mat& offset_value, const Option& opt)
 {
     const int channels = dst.c;
     const int outw = dst.w;
@@ -29,7 +29,7 @@ static void gridsample_nearest_apply_interpolation_p16(const Mat& src, Mat& dst,
         const float* srcptr = src.channel(q);
         float* dstptr = dst.channel(q);
 
-        const float* offset_ptr = offset.channel(0);
+        const float* offset_ptr = offset_value.channel(0);
 
         for (int i = 0; i < grid_size; i++)
         {
@@ -45,17 +45,17 @@ static void gridsample_nearest_apply_interpolation_p16(const Mat& src, Mat& dst,
 #endif // __AVX512F__
 
 #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__
-void gridsample_nearest_apply_interpolation_p8_avx2(const Mat& src, Mat& dst, const Mat& offset, const Option& opt);
-void gridsample_nearest_apply_interpolation_p4_avx2(const Mat& src, Mat& dst, const Mat& offset, const Option& opt);
-void gridsample_nearest_apply_interpolation_p1_avx2(const Mat& src, Mat& dst, const Mat& offset, const Option& opt);
+void gridsample_nearest_apply_interpolation_p8_avx2(const Mat& src, Mat& dst, const Mat& offset_value, const Option& opt);
+void gridsample_nearest_apply_interpolation_p4_avx2(const Mat& src, Mat& dst, const Mat& offset_value, const Option& opt);
+void gridsample_nearest_apply_interpolation_p1_avx2(const Mat& src, Mat& dst, const Mat& offset_value, const Option& opt);
 #endif
 
-static void gridsample_nearest_apply_interpolation_p8(const Mat& src, Mat& dst, const Mat& offset, const Option& opt)
+static void gridsample_nearest_apply_interpolation_p8(const Mat& src, Mat& dst, const Mat& offset_value, const Option& opt)
 {
 #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__
     if (ncnn::cpu_support_x86_avx2())
     {
-        gridsample_nearest_apply_interpolation_p8_avx2(src, dst, offset, opt);
+        gridsample_nearest_apply_interpolation_p8_avx2(src, dst, offset_value, opt);
         return;
     }
 #endif
@@ -72,7 +72,7 @@ static void gridsample_nearest_apply_interpolation_p8(const Mat& src, Mat& dst, 
         const float* srcptr = src.channel(q);
         float* dstptr = dst.channel(q);
 
-        const float* offset_ptr = offset.channel(0);
+        const float* offset_ptr = offset_value.channel(0);
 
         for (int i = 0; i < grid_size; i++)
         {
@@ -92,12 +92,12 @@ static void gridsample_nearest_apply_interpolation_p8(const Mat& src, Mat& dst, 
     }
 }
 #endif // __AVX__
-static void gridsample_nearest_apply_interpolation_p4(const Mat& src, Mat& dst, const Mat& offset, const Option& opt)
+static void gridsample_nearest_apply_interpolation_p4(const Mat& src, Mat& dst, const Mat& offset_value, const Option& opt)
 {
 #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__
     if (ncnn::cpu_support_x86_avx2())
     {
-        gridsample_nearest_apply_interpolation_p4_avx2(src, dst, offset, opt);
+        gridsample_nearest_apply_interpolation_p4_avx2(src, dst, offset_value, opt);
         return;
     }
 #endif
@@ -114,7 +114,7 @@ static void gridsample_nearest_apply_interpolation_p4(const Mat& src, Mat& dst, 
         const float* srcptr = src.channel(q);
         float* dstptr = dst.channel(q);
 
-        const float* offset_ptr = offset.channel(0);
+        const float* offset_ptr = offset_value.channel(0);
 
         for (int i = 0; i < grid_size; i++)
         {
@@ -131,12 +131,12 @@ static void gridsample_nearest_apply_interpolation_p4(const Mat& src, Mat& dst, 
 
 #endif // __SSE2__
 
-static void gridsample_nearest_apply_interpolation_p1(const Mat& src, Mat& dst, const Mat& offset, const Option& opt)
+static void gridsample_nearest_apply_interpolation_p1(const Mat& src, Mat& dst, const Mat& offset_value, const Option& opt)
 {
 #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__
     if (ncnn::cpu_support_x86_avx2())
     {
-        gridsample_nearest_apply_interpolation_p1_avx2(src, dst, offset, opt);
+        gridsample_nearest_apply_interpolation_p1_avx2(src, dst, offset_value, opt);
         return;
     }
 #endif
@@ -153,7 +153,7 @@ static void gridsample_nearest_apply_interpolation_p1(const Mat& src, Mat& dst, 
         const float* srcptr = src.channel(q);
         float* dstptr = dst.channel(q);
 
-        const float* offset_ptr = offset.channel(0);
+        const float* offset_ptr = offset_value.channel(0);
 
         int x = 0;
 #if __SSE2__

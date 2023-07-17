@@ -13,11 +13,11 @@
 // specific language governing permissions and limitations under the License.
 
 template<GridSample::PaddingMode pd, bool align_corner>
-void gridsample_2d_nearest_compute_blob(const Mat& src, const Mat& grid, Mat& offset, Mat& value, int permute_fusion)
+void gridsample_2d_nearest_compute_blob(const Mat& src, const Mat& grid, Mat& offset_value, int permute_fusion)
 {
     const int grid_size = grid.w * grid.h;
 
-    float* offset_ptr = offset.channel(0);
+    float* offset_ptr = offset_value.channel(0);
 
     grid_sample_unormalize<align_corner> unormalize;
     compute_coord<pd, align_corner> get_coord;
@@ -79,8 +79,8 @@ void gridsample_2d_nearest_compute_blob(const Mat& src, const Mat& grid, Mat& of
                 sample_y = unormalize(src.h, sample_y);
                 sample_y = get_coord(src.h, sample_y);
 
-                int x0 = static_cast<int>(floor(sample_x + 0.5f));
-                int y0 = static_cast<int>(floor(sample_y + 0.5f));
+                int x0 = static_cast<int>(floorf(sample_x + 0.5f));
+                int y0 = static_cast<int>(floorf(sample_y + 0.5f));
 
                 bool in_bound = ((x0 > -1) & (x0 < src.w) & (y0 > -1) & (y0 < src.h));
                 *offset_ptr = in_bound ? (x0 + y0 * src.w) * src.elempack : -1.0f;
@@ -141,8 +141,8 @@ void gridsample_2d_nearest_compute_blob(const Mat& src, const Mat& grid, Mat& of
             sample_y = unormalize(src.h, sample_y);
             sample_y = get_coord(src.h, sample_y);
 
-            int x0 = static_cast<int>(floor(sample_x + 0.5f));
-            int y0 = static_cast<int>(floor(sample_y + 0.5f));
+            int x0 = static_cast<int>(floorf(sample_x + 0.5f));
+            int y0 = static_cast<int>(floorf(sample_y + 0.5f));
 
             bool in_bound = ((x0 > -1) & (x0 < src.w) & (y0 > -1) & (y0 < src.h));
 
@@ -157,11 +157,11 @@ void gridsample_2d_nearest_compute_blob(const Mat& src, const Mat& grid, Mat& of
 }
 
 template<GridSample::PaddingMode pd, bool align_corner>
-void gridsample_3d_nearest_compute_blob(const Mat& src, const Mat& grid, Mat& offset, Mat& value, int permute_fusion)
+void gridsample_3d_nearest_compute_blob(const Mat& src, const Mat& grid, Mat& offset_value, int permute_fusion)
 {
     const int grid_size = grid.w * grid.h * grid.d;
 
-    float* offset_ptr = offset.channel(0);
+    float* offset_ptr = offset_value.channel(0);
 
     grid_sample_unormalize<align_corner> unormalize;
     compute_coord<pd, align_corner> get_coord;
@@ -239,9 +239,9 @@ void gridsample_3d_nearest_compute_blob(const Mat& src, const Mat& grid, Mat& of
                 sample_z = unormalize(src.d, sample_z);
                 sample_z = get_coord(src.d, sample_z);
 
-                int x0 = static_cast<int>(floor(sample_x + 0.5f));
-                int y0 = static_cast<int>(floor(sample_y + 0.5f));
-                int z0 = static_cast<int>(floor(sample_z + 0.5f));
+                int x0 = static_cast<int>(floorf(sample_x + 0.5f));
+                int y0 = static_cast<int>(floorf(sample_y + 0.5f));
+                int z0 = static_cast<int>(floorf(sample_z + 0.5f));
 
                 bool in_bound = ((x0 > -1) & (x0 < src.w) & (y0 > -1) & (y0 < src.h) & (z0 > -1) & (z0 < src.d));
 
@@ -318,9 +318,9 @@ void gridsample_3d_nearest_compute_blob(const Mat& src, const Mat& grid, Mat& of
             sample_z = unormalize(src.d, sample_z);
             sample_z = get_coord(src.d, sample_z);
 
-            int x0 = static_cast<int>(floor(sample_x + 0.5f));
-            int y0 = static_cast<int>(floor(sample_y + 0.5f));
-            int z0 = static_cast<int>(floor(sample_z + 0.5f));
+            int x0 = static_cast<int>(floorf(sample_x + 0.5f));
+            int y0 = static_cast<int>(floorf(sample_y + 0.5f));
+            int z0 = static_cast<int>(floorf(sample_z + 0.5f));
 
             bool in_bound = ((x0 > -1) & (x0 < src.w) & (y0 > -1) & (y0 < src.h) & (z0 > -1) & (z0 < src.d));
 
