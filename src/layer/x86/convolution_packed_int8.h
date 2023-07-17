@@ -926,14 +926,8 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
     const int elempack = bottom_blob.elempack;
     const int inch = bottom_blob.c * elempack;
 
-    const int N = bottom_blob.cstep * elempack;
-
-    const int outw = top_blob.w;
-    const int outh = top_blob.h;
     const int out_elempack = top_blob.elempack;
     const int outch = top_blob.c * out_elempack;
-
-    const int M = top_blob.cstep * out_elempack;
 
     const int maxk = kernel_w * kernel_h;
 
@@ -966,6 +960,11 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
     for (int pp = 0; pp < nn_outch; pp++)
     {
         const int p = pp * 16;
+
+        const int outw = top_blob.w;
+        const int outh = top_blob.h;
+        const int N = bottom_blob.cstep * elempack;
+        const int M = top_blob.cstep * out_elempack;
 
         int* outptr = top_blob.channel(p / out_elempack);
 
@@ -1541,6 +1540,11 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
     {
         const int p = remain_outch_start + pp * 8;
 
+        const int outw = top_blob.w;
+        const int outh = top_blob.h;
+        const int N = bottom_blob.cstep * elempack;
+        const int M = top_blob.cstep * out_elempack;
+
         int* outptr = top_blob.channel(p / out_elempack);
 
         int ij = 0;
@@ -2090,6 +2094,11 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
     for (int pp = 0; pp < nn_outch; pp++)
     {
         const int p = remain_outch_start + pp * 4;
+
+        const int outw = top_blob.w;
+        const int outh = top_blob.h;
+        const int N = bottom_blob.cstep * elempack;
+        const int M = top_blob.cstep * out_elempack;
 
         int* outptr = top_blob.channel(p / out_elempack);
 
@@ -2692,6 +2701,10 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
     {
         const int p = remain_outch_start + pp * 2;
 
+        const int outw = top_blob.w;
+        const int outh = top_blob.h;
+        const int N = bottom_blob.cstep * elempack;
+
         int* outptr0 = top_blob.channel(p);
         int* outptr1 = top_blob.channel(p + 1);
 
@@ -3143,6 +3156,10 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
     remain_outch_start += nn_outch * 2;
     for (int p = remain_outch_start; p < outch; p++)
     {
+        const int outw = top_blob.w;
+        const int outh = top_blob.h;
+        const int N = bottom_blob.cstep * elempack;
+
         int* outptr = top_blob.channel(p);
 
         int ij = 0;
