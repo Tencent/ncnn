@@ -1141,69 +1141,69 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
 
 #if __AVX512VNNI__
                     _sum0 = _mm512_dpwssd_epi32(_sum0, _mm512_shuffle_epi32(_rrrr00, _MM_PERM_AAAA), _w0);
-                    _sum0 = _mm512_dpwssd_epi32(_sum0, _mm512_shuffle_epi32(_rrrr00, _MM_PERM_BBBB), _w1);
-                    _sum0 = _mm512_dpwssd_epi32(_sum0, _mm512_shuffle_epi32(_rrrr00, _MM_PERM_CCCC), _w2);
-                    _sum0 = _mm512_dpwssd_epi32(_sum0, _mm512_shuffle_epi32(_rrrr00, _MM_PERM_DDDD), _w3);
-                    _sum0 = _mm512_dpwssd_epi32(_sum0, _mm512_shuffle_epi32(_rrrr01, _MM_PERM_AAAA), _w4);
-                    _sum0 = _mm512_dpwssd_epi32(_sum0, _mm512_shuffle_epi32(_rrrr01, _MM_PERM_BBBB), _w5);
-                    _sum0 = _mm512_dpwssd_epi32(_sum0, _mm512_shuffle_epi32(_rrrr01, _MM_PERM_CCCC), _w6);
-                    _sum0 = _mm512_dpwssd_epi32(_sum0, _mm512_shuffle_epi32(_rrrr01, _MM_PERM_DDDD), _w7);
                     _sum1 = _mm512_dpwssd_epi32(_sum1, _mm512_shuffle_epi32(_rrrr10, _MM_PERM_AAAA), _w0);
-                    _sum1 = _mm512_dpwssd_epi32(_sum1, _mm512_shuffle_epi32(_rrrr10, _MM_PERM_BBBB), _w1);
-                    _sum1 = _mm512_dpwssd_epi32(_sum1, _mm512_shuffle_epi32(_rrrr10, _MM_PERM_CCCC), _w2);
-                    _sum1 = _mm512_dpwssd_epi32(_sum1, _mm512_shuffle_epi32(_rrrr10, _MM_PERM_DDDD), _w3);
-                    _sum1 = _mm512_dpwssd_epi32(_sum1, _mm512_shuffle_epi32(_rrrr11, _MM_PERM_AAAA), _w4);
-                    _sum1 = _mm512_dpwssd_epi32(_sum1, _mm512_shuffle_epi32(_rrrr11, _MM_PERM_BBBB), _w5);
-                    _sum1 = _mm512_dpwssd_epi32(_sum1, _mm512_shuffle_epi32(_rrrr11, _MM_PERM_CCCC), _w6);
-                    _sum1 = _mm512_dpwssd_epi32(_sum1, _mm512_shuffle_epi32(_rrrr11, _MM_PERM_DDDD), _w7);
                     _sum2 = _mm512_dpwssd_epi32(_sum2, _mm512_shuffle_epi32(_rrrr20, _MM_PERM_AAAA), _w0);
-                    _sum2 = _mm512_dpwssd_epi32(_sum2, _mm512_shuffle_epi32(_rrrr20, _MM_PERM_BBBB), _w1);
-                    _sum2 = _mm512_dpwssd_epi32(_sum2, _mm512_shuffle_epi32(_rrrr20, _MM_PERM_CCCC), _w2);
-                    _sum2 = _mm512_dpwssd_epi32(_sum2, _mm512_shuffle_epi32(_rrrr20, _MM_PERM_DDDD), _w3);
-                    _sum2 = _mm512_dpwssd_epi32(_sum2, _mm512_shuffle_epi32(_rrrr21, _MM_PERM_AAAA), _w4);
-                    _sum2 = _mm512_dpwssd_epi32(_sum2, _mm512_shuffle_epi32(_rrrr21, _MM_PERM_BBBB), _w5);
-                    _sum2 = _mm512_dpwssd_epi32(_sum2, _mm512_shuffle_epi32(_rrrr21, _MM_PERM_CCCC), _w6);
-                    _sum2 = _mm512_dpwssd_epi32(_sum2, _mm512_shuffle_epi32(_rrrr21, _MM_PERM_DDDD), _w7);
                     _sum3 = _mm512_dpwssd_epi32(_sum3, _mm512_shuffle_epi32(_rrrr30, _MM_PERM_AAAA), _w0);
+                    _sum0 = _mm512_dpwssd_epi32(_sum0, _mm512_shuffle_epi32(_rrrr00, _MM_PERM_BBBB), _w1);
+                    _sum1 = _mm512_dpwssd_epi32(_sum1, _mm512_shuffle_epi32(_rrrr10, _MM_PERM_BBBB), _w1);
+                    _sum2 = _mm512_dpwssd_epi32(_sum2, _mm512_shuffle_epi32(_rrrr20, _MM_PERM_BBBB), _w1);
                     _sum3 = _mm512_dpwssd_epi32(_sum3, _mm512_shuffle_epi32(_rrrr30, _MM_PERM_BBBB), _w1);
+                    _sum0 = _mm512_dpwssd_epi32(_sum0, _mm512_shuffle_epi32(_rrrr00, _MM_PERM_CCCC), _w2);
+                    _sum1 = _mm512_dpwssd_epi32(_sum1, _mm512_shuffle_epi32(_rrrr10, _MM_PERM_CCCC), _w2);
+                    _sum2 = _mm512_dpwssd_epi32(_sum2, _mm512_shuffle_epi32(_rrrr20, _MM_PERM_CCCC), _w2);
                     _sum3 = _mm512_dpwssd_epi32(_sum3, _mm512_shuffle_epi32(_rrrr30, _MM_PERM_CCCC), _w2);
+                    _sum0 = _mm512_dpwssd_epi32(_sum0, _mm512_shuffle_epi32(_rrrr00, _MM_PERM_DDDD), _w3);
+                    _sum1 = _mm512_dpwssd_epi32(_sum1, _mm512_shuffle_epi32(_rrrr10, _MM_PERM_DDDD), _w3);
+                    _sum2 = _mm512_dpwssd_epi32(_sum2, _mm512_shuffle_epi32(_rrrr20, _MM_PERM_DDDD), _w3);
                     _sum3 = _mm512_dpwssd_epi32(_sum3, _mm512_shuffle_epi32(_rrrr30, _MM_PERM_DDDD), _w3);
+                    _sum0 = _mm512_dpwssd_epi32(_sum0, _mm512_shuffle_epi32(_rrrr01, _MM_PERM_AAAA), _w4);
+                    _sum1 = _mm512_dpwssd_epi32(_sum1, _mm512_shuffle_epi32(_rrrr11, _MM_PERM_AAAA), _w4);
+                    _sum2 = _mm512_dpwssd_epi32(_sum2, _mm512_shuffle_epi32(_rrrr21, _MM_PERM_AAAA), _w4);
                     _sum3 = _mm512_dpwssd_epi32(_sum3, _mm512_shuffle_epi32(_rrrr31, _MM_PERM_AAAA), _w4);
+                    _sum0 = _mm512_dpwssd_epi32(_sum0, _mm512_shuffle_epi32(_rrrr01, _MM_PERM_BBBB), _w5);
+                    _sum1 = _mm512_dpwssd_epi32(_sum1, _mm512_shuffle_epi32(_rrrr11, _MM_PERM_BBBB), _w5);
+                    _sum2 = _mm512_dpwssd_epi32(_sum2, _mm512_shuffle_epi32(_rrrr21, _MM_PERM_BBBB), _w5);
                     _sum3 = _mm512_dpwssd_epi32(_sum3, _mm512_shuffle_epi32(_rrrr31, _MM_PERM_BBBB), _w5);
+                    _sum0 = _mm512_dpwssd_epi32(_sum0, _mm512_shuffle_epi32(_rrrr01, _MM_PERM_CCCC), _w6);
+                    _sum1 = _mm512_dpwssd_epi32(_sum1, _mm512_shuffle_epi32(_rrrr11, _MM_PERM_CCCC), _w6);
+                    _sum2 = _mm512_dpwssd_epi32(_sum2, _mm512_shuffle_epi32(_rrrr21, _MM_PERM_CCCC), _w6);
                     _sum3 = _mm512_dpwssd_epi32(_sum3, _mm512_shuffle_epi32(_rrrr31, _MM_PERM_CCCC), _w6);
+                    _sum0 = _mm512_dpwssd_epi32(_sum0, _mm512_shuffle_epi32(_rrrr01, _MM_PERM_DDDD), _w7);
+                    _sum1 = _mm512_dpwssd_epi32(_sum1, _mm512_shuffle_epi32(_rrrr11, _MM_PERM_DDDD), _w7);
+                    _sum2 = _mm512_dpwssd_epi32(_sum2, _mm512_shuffle_epi32(_rrrr21, _MM_PERM_DDDD), _w7);
                     _sum3 = _mm512_dpwssd_epi32(_sum3, _mm512_shuffle_epi32(_rrrr31, _MM_PERM_DDDD), _w7);
 #else
                     _sum0 = _mm512_add_epi32(_sum0, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr00, _MM_PERM_AAAA), _w0));
-                    _sum0 = _mm512_add_epi32(_sum0, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr00, _MM_PERM_BBBB), _w1));
-                    _sum0 = _mm512_add_epi32(_sum0, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr00, _MM_PERM_CCCC), _w2));
-                    _sum0 = _mm512_add_epi32(_sum0, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr00, _MM_PERM_DDDD), _w3));
-                    _sum0 = _mm512_add_epi32(_sum0, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr01, _MM_PERM_AAAA), _w4));
-                    _sum0 = _mm512_add_epi32(_sum0, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr01, _MM_PERM_BBBB), _w5));
-                    _sum0 = _mm512_add_epi32(_sum0, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr01, _MM_PERM_CCCC), _w6));
-                    _sum0 = _mm512_add_epi32(_sum0, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr01, _MM_PERM_DDDD), _w7));
                     _sum1 = _mm512_add_epi32(_sum1, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr10, _MM_PERM_AAAA), _w0));
-                    _sum1 = _mm512_add_epi32(_sum1, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr10, _MM_PERM_BBBB), _w1));
-                    _sum1 = _mm512_add_epi32(_sum1, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr10, _MM_PERM_CCCC), _w2));
-                    _sum1 = _mm512_add_epi32(_sum1, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr10, _MM_PERM_DDDD), _w3));
-                    _sum1 = _mm512_add_epi32(_sum1, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr11, _MM_PERM_AAAA), _w4));
-                    _sum1 = _mm512_add_epi32(_sum1, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr11, _MM_PERM_BBBB), _w5));
-                    _sum1 = _mm512_add_epi32(_sum1, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr11, _MM_PERM_CCCC), _w6));
-                    _sum1 = _mm512_add_epi32(_sum1, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr11, _MM_PERM_DDDD), _w7));
                     _sum2 = _mm512_add_epi32(_sum2, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr20, _MM_PERM_AAAA), _w0));
-                    _sum2 = _mm512_add_epi32(_sum2, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr20, _MM_PERM_BBBB), _w1));
-                    _sum2 = _mm512_add_epi32(_sum2, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr20, _MM_PERM_CCCC), _w2));
-                    _sum2 = _mm512_add_epi32(_sum2, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr20, _MM_PERM_DDDD), _w3));
-                    _sum2 = _mm512_add_epi32(_sum2, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr21, _MM_PERM_AAAA), _w4));
-                    _sum2 = _mm512_add_epi32(_sum2, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr21, _MM_PERM_BBBB), _w5));
-                    _sum2 = _mm512_add_epi32(_sum2, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr21, _MM_PERM_CCCC), _w6));
-                    _sum2 = _mm512_add_epi32(_sum2, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr21, _MM_PERM_DDDD), _w7));
                     _sum3 = _mm512_add_epi32(_sum3, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr30, _MM_PERM_AAAA), _w0));
+                    _sum0 = _mm512_add_epi32(_sum0, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr00, _MM_PERM_BBBB), _w1));
+                    _sum1 = _mm512_add_epi32(_sum1, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr10, _MM_PERM_BBBB), _w1));
+                    _sum2 = _mm512_add_epi32(_sum2, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr20, _MM_PERM_BBBB), _w1));
                     _sum3 = _mm512_add_epi32(_sum3, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr30, _MM_PERM_BBBB), _w1));
+                    _sum0 = _mm512_add_epi32(_sum0, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr00, _MM_PERM_CCCC), _w2));
+                    _sum1 = _mm512_add_epi32(_sum1, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr10, _MM_PERM_CCCC), _w2));
+                    _sum2 = _mm512_add_epi32(_sum2, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr20, _MM_PERM_CCCC), _w2));
                     _sum3 = _mm512_add_epi32(_sum3, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr30, _MM_PERM_CCCC), _w2));
+                    _sum0 = _mm512_add_epi32(_sum0, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr00, _MM_PERM_DDDD), _w3));
+                    _sum1 = _mm512_add_epi32(_sum1, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr10, _MM_PERM_DDDD), _w3));
+                    _sum2 = _mm512_add_epi32(_sum2, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr20, _MM_PERM_DDDD), _w3));
                     _sum3 = _mm512_add_epi32(_sum3, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr30, _MM_PERM_DDDD), _w3));
+                    _sum0 = _mm512_add_epi32(_sum0, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr01, _MM_PERM_AAAA), _w4));
+                    _sum1 = _mm512_add_epi32(_sum1, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr11, _MM_PERM_AAAA), _w4));
+                    _sum2 = _mm512_add_epi32(_sum2, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr21, _MM_PERM_AAAA), _w4));
                     _sum3 = _mm512_add_epi32(_sum3, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr31, _MM_PERM_AAAA), _w4));
+                    _sum0 = _mm512_add_epi32(_sum0, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr01, _MM_PERM_BBBB), _w5));
+                    _sum1 = _mm512_add_epi32(_sum1, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr11, _MM_PERM_BBBB), _w5));
+                    _sum2 = _mm512_add_epi32(_sum2, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr21, _MM_PERM_BBBB), _w5));
                     _sum3 = _mm512_add_epi32(_sum3, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr31, _MM_PERM_BBBB), _w5));
+                    _sum0 = _mm512_add_epi32(_sum0, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr01, _MM_PERM_CCCC), _w6));
+                    _sum1 = _mm512_add_epi32(_sum1, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr11, _MM_PERM_CCCC), _w6));
+                    _sum2 = _mm512_add_epi32(_sum2, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr21, _MM_PERM_CCCC), _w6));
                     _sum3 = _mm512_add_epi32(_sum3, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr31, _MM_PERM_CCCC), _w6));
+                    _sum0 = _mm512_add_epi32(_sum0, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr01, _MM_PERM_DDDD), _w7));
+                    _sum1 = _mm512_add_epi32(_sum1, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr11, _MM_PERM_DDDD), _w7));
+                    _sum2 = _mm512_add_epi32(_sum2, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr21, _MM_PERM_DDDD), _w7));
                     _sum3 = _mm512_add_epi32(_sum3, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr31, _MM_PERM_DDDD), _w7));
 #endif // __AVX512VNNI__
 
@@ -1265,37 +1265,37 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
 
 #if __AVX512VNNI__
                     _sum0 = _mm512_dpwssd_epi32(_sum0, _mm512_shuffle_epi32(_rrrr0, _MM_PERM_AAAA), _w0);
-                    _sum0 = _mm512_dpwssd_epi32(_sum0, _mm512_shuffle_epi32(_rrrr0, _MM_PERM_BBBB), _w1);
-                    _sum0 = _mm512_dpwssd_epi32(_sum0, _mm512_shuffle_epi32(_rrrr0, _MM_PERM_CCCC), _w2);
-                    _sum0 = _mm512_dpwssd_epi32(_sum0, _mm512_shuffle_epi32(_rrrr0, _MM_PERM_DDDD), _w3);
                     _sum1 = _mm512_dpwssd_epi32(_sum1, _mm512_shuffle_epi32(_rrrr1, _MM_PERM_AAAA), _w0);
-                    _sum1 = _mm512_dpwssd_epi32(_sum1, _mm512_shuffle_epi32(_rrrr1, _MM_PERM_BBBB), _w1);
-                    _sum1 = _mm512_dpwssd_epi32(_sum1, _mm512_shuffle_epi32(_rrrr1, _MM_PERM_CCCC), _w2);
-                    _sum1 = _mm512_dpwssd_epi32(_sum1, _mm512_shuffle_epi32(_rrrr1, _MM_PERM_DDDD), _w3);
                     _sum2 = _mm512_dpwssd_epi32(_sum2, _mm512_shuffle_epi32(_rrrr2, _MM_PERM_AAAA), _w0);
-                    _sum2 = _mm512_dpwssd_epi32(_sum2, _mm512_shuffle_epi32(_rrrr2, _MM_PERM_BBBB), _w1);
-                    _sum2 = _mm512_dpwssd_epi32(_sum2, _mm512_shuffle_epi32(_rrrr2, _MM_PERM_CCCC), _w2);
-                    _sum2 = _mm512_dpwssd_epi32(_sum2, _mm512_shuffle_epi32(_rrrr2, _MM_PERM_DDDD), _w3);
                     _sum3 = _mm512_dpwssd_epi32(_sum3, _mm512_shuffle_epi32(_rrrr3, _MM_PERM_AAAA), _w0);
+                    _sum0 = _mm512_dpwssd_epi32(_sum0, _mm512_shuffle_epi32(_rrrr0, _MM_PERM_BBBB), _w1);
+                    _sum1 = _mm512_dpwssd_epi32(_sum1, _mm512_shuffle_epi32(_rrrr1, _MM_PERM_BBBB), _w1);
+                    _sum2 = _mm512_dpwssd_epi32(_sum2, _mm512_shuffle_epi32(_rrrr2, _MM_PERM_BBBB), _w1);
                     _sum3 = _mm512_dpwssd_epi32(_sum3, _mm512_shuffle_epi32(_rrrr3, _MM_PERM_BBBB), _w1);
+                    _sum0 = _mm512_dpwssd_epi32(_sum0, _mm512_shuffle_epi32(_rrrr0, _MM_PERM_CCCC), _w2);
+                    _sum1 = _mm512_dpwssd_epi32(_sum1, _mm512_shuffle_epi32(_rrrr1, _MM_PERM_CCCC), _w2);
+                    _sum2 = _mm512_dpwssd_epi32(_sum2, _mm512_shuffle_epi32(_rrrr2, _MM_PERM_CCCC), _w2);
                     _sum3 = _mm512_dpwssd_epi32(_sum3, _mm512_shuffle_epi32(_rrrr3, _MM_PERM_CCCC), _w2);
+                    _sum0 = _mm512_dpwssd_epi32(_sum0, _mm512_shuffle_epi32(_rrrr0, _MM_PERM_DDDD), _w3);
+                    _sum1 = _mm512_dpwssd_epi32(_sum1, _mm512_shuffle_epi32(_rrrr1, _MM_PERM_DDDD), _w3);
+                    _sum2 = _mm512_dpwssd_epi32(_sum2, _mm512_shuffle_epi32(_rrrr2, _MM_PERM_DDDD), _w3);
                     _sum3 = _mm512_dpwssd_epi32(_sum3, _mm512_shuffle_epi32(_rrrr3, _MM_PERM_DDDD), _w3);
 #else
                     _sum0 = _mm512_add_epi32(_sum0, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr0, _MM_PERM_AAAA), _w0));
-                    _sum0 = _mm512_add_epi32(_sum0, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr0, _MM_PERM_BBBB), _w1));
-                    _sum0 = _mm512_add_epi32(_sum0, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr0, _MM_PERM_CCCC), _w2));
-                    _sum0 = _mm512_add_epi32(_sum0, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr0, _MM_PERM_DDDD), _w3));
                     _sum1 = _mm512_add_epi32(_sum1, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr1, _MM_PERM_AAAA), _w0));
-                    _sum1 = _mm512_add_epi32(_sum1, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr1, _MM_PERM_BBBB), _w1));
-                    _sum1 = _mm512_add_epi32(_sum1, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr1, _MM_PERM_CCCC), _w2));
-                    _sum1 = _mm512_add_epi32(_sum1, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr1, _MM_PERM_DDDD), _w3));
                     _sum2 = _mm512_add_epi32(_sum2, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr2, _MM_PERM_AAAA), _w0));
-                    _sum2 = _mm512_add_epi32(_sum2, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr2, _MM_PERM_BBBB), _w1));
-                    _sum2 = _mm512_add_epi32(_sum2, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr2, _MM_PERM_CCCC), _w2));
-                    _sum2 = _mm512_add_epi32(_sum2, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr2, _MM_PERM_DDDD), _w3));
                     _sum3 = _mm512_add_epi32(_sum3, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr3, _MM_PERM_AAAA), _w0));
+                    _sum0 = _mm512_add_epi32(_sum0, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr0, _MM_PERM_BBBB), _w1));
+                    _sum1 = _mm512_add_epi32(_sum1, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr1, _MM_PERM_BBBB), _w1));
+                    _sum2 = _mm512_add_epi32(_sum2, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr2, _MM_PERM_BBBB), _w1));
                     _sum3 = _mm512_add_epi32(_sum3, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr3, _MM_PERM_BBBB), _w1));
+                    _sum0 = _mm512_add_epi32(_sum0, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr0, _MM_PERM_CCCC), _w2));
+                    _sum1 = _mm512_add_epi32(_sum1, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr1, _MM_PERM_CCCC), _w2));
+                    _sum2 = _mm512_add_epi32(_sum2, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr2, _MM_PERM_CCCC), _w2));
                     _sum3 = _mm512_add_epi32(_sum3, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr3, _MM_PERM_CCCC), _w2));
+                    _sum0 = _mm512_add_epi32(_sum0, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr0, _MM_PERM_DDDD), _w3));
+                    _sum1 = _mm512_add_epi32(_sum1, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr1, _MM_PERM_DDDD), _w3));
+                    _sum2 = _mm512_add_epi32(_sum2, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr2, _MM_PERM_DDDD), _w3));
                     _sum3 = _mm512_add_epi32(_sum3, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr3, _MM_PERM_DDDD), _w3));
 #endif // __AVX512VNNI__
 
@@ -1496,37 +1496,37 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
 
 #if __AVX512VNNI__
                     _sum0 = _mm512_dpwssd_epi32(_sum0, _mm512_shuffle_epi32(_rrrr00, _MM_PERM_AAAA), _w0);
-                    _sum0 = _mm512_dpwssd_epi32(_sum0, _mm512_shuffle_epi32(_rrrr00, _MM_PERM_BBBB), _w1);
-                    _sum0 = _mm512_dpwssd_epi32(_sum0, _mm512_shuffle_epi32(_rrrr00, _MM_PERM_CCCC), _w2);
-                    _sum0 = _mm512_dpwssd_epi32(_sum0, _mm512_shuffle_epi32(_rrrr00, _MM_PERM_DDDD), _w3);
-                    _sum0 = _mm512_dpwssd_epi32(_sum0, _mm512_shuffle_epi32(_rrrr01, _MM_PERM_AAAA), _w4);
-                    _sum0 = _mm512_dpwssd_epi32(_sum0, _mm512_shuffle_epi32(_rrrr01, _MM_PERM_BBBB), _w5);
-                    _sum0 = _mm512_dpwssd_epi32(_sum0, _mm512_shuffle_epi32(_rrrr01, _MM_PERM_CCCC), _w6);
-                    _sum0 = _mm512_dpwssd_epi32(_sum0, _mm512_shuffle_epi32(_rrrr01, _MM_PERM_DDDD), _w7);
                     _sum1 = _mm512_dpwssd_epi32(_sum1, _mm512_shuffle_epi32(_rrrr10, _MM_PERM_AAAA), _w0);
+                    _sum0 = _mm512_dpwssd_epi32(_sum0, _mm512_shuffle_epi32(_rrrr00, _MM_PERM_BBBB), _w1);
                     _sum1 = _mm512_dpwssd_epi32(_sum1, _mm512_shuffle_epi32(_rrrr10, _MM_PERM_BBBB), _w1);
+                    _sum0 = _mm512_dpwssd_epi32(_sum0, _mm512_shuffle_epi32(_rrrr00, _MM_PERM_CCCC), _w2);
                     _sum1 = _mm512_dpwssd_epi32(_sum1, _mm512_shuffle_epi32(_rrrr10, _MM_PERM_CCCC), _w2);
+                    _sum0 = _mm512_dpwssd_epi32(_sum0, _mm512_shuffle_epi32(_rrrr00, _MM_PERM_DDDD), _w3);
                     _sum1 = _mm512_dpwssd_epi32(_sum1, _mm512_shuffle_epi32(_rrrr10, _MM_PERM_DDDD), _w3);
+                    _sum0 = _mm512_dpwssd_epi32(_sum0, _mm512_shuffle_epi32(_rrrr01, _MM_PERM_AAAA), _w4);
                     _sum1 = _mm512_dpwssd_epi32(_sum1, _mm512_shuffle_epi32(_rrrr11, _MM_PERM_AAAA), _w4);
+                    _sum0 = _mm512_dpwssd_epi32(_sum0, _mm512_shuffle_epi32(_rrrr01, _MM_PERM_BBBB), _w5);
                     _sum1 = _mm512_dpwssd_epi32(_sum1, _mm512_shuffle_epi32(_rrrr11, _MM_PERM_BBBB), _w5);
+                    _sum0 = _mm512_dpwssd_epi32(_sum0, _mm512_shuffle_epi32(_rrrr01, _MM_PERM_CCCC), _w6);
                     _sum1 = _mm512_dpwssd_epi32(_sum1, _mm512_shuffle_epi32(_rrrr11, _MM_PERM_CCCC), _w6);
+                    _sum0 = _mm512_dpwssd_epi32(_sum0, _mm512_shuffle_epi32(_rrrr01, _MM_PERM_DDDD), _w7);
                     _sum1 = _mm512_dpwssd_epi32(_sum1, _mm512_shuffle_epi32(_rrrr11, _MM_PERM_DDDD), _w7);
 #else
                     _sum0 = _mm512_add_epi32(_sum0, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr00, _MM_PERM_AAAA), _w0));
-                    _sum0 = _mm512_add_epi32(_sum0, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr00, _MM_PERM_BBBB), _w1));
-                    _sum0 = _mm512_add_epi32(_sum0, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr00, _MM_PERM_CCCC), _w2));
-                    _sum0 = _mm512_add_epi32(_sum0, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr00, _MM_PERM_DDDD), _w3));
-                    _sum0 = _mm512_add_epi32(_sum0, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr01, _MM_PERM_AAAA), _w4));
-                    _sum0 = _mm512_add_epi32(_sum0, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr01, _MM_PERM_BBBB), _w5));
-                    _sum0 = _mm512_add_epi32(_sum0, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr01, _MM_PERM_CCCC), _w6));
-                    _sum0 = _mm512_add_epi32(_sum0, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr01, _MM_PERM_DDDD), _w7));
                     _sum1 = _mm512_add_epi32(_sum1, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr10, _MM_PERM_AAAA), _w0));
+                    _sum0 = _mm512_add_epi32(_sum0, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr00, _MM_PERM_BBBB), _w1));
                     _sum1 = _mm512_add_epi32(_sum1, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr10, _MM_PERM_BBBB), _w1));
+                    _sum0 = _mm512_add_epi32(_sum0, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr00, _MM_PERM_CCCC), _w2));
                     _sum1 = _mm512_add_epi32(_sum1, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr10, _MM_PERM_CCCC), _w2));
+                    _sum0 = _mm512_add_epi32(_sum0, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr00, _MM_PERM_DDDD), _w3));
                     _sum1 = _mm512_add_epi32(_sum1, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr10, _MM_PERM_DDDD), _w3));
+                    _sum0 = _mm512_add_epi32(_sum0, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr01, _MM_PERM_AAAA), _w4));
                     _sum1 = _mm512_add_epi32(_sum1, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr11, _MM_PERM_AAAA), _w4));
+                    _sum0 = _mm512_add_epi32(_sum0, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr01, _MM_PERM_BBBB), _w5));
                     _sum1 = _mm512_add_epi32(_sum1, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr11, _MM_PERM_BBBB), _w5));
+                    _sum0 = _mm512_add_epi32(_sum0, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr01, _MM_PERM_CCCC), _w6));
                     _sum1 = _mm512_add_epi32(_sum1, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr11, _MM_PERM_CCCC), _w6));
+                    _sum0 = _mm512_add_epi32(_sum0, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr01, _MM_PERM_DDDD), _w7));
                     _sum1 = _mm512_add_epi32(_sum1, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr11, _MM_PERM_DDDD), _w7));
 #endif // __AVX512VNNI__
 
@@ -1574,21 +1574,21 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
 
 #if __AVX512VNNI__
                     _sum0 = _mm512_dpwssd_epi32(_sum0, _mm512_shuffle_epi32(_rrrr0, _MM_PERM_AAAA), _w0);
-                    _sum0 = _mm512_dpwssd_epi32(_sum0, _mm512_shuffle_epi32(_rrrr0, _MM_PERM_BBBB), _w1);
-                    _sum0 = _mm512_dpwssd_epi32(_sum0, _mm512_shuffle_epi32(_rrrr0, _MM_PERM_CCCC), _w2);
-                    _sum0 = _mm512_dpwssd_epi32(_sum0, _mm512_shuffle_epi32(_rrrr0, _MM_PERM_DDDD), _w3);
                     _sum1 = _mm512_dpwssd_epi32(_sum1, _mm512_shuffle_epi32(_rrrr1, _MM_PERM_AAAA), _w0);
+                    _sum0 = _mm512_dpwssd_epi32(_sum0, _mm512_shuffle_epi32(_rrrr0, _MM_PERM_BBBB), _w1);
                     _sum1 = _mm512_dpwssd_epi32(_sum1, _mm512_shuffle_epi32(_rrrr1, _MM_PERM_BBBB), _w1);
+                    _sum0 = _mm512_dpwssd_epi32(_sum0, _mm512_shuffle_epi32(_rrrr0, _MM_PERM_CCCC), _w2);
                     _sum1 = _mm512_dpwssd_epi32(_sum1, _mm512_shuffle_epi32(_rrrr1, _MM_PERM_CCCC), _w2);
+                    _sum0 = _mm512_dpwssd_epi32(_sum0, _mm512_shuffle_epi32(_rrrr0, _MM_PERM_DDDD), _w3);
                     _sum1 = _mm512_dpwssd_epi32(_sum1, _mm512_shuffle_epi32(_rrrr1, _MM_PERM_DDDD), _w3);
 #else
                     _sum0 = _mm512_add_epi32(_sum0, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr0, _MM_PERM_AAAA), _w0));
-                    _sum0 = _mm512_add_epi32(_sum0, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr0, _MM_PERM_BBBB), _w1));
-                    _sum0 = _mm512_add_epi32(_sum0, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr0, _MM_PERM_CCCC), _w2));
-                    _sum0 = _mm512_add_epi32(_sum0, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr0, _MM_PERM_DDDD), _w3));
                     _sum1 = _mm512_add_epi32(_sum1, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr1, _MM_PERM_AAAA), _w0));
+                    _sum0 = _mm512_add_epi32(_sum0, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr0, _MM_PERM_BBBB), _w1));
                     _sum1 = _mm512_add_epi32(_sum1, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr1, _MM_PERM_BBBB), _w1));
+                    _sum0 = _mm512_add_epi32(_sum0, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr0, _MM_PERM_CCCC), _w2));
                     _sum1 = _mm512_add_epi32(_sum1, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr1, _MM_PERM_CCCC), _w2));
+                    _sum0 = _mm512_add_epi32(_sum0, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr0, _MM_PERM_DDDD), _w3));
                     _sum1 = _mm512_add_epi32(_sum1, _mm512_madd_epi16(_mm512_shuffle_epi32(_rrrr1, _MM_PERM_DDDD), _w3));
 #endif // __AVX512VNNI__
 
@@ -2014,37 +2014,37 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
 
 #if __AVX512VNNI__
                         _sum00 = _mm512_dpwssd_epi32(_sum00, _mm512_shuffle_i32x4(_rrr0l, _rrr0h, _MM_SHUFFLE(0, 0, 0, 0)), _w0);
-                        _sum00 = _mm512_dpwssd_epi32(_sum00, _mm512_shuffle_i32x4(_rrr0l, _rrr0h, _MM_SHUFFLE(2, 2, 2, 2)), _w1);
-                        _sum00 = _mm512_dpwssd_epi32(_sum00, _mm512_shuffle_i32x4(_rrr0l, _rrr0h, _MM_SHUFFLE(1, 1, 1, 1)), _w2);
-                        _sum00 = _mm512_dpwssd_epi32(_sum00, _mm512_shuffle_i32x4(_rrr0l, _rrr0h, _MM_SHUFFLE(3, 3, 3, 3)), _w3);
                         _sum11 = _mm512_dpwssd_epi32(_sum11, _mm512_shuffle_i32x4(_rrr1l, _rrr1h, _MM_SHUFFLE(0, 0, 0, 0)), _w0);
-                        _sum11 = _mm512_dpwssd_epi32(_sum11, _mm512_shuffle_i32x4(_rrr1l, _rrr1h, _MM_SHUFFLE(2, 2, 2, 2)), _w1);
-                        _sum11 = _mm512_dpwssd_epi32(_sum11, _mm512_shuffle_i32x4(_rrr1l, _rrr1h, _MM_SHUFFLE(1, 1, 1, 1)), _w2);
-                        _sum11 = _mm512_dpwssd_epi32(_sum11, _mm512_shuffle_i32x4(_rrr1l, _rrr1h, _MM_SHUFFLE(3, 3, 3, 3)), _w3);
                         _sum22 = _mm512_dpwssd_epi32(_sum22, _mm512_shuffle_i32x4(_rrr2l, _rrr2h, _MM_SHUFFLE(0, 0, 0, 0)), _w0);
-                        _sum22 = _mm512_dpwssd_epi32(_sum22, _mm512_shuffle_i32x4(_rrr2l, _rrr2h, _MM_SHUFFLE(2, 2, 2, 2)), _w1);
-                        _sum22 = _mm512_dpwssd_epi32(_sum22, _mm512_shuffle_i32x4(_rrr2l, _rrr2h, _MM_SHUFFLE(1, 1, 1, 1)), _w2);
-                        _sum22 = _mm512_dpwssd_epi32(_sum22, _mm512_shuffle_i32x4(_rrr2l, _rrr2h, _MM_SHUFFLE(3, 3, 3, 3)), _w3);
                         _sum33 = _mm512_dpwssd_epi32(_sum33, _mm512_shuffle_i32x4(_rrr3l, _rrr3h, _MM_SHUFFLE(0, 0, 0, 0)), _w0);
+                        _sum00 = _mm512_dpwssd_epi32(_sum00, _mm512_shuffle_i32x4(_rrr0l, _rrr0h, _MM_SHUFFLE(2, 2, 2, 2)), _w1);
+                        _sum11 = _mm512_dpwssd_epi32(_sum11, _mm512_shuffle_i32x4(_rrr1l, _rrr1h, _MM_SHUFFLE(2, 2, 2, 2)), _w1);
+                        _sum22 = _mm512_dpwssd_epi32(_sum22, _mm512_shuffle_i32x4(_rrr2l, _rrr2h, _MM_SHUFFLE(2, 2, 2, 2)), _w1);
                         _sum33 = _mm512_dpwssd_epi32(_sum33, _mm512_shuffle_i32x4(_rrr3l, _rrr3h, _MM_SHUFFLE(2, 2, 2, 2)), _w1);
+                        _sum00 = _mm512_dpwssd_epi32(_sum00, _mm512_shuffle_i32x4(_rrr0l, _rrr0h, _MM_SHUFFLE(1, 1, 1, 1)), _w2);
+                        _sum11 = _mm512_dpwssd_epi32(_sum11, _mm512_shuffle_i32x4(_rrr1l, _rrr1h, _MM_SHUFFLE(1, 1, 1, 1)), _w2);
+                        _sum22 = _mm512_dpwssd_epi32(_sum22, _mm512_shuffle_i32x4(_rrr2l, _rrr2h, _MM_SHUFFLE(1, 1, 1, 1)), _w2);
                         _sum33 = _mm512_dpwssd_epi32(_sum33, _mm512_shuffle_i32x4(_rrr3l, _rrr3h, _MM_SHUFFLE(1, 1, 1, 1)), _w2);
+                        _sum00 = _mm512_dpwssd_epi32(_sum00, _mm512_shuffle_i32x4(_rrr0l, _rrr0h, _MM_SHUFFLE(3, 3, 3, 3)), _w3);
+                        _sum11 = _mm512_dpwssd_epi32(_sum11, _mm512_shuffle_i32x4(_rrr1l, _rrr1h, _MM_SHUFFLE(3, 3, 3, 3)), _w3);
+                        _sum22 = _mm512_dpwssd_epi32(_sum22, _mm512_shuffle_i32x4(_rrr2l, _rrr2h, _MM_SHUFFLE(3, 3, 3, 3)), _w3);
                         _sum33 = _mm512_dpwssd_epi32(_sum33, _mm512_shuffle_i32x4(_rrr3l, _rrr3h, _MM_SHUFFLE(3, 3, 3, 3)), _w3);
 #else
                         _sum00 = _mm512_add_epi32(_sum00, _mm512_madd_epi16(_mm512_shuffle_i32x4(_rrr0l, _rrr0h, _MM_SHUFFLE(0, 0, 0, 0)), _w0));
-                        _sum00 = _mm512_add_epi32(_sum00, _mm512_madd_epi16(_mm512_shuffle_i32x4(_rrr0l, _rrr0h, _MM_SHUFFLE(2, 2, 2, 2)), _w1));
-                        _sum00 = _mm512_add_epi32(_sum00, _mm512_madd_epi16(_mm512_shuffle_i32x4(_rrr0l, _rrr0h, _MM_SHUFFLE(1, 1, 1, 1)), _w2));
-                        _sum00 = _mm512_add_epi32(_sum00, _mm512_madd_epi16(_mm512_shuffle_i32x4(_rrr0l, _rrr0h, _MM_SHUFFLE(3, 3, 3, 3)), _w3));
                         _sum11 = _mm512_add_epi32(_sum11, _mm512_madd_epi16(_mm512_shuffle_i32x4(_rrr1l, _rrr1h, _MM_SHUFFLE(0, 0, 0, 0)), _w0));
-                        _sum11 = _mm512_add_epi32(_sum11, _mm512_madd_epi16(_mm512_shuffle_i32x4(_rrr1l, _rrr1h, _MM_SHUFFLE(2, 2, 2, 2)), _w1));
-                        _sum11 = _mm512_add_epi32(_sum11, _mm512_madd_epi16(_mm512_shuffle_i32x4(_rrr1l, _rrr1h, _MM_SHUFFLE(1, 1, 1, 1)), _w2));
-                        _sum11 = _mm512_add_epi32(_sum11, _mm512_madd_epi16(_mm512_shuffle_i32x4(_rrr1l, _rrr1h, _MM_SHUFFLE(3, 3, 3, 3)), _w3));
                         _sum22 = _mm512_add_epi32(_sum22, _mm512_madd_epi16(_mm512_shuffle_i32x4(_rrr2l, _rrr2h, _MM_SHUFFLE(0, 0, 0, 0)), _w0));
-                        _sum22 = _mm512_add_epi32(_sum22, _mm512_madd_epi16(_mm512_shuffle_i32x4(_rrr2l, _rrr2h, _MM_SHUFFLE(2, 2, 2, 2)), _w1));
-                        _sum22 = _mm512_add_epi32(_sum22, _mm512_madd_epi16(_mm512_shuffle_i32x4(_rrr2l, _rrr2h, _MM_SHUFFLE(1, 1, 1, 1)), _w2));
-                        _sum22 = _mm512_add_epi32(_sum22, _mm512_madd_epi16(_mm512_shuffle_i32x4(_rrr2l, _rrr2h, _MM_SHUFFLE(3, 3, 3, 3)), _w3));
                         _sum33 = _mm512_add_epi32(_sum33, _mm512_madd_epi16(_mm512_shuffle_i32x4(_rrr3l, _rrr3h, _MM_SHUFFLE(0, 0, 0, 0)), _w0));
+                        _sum00 = _mm512_add_epi32(_sum00, _mm512_madd_epi16(_mm512_shuffle_i32x4(_rrr0l, _rrr0h, _MM_SHUFFLE(2, 2, 2, 2)), _w1));
+                        _sum11 = _mm512_add_epi32(_sum11, _mm512_madd_epi16(_mm512_shuffle_i32x4(_rrr1l, _rrr1h, _MM_SHUFFLE(2, 2, 2, 2)), _w1));
+                        _sum22 = _mm512_add_epi32(_sum22, _mm512_madd_epi16(_mm512_shuffle_i32x4(_rrr2l, _rrr2h, _MM_SHUFFLE(2, 2, 2, 2)), _w1));
                         _sum33 = _mm512_add_epi32(_sum33, _mm512_madd_epi16(_mm512_shuffle_i32x4(_rrr3l, _rrr3h, _MM_SHUFFLE(2, 2, 2, 2)), _w1));
+                        _sum00 = _mm512_add_epi32(_sum00, _mm512_madd_epi16(_mm512_shuffle_i32x4(_rrr0l, _rrr0h, _MM_SHUFFLE(1, 1, 1, 1)), _w2));
+                        _sum11 = _mm512_add_epi32(_sum11, _mm512_madd_epi16(_mm512_shuffle_i32x4(_rrr1l, _rrr1h, _MM_SHUFFLE(1, 1, 1, 1)), _w2));
+                        _sum22 = _mm512_add_epi32(_sum22, _mm512_madd_epi16(_mm512_shuffle_i32x4(_rrr2l, _rrr2h, _MM_SHUFFLE(1, 1, 1, 1)), _w2));
                         _sum33 = _mm512_add_epi32(_sum33, _mm512_madd_epi16(_mm512_shuffle_i32x4(_rrr3l, _rrr3h, _MM_SHUFFLE(1, 1, 1, 1)), _w2));
+                        _sum00 = _mm512_add_epi32(_sum00, _mm512_madd_epi16(_mm512_shuffle_i32x4(_rrr0l, _rrr0h, _MM_SHUFFLE(3, 3, 3, 3)), _w3));
+                        _sum11 = _mm512_add_epi32(_sum11, _mm512_madd_epi16(_mm512_shuffle_i32x4(_rrr1l, _rrr1h, _MM_SHUFFLE(3, 3, 3, 3)), _w3));
+                        _sum22 = _mm512_add_epi32(_sum22, _mm512_madd_epi16(_mm512_shuffle_i32x4(_rrr2l, _rrr2h, _MM_SHUFFLE(3, 3, 3, 3)), _w3));
                         _sum33 = _mm512_add_epi32(_sum33, _mm512_madd_epi16(_mm512_shuffle_i32x4(_rrr3l, _rrr3h, _MM_SHUFFLE(3, 3, 3, 3)), _w3));
 #endif // __AVX512VNNI__
 
@@ -2136,37 +2136,37 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
 
 #if __AVXVNNI__ || __AVX512VNNI__
                     _sum0 = _mm256_dpwssd_epi32(_sum0, _mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(0, 0, 0, 0)), _w0);
-                    _sum0 = _mm256_dpwssd_epi32(_sum0, _mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(1, 1, 1, 1)), _w1);
-                    _sum0 = _mm256_dpwssd_epi32(_sum0, _mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(2, 2, 2, 2)), _w2);
-                    _sum0 = _mm256_dpwssd_epi32(_sum0, _mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(3, 3, 3, 3)), _w3);
                     _sum1 = _mm256_dpwssd_epi32(_sum1, _mm256_shuffle_epi32(_rr1, _MM_SHUFFLE(0, 0, 0, 0)), _w0);
-                    _sum1 = _mm256_dpwssd_epi32(_sum1, _mm256_shuffle_epi32(_rr1, _MM_SHUFFLE(1, 1, 1, 1)), _w1);
-                    _sum1 = _mm256_dpwssd_epi32(_sum1, _mm256_shuffle_epi32(_rr1, _MM_SHUFFLE(2, 2, 2, 2)), _w2);
-                    _sum1 = _mm256_dpwssd_epi32(_sum1, _mm256_shuffle_epi32(_rr1, _MM_SHUFFLE(3, 3, 3, 3)), _w3);
                     _sum2 = _mm256_dpwssd_epi32(_sum2, _mm256_shuffle_epi32(_rr2, _MM_SHUFFLE(0, 0, 0, 0)), _w0);
-                    _sum2 = _mm256_dpwssd_epi32(_sum2, _mm256_shuffle_epi32(_rr2, _MM_SHUFFLE(1, 1, 1, 1)), _w1);
-                    _sum2 = _mm256_dpwssd_epi32(_sum2, _mm256_shuffle_epi32(_rr2, _MM_SHUFFLE(2, 2, 2, 2)), _w2);
-                    _sum2 = _mm256_dpwssd_epi32(_sum2, _mm256_shuffle_epi32(_rr2, _MM_SHUFFLE(3, 3, 3, 3)), _w3);
                     _sum3 = _mm256_dpwssd_epi32(_sum3, _mm256_shuffle_epi32(_rr3, _MM_SHUFFLE(0, 0, 0, 0)), _w0);
+                    _sum0 = _mm256_dpwssd_epi32(_sum0, _mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(1, 1, 1, 1)), _w1);
+                    _sum1 = _mm256_dpwssd_epi32(_sum1, _mm256_shuffle_epi32(_rr1, _MM_SHUFFLE(1, 1, 1, 1)), _w1);
+                    _sum2 = _mm256_dpwssd_epi32(_sum2, _mm256_shuffle_epi32(_rr2, _MM_SHUFFLE(1, 1, 1, 1)), _w1);
                     _sum3 = _mm256_dpwssd_epi32(_sum3, _mm256_shuffle_epi32(_rr3, _MM_SHUFFLE(1, 1, 1, 1)), _w1);
+                    _sum0 = _mm256_dpwssd_epi32(_sum0, _mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(2, 2, 2, 2)), _w2);
+                    _sum1 = _mm256_dpwssd_epi32(_sum1, _mm256_shuffle_epi32(_rr1, _MM_SHUFFLE(2, 2, 2, 2)), _w2);
+                    _sum2 = _mm256_dpwssd_epi32(_sum2, _mm256_shuffle_epi32(_rr2, _MM_SHUFFLE(2, 2, 2, 2)), _w2);
                     _sum3 = _mm256_dpwssd_epi32(_sum3, _mm256_shuffle_epi32(_rr3, _MM_SHUFFLE(2, 2, 2, 2)), _w2);
+                    _sum0 = _mm256_dpwssd_epi32(_sum0, _mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(3, 3, 3, 3)), _w3);
+                    _sum1 = _mm256_dpwssd_epi32(_sum1, _mm256_shuffle_epi32(_rr1, _MM_SHUFFLE(3, 3, 3, 3)), _w3);
+                    _sum2 = _mm256_dpwssd_epi32(_sum2, _mm256_shuffle_epi32(_rr2, _MM_SHUFFLE(3, 3, 3, 3)), _w3);
                     _sum3 = _mm256_dpwssd_epi32(_sum3, _mm256_shuffle_epi32(_rr3, _MM_SHUFFLE(3, 3, 3, 3)), _w3);
 #else
                     _sum0 = _mm256_add_epi32(_sum0, _mm256_madd_epi16(_mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(0, 0, 0, 0)), _w0));
-                    _sum0 = _mm256_add_epi32(_sum0, _mm256_madd_epi16(_mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(1, 1, 1, 1)), _w1));
-                    _sum0 = _mm256_add_epi32(_sum0, _mm256_madd_epi16(_mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(2, 2, 2, 2)), _w2));
-                    _sum0 = _mm256_add_epi32(_sum0, _mm256_madd_epi16(_mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(3, 3, 3, 3)), _w3));
                     _sum1 = _mm256_add_epi32(_sum1, _mm256_madd_epi16(_mm256_shuffle_epi32(_rr1, _MM_SHUFFLE(0, 0, 0, 0)), _w0));
-                    _sum1 = _mm256_add_epi32(_sum1, _mm256_madd_epi16(_mm256_shuffle_epi32(_rr1, _MM_SHUFFLE(1, 1, 1, 1)), _w1));
-                    _sum1 = _mm256_add_epi32(_sum1, _mm256_madd_epi16(_mm256_shuffle_epi32(_rr1, _MM_SHUFFLE(2, 2, 2, 2)), _w2));
-                    _sum1 = _mm256_add_epi32(_sum1, _mm256_madd_epi16(_mm256_shuffle_epi32(_rr1, _MM_SHUFFLE(3, 3, 3, 3)), _w3));
                     _sum2 = _mm256_add_epi32(_sum2, _mm256_madd_epi16(_mm256_shuffle_epi32(_rr2, _MM_SHUFFLE(0, 0, 0, 0)), _w0));
-                    _sum2 = _mm256_add_epi32(_sum2, _mm256_madd_epi16(_mm256_shuffle_epi32(_rr2, _MM_SHUFFLE(1, 1, 1, 1)), _w1));
-                    _sum2 = _mm256_add_epi32(_sum2, _mm256_madd_epi16(_mm256_shuffle_epi32(_rr2, _MM_SHUFFLE(2, 2, 2, 2)), _w2));
-                    _sum2 = _mm256_add_epi32(_sum2, _mm256_madd_epi16(_mm256_shuffle_epi32(_rr2, _MM_SHUFFLE(3, 3, 3, 3)), _w3));
                     _sum3 = _mm256_add_epi32(_sum3, _mm256_madd_epi16(_mm256_shuffle_epi32(_rr3, _MM_SHUFFLE(0, 0, 0, 0)), _w0));
+                    _sum0 = _mm256_add_epi32(_sum0, _mm256_madd_epi16(_mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(1, 1, 1, 1)), _w1));
+                    _sum1 = _mm256_add_epi32(_sum1, _mm256_madd_epi16(_mm256_shuffle_epi32(_rr1, _MM_SHUFFLE(1, 1, 1, 1)), _w1));
+                    _sum2 = _mm256_add_epi32(_sum2, _mm256_madd_epi16(_mm256_shuffle_epi32(_rr2, _MM_SHUFFLE(1, 1, 1, 1)), _w1));
                     _sum3 = _mm256_add_epi32(_sum3, _mm256_madd_epi16(_mm256_shuffle_epi32(_rr3, _MM_SHUFFLE(1, 1, 1, 1)), _w1));
+                    _sum0 = _mm256_add_epi32(_sum0, _mm256_madd_epi16(_mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(2, 2, 2, 2)), _w2));
+                    _sum1 = _mm256_add_epi32(_sum1, _mm256_madd_epi16(_mm256_shuffle_epi32(_rr1, _MM_SHUFFLE(2, 2, 2, 2)), _w2));
+                    _sum2 = _mm256_add_epi32(_sum2, _mm256_madd_epi16(_mm256_shuffle_epi32(_rr2, _MM_SHUFFLE(2, 2, 2, 2)), _w2));
                     _sum3 = _mm256_add_epi32(_sum3, _mm256_madd_epi16(_mm256_shuffle_epi32(_rr3, _MM_SHUFFLE(2, 2, 2, 2)), _w2));
+                    _sum0 = _mm256_add_epi32(_sum0, _mm256_madd_epi16(_mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(3, 3, 3, 3)), _w3));
+                    _sum1 = _mm256_add_epi32(_sum1, _mm256_madd_epi16(_mm256_shuffle_epi32(_rr1, _MM_SHUFFLE(3, 3, 3, 3)), _w3));
+                    _sum2 = _mm256_add_epi32(_sum2, _mm256_madd_epi16(_mm256_shuffle_epi32(_rr2, _MM_SHUFFLE(3, 3, 3, 3)), _w3));
                     _sum3 = _mm256_add_epi32(_sum3, _mm256_madd_epi16(_mm256_shuffle_epi32(_rr3, _MM_SHUFFLE(3, 3, 3, 3)), _w3));
 #endif
 
@@ -2405,21 +2405,21 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
 
 #if __AVX512VNNI__
                         _sum00 = _mm512_dpwssd_epi32(_sum00, _mm512_shuffle_i32x4(_rrr0l, _rrr0h, _MM_SHUFFLE(0, 0, 0, 0)), _w0);
-                        _sum00 = _mm512_dpwssd_epi32(_sum00, _mm512_shuffle_i32x4(_rrr0l, _rrr0h, _MM_SHUFFLE(2, 2, 2, 2)), _w1);
-                        _sum00 = _mm512_dpwssd_epi32(_sum00, _mm512_shuffle_i32x4(_rrr0l, _rrr0h, _MM_SHUFFLE(1, 1, 1, 1)), _w2);
-                        _sum00 = _mm512_dpwssd_epi32(_sum00, _mm512_shuffle_i32x4(_rrr0l, _rrr0h, _MM_SHUFFLE(3, 3, 3, 3)), _w3);
                         _sum11 = _mm512_dpwssd_epi32(_sum11, _mm512_shuffle_i32x4(_rrr1l, _rrr1h, _MM_SHUFFLE(0, 0, 0, 0)), _w0);
+                        _sum00 = _mm512_dpwssd_epi32(_sum00, _mm512_shuffle_i32x4(_rrr0l, _rrr0h, _MM_SHUFFLE(2, 2, 2, 2)), _w1);
                         _sum11 = _mm512_dpwssd_epi32(_sum11, _mm512_shuffle_i32x4(_rrr1l, _rrr1h, _MM_SHUFFLE(2, 2, 2, 2)), _w1);
+                        _sum00 = _mm512_dpwssd_epi32(_sum00, _mm512_shuffle_i32x4(_rrr0l, _rrr0h, _MM_SHUFFLE(1, 1, 1, 1)), _w2);
                         _sum11 = _mm512_dpwssd_epi32(_sum11, _mm512_shuffle_i32x4(_rrr1l, _rrr1h, _MM_SHUFFLE(1, 1, 1, 1)), _w2);
+                        _sum00 = _mm512_dpwssd_epi32(_sum00, _mm512_shuffle_i32x4(_rrr0l, _rrr0h, _MM_SHUFFLE(3, 3, 3, 3)), _w3);
                         _sum11 = _mm512_dpwssd_epi32(_sum11, _mm512_shuffle_i32x4(_rrr1l, _rrr1h, _MM_SHUFFLE(3, 3, 3, 3)), _w3);
 #else
                         _sum00 = _mm512_add_epi32(_sum00, _mm512_madd_epi16(_mm512_shuffle_i32x4(_rrr0l, _rrr0h, _MM_SHUFFLE(0, 0, 0, 0)), _w0));
-                        _sum00 = _mm512_add_epi32(_sum00, _mm512_madd_epi16(_mm512_shuffle_i32x4(_rrr0l, _rrr0h, _MM_SHUFFLE(2, 2, 2, 2)), _w1));
-                        _sum00 = _mm512_add_epi32(_sum00, _mm512_madd_epi16(_mm512_shuffle_i32x4(_rrr0l, _rrr0h, _MM_SHUFFLE(1, 1, 1, 1)), _w2));
-                        _sum00 = _mm512_add_epi32(_sum00, _mm512_madd_epi16(_mm512_shuffle_i32x4(_rrr0l, _rrr0h, _MM_SHUFFLE(3, 3, 3, 3)), _w3));
                         _sum11 = _mm512_add_epi32(_sum11, _mm512_madd_epi16(_mm512_shuffle_i32x4(_rrr1l, _rrr1h, _MM_SHUFFLE(0, 0, 0, 0)), _w0));
+                        _sum00 = _mm512_add_epi32(_sum00, _mm512_madd_epi16(_mm512_shuffle_i32x4(_rrr0l, _rrr0h, _MM_SHUFFLE(2, 2, 2, 2)), _w1));
                         _sum11 = _mm512_add_epi32(_sum11, _mm512_madd_epi16(_mm512_shuffle_i32x4(_rrr1l, _rrr1h, _MM_SHUFFLE(2, 2, 2, 2)), _w1));
+                        _sum00 = _mm512_add_epi32(_sum00, _mm512_madd_epi16(_mm512_shuffle_i32x4(_rrr0l, _rrr0h, _MM_SHUFFLE(1, 1, 1, 1)), _w2));
                         _sum11 = _mm512_add_epi32(_sum11, _mm512_madd_epi16(_mm512_shuffle_i32x4(_rrr1l, _rrr1h, _MM_SHUFFLE(1, 1, 1, 1)), _w2));
+                        _sum00 = _mm512_add_epi32(_sum00, _mm512_madd_epi16(_mm512_shuffle_i32x4(_rrr0l, _rrr0h, _MM_SHUFFLE(3, 3, 3, 3)), _w3));
                         _sum11 = _mm512_add_epi32(_sum11, _mm512_madd_epi16(_mm512_shuffle_i32x4(_rrr1l, _rrr1h, _MM_SHUFFLE(3, 3, 3, 3)), _w3));
 #endif // __AVX512VNNI__
 
@@ -2487,21 +2487,21 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
 
 #if __AVXVNNI__ || __AVX512VNNI__
                     _sum0 = _mm256_dpwssd_epi32(_sum0, _mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(0, 0, 0, 0)), _w0);
-                    _sum0 = _mm256_dpwssd_epi32(_sum0, _mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(1, 1, 1, 1)), _w1);
-                    _sum0 = _mm256_dpwssd_epi32(_sum0, _mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(2, 2, 2, 2)), _w2);
-                    _sum0 = _mm256_dpwssd_epi32(_sum0, _mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(3, 3, 3, 3)), _w3);
                     _sum1 = _mm256_dpwssd_epi32(_sum1, _mm256_shuffle_epi32(_rr1, _MM_SHUFFLE(0, 0, 0, 0)), _w0);
+                    _sum0 = _mm256_dpwssd_epi32(_sum0, _mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(1, 1, 1, 1)), _w1);
                     _sum1 = _mm256_dpwssd_epi32(_sum1, _mm256_shuffle_epi32(_rr1, _MM_SHUFFLE(1, 1, 1, 1)), _w1);
+                    _sum0 = _mm256_dpwssd_epi32(_sum0, _mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(2, 2, 2, 2)), _w2);
                     _sum1 = _mm256_dpwssd_epi32(_sum1, _mm256_shuffle_epi32(_rr1, _MM_SHUFFLE(2, 2, 2, 2)), _w2);
+                    _sum0 = _mm256_dpwssd_epi32(_sum0, _mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(3, 3, 3, 3)), _w3);
                     _sum1 = _mm256_dpwssd_epi32(_sum1, _mm256_shuffle_epi32(_rr1, _MM_SHUFFLE(3, 3, 3, 3)), _w3);
 #else
                     _sum0 = _mm256_add_epi32(_sum0, _mm256_madd_epi16(_mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(0, 0, 0, 0)), _w0));
-                    _sum0 = _mm256_add_epi32(_sum0, _mm256_madd_epi16(_mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(1, 1, 1, 1)), _w1));
-                    _sum0 = _mm256_add_epi32(_sum0, _mm256_madd_epi16(_mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(2, 2, 2, 2)), _w2));
-                    _sum0 = _mm256_add_epi32(_sum0, _mm256_madd_epi16(_mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(3, 3, 3, 3)), _w3));
                     _sum1 = _mm256_add_epi32(_sum1, _mm256_madd_epi16(_mm256_shuffle_epi32(_rr1, _MM_SHUFFLE(0, 0, 0, 0)), _w0));
+                    _sum0 = _mm256_add_epi32(_sum0, _mm256_madd_epi16(_mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(1, 1, 1, 1)), _w1));
                     _sum1 = _mm256_add_epi32(_sum1, _mm256_madd_epi16(_mm256_shuffle_epi32(_rr1, _MM_SHUFFLE(1, 1, 1, 1)), _w1));
+                    _sum0 = _mm256_add_epi32(_sum0, _mm256_madd_epi16(_mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(2, 2, 2, 2)), _w2));
                     _sum1 = _mm256_add_epi32(_sum1, _mm256_madd_epi16(_mm256_shuffle_epi32(_rr1, _MM_SHUFFLE(2, 2, 2, 2)), _w2));
+                    _sum0 = _mm256_add_epi32(_sum0, _mm256_madd_epi16(_mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(3, 3, 3, 3)), _w3));
                     _sum1 = _mm256_add_epi32(_sum1, _mm256_madd_epi16(_mm256_shuffle_epi32(_rr1, _MM_SHUFFLE(3, 3, 3, 3)), _w3));
 #endif
 
@@ -2963,21 +2963,21 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
 
 #if __AVX512VNNI__
                         _sum00 = _mm512_dpwssd_epi32(_sum00, _mm512_shuffle_i32x4(_rrr0l, _rrr0h, _MM_SHUFFLE(2, 0, 2, 0)), _w0);
-                        _sum00 = _mm512_dpwssd_epi32(_sum00, _mm512_shuffle_i32x4(_rrr0l, _rrr0h, _MM_SHUFFLE(3, 1, 3, 1)), _w1);
                         _sum11 = _mm512_dpwssd_epi32(_sum11, _mm512_shuffle_i32x4(_rrr1l, _rrr1h, _MM_SHUFFLE(2, 0, 2, 0)), _w0);
-                        _sum11 = _mm512_dpwssd_epi32(_sum11, _mm512_shuffle_i32x4(_rrr1l, _rrr1h, _MM_SHUFFLE(3, 1, 3, 1)), _w1);
                         _sum22 = _mm512_dpwssd_epi32(_sum22, _mm512_shuffle_i32x4(_rrr2l, _rrr2h, _MM_SHUFFLE(2, 0, 2, 0)), _w0);
-                        _sum22 = _mm512_dpwssd_epi32(_sum22, _mm512_shuffle_i32x4(_rrr2l, _rrr2h, _MM_SHUFFLE(3, 1, 3, 1)), _w1);
                         _sum33 = _mm512_dpwssd_epi32(_sum33, _mm512_shuffle_i32x4(_rrr3l, _rrr3h, _MM_SHUFFLE(2, 0, 2, 0)), _w0);
+                        _sum00 = _mm512_dpwssd_epi32(_sum00, _mm512_shuffle_i32x4(_rrr0l, _rrr0h, _MM_SHUFFLE(3, 1, 3, 1)), _w1);
+                        _sum11 = _mm512_dpwssd_epi32(_sum11, _mm512_shuffle_i32x4(_rrr1l, _rrr1h, _MM_SHUFFLE(3, 1, 3, 1)), _w1);
+                        _sum22 = _mm512_dpwssd_epi32(_sum22, _mm512_shuffle_i32x4(_rrr2l, _rrr2h, _MM_SHUFFLE(3, 1, 3, 1)), _w1);
                         _sum33 = _mm512_dpwssd_epi32(_sum33, _mm512_shuffle_i32x4(_rrr3l, _rrr3h, _MM_SHUFFLE(3, 1, 3, 1)), _w1);
 #else
                         _sum00 = _mm512_add_epi32(_sum00, _mm512_madd_epi16(_mm512_shuffle_i32x4(_rrr0l, _rrr0h, _MM_SHUFFLE(2, 0, 2, 0)), _w0));
-                        _sum00 = _mm512_add_epi32(_sum00, _mm512_madd_epi16(_mm512_shuffle_i32x4(_rrr0l, _rrr0h, _MM_SHUFFLE(3, 1, 3, 1)), _w1));
                         _sum11 = _mm512_add_epi32(_sum11, _mm512_madd_epi16(_mm512_shuffle_i32x4(_rrr1l, _rrr1h, _MM_SHUFFLE(2, 0, 2, 0)), _w0));
-                        _sum11 = _mm512_add_epi32(_sum11, _mm512_madd_epi16(_mm512_shuffle_i32x4(_rrr1l, _rrr1h, _MM_SHUFFLE(3, 1, 3, 1)), _w1));
                         _sum22 = _mm512_add_epi32(_sum22, _mm512_madd_epi16(_mm512_shuffle_i32x4(_rrr2l, _rrr2h, _MM_SHUFFLE(2, 0, 2, 0)), _w0));
-                        _sum22 = _mm512_add_epi32(_sum22, _mm512_madd_epi16(_mm512_shuffle_i32x4(_rrr2l, _rrr2h, _MM_SHUFFLE(3, 1, 3, 1)), _w1));
                         _sum33 = _mm512_add_epi32(_sum33, _mm512_madd_epi16(_mm512_shuffle_i32x4(_rrr3l, _rrr3h, _MM_SHUFFLE(2, 0, 2, 0)), _w0));
+                        _sum00 = _mm512_add_epi32(_sum00, _mm512_madd_epi16(_mm512_shuffle_i32x4(_rrr0l, _rrr0h, _MM_SHUFFLE(3, 1, 3, 1)), _w1));
+                        _sum11 = _mm512_add_epi32(_sum11, _mm512_madd_epi16(_mm512_shuffle_i32x4(_rrr1l, _rrr1h, _MM_SHUFFLE(3, 1, 3, 1)), _w1));
+                        _sum22 = _mm512_add_epi32(_sum22, _mm512_madd_epi16(_mm512_shuffle_i32x4(_rrr2l, _rrr2h, _MM_SHUFFLE(3, 1, 3, 1)), _w1));
                         _sum33 = _mm512_add_epi32(_sum33, _mm512_madd_epi16(_mm512_shuffle_i32x4(_rrr3l, _rrr3h, _MM_SHUFFLE(3, 1, 3, 1)), _w1));
 #endif // __AVX512VNNI__
 
@@ -3085,21 +3085,21 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
 
 #if __AVXVNNI__ || __AVX512VNNI__
                         _sum00 = _mm256_dpwssd_epi32(_sum00, _mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(0, 0, 0, 0)), _w0);
-                        _sum00 = _mm256_dpwssd_epi32(_sum00, _mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(2, 2, 2, 2)), _w1);
                         _sum11 = _mm256_dpwssd_epi32(_sum11, _mm256_shuffle_epi32(_rr1, _MM_SHUFFLE(0, 0, 0, 0)), _w0);
-                        _sum11 = _mm256_dpwssd_epi32(_sum11, _mm256_shuffle_epi32(_rr1, _MM_SHUFFLE(2, 2, 2, 2)), _w1);
                         _sum22 = _mm256_dpwssd_epi32(_sum22, _mm256_shuffle_epi32(_rr2, _MM_SHUFFLE(0, 0, 0, 0)), _w0);
-                        _sum22 = _mm256_dpwssd_epi32(_sum22, _mm256_shuffle_epi32(_rr2, _MM_SHUFFLE(2, 2, 2, 2)), _w1);
                         _sum33 = _mm256_dpwssd_epi32(_sum33, _mm256_shuffle_epi32(_rr3, _MM_SHUFFLE(0, 0, 0, 0)), _w0);
+                        _sum00 = _mm256_dpwssd_epi32(_sum00, _mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(2, 2, 2, 2)), _w1);
+                        _sum11 = _mm256_dpwssd_epi32(_sum11, _mm256_shuffle_epi32(_rr1, _MM_SHUFFLE(2, 2, 2, 2)), _w1);
+                        _sum22 = _mm256_dpwssd_epi32(_sum22, _mm256_shuffle_epi32(_rr2, _MM_SHUFFLE(2, 2, 2, 2)), _w1);
                         _sum33 = _mm256_dpwssd_epi32(_sum33, _mm256_shuffle_epi32(_rr3, _MM_SHUFFLE(2, 2, 2, 2)), _w1);
 #else
                         _sum00 = _mm256_add_epi32(_sum00, _mm256_madd_epi16(_mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(0, 0, 0, 0)), _w0));
-                        _sum00 = _mm256_add_epi32(_sum00, _mm256_madd_epi16(_mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(2, 2, 2, 2)), _w1));
                         _sum11 = _mm256_add_epi32(_sum11, _mm256_madd_epi16(_mm256_shuffle_epi32(_rr1, _MM_SHUFFLE(0, 0, 0, 0)), _w0));
-                        _sum11 = _mm256_add_epi32(_sum11, _mm256_madd_epi16(_mm256_shuffle_epi32(_rr1, _MM_SHUFFLE(2, 2, 2, 2)), _w1));
                         _sum22 = _mm256_add_epi32(_sum22, _mm256_madd_epi16(_mm256_shuffle_epi32(_rr2, _MM_SHUFFLE(0, 0, 0, 0)), _w0));
-                        _sum22 = _mm256_add_epi32(_sum22, _mm256_madd_epi16(_mm256_shuffle_epi32(_rr2, _MM_SHUFFLE(2, 2, 2, 2)), _w1));
                         _sum33 = _mm256_add_epi32(_sum33, _mm256_madd_epi16(_mm256_shuffle_epi32(_rr3, _MM_SHUFFLE(0, 0, 0, 0)), _w0));
+                        _sum00 = _mm256_add_epi32(_sum00, _mm256_madd_epi16(_mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(2, 2, 2, 2)), _w1));
+                        _sum11 = _mm256_add_epi32(_sum11, _mm256_madd_epi16(_mm256_shuffle_epi32(_rr1, _MM_SHUFFLE(2, 2, 2, 2)), _w1));
+                        _sum22 = _mm256_add_epi32(_sum22, _mm256_madd_epi16(_mm256_shuffle_epi32(_rr2, _MM_SHUFFLE(2, 2, 2, 2)), _w1));
                         _sum33 = _mm256_add_epi32(_sum33, _mm256_madd_epi16(_mm256_shuffle_epi32(_rr3, _MM_SHUFFLE(2, 2, 2, 2)), _w1));
 #endif
 #else // __AVX2__
@@ -3115,37 +3115,37 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         // 01234567 -> 01010101
 #if __XOP__
                         _sum0 = _mm_maddd_epi16(_mm_shuffle_epi32(_r0, _MM_SHUFFLE(0, 0, 0, 0)), _w0, _sum0);
-                        _sum0 = _mm_maddd_epi16(_mm_shuffle_epi32(_r0, _MM_SHUFFLE(1, 1, 1, 1)), _w1, _sum0);
-                        _sum0 = _mm_maddd_epi16(_mm_shuffle_epi32(_r0, _MM_SHUFFLE(2, 2, 2, 2)), _w2, _sum0);
-                        _sum0 = _mm_maddd_epi16(_mm_shuffle_epi32(_r0, _MM_SHUFFLE(3, 3, 3, 3)), _w3, _sum0);
                         _sum1 = _mm_maddd_epi16(_mm_shuffle_epi32(_r1, _MM_SHUFFLE(0, 0, 0, 0)), _w0, _sum1);
-                        _sum1 = _mm_maddd_epi16(_mm_shuffle_epi32(_r1, _MM_SHUFFLE(1, 1, 1, 1)), _w1, _sum1);
-                        _sum1 = _mm_maddd_epi16(_mm_shuffle_epi32(_r1, _MM_SHUFFLE(2, 2, 2, 2)), _w2, _sum1);
-                        _sum1 = _mm_maddd_epi16(_mm_shuffle_epi32(_r1, _MM_SHUFFLE(3, 3, 3, 3)), _w3, _sum1);
                         _sum2 = _mm_maddd_epi16(_mm_shuffle_epi32(_r2, _MM_SHUFFLE(0, 0, 0, 0)), _w0, _sum2);
-                        _sum2 = _mm_maddd_epi16(_mm_shuffle_epi32(_r2, _MM_SHUFFLE(1, 1, 1, 1)), _w1, _sum2);
-                        _sum2 = _mm_maddd_epi16(_mm_shuffle_epi32(_r2, _MM_SHUFFLE(2, 2, 2, 2)), _w2, _sum2);
-                        _sum2 = _mm_maddd_epi16(_mm_shuffle_epi32(_r2, _MM_SHUFFLE(3, 3, 3, 3)), _w3, _sum2);
                         _sum3 = _mm_maddd_epi16(_mm_shuffle_epi32(_r3, _MM_SHUFFLE(0, 0, 0, 0)), _w0, _sum3);
+                        _sum0 = _mm_maddd_epi16(_mm_shuffle_epi32(_r0, _MM_SHUFFLE(1, 1, 1, 1)), _w1, _sum0);
+                        _sum1 = _mm_maddd_epi16(_mm_shuffle_epi32(_r1, _MM_SHUFFLE(1, 1, 1, 1)), _w1, _sum1);
+                        _sum2 = _mm_maddd_epi16(_mm_shuffle_epi32(_r2, _MM_SHUFFLE(1, 1, 1, 1)), _w1, _sum2);
                         _sum3 = _mm_maddd_epi16(_mm_shuffle_epi32(_r3, _MM_SHUFFLE(1, 1, 1, 1)), _w1, _sum3);
+                        _sum0 = _mm_maddd_epi16(_mm_shuffle_epi32(_r0, _MM_SHUFFLE(2, 2, 2, 2)), _w2, _sum0);
+                        _sum1 = _mm_maddd_epi16(_mm_shuffle_epi32(_r1, _MM_SHUFFLE(2, 2, 2, 2)), _w2, _sum1);
+                        _sum2 = _mm_maddd_epi16(_mm_shuffle_epi32(_r2, _MM_SHUFFLE(2, 2, 2, 2)), _w2, _sum2);
                         _sum3 = _mm_maddd_epi16(_mm_shuffle_epi32(_r3, _MM_SHUFFLE(2, 2, 2, 2)), _w2, _sum3);
+                        _sum0 = _mm_maddd_epi16(_mm_shuffle_epi32(_r0, _MM_SHUFFLE(3, 3, 3, 3)), _w3, _sum0);
+                        _sum1 = _mm_maddd_epi16(_mm_shuffle_epi32(_r1, _MM_SHUFFLE(3, 3, 3, 3)), _w3, _sum1);
+                        _sum2 = _mm_maddd_epi16(_mm_shuffle_epi32(_r2, _MM_SHUFFLE(3, 3, 3, 3)), _w3, _sum2);
                         _sum3 = _mm_maddd_epi16(_mm_shuffle_epi32(_r3, _MM_SHUFFLE(3, 3, 3, 3)), _w3, _sum3);
 #else
                         _sum0 = _mm_add_epi32(_sum0, _mm_madd_epi16(_mm_shuffle_epi32(_r0, _MM_SHUFFLE(0, 0, 0, 0)), _w0));
-                        _sum0 = _mm_add_epi32(_sum0, _mm_madd_epi16(_mm_shuffle_epi32(_r0, _MM_SHUFFLE(1, 1, 1, 1)), _w1));
-                        _sum0 = _mm_add_epi32(_sum0, _mm_madd_epi16(_mm_shuffle_epi32(_r0, _MM_SHUFFLE(2, 2, 2, 2)), _w2));
-                        _sum0 = _mm_add_epi32(_sum0, _mm_madd_epi16(_mm_shuffle_epi32(_r0, _MM_SHUFFLE(3, 3, 3, 3)), _w3));
                         _sum1 = _mm_add_epi32(_sum1, _mm_madd_epi16(_mm_shuffle_epi32(_r1, _MM_SHUFFLE(0, 0, 0, 0)), _w0));
-                        _sum1 = _mm_add_epi32(_sum1, _mm_madd_epi16(_mm_shuffle_epi32(_r1, _MM_SHUFFLE(1, 1, 1, 1)), _w1));
-                        _sum1 = _mm_add_epi32(_sum1, _mm_madd_epi16(_mm_shuffle_epi32(_r1, _MM_SHUFFLE(2, 2, 2, 2)), _w2));
-                        _sum1 = _mm_add_epi32(_sum1, _mm_madd_epi16(_mm_shuffle_epi32(_r1, _MM_SHUFFLE(3, 3, 3, 3)), _w3));
                         _sum2 = _mm_add_epi32(_sum2, _mm_madd_epi16(_mm_shuffle_epi32(_r2, _MM_SHUFFLE(0, 0, 0, 0)), _w0));
-                        _sum2 = _mm_add_epi32(_sum2, _mm_madd_epi16(_mm_shuffle_epi32(_r2, _MM_SHUFFLE(1, 1, 1, 1)), _w1));
-                        _sum2 = _mm_add_epi32(_sum2, _mm_madd_epi16(_mm_shuffle_epi32(_r2, _MM_SHUFFLE(2, 2, 2, 2)), _w2));
-                        _sum2 = _mm_add_epi32(_sum2, _mm_madd_epi16(_mm_shuffle_epi32(_r2, _MM_SHUFFLE(3, 3, 3, 3)), _w3));
                         _sum3 = _mm_add_epi32(_sum3, _mm_madd_epi16(_mm_shuffle_epi32(_r3, _MM_SHUFFLE(0, 0, 0, 0)), _w0));
+                        _sum0 = _mm_add_epi32(_sum0, _mm_madd_epi16(_mm_shuffle_epi32(_r0, _MM_SHUFFLE(1, 1, 1, 1)), _w1));
+                        _sum1 = _mm_add_epi32(_sum1, _mm_madd_epi16(_mm_shuffle_epi32(_r1, _MM_SHUFFLE(1, 1, 1, 1)), _w1));
+                        _sum2 = _mm_add_epi32(_sum2, _mm_madd_epi16(_mm_shuffle_epi32(_r2, _MM_SHUFFLE(1, 1, 1, 1)), _w1));
                         _sum3 = _mm_add_epi32(_sum3, _mm_madd_epi16(_mm_shuffle_epi32(_r3, _MM_SHUFFLE(1, 1, 1, 1)), _w1));
+                        _sum0 = _mm_add_epi32(_sum0, _mm_madd_epi16(_mm_shuffle_epi32(_r0, _MM_SHUFFLE(2, 2, 2, 2)), _w2));
+                        _sum1 = _mm_add_epi32(_sum1, _mm_madd_epi16(_mm_shuffle_epi32(_r1, _MM_SHUFFLE(2, 2, 2, 2)), _w2));
+                        _sum2 = _mm_add_epi32(_sum2, _mm_madd_epi16(_mm_shuffle_epi32(_r2, _MM_SHUFFLE(2, 2, 2, 2)), _w2));
                         _sum3 = _mm_add_epi32(_sum3, _mm_madd_epi16(_mm_shuffle_epi32(_r3, _MM_SHUFFLE(2, 2, 2, 2)), _w2));
+                        _sum0 = _mm_add_epi32(_sum0, _mm_madd_epi16(_mm_shuffle_epi32(_r0, _MM_SHUFFLE(3, 3, 3, 3)), _w3));
+                        _sum1 = _mm_add_epi32(_sum1, _mm_madd_epi16(_mm_shuffle_epi32(_r1, _MM_SHUFFLE(3, 3, 3, 3)), _w3));
+                        _sum2 = _mm_add_epi32(_sum2, _mm_madd_epi16(_mm_shuffle_epi32(_r2, _MM_SHUFFLE(3, 3, 3, 3)), _w3));
                         _sum3 = _mm_add_epi32(_sum3, _mm_madd_epi16(_mm_shuffle_epi32(_r3, _MM_SHUFFLE(3, 3, 3, 3)), _w3));
 #endif // __XOP__
 #endif // __AVX2__
@@ -3392,13 +3392,13 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
 
 #if __AVX512VNNI__
                         _sum00 = _mm512_dpwssd_epi32(_sum00, _mm512_shuffle_i32x4(_rrr0l, _rrr0h, _MM_SHUFFLE(2, 0, 2, 0)), _w0);
-                        _sum00 = _mm512_dpwssd_epi32(_sum00, _mm512_shuffle_i32x4(_rrr0l, _rrr0h, _MM_SHUFFLE(3, 1, 3, 1)), _w1);
                         _sum11 = _mm512_dpwssd_epi32(_sum11, _mm512_shuffle_i32x4(_rrr1l, _rrr1h, _MM_SHUFFLE(2, 0, 2, 0)), _w0);
+                        _sum00 = _mm512_dpwssd_epi32(_sum00, _mm512_shuffle_i32x4(_rrr0l, _rrr0h, _MM_SHUFFLE(3, 1, 3, 1)), _w1);
                         _sum11 = _mm512_dpwssd_epi32(_sum11, _mm512_shuffle_i32x4(_rrr1l, _rrr1h, _MM_SHUFFLE(3, 1, 3, 1)), _w1);
 #else
                         _sum00 = _mm512_add_epi32(_sum00, _mm512_madd_epi16(_mm512_shuffle_i32x4(_rrr0l, _rrr0h, _MM_SHUFFLE(2, 0, 2, 0)), _w0));
-                        _sum00 = _mm512_add_epi32(_sum00, _mm512_madd_epi16(_mm512_shuffle_i32x4(_rrr0l, _rrr0h, _MM_SHUFFLE(3, 1, 3, 1)), _w1));
                         _sum11 = _mm512_add_epi32(_sum11, _mm512_madd_epi16(_mm512_shuffle_i32x4(_rrr1l, _rrr1h, _MM_SHUFFLE(2, 0, 2, 0)), _w0));
+                        _sum00 = _mm512_add_epi32(_sum00, _mm512_madd_epi16(_mm512_shuffle_i32x4(_rrr0l, _rrr0h, _MM_SHUFFLE(3, 1, 3, 1)), _w1));
                         _sum11 = _mm512_add_epi32(_sum11, _mm512_madd_epi16(_mm512_shuffle_i32x4(_rrr1l, _rrr1h, _MM_SHUFFLE(3, 1, 3, 1)), _w1));
 #endif // __AVX512VNNI__
 
@@ -3476,13 +3476,13 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
 
 #if __AVXVNNI__ || __AVX512VNNI__
                         _sum00 = _mm256_dpwssd_epi32(_sum00, _mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(0, 0, 0, 0)), _w0);
-                        _sum00 = _mm256_dpwssd_epi32(_sum00, _mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(2, 2, 2, 2)), _w1);
                         _sum11 = _mm256_dpwssd_epi32(_sum11, _mm256_shuffle_epi32(_rr1, _MM_SHUFFLE(0, 0, 0, 0)), _w0);
+                        _sum00 = _mm256_dpwssd_epi32(_sum00, _mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(2, 2, 2, 2)), _w1);
                         _sum11 = _mm256_dpwssd_epi32(_sum11, _mm256_shuffle_epi32(_rr1, _MM_SHUFFLE(2, 2, 2, 2)), _w1);
 #else
                         _sum00 = _mm256_add_epi32(_sum00, _mm256_madd_epi16(_mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(0, 0, 0, 0)), _w0));
-                        _sum00 = _mm256_add_epi32(_sum00, _mm256_madd_epi16(_mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(2, 2, 2, 2)), _w1));
                         _sum11 = _mm256_add_epi32(_sum11, _mm256_madd_epi16(_mm256_shuffle_epi32(_rr1, _MM_SHUFFLE(0, 0, 0, 0)), _w0));
+                        _sum00 = _mm256_add_epi32(_sum00, _mm256_madd_epi16(_mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(2, 2, 2, 2)), _w1));
                         _sum11 = _mm256_add_epi32(_sum11, _mm256_madd_epi16(_mm256_shuffle_epi32(_rr1, _MM_SHUFFLE(2, 2, 2, 2)), _w1));
 #endif
 #else // __AVX2__
@@ -3498,21 +3498,21 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         // 01234567 -> 01010101
 #if __XOP__
                         _sum0 = _mm_maddd_epi16(_mm_shuffle_epi32(_r0, _MM_SHUFFLE(0, 0, 0, 0)), _w0, _sum0);
-                        _sum0 = _mm_maddd_epi16(_mm_shuffle_epi32(_r0, _MM_SHUFFLE(1, 1, 1, 1)), _w1, _sum0);
-                        _sum0 = _mm_maddd_epi16(_mm_shuffle_epi32(_r0, _MM_SHUFFLE(2, 2, 2, 2)), _w2, _sum0);
-                        _sum0 = _mm_maddd_epi16(_mm_shuffle_epi32(_r0, _MM_SHUFFLE(3, 3, 3, 3)), _w3, _sum0);
                         _sum1 = _mm_maddd_epi16(_mm_shuffle_epi32(_r1, _MM_SHUFFLE(0, 0, 0, 0)), _w0, _sum1);
+                        _sum0 = _mm_maddd_epi16(_mm_shuffle_epi32(_r0, _MM_SHUFFLE(1, 1, 1, 1)), _w1, _sum0);
                         _sum1 = _mm_maddd_epi16(_mm_shuffle_epi32(_r1, _MM_SHUFFLE(1, 1, 1, 1)), _w1, _sum1);
+                        _sum0 = _mm_maddd_epi16(_mm_shuffle_epi32(_r0, _MM_SHUFFLE(2, 2, 2, 2)), _w2, _sum0);
                         _sum1 = _mm_maddd_epi16(_mm_shuffle_epi32(_r1, _MM_SHUFFLE(2, 2, 2, 2)), _w2, _sum1);
+                        _sum0 = _mm_maddd_epi16(_mm_shuffle_epi32(_r0, _MM_SHUFFLE(3, 3, 3, 3)), _w3, _sum0);
                         _sum1 = _mm_maddd_epi16(_mm_shuffle_epi32(_r1, _MM_SHUFFLE(3, 3, 3, 3)), _w3, _sum1);
 #else
                         _sum0 = _mm_add_epi32(_sum0, _mm_madd_epi16(_mm_shuffle_epi32(_r0, _MM_SHUFFLE(0, 0, 0, 0)), _w0));
-                        _sum0 = _mm_add_epi32(_sum0, _mm_madd_epi16(_mm_shuffle_epi32(_r0, _MM_SHUFFLE(1, 1, 1, 1)), _w1));
-                        _sum0 = _mm_add_epi32(_sum0, _mm_madd_epi16(_mm_shuffle_epi32(_r0, _MM_SHUFFLE(2, 2, 2, 2)), _w2));
-                        _sum0 = _mm_add_epi32(_sum0, _mm_madd_epi16(_mm_shuffle_epi32(_r0, _MM_SHUFFLE(3, 3, 3, 3)), _w3));
                         _sum1 = _mm_add_epi32(_sum1, _mm_madd_epi16(_mm_shuffle_epi32(_r1, _MM_SHUFFLE(0, 0, 0, 0)), _w0));
+                        _sum0 = _mm_add_epi32(_sum0, _mm_madd_epi16(_mm_shuffle_epi32(_r0, _MM_SHUFFLE(1, 1, 1, 1)), _w1));
                         _sum1 = _mm_add_epi32(_sum1, _mm_madd_epi16(_mm_shuffle_epi32(_r1, _MM_SHUFFLE(1, 1, 1, 1)), _w1));
+                        _sum0 = _mm_add_epi32(_sum0, _mm_madd_epi16(_mm_shuffle_epi32(_r0, _MM_SHUFFLE(2, 2, 2, 2)), _w2));
                         _sum1 = _mm_add_epi32(_sum1, _mm_madd_epi16(_mm_shuffle_epi32(_r1, _MM_SHUFFLE(2, 2, 2, 2)), _w2));
+                        _sum0 = _mm_add_epi32(_sum0, _mm_madd_epi16(_mm_shuffle_epi32(_r0, _MM_SHUFFLE(3, 3, 3, 3)), _w3));
                         _sum1 = _mm_add_epi32(_sum1, _mm_madd_epi16(_mm_shuffle_epi32(_r1, _MM_SHUFFLE(3, 3, 3, 3)), _w3));
 #endif // __XOP__
 #endif // __AVX2__
