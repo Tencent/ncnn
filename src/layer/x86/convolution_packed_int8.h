@@ -57,13 +57,13 @@ static void convolution_transform_kernel_packed_int8(const Mat& kernel, Mat& ker
     if (outch >= 16)
     {
         if (inch >= 16)
-            kernel_tm.create(16 * 16 * maxk, inch / 16 + (inch % 16) / 8 + (inch % 8) / 2 + inch % 2, outch / 16 + (outch % 16) / 8 + (outch % 8) / 4 + (outch % 4) / 2 + outch % 2);
+            kernel_tm.create(maxk, inch / 16 + (inch % 16) / 8 + (inch % 8) / 2 + inch % 2, outch / 16 + (outch % 16) / 8 + (outch % 8) / 4 + (outch % 4) / 2 + outch % 2, (size_t)256u, 256);
         else if (inch >= 8)
-            kernel_tm.create(16 * 8 * maxk, inch / 8 + (inch % 8) / 2 + inch % 2, outch / 16 + (outch % 16) / 8 + (outch % 8) / 4 + (outch % 4) / 2 + outch % 2);
+            kernel_tm.create(maxk, inch / 8 + (inch % 8) / 2 + inch % 2, outch / 16 + (outch % 16) / 8 + (outch % 8) / 4 + (outch % 4) / 2 + outch % 2, (size_t)128u, 128);
         else if (inch >= 2)
-            kernel_tm.create(16 * 2 * maxk, inch / 2 + inch % 2, outch / 16 + (outch % 16) / 8 + (outch % 8) / 4 + (outch % 4) / 2 + outch % 2);
+            kernel_tm.create(maxk, inch / 2 + inch % 2, outch / 16 + (outch % 16) / 8 + (outch % 8) / 4 + (outch % 4) / 2 + outch % 2, (size_t)32u, 32);
         else
-            kernel_tm.create(16 * maxk, inch, outch / 16 + (outch % 16) / 8 + (outch % 8) / 4 + (outch % 4) / 2 + outch % 2, (size_t)1u);
+            kernel_tm.create(maxk, inch, outch / 16 + (outch % 16) / 8 + (outch % 8) / 4 + (outch % 4) / 2 + outch % 2, (size_t)16u, 16);
     }
     else
 #endif // __AVX512F__
@@ -71,15 +71,15 @@ static void convolution_transform_kernel_packed_int8(const Mat& kernel, Mat& ker
     {
 #if __AVX512F__
         if (inch >= 16)
-            kernel_tm.create(8 * 16 * maxk, inch / 16 + (inch % 16) / 8 + (inch % 8) / 2 + inch % 2, outch / 8 + (outch % 8) / 4 + (outch % 4) / 2 + outch % 2);
+            kernel_tm.create(maxk, inch / 16 + (inch % 16) / 8 + (inch % 8) / 2 + inch % 2, outch / 8 + (outch % 8) / 4 + (outch % 4) / 2 + outch % 2, (size_t)128u, 128);
         else
 #endif // __AVX512F__
         if (inch >= 8)
-            kernel_tm.create(8 * 8 * maxk, inch / 8 + (inch % 8) / 2 + inch % 2, outch / 8 + (outch % 8) / 4 + (outch % 4) / 2 + outch % 2);
+            kernel_tm.create(maxk, inch / 8 + (inch % 8) / 2 + inch % 2, outch / 8 + (outch % 8) / 4 + (outch % 4) / 2 + outch % 2, (size_t)64u, 64);
         else if (inch >= 2)
-            kernel_tm.create(8 * 2 * maxk, inch / 2 + inch % 2, outch / 8 + (outch % 8) / 4 + (outch % 4) / 2 + outch % 2);
+            kernel_tm.create(maxk, inch / 2 + inch % 2, outch / 8 + (outch % 8) / 4 + (outch % 4) / 2 + outch % 2, (size_t)16u, 16);
         else
-            kernel_tm.create(8 * maxk, inch, outch / 8 + (outch % 8) / 4 + (outch % 4) / 2 + outch % 2, (size_t)1u);
+            kernel_tm.create(maxk, inch, outch / 8 + (outch % 8) / 4 + (outch % 4) / 2 + outch % 2, (size_t)8u, 8);
     }
     else
 #endif // __AVX2__
@@ -87,15 +87,15 @@ static void convolution_transform_kernel_packed_int8(const Mat& kernel, Mat& ker
     {
 #if __AVX512F__
         if (inch >= 16)
-            kernel_tm.create(4 * 16 * maxk, inch / 16 + (inch % 16) / 8 + (inch % 8) / 2 + inch % 2, outch / 4 + (outch % 4) / 2 + outch % 2);
+            kernel_tm.create(maxk, inch / 16 + (inch % 16) / 8 + (inch % 8) / 2 + inch % 2, outch / 4 + (outch % 4) / 2 + outch % 2, (size_t)64u, 64);
         else
 #endif // __AVX512F__
         if (inch >= 8)
-            kernel_tm.create(4 * 8 * maxk, inch / 8 + (inch % 8) / 2 + inch % 2, outch / 4 + (outch % 4) / 2 + outch % 2);
+            kernel_tm.create(maxk, inch / 8 + (inch % 8) / 2 + inch % 2, outch / 4 + (outch % 4) / 2 + outch % 2, (size_t)32u, 32);
         else if (inch >= 2)
-            kernel_tm.create(4 * 2 * maxk, inch / 2 + inch % 2, outch / 4 + (outch % 4) / 2 + outch % 2);
+            kernel_tm.create(maxk, inch / 2 + inch % 2, outch / 4 + (outch % 4) / 2 + outch % 2, (size_t)8u, 8);
         else
-            kernel_tm.create(4 * maxk, inch, outch / 4 + (outch % 4) / 2 + outch % 2, (size_t)1u);
+            kernel_tm.create(maxk, inch, outch / 4 + (outch % 4) / 2 + outch % 2, (size_t)4u, 4);
     }
     else
 #endif // __SSE2__
@@ -104,34 +104,34 @@ static void convolution_transform_kernel_packed_int8(const Mat& kernel, Mat& ker
 #if __SSE2__
 #if __AVX512F__
         if (inch >= 16)
-            kernel_tm.create(2 * 16 * maxk, inch / 16 + (inch % 16) / 8 + (inch % 8) / 2 + inch % 2, outch / 2 + outch % 2);
+            kernel_tm.create(maxk, inch / 16 + (inch % 16) / 8 + (inch % 8) / 2 + inch % 2, outch / 2 + outch % 2, (size_t)32u, 32);
         else
 #endif // __AVX512F__
         if (inch >= 8)
-            kernel_tm.create(2 * 8 * maxk, inch / 8 + (inch % 8) / 2 + inch % 2, outch / 2 + outch % 2);
+            kernel_tm.create(maxk, inch / 8 + (inch % 8) / 2 + inch % 2, outch / 2 + outch % 2, (size_t)16u, 16);
         else
 #endif // __SSE2__
         if (inch >= 2)
-            kernel_tm.create(2 * 2 * maxk, inch / 2 + inch % 2, outch / 2 + outch % 2);
+            kernel_tm.create(maxk, inch / 2 + inch % 2, outch / 2 + outch % 2, (size_t)4u, 4);
         else
-            kernel_tm.create(2 * maxk, inch, outch / 2 + outch % 2, (size_t)1u);
+            kernel_tm.create(maxk, inch, outch / 2 + outch % 2, (size_t)2u, 2);
     }
     else
     {
 #if __SSE2__
 #if __AVX512F__
         if (inch >= 16)
-            kernel_tm.create(16 * maxk, inch / 16 + (inch % 16) / 8 + (inch % 8) / 2 + inch % 2, outch);
+            kernel_tm.create(maxk, inch / 16 + (inch % 16) / 8 + (inch % 8) / 2 + inch % 2, outch, (size_t)16u, 16);
         else
 #endif // __AVX512F__
         if (inch >= 8)
-            kernel_tm.create(8 * maxk, inch / 8 + (inch % 8) / 2 + inch % 2, outch);
+            kernel_tm.create(maxk, inch / 8 + (inch % 8) / 2 + inch % 2, outch, (size_t)8u, 8);
         else
 #endif // __SSE2__
         if (inch >= 2)
-            kernel_tm.create(2 * maxk, inch / 2 + inch % 2, outch);
+            kernel_tm.create(maxk, inch / 2 + inch % 2, outch, (size_t)2u, 2);
         else
-            kernel_tm.create(maxk, inch, outch, (size_t)1u);
+            kernel_tm.create(maxk, inch, outch, (size_t)1u, 1);
     }
     // *INDENT-ON*
     // clang-format on
@@ -1081,10 +1081,10 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                     __m128i _r3;
                     if (elempack == 16)
                     {
-                        _r0 = _mm_loadu_si128((const __m128i*)r0s);
-                        _r1 = _mm_loadu_si128((const __m128i*)r1s);
-                        _r2 = _mm_loadu_si128((const __m128i*)r2s);
-                        _r3 = _mm_loadu_si128((const __m128i*)r3s);
+                        _r0 = _mm_load_si128((const __m128i*)r0s);
+                        _r1 = _mm_load_si128((const __m128i*)r1s);
+                        _r2 = _mm_load_si128((const __m128i*)r2s);
+                        _r3 = _mm_load_si128((const __m128i*)r3s);
                     }
                     else if (elempack == 8)
                     {
@@ -1116,10 +1116,10 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                     __m256i _rr2 = _mm256_cvtepi8_epi16(_r2);
                     __m256i _rr3 = _mm256_cvtepi8_epi16(_r3);
 
-                    __m512i _w01 = _mm512_loadu_si512((const __m512i*)kptr);
-                    __m512i _w23 = _mm512_loadu_si512((const __m512i*)(kptr + 64));
-                    __m512i _w45 = _mm512_loadu_si512((const __m512i*)(kptr + 128));
-                    __m512i _w67 = _mm512_loadu_si512((const __m512i*)(kptr + 192));
+                    __m512i _w01 = _mm512_load_si512((const __m512i*)kptr);
+                    __m512i _w23 = _mm512_load_si512((const __m512i*)(kptr + 64));
+                    __m512i _w45 = _mm512_load_si512((const __m512i*)(kptr + 128));
+                    __m512i _w67 = _mm512_load_si512((const __m512i*)(kptr + 192));
                     __m512i _w0 = _mm512_cvtepi8_epi16(_mm512_extracti64x4_epi64(_w01, 0));
                     __m512i _w1 = _mm512_cvtepi8_epi16(_mm512_extracti64x4_epi64(_w01, 1));
                     __m512i _w2 = _mm512_cvtepi8_epi16(_mm512_extracti64x4_epi64(_w23, 0));
@@ -1250,8 +1250,8 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                     _r2 = _mm_cvtepi8_epi16(_r2);
                     _r3 = _mm_cvtepi8_epi16(_r3);
 
-                    __m512i _w01 = _mm512_loadu_si512((const __m512i*)kptr);
-                    __m512i _w23 = _mm512_loadu_si512((const __m512i*)(kptr + 64));
+                    __m512i _w01 = _mm512_load_si512((const __m512i*)kptr);
+                    __m512i _w23 = _mm512_load_si512((const __m512i*)(kptr + 64));
                     __m512i _w0 = _mm512_cvtepi8_epi16(_mm512_extracti64x4_epi64(_w01, 0));
                     __m512i _w1 = _mm512_cvtepi8_epi16(_mm512_extracti64x4_epi64(_w01, 1));
                     __m512i _w2 = _mm512_cvtepi8_epi16(_mm512_extracti64x4_epi64(_w23, 0));
@@ -1323,7 +1323,7 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         __m512i _r2 = _mm512_broadcastd_epi32(_mm_setr_epi16(r2s[0], r2s[N], 0, 0, 0, 0, 0, 0));
                         __m512i _r3 = _mm512_broadcastd_epi32(_mm_setr_epi16(r3s[0], r3s[N], 0, 0, 0, 0, 0, 0));
 
-                        __m512i _w = _mm512_cvtepi8_epi16(_mm256_loadu_si256((const __m256i*)kptr));
+                        __m512i _w = _mm512_cvtepi8_epi16(_mm256_load_si256((const __m256i*)kptr));
 
 #if __AVX512VNNI__
                         _sum0 = _mm512_dpwssd_epi32(_sum0, _r0, _w);
@@ -1362,7 +1362,7 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         __m256i _r2 = _mm256_set1_epi16(r2s[0]);
                         __m256i _r3 = _mm256_set1_epi16(r3s[0]);
 
-                        __m256i _w = _mm256_cvtepi8_epi16(_mm_loadu_si128((const __m128i*)kptr));
+                        __m256i _w = _mm256_cvtepi8_epi16(_mm_load_si128((const __m128i*)kptr));
 
                         _sum0 = _mm512_add_epi32(_sum0, _mm512_cvtepi16_epi32(_mm256_mullo_epi16(_r0, _w)));
                         _sum1 = _mm512_add_epi32(_sum1, _mm512_cvtepi16_epi32(_mm256_mullo_epi16(_r1, _w)));
@@ -1376,42 +1376,42 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
 
             if (out_elempack == 16)
             {
-                _mm512_storeu_si512((__m512i*)outptr, _sum0);
-                _mm512_storeu_si512((__m512i*)(outptr + 16), _sum1);
-                _mm512_storeu_si512((__m512i*)(outptr + 32), _sum2);
-                _mm512_storeu_si512((__m512i*)(outptr + 48), _sum3);
+                _mm512_store_si512((__m512i*)outptr, _sum0);
+                _mm512_store_si512((__m512i*)(outptr + 16), _sum1);
+                _mm512_store_si512((__m512i*)(outptr + 32), _sum2);
+                _mm512_store_si512((__m512i*)(outptr + 48), _sum3);
                 outptr += 64;
             }
             if (out_elempack == 8)
             {
-                _mm256_storeu_si256((__m256i*)outptr, _mm512_extracti32x8_epi32(_sum0, 0));
-                _mm256_storeu_si256((__m256i*)(outptr + M), _mm512_extracti32x8_epi32(_sum0, 1));
-                _mm256_storeu_si256((__m256i*)(outptr + 8), _mm512_extracti32x8_epi32(_sum1, 0));
-                _mm256_storeu_si256((__m256i*)(outptr + M + 8), _mm512_extracti32x8_epi32(_sum1, 1));
-                _mm256_storeu_si256((__m256i*)(outptr + 16), _mm512_extracti32x8_epi32(_sum2, 0));
-                _mm256_storeu_si256((__m256i*)(outptr + M + 16), _mm512_extracti32x8_epi32(_sum2, 1));
-                _mm256_storeu_si256((__m256i*)(outptr + 24), _mm512_extracti32x8_epi32(_sum3, 0));
-                _mm256_storeu_si256((__m256i*)(outptr + M + 24), _mm512_extracti32x8_epi32(_sum3, 1));
+                _mm256_store_si256((__m256i*)outptr, _mm512_extracti32x8_epi32(_sum0, 0));
+                _mm256_store_si256((__m256i*)(outptr + M), _mm512_extracti32x8_epi32(_sum0, 1));
+                _mm256_store_si256((__m256i*)(outptr + 8), _mm512_extracti32x8_epi32(_sum1, 0));
+                _mm256_store_si256((__m256i*)(outptr + M + 8), _mm512_extracti32x8_epi32(_sum1, 1));
+                _mm256_store_si256((__m256i*)(outptr + 16), _mm512_extracti32x8_epi32(_sum2, 0));
+                _mm256_store_si256((__m256i*)(outptr + M + 16), _mm512_extracti32x8_epi32(_sum2, 1));
+                _mm256_store_si256((__m256i*)(outptr + 24), _mm512_extracti32x8_epi32(_sum3, 0));
+                _mm256_store_si256((__m256i*)(outptr + M + 24), _mm512_extracti32x8_epi32(_sum3, 1));
                 outptr += 32;
             }
             if (out_elempack == 4)
             {
-                _mm_storeu_si128((__m128i*)outptr, _mm512_extracti32x4_epi32(_sum0, 0));
-                _mm_storeu_si128((__m128i*)(outptr + M), _mm512_extracti32x4_epi32(_sum0, 1));
-                _mm_storeu_si128((__m128i*)(outptr + M * 2), _mm512_extracti32x4_epi32(_sum0, 2));
-                _mm_storeu_si128((__m128i*)(outptr + M * 3), _mm512_extracti32x4_epi32(_sum0, 3));
-                _mm_storeu_si128((__m128i*)(outptr + 4), _mm512_extracti32x4_epi32(_sum1, 0));
-                _mm_storeu_si128((__m128i*)(outptr + M + 4), _mm512_extracti32x4_epi32(_sum1, 1));
-                _mm_storeu_si128((__m128i*)(outptr + M * 2 + 4), _mm512_extracti32x4_epi32(_sum1, 2));
-                _mm_storeu_si128((__m128i*)(outptr + M * 3 + 4), _mm512_extracti32x4_epi32(_sum1, 3));
-                _mm_storeu_si128((__m128i*)(outptr + 8), _mm512_extracti32x4_epi32(_sum2, 0));
-                _mm_storeu_si128((__m128i*)(outptr + M + 8), _mm512_extracti32x4_epi32(_sum2, 1));
-                _mm_storeu_si128((__m128i*)(outptr + M * 2 + 8), _mm512_extracti32x4_epi32(_sum2, 2));
-                _mm_storeu_si128((__m128i*)(outptr + M * 3 + 8), _mm512_extracti32x4_epi32(_sum2, 3));
-                _mm_storeu_si128((__m128i*)(outptr + 12), _mm512_extracti32x4_epi32(_sum3, 0));
-                _mm_storeu_si128((__m128i*)(outptr + M + 12), _mm512_extracti32x4_epi32(_sum3, 1));
-                _mm_storeu_si128((__m128i*)(outptr + M * 2 + 12), _mm512_extracti32x4_epi32(_sum3, 2));
-                _mm_storeu_si128((__m128i*)(outptr + M * 3 + 12), _mm512_extracti32x4_epi32(_sum3, 3));
+                _mm_store_si128((__m128i*)outptr, _mm512_extracti32x4_epi32(_sum0, 0));
+                _mm_store_si128((__m128i*)(outptr + M), _mm512_extracti32x4_epi32(_sum0, 1));
+                _mm_store_si128((__m128i*)(outptr + M * 2), _mm512_extracti32x4_epi32(_sum0, 2));
+                _mm_store_si128((__m128i*)(outptr + M * 3), _mm512_extracti32x4_epi32(_sum0, 3));
+                _mm_store_si128((__m128i*)(outptr + 4), _mm512_extracti32x4_epi32(_sum1, 0));
+                _mm_store_si128((__m128i*)(outptr + M + 4), _mm512_extracti32x4_epi32(_sum1, 1));
+                _mm_store_si128((__m128i*)(outptr + M * 2 + 4), _mm512_extracti32x4_epi32(_sum1, 2));
+                _mm_store_si128((__m128i*)(outptr + M * 3 + 4), _mm512_extracti32x4_epi32(_sum1, 3));
+                _mm_store_si128((__m128i*)(outptr + 8), _mm512_extracti32x4_epi32(_sum2, 0));
+                _mm_store_si128((__m128i*)(outptr + M + 8), _mm512_extracti32x4_epi32(_sum2, 1));
+                _mm_store_si128((__m128i*)(outptr + M * 2 + 8), _mm512_extracti32x4_epi32(_sum2, 2));
+                _mm_store_si128((__m128i*)(outptr + M * 3 + 8), _mm512_extracti32x4_epi32(_sum2, 3));
+                _mm_store_si128((__m128i*)(outptr + 12), _mm512_extracti32x4_epi32(_sum3, 0));
+                _mm_store_si128((__m128i*)(outptr + M + 12), _mm512_extracti32x4_epi32(_sum3, 1));
+                _mm_store_si128((__m128i*)(outptr + M * 2 + 12), _mm512_extracti32x4_epi32(_sum3, 2));
+                _mm_store_si128((__m128i*)(outptr + M * 3 + 12), _mm512_extracti32x4_epi32(_sum3, 3));
                 outptr += 16;
             }
             if (out_elempack == 1)
@@ -1454,8 +1454,8 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                     __m128i _r1;
                     if (elempack == 16)
                     {
-                        _r0 = _mm_loadu_si128((const __m128i*)r0s);
-                        _r1 = _mm_loadu_si128((const __m128i*)r1s);
+                        _r0 = _mm_load_si128((const __m128i*)r0s);
+                        _r1 = _mm_load_si128((const __m128i*)r1s);
                     }
                     else if (elempack == 8)
                     {
@@ -1477,10 +1477,10 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                     __m256i _rr0 = _mm256_cvtepi8_epi16(_r0);
                     __m256i _rr1 = _mm256_cvtepi8_epi16(_r1);
 
-                    __m512i _w01 = _mm512_loadu_si512((const __m512i*)kptr);
-                    __m512i _w23 = _mm512_loadu_si512((const __m512i*)(kptr + 64));
-                    __m512i _w45 = _mm512_loadu_si512((const __m512i*)(kptr + 128));
-                    __m512i _w67 = _mm512_loadu_si512((const __m512i*)(kptr + 192));
+                    __m512i _w01 = _mm512_load_si512((const __m512i*)kptr);
+                    __m512i _w23 = _mm512_load_si512((const __m512i*)(kptr + 64));
+                    __m512i _w45 = _mm512_load_si512((const __m512i*)(kptr + 128));
+                    __m512i _w67 = _mm512_load_si512((const __m512i*)(kptr + 192));
                     __m512i _w0 = _mm512_cvtepi8_epi16(_mm512_extracti64x4_epi64(_w01, 0));
                     __m512i _w1 = _mm512_cvtepi8_epi16(_mm512_extracti64x4_epi64(_w01, 1));
                     __m512i _w2 = _mm512_cvtepi8_epi16(_mm512_extracti64x4_epi64(_w23, 0));
@@ -1563,8 +1563,8 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                     _r0 = _mm_cvtepi8_epi16(_r0);
                     _r1 = _mm_cvtepi8_epi16(_r1);
 
-                    __m512i _w01 = _mm512_loadu_si512((const __m512i*)kptr);
-                    __m512i _w23 = _mm512_loadu_si512((const __m512i*)(kptr + 64));
+                    __m512i _w01 = _mm512_load_si512((const __m512i*)kptr);
+                    __m512i _w23 = _mm512_load_si512((const __m512i*)(kptr + 64));
                     __m512i _w0 = _mm512_cvtepi8_epi16(_mm512_extracti64x4_epi64(_w01, 0));
                     __m512i _w1 = _mm512_cvtepi8_epi16(_mm512_extracti64x4_epi64(_w01, 1));
                     __m512i _w2 = _mm512_cvtepi8_epi16(_mm512_extracti64x4_epi64(_w23, 0));
@@ -1612,7 +1612,7 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         __m512i _r0 = _mm512_broadcastd_epi32(_mm_setr_epi16(r0s[0], r0s[N], 0, 0, 0, 0, 0, 0));
                         __m512i _r1 = _mm512_broadcastd_epi32(_mm_setr_epi16(r1s[0], r1s[N], 0, 0, 0, 0, 0, 0));
 
-                        __m512i _w = _mm512_cvtepi8_epi16(_mm256_loadu_si256((const __m256i*)kptr));
+                        __m512i _w = _mm512_cvtepi8_epi16(_mm256_load_si256((const __m256i*)kptr));
 
 #if __AVX512VNNI__
                         _sum0 = _mm512_dpwssd_epi32(_sum0, _r0, _w);
@@ -1641,7 +1641,7 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         __m256i _r0 = _mm256_set1_epi16(r0s[0]);
                         __m256i _r1 = _mm256_set1_epi16(r1s[0]);
 
-                        __m256i _w = _mm256_cvtepi8_epi16(_mm_loadu_si128((const __m128i*)kptr));
+                        __m256i _w = _mm256_cvtepi8_epi16(_mm_load_si128((const __m128i*)kptr));
 
                         _sum0 = _mm512_add_epi32(_sum0, _mm512_cvtepi16_epi32(_mm256_mullo_epi16(_r0, _w)));
                         _sum1 = _mm512_add_epi32(_sum1, _mm512_cvtepi16_epi32(_mm256_mullo_epi16(_r1, _w)));
@@ -1656,28 +1656,28 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
 
             if (out_elempack == 16)
             {
-                _mm512_storeu_si512((__m512i*)outptr, _sum0);
-                _mm512_storeu_si512((__m512i*)(outptr + 16), _sum1);
+                _mm512_store_si512((__m512i*)outptr, _sum0);
+                _mm512_store_si512((__m512i*)(outptr + 16), _sum1);
                 outptr += 32;
             }
             if (out_elempack == 8)
             {
-                _mm256_storeu_si256((__m256i*)outptr, _mm512_extracti32x8_epi32(_sum0, 0));
-                _mm256_storeu_si256((__m256i*)(outptr + M), _mm512_extracti32x8_epi32(_sum0, 1));
-                _mm256_storeu_si256((__m256i*)(outptr + 8), _mm512_extracti32x8_epi32(_sum1, 0));
-                _mm256_storeu_si256((__m256i*)(outptr + M + 8), _mm512_extracti32x8_epi32(_sum1, 1));
+                _mm256_store_si256((__m256i*)outptr, _mm512_extracti32x8_epi32(_sum0, 0));
+                _mm256_store_si256((__m256i*)(outptr + M), _mm512_extracti32x8_epi32(_sum0, 1));
+                _mm256_store_si256((__m256i*)(outptr + 8), _mm512_extracti32x8_epi32(_sum1, 0));
+                _mm256_store_si256((__m256i*)(outptr + M + 8), _mm512_extracti32x8_epi32(_sum1, 1));
                 outptr += 16;
             }
             if (out_elempack == 4)
             {
-                _mm_storeu_si128((__m128i*)outptr, _mm512_extracti32x4_epi32(_sum0, 0));
-                _mm_storeu_si128((__m128i*)(outptr + M), _mm512_extracti32x4_epi32(_sum0, 1));
-                _mm_storeu_si128((__m128i*)(outptr + M * 2), _mm512_extracti32x4_epi32(_sum0, 2));
-                _mm_storeu_si128((__m128i*)(outptr + M * 3), _mm512_extracti32x4_epi32(_sum0, 3));
-                _mm_storeu_si128((__m128i*)(outptr + 4), _mm512_extracti32x4_epi32(_sum1, 0));
-                _mm_storeu_si128((__m128i*)(outptr + M + 4), _mm512_extracti32x4_epi32(_sum1, 1));
-                _mm_storeu_si128((__m128i*)(outptr + M * 2 + 4), _mm512_extracti32x4_epi32(_sum1, 2));
-                _mm_storeu_si128((__m128i*)(outptr + M * 3 + 4), _mm512_extracti32x4_epi32(_sum1, 3));
+                _mm_store_si128((__m128i*)outptr, _mm512_extracti32x4_epi32(_sum0, 0));
+                _mm_store_si128((__m128i*)(outptr + M), _mm512_extracti32x4_epi32(_sum0, 1));
+                _mm_store_si128((__m128i*)(outptr + M * 2), _mm512_extracti32x4_epi32(_sum0, 2));
+                _mm_store_si128((__m128i*)(outptr + M * 3), _mm512_extracti32x4_epi32(_sum0, 3));
+                _mm_store_si128((__m128i*)(outptr + 4), _mm512_extracti32x4_epi32(_sum1, 0));
+                _mm_store_si128((__m128i*)(outptr + M + 4), _mm512_extracti32x4_epi32(_sum1, 1));
+                _mm_store_si128((__m128i*)(outptr + M * 2 + 4), _mm512_extracti32x4_epi32(_sum1, 2));
+                _mm_store_si128((__m128i*)(outptr + M * 3 + 4), _mm512_extracti32x4_epi32(_sum1, 3));
                 outptr += 8;
             }
             if (out_elempack == 1)
@@ -1713,7 +1713,7 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                     __m128i _r0;
                     if (elempack == 16)
                     {
-                        _r0 = _mm_loadu_si128((const __m128i*)r0s);
+                        _r0 = _mm_load_si128((const __m128i*)r0s);
                     }
                     else if (elempack == 8)
                     {
@@ -1730,10 +1730,10 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
 
                     __m256i _rr0 = _mm256_cvtepi8_epi16(_r0);
 
-                    __m512i _w01 = _mm512_loadu_si512((const __m512i*)kptr);
-                    __m512i _w23 = _mm512_loadu_si512((const __m512i*)(kptr + 64));
-                    __m512i _w45 = _mm512_loadu_si512((const __m512i*)(kptr + 128));
-                    __m512i _w67 = _mm512_loadu_si512((const __m512i*)(kptr + 192));
+                    __m512i _w01 = _mm512_load_si512((const __m512i*)kptr);
+                    __m512i _w23 = _mm512_load_si512((const __m512i*)(kptr + 64));
+                    __m512i _w45 = _mm512_load_si512((const __m512i*)(kptr + 128));
+                    __m512i _w67 = _mm512_load_si512((const __m512i*)(kptr + 192));
                     __m512i _w0 = _mm512_cvtepi8_epi16(_mm512_extracti64x4_epi64(_w01, 0));
                     __m512i _w1 = _mm512_cvtepi8_epi16(_mm512_extracti64x4_epi64(_w01, 1));
                     __m512i _w2 = _mm512_cvtepi8_epi16(_mm512_extracti64x4_epi64(_w23, 0));
@@ -1792,8 +1792,8 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
 
                     _r0 = _mm_cvtepi8_epi16(_r0);
 
-                    __m512i _w01 = _mm512_loadu_si512((const __m512i*)kptr);
-                    __m512i _w23 = _mm512_loadu_si512((const __m512i*)(kptr + 64));
+                    __m512i _w01 = _mm512_load_si512((const __m512i*)kptr);
+                    __m512i _w23 = _mm512_load_si512((const __m512i*)(kptr + 64));
                     __m512i _w0 = _mm512_cvtepi8_epi16(_mm512_extracti64x4_epi64(_w01, 0));
                     __m512i _w1 = _mm512_cvtepi8_epi16(_mm512_extracti64x4_epi64(_w01, 1));
                     __m512i _w2 = _mm512_cvtepi8_epi16(_mm512_extracti64x4_epi64(_w23, 0));
@@ -1829,7 +1829,7 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                     {
                         __m512i _val = _mm512_broadcastd_epi32(_mm_setr_epi16(r0s[0], r0s[N], 0, 0, 0, 0, 0, 0));
 
-                        __m512i _w = _mm512_cvtepi8_epi16(_mm256_loadu_si256((const __m256i*)kptr));
+                        __m512i _w = _mm512_cvtepi8_epi16(_mm256_load_si256((const __m256i*)kptr));
 
 #if __AVX512VNNI__
                         _sum0 = _mm512_dpwssd_epi32(_sum0, _val, _w);
@@ -1853,7 +1853,7 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                     {
                         __m256i _val = _mm256_set1_epi16(r0s[0]);
 
-                        __m256i _w = _mm256_cvtepi8_epi16(_mm_loadu_si128((const __m128i*)kptr));
+                        __m256i _w = _mm256_cvtepi8_epi16(_mm_load_si128((const __m128i*)kptr));
 
                         _sum0 = _mm512_add_epi32(_sum0, _mm512_cvtepi16_epi32(_mm256_mullo_epi16(_val, _w)));
 
@@ -1868,21 +1868,21 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
 
             if (out_elempack == 16)
             {
-                _mm512_storeu_si512((__m512i*)outptr, _sum0);
+                _mm512_store_si512((__m512i*)outptr, _sum0);
                 outptr += 16;
             }
             if (out_elempack == 8)
             {
-                _mm256_storeu_si256((__m256i*)outptr, _mm512_extracti32x8_epi32(_sum0, 0));
-                _mm256_storeu_si256((__m256i*)(outptr + M), _mm512_extracti32x8_epi32(_sum0, 1));
+                _mm256_store_si256((__m256i*)outptr, _mm512_extracti32x8_epi32(_sum0, 0));
+                _mm256_store_si256((__m256i*)(outptr + M), _mm512_extracti32x8_epi32(_sum0, 1));
                 outptr += 8;
             }
             if (out_elempack == 4)
             {
-                _mm_storeu_si128((__m128i*)outptr, _mm512_extracti32x4_epi32(_sum0, 0));
-                _mm_storeu_si128((__m128i*)(outptr + M), _mm512_extracti32x4_epi32(_sum0, 1));
-                _mm_storeu_si128((__m128i*)(outptr + M * 2), _mm512_extracti32x4_epi32(_sum0, 2));
-                _mm_storeu_si128((__m128i*)(outptr + M * 3), _mm512_extracti32x4_epi32(_sum0, 3));
+                _mm_store_si128((__m128i*)outptr, _mm512_extracti32x4_epi32(_sum0, 0));
+                _mm_store_si128((__m128i*)(outptr + M), _mm512_extracti32x4_epi32(_sum0, 1));
+                _mm_store_si128((__m128i*)(outptr + M * 2), _mm512_extracti32x4_epi32(_sum0, 2));
+                _mm_store_si128((__m128i*)(outptr + M * 3), _mm512_extracti32x4_epi32(_sum0, 3));
                 outptr += 4;
             }
             if (out_elempack == 1)
@@ -1962,10 +1962,10 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         __m128i _r3;
                         if (elempack == 16)
                         {
-                            _r0 = _mm_loadu_si128((const __m128i*)r0s);
-                            _r1 = _mm_loadu_si128((const __m128i*)r1s);
-                            _r2 = _mm_loadu_si128((const __m128i*)r2s);
-                            _r3 = _mm_loadu_si128((const __m128i*)r3s);
+                            _r0 = _mm_load_si128((const __m128i*)r0s);
+                            _r1 = _mm_load_si128((const __m128i*)r1s);
+                            _r2 = _mm_load_si128((const __m128i*)r2s);
+                            _r3 = _mm_load_si128((const __m128i*)r3s);
                         }
                         else if (elempack == 8)
                         {
@@ -1997,8 +1997,8 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         __m256i _rr2 = _mm256_cvtepi8_epi16(_r2);
                         __m256i _rr3 = _mm256_cvtepi8_epi16(_r3);
 
-                        __m512i _w01 = _mm512_loadu_si512((const __m512i*)kptr);
-                        __m512i _w23 = _mm512_loadu_si512((const __m512i*)(kptr + 64));
+                        __m512i _w01 = _mm512_load_si512((const __m512i*)kptr);
+                        __m512i _w23 = _mm512_load_si512((const __m512i*)(kptr + 64));
                         __m512i _w0 = _mm512_cvtepi8_epi16(_mm512_extracti64x4_epi64(_w01, 0));
                         __m512i _w1 = _mm512_cvtepi8_epi16(_mm512_extracti64x4_epi64(_w01, 1));
                         __m512i _w2 = _mm512_cvtepi8_epi16(_mm512_extracti64x4_epi64(_w23, 0));
@@ -2133,8 +2133,8 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                     _r2 = _mm_cvtepi8_epi16(_r2);
                     _r3 = _mm_cvtepi8_epi16(_r3);
 
-                    __m256i _w01 = _mm256_loadu_si256((const __m256i*)kptr);
-                    __m256i _w23 = _mm256_loadu_si256((const __m256i*)(kptr + 32));
+                    __m256i _w01 = _mm256_load_si256((const __m256i*)kptr);
+                    __m256i _w23 = _mm256_load_si256((const __m256i*)(kptr + 32));
                     __m256i _w0 = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(_w01, 0));
                     __m256i _w1 = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(_w01, 1));
                     __m256i _w2 = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(_w23, 0));
@@ -2210,7 +2210,7 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         __m256i _rr2 = _mm256_broadcastd_epi32(_r2);
                         __m256i _rr3 = _mm256_broadcastd_epi32(_r3);
 
-                        __m256i _w = _mm256_cvtepi8_epi16(_mm_loadu_si128((const __m128i*)kptr));
+                        __m256i _w = _mm256_cvtepi8_epi16(_mm_load_si128((const __m128i*)kptr));
 
 #if __AVXVNNI__ || __AVX512VNNI__
                         _sum0 = _mm256_dpwssd_epi32(_sum0, _rr0, _w);
@@ -2265,22 +2265,22 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
 
             if (out_elempack == 8)
             {
-                _mm256_storeu_si256((__m256i*)outptr, _sum0);
-                _mm256_storeu_si256((__m256i*)(outptr + 8), _sum1);
-                _mm256_storeu_si256((__m256i*)(outptr + 16), _sum2);
-                _mm256_storeu_si256((__m256i*)(outptr + 24), _sum3);
+                _mm256_store_si256((__m256i*)outptr, _sum0);
+                _mm256_store_si256((__m256i*)(outptr + 8), _sum1);
+                _mm256_store_si256((__m256i*)(outptr + 16), _sum2);
+                _mm256_store_si256((__m256i*)(outptr + 24), _sum3);
                 outptr += 32;
             }
             if (out_elempack == 4)
             {
-                _mm_storeu_si128((__m128i*)outptr, _mm256_extracti128_si256(_sum0, 0));
-                _mm_storeu_si128((__m128i*)(outptr + M), _mm256_extracti128_si256(_sum0, 1));
-                _mm_storeu_si128((__m128i*)(outptr + 4), _mm256_extracti128_si256(_sum1, 0));
-                _mm_storeu_si128((__m128i*)(outptr + M + 4), _mm256_extracti128_si256(_sum1, 1));
-                _mm_storeu_si128((__m128i*)(outptr + 8), _mm256_extracti128_si256(_sum2, 0));
-                _mm_storeu_si128((__m128i*)(outptr + M + 8), _mm256_extracti128_si256(_sum2, 1));
-                _mm_storeu_si128((__m128i*)(outptr + 12), _mm256_extracti128_si256(_sum3, 0));
-                _mm_storeu_si128((__m128i*)(outptr + M + 12), _mm256_extracti128_si256(_sum3, 1));
+                _mm_store_si128((__m128i*)outptr, _mm256_extracti128_si256(_sum0, 0));
+                _mm_store_si128((__m128i*)(outptr + M), _mm256_extracti128_si256(_sum0, 1));
+                _mm_store_si128((__m128i*)(outptr + 4), _mm256_extracti128_si256(_sum1, 0));
+                _mm_store_si128((__m128i*)(outptr + M + 4), _mm256_extracti128_si256(_sum1, 1));
+                _mm_store_si128((__m128i*)(outptr + 8), _mm256_extracti128_si256(_sum2, 0));
+                _mm_store_si128((__m128i*)(outptr + M + 8), _mm256_extracti128_si256(_sum2, 1));
+                _mm_store_si128((__m128i*)(outptr + 12), _mm256_extracti128_si256(_sum3, 0));
+                _mm_store_si128((__m128i*)(outptr + M + 12), _mm256_extracti128_si256(_sum3, 1));
                 outptr += 16;
             }
             if (out_elempack == 1)
@@ -2377,8 +2377,8 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         __m128i _r1;
                         if (elempack == 16)
                         {
-                            _r0 = _mm_loadu_si128((const __m128i*)r0s);
-                            _r1 = _mm_loadu_si128((const __m128i*)r1s);
+                            _r0 = _mm_load_si128((const __m128i*)r0s);
+                            _r1 = _mm_load_si128((const __m128i*)r1s);
                         }
                         else if (elempack == 8)
                         {
@@ -2400,8 +2400,8 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         __m256i _rr0 = _mm256_cvtepi8_epi16(_r0);
                         __m256i _rr1 = _mm256_cvtepi8_epi16(_r1);
 
-                        __m512i _w01 = _mm512_loadu_si512((const __m512i*)kptr);
-                        __m512i _w23 = _mm512_loadu_si512((const __m512i*)(kptr + 64));
+                        __m512i _w01 = _mm512_load_si512((const __m512i*)kptr);
+                        __m512i _w23 = _mm512_load_si512((const __m512i*)(kptr + 64));
                         __m512i _w0 = _mm512_cvtepi8_epi16(_mm512_extracti64x4_epi64(_w01, 0));
                         __m512i _w1 = _mm512_cvtepi8_epi16(_mm512_extracti64x4_epi64(_w01, 1));
                         __m512i _w2 = _mm512_cvtepi8_epi16(_mm512_extracti64x4_epi64(_w23, 0));
@@ -2494,8 +2494,8 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                     _r0 = _mm_cvtepi8_epi16(_r0);
                     _r1 = _mm_cvtepi8_epi16(_r1);
 
-                    __m256i _w01 = _mm256_loadu_si256((const __m256i*)kptr);
-                    __m256i _w23 = _mm256_loadu_si256((const __m256i*)(kptr + 32));
+                    __m256i _w01 = _mm256_load_si256((const __m256i*)kptr);
+                    __m256i _w23 = _mm256_load_si256((const __m256i*)(kptr + 32));
                     __m256i _w0 = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(_w01, 0));
                     __m256i _w1 = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(_w01, 1));
                     __m256i _w2 = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(_w23, 0));
@@ -2545,7 +2545,7 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         __m256i _rr0 = _mm256_broadcastd_epi32(_r0);
                         __m256i _rr1 = _mm256_broadcastd_epi32(_r1);
 
-                        __m256i _w = _mm256_cvtepi8_epi16(_mm_loadu_si128((const __m128i*)kptr));
+                        __m256i _w = _mm256_cvtepi8_epi16(_mm_load_si128((const __m128i*)kptr));
 
 #if __AVXVNNI__ || __AVX512VNNI__
                         _sum0 = _mm256_dpwssd_epi32(_sum0, _rr0, _w);
@@ -2589,16 +2589,16 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
 
             if (out_elempack == 8)
             {
-                _mm256_storeu_si256((__m256i*)outptr, _sum0);
-                _mm256_storeu_si256((__m256i*)(outptr + 8), _sum1);
+                _mm256_store_si256((__m256i*)outptr, _sum0);
+                _mm256_store_si256((__m256i*)(outptr + 8), _sum1);
                 outptr += 16;
             }
             if (out_elempack == 4)
             {
-                _mm_storeu_si128((__m128i*)outptr, _mm256_extracti128_si256(_sum0, 0));
-                _mm_storeu_si128((__m128i*)(outptr + M), _mm256_extracti128_si256(_sum0, 1));
-                _mm_storeu_si128((__m128i*)(outptr + 4), _mm256_extracti128_si256(_sum1, 0));
-                _mm_storeu_si128((__m128i*)(outptr + M + 4), _mm256_extracti128_si256(_sum1, 1));
+                _mm_store_si128((__m128i*)outptr, _mm256_extracti128_si256(_sum0, 0));
+                _mm_store_si128((__m128i*)(outptr + M), _mm256_extracti128_si256(_sum0, 1));
+                _mm_store_si128((__m128i*)(outptr + 4), _mm256_extracti128_si256(_sum1, 0));
+                _mm_store_si128((__m128i*)(outptr + M + 4), _mm256_extracti128_si256(_sum1, 1));
                 outptr += 8;
             }
             if (out_elempack == 1)
@@ -2665,7 +2665,7 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         __m128i _r0;
                         if (elempack == 16)
                         {
-                            _r0 = _mm_loadu_si128((const __m128i*)r0s);
+                            _r0 = _mm_load_si128((const __m128i*)r0s);
                         }
                         else if (elempack == 8)
                         {
@@ -2682,8 +2682,8 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
 
                         __m256i _rr0 = _mm256_cvtepi8_epi16(_r0);
 
-                        __m512i _w01 = _mm512_loadu_si512((const __m512i*)kptr);
-                        __m512i _w23 = _mm512_loadu_si512((const __m512i*)(kptr + 64));
+                        __m512i _w01 = _mm512_load_si512((const __m512i*)kptr);
+                        __m512i _w23 = _mm512_load_si512((const __m512i*)(kptr + 64));
                         __m512i _w0 = _mm512_cvtepi8_epi16(_mm512_extracti64x4_epi64(_w01, 0));
                         __m512i _w1 = _mm512_cvtepi8_epi16(_mm512_extracti64x4_epi64(_w01, 1));
                         __m512i _w2 = _mm512_cvtepi8_epi16(_mm512_extracti64x4_epi64(_w23, 0));
@@ -2756,8 +2756,8 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
 
                         _r0 = _mm_cvtepi8_epi16(_r0);
 
-                        __m256i _w01 = _mm256_loadu_si256((const __m256i*)kptr);
-                        __m256i _w23 = _mm256_loadu_si256((const __m256i*)(kptr + 32));
+                        __m256i _w01 = _mm256_load_si256((const __m256i*)kptr);
+                        __m256i _w23 = _mm256_load_si256((const __m256i*)(kptr + 32));
                         __m256i _w0 = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(_w01, 0));
                         __m256i _w1 = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(_w01, 1));
                         __m256i _w2 = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(_w23, 0));
@@ -2798,7 +2798,7 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         __m128i _val0 = _mm_setr_epi16(r0s[0], r0s[N], 0, 0, 0, 0, 0, 0);
                         __m256i _val = _mm256_broadcastd_epi32(_val0);
 
-                        __m256i _w = _mm256_cvtepi8_epi16(_mm_loadu_si128((const __m128i*)kptr));
+                        __m256i _w = _mm256_cvtepi8_epi16(_mm_load_si128((const __m128i*)kptr));
 
 #if __AVXVNNI__ || __AVX512VNNI__
                         _sum0 = _mm256_dpwssd_epi32(_sum0, _val, _w);
@@ -2832,13 +2832,13 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
 
             if (out_elempack == 8)
             {
-                _mm256_storeu_si256((__m256i*)outptr, _sum0);
+                _mm256_store_si256((__m256i*)outptr, _sum0);
                 outptr += 8;
             }
             if (out_elempack == 4)
             {
-                _mm_storeu_si128((__m128i*)outptr, _mm256_extracti128_si256(_sum0, 0));
-                _mm_storeu_si128((__m128i*)(outptr + M), _mm256_extracti128_si256(_sum0, 1));
+                _mm_store_si128((__m128i*)outptr, _mm256_extracti128_si256(_sum0, 0));
+                _mm_store_si128((__m128i*)(outptr + M), _mm256_extracti128_si256(_sum0, 1));
                 outptr += 4;
             }
             if (out_elempack == 1)
@@ -2934,10 +2934,10 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         __m128i _r3;
                         if (elempack == 16)
                         {
-                            _r0 = _mm_loadu_si128((const __m128i*)r0s);
-                            _r1 = _mm_loadu_si128((const __m128i*)r1s);
-                            _r2 = _mm_loadu_si128((const __m128i*)r2s);
-                            _r3 = _mm_loadu_si128((const __m128i*)r3s);
+                            _r0 = _mm_load_si128((const __m128i*)r0s);
+                            _r1 = _mm_load_si128((const __m128i*)r1s);
+                            _r2 = _mm_load_si128((const __m128i*)r2s);
+                            _r3 = _mm_load_si128((const __m128i*)r3s);
                         }
                         else if (elempack == 8)
                         {
@@ -2969,7 +2969,7 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         __m256i _rr2 = _mm256_cvtepi8_epi16(_r2);
                         __m256i _rr3 = _mm256_cvtepi8_epi16(_r3);
 
-                        __m512i _w = _mm512_loadu_si512((const __m512i*)kptr);
+                        __m512i _w = _mm512_load_si512((const __m512i*)kptr);
                         __m512i _w0 = _mm512_cvtepi8_epi16(_mm512_extracti64x4_epi64(_w, 0));
                         __m512i _w1 = _mm512_cvtepi8_epi16(_mm512_extracti64x4_epi64(_w, 1));
 
@@ -3110,7 +3110,7 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
 #endif
 
 #if __AVX2__
-                        __m256i _w = _mm256_loadu_si256((const __m256i*)kptr);
+                        __m256i _w = _mm256_load_si256((const __m256i*)kptr);
                         __m256i _w0 = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(_w, 0));
                         __m256i _w1 = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(_w, 1));
 
@@ -3140,8 +3140,8 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         _sum33 = _mm256_add_epi32(_sum33, _mm256_madd_epi16(_mm256_shuffle_epi32(_rr3, _MM_SHUFFLE(2, 2, 2, 2)), _w1));
 #endif
 #else // __AVX2__
-                        __m128i _w01 = _mm_loadu_si128((const __m128i*)kptr);
-                        __m128i _w23 = _mm_loadu_si128((const __m128i*)(kptr + 16));
+                        __m128i _w01 = _mm_load_si128((const __m128i*)kptr);
+                        __m128i _w23 = _mm_load_si128((const __m128i*)(kptr + 16));
                         __m128i _extw01 = _mm_cmpgt_epi8(_mm_setzero_si128(), _w01);
                         __m128i _extw23 = _mm_cmpgt_epi8(_mm_setzero_si128(), _w23);
                         __m128i _w0 = _mm_unpacklo_epi8(_w01, _extw01);
@@ -3303,10 +3303,10 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
 
             if (out_elempack == 4)
             {
-                _mm_storeu_si128((__m128i*)outptr, _sum0);
-                _mm_storeu_si128((__m128i*)(outptr + 4), _sum1);
-                _mm_storeu_si128((__m128i*)(outptr + 8), _sum2);
-                _mm_storeu_si128((__m128i*)(outptr + 12), _sum3);
+                _mm_store_si128((__m128i*)outptr, _sum0);
+                _mm_store_si128((__m128i*)(outptr + 4), _sum1);
+                _mm_store_si128((__m128i*)(outptr + 8), _sum2);
+                _mm_store_si128((__m128i*)(outptr + 12), _sum3);
                 outptr += 16;
             }
             if (out_elempack == 1)
@@ -3389,8 +3389,8 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         __m128i _r1;
                         if (elempack == 16)
                         {
-                            _r0 = _mm_loadu_si128((const __m128i*)r0s);
-                            _r1 = _mm_loadu_si128((const __m128i*)r1s);
+                            _r0 = _mm_load_si128((const __m128i*)r0s);
+                            _r1 = _mm_load_si128((const __m128i*)r1s);
                         }
                         else if (elempack == 8)
                         {
@@ -3412,7 +3412,7 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         __m256i _rr0 = _mm256_cvtepi8_epi16(_r0);
                         __m256i _rr1 = _mm256_cvtepi8_epi16(_r1);
 
-                        __m512i _w = _mm512_loadu_si512((const __m512i*)kptr);
+                        __m512i _w = _mm512_load_si512((const __m512i*)kptr);
                         __m512i _w0 = _mm512_cvtepi8_epi16(_mm512_extracti64x4_epi64(_w, 0));
                         __m512i _w1 = _mm512_cvtepi8_epi16(_mm512_extracti64x4_epi64(_w, 1));
 
@@ -3515,7 +3515,7 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
 #endif
 
 #if __AVX2__
-                        __m256i _w = _mm256_loadu_si256((const __m256i*)kptr);
+                        __m256i _w = _mm256_load_si256((const __m256i*)kptr);
                         __m256i _w0 = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(_w, 0));
                         __m256i _w1 = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(_w, 1));
 
@@ -3535,8 +3535,8 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         _sum33 = _mm256_add_epi32(_sum33, _mm256_madd_epi16(_mm256_shuffle_epi32(_rr1, _MM_SHUFFLE(2, 2, 2, 2)), _w1));
 #endif
 #else // __AVX2__
-                        __m128i _w01 = _mm_loadu_si128((const __m128i*)kptr);
-                        __m128i _w23 = _mm_loadu_si128((const __m128i*)(kptr + 16));
+                        __m128i _w01 = _mm_load_si128((const __m128i*)kptr);
+                        __m128i _w23 = _mm_load_si128((const __m128i*)(kptr + 16));
                         __m128i _extw01 = _mm_cmpgt_epi8(_mm_setzero_si128(), _w01);
                         __m128i _extw23 = _mm_cmpgt_epi8(_mm_setzero_si128(), _w23);
                         __m128i _w0 = _mm_unpacklo_epi8(_w01, _extw01);
@@ -3659,8 +3659,8 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
 
             if (out_elempack == 4)
             {
-                _mm_storeu_si128((__m128i*)outptr, _sum0);
-                _mm_storeu_si128((__m128i*)(outptr + 4), _sum1);
+                _mm_store_si128((__m128i*)outptr, _sum0);
+                _mm_store_si128((__m128i*)(outptr + 4), _sum1);
                 outptr += 8;
             }
             if (out_elempack == 1)
@@ -3719,7 +3719,7 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         __m128i _r0;
                         if (elempack == 16)
                         {
-                            _r0 = _mm_loadu_si128((const __m128i*)r0s);
+                            _r0 = _mm_load_si128((const __m128i*)r0s);
                         }
                         else if (elempack == 8)
                         {
@@ -3736,7 +3736,7 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
 
                         __m256i _rr0 = _mm256_cvtepi8_epi16(_r0);
 
-                        __m512i _w = _mm512_loadu_si512((const __m512i*)kptr);
+                        __m512i _w = _mm512_load_si512((const __m512i*)kptr);
                         __m512i _w0 = _mm512_cvtepi8_epi16(_mm512_extracti64x4_epi64(_w, 0));
                         __m512i _w1 = _mm512_cvtepi8_epi16(_mm512_extracti64x4_epi64(_w, 1));
 
@@ -3814,7 +3814,7 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
 #endif
 
 #if __AVX2__
-                        __m256i _w = _mm256_loadu_si256((const __m256i*)kptr);
+                        __m256i _w = _mm256_load_si256((const __m256i*)kptr);
                         __m256i _w0 = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(_w, 0));
                         __m256i _w1 = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(_w, 1));
 
@@ -3829,8 +3829,8 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         _sum11 = _mm256_add_epi32(_sum11, _mm256_madd_epi16(_mm256_shuffle_epi32(_rr0, _MM_SHUFFLE(2, 2, 2, 2)), _w1));
 #endif
 #else // __AVX2__
-                        __m128i _w01 = _mm_loadu_si128((const __m128i*)kptr);
-                        __m128i _w23 = _mm_loadu_si128((const __m128i*)(kptr + 16));
+                        __m128i _w01 = _mm_load_si128((const __m128i*)kptr);
+                        __m128i _w23 = _mm_load_si128((const __m128i*)(kptr + 16));
                         __m128i _extw01 = _mm_cmpgt_epi8(_mm_setzero_si128(), _w01);
                         __m128i _extw23 = _mm_cmpgt_epi8(_mm_setzero_si128(), _w23);
                         __m128i _w0 = _mm_unpacklo_epi8(_w01, _extw01);
@@ -3928,7 +3928,7 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
 
             if (out_elempack == 4)
             {
-                _mm_storeu_si128((__m128i*)outptr, _sum0);
+                _mm_store_si128((__m128i*)outptr, _sum0);
                 outptr += 4;
             }
             if (out_elempack == 1)
@@ -4025,10 +4025,10 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         __m128i _r3;
                         if (elempack == 16)
                         {
-                            _r0 = _mm_loadu_si128((const __m128i*)r0s);
-                            _r1 = _mm_loadu_si128((const __m128i*)r1s);
-                            _r2 = _mm_loadu_si128((const __m128i*)r2s);
-                            _r3 = _mm_loadu_si128((const __m128i*)r3s);
+                            _r0 = _mm_load_si128((const __m128i*)r0s);
+                            _r1 = _mm_load_si128((const __m128i*)r1s);
+                            _r2 = _mm_load_si128((const __m128i*)r2s);
+                            _r3 = _mm_load_si128((const __m128i*)r3s);
                         }
                         else if (elempack == 8)
                         {
@@ -4064,7 +4064,7 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         __m512i _valval2 = _mm512_inserti64x4(_mm512_castsi256_si512(_val2), _val2, 1);
                         __m512i _valval3 = _mm512_inserti64x4(_mm512_castsi256_si512(_val3), _val3, 1);
 
-                        __m512i _w = _mm512_cvtepi8_epi16(_mm256_loadu_si256((const __m256i*)kptr));
+                        __m512i _w = _mm512_cvtepi8_epi16(_mm256_load_si256((const __m256i*)kptr));
 
 #if __AVX512VNNI__
                         _sum0 = _mm512_dpwssd_epi32(_sum0, _valval0, _w);
@@ -4183,13 +4183,14 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         _r3 = _mm_unpacklo_epi8(_r3, _mm_cmpgt_epi8(_mm_setzero_si128(), _r3));
 #endif
 
+                        __m128i _w01 = _mm_load_si128((const __m128i*)kptr);
 #if __AVX2__
                         __m256i _valval0 = _mm256_inserti128_si256(_mm256_castsi128_si256(_r0), _r0, 1);
                         __m256i _valval1 = _mm256_inserti128_si256(_mm256_castsi128_si256(_r1), _r1, 1);
                         __m256i _valval2 = _mm256_inserti128_si256(_mm256_castsi128_si256(_r2), _r2, 1);
                         __m256i _valval3 = _mm256_inserti128_si256(_mm256_castsi128_si256(_r3), _r3, 1);
 
-                        __m256i _w = _mm256_cvtepi8_epi16(_mm_loadu_si128((const __m128i*)kptr));
+                        __m256i _w = _mm256_cvtepi8_epi16(_w01);
 
 #if __AVXVNNI__ || __AVX512VNNI__
                         _sum0 = _mm256_dpwssd_epi32(_sum0, _valval0, _w);
@@ -4203,7 +4204,6 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         _sum3 = _mm256_add_epi32(_sum3, _mm256_madd_epi16(_valval3, _w));
 #endif
 #else // __AVX2__
-                        __m128i _w01 = _mm_loadu_si128((const __m128i*)kptr);
                         __m128i _extw01 = _mm_cmpgt_epi8(_mm_setzero_si128(), _w01);
                         __m128i _w0 = _mm_unpacklo_epi8(_w01, _extw01);
                         __m128i _w1 = _mm_unpackhi_epi8(_w01, _extw01);
@@ -4373,8 +4373,8 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         __m128i _r1;
                         if (elempack == 16)
                         {
-                            _r0 = _mm_loadu_si128((const __m128i*)r0s);
-                            _r1 = _mm_loadu_si128((const __m128i*)r1s);
+                            _r0 = _mm_load_si128((const __m128i*)r0s);
+                            _r1 = _mm_load_si128((const __m128i*)r1s);
                         }
                         else if (elempack == 8)
                         {
@@ -4398,7 +4398,7 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         __m512i _valval0 = _mm512_inserti64x4(_mm512_castsi256_si512(_val0), _val0, 1);
                         __m512i _valval1 = _mm512_inserti64x4(_mm512_castsi256_si512(_val1), _val1, 1);
 
-                        __m512i _w = _mm512_cvtepi8_epi16(_mm256_loadu_si256((const __m256i*)kptr));
+                        __m512i _w = _mm512_cvtepi8_epi16(_mm256_load_si256((const __m256i*)kptr));
 
 #if __AVX512VNNI__
                         _sum0 = _mm512_dpwssd_epi32(_sum0, _valval0, _w);
@@ -4479,11 +4479,12 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         _r1 = _mm_unpacklo_epi8(_r1, _mm_cmpgt_epi8(_mm_setzero_si128(), _r1));
 #endif
 
+                        __m128i _w01 = _mm_load_si128((const __m128i*)kptr);
 #if __AVX2__
+                        __m256i _w = _mm256_cvtepi8_epi16(_w01);
+
                         __m256i _valval0 = _mm256_inserti128_si256(_mm256_castsi128_si256(_r0), _r0, 1);
                         __m256i _valval1 = _mm256_inserti128_si256(_mm256_castsi128_si256(_r1), _r1, 1);
-
-                        __m256i _w = _mm256_cvtepi8_epi16(_mm_loadu_si128((const __m128i*)kptr));
 
 #if __AVXVNNI__ || __AVX512VNNI__
                         _sum0 = _mm256_dpwssd_epi32(_sum0, _valval0, _w);
@@ -4493,7 +4494,6 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         _sum1 = _mm256_add_epi32(_sum1, _mm256_madd_epi16(_valval1, _w));
 #endif
 #else // __AVX2__
-                        __m128i _w01 = _mm_loadu_si128((const __m128i*)kptr);
                         __m128i _extw01 = _mm_cmpgt_epi8(_mm_setzero_si128(), _w01);
                         __m128i _w0 = _mm_unpacklo_epi8(_w01, _extw01);
                         __m128i _w1 = _mm_unpackhi_epi8(_w01, _extw01);
@@ -4615,7 +4615,7 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         __m128i _r0;
                         if (elempack == 16)
                         {
-                            _r0 = _mm_loadu_si128((const __m128i*)r0s);
+                            _r0 = _mm_load_si128((const __m128i*)r0s);
                         }
                         else if (elempack == 8)
                         {
@@ -4633,7 +4633,7 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         __m256i _val = _mm256_cvtepi8_epi16(_r0);
                         __m512i _valval = _mm512_inserti64x4(_mm512_castsi256_si512(_val), _val, 1);
 
-                        __m512i _w = _mm512_cvtepi8_epi16(_mm256_loadu_si256((const __m256i*)kptr));
+                        __m512i _w = _mm512_cvtepi8_epi16(_mm256_load_si256((const __m256i*)kptr));
 
 #if __AVX512VNNI__
                         _sum01 = _mm512_dpwssd_epi32(_sum01, _valval, _w);
@@ -4695,10 +4695,11 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         _r0 = _mm_unpacklo_epi8(_r0, _mm_cmpgt_epi8(_mm_setzero_si128(), _r0));
 #endif
 
+                        __m128i _w01 = _mm_load_si128((const __m128i*)kptr);
 #if __AVX2__
-                        __m256i _rr0 = _mm256_inserti128_si256(_mm256_castsi128_si256(_r0), _r0, 1);
+                        __m256i _w = _mm256_cvtepi8_epi16(_w01);
 
-                        __m256i _w = _mm256_cvtepi8_epi16(_mm_loadu_si128((const __m128i*)kptr));
+                        __m256i _rr0 = _mm256_inserti128_si256(_mm256_castsi128_si256(_r0), _r0, 1);
 
 #if __AVXVNNI__ || __AVX512VNNI__
                         _sum = _mm256_dpwssd_epi32(_sum, _rr0, _w);
@@ -4706,7 +4707,6 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         _sum = _mm256_add_epi32(_sum, _mm256_madd_epi16(_rr0, _w));
 #endif
 #else // __AVX2__
-                        __m128i _w01 = _mm_loadu_si128((const __m128i*)kptr);
                         __m128i _extw01 = _mm_cmpgt_epi8(_mm_setzero_si128(), _w01);
                         __m128i _w0 = _mm_unpacklo_epi8(_w01, _extw01);
                         __m128i _w1 = _mm_unpackhi_epi8(_w01, _extw01);
@@ -4833,10 +4833,10 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         __m128i _r3;
                         if (elempack == 16)
                         {
-                            _r0 = _mm_loadu_si128((const __m128i*)r0s);
-                            _r1 = _mm_loadu_si128((const __m128i*)r1s);
-                            _r2 = _mm_loadu_si128((const __m128i*)r2s);
-                            _r3 = _mm_loadu_si128((const __m128i*)r3s);
+                            _r0 = _mm_load_si128((const __m128i*)r0s);
+                            _r1 = _mm_load_si128((const __m128i*)r1s);
+                            _r2 = _mm_load_si128((const __m128i*)r2s);
+                            _r3 = _mm_load_si128((const __m128i*)r3s);
                         }
                         else if (elempack == 8)
                         {
@@ -4869,7 +4869,7 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         __m256i _val2 = _mm256_cvtepi8_epi16(_r2);
                         __m256i _val3 = _mm256_cvtepi8_epi16(_r3);
 
-                        __m256i _w = _mm256_cvtepi8_epi16(_mm_loadu_si128((const __m128i*)kptr));
+                        __m256i _w = _mm256_cvtepi8_epi16(_mm_load_si128((const __m128i*)kptr));
 
 #if __AVXVNNI__ || __AVX512VNNI__
                         _sum0 = _mm256_dpwssd_epi32(_sum0, _val0, _w);
@@ -5104,8 +5104,8 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         __m128i _r1;
                         if (elempack == 16)
                         {
-                            _r0 = _mm_loadu_si128((const __m128i*)r0s);
-                            _r1 = _mm_loadu_si128((const __m128i*)r1s);
+                            _r0 = _mm_load_si128((const __m128i*)r0s);
+                            _r1 = _mm_load_si128((const __m128i*)r1s);
                         }
                         else if (elempack == 8)
                         {
@@ -5128,7 +5128,7 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         __m256i _val0 = _mm256_cvtepi8_epi16(_r0);
                         __m256i _val1 = _mm256_cvtepi8_epi16(_r1);
 
-                        __m256i _w = _mm256_cvtepi8_epi16(_mm_loadu_si128((const __m128i*)kptr));
+                        __m256i _w = _mm256_cvtepi8_epi16(_mm_load_si128((const __m128i*)kptr));
 
 #if __AVXVNNI__ || __AVX512VNNI__
                         _sum0 = _mm256_dpwssd_epi32(_sum0, _val0, _w);
@@ -5319,7 +5319,7 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
 
                         __m256i _val = _mm256_cvtepi8_epi16(_r0);
 
-                        __m256i _w = _mm256_cvtepi8_epi16(_mm_loadu_si128((const __m128i*)kptr));
+                        __m256i _w = _mm256_cvtepi8_epi16(_mm_load_si128((const __m128i*)kptr));
 
 #if __AVXVNNI__ || __AVX512VNNI__
                         _sum = _mm256_dpwssd_epi32(_sum, _val, _w);
