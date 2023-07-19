@@ -29,11 +29,6 @@ static int test_convolution(int w, int h, int c, int outch, int kernel, int dila
     pd.set(6, outch * c * kernel * kernel);
 
     int activation_type = RAND() % 7; // 0 1 2 3 4 5 6
-    if (kernel == 3 && dilation == 1 && stride == 1 && activation_type == 5)
-    {
-        // winograd eps may be too large for fast mish
-        activation_type = 0;
-    }
     ncnn::Mat activation_params(2);
     activation_params[0] = (activation_type == 6) ? RandomFloat(0, 1) : RandomFloat(-1, 0); // alpha
     activation_params[1] = RandomFloat(0, 1);                                               // beta
