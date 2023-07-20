@@ -3202,6 +3202,12 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         _w = _mm_unpacklo_epi8(_w, _mm_cmpgt_epi8(_mm_setzero_si128(), _w));
 #endif
 
+#if __XOP__
+                        _sum0 = _mm_maccd_epi16(_r0, _w, _sum0);
+                        _sum1 = _mm_maccd_epi16(_r1, _w, _sum1);
+                        _sum2 = _mm_maccd_epi16(_r2, _w, _sum2);
+                        _sum3 = _mm_maccd_epi16(_r3, _w, _sum3);
+#else
                         __m128i _sl0 = _mm_mullo_epi16(_r0, _w);
                         __m128i _sh0 = _mm_mulhi_epi16(_r0, _w);
                         __m128i _sl1 = _mm_mullo_epi16(_r1, _w);
@@ -3219,6 +3225,7 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         _sum1 = _mm_add_epi32(_sum1, _s1);
                         _sum2 = _mm_add_epi32(_sum2, _s2);
                         _sum3 = _mm_add_epi32(_sum3, _s3);
+#endif // __XOP__
 
                         kptr += 4;
                     }
@@ -3563,6 +3570,10 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         _w = _mm_unpacklo_epi8(_w, _mm_cmpgt_epi8(_mm_setzero_si128(), _w));
 #endif
 
+#if __XOP__
+                        _sum0 = _mm_maccd_epi16(_r0, _w, _sum0);
+                        _sum1 = _mm_maccd_epi16(_r1, _w, _sum1);
+#else
                         __m128i _sl0 = _mm_mullo_epi16(_r0, _w);
                         __m128i _sh0 = _mm_mulhi_epi16(_r0, _w);
                         __m128i _sl1 = _mm_mullo_epi16(_r1, _w);
@@ -3572,6 +3583,7 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
 
                         _sum0 = _mm_add_epi32(_sum0, _s0);
                         _sum1 = _mm_add_epi32(_sum1, _s1);
+#endif // __XOP__
 
                         kptr += 4;
                     }
@@ -3799,7 +3811,7 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
 
                     // if (elempack == 1)
                     {
-                        __m128i _val = _mm_setr_epi16(r0s[0], r0s[N], r0s[0], r0s[N], r0s[0], r0s[N], r0s[0], r0s[N]);
+                        __m128i _r0 = _mm_setr_epi16(r0s[0], r0s[N], r0s[0], r0s[N], r0s[0], r0s[N], r0s[0], r0s[N]);
 
                         __m128i _w = _mm_loadl_epi64((const __m128i*)kptr);
 #if __SSE4_1__
@@ -3809,11 +3821,11 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
 #endif
 
 #if __AVXVNNI__ || __AVX512VNNI__
-                        _sum0 = _mm_dpwssd_epi32(_sum0, _val, _w);
+                        _sum0 = _mm_dpwssd_epi32(_sum0, _r0, _w);
 #elif __XOP__
-                        _sum0 = _mm_maddd_epi16(_val, _w, _sum0);
+                        _sum0 = _mm_maddd_epi16(_r0, _w, _sum0);
 #else
-                        _sum0 = _mm_add_epi32(_sum0, _mm_madd_epi16(_val, _w));
+                        _sum0 = _mm_add_epi32(_sum0, _mm_madd_epi16(_r0, _w));
 #endif
 
                         kptr += 8;
@@ -3830,7 +3842,7 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
 
                     // if (elempack == 1)
                     {
-                        __m128i _val = _mm_set1_epi16(r0s[0]);
+                        __m128i _r0 = _mm_set1_epi16(r0s[0]);
 
                         __m128i _w = _mm_loadl_epi64((const __m128i*)kptr);
 #if __SSE4_1__
@@ -3839,11 +3851,15 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         _w = _mm_unpacklo_epi8(_w, _mm_cmpgt_epi8(_mm_setzero_si128(), _w));
 #endif
 
-                        __m128i _sl = _mm_mullo_epi16(_val, _w);
-                        __m128i _sh = _mm_mulhi_epi16(_val, _w);
+#if __XOP__
+                        _sum0 = _mm_maccd_epi16(_r0, _w, _sum0);
+#else
+                        __m128i _sl = _mm_mullo_epi16(_r0, _w);
+                        __m128i _sh = _mm_mulhi_epi16(_r0, _w);
                         __m128i _s0 = _mm_unpacklo_epi16(_sl, _sh);
 
                         _sum0 = _mm_add_epi32(_sum0, _s0);
+#endif // __XOP__
 
                         kptr += 4;
                     }
@@ -4197,8 +4213,13 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         __m128i _w0 = _mm_setr_epi16(kptr[0], kptr[2], kptr[0], kptr[2], kptr[0], kptr[2], kptr[0], kptr[2]);
                         __m128i _w1 = _mm_setr_epi16(kptr[1], kptr[3], kptr[1], kptr[3], kptr[1], kptr[3], kptr[1], kptr[3]);
 
+#if __XOP__
+                        _sum0 = _mm_maddd_epi16(_r, _w0, _sum0);
+                        _sum1 = _mm_maddd_epi16(_r, _w1, _sum1);
+#else
                         _sum0 = _mm_add_epi32(_sum0, _mm_madd_epi16(_r, _w0));
                         _sum1 = _mm_add_epi32(_sum1, _mm_madd_epi16(_r, _w1));
+#endif // __XOP__
 
                         kptr += 4;
                     }
@@ -4939,7 +4960,11 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         __m128i _r = _mm_setr_epi16(r0s[0], r0s[N], r1s[0], r1s[N], r2s[0], r2s[N], r3s[0], r3s[N]);
                         __m128i _w = _mm_setr_epi16(kptr[0], kptr[1], kptr[0], kptr[1], kptr[0], kptr[1], kptr[0], kptr[1]);
 
+#if __XOP__
+                        _sum = _mm_maddd_epi16(_r, _w, _sum);
+#else
                         _sum = _mm_add_epi32(_sum, _mm_madd_epi16(_r, _w));
+#endif // __XOP__
 
                         kptr += 2;
                     }
@@ -4964,11 +4989,15 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         __m128i _r = _mm_setr_epi16(r0s[0], r1s[0], r2s[0], r3s[0], 0, 0, 0, 0);
                         __m128i _w = _mm_set1_epi16(kptr[0]);
 
+#if __XOP__
+                        _sum = _mm_maccd_epi16(_r, _w, _sum);
+#else
                         __m128i _sl = _mm_mullo_epi16(_r, _w);
                         __m128i _sh = _mm_mulhi_epi16(_r, _w);
                         __m128i _s0 = _mm_unpacklo_epi16(_sl, _sh);
 
                         _sum = _mm_add_epi32(_sum, _s0);
+#endif // __XOP__
 
                         kptr += 1;
                     }
