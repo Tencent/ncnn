@@ -178,7 +178,7 @@ static std::string expand_expression(Graph& graph, const Operator* op, int& pnnx
             op_unary->inputs.push_back(op_unary_in);
             op_unary->outputs.push_back(op_unary_out);
         }
-        else if (t == "add" || t == "sub" || t == "mul" || t == "div" || /*t == "floor_divide" || */ t == "pow" || t == "atan2")
+        else if (t == "add" || t == "sub" || t == "mul" || t == "div" || /*t == "floor_divide" || t == "fmod" || */ t == "pow" || t == "atan2")
         {
             std::string a = exprstack.top();
             exprstack.pop();

@@ -100,6 +100,7 @@ static bool operand_maybe_tensor(const Operand* operand)
     if (op->type == "aten::atan2"
             || op->type == "aten::div"
             || op->type == "aten::floor_divide"
+            || op->type == "aten::fmod"
             || op->type == "aten::mul"
             || op->type == "aten::pow"
             || op->type == "aten::remainder")
@@ -404,6 +405,7 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
     else if (op->type == "aten::atan2"
              || op->type == "aten::div"
              || op->type == "aten::floor_divide"
+             || op->type == "aten::fmod"
              || op->type == "aten::mul"
              || op->type == "aten::pow"
              || op->type == "aten::remainder")
@@ -562,6 +564,7 @@ void fuse_expression(Graph& graph, const std::set<std::string>& foldable_constan
                     || op->type == "aten::exp"
                     || op->type == "aten::floor"
                     || op->type == "aten::floor_divide"
+                    || op->type == "aten::fmod"
                     || op->type == "aten::log"
                     || op->type == "aten::log10"
                     || op->type == "aten::mul"

@@ -1301,6 +1301,7 @@ static std::string expand_expression(const Operator* op)
         {
             std::string binaryop;
             if (t == "atan2") binaryop = "torch.atan2";
+            if (t == "fmod") binaryop = "torch.fmod";
             if (t == "pow") binaryop = "torch.pow";
 
             std::string a = exprstack.top();
@@ -1311,7 +1312,7 @@ static std::string expand_expression(const Operator* op)
             std::string r = binaryop + "(" + a + ", " + b + ")";
             exprstack.push(r);
         }
-        else if (t == "add" || t == "sub" || t == "mul" || t == "div" || t == "floor_divide" || t == "and" || t == "or" || t == "xor" || t == "lshift" || t == "rshift")
+        else if (t == "add" || t == "sub" || t == "mul" || t == "div" || t == "floor_divide" || t == "fmod" || t == "and" || t == "or" || t == "xor" || t == "lshift" || t == "rshift")
         {
             std::string binaryop;
             if (t == "add") binaryop = "+";
@@ -1319,6 +1320,7 @@ static std::string expand_expression(const Operator* op)
             if (t == "mul") binaryop = "*";
             if (t == "div") binaryop = "/";
             if (t == "floor_divide") binaryop = "//";
+            if (t == "fmod") binaryop = "%";
             if (t == "and") binaryop = "&";
             if (t == "or") binaryop = "|";
             if (t == "xor") binaryop = "^";
@@ -2154,9 +2156,30 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                 {
                     fprintf(pyfp, " = v_%s.%s(", sanitize_identifier(op->inputs[0]->name).c_str(), op->type.substr(7).c_str());
 
-                    for (size_t i = 1; i < op->inputs.size(); i++)
+                    if (op->inputnames.size() == op->inputs.size())
                     {
-                        fprintf(pyfp, "v_%s, ", sanitize_identifier(op->inputs[i]->name).c_str());
+                        for (size_t i = 1; i < op->inputs.size(); i++)
+                        {
+                            if (!op->inputnames[i].empty())
+                                continue;
+
+                            fprintf(pyfp, "v_%s, ", sanitize_identifier(op->inputs[i]->name).c_str());
+                        }
+
+                        for (size_t i = 1; i < op->inputs.size(); i++)
+                        {
+                            if (op->inputnames[i].empty())
+                                continue;
+
+                            fprintf(pyfp, "%s=v_%s, ", op->inputnames[i].c_str(), sanitize_identifier(op->inputs[i]->name).c_str());
+                        }
+                    }
+                    else
+                    {
+                        for (size_t i = 1; i < op->inputs.size(); i++)
+                        {
+                            fprintf(pyfp, "v_%s, ", sanitize_identifier(op->inputs[i]->name).c_str());
+                        }
                     }
                 }
                 else

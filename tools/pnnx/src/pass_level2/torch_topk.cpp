@@ -1,6 +1,6 @@
 // Tencent is pleased to support the open source community by making ncnn available.
 //
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
+// Copyright (C) 2023 THL A29 Limited, a Tencent company. All rights reserved.
 //
 // Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 // in compliance with the License. You may obtain a copy of the License at
@@ -16,27 +16,29 @@
 
 namespace pnnx {
 
-class Tensor_masked_fill : public GraphRewriterPass
+class torch_topk : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-5 4
+7 7
 pnnx.Input              input_0     0 1 input
-pnnx.Input              input_1     0 1 mask
-pnnx.Input              input_2     0 1 value
-aten::masked_fill       op_0        3 1 input mask value out
-pnnx.Output             output      1 0 out
+pnnx.Input              input_1     0 1 k
+pnnx.Input              input_2     0 1 dim
+pnnx.Input              input_3     0 1 largest
+pnnx.Input              input_4     0 1 sorted
+aten::topk              op_0        5 2 input k dim largest sorted values indices
+pnnx.Output             output      2 0 values indices
 )PNNXIR";
     }
 
     const char* type_str() const
     {
-        return "Tensor.masked_fill";
+        return "torch.topk";
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_masked_fill, 20)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_topk, 20)
 
 } // namespace pnnx
