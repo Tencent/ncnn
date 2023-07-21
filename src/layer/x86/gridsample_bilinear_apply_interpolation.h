@@ -140,13 +140,17 @@ static void gridsample_2d_bilinear_apply_interpolation_p8(const Mat& src, Mat& d
         for (int i = 0; i < grid_size; i++)
         {
             int in_bound = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? -1 : 0;
-            __m256 v00_val = _mm256_maskload_ps(srcptr + static_cast<int>(*offset_value_ptr++), _mm256_set1_epi32(in_bound));
+            __m256 v00_val = _mm256_maskload_ps(srcptr + static_cast<int>(*offset_value_ptr), _mm256_set1_epi32(in_bound));
+            offset_value_ptr++;
             in_bound = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? -1 : 0;
-            __m256 v01_val = _mm256_maskload_ps(srcptr + static_cast<int>(*offset_value_ptr++), _mm256_set1_epi32(in_bound));
+            __m256 v01_val = _mm256_maskload_ps(srcptr + static_cast<int>(*offset_value_ptr), _mm256_set1_epi32(in_bound));
+            offset_value_ptr++;
             in_bound = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? -1 : 0;
-            __m256 v10_val = _mm256_maskload_ps(srcptr + static_cast<int>(*offset_value_ptr++), _mm256_set1_epi32(in_bound));
+            __m256 v10_val = _mm256_maskload_ps(srcptr + static_cast<int>(*offset_value_ptr), _mm256_set1_epi32(in_bound));
+            offset_value_ptr++;
             in_bound = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? -1 : 0;
-            __m256 v11_val = _mm256_maskload_ps(srcptr + static_cast<int>(*offset_value_ptr++), _mm256_set1_epi32(in_bound));
+            __m256 v11_val = _mm256_maskload_ps(srcptr + static_cast<int>(*offset_value_ptr), _mm256_set1_epi32(in_bound));
+            offset_value_ptr++;
 
             __m256 value = _mm256_set1_ps(*offset_value_ptr++);
             __m256 v0 = _mm256_comp_fmadd_ps(v01_val, value, _mm256_comp_fnmadd_ps(v00_val, value, v00_val));
@@ -179,22 +183,30 @@ static void gridsample_3d_bilinear_apply_interpolation_p8(const Mat& src, Mat& d
         for (int i = 0; i < grid_size; i++)
         {
             int in_bound = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? -1 : 0;
-            __m256 v000_val = _mm256_maskload_ps(srcptr + static_cast<int>(*offset_value_ptr++), _mm256_set1_epi32(in_bound));
+            __m256 v000_val = _mm256_maskload_ps(srcptr + static_cast<int>(*offset_value_ptr), _mm256_set1_epi32(in_bound));
+            offset_value_ptr++;
             in_bound = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? -1 : 0;
-            __m256 v001_val = _mm256_maskload_ps(srcptr + static_cast<int>(*offset_value_ptr++), _mm256_set1_epi32(in_bound));
+            __m256 v001_val = _mm256_maskload_ps(srcptr + static_cast<int>(*offset_value_ptr), _mm256_set1_epi32(in_bound));
+            offset_value_ptr++;
             in_bound = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? -1 : 0;
-            __m256 v010_val = _mm256_maskload_ps(srcptr + static_cast<int>(*offset_value_ptr++), _mm256_set1_epi32(in_bound));
+            __m256 v010_val = _mm256_maskload_ps(srcptr + static_cast<int>(*offset_value_ptr), _mm256_set1_epi32(in_bound));
+            offset_value_ptr++;
             in_bound = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? -1 : 0;
-            __m256 v011_val = _mm256_maskload_ps(srcptr + static_cast<int>(*offset_value_ptr++), _mm256_set1_epi32(in_bound));
+            __m256 v011_val = _mm256_maskload_ps(srcptr + static_cast<int>(*offset_value_ptr), _mm256_set1_epi32(in_bound));
+            offset_value_ptr++;
 
             in_bound = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? -1 : 0;
-            __m256 v100_val = _mm256_maskload_ps(srcptr + static_cast<int>(*offset_value_ptr++), _mm256_set1_epi32(in_bound));
+            __m256 v100_val = _mm256_maskload_ps(srcptr + static_cast<int>(*offset_value_ptr), _mm256_set1_epi32(in_bound));
+            offset_value_ptr++;
             in_bound = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? -1 : 0;
-            __m256 v101_val = _mm256_maskload_ps(srcptr + static_cast<int>(*offset_value_ptr++), _mm256_set1_epi32(in_bound));
+            __m256 v101_val = _mm256_maskload_ps(srcptr + static_cast<int>(*offset_value_ptr), _mm256_set1_epi32(in_bound));
+            offset_value_ptr++;
             in_bound = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? -1 : 0;
-            __m256 v110_val = _mm256_maskload_ps(srcptr + static_cast<int>(*offset_value_ptr++), _mm256_set1_epi32(in_bound));
+            __m256 v110_val = _mm256_maskload_ps(srcptr + static_cast<int>(*offset_value_ptr), _mm256_set1_epi32(in_bound));
+            offset_value_ptr++;
             in_bound = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? -1 : 0;
-            __m256 v111_val = _mm256_maskload_ps(srcptr + static_cast<int>(*offset_value_ptr++), _mm256_set1_epi32(in_bound));
+            __m256 v111_val = _mm256_maskload_ps(srcptr + static_cast<int>(*offset_value_ptr), _mm256_set1_epi32(in_bound));
+            offset_value_ptr++;
 
             __m256 value = _mm256_set1_ps(*offset_value_ptr++);
             __m256 v00 = _mm256_comp_fmadd_ps(v001_val, value, _mm256_comp_fnmadd_ps(v000_val, value, v000_val));

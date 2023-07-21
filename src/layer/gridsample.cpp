@@ -155,11 +155,12 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         int outh = permute_fusion == 0 ? grid.c : grid.h;
 
         top_blob.create(outw, outh, channels, elemsize, opt.blob_allocator);
-        if (top_blob.empty())
-            return -100;
 
         Mat offset_blob;
         offset_blob.create(outw, outh, grid.c, elemsize, opt.workspace_allocator);
+
+        if (top_blob.empty() || offset_blob.empty())
+            return -100;
 
         //pre-calculate all interpolation offsets for each x y, unpack grid on-the-fly
         if (permute_fusion == 0)
@@ -375,11 +376,12 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         int outd = permute_fusion == 0 ? grid.c : grid.d;
 
         top_blob.create(outw, outh, outd, channels, elemsize, opt.blob_allocator);
-        if (top_blob.empty())
-            return -100;
 
         Mat offset_blob;
         offset_blob.create(outw, outh, outd, grid.c, elemsize, opt.workspace_allocator);
+
+        if (top_blob.empty() || offset_blob.empty())
+            return -100;
 
         //pre-calculate all interpolation offsets for each x y, unpack grid on-the-fly
         if (permute_fusion == 0)

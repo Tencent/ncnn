@@ -184,14 +184,9 @@ int main()
 {
     SRAND(7767517);
 
-    int ret = 0
-              || test_gridsample_0()
-              || test_gridsample_1()
-              || test_gridsample_2()
-              || test_gridsample_3();
-
-    getchar();
-    getchar();
-
-    return ret;
+    return 0
+           || test_gridsample_0()
+           || test_gridsample_1()
+           || test_gridsample_2()
+           || test_gridsample_3();
 }

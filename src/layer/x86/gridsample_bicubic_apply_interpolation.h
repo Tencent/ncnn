@@ -126,13 +126,17 @@ static void gridsample_2d_bicubic_apply_interpolation_p8(const Mat& src, Mat& ds
             for (int ii = 0; ii < 4; ii++)
             {
                 int in_bound = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? -1 : 0;
-                __m256 x0_val = _mm256_maskload_ps(srcptr + static_cast<int>(*offset_value_ptr++), _mm256_set1_epi32(in_bound));
+                __m256 x0_val = _mm256_maskload_ps(srcptr + static_cast<int>(*offset_value_ptr), _mm256_set1_epi32(in_bound));
+                offset_value_ptr++;
                 in_bound = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? -1 : 0;
-                __m256 x1_val = _mm256_maskload_ps(srcptr + static_cast<int>(*offset_value_ptr++), _mm256_set1_epi32(in_bound));
+                __m256 x1_val = _mm256_maskload_ps(srcptr + static_cast<int>(*offset_value_ptr), _mm256_set1_epi32(in_bound));
+                offset_value_ptr++;
                 in_bound = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? -1 : 0;
-                __m256 x2_val = _mm256_maskload_ps(srcptr + static_cast<int>(*offset_value_ptr++), _mm256_set1_epi32(in_bound));
+                __m256 x2_val = _mm256_maskload_ps(srcptr + static_cast<int>(*offset_value_ptr), _mm256_set1_epi32(in_bound));
+                offset_value_ptr++;
                 in_bound = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? -1 : 0;
-                __m256 x3_val = _mm256_maskload_ps(srcptr + static_cast<int>(*offset_value_ptr++), _mm256_set1_epi32(in_bound));
+                __m256 x3_val = _mm256_maskload_ps(srcptr + static_cast<int>(*offset_value_ptr), _mm256_set1_epi32(in_bound));
+                offset_value_ptr++;
 
                 value_f[ii] = _mm256_mul_ps(x_coeffs0, x0_val);
                 value_f[ii] = _mm256_comp_fmadd_ps(x_coeffs1, x1_val, value_f[ii]);

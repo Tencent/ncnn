@@ -63,7 +63,8 @@ static void gridsample_nearest_apply_interpolation_p8(const Mat& src, Mat& dst, 
         for (int i = 0; i < grid_size; i++)
         {
             int in_bound = *reinterpret_cast<const int*>(offset_ptr) >= 0 ? -1 : 0;
-            __m256 _v = _mm256_maskload_ps(srcptr + static_cast<int>(*offset_ptr++), _mm256_set1_epi32(in_bound));
+            __m256 _v = _mm256_maskload_ps(srcptr + static_cast<int>(*offset_ptr), _mm256_set1_epi32(in_bound));
+            offset_ptr++;
 
             _mm256_storeu_ps(dstptr, _v);
             dstptr += 8;
