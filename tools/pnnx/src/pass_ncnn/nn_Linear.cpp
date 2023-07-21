@@ -51,7 +51,7 @@ pnnx.Output             output      1 0 out
         op->params["7"] = captured_params.at("m");
         op->params["8"] = captured_params.at("out_features");
         op->params["9"] = captured_params.at("in_features");
-        op->params["10"] = 1;
+        op->params["10"] = captured_params.at("bias").b ? 4 : -1;
 
         op->attrs["0"] = Attribute();
         op->attrs["0"].data = {0, 0, 0, 0};
@@ -127,7 +127,7 @@ pnnx.Output             output      1 0 out
         op->params["7"] = captured_params.at("m");
         op->params["8"] = captured_params.at("out_features");
         op->params["9"] = captured_params.at("in_features");
-        op->params["10"] = 1;
+        op->params["10"] = 4;
 
         op->attrs["0"] = Attribute();
         op->attrs["0"].data = {0, 0, 0, 0};
