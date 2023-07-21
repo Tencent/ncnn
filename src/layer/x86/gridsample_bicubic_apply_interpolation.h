@@ -53,13 +53,17 @@ static void gridsample_2d_bicubic_apply_interpolation_p16(const Mat& src, Mat& d
             cubic_interp1d_p16(y_coeffs0, y_coeffs1, y_coeffs2, y_coeffs3, _mm512_set1_ps(*offset_value_ptr++));
             for (int ii = 0; ii < 4; ii++)
             {
-                __m512 x0_val = _mm512_mask_i32gather_ps(_mm512_setzero_ps(), *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? static_cast<__mmask16>(0xFFFF) : static_cast<__mmask16>(0x0), _mm512_add_epi32(_mm512_set1_epi32(*offset_value_ptr), _mm512_set_epi32(15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)), srcptr, sizeof(float));
+                __mmask16 in_bound = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? 0xFFFF : 0;
+                __m512 x0_val = _mm512_maskz_load_ps(in_bound, srcptr + static_cast<int>(*offset_value_ptr));
                 offset_value_ptr++;
-                __m512 x1_val = _mm512_mask_i32gather_ps(_mm512_setzero_ps(), *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? static_cast<__mmask16>(0xFFFF) : static_cast<__mmask16>(0x0), _mm512_add_epi32(_mm512_set1_epi32(*offset_value_ptr), _mm512_set_epi32(15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)), srcptr, sizeof(float));
+                in_bound = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? 0xFFFF : 0;
+                __m512 x1_val = _mm512_maskz_load_ps(in_bound, srcptr + static_cast<int>(*offset_value_ptr));
                 offset_value_ptr++;
-                __m512 x2_val = _mm512_mask_i32gather_ps(_mm512_setzero_ps(), *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? static_cast<__mmask16>(0xFFFF) : static_cast<__mmask16>(0x0), _mm512_add_epi32(_mm512_set1_epi32(*offset_value_ptr), _mm512_set_epi32(15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)), srcptr, sizeof(float));
+                in_bound = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? 0xFFFF : 0;
+                __m512 x2_val = _mm512_maskz_load_ps(in_bound, srcptr + static_cast<int>(*offset_value_ptr));
                 offset_value_ptr++;
-                __m512 x3_val = _mm512_mask_i32gather_ps(_mm512_setzero_ps(), *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? static_cast<__mmask16>(0xFFFF) : static_cast<__mmask16>(0x0), _mm512_add_epi32(_mm512_set1_epi32(*offset_value_ptr), _mm512_set_epi32(15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)), srcptr, sizeof(float));
+                in_bound = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? 0xFFFF : 0;
+                __m512 x3_val = _mm512_maskz_load_ps(in_bound, srcptr + static_cast<int>(*offset_value_ptr));
                 offset_value_ptr++;
 
                 value_f[ii] = _mm512_mul_ps(x_coeffs0, x0_val);
@@ -78,11 +82,8 @@ static void gridsample_2d_bicubic_apply_interpolation_p16(const Mat& src, Mat& d
         }
     }
 }
+
 #endif // __AVX512F__
-#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__
-void gridsample_2d_bicubic_apply_interpolation_p8_avx2(const Mat& src, Mat& dst, Mat& offset_value, const Option& opt);
-void gridsample_2d_bicubic_apply_interpolation_p4_avx2(const Mat& src, Mat& dst, Mat& offset_value, const Option& opt);
-#endif
 
 static void cubic_interp1d_p8(__m256& coeffs0, __m256& coeffs1, __m256& coeffs2, __m256& coeffs3, const __m256& tx)
 {
@@ -101,14 +102,6 @@ static void cubic_interp1d_p8(__m256& coeffs0, __m256& coeffs1, __m256& coeffs2,
 
 static void gridsample_2d_bicubic_apply_interpolation_p8(const Mat& src, Mat& dst, Mat& offset_value, const Option& opt)
 {
-#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__
-    if (ncnn::cpu_support_x86_avx2())
-    {
-        gridsample_2d_bicubic_apply_interpolation_p8_avx2(src, dst, offset_value, opt);
-        return;
-    }
-#endif
-
     const int channels = dst.c;
     const int outw = dst.w;
     const int outh = dst.h;
@@ -132,27 +125,14 @@ static void gridsample_2d_bicubic_apply_interpolation_p8(const Mat& src, Mat& ds
 
             for (int ii = 0; ii < 4; ii++)
             {
-                float v0_in_bound = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? -1.0f : 0.0f;
-                float v1_in_bound = *reinterpret_cast<const int*>(offset_value_ptr + 1) >= 0 ? -1.0f : 0.0f;
-                float v2_in_bound = *reinterpret_cast<const int*>(offset_value_ptr + 2) >= 0 ? -1.0f : 0.0f;
-                float v3_in_bound = *reinterpret_cast<const int*>(offset_value_ptr + 3) >= 0 ? -1.0f : 0.0f;
-
-#if __AVX2__
-                __m256i v0_offset = _mm256_add_epi32(_mm256_set1_epi32(*offset_value_ptr++), _mm256_set_epi32(7, 6, 5, 4, 3, 2, 1, 0));
-                __m256i v1_offset = _mm256_add_epi32(_mm256_set1_epi32(*offset_value_ptr++), _mm256_set_epi32(7, 6, 5, 4, 3, 2, 1, 0));
-                __m256i v2_offset = _mm256_add_epi32(_mm256_set1_epi32(*offset_value_ptr++), _mm256_set_epi32(7, 6, 5, 4, 3, 2, 1, 0));
-                __m256i v3_offset = _mm256_add_epi32(_mm256_set1_epi32(*offset_value_ptr++), _mm256_set_epi32(7, 6, 5, 4, 3, 2, 1, 0));
-#else
-                __m256i v0_offset = _mm256_cvtps_epi32(_mm256_add_ps(_mm256_set1_ps(*offset_value_ptr++), _mm256_set_ps(7, 6, 5, 4, 3, 2, 1, 0)));
-                __m256i v1_offset = _mm256_cvtps_epi32(_mm256_add_ps(_mm256_set1_ps(*offset_value_ptr++), _mm256_set_ps(7, 6, 5, 4, 3, 2, 1, 0)));
-                __m256i v2_offset = _mm256_cvtps_epi32(_mm256_add_ps(_mm256_set1_ps(*offset_value_ptr++), _mm256_set_ps(7, 6, 5, 4, 3, 2, 1, 0)));
-                __m256i v3_offset = _mm256_cvtps_epi32(_mm256_add_ps(_mm256_set1_ps(*offset_value_ptr++), _mm256_set_ps(7, 6, 5, 4, 3, 2, 1, 0)));
-#endif // __AVX2__
-
-                __m256 x0_val = mask_gather_ps256(srcptr, v0_offset, _mm256_set1_ps(v0_in_bound));
-                __m256 x1_val = mask_gather_ps256(srcptr, v1_offset, _mm256_set1_ps(v1_in_bound));
-                __m256 x2_val = mask_gather_ps256(srcptr, v2_offset, _mm256_set1_ps(v2_in_bound));
-                __m256 x3_val = mask_gather_ps256(srcptr, v3_offset, _mm256_set1_ps(v3_in_bound));
+                int in_bound = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? -1 : 0;
+                __m256 x0_val = _mm256_maskload_ps(srcptr + static_cast<int>(*offset_value_ptr++), _mm256_set1_epi32(in_bound));
+                in_bound = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? -1 : 0;
+                __m256 x1_val = _mm256_maskload_ps(srcptr + static_cast<int>(*offset_value_ptr++), _mm256_set1_epi32(in_bound));
+                in_bound = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? -1 : 0;
+                __m256 x2_val = _mm256_maskload_ps(srcptr + static_cast<int>(*offset_value_ptr++), _mm256_set1_epi32(in_bound));
+                in_bound = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? -1 : 0;
+                __m256 x3_val = _mm256_maskload_ps(srcptr + static_cast<int>(*offset_value_ptr++), _mm256_set1_epi32(in_bound));
 
                 value_f[ii] = _mm256_mul_ps(x_coeffs0, x0_val);
                 value_f[ii] = _mm256_comp_fmadd_ps(x_coeffs1, x1_val, value_f[ii]);
@@ -189,14 +169,6 @@ static void cubic_interp1d_p4(__m128& coeffs0, __m128& coeffs1, __m128& coeffs2,
 
 static void gridsample_2d_bicubic_apply_interpolation_p4(const Mat& src, Mat& dst, Mat& offset_value, const Option& opt)
 {
-#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__
-    if (ncnn::cpu_support_x86_avx2())
-    {
-        gridsample_2d_bicubic_apply_interpolation_p4_avx2(src, dst, offset_value, opt);
-        return;
-    }
-#endif
-
     const int channels = dst.c;
     const int outw = dst.w;
     const int outh = dst.h;
@@ -221,14 +193,14 @@ static void gridsample_2d_bicubic_apply_interpolation_p4(const Mat& src, Mat& ds
 
             for (int ii = 0; ii < 4; ii++)
             {
-                float v0_in_bound = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? -1.0f : 0.0f;
-                __m128 x0_val = mask_gather_ps(srcptr, _mm_add_epi32(_mm_set1_epi32(*offset_value_ptr++), _mm_set_epi32(3, 2, 1, 0)), _mm_set_ps1(v0_in_bound));
-                float v1_in_bound = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? -1.0f : 0.0f;
-                __m128 x1_val = mask_gather_ps(srcptr, _mm_add_epi32(_mm_set1_epi32(*offset_value_ptr++), _mm_set_epi32(3, 2, 1, 0)), _mm_set_ps1(v1_in_bound));
-                float v2_in_bound = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? -1.0f : 0.0f;
-                __m128 x2_val = mask_gather_ps(srcptr, _mm_add_epi32(_mm_set1_epi32(*offset_value_ptr++), _mm_set_epi32(3, 2, 1, 0)), _mm_set_ps1(v2_in_bound));
-                float v3_in_bound = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? -1.0f : 0.0f;
-                __m128 x3_val = mask_gather_ps(srcptr, _mm_add_epi32(_mm_set1_epi32(*offset_value_ptr++), _mm_set_epi32(3, 2, 1, 0)), _mm_set_ps1(v3_in_bound));
+                __m128 x0_val = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? _mm_load_ps(srcptr + static_cast<int>(*offset_value_ptr)) : _mm_set1_ps(0);
+                offset_value_ptr++;
+                __m128 x1_val = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? _mm_load_ps(srcptr + static_cast<int>(*offset_value_ptr)) : _mm_set1_ps(0);
+                offset_value_ptr++;
+                __m128 x2_val = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? _mm_load_ps(srcptr + static_cast<int>(*offset_value_ptr)) : _mm_set1_ps(0);
+                offset_value_ptr++;
+                __m128 x3_val = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? _mm_load_ps(srcptr + static_cast<int>(*offset_value_ptr)) : _mm_set1_ps(0);
+                offset_value_ptr++;
 
                 value_f[ii] = _mm_mul_ps(x_coeffs0, x0_val);
                 value_f[ii] = _mm_comp_fmadd_ps(x_coeffs1, x1_val, value_f[ii]);
