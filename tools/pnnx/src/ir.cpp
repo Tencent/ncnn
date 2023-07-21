@@ -1297,6 +1297,7 @@ static std::string expand_expression(const Operator* op)
             exprstack.push(r);
         }
         else if (t == "atan2"
+                 || t == "fmod"
                  || t == "pow")
         {
             std::string binaryop;
@@ -1312,7 +1313,7 @@ static std::string expand_expression(const Operator* op)
             std::string r = binaryop + "(" + a + ", " + b + ")";
             exprstack.push(r);
         }
-        else if (t == "add" || t == "sub" || t == "mul" || t == "div" || t == "floor_divide" || t == "fmod" || t == "and" || t == "or" || t == "xor" || t == "lshift" || t == "rshift")
+        else if (t == "add" || t == "sub" || t == "mul" || t == "div" || t == "floor_divide" || t == "remainder" || t == "and" || t == "or" || t == "xor" || t == "lshift" || t == "rshift")
         {
             std::string binaryop;
             if (t == "add") binaryop = "+";
@@ -1320,7 +1321,7 @@ static std::string expand_expression(const Operator* op)
             if (t == "mul") binaryop = "*";
             if (t == "div") binaryop = "/";
             if (t == "floor_divide") binaryop = "//";
-            if (t == "fmod") binaryop = "%";
+            if (t == "remainder") binaryop = "%";
             if (t == "and") binaryop = "&";
             if (t == "or") binaryop = "|";
             if (t == "xor") binaryop = "^";

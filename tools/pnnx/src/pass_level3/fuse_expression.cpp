@@ -364,7 +364,35 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
         fuse_expression(graph, op->inputs[0], expr, inputs, foldable_constants, zip);
         expr += ")";
     }
-    else if (op->type == "aten::to" || op->type == "aten::detach" || op->type == "aten::ScalarImplicit")
+    else if (op->type == "Tensor.to")
+    {
+        bool noop_type_cast = (op->outputs[0]->type != -1) && (op->inputs[0]->type == op->outputs[0]->type);
+        if (noop_type_cast)
+        {
+            fuse_expression(graph, op->inputs[0], expr, inputs, foldable_constants, zip);
+        }
+        else
+        {
+            auto it = std::find(inputs.begin(), inputs.end(), operand);
+            if (it == inputs.end())
+            {
+                // tensor
+                char tmp[32];
+                sprintf(tmp, "@%d", (int)inputs.size());
+                expr += tmp;
+
+                inputs.push_back(operand);
+            }
+            else
+            {
+                // tensor
+                char tmp[32];
+                sprintf(tmp, "@%d", (int)(it - inputs.begin()));
+                expr += tmp;
+            }
+        }
+    }
+    else if (op->type == "aten::detach" || op->type == "aten::ScalarImplicit")
     {
         fuse_expression(graph, op->inputs[0], expr, inputs, foldable_constants, zip);
     }
@@ -544,7 +572,13 @@ void fuse_expression(Graph& graph, const std::set<std::string>& foldable_constan
             {
                 need_fuse = true;
             }
-            if (op->type == "aten::to" || op->type == "aten::detach" || op->type == "aten::ScalarImplicit")
+            if (op->type == "Tensor.to")
+            {
+                // fuse noop type cast only
+                bool noop_to = (op->outputs[0]->type != -1) && (op->inputs[0]->type == op->outputs[0]->type);
+                need_fuse = noop_to;
+            }
+            if (op->type == "aten::detach" || op->type == "aten::ScalarImplicit")
             {
                 need_fuse = true;
             }
