@@ -40,6 +40,7 @@ static bool value_link_input(const torch::jit::Value* v, const std::vector<torch
                 || optype == "aten::full_like"
                 || optype == "aten::ones_like"
                 || optype == "aten::zeros_like"
+                || optype == "aten::fill"
                 || optype == "aten::_shape_as_tensor")
             return false;
     }
