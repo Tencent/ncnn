@@ -32,6 +32,12 @@ void eliminate_type_as(Graph& graph)
             if (op->type != "Tensor.type_as")
                 continue;
 
+            if (op->inputs[0]->type == 0 || op->outputs[0]->type == 0)
+                continue;
+
+            if (op->inputs[0]->type != op->outputs[0]->type)
+                continue;
+
             // delete noop-like type_as
             matched = true;
 
