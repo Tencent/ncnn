@@ -147,14 +147,16 @@ Download and Install Visual Studio Community 2017 from https://visualstudio.micr
 
 Start the command prompt: `Start → Programs → Visual Studio 2017 → Visual Studio Tools → x64 Native Tools Command Prompt for VS 2017`
 
+> You can also search `x64 Native Tools Command Prompt for VS 2017` directly.
+
 Download protobuf-3.11.2 from https://github.com/google/protobuf/archive/v3.11.2.zip
 
 Build protobuf library:
 
 ```shell
 cd <protobuf-root-dir>
-mkdir build
-cd build
+mkdir protobuf_build
+cd protobuf_build
 cmake -A x64 -DCMAKE_INSTALL_PREFIX=%cd%/install -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF ../cmake
 cmake --build . --config Release -j 2
 cmake --build . --config Release --target install
