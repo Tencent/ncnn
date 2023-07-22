@@ -3203,6 +3203,7 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
 #endif
 
 #if __XOP__
+                        _w = _mm_unpacklo_epi16(_w, _mm_setzero_si128());
                         _sum0 = _mm_maccd_epi16(_r0, _w, _sum0);
                         _sum1 = _mm_maccd_epi16(_r1, _w, _sum1);
                         _sum2 = _mm_maccd_epi16(_r2, _w, _sum2);
@@ -3571,6 +3572,7 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
 #endif
 
 #if __XOP__
+                        _w = _mm_unpacklo_epi16(_w, _mm_setzero_si128());
                         _sum0 = _mm_maccd_epi16(_r0, _w, _sum0);
                         _sum1 = _mm_maccd_epi16(_r1, _w, _sum1);
 #else
@@ -3852,6 +3854,7 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
 #endif
 
 #if __XOP__
+                        _w = _mm_unpacklo_epi16(_w, _mm_setzero_si128());
                         _sum0 = _mm_maccd_epi16(_r0, _w, _sum0);
 #else
                         __m128i _sl = _mm_mullo_epi16(_r0, _w);
@@ -4986,12 +4989,15 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
 
                     // if (elempack == 1)
                     {
-                        __m128i _r = _mm_setr_epi16(r0s[0], r1s[0], r2s[0], r3s[0], 0, 0, 0, 0);
                         __m128i _w = _mm_set1_epi16(kptr[0]);
 
 #if __XOP__
+                        __m128i _r = _mm_setr_epi16(r0s[0], 0, r1s[0], 0, r2s[0], 0, r3s[0], 0);
+
                         _sum = _mm_maccd_epi16(_r, _w, _sum);
 #else
+                        __m128i _r = _mm_setr_epi16(r0s[0], r1s[0], r2s[0], r3s[0], 0, 0, 0, 0);
+
                         __m128i _sl = _mm_mullo_epi16(_r, _w);
                         __m128i _sh = _mm_mulhi_epi16(_r, _w);
                         __m128i _s0 = _mm_unpacklo_epi16(_sl, _sh);
