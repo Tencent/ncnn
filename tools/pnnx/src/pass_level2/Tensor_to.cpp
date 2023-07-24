@@ -64,6 +64,26 @@ pnnx.Output             output      1 0 out
     }
 };
 
+class Tensor_to_1 : public Tensor_to
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+8 7
+pnnx.Input              input_0     0 1 input
+prim::Constant          op_0        0 1 device value=*
+prim::Constant          op_1        0 1 dtype value=%dtype
+prim::Constant          op_2        0 1 non_blocking value=*
+prim::Constant          op_3        0 1 copy value=%copy
+prim::Constant          op_4        0 1 memory_format value=%memory_format
+aten::to                op_5        6 1 input device dtype non_blocking copy memory_format out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+};
+
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_to, 20)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_to_1, 20)
 
 } // namespace pnnx

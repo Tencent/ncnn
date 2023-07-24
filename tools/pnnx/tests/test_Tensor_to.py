@@ -24,7 +24,7 @@ class Model(nn.Module):
         x = x * 10
         y = y * 13
         y = y.to(dtype=x.dtype, memory_format=torch.contiguous_format)
-        x = x.to(dtype=torch.int)
+        x = x.to(device='cpu', dtype=torch.int, copy=True)
         x = x + 1
         y = y - 2
         return x, y
