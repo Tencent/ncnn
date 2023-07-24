@@ -27,6 +27,7 @@
 #include "pass_level5/eliminate_noop_slice.h"
 #include "pass_level5/eliminate_noop_view_reshape.h"
 #include "pass_level5/eliminate_reshape_shape_expression.h"
+#include "pass_level5/eliminate_type_as.h"
 #include "pass_level5/eval_expression.h"
 #include "pass_level5/fuse_adjacent_reshape.h"
 #include "pass_level5/fuse_channel_shuffle.h"
@@ -112,6 +113,7 @@ void pass_level5(Graph& g, const std::set<std::string>& foldable_constants, cons
     eliminate_noop_cat(g);
 
     eliminate_dropout(g);
+    eliminate_type_as(g);
 
     eliminate_noop_upsample(g);
 

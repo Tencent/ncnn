@@ -342,6 +342,7 @@ static std::string eval_expression(const Operator* op)
                  || t == "mul"
                  || t == "div"
                  || t == "floor_divide"
+                 || t == "fmod"
                  || t == "pow"
                  || t == "remainder")
         {
@@ -378,6 +379,11 @@ static std::string eval_expression(const Operator* op)
                 if (t == "div")
                 {
                     float r = af / bf;
+                    exprstack.push(std::to_string(r));
+                }
+                if (t == "fmod")
+                {
+                    float r = fmod(af, bf);
                     exprstack.push(std::to_string(r));
                 }
                 if (t == "floor_divide")

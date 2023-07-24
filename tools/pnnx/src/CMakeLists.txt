@@ -180,7 +180,9 @@ set(pnnx_pass_level2_SRCS
     pass_level2/Tensor_copy.cpp
     pass_level2/Tensor_expand.cpp
     pass_level2/Tensor_expand_as.cpp
+    pass_level2/Tensor_fill.cpp
     pass_level2/Tensor_index.cpp
+    pass_level2/Tensor_index_put.cpp
     pass_level2/Tensor_masked_fill.cpp
     pass_level2/Tensor_new_empty.cpp
     pass_level2/Tensor_new_ones.cpp
@@ -189,6 +191,8 @@ set(pnnx_pass_level2_SRCS
     pass_level2/Tensor_reshape.cpp
     pass_level2/Tensor_select.cpp
     pass_level2/Tensor_slice.cpp
+    pass_level2/Tensor_to.cpp
+    pass_level2/Tensor_type_as.cpp
     pass_level2/Tensor_view.cpp
     pass_level2/torch_addmm.cpp
     pass_level2/torch_amax.cpp
@@ -252,6 +256,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_sum.cpp
     pass_level2/torch_permute.cpp
     pass_level2/torch_tensor_split.cpp
+    pass_level2/torch_topk.cpp
     pass_level2/torch_transpose.cpp
     pass_level2/torch_unbind.cpp
     pass_level2/torch_unsqueeze.cpp
@@ -320,6 +325,7 @@ set(pnnx_pass_level5_SRCS
     pass_level5/eliminate_noop_slice.cpp
     pass_level5/eliminate_noop_view_reshape.cpp
     pass_level5/eliminate_reshape_shape_expression.cpp
+    pass_level5/eliminate_type_as.cpp
     pass_level5/eval_expression.cpp
     pass_level5/fold_constants.cpp
     pass_level5/fuse_adjacent_reshape.cpp
@@ -361,6 +367,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/convert_torch_chunk.cpp
     pass_ncnn/convert_torch_einsum.cpp
     pass_ncnn/convert_torch_split.cpp
+    pass_ncnn/convert_torch_stack.cpp
     pass_ncnn/convert_torch_tensor_split.cpp
     pass_ncnn/convert_torch_unbind.cpp
     pass_ncnn/convert_Tensor_select.cpp
