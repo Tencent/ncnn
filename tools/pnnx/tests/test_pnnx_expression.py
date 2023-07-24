@@ -15,6 +15,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from packaging import version
 
 class Model(nn.Module):
     def __init__(self):
@@ -34,7 +35,10 @@ class Model(nn.Module):
         x = x * self.w2 + x0
         x = x / self.w3 + x0
         x = x // self.w4 + x0
-        x = x % self.w5 + x0
+        if version.parse(torch.__version__) >= version.parse('2.0'):
+            x = x % self.w5 + x0
+        else:
+            x = fmod(x, self.w5) + x0
         y = x.int()
         return x, y & 3, y | 3, y ^ 3, y << 3, y >> 3
 
