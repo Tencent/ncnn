@@ -367,6 +367,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/convert_torch_chunk.cpp
     pass_ncnn/convert_torch_einsum.cpp
     pass_ncnn/convert_torch_split.cpp
+    pass_ncnn/convert_torch_stack.cpp
     pass_ncnn/convert_torch_tensor_split.cpp
     pass_ncnn/convert_torch_unbind.cpp
     pass_ncnn/convert_Tensor_select.cpp
