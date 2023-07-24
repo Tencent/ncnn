@@ -431,7 +431,6 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
         expr += ")";
     }
     else if (op->type == "aten::atan2"
-             || op->type == "aten::div"
              || op->type == "aten::floor_divide"
              || op->type == "aten::fmod"
              || op->type == "aten::mul"
@@ -512,6 +511,27 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
 
         expr += ",";
         fuse_expression(graph, op->inputs[0], expr, inputs, foldable_constants, zip);
+        expr += ")";
+    }
+    else if (op->type == "aten::div")
+    {
+        std::string rounding_mode;
+        if (op->inputs.size() == 3)
+            fuse_expression(graph, op->inputs[2], rounding_mode, inputs, foldable_constants, zip);
+
+        if (rounding_mode == "trunc")
+        {
+            expr += "floor_divide";
+        }
+        else
+        {
+            expr += "div";
+        }
+
+        expr += "(";
+        fuse_expression(graph, op->inputs[0], expr, inputs, foldable_constants, zip);
+        expr += ",";
+        fuse_expression(graph, op->inputs[1], expr, inputs, foldable_constants, zip);
         expr += ")";
     }
     else
