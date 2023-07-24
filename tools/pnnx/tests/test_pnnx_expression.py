@@ -38,7 +38,7 @@ class Model(nn.Module):
         if version.parse(torch.__version__) >= version.parse('2.0'):
             x = x % self.w5 + x0
         else:
-            x = fmod(x, self.w5) + x0
+            x = torch.fmod(x, self.w5) + x0
         y = x.int()
         return x, y & 3, y | 3, y ^ 3, y << 3, y >> 3
 
