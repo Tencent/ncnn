@@ -36,6 +36,8 @@ pnnx.Output             output      1 0 out
     }
 };
 
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_einsum, 20)
+
 class torch_einsum_1 : public GraphRewriterPass
 {
 public:
