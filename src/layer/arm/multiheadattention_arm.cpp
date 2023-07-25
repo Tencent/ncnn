@@ -506,7 +506,7 @@ int MultiHeadAttention_arm::forward(const std::vector<Mat>& bottom_blobs, std::v
     Mat attn_mask_blob_unpacked;
     if (attn_mask_blob.elempack != 1)
     {
-        convert_packing(attn_mask_blob, attn_mask_blob_unpacked, 1, opt);
+        convert_packing(attn_mask_blob, attn_mask_blob_unpacked, 1, _opt);
     }
     else
     {
@@ -532,9 +532,9 @@ int MultiHeadAttention_arm::forward(const std::vector<Mat>& bottom_blobs, std::v
         Mat k_affine;
         k_gemm->forward(k_blob, k_affine, opt);
 
-        Mat qk_cross(dst_seqlen, src_seqlen * num_head, 2u, opt.blob_allocator);
+        Mat qk_cross(dst_seqlen, src_seqlen * num_heads, 2u, opt.blob_allocator);
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int i = 0; i < num_head; i++)
+        for (int i = 0; i < num_heads; i++)
         {
             std::vector<Mat> qk_bottom_blobs(2);
             qk_bottom_blobs[0] = q_affine.row_range(i * embed_dim_per_head, embed_dim_per_head);
@@ -559,9 +559,9 @@ int MultiHeadAttention_arm::forward(const std::vector<Mat>& bottom_blobs, std::v
         Mat v_affine;
         v_gemm->forward(v_blob, v_affine, opt);
 
-        Mat qkv_cross(src_seqlen, embed_dim_per_head * num_head, 2u, opt.blob_allocator);
+        Mat qkv_cross(src_seqlen, embed_dim_per_head * num_heads, 2u, opt.blob_allocator);
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int i = 0; i < num_head; i++)
+        for (int i = 0; i < num_heads; i++)
         {
             std::vector<Mat> qkv_bottom_blobs(2);
             qkv_bottom_blobs[0] = qk_cross.row_range(i * src_seqlen, src_seqlen);
@@ -587,9 +587,9 @@ int MultiHeadAttention_arm::forward(const std::vector<Mat>& bottom_blobs, std::v
     Mat k_affine;
     k_gemm->forward(k_blob, k_affine, opt);
 
-    Mat qk_cross(dst_seqlen, src_seqlen * num_head, 4u, opt.blob_allocator);
+    Mat qk_cross(dst_seqlen, src_seqlen * num_heads, 4u, opt.blob_allocator);
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int i = 0; i < num_head; i++)
+    for (int i = 0; i < num_heads; i++)
     {
         std::vector<Mat> qk_bottom_blobs(2);
         qk_bottom_blobs[0] = q_affine.row_range(i * embed_dim_per_head, embed_dim_per_head);
@@ -614,9 +614,9 @@ int MultiHeadAttention_arm::forward(const std::vector<Mat>& bottom_blobs, std::v
     Mat v_affine;
     v_gemm->forward(v_blob, v_affine, opt);
 
-    Mat qkv_cross(src_seqlen, embed_dim_per_head * num_head, 4u, opt.blob_allocator);
+    Mat qkv_cross(src_seqlen, embed_dim_per_head * num_heads, 4u, opt.blob_allocator);
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int i = 0; i < num_head; i++)
+    for (int i = 0; i < num_heads; i++)
     {
         std::vector<Mat> qkv_bottom_blobs(2);
         qkv_bottom_blobs[0] = qk_cross.row_range(i * src_seqlen, src_seqlen);
