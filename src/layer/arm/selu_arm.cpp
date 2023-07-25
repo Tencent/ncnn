@@ -66,7 +66,7 @@ int SELU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         for (; remain > 0; remain--)
         {
             if (*ptr < 0.f)
-                *ptr = (exp(*ptr) - 1.f) * alphaxlambda;
+                *ptr = (expf(*ptr) - 1.f) * alphaxlambda;
             else
                 *ptr *= lambda;
 

@@ -28,6 +28,11 @@ ModelBin::~ModelBin()
 {
 }
 
+Mat ModelBin::load(int /*w*/, int /*type*/) const
+{
+    return Mat();
+}
+
 Mat ModelBin::load(int w, int h, int type) const
 {
     Mat m = load(w * h, type);

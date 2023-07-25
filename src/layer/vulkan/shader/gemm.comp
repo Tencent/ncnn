@@ -1,0 +1,453 @@
+// Tencent is pleased to support the open source community by making ncnn available.
+//
+// Copyright (C) 2023 THL A29 Limited, a Tencent company. All rights reserved.
+//
+// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
+// in compliance with the License. You may obtain a copy of the License at
+//
+// https://opensource.org/licenses/BSD-3-Clause
+//
+// Unless required by applicable law or agreed to in writing, software distributed
+// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+// CONDITIONS OF ANY KIND, either express or implied. See the License for the
+// specific language governing permissions and limitations under the License.
+
+#version 450
+
+#if NCNN_fp16_storage
+#extension GL_EXT_shader_16bit_storage: require
+#endif
+#if NCNN_fp16_arithmetic
+#extension GL_EXT_shader_explicit_arithmetic_types_float16: require
+#endif
+
+#define LOCAL_MEMORY_UNROLL_INCH 8
+
+layout (constant_id = 0) const float alpha = 1.f;
+layout (constant_id = 1) const float beta = 1.f;
+layout (constant_id = 2) const int transA = 0;
+layout (constant_id = 3) const int transB = 0;
+layout (constant_id = 4) const int constantA = 0;
+layout (constant_id = 5) const int constantB = 0;
+layout (constant_id = 6) const int constantC = 0;
+layout (constant_id = 7) const int M = 0;
+layout (constant_id = 8) const int N = 0;
+layout (constant_id = 9) const int K = 0;
+layout (constant_id = 10) const int constant_broadcast_type_C = 0;
+layout (constant_id = 11) const int output_N1M = 0;
+layout (constant_id = 12) const int output_elempack = 0;
+layout (constant_id = 13) const int output_elemtype = 0;
+layout (constant_id = 14) const int output_transpose = 0;
+
+// TODO psc more
+
+#if NCNN_image_shader
+layout (binding = 0, imfmtc1) writeonly uniform unfp image3D top_blob_3d;
+layout (binding = 1) uniform unfp sampler3D A_blob_3d;
+layout (binding = 2) uniform unfp sampler3D B_blob_3d;
+layout (binding = 3) uniform unfp sampler3D C_blob_3d;
+#else
+layout (binding = 0) writeonly buffer top_blob { sfp top_blob_data[]; };
+layout (binding = 1) readonly buffer A_blob { sfp A_blob_data[]; };
+layout (binding = 2) readonly buffer B_blob { sfp B_blob_data[]; };
+layout (binding = 3) readonly buffer C_blob { sfp C_blob_data[]; };
+#endif
+
+layout (push_constant) uniform parameter
+{
+    int M;
+    int N;
+    int K;
+    int broadcast_type_C;
+    int A_dims;
+    int A_hstep;
+    int B_dims;
+    int B_hstep;
+    int outdims;
+    int outhstep;
+} p;
+
+#if NCNN_shader_local_memory
+shared lfp tmp_a[8][LOCAL_MEMORY_UNROLL_INCH][2];
+shared lfp tmp_b[8][LOCAL_MEMORY_UNROLL_INCH][2];
+#endif
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x) * 2;
+    int gy = int(gl_GlobalInvocationID.y) * 2;
+    int gz = int(gl_GlobalInvocationID.z);
+
+#if !NCNN_shader_local_memory
+    if (gx >= psc(N) || gy >= psc(M) || gz >= 1)
+        return;
+#endif
+
+    afp sum0 = afp(0.f);
+    afp sum1 = afp(0.f);
+    afp sum2 = afp(0.f);
+    afp sum3 = afp(0.f);
+
+    const int broadcast_type_C = constantC == 1 ? constant_broadcast_type_C : p.broadcast_type_C;
+
+#if NCNN_image_shader
+    if (broadcast_type_C == 0)
+    {
+        sum0 = image3d_ld1(C_blob_3d, ivec3(0, 0, 0));
+        sum1 = sum0;
+        sum2 = sum0;
+        sum3 = sum0;
+    }
+    if (broadcast_type_C == 1)
+    {
+        sum0 = image3d_ld1(C_blob_3d, ivec3(gy, 0, 0));
+        sum1 = sum0;
+        sum2 = image3d_ld1(C_blob_3d, ivec3(gy + 1, 0, 0));
+        sum3 = sum2;
+    }
+    if (broadcast_type_C == 2)
+    {
+        sum0 = image3d_ld1(C_blob_3d, ivec3(0, gy, 0));
+        sum1 = sum0;
+        sum2 = image3d_ld1(C_blob_3d, ivec3(0, gy + 1, 0));
+        sum3 = sum2;
+    }
+    if (broadcast_type_C == 3)
+    {
+        sum0 = image3d_ld1(C_blob_3d, ivec3(gx, gy, 0));
+        sum1 = image3d_ld1(C_blob_3d, ivec3(gx + 1, gy, 0));
+        sum2 = image3d_ld1(C_blob_3d, ivec3(gx, gy + 1, 0));
+        sum3 = image3d_ld1(C_blob_3d, ivec3(gx + 1, gy + 1, 0));
+    }
+    if (broadcast_type_C == 4)
+    {
+        sum0 = image3d_ld1(C_blob_3d, ivec3(gx, 0, 0));
+        sum1 = image3d_ld1(C_blob_3d, ivec3(gx + 1, 0, 0));
+        sum2 = sum0;
+        sum3 = sum1;
+    }
+#else
+    if (broadcast_type_C == 0)
+    {
+        sum0 = buffer_ld1(C_blob_data, 0);
+        sum1 = sum0;
+        sum2 = sum0;
+        sum3 = sum0;
+    }
+    if (broadcast_type_C == 1 || broadcast_type_C == 2)
+    {
+        sum0 = buffer_ld1(C_blob_data, gy);
+        sum1 = sum0;
+        sum2 = buffer_ld1(C_blob_data, gy + 1);
+        sum3 = sum2;
+    }
+    if (broadcast_type_C == 3)
+    {
+        const int ci = gy * psc(N) + gx;
+        sum0 = buffer_ld1(C_blob_data, ci);
+        sum1 = buffer_ld1(C_blob_data, ci + 1);
+        sum2 = buffer_ld1(C_blob_data, ci + psc(N));
+        sum3 = buffer_ld1(C_blob_data, ci + psc(N) + 1);
+    }
+    if (broadcast_type_C == 4)
+    {
+        sum0 = buffer_ld1(C_blob_data, gx);
+        sum1 = buffer_ld1(C_blob_data, gx + 1);
+        sum2 = sum0;
+        sum3 = sum1;
+    }
+#endif
+
+    sum0 *= afp(beta);
+    sum1 *= afp(beta);
+    sum2 *= afp(beta);
+    sum3 *= afp(beta);
+
+#if !NCNN_image_shader && NCNN_shader_local_memory
+    const int NN = psc(K);
+
+    const int lx = int(gl_LocalInvocationID.x);
+    const int ly = int(gl_LocalInvocationID.y);
+
+    int k = 0;
+    for (; k + (LOCAL_MEMORY_UNROLL_INCH - 1) < NN; k += LOCAL_MEMORY_UNROLL_INCH)
+    {
+        {
+            if (transA == 1)
+            {
+                const int ai = (k + lx) * p.A_hstep + gy;
+                tmp_a[ly][lx][0] = sfp2lfp(A_blob_data[ai]);
+                tmp_a[ly][lx][1] = sfp2lfp(A_blob_data[ai + 1]);
+            }
+            else
+            {
+                const int ai = gy * p.A_hstep + (k + lx);
+                tmp_a[ly][lx][0] = sfp2lfp(A_blob_data[ai]);
+                tmp_a[ly][lx][1] = sfp2lfp(A_blob_data[ai + p.A_hstep]);
+            }
+
+            if (transB == 1)
+            {
+                const int bi = gx * p.B_hstep + (k + ly);
+                tmp_b[lx][ly][0] = sfp2lfp(B_blob_data[bi]);
+                tmp_b[lx][ly][1] = sfp2lfp(B_blob_data[bi + p.B_hstep]);
+            }
+            else
+            {
+                const int bi = (k + ly) * p.B_hstep + gx;
+                tmp_b[lx][ly][0] = sfp2lfp(B_blob_data[bi]);
+                tmp_b[lx][ly][1] = sfp2lfp(B_blob_data[bi + 1]);
+            }
+        }
+
+        barrier();
+
+        for (int k4 = 0; k4 < LOCAL_MEMORY_UNROLL_INCH; k4++)
+        {
+            afp a0 = lfp2afp(tmp_a[ly][k4][0]);
+            afp a1 = lfp2afp(tmp_a[ly][k4][1]);
+
+            afp b0 = lfp2afp(tmp_b[lx][k4][0]);
+            afp b1 = lfp2afp(tmp_b[lx][k4][1]);
+
+            sum0 += a0 * b0;
+            sum1 += a0 * b1;
+            sum2 += a1 * b0;
+            sum3 += a1 * b1;
+        }
+
+        barrier();
+    }
+
+    if (k < NN)
+    {
+        const int remain = NN - k;
+
+        if (lx < remain)
+        {
+            if (transA == 1)
+            {
+                const int ai = (k + lx) * p.A_hstep + gy;
+                tmp_a[ly][lx][0] = sfp2lfp(A_blob_data[ai]);
+                tmp_a[ly][lx][1] = sfp2lfp(A_blob_data[ai + 1]);
+            }
+            else
+            {
+                const int ai = gy * p.A_hstep + (k + lx);
+                tmp_a[ly][lx][0] = sfp2lfp(A_blob_data[ai]);
+                tmp_a[ly][lx][1] = sfp2lfp(A_blob_data[ai + p.A_hstep]);
+            }
+        }
+
+        if (ly < remain)
+        {
+            if (transB == 1)
+            {
+                const int bi = gx * p.B_hstep + (k + ly);
+                tmp_b[lx][ly][0] = sfp2lfp(B_blob_data[bi]);
+                tmp_b[lx][ly][1] = sfp2lfp(B_blob_data[bi + p.B_hstep]);
+            }
+            else
+            {
+                const int bi = (k + ly) * p.B_hstep + gx;
+                tmp_b[lx][ly][0] = sfp2lfp(B_blob_data[bi]);
+                tmp_b[lx][ly][1] = sfp2lfp(B_blob_data[bi + 1]);
+            }
+        }
+
+        barrier();
+
+        for (int k4 = 0; k4 < remain; k4++)
+        {
+            afp a0 = lfp2afp(tmp_a[ly][k4][0]);
+            afp a1 = lfp2afp(tmp_a[ly][k4][1]);
+
+            afp b0 = lfp2afp(tmp_b[lx][k4][0]);
+            afp b1 = lfp2afp(tmp_b[lx][k4][1]);
+
+            sum0 += a0 * b0;
+            sum1 += a0 * b1;
+            sum2 += a1 * b0;
+            sum3 += a1 * b1;
+        }
+    }
+#else
+    for (int k = 0; k < psc(K); k++)
+    {
+        afp a0;
+        afp a1;
+        afp b0;
+        afp b1;
+#if NCNN_image_shader
+        if (transA == 1)
+        {
+            if (p.A_dims == 3)
+            {
+                a0 = image3d_ld1(A_blob_3d, ivec3(gy, 0, k));
+                a1 = image3d_ld1(A_blob_3d, ivec3(gy + 1, 0, k));
+            }
+            else
+            {
+                a0 = image3d_ld1(A_blob_3d, ivec3(gy, k, 0));
+                a1 = image3d_ld1(A_blob_3d, ivec3(gy + 1, k, 0));
+            }
+        }
+        else
+        {
+            if (p.A_dims == 3)
+            {
+                a0 = image3d_ld1(A_blob_3d, ivec3(k, 0, gy));
+                a1 = image3d_ld1(A_blob_3d, ivec3(k, 0, gy + 1));
+            }
+            else
+            {
+                a0 = image3d_ld1(A_blob_3d, ivec3(k, gy, 0));
+                a1 = image3d_ld1(A_blob_3d, ivec3(k, gy + 1, 0));
+            }
+        }
+
+        if (transB == 1)
+        {
+            if (p.B_dims == 3)
+            {
+                b0 = image3d_ld1(B_blob_3d, ivec3(k, 0, gx));
+                b1 = image3d_ld1(B_blob_3d, ivec3(k, 0, gx + 1));
+            }
+            else
+            {
+                b0 = image3d_ld1(B_blob_3d, ivec3(k, gx, 0));
+                b1 = image3d_ld1(B_blob_3d, ivec3(k, gx + 1, 0));
+            }
+        }
+        else
+        {
+            if (p.B_dims == 3)
+            {
+                b0 = image3d_ld1(B_blob_3d, ivec3(gx, 0, k));
+                b1 = image3d_ld1(B_blob_3d, ivec3(gx + 1, 0, k));
+            }
+            else
+            {
+                b0 = image3d_ld1(B_blob_3d, ivec3(gx, k, 0));
+                b1 = image3d_ld1(B_blob_3d, ivec3(gx + 1, k, 0));
+            }
+        }
+#else
+        if (transA == 1)
+        {
+            const int ai = k * p.A_hstep + gy;
+            a0 = buffer_ld1(A_blob_data, ai);
+            a1 = buffer_ld1(A_blob_data, ai + 1);
+        }
+        else
+        {
+            const int ai = gy * p.A_hstep + k;
+            a0 = buffer_ld1(A_blob_data, ai);
+            a1 = buffer_ld1(A_blob_data, ai + p.A_hstep);
+        }
+
+        if (transB == 1)
+        {
+            const int bi = gx * p.B_hstep + k;
+            b0 = buffer_ld1(B_blob_data, bi);
+            b1 = buffer_ld1(B_blob_data, bi + p.B_hstep);
+        }
+        else
+        {
+            const int bi = k * p.B_hstep + gx;
+            b0 = buffer_ld1(B_blob_data, bi);
+            b1 = buffer_ld1(B_blob_data, bi + 1);
+        }
+#endif
+
+        sum0 += a0 * b0;
+        sum1 += a0 * b1;
+        sum2 += a1 * b0;
+        sum3 += a1 * b1;
+    }
+#endif
+
+#if NCNN_shader_local_memory
+    if (gx >= psc(N) || gy >= psc(M) || gz >= 1)
+        return;
+#endif
+
+    sum0 *= afp(alpha);
+    sum1 *= afp(alpha);
+    sum2 *= afp(alpha);
+    sum3 *= afp(alpha);
+
+#if NCNN_image_shader
+    if (output_transpose == 1)
+    {
+        if (output_N1M == 1)
+        {
+            image3d_st1(top_blob_3d, ivec3(gy, 0, gx), sum0);
+            if (gy + 1 < psc(M)) image3d_st1(top_blob_3d, ivec3(gy + 1, 0, gx), sum2);
+            if (gx + 1 < psc(N))
+            {
+                image3d_st1(top_blob_3d, ivec3(gy, 0, gx + 1), sum1);
+                if (gy + 1 < psc(M)) image3d_st1(top_blob_3d, ivec3(gy + 1, 0, gx + 1), sum3);
+            }
+        }
+        else
+        {
+            image3d_st1(top_blob_3d, ivec3(gy, gx, 0), sum0);
+            if (gy + 1 < psc(M)) image3d_st1(top_blob_3d, ivec3(gy + 1, gx, 0), sum2);
+            if (gx + 1 < psc(N))
+            {
+                image3d_st1(top_blob_3d, ivec3(gy, gx + 1, 0), sum1);
+                if (gy + 1 < psc(M)) image3d_st1(top_blob_3d, ivec3(gy + 1, gx + 1, 0), sum3);
+            }
+        }
+    }
+    else
+    {
+        if (output_N1M == 1)
+        {
+            image3d_st1(top_blob_3d, ivec3(gx, 0, gy), sum0);
+            if (gx + 1 < psc(N)) image3d_st1(top_blob_3d, ivec3(gx + 1, 0, gy), sum1);
+            if (gy + 1 < psc(M))
+            {
+                image3d_st1(top_blob_3d, ivec3(gx, 0, gy + 1), sum2);
+                if (gx + 1 < psc(N)) image3d_st1(top_blob_3d, ivec3(gx + 1, 0, gy + 1), sum3);
+            }
+        }
+        else
+        {
+            image3d_st1(top_blob_3d, ivec3(gx, gy, 0), sum0);
+            if (gx + 1 < psc(N)) image3d_st1(top_blob_3d, ivec3(gx + 1, gy, 0), sum1);
+            if (gy + 1 < psc(M))
+            {
+                image3d_st1(top_blob_3d, ivec3(gx, gy + 1, 0), sum2);
+                if (gx + 1 < psc(N)) image3d_st1(top_blob_3d, ivec3(gx + 1, gy + 1, 0), sum3);
+            }
+        }
+    }
+#else
+    if (output_transpose == 1)
+    {
+        const int gi = gx * p.outhstep + gy;
+
+        buffer_st1(top_blob_data, gi, sum0);
+        if (gy + 1 < psc(M)) buffer_st1(top_blob_data, gi + 1, sum2);
+        if (gx + 1 < psc(N))
+        {
+            buffer_st1(top_blob_data, gi + p.outhstep, sum1);
+            if (gy + 1 < psc(M)) buffer_st1(top_blob_data, gi + p.outhstep + 1, sum3);
+        }
+    }
+    else
+    {
+        const int gi = gy * p.outhstep + gx;
+
+        buffer_st1(top_blob_data, gi, sum0);
+        if (gx + 1 < psc(N)) buffer_st1(top_blob_data, gi + 1, sum1);
+        if (gy + 1 < psc(M))
+        {
+            buffer_st1(top_blob_data, gi + p.outhstep, sum2);
+            if (gx + 1 < psc(N)) buffer_st1(top_blob_data, gi + p.outhstep + 1, sum3);
+        }
+    }
+#endif
+}

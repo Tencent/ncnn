@@ -39,7 +39,7 @@ jobs:
       uses: actions/cache@v3
       with:
         path: qemu-install
-        key: qemu-aarch64-install-20220502-2
+        key: qemu-aarch64-install-20220502-ubuntu-2004-2
     - name: install-qemu-build-deps
       if: steps.cache-qemu.outputs.cache-hit != 'true'
       run: |
@@ -97,7 +97,7 @@ jobs:
       uses: actions/cache@v3
       with:
         path: qemu-install
-        key: qemu-aarch64-install-20220502-2
+        key: qemu-aarch64-install-20220502-ubuntu-2004-2
     - name: install-qemu-build-deps
       if: steps.cache-qemu.outputs.cache-hit != 'true'
       run: |
@@ -155,7 +155,7 @@ jobs:
       uses: actions/cache@v3
       with:
         path: qemu-install
-        key: qemu-aarch64-install-20220502-2
+        key: qemu-aarch64-install-20230717
     - name: install-qemu-build-deps
       if: steps.cache-qemu.outputs.cache-hit != 'true'
       run: |
@@ -167,7 +167,7 @@ jobs:
       with:
         repository: qemu/qemu
         path: qemu
-        ref: f5643914a9e8f79c606a76e6a9d7ea82a3fc3e65
+        ref: ed8ad9728a9c0eec34db9dff61dfa2f1dd625637
     - name: qemu
       if: steps.cache-qemu.outputs.cache-hit != 'true'
       run: |

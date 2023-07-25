@@ -171,7 +171,7 @@ static void nms_sorted_bboxes(const std::vector<BBoxRect>& bboxes, std::vector<s
 
 static inline float sigmoid(float x)
 {
-    return static_cast<float>(1.f / (1.f + exp(-x)));
+    return 1.f / (1.f + expf(-x));
 }
 
 int YoloDetectionOutput::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option& opt) const
@@ -225,8 +225,8 @@ int YoloDetectionOutput::forward_inplace(std::vector<Mat>& bottom_top_blobs, con
                     // region box
                     float bbox_cx = (j + sigmoid(xptr[0])) / w;
                     float bbox_cy = (i + sigmoid(yptr[0])) / h;
-                    float bbox_w = static_cast<float>(exp(wptr[0]) * bias_w / w);
-                    float bbox_h = static_cast<float>(exp(hptr[0]) * bias_h / h);
+                    float bbox_w = expf(wptr[0]) * bias_w / w;
+                    float bbox_h = expf(hptr[0]) * bias_h / h;
 
                     float bbox_xmin = bbox_cx - bbox_w * 0.5f;
                     float bbox_ymin = bbox_cy - bbox_h * 0.5f;
@@ -313,7 +313,7 @@ int YoloDetectionOutput::forward_inplace(std::vector<Mat>& bottom_top_blobs, con
         float score = bbox_scores[i];
         float* outptr = top_blob.row(i);
 
-        outptr[0] = static_cast<float>(r.label + 1); // +1 for prepend background class
+        outptr[0] = r.label + 1.0f; // +1 for prepend background class
         outptr[1] = score;
         outptr[2] = r.xmin;
         outptr[3] = r.ymin;

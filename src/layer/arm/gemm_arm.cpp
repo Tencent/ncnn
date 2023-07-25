@@ -33,7 +33,7 @@ Gemm_arm::Gemm_arm()
 {
 #if __ARM_NEON
     support_packing = true;
-#if NCNN_VFPV4 || __aarch64__
+#if NCNN_VFPV4
     support_fp16_storage = cpu_support_arm_vfpv4();
 #endif
 #endif // __ARM_NEON
@@ -3662,8 +3662,12 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
 static void get_optimal_tile_mnk(int M, int N, int K, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int& TILE_M, int& TILE_N, int& TILE_K, int nT)
 {
     // resolve optimal tile size from cache size
-    size_t l2_cache_size = get_cpu_level2_cache_size();
-    int tile_size = (int)sqrt((float)l2_cache_size / 3 / sizeof(float));
+    const size_t l2_cache_size = get_cpu_level2_cache_size();
+
+    if (nT == 0)
+        nT = get_physical_big_cpu_count();
+
+    int tile_size = (int)sqrtf((float)l2_cache_size / 3 / sizeof(float));
 
 #if __aarch64__
     TILE_M = std::max(8, tile_size / 8 * 8);
@@ -3834,6 +3838,10 @@ static int gemm_arm(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
     for (int ppi = 0; ppi < nn_M; ppi++)
     {
         const int i = ppi * TILE_M;
+
+        // shadowed variable for less openmp task args
+        const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
+        const int K = transA ? (A.dims == 3 ? A.c : A.h) * A.elempack : A.w;
 
         const int max_ii = std::min((M - i), TILE_M);
 
@@ -4009,6 +4017,10 @@ static int gemm_BT_arm(const Mat& A, const Mat& BT, const Mat& C, Mat& top_blob,
     {
         const int i = ppi * TILE_M;
 
+        // shadowed variable for less openmp task args
+        const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
+        const int K = transA ? (A.dims == 3 ? A.c : A.h) * A.elempack : A.w;
+
         const int max_ii = std::min((M - i), TILE_M);
 
         Mat topT_tile;
@@ -4145,7 +4157,7 @@ int Gemm_arm::create_pipeline(const Option& opt)
     }
 #endif
 
-#if NCNN_VFPV4 || __aarch64__
+#if NCNN_VFPV4
     if (support_fp16_storage && opt.use_fp16_storage)
     {
         return create_pipeline_fp16s(opt);
@@ -4299,7 +4311,7 @@ int Gemm_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
         return forward_bf16s(bottom_blobs, top_blobs, opt);
 #endif
 
-#if NCNN_VFPV4 || __aarch64__
+#if NCNN_VFPV4
     if (support_fp16_storage && opt.use_fp16_storage && elembits == 16)
     {
         return forward_fp16s(bottom_blobs, top_blobs, opt);
@@ -4544,6 +4556,10 @@ static int gemm_arm_bf16s(const Mat& A, const Mat& B, const Mat& C, Mat& top_blo
     {
         const int i = ppi * TILE_M;
 
+        // shadowed variable for less openmp task args
+        const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
+        const int K = transA ? (A.dims == 3 ? A.c : A.h) * A.elempack : A.w;
+
         const int max_ii = std::min((M - i), TILE_M);
 
         Mat topT_tile;
@@ -4719,6 +4735,10 @@ static int gemm_BT_arm_bf16s(const Mat& A, const Mat& BT, const Mat& C, Mat& top
     for (int ppi = 0; ppi < nn_M; ppi++)
     {
         const int i = ppi * TILE_M;
+
+        // shadowed variable for less openmp task args
+        const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
+        const int K = transA ? (A.dims == 3 ? A.c : A.h) * A.elempack : A.w;
 
         const int max_ii = std::min((M - i), TILE_M);
 

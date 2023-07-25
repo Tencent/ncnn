@@ -133,7 +133,7 @@ static int rnn_fp16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
                 H += (float)weight_hc_ptr[i] * hidden_state[i];
             }
 
-            H = tanh(H);
+            H = tanhf(H);
 
             gates[q] = H;
         }
@@ -348,7 +348,7 @@ static int rnn_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
                 H += weight_hc_ptr[i] * (__fp16)hidden_state[i];
             }
 
-            float H32 = tanh((float)H);
+            float H32 = tanhf((float)H);
 
             gates[q] = H32;
         }

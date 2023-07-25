@@ -55,7 +55,7 @@ ncnn 目前已在腾讯多款应用中使用，如：QQ，Qzone，微信，天�
 | Android           | [![Build Status][pass-android-armv7-cpu]][ci-android-armv7-cpu]     | [![Build Status][pass-android-armv8-cpu]][ci-android-armv8-cpu]                 | [![Build Status][pass-android-armv7-gpu]][ci-android-armv7-gpu] | [![Build Status][pass-android-armv8-gpu]][ci-android-armv8-gpu]     |
 | Android-x86       | [![Build Status][pass-android-x86-cpu]][ci-android-x86-cpu]         | [![Build Status][pass-android-x64-cpu]][ci-android-x64-cpu]                     | [![Build Status][pass-android-x86-gpu]][ci-android-x86-gpu]     | [![Build Status][pass-android-x64-gpu]][ci-android-x64-gpu]         |
 | iOS               | [![Build Status][pass-ios-cpu]][ci-ios-cpu]                         | [![Build Status][pass-ios-cpu]][ci-ios-cpu]                                     | —                                                               | [![Build Status][pass-ios-arm64-gpu]][ci-ios-arm64-gpu]             |
-| iOS Simulator     | [![Build Status][pass-ios-simulator]][ci-ios-simulator]             | [![Build Status][pass-ios-simulator]][ci-ios-simulator]                         | —                                                               | —                                                                   |
+| iOS Simulator     | [![Build Status][pass-ios-simulator]][ci-ios-simulator]             | [![Build Status][pass-ios-simulator]][ci-ios-simulator]                         | —                                                               | [![Build Status][pass-ios-simulator-gpu]][ci-ios-simulator-gpu]     |
 | WebAssembly       | [![Build Status][pass-web-assembly]][ci-web-assembly]               | —                                                                               | —                                                               | —                                                                   |
 | RISC-V GCC/Newlib | [![Build Status][pass-elf-riscv32-cpu-gcc]][ci-elf-riscv32-cpu-gcc] | [![Build Status][pass-elf-riscv64-cpu-gcc]][ci-elf-riscv64-cpu-gcc]             | —                                                               | —                                                                   |
 
@@ -74,6 +74,7 @@ ncnn 目前已在腾讯多款应用中使用，如：QQ，Qzone，微信，天�
 [pass-ios-cpu]: https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/ios-cpu.yml?branch=master
 [pass-ios-simulator]: https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/ios-simulator.yml?branch=master
 [pass-ios-simulator]: https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/ios-simulator.yml?branch=master
+[pass-ios-simulator-gpu]: https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/ios-simulator-gpu.yml?branch=master
 [pass-linux-aarch64-cpu-gcc]: https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/linux-aarch64-cpu-gcc.yml?branch=master
 [pass-linux-arm-cpu-gcc]: https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/linux-arm-cpu-gcc.yml?branch=master
 [pass-linux-loongarch64-cpu-gcc]: https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/linux-loongarch64-cpu-gcc.yml?branch=master
@@ -111,6 +112,7 @@ ncnn 目前已在腾讯多款应用中使用，如：QQ，Qzone，微信，天�
 [ci-ios-cpu]: https://github.com/Tencent/ncnn/actions?query=workflow%3Aios-cpu
 [ci-ios-simulator]: https://github.com/Tencent/ncnn/actions?query=workflow%3Aios-simulator
 [ci-ios-simulator]: https://github.com/Tencent/ncnn/actions?query=workflow%3Aios-simulator
+[ci-ios-simulator-gpu]: https://github.com/Tencent/ncnn/actions?query=workflow%3Aios-simulator-gpu
 [ci-linux-aarch64-cpu-gcc]: https://github.com/Tencent/ncnn/actions?query=workflow%3Alinux-aarch64-cpu-gcc
 [ci-linux-arm-cpu-gcc]: https://github.com/Tencent/ncnn/actions?query=workflow%3Alinux-arm-cpu-gcc
 [ci-linux-loongarch64-cpu-gcc]: https://github.com/Tencent/ncnn/actions?query=workflow%3Alinux-loongarch64-cpu-gcc
@@ -203,7 +205,7 @@ ncnn 目前已在腾讯多款应用中使用，如：QQ，Qzone，微信，天�
 
 **[how to build ncnn library](https://github.com/Tencent/ncnn/wiki/how-to-build) on Linux / Windows / macOS / Raspberry Pi3, Pi4 / Android / NVIDIA Jetson / iOS / WebAssembly / AllWinner D1 / Loongson 2K1000**
 
-- [Build for Linux / NVIDIA Jetson / Raspberry Pi3, Pi4](https://github.com/Tencent/ncnn/wiki/how-to-build#build-for-linux)
+- [Build for Linux / NVIDIA Jetson / Raspberry Pi3, Pi4 / POWER9](https://github.com/Tencent/ncnn/wiki/how-to-build#build-for-linux)
 - [Build for Windows x64 using VS2017](https://github.com/Tencent/ncnn/wiki/how-to-build#build-for-windows-x64-using-visual-studio-community-2017)
 - [Build for macOS](https://github.com/Tencent/ncnn/wiki/how-to-build#build-for-macos)
 - [Build for ARM Cortex-A family with cross-compiling](https://github.com/Tencent/ncnn/wiki/how-to-build#build-for-arm-cortex-a-family-with-cross-compiling)
@@ -214,6 +216,7 @@ ncnn 目前已在腾讯多款应用中使用，如：QQ，Qzone，微信，天�
 - [Build for AllWinner D1](https://github.com/Tencent/ncnn/wiki/how-to-build#build-for-allwinner-d1)
 - [Build for Loongson 2K1000](https://github.com/Tencent/ncnn/wiki/how-to-build#build-for-loongson-2k1000)
 - [Build for Termux on Android](https://github.com/Tencent/ncnn/wiki/how-to-build#build-for-termux-on-android)
+- [Build for QNX](https://github.com/Tencent/ncnn/wiki/how-to-build#build-for-qnx)
 
 **[download prebuild binary package for android and ios](https://github.com/Tencent/ncnn/releases)**
 
@@ -295,6 +298,7 @@ ncnn 目前已在腾讯多款应用中使用，如：QQ，Qzone，微信，天�
 | arm-gpu    | ❔      | ❔    | ✔️      | /     | /   |
 | apple-cpu  | /       | /     | /       | ✔️    | ✅  |
 | apple-gpu  | /       | /     | /       | ✔️    | ✔️  |
+| ibm-cpu    | /       | ✔️     | /       | /    | /  |
 
 ---
 

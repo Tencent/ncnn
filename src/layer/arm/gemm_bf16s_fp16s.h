@@ -1522,8 +1522,12 @@ static void transpose_unpack_output_tile_bf16_fp16(const Mat& topT, Mat& top_blo
 static void get_optimal_tile_mnk_bf16s_fp16s(int M, int N, int K, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int& TILE_M, int& TILE_N, int& TILE_K, int nT)
 {
     // resolve optimal tile size from cache size
-    size_t l2_cache_size = get_cpu_level2_cache_size();
-    int tile_size = (int)sqrt((float)l2_cache_size / (2 * sizeof(unsigned short) + sizeof(float)));
+    const size_t l2_cache_size = get_cpu_level2_cache_size();
+
+    if (nT == 0)
+        nT = get_physical_big_cpu_count();
+
+    int tile_size = (int)sqrtf((float)l2_cache_size / (2 * sizeof(unsigned short) + sizeof(float)));
 
     TILE_M = std::max(8, tile_size / 8 * 8);
     TILE_N = std::max(4, tile_size / 4 * 4);

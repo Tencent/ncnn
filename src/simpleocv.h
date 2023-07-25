@@ -448,6 +448,8 @@ enum ImreadModes
 
 NCNN_EXPORT Mat imread(const std::string& path, int flags = IMREAD_COLOR);
 
+NCNN_EXPORT Mat imdecode(const std::vector<uchar>& buf, int flags = IMREAD_COLOR);
+
 enum ImwriteFlags
 {
     IMWRITE_JPEG_QUALITY = 1

@@ -69,11 +69,11 @@ pnnx.Output             output      3 0 out out_hidden out_cell
             {
                 const int weight_data_size_g = hidden_size * input_size;
 
-                const float* weight_ih = (const float*)captured_attrs.at("op_0.weight_ih_l0").data.data();
-                const float* iptr = weight_ih;
-                const float* fptr = weight_ih + weight_data_size_g;
-                const float* gptr = weight_ih + weight_data_size_g * 2;
-                const float* optr = weight_ih + weight_data_size_g * 3;
+                auto weight_ih = captured_attrs.at("op_0.weight_ih_l0").get_float32_data();
+                const float* iptr = (const float*)weight_ih.data();
+                const float* fptr = (const float*)weight_ih.data() + weight_data_size_g;
+                const float* gptr = (const float*)weight_ih.data() + weight_data_size_g * 2;
+                const float* optr = (const float*)weight_ih.data() + weight_data_size_g * 3;
 
                 new_weight_ih.resize(4 * hidden_size * input_size);
                 float* weight = (float*)new_weight_ih.data();
@@ -93,11 +93,11 @@ pnnx.Output             output      3 0 out out_hidden out_cell
                 {
                     const int weight_data_size_g = hidden_size * input_size;
 
-                    const float* weight_ih = (const float*)captured_attrs.at("op_0.weight_ih_l0_reverse").data.data();
-                    const float* iptr = weight_ih;
-                    const float* fptr = weight_ih + weight_data_size_g;
-                    const float* gptr = weight_ih + weight_data_size_g * 2;
-                    const float* optr = weight_ih + weight_data_size_g * 3;
+                    auto weight_ih = captured_attrs.at("op_0.weight_ih_l0_reverse").get_float32_data();
+                    const float* iptr = (const float*)weight_ih.data();
+                    const float* fptr = (const float*)weight_ih.data() + weight_data_size_g;
+                    const float* gptr = (const float*)weight_ih.data() + weight_data_size_g * 2;
+                    const float* optr = (const float*)weight_ih.data() + weight_data_size_g * 3;
 
                     new_weight_ih_reverse.resize(4 * hidden_size * input_size);
                     float* weight = (float*)new_weight_ih_reverse.data();
@@ -126,16 +126,16 @@ pnnx.Output             output      3 0 out out_hidden out_cell
             // reorder IFGO-hidden to IFOG-hidden
             std::vector<float> new_bias;
             {
-                const float* bias_ih = (const float*)captured_attrs.at("op_0.bias_ih_l0").data.data();
-                const float* bias_hh = (const float*)captured_attrs.at("op_0.bias_hh_l0").data.data();
-                const float* bias_ih_iptr = bias_ih;
-                const float* bias_ih_fptr = bias_ih + hidden_size;
-                const float* bias_ih_gptr = bias_ih + hidden_size * 2;
-                const float* bias_ih_optr = bias_ih + hidden_size * 3;
-                const float* bias_hh_iptr = bias_hh;
-                const float* bias_hh_fptr = bias_hh + hidden_size;
-                const float* bias_hh_gptr = bias_hh + hidden_size * 2;
-                const float* bias_hh_optr = bias_hh + hidden_size * 3;
+                auto bias_ih = captured_attrs.at("op_0.bias_ih_l0").get_float32_data();
+                auto bias_hh = captured_attrs.at("op_0.bias_hh_l0").get_float32_data();
+                const float* bias_ih_iptr = (const float*)bias_ih.data();
+                const float* bias_ih_fptr = (const float*)bias_ih.data() + hidden_size;
+                const float* bias_ih_gptr = (const float*)bias_ih.data() + hidden_size * 2;
+                const float* bias_ih_optr = (const float*)bias_ih.data() + hidden_size * 3;
+                const float* bias_hh_iptr = (const float*)bias_hh.data();
+                const float* bias_hh_fptr = (const float*)bias_hh.data() + hidden_size;
+                const float* bias_hh_gptr = (const float*)bias_hh.data() + hidden_size * 2;
+                const float* bias_hh_optr = (const float*)bias_hh.data() + hidden_size * 3;
 
                 new_bias.resize(4 * hidden_size);
                 float* bias = (float*)new_bias.data();
@@ -165,16 +165,16 @@ pnnx.Output             output      3 0 out out_hidden out_cell
             {
                 std::vector<float> new_bias_reverse;
                 {
-                    const float* bias_ih = (const float*)captured_attrs.at("op_0.bias_ih_l0_reverse").data.data();
-                    const float* bias_hh = (const float*)captured_attrs.at("op_0.bias_hh_l0_reverse").data.data();
-                    const float* bias_ih_iptr = bias_ih;
-                    const float* bias_ih_fptr = bias_ih + hidden_size;
-                    const float* bias_ih_gptr = bias_ih + hidden_size * 2;
-                    const float* bias_ih_optr = bias_ih + hidden_size * 3;
-                    const float* bias_hh_iptr = bias_hh;
-                    const float* bias_hh_fptr = bias_hh + hidden_size;
-                    const float* bias_hh_gptr = bias_hh + hidden_size * 2;
-                    const float* bias_hh_optr = bias_hh + hidden_size * 3;
+                    auto bias_ih = captured_attrs.at("op_0.bias_ih_l0_reverse").get_float32_data();
+                    auto bias_hh = captured_attrs.at("op_0.bias_hh_l0_reverse").get_float32_data();
+                    const float* bias_ih_iptr = (const float*)bias_ih.data();
+                    const float* bias_ih_fptr = (const float*)bias_ih.data() + hidden_size;
+                    const float* bias_ih_gptr = (const float*)bias_ih.data() + hidden_size * 2;
+                    const float* bias_ih_optr = (const float*)bias_ih.data() + hidden_size * 3;
+                    const float* bias_hh_iptr = (const float*)bias_hh.data();
+                    const float* bias_hh_fptr = (const float*)bias_hh.data() + hidden_size;
+                    const float* bias_hh_gptr = (const float*)bias_hh.data() + hidden_size * 2;
+                    const float* bias_hh_optr = (const float*)bias_hh.data() + hidden_size * 3;
 
                     new_bias_reverse.resize(4 * hidden_size);
                     float* bias = (float*)new_bias_reverse.data();
@@ -226,11 +226,11 @@ pnnx.Output             output      3 0 out out_hidden out_cell
             {
                 const int weight_data_size_g = hidden_size * proj_size;
 
-                const float* weight_hh = (const float*)captured_attrs.at("op_0.weight_hh_l0").data.data();
-                const float* iptr = weight_hh;
-                const float* fptr = weight_hh + weight_data_size_g;
-                const float* gptr = weight_hh + weight_data_size_g * 2;
-                const float* optr = weight_hh + weight_data_size_g * 3;
+                auto weight_hh = captured_attrs.at("op_0.weight_hh_l0").get_float32_data();
+                const float* iptr = (const float*)weight_hh.data();
+                const float* fptr = (const float*)weight_hh.data() + weight_data_size_g;
+                const float* gptr = (const float*)weight_hh.data() + weight_data_size_g * 2;
+                const float* optr = (const float*)weight_hh.data() + weight_data_size_g * 3;
 
                 new_weight_hh.resize(4 * hidden_size * proj_size);
                 float* weight = (float*)new_weight_hh.data();
@@ -250,11 +250,11 @@ pnnx.Output             output      3 0 out out_hidden out_cell
                 {
                     const int weight_data_size_g = hidden_size * proj_size;
 
-                    const float* weight_hh = (const float*)captured_attrs.at("op_0.weight_hh_l0_reverse").data.data();
-                    const float* iptr = weight_hh;
-                    const float* fptr = weight_hh + weight_data_size_g;
-                    const float* gptr = weight_hh + weight_data_size_g * 2;
-                    const float* optr = weight_hh + weight_data_size_g * 3;
+                    auto weight_hh = captured_attrs.at("op_0.weight_hh_l0_reverse").get_float32_data();
+                    const float* iptr = (const float*)weight_hh.data();
+                    const float* fptr = (const float*)weight_hh.data() + weight_data_size_g;
+                    const float* gptr = (const float*)weight_hh.data() + weight_data_size_g * 2;
+                    const float* optr = (const float*)weight_hh.data() + weight_data_size_g * 3;
 
                     new_weight_hh_reverse.resize(4 * hidden_size * proj_size);
                     float* weight = (float*)new_weight_hh_reverse.data();

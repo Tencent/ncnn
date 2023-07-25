@@ -481,8 +481,8 @@ int DeformableConv2D_x86::forward(const std::vector<Mat>& bottom_blobs, std::vec
                                 bool cond = h_im > -1 && w_im > -1 && h_im < h && w_im < w;
                                 if (cond)
                                 {
-                                    int h_low = floor(h_im);
-                                    int w_low = floor(w_im);
+                                    int h_low = (int)floorf(h_im);
+                                    int w_low = (int)floorf(w_im);
                                     int h_high = h_low + 1;
                                     int w_high = w_low + 1;
 
@@ -560,8 +560,8 @@ int DeformableConv2D_x86::forward(const std::vector<Mat>& bottom_blobs, std::vec
                                 bool cond = h_im > -1 && w_im > -1 && h_im < h && w_im < w;
                                 if (cond)
                                 {
-                                    int h_low = floor(h_im);
-                                    int w_low = floor(w_im);
+                                    int h_low = (int)floorf(h_im);
+                                    int w_low = (int)floorf(w_im);
                                     int h_high = h_low + 1;
                                     int w_high = w_low + 1;
 
@@ -773,8 +773,8 @@ int DeformableConv2D_x86::forward(const std::vector<Mat>& bottom_blobs, std::vec
                             bool v4_cond = false;
                             if (cond)
                             {
-                                h_low = floor(h_im);
-                                w_low = floor(w_im);
+                                h_low = (int)floorf(h_im);
+                                w_low = (int)floorf(w_im);
                                 h_high = h_low + 1;
                                 w_high = w_low + 1;
 

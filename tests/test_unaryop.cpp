@@ -15,7 +15,7 @@
 #include "layer/unaryop.h"
 #include "testutil.h"
 
-#define OP_TYPE_MAX 18
+#define OP_TYPE_MAX 20
 
 static int op_type = 0;
 

@@ -42,7 +42,7 @@ def test():
     import os
     os.system("../../src/pnnx test_torch_bmm.pt inputshape=[10,23,14],[10,14,5]")
 
-    # ncn inference
+    # ncnn inference
     import test_torch_bmm_ncnn
     b = test_torch_bmm_ncnn.test_inference()
 

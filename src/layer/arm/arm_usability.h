@@ -485,6 +485,7 @@ static inline void transpose12x8_ps(float32x4_t& _r0l, float32x4_t& _r0m, float3
     _r7h = vcombine_f32(vget_high_f32(_r45hz.val[1]), vget_high_f32(_r67hz.val[1]));
 }
 
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 static inline void transpose4x4_ph(float16x4_t& _r0, float16x4_t& _r1, float16x4_t& _r2, float16x4_t& _r3)
 {
     uint16x4x2_t _r01z = vzip_u16(vreinterpret_u16_f16(_r0), vreinterpret_u16_f16(_r1));
@@ -635,6 +636,7 @@ static inline void transpose12x4_ph(float16x4_t& _r0l, float16x4_t& _r0m, float1
     _r3m = vreinterpret_f16_u32(_rab.val[0]);
     _r3h = vreinterpret_f16_u32(_rab.val[1]);
 }
+#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 
 #endif // __aarch64__
 #endif // __ARM_NEON

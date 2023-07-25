@@ -31,8 +31,9 @@ int Mish_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) con
 {
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
+    int d = bottom_top_blob.d;
     int channels = bottom_top_blob.c;
-    int size = w * h;
+    int size = w * h * d;
     int elempack = bottom_top_blob.elempack;
 
     if (elempack == 4)
@@ -72,7 +73,7 @@ int Mish_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) con
         for (; i < size; i++)
         {
             float v = (float)*ptr;
-            v = v * tanh(log(exp(v) + 1.f));
+            v = v * tanhf(logf(expf(v) + 1.f));
             *ptr = (__fp16)v;
             ptr++;
         }
@@ -85,8 +86,9 @@ int Mish_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) co
 {
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
+    int d = bottom_top_blob.d;
     int channels = bottom_top_blob.c;
-    int size = w * h;
+    int size = w * h * d;
     int elempack = bottom_top_blob.elempack;
 
     if (elempack == 8)
@@ -146,7 +148,7 @@ int Mish_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) co
         for (; i < size; i++)
         {
             __fp16 v = *ptr;
-            v = v * tanh(log(exp(v) + (__fp16)1.f));
+            v = v * tanhf(logf(expf(v) + (__fp16)1.f));
             *ptr = v;
             ptr++;
         }

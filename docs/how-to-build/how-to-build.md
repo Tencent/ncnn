@@ -10,6 +10,7 @@ git submodule update --init
 - [Build for Linux](#build-for-linux)
   - [Nvidia Jetson](#nvidia-jetson)
   - [Raspberry Pi](#raspberry-pi)
+  - [POWER9](#power9)
   - [Verification](#verification)
 - [Build for Windows x64 using Visual Studio Community 2017](#build-for-windows-x64-using-visual-studio-community-2017)
 - [Build for macOS](#build-for-macos)
@@ -21,6 +22,7 @@ git submodule update --init
 - [Build for AllWinner D1](#build-for-allwinner-d1)
 - [Build for Loongson 2K1000](#build-for-loongson-2k1000)
 - [Build for Termux on Android](#build-for-termux-on-android)
+- [Build for QNX](#build-for-qnx)
 
 ***
 
@@ -86,6 +88,22 @@ You can add `-GNinja` to `cmake` above to use Ninja build system (invoke build u
 
 For Rasberry Pi 3 on 32bit OS, add `-DCMAKE_TOOLCHAIN_FILE=../toolchains/pi3.toolchain.cmake` to cmake. You can also consider disabling Vulkan support as the Vulkan drivers for Rasberry Pi are still not mature, but it doesn't hurt to build the support in, but not use it.
 
+#### POWER9
+
+With Clang 13 or higher:
+
+```shell
+cd ncnn
+mkdir -p build
+cd build
+cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=../toolchains/power9le-linux-gnu-vsx.clang.toolchain.cmake -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=ON ..
+make -j$(nproc)
+```
+
+Earlier versions of Clang may fail to build ncnn due to [Bug 49864](https://github.com/llvm/llvm-project/issues/49864). To use GCC instead, use the `power9le-linux-gnu-vsx.toolchain.cmake` toolchain file instead. Note that according to benchmarks, Clang appears to produce noticeably faster CPU inference than GCC for POWER9 targets.
+
+Note that the POWER9 toolchain files only support little-endian mode.
+
 #### Verification
 
 Verify build by running some examples:
@@ -129,14 +147,16 @@ Download and Install Visual Studio Community 2017 from https://visualstudio.micr
 
 Start the command prompt: `Start → Programs → Visual Studio 2017 → Visual Studio Tools → x64 Native Tools Command Prompt for VS 2017`
 
+> You can also search `x64 Native Tools Command Prompt for VS 2017` directly.
+
 Download protobuf-3.11.2 from https://github.com/google/protobuf/archive/v3.11.2.zip
 
 Build protobuf library:
 
 ```shell
 cd <protobuf-root-dir>
-mkdir build
-cd build
+mkdir protobuf_build
+cd protobuf_build
 cmake -A x64 -DCMAKE_INSTALL_PREFIX=%cd%/install -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF ../cmake
 cmake --build . --config Release -j 2
 cmake --build . --config Release --target install
@@ -147,9 +167,9 @@ Build ncnn library (replace <protobuf-root-dir> with a proper path):
 
 ```shell
 cd <ncnn-root-dir>
-mkdir -p build
-cd build
-cmake -A x64 -DCMAKE_INSTALL_PREFIX=%cd%/install -DProtobuf_INCLUDE_DIR=<protobuf-root-dir>/build/install/include -DProtobuf_LIBRARIES=<protobuf-root-dir>/build/install/lib/libprotobuf.lib -DProtobuf_PROTOC_EXECUTABLE=<protobuf-root-dir>/build/install/bin/protoc.exe -DNCNN_VULKAN=ON ..
+mkdir -p protobuf_build
+cd protobuf_build
+cmake -A x64 -DCMAKE_INSTALL_PREFIX=%cd%/install -DProtobuf_INCLUDE_DIR=<protobuf-root-dir>/protobuf_build/install/include -DProtobuf_LIBRARIES=<protobuf-root-dir>/protobuf_build/install/lib/libprotobuf.lib -DProtobuf_PROTOC_EXECUTABLE=<protobuf-root-dir>/protobuf_build/install/bin/protoc.exe -DNCNN_VULKAN=ON ..
 cmake --build . --config Release -j 2
 cmake --build . --config Release --target install
 ```
@@ -709,3 +729,33 @@ cd ../examples
 ../build/examples/squeezenet ../images/128-ncnn.png
 ```
 
+### Build for QNX
+
+Set QNX environment variables
+
+```shell
+export QNX_HOST=/opt/qnx710/host/linux/x86_64
+export QNX_TARGET=/opt/qnx710/target/qnx7
+```
+
+Create ld link to solve 'cannot find ld' issue
+
+```shell
+cd ${QNX_HOST}/usr/bin/
+ln -s aarch64-unknown-nto-qnx7.1.0-ld ld
+```
+
+Build ncnn with cmake
+
+```shell
+git clone https://github.com/Tencent/ncnn.git
+cd ncnn
+git submodule update --init
+mkdir -p build-qnx
+cd build-qnx
+cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=../toolchains/qnx710.toolchain.cmake ..
+make -j$(nproc)
+make install
+```
+
+Pick `build-qnx/install` folder for further usage.

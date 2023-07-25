@@ -505,16 +505,355 @@ static NCNN_FORCEINLINE __m512 pow512_ps(__m512 a, __m512 b)
     return exp512_ps(_mm512_mul_ps(b, log512_ps(a)));
 }
 
-static NCNN_FORCEINLINE __m512 atan2512_ps(__m512 a, __m512 b)
+static NCNN_FORCEINLINE __m512 asin512_ps(__m512 x)
 {
-    //TODO avx512 optimize
-    float tmpx[16];
-    float tmpy[16];
-    _mm512_storeu_ps(tmpx, a);
-    _mm512_storeu_ps(tmpy, b);
-    for (int i = 0; i < 16; i++)
-        tmpx[i] = atan2(tmpx[i], tmpy[i]);
-    return _mm512_loadu_ps(tmpx);
+    const __m512 magic_negative_zero = _mm512_set1_ps(-0.0f);
+    const __m512 magic_half_one = _mm512_set1_ps(0.5f);
+    const __m512 magic_one = _mm512_set1_ps(1.0f);
+    const __m512 magic_a4 = _mm512_set1_ps(0.023994016f);
+    const __m512 magic_a5 = _mm512_set1_ps(0.042417344f);
+    const __m512 magic_a2 = _mm512_set1_ps(0.07494697f);
+    const __m512 magic_a3 = _mm512_set1_ps(0.045520633f);
+    const __m512 magic_a0 = _mm512_set1_ps(1.0f);
+    const __m512 magic_a1 = _mm512_set1_ps(0.166667819f);
+    const __m512 magic_half_pi = _mm512_set1_ps(1.5707964f);
+    const __m512 magic_three = _mm512_set1_ps(3.0f);
+
+    // negative_mask = magic_negative_zero && x;
+    __m512 negative_mask = _mm512_and_ps(magic_negative_zero, x);
+
+    // absolute = abs(x);
+    __m512 absolute = _mm512_andnot_ps(magic_negative_zero, x);
+
+    // Reference: https://en.wikipedia.org/wiki/Small-angle_approximation
+
+    // is_small_input = (absolute <= 0.5f);
+    __mmask16 is_small_input = _mm512_cmp_ps_mask(
+                                   absolute,
+                                   magic_half_one,
+                                   _CMP_LE_OQ);
+
+    // is_big_input = (is_small_input ? 0.0f : 1.0f);
+    __m512 is_big_input = _mm512_maskz_mov_ps(~is_small_input, magic_one);
+
+    // big_input_approx = sqrt(0.5f * (1 - absolute));
+    __m512 big_input_approx = _mm512_sqrt_ps(_mm512_mul_ps(
+                                  magic_half_one,
+                                  _mm512_sub_ps(magic_one, absolute)));
+
+    // input_approx = (is_small_input ? absolute : big_input_approx);
+    __m512 input_approx = _mm512_mask_mov_ps(
+                              big_input_approx,
+                              is_small_input,
+                              absolute);
+
+    // square_of_input_approx = input_approx * input_approx;
+    __m512 square_of_input_approx = _mm512_mul_ps(input_approx, input_approx);
+
+    // fourth_power_of_input_approx =
+    //     square_of_input_approx * square_of_input_approx;
+    __m512 fourth_power_of_input_approx = _mm512_mul_ps(
+            square_of_input_approx, square_of_input_approx);
+
+    // TODO: Need more explanations.
+    // x1 = ((fourth_power_of_input_approx * magic_a4) + magic_a2);
+    // x2 = ((fourth_power_of_input_approx * magic_a5) + magic_a3);
+    // x3 = ((fourth_power_of_input_approx * x1) + magic_a0);
+    // x4 = ((fourth_power_of_input_approx * x2) + magic_a1);
+    // output_approx = ((square_of_input_approx * x4) + x3);
+    __m512 output_approx = _mm512_fmadd_ps(
+                               square_of_input_approx,
+                               _mm512_fmadd_ps(
+                                   fourth_power_of_input_approx,
+                                   _mm512_fmadd_ps(
+                                       fourth_power_of_input_approx,
+                                       magic_a5,
+                                       magic_a3),
+                                   magic_a1),
+                               _mm512_fmadd_ps(
+                                   fourth_power_of_input_approx,
+                                   _mm512_fmadd_ps(
+                                       fourth_power_of_input_approx,
+                                       magic_a4,
+                                       magic_a2),
+                                   magic_a0));
+
+    // TODO: Need more explanations.
+    // x1 = ((0.5 * PI) * is_big_input);
+    // x2 = (output_approx * input_approx);
+    // x3 = (-(3.0f * is_big_input) + 1.0f);
+    // final_approx = ((x2 * x3) + x1);
+    __m512 final_approx = _mm512_fmadd_ps(
+                              _mm512_mul_ps(output_approx, input_approx),
+                              _mm512_fnmadd_ps(magic_three, is_big_input, magic_one),
+                              _mm512_mul_ps(magic_half_pi, is_big_input));
+
+    // return (final_approx || negative_mask);
+    return _mm512_or_ps(final_approx, negative_mask);
+}
+
+static NCNN_FORCEINLINE __m512 acos512_ps(__m512 x)
+{
+    const __m512 magic_negative_zero = _mm512_set1_ps(-0.0f);
+    const __m512 magic_zero = _mm512_set1_ps(0.0f);
+    const __m512 magic_half_one = _mm512_set1_ps(0.5f);
+    const __m512 magic_one = _mm512_set1_ps(1.0f);
+    const __m512 magic_a4 = _mm512_set1_ps(0.023994016f);
+    const __m512 magic_a5 = _mm512_set1_ps(0.042417344f);
+    const __m512 magic_a2 = _mm512_set1_ps(0.07494697f);
+    const __m512 magic_a3 = _mm512_set1_ps(0.045520633f);
+    const __m512 magic_a0 = _mm512_set1_ps(1.0f);
+    const __m512 magic_a1 = _mm512_set1_ps(0.166667819f);
+    const __m512 magic_half_pi = _mm512_set1_ps(1.5707964f);
+    const __m512 magic_pi = _mm512_set1_ps(3.1415927f);
+
+    // negative_mask = magic_negative_zero && x;
+    __m512 negative_mask = _mm512_and_ps(magic_negative_zero, x);
+
+    // absolute = abs(x);
+    __m512 absolute = _mm512_andnot_ps(magic_negative_zero, x);
+
+    // Reference: https://en.wikipedia.org/wiki/Small-angle_approximation
+
+    // is_small_input = (absolute <= 0.5f);
+    __mmask16 is_small_input = _mm512_cmp_ps_mask(
+                                   absolute,
+                                   magic_half_one,
+                                   _CMP_LE_OQ);
+
+    // big_input_approx = sqrt(0.5f * (1 - absolute));
+    __m512 big_input_approx = _mm512_sqrt_ps(_mm512_mul_ps(
+                                  magic_half_one,
+                                  _mm512_sub_ps(magic_one, absolute)));
+
+    // input_approx = (is_small_input ? absolute : big_input_approx);
+    __m512 input_approx = _mm512_mask_mov_ps(
+                              big_input_approx,
+                              is_small_input,
+                              absolute);
+
+    // square_of_input_approx = input_approx * input_approx;
+    __m512 square_of_input_approx = _mm512_mul_ps(input_approx, input_approx);
+
+    // fourth_power_of_input_approx =
+    //     square_of_input_approx * square_of_input_approx;
+    __m512 fourth_power_of_input_approx = _mm512_mul_ps(
+            square_of_input_approx, square_of_input_approx);
+
+    // TODO: Need more explanations.
+    // x1 = ((fourth_power_of_input_approx * magic_a4) + magic_a2);
+    // x2 = ((fourth_power_of_input_approx * magic_a5) + magic_a3);
+    // x3 = ((fourth_power_of_input_approx * x1) + magic_a0);
+    // x4 = ((fourth_power_of_input_approx * x2) + magic_a1);
+    // output_approx = ((square_of_input_approx * x4) + x3);
+    __m512 output_approx = _mm512_fmadd_ps(
+                               square_of_input_approx,
+                               _mm512_fmadd_ps(
+                                   fourth_power_of_input_approx,
+                                   _mm512_fmadd_ps(
+                                       fourth_power_of_input_approx,
+                                       magic_a5,
+                                       magic_a3),
+                                   magic_a1),
+                               _mm512_fmadd_ps(
+                                   fourth_power_of_input_approx,
+                                   _mm512_fmadd_ps(
+                                       fourth_power_of_input_approx,
+                                       magic_a4,
+                                       magic_a2),
+                                   magic_a0));
+
+    // TODO: Need more explanations.
+    // x1 = (output_approx * input_approx);
+    __m512 x1 = _mm512_mul_ps(output_approx, input_approx);
+
+    // TODO: Need more explanations.
+    // small_final_approx = ((0.5 * PI) - (x1 | negative_mask));
+    __m512 small_final_approx = _mm512_sub_ps(
+                                    magic_half_pi,
+                                    _mm512_or_ps(x1, negative_mask));
+
+    // TODO: Need more explanations.
+    // big_final_approx = (((x < 0.0f) & PI) + ((x1 * 2) | negative_mask));
+    __m512 big_final_approx = _mm512_add_ps(
+                                  _mm512_maskz_mov_ps(
+                                      _mm512_cmp_ps_mask(x, magic_zero, _CMP_LT_OQ),
+                                      magic_pi),
+                                  _mm512_or_ps(_mm512_add_ps(x1, x1), negative_mask));
+
+    // return (is_small_input ? small_final_approx : big_final_approx);
+    return _mm512_mask_mov_ps(
+               big_final_approx,
+               is_small_input,
+               small_final_approx);
+}
+
+static NCNN_FORCEINLINE __m512 atan512_ps(__m512 x)
+{
+    const __m512 magic_negative_zero = _mm512_set1_ps(-0.0f);
+    const __m512 magic_one = _mm512_set1_ps(1.0f);
+    const __m512 magic_negative_one = _mm512_set1_ps(-1.0f);
+    const __m512 magic_half_pi = _mm512_set1_ps(1.5707964f);
+    const __m512 magic_a0 = _mm512_set1_ps(1.0f);
+    const __m512 magic_a1 = _mm512_set1_ps(-0.33333072f);
+    const __m512 magic_a2 = _mm512_set1_ps(0.1999262f);
+    const __m512 magic_a3 = _mm512_set1_ps(-0.14203644f);
+    const __m512 magic_a4 = _mm512_set1_ps(0.10640934f);
+    const __m512 magic_a5 = _mm512_set1_ps(-0.07504295f);
+    const __m512 magic_a6 = _mm512_set1_ps(0.04269152f);
+    const __m512 magic_a7 = _mm512_set1_ps(-0.01606863f);
+    const __m512 magic_a8 = _mm512_set1_ps(0.0028498897f);
+
+    // negative_mask = magic_negative_zero && x;
+    __m512 negative_mask = _mm512_and_ps(magic_negative_zero, x);
+
+    // absolute = abs(x);
+    __m512 absolute = _mm512_andnot_ps(magic_negative_zero, x);
+
+    // Reference: https://en.wikipedia.org/wiki/Small-angle_approximation
+
+    // is_small_input = (1.0f < absolute);
+    __mmask16 is_small_input = _mm512_cmp_ps_mask(
+                                   magic_one,
+                                   absolute,
+                                   _CMP_LT_OQ);
+
+    // x1 = (is_small_input ? -1.0f : absolute);
+    // x2 = (is_small_input ? absolute : 1.0f)
+    // input_approx = x1 / x2;
+    __m512 input_approx = _mm512_div_ps(
+                              _mm512_mask_mov_ps(absolute, is_small_input, magic_negative_one),
+                              _mm512_mask_mov_ps(magic_one, is_small_input, absolute));
+
+    // square_of_input_approx = input_approx * input_approx;
+    __m512 square_of_input_approx = _mm512_mul_ps(input_approx, input_approx);
+
+    // fourth_power_of_input_approx =
+    //     square_of_input_approx * square_of_input_approx;
+    __m512 fourth_power_of_input_approx = _mm512_mul_ps(
+            square_of_input_approx, square_of_input_approx);
+
+    // TODO: Need more explanations.
+    // x1 = ((fourth_power_of_input_approx * magic_a7) + magic_a5);
+    // x2 = ((fourth_power_of_input_approx * magic_a8) + magic_a6);
+    // x3 = ((fourth_power_of_input_approx * x1) + magic_a3);
+    // x4 = ((fourth_power_of_input_approx * x2) + magic_a4);
+    // x5 = ((fourth_power_of_input_approx * x3) + magic_a1);
+    // x6 = ((fourth_power_of_input_approx * x4) + magic_a2);
+    // x7 = ((fourth_power_of_input_approx * x6) + magic_a0);
+    // output_approx = ((square_of_input_approx * x5) + x7);
+    __m512 output_approx = _mm512_fmadd_ps(
+                               square_of_input_approx,
+                               _mm512_fmadd_ps(
+                                   fourth_power_of_input_approx,
+                                   _mm512_fmadd_ps(
+                                       fourth_power_of_input_approx,
+                                       _mm512_fmadd_ps(
+                                           fourth_power_of_input_approx,
+                                           magic_a7,
+                                           magic_a5),
+                                       magic_a3),
+                                   magic_a1),
+                               _mm512_fmadd_ps(
+                                   fourth_power_of_input_approx,
+                                   _mm512_fmadd_ps(
+                                       fourth_power_of_input_approx,
+                                       _mm512_fmadd_ps(
+                                           fourth_power_of_input_approx,
+                                           _mm512_fmadd_ps(
+                                                   fourth_power_of_input_approx,
+                                                   magic_a8,
+                                                   magic_a6),
+                                           magic_a4),
+                                       magic_a2),
+                                   magic_a0));
+
+    // TODO: Need more explanations.
+    // x1 = (output_approx * input_approx);
+    // if (is_small_input) x1 += (0.5 * PI);
+    // return (negative_mask ? -x1 : x1);
+    return _mm512_or_ps(
+               _mm512_add_ps(
+                   _mm512_mul_ps(output_approx, input_approx),
+                   _mm512_maskz_mov_ps(is_small_input, magic_half_pi)),
+               negative_mask);
+}
+
+// MSVC 2017 x86 CI will be broken if use NCNN_FORCEINLINE for atan2512_ps.
+// This function still be inlined compiled by MSVC 2017 even without that.
+#if _MSC_VER < 1920
+static __m512 atan2512_ps(__m512 y, __m512 x)
+#else
+static NCNN_FORCEINLINE __m512 atan2512_ps(__m512 y, __m512 x)
+#endif
+{
+    // Reference: https://mazzo.li/posts/vectorized-atan2.html
+
+    const __m512 magic_zero = _mm512_set1_ps(0.0f);
+    const __m512 magic_negative_zero = _mm512_set1_ps(-0.0f);
+    const __m512 magic_pi = _mm512_set1_ps(3.1415927f);
+    const __m512 magic_half_pi = _mm512_set1_ps(1.5707964f);
+
+    // not_equal_zero_x = (x != 0.0f);
+    __mmask16 not_equal_zero_x = _mm512_cmp_ps_mask(
+                                     x,
+                                     magic_zero,
+                                     _CMP_NEQ_OQ);
+
+    // not_equal_zero_y = (y != 0.0f);
+    __mmask16 not_equal_zero_y = _mm512_cmp_ps_mask(
+                                     y,
+                                     magic_zero,
+                                     _CMP_NEQ_OQ);
+
+    // normal_mode = ((x != 0.0f) & (y != 0.0f));
+    __mmask16 normal_mode = (not_equal_zero_x & not_equal_zero_y);
+
+    // negative_mask_x = magic_negative_zero && x;
+    __m512 negative_mask_x = _mm512_and_ps(magic_negative_zero, x);
+
+    // negative_mask_y = magic_negative_zero && y;
+    __m512 negative_mask_y = _mm512_and_ps(magic_negative_zero, y);
+
+    // pi_additions = ((x < 0.0f) ? ((y < 0.0f) ? -PI : PI) : 0.0f);
+    __m512 pi_additions = _mm512_mask_mov_ps(
+                              magic_zero,
+                              _mm512_cmp_ps_mask(x, magic_zero, _CMP_LT_OQ),
+                              _mm512_mask_mov_ps(
+                                  magic_pi,
+                                  _mm512_cmp_ps_mask(y, magic_zero, _CMP_LT_OQ),
+                                  _mm512_or_ps(magic_negative_zero, magic_pi)));
+
+    // normal_result = (atan(y / x) + pi_additions);
+    __m512 normal_result = _mm512_add_ps(
+                               atan512_ps(_mm512_div_ps(y, x)),
+                               pi_additions);
+
+    // negative_mask_full_x = ((negative_mask_x | PI) < 0.0f);
+    __mmask16 negative_mask_full_x = _mm512_cmp_ps_mask(
+                                         _mm512_or_ps(negative_mask_x, magic_pi),
+                                         magic_zero,
+                                         _CMP_LT_OQ);
+
+    // x1 = (negative_mask_y ? -(0.5 * PI) : (0.5 * PI));
+    // x2 = (negative_mask_full_x ? PI : 0.0f);
+    // special_result = ((y != 0.0f) ? x1 : x2);
+    __m512 special_result = _mm512_mask_mov_ps(
+                                _mm512_mask_mov_ps(magic_zero, negative_mask_full_x, magic_pi),
+                                not_equal_zero_y,
+                                _mm512_or_ps(negative_mask_y, magic_half_pi));
+
+    // return (normal_mode ? normal_result : special_result);
+    return _mm512_mask_mov_ps(special_result, normal_mode, normal_result);
+}
+
+static NCNN_FORCEINLINE __m512 abs512_ps(__m512 x)
+{
+    // Use negative zero as the sign bit mask.
+    const __m512 magic_negative_zero = _mm512_set1_ps(-0.0f);
+
+    // return (!magic_negative_zero && x);
+    return _mm512_andnot_ps(magic_negative_zero, x);
 }
 
 #endif // AVX512_MATHFUN_H

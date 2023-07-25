@@ -4464,6 +4464,9 @@ static void conv3x3s1_winograd_get_optimal_tile_mnk(int M, int N, int K, int B, 
     // resolve optimal tile size from cache size
     const int l2_cache_size_fp32 = (int)(get_cpu_level2_cache_size() / sizeof(float));
 
+    if (nT == 0)
+        nT = get_physical_big_cpu_count();
+
     // we shall take B into account for batched gemm, but that will be slower on arm in practice, why ?
     (void)B;
 
@@ -6299,9 +6302,9 @@ static inline void conv3x3s1_winograd43_transform_input_tile(const Mat& bottom_b
                         float32x4x2_t _t01 = vzipq_f32(_t0, _t1);
 
                         _r0 = vget_low_f32(_t01.val[0]);
-                        if (tj * 2 + 1 < w) _r1 = vget_high_f32(_t01.val[0]);
-                        if (tj * 2 + 2 < w) _r2 = vget_low_f32(_t01.val[1]);
-                        if (tj * 2 + 3 < w) _r3 = vget_high_f32(_t01.val[1]);
+                        if (tj * 4 + 1 < w) _r1 = vget_high_f32(_t01.val[0]);
+                        if (tj * 4 + 2 < w) _r2 = vget_low_f32(_t01.val[1]);
+                        if (tj * 4 + 3 < w) _r3 = vget_high_f32(_t01.val[1]);
                         if (tj * 4 + 4 < w)
                         {
                             float tmp[2] = {r0[4], r1[4]};
@@ -8078,9 +8081,9 @@ static inline void conv3x3s1_winograd63_transform_input_tile(const Mat& bottom_b
                         float32x4x2_t _t01 = vzipq_f32(_t0, _t1);
 
                         _r0 = vget_low_f32(_t01.val[0]);
-                        if (tj * 2 + 1 < w) _r1 = vget_high_f32(_t01.val[0]);
-                        if (tj * 2 + 2 < w) _r2 = vget_low_f32(_t01.val[1]);
-                        if (tj * 2 + 3 < w) _r3 = vget_high_f32(_t01.val[1]);
+                        if (tj * 6 + 1 < w) _r1 = vget_high_f32(_t01.val[0]);
+                        if (tj * 6 + 2 < w) _r2 = vget_low_f32(_t01.val[1]);
+                        if (tj * 6 + 3 < w) _r3 = vget_high_f32(_t01.val[1]);
                         if (tj * 6 + 4 < w)
                         {
                             _t0 = vld1q_f32(r0 + 4);

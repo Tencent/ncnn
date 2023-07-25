@@ -32,8 +32,7 @@ static void convolution_transform_kernel_packed_fp16s(const Mat& kernel, Mat& ke
         else
             kernel_tm.create(8 * maxk, inch, outch / 8 + (outch % 8) / 4 + (outch % 4) / 2 + outch % 2, (size_t)2u);
     }
-    else
-    if (outch >= 4)
+    else if (outch >= 4)
     {
         if (inch >= 8)
             kernel_tm.create(4 * 8 * maxk, inch / 8 + (inch % 8) / 4 + (inch % 4) / 2 + inch % 2, outch / 4 + (outch % 4) / 2 + outch % 2, (size_t)2u);
@@ -44,8 +43,7 @@ static void convolution_transform_kernel_packed_fp16s(const Mat& kernel, Mat& ke
         else
             kernel_tm.create(4 * maxk, inch, outch / 4 + (outch % 4) / 2 + outch % 2, (size_t)2u);
     }
-    else
-    if (outch >= 2)
+    else if (outch >= 2)
     {
         if (inch >= 8)
             kernel_tm.create(2 * 8 * maxk, inch / 8 + (inch % 8) / 4 + (inch % 4) / 2 + inch % 2, outch / 2 + outch % 2, (size_t)2u);
@@ -501,6 +499,13 @@ static void convolution_packed_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
     {
         const int p = remain_outch_start + pp * 8;
 
+        // shadowed variable for less openmp task args
+        const int elempack = bottom_blob.elempack;
+        const int inch = bottom_blob.c * elempack;
+        const int outw = top_blob.w;
+        const int outh = top_blob.h;
+        const int out_elempack = top_blob.elempack;
+
         __fp16* outptr = top_blob.channel(p / out_elempack);
 
         for (int i = 0; i < outh; i++)
@@ -539,7 +544,7 @@ static void convolution_packed_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                             _r0 = vcvt_f32_f16(vld1_f16(r0 + sok));
                             _r1 = vcvt_f32_f16(vld1_f16(r0 + sok + N));
                         }
-                        if (elempack == 1)
+                        else // if (elempack == 1)
                         {
                             float16x8_t _r_f16 = float16x8_t();
                             _r_f16 = vsetq_lane_f16(r0[sok], _r_f16, 0);
@@ -610,7 +615,7 @@ static void convolution_packed_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                         {
                             _r0 = vcvt_f32_f16(vld1_f16(r0 + sok));
                         }
-                        if (elempack == 1)
+                        else // if (elempack == 1)
                         {
                             float16x4_t _r_f16 = float16x4_t();
                             _r_f16 = vset_lane_f16(r0[sok], _r_f16, 0);
@@ -711,7 +716,7 @@ static void convolution_packed_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                     vst1_f16(outptr + M, vcvt_f16_f32(_sum1));
                     outptr += 4;
                 }
-                if (out_elempack == 1)
+                else // if (out_elempack == 1)
                 {
                     float16x4_t _sum0_f16 = vcvt_f16_f32(_sum0);
                     float16x4_t _sum1_f16 = vcvt_f16_f32(_sum1);
@@ -733,6 +738,13 @@ static void convolution_packed_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
     for (int pp = 0; pp < nn_outch; pp++)
     {
         const int p = remain_outch_start + pp * 4;
+
+        // shadowed variable for less openmp task args
+        const int elempack = bottom_blob.elempack;
+        const int inch = bottom_blob.c * elempack;
+        const int outw = top_blob.w;
+        const int outh = top_blob.h;
+        const int out_elempack = top_blob.elempack;
 
         __fp16* outptr = top_blob.channel(p / out_elempack);
 
@@ -767,7 +779,7 @@ static void convolution_packed_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                             _r0 = vcvt_f32_f16(vld1_f16(r0 + sok));
                             _r1 = vcvt_f32_f16(vld1_f16(r0 + sok + N));
                         }
-                        if (elempack == 1)
+                        else // if (elempack == 1)
                         {
                             float16x8_t _r_f16 = float16x8_t();
                             _r_f16 = vsetq_lane_f16(r0[sok], _r_f16, 0);
@@ -818,7 +830,7 @@ static void convolution_packed_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                         {
                             _r0 = vcvt_f32_f16(vld1_f16(r0 + sok));
                         }
-                        if (elempack == 1)
+                        else // if (elempack == 1)
                         {
                             float16x4_t _r_f16 = float16x4_t();
                             _r_f16 = vset_lane_f16(r0[sok], _r_f16, 0);
@@ -896,7 +908,7 @@ static void convolution_packed_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                     vst1_f16(outptr, vcvt_f16_f32(_sum0));
                     outptr += 4;
                 }
-                if (out_elempack == 1)
+                else // if (out_elempack == 1)
                 {
                     float16x4_t _sum0_f16 = vcvt_f16_f32(_sum0);
                     outptr[0] = vget_lane_f16(_sum0_f16, 0);
@@ -913,6 +925,12 @@ static void convolution_packed_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
     for (int pp = 0; pp < nn_outch; pp++)
     {
         const int p = remain_outch_start + pp * 2;
+
+        // shadowed variable for less openmp task args
+        const int elempack = bottom_blob.elempack;
+        const int inch = bottom_blob.c * elempack;
+        const int outw = top_blob.w;
+        const int outh = top_blob.h;
 
         __fp16* outptr0 = top_blob.channel(p);
         __fp16* outptr1 = top_blob.channel(p + 1);
@@ -951,7 +969,7 @@ static void convolution_packed_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                             _r0 = vcvt_f32_f16(vld1_f16(r0 + sok));
                             _r1 = vcvt_f32_f16(vld1_f16(r0 + sok + N));
                         }
-                        if (elempack == 1)
+                        else // if (elempack == 1)
                         {
                             float16x8_t _r01_f16 = float16x8_t();
                             _r01_f16 = vsetq_lane_f16(r0[sok], _r01_f16, 0);
@@ -998,7 +1016,7 @@ static void convolution_packed_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                         {
                             _r0 = vcvt_f32_f16(vld1_f16(r0 + sok));
                         }
-                        if (elempack == 1)
+                        else // if (elempack == 1)
                         {
                             float16x4_t _r0_f16 = float16x4_t();
                             _r0_f16 = vset_lane_f16(r0[sok], _r0_f16, 0);
@@ -1106,7 +1124,7 @@ static void convolution_packed_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                             _r0 = vcvt_f32_f16(vld1_f16(r0 + sok));
                             _r1 = vcvt_f32_f16(vld1_f16(r0 + sok + N));
                         }
-                        if (elempack == 1)
+                        else // if (elempack == 1)
                         {
                             float16x8_t _r01_f16 = float16x8_t();
                             _r01_f16 = vsetq_lane_f16(r0[sok], _r01_f16, 0);
@@ -1145,7 +1163,7 @@ static void convolution_packed_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                         {
                             _r0 = vcvt_f32_f16(vld1_f16(r0 + sok));
                         }
-                        if (elempack == 1)
+                        else // if (elempack == 1)
                         {
                             float16x4_t _r0_f16 = float16x4_t();
                             _r0_f16 = vset_lane_f16(r0[sok], _r0_f16, 0);
@@ -1256,6 +1274,13 @@ static void convolution_packed_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
     {
         const int p = remain_outch_start + pp * 8;
 
+        // shadowed variable for less openmp task args
+        const int elempack = bottom_blob.elempack;
+        const int inch = bottom_blob.c * elempack;
+        const int outw = top_blob.w;
+        const int outh = top_blob.h;
+        const int out_elempack = top_blob.elempack;
+
         __fp16* outptr = top_blob.channel(p / out_elempack);
 
         for (int i = 0; i < outh; i++)
@@ -1287,12 +1312,13 @@ static void convolution_packed_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
                         {
                             _r0 = vld1q_f16(r0 + sok);
                         }
-                        if (elempack == 4)
+                        else if (elempack == 4)
                         {
                             _r0 = vcombine_f16(vld1_f16(r0 + sok), vld1_f16(r0 + sok + N));
                         }
-                        if (elempack == 1)
+                        else // if (elempack == 1)
                         {
+                            _r0 = float16x8_t();
                             _r0 = vsetq_lane_f16(r0[sok], _r0, 0);
                             _r0 = vsetq_lane_f16(r0[sok + N], _r0, 1);
                             _r0 = vsetq_lane_f16(r0[sok + N * 2], _r0, 2);
@@ -1335,7 +1361,7 @@ static void convolution_packed_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
                         {
                             _r0 = vld1_f16(r0 + sok);
                         }
-                        if (elempack == 1)
+                        else // if (elempack == 1)
                         {
                             _r0 = float16x4_t();
                             _r0 = vset_lane_f16(r0[sok], _r0, 0);
@@ -1409,13 +1435,13 @@ static void convolution_packed_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
                     vst1q_f16(outptr, _sum0);
                     outptr += 8;
                 }
-                if (out_elempack == 4)
+                else if (out_elempack == 4)
                 {
                     vst1_f16(outptr, vget_low_f16(_sum0));
                     vst1_f16(outptr + M, vget_high_f16(_sum0));
                     outptr += 4;
                 }
-                if (out_elempack == 1)
+                else // if (out_elempack == 1)
                 {
                     outptr[0] = vgetq_lane_f16(_sum0, 0);
                     outptr[M] = vgetq_lane_f16(_sum0, 1);
@@ -1435,6 +1461,13 @@ static void convolution_packed_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
     for (int pp = 0; pp < nn_outch; pp++)
     {
         const int p = remain_outch_start + pp * 4;
+
+        // shadowed variable for less openmp task args
+        const int elempack = bottom_blob.elempack;
+        const int inch = bottom_blob.c * elempack;
+        const int outw = top_blob.w;
+        const int outh = top_blob.h;
+        const int out_elempack = top_blob.elempack;
 
         __fp16* outptr = top_blob.channel(p / out_elempack);
 
@@ -1470,12 +1503,12 @@ static void convolution_packed_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
                             _r0 = vget_low_f16(_r01);
                             _r1 = vget_high_f16(_r01);
                         }
-                        if (elempack == 4)
+                        else if (elempack == 4)
                         {
                             _r0 = vld1_f16(r0 + sok);
                             _r1 = vld1_f16(r0 + sok + N);
                         }
-                        if (elempack == 1)
+                        else // if (elempack == 1)
                         {
                             _r0 = float16x4_t();
                             _r1 = float16x4_t();
@@ -1521,7 +1554,7 @@ static void convolution_packed_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
                         {
                             _r0 = vld1_f16(r0 + sok);
                         }
-                        if (elempack == 1)
+                        else // if (elempack == 1)
                         {
                             _r0 = float16x4_t();
                             _r0 = vset_lane_f16(r0[sok], _r0, 0);
@@ -1595,7 +1628,7 @@ static void convolution_packed_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
                     vst1_f16(outptr, _sum0);
                     outptr += 4;
                 }
-                if (out_elempack == 1)
+                else // if (out_elempack == 1)
                 {
                     outptr[0] = vget_lane_f16(_sum0, 0);
                     outptr[M] = vget_lane_f16(_sum0, 1);
@@ -1611,6 +1644,12 @@ static void convolution_packed_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
     for (int pp = 0; pp < nn_outch; pp++)
     {
         const int p = remain_outch_start + pp * 2;
+
+        // shadowed variable for less openmp task args
+        const int elempack = bottom_blob.elempack;
+        const int inch = bottom_blob.c * elempack;
+        const int outw = top_blob.w;
+        const int outh = top_blob.h;
 
         __fp16* outptr0 = top_blob.channel(p);
         __fp16* outptr1 = top_blob.channel(p + 1);
@@ -1645,11 +1684,11 @@ static void convolution_packed_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
                         {
                             _r0 = vld1q_f16(r0 + sok);
                         }
-                        if (elempack == 4)
+                        else if (elempack == 4)
                         {
                             _r0 = vcombine_f16(vld1_f16(r0 + sok), vld1_f16(r0 + sok + N));
                         }
-                        if (elempack == 1)
+                        else // if (elempack == 1)
                         {
                             _r0 = float16x8_t();
                             _r0 = vsetq_lane_f16(r0[sok], _r0, 0);
@@ -1682,7 +1721,7 @@ static void convolution_packed_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
                         {
                             _r0 = vld1_f16(r0 + sok);
                         }
-                        if (elempack == 1)
+                        else // if (elempack == 1)
                         {
                             _r0 = float16x4_t();
                             _r0 = vset_lane_f16(r0[sok], _r0, 0);
@@ -1790,11 +1829,11 @@ static void convolution_packed_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
                         {
                             _r0 = vld1q_f16(r0 + sok);
                         }
-                        if (elempack == 4)
+                        else if (elempack == 4)
                         {
                             _r0 = vcombine_f16(vld1_f16(r0 + sok), vld1_f16(r0 + sok + N));
                         }
-                        if (elempack == 1)
+                        else // if (elempack == 1)
                         {
                             _r0 = float16x8_t();
                             _r0 = vsetq_lane_f16(r0[sok], _r0, 0);
@@ -1825,7 +1864,7 @@ static void convolution_packed_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
                         {
                             _r0 = vld1_f16(r0 + sok);
                         }
-                        if (elempack == 1)
+                        else // if (elempack == 1)
                         {
                             _r0 = float16x4_t();
                             _r0 = vset_lane_f16(r0[sok], _r0, 0);

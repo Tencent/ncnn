@@ -28,7 +28,19 @@
 namespace ncnn {
 
 // instance
+
+// Create VkInstance and initialize some objects that need to be calculated by GPU
+// Creates a VkInstance object, Checks the extended attributes supported by the Vulkan instance concerned,
+// Initializes, and creates Vulkan validation layers (if ENABLE_VALIDATION_LAYER is enabled),
+// Iterates over all supported physical devices, etc.
 NCNN_EXPORT int create_gpu_instance();
+
+// Get global VkInstance variable
+// Must be called after create_gpu_instance() and before destroy_gpu_instance()
+NCNN_EXPORT VkInstance get_gpu_instance();
+
+// Destroy VkInstance object and free the memory of the associated object
+// Usually called in the destructor of the main program exit
 NCNN_EXPORT void destroy_gpu_instance();
 
 // instance extension capability
@@ -37,6 +49,8 @@ extern int support_VK_KHR_get_physical_device_properties2;
 extern int support_VK_KHR_get_surface_capabilities2;
 extern int support_VK_KHR_surface;
 extern int support_VK_EXT_debug_utils;
+extern int support_VK_EXT_validation_features;
+extern int support_VK_EXT_validation_flags;
 #if __ANDROID_API__ >= 26
 extern int support_VK_KHR_android_surface;
 #endif // __ANDROID_API__ >= 26
@@ -167,6 +181,7 @@ public:
     int support_VK_KHR_8bit_storage() const;
     int support_VK_KHR_16bit_storage() const;
     int support_VK_KHR_bind_memory2() const;
+    int support_VK_KHR_buffer_device_address() const;
     int support_VK_KHR_create_renderpass2() const;
     int support_VK_KHR_dedicated_allocation() const;
     int support_VK_KHR_descriptor_update_template() const;
@@ -183,9 +198,12 @@ public:
     int support_VK_KHR_shader_float_controls() const;
     int support_VK_KHR_storage_buffer_storage_class() const;
     int support_VK_KHR_swapchain() const;
+    int support_VK_EXT_buffer_device_address() const;
     int support_VK_EXT_descriptor_indexing() const;
     int support_VK_EXT_memory_budget() const;
+    int support_VK_EXT_memory_priority() const;
     int support_VK_EXT_queue_family_foreign() const;
+    int support_VK_AMD_device_coherent_memory() const;
 #if __ANDROID_API__ >= 26
     int support_VK_ANDROID_external_memory_android_hardware_buffer() const;
 #endif // __ANDROID_API__ >= 26
@@ -269,6 +287,11 @@ public:
     PFN_vkBindBufferMemory2KHR vkBindBufferMemory2KHR;
     PFN_vkBindImageMemory2KHR vkBindImageMemory2KHR;
 
+    // VK_KHR_buffer_device_address
+    PFN_vkGetBufferDeviceAddressKHR vkGetBufferDeviceAddressKHR;
+    PFN_vkGetBufferOpaqueCaptureAddressKHR vkGetBufferOpaqueCaptureAddressKHR;
+    PFN_vkGetDeviceMemoryOpaqueCaptureAddressKHR vkGetDeviceMemoryOpaqueCaptureAddressKHR;
+
     // VK_KHR_create_renderpass2
     PFN_vkCmdBeginRenderPass2KHR vkCmdBeginRenderPass2KHR;
     PFN_vkCmdEndRenderPass2KHR vkCmdEndRenderPass2KHR;
@@ -305,6 +328,9 @@ public:
     PFN_vkGetSwapchainImagesKHR vkGetSwapchainImagesKHR;
     PFN_vkAcquireNextImageKHR vkAcquireNextImageKHR;
     PFN_vkQueuePresentKHR vkQueuePresentKHR;
+
+    // VK_EXT_buffer_device_address
+    PFN_vkGetBufferDeviceAddressEXT vkGetBufferDeviceAddressEXT;
 
 #if __ANDROID_API__ >= 26
     // VK_ANDROID_external_memory_android_hardware_buffer

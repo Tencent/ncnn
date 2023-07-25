@@ -96,12 +96,12 @@ void main()
 
     if (with_scalar == 1)
     {
-        // type 0 1 2 3
+        // scalar
         v2 = afp(const_b);
     }
     else if (psc(bdims) == 1 && psc(bw) == 1)
     {
-        // type 0 1 2 3
+        // scalar-like
 #if NCNN_image_shader
         v2 = image3d_ld1(b_blob_3d, ivec3(0, 0, 0));
 #else
@@ -110,7 +110,7 @@ void main()
     }
     else
     {
-        // type 4 5 6 7
+        // no broadcast
 #if NCNN_image_shader
         v2 = image3d_ld1(b_blob_3d, ivec3(gx, gy, gz));
 #else
