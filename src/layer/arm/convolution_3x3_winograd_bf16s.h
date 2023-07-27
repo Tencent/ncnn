@@ -1540,9 +1540,9 @@ static inline void conv3x3s1_winograd43_transform_input_tile_bf16s(const Mat& bo
                         float32x4_t _t1_fp32 = bfloat2float(_t01.val[1]);
 
                         _r0 = vget_low_f32(_t0_fp32);
-                        if (tj * 2 + 1 < w) _r1 = vget_high_f32(_t0_fp32);
-                        if (tj * 2 + 2 < w) _r2 = vget_low_f32(_t1_fp32);
-                        if (tj * 2 + 3 < w) _r3 = vget_high_f32(_t1_fp32);
+                        if (tj * 4 + 1 < w) _r1 = vget_high_f32(_t0_fp32);
+                        if (tj * 4 + 2 < w) _r2 = vget_low_f32(_t1_fp32);
+                        if (tj * 4 + 3 < w) _r3 = vget_high_f32(_t1_fp32);
                         if (tj * 4 + 4 < w)
                         {
                             float tmp[2] = {bfloat16_to_float32(r0[4]), bfloat16_to_float32(r1[4])};
@@ -3211,9 +3211,9 @@ static inline void conv3x3s1_winograd63_transform_input_tile_bf16s(const Mat& bo
                         float32x4_t _t1_fp32 = bfloat2float(_t01.val[1]);
 
                         _r0 = vget_low_f32(_t0_fp32);
-                        if (tj * 2 + 1 < w) _r1 = vget_high_f32(_t0_fp32);
-                        if (tj * 2 + 2 < w) _r2 = vget_low_f32(_t1_fp32);
-                        if (tj * 2 + 3 < w) _r3 = vget_high_f32(_t1_fp32);
+                        if (tj * 6 + 1 < w) _r1 = vget_high_f32(_t0_fp32);
+                        if (tj * 6 + 2 < w) _r2 = vget_low_f32(_t1_fp32);
+                        if (tj * 6 + 3 < w) _r3 = vget_high_f32(_t1_fp32);
                         if (tj * 6 + 4 < w)
                         {
                             _t0 = vld1_u16(r0 + 4);
