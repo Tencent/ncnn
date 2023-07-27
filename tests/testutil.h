@@ -1508,7 +1508,8 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
         {1, 0, 0, 0, 0, 0, 0},
         {1, 1, 0, 0, 1, 0, 0},
         {1, 0, 1, 0, 0, 1, 0},
-        {1, 1, 1, 1, 0, 1, 1},
+        {1, 1, 1, 1, 0, 0, 0},
+        {1, 1, 1, 1, 1, 1, 1},
     };
 
     const int opt_count = sizeof(options) / sizeof(options[0]);
@@ -1544,7 +1545,8 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
         {1, 0, 0, 0, 0, 0, 0},
         {1, 1, 0, 0, 1, 0, 0},
         {1, 0, 1, 0, 0, 1, 0},
-        {1, 1, 1, 1, 0, 1, 1},
+        {1, 1, 1, 1, 0, 0, 0},
+        {1, 1, 1, 1, 1, 1, 1},
     };
 
     const int opt_count = sizeof(options) / sizeof(options[0]);
