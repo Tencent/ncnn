@@ -1690,7 +1690,7 @@ int create_gpu_instance()
                 for (uint32_t j = 0; j < properties.size(); j++)
                 {
                     const VkCooperativeMatrixPropertiesKHR& cmp = properties[j];
-                    NCNN_LOGE("cpm %2d %2d %2d  %d %d %d %d  %d", cmp.MSize, cmp.NSize, cmp.KSize, cmp.AType, cmp.BType, cmp.CType, cmp.ResultType, cmp.scope);
+                    // NCNN_LOGE("cpm %2d %2d %2d  %d %d %d %d  %d", cmp.MSize, cmp.NSize, cmp.KSize, cmp.AType, cmp.BType, cmp.CType, cmp.ResultType, cmp.scope);
 
                     if (cmp.MSize == 16 && cmp.NSize == 8 && cmp.KSize == 8
                             && cmp.AType == VK_COMPONENT_TYPE_FLOAT16_KHR && cmp.BType == VK_COMPONENT_TYPE_FLOAT16_KHR
@@ -1739,7 +1739,7 @@ int create_gpu_instance()
                 for (uint32_t j = 0; j < properties.size(); j++)
                 {
                     const VkCooperativeMatrixPropertiesNV& cmp = properties[j];
-                    NCNN_LOGE("cpm %2d %2d %2d  %d %d %d %d  %d", cmp.MSize, cmp.NSize, cmp.KSize, cmp.AType, cmp.BType, cmp.CType, cmp.DType, cmp.scope);
+                    // NCNN_LOGE("cpm %2d %2d %2d  %d %d %d %d  %d", cmp.MSize, cmp.NSize, cmp.KSize, cmp.AType, cmp.BType, cmp.CType, cmp.DType, cmp.scope);
 
                     if (cmp.MSize == 16 && cmp.NSize == 8 && cmp.KSize == 8
                             && cmp.AType == VK_COMPONENT_TYPE_FLOAT16_NV && cmp.BType == VK_COMPONENT_TYPE_FLOAT16_NV
@@ -1778,9 +1778,13 @@ int create_gpu_instance()
                   gpu_info.support_fp16_packed, gpu_info.support_fp16_storage, gpu_info.support_fp16_arithmetic,
                   gpu_info.support_int8_packed, gpu_info.support_int8_storage, gpu_info.support_int8_arithmetic);
 
-        NCNN_LOGE("[%u %s]  subgroup=%u  basic=%d  vote=%d  ballot=%d  shuffle=%d", i, physicalDeviceProperties.deviceName,
+        NCNN_LOGE("[%u %s]  subgroup=%u  basic/vote/ballot/shuffle=%d/%d/%d/%d", i, physicalDeviceProperties.deviceName,
                   gpu_info.subgroup_size, gpu_info.support_subgroup_basic, gpu_info.support_subgroup_vote,
                   gpu_info.support_subgroup_ballot, gpu_info.support_subgroup_shuffle);
+
+        NCNN_LOGE("[%u %s]  fp16-matrix-16_8_8/16_8_16/16_16_16=%d/%d/%d", i, physicalDeviceProperties.deviceName,
+                  gpu_info.support_cooperative_matrix_16_8_8, gpu_info.support_cooperative_matrix_16_8_16,
+                  gpu_info.support_cooperative_matrix_16_16_16);
 
         gpu_info_index++;
     }
