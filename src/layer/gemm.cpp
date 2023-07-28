@@ -61,7 +61,6 @@ int Gemm::load_param(const ParamDict& pd)
         return -1;
     }
 
-
     if (constantA == 0 && constantB == 1 && constantC == 1)
         one_blob_only = true;
 
