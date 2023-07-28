@@ -3785,7 +3785,7 @@ static void get_optimal_tile_mnk(int M, int N, int K, int constant_TILE_M, int c
 
 static int gemm_arm(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int broadcast_type_C, int transA, int transB, int output_transpose, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, const Option& opt)
 {
-    const int M = transA ? A.w * (A.dims == 1 ? A.elempack : 1): (A.dims == 3 ? A.c : A.h) * (A.dims == 1 ? 1 : A.elempack);
+    const int M = transA ? A.w * (A.dims == 1 ? A.elempack : 1) : (A.dims == 3 ? A.c : A.h) * (A.dims == 1 ? 1 : A.elempack);
     const int K = transA ? (A.dims == 3 ? A.c : A.h) * (A.dims == 1 ? 1 : A.elempack) : A.w * (A.dims == 1 ? A.elempack : 1);
     const int N = transB ? (B.dims == 3 ? B.c : B.h) * (B.dims == 1 ? 1 : B.elempack) : B.w * (B.dims == 1 ? B.elempack : 1);
 
@@ -3840,7 +3840,7 @@ static int gemm_arm(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
         const int i = ppi * TILE_M;
 
         // shadowed variable for less openmp task args
-        const int M = transA ? A.w * (A.dims == 1 ? A.elempack : 1): (A.dims == 3 ? A.c : A.h) * (A.dims == 1 ? 1 : A.elempack);
+        const int M = transA ? A.w * (A.dims == 1 ? A.elempack : 1) : (A.dims == 3 ? A.c : A.h) * (A.dims == 1 ? 1 : A.elempack);
         const int K = transA ? (A.dims == 3 ? A.c : A.h) * (A.dims == 1 ? 1 : A.elempack) : A.w * (A.dims == 1 ? A.elempack : 1);
 
         const int max_ii = std::min((M - i), TILE_M);
@@ -3994,7 +3994,7 @@ static int gemm_AT_arm(const Mat& AT, const Mat& B, const Mat& C, Mat& top_blob,
 
 static int gemm_BT_arm(const Mat& A, const Mat& BT, const Mat& C, Mat& top_blob, int broadcast_type_C, int N, int K, int transA, int output_transpose, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, const Option& opt)
 {
-    const int M = transA ? A.w * (A.dims == 1 ? A.elempack : 1): (A.dims == 3 ? A.c : A.h) * (A.dims == 1 ? 1 : A.elempack);
+    const int M = transA ? A.w * (A.dims == 1 ? A.elempack : 1) : (A.dims == 3 ? A.c : A.h) * (A.dims == 1 ? 1 : A.elempack);
 
     // NCNN_LOGE("M/N/K = %d %d %d", M, N, K);
 
@@ -4018,7 +4018,7 @@ static int gemm_BT_arm(const Mat& A, const Mat& BT, const Mat& C, Mat& top_blob,
         const int i = ppi * TILE_M;
 
         // shadowed variable for less openmp task args
-        const int M = transA ? A.w * (A.dims == 1 ? A.elempack : 1): (A.dims == 3 ? A.c : A.h) * (A.dims == 1 ? 1 : A.elempack);
+        const int M = transA ? A.w * (A.dims == 1 ? A.elempack : 1) : (A.dims == 3 ? A.c : A.h) * (A.dims == 1 ? 1 : A.elempack);
         const int K = transA ? (A.dims == 3 ? A.c : A.h) * (A.dims == 1 ? 1 : A.elempack) : A.w * (A.dims == 1 ? A.elempack : 1);
 
         const int max_ii = std::min((M - i), TILE_M);
@@ -4334,14 +4334,14 @@ int Gemm_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     else if (constantB)
     {
         const Mat& A = bottom_blobs[0];
-        M = transA ? A.w * (A.dims == 1 ? A.elempack : 1): (A.dims == 3 ? A.c : A.h) * (A.dims == 1 ? 1 : A.elempack);
+        M = transA ? A.w * (A.dims == 1 ? A.elempack : 1) : (A.dims == 3 ? A.c : A.h) * (A.dims == 1 ? 1 : A.elempack);
         N = constantN;
     }
     else
     {
         const Mat& A = bottom_blobs[0];
         const Mat& B = bottom_blobs[1];
-        M = transA ? A.w * (A.dims == 1 ? A.elempack : 1): (A.dims == 3 ? A.c : A.h) * (A.dims == 1 ? 1 : A.elempack);
+        M = transA ? A.w * (A.dims == 1 ? A.elempack : 1) : (A.dims == 3 ? A.c : A.h) * (A.dims == 1 ? 1 : A.elempack);
         N = transB ? (B.dims == 3 ? B.c : B.h) * (B.dims == 1 ? 1 : B.elempack) : B.w * (B.dims == 1 ? B.elempack : 1);
     }
 
@@ -4502,7 +4502,7 @@ int Gemm_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 #if NCNN_BF16
 static int gemm_arm_bf16s(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int broadcast_type_C, int transA, int transB, int output_transpose, float alpha, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, const Option& opt)
 {
-    const int M = transA ? A.w * (A.dims == 1 ? A.elempack : 1): (A.dims == 3 ? A.c : A.h) * (A.dims == 1 ? 1 : A.elempack);
+    const int M = transA ? A.w * (A.dims == 1 ? A.elempack : 1) : (A.dims == 3 ? A.c : A.h) * (A.dims == 1 ? 1 : A.elempack);
     const int K = transA ? (A.dims == 3 ? A.c : A.h) * (A.dims == 1 ? 1 : A.elempack) : A.w * (A.dims == 1 ? A.elempack : 1);
     const int N = transB ? (B.dims == 3 ? B.c : B.h) * (B.dims == 1 ? 1 : B.elempack) : B.w * (B.dims == 1 ? B.elempack : 1);
 
@@ -4557,7 +4557,7 @@ static int gemm_arm_bf16s(const Mat& A, const Mat& B, const Mat& C, Mat& top_blo
         const int i = ppi * TILE_M;
 
         // shadowed variable for less openmp task args
-        const int M = transA ? A.w * (A.dims == 1 ? A.elempack : 1): (A.dims == 3 ? A.c : A.h) * (A.dims == 1 ? 1 : A.elempack);
+        const int M = transA ? A.w * (A.dims == 1 ? A.elempack : 1) : (A.dims == 3 ? A.c : A.h) * (A.dims == 1 ? 1 : A.elempack);
         const int K = transA ? (A.dims == 3 ? A.c : A.h) * (A.dims == 1 ? 1 : A.elempack) : A.w * (A.dims == 1 ? A.elempack : 1);
 
         const int max_ii = std::min((M - i), TILE_M);
@@ -4713,7 +4713,7 @@ static int gemm_AT_arm_bf16s(const Mat& AT, const Mat& B, const Mat& C, Mat& top
 
 static int gemm_BT_arm_bf16s(const Mat& A, const Mat& BT, const Mat& C, Mat& top_blob, int broadcast_type_C, int N, int K, int transA, int output_transpose, float alpha, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, const Option& opt)
 {
-    const int M = transA ? A.w * (A.dims == 1 ? A.elempack : 1): (A.dims == 3 ? A.c : A.h) * (A.dims == 1 ? 1 : A.elempack);
+    const int M = transA ? A.w * (A.dims == 1 ? A.elempack : 1) : (A.dims == 3 ? A.c : A.h) * (A.dims == 1 ? 1 : A.elempack);
 
     // NCNN_LOGE("M/N/K = %d %d %d", M, N, K);
 
@@ -4737,7 +4737,7 @@ static int gemm_BT_arm_bf16s(const Mat& A, const Mat& BT, const Mat& C, Mat& top
         const int i = ppi * TILE_M;
 
         // shadowed variable for less openmp task args
-        const int M = transA ? A.w * (A.dims == 1 ? A.elempack : 1): (A.dims == 3 ? A.c : A.h) * (A.dims == 1 ? 1 : A.elempack);
+        const int M = transA ? A.w * (A.dims == 1 ? A.elempack : 1) : (A.dims == 3 ? A.c : A.h) * (A.dims == 1 ? 1 : A.elempack);
         const int K = transA ? (A.dims == 3 ? A.c : A.h) * (A.dims == 1 ? 1 : A.elempack) : A.w * (A.dims == 1 ? A.elempack : 1);
 
         const int max_ii = std::min((M - i), TILE_M);
@@ -5006,14 +5006,14 @@ int Gemm_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<Ma
     else if (constantB)
     {
         const Mat& A = bottom_blobs[0];
-        M = transA ? A.w * (A.dims == 1 ? A.elempack : 1): (A.dims == 3 ? A.c : A.h) * (A.dims == 1 ? 1 : A.elempack);
+        M = transA ? A.w * (A.dims == 1 ? A.elempack : 1) : (A.dims == 3 ? A.c : A.h) * (A.dims == 1 ? 1 : A.elempack);
         N = constantN;
     }
     else
     {
         const Mat& A = bottom_blobs[0];
         const Mat& B = bottom_blobs[1];
-        M = transA ? A.w * (A.dims == 1 ? A.elempack : 1): (A.dims == 3 ? A.c : A.h) * (A.dims == 1 ? 1 : A.elempack);
+        M = transA ? A.w * (A.dims == 1 ? A.elempack : 1) : (A.dims == 3 ? A.c : A.h) * (A.dims == 1 ? 1 : A.elempack);
         N = transB ? (B.dims == 3 ? B.c : B.h) * (B.dims == 1 ? 1 : B.elempack) : B.w * (B.dims == 1 ? B.elempack : 1);
     }
 

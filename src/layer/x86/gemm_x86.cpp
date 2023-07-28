@@ -6897,7 +6897,7 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
     {
         const int i = ppi * TILE_M;
 
-        // shadowed variable for less openmp task args   
+        // shadowed variable for less openmp task args
         const int M = transA ? A.w * (A.dims == 1 ? A.elempack : 1) : (A.dims == 3 ? A.c : A.h) * (A.dims == 1 ? 1 : A.elempack);
         const int K = transA ? (A.dims == 3 ? A.c : A.h) * (A.dims == 1 ? 1 : A.elempack) : A.w * (A.dims == 1 ? A.elempack : 1);
 
@@ -7353,7 +7353,7 @@ int Gemm_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     else if (constantB)
     {
         const Mat& A = bottom_blobs[0];
-        M = transA ? A.w * (A.dims == 1 ? A.elempack : 1): (A.dims == 3 ? A.c : A.h) * (A.dims == 1 ? 1 : A.elempack);
+        M = transA ? A.w * (A.dims == 1 ? A.elempack : 1) : (A.dims == 3 ? A.c : A.h) * (A.dims == 1 ? 1 : A.elempack);
         N = constantN;
     }
     else
