@@ -2380,71 +2380,70 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
 #if __SSE2__
         for (; jj + 7 < max_jj; jj += 8)
         {
-            int sum0;
-            int sum1;
-            int sum2;
-            int sum3;
-            int sum4;
-            int sum5;
-            int sum6;
-            int sum7;
+            __m128i _sum0;
+            __m128i _sum1;
 
             if (k == 0)
             {
-                sum0 = 0;
-                sum1 = 0;
-                sum2 = 0;
-                sum3 = 0;
-                sum4 = 0;
-                sum5 = 0;
-                sum6 = 0;
-                sum7 = 0;
+                _sum0 = _mm_setzero_si128();
+                _sum1 = _mm_setzero_si128();
             }
             else
             {
-                sum0 = outptr[0];
-                sum1 = outptr[1];
-                sum2 = outptr[2];
-                sum3 = outptr[3];
-                sum4 = outptr[4];
-                sum5 = outptr[5];
-                sum6 = outptr[6];
-                sum7 = outptr[7];
+                _sum0 = _mm_load_si128((const __m128i*)outptr);
+                _sum1 = _mm_load_si128((const __m128i*)(outptr + 4));
             }
 
             const signed char* pA = pAT;
             int kk = 0;
             for (; kk + 1 < max_kk; kk += 2)
             {
-                sum0 += pA[0] * pB[0];
-                sum0 += pA[1] * pB[1];
-                sum1 += pA[0] * pB[2];
-                sum1 += pA[1] * pB[3];
-                sum2 += pA[0] * pB[4];
-                sum2 += pA[1] * pB[5];
-                sum3 += pA[0] * pB[6];
-                sum3 += pA[1] * pB[7];
-                sum4 += pA[0] * pB[8];
-                sum4 += pA[1] * pB[9];
-                sum5 += pA[0] * pB[10];
-                sum5 += pA[1] * pB[11];
-                sum6 += pA[0] * pB[12];
-                sum6 += pA[1] * pB[13];
-                sum7 += pA[0] * pB[14];
-                sum7 += pA[1] * pB[15];
+                __m128i _pA = _mm_castps_si128(_mm_load1_ps((const float*)pA));
+                __m128i _pB = _mm_loadu_si128((const __m128i*)pB);
+
+#if __SSE4_1__
+                _pA = _mm_cvtepi8_epi16(_pA);
+#else
+                _pA = _mm_unpacklo_epi8(_pA, _mm_cmpgt_epi8(_mm_setzero_si128(), _pA));
+#endif
+
+                __m128i _extpB = _mm_cmpgt_epi8(_mm_setzero_si128(), _pB);
+                __m128i _pB0 = _mm_unpacklo_epi8(_pB, _extpB);
+                __m128i _pB1 = _mm_unpackhi_epi8(_pB, _extpB);
+
+                // 0xxx -> 0000
+                __m128i _pA0 = _mm_shuffle_epi32(_pA, _MM_SHUFFLE(0, 0, 0, 0));
+
+#if __XOP__
+                _sum0 = _mm_maddd_epi16(_pA0, _pB0, _sum0);
+                _sum1 = _mm_maddd_epi16(_pA0, _pB1, _sum1);
+#else
+                _sum0 = _mm_add_epi32(_sum0, _mm_madd_epi16(_pA0, _pB0));
+                _sum1 = _mm_add_epi32(_sum1, _mm_madd_epi16(_pA0, _pB1));
+#endif
+
                 pA += 2;
                 pB += 16;
             }
             for (; kk < max_kk; kk += 1)
             {
-                sum0 += pA[0] * pB[0];
-                sum1 += pA[0] * pB[1];
-                sum2 += pA[0] * pB[2];
-                sum3 += pA[0] * pB[3];
-                sum4 += pA[0] * pB[4];
-                sum5 += pA[0] * pB[5];
-                sum6 += pA[0] * pB[6];
-                sum7 += pA[0] * pB[7];
+                __m128i _pA = _mm_set1_epi16(pA[0]);
+                __m128i _pB = _mm_loadl_epi64((const __m128i*)pB);
+
+#if __SSE4_1__
+                _pB = _mm_cvtepi8_epi16(_pB);
+#else
+                _pB = _mm_unpacklo_epi8(_pB, _mm_cmpgt_epi8(_mm_setzero_si128(), _pB));
+#endif
+
+                __m128i _sl = _mm_mullo_epi16(_pA, _pB);
+                __m128i _sh = _mm_mulhi_epi16(_pA, _pB);
+                __m128i _s0 = _mm_unpacklo_epi16(_sl, _sh);
+                __m128i _s1 = _mm_unpackhi_epi16(_sl, _sh);
+
+                _sum0 = _mm_add_epi32(_sum0, _s0);
+                _sum1 = _mm_add_epi32(_sum1, _s1);
+
                 pA += 1;
                 pB += 8;
             }
@@ -2453,74 +2452,76 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
             {
                 // if (out_elempack == 1)
                 {
-                    outptr0[0] = sum0;
-                    outptr0[1] = sum1;
-                    outptr0[2] = sum2;
-                    outptr0[3] = sum3;
-                    outptr0[4] = sum4;
-                    outptr0[5] = sum5;
-                    outptr0[6] = sum6;
-                    outptr0[7] = sum7;
+                    _mm_store_si128((__m128i*)outptr0, _sum0);
+                    _mm_store_si128((__m128i*)(outptr0 + 4), _sum1);
                     outptr0 += 8;
                 }
             }
             else
             {
-                outptr[0] = sum0;
-                outptr[1] = sum1;
-                outptr[2] = sum2;
-                outptr[3] = sum3;
-                outptr[4] = sum4;
-                outptr[5] = sum5;
-                outptr[6] = sum6;
-                outptr[7] = sum7;
+                _mm_store_si128((__m128i*)outptr, _sum0);
+                _mm_store_si128((__m128i*)(outptr + 4), _sum1);
             }
 
             outptr += 8;
         }
         for (; jj + 3 < max_jj; jj += 4)
         {
-            int sum0;
-            int sum1;
-            int sum2;
-            int sum3;
+            __m128i _sum0;
 
             if (k == 0)
             {
-                sum0 = 0;
-                sum1 = 0;
-                sum2 = 0;
-                sum3 = 0;
+                _sum0 = _mm_setzero_si128();
             }
             else
             {
-                sum0 = outptr[0];
-                sum1 = outptr[1];
-                sum2 = outptr[2];
-                sum3 = outptr[3];
+                _sum0 = _mm_load_si128((const __m128i*)outptr);
             }
 
             const signed char* pA = pAT;
             int kk = 0;
             for (; kk + 1 < max_kk; kk += 2)
             {
-                sum0 += pA[0] * pB[0];
-                sum0 += pA[1] * pB[1];
-                sum1 += pA[0] * pB[2];
-                sum1 += pA[1] * pB[3];
-                sum2 += pA[0] * pB[4];
-                sum2 += pA[1] * pB[5];
-                sum3 += pA[0] * pB[6];
-                sum3 += pA[1] * pB[7];
+                __m128i _pA = _mm_castps_si128(_mm_load1_ps((const float*)pA));
+                __m128i _pB = _mm_loadl_epi64((const __m128i*)pB);
+
+#if __SSE4_1__
+                _pA = _mm_cvtepi8_epi16(_pA);
+                _pB = _mm_cvtepi8_epi16(_pB);
+#else
+                _pA = _mm_unpacklo_epi8(_pA, _mm_cmpgt_epi8(_mm_setzero_si128(), _pA));
+                _pB = _mm_unpacklo_epi8(_pB, _mm_cmpgt_epi8(_mm_setzero_si128(), _pB));
+#endif
+
+                // 0xxx -> 0000
+                __m128i _pA0 = _mm_shuffle_epi32(_pA, _MM_SHUFFLE(0, 0, 0, 0));
+
+#if __XOP__
+                _sum0 = _mm_maddd_epi16(_pA0, _pB, _sum0);
+#else
+                _sum0 = _mm_add_epi32(_sum0, _mm_madd_epi16(_pA0, _pB));
+#endif
+
                 pA += 2;
                 pB += 8;
             }
             for (; kk < max_kk; kk += 1)
             {
-                sum0 += pA[0] * pB[0];
-                sum1 += pA[0] * pB[1];
-                sum2 += pA[0] * pB[2];
-                sum3 += pA[0] * pB[3];
+                __m128i _pA = _mm_set1_epi16(pA[0]);
+                __m128i _pB = _mm_loadl_epi64((const __m128i*)pB);
+
+#if __SSE4_1__
+                _pB = _mm_cvtepi8_epi16(_pB);
+#else
+                _pB = _mm_unpacklo_epi8(_pB, _mm_cmpgt_epi8(_mm_setzero_si128(), _pB));
+#endif
+
+                __m128i _sl = _mm_mullo_epi16(_pA, _pB);
+                __m128i _sh = _mm_mulhi_epi16(_pA, _pB);
+                __m128i _s0 = _mm_unpacklo_epi16(_sl, _sh);
+
+                _sum0 = _mm_add_epi32(_sum0, _s0);
+
                 pA += 1;
                 pB += 4;
             }
@@ -2529,19 +2530,13 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
             {
                 // if (out_elempack == 1)
                 {
-                    outptr0[0] = sum0;
-                    outptr0[1] = sum1;
-                    outptr0[2] = sum2;
-                    outptr0[3] = sum3;
+                    _mm_store_si128((__m128i*)outptr0, _sum0);
                     outptr0 += 4;
                 }
             }
             else
             {
-                outptr[0] = sum0;
-                outptr[1] = sum1;
-                outptr[2] = sum2;
-                outptr[3] = sum3;
+                _mm_store_si128((__m128i*)outptr, _sum0);
             }
 
             outptr += 4;
