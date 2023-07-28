@@ -51,7 +51,6 @@ void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
     const int A_hstep = A.dims == 3 ? (int)A.cstep : A.w;
 
     float* pp = AT;
-
     int ii = 0;
 #if __ARM_NEON
 #if __aarch64__
