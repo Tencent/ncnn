@@ -42,6 +42,7 @@ static void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max
 
     float* pp = AT;
 
+
     int ii = 0;
 #if __SSE2__
 #if __AVX__
