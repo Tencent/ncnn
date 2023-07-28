@@ -71,6 +71,7 @@ int Gemm::load_param(const ParamDict& pd)
         one_blob_only = true;
 
 
+
     return 0;
 }
 
