@@ -73,6 +73,7 @@ int Gemm::load_param(const ParamDict& pd)
     return 0;
 }
 
+
 int Gemm::load_model(const ModelBin& mb)
 {
     if (constantA == 1)
