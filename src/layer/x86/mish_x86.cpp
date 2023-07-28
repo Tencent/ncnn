@@ -115,6 +115,7 @@ int Mish_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             _mm_storeu_ps(ptr, _p);
             ptr += 4;
         }
+        
 #endif // __SSE2__
         for (; i < size; i++)
         {
