@@ -322,6 +322,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
         const signed char* pB = pBT;
 
         int jj = 0;
+#if defined(__x86_64__) || defined(_M_X64)
         for (; jj + 7 < max_jj; jj += 8)
         {
             const signed char* pA = pAT;
@@ -549,6 +550,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
 
             outptr += 128;
         }
+#endif // defined(__x86_64__) || defined(_M_X64)
         for (; jj + 3 < max_jj; jj += 4)
         {
             const signed char* pA = pAT;
@@ -955,6 +957,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
         const signed char* pB = pBT;
 
         int jj = 0;
+#if defined(__x86_64__) || defined(_M_X64)
         for (; jj + 7 < max_jj; jj += 8)
         {
             const signed char* pA = pAT;
@@ -1135,6 +1138,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
 
             outptr += 64;
         }
+#endif // defined(__x86_64__) || defined(_M_X64)
         for (; jj + 3 < max_jj; jj += 4)
         {
             const signed char* pA = pAT;
@@ -1469,6 +1473,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
         const signed char* pB = pBT;
 
         int jj = 0;
+#if defined(__x86_64__) || defined(_M_X64)
         for (; jj + 7 < max_jj; jj += 8)
         {
             const signed char* pA = pAT;
@@ -1649,6 +1654,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
 
             outptr += 32;
         }
+#endif // defined(__x86_64__) || defined(_M_X64)
         for (; jj + 3 < max_jj; jj += 4)
         {
             const signed char* pA = pAT;
@@ -1979,6 +1985,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
 
         int jj = 0;
 #if __SSE2__
+#if defined(__x86_64__) || defined(_M_X64)
         for (; jj + 7 < max_jj; jj += 8)
         {
             __m128i _sum0;
@@ -2101,6 +2108,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
 
             outptr += 16;
         }
+#endif // defined(__x86_64__) || defined(_M_X64)
         for (; jj + 3 < max_jj; jj += 4)
         {
             __m128i _sum0;
@@ -2328,6 +2336,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
 
         int jj = 0;
 #if __SSE2__
+#if defined(__x86_64__) || defined(_M_X64)
         for (; jj + 7 < max_jj; jj += 8)
         {
             __m128i _sum0;
@@ -2415,6 +2424,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
 
             outptr += 8;
         }
+#endif // defined(__x86_64__) || defined(_M_X64)
         for (; jj + 3 < max_jj; jj += 4)
         {
             __m128i _sum0;
@@ -2723,6 +2733,7 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
 
     int jj = 0;
 #if __SSE2__
+#if defined(__x86_64__) || defined(_M_X64)
     for (; jj + 7 < max_jj; jj += 8)
     {
         if (elempack == 8)
@@ -2784,6 +2795,7 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
             }
         }
     }
+#endif // defined(__x86_64__) || defined(_M_X64)
     for (; jj + 3 < max_jj; jj += 4)
     {
         if (elempack == 8)
@@ -2954,6 +2966,7 @@ static void convolution_im2col_input_tile_int8(const Mat& bottom_blob, Mat& B, i
 
     int jj = 0;
 #if __SSE2__
+#if defined(__x86_64__) || defined(_M_X64)
     for (; jj + 7 < max_jj; jj += 8)
     {
         int dy0 = (j + jj) / outw;
@@ -3182,6 +3195,7 @@ static void convolution_im2col_input_tile_int8(const Mat& bottom_blob, Mat& B, i
             }
         }
     }
+#endif // defined(__x86_64__) || defined(_M_X64)
     for (; jj + 3 < max_jj; jj += 4)
     {
         int dy0 = (j + jj) / outw;
