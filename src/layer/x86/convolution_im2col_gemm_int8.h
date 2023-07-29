@@ -2862,22 +2862,10 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
             int kk = 0;
             for (; kk < max_kk / 8; kk++)
             {
-                pp[0] = p0[0];
-                pp[1] = p0[1];
-                pp[2] = p0[8];
-                pp[3] = p0[9];
-                pp[4] = p0[2];
-                pp[5] = p0[3];
-                pp[6] = p0[10];
-                pp[7] = p0[11];
-                pp[8] = p0[4];
-                pp[9] = p0[5];
-                pp[10] = p0[12];
-                pp[11] = p0[13];
-                pp[12] = p0[6];
-                pp[13] = p0[7];
-                pp[14] = p0[14];
-                pp[15] = p0[15];
+                __m128i _r0 = _mm_loadl_epi64((const __m128i*)p0);
+                __m128i _r1 = _mm_loadl_epi64((const __m128i*)(p0 + 8));
+                __m128i _r01 = _mm_unpacklo_epi16(_r0, _r1);
+                _mm_storeu_si128((__m128i*)pp, _r01);
                 pp += 16;
                 p0 += bottom_blob.cstep * 8;
             }
@@ -3111,74 +3099,30 @@ static void convolution_im2col_input_tile_int8(const Mat& bottom_blob, Mat& B, i
 
             if (elempack == 8)
             {
-                pp[0] = sptr0[0];
-                pp[1] = sptr0[1];
-                pp[2] = sptr1[0];
-                pp[3] = sptr1[1];
-                pp[4] = sptr2[0];
-                pp[5] = sptr2[1];
-                pp[6] = sptr3[0];
-                pp[7] = sptr3[1];
-                pp[8] = sptr4[0];
-                pp[9] = sptr4[1];
-                pp[10] = sptr5[0];
-                pp[11] = sptr5[1];
-                pp[12] = sptr6[0];
-                pp[13] = sptr6[1];
-                pp[14] = sptr7[0];
-                pp[15] = sptr7[1];
-
-                pp[16 + 0] = sptr0[2];
-                pp[16 + 1] = sptr0[3];
-                pp[16 + 2] = sptr1[2];
-                pp[16 + 3] = sptr1[3];
-                pp[16 + 4] = sptr2[2];
-                pp[16 + 5] = sptr2[3];
-                pp[16 + 6] = sptr3[2];
-                pp[16 + 7] = sptr3[3];
-                pp[16 + 8] = sptr4[2];
-                pp[16 + 9] = sptr4[3];
-                pp[16 + 10] = sptr5[2];
-                pp[16 + 11] = sptr5[3];
-                pp[16 + 12] = sptr6[2];
-                pp[16 + 13] = sptr6[3];
-                pp[16 + 14] = sptr7[2];
-                pp[16 + 15] = sptr7[3];
-
-                pp[32 + 0] = sptr0[4];
-                pp[32 + 1] = sptr0[5];
-                pp[32 + 2] = sptr1[4];
-                pp[32 + 3] = sptr1[5];
-                pp[32 + 4] = sptr2[4];
-                pp[32 + 5] = sptr2[5];
-                pp[32 + 6] = sptr3[4];
-                pp[32 + 7] = sptr3[5];
-                pp[32 + 8] = sptr4[4];
-                pp[32 + 9] = sptr4[5];
-                pp[32 + 10] = sptr5[4];
-                pp[32 + 11] = sptr5[5];
-                pp[32 + 12] = sptr6[4];
-                pp[32 + 13] = sptr6[5];
-                pp[32 + 14] = sptr7[4];
-                pp[32 + 15] = sptr7[5];
-
-                pp[48 + 0] = sptr0[6];
-                pp[48 + 1] = sptr0[7];
-                pp[48 + 2] = sptr1[6];
-                pp[48 + 3] = sptr1[7];
-                pp[48 + 4] = sptr2[6];
-                pp[48 + 5] = sptr2[7];
-                pp[48 + 6] = sptr3[6];
-                pp[48 + 7] = sptr3[7];
-                pp[48 + 8] = sptr4[6];
-                pp[48 + 9] = sptr4[7];
-                pp[48 + 10] = sptr5[6];
-                pp[48 + 11] = sptr5[7];
-                pp[48 + 12] = sptr6[6];
-                pp[48 + 13] = sptr6[7];
-                pp[48 + 14] = sptr7[6];
-                pp[48 + 15] = sptr7[7];
-
+                __m128i _r0 = _mm_loadl_epi64((const __m128i*)sptr0);
+                __m128i _r1 = _mm_loadl_epi64((const __m128i*)sptr1);
+                __m128i _r2 = _mm_loadl_epi64((const __m128i*)sptr2);
+                __m128i _r3 = _mm_loadl_epi64((const __m128i*)sptr3);
+                __m128i _r4 = _mm_loadl_epi64((const __m128i*)sptr4);
+                __m128i _r5 = _mm_loadl_epi64((const __m128i*)sptr5);
+                __m128i _r6 = _mm_loadl_epi64((const __m128i*)sptr6);
+                __m128i _r7 = _mm_loadl_epi64((const __m128i*)sptr7);
+                __m128i _r01 = _mm_unpacklo_epi16(_r0, _r1);
+                __m128i _r23 = _mm_unpacklo_epi16(_r2, _r3);
+                __m128i _r45 = _mm_unpacklo_epi16(_r4, _r5);
+                __m128i _r67 = _mm_unpacklo_epi16(_r6, _r7);
+                _r0 = _mm_unpacklo_epi32(_r01, _r23);
+                _r1 = _mm_unpackhi_epi32(_r01, _r23);
+                _r2 = _mm_unpacklo_epi32(_r45, _r67);
+                _r3 = _mm_unpackhi_epi32(_r45, _r67);
+                _r4 = _mm_unpacklo_epi64(_r0, _r2);
+                _r5 = _mm_unpackhi_epi64(_r0, _r2);
+                _r6 = _mm_unpacklo_epi64(_r1, _r3);
+                _r7 = _mm_unpackhi_epi64(_r1, _r3);
+                _mm_storeu_si128((__m128i*)pp, _r4);
+                _mm_storeu_si128((__m128i*)(pp + 16), _r5);
+                _mm_storeu_si128((__m128i*)(pp + 32), _r6);
+                _mm_storeu_si128((__m128i*)(pp + 48), _r7);
                 pp += 64;
             }
             if (elempack == 1)
@@ -3288,52 +3232,16 @@ static void convolution_im2col_input_tile_int8(const Mat& bottom_blob, Mat& B, i
 
             if (elempack == 8)
             {
-                pp[0] = sptr0[0];
-                pp[1] = sptr0[1];
-                pp[2] = sptr1[0];
-                pp[3] = sptr1[1];
-                pp[4] = sptr2[0];
-                pp[5] = sptr2[1];
-                pp[6] = sptr3[0];
-                pp[7] = sptr3[1];
-
-                pp[8 + 0] = sptr0[2];
-                pp[8 + 1] = sptr0[3];
-                pp[8 + 2] = sptr1[2];
-                pp[8 + 3] = sptr1[3];
-                pp[8 + 4] = sptr2[2];
-                pp[8 + 5] = sptr2[3];
-                pp[8 + 6] = sptr3[2];
-                pp[8 + 7] = sptr3[3];
-
-                pp[16 + 0] = sptr0[4];
-                pp[16 + 1] = sptr0[5];
-                pp[16 + 2] = sptr1[4];
-                pp[16 + 3] = sptr1[5];
-                pp[16 + 4] = sptr2[4];
-                pp[16 + 5] = sptr2[5];
-                pp[16 + 6] = sptr3[4];
-                pp[16 + 7] = sptr3[5];
-
-                pp[24 + 0] = sptr0[6];
-                pp[24 + 1] = sptr0[7];
-                pp[24 + 2] = sptr1[6];
-                pp[24 + 3] = sptr1[7];
-                pp[24 + 4] = sptr2[6];
-                pp[24 + 5] = sptr2[7];
-                pp[24 + 6] = sptr3[6];
-                pp[24 + 7] = sptr3[7];
-
-                // __m128i _r0 = _mm_loadl_epi64((const __m128i*)sptr0);
-                // __m128i _r1 = _mm_loadl_epi64((const __m128i*)sptr1);
-                // __m128i _r2 = _mm_loadl_epi64((const __m128i*)sptr2);
-                // __m128i _r3 = _mm_loadl_epi64((const __m128i*)sptr3);
-                // __m128i _r01 = _mm_unpacklo_epi8(_r0, _r1);
-                // __m128i _r23 = _mm_unpacklo_epi8(_r2, _r3);
-                // _r0 = _mm_unpacklo_epi16(_r01, _r23);
-                // _r1 = _mm_unpackhi_epi16(_r01, _r23);
-                // _mm_storeu_si128((__m128i*)pp, _r0);
-                // _mm_storeu_si128((__m128i*)(pp + 16), _r1);
+                __m128i _r0 = _mm_loadl_epi64((const __m128i*)sptr0);
+                __m128i _r1 = _mm_loadl_epi64((const __m128i*)sptr1);
+                __m128i _r2 = _mm_loadl_epi64((const __m128i*)sptr2);
+                __m128i _r3 = _mm_loadl_epi64((const __m128i*)sptr3);
+                __m128i _r01 = _mm_unpacklo_epi16(_r0, _r1);
+                __m128i _r23 = _mm_unpacklo_epi16(_r2, _r3);
+                _r0 = _mm_unpacklo_epi32(_r01, _r23);
+                _r1 = _mm_unpackhi_epi32(_r01, _r23);
+                _mm_storeu_si128((__m128i*)pp, _r0);
+                _mm_storeu_si128((__m128i*)(pp + 16), _r1);
                 pp += 32;
             }
             if (elempack == 1)
@@ -3412,26 +3320,10 @@ static void convolution_im2col_input_tile_int8(const Mat& bottom_blob, Mat& B, i
 #if __SSE2__
             if (elempack == 8)
             {
-                pp[0] = sptr0[0];
-                pp[1] = sptr0[1];
-                pp[2] = sptr1[0];
-                pp[3] = sptr1[1];
-
-                pp[4] = sptr0[2];
-                pp[5] = sptr0[3];
-                pp[6] = sptr1[2];
-                pp[7] = sptr1[3];
-
-                pp[8] = sptr0[4];
-                pp[9] = sptr0[5];
-                pp[10] = sptr1[4];
-                pp[11] = sptr1[5];
-
-                pp[12] = sptr0[6];
-                pp[13] = sptr0[7];
-                pp[14] = sptr1[6];
-                pp[15] = sptr1[7];
-
+                __m128i _r0 = _mm_loadl_epi64((const __m128i*)sptr0);
+                __m128i _r1 = _mm_loadl_epi64((const __m128i*)sptr1);
+                __m128i _r01 = _mm_unpacklo_epi16(_r0, _r1);
+                _mm_storeu_si128((__m128i*)pp, _r01);
                 pp += 16;
             }
 #endif // __SSE2__
