@@ -20,11 +20,12 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-    def forward(self, x, y, z):
+    def forward(self, x, y, z, w):
         x = F.gelu(x)
         y = F.gelu(y)
         z = F.gelu(z)
-        return x, y, z
+        w = F.gelu(w)
+        return x, y, z, w
 
 def test():
     net = Model()
@@ -34,16 +35,17 @@ def test():
     x = torch.rand(16)
     y = torch.rand(2, 16)
     z = torch.rand(3, 12, 16)
+    w = torch.rand(5, 7, 9, 11)
 
-    a = net(x, y, z)
+    a = net(x, y, z, w)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, y, z))
+    mod = torch.jit.trace(net, (x, y, z, w))
     mod.save("test_F_gelu.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_F_gelu.pt inputshape=[16],[2,16],[3,12,16]")
+    os.system("../../src/pnnx test_F_gelu.pt inputshape=[16],[2,16],[3,12,16],[5,7,9,11]")
 
     # ncnn inference
     import test_F_gelu_ncnn

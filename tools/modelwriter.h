@@ -1922,10 +1922,11 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             ncnn::MultiHeadAttention* op_default = (ncnn::MultiHeadAttention*)layer_default;
 
             fprintf_param_value(" 0=%d", embed_dim)
-            fprintf_param_value(" 1=%d", num_head)
+            fprintf_param_value(" 1=%d", num_heads)
             fprintf_param_value(" 2=%d", weight_data_size)
             fprintf_param_value(" 3=%d", kdim)
             fprintf_param_value(" 4=%d", vdim)
+            fprintf_param_value(" 5=%d", attn_mask)
 
             fwrite_weight_tag_data(op->q_weight_data, bp);
             fwrite_weight_data(op->q_bias_data, bp);
@@ -2307,7 +2308,7 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 11=%d", squeeze_d)
             fprintf_param_value(" 2=%d", squeeze_c)
             {
-                if (!op->axes.empty()) fprintf_param_int_array(0, op->axes, pp);
+                if (!op->axes.empty()) fprintf_param_int_array(3, op->axes, pp);
             }
         }
         else if (layer->type == "Threshold")

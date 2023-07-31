@@ -48,6 +48,62 @@ static int test_convolution(int w, int h, int c, int outch, int kernel, int dila
     if (ret != 0)
     {
         fprintf(stderr, "test_convolution failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%f,%f]\n", w, h, c, outch, kernel, dilation, stride, pad, bias, activation_type, activation_params[0], activation_params[1]);
+        return ret;
+    }
+
+    {
+        ncnn::Option opt;
+        opt.num_threads = 1;
+        opt.use_packing_layout = true;
+        opt.use_fp16_packed = false;
+        opt.use_fp16_storage = false;
+        opt.use_fp16_arithmetic = false;
+        opt.use_bf16_storage = false;
+        opt.use_shader_pack8 = false;
+        opt.use_image_storage = false;
+        opt.use_sgemm_convolution = false;
+        opt.use_winograd_convolution = false;
+
+        ret = test_layer_opt<ncnn::Convolution>("Convolution", pd, weights, opt, a, epsilon);
+        if (ret != 0)
+        {
+            fprintf(stderr, "test_convolution failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%f,%f]\n", w, h, c, outch, kernel, dilation, stride, pad, bias, activation_type, activation_params[0], activation_params[1]);
+            return ret;
+        }
+    }
+
+    {
+        ncnn::Option opt;
+        opt.num_threads = 1;
+        opt.use_packing_layout = true;
+        opt.use_fp16_packed = true;
+        opt.use_fp16_storage = true;
+        opt.use_fp16_arithmetic = true;
+        opt.use_bf16_storage = true;
+        opt.use_shader_pack8 = true;
+        opt.use_image_storage = true;
+        opt.use_sgemm_convolution = false;
+        opt.use_winograd_convolution = false;
+
+        ret = test_layer_opt<ncnn::Convolution>("Convolution", pd, weights, opt, a, epsilon);
+        if (ret != 0)
+        {
+            fprintf(stderr, "test_convolution failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%f,%f]\n", w, h, c, outch, kernel, dilation, stride, pad, bias, activation_type, activation_params[0], activation_params[1]);
+            return ret;
+        }
+    }
+
+    {
+        ncnn::Option opt;
+        opt.num_threads = 1;
+        opt.use_a53_a55_optimized_kernel = true;
+
+        ret = test_layer_opt<ncnn::Convolution>("Convolution", pd, weights, opt, a, epsilon);
+        if (ret != 0)
+        {
+            fprintf(stderr, "test_convolution failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%f,%f]\n", w, h, c, outch, kernel, dilation, stride, pad, bias, activation_type, activation_params[0], activation_params[1]);
+            return ret;
+        }
     }
 
     return ret;
@@ -107,9 +163,22 @@ static int test_convolution_0()
            || test_convolution(11, 10, 12, 7, 4, 2, 1, 2, 1);
 }
 
+static int test_convolution_1()
+{
+    return 0
+           || test_convolution(7, 6, 135, 31, 3, 1, 1, 1, 0)
+           || test_convolution(8, 7, 31, 135, 3, 1, 1, 1, 0)
+           || test_convolution(9, 7, 135, 7, 3, 1, 1, 0, 0)
+           || test_convolution(9, 8, 140, 4, 3, 1, 1, 0, 0)
+           || test_convolution(8, 9, 160, 6, 3, 1, 1, 0, 0)
+           || test_convolution(11, 9, 7, 135, 3, 1, 1, 0, 0)
+           || test_convolution(10, 9, 4, 140, 3, 1, 1, 0, 0)
+           || test_convolution(9, 10, 6, 160, 3, 1, 1, 0, 0);
+}
+
 int main()
 {
     SRAND(7767517);
 
-    return test_convolution_0();
+    return test_convolution_0() || test_convolution_1();
 }

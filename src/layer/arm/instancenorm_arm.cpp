@@ -192,12 +192,12 @@ int InstanceNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) c
             float gamma = gamma_data[q];
             float beta = beta_data[q];
 
-            a = (float)(gamma / (sqrt(var + eps)));
+            a = (float)(gamma / (sqrtf(var + eps)));
             b = (float)(-mean * a + beta);
         }
         else
         {
-            a = (float)(1.f / (sqrt(var + eps)));
+            a = (float)(1.f / (sqrtf(var + eps)));
             b = (float)(-mean * a);
         }
 
@@ -367,12 +367,12 @@ int InstanceNorm_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& 
             float gamma = gamma_data[q];
             float beta = beta_data[q];
 
-            a = (float)(gamma / (sqrt(var + eps)));
+            a = (float)(gamma / (sqrtf(var + eps)));
             b = (float)(-mean * a + beta);
         }
         else
         {
-            a = (float)(1.f / (sqrt(var + eps)));
+            a = (float)(1.f / (sqrtf(var + eps)));
             b = (float)(-mean * a);
         }
 

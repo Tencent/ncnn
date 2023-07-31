@@ -25,7 +25,7 @@ class Model(nn.Module):
         self.pool_2 = nn.MaxPool3d(kernel_size=(1,2,3), stride=1, padding=(0,0,1), dilation=1, return_indices=False, ceil_mode=False)
         self.pool_3 = nn.MaxPool3d(kernel_size=(3,4,5), stride=(1,2,2), padding=(1,2,2), dilation=1, return_indices=False, ceil_mode=True)
         self.pool_4 = nn.MaxPool3d(kernel_size=(2,3,3), stride=1, padding=1, dilation=(1,1,1), return_indices=False, ceil_mode=False)
-        self.pool_5 = nn.MaxPool3d(kernel_size=2, stride=1, padding=0, dilation=1, return_indices=False, ceil_mode=True)
+        self.pool_5 = nn.MaxPool3d(kernel_size=2, stride=1, padding=0, dilation=1, return_indices=True, ceil_mode=True)
         self.pool_6 = nn.MaxPool3d(kernel_size=(5,4,4), stride=1, padding=2, dilation=1, return_indices=False, ceil_mode=False)
 
     def forward(self, x):
@@ -36,7 +36,7 @@ class Model(nn.Module):
         x = self.pool_2(x)
         x = self.pool_3(x)
         x = self.pool_4(x)
-        x = self.pool_5(x)
+        x, tx = self.pool_5(x)
         x = self.pool_6(x)
 
         y = self.pool_0(y)
@@ -44,7 +44,7 @@ class Model(nn.Module):
         y = self.pool_2(y)
         y = self.pool_3(y)
         y = self.pool_4(y)
-        y = self.pool_5(y)
+        y, ty = self.pool_5(y)
         y = self.pool_6(y)
         return x, y
 

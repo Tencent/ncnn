@@ -79,7 +79,7 @@ int InnerProduct_vulkan::create_pipeline(const Option& _opt)
         convert_packing(bias_data, bias_data_packed, out_elempack, opt);
     }
 
-    if (shape.dims == 2 && shape.w == num_input && shape.h > 1)
+    if (shape.dims == 2 && shape.w == num_input)
     {
         // gemm
         int elempack = opt.use_shader_pack8 && shape.h % 8 == 0 ? 8 : shape.h % 4 == 0 ? 4 : 1;
@@ -427,7 +427,7 @@ int InnerProduct_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCo
     int in_elempack = opt.use_shader_pack8 && num_input % 8 == 0 ? 8 : num_input % 4 == 0 ? 4 : 1;
     int out_elempack = opt.use_shader_pack8 && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
 
-    if (bottom_blob.dims == 2 && bottom_blob.w == num_input && bottom_blob.h * bottom_blob.elempack > 1)
+    if (bottom_blob.dims == 2 && bottom_blob.w == num_input)
     {
         // gemm
         int h = bottom_blob.h;
@@ -587,7 +587,7 @@ int InnerProduct_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_
     int in_elempack = opt.use_shader_pack8 && num_input % 8 == 0 ? 8 : num_input % 4 == 0 ? 4 : 1;
     int out_elempack = opt.use_shader_pack8 && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
 
-    if (bottom_blob.dims == 2 && bottom_blob.w == num_input && bottom_blob.h * bottom_blob.elempack > 1)
+    if (bottom_blob.dims == 2 && bottom_blob.w == num_input)
     {
         // gemm
         int h = bottom_blob.h;

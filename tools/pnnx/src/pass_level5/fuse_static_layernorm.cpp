@@ -29,41 +29,21 @@ public:
         return R"PNNXIR(7767517
 5 4
 pnnx.Input              input       0 1 input
-pnnx.Attribute          op_weight   0 1 weight @qwq
-pnnx.Attribute          op_bias     0 1 bias @qwq
+pnnx.Attribute          op_weight   0 1 weight @data
+pnnx.Attribute          op_bias     0 1 bias @data
 F.layer_norm            op_0        3 1 input weight bias out normalized_shape=%normalized_shape eps=%eps
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
 
-    const char* type_str() const
+    const char* replace_pattern_graph() const
     {
-        return "nn.LayerNorm";
-    }
-
-    const char* name_str() const
-    {
-        return "layer_norm";
-    }
-
-    void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
-    {
-        Attribute weight;
-        Attribute bias;
-        for (const auto& x : captured_attrs)
-        {
-            if (x.first.substr(0, 10) == "op_weight.")
-                weight = x.second;
-            if (x.first.substr(0, 8) == "op_bias.")
-                bias = x.second;
-        }
-
-        op->params["normalized_shape"] = captured_params.at("normalized_shape");
-        op->params["eps"] = captured_params.at("eps");
-        op->params["elementwise_affine"] = true;
-
-        op->attrs["weight"] = weight;
-        op->attrs["bias"] = bias;
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+nn.LayerNorm            layer_norm  1 1 input out normalized_shape=%normalized_shape eps=%eps elementwise_affine=True @weight=%op_weight.data @bias=%op_bias.data
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 };
 

@@ -36,7 +36,7 @@ permissions:
 
 jobs:
   linux-gcc:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
     - uses: actions/checkout@v3
     - name: update
@@ -85,7 +85,7 @@ jobs:
       run: cd build-noint8 && ctest --output-on-failure -j 2
 
   linux-gcc-cpp03-nostdio-nostring-simplestl:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
     - uses: actions/checkout@v3
     - name: build-nostdio

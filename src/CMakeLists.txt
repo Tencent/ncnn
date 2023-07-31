@@ -184,7 +184,17 @@ else()
     add_library(ncnn STATIC ${ncnn_SRCS})
 endif()
 set_target_properties(ncnn PROPERTIES DEBUG_POSTFIX "d")
-set_target_properties(ncnn PROPERTIES VERSION ${NCNN_VERSION_STRING} SOVERSION ${NCNN_VERSION_MAJOR})
+if(APPLE OR IOS)
+    # macos / ios only accepts a.b.c.d.e where a=24bit b/c/d/e=10bit
+    # 20201228 to 20.12.28
+    string(SUBSTRING ${NCNN_VERSION} 2 2 NCNN_VERSION_YEAR)
+    string(SUBSTRING ${NCNN_VERSION} 4 2 NCNN_VERSION_MONTH)
+    string(SUBSTRING ${NCNN_VERSION} 6 2 NCNN_VERSION_DAY)
+    set(NCNN_VERSION_APPLE_STRING ${NCNN_VERSION_MAJOR}.${NCNN_VERSION_MINOR}.${NCNN_VERSION_YEAR}.${NCNN_VERSION_MONTH}.${NCNN_VERSION_DAY})
+    set_target_properties(ncnn PROPERTIES VERSION ${NCNN_VERSION_APPLE_STRING} SOVERSION ${NCNN_VERSION_MAJOR})
+else()
+    set_target_properties(ncnn PROPERTIES VERSION ${NCNN_VERSION_STRING} SOVERSION ${NCNN_VERSION_MAJOR})
+endif()
 
 include(GenerateExportHeader)
 generate_export_header(ncnn)
@@ -474,6 +484,9 @@ endif()
 if(NCNN_TARGET_ARCH STREQUAL "loongarch")
     if(NOT NCNN_RUNTIME_CPU AND NCNN_LSX)
         target_compile_options(ncnn PRIVATE -mlsx)
+        if(NCNN_LASX)
+            target_compile_options(ncnn PRIVATE -mlasx)
+        endif()
     endif()
 endif()
 
@@ -486,6 +499,18 @@ if(NCNN_TARGET_ARCH STREQUAL "riscv" AND NOT C906)
         elseif(NCNN_COMPILER_SUPPORT_RVV)
             target_compile_options(ncnn PRIVATE -march=rv64gcv)
         endif()
+    endif()
+endif()
+
+if(NCNN_PPC64LE_VSX)
+    # Auto-translate SSE2 to VSX if compiler is new enough.
+    if(NCNN_VSX_SSE2)
+        target_compile_options(ncnn PRIVATE -DNO_WARN_X86_INTRINSICS -D__SSE2__)
+    endif()
+
+    # Auto-translate SSE4.1 to VSX if compiler is new enough.
+    if(NCNN_VSX_SSE41)
+        target_compile_options(ncnn PRIVATE -DNO_WARN_X86_INTRINSICS -D__SSE4_1__)
     endif()
 endif()
 

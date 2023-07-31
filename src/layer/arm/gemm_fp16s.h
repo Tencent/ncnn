@@ -268,6 +268,7 @@ static void pack_B_tile_fp32_to_fp16(const Mat& B, Mat& BT, int j, int max_jj, i
     unsigned short* pp = BT;
 
     int jj = 0;
+#if __aarch64__
     for (; jj + 11 < max_jj; jj += 12)
     {
         const float* p0 = (const float*)B + (j + jj) * B_hstep + k;
@@ -358,6 +359,7 @@ static void pack_B_tile_fp32_to_fp16(const Mat& B, Mat& BT, int j, int max_jj, i
             pb++;
         }
     }
+#endif // __aarch64__
     for (; jj + 7 < max_jj; jj += 8)
     {
         const float* p0 = (const float*)B + (j + jj) * B_hstep + k;
@@ -571,6 +573,7 @@ static void transpose_pack_B_tile_fp32_to_fp16(const Mat& B, Mat& BT, int j, int
     unsigned short* pp = BT;
 
     int jj = 0;
+#if __aarch64__
     for (; jj + 11 < max_jj; jj += 12)
     {
         const float* p0 = (const float*)B + k * B_hstep + (j + jj);
@@ -585,6 +588,7 @@ static void transpose_pack_B_tile_fp32_to_fp16(const Mat& B, Mat& BT, int j, int
             p0 += B_hstep;
         }
     }
+#endif // __aarch64__
     for (; jj + 7 < max_jj; jj += 8)
     {
         const float* p0 = (const float*)B + k * B_hstep + (j + jj);
@@ -1986,6 +1990,7 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
         }
 
         int jj = 0;
+#if __aarch64__
         for (; jj + 11 < max_jj; jj += 12)
         {
             float32x4_t _sum0;
@@ -2301,6 +2306,7 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
 
             outptr += 48;
         }
+#endif // __aarch64__
         for (; jj + 7 < max_jj; jj += 8)
         {
             float32x4_t _sum0;
@@ -2871,6 +2877,7 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
         }
 
         int jj = 0;
+#if __aarch64__
         for (; jj + 11 < max_jj; jj += 12)
         {
             float32x4_t _sum00;
@@ -3042,6 +3049,7 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
 
             outptr += 24;
         }
+#endif // __aarch64__
         for (; jj + 7 < max_jj; jj += 8)
         {
             float32x4_t _sum00;
@@ -3517,6 +3525,7 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
         }
 
         int jj = 0;
+#if __aarch64__
         for (; jj + 11 < max_jj; jj += 12)
         {
             float32x4_t _sum0;
@@ -3620,6 +3629,7 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
 
             outptr += 12;
         }
+#endif // __aarch64__
         for (; jj + 7 < max_jj; jj += 8)
         {
             float32x4_t _sum0;

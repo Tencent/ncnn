@@ -174,9 +174,9 @@ int Gemm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
         B = B0;
     }
 
-    int M = A.dims == 3 ? A.c : A.h;
-    int K = A.w; // assert A.w == B.w
-    int N = B.dims == 3 ? B.c : B.h;
+    const int M = A.dims == 3 ? A.c : A.h;
+    const int K = A.w; // assert A.w == B.w
+    const int N = B.dims == 3 ? B.c : B.h;
 
     const float* ptrC = 0;
     int broadcast_type_C = 0;

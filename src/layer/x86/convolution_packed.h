@@ -71,7 +71,7 @@ static void convolution_transform_kernel_packed(const Mat& kernel, Mat& kernel_t
 #endif // __AVX__
         if (inch >= 4)
             kernel_tm.create(4 * 4 * maxk, inch / 4 + (inch % 4) / 2 + inch % 2, outch / 4 + (outch % 4) / 2 + outch % 2);
-        if (inch >= 2)
+        else if (inch >= 2)
             kernel_tm.create(4 * 2 * maxk, inch / 2 + inch % 2, outch / 4 + (outch % 4) / 2 + outch % 2);
         else
             kernel_tm.create(4 * maxk, inch, outch / 4 + (outch % 4) / 2 + outch % 2);
@@ -93,10 +93,11 @@ static void convolution_transform_kernel_packed(const Mat& kernel, Mat& kernel_t
 #endif // __AVX__
         if (inch >= 4)
             kernel_tm.create(2 * 4 * maxk, inch / 4 + (inch % 4) / 2 + inch % 2, outch / 2 + outch % 2);
+        else
+#endif // __SSE2__
         if (inch >= 2)
             kernel_tm.create(2 * 2 * maxk, inch / 2 + inch % 2, outch / 2 + outch % 2);
         else
-#endif // __SSE2__
             kernel_tm.create(2 * maxk, inch, outch / 2 + outch % 2);
     }
     else
@@ -114,10 +115,11 @@ static void convolution_transform_kernel_packed(const Mat& kernel, Mat& kernel_t
 #endif // __AVX__
         if (inch >= 4)
             kernel_tm.create(4 * maxk, inch / 4 + (inch % 4) / 2 + inch % 2, outch);
+        else
+#endif // __SSE2__
         if (inch >= 2)
             kernel_tm.create(2 * maxk, inch / 2 + inch % 2, outch);
         else
-#endif // __SSE2__
             kernel_tm.create(maxk, inch, outch);
     }
     // *INDENT-ON*
@@ -148,284 +150,149 @@ static void convolution_transform_kernel_packed(const Mat& kernel, Mat& kernel_t
 
         float* g00 = kernel_tm.channel(q / 16);
 
+        __m512i _vindex = _mm512_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
+        _vindex = _mm512_mullo_epi32(_vindex, _mm512_set1_epi32(maxk));
+
         int p = 0;
-#if __AVX__
-#if __AVX512F__
         for (; p + 15 < inch; p += 16)
         {
             for (int k = 0; k < maxk; k++)
             {
-                const float* k0 = kptr0 + p * maxk;
-                const float* k1 = kptr1 + p * maxk;
-                const float* k2 = kptr2 + p * maxk;
-                const float* k3 = kptr3 + p * maxk;
-                const float* k4 = kptr4 + p * maxk;
-                const float* k5 = kptr5 + p * maxk;
-                const float* k6 = kptr6 + p * maxk;
-                const float* k7 = kptr7 + p * maxk;
-                const float* k8 = kptr8 + p * maxk;
-                const float* k9 = kptr9 + p * maxk;
-                const float* ka = kptra + p * maxk;
-                const float* kb = kptrb + p * maxk;
-                const float* kc = kptrc + p * maxk;
-                const float* kd = kptrd + p * maxk;
-                const float* ke = kptre + p * maxk;
-                const float* kf = kptrf + p * maxk;
+                const float* k0 = kptr0 + k;
+                const float* k1 = kptr1 + k;
+                const float* k2 = kptr2 + k;
+                const float* k3 = kptr3 + k;
+                const float* k4 = kptr4 + k;
+                const float* k5 = kptr5 + k;
+                const float* k6 = kptr6 + k;
+                const float* k7 = kptr7 + k;
+                const float* k8 = kptr8 + k;
+                const float* k9 = kptr9 + k;
+                const float* ka = kptra + k;
+                const float* kb = kptrb + k;
+                const float* kc = kptrc + k;
+                const float* kd = kptrd + k;
+                const float* ke = kptre + k;
+                const float* kf = kptrf + k;
 
-                for (int i = 0; i < 16; i++)
-                {
-                    g00[0] = k0[k];
-                    g00[1] = k1[k];
-                    g00[2] = k2[k];
-                    g00[3] = k3[k];
-                    g00[4] = k4[k];
-                    g00[5] = k5[k];
-                    g00[6] = k6[k];
-                    g00[7] = k7[k];
-                    g00[8] = k8[k];
-                    g00[9] = k9[k];
-                    g00[10] = ka[k];
-                    g00[11] = kb[k];
-                    g00[12] = kc[k];
-                    g00[13] = kd[k];
-                    g00[14] = ke[k];
-                    g00[15] = kf[k];
-                    k0 += maxk;
-                    k1 += maxk;
-                    k2 += maxk;
-                    k3 += maxk;
-                    k4 += maxk;
-                    k5 += maxk;
-                    k6 += maxk;
-                    k7 += maxk;
-                    k8 += maxk;
-                    k9 += maxk;
-                    ka += maxk;
-                    kb += maxk;
-                    kc += maxk;
-                    kd += maxk;
-                    ke += maxk;
-                    kf += maxk;
-                    g00 += 16;
-                }
+                __m512 _k0 = _mm512_i32gather_ps(_vindex, k0, sizeof(float));
+                __m512 _k1 = _mm512_i32gather_ps(_vindex, k1, sizeof(float));
+                __m512 _k2 = _mm512_i32gather_ps(_vindex, k2, sizeof(float));
+                __m512 _k3 = _mm512_i32gather_ps(_vindex, k3, sizeof(float));
+                __m512 _k4 = _mm512_i32gather_ps(_vindex, k4, sizeof(float));
+                __m512 _k5 = _mm512_i32gather_ps(_vindex, k5, sizeof(float));
+                __m512 _k6 = _mm512_i32gather_ps(_vindex, k6, sizeof(float));
+                __m512 _k7 = _mm512_i32gather_ps(_vindex, k7, sizeof(float));
+                __m512 _k8 = _mm512_i32gather_ps(_vindex, k8, sizeof(float));
+                __m512 _k9 = _mm512_i32gather_ps(_vindex, k9, sizeof(float));
+                __m512 _ka = _mm512_i32gather_ps(_vindex, ka, sizeof(float));
+                __m512 _kb = _mm512_i32gather_ps(_vindex, kb, sizeof(float));
+                __m512 _kc = _mm512_i32gather_ps(_vindex, kc, sizeof(float));
+                __m512 _kd = _mm512_i32gather_ps(_vindex, kd, sizeof(float));
+                __m512 _ke = _mm512_i32gather_ps(_vindex, ke, sizeof(float));
+                __m512 _kf = _mm512_i32gather_ps(_vindex, kf, sizeof(float));
+
+                transpose16x16_ps(_k0, _k1, _k2, _k3, _k4, _k5, _k6, _k7, _k8, _k9, _ka, _kb, _kc, _kd, _ke, _kf);
+
+                _mm512_store_ps(g00, _k0);
+                _mm512_store_ps(g00 + 16, _k1);
+                _mm512_store_ps(g00 + 16 * 2, _k2);
+                _mm512_store_ps(g00 + 16 * 3, _k3);
+                _mm512_store_ps(g00 + 16 * 4, _k4);
+                _mm512_store_ps(g00 + 16 * 5, _k5);
+                _mm512_store_ps(g00 + 16 * 6, _k6);
+                _mm512_store_ps(g00 + 16 * 7, _k7);
+                _mm512_store_ps(g00 + 16 * 8, _k8);
+                _mm512_store_ps(g00 + 16 * 9, _k9);
+                _mm512_store_ps(g00 + 16 * 10, _ka);
+                _mm512_store_ps(g00 + 16 * 11, _kb);
+                _mm512_store_ps(g00 + 16 * 12, _kc);
+                _mm512_store_ps(g00 + 16 * 13, _kd);
+                _mm512_store_ps(g00 + 16 * 14, _ke);
+                _mm512_store_ps(g00 + 16 * 15, _kf);
+
+                g00 += 256;
             }
+
+            kptr0 += maxk * 16;
+            kptr1 += maxk * 16;
+            kptr2 += maxk * 16;
+            kptr3 += maxk * 16;
+            kptr4 += maxk * 16;
+            kptr5 += maxk * 16;
+            kptr6 += maxk * 16;
+            kptr7 += maxk * 16;
+            kptr8 += maxk * 16;
+            kptr9 += maxk * 16;
+            kptra += maxk * 16;
+            kptrb += maxk * 16;
+            kptrc += maxk * 16;
+            kptrd += maxk * 16;
+            kptre += maxk * 16;
+            kptrf += maxk * 16;
         }
-#endif // __AVX512F__
+
+        _vindex = _mm512_mullo_epi32(_vindex, _mm512_set1_epi32(inch));
+
         for (; p + 7 < inch; p += 8)
         {
             for (int k = 0; k < maxk; k++)
             {
-                const float* k0 = kptr0 + p * maxk;
-                const float* k1 = kptr1 + p * maxk;
-                const float* k2 = kptr2 + p * maxk;
-                const float* k3 = kptr3 + p * maxk;
-                const float* k4 = kptr4 + p * maxk;
-                const float* k5 = kptr5 + p * maxk;
-                const float* k6 = kptr6 + p * maxk;
-                const float* k7 = kptr7 + p * maxk;
-                const float* k8 = kptr8 + p * maxk;
-                const float* k9 = kptr9 + p * maxk;
-                const float* ka = kptra + p * maxk;
-                const float* kb = kptrb + p * maxk;
-                const float* kc = kptrc + p * maxk;
-                const float* kd = kptrd + p * maxk;
-                const float* ke = kptre + p * maxk;
-                const float* kf = kptrf + p * maxk;
+                const float* k0 = kptr0 + k;
 
                 for (int i = 0; i < 8; i++)
                 {
-                    g00[0] = k0[k];
-                    g00[1] = k1[k];
-                    g00[2] = k2[k];
-                    g00[3] = k3[k];
-                    g00[4] = k4[k];
-                    g00[5] = k5[k];
-                    g00[6] = k6[k];
-                    g00[7] = k7[k];
-                    g00[8] = k8[k];
-                    g00[9] = k9[k];
-                    g00[10] = ka[k];
-                    g00[11] = kb[k];
-                    g00[12] = kc[k];
-                    g00[13] = kd[k];
-                    g00[14] = ke[k];
-                    g00[15] = kf[k];
+                    __m512 _k0 = _mm512_i32gather_ps(_vindex, k0, sizeof(float));
+                    _mm512_store_ps(g00, _k0);
                     k0 += maxk;
-                    k1 += maxk;
-                    k2 += maxk;
-                    k3 += maxk;
-                    k4 += maxk;
-                    k5 += maxk;
-                    k6 += maxk;
-                    k7 += maxk;
-                    k8 += maxk;
-                    k9 += maxk;
-                    ka += maxk;
-                    kb += maxk;
-                    kc += maxk;
-                    kd += maxk;
-                    ke += maxk;
-                    kf += maxk;
                     g00 += 16;
                 }
             }
+
+            kptr0 += maxk * 8;
         }
-#endif // __AVX__
         for (; p + 3 < inch; p += 4)
         {
             for (int k = 0; k < maxk; k++)
             {
-                const float* k0 = kptr0 + p * maxk;
-                const float* k1 = kptr1 + p * maxk;
-                const float* k2 = kptr2 + p * maxk;
-                const float* k3 = kptr3 + p * maxk;
-                const float* k4 = kptr4 + p * maxk;
-                const float* k5 = kptr5 + p * maxk;
-                const float* k6 = kptr6 + p * maxk;
-                const float* k7 = kptr7 + p * maxk;
-                const float* k8 = kptr8 + p * maxk;
-                const float* k9 = kptr9 + p * maxk;
-                const float* ka = kptra + p * maxk;
-                const float* kb = kptrb + p * maxk;
-                const float* kc = kptrc + p * maxk;
-                const float* kd = kptrd + p * maxk;
-                const float* ke = kptre + p * maxk;
-                const float* kf = kptrf + p * maxk;
+                const float* k0 = kptr0 + k;
 
                 for (int i = 0; i < 4; i++)
                 {
-                    g00[0] = k0[k];
-                    g00[1] = k1[k];
-                    g00[2] = k2[k];
-                    g00[3] = k3[k];
-                    g00[4] = k4[k];
-                    g00[5] = k5[k];
-                    g00[6] = k6[k];
-                    g00[7] = k7[k];
-                    g00[8] = k8[k];
-                    g00[9] = k9[k];
-                    g00[10] = ka[k];
-                    g00[11] = kb[k];
-                    g00[12] = kc[k];
-                    g00[13] = kd[k];
-                    g00[14] = ke[k];
-                    g00[15] = kf[k];
+                    __m512 _k0 = _mm512_i32gather_ps(_vindex, k0, sizeof(float));
+                    _mm512_store_ps(g00, _k0);
                     k0 += maxk;
-                    k1 += maxk;
-                    k2 += maxk;
-                    k3 += maxk;
-                    k4 += maxk;
-                    k5 += maxk;
-                    k6 += maxk;
-                    k7 += maxk;
-                    k8 += maxk;
-                    k9 += maxk;
-                    ka += maxk;
-                    kb += maxk;
-                    kc += maxk;
-                    kd += maxk;
-                    ke += maxk;
-                    kf += maxk;
                     g00 += 16;
                 }
             }
+
+            kptr0 += maxk * 4;
         }
         for (; p + 1 < inch; p += 2)
         {
             for (int k = 0; k < maxk; k++)
             {
-                const float* k0 = kptr0 + p * maxk;
-                const float* k1 = kptr1 + p * maxk;
-                const float* k2 = kptr2 + p * maxk;
-                const float* k3 = kptr3 + p * maxk;
-                const float* k4 = kptr4 + p * maxk;
-                const float* k5 = kptr5 + p * maxk;
-                const float* k6 = kptr6 + p * maxk;
-                const float* k7 = kptr7 + p * maxk;
-                const float* k8 = kptr8 + p * maxk;
-                const float* k9 = kptr9 + p * maxk;
-                const float* ka = kptra + p * maxk;
-                const float* kb = kptrb + p * maxk;
-                const float* kc = kptrc + p * maxk;
-                const float* kd = kptrd + p * maxk;
-                const float* ke = kptre + p * maxk;
-                const float* kf = kptrf + p * maxk;
+                const float* k0 = kptr0 + k;
 
                 for (int i = 0; i < 2; i++)
                 {
-                    g00[0] = k0[k];
-                    g00[1] = k1[k];
-                    g00[2] = k2[k];
-                    g00[3] = k3[k];
-                    g00[4] = k4[k];
-                    g00[5] = k5[k];
-                    g00[6] = k6[k];
-                    g00[7] = k7[k];
-                    g00[8] = k8[k];
-                    g00[9] = k9[k];
-                    g00[10] = ka[k];
-                    g00[11] = kb[k];
-                    g00[12] = kc[k];
-                    g00[13] = kd[k];
-                    g00[14] = ke[k];
-                    g00[15] = kf[k];
+                    __m512 _k0 = _mm512_i32gather_ps(_vindex, k0, sizeof(float));
+                    _mm512_store_ps(g00, _k0);
                     k0 += maxk;
-                    k1 += maxk;
-                    k2 += maxk;
-                    k3 += maxk;
-                    k4 += maxk;
-                    k5 += maxk;
-                    k6 += maxk;
-                    k7 += maxk;
-                    k8 += maxk;
-                    k9 += maxk;
-                    ka += maxk;
-                    kb += maxk;
-                    kc += maxk;
-                    kd += maxk;
-                    ke += maxk;
-                    kf += maxk;
                     g00 += 16;
                 }
             }
+
+            kptr0 += maxk * 2;
         }
         for (; p < inch; p++)
         {
-            const float* k0 = kptr0 + p * maxk;
-            const float* k1 = kptr1 + p * maxk;
-            const float* k2 = kptr2 + p * maxk;
-            const float* k3 = kptr3 + p * maxk;
-            const float* k4 = kptr4 + p * maxk;
-            const float* k5 = kptr5 + p * maxk;
-            const float* k6 = kptr6 + p * maxk;
-            const float* k7 = kptr7 + p * maxk;
-            const float* k8 = kptr8 + p * maxk;
-            const float* k9 = kptr9 + p * maxk;
-            const float* ka = kptra + p * maxk;
-            const float* kb = kptrb + p * maxk;
-            const float* kc = kptrc + p * maxk;
-            const float* kd = kptrd + p * maxk;
-            const float* ke = kptre + p * maxk;
-            const float* kf = kptrf + p * maxk;
-
             for (int k = 0; k < maxk; k++)
             {
-                g00[0] = k0[k];
-                g00[1] = k1[k];
-                g00[2] = k2[k];
-                g00[3] = k3[k];
-                g00[4] = k4[k];
-                g00[5] = k5[k];
-                g00[6] = k6[k];
-                g00[7] = k7[k];
-                g00[8] = k8[k];
-                g00[9] = k9[k];
-                g00[10] = ka[k];
-                g00[11] = kb[k];
-                g00[12] = kc[k];
-                g00[13] = kd[k];
-                g00[14] = ke[k];
-                g00[15] = kf[k];
+                const float* k0 = kptr0 + k;
+
+                __m512 _k0 = _mm512_i32gather_ps(_vindex, k0, sizeof(float));
+                _mm512_store_ps(g00, _k0);
                 g00 += 16;
             }
         }
@@ -448,67 +315,109 @@ static void convolution_transform_kernel_packed(const Mat& kernel, Mat& kernel_t
         float* g00 = kernel_tm.channel(q / 8);
 #endif
 
+#if __AVX2__
+        __m256i _vindex = _mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7);
+        _vindex = _mm256_mullo_epi32(_vindex, _mm256_set1_epi32(maxk));
+#if __AVX512F__
+        __m512i _vindex_512 = _mm512_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
+        _vindex_512 = _mm512_mullo_epi32(_vindex_512, _mm512_set1_epi32(maxk));
+#endif // __AVX512F__
+#endif // __AVX2__
+
         int p = 0;
 #if __AVX512F__
         for (; p + 15 < inch; p += 16)
         {
             for (int k = 0; k < maxk; k++)
             {
-                const float* k0 = kptr0 + p * maxk;
-                const float* k1 = kptr1 + p * maxk;
-                const float* k2 = kptr2 + p * maxk;
-                const float* k3 = kptr3 + p * maxk;
-                const float* k4 = kptr4 + p * maxk;
-                const float* k5 = kptr5 + p * maxk;
-                const float* k6 = kptr6 + p * maxk;
-                const float* k7 = kptr7 + p * maxk;
+                const float* k0 = kptr0 + k;
+                const float* k1 = kptr1 + k;
+                const float* k2 = kptr2 + k;
+                const float* k3 = kptr3 + k;
+                const float* k4 = kptr4 + k;
+                const float* k5 = kptr5 + k;
+                const float* k6 = kptr6 + k;
+                const float* k7 = kptr7 + k;
 
-                for (int i = 0; i < 16; i++)
-                {
-                    g00[0] = k0[k];
-                    g00[1] = k1[k];
-                    g00[2] = k2[k];
-                    g00[3] = k3[k];
-                    g00[4] = k4[k];
-                    g00[5] = k5[k];
-                    g00[6] = k6[k];
-                    g00[7] = k7[k];
-                    k0 += maxk;
-                    k1 += maxk;
-                    k2 += maxk;
-                    k3 += maxk;
-                    k4 += maxk;
-                    k5 += maxk;
-                    k6 += maxk;
-                    k7 += maxk;
-                    g00 += 8;
-                }
+                __m512 _k0 = _mm512_i32gather_ps(_vindex_512, k0, sizeof(float));
+                __m512 _k1 = _mm512_i32gather_ps(_vindex_512, k1, sizeof(float));
+                __m512 _k2 = _mm512_i32gather_ps(_vindex_512, k2, sizeof(float));
+                __m512 _k3 = _mm512_i32gather_ps(_vindex_512, k3, sizeof(float));
+                __m512 _k4 = _mm512_i32gather_ps(_vindex_512, k4, sizeof(float));
+                __m512 _k5 = _mm512_i32gather_ps(_vindex_512, k5, sizeof(float));
+                __m512 _k6 = _mm512_i32gather_ps(_vindex_512, k6, sizeof(float));
+                __m512 _k7 = _mm512_i32gather_ps(_vindex_512, k7, sizeof(float));
+
+                transpose16x8_ps(_k0, _k1, _k2, _k3, _k4, _k5, _k6, _k7);
+
+                _mm512_storeu_ps(g00, _k0);
+                _mm512_storeu_ps(g00 + 16, _k1);
+                _mm512_storeu_ps(g00 + 16 * 2, _k2);
+                _mm512_storeu_ps(g00 + 16 * 3, _k3);
+                _mm512_storeu_ps(g00 + 16 * 4, _k4);
+                _mm512_storeu_ps(g00 + 16 * 5, _k5);
+                _mm512_storeu_ps(g00 + 16 * 6, _k6);
+                _mm512_storeu_ps(g00 + 16 * 7, _k7);
+
+                g00 += 128;
             }
+
+            kptr0 += maxk * 16;
+            kptr1 += maxk * 16;
+            kptr2 += maxk * 16;
+            kptr3 += maxk * 16;
+            kptr4 += maxk * 16;
+            kptr5 += maxk * 16;
+            kptr6 += maxk * 16;
+            kptr7 += maxk * 16;
         }
 #endif // __AVX512F__
         for (; p + 7 < inch; p += 8)
         {
             for (int k = 0; k < maxk; k++)
             {
-                const float* k0 = kptr0 + p * maxk;
-                const float* k1 = kptr1 + p * maxk;
-                const float* k2 = kptr2 + p * maxk;
-                const float* k3 = kptr3 + p * maxk;
-                const float* k4 = kptr4 + p * maxk;
-                const float* k5 = kptr5 + p * maxk;
-                const float* k6 = kptr6 + p * maxk;
-                const float* k7 = kptr7 + p * maxk;
+                const float* k0 = kptr0 + k;
+                const float* k1 = kptr1 + k;
+                const float* k2 = kptr2 + k;
+                const float* k3 = kptr3 + k;
+                const float* k4 = kptr4 + k;
+                const float* k5 = kptr5 + k;
+                const float* k6 = kptr6 + k;
+                const float* k7 = kptr7 + k;
 
+#if __AVX2__
+                __m256 _k0 = _mm256_i32gather_ps(k0, _vindex, sizeof(float));
+                __m256 _k1 = _mm256_i32gather_ps(k1, _vindex, sizeof(float));
+                __m256 _k2 = _mm256_i32gather_ps(k2, _vindex, sizeof(float));
+                __m256 _k3 = _mm256_i32gather_ps(k3, _vindex, sizeof(float));
+                __m256 _k4 = _mm256_i32gather_ps(k4, _vindex, sizeof(float));
+                __m256 _k5 = _mm256_i32gather_ps(k5, _vindex, sizeof(float));
+                __m256 _k6 = _mm256_i32gather_ps(k6, _vindex, sizeof(float));
+                __m256 _k7 = _mm256_i32gather_ps(k7, _vindex, sizeof(float));
+
+                transpose8x8_ps(_k0, _k1, _k2, _k3, _k4, _k5, _k6, _k7);
+
+                _mm256_store_ps(g00, _k0);
+                _mm256_store_ps(g00 + 8, _k1);
+                _mm256_store_ps(g00 + 8 * 2, _k2);
+                _mm256_store_ps(g00 + 8 * 3, _k3);
+                _mm256_store_ps(g00 + 8 * 4, _k4);
+                _mm256_store_ps(g00 + 8 * 5, _k5);
+                _mm256_store_ps(g00 + 8 * 6, _k6);
+                _mm256_store_ps(g00 + 8 * 7, _k7);
+
+                g00 += 64;
+#else  // __AVX2__
                 for (int i = 0; i < 8; i++)
                 {
-                    g00[0] = k0[k];
-                    g00[1] = k1[k];
-                    g00[2] = k2[k];
-                    g00[3] = k3[k];
-                    g00[4] = k4[k];
-                    g00[5] = k5[k];
-                    g00[6] = k6[k];
-                    g00[7] = k7[k];
+                    g00[0] = k0[0];
+                    g00[1] = k1[0];
+                    g00[2] = k2[0];
+                    g00[3] = k3[0];
+                    g00[4] = k4[0];
+                    g00[5] = k5[0];
+                    g00[6] = k6[0];
+                    g00[7] = k7[0];
                     k0 += maxk;
                     k1 += maxk;
                     k2 += maxk;
@@ -519,31 +428,54 @@ static void convolution_transform_kernel_packed(const Mat& kernel, Mat& kernel_t
                     k7 += maxk;
                     g00 += 8;
                 }
+#endif // __AVX2__
             }
+
+            kptr0 += maxk * 8;
+            kptr1 += maxk * 8;
+            kptr2 += maxk * 8;
+            kptr3 += maxk * 8;
+            kptr4 += maxk * 8;
+            kptr5 += maxk * 8;
+            kptr6 += maxk * 8;
+            kptr7 += maxk * 8;
         }
+
+#if __AVX2__
+        _vindex = _mm256_mullo_epi32(_vindex, _mm256_set1_epi32(inch));
+#endif // __AVX2__
+
         for (; p + 3 < inch; p += 4)
         {
             for (int k = 0; k < maxk; k++)
             {
-                const float* k0 = kptr0 + p * maxk;
-                const float* k1 = kptr1 + p * maxk;
-                const float* k2 = kptr2 + p * maxk;
-                const float* k3 = kptr3 + p * maxk;
-                const float* k4 = kptr4 + p * maxk;
-                const float* k5 = kptr5 + p * maxk;
-                const float* k6 = kptr6 + p * maxk;
-                const float* k7 = kptr7 + p * maxk;
+                const float* k0 = kptr0 + k;
+#if !__AVX2__
+                const float* k1 = kptr1 + k;
+                const float* k2 = kptr2 + k;
+                const float* k3 = kptr3 + k;
+                const float* k4 = kptr4 + k;
+                const float* k5 = kptr5 + k;
+                const float* k6 = kptr6 + k;
+                const float* k7 = kptr7 + k;
+#endif // !__AVX2__
 
                 for (int i = 0; i < 4; i++)
                 {
-                    g00[0] = k0[k];
-                    g00[1] = k1[k];
-                    g00[2] = k2[k];
-                    g00[3] = k3[k];
-                    g00[4] = k4[k];
-                    g00[5] = k5[k];
-                    g00[6] = k6[k];
-                    g00[7] = k7[k];
+#if __AVX2__
+                    __m256 _k0 = _mm256_i32gather_ps(k0, _vindex, sizeof(float));
+                    _mm256_store_ps(g00, _k0);
+                    k0 += maxk;
+                    g00 += 8;
+#else  // __AVX2__
+                    g00[0] = k0[0];
+                    g00[1] = k1[0];
+                    g00[2] = k2[0];
+                    g00[3] = k3[0];
+                    g00[4] = k4[0];
+                    g00[5] = k5[0];
+                    g00[6] = k6[0];
+                    g00[7] = k7[0];
                     k0 += maxk;
                     k1 += maxk;
                     k2 += maxk;
@@ -553,32 +485,52 @@ static void convolution_transform_kernel_packed(const Mat& kernel, Mat& kernel_t
                     k6 += maxk;
                     k7 += maxk;
                     g00 += 8;
+#endif // __AVX2__
                 }
             }
+
+            kptr0 += maxk * 4;
+#if !__AVX2__
+            kptr1 += maxk * 4;
+            kptr2 += maxk * 4;
+            kptr3 += maxk * 4;
+            kptr4 += maxk * 4;
+            kptr5 += maxk * 4;
+            kptr6 += maxk * 4;
+            kptr7 += maxk * 4;
+#endif // !__AVX2__
         }
         for (; p + 1 < inch; p += 2)
         {
             for (int k = 0; k < maxk; k++)
             {
-                const float* k0 = kptr0 + p * maxk;
-                const float* k1 = kptr1 + p * maxk;
-                const float* k2 = kptr2 + p * maxk;
-                const float* k3 = kptr3 + p * maxk;
-                const float* k4 = kptr4 + p * maxk;
-                const float* k5 = kptr5 + p * maxk;
-                const float* k6 = kptr6 + p * maxk;
-                const float* k7 = kptr7 + p * maxk;
+                const float* k0 = kptr0 + k;
+#if !__AVX2__
+                const float* k1 = kptr1 + k;
+                const float* k2 = kptr2 + k;
+                const float* k3 = kptr3 + k;
+                const float* k4 = kptr4 + k;
+                const float* k5 = kptr5 + k;
+                const float* k6 = kptr6 + k;
+                const float* k7 = kptr7 + k;
+#endif // !__AVX2__
 
                 for (int i = 0; i < 2; i++)
                 {
-                    g00[0] = k0[k];
-                    g00[1] = k1[k];
-                    g00[2] = k2[k];
-                    g00[3] = k3[k];
-                    g00[4] = k4[k];
-                    g00[5] = k5[k];
-                    g00[6] = k6[k];
-                    g00[7] = k7[k];
+#if __AVX2__
+                    __m256 _k0 = _mm256_i32gather_ps(k0, _vindex, sizeof(float));
+                    _mm256_store_ps(g00, _k0);
+                    k0 += maxk;
+                    g00 += 8;
+#else  // __AVX2__
+                    g00[0] = k0[0];
+                    g00[1] = k1[0];
+                    g00[2] = k2[0];
+                    g00[3] = k3[0];
+                    g00[4] = k4[0];
+                    g00[5] = k5[0];
+                    g00[6] = k6[0];
+                    g00[7] = k7[0];
                     k0 += maxk;
                     k1 += maxk;
                     k2 += maxk;
@@ -588,31 +540,49 @@ static void convolution_transform_kernel_packed(const Mat& kernel, Mat& kernel_t
                     k6 += maxk;
                     k7 += maxk;
                     g00 += 8;
+#endif // __AVX2__
                 }
             }
+
+            kptr0 += maxk * 2;
+#if !__AVX2__
+            kptr1 += maxk * 2;
+            kptr2 += maxk * 2;
+            kptr3 += maxk * 2;
+            kptr4 += maxk * 2;
+            kptr5 += maxk * 2;
+            kptr6 += maxk * 2;
+            kptr7 += maxk * 2;
+#endif // !__AVX2__
         }
         for (; p < inch; p++)
         {
-            const float* k0 = kptr0 + p * maxk;
-            const float* k1 = kptr1 + p * maxk;
-            const float* k2 = kptr2 + p * maxk;
-            const float* k3 = kptr3 + p * maxk;
-            const float* k4 = kptr4 + p * maxk;
-            const float* k5 = kptr5 + p * maxk;
-            const float* k6 = kptr6 + p * maxk;
-            const float* k7 = kptr7 + p * maxk;
-
             for (int k = 0; k < maxk; k++)
             {
-                g00[0] = k0[k];
-                g00[1] = k1[k];
-                g00[2] = k2[k];
-                g00[3] = k3[k];
-                g00[4] = k4[k];
-                g00[5] = k5[k];
-                g00[6] = k6[k];
-                g00[7] = k7[k];
+                const float* k0 = kptr0 + k;
+#if __AVX2__
+                __m256 _k0 = _mm256_i32gather_ps(k0, _vindex, sizeof(float));
+                _mm256_store_ps(g00, _k0);
                 g00 += 8;
+#else  // __AVX2__
+                const float* k1 = kptr1 + k;
+                const float* k2 = kptr2 + k;
+                const float* k3 = kptr3 + k;
+                const float* k4 = kptr4 + k;
+                const float* k5 = kptr5 + k;
+                const float* k6 = kptr6 + k;
+                const float* k7 = kptr7 + k;
+
+                g00[0] = k0[0];
+                g00[1] = k1[0];
+                g00[2] = k2[0];
+                g00[3] = k3[0];
+                g00[4] = k4[0];
+                g00[5] = k5[0];
+                g00[6] = k6[0];
+                g00[7] = k7[0];
+                g00 += 8;
+#endif // __AVX2__
             }
         }
     }
@@ -632,6 +602,17 @@ static void convolution_transform_kernel_packed(const Mat& kernel, Mat& kernel_t
         float* g00 = kernel_tm.channel(q / 4);
 #endif
 
+#if __AVX2__
+        __m128i _vindex = _mm_setr_epi32(0, 1, 2, 3);
+        _vindex = _mm_mullo_epi32(_vindex, _mm_set1_epi32(maxk));
+        __m256i _vindex_256 = _mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7);
+        _vindex_256 = _mm256_mullo_epi32(_vindex_256, _mm256_set1_epi32(maxk));
+#if __AVX512F__
+        __m512i _vindex_512 = _mm512_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
+        _vindex_512 = _mm512_mullo_epi32(_vindex_512, _mm512_set1_epi32(maxk));
+#endif // __AVX512F__
+#endif // __AVX2__
+
         int p = 0;
 #if __AVX__
 #if __AVX512F__
@@ -639,110 +620,185 @@ static void convolution_transform_kernel_packed(const Mat& kernel, Mat& kernel_t
         {
             for (int k = 0; k < maxk; k++)
             {
-                const float* k0 = kptr0 + p * maxk;
-                const float* k1 = kptr1 + p * maxk;
-                const float* k2 = kptr2 + p * maxk;
-                const float* k3 = kptr3 + p * maxk;
+                const float* k0 = kptr0 + k;
+                const float* k1 = kptr1 + k;
+                const float* k2 = kptr2 + k;
+                const float* k3 = kptr3 + k;
 
-                for (int i = 0; i < 16; i++)
-                {
-                    g00[0] = k0[k];
-                    g00[1] = k1[k];
-                    g00[2] = k2[k];
-                    g00[3] = k3[k];
-                    k0 += maxk;
-                    k1 += maxk;
-                    k2 += maxk;
-                    k3 += maxk;
-                    g00 += 4;
-                }
+                __m512 _k0 = _mm512_i32gather_ps(_vindex_512, k0, sizeof(float));
+                __m512 _k1 = _mm512_i32gather_ps(_vindex_512, k1, sizeof(float));
+                __m512 _k2 = _mm512_i32gather_ps(_vindex_512, k2, sizeof(float));
+                __m512 _k3 = _mm512_i32gather_ps(_vindex_512, k3, sizeof(float));
+
+                transpose16x4_ps(_k0, _k1, _k2, _k3);
+
+                _mm512_storeu_ps(g00, _k0);
+                _mm512_storeu_ps(g00 + 16, _k1);
+                _mm512_storeu_ps(g00 + 16 * 2, _k2);
+                _mm512_storeu_ps(g00 + 16 * 3, _k3);
+
+                g00 += 64;
             }
+
+            kptr0 += maxk * 16;
+            kptr1 += maxk * 16;
+            kptr2 += maxk * 16;
+            kptr3 += maxk * 16;
         }
 #endif // __AVX512F__
         for (; p + 7 < inch; p += 8)
         {
             for (int k = 0; k < maxk; k++)
             {
-                const float* k0 = kptr0 + p * maxk;
-                const float* k1 = kptr1 + p * maxk;
-                const float* k2 = kptr2 + p * maxk;
-                const float* k3 = kptr3 + p * maxk;
+                const float* k0 = kptr0 + k;
+                const float* k1 = kptr1 + k;
+                const float* k2 = kptr2 + k;
+                const float* k3 = kptr3 + k;
 
+#if __AVX2__
+                __m256 _k0 = _mm256_i32gather_ps(k0, _vindex_256, sizeof(float));
+                __m256 _k1 = _mm256_i32gather_ps(k1, _vindex_256, sizeof(float));
+                __m256 _k2 = _mm256_i32gather_ps(k2, _vindex_256, sizeof(float));
+                __m256 _k3 = _mm256_i32gather_ps(k3, _vindex_256, sizeof(float));
+
+                transpose8x4_ps(_k0, _k1, _k2, _k3);
+
+                _mm256_storeu_ps(g00, _k0);
+                _mm256_storeu_ps(g00 + 8, _k1);
+                _mm256_storeu_ps(g00 + 8 * 2, _k2);
+                _mm256_storeu_ps(g00 + 8 * 3, _k3);
+
+                g00 += 32;
+#else  // __AVX2__
                 for (int i = 0; i < 8; i++)
                 {
-                    g00[0] = k0[k];
-                    g00[1] = k1[k];
-                    g00[2] = k2[k];
-                    g00[3] = k3[k];
+                    g00[0] = k0[0];
+                    g00[1] = k1[0];
+                    g00[2] = k2[0];
+                    g00[3] = k3[0];
                     k0 += maxk;
                     k1 += maxk;
                     k2 += maxk;
                     k3 += maxk;
                     g00 += 4;
                 }
+#endif // __AVX2__
             }
+
+            kptr0 += maxk * 8;
+            kptr1 += maxk * 8;
+            kptr2 += maxk * 8;
+            kptr3 += maxk * 8;
         }
 #endif // __AVX__
         for (; p + 3 < inch; p += 4)
         {
             for (int k = 0; k < maxk; k++)
             {
-                const float* k0 = kptr0 + p * maxk;
-                const float* k1 = kptr1 + p * maxk;
-                const float* k2 = kptr2 + p * maxk;
-                const float* k3 = kptr3 + p * maxk;
+                const float* k0 = kptr0 + k;
+                const float* k1 = kptr1 + k;
+                const float* k2 = kptr2 + k;
+                const float* k3 = kptr3 + k;
 
+#if __AVX2__
+                __m128 _k0 = _mm_i32gather_ps(k0, _vindex, sizeof(float));
+                __m128 _k1 = _mm_i32gather_ps(k1, _vindex, sizeof(float));
+                __m128 _k2 = _mm_i32gather_ps(k2, _vindex, sizeof(float));
+                __m128 _k3 = _mm_i32gather_ps(k3, _vindex, sizeof(float));
+
+                _MM_TRANSPOSE4_PS(_k0, _k1, _k2, _k3);
+
+                _mm_store_ps(g00, _k0);
+                _mm_store_ps(g00 + 4, _k1);
+                _mm_store_ps(g00 + 4 * 2, _k2);
+                _mm_store_ps(g00 + 4 * 3, _k3);
+
+                g00 += 16;
+#else  // __AVX2__
                 for (int i = 0; i < 4; i++)
                 {
-                    g00[0] = k0[k];
-                    g00[1] = k1[k];
-                    g00[2] = k2[k];
-                    g00[3] = k3[k];
+                    g00[0] = k0[0];
+                    g00[1] = k1[0];
+                    g00[2] = k2[0];
+                    g00[3] = k3[0];
                     k0 += maxk;
                     k1 += maxk;
                     k2 += maxk;
                     k3 += maxk;
                     g00 += 4;
                 }
+#endif // __AVX2__
             }
+
+            kptr0 += maxk * 4;
+            kptr1 += maxk * 4;
+            kptr2 += maxk * 4;
+            kptr3 += maxk * 4;
         }
+
+#if __AVX2__
+        _vindex = _mm_mullo_epi32(_vindex, _mm_set1_epi32(inch));
+#endif // __AVX2__
+
         for (; p + 1 < inch; p += 2)
         {
             for (int k = 0; k < maxk; k++)
             {
-                const float* k0 = kptr0 + p * maxk;
-                const float* k1 = kptr1 + p * maxk;
-                const float* k2 = kptr2 + p * maxk;
-                const float* k3 = kptr3 + p * maxk;
+                const float* k0 = kptr0 + k;
+#if !__AVX2__
+                const float* k1 = kptr1 + k;
+                const float* k2 = kptr2 + k;
+                const float* k3 = kptr3 + k;
+#endif // !__AVX2__
 
                 for (int i = 0; i < 2; i++)
                 {
-                    g00[0] = k0[k];
-                    g00[1] = k1[k];
-                    g00[2] = k2[k];
-                    g00[3] = k3[k];
+#if __AVX2__
+                    __m128 _k0 = _mm_i32gather_ps(k0, _vindex, sizeof(float));
+                    _mm_store_ps(g00, _k0);
+                    k0 += maxk;
+                    g00 += 4;
+#else  // __AVX2__
+                    g00[0] = k0[0];
+                    g00[1] = k1[0];
+                    g00[2] = k2[0];
+                    g00[3] = k3[0];
                     k0 += maxk;
                     k1 += maxk;
                     k2 += maxk;
                     k3 += maxk;
                     g00 += 4;
+#endif // __AVX2__
                 }
             }
+
+            kptr0 += maxk * 2;
+#if !__AVX2__
+            kptr1 += maxk * 2;
+            kptr2 += maxk * 2;
+            kptr3 += maxk * 2;
+#endif // !__AVX2__
         }
         for (; p < inch; p++)
         {
-            const float* k0 = kptr0 + p * maxk;
-            const float* k1 = kptr1 + p * maxk;
-            const float* k2 = kptr2 + p * maxk;
-            const float* k3 = kptr3 + p * maxk;
-
             for (int k = 0; k < maxk; k++)
             {
-                g00[0] = k0[k];
-                g00[1] = k1[k];
-                g00[2] = k2[k];
-                g00[3] = k3[k];
+                const float* k0 = kptr0 + k;
+#if __AVX2__
+                __m128 _k0 = _mm_i32gather_ps(k0, _vindex, sizeof(float));
+                _mm_store_ps(g00, _k0);
                 g00 += 4;
+#else  // __AVX2__
+                const float* k1 = kptr1 + k;
+                const float* k2 = kptr2 + k;
+                const float* k3 = kptr3 + k;
+
+                g00[0] = k0[0];
+                g00[1] = k1[0];
+                g00[2] = k2[0];
+                g00[3] = k3[0];
+                g00 += 4;
+#endif // __AVX2__
             }
         }
     }
@@ -762,6 +818,17 @@ static void convolution_transform_kernel_packed(const Mat& kernel, Mat& kernel_t
         float* g00 = kernel_tm.channel(q / 2);
 #endif
 
+#if __AVX2__
+        __m128i _vindex = _mm_setr_epi32(0, 1, 2, 3);
+        _vindex = _mm_mullo_epi32(_vindex, _mm_set1_epi32(maxk));
+        __m256i _vindex_256 = _mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7);
+        _vindex_256 = _mm256_mullo_epi32(_vindex_256, _mm256_set1_epi32(maxk));
+#if __AVX512F__
+        __m512i _vindex_512 = _mm512_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
+        _vindex_512 = _mm512_mullo_epi32(_vindex_512, _mm512_set1_epi32(maxk));
+#endif // __AVX512F__
+#endif // __AVX2__
+
         int p = 0;
 #if __SSE2__
 #if __AVX__
@@ -770,52 +837,34 @@ static void convolution_transform_kernel_packed(const Mat& kernel, Mat& kernel_t
         {
             for (int k = 0; k < maxk; k++)
             {
-                const float* k0 = kptr0 + p * maxk + k;
-                const float* k1 = kptr1 + p * maxk + k;
+                const float* k0 = kptr0 + k;
+                const float* k1 = kptr1 + k;
 
-                g00[0] = k0[0];
-                g00[1] = k0[maxk];
-                g00[2] = k0[maxk * 2];
-                g00[3] = k0[maxk * 3];
-                g00[4] = k0[maxk * 4];
-                g00[5] = k0[maxk * 5];
-                g00[6] = k0[maxk * 6];
-                g00[7] = k0[maxk * 7];
-                g00[8] = k0[maxk * 8];
-                g00[9] = k0[maxk * 9];
-                g00[10] = k0[maxk * 10];
-                g00[11] = k0[maxk * 11];
-                g00[12] = k0[maxk * 12];
-                g00[13] = k0[maxk * 13];
-                g00[14] = k0[maxk * 14];
-                g00[15] = k0[maxk * 15];
-                g00[16] = k1[0];
-                g00[17] = k1[maxk];
-                g00[18] = k1[maxk * 2];
-                g00[19] = k1[maxk * 3];
-                g00[20] = k1[maxk * 4];
-                g00[21] = k1[maxk * 5];
-                g00[22] = k1[maxk * 6];
-                g00[23] = k1[maxk * 7];
-                g00[24] = k1[maxk * 8];
-                g00[25] = k1[maxk * 9];
-                g00[26] = k1[maxk * 10];
-                g00[27] = k1[maxk * 11];
-                g00[28] = k1[maxk * 12];
-                g00[29] = k1[maxk * 13];
-                g00[30] = k1[maxk * 14];
-                g00[31] = k1[maxk * 15];
+                __m512 _k0 = _mm512_i32gather_ps(_vindex_512, k0, sizeof(float));
+                __m512 _k1 = _mm512_i32gather_ps(_vindex_512, k1, sizeof(float));
+                _mm512_storeu_ps(g00, _k0);
+                _mm512_storeu_ps(g00 + 16, _k1);
                 g00 += 32;
             }
+
+            kptr0 += maxk * 16;
+            kptr1 += maxk * 16;
         }
 #endif // __AVX512F__
         for (; p + 7 < inch; p += 8)
         {
             for (int k = 0; k < maxk; k++)
             {
-                const float* k0 = kptr0 + p * maxk + k;
-                const float* k1 = kptr1 + p * maxk + k;
+                const float* k0 = kptr0 + k;
+                const float* k1 = kptr1 + k;
 
+#if __AVX2__
+                __m256 _k0 = _mm256_i32gather_ps(k0, _vindex_256, sizeof(float));
+                __m256 _k1 = _mm256_i32gather_ps(k1, _vindex_256, sizeof(float));
+                _mm256_storeu_ps(g00, _k0);
+                _mm256_storeu_ps(g00 + 8, _k1);
+                g00 += 16;
+#else  // __AVX2__
                 g00[0] = k0[0];
                 g00[1] = k0[maxk];
                 g00[2] = k0[maxk * 2];
@@ -833,16 +882,27 @@ static void convolution_transform_kernel_packed(const Mat& kernel, Mat& kernel_t
                 g00[14] = k1[maxk * 6];
                 g00[15] = k1[maxk * 7];
                 g00 += 16;
+#endif // __AVX2__
             }
+
+            kptr0 += maxk * 8;
+            kptr1 += maxk * 8;
         }
 #endif // __AVX__
         for (; p + 3 < inch; p += 4)
         {
             for (int k = 0; k < maxk; k++)
             {
-                const float* k0 = kptr0 + p * maxk + k;
-                const float* k1 = kptr1 + p * maxk + k;
+                const float* k0 = kptr0 + k;
+                const float* k1 = kptr1 + k;
 
+#if __AVX2__
+                __m128 _k0 = _mm_i32gather_ps(k0, _vindex, sizeof(float));
+                __m128 _k1 = _mm_i32gather_ps(k1, _vindex, sizeof(float));
+                _mm_storeu_ps(g00, _k0);
+                _mm_storeu_ps(g00 + 4, _k1);
+                g00 += 8;
+#else  // __AVX2__
                 g00[0] = k0[0];
                 g00[1] = k0[maxk];
                 g00[2] = k0[maxk * 2];
@@ -852,35 +912,42 @@ static void convolution_transform_kernel_packed(const Mat& kernel, Mat& kernel_t
                 g00[6] = k1[maxk * 2];
                 g00[7] = k1[maxk * 3];
                 g00 += 8;
+#endif // __AVX2__
             }
+
+            kptr0 += maxk * 4;
+            kptr1 += maxk * 4;
         }
 #endif // __SSE2__
         for (; p + 1 < inch; p += 2)
         {
             for (int k = 0; k < maxk; k++)
             {
-                const float* k0 = kptr0 + p * maxk;
-                const float* k1 = kptr1 + p * maxk;
+                const float* k0 = kptr0 + k;
+                const float* k1 = kptr1 + k;
 
                 for (int i = 0; i < 2; i++)
                 {
-                    g00[0] = k0[k];
-                    g00[1] = k1[k];
+                    g00[0] = k0[0];
+                    g00[1] = k1[0];
                     k0 += maxk;
                     k1 += maxk;
                     g00 += 2;
                 }
             }
+
+            kptr0 += maxk * 2;
+            kptr1 += maxk * 2;
         }
         for (; p < inch; p++)
         {
-            const float* k0 = kptr0 + p * maxk;
-            const float* k1 = kptr1 + p * maxk;
-
             for (int k = 0; k < maxk; k++)
             {
-                g00[0] = k0[k];
-                g00[1] = k1[k];
+                const float* k0 = kptr0 + k;
+                const float* k1 = kptr1 + k;
+
+                g00[0] = k0[0];
+                g00[1] = k1[0];
                 g00 += 2;
             }
         }
@@ -899,6 +966,17 @@ static void convolution_transform_kernel_packed(const Mat& kernel, Mat& kernel_t
         float* g00 = kernel_tm.channel(q / 2 + q % 2);
 #endif
 
+#if __AVX2__
+        __m128i _vindex = _mm_setr_epi32(0, 1, 2, 3);
+        _vindex = _mm_mullo_epi32(_vindex, _mm_set1_epi32(maxk));
+        __m256i _vindex_256 = _mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7);
+        _vindex_256 = _mm256_mullo_epi32(_vindex_256, _mm256_set1_epi32(maxk));
+#if __AVX512F__
+        __m512i _vindex_512 = _mm512_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
+        _vindex_512 = _mm512_mullo_epi32(_vindex_512, _mm512_set1_epi32(maxk));
+#endif // __AVX512F__
+#endif // __AVX2__
+
         int p = 0;
 #if __SSE2__
 #if __AVX__
@@ -907,68 +985,85 @@ static void convolution_transform_kernel_packed(const Mat& kernel, Mat& kernel_t
         {
             for (int k = 0; k < maxk; k++)
             {
-                const float* k0 = kptr + p * maxk;
+                const float* k0 = kptr + k;
 
-                for (int i = 0; i < 16; i++)
-                {
-                    g00[0] = k0[k];
-                    k0 += maxk;
-                    g00 += 1;
-                }
+                __m512 _k0 = _mm512_i32gather_ps(_vindex_512, k0, sizeof(float));
+                _mm512_storeu_ps(g00, _k0);
+                g00 += 16;
             }
+
+            kptr += maxk * 16;
         }
 #endif // __AVX512F__
         for (; p + 7 < inch; p += 8)
         {
             for (int k = 0; k < maxk; k++)
             {
-                const float* k0 = kptr + p * maxk;
+                const float* k0 = kptr + k;
 
+#if __AVX2__
+                __m256 _k0 = _mm256_i32gather_ps(k0, _vindex_256, sizeof(float));
+                _mm256_storeu_ps(g00, _k0);
+                g00 += 8;
+#else  // __AVX2__
                 for (int i = 0; i < 8; i++)
                 {
-                    g00[0] = k0[k];
+                    g00[0] = k0[0];
                     k0 += maxk;
                     g00 += 1;
                 }
+#endif // __AVX2__
             }
+
+            kptr += maxk * 8;
         }
 #endif // __AVX__
         for (; p + 3 < inch; p += 4)
         {
             for (int k = 0; k < maxk; k++)
             {
-                const float* k0 = kptr + p * maxk;
+                const float* k0 = kptr + k;
 
+#if __AVX2__
+                __m128 _k0 = _mm_i32gather_ps(k0, _vindex, sizeof(float));
+                _mm_storeu_ps(g00, _k0);
+                g00 += 4;
+#else  // __AVX2__
                 for (int i = 0; i < 4; i++)
                 {
-                    g00[0] = k0[k];
+                    g00[0] = k0[0];
                     k0 += maxk;
                     g00 += 1;
                 }
+#endif // __AVX2__
             }
+
+            kptr += maxk * 4;
         }
 #endif // __SSE2__
         for (; p + 1 < inch; p += 2)
         {
             for (int k = 0; k < maxk; k++)
             {
-                const float* k0 = kptr + p * maxk;
+                const float* k0 = kptr + k;
 
                 for (int i = 0; i < 2; i++)
                 {
-                    g00[0] = k0[k];
+                    g00[0] = k0[0];
                     k0 += maxk;
                     g00 += 1;
                 }
             }
+
+            kptr += maxk * 2;
         }
         for (; p < inch; p++)
         {
-            const float* k0 = kptr + p * maxk;
-
             for (int k = 0; k < maxk; k++)
             {
-                g00[0] = k0[k];
+                const float* k0 = kptr + k;
+
+                g00[0] = k0[0];
                 g00++;
             }
         }
@@ -1023,6 +1118,13 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
     for (int pp = 0; pp < nn_outch; pp++)
     {
         const int p = pp * 16;
+
+        // shadowed variable for less openmp task args
+        const int elempack = bottom_blob.elempack;
+        const int inch = bottom_blob.c * elempack;
+        const int outw = top_blob.w;
+        const int outh = top_blob.h;
+        const int out_elempack = top_blob.elempack;
 
         float* outptr = top_blob.channel(p / out_elempack);
 
@@ -1188,22 +1290,6 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                     }
                     if (elempack == 1)
                     {
-                        const float* r1 = r0 + N;
-                        const float* r2 = r0 + N * 2;
-                        const float* r3 = r0 + N * 3;
-                        const float* r4 = r0 + N * 4;
-                        const float* r5 = r0 + N * 5;
-                        const float* r6 = r0 + N * 6;
-                        const float* r7 = r0 + N * 7;
-                        const float* r8 = r0 + N * 8;
-                        const float* r9 = r0 + N * 9;
-                        const float* ra = r0 + N * 10;
-                        const float* rb = r0 + N * 11;
-                        const float* rc = r0 + N * 12;
-                        const float* rd = r0 + N * 13;
-                        const float* re = r0 + N * 14;
-                        const float* rf = r0 + N * 15;
-
                         for (int k = 0; k < maxk; k++)
                         {
                             const int sok = space_ofs[k];
@@ -1226,21 +1312,21 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                             __m512 _wf = _mm512_load_ps(kptr + 16 * 15);
 
                             _sum0 = _mm512_fmadd_ps(_w0, _mm512_set1_ps(r0[sok]), _sum0);
-                            _sum1 = _mm512_fmadd_ps(_w1, _mm512_set1_ps(r1[sok]), _sum1);
-                            _sum2 = _mm512_fmadd_ps(_w2, _mm512_set1_ps(r2[sok]), _sum2);
-                            _sum3 = _mm512_fmadd_ps(_w3, _mm512_set1_ps(r3[sok]), _sum3);
-                            _sum0 = _mm512_fmadd_ps(_w4, _mm512_set1_ps(r4[sok]), _sum0);
-                            _sum1 = _mm512_fmadd_ps(_w5, _mm512_set1_ps(r5[sok]), _sum1);
-                            _sum2 = _mm512_fmadd_ps(_w6, _mm512_set1_ps(r6[sok]), _sum2);
-                            _sum3 = _mm512_fmadd_ps(_w7, _mm512_set1_ps(r7[sok]), _sum3);
-                            _sum0 = _mm512_fmadd_ps(_w8, _mm512_set1_ps(r8[sok]), _sum0);
-                            _sum1 = _mm512_fmadd_ps(_w9, _mm512_set1_ps(r9[sok]), _sum1);
-                            _sum2 = _mm512_fmadd_ps(_wa, _mm512_set1_ps(ra[sok]), _sum2);
-                            _sum3 = _mm512_fmadd_ps(_wb, _mm512_set1_ps(rb[sok]), _sum3);
-                            _sum0 = _mm512_fmadd_ps(_wc, _mm512_set1_ps(rc[sok]), _sum0);
-                            _sum1 = _mm512_fmadd_ps(_wd, _mm512_set1_ps(rd[sok]), _sum1);
-                            _sum2 = _mm512_fmadd_ps(_we, _mm512_set1_ps(re[sok]), _sum2);
-                            _sum3 = _mm512_fmadd_ps(_wf, _mm512_set1_ps(rf[sok]), _sum3);
+                            _sum1 = _mm512_fmadd_ps(_w1, _mm512_set1_ps(r0[sok + N]), _sum1);
+                            _sum2 = _mm512_fmadd_ps(_w2, _mm512_set1_ps(r0[sok + N * 2]), _sum2);
+                            _sum3 = _mm512_fmadd_ps(_w3, _mm512_set1_ps(r0[sok + N * 3]), _sum3);
+                            _sum0 = _mm512_fmadd_ps(_w4, _mm512_set1_ps(r0[sok + N * 4]), _sum0);
+                            _sum1 = _mm512_fmadd_ps(_w5, _mm512_set1_ps(r0[sok + N * 5]), _sum1);
+                            _sum2 = _mm512_fmadd_ps(_w6, _mm512_set1_ps(r0[sok + N * 6]), _sum2);
+                            _sum3 = _mm512_fmadd_ps(_w7, _mm512_set1_ps(r0[sok + N * 7]), _sum3);
+                            _sum0 = _mm512_fmadd_ps(_w8, _mm512_set1_ps(r0[sok + N * 8]), _sum0);
+                            _sum1 = _mm512_fmadd_ps(_w9, _mm512_set1_ps(r0[sok + N * 9]), _sum1);
+                            _sum2 = _mm512_fmadd_ps(_wa, _mm512_set1_ps(r0[sok + N * 10]), _sum2);
+                            _sum3 = _mm512_fmadd_ps(_wb, _mm512_set1_ps(r0[sok + N * 11]), _sum3);
+                            _sum0 = _mm512_fmadd_ps(_wc, _mm512_set1_ps(r0[sok + N * 12]), _sum0);
+                            _sum1 = _mm512_fmadd_ps(_wd, _mm512_set1_ps(r0[sok + N * 13]), _sum1);
+                            _sum2 = _mm512_fmadd_ps(_we, _mm512_set1_ps(r0[sok + N * 14]), _sum2);
+                            _sum3 = _mm512_fmadd_ps(_wf, _mm512_set1_ps(r0[sok + N * 15]), _sum3);
 
                             kptr += 256;
                         }
@@ -1309,14 +1395,6 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                     }
                     if (elempack == 1)
                     {
-                        const float* r1 = r0 + N;
-                        const float* r2 = r0 + N * 2;
-                        const float* r3 = r0 + N * 3;
-                        const float* r4 = r0 + N * 4;
-                        const float* r5 = r0 + N * 5;
-                        const float* r6 = r0 + N * 6;
-                        const float* r7 = r0 + N * 7;
-
                         for (int k = 0; k < maxk; k++)
                         {
                             const int sok = space_ofs[k];
@@ -1331,13 +1409,13 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                             __m512 _w7 = _mm512_load_ps(kptr + 16 * 7);
 
                             _sum0 = _mm512_fmadd_ps(_w0, _mm512_set1_ps(r0[sok]), _sum0);
-                            _sum1 = _mm512_fmadd_ps(_w1, _mm512_set1_ps(r1[sok]), _sum1);
-                            _sum2 = _mm512_fmadd_ps(_w2, _mm512_set1_ps(r2[sok]), _sum2);
-                            _sum3 = _mm512_fmadd_ps(_w3, _mm512_set1_ps(r3[sok]), _sum3);
-                            _sum0 = _mm512_fmadd_ps(_w4, _mm512_set1_ps(r4[sok]), _sum0);
-                            _sum1 = _mm512_fmadd_ps(_w5, _mm512_set1_ps(r5[sok]), _sum1);
-                            _sum2 = _mm512_fmadd_ps(_w6, _mm512_set1_ps(r6[sok]), _sum2);
-                            _sum3 = _mm512_fmadd_ps(_w7, _mm512_set1_ps(r7[sok]), _sum3);
+                            _sum1 = _mm512_fmadd_ps(_w1, _mm512_set1_ps(r0[sok + N]), _sum1);
+                            _sum2 = _mm512_fmadd_ps(_w2, _mm512_set1_ps(r0[sok + N * 2]), _sum2);
+                            _sum3 = _mm512_fmadd_ps(_w3, _mm512_set1_ps(r0[sok + N * 3]), _sum3);
+                            _sum0 = _mm512_fmadd_ps(_w4, _mm512_set1_ps(r0[sok + N * 4]), _sum0);
+                            _sum1 = _mm512_fmadd_ps(_w5, _mm512_set1_ps(r0[sok + N * 5]), _sum1);
+                            _sum2 = _mm512_fmadd_ps(_w6, _mm512_set1_ps(r0[sok + N * 6]), _sum2);
+                            _sum3 = _mm512_fmadd_ps(_w7, _mm512_set1_ps(r0[sok + N * 7]), _sum3);
 
                             kptr += 128;
                         }
@@ -1368,10 +1446,6 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                     }
                     if (elempack == 1)
                     {
-                        const float* r1 = r0 + N;
-                        const float* r2 = r0 + N * 2;
-                        const float* r3 = r0 + N * 3;
-
                         for (int k = 0; k < maxk; k++)
                         {
                             const int sok = space_ofs[k];
@@ -1382,9 +1456,9 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                             __m512 _w3 = _mm512_load_ps(kptr + 48);
 
                             _sum0 = _mm512_fmadd_ps(_w0, _mm512_set1_ps(r0[sok]), _sum0);
-                            _sum1 = _mm512_fmadd_ps(_w1, _mm512_set1_ps(r1[sok]), _sum1);
-                            _sum2 = _mm512_fmadd_ps(_w2, _mm512_set1_ps(r2[sok]), _sum2);
-                            _sum3 = _mm512_fmadd_ps(_w3, _mm512_set1_ps(r3[sok]), _sum3);
+                            _sum1 = _mm512_fmadd_ps(_w1, _mm512_set1_ps(r0[sok + N]), _sum1);
+                            _sum2 = _mm512_fmadd_ps(_w2, _mm512_set1_ps(r0[sok + N * 2]), _sum2);
+                            _sum3 = _mm512_fmadd_ps(_w3, _mm512_set1_ps(r0[sok + N * 3]), _sum3);
 
                             kptr += 64;
                         }
@@ -1396,8 +1470,6 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
 
                     // if (elempack == 1)
                     {
-                        const float* r1 = r0 + N;
-
                         for (int k = 0; k < maxk; k++)
                         {
                             const int sok = space_ofs[k];
@@ -1406,7 +1478,7 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                             __m512 _w1 = _mm512_load_ps(kptr + 16);
 
                             _sum0 = _mm512_fmadd_ps(_w0, _mm512_set1_ps(r0[sok]), _sum0);
-                            _sum1 = _mm512_fmadd_ps(_w1, _mm512_set1_ps(r1[sok]), _sum1);
+                            _sum1 = _mm512_fmadd_ps(_w1, _mm512_set1_ps(r0[sok + N]), _sum1);
 
                             kptr += 32;
                         }
@@ -1489,6 +1561,13 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
     for (int pp = 0; pp < nn_outch; pp++)
     {
         const int p = remain_outch_start + pp * 8;
+
+        // shadowed variable for less openmp task args
+        const int elempack = bottom_blob.elempack;
+        const int inch = bottom_blob.c * elempack;
+        const int outw = top_blob.w;
+        const int outh = top_blob.h;
+        const int out_elempack = top_blob.elempack;
 
         float* outptr = top_blob.channel(p / out_elempack);
 
@@ -1659,22 +1738,6 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                     }
                     if (elempack == 1)
                     {
-                        const float* r1 = r0 + N;
-                        const float* r2 = r0 + N * 2;
-                        const float* r3 = r0 + N * 3;
-                        const float* r4 = r0 + N * 4;
-                        const float* r5 = r0 + N * 5;
-                        const float* r6 = r0 + N * 6;
-                        const float* r7 = r0 + N * 7;
-                        const float* r8 = r0 + N * 8;
-                        const float* r9 = r0 + N * 9;
-                        const float* ra = r0 + N * 10;
-                        const float* rb = r0 + N * 11;
-                        const float* rc = r0 + N * 12;
-                        const float* rd = r0 + N * 13;
-                        const float* re = r0 + N * 14;
-                        const float* rf = r0 + N * 15;
-
                         for (int k = 0; k < maxk; k++)
                         {
                             const int sok = space_ofs[k];
@@ -1697,21 +1760,21 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                             __m256 _wf = _mm256_load_ps(kptr + 8 * 15);
 
                             _sum0 = _mm256_fmadd_ps(_w0, _mm256_set1_ps(r0[sok]), _sum0);
-                            _sum1 = _mm256_fmadd_ps(_w1, _mm256_set1_ps(r1[sok]), _sum1);
-                            _sum2 = _mm256_fmadd_ps(_w2, _mm256_set1_ps(r2[sok]), _sum2);
-                            _sum3 = _mm256_fmadd_ps(_w3, _mm256_set1_ps(r3[sok]), _sum3);
-                            _sum0 = _mm256_fmadd_ps(_w4, _mm256_set1_ps(r4[sok]), _sum0);
-                            _sum1 = _mm256_fmadd_ps(_w5, _mm256_set1_ps(r5[sok]), _sum1);
-                            _sum2 = _mm256_fmadd_ps(_w6, _mm256_set1_ps(r6[sok]), _sum2);
-                            _sum3 = _mm256_fmadd_ps(_w7, _mm256_set1_ps(r7[sok]), _sum3);
-                            _sum0 = _mm256_fmadd_ps(_w8, _mm256_set1_ps(r8[sok]), _sum0);
-                            _sum1 = _mm256_fmadd_ps(_w9, _mm256_set1_ps(r9[sok]), _sum1);
-                            _sum2 = _mm256_fmadd_ps(_wa, _mm256_set1_ps(ra[sok]), _sum2);
-                            _sum3 = _mm256_fmadd_ps(_wb, _mm256_set1_ps(rb[sok]), _sum3);
-                            _sum0 = _mm256_fmadd_ps(_wc, _mm256_set1_ps(rc[sok]), _sum0);
-                            _sum1 = _mm256_fmadd_ps(_wd, _mm256_set1_ps(rd[sok]), _sum1);
-                            _sum2 = _mm256_fmadd_ps(_we, _mm256_set1_ps(re[sok]), _sum2);
-                            _sum3 = _mm256_fmadd_ps(_wf, _mm256_set1_ps(rf[sok]), _sum3);
+                            _sum1 = _mm256_fmadd_ps(_w1, _mm256_set1_ps(r0[sok + N]), _sum1);
+                            _sum2 = _mm256_fmadd_ps(_w2, _mm256_set1_ps(r0[sok + N * 2]), _sum2);
+                            _sum3 = _mm256_fmadd_ps(_w3, _mm256_set1_ps(r0[sok + N * 3]), _sum3);
+                            _sum0 = _mm256_fmadd_ps(_w4, _mm256_set1_ps(r0[sok + N * 4]), _sum0);
+                            _sum1 = _mm256_fmadd_ps(_w5, _mm256_set1_ps(r0[sok + N * 5]), _sum1);
+                            _sum2 = _mm256_fmadd_ps(_w6, _mm256_set1_ps(r0[sok + N * 6]), _sum2);
+                            _sum3 = _mm256_fmadd_ps(_w7, _mm256_set1_ps(r0[sok + N * 7]), _sum3);
+                            _sum0 = _mm256_fmadd_ps(_w8, _mm256_set1_ps(r0[sok + N * 8]), _sum0);
+                            _sum1 = _mm256_fmadd_ps(_w9, _mm256_set1_ps(r0[sok + N * 9]), _sum1);
+                            _sum2 = _mm256_fmadd_ps(_wa, _mm256_set1_ps(r0[sok + N * 10]), _sum2);
+                            _sum3 = _mm256_fmadd_ps(_wb, _mm256_set1_ps(r0[sok + N * 11]), _sum3);
+                            _sum0 = _mm256_fmadd_ps(_wc, _mm256_set1_ps(r0[sok + N * 12]), _sum0);
+                            _sum1 = _mm256_fmadd_ps(_wd, _mm256_set1_ps(r0[sok + N * 13]), _sum1);
+                            _sum2 = _mm256_fmadd_ps(_we, _mm256_set1_ps(r0[sok + N * 14]), _sum2);
+                            _sum3 = _mm256_fmadd_ps(_wf, _mm256_set1_ps(r0[sok + N * 15]), _sum3);
 
                             kptr += 128;
                         }
@@ -1781,14 +1844,6 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                     }
                     if (elempack == 1)
                     {
-                        const float* r1 = r0 + N;
-                        const float* r2 = r0 + N * 2;
-                        const float* r3 = r0 + N * 3;
-                        const float* r4 = r0 + N * 4;
-                        const float* r5 = r0 + N * 5;
-                        const float* r6 = r0 + N * 6;
-                        const float* r7 = r0 + N * 7;
-
                         for (int k = 0; k < maxk; k++)
                         {
                             const int sok = space_ofs[k];
@@ -1803,13 +1858,13 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                             __m256 _w7 = _mm256_load_ps(kptr + 56);
 
                             _sum0 = _mm256_comp_fmadd_ps(_w0, _mm256_set1_ps(r0[sok]), _sum0);
-                            _sum1 = _mm256_comp_fmadd_ps(_w1, _mm256_set1_ps(r1[sok]), _sum1);
-                            _sum2 = _mm256_comp_fmadd_ps(_w2, _mm256_set1_ps(r2[sok]), _sum2);
-                            _sum3 = _mm256_comp_fmadd_ps(_w3, _mm256_set1_ps(r3[sok]), _sum3);
-                            _sum0 = _mm256_comp_fmadd_ps(_w4, _mm256_set1_ps(r4[sok]), _sum0);
-                            _sum1 = _mm256_comp_fmadd_ps(_w5, _mm256_set1_ps(r5[sok]), _sum1);
-                            _sum2 = _mm256_comp_fmadd_ps(_w6, _mm256_set1_ps(r6[sok]), _sum2);
-                            _sum3 = _mm256_comp_fmadd_ps(_w7, _mm256_set1_ps(r7[sok]), _sum3);
+                            _sum1 = _mm256_comp_fmadd_ps(_w1, _mm256_set1_ps(r0[sok + N]), _sum1);
+                            _sum2 = _mm256_comp_fmadd_ps(_w2, _mm256_set1_ps(r0[sok + N * 2]), _sum2);
+                            _sum3 = _mm256_comp_fmadd_ps(_w3, _mm256_set1_ps(r0[sok + N * 3]), _sum3);
+                            _sum0 = _mm256_comp_fmadd_ps(_w4, _mm256_set1_ps(r0[sok + N * 4]), _sum0);
+                            _sum1 = _mm256_comp_fmadd_ps(_w5, _mm256_set1_ps(r0[sok + N * 5]), _sum1);
+                            _sum2 = _mm256_comp_fmadd_ps(_w6, _mm256_set1_ps(r0[sok + N * 6]), _sum2);
+                            _sum3 = _mm256_comp_fmadd_ps(_w7, _mm256_set1_ps(r0[sok + N * 7]), _sum3);
 
                             kptr += 64;
                         }
@@ -1840,10 +1895,6 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                     }
                     if (elempack == 1)
                     {
-                        const float* r1 = r0 + N;
-                        const float* r2 = r0 + N * 2;
-                        const float* r3 = r0 + N * 3;
-
                         for (int k = 0; k < maxk; k++)
                         {
                             const int sok = space_ofs[k];
@@ -1854,9 +1905,9 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                             __m256 _w3 = _mm256_load_ps(kptr + 24);
 
                             _sum0 = _mm256_comp_fmadd_ps(_w0, _mm256_set1_ps(r0[sok]), _sum0);
-                            _sum1 = _mm256_comp_fmadd_ps(_w1, _mm256_set1_ps(r1[sok]), _sum1);
-                            _sum2 = _mm256_comp_fmadd_ps(_w2, _mm256_set1_ps(r2[sok]), _sum2);
-                            _sum3 = _mm256_comp_fmadd_ps(_w3, _mm256_set1_ps(r3[sok]), _sum3);
+                            _sum1 = _mm256_comp_fmadd_ps(_w1, _mm256_set1_ps(r0[sok + N]), _sum1);
+                            _sum2 = _mm256_comp_fmadd_ps(_w2, _mm256_set1_ps(r0[sok + N * 2]), _sum2);
+                            _sum3 = _mm256_comp_fmadd_ps(_w3, _mm256_set1_ps(r0[sok + N * 3]), _sum3);
 
                             kptr += 32;
                         }
@@ -1868,8 +1919,6 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
 
                     // if (elempack == 1)
                     {
-                        const float* r1 = r0 + N;
-
                         for (int k = 0; k < maxk; k++)
                         {
                             const int sok = space_ofs[k];
@@ -1878,7 +1927,7 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                             __m256 _w1 = _mm256_load_ps(kptr + 8);
 
                             _sum0 = _mm256_comp_fmadd_ps(_w0, _mm256_set1_ps(r0[sok]), _sum0);
-                            _sum1 = _mm256_comp_fmadd_ps(_w1, _mm256_set1_ps(r1[sok]), _sum1);
+                            _sum1 = _mm256_comp_fmadd_ps(_w1, _mm256_set1_ps(r0[sok + N]), _sum1);
 
                             kptr += 16;
                         }
@@ -1945,6 +1994,13 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
     for (int pp = 0; pp < nn_outch; pp++)
     {
         const int p = remain_outch_start + pp * 4;
+
+        // shadowed variable for less openmp task args
+        const int elempack = bottom_blob.elempack;
+        const int inch = bottom_blob.c * elempack;
+        const int outw = top_blob.w;
+        const int outh = top_blob.h;
+        const int out_elempack = top_blob.elempack;
 
         float* outptr = top_blob.channel(p / out_elempack);
 
@@ -2118,22 +2174,6 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                     }
                     if (elempack == 1)
                     {
-                        const float* r1 = r0 + N;
-                        const float* r2 = r0 + N * 2;
-                        const float* r3 = r0 + N * 3;
-                        const float* r4 = r0 + N * 4;
-                        const float* r5 = r0 + N * 5;
-                        const float* r6 = r0 + N * 6;
-                        const float* r7 = r0 + N * 7;
-                        const float* r8 = r0 + N * 8;
-                        const float* r9 = r0 + N * 9;
-                        const float* ra = r0 + N * 10;
-                        const float* rb = r0 + N * 11;
-                        const float* rc = r0 + N * 12;
-                        const float* rd = r0 + N * 13;
-                        const float* re = r0 + N * 14;
-                        const float* rf = r0 + N * 15;
-
                         for (int k = 0; k < maxk; k++)
                         {
                             const int sok = space_ofs[k];
@@ -2156,21 +2196,21 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                             __m128 _wf = _mm_load_ps(kptr + 4 * 15);
 
                             _sum0 = _mm_fmadd_ps(_w0, _mm_set1_ps(r0[sok]), _sum0);
-                            _sum1 = _mm_fmadd_ps(_w1, _mm_set1_ps(r1[sok]), _sum1);
-                            _sum2 = _mm_fmadd_ps(_w2, _mm_set1_ps(r2[sok]), _sum2);
-                            _sum3 = _mm_fmadd_ps(_w3, _mm_set1_ps(r3[sok]), _sum3);
-                            _sum0 = _mm_fmadd_ps(_w4, _mm_set1_ps(r4[sok]), _sum0);
-                            _sum1 = _mm_fmadd_ps(_w5, _mm_set1_ps(r5[sok]), _sum1);
-                            _sum2 = _mm_fmadd_ps(_w6, _mm_set1_ps(r6[sok]), _sum2);
-                            _sum3 = _mm_fmadd_ps(_w7, _mm_set1_ps(r7[sok]), _sum3);
-                            _sum0 = _mm_fmadd_ps(_w8, _mm_set1_ps(r8[sok]), _sum0);
-                            _sum1 = _mm_fmadd_ps(_w9, _mm_set1_ps(r9[sok]), _sum1);
-                            _sum2 = _mm_fmadd_ps(_wa, _mm_set1_ps(ra[sok]), _sum2);
-                            _sum3 = _mm_fmadd_ps(_wb, _mm_set1_ps(rb[sok]), _sum3);
-                            _sum0 = _mm_fmadd_ps(_wc, _mm_set1_ps(rc[sok]), _sum0);
-                            _sum1 = _mm_fmadd_ps(_wd, _mm_set1_ps(rd[sok]), _sum1);
-                            _sum2 = _mm_fmadd_ps(_we, _mm_set1_ps(re[sok]), _sum2);
-                            _sum3 = _mm_fmadd_ps(_wf, _mm_set1_ps(rf[sok]), _sum3);
+                            _sum1 = _mm_fmadd_ps(_w1, _mm_set1_ps(r0[sok + N]), _sum1);
+                            _sum2 = _mm_fmadd_ps(_w2, _mm_set1_ps(r0[sok + N * 2]), _sum2);
+                            _sum3 = _mm_fmadd_ps(_w3, _mm_set1_ps(r0[sok + N * 3]), _sum3);
+                            _sum0 = _mm_fmadd_ps(_w4, _mm_set1_ps(r0[sok + N * 4]), _sum0);
+                            _sum1 = _mm_fmadd_ps(_w5, _mm_set1_ps(r0[sok + N * 5]), _sum1);
+                            _sum2 = _mm_fmadd_ps(_w6, _mm_set1_ps(r0[sok + N * 6]), _sum2);
+                            _sum3 = _mm_fmadd_ps(_w7, _mm_set1_ps(r0[sok + N * 7]), _sum3);
+                            _sum0 = _mm_fmadd_ps(_w8, _mm_set1_ps(r0[sok + N * 8]), _sum0);
+                            _sum1 = _mm_fmadd_ps(_w9, _mm_set1_ps(r0[sok + N * 9]), _sum1);
+                            _sum2 = _mm_fmadd_ps(_wa, _mm_set1_ps(r0[sok + N * 10]), _sum2);
+                            _sum3 = _mm_fmadd_ps(_wb, _mm_set1_ps(r0[sok + N * 11]), _sum3);
+                            _sum0 = _mm_fmadd_ps(_wc, _mm_set1_ps(r0[sok + N * 12]), _sum0);
+                            _sum1 = _mm_fmadd_ps(_wd, _mm_set1_ps(r0[sok + N * 13]), _sum1);
+                            _sum2 = _mm_fmadd_ps(_we, _mm_set1_ps(r0[sok + N * 14]), _sum2);
+                            _sum3 = _mm_fmadd_ps(_wf, _mm_set1_ps(r0[sok + N * 15]), _sum3);
 
                             kptr += 64;
                         }
@@ -2240,14 +2280,6 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                     }
                     if (elempack == 1)
                     {
-                        const float* r1 = r0 + N;
-                        const float* r2 = r0 + N * 2;
-                        const float* r3 = r0 + N * 3;
-                        const float* r4 = r0 + N * 4;
-                        const float* r5 = r0 + N * 5;
-                        const float* r6 = r0 + N * 6;
-                        const float* r7 = r0 + N * 7;
-
                         for (int k = 0; k < maxk; k++)
                         {
                             const int sok = space_ofs[k];
@@ -2262,13 +2294,13 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                             __m128 _w7 = _mm_load_ps(kptr + 28);
 
                             _sum0 = _mm_comp_fmadd_ps(_w0, _mm_set1_ps(r0[sok]), _sum0);
-                            _sum1 = _mm_comp_fmadd_ps(_w1, _mm_set1_ps(r1[sok]), _sum1);
-                            _sum2 = _mm_comp_fmadd_ps(_w2, _mm_set1_ps(r2[sok]), _sum2);
-                            _sum3 = _mm_comp_fmadd_ps(_w3, _mm_set1_ps(r3[sok]), _sum3);
-                            _sum0 = _mm_comp_fmadd_ps(_w4, _mm_set1_ps(r4[sok]), _sum0);
-                            _sum1 = _mm_comp_fmadd_ps(_w5, _mm_set1_ps(r5[sok]), _sum1);
-                            _sum2 = _mm_comp_fmadd_ps(_w6, _mm_set1_ps(r6[sok]), _sum2);
-                            _sum3 = _mm_comp_fmadd_ps(_w7, _mm_set1_ps(r7[sok]), _sum3);
+                            _sum1 = _mm_comp_fmadd_ps(_w1, _mm_set1_ps(r0[sok + N]), _sum1);
+                            _sum2 = _mm_comp_fmadd_ps(_w2, _mm_set1_ps(r0[sok + N * 2]), _sum2);
+                            _sum3 = _mm_comp_fmadd_ps(_w3, _mm_set1_ps(r0[sok + N * 3]), _sum3);
+                            _sum0 = _mm_comp_fmadd_ps(_w4, _mm_set1_ps(r0[sok + N * 4]), _sum0);
+                            _sum1 = _mm_comp_fmadd_ps(_w5, _mm_set1_ps(r0[sok + N * 5]), _sum1);
+                            _sum2 = _mm_comp_fmadd_ps(_w6, _mm_set1_ps(r0[sok + N * 6]), _sum2);
+                            _sum3 = _mm_comp_fmadd_ps(_w7, _mm_set1_ps(r0[sok + N * 7]), _sum3);
 
                             kptr += 32;
                         }
@@ -2300,10 +2332,6 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                     }
                     if (elempack == 1)
                     {
-                        const float* r1 = r0 + N;
-                        const float* r2 = r0 + N * 2;
-                        const float* r3 = r0 + N * 3;
-
                         for (int k = 0; k < maxk; k++)
                         {
                             const int sok = space_ofs[k];
@@ -2314,9 +2342,9 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                             __m128 _w3 = _mm_load_ps(kptr + 12);
 
                             _sum0 = _mm_comp_fmadd_ps(_w0, _mm_set1_ps(r0[sok]), _sum0);
-                            _sum1 = _mm_comp_fmadd_ps(_w1, _mm_set1_ps(r1[sok]), _sum1);
-                            _sum2 = _mm_comp_fmadd_ps(_w2, _mm_set1_ps(r2[sok]), _sum2);
-                            _sum3 = _mm_comp_fmadd_ps(_w3, _mm_set1_ps(r3[sok]), _sum3);
+                            _sum1 = _mm_comp_fmadd_ps(_w1, _mm_set1_ps(r0[sok + N]), _sum1);
+                            _sum2 = _mm_comp_fmadd_ps(_w2, _mm_set1_ps(r0[sok + N * 2]), _sum2);
+                            _sum3 = _mm_comp_fmadd_ps(_w3, _mm_set1_ps(r0[sok + N * 3]), _sum3);
 
                             kptr += 16;
                         }
@@ -2328,8 +2356,6 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
 
                     // if (elempack == 1)
                     {
-                        const float* r1 = r0 + N;
-
                         for (int k = 0; k < maxk; k++)
                         {
                             const int sok = space_ofs[k];
@@ -2338,7 +2364,7 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                             __m128 _w1 = _mm_load_ps(kptr + 4);
 
                             _sum0 = _mm_comp_fmadd_ps(_w0, _mm_set1_ps(r0[sok]), _sum0);
-                            _sum1 = _mm_comp_fmadd_ps(_w1, _mm_set1_ps(r1[sok]), _sum1);
+                            _sum1 = _mm_comp_fmadd_ps(_w1, _mm_set1_ps(r0[sok + N]), _sum1);
 
                             kptr += 8;
                         }
@@ -2395,6 +2421,12 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
     for (int pp = 0; pp < nn_outch; pp++)
     {
         const int p = remain_outch_start + pp * 2;
+
+        // shadowed variable for less openmp task args
+        const int elempack = bottom_blob.elempack;
+        const int inch = bottom_blob.c * elempack;
+        const int outw = top_blob.w;
+        const int outh = top_blob.h;
 
         float* outptr0 = top_blob.channel(p);
         float* outptr1 = top_blob.channel(p + 1);
@@ -2482,26 +2514,10 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                     }
                     if (elempack == 1)
                     {
-                        const float* r1 = r0 + N;
-                        const float* r2 = r0 + N * 2;
-                        const float* r3 = r0 + N * 3;
-                        const float* r4 = r0 + N * 4;
-                        const float* r5 = r0 + N * 5;
-                        const float* r6 = r0 + N * 6;
-                        const float* r7 = r0 + N * 7;
-                        const float* r8 = r0 + N * 8;
-                        const float* r9 = r0 + N * 9;
-                        const float* ra = r0 + N * 10;
-                        const float* rb = r0 + N * 11;
-                        const float* rc = r0 + N * 12;
-                        const float* rd = r0 + N * 13;
-                        const float* re = r0 + N * 14;
-                        const float* rf = r0 + N * 15;
-
                         for (int k = 0; k < maxk; k++)
                         {
                             const int sok = space_ofs[k];
-                            __m512 _r0 = _mm512_set_ps(rf[sok], re[sok], rd[sok], rc[sok], rb[sok], ra[sok], r9[sok], r8[sok], r7[sok], r6[sok], r5[sok], r4[sok], r3[sok], r2[sok], r1[sok], r0[sok]);
+                            __m512 _r0 = _mm512_set_ps(r0[sok + N * 15], r0[sok + N * 14], r0[sok + N * 13], r0[sok + N * 12], r0[sok + N * 11], r0[sok + N * 10], r0[sok + N * 9], r0[sok + N * 8], r0[sok + N * 7], r0[sok + N * 6], r0[sok + N * 5], r0[sok + N * 4], r0[sok + N * 3], r0[sok + N * 2], r0[sok + N], r0[sok]);
                             __m512 _w0 = _mm512_load_ps(kptr);
                             __m512 _w1 = _mm512_load_ps(kptr + 16);
                             _sum0_avx512 = _mm512_fmadd_ps(_r0, _w0, _sum0_avx512);
@@ -2552,18 +2568,10 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                     }
                     if (elempack == 1)
                     {
-                        const float* r1 = r0 + N;
-                        const float* r2 = r0 + N * 2;
-                        const float* r3 = r0 + N * 3;
-                        const float* r4 = r0 + N * 4;
-                        const float* r5 = r0 + N * 5;
-                        const float* r6 = r0 + N * 6;
-                        const float* r7 = r0 + N * 7;
-
                         for (int k = 0; k < maxk; k++)
                         {
                             const int sok = space_ofs[k];
-                            __m256 _r0 = _mm256_set_ps(r7[sok], r6[sok], r5[sok], r4[sok], r3[sok], r2[sok], r1[sok], r0[sok]);
+                            __m256 _r0 = _mm256_set_ps(r0[sok + N * 7], r0[sok + N * 6], r0[sok + N * 5], r0[sok + N * 4], r0[sok + N * 3], r0[sok + N * 2], r0[sok + N], r0[sok]);
                             __m256 _w0 = _mm256_load_ps(kptr);
                             __m256 _w1 = _mm256_load_ps(kptr + 8);
                             _sum0_avx = _mm256_comp_fmadd_ps(_r0, _w0, _sum0_avx);
@@ -2598,14 +2606,10 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                     }
                     if (elempack == 1)
                     {
-                        const float* r1 = r0 + N;
-                        const float* r2 = r0 + N * 2;
-                        const float* r3 = r0 + N * 3;
-
                         for (int k = 0; k < maxk; k++)
                         {
                             const int sok = space_ofs[k];
-                            __m128 _r0 = _mm_set_ps(r3[sok], r2[sok], r1[sok], r0[sok]);
+                            __m128 _r0 = _mm_set_ps(r0[sok + N * 3], r0[sok + N * 2], r0[sok + N], r0[sok]);
                             __m128 _w0 = _mm_load_ps(kptr);
                             __m128 _w1 = _mm_load_ps(kptr + 4);
                             _sum0 = _mm_comp_fmadd_ps(_r0, _w0, _sum0);
@@ -2624,16 +2628,14 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
 
                     // if (elempack == 1)
                     {
-                        const float* r1 = r0 + N;
-
                         for (int k = 0; k < maxk; k++)
                         {
                             const int sok = space_ofs[k];
 
                             sum0 += r0[sok] * kptr[0];
                             sum1 += r0[sok] * kptr[1];
-                            sum0 += r1[sok] * kptr[2];
-                            sum1 += r1[sok] * kptr[3];
+                            sum0 += r0[sok + N] * kptr[2];
+                            sum1 += r0[sok + N] * kptr[3];
 
                             kptr += 4;
                         }
@@ -2745,26 +2747,10 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                     }
                     if (elempack == 1)
                     {
-                        const float* r1 = r0 + N;
-                        const float* r2 = r0 + N * 2;
-                        const float* r3 = r0 + N * 3;
-                        const float* r4 = r0 + N * 4;
-                        const float* r5 = r0 + N * 5;
-                        const float* r6 = r0 + N * 6;
-                        const float* r7 = r0 + N * 7;
-                        const float* r8 = r0 + N * 8;
-                        const float* r9 = r0 + N * 9;
-                        const float* ra = r0 + N * 10;
-                        const float* rb = r0 + N * 11;
-                        const float* rc = r0 + N * 12;
-                        const float* rd = r0 + N * 13;
-                        const float* re = r0 + N * 14;
-                        const float* rf = r0 + N * 15;
-
                         for (int k = 0; k < maxk; k++)
                         {
                             const int sok = space_ofs[k];
-                            __m512 _r0 = _mm512_set_ps(rf[sok], re[sok], rd[sok], rc[sok], rb[sok], ra[sok], r9[sok], r8[sok], r7[sok], r6[sok], r5[sok], r4[sok], r3[sok], r2[sok], r1[sok], r0[sok]);
+                            __m512 _r0 = _mm512_set_ps(r0[sok + N * 15], r0[sok + N * 14], r0[sok + N * 13], r0[sok + N * 12], r0[sok + N * 11], r0[sok + N * 10], r0[sok + N * 9], r0[sok + N * 8], r0[sok + N * 7], r0[sok + N * 6], r0[sok + N * 5], r0[sok + N * 4], r0[sok + N * 3], r0[sok + N * 2], r0[sok + N], r0[sok]);
                             __m512 _w = _mm512_load_ps(kptr);
                             _sum_avx512 = _mm512_fmadd_ps(_r0, _w, _sum_avx512);
 
@@ -2807,18 +2793,10 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                     }
                     if (elempack == 1)
                     {
-                        const float* r1 = r0 + N;
-                        const float* r2 = r0 + N * 2;
-                        const float* r3 = r0 + N * 3;
-                        const float* r4 = r0 + N * 4;
-                        const float* r5 = r0 + N * 5;
-                        const float* r6 = r0 + N * 6;
-                        const float* r7 = r0 + N * 7;
-
                         for (int k = 0; k < maxk; k++)
                         {
                             const int sok = space_ofs[k];
-                            __m256 _r0 = _mm256_set_ps(r7[sok], r6[sok], r5[sok], r4[sok], r3[sok], r2[sok], r1[sok], r0[sok]);
+                            __m256 _r0 = _mm256_set_ps(r0[sok + N * 7], r0[sok + N * 6], r0[sok + N * 5], r0[sok + N * 4], r0[sok + N * 3], r0[sok + N * 2], r0[sok + N], r0[sok]);
                             __m256 _w = _mm256_load_ps(kptr);
                             _sum_avx = _mm256_comp_fmadd_ps(_r0, _w, _sum_avx);
 
@@ -2847,14 +2825,10 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
                     }
                     if (elempack == 1)
                     {
-                        const float* r1 = r0 + N;
-                        const float* r2 = r0 + N * 2;
-                        const float* r3 = r0 + N * 3;
-
                         for (int k = 0; k < maxk; k++)
                         {
                             const int sok = space_ofs[k];
-                            __m128 _r0 = _mm_set_ps(r3[sok], r2[sok], r1[sok], r0[sok]);
+                            __m128 _r0 = _mm_set_ps(r0[sok + N * 3], r0[sok + N * 2], r0[sok + N], r0[sok]);
                             __m128 _w = _mm_load_ps(kptr);
                             _sum = _mm_comp_fmadd_ps(_r0, _w, _sum);
 
@@ -2870,14 +2844,12 @@ static void convolution_packed(const Mat& bottom_blob, Mat& top_blob, const Mat&
 
                     // if (elempack == 1)
                     {
-                        const float* r1 = r0 + N;
-
                         for (int k = 0; k < maxk; k++)
                         {
                             const int sok = space_ofs[k];
 
                             sum += r0[sok] * kptr[0];
-                            sum += r1[sok] * kptr[1];
+                            sum += r0[sok + N] * kptr[1];
 
                             kptr += 2;
                         }

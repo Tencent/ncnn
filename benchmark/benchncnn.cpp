@@ -16,13 +16,6 @@
 #include <stdio.h>
 #include <string.h>
 
-#ifdef _WIN32
-#include <algorithm>
-#include <windows.h> // Sleep()
-#else
-#include <unistd.h> // sleep()
-#endif
-
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #endif
@@ -106,18 +99,7 @@ void benchmark(const char* comment, const ncnn::Mat& _in, const ncnn::Option& op
     if (g_enable_cooling_down)
     {
         // sleep 10 seconds for cooling down SOC  :(
-#ifdef _WIN32
-        Sleep(10 * 1000);
-#elif defined(__unix__) || defined(__APPLE__)
-        sleep(10);
-#elif _POSIX_TIMERS
-        struct timespec ts;
-        ts.tv_sec = 10;
-        ts.tv_nsec = 0;
-        nanosleep(&ts, &ts);
-#else
-        // TODO How to handle it ?
-#endif
+        ncnn::sleep(10 * 1000);
     }
 
     ncnn::Mat out;
@@ -214,6 +196,11 @@ int main(int argc, char** argv)
     }
 #endif // NCNN_VULKAN
 
+    ncnn::set_cpu_powersave(powersave);
+
+    ncnn::set_omp_dynamic(0);
+    ncnn::set_omp_num_threads(num_threads);
+
     // default option
     ncnn::Option opt;
     opt.lightmode = true;
@@ -237,11 +224,6 @@ int main(int argc, char** argv)
     opt.use_packing_layout = true;
     opt.use_shader_pack8 = false;
     opt.use_image_storage = false;
-
-    ncnn::set_cpu_powersave(powersave);
-
-    ncnn::set_omp_dynamic(0);
-    ncnn::set_omp_num_threads(num_threads);
 
     fprintf(stderr, "loop_count = %d\n", g_loop_count);
     fprintf(stderr, "num_threads = %d\n", num_threads);
@@ -324,6 +306,7 @@ int main(int argc, char** argv)
 #if NCNN_VULKAN
     delete g_blob_vkallocator;
     delete g_staging_vkallocator;
+    ncnn::destroy_gpu_instance();
 #endif // NCNN_VULKAN
 
     return 0;

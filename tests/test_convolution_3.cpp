@@ -187,6 +187,49 @@ static int test_convolution_int8(int w, int h, int c, int outch, int kernel, int
     if (ret != 0)
     {
         fprintf(stderr, "test_convolution_int8 failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d requant=%d act=%d actparams=[%f,%f]\n", w, h, c, outch, kernel, dilation, stride, pad, bias, requant, activation_type, activation_params[0], activation_params[1]);
+        return ret;
+    }
+
+    {
+        ncnn::Option opt;
+        opt.num_threads = 1;
+        opt.use_packing_layout = true;
+        opt.use_fp16_packed = false;
+        opt.use_fp16_storage = false;
+        opt.use_fp16_arithmetic = false;
+        opt.use_bf16_storage = false;
+        opt.use_shader_pack8 = false;
+        opt.use_image_storage = false;
+        opt.use_sgemm_convolution = false;
+        opt.use_winograd_convolution = false;
+
+        ret = test_layer_opt<ncnn::Convolution>("Convolution", pd, weights, opt, a, requant ? 1.0f : 0.001f, 0, flag);
+        if (ret != 0)
+        {
+            fprintf(stderr, "test_convolution_int8 failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d requant=%d act=%d actparams=[%f,%f]\n", w, h, c, outch, kernel, dilation, stride, pad, bias, requant, activation_type, activation_params[0], activation_params[1]);
+            return ret;
+        }
+    }
+
+    {
+        ncnn::Option opt;
+        opt.num_threads = 1;
+        opt.use_packing_layout = true;
+        opt.use_fp16_packed = true;
+        opt.use_fp16_storage = true;
+        opt.use_fp16_arithmetic = true;
+        opt.use_bf16_storage = true;
+        opt.use_shader_pack8 = true;
+        opt.use_image_storage = true;
+        opt.use_sgemm_convolution = false;
+        opt.use_winograd_convolution = false;
+
+        ret = test_layer_opt<ncnn::Convolution>("Convolution", pd, weights, opt, a, requant ? 1.0f : 0.001f, 0, flag);
+        if (ret != 0)
+        {
+            fprintf(stderr, "test_convolution_int8 failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d requant=%d act=%d actparams=[%f,%f]\n", w, h, c, outch, kernel, dilation, stride, pad, bias, requant, activation_type, activation_params[0], activation_params[1]);
+            return ret;
+        }
     }
 
     return ret;
@@ -269,6 +312,82 @@ static int test_convolution_1()
            || test_convolution_int8(25, 33, 16, 15, 3, 1, 1, 1, 0)
            || test_convolution_int8(7, 7, 15, 12, 3, 1, 1, 1, 0);
 }
+
+static int test_convolution_1_2()
+{
+    return 0
+           || test_convolution_int8(19, 17, 1, 1, 3, 2, 2, 0, 1)
+           || test_convolution_int8(19, 17, 2, 1, 3, 2, 2, 0, 0)
+           || test_convolution_int8(19, 17, 7, 1, 3, 2, 2, 0, 1)
+           || test_convolution_int8(19, 17, 8, 1, 3, 2, 2, 0, 0)
+           || test_convolution_int8(19, 17, 15, 1, 3, 2, 2, 0, 1)
+           || test_convolution_int8(19, 17, 16, 1, 3, 2, 2, 0, 0)
+           || test_convolution_int8(19, 17, 31, 1, 3, 2, 2, 0, 1)
+           || test_convolution_int8(19, 17, 32, 1, 3, 2, 2, 0, 0)
+
+           || test_convolution_int8(19, 17, 1, 2, 5, 2, 2, 0, 1)
+           || test_convolution_int8(19, 17, 2, 2, 5, 2, 2, 0, 0)
+           || test_convolution_int8(19, 17, 7, 2, 5, 2, 2, 0, 1)
+           || test_convolution_int8(19, 17, 8, 2, 5, 2, 2, 0, 0)
+           || test_convolution_int8(19, 17, 15, 2, 5, 2, 2, 0, 1)
+           || test_convolution_int8(19, 17, 16, 2, 5, 2, 2, 0, 0)
+           || test_convolution_int8(19, 17, 31, 2, 5, 2, 2, 0, 1)
+           || test_convolution_int8(19, 17, 32, 2, 5, 2, 2, 0, 0)
+
+           || test_convolution_int8(19, 17, 1, 7, 5, 2, 2, 0, 1)
+           || test_convolution_int8(19, 17, 2, 7, 5, 2, 2, 0, 0)
+           || test_convolution_int8(19, 17, 7, 7, 5, 2, 2, 0, 1)
+           || test_convolution_int8(19, 17, 8, 7, 5, 2, 2, 0, 0)
+           || test_convolution_int8(19, 17, 15, 7, 5, 2, 2, 0, 1)
+           || test_convolution_int8(19, 17, 16, 7, 5, 2, 2, 0, 0)
+           || test_convolution_int8(19, 17, 31, 7, 5, 2, 2, 0, 1)
+           || test_convolution_int8(19, 17, 32, 7, 5, 2, 2, 0, 0)
+
+           || test_convolution_int8(19, 17, 1, 8, 5, 2, 2, 0, 1)
+           || test_convolution_int8(19, 17, 2, 8, 5, 2, 2, 0, 0)
+           || test_convolution_int8(19, 17, 7, 8, 5, 2, 2, 0, 1)
+           || test_convolution_int8(19, 17, 8, 8, 5, 2, 2, 0, 0)
+           || test_convolution_int8(19, 17, 15, 8, 5, 2, 2, 0, 1)
+           || test_convolution_int8(19, 17, 16, 8, 5, 2, 2, 0, 0)
+           || test_convolution_int8(19, 17, 31, 8, 5, 2, 2, 0, 1)
+           || test_convolution_int8(19, 17, 32, 8, 5, 2, 2, 0, 0)
+
+           || test_convolution_int8(19, 17, 1, 15, 5, 2, 2, 0, 1)
+           || test_convolution_int8(19, 17, 2, 15, 5, 2, 2, 0, 0)
+           || test_convolution_int8(19, 17, 7, 15, 5, 2, 2, 0, 1)
+           || test_convolution_int8(19, 17, 8, 15, 5, 2, 2, 0, 0)
+           || test_convolution_int8(19, 17, 15, 15, 5, 2, 2, 0, 1)
+           || test_convolution_int8(19, 17, 16, 15, 5, 2, 2, 0, 0)
+           || test_convolution_int8(19, 17, 31, 15, 5, 2, 2, 0, 1)
+           || test_convolution_int8(19, 17, 32, 15, 5, 2, 2, 0, 0)
+
+           || test_convolution_int8(19, 17, 1, 16, 5, 2, 2, 0, 1)
+           || test_convolution_int8(19, 17, 2, 16, 5, 2, 2, 0, 0)
+           || test_convolution_int8(19, 17, 7, 16, 5, 2, 2, 0, 1)
+           || test_convolution_int8(19, 17, 8, 16, 5, 2, 2, 0, 0)
+           || test_convolution_int8(19, 17, 15, 16, 5, 2, 2, 0, 1)
+           || test_convolution_int8(19, 17, 16, 16, 5, 2, 2, 0, 0)
+           || test_convolution_int8(19, 17, 31, 16, 5, 2, 2, 0, 1)
+           || test_convolution_int8(19, 17, 32, 16, 5, 2, 2, 0, 0)
+
+           || test_convolution_int8(19, 17, 1, 31, 5, 2, 2, 0, 1)
+           || test_convolution_int8(19, 17, 2, 31, 5, 2, 2, 0, 0)
+           || test_convolution_int8(19, 17, 7, 31, 5, 2, 2, 0, 1)
+           || test_convolution_int8(19, 17, 8, 31, 5, 2, 2, 0, 0)
+           || test_convolution_int8(19, 17, 15, 31, 5, 2, 2, 0, 1)
+           || test_convolution_int8(19, 17, 16, 31, 5, 2, 2, 0, 0)
+           || test_convolution_int8(19, 17, 31, 31, 5, 2, 2, 0, 1)
+           || test_convolution_int8(19, 17, 32, 31, 5, 2, 2, 0, 0)
+
+           || test_convolution_int8(19, 17, 1, 32, 5, 2, 2, 0, 1)
+           || test_convolution_int8(19, 17, 2, 32, 5, 2, 2, 0, 0)
+           || test_convolution_int8(19, 17, 7, 32, 5, 2, 2, 0, 1)
+           || test_convolution_int8(19, 17, 8, 32, 5, 2, 2, 0, 0)
+           || test_convolution_int8(19, 17, 15, 32, 5, 2, 2, 0, 1)
+           || test_convolution_int8(19, 17, 16, 32, 5, 2, 2, 0, 0)
+           || test_convolution_int8(19, 17, 31, 32, 5, 2, 2, 0, 1)
+           || test_convolution_int8(19, 17, 32, 32, 5, 2, 2, 0, 0);
+}
 #endif // NCNN_INT8
 
 int main()
@@ -278,6 +397,7 @@ int main()
 #if NCNN_INT8
     return 0
            || test_convolution_1()
+           || test_convolution_1_2()
            || test_convolution_2()
            || test_convolution_3();
 #else

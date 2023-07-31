@@ -406,7 +406,7 @@ int DeconvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, c
                         }
                         else if (activation_type == 4)
                         {
-                            sum = static_cast<float>(1.f / (1.f + exp(-sum)));
+                            sum = 1.f / (1.f + expf(-sum));
                         }
 
                         outptr[j] = sum;
@@ -659,7 +659,7 @@ int DeconvolutionDepthWise_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_b
                         }
                         else if (activation_type == 4)
                         {
-                            sum = static_cast<float>(1.f / (1.f + exp(-sum)));
+                            sum = 1.f / (1.f + expf(-sum));
                         }
 
                         outptr[j] = float32_to_bfloat16(sum);

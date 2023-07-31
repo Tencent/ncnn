@@ -15,6 +15,7 @@
 #include "eliminate_noop_math.h"
 
 #include <algorithm>
+#include "utils.h"
 #include "pass_level2.h"
 #include "pass_level4/dead_code_elimination.h"
 
@@ -74,6 +75,16 @@ static bool attribute_is_all_constant(const Operator* op_attr, float vf, int vi)
         for (int i = 0; i < size; i++)
         {
             if (p[i] != vf)
+                return false;
+        }
+    }
+    else if (attr.type == 3)
+    {
+        // f16
+        const unsigned short* p = (const unsigned short*)attr.data.data();
+        for (int i = 0; i < size; i++)
+        {
+            if (float16_to_float32(p[i]) != vf)
                 return false;
         }
     }
@@ -257,7 +268,7 @@ void eliminate_noop_math(Graph& graph)
             if (!need_eliminate)
                 continue;
 
-            fprintf(stderr, "eliminate_noop_math %s %s\n", op->type.c_str(), op->name.c_str());
+            // fprintf(stderr, "eliminate_noop_math %s %s\n", op->type.c_str(), op->name.c_str());
 
             for (auto& x : op->inputs)
             {

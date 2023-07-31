@@ -29,42 +29,21 @@ public:
         return R"PNNXIR(7767517
 5 4
 pnnx.Input              input       0 1 input
-pnnx.Attribute          op_weight   0 1 weight @qwq
-pnnx.Attribute          op_bias     0 1 bias @qwq
+pnnx.Attribute          op_weight   0 1 weight @data=(%num_channels)f32
+pnnx.Attribute          op_bias     0 1 bias @data=(%num_channels)f32
 F.group_norm            op_0        3 1 input weight bias out num_groups=%num_groups eps=%eps
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
 
-    const char* type_str() const
+    const char* replace_pattern_graph() const
     {
-        return "nn.GroupNorm";
-    }
-
-    const char* name_str() const
-    {
-        return "group_norm";
-    }
-
-    void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
-    {
-        Attribute weight;
-        Attribute bias;
-        for (const auto& x : captured_attrs)
-        {
-            if (x.first.substr(0, 10) == "op_weight.")
-                weight = x.second;
-            if (x.first.substr(0, 8) == "op_bias.")
-                bias = x.second;
-        }
-
-        op->params["num_channels"] = weight.shape[0];
-        op->params["num_groups"] = captured_params.at("num_groups");
-        op->params["eps"] = captured_params.at("eps");
-        op->params["affine"] = true;
-
-        op->attrs["weight"] = weight;
-        op->attrs["bias"] = bias;
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+nn.GroupNorm            group_norm  1 1 input out num_channels=%num_channels num_groups=%num_groups eps=%eps affine=True @weight=%op_weight.data @bias=%op_bias.data
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 };
 

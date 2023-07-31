@@ -32,7 +32,7 @@ public:
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
 protected:
-#if (NCNN_VFPV4 && __ARM_NEON) || __aarch64__
+#if NCNN_VFPV4
     int create_pipeline_fp16s(const Option& opt);
     int forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 #endif

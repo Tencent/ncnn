@@ -19,14 +19,6 @@ set(NCNN_VERSION_MAJOR 1)
 set(NCNN_VERSION_MINOR 0)
 set(NCNN_VERSION_PATCH ${NCNN_VERSION})
 set(NCNN_VERSION_STRING ${NCNN_VERSION_MAJOR}.${NCNN_VERSION_MINOR}.${NCNN_VERSION_PATCH})
-if(APPLE OR IOS)
-    # macos / ios only accepts a.b.c.d.e where a=24bit b/c/d/e=10bit
-    # 20201228 to 20.12.28
-    string(SUBSTRING ${NCNN_VERSION} 2 2 NCNN_VERSION_YEAR)
-    string(SUBSTRING ${NCNN_VERSION} 4 2 NCNN_VERSION_MONTH)
-    string(SUBSTRING ${NCNN_VERSION} 6 2 NCNN_VERSION_DAY)
-    set(NCNN_VERSION_STRING ${NCNN_VERSION_MAJOR}.${NCNN_VERSION_MINOR}.${NCNN_VERSION_YEAR}.${NCNN_VERSION_MONTH}.${NCNN_VERSION_DAY})
-endif()
 message(STATUS "NCNN_VERSION_STRING = ${NCNN_VERSION_STRING}")
 
 cmake_minimum_required(VERSION 2.8.12)
@@ -178,6 +170,9 @@ if((IOS AND CMAKE_OSX_ARCHITECTURES MATCHES "arm")
     endif()
 
     if(CMAKE_SIZEOF_VOID_P EQUAL 8 AND NOT (CMAKE_CXX_COMPILER_ID MATCHES "MSVC" OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_SIMULATE_ID MATCHES "MSVC" AND CMAKE_CXX_COMPILER_FRONTEND_VARIANT MATCHES "MSVC")))
+        set(CMAKE_REQUIRED_FLAGS "-march=armv8-a")
+        check_cxx_source_compiles("#include <arm_neon.h>\nint main() { float32x4_t _a; float16x4_t _s = vcvt_f16_f32(_a); return 0; }" NCNN_COMPILER_SUPPORT_ARM_VFPV4)
+
         set(CMAKE_REQUIRED_FLAGS "-march=armv8.2-a+fp16")
         check_cxx_source_compiles("#include <arm_neon.h>\nint main() { float16x8_t _s, _a, _b; _s = vfmaq_f16(_s, _a, _b); return 0; }" NCNN_COMPILER_SUPPORT_ARM82_FP16)
 
@@ -209,6 +204,12 @@ if((IOS AND CMAKE_OSX_ARCHITECTURES MATCHES "arm")
         check_cxx_source_compiles("#include <arm_sve.h>\nint main() { svfloat32_t _s, _a, _b; _s = svmmla_f32(_s, _a, _b); return 0; }" NCNN_COMPILER_SUPPORT_ARM86_SVEF32MM)
 
         unset(CMAKE_REQUIRED_FLAGS)
+
+        if(NCNN_COMPILER_SUPPORT_ARM_VFPV4)
+            option(NCNN_VFPV4 "optimize aarch64 platform with vfpv4" ON)
+        else()
+            message(WARNING "The compiler does not support arm vfpv4. NCNN_VFPV4 will be OFF.")
+        endif()
 
         if(NCNN_COMPILER_SUPPORT_ARM82_FP16)
             option(NCNN_ARM82 "optimize aarch64 platform with armv8.2 fp16" ON)
@@ -302,10 +303,21 @@ elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(mips)")
 elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(loongarch64|loongarch32)")
     set(NCNN_TARGET_ARCH loongarch)
 
-    check_cxx_compiler_flag("-mlsx" NCNN_COMPILER_SUPPORT_LOONGARCH_LSX)
+    set(CMAKE_REQUIRED_FLAGS "-mlsx")
+    check_cxx_source_compiles("#include <lsxintrin.h>\nint main() { __m128 _s, _a, _b, _c; _s = __lsx_vfmadd_s(_a, _b, _c); return 0; }" NCNN_COMPILER_SUPPORT_LOONGARCH_LSX)
+
+    set(CMAKE_REQUIRED_FLAGS "-mlasx")
+    check_cxx_source_compiles("#include <lasxintrin.h>\nint main() { __m256 _s, _a, _b, _c; _s = __lasx_xvfmadd_s(_a, _b, _c); return 0; }" NCNN_COMPILER_SUPPORT_LOONGARCH_LASX)
+
+    unset(CMAKE_REQUIRED_FLAGS)
 
     if(NCNN_COMPILER_SUPPORT_LOONGARCH_LSX)
         option(NCNN_LSX "optimize loongarch platform with lsx extension" ON)
+        if(NCNN_COMPILER_SUPPORT_LOONGARCH_LASX)
+            option(NCNN_LASX "optimize loongarch platform with lasx extension" ON)
+        else()
+            message(WARNING "The compiler does not support lasx extension. NCNN_LASX will be OFF.")
+        endif()
     else()
         message(WARNING "The compiler does not support lsx extension. NCNN_LSX will be OFF.")
     endif()
@@ -352,6 +364,30 @@ elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(riscv)")
     endif()
 elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(powerpc|ppc)")
     set(NCNN_TARGET_ARCH powerpc)
+
+    if(NCNN_PPC64LE_VSX)
+        set(NCNN_TARGET_ARCH x86)
+
+        set(CMAKE_REQUIRED_FLAGS "-DNO_WARN_X86_INTRINSICS -D__SSE2__")
+        check_cxx_source_compiles("#include <emmintrin.h>\nint main() { return 0; }" NCNN_COMPILER_SUPPORT_PPC64LE_SSE2)
+        unset(CMAKE_REQUIRED_FLAGS)
+
+        set(CMAKE_REQUIRED_FLAGS "-DNO_WARN_X86_INTRINSICS -D__SSE4_1__")
+        check_cxx_source_compiles("#include <smmintrin.h>\nint main() { __m128i _v, _a, _b; _v = _mm_packus_epi32(_a, _b); return 0; }" NCNN_COMPILER_SUPPORT_PPC64LE_SSE41)
+        unset(CMAKE_REQUIRED_FLAGS)
+
+        if(NCNN_COMPILER_SUPPORT_PPC64LE_SSE2)
+            option(NCNN_VSX_SSE2 "optimize ppc64le platform with sse2 extension" ON)
+        else()
+            message(WARNING "The compiler does not support sse2 extension. NCNN_VSX_SSE2 will be OFF.")
+        endif()
+
+        if(NCNN_COMPILER_SUPPORT_PPC64LE_SSE41)
+            option(NCNN_VSX_SSE41 "optimize ppc64le platform with sse4.1 extension" ON)
+        else()
+            message(WARNING "The compiler does not support sse4.1 extension. NCNN_VSX_SSE41 will be OFF.")
+        endif()
+    endif()
 elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(xtensa)")
     set(NCNN_TARGET_ARCH xtensa)
 elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(s390x)")

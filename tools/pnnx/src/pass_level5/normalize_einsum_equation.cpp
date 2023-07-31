@@ -14,6 +14,7 @@
 
 #include "normalize_einsum_equation.h"
 
+#include <ctype.h>
 #include <algorithm>
 #include <map>
 #include <vector>
@@ -41,6 +42,10 @@ void normalize_einsum_equation(Graph& graph)
             continue;
 
         std::string equation = op->params.at("equation").s;
+
+        // remove all spaces
+        equation.erase(std::remove_if(equation.begin(), equation.end(), isspace), equation.end());
+
         size_t equation_len = equation.size();
 
         std::map<char, char> xset;

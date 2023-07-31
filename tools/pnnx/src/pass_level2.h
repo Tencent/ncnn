@@ -26,7 +26,9 @@ public:
 
     virtual const char* match_pattern_graph() const = 0;
 
-    virtual const char* type_str() const = 0;
+    virtual const char* replace_pattern_graph() const;
+
+    virtual const char* type_str() const;
 
     virtual const char* name_str() const;
 
@@ -39,6 +41,10 @@ public:
     virtual void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const;
 
     virtual void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const;
+
+    virtual void write(const std::map<std::string, Operator*>& ops, const std::map<std::string, Parameter>& captured_params) const;
+
+    virtual void write(const std::map<std::string, Operator*>& ops, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const;
 };
 
 class GraphRewriterPassRegister

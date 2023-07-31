@@ -131,7 +131,7 @@ void pass_level1(const torch::jit::Module& mod, const std::shared_ptr<torch::jit
 
                 // sub_mod.dump(true, true, true);
 
-                op->attrs[name] = sub_mod.attr(name).toTensor();
+                op->attrs["data"] = sub_mod.attr(name).toTensor();
             }
         }
         else if (n->kind() == c10::prim::Constant) // || n->kind() == c10::prim::ListConstruct)
@@ -165,7 +165,7 @@ void pass_level1(const torch::jit::Module& mod, const std::shared_ptr<torch::jit
 
                 op->params.erase("value");
 
-                op->attrs[name] = n->t(torch::jit::attr::value);
+                op->attrs["data"] = n->t(torch::jit::attr::value);
             }
         }
         else if (n->kind() == c10::prim::CallMethod)
@@ -224,7 +224,7 @@ void pass_level1(const torch::jit::Module& mod, const std::shared_ptr<torch::jit
                 {
                     int pnnx_moduleop_unknown_index = 0;
 
-#if TORCH_VERSION_MAJOR >= 1 && TORCH_VERSION_MINOR >= 11
+#if TORCH_VERSION_MAJOR >= 2 || (TORCH_VERSION_MAJOR >= 1 && TORCH_VERSION_MINOR >= 11)
                     torch::jit::Block* moduleop_block = toGraphFunction(function).graph()->block();
 #else
                     torch::jit::Block* moduleop_block = function.graph()->block();
@@ -339,7 +339,7 @@ void pass_level1(const torch::jit::Module& mod, const std::shared_ptr<torch::jit
 
                     op->name = wrapped_name;
 
-#if TORCH_VERSION_MAJOR >= 1 && TORCH_VERSION_MINOR >= 11
+#if TORCH_VERSION_MAJOR >= 2 || (TORCH_VERSION_MAJOR >= 1 && TORCH_VERSION_MINOR >= 11)
                     ow->write(op, toGraphFunction(function).graph(), sub_mod);
 #else
                     ow->write(op, function.graph(), sub_mod);

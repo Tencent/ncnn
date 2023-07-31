@@ -23,6 +23,7 @@
 #include "pass_level3/fuse_einsum_operands.h"
 #include "pass_level3/fuse_expression.h"
 #include "pass_level3/fuse_index_expression.h"
+#include "pass_level3/fuse_maxpool_unpack.h"
 #include "pass_level3/fuse_multiheadattention_unpack.h"
 #include "pass_level3/fuse_rnn_unpack.h"
 #include "pass_level3/rename_F_conv_transposend.h"
@@ -35,7 +36,7 @@
 
 namespace pnnx {
 
-void pass_level3(Graph& g, const std::set<std::string>& foldable_constants)
+void pass_level3(Graph& g, const std::set<std::string>& foldable_constants, const std::string& foldable_constants_zippath)
 {
     assign_unique_name(g);
 
@@ -44,6 +45,8 @@ void pass_level3(Graph& g, const std::set<std::string>& foldable_constants)
     fuse_op1ton_unpack(g);
 
     fuse_einsum_operands(g);
+
+    fuse_maxpool_unpack(g);
 
     fuse_multiheadattention_unpack(g);
 
@@ -61,7 +64,7 @@ void pass_level3(Graph& g, const std::set<std::string>& foldable_constants)
 
     eliminate_noop_math(g);
 
-    fuse_expression(g, foldable_constants);
+    fuse_expression(g, foldable_constants, foldable_constants_zippath);
 
     fuse_index_expression(g);
 

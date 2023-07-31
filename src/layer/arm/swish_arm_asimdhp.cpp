@@ -83,7 +83,7 @@ int Swish_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) co
         for (; i < size; i++)
         {
             float v = (float)*ptr;
-            v = v / (1.f + exp(-v));
+            v = v / (1.f + expf(-v));
             *ptr = (__fp16)v;
 
             ptr++;
@@ -153,7 +153,7 @@ int Swish_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) c
         for (; i < size; i++)
         {
             __fp16 v = *ptr;
-            v = v / ((__fp16)1.f + exp(-v));
+            v = v / ((__fp16)1.f + expf(-v));
             *ptr = v;
 
             ptr++;

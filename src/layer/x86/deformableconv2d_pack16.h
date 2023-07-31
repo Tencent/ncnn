@@ -102,8 +102,8 @@ static void deformableconv2d_pack16_avx512(const std::vector<Mat>& bottom_blobs,
                         int v4_pos = 0;
                         if (cond)
                         {
-                            int h_low = floor(h_im);
-                            int w_low = floor(w_im);
+                            int h_low = (int)floorf(h_im);
+                            int w_low = (int)floorf(w_im);
                             int h_high = h_low + 1;
                             int w_high = w_low + 1;
 

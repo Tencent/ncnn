@@ -73,8 +73,8 @@ pnnx.Output             output      2 0 out out_hidden
             // reduce bias_ih and bias_hh
             std::vector<float> new_bias;
             {
-                const float* bias_ih = (const float*)captured_attrs.at("op_0.bias_ih_l0").data.data();
-                const float* bias_hh = (const float*)captured_attrs.at("op_0.bias_hh_l0").data.data();
+                auto bias_ih = captured_attrs.at("op_0.bias_ih_l0").get_float32_data();
+                auto bias_hh = captured_attrs.at("op_0.bias_hh_l0").get_float32_data();
 
                 new_bias.resize(4 * num_output);
                 float* bias = (float*)new_bias.data();
@@ -82,16 +82,16 @@ pnnx.Output             output      2 0 out out_hidden
                 {
                     bias[i] = bias_ih[i] + bias_hh[i];
                 }
-                memcpy(bias + num_output * 2, bias_ih + num_output * 2, num_output * sizeof(float));
-                memcpy(bias + num_output * 3, bias_hh + num_output * 2, num_output * sizeof(float));
+                memcpy(bias + num_output * 2, (const float*)bias_ih.data() + num_output * 2, num_output * sizeof(float));
+                memcpy(bias + num_output * 3, (const float*)bias_hh.data() + num_output * 2, num_output * sizeof(float));
             }
 
             if (bidirectional)
             {
                 std::vector<float> new_bias_reverse;
                 {
-                    const float* bias_ih = (const float*)captured_attrs.at("op_0.bias_ih_l0_reverse").data.data();
-                    const float* bias_hh = (const float*)captured_attrs.at("op_0.bias_hh_l0_reverse").data.data();
+                    auto bias_ih = captured_attrs.at("op_0.bias_ih_l0_reverse").get_float32_data();
+                    auto bias_hh = captured_attrs.at("op_0.bias_hh_l0_reverse").get_float32_data();
 
                     new_bias_reverse.resize(4 * num_output);
                     float* bias = (float*)new_bias_reverse.data();
@@ -99,8 +99,8 @@ pnnx.Output             output      2 0 out out_hidden
                     {
                         bias[i] = bias_ih[i] + bias_hh[i];
                     }
-                    memcpy(bias + num_output * 2, bias_ih + num_output * 2, num_output * sizeof(float));
-                    memcpy(bias + num_output * 3, bias_hh + num_output * 2, num_output * sizeof(float));
+                    memcpy(bias + num_output * 2, (const float*)bias_ih.data() + num_output * 2, num_output * sizeof(float));
+                    memcpy(bias + num_output * 3, (const float*)bias_hh.data() + num_output * 2, num_output * sizeof(float));
                 }
 
                 op->attrs["3"] = Attribute({4, num_output}, new_bias) + Attribute({4, num_output}, new_bias_reverse);

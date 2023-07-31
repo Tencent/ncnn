@@ -15,7 +15,10 @@
 #ifndef PNNX_IR_H
 #define PNNX_IR_H
 
+#include <limits.h>
+#include <complex>
 #include <initializer_list>
+#include <limits>
 #include <map>
 #include <set>
 #include <string>
@@ -51,19 +54,25 @@ public:
     {
     }
     Parameter(long _l)
-        : type(2), i(_l)
+        : type(2)
     {
+        if (_l == std::numeric_limits<long>::max()) _l = INT_MAX;
+        if (_l == std::numeric_limits<long>::min()) _l = INT_MIN;
+        i = (int)_l;
     }
     Parameter(long long _l)
-        : type(2), i(_l)
+        : type(2)
     {
+        if (_l == std::numeric_limits<long long>::max()) _l = INT_MAX;
+        if (_l == std::numeric_limits<long long>::min()) _l = INT_MIN;
+        i = (int)_l;
     }
     Parameter(float _f)
         : type(3), f(_f)
     {
     }
     Parameter(double _d)
-        : type(3), f(_d)
+        : type(3), f((float)_d)
     {
     }
     Parameter(const char* _s)
@@ -82,7 +91,12 @@ public:
         : type(5)
     {
         for (const auto& x : _ai)
-            ai.push_back((int)x);
+        {
+            int64_t _l = x;
+            if (_l == std::numeric_limits<int64_t>::max()) _l = INT_MAX;
+            if (_l == std::numeric_limits<int64_t>::min()) _l = INT_MIN;
+            ai.push_back((int)_l);
+        }
     }
     Parameter(const std::vector<int>& _ai)
         : type(5), ai(_ai)
@@ -102,6 +116,12 @@ public:
         : type(6), af(_af)
     {
     }
+    Parameter(const std::vector<double>& _af)
+        : type(6)
+    {
+        for (const auto& x : _af)
+            af.push_back((float)x);
+    }
     Parameter(const std::initializer_list<const char*>& _as)
         : type(7)
     {
@@ -116,6 +136,34 @@ public:
         : type(7), as(_as)
     {
     }
+    Parameter(const std::complex<float>& _c)
+        : type(10), c(_c)
+    {
+    }
+    Parameter(const std::complex<double>& _c)
+        : type(10), c(_c)
+    {
+    }
+    Parameter(const std::initializer_list<std::complex<float> >& _ac)
+        : type(11), ac(_ac)
+    {
+    }
+    Parameter(const std::initializer_list<std::complex<double> >& _ac)
+        : type(11)
+    {
+        for (const auto& x : _ac)
+            ac.push_back(std::complex<float>(x));
+    }
+    Parameter(const std::vector<std::complex<float> >& _ac)
+        : type(11), ac(_ac)
+    {
+    }
+    Parameter(const std::vector<std::complex<double> >& _ac)
+        : type(11)
+    {
+        for (const auto& x : _ac)
+            ac.push_back(std::complex<float>(x));
+    }
 
 #if BUILD_PNNX
     Parameter(const torch::jit::Node* value_node);
@@ -123,16 +171,19 @@ public:
 #endif // BUILD_PNNX
 
     static Parameter parse_from_string(const std::string& value);
+    static std::string encode_to_string(const Parameter& param);
 
-    // 0=null 1=b 2=i 3=f 4=s 5=ai 6=af 7=as 8=others
+    // 0=null 1=b 2=i 3=f 4=s 5=ai 6=af 7=as 8=others 10=c 11=ac
     int type;
 
     // value
     bool b;
     int i;
     float f;
+    std::complex<float> c;
     std::vector<int> ai;
     std::vector<float> af;
+    std::vector<std::complex<float> > ac;
 
     // keep std::string typed member the last for cross cxxabi compatibility
     std::string s;
@@ -155,11 +206,20 @@ public:
 
     Attribute(const std::initializer_list<int>& shape, const std::vector<float>& t);
 
-    // 0=null 1=f32 2=f64 3=f16 4=i32 5=i64 6=i16 7=i8 8=u8 9=bool
+    size_t elemsize() const;
+    int elemcount() const;
+
+    // convenient routines for manipulate fp32/fp16 weight
+    std::vector<float> get_float32_data() const;
+    void set_float32_data(const std::vector<float>& data);
+
+    // 0=null 1=f32 2=f64 3=f16 4=i32 5=i64 6=i16 7=i8 8=u8 9=bool 10=c64 11=c128 12=c32
     int type;
     std::vector<int> shape;
 
     std::vector<char> data;
+
+    std::map<std::string, Parameter> params;
 };
 
 bool operator==(const Attribute& lhs, const Attribute& rhs);
@@ -176,7 +236,7 @@ public:
     Operator* producer;
     std::vector<Operator*> consumers;
 
-    // 0=null 1=f32 2=f64 3=f16 4=i32 5=i64 6=i16 7=i8 8=u8 9=bool 10=cp64 11=cp128 12=cp32
+    // 0=null 1=f32 2=f64 3=f16 4=i32 5=i64 6=i16 7=i8 8=u8 9=bool 10=c64 11=c128 12=c32
     int type;
     std::vector<int> shape;
 
@@ -189,6 +249,7 @@ private:
     friend class Graph;
     Operand()
     {
+        type = 0;
     }
 };
 

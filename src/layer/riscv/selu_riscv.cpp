@@ -57,7 +57,7 @@ int SELU_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         for (int i = 0; i < size; i++)
         {
             if (ptr[i] < 0.f)
-                ptr[i] = static_cast<float>((exp(ptr[i]) - 1.f) * alphaxlambda);
+                ptr[i] = (expf(ptr[i]) - 1.f) * alphaxlambda;
             else
                 ptr[i] *= lambda;
         }

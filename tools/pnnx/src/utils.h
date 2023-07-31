@@ -22,6 +22,10 @@ namespace pnnx {
 
 const torch::jit::Node* find_node_by_kind(const std::shared_ptr<torch::jit::Graph>& graph, const std::string& kind);
 
+unsigned short float32_to_float16(float value);
+
+float float16_to_float32(unsigned short value);
+
 } // namespace pnnx
 
 #endif // PNNX_UTILS_H

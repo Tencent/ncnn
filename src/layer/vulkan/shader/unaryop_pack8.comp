@@ -161,6 +161,16 @@ void main()
         res[0] = log(v[0]) * afp(0.434294481903);
         res[1] = log(v[1]) * afp(0.434294481903);
     }
+    if (op_type == 18)
+    {
+        res[0] = round(v[0]);
+        res[1] = round(v[1]);
+    }
+    if (op_type == 19)
+    {
+        res[0] = trunc(v[0]);
+        res[1] = trunc(v[1]);
+    }
 
 #if NCNN_image_shader
     image3d_st8(top_blob_3d, ivec3(gx, gy, gz), res);

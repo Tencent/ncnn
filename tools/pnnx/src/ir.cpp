@@ -25,9 +25,11 @@
 
 #if BUILD_PNNX
 #include <torch/script.h>
+#include <torch/csrc/api/include/torch/version.h>
 #endif
 
 #include "storezip.h"
+#include "utils.h"
 
 namespace pnnx {
 
@@ -59,9 +61,9 @@ static const char* type_to_string(int type)
     if (type == 7) return "i8";
     if (type == 8) return "u8";
     if (type == 9) return "bool";
-    if (type == 10) return "cp64";
-    if (type == 11) return "cp128";
-    if (type == 12) return "cp32";
+    if (type == 10) return "c64";
+    if (type == 11) return "c128";
+    if (type == 12) return "c32";
     return "null";
 }
 
@@ -127,9 +129,9 @@ static int string_to_type(const char* s)
     if (strcmp(s, "i8") == 0) return 7;
     if (strcmp(s, "u8") == 0) return 8;
     if (strcmp(s, "bool") == 0) return 9;
-    if (strcmp(s, "cp64") == 0) return 10;
-    if (strcmp(s, "cp128") == 0) return 11;
-    if (strcmp(s, "cp32") == 0) return 12;
+    if (strcmp(s, "c64") == 0) return 10;
+    if (strcmp(s, "c128") == 0) return 11;
+    if (strcmp(s, "c32") == 0) return 12;
     return 0; // null
 }
 
@@ -160,9 +162,16 @@ Parameter::Parameter(const torch::jit::Node* value_node)
 
     if (value_node->kind() == c10::prim::Constant)
     {
+        if (value_node->output()->type()->kind() == c10::TypeKind::NoneType)
+        {
+            type = 0;
+            return;
+        }
+
         if (!value_node->hasAttribute(torch::jit::attr::value))
         {
             fprintf(stderr, "no attribute value\n");
+            value_node->dump();
             return;
         }
 
@@ -184,7 +193,7 @@ Parameter::Parameter(const torch::jit::Node* value_node)
             type = 2;
             int64_t i64 = value_node->i(torch::jit::attr::value);
             if (i64 == std::numeric_limits<int64_t>::max()) i64 = INT_MAX;
-            if (i64 == std::numeric_limits<int64_t>::max()) i64 = INT_MIN;
+            if (i64 == std::numeric_limits<int64_t>::min()) i64 = INT_MIN;
             i = (int)i64;
             break;
         }
@@ -200,6 +209,20 @@ Parameter::Parameter(const torch::jit::Node* value_node)
             s = value_node->s(torch::jit::attr::value);
             break;
         }
+        case c10::TypeKind::DeviceObjType:
+        {
+            type = 4;
+            s = value_node->s(torch::jit::attr::value);
+            break;
+        }
+#if TORCH_VERSION_MAJOR >= 2 || (TORCH_VERSION_MAJOR >= 1 && TORCH_VERSION_MINOR >= 9)
+        case c10::TypeKind::ComplexType:
+        {
+            type = 10;
+            c = std::complex<float>(value_node->c(torch::jit::attr::value));
+            break;
+        }
+#endif
         case c10::TypeKind::TensorType:
         {
             at::Tensor t = value_node->t(torch::jit::attr::value);
@@ -211,7 +234,7 @@ Parameter::Parameter(const torch::jit::Node* value_node)
                     type = 2;
                     int64_t i64 = t.item<int64_t>();
                     if (i64 == std::numeric_limits<int64_t>::max()) i64 = INT_MAX;
-                    if (i64 == std::numeric_limits<int64_t>::max()) i64 = INT_MIN;
+                    if (i64 == std::numeric_limits<int64_t>::min()) i64 = INT_MIN;
                     i = (int)i64;
                 }
                 else if (t.scalar_type() == c10::ScalarType::Int)
@@ -229,6 +252,16 @@ Parameter::Parameter(const torch::jit::Node* value_node)
                     type = 3;
                     f = t.item<float>();
                 }
+                else if (t.scalar_type() == c10::ScalarType::ComplexDouble)
+                {
+                    type = 10;
+                    c = std::complex<float>(t.item<c10::complex<double> >());
+                }
+                else if (t.scalar_type() == c10::ScalarType::ComplexFloat)
+                {
+                    type = 10;
+                    c = std::complex<float>(t.item<c10::complex<float> >());
+                }
                 else
                 {
                     fprintf(stderr, "unknown Parameter value kind %s of TensorType, t.dim = 0\n", value_node->kind().toDisplayString());
@@ -236,17 +269,15 @@ Parameter::Parameter(const torch::jit::Node* value_node)
             }
             else
             {
-                const int ndim = (int)t.dim();
-
+                // constant tensor will become pnnx attribute node later
                 type = 8;
-                fprintf(stderr, "unknown Parameter value kind %s of TensorType, t.dim = %d\n", value_node->kind().toDisplayString(), ndim);
             }
 
             break;
         }
         default:
         {
-            fprintf(stderr, "unknown Parameter value kind %s\n", value_node->kind().toDisplayString());
+            fprintf(stderr, "unknown Parameter value kind %s\n", c10::typeKindToString(value_node->output()->type()->kind()));
             break;
         }
         }
@@ -282,16 +313,27 @@ Parameter::Parameter(const torch::jit::Node* value_node)
             }
             break;
         }
+#if TORCH_VERSION_MAJOR >= 2 || (TORCH_VERSION_MAJOR >= 1 && TORCH_VERSION_MINOR >= 9)
+        case c10::TypeKind::ComplexType:
+        {
+            type = 11;
+            for (const auto& x : value_node->inputs())
+            {
+                ac.push_back(std::complex<float>(x->node()->c(torch::jit::attr::value)));
+            }
+            break;
+        }
+#endif
         default:
         {
-            fprintf(stderr, "unknown Parameter value kind %s\n", value_node->kind().toDisplayString());
+            fprintf(stderr, "unknown Parameter value list element kind %s\n", c10::typeKindToString(value_node->output()->type()->cast<c10::ListType>()->getElementType()->kind()));
             break;
         }
         }
     }
     else
     {
-        fprintf(stderr, "unknown Parameter value kind %s\n", value_node->kind().toDisplayString());
+        fprintf(stderr, "unknown Parameter value_node kind %s\n", value_node->kind().toDisplayString());
     }
 }
 
@@ -328,6 +370,12 @@ bool operator==(const Parameter& lhs, const Parameter& rhs)
         return true;
 
     if (lhs.type == 7 && lhs.as == rhs.as)
+        return true;
+
+    if (lhs.type == 10 && lhs.c == rhs.c)
+        return true;
+
+    if (lhs.type == 11 && lhs.ac == rhs.ac)
         return true;
 
     return false;
@@ -380,13 +428,7 @@ Attribute::Attribute(const at::Tensor& t)
 
     if (shape.size() > 0)
     {
-        int size = shape[0];
-        for (size_t i = 1; i < shape.size(); i++)
-        {
-            size *= shape[i];
-        }
-
-        data.resize(size * type_to_elemsize(type));
+        data.resize(elemcount() * type_to_elemsize(type));
         memcpy((void*)data.data(), (const void*)t.cpu().contiguous().data_ptr(), data.size());
     }
 }
@@ -399,14 +441,93 @@ Attribute::Attribute(const std::initializer_list<int>& _shape, const std::vector
 
     if (shape.size() > 0)
     {
-        int size = shape[0];
-        for (size_t i = 1; i < shape.size(); i++)
-        {
-            size *= shape[i];
-        }
-
-        data.resize(size * type_to_elemsize(type));
+        data.resize(elemcount() * type_to_elemsize(type));
         memcpy((void*)data.data(), (const void*)t.data(), data.size());
+    }
+}
+
+size_t Attribute::elemsize() const
+{
+    return type_to_elemsize(type);
+}
+
+int Attribute::elemcount() const
+{
+    if (shape.empty())
+        return 0;
+
+    int size = shape[0];
+    for (size_t i = 1; i < shape.size(); i++)
+    {
+        size *= shape[i];
+    }
+
+    return size;
+}
+
+std::vector<float> Attribute::get_float32_data() const
+{
+    std::vector<float> v(elemcount());
+
+    if (type == 1)
+    {
+        memcpy((void*)v.data(), (const void*)data.data(), data.size());
+    }
+    else if (type == 2)
+    {
+        // f64
+        const double* p = (const double*)data.data();
+        for (size_t i = 0; i < v.size(); i++)
+        {
+            v[i] = float(p[i]);
+        }
+    }
+    else if (type == 3)
+    {
+        // f16
+        const unsigned short* p = (const unsigned short*)data.data();
+        for (size_t i = 0; i < v.size(); i++)
+        {
+            v[i] = float16_to_float32(p[i]);
+        }
+    }
+    else
+    {
+        fprintf(stderr, "cannot convert type %d to float32 data\n", type);
+    }
+
+    return v;
+}
+
+void Attribute::set_float32_data(const std::vector<float>& newdata)
+{
+    data.resize(newdata.size() * elemsize());
+
+    if (type == 1)
+    {
+        memcpy((void*)data.data(), (const void*)newdata.data(), data.size());
+    }
+    else if (type == 2)
+    {
+        // f64
+        double* p = (double*)data.data();
+        for (size_t i = 0; i < newdata.size(); i++)
+        {
+            p[i] = newdata[i];
+        }
+    }
+    else if (type == 3)
+    {
+        // f16
+        unsigned short* p = (unsigned short*)data.data();
+        for (size_t i = 0; i < newdata.size(); i++)
+        {
+            p[i] = float32_to_float16(newdata[i]);
+        }
+    }
+    else
+    {
+        fprintf(stderr, "cannot convert float32 data to type %d\n", type);
     }
 }
 
@@ -465,6 +586,14 @@ Attribute operator+(const Attribute& a, const Attribute& b)
 
 Parameter Parameter::parse_from_string(const std::string& value)
 {
+    if (value.find('%') != std::string::npos)
+    {
+        Parameter p;
+        p.type = 4;
+        p.s = value;
+        return p;
+    }
+
     Parameter p;
     p.type = 0;
 
@@ -534,6 +663,96 @@ Parameter Parameter::parse_from_string(const std::string& value)
     p.type = 2;
     p.i = std::stoi(value);
     return p;
+}
+
+std::string Parameter::encode_to_string(const Parameter& param)
+{
+    if (param.type == 0)
+    {
+        return std::string("None");
+    }
+    if (param.type == 1)
+    {
+        if (param.b)
+            return std::string("True");
+        else
+            return std::string("False");
+    }
+    if (param.type == 2)
+    {
+        return std::to_string(param.i);
+    }
+    if (param.type == 3)
+    {
+        char buf[64];
+        sprintf(buf, "%e", param.f);
+        return std::string(buf);
+    }
+    if (param.type == 4)
+    {
+        return param.s;
+    }
+    if (param.type == 5)
+    {
+        std::string s("(");
+        for (size_t i = 0; i < param.ai.size(); i++)
+        {
+            s += std::to_string(param.ai[i]);
+            if (i + 1 != param.ai.size())
+                s += std::string(",");
+        }
+        s += std::string(")");
+        return s;
+    }
+    if (param.type == 6)
+    {
+        std::string s("(");
+        for (size_t i = 0; i < param.af.size(); i++)
+        {
+            char buf[64];
+            sprintf(buf, "%e", param.af[i]);
+            s += std::string(buf);
+            if (i + 1 != param.af.size())
+                s += std::string(",");
+        }
+        s += std::string(")");
+        return s;
+    }
+    if (param.type == 7)
+    {
+        std::string s("(");
+        for (size_t i = 0; i < param.as.size(); i++)
+        {
+            s += param.as[i];
+            if (i + 1 != param.as.size())
+                s += std::string(",");
+        }
+        s += std::string(")");
+        return s;
+    }
+    if (param.type == 10)
+    {
+        char buf[128];
+        sprintf(buf, "%e+%ej", param.c.real(), param.c.imag());
+        return std::string(buf);
+    }
+    if (param.type == 11)
+    {
+        std::string s("(");
+        for (size_t i = 0; i < param.ac.size(); i++)
+        {
+            char buf[128];
+            sprintf(buf, "%e+%ej", param.ac[i].real(), param.ac[i].imag());
+            s += std::string(buf);
+            if (i + 1 != param.ac.size())
+                s += std::string(",");
+        }
+        s += std::string(")");
+        return s;
+    }
+
+    fprintf(stderr, "unknown parameter type %d\n", param.type);
+    return std::string();
 }
 
 Graph::Graph()
@@ -628,6 +847,14 @@ static void load_shape(Operator* op, const std::string& key, const std::string& 
         if (elem == "?")
         {
             operand->shape.push_back(-1);
+        }
+        else if (elem[0] == '%')
+        {
+            // encode %abc as symbolic tag
+            operand->shape.push_back(-233);
+            int index = operand->shape.size() - 1;
+            std::string key = elem.substr(1);
+            operand->params[std::string("__shape_") + std::to_string(index)] = key;
         }
         else
         {
@@ -842,62 +1069,8 @@ int Graph::save(const std::string& parampath, const std::string& binpath)
             fprintf(paramfp, " %s=", it.first.c_str());
 
             const Parameter& param = it.second;
-            if (param.type == 0)
-            {
-                fprintf(paramfp, "None");
-            }
-            if (param.type == 1)
-            {
-                if (param.b)
-                    fprintf(paramfp, "True");
-                else
-                    fprintf(paramfp, "False");
-            }
-            if (param.type == 2)
-            {
-                fprintf(paramfp, "%d", param.i);
-            }
-            if (param.type == 3)
-            {
-                fprintf(paramfp, "%e", param.f);
-            }
-            if (param.type == 4)
-            {
-                fprintf(paramfp, "%s", param.s.c_str());
-            }
-            if (param.type == 5)
-            {
-                fprintf(paramfp, "(");
-                for (size_t i = 0; i < param.ai.size(); i++)
-                {
-                    fprintf(paramfp, "%d", param.ai[i]);
-                    if (i + 1 != param.ai.size())
-                        fprintf(paramfp, ",");
-                }
-                fprintf(paramfp, ")");
-            }
-            if (param.type == 6)
-            {
-                fprintf(paramfp, "(");
-                for (size_t i = 0; i < param.af.size(); i++)
-                {
-                    fprintf(paramfp, "%e", param.af[i]);
-                    if (i + 1 != param.af.size())
-                        fprintf(paramfp, ",");
-                }
-                fprintf(paramfp, ")");
-            }
-            if (param.type == 7)
-            {
-                fprintf(paramfp, "(");
-                for (size_t i = 0; i < param.as.size(); i++)
-                {
-                    fprintf(paramfp, "%s", param.as[i].c_str());
-                    if (i + 1 != param.as.size())
-                        fprintf(paramfp, ",");
-                }
-                fprintf(paramfp, ")");
-            }
+            std::string s = Parameter::encode_to_string(param);
+            fprintf(paramfp, "%s", s.c_str());
         }
 
         for (const auto& it : op->attrs)
@@ -1077,6 +1250,7 @@ static std::string expand_expression(const Operator* op)
                  || t == "log10"
                  || t == "neg"
                  || t == "reciprocal"
+                 || t == "round"
                  || t == "rsqrt"
                  || t == "sign"
                  || t == "sin"
@@ -1105,6 +1279,7 @@ static std::string expand_expression(const Operator* op)
             if (t == "log10") unaryop = "torch.log10";
             if (t == "neg") unaryop = "torch.neg";
             if (t == "reciprocal") unaryop = "torch.reciprocal";
+            if (t == "round") unaryop = "torch.round";
             if (t == "rsqrt") unaryop = "torch.rsqrt";
             if (t == "sign") unaryop = "torch.sign";
             if (t == "sin") unaryop = "torch.sin";
@@ -1122,10 +1297,12 @@ static std::string expand_expression(const Operator* op)
             exprstack.push(r);
         }
         else if (t == "atan2"
+                 || t == "fmod"
                  || t == "pow")
         {
             std::string binaryop;
             if (t == "atan2") binaryop = "torch.atan2";
+            if (t == "fmod") binaryop = "torch.fmod";
             if (t == "pow") binaryop = "torch.pow";
 
             std::string a = exprstack.top();
@@ -1136,7 +1313,7 @@ static std::string expand_expression(const Operator* op)
             std::string r = binaryop + "(" + a + ", " + b + ")";
             exprstack.push(r);
         }
-        else if (t == "add" || t == "sub" || t == "mul" || t == "div" || t == "floor_divide" || t == "and" || t == "or" || t == "xor" || t == "lshift" || t == "rshift")
+        else if (t == "add" || t == "sub" || t == "mul" || t == "div" || t == "floor_divide" || t == "remainder" || t == "and" || t == "or" || t == "xor" || t == "lshift" || t == "rshift")
         {
             std::string binaryop;
             if (t == "add") binaryop = "+";
@@ -1144,6 +1321,7 @@ static std::string expand_expression(const Operator* op)
             if (t == "mul") binaryop = "*";
             if (t == "div") binaryop = "/";
             if (t == "floor_divide") binaryop = "//";
+            if (t == "remainder") binaryop = "%";
             if (t == "and") binaryop = "&";
             if (t == "or") binaryop = "|";
             if (t == "xor") binaryop = "^";
@@ -1193,7 +1371,16 @@ static std::string expand_expression(const Operator* op)
         else
         {
             // literal
-            exprstack.push(t);
+            if (t[t.size() - 1] == 'j')
+            {
+                // complex
+                std::string r = std::string("(") + t + ")";
+                exprstack.push(r);
+            }
+            else
+            {
+                exprstack.push(t);
+            }
         }
     }
 
@@ -1603,11 +1790,9 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
         fprintf(pyfp, "        return nn.Parameter(self.load_pnnx_bin_as_tensor(archive, key, shape, dtype), requires_grad)\n");
         fprintf(pyfp, "\n");
         fprintf(pyfp, "    def load_pnnx_bin_as_tensor(self, archive, key, shape, dtype):\n");
-        fprintf(pyfp, "        _, tmppath = tempfile.mkstemp()\n");
-        fprintf(pyfp, "        tmpf = open(tmppath, 'wb')\n");
-        fprintf(pyfp, "        with archive.open(key) as keyfile:\n");
+        fprintf(pyfp, "        fd, tmppath = tempfile.mkstemp()\n");
+        fprintf(pyfp, "        with os.fdopen(fd, 'wb') as tmpf, archive.open(key) as keyfile:\n");
         fprintf(pyfp, "            tmpf.write(keyfile.read())\n");
-        fprintf(pyfp, "        tmpf.close()\n");
         fprintf(pyfp, "        m = np.memmap(tmppath, dtype=dtype, mode='r', shape=shape).copy()\n");
         fprintf(pyfp, "        os.remove(tmppath)\n");
         fprintf(pyfp, "        return torch.from_numpy(m)\n");
@@ -1682,6 +1867,26 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                     std::string index_expr = make_index_expression(op);
                     fprintf(pyfp, "v_%s = v_%s[%s]\n", sanitize_identifier(op->outputs[0]->name).c_str(), sanitize_identifier(op->inputs[0]->name).c_str(), index_expr.c_str());
                 }
+            }
+            else if (op->type == "Tensor.expand")
+            {
+                // expand
+                fprintf(pyfp, "v_%s = v_%s.%s(", sanitize_identifier(op->outputs[0]->name).c_str(), sanitize_identifier(op->inputs[0]->name).c_str(), op->type.substr(7).c_str());
+                if (op->inputs.size() == 2)
+                {
+                    fprintf(pyfp, "*v_%s", sanitize_identifier(op->inputs[1]->name).c_str());
+                }
+                else
+                {
+                    const std::vector<int>& shape = op->params.at("shape").ai;
+                    for (size_t i = 0; i < shape.size(); i++)
+                    {
+                        fprintf(pyfp, "%d", shape[i]);
+                        if (i + 1 != shape.size())
+                            fprintf(pyfp, ", ");
+                    }
+                }
+                fprintf(pyfp, ")\n");
             }
             else if (op->type == "Tensor.view" || op->type == "Tensor.reshape")
             {
@@ -1800,6 +2005,24 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                 }
                 fprintf(pyfp, "]\n");
             }
+            else if (op->type == "nn.GRU" || op->type == "nn.RNN")
+            {
+                if (op->outputs.size() == 1)
+                {
+                    fprintf(pyfp, "v_%s, _", sanitize_identifier(op->outputs[0]->name).c_str());
+                }
+                else
+                {
+                    fprintf(pyfp, "v_%s, v_%s", sanitize_identifier(op->outputs[0]->name).c_str(), sanitize_identifier(op->outputs[1]->name).c_str());
+                }
+                fprintf(pyfp, " = self.%s(", sanitize_identifier(op->name).c_str());
+                fprintf(pyfp, "v_%s", sanitize_identifier(op->inputs[0]->name).c_str());
+                if (op->inputs.size() == 2)
+                {
+                    fprintf(pyfp, ", v_%s", sanitize_identifier(op->inputs[1]->name).c_str());
+                }
+                fprintf(pyfp, ")\n");
+            }
             else if (op->type == "nn.LSTM")
             {
                 if (op->outputs.size() == 1)
@@ -1820,9 +2043,11 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
             }
             else if (op->type == "nn.MultiheadAttention")
             {
+                bool need_weights = true;
                 if (op->outputs.size() == 1)
                 {
                     fprintf(pyfp, "v_%s, _", sanitize_identifier(op->outputs[0]->name).c_str());
+                    need_weights = false;
                 }
                 else
                 {
@@ -1843,7 +2068,43 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                 {
                     std::string in0 = sanitize_identifier(op->inputs[0]->name);
                     std::string in1 = sanitize_identifier(op->inputs[1]->name);
-                    fprintf(pyfp, "v_%s, v_%s, v_%s", in0.c_str(), in1.c_str(), in1.c_str());
+                    if (op->inputnames.size() == 2 && op->inputnames[1] == "attn_mask")
+                    {
+                        fprintf(pyfp, "v_%s, v_%s, v_%s, attn_mask=v_%s", in0.c_str(), in0.c_str(), in0.c_str(), in1.c_str());
+                    }
+                    else
+                    {
+                        fprintf(pyfp, "v_%s, v_%s, v_%s", in0.c_str(), in1.c_str(), in1.c_str());
+                    }
+                }
+                else if (op->inputs.size() == 3)
+                {
+                    std::string in0 = sanitize_identifier(op->inputs[0]->name);
+                    std::string in1 = sanitize_identifier(op->inputs[1]->name);
+                    std::string in2 = sanitize_identifier(op->inputs[2]->name);
+                    if (op->inputnames.size() == 3 && op->inputnames[2] == "attn_mask")
+                    {
+                        fprintf(pyfp, "v_%s, v_%s, v_%s, attn_mask=v_%s", in0.c_str(), in1.c_str(), in1.c_str(), in2.c_str());
+                    }
+                    else
+                    {
+                        fprintf(pyfp, "v_%s, v_%s, v_%s", in0.c_str(), in1.c_str(), in2.c_str());
+                    }
+                }
+                else if (op->inputs.size() == 4)
+                {
+                    std::string in0 = sanitize_identifier(op->inputs[0]->name);
+                    std::string in1 = sanitize_identifier(op->inputs[1]->name);
+                    std::string in2 = sanitize_identifier(op->inputs[2]->name);
+                    std::string in3 = sanitize_identifier(op->inputs[3]->name);
+                    if (op->inputnames.size() == 4 && op->inputnames[3] == "attn_mask")
+                    {
+                        fprintf(pyfp, "v_%s, v_%s, v_%s, attn_mask=v_%s", in0.c_str(), in1.c_str(), in2.c_str(), in3.c_str());
+                    }
+                    else
+                    {
+                        fprintf(pyfp, "v_%s, v_%s, v_%s, v_%s", in0.c_str(), in1.c_str(), in2.c_str(), in3.c_str());
+                    }
                 }
                 else
                 {
@@ -1853,6 +2114,14 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                         if (i + 1 != op->inputs.size())
                             fprintf(pyfp, ", ");
                     }
+                }
+                if (need_weights)
+                {
+                    fprintf(pyfp, ", need_weights=True");
+                }
+                else
+                {
+                    fprintf(pyfp, ", need_weights=False");
                 }
                 fprintf(pyfp, ")\n");
             }
@@ -1886,11 +2155,39 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
 
                 if (op->type.substr(0, 7) == "Tensor.")
                 {
-                    fprintf(pyfp, " = v_%s.%s(", sanitize_identifier(op->inputs[0]->name).c_str(), op->type.substr(7).c_str());
-
-                    for (size_t i = 1; i < op->inputs.size(); i++)
+                    if (op->type == "Tensor.fill")
                     {
-                        fprintf(pyfp, "v_%s, ", sanitize_identifier(op->inputs[i]->name).c_str());
+                        fprintf(pyfp, " = v_%s.fill_(", sanitize_identifier(op->inputs[0]->name).c_str());
+                    }
+                    else
+                    {
+                        fprintf(pyfp, " = v_%s.%s(", sanitize_identifier(op->inputs[0]->name).c_str(), op->type.substr(7).c_str());
+                    }
+
+                    if (op->inputnames.size() == op->inputs.size())
+                    {
+                        for (size_t i = 1; i < op->inputs.size(); i++)
+                        {
+                            if (!op->inputnames[i].empty())
+                                continue;
+
+                            fprintf(pyfp, "v_%s, ", sanitize_identifier(op->inputs[i]->name).c_str());
+                        }
+
+                        for (size_t i = 1; i < op->inputs.size(); i++)
+                        {
+                            if (op->inputnames[i].empty())
+                                continue;
+
+                            fprintf(pyfp, "%s=v_%s, ", op->inputnames[i].c_str(), sanitize_identifier(op->inputs[i]->name).c_str());
+                        }
+                    }
+                    else
+                    {
+                        for (size_t i = 1; i < op->inputs.size(); i++)
+                        {
+                            fprintf(pyfp, "v_%s, ", sanitize_identifier(op->inputs[i]->name).c_str());
+                        }
                     }
                 }
                 else
@@ -2015,6 +2312,21 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                                 fprintf(pyfp, "\'%s\'", param.as[i].c_str());
                             }
                             if (i + 1 != param.as.size() || param.as.size() == 1)
+                                fprintf(pyfp, ",");
+                        }
+                        fprintf(pyfp, ")");
+                    }
+                    if (param.type == 10)
+                    {
+                        fprintf(pyfp, "(%f%+fj)", param.c.real(), param.c.imag());
+                    }
+                    if (param.type == 11)
+                    {
+                        fprintf(pyfp, "(");
+                        for (size_t i = 0; i < param.ac.size(); i++)
+                        {
+                            fprintf(pyfp, "(%f%+fj)", param.ac[i].real(), param.ac[i].imag());
+                            if (i + 1 != param.ac.size() || param.ac.size() == 1)
                                 fprintf(pyfp, ",");
                         }
                         fprintf(pyfp, ")");
@@ -2392,11 +2704,62 @@ int Graph::parse(const std::string& param)
             {
                 // attribute
                 //                 load_attribute(op, key.substr(1), value, szr);
+                op->attrs[key.substr(1)] = Attribute();
+
+                Attribute& attr = op->attrs[key.substr(1)];
+
+                attr.type = 0;
+                if (value.empty())
+                    continue;
+
+                if (value[0] == '%')
+                {
+                    // @data=%op1.data
+                    attr.data = std::vector<char>(value.begin(), value.end());
+                }
+
+                if (value[0] == '(')
+                {
+                    // @data=(1,%c,?,4)f32
+
+                    // type
+                    std::string typestr = value.substr(value.find_last_of(')') + 1);
+                    attr.type = string_to_type(typestr.c_str());
+
+                    // shape
+                    std::string lc = value.substr(1, value.find_last_of(')') - 1);
+                    std::istringstream lcss(lc);
+
+                    attr.shape.clear();
+                    while (!lcss.eof())
+                    {
+                        std::string elem;
+                        std::getline(lcss, elem, ',');
+
+                        if (elem == "?")
+                        {
+                            attr.shape.push_back(-1);
+                        }
+                        else if (elem[0] == '%')
+                        {
+                            // encode %abc as symbolic tag
+                            attr.shape.push_back(-233);
+                            int index = attr.shape.size() - 1;
+                            std::string key = elem.substr(1);
+                            attr.params[std::string("__shape_") + std::to_string(index)] = key;
+                        }
+                        else
+                        {
+                            int i = std::stoi(elem);
+                            attr.shape.push_back(i);
+                        }
+                    }
+                }
             }
             else if (key[0] == '$')
             {
                 // operand input key
-                //                 load_input_key(op, key.substr(1), value);
+                load_input_key(op, key.substr(1), value);
             }
             else if (key[0] == '#')
             {
@@ -2452,6 +2815,8 @@ Operand* Graph::new_operand(const torch::jit::Value* v)
 {
     Operand* r = new Operand;
     r->name = v->debugName();
+
+    r->type = -1;
 
     auto pt = v->type()->cast<c10::TensorType>();
     if (pt)

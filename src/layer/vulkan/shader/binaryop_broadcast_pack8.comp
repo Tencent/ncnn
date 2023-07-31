@@ -1,0 +1,263 @@
+// Tencent is pleased to support the open source community by making ncnn available.
+//
+// Copyright (C) 2023 THL A29 Limited, a Tencent company. All rights reserved.
+//
+// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
+// in compliance with the License. You may obtain a copy of the License at
+//
+// https://opensource.org/licenses/BSD-3-Clause
+//
+// Unless required by applicable law or agreed to in writing, software distributed
+// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+// CONDITIONS OF ANY KIND, either express or implied. See the License for the
+// specific language governing permissions and limitations under the License.
+
+#version 450
+
+#if NCNN_fp16_storage
+#extension GL_EXT_shader_16bit_storage: require
+struct sfpvec8 { f16vec4 abcd; f16vec4 efgh; };
+#endif
+#if NCNN_fp16_arithmetic
+#extension GL_EXT_shader_explicit_arithmetic_types_float16: require
+#endif
+
+layout (constant_id = 0) const int op_type = 0;
+
+#define shape_constant_id_offset 1
+layout (constant_id = shape_constant_id_offset + 0) const int adims = 0;
+layout (constant_id = shape_constant_id_offset + 1) const int aw = 0;
+layout (constant_id = shape_constant_id_offset + 2) const int ah = 0;
+layout (constant_id = shape_constant_id_offset + 3) const int ad = 0;
+layout (constant_id = shape_constant_id_offset + 4) const int ac = 0;
+layout (constant_id = shape_constant_id_offset + 5) const int acstep = 0;
+
+layout (constant_id = shape_constant_id_offset + 6) const int bdims = 0;
+layout (constant_id = shape_constant_id_offset + 7) const int bw = 0;
+layout (constant_id = shape_constant_id_offset + 8) const int bh = 0;
+layout (constant_id = shape_constant_id_offset + 9) const int bd = 0;
+layout (constant_id = shape_constant_id_offset + 10) const int bc = 0;
+layout (constant_id = shape_constant_id_offset + 11) const int bcstep = 0;
+
+layout (constant_id = shape_constant_id_offset + 12) const int outdims = 0;
+layout (constant_id = shape_constant_id_offset + 13) const int outw = 0;
+layout (constant_id = shape_constant_id_offset + 14) const int outh = 0;
+layout (constant_id = shape_constant_id_offset + 15) const int outd = 0;
+layout (constant_id = shape_constant_id_offset + 16) const int outc = 0;
+layout (constant_id = shape_constant_id_offset + 17) const int outcstep = 0;
+
+#if NCNN_image_shader
+layout (binding = 0) uniform unfp sampler3D a_blob_3d;
+layout (binding = 1) uniform unfp sampler3D b_blob_3d;
+layout (binding = 2, imfmtc4) writeonly uniform unfp image3D top_blob_3d;
+#else
+layout (binding = 0) readonly buffer a_blob { sfpvec8 a_blob_data[]; };
+layout (binding = 1) readonly buffer b_blob { sfpvec8 b_blob_data[]; };
+layout (binding = 2) writeonly buffer top_blob { sfpvec8 top_blob_data[]; };
+#endif
+
+layout (push_constant) uniform parameter
+{
+    int adims;
+    int aw;
+    int ah;
+    int ad;
+    int ac;
+    int acstep;
+
+    int bdims;
+    int bw;
+    int bh;
+    int bd;
+    int bc;
+    int bcstep;
+
+    int outdims;
+    int outw;
+    int outh;
+    int outd;
+    int outc;
+    int outcstep;
+} p;
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+    int gy = int(gl_GlobalInvocationID.y);
+    int gz = int(gl_GlobalInvocationID.z);
+
+    if (gx >= psc(outw) || gy >= psc(outh) * psc(outd) || gz >= psc(outc))
+        return;
+
+    int yd = gy / psc(outh);
+    int yh = gy % psc(outh);
+
+    int ax = gx;
+    int ay = gy;
+    int az = gz;
+
+    int bx = gx;
+    int by = gy;
+    int bz = gz;
+
+    if (psc(adims) == psc(bdims))
+    {
+        // explicit broadcast
+        ax = min(gx, psc(aw) - 1);
+        ay = min(yd, psc(ad) - 1) * psc(ah) + min(yh, psc(ah) - 1);
+        az = min(gz, psc(ac) - 1);
+
+        bx = min(gx, psc(bw) - 1);
+        by = min(yd, psc(bd) - 1) * psc(bh) + min(yh, psc(bh) - 1);
+        bz = min(gz, psc(bc) - 1);
+    }
+    else
+    {
+        // implicit broadcast
+        if (psc(adims) == 4)
+        {
+            if (psc(bdims) == 3)
+            {
+                // type 13
+                bx = yh;
+                by = yd;
+                bz = gz;
+            }
+
+            if (psc(bdims) == 2)
+            {
+                // type 12
+                bx = yd;
+                by = gz;
+                bz = 0;
+            }
+
+            if (psc(bdims) == 1)
+            {
+                // type 11
+                bx = gz;
+                by = 0;
+                bz = 0;
+            }
+        }
+        else if (psc(adims) == 3)
+        {
+            if (psc(bdims) == 2)
+            {
+                // type 10
+                bx = gy;
+                by = gz;
+                bz = 0;
+            }
+
+            if (psc(bdims) == 1)
+            {
+                // type 9
+                bx = gz;
+                by = 0;
+                bz = 0;
+            }
+        }
+        else // if (psc(adims) == 2)
+        {
+            // if (psc(bdims) == 1)
+            {
+                // type 8
+                bx = gy;
+                by = 0;
+                bz = 0;
+            }
+        }
+    }
+
+#if NCNN_image_shader
+    afpvec8 v1 = image3d_ld8(a_blob_3d, ivec3(ax, ay, az));
+    afpvec8 v2 = image3d_ld8(b_blob_3d, ivec3(bx, by, bz));
+#else
+    int ai = az * psc(acstep) + ay * psc(aw) + ax;
+    int bi = bz * psc(bcstep) + by * psc(bw) + bx;
+
+    afpvec8 v1 = buffer_ld8(a_blob_data, ai);
+    afpvec8 v2 = buffer_ld8(b_blob_data, bi);
+#endif
+
+    afpvec8 res;
+
+    if (op_type == 0)
+    {
+        res[0] = v1[0] + v2[0];
+        res[1] = v1[1] + v2[1];
+    }
+    if (op_type == 1)
+    {
+        res[0] = v1[0] - v2[0];
+        res[1] = v1[1] - v2[1];
+    }
+    if (op_type == 2)
+    {
+        res[0] = v1[0] * v2[0];
+        res[1] = v1[1] * v2[1];
+    }
+    if (op_type == 3)
+    {
+        res[0] = v1[0] / v2[0];
+        res[1] = v1[1] / v2[1];
+    }
+    if (op_type == 4)
+    {
+        res[0] = max(v1[0], v2[0]);
+        res[1] = max(v1[1], v2[1]);
+    }
+    if (op_type == 5)
+    {
+        res[0] = min(v1[0], v2[0]);
+        res[1] = min(v1[1], v2[1]);
+    }
+    if (op_type == 6)
+    {
+        res[0] = pow(v1[0], v2[0]);
+        res[1] = pow(v1[1], v2[1]);
+    }
+    if (op_type == 7)
+    {
+        res[0] = v2[0] - v1[0];
+        res[1] = v2[1] - v1[1];
+    }
+    if (op_type == 8)
+    {
+        res[0] = v2[0] / v1[0];
+        res[1] = v2[1] / v1[1];
+    }
+    if (op_type == 9)
+    {
+        res[0] = pow(v2[0], v1[0]);
+        res[1] = pow(v2[1], v1[1]);
+    }
+    if (op_type == 10)
+    {
+#if NCNN_moltenvk
+        res[0] = afpvec4(atan(vec4(v1[0]), vec4(v2[0])));
+        res[1] = afpvec4(atan(vec4(v1[1]), vec4(v2[1])));
+#else
+        res[0] = atan(v1[0], v2[0]);
+        res[1] = atan(v1[1], v2[1]);
+#endif
+    }
+    if (op_type == 11)
+    {
+#if NCNN_moltenvk
+        res[0] = afpvec4(atan(vec4(v2[0]), vec4(v1[0])));
+        res[1] = afpvec4(atan(vec4(v2[1]), vec4(v1[1])));
+#else
+        res[0] = atan(v2[0], v1[0]);
+        res[1] = atan(v2[1], v1[1]);
+#endif
+    }
+
+#if NCNN_image_shader
+    image3d_st8(top_blob_3d, ivec3(gx, gy, gz), res);
+#else
+    int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
+    buffer_st8(top_blob_data, gi, res);
+#endif
+}

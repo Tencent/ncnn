@@ -177,6 +177,15 @@ typedef struct VkPhysicalDeviceFloat16Int8FeaturesKHR
 
 #if VK_HEADER_VERSION < 97
 #define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_BUDGET_PROPERTIES_EXT (VkStructureType)1000237000
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_PRIORITY_FEATURES_EXT (VkStructureType)1000238000
+#define VK_STRUCTURE_TYPE_MEMORY_PRIORITY_ALLOCATE_INFO_EXT            (VkStructureType)1000238001
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_ADDRESS_FEATURES_EXT  (VkStructureType)1000244000
+#define VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO_EXT               (VkStructureType)1000244001
+#define VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_CREATE_INFO_EXT        (VkStructureType)1000244002
+#define VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT                      (VkStructureType)1000247000
+#define VK_BUFFER_CREATE_DEVICE_ADDRESS_CAPTURE_REPLAY_BIT_EXT         (VkBufferCreateFlagBits)0x00020000
+#define VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT_EXT                  (VkBufferUsageFlagBits)0x00020000
+typedef uint64_t VkDeviceAddress;
 typedef struct VkPhysicalDeviceMemoryBudgetPropertiesEXT
 {
     VkStructureType sType;
@@ -184,6 +193,71 @@ typedef struct VkPhysicalDeviceMemoryBudgetPropertiesEXT
     VkDeviceSize heapBudget[VK_MAX_MEMORY_HEAPS];
     VkDeviceSize heapUsage[VK_MAX_MEMORY_HEAPS];
 } VkPhysicalDeviceMemoryBudgetPropertiesEXT;
+typedef struct VkPhysicalDeviceMemoryPriorityFeaturesEXT
+{
+    VkStructureType sType;
+    void* pNext;
+    VkBool32 memoryPriority;
+} VkPhysicalDeviceMemoryPriorityFeaturesEXT;
+typedef struct VkMemoryPriorityAllocateInfoEXT
+{
+    VkStructureType sType;
+    const void* pNext;
+    float priority;
+} VkMemoryPriorityAllocateInfoEXT;
+typedef struct VkPhysicalDeviceBufferAddressFeaturesEXT
+{
+    VkStructureType sType;
+    void* pNext;
+    VkBool32 bufferDeviceAddress;
+    VkBool32 bufferDeviceAddressCaptureReplay;
+    VkBool32 bufferDeviceAddressMultiDevice;
+} VkPhysicalDeviceBufferAddressFeaturesEXT;
+typedef struct VkBufferDeviceAddressInfoEXT
+{
+    VkStructureType sType;
+    const void* pNext;
+    VkBuffer buffer;
+} VkBufferDeviceAddressInfoEXT;
+typedef struct VkBufferDeviceAddressCreateInfoEXT
+{
+    VkStructureType sType;
+    const void* pNext;
+    VkDeviceSize deviceAddress;
+} VkBufferDeviceAddressCreateInfoEXT;
+typedef VkDeviceAddress(VKAPI_PTR* PFN_vkGetBufferDeviceAddressEXT)(VkDevice device, const VkBufferDeviceAddressInfoEXT* pInfo);
+typedef enum VkValidationFeatureEnableEXT
+{
+    VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT = 0,
+    VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_RESERVE_BINDING_SLOT_EXT = 1,
+    VK_VALIDATION_FEATURE_ENABLE_BEGIN_RANGE_EXT = VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT,
+    VK_VALIDATION_FEATURE_ENABLE_END_RANGE_EXT = VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_RESERVE_BINDING_SLOT_EXT,
+    VK_VALIDATION_FEATURE_ENABLE_RANGE_SIZE_EXT = (VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_RESERVE_BINDING_SLOT_EXT - VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT + 1),
+    VK_VALIDATION_FEATURE_ENABLE_MAX_ENUM_EXT = 0x7FFFFFFF
+} VkValidationFeatureEnableEXT;
+typedef enum VkValidationFeatureDisableEXT
+{
+    VK_VALIDATION_FEATURE_DISABLE_ALL_EXT = 0,
+    VK_VALIDATION_FEATURE_DISABLE_SHADERS_EXT = 1,
+    VK_VALIDATION_FEATURE_DISABLE_THREAD_SAFETY_EXT = 2,
+    VK_VALIDATION_FEATURE_DISABLE_API_PARAMETERS_EXT = 3,
+    VK_VALIDATION_FEATURE_DISABLE_OBJECT_LIFETIMES_EXT = 4,
+    VK_VALIDATION_FEATURE_DISABLE_CORE_CHECKS_EXT = 5,
+    VK_VALIDATION_FEATURE_DISABLE_UNIQUE_HANDLES_EXT = 6,
+    VK_VALIDATION_FEATURE_DISABLE_BEGIN_RANGE_EXT = VK_VALIDATION_FEATURE_DISABLE_ALL_EXT,
+    VK_VALIDATION_FEATURE_DISABLE_END_RANGE_EXT = VK_VALIDATION_FEATURE_DISABLE_UNIQUE_HANDLES_EXT,
+    VK_VALIDATION_FEATURE_DISABLE_RANGE_SIZE_EXT = (VK_VALIDATION_FEATURE_DISABLE_UNIQUE_HANDLES_EXT - VK_VALIDATION_FEATURE_DISABLE_ALL_EXT + 1),
+    VK_VALIDATION_FEATURE_DISABLE_MAX_ENUM_EXT = 0x7FFFFFFF
+} VkValidationFeatureDisableEXT;
+typedef struct VkValidationFeaturesEXT
+{
+    VkStructureType sType;
+    const void* pNext;
+    uint32_t enabledValidationFeatureCount;
+    const VkValidationFeatureEnableEXT* pEnabledValidationFeatures;
+    uint32_t disabledValidationFeatureCount;
+    const VkValidationFeatureDisableEXT* pDisabledValidationFeatures;
+} VkValidationFeaturesEXT;
 #endif // VK_HEADER_VERSION < 97
 
 #if VK_HEADER_VERSION < 101
@@ -248,6 +322,65 @@ typedef struct VkPhysicalDeviceCooperativeMatrixPropertiesNV
 typedef VkResult(VKAPI_PTR* PFN_vkGetPhysicalDeviceCooperativeMatrixPropertiesNV)(VkPhysicalDevice physicalDevice, uint32_t* pPropertyCount, VkCooperativeMatrixPropertiesNV* pProperties);
 #endif // VK_HEADER_VERSION < 101
 
+#if VK_HEADER_VERSION < 121
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COHERENT_MEMORY_FEATURES_AMD (VkStructureType)1000229000
+#define VK_MEMORY_PROPERTY_DEVICE_COHERENT_BIT_AMD                     (VkMemoryPropertyFlagBits)0x00000040
+#define VK_MEMORY_PROPERTY_DEVICE_UNCACHED_BIT_AMD                     (VkMemoryPropertyFlagBits)0x00000040
+typedef struct VkPhysicalDeviceCoherentMemoryFeaturesAMD
+{
+    VkStructureType sType;
+    void* pNext;
+    VkBool32 deviceCoherentMemory;
+} VkPhysicalDeviceCoherentMemoryFeaturesAMD;
+#endif // VK_HEADER_VERSION < 121
+
+#if VK_HEADER_VERSION < 129
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES_KHR (VkStructureType)1000257000
+#define VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO_KHR                     (VkStructureType)1000244001
+#define VK_STRUCTURE_TYPE_BUFFER_OPAQUE_CAPTURE_ADDRESS_CREATE_INFO_KHR      (VkStructureType)1000257002
+#define VK_STRUCTURE_TYPE_MEMORY_OPAQUE_CAPTURE_ADDRESS_ALLOCATE_INFO_KHR    (VkStructureType)1000257003
+#define VK_STRUCTURE_TYPE_DEVICE_MEMORY_OPAQUE_CAPTURE_ADDRESS_INFO_KHR      (VkStructureType)1000257004
+#define VK_BUFFER_CREATE_DEVICE_ADDRESS_CAPTURE_REPLAY_BIT_KHR               (VkBufferCreateFlagBits)0x00020000
+#define VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT_KHR                        (VkBufferUsageFlagBits)0x00020000
+#define VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT_KHR                            (VkMemoryAllocateFlagBits)0x00000002
+#define VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_CAPTURE_REPLAY_BIT_KHR             (VkMemoryAllocateFlagBits)0x00000004
+typedef struct VkPhysicalDeviceBufferDeviceAddressFeaturesKHR
+{
+    VkStructureType sType;
+    void* pNext;
+    VkBool32 bufferDeviceAddress;
+    VkBool32 bufferDeviceAddressCaptureReplay;
+    VkBool32 bufferDeviceAddressMultiDevice;
+} VkPhysicalDeviceBufferDeviceAddressFeaturesKHR;
+typedef struct VkBufferDeviceAddressInfoKHR
+{
+    VkStructureType sType;
+    const void* pNext;
+    VkBuffer buffer;
+} VkBufferDeviceAddressInfoKHR;
+typedef struct VkBufferOpaqueCaptureAddressCreateInfoKHR
+{
+    VkStructureType sType;
+    const void* pNext;
+    uint64_t opaqueCaptureAddress;
+} VkBufferOpaqueCaptureAddressCreateInfoKHR;
+typedef struct VkMemoryOpaqueCaptureAddressAllocateInfoKHR
+{
+    VkStructureType sType;
+    const void* pNext;
+    uint64_t opaqueCaptureAddress;
+} VkMemoryOpaqueCaptureAddressAllocateInfoKHR;
+typedef struct VkDeviceMemoryOpaqueCaptureAddressInfoKHR
+{
+    VkStructureType sType;
+    const void* pNext;
+    VkDeviceMemory memory;
+} VkDeviceMemoryOpaqueCaptureAddressInfoKHR;
+typedef VkDeviceAddress(VKAPI_PTR* PFN_vkGetBufferDeviceAddressKHR)(VkDevice device, const VkBufferDeviceAddressInfoKHR* pInfo);
+typedef uint64_t(VKAPI_PTR* PFN_vkGetBufferOpaqueCaptureAddressKHR)(VkDevice device, const VkBufferDeviceAddressInfoKHR* pInfo);
+typedef uint64_t(VKAPI_PTR* PFN_vkGetDeviceMemoryOpaqueCaptureAddressKHR)(VkDevice device, const VkDeviceMemoryOpaqueCaptureAddressInfoKHR* pInfo);
+#endif // VK_HEADER_VERSION < 129
+
 #if VK_HEADER_VERSION < 208
 typedef enum VkInstanceCreateFlagBits
 {
@@ -255,5 +388,62 @@ typedef enum VkInstanceCreateFlagBits
     VK_INSTANCE_CREATE_FLAG_BITS_MAX_ENUM = 0x7FFFFFFF
 } VkInstanceCreateFlagBits;
 #endif // VK_HEADER_VERSION < 208
+
+#if VK_HEADER_VERSION < 255
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_FEATURES_KHR   (VkStructureType)1000506000
+#define VK_STRUCTURE_TYPE_COOPERATIVE_MATRIX_PROPERTIES_KHR                 (VkStructureType)1000506001
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_PROPERTIES_KHR (VkStructureType)1000506002
+typedef enum VkComponentTypeKHR
+{
+    VK_COMPONENT_TYPE_FLOAT16_KHR = 0,
+    VK_COMPONENT_TYPE_FLOAT32_KHR = 1,
+    VK_COMPONENT_TYPE_FLOAT64_KHR = 2,
+    VK_COMPONENT_TYPE_SINT8_KHR = 3,
+    VK_COMPONENT_TYPE_SINT16_KHR = 4,
+    VK_COMPONENT_TYPE_SINT32_KHR = 5,
+    VK_COMPONENT_TYPE_SINT64_KHR = 6,
+    VK_COMPONENT_TYPE_UINT8_KHR = 7,
+    VK_COMPONENT_TYPE_UINT16_KHR = 8,
+    VK_COMPONENT_TYPE_UINT32_KHR = 9,
+    VK_COMPONENT_TYPE_UINT64_KHR = 10,
+    VK_COMPONENT_TYPE_MAX_ENUM_KHR = 0x7FFFFFFF
+} VkComponentTypeKHR;
+typedef enum VkScopeKHR
+{
+    VK_SCOPE_DEVICE_KHR = 1,
+    VK_SCOPE_WORKGROUP_KHR = 2,
+    VK_SCOPE_SUBGROUP_KHR = 3,
+    VK_SCOPE_QUEUE_FAMILY_KHR = 5,
+    VK_SCOPE_MAX_ENUM_KHR = 0x7FFFFFFF
+} VkScopeKHR;
+typedef struct VkCooperativeMatrixPropertiesKHR
+{
+    VkStructureType sType;
+    void* pNext;
+    uint32_t MSize;
+    uint32_t NSize;
+    uint32_t KSize;
+    VkComponentTypeKHR AType;
+    VkComponentTypeKHR BType;
+    VkComponentTypeKHR CType;
+    VkComponentTypeKHR ResultType;
+    VkBool32 saturatingAccumulation;
+    VkScopeKHR scope;
+} VkCooperativeMatrixPropertiesKHR;
+typedef struct VkPhysicalDeviceCooperativeMatrixFeaturesKHR
+{
+    VkStructureType sType;
+    void* pNext;
+    VkBool32 cooperativeMatrix;
+    VkBool32 cooperativeMatrixRobustBufferAccess;
+} VkPhysicalDeviceCooperativeMatrixFeaturesKHR;
+typedef struct VkPhysicalDeviceCooperativeMatrixPropertiesKHR
+{
+    VkStructureType sType;
+    void* pNext;
+    VkShaderStageFlags cooperativeMatrixSupportedStages;
+} VkPhysicalDeviceCooperativeMatrixPropertiesKHR;
+typedef VkResult(VKAPI_PTR* PFN_vkGetPhysicalDeviceCooperativeMatrixPropertiesKHR)(VkPhysicalDevice physicalDevice, uint32_t* pPropertyCount, VkCooperativeMatrixPropertiesKHR* pProperties);
+#endif // VK_HEADER_VERSION < 255
 
 #endif // NCNN_VULKAN_HEADER_FIX_H

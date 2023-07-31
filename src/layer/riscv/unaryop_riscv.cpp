@@ -175,7 +175,7 @@ struct unary_op_tan
         vse32_v_f32m8(tmp.data(), x, vl);
         for (size_t i = 0; i < vl; i++)
         {
-            tmp[i] = tan(tmp[i]);
+            tmp[i] = tanf(tmp[i]);
         }
         return vle32_v_f32m8(tmp.data(), vl);
     }
@@ -190,7 +190,7 @@ struct unary_op_asin
         vse32_v_f32m8(tmp.data(), x, vl);
         for (size_t i = 0; i < vl; i++)
         {
-            tmp[i] = asin(tmp[i]);
+            tmp[i] = asinf(tmp[i]);
         }
         return vle32_v_f32m8(tmp.data(), vl);
     }
@@ -205,7 +205,7 @@ struct unary_op_acos
         vse32_v_f32m8(tmp.data(), x, vl);
         for (size_t i = 0; i < vl; i++)
         {
-            tmp[i] = acos(tmp[i]);
+            tmp[i] = acosf(tmp[i]);
         }
         return vle32_v_f32m8(tmp.data(), vl);
     }
@@ -220,7 +220,7 @@ struct unary_op_atan
         vse32_v_f32m8(tmp.data(), x, vl);
         for (size_t i = 0; i < vl; i++)
         {
-            tmp[i] = atan(tmp[i]);
+            tmp[i] = atanf(tmp[i]);
         }
         return vle32_v_f32m8(tmp.data(), vl);
     }
@@ -250,6 +250,38 @@ struct unary_op_log10
     vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
     {
         return vfmul_vf_f32m8(log_ps(x, vl), 0.434294481903, vl);
+    }
+};
+
+struct unary_op_round
+{
+    vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
+    {
+        return vfcvt_f_x_v_f32m8(vfcvt_x_f_v_i32m8(x, vl), vl);
+    }
+};
+
+struct unary_op_trunc
+{
+    vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
+    {
+#if C906
+        // simulate trunc with floor positives and ceil negative
+        // xi = round(x)
+        // floorx = xi - (xi > x)
+        // ceilx = xi + (xi < x)
+        // truncx = x >= 0 ? floorx : ceilx
+        vint32m8_t _xi = vfcvt_x_f_v_i32m8(x, vl);
+        vfloat32m8_t _xf = vfcvt_f_x_v_f32m8(_xi, vl);
+        vbool4_t _floormask = vmfgt_vv_f32m8_b4(_xf, x, vl);
+        vint32m8_t _floorx = vsub_vx_i32m8_m(_floormask, _xi, _xi, 1, vl);
+        vbool4_t _ceilmask = vmflt_vv_f32m8_b4(_xf, x, vl);
+        vint32m8_t _ceilx = vadd_vx_i32m8_m(_ceilmask, _xi, _xi, 1, vl);
+        vbool4_t _negative = vmflt_vf_f32m8_b4(x, 0.f, vl);
+        return vfcvt_f_x_v_f32m8(vmerge_vvm_i32m8(_negative, _floorx, _ceilx, vl), vl);
+#else
+        return vfcvt_f_x_v_f32m8(vfcvt_rtz_x_f_v_i32m8(x, vl), vl);
+#endif
     }
 };
 
@@ -321,6 +353,12 @@ int UnaryOp_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 
     if (op_type == Operation_LOG10)
         return unary_op_inplace<unary_op_log10>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ROUND)
+        return unary_op_inplace<unary_op_round>(bottom_top_blob, opt);
+
+    if (op_type == Operation_TRUNC)
+        return unary_op_inplace<unary_op_trunc>(bottom_top_blob, opt);
 
     return 0;
 #else  // __riscv_vector
@@ -469,7 +507,7 @@ struct unary_op_tan_fp16s
         vse16_v_f16m8(tmp.data(), x, vl);
         for (size_t i = 0; i < vl; i++)
         {
-            tmp[i] = tan((float)tmp[i]);
+            tmp[i] = tanf((float)tmp[i]);
         }
         return vle16_v_f16m8(tmp.data(), vl);
     }
@@ -484,7 +522,7 @@ struct unary_op_asin_fp16s
         vse16_v_f16m8(tmp.data(), x, vl);
         for (size_t i = 0; i < vl; i++)
         {
-            tmp[i] = asin((float)tmp[i]);
+            tmp[i] = asinf((float)tmp[i]);
         }
         return vle16_v_f16m8(tmp.data(), vl);
     }
@@ -499,7 +537,7 @@ struct unary_op_acos_fp16s
         vse16_v_f16m8(tmp.data(), x, vl);
         for (size_t i = 0; i < vl; i++)
         {
-            tmp[i] = acos((float)tmp[i]);
+            tmp[i] = acosf((float)tmp[i]);
         }
         return vle16_v_f16m8(tmp.data(), vl);
     }
@@ -514,7 +552,7 @@ struct unary_op_atan_fp16s
         vse16_v_f16m8(tmp.data(), x, vl);
         for (size_t i = 0; i < vl; i++)
         {
-            tmp[i] = atan((float)tmp[i]);
+            tmp[i] = atanf((float)tmp[i]);
         }
         return vle16_v_f16m8(tmp.data(), vl);
     }
@@ -544,6 +582,38 @@ struct unary_op_log10_fp16s
     vfloat16m8_t operator()(const vfloat16m8_t& x, const size_t& vl) const
     {
         return vfmul_vf_f16m8(log_ps(x, vl), 0.434294481903, vl);
+    }
+};
+
+struct unary_op_round_fp16s
+{
+    vfloat16m8_t operator()(const vfloat16m8_t& x, const size_t& vl) const
+    {
+        return vfcvt_f_x_v_f16m8(vfcvt_x_f_v_i16m8(x, vl), vl);
+    }
+};
+
+struct unary_op_trunc_fp16s
+{
+    vfloat16m8_t operator()(const vfloat16m8_t& x, const size_t& vl) const
+    {
+#if C906
+        // simulate trunc with floor positives and ceil negative
+        // xi = round(x)
+        // floorx = xi - (xi > x)
+        // ceilx = xi + (xi < x)
+        // truncx = x >= 0 ? floorx : ceilx
+        vint16m8_t _xi = vfcvt_x_f_v_i16m8(x, vl);
+        vfloat16m8_t _xf = vfcvt_f_x_v_f16m8(_xi, vl);
+        vbool2_t _floormask = vmfgt_vv_f16m8_b2(_xf, x, vl);
+        vint16m8_t _floorx = vsub_vx_i16m8_m(_floormask, _xi, _xi, 1, vl);
+        vbool2_t _ceilmask = vmflt_vv_f16m8_b2(_xf, x, vl);
+        vint16m8_t _ceilx = vadd_vx_i16m8_m(_ceilmask, _xi, _xi, 1, vl);
+        vbool2_t _negative = vmflt_vf_f16m8_b2(x, 0.f, vl);
+        return vfcvt_f_x_v_f16m8(vmerge_vvm_i16m8(_negative, _floorx, _ceilx, vl), vl);
+#else
+        return vfcvt_f_x_v_f16m8(vfcvt_rtz_x_f_v_i16m8(x, vl), vl);
+#endif
     }
 };
 
@@ -606,6 +676,12 @@ int UnaryOp_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt
 
     if (op_type == Operation_LOG10)
         return unary_op_inplace_fp16s<unary_op_log10_fp16s>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ROUND)
+        return unary_op_inplace_fp16s<unary_op_round_fp16s>(bottom_top_blob, opt);
+
+    if (op_type == Operation_TRUNC)
+        return unary_op_inplace_fp16s<unary_op_trunc_fp16s>(bottom_top_blob, opt);
 
     return 0;
 }

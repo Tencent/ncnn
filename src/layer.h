@@ -188,6 +188,16 @@ struct custom_layer_registry_entry
     void* userdata;
 };
 
+struct overwrite_builtin_layer_registry_entry
+{
+    // layer type index
+    int typeindex;
+    // layer factory entry
+    layer_creator_func creator;
+    layer_destroyer_func destroyer;
+    void* userdata;
+};
+
 #if NCNN_STRING
 // get layer type from type name
 NCNN_EXPORT int layer_to_index(const char* type);
