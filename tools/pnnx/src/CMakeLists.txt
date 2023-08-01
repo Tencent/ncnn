@@ -213,6 +213,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_clamp.cpp
     pass_level2/torch_clone.cpp
     pass_level2/torch_complex.cpp
+    pass_level2/torch_cross.cpp
     pass_level2/torch_cumsum.cpp
     pass_level2/torch_dequantize.cpp
     pass_level2/torch_einsum.cpp
@@ -255,6 +256,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_std.cpp
     pass_level2/torch_sum.cpp
     pass_level2/torch_permute.cpp
+    pass_level2/torch_t.cpp
     pass_level2/torch_tensor_split.cpp
     pass_level2/torch_topk.cpp
     pass_level2/torch_transpose.cpp
