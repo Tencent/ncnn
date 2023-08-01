@@ -404,44 +404,27 @@ else()
 
     if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC" OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_SIMULATE_ID MATCHES "MSVC" AND CMAKE_CXX_COMPILER_FRONTEND_VARIANT MATCHES "MSVC"))
         check_cxx_compiler_flag("/arch:AVX" NCNN_COMPILER_SUPPORT_X86_AVX)
-
-        set(CMAKE_REQUIRED_FLAGS "/arch:AVX")
-        check_cxx_source_compiles("#include <immintrin.h>\nint main() { __m256 _s, _a, _b; _s = _mm256_fmadd_ps(_a, _b, _s); return 0; }" NCNN_COMPILER_SUPPORT_X86_FMA)
-
-        set(CMAKE_REQUIRED_FLAGS "/arch:AVX")
-        check_cxx_source_compiles("#ifdef _MSC_VER\n#include <ammintrin.h>\n#else\n#include <x86intrin.h>\n#endif\nint main() { __m128i _s, _a, _b; _s = _mm_maddd_epi16(_a, _b, _s); return 0; }" NCNN_COMPILER_SUPPORT_X86_XOP)
-
-        set(CMAKE_REQUIRED_FLAGS "/arch:AVX")
-        check_cxx_source_compiles("#include <immintrin.h>\nint main() { __m256 _a; _a = _mm256_cvtph_ps(_mm256_cvtps_ph(_a, _MM_ROUND_NEAREST | _MM_FROUND_NO_EXC)); return 0; }" NCNN_COMPILER_SUPPORT_X86_F16C)
-
+        check_cxx_compiler_flag("/arch:AVX" NCNN_COMPILER_SUPPORT_X86_FMA)
+        check_cxx_compiler_flag("/arch:AVX" NCNN_COMPILER_SUPPORT_X86_XOP)
+        check_cxx_compiler_flag("/arch:AVX" NCNN_COMPILER_SUPPORT_X86_F16C)
         check_cxx_compiler_flag("/arch:AVX2" NCNN_COMPILER_SUPPORT_X86_AVX2)
+        check_cxx_compiler_flag("/arch:AVX2" NCNN_COMPILER_SUPPORT_X86_AVX_VNNI)
         check_cxx_compiler_flag("/arch:AVX512" NCNN_COMPILER_SUPPORT_X86_AVX512)
-
-        set(CMAKE_REQUIRED_FLAGS "/arch:AVX2")
-        check_cxx_source_compiles("#include <immintrin.h>\nint main() { __m256i _s, _a, _b; _s = _mm256_dpwssd_epi32(_s, _a, _b); return 0; }" NCNN_COMPILER_SUPPORT_X86_AVX_VNNI)
-
-        set(CMAKE_REQUIRED_FLAGS "/arch:AVX512")
-        check_cxx_source_compiles("#include <immintrin.h>\nint main() { __m512i _s, _a, _b; _s = _mm512_dpwssd_epi32(_s, _a, _b); return 0; }" NCNN_COMPILER_SUPPORT_X86_AVX512_VNNI)
-
-        set(CMAKE_REQUIRED_FLAGS "/arch:AVX512")
-        check_cxx_source_compiles("#include <immintrin.h>\nint main() { __m256bh _s; __m512bh _a, _b; _s = _mm512_cvtneps_pbh(_mm512_dpbf16_ps(_mm512_cvtpbh_ps(_s), _a, _b)); return 0; }" NCNN_COMPILER_SUPPORT_X86_AVX512_BF16)
-
-        set(CMAKE_REQUIRED_FLAGS "/arch:AVX512")
-        check_cxx_source_compiles("#include <immintrin.h>\nint main() { __m512h _s, _a, _b; _s = _mm512_fmadd_ph(_s, _a, _b); __m512 _s2; _s2 = _mm512_cvtxph_ps(_mm512_cvtxps_ph(_s2)); return 0; }" NCNN_COMPILER_SUPPORT_X86_AVX512_FP16)
-
-        unset(CMAKE_REQUIRED_FLAGS)
+        check_cxx_compiler_flag("/arch:AVX512" NCNN_COMPILER_SUPPORT_X86_AVX512_VNNI)
+        if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 19.16)
+            # vs2017+ supports avx512 and vnni
+            set(NCNN_COMPILER_SUPPORT_X86_AVX_VNNI OFF)
+            set(NCNN_COMPILER_SUPPORT_X86_AVX512 OFF)
+            set(NCNN_COMPILER_SUPPORT_X86_AVX512_VNNI OFF)
+        endif()
     else()
         check_cxx_compiler_flag("-mavx" NCNN_COMPILER_SUPPORT_X86_AVX)
 
         set(CMAKE_REQUIRED_FLAGS "-mfma -mf16c")
         check_cxx_source_compiles("#include <immintrin.h>\nint main() { __m256 _s, _a, _b; _s = _mm256_fmadd_ps(_a, _b, _s); return 0; }" NCNN_COMPILER_SUPPORT_X86_FMA)
 
-        set(CMAKE_REQUIRED_FLAGS "-mxop")
-        check_cxx_source_compiles("#ifdef _MSC_VER\n#include <ammintrin.h>\n#else\n#include <x86intrin.h>\n#endif\nint main() { __m128i _s, _a, _b; _s = _mm_maddd_epi16(_a, _b, _s); return 0; }" NCNN_COMPILER_SUPPORT_X86_XOP)
-
-        set(CMAKE_REQUIRED_FLAGS "-mf16c")
-        check_cxx_source_compiles("#include <immintrin.h>\nint main() { __m256 _a; _a = _mm256_cvtph_ps(_mm256_cvtps_ph(_a, _MM_ROUND_NEAREST | _MM_FROUND_NO_EXC)); return 0; }" NCNN_COMPILER_SUPPORT_X86_F16C)
-
+        check_cxx_compiler_flag("-mxop" NCNN_COMPILER_SUPPORT_X86_XOP)
+        check_cxx_compiler_flag("-mf16c" NCNN_COMPILER_SUPPORT_X86_F16C)
         check_cxx_compiler_flag("-mfma -mf16c -mavx2" NCNN_COMPILER_SUPPORT_X86_AVX2)
         check_cxx_compiler_flag("-mfma -mf16c -mavx512f -mavx512cd -mavx512bw -mavx512dq -mavx512vl" NCNN_COMPILER_SUPPORT_X86_AVX512)
 
