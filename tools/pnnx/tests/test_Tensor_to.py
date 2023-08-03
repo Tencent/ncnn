@@ -27,7 +27,8 @@ class Model(nn.Module):
         x = x.to(device='cpu', dtype=torch.int, copy=True)
         x = x + 1
         y = y - 2
-        return x, y
+        z = x.to(y.device)
+        return x, y, z
 
 def test():
     net = Model()
