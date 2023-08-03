@@ -61,6 +61,7 @@ layout (push_constant) uniform parameter
 
 void main()
 {
+    //TODO::
     int gx = int(gl_GlobalInvocationID.x);
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
