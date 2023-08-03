@@ -485,6 +485,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/nn_LeakyReLU.cpp
     pass_ncnn/nn_Linear.cpp
     pass_ncnn/nn_LocalResponseNorm.cpp
+    pass_ncnn/nn_LogSoftmax.cpp
     pass_ncnn/nn_LSTM.cpp
     pass_ncnn/nn_MaxPool1d.cpp
     pass_ncnn/nn_MaxPool2d.cpp
