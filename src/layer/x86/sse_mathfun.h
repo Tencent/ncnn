@@ -32,6 +32,8 @@
 #ifndef SSE_MATHFUN_H
 #define SSE_MATHFUN_H
 
+#include <immintrin.h>
+#include <smmintrin.h>
 #define USE_SSE2 1
 
 #include <xmmintrin.h>
@@ -1155,6 +1157,14 @@ static NCNN_FORCEINLINE __m128 abs_ps(__m128 inputs)
 
     // return (!magic_negative_zero && x);
     return _mm_andnot_ps(magic_negative_zero, inputs);
+}
+
+static NCNN_FORCEINLINE __m128 remainder_ps(__m128 x, __m128 y)
+{
+    const __m128 div_result = _mm_div_ps(x, y);
+    const __m128 round_result = _mm_round_ps(div_result, (_MM_FROUND_TO_NEG_INF | _MM_FROUND_NO_EXC));
+    const __m128 mul_result = _mm_mul_ps(round_result, y);
+    return _mm_sub_ps(x, mul_result);
 }
 
 #endif // SSE_MATHFUN_H
