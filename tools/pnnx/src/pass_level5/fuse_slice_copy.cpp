@@ -177,6 +177,7 @@ void fuse_slice_copy(Graph& graph)
             Operator* op_clone = graph.new_operator_before("Tensor.clone", op->name + "_ncnnclone", top_sop);
             Operand* clone_out = graph.new_operand(op->name + "_ncnnclone_out");
 
+            clone_out->type = top_sop->inputs[0]->type;
             clone_out->shape = top_sop->inputs[0]->shape;
 
             op_clone->inputs.push_back(top_sop->inputs[0]);
@@ -255,6 +256,7 @@ void fuse_slice_copy(Graph& graph)
 
                 op_view->params["shape"] = target_shape;
 
+                view_out->type = op->inputs[1]->type;
                 view_out->shape = target_shape;
 
                 op_view->inputs.push_back(op->inputs[1]);

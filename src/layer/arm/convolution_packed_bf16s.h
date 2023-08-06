@@ -62,10 +62,11 @@ static void convolution_transform_kernel_packed_bf16s(const Mat& kernel, Mat& ke
 #endif // __aarch64__
         if (inch >= 4)
             kernel_tm.create(2 * 4 * maxk, inch / 4 + (inch % 4) / 2 + inch % 2, outch / 2 + outch % 2, (size_t)2u);
-        else if (inch >= 2)
-            kernel_tm.create(2 * 2 * maxk, inch / 2 + inch % 2, outch / 2 + outch % 2, (size_t)2u);
         else
 #endif // __ARM_NEON
+        if (inch >= 2)
+            kernel_tm.create(2 * 2 * maxk, inch / 2 + inch % 2, outch / 2 + outch % 2, (size_t)2u);
+        else
             kernel_tm.create(2 * maxk, inch, outch / 2 + outch % 2, (size_t)2u);
     }
     else
@@ -78,10 +79,11 @@ static void convolution_transform_kernel_packed_bf16s(const Mat& kernel, Mat& ke
 #endif // __aarch64__
         if (inch >= 4)
             kernel_tm.create(4 * maxk, inch / 4 + (inch % 4) / 2 + inch % 2, outch, (size_t)2u);
-        else if (inch >= 2)
-            kernel_tm.create(2 * maxk, inch / 2 + inch % 2, outch, (size_t)2u);
         else
 #endif // __ARM_NEON
+        if (inch >= 2)
+            kernel_tm.create(2 * maxk, inch / 2 + inch % 2, outch, (size_t)2u);
+        else
             kernel_tm.create(maxk, inch, outch, (size_t)2u);
     }
     // *INDENT-ON*
@@ -550,6 +552,13 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
     {
         const int p = remain_outch_start + pp * 8;
 
+        // shadowed variable for less openmp task args
+        const int elempack = bottom_blob.elempack;
+        const int inch = bottom_blob.c * elempack;
+        const int outw = top_blob.w;
+        const int outh = top_blob.h;
+        const int out_elempack = top_blob.elempack;
+
         unsigned short* outptr = top_blob.channel(p / out_elempack);
 
         for (int i = 0; i < outh; i++)
@@ -787,6 +796,13 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
     {
         const int p = remain_outch_start + pp * 4;
 
+        // shadowed variable for less openmp task args
+        const int elempack = bottom_blob.elempack;
+        const int inch = bottom_blob.c * elempack;
+        const int outw = top_blob.w;
+        const int outh = top_blob.h;
+        const int out_elempack = top_blob.elempack;
+
         unsigned short* outptr = top_blob.channel(p / out_elempack);
 
         for (int i = 0; i < outh; i++)
@@ -992,6 +1008,12 @@ static void convolution_packed_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
     for (int pp = 0; pp < nn_outch; pp++)
     {
         const int p = remain_outch_start + pp * 2;
+
+        // shadowed variable for less openmp task args
+        const int elempack = bottom_blob.elempack;
+        const int inch = bottom_blob.c * elempack;
+        const int outw = top_blob.w;
+        const int outh = top_blob.h;
 
         unsigned short* outptr0 = top_blob.channel(p);
         unsigned short* outptr1 = top_blob.channel(p + 1);

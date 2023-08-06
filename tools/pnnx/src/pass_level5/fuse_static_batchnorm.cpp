@@ -29,47 +29,27 @@ public:
         return R"PNNXIR(7767517
 5 4
 pnnx.Input              input       0 1 input
-pnnx.Attribute          op_mean     0 1 running_mean @qwq
-pnnx.Attribute          op_var      0 1 running_var @qwq
+pnnx.Attribute          op_mean     0 1 running_mean @data=(%num_features)f32
+pnnx.Attribute          op_var      0 1 running_var @data=(%num_features)f32
 F.batchnorm             op_0        3 1 input running_mean running_var out weight=None bias=None eps=%eps
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
 
-    const char* type_str() const
+    const char* replace_pattern_graph() const
     {
-        return "nn.BatchNorm1d";
-    }
-
-    const char* name_str() const
-    {
-        return "batchnorm";
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+nn.BatchNorm1d          batchnorm   1 1 input out num_features=%num_features eps=%eps affine=False @running_mean=%op_mean.data @running_var=%op_var.data
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     bool match(const std::map<std::string, const Operator*>& matched_operators) const
     {
         size_t input_rank = matched_operators.at("op_0")->inputs[0]->shape.size();
         return input_rank == 2 || input_rank == 3;
-    }
-
-    void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
-    {
-        Attribute running_mean;
-        Attribute running_var;
-        for (const auto& x : captured_attrs)
-        {
-            if (x.first.substr(0, 8) == "op_mean.")
-                running_mean = x.second;
-            if (x.first.substr(0, 7) == "op_var.")
-                running_var = x.second;
-        }
-
-        op->params["num_features"] = running_mean.shape[0];
-        op->params["eps"] = captured_params.at("eps");
-        op->params["affine"] = false;
-
-        op->attrs["running_mean"] = running_mean;
-        op->attrs["running_var"] = running_var;
     }
 };
 
@@ -81,57 +61,29 @@ public:
         return R"PNNXIR(7767517
 7 6
 pnnx.Input              input       0 1 input
-pnnx.Attribute          op_mean     0 1 running_mean @qwq
-pnnx.Attribute          op_var      0 1 running_var @qwq
-pnnx.Attribute          op_weight   0 1 weight @qwq
-pnnx.Attribute          op_bias     0 1 bias @qwq
+pnnx.Attribute          op_mean     0 1 running_mean @data=(%num_features)f32
+pnnx.Attribute          op_var      0 1 running_var @data=(%num_features)f32
+pnnx.Attribute          op_weight   0 1 weight @data
+pnnx.Attribute          op_bias     0 1 bias @data
 F.batch_norm            op_0        5 1 input running_mean running_var weight bias out eps=%eps
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
 
-    const char* type_str() const
+    const char* replace_pattern_graph() const
     {
-        return "nn.BatchNorm1d";
-    }
-
-    const char* name_str() const
-    {
-        return "batchnorm";
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+nn.BatchNorm1d          batchnorm   1 1 input out num_features=%num_features eps=%eps affine=True @running_mean=%op_mean.data @running_var=%op_var.data @weight=%op_weight.data @bias=%op_bias.data
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
     bool match(const std::map<std::string, const Operator*>& matched_operators) const
     {
         size_t input_rank = matched_operators.at("op_0")->inputs[0]->shape.size();
         return input_rank == 2 || input_rank == 3;
-    }
-
-    void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
-    {
-        Attribute running_mean;
-        Attribute running_var;
-        Attribute weight;
-        Attribute bias;
-        for (const auto& x : captured_attrs)
-        {
-            if (x.first.substr(0, 8) == "op_mean.")
-                running_mean = x.second;
-            if (x.first.substr(0, 7) == "op_var.")
-                running_var = x.second;
-            if (x.first.substr(0, 10) == "op_weight.")
-                weight = x.second;
-            if (x.first.substr(0, 8) == "op_bias.")
-                bias = x.second;
-        }
-
-        op->params["num_features"] = running_mean.shape[0];
-        op->params["eps"] = captured_params.at("eps");
-        op->params["affine"] = true;
-
-        op->attrs["running_mean"] = running_mean;
-        op->attrs["running_var"] = running_var;
-        op->attrs["weight"] = weight;
-        op->attrs["bias"] = bias;
     }
 };
 
@@ -143,47 +95,21 @@ public:
         return R"PNNXIR(7767517
 5 4
 pnnx.Input              input       0 1 input
-pnnx.Attribute          op_mean     0 1 running_mean @qwq
-pnnx.Attribute          op_var      0 1 running_var @qwq
-F.batchnorm             op_0        3 1 input running_mean running_var out weight=None bias=None eps=%eps
+pnnx.Attribute          op_mean     0 1 running_mean @data=(%num_features)f32
+pnnx.Attribute          op_var      0 1 running_var @data=(%num_features)f32
+F.batchnorm             op_0        3 1 input running_mean running_var out weight=None bias=None eps=%eps #input=(?,?,?,?)f32
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
 
-    const char* type_str() const
+    const char* replace_pattern_graph() const
     {
-        return "nn.BatchNorm2d";
-    }
-
-    const char* name_str() const
-    {
-        return "batchnorm";
-    }
-
-    bool match(const std::map<std::string, const Operator*>& matched_operators) const
-    {
-        size_t input_rank = matched_operators.at("op_0")->inputs[0]->shape.size();
-        return input_rank == 4;
-    }
-
-    void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
-    {
-        Attribute running_mean;
-        Attribute running_var;
-        for (const auto& x : captured_attrs)
-        {
-            if (x.first.substr(0, 8) == "op_mean.")
-                running_mean = x.second;
-            if (x.first.substr(0, 7) == "op_var.")
-                running_var = x.second;
-        }
-
-        op->params["num_features"] = running_mean.shape[0];
-        op->params["eps"] = captured_params.at("eps");
-        op->params["affine"] = false;
-
-        op->attrs["running_mean"] = running_mean;
-        op->attrs["running_var"] = running_var;
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+nn.BatchNorm2d          batchnorm   1 1 input out num_features=%num_features eps=%eps affine=False @running_mean=%op_mean.data @running_var=%op_var.data
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 };
 
@@ -195,57 +121,23 @@ public:
         return R"PNNXIR(7767517
 7 6
 pnnx.Input              input       0 1 input
-pnnx.Attribute          op_mean     0 1 running_mean @qwq
-pnnx.Attribute          op_var      0 1 running_var @qwq
-pnnx.Attribute          op_weight   0 1 weight @qwq
-pnnx.Attribute          op_bias     0 1 bias @qwq
-F.batch_norm            op_0        5 1 input running_mean running_var weight bias out eps=%eps
+pnnx.Attribute          op_mean     0 1 running_mean @data=(%num_features)f32
+pnnx.Attribute          op_var      0 1 running_var @data=(%num_features)f32
+pnnx.Attribute          op_weight   0 1 weight @data
+pnnx.Attribute          op_bias     0 1 bias @data
+F.batch_norm            op_0        5 1 input running_mean running_var weight bias out eps=%eps #input=(?,?,?,?)f32
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
 
-    const char* type_str() const
+    const char* replace_pattern_graph() const
     {
-        return "nn.BatchNorm2d";
-    }
-
-    const char* name_str() const
-    {
-        return "batchnorm";
-    }
-
-    bool match(const std::map<std::string, const Operator*>& matched_operators) const
-    {
-        size_t input_rank = matched_operators.at("op_0")->inputs[0]->shape.size();
-        return input_rank == 4;
-    }
-
-    void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
-    {
-        Attribute running_mean;
-        Attribute running_var;
-        Attribute weight;
-        Attribute bias;
-        for (const auto& x : captured_attrs)
-        {
-            if (x.first.substr(0, 8) == "op_mean.")
-                running_mean = x.second;
-            if (x.first.substr(0, 7) == "op_var.")
-                running_var = x.second;
-            if (x.first.substr(0, 10) == "op_weight.")
-                weight = x.second;
-            if (x.first.substr(0, 8) == "op_bias.")
-                bias = x.second;
-        }
-
-        op->params["num_features"] = running_mean.shape[0];
-        op->params["eps"] = captured_params.at("eps");
-        op->params["affine"] = true;
-
-        op->attrs["running_mean"] = running_mean;
-        op->attrs["running_var"] = running_var;
-        op->attrs["weight"] = weight;
-        op->attrs["bias"] = bias;
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+nn.BatchNorm2d          batchnorm   1 1 input out num_features=%num_features eps=%eps affine=True @running_mean=%op_mean.data @running_var=%op_var.data @weight=%op_weight.data @bias=%op_bias.data
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 };
 
@@ -257,47 +149,21 @@ public:
         return R"PNNXIR(7767517
 5 4
 pnnx.Input              input       0 1 input
-pnnx.Attribute          op_mean     0 1 running_mean @qwq
-pnnx.Attribute          op_var      0 1 running_var @qwq
-F.batchnorm             op_0        3 1 input running_mean running_var out weight=None bias=None eps=%eps
+pnnx.Attribute          op_mean     0 1 running_mean @data=(%num_features)f32
+pnnx.Attribute          op_var      0 1 running_var @data=(%num_features)f32
+F.batchnorm             op_0        3 1 input running_mean running_var out weight=None bias=None eps=%eps #input=(?,?,?,?,?)f32
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
 
-    const char* type_str() const
+    const char* replace_pattern_graph() const
     {
-        return "nn.BatchNorm3d";
-    }
-
-    const char* name_str() const
-    {
-        return "batchnorm";
-    }
-
-    bool match(const std::map<std::string, const Operator*>& matched_operators) const
-    {
-        size_t input_rank = matched_operators.at("op_0")->inputs[0]->shape.size();
-        return input_rank == 5;
-    }
-
-    void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
-    {
-        Attribute running_mean;
-        Attribute running_var;
-        for (const auto& x : captured_attrs)
-        {
-            if (x.first.substr(0, 8) == "op_mean.")
-                running_mean = x.second;
-            if (x.first.substr(0, 7) == "op_var.")
-                running_var = x.second;
-        }
-
-        op->params["num_features"] = running_mean.shape[0];
-        op->params["eps"] = captured_params.at("eps");
-        op->params["affine"] = false;
-
-        op->attrs["running_mean"] = running_mean;
-        op->attrs["running_var"] = running_var;
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+nn.BatchNorm3d          batchnorm   1 1 input out num_features=%num_features eps=%eps affine=False @running_mean=%op_mean.data @running_var=%op_var.data
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 };
 
@@ -309,57 +175,23 @@ public:
         return R"PNNXIR(7767517
 7 6
 pnnx.Input              input       0 1 input
-pnnx.Attribute          op_mean     0 1 running_mean @qwq
-pnnx.Attribute          op_var      0 1 running_var @qwq
-pnnx.Attribute          op_weight   0 1 weight @qwq
-pnnx.Attribute          op_bias     0 1 bias @qwq
-F.batch_norm            op_0        5 1 input running_mean running_var weight bias out eps=%eps
+pnnx.Attribute          op_mean     0 1 running_mean @data=(%num_features)f32
+pnnx.Attribute          op_var      0 1 running_var @data=(%num_features)f32
+pnnx.Attribute          op_weight   0 1 weight @data
+pnnx.Attribute          op_bias     0 1 bias @data
+F.batch_norm            op_0        5 1 input running_mean running_var weight bias out eps=%eps #input=(?,?,?,?,?)f32
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
 
-    const char* type_str() const
+    const char* replace_pattern_graph() const
     {
-        return "nn.BatchNorm3d";
-    }
-
-    const char* name_str() const
-    {
-        return "batchnorm";
-    }
-
-    bool match(const std::map<std::string, const Operator*>& matched_operators) const
-    {
-        size_t input_rank = matched_operators.at("op_0")->inputs[0]->shape.size();
-        return input_rank == 5;
-    }
-
-    void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
-    {
-        Attribute running_mean;
-        Attribute running_var;
-        Attribute weight;
-        Attribute bias;
-        for (const auto& x : captured_attrs)
-        {
-            if (x.first.substr(0, 8) == "op_mean.")
-                running_mean = x.second;
-            if (x.first.substr(0, 7) == "op_var.")
-                running_var = x.second;
-            if (x.first.substr(0, 10) == "op_weight.")
-                weight = x.second;
-            if (x.first.substr(0, 8) == "op_bias.")
-                bias = x.second;
-        }
-
-        op->params["num_features"] = running_mean.shape[0];
-        op->params["eps"] = captured_params.at("eps");
-        op->params["affine"] = true;
-
-        op->attrs["running_mean"] = running_mean;
-        op->attrs["running_var"] = running_var;
-        op->attrs["weight"] = weight;
-        op->attrs["bias"] = bias;
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+nn.BatchNorm3d          batchnorm   1 1 input out num_features=%num_features eps=%eps affine=True @running_mean=%op_mean.data @running_var=%op_var.data @weight=%op_weight.data @bias=%op_bias.data
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 };
 

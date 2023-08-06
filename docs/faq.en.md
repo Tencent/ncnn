@@ -287,7 +287,7 @@ Fully customizable op, first change to one that can export (e.g. concat slice), 
    First of all, you need to manage the memory you request yourself, at this point ncnn::Mat will not automatically free up the float data you pass over to it
    ``` c++
    std::vector<float> testData(60, 1.0); // use std::vector<float> to manage memory requests and releases yourself
-   ncnn::Mat in1(60, (void*)testData.data()).reshape(4, 5, 3); // just pass the pointer to the float data as a void*, and even specify the dimension (up says it's best to use reshape to solve the channel gap)
+   ncnn::Mat in1 = ncnn::Mat(60, (void*)testData.data()).reshape(4, 5, 3); // just pass the pointer to the float data as a void*, and even specify the dimension (up says it's best to use reshape to solve the channel gap)
    float* a = new float[60]; // New a piece of memory yourself, you need to release it later
    ncnn::Mat in2 = ncnn::Mat(60, (void*)a).reshape(4, 5, 3).clone(); // use the same method as above, clone() to transfer data owner
    ```

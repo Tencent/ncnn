@@ -29,44 +29,30 @@ public:
         return R"PNNXIR(7767517
 4 3
 pnnx.Input              input       0 1 input
-pnnx.Attribute          op_weight   0 1 weight @qwq
+pnnx.Attribute          op_weight   0 1 weight @data=(%in_channels,%out_channels_per_group,%kw)f32
 F.conv_transpose1d      op_0        2 1 input weight out bias=None stride=%stride padding=%padding dilation=%dilation output_padding=%output_padding groups=%groups
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
 
-    const char* type_str() const
+    const char* replace_pattern_graph() const
     {
-        return "nn.ConvTranspose1d";
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+nn.ConvTranspose1d      conv_transpose1d 1 1 input out in_channels=%in_channels kernel_size=(%kw) stride=%stride padding=%padding output_padding=%output_padding dilation=%dilation groups=%groups bias=False @weight=%op_weight.data
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
-    const char* name_str() const
+    void write(const std::map<std::string, Operator*>& ops, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
     {
-        return "conv_transpose1d";
-    }
+        GraphRewriterPass::write(ops, captured_params, captured_attrs);
 
-    void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
-    {
-        Attribute weight;
-        for (const auto& x : captured_attrs)
-        {
-            if (x.first.substr(0, 10) == "op_weight.")
-                weight = x.second;
-        }
-
+        const int out_channels_per_group = captured_params.at("out_channels_per_group").i;
         const int groups = captured_params.at("groups").i;
 
-        op->params["groups"] = groups;
-        op->params["in_channels"] = weight.shape[0];
-        op->params["out_channels"] = weight.shape[1] * groups;
-        op->params["kernel_size"] = Parameter{weight.shape[2]};
-        op->params["stride"] = captured_params.at("stride");
-        op->params["padding"] = captured_params.at("padding");
-        op->params["output_padding"] = captured_params.at("output_padding");
-        op->params["dilation"] = captured_params.at("dilation");
-        op->params["bias"] = false;
-
-        op->attrs["weight"] = weight;
+        ops.at("conv_transpose1d")->params["out_channels"] = out_channels_per_group * groups;
     }
 };
 
@@ -78,49 +64,33 @@ public:
         return R"PNNXIR(7767517
 5 4
 pnnx.Input              input       0 1 input
-pnnx.Attribute          op_weight   0 1 weight @qwq
-pnnx.Attribute          op_bias     0 1 bias @qwq
+pnnx.Attribute          op_weight   0 1 weight @data=(%in_channels,%out_channels_per_group,%kw)f32
+pnnx.Attribute          op_bias     0 1 bias @data=(%out_channels)f32
 F.conv_transpose1d      op_0        3 1 input weight bias out stride=%stride padding=%padding dilation=%dilation output_padding=%output_padding groups=%groups
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
 
-    const char* type_str() const
+    const char* replace_pattern_graph() const
     {
-        return "nn.ConvTranspose1d";
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+nn.ConvTranspose1d      conv_transpose1d 1 1 input out in_channels=%in_channels out_channels=%out_channels kernel_size=(%kw) stride=%stride padding=%padding output_padding=%output_padding dilation=%dilation groups=%groups bias=True @weight=%op_weight.data @bias=%op_bias.data
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
-    const char* name_str() const
+    bool match(const std::map<std::string, Parameter>& captured_params) const
     {
-        return "conv_transpose1d";
-    }
-
-    void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
-    {
-        Attribute weight;
-        Attribute bias;
-        for (const auto& x : captured_attrs)
-        {
-            if (x.first.substr(0, 10) == "op_weight.")
-                weight = x.second;
-            if (x.first.substr(0, 8) == "op_bias.")
-                bias = x.second;
-        }
-
+        const int out_channels_per_group = captured_params.at("out_channels_per_group").i;
+        const int out_channels = captured_params.at("out_channels").i;
         const int groups = captured_params.at("groups").i;
 
-        op->params["groups"] = groups;
-        op->params["in_channels"] = weight.shape[0];
-        op->params["out_channels"] = weight.shape[1] * groups;
-        op->params["kernel_size"] = Parameter{weight.shape[2]};
-        op->params["stride"] = captured_params.at("stride");
-        op->params["padding"] = captured_params.at("padding");
-        op->params["output_padding"] = captured_params.at("output_padding");
-        op->params["dilation"] = captured_params.at("dilation");
-        op->params["bias"] = true;
+        if (out_channels != out_channels_per_group * groups)
+            return false;
 
-        op->attrs["weight"] = weight;
-        op->attrs["bias"] = bias;
+        return true;
     }
 };
 
@@ -132,44 +102,30 @@ public:
         return R"PNNXIR(7767517
 4 3
 pnnx.Input              input       0 1 input
-pnnx.Attribute          op_weight   0 1 weight @qwq
+pnnx.Attribute          op_weight   0 1 weight @data=(%in_channels,%out_channels_per_group,%kh,%kw)f32
 F.conv_transpose2d      op_0        2 1 input weight out bias=None stride=%stride padding=%padding dilation=%dilation output_padding=%output_padding groups=%groups
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
 
-    const char* type_str() const
+    const char* replace_pattern_graph() const
     {
-        return "nn.ConvTranspose2d";
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+nn.ConvTranspose2d      conv_transpose2d 1 1 input out in_channels=%in_channels kernel_size=(%kh,%kw) stride=%stride padding=%padding output_padding=%output_padding dilation=%dilation groups=%groups bias=False @weight=%op_weight.data
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
-    const char* name_str() const
+    void write(const std::map<std::string, Operator*>& ops, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
     {
-        return "conv_transpose2d";
-    }
+        GraphRewriterPass::write(ops, captured_params, captured_attrs);
 
-    void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
-    {
-        Attribute weight;
-        for (const auto& x : captured_attrs)
-        {
-            if (x.first.substr(0, 10) == "op_weight.")
-                weight = x.second;
-        }
-
+        const int out_channels_per_group = captured_params.at("out_channels_per_group").i;
         const int groups = captured_params.at("groups").i;
 
-        op->params["groups"] = groups;
-        op->params["in_channels"] = weight.shape[0];
-        op->params["out_channels"] = weight.shape[1] * groups;
-        op->params["kernel_size"] = Parameter{weight.shape[2], weight.shape[3]};
-        op->params["stride"] = captured_params.at("stride");
-        op->params["padding"] = captured_params.at("padding");
-        op->params["output_padding"] = captured_params.at("output_padding");
-        op->params["dilation"] = captured_params.at("dilation");
-        op->params["bias"] = false;
-
-        op->attrs["weight"] = weight;
+        ops.at("conv_transpose2d")->params["out_channels"] = out_channels_per_group * groups;
     }
 };
 
@@ -181,49 +137,33 @@ public:
         return R"PNNXIR(7767517
 5 4
 pnnx.Input              input       0 1 input
-pnnx.Attribute          op_weight   0 1 weight @qwq
-pnnx.Attribute          op_bias     0 1 bias @qwq
+pnnx.Attribute          op_weight   0 1 weight @data=(%in_channels,%out_channels_per_group,%kh,%kw)f32
+pnnx.Attribute          op_bias     0 1 bias @data=(%out_channels)f32
 F.conv_transpose2d      op_0        3 1 input weight bias out stride=%stride padding=%padding dilation=%dilation output_padding=%output_padding groups=%groups
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
 
-    const char* type_str() const
+    const char* replace_pattern_graph() const
     {
-        return "nn.ConvTranspose2d";
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+nn.ConvTranspose2d      conv_transpose2d 1 1 input out in_channels=%in_channels out_channels=%out_channels kernel_size=(%kh,%kw) stride=%stride padding=%padding output_padding=%output_padding dilation=%dilation groups=%groups bias=True @weight=%op_weight.data @bias=%op_bias.data
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
-    const char* name_str() const
+    bool match(const std::map<std::string, Parameter>& captured_params) const
     {
-        return "conv_transpose2d";
-    }
-
-    void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
-    {
-        Attribute weight;
-        Attribute bias;
-        for (const auto& x : captured_attrs)
-        {
-            if (x.first.substr(0, 10) == "op_weight.")
-                weight = x.second;
-            if (x.first.substr(0, 8) == "op_bias.")
-                bias = x.second;
-        }
-
+        const int out_channels_per_group = captured_params.at("out_channels_per_group").i;
+        const int out_channels = captured_params.at("out_channels").i;
         const int groups = captured_params.at("groups").i;
 
-        op->params["groups"] = groups;
-        op->params["in_channels"] = weight.shape[0];
-        op->params["out_channels"] = weight.shape[1] * groups;
-        op->params["kernel_size"] = Parameter{weight.shape[2], weight.shape[3]};
-        op->params["stride"] = captured_params.at("stride");
-        op->params["padding"] = captured_params.at("padding");
-        op->params["output_padding"] = captured_params.at("output_padding");
-        op->params["dilation"] = captured_params.at("dilation");
-        op->params["bias"] = true;
+        if (out_channels != out_channels_per_group * groups)
+            return false;
 
-        op->attrs["weight"] = weight;
-        op->attrs["bias"] = bias;
+        return true;
     }
 };
 
@@ -235,44 +175,30 @@ public:
         return R"PNNXIR(7767517
 4 3
 pnnx.Input              input       0 1 input
-pnnx.Attribute          op_weight   0 1 weight @qwq
+pnnx.Attribute          op_weight   0 1 weight @data=(%in_channels,%out_channels_per_group,%kd,%kh,%kw)f32
 F.conv_transpose3d      op_0        2 1 input weight out bias=None stride=%stride padding=%padding dilation=%dilation output_padding=%output_padding groups=%groups
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
 
-    const char* type_str() const
+    const char* replace_pattern_graph() const
     {
-        return "nn.ConvTranspose3d";
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+nn.ConvTranspose3d      conv_transpose3d 1 1 input out in_channels=%in_channels kernel_size=(%kd,%kh,%kw) stride=%stride padding=%padding output_padding=%output_padding dilation=%dilation groups=%groups bias=False @weight=%op_weight.data
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
-    const char* name_str() const
+    void write(const std::map<std::string, Operator*>& ops, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
     {
-        return "conv_transpose3d";
-    }
+        GraphRewriterPass::write(ops, captured_params, captured_attrs);
 
-    void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
-    {
-        Attribute weight;
-        for (const auto& x : captured_attrs)
-        {
-            if (x.first.substr(0, 10) == "op_weight.")
-                weight = x.second;
-        }
-
+        const int out_channels_per_group = captured_params.at("out_channels_per_group").i;
         const int groups = captured_params.at("groups").i;
 
-        op->params["groups"] = groups;
-        op->params["in_channels"] = weight.shape[0];
-        op->params["out_channels"] = weight.shape[1] * groups;
-        op->params["kernel_size"] = Parameter{weight.shape[2], weight.shape[3], weight.shape[4]};
-        op->params["stride"] = captured_params.at("stride");
-        op->params["padding"] = captured_params.at("padding");
-        op->params["output_padding"] = captured_params.at("output_padding");
-        op->params["dilation"] = captured_params.at("dilation");
-        op->params["bias"] = false;
-
-        op->attrs["weight"] = weight;
+        ops.at("conv_transpose3d")->params["out_channels"] = out_channels_per_group * groups;
     }
 };
 
@@ -284,49 +210,33 @@ public:
         return R"PNNXIR(7767517
 5 4
 pnnx.Input              input       0 1 input
-pnnx.Attribute          op_weight   0 1 weight @qwq
-pnnx.Attribute          op_bias     0 1 bias @qwq
+pnnx.Attribute          op_weight   0 1 weight @data=(%in_channels,%out_channels_per_group,%kd,%kh,%kw)f32
+pnnx.Attribute          op_bias     0 1 bias @data=(%out_channels)f32
 F.conv_transpose3d      op_0        3 1 input weight bias out stride=%stride padding=%padding dilation=%dilation output_padding=%output_padding groups=%groups
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
 
-    const char* type_str() const
+    const char* replace_pattern_graph() const
     {
-        return "nn.ConvTranspose3d";
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+nn.ConvTranspose3d      conv_transpose3d 1 1 input out in_channels=%in_channels out_channels=%out_channels kernel_size=(%kd,%kh,%kw) stride=%stride padding=%padding output_padding=%output_padding dilation=%dilation groups=%groups bias=True @weight=%op_weight.data @bias=%op_bias.data
+pnnx.Output             output      1 0 out
+)PNNXIR";
     }
 
-    const char* name_str() const
+    bool match(const std::map<std::string, Parameter>& captured_params) const
     {
-        return "conv_transpose3d";
-    }
-
-    void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
-    {
-        Attribute weight;
-        Attribute bias;
-        for (const auto& x : captured_attrs)
-        {
-            if (x.first.substr(0, 10) == "op_weight.")
-                weight = x.second;
-            if (x.first.substr(0, 8) == "op_bias.")
-                bias = x.second;
-        }
-
+        const int out_channels_per_group = captured_params.at("out_channels_per_group").i;
+        const int out_channels = captured_params.at("out_channels").i;
         const int groups = captured_params.at("groups").i;
 
-        op->params["groups"] = groups;
-        op->params["in_channels"] = weight.shape[0];
-        op->params["out_channels"] = weight.shape[1] * groups;
-        op->params["kernel_size"] = Parameter{weight.shape[2], weight.shape[3], weight.shape[4]};
-        op->params["stride"] = captured_params.at("stride");
-        op->params["padding"] = captured_params.at("padding");
-        op->params["output_padding"] = captured_params.at("output_padding");
-        op->params["dilation"] = captured_params.at("dilation");
-        op->params["bias"] = true;
+        if (out_channels != out_channels_per_group * groups)
+            return false;
 
-        op->attrs["weight"] = weight;
-        op->attrs["bias"] = bias;
+        return true;
     }
 };
 

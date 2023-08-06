@@ -14,6 +14,8 @@
 
 #include "eval_expression.h"
 
+#include <fenv.h>
+#include <float.h>
 #include <math.h>
 
 #include <iostream>
@@ -131,6 +133,8 @@ static std::string eval_expression(const Operator* op)
                 else
                 {
                     int bi = std::stoi(b);
+                    if (bi < 0)
+                        bi = op->inputs[input_index]->shape.size() + bi;
                     int r = op->inputs[input_index]->shape[bi];
                     if (r == -1)
                     {
@@ -168,6 +172,7 @@ static std::string eval_expression(const Operator* op)
                  || t == "log10"
                  || t == "neg"
                  || t == "reciprocal"
+                 || t == "round"
                  || t == "rsqrt"
                  || t == "sign"
                  || t == "sin"
@@ -270,6 +275,15 @@ static std::string eval_expression(const Operator* op)
                     float r = 1.f / af;
                     exprstack.push(std::to_string(r));
                 }
+                if (t == "round")
+                {
+                    // round to nearest even
+                    int old_rm = fegetround();
+                    fesetround(FE_TONEAREST);
+                    float r = nearbyintf(af);
+                    fesetround(old_rm);
+                    exprstack.push(std::to_string(r));
+                }
                 if (t == "rsqrt")
                 {
                     float r = 1.f / sqrt(af);
@@ -328,6 +342,7 @@ static std::string eval_expression(const Operator* op)
                  || t == "mul"
                  || t == "div"
                  || t == "floor_divide"
+                 || t == "fmod"
                  || t == "pow"
                  || t == "remainder")
         {
@@ -364,6 +379,11 @@ static std::string eval_expression(const Operator* op)
                 if (t == "div")
                 {
                     float r = af / bf;
+                    exprstack.push(std::to_string(r));
+                }
+                if (t == "fmod")
+                {
+                    float r = fmod(af, bf);
                     exprstack.push(std::to_string(r));
                 }
                 if (t == "floor_divide")

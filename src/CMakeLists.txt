@@ -484,6 +484,9 @@ endif()
 if(NCNN_TARGET_ARCH STREQUAL "loongarch")
     if(NOT NCNN_RUNTIME_CPU AND NCNN_LSX)
         target_compile_options(ncnn PRIVATE -mlsx)
+        if(NCNN_LASX)
+            target_compile_options(ncnn PRIVATE -mlasx)
+        endif()
     endif()
 endif()
 
@@ -496,6 +499,18 @@ if(NCNN_TARGET_ARCH STREQUAL "riscv" AND NOT C906)
         elseif(NCNN_COMPILER_SUPPORT_RVV)
             target_compile_options(ncnn PRIVATE -march=rv64gcv)
         endif()
+    endif()
+endif()
+
+if(NCNN_PPC64LE_VSX)
+    # Auto-translate SSE2 to VSX if compiler is new enough.
+    if(NCNN_VSX_SSE2)
+        target_compile_options(ncnn PRIVATE -DNO_WARN_X86_INTRINSICS -D__SSE2__)
+    endif()
+
+    # Auto-translate SSE4.1 to VSX if compiler is new enough.
+    if(NCNN_VSX_SSE41)
+        target_compile_options(ncnn PRIVATE -DNO_WARN_X86_INTRINSICS -D__SSE4_1__)
     endif()
 endif()
 

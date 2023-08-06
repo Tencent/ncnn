@@ -25,546 +25,276 @@ namespace ncnn {
 
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 template<typename Op>
-static int binary_op_scalar_fp16s(const Mat& a, __fp16 b, Mat& c, const Option& opt)
+static void binary_op_vector_no_broadcast_fp16s(const __fp16* ptr, const __fp16* ptr1, __fp16* outptr, int size)
 {
-    Op op;
+    const Op op;
 
-    const int channels = a.c;
-    const int size = a.w * a.h * a.d * a.elempack;
-
-    #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q = 0; q < channels; q++)
+    int i = 0;
+    for (; i + 7 < size; i += 8)
     {
-        const __fp16* ptr = a.channel(q);
-        __fp16* outptr = c.channel(q);
-
-        int i = 0;
-        float16x8_t _b = vdupq_n_f16(b);
-        for (; i + 7 < size; i += 8)
-        {
-            float16x8_t _p = vld1q_f16(ptr);
-            _p = op(_p, _b);
-            vst1q_f16(outptr, _p);
-            ptr += 8;
-            outptr += 8;
-        }
-        for (; i + 3 < size; i += 4)
-        {
-            float16x4_t _p = vld1_f16(ptr);
-            _p = op(_p, vget_low_f16(_b));
-            vst1_f16(outptr, _p);
-            ptr += 4;
-            outptr += 4;
-        }
-        for (; i < size; i++)
-        {
-            *outptr = op(*ptr, b);
-            ptr++;
-            outptr++;
-        }
+        float16x8_t _p = vld1q_f16(ptr);
+        float16x8_t _b = vld1q_f16(ptr1);
+        float16x8_t _outp = op(_p, _b);
+        vst1q_f16(outptr, _outp);
+        ptr += 8;
+        ptr1 += 8;
+        outptr += 8;
     }
-
-    return 0;
+    for (; i + 3 < size; i += 4)
+    {
+        float16x4_t _p = vld1_f16(ptr);
+        float16x4_t _b = vld1_f16(ptr1);
+        float16x4_t _outp = op(_p, _b);
+        vst1_f16(outptr, _outp);
+        ptr += 4;
+        ptr1 += 4;
+        outptr += 4;
+    }
+    for (; i < size; i++)
+    {
+        *outptr = op(*ptr, *ptr1);
+        ptr += 1;
+        ptr1 += 1;
+        outptr += 1;
+    }
 }
 
 template<typename Op>
-static int binary_op_no_broadcast_fp16s(const Mat& a, const Mat& b, Mat& c, const Option& opt)
+static void binary_op_vector_broadcast_b_fp16s(const __fp16* ptr, const __fp16* ptr1, __fp16* outptr, int size, int elempack)
 {
-    Op op;
+    const Op op;
 
-    const int channels = a.c;
-    const int size = a.w * a.h * a.d * a.elempack;
+    const __fp16 b = *ptr1;
 
-    #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q = 0; q < channels; q++)
+    int i = 0;
+    float16x4_t _b_128 = (elempack == 4) ? vld1_f16(ptr1) : vdup_n_f16(b);
+    float16x8_t _b_256 = (elempack == 8) ? vld1q_f16(ptr1) : vcombine_f16(_b_128, _b_128);
+    for (; i + 7 < size; i += 8)
     {
-        const __fp16* ptr = a.channel(q);
-        const __fp16* ptr1 = b.channel(q);
-        __fp16* outptr = c.channel(q);
+        float16x8_t _p = vld1q_f16(ptr);
+        float16x8_t _outp = op(_p, _b_256);
+        vst1q_f16(outptr, _outp);
+        ptr += 8;
+        outptr += 8;
+    }
+    for (; i + 3 < size; i += 4)
+    {
+        float16x4_t _p = vld1_f16(ptr);
+        float16x4_t _outp = op(_p, _b_128);
+        vst1_f16(outptr, _outp);
+        ptr += 4;
+        outptr += 4;
+    }
+    for (; i < size; i++)
+    {
+        *outptr = op(*ptr, b);
+        ptr += 1;
+        outptr += 1;
+    }
+}
 
+template<typename Op>
+static void binary_op_vector_broadcast_a_fp16s(const __fp16* ptr, const __fp16* ptr1, __fp16* outptr, int size, int elempack)
+{
+    const Op op;
+
+    const __fp16 a = *ptr;
+
+    int i = 0;
+    float16x4_t _a_128 = (elempack == 4) ? vld1_f16(ptr) : vdup_n_f16(a);
+    float16x8_t _a_256 = (elempack == 8) ? vld1q_f16(ptr) : vcombine_f16(_a_128, _a_128);
+    for (; i + 7 < size; i += 8)
+    {
+        float16x8_t _b = vld1q_f16(ptr1);
+        float16x8_t _outp = op(_a_256, _b);
+        vst1q_f16(outptr, _outp);
+        ptr1 += 8;
+        outptr += 8;
+    }
+    for (; i + 3 < size; i += 4)
+    {
+        float16x4_t _b = vld1_f16(ptr1);
+        float16x4_t _outp = op(_a_128, _b);
+        vst1_f16(outptr, _outp);
+        ptr1 += 4;
+        outptr += 4;
+    }
+    for (; i < size; i++)
+    {
+        *outptr = op(a, *ptr1);
+        ptr1 += 1;
+        outptr += 1;
+    }
+}
+
+template<typename Op>
+static void binary_op_vector_broadcast_pb_fp16s(const __fp16* ptr, const __fp16* ptr1, __fp16* outptr, int w, int elempack)
+{
+    const Op op;
+
+    if (elempack == 8)
+    {
         int i = 0;
-        for (; i + 7 < size; i += 8)
+        for (; i < w; i++)
         {
             float16x8_t _p = vld1q_f16(ptr);
-            float16x8_t _p1 = vld1q_f16(ptr1);
-            float16x8_t _outp = op(_p, _p1);
+            float16x8_t _b = vdupq_n_f16(*ptr1);
+            float16x8_t _outp = op(_p, _b);
             vst1q_f16(outptr, _outp);
             ptr += 8;
-            ptr1 += 8;
+            ptr1 += 1;
             outptr += 8;
         }
-        for (; i + 3 < size; i += 4)
-        {
-            float16x4_t _p = vld1_f16(ptr);
-            float16x4_t _p1 = vld1_f16(ptr1);
-            float16x4_t _outp = op(_p, _p1);
-            vst1_f16(outptr, _outp);
-            ptr += 4;
-            ptr1 += 4;
-            outptr += 4;
-        }
-        for (; i < size; i++)
-        {
-            *outptr = op(*ptr, *ptr1);
-            ptr += 1;
-            ptr1 += 1;
-            outptr += 1;
-        }
     }
-
-    return 0;
-}
-
-template<typename Op>
-static int binary_op_broadcast_inner_fp16s(const Mat& a, const Mat& b, Mat& c, const Option& opt)
-{
-    Op op;
-
-    int w = a.w;
-    int h = a.h;
-    int d = a.d;
-    int channels = a.c;
-    int elempack = a.elempack;
-
-    if (a.dims == 2 && b.dims == 1)
+    if (elempack == 4)
     {
-        // type 8
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int y = 0; y < h; y++)
-        {
-            const __fp16* ptr = a.row<const __fp16>(y);
-            __fp16* outptr = c.row<__fp16>(y);
-
-            const __fp16 _b = ((const __fp16*)b)[y];
-            float16x4_t _b_128 = (elempack == 4) ? vld1_f16((const __fp16*)b + y * 4) : vdup_n_f16(_b);
-            float16x8_t _b_256 = (elempack == 8) ? vld1q_f16((const __fp16*)b + y * 8) : vcombine_f16(_b_128, _b_128);
-
-            const int size = w * elempack;
-
-            int i = 0;
-            for (; i + 7 < size; i += 8)
-            {
-                float16x8_t _p = vld1q_f16(ptr);
-                float16x8_t _outp = op(_p, _b_256);
-                vst1q_f16(outptr, _outp);
-                ptr += 8;
-                outptr += 8;
-            }
-            for (; i + 3 < size; i += 4)
-            {
-                float16x4_t _p = vld1_f16(ptr);
-                float16x4_t _outp = op(_p, _b_128);
-                vst1_f16(outptr, _outp);
-                ptr += 4;
-                outptr += 4;
-            }
-            for (; i < size; i++)
-            {
-                *outptr = op(*ptr, _b);
-                ptr += 1;
-                outptr += 1;
-            }
-        }
-    }
-
-    if ((a.dims == 3 || a.dims == 4) && b.dims == 1)
-    {
-        // type 9 11
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++)
-        {
-            const __fp16* ptr = a.channel(q);
-            __fp16* outptr = c.channel(q);
-
-            const __fp16 _b = ((const __fp16*)b)[q];
-            float16x4_t _b_128 = (elempack == 4) ? vld1_f16((const __fp16*)b + q * 4) : vdup_n_f16(_b);
-            float16x8_t _b_256 = (elempack == 8) ? vld1q_f16((const __fp16*)b + q * 8) : vcombine_f16(_b_128, _b_128);
-
-            const int size = w * h * d * elempack;
-
-            int i = 0;
-            for (; i + 7 < size; i += 8)
-            {
-                float16x8_t _p = vld1q_f16(ptr);
-                float16x8_t _outp = op(_p, _b_256);
-                vst1q_f16(outptr, _outp);
-                ptr += 8;
-                outptr += 8;
-            }
-            for (; i + 3 < size; i += 4)
-            {
-                float16x4_t _p = vld1_f16(ptr);
-                float16x4_t _outp = op(_p, _b_128);
-                vst1_f16(outptr, _outp);
-                ptr += 4;
-                outptr += 4;
-            }
-            for (; i < size; i++)
-            {
-                *outptr = op(*ptr, _b);
-                ptr += 1;
-                outptr += 1;
-            }
-        }
-    }
-
-    if (a.dims == 3 && b.dims == 2)
-    {
-        // type 10
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++)
-        {
-            const __fp16* ptr = a.channel(q);
-            const __fp16* ptr1 = b.row<const __fp16>(q);
-            __fp16* outptr = c.channel(q);
-
-            const int size = w * elempack;
-
-            for (int y = 0; y < h; y++)
-            {
-                const __fp16 _b = ptr1[y];
-                float16x4_t _b_128 = (elempack == 4) ? vld1_f16((const __fp16*)ptr1 + y * 4) : vdup_n_f16(_b);
-                float16x8_t _b_256 = (elempack == 8) ? vld1q_f16((const __fp16*)ptr1 + y * 8) : vcombine_f16(_b_128, _b_128);
-
-                int i = 0;
-                for (; i + 7 < size; i += 8)
-                {
-                    float16x8_t _p = vld1q_f16(ptr);
-                    float16x8_t _outp = op(_p, _b_256);
-                    vst1q_f16(outptr, _outp);
-                    ptr += 8;
-                    outptr += 8;
-                }
-                for (; i + 3 < size; i += 4)
-                {
-                    float16x4_t _p = vld1_f16(ptr);
-                    float16x4_t _outp = op(_p, _b_128);
-                    vst1_f16(outptr, _outp);
-                    ptr += 4;
-                    outptr += 4;
-                }
-                for (; i < size; i++)
-                {
-                    *outptr = op(*ptr, _b);
-                    ptr += 1;
-                    outptr += 1;
-                }
-            }
-        }
-    }
-
-    if (a.dims == 4 && b.dims == 2)
-    {
-        // type 12
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++)
-        {
-            const __fp16* ptr = a.channel(q);
-            const __fp16* ptr1 = b.row<const __fp16>(q);
-            __fp16* outptr = c.channel(q);
-
-            const int size = w * h * elempack;
-
-            for (int z = 0; z < d; z++)
-            {
-                const __fp16 _b = ptr1[z];
-                float16x4_t _b_128 = (elempack == 4) ? vld1_f16((const __fp16*)ptr1 + z * 4) : vdup_n_f16(_b);
-                float16x8_t _b_256 = (elempack == 8) ? vld1q_f16((const __fp16*)ptr1 + z * 8) : vcombine_f16(_b_128, _b_128);
-
-                int i = 0;
-                for (; i + 7 < size; i += 8)
-                {
-                    float16x8_t _p = vld1q_f16(ptr);
-                    float16x8_t _outp = op(_p, _b_256);
-                    vst1q_f16(outptr, _outp);
-                    ptr += 8;
-                    outptr += 8;
-                }
-                for (; i + 3 < size; i += 4)
-                {
-                    float16x4_t _p = vld1_f16(ptr);
-                    float16x4_t _outp = op(_p, _b_128);
-                    vst1_f16(outptr, _outp);
-                    ptr += 4;
-                    outptr += 4;
-                }
-                for (; i < size; i++)
-                {
-                    *outptr = op(*ptr, _b);
-                    ptr += 1;
-                    outptr += 1;
-                }
-            }
-        }
-    }
-
-    if (a.dims == 4 && b.dims == 3)
-    {
-        // type 13
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++)
-        {
-            const __fp16* ptr = a.channel(q);
-            __fp16* outptr = c.channel(q);
-
-            const int size = w * elempack;
-
-            for (int z = 0; z < d; z++)
-            {
-                const __fp16* ptr1 = b.channel(q).row<const __fp16>(z);
-
-                for (int y = 0; y < h; y++)
-                {
-                    const __fp16 _b = ptr1[y];
-                    float16x4_t _b_128 = (elempack == 4) ? vld1_f16((const __fp16*)ptr1 + y * 4) : vdup_n_f16(_b);
-                    float16x8_t _b_256 = (elempack == 8) ? vld1q_f16((const __fp16*)ptr1 + y * 8) : vcombine_f16(_b_128, _b_128);
-
-                    int i = 0;
-                    for (; i + 7 < size; i += 8)
-                    {
-                        float16x8_t _p = vld1q_f16(ptr);
-                        float16x8_t _outp = op(_p, _b_256);
-                        vst1q_f16(outptr, _outp);
-                        ptr += 8;
-                        outptr += 8;
-                    }
-                    for (; i + 3 < size; i += 4)
-                    {
-                        float16x4_t _p = vld1_f16(ptr);
-                        float16x4_t _outp = op(_p, _b_128);
-                        vst1_f16(outptr, _outp);
-                        ptr += 4;
-                        outptr += 4;
-                    }
-                    for (; i < size; i++)
-                    {
-                        *outptr = op(*ptr, _b);
-                        ptr += 1;
-                        outptr += 1;
-                    }
-                }
-            }
-        }
-    }
-
-    return 0;
-}
-
-template<typename Op>
-static int binary_op_broadcast_outer_fp16s(const Mat& a, const Mat& b, Mat& c, const Option& opt)
-{
-    Op op;
-
-    int w = a.w;
-    int h = a.h;
-    int d = a.d;
-    int channels = a.c;
-    int elempack = a.elempack;
-
-    if (a.dims == 2)
-    {
-        // type 14
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int y = 0; y < h; y++)
-        {
-            const __fp16* ptr = a.row<const __fp16>(y);
-            const __fp16* ptr1 = b;
-            __fp16* outptr = c.row<__fp16>(y);
-
-            if (elempack == 8)
-            {
-                for (int x = 0; x < w; x++)
-                {
-                    float16x8_t _p = vld1q_f16(ptr);
-                    float16x8_t _b = vdupq_n_f16(*ptr1);
-                    float16x8_t _outp = op(_p, _b);
-                    vst1q_f16(outptr, _outp);
-                    ptr += 8;
-                    ptr1 += 1;
-                    outptr += 8;
-                }
-            }
-            if (elempack == 4)
-            {
-                for (int x = 0; x < w; x++)
-                {
-                    float16x4_t _p = vld1_f16(ptr);
-                    float16x4_t _b = vdup_n_f16(*ptr1);
-                    float16x4_t _outp = op(_p, _b);
-                    vst1_f16(outptr, _outp);
-                    ptr += 4;
-                    ptr1 += 1;
-                    outptr += 4;
-                }
-            }
-            if (elempack == 1)
-            {
-                for (int x = 0; x < w; x++)
-                {
-                    *outptr = op(*ptr, *ptr1);
-                    ptr += 1;
-                    ptr1 += 1;
-                    outptr += 1;
-                }
-            }
-        }
-    }
-
-    if (a.dims == 3 || a.dims == 4)
-    {
-        // type 15 16 17 18 19
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++)
-        {
-            const __fp16* ptr = a.channel(q);
-            __fp16* outptr = c.channel(q);
-
-            for (int z = 0; z < d; z++)
-            {
-                int z1 = std::min(z, b.d - 1);
-                for (int y = 0; y < h; y++)
-                {
-                    int y1 = std::min(y, b.h - 1);
-
-                    const __fp16* ptr1 = b.depth(z1).row<const __fp16>(y1);
-
-                    if (elempack == 8)
-                    {
-                        for (int x = 0; x < w; x++)
-                        {
-                            float16x8_t _p = vld1q_f16(ptr);
-                            float16x8_t _b = vdupq_n_f16(*ptr1);
-                            float16x8_t _outp = op(_p, _b);
-                            vst1q_f16(outptr, _outp);
-                            ptr += 8;
-                            ptr1 += 1;
-                            outptr += 8;
-                        }
-                    }
-                    if (elempack == 4)
-                    {
-                        for (int x = 0; x < w; x++)
-                        {
-                            float16x4_t _p = vld1_f16(ptr);
-                            float16x4_t _b = vdup_n_f16(*ptr1);
-                            float16x4_t _outp = op(_p, _b);
-                            vst1_f16(outptr, _outp);
-                            ptr += 4;
-                            ptr1 += 1;
-                            outptr += 4;
-                        }
-                    }
-                    if (elempack == 1)
-                    {
-                        for (int x = 0; x < w; x++)
-                        {
-                            *outptr = op(*ptr, *ptr1);
-                            ptr += 1;
-                            ptr1 += 1;
-                            outptr += 1;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    return 0;
-}
-
-template<typename Op>
-static int binary_op_broadcast_20_fp16s(const Mat& a, const Mat& b, Mat& c, const Option& opt)
-{
-    Op op;
-
-    int w = a.w;
-    int h = a.h;
-    int channels = a.c;
-    int elempack = a.elempack;
-
-    #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q = 0; q < channels; q++)
-    {
-        const __fp16* ptr = a.channel(q);
-        __fp16* outptr = c.channel(q);
-
-        for (int y = 0; y < h; y++)
-        {
-            const __fp16* ptr1 = b.channel(q);
-
-            const int size = w * elempack;
-
-            int i = 0;
-            for (; i + 7 < size; i += 8)
-            {
-                float16x8_t _p = vld1q_f16(ptr);
-                float16x8_t _p1 = vld1q_f16(ptr1);
-                float16x8_t _outp = op(_p, _p1);
-                vst1q_f16(outptr, _outp);
-                ptr += 8;
-                ptr1 += 8;
-                outptr += 8;
-            }
-            for (; i + 3 < size; i += 4)
-            {
-                float16x4_t _p = vld1_f16(ptr);
-                float16x4_t _p1 = vld1_f16(ptr1);
-                float16x4_t _outp = op(_p, _p1);
-                vst1_f16(outptr, _outp);
-                ptr += 4;
-                ptr1 += 4;
-                outptr += 4;
-            }
-            for (; i < size; i++)
-            {
-                *outptr = op(*ptr, *ptr1);
-                ptr += 1;
-                ptr1 += 1;
-                outptr += 1;
-            }
-        }
-    }
-
-    return 0;
-}
-
-template<typename Op>
-static int binary_op_scalar_inplace_fp16s(Mat& a, __fp16 b, const Option& opt)
-{
-    Op op;
-
-    const int channels = a.c;
-    const int size = a.w * a.h * a.d * a.elempack;
-
-    #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q = 0; q < channels; q++)
-    {
-        __fp16* ptr = a.channel(q);
-
         int i = 0;
-        float16x8_t _b = vdupq_n_f16(b);
-        for (; i + 7 < size; i += 8)
+        for (; i + 1 < w; i += 2)
         {
             float16x8_t _p = vld1q_f16(ptr);
-            _p = op(_p, _b);
-            vst1q_f16(ptr, _p);
+            float16x4_t _b0 = vdup_n_f16(ptr1[0]);
+            float16x4_t _b1 = vdup_n_f16(ptr1[1]);
+            float16x8_t _b = vcombine_f16(_b0, _b1);
+            float16x8_t _outp = op(_p, _b);
+            vst1q_f16(outptr, _outp);
             ptr += 8;
+            ptr1 += 2;
+            outptr += 8;
         }
-        for (; i + 3 < size; i += 4)
+        for (; i < w; i++)
         {
             float16x4_t _p = vld1_f16(ptr);
-            _p = op(_p, vget_low_f16(_b));
-            vst1_f16(ptr, _p);
+            float16x4_t _b = vdup_n_f16(*ptr1);
+            float16x4_t _outp = op(_p, _b);
+            vst1_f16(outptr, _outp);
             ptr += 4;
+            ptr1 += 1;
+            outptr += 4;
         }
-        for (; i < size; i++)
+    }
+}
+
+template<typename Op>
+static void binary_op_vector_broadcast_pb_b_fp16s(const __fp16* ptr, const __fp16* ptr1, __fp16* outptr, int w, int elempack)
+{
+    const Op op;
+
+    const int size = w * elempack;
+
+    int i = 0;
+    float16x8_t _b = vdupq_n_f16(*ptr1);
+    for (; i + 7 < size; i += 8)
+    {
+        float16x8_t _p = vld1q_f16(ptr);
+        float16x8_t _outp = op(_p, _b);
+        vst1q_f16(outptr, _outp);
+        ptr += 8;
+        outptr += 8;
+    }
+    for (; i + 3 < size; i += 4)
+    {
+        float16x4_t _p = vld1_f16(ptr);
+        float16x4_t _outp = op(_p, vget_low_f16(_b));
+        vst1_f16(outptr, _outp);
+        ptr += 4;
+        outptr += 4;
+    }
+}
+
+template<typename Op>
+static void binary_op_vector_broadcast_pb_a_fp16s(const __fp16* ptr, const __fp16* ptr1, __fp16* outptr, int w, int elempack)
+{
+    const Op op;
+
+    if (elempack == 8)
+    {
+        int i = 0;
+        float16x8_t _p = vld1q_f16(ptr);
+        for (; i < w; i++)
         {
-            *ptr = op(*ptr, b);
-            ptr++;
+            float16x8_t _b = vdupq_n_f16(*ptr1);
+            float16x8_t _outp = op(_p, _b);
+            vst1q_f16(outptr, _outp);
+            ptr1 += 1;
+            outptr += 8;
+        }
+    }
+    if (elempack == 4)
+    {
+        int i = 0;
+        float16x4_t _p0 = vld1_f16(ptr);
+        float16x8_t _p = vcombine_f16(_p0, _p0);
+        for (; i + 1 < w; i += 2)
+        {
+            float16x4_t _b0 = vdup_n_f16(ptr1[0]);
+            float16x4_t _b1 = vdup_n_f16(ptr1[1]);
+            float16x8_t _b = vcombine_f16(_b0, _b1);
+            float16x8_t _outp = op(_p, _b);
+            vst1q_f16(outptr, _outp);
+            ptr1 += 2;
+            outptr += 8;
+        }
+        for (; i < w; i++)
+        {
+            float16x4_t _b = vdup_n_f16(*ptr1);
+            float16x4_t _outp = op(_p0, _b);
+            vst1_f16(outptr, _outp);
+            ptr1 += 1;
+            outptr += 4;
+        }
+    }
+}
+
+template<typename Op>
+static void binary_op_vector_fp16s(const __fp16* ptr, const __fp16* ptr1, __fp16* outptr, int aw, int bw, int ap, int bp)
+{
+    const int w = std::max(aw, bw);
+    const int elempack = std::max(ap, bp);
+    const int size = w * elempack;
+
+    if (ap == bp)
+    {
+        if (aw == bw)
+        {
+            // no broadcast
+            return binary_op_vector_no_broadcast_fp16s<Op>(ptr, ptr1, outptr, size);
+        }
+
+        if (bw == 1)
+        {
+            // broadcast single b
+            return binary_op_vector_broadcast_b_fp16s<Op>(ptr, ptr1, outptr, size, elempack);
+        }
+
+        if (aw == 1)
+        {
+            // broadcast single a
+            return binary_op_vector_broadcast_a_fp16s<Op>(ptr, ptr1, outptr, size, elempack);
         }
     }
 
-    return 0;
+    if (bp == 1)
+    {
+        if (aw == bw)
+        {
+            // broadcast pack1 b
+            return binary_op_vector_broadcast_pb_fp16s<Op>(ptr, ptr1, outptr, w, elempack);
+        }
+
+        if (bw == 1)
+        {
+            // broadcast pack1 single b
+            return binary_op_vector_broadcast_pb_b_fp16s<Op>(ptr, ptr1, outptr, w, elempack);
+        }
+
+        if (aw == 1)
+        {
+            // broadcast single a and pack1 b
+            return binary_op_vector_broadcast_pb_a_fp16s<Op>(ptr, ptr1, outptr, w, elempack);
+        }
+    }
+
+    // shall never reach here
 }
 
 namespace BinaryOp_arm_functor {
@@ -607,124 +337,158 @@ MAKE_FUNCTION(binary_op_ratan2_fp16s, (__fp16)atan2f(y, x), vcvt_f16_f32(atan2_p
 
 } // namespace BinaryOp_arm_functor
 
-static int binary_op_scalar_fp16s(const Mat& a, float b, Mat& c, int op_type, const Option& opt)
+static void binary_op_vector_fp16s(const __fp16* ptr, const __fp16* ptr1, __fp16* outptr, int aw, int bw, int ap, int bp, int op_type)
 {
     using namespace BinaryOp_arm_functor;
 
-    if (op_type == BinaryOp::Operation_ADD) return binary_op_scalar_fp16s<binary_op_add_fp16s>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_SUB) return binary_op_scalar_fp16s<binary_op_sub_fp16s>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_MUL) return binary_op_scalar_fp16s<binary_op_mul_fp16s>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_DIV) return binary_op_scalar_fp16s<binary_op_div_fp16s>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_MAX) return binary_op_scalar_fp16s<binary_op_max_fp16s>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_MIN) return binary_op_scalar_fp16s<binary_op_min_fp16s>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_POW) return binary_op_scalar_fp16s<binary_op_pow_fp16s>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_RSUB) return binary_op_scalar_fp16s<binary_op_rsub_fp16s>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_RDIV) return binary_op_scalar_fp16s<binary_op_rdiv_fp16s>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_RPOW) return binary_op_scalar_fp16s<binary_op_rpow_fp16s>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_ATAN2) return binary_op_scalar_fp16s<binary_op_atan2_fp16s>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_RATAN2) return binary_op_scalar_fp16s<binary_op_ratan2_fp16s>(a, b, c, opt);
+    if (op_type == BinaryOp::Operation_ADD) return binary_op_vector_fp16s<binary_op_add_fp16s>(ptr, ptr1, outptr, aw, bw, ap, bp);
+    if (op_type == BinaryOp::Operation_SUB) return binary_op_vector_fp16s<binary_op_sub_fp16s>(ptr, ptr1, outptr, aw, bw, ap, bp);
+    if (op_type == BinaryOp::Operation_MUL) return binary_op_vector_fp16s<binary_op_mul_fp16s>(ptr, ptr1, outptr, aw, bw, ap, bp);
+    if (op_type == BinaryOp::Operation_DIV) return binary_op_vector_fp16s<binary_op_div_fp16s>(ptr, ptr1, outptr, aw, bw, ap, bp);
+    if (op_type == BinaryOp::Operation_MAX) return binary_op_vector_fp16s<binary_op_max_fp16s>(ptr, ptr1, outptr, aw, bw, ap, bp);
+    if (op_type == BinaryOp::Operation_MIN) return binary_op_vector_fp16s<binary_op_min_fp16s>(ptr, ptr1, outptr, aw, bw, ap, bp);
+    if (op_type == BinaryOp::Operation_POW) return binary_op_vector_fp16s<binary_op_pow_fp16s>(ptr, ptr1, outptr, aw, bw, ap, bp);
+    if (op_type == BinaryOp::Operation_RSUB) return binary_op_vector_fp16s<binary_op_rsub_fp16s>(ptr, ptr1, outptr, aw, bw, ap, bp);
+    if (op_type == BinaryOp::Operation_RDIV) return binary_op_vector_fp16s<binary_op_rdiv_fp16s>(ptr, ptr1, outptr, aw, bw, ap, bp);
+    if (op_type == BinaryOp::Operation_RPOW) return binary_op_vector_fp16s<binary_op_rpow_fp16s>(ptr, ptr1, outptr, aw, bw, ap, bp);
+    if (op_type == BinaryOp::Operation_ATAN2) return binary_op_vector_fp16s<binary_op_atan2_fp16s>(ptr, ptr1, outptr, aw, bw, ap, bp);
+    if (op_type == BinaryOp::Operation_RATAN2) return binary_op_vector_fp16s<binary_op_ratan2_fp16s>(ptr, ptr1, outptr, aw, bw, ap, bp);
 
     // should never reach here
-    return 0;
 }
 
-static int binary_op_no_broadcast_fp16s(const Mat& a, const Mat& b, Mat& c, int op_type, const Option& opt)
+static void binary_op_scalar_fp16s(const Mat& a, __fp16 b, Mat& c, int op_type, const Option& opt)
 {
-    using namespace BinaryOp_arm_functor;
+    const int channels = a.c;
+    const int size = a.w * a.h * a.d * a.elempack;
 
-    if (op_type == BinaryOp::Operation_ADD) return binary_op_no_broadcast_fp16s<binary_op_add_fp16s>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_SUB) return binary_op_no_broadcast_fp16s<binary_op_sub_fp16s>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_MUL) return binary_op_no_broadcast_fp16s<binary_op_mul_fp16s>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_DIV) return binary_op_no_broadcast_fp16s<binary_op_div_fp16s>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_MAX) return binary_op_no_broadcast_fp16s<binary_op_max_fp16s>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_MIN) return binary_op_no_broadcast_fp16s<binary_op_min_fp16s>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_POW) return binary_op_no_broadcast_fp16s<binary_op_pow_fp16s>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_RSUB) return binary_op_no_broadcast_fp16s<binary_op_sub_fp16s>(b, a, c, opt);
-    if (op_type == BinaryOp::Operation_RDIV) return binary_op_no_broadcast_fp16s<binary_op_div_fp16s>(b, a, c, opt);
-    if (op_type == BinaryOp::Operation_RPOW) return binary_op_no_broadcast_fp16s<binary_op_pow_fp16s>(b, a, c, opt);
-    if (op_type == BinaryOp::Operation_ATAN2) return binary_op_no_broadcast_fp16s<binary_op_atan2_fp16s>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_RATAN2) return binary_op_no_broadcast_fp16s<binary_op_atan2_fp16s>(b, a, c, opt);
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int q = 0; q < channels; q++)
+    {
+        const __fp16* ptr = a.channel(q);
+        __fp16* outptr = c.channel(q);
 
-    // should never reach here
-    return 0;
+        binary_op_vector_fp16s(ptr, &b, outptr, size, 1, 1, 1, op_type);
+    }
 }
 
-static int binary_op_broadcast_inner_fp16s(const Mat& a, const Mat& b, Mat& c, int op_type, const Option& opt)
+static void binary_op_no_broadcast_fp16s(const Mat& a, const Mat& b, Mat& c, int op_type, const Option& opt)
 {
-    // squeeze inner axes
-    Mat b2 = b;
-    if (b.dims == 2 && b.w == 1)
-        b2 = b.reshape(b.h);
-    else if (b.dims == 3 && b.h == 1)
-        b2 = b.reshape(b.c);
-    else if (b.dims == 3 && b.w == 1)
-        b2 = b.reshape(b.h, b.c);
-    else if (b.dims == 4 && b.d == 1)
-        b2 = b.reshape(b.c);
-    else if (b.dims == 4 && b.h == 1)
-        b2 = b.reshape(b.d, b.c);
-    else if (b.dims == 4 && b.w == 1)
-        b2 = b.reshape(b.h, b.d, b.c);
+    const int channels = a.c;
+    const int size = a.w * a.h * a.d * a.elempack;
 
-    using namespace BinaryOp_arm_functor;
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int q = 0; q < channels; q++)
+    {
+        const __fp16* ptr = a.channel(q);
+        const __fp16* ptr1 = b.channel(q);
+        __fp16* outptr = c.channel(q);
 
-    if (op_type == BinaryOp::Operation_ADD) return binary_op_broadcast_inner_fp16s<binary_op_add_fp16s>(a, b2, c, opt);
-    if (op_type == BinaryOp::Operation_SUB) return binary_op_broadcast_inner_fp16s<binary_op_sub_fp16s>(a, b2, c, opt);
-    if (op_type == BinaryOp::Operation_MUL) return binary_op_broadcast_inner_fp16s<binary_op_mul_fp16s>(a, b2, c, opt);
-    if (op_type == BinaryOp::Operation_DIV) return binary_op_broadcast_inner_fp16s<binary_op_div_fp16s>(a, b2, c, opt);
-    if (op_type == BinaryOp::Operation_MAX) return binary_op_broadcast_inner_fp16s<binary_op_max_fp16s>(a, b2, c, opt);
-    if (op_type == BinaryOp::Operation_MIN) return binary_op_broadcast_inner_fp16s<binary_op_min_fp16s>(a, b2, c, opt);
-    if (op_type == BinaryOp::Operation_POW) return binary_op_broadcast_inner_fp16s<binary_op_pow_fp16s>(a, b2, c, opt);
-    if (op_type == BinaryOp::Operation_RSUB) return binary_op_broadcast_inner_fp16s<binary_op_rsub_fp16s>(a, b2, c, opt);
-    if (op_type == BinaryOp::Operation_RDIV) return binary_op_broadcast_inner_fp16s<binary_op_rdiv_fp16s>(a, b2, c, opt);
-    if (op_type == BinaryOp::Operation_RPOW) return binary_op_broadcast_inner_fp16s<binary_op_rpow_fp16s>(a, b2, c, opt);
-    if (op_type == BinaryOp::Operation_ATAN2) return binary_op_broadcast_inner_fp16s<binary_op_atan2_fp16s>(a, b2, c, opt);
-    if (op_type == BinaryOp::Operation_RATAN2) return binary_op_broadcast_inner_fp16s<binary_op_ratan2_fp16s>(a, b2, c, opt);
-
-    // should never reach here
-    return 0;
+        binary_op_vector_fp16s(ptr, ptr1, outptr, size, size, 1, 1, op_type);
+    }
 }
 
-static int binary_op_broadcast_outer_fp16s(const Mat& a, const Mat& b, Mat& c, int op_type, const Option& opt)
+static void binary_op_broadcast_fp16s(const Mat& a, const Mat& b, Mat& c, int op_type, const Option& opt)
 {
-    using namespace BinaryOp_arm_functor;
+    if (b.w * b.h * b.d * b.c * b.elempack == 1)
+    {
+        return binary_op_scalar_fp16s(a, ((const __fp16*)b)[0], c, op_type, opt);
+    }
 
-    if (op_type == BinaryOp::Operation_ADD) return binary_op_broadcast_outer_fp16s<binary_op_add_fp16s>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_SUB) return binary_op_broadcast_outer_fp16s<binary_op_sub_fp16s>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_MUL) return binary_op_broadcast_outer_fp16s<binary_op_mul_fp16s>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_DIV) return binary_op_broadcast_outer_fp16s<binary_op_div_fp16s>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_MAX) return binary_op_broadcast_outer_fp16s<binary_op_max_fp16s>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_MIN) return binary_op_broadcast_outer_fp16s<binary_op_min_fp16s>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_POW) return binary_op_broadcast_outer_fp16s<binary_op_pow_fp16s>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_RSUB) return binary_op_broadcast_outer_fp16s<binary_op_rsub_fp16s>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_RDIV) return binary_op_broadcast_outer_fp16s<binary_op_rdiv_fp16s>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_RPOW) return binary_op_broadcast_outer_fp16s<binary_op_rpow_fp16s>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_ATAN2) return binary_op_broadcast_outer_fp16s<binary_op_atan2_fp16s>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_RATAN2) return binary_op_broadcast_outer_fp16s<binary_op_ratan2_fp16s>(a, b, c, opt);
+    if (a.dims == b.dims && a.w == b.w && a.h == b.h && a.d == b.d && a.c == b.c && a.elempack == b.elempack)
+    {
+        return binary_op_no_broadcast_fp16s(a, b, c, op_type, opt);
+    }
 
-    // should never reach here
-    return 0;
+    const int dims = c.dims;
+
+    if (dims == 2)
+    {
+        const int h = c.h;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int y = 0; y < h; y++)
+        {
+            const int y0 = std::min(y, a.h - 1);
+            const int y1 = std::min(y, b.h - 1);
+
+            const __fp16* ptr = a.row<const __fp16>(y0);
+            const __fp16* ptr1 = b.row<const __fp16>(y1);
+            __fp16* outptr = c.row<__fp16>(y);
+
+            binary_op_vector_fp16s(ptr, ptr1, outptr, a.w, b.w, a.elempack, b.elempack, op_type);
+        }
+    }
+
+    if (dims == 3 || dims == 4)
+    {
+        const int channels = c.c;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            const int q0 = std::min(q, a.c - 1);
+            const int q1 = std::min(q, b.c - 1);
+
+            if (b.d * b.h * b.w == 1)
+            {
+                const __fp16* ptr = a.channel(q0);
+                const __fp16* ptr1 = b.channel(q1);
+                __fp16* outptr = c.channel(q);
+
+                binary_op_vector_fp16s(ptr, ptr1, outptr, a.w * a.h * a.d, 1, a.elempack, b.elempack, op_type);
+                continue;
+            }
+
+            if (b.h * b.w == 1)
+            {
+                for (int z = 0; z < c.d; z++)
+                {
+                    const int z0 = std::min(z, a.d - 1);
+                    const int z1 = std::min(z, b.d - 1);
+
+                    const __fp16* ptr = a.channel(q0).depth(z0);
+                    const __fp16* ptr1 = b.channel(q1).depth(z1);
+                    __fp16* outptr = c.channel(q).depth(z);
+
+                    binary_op_vector_fp16s(ptr, ptr1, outptr, a.w * a.h, 1, a.elempack, b.elempack, op_type);
+                }
+                continue;
+            }
+
+            for (int z = 0; z < c.d; z++)
+            {
+                const int z0 = std::min(z, a.d - 1);
+                const int z1 = std::min(z, b.d - 1);
+
+                for (int y = 0; y < c.h; y++)
+                {
+                    const int y0 = std::min(y, a.h - 1);
+                    const int y1 = std::min(y, b.h - 1);
+
+                    const __fp16* ptr = a.channel(q0).depth(z0).row<const __fp16>(y0);
+                    const __fp16* ptr1 = b.channel(q1).depth(z1).row<const __fp16>(y1);
+                    __fp16* outptr = c.channel(q).depth(z).row<__fp16>(y);
+
+                    binary_op_vector_fp16s(ptr, ptr1, outptr, a.w, b.w, a.elempack, b.elempack, op_type);
+                }
+            }
+        }
+    }
 }
 
-static int binary_op_broadcast_20_fp16s(const Mat& a, const Mat& b, Mat& c, int op_type, const Option& opt)
+static void binary_op_scalar_inplace_fp16s(Mat& a, __fp16 b, int op_type, const Option& opt)
 {
-    using namespace BinaryOp_arm_functor;
+    const int channels = a.c;
+    const int size = a.w * a.h * a.d * a.elempack;
 
-    if (op_type == BinaryOp::Operation_ADD) return binary_op_broadcast_20_fp16s<binary_op_add_fp16s>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_SUB) return binary_op_broadcast_20_fp16s<binary_op_sub_fp16s>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_MUL) return binary_op_broadcast_20_fp16s<binary_op_mul_fp16s>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_DIV) return binary_op_broadcast_20_fp16s<binary_op_div_fp16s>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_MAX) return binary_op_broadcast_20_fp16s<binary_op_max_fp16s>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_MIN) return binary_op_broadcast_20_fp16s<binary_op_min_fp16s>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_POW) return binary_op_broadcast_20_fp16s<binary_op_pow_fp16s>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_RSUB) return binary_op_broadcast_20_fp16s<binary_op_rsub_fp16s>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_RDIV) return binary_op_broadcast_20_fp16s<binary_op_rdiv_fp16s>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_RPOW) return binary_op_broadcast_20_fp16s<binary_op_rpow_fp16s>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_ATAN2) return binary_op_broadcast_20_fp16s<binary_op_atan2_fp16s>(a, b, c, opt);
-    if (op_type == BinaryOp::Operation_RATAN2) return binary_op_broadcast_20_fp16s<binary_op_ratan2_fp16s>(a, b, c, opt);
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int q = 0; q < channels; q++)
+    {
+        __fp16* ptr = a.channel(q);
 
-    // should never reach here
-    return 0;
+        binary_op_vector_fp16s(ptr, &b, ptr, size, 1, 1, 1, op_type);
+    }
 }
 
 static int get_reverse_op_type(int op_type)
@@ -742,53 +506,82 @@ static int get_reverse_op_type(int op_type)
 
 int BinaryOp_arm::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
-    const bool b_is_scalar = bottom_blobs[1].w * bottom_blobs[1].h * bottom_blobs[1].d * bottom_blobs[1].c * bottom_blobs[1].elempack == 1;
-    const bool a_rank_is_lower = bottom_blobs[0].dims < bottom_blobs[1].dims && !b_is_scalar;
-    const bool a_size_is_lower = bottom_blobs[0].w * bottom_blobs[0].h * bottom_blobs[0].d * bottom_blobs[0].c * bottom_blobs[0].elempack < bottom_blobs[1].w * bottom_blobs[1].h * bottom_blobs[1].d * bottom_blobs[1].c * bottom_blobs[1].elempack;
-    const bool a_is_lower = a_rank_is_lower || (!a_rank_is_lower && a_size_is_lower);
-    const Mat& A = a_is_lower ? bottom_blobs[1] : bottom_blobs[0];
-    const Mat& B = a_is_lower ? bottom_blobs[0] : bottom_blobs[1];
-    const int op_type_r = a_is_lower ? get_reverse_op_type(op_type) : op_type;
+    const Mat& A = bottom_blobs[0];
+    const Mat& B = bottom_blobs[1];
+    const int outdims = std::max(A.dims, B.dims);
+
+    Mat A2 = A;
+    Mat B2 = B;
+    if (A.dims < outdims)
+    {
+        // expand inner axes
+        if (outdims == 2)
+            A2 = A.reshape(1, A.w, opt.workspace_allocator);
+        if (outdims == 3 && A.dims == 1)
+            A2 = A.reshape(1, 1, A.w, opt.workspace_allocator);
+        if (outdims == 3 && A.dims == 2)
+            A2 = A.reshape(1, A.w, A.h, opt.workspace_allocator);
+        if (outdims == 4 && A.dims == 1)
+            A2 = A.reshape(1, 1, 1, A.w, opt.workspace_allocator);
+        if (outdims == 4 && A.dims == 2)
+            A2 = A.reshape(1, 1, A.w, A.h, opt.workspace_allocator);
+        if (outdims == 4 && A.dims == 3)
+            A2 = A.reshape(1, A.w, A.h, A.c, opt.workspace_allocator);
+    }
+    if (B.dims < outdims)
+    {
+        // expand inner axes
+        if (outdims == 2)
+            B2 = B.reshape(1, B.w, opt.workspace_allocator);
+        if (outdims == 3 && B.dims == 1)
+            B2 = B.reshape(1, 1, B.w, opt.workspace_allocator);
+        if (outdims == 3 && B.dims == 2)
+            B2 = B.reshape(1, B.w, B.h, opt.workspace_allocator);
+        if (outdims == 4 && B.dims == 1)
+            B2 = B.reshape(1, 1, 1, B.w, opt.workspace_allocator);
+        if (outdims == 4 && B.dims == 2)
+            B2 = B.reshape(1, 1, B.w, B.h, opt.workspace_allocator);
+        if (outdims == 4 && B.dims == 3)
+            B2 = B.reshape(1, B.w, B.h, B.c, opt.workspace_allocator);
+    }
+
+    const int outw = std::max(A2.w, B2.w);
+    const int outh = std::max(A2.h, B2.h);
+    const int outd = std::max(A2.d, B2.d);
+    const int outc = std::max(A2.c, B2.c);
+    const size_t out_elemsize = std::max(A2.elemsize, B2.elemsize);
+    const int out_elempack = std::max(A2.elempack, B2.elempack);
 
     Mat& top_blob = top_blobs[0];
-    top_blob.create_like(A, opt.blob_allocator);
+    if (outdims == 1)
+    {
+        top_blob.create(outw, out_elemsize, out_elempack, opt.blob_allocator);
+    }
+    if (outdims == 2)
+    {
+        top_blob.create(outw, outh, out_elemsize, out_elempack, opt.blob_allocator);
+    }
+    if (outdims == 3)
+    {
+        top_blob.create(outw, outh, outc, out_elemsize, out_elempack, opt.blob_allocator);
+    }
+    if (outdims == 4)
+    {
+        top_blob.create(outw, outh, outd, outc, out_elemsize, out_elempack, opt.blob_allocator);
+    }
     if (top_blob.empty())
         return -100;
 
-    // B is A scalar
-    if (B.w * B.h * B.d * B.c * B.elempack == 1)
+    const bool a_pack_is_lower = A2.elempack < B2.elempack;
+    const bool a_pack_is_equal = A2.elempack == B2.elempack;
+    const bool a_size_is_lower = A2.w * A2.h * A2.d * A2.c * A2.elempack < B2.w * B2.h * B2.d * B2.c * B2.elempack;
+    if (a_pack_is_lower || (a_pack_is_equal && a_size_is_lower))
     {
-        return binary_op_scalar_fp16s(A, ((const __fp16*)B)[0], top_blob, op_type_r, opt);
+        binary_op_broadcast_fp16s(B2, A2, top_blob, get_reverse_op_type(op_type), opt);
     }
-
-    // no broadcast
-    if (A.dims == B.dims && A.w == B.w && A.h == B.h && A.d == B.d && A.c == B.c && A.elempack == B.elempack)
+    else
     {
-        return binary_op_no_broadcast_fp16s(A, B, top_blob, op_type_r, opt);
-    }
-
-    // broadcast B for inner axis
-    if ((B.dims < A.dims)
-            || (A.dims == 2 && B.w == 1 && B.h == A.h)
-            || (A.dims == 3 && B.w == 1 && B.h == 1 && B.c == A.c)
-            || (A.dims == 3 && B.w == 1 && B.h == A.h && B.c == A.c)
-            || (A.dims == 4 && B.w == 1 && B.h == 1 && B.d == 1 && B.c == A.c)
-            || (A.dims == 4 && B.w == 1 && B.h == 1 && B.d == A.d && B.c == A.c)
-            || (A.dims == 4 && B.w == 1 && B.h == A.h && B.d == A.d && B.c == A.c))
-    {
-        return binary_op_broadcast_inner_fp16s(A, B, top_blob, op_type_r, opt);
-    }
-
-    // broadcast B for outer axis
-    if (B.elempack == 1 && ((A.dims == 2 && B.w == A.w && B.h == 1) || (A.dims == 3 && B.w == A.w && B.h == 1 && B.c == 1) || (A.dims == 3 && B.w == A.w && B.h == A.h && B.c == 1) || (A.dims == 4 && B.w == A.w && B.h == 1 && B.d == 1 && B.c == 1) || (A.dims == 4 && B.w == A.w && B.h == A.h && B.d == 1 && B.c == 1) || (A.dims == 4 && B.w == A.w && B.h == A.h && B.d == A.d && B.c == 1)))
-    {
-        return binary_op_broadcast_outer_fp16s(A, B, top_blob, op_type_r, opt);
-    }
-
-    // some special broadcast rule here
-    if (A.dims == 3 && B.dims == 3 && A.w == B.w && B.h == 1 && A.c == B.c)
-    {
-        return binary_op_broadcast_20_fp16s(A, B, top_blob, op_type_r, opt);
+        binary_op_broadcast_fp16s(A2, B2, top_blob, op_type, opt);
     }
 
     return 0;
@@ -796,20 +589,7 @@ int BinaryOp_arm::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vecto
 
 int BinaryOp_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
 {
-    using namespace BinaryOp_arm_functor;
-
-    if (op_type == Operation_ADD) return binary_op_scalar_inplace_fp16s<binary_op_add_fp16s>(bottom_top_blob, (__fp16)b, opt);
-    if (op_type == Operation_SUB) return binary_op_scalar_inplace_fp16s<binary_op_sub_fp16s>(bottom_top_blob, (__fp16)b, opt);
-    if (op_type == Operation_MUL) return binary_op_scalar_inplace_fp16s<binary_op_mul_fp16s>(bottom_top_blob, (__fp16)b, opt);
-    if (op_type == Operation_DIV) return binary_op_scalar_inplace_fp16s<binary_op_div_fp16s>(bottom_top_blob, (__fp16)b, opt);
-    if (op_type == Operation_MAX) return binary_op_scalar_inplace_fp16s<binary_op_max_fp16s>(bottom_top_blob, (__fp16)b, opt);
-    if (op_type == Operation_MIN) return binary_op_scalar_inplace_fp16s<binary_op_min_fp16s>(bottom_top_blob, (__fp16)b, opt);
-    if (op_type == Operation_POW) return binary_op_scalar_inplace_fp16s<binary_op_pow_fp16s>(bottom_top_blob, (__fp16)b, opt);
-    if (op_type == Operation_RSUB) return binary_op_scalar_inplace_fp16s<binary_op_rsub_fp16s>(bottom_top_blob, (__fp16)b, opt);
-    if (op_type == Operation_RDIV) return binary_op_scalar_inplace_fp16s<binary_op_rdiv_fp16s>(bottom_top_blob, (__fp16)b, opt);
-    if (op_type == Operation_RPOW) return binary_op_scalar_inplace_fp16s<binary_op_rpow_fp16s>(bottom_top_blob, (__fp16)b, opt);
-    if (op_type == Operation_ATAN2) return binary_op_scalar_inplace_fp16s<binary_op_atan2_fp16s>(bottom_top_blob, (__fp16)b, opt);
-    if (op_type == Operation_RATAN2) return binary_op_scalar_inplace_fp16s<binary_op_ratan2_fp16s>(bottom_top_blob, (__fp16)b, opt);
+    binary_op_scalar_inplace_fp16s(bottom_top_blob, b, op_type, opt);
 
     return 0;
 }

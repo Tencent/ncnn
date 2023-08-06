@@ -389,4 +389,61 @@ typedef enum VkInstanceCreateFlagBits
 } VkInstanceCreateFlagBits;
 #endif // VK_HEADER_VERSION < 208
 
+#if VK_HEADER_VERSION < 255
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_FEATURES_KHR   (VkStructureType)1000506000
+#define VK_STRUCTURE_TYPE_COOPERATIVE_MATRIX_PROPERTIES_KHR                 (VkStructureType)1000506001
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_PROPERTIES_KHR (VkStructureType)1000506002
+typedef enum VkComponentTypeKHR
+{
+    VK_COMPONENT_TYPE_FLOAT16_KHR = 0,
+    VK_COMPONENT_TYPE_FLOAT32_KHR = 1,
+    VK_COMPONENT_TYPE_FLOAT64_KHR = 2,
+    VK_COMPONENT_TYPE_SINT8_KHR = 3,
+    VK_COMPONENT_TYPE_SINT16_KHR = 4,
+    VK_COMPONENT_TYPE_SINT32_KHR = 5,
+    VK_COMPONENT_TYPE_SINT64_KHR = 6,
+    VK_COMPONENT_TYPE_UINT8_KHR = 7,
+    VK_COMPONENT_TYPE_UINT16_KHR = 8,
+    VK_COMPONENT_TYPE_UINT32_KHR = 9,
+    VK_COMPONENT_TYPE_UINT64_KHR = 10,
+    VK_COMPONENT_TYPE_MAX_ENUM_KHR = 0x7FFFFFFF
+} VkComponentTypeKHR;
+typedef enum VkScopeKHR
+{
+    VK_SCOPE_DEVICE_KHR = 1,
+    VK_SCOPE_WORKGROUP_KHR = 2,
+    VK_SCOPE_SUBGROUP_KHR = 3,
+    VK_SCOPE_QUEUE_FAMILY_KHR = 5,
+    VK_SCOPE_MAX_ENUM_KHR = 0x7FFFFFFF
+} VkScopeKHR;
+typedef struct VkCooperativeMatrixPropertiesKHR
+{
+    VkStructureType sType;
+    void* pNext;
+    uint32_t MSize;
+    uint32_t NSize;
+    uint32_t KSize;
+    VkComponentTypeKHR AType;
+    VkComponentTypeKHR BType;
+    VkComponentTypeKHR CType;
+    VkComponentTypeKHR ResultType;
+    VkBool32 saturatingAccumulation;
+    VkScopeKHR scope;
+} VkCooperativeMatrixPropertiesKHR;
+typedef struct VkPhysicalDeviceCooperativeMatrixFeaturesKHR
+{
+    VkStructureType sType;
+    void* pNext;
+    VkBool32 cooperativeMatrix;
+    VkBool32 cooperativeMatrixRobustBufferAccess;
+} VkPhysicalDeviceCooperativeMatrixFeaturesKHR;
+typedef struct VkPhysicalDeviceCooperativeMatrixPropertiesKHR
+{
+    VkStructureType sType;
+    void* pNext;
+    VkShaderStageFlags cooperativeMatrixSupportedStages;
+} VkPhysicalDeviceCooperativeMatrixPropertiesKHR;
+typedef VkResult(VKAPI_PTR* PFN_vkGetPhysicalDeviceCooperativeMatrixPropertiesKHR)(VkPhysicalDevice physicalDevice, uint32_t* pPropertyCount, VkCooperativeMatrixPropertiesKHR* pProperties);
+#endif // VK_HEADER_VERSION < 255
+
 #endif // NCNN_VULKAN_HEADER_FIX_H

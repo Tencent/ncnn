@@ -71,7 +71,7 @@ void sleep(unsigned long long int milliseconds)
 #ifdef _WIN32
     Sleep(milliseconds);
 #elif defined(__unix__) || defined(__APPLE__)
-    sleep(milliseconds * 0.001);
+    usleep(milliseconds * 1000);
 #elif _POSIX_TIMERS
     struct timespec ts;
     ts.tv_sec = milliseconds * 0.001;

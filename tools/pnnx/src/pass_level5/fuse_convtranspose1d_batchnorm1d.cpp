@@ -63,10 +63,10 @@ pnnx.Output             output      1 0 out
         bool has_bn_affine = captured_params.at("affine").b;
         bool has_convtranspose_bias = captured_params.at("bias").b;
 
-        const float* bn_running_mean = (const float*)captured_attrs.at("op_1.running_mean").data.data();
-        const float* bn_running_var = (const float*)captured_attrs.at("op_1.running_var").data.data();
-        const float* bn_weight = has_bn_affine ? (const float*)captured_attrs.at("op_1.weight").data.data() : 0;
-        const float* bn_bias = has_bn_affine ? (const float*)captured_attrs.at("op_1.bias").data.data() : 0;
+        auto bn_running_mean = captured_attrs.at("op_1.running_mean").get_float32_data();
+        auto bn_running_var = captured_attrs.at("op_1.running_var").get_float32_data();
+        auto bn_weight = has_bn_affine ? captured_attrs.at("op_1.weight").get_float32_data() : std::vector<float>();
+        auto bn_bias = has_bn_affine ? captured_attrs.at("op_1.bias").get_float32_data() : std::vector<float>();
 
         // a = bias - slope * mean / sqrt(var + eps)
         // b = slope / sqrt(var + eps)
@@ -100,15 +100,13 @@ pnnx.Output             output      1 0 out
         {
             // init bias as zero
             op->attrs["bias"] = Attribute();
-            op->attrs["bias"].type = 1;
+            op->attrs["bias"].type = op->attrs["weight"].type;
             op->attrs["bias"].shape = {channels};
-
-            op->attrs["bias"].data.resize(channels * sizeof(float));
-            memset(op->attrs["bias"].data.data(), 0, channels * sizeof(float));
+            op->attrs["bias"].set_float32_data(std::vector<float>(channels, 0.f));
         }
 
-        float* conv_weight = (float*)op->attrs["weight"].data.data();
-        float* conv_bias = (float*)op->attrs["bias"].data.data();
+        auto conv_weight = op->attrs["weight"].get_float32_data();
+        auto conv_bias = op->attrs["bias"].get_float32_data();
 
         // group-inch/group-outch/group-kw
         const int inch = captured_params.at("in_channels").i;
@@ -121,7 +119,7 @@ pnnx.Output             output      1 0 out
 
         for (int g = 0; g < groups; g++)
         {
-            float* wg = conv_weight + g * inch_g * outch_g * kw;
+            float* wg = (float*)conv_weight.data() + g * inch_g * outch_g * kw;
             for (int i = 0; i < inch_g; i++)
             {
                 for (int j = 0; j < outch_g; j++)
@@ -138,6 +136,9 @@ pnnx.Output             output      1 0 out
         {
             conv_bias[i] = conv_bias[i] * b[i] + a[i];
         }
+
+        op->attrs["weight"].set_float32_data(conv_weight);
+        op->attrs["bias"].set_float32_data(conv_bias);
     }
 };
 

@@ -1,0 +1,335 @@
+// Tencent is pleased to support the open source community by making ncnn available.
+//
+// Copyright (C) 2023 THL A29 Limited, a Tencent company. All rights reserved.
+//
+// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
+// in compliance with the License. You may obtain a copy of the License at
+//
+// https://opensource.org/licenses/BSD-3-Clause
+//
+// Unless required by applicable law or agreed to in writing, software distributed
+// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+// CONDITIONS OF ANY KIND, either express or implied. See the License for the
+// specific language governing permissions and limitations under the License.
+
+#version 450
+
+#if NCNN_fp16_storage
+#extension GL_EXT_shader_16bit_storage: require
+#endif
+#if NCNN_fp16_arithmetic
+#extension GL_EXT_shader_explicit_arithmetic_types_float16: require
+#endif
+
+#extension GL_GOOGLE_include_directive: enable
+#include "vulkan_activation.comp"
+
+#extension GL_KHR_memory_scope_semantics: require
+#extension GL_EXT_shader_explicit_arithmetic_types: require
+#extension GL_EXT_shader_explicit_arithmetic_types_float16: require
+#extension GL_KHR_cooperative_matrix: require
+
+layout (constant_id = 0) const int kernel_w = 1;
+layout (constant_id = 1) const int kernel_h = 1;
+layout (constant_id = 2) const int dilation_w = 1;
+layout (constant_id = 3) const int dilation_h = 1;
+layout (constant_id = 4) const int stride_w = 1;
+layout (constant_id = 5) const int stride_h = 1;
+layout (constant_id = 6) const int bias_term = 0;
+layout (constant_id = 7) const int activation_type = 0;
+layout (constant_id = 8) const float activation_param_0 = 0;
+layout (constant_id = 9) const float activation_param_1 = 0;
+
+#define shape_constant_id_offset 10
+layout (constant_id = shape_constant_id_offset + 0) const int w = 0;
+layout (constant_id = shape_constant_id_offset + 1) const int h = 0;
+layout (constant_id = shape_constant_id_offset + 2) const int c = 0;
+layout (constant_id = shape_constant_id_offset + 3) const int cstep = 0;
+
+layout (constant_id = shape_constant_id_offset + 4) const int outw = 0;
+layout (constant_id = shape_constant_id_offset + 5) const int outh = 0;
+layout (constant_id = shape_constant_id_offset + 6) const int outc = 0;
+layout (constant_id = shape_constant_id_offset + 7) const int outcstep = 0;
+
+layout (binding = 0) readonly buffer bottom_blob { uvec2 bottom_blob_data[]; };
+layout (binding = 1) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
+layout (binding = 2) readonly buffer weight_blob { uvec2 weight_data[]; };
+layout (binding = 3) readonly buffer bias_blob { uvec2 bias_data[]; };
+
+layout (push_constant) uniform parameter
+{
+    int w;
+    int h;
+    int c;
+    int cstep;
+
+    int outw;
+    int outh;
+    int outc;
+    int outcstep;
+} p;
+
+#define UNROLL_INCH 4
+
+shared uvec2 tmp_v0[UNROLL_INCH * 16*2];
+shared uvec2 tmp_v1[UNROLL_INCH * 16*2];
+shared uvec2 tmp_k0[UNROLL_INCH * 8*2];
+shared uvec2 tmp_k1[UNROLL_INCH * 8*2];
+shared uvec2 tmp_k2[UNROLL_INCH * 8*2];
+shared uvec2 tmp_k3[UNROLL_INCH * 8*2];
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x) / 32 * 2 * 16;
+    int gy = int(gl_GlobalInvocationID.y) * 2 * 4;
+
+    const int outsize = psc(outw) * psc(outh);
+
+    const int lx = int(gl_LocalInvocationID.x);
+
+    const int lxd8 = lx / 8; // 0 1 2 3
+    const int lxm8 = lx % 8; // 0 1 2 3 .... 7
+
+    coopmat<float, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator> sum0;
+    coopmat<float, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator> sum1;
+    coopmat<float, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator> sum2;
+    coopmat<float, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator> sum3;
+    coopmat<float, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator> sum4;
+    coopmat<float, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator> sum5;
+    coopmat<float, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator> sum6;
+    coopmat<float, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator> sum7;
+
+    if (bias_term == 1)
+    {
+        coopmat<float16_t, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator> bias0;
+        coopmat<float16_t, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator> bias1;
+        coopmat<float16_t, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator> bias2;
+        coopmat<float16_t, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator> bias3;
+
+        coopMatLoad(bias0, bias_data, gy, 0, gl_CooperativeMatrixLayoutRowMajor);
+        coopMatLoad(bias1, bias_data, gy + 2, 0, gl_CooperativeMatrixLayoutRowMajor);
+        coopMatLoad(bias2, bias_data, gy + 4, 0, gl_CooperativeMatrixLayoutRowMajor);
+        coopMatLoad(bias3, bias_data, gy + 6, 0, gl_CooperativeMatrixLayoutRowMajor);
+
+        sum0 = coopmat<float, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator>(bias0);
+        sum1 = coopmat<float, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator>(bias0);
+        sum2 = coopmat<float, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator>(bias1);
+        sum3 = coopmat<float, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator>(bias1);
+        sum4 = coopmat<float, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator>(bias2);
+        sum5 = coopmat<float, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator>(bias2);
+        sum6 = coopmat<float, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator>(bias3);
+        sum7 = coopmat<float, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator>(bias3);
+    }
+    else
+    {
+        sum0 = coopmat<float, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator>(0.f);
+        sum1 = coopmat<float, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator>(0.f);
+        sum2 = coopmat<float, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator>(0.f);
+        sum3 = coopmat<float, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator>(0.f);
+        sum4 = coopmat<float, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator>(0.f);
+        sum5 = coopmat<float, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator>(0.f);
+        sum6 = coopmat<float, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator>(0.f);
+        sum7 = coopmat<float, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator>(0.f);
+    }
+
+    const int maxk = kernel_w * kernel_h;
+    const int N = psc(c) / 2 * maxk;
+
+    int z = 0;
+    for (; z + (UNROLL_INCH - 1) < N; z += UNROLL_INCH)
+    {
+        {
+            for (int j = 0; j < 2; j++)
+            {
+                const int tmp_vi = lxd8*16*2 + lxm8 * 2 + j;
+
+                const int sz = (z + lxd8) / maxk;
+                const int kk = (z + lxd8) % maxk;
+
+                const int ky = kk / kernel_w;
+                const int kx = kk % kernel_w;
+
+                const ivec4 gx16 = gx + lxm8 + ivec4(0, 8, 16, 24);
+
+                const ivec4 sy16 = gx16 / psc(outw);
+                const ivec4 sx16 = gx16 % psc(outw);
+
+                const ivec4 sxs16 = sx16 * stride_w;
+                const ivec4 sys16 = sy16 * stride_h;
+
+                const ivec4 v_offset = (sz * 2 + j) * psc(cstep) + (sys16 + ky * dilation_h) * psc(w) + sxs16 + kx * dilation_w;
+
+                tmp_v0[tmp_vi] = gx16.r < psc(outcstep) ? bottom_blob_data[v_offset.r] : uvec2(0);
+                tmp_v0[tmp_vi + 16] = gx16.g < psc(outcstep) ? bottom_blob_data[v_offset.g] : uvec2(0);
+                tmp_v1[tmp_vi] = gx16.b < psc(outcstep) ? bottom_blob_data[v_offset.b] : uvec2(0);
+                tmp_v1[tmp_vi + 16] = gx16.a < psc(outcstep) ? bottom_blob_data[v_offset.a] : uvec2(0);
+
+                const int tmp_ki = lxd8*8*2 + lxm8 * 2 + j;
+
+                int w_offset = gy * psc(c) * 4 * maxk + (z + lxd8) * 2 * 8 + (lxm8 * 2 + j);
+
+                tmp_k0[tmp_ki] = weight_data[w_offset];
+                tmp_k1[tmp_ki] = weight_data[w_offset + psc(c) * maxk * 8];
+                tmp_k2[tmp_ki] = weight_data[w_offset + psc(c) * maxk * 16];
+                tmp_k3[tmp_ki] = weight_data[w_offset + psc(c) * maxk * 24];
+            }
+        }
+
+        barrier();
+
+        for (int z4 = 0; z4 < UNROLL_INCH; z4++)
+        {
+            coopmat<float16_t, gl_ScopeSubgroup, 16, 8, gl_MatrixUseA> A0;
+            coopmat<float16_t, gl_ScopeSubgroup, 16, 8, gl_MatrixUseA> A1;
+            coopMatLoad(A0, tmp_v0, z4*16*2, 2, gl_CooperativeMatrixLayoutRowMajor);
+            coopMatLoad(A1, tmp_v1, z4*16*2, 2, gl_CooperativeMatrixLayoutRowMajor);
+
+            coopmat<float16_t, gl_ScopeSubgroup, 8, 8, gl_MatrixUseB> B0;
+            coopmat<float16_t, gl_ScopeSubgroup, 8, 8, gl_MatrixUseB> B1;
+            coopmat<float16_t, gl_ScopeSubgroup, 8, 8, gl_MatrixUseB> B2;
+            coopmat<float16_t, gl_ScopeSubgroup, 8, 8, gl_MatrixUseB> B3;
+            coopMatLoad(B0, tmp_k0, z4*8*2, 2, gl_CooperativeMatrixLayoutRowMajor);
+            coopMatLoad(B1, tmp_k1, z4*8*2, 2, gl_CooperativeMatrixLayoutRowMajor);
+            coopMatLoad(B2, tmp_k2, z4*8*2, 2, gl_CooperativeMatrixLayoutRowMajor);
+            coopMatLoad(B3, tmp_k3, z4*8*2, 2, gl_CooperativeMatrixLayoutRowMajor);
+
+            // sum += v * k
+            sum0 = coopMatMulAdd(A0, B0, sum0);
+            sum1 = coopMatMulAdd(A1, B0, sum1);
+            sum2 = coopMatMulAdd(A0, B1, sum2);
+            sum3 = coopMatMulAdd(A1, B1, sum3);
+            sum4 = coopMatMulAdd(A0, B2, sum4);
+            sum5 = coopMatMulAdd(A1, B2, sum5);
+            sum6 = coopMatMulAdd(A0, B3, sum6);
+            sum7 = coopMatMulAdd(A1, B3, sum7);
+        }
+
+        barrier();
+    }
+
+    if (z < N)
+    {
+        const int remain = N - z;
+
+        if (lxd8 < remain)
+        {
+            for (int j = 0; j < 2; j++)
+            {
+                const int tmp_vi = lxd8*16*2 + lxm8 * 2 + j;
+
+                const int sz = (z + lxd8) / maxk;
+                const int kk = (z + lxd8) % maxk;
+
+                const int ky = kk / kernel_w;
+                const int kx = kk % kernel_w;
+
+                const ivec4 gx16 = gx + lxm8 + ivec4(0, 8, 16, 24);
+
+                const ivec4 sy16 = gx16 / psc(outw);
+                const ivec4 sx16 = gx16 % psc(outw);
+
+                const ivec4 sxs16 = sx16 * stride_w;
+                const ivec4 sys16 = sy16 * stride_h;
+
+                const ivec4 v_offset = (sz * 2 + j) * psc(cstep) + (sys16 + ky * dilation_h) * psc(w) + sxs16 + kx * dilation_w;
+
+                tmp_v0[tmp_vi] = gx16.r < psc(outcstep) ? bottom_blob_data[v_offset.r] : uvec2(0);
+                tmp_v0[tmp_vi + 16] = gx16.g < psc(outcstep) ? bottom_blob_data[v_offset.g] : uvec2(0);
+                tmp_v1[tmp_vi] = gx16.b < psc(outcstep) ? bottom_blob_data[v_offset.b] : uvec2(0);
+                tmp_v1[tmp_vi + 16] = gx16.a < psc(outcstep) ? bottom_blob_data[v_offset.a] : uvec2(0);
+
+                const int tmp_ki = lxd8*8*2 + lxm8 * 2 + j;
+
+                int w_offset = gy * psc(c) * 4 * maxk + (z + lxd8) * 2 * 8 + (lxm8 * 2 + j);
+
+                tmp_k0[tmp_ki] = weight_data[w_offset];
+                tmp_k1[tmp_ki] = weight_data[w_offset + psc(c) * maxk * 8];
+                tmp_k2[tmp_ki] = weight_data[w_offset + psc(c) * maxk * 16];
+                tmp_k3[tmp_ki] = weight_data[w_offset + psc(c) * maxk * 24];
+            }
+        }
+
+        barrier();
+
+        for (int z4 = 0; z4 < remain; z4++)
+        {
+            coopmat<float16_t, gl_ScopeSubgroup, 16, 8, gl_MatrixUseA> A0;
+            coopmat<float16_t, gl_ScopeSubgroup, 16, 8, gl_MatrixUseA> A1;
+            coopMatLoad(A0, tmp_v0, z4*16*2, 2, gl_CooperativeMatrixLayoutRowMajor);
+            coopMatLoad(A1, tmp_v1, z4*16*2, 2, gl_CooperativeMatrixLayoutRowMajor);
+
+            coopmat<float16_t, gl_ScopeSubgroup, 8, 8, gl_MatrixUseB> B0;
+            coopmat<float16_t, gl_ScopeSubgroup, 8, 8, gl_MatrixUseB> B1;
+            coopmat<float16_t, gl_ScopeSubgroup, 8, 8, gl_MatrixUseB> B2;
+            coopmat<float16_t, gl_ScopeSubgroup, 8, 8, gl_MatrixUseB> B3;
+            coopMatLoad(B0, tmp_k0, z4*8*2, 2, gl_CooperativeMatrixLayoutRowMajor);
+            coopMatLoad(B1, tmp_k1, z4*8*2, 2, gl_CooperativeMatrixLayoutRowMajor);
+            coopMatLoad(B2, tmp_k2, z4*8*2, 2, gl_CooperativeMatrixLayoutRowMajor);
+            coopMatLoad(B3, tmp_k3, z4*8*2, 2, gl_CooperativeMatrixLayoutRowMajor);
+
+            // sum += v * k
+            sum0 = coopMatMulAdd(A0, B0, sum0);
+            sum1 = coopMatMulAdd(A1, B0, sum1);
+            sum2 = coopMatMulAdd(A0, B1, sum2);
+            sum3 = coopMatMulAdd(A1, B1, sum3);
+            sum4 = coopMatMulAdd(A0, B2, sum4);
+            sum5 = coopMatMulAdd(A1, B2, sum5);
+            sum6 = coopMatMulAdd(A0, B3, sum6);
+            sum7 = coopMatMulAdd(A1, B3, sum7);
+        }
+
+        barrier();
+    }
+
+    if (gx >= outsize || gy >= psc(outc))
+        return;
+
+    coopmat<float16_t, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator> sum0_fp16 = coopmat<float16_t, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator>(sum0);
+    coopmat<float16_t, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator> sum1_fp16 = coopmat<float16_t, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator>(sum1);
+    coopmat<float16_t, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator> sum2_fp16 = coopmat<float16_t, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator>(sum2);
+    coopmat<float16_t, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator> sum3_fp16 = coopmat<float16_t, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator>(sum3);
+    coopmat<float16_t, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator> sum4_fp16 = coopmat<float16_t, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator>(sum4);
+    coopmat<float16_t, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator> sum5_fp16 = coopmat<float16_t, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator>(sum5);
+    coopmat<float16_t, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator> sum6_fp16 = coopmat<float16_t, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator>(sum6);
+    coopmat<float16_t, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator> sum7_fp16 = coopmat<float16_t, gl_ScopeSubgroup, 16, 8, gl_MatrixUseAccumulator>(sum7);
+
+    coopMatStore(sum0_fp16, tmp_v0, 0, 2, gl_CooperativeMatrixLayoutRowMajor);
+    coopMatStore(sum1_fp16, tmp_v1, 0, 2, gl_CooperativeMatrixLayoutRowMajor);
+    coopMatStore(sum2_fp16, tmp_v0, 16*2, 2, gl_CooperativeMatrixLayoutRowMajor);
+    coopMatStore(sum3_fp16, tmp_v1, 16*2, 2, gl_CooperativeMatrixLayoutRowMajor);
+    coopMatStore(sum4_fp16, tmp_v0, 16*4, 2, gl_CooperativeMatrixLayoutRowMajor);
+    coopMatStore(sum5_fp16, tmp_v1, 16*4, 2, gl_CooperativeMatrixLayoutRowMajor);
+    coopMatStore(sum6_fp16, tmp_v0, 16*6, 2, gl_CooperativeMatrixLayoutRowMajor);
+    coopMatStore(sum7_fp16, tmp_v1, 16*6, 2, gl_CooperativeMatrixLayoutRowMajor);
+
+    barrier();
+
+    const int lxd16 = lx / 16; // 0 1
+    const int lxm16 = lx % 16; // 0 1 2 3 .... 15
+
+    {
+        for (int j = 0; j < 4; j++)
+        {
+            const int tmp_vi = lxm16 * 2 + lxd16 + j*16*2;
+            const int gi = (gy + lxd16 + j*2) * psc(outcstep) + (gx + lxm16);
+
+            if (gy + j * 2 + lxd16 < psc(outc))
+            {
+                if (gx + lxm16 < psc(outcstep))
+                {
+                    uvec2 sum0_u2 = tmp_v0[tmp_vi];
+                    afpvec4 sum0 = afpvec4(unpackHalf2x16(sum0_u2.x), unpackHalf2x16(sum0_u2.y));
+                    sum0 = activation_afpvec4(sum0, activation_type, activation_param_0, activation_param_1);
+                    buffer_st4(top_blob_data, gi, sum0);
+                }
+                if (gx + lxm16 + 16 < psc(outcstep))
+                {
+                    uvec2 sum1_u2 = tmp_v1[tmp_vi];
+                    afpvec4 sum1 = afpvec4(unpackHalf2x16(sum1_u2.x), unpackHalf2x16(sum1_u2.y));
+                    sum1 = activation_afpvec4(sum1, activation_type, activation_param_0, activation_param_1);
+                    buffer_st4(top_blob_data, gi + 16, sum1);
+                }
+            }
+        }
+    }
+}

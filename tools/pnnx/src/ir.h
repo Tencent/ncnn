@@ -171,6 +171,7 @@ public:
 #endif // BUILD_PNNX
 
     static Parameter parse_from_string(const std::string& value);
+    static std::string encode_to_string(const Parameter& param);
 
     // 0=null 1=b 2=i 3=f 4=s 5=ai 6=af 7=as 8=others 10=c 11=ac
     int type;
@@ -205,11 +206,20 @@ public:
 
     Attribute(const std::initializer_list<int>& shape, const std::vector<float>& t);
 
+    size_t elemsize() const;
+    int elemcount() const;
+
+    // convenient routines for manipulate fp32/fp16 weight
+    std::vector<float> get_float32_data() const;
+    void set_float32_data(const std::vector<float>& data);
+
     // 0=null 1=f32 2=f64 3=f16 4=i32 5=i64 6=i16 7=i8 8=u8 9=bool 10=c64 11=c128 12=c32
     int type;
     std::vector<int> shape;
 
     std::vector<char> data;
+
+    std::map<std::string, Parameter> params;
 };
 
 bool operator==(const Attribute& lhs, const Attribute& rhs);
@@ -239,6 +249,7 @@ private:
     friend class Graph;
     Operand()
     {
+        type = 0;
     }
 };
 
