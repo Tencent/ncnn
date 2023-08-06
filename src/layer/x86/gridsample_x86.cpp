@@ -55,7 +55,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
     int outw, outh, outd;
     Mat offset_value_blob;
-    
+
     Mat grid_p1;
     if (grid.elempack != 1)
     {

@@ -100,7 +100,6 @@ static void gridsample_3d_bilinear_apply_interpolation_p16(const Mat& src, Mat& 
             in_bound = offset_ptr[7] >= 0 ? 0xFFFF : 0;
             __m512 v111_val = _mm512_maskz_load_ps(in_bound, srcptr + offset_ptr[7]);
 
-
             __m512 value = _mm512_set1_ps(value_ptr[0]);
             __m512 v00 = _mm512_fmadd_ps(v001_val, value, _mm512_fnmadd_ps(v000_val, value, v000_val));
             __m512 v01 = _mm512_fmadd_ps(v011_val, value, _mm512_fnmadd_ps(v010_val, value, v010_val));
@@ -285,7 +284,7 @@ static void gridsample_3d_bilinear_apply_interpolation_p4(const Mat& src, Mat& d
         {
             const int* offset_ptr = (int*)offset_value_ptr;
             const float* value_ptr = offset_value_ptr + 8;
-            
+
             __m128 v000_val = offset_ptr[0] >= 0 ? _mm_load_ps(srcptr + offset_ptr[0]) : _mm_set1_ps(0);
             __m128 v001_val = offset_ptr[1] >= 0 ? _mm_load_ps(srcptr + offset_ptr[1]) : _mm_set1_ps(0);
             __m128 v010_val = offset_ptr[2] >= 0 ? _mm_load_ps(srcptr + offset_ptr[2]) : _mm_set1_ps(0);
