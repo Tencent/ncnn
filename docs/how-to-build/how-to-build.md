@@ -11,6 +11,7 @@ git submodule update --init
   - [Nvidia Jetson](#nvidia-jetson)
   - [Raspberry Pi](#raspberry-pi)
   - [POWER9](#power9)
+  - [Intel oneAPI](#intel-oneapi)
   - [Verification](#verification)
 - [Build for Windows x64 using Visual Studio Community 2017](#build-for-windows-x64-using-visual-studio-community-2017)
 - [Build for macOS](#build-for-macos)
@@ -103,6 +104,14 @@ make -j$(nproc)
 Earlier versions of Clang may fail to build ncnn due to [Bug 49864](https://github.com/llvm/llvm-project/issues/49864). To use GCC instead, use the `power9le-linux-gnu-vsx.toolchain.cmake` toolchain file instead. Note that according to benchmarks, Clang appears to produce noticeably faster CPU inference than GCC for POWER9 targets.
 
 Note that the POWER9 toolchain files only support little-endian mode.
+
+#### Intel oneAPI
+
+Besides the prerequests in this section, Intel oneAPI BaseKit and HPCKit should be installed. They are available from https://www.intel.com/content/www/us/en/developer/tools/oneapi/base-toolkit.html and https://www.intel.com/content/www/us/en/developer/tools/oneapi/hpc-toolkit.html freely.
+
+Intel oneAPI offers two kinds of compilers, the classic `icc/icpc` and the LLVM based `icx/icpx`. To build with these compilers, add `CC=icc CXX=icpc` or `CC=icx CXX=icpx` before the `cmake` command. When compiling with `icc/icpc`, cmake will warn that `xop`, `avx512`, and `bf16` extensions are not supported by the compiler, while `icx/icpx` works well.
+
+Both of these compilers have been tested and passed the ncnn benchmark successfully. The results have been included in ncnn benchmark readme. Generally, `icx/icpx` are likely to show better performance than `icc/icpc` and the quantized models can benefit from the extensions `icx/icpx` supports.
 
 #### Verification
 
