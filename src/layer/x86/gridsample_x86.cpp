@@ -31,7 +31,9 @@
 namespace ncnn {
 
 #include "gridsample_compute_blob.h"
-#include "gridsample_apply_interpolation.h"
+#include "gridsample_bilinear_apply_interpolation.h"
+#include "gridsample_bicubic_apply_interpolation.h"
+#include "gridsample_nearest_apply_interpolation.h"
 
 GridSample_x86::GridSample_x86()
 {
@@ -53,7 +55,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
     int outw, outh, outd;
     Mat offset_value_blob;
-
+    
     Mat grid_p1;
     if (grid.elempack != 1)
     {

@@ -31,24 +31,16 @@ void gridsample_2d_nearest_compute_blob(const Mat& src, const Mat& grid, Mat& of
 #if __AVX__
             for (; x + 15 < grid_size; x += 16)
             {
-                __m256 tmp_x = _mm256_loadu_ps(gridptr);
+                __m256 gx = _mm256_loadu_ps(gridptr);
                 __m256 gy = _mm256_loadu_ps(gridptr + 8);
 
-                __m256 gx = _mm256_permute2f128_ps(tmp_x, gy, 0b00100000);
-                gy = _mm256_permute2f128_ps(tmp_x, gy, 0b00110001);
-                tmp_x = _mm256_or_ps(gx, _mm256_setzero_ps());
+                transpose2x8_ps(gx, gy);
 
-                gx = _mm256_shuffle_ps(gx, gy, 0b10001000);
-                gy = _mm256_shuffle_ps(tmp_x, gy, 0b11011101);
+                gx = unormalize(_mm256_set1_ps(src.w), gx);
+                gx = get_coord(_mm256_set1_ps(src.w), gx);
 
-                // compute coord
-                {
-                    gx = unormalize(_mm256_set1_ps(src.w), gx);
-                    gx = get_coord(_mm256_set1_ps(src.w), gx);
-
-                    gy = unormalize(_mm256_set1_ps(src.h), gy);
-                    gy = get_coord(_mm256_set1_ps(src.h), gy);
-                }
+                gy = unormalize(_mm256_set1_ps(src.h), gy);
+                gy = get_coord(_mm256_set1_ps(src.h), gy);
 
                 gx = _mm256_floor_ps(_mm256_add_ps(gx, _mm256_set1_ps(0.5f)));
                 gy = _mm256_floor_ps(_mm256_add_ps(gy, _mm256_set1_ps(0.5f)));
@@ -58,7 +50,7 @@ void gridsample_2d_nearest_compute_blob(const Mat& src, const Mat& grid, Mat& of
 
                 __m256 offset = _mm256_mul_ps(_mm256_comp_fmadd_ps(gy, _mm256_set1_ps(src.w), gx), _mm256_set1_ps(src.elempack));
 
-                offset = _mm256_blendv_ps(_mm256_set1_ps(-1.0f), offset, v_in_range);
+                offset = _mm256_blendv_ps(_mm256_set1_ps(-1.0f), _mm256_castsi256_ps(_mm256_cvtps_epi32(offset)), v_in_range);
 
                 _mm256_storeu_ps(offset_ptr, offset);
 
@@ -83,7 +75,9 @@ void gridsample_2d_nearest_compute_blob(const Mat& src, const Mat& grid, Mat& of
                 int y0 = static_cast<int>(floorf(sample_y + 0.5f));
 
                 bool in_bound = ((x0 > -1) & (x0 < src.w) & (y0 > -1) & (y0 < src.h));
-                *offset_ptr = in_bound ? (x0 + y0 * src.w) * src.elempack : -1.0f;
+
+                int* iptr = (int*)offset_ptr;
+                *iptr = in_bound ? (x0 + y0 * src.w) * src.elempack : -1.0;
 
                 gridptr += 2;
                 offset_ptr++;
@@ -102,14 +96,11 @@ void gridsample_2d_nearest_compute_blob(const Mat& src, const Mat& grid, Mat& of
             __m256 gx = _mm256_loadu_ps(gridptr_x);
             __m256 gy = _mm256_loadu_ps(gridptr_y);
 
-            // compute coord
-            {
-                gx = unormalize(_mm256_set1_ps(src.w), gx);
-                gx = get_coord(_mm256_set1_ps(src.w), gx);
+            gx = unormalize(_mm256_set1_ps(src.w), gx);
+            gx = get_coord(_mm256_set1_ps(src.w), gx);
 
-                gy = unormalize(_mm256_set1_ps(src.h), gy);
-                gy = get_coord(_mm256_set1_ps(src.h), gy);
-            }
+            gy = unormalize(_mm256_set1_ps(src.h), gy);
+            gy = get_coord(_mm256_set1_ps(src.h), gy);
 
             gx = _mm256_floor_ps(_mm256_add_ps(gx, _mm256_set1_ps(0.5f)));
             gy = _mm256_floor_ps(_mm256_add_ps(gy, _mm256_set1_ps(0.5f)));
@@ -119,7 +110,7 @@ void gridsample_2d_nearest_compute_blob(const Mat& src, const Mat& grid, Mat& of
 
             __m256 offset = _mm256_mul_ps(_mm256_comp_fmadd_ps(gy, _mm256_set1_ps(src.w), gx), _mm256_set1_ps(src.elempack));
 
-            offset = _mm256_blendv_ps(_mm256_set1_ps(-1.0f), offset, v_in_range);
+            offset = _mm256_blendv_ps(_mm256_set1_ps(-1.0f), _mm256_castsi256_ps(_mm256_cvtps_epi32(offset)), v_in_range);
 
             _mm256_storeu_ps(offset_ptr, offset);
 
@@ -146,7 +137,8 @@ void gridsample_2d_nearest_compute_blob(const Mat& src, const Mat& grid, Mat& of
 
             bool in_bound = ((x0 > -1) & (x0 < src.w) & (y0 > -1) & (y0 < src.h));
 
-            *offset_ptr = in_bound ? (x0 + y0 * src.w) * src.elempack : -1.0f;
+            int* iptr = (int*)offset_ptr;
+            *iptr = in_bound ? (x0 + y0 * src.w) * src.elempack : -1.0;
 
             gridptr_x++;
             gridptr_y++;
@@ -175,32 +167,20 @@ void gridsample_3d_nearest_compute_blob(const Mat& src, const Mat& grid, Mat& of
 #if __AVX__
             for (; x + 23 < grid_size; x += 24)
             {
-                __m256 tmp_x = _mm256_loadu_ps(gridptr);
-                __m256 tmp_y = _mm256_loadu_ps(gridptr + 8);
+                __m256 gx = _mm256_loadu_ps(gridptr);
+                __m256 gy = _mm256_loadu_ps(gridptr + 8);
                 __m256 gz = _mm256_loadu_ps(gridptr + 16);
 
-                __m256 gx = _mm256_permute2f128_ps(tmp_x, tmp_y, 0b00110000);
-                __m256 gy = _mm256_permute2f128_ps(tmp_x, gz, 0b00100001);
-                gz = _mm256_permute2f128_ps(tmp_y, gz, 0b00110000);
+                transpose3x8_ps(gx, gy, gz);
 
-                tmp_x = _mm256_shuffle_ps(gx, gy, 0b01001001);
-                tmp_y = _mm256_shuffle_ps(gy, gz, 0b10011110);
+                gx = unormalize(_mm256_set1_ps(src.w), gx);
+                gx = get_coord(_mm256_set1_ps(src.w), gx);
 
-                gy = _mm256_shuffle_ps(tmp_x, tmp_y, 0b11011000);
-                gx = _mm256_shuffle_ps(gx, tmp_y, 0b10001100);
-                gz = _mm256_shuffle_ps(tmp_x, gz, 0b11001101);
+                gy = unormalize(_mm256_set1_ps(src.h), gy);
+                gy = get_coord(_mm256_set1_ps(src.h), gy);
 
-                // compute coord
-                {
-                    gx = unormalize(_mm256_set1_ps(src.w), gx);
-                    gx = get_coord(_mm256_set1_ps(src.w), gx);
-
-                    gy = unormalize(_mm256_set1_ps(src.h), gy);
-                    gy = get_coord(_mm256_set1_ps(src.h), gy);
-
-                    gz = unormalize(_mm256_set1_ps(src.d), gz);
-                    gz = get_coord(_mm256_set1_ps(src.d), gz);
-                }
+                gz = unormalize(_mm256_set1_ps(src.d), gz);
+                gz = get_coord(_mm256_set1_ps(src.d), gz);
 
                 gx = _mm256_floor_ps(_mm256_add_ps(gx, _mm256_set1_ps(0.5f)));
                 gy = _mm256_floor_ps(_mm256_add_ps(gy, _mm256_set1_ps(0.5f)));
@@ -214,7 +194,7 @@ void gridsample_3d_nearest_compute_blob(const Mat& src, const Mat& grid, Mat& of
                                               _mm256_comp_fmadd_ps(gy, _mm256_set1_ps(src.w), gx)),
                                               _mm256_set1_ps(src.elempack));
 
-                offset = _mm256_blendv_ps(_mm256_set1_ps(-1.0f), offset, v_in_range);
+                offset = _mm256_blendv_ps(_mm256_set1_ps(-1.0f), _mm256_castsi256_ps(_mm256_cvtps_epi32(offset)), v_in_range);
 
                 _mm256_storeu_ps(offset_ptr, offset);
 
@@ -245,7 +225,8 @@ void gridsample_3d_nearest_compute_blob(const Mat& src, const Mat& grid, Mat& of
 
                 bool in_bound = ((x0 > -1) & (x0 < src.w) & (y0 > -1) & (y0 < src.h) & (z0 > -1) & (z0 < src.d));
 
-                *offset_ptr = in_bound ? (x0 + y0 * src.w + z0 * src.w * src.h) * src.elempack : -1.0f;
+                int* iptr = (int*)offset_ptr;
+                *iptr = in_bound ? (x0 + y0 * src.w + z0 * src.w * src.h) * src.elempack : -1.0;
 
                 gridptr += 3;
                 offset_ptr++;
@@ -266,17 +247,14 @@ void gridsample_3d_nearest_compute_blob(const Mat& src, const Mat& grid, Mat& of
             __m256 gy = _mm256_loadu_ps(gridptr_y);
             __m256 gz = _mm256_loadu_ps(gridptr_z);
 
-            // compute coord=
-            {
-                gx = unormalize(_mm256_set1_ps(src.w), gx);
-                gx = get_coord(_mm256_set1_ps(src.w), gx);
+            gx = unormalize(_mm256_set1_ps(src.w), gx);
+            gx = get_coord(_mm256_set1_ps(src.w), gx);
 
-                gy = unormalize(_mm256_set1_ps(src.h), gy);
-                gy = get_coord(_mm256_set1_ps(src.h), gy);
+            gy = unormalize(_mm256_set1_ps(src.h), gy);
+            gy = get_coord(_mm256_set1_ps(src.h), gy);
 
-                gz = unormalize(_mm256_set1_ps(src.d), gz);
-                gz = get_coord(_mm256_set1_ps(src.d), gz);
-            }
+            gz = unormalize(_mm256_set1_ps(src.d), gz);
+            gz = get_coord(_mm256_set1_ps(src.d), gz);
 
             gx = _mm256_floor_ps(_mm256_add_ps(gx, _mm256_set1_ps(0.5f)));
             gy = _mm256_floor_ps(_mm256_add_ps(gy, _mm256_set1_ps(0.5f)));
@@ -290,7 +268,7 @@ void gridsample_3d_nearest_compute_blob(const Mat& src, const Mat& grid, Mat& of
                                           _mm256_comp_fmadd_ps(gy, _mm256_set1_ps(src.w), gx)),
                                           _mm256_set1_ps(src.elempack));
 
-            offset = _mm256_blendv_ps(_mm256_set1_ps(-1.0f), offset, v_in_range);
+            offset = _mm256_blendv_ps(_mm256_set1_ps(-1.0f), _mm256_castsi256_ps(_mm256_cvtps_epi32(offset)), v_in_range);
 
             _mm256_storeu_ps(offset_ptr, offset);
 
@@ -324,7 +302,8 @@ void gridsample_3d_nearest_compute_blob(const Mat& src, const Mat& grid, Mat& of
 
             bool in_bound = ((x0 > -1) & (x0 < src.w) & (y0 > -1) & (y0 < src.h) & (z0 > -1) & (z0 < src.d));
 
-            *offset_ptr = in_bound ? (x0 + y0 * src.w + z0 * src.w * src.h) * src.elempack : -1.0f;
+            int* iptr = (int*)offset_ptr;
+            *iptr = in_bound ? (x0 + y0 * src.w + z0 * src.w * src.h) * src.elempack : -1.0;
 
             gridptr_x++;
             gridptr_y++;

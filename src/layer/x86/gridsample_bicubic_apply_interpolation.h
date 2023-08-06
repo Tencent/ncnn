@@ -29,6 +29,9 @@ static void cubic_interp1d_p16(__m512& coeffs0, __m512& coeffs1, __m512& coeffs2
     coeffs3 = _mm512_sub_ps(_mm512_sub_ps(_mm512_sub_ps(_mm512_set1_ps(1.0f), coeffs0), coeffs1), coeffs2);
 }
 
+#if _MSC_VER >= 1910 && _MSC_VER < 1920
+#pragma optimize("", off)
+#endif // _MSC_VER >= 1910 && _MSC_VER < 1920
 static void gridsample_2d_bicubic_apply_interpolation_p16(const Mat& src, Mat& dst, Mat& offset_value, const Option& opt)
 {
     const int channels = dst.c;
@@ -49,27 +52,28 @@ static void gridsample_2d_bicubic_apply_interpolation_p16(const Mat& src, Mat& d
             __m512 x_coeffs0, x_coeffs1, x_coeffs2, x_coeffs3;
             __m512 y_coeffs0, y_coeffs1, y_coeffs2, y_coeffs3;
             __m512 value_f[4];
-            cubic_interp1d_p16(x_coeffs0, x_coeffs1, x_coeffs2, x_coeffs3, _mm512_set1_ps(*offset_value_ptr++));
-            cubic_interp1d_p16(y_coeffs0, y_coeffs1, y_coeffs2, y_coeffs3, _mm512_set1_ps(*offset_value_ptr++));
+            cubic_interp1d_p16(x_coeffs0, x_coeffs1, x_coeffs2, x_coeffs3, _mm512_set1_ps(offset_value_ptr[0]));
+            cubic_interp1d_p16(y_coeffs0, y_coeffs1, y_coeffs2, y_coeffs3, _mm512_set1_ps(offset_value_ptr[1]));
+
+            const int* offset_ptr = (int*)offset_value_ptr + 2;
+
             for (int ii = 0; ii < 4; ii++)
             {
-                __mmask16 in_bound = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? 0xFFFF : 0;
-                __m512 x0_val = _mm512_maskz_load_ps(in_bound, srcptr + static_cast<int>(*offset_value_ptr));
-                offset_value_ptr++;
-                in_bound = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? 0xFFFF : 0;
-                __m512 x1_val = _mm512_maskz_load_ps(in_bound, srcptr + static_cast<int>(*offset_value_ptr));
-                offset_value_ptr++;
-                in_bound = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? 0xFFFF : 0;
-                __m512 x2_val = _mm512_maskz_load_ps(in_bound, srcptr + static_cast<int>(*offset_value_ptr));
-                offset_value_ptr++;
-                in_bound = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? 0xFFFF : 0;
-                __m512 x3_val = _mm512_maskz_load_ps(in_bound, srcptr + static_cast<int>(*offset_value_ptr));
-                offset_value_ptr++;
+                __mmask16 in_bound = offset_ptr[0] >= 0 ? 0xFFFF : 0;
+                __m512 x0_val = _mm512_maskz_load_ps(in_bound, srcptr + offset_ptr[0]);
+                in_bound = offset_ptr[1] >= 0 ? 0xFFFF : 0;
+                __m512 x1_val = _mm512_maskz_load_ps(in_bound, srcptr + offset_ptr[1]);
+                in_bound = offset_ptr[2] >= 0 ? 0xFFFF : 0;
+                __m512 x2_val = _mm512_maskz_load_ps(in_bound, srcptr + offset_ptr[2]);
+                in_bound = offset_ptr[3] >= 0 ? 0xFFFF : 0;
+                __m512 x3_val = _mm512_maskz_load_ps(in_bound, srcptr + offset_ptr[3]);
 
                 value_f[ii] = _mm512_mul_ps(x_coeffs0, x0_val);
                 value_f[ii] = _mm512_fmadd_ps(x_coeffs1, x1_val, value_f[ii]);
                 value_f[ii] = _mm512_fmadd_ps(x_coeffs2, x2_val, value_f[ii]);
                 value_f[ii] = _mm512_fmadd_ps(x_coeffs3, x3_val, value_f[ii]);
+
+                offset_ptr += 4;
             }
 
             __m512 _v = _mm512_mul_ps(y_coeffs0, value_f[0]);
@@ -79,12 +83,15 @@ static void gridsample_2d_bicubic_apply_interpolation_p16(const Mat& src, Mat& d
             _mm512_storeu_ps(dstptr, _v);
 
             dstptr += 16;
+            offset_value_ptr += 18;
         }
     }
 }
+#if _MSC_VER >= 1910 && _MSC_VER < 1920
+#pragma optimize("", on)
+#endif // _MSC_VER >= 1910 && _MSC_VER < 1920
 
 #endif // __AVX512F__
-
 static void cubic_interp1d_p8(__m256& coeffs0, __m256& coeffs1, __m256& coeffs2, __m256& coeffs3, const __m256& tx)
 {
     const __m256 A = _mm256_set1_ps(-0.75f);
@@ -120,28 +127,28 @@ static void gridsample_2d_bicubic_apply_interpolation_p8(const Mat& src, Mat& ds
             __m256 x_coeffs0, x_coeffs1, x_coeffs2, x_coeffs3;
             __m256 y_coeffs0, y_coeffs1, y_coeffs2, y_coeffs3;
             __m256 value_f[4];
-            cubic_interp1d_p8(x_coeffs0, x_coeffs1, x_coeffs2, x_coeffs3, _mm256_set1_ps(*offset_value_ptr++));
-            cubic_interp1d_p8(y_coeffs0, y_coeffs1, y_coeffs2, y_coeffs3, _mm256_set1_ps(*offset_value_ptr++));
+            cubic_interp1d_p8(x_coeffs0, x_coeffs1, x_coeffs2, x_coeffs3, _mm256_set1_ps(offset_value_ptr[0]));
+            cubic_interp1d_p8(y_coeffs0, y_coeffs1, y_coeffs2, y_coeffs3, _mm256_set1_ps(offset_value_ptr[1]));
+
+            const int* offset_ptr = (int*)offset_value_ptr + 2;
 
             for (int ii = 0; ii < 4; ii++)
             {
-                int in_bound = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? -1 : 0;
-                __m256 x0_val = _mm256_maskload_ps(srcptr + static_cast<int>(*offset_value_ptr), _mm256_set1_epi32(in_bound));
-                offset_value_ptr++;
-                in_bound = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? -1 : 0;
-                __m256 x1_val = _mm256_maskload_ps(srcptr + static_cast<int>(*offset_value_ptr), _mm256_set1_epi32(in_bound));
-                offset_value_ptr++;
-                in_bound = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? -1 : 0;
-                __m256 x2_val = _mm256_maskload_ps(srcptr + static_cast<int>(*offset_value_ptr), _mm256_set1_epi32(in_bound));
-                offset_value_ptr++;
-                in_bound = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? -1 : 0;
-                __m256 x3_val = _mm256_maskload_ps(srcptr + static_cast<int>(*offset_value_ptr), _mm256_set1_epi32(in_bound));
-                offset_value_ptr++;
+                int in_bound = offset_ptr[0] >= 0 ? -1 : 0;
+                __m256 x0_val = _mm256_maskload_ps(srcptr + offset_ptr[0], _mm256_set1_epi32(in_bound));
+                in_bound = offset_ptr[1] >= 0 ? -1 : 0;
+                __m256 x1_val = _mm256_maskload_ps(srcptr + offset_ptr[1], _mm256_set1_epi32(in_bound));
+                in_bound = offset_ptr[2] >= 0 ? -1 : 0;
+                __m256 x2_val = _mm256_maskload_ps(srcptr + offset_ptr[2], _mm256_set1_epi32(in_bound));
+                in_bound = offset_ptr[3] >= 0 ? -1 : 0;
+                __m256 x3_val = _mm256_maskload_ps(srcptr + offset_ptr[3], _mm256_set1_epi32(in_bound));
 
                 value_f[ii] = _mm256_mul_ps(x_coeffs0, x0_val);
                 value_f[ii] = _mm256_comp_fmadd_ps(x_coeffs1, x1_val, value_f[ii]);
                 value_f[ii] = _mm256_comp_fmadd_ps(x_coeffs2, x2_val, value_f[ii]);
                 value_f[ii] = _mm256_comp_fmadd_ps(x_coeffs3, x3_val, value_f[ii]);
+
+                offset_ptr += 4;
             }
 
             __m256 _v = _mm256_mul_ps(y_coeffs0, value_f[0]);
@@ -151,6 +158,7 @@ static void gridsample_2d_bicubic_apply_interpolation_p8(const Mat& src, Mat& ds
             _mm256_storeu_ps(dstptr, _v);
 
             dstptr += 8;
+            offset_value_ptr += 18;
         }
     }
 }
@@ -192,24 +200,24 @@ static void gridsample_2d_bicubic_apply_interpolation_p4(const Mat& src, Mat& ds
 
         for (int i = 0; i < grid_size; i++)
         {
-            cubic_interp1d_p4(x_coeffs0, x_coeffs1, x_coeffs2, x_coeffs3, _mm_set_ps1(*offset_value_ptr++));
-            cubic_interp1d_p4(y_coeffs0, y_coeffs1, y_coeffs2, y_coeffs3, _mm_set_ps1(*offset_value_ptr++));
+            cubic_interp1d_p4(x_coeffs0, x_coeffs1, x_coeffs2, x_coeffs3, _mm_set_ps1(offset_value_ptr[0]));
+            cubic_interp1d_p4(y_coeffs0, y_coeffs1, y_coeffs2, y_coeffs3, _mm_set_ps1(offset_value_ptr[1]));
+
+            const int* offset_ptr = (int*)offset_value_ptr + 2;
 
             for (int ii = 0; ii < 4; ii++)
             {
-                __m128 x0_val = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? _mm_load_ps(srcptr + static_cast<int>(*offset_value_ptr)) : _mm_set1_ps(0);
-                offset_value_ptr++;
-                __m128 x1_val = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? _mm_load_ps(srcptr + static_cast<int>(*offset_value_ptr)) : _mm_set1_ps(0);
-                offset_value_ptr++;
-                __m128 x2_val = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? _mm_load_ps(srcptr + static_cast<int>(*offset_value_ptr)) : _mm_set1_ps(0);
-                offset_value_ptr++;
-                __m128 x3_val = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? _mm_load_ps(srcptr + static_cast<int>(*offset_value_ptr)) : _mm_set1_ps(0);
-                offset_value_ptr++;
+                __m128 x0_val = offset_ptr[0] >= 0 ? _mm_load_ps(srcptr + offset_ptr[0]) : _mm_set1_ps(0);
+                __m128 x1_val = offset_ptr[1] >= 0 ? _mm_load_ps(srcptr + offset_ptr[1]) : _mm_set1_ps(0);
+                __m128 x2_val = offset_ptr[2] >= 0 ? _mm_load_ps(srcptr + offset_ptr[2]) : _mm_set1_ps(0);
+                __m128 x3_val = offset_ptr[3] >= 0 ? _mm_load_ps(srcptr + offset_ptr[3]) : _mm_set1_ps(0);
 
                 value_f[ii] = _mm_mul_ps(x_coeffs0, x0_val);
                 value_f[ii] = _mm_comp_fmadd_ps(x_coeffs1, x1_val, value_f[ii]);
                 value_f[ii] = _mm_comp_fmadd_ps(x_coeffs2, x2_val, value_f[ii]);
                 value_f[ii] = _mm_comp_fmadd_ps(x_coeffs3, x3_val, value_f[ii]);
+
+                offset_ptr += 4;
             }
 
             __m128 _v = _mm_mul_ps(y_coeffs0, value_f[0]);
@@ -219,9 +227,11 @@ static void gridsample_2d_bicubic_apply_interpolation_p4(const Mat& src, Mat& ds
             _mm_storeu_ps(dstptr, _v);
 
             dstptr += 4;
+            offset_value_ptr += 18;
         }
     }
 }
+
 #endif // __SSE2__
 
 static inline void cubic_interp1d(float& coeffs0, float& coeffs1, float& coeffs2, float& coeffs3, float fx)
@@ -259,27 +269,24 @@ static void gridsample_2d_bicubic_apply_interpolation_p1(const Mat& src, Mat& ds
             float x_coeffs0, x_coeffs1, x_coeffs2, x_coeffs3;
             float y_coeffs0, y_coeffs1, y_coeffs2, y_coeffs3;
             float value_f[4];
-            cubic_interp1d(x_coeffs0, x_coeffs1, x_coeffs2, x_coeffs3, *offset_value_ptr++);
-            cubic_interp1d(y_coeffs0, y_coeffs1, y_coeffs2, y_coeffs3, *offset_value_ptr++);
+            cubic_interp1d(x_coeffs0, x_coeffs1, x_coeffs2, x_coeffs3, offset_value_ptr[0]);
+            cubic_interp1d(y_coeffs0, y_coeffs1, y_coeffs2, y_coeffs3, offset_value_ptr[1]);
+
+            const int* offset_ptr = (int*)offset_value_ptr + 2;
 
             for (int ii = 0; ii < 4; ii++)
             {
-                float x0_val = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? *(srcptr + static_cast<int>(*offset_value_ptr)) : 0;
-                offset_value_ptr++;
-
-                float x1_val = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? *(srcptr + static_cast<int>(*offset_value_ptr)) : 0;
-                offset_value_ptr++;
-
-                float x2_val = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? *(srcptr + static_cast<int>(*offset_value_ptr)) : 0;
-                offset_value_ptr++;
-
-                float x3_val = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? *(srcptr + static_cast<int>(*offset_value_ptr)) : 0;
-                offset_value_ptr++;
+                float x0_val = offset_ptr[0] >= 0 ? *(srcptr + offset_ptr[0]) : 0;
+                float x1_val = offset_ptr[1] >= 0 ? *(srcptr + offset_ptr[1]) : 0;
+                float x2_val = offset_ptr[2] >= 0 ? *(srcptr + offset_ptr[2]) : 0;
+                float x3_val = offset_ptr[3] >= 0 ? *(srcptr + offset_ptr[3]) : 0;
 
                 value_f[ii] = x_coeffs0 * x0_val;
                 value_f[ii] = x_coeffs1 * x1_val + value_f[ii];
                 value_f[ii] = x_coeffs2 * x2_val + value_f[ii];
                 value_f[ii] = x_coeffs3 * x3_val + value_f[ii];
+
+                offset_ptr += 4;
             }
 
             float _v = y_coeffs0 * value_f[0];
@@ -289,6 +296,7 @@ static void gridsample_2d_bicubic_apply_interpolation_p1(const Mat& src, Mat& ds
             *dstptr = _v;
 
             dstptr++;
+            offset_value_ptr += 18;
         }
     }
 }

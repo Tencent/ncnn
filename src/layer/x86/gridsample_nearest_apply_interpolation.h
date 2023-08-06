@@ -29,12 +29,12 @@ static void gridsample_nearest_apply_interpolation_p16(const Mat& src, Mat& dst,
         const float* srcptr = src.channel(q);
         float* dstptr = dst.channel(q);
 
-        const float* offset_ptr = offset_value.channel(0);
+        const int* offset_ptr = offset_value.channel(0);
 
         for (int i = 0; i < grid_size; i++)
         {
-            __mmask16 in_bound = *reinterpret_cast<const int*>(offset_ptr) >= 0 ? 0xFFFF : 0;
-            __m512 _v = _mm512_maskz_load_ps(in_bound, srcptr + static_cast<int>(*offset_ptr));
+            __mmask16 in_bound = offset_ptr[0] >= 0 ? 0xFFFF : 0;
+            __m512 _v = _mm512_maskz_load_ps(in_bound, srcptr + offset_ptr[0]);
             offset_ptr++;
 
             _mm512_storeu_ps(dstptr, _v);
@@ -58,12 +58,12 @@ static void gridsample_nearest_apply_interpolation_p8(const Mat& src, Mat& dst, 
         const float* srcptr = src.channel(q);
         float* dstptr = dst.channel(q);
 
-        const float* offset_ptr = offset_value.channel(0);
+        const int* offset_ptr = offset_value.channel(0);
 
         for (int i = 0; i < grid_size; i++)
         {
-            int in_bound = *reinterpret_cast<const int*>(offset_ptr) >= 0 ? -1 : 0;
-            __m256 _v = _mm256_maskload_ps(srcptr + static_cast<int>(*offset_ptr), _mm256_set1_epi32(in_bound));
+            int in_bound = offset_ptr[0] >= 0 ? -1 : 0;
+            __m256 _v = _mm256_maskload_ps(srcptr + offset_ptr[0], _mm256_set1_epi32(in_bound));
             offset_ptr++;
 
             _mm256_storeu_ps(dstptr, _v);
@@ -86,11 +86,11 @@ static void gridsample_nearest_apply_interpolation_p4(const Mat& src, Mat& dst, 
         const float* srcptr = src.channel(q);
         float* dstptr = dst.channel(q);
 
-        const float* offset_ptr = offset_value.channel(0);
+        const int* offset_ptr = offset_value.channel(0);
 
         for (int i = 0; i < grid_size; i++)
         {
-            __m128 _v = *reinterpret_cast<const int*>(offset_ptr) >= 0 ? _mm_load_ps(srcptr + static_cast<int>(*offset_ptr)) : _mm_set1_ps(0);
+            __m128 _v = offset_ptr[0] >= 0 ? _mm_load_ps(srcptr + offset_ptr[0]) : _mm_set1_ps(0);
             offset_ptr++;
 
             _mm_storeu_ps(dstptr, _v);
@@ -115,11 +115,11 @@ static void gridsample_nearest_apply_interpolation_p1(const Mat& src, Mat& dst, 
         const float* srcptr = src.channel(q);
         float* dstptr = dst.channel(q);
 
-        const float* offset_ptr = offset_value.channel(0);
+        const int* offset_ptr = offset_value.channel(0);
 
         for (int x = 0; x < grid_size; x++)
         {
-            *dstptr = *reinterpret_cast<const int*>(offset_ptr) >= 0 ? *(srcptr + static_cast<int>(*offset_ptr)) : 0;
+            *dstptr = offset_ptr[0] >= 0 ? *(srcptr + offset_ptr[0]) : 0;
 
             offset_ptr++;
             dstptr++;

@@ -15,6 +15,9 @@
 #if __SSE2__
 #if __AVX__
 #if __AVX512F__
+#if _MSC_VER >= 1910 && _MSC_VER < 1920
+#pragma optimize("", off)
+#endif // _MSC_VER >= 1910 && _MSC_VER < 1920
 static void gridsample_2d_bilinear_apply_interpolation_p16(const Mat& src, Mat& dst, const Mat& offset_value, const Option& opt)
 {
     const int channels = dst.c;
@@ -32,31 +35,32 @@ static void gridsample_2d_bilinear_apply_interpolation_p16(const Mat& src, Mat& 
 
         for (int i = 0; i < grid_size; i++)
         {
-            __mmask16 in_bound = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? 0xFFFF : 0;
-            __m512 v00_val = _mm512_maskz_load_ps(in_bound, srcptr + static_cast<int>(*offset_value_ptr));
-            offset_value_ptr++;
-            in_bound = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? 0xFFFF : 0;
-            __m512 v01_val = _mm512_maskz_load_ps(in_bound, srcptr + static_cast<int>(*offset_value_ptr));
-            offset_value_ptr++;
-            in_bound = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? 0xFFFF : 0;
-            __m512 v10_val = _mm512_maskz_load_ps(in_bound, srcptr + static_cast<int>(*offset_value_ptr));
-            offset_value_ptr++;
-            in_bound = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? 0xFFFF : 0;
-            __m512 v11_val = _mm512_maskz_load_ps(in_bound, srcptr + static_cast<int>(*offset_value_ptr));
-            offset_value_ptr++;
+            const int* offset_ptr = (int*)offset_value_ptr;
+            const float* value_ptr = offset_value_ptr + 4;
 
-            __m512 value = _mm512_set1_ps(*offset_value_ptr++);
-            __m512 v0 = _mm512_fmadd_ps(v01_val, value, _mm512_fnmadd_ps(v00_val, value, v00_val));
-            __m512 v1 = _mm512_fmadd_ps(v11_val, value, _mm512_fnmadd_ps(v10_val, value, v10_val));
+            __mmask16 in_bound = offset_ptr[0] >= 0 ? 0xFFFF : 0;
+            __m512 v00_val = _mm512_maskz_load_ps(in_bound, srcptr + offset_ptr[0]);
+            in_bound = offset_ptr[1] >= 0 ? 0xFFFF : 0;
+            __m512 v01_val = _mm512_maskz_load_ps(in_bound, srcptr + offset_ptr[1]);
+            in_bound = offset_ptr[2] >= 0 ? 0xFFFF : 0;
+            __m512 v10_val = _mm512_maskz_load_ps(in_bound, srcptr + offset_ptr[2]);
+            in_bound = offset_ptr[3] >= 0 ? 0xFFFF : 0;
+            __m512 v11_val = _mm512_maskz_load_ps(in_bound, srcptr + offset_ptr[3]);
 
-            value = _mm512_set1_ps(*offset_value_ptr++);
-            __m512 _v = _mm512_fmadd_ps(v1, value, _mm512_fnmadd_ps(v0, value, v0));
+            __m512 value1 = _mm512_set1_ps(value_ptr[0]);
+            __m512 v0 = _mm512_fmadd_ps(v01_val, value1, _mm512_fnmadd_ps(v00_val, value1, v00_val));
+            __m512 v1 = _mm512_fmadd_ps(v11_val, value1, _mm512_fnmadd_ps(v10_val, value1, v10_val));
+
+            __m512 value2 = _mm512_set1_ps(value_ptr[1]);
+            __m512 _v = _mm512_fmadd_ps(v1, value2, _mm512_fnmadd_ps(v0, value2, v0));
             _mm512_storeu_ps(dstptr, _v);
 
             dstptr += 16;
+            offset_value_ptr += 6;
         }
     }
 }
+
 static void gridsample_3d_bilinear_apply_interpolation_p16(const Mat& src, Mat& dst, const Mat& offset_value, const Option& opt)
 {
     const int channels = dst.c;
@@ -75,50 +79,50 @@ static void gridsample_3d_bilinear_apply_interpolation_p16(const Mat& src, Mat& 
 
         for (int i = 0; i < grid_size; i++)
         {
-            __mmask16 in_bound = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? 0xFFFF : 0;
-            __m512 v000_val = _mm512_maskz_load_ps(in_bound, srcptr + static_cast<int>(*offset_value_ptr));
-            offset_value_ptr++;
-            in_bound = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? 0xFFFF : 0;
-            __m512 v001_val = _mm512_maskz_load_ps(in_bound, srcptr + static_cast<int>(*offset_value_ptr));
-            offset_value_ptr++;
-            in_bound = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? 0xFFFF : 0;
-            __m512 v010_val = _mm512_maskz_load_ps(in_bound, srcptr + static_cast<int>(*offset_value_ptr));
-            offset_value_ptr++;
-            in_bound = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? 0xFFFF : 0;
-            __m512 v011_val = _mm512_maskz_load_ps(in_bound, srcptr + static_cast<int>(*offset_value_ptr));
-            offset_value_ptr++;
+            const int* offset_ptr = (int*)offset_value_ptr;
+            const float* value_ptr = offset_value_ptr + 8;
 
-            in_bound = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? 0xFFFF : 0;
-            __m512 v100_val = _mm512_maskz_load_ps(in_bound, srcptr + static_cast<int>(*offset_value_ptr));
-            offset_value_ptr++;
-            in_bound = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? 0xFFFF : 0;
-            __m512 v101_val = _mm512_maskz_load_ps(in_bound, srcptr + static_cast<int>(*offset_value_ptr));
-            offset_value_ptr++;
-            in_bound = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? 0xFFFF : 0;
-            __m512 v110_val = _mm512_maskz_load_ps(in_bound, srcptr + static_cast<int>(*offset_value_ptr));
-            offset_value_ptr++;
-            in_bound = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? 0xFFFF : 0;
-            __m512 v111_val = _mm512_maskz_load_ps(in_bound, srcptr + static_cast<int>(*offset_value_ptr));
-            offset_value_ptr++;
+            __mmask16 in_bound = offset_ptr[0] >= 0 ? 0xFFFF : 0;
+            __m512 v000_val = _mm512_maskz_load_ps(in_bound, srcptr + offset_ptr[0]);
+            in_bound = offset_ptr[1] >= 0 ? 0xFFFF : 0;
+            __m512 v001_val = _mm512_maskz_load_ps(in_bound, srcptr + offset_ptr[1]);
+            in_bound = offset_ptr[2] >= 0 ? 0xFFFF : 0;
+            __m512 v010_val = _mm512_maskz_load_ps(in_bound, srcptr + offset_ptr[2]);
+            in_bound = offset_ptr[3] >= 0 ? 0xFFFF : 0;
+            __m512 v011_val = _mm512_maskz_load_ps(in_bound, srcptr + offset_ptr[3]);
 
-            __m512 value = _mm512_set1_ps(*offset_value_ptr++);
+            in_bound = offset_ptr[4] >= 0 ? 0xFFFF : 0;
+            __m512 v100_val = _mm512_maskz_load_ps(in_bound, srcptr + offset_ptr[4]);
+            in_bound = offset_ptr[5] >= 0 ? 0xFFFF : 0;
+            __m512 v101_val = _mm512_maskz_load_ps(in_bound, srcptr + offset_ptr[5]);
+            in_bound = offset_ptr[6] >= 0 ? 0xFFFF : 0;
+            __m512 v110_val = _mm512_maskz_load_ps(in_bound, srcptr + offset_ptr[6]);
+            in_bound = offset_ptr[7] >= 0 ? 0xFFFF : 0;
+            __m512 v111_val = _mm512_maskz_load_ps(in_bound, srcptr + offset_ptr[7]);
+
+
+            __m512 value = _mm512_set1_ps(value_ptr[0]);
             __m512 v00 = _mm512_fmadd_ps(v001_val, value, _mm512_fnmadd_ps(v000_val, value, v000_val));
             __m512 v01 = _mm512_fmadd_ps(v011_val, value, _mm512_fnmadd_ps(v010_val, value, v010_val));
             __m512 v10 = _mm512_fmadd_ps(v101_val, value, _mm512_fnmadd_ps(v100_val, value, v100_val));
             __m512 v11 = _mm512_fmadd_ps(v111_val, value, _mm512_fnmadd_ps(v110_val, value, v110_val));
 
-            value = _mm512_set1_ps(*offset_value_ptr++);
+            value = _mm512_set1_ps(value_ptr[1]);
             __m512 v0 = _mm512_fmadd_ps(v01, value, _mm512_fnmadd_ps(v00, value, v00));
             __m512 v1 = _mm512_fmadd_ps(v11, value, _mm512_fnmadd_ps(v10, value, v10));
 
-            value = _mm512_set1_ps(*offset_value_ptr++);
+            value = _mm512_set1_ps(value_ptr[2]);
             __m512 _v = _mm512_fmadd_ps(v1, value, _mm512_fnmadd_ps(v0, value, v0));
             _mm512_storeu_ps(dstptr, _v);
 
             dstptr += 16;
+            offset_value_ptr += 11;
         }
     }
 }
+#if _MSC_VER >= 1910 && _MSC_VER < 1920
+#pragma optimize("", on)
+#endif // _MSC_VER >= 1910 && _MSC_VER < 1920
 
 #endif // __AVX512F__
 
@@ -139,28 +143,28 @@ static void gridsample_2d_bilinear_apply_interpolation_p8(const Mat& src, Mat& d
 
         for (int i = 0; i < grid_size; i++)
         {
-            int in_bound = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? -1 : 0;
-            __m256 v00_val = _mm256_maskload_ps(srcptr + static_cast<int>(*offset_value_ptr), _mm256_set1_epi32(in_bound));
-            offset_value_ptr++;
-            in_bound = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? -1 : 0;
-            __m256 v01_val = _mm256_maskload_ps(srcptr + static_cast<int>(*offset_value_ptr), _mm256_set1_epi32(in_bound));
-            offset_value_ptr++;
-            in_bound = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? -1 : 0;
-            __m256 v10_val = _mm256_maskload_ps(srcptr + static_cast<int>(*offset_value_ptr), _mm256_set1_epi32(in_bound));
-            offset_value_ptr++;
-            in_bound = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? -1 : 0;
-            __m256 v11_val = _mm256_maskload_ps(srcptr + static_cast<int>(*offset_value_ptr), _mm256_set1_epi32(in_bound));
-            offset_value_ptr++;
+            const int* offset_ptr = (int*)offset_value_ptr;
+            const float* value_ptr = offset_value_ptr + 4;
 
-            __m256 value = _mm256_set1_ps(*offset_value_ptr++);
-            __m256 v0 = _mm256_comp_fmadd_ps(v01_val, value, _mm256_comp_fnmadd_ps(v00_val, value, v00_val));
-            __m256 v1 = _mm256_comp_fmadd_ps(v11_val, value, _mm256_comp_fnmadd_ps(v10_val, value, v10_val));
+            int in_bound = offset_ptr[0] >= 0 ? -1 : 0;
+            __m256 v00_val = _mm256_maskload_ps(srcptr + offset_ptr[0], _mm256_set1_epi32(in_bound));
+            in_bound = offset_ptr[1] >= 0 ? -1 : 0;
+            __m256 v01_val = _mm256_maskload_ps(srcptr + offset_ptr[1], _mm256_set1_epi32(in_bound));
+            in_bound = offset_ptr[2] >= 0 ? -1 : 0;
+            __m256 v10_val = _mm256_maskload_ps(srcptr + offset_ptr[2], _mm256_set1_epi32(in_bound));
+            in_bound = offset_ptr[3] >= 0 ? -1 : 0;
+            __m256 v11_val = _mm256_maskload_ps(srcptr + offset_ptr[3], _mm256_set1_epi32(in_bound));
 
-            value = _mm256_set1_ps(*offset_value_ptr++);
-            __m256 _v = _mm256_comp_fmadd_ps(v1, value, _mm256_comp_fnmadd_ps(v0, value, v0));
+            __m256 value1 = _mm256_set1_ps(value_ptr[0]);
+            __m256 v0 = _mm256_comp_fmadd_ps(v01_val, value1, _mm256_comp_fnmadd_ps(v00_val, value1, v00_val));
+            __m256 v1 = _mm256_comp_fmadd_ps(v11_val, value1, _mm256_comp_fnmadd_ps(v10_val, value1, v10_val));
+
+            __m256 value2 = _mm256_set1_ps(value_ptr[1]);
+            __m256 _v = _mm256_comp_fmadd_ps(v1, value2, _mm256_comp_fnmadd_ps(v0, value2, v0));
             _mm256_storeu_ps(dstptr, _v);
 
             dstptr += 8;
+            offset_value_ptr += 6;
         }
     }
 }
@@ -182,47 +186,43 @@ static void gridsample_3d_bilinear_apply_interpolation_p8(const Mat& src, Mat& d
 
         for (int i = 0; i < grid_size; i++)
         {
-            int in_bound = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? -1 : 0;
-            __m256 v000_val = _mm256_maskload_ps(srcptr + static_cast<int>(*offset_value_ptr), _mm256_set1_epi32(in_bound));
-            offset_value_ptr++;
-            in_bound = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? -1 : 0;
-            __m256 v001_val = _mm256_maskload_ps(srcptr + static_cast<int>(*offset_value_ptr), _mm256_set1_epi32(in_bound));
-            offset_value_ptr++;
-            in_bound = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? -1 : 0;
-            __m256 v010_val = _mm256_maskload_ps(srcptr + static_cast<int>(*offset_value_ptr), _mm256_set1_epi32(in_bound));
-            offset_value_ptr++;
-            in_bound = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? -1 : 0;
-            __m256 v011_val = _mm256_maskload_ps(srcptr + static_cast<int>(*offset_value_ptr), _mm256_set1_epi32(in_bound));
-            offset_value_ptr++;
+            const int* offset_ptr = (int*)offset_value_ptr;
+            const float* value_ptr = offset_value_ptr + 8;
 
-            in_bound = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? -1 : 0;
-            __m256 v100_val = _mm256_maskload_ps(srcptr + static_cast<int>(*offset_value_ptr), _mm256_set1_epi32(in_bound));
-            offset_value_ptr++;
-            in_bound = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? -1 : 0;
-            __m256 v101_val = _mm256_maskload_ps(srcptr + static_cast<int>(*offset_value_ptr), _mm256_set1_epi32(in_bound));
-            offset_value_ptr++;
-            in_bound = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? -1 : 0;
-            __m256 v110_val = _mm256_maskload_ps(srcptr + static_cast<int>(*offset_value_ptr), _mm256_set1_epi32(in_bound));
-            offset_value_ptr++;
-            in_bound = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? -1 : 0;
-            __m256 v111_val = _mm256_maskload_ps(srcptr + static_cast<int>(*offset_value_ptr), _mm256_set1_epi32(in_bound));
-            offset_value_ptr++;
+            int in_bound = offset_ptr[0] >= 0 ? -1 : 0;
+            __m256 v000_val = _mm256_maskload_ps(srcptr + offset_ptr[0], _mm256_set1_epi32(in_bound));
+            in_bound = offset_ptr[1] >= 0 ? -1 : 0;
+            __m256 v001_val = _mm256_maskload_ps(srcptr + offset_ptr[1], _mm256_set1_epi32(in_bound));
+            in_bound = offset_ptr[2] >= 0 ? -1 : 0;
+            __m256 v010_val = _mm256_maskload_ps(srcptr + offset_ptr[2], _mm256_set1_epi32(in_bound));
+            in_bound = offset_ptr[3] >= 0 ? -1 : 0;
+            __m256 v011_val = _mm256_maskload_ps(srcptr + offset_ptr[3], _mm256_set1_epi32(in_bound));
 
-            __m256 value = _mm256_set1_ps(*offset_value_ptr++);
+            in_bound = offset_ptr[4] >= 0 ? -1 : 0;
+            __m256 v100_val = _mm256_maskload_ps(srcptr + offset_ptr[4], _mm256_set1_epi32(in_bound));
+            in_bound = offset_ptr[5] >= 0 ? -1 : 0;
+            __m256 v101_val = _mm256_maskload_ps(srcptr + offset_ptr[5], _mm256_set1_epi32(in_bound));
+            in_bound = offset_ptr[6] >= 0 ? -1 : 0;
+            __m256 v110_val = _mm256_maskload_ps(srcptr + offset_ptr[6], _mm256_set1_epi32(in_bound));
+            in_bound = offset_ptr[7] >= 0 ? -1 : 0;
+            __m256 v111_val = _mm256_maskload_ps(srcptr + offset_ptr[7], _mm256_set1_epi32(in_bound));
+
+            __m256 value = _mm256_set1_ps(value_ptr[0]);
             __m256 v00 = _mm256_comp_fmadd_ps(v001_val, value, _mm256_comp_fnmadd_ps(v000_val, value, v000_val));
             __m256 v01 = _mm256_comp_fmadd_ps(v011_val, value, _mm256_comp_fnmadd_ps(v010_val, value, v010_val));
             __m256 v10 = _mm256_comp_fmadd_ps(v101_val, value, _mm256_comp_fnmadd_ps(v100_val, value, v100_val));
             __m256 v11 = _mm256_comp_fmadd_ps(v111_val, value, _mm256_comp_fnmadd_ps(v110_val, value, v110_val));
 
-            value = _mm256_set1_ps(*offset_value_ptr++);
+            value = _mm256_set1_ps(value_ptr[1]);
             __m256 v0 = _mm256_comp_fmadd_ps(v01, value, _mm256_comp_fnmadd_ps(v00, value, v00));
             __m256 v1 = _mm256_comp_fmadd_ps(v11, value, _mm256_comp_fnmadd_ps(v10, value, v10));
 
-            value = _mm256_set1_ps(*offset_value_ptr++);
+            value = _mm256_set1_ps(value_ptr[2]);
             __m256 _v = _mm256_comp_fmadd_ps(v1, value, _mm256_comp_fnmadd_ps(v0, value, v0));
             _mm256_storeu_ps(dstptr, _v);
 
             dstptr += 8;
+            offset_value_ptr += 11;
         }
     }
 }
@@ -244,24 +244,24 @@ static void gridsample_2d_bilinear_apply_interpolation_p4(const Mat& src, Mat& d
 
         for (int i = 0; i < grid_size; i++)
         {
-            __m128 v00_val = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? _mm_load_ps(srcptr + static_cast<int>(*offset_value_ptr)) : _mm_set1_ps(0);
-            offset_value_ptr++;
-            __m128 v01_val = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? _mm_load_ps(srcptr + static_cast<int>(*offset_value_ptr)) : _mm_set1_ps(0);
-            offset_value_ptr++;
-            __m128 v10_val = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? _mm_load_ps(srcptr + static_cast<int>(*offset_value_ptr)) : _mm_set1_ps(0);
-            offset_value_ptr++;
-            __m128 v11_val = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? _mm_load_ps(srcptr + static_cast<int>(*offset_value_ptr)) : _mm_set1_ps(0);
-            offset_value_ptr++;
+            const int* offset_ptr = (int*)offset_value_ptr;
+            const float* value_ptr = offset_value_ptr + 4;
 
-            __m128 value = _mm_set1_ps(*offset_value_ptr++);
-            __m128 v0 = _mm_comp_fmadd_ps(v01_val, value, _mm_comp_fnmadd_ps(v00_val, value, v00_val));
-            __m128 v1 = _mm_comp_fmadd_ps(v11_val, value, _mm_comp_fnmadd_ps(v10_val, value, v10_val));
+            __m128 v00_val = offset_ptr[0] >= 0 ? _mm_load_ps(srcptr + offset_ptr[0]) : _mm_set1_ps(0);
+            __m128 v01_val = offset_ptr[1] >= 0 ? _mm_load_ps(srcptr + offset_ptr[1]) : _mm_set1_ps(0);
+            __m128 v10_val = offset_ptr[2] >= 0 ? _mm_load_ps(srcptr + offset_ptr[2]) : _mm_set1_ps(0);
+            __m128 v11_val = offset_ptr[3] >= 0 ? _mm_load_ps(srcptr + offset_ptr[3]) : _mm_set1_ps(0);
 
-            value = _mm_set1_ps(*offset_value_ptr++);
-            __m128 _v = _mm_comp_fmadd_ps(v1, value, _mm_comp_fnmadd_ps(v0, value, v0));
+            __m128 value1 = _mm_set1_ps(value_ptr[0]);
+            __m128 v0 = _mm_comp_fmadd_ps(v01_val, value1, _mm_comp_fnmadd_ps(v00_val, value1, v00_val));
+            __m128 v1 = _mm_comp_fmadd_ps(v11_val, value1, _mm_comp_fnmadd_ps(v10_val, value1, v10_val));
+
+            __m128 value2 = _mm_set1_ps(value_ptr[1]);
+            __m128 _v = _mm_comp_fmadd_ps(v1, value2, _mm_comp_fnmadd_ps(v0, value2, v0));
             _mm_storeu_ps(dstptr, _v);
 
             dstptr += 4;
+            offset_value_ptr += 6;
         }
     }
 }
@@ -283,42 +283,41 @@ static void gridsample_3d_bilinear_apply_interpolation_p4(const Mat& src, Mat& d
 
         for (int i = 0; i < grid_size; i++)
         {
-            __m128 v000_val = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? _mm_load_ps(srcptr + static_cast<int>(*offset_value_ptr)) : _mm_set1_ps(0);
-            offset_value_ptr++;
-            __m128 v001_val = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? _mm_load_ps(srcptr + static_cast<int>(*offset_value_ptr)) : _mm_set1_ps(0);
-            offset_value_ptr++;
-            __m128 v010_val = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? _mm_load_ps(srcptr + static_cast<int>(*offset_value_ptr)) : _mm_set1_ps(0);
-            offset_value_ptr++;
-            __m128 v011_val = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? _mm_load_ps(srcptr + static_cast<int>(*offset_value_ptr)) : _mm_set1_ps(0);
-            offset_value_ptr++;
+            const int* offset_ptr = (int*)offset_value_ptr;
+            const float* value_ptr = offset_value_ptr + 8;
+            
+            __m128 v000_val = offset_ptr[0] >= 0 ? _mm_load_ps(srcptr + offset_ptr[0]) : _mm_set1_ps(0);
+            __m128 v001_val = offset_ptr[1] >= 0 ? _mm_load_ps(srcptr + offset_ptr[1]) : _mm_set1_ps(0);
+            __m128 v010_val = offset_ptr[2] >= 0 ? _mm_load_ps(srcptr + offset_ptr[2]) : _mm_set1_ps(0);
+            __m128 v011_val = offset_ptr[3] >= 0 ? _mm_load_ps(srcptr + offset_ptr[3]) : _mm_set1_ps(0);
 
-            __m128 v100_val = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? _mm_load_ps(srcptr + static_cast<int>(*offset_value_ptr)) : _mm_set1_ps(0);
-            offset_value_ptr++;
-            __m128 v101_val = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? _mm_load_ps(srcptr + static_cast<int>(*offset_value_ptr)) : _mm_set1_ps(0);
-            offset_value_ptr++;
-            __m128 v110_val = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? _mm_load_ps(srcptr + static_cast<int>(*offset_value_ptr)) : _mm_set1_ps(0);
-            offset_value_ptr++;
-            __m128 v111_val = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? _mm_load_ps(srcptr + static_cast<int>(*offset_value_ptr)) : _mm_set1_ps(0);
-            offset_value_ptr++;
+            __m128 v100_val = offset_ptr[4] >= 0 ? _mm_load_ps(srcptr + offset_ptr[4]) : _mm_set1_ps(0);
+            __m128 v101_val = offset_ptr[5] >= 0 ? _mm_load_ps(srcptr + offset_ptr[5]) : _mm_set1_ps(0);
+            __m128 v110_val = offset_ptr[6] >= 0 ? _mm_load_ps(srcptr + offset_ptr[6]) : _mm_set1_ps(0);
+            __m128 v111_val = offset_ptr[7] >= 0 ? _mm_load_ps(srcptr + offset_ptr[7]) : _mm_set1_ps(0);
 
-            __m128 value = _mm_set1_ps(*offset_value_ptr++);
+            __m128 value = _mm_set1_ps(value_ptr[0]);
             __m128 v00 = _mm_comp_fmadd_ps(v001_val, value, _mm_comp_fnmadd_ps(v000_val, value, v000_val));
             __m128 v01 = _mm_comp_fmadd_ps(v011_val, value, _mm_comp_fnmadd_ps(v010_val, value, v010_val));
             __m128 v10 = _mm_comp_fmadd_ps(v101_val, value, _mm_comp_fnmadd_ps(v100_val, value, v100_val));
             __m128 v11 = _mm_comp_fmadd_ps(v111_val, value, _mm_comp_fnmadd_ps(v110_val, value, v110_val));
 
-            value = _mm_set1_ps(*offset_value_ptr++);
+            value = _mm_set1_ps(value_ptr[1]);
             __m128 v0 = _mm_comp_fmadd_ps(v01, value, _mm_comp_fnmadd_ps(v00, value, v00));
             __m128 v1 = _mm_comp_fmadd_ps(v11, value, _mm_comp_fnmadd_ps(v10, value, v10));
 
-            value = _mm_set1_ps(*offset_value_ptr++);
+            value = _mm_set1_ps(value_ptr[2]);
             __m128 _v = _mm_comp_fmadd_ps(v1, value, _mm_comp_fnmadd_ps(v0, value, v0));
             _mm_storeu_ps(dstptr, _v);
 
             dstptr += 4;
+            offset_value_ptr += 11;
         }
     }
 }
+#pragma fenv_access(off)
+
+#pragma float_control(precise, off)
 #endif // __SSE2__
 
 static void gridsample_2d_bilinear_apply_interpolation_p1(const Mat& src, Mat& dst, const Mat& offset_value, const Option& opt)
@@ -338,23 +337,21 @@ static void gridsample_2d_bilinear_apply_interpolation_p1(const Mat& src, Mat& d
 
         for (int x = 0; x < grid_size; x++)
         {
-            float v00 = *offset_value_ptr >= 0 ? *(srcptr + static_cast<int>(*offset_value_ptr)) : 0;
-            offset_value_ptr++;
-            float v01 = *offset_value_ptr >= 0 ? *(srcptr + static_cast<int>(*offset_value_ptr)) : 0;
-            offset_value_ptr++;
-            float v10 = *offset_value_ptr >= 0 ? *(srcptr + static_cast<int>(*offset_value_ptr)) : 0;
-            offset_value_ptr++;
-            float v11 = *offset_value_ptr >= 0 ? *(srcptr + static_cast<int>(*offset_value_ptr)) : 0;
-            offset_value_ptr++;
+            const int* offset_ptr = (int*)offset_value_ptr;
+            const float* value_ptr = offset_value_ptr + 4;
 
-            float v0 = v00 * (1 - *offset_value_ptr) + v01 * *offset_value_ptr;
-            float v1 = v10 * (1 - *offset_value_ptr) + v11 * *offset_value_ptr;
-            offset_value_ptr++;
+            float v00 = offset_ptr[0] >= 0 ? *(srcptr + offset_ptr[0]) : 0;
+            float v01 = offset_ptr[1] >= 0 ? *(srcptr + offset_ptr[1]) : 0;
+            float v10 = offset_ptr[2] >= 0 ? *(srcptr + offset_ptr[2]) : 0;
+            float v11 = offset_ptr[3] >= 0 ? *(srcptr + offset_ptr[3]) : 0;
 
-            *dstptr = v0 * (1 - *offset_value_ptr) + v1 * *offset_value_ptr;
-            offset_value_ptr++;
+            float v0 = v00 * (1 - value_ptr[0]) + v01 * value_ptr[0];
+            float v1 = v10 * (1 - value_ptr[0]) + v11 * value_ptr[0];
+
+            *dstptr = v0 * (1 - value_ptr[1]) + v1 * value_ptr[1];
 
             dstptr++;
+            offset_value_ptr += 6;
         }
     }
 }
@@ -377,38 +374,31 @@ static void gridsample_3d_bilinear_apply_interpolation_p1(const Mat& src, Mat& d
 
         for (int x = 0; x < grid_size; x++)
         {
-            float v000 = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? *(srcptr + static_cast<int>(*offset_value_ptr)) : 0;
-            offset_value_ptr++;
-            float v001 = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? *(srcptr + static_cast<int>(*offset_value_ptr)) : 0;
-            offset_value_ptr++;
-            float v010 = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? *(srcptr + static_cast<int>(*offset_value_ptr)) : 0;
-            offset_value_ptr++;
-            float v011 = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? *(srcptr + static_cast<int>(*offset_value_ptr)) : 0;
-            offset_value_ptr++;
+            const int* offset_ptr = (int*)offset_value_ptr;
+            const float* value_ptr = offset_value_ptr + 8;
 
-            float v100 = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? *(srcptr + static_cast<int>(*offset_value_ptr)) : 0;
-            offset_value_ptr++;
-            float v101 = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? *(srcptr + static_cast<int>(*offset_value_ptr)) : 0;
-            offset_value_ptr++;
-            float v110 = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? *(srcptr + static_cast<int>(*offset_value_ptr)) : 0;
-            offset_value_ptr++;
-            float v111 = *reinterpret_cast<const int*>(offset_value_ptr) >= 0 ? *(srcptr + static_cast<int>(*offset_value_ptr)) : 0;
-            offset_value_ptr++;
+            float v000 = offset_ptr[0] >= 0 ? *(srcptr + offset_ptr[0]) : 0;
+            float v001 = offset_ptr[1] >= 0 ? *(srcptr + offset_ptr[1]) : 0;
+            float v010 = offset_ptr[2] >= 0 ? *(srcptr + offset_ptr[2]) : 0;
+            float v011 = offset_ptr[3] >= 0 ? *(srcptr + offset_ptr[3]) : 0;
 
-            float v00 = v000 * (1 - *offset_value_ptr) + v001 * *offset_value_ptr;
-            float v01 = v010 * (1 - *offset_value_ptr) + v011 * *offset_value_ptr;
-            float v10 = v100 * (1 - *offset_value_ptr) + v101 * *offset_value_ptr;
-            float v11 = v110 * (1 - *offset_value_ptr) + v111 * *offset_value_ptr;
-            offset_value_ptr++;
+            float v100 = offset_ptr[4] >= 0 ? *(srcptr + offset_ptr[4]) : 0;
+            float v101 = offset_ptr[5] >= 0 ? *(srcptr + offset_ptr[5]) : 0;
+            float v110 = offset_ptr[6] >= 0 ? *(srcptr + offset_ptr[6]) : 0;
+            float v111 = offset_ptr[7] >= 0 ? *(srcptr + offset_ptr[7]) : 0;
 
-            float v0 = v00 * (1 - *offset_value_ptr) + v01 * *offset_value_ptr;
-            float v1 = v10 * (1 - *offset_value_ptr) + v11 * *offset_value_ptr;
-            offset_value_ptr++;
+            float v00 = v000 * (1 - value_ptr[0]) + v001 * value_ptr[0];
+            float v01 = v010 * (1 - value_ptr[0]) + v011 * value_ptr[0];
+            float v10 = v100 * (1 - value_ptr[0]) + v101 * value_ptr[0];
+            float v11 = v110 * (1 - value_ptr[0]) + v111 * value_ptr[0];
 
-            *dstptr = v0 * (1 - *offset_value_ptr) + v1 * *offset_value_ptr;
-            offset_value_ptr++;
+            float v0 = v00 * (1 - value_ptr[1]) + v01 * value_ptr[1];
+            float v1 = v10 * (1 - value_ptr[1]) + v11 * value_ptr[1];
+
+            *dstptr = v0 * (1 - value_ptr[2]) + v1 * value_ptr[2];
 
             dstptr++;
+            offset_value_ptr += 11;
         }
     }
 }
