@@ -39,10 +39,10 @@ public:
 
         op->params["in_features"] = weight.size(1);
         op->params["out_features"] = weight.size(0);
-        op->params["bias"] = mod.hasattr("bias");
+        op->params["bias"] = mod.hasattr("bias") && mod.attr("bias").isTensor();
 
         op->attrs["weight"] = weight;
-        if (mod.hasattr("bias"))
+        if (mod.hasattr("bias") && mod.attr("bias").isTensor())
         {
             op->attrs["bias"] = mod.attr("bias").toTensor();
         }
