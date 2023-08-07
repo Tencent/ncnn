@@ -251,6 +251,9 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
                 int64_t v;
                 zip.read_file(operand->name, (char*)&v);
 
+                if (v == std::numeric_limits<int64_t>::max()) v = INT_MAX;
+                if (v == std::numeric_limits<int64_t>::min()) v = INT_MIN;
+
                 char tmp[32];
                 sprintf(tmp, "%ld", v);
                 expr += tmp;
