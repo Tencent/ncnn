@@ -12,8 +12,8 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#ifndef LAYER_SIGMOID_H
-#define LAYER_SIGMOID_H
+#ifndef LAYER_LOGSIGMOID_H
+#define LAYER_LOGSIGMOID_H
 
 #include "layer.h"
 
