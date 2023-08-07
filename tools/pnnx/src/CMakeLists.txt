@@ -484,6 +484,8 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/nn_LayerNorm.cpp
     pass_ncnn/nn_LeakyReLU.cpp
     pass_ncnn/nn_Linear.cpp
+    pass_ncnn/nn_LogSigmoid.cpp
+    pass_ncnn/nn_LogSoftmax.cpp
     pass_ncnn/nn_LocalResponseNorm.cpp
     pass_ncnn/nn_LSTM.cpp
     pass_ncnn/nn_MaxPool1d.cpp
@@ -542,8 +544,9 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/torchvision_DeformConv2d.cpp
 )
 
-find_package(Protobuf)
-if(PROTOBUF_FOUND)
+find_package(Protobuf CONFIG)
+set(PROTOBUF_LIBRARIES protobuf::libprotobuf)
+if(protobuf_FOUND)
     protobuf_generate_cpp(ONNX_PROTO_SRCS ONNX_PROTO_HDRS onnx.proto)
 
     add_library(pnnx2onnx STATIC
