@@ -193,7 +193,7 @@ int LogSoftmax::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             }
         }
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             float* ptr = bottom_top_blob.channel(q);
@@ -216,7 +216,7 @@ int LogSoftmax::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         if (max.empty())
             return -100;
         max.fill(-FLT_MAX);
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             const float* ptr = bottom_top_blob.channel(q);
@@ -238,7 +238,7 @@ int LogSoftmax::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         if (sum.empty())
             return -100;
         sum.fill(0.f);
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             float* ptr = bottom_top_blob.channel(q);
@@ -257,7 +257,7 @@ int LogSoftmax::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             }
         }
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             float* ptr = bottom_top_blob.channel(q);
@@ -281,7 +281,7 @@ int LogSoftmax::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         int h = bottom_top_blob.h;
         int channels = bottom_top_blob.c;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             float* ptr = bottom_top_blob.channel(q);
