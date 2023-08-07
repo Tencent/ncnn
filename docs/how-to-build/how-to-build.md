@@ -10,6 +10,8 @@ git submodule update --init
 - [Build for Linux](#build-for-linux)
   - [Nvidia Jetson](#nvidia-jetson)
   - [Raspberry Pi](#raspberry-pi)
+  - [POWER](#power)
+  - [Intel oneAPI](#intel-oneapi)
   - [Verification](#verification)
 - [Build for Windows x64 using Visual Studio Community 2017](#build-for-windows-x64-using-visual-studio-community-2017)
 - [Build for macOS](#build-for-macos)
@@ -87,6 +89,32 @@ You can add `-GNinja` to `cmake` above to use Ninja build system (invoke build u
 
 For Rasberry Pi 3 on 32bit OS, add `-DCMAKE_TOOLCHAIN_FILE=../toolchains/pi3.toolchain.cmake` to cmake. You can also consider disabling Vulkan support as the Vulkan drivers for Rasberry Pi are still not mature, but it doesn't hurt to build the support in, but not use it.
 
+#### POWER
+
+For POWER9 with Clang 13 or higher:
+
+```shell
+cd ncnn
+mkdir -p build
+cd build
+cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=../toolchains/power9le-linux-gnu-vsx.clang.toolchain.cmake -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=ON ..
+make -j$(nproc)
+```
+
+Earlier versions of Clang may fail to build ncnn due to [Bug 49864](https://github.com/llvm/llvm-project/issues/49864). To use GCC instead, use the `power9le-linux-gnu-vsx.toolchain.cmake` toolchain file instead. Note that according to benchmarks, Clang appears to produce noticeably faster CPU inference than GCC for POWER9 targets.
+
+For POWER8 instead of POWER9, use the `power8le-linux-gnu-vsx.clang.toolchain.cmake` or `power8le-linux-gnu-vsx.toolchain.cmake` toolchain file instead. POWER8 will be slower than POWER9.
+
+Note that the POWER toolchain files only support little-endian mode.
+
+#### Intel oneAPI
+
+Besides the prerequests in this section, Intel oneAPI BaseKit and HPCKit should be installed. They are available from https://www.intel.com/content/www/us/en/developer/tools/oneapi/base-toolkit.html and https://www.intel.com/content/www/us/en/developer/tools/oneapi/hpc-toolkit.html freely.
+
+Intel oneAPI offers two kinds of compilers, the classic `icc/icpc` and the LLVM based `icx/icpx`. To build with these compilers, add `CC=icc CXX=icpc` or `CC=icx CXX=icpx` before the `cmake` command. When compiling with `icc/icpc`, cmake will warn that `xop`, `avx512`, and `bf16` extensions are not supported by the compiler, while `icx/icpx` works well.
+
+Both of these compilers have been tested and passed the ncnn benchmark successfully. The results have been included in ncnn benchmark readme. Generally, `icx/icpx` are likely to show better performance than `icc/icpc` and the quantized models can benefit from the extensions `icx/icpx` supports.
+
 #### Verification
 
 Verify build by running some examples:
@@ -130,14 +158,16 @@ Download and Install Visual Studio Community 2017 from https://visualstudio.micr
 
 Start the command prompt: `Start → Programs → Visual Studio 2017 → Visual Studio Tools → x64 Native Tools Command Prompt for VS 2017`
 
+> You can also search `x64 Native Tools Command Prompt for VS 2017` directly.
+
 Download protobuf-3.11.2 from https://github.com/google/protobuf/archive/v3.11.2.zip
 
 Build protobuf library:
 
 ```shell
 cd <protobuf-root-dir>
-mkdir build
-cd build
+mkdir protobuf_build
+cd protobuf_build
 cmake -A x64 -DCMAKE_INSTALL_PREFIX=%cd%/install -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF ../cmake
 cmake --build . --config Release -j 2
 cmake --build . --config Release --target install

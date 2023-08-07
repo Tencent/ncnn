@@ -18,12 +18,19 @@
 
 namespace ncnn {
 
+#include "convolution_packed_int8.h"
 #include "convolution_sgemm_int8.h"
 #include "convolution_sgemm_pack1to4_int8.h"
 #include "convolution_sgemm_pack8to1_int8.h"
 #include "convolution_sgemm_pack8to4_int8.h"
 #include "convolution_3x3_pack8to1_int8.h"
 #include "convolution_3x3_pack8to4_int8.h"
+
+// packed
+void convolution_packed_int8_avx512vnni(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_tm, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, const Option& opt)
+{
+    convolution_packed_int8(bottom_blob, top_blob, weight_data_tm, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
+}
 
 // pack1
 void im2col_sgemm_int8_sse_avx512vnni(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Option& opt)

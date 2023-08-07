@@ -290,10 +290,10 @@ ex.extract("output2", out_2);
 
    首先，自己申请的内存需要自己管理，此时ncnn::Mat不会自动给你释放你传过来的float数据
    ``` c++
-   std::vector<float> testData(60, 1.0);                                // 利用std::vector<float>自己管理内存的申请和释放
-   ncnn::Mat in1(60, (void*)testData.data()).reshape(4, 5, 3);          // 把float数据的指针转成void*传过去即可，甚至还可以指定维度(up说最好使用reshape用来解决channel gap)
-   float* a = new float[60];                                            // 自己new一块内存，后续需要自己释放
-   ncnn::Mat in2 = ncnn::Mat(60, (void*)a).reshape(4, 5, 3).clone();    // 使用方法和上面相同，clone() to transfer data owner
+   std::vector<float> testData(60, 1.0);                                      // 利用std::vector<float>自己管理内存的申请和释放
+   ncnn::Mat in1 = ncnn::Mat(60, (void*)testData.data()).reshape(4, 5, 3);    // 把float数据的指针转成void*传过去即可，甚至还可以指定维度(up说最好使用reshape用来解决channel gap)
+   float* a = new float[60];                                                  // 自己new一块内存，后续需要自己释放
+   ncnn::Mat in2 = ncnn::Mat(60, (void*)a).reshape(4, 5, 3).clone();          // 使用方法和上面相同，clone() to transfer data owner
    ```
 
 - ## 如何初始化 ncnn::Mat 为全 0

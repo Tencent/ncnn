@@ -91,10 +91,11 @@ static void convolution1d_transform_kernel_packed(const Mat& kernel, Mat& kernel
 #endif // __AVX__
         if (inh >= 4)
             kernel_tm.create(2 * 4 * kernel_w, inh / 4 + (inh % 4) / 2 + inh % 2, outh / 2 + outh % 2);
-        else if (inh >= 2)
-            kernel_tm.create(2 * 2 * kernel_w, inh / 2 + inh % 2, outh / 2 + outh % 2);
         else
 #endif // __SSE2__
+        if (inh >= 2)
+            kernel_tm.create(2 * 2 * kernel_w, inh / 2 + inh % 2, outh / 2 + outh % 2);
+        else
             kernel_tm.create(2 * kernel_w, inh, outh / 2 + outh % 2);
     }
     else
@@ -112,10 +113,11 @@ static void convolution1d_transform_kernel_packed(const Mat& kernel, Mat& kernel
 #endif // __AVX__
         if (inh >= 4)
             kernel_tm.create(4 * kernel_w, inh / 4 + (inh % 4) / 2 + inh % 2, outh);
-        else if (inh >= 2)
-            kernel_tm.create(2 * kernel_w, inh / 2 + inh % 2, outh);
         else
 #endif // __SSE2__
+        if (inh >= 2)
+            kernel_tm.create(2 * kernel_w, inh / 2 + inh % 2, outh);
+        else
             kernel_tm.create(kernel_w, inh, outh);
     }
     // *INDENT-ON*
@@ -146,284 +148,149 @@ static void convolution1d_transform_kernel_packed(const Mat& kernel, Mat& kernel
 
         float* g00 = kernel_tm.channel(q / 16);
 
+        __m512i _vindex = _mm512_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
+        _vindex = _mm512_mullo_epi32(_vindex, _mm512_set1_epi32(kernel_w));
+
         int p = 0;
-#if __AVX__
-#if __AVX512F__
         for (; p + 15 < inh; p += 16)
         {
             for (int k = 0; k < kernel_w; k++)
             {
-                const float* k0 = kptr0 + p * kernel_w;
-                const float* k1 = kptr1 + p * kernel_w;
-                const float* k2 = kptr2 + p * kernel_w;
-                const float* k3 = kptr3 + p * kernel_w;
-                const float* k4 = kptr4 + p * kernel_w;
-                const float* k5 = kptr5 + p * kernel_w;
-                const float* k6 = kptr6 + p * kernel_w;
-                const float* k7 = kptr7 + p * kernel_w;
-                const float* k8 = kptr8 + p * kernel_w;
-                const float* k9 = kptr9 + p * kernel_w;
-                const float* ka = kptra + p * kernel_w;
-                const float* kb = kptrb + p * kernel_w;
-                const float* kc = kptrc + p * kernel_w;
-                const float* kd = kptrd + p * kernel_w;
-                const float* ke = kptre + p * kernel_w;
-                const float* kf = kptrf + p * kernel_w;
+                const float* k0 = kptr0 + k;
+                const float* k1 = kptr1 + k;
+                const float* k2 = kptr2 + k;
+                const float* k3 = kptr3 + k;
+                const float* k4 = kptr4 + k;
+                const float* k5 = kptr5 + k;
+                const float* k6 = kptr6 + k;
+                const float* k7 = kptr7 + k;
+                const float* k8 = kptr8 + k;
+                const float* k9 = kptr9 + k;
+                const float* ka = kptra + k;
+                const float* kb = kptrb + k;
+                const float* kc = kptrc + k;
+                const float* kd = kptrd + k;
+                const float* ke = kptre + k;
+                const float* kf = kptrf + k;
 
-                for (int i = 0; i < 16; i++)
-                {
-                    g00[0] = k0[k];
-                    g00[1] = k1[k];
-                    g00[2] = k2[k];
-                    g00[3] = k3[k];
-                    g00[4] = k4[k];
-                    g00[5] = k5[k];
-                    g00[6] = k6[k];
-                    g00[7] = k7[k];
-                    g00[8] = k8[k];
-                    g00[9] = k9[k];
-                    g00[10] = ka[k];
-                    g00[11] = kb[k];
-                    g00[12] = kc[k];
-                    g00[13] = kd[k];
-                    g00[14] = ke[k];
-                    g00[15] = kf[k];
-                    k0 += kernel_w;
-                    k1 += kernel_w;
-                    k2 += kernel_w;
-                    k3 += kernel_w;
-                    k4 += kernel_w;
-                    k5 += kernel_w;
-                    k6 += kernel_w;
-                    k7 += kernel_w;
-                    k8 += kernel_w;
-                    k9 += kernel_w;
-                    ka += kernel_w;
-                    kb += kernel_w;
-                    kc += kernel_w;
-                    kd += kernel_w;
-                    ke += kernel_w;
-                    kf += kernel_w;
-                    g00 += 16;
-                }
+                __m512 _k0 = _mm512_i32gather_ps(_vindex, k0, sizeof(float));
+                __m512 _k1 = _mm512_i32gather_ps(_vindex, k1, sizeof(float));
+                __m512 _k2 = _mm512_i32gather_ps(_vindex, k2, sizeof(float));
+                __m512 _k3 = _mm512_i32gather_ps(_vindex, k3, sizeof(float));
+                __m512 _k4 = _mm512_i32gather_ps(_vindex, k4, sizeof(float));
+                __m512 _k5 = _mm512_i32gather_ps(_vindex, k5, sizeof(float));
+                __m512 _k6 = _mm512_i32gather_ps(_vindex, k6, sizeof(float));
+                __m512 _k7 = _mm512_i32gather_ps(_vindex, k7, sizeof(float));
+                __m512 _k8 = _mm512_i32gather_ps(_vindex, k8, sizeof(float));
+                __m512 _k9 = _mm512_i32gather_ps(_vindex, k9, sizeof(float));
+                __m512 _ka = _mm512_i32gather_ps(_vindex, ka, sizeof(float));
+                __m512 _kb = _mm512_i32gather_ps(_vindex, kb, sizeof(float));
+                __m512 _kc = _mm512_i32gather_ps(_vindex, kc, sizeof(float));
+                __m512 _kd = _mm512_i32gather_ps(_vindex, kd, sizeof(float));
+                __m512 _ke = _mm512_i32gather_ps(_vindex, ke, sizeof(float));
+                __m512 _kf = _mm512_i32gather_ps(_vindex, kf, sizeof(float));
+
+                transpose16x16_ps(_k0, _k1, _k2, _k3, _k4, _k5, _k6, _k7, _k8, _k9, _ka, _kb, _kc, _kd, _ke, _kf);
+
+                _mm512_store_ps(g00, _k0);
+                _mm512_store_ps(g00 + 16, _k1);
+                _mm512_store_ps(g00 + 16 * 2, _k2);
+                _mm512_store_ps(g00 + 16 * 3, _k3);
+                _mm512_store_ps(g00 + 16 * 4, _k4);
+                _mm512_store_ps(g00 + 16 * 5, _k5);
+                _mm512_store_ps(g00 + 16 * 6, _k6);
+                _mm512_store_ps(g00 + 16 * 7, _k7);
+                _mm512_store_ps(g00 + 16 * 8, _k8);
+                _mm512_store_ps(g00 + 16 * 9, _k9);
+                _mm512_store_ps(g00 + 16 * 10, _ka);
+                _mm512_store_ps(g00 + 16 * 11, _kb);
+                _mm512_store_ps(g00 + 16 * 12, _kc);
+                _mm512_store_ps(g00 + 16 * 13, _kd);
+                _mm512_store_ps(g00 + 16 * 14, _ke);
+                _mm512_store_ps(g00 + 16 * 15, _kf);
+
+                g00 += 256;
             }
+
+            kptr0 += kernel_w * 16;
+            kptr1 += kernel_w * 16;
+            kptr2 += kernel_w * 16;
+            kptr3 += kernel_w * 16;
+            kptr4 += kernel_w * 16;
+            kptr5 += kernel_w * 16;
+            kptr6 += kernel_w * 16;
+            kptr7 += kernel_w * 16;
+            kptr8 += kernel_w * 16;
+            kptr9 += kernel_w * 16;
+            kptra += kernel_w * 16;
+            kptrb += kernel_w * 16;
+            kptrc += kernel_w * 16;
+            kptrd += kernel_w * 16;
+            kptre += kernel_w * 16;
+            kptrf += kernel_w * 16;
         }
-#endif // __AVX512F__
+
+        _vindex = _mm512_mullo_epi32(_vindex, _mm512_set1_epi32(inh));
+
         for (; p + 7 < inh; p += 8)
         {
             for (int k = 0; k < kernel_w; k++)
             {
-                const float* k0 = kptr0 + p * kernel_w;
-                const float* k1 = kptr1 + p * kernel_w;
-                const float* k2 = kptr2 + p * kernel_w;
-                const float* k3 = kptr3 + p * kernel_w;
-                const float* k4 = kptr4 + p * kernel_w;
-                const float* k5 = kptr5 + p * kernel_w;
-                const float* k6 = kptr6 + p * kernel_w;
-                const float* k7 = kptr7 + p * kernel_w;
-                const float* k8 = kptr8 + p * kernel_w;
-                const float* k9 = kptr9 + p * kernel_w;
-                const float* ka = kptra + p * kernel_w;
-                const float* kb = kptrb + p * kernel_w;
-                const float* kc = kptrc + p * kernel_w;
-                const float* kd = kptrd + p * kernel_w;
-                const float* ke = kptre + p * kernel_w;
-                const float* kf = kptrf + p * kernel_w;
+                const float* k0 = kptr0 + k;
 
                 for (int i = 0; i < 8; i++)
                 {
-                    g00[0] = k0[k];
-                    g00[1] = k1[k];
-                    g00[2] = k2[k];
-                    g00[3] = k3[k];
-                    g00[4] = k4[k];
-                    g00[5] = k5[k];
-                    g00[6] = k6[k];
-                    g00[7] = k7[k];
-                    g00[8] = k8[k];
-                    g00[9] = k9[k];
-                    g00[10] = ka[k];
-                    g00[11] = kb[k];
-                    g00[12] = kc[k];
-                    g00[13] = kd[k];
-                    g00[14] = ke[k];
-                    g00[15] = kf[k];
+                    __m512 _k0 = _mm512_i32gather_ps(_vindex, k0, sizeof(float));
+                    _mm512_store_ps(g00, _k0);
                     k0 += kernel_w;
-                    k1 += kernel_w;
-                    k2 += kernel_w;
-                    k3 += kernel_w;
-                    k4 += kernel_w;
-                    k5 += kernel_w;
-                    k6 += kernel_w;
-                    k7 += kernel_w;
-                    k8 += kernel_w;
-                    k9 += kernel_w;
-                    ka += kernel_w;
-                    kb += kernel_w;
-                    kc += kernel_w;
-                    kd += kernel_w;
-                    ke += kernel_w;
-                    kf += kernel_w;
                     g00 += 16;
                 }
             }
+
+            kptr0 += kernel_w * 8;
         }
-#endif // __AVX__
         for (; p + 3 < inh; p += 4)
         {
             for (int k = 0; k < kernel_w; k++)
             {
-                const float* k0 = kptr0 + p * kernel_w;
-                const float* k1 = kptr1 + p * kernel_w;
-                const float* k2 = kptr2 + p * kernel_w;
-                const float* k3 = kptr3 + p * kernel_w;
-                const float* k4 = kptr4 + p * kernel_w;
-                const float* k5 = kptr5 + p * kernel_w;
-                const float* k6 = kptr6 + p * kernel_w;
-                const float* k7 = kptr7 + p * kernel_w;
-                const float* k8 = kptr8 + p * kernel_w;
-                const float* k9 = kptr9 + p * kernel_w;
-                const float* ka = kptra + p * kernel_w;
-                const float* kb = kptrb + p * kernel_w;
-                const float* kc = kptrc + p * kernel_w;
-                const float* kd = kptrd + p * kernel_w;
-                const float* ke = kptre + p * kernel_w;
-                const float* kf = kptrf + p * kernel_w;
+                const float* k0 = kptr0 + k;
 
                 for (int i = 0; i < 4; i++)
                 {
-                    g00[0] = k0[k];
-                    g00[1] = k1[k];
-                    g00[2] = k2[k];
-                    g00[3] = k3[k];
-                    g00[4] = k4[k];
-                    g00[5] = k5[k];
-                    g00[6] = k6[k];
-                    g00[7] = k7[k];
-                    g00[8] = k8[k];
-                    g00[9] = k9[k];
-                    g00[10] = ka[k];
-                    g00[11] = kb[k];
-                    g00[12] = kc[k];
-                    g00[13] = kd[k];
-                    g00[14] = ke[k];
-                    g00[15] = kf[k];
+                    __m512 _k0 = _mm512_i32gather_ps(_vindex, k0, sizeof(float));
+                    _mm512_store_ps(g00, _k0);
                     k0 += kernel_w;
-                    k1 += kernel_w;
-                    k2 += kernel_w;
-                    k3 += kernel_w;
-                    k4 += kernel_w;
-                    k5 += kernel_w;
-                    k6 += kernel_w;
-                    k7 += kernel_w;
-                    k8 += kernel_w;
-                    k9 += kernel_w;
-                    ka += kernel_w;
-                    kb += kernel_w;
-                    kc += kernel_w;
-                    kd += kernel_w;
-                    ke += kernel_w;
-                    kf += kernel_w;
                     g00 += 16;
                 }
             }
+
+            kptr0 += kernel_w * 4;
         }
         for (; p + 1 < inh; p += 2)
         {
             for (int k = 0; k < kernel_w; k++)
             {
-                const float* k0 = kptr0 + p * kernel_w;
-                const float* k1 = kptr1 + p * kernel_w;
-                const float* k2 = kptr2 + p * kernel_w;
-                const float* k3 = kptr3 + p * kernel_w;
-                const float* k4 = kptr4 + p * kernel_w;
-                const float* k5 = kptr5 + p * kernel_w;
-                const float* k6 = kptr6 + p * kernel_w;
-                const float* k7 = kptr7 + p * kernel_w;
-                const float* k8 = kptr8 + p * kernel_w;
-                const float* k9 = kptr9 + p * kernel_w;
-                const float* ka = kptra + p * kernel_w;
-                const float* kb = kptrb + p * kernel_w;
-                const float* kc = kptrc + p * kernel_w;
-                const float* kd = kptrd + p * kernel_w;
-                const float* ke = kptre + p * kernel_w;
-                const float* kf = kptrf + p * kernel_w;
+                const float* k0 = kptr0 + k;
 
                 for (int i = 0; i < 2; i++)
                 {
-                    g00[0] = k0[k];
-                    g00[1] = k1[k];
-                    g00[2] = k2[k];
-                    g00[3] = k3[k];
-                    g00[4] = k4[k];
-                    g00[5] = k5[k];
-                    g00[6] = k6[k];
-                    g00[7] = k7[k];
-                    g00[8] = k8[k];
-                    g00[9] = k9[k];
-                    g00[10] = ka[k];
-                    g00[11] = kb[k];
-                    g00[12] = kc[k];
-                    g00[13] = kd[k];
-                    g00[14] = ke[k];
-                    g00[15] = kf[k];
+                    __m512 _k0 = _mm512_i32gather_ps(_vindex, k0, sizeof(float));
+                    _mm512_store_ps(g00, _k0);
                     k0 += kernel_w;
-                    k1 += kernel_w;
-                    k2 += kernel_w;
-                    k3 += kernel_w;
-                    k4 += kernel_w;
-                    k5 += kernel_w;
-                    k6 += kernel_w;
-                    k7 += kernel_w;
-                    k8 += kernel_w;
-                    k9 += kernel_w;
-                    ka += kernel_w;
-                    kb += kernel_w;
-                    kc += kernel_w;
-                    kd += kernel_w;
-                    ke += kernel_w;
-                    kf += kernel_w;
                     g00 += 16;
                 }
             }
+
+            kptr0 += kernel_w * 2;
         }
         for (; p < inh; p++)
         {
-            const float* k0 = kptr0 + p * kernel_w;
-            const float* k1 = kptr1 + p * kernel_w;
-            const float* k2 = kptr2 + p * kernel_w;
-            const float* k3 = kptr3 + p * kernel_w;
-            const float* k4 = kptr4 + p * kernel_w;
-            const float* k5 = kptr5 + p * kernel_w;
-            const float* k6 = kptr6 + p * kernel_w;
-            const float* k7 = kptr7 + p * kernel_w;
-            const float* k8 = kptr8 + p * kernel_w;
-            const float* k9 = kptr9 + p * kernel_w;
-            const float* ka = kptra + p * kernel_w;
-            const float* kb = kptrb + p * kernel_w;
-            const float* kc = kptrc + p * kernel_w;
-            const float* kd = kptrd + p * kernel_w;
-            const float* ke = kptre + p * kernel_w;
-            const float* kf = kptrf + p * kernel_w;
-
             for (int k = 0; k < kernel_w; k++)
             {
-                g00[0] = k0[k];
-                g00[1] = k1[k];
-                g00[2] = k2[k];
-                g00[3] = k3[k];
-                g00[4] = k4[k];
-                g00[5] = k5[k];
-                g00[6] = k6[k];
-                g00[7] = k7[k];
-                g00[8] = k8[k];
-                g00[9] = k9[k];
-                g00[10] = ka[k];
-                g00[11] = kb[k];
-                g00[12] = kc[k];
-                g00[13] = kd[k];
-                g00[14] = ke[k];
-                g00[15] = kf[k];
+                const float* k0 = kptr0 + k;
+
+                __m512 _k0 = _mm512_i32gather_ps(_vindex, k0, sizeof(float));
+                _mm512_store_ps(g00, _k0);
                 g00 += 16;
             }
         }
@@ -446,67 +313,109 @@ static void convolution1d_transform_kernel_packed(const Mat& kernel, Mat& kernel
         float* g00 = kernel_tm.channel(q / 8);
 #endif
 
+#if __AVX2__
+        __m256i _vindex = _mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7);
+        _vindex = _mm256_mullo_epi32(_vindex, _mm256_set1_epi32(kernel_w));
+#if __AVX512F__
+        __m512i _vindex_512 = _mm512_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
+        _vindex_512 = _mm512_mullo_epi32(_vindex_512, _mm512_set1_epi32(kernel_w));
+#endif // __AVX512F__
+#endif // __AVX2__
+
         int p = 0;
 #if __AVX512F__
         for (; p + 15 < inh; p += 16)
         {
             for (int k = 0; k < kernel_w; k++)
             {
-                const float* k0 = kptr0 + p * kernel_w;
-                const float* k1 = kptr1 + p * kernel_w;
-                const float* k2 = kptr2 + p * kernel_w;
-                const float* k3 = kptr3 + p * kernel_w;
-                const float* k4 = kptr4 + p * kernel_w;
-                const float* k5 = kptr5 + p * kernel_w;
-                const float* k6 = kptr6 + p * kernel_w;
-                const float* k7 = kptr7 + p * kernel_w;
+                const float* k0 = kptr0 + k;
+                const float* k1 = kptr1 + k;
+                const float* k2 = kptr2 + k;
+                const float* k3 = kptr3 + k;
+                const float* k4 = kptr4 + k;
+                const float* k5 = kptr5 + k;
+                const float* k6 = kptr6 + k;
+                const float* k7 = kptr7 + k;
 
-                for (int i = 0; i < 16; i++)
-                {
-                    g00[0] = k0[k];
-                    g00[1] = k1[k];
-                    g00[2] = k2[k];
-                    g00[3] = k3[k];
-                    g00[4] = k4[k];
-                    g00[5] = k5[k];
-                    g00[6] = k6[k];
-                    g00[7] = k7[k];
-                    k0 += kernel_w;
-                    k1 += kernel_w;
-                    k2 += kernel_w;
-                    k3 += kernel_w;
-                    k4 += kernel_w;
-                    k5 += kernel_w;
-                    k6 += kernel_w;
-                    k7 += kernel_w;
-                    g00 += 8;
-                }
+                __m512 _k0 = _mm512_i32gather_ps(_vindex_512, k0, sizeof(float));
+                __m512 _k1 = _mm512_i32gather_ps(_vindex_512, k1, sizeof(float));
+                __m512 _k2 = _mm512_i32gather_ps(_vindex_512, k2, sizeof(float));
+                __m512 _k3 = _mm512_i32gather_ps(_vindex_512, k3, sizeof(float));
+                __m512 _k4 = _mm512_i32gather_ps(_vindex_512, k4, sizeof(float));
+                __m512 _k5 = _mm512_i32gather_ps(_vindex_512, k5, sizeof(float));
+                __m512 _k6 = _mm512_i32gather_ps(_vindex_512, k6, sizeof(float));
+                __m512 _k7 = _mm512_i32gather_ps(_vindex_512, k7, sizeof(float));
+
+                transpose16x8_ps(_k0, _k1, _k2, _k3, _k4, _k5, _k6, _k7);
+
+                _mm512_storeu_ps(g00, _k0);
+                _mm512_storeu_ps(g00 + 16, _k1);
+                _mm512_storeu_ps(g00 + 16 * 2, _k2);
+                _mm512_storeu_ps(g00 + 16 * 3, _k3);
+                _mm512_storeu_ps(g00 + 16 * 4, _k4);
+                _mm512_storeu_ps(g00 + 16 * 5, _k5);
+                _mm512_storeu_ps(g00 + 16 * 6, _k6);
+                _mm512_storeu_ps(g00 + 16 * 7, _k7);
+
+                g00 += 128;
             }
+
+            kptr0 += kernel_w * 16;
+            kptr1 += kernel_w * 16;
+            kptr2 += kernel_w * 16;
+            kptr3 += kernel_w * 16;
+            kptr4 += kernel_w * 16;
+            kptr5 += kernel_w * 16;
+            kptr6 += kernel_w * 16;
+            kptr7 += kernel_w * 16;
         }
 #endif // __AVX512F__
         for (; p + 7 < inh; p += 8)
         {
             for (int k = 0; k < kernel_w; k++)
             {
-                const float* k0 = kptr0 + p * kernel_w;
-                const float* k1 = kptr1 + p * kernel_w;
-                const float* k2 = kptr2 + p * kernel_w;
-                const float* k3 = kptr3 + p * kernel_w;
-                const float* k4 = kptr4 + p * kernel_w;
-                const float* k5 = kptr5 + p * kernel_w;
-                const float* k6 = kptr6 + p * kernel_w;
-                const float* k7 = kptr7 + p * kernel_w;
+                const float* k0 = kptr0 + k;
+                const float* k1 = kptr1 + k;
+                const float* k2 = kptr2 + k;
+                const float* k3 = kptr3 + k;
+                const float* k4 = kptr4 + k;
+                const float* k5 = kptr5 + k;
+                const float* k6 = kptr6 + k;
+                const float* k7 = kptr7 + k;
 
+#if __AVX2__
+                __m256 _k0 = _mm256_i32gather_ps(k0, _vindex, sizeof(float));
+                __m256 _k1 = _mm256_i32gather_ps(k1, _vindex, sizeof(float));
+                __m256 _k2 = _mm256_i32gather_ps(k2, _vindex, sizeof(float));
+                __m256 _k3 = _mm256_i32gather_ps(k3, _vindex, sizeof(float));
+                __m256 _k4 = _mm256_i32gather_ps(k4, _vindex, sizeof(float));
+                __m256 _k5 = _mm256_i32gather_ps(k5, _vindex, sizeof(float));
+                __m256 _k6 = _mm256_i32gather_ps(k6, _vindex, sizeof(float));
+                __m256 _k7 = _mm256_i32gather_ps(k7, _vindex, sizeof(float));
+
+                transpose8x8_ps(_k0, _k1, _k2, _k3, _k4, _k5, _k6, _k7);
+
+                _mm256_store_ps(g00, _k0);
+                _mm256_store_ps(g00 + 8, _k1);
+                _mm256_store_ps(g00 + 8 * 2, _k2);
+                _mm256_store_ps(g00 + 8 * 3, _k3);
+                _mm256_store_ps(g00 + 8 * 4, _k4);
+                _mm256_store_ps(g00 + 8 * 5, _k5);
+                _mm256_store_ps(g00 + 8 * 6, _k6);
+                _mm256_store_ps(g00 + 8 * 7, _k7);
+
+                g00 += 64;
+#else  // __AVX2__
                 for (int i = 0; i < 8; i++)
                 {
-                    g00[0] = k0[k];
-                    g00[1] = k1[k];
-                    g00[2] = k2[k];
-                    g00[3] = k3[k];
-                    g00[4] = k4[k];
-                    g00[5] = k5[k];
-                    g00[6] = k6[k];
-                    g00[7] = k7[k];
+                    g00[0] = k0[0];
+                    g00[1] = k1[0];
+                    g00[2] = k2[0];
+                    g00[3] = k3[0];
+                    g00[4] = k4[0];
+                    g00[5] = k5[0];
+                    g00[6] = k6[0];
+                    g00[7] = k7[0];
                     k0 += kernel_w;
                     k1 += kernel_w;
                     k2 += kernel_w;
@@ -517,31 +426,54 @@ static void convolution1d_transform_kernel_packed(const Mat& kernel, Mat& kernel
                     k7 += kernel_w;
                     g00 += 8;
                 }
+#endif // __AVX2__
             }
+
+            kptr0 += kernel_w * 8;
+            kptr1 += kernel_w * 8;
+            kptr2 += kernel_w * 8;
+            kptr3 += kernel_w * 8;
+            kptr4 += kernel_w * 8;
+            kptr5 += kernel_w * 8;
+            kptr6 += kernel_w * 8;
+            kptr7 += kernel_w * 8;
         }
+
+#if __AVX2__
+        _vindex = _mm256_mullo_epi32(_vindex, _mm256_set1_epi32(inh));
+#endif // __AVX2__
+
         for (; p + 3 < inh; p += 4)
         {
             for (int k = 0; k < kernel_w; k++)
             {
-                const float* k0 = kptr0 + p * kernel_w;
-                const float* k1 = kptr1 + p * kernel_w;
-                const float* k2 = kptr2 + p * kernel_w;
-                const float* k3 = kptr3 + p * kernel_w;
-                const float* k4 = kptr4 + p * kernel_w;
-                const float* k5 = kptr5 + p * kernel_w;
-                const float* k6 = kptr6 + p * kernel_w;
-                const float* k7 = kptr7 + p * kernel_w;
+                const float* k0 = kptr0 + k;
+#if !__AVX2__
+                const float* k1 = kptr1 + k;
+                const float* k2 = kptr2 + k;
+                const float* k3 = kptr3 + k;
+                const float* k4 = kptr4 + k;
+                const float* k5 = kptr5 + k;
+                const float* k6 = kptr6 + k;
+                const float* k7 = kptr7 + k;
+#endif // !__AVX2__
 
                 for (int i = 0; i < 4; i++)
                 {
-                    g00[0] = k0[k];
-                    g00[1] = k1[k];
-                    g00[2] = k2[k];
-                    g00[3] = k3[k];
-                    g00[4] = k4[k];
-                    g00[5] = k5[k];
-                    g00[6] = k6[k];
-                    g00[7] = k7[k];
+#if __AVX2__
+                    __m256 _k0 = _mm256_i32gather_ps(k0, _vindex, sizeof(float));
+                    _mm256_store_ps(g00, _k0);
+                    k0 += kernel_w;
+                    g00 += 8;
+#else  // __AVX2__
+                    g00[0] = k0[0];
+                    g00[1] = k1[0];
+                    g00[2] = k2[0];
+                    g00[3] = k3[0];
+                    g00[4] = k4[0];
+                    g00[5] = k5[0];
+                    g00[6] = k6[0];
+                    g00[7] = k7[0];
                     k0 += kernel_w;
                     k1 += kernel_w;
                     k2 += kernel_w;
@@ -551,32 +483,52 @@ static void convolution1d_transform_kernel_packed(const Mat& kernel, Mat& kernel
                     k6 += kernel_w;
                     k7 += kernel_w;
                     g00 += 8;
+#endif // __AVX2__
                 }
             }
+
+            kptr0 += kernel_w * 4;
+#if !__AVX2__
+            kptr1 += kernel_w * 4;
+            kptr2 += kernel_w * 4;
+            kptr3 += kernel_w * 4;
+            kptr4 += kernel_w * 4;
+            kptr5 += kernel_w * 4;
+            kptr6 += kernel_w * 4;
+            kptr7 += kernel_w * 4;
+#endif // !__AVX2__
         }
         for (; p + 1 < inh; p += 2)
         {
             for (int k = 0; k < kernel_w; k++)
             {
-                const float* k0 = kptr0 + p * kernel_w;
-                const float* k1 = kptr1 + p * kernel_w;
-                const float* k2 = kptr2 + p * kernel_w;
-                const float* k3 = kptr3 + p * kernel_w;
-                const float* k4 = kptr4 + p * kernel_w;
-                const float* k5 = kptr5 + p * kernel_w;
-                const float* k6 = kptr6 + p * kernel_w;
-                const float* k7 = kptr7 + p * kernel_w;
+                const float* k0 = kptr0 + k;
+#if !__AVX2__
+                const float* k1 = kptr1 + k;
+                const float* k2 = kptr2 + k;
+                const float* k3 = kptr3 + k;
+                const float* k4 = kptr4 + k;
+                const float* k5 = kptr5 + k;
+                const float* k6 = kptr6 + k;
+                const float* k7 = kptr7 + k;
+#endif // !__AVX2__
 
                 for (int i = 0; i < 2; i++)
                 {
-                    g00[0] = k0[k];
-                    g00[1] = k1[k];
-                    g00[2] = k2[k];
-                    g00[3] = k3[k];
-                    g00[4] = k4[k];
-                    g00[5] = k5[k];
-                    g00[6] = k6[k];
-                    g00[7] = k7[k];
+#if __AVX2__
+                    __m256 _k0 = _mm256_i32gather_ps(k0, _vindex, sizeof(float));
+                    _mm256_store_ps(g00, _k0);
+                    k0 += kernel_w;
+                    g00 += 8;
+#else  // __AVX2__
+                    g00[0] = k0[0];
+                    g00[1] = k1[0];
+                    g00[2] = k2[0];
+                    g00[3] = k3[0];
+                    g00[4] = k4[0];
+                    g00[5] = k5[0];
+                    g00[6] = k6[0];
+                    g00[7] = k7[0];
                     k0 += kernel_w;
                     k1 += kernel_w;
                     k2 += kernel_w;
@@ -586,31 +538,49 @@ static void convolution1d_transform_kernel_packed(const Mat& kernel, Mat& kernel
                     k6 += kernel_w;
                     k7 += kernel_w;
                     g00 += 8;
+#endif // __AVX2__
                 }
             }
+
+            kptr0 += kernel_w * 2;
+#if !__AVX2__
+            kptr1 += kernel_w * 2;
+            kptr2 += kernel_w * 2;
+            kptr3 += kernel_w * 2;
+            kptr4 += kernel_w * 2;
+            kptr5 += kernel_w * 2;
+            kptr6 += kernel_w * 2;
+            kptr7 += kernel_w * 2;
+#endif // !__AVX2__
         }
         for (; p < inh; p++)
         {
-            const float* k0 = kptr0 + p * kernel_w;
-            const float* k1 = kptr1 + p * kernel_w;
-            const float* k2 = kptr2 + p * kernel_w;
-            const float* k3 = kptr3 + p * kernel_w;
-            const float* k4 = kptr4 + p * kernel_w;
-            const float* k5 = kptr5 + p * kernel_w;
-            const float* k6 = kptr6 + p * kernel_w;
-            const float* k7 = kptr7 + p * kernel_w;
-
             for (int k = 0; k < kernel_w; k++)
             {
-                g00[0] = k0[k];
-                g00[1] = k1[k];
-                g00[2] = k2[k];
-                g00[3] = k3[k];
-                g00[4] = k4[k];
-                g00[5] = k5[k];
-                g00[6] = k6[k];
-                g00[7] = k7[k];
+                const float* k0 = kptr0 + k;
+#if __AVX2__
+                __m256 _k0 = _mm256_i32gather_ps(k0, _vindex, sizeof(float));
+                _mm256_store_ps(g00, _k0);
                 g00 += 8;
+#else  // __AVX2__
+                const float* k1 = kptr1 + k;
+                const float* k2 = kptr2 + k;
+                const float* k3 = kptr3 + k;
+                const float* k4 = kptr4 + k;
+                const float* k5 = kptr5 + k;
+                const float* k6 = kptr6 + k;
+                const float* k7 = kptr7 + k;
+
+                g00[0] = k0[0];
+                g00[1] = k1[0];
+                g00[2] = k2[0];
+                g00[3] = k3[0];
+                g00[4] = k4[0];
+                g00[5] = k5[0];
+                g00[6] = k6[0];
+                g00[7] = k7[0];
+                g00 += 8;
+#endif // __AVX2__
             }
         }
     }
@@ -630,6 +600,17 @@ static void convolution1d_transform_kernel_packed(const Mat& kernel, Mat& kernel
         float* g00 = kernel_tm.channel(q / 4);
 #endif
 
+#if __AVX2__
+        __m128i _vindex = _mm_setr_epi32(0, 1, 2, 3);
+        _vindex = _mm_mullo_epi32(_vindex, _mm_set1_epi32(kernel_w));
+        __m256i _vindex_256 = _mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7);
+        _vindex_256 = _mm256_mullo_epi32(_vindex_256, _mm256_set1_epi32(kernel_w));
+#if __AVX512F__
+        __m512i _vindex_512 = _mm512_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
+        _vindex_512 = _mm512_mullo_epi32(_vindex_512, _mm512_set1_epi32(kernel_w));
+#endif // __AVX512F__
+#endif // __AVX2__
+
         int p = 0;
 #if __AVX__
 #if __AVX512F__
@@ -637,110 +618,185 @@ static void convolution1d_transform_kernel_packed(const Mat& kernel, Mat& kernel
         {
             for (int k = 0; k < kernel_w; k++)
             {
-                const float* k0 = kptr0 + p * kernel_w;
-                const float* k1 = kptr1 + p * kernel_w;
-                const float* k2 = kptr2 + p * kernel_w;
-                const float* k3 = kptr3 + p * kernel_w;
+                const float* k0 = kptr0 + k;
+                const float* k1 = kptr1 + k;
+                const float* k2 = kptr2 + k;
+                const float* k3 = kptr3 + k;
 
-                for (int i = 0; i < 16; i++)
-                {
-                    g00[0] = k0[k];
-                    g00[1] = k1[k];
-                    g00[2] = k2[k];
-                    g00[3] = k3[k];
-                    k0 += kernel_w;
-                    k1 += kernel_w;
-                    k2 += kernel_w;
-                    k3 += kernel_w;
-                    g00 += 4;
-                }
+                __m512 _k0 = _mm512_i32gather_ps(_vindex_512, k0, sizeof(float));
+                __m512 _k1 = _mm512_i32gather_ps(_vindex_512, k1, sizeof(float));
+                __m512 _k2 = _mm512_i32gather_ps(_vindex_512, k2, sizeof(float));
+                __m512 _k3 = _mm512_i32gather_ps(_vindex_512, k3, sizeof(float));
+
+                transpose16x4_ps(_k0, _k1, _k2, _k3);
+
+                _mm512_storeu_ps(g00, _k0);
+                _mm512_storeu_ps(g00 + 16, _k1);
+                _mm512_storeu_ps(g00 + 16 * 2, _k2);
+                _mm512_storeu_ps(g00 + 16 * 3, _k3);
+
+                g00 += 64;
             }
+
+            kptr0 += kernel_w * 16;
+            kptr1 += kernel_w * 16;
+            kptr2 += kernel_w * 16;
+            kptr3 += kernel_w * 16;
         }
 #endif // __AVX512F__
         for (; p + 7 < inh; p += 8)
         {
             for (int k = 0; k < kernel_w; k++)
             {
-                const float* k0 = kptr0 + p * kernel_w;
-                const float* k1 = kptr1 + p * kernel_w;
-                const float* k2 = kptr2 + p * kernel_w;
-                const float* k3 = kptr3 + p * kernel_w;
+                const float* k0 = kptr0 + k;
+                const float* k1 = kptr1 + k;
+                const float* k2 = kptr2 + k;
+                const float* k3 = kptr3 + k;
 
+#if __AVX2__
+                __m256 _k0 = _mm256_i32gather_ps(k0, _vindex_256, sizeof(float));
+                __m256 _k1 = _mm256_i32gather_ps(k1, _vindex_256, sizeof(float));
+                __m256 _k2 = _mm256_i32gather_ps(k2, _vindex_256, sizeof(float));
+                __m256 _k3 = _mm256_i32gather_ps(k3, _vindex_256, sizeof(float));
+
+                transpose8x4_ps(_k0, _k1, _k2, _k3);
+
+                _mm256_storeu_ps(g00, _k0);
+                _mm256_storeu_ps(g00 + 8, _k1);
+                _mm256_storeu_ps(g00 + 8 * 2, _k2);
+                _mm256_storeu_ps(g00 + 8 * 3, _k3);
+
+                g00 += 32;
+#else  // __AVX2__
                 for (int i = 0; i < 8; i++)
                 {
-                    g00[0] = k0[k];
-                    g00[1] = k1[k];
-                    g00[2] = k2[k];
-                    g00[3] = k3[k];
+                    g00[0] = k0[0];
+                    g00[1] = k1[0];
+                    g00[2] = k2[0];
+                    g00[3] = k3[0];
                     k0 += kernel_w;
                     k1 += kernel_w;
                     k2 += kernel_w;
                     k3 += kernel_w;
                     g00 += 4;
                 }
+#endif // __AVX2__
             }
+
+            kptr0 += kernel_w * 8;
+            kptr1 += kernel_w * 8;
+            kptr2 += kernel_w * 8;
+            kptr3 += kernel_w * 8;
         }
 #endif // __AVX__
         for (; p + 3 < inh; p += 4)
         {
             for (int k = 0; k < kernel_w; k++)
             {
-                const float* k0 = kptr0 + p * kernel_w;
-                const float* k1 = kptr1 + p * kernel_w;
-                const float* k2 = kptr2 + p * kernel_w;
-                const float* k3 = kptr3 + p * kernel_w;
+                const float* k0 = kptr0 + k;
+                const float* k1 = kptr1 + k;
+                const float* k2 = kptr2 + k;
+                const float* k3 = kptr3 + k;
 
+#if __AVX2__
+                __m128 _k0 = _mm_i32gather_ps(k0, _vindex, sizeof(float));
+                __m128 _k1 = _mm_i32gather_ps(k1, _vindex, sizeof(float));
+                __m128 _k2 = _mm_i32gather_ps(k2, _vindex, sizeof(float));
+                __m128 _k3 = _mm_i32gather_ps(k3, _vindex, sizeof(float));
+
+                _MM_TRANSPOSE4_PS(_k0, _k1, _k2, _k3);
+
+                _mm_store_ps(g00, _k0);
+                _mm_store_ps(g00 + 4, _k1);
+                _mm_store_ps(g00 + 4 * 2, _k2);
+                _mm_store_ps(g00 + 4 * 3, _k3);
+
+                g00 += 16;
+#else  // __AVX2__
                 for (int i = 0; i < 4; i++)
                 {
-                    g00[0] = k0[k];
-                    g00[1] = k1[k];
-                    g00[2] = k2[k];
-                    g00[3] = k3[k];
+                    g00[0] = k0[0];
+                    g00[1] = k1[0];
+                    g00[2] = k2[0];
+                    g00[3] = k3[0];
                     k0 += kernel_w;
                     k1 += kernel_w;
                     k2 += kernel_w;
                     k3 += kernel_w;
                     g00 += 4;
                 }
+#endif // __AVX2__
             }
+
+            kptr0 += kernel_w * 4;
+            kptr1 += kernel_w * 4;
+            kptr2 += kernel_w * 4;
+            kptr3 += kernel_w * 4;
         }
+
+#if __AVX2__
+        _vindex = _mm_mullo_epi32(_vindex, _mm_set1_epi32(inh));
+#endif // __AVX2__
+
         for (; p + 1 < inh; p += 2)
         {
             for (int k = 0; k < kernel_w; k++)
             {
-                const float* k0 = kptr0 + p * kernel_w;
-                const float* k1 = kptr1 + p * kernel_w;
-                const float* k2 = kptr2 + p * kernel_w;
-                const float* k3 = kptr3 + p * kernel_w;
+                const float* k0 = kptr0 + k;
+#if !__AVX2__
+                const float* k1 = kptr1 + k;
+                const float* k2 = kptr2 + k;
+                const float* k3 = kptr3 + k;
+#endif // !__AVX2__
 
                 for (int i = 0; i < 2; i++)
                 {
-                    g00[0] = k0[k];
-                    g00[1] = k1[k];
-                    g00[2] = k2[k];
-                    g00[3] = k3[k];
+#if __AVX2__
+                    __m128 _k0 = _mm_i32gather_ps(k0, _vindex, sizeof(float));
+                    _mm_store_ps(g00, _k0);
+                    k0 += kernel_w;
+                    g00 += 4;
+#else  // __AVX2__
+                    g00[0] = k0[0];
+                    g00[1] = k1[0];
+                    g00[2] = k2[0];
+                    g00[3] = k3[0];
                     k0 += kernel_w;
                     k1 += kernel_w;
                     k2 += kernel_w;
                     k3 += kernel_w;
                     g00 += 4;
+#endif // __AVX2__
                 }
             }
+
+            kptr0 += kernel_w * 2;
+#if !__AVX2__
+            kptr1 += kernel_w * 2;
+            kptr2 += kernel_w * 2;
+            kptr3 += kernel_w * 2;
+#endif // !__AVX2__
         }
         for (; p < inh; p++)
         {
-            const float* k0 = kptr0 + p * kernel_w;
-            const float* k1 = kptr1 + p * kernel_w;
-            const float* k2 = kptr2 + p * kernel_w;
-            const float* k3 = kptr3 + p * kernel_w;
-
             for (int k = 0; k < kernel_w; k++)
             {
-                g00[0] = k0[k];
-                g00[1] = k1[k];
-                g00[2] = k2[k];
-                g00[3] = k3[k];
+                const float* k0 = kptr0 + k;
+#if __AVX2__
+                __m128 _k0 = _mm_i32gather_ps(k0, _vindex, sizeof(float));
+                _mm_store_ps(g00, _k0);
                 g00 += 4;
+#else  // __AVX2__
+                const float* k1 = kptr1 + k;
+                const float* k2 = kptr2 + k;
+                const float* k3 = kptr3 + k;
+
+                g00[0] = k0[0];
+                g00[1] = k1[0];
+                g00[2] = k2[0];
+                g00[3] = k3[0];
+                g00 += 4;
+#endif // __AVX2__
             }
         }
     }
@@ -760,6 +816,17 @@ static void convolution1d_transform_kernel_packed(const Mat& kernel, Mat& kernel
         float* g00 = kernel_tm.channel(q / 2);
 #endif
 
+#if __AVX2__
+        __m128i _vindex = _mm_setr_epi32(0, 1, 2, 3);
+        _vindex = _mm_mullo_epi32(_vindex, _mm_set1_epi32(kernel_w));
+        __m256i _vindex_256 = _mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7);
+        _vindex_256 = _mm256_mullo_epi32(_vindex_256, _mm256_set1_epi32(kernel_w));
+#if __AVX512F__
+        __m512i _vindex_512 = _mm512_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
+        _vindex_512 = _mm512_mullo_epi32(_vindex_512, _mm512_set1_epi32(kernel_w));
+#endif // __AVX512F__
+#endif // __AVX2__
+
         int p = 0;
 #if __SSE2__
 #if __AVX__
@@ -768,52 +835,34 @@ static void convolution1d_transform_kernel_packed(const Mat& kernel, Mat& kernel
         {
             for (int k = 0; k < kernel_w; k++)
             {
-                const float* k0 = kptr0 + p * kernel_w + k;
-                const float* k1 = kptr1 + p * kernel_w + k;
+                const float* k0 = kptr0 + k;
+                const float* k1 = kptr1 + k;
 
-                g00[0] = k0[0];
-                g00[1] = k0[kernel_w];
-                g00[2] = k0[kernel_w * 2];
-                g00[3] = k0[kernel_w * 3];
-                g00[4] = k0[kernel_w * 4];
-                g00[5] = k0[kernel_w * 5];
-                g00[6] = k0[kernel_w * 6];
-                g00[7] = k0[kernel_w * 7];
-                g00[8] = k0[kernel_w * 8];
-                g00[9] = k0[kernel_w * 9];
-                g00[10] = k0[kernel_w * 10];
-                g00[11] = k0[kernel_w * 11];
-                g00[12] = k0[kernel_w * 12];
-                g00[13] = k0[kernel_w * 13];
-                g00[14] = k0[kernel_w * 14];
-                g00[15] = k0[kernel_w * 15];
-                g00[16] = k1[0];
-                g00[17] = k1[kernel_w];
-                g00[18] = k1[kernel_w * 2];
-                g00[19] = k1[kernel_w * 3];
-                g00[20] = k1[kernel_w * 4];
-                g00[21] = k1[kernel_w * 5];
-                g00[22] = k1[kernel_w * 6];
-                g00[23] = k1[kernel_w * 7];
-                g00[24] = k1[kernel_w * 8];
-                g00[25] = k1[kernel_w * 9];
-                g00[26] = k1[kernel_w * 10];
-                g00[27] = k1[kernel_w * 11];
-                g00[28] = k1[kernel_w * 12];
-                g00[29] = k1[kernel_w * 13];
-                g00[30] = k1[kernel_w * 14];
-                g00[31] = k1[kernel_w * 15];
+                __m512 _k0 = _mm512_i32gather_ps(_vindex_512, k0, sizeof(float));
+                __m512 _k1 = _mm512_i32gather_ps(_vindex_512, k1, sizeof(float));
+                _mm512_storeu_ps(g00, _k0);
+                _mm512_storeu_ps(g00 + 16, _k1);
                 g00 += 32;
             }
+
+            kptr0 += kernel_w * 16;
+            kptr1 += kernel_w * 16;
         }
 #endif // __AVX512F__
         for (; p + 7 < inh; p += 8)
         {
             for (int k = 0; k < kernel_w; k++)
             {
-                const float* k0 = kptr0 + p * kernel_w + k;
-                const float* k1 = kptr1 + p * kernel_w + k;
+                const float* k0 = kptr0 + k;
+                const float* k1 = kptr1 + k;
 
+#if __AVX2__
+                __m256 _k0 = _mm256_i32gather_ps(k0, _vindex_256, sizeof(float));
+                __m256 _k1 = _mm256_i32gather_ps(k1, _vindex_256, sizeof(float));
+                _mm256_storeu_ps(g00, _k0);
+                _mm256_storeu_ps(g00 + 8, _k1);
+                g00 += 16;
+#else  // __AVX2__
                 g00[0] = k0[0];
                 g00[1] = k0[kernel_w];
                 g00[2] = k0[kernel_w * 2];
@@ -831,16 +880,27 @@ static void convolution1d_transform_kernel_packed(const Mat& kernel, Mat& kernel
                 g00[14] = k1[kernel_w * 6];
                 g00[15] = k1[kernel_w * 7];
                 g00 += 16;
+#endif // __AVX2__
             }
+
+            kptr0 += kernel_w * 8;
+            kptr1 += kernel_w * 8;
         }
 #endif // __AVX__
         for (; p + 3 < inh; p += 4)
         {
             for (int k = 0; k < kernel_w; k++)
             {
-                const float* k0 = kptr0 + p * kernel_w + k;
-                const float* k1 = kptr1 + p * kernel_w + k;
+                const float* k0 = kptr0 + k;
+                const float* k1 = kptr1 + k;
 
+#if __AVX2__
+                __m128 _k0 = _mm_i32gather_ps(k0, _vindex, sizeof(float));
+                __m128 _k1 = _mm_i32gather_ps(k1, _vindex, sizeof(float));
+                _mm_storeu_ps(g00, _k0);
+                _mm_storeu_ps(g00 + 4, _k1);
+                g00 += 8;
+#else  // __AVX2__
                 g00[0] = k0[0];
                 g00[1] = k0[kernel_w];
                 g00[2] = k0[kernel_w * 2];
@@ -850,35 +910,42 @@ static void convolution1d_transform_kernel_packed(const Mat& kernel, Mat& kernel
                 g00[6] = k1[kernel_w * 2];
                 g00[7] = k1[kernel_w * 3];
                 g00 += 8;
+#endif // __AVX2__
             }
+
+            kptr0 += kernel_w * 4;
+            kptr1 += kernel_w * 4;
         }
 #endif // __SSE2__
         for (; p + 1 < inh; p += 2)
         {
             for (int k = 0; k < kernel_w; k++)
             {
-                const float* k0 = kptr0 + p * kernel_w;
-                const float* k1 = kptr1 + p * kernel_w;
+                const float* k0 = kptr0 + k;
+                const float* k1 = kptr1 + k;
 
                 for (int i = 0; i < 2; i++)
                 {
-                    g00[0] = k0[k];
-                    g00[1] = k1[k];
+                    g00[0] = k0[0];
+                    g00[1] = k1[0];
                     k0 += kernel_w;
                     k1 += kernel_w;
                     g00 += 2;
                 }
             }
+
+            kptr0 += kernel_w * 2;
+            kptr1 += kernel_w * 2;
         }
         for (; p < inh; p++)
         {
-            const float* k0 = kptr0 + p * kernel_w;
-            const float* k1 = kptr1 + p * kernel_w;
-
             for (int k = 0; k < kernel_w; k++)
             {
-                g00[0] = k0[k];
-                g00[1] = k1[k];
+                const float* k0 = kptr0 + k;
+                const float* k1 = kptr1 + k;
+
+                g00[0] = k0[0];
+                g00[1] = k1[0];
                 g00 += 2;
             }
         }
@@ -897,6 +964,17 @@ static void convolution1d_transform_kernel_packed(const Mat& kernel, Mat& kernel
         float* g00 = kernel_tm.channel(q / 2 + q % 2);
 #endif
 
+#if __AVX2__
+        __m128i _vindex = _mm_setr_epi32(0, 1, 2, 3);
+        _vindex = _mm_mullo_epi32(_vindex, _mm_set1_epi32(kernel_w));
+        __m256i _vindex_256 = _mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7);
+        _vindex_256 = _mm256_mullo_epi32(_vindex_256, _mm256_set1_epi32(kernel_w));
+#if __AVX512F__
+        __m512i _vindex_512 = _mm512_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
+        _vindex_512 = _mm512_mullo_epi32(_vindex_512, _mm512_set1_epi32(kernel_w));
+#endif // __AVX512F__
+#endif // __AVX2__
+
         int p = 0;
 #if __SSE2__
 #if __AVX__
@@ -905,68 +983,84 @@ static void convolution1d_transform_kernel_packed(const Mat& kernel, Mat& kernel
         {
             for (int k = 0; k < kernel_w; k++)
             {
-                const float* k0 = kptr + p * kernel_w;
+                const float* k0 = kptr + k;
 
-                for (int i = 0; i < 16; i++)
-                {
-                    g00[0] = k0[k];
-                    k0 += kernel_w;
-                    g00 += 1;
-                }
+                __m512 _k0 = _mm512_i32gather_ps(_vindex_512, k0, sizeof(float));
+                _mm512_storeu_ps(g00, _k0);
+                g00 += 16;
             }
+
+            kptr += kernel_w * 16;
         }
 #endif // __AVX512F__
         for (; p + 7 < inh; p += 8)
         {
             for (int k = 0; k < kernel_w; k++)
             {
-                const float* k0 = kptr + p * kernel_w;
+                const float* k0 = kptr + k;
 
+#if __AVX2__
+                __m256 _k0 = _mm256_i32gather_ps(k0, _vindex_256, sizeof(float));
+                _mm256_storeu_ps(g00, _k0);
+                g00 += 8;
+#else  // __AVX2__
                 for (int i = 0; i < 8; i++)
                 {
-                    g00[0] = k0[k];
+                    g00[0] = k0[0];
                     k0 += kernel_w;
                     g00 += 1;
                 }
+#endif // __AVX2__
             }
+
+            kptr += kernel_w * 8;
         }
 #endif // __AVX__
         for (; p + 3 < inh; p += 4)
         {
             for (int k = 0; k < kernel_w; k++)
             {
-                const float* k0 = kptr + p * kernel_w;
+                const float* k0 = kptr + k;
 
+#if __AVX2__
+                __m128 _k0 = _mm_i32gather_ps(k0, _vindex, sizeof(float));
+                _mm_storeu_ps(g00, _k0);
+                g00 += 4;
+#else  // __AVX2__
                 for (int i = 0; i < 4; i++)
                 {
-                    g00[0] = k0[k];
+                    g00[0] = k0[0];
                     k0 += kernel_w;
                     g00 += 1;
                 }
+#endif // __AVX2__
             }
+
+            kptr += kernel_w * 4;
         }
 #endif // __SSE2__
         for (; p + 1 < inh; p += 2)
         {
             for (int k = 0; k < kernel_w; k++)
             {
-                const float* k0 = kptr + p * kernel_w;
+                const float* k0 = kptr + k;
 
                 for (int i = 0; i < 2; i++)
                 {
-                    g00[0] = k0[k];
+                    g00[0] = k0[0];
                     k0 += kernel_w;
                     g00 += 1;
                 }
             }
+
+            kptr += kernel_w * 2;
         }
         for (; p < inh; p++)
         {
-            const float* k0 = kptr + p * kernel_w;
-
             for (int k = 0; k < kernel_w; k++)
             {
-                g00[0] = k0[k];
+                const float* k0 = kptr + k;
+                g00[0] = k0[0];
                 g00++;
             }
         }

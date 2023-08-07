@@ -1142,6 +1142,7 @@ static void fix_inplace_copy_output(Graph& graph)
             Operator* op_copy = graph.new_operator_after("aten::copy", op->name + "_copy", op);
             Operand* copy_out = graph.new_operand(op->name + "_copy_out");
 
+            copy_out->type = in0->type;
             copy_out->shape = in0->shape;
 
             op_copy->inputs.push_back(op->inputs[0]);
