@@ -193,6 +193,11 @@ static std::string eval_expression(const Operator* op)
                 if (t == "int")
                 {
                     int r = int(af);
+                    if (token_is_interger_literal(a))
+                    {
+                        r = std::stoi(a);
+                    }
+
                     exprstack.push(std::to_string(r));
                 }
                 if (t == "abs")
