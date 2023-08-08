@@ -402,4 +402,23 @@ _RVV_FLOAT16_ATAN2_OP(2, 16)
 _RVV_FLOAT16_ATAN2_OP(4, 8)
 _RVV_FLOAT16_ATAN2_OP(8, 4)
 
+#define _RVV_FLOAT16_REMAINDER_OP(LMUL, MLEN)                                                               \
+    static inline vfloat16m##LMUL##_t remainder_ps(vfloat16m##LMUL##_t x, vfloat16m##LMUL##_t y, size_t vl) \
+    {                                                                                                       \
+        std::vector<__fp16> tmpx(vl);                                                                       \
+        std::vector<__fp16> tmpy(vl);                                                                       \
+        vse16_v_f16m##LMUL(tmpx.data(), x, vl);                                                             \
+        vse16_v_f16m##LMUL(tmpy.data(), y, vl);                                                             \
+        for (size_t i = 0; i < vl; i++)                                                                     \
+        {                                                                                                   \
+            tmpx[i] = (__fp16)remainderf((float)tmpx[i], (float)tmpy[i]);                                   \
+        }                                                                                                   \
+        return vle16_v_f16m##LMUL(tmpx.data(), vl);                                                         \
+    }
+
+_RVV_FLOAT16_REMAINDER_OP(1, 32)
+_RVV_FLOAT16_REMAINDER_OP(2, 16)
+_RVV_FLOAT16_REMAINDER_OP(4, 8)
+_RVV_FLOAT16_REMAINDER_OP(8, 4)
+
 #endif // RVV_MATHFUN_FP16S_H
