@@ -128,6 +128,7 @@ void main()
     if (op_type == 10) res = atan(v1, v2);
     if (op_type == 11) res = atan(v2, v1);
 #endif
+    if (op_type == 12) res = mod(v1, v2);
 
 #if NCNN_image_shader
     image3d_st4(top_blob_3d, ivec3(gx, gy, gz), res);
