@@ -29,4 +29,4 @@ public:
 
 } // namespace ncnn
 
-#endif // LAYER_SIGMOID_H
+#endif // LAYER_LOGSIGMOID_H
