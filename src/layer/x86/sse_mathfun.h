@@ -33,6 +33,7 @@
 #define SSE_MATHFUN_H
 
 #define USE_SSE2 1
+#define USE_SSE4 1
 
 #include <xmmintrin.h>
 #include <x86_usability.h>
@@ -55,6 +56,10 @@ typedef __m128 v4sf; // vector of 4 float (sse1)
 typedef __m128i v4si; // vector of 4 int (sse2)
 #else
 typedef __m64 v2si; // vector of 2 int (mmx)
+#endif
+
+#ifdef USE_SSE4
+#include <smmintrin.h>
 #endif
 
 /* declare some SSE constants -- why can't I figure a better way to do that? */
