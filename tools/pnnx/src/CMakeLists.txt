@@ -365,6 +365,8 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/convert_custom_op.cpp
     pass_ncnn/convert_half_to_float.cpp
     pass_ncnn/convert_input.cpp
+    pass_ncnn/convert_logsigmoid.cpp
+    pass_ncnn/convert_logsoftmax.cpp
     pass_ncnn/convert_torch_cat.cpp
     pass_ncnn/convert_torch_chunk.cpp
     pass_ncnn/convert_torch_einsum.cpp
