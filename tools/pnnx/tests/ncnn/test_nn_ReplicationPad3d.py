@@ -51,7 +51,7 @@ def test():
     import test_nn_ReplicationPad3d_ncnn
     b = test_nn_ReplicationPad3d_ncnn.test_inference()
 
-    return torch.equal(a, b, 1e-4, 1e-4)
+    return torch.allclose(a, b, 1e-4, 1e-4)
 
 if __name__ == "__main__":
     if test():
