@@ -365,8 +365,6 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/convert_custom_op.cpp
     pass_ncnn/convert_half_to_float.cpp
     pass_ncnn/convert_input.cpp
-    pass_ncnn/convert_logsigmoid.cpp
-    pass_ncnn/convert_logsoftmax.cpp
     pass_ncnn/convert_torch_cat.cpp
     pass_ncnn/convert_torch_chunk.cpp
     pass_ncnn/convert_torch_einsum.cpp
@@ -487,6 +485,8 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/nn_LeakyReLU.cpp
     pass_ncnn/nn_Linear.cpp
     pass_ncnn/nn_LocalResponseNorm.cpp
+    pass_ncnn/nn_LogSigmoid.cpp
+    pass_ncnn/nn_LogSoftmax.cpp
     pass_ncnn/nn_LSTM.cpp
     pass_ncnn/nn_MaxPool1d.cpp
     pass_ncnn/nn_MaxPool2d.cpp

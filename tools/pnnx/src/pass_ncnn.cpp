@@ -18,8 +18,6 @@
 #include "pass_ncnn/convert_custom_op.h"
 #include "pass_ncnn/convert_half_to_float.h"
 #include "pass_ncnn/convert_input.h"
-#include "pass_ncnn/convert_logsigmoid.h"
-#include "pass_ncnn/convert_logsoftmax.h"
 #include "pass_ncnn/convert_torch_cat.h"
 #include "pass_ncnn/convert_torch_chunk.h"
 #include "pass_ncnn/convert_torch_einsum.h"
@@ -104,9 +102,6 @@ void pass_ncnn(Graph& g)
     ncnn::convert_torch_unbind(g);
     ncnn::convert_torch_tensor_split(g);
     ncnn::convert_torch_einsum(g);
-
-    ncnn::convert_logsigmoid(g);
-    ncnn::convert_logsoftmax(g);
 
     ncnn::convert_Tensor_select(g);
 
