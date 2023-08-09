@@ -42,6 +42,16 @@ pnnx.Output             output      1 0 out
 )PNNXIR";
     }
 
+    const char* type_str() const
+    {
+        return "LogSoftmax";
+    }
+
+    const char* name_str() const
+    {
+        return "logsoftmax";
+    }
+
     void write(const std::map<std::string, Operator*>& ops, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
     {
         GraphRewriterPass::write(ops, captured_params, captured_attrs);
@@ -50,7 +60,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(nn_LogSoftmax, 20)
+REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(nn_LogSoftmax, 19)
 
 } // namespace ncnn
 

@@ -18,7 +18,7 @@ namespace pnnx {
 
 namespace ncnn {
 
-class nn_LogSigmoid : public GraphRewriterPass
+class F_logsigmoid : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
@@ -26,7 +26,7 @@ public:
         return R"PNNXIR(7767517
 3 2
 pnnx.Input              input       0 1 input
-nn.LogSigmoid           op          1 1 input out
+F.logsigmoid            op          1 1 input out
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -36,7 +36,7 @@ pnnx.Output             output      1 0 out
         return R"PNNXIR(7767517
 4 3
 pnnx.Input              input       0 1 input
-nn.Sigmoid              sigmoid     1 1 input sigmoid
+F.sigmoid               sigmoid     1 1 input sigmoid
 UnaryOp                 log         1 1 sigmoid out 0=8
 pnnx.Output             output      1 0 out
 )PNNXIR";
@@ -44,12 +44,12 @@ pnnx.Output             output      1 0 out
 
     const char* type_str() const
     {
-        return "LogSigmoid";
+        return "F_logsigmoid";
     }
 
     const char* name_str() const
     {
-        return "logsigmoid";
+        return "f_logsigmoid";
     }
 
     void write(const std::map<std::string, Operator*>& ops, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
@@ -58,7 +58,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(nn_LogSigmoid, 19)
+REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(F_logsigmoid, 19)
 
 } // namespace ncnn
 
