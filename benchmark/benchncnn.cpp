@@ -166,7 +166,7 @@ void benchmark(const char* comment, const std::vector<ncnn::Mat>& _in, const ncn
     fprintf(stderr, "%20s  min = %7.2f  max = %7.2f  avg = %7.2f\n", comment, time_min, time_max, time_avg);
 }
 
-void benchmark(const char* comment, ncnn::Mat _in, const ncnn::Option& opt, bool fixed_path = true)
+void benchmark(const char* comment, const ncnn::Mat& _in, const ncnn::Option& opt, bool fixed_path = true)
 {
     std::vector<ncnn::Mat> inputs;
     inputs.push_back(_in);
@@ -376,7 +376,7 @@ int main(int argc, char** argv)
     fprintf(stderr, "gpu_device = %d\n", gpu_device);
     fprintf(stderr, "cooling_down = %d\n", (int)g_enable_cooling_down);
 
-    if (model != nullptr)
+    if (model != 0)
     {
         // run user defined benchmark
         benchmark(model, inputs, opt, false);
