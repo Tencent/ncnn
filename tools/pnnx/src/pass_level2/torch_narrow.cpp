@@ -21,7 +21,7 @@ class torch_narrow : public GraphRewriterPass
 public:
     const char* match_pattern_graph() const
     {
-    return R"PNNXIR(7767517
+        return R"PNNXIR(7767517
 6 5
 pnnx.Input              input_0     0 1 input
 pnnx.Input              input_1     0 1 dim
@@ -40,4 +40,4 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_narrow, 20)
 
-}// namespace pnnx
+} // namespace pnnx
