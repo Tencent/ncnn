@@ -92,7 +92,7 @@ static int test_logsoftmax_2()
 
     return 0
            || test_logsoftmax(a, 0)
-           || test_softmax(a, -1)
+           || test_logsoftmax(a, -1)
 
            || test_logsoftmax(b, 0)
            || test_logsoftmax(b, -1)
