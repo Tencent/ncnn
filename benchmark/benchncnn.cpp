@@ -119,7 +119,7 @@ void benchmark(const char* comment, const std::vector<ncnn::Mat>& _in, const ncn
         ncnn::Mat in = _in[j];
         in.fill(0.01f);
     }
-        
+
     // warm up
     for (int i = 0; i < g_warmup_loop_count; i++)
     {
