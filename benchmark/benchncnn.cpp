@@ -112,6 +112,14 @@ void benchmark(const char* comment, const std::vector<ncnn::Mat>& _in, const ncn
         fprintf(stderr, "input %ld tensors while model has %ld inputs\n", _in.size(), input_names.size());
         return;
     }
+
+    // initialize input
+    for (size_t j = 0; j < input_names.size(); ++j)
+    {
+        ncnn::Mat in = _in[j];
+        in.fill(0.01f);
+    }
+        
     // warm up
     for (int i = 0; i < g_warmup_loop_count; i++)
     {
@@ -136,7 +144,6 @@ void benchmark(const char* comment, const std::vector<ncnn::Mat>& _in, const ncn
     for (int i = 0; i < g_loop_count; i++)
     {
         double start = ncnn::get_current_time();
-
         {
             ncnn::Extractor ex = net.create_extractor();
             for (size_t j = 0; j < input_names.size(); ++j)
