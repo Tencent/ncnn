@@ -972,13 +972,46 @@ int BinaryOp_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
     {
         // expand inner axes
         if (outdims == 2)
-            A2 = A.reshape(1, A.w, opt.workspace_allocator);
+        {
+            if (A.w * A.elempack == B.h * B.elempack)
+                A2 = A.reshape(1, A.w, opt.workspace_allocator);
+            else // if (A.w == B.w)
+            {
+                A2.dims = 2;
+                A2.w = A.w * A.elempack;
+                A2.elempack = 1;
+                A2.elemsize = A.elemsize / A.elempack;
+                A2.cstep = A2.w;
+            }
+        }
         if (outdims == 3 && A.dims == 1)
-            A2 = A.reshape(1, 1, A.w, opt.workspace_allocator);
+        {
+            if (A.w * A.elempack == B.c * B.elempack)
+                A2 = A.reshape(1, 1, A.w, opt.workspace_allocator);
+            else // if (A.w == B.w)
+            {
+                A2.dims = 3;
+                A2.w = A.w * A.elempack;
+                A2.elempack = 1;
+                A2.elemsize = A.elemsize / A.elempack;
+                A2.cstep = A2.w;
+            }
+        }
         if (outdims == 3 && A.dims == 2)
             A2 = A.reshape(1, A.w, A.h, opt.workspace_allocator);
         if (outdims == 4 && A.dims == 1)
-            A2 = A.reshape(1, 1, 1, A.w, opt.workspace_allocator);
+        {
+            if (A.w * A.elempack == B.c * B.elempack)
+                A2 = A.reshape(1, 1, 1, A.w, opt.workspace_allocator);
+            else // if (A.w == B.w)
+            {
+                A2.dims = 4;
+                A2.w = A.w * A.elempack;
+                A2.elempack = 1;
+                A2.elemsize = A.elemsize / A.elempack;
+                A2.cstep = A2.w;
+            }
+        }
         if (outdims == 4 && A.dims == 2)
             A2 = A.reshape(1, 1, A.w, A.h, opt.workspace_allocator);
         if (outdims == 4 && A.dims == 3)
@@ -988,13 +1021,46 @@ int BinaryOp_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
     {
         // expand inner axes
         if (outdims == 2)
-            B2 = B.reshape(1, B.w, opt.workspace_allocator);
+        {
+            if (B.w * B.elempack == A.h * A.elempack)
+                B2 = B.reshape(1, B.w, opt.workspace_allocator);
+            else // if (B.w == A.w)
+            {
+                B2.dims = 2;
+                B2.w = B.w * B.elempack;
+                B2.elempack = 1;
+                B2.elemsize = B.elemsize / B.elempack;
+                B2.cstep = B2.w;
+            }
+        }
         if (outdims == 3 && B.dims == 1)
-            B2 = B.reshape(1, 1, B.w, opt.workspace_allocator);
+        {
+            if (B.w * B.elempack == A.c * A.elempack)
+                B2 = B.reshape(1, 1, B.w, opt.workspace_allocator);
+            else // if (B.w == A.w)
+            {
+                B2.dims = 3;
+                B2.w = B.w * B.elempack;
+                B2.elempack = 1;
+                B2.elemsize = B.elemsize / B.elempack;
+                B2.cstep = B2.w;
+            }
+        }
         if (outdims == 3 && B.dims == 2)
             B2 = B.reshape(1, B.w, B.h, opt.workspace_allocator);
         if (outdims == 4 && B.dims == 1)
-            B2 = B.reshape(1, 1, 1, B.w, opt.workspace_allocator);
+        {
+            if (B.w * B.elempack == A.c * A.elempack)
+                B2 = B.reshape(1, 1, 1, B.w, opt.workspace_allocator);
+            else // if (B.w == A.w)
+            {
+                B2.dims = 4;
+                B2.w = B.w * B.elempack;
+                B2.elempack = 1;
+                B2.elemsize = B.elemsize / B.elempack;
+                B2.cstep = B2.w;
+            }
+        }
         if (outdims == 4 && B.dims == 2)
             B2 = B.reshape(1, 1, B.w, B.h, opt.workspace_allocator);
         if (outdims == 4 && B.dims == 3)
