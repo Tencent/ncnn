@@ -178,6 +178,7 @@ int Gemm_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
         const float* ptrA = (const float*)A + i * A_hstep;
         float* ptr_mul = new float[4];
+
         for (int j = 0; j < N; j++)
         {
             const float* ptrB = (const float*)B + j * B_hstep;
@@ -209,7 +210,6 @@ int Gemm_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                 sum *= beta;
             }
 
-            //int *ptr_sum = &sum;
             int k = 0;
 #if __loongarch_sx
             for (; k + 3 < K; k += 4)
