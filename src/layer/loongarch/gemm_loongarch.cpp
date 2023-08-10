@@ -177,7 +177,7 @@ int Gemm_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
         const int B_hstep = B.dims == 3 ? (int)B.cstep : B.w;
 
         const float* ptrA = (const float*)A + i * A_hstep;
-
+        float* ptr_mul = new float[4];
         for (int j = 0; j < N; j++)
         {
             const float* ptrB = (const float*)B + j * B_hstep;
@@ -209,7 +209,7 @@ int Gemm_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                 sum *= beta;
             }
 
-            int *ptr_sum = &sum;
+            //int *ptr_sum = &sum;
             int k = 0;
 #if __loongarch_sx
             for (; k + 3 < K; k += 4)
@@ -217,12 +217,14 @@ int Gemm_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                 __builtin_prefetch(ptrA + 16);
                 __builtin_prefetch(ptrB + 16);
                 __m128 _pA = (__m128)__lsx_vld(ptrA, 0);
-                __m128 _pB = (__m128)__lsx_vld(ptrB,0);
+                __m128 _pB = (__m128)__lsx_vld(ptrB, 0);
 
-                *ptr_sum += __lsx_vfmul_s(ptrA, ptrB);
+                __m128 _mul = __lsx_vfmul_s(_pA, _pB);
+                __lsx_vst(_mul, ptr_mul, 0);
 
                 ptrA += 4;
                 ptrB += 4;
+                sum += ptr_mul[0] + ptr_mul[1] + ptr_mul[2] + ptr_mul[3];
             }
 #endif // __loongarch_sx
             for (; k < K; k++)
@@ -241,6 +243,7 @@ int Gemm_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                 top_blob[i * out_hstep + j] = sum;
             }
         }
+        delete []ptr_mul;
     }
 
     return 0;
