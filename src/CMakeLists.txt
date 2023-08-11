@@ -39,6 +39,7 @@ set(ncnn_SRCS
     simpleocv.cpp
     simpleomp.cpp
     simplestl.cpp
+    simplemath.cpp # 这一行也是我加上去的
 )
 
 if(ANDROID)
@@ -556,6 +557,7 @@ if(NCNN_INSTALL_SDK)
         simpleocv.h
         simpleomp.h
         simplestl.h
+        simplemath.h # 这一行也是我加上去的
         vulkan_header_fix.h
         ${CMAKE_CURRENT_BINARY_DIR}/ncnn_export.h
         ${CMAKE_CURRENT_BINARY_DIR}/layer_shader_type_enum.h
@@ -576,3 +578,8 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 set_property(TARGET ncnn PROPERTY FOLDER "libncnn")
 set_property(TARGET ncnn-generate-spirv PROPERTY FOLDER "libncnn")
 
+# simplemath
+if(NCNN_SIMPLEMATH)
+    add_definitions(-DNCNN_SIMPLEMATH)
+    message(STATUS "NCNN_SIMPLEMATH enabled")
+endif()
