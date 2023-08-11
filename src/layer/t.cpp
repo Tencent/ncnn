@@ -14,8 +14,6 @@
 
 #include "t.h"
 
-#include <float.h>
-
 namespace ncnn {
 
 T::T()
@@ -23,7 +21,7 @@ T::T()
     one_blob_only = true;
 }
 
-int T::forward(Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+int T::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     int w = bottom_blob.w;
     int h = bottom_blob.h;
@@ -52,6 +50,7 @@ int T::forward(Mat& bottom_blob, Mat& top_blob, const Option& opt) const
     else
     {
         NCNN_LOGE("Expects input to be 1-D Mat or 2-D Mat, current dimension is %d", dims);
+        return -1;
     }
 
     return 0;
