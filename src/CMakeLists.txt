@@ -286,7 +286,28 @@ if(NCNN_VULKAN)
     endif()
 
     target_link_libraries(ncnn PUBLIC Vulkan::Vulkan)
-
+    # Support mac platform static library compilation
+    if(NOT NCNN_SHARED_LIB AND CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin" AND NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
+        find_library(CoreFoundation NAMES CoreFoundation)
+        find_library(Foundation NAMES Foundation)
+        find_library(QuartzCore NAMES QuartzCore)
+        find_library(CoreGraphics NAMES CoreGraphics)
+        find_library(Cocoa NAMES Cocoa)
+        find_library(Metal NAMES Metal)
+        find_library(IOKit NAMES IOKit)
+        find_library(IOSurface NAMES IOSurface)
+        list(APPEND vulkan_dependec_LINK_LIBRARIES
+            ${Metal}
+            ${IOKit}
+            ${IOSurface}
+            ${QuartzCore}
+            ${CoreGraphics}
+            ${Cocoa}
+            ${Foundation}
+            ${CoreFoundation}
+        )
+        target_link_libraries(ncnn PRIVATE ${vulkan_dependec_LINK_LIBRARIES})
+    endif()
     target_include_directories(ncnn PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../>)
     target_link_libraries(ncnn PRIVATE glslang SPIRV)
 endif()
