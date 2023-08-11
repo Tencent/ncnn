@@ -4,7 +4,7 @@ Only the network definition files (ncnn param) are required.
 
 The large model binary files (ncnn bin) are not loaded but generated randomly for speed test.
 
-More model networks may be added later.
+If no model specified, it would benchmark default list. More model networks may be added later.
 
 ---
 Build
@@ -23,7 +23,9 @@ make -j4
 Usage
 ```shell
 # copy all param files to the current directory
-./benchncnn [loop count] [num threads] [powersave] [gpu device] [cooling down]
+./benchncnn [loop count] [num threads] [powersave] [gpu device] [cooling down] [(key=value)...]
+  param=model.param
+  shape=[227,227,3],..
 ```
 run benchncnn on android device
 ```shell
@@ -34,7 +36,9 @@ adb shell
 
 # executed in android adb shell
 cd /data/local/tmp/
-./benchncnn [loop count] [num threads] [powersave] [gpu device] [cooling down]
+./benchncnn [loop count] [num threads] [powersave] [gpu device] [cooling down] [(key=value)...]
+  param=model.param
+  shape=[227,227,3],..
 ```
 
 Parameter
@@ -46,7 +50,8 @@ Parameter
 |powersave|0=all cores, 1=little cores only, 2=big cores only|0|
 |gpu device|-1=cpu-only, 0=gpu0, 1=gpu1 ...|-1|
 |cooling down|0=disable, 1=enable|1|
-
+|param|ncnn model.param filepath|-|
+|shape|model input shapes with, whc format|-|
 
 Tips: Disable android UI server and set CPU and GPU to max frequency
 ```shell
