@@ -21,32 +21,39 @@ namespace ncnn {
 T::T()
 {
     one_blob_only = true;
-    support_inplace = true;
 }
 
-int T::forward_inplace(Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+int T::forward(Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     int w = bottom_blob.w;
     int h = bottom_blob.h;
-    int d = bottom_blob.d;
-    int size = w * h * d;
     int dims = bottom_blob.dims;
+    size_t elemsize = bottom_blob.elemsize;
 
     if (dims == 1)
     {
+        top_blob = bottom_blob.clone();
         return 0;
     }
     else if (dims == 2)
     {
-        for()
+        top_blob.create(h, w, elemsize);
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int i = 0; i < w; i++)
+        {
+            float* top_row = top_blob.row(i);
+            for (int j = 0; j < h; j++)
+            {
+                top_row[j] = bottom_blob[j * w + i];
+            }
+        }
     }
     else
     {
-        NCNN_LOGE("dims must <= 2, currently %d", dims);
+        NCNN_LOGE("Expects input to be 1-D Mat or 2-D Mat, current dimension is %d", dims);
     }
 
-    #pragma omp parallel for num_threads(opt.num_threads)
-    
     return 0;
 }
 
