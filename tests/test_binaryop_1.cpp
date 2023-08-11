@@ -329,6 +329,55 @@ static int test_binaryop_5()
     return 0;
 }
 
+static int test_binaryop_6()
+{
+    const int ws[] = {16, 12, 16, 15};
+    const int hs[] = {15, 16, 15, 12};
+    const int ds[] = {12, 14, 12, 16};
+    const int cs[] = {31, 28, 24, 32};
+
+    for (int i = 0; i < 4; i++)
+    {
+        const int w = ws[i];
+        const int h = hs[i];
+        const int d = ds[i];
+        const int c = cs[i];
+        const int flag = c == 32 ? TEST_LAYER_DISABLE_GPU_TESTING : 0;
+
+        ncnn::Mat a[3] = {
+            RandomMat(d, c),
+            RandomMat(h, d, c),
+            RandomMat(w, h, d, c),
+        };
+
+        for (int j = 0; j < 3; j++)
+        {
+            ncnn::Mat b = RandomMat(a[j].w);
+
+            int ret = test_binaryop(a[j], b, flag) || test_binaryop(b, a[j], flag);
+            if (ret != 0)
+                return ret;
+        }
+
+        ncnn::Mat aa[3] = {
+            RandomMat(c, c),
+            RandomMat(c, d, c),
+            RandomMat(c, h, d, c),
+        };
+
+        for (int j = 0; j < 3; j++)
+        {
+            ncnn::Mat b = RandomMat(aa[j].w);
+
+            int ret = test_binaryop(aa[j], b, flag) || test_binaryop(b, aa[j], flag);
+            if (ret != 0)
+                return ret;
+        }
+    }
+
+    return 0;
+}
+
 int main()
 {
     SRAND(7767517);
@@ -340,7 +389,8 @@ int main()
                   || test_binaryop_2()
                   || test_binaryop_3()
                   || test_binaryop_4()
-                  || test_binaryop_5();
+                  || test_binaryop_5()
+                  || test_binaryop_6();
 
         if (ret != 0)
             return ret;
