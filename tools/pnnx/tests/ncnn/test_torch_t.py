@@ -20,30 +20,28 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-    def forward(self, x, y, z):
+    def forward(self, x, y):
         x = torch.t(x)
         y = torch.t(y)
-        z = torch.t(z)
-        return x, y, z
+        return x, y
 
 def test():
     net = Model()
     net.eval()
 
     torch.manual_seed(0)
-    x = torch.rand(3, 16)
-    y = torch.rand(5, 9, 11)
-    z = torch.rand(8, 5, 9, 10)
+    x = torch.rand(3)
+    y = torch.rand(5, 9)
 
-    a = net(x, y, z)
+    a = net(x, y)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, y, z))
+    mod = torch.jit.trace(net, (x, y))
     mod.save("test_torch_t.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_torch_sum.pt inputshape=[3,16],[5,9,11],[8,5,9,10]")
+    os.system("../../src/pnnx test_torch_t.pt inputshape=[3],[5,9]")
 
     # ncnn inference
     import test_torch_t_ncnn
