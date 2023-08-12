@@ -23,6 +23,8 @@ class Model(nn.Module):
     def forward(self, x, y):
         x = torch.t(x)
         y = torch.t(y)
+        x = F.relu(x)
+        y = F.relu(y)
         return x, y
 
 def test():

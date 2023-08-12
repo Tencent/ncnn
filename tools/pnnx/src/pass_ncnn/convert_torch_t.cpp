@@ -21,15 +21,25 @@ namespace ncnn{
 void convert_torch_t(Graph& graph)
 {
     int index = 0;
-
     for (Operator* op : graph.ops)
     {
-        if (op->type != "pnnx.t")
+        if (op->type != "torch.t")
             continue;
         
-        op->type = "T";
+        op->type = "Permute";
         op->name = std::string("t_") + std::to_string(index++);
+        
+        int input_rank = (int)op->inputs[0]->shape.size();
+        if (input_rank > 2)
+        {
+            fprintf(stderr, "Expects input to be 1-D Mat or 2-D Mat, current dimension is %d", input_rank);
+            return;
+        }
+
+        op->params["0"] = 1;
     }
+
+    return;
 }
 
 } // namespace ncnn
