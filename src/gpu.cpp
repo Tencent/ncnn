@@ -3153,23 +3153,13 @@ uint32_t VulkanDevice::get_heap_budget() const
 {
     const VkPhysicalDeviceMemoryProperties& memory_properties = info.physical_device_memory_properties();
 
-    // the first device local heap
-    uint32_t device_local_heap_index = 0;
-    uint32_t device_local_heap_size = 0;
-    for (uint32_t i = 0; i < memory_properties.memoryTypeCount; i++)
-    {
-        const VkMemoryHeap& memoryHeap = memory_properties.memoryHeaps[i];
-        if (memoryHeap.flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT)
-        {
-            device_local_heap_index = i;
-            device_local_heap_size = memoryHeap.size / 1024 / 1024;
-            break;
-        }
-    }
+    uint32_t buffer_memory_type_index = d->dummy_allocator->buffer_memory_type_index;
+    uint32_t buffer_heap_index = memory_properties.memoryTypes[buffer_memory_type_index].heapIndex;
 
     if (!info.support_VK_EXT_memory_budget())
     {
         //         NCNN_LOGE("heap budget from assumption\n");
+        uint32_t device_local_heap_size = memory_properties.memoryHeaps[buffer_heap_index].size / 1024 / 1024;
 
         // we usually cannot use all heap
         // 70% for 4G+
@@ -3187,7 +3177,7 @@ uint32_t VulkanDevice::get_heap_budget() const
 
     vkGetPhysicalDeviceMemoryProperties2KHR(info.physical_device(), &memoryProperties);
 
-    return memoryBudgetProperties.heapBudget[device_local_heap_index] / 1024 / 1024;
+    return memoryBudgetProperties.heapBudget[buffer_heap_index] / 1024 / 1024;
 }
 
 void VulkanDevice::convert_packing(const VkMat& src, VkMat& dst, int dst_elempack, VkCompute& cmd, const Option& _opt) const
