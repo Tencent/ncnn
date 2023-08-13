@@ -14,7 +14,7 @@
 
 #include "layernorm.h"
 
-#include <math.h>
+
 
 namespace ncnn {
 

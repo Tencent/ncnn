@@ -14,7 +14,7 @@
 
 #include "mish.h"
 
-#include <math.h>
+
 
 namespace ncnn {
 

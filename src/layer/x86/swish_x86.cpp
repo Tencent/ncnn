@@ -26,7 +26,7 @@
 #endif // __AVX__
 #endif // __SSE2__
 
-#include <math.h>
+
 
 namespace ncnn {
 

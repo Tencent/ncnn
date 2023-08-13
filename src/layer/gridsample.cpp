@@ -14,7 +14,7 @@
 
 #include "gridsample.h"
 
-#include <math.h>
+
 
 namespace ncnn {
 

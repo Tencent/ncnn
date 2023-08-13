@@ -14,7 +14,7 @@
 
 #include "binaryop.h"
 
-#include <math.h>
+
 
 namespace ncnn {
 

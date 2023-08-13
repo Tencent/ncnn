@@ -14,7 +14,7 @@
 
 #include "log.h"
 
-#include <math.h>
+
 
 namespace ncnn {
 

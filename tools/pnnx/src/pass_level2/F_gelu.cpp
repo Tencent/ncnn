@@ -16,7 +16,7 @@
 
 #if _MSC_VER
 #define _USE_MATH_DEFINES
-#include <math.h>
+
 #endif
 
 namespace pnnx {

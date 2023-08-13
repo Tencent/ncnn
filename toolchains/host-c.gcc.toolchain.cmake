@@ -13,7 +13,9 @@ SET ( CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY )
 # set ${CMAKE_C_FLAGS} and ${CMAKE_CXX_FLAGS}flag
 SET ( CMAKE_CXX_FLAGS "-std=c++11 ${CMAKE_CXX_FLAGS}" )
 
-set ( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -nodefaultlibs -fno-builtin -nostdinc++ -lc" )
+# set ( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -nodefaultlibs -fno-builtin -nostdinc++ -lc" )
+# -nostdinc++用来zu zhi
+set ( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -nodefaultlibs -fno-builtin -lc" )
 
 # cache flags
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}" CACHE STRING "c flags")

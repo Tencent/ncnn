@@ -14,7 +14,7 @@
 
 #include "exp.h"
 
-#include <math.h>
+
 
 namespace ncnn {
 

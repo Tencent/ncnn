@@ -15,7 +15,7 @@
 
 #include "requantize_arm.h"
 
-#include <math.h>
+
 
 #if __ARM_NEON
 #include <arm_neon.h>

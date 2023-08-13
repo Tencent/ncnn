@@ -15,7 +15,7 @@
 #include "softmax_x86.h"
 
 #include <float.h>
-#include <math.h>
+
 
 #if __SSE2__
 #include <emmintrin.h>

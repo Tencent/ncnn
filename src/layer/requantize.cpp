@@ -15,7 +15,7 @@
 
 #include "requantize.h"
 
-#include <math.h>
+
 
 namespace ncnn {
 

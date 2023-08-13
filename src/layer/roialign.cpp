@@ -15,7 +15,7 @@
 #include "roialign.h"
 
 #include <assert.h>
-#include <math.h>
+
 
 namespace ncnn {
 

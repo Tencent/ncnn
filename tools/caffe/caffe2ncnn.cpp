@@ -27,7 +27,7 @@
 #include <limits.h>
 #include <limits>
 #include <map>
-#include <math.h>
+
 #include <set>
 #include <stdio.h>
 

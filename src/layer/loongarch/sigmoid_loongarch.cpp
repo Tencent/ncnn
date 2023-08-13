@@ -21,7 +21,7 @@
 
 #include "loongarch_usability.h"
 
-#include <math.h>
+
 
 namespace ncnn {
 

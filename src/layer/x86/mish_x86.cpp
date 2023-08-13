@@ -16,7 +16,7 @@
 
 #include "x86_activation.h"
 
-#include <math.h>
+
 
 namespace ncnn {
 

@@ -14,7 +14,7 @@
 
 #include "interp_x86.h"
 
-#include <math.h>
+
 
 #if __SSE2__
 #include <emmintrin.h>

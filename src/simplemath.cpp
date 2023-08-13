@@ -14,7 +14,7 @@
 
 #include "simplemath.h"
 #if NCNN_SIMPLEMATH
-float abs(float x) {
+float fabs(float x) {
     return x > 0 ? x : -x;
 }
 
@@ -27,9 +27,9 @@ float fmod(float numer, float denom) {
     return numer - quotient * denom;
 }
 
-float sin(float x){
+float sinf(float x){
     if(x < 0){
-        return -sin(-x);
+        return -sinf(-x);
     }
     x = fmod(static_cast<double>(x), static_cast<double>(2 * PI));
 
@@ -40,7 +40,7 @@ float sin(float x){
     float sign = static_cast<float>(-1);
     int i = 1;
 
-    while(abs(term) > 1e-15){
+    while(fabs(term) > 1e-15){
         fact = fact * (i + 1) * (i + 2);
 
         term = index / fact * sign;
@@ -51,5 +51,94 @@ float sin(float x){
         i += 2;
     }
     return taylor;
+}
+float cosf(float x){
+    x = fabs(x);
+    return sinf(PI_2 + x); // sin(PI_2 + x) = cos(x)
+}
+float floor(float x){
+    int intValue = static_cast<int>(x);
+    if (x < 0 && x != intValue){
+        intValue -= 1;
+    }
+    return intValue;
+}
+float round(float x){
+    int intValue = static_cast<int>(x); // 获取 x 的整数部分
+    double decimalPart = x - intValue; // 获取 x 的小数部分
+
+    if (decimalPart < 0.5) {
+        if (x < 0 && decimalPart != 0) {
+            return intValue - 1; // 向下取整
+        } else {
+            return intValue; // 向上取整
+        }
+    } else {
+        if (x < 0) {
+            return intValue - 1; // 向下取整
+        } else {
+            return intValue + 1; // 向上取整
+        }
+    }
+}
+float sqrtf(float x){
+    return 0.1;
+}
+float sqrt(float x){
+    return sqrtf(x);
+}
+float logf(float x){
+    return 0.1;
+}
+float expf(float x){
+    return 0.1;
+}
+float fmaxf(float x, float y){
+    return 0.1;
+}
+float tanhf(float x){
+    return 0.1;
+}
+float powf(float x, float y){
+    return 0.1;
+}
+float fabsf(float x){
+    return 0.1;
+}
+float floorf(float x){
+    return floor(x);
+}
+float ceilf(float x){
+    return 0.1;
+}
+float ceil(float x){
+    return 0.1;
+}
+float atan2f(float x, float y){
+    return 0.1;
+}
+float tanf(float x){
+    return 0.1;
+}
+float asinf(float x){
+    return 0.1;
+}
+float acosf(float x){
+    return 0.1;
+}
+float atanf(float x){
+    return 0.1;
+}
+float log10f(float x){
+    return 0.1;
+}
+float truncf(float x){
+    return 0.1;
+}
+float roundf(float x){
+    return 0.1;
+}
+float erfcf(float x){
+    return 0.1;
 }
 #endif // NCNN_SIMPLEMATH

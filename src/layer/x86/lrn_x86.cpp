@@ -18,7 +18,7 @@
 #include "avx_mathfun.h"
 #endif // __AVX__
 
-#include <math.h>
+
 
 namespace ncnn {
 

@@ -19,7 +19,7 @@
 #include "msa_mathfun.h"
 #endif // __mips_msa
 
-#include <math.h>
+
 
 namespace ncnn {
 

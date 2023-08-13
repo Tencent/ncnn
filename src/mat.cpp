@@ -21,7 +21,7 @@
 #include "layer.h"
 #include "layer_type.h"
 
-#include <math.h>
+
 
 #if NCNN_VULKAN
 #if NCNN_PLATFORM_API

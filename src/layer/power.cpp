@@ -14,7 +14,7 @@
 
 #include "power.h"
 
-#include <math.h>
+
 
 namespace ncnn {
 

@@ -14,7 +14,7 @@
 
 #include "normalize.h"
 
-#include <math.h>
+
 
 namespace ncnn {
 

@@ -14,7 +14,7 @@
 
 #include "roipooling.h"
 
-#include <math.h>
+
 
 namespace ncnn {
 

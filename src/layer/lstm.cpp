@@ -14,7 +14,7 @@
 
 #include "lstm.h"
 
-#include <math.h>
+
 
 namespace ncnn {
 

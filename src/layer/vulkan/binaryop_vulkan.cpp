@@ -16,7 +16,7 @@
 
 #include "layer_shader_type.h"
 
-#include <math.h>
+
 
 namespace ncnn {
 

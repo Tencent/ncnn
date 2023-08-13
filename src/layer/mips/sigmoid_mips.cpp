@@ -21,7 +21,7 @@
 
 #include "mips_usability.h"
 
-#include <math.h>
+
 
 namespace ncnn {
 

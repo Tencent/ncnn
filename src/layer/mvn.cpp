@@ -14,7 +14,7 @@
 
 #include "mvn.h"
 
-#include <math.h>
+
 
 namespace ncnn {
 

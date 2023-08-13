@@ -14,7 +14,7 @@
 
 #include "quantize_loongarch.h"
 
-#include <math.h>
+
 
 #if __loongarch_sx
 #include <lsxintrin.h>

@@ -16,7 +16,7 @@
 
 #if NCNN_VULKAN
 
-#include <math.h>
+
 #include <string.h>
 #include <vulkan/vulkan.h>
 

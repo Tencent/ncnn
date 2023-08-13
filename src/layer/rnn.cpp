@@ -14,7 +14,7 @@
 
 #include "rnn.h"
 
-#include <math.h>
+
 
 namespace ncnn {
 

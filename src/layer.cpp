@@ -16,7 +16,7 @@
 
 #include "cpu.h"
 
-#include <math.h>
+
 #include <string.h>
 
 #ifdef _MSC_VER

@@ -14,7 +14,7 @@
 
 #include "bnll.h"
 
-#include <math.h>
+
 
 namespace ncnn {
 

@@ -14,7 +14,7 @@
 
 #include "groupnorm.h"
 
-#include <math.h>
+
 
 namespace ncnn {
 

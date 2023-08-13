@@ -14,7 +14,7 @@
 
 #include "quantize_mips.h"
 
-#include <math.h>
+
 
 #if __mips_msa
 #include <msa.h>

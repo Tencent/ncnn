@@ -14,7 +14,7 @@
 
 #include "proposal.h"
 
-#include <math.h>
+
 
 namespace ncnn {
 

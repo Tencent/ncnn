@@ -14,7 +14,7 @@
 
 #include "elu.h"
 
-#include <math.h>
+
 
 namespace ncnn {
 

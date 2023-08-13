@@ -14,7 +14,7 @@
 
 #include "interp_riscv.h"
 
-#include <math.h>
+
 
 #if __riscv_vector
 #include <riscv_vector.h>

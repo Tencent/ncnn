@@ -14,7 +14,7 @@
 
 #include "batchnorm.h"
 
-#include <math.h>
+
 
 namespace ncnn {
 

@@ -14,7 +14,7 @@
 
 #include "spp.h"
 
-#include <math.h>
+
 
 namespace ncnn {
 

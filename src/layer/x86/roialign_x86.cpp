@@ -14,7 +14,7 @@
 
 #include "roialign_x86.h"
 
-#include <math.h>
+
 
 namespace ncnn {
 
