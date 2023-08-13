@@ -18,7 +18,7 @@
 #include <lsxintrin.h>
 #endif // __loongarch_sx
 
-namespace ncnn{
+namespace ncnn {
 
 int Gemm_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
@@ -243,10 +243,10 @@ int Gemm_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                 top_blob[i * out_hstep + j] = sum;
             }
         }
-        delete []ptr_mul;
+        delete[] ptr_mul;
     }
 
     return 0;
 }
 
-}
+} //namespace ncnn
