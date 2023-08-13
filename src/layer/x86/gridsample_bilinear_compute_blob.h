@@ -31,8 +31,8 @@ void gridsample_2d_bilinear_compute_blob(const Mat& src, const Mat& grid, Mat& o
 #if __AVX__
             for (; x + 15 < grid_size; x += 16)
             {
-                __m256 gx = _mm256_loadu_ps(gridptr);
-                __m256 gy = _mm256_loadu_ps(gridptr + 8);
+                __m256 gx = _mm256_load_ps(gridptr);
+                __m256 gy = _mm256_load_ps(gridptr + 8);
 
                 transpose2x8_ps(gx, gy);
 
@@ -142,8 +142,8 @@ void gridsample_2d_bilinear_compute_blob(const Mat& src, const Mat& grid, Mat& o
 #if __AVX__
         for (; x + 7 < grid_size; x += 8)
         {
-            __m256 gx = _mm256_loadu_ps(gridptr_x);
-            __m256 gy = _mm256_loadu_ps(gridptr_y);
+            __m256 gx = _mm256_load_ps(gridptr_x);
+            __m256 gy = _mm256_load_ps(gridptr_y);
 
             gx = unormalize(_mm256_set1_ps(src.w), gx);
             gx = get_coord(_mm256_set1_ps(src.w), gx);
@@ -265,9 +265,9 @@ void gridsample_3d_bilinear_compute_blob(const Mat& src, const Mat& grid, Mat& o
 #if __AVX__
             for (; x + 23 < grid_size; x += 24)
             {
-                __m256 gx = _mm256_loadu_ps(gridptr);
-                __m256 gy = _mm256_loadu_ps(gridptr + 8);
-                __m256 gz = _mm256_loadu_ps(gridptr + 16);
+                __m256 gx = _mm256_load_ps(gridptr);
+                __m256 gy = _mm256_load_ps(gridptr + 8);
+                __m256 gz = _mm256_load_ps(gridptr + 16);
 
                 transpose3x8_ps(gx, gy, gz);
 
@@ -447,9 +447,9 @@ void gridsample_3d_bilinear_compute_blob(const Mat& src, const Mat& grid, Mat& o
 #if __AVX__
         for (; x + 7 < grid_size; x += 8)
         {
-            __m256 gx = _mm256_loadu_ps(gridptr_x);
-            __m256 gy = _mm256_loadu_ps(gridptr_y);
-            __m256 gz = _mm256_loadu_ps(gridptr_z);
+            __m256 gx = _mm256_load_ps(gridptr_x);
+            __m256 gy = _mm256_load_ps(gridptr_y);
+            __m256 gz = _mm256_load_ps(gridptr_z);
 
             gx = unormalize(_mm256_set1_ps(src.w), gx);
             gx = get_coord(_mm256_set1_ps(src.w), gx);
