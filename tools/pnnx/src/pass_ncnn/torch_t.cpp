@@ -42,7 +42,7 @@ pnnx.Output             output      1 0 out
     }
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
-    { 
+    {
         op->params["0"] = 1;
     }
 };
