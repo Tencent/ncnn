@@ -31,8 +31,8 @@ void gridsample_2d_bicubic_compute_blob(const Mat& src, const Mat& grid, Mat& of
 #if __AVX__
             for (; x + 15 < grid_size; x += 16)
             {
-                __m256 gx = _mm256_load_ps(gridptr);
-                __m256 gy = _mm256_load_ps(gridptr + 8);
+                __m256 gx = _mm256_loadu_ps(gridptr);
+                __m256 gy = _mm256_loadu_ps(gridptr + 8);
 
                 transpose2x8_ps(gx, gy);
 
@@ -87,15 +87,15 @@ void gridsample_2d_bicubic_compute_blob(const Mat& src, const Mat& grid, Mat& of
 
                 transpose8x18_ps(tx, ty, v0_offset_f[0], v1_offset_f[0], v2_offset_f[0], v3_offset_f[0], v0_offset_f[1], v1_offset_f[1], v2_offset_f[1], v3_offset_f[1], v0_offset_f[2], v1_offset_f[2], v2_offset_f[2], v3_offset_f[2], v0_offset_f[3], v1_offset_f[3], v2_offset_f[3], v3_offset_f[3]);
 
-                _mm256_store_ps(offset_value_ptr, tx);
-                _mm256_store_ps(offset_value_ptr + 8, ty);
+                _mm256_storeu_ps(offset_value_ptr, tx);
+                _mm256_storeu_ps(offset_value_ptr + 8, ty);
                 offset_value_ptr += 16;
                 for (int i = 0; i < 4; i++)
                 {
-                    _mm256_store_ps(offset_value_ptr, v0_offset_f[i]);
-                    _mm256_store_ps(offset_value_ptr + 8, v1_offset_f[i]);
-                    _mm256_store_ps(offset_value_ptr + 16, v2_offset_f[i]);
-                    _mm256_store_ps(offset_value_ptr + 24, v3_offset_f[i]);
+                    _mm256_storeu_ps(offset_value_ptr, v0_offset_f[i]);
+                    _mm256_storeu_ps(offset_value_ptr + 8, v1_offset_f[i]);
+                    _mm256_storeu_ps(offset_value_ptr + 16, v2_offset_f[i]);
+                    _mm256_storeu_ps(offset_value_ptr + 24, v3_offset_f[i]);
                     offset_value_ptr += 32;
                 }
                 gridptr += 16;
@@ -167,8 +167,8 @@ void gridsample_2d_bicubic_compute_blob(const Mat& src, const Mat& grid, Mat& of
 #if __AVX__
         for (; x + 7 < grid_size; x += 8)
         {
-            __m256 gx = _mm256_load_ps(gridptr_x);
-            __m256 gy = _mm256_load_ps(gridptr_y);
+            __m256 gx = _mm256_loadu_ps(gridptr_x);
+            __m256 gy = _mm256_loadu_ps(gridptr_y);
 
             gx = unormalize(_mm256_set1_ps(src.w), gx);
             gy = unormalize(_mm256_set1_ps(src.h), gy);
@@ -222,15 +222,15 @@ void gridsample_2d_bicubic_compute_blob(const Mat& src, const Mat& grid, Mat& of
 
             transpose8x18_ps(tx, ty, v0_offset_f[0], v1_offset_f[0], v2_offset_f[0], v3_offset_f[0], v0_offset_f[1], v1_offset_f[1], v2_offset_f[1], v3_offset_f[1], v0_offset_f[2], v1_offset_f[2], v2_offset_f[2], v3_offset_f[2], v0_offset_f[3], v1_offset_f[3], v2_offset_f[3], v3_offset_f[3]);
 
-            _mm256_store_ps(offset_value_ptr, tx);
-            _mm256_store_ps(offset_value_ptr + 8, ty);
+            _mm256_storeu_ps(offset_value_ptr, tx);
+            _mm256_storeu_ps(offset_value_ptr + 8, ty);
             offset_value_ptr += 16;
             for (int i = 0; i < 4; i++)
             {
-                _mm256_store_ps(offset_value_ptr, v0_offset_f[i]);
-                _mm256_store_ps(offset_value_ptr + 8, v1_offset_f[i]);
-                _mm256_store_ps(offset_value_ptr + 16, v2_offset_f[i]);
-                _mm256_store_ps(offset_value_ptr + 24, v3_offset_f[i]);
+                _mm256_storeu_ps(offset_value_ptr, v0_offset_f[i]);
+                _mm256_storeu_ps(offset_value_ptr + 8, v1_offset_f[i]);
+                _mm256_storeu_ps(offset_value_ptr + 16, v2_offset_f[i]);
+                _mm256_storeu_ps(offset_value_ptr + 24, v3_offset_f[i]);
                 offset_value_ptr += 32;
             }
 

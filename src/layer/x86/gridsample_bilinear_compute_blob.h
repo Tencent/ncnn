@@ -31,8 +31,8 @@ void gridsample_2d_bilinear_compute_blob(const Mat& src, const Mat& grid, Mat& o
 #if __AVX__
             for (; x + 15 < grid_size; x += 16)
             {
-                __m256 gx = _mm256_load_ps(gridptr);
-                __m256 gy = _mm256_load_ps(gridptr + 8);
+                __m256 gx = _mm256_loadu_ps(gridptr);
+                __m256 gy = _mm256_loadu_ps(gridptr + 8);
 
                 transpose2x8_ps(gx, gy);
 
@@ -78,13 +78,13 @@ void gridsample_2d_bilinear_compute_blob(const Mat& src, const Mat& grid, Mat& o
 
                 transpose8x6_ps(nw_offset, ne_offset, sw_offset, se_offset, alpha, beta);
 
-                _mm256_store_ps(offset_value_ptr, nw_offset);
-                _mm256_store_ps(offset_value_ptr + 8, ne_offset);
-                _mm256_store_ps(offset_value_ptr + 16, sw_offset);
-                _mm256_store_ps(offset_value_ptr + 24, se_offset);
+                _mm256_storeu_ps(offset_value_ptr, nw_offset);
+                _mm256_storeu_ps(offset_value_ptr + 8, ne_offset);
+                _mm256_storeu_ps(offset_value_ptr + 16, sw_offset);
+                _mm256_storeu_ps(offset_value_ptr + 24, se_offset);
 
-                _mm256_store_ps(offset_value_ptr + 32, alpha);
-                _mm256_store_ps(offset_value_ptr + 40, beta);
+                _mm256_storeu_ps(offset_value_ptr + 32, alpha);
+                _mm256_storeu_ps(offset_value_ptr + 40, beta);
 
                 gridptr += 16;
                 offset_value_ptr += 48;
@@ -142,8 +142,8 @@ void gridsample_2d_bilinear_compute_blob(const Mat& src, const Mat& grid, Mat& o
 #if __AVX__
         for (; x + 7 < grid_size; x += 8)
         {
-            __m256 gx = _mm256_load_ps(gridptr_x);
-            __m256 gy = _mm256_load_ps(gridptr_y);
+            __m256 gx = _mm256_loadu_ps(gridptr_x);
+            __m256 gy = _mm256_loadu_ps(gridptr_y);
 
             gx = unormalize(_mm256_set1_ps(src.w), gx);
             gx = get_coord(_mm256_set1_ps(src.w), gx);
@@ -187,13 +187,13 @@ void gridsample_2d_bilinear_compute_blob(const Mat& src, const Mat& grid, Mat& o
 
             transpose8x6_ps(nw_offset, ne_offset, sw_offset, se_offset, alpha, beta);
 
-            _mm256_store_ps(offset_value_ptr, nw_offset);
-            _mm256_store_ps(offset_value_ptr + 8, ne_offset);
-            _mm256_store_ps(offset_value_ptr + 16, sw_offset);
-            _mm256_store_ps(offset_value_ptr + 24, se_offset);
+            _mm256_storeu_ps(offset_value_ptr, nw_offset);
+            _mm256_storeu_ps(offset_value_ptr + 8, ne_offset);
+            _mm256_storeu_ps(offset_value_ptr + 16, sw_offset);
+            _mm256_storeu_ps(offset_value_ptr + 24, se_offset);
 
-            _mm256_store_ps(offset_value_ptr + 32, alpha);
-            _mm256_store_ps(offset_value_ptr + 40, beta);
+            _mm256_storeu_ps(offset_value_ptr + 32, alpha);
+            _mm256_storeu_ps(offset_value_ptr + 40, beta);
 
             gridptr_x += 8;
             gridptr_y += 8;
@@ -265,9 +265,9 @@ void gridsample_3d_bilinear_compute_blob(const Mat& src, const Mat& grid, Mat& o
 #if __AVX__
             for (; x + 23 < grid_size; x += 24)
             {
-                __m256 gx = _mm256_load_ps(gridptr);
-                __m256 gy = _mm256_load_ps(gridptr + 8);
-                __m256 gz = _mm256_load_ps(gridptr + 16);
+                __m256 gx = _mm256_loadu_ps(gridptr);
+                __m256 gy = _mm256_loadu_ps(gridptr + 8);
+                __m256 gz = _mm256_loadu_ps(gridptr + 16);
 
                 transpose3x8_ps(gx, gy, gz);
 
@@ -351,19 +351,19 @@ void gridsample_3d_bilinear_compute_blob(const Mat& src, const Mat& grid, Mat& o
 
                 transpose8x11_ps(tnw_offset, tne_offset, tsw_offset, tse_offset, bnw_offset, bne_offset, bsw_offset, bse_offset, alpha, beta, gamma);
 
-                _mm256_store_ps(offset_value_ptr, tnw_offset);
-                _mm256_store_ps(offset_value_ptr + 8, tne_offset);
-                _mm256_store_ps(offset_value_ptr + 16, tsw_offset);
-                _mm256_store_ps(offset_value_ptr + 24, tse_offset);
+                _mm256_storeu_ps(offset_value_ptr, tnw_offset);
+                _mm256_storeu_ps(offset_value_ptr + 8, tne_offset);
+                _mm256_storeu_ps(offset_value_ptr + 16, tsw_offset);
+                _mm256_storeu_ps(offset_value_ptr + 24, tse_offset);
 
-                _mm256_store_ps(offset_value_ptr + 32, bnw_offset);
-                _mm256_store_ps(offset_value_ptr + 40, bne_offset);
-                _mm256_store_ps(offset_value_ptr + 48, bsw_offset);
-                _mm256_store_ps(offset_value_ptr + 56, bse_offset);
+                _mm256_storeu_ps(offset_value_ptr + 32, bnw_offset);
+                _mm256_storeu_ps(offset_value_ptr + 40, bne_offset);
+                _mm256_storeu_ps(offset_value_ptr + 48, bsw_offset);
+                _mm256_storeu_ps(offset_value_ptr + 56, bse_offset);
 
-                _mm256_store_ps(offset_value_ptr + 64, alpha);
-                _mm256_store_ps(offset_value_ptr + 72, beta);
-                _mm256_store_ps(offset_value_ptr + 80, gamma);
+                _mm256_storeu_ps(offset_value_ptr + 64, alpha);
+                _mm256_storeu_ps(offset_value_ptr + 72, beta);
+                _mm256_storeu_ps(offset_value_ptr + 80, gamma);
 
                 gridptr += 24;
 
@@ -447,9 +447,9 @@ void gridsample_3d_bilinear_compute_blob(const Mat& src, const Mat& grid, Mat& o
 #if __AVX__
         for (; x + 7 < grid_size; x += 8)
         {
-            __m256 gx = _mm256_load_ps(gridptr_x);
-            __m256 gy = _mm256_load_ps(gridptr_y);
-            __m256 gz = _mm256_load_ps(gridptr_z);
+            __m256 gx = _mm256_loadu_ps(gridptr_x);
+            __m256 gy = _mm256_loadu_ps(gridptr_y);
+            __m256 gz = _mm256_loadu_ps(gridptr_z);
 
             gx = unormalize(_mm256_set1_ps(src.w), gx);
             gx = get_coord(_mm256_set1_ps(src.w), gx);
@@ -531,19 +531,19 @@ void gridsample_3d_bilinear_compute_blob(const Mat& src, const Mat& grid, Mat& o
 
             transpose8x11_ps(tnw_offset, tne_offset, tsw_offset, tse_offset, bnw_offset, bne_offset, bsw_offset, bse_offset, alpha, beta, gamma);
 
-            _mm256_store_ps(offset_value_ptr, tnw_offset);
-            _mm256_store_ps(offset_value_ptr + 8, tne_offset);
-            _mm256_store_ps(offset_value_ptr + 16, tsw_offset);
-            _mm256_store_ps(offset_value_ptr + 24, tse_offset);
+            _mm256_storeu_ps(offset_value_ptr, tnw_offset);
+            _mm256_storeu_ps(offset_value_ptr + 8, tne_offset);
+            _mm256_storeu_ps(offset_value_ptr + 16, tsw_offset);
+            _mm256_storeu_ps(offset_value_ptr + 24, tse_offset);
 
-            _mm256_store_ps(offset_value_ptr + 32, bnw_offset);
-            _mm256_store_ps(offset_value_ptr + 40, bne_offset);
-            _mm256_store_ps(offset_value_ptr + 48, bsw_offset);
-            _mm256_store_ps(offset_value_ptr + 56, bse_offset);
+            _mm256_storeu_ps(offset_value_ptr + 32, bnw_offset);
+            _mm256_storeu_ps(offset_value_ptr + 40, bne_offset);
+            _mm256_storeu_ps(offset_value_ptr + 48, bsw_offset);
+            _mm256_storeu_ps(offset_value_ptr + 56, bse_offset);
 
-            _mm256_store_ps(offset_value_ptr + 64, alpha);
-            _mm256_store_ps(offset_value_ptr + 72, beta);
-            _mm256_store_ps(offset_value_ptr + 80, gamma);
+            _mm256_storeu_ps(offset_value_ptr + 64, alpha);
+            _mm256_storeu_ps(offset_value_ptr + 72, beta);
+            _mm256_storeu_ps(offset_value_ptr + 80, gamma);
 
             gridptr_x += 8;
             gridptr_y += 8;

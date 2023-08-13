@@ -56,10 +56,10 @@ static void gridsample_2d_bicubic_apply_interpolation_p16(const Mat& src, Mat& d
 
             for (int ii = 0; ii < 4; ii++)
             {
-                __m512 x0_val = offset_ptr[0] >= 0 ? _mm512_load_ps(srcptr + offset_ptr[0]) : _mm512_set1_ps(0);
-                __m512 x1_val = offset_ptr[1] >= 0 ? _mm512_load_ps(srcptr + offset_ptr[1]) : _mm512_set1_ps(0);
-                __m512 x2_val = offset_ptr[2] >= 0 ? _mm512_load_ps(srcptr + offset_ptr[2]) : _mm512_set1_ps(0);
-                __m512 x3_val = offset_ptr[3] >= 0 ? _mm512_load_ps(srcptr + offset_ptr[3]) : _mm512_set1_ps(0);
+                __m512 x0_val = offset_ptr[0] >= 0 ? _mm512_loadu_ps(srcptr + offset_ptr[0]) : _mm512_set1_ps(0);
+                __m512 x1_val = offset_ptr[1] >= 0 ? _mm512_loadu_ps(srcptr + offset_ptr[1]) : _mm512_set1_ps(0);
+                __m512 x2_val = offset_ptr[2] >= 0 ? _mm512_loadu_ps(srcptr + offset_ptr[2]) : _mm512_set1_ps(0);
+                __m512 x3_val = offset_ptr[3] >= 0 ? _mm512_loadu_ps(srcptr + offset_ptr[3]) : _mm512_set1_ps(0);
 
                 value_f[ii] = _mm512_mul_ps(x_coeffs0, x0_val);
                 value_f[ii] = _mm512_fmadd_ps(x_coeffs1, x1_val, value_f[ii]);
@@ -73,7 +73,7 @@ static void gridsample_2d_bicubic_apply_interpolation_p16(const Mat& src, Mat& d
             _v = _mm512_fmadd_ps(y_coeffs1, value_f[1], _v);
             _v = _mm512_fmadd_ps(y_coeffs2, value_f[2], _v);
             _v = _mm512_fmadd_ps(y_coeffs3, value_f[3], _v);
-            _mm512_store_ps(dstptr, _v);
+            _mm512_storeu_ps(dstptr, _v);
 
             dstptr += 16;
             offset_value_ptr += 18;
@@ -124,10 +124,10 @@ static void gridsample_2d_bicubic_apply_interpolation_p8(const Mat& src, Mat& ds
 
             for (int ii = 0; ii < 4; ii++)
             {
-                __m256 x0_val = offset_ptr[0] >= 0 ? _mm256_load_ps(srcptr + offset_ptr[0]) : _mm256_set1_ps(0);
-                __m256 x1_val = offset_ptr[1] >= 0 ? _mm256_load_ps(srcptr + offset_ptr[1]) : _mm256_set1_ps(0);
-                __m256 x2_val = offset_ptr[2] >= 0 ? _mm256_load_ps(srcptr + offset_ptr[2]) : _mm256_set1_ps(0);
-                __m256 x3_val = offset_ptr[3] >= 0 ? _mm256_load_ps(srcptr + offset_ptr[3]) : _mm256_set1_ps(0);
+                __m256 x0_val = offset_ptr[0] >= 0 ? _mm256_loadu_ps(srcptr + offset_ptr[0]) : _mm256_set1_ps(0);
+                __m256 x1_val = offset_ptr[1] >= 0 ? _mm256_loadu_ps(srcptr + offset_ptr[1]) : _mm256_set1_ps(0);
+                __m256 x2_val = offset_ptr[2] >= 0 ? _mm256_loadu_ps(srcptr + offset_ptr[2]) : _mm256_set1_ps(0);
+                __m256 x3_val = offset_ptr[3] >= 0 ? _mm256_loadu_ps(srcptr + offset_ptr[3]) : _mm256_set1_ps(0);
 
                 value_f[ii] = _mm256_mul_ps(x_coeffs0, x0_val);
                 value_f[ii] = _mm256_comp_fmadd_ps(x_coeffs1, x1_val, value_f[ii]);
@@ -141,7 +141,7 @@ static void gridsample_2d_bicubic_apply_interpolation_p8(const Mat& src, Mat& ds
             _v = _mm256_comp_fmadd_ps(y_coeffs1, value_f[1], _v);
             _v = _mm256_comp_fmadd_ps(y_coeffs2, value_f[2], _v);
             _v = _mm256_comp_fmadd_ps(y_coeffs3, value_f[3], _v);
-            _mm256_store_ps(dstptr, _v);
+            _mm256_storeu_ps(dstptr, _v);
 
             dstptr += 8;
             offset_value_ptr += 18;
@@ -193,10 +193,10 @@ static void gridsample_2d_bicubic_apply_interpolation_p4(const Mat& src, Mat& ds
 
             for (int ii = 0; ii < 4; ii++)
             {
-                __m128 x0_val = offset_ptr[0] >= 0 ? _mm_load_ps(srcptr + offset_ptr[0]) : _mm_set1_ps(0);
-                __m128 x1_val = offset_ptr[1] >= 0 ? _mm_load_ps(srcptr + offset_ptr[1]) : _mm_set1_ps(0);
-                __m128 x2_val = offset_ptr[2] >= 0 ? _mm_load_ps(srcptr + offset_ptr[2]) : _mm_set1_ps(0);
-                __m128 x3_val = offset_ptr[3] >= 0 ? _mm_load_ps(srcptr + offset_ptr[3]) : _mm_set1_ps(0);
+                __m128 x0_val = offset_ptr[0] >= 0 ? _mm_loadu_ps(srcptr + offset_ptr[0]) : _mm_set1_ps(0);
+                __m128 x1_val = offset_ptr[1] >= 0 ? _mm_loadu_ps(srcptr + offset_ptr[1]) : _mm_set1_ps(0);
+                __m128 x2_val = offset_ptr[2] >= 0 ? _mm_loadu_ps(srcptr + offset_ptr[2]) : _mm_set1_ps(0);
+                __m128 x3_val = offset_ptr[3] >= 0 ? _mm_loadu_ps(srcptr + offset_ptr[3]) : _mm_set1_ps(0);
 
                 value_f[ii] = _mm_mul_ps(x_coeffs0, x0_val);
                 value_f[ii] = _mm_comp_fmadd_ps(x_coeffs1, x1_val, value_f[ii]);
@@ -210,7 +210,7 @@ static void gridsample_2d_bicubic_apply_interpolation_p4(const Mat& src, Mat& ds
             _v = _mm_comp_fmadd_ps(y_coeffs1, value_f[1], _v);
             _v = _mm_comp_fmadd_ps(y_coeffs2, value_f[2], _v);
             _v = _mm_comp_fmadd_ps(y_coeffs3, value_f[3], _v);
-            _mm_store_ps(dstptr, _v);
+            _mm_storeu_ps(dstptr, _v);
 
             dstptr += 4;
             offset_value_ptr += 18;
