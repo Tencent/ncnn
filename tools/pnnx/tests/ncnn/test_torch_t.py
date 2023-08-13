@@ -41,7 +41,7 @@ def test():
     mod = torch.jit.trace(net, (x, y))
     mod.save("test_torch_t.pt")
 
-    # torchscript 
+    # torchscript to pnnx
     import os
     os.system("../../src/pnnx test_torch_t.pt inputshape=[3],[5,9]")
 
