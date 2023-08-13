@@ -249,4 +249,4 @@ int Gemm_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
     return 0;
 }
 
-} //namespace ncnn
+} // namespace ncnn
