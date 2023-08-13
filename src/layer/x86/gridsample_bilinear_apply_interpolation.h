@@ -15,9 +15,6 @@
 #if __SSE2__
 #if __AVX__
 #if __AVX512F__
-#if _MSC_VER >= 1910 && _MSC_VER < 1920
-#pragma optimize("", off)
-#endif // _MSC_VER >= 1910 && _MSC_VER < 1920
 static void gridsample_2d_bilinear_apply_interpolation_p16(const Mat& src, Mat& dst, const Mat& offset_value, const Option& opt)
 {
     const int channels = dst.c;
@@ -38,14 +35,10 @@ static void gridsample_2d_bilinear_apply_interpolation_p16(const Mat& src, Mat& 
             const int* offset_ptr = (int*)offset_value_ptr;
             const float* value_ptr = offset_value_ptr + 4;
 
-            __mmask16 in_bound = offset_ptr[0] >= 0 ? 0xFFFF : 0;
-            __m512 v00_val = _mm512_maskz_load_ps(in_bound, srcptr + offset_ptr[0]);
-            in_bound = offset_ptr[1] >= 0 ? 0xFFFF : 0;
-            __m512 v01_val = _mm512_maskz_load_ps(in_bound, srcptr + offset_ptr[1]);
-            in_bound = offset_ptr[2] >= 0 ? 0xFFFF : 0;
-            __m512 v10_val = _mm512_maskz_load_ps(in_bound, srcptr + offset_ptr[2]);
-            in_bound = offset_ptr[3] >= 0 ? 0xFFFF : 0;
-            __m512 v11_val = _mm512_maskz_load_ps(in_bound, srcptr + offset_ptr[3]);
+            __m512 v00_val = offset_ptr[0] >= 0 ? _mm512_load_ps(srcptr + offset_ptr[0]) : _mm512_set1_ps(0);
+            __m512 v01_val = offset_ptr[1] >= 0 ? _mm512_load_ps(srcptr + offset_ptr[1]) : _mm512_set1_ps(0);
+            __m512 v10_val = offset_ptr[2] >= 0 ? _mm512_load_ps(srcptr + offset_ptr[2]) : _mm512_set1_ps(0);
+            __m512 v11_val = offset_ptr[3] >= 0 ? _mm512_load_ps(srcptr + offset_ptr[3]) : _mm512_set1_ps(0);
 
             __m512 value1 = _mm512_set1_ps(value_ptr[0]);
             __m512 v0 = _mm512_fmadd_ps(v01_val, value1, _mm512_fnmadd_ps(v00_val, value1, v00_val));
@@ -82,23 +75,16 @@ static void gridsample_3d_bilinear_apply_interpolation_p16(const Mat& src, Mat& 
             const int* offset_ptr = (int*)offset_value_ptr;
             const float* value_ptr = offset_value_ptr + 8;
 
-            __mmask16 in_bound = offset_ptr[0] >= 0 ? 0xFFFF : 0;
-            __m512 v000_val = _mm512_maskz_load_ps(in_bound, srcptr + offset_ptr[0]);
-            in_bound = offset_ptr[1] >= 0 ? 0xFFFF : 0;
-            __m512 v001_val = _mm512_maskz_load_ps(in_bound, srcptr + offset_ptr[1]);
-            in_bound = offset_ptr[2] >= 0 ? 0xFFFF : 0;
-            __m512 v010_val = _mm512_maskz_load_ps(in_bound, srcptr + offset_ptr[2]);
-            in_bound = offset_ptr[3] >= 0 ? 0xFFFF : 0;
-            __m512 v011_val = _mm512_maskz_load_ps(in_bound, srcptr + offset_ptr[3]);
+            __m512 v000_val = offset_ptr[0] >= 0 ? _mm512_load_ps(srcptr + offset_ptr[0]) : _mm512_set1_ps(0);
+            __m512 v001_val = offset_ptr[1] >= 0 ? _mm512_load_ps(srcptr + offset_ptr[1]) : _mm512_set1_ps(0);
+            __m512 v010_val = offset_ptr[2] >= 0 ? _mm512_load_ps(srcptr + offset_ptr[2]) : _mm512_set1_ps(0);
+            __m512 v011_val = offset_ptr[3] >= 0 ? _mm512_load_ps(srcptr + offset_ptr[3]) : _mm512_set1_ps(0);
 
-            in_bound = offset_ptr[4] >= 0 ? 0xFFFF : 0;
-            __m512 v100_val = _mm512_maskz_load_ps(in_bound, srcptr + offset_ptr[4]);
-            in_bound = offset_ptr[5] >= 0 ? 0xFFFF : 0;
-            __m512 v101_val = _mm512_maskz_load_ps(in_bound, srcptr + offset_ptr[5]);
-            in_bound = offset_ptr[6] >= 0 ? 0xFFFF : 0;
-            __m512 v110_val = _mm512_maskz_load_ps(in_bound, srcptr + offset_ptr[6]);
-            in_bound = offset_ptr[7] >= 0 ? 0xFFFF : 0;
-            __m512 v111_val = _mm512_maskz_load_ps(in_bound, srcptr + offset_ptr[7]);
+            __m512 v100_val = offset_ptr[4] >= 0 ? _mm512_load_ps(srcptr + offset_ptr[4]) : _mm512_set1_ps(0);
+            __m512 v101_val = offset_ptr[5] >= 0 ? _mm512_load_ps(srcptr + offset_ptr[5]) : _mm512_set1_ps(0);
+            __m512 v110_val = offset_ptr[6] >= 0 ? _mm512_load_ps(srcptr + offset_ptr[6]) : _mm512_set1_ps(0);
+            __m512 v111_val = offset_ptr[7] >= 0 ? _mm512_load_ps(srcptr + offset_ptr[7]) : _mm512_set1_ps(0);
+
 
             __m512 value = _mm512_set1_ps(value_ptr[0]);
             __m512 v00 = _mm512_fmadd_ps(v001_val, value, _mm512_fnmadd_ps(v000_val, value, v000_val));
@@ -119,9 +105,6 @@ static void gridsample_3d_bilinear_apply_interpolation_p16(const Mat& src, Mat& 
         }
     }
 }
-#if _MSC_VER >= 1910 && _MSC_VER < 1920
-#pragma optimize("", on)
-#endif // _MSC_VER >= 1910 && _MSC_VER < 1920
 
 #endif // __AVX512F__
 
@@ -284,7 +267,7 @@ static void gridsample_3d_bilinear_apply_interpolation_p4(const Mat& src, Mat& d
         {
             const int* offset_ptr = (int*)offset_value_ptr;
             const float* value_ptr = offset_value_ptr + 8;
-
+            
             __m128 v000_val = offset_ptr[0] >= 0 ? _mm_load_ps(srcptr + offset_ptr[0]) : _mm_set1_ps(0);
             __m128 v001_val = offset_ptr[1] >= 0 ? _mm_load_ps(srcptr + offset_ptr[1]) : _mm_set1_ps(0);
             __m128 v010_val = offset_ptr[2] >= 0 ? _mm_load_ps(srcptr + offset_ptr[2]) : _mm_set1_ps(0);
