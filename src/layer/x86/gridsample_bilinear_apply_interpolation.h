@@ -46,7 +46,7 @@ static void gridsample_2d_bilinear_apply_interpolation_p16(const Mat& src, Mat& 
 
             __m512 value2 = _mm512_set1_ps(value_ptr[1]);
             __m512 _v = _mm512_fmadd_ps(v1, value2, _mm512_fnmadd_ps(v0, value2, v0));
-            _mm512_storeu_ps(dstptr, _v);
+            _mm512_store_ps(dstptr, _v);
 
             dstptr += 16;
             offset_value_ptr += 6;
@@ -97,7 +97,7 @@ static void gridsample_3d_bilinear_apply_interpolation_p16(const Mat& src, Mat& 
 
             value = _mm512_set1_ps(value_ptr[2]);
             __m512 _v = _mm512_fmadd_ps(v1, value, _mm512_fnmadd_ps(v0, value, v0));
-            _mm512_storeu_ps(dstptr, _v);
+            _mm512_store_ps(dstptr, _v);
 
             dstptr += 16;
             offset_value_ptr += 11;
@@ -138,7 +138,7 @@ static void gridsample_2d_bilinear_apply_interpolation_p8(const Mat& src, Mat& d
 
             __m256 value2 = _mm256_set1_ps(value_ptr[1]);
             __m256 _v = _mm256_comp_fmadd_ps(v1, value2, _mm256_comp_fnmadd_ps(v0, value2, v0));
-            _mm256_storeu_ps(dstptr, _v);
+            _mm256_store_ps(dstptr, _v);
 
             dstptr += 8;
             offset_value_ptr += 6;
@@ -188,7 +188,7 @@ static void gridsample_3d_bilinear_apply_interpolation_p8(const Mat& src, Mat& d
 
             value = _mm256_set1_ps(value_ptr[2]);
             __m256 _v = _mm256_comp_fmadd_ps(v1, value, _mm256_comp_fnmadd_ps(v0, value, v0));
-            _mm256_storeu_ps(dstptr, _v);
+            _mm256_store_ps(dstptr, _v);
 
             dstptr += 8;
             offset_value_ptr += 11;
@@ -227,7 +227,7 @@ static void gridsample_2d_bilinear_apply_interpolation_p4(const Mat& src, Mat& d
 
             __m128 value2 = _mm_set1_ps(value_ptr[1]);
             __m128 _v = _mm_comp_fmadd_ps(v1, value2, _mm_comp_fnmadd_ps(v0, value2, v0));
-            _mm_storeu_ps(dstptr, _v);
+            _mm_store_ps(dstptr, _v);
 
             dstptr += 4;
             offset_value_ptr += 6;
@@ -277,7 +277,7 @@ static void gridsample_3d_bilinear_apply_interpolation_p4(const Mat& src, Mat& d
 
             value = _mm_set1_ps(value_ptr[2]);
             __m128 _v = _mm_comp_fmadd_ps(v1, value, _mm_comp_fnmadd_ps(v0, value, v0));
-            _mm_storeu_ps(dstptr, _v);
+            _mm_store_ps(dstptr, _v);
 
             dstptr += 4;
             offset_value_ptr += 11;

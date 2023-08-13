@@ -73,7 +73,7 @@ static void gridsample_2d_bicubic_apply_interpolation_p16(const Mat& src, Mat& d
             _v = _mm512_fmadd_ps(y_coeffs1, value_f[1], _v);
             _v = _mm512_fmadd_ps(y_coeffs2, value_f[2], _v);
             _v = _mm512_fmadd_ps(y_coeffs3, value_f[3], _v);
-            _mm512_storeu_ps(dstptr, _v);
+            _mm512_store_ps(dstptr, _v);
 
             dstptr += 16;
             offset_value_ptr += 18;
@@ -141,7 +141,7 @@ static void gridsample_2d_bicubic_apply_interpolation_p8(const Mat& src, Mat& ds
             _v = _mm256_comp_fmadd_ps(y_coeffs1, value_f[1], _v);
             _v = _mm256_comp_fmadd_ps(y_coeffs2, value_f[2], _v);
             _v = _mm256_comp_fmadd_ps(y_coeffs3, value_f[3], _v);
-            _mm256_storeu_ps(dstptr, _v);
+            _mm256_store_ps(dstptr, _v);
 
             dstptr += 8;
             offset_value_ptr += 18;
@@ -210,7 +210,7 @@ static void gridsample_2d_bicubic_apply_interpolation_p4(const Mat& src, Mat& ds
             _v = _mm_comp_fmadd_ps(y_coeffs1, value_f[1], _v);
             _v = _mm_comp_fmadd_ps(y_coeffs2, value_f[2], _v);
             _v = _mm_comp_fmadd_ps(y_coeffs3, value_f[3], _v);
-            _mm_storeu_ps(dstptr, _v);
+            _mm_store_ps(dstptr, _v);
 
             dstptr += 4;
             offset_value_ptr += 18;

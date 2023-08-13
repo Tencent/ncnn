@@ -36,7 +36,7 @@ static void gridsample_nearest_apply_interpolation_p16(const Mat& src, Mat& dst,
             __m512 _v = offset_ptr[0] >= 0 ? _mm512_load_ps(srcptr + offset_ptr[0]) : _mm512_set1_ps(0);
             offset_ptr++;
 
-            _mm512_storeu_ps(dstptr, _v);
+            _mm512_store_ps(dstptr, _v);
             dstptr += 16;
         }
     }
@@ -64,7 +64,7 @@ static void gridsample_nearest_apply_interpolation_p8(const Mat& src, Mat& dst, 
             __m256 _v = offset_ptr[0] >= 0 ? _mm256_load_ps(srcptr + offset_ptr[0]) : _mm256_set1_ps(0);
             offset_ptr++;
 
-            _mm256_storeu_ps(dstptr, _v);
+            _mm256_store_ps(dstptr, _v);
             dstptr += 8;
         }
     }
@@ -91,7 +91,7 @@ static void gridsample_nearest_apply_interpolation_p4(const Mat& src, Mat& dst, 
             __m128 _v = offset_ptr[0] >= 0 ? _mm_load_ps(srcptr + offset_ptr[0]) : _mm_set1_ps(0);
             offset_ptr++;
 
-            _mm_storeu_ps(dstptr, _v);
+            _mm_store_ps(dstptr, _v);
             dstptr += 4;
         }
     }

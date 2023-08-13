@@ -52,7 +52,7 @@ void gridsample_2d_nearest_compute_blob(const Mat& src, const Mat& grid, Mat& of
 
                 offset = _mm256_blendv_ps(_mm256_set1_ps(-1.0f), _mm256_castsi256_ps(_mm256_cvtps_epi32(offset)), v_in_range);
 
-                _mm256_storeu_ps(offset_ptr, offset);
+                _mm256_store_ps(offset_ptr, offset);
 
                 gridptr += 16;
                 offset_ptr += 8;
@@ -112,7 +112,7 @@ void gridsample_2d_nearest_compute_blob(const Mat& src, const Mat& grid, Mat& of
 
             offset = _mm256_blendv_ps(_mm256_set1_ps(-1.0f), _mm256_castsi256_ps(_mm256_cvtps_epi32(offset)), v_in_range);
 
-            _mm256_storeu_ps(offset_ptr, offset);
+            _mm256_store_ps(offset_ptr, offset);
 
             gridptr_x += 8;
             gridptr_y += 8;
@@ -196,7 +196,7 @@ void gridsample_3d_nearest_compute_blob(const Mat& src, const Mat& grid, Mat& of
 
                 offset = _mm256_blendv_ps(_mm256_set1_ps(-1.0f), _mm256_castsi256_ps(_mm256_cvtps_epi32(offset)), v_in_range);
 
-                _mm256_storeu_ps(offset_ptr, offset);
+                _mm256_store_ps(offset_ptr, offset);
 
                 gridptr += 24;
                 offset_ptr += 8;
@@ -270,7 +270,7 @@ void gridsample_3d_nearest_compute_blob(const Mat& src, const Mat& grid, Mat& of
 
             offset = _mm256_blendv_ps(_mm256_set1_ps(-1.0f), _mm256_castsi256_ps(_mm256_cvtps_epi32(offset)), v_in_range);
 
-            _mm256_storeu_ps(offset_ptr, offset);
+            _mm256_store_ps(offset_ptr, offset);
 
             gridptr_x += 8;
             gridptr_y += 8;
