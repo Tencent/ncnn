@@ -33,8 +33,7 @@ static void gridsample_nearest_apply_interpolation_p16(const Mat& src, Mat& dst,
 
         for (int i = 0; i < grid_size; i++)
         {
-            __mmask16 in_bound = offset_ptr[0] >= 0 ? 0xFFFF : 0;
-            __m512 _v = _mm512_maskz_load_ps(in_bound, srcptr + offset_ptr[0]);
+            __m512 _v = offset_ptr[0] >= 0 ? _mm512_load_ps(srcptr + offset_ptr[0]) : _mm512_set1_ps(0);
             offset_ptr++;
 
             _mm512_storeu_ps(dstptr, _v);
@@ -62,8 +61,7 @@ static void gridsample_nearest_apply_interpolation_p8(const Mat& src, Mat& dst, 
 
         for (int i = 0; i < grid_size; i++)
         {
-            int in_bound = offset_ptr[0] >= 0 ? -1 : 0;
-            __m256 _v = _mm256_maskload_ps(srcptr + offset_ptr[0], _mm256_set1_epi32(in_bound));
+            __m256 _v = offset_ptr[0] >= 0 ? _mm256_load_ps(srcptr + offset_ptr[0]) : _mm256_set1_ps(0);
             offset_ptr++;
 
             _mm256_storeu_ps(dstptr, _v);

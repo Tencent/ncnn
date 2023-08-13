@@ -85,6 +85,7 @@ static void gridsample_3d_bilinear_apply_interpolation_p16(const Mat& src, Mat& 
             __m512 v110_val = offset_ptr[6] >= 0 ? _mm512_load_ps(srcptr + offset_ptr[6]) : _mm512_set1_ps(0);
             __m512 v111_val = offset_ptr[7] >= 0 ? _mm512_load_ps(srcptr + offset_ptr[7]) : _mm512_set1_ps(0);
 
+
             __m512 value = _mm512_set1_ps(value_ptr[0]);
             __m512 v00 = _mm512_fmadd_ps(v001_val, value, _mm512_fnmadd_ps(v000_val, value, v000_val));
             __m512 v01 = _mm512_fmadd_ps(v011_val, value, _mm512_fnmadd_ps(v010_val, value, v010_val));
@@ -127,14 +128,10 @@ static void gridsample_2d_bilinear_apply_interpolation_p8(const Mat& src, Mat& d
             const int* offset_ptr = (int*)offset_value_ptr;
             const float* value_ptr = offset_value_ptr + 4;
 
-            int in_bound = offset_ptr[0] >= 0 ? -1 : 0;
-            __m256 v00_val = _mm256_maskload_ps(srcptr + offset_ptr[0], _mm256_set1_epi32(in_bound));
-            in_bound = offset_ptr[1] >= 0 ? -1 : 0;
-            __m256 v01_val = _mm256_maskload_ps(srcptr + offset_ptr[1], _mm256_set1_epi32(in_bound));
-            in_bound = offset_ptr[2] >= 0 ? -1 : 0;
-            __m256 v10_val = _mm256_maskload_ps(srcptr + offset_ptr[2], _mm256_set1_epi32(in_bound));
-            in_bound = offset_ptr[3] >= 0 ? -1 : 0;
-            __m256 v11_val = _mm256_maskload_ps(srcptr + offset_ptr[3], _mm256_set1_epi32(in_bound));
+            __m256 v00_val = offset_ptr[0] >= 0 ? _mm256_load_ps(srcptr + offset_ptr[0]) : _mm256_set1_ps(0);
+            __m256 v01_val = offset_ptr[1] >= 0 ? _mm256_load_ps(srcptr + offset_ptr[1]) : _mm256_set1_ps(0);
+            __m256 v10_val = offset_ptr[2] >= 0 ? _mm256_load_ps(srcptr + offset_ptr[2]) : _mm256_set1_ps(0);
+            __m256 v11_val = offset_ptr[3] >= 0 ? _mm256_load_ps(srcptr + offset_ptr[3]) : _mm256_set1_ps(0);
 
             __m256 value1 = _mm256_set1_ps(value_ptr[0]);
             __m256 v0 = _mm256_comp_fmadd_ps(v01_val, value1, _mm256_comp_fnmadd_ps(v00_val, value1, v00_val));
@@ -170,23 +167,15 @@ static void gridsample_3d_bilinear_apply_interpolation_p8(const Mat& src, Mat& d
             const int* offset_ptr = (int*)offset_value_ptr;
             const float* value_ptr = offset_value_ptr + 8;
 
-            int in_bound = offset_ptr[0] >= 0 ? -1 : 0;
-            __m256 v000_val = _mm256_maskload_ps(srcptr + offset_ptr[0], _mm256_set1_epi32(in_bound));
-            in_bound = offset_ptr[1] >= 0 ? -1 : 0;
-            __m256 v001_val = _mm256_maskload_ps(srcptr + offset_ptr[1], _mm256_set1_epi32(in_bound));
-            in_bound = offset_ptr[2] >= 0 ? -1 : 0;
-            __m256 v010_val = _mm256_maskload_ps(srcptr + offset_ptr[2], _mm256_set1_epi32(in_bound));
-            in_bound = offset_ptr[3] >= 0 ? -1 : 0;
-            __m256 v011_val = _mm256_maskload_ps(srcptr + offset_ptr[3], _mm256_set1_epi32(in_bound));
-
-            in_bound = offset_ptr[4] >= 0 ? -1 : 0;
-            __m256 v100_val = _mm256_maskload_ps(srcptr + offset_ptr[4], _mm256_set1_epi32(in_bound));
-            in_bound = offset_ptr[5] >= 0 ? -1 : 0;
-            __m256 v101_val = _mm256_maskload_ps(srcptr + offset_ptr[5], _mm256_set1_epi32(in_bound));
-            in_bound = offset_ptr[6] >= 0 ? -1 : 0;
-            __m256 v110_val = _mm256_maskload_ps(srcptr + offset_ptr[6], _mm256_set1_epi32(in_bound));
-            in_bound = offset_ptr[7] >= 0 ? -1 : 0;
-            __m256 v111_val = _mm256_maskload_ps(srcptr + offset_ptr[7], _mm256_set1_epi32(in_bound));
+            __m256 v000_val = offset_ptr[0] >= 0 ? _mm256_load_ps(srcptr + offset_ptr[0]) : _mm256_set1_ps(0);
+            __m256 v001_val = offset_ptr[1] >= 0 ? _mm256_load_ps(srcptr + offset_ptr[1]) : _mm256_set1_ps(0);
+            __m256 v010_val = offset_ptr[2] >= 0 ? _mm256_load_ps(srcptr + offset_ptr[2]) : _mm256_set1_ps(0);
+            __m256 v011_val = offset_ptr[3] >= 0 ? _mm256_load_ps(srcptr + offset_ptr[3]) : _mm256_set1_ps(0);
+                                                                                               
+            __m256 v100_val = offset_ptr[4] >= 0 ? _mm256_load_ps(srcptr + offset_ptr[4]) : _mm256_set1_ps(0);
+            __m256 v101_val = offset_ptr[5] >= 0 ? _mm256_load_ps(srcptr + offset_ptr[5]) : _mm256_set1_ps(0);
+            __m256 v110_val = offset_ptr[6] >= 0 ? _mm256_load_ps(srcptr + offset_ptr[6]) : _mm256_set1_ps(0);
+            __m256 v111_val = offset_ptr[7] >= 0 ? _mm256_load_ps(srcptr + offset_ptr[7]) : _mm256_set1_ps(0);
 
             __m256 value = _mm256_set1_ps(value_ptr[0]);
             __m256 v00 = _mm256_comp_fmadd_ps(v001_val, value, _mm256_comp_fnmadd_ps(v000_val, value, v000_val));
@@ -266,7 +255,7 @@ static void gridsample_3d_bilinear_apply_interpolation_p4(const Mat& src, Mat& d
         {
             const int* offset_ptr = (int*)offset_value_ptr;
             const float* value_ptr = offset_value_ptr + 8;
-
+            
             __m128 v000_val = offset_ptr[0] >= 0 ? _mm_load_ps(srcptr + offset_ptr[0]) : _mm_set1_ps(0);
             __m128 v001_val = offset_ptr[1] >= 0 ? _mm_load_ps(srcptr + offset_ptr[1]) : _mm_set1_ps(0);
             __m128 v010_val = offset_ptr[2] >= 0 ? _mm_load_ps(srcptr + offset_ptr[2]) : _mm_set1_ps(0);
