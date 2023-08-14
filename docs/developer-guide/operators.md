@@ -25,6 +25,7 @@
 * [DeconvolutionDepthWise3D](#deconvolutiondepthwise3d)
 * [DeformableConv2D](#deformableconv2d)
 * [Dequantize](#dequantize)
+* [Diag](#diag)
 * [Dropout](#dropout)
 * [Eltwise](#eltwise)
 * [ELU](#elu)
@@ -748,6 +749,17 @@ y = x * scale + bias
 | ------------- | ----- | --------------------- |
 | scale_data    | float | [scale_data_size]     |
 | bias_data     | float | [bias_data_size]      |
+
+# Diag
+```
+y = diag(x, diagonal)
+```
+
+* one_blob_only
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | diagonal      | int   | 0         |                   |
 
 # Dropout
 ```
