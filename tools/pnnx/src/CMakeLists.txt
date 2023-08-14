@@ -537,6 +537,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/torch_prod.cpp
     pass_ncnn/torch_squeeze.cpp
     pass_ncnn/torch_sum.cpp
+    pass_ncnn/torch_t.cpp
     pass_ncnn/torch_transpose.cpp
     pass_ncnn/torch_unsqueeze.cpp
     pass_ncnn/torchvision_DeformConv2d.cpp
