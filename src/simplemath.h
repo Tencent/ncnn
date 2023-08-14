@@ -20,27 +20,29 @@ float fabs(float x);
 float fmod(float numer, float denom);
 float sinf(float x);
 float cosf(float x);
-float floor(float x);
-float round(float x);
 float sqrtf(float x);
 float sqrt(float x);
 float expf(float x);
 float logf(float x);
-float fmaxf(float x, float y);
 float tanhf(float x);
 float powf(float x, float y);
-float fabsf(float x);
-float floorf(float x);
-float ceilf(float x);
-float ceil(float);
 float atan2f(float, float);
 float atanf(float);
 float log10f(float);
-float truncf(float);
 float nearbyintf(float);
 float asinf(float);
 float acosf(float);
 float tanf(float);
-float roundf(float);
 float erfcf(float);
+
+// 非连续函数
+float floor(float x);
+float round(float x);
+float ceil(float);
+float fmaxf(float x, float y);
+float fabsf(float x);
+float floorf(float x);
+float ceilf(float x);
+float truncf(float);
+float roundf(float);
 #endif // NCNN_SIMPLEMATH

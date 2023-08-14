@@ -257,8 +257,8 @@ if(NCNN_THREADS)
     if(TARGET Threads::Threads)
         target_link_libraries(ncnn PUBLIC Threads::Threads)
     endif()
-
-    if(NCNN_SIMPLEOMP OR NCNN_SIMPLESTL)
+    # 我添加了NCNN_SIMPLEMATH
+    if(NCNN_SIMPLEOMP OR NCNN_SIMPLESTL OR NCNN_SIMPLEMATH)
         target_link_libraries(ncnn PUBLIC pthread)
     endif()
 endif()
