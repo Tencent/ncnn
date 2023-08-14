@@ -26,7 +26,7 @@ public:
         return R"PNNXIR(7767517
 3 2
 pnnx.Input              input       0 1 input
-torch.diag           op_0        1 1 input out diagonal=%diagonal
+torch.diag              op_0        1 1 input out diagonal=%diagonal
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }

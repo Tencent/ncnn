@@ -22,10 +22,10 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-5 4
+4 3
 pnnx.Input              input_0     0 1 input
 pnnx.Input              input_1     0 1 diagonal
-aten::diag         op_0        2 1 input diagonal out
+aten::diag              op_0        2 1 input diagonal out
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
