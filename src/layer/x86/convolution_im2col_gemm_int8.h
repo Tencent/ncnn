@@ -633,7 +633,7 @@ static void convolution_im2col_pack_A_tile_int8(const Mat& A, Mat& AT, int i, in
 
 static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile, Mat& topT_tile, Mat& top_blob, int i, int max_ii, int j, int max_jj, int k, int max_kk, bool k_end)
 {
-    NCNN_LOGE("convolution_gemm_transB_packed_tile_int8 %d %d %d %d %d %d", i, max_ii, j, max_jj, k, max_kk);
+    // NCNN_LOGE("convolution_gemm_transB_packed_tile_int8 %d %d %d %d %d %d", i, max_ii, j, max_jj, k, max_kk);
 
     const int out_elempack = top_blob.elempack;
     const int out_hstep = (int)top_blob.cstep;
@@ -2119,29 +2119,16 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 __m128i _pB5 = _mm_set1_epi16(pB[5]);
                 __m128i _pB6 = _mm_set1_epi16(pB[6]);
                 __m128i _pB7 = _mm_set1_epi16(pB[7]);
+                __m128i _pB01 = _mm_unpacklo_epi64(_pB0, _pB1);
+                __m128i _pB23 = _mm_unpacklo_epi64(_pB2, _pB3);
+                __m128i _pB45 = _mm_unpacklo_epi64(_pB4, _pB5);
+                __m128i _pB67 = _mm_unpacklo_epi64(_pB6, _pB7);
 
 #if __SSE4_1__
                 _pA = _mm_cvtepi8_epi16(_pA);
 #else
                 _pA = _mm_unpacklo_epi8(_pA, _mm_cmpgt_epi8(_mm_setzero_si128(), _pA));
 #endif
-
-#if __XOP__
-                _pA = _mm_unpacklo_epi16(_pA, _pA);
-
-                _sum0 = _mm_maccd_epi16(_pA, _pB0, _sum0);
-                _sum1 = _mm_maccd_epi16(_pA, _pB1, _sum1);
-                _sum2 = _mm_maccd_epi16(_pA, _pB2, _sum2);
-                _sum3 = _mm_maccd_epi16(_pA, _pB3, _sum3);
-                _sum4 = _mm_maccd_epi16(_pA, _pB4, _sum4);
-                _sum5 = _mm_maccd_epi16(_pA, _pB5, _sum5);
-                _sum6 = _mm_maccd_epi16(_pA, _pB6, _sum6);
-                _sum7 = _mm_maccd_epi16(_pA, _pB7, _sum7);
-#else
-                __m128i _pB01 = _mm_unpacklo_epi64(_pB0, _pB1);
-                __m128i _pB23 = _mm_unpacklo_epi64(_pB2, _pB3);
-                __m128i _pB45 = _mm_unpacklo_epi64(_pB4, _pB5);
-                __m128i _pB67 = _mm_unpacklo_epi64(_pB6, _pB7);
 
                 __m128i _sl0 = _mm_mullo_epi16(_pA, _pB01);
                 __m128i _sh0 = _mm_mulhi_epi16(_pA, _pB01);
@@ -2168,7 +2155,6 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 _sum5 = _mm_add_epi32(_sum5, _s5);
                 _sum6 = _mm_add_epi32(_sum6, _s6);
                 _sum7 = _mm_add_epi32(_sum7, _s7);
-#endif
 
                 pA += 4;
                 pB += 8;
@@ -2285,23 +2271,14 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 __m128i _pB1 = _mm_set1_epi16(pB[1]);
                 __m128i _pB2 = _mm_set1_epi16(pB[2]);
                 __m128i _pB3 = _mm_set1_epi16(pB[3]);
+                __m128i _pB01 = _mm_unpacklo_epi64(_pB0, _pB1);
+                __m128i _pB23 = _mm_unpacklo_epi64(_pB2, _pB3);
 
 #if __SSE4_1__
                 _pA = _mm_cvtepi8_epi16(_pA);
 #else
                 _pA = _mm_unpacklo_epi8(_pA, _mm_cmpgt_epi8(_mm_setzero_si128(), _pA));
 #endif
-
-#if __XOP__
-                _pA = _mm_unpacklo_epi16(_pA, _pA);
-
-                _sum0 = _mm_maccd_epi16(_pA, _pB0, _sum0);
-                _sum1 = _mm_maccd_epi16(_pA, _pB1, _sum1);
-                _sum2 = _mm_maccd_epi16(_pA, _pB2, _sum2);
-                _sum3 = _mm_maccd_epi16(_pA, _pB3, _sum3);
-#else
-                __m128i _pB01 = _mm_unpacklo_epi64(_pB0, _pB1);
-                __m128i _pB23 = _mm_unpacklo_epi64(_pB2, _pB3);
 
                 __m128i _sl0 = _mm_mullo_epi16(_pA, _pB01);
                 __m128i _sh0 = _mm_mulhi_epi16(_pA, _pB01);
@@ -2316,7 +2293,6 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 _sum1 = _mm_add_epi32(_sum1, _s1);
                 _sum2 = _mm_add_epi32(_sum2, _s2);
                 _sum3 = _mm_add_epi32(_sum3, _s3);
-#endif
 
                 pA += 4;
                 pB += 4;
@@ -2405,20 +2381,13 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 __m128i _pA = _mm_castps_si128(_mm_load1_ps((const float*)pA));
                 __m128i _pB0 = _mm_set1_epi16(pB[0]);
                 __m128i _pB1 = _mm_set1_epi16(pB[1]);
+                __m128i _pB = _mm_unpacklo_epi64(_pB0, _pB1);
 
 #if __SSE4_1__
                 _pA = _mm_cvtepi8_epi16(_pA);
 #else
                 _pA = _mm_unpacklo_epi8(_pA, _mm_cmpgt_epi8(_mm_setzero_si128(), _pA));
 #endif
-
-#if __XOP__
-                _pA = _mm_unpacklo_epi16(_pA, _pA);
-
-                _sum0 = _mm_maccd_epi16(_pA, _pB0, _sum0);
-                _sum1 = _mm_maccd_epi16(_pA, _pB1, _sum1);
-#else
-                __m128i _pB = _mm_unpacklo_epi64(_pB0, _pB1);
 
                 __m128i _sl = _mm_mullo_epi16(_pA, _pB);
                 __m128i _sh = _mm_mulhi_epi16(_pA, _pB);
@@ -2427,7 +2396,6 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
 
                 _sum0 = _mm_add_epi32(_sum0, _s0);
                 _sum1 = _mm_add_epi32(_sum1, _s1);
-#endif
 
                 pA += 4;
                 pB += 2;
@@ -2519,17 +2487,11 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 _pA = _mm_unpacklo_epi8(_pA, _mm_cmpgt_epi8(_mm_setzero_si128(), _pA));
 #endif
 
-#if __XOP__
-                _pA = _mm_unpacklo_epi16(_pA, _pA);
-
-                _sum0 = _mm_maccd_epi16(_pA, _pB, _sum0);
-#else
                 __m128i _sl = _mm_mullo_epi16(_pA, _pB);
                 __m128i _sh = _mm_mulhi_epi16(_pA, _pB);
                 __m128i _s0 = _mm_unpacklo_epi16(_sl, _sh);
 
                 _sum0 = _mm_add_epi32(_sum0, _s0);
-#endif
 
                 pA += 4;
                 pB += 1;
