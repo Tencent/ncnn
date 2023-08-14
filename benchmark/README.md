@@ -4,7 +4,7 @@ Only the network definition files (ncnn param) are required.
 
 The large model binary files (ncnn bin) are not loaded but generated randomly for speed test.
 
-More model networks may be added later.
+If no model specified, it would benchmark default list. More model networks may be added later.
 
 ---
 Build
@@ -23,7 +23,9 @@ make -j4
 Usage
 ```shell
 # copy all param files to the current directory
-./benchncnn [loop count] [num threads] [powersave] [gpu device] [cooling down]
+./benchncnn [loop count] [num threads] [powersave] [gpu device] [cooling down] [(key=value)...]
+  param=model.param
+  shape=[227,227,3],..
 ```
 run benchncnn on android device
 ```shell
@@ -34,7 +36,9 @@ adb shell
 
 # executed in android adb shell
 cd /data/local/tmp/
-./benchncnn [loop count] [num threads] [powersave] [gpu device] [cooling down]
+./benchncnn [loop count] [num threads] [powersave] [gpu device] [cooling down] [(key=value)...]
+  param=model.param
+  shape=[227,227,3],..
 ```
 
 Parameter
@@ -46,7 +50,8 @@ Parameter
 |powersave|0=all cores, 1=little cores only, 2=big cores only|0|
 |gpu device|-1=cpu-only, 0=gpu0, 1=gpu1 ...|-1|
 |cooling down|0=disable, 1=enable|1|
-
+|param|ncnn model.param filepath|-|
+|shape|model input shapes with, whc format|-|
 
 Tips: Disable android UI server and set CPU and GPU to max frequency
 ```shell
@@ -436,7 +441,7 @@ cooling_down = 0
       mobilenet_yolo  min =    3.96  max =   11.94  avg =    6.48
   mobilenetv2_yolov3  min =    6.07  max =    6.21  avg =    6.13
          yolov4-tiny  min =   13.01  max =   26.78  avg =   14.87
-         
+
 root@3090:~/Desktop/ncnn-20221128/build/benchmark$ ./benchncnn 100 10 2 0 0
 [0 NVIDIA GeForce RTX 3090]  queueC=2[8]  queueG=0[16]  queueT=1[2]
 [0 NVIDIA GeForce RTX 3090]  bugsbn1=0  bugbilz=0  bugcopc=0  bugihfa=0
@@ -816,7 +821,7 @@ gpu_device = -1
        mobilenet_ssd  min =  105.01  max =  105.95  avg =  105.40
   mobilenet_ssd_int8  min =  119.93  max =  120.50  avg =  120.19
       mobilenet_yolo  min =  229.87  max =  230.76  avg =  230.21
-    mobilenet_yolov3  min =  242.10  max =  242.91  avg =  242.47  
+    mobilenet_yolov3  min =  242.10  max =  242.91  avg =  242.47
 ```
 
 ### Kirin 970 (Cortex-A73 2.4GHz x 4 + Cortex-A53 1.8GHz x 4)
@@ -1076,7 +1081,7 @@ cooling_down = 1
   mobilenet_ssd_int8  min =  167.86  max =  188.46  avg =  180.56
       mobilenet_yolo  min =  201.75  max =  263.92  avg =  240.17
   mobilenetv2_yolov3  min =  143.76  max =  167.77  avg =  151.94
-  
+
 lavender:/data/local/tmp/ncnnbench $ ./benchncnn 4 1 2 -1 1
 [0 Adreno (TM) 512]  queueC=0[3]  queueG=0[3]  queueT=0[3]
 [0 Adreno (TM) 512]  buglssc=0  bugsbn1=1  buglbia=0  bugihfa=0
@@ -2727,7 +2732,51 @@ cooling_down = 0
 
 ```
 
+### RDK X3 Module (Cortex-A53 1.5GHz x 4) aarch64
+```
+root@ubuntu:/home/sunrise/ncnn-master/benchmark# ../build-aarch64-linux-gnu/benchmark/benchncnn 10 4 0 -1 1
+loop_count = 10
+num_threads = 4
+powersave = 0
+gpu_device = -1
+cooling_down = 1
+          squeezenet  min =   49.83  max =   50.57  avg =   50.08
+     squeezenet_int8  min =   48.43  max =   49.18  avg =   48.67
+           mobilenet  min =   68.37  max =   69.09  avg =   68.63
+      mobilenet_int8  min =   58.19  max =   58.72  avg =   58.37
+        mobilenet_v2  min =   58.76  max =   60.62  avg =   59.20
+        mobilenet_v3  min =   49.75  max =   50.60  avg =   50.06
+          shufflenet  min =   37.17  max =   37.96  avg =   37.50
+       shufflenet_v2  min =   32.08  max =   32.42  avg =   32.22
+             mnasnet  min =   55.51  max =   57.02  avg =   55.90
+     proxylessnasnet  min =   68.15  max =   69.53  avg =   68.78
+     efficientnet_b0  min =   88.64  max =   90.16  avg =   89.43
+   efficientnetv2_b0  min =  102.45  max =  103.42  avg =  102.92
+        regnety_400m  min =   88.22  max =   89.09  avg =   88.62
+           blazeface  min =    9.78  max =   10.15  avg =    9.93
+           googlenet  min =  152.20  max =  153.92  avg =  153.28
+      googlenet_int8  min =  141.80  max =  143.30  avg =  142.48
+            resnet18  min =  116.70  max =  117.59  avg =  117.03
+       resnet18_int8  min =  104.42  max =  105.85  avg =  104.94
+             alexnet  min =   82.55  max =   83.23  avg =   82.82
+               vgg16  min =  590.22  max =  598.18  avg =  594.35
+          vgg16_int8  min =  504.56  max =  507.21  avg =  505.73
+            resnet50  min =  307.36  max =  308.68  avg =  308.03
+       resnet50_int8  min =  281.35  max =  283.87  avg =  282.30
+      squeezenet_ssd  min =  124.93  max =  126.51  avg =  125.51
+ squeezenet_ssd_int8  min =  118.07  max =  118.89  avg =  118.29
+       mobilenet_ssd  min =  142.27  max =  142.57  avg =  142.44
+  mobilenet_ssd_int8  min =  116.51  max =  117.60  avg =  117.04
+      mobilenet_yolo  min =  314.64  max =  317.09  avg =  315.93
+  mobilenetv2_yolov3  min =  204.55  max =  205.30  avg =  204.93
+         yolov4-tiny  min =  246.69  max =  249.64  avg =  247.95
+           nanodet_m  min =   77.73  max =   78.30  avg =   77.99
+    yolo-fastest-1.1  min =   46.29  max =   47.52  avg =   46.93
+      yolo-fastestv2  min =   36.55  max =   36.95  avg =   36.73
+  vision_transformer  min = 3372.85  max = 3409.14  avg = 3377.75
+          FastestDet  min =   38.23  max =   38.77  avg =   38.49
 
+```
 
 ### NanoPi R2S, Rockchip RK3328 (Cortex-A53 1.3GHz x 4) Armbian focal (21.05.1) aarch64
 ```
@@ -2767,7 +2816,7 @@ cooling_down = 1
   mobilenetv2_yolov3  min =  238.56  max =  281.97  avg =  247.56
          yolov4-tiny  min =  311.45  max =  333.32  avg =  316.79
            nanodet_m  min =  114.15  max =  122.39  avg =  115.44
-           
+
 root@nanopi-r2s:~/ncnn/build/benchmark# ./benchncnn 8 2 0
 loop_count = 8
 num_threads = 2
@@ -3847,6 +3896,51 @@ cooling_down = 0
           FastestDet  min =    7.66  max =    7.90  avg =    7.80
 ```
 
+### Loongson 3A6000 (LA664 2.5GHz * 4+4)
+
+```
+~/ncnn/build/benchmark$ ./benchncnn 10 8 2 -1 0
+loop_count = 10
+num_threads = 8
+powersave = 2
+gpu_device = -1
+cooling_down = 0
+          squeezenet  min =    7.12  max =    7.20  avg =    7.16
+     squeezenet_int8  min =    8.93  max =    9.20  avg =    8.98
+           mobilenet  min =   11.81  max =   11.88  avg =   11.84
+      mobilenet_int8  min =   14.25  max =   14.33  avg =   14.28
+        mobilenet_v2  min =    8.06  max =    8.16  avg =    8.08
+        mobilenet_v3  min =    6.84  max =    6.90  avg =    6.87
+          shufflenet  min =    5.38  max =    5.44  avg =    5.39
+       shufflenet_v2  min =    5.20  max =    5.22  avg =    5.20
+             mnasnet  min =    8.06  max =    8.10  avg =    8.07
+     proxylessnasnet  min =    8.94  max =    9.09  avg =    8.99
+     efficientnet_b0  min =   13.43  max =   13.65  avg =   13.48
+   efficientnetv2_b0  min =   16.06  max =   16.18  avg =   16.11
+        regnety_400m  min =   18.11  max =   18.18  avg =   18.14
+           blazeface  min =    1.59  max =    1.61  avg =    1.60
+           googlenet  min =   26.08  max =   26.24  avg =   26.17
+      googlenet_int8  min =   31.25  max =   31.42  avg =   31.34
+            resnet18  min =   19.65  max =   19.73  avg =   19.69
+       resnet18_int8  min =   25.55  max =   25.66  avg =   25.60
+             alexnet  min =   19.56  max =   19.81  avg =   19.67
+               vgg16  min =  115.32  max =  116.38  avg =  115.99
+          vgg16_int8  min =  135.94  max =  136.73  avg =  136.34
+            resnet50  min =   56.46  max =   56.96  avg =   56.81
+       resnet50_int8  min =   66.13  max =   66.40  avg =   66.27
+      squeezenet_ssd  min =   22.84  max =   22.99  avg =   22.89
+ squeezenet_ssd_int8  min =   22.34  max =   22.76  avg =   22.54
+       mobilenet_ssd  min =   24.67  max =   24.75  avg =   24.71
+  mobilenet_ssd_int8  min =   29.32  max =   29.37  avg =   29.34
+      mobilenet_yolo  min =   82.82  max =   84.02  avg =   83.40
+  mobilenetv2_yolov3  min =   30.31  max =   30.45  avg =   30.38
+         yolov4-tiny  min =   42.49  max =   42.74  avg =   42.62
+           nanodet_m  min =   11.00  max =   11.08  avg =   11.02
+    yolo-fastest-1.1  min =    5.28  max =    5.40  avg =    5.31
+      yolo-fastestv2  min =    5.09  max =    5.10  avg =    5.10
+  vision_transformer  min =  869.40  max =  898.18  avg =  874.07
+          FastestDet  min =    5.28  max =    5.37  avg =    5.31
+```
 
 ### Phytium FT-2000/4 (FTC663 armv8 2.2GHz x 4)
 Test on Kylin OS V10
@@ -4058,7 +4152,7 @@ cooling_down = 0
   mobilenetv2_yolov3  min =   58.13  max =   59.50  avg =   58.62
          yolov4-tiny  min =   74.18  max =   76.56  avg =   75.13
            nanodet_m  min =   25.16  max =   31.45  avg =   26.71
-           
+
 root@FT2K:~/Desktop/ncnn-20221128/build/benchmark$ ./benchncnn 10 4 2 -1 0
 loop_count = 10
 num_threads = 4
@@ -5224,7 +5318,7 @@ cooling_down = 1
 
 ### Sunway SW421 (sw_64 1.7GHz * 4)
 ```
-root@SW421:~/Desktop/ncnn-20220420/ncnn-20220420/build/benchmark$ ./benchncnn 
+root@SW421:~/Desktop/ncnn-20220420/ncnn-20220420/build/benchmark$ ./benchncnn
 loop_count = 4
 num_threads = 4
 powersave = 0
@@ -5482,7 +5576,7 @@ cooling_down = 0
 Tested on `Debian GNU/Linux 11 (bullseye) i686` with `cmake -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX=OFF -DNCNN_AVX2=OFF -DNCNN_AVX512=OFF-DNCNN_BUILD_TESTS=ON ..`.
 
 ```
-mouri@Mouri-Laptop-2:~/ncnn/benchmark$ ./../build/benchmark/benchncnn 
+mouri@Mouri-Laptop-2:~/ncnn/benchmark$ ./../build/benchmark/benchncnn
 loop_count = 4
 num_threads = 1
 powersave = 0
@@ -5525,7 +5619,7 @@ cooling_down = 1
           FastestDet  min =  146.94  max =  148.50  avg =  147.44
 ```
 ### VisionFive2 , JH7110 (SiFive-U74(RV64GC) 1.5GHz x 4) riscv64
-Test on Deepin V23 
+Test on Deepin V23
 ```
 deepin@deepin-riscv:~/ncnn/benchmark$ ./benchncnn 10 4 0 -1 0
 loop_count = 10
@@ -5610,12 +5704,12 @@ cooling_down = 0
   vision_transformer  min = 14926.32  max = 15952.46  avg = 15278.62
           FastestDet  min =  109.82  max =  181.18  avg =  129.30
 ```
-### T-Head TH1520 (C910V<aka C920>, 1.848 GHz x 4)
+### T-Head TH1520 (C910V, 1.848 GHz x 4 + BXM-4-64 PowerVR)
 
 Tested on `Linux anolis-riscv 5.10.112-00579-g8e3db308d5a5 #23 SMP PREEMPT Fri Aug 12 10:17:32 CST 2022 riscv64 riscv64 riscv64 GNU/Linux`
 
 ```
-[root@anolis-riscv benchmark]# ./benchncnn 
+[root@anolis-riscv benchmark]# ./benchncnn
 syscall error -1
 loop_count = 4
 num_threads = 4
@@ -5642,6 +5736,57 @@ cooling_down = 1
        resnet18_int8  min = 5053.33  max = 6599.94  avg = 6001.86
              alexnet  min =  403.68  max =  404.60  avg =  404.23
                vgg16  min = 2731.55  max = 2746.48  avg = 2738.82
+```
+
+test on `Beaglev-ahead(Linux ahead 5.10.113-ahead #2023.08.02.13.12+2c2096a98 SMP PREEMPT Wed Aug 2 13:13:02 UTC 2 riscv64 GNU/Linux)`
+
+```
+debian@ahead:~/ncnn/build/benchmark$ sudo ./benchncnn 10 1 0 0 0
+[0 PowerVR B-Series BXM-4-64]  queueC=0[2]  queueG=0[2]  queueT=0[2]
+[0 PowerVR B-Series BXM-4-64]  bugsbn1=0  bugbilz=0  bugcopc=0  bugihfa=0
+[0 PowerVR B-Series BXM-4-64]  fp16-p/s/a=1/1/1  int8-p/s/a=1/1/1
+[0 PowerVR B-Series BXM-4-64]  subgroup=1  basic/vote/ballot/shuffle=1/1/1/1
+[0 PowerVR B-Series BXM-4-64]  fp16-matrix-16_8_8/16_8_16/16_16_16=0/0/0
+loop_count = 10
+num_threads = 1
+powersave = 0
+gpu_device = 0
+cooling_down = 0
+          squeezenet  min =  287.88  max =  296.84  avg =  295.68
+     squeezenet_int8  min = 2289.46  max = 2320.97  avg = 2306.60
+           mobilenet  min =  584.32  max =  588.48  avg =  587.41
+      mobilenet_int8  min = 2487.91  max = 2492.12  avg = 2489.64
+        mobilenet_v2  min =  380.02  max =  386.67  avg =  385.75
+        mobilenet_v3  min =  314.73  max =  328.84  avg =  325.76
+          shufflenet  min =  146.96  max =  158.29  avg =  156.38
+       shufflenet_v2  min =  203.94  max =  211.77  avg =  210.82
+             mnasnet  min =  395.80  max =  404.95  avg =  403.80
+     proxylessnasnet  min =  447.74  max =  456.89  avg =  454.87
+     efficientnet_b0  min =  532.23  max =  543.05  avg =  538.53
+   efficientnetv2_b0  min =  659.43  max =  681.64  avg =  669.13
+        regnety_400m  min =  393.16  max =  407.27  avg =  403.81
+           blazeface  min =   50.41  max =   61.83  avg =   56.92
+           googlenet  min =  890.79  max =  898.09  avg =  896.25
+      googlenet_int8  min = 4713.76  max = 5296.61  avg = 5044.39
+            resnet18  min =  814.16  max =  824.53  avg =  820.35
+       resnet18_int8  min = 4800.73  max = 6015.34  avg = 5765.47
+             alexnet  min =  453.80  max =  465.51  avg =  462.11
+               vgg16  min = 4016.26  max = 4027.30  avg = 4021.94
+          vgg16_int8  min = 55069.69  max = 64814.86  avg = 59096.20
+            resnet50  min = 2494.42  max = 2502.38  avg = 2500.28
+       resnet50_int8  min = 15366.90  max = 17179.36  avg = 16701.20
+      squeezenet_ssd  min =  724.36  max =  738.28  avg =  730.44
+ squeezenet_ssd_int8  min = 4550.62  max = 5235.87  avg = 4684.19
+       mobilenet_ssd  min = 1207.04  max = 1218.80  avg = 1212.86
+  mobilenet_ssd_int8  min = 6019.61  max = 6349.35  avg = 6184.49
+      mobilenet_yolo  min = 2736.28  max = 2747.06  avg = 2743.21
+  mobilenetv2_yolov3  min = 1339.16  max = 1349.46  avg = 1344.81
+         yolov4-tiny  min = 1457.05  max = 1459.04  avg = 1457.81
+           nanodet_m  min =  443.40  max =  444.58  avg =  444.00
+    yolo-fastest-1.1  min =  240.39  max =  248.05  avg =  247.04
+      yolo-fastestv2  min =  162.71  max =  173.30  avg =  169.39
+  vision_transformer  min = 17148.14  max = 17250.66  avg = 17202.60
+          FastestDet  min =  199.71  max =  200.38  avg =  199.90
 ```
 
 ### Rockchip RK3588 (Quad Core A76 2.4GHz + Quad Core A55 1.8GHz)
@@ -6023,7 +6168,7 @@ cooling_down = 0
       yolo-fastestv2  min =    4.33  max =    7.61  avg =    6.01
   vision_transformer  min =  556.38  max =  599.49  avg =  567.98
           FastestDet  min =    4.20  max =   11.37  avg =    6.51
-mouri@MouriVM-openSUSE:~/Workspace/ncnn/benchmark> 
+mouri@MouriVM-openSUSE:~/Workspace/ncnn/benchmark>
 ```
 
 ### Hyper-V Linux Guest with GPU-PV enabled (Intel Core i7-7700K, NVIDIA GeForce GTX 1050 Ti)

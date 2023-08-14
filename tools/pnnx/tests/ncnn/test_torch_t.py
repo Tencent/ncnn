@@ -1,6 +1,6 @@
 # Tencent is pleased to support the open source community by making ncnn available.
 #
-# Copyright (C) 2023 THL A29 Limited, a Tencent company. All rights reserved.
+# Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
 #
 # Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 # in compliance with the License. You may obtain a copy of the License at
@@ -21,39 +21,36 @@ class Model(nn.Module):
         super(Model, self).__init__()
 
     def forward(self, x, y):
-        x = x * 10
-        y = y * 13
-        y = y.to(dtype=x.dtype, memory_format=torch.contiguous_format)
-        x = x.to(device='cpu', dtype=torch.int, copy=True)
-        x = x + 1
-        y = y - 2
-        z = x.to(y.device)
-        return x, y, z
+        x = torch.t(x)
+        y = torch.t(y)
+        x = F.relu(x)
+        y = F.relu(y)
+        return x, y
 
 def test():
     net = Model()
     net.eval()
 
     torch.manual_seed(0)
-    x = torch.rand(3, 16)
-    y = torch.randint(10, (1, 13), dtype=torch.int)
+    x = torch.rand(3)
+    y = torch.rand(5, 9)
 
     a = net(x, y)
 
     # export torchscript
     mod = torch.jit.trace(net, (x, y))
-    mod.save("test_Tensor_to.pt")
+    mod.save("test_torch_t.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_Tensor_to.pt inputshape=[3,16],[1,13]i32")
+    os.system("../../src/pnnx test_torch_t.pt inputshape=[3],[5,9]")
 
-    # pnnx inference
-    import test_Tensor_to_pnnx
-    b = test_Tensor_to_pnnx.test_inference()
+    # ncnn inference
+    import test_torch_t_ncnn
+    b = test_torch_t_ncnn.test_inference()
 
     for a0, b0 in zip(a, b):
-        if not torch.equal(a0, b0):
+        if not torch.allclose(a0, b0, 1e-4, 1e-4):
             return False
     return True
 
