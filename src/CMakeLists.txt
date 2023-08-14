@@ -39,6 +39,7 @@ set(ncnn_SRCS
     simpleocv.cpp
     simpleomp.cpp
     simplestl.cpp
+    simplemath.cpp
 )
 
 if(ANDROID)
@@ -577,6 +578,7 @@ if(NCNN_INSTALL_SDK)
         simpleocv.h
         simpleomp.h
         simplestl.h
+        simplemath.h
         vulkan_header_fix.h
         ${CMAKE_CURRENT_BINARY_DIR}/ncnn_export.h
         ${CMAKE_CURRENT_BINARY_DIR}/layer_shader_type_enum.h
