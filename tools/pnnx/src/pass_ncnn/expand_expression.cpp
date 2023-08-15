@@ -131,6 +131,7 @@ static std::string expand_expression(Graph& graph, const Operator* op, int& pnnx
                  || t == "reciprocal"
                  || t == "round"
                  || t == "rsqrt"
+                 || t == "sign"
                  || t == "sin"
                  || t == "sqrt"
                  || t == "square"
@@ -160,6 +161,7 @@ static std::string expand_expression(Graph& graph, const Operator* op, int& pnnx
             if (t == "reciprocal") op_unary->params["0"] = 15;
             if (t == "round") op_unary->params["0"] = 18;
             if (t == "rsqrt") op_unary->params["0"] = 6;
+            if (t == "sign") fprintf(stderr, "UnaryOp sign not supported yet\n"); // TODO
             if (t == "sin") op_unary->params["0"] = 9;
             if (t == "sqrt") op_unary->params["0"] = 5;
             if (t == "square") op_unary->params["0"] = 4;
