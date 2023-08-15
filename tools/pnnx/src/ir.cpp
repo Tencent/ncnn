@@ -1300,6 +1300,7 @@ static std::string expand_expression(const Operator* op)
                  || t == "fmod"
                  || t == "max"
                  || t == "maximum"
+                 || t == "min"
                  || t == "minimum"
                  || t == "pow")
         {
@@ -1308,6 +1309,7 @@ static std::string expand_expression(const Operator* op)
             if (t == "fmod") binaryop = "torch.fmod";
             if (t == "max") binaryop = "torch.max";
             if (t == "maximum") binaryop = "torch.maximum";
+            if (t == "min") binaryop = "torch.min";
             if (t == "minimum") binaryop = "torch.minimum";
             if (t == "pow") binaryop = "torch.pow";
 
