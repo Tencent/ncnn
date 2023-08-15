@@ -520,8 +520,8 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |nn.LeakyReLU               | :heavy_check_mark: | :heavy_check_mark: |
 |nn.Linear                  | :heavy_check_mark: | :heavy_check_mark: |
 |nn.LocalResponseNorm       | :heavy_check_mark: | :heavy_check_mark: |
-|nn.LogSigmoid              | :heavy_check_mark: |
-|nn.LogSoftmax              | :heavy_check_mark: |
+|nn.LogSigmoid              | :heavy_check_mark: | :heavy_check_mark: |
+|nn.LogSoftmax              | :heavy_check_mark: | :heavy_check_mark: |
 |nn.LPPool1d                | :heavy_check_mark: |
 |nn.LPPool2d                | :heavy_check_mark: |
 |nn.LSTM                    | :heavy_check_mark: | :heavy_check_mark: |
@@ -626,8 +626,8 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |F.leaky_relu_              | :heavy_check_mark: | :heavy_check_mark: |
 |F.linear                   | :heavy_check_mark: | :heavy_check_mark:* |
 |F.local_response_norm      | :heavy_check_mark: | :heavy_check_mark: |
-|F.logsigmoid               | :heavy_check_mark: |
-|F.log_softmax              | :heavy_check_mark: |
+|F.logsigmoid               | :heavy_check_mark: | :heavy_check_mark: |
+|F.log_softmax              | :heavy_check_mark: | :heavy_check_mark: |
 |F.lp_pool1d                | :heavy_check_mark: |
 |F.lp_pool2d                | :heavy_check_mark: |
 |F.max_pool1d               | :heavy_check_mark: | :heavy_check_mark: |
