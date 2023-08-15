@@ -185,6 +185,7 @@ static std::string expand_expression(Graph& graph, const Operator* op, int& pnnx
                  || t == "div"
                  || t == "floor_divide"
                  || t == "fmod"
+                 || t == "max"
                  || t == "maximum"
                  || t == "minimum"
                  || t == "mul"
@@ -209,7 +210,7 @@ static std::string expand_expression(Graph& graph, const Operator* op, int& pnnx
             if (t == "sub") op_binary->params["0"] = 1;
             if (t == "mul") op_binary->params["0"] = 2;
             if (t == "div") op_binary->params["0"] = 3;
-            if (t == "maximum") op_binary->params["0"] = 4;
+            if (t == "max" || t == "maximum") op_binary->params["0"] = 4;
             if (t == "minimum") op_binary->params["0"] = 5;
             if (t == "floor_divide") fprintf(stderr, "BinaryOp floor_divide not supported yet\n"); // TODO
             if (t == "fmod") fprintf(stderr, "BinaryOp fmod not supported yet\n");                 // TODO

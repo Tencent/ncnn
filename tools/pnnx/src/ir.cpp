@@ -1298,6 +1298,7 @@ static std::string expand_expression(const Operator* op)
         }
         else if (t == "atan2"
                  || t == "fmod"
+                 || t == "max"
                  || t == "maximum"
                  || t == "minimum"
                  || t == "pow")
@@ -1305,6 +1306,7 @@ static std::string expand_expression(const Operator* op)
             std::string binaryop;
             if (t == "atan2") binaryop = "torch.atan2";
             if (t == "fmod") binaryop = "torch.fmod";
+            if (t == "max") binaryop = "torch.max";
             if (t == "maximum") binaryop = "torch.maximum";
             if (t == "minimum") binaryop = "torch.minimum";
             if (t == "pow") binaryop = "torch.pow";
