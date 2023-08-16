@@ -563,6 +563,7 @@ static void convolution_im2col_pack_A_tile_int8(const Mat& A, Mat& AT, int i, in
 
         int kk = 0;
 #if __SSE2__
+#if defined(__x86_64__) || defined(_M_X64)
         for (; kk + 15 < max_kk; kk += 16)
         {
             __m128i _r0 = _mm_loadu_si128((const __m128i*)p0);
@@ -585,6 +586,7 @@ static void convolution_im2col_pack_A_tile_int8(const Mat& A, Mat& AT, int i, in
             p0 += 8;
             p1 += 8;
         }
+#endif // defined(__x86_64__) || defined(_M_X64)
 #endif // __SSE2__
         for (; kk + 1 < max_kk; kk += 2)
         {
