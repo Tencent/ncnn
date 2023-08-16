@@ -77,6 +77,14 @@ static bool value_link_output(const torch::jit::Value* v, const std::vector<torc
             if (link)
                 return true;
         }
+
+        std::string op_type = node->kind().toDisplayString();
+        bool is_inplace_op = op_type.size() > 2 && op_type[op_type.size() - 2] != '_' && op_type[op_type.size() - 1] == '_';
+        if (is_inplace_op)
+        {
+            // optimize me: track other inplace op inputs
+            return true;
+        }
     }
 
     return false;

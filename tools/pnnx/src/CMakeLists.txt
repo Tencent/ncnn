@@ -213,6 +213,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_clamp.cpp
     pass_level2/torch_clone.cpp
     pass_level2/torch_complex.cpp
+    pass_level2/torch_cross.cpp
     pass_level2/torch_cumsum.cpp
     pass_level2/torch_dequantize.cpp
     pass_level2/torch_einsum.cpp
@@ -255,6 +256,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_std.cpp
     pass_level2/torch_sum.cpp
     pass_level2/torch_permute.cpp
+    pass_level2/torch_t.cpp
     pass_level2/torch_tensor_split.cpp
     pass_level2/torch_topk.cpp
     pass_level2/torch_transpose.cpp
@@ -426,6 +428,8 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/F_leaky_relu.cpp
     pass_ncnn/F_linear.cpp
     pass_ncnn/F_local_response_norm.cpp
+    pass_ncnn/F_log_softmax.cpp
+    pass_ncnn/F_logsigmoid.cpp
     pass_ncnn/F_max_pool1d.cpp
     pass_ncnn/F_max_pool2d.cpp
     pass_ncnn/F_max_pool3d.cpp
@@ -483,6 +487,8 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/nn_LeakyReLU.cpp
     pass_ncnn/nn_Linear.cpp
     pass_ncnn/nn_LocalResponseNorm.cpp
+    pass_ncnn/nn_LogSigmoid.cpp
+    pass_ncnn/nn_LogSoftmax.cpp
     pass_ncnn/nn_LSTM.cpp
     pass_ncnn/nn_MaxPool1d.cpp
     pass_ncnn/nn_MaxPool2d.cpp
@@ -535,6 +541,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/torch_prod.cpp
     pass_ncnn/torch_squeeze.cpp
     pass_ncnn/torch_sum.cpp
+    pass_ncnn/torch_t.cpp
     pass_ncnn/torch_transpose.cpp
     pass_ncnn/torch_unsqueeze.cpp
     pass_ncnn/torchvision_DeformConv2d.cpp

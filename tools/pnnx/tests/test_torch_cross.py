@@ -15,56 +15,40 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from packaging import version
 
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-        self.w0 = nn.Parameter(torch.rand(12, 15))
-        self.w1 = nn.Parameter(torch.rand(12, 15))
-        self.w2 = nn.Parameter(torch.rand(12, 15))
-        self.w3 = nn.Parameter(torch.rand(12, 15))
-        self.w4 = nn.Parameter(torch.rand(12, 15))
-        self.w5 = nn.Parameter(torch.rand(12, 15))
-        self.c0 = nn.Parameter(torch.ones(1))
-        self.c1 = nn.Parameter(torch.ones(3) + 0.2)
-
-    def forward(self, x):
-        c10, c11, _ = torch.unbind(self.c1)
-        x0 = x * 10 + self.c0 - c11
-        x = x + self.w0 + x0
-        x = x - self.w1 + x0.float()
-        x = x * self.w2 + x0
-        x = x / self.w3 + x0
-        x = x // self.w4 + x0
-        if version.parse(torch.__version__) >= version.parse('2.0'):
-            x = x % self.w5 + x0
-        else:
-            x = torch.fmod(x, self.w5) + x0
-        y = x.int()
-        return x, y & 3, y | 3, y ^ 3, y << 3, y >> 3
+    def forward(self, x, y, z, w):
+        out0 = torch.cross(x, y)
+        out1 = torch.cross(x, y, dim=1)
+        out2 = torch.cross(z, w)
+        return out0, out1, out2
 
 def test():
     net = Model()
     net.eval()
 
     torch.manual_seed(0)
-    x = torch.rand(12, 15)
+    x = torch.rand(3, 3)
+    y = torch.rand(3, 3)
+    z = torch.rand(5, 3)
+    w = torch.rand(5, 3)
 
-    a = net(x)
+    a = net(x, y, z, w)
 
     # export torchscript
-    mod = torch.jit.trace(net, x)
-    mod.save("test_pnnx_expression.pt")
+    mod = torch.jit.trace(net, (x, y, z, w))
+    mod.save("test_torch_cross.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_pnnx_expression.pt inputshape=[12,15]")
+    os.system("../src/pnnx test_torch_cross.pt inputshape=[3,3],[3,3],[5,3],[5,3]")
 
     # pnnx inference
-    import test_pnnx_expression_pnnx
-    b = test_pnnx_expression_pnnx.test_inference()
+    import test_torch_cross_pnnx
+    b = test_torch_cross_pnnx.test_inference()
 
     for a0, b0 in zip(a, b):
         if not torch.equal(a0, b0):
