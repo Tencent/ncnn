@@ -1,5 +1,5 @@
 
-find_package(Protobuf)
+find_package(Protobuf QUIET)
 
 if(NOT PROTOBUF_FOUND)
     # fallback to config mode
@@ -18,7 +18,11 @@ if(PROTOBUF_FOUND)
         PRIVATE
             ${PROTOBUF_INCLUDE_DIRS}
             ${CMAKE_CURRENT_BINARY_DIR})
-    target_link_libraries(caffe2ncnn PRIVATE ${PROTOBUF_LIBRARIES})
+    if(TARGET protobuf::libprotobuf)
+        target_link_libraries(caffe2ncnn PRIVATE protobuf::libprotobuf)
+    else()
+        target_link_libraries(caffe2ncnn PRIVATE ${PROTOBUF_LIBRARIES})
+    endif()
 
     # add all caffe2ncnn tool to a virtual project group
     set_property(TARGET caffe2ncnn PROPERTY FOLDER "tools/converter")
