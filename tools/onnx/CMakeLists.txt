@@ -1,27 +1,28 @@
 
-find_package(Protobuf QUIET)
+find_package(Protobuf)
 
 if(NOT PROTOBUF_FOUND)
     # fallback to config mode
-    option(protobuf_MODULE_COMPATIBLE "CMake built-in FindProtobuf.cmake module compatible" ON)
     find_package(protobuf CONFIG)
+    set(PROTOBUF_FOUND ${protobuf_FOUND})
+    set(PROTOBUF_VERSION ${protobuf_VERSION})
 endif()
 
 if(PROTOBUF_FOUND)
-    if(DEFINED Protobuf_VERSION AND Protobuf_VERSION VERSION_GREATER_EQUAL 3.22)
+    if(DEFINED PROTOBUF_VERSION AND PROTOBUF_VERSION VERSION_GREATER_EQUAL 3.22)
         set(CMAKE_CXX_STANDARD 17)
     endif()
 
-    protobuf_generate_cpp(ONNX_PROTO_SRCS ONNX_PROTO_HDRS onnx.proto)
-    add_executable(onnx2ncnn onnx2ncnn.cpp ${ONNX_PROTO_SRCS} ${ONNX_PROTO_HDRS})
-    target_include_directories(onnx2ncnn
-        PRIVATE
-            ${PROTOBUF_INCLUDE_DIRS}
-            ${CMAKE_CURRENT_BINARY_DIR})
-    if(TARGET protobuf::libprotobuf)
-        target_link_libraries(caffe2ncnn PRIVATE protobuf::libprotobuf)
+    if(protobuf_MODULE_COMPATIBLE)
+        protobuf_generate_cpp(ONNX_PROTO_SRCS ONNX_PROTO_HDRS onnx.proto)
+        add_executable(onnx2ncnn onnx2ncnn.cpp ${ONNX_PROTO_SRCS} ${ONNX_PROTO_HDRS})
+        target_include_directories(onnx2ncnn PRIVATE ${PROTOBUF_INCLUDE_DIRS} ${CMAKE_CURRENT_BINARY_DIR})
+        target_link_libraries(onnx2ncnn PRIVATE ${PROTOBUF_LIBRARIES})
     else()
-        target_link_libraries(caffe2ncnn PRIVATE ${PROTOBUF_LIBRARIES})
+        add_executable(onnx2ncnn onnx2ncnn.cpp onnx.proto)
+        target_include_directories(onnx2ncnn PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
+        protobuf_generate(TARGET onnx2ncnn)
+        target_link_libraries(onnx2ncnn PRIVATE protobuf::libprotobuf)
     endif()
 
     # add all onnx2ncnn tool to a virtual project group
