@@ -36,6 +36,7 @@ static int test_diag_0()
     return 0
            || test_diag(RandomMat(5, 24), 3)
            || test_diag(RandomMat(7, 12), 0)
+           || test_diag(RandomMat(6, 6), -4)
            || test_diag(RandomMat(3, 4), -6);
 }
 

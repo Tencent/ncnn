@@ -70,7 +70,11 @@ int Diag::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
 
         top_blob.create(len, elemsize, opt.blob_allocator);
         if (top_blob.empty())
+        {
+            if (len == 0)
+                return 0;
             return -100;
+        }
 
         int bias_r = -std::min(diagonal, 0);
         int bias_c = std::max(diagonal, 0);
