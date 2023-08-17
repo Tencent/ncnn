@@ -6,6 +6,7 @@ if(PROTOBUF_FOUND)
         set(CMAKE_CXX_STANDARD 17)
     endif()
     if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.9")
+        find_package(protobuf)
         set(PROTOBUF_LIBRARIES protobuf::libprotobuf)
     endif()
 
