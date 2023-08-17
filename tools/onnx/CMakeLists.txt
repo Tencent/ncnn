@@ -4,7 +4,7 @@ find_package(Protobuf)
 if(NOT PROTOBUF_FOUND)
     # fallback to config mode
     option(protobuf_MODULE_COMPATIBLE "CMake built-in FindProtobuf.cmake module compatible" ON)
-    find_package(Protobuf CONFIG)
+    find_package(protobuf CONFIG)
 endif()
 
 if(PROTOBUF_FOUND)
