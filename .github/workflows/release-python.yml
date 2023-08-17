@@ -98,7 +98,7 @@ jobs:
       fail-fast: false
       matrix:
         arch: [aarch64, ppc64le, s390x]
-        build: ['cp36-*', 'cp37-*', 'cp38-*', 'cp39-*', 'cp310-*', 'cp311-*']
+        build: ['cp36-*', 'cp37-*', 'cp38-*', 'cp39-*', 'cp310-*', 'cp311-*', 'cp312-*']
         include:
           - arch: aarch64
             build: 'pp37-*'
@@ -106,6 +106,8 @@ jobs:
             build: 'pp38-*'
           - arch: aarch64
             build: 'pp39-*'
+          - arch: aarch64
+            build: 'pp310-*'
 
     steps:
     - uses: actions/checkout@v3
