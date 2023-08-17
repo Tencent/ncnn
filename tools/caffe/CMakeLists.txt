@@ -1,19 +1,22 @@
 
 find_package(Protobuf)
 
+if(NOT PROTOBUF_FOUND)
+    # fallback to config mode
+    option(protobuf_MODULE_COMPATIBLE "CMake built-in FindProtobuf.cmake module compatible" ON)
+    find_package(Protobuf CONFIG)
+endif()
+
 if(PROTOBUF_FOUND)
     if(DEFINED Protobuf_VERSION AND Protobuf_VERSION VERSION_GREATER_EQUAL 3.22)
         set(CMAKE_CXX_STANDARD 17)
-    endif()
-    if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.9")
-        set(PROTOBUF_LIBRARIES protobuf::libprotobuf)
     endif()
 
     protobuf_generate_cpp(CAFFE_PROTO_SRCS CAFFE_PROTO_HDRS caffe.proto)
     add_executable(caffe2ncnn caffe2ncnn.cpp ${CAFFE_PROTO_SRCS} ${CAFFE_PROTO_HDRS})
     target_include_directories(caffe2ncnn
         PRIVATE
-            ${PROTOBUF_INCLUDE_DIR}
+            ${PROTOBUF_INCLUDE_DIRS}
             ${CMAKE_CURRENT_BINARY_DIR})
     target_link_libraries(caffe2ncnn PRIVATE ${PROTOBUF_LIBRARIES})
 
