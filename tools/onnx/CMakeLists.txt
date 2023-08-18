@@ -1,11 +1,15 @@
 
-find_package(Protobuf)
+find_package(protobuf CONFIG)
 
-if(NOT PROTOBUF_FOUND)
-    # fallback to config mode
-    find_package(protobuf CONFIG)
+if(protobuf_FOUND)
     set(PROTOBUF_FOUND ${protobuf_FOUND})
     set(PROTOBUF_VERSION ${protobuf_VERSION})
+else()
+    # fallback to system
+    find_package(Protobuf)
+    set(PROTOBUF_FOUND ${Protobuf_FOUND})
+    set(PROTOBUF_VERSION ${Protobuf_VERSION})
+    set_target_properties(protobuf::protoc PROPERTIES IMPORTED_LOCATION_RELEASE "${PROTOBUF_PROTOC_EXECUTABLE}")
 endif()
 
 if(PROTOBUF_FOUND)
@@ -13,7 +17,7 @@ if(PROTOBUF_FOUND)
         set(CMAKE_CXX_STANDARD 17)
     endif()
 
-    if(protobuf_MODULE_COMPATIBLE)
+    if(Protobuf_FOUND OR protobuf_MODULE_COMPATIBLE)
         protobuf_generate_cpp(ONNX_PROTO_SRCS ONNX_PROTO_HDRS onnx.proto)
         add_executable(onnx2ncnn onnx2ncnn.cpp ${ONNX_PROTO_SRCS} ${ONNX_PROTO_HDRS})
         target_include_directories(onnx2ncnn PRIVATE ${PROTOBUF_INCLUDE_DIRS} ${CMAKE_CURRENT_BINARY_DIR})
