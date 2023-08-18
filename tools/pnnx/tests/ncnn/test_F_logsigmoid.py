@@ -1,6 +1,6 @@
 # Tencent is pleased to support the open source community by making ncnn available.
 #
-# Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
+# Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
 #
 # Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 # in compliance with the License. You may obtain a copy of the License at
@@ -21,10 +21,10 @@ class Model(nn.Module):
         super(Model, self).__init__()
 
     def forward(self, x, y, z, w):
-        x, x_indices = torch.max(x, dim=1, keepdim=False)
-        y = torch.max(y)
-        w = torch.max(z, w)
-        z, z_indices = torch.max(z, dim=0, keepdim=True)
+        x = F.logsigmoid(x)
+        y = F.logsigmoid(y)
+        z = F.logsigmoid(z)
+        w = F.logsigmoid(w)
         return x, y, z, w
 
 def test():
@@ -32,24 +32,24 @@ def test():
     net.eval()
 
     torch.manual_seed(0)
-    x = torch.rand(3, 16)
-    y = torch.rand(5, 9, 11)
-    z = torch.rand(8, 5, 9, 10)
-    w = torch.rand(5, 9, 10)
+    x = torch.rand(16)
+    y = torch.rand(2, 16)
+    z = torch.rand(3, 12, 16)
+    w = torch.rand(5, 7, 9, 11)
 
     a = net(x, y, z, w)
 
     # export torchscript
     mod = torch.jit.trace(net, (x, y, z, w))
-    mod.save("test_torch_max.pt")
+    mod.save("test_F_logsigmoid.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_torch_max.pt inputshape=[3,16],[5,9,11],[8,5,9,10],[5,9,10]")
+    os.system("../../src/pnnx test_F_logsigmoid.pt inputshape=[16],[2,16],[3,12,16],[5,7,9,11]")
 
     # ncnn inference
-    import test_torch_max_ncnn
-    b = test_torch_max_ncnn.test_inference()
+    import test_F_logsigmoid_ncnn
+    b = test_F_logsigmoid_ncnn.test_inference()
 
     for a0, b0 in zip(a, b):
         if not torch.allclose(a0, b0, 1e-4, 1e-4):
