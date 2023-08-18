@@ -136,9 +136,9 @@ static void resize_bilinear_image_fp16s(const Mat& src, Mat& dst, float* alpha, 
             vfloat32m8_t _rows0 = vle32_v_f32m8(rows0p, vl);
             vfloat32m8_t _rows1 = vle32_v_f32m8(rows1p, vl);
 
-            vfloat32m8_t _D = vfmacc_vf_f32m8(vfmul_vf_f32m8(_rows0, b0, vl), b1, _rows1, vl);
+            vfloat32m8_t _Dp = vfmacc_vf_f32m8(vfmul_vf_f32m8(_rows0, b0, vl), b1, _rows1, vl);
 
-            vse16_v_f16m4(Dp, vfncvt_f_f_w_f16m4(_D, vl), vl);
+            vse16_v_f16m4(Dp, vfncvt_f_f_w_f16m4(_Dp, vl), vl);
 
             Dp += vl;
             rows0p += vl;
@@ -237,9 +237,9 @@ static void resize_bilinear_image_fp16sa(const Mat& src, Mat& dst, __fp16* alpha
             vfloat16m8_t _rows0 = vle16_v_f16m8(rows0p, vl);
             vfloat16m8_t _rows1 = vle16_v_f16m8(rows1p, vl);
 
-            vfloat16m8_t _D = vfmacc_vf_f16m8(vfmul_vf_f16m8(_rows0, b0, vl), b1, _rows1, vl);
+            vfloat16m8_t _Dp = vfmacc_vf_f16m8(vfmul_vf_f16m8(_rows0, b0, vl), b1, _rows1, vl);
 
-            vse16_v_f16m8(Dp, _D, vl);
+            vse16_v_f16m8(Dp, _Dp, vl);
 
             Dp += vl;
             rows0p += vl;

@@ -268,11 +268,11 @@ static void resize_bicubic_image_pack4(const Mat& src, Mat& dst, float* alpha, i
             __m128 _rows1 = (__m128)__lsx_vld(rows1p, 0);
             __m128 _rows2 = (__m128)__lsx_vld(rows2p, 0);
             __m128 _rows3 = (__m128)__lsx_vld(rows3p, 0);
-            __m128 _D = __lsx_vfmul_s(_rows0, _b0);
-            _D = __lsx_vfmadd_s(_b1, _rows1, _D);
-            _D = __lsx_vfmadd_s(_b2, _rows2, _D);
-            _D = __lsx_vfmadd_s(_b3, _rows3, _D);
-            __lsx_vst(_D, Dp, 0);
+            __m128 _Dp = __lsx_vfmul_s(_rows0, _b0);
+            _Dp = __lsx_vfmadd_s(_b1, _rows1, _Dp);
+            _Dp = __lsx_vfmadd_s(_b2, _rows2, _Dp);
+            _Dp = __lsx_vfmadd_s(_b3, _rows3, _Dp);
+            __lsx_vst(_Dp, Dp, 0);
 
             Dp += 4;
             rows0p += 4;
