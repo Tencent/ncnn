@@ -15,7 +15,6 @@
 #ifndef NCNN_PLATFORM_H
 #define NCNN_PLATFORM_H
 
-#cmakedefine01 NCNN_SIMPLEMATH
 #cmakedefine01 NCNN_STDIO
 #cmakedefine01 NCNN_STRING
 #cmakedefine01 NCNN_SIMPLEOCV
@@ -61,6 +60,7 @@
 #cmakedefine01 NCNN_INT8
 #cmakedefine01 NCNN_BF16
 #cmakedefine01 NCNN_FORCE_INLINE
+#cmakedefine01 NCNN_SIMPLEMATH
 
 #cmakedefine NCNN_VERSION_STRING "@NCNN_VERSION_STRING@"
 
