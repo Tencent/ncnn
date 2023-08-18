@@ -1352,6 +1352,17 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
             }
 
             int kk = 0;
+            {
+#if !__AVX512F__
+            __m256i _sum0z = _mm256_setzero_si256();
+            __m256i _sum1z = _mm256_setzero_si256();
+            __m256i _sum2z = _mm256_setzero_si256();
+            __m256i _sum3z = _mm256_setzero_si256();
+            __m256i _sum4z = _mm256_setzero_si256();
+            __m256i _sum5z = _mm256_setzero_si256();
+            __m256i _sum6z = _mm256_setzero_si256();
+            __m256i _sum7z = _mm256_setzero_si256();
+#endif
             for (; kk + 1 < max_kk; kk += 2)
             {
                 __m128i _pA = _mm_loadu_si128((const __m128i*)pA);
@@ -1389,42 +1400,151 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 _sum67 = _mm512_add_epi32(_sum67, _mm512_madd_epi16(_pAA, _pB67));
 #endif // __AVX512VNNI__
 #else  // __AVX512F__
-                __m256i _pBBl = _mm256_permute4x64_epi64(_pBB, _MM_SHUFFLE(1, 0, 1, 0));
-                __m256i _pBBh = _mm256_permute4x64_epi64(_pBB, _MM_SHUFFLE(3, 2, 3, 2));
 
-                // 01230123 -> 00000000 11111111 22222222 33333333
-                __m256i _pB0 = _mm256_shuffle_epi32(_pBBl, _MM_SHUFFLE(0, 0, 0, 0));
-                __m256i _pB1 = _mm256_shuffle_epi32(_pBBl, _MM_SHUFFLE(1, 1, 1, 1));
-                __m256i _pB2 = _mm256_shuffle_epi32(_pBBl, _MM_SHUFFLE(2, 2, 2, 2));
-                __m256i _pB3 = _mm256_shuffle_epi32(_pBBl, _MM_SHUFFLE(3, 3, 3, 3));
-                __m256i _pB4 = _mm256_shuffle_epi32(_pBBh, _MM_SHUFFLE(0, 0, 0, 0));
-                __m256i _pB5 = _mm256_shuffle_epi32(_pBBh, _MM_SHUFFLE(1, 1, 1, 1));
-                __m256i _pB6 = _mm256_shuffle_epi32(_pBBh, _MM_SHUFFLE(2, 2, 2, 2));
-                __m256i _pB7 = _mm256_shuffle_epi32(_pBBh, _MM_SHUFFLE(3, 3, 3, 3));
+
+                // 0123 4567
+                // 4567 0123
+                __m256i _pA1 = _mm256_permute4x64_epi64(_pA0, _MM_SHUFFLE(1, 0, 3, 2));
+
+                // 0123 4567
+                // 1230 5674
+                // 2301 6745
+                // 3012 7456
+                __m256i _pB0 = _pBB;
+                __m256i _pB1 = _mm256_shuffle_epi32(_pBB, _MM_SHUFFLE(2, 1, 0, 3));
+                __m256i _pB2 = _mm256_shuffle_epi32(_pBB, _MM_SHUFFLE(1, 0, 3, 2));
+                __m256i _pB3 = _mm256_shuffle_epi32(_pBB, _MM_SHUFFLE(0, 3, 2, 1));
 
 #if __AVXVNNI__
-                _sum0 = _mm256_dpwssd_epi32(_sum0, _pA0, _pB0);
-                _sum1 = _mm256_dpwssd_epi32(_sum1, _pA0, _pB1);
-                _sum2 = _mm256_dpwssd_epi32(_sum2, _pA0, _pB2);
-                _sum3 = _mm256_dpwssd_epi32(_sum3, _pA0, _pB3);
-                _sum4 = _mm256_dpwssd_epi32(_sum4, _pA0, _pB4);
-                _sum5 = _mm256_dpwssd_epi32(_sum5, _pA0, _pB5);
-                _sum6 = _mm256_dpwssd_epi32(_sum6, _pA0, _pB6);
-                _sum7 = _mm256_dpwssd_epi32(_sum7, _pA0, _pB7);
+                _sum0z = _mm256_dpwssd_epi32(_sum0z, _pA0, _pB0);
+                _sum1z = _mm256_dpwssd_epi32(_sum1z, _pA0, _pB1);
+                _sum2z = _mm256_dpwssd_epi32(_sum2z, _pA0, _pB2);
+                _sum3z = _mm256_dpwssd_epi32(_sum3z, _pA0, _pB3);
+                _sum4z = _mm256_dpwssd_epi32(_sum4z, _pA1, _pB0);
+                _sum5z = _mm256_dpwssd_epi32(_sum5z, _pA1, _pB1);
+                _sum6z = _mm256_dpwssd_epi32(_sum6z, _pA1, _pB2);
+                _sum7z = _mm256_dpwssd_epi32(_sum7z, _pA1, _pB3);
 #else
-                _sum0 = _mm256_add_epi32(_sum0, _mm256_madd_epi16(_pA0, _pB0));
-                _sum1 = _mm256_add_epi32(_sum1, _mm256_madd_epi16(_pA0, _pB1));
-                _sum2 = _mm256_add_epi32(_sum2, _mm256_madd_epi16(_pA0, _pB2));
-                _sum3 = _mm256_add_epi32(_sum3, _mm256_madd_epi16(_pA0, _pB3));
-                _sum4 = _mm256_add_epi32(_sum4, _mm256_madd_epi16(_pA0, _pB4));
-                _sum5 = _mm256_add_epi32(_sum5, _mm256_madd_epi16(_pA0, _pB5));
-                _sum6 = _mm256_add_epi32(_sum6, _mm256_madd_epi16(_pA0, _pB6));
-                _sum7 = _mm256_add_epi32(_sum7, _mm256_madd_epi16(_pA0, _pB7));
+                _sum0z = _mm256_add_epi32(_sum0z, _mm256_madd_epi16(_pA0, _pB0));
+                _sum1z = _mm256_add_epi32(_sum1z, _mm256_madd_epi16(_pA0, _pB1));
+                _sum2z = _mm256_add_epi32(_sum2z, _mm256_madd_epi16(_pA0, _pB2));
+                _sum3z = _mm256_add_epi32(_sum3z, _mm256_madd_epi16(_pA0, _pB3));
+                _sum4z = _mm256_add_epi32(_sum4z, _mm256_madd_epi16(_pA1, _pB0));
+                _sum5z = _mm256_add_epi32(_sum5z, _mm256_madd_epi16(_pA1, _pB1));
+                _sum6z = _mm256_add_epi32(_sum6z, _mm256_madd_epi16(_pA1, _pB2));
+                _sum7z = _mm256_add_epi32(_sum7z, _mm256_madd_epi16(_pA1, _pB3));
 #endif // __AVXVNNI__
+
+                // __m256i _pBBl = _mm256_permute4x64_epi64(_pBB, _MM_SHUFFLE(1, 0, 1, 0));
+                // __m256i _pBBh = _mm256_permute4x64_epi64(_pBB, _MM_SHUFFLE(3, 2, 3, 2));
+                //
+                // // 01230123 -> 00000000 11111111 22222222 33333333
+                // __m256i _pB0 = _mm256_shuffle_epi32(_pBBl, _MM_SHUFFLE(0, 0, 0, 0));
+                // __m256i _pB1 = _mm256_shuffle_epi32(_pBBl, _MM_SHUFFLE(1, 1, 1, 1));
+                // __m256i _pB2 = _mm256_shuffle_epi32(_pBBl, _MM_SHUFFLE(2, 2, 2, 2));
+                // __m256i _pB3 = _mm256_shuffle_epi32(_pBBl, _MM_SHUFFLE(3, 3, 3, 3));
+                // __m256i _pB4 = _mm256_shuffle_epi32(_pBBh, _MM_SHUFFLE(0, 0, 0, 0));
+                // __m256i _pB5 = _mm256_shuffle_epi32(_pBBh, _MM_SHUFFLE(1, 1, 1, 1));
+                // __m256i _pB6 = _mm256_shuffle_epi32(_pBBh, _MM_SHUFFLE(2, 2, 2, 2));
+                // __m256i _pB7 = _mm256_shuffle_epi32(_pBBh, _MM_SHUFFLE(3, 3, 3, 3));
+
+// #if __AVXVNNI__
+//                 _sum0 = _mm256_dpwssd_epi32(_sum0, _pA0, _pB0);
+//                 _sum1 = _mm256_dpwssd_epi32(_sum1, _pA0, _pB1);
+//                 _sum2 = _mm256_dpwssd_epi32(_sum2, _pA0, _pB2);
+//                 _sum3 = _mm256_dpwssd_epi32(_sum3, _pA0, _pB3);
+//                 _sum4 = _mm256_dpwssd_epi32(_sum4, _pA0, _pB4);
+//                 _sum5 = _mm256_dpwssd_epi32(_sum5, _pA0, _pB5);
+//                 _sum6 = _mm256_dpwssd_epi32(_sum6, _pA0, _pB6);
+//                 _sum7 = _mm256_dpwssd_epi32(_sum7, _pA0, _pB7);
+// #else
+//                 _sum0 = _mm256_add_epi32(_sum0, _mm256_madd_epi16(_pA0, _pB0));
+//                 _sum1 = _mm256_add_epi32(_sum1, _mm256_madd_epi16(_pA0, _pB1));
+//                 _sum2 = _mm256_add_epi32(_sum2, _mm256_madd_epi16(_pA0, _pB2));
+//                 _sum3 = _mm256_add_epi32(_sum3, _mm256_madd_epi16(_pA0, _pB3));
+//                 _sum4 = _mm256_add_epi32(_sum4, _mm256_madd_epi16(_pA0, _pB4));
+//                 _sum5 = _mm256_add_epi32(_sum5, _mm256_madd_epi16(_pA0, _pB5));
+//                 _sum6 = _mm256_add_epi32(_sum6, _mm256_madd_epi16(_pA0, _pB6));
+//                 _sum7 = _mm256_add_epi32(_sum7, _mm256_madd_epi16(_pA0, _pB7));
+// #endif // __AVXVNNI__
 #endif // __AVX512F__
 
                 pA += 16;
                 pB += 16;
+            }
+#if !__AVX512F__
+            // 00 11 22 33 44 55 66 77
+            // 03 10 21 32 47 54 65 76
+            // 02 13 20 31 46 57 64 75
+            // 01 12 23 30 45 56 67 74
+
+            // 40 51 62 73 04 15 26 37
+            // 43 50 61 72 07 14 25 36
+            // 42 53 60 71 06 17 24 35
+            // 41 52 63 70 05 16 27 34
+
+            _sum0z = _sum0z;
+            _sum1z = _mm256_shuffle_epi32(_sum1z, _MM_SHUFFLE(0, 3, 2, 1));
+            _sum2z = _mm256_shuffle_epi32(_sum2z, _MM_SHUFFLE(1, 0, 3, 2));
+            _sum3z = _mm256_shuffle_epi32(_sum3z, _MM_SHUFFLE(2, 1, 0, 3));
+            _sum4z = _sum4z;
+            _sum5z = _mm256_shuffle_epi32(_sum5z, _MM_SHUFFLE(0, 3, 2, 1));
+            _sum6z = _mm256_shuffle_epi32(_sum6z, _MM_SHUFFLE(1, 0, 3, 2));
+            _sum7z = _mm256_shuffle_epi32(_sum7z, _MM_SHUFFLE(2, 1, 0, 3));
+
+            // 00 11 22 33 44 55 66 77
+            // 10 21 32 03 54 65 76 47
+            // 20 31 02 13 64 75 46 57
+            // 30 01 12 23 74 45 56 67
+
+            // 40 51 62 73 04 15 26 37
+            // 50 61 72 43 14 25 36 07
+            // 60 71 42 53 24 35 06 17
+            // 70 41 52 63 34 05 16 27
+
+            transpose8x8_epi32(_sum0z, _sum1z, _sum2z, _sum3z, _sum4z, _sum5z, _sum6z, _sum7z);
+
+            // 0123 4567
+            // 1230 5674
+            // 2301 6745
+            // 3012 7456
+            // 4567 0123
+            // 5674 1230
+            // 6745 2301
+            // 7456 3012
+
+            _sum4z = _mm256_permute4x64_epi64(_sum4z, _MM_SHUFFLE(1, 0, 3, 2));
+            _sum5z = _mm256_permute4x64_epi64(_sum5z, _MM_SHUFFLE(1, 0, 3, 2));
+            _sum6z = _mm256_permute4x64_epi64(_sum6z, _MM_SHUFFLE(1, 0, 3, 2));
+            _sum7z = _mm256_permute4x64_epi64(_sum7z, _MM_SHUFFLE(1, 0, 3, 2));
+
+            // 0123 4567
+            // 1230 5674
+            // 2301 6745
+            // 3012 7456
+            // 0123 4567
+            // 1230 5674
+            // 2301 6745
+            // 3012 7456
+
+            _sum0z = _sum0z;
+            _sum1z = _mm256_shuffle_epi32(_sum1z, _MM_SHUFFLE(2, 1, 0, 3));
+            _sum2z = _mm256_shuffle_epi32(_sum2z, _MM_SHUFFLE(1, 0, 3, 2));
+            _sum3z = _mm256_shuffle_epi32(_sum3z, _MM_SHUFFLE(0, 3, 2, 1));
+            _sum4z = _sum4z;
+            _sum5z = _mm256_shuffle_epi32(_sum5z, _MM_SHUFFLE(2, 1, 0, 3));
+            _sum6z = _mm256_shuffle_epi32(_sum6z, _MM_SHUFFLE(1, 0, 3, 2));
+            _sum7z = _mm256_shuffle_epi32(_sum7z, _MM_SHUFFLE(0, 3, 2, 1));
+
+            _sum0 = _mm256_add_epi32(_sum0, _sum0z);
+            _sum1 = _mm256_add_epi32(_sum1, _sum1z);
+            _sum2 = _mm256_add_epi32(_sum2, _sum2z);
+            _sum3 = _mm256_add_epi32(_sum3, _sum3z);
+            _sum4 = _mm256_add_epi32(_sum4, _sum4z);
+            _sum5 = _mm256_add_epi32(_sum5, _sum5z);
+            _sum6 = _mm256_add_epi32(_sum6, _sum6z);
+            _sum7 = _mm256_add_epi32(_sum7, _sum7z);
+#endif // !__AVX512F__
             }
             for (; kk < max_kk; kk += 1)
             {
