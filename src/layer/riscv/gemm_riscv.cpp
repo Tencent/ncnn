@@ -26,9 +26,9 @@ Gemm_riscv::Gemm_riscv()
 {
 #if __riscv_vector
     support_packing = true;
-#if __riscv_zfh
-    support_fp16_storage = true;
-#endif
+// #if __riscv_zfh
+//     support_fp16_storage = true;
+// #endif
 #endif // __riscv_vector
     one_blob_only = false;
     support_inplace = false;
@@ -3564,6 +3564,425 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
     }
 }
 
+static void get_optimal_tile_mnk(int M, int N, int K, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int& TILE_M, int& TILE_N, int& TILE_K, int nT)
+{
+    // resolve optimal tile size from cache size
+    const size_t l2_cache_size = get_cpu_level2_cache_size();
+
+    if (nT == 0)
+        nT = get_physical_big_cpu_count();
+
+    int tile_size = (int)sqrtf((float)l2_cache_size / 3 / sizeof(float));
+
+    TILE_M = std::max(8, tile_size / 8 * 8);
+    TILE_N = std::max(4, tile_size / 4 * 4);
+    TILE_K = std::max(8, tile_size / 8 * 8);
+
+
+    if (K > 0)
+    {
+        int nn_K = (K + TILE_K - 1) / TILE_K;
+        TILE_K = std::min(TILE_K, ((K + nn_K - 1) / nn_K + 7) / 8 * 8);
+
+        if (nn_K == 1)
+        {
+            tile_size = (int)((float)l2_cache_size / 2 / sizeof(float) / TILE_K);
+            TILE_M = std::max(8, tile_size / 8 * 8);
+            TILE_N = std::max(4, tile_size / 4 * 4);
+        }
+    }
+
+    TILE_M *= std::min(nT, get_physical_cpu_count());
+
+    if (M > 0)
+    {
+        int nn_M = (M + TILE_M - 1) / TILE_M;
+        TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 7) / 8 * 8);
+    }
+
+    if (N > 0)
+    {
+        int nn_N = (N + TILE_N - 1) / TILE_N;
+        TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 3) / 4 * 4);
+    }
+
+    if (nT > 1)
+    {
+        TILE_M = std::min(TILE_M, (std::max(1, TILE_M / nT) + 7) / 8 * 8);
+    }
+
+    // always take constant TILE_M/N/K value when provided
+    if (constant_TILE_M > 0)
+    {
+        TILE_M = (constant_TILE_M + 7) / 8 * 8;
+    }
+
+    if (constant_TILE_N > 0)
+    {
+        TILE_N = (constant_TILE_N + 3) / 4 * 4;
+    }
+
+    if (constant_TILE_K > 0)
+    {
+        TILE_K = (constant_TILE_K + 7) / 8 * 8;
+    }
+}
+
+static int gemm_riscv(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int broadcast_type_C, int transA, int transB, int output_transpose, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, const Option& opt)
+{
+    const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
+    const int K = transA ? (A.dims == 3 ? A.c : A.h) * A.elempack : A.w;
+    const int N = transB ? (B.dims == 3 ? B.c : B.h) * B.elempack : B.w;
+
+    // NCNN_LOGE("M/N/K = %d %d %d", M, N, K);
+
+    int TILE_M, TILE_N, TILE_K;
+    get_optimal_tile_mnk(M, N, K, constant_TILE_M, constant_TILE_N, constant_TILE_K, TILE_M, TILE_N, TILE_K, nT);
+
+    // NCNN_LOGE("TILE M/N/K = %d %d %d", TILE_M, TILE_N, TILE_K);
+
+    int nn_M = (M + TILE_M - 1) / TILE_M;
+    int nn_N = (N + TILE_N - 1) / TILE_N;
+    int nn_K = (K + TILE_K - 1) / TILE_K;
+
+    Mat ATX(TILE_K * TILE_M, (K + TILE_K - 1) / TILE_K, nT, 4u, opt.workspace_allocator);
+    Mat BT(TILE_K * TILE_N, (K + TILE_K - 1) / TILE_K, (N + TILE_N - 1) / TILE_N, 4u, opt.workspace_allocator);
+
+    const int nn_NK = nn_N * nn_K;
+
+    // pack B
+    #pragma omp parallel for num_threads(nT)
+    for (int ppjk = 0; ppjk < nn_NK; ppjk++)
+    {
+        const int ppj = ppjk / nn_K;
+        const int ppk = ppjk % nn_K;
+
+        const int j = ppj * TILE_N;
+        const int k = ppk * TILE_K;
+
+        const int max_jj = std::min((N - j), TILE_N);
+        const int max_kk = std::min((K - k), TILE_K);
+
+        Mat BT_tile = BT.channel(j / TILE_N).row_range(k / TILE_K, 1);
+
+        if (transB)
+        {
+            pack_B_tile(B, BT_tile, j, max_jj, k, max_kk);
+        }
+        else
+        {
+            transpose_pack_B_tile(B, BT_tile, j, max_jj, k, max_kk);
+        }
+    }
+
+    Mat topT;
+    if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
+        topT.create(TILE_N * TILE_M, 1, nT, 4u, opt.workspace_allocator);
+
+    #pragma omp parallel for num_threads(nT)
+    for (int ppi = 0; ppi < nn_M; ppi++)
+    {
+        const int i = ppi * TILE_M;
+
+        // shadowed variable for less openmp task args
+        const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
+        const int K = transA ? (A.dims == 3 ? A.c : A.h) * A.elempack : A.w;
+
+        const int max_ii = std::min((M - i), TILE_M);
+
+        Mat topT_tile;
+        if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
+            topT_tile = topT.channel(get_omp_thread_num());
+
+        for (int j = 0; j < N; j += TILE_N)
+        {
+            const int max_jj = std::min((N - j), TILE_N);
+
+            if (broadcast_type_C == 3)
+            {
+                pack_A_tile(C, topT_tile, i, max_ii, j, max_jj);
+            }
+
+            const Mat& CT_tile = broadcast_type_C == 3 ? topT_tile : C;
+
+            for (int k = 0; k < K; k += TILE_K)
+            {
+                const int max_kk = std::min((K - k), TILE_K);
+
+                // NCNN_LOGE("max_ii/jj/kk = %d %d %d", max_ii, max_jj, max_kk);
+
+                Mat AT_tile = ATX.channel(get_omp_thread_num()).row_range(k / TILE_K, 1);
+
+                Mat BT_tile = BT.channel(j / TILE_N).row_range(k / TILE_K, 1);
+
+                if (j == 0)
+                {
+                    if (transA)
+                    {
+                        transpose_pack_A_tile(A, AT_tile, i, max_ii, k, max_kk);
+                    }
+                    else
+                    {
+                        pack_A_tile(A, AT_tile, i, max_ii, k, max_kk);
+                    }
+                }
+
+                bool k_end = !output_transpose && k + TILE_K >= K;
+
+                gemm_transB_packed_tile(AT_tile, BT_tile, CT_tile, topT_tile, top_blob, broadcast_type_C, i, max_ii, j, max_jj, k, max_kk, k_end);
+            }
+
+            if (output_transpose)
+            {
+                transpose_unpack_output_tile(topT_tile, top_blob, i, max_ii, j, max_jj);
+            }
+        }
+    }
+
+    return 0;
+}
+
+static int gemm_AT_riscv(const Mat& AT, const Mat& B, const Mat& C, Mat& top_blob, int broadcast_type_C, int M, int K, int transB, int output_transpose, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, const Option& opt)
+{
+    const int N = transB ? (B.dims == 3 ? B.c : B.h) * B.elempack : B.w;
+
+    // NCNN_LOGE("M/N/K = %d %d %d", M, N, K);
+
+    int TILE_M, TILE_N, TILE_K;
+    get_optimal_tile_mnk(M, N, K, constant_TILE_M, constant_TILE_N, constant_TILE_K, TILE_M, TILE_N, TILE_K, nT);
+
+    // NCNN_LOGE("TILE M/N/K = %d %d %d", TILE_M, TILE_N, TILE_K);
+
+    int nn_M = (M + TILE_M - 1) / TILE_M;
+    int nn_N = (N + TILE_N - 1) / TILE_N;
+    int nn_K = (K + TILE_K - 1) / TILE_K;
+
+    Mat BT(TILE_K * TILE_N, (K + TILE_K - 1) / TILE_K, (N + TILE_N - 1) / TILE_N, 4u, opt.workspace_allocator);
+
+    const int nn_NK = nn_N * nn_K;
+
+    // pack B
+    #pragma omp parallel for num_threads(nT)
+    for (int ppjk = 0; ppjk < nn_NK; ppjk++)
+    {
+        const int ppj = ppjk / nn_K;
+        const int ppk = ppjk % nn_K;
+
+        const int j = ppj * TILE_N;
+        const int k = ppk * TILE_K;
+
+        const int max_jj = std::min((N - j), TILE_N);
+        const int max_kk = std::min((K - k), TILE_K);
+
+        Mat BT_tile = BT.channel(j / TILE_N).row_range(k / TILE_K, 1);
+
+        if (transB)
+        {
+            pack_B_tile(B, BT_tile, j, max_jj, k, max_kk);
+        }
+        else
+        {
+            transpose_pack_B_tile(B, BT_tile, j, max_jj, k, max_kk);
+        }
+    }
+
+    Mat topT;
+    if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
+        topT.create(TILE_N * TILE_M, 1, nT, 4u, opt.workspace_allocator);
+
+    #pragma omp parallel for num_threads(nT)
+    for (int ppi = 0; ppi < nn_M; ppi++)
+    {
+        const int i = ppi * TILE_M;
+
+        const int max_ii = std::min((M - i), TILE_M);
+
+        Mat topT_tile;
+        if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
+            topT_tile = topT.channel(get_omp_thread_num());
+
+        for (int j = 0; j < N; j += TILE_N)
+        {
+            const int max_jj = std::min((N - j), TILE_N);
+
+            if (broadcast_type_C == 3)
+            {
+                pack_A_tile(C, topT_tile, i, max_ii, j, max_jj);
+            }
+
+            const Mat& CT_tile = broadcast_type_C == 3 ? topT_tile : C;
+
+            for (int k = 0; k < K; k += TILE_K)
+            {
+                const int max_kk = std::min((K - k), TILE_K);
+
+                // NCNN_LOGE("max_ii/jj/kk = %d %d %d", max_ii, max_jj, max_kk);
+
+                Mat AT_tile = AT.channel(i / TILE_M).row_range(k / TILE_K, 1);
+
+                Mat BT_tile = BT.channel(j / TILE_N).row_range(k / TILE_K, 1);
+
+                bool k_end = !output_transpose && k + TILE_K >= K;
+
+                gemm_transB_packed_tile(AT_tile, BT_tile, CT_tile, topT_tile, top_blob, broadcast_type_C, i, max_ii, j, max_jj, k, max_kk, k_end);
+            }
+
+            if (output_transpose)
+            {
+                transpose_unpack_output_tile(topT_tile, top_blob, i, max_ii, j, max_jj);
+            }
+        }
+    }
+
+    return 0;
+}
+
+static int gemm_BT_riscv(const Mat& A, const Mat& BT, const Mat& C, Mat& top_blob, int broadcast_type_C, int N, int K, int transA, int output_transpose, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, const Option& opt)
+{
+    const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
+
+    // NCNN_LOGE("M/N/K = %d %d %d", M, N, K);
+
+    int TILE_M, TILE_N, TILE_K;
+    get_optimal_tile_mnk(M, N, K, constant_TILE_M, constant_TILE_N, constant_TILE_K, TILE_M, TILE_N, TILE_K, nT);
+
+    // NCNN_LOGE("TILE M/N/K = %d %d %d", TILE_M, TILE_N, TILE_K);
+
+    int nn_M = (M + TILE_M - 1) / TILE_M;
+    // int nn_N = (N + TILE_N - 1) / TILE_N;
+
+    Mat ATX(TILE_K * TILE_M, (K + TILE_K - 1) / TILE_K, nT, 4u, opt.workspace_allocator);
+
+    Mat topT;
+    if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
+        topT.create(TILE_N * TILE_M, 1, nT, 4u, opt.workspace_allocator);
+
+    #pragma omp parallel for num_threads(nT)
+    for (int ppi = 0; ppi < nn_M; ppi++)
+    {
+        const int i = ppi * TILE_M;
+
+        // shadowed variable for less openmp task args
+        const int M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
+        const int K = transA ? (A.dims == 3 ? A.c : A.h) * A.elempack : A.w;
+
+        const int max_ii = std::min((M - i), TILE_M);
+
+        Mat topT_tile;
+        if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
+            topT_tile = topT.channel(get_omp_thread_num());
+
+        for (int j = 0; j < N; j += TILE_N)
+        {
+            const int max_jj = std::min((N - j), TILE_N);
+
+            if (broadcast_type_C == 3)
+            {
+                pack_A_tile(C, topT_tile, i, max_ii, j, max_jj);
+            }
+
+            const Mat& CT_tile = broadcast_type_C == 3 ? topT_tile : C;
+
+            for (int k = 0; k < K; k += TILE_K)
+            {
+                const int max_kk = std::min((K - k), TILE_K);
+
+                // NCNN_LOGE("max_ii/jj/kk = %d %d %d", max_ii, max_jj, max_kk);
+
+                Mat AT_tile = ATX.channel(get_omp_thread_num()).row_range(k / TILE_K, 1);
+
+                Mat BT_tile = BT.channel(j / TILE_N).row_range(k / TILE_K, 1);
+
+                if (j == 0)
+                {
+                    if (transA)
+                    {
+                        transpose_pack_A_tile(A, AT_tile, i, max_ii, k, max_kk);
+                    }
+                    else
+                    {
+                        pack_A_tile(A, AT_tile, i, max_ii, k, max_kk);
+                    }
+                }
+
+                bool k_end = !output_transpose && k + TILE_K >= K;
+
+                gemm_transB_packed_tile(AT_tile, BT_tile, CT_tile, topT_tile, top_blob, broadcast_type_C, i, max_ii, j, max_jj, k, max_kk, k_end);
+            }
+
+            if (output_transpose)
+            {
+                transpose_unpack_output_tile(topT_tile, top_blob, i, max_ii, j, max_jj);
+            }
+        }
+    }
+
+    return 0;
+}
+
+static int gemm_AT_BT_riscv(const Mat& AT, const Mat& BT, const Mat& C, Mat& top_blob, int broadcast_type_C, int M, int N, int K, int output_transpose, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int nT, const Option& opt)
+{
+    // NCNN_LOGE("M/N/K = %d %d %d", M, N, K);
+
+    int TILE_M, TILE_N, TILE_K;
+    get_optimal_tile_mnk(M, N, K, constant_TILE_M, constant_TILE_N, constant_TILE_K, TILE_M, TILE_N, TILE_K, nT);
+
+    // NCNN_LOGE("TILE M/N/K = %d %d %d", TILE_M, TILE_N, TILE_K);
+
+    int nn_M = (M + TILE_M - 1) / TILE_M;
+    // int nn_N = (N + TILE_N - 1) / TILE_N;
+
+    Mat topT;
+    if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
+        topT.create(TILE_N * TILE_M, 1, nT, 4u, opt.workspace_allocator);
+
+    #pragma omp parallel for num_threads(nT)
+    for (int ppi = 0; ppi < nn_M; ppi++)
+    {
+        const int i = ppi * TILE_M;
+
+        const int max_ii = std::min((M - i), TILE_M);
+
+        Mat topT_tile;
+        if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
+            topT_tile = topT.channel(get_omp_thread_num());
+
+        for (int j = 0; j < N; j += TILE_N)
+        {
+            const int max_jj = std::min((N - j), TILE_N);
+
+            if (broadcast_type_C == 3)
+            {
+                pack_A_tile(C, topT_tile, i, max_ii, j, max_jj);
+            }
+
+            const Mat& CT_tile = broadcast_type_C == 3 ? topT_tile : C;
+
+            for (int k = 0; k < K; k += TILE_K)
+            {
+                const int max_kk = std::min((K - k), TILE_K);
+
+                // NCNN_LOGE("max_ii/jj/kk = %d %d %d", max_ii, max_jj, max_kk);
+
+                Mat AT_tile = AT.channel(i / TILE_M).row_range(k / TILE_K, 1);
+
+                Mat BT_tile = BT.channel(j / TILE_N).row_range(k / TILE_K, 1);
+
+                bool k_end = !output_transpose && k + TILE_K >= K;
+
+                gemm_transB_packed_tile(AT_tile, BT_tile, CT_tile, topT_tile, top_blob, broadcast_type_C, i, max_ii, j, max_jj, k, max_kk, k_end);
+            }
+
+            if (output_transpose)
+            {
+                transpose_unpack_output_tile(topT_tile, top_blob, i, max_ii, j, max_jj);
+            }
+        }
+    }
+
+    return 0;
+}
+
 int Gemm_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     std::vector<Mat> bottom_blobs(1, bottom_blob);
@@ -3575,197 +3994,179 @@ int Gemm_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt
 
 int Gemm_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
-    const Mat& A0 = constantA ? A_data : bottom_blobs[0];
-    const Mat& B0 = constantB ? B_data : constantA ? bottom_blobs[0] : bottom_blobs[1];
-
-    size_t elemsize = A0.elemsize;
-
-    Mat A;
-    if (transA == 0)
+    int M;
+    int N;
+    if (constantA && constantB)
     {
-        A = A0;
+        M = constantM;
+        N = constantN;
+    }
+    else if (constantA)
+    {
+        const Mat& B = bottom_blobs[0];
+        M = constantM;
+        N = transB ? (B.dims == 3 ? B.c : B.h) * B.elempack : B.w;
+    }
+    else if (constantB)
+    {
+        const Mat& A = bottom_blobs[0];
+        M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
+        N = constantN;
     }
     else
     {
-        // transpose A to row-major
-        A.create((A0.dims == 3 ? A0.c : A0.h), A0.w, elemsize, opt.workspace_allocator);
-
-        const int A0_hstep = A0.dims == 3 ? (int)A0.cstep : A0.w;
-
-        for (int i = 0; i < A.h; i++)
-        {
-            float* ptr = A.row(i);
-            for (int j = 0; j < A.w; j++)
-            {
-                ptr[j] = A0[j * A0_hstep + i];
-            }
-        }
+        const Mat& A = bottom_blobs[0];
+        const Mat& B = bottom_blobs[1];
+        M = transA ? A.w : (A.dims == 3 ? A.c : A.h) * A.elempack;
+        N = transB ? (B.dims == 3 ? B.c : B.h) * B.elempack : B.w;
     }
 
-    Mat B;
-    if (transB == 0)
-    {
-        // transpose B to col-major
-        B.create((B0.dims == 3 ? B0.c : B0.h), B0.w, elemsize, opt.workspace_allocator);
-
-        const int B0_hstep = B0.dims == 3 ? (int)B0.cstep : B0.w;
-
-        for (int i = 0; i < B.h; i++)
-        {
-            float* ptr = B.row(i);
-            for (int j = 0; j < B.w; j++)
-            {
-                ptr[j] = B0[j * B0_hstep + i];
-            }
-        }
-    }
-    else
-    {
-        B = B0;
-    }
-
-    const int M = A.dims == 3 ? A.c : A.h;
-    const int K = A.w; // assert A.w == B.w
-    const int N = B.dims == 3 ? B.c : B.h;
-
-    const float* ptrC = 0;
+    Mat C;
     int broadcast_type_C = 0;
     if (constantC)
     {
-        ptrC = C_data;
+        C = CT_data;
         broadcast_type_C = constant_broadcast_type_C;
     }
     else
     {
         if (constantA && constantB)
         {
-            ptrC = bottom_blobs.size() == 1 ? bottom_blobs[0] : 0;
+            C = bottom_blobs.size() == 1 ? bottom_blobs[0] : Mat();
         }
         else if (constantA)
         {
-            ptrC = bottom_blobs.size() == 2 ? bottom_blobs[1] : 0;
+            C = bottom_blobs.size() == 2 ? bottom_blobs[1] : Mat();
         }
         else if (constantB)
         {
-            ptrC = bottom_blobs.size() == 2 ? bottom_blobs[1] : 0;
+            C = bottom_blobs.size() == 2 ? bottom_blobs[1] : Mat();
         }
         else
         {
-            ptrC = bottom_blobs.size() == 3 ? bottom_blobs[2] : 0;
+            C = bottom_blobs.size() == 3 ? bottom_blobs[2] : Mat();
         }
 
-        if (ptrC)
+        if (!C.empty())
         {
-            const Mat& C = bottom_blobs[bottom_blobs.size() - 1];
-
             if (C.dims == 1 && C.w == 1)
             {
                 // scalar
                 broadcast_type_C = 0;
             }
-            if (C.dims == 1 && C.w == M)
+            if (C.dims == 1 && C.w * C.elempack == M)
             {
                 // M
                 // auto broadcast from h to w is the ncnn-style convention
                 broadcast_type_C = 1;
             }
-            if (C.dims == 1 && C.w == N)
+            if (C.dims == 1 && C.w * C.elempack == N)
             {
                 // N
                 broadcast_type_C = 4;
             }
-            if (C.dims == 2 && C.w == 1 && C.h == M)
+            if (C.dims == 2 && C.w == 1 && C.h * C.elempack == M)
             {
                 // Mx1
                 broadcast_type_C = 2;
             }
-            if (C.dims == 2 && C.w == N && C.h == M)
+            if (C.dims == 2 && C.w == N && C.h * C.elempack == M)
             {
                 // MxN
                 broadcast_type_C = 3;
             }
-            if (C.dims == 2 && C.w == N && C.h == 1)
+            if (C.dims == 2 && C.w == N && C.h * C.elempack == 1)
             {
                 // 1xN
                 broadcast_type_C = 4;
             }
+
+            // pre-multiply C with beta
+            if (beta != 1.f)
+            {
+                Mat CT_data;
+                CT_data.create_like(C, opt.workspace_allocator);
+
+                const int size = C.total() * C.elempack;
+                for (int i = 0; i < size; i++)
+                {
+                    CT_data[i] = C[i] * beta;
+                }
+
+                C = CT_data;
+            }
         }
     }
+
+    int out_elempack = 1;
+    if (opt.use_packing_layout)
+    {
+        int outh = output_transpose ? N : M;
+        out_elempack = outh % 4 == 0 ? 4 : 1;
+    }
+    if (output_elempack)
+        out_elempack = output_elempack;
+    size_t out_elemsize = 4u * out_elempack;
 
     Mat& top_blob = top_blobs[0];
     if (output_transpose)
     {
         if (output_N1M)
-            top_blob.create(M, 1, N, elemsize, opt.blob_allocator);
+            top_blob.create(M, 1, N / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
         else
-            top_blob.create(M, N, elemsize, opt.blob_allocator);
+            top_blob.create(M, N / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
     }
     else
     {
         if (output_N1M)
-            top_blob.create(N, 1, M, elemsize, opt.blob_allocator);
+            top_blob.create(N, 1, M / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
         else
-            top_blob.create(N, M, elemsize, opt.blob_allocator);
+            top_blob.create(N, M / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
     }
     if (top_blob.empty())
         return -100;
 
-    #pragma omp parallel for num_threads(opt.num_threads)
-    for (int i = 0; i < M; i++)
+    int _nT = nT ? nT : opt.num_threads;
+    if (nT != 0 && opt.num_threads != nT)
     {
-        const int out_hstep = top_blob.dims == 3 ? (int)top_blob.cstep : top_blob.w;
+        // force num_threads the same as in create_pipeline
+        // so we could use pre-packed A/B from the same tile config
+        NCNN_LOGE("opt.num_threads %d changed, gemm will use load-time value %d", opt.num_threads, nT);
+    }
 
-        const int A_hstep = A.dims == 3 ? (int)A.cstep : A.w;
-        const int B_hstep = B.dims == 3 ? (int)B.cstep : B.w;
+    int ret = 0;
+    if (constantA && constantB)
+    {
+        ret = gemm_AT_BT_riscv(AT_data, BT_data, C, top_blob, broadcast_type_C, constantM, constantN, constantK, output_transpose, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
+    }
+    else if (constantA)
+    {
+        const Mat& B = bottom_blobs[0];
+        ret = gemm_AT_riscv(AT_data, B, C, top_blob, broadcast_type_C, constantM, constantK, transB, output_transpose, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
+    }
+    else if (constantB)
+    {
+        const Mat& A = bottom_blobs[0];
+        ret = gemm_BT_riscv(A, BT_data, C, top_blob, broadcast_type_C, constantN, constantK, transA, output_transpose, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
+    }
+    else
+    {
+        const Mat& A = bottom_blobs[0];
+        const Mat& B = bottom_blobs[1];
+        ret = gemm_riscv(A, B, C, top_blob, broadcast_type_C, transA, transB, output_transpose, constant_TILE_M, constant_TILE_N, constant_TILE_K, _nT, opt);
+    }
+    if (ret != 0)
+        return ret;
 
-        const float* ptrA = (const float*)A + i * A_hstep;
+    // multiply top_blob with alpha
+    if (alpha != 1.f)
+    {
+        const int size = top_blob.total() * out_elempack;
 
-        for (int j = 0; j < N; j++)
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int i = 0; i < size; i++)
         {
-            const float* ptrB = (const float*)B + j * B_hstep;
-
-            float sum = 0.f;
-            if (ptrC)
-            {
-                if (broadcast_type_C == 0)
-                {
-                    sum = ptrC[0];
-                }
-                if (broadcast_type_C == 1)
-                {
-                    sum = ptrC[i];
-                }
-                if (broadcast_type_C == 2)
-                {
-                    sum = ptrC[i];
-                }
-                if (broadcast_type_C == 3)
-                {
-                    sum = ptrC[i * N + j];
-                }
-                if (broadcast_type_C == 4)
-                {
-                    sum = ptrC[j];
-                }
-
-                sum *= beta;
-            }
-
-            for (int k = 0; k < K; k++)
-            {
-                sum += ptrA[k] * ptrB[k];
-            }
-
-            sum *= alpha;
-
-            if (output_transpose)
-            {
-                top_blob[j * out_hstep + i] = sum;
-            }
-            else
-            {
-                top_blob[i * out_hstep + j] = sum;
-            }
+            top_blob[i] *= alpha;
         }
     }
 
