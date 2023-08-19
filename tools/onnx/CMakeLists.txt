@@ -1,4 +1,5 @@
-
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(PROTOBUF REQUIRED protobuf)
 find_package(Protobuf)
 
 if(PROTOBUF_FOUND)
@@ -12,7 +13,7 @@ if(PROTOBUF_FOUND)
         PRIVATE
             ${PROTOBUF_INCLUDE_DIR}
             ${CMAKE_CURRENT_BINARY_DIR})
-    target_link_libraries(onnx2ncnn PRIVATE ${PROTOBUF_LIBRARIES})
+    target_link_libraries(onnx2ncnn PRIVATE ${PROTOBUF_LDFLAGS})
 
     # add all onnx2ncnn tool to a virtual project group
     set_property(TARGET onnx2ncnn PROPERTY FOLDER "tools/converter")

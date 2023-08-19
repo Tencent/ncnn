@@ -1,3 +1,5 @@
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(PROTOBUF REQUIRED protobuf)
 
 find_package(Protobuf)
 
@@ -12,7 +14,7 @@ if(PROTOBUF_FOUND)
         PRIVATE
             ${PROTOBUF_INCLUDE_DIR}
             ${CMAKE_CURRENT_BINARY_DIR})
-    target_link_libraries(caffe2ncnn PRIVATE ${PROTOBUF_LIBRARIES})
+    target_link_libraries(caffe2ncnn PRIVATE ${PROTOBUF_LDFLAGS})
 
     # add all caffe2ncnn tool to a virtual project group
     set_property(TARGET caffe2ncnn PROPERTY FOLDER "tools/converter")
