@@ -173,7 +173,7 @@ int ShuffleChannel_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const O
             // convert to pack1
             Mat bottom_blob_unpacked;
             convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt);
-            // convert packing won't change w,h 
+            // convert packing won't change w,h
             int channels_unpacked = bottom_blob_unpacked.c;
             size_t elemsize_unpacked = bottom_blob_unpacked.elemsize;
             int _group_unpack = reverse ? channels_unpacked / group : group;
@@ -529,7 +529,7 @@ int ShuffleChannel_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const O
                 float* p_dst = top_blob.channel(_group * j + i);
                 const float* p_src = bottom_blob.channel(channels_per_group * i + j);
                 int n = feature_sz;
-                while(n>0)
+                while (n > 0)
                 {
                     size_t vl = vsetvl_e32m8(n);
                     vfloat32m8_t _src = vle32_v_f32m8(p_src, vl);
