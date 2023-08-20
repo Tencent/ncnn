@@ -204,10 +204,10 @@ if(NOT NCNN_SHARED_LIB)
     set_target_properties(ncnn PROPERTIES COMPILE_FLAGS -DNCNN_STATIC_DEFINE)
 endif()
 
-# if(NCNN_SIMPLESTL)
-#     # link math lib explicitly
-#     target_link_libraries(ncnn PUBLIC m)
-# endif()
+if(NCNN_SIMPLESTL AND NOT NCNN_SIMPLEMATH)
+    # link math lib explicitly
+    target_link_libraries(ncnn PUBLIC m)
+endif()
 
 target_include_directories(ncnn
     PUBLIC

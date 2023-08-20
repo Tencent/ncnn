@@ -251,6 +251,7 @@ private:
 #include "simplemath.h"
 #else
 #include <math.h>
+#include <fenv.h>
 #endif
 
 #endif // __cplusplus

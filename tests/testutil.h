@@ -220,6 +220,10 @@ static bool NearlyEqual(float a, float b, float epsilon)
     if (a == b)
         return true;
 
+    if(a!=a && b!=b){
+        return true;
+    }
+    
     float diff = (float)fabs(a - b);
     if (diff <= epsilon)
         return true;

@@ -13,36 +13,117 @@
 // specific language governing permissions and limitations under the License.
 
 #if NCNN_SIMPLEMATH
+#include <stdint.h>
+#define SIN_RED_SWITCHOVER  (201.15625f)
+#define COS_RED_SWITCHOVER  (142.90625f)
+#define __HI(X) *(1 + (short*)&x)
+#define __LO(X) *(short*)&x
+#define  INFINITY (1.0 / 0)
+#define FE_TONEAREST 0
+#define FE_DOWNWARD 1024
+#define FE_UPWARD 2048
+#define FE_TOWARDZERO 3072
+
+/*
+* ====================================================
+* useful constants
+* ====================================================
+*/
 const float PI = 3.14159265358979323846;
-const float PI_2 = 1.57079632679489661923; // PI/2
+const float PI_2 = 1.57079632679489661923; /* PI/2 */
 const float E = 2.71828182845904523536;
-float fabs(float x);
-float fmod(float numer, float denom);
-float sinf(float x);
-float cosf(float x);
-float sqrtf(float x);
-float sqrt(float x);
-float expf(float x);
-float logf(float x);
-float tanhf(float x);
-float powf(float x, float y);
-float atan2f(float, float);
-float atanf(float);
-float log10f(float);
-float nearbyintf(float);
+const uint32_t two_over_pi_f [] =
+{
+        0x28be60db,
+        0x9391054a,
+        0x7f09d5f4,
+        0x7d4d3770,
+        0x36d8a566,
+        0x4f10e410
+};  /* 2/ PI*/
+
+/*
+* ====================================================
+* util functions
+* ====================================================
+*/
+uint32_t float_as_uint32 (float a);
+float uint32_as_float (uint32_t a);
+uint32_t umul32_hi (uint32_t a, uint32_t b);
+float uint32_as_float (uint32_t a);
+uint32_t umul32_hi (uint32_t a, uint32_t b);
+float trig_red_slowpath_f (float a, int *quadrant);
+float trig_red_f (float a, float switch_over, int *q);
+float sinf_poly (float a, float s);
+float cosf_poly (float s);
+float sinf_cosf_core (float a, int i);
+
+/*
+* ====================================================
+* trigonometric functions
+* ====================================================
+*/
+float fabs(float);
+float fabsf(float);
+float fmod(float, float);
+float floor(float);
+float floorf(float);
+float round(float);
+float roundf(float);
+float ceil(float);
+float ceilf(float);
+float fmaxf(float, float);
+float truncf(float);
+
+/*
+* ====================================================
+* power functions
+* ====================================================
+*/
+float sinf(float);
+float cosf(float);
+float tanf(float);
 float asinf(float);
 float acosf(float);
-float tanf(float);
+float atanf(float);
+float atan2f(float, float);
+float tanhf(float);
+
+/*
+* ====================================================
+* power functions
+* ====================================================
+*/
+float sqrtf(float);
+float sqrt(float);
+float powf(float, float);
+
+/*
+* ====================================================
+* exponential and logarithm functions
+* ====================================================
+*/
+float expf(float);
+float logf(float);
+float log10f(float);
+
+/*
+* ====================================================
+* probability functions
+* ====================================================
+*/
+float erf(float);
 float erfcf(float);
 
-// 非连续函数
-float floor(float x);
-float round(float x);
-float ceil(float);
-float fmaxf(float x, float y);
-float fabsf(float x);
-float floorf(float x);
-float ceilf(float x);
-float truncf(float);
-float roundf(float);
+/*
+* ====================================================
+* other functions
+* ====================================================
+*/
+int msb(unsigned int);
+float fmaf(float, float, float);
+float copysignf(float, float);
+void fesetround(int);
+int fegetround();
+float nearbyintf(float);
 #endif // NCNN_SIMPLEMATH
