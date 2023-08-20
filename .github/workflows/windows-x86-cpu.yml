@@ -70,7 +70,7 @@ jobs:
         path: ${{ matrix.vs-version }}-qwq.zip
 
     - name: test
-      run: cd build; ctest -C Release --output-on-failure -j 2
+      run: cd build; ctest -C Release --output-on-failure --verbose -j 2
     - name: build-shared
       run: |
         mkdir build-shared; cd build-shared
