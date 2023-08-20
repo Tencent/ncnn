@@ -1042,7 +1042,8 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
 
                 __m512i _pA0 = _mm512_cvtepi8_epi16(_pA);
                 _pB = _mm_cvtepi8_epi16(_pB);
-                __m512i _pBBBB = _mm512_broadcast_i32x4(_pB);
+                __m256i _pBB = _mm256_inserti128_si256(_mm256_castsi128_si256(_pB), _pB, 1);
+                __m512i _pBBBB = _mm512_inserti32x8(_mm512_castsi256_si512(_pBB), _pBB, 1);
 
                 // 0123012301230123 -> 00000000... 11111111... 22222222... 33333333...
                 __m512i _pB0 = _mm512_shuffle_epi32(_pBBBB, _MM_PERM_AAAA);
