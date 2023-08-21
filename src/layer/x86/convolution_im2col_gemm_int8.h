@@ -2566,11 +2566,16 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 _pB = _mm_unpacklo_epi8(_pB, _mm_cmpgt_epi8(_mm_setzero_si128(), _pB));
 #endif
 
-                // 0123 -> 0000 1111 2222 3333
-                __m128i _pB0 = _mm_shuffle_epi32(_pB, _MM_SHUFFLE(0, 0, 0, 0));
-                __m128i _pB1 = _mm_shuffle_epi32(_pB, _MM_SHUFFLE(1, 1, 1, 1));
-                __m128i _pB2 = _mm_shuffle_epi32(_pB, _MM_SHUFFLE(2, 2, 2, 2));
-                __m128i _pB3 = _mm_shuffle_epi32(_pB, _MM_SHUFFLE(3, 3, 3, 3));
+                // 0123
+
+                // 0123
+                // 3012
+                // 2301
+                // 1230
+                __m128i _pB0 = _pB;
+                __m128i _pB1 = _mm_shuffle_epi32(_pB, _MM_SHUFFLE(2, 1, 0, 3));
+                __m128i _pB2 = _mm_shuffle_epi32(_pB, _MM_SHUFFLE(1, 0, 3, 2));
+                __m128i _pB3 = _mm_shuffle_epi32(_pB, _MM_SHUFFLE(0, 3, 2, 1));
 
 #if __XOP__
                 _sum0 = _mm_maddd_epi16(_pA, _pB0, _sum0);
@@ -2590,27 +2595,40 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
             for (; kk < max_kk; kk += 1)
             {
                 __m128i _pA = _mm_castps_si128(_mm_load1_ps((const float*)pA));
-                __m128i _pB0 = _mm_set1_epi16(pB[0]);
-                __m128i _pB1 = _mm_set1_epi16(pB[1]);
-                __m128i _pB2 = _mm_set1_epi16(pB[2]);
-                __m128i _pB3 = _mm_set1_epi16(pB[3]);
+                __m128i _pB = _mm_castps_si128(_mm_load1_ps((const float*)pB));
 
 #if __SSE4_1__
                 _pA = _mm_cvtepi8_epi16(_pA);
+                _pB = _mm_cvtepi8_epi16(_pB);
 #else
                 _pA = _mm_unpacklo_epi8(_pA, _mm_cmpgt_epi8(_mm_setzero_si128(), _pA));
+                _pB = _mm_unpacklo_epi8(_pB, _mm_cmpgt_epi8(_mm_setzero_si128(), _pB));
 #endif
 
 #if __XOP__
+                // 00112233
                 _pA = _mm_unpacklo_epi16(_pA, _pA);
+
+                // 00112233
+                // 3.0.1.2.
+                // 2.3.0.1.
+                // 1.2.3.0.
+                __m128i _pB0 = _mm_unpacklo_epi16(_pB, _pB);
+                __m128i _pB1 = _mm_shuffle_epi32(_pB0, _MM_SHUFFLE(2, 1, 0, 3));
+                __m128i _pB2 = _mm_shuffle_epi32(_pB0, _MM_SHUFFLE(1, 0, 3, 2));
+                __m128i _pB3 = _mm_shuffle_epi32(_pB0, _MM_SHUFFLE(0, 3, 2, 1));
 
                 _sum0 = _mm_maccd_epi16(_pA, _pB0, _sum0);
                 _sum1 = _mm_maccd_epi16(_pA, _pB1, _sum1);
                 _sum2 = _mm_maccd_epi16(_pA, _pB2, _sum2);
                 _sum3 = _mm_maccd_epi16(_pA, _pB3, _sum3);
 #else
-                __m128i _pB01 = _mm_unpacklo_epi64(_pB0, _pB1);
-                __m128i _pB23 = _mm_unpacklo_epi64(_pB2, _pB3);
+                // 0123 0123
+
+                // 0123 3012
+                // 2301 1230
+                __m128i _pB01 = _mm_shufflehi_epi16(_pB, _MM_SHUFFLE(2, 1, 0, 3));
+                __m128i _pB23 = _mm_shufflehi_epi16(_mm_shufflelo_epi16(_pB, _MM_SHUFFLE(1, 0, 3, 2)), _MM_SHUFFLE(0, 3, 2, 1));
 
                 __m128i _sl0 = _mm_mullo_epi16(_pA, _pB01);
                 __m128i _sh0 = _mm_mulhi_epi16(_pA, _pB01);
@@ -2633,6 +2651,33 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
 
             if (k_end)
             {
+                // 00 11 22 33
+                // 03 10 21 32
+                // 02 13 20 31
+                // 01 12 23 30
+
+                _sum0 = _sum0;
+                _sum1 = _mm_shuffle_epi32(_sum1, _MM_SHUFFLE(0, 3, 2, 1));
+                _sum2 = _mm_shuffle_epi32(_sum2, _MM_SHUFFLE(1, 0, 3, 2));
+                _sum3 = _mm_shuffle_epi32(_sum3, _MM_SHUFFLE(2, 1, 0, 3));
+
+                // 00 11 22 33
+                // 10 21 32 03
+                // 20 31 02 13
+                // 30 01 12 23
+
+                transpose4x4_epi32(_sum0, _sum1, _sum2, _sum3);
+
+                // 00 10 20 30
+                // 11 21 31 01
+                // 22 32 02 12
+                // 33 03 13 23
+
+                _sum0 = _sum0;
+                _sum1 = _mm_shuffle_epi32(_sum1, _MM_SHUFFLE(2, 1, 0, 3));
+                _sum2 = _mm_shuffle_epi32(_sum2, _MM_SHUFFLE(1, 0, 3, 2));
+                _sum3 = _mm_shuffle_epi32(_sum3, _MM_SHUFFLE(0, 3, 2, 1));
+
                 if (out_elempack == 4)
                 {
                     _mm_storeu_si128((__m128i*)outptr0, _sum0);
