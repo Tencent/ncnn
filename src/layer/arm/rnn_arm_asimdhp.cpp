@@ -54,7 +54,7 @@ static int rnn_fp16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
             const __fp16* weight_xc_ptr = weight_xc.row<const __fp16>(q / 4);
             const __fp16* weight_hc_ptr = weight_hc.row<const __fp16>(q / 4);
 
-            float32x4_t _H = vcvt_f32_f16(vld1_f16((const __fp16*)bias_c + q));
+            float32x4_t _rnn_H = vcvt_f32_f16(vld1_f16((const __fp16*)bias_c + q));
             float32x4_t _sum1 = vdupq_n_f32(0.f);
             float32x4_t _sum2 = vdupq_n_f32(0.f);
             float32x4_t _sum3 = vdupq_n_f32(0.f);
@@ -67,7 +67,7 @@ static int rnn_fp16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
                 float32x4_t _weight_xc_1 = vcvt_f32_f16(vld1_f16(weight_xc_ptr + 4));
                 float32x4_t _weight_xc_2 = vcvt_f32_f16(vld1_f16(weight_xc_ptr + 8));
                 float32x4_t _weight_xc_3 = vcvt_f32_f16(vld1_f16(weight_xc_ptr + 12));
-                _H = vfmaq_laneq_f32(_H, _weight_xc, _x, 0);
+                _rnn_H = vfmaq_laneq_f32(_rnn_H, _weight_xc, _x, 0);
                 _sum1 = vfmaq_laneq_f32(_sum1, _weight_xc_1, _x, 1);
                 _sum2 = vfmaq_laneq_f32(_sum2, _weight_xc_2, _x, 2);
                 _sum3 = vfmaq_laneq_f32(_sum3, _weight_xc_3, _x, 3);
@@ -78,7 +78,7 @@ static int rnn_fp16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
             {
                 float32x4_t _x = vcvt_f32_f16(vdup_n_f16(x[i]));
                 float32x4_t _weight_xc = vcvt_f32_f16(vld1_f16(weight_xc_ptr));
-                _H = vfmaq_f32(_H, _weight_xc, _x);
+                _rnn_H = vfmaq_f32(_rnn_H, _weight_xc, _x);
 
                 weight_xc_ptr += 4;
             }
@@ -91,7 +91,7 @@ static int rnn_fp16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
                 float32x4_t _weight_hc_1 = vcvt_f32_f16(vld1_f16(weight_hc_ptr + 4));
                 float32x4_t _weight_hc_2 = vcvt_f32_f16(vld1_f16(weight_hc_ptr + 8));
                 float32x4_t _weight_hc_3 = vcvt_f32_f16(vld1_f16(weight_hc_ptr + 12));
-                _H = vfmaq_laneq_f32(_H, _weight_hc, _hidden_state, 0);
+                _rnn_H = vfmaq_laneq_f32(_rnn_H, _weight_hc, _hidden_state, 0);
                 _sum1 = vfmaq_laneq_f32(_sum1, _weight_hc_1, _hidden_state, 1);
                 _sum2 = vfmaq_laneq_f32(_sum2, _weight_hc_2, _hidden_state, 2);
                 _sum3 = vfmaq_laneq_f32(_sum3, _weight_hc_3, _hidden_state, 3);
@@ -102,18 +102,18 @@ static int rnn_fp16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
             {
                 float32x4_t _hidden_state = vdupq_n_f32(hidden_state[i]);
                 float32x4_t _weight_hc = vcvt_f32_f16(vld1_f16(weight_hc_ptr));
-                _H = vfmaq_f32(_H, _weight_hc, _hidden_state);
+                _rnn_H = vfmaq_f32(_rnn_H, _weight_hc, _hidden_state);
 
                 weight_hc_ptr += 4;
             }
 
-            _H = vaddq_f32(_H, _sum1);
+            _rnn_H = vaddq_f32(_rnn_H, _sum1);
             _sum2 = vaddq_f32(_sum2, _sum3);
-            _H = vaddq_f32(_H, _sum2);
+            _rnn_H = vaddq_f32(_rnn_H, _sum2);
 
-            _H = tanh_ps(_H);
+            _rnn_H = tanh_ps(_rnn_H);
 
-            vst1q_f32((float*)gates + q, _H);
+            vst1q_f32((float*)gates + q, _rnn_H);
         }
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = remain_num_output_start; q < num_output; q++)
@@ -149,10 +149,10 @@ static int rnn_fp16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
         {
             int q = qq * 4;
 
-            float32x4_t _H = vld1q_f32((float*)gates + q);
+            float32x4_t _rnn_H = vld1q_f32((float*)gates + q);
 
-            vst1q_f32(hidden_ptr + q, _H);
-            vst1_f16(output_data + q, vcvt_f16_f32(_H));
+            vst1q_f32(hidden_ptr + q, _rnn_H);
+            vst1_f16(output_data + q, vcvt_f16_f32(_rnn_H));
         }
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = remain_num_output_start; q < num_output; q++)
@@ -196,7 +196,7 @@ static int rnn_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
             const __fp16* weight_xc_ptr = weight_xc.row<const __fp16>(q / 8);
             const __fp16* weight_hc_ptr = weight_hc.row<const __fp16>(q / 8);
 
-            float16x8_t _H = vld1q_f16((const __fp16*)bias_c + q);
+            float16x8_t _rnn_H = vld1q_f16((const __fp16*)bias_c + q);
             float16x8_t _sum1 = vdupq_n_f16(0.f);
             float16x8_t _sum2 = vdupq_n_f16(0.f);
             float16x8_t _sum3 = vdupq_n_f16(0.f);
@@ -209,7 +209,7 @@ static int rnn_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
                 float16x8_t _weight_xc_1 = vld1q_f16(weight_xc_ptr + 8);
                 float16x8_t _weight_xc_2 = vld1q_f16(weight_xc_ptr + 16);
                 float16x8_t _weight_xc_3 = vld1q_f16(weight_xc_ptr + 24);
-                _H = vfmaq_lane_f16(_H, _weight_xc, _x, 0);
+                _rnn_H = vfmaq_lane_f16(_rnn_H, _weight_xc, _x, 0);
                 _sum1 = vfmaq_lane_f16(_sum1, _weight_xc_1, _x, 1);
                 _sum2 = vfmaq_lane_f16(_sum2, _weight_xc_2, _x, 2);
                 _sum3 = vfmaq_lane_f16(_sum3, _weight_xc_3, _x, 3);
@@ -220,7 +220,7 @@ static int rnn_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
             {
                 float16x8_t _x = vdupq_n_f16(x[i]);
                 float16x8_t _weight_xc = vld1q_f16(weight_xc_ptr);
-                _H = vfmaq_f16(_H, _weight_xc, _x);
+                _rnn_H = vfmaq_f16(_rnn_H, _weight_xc, _x);
 
                 weight_xc_ptr += 8;
             }
@@ -233,7 +233,7 @@ static int rnn_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
                 float16x8_t _weight_hc_1 = vld1q_f16(weight_hc_ptr + 8);
                 float16x8_t _weight_hc_2 = vld1q_f16(weight_hc_ptr + 16);
                 float16x8_t _weight_hc_3 = vld1q_f16(weight_hc_ptr + 24);
-                _H = vfmaq_lane_f16(_H, _weight_hc, _hidden_state, 0);
+                _rnn_H = vfmaq_lane_f16(_rnn_H, _weight_hc, _hidden_state, 0);
                 _sum1 = vfmaq_lane_f16(_sum1, _weight_hc_1, _hidden_state, 1);
                 _sum2 = vfmaq_lane_f16(_sum2, _weight_hc_2, _hidden_state, 2);
                 _sum3 = vfmaq_lane_f16(_sum3, _weight_hc_3, _hidden_state, 3);
@@ -244,17 +244,17 @@ static int rnn_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
             {
                 float16x8_t _hidden_state = vdupq_n_f16((__fp16)hidden_state[i]);
                 float16x8_t _weight_hc = vld1q_f16(weight_hc_ptr);
-                _H = vfmaq_f16(_H, _weight_hc, _hidden_state);
+                _rnn_H = vfmaq_f16(_rnn_H, _weight_hc, _hidden_state);
 
                 weight_hc_ptr += 8;
             }
 
-            _H = vaddq_f16(_H, _sum1);
+            _rnn_H = vaddq_f16(_rnn_H, _sum1);
             _sum2 = vaddq_f16(_sum2, _sum3);
-            _H = vaddq_f16(_H, _sum2);
+            _rnn_H = vaddq_f16(_rnn_H, _sum2);
 
-            float32x4_t _H32low = tanh_ps(vcvt_f32_f16(vget_low_f16(_H)));
-            float32x4_t _H32high = tanh_ps(vcvt_f32_f16(vget_high_f16(_H)));
+            float32x4_t _H32low = tanh_ps(vcvt_f32_f16(vget_low_f16(_rnn_H)));
+            float32x4_t _H32high = tanh_ps(vcvt_f32_f16(vget_high_f16(_rnn_H)));
 
             vst1q_f32((float*)gates + q, _H32low);
             vst1q_f32((float*)gates + q + 4, _H32high);
@@ -268,7 +268,7 @@ static int rnn_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
             const __fp16* weight_xc_ptr = weight_xc.row<const __fp16>(q / 8 + (q % 8) / 4);
             const __fp16* weight_hc_ptr = weight_hc.row<const __fp16>(q / 8 + (q % 8) / 4);
 
-            float16x4_t _H = vld1_f16((const __fp16*)bias_c + q);
+            float16x4_t _rnn_H = vld1_f16((const __fp16*)bias_c + q);
             float16x4_t _sum1 = vdup_n_f16(0.f);
             float16x4_t _sum2 = vdup_n_f16(0.f);
             float16x4_t _sum3 = vdup_n_f16(0.f);
@@ -281,7 +281,7 @@ static int rnn_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
                 float16x4_t _weight_xc_1 = vld1_f16(weight_xc_ptr + 4);
                 float16x4_t _weight_xc_2 = vld1_f16(weight_xc_ptr + 8);
                 float16x4_t _weight_xc_3 = vld1_f16(weight_xc_ptr + 12);
-                _H = vfma_lane_f16(_H, _weight_xc, _x, 0);
+                _rnn_H = vfma_lane_f16(_rnn_H, _weight_xc, _x, 0);
                 _sum1 = vfma_lane_f16(_sum1, _weight_xc_1, _x, 1);
                 _sum2 = vfma_lane_f16(_sum2, _weight_xc_2, _x, 2);
                 _sum3 = vfma_lane_f16(_sum3, _weight_xc_3, _x, 3);
@@ -292,7 +292,7 @@ static int rnn_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
             {
                 float16x4_t _x = vdup_n_f16(x[i]);
                 float16x4_t _weight_xc = vld1_f16(weight_xc_ptr);
-                _H = vfma_f16(_H, _weight_xc, _x);
+                _rnn_H = vfma_f16(_rnn_H, _weight_xc, _x);
 
                 weight_xc_ptr += 4;
             }
@@ -305,7 +305,7 @@ static int rnn_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
                 float16x4_t _weight_hc_1 = vld1_f16(weight_hc_ptr + 4);
                 float16x4_t _weight_hc_2 = vld1_f16(weight_hc_ptr + 8);
                 float16x4_t _weight_hc_3 = vld1_f16(weight_hc_ptr + 12);
-                _H = vfma_lane_f16(_H, _weight_hc, _hidden_state, 0);
+                _rnn_H = vfma_lane_f16(_rnn_H, _weight_hc, _hidden_state, 0);
                 _sum1 = vfma_lane_f16(_sum1, _weight_hc_1, _hidden_state, 1);
                 _sum2 = vfma_lane_f16(_sum2, _weight_hc_2, _hidden_state, 2);
                 _sum3 = vfma_lane_f16(_sum3, _weight_hc_3, _hidden_state, 3);
@@ -316,16 +316,16 @@ static int rnn_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
             {
                 float16x4_t _hidden_state = vdup_n_f16((__fp16)hidden_state[i]);
                 float16x4_t _weight_hc = vld1_f16(weight_hc_ptr);
-                _H = vfma_f16(_H, _weight_hc, _hidden_state);
+                _rnn_H = vfma_f16(_rnn_H, _weight_hc, _hidden_state);
 
                 weight_hc_ptr += 4;
             }
 
-            _H = vadd_f16(_H, _sum1);
+            _rnn_H = vadd_f16(_rnn_H, _sum1);
             _sum2 = vadd_f16(_sum2, _sum3);
-            _H = vadd_f16(_H, _sum2);
+            _rnn_H = vadd_f16(_rnn_H, _sum2);
 
-            float32x4_t _H32 = tanh_ps(vcvt_f32_f16(_H));
+            float32x4_t _H32 = tanh_ps(vcvt_f32_f16(_rnn_H));
 
             vst1q_f32((float*)gates + q, _H32);
         }
@@ -364,10 +364,10 @@ static int rnn_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
         {
             int q = qq * 4;
 
-            float32x4_t _H = vld1q_f32((float*)gates + q);
+            float32x4_t _rnn_H = vld1q_f32((float*)gates + q);
 
-            vst1q_f32(hidden_ptr + q, _H);
-            vst1_f16(output_data + q, vcvt_f16_f32(_H));
+            vst1q_f32(hidden_ptr + q, _rnn_H);
+            vst1_f16(output_data + q, vcvt_f16_f32(_rnn_H));
         }
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = remain_num_output_start; q < num_output; q++)

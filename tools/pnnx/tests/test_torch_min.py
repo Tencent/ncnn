@@ -20,11 +20,12 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-    def forward(self, x, y, z):
+    def forward(self, x, y, z, w):
         x, x_indices = torch.min(x, dim=1, keepdim=False)
         y = torch.min(y)
+        w = torch.min(z, w)
         z, z_indices = torch.min(z, dim=0, keepdim=True)
-        return x, x_indices, y, z, z_indices
+        return x, x_indices, y, z, z_indices, w
 
 def test():
     net = Model()
@@ -34,16 +35,17 @@ def test():
     x = torch.rand(1, 3, 16)
     y = torch.rand(1, 5, 9, 11)
     z = torch.rand(14, 8, 5, 9, 10)
+    w = torch.rand(5, 9, 10)
 
-    a = net(x, y, z)
+    a = net(x, y, z, w)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, y, z))
+    mod = torch.jit.trace(net, (x, y, z, w))
     mod.save("test_torch_min.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_torch_min.pt inputshape=[1,3,16],[1,5,9,11],[14,8,5,9,10]")
+    os.system("../src/pnnx test_torch_min.pt inputshape=[1,3,16],[1,5,9,11],[14,8,5,9,10],[5,9,10]")
 
     # pnnx inference
     import test_torch_min_pnnx

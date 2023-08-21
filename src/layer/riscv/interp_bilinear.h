@@ -200,9 +200,9 @@ static void resize_bilinear_image(const Mat& src, Mat& dst, float* alpha, int* x
             vfloat32m8_t _rows0 = vle32_v_f32m8(rows0p, vl);
             vfloat32m8_t _rows1 = vle32_v_f32m8(rows1p, vl);
 
-            vfloat32m8_t _D = vfmacc_vf_f32m8(vfmul_vf_f32m8(_rows0, b0, vl), b1, _rows1, vl);
+            vfloat32m8_t _Dp = vfmacc_vf_f32m8(vfmul_vf_f32m8(_rows0, b0, vl), b1, _rows1, vl);
 
-            vse32_v_f32m8(Dp, _D, vl);
+            vse32_v_f32m8(Dp, _Dp, vl);
 
             Dp += vl;
             rows0p += vl;
