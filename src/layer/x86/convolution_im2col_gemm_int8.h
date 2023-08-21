@@ -1715,8 +1715,10 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 // 02 12 13 23 46 56 57 67
 
                 // 40 50 51 61 04 14 15 25
+                // 62 72 73 43 26 36 37 07
 
                 // 60 70 71 41 24 34 35 05
+                // 42 52 53 63 06 16 17 27
 
                 _sum0 = _mm256_unpacklo_epi64(_tmp0, _tmp2);
                 _sum1 = _mm256_unpackhi_epi64(_tmp0, _tmp2);
@@ -1736,14 +1738,17 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 // 40 50 60 70 04 14 24 34
                 // 51 61 71 41 15 25 35 05
 
-                _tmp0 = _mm256_permute2x128_si256(_sum0, _sum4, _MM_SHUFFLE(2, 2, 0, 0));
-                _tmp1 = _mm256_permute2x128_si256(_sum0, _sum4, _MM_SHUFFLE(1, 1, 3, 3));
-                _tmp2 = _mm256_permute2x128_si256(_sum1, _sum5, _MM_SHUFFLE(2, 2, 0, 0));
-                _tmp3 = _mm256_permute2x128_si256(_sum1, _sum5, _MM_SHUFFLE(1, 1, 3, 3));
-                _tmp4 = _mm256_permute2x128_si256(_sum2, _sum6, _MM_SHUFFLE(2, 2, 0, 0));
-                _tmp5 = _mm256_permute2x128_si256(_sum2, _sum6, _MM_SHUFFLE(1, 1, 3, 3));
-                _tmp6 = _mm256_permute2x128_si256(_sum3, _sum7, _MM_SHUFFLE(2, 2, 0, 0));
-                _tmp7 = _mm256_permute2x128_si256(_sum3, _sum7, _MM_SHUFFLE(1, 1, 3, 3));
+                // 62 72 42 52 26 36 06 16
+                // 73 43 53 63 37 07 17 27
+
+                _tmp0 = _mm256_permute2x128_si256(_sum0, _sum4, _MM_SHUFFLE(0, 2, 0, 0));
+                _tmp1 = _mm256_permute2x128_si256(_sum1, _sum5, _MM_SHUFFLE(0, 2, 0, 0));
+                _tmp2 = _mm256_permute2x128_si256(_sum2, _sum6, _MM_SHUFFLE(0, 2, 0, 0));
+                _tmp3 = _mm256_permute2x128_si256(_sum3, _sum7, _MM_SHUFFLE(0, 2, 0, 0));
+                _tmp4 = _mm256_permute2x128_si256(_sum0, _sum4, _MM_SHUFFLE(0, 1, 0, 3));
+                _tmp5 = _mm256_permute2x128_si256(_sum1, _sum5, _MM_SHUFFLE(0, 1, 0, 3));
+                _tmp6 = _mm256_permute2x128_si256(_sum2, _sum6, _MM_SHUFFLE(0, 1, 0, 3));
+                _tmp7 = _mm256_permute2x128_si256(_sum3, _sum7, _MM_SHUFFLE(0, 1, 0, 3));
 
                 // 00 10 20 30 40 50 60 70
                 // 11 21 31 01 51 61 71 41
