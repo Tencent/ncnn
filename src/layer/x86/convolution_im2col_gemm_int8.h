@@ -2072,11 +2072,13 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 __m128i _pB = _mm_castps_si128(_mm_load1_ps((const float*)pB));
 
                 __m256i _pA0 = _mm256_cvtepi8_epi16(_pA);
-                __m256i _pBB = _mm256_cvtepi8_epi16(_pB);
+                __m256i _pB0 = _mm256_cvtepi8_epi16(_pB);
 
-                // 01xx01xx -> 00000000 11111111
-                __m256i _pB0 = _mm256_shuffle_epi32(_pBB, _MM_SHUFFLE(0, 0, 0, 0));
-                __m256i _pB1 = _mm256_shuffle_epi32(_pBB, _MM_SHUFFLE(1, 1, 1, 1));
+                // 0123 4567
+
+                // 0101 0101
+                // 1010 1010
+                __m256i _pB1 = _mm256_shuffle_epi32(_pB0, _MM_SHUFFLE(0, 1, 0, 1));
 
 #if __AVXVNNI__ || __AVX512VNNI__
                 _sum0 = _mm256_dpwssd_epi32(_sum0, _pA0, _pB0);
@@ -2092,10 +2094,17 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
             for (; kk < max_kk; kk += 1)
             {
                 __m128i _pA = _mm_loadl_epi64((const __m128i*)pA);
-                __m128i _pB0 = _mm_set1_epi16(pB[0]);
-                __m128i _pB1 = _mm_set1_epi16(pB[1]);
+                __m128i _pB = _mm_set1_epi16(((const short*)pB)[0]);
 
                 _pA = _mm_cvtepi8_epi16(_pA);
+                _pB = _mm_cvtepi8_epi16(_pB);
+
+                // 01234567
+
+                // 01010101
+                // 10101010
+                __m128i _pB0 = _pB;
+                __m128i _pB1 = _mm_shufflehi_epi16(_mm_shufflelo_epi16(_pB, _MM_SHUFFLE(0, 1, 0, 1)), _MM_SHUFFLE(0, 1, 0, 1));
 
                 __m256i _s0 = _mm256_cvtepi16_epi32(_mm_mullo_epi16(_pA, _pB0));
                 __m256i _s1 = _mm256_cvtepi16_epi32(_mm_mullo_epi16(_pA, _pB1));
@@ -2109,6 +2118,30 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
 
             if (k_end)
             {
+                // 00 11 20 31 40 51 60 71
+                // 01 10 21 30 41 50 61 70
+
+                _sum0 = _sum0;
+                _sum1 = _mm256_shuffle_epi32(_sum1, _MM_SHUFFLE(2, 3, 0, 1));
+
+                // 00 11 20 31 40 51 60 71
+                // 10 01 30 21 50 41 70 61
+
+                __m256i _tmp0 = _mm256_unpacklo_epi32(_sum0, _sum1);
+                __m256i _tmp1 = _mm256_unpackhi_epi32(_sum0, _sum1);
+
+                // 00 10 11 01 40 50 51 41
+                // 20 30 31 21 60 70 71 61
+
+                _sum0 = _mm256_unpacklo_epi64(_tmp0, _tmp1);
+                _sum1 = _mm256_unpackhi_epi64(_tmp0, _tmp1);
+
+                // 00 10 20 30 40 50 60 70
+                // 11 01 31 21 51 41 71 61
+
+                _sum0 = _sum0;
+                _sum1 = _mm256_shuffle_epi32(_sum1, _MM_SHUFFLE(2, 3, 0, 1));
+
                 if (out_elempack == 8)
                 {
                     _mm256_storeu_si256((__m256i*)outptr0, _sum0);
@@ -2739,9 +2772,12 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 _pB = _mm_unpacklo_epi8(_pB, _mm_cmpgt_epi8(_mm_setzero_si128(), _pB));
 #endif
 
-                // 01xx -> 0000 1111
-                __m128i _pB0 = _mm_shuffle_epi32(_pB, _MM_SHUFFLE(0, 0, 0, 0));
-                __m128i _pB1 = _mm_shuffle_epi32(_pB, _MM_SHUFFLE(1, 1, 1, 1));
+                // 0123
+
+                // 0101
+                // 1010
+                __m128i _pB0 = _pB;
+                __m128i _pB1 = _mm_shuffle_epi32(_pB, _MM_SHUFFLE(2, 3, 0, 1));
 
 #if __XOP__
                 _sum0 = _mm_maddd_epi16(_pA, _pB0, _sum0);
@@ -2757,25 +2793,34 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
             for (; kk < max_kk; kk += 1)
             {
                 __m128i _pA = _mm_castps_si128(_mm_load1_ps((const float*)pA));
-                __m128i _pB0 = _mm_set1_epi16(pB[0]);
-                __m128i _pB1 = _mm_set1_epi16(pB[1]);
+                __m128i _pB = _mm_set1_epi16(((const short*)pB)[0]);
 
 #if __SSE4_1__
                 _pA = _mm_cvtepi8_epi16(_pA);
+                _pB = _mm_cvtepi8_epi16(_pB);
 #else
                 _pA = _mm_unpacklo_epi8(_pA, _mm_cmpgt_epi8(_mm_setzero_si128(), _pA));
+                _pB = _mm_unpacklo_epi8(_pB, _mm_cmpgt_epi8(_mm_setzero_si128(), _pB));
 #endif
 
 #if __XOP__
+                // 00112233
                 _pA = _mm_unpacklo_epi16(_pA, _pA);
+
+                // 00110011
+                // 1.0.1.0.
+                __m128i _pB0 = _mm_unpacklo_epi16(_pB, _pB);
+                __m128i _pB1 = _mm_shuffle_epi32(_pB0, _MM_SHUFFLE(2, 3, 0, 1));
 
                 _sum0 = _mm_maccd_epi16(_pA, _pB0, _sum0);
                 _sum1 = _mm_maccd_epi16(_pA, _pB1, _sum1);
 #else
-                __m128i _pB = _mm_unpacklo_epi64(_pB0, _pB1);
+                // 01230123
+                // 01011010
+                __m128i _pB01 = _mm_shufflehi_epi16(_pB, _MM_SHUFFLE(0, 1, 0, 1));
 
-                __m128i _sl = _mm_mullo_epi16(_pA, _pB);
-                __m128i _sh = _mm_mulhi_epi16(_pA, _pB);
+                __m128i _sl = _mm_mullo_epi16(_pA, _pB01);
+                __m128i _sh = _mm_mulhi_epi16(_pA, _pB01);
                 __m128i _s0 = _mm_unpacklo_epi16(_sl, _sh);
                 __m128i _s1 = _mm_unpackhi_epi16(_sl, _sh);
 
@@ -2789,6 +2834,24 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
 
             if (k_end)
             {
+                // 00 11 20 31
+                // 01 10 21 30
+
+                _sum0 = _mm_shuffle_epi32(_sum0, _MM_SHUFFLE(3, 1, 2, 0));
+                _sum1 = _mm_shuffle_epi32(_sum1, _MM_SHUFFLE(0, 2, 3, 1));
+
+                // 00 20 11 31
+                // 10 30 21 01
+
+                __m128i _tmp0 = _mm_unpacklo_epi32(_sum0, _sum1);
+                __m128i _tmp1 = _mm_unpackhi_epi32(_sum0, _sum1);
+
+                // 00 10 20 30
+                // 11 21 31 01
+
+                _sum0 = _tmp0;
+                _sum1 = _mm_shuffle_epi32(_tmp1, _MM_SHUFFLE(2, 1, 0, 3));
+
                 if (out_elempack == 4)
                 {
                     _mm_storeu_si128((__m128i*)outptr0, _sum0);
