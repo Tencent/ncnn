@@ -248,6 +248,7 @@ int ShuffleChannel_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const O
             }
             return 0;
         }
+#if !C906
         else if (_group == 8 && packn == 8)
         {
             const size_t vl = vsetvl_e32m1(packn);
@@ -298,10 +299,26 @@ int ShuffleChannel_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const O
             }
             return 0;
         }
+#endif
+#if C906
+        static unsigned int index_c906[4 * 4];
+        // C906 128 bits
+        for (int i = 0; i < _group; i++)
+        {
+            index_c906[0 + i * 4] = i + 0 * _group;
+            index_c906[1 + i * 4] = i + 1 * _group;
+            index_c906[2 + i * 4] = i + 2 * _group;
+            index_c906[3 + i * 4] = i + 3 * _group;
+        }
+#endif
         if (_group <= 4)
         {
             size_t vl;
             vl = vsetvl_e32m4(_group * elempack);
+#if C906
+            // C906 don't have vlm
+            vuint32m4_t _idx = vle32_v_u32m4(index_c906, vl);
+#else
             // create bitmask
             vbool8_t _mask = vlm_v_b8(bitmask, vl);
             vuint32m4_t _idx_init = viota_m_u32m4(_mask, vl);
@@ -312,6 +329,7 @@ int ShuffleChannel_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const O
                 _idx = vslideup_vx_u32m4(vundefined_u32m4(), _idx, 1, vl);
                 _idx = vmerge_vvm_u32m4(_mask, _idx, _idx_lower, vl);
             }
+#endif
 
             for (int q = 0; q < channels_per_group; q++)
             {
@@ -380,6 +398,7 @@ int ShuffleChannel_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const O
                 }
             }
         }
+#if !C906
         else /* if (_group <= 8) */
         {
             size_t vl;
@@ -497,6 +516,7 @@ int ShuffleChannel_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const O
                 }
             }
         }
+#endif
 
         return 0;
     }
