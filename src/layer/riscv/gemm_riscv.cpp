@@ -3800,7 +3800,6 @@ static int gemm_AT_riscv(const Mat& AT, const Mat& B, const Mat& C, Mat& top_blo
         Mat topT_tile;
         if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
             topT_tile = topT.channel(get_omp_thread_num());
-
         for (int j = 0; j < N; j += TILE_N)
         {
             const int max_jj = std::min((N - j), TILE_N);
@@ -3817,13 +3816,11 @@ static int gemm_AT_riscv(const Mat& AT, const Mat& B, const Mat& C, Mat& top_blo
                 const int max_kk = std::min((K - k), TILE_K);
 
                 // NCNN_LOGE("max_ii/jj/kk = %d %d %d", max_ii, max_jj, max_kk);
-
                 Mat AT_tile = AT.channel(i / TILE_M).row_range(k / TILE_K, 1);
 
                 Mat BT_tile = BT.channel(j / TILE_N).row_range(k / TILE_K, 1);
 
                 bool k_end = !output_transpose && k + TILE_K >= K;
-
                 gemm_transB_packed_tile(AT_tile, BT_tile, CT_tile, topT_tile, top_blob, broadcast_type_C, i, max_ii, j, max_jj, k, max_kk, k_end);
             }
 
@@ -3990,6 +3987,133 @@ int Gemm_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt
     int ret = forward(bottom_blobs, top_blobs, opt);
     top_blob = top_blobs[0];
     return ret;
+}
+
+int Gemm_riscv::create_pipeline(const Option& opt)
+{
+    if (constantA)
+    {
+        const int M = constantM;
+        const int K = constantK;
+
+        int TILE_M, TILE_N, TILE_K;
+        get_optimal_tile_mnk(M, 0, K, constant_TILE_M, constant_TILE_N, constant_TILE_K, TILE_M, TILE_N, TILE_K, opt.num_threads);
+
+        const int nn_M = (M + TILE_M - 1) / TILE_M;
+
+        AT_data.create(TILE_K * TILE_M, (K + TILE_K - 1) / TILE_K, (M + TILE_M - 1) / TILE_M, 4u, (Allocator*)0);
+        if (AT_data.empty())
+            return -100;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int ppj = 0; ppj < nn_M; ppj++)
+        {
+            const int i = ppj * TILE_M;
+
+            for (int k = 0; k < K; k += TILE_K)
+            {
+                const int max_ii = std::min((M - i), TILE_M);
+                const int max_kk = std::min((K - k), TILE_K);
+
+                Mat AT_tile = AT_data.channel(i / TILE_M).row_range(k / TILE_K, 1);
+
+                if (transA)
+                {
+                    transpose_pack_A_tile(A_data, AT_tile, i, max_ii, k, max_kk);
+                }
+                else
+                {
+                    pack_A_tile(A_data, AT_tile, i, max_ii, k, max_kk);
+                }
+            }
+        }
+
+        if (opt.lightmode)
+        {
+            A_data.release();
+        }
+    }
+
+    if (constantB)
+    {
+        const int N = constantN;
+        const int K = constantK;
+
+        int TILE_M, TILE_N, TILE_K;
+        get_optimal_tile_mnk(0, N, K, constant_TILE_M, constant_TILE_N, constant_TILE_K, TILE_M, TILE_N, TILE_K, opt.num_threads);
+
+        const int nn_N = (N + TILE_N - 1) / TILE_N;
+
+        BT_data.create(TILE_K * TILE_N, (K + TILE_K - 1) / TILE_K, (N + TILE_N - 1) / TILE_N, 4u, (Allocator*)0);
+        if (BT_data.empty())
+            return -100;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int ppj = 0; ppj < nn_N; ppj++)
+        {
+            const int j = ppj * TILE_N;
+
+            for (int k = 0; k < K; k += TILE_K)
+            {
+                const int max_jj = std::min((N - j), TILE_N);
+                const int max_kk = std::min((K - k), TILE_K);
+
+                Mat BT_tile = BT_data.channel(j / TILE_N).row_range(k / TILE_K, 1);
+
+                if (transB)
+                {
+                    pack_B_tile(B_data, BT_tile, j, max_jj, k, max_kk);
+                }
+                else
+                {
+                    transpose_pack_B_tile(B_data, BT_tile, j, max_jj, k, max_kk);
+                }
+            }
+        }
+
+        if (opt.lightmode)
+        {
+            B_data.release();
+        }
+    }
+
+    if (constantC && constant_broadcast_type_C != -1)
+    {
+        CT_data = C_data;
+
+        if (constant_broadcast_type_C == 3 && opt.use_packing_layout)
+        {
+            int C_elempack = constantM % 4 == 0 ? 4 : 1;
+            convert_packing(C_data, CT_data, C_elempack, opt);
+        }
+
+        // pre-multiply C with beta
+        if (beta != 1.f)
+        {
+            Mat C2;
+            C2.create_like(CT_data);
+
+            const int size = CT_data.total() * CT_data.elempack;
+            for (int i = 0; i < size; i++)
+            {
+                C2[i] = CT_data[i] * beta;
+            }
+
+            CT_data = C2;
+        }
+
+        if (opt.lightmode)
+        {
+            C_data.release();
+        }
+    }
+
+    if (constantA || constantB || constantC)
+    {
+        nT = opt.num_threads;
+    }
+
+    return 0;
 }
 
 int Gemm_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
