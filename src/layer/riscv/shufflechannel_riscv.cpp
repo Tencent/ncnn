@@ -230,7 +230,18 @@ int ShuffleChannel_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const O
         if (top_blob.empty())
             return -100;
         const int size = w * h;
+#if C906
+        // C906 128 bits
+        for (int i = 0; i < _group; i++)
+        {
+            index_c906[0 + i * 4] = i + 0 * _group;
+            index_c906[1 + i * 4] = i + 1 * _group;
+            index_c906[2 + i * 4] = i + 2 * _group;
+            index_c906[3 + i * 4] = i + 3 * _group;
+        }
+#else
         create_bitmask(_group, bitmask, packn);
+#endif
         if (_group == 4 && packn == 4)
         {
             const size_t vl = vsetvl_e32m1(packn);
@@ -316,16 +327,6 @@ int ShuffleChannel_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const O
                 }
             }
             return 0;
-        }
-#endif
-#if C906
-        // C906 128 bits
-        for (int i = 0; i < _group; i++)
-        {
-            index_c906[0 + i * 4] = i + 0 * _group;
-            index_c906[1 + i * 4] = i + 1 * _group;
-            index_c906[2 + i * 4] = i + 2 * _group;
-            index_c906[3 + i * 4] = i + 3 * _group;
         }
 #endif
         if (_group <= 4)
@@ -537,7 +538,7 @@ int ShuffleChannel_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const O
 
         return 0;
     }
-#endif
+#endif // __riscv_vector
 
 #if __riscv_vector
     if (elempack == 1)
