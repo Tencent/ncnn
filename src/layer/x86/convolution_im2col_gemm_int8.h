@@ -899,70 +899,68 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
 
                 if (out_elempack == 16)
                 {
-                    _mm512_storeu_si512((__m512i*)outptr0, _sum0);
-                    _mm512_storeu_si512((__m512i*)(outptr0 + 16), _sum1);
-                    _mm512_storeu_si512((__m512i*)(outptr0 + 32), _sum2);
-                    _mm512_storeu_si512((__m512i*)(outptr0 + 48), _sum3);
-                    _mm512_storeu_si512((__m512i*)(outptr0 + 64), _sum4);
-                    _mm512_storeu_si512((__m512i*)(outptr0 + 80), _sum5);
-                    _mm512_storeu_si512((__m512i*)(outptr0 + 96), _sum6);
-                    _mm512_storeu_si512((__m512i*)(outptr0 + 112), _sum7);
+                    _mm512_store_si512((__m512i*)outptr0, _sum0);
+                    _mm512_store_si512((__m512i*)(outptr0 + 16), _sum1);
+                    _mm512_store_si512((__m512i*)(outptr0 + 32), _sum2);
+                    _mm512_store_si512((__m512i*)(outptr0 + 48), _sum3);
+                    _mm512_store_si512((__m512i*)(outptr0 + 64), _sum4);
+                    _mm512_store_si512((__m512i*)(outptr0 + 80), _sum5);
+                    _mm512_store_si512((__m512i*)(outptr0 + 96), _sum6);
+                    _mm512_store_si512((__m512i*)(outptr0 + 112), _sum7);
                     outptr0 += 128;
                 }
                 if (out_elempack == 8)
                 {
-                    _mm256_storeu_si256((__m256i*)outptr0, _mm512_extracti32x8_epi32(_sum0, 0));
-                    _mm256_storeu_si256((__m256i*)(outptr0 + 8), _mm512_extracti32x8_epi32(_sum1, 0));
-                    _mm256_storeu_si256((__m256i*)(outptr0 + 16), _mm512_extracti32x8_epi32(_sum2, 0));
-                    _mm256_storeu_si256((__m256i*)(outptr0 + 24), _mm512_extracti32x8_epi32(_sum3, 0));
-                    _mm256_storeu_si256((__m256i*)(outptr0 + 32), _mm512_extracti32x8_epi32(_sum4, 0));
-                    _mm256_storeu_si256((__m256i*)(outptr0 + 40), _mm512_extracti32x8_epi32(_sum5, 0));
-                    _mm256_storeu_si256((__m256i*)(outptr0 + 48), _mm512_extracti32x8_epi32(_sum6, 0));
-                    _mm256_storeu_si256((__m256i*)(outptr0 + 56), _mm512_extracti32x8_epi32(_sum7, 0));
-                    _mm256_storeu_si256((__m256i*)(outptr0 + out_hstep * 8), _mm512_extracti32x8_epi32(_sum0, 1));
-                    _mm256_storeu_si256((__m256i*)(outptr0 + out_hstep * 8 + 8), _mm512_extracti32x8_epi32(_sum1, 1));
-                    _mm256_storeu_si256((__m256i*)(outptr0 + out_hstep * 8 + 16), _mm512_extracti32x8_epi32(_sum2, 1));
-                    _mm256_storeu_si256((__m256i*)(outptr0 + out_hstep * 8 + 24), _mm512_extracti32x8_epi32(_sum3, 1));
-                    _mm256_storeu_si256((__m256i*)(outptr0 + out_hstep * 8 + 32), _mm512_extracti32x8_epi32(_sum4, 1));
-                    _mm256_storeu_si256((__m256i*)(outptr0 + out_hstep * 8 + 40), _mm512_extracti32x8_epi32(_sum5, 1));
-                    _mm256_storeu_si256((__m256i*)(outptr0 + out_hstep * 8 + 48), _mm512_extracti32x8_epi32(_sum6, 1));
-                    _mm256_storeu_si256((__m256i*)(outptr0 + out_hstep * 8 + 56), _mm512_extracti32x8_epi32(_sum7, 1));
+                    __m512i _tmp0 = _mm512_shuffle_i32x4(_sum0, _sum1, _MM_SHUFFLE(1, 0, 1, 0));
+                    __m512i _tmp1 = _mm512_shuffle_i32x4(_sum2, _sum3, _MM_SHUFFLE(1, 0, 1, 0));
+                    __m512i _tmp2 = _mm512_shuffle_i32x4(_sum4, _sum5, _MM_SHUFFLE(1, 0, 1, 0));
+                    __m512i _tmp3 = _mm512_shuffle_i32x4(_sum6, _sum7, _MM_SHUFFLE(1, 0, 1, 0));
+                    __m512i _tmp4 = _mm512_shuffle_i32x4(_sum0, _sum1, _MM_SHUFFLE(3, 2, 3, 2));
+                    __m512i _tmp5 = _mm512_shuffle_i32x4(_sum2, _sum3, _MM_SHUFFLE(3, 2, 3, 2));
+                    __m512i _tmp6 = _mm512_shuffle_i32x4(_sum4, _sum5, _MM_SHUFFLE(3, 2, 3, 2));
+                    __m512i _tmp7 = _mm512_shuffle_i32x4(_sum6, _sum7, _MM_SHUFFLE(3, 2, 3, 2));
+
+                    _mm512_storeu_si512((__m512i*)outptr0, _tmp0);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + 16), _tmp1);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + 16 * 2), _tmp2);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + 16 * 3), _tmp3);
+
+                    _mm512_storeu_si512((__m512i*)(outptr0 + out_hstep * 8), _tmp4);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + out_hstep * 8 + 16), _tmp5);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + out_hstep * 8 + 16 * 2), _tmp6);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + out_hstep * 8 + 16 * 3), _tmp7);
+
                     outptr0 += 64;
                 }
                 if (out_elempack == 4)
                 {
-                    _mm_storeu_si128((__m128i*)outptr0, _mm512_extracti32x4_epi32(_sum0, 0));
-                    _mm_storeu_si128((__m128i*)(outptr0 + 4), _mm512_extracti32x4_epi32(_sum1, 0));
-                    _mm_storeu_si128((__m128i*)(outptr0 + 8), _mm512_extracti32x4_epi32(_sum2, 0));
-                    _mm_storeu_si128((__m128i*)(outptr0 + 12), _mm512_extracti32x4_epi32(_sum3, 0));
-                    _mm_storeu_si128((__m128i*)(outptr0 + 16), _mm512_extracti32x4_epi32(_sum4, 0));
-                    _mm_storeu_si128((__m128i*)(outptr0 + 20), _mm512_extracti32x4_epi32(_sum5, 0));
-                    _mm_storeu_si128((__m128i*)(outptr0 + 24), _mm512_extracti32x4_epi32(_sum6, 0));
-                    _mm_storeu_si128((__m128i*)(outptr0 + 28), _mm512_extracti32x4_epi32(_sum7, 0));
-                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 4), _mm512_extracti32x4_epi32(_sum0, 1));
-                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 4 + 4), _mm512_extracti32x4_epi32(_sum1, 1));
-                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 4 + 8), _mm512_extracti32x4_epi32(_sum2, 1));
-                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 4 + 12), _mm512_extracti32x4_epi32(_sum3, 1));
-                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 4 + 16), _mm512_extracti32x4_epi32(_sum4, 1));
-                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 4 + 20), _mm512_extracti32x4_epi32(_sum5, 1));
-                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 4 + 24), _mm512_extracti32x4_epi32(_sum6, 1));
-                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 4 + 28), _mm512_extracti32x4_epi32(_sum7, 1));
-                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 8), _mm512_extracti32x4_epi32(_sum0, 2));
-                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 8 + 4), _mm512_extracti32x4_epi32(_sum1, 2));
-                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 8 + 8), _mm512_extracti32x4_epi32(_sum2, 2));
-                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 8 + 12), _mm512_extracti32x4_epi32(_sum3, 2));
-                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 8 + 16), _mm512_extracti32x4_epi32(_sum4, 2));
-                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 8 + 20), _mm512_extracti32x4_epi32(_sum5, 2));
-                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 8 + 24), _mm512_extracti32x4_epi32(_sum6, 2));
-                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 8 + 28), _mm512_extracti32x4_epi32(_sum7, 2));
-                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 12), _mm512_extracti32x4_epi32(_sum0, 3));
-                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 12 + 4), _mm512_extracti32x4_epi32(_sum1, 3));
-                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 12 + 8), _mm512_extracti32x4_epi32(_sum2, 3));
-                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 12 + 12), _mm512_extracti32x4_epi32(_sum3, 3));
-                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 12 + 16), _mm512_extracti32x4_epi32(_sum4, 3));
-                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 12 + 20), _mm512_extracti32x4_epi32(_sum5, 3));
-                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 12 + 24), _mm512_extracti32x4_epi32(_sum6, 3));
-                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 12 + 28), _mm512_extracti32x4_epi32(_sum7, 3));
+                    __m512i _tmp0 = _mm512_shuffle_i32x4(_sum0, _sum1, _MM_SHUFFLE(1, 0, 1, 0));
+                    __m512i _tmp1 = _mm512_shuffle_i32x4(_sum2, _sum3, _MM_SHUFFLE(1, 0, 1, 0));
+                    __m512i _tmp2 = _mm512_shuffle_i32x4(_sum0, _sum1, _MM_SHUFFLE(3, 2, 3, 2));
+                    __m512i _tmp3 = _mm512_shuffle_i32x4(_sum2, _sum3, _MM_SHUFFLE(3, 2, 3, 2));
+                    __m512i _tmp4 = _mm512_shuffle_i32x4(_sum4, _sum5, _MM_SHUFFLE(1, 0, 1, 0));
+                    __m512i _tmp5 = _mm512_shuffle_i32x4(_sum6, _sum7, _MM_SHUFFLE(1, 0, 1, 0));
+                    __m512i _tmp6 = _mm512_shuffle_i32x4(_sum4, _sum5, _MM_SHUFFLE(3, 2, 3, 2));
+                    __m512i _tmp7 = _mm512_shuffle_i32x4(_sum6, _sum7, _MM_SHUFFLE(3, 2, 3, 2));
+
+                    _sum0 = _mm512_shuffle_i32x4(_tmp0, _tmp1, _MM_SHUFFLE(2, 0, 2, 0));
+                    _sum1 = _mm512_shuffle_i32x4(_tmp0, _tmp1, _MM_SHUFFLE(3, 1, 3, 1));
+                    _sum2 = _mm512_shuffle_i32x4(_tmp2, _tmp3, _MM_SHUFFLE(2, 0, 2, 0));
+                    _sum3 = _mm512_shuffle_i32x4(_tmp2, _tmp3, _MM_SHUFFLE(3, 1, 3, 1));
+                    _sum4 = _mm512_shuffle_i32x4(_tmp4, _tmp5, _MM_SHUFFLE(2, 0, 2, 0));
+                    _sum5 = _mm512_shuffle_i32x4(_tmp4, _tmp5, _MM_SHUFFLE(3, 1, 3, 1));
+                    _sum6 = _mm512_shuffle_i32x4(_tmp6, _tmp7, _MM_SHUFFLE(2, 0, 2, 0));
+                    _sum7 = _mm512_shuffle_i32x4(_tmp6, _tmp7, _MM_SHUFFLE(3, 1, 3, 1));
+
+                    _mm512_storeu_si512((__m512i*)outptr0, _sum0);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + 16), _sum4);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + out_hstep * 4), _sum1);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + out_hstep * 4 + 16), _sum5);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + out_hstep * 8), _sum2);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + out_hstep * 8 + 16), _sum6);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + out_hstep * 12), _sum3);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + out_hstep * 12 + 16), _sum7);
+
                     outptr0 += 32;
                 }
                 if (out_elempack == 1)
@@ -1137,42 +1135,44 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
 
                 if (out_elempack == 16)
                 {
-                    _mm512_storeu_si512((__m512i*)outptr0, _sum0);
-                    _mm512_storeu_si512((__m512i*)(outptr0 + 16), _sum1);
-                    _mm512_storeu_si512((__m512i*)(outptr0 + 32), _sum2);
-                    _mm512_storeu_si512((__m512i*)(outptr0 + 48), _sum3);
+                    _mm512_store_si512((__m512i*)outptr0, _sum0);
+                    _mm512_store_si512((__m512i*)(outptr0 + 16), _sum1);
+                    _mm512_store_si512((__m512i*)(outptr0 + 32), _sum2);
+                    _mm512_store_si512((__m512i*)(outptr0 + 48), _sum3);
                     outptr0 += 64;
                 }
                 if (out_elempack == 8)
                 {
-                    _mm256_storeu_si256((__m256i*)outptr0, _mm512_extracti32x8_epi32(_sum0, 0));
-                    _mm256_storeu_si256((__m256i*)(outptr0 + 8), _mm512_extracti32x8_epi32(_sum1, 0));
-                    _mm256_storeu_si256((__m256i*)(outptr0 + 16), _mm512_extracti32x8_epi32(_sum2, 0));
-                    _mm256_storeu_si256((__m256i*)(outptr0 + 24), _mm512_extracti32x8_epi32(_sum3, 0));
-                    _mm256_storeu_si256((__m256i*)(outptr0 + out_hstep * 8), _mm512_extracti32x8_epi32(_sum0, 1));
-                    _mm256_storeu_si256((__m256i*)(outptr0 + out_hstep * 8 + 8), _mm512_extracti32x8_epi32(_sum1, 1));
-                    _mm256_storeu_si256((__m256i*)(outptr0 + out_hstep * 8 + 16), _mm512_extracti32x8_epi32(_sum2, 1));
-                    _mm256_storeu_si256((__m256i*)(outptr0 + out_hstep * 8 + 24), _mm512_extracti32x8_epi32(_sum3, 1));
+                    __m512i _tmp0 = _mm512_shuffle_i32x4(_sum0, _sum1, _MM_SHUFFLE(1, 0, 1, 0));
+                    __m512i _tmp1 = _mm512_shuffle_i32x4(_sum2, _sum3, _MM_SHUFFLE(1, 0, 1, 0));
+                    __m512i _tmp2 = _mm512_shuffle_i32x4(_sum0, _sum1, _MM_SHUFFLE(3, 2, 3, 2));
+                    __m512i _tmp3 = _mm512_shuffle_i32x4(_sum2, _sum3, _MM_SHUFFLE(3, 2, 3, 2));
+
+                    _mm512_storeu_si512((__m512i*)outptr0, _tmp0);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + 16), _tmp1);
+
+                    _mm512_storeu_si512((__m512i*)(outptr0 + out_hstep * 8), _tmp2);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + out_hstep * 8 + 16), _tmp3);
+
                     outptr0 += 32;
                 }
                 if (out_elempack == 4)
                 {
-                    _mm_storeu_si128((__m128i*)outptr0, _mm512_extracti32x4_epi32(_sum0, 0));
-                    _mm_storeu_si128((__m128i*)(outptr0 + 4), _mm512_extracti32x4_epi32(_sum1, 0));
-                    _mm_storeu_si128((__m128i*)(outptr0 + 8), _mm512_extracti32x4_epi32(_sum2, 0));
-                    _mm_storeu_si128((__m128i*)(outptr0 + 12), _mm512_extracti32x4_epi32(_sum3, 0));
-                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 4), _mm512_extracti32x4_epi32(_sum0, 1));
-                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 4 + 4), _mm512_extracti32x4_epi32(_sum1, 1));
-                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 4 + 8), _mm512_extracti32x4_epi32(_sum2, 1));
-                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 4 + 12), _mm512_extracti32x4_epi32(_sum3, 1));
-                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 8), _mm512_extracti32x4_epi32(_sum0, 2));
-                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 8 + 4), _mm512_extracti32x4_epi32(_sum1, 2));
-                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 8 + 8), _mm512_extracti32x4_epi32(_sum2, 2));
-                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 8 + 12), _mm512_extracti32x4_epi32(_sum3, 2));
-                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 12), _mm512_extracti32x4_epi32(_sum0, 3));
-                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 12 + 4), _mm512_extracti32x4_epi32(_sum1, 3));
-                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 12 + 8), _mm512_extracti32x4_epi32(_sum2, 3));
-                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 12 + 12), _mm512_extracti32x4_epi32(_sum3, 3));
+                    __m512i _tmp0 = _mm512_shuffle_i32x4(_sum0, _sum1, _MM_SHUFFLE(1, 0, 1, 0));
+                    __m512i _tmp1 = _mm512_shuffle_i32x4(_sum2, _sum3, _MM_SHUFFLE(1, 0, 1, 0));
+                    __m512i _tmp2 = _mm512_shuffle_i32x4(_sum0, _sum1, _MM_SHUFFLE(3, 2, 3, 2));
+                    __m512i _tmp3 = _mm512_shuffle_i32x4(_sum2, _sum3, _MM_SHUFFLE(3, 2, 3, 2));
+
+                    _sum0 = _mm512_shuffle_i32x4(_tmp0, _tmp1, _MM_SHUFFLE(2, 0, 2, 0));
+                    _sum1 = _mm512_shuffle_i32x4(_tmp0, _tmp1, _MM_SHUFFLE(3, 1, 3, 1));
+                    _sum2 = _mm512_shuffle_i32x4(_tmp2, _tmp3, _MM_SHUFFLE(2, 0, 2, 0));
+                    _sum3 = _mm512_shuffle_i32x4(_tmp2, _tmp3, _MM_SHUFFLE(3, 1, 3, 1));
+
+                    _mm512_storeu_si512((__m512i*)outptr0, _sum0);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + out_hstep * 4), _sum1);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + out_hstep * 8), _sum2);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + out_hstep * 12), _sum3);
+
                     outptr0 += 16;
                 }
                 if (out_elempack == 1)
@@ -1295,16 +1295,18 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
 
                 if (out_elempack == 16)
                 {
-                    _mm512_storeu_si512((__m512i*)outptr0, _sum0);
-                    _mm512_storeu_si512((__m512i*)(outptr0 + 16), _sum1);
+                    _mm512_store_si512((__m512i*)outptr0, _sum0);
+                    _mm512_store_si512((__m512i*)(outptr0 + 16), _sum1);
                     outptr0 += 32;
                 }
                 if (out_elempack == 8)
                 {
-                    _mm256_storeu_si256((__m256i*)outptr0, _mm512_extracti32x8_epi32(_sum0, 0));
-                    _mm256_storeu_si256((__m256i*)(outptr0 + 8), _mm512_extracti32x8_epi32(_sum1, 0));
-                    _mm256_storeu_si256((__m256i*)(outptr0 + out_hstep * 8), _mm512_extracti32x8_epi32(_sum0, 1));
-                    _mm256_storeu_si256((__m256i*)(outptr0 + out_hstep * 8 + 8), _mm512_extracti32x8_epi32(_sum1, 1));
+                    __m512i _tmp0 = _mm512_shuffle_i32x4(_sum0, _sum1, _MM_SHUFFLE(1, 0, 1, 0));
+                    __m512i _tmp1 = _mm512_shuffle_i32x4(_sum0, _sum1, _MM_SHUFFLE(3, 2, 3, 2));
+
+                    _mm512_storeu_si512((__m512i*)outptr0, _tmp0);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + out_hstep * 8), _tmp1);
+
                     outptr0 += 16;
                 }
                 if (out_elempack == 4)
@@ -1391,7 +1393,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
             {
                 if (out_elempack == 16)
                 {
-                    _mm512_storeu_si512((__m512i*)outptr0, _sum0);
+                    _mm512_store_si512((__m512i*)outptr0, _sum0);
                     outptr0 += 16;
                 }
                 if (out_elempack == 8)
@@ -1745,14 +1747,14 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                     _mm512_storeu_si512((__m512i*)(outptr0 + 32), _sum45);
                     _mm512_storeu_si512((__m512i*)(outptr0 + 48), _sum67);
 #else
-                    _mm256_storeu_si256((__m256i*)outptr0, _sum0);
-                    _mm256_storeu_si256((__m256i*)(outptr0 + 8), _sum1);
-                    _mm256_storeu_si256((__m256i*)(outptr0 + 16), _sum2);
-                    _mm256_storeu_si256((__m256i*)(outptr0 + 24), _sum3);
-                    _mm256_storeu_si256((__m256i*)(outptr0 + 32), _sum4);
-                    _mm256_storeu_si256((__m256i*)(outptr0 + 40), _sum5);
-                    _mm256_storeu_si256((__m256i*)(outptr0 + 48), _sum6);
-                    _mm256_storeu_si256((__m256i*)(outptr0 + 56), _sum7);
+                    _mm256_store_si256((__m256i*)outptr0, _sum0);
+                    _mm256_store_si256((__m256i*)(outptr0 + 8), _sum1);
+                    _mm256_store_si256((__m256i*)(outptr0 + 16), _sum2);
+                    _mm256_store_si256((__m256i*)(outptr0 + 24), _sum3);
+                    _mm256_store_si256((__m256i*)(outptr0 + 32), _sum4);
+                    _mm256_store_si256((__m256i*)(outptr0 + 40), _sum5);
+                    _mm256_store_si256((__m256i*)(outptr0 + 48), _sum6);
+                    _mm256_store_si256((__m256i*)(outptr0 + 56), _sum7);
 #endif //__AVX512F__
                     outptr0 += 64;
                 }
@@ -1978,10 +1980,10 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
 
                 if (out_elempack == 8)
                 {
-                    _mm256_storeu_si256((__m256i*)outptr0, _sum0);
-                    _mm256_storeu_si256((__m256i*)(outptr0 + 8), _sum1);
-                    _mm256_storeu_si256((__m256i*)(outptr0 + 16), _sum2);
-                    _mm256_storeu_si256((__m256i*)(outptr0 + 24), _sum3);
+                    _mm256_store_si256((__m256i*)outptr0, _sum0);
+                    _mm256_store_si256((__m256i*)(outptr0 + 8), _sum1);
+                    _mm256_store_si256((__m256i*)(outptr0 + 16), _sum2);
+                    _mm256_store_si256((__m256i*)(outptr0 + 24), _sum3);
                     outptr0 += 32;
                 }
                 if (out_elempack == 4)
@@ -2118,8 +2120,8 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
 
                 if (out_elempack == 8)
                 {
-                    _mm256_storeu_si256((__m256i*)outptr0, _sum0);
-                    _mm256_storeu_si256((__m256i*)(outptr0 + 8), _sum1);
+                    _mm256_store_si256((__m256i*)outptr0, _sum0);
+                    _mm256_store_si256((__m256i*)(outptr0 + 8), _sum1);
                     outptr0 += 16;
                 }
                 if (out_elempack == 4)
@@ -2226,7 +2228,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
             {
                 if (out_elempack == 8)
                 {
-                    _mm256_storeu_si256((__m256i*)outptr0, _sum0);
+                    _mm256_store_si256((__m256i*)outptr0, _sum0);
                     outptr0 += 8;
                 }
                 if (out_elempack == 4)
@@ -2507,14 +2509,14 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
 
                 if (out_elempack == 4)
                 {
-                    _mm_storeu_si128((__m128i*)outptr0, _sum0);
-                    _mm_storeu_si128((__m128i*)(outptr0 + 4), _sum1);
-                    _mm_storeu_si128((__m128i*)(outptr0 + 8), _sum2);
-                    _mm_storeu_si128((__m128i*)(outptr0 + 12), _sum3);
-                    _mm_storeu_si128((__m128i*)(outptr0 + 16), _sum4);
-                    _mm_storeu_si128((__m128i*)(outptr0 + 20), _sum5);
-                    _mm_storeu_si128((__m128i*)(outptr0 + 24), _sum6);
-                    _mm_storeu_si128((__m128i*)(outptr0 + 28), _sum7);
+                    _mm_store_si128((__m128i*)outptr0, _sum0);
+                    _mm_store_si128((__m128i*)(outptr0 + 4), _sum1);
+                    _mm_store_si128((__m128i*)(outptr0 + 8), _sum2);
+                    _mm_store_si128((__m128i*)(outptr0 + 12), _sum3);
+                    _mm_store_si128((__m128i*)(outptr0 + 16), _sum4);
+                    _mm_store_si128((__m128i*)(outptr0 + 20), _sum5);
+                    _mm_store_si128((__m128i*)(outptr0 + 24), _sum6);
+                    _mm_store_si128((__m128i*)(outptr0 + 28), _sum7);
                     outptr0 += 32;
                 }
                 if (out_elempack == 1)
@@ -2700,10 +2702,10 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
 
                 if (out_elempack == 4)
                 {
-                    _mm_storeu_si128((__m128i*)outptr0, _sum0);
-                    _mm_storeu_si128((__m128i*)(outptr0 + 4), _sum1);
-                    _mm_storeu_si128((__m128i*)(outptr0 + 8), _sum2);
-                    _mm_storeu_si128((__m128i*)(outptr0 + 12), _sum3);
+                    _mm_store_si128((__m128i*)outptr0, _sum0);
+                    _mm_store_si128((__m128i*)(outptr0 + 4), _sum1);
+                    _mm_store_si128((__m128i*)(outptr0 + 8), _sum2);
+                    _mm_store_si128((__m128i*)(outptr0 + 12), _sum3);
                     outptr0 += 16;
                 }
                 if (out_elempack == 1)
@@ -2841,8 +2843,8 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
 
                 if (out_elempack == 4)
                 {
-                    _mm_storeu_si128((__m128i*)outptr0, _sum0);
-                    _mm_storeu_si128((__m128i*)(outptr0 + 4), _sum1);
+                    _mm_store_si128((__m128i*)outptr0, _sum0);
+                    _mm_store_si128((__m128i*)(outptr0 + 4), _sum1);
                     outptr0 += 8;
                 }
                 if (out_elempack == 1)
@@ -2950,7 +2952,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
             {
                 if (out_elempack == 4)
                 {
-                    _mm_storeu_si128((__m128i*)outptr0, _sum0);
+                    _mm_store_si128((__m128i*)outptr0, _sum0);
                     outptr0 += 4;
                 }
                 if (out_elempack == 1)
