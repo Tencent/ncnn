@@ -137,9 +137,9 @@ static void resize_bilinear_image(const Mat& src, Mat& dst, float* alpha, int* x
         {
             __m256 _rows0 = _mm256_loadu_ps(rows0p);
             __m256 _rows1 = _mm256_loadu_ps(rows1p);
-            __m256 _D = _mm256_mul_ps(_rows0, _b0_256);
-            _D = _mm256_comp_fmadd_ps(_rows1, _b1_256, _D);
-            _mm256_storeu_ps(Dp, _D);
+            __m256 _Dp = _mm256_mul_ps(_rows0, _b0_256);
+            _Dp = _mm256_comp_fmadd_ps(_rows1, _b1_256, _Dp);
+            _mm256_storeu_ps(Dp, _Dp);
 
             Dp += 8;
             rows0p += 8;
@@ -152,9 +152,9 @@ static void resize_bilinear_image(const Mat& src, Mat& dst, float* alpha, int* x
         {
             __m128 _rows0 = _mm_loadu_ps(rows0p);
             __m128 _rows1 = _mm_loadu_ps(rows1p);
-            __m128 _D = _mm_mul_ps(_rows0, _b0_128);
-            _D = _mm_comp_fmadd_ps(_rows1, _b1_128, _D);
-            _mm_storeu_ps(Dp, _D);
+            __m128 _Dp = _mm_mul_ps(_rows0, _b0_128);
+            _Dp = _mm_comp_fmadd_ps(_rows1, _b1_128, _Dp);
+            _mm_storeu_ps(Dp, _Dp);
 
             Dp += 4;
             rows0p += 4;
