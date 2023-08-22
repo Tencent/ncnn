@@ -387,6 +387,7 @@ static void convolution_im2col_pack_A_tile_int8(const Mat& A, Mat& AT, int i, in
             p6 += 16;
             p7 += 16;
         }
+#endif // defined(__x86_64__) || defined(_M_X64)
         for (; kk + 7 < max_kk; kk += 8)
         {
             __m128i _r0 = _mm_loadl_epi64((const __m128i*)p0);
@@ -423,7 +424,6 @@ static void convolution_im2col_pack_A_tile_int8(const Mat& A, Mat& AT, int i, in
             p6 += 8;
             p7 += 8;
         }
-#endif // defined(__x86_64__) || defined(_M_X64)
         for (; kk + 1 < max_kk; kk += 2)
         {
             pp[0] = p0[0];
@@ -1321,43 +1321,10 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 }
                 if (out_elempack == 1)
                 {
-                    int sum0[16];
-                    int sum1[16];
-                    _mm512_storeu_si512((__m512i*)sum0, _sum0);
-                    _mm512_storeu_si512((__m512i*)sum1, _sum1);
-
-                    outptr0[0] = sum0[0];
-                    outptr0[1] = sum1[0];
-                    outptr0[out_hstep * 1] = sum0[1];
-                    outptr0[out_hstep * 1 + 1] = sum1[1];
-                    outptr0[out_hstep * 2] = sum0[2];
-                    outptr0[out_hstep * 2 + 1] = sum1[2];
-                    outptr0[out_hstep * 3] = sum0[3];
-                    outptr0[out_hstep * 3 + 1] = sum1[3];
-                    outptr0[out_hstep * 4] = sum0[4];
-                    outptr0[out_hstep * 4 + 1] = sum1[4];
-                    outptr0[out_hstep * 5] = sum0[5];
-                    outptr0[out_hstep * 5 + 1] = sum1[5];
-                    outptr0[out_hstep * 6] = sum0[6];
-                    outptr0[out_hstep * 6 + 1] = sum1[6];
-                    outptr0[out_hstep * 7] = sum0[7];
-                    outptr0[out_hstep * 7 + 1] = sum1[7];
-                    outptr0[out_hstep * 8] = sum0[8];
-                    outptr0[out_hstep * 8 + 1] = sum1[8];
-                    outptr0[out_hstep * 9] = sum0[9];
-                    outptr0[out_hstep * 9 + 1] = sum1[9];
-                    outptr0[out_hstep * 10] = sum0[10];
-                    outptr0[out_hstep * 10 + 1] = sum1[10];
-                    outptr0[out_hstep * 11] = sum0[11];
-                    outptr0[out_hstep * 11 + 1] = sum1[11];
-                    outptr0[out_hstep * 12] = sum0[12];
-                    outptr0[out_hstep * 12 + 1] = sum1[12];
-                    outptr0[out_hstep * 13] = sum0[13];
-                    outptr0[out_hstep * 13 + 1] = sum1[13];
-                    outptr0[out_hstep * 14] = sum0[14];
-                    outptr0[out_hstep * 14 + 1] = sum1[14];
-                    outptr0[out_hstep * 15] = sum0[15];
-                    outptr0[out_hstep * 15 + 1] = sum1[15];
+                    __m512i _vindex = _mm512_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
+                    _vindex = _mm512_mullo_epi32(_vindex, _mm512_set1_epi32(out_hstep));
+                    _mm512_i32scatter_epi32(outptr0, _vindex, _sum0, sizeof(float));
+                    _mm512_i32scatter_epi32(outptr0 + 1, _vindex, _sum1, sizeof(float));
                     outptr0 += 2;
                 }
             }
@@ -1443,25 +1410,9 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 }
                 if (out_elempack == 1)
                 {
-                    int sum0[16];
-                    _mm512_storeu_si512((__m512i*)sum0, _sum0);
-
-                    outptr0[0] = sum0[0];
-                    outptr0[out_hstep * 1] = sum0[1];
-                    outptr0[out_hstep * 2] = sum0[2];
-                    outptr0[out_hstep * 3] = sum0[3];
-                    outptr0[out_hstep * 4] = sum0[4];
-                    outptr0[out_hstep * 5] = sum0[5];
-                    outptr0[out_hstep * 6] = sum0[6];
-                    outptr0[out_hstep * 7] = sum0[7];
-                    outptr0[out_hstep * 8] = sum0[8];
-                    outptr0[out_hstep * 9] = sum0[9];
-                    outptr0[out_hstep * 10] = sum0[10];
-                    outptr0[out_hstep * 11] = sum0[11];
-                    outptr0[out_hstep * 12] = sum0[12];
-                    outptr0[out_hstep * 13] = sum0[13];
-                    outptr0[out_hstep * 14] = sum0[14];
-                    outptr0[out_hstep * 15] = sum0[15];
+                    __m512i _vindex = _mm512_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
+                    _vindex = _mm512_mullo_epi32(_vindex, _mm512_set1_epi32(out_hstep));
+                    _mm512_i32scatter_epi32(outptr0, _vindex, _sum0, sizeof(float));
                     outptr0++;
                 }
             }
@@ -2181,6 +2132,12 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 }
                 if (out_elempack == 1)
                 {
+#if __AVX512F__
+                    __m256i _vindex = _mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7);
+                    _vindex = _mm256_mullo_epi32(_vindex, _mm256_set1_epi32(out_hstep));
+                    _mm256_i32scatter_epi32(outptr0, _vindex, _sum0, sizeof(float));
+                    _mm256_i32scatter_epi32(outptr0 + 1, _vindex, _sum1, sizeof(float));
+#else
                     int sum0[8];
                     int sum1[8];
                     _mm256_storeu_si256((__m256i*)sum0, _sum0);
@@ -2202,6 +2159,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                     outptr0[out_hstep * 6 + 1] = sum1[6];
                     outptr0[out_hstep * 7] = sum0[7];
                     outptr0[out_hstep * 7 + 1] = sum1[7];
+#endif // __AVX512F__
                     outptr0 += 2;
                 }
             }
@@ -2279,6 +2237,11 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 }
                 if (out_elempack == 1)
                 {
+#if __AVX512F__
+                    __m256i _vindex = _mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7);
+                    _vindex = _mm256_mullo_epi32(_vindex, _mm256_set1_epi32(out_hstep));
+                    _mm256_i32scatter_epi32(outptr0, _vindex, _sum0, sizeof(float));
+#else
                     int sum0[8];
                     _mm256_storeu_si256((__m256i*)sum0, _sum0);
 
@@ -2290,6 +2253,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                     outptr0[out_hstep * 5] = sum0[5];
                     outptr0[out_hstep * 6] = sum0[6];
                     outptr0[out_hstep * 7] = sum0[7];
+#endif // __AVX512F__
                     outptr0++;
                 }
             }
@@ -2883,6 +2847,12 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 }
                 if (out_elempack == 1)
                 {
+#if __AVX512F__
+                    __m128i _vindex = _mm_setr_epi32(0, 1, 2, 3);
+                    _vindex = _mm_mullo_epi32(_vindex, _mm_set1_epi32(out_hstep));
+                    _mm_i32scatter_epi32(outptr0, _vindex, _sum0, sizeof(float));
+                    _mm_i32scatter_epi32(outptr0 + 1, _vindex, _sum1, sizeof(float));
+#else
                     int sum0[4];
                     int sum1[4];
                     _mm_storeu_si128((__m128i*)sum0, _sum0);
@@ -2896,6 +2866,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                     outptr0[out_hstep * 2 + 1] = sum1[2];
                     outptr0[out_hstep * 3] = sum0[3];
                     outptr0[out_hstep * 3 + 1] = sum1[3];
+#endif // __AVX512F__
                     outptr0 += 2;
                 }
             }
@@ -2984,6 +2955,11 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 }
                 if (out_elempack == 1)
                 {
+#if __AVX512F__
+                    __m128i _vindex = _mm_setr_epi32(0, 1, 2, 3);
+                    _vindex = _mm_mullo_epi32(_vindex, _mm_set1_epi32(out_hstep));
+                    _mm_i32scatter_epi32(outptr0, _vindex, _sum0, sizeof(float));
+#else
                     int sum0[4];
                     _mm_storeu_si128((__m128i*)sum0, _sum0);
 
@@ -2991,6 +2967,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                     outptr0[out_hstep] = sum0[1];
                     outptr0[out_hstep * 2] = sum0[2];
                     outptr0[out_hstep * 3] = sum0[3];
+#endif // __AVX512F__
                     outptr0++;
                 }
             }
