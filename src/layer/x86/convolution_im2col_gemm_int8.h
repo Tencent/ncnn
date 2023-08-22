@@ -1507,7 +1507,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 // 0123 4567 0123 4567
                 // 4567 0123 4567 0123
                 __m512i _pA00 = _mm512_inserti32x8(_mm512_castsi256_si512(_pA0), _pA0, 1);
-                __m512i _pA11 = _mm512_permutex_epi64(_pA00 , _MM_SHUFFLE(1, 0, 3, 2));
+                __m512i _pA11 = _mm512_permutex_epi64(_pA00, _MM_SHUFFLE(1, 0, 3, 2));
 
                 // 0123 4567 2301 6745
                 // 3012 7456 1230 5674
@@ -1576,7 +1576,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 // 01234567 01234567
                 // 45670123 45670123
                 __m256i _pA00 = _mm256_inserti128_si256(_mm256_castsi128_si256(_pA), _pA, 1);
-                __m256i _pA11 = _mm256_permute4x64_epi64(_pA00 , _MM_SHUFFLE(2, 3, 0, 1));
+                __m256i _pA11 = _mm256_permute4x64_epi64(_pA00, _MM_SHUFFLE(2, 3, 0, 1));
 
                 // 01234567 23016745
                 // 30127456 12305674
