@@ -77,7 +77,12 @@ int ShuffleChannel_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const O
     // TODO pack1
     if (elempack == packn)
     {
+#if C906
+        // C906 128 bits
+        static unsigned int index_c906[4 * 4];
+#else
         static uint8_t bitmask[32];
+#endif
         // follow arm version
         if (_group == 2 && channels % _group != 0)
         {
@@ -85,14 +90,27 @@ int ShuffleChannel_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const O
             if (top_blob.empty())
                 return -100;
 
+#if C906
+            size_t vl = vsetvl_e32m4(packn * 2);
+            index_c906[0] = 0;
+            index_c906[2] = 1;
+            index_c906[4] = 2;
+            index_c906[6] = 3;
+            index_c906[1] = 6;
+            index_c906[3] = 7;
+            index_c906[5] = 8;
+            index_c906[7] = 9;
+            vuint32m4_t _idx = vle32_v_u32m4(index_c906, vl);
+#else
             // create mask
             memset(bitmask, 0b01010101 /* little endian*/, 32);
 
-            size_t vl = vsetvl_e32m4(packn * 3);
+            size_t vl = vsetvl_e32m4(packn * 2);
             vbool8_t _mask = vlm_v_b8(bitmask, vl);
             vuint32m4_t _idx = viota_m_u32m4(_mask, vl);
             vuint32m4_t _idx_shifted = vslideup_vx_u32m4(vundefined_u32m4(), vadd_vx_u32m4_m(_mask, vundefined_u32m4(), _idx, packn + packn / 2, vl), 1, vl);
             _idx = vmerge_vvm_u32m4(_mask, _idx_shifted, _idx, vl);
+#endif
 
             int size = w * h;
 
@@ -301,7 +319,6 @@ int ShuffleChannel_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const O
         }
 #endif
 #if C906
-        static unsigned int index_c906[4 * 4];
         // C906 128 bits
         for (int i = 0; i < _group; i++)
         {
