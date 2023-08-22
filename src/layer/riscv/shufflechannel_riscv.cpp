@@ -152,10 +152,22 @@ int ShuffleChannel_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const O
             // handle the last channel
             {
                 size_t vl = vsetvl_e32m2(packn * 2);
+#if C906
+                index_c906[0] = 0;
+                index_c906[2] = 1;
+                index_c906[4] = 2;
+                index_c906[6] = 3;
+                index_c906[1] = 4;
+                index_c906[3] = 5;
+                index_c906[5] = 6;
+                index_c906[7] = 7;
+                vuint32m2_t _idx = vle32_v_u32m2(index_c906, vl);
+#else
                 vbool16_t _mask = vlm_v_b16(bitmask, vl);
                 vuint32m2_t _idx = viota_m_u32m2(_mask, vl);
                 vuint32m2_t _idx_shifted = vslideup_vx_u32m2(vundefined_u32m2(), vadd_vx_u32m2_m(_mask, vundefined_u32m2(), _idx, packn, vl), 1, vl);
                 _idx = vmerge_vvm_u32m2(_mask, _idx_shifted, _idx, vl);
+#endif
 
                 const float* ptr0 = bottom_blob.channel(channels_per_group);
                 const float* ptr1 = bottom_blob.channel(channels_per_group + channels_per_group);
