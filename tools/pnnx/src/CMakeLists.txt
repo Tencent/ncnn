@@ -437,6 +437,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/F_mish.cpp
     pass_ncnn/F_normalize.cpp
     pass_ncnn/F_pad.cpp
+	pass_ncnn/F_pairwise_distance.cpp
     pass_ncnn/F_pixel_shuffle.cpp
     pass_ncnn/F_pixel_unshuffle.cpp
     pass_ncnn/F_prelu.cpp
