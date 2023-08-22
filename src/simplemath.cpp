@@ -262,20 +262,23 @@ float floorf(float x) {
 }
 
 float round(float x) {
-    int intValue = static_cast<int>(x); // 获取 x 的整数部分
-    float decimalPart = fabs(x - intValue); // 获取 x 的小数部分
-    if (decimalPart == 0) {
-        return x;
-    }
-    if (decimalPart <= 0.5) {
-        return intValue;
-    } else {
-        if (x < 0) {
-            return intValue - 1;
-        } else {
-            return intValue + 1;
-        }
-    }
+    float ret = x > 0 ? floor(x + 0.5) : ceil(x - 0.5);
+    // printf("x = %f, ret = %f\n", x, ret);
+    return ret;
+    // int intValue = static_cast<int>(x); // 获取 x 的整数部分
+    // float decimalPart = fabs(x - intValue); // 获取 x 的小数部分
+    // if (decimalPart == 0) {
+    //     return x;
+    // }
+    // if (decimalPart <= 0.5) {
+    //     return intValue;
+    // } else {
+    //     if (x < 0) {
+    //         return intValue - 1;
+    //     } else {
+    //         return intValue + 1;
+    //     }
+    // }
 }
 
 float roundf(float x) {
@@ -556,9 +559,9 @@ float expf(float a) {
         // printf("expf(%f)=%f\n", a, r);
         if (fabsf(a) >= 104.0f) r = (a > 0) ? INFINITY : 0.0f;
         // fprintf(stderr, "expf(%f)=%f\n", a, r);
-        if(a == -51.052765){
-            printf("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n");
-        }
+        // if(a == -51.052765){
+        //     printf("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n");
+        // }
         return r;
 }
 
@@ -648,7 +651,7 @@ int fegetround(){
 
 float nearbyintf(float x){
     int intPart = static_cast<int>(x);
-    float floatPart = x - intPart;
+    float floatPart = fabs(x - intPart);
     c += 1;
     if(floatPart == 0){
         return x;  // x是整数
@@ -662,6 +665,10 @@ float nearbyintf(float x){
             return static_cast<float>(intPart) + 1.0;
         }
         if(round_mode == FE_TONEAREST){
+            if(floatPart == 0.5){
+                // 向偶数舍入
+                return intPart % 2 == 0 ? static_cast<float>(intPart) : static_cast<float>(intPart) + 1;
+            }
             return round(x);
         }
     }
@@ -673,6 +680,10 @@ float nearbyintf(float x){
             return static_cast<float>(intPart) - 1.0;
         }
         if(round_mode == FE_TONEAREST){
+            if(floatPart == 0.5){
+                // 向偶数舍入
+                return intPart % 2 == 0 ? static_cast<float>(intPart) : static_cast<float>(intPart) - 1;
+            }
             return round(x);
         }
     }
