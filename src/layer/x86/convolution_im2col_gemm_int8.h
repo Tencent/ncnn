@@ -1778,22 +1778,24 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                     _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 4 + 24), _mm512_extracti32x4_epi32(_sum67, 1));
                     _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 4 + 28), _mm512_extracti32x4_epi32(_sum67, 3));
 #else
-                    _mm_storeu_si128((__m128i*)outptr0, _mm256_extracti128_si256(_sum0, 0));
-                    _mm_storeu_si128((__m128i*)(outptr0 + 4), _mm256_extracti128_si256(_sum1, 0));
-                    _mm_storeu_si128((__m128i*)(outptr0 + 8), _mm256_extracti128_si256(_sum2, 0));
-                    _mm_storeu_si128((__m128i*)(outptr0 + 12), _mm256_extracti128_si256(_sum3, 0));
-                    _mm_storeu_si128((__m128i*)(outptr0 + 16), _mm256_extracti128_si256(_sum4, 0));
-                    _mm_storeu_si128((__m128i*)(outptr0 + 20), _mm256_extracti128_si256(_sum5, 0));
-                    _mm_storeu_si128((__m128i*)(outptr0 + 24), _mm256_extracti128_si256(_sum6, 0));
-                    _mm_storeu_si128((__m128i*)(outptr0 + 28), _mm256_extracti128_si256(_sum7, 0));
-                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 4), _mm256_extracti128_si256(_sum0, 1));
-                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 4 + 4), _mm256_extracti128_si256(_sum1, 1));
-                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 4 + 8), _mm256_extracti128_si256(_sum2, 1));
-                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 4 + 12), _mm256_extracti128_si256(_sum3, 1));
-                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 4 + 16), _mm256_extracti128_si256(_sum4, 1));
-                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 4 + 20), _mm256_extracti128_si256(_sum5, 1));
-                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 4 + 24), _mm256_extracti128_si256(_sum6, 1));
-                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 4 + 28), _mm256_extracti128_si256(_sum7, 1));
+                    __m256i _tmp0 = _mm256_permute2x128_si256(_sum0, _sum1, _MM_SHUFFLE(0, 2, 0, 0));
+                    __m256i _tmp1 = _mm256_permute2x128_si256(_sum2, _sum3, _MM_SHUFFLE(0, 2, 0, 0));
+                    __m256i _tmp2 = _mm256_permute2x128_si256(_sum4, _sum5, _MM_SHUFFLE(0, 2, 0, 0));
+                    __m256i _tmp3 = _mm256_permute2x128_si256(_sum6, _sum7, _MM_SHUFFLE(0, 2, 0, 0));
+                    __m256i _tmp4 = _mm256_permute2x128_si256(_sum0, _sum1, _MM_SHUFFLE(0, 3, 0, 1));
+                    __m256i _tmp5 = _mm256_permute2x128_si256(_sum2, _sum3, _MM_SHUFFLE(0, 3, 0, 1));
+                    __m256i _tmp6 = _mm256_permute2x128_si256(_sum4, _sum5, _MM_SHUFFLE(0, 3, 0, 1));
+                    __m256i _tmp7 = _mm256_permute2x128_si256(_sum6, _sum7, _MM_SHUFFLE(0, 3, 0, 1));
+
+                    _mm256_storeu_si256((__m256i*)outptr0, _tmp0);
+                    _mm256_storeu_si256((__m256i*)(outptr0 + 8), _tmp1);
+                    _mm256_storeu_si256((__m256i*)(outptr0 + 8 * 2), _tmp2);
+                    _mm256_storeu_si256((__m256i*)(outptr0 + 8 * 3), _tmp3);
+
+                    _mm256_storeu_si256((__m256i*)(outptr0 + out_hstep * 4), _tmp4);
+                    _mm256_storeu_si256((__m256i*)(outptr0 + out_hstep * 4 + 8), _tmp5);
+                    _mm256_storeu_si256((__m256i*)(outptr0 + out_hstep * 4 + 8 * 2), _tmp6);
+                    _mm256_storeu_si256((__m256i*)(outptr0 + out_hstep * 4 + 8 * 3), _tmp7);
 #endif // __AVX512F__
                     outptr0 += 32;
                 }
@@ -1988,14 +1990,17 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 }
                 if (out_elempack == 4)
                 {
-                    _mm_storeu_si128((__m128i*)outptr0, _mm256_extracti128_si256(_sum0, 0));
-                    _mm_storeu_si128((__m128i*)(outptr0 + 4), _mm256_extracti128_si256(_sum1, 0));
-                    _mm_storeu_si128((__m128i*)(outptr0 + 8), _mm256_extracti128_si256(_sum2, 0));
-                    _mm_storeu_si128((__m128i*)(outptr0 + 12), _mm256_extracti128_si256(_sum3, 0));
-                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 4), _mm256_extracti128_si256(_sum0, 1));
-                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 4 + 4), _mm256_extracti128_si256(_sum1, 1));
-                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 4 + 8), _mm256_extracti128_si256(_sum2, 1));
-                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 4 + 12), _mm256_extracti128_si256(_sum3, 1));
+                    __m256i _tmp0 = _mm256_permute2x128_si256(_sum0, _sum1, _MM_SHUFFLE(0, 2, 0, 0));
+                    __m256i _tmp1 = _mm256_permute2x128_si256(_sum2, _sum3, _MM_SHUFFLE(0, 2, 0, 0));
+                    __m256i _tmp2 = _mm256_permute2x128_si256(_sum0, _sum1, _MM_SHUFFLE(0, 3, 0, 1));
+                    __m256i _tmp3 = _mm256_permute2x128_si256(_sum2, _sum3, _MM_SHUFFLE(0, 3, 0, 1));
+
+                    _mm256_storeu_si256((__m256i*)outptr0, _tmp0);
+                    _mm256_storeu_si256((__m256i*)(outptr0 + 8), _tmp1);
+
+                    _mm256_storeu_si256((__m256i*)(outptr0 + out_hstep * 4), _tmp2);
+                    _mm256_storeu_si256((__m256i*)(outptr0 + out_hstep * 4 + 8), _tmp3);
+
                     outptr0 += 16;
                 }
                 if (out_elempack == 1)
@@ -2126,10 +2131,12 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 }
                 if (out_elempack == 4)
                 {
-                    _mm_storeu_si128((__m128i*)outptr0, _mm256_extracti128_si256(_sum0, 0));
-                    _mm_storeu_si128((__m128i*)(outptr0 + 4), _mm256_extracti128_si256(_sum1, 0));
-                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 4), _mm256_extracti128_si256(_sum0, 1));
-                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 4 + 4), _mm256_extracti128_si256(_sum1, 1));
+                    __m256i _tmp0 = _mm256_permute2x128_si256(_sum0, _sum1, _MM_SHUFFLE(0, 2, 0, 0));
+                    __m256i _tmp1 = _mm256_permute2x128_si256(_sum0, _sum1, _MM_SHUFFLE(0, 3, 0, 1));
+
+                    _mm256_storeu_si256((__m256i*)outptr0, _tmp0);
+                    _mm256_storeu_si256((__m256i*)(outptr0 + out_hstep * 4), _tmp1);
+
                     outptr0 += 8;
                 }
                 if (out_elempack == 1)
