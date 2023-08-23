@@ -22,6 +22,11 @@ def find_version():
         return version_major[0] + "." + version_minor[0] + "." + ncnn_version
     raise RuntimeError("Unable to find version string.")
 
+# Parse parameters from environment
+BUILD_WITH_VULKAN = True
+for i, arg in enumerate(sys.argv):
+    if arg == "-g" or arg == "--gpu":
+        BUILD_WITH_VULKAN = True
 
 # Convert distutils Windows platform specifiers to CMake -A arguments
 PLAT_TO_CMAKE = {
@@ -70,6 +75,10 @@ class CMakeBuild(build_ext):
             "-DNCNN_BUILD_EXAMPLES=OFF",
             "-DNCNN_BUILD_TOOLS=OFF",
         ]
+        if BUILD_WITH_VULKAN:
+            cmake_args.append("-DNCNN_VULKAN=ON")
+        else:
+            cmake_args.append("-DNCNN_VULKAN=OFF")
         build_args = []
 
         if self.compiler.compiler_type == "msvc":
