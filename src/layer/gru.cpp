@@ -14,8 +14,6 @@
 
 #include "gru.h"
 
-
-
 namespace ncnn {
 
 GRU::GRU()

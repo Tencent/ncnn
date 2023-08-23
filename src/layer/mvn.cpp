@@ -14,8 +14,6 @@
 
 #include "mvn.h"
 
-
-
 namespace ncnn {
 
 MVN::MVN()

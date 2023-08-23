@@ -14,8 +14,6 @@
 
 #include "binaryop.h"
 
-
-
 namespace ncnn {
 
 BinaryOp::BinaryOp()

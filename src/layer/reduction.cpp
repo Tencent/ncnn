@@ -17,7 +17,6 @@
 #include <float.h>
 #include <limits.h>
 
-
 namespace ncnn {
 
 Reduction::Reduction()

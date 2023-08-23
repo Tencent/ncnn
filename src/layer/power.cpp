@@ -14,8 +14,6 @@
 
 #include "power.h"
 
-
-
 namespace ncnn {
 
 Power::Power()

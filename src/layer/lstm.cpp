@@ -14,8 +14,6 @@
 
 #include "lstm.h"
 
-
-
 namespace ncnn {
 
 LSTM::LSTM()

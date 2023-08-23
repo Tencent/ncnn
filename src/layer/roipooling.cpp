@@ -14,8 +14,6 @@
 
 #include "roipooling.h"
 
-
-
 namespace ncnn {
 
 ROIPooling::ROIPooling()

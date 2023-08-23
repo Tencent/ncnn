@@ -16,7 +16,6 @@
 
 #include <float.h>
 
-
 #if __loongarch_sx
 #include <lsxintrin.h>
 #include "lsx_mathfun.h"

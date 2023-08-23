@@ -14,8 +14,6 @@
 
 #include "selu.h"
 
-
-
 namespace ncnn {
 
 SELU::SELU()

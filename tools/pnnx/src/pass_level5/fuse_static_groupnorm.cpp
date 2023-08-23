@@ -16,7 +16,6 @@
 
 #include "pass_level2.h"
 
-
 #include <string.h>
 
 namespace pnnx {

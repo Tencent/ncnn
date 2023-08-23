@@ -14,8 +14,6 @@
 
 #include "exp.h"
 
-
-
 namespace ncnn {
 
 Exp::Exp()

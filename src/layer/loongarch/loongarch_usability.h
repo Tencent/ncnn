@@ -19,7 +19,6 @@
 #include <lsxintrin.h>
 #endif // __loongarch_sx
 
-
 #include <stdint.h>
 
 namespace ncnn {

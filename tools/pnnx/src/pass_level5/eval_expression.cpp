@@ -17,7 +17,6 @@
 // #include <fenv.h>
 #include <float.h>
 
-
 #include <iostream>
 #include <sstream>
 #include <algorithm>

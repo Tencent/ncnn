@@ -14,8 +14,6 @@
 
 #include "bnll.h"
 
-
-
 namespace ncnn {
 
 BNLL::BNLL()

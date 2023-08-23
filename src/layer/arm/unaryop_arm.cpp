@@ -17,7 +17,6 @@
 // #include <fenv.h>
 #include <float.h>
 
-
 #if __ARM_NEON
 #include <arm_neon.h>
 #include "neon_mathfun.h"

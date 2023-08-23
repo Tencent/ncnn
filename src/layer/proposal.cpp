@@ -14,8 +14,6 @@
 
 #include "proposal.h"
 
-
-
 namespace ncnn {
 
 Proposal::Proposal()

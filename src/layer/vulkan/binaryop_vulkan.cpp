@@ -16,8 +16,6 @@
 
 #include "layer_shader_type.h"
 
-
-
 namespace ncnn {
 
 BinaryOp_vulkan::BinaryOp_vulkan()

@@ -14,8 +14,6 @@
 
 #include "gelu.h"
 
-
-
 namespace ncnn {
 
 GELU::GELU()

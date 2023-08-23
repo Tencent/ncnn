@@ -14,8 +14,6 @@
 
 #include "layernorm.h"
 
-
-
 namespace ncnn {
 
 LayerNorm::LayerNorm()

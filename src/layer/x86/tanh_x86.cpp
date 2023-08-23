@@ -16,8 +16,6 @@
 
 #include "x86_activation.h"
 
-
-
 namespace ncnn {
 
 TanH_x86::TanH_x86()

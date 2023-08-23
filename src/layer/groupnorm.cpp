@@ -14,8 +14,6 @@
 
 #include "groupnorm.h"
 
-
-
 namespace ncnn {
 
 GroupNorm::GroupNorm()

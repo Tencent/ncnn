@@ -14,8 +14,6 @@
 
 #include "roialign_x86.h"
 
-
-
 namespace ncnn {
 
 // adapted from detectron2

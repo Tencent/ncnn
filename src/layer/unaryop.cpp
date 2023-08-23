@@ -17,7 +17,6 @@
 // #include <fenv.h>
 #include <float.h>
 
-
 namespace ncnn {
 
 UnaryOp::UnaryOp()

@@ -16,7 +16,6 @@
 
 #include <float.h>
 
-
 namespace ncnn {
 
 Softmax::Softmax()

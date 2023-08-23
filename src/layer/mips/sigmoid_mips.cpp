@@ -21,8 +21,6 @@
 
 #include "mips_usability.h"
 
-
-
 namespace ncnn {
 
 Sigmoid_mips::Sigmoid_mips()

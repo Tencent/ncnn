@@ -14,8 +14,6 @@
 
 #include "rnn.h"
 
-
-
 namespace ncnn {
 
 RNN::RNN()

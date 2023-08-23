@@ -17,7 +17,6 @@
 // #include <fenv.h>
 #include <float.h>
 
-
 #if __mips_msa
 #include <msa.h>
 #include "msa_mathfun.h"

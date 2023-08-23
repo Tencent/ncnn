@@ -17,8 +17,6 @@
 
 #include "binaryop_riscv.h"
 
-
-
 #if __riscv_vector
 #include <riscv_vector.h>
 #include "rvv_mathfun.h"

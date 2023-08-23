@@ -14,8 +14,6 @@
 
 #include "log.h"
 
-
-
 namespace ncnn {
 
 Log::Log()

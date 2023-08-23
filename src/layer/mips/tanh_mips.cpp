@@ -19,8 +19,6 @@
 #include "msa_mathfun.h"
 #endif // __mips_msa
 
-
-
 namespace ncnn {
 
 TanH_mips::TanH_mips()

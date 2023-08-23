@@ -14,8 +14,6 @@
 
 #include "elu.h"
 
-
-
 namespace ncnn {
 
 ELU::ELU()

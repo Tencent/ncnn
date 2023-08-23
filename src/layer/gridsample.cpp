@@ -14,8 +14,6 @@
 
 #include "gridsample.h"
 
-
-
 namespace ncnn {
 
 GridSample::GridSample()

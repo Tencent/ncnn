@@ -20,7 +20,6 @@
 #include <msa.h>
 #endif // __mips_msa
 
-
 #include <stdint.h>
 
 namespace ncnn {

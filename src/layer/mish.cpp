@@ -14,8 +14,6 @@
 
 #include "mish.h"
 
-
-
 namespace ncnn {
 
 Mish::Mish()

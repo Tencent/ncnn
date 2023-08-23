@@ -26,8 +26,6 @@
 #endif // __AVX__
 #endif // __SSE2__
 
-
-
 namespace ncnn {
 
 Swish_x86::Swish_x86()

@@ -14,8 +14,6 @@
 
 #include "binaryop_mips.h"
 
-
-
 #if __mips_msa
 #include <msa.h>
 #include "msa_mathfun.h"

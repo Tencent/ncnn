@@ -40,7 +40,8 @@ static int test_unaryop(const ncnn::Mat& _a)
         // smaller range for tan asin acos
         Randomize(a, -1.f, 1.f);
     }
-    if(op_type == 18){
+    if (op_type == 18)
+    {
         const float* ptr = _a.channel(0);
         printf("*ptr = %f\n", *ptr);
     }

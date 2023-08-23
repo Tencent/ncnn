@@ -19,8 +19,6 @@
 #include "msa_mathfun.h"
 #endif // __mips_msa
 
-
-
 namespace ncnn {
 
 Swish_mips::Swish_mips()

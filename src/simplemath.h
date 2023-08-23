@@ -14,15 +14,15 @@
 
 #if NCNN_SIMPLEMATH
 #include <stdint.h>
-#define SIN_RED_SWITCHOVER  (201.15625f)
-#define COS_RED_SWITCHOVER  (142.90625f)
-#define __HI(X) *(1 + (short*)&x)
-#define __LO(X) *(short*)&x
-#define  INFINITY (1.0 / 0)
-#define FE_TONEAREST 0
-#define FE_DOWNWARD 1024
-#define FE_UPWARD 2048
-#define FE_TOWARDZERO 3072
+#define SIN_RED_SWITCHOVER (201.15625f)
+#define COS_RED_SWITCHOVER (142.90625f)
+#define __HI(X)            *(1 + (short*)&x)
+#define __LO(X)            *(short*)&x
+#define INFINITY           (1.0 / 0)
+#define FE_TONEAREST       0
+#define FE_DOWNWARD        1024
+#define FE_UPWARD          2048
+#define FE_TOWARDZERO      3072
 
 /*
 * ====================================================
@@ -32,31 +32,30 @@
 const float PI = 3.14159265358979323846;
 const float PI_2 = 1.57079632679489661923; /* PI/2 */
 const float E = 2.71828182845904523536;
-const uint32_t two_over_pi_f [] =
-{
-        0x28be60db,
-        0x9391054a,
-        0x7f09d5f4,
-        0x7d4d3770,
-        0x36d8a566,
-        0x4f10e410
-};  /* 2/ PI*/
+const uint32_t two_over_pi_f[] = {
+    0x28be60db,
+    0x9391054a,
+    0x7f09d5f4,
+    0x7d4d3770,
+    0x36d8a566,
+    0x4f10e410
+}; /* 2/ PI*/
 
 /*
 * ====================================================
 * util functions
 * ====================================================
 */
-uint32_t float_as_uint32 (float a);
-float uint32_as_float (uint32_t a);
-uint32_t umul32_hi (uint32_t a, uint32_t b);
-float uint32_as_float (uint32_t a);
-uint32_t umul32_hi (uint32_t a, uint32_t b);
-float trig_red_slowpath_f (float a, int *quadrant);
-float trig_red_f (float a, float switch_over, int *q);
-float sinf_poly (float a, float s);
-float cosf_poly (float s);
-float sinf_cosf_core (float a, int i);
+uint32_t float_as_uint32(float a);
+float uint32_as_float(uint32_t a);
+uint32_t umul32_hi(uint32_t a, uint32_t b);
+float uint32_as_float(uint32_t a);
+uint32_t umul32_hi(uint32_t a, uint32_t b);
+float trig_red_slowpath_f(float a, int* quadrant);
+float trig_red_f(float a, float switch_over, int* q);
+float sinf_poly(float a, float s);
+float cosf_poly(float s);
+float sinf_cosf_core(float a, int i);
 
 /*
 * ====================================================

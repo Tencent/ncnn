@@ -26,7 +26,6 @@
 #endif // __AVX__
 #endif // __SSE2__
 
-
 namespace ncnn {
 
 BNLL_x86::BNLL_x86()

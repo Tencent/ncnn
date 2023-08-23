@@ -14,8 +14,6 @@
 
 #include "sigmoid.h"
 
-
-
 namespace ncnn {
 
 Sigmoid::Sigmoid()

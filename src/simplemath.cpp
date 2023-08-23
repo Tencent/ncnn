@@ -21,46 +21,50 @@
 */
 
 /* re-interpret the bit pattern of an IEEE-754 float as a uint32 */
-uint32_t float_as_uint32(float a) {
+uint32_t float_as_uint32(float a)
+{
     uint32_t r;
-    uint32_t *rp = &r;
-    float *ap = &a;
+    uint32_t* rp = &r;
+    float* ap = &a;
 
-    *rp = *(uint32_t *) ap;
+    *rp = *(uint32_t*)ap;
 
     return r;
 }
 
 /* re-interpret the bit pattern of a uint32 as an IEEE-754 float */
-float uint32_as_float(uint32_t a) {
+float uint32_as_float(uint32_t a)
+{
     float r;
-    float *rp = &r;
-    uint32_t *ap = &a;
+    float* rp = &r;
+    uint32_t* ap = &a;
 
-    *rp = *(float *) ap;
+    *rp = *(float*)ap;
 
     return r;
 }
 
 /* Henry S. Warren, "Hacker's Delight, 2nd ed.", Addison-Wesley 2012. Fig. 8-2 */
-uint32_t umul32_hi(uint32_t a, uint32_t b) {
-    uint16_t a_lo = (uint16_t) a;
+uint32_t umul32_hi(uint32_t a, uint32_t b)
+{
+    uint16_t a_lo = (uint16_t)a;
     uint16_t a_hi = a >> 16;
-    uint16_t b_lo = (uint16_t) b;
+    uint16_t b_lo = (uint16_t)b;
     uint16_t b_hi = b >> 16;
-    uint32_t p0 = (uint32_t) a_lo * b_lo;
-    uint32_t p1 = (uint32_t) a_lo * b_hi;
-    uint32_t p2 = (uint32_t) a_hi * b_lo;
-    uint32_t p3 = (uint32_t) a_hi * b_hi;
+    uint32_t p0 = (uint32_t)a_lo * b_lo;
+    uint32_t p1 = (uint32_t)a_lo * b_hi;
+    uint32_t p2 = (uint32_t)a_hi * b_lo;
+    uint32_t p3 = (uint32_t)a_hi * b_hi;
     uint32_t t = (p0 >> 16) + p1;
-    return (t >> 16) + (((uint32_t) (uint16_t) t + p2) >> 16) + p3;
+    return (t >> 16) + (((uint32_t)(uint16_t)t + p2) >> 16) + p3;
 }
 
 /*
 * Reduce a trig function argument using the slow Payne-Hanek method
 * copy from https://stackoverflow.com/questions/64058564/single-precision-argument-reduction-for-trigonometric-functions-in-c
 */
-float trig_red_slowpath_f(float a, int *quadrant) {
+float trig_red_slowpath_f(float a, int* quadrant)
+{
     uint32_t ia, hi, mid, lo, tmp, i, l, h, plo, phi;
     int32_t e, q;
     float r;
@@ -69,15 +73,16 @@ float trig_red_slowpath_f(float a, int *quadrant) {
     e = ((float_as_uint32(a) >> 23) & 0xff) - 126;
 
     /* compute product x * 2/pi in 2.62 fixed-point format */
-    i = (uint32_t) e >> 5;
-    e = (uint32_t) e & 31;
+    i = (uint32_t)e >> 5;
+    e = (uint32_t)e & 31;
 
     hi = i ? two_over_pi_f[i - 1] : 0;
     mid = two_over_pi_f[i + 0];
     lo = two_over_pi_f[i + 1];
     tmp = two_over_pi_f[i + 2];
 
-    if (e) {
+    if (e)
+    {
         hi = (hi << e) | (mid >> (32 - e));
         mid = (mid << e) | (lo >> (32 - e));
         lo = (lo << e) | (tmp >> (32 - e));
@@ -97,10 +102,11 @@ float trig_red_slowpath_f(float a, int *quadrant) {
     phi = phi + l;
 
     /* split fixed-point result into integer and fraction portions */
-    q = phi >> 30;               // integral portion = quadrant<1:0>
-    phi = phi & 0x3fffffff;      // fraction
-    if (phi & 0x20000000) {      // fraction >= 0.5
-        phi = phi - 0x40000000;  // fraction - 1.0
+    q = phi >> 30;          // integral portion = quadrant<1:0>
+    phi = phi & 0x3fffffff; // fraction
+    if (phi & 0x20000000)
+    {   // fraction >= 0.5
+        phi = phi - 0x40000000; // fraction - 1.0
         q = q + 1;
     }
 
@@ -109,7 +115,8 @@ float trig_red_slowpath_f(float a, int *quadrant) {
     uint32_t s = phi & 0x80000000;
 
     /* take absolute value of fraction */
-    if ((int32_t) phi < 0) {
+    if ((int32_t)phi < 0)
+    {
         phi = ~phi;
         plo = 0 - plo;
         phi += (plo == 0);
@@ -117,7 +124,8 @@ float trig_red_slowpath_f(float a, int *quadrant) {
 
     /* normalize fraction */
     e = 0;
-    while ((int32_t) phi > 0) {
+    while ((int32_t)phi > 0)
+    {
         phi = (phi << 1) | (plo >> 31);
         plo = plo << 1;
         e--;
@@ -127,7 +135,8 @@ float trig_red_slowpath_f(float a, int *quadrant) {
     phi = umul32_hi(phi, 0xc90fdaa2); // (uint32_t)rint(PI/2 * 2**31)
 
     /* normalize product */
-    if ((int32_t) phi > 0) {
+    if ((int32_t)phi > 0)
+    {
         phi = phi << 1;
         e--;
     }
@@ -135,7 +144,8 @@ float trig_red_slowpath_f(float a, int *quadrant) {
     /* round and convert to floating point */
     uint32_t ri = s + ((e + 128) << 23) + (phi >> 8) + ((phi & 0xff) > 0x7e);
     r = uint32_as_float(ri);
-    if (a < 0.0f) {
+    if (a < 0.0f)
+    {
         r = -r;
         q = -q;
     }
@@ -149,24 +159,28 @@ float trig_red_slowpath_f(float a, int *quadrant) {
     -0.0f for an input of -0.0f.
     copy from https://stackoverflow.com/questions/64058564/single-precision-argument-reduction-for-trigonometric-functions-in-c
 */
-float trig_red_f(float a, float switch_over, int *q) {
+float trig_red_f(float a, float switch_over, int* q)
+{
     float j, r;
 
-    if (fabsf(a) > switch_over) {
+    if (fabsf(a) > switch_over)
+    {
         /* Payne-Hanek style reduction. M. Payne and R. Hanek, "Radian reduction
             for trigonometric functions". SIGNUM Newsletter, 18:19-24, 1983
         */
         r = trig_red_slowpath_f(a, q);
-    } else {
+    }
+    else
+    {
         /* Cody-Waite style reduction. W. J. Cody and W. Waite, "Software Manual
             for the Elementary Functions", Prentice-Hall 1980
         */
         j = (round(a * 6.36619747e-1f) + 1.2582912e+7f); // 0x1.45f306p-1, 0x1.8p+23
-        j = j - 1.25829120e+7f; // 0x1.8p+23
-        r = a - j * 1.57078552e+00f; // 0x1.921f00p+00 // pio2_high
-        r = r - j * 1.08043314e-05f; // 0x1.6a8880p-17 // pio2_mid
-        r = r - j * 2.56334407e-12f; // 0x1.68c234p-39 // pio2_low
-        *q = (int) j;
+        j = j - 1.25829120e+7f;                          // 0x1.8p+23
+        r = a - j * 1.57078552e+00f;                     // 0x1.921f00p+00 // pio2_high
+        r = r - j * 1.08043314e-05f;                     // 0x1.6a8880p-17 // pio2_mid
+        r = r - j * 2.56334407e-12f;                     // 0x1.68c234p-39 // pio2_low
+        *q = (int)j;
     }
     return r;
 }
@@ -175,7 +189,8 @@ float trig_red_f(float a, float switch_over, int *q) {
     Returns -0.0f for an argument of -0.0f
     copy from https://stackoverflow.com/questions/64058564/single-precision-argument-reduction-for-trigonometric-functions-in-c
 */
-float sinf_poly(float a, float s) {
+float sinf_poly(float a, float s)
+{
     float r, t;
     // printf("a = %f, s = %f, r = %f, t = %f\n", a, s, r, t);
     r = 2.86567956e-6f; //  0x1.80a000p-19
@@ -196,10 +211,11 @@ float sinf_poly(float a, float s) {
 /* Approximate cosine on [-PI/4,+PI/4]. Maximum ulp error with USE_FMA = 0.87444
     * copy from https://stackoverflow.com/questions/64058564/single-precision-argument-reduction-for-trigonometric-functions-in-c
 */
-float cosf_poly(float s) {
+float cosf_poly(float s)
+{
     float r;
 
-    r = 2.44677067e-5f; //  0x1.9a8000p-16
+    r = 2.44677067e-5f;         //  0x1.9a8000p-16
     r = r * s - 1.38877297e-3f; // -0x1.6c0efap-10
     r = r * s + 4.16666567e-2f; //  0x1.555550p-05
     r = r * s - 5.00000000e-1f; // -0x1.000000p-01
@@ -211,13 +227,15 @@ float cosf_poly(float s) {
 /* Map sine or cosine value based on quadrant
     * copy from https://stackoverflow.com/questions/64058564/single-precision-argument-reduction-for-trigonometric-functions-in-c
 */
-float sinf_cosf_core(float a, int i) {
+float sinf_cosf_core(float a, int i)
+{
     float r, s;
 
     s = a * a;
     // printf("sinf_cosf_core: a = %f, s = %f\n", a, s);
     r = (i & 1) ? cosf_poly(s) : sinf_poly(a, s);
-    if (i & 2) {
+    if (i & 2)
+    {
         r = 0.0f - r; // don't change "sign" of NaNs
     }
     return r;
@@ -228,19 +246,24 @@ float sinf_cosf_core(float a, int i) {
 * Discontinuous function
 * ====================================================
 */
-float fabs(float x) {
+float fabs(float x)
+{
     return x > 0 ? x : -x;
 }
 
-float fabsf(float x) {
+float fabsf(float x)
+{
     return fabs(x);
 }
 
-float fmod(float numer, float denom) {
-    if (denom == 0.0) {
+float fmod(float numer, float denom)
+{
+    if (denom == 0.0)
+    {
         return numer;
     }
-    if (numer <= denom) {
+    if (numer <= denom)
+    {
         return numer;
     }
 
@@ -248,43 +271,53 @@ float fmod(float numer, float denom) {
     return numer - quotient * denom;
 }
 
-float floor(float x) {
+float floor(float x)
+{
     int intValue = static_cast<int>(x);
-    if (x < 0 && x != intValue) {
+    if (x < 0 && x != intValue)
+    {
         intValue -= 1;
     }
     return intValue;
 }
 
-float floorf(float x) {
+float floorf(float x)
+{
     return floor(x);
 }
 
-float round(float x) {
+float round(float x)
+{
     float ret = x > 0 ? floor(x + 0.5) : ceil(x - 0.5);
 }
 
-float roundf(float x) {
+float roundf(float x)
+{
     return round(x);
 }
 
-float ceilf(float x) {
+float ceilf(float x)
+{
     return ceil(x);
 }
 
-float ceil(float x) {
+float ceil(float x)
+{
     int intValue = static_cast<int>(x);
-    if (x == intValue) {
+    if (x == intValue)
+    {
         return x;
     }
     return floor(x + 1);
 }
 
-float fmaxf(float x, float y) {
+float fmaxf(float x, float y)
+{
     return x > y ? x : y;
 }
 
-float truncf(float x) {
+float truncf(float x)
+{
     int intValue = static_cast<int>(x);
     return static_cast<float>(intValue);
 }
@@ -295,7 +328,8 @@ float truncf(float x) {
 * ====================================================
 */
 
-float sinf(float a) {
+float sinf(float a)
+{
     float r;
     int i;
 
@@ -305,7 +339,8 @@ float sinf(float a) {
     return r;
 }
 
-float cosf(float a) {
+float cosf(float a)
+{
     float r;
     int i;
 
@@ -315,12 +350,14 @@ float cosf(float a) {
     return r;
 }
 
-float tanf(float x) {
+float tanf(float x)
+{
     return sinf(x) / cosf(x);
 }
 
 /* copy from https://developer.download.nvidia.cn/cg/asin.html */
-float asinf(float x) {
+float asinf(float x)
+{
     float negate = float(x < 0);
     x = fabs(x);
     float ret = -0.0187293;
@@ -335,7 +372,8 @@ float asinf(float x) {
 }
 
 /* copy from https://developer.download.nvidia.cn/cg/acos.html */
-float acosf(float x) {
+float acosf(float x)
+{
     float negate = float(x < 0);
     x = fabs(x);
     float ret = -0.0187293;
@@ -351,11 +389,14 @@ float acosf(float x) {
 }
 
 /* copy from https://developer.download.nvidia.cn/cg/atan.html */
-float atanf(float a) {
-    if (a < 0) {
+float atanf(float a)
+{
+    if (a < 0)
+    {
         return -atanf(-a);
     }
-    if (a > 1) {
+    if (a > 1)
+    {
         return PI_2 - atanf(1 / a);
     }
     float s = a * a;
@@ -372,34 +413,43 @@ float atanf(float a) {
     return r * a + a;
 }
 
-float atan2f(float y, float x) {
-    if (x == 0 && y == 0) {
+float atan2f(float y, float x)
+{
+    if (x == 0 && y == 0)
+    {
         // error
         return 0;
     }
-    if (y == 0) {
+    if (y == 0)
+    {
         return x > 0 ? 0 : PI;
     }
-    if (x == 0) {
+    if (x == 0)
+    {
         return copysignf(PI_2, y);
     }
-    if (x > 0 && y > 0) {
+    if (x > 0 && y > 0)
+    {
         return atanf(y / x);
     }
-    if (x < 0 && y > 0) {
+    if (x < 0 && y > 0)
+    {
         return PI - atanf(y / -x);
     }
-    if (x > 0 && y < 0) {
+    if (x > 0 && y < 0)
+    {
         return -atanf(-y / x);
     }
-    if (x < 0 && y < 0) {
+    if (x < 0 && y < 0)
+    {
         return -PI + atanf(-y / -x);
     }
 }
 
 float tanhf(float v)
 {
-    if(v >= 8 || v <= -8){
+    if (v >= 8 || v <= -8)
+    {
         return copysignf(1, v);
     }
     const float c1 = 0.03138777F;
@@ -423,15 +473,18 @@ float tanhf(float v)
 * ====================================================
 */
 
-float sqrtf(float x) {
+float sqrtf(float x)
+{
     return powf(x, 0.5);
 }
 
-float sqrt(float x) {
+float sqrt(float x)
+{
     return sqrtf(x);
 }
 
-float powf(float x, float y) {
+float powf(float x, float y)
+{
     return expf(y * logf(x));
 }
 
@@ -442,80 +495,85 @@ float powf(float x, float y) {
 */
 
 /* copy and modify from https://zhuanlan.zhihu.com/p/541466411 */
-float logf(float x) {
+float logf(float x)
+{
     static const float
-    ln2_hi = 6.93147180369123816490e-01,  /* 3fe62e42 fee00000 */
-    ln2_lo = 1.90821492927058770002e-10,  /* 3dea39ef 35793c76 */
+    ln2_hi
+    = 6.93147180369123816490e-01,        /* 3fe62e42 fee00000 */
+    ln2_lo = 1.90821492927058770002e-10, /* 3dea39ef 35793c76 */
     two25 = 3.3554432e+07,
-    Lg1 = 6.666666666666735130e-01,  /* 3FE55555 55555593 */
-    Lg2 = 3.999999999940941908e-01,  /* 3FD99999 9997FA04 */
-    Lg3 = 2.857142874366239149e-01,  /* 3FD24924 94229359 */
-    Lg4 = 2.222219843214978396e-01,  /* 3FCC71C5 1D8E78AF */
-    Lg5 = 1.818357216161805012e-01,  /* 3FC74664 96CB03DE */
-    Lg6 = 1.531383769920937332e-01,  /* 3FC39A09 D078C69F */
-    Lg7 = 1.479819860511658591e-01;  /* 3FC2F112 DF3E5244 */
+    Lg1 = 6.666666666666735130e-01, /* 3FE55555 55555593 */
+    Lg2 = 3.999999999940941908e-01, /* 3FD99999 9997FA04 */
+    Lg3 = 2.857142874366239149e-01, /* 3FD24924 94229359 */
+    Lg4 = 2.222219843214978396e-01, /* 3FCC71C5 1D8E78AF */
+    Lg5 = 1.818357216161805012e-01, /* 3FC74664 96CB03DE */
+    Lg6 = 1.531383769920937332e-01, /* 3FC39A09 D078C69F */
+    Lg7 = 1.479819860511658591e-01; /* 3FC2F112 DF3E5244 */
 
     static float zero = 0.0;
     float f, s, z, R, w, t1, t2, dk;
     short k, hx, i;
     unsigned short lx;
 
-    hx = __HI(x);   /* high word of x */
-    lx = __LO(x);   /* low  word of x */
+    hx = __HI(x); /* high word of x */
+    lx = __LO(x); /* low  word of x */
 
     k = 0;
-    if (hx < 0x0080) {      /* x < 2**-126 */
+    if (hx < 0x0080)
+    {   /* x < 2**-126 */
         if (((hx & 0x7fff) | lx) == 0)
-            return -two25 / zero;   /* log(+-0)=-inf */
-        if (hx < 0) return (x - x) / zero;  /* log(-#) = NaN */
+            return -two25 / zero;          /* log(+-0)=-inf */
+        if (hx < 0) return (x - x) / zero; /* log(-#) = NaN */
         k -= 25;
-        x *= two25; /* subnormal number, scale up x */
-        hx = __HI(x);   /* high word of x */
+        x *= two25;   /* subnormal number, scale up x */
+        hx = __HI(x); /* high word of x */
     }
 
     if (hx >= 0x7f80) return x + x;
     k += (hx >> 7) - 127;
     hx &= 0x007f;
     i = (hx + 0x4b) & 0x0080;
-    __HI(x) = hx | (i ^ 0x3f80);  /* normalize x or x/2 */
+    __HI(x) = hx | (i ^ 0x3f80); /* normalize x or x/2 */
     k += (i >> 7);
     f = x - 1.0f;
 
     s = f / (2.0f + f);
-    dk = (float) k;
+    dk = (float)k;
     z = s * s;
     w = z * z;
     t1 = w * (Lg2 + w * (Lg4 + w * Lg6));
     t2 = z * (Lg1 + w * (Lg3 + w * (Lg5 + w * Lg7)));
     R = t2 + t1;
-    if (k == 0) return f - s * (f - R);
+    if (k == 0)
+        return f - s * (f - R);
     else
         return dk * ln2_hi - ((s * (f - R) - dk * ln2_lo) - f);
 }
 
 /* copy from https://stackoverflow.com/questions/35148198/efficient-faithfully-rounded-implementation-of-error-function-erff */
-float expf(float a) {
-    if(a < 0){
+float expf(float a)
+{
+    if (a < 0)
+    {
         float tmp = expf(-a);
 
         float ret = 1 / tmp;
 
         return ret;
-
     }
     float f, r, j;
     int i;
 
     // exp(a) = 2**i * exp(f); i = rintf (a / log(2))
     j = 1.442695f * a;
-    j = round(j) + 12582912.f;  // There is a bug, and the program lives on it.
+    j = round(j) + 12582912.f; // There is a bug, and the program lives on it.
     j = j - 12582912.f;
     // j = fmaf(1.442695f, a, 12582912.f) - 12582912.f; // 0x1.715476p0, 0x1.8p23
     f = fmaf(j, -6.93145752e-1f, a); // -0x1.62e400p-1  // log_2_hi
     f = fmaf(j, -1.42860677e-6f, f); // -0x1.7f7d1cp-20 // log_2_lo
-    i = (int) j;
+    i = (int)j;
     // approximate r = exp(f) on interval [-log(2)/2, +log(2)/2]
-    r = 1.37805939e-3f;  // 0x1.694000p-10
+    r = 1.37805939e-3f;             // 0x1.694000p-10
     r = fmaf(r, f, 8.37312452e-3f); // 0x1.125edcp-7
     r = fmaf(r, f, 4.16695364e-2f); // 0x1.555b5ap-5
     r = fmaf(r, f, 1.66664720e-1f); // 0x1.555450p-3
@@ -528,7 +586,7 @@ float expf(float a) {
     // exp(a) = 2**i * r
     ia = (i > 0) ? 0 : 0x83000000u;
     s = uint32_as_float(0x7f000000u + ia);
-    t = uint32_as_float(((uint32_t) i << 23) - ia);
+    t = uint32_as_float(((uint32_t)i << 23) - ia);
     r = r * s;
     r = r * t;
 
@@ -538,7 +596,8 @@ float expf(float a) {
     return r;
 }
 
-float log10f(float x) {
+float log10f(float x)
+{
     static const float ln10 = 2.3025850929940456840179914546844;
     return logf(x) / ln10;
 }
@@ -550,12 +609,14 @@ float log10f(float x) {
 */
 
 /* copy from https://stackoverflow.com/questions/35148198/efficient-faithfully-rounded-implementation-of-error-function-erff */
-float erf(float a) {
+float erf(float a)
+{
     float r, s, t, u;
 
     t = fabsf(a);
     s = a * a;
-    if (t > 0.927734375f) { // 475/512
+    if (t > 0.927734375f)
+    {   // 475/512
         // maximum error 0.99527 ulp
         r = fmaf(-1.72853470e-5f, t, 3.83197126e-4f); // -0x1.220000p-16,0x1.91cfb2p-12
         u = fmaf(-3.88396438e-3f, t, 2.42546219e-2f); // -0x1.fd1438p-9, 0x1.8d6342p-6
@@ -566,20 +627,23 @@ float erf(float a) {
         r = fmaf(r, t, -t);
         r = 1.0f - expf(r);
         r = copysignf(r, a);
-    } else {
+    }
+    else
+    {
         // maximum error 0.98929 ulp
-        r = -5.96761703e-4f;  // -0x1.38e000p-11
-        r = fmaf(r, s, 4.99119423e-3f); //  0x1.471a58p-8
+        r = -5.96761703e-4f;             // -0x1.38e000p-11
+        r = fmaf(r, s, 4.99119423e-3f);  //  0x1.471a58p-8
         r = fmaf(r, s, -2.67681349e-2f); // -0x1.b691b2p-6
-        r = fmaf(r, s, 1.12819925e-1f); //  0x1.ce1c44p-4
+        r = fmaf(r, s, 1.12819925e-1f);  //  0x1.ce1c44p-4
         r = fmaf(r, s, -3.76125336e-1f); // -0x1.812700p-2
-        r = fmaf(r, s, 1.28379166e-1f); //  0x1.06eba8p-3
+        r = fmaf(r, s, 1.28379166e-1f);  //  0x1.06eba8p-3
         r = fmaf(r, a, a);
     }
     return r;
 }
 
-float erfcf(float x) {
+float erfcf(float x)
+{
     return 1.0 - erf(x);
 }
 
@@ -589,10 +653,12 @@ float erfcf(float x) {
 * ====================================================
 */
 
-int msb(unsigned int v) {
+int msb(unsigned int v)
+{
     static const int pos[32] = {0, 1, 28, 2, 29, 14, 24, 3,
                                 30, 22, 20, 15, 25, 17, 4, 8, 31, 27, 13, 23, 21, 19,
-                                16, 7, 26, 12, 18, 6, 11, 5, 10, 9};
+                                16, 7, 26, 12, 18, 6, 11, 5, 10, 9
+                               };
     v |= v >> 1;
     v |= v >> 2;
     v |= v >> 4;
@@ -602,55 +668,71 @@ int msb(unsigned int v) {
     return pos[(v * 0x077CB531UL) >> 27];
 }
 
-float fmaf(float x, float y, float z) {
+float fmaf(float x, float y, float z)
+{
     float tmp = x * y;
     float ret = tmp + z;
     return ret;
 }
 
-float copysignf(float x, float y) {
+float copysignf(float x, float y)
+{
     return fabsf(x) * (y > 0 ? 1 : -1);
 }
 
 int round_mode = 0;
-void fesetround(int mode){
+void fesetround(int mode)
+{
     round_mode = mode;
 }
 
-int fegetround(){
+int fegetround()
+{
     return round_mode;
 }
 
-float nearbyintf(float x){
+float nearbyintf(float x)
+{
     int intPart = static_cast<int>(x);
     float floatPart = fabs(x - intPart);
-    if(floatPart == 0){
+    if (floatPart == 0)
+    {
         return x;
     }
 
-    if(x > 0){
-        if(round_mode == FE_DOWNWARD || round_mode == FE_TOWARDZERO){
+    if (x > 0)
+    {
+        if (round_mode == FE_DOWNWARD || round_mode == FE_TOWARDZERO)
+        {
             return static_cast<float>(intPart);
         }
-        if(round_mode == FE_UPWARD){
+        if (round_mode == FE_UPWARD)
+        {
             return static_cast<float>(intPart) + 1.0;
         }
-        if(round_mode == FE_TONEAREST){
-            if(floatPart == 0.5){
+        if (round_mode == FE_TONEAREST)
+        {
+            if (floatPart == 0.5)
+            {
                 return intPart % 2 == 0 ? static_cast<float>(intPart) : static_cast<float>(intPart) + 1;
             }
             return round(x);
         }
     }
-    if(x < 0){
-        if(round_mode == FE_UPWARD || round_mode == FE_TOWARDZERO){
+    if (x < 0)
+    {
+        if (round_mode == FE_UPWARD || round_mode == FE_TOWARDZERO)
+        {
             return static_cast<float>(intPart);
         }
-        if(round_mode == FE_DOWNWARD){
+        if (round_mode == FE_DOWNWARD)
+        {
             return static_cast<float>(intPart) - 1.0;
         }
-        if(round_mode == FE_TONEAREST){
-            if(floatPart == 0.5){
+        if (round_mode == FE_TONEAREST)
+        {
+            if (floatPart == 0.5)
+            {
                 return intPart % 2 == 0 ? static_cast<float>(intPart) : static_cast<float>(intPart) - 1;
             }
             return round(x);

@@ -16,7 +16,6 @@
 
 #include <assert.h>
 
-
 namespace ncnn {
 
 ROIAlign::ROIAlign()

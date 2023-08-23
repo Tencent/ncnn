@@ -14,8 +14,6 @@
 
 #include "psroipooling.h"
 
-
-
 namespace ncnn {
 
 PSROIPooling::PSROIPooling()

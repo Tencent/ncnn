@@ -14,8 +14,6 @@
 
 #include "normalize.h"
 
-
-
 namespace ncnn {
 
 Normalize::Normalize()
