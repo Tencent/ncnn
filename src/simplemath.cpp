@@ -13,7 +13,6 @@
 // specific language governing permissions and limitations under the License.
 
 #include "simplemath.h"
-#include <stdio.h>
 #if NCNN_SIMPLEMATH
 /*
 * ====================================================
