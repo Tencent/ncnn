@@ -289,6 +289,7 @@ float floorf(float x)
 float round(float x)
 {
     float ret = x > 0 ? floor(x + 0.5) : ceil(x - 0.5);
+    return ret;
 }
 
 float roundf(float x)
