@@ -294,6 +294,7 @@ float truncf(float x) {
 * trigonometric functions
 * ====================================================
 */
+
 float sinf(float a) {
     float r;
     int i;
@@ -502,43 +503,43 @@ float expf(float a) {
         return ret;
 
     }
-       float f, r, j;
-        int i;
+    float f, r, j;
+    int i;
 
-        // exp(a) = 2**i * exp(f); i = rintf (a / log(2))
-        j = 1.442695f * a;
-        j = round(j) + 12582912.f;  // There is a bug, and the program lives on it.
-        j = j - 12582912.f;
-        // j = fmaf(1.442695f, a, 12582912.f) - 12582912.f; // 0x1.715476p0, 0x1.8p23
-        f = fmaf(j, -6.93145752e-1f, a); // -0x1.62e400p-1  // log_2_hi
-        f = fmaf(j, -1.42860677e-6f, f); // -0x1.7f7d1cp-20 // log_2_lo
-        i = (int) j;
-        // approximate r = exp(f) on interval [-log(2)/2, +log(2)/2]
-        r = 1.37805939e-3f;  // 0x1.694000p-10
-        r = fmaf(r, f, 8.37312452e-3f); // 0x1.125edcp-7
-        r = fmaf(r, f, 4.16695364e-2f); // 0x1.555b5ap-5
-        r = fmaf(r, f, 1.66664720e-1f); // 0x1.555450p-3
-        r = fmaf(r, f, 4.99999851e-1f); // 0x1.fffff6p-2
-        r = fmaf(r, f, 1.00000000e+0f); // 0x1.000000p+0
-        r = fmaf(r, f, 1.00000000e+0f); // 0x1.000000p+0
+    // exp(a) = 2**i * exp(f); i = rintf (a / log(2))
+    j = 1.442695f * a;
+    j = round(j) + 12582912.f;  // There is a bug, and the program lives on it.
+    j = j - 12582912.f;
+    // j = fmaf(1.442695f, a, 12582912.f) - 12582912.f; // 0x1.715476p0, 0x1.8p23
+    f = fmaf(j, -6.93145752e-1f, a); // -0x1.62e400p-1  // log_2_hi
+    f = fmaf(j, -1.42860677e-6f, f); // -0x1.7f7d1cp-20 // log_2_lo
+    i = (int) j;
+    // approximate r = exp(f) on interval [-log(2)/2, +log(2)/2]
+    r = 1.37805939e-3f;  // 0x1.694000p-10
+    r = fmaf(r, f, 8.37312452e-3f); // 0x1.125edcp-7
+    r = fmaf(r, f, 4.16695364e-2f); // 0x1.555b5ap-5
+    r = fmaf(r, f, 1.66664720e-1f); // 0x1.555450p-3
+    r = fmaf(r, f, 4.99999851e-1f); // 0x1.fffff6p-2
+    r = fmaf(r, f, 1.00000000e+0f); // 0x1.000000p+0
+    r = fmaf(r, f, 1.00000000e+0f); // 0x1.000000p+0
 
-        float s, t;
-        uint32_t ia;
-        // exp(a) = 2**i * r
-        ia = (i > 0) ? 0 : 0x83000000u;
-        s = uint32_as_float(0x7f000000u + ia);
-        t = uint32_as_float(((uint32_t) i << 23) - ia);
-        r = r * s;
-        r = r * t;
+    float s, t;
+    uint32_t ia;
+    // exp(a) = 2**i * r
+    ia = (i > 0) ? 0 : 0x83000000u;
+    s = uint32_as_float(0x7f000000u + ia);
+    t = uint32_as_float(((uint32_t) i << 23) - ia);
+    r = r * s;
+    r = r * t;
 
-        // handle special cases: severe overflow / underflow
-        if (fabsf(a) >= 104.0f) r = (a > 0) ? INFINITY : 0.0f;
+    // handle special cases: severe overflow / underflow
+    if (fabsf(a) >= 104.0f) r = (a > 0) ? INFINITY : 0.0f;
 
-        return r;
+    return r;
 }
 
 float log10f(float x) {
-    static float ln10 = 2.3025850929940456840179914546844;
+    static const float ln10 = 2.3025850929940456840179914546844;
     return logf(x) / ln10;
 }
 
@@ -612,7 +613,6 @@ float copysignf(float x, float y) {
 }
 
 int round_mode = 0;
-int c = 0;
 void fesetround(int mode){
     round_mode = mode;
 }
@@ -624,7 +624,6 @@ int fegetround(){
 float nearbyintf(float x){
     int intPart = static_cast<int>(x);
     float floatPart = fabs(x - intPart);
-    c += 1;
     if(floatPart == 0){
         return x;
     }
