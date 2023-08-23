@@ -262,22 +262,6 @@ float floorf(float x) {
 
 float round(float x) {
     float ret = x > 0 ? floor(x + 0.5) : ceil(x - 0.5);
-    // printf("x = %f, ret = %f\n", x, ret);
-    return ret;
-    // int intValue = static_cast<int>(x); // 获取 x 的整数部分
-    // float decimalPart = fabs(x - intValue); // 获取 x 的小数部分
-    // if (decimalPart == 0) {
-    //     return x;
-    // }
-    // if (decimalPart <= 0.5) {
-    //     return intValue;
-    // } else {
-    //     if (x < 0) {
-    //         return intValue - 1;
-    //     } else {
-    //         return intValue + 1;
-    //     }
-    // }
 }
 
 float roundf(float x) {
@@ -316,7 +300,6 @@ float sinf(float a) {
 
     a = a * 0.0f + a; // inf -> NaN
     r = trig_red_f(a, SIN_RED_SWITCHOVER, &i);
-    // printf("sinf: a = %f, r = %f\n", a, r);
     r = sinf_cosf_core(r, i);
     return r;
 }
@@ -480,23 +463,23 @@ float logf(float x) {
     lx = __LO(x);   /* low  word of x */
 
     k = 0;
-    if (hx < 0x0080) {      /* x < 2**-126  如果hx非常小，那么x的阶码肯定就是0了*/
-        if (((hx & 0x7fff) | lx) == 0)  // 如果这个条件成立意味着x是0。hx与0x7fff按位与的作用是去掉符号位，如果去掉符号位后，x的值为0，那么x就是0
+    if (hx < 0x0080) {      /* x < 2**-126 */
+        if (((hx & 0x7fff) | lx) == 0)
             return -two25 / zero;   /* log(+-0)=-inf */
-        if (hx < 0) return (x - x) / zero;  /* log(-#) = NaN 条件成立意味着x是负数 */
-        k -= 25;   // 为什么要减去25？为了把非规格数表示成规格数
+        if (hx < 0) return (x - x) / zero;  /* log(-#) = NaN */
+        k -= 25;
         x *= two25; /* subnormal number, scale up x */
-        hx = __HI(x);   /* high word of x 因为上面的修改了x，所以这里要更新hx */
+        hx = __HI(x);   /* high word of x */
     }
-    // 执行到这里，保证了x是规格数并且是正数
+
     if (hx >= 0x7f80) return x + x;
     k += (hx >> 7) - 127;
-    hx &= 0x007f;   // 剔除掉阶码部分，只保留尾数部分
-    i = (hx + 0x4b) & 0x0080;  // 判断尾数部分是否大于sqrt(2)，这里特别容易出错
-    __HI(x) = hx | (i ^ 0x3f80);  /* normalize x or x/2 */  // 这里还没有搞明白
-    k += (i >> 7);  // 这个8可能也需要改
+    hx &= 0x007f;
+    i = (hx + 0x4b) & 0x0080;
+    __HI(x) = hx | (i ^ 0x3f80);  /* normalize x or x/2 */
+    k += (i >> 7);
     f = x - 1.0f;
-    //  到这，第一步标记，得出 k, f, s 的值了
+
     s = f / (2.0f + f);
     dk = (float) k;
     z = s * s;
@@ -513,11 +496,11 @@ float logf(float x) {
 float expf(float a) {
     if(a < 0){
         float tmp = expf(-a);
-        // printf("AAA tmp = %f\n", tmp);
+
         float ret = 1 / tmp;
-        // printf("AAA ret = %f\n", ret);
+
         return ret;
-        // return 1 / expf(-a);
+
     }
        float f, r, j;
         int i;
@@ -527,13 +510,9 @@ float expf(float a) {
         j = round(j) + 12582912.f;  // There is a bug, and the program lives on it.
         j = j - 12582912.f;
         // j = fmaf(1.442695f, a, 12582912.f) - 12582912.f; // 0x1.715476p0, 0x1.8p23
-        // printf("a=%f r=%f, f=%f, i=%d, j=%f\n", a, r, f, i, j);
         f = fmaf(j, -6.93145752e-1f, a); // -0x1.62e400p-1  // log_2_hi
-        // printf("a=%f r=%f, f=%f, i=%d, j=%f\n", a, r, f, i, j);
         f = fmaf(j, -1.42860677e-6f, f); // -0x1.7f7d1cp-20 // log_2_lo
-        // printf("a=%f r=%f, f=%f, i=%d, j=%f\n", a, r, f, i, j);
         i = (int) j;
-        // printf("a=%f r=%f, f=%f, i=%d, j=%f\n", a, r, f, i, j);
         // approximate r = exp(f) on interval [-log(2)/2, +log(2)/2]
         r = 1.37805939e-3f;  // 0x1.694000p-10
         r = fmaf(r, f, 8.37312452e-3f); // 0x1.125edcp-7
@@ -542,7 +521,6 @@ float expf(float a) {
         r = fmaf(r, f, 4.99999851e-1f); // 0x1.fffff6p-2
         r = fmaf(r, f, 1.00000000e+0f); // 0x1.000000p+0
         r = fmaf(r, f, 1.00000000e+0f); // 0x1.000000p+0
-        // printf("a=%f r=%f, f=%f, i=%d, j=%f\n", a, r, f, i, j);
 
         float s, t;
         uint32_t ia;
@@ -554,13 +532,8 @@ float expf(float a) {
         r = r * t;
 
         // handle special cases: severe overflow / underflow
-        // printf("sizeof(float)=%d, sizeof(uint32_t)=%d\n", sizeof(a), sizeof(ia));
-        // printf("expf(%f)=%f\n", a, r);
         if (fabsf(a) >= 104.0f) r = (a > 0) ? INFINITY : 0.0f;
-        // fprintf(stderr, "expf(%f)=%f\n", a, r);
-        // if(a == -51.052765){
-        //     printf("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n");
-        // }
+
         return r;
 }
 
@@ -653,7 +626,7 @@ float nearbyintf(float x){
     float floatPart = fabs(x - intPart);
     c += 1;
     if(floatPart == 0){
-        return x;  // x是整数
+        return x;
     }
 
     if(x > 0){
@@ -665,7 +638,6 @@ float nearbyintf(float x){
         }
         if(round_mode == FE_TONEAREST){
             if(floatPart == 0.5){
-                // 向偶数舍入
                 return intPart % 2 == 0 ? static_cast<float>(intPart) : static_cast<float>(intPart) + 1;
             }
             return round(x);
@@ -680,7 +652,6 @@ float nearbyintf(float x){
         }
         if(round_mode == FE_TONEAREST){
             if(floatPart == 0.5){
-                // 向偶数舍入
                 return intPart % 2 == 0 ? static_cast<float>(intPart) : static_cast<float>(intPart) - 1;
             }
             return round(x);

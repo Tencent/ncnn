@@ -39,7 +39,7 @@ set(ncnn_SRCS
     simpleocv.cpp
     simpleomp.cpp
     simplestl.cpp
-    simplemath.cpp # 这一行也是我加上去的
+    simplemath.cpp
 )
 
 if(ANDROID)
@@ -257,7 +257,6 @@ if(NCNN_THREADS)
     if(TARGET Threads::Threads)
         target_link_libraries(ncnn PUBLIC Threads::Threads)
     endif()
-    # 我添加了NCNN_SIMPLEMATH
     if(NCNN_SIMPLEOMP OR NCNN_SIMPLESTL OR NCNN_SIMPLEMATH)
         target_link_libraries(ncnn PUBLIC pthread)
     endif()
@@ -557,7 +556,7 @@ if(NCNN_INSTALL_SDK)
         simpleocv.h
         simpleomp.h
         simplestl.h
-        simplemath.h # 这一行也是我加上去的
+        simplemath.h
         vulkan_header_fix.h
         ${CMAKE_CURRENT_BINARY_DIR}/ncnn_export.h
         ${CMAKE_CURRENT_BINARY_DIR}/layer_shader_type_enum.h

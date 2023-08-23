@@ -56,7 +56,6 @@ option(NCNN_INSTALL_SDK "install ncnn library and headers" ON)
 option(NCNN_SIMPLEOCV "minimal opencv structure emulation" OFF)
 option(NCNN_SIMPLEOMP "minimal openmp runtime emulation" OFF)
 option(NCNN_SIMPLESTL "minimal cpp stl structure emulation" OFF)
-# 下面这行是我添加的
 option(NCNN_SIMPLEMATH "minimal cmath" OFF)
 option(NCNN_THREADS "build with threads" ON)
 option(NCNN_BENCHMARK "print benchmark information for every layer" OFF)
