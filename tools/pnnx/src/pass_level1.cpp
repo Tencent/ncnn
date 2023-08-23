@@ -274,13 +274,13 @@ void pass_level1(const torch::jit::Module& mod, const std::shared_ptr<torch::jit
                 torch::jit::Function& function = class_type->getMethod(function_name);
                 if (function.isGraphFunction())
                 {
-                    int pnnx_moduleop_unknown_index = 0;
-
 #if TORCH_VERSION_MAJOR >= 2 || (TORCH_VERSION_MAJOR >= 1 && TORCH_VERSION_MINOR >= 11)
                     torch::jit::Block* moduleop_block = toGraphFunction(function).graph()->block();
 #else
                     torch::jit::Block* moduleop_block = function.graph()->block();
 #endif
+
+                    std::map<size_t, torch::jit::Node*> constant_attr_nodes;
                     for (const auto& mn : moduleop_block->nodes())
                     {
                         if (mn->kind() == c10::prim::GetAttr)
@@ -349,12 +349,19 @@ void pass_level1(const torch::jit::Module& mod, const std::shared_ptr<torch::jit
 
                             if (p.type == 8)
                             {
-                                char name[32];
-                                sprintf(name, "pnnx_%d", pnnx_moduleop_unknown_index++);
-
-                                op->attrs[name] = mn->t(torch::jit::attr::value);
+                                size_t unique_id = mn->output(0)->unique();
+                                constant_attr_nodes[unique_id] = mn;
                             }
                         }
+                    }
+
+                    int pnnx_moduleop_unknown_index = 0;
+                    for (auto attr : constant_attr_nodes)
+                    {
+                        char name[32];
+                        sprintf(name, "pnnx_%02d", pnnx_moduleop_unknown_index);
+                        op->attrs[name] = attr.second->t(torch::jit::attr::value);
+                        pnnx_moduleop_unknown_index++;
                     }
                 }
             }
