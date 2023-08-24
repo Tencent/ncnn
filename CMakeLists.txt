@@ -66,6 +66,7 @@ option(NCNN_PIXEL_AFFINE "warp affine image pixel" ON)
 option(NCNN_PIXEL_DRAWING "draw basic figure and text" ON)
 option(NCNN_CMAKE_VERBOSE "print verbose cmake messages" OFF)
 option(NCNN_VULKAN "vulkan compute support" OFF)
+option(NCNN_CI_VULKAN "use humbletim/vulkan-sdk for ci" OFF)
 option(NCNN_SYSTEM_GLSLANG "use system glslang library" OFF)
 option(NCNN_RUNTIME_CPU "runtime dispatch cpu routines" ON)
 option(NCNN_DISABLE_PIC "disable position-independent code" OFF)
@@ -77,6 +78,8 @@ option(NCNN_PYTHON "build python api" OFF)
 option(NCNN_INT8 "int8 inference" ON)
 option(NCNN_BF16 "bf16 inference" ON)
 option(NCNN_FORCE_INLINE "force inline some function" ON)
+
+
 
 if(ANDROID OR IOS OR NCNN_SIMPLESTL OR CMAKE_CROSSCOMPILING)
     option(NCNN_DISABLE_RTTI "disable rtti" ON)
