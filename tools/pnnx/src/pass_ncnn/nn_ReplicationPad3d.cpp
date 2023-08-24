@@ -48,10 +48,10 @@ pnnx.Output             output      1 0 out
         op->params["1"] = padding[3];
         op->params["2"] = padding[0];
         op->params["3"] = padding[1];
-        op->params["4"] = padding[4];
-        op->params["5"] = padding[5];
+        op->params["7"] = padding[4];
+        op->params["8"] = padding[5];
 
-        op->params["6"] = 1; // type
+        op->params["4"] = 1; // type
     }
 };
 
