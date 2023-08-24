@@ -34,6 +34,8 @@ NCNN_VULKAN_FLAG = os.environ.get("NCNN_VULKAN", "FALSE")
 NCNN_CI_VULKAN_FLAG = os.environ.get("NCNN_CI_VULKAN", "FALSE")
 if (NCNN_VULKAN_FLAG == "TRUE"):
     NCNN_VULKAN = True
+else:
+    raise Exception("No Pass ENVIRONMENT")
 if (NCNN_CI_VULKAN_FLAG == "TRUE"):
     NCNN_CI_VULKAN = True
 
