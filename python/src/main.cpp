@@ -949,6 +949,7 @@ PYBIND11_MODULE(ncnn, m)
 #if NCNN_STDIO
 #if NCNN_STRING
     .def("load_param", (int (Net::*)(const char*)) & Net::load_param, py::arg("protopath"))
+    .def("load_param_mem", (int (Net::*)(const char*)) & Net::load_param_mem, py::arg("mem"))
 #endif // NCNN_STRING
     .def("load_param_bin", (int (Net::*)(const char*)) & Net::load_param_bin, py::arg("protopath"))
     .def("load_model", (int (Net::*)(const char*)) & Net::load_model, py::arg("modelpath"))

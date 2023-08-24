@@ -29,7 +29,7 @@ void reset_device(std::shared_ptr<torch::jit::Graph>& graph, const std::string& 
                 if (dtype_node->hasAttribute(torch::jit::attr::value))
                 {
                     // change dtype=half to dtype=float
-                    if (dtype_node->i(torch::jit::attr::value) == 5)
+                    if (dtype_node->kindOf(torch::jit::attr::value) == torch::jit::AttributeKind::i && dtype_node->i(torch::jit::attr::value) == 5)
                     {
                         dtype_node->i_(torch::jit::attr::value, 6);
                     }

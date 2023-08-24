@@ -27,9 +27,12 @@ class Model(nn.Module):
         self.w3 = nn.Parameter(torch.rand(12, 15))
         self.w4 = nn.Parameter(torch.rand(12, 15))
         self.w5 = nn.Parameter(torch.rand(12, 15))
+        self.c0 = nn.Parameter(torch.ones(1))
+        self.c1 = nn.Parameter(torch.ones(3) + 0.2)
 
     def forward(self, x):
-        x0 = x * 10
+        c10, c11, _ = torch.unbind(self.c1)
+        x0 = x * 10 + self.c0 - c11
         x = x + self.w0 + x0
         x = x - self.w1 + x0.float()
         x = x * self.w2 + x0

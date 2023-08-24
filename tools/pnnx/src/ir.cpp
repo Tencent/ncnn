@@ -1298,11 +1298,19 @@ static std::string expand_expression(const Operator* op)
         }
         else if (t == "atan2"
                  || t == "fmod"
+                 || t == "max"
+                 || t == "maximum"
+                 || t == "min"
+                 || t == "minimum"
                  || t == "pow")
         {
             std::string binaryop;
             if (t == "atan2") binaryop = "torch.atan2";
             if (t == "fmod") binaryop = "torch.fmod";
+            if (t == "max") binaryop = "torch.max";
+            if (t == "maximum") binaryop = "torch.maximum";
+            if (t == "min") binaryop = "torch.min";
+            if (t == "minimum") binaryop = "torch.minimum";
             if (t == "pow") binaryop = "torch.pow";
 
             std::string a = exprstack.top();
@@ -1313,7 +1321,17 @@ static std::string expand_expression(const Operator* op)
             std::string r = binaryop + "(" + a + ", " + b + ")";
             exprstack.push(r);
         }
-        else if (t == "add" || t == "sub" || t == "mul" || t == "div" || t == "floor_divide" || t == "remainder" || t == "and" || t == "or" || t == "xor" || t == "lshift" || t == "rshift")
+        else if (t == "add"
+                 || t == "sub"
+                 || t == "mul"
+                 || t == "div"
+                 || t == "floor_divide"
+                 || t == "remainder"
+                 || t == "and"
+                 || t == "or"
+                 || t == "xor"
+                 || t == "lshift"
+                 || t == "rshift")
         {
             std::string binaryop;
             if (t == "add") binaryop = "+";

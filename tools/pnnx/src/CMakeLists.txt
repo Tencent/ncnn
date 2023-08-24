@@ -363,6 +363,7 @@ set(pnnx_pass_level5_SRCS
 set(pnnx_pass_ncnn_SRCS
     pass_ncnn/convert_attribute.cpp
     pass_ncnn/convert_custom_op.cpp
+    pass_ncnn/convert_module_op.cpp
     pass_ncnn/convert_half_to_float.cpp
     pass_ncnn/convert_input.cpp
     pass_ncnn/convert_torch_cat.cpp
@@ -428,6 +429,8 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/F_leaky_relu.cpp
     pass_ncnn/F_linear.cpp
     pass_ncnn/F_local_response_norm.cpp
+    pass_ncnn/F_log_softmax.cpp
+    pass_ncnn/F_logsigmoid.cpp
     pass_ncnn/F_max_pool1d.cpp
     pass_ncnn/F_max_pool2d.cpp
     pass_ncnn/F_max_pool3d.cpp
@@ -485,6 +488,8 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/nn_LeakyReLU.cpp
     pass_ncnn/nn_Linear.cpp
     pass_ncnn/nn_LocalResponseNorm.cpp
+    pass_ncnn/nn_LogSigmoid.cpp
+    pass_ncnn/nn_LogSoftmax.cpp
     pass_ncnn/nn_LSTM.cpp
     pass_ncnn/nn_MaxPool1d.cpp
     pass_ncnn/nn_MaxPool2d.cpp
@@ -538,6 +543,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/torch_prod.cpp
     pass_ncnn/torch_squeeze.cpp
     pass_ncnn/torch_sum.cpp
+    pass_ncnn/torch_t.cpp
     pass_ncnn/torch_transpose.cpp
     pass_ncnn/torch_unsqueeze.cpp
     pass_ncnn/torchvision_DeformConv2d.cpp
