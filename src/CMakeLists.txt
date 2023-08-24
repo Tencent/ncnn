@@ -293,7 +293,7 @@ if(NCNN_VULKAN)
 
     if (NCNN_CI_VULKAN)
         target_include_directories(ncnn PRIVATE ${Vulkan_INCLUDE_DIRS})
-        target_link_libraries(ncnn PRIVATE ${Vulkan_LIBRARIES})
+        target_link_libraries(ncnn PUBLIC ${Vulkan_LIBRARIES})
     else()
         target_link_libraries(ncnn PUBLIC Vulkan::Vulkan)
     endif()
