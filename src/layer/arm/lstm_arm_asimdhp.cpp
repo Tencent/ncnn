@@ -163,24 +163,24 @@ static int lstm_fp16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
 
             float32x4x4_t _IFOG_4x4 = vld4q_f32(gates_data);
 
-            float32x4_t _I = sigmoid_ps(_IFOG_4x4.val[0]);
-            float32x4_t _F = sigmoid_ps(_IFOG_4x4.val[1]);
-            float32x4_t _O = sigmoid_ps(_IFOG_4x4.val[2]);
-            float32x4_t _G = tanh_ps(_IFOG_4x4.val[3]);
+            float32x4_t _lstm_I = sigmoid_ps(_IFOG_4x4.val[0]);
+            float32x4_t _lstm_F = sigmoid_ps(_IFOG_4x4.val[1]);
+            float32x4_t _lstm_O = sigmoid_ps(_IFOG_4x4.val[2]);
+            float32x4_t _lstm_G = tanh_ps(_IFOG_4x4.val[3]);
 
-            float32x4_t _cell2 = vaddq_f32(vmulq_f32(_F, vld1q_f32(cell_ptr + q)), vmulq_f32(_I, _G));
-            float32x4_t _H = vmulq_f32(_O, tanh_ps(_cell2));
+            float32x4_t _cell2 = vaddq_f32(vmulq_f32(_lstm_F, vld1q_f32(cell_ptr + q)), vmulq_f32(_lstm_I, _lstm_G));
+            float32x4_t _lstm_H = vmulq_f32(_lstm_O, tanh_ps(_cell2));
 
             vst1q_f32(cell_ptr + q, _cell2);
 
             if (num_output == hidden_size)
             {
-                vst1q_f32(hidden_ptr + q, _H);
-                vst1_f16(output_data + q, vcvt_f16_f32(_H));
+                vst1q_f32(hidden_ptr + q, _lstm_H);
+                vst1_f16(output_data + q, vcvt_f16_f32(_lstm_H));
             }
             else
             {
-                vst1q_f32(tmp_hidden_ptr + q, _H);
+                vst1q_f32(tmp_hidden_ptr + q, _lstm_H);
             }
         }
         #pragma omp parallel for num_threads(opt.num_threads)
@@ -503,24 +503,24 @@ static int lstm_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const
 
             float16x4x4_t _IFOG_4x4 = vld4_f16(gates_data);
 
-            float32x4_t _I = sigmoid_ps(vcvt_f32_f16(_IFOG_4x4.val[0]));
-            float32x4_t _F = sigmoid_ps(vcvt_f32_f16(_IFOG_4x4.val[1]));
-            float32x4_t _O = sigmoid_ps(vcvt_f32_f16(_IFOG_4x4.val[2]));
-            float32x4_t _G = tanh_ps(vcvt_f32_f16(_IFOG_4x4.val[3]));
+            float32x4_t _lstm_I = sigmoid_ps(vcvt_f32_f16(_IFOG_4x4.val[0]));
+            float32x4_t _lstm_F = sigmoid_ps(vcvt_f32_f16(_IFOG_4x4.val[1]));
+            float32x4_t _lstm_O = sigmoid_ps(vcvt_f32_f16(_IFOG_4x4.val[2]));
+            float32x4_t _lstm_G = tanh_ps(vcvt_f32_f16(_IFOG_4x4.val[3]));
 
-            float32x4_t _cell2 = vaddq_f32(vmulq_f32(_F, vld1q_f32(cell_ptr + q)), vmulq_f32(_I, _G));
-            float32x4_t _H = vmulq_f32(_O, tanh_ps(_cell2));
+            float32x4_t _cell2 = vaddq_f32(vmulq_f32(_lstm_F, vld1q_f32(cell_ptr + q)), vmulq_f32(_lstm_I, _lstm_G));
+            float32x4_t _lstm_H = vmulq_f32(_lstm_O, tanh_ps(_cell2));
 
             vst1q_f32(cell_ptr + q, _cell2);
 
             if (num_output == hidden_size)
             {
-                vst1q_f32(hidden_ptr + q, _H);
-                vst1_f16(output_data + q, vcvt_f16_f32(_H));
+                vst1q_f32(hidden_ptr + q, _lstm_H);
+                vst1_f16(output_data + q, vcvt_f16_f32(_lstm_H));
             }
             else
             {
-                vst1q_f32(tmp_hidden_ptr + q, _H);
+                vst1q_f32(tmp_hidden_ptr + q, _lstm_H);
             }
         }
         #pragma omp parallel for num_threads(opt.num_threads)

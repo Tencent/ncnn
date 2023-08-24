@@ -226,9 +226,9 @@ static void resize_bicubic_image_packn_fp16s(const Mat& src, Mat& dst, float* al
             vfloat32m2_t _rows2 = vle32_v_f32m2(rows2p, vl);
             vfloat32m2_t _rows3 = vle32_v_f32m2(rows3p, vl);
 
-            vfloat32m2_t _D = vfmacc_vf_f32m2(vfmacc_vf_f32m2(vfmacc_vf_f32m2(vfmul_vf_f32m2(_rows0, b0, vl), b1, _rows1, vl), b2, _rows2, vl), b3, _rows3, vl);
+            vfloat32m2_t _Dp = vfmacc_vf_f32m2(vfmacc_vf_f32m2(vfmacc_vf_f32m2(vfmul_vf_f32m2(_rows0, b0, vl), b1, _rows1, vl), b2, _rows2, vl), b3, _rows3, vl);
 
-            vse16_v_f16m1(Dp, vfncvt_f_f_w_f16m1(_D, vl), vl);
+            vse16_v_f16m1(Dp, vfncvt_f_f_w_f16m1(_Dp, vl), vl);
 
             Dp += packn;
             rows0p += packn;
@@ -455,9 +455,9 @@ static void resize_bicubic_image_packn_fp16sa(const Mat& src, Mat& dst, __fp16* 
             vfloat16m1_t _rows2 = vle16_v_f16m1(rows2p, vl);
             vfloat16m1_t _rows3 = vle16_v_f16m1(rows3p, vl);
 
-            vfloat16m1_t _D = vfmacc_vf_f16m1(vfmacc_vf_f16m1(vfmacc_vf_f16m1(vfmul_vf_f16m1(_rows0, b0, vl), b1, _rows1, vl), b2, _rows2, vl), b3, _rows3, vl);
+            vfloat16m1_t _Dp = vfmacc_vf_f16m1(vfmacc_vf_f16m1(vfmacc_vf_f16m1(vfmul_vf_f16m1(_rows0, b0, vl), b1, _rows1, vl), b2, _rows2, vl), b3, _rows3, vl);
 
-            vse16_v_f16m1(Dp, _D, vl);
+            vse16_v_f16m1(Dp, _Dp, vl);
 
             Dp += packn;
             rows0p += packn;

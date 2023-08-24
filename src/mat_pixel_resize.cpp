@@ -229,9 +229,9 @@ void resize_bilinear_c1(const unsigned char* src, int srcw, int srch, int srcstr
             int16x4_t _acc16 = vshrn_n_s32(_acc, 2);
             int16x4_t _acc16_1 = vshrn_n_s32(_acc_1, 2);
 
-            uint8x8_t _D = vqmovun_s16(vcombine_s16(_acc16, _acc16_1));
+            uint8x8_t _Dp = vqmovun_s16(vcombine_s16(_acc16, _acc16_1));
 
-            vst1_u8(Dp, _D);
+            vst1_u8(Dp, _Dp);
 
             Dp += 8;
             rows0p += 8;
@@ -538,9 +538,9 @@ void resize_bilinear_c2(const unsigned char* src, int srcw, int srch, int srcstr
             int16x4_t _acc16 = vshrn_n_s32(_acc, 2);
             int16x4_t _acc16_1 = vshrn_n_s32(_acc_1, 2);
 
-            uint8x8_t _D = vqmovun_s16(vcombine_s16(_acc16, _acc16_1));
+            uint8x8_t _Dp = vqmovun_s16(vcombine_s16(_acc16, _acc16_1));
 
-            vst1_u8(Dp, _D);
+            vst1_u8(Dp, _Dp);
 
             Dp += 8;
             rows0p += 8;
@@ -858,9 +858,9 @@ void resize_bilinear_c3(const unsigned char* src, int srcw, int srch, int srcstr
             int16x4_t _acc16 = vshrn_n_s32(_acc, 2);
             int16x4_t _acc16_1 = vshrn_n_s32(_acc_1, 2);
 
-            uint8x8_t _D = vqmovun_s16(vcombine_s16(_acc16, _acc16_1));
+            uint8x8_t _Dp = vqmovun_s16(vcombine_s16(_acc16, _acc16_1));
 
-            vst1_u8(Dp, _D);
+            vst1_u8(Dp, _Dp);
 
             Dp += 8;
             rows0p += 8;
@@ -1158,9 +1158,9 @@ void resize_bilinear_c4(const unsigned char* src, int srcw, int srch, int srcstr
             int16x4_t _acc16 = vshrn_n_s32(_acc, 2);
             int16x4_t _acc16_1 = vshrn_n_s32(_acc_1, 2);
 
-            uint8x8_t _D = vqmovun_s16(vcombine_s16(_acc16, _acc16_1));
+            uint8x8_t _Dp = vqmovun_s16(vcombine_s16(_acc16, _acc16_1));
 
-            vst1_u8(Dp, _D);
+            vst1_u8(Dp, _Dp);
 
             Dp += 8;
             rows0p += 8;

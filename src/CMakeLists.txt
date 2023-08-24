@@ -265,18 +265,17 @@ endif()
 if(NCNN_VULKAN)
     find_package(Vulkan QUIET)
     if(NOT Vulkan_FOUND)
-        message(STATUS "=== CMAKE_SYSTEM_NAME is: ${CMAKE_SYSTEM_NAME}")
         if(DEFINED ENV{VULKAN_SDK})
             if(CMAKE_SYSTEM_NAME MATCHES "Linux")
                 list(APPEND CMAKE_MODULE_PATH "$ENV{VULKAN_SDK}/../source/VulkanTools/cmake")
             elseif(CMAKE_SYSTEM_NAME MATCHES "Windows")
                 list(APPEND CMAKE_MODULE_PATH "$ENV{VULKAN_SDK}/Samples/cmake")
             elseif(CMAKE_SYSTEM_NAME MATCHES "Darwin")
-                message(WARNING "Failed to find vulkan since cmake too old\n"
+                message(WARNING "Failed to find vulkan since cmake is too old\n"
                     "cmake >= 3.7 required. Consider `brew upgrade cmake`")
             endif()
         else()
-            message(FATAL_ERROR "!! CMake didn't find Vulkan. Please set VULKAN_SDK env var, e.g.:\n"
+            message(FATAL_ERROR "Error: CMake didn't find Vulkan. Please set VULKAN_SDK env var, e.g.:\n"
                 "Linux: export VULKAN_SDK=~/soft/vulkansdk/1.2.148.0/x86_64\n"
                 "Windows: set VULKAN_SDK=E:/lib/VulkanSDK/1.2.148.0\n"
                 "MacOS: export VULKAN_SDK=~/soft/vulkansdk/1.2.148.0/macOS\n"
@@ -286,7 +285,28 @@ if(NCNN_VULKAN)
     endif()
 
     target_link_libraries(ncnn PUBLIC Vulkan::Vulkan)
-
+    # Support mac platform static library compilation
+    if(NOT NCNN_SHARED_LIB AND CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin" AND NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
+        find_library(CoreFoundation NAMES CoreFoundation)
+        find_library(Foundation NAMES Foundation)
+        find_library(QuartzCore NAMES QuartzCore)
+        find_library(CoreGraphics NAMES CoreGraphics)
+        find_library(Cocoa NAMES Cocoa)
+        find_library(Metal NAMES Metal)
+        find_library(IOKit NAMES IOKit)
+        find_library(IOSurface NAMES IOSurface)
+        list(APPEND vulkan_dependent_LINK_LIBRARIES
+            ${Metal}
+            ${IOKit}
+            ${IOSurface}
+            ${QuartzCore}
+            ${CoreGraphics}
+            ${Cocoa}
+            ${Foundation}
+            ${CoreFoundation}
+        )
+        target_link_libraries(ncnn PRIVATE ${vulkan_dependent_LINK_LIBRARIES})
+    endif()
     target_include_directories(ncnn PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../>)
     target_link_libraries(ncnn PRIVATE glslang SPIRV)
 endif()
