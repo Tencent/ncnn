@@ -230,6 +230,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_imag.cpp
     pass_level2/torch_index_select.cpp
     pass_level2/torch_le.cpp
+    pass_level2/torch_lgamma.cpp
     pass_level2/torch_logsumexp.cpp
     pass_level2/torch_lt.cpp
     pass_level2/torch_matmul.cpp
