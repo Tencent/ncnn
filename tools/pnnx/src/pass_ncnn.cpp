@@ -16,6 +16,7 @@
 
 #include "pass_ncnn/convert_attribute.h"
 #include "pass_ncnn/convert_custom_op.h"
+#include "pass_ncnn/convert_module_op.h"
 #include "pass_ncnn/convert_half_to_float.h"
 #include "pass_ncnn/convert_input.h"
 #include "pass_ncnn/convert_torch_cat.h"
@@ -74,7 +75,7 @@ NcnnGraphRewriterPassRegister::~NcnnGraphRewriterPassRegister()
     delete pass;
 }
 
-void pass_ncnn(Graph& g)
+void pass_ncnn(Graph& g, const std::vector<std::string>& module_operators)
 {
     unroll_rnn_op(g);
 
@@ -133,6 +134,7 @@ void pass_ncnn(Graph& g)
     canonicalize(g);
 
     ncnn::convert_custom_op(g);
+    ncnn::convert_module_op(g, module_operators);
 
     ncnn::convert_attribute(g);
 

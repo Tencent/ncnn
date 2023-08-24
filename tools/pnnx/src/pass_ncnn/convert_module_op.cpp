@@ -1,6 +1,6 @@
 // Tencent is pleased to support the open source community by making ncnn available.
 //
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
+// Copyright (C) 2023 THL A29 Limited, a Tencent company. All rights reserved.
 //
 // Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 // in compliance with the License. You may obtain a copy of the License at
@@ -12,28 +12,31 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#ifndef PNNX_PASS_NCNN_H
-#define PNNX_PASS_NCNN_H
+#include "convert_module_op.h"
 
-#include "ir.h"
-
-#include "pass_level2.h"
+#include <algorithm>
 
 namespace pnnx {
 
-class NcnnGraphRewriterPassRegister
+namespace ncnn {
+
+void convert_module_op(Graph& graph, const std::vector<std::string>& module_operators)
 {
-public:
-    NcnnGraphRewriterPassRegister(const GraphRewriterPass* pass, int priority);
-    ~NcnnGraphRewriterPassRegister();
-    const GraphRewriterPass* pass;
-};
+    for (Operator* op : graph.ops)
+    {
+        if (std::find(module_operators.begin(), module_operators.end(), op->type) == module_operators.end())
+            continue;
 
-#define REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(CLASS, PRIORITY) \
-    static NcnnGraphRewriterPassRegister g_global_pnnx_ncnngraphrewriterpass_##CLASS##_register(new CLASS, PRIORITY);
+        // collect moduleop attribute shape info
+        int index = 10;
+        for (const auto& it : op->attrs)
+        {
+            op->params[std::to_string(index)] = it.second.shape;
+            index++;
+        }
+    }
+}
 
-void pass_ncnn(Graph& g, const std::vector<std::string>& module_operators);
+} // namespace ncnn
 
 } // namespace pnnx
-
-#endif // PNNX_PASS_NCNN_H
