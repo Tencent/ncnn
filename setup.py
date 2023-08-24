@@ -23,10 +23,16 @@ def find_version():
     raise RuntimeError("Unable to find version string.")
 
 # Parse parameters from environment
-BUILD_WITH_VULKAN = True
+BUILD_WITH_VULKAN = False
 for i, arg in enumerate(sys.argv):
     if arg == "-g" or arg == "--gpu":
         BUILD_WITH_VULKAN = True
+
+# Parse environment variables
+os.environ['NCNN_VULKAN'] = "TRUE"
+DNCNN_VULKAN_FLAG = os.environ.get("NCNN_VULKAN", "FALSE")
+if (DNCNN_VULKAN_FLAG == "TRUE"):
+    BUILD_WITH_VULKAN = True
 
 # Convert distutils Windows platform specifiers to CMake -A arguments
 PLAT_TO_CMAKE = {
