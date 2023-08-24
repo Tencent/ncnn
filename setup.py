@@ -23,16 +23,18 @@ def find_version():
     raise RuntimeError("Unable to find version string.")
 
 # Parse parameters from environment
-BUILD_WITH_VULKAN = False
+NCNN_VULKAN = False
 for i, arg in enumerate(sys.argv):
     if arg == "-g" or arg == "--gpu":
-        BUILD_WITH_VULKAN = True
+        NCNN_VULKAN = True
 
 # Parse environment variables
-os.environ['NCNN_VULKAN'] = "TRUE"
-DNCNN_VULKAN_FLAG = os.environ.get("NCNN_VULKAN", "FALSE")
-if (DNCNN_VULKAN_FLAG == "TRUE"):
-    BUILD_WITH_VULKAN = True
+NCNN_VULKAN_FLAG = os.environ.get("NCNN_VULKAN", "FALSE")
+USE_CI_VULKAN_FLAG = os.environ.get("USE_CI_VULKAN", "FALSE")
+if (NCNN_VULKAN_FLAG == "TRUE"):
+    NCNN_VULKAN = True
+if (USE_CI_VULKAN_FLAG == "TRUE"):
+    USE_CI_VULKAN = True
 
 # Convert distutils Windows platform specifiers to CMake -A arguments
 PLAT_TO_CMAKE = {
@@ -81,10 +83,14 @@ class CMakeBuild(build_ext):
             "-DNCNN_BUILD_EXAMPLES=OFF",
             "-DNCNN_BUILD_TOOLS=OFF",
         ]
-        if BUILD_WITH_VULKAN:
+        if NCNN_VULKAN:
             cmake_args.append("-DNCNN_VULKAN=ON")
         else:
             cmake_args.append("-DNCNN_VULKAN=OFF")
+        if USE_CI_VULKAN:
+            cmake_args.append("-DUSE_CI_VULKAN=ON")
+        else:
+            cmake_args.append("-DUSE_CI_VULKAN=OFF")
         build_args = []
 
         if self.compiler.compiler_type == "msvc":
