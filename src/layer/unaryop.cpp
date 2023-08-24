@@ -198,10 +198,14 @@ struct unary_op_round
     float operator()(const float& x) const
     {
         // round to nearest even
+#ifdef FE_TONEAREST
         int old_rm = fegetround();
         fesetround(FE_TONEAREST);
+#endif
         float y = nearbyintf(x);
+#ifdef FE_TONEAREST
         fesetround(old_rm);
+#endif
         return y;
     }
 };
