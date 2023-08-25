@@ -46,8 +46,8 @@ def test():
     os.system("../src/pnnx test_torch_lgamma.pt inputshape=[1,3,16],[1,5,9,11],[14,8,5,9,10]")
 
     # pnnx inference
-    import test_torch_lgamma
-    b = test_torch_lgamma.test_inference()
+    import test_torch_lgamma_pnnx
+    b = test_torch_lgamma_pnnx.test_inference()
 
     for a0, b0 in zip(a, b):
         if not torch.equal(a0, b0):
