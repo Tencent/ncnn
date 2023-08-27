@@ -655,6 +655,1023 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
 
         int jj = 0;
 #if defined(__x86_64__) || defined(_M_X64)
+        for (; jj + 15 < max_jj; jj += 16)
+        {
+            const signed char* pA = pAT;
+
+            __m512i _sum0;
+            __m512i _sum1;
+            __m512i _sum2;
+            __m512i _sum3;
+            __m512i _sum4;
+            __m512i _sum5;
+            __m512i _sum6;
+            __m512i _sum7;
+            __m512i _sum8;
+            __m512i _sum9;
+            __m512i _suma;
+            __m512i _sumb;
+            __m512i _sumc;
+            __m512i _sumd;
+            __m512i _sume;
+            __m512i _sumf;
+
+            if (k == 0)
+            {
+                _sum0 = _mm512_setzero_si512();
+                _sum1 = _mm512_setzero_si512();
+                _sum2 = _mm512_setzero_si512();
+                _sum3 = _mm512_setzero_si512();
+                _sum4 = _mm512_setzero_si512();
+                _sum5 = _mm512_setzero_si512();
+                _sum6 = _mm512_setzero_si512();
+                _sum7 = _mm512_setzero_si512();
+                _sum8 = _mm512_setzero_si512();
+                _sum9 = _mm512_setzero_si512();
+                _suma = _mm512_setzero_si512();
+                _sumb = _mm512_setzero_si512();
+                _sumc = _mm512_setzero_si512();
+                _sumd = _mm512_setzero_si512();
+                _sume = _mm512_setzero_si512();
+                _sumf = _mm512_setzero_si512();
+            }
+            else
+            {
+                _sum0 = _mm512_load_si512((const __m512i*)outptr);
+                _sum1 = _mm512_load_si512((const __m512i*)(outptr + 16));
+                _sum2 = _mm512_load_si512((const __m512i*)(outptr + 32));
+                _sum3 = _mm512_load_si512((const __m512i*)(outptr + 48));
+                _sum4 = _mm512_load_si512((const __m512i*)(outptr + 64));
+                _sum5 = _mm512_load_si512((const __m512i*)(outptr + 80));
+                _sum6 = _mm512_load_si512((const __m512i*)(outptr + 96));
+                _sum7 = _mm512_load_si512((const __m512i*)(outptr + 112));
+                _sum8 = _mm512_load_si512((const __m512i*)(outptr + 128));
+                _sum9 = _mm512_load_si512((const __m512i*)(outptr + 128 + 16));
+                _suma = _mm512_load_si512((const __m512i*)(outptr + 128 + 32));
+                _sumb = _mm512_load_si512((const __m512i*)(outptr + 128 + 48));
+                _sumc = _mm512_load_si512((const __m512i*)(outptr + 128 + 64));
+                _sumd = _mm512_load_si512((const __m512i*)(outptr + 128 + 80));
+                _sume = _mm512_load_si512((const __m512i*)(outptr + 128 + 96));
+                _sumf = _mm512_load_si512((const __m512i*)(outptr + 128 + 112));
+            }
+
+            int kk = 0;
+            for (; kk + 1 < max_kk; kk += 2)
+            {
+                __m256i _pA = _mm256_loadu_si256((const __m256i*)pA);
+                __m256i _pB = _mm256_loadu_si256((const __m256i*)pB);
+
+                __m512i _pA0 = _mm512_cvtepi8_epi16(_pA);
+                __m512i _pB0 = _mm512_cvtepi8_epi16(_pB);
+
+                // 0123 4567 89ab cdef
+                // cdef 0123 4567 89ab
+                // 89ab cdef 0123 4567
+                // 4567 89ab cdef 0123
+                __m512i _pA1 = _mm512_shuffle_i32x4(_pA0, _pA0, _MM_SHUFFLE(2, 1, 0, 3));
+                __m512i _pA2 = _mm512_shuffle_i32x4(_pA0, _pA0, _MM_SHUFFLE(1, 0, 3, 2));
+                __m512i _pA3 = _mm512_shuffle_i32x4(_pA0, _pA0, _MM_SHUFFLE(0, 3, 2, 1));
+
+                // 0123 4567 89ab cdef
+                // 1230 5674 9ab8 defc
+                // 2301 6745 ab89 efcd
+                // 3012 7456 b89a fcde
+                __m512i _pB1 = _mm512_shuffle_epi32(_pB0, _MM_PERM_ADCB);
+                __m512i _pB2 = _mm512_shuffle_epi32(_pB0, _MM_PERM_BADC);
+                __m512i _pB3 = _mm512_shuffle_epi32(_pB0, _MM_PERM_CBAD);
+
+#if __AVX512VNNI__
+                _sum0 = _mm512_dpwssd_epi32(_sum0, _pA0, _pB0);
+                _sum1 = _mm512_dpwssd_epi32(_sum1, _pA0, _pB1);
+                _sum2 = _mm512_dpwssd_epi32(_sum2, _pA0, _pB2);
+                _sum3 = _mm512_dpwssd_epi32(_sum3, _pA0, _pB3);
+                _sum4 = _mm512_dpwssd_epi32(_sum4, _pA1, _pB0);
+                _sum5 = _mm512_dpwssd_epi32(_sum5, _pA1, _pB1);
+                _sum6 = _mm512_dpwssd_epi32(_sum6, _pA1, _pB2);
+                _sum7 = _mm512_dpwssd_epi32(_sum7, _pA1, _pB3);
+                _sum8 = _mm512_dpwssd_epi32(_sum8, _pA2, _pB0);
+                _sum9 = _mm512_dpwssd_epi32(_sum9, _pA2, _pB1);
+                _suma = _mm512_dpwssd_epi32(_suma, _pA2, _pB2);
+                _sumb = _mm512_dpwssd_epi32(_sumb, _pA2, _pB3);
+                _sumc = _mm512_dpwssd_epi32(_sumc, _pA3, _pB0);
+                _sumd = _mm512_dpwssd_epi32(_sumd, _pA3, _pB1);
+                _sume = _mm512_dpwssd_epi32(_sume, _pA3, _pB2);
+                _sumf = _mm512_dpwssd_epi32(_sumf, _pA3, _pB3);
+#else
+                _sum0 = _mm512_add_epi32(_sum0, _mm512_madd_epi16(_pA0, _pB0));
+                _sum1 = _mm512_add_epi32(_sum1, _mm512_madd_epi16(_pA0, _pB1));
+                _sum2 = _mm512_add_epi32(_sum2, _mm512_madd_epi16(_pA0, _pB2));
+                _sum3 = _mm512_add_epi32(_sum3, _mm512_madd_epi16(_pA0, _pB3));
+                _sum4 = _mm512_add_epi32(_sum4, _mm512_madd_epi16(_pA1, _pB0));
+                _sum5 = _mm512_add_epi32(_sum5, _mm512_madd_epi16(_pA1, _pB1));
+                _sum6 = _mm512_add_epi32(_sum6, _mm512_madd_epi16(_pA1, _pB2));
+                _sum7 = _mm512_add_epi32(_sum7, _mm512_madd_epi16(_pA1, _pB3));
+                _sum8 = _mm512_add_epi32(_sum8, _mm512_madd_epi16(_pA2, _pB0));
+                _sum9 = _mm512_add_epi32(_sum9, _mm512_madd_epi16(_pA2, _pB1));
+                _suma = _mm512_add_epi32(_suma, _mm512_madd_epi16(_pA2, _pB2));
+                _sumb = _mm512_add_epi32(_sumb, _mm512_madd_epi16(_pA2, _pB3));
+                _sumc = _mm512_add_epi32(_sumc, _mm512_madd_epi16(_pA3, _pB0));
+                _sumd = _mm512_add_epi32(_sumd, _mm512_madd_epi16(_pA3, _pB1));
+                _sume = _mm512_add_epi32(_sume, _mm512_madd_epi16(_pA3, _pB2));
+                _sumf = _mm512_add_epi32(_sumf, _mm512_madd_epi16(_pA3, _pB3));
+#endif
+
+                pA += 32;
+                pB += 32;
+            }
+            for (; kk < max_kk; kk += 1)
+            {
+                __m128i _pA = _mm_load_si128((const __m128i*)pA);
+                __m128i _pB = _mm_load_si128((const __m128i*)pB);
+
+                __m256i _pA0 = _mm256_cvtepi8_epi16(_pA);
+                __m256i _pB0 = _mm256_cvtepi8_epi16(_pB);
+
+                // 01234567 89abcdef
+                // cdef0123 456789ab
+                // 89abcdef 01234567
+                // 456789ab cdef0123
+                __m256i _pA1 = _mm256_permute4x64_epi64(_pA0, _MM_SHUFFLE(2, 1, 0, 3));
+                __m256i _pA2 = _mm256_permute4x64_epi64(_pA0, _MM_SHUFFLE(1, 0, 3, 2));
+                __m256i _pA3 = _mm256_permute4x64_epi64(_pA0, _MM_SHUFFLE(0, 3, 2, 1));
+
+                // 01234567 89abcdef
+                // 12305674 9ab8defc
+                // 23016745 ab89efcd
+                // 30127456 b89afcde
+                __m256i _pB1 = _mm256_shufflehi_epi16(_mm256_shufflelo_epi16(_pB0, _MM_SHUFFLE(0, 3, 2, 1)), _MM_SHUFFLE(0, 3, 2, 1));
+                __m256i _pB2 = _mm256_shuffle_epi32(_pB0, _MM_SHUFFLE(2, 3, 0, 1));
+                __m256i _pB3 = _mm256_shufflehi_epi16(_mm256_shufflelo_epi16(_pB0, _MM_SHUFFLE(2, 1, 0, 3)), _MM_SHUFFLE(2, 1, 0, 3));
+
+                __m512i _s0 = _mm512_cvtepi16_epi32(_mm256_mullo_epi16(_pA0, _pB0));
+                __m512i _s1 = _mm512_cvtepi16_epi32(_mm256_mullo_epi16(_pA0, _pB1));
+                __m512i _s2 = _mm512_cvtepi16_epi32(_mm256_mullo_epi16(_pA0, _pB2));
+                __m512i _s3 = _mm512_cvtepi16_epi32(_mm256_mullo_epi16(_pA0, _pB3));
+                __m512i _s4 = _mm512_cvtepi16_epi32(_mm256_mullo_epi16(_pA1, _pB0));
+                __m512i _s5 = _mm512_cvtepi16_epi32(_mm256_mullo_epi16(_pA1, _pB1));
+                __m512i _s6 = _mm512_cvtepi16_epi32(_mm256_mullo_epi16(_pA1, _pB2));
+                __m512i _s7 = _mm512_cvtepi16_epi32(_mm256_mullo_epi16(_pA1, _pB3));
+                __m512i _s8 = _mm512_cvtepi16_epi32(_mm256_mullo_epi16(_pA2, _pB0));
+                __m512i _s9 = _mm512_cvtepi16_epi32(_mm256_mullo_epi16(_pA2, _pB1));
+                __m512i _sa = _mm512_cvtepi16_epi32(_mm256_mullo_epi16(_pA2, _pB2));
+                __m512i _sb = _mm512_cvtepi16_epi32(_mm256_mullo_epi16(_pA2, _pB3));
+                __m512i _sc = _mm512_cvtepi16_epi32(_mm256_mullo_epi16(_pA3, _pB0));
+                __m512i _sd = _mm512_cvtepi16_epi32(_mm256_mullo_epi16(_pA3, _pB1));
+                __m512i _se = _mm512_cvtepi16_epi32(_mm256_mullo_epi16(_pA3, _pB2));
+                __m512i _sf = _mm512_cvtepi16_epi32(_mm256_mullo_epi16(_pA3, _pB3));
+
+                _sum0 = _mm512_add_epi32(_sum0, _s0);
+                _sum1 = _mm512_add_epi32(_sum1, _s1);
+                _sum2 = _mm512_add_epi32(_sum2, _s2);
+                _sum3 = _mm512_add_epi32(_sum3, _s3);
+                _sum4 = _mm512_add_epi32(_sum4, _s4);
+                _sum5 = _mm512_add_epi32(_sum5, _s5);
+                _sum6 = _mm512_add_epi32(_sum6, _s6);
+                _sum7 = _mm512_add_epi32(_sum7, _s7);
+                _sum8 = _mm512_add_epi32(_sum8, _s8);
+                _sum9 = _mm512_add_epi32(_sum9, _s9);
+                _suma = _mm512_add_epi32(_suma, _sa);
+                _sumb = _mm512_add_epi32(_sumb, _sb);
+                _sumc = _mm512_add_epi32(_sumc, _sc);
+                _sumd = _mm512_add_epi32(_sumd, _sd);
+                _sume = _mm512_add_epi32(_sume, _se);
+                _sumf = _mm512_add_epi32(_sumf, _sf);
+
+                pA += 16;
+                pB += 16;
+            }
+
+            if (k_end)
+            {
+                if (out_elempack == 16)
+                {
+                    // TODO
+                    // 00 11 22 33  44 55 66 77  88 99 aa bb  cc dd ee ff
+                    // 01 12 23 30  45 56 67 78
+                    // 02
+                    // 03
+
+                    // c0 d1 e2 f3  04 15 26 37  48 59 6a 7b  8c 9d ae bf
+                    // c1 d2 e3 f0
+                    // c2
+                    // c3
+
+                    // 80 91 a2 b3  c4 d5 e6 f7  08 19 2a 3b  4c 5d 6e 7f
+                    // 81
+                    // 82
+                    // 83
+
+                    // 40 51 62 73  84 95 a6 b7  c8 d9 ea fb  0c 1d 2e 3f
+                    // 41
+                    // 42
+                    // 43
+
+                    _sum0 = _sum0;
+                    _sum1 = _mm512_shuffle_epi32(_sum1, _MM_PERM_CBAD);
+                    _sum2 = _mm512_shuffle_epi32(_sum2, _MM_PERM_BADC);
+                    _sum3 = _mm512_shuffle_epi32(_sum3, _MM_PERM_ADCB);
+                    _sum4 = _sum4;
+                    _sum5 = _mm512_shuffle_epi32(_sum5, _MM_PERM_CBAD);
+                    _sum6 = _mm512_shuffle_epi32(_sum6, _MM_PERM_BADC);
+                    _sum7 = _mm512_shuffle_epi32(_sum7, _MM_PERM_ADCB);
+                    _sum8 = _sum8;
+                    _sum9 = _mm512_shuffle_epi32(_sum9, _MM_PERM_CBAD);
+                    _suma = _mm512_shuffle_epi32(_suma, _MM_PERM_BADC);
+                    _sumb = _mm512_shuffle_epi32(_sumb, _MM_PERM_ADCB);
+                    _sumc = _sumc;
+                    _sumd = _mm512_shuffle_epi32(_sumd, _MM_PERM_CBAD);
+                    _sume = _mm512_shuffle_epi32(_sume, _MM_PERM_BADC);
+                    _sumf = _mm512_shuffle_epi32(_sumf, _MM_PERM_ADCB);
+
+                    // 00 11 22 33  44 55 66 77  88 99 aa bb  cc dd ee ff
+                    // 30 01 12 23  74 45 56 67
+                    // 20 31 02 13  64 75 46 57
+                    // 10 21 32 03  54 65 76 47
+
+                    // c0 d1 e2 f3  04 15 26 37  48 59 6a 7b  8c 9d ae bf
+                    // f0
+                    // e0
+                    // d0
+
+                    // 80 91 a2 b3  c4 d5 e6 f7  08 19 2a 3b  4c 5d 6e 7f
+                    // b0
+                    // a0
+                    // 90
+
+                    // 40 51 62 73  84 95 a6 b7  c8 d9 ea fb  0c 1d 2e 3f
+                    // 70
+                    // 60
+                    // 50
+
+                    __m512i _tmp0 = _sum0;
+                    __m512i _tmp1 = _sum3;
+                    __m512i _tmp2 = _sum2;
+                    __m512i _tmp3 = _sum1;
+                    __m512i _tmp4 = _sumc;
+                    __m512i _tmp5 = _sumf;
+                    __m512i _tmp6 = _sume;
+                    __m512i _tmp7 = _sumd;
+                    __m512i _tmp8 = _sum8;
+                    __m512i _tmp9 = _sumb;
+                    __m512i _tmpa = _suma;
+                    __m512i _tmpb = _sum9;
+                    __m512i _tmpc = _sum4;
+                    __m512i _tmpd = _sum7;
+                    __m512i _tmpe = _sum6;
+                    __m512i _tmpf = _sum5;
+
+                    // 00 11 22 33  44 55 66 77  88 99 aa bb  cc dd ee ff
+                    // 10 21 32 03  54 65 76 47
+                    // 20 31 02 13  64 75 46 57
+                    // 30 01 12 23  74 45 56 67
+
+                    // 40 51 62 73  84 95 a6 b7  c8 d9 ea fb  0c 1d 2e 3f
+                    // 50
+                    // 60
+                    // 70
+
+                    // 80 91 a2 b3  c4 d5 e6 f7  08 19 2a 3b  4c 5d 6e 7f
+                    // 90
+                    // a0
+                    // b0
+
+                    // c0 d1 e2 f3  04 15 26 37  48 59 6a 7b  8c 9d ae bf
+                    // d0
+                    // e0
+                    // f0
+
+                    transpose16x16_epi32(_tmp0, _tmp1, _tmp2, _tmp3, _tmp4, _tmp5, _tmp6, _tmp7, _tmp8, _tmp9, _tmpa, _tmpb, _tmpc, _tmpd, _tmpe, _tmpf);
+
+                    _tmp0 = _tmp0;
+                    _tmp1 = _mm512_shuffle_epi32(_tmp1, _MM_PERM_CBAD);
+                    _tmp2 = _mm512_shuffle_epi32(_tmp2, _MM_PERM_BADC);
+                    _tmp3 = _mm512_shuffle_epi32(_tmp3, _MM_PERM_ADCB);
+                    _tmp4 = _tmp4;
+                    _tmp5 = _mm512_shuffle_epi32(_tmp5, _MM_PERM_CBAD);
+                    _tmp6 = _mm512_shuffle_epi32(_tmp6, _MM_PERM_BADC);
+                    _tmp7 = _mm512_shuffle_epi32(_tmp7, _MM_PERM_ADCB);
+                    _tmp8 = _tmp8;
+                    _tmp9 = _mm512_shuffle_epi32(_tmp9, _MM_PERM_CBAD);
+                    _tmpa = _mm512_shuffle_epi32(_tmpa, _MM_PERM_BADC);
+                    _tmpb = _mm512_shuffle_epi32(_tmpb, _MM_PERM_ADCB);
+                    _tmpc = _tmpc;
+                    _tmpd = _mm512_shuffle_epi32(_tmpd, _MM_PERM_CBAD);
+                    _tmpe = _mm512_shuffle_epi32(_tmpe, _MM_PERM_BADC);
+                    _tmpf = _mm512_shuffle_epi32(_tmpf, _MM_PERM_ADCB);
+
+                    // 0123  4567  89ab  cdef   x 0
+                    // 0123  4567  89ab  cdef   x 1
+                    // 0123  4567  89ab  cdef   x 2
+                    // 0123  4567  89ab  cdef   x 3
+                    // 4567  89ab  cdef  0123   x 4
+                    // 4567  89ab  cdef  0123   x 5
+                    // 4567  89ab  cdef  0123   x 6
+                    // 4567  89ab  cdef  0123   x 7
+                    // 89ab  cdef  0123  4567   x 8
+                    // 89ab  cdef  0123  4567   x 9
+                    // 89ab  cdef  0123  4567   x a
+                    // 89ab  cdef  0123  4567   x b
+                    // cdef  0123  4567  89ab   x c
+                    // cdef  0123  4567  89ab   x d
+                    // cdef  0123  4567  89ab   x e
+                    // cdef  0123  4567  89ab   x f
+
+
+                    _sum0 = _tmp0;
+                    _sum1 = _tmp1;
+                    _sum2 = _tmp2;
+                    _sum3 = _tmp3;
+                    _sum4 = _mm512_shuffle_i32x4(_tmp4, _tmp4, _MM_SHUFFLE(2, 1, 0, 3));
+                    _sum5 = _mm512_shuffle_i32x4(_tmp5, _tmp5, _MM_SHUFFLE(2, 1, 0, 3));
+                    _sum6 = _mm512_shuffle_i32x4(_tmp6, _tmp6, _MM_SHUFFLE(2, 1, 0, 3));
+                    _sum7 = _mm512_shuffle_i32x4(_tmp7, _tmp7, _MM_SHUFFLE(2, 1, 0, 3));
+                    _sum8 = _mm512_shuffle_i32x4(_tmp8, _tmp8, _MM_SHUFFLE(1, 0, 3, 2));
+                    _sum9 = _mm512_shuffle_i32x4(_tmp9, _tmp9, _MM_SHUFFLE(1, 0, 3, 2));
+                    _suma = _mm512_shuffle_i32x4(_tmpa, _tmpa, _MM_SHUFFLE(1, 0, 3, 2));
+                    _sumb = _mm512_shuffle_i32x4(_tmpb, _tmpb, _MM_SHUFFLE(1, 0, 3, 2));
+                    _sumc = _mm512_shuffle_i32x4(_tmpc, _tmpc, _MM_SHUFFLE(0, 3, 2, 1));
+                    _sumd = _mm512_shuffle_i32x4(_tmpd, _tmpd, _MM_SHUFFLE(0, 3, 2, 1));
+                    _sume = _mm512_shuffle_i32x4(_tmpe, _tmpe, _MM_SHUFFLE(0, 3, 2, 1));
+                    _sumf = _mm512_shuffle_i32x4(_tmpf, _tmpf, _MM_SHUFFLE(0, 3, 2, 1));
+
+
+                    _mm512_store_si512((__m512i*)outptr0, _sum0);
+                    _mm512_store_si512((__m512i*)(outptr0 + 16), _sum1);
+                    _mm512_store_si512((__m512i*)(outptr0 + 32), _sum2);
+                    _mm512_store_si512((__m512i*)(outptr0 + 48), _sum3);
+                    _mm512_store_si512((__m512i*)(outptr0 + 64), _sum4);
+                    _mm512_store_si512((__m512i*)(outptr0 + 80), _sum5);
+                    _mm512_store_si512((__m512i*)(outptr0 + 96), _sum6);
+                    _mm512_store_si512((__m512i*)(outptr0 + 112), _sum7);
+                    _mm512_store_si512((__m512i*)(outptr0 + 128), _sum8);
+                    _mm512_store_si512((__m512i*)(outptr0 + 128 + 16), _sum9);
+                    _mm512_store_si512((__m512i*)(outptr0 + 128 + 32), _suma);
+                    _mm512_store_si512((__m512i*)(outptr0 + 128 + 48), _sumb);
+                    _mm512_store_si512((__m512i*)(outptr0 + 128 + 64), _sumc);
+                    _mm512_store_si512((__m512i*)(outptr0 + 128 + 80), _sumd);
+                    _mm512_store_si512((__m512i*)(outptr0 + 128 + 96), _sume);
+                    _mm512_store_si512((__m512i*)(outptr0 + 128 + 112), _sumf);
+                    outptr0 += 256;
+                }
+                if (out_elempack == 8)
+                {
+                    // TODO
+                    // 00 11 22 33  44 55 66 77  88 99 aa bb  cc dd ee ff
+                    // 01 12 23 30  45 56 67 78
+                    // 02
+                    // 03
+
+                    // c0 d1 e2 f3  04 15 26 37  48 59 6a 7b  8c 9d ae bf
+                    // c1 d2 e3 f0
+                    // c2
+                    // c3
+
+                    // 80 91 a2 b3  c4 d5 e6 f7  08 19 2a 3b  4c 5d 6e 7f
+                    // 81
+                    // 82
+                    // 83
+
+                    // 40 51 62 73  84 95 a6 b7  c8 d9 ea fb  0c 1d 2e 3f
+                    // 41
+                    // 42
+                    // 43
+
+                    _sum0 = _sum0;
+                    _sum1 = _mm512_shuffle_epi32(_sum1, _MM_PERM_CBAD);
+                    _sum2 = _mm512_shuffle_epi32(_sum2, _MM_PERM_BADC);
+                    _sum3 = _mm512_shuffle_epi32(_sum3, _MM_PERM_ADCB);
+                    _sum4 = _sum4;
+                    _sum5 = _mm512_shuffle_epi32(_sum5, _MM_PERM_CBAD);
+                    _sum6 = _mm512_shuffle_epi32(_sum6, _MM_PERM_BADC);
+                    _sum7 = _mm512_shuffle_epi32(_sum7, _MM_PERM_ADCB);
+                    _sum8 = _sum8;
+                    _sum9 = _mm512_shuffle_epi32(_sum9, _MM_PERM_CBAD);
+                    _suma = _mm512_shuffle_epi32(_suma, _MM_PERM_BADC);
+                    _sumb = _mm512_shuffle_epi32(_sumb, _MM_PERM_ADCB);
+                    _sumc = _sumc;
+                    _sumd = _mm512_shuffle_epi32(_sumd, _MM_PERM_CBAD);
+                    _sume = _mm512_shuffle_epi32(_sume, _MM_PERM_BADC);
+                    _sumf = _mm512_shuffle_epi32(_sumf, _MM_PERM_ADCB);
+
+                    // 00 11 22 33  44 55 66 77  88 99 aa bb  cc dd ee ff
+                    // 30 01 12 23  74 45 56 67
+                    // 20 31 02 13  64 75 46 57
+                    // 10 21 32 03  54 65 76 47
+
+                    // c0 d1 e2 f3  04 15 26 37  48 59 6a 7b  8c 9d ae bf
+                    // f0
+                    // e0
+                    // d0
+
+                    // 80 91 a2 b3  c4 d5 e6 f7  08 19 2a 3b  4c 5d 6e 7f
+                    // b0
+                    // a0
+                    // 90
+
+                    // 40 51 62 73  84 95 a6 b7  c8 d9 ea fb  0c 1d 2e 3f
+                    // 70
+                    // 60
+                    // 50
+
+                    __m512i _tmp0 = _sum0;
+                    __m512i _tmp1 = _sum3;
+                    __m512i _tmp2 = _sum2;
+                    __m512i _tmp3 = _sum1;
+                    __m512i _tmp4 = _sumc;
+                    __m512i _tmp5 = _sumf;
+                    __m512i _tmp6 = _sume;
+                    __m512i _tmp7 = _sumd;
+                    __m512i _tmp8 = _sum8;
+                    __m512i _tmp9 = _sumb;
+                    __m512i _tmpa = _suma;
+                    __m512i _tmpb = _sum9;
+                    __m512i _tmpc = _sum4;
+                    __m512i _tmpd = _sum7;
+                    __m512i _tmpe = _sum6;
+                    __m512i _tmpf = _sum5;
+
+                    // 00 11 22 33  44 55 66 77  88 99 aa bb  cc dd ee ff
+                    // 10 21 32 03  54 65 76 47
+                    // 20 31 02 13  64 75 46 57
+                    // 30 01 12 23  74 45 56 67
+
+                    // 40 51 62 73  84 95 a6 b7  c8 d9 ea fb  0c 1d 2e 3f
+                    // 50
+                    // 60
+                    // 70
+
+                    // 80 91 a2 b3  c4 d5 e6 f7  08 19 2a 3b  4c 5d 6e 7f
+                    // 90
+                    // a0
+                    // b0
+
+                    // c0 d1 e2 f3  04 15 26 37  48 59 6a 7b  8c 9d ae bf
+                    // d0
+                    // e0
+                    // f0
+
+                    transpose16x16_epi32(_tmp0, _tmp1, _tmp2, _tmp3, _tmp4, _tmp5, _tmp6, _tmp7, _tmp8, _tmp9, _tmpa, _tmpb, _tmpc, _tmpd, _tmpe, _tmpf);
+
+                    _tmp0 = _tmp0;
+                    _tmp1 = _mm512_shuffle_epi32(_tmp1, _MM_PERM_CBAD);
+                    _tmp2 = _mm512_shuffle_epi32(_tmp2, _MM_PERM_BADC);
+                    _tmp3 = _mm512_shuffle_epi32(_tmp3, _MM_PERM_ADCB);
+                    _tmp4 = _tmp4;
+                    _tmp5 = _mm512_shuffle_epi32(_tmp5, _MM_PERM_CBAD);
+                    _tmp6 = _mm512_shuffle_epi32(_tmp6, _MM_PERM_BADC);
+                    _tmp7 = _mm512_shuffle_epi32(_tmp7, _MM_PERM_ADCB);
+                    _tmp8 = _tmp8;
+                    _tmp9 = _mm512_shuffle_epi32(_tmp9, _MM_PERM_CBAD);
+                    _tmpa = _mm512_shuffle_epi32(_tmpa, _MM_PERM_BADC);
+                    _tmpb = _mm512_shuffle_epi32(_tmpb, _MM_PERM_ADCB);
+                    _tmpc = _tmpc;
+                    _tmpd = _mm512_shuffle_epi32(_tmpd, _MM_PERM_CBAD);
+                    _tmpe = _mm512_shuffle_epi32(_tmpe, _MM_PERM_BADC);
+                    _tmpf = _mm512_shuffle_epi32(_tmpf, _MM_PERM_ADCB);
+
+                    // 0123  4567  89ab  cdef   x 0
+                    // 0123  4567  89ab  cdef   x 1
+                    // 0123  4567  89ab  cdef   x 2
+                    // 0123  4567  89ab  cdef   x 3
+                    // 4567  89ab  cdef  0123   x 4
+                    // 4567  89ab  cdef  0123   x 5
+                    // 4567  89ab  cdef  0123   x 6
+                    // 4567  89ab  cdef  0123   x 7
+                    // 89ab  cdef  0123  4567   x 8
+                    // 89ab  cdef  0123  4567   x 9
+                    // 89ab  cdef  0123  4567   x a
+                    // 89ab  cdef  0123  4567   x b
+                    // cdef  0123  4567  89ab   x c
+                    // cdef  0123  4567  89ab   x d
+                    // cdef  0123  4567  89ab   x e
+                    // cdef  0123  4567  89ab   x f
+
+
+                    _sum0 = _mm512_shuffle_i32x4(_sum0, _sum1, _MM_SHUFFLE(1, 0, 1, 0));
+                    _sum1 = _mm512_shuffle_i32x4(_sum2, _sum3, _MM_SHUFFLE(1, 0, 1, 0));
+                    _sum2 = _mm512_shuffle_i32x4(_sum4, _sum5, _MM_SHUFFLE(0, 3, 0, 3));
+                    _sum3 = _mm512_shuffle_i32x4(_sum6, _sum7, _MM_SHUFFLE(0, 3, 0, 3));
+                    _sum4 = _mm512_shuffle_i32x4(_sum8, _sum9, _MM_SHUFFLE(3, 2, 3, 2));
+                    _sum5 = _mm512_shuffle_i32x4(_suma, _sumb, _MM_SHUFFLE(3, 2, 3, 2));
+                    _sum6 = _mm512_shuffle_i32x4(_sumc, _sumd, _MM_SHUFFLE(2, 1, 2, 1));
+                    _sum7 = _mm512_shuffle_i32x4(_sume, _sumf, _MM_SHUFFLE(2, 1, 2, 1));
+                    _sum8 = _mm512_shuffle_i32x4(_sum0, _sum1, _MM_SHUFFLE(3, 2, 3, 2));
+                    _sum9 = _mm512_shuffle_i32x4(_sum2, _sum3, _MM_SHUFFLE(3, 2, 3, 2));
+                    _suma = _mm512_shuffle_i32x4(_sum4, _sum5, _MM_SHUFFLE(2, 1, 2, 1));
+                    _sumb = _mm512_shuffle_i32x4(_sum6, _sum7, _MM_SHUFFLE(2, 1, 2, 1));
+                    _sumc = _mm512_shuffle_i32x4(_sum8, _sum9, _MM_SHUFFLE(1, 0, 1, 0));
+                    _sumd = _mm512_shuffle_i32x4(_suma, _sumb, _MM_SHUFFLE(1, 0, 1, 0));
+                    _sume = _mm512_shuffle_i32x4(_sumc, _sumd, _MM_SHUFFLE(0, 3, 0, 3));
+                    _sumf = _mm512_shuffle_i32x4(_sume, _sumf, _MM_SHUFFLE(0, 3, 0, 3));
+
+                    _mm512_storeu_si512((__m512i*)outptr0, _sum0);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + 16), _sum1);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + 16 * 2), _sum2);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + 16 * 3), _sum3);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + 16 * 4), _sum4);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + 16 * 5), _sum5);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + 16 * 6), _sum6);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + 16 * 7), _sum7);
+
+                    _mm512_storeu_si512((__m512i*)(outptr0 + out_hstep * 8), _sum8);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + out_hstep * 8 + 16), _sum9);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + out_hstep * 8 + 16 * 2), _suma);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + out_hstep * 8 + 16 * 3), _sumb);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + out_hstep * 8 + 16 * 4), _sumc);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + out_hstep * 8 + 16 * 5), _sumd);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + out_hstep * 8 + 16 * 6), _sume);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + out_hstep * 8 + 16 * 7), _sumf);
+
+                    outptr0 += 128;
+                }
+                if (out_elempack == 4)
+                {
+
+                    // 00 11 22 33  44 55 66 77  88 99 aa bb  cc dd ee ff
+                    // 01 12 23 30  45 56 67 78
+                    // 02
+                    // 03
+
+                    // c0 d1 e2 f3  04 15 26 37  48 59 6a 7b  8c 9d ae bf
+                    // c1 d2 e3 f0
+                    // c2
+                    // c3
+
+                    // 80 91 a2 b3  c4 d5 e6 f7  08 19 2a 3b  4c 5d 6e 7f
+                    // 81
+                    // 82
+                    // 83
+
+                    // 40 51 62 73  84 95 a6 b7  c8 d9 ea fb  0c 1d 2e 3f
+                    // 41
+                    // 42
+                    // 43
+
+                    _sum0 = _sum0;
+                    _sum1 = _mm512_shuffle_epi32(_sum1, _MM_PERM_CBAD);
+                    _sum2 = _mm512_shuffle_epi32(_sum2, _MM_PERM_BADC);
+                    _sum3 = _mm512_shuffle_epi32(_sum3, _MM_PERM_ADCB);
+                    _sum4 = _sum4;
+                    _sum5 = _mm512_shuffle_epi32(_sum5, _MM_PERM_CBAD);
+                    _sum6 = _mm512_shuffle_epi32(_sum6, _MM_PERM_BADC);
+                    _sum7 = _mm512_shuffle_epi32(_sum7, _MM_PERM_ADCB);
+                    _sum8 = _sum8;
+                    _sum9 = _mm512_shuffle_epi32(_sum9, _MM_PERM_CBAD);
+                    _suma = _mm512_shuffle_epi32(_suma, _MM_PERM_BADC);
+                    _sumb = _mm512_shuffle_epi32(_sumb, _MM_PERM_ADCB);
+                    _sumc = _sumc;
+                    _sumd = _mm512_shuffle_epi32(_sumd, _MM_PERM_CBAD);
+                    _sume = _mm512_shuffle_epi32(_sume, _MM_PERM_BADC);
+                    _sumf = _mm512_shuffle_epi32(_sumf, _MM_PERM_ADCB);
+
+                    // 00 11 22 33  44 55 66 77  88 99 aa bb  cc dd ee ff
+                    // 30 01 12 23  74 45 56 67
+                    // 20 31 02 13  64 75 46 57
+                    // 10 21 32 03  54 65 76 47
+
+                    // c0 d1 e2 f3  04 15 26 37  48 59 6a 7b  8c 9d ae bf
+                    // f0
+                    // e0
+                    // d0
+
+                    // 80 91 a2 b3  c4 d5 e6 f7  08 19 2a 3b  4c 5d 6e 7f
+                    // b0
+                    // a0
+                    // 90
+
+                    // 40 51 62 73  84 95 a6 b7  c8 d9 ea fb  0c 1d 2e 3f
+                    // 70
+                    // 60
+                    // 50
+
+                    __m512i _tmp0 = _mm512_unpacklo_epi32(_sum0, _sum3);
+                    __m512i _tmp1 = _mm512_unpackhi_epi32(_sum0, _sum3);
+                    __m512i _tmp2 = _mm512_unpacklo_epi32(_sum2, _sum1);
+                    __m512i _tmp3 = _mm512_unpackhi_epi32(_sum2, _sum1);
+                    __m512i _tmp4 = _mm512_unpacklo_epi32(_sum4, _sum7);
+                    __m512i _tmp5 = _mm512_unpackhi_epi32(_sum4, _sum7);
+                    __m512i _tmp6 = _mm512_unpacklo_epi32(_sum6, _sum5);
+                    __m512i _tmp7 = _mm512_unpackhi_epi32(_sum6, _sum5);
+                    __m512i _tmp8 = _mm512_unpacklo_epi32(_sum8, _sumb);
+                    __m512i _tmp9 = _mm512_unpackhi_epi32(_sum8, _sumb);
+                    __m512i _tmpa = _mm512_unpacklo_epi32(_suma, _sum9);
+                    __m512i _tmpb = _mm512_unpackhi_epi32(_suma, _sum9);
+                    __m512i _tmpc = _mm512_unpacklo_epi32(_sumc, _sumf);
+                    __m512i _tmpd = _mm512_unpackhi_epi32(_sumc, _sumf);
+                    __m512i _tmpe = _mm512_unpacklo_epi32(_sume, _sumd);
+                    __m512i _tmpf = _mm512_unpackhi_epi32(_sume, _sumd);
+
+                    _sum0 = _mm512_unpacklo_epi64(_tmp0, _tmp2);
+                    _sum1 = _mm512_unpackhi_epi64(_tmp0, _tmp2);
+                    _sum2 = _mm512_unpacklo_epi64(_tmp1, _tmp3);
+                    _sum3 = _mm512_unpackhi_epi64(_tmp1, _tmp3);
+                    _sum4 = _mm512_unpacklo_epi64(_tmp4, _tmp6);
+                    _sum5 = _mm512_unpackhi_epi64(_tmp4, _tmp6);
+                    _sum6 = _mm512_unpacklo_epi64(_tmp5, _tmp7);
+                    _sum7 = _mm512_unpackhi_epi64(_tmp5, _tmp7);
+                    _sum8 = _mm512_unpacklo_epi64(_tmp8, _tmpa);
+                    _sum9 = _mm512_unpackhi_epi64(_tmp8, _tmpa);
+                    _suma = _mm512_unpacklo_epi64(_tmp9, _tmpb);
+                    _sumb = _mm512_unpackhi_epi64(_tmp9, _tmpb);
+                    _sumc = _mm512_unpacklo_epi64(_tmpc, _tmpe);
+                    _sumd = _mm512_unpackhi_epi64(_tmpc, _tmpe);
+                    _sume = _mm512_unpacklo_epi64(_tmpd, _tmpf);
+                    _sumf = _mm512_unpackhi_epi64(_tmpd, _tmpf);
+
+                    _sum0 = _sum0;
+                    _sum1 = _mm512_shuffle_epi32(_sum1, _MM_PERM_CBAD);
+                    _sum2 = _mm512_shuffle_epi32(_sum2, _MM_PERM_BADC);
+                    _sum3 = _mm512_shuffle_epi32(_sum3, _MM_PERM_ADCB);
+                    _sum4 = _sum4;
+                    _sum5 = _mm512_shuffle_epi32(_sum5, _MM_PERM_CBAD);
+                    _sum6 = _mm512_shuffle_epi32(_sum6, _MM_PERM_BADC);
+                    _sum7 = _mm512_shuffle_epi32(_sum7, _MM_PERM_ADCB);
+                    _sum8 = _sum8;
+                    _sum9 = _mm512_shuffle_epi32(_sum9, _MM_PERM_CBAD);
+                    _suma = _mm512_shuffle_epi32(_suma, _MM_PERM_BADC);
+                    _sumb = _mm512_shuffle_epi32(_sumb, _MM_PERM_ADCB);
+                    _sumc = _sumc;
+                    _sumd = _mm512_shuffle_epi32(_sumd, _MM_PERM_CBAD);
+                    _sume = _mm512_shuffle_epi32(_sume, _MM_PERM_BADC);
+                    _sumf = _mm512_shuffle_epi32(_sumf, _MM_PERM_ADCB);
+
+                    // 00 10 20 30  44 54 64 74  88 98 a8 b8  cc dc ec fc
+                    // 01 11 21 31  45 55 65 75  89 99 a9 b9  cd dd ed fd
+                    // 02 12 22 32  46 56 66 76  8a 9a aa ba  ce de ee fe
+                    // 03 13 23 33  47 57 67 77  8b 9b ab bb  cf df ef ff
+
+                    // c0 d0 e0 f0  04 14 24 34  48 58 68 78  8c 9c ac bc
+                    // c1 d1 e1 f1  05 15 25 35  49 59 69 79  8d 9d ad bd
+                    // c2 d2 e2 f2  06 16 26 36  4a 5a 6a 7a  8e 9e ae be
+                    // c3 d3 e3 f3  07 17 27 37  4b 5b 6b 7b  8f 9f af bf
+
+                    // 80 90 a0 b0  c4 d4 e4 f4  08 18 28 38  4c 5c 6c 7c
+                    // 81 91 a1 b1  c5 d5 e5 f5  09 19 29 39  4d 5d 6d 7d
+                    // 82 92 a2 b2  c6 d6 e6 f6  0a 1a 2a 3a  4e 5e 6e 7e
+                    // 83 93 a3 b3  c7 d7 e7 f7  0b 1b 2b 3b  4f 5f 6f 7f
+
+                    // 40 50 60 70  84 94 a4 b4  c8 d8 e8 f8  0c 1c 2c 3c
+                    // 41 51 61 71  85 95 a5 b5  c9 d9 e9 f9  0d 1d 2d 3d
+                    // 42 52 62 72  86 96 a6 b6  ca da ea fa  0e 1e 2e 3e
+                    // 43 53 63 73  87 97 a7 b7  cb db eb fb  0f 1f 2f 3f
+
+
+
+                    // 00  44  88  cc
+                    // 01  45  89  cd
+                    // 02  46  8a  ce
+                    // 03  47  8b  cf
+
+                    // c0  04  48  8c
+                    // c1  05  49  8d
+                    // c2  06  4a  8e
+                    // c3  07  4b  8f
+
+                    // 80  c4  08  4c
+                    // 81  c5  09  4d
+                    // 82  c6  0a  4e
+                    // 83  c7  0b  4f
+
+                    // 40  84  c8  0c
+                    // 41  85  c9  0d
+                    // 42  86  ca  0e
+                    // 43  87  cb  0f
+
+                    _tmp0 = _mm512_shuffle_i32x4(_sum0, _sum1, _MM_SHUFFLE(2, 0, 2, 0));
+                    _tmp1 = _mm512_shuffle_i32x4(_sum2, _sum3, _MM_SHUFFLE(2, 0, 2, 0));
+                    _tmp2 = _mm512_shuffle_i32x4(_sum4, _sum5, _MM_SHUFFLE(3, 1, 3, 1));
+                    _tmp3 = _mm512_shuffle_i32x4(_sum6, _sum7, _MM_SHUFFLE(3, 1, 3, 1));
+
+                    _tmp4 = _mm512_shuffle_i32x4(_sum8, _sum9, _MM_SHUFFLE(0, 2, 0, 2));
+                    _tmp5 = _mm512_shuffle_i32x4(_suma, _sumb, _MM_SHUFFLE(0, 2, 0, 2));
+                    _tmp6 = _mm512_shuffle_i32x4(_sumc, _sumd, _MM_SHUFFLE(1, 3, 1, 3));
+                    _tmp7 = _mm512_shuffle_i32x4(_sume, _sumf, _MM_SHUFFLE(1, 3, 1, 3));
+
+                    _tmp8 = _mm512_shuffle_i32x4(_sumc, _sumd, _MM_SHUFFLE(2, 0, 2, 0));
+                    _tmp9 = _mm512_shuffle_i32x4(_sume, _sumf, _MM_SHUFFLE(2, 0, 2, 0));
+                    _tmpa = _mm512_shuffle_i32x4(_sum0, _sum1, _MM_SHUFFLE(3, 1, 3, 1));
+                    _tmpb = _mm512_shuffle_i32x4(_sum2, _sum3, _MM_SHUFFLE(3, 1, 3, 1));
+
+                    _tmpc = _mm512_shuffle_i32x4(_sum4, _sum5, _MM_SHUFFLE(0, 2, 0, 2));
+                    _tmpd = _mm512_shuffle_i32x4(_sum6, _sum7, _MM_SHUFFLE(0, 2, 0, 2));
+                    _tmpe = _mm512_shuffle_i32x4(_sum8, _sum9, _MM_SHUFFLE(1, 3, 1, 3));
+                    _tmpf = _mm512_shuffle_i32x4(_suma, _sumb, _MM_SHUFFLE(1, 3, 1, 3));
+
+                    // 00  88  01  89
+                    // 02  8a  03  8b
+                    // 04  8c  05  8d
+                    // 06  8e  07  8f
+
+                    // 08  80  09  81
+                    // 0a  82  0b  83
+                    // 0c  84  0d  85
+                    // 0e  86  0f  87
+
+                    // 40  c8  41  c9
+                    // 42  ca  43  cb
+                    // 44  cc  45  cd
+                    // 46  ce  47  cf
+
+                    // 48  c0  49  c1
+                    // 4a  c2  4b  c3
+                    // 4c  c4  4d  c5
+                    // 4e  c6  4f  c7
+
+
+                    _sum0 = _mm512_shuffle_i32x4(_tmp0, _tmp1, _MM_SHUFFLE(2, 0, 2, 0));
+                    _sum1 = _mm512_shuffle_i32x4(_tmp2, _tmp3, _MM_SHUFFLE(2, 0, 2, 0));
+                    _sum2 = _mm512_shuffle_i32x4(_tmp4, _tmp5, _MM_SHUFFLE(2, 0, 2, 0));
+                    _sum3 = _mm512_shuffle_i32x4(_tmp6, _tmp7, _MM_SHUFFLE(2, 0, 2, 0));
+
+                    _sum4 = _mm512_shuffle_i32x4(_tmp8, _tmp9, _MM_SHUFFLE(2, 0, 2, 0));
+                    _sum5 = _mm512_shuffle_i32x4(_tmpa, _tmpb, _MM_SHUFFLE(2, 0, 2, 0));
+                    _sum6 = _mm512_shuffle_i32x4(_tmpc, _tmpd, _MM_SHUFFLE(2, 0, 2, 0));
+                    _sum7 = _mm512_shuffle_i32x4(_tmpe, _tmpf, _MM_SHUFFLE(2, 0, 2, 0));
+
+                    _sum8 = _mm512_shuffle_i32x4(_tmp4, _tmp5, _MM_SHUFFLE(3, 1, 3, 1));
+                    _sum9 = _mm512_shuffle_i32x4(_tmp6, _tmp7, _MM_SHUFFLE(3, 1, 3, 1));
+                    _suma = _mm512_shuffle_i32x4(_tmp0, _tmp1, _MM_SHUFFLE(3, 1, 3, 1));
+                    _sumb = _mm512_shuffle_i32x4(_tmp2, _tmp3, _MM_SHUFFLE(3, 1, 3, 1));
+
+                    _sumc = _mm512_shuffle_i32x4(_tmpc, _tmpd, _MM_SHUFFLE(3, 1, 3, 1));
+                    _sumd = _mm512_shuffle_i32x4(_tmpe, _tmpf, _MM_SHUFFLE(3, 1, 3, 1));
+                    _sume = _mm512_shuffle_i32x4(_tmp8, _tmp9, _MM_SHUFFLE(3, 1, 3, 1));
+                    _sumf = _mm512_shuffle_i32x4(_tmpa, _tmpb, _MM_SHUFFLE(3, 1, 3, 1));
+
+
+                    _mm512_storeu_si512((__m512i*)outptr0, _sum0);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + 16), _sum1);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + 32), _sum2);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + 48), _sum3);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + out_hstep * 4), _sum4);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + out_hstep * 4 + 16), _sum5);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + out_hstep * 4 + 32), _sum6);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + out_hstep * 4 + 48), _sum7);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + out_hstep * 8), _sum8);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + out_hstep * 8 + 16), _sum9);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + out_hstep * 8 + 32), _suma);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + out_hstep * 8 + 48), _sumb);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + out_hstep * 12), _sumc);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + out_hstep * 12 + 16), _sumd);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + out_hstep * 12 + 32), _sume);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + out_hstep * 12 + 48), _sumf);
+
+                    outptr0 += 64;
+                }
+                if (out_elempack == 1)
+                {
+                    // 0123 4567 89ab cdef
+                    // cdef 0123 4567 89ab
+                    // 89ab cdef 0123 4567
+                    // 4567 89ab cdef 0123
+
+                    // 0123 4567 89ab cdef
+                    // 1230 5674 9ab8 defc
+                    // 2301 6745 ab89 efcd
+                    // 3012 7456 b89a fcde
+
+
+                    // 00 11 22 33  44 55 66 77  88 99 aa bb  cc dd ee ff
+                    // 01 12 23 30  45 56 67 78
+                    // 02
+                    // 03
+
+                    // c0 d1 e2 f3  04 15 26 37  48 59 6a 7b  8c 9d ae bf
+                    // c1 d2 e3 f0
+                    // c2
+                    // c3
+
+                    // 80 91 a2 b3  c4 d5 e6 f7  08 19 2a 3b  4c 5d 6e 7f
+                    // 81
+                    // 82
+                    // 83
+
+                    // 40 51 62 73  84 95 a6 b7  c8 d9 ea fb  0c 1d 2e 3f
+                    // 41
+                    // 42
+                    // 43
+
+                    __m512i _tmp0 = _mm512_unpacklo_epi32(_sum0, _sum1);
+                    __m512i _tmp1 = _mm512_unpackhi_epi32(_sum0, _sum1);
+                    __m512i _tmp2 = _mm512_unpacklo_epi32(_sum2, _sum3);
+                    __m512i _tmp3 = _mm512_unpackhi_epi32(_sum2, _sum3);
+                    __m512i _tmp4 = _mm512_unpacklo_epi32(_sum4, _sum5);
+                    __m512i _tmp5 = _mm512_unpackhi_epi32(_sum4, _sum5);
+                    __m512i _tmp6 = _mm512_unpacklo_epi32(_sum6, _sum7);
+                    __m512i _tmp7 = _mm512_unpackhi_epi32(_sum6, _sum7);
+                    __m512i _tmp8 = _mm512_unpacklo_epi32(_sum8, _sum9);
+                    __m512i _tmp9 = _mm512_unpackhi_epi32(_sum8, _sum9);
+                    __m512i _tmpa = _mm512_unpacklo_epi32(_suma, _sumb);
+                    __m512i _tmpb = _mm512_unpackhi_epi32(_suma, _sumb);
+                    __m512i _tmpc = _mm512_unpacklo_epi32(_sumc, _sumd);
+                    __m512i _tmpd = _mm512_unpackhi_epi32(_sumc, _sumd);
+                    __m512i _tmpe = _mm512_unpacklo_epi32(_sume, _sumf);
+                    __m512i _tmpf = _mm512_unpackhi_epi32(_sume, _sumf);
+
+                    _sum0 = _mm512_unpacklo_epi64(_tmp0, _tmp2);
+                    _sum1 = _mm512_unpackhi_epi64(_tmp0, _tmp2);
+                    _sum2 = _mm512_unpacklo_epi64(_tmp1, _tmp3);
+                    _sum3 = _mm512_unpackhi_epi64(_tmp1, _tmp3);
+                    _sum4 = _mm512_unpacklo_epi64(_tmp4, _tmp6);
+                    _sum5 = _mm512_unpackhi_epi64(_tmp4, _tmp6);
+                    _sum6 = _mm512_unpacklo_epi64(_tmp5, _tmp7);
+                    _sum7 = _mm512_unpackhi_epi64(_tmp5, _tmp7);
+                    _sum8 = _mm512_unpacklo_epi64(_tmp8, _tmpa);
+                    _sum9 = _mm512_unpackhi_epi64(_tmp8, _tmpa);
+                    _suma = _mm512_unpacklo_epi64(_tmp9, _tmpb);
+                    _sumb = _mm512_unpackhi_epi64(_tmp9, _tmpb);
+                    _sumc = _mm512_unpacklo_epi64(_tmpc, _tmpe);
+                    _sumd = _mm512_unpackhi_epi64(_tmpc, _tmpe);
+                    _sume = _mm512_unpacklo_epi64(_tmpd, _tmpf);
+                    _sumf = _mm512_unpackhi_epi64(_tmpd, _tmpf);
+
+                    // 00 01 02 03  44 45 46 47  88 89 8a 8b  cc cd ce cf
+                    // 11 12 13 10  55 56        99           dd
+                    // 22           66           aa           ee
+                    // 33           77           bb           ff
+
+                    // c0 c1 c2 c3  04 05 06 07  48 49 4a 4b  8c 8d 8e 8f
+                    // d1 d2        15           59           9d
+                    // e2           26           6a           ae
+                    // f3           37           7b           bf
+
+                    // 80 81 82 83  c4 c5 c6 c7  08 09 0a 0b  4c 4d 4e 4f
+                    // 91           d5           19           5d
+                    // a2           e6           2a           6e
+                    // b3           f7           3b           7f
+
+                    // 40 41 42 43  84 85 86 87  c8 c9 ca cb  0c 0d 0e 0f
+                    // 51           95           d9           1d
+                    // 62           a6           ea           2e
+                    // 73           b7           fb           3f
+
+                    _sum0 = _sum0;
+                    _sum1 = _mm512_shuffle_epi32(_sum1, _MM_PERM_CBAD);
+                    _sum2 = _mm512_shuffle_epi32(_sum2, _MM_PERM_BADC);
+                    _sum3 = _mm512_shuffle_epi32(_sum3, _MM_PERM_ADCB);
+                    _sum4 = _sum4;
+                    _sum5 = _mm512_shuffle_epi32(_sum5, _MM_PERM_CBAD);
+                    _sum6 = _mm512_shuffle_epi32(_sum6, _MM_PERM_BADC);
+                    _sum7 = _mm512_shuffle_epi32(_sum7, _MM_PERM_ADCB);
+                    _sum8 = _sum8;
+                    _sum9 = _mm512_shuffle_epi32(_sum9, _MM_PERM_CBAD);
+                    _suma = _mm512_shuffle_epi32(_suma, _MM_PERM_BADC);
+                    _sumb = _mm512_shuffle_epi32(_sumb, _MM_PERM_ADCB);
+                    _sumc = _sumc;
+                    _sumd = _mm512_shuffle_epi32(_sumd, _MM_PERM_CBAD);
+                    _sume = _mm512_shuffle_epi32(_sume, _MM_PERM_BADC);
+                    _sumf = _mm512_shuffle_epi32(_sumf, _MM_PERM_ADCB);
+
+                    // 00 01 02 03  44 45 46 47  88 89 8a 8b  cc cd ce cf
+                    // 10 11 12 13  54 55        98           dc
+                    // 20           64           a8           ec
+                    // 30           74           b8           fc
+
+                    // c0 c1 c2 c3  04 05 06 07  48 49 4a 4b  8c 8d 8e 8f
+                    // d0 d1        14           58           9c
+                    // e0           24           68           ac
+                    // f0           34           78           bc
+
+                    // 80 81 82 83  c4 c5 c6 c7  08 09 0a 0b  4c 4d 4e 4f
+                    // 90           d4           18           5c
+                    // a0           e4           28           6c
+                    // b0           f4           38           7c
+
+                    // 40 41 42 43  84 85 86 87  c8 c9 ca cb  0c 0d 0e 0f
+                    // 50           94           d8           1c
+                    // 60           a4           e8           2c
+                    // 70           b4           f8           3c
+
+                    // 00  44  88  cc
+                    // 10  54  98  dc
+                    // 20  64  a8  ec
+                    // 30  74  b8  fc
+
+                    // c0  04  48  8c
+                    // d0  14  58  9c
+                    // e0  24  68  ac
+                    // f0  34  78  bc
+
+                    // 80  c4  08  4c
+                    // 90  d4  18  5c
+                    // a0  e4  28  6c
+                    // b0  f4  38  7c
+
+                    // 40  84  c8  0c
+                    // 50  94  d8  1c
+                    // 60  a4  e8  2c
+                    // 70  b4  f8  3c
+
+                    _tmp0 = _mm512_shuffle_i32x4(_sum0, _sum4, _MM_SHUFFLE(3, 1, 2, 0));
+                    _tmp1 = _mm512_shuffle_i32x4(_sum1, _sum5, _MM_SHUFFLE(3, 1, 2, 0));
+                    _tmp2 = _mm512_shuffle_i32x4(_sum2, _sum6, _MM_SHUFFLE(3, 1, 2, 0));
+                    _tmp3 = _mm512_shuffle_i32x4(_sum3, _sum7, _MM_SHUFFLE(3, 1, 2, 0));
+
+                    _tmp4 = _mm512_shuffle_i32x4(_sum4, _sum0, _MM_SHUFFLE(3, 1, 2, 0));
+                    _tmp5 = _mm512_shuffle_i32x4(_sum5, _sum1, _MM_SHUFFLE(3, 1, 2, 0));
+                    _tmp6 = _mm512_shuffle_i32x4(_sum6, _sum2, _MM_SHUFFLE(3, 1, 2, 0));
+                    _tmp7 = _mm512_shuffle_i32x4(_sum7, _sum3, _MM_SHUFFLE(3, 1, 2, 0));
+
+                    _tmp8 = _mm512_shuffle_i32x4(_sum8, _sumc, _MM_SHUFFLE(3, 1, 2, 0));
+                    _tmp9 = _mm512_shuffle_i32x4(_sum9, _sumd, _MM_SHUFFLE(3, 1, 2, 0));
+                    _tmpa = _mm512_shuffle_i32x4(_suma, _sume, _MM_SHUFFLE(3, 1, 2, 0));
+                    _tmpb = _mm512_shuffle_i32x4(_sumb, _sumf, _MM_SHUFFLE(3, 1, 2, 0));
+
+                    _tmpc = _mm512_shuffle_i32x4(_sumc, _sum8, _MM_SHUFFLE(3, 1, 2, 0));
+                    _tmpd = _mm512_shuffle_i32x4(_sumd, _sum9, _MM_SHUFFLE(3, 1, 2, 0));
+                    _tmpe = _mm512_shuffle_i32x4(_sume, _suma, _MM_SHUFFLE(3, 1, 2, 0));
+                    _tmpf = _mm512_shuffle_i32x4(_sumf, _sumb, _MM_SHUFFLE(3, 1, 2, 0));
+
+                    // 00 88 04 8c
+                    // 10 98 14 9c
+                    // 20 a8 24 ac
+                    // 30 b8 34 bc
+
+                    // c0 48 44 cc
+                    // d0 58 54 dc
+                    // e0 68 64 ec
+                    // f0 78 74 fc
+
+                    // 80 08 84 0c
+                    // 90 18 94 1c
+                    // a0 28 a4 2c
+                    // b0 38 b4 3c
+
+                    // 40 c8 c4 4c
+                    // 50 d8 d4 5c
+                    // 60 e8 e4 6c
+                    // 70 f8 f4 7c
+
+                    _sum0 = _mm512_shuffle_i32x4(_tmp0, _tmp8, _MM_SHUFFLE(3, 1, 2, 0));
+                    _sum1 = _mm512_shuffle_i32x4(_tmp1, _tmp9, _MM_SHUFFLE(3, 1, 2, 0));
+                    _sum2 = _mm512_shuffle_i32x4(_tmp2, _tmpa, _MM_SHUFFLE(3, 1, 2, 0));
+                    _sum3 = _mm512_shuffle_i32x4(_tmp3, _tmpb, _MM_SHUFFLE(3, 1, 2, 0));
+
+                    _sum4 = _mm512_shuffle_i32x4(_tmpc, _tmp4, _MM_SHUFFLE(1, 2, 3, 0));
+                    _sum5 = _mm512_shuffle_i32x4(_tmpd, _tmp5, _MM_SHUFFLE(1, 2, 3, 0));
+                    _sum6 = _mm512_shuffle_i32x4(_tmpe, _tmp6, _MM_SHUFFLE(1, 2, 3, 0));
+                    _sum7 = _mm512_shuffle_i32x4(_tmpf, _tmp7, _MM_SHUFFLE(1, 2, 3, 0));
+
+                    _sum8 = _mm512_shuffle_i32x4(_tmp8, _tmp0, _MM_SHUFFLE(3, 1, 2, 0));
+                    _sum9 = _mm512_shuffle_i32x4(_tmp9, _tmp1, _MM_SHUFFLE(3, 1, 2, 0));
+                    _suma = _mm512_shuffle_i32x4(_tmpa, _tmp2, _MM_SHUFFLE(3, 1, 2, 0));
+                    _sumb = _mm512_shuffle_i32x4(_tmpb, _tmp3, _MM_SHUFFLE(3, 1, 2, 0));
+
+                    _sumc = _mm512_shuffle_i32x4(_tmp4, _tmpc, _MM_SHUFFLE(1, 2, 3, 0));
+                    _sumd = _mm512_shuffle_i32x4(_tmp5, _tmpd, _MM_SHUFFLE(1, 2, 3, 0));
+                    _sume = _mm512_shuffle_i32x4(_tmp6, _tmpe, _MM_SHUFFLE(1, 2, 3, 0));
+                    _sumf = _mm512_shuffle_i32x4(_tmp7, _tmpf, _MM_SHUFFLE(1, 2, 3, 0));
+
+                    _sum4 = _mm512_shuffle_i32x4(_sum4, _sum4, _MM_SHUFFLE(1, 3, 2, 0));
+                    _sum5 = _mm512_shuffle_i32x4(_sum5, _sum5, _MM_SHUFFLE(1, 3, 2, 0));
+                    _sum6 = _mm512_shuffle_i32x4(_sum6, _sum6, _MM_SHUFFLE(1, 3, 2, 0));
+                    _sum7 = _mm512_shuffle_i32x4(_sum7, _sum7, _MM_SHUFFLE(1, 3, 2, 0));
+                    _sumc = _mm512_shuffle_i32x4(_sumc, _sumc, _MM_SHUFFLE(1, 3, 2, 0));
+                    _sumd = _mm512_shuffle_i32x4(_sumd, _sumd, _MM_SHUFFLE(1, 3, 2, 0));
+                    _sume = _mm512_shuffle_i32x4(_sume, _sume, _MM_SHUFFLE(1, 3, 2, 0));
+                    _sumf = _mm512_shuffle_i32x4(_sumf, _sumf, _MM_SHUFFLE(1, 3, 2, 0));
+
+                    _mm512_storeu_si512((__m512i*)outptr0, _sum0);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + out_hstep), _sum1);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + out_hstep * 2), _sum2);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + out_hstep * 3), _sum3);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + out_hstep * 4), _sum4);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + out_hstep * 5), _sum5);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + out_hstep * 6), _sum6);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + out_hstep * 7), _sum7);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + out_hstep * 8), _sum8);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + out_hstep * 9), _sum9);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + out_hstep * 10), _suma);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + out_hstep * 11), _sumb);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + out_hstep * 12), _sumc);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + out_hstep * 13), _sumd);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + out_hstep * 14), _sume);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + out_hstep * 15), _sumf);
+                    outptr0 += 16;
+                }
+            }
+            else
+            {
+                _mm512_store_si512((__m512i*)outptr, _sum0);
+                _mm512_store_si512((__m512i*)(outptr + 16), _sum1);
+                _mm512_store_si512((__m512i*)(outptr + 32), _sum2);
+                _mm512_store_si512((__m512i*)(outptr + 48), _sum3);
+                _mm512_store_si512((__m512i*)(outptr + 64), _sum4);
+                _mm512_store_si512((__m512i*)(outptr + 80), _sum5);
+                _mm512_store_si512((__m512i*)(outptr + 96), _sum6);
+                _mm512_store_si512((__m512i*)(outptr + 112), _sum7);
+                _mm512_store_si512((__m512i*)(outptr + 128), _sum8);
+                _mm512_store_si512((__m512i*)(outptr + 128 + 16), _sum9);
+                _mm512_store_si512((__m512i*)(outptr + 128 + 32), _suma);
+                _mm512_store_si512((__m512i*)(outptr + 128 + 48), _sumb);
+                _mm512_store_si512((__m512i*)(outptr + 128 + 64), _sumc);
+                _mm512_store_si512((__m512i*)(outptr + 128 + 80), _sumd);
+                _mm512_store_si512((__m512i*)(outptr + 128 + 96), _sume);
+                _mm512_store_si512((__m512i*)(outptr + 128 + 112), _sumf);
+            }
+
+            outptr += 256;
+        }
         for (; jj + 7 < max_jj; jj += 8)
         {
             const signed char* pA = pAT;
@@ -1437,6 +2454,459 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
 
         int jj = 0;
 #if defined(__x86_64__) || defined(_M_X64)
+#if __AVX512F__
+        for (; jj + 15 < max_jj; jj += 16)
+        {
+            const signed char* pA = pAT;
+
+            __m512i _sum0;
+            __m512i _sum1;
+            __m512i _sum2;
+            __m512i _sum3;
+            __m512i _sum4;
+            __m512i _sum5;
+            __m512i _sum6;
+            __m512i _sum7;
+
+            if (k == 0)
+            {
+                _sum0 = _mm512_setzero_si512();
+                _sum1 = _mm512_setzero_si512();
+                _sum2 = _mm512_setzero_si512();
+                _sum3 = _mm512_setzero_si512();
+                _sum4 = _mm512_setzero_si512();
+                _sum5 = _mm512_setzero_si512();
+                _sum6 = _mm512_setzero_si512();
+                _sum7 = _mm512_setzero_si512();
+            }
+            else
+            {
+                _sum0 = _mm512_load_si512((const __m512i*)outptr);
+                _sum1 = _mm512_load_si512((const __m512i*)(outptr + 16));
+                _sum2 = _mm512_load_si512((const __m512i*)(outptr + 32));
+                _sum3 = _mm512_load_si512((const __m512i*)(outptr + 48));
+                _sum4 = _mm512_load_si512((const __m512i*)(outptr + 64));
+                _sum5 = _mm512_load_si512((const __m512i*)(outptr + 80));
+                _sum6 = _mm512_load_si512((const __m512i*)(outptr + 96));
+                _sum7 = _mm512_load_si512((const __m512i*)(outptr + 112));
+            }
+
+            int kk = 0;
+            for (; kk + 1 < max_kk; kk += 2)
+            {
+                __m128i _pA = _mm_loadu_si128((const __m128i*)pA);
+                __m256i _pB = _mm256_loadu_si256((const __m256i*)pB);
+
+                __m256i _pA0 = _mm256_cvtepi8_epi16(_pA);
+                __m512i _pB0 = _mm512_cvtepi8_epi16(_pB);
+
+                // 0123 4567 0123 4567
+                // 4567 0123 4567 0123
+                __m512i _pA00 = _mm512_inserti32x8(_mm512_castsi256_si512(_pA0), _pA0, 1);
+                __m512i _pA11 = _mm512_permutex_epi64(_pA00, _MM_SHUFFLE(1, 0, 3, 2));
+
+                // 0123 4567 89ab cdef
+                // 1230 5674 9ab8 defc
+                // 2301 6745 ab89 efcd
+                // 3012 7456 b89a fcde
+                __m512i _pB1 = _mm512_shuffle_epi32(_pB0, _MM_PERM_ADCB);
+                __m512i _pB2 = _mm512_shuffle_epi32(_pB0, _MM_PERM_BADC);
+                __m512i _pB3 = _mm512_shuffle_epi32(_pB0, _MM_PERM_CBAD);
+
+#if __AVX512VNNI__
+                _sum0 = _mm512_dpwssd_epi32(_sum0, _pA00, _pB0);
+                _sum1 = _mm512_dpwssd_epi32(_sum1, _pA00, _pB1);
+                _sum2 = _mm512_dpwssd_epi32(_sum2, _pA00, _pB2);
+                _sum3 = _mm512_dpwssd_epi32(_sum3, _pA00, _pB3);
+                _sum4 = _mm512_dpwssd_epi32(_sum4, _pA11, _pB0);
+                _sum5 = _mm512_dpwssd_epi32(_sum5, _pA11, _pB1);
+                _sum6 = _mm512_dpwssd_epi32(_sum6, _pA11, _pB2);
+                _sum7 = _mm512_dpwssd_epi32(_sum7, _pA11, _pB3);
+#else
+                _sum0 = _mm512_add_epi32(_sum0, _mm512_madd_epi16(_pA00, _pB0));
+                _sum1 = _mm512_add_epi32(_sum1, _mm512_madd_epi16(_pA00, _pB1));
+                _sum2 = _mm512_add_epi32(_sum2, _mm512_madd_epi16(_pA00, _pB2));
+                _sum3 = _mm512_add_epi32(_sum3, _mm512_madd_epi16(_pA00, _pB3));
+                _sum4 = _mm512_add_epi32(_sum4, _mm512_madd_epi16(_pA11, _pB0));
+                _sum5 = _mm512_add_epi32(_sum5, _mm512_madd_epi16(_pA11, _pB1));
+                _sum6 = _mm512_add_epi32(_sum6, _mm512_madd_epi16(_pA11, _pB2));
+                _sum7 = _mm512_add_epi32(_sum7, _mm512_madd_epi16(_pA11, _pB3));
+#endif // __AVX512VNNI__
+
+                pA += 16;
+                pB += 32;
+            }
+            for (; kk < max_kk; kk += 1)
+            {
+                __m128i _pA = _mm_loadl_epi64((const __m128i*)pA);
+                __m128i _pB = _mm_load_si128((const __m128i*)pB);
+
+                _pA = _mm_cvtepi8_epi16(_pA);
+                __m256i _pB0 = _mm256_cvtepi8_epi16(_pB);
+
+                // 01234567 01234567
+                // 45670123 45670123
+                __m256i _pA00 = _mm256_inserti128_si256(_mm256_castsi128_si256(_pA), _pA, 1);
+                __m256i _pA11 = _mm256_permute4x64_epi64(_pA00, _MM_SHUFFLE(2, 3, 0, 1));
+
+                // 01234567 89abcdef
+                // 12305674 9ab8defc
+                // 23016745 ab89efcd
+                // 30127456 b89afcde
+                __m256i _pB1 = _mm256_shufflehi_epi16(_mm256_shufflelo_epi16(_pB0, _MM_SHUFFLE(0, 3, 2, 1)), _MM_SHUFFLE(0, 3, 2, 1));
+                __m256i _pB2 = _mm256_shuffle_epi32(_pB0, _MM_SHUFFLE(2, 3, 0, 1));
+                __m256i _pB3 = _mm256_shufflehi_epi16(_mm256_shufflelo_epi16(_pB0, _MM_SHUFFLE(2, 1, 0, 3)), _MM_SHUFFLE(2, 1, 0, 3));
+
+                __m512i _s0 = _mm512_cvtepi16_epi32(_mm256_mullo_epi16(_pA00, _pB0));
+                __m512i _s1 = _mm512_cvtepi16_epi32(_mm256_mullo_epi16(_pA00, _pB1));
+                __m512i _s2 = _mm512_cvtepi16_epi32(_mm256_mullo_epi16(_pA00, _pB2));
+                __m512i _s3 = _mm512_cvtepi16_epi32(_mm256_mullo_epi16(_pA00, _pB3));
+                __m512i _s4 = _mm512_cvtepi16_epi32(_mm256_mullo_epi16(_pA11, _pB0));
+                __m512i _s5 = _mm512_cvtepi16_epi32(_mm256_mullo_epi16(_pA11, _pB1));
+                __m512i _s6 = _mm512_cvtepi16_epi32(_mm256_mullo_epi16(_pA11, _pB2));
+                __m512i _s7 = _mm512_cvtepi16_epi32(_mm256_mullo_epi16(_pA11, _pB3));
+
+                _sum0 = _mm512_add_epi32(_sum0, _s0);
+                _sum1 = _mm512_add_epi32(_sum1, _s1);
+                _sum2 = _mm512_add_epi32(_sum2, _s2);
+                _sum3 = _mm512_add_epi32(_sum3, _s3);
+                _sum4 = _mm512_add_epi32(_sum4, _s4);
+                _sum5 = _mm512_add_epi32(_sum5, _s5);
+                _sum6 = _mm512_add_epi32(_sum6, _s6);
+                _sum7 = _mm512_add_epi32(_sum7, _s7);
+
+                pA += 8;
+                pB += 16;
+            }
+
+            if (k_end)
+            {
+                if (out_elempack == 8)
+                {
+                    // TODO
+                    // 00 11 22 33  44 55 66 77  08 19 2a 3b  4c 5d 6e 7f
+                    // 01 12 23 30  45 56 67 74  09 1a 2b 38  4d 5e 6f 7c
+                    // 02 13 20 31  46 57 64 75  0a 1b 28 39  4e 5f 6c 7d
+                    // 03 10 21 32  47 54 65 76  0b 18 29 3a  4f 5c 6d 7e
+
+                    // 40 51 62 73  04 15 26 37  48 59 6a 7b  0c 1d 2e 3f
+                    // 41 52 63 70  05 16 27 34  49 5a 6b 78  0d 1e 2f 3c
+                    // 42 53 60 71  06 17 24 35  4a 5b 68 79  0e 1f 2c 3d
+                    // 43 50 61 72  07 14 25 36  4b 58 69 7a  0f 1c 2d 3e
+
+                    _sum0 = _sum0;
+                    _sum1 = _mm512_shuffle_epi32(_sum1, _MM_PERM_CBAD);
+                    _sum2 = _mm512_shuffle_epi32(_sum2, _MM_PERM_BADC);
+                    _sum3 = _mm512_shuffle_epi32(_sum3, _MM_PERM_ADCB);
+                    _sum4 = _sum4;
+                    _sum5 = _mm512_shuffle_epi32(_sum5, _MM_PERM_CBAD);
+                    _sum6 = _mm512_shuffle_epi32(_sum6, _MM_PERM_BADC);
+                    _sum7 = _mm512_shuffle_epi32(_sum7, _MM_PERM_ADCB);
+
+                    // 00 11 22 33  44 55 66 77  08 19 2a 3b  4c 5d 6e 7f
+                    // 30 01 12 23  74 45 56 67  38 09 1a 2b  7c 4d 5e 6f
+                    // 20 31 02 13  64 75 46 57  28 39 0a 1b  6c 7d 4e 5f
+                    // 10 21 32 03  54 65 76 47  18 29 3a 0b  5c 6d 7e 4f
+
+                    // 40 51 62 73  04 15 26 37  48 59 6a 7b  0c 1d 2e 3f
+                    // 70 41 52 63  34 05 16 27  78 49 5a 6b  3c 0d 1e 2f
+                    // 60 71 42 53  24 35 06 17  68 79 4a 5b  2c 3d 0e 1f
+                    // 50 61 72 43  14 25 36 07  58 69 7a 4b  1c 2d 3e 0f
+
+                    __m512i _tmp0 = _mm512_unpacklo_epi32(_sum0, _sum3);
+                    __m512i _tmp1 = _mm512_unpackhi_epi32(_sum0, _sum3);
+                    __m512i _tmp2 = _mm512_unpacklo_epi32(_sum2, _sum1);
+                    __m512i _tmp3 = _mm512_unpackhi_epi32(_sum2, _sum1);
+                    __m512i _tmp4 = _mm512_unpacklo_epi32(_sum4, _sum7);
+                    __m512i _tmp5 = _mm512_unpackhi_epi32(_sum4, _sum7);
+                    __m512i _tmp6 = _mm512_unpacklo_epi32(_sum6, _sum5);
+                    __m512i _tmp7 = _mm512_unpackhi_epi32(_sum6, _sum5);
+
+                    _sum0 = _mm512_unpacklo_epi64(_tmp0, _tmp2);
+                    _sum1 = _mm512_unpackhi_epi64(_tmp0, _tmp2);
+                    _sum2 = _mm512_unpacklo_epi64(_tmp1, _tmp3);
+                    _sum3 = _mm512_unpackhi_epi64(_tmp1, _tmp3);
+                    _sum4 = _mm512_unpacklo_epi64(_tmp4, _tmp6);
+                    _sum5 = _mm512_unpackhi_epi64(_tmp4, _tmp6);
+                    _sum6 = _mm512_unpacklo_epi64(_tmp5, _tmp7);
+                    _sum7 = _mm512_unpackhi_epi64(_tmp5, _tmp7);
+
+                    // 00 10 20 30  44 54 64 74  08 18 28 38  4c 5c 6c 7c
+                    // 11 21 31 01  55 65 75 45  19 29 39 09  5d 6d 7d 4d
+                    // 22 32 02 12  66 76 46 56  2a 3a 0a 1a  6e 7e 4e 5e
+                    // 33 03 13 23  77 47 57 67  3b 0b 1b 2b  7f 4f 5f 6f
+
+                    _sum0 = _sum0;
+                    _sum1 = _mm512_shuffle_epi32(_sum1, _MM_PERM_CBAD);
+                    _sum2 = _mm512_shuffle_epi32(_sum2, _MM_PERM_BADC);
+                    _sum3 = _mm512_shuffle_epi32(_sum3, _MM_PERM_ADCB);
+                    _sum4 = _sum4;
+                    _sum5 = _mm512_shuffle_epi32(_sum5, _MM_PERM_CBAD);
+                    _sum6 = _mm512_shuffle_epi32(_sum6, _MM_PERM_BADC);
+                    _sum7 = _mm512_shuffle_epi32(_sum7, _MM_PERM_ADCB);
+
+                    // 00 10 20 30  44 54 64 74  08 18 28 38  4c 5c 6c 7c
+                    // 01 11 21 31  45 55 65 75  09 19 29 39  4d 5d 6d 7d
+                    // 02 12 22 32  46 56 66 76  0a 1a 2a 3a  4e 5e 6e 7e
+                    // 03 13 23 33  47 57 67 77  0b 1b 2b 3b  4f 5f 6f 7f
+
+                    // 40 50 60 70  04 14 24 34  48 58 68 78  0c 1c 2c 3c
+                    // 41 51 61 71  05 15 25 35  49 59 69 79  0d 1d 2d 3d
+                    // 42 52 62 72  06 16 26 36  4a 5a 6a 7a  0e 1e 2e 3e
+                    // 43 53 63 73  07 17 27 37  4b 5b 6b 7b  0f 1f 2f 3f
+
+                    _tmp0 = _mm512_shuffle_i32x4(_sum0, _sum4, _MM_SHUFFLE(1, 0, 1, 0));
+                    _tmp1 = _mm512_shuffle_i32x4(_sum0, _sum4, _MM_SHUFFLE(3, 2, 3, 2));
+                    _tmp2 = _mm512_shuffle_i32x4(_sum1, _sum5, _MM_SHUFFLE(1, 0, 1, 0));
+                    _tmp3 = _mm512_shuffle_i32x4(_sum1, _sum5, _MM_SHUFFLE(3, 2, 3, 2));
+                    _tmp4 = _mm512_shuffle_i32x4(_sum2, _sum6, _MM_SHUFFLE(1, 0, 1, 0));
+                    _tmp5 = _mm512_shuffle_i32x4(_sum2, _sum6, _MM_SHUFFLE(3, 2, 3, 2));
+                    _tmp6 = _mm512_shuffle_i32x4(_sum3, _sum7, _MM_SHUFFLE(1, 0, 1, 0));
+                    _tmp7 = _mm512_shuffle_i32x4(_sum3, _sum7, _MM_SHUFFLE(3, 2, 3, 2));
+
+                    // 0 4 0 4
+                    // 8 c 8 c
+                    // 1 5 1 5
+                    // 9 d 9 d
+                    // 2 6 2 6
+                    // a e a e
+                    // 3 7 3 7
+                    // b f b f
+                    _sum0 = _mm512_shuffle_i32x4(_tmp0, _tmp2, _MM_SHUFFLE(2, 0, 2, 0));
+                    _sum1 = _mm512_shuffle_i32x4(_tmp4, _tmp6, _MM_SHUFFLE(2, 0, 2, 0));
+                    _sum2 = _mm512_shuffle_i32x4(_tmp0, _tmp2, _MM_SHUFFLE(3, 1, 3, 1));
+                    _sum3 = _mm512_shuffle_i32x4(_tmp4, _tmp6, _MM_SHUFFLE(3, 1, 3, 1));
+                    _sum4 = _mm512_shuffle_i32x4(_tmp1, _tmp3, _MM_SHUFFLE(2, 0, 2, 0));
+                    _sum5 = _mm512_shuffle_i32x4(_tmp5, _tmp7, _MM_SHUFFLE(2, 0, 2, 0));
+                    _sum6 = _mm512_shuffle_i32x4(_tmp1, _tmp3, _MM_SHUFFLE(3, 1, 3, 1));
+                    _sum7 = _mm512_shuffle_i32x4(_tmp5, _tmp7, _MM_SHUFFLE(3, 1, 3, 1));
+
+                    _mm512_storeu_si512((__m512i*)outptr0, _sum0);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + 16), _sum1);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + 32), _sum2);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + 48), _sum3);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + 64), _sum4);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + 80), _sum5);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + 96), _sum6);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + 112), _sum7);
+                    outptr0 += 128;
+                }
+                if (out_elempack == 4)
+                {
+                    // 00 11 22 33  44 55 66 77  08 19 2a 3b  4c 5d 6e 7f
+                    // 01 12 23 30  45 56 67 74  09 1a 2b 38  4d 5e 6f 7c
+                    // 02 13 20 31  46 57 64 75  0a 1b 28 39  4e 5f 6c 7d
+                    // 03 10 21 32  47 54 65 76  0b 18 29 3a  4f 5c 6d 7e
+
+                    // 40 51 62 73  04 15 26 37  48 59 6a 7b  0c 1d 2e 3f
+                    // 41 52 63 70  05 16 27 34  49 5a 6b 78  0d 1e 2f 3c
+                    // 42 53 60 71  06 17 24 35  4a 5b 68 79  0e 1f 2c 3d
+                    // 43 50 61 72  07 14 25 36  4b 58 69 7a  0f 1c 2d 3e
+
+                    _sum0 = _sum0;
+                    _sum1 = _mm512_shuffle_epi32(_sum1, _MM_PERM_CBAD);
+                    _sum2 = _mm512_shuffle_epi32(_sum2, _MM_PERM_BADC);
+                    _sum3 = _mm512_shuffle_epi32(_sum3, _MM_PERM_ADCB);
+                    _sum4 = _sum4;
+                    _sum5 = _mm512_shuffle_epi32(_sum5, _MM_PERM_CBAD);
+                    _sum6 = _mm512_shuffle_epi32(_sum6, _MM_PERM_BADC);
+                    _sum7 = _mm512_shuffle_epi32(_sum7, _MM_PERM_ADCB);
+
+                    // 00 11 22 33  44 55 66 77  08 19 2a 3b  4c 5d 6e 7f
+                    // 30 01 12 23  74 45 56 67  38 09 1a 2b  7c 4d 5e 6f
+                    // 20 31 02 13  64 75 46 57  28 39 0a 1b  6c 7d 4e 5f
+                    // 10 21 32 03  54 65 76 47  18 29 3a 0b  5c 6d 7e 4f
+
+                    // 40 51 62 73  04 15 26 37  48 59 6a 7b  0c 1d 2e 3f
+                    // 70 41 52 63  34 05 16 27  78 49 5a 6b  3c 0d 1e 2f
+                    // 60 71 42 53  24 35 06 17  68 79 4a 5b  2c 3d 0e 1f
+                    // 50 61 72 43  14 25 36 07  58 69 7a 4b  1c 2d 3e 0f
+
+                    __m512i _tmp0 = _mm512_unpacklo_epi32(_sum0, _sum3);
+                    __m512i _tmp1 = _mm512_unpackhi_epi32(_sum0, _sum3);
+                    __m512i _tmp2 = _mm512_unpacklo_epi32(_sum2, _sum1);
+                    __m512i _tmp3 = _mm512_unpackhi_epi32(_sum2, _sum1);
+                    __m512i _tmp4 = _mm512_unpacklo_epi32(_sum4, _sum7);
+                    __m512i _tmp5 = _mm512_unpackhi_epi32(_sum4, _sum7);
+                    __m512i _tmp6 = _mm512_unpacklo_epi32(_sum6, _sum5);
+                    __m512i _tmp7 = _mm512_unpackhi_epi32(_sum6, _sum5);
+
+                    _sum0 = _mm512_unpacklo_epi64(_tmp0, _tmp2);
+                    _sum1 = _mm512_unpackhi_epi64(_tmp0, _tmp2);
+                    _sum2 = _mm512_unpacklo_epi64(_tmp1, _tmp3);
+                    _sum3 = _mm512_unpackhi_epi64(_tmp1, _tmp3);
+                    _sum4 = _mm512_unpacklo_epi64(_tmp4, _tmp6);
+                    _sum5 = _mm512_unpackhi_epi64(_tmp4, _tmp6);
+                    _sum6 = _mm512_unpacklo_epi64(_tmp5, _tmp7);
+                    _sum7 = _mm512_unpackhi_epi64(_tmp5, _tmp7);
+
+                    // 00 10 20 30  44 54 64 74  08 18 28 38  4c 5c 6c 7c
+                    // 11 21 31 01  55 65 75 45  19 29 39 09  5d 6d 7d 4d
+                    // 22 32 02 12  66 76 46 56  2a 3a 0a 1a  6e 7e 4e 5e
+                    // 33 03 13 23  77 47 57 67  3b 0b 1b 2b  7f 4f 5f 6f
+
+                    _sum0 = _sum0;
+                    _sum1 = _mm512_shuffle_epi32(_sum1, _MM_PERM_CBAD);
+                    _sum2 = _mm512_shuffle_epi32(_sum2, _MM_PERM_BADC);
+                    _sum3 = _mm512_shuffle_epi32(_sum3, _MM_PERM_ADCB);
+                    _sum4 = _sum4;
+                    _sum5 = _mm512_shuffle_epi32(_sum5, _MM_PERM_CBAD);
+                    _sum6 = _mm512_shuffle_epi32(_sum6, _MM_PERM_BADC);
+                    _sum7 = _mm512_shuffle_epi32(_sum7, _MM_PERM_ADCB);
+
+                    // 00 10 20 30  44 54 64 74  08 18 28 38  4c 5c 6c 7c
+                    // 01 11 21 31  45 55 65 75  09 19 29 39  4d 5d 6d 7d
+                    // 02 12 22 32  46 56 66 76  0a 1a 2a 3a  4e 5e 6e 7e
+                    // 03 13 23 33  47 57 67 77  0b 1b 2b 3b  4f 5f 6f 7f
+
+                    // 40 50 60 70  04 14 24 34  48 58 68 78  0c 1c 2c 3c
+                    // 41 51 61 71  05 15 25 35  49 59 69 79  0d 1d 2d 3d
+                    // 42 52 62 72  06 16 26 36  4a 5a 6a 7a  0e 1e 2e 3e
+                    // 43 53 63 73  07 17 27 37  4b 5b 6b 7b  0f 1f 2f 3f
+
+                    _tmp0 = _mm512_shuffle_i32x4(_sum0, _sum1, _MM_SHUFFLE(2, 0, 2, 0));
+                    _tmp1 = _mm512_shuffle_i32x4(_sum2, _sum3, _MM_SHUFFLE(2, 0, 2, 0));
+                    _tmp2 = _mm512_shuffle_i32x4(_sum4, _sum5, _MM_SHUFFLE(3, 1, 3, 1));
+                    _tmp3 = _mm512_shuffle_i32x4(_sum6, _sum7, _MM_SHUFFLE(3, 1, 3, 1));
+                    _tmp4 = _mm512_shuffle_i32x4(_sum4, _sum5, _MM_SHUFFLE(2, 0, 2, 0));
+                    _tmp5 = _mm512_shuffle_i32x4(_sum6, _sum7, _MM_SHUFFLE(2, 0, 2, 0));
+                    _tmp6 = _mm512_shuffle_i32x4(_sum0, _sum1, _MM_SHUFFLE(3, 1, 3, 1));
+                    _tmp7 = _mm512_shuffle_i32x4(_sum2, _sum3, _MM_SHUFFLE(3, 1, 3, 1));
+
+                    // 0 8 1 9
+                    // 2 a 3 b
+                    // 4 c 5 d
+                    // 6 e 7 f
+
+                    // 0 8 1 9
+                    // 2 a 3 b
+                    // 4 c 5 d
+                    // 6 e 7 f
+
+                    _sum0 = _mm512_shuffle_i32x4(_tmp0, _tmp1, _MM_SHUFFLE(2, 0, 2, 0));
+                    _sum1 = _mm512_shuffle_i32x4(_tmp2, _tmp3, _MM_SHUFFLE(2, 0, 2, 0));
+                    _sum2 = _mm512_shuffle_i32x4(_tmp0, _tmp1, _MM_SHUFFLE(3, 1, 3, 1));
+                    _sum3 = _mm512_shuffle_i32x4(_tmp2, _tmp3, _MM_SHUFFLE(3, 1, 3, 1));
+                    _sum4 = _mm512_shuffle_i32x4(_tmp4, _tmp5, _MM_SHUFFLE(2, 0, 2, 0));
+                    _sum5 = _mm512_shuffle_i32x4(_tmp6, _tmp7, _MM_SHUFFLE(2, 0, 2, 0));
+                    _sum6 = _mm512_shuffle_i32x4(_tmp4, _tmp5, _MM_SHUFFLE(3, 1, 3, 1));
+                    _sum7 = _mm512_shuffle_i32x4(_tmp6, _tmp7, _MM_SHUFFLE(3, 1, 3, 1));
+
+                    _mm512_storeu_si512((__m512i*)outptr0, _sum0);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + 16), _sum1);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + 32), _sum2);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + 48), _sum3);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + out_hstep * 4), _sum4);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + out_hstep * 4 + 16), _sum5);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + out_hstep * 4 + 32), _sum6);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + out_hstep * 4 + 48), _sum7);
+                    outptr0 += 64;
+                }
+                if (out_elempack == 1)
+                {
+                    // 00 11 22 33  44 55 66 77  08 19 2a 3b  4c 5d 6e 7f
+                    // 01 12 23 30  45 56 67 74  09 1a 2b 38  4d 5e 6f 7c
+                    // 02 13 20 31  46 57 64 75  0a 1b 28 39  4e 5f 6c 7d
+                    // 03 10 21 32  47 54 65 76  0b 18 29 3a  4f 5c 6d 7e
+
+                    // 40 51 62 73  04 15 26 37  48 59 6a 7b  0c 1d 2e 3f
+                    // 41 52 63 70  05 16 27 34  49 5a 6b 78  0d 1e 2f 3c
+                    // 42 53 60 71  06 17 24 35  4a 5b 68 79  0e 1f 2c 3d
+                    // 43 50 61 72  07 14 25 36  4b 58 69 7a  0f 1c 2d 3e
+
+                    __m512i _tmp0 = _mm512_unpacklo_epi32(_sum0, _sum1);
+                    __m512i _tmp1 = _mm512_unpackhi_epi32(_sum0, _sum1);
+                    __m512i _tmp2 = _mm512_unpacklo_epi32(_sum2, _sum3);
+                    __m512i _tmp3 = _mm512_unpackhi_epi32(_sum2, _sum3);
+                    __m512i _tmp4 = _mm512_unpacklo_epi32(_sum4, _sum5);
+                    __m512i _tmp5 = _mm512_unpackhi_epi32(_sum4, _sum5);
+                    __m512i _tmp6 = _mm512_unpacklo_epi32(_sum6, _sum7);
+                    __m512i _tmp7 = _mm512_unpackhi_epi32(_sum6, _sum7);
+
+                    _sum0 = _mm512_unpacklo_epi64(_tmp0, _tmp2);
+                    _sum1 = _mm512_unpackhi_epi64(_tmp0, _tmp2);
+                    _sum2 = _mm512_unpacklo_epi64(_tmp1, _tmp3);
+                    _sum3 = _mm512_unpackhi_epi64(_tmp1, _tmp3);
+                    _sum4 = _mm512_unpacklo_epi64(_tmp4, _tmp6);
+                    _sum5 = _mm512_unpackhi_epi64(_tmp4, _tmp6);
+                    _sum6 = _mm512_unpacklo_epi64(_tmp5, _tmp7);
+                    _sum7 = _mm512_unpackhi_epi64(_tmp5, _tmp7);
+
+                    // 00 01 02 03  44 45 46 47  08 09 0a 0b  4c 4d 4e 4f
+                    // 11 12 13 10  55 56 57 54  19 1a 1b 18
+                    // 22 23 20 21
+                    // 33 30 31 32
+
+                    // 40 41 42 43  04 05 06 07
+                    // 51 52 53 50  15 16 17 14
+                    // 62 63 60 61  26 27 24 25
+                    // 73 70 71 72  37 34 35 36
+
+                    _sum0 = _sum0;
+                    _sum1 = _mm512_shuffle_epi32(_sum1, _MM_PERM_CBAD);
+                    _sum2 = _mm512_shuffle_epi32(_sum2, _MM_PERM_BADC);
+                    _sum3 = _mm512_shuffle_epi32(_sum3, _MM_PERM_ADCB);
+                    _sum4 = _sum4;
+                    _sum5 = _mm512_shuffle_epi32(_sum5, _MM_PERM_CBAD);
+                    _sum6 = _mm512_shuffle_epi32(_sum6, _MM_PERM_BADC);
+                    _sum7 = _mm512_shuffle_epi32(_sum7, _MM_PERM_ADCB);
+
+                    // 00 01 02 03  44 45 46 47  08 09 0a 0b  4c 4d 4e 4f
+                    // 10 11 12 13  54 55 56 57  18 19 1a 1b
+                    // 20 21 22 23
+                    // 30 31 32 33
+
+                    // 40 41 42 43  04 05 06 07
+                    // 50 51 52 53  14 15 16 17
+                    // 60 61 62 63  24 25 26 27
+                    // 70 71 72 73  34 35 36 37
+
+                    _tmp0 = _mm512_shuffle_i32x4(_sum0, _sum4, _MM_SHUFFLE(3, 1, 2, 0));
+                    _tmp1 = _mm512_shuffle_i32x4(_sum1, _sum5, _MM_SHUFFLE(3, 1, 2, 0));
+                    _tmp2 = _mm512_shuffle_i32x4(_sum2, _sum6, _MM_SHUFFLE(3, 1, 2, 0));
+                    _tmp3 = _mm512_shuffle_i32x4(_sum3, _sum7, _MM_SHUFFLE(3, 1, 2, 0));
+                    _tmp4 = _mm512_shuffle_i32x4(_sum4, _sum0, _MM_SHUFFLE(3, 1, 2, 0));
+                    _tmp5 = _mm512_shuffle_i32x4(_sum5, _sum1, _MM_SHUFFLE(3, 1, 2, 0));
+                    _tmp6 = _mm512_shuffle_i32x4(_sum6, _sum2, _MM_SHUFFLE(3, 1, 2, 0));
+                    _tmp7 = _mm512_shuffle_i32x4(_sum7, _sum3, _MM_SHUFFLE(3, 1, 2, 0));
+
+                    // 0 8 4 c
+                    _sum0 = _mm512_shuffle_i32x4(_tmp0, _tmp0, _MM_SHUFFLE(3, 1, 2, 0));
+                    _sum1 = _mm512_shuffle_i32x4(_tmp1, _tmp1, _MM_SHUFFLE(3, 1, 2, 0));
+                    _sum2 = _mm512_shuffle_i32x4(_tmp2, _tmp2, _MM_SHUFFLE(3, 1, 2, 0));
+                    _sum3 = _mm512_shuffle_i32x4(_tmp3, _tmp3, _MM_SHUFFLE(3, 1, 2, 0));
+                    _sum4 = _mm512_shuffle_i32x4(_tmp4, _tmp4, _MM_SHUFFLE(3, 1, 2, 0));
+                    _sum5 = _mm512_shuffle_i32x4(_tmp5, _tmp5, _MM_SHUFFLE(3, 1, 2, 0));
+                    _sum6 = _mm512_shuffle_i32x4(_tmp6, _tmp6, _MM_SHUFFLE(3, 1, 2, 0));
+                    _sum7 = _mm512_shuffle_i32x4(_tmp7, _tmp7, _MM_SHUFFLE(3, 1, 2, 0));
+
+                    _mm512_storeu_si512((__m512i*)outptr0, _sum0);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + out_hstep), _sum1);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + out_hstep * 2), _sum2);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + out_hstep * 3), _sum3);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + out_hstep * 4), _sum4);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + out_hstep * 5), _sum5);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + out_hstep * 6), _sum6);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + out_hstep * 7), _sum7);
+
+                    outptr0 += 16;
+                }
+            }
+            else
+            {
+                _mm512_store_si512((__m512i*)outptr, _sum0);
+                _mm512_store_si512((__m512i*)(outptr + 16), _sum1);
+                _mm512_store_si512((__m512i*)(outptr + 32), _sum2);
+                _mm512_store_si512((__m512i*)(outptr + 48), _sum3);
+                _mm512_store_si512((__m512i*)(outptr + 64), _sum4);
+                _mm512_store_si512((__m512i*)(outptr + 80), _sum5);
+                _mm512_store_si512((__m512i*)(outptr + 96), _sum6);
+                _mm512_store_si512((__m512i*)(outptr + 112), _sum7);
+            }
+
+            outptr += 128;
+        }
+#endif // __AVX512F__
         for (; jj + 7 < max_jj; jj += 8)
         {
             const signed char* pA = pAT;
@@ -2354,6 +3824,214 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
 
         int jj = 0;
 #if defined(__x86_64__) || defined(_M_X64)
+#if __AVX512F__
+        for (; jj + 15 < max_jj; jj += 16)
+        {
+            const signed char* pA = pAT;
+
+            __m512i _sum0;
+            __m512i _sum1;
+            __m512i _sum2;
+            __m512i _sum3;
+
+            if (k == 0)
+            {
+                _sum0 = _mm512_setzero_si512();
+                _sum1 = _mm512_setzero_si512();
+                _sum2 = _mm512_setzero_si512();
+                _sum3 = _mm512_setzero_si512();
+            }
+            else
+            {
+                _sum0 = _mm512_load_si512((const __m512i*)outptr);
+                _sum1 = _mm512_load_si512((const __m512i*)(outptr + 16));
+                _sum2 = _mm512_load_si512((const __m512i*)(outptr + 32));
+                _sum3 = _mm512_load_si512((const __m512i*)(outptr + 48));
+            }
+
+            int kk = 0;
+            for (; kk + 1 < max_kk; kk += 2)
+            {
+                __m256i _pA = _mm256_castpd_si256(_mm256_broadcast_sd((const double*)pA));
+                __m256i _pB = _mm256_loadu_si256((const __m256i*)pB);
+
+                __m512i _pA0 = _mm512_cvtepi8_epi16(_pA);
+                __m512i _pB0 = _mm512_cvtepi8_epi16(_pB);
+
+                // 0123 0123 0123 0123
+                // 2301 2301 2301 2301
+                __m512i _pA1 = _mm512_shuffle_epi32(_pA0, _MM_PERM_BADC);
+
+                // 0123 4567 89ab cdef
+                // 1230 5674 9ab8 defc
+                __m512i _pB1 = _mm512_shuffle_epi32(_pB0, _MM_PERM_ADCB);
+
+#if __AVX512VNNI__
+                _sum0 = _mm512_dpwssd_epi32(_sum0, _pA0, _pB0);
+                _sum1 = _mm512_dpwssd_epi32(_sum1, _pA0, _pB1);
+                _sum2 = _mm512_dpwssd_epi32(_sum2, _pA1, _pB0);
+                _sum3 = _mm512_dpwssd_epi32(_sum3, _pA1, _pB1);
+#else
+                _sum0 = _mm512_add_epi32(_sum0, _mm512_madd_epi16(_pA0, _pB0));
+                _sum1 = _mm512_add_epi32(_sum1, _mm512_madd_epi16(_pA0, _pB1));
+                _sum2 = _mm512_add_epi32(_sum2, _mm512_madd_epi16(_pA1, _pB0));
+                _sum3 = _mm512_add_epi32(_sum3, _mm512_madd_epi16(_pA1, _pB1));
+#endif
+
+                pA += 8;
+                pB += 32;
+            }
+            for (; kk < max_kk; kk += 1)
+            {
+                __m128i _pA = _mm_castps_si128(_mm_load1_ps((const float*)pA));
+                __m128i _pB = _mm_load_si128((const __m128i*)pB);
+
+                __m256i _pA0 = _mm256_cvtepi8_epi16(_pA);
+                __m256i _pB0 = _mm256_cvtepi8_epi16(_pB);
+
+                // 01230123 01230123
+                // 23012301 23012301
+                __m256i _pA1 = _mm256_shuffle_epi32(_pA0, _MM_SHUFFLE(2, 3, 0, 1));
+
+                // 01234567 89abcdef
+                // 12305674 9ab8defc
+                __m256i _pB1 = _mm256_shufflehi_epi16(_mm256_shufflelo_epi16(_pB0, _MM_SHUFFLE(0, 3, 2, 1)), _MM_SHUFFLE(0, 3, 2, 1));
+
+                __m512i _s0 = _mm512_cvtepi16_epi32(_mm256_mullo_epi16(_pA0, _pB0));
+                __m512i _s1 = _mm512_cvtepi16_epi32(_mm256_mullo_epi16(_pA0, _pB1));
+                __m512i _s2 = _mm512_cvtepi16_epi32(_mm256_mullo_epi16(_pA1, _pB0));
+                __m512i _s3 = _mm512_cvtepi16_epi32(_mm256_mullo_epi16(_pA1, _pB1));
+
+                _sum0 = _mm512_add_epi32(_sum0, _s0);
+                _sum1 = _mm512_add_epi32(_sum1, _s1);
+                _sum2 = _mm512_add_epi32(_sum2, _s2);
+                _sum3 = _mm512_add_epi32(_sum3, _s3);
+
+                pA += 4;
+                pB += 16;
+            }
+
+            if (k_end)
+            {
+                if (out_elempack == 4)
+                {
+                    // 00 11 22 33  04 15 26 37  08 19 2a 3b  0c 1d 2e 3f
+                    // 01 12 23 30  05 16 27 34  09 1a 2b 38  0d 1e 2f 3c
+                    // 20 31 02 13  24 35 06 17  28 3a 0a 1b  2c 3d 0e 1f
+                    // 21 32 03 10  25 36 07 14  29 3a 0b 18  2d 3e 0f 1c
+
+                    _sum0 = _sum0;
+                    _sum1 = _mm512_shuffle_epi32(_sum1, _MM_PERM_CBAD);
+                    _sum2 = _sum2;
+                    _sum3 = _mm512_shuffle_epi32(_sum3, _MM_PERM_CBAD);
+
+                    // 00 11 22 33  04 15 26 37  08 19 2a 3b  0c 1d 2e 3f
+                    // 30 01 12 23  34 05 16 27  38 09 1a 2b  3c 0d 1e 2f
+                    // 20 31 02 13  24 35 06 17  28 39 0a 1b  2c 3d 0e 1f
+                    // 10 21 32 03  14 25 36 07  18 29 3a 0b  1c 2d 3e 0f
+
+                    __m512i _tmp0 = _mm512_unpacklo_epi32(_sum0, _sum3);
+                    __m512i _tmp1 = _mm512_unpackhi_epi32(_sum0, _sum3);
+                    __m512i _tmp2 = _mm512_unpacklo_epi32(_sum2, _sum1);
+                    __m512i _tmp3 = _mm512_unpackhi_epi32(_sum2, _sum1);
+
+                    // 00 10 11 21  04 14 15 25  08 18 19 29  0c 1c 1d 2d
+                    // 22 32 33 03  26 36 37 07  2a 3a 3b 0b  2e 3e 3f 0f
+                    // 20 30 31 01  24 34 35 05  28 38 39 09  2c 3c 3d 0d
+                    // 02 12 13 23  06 16 17 27  0a 1a 1b 2b  0e 1e 1f 2f
+
+                    _sum0 = _mm512_unpacklo_epi64(_tmp0, _tmp2);
+                    _sum1 = _mm512_unpackhi_epi64(_tmp0, _tmp2);
+                    _sum2 = _mm512_unpacklo_epi64(_tmp1, _tmp3);
+                    _sum3 = _mm512_unpackhi_epi64(_tmp1, _tmp3);
+
+                    // 00 10 20 30  04 14 24 34  08 18 28 38  0c 1c 2c 3c
+                    // 11 21 31 01  15 25 35 05  19 29 39 09  1d 2d 3d 0d
+                    // 22 32 02 12  26 36 06 16  2a 3a 0a 1a  2e 3e 0e 1e
+                    // 33 03 13 23  37 07 17 27  3b 0b 1b 2b  3f 0f 1f 2f
+
+                    _sum0 = _sum0;
+                    _sum1 = _mm512_shuffle_epi32(_sum1, _MM_PERM_CBAD);
+                    _sum2 = _mm512_shuffle_epi32(_sum2, _MM_PERM_BADC);
+                    _sum3 = _mm512_shuffle_epi32(_sum3, _MM_PERM_ADCB);
+
+                    // 00 10 20 30  04 14 24 34  08 18 28 38  0c 1c 2c 3c
+                    // 01 11 21 31  05 15 25 35  09 19 29 39  0d 1d 2d 3d
+                    // 02 12 22 32  06 16 26 36  0a 1a 2a 3a  0e 1e 2e 3e
+                    // 03 13 23 33  07 17 27 37  0b 1b 2b 3b  0f 1f 2f 3f
+
+                    _tmp0 = _mm512_shuffle_i32x4(_sum0, _sum1, _MM_SHUFFLE(1, 0, 1, 0));
+                    _tmp1 = _mm512_shuffle_i32x4(_sum2, _sum3, _MM_SHUFFLE(1, 0, 1, 0));
+                    _tmp2 = _mm512_shuffle_i32x4(_sum0, _sum1, _MM_SHUFFLE(3, 2, 3, 2));
+                    _tmp3 = _mm512_shuffle_i32x4(_sum2, _sum3, _MM_SHUFFLE(3, 2, 3, 2));
+
+                    _sum0 = _mm512_shuffle_i32x4(_tmp0, _tmp1, _MM_SHUFFLE(2, 0, 2, 0));
+                    _sum1 = _mm512_shuffle_i32x4(_tmp0, _tmp1, _MM_SHUFFLE(3, 1, 3, 1));
+                    _sum2 = _mm512_shuffle_i32x4(_tmp2, _tmp3, _MM_SHUFFLE(2, 0, 2, 0));
+                    _sum3 = _mm512_shuffle_i32x4(_tmp2, _tmp3, _MM_SHUFFLE(3, 1, 3, 1));
+
+                    _mm512_storeu_si512((__m512i*)outptr0, _sum0);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + 16), _sum1);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + 32), _sum2);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + 48), _sum3);
+                    outptr0 += 64;
+                }
+                if (out_elempack == 1)
+                {
+                    // 00 11 22 33  04 15 26 37  08 19 2a 3b  0c 1d 2e 3f
+                    // 01 12 23 30  05 16 27 34  09 1a 2b 38  0d 1e 2f 3c
+                    // 20 31 02 13  24 35 06 17  28 3a 0a 1b  2c 3d 0e 1f
+                    // 21 32 03 10  25 36 07 14  29 3a 0b 18  2d 3e 0f 1c
+
+                    _sum0 = _sum0;
+                    _sum1 = _sum1;
+                    _sum2 = _mm512_shuffle_epi32(_sum2, _MM_PERM_BADC);
+                    _sum3 = _mm512_shuffle_epi32(_sum3, _MM_PERM_BADC);
+
+                    // 00 11 22 33  04 15 26 37  08 19 2a 3b  0c 1d 2e 3f
+                    // 01 12 23 30  05 16 27 34  09 1a 2b 38  0d 1e 2f 3c
+                    // 02 13 20 31  06 17 24 35  0a 1b 28 3a  0e 1f 2c 3d
+                    // 03 10 21 32  07 14 25 36  0b 18 2a 3b  0f 1c 2d 3e
+
+                    __m512i _tmp0 = _mm512_unpacklo_epi32(_sum0, _sum1);
+                    __m512i _tmp1 = _mm512_unpackhi_epi32(_sum0, _sum1);
+                    __m512i _tmp2 = _mm512_unpacklo_epi32(_sum2, _sum3);
+                    __m512i _tmp3 = _mm512_unpackhi_epi32(_sum2, _sum3);
+
+                    _sum0 = _mm512_unpacklo_epi64(_tmp0, _tmp2);
+                    _sum1 = _mm512_unpackhi_epi64(_tmp0, _tmp2);
+                    _sum2 = _mm512_unpacklo_epi64(_tmp1, _tmp3);
+                    _sum3 = _mm512_unpackhi_epi64(_tmp1, _tmp3);
+
+                    // 00 01 02 03  04 05 06 07  08 09 0a 0b  ....
+                    // 11 12 13 10  15 16 17 14  19 1a 1b 18  ....
+                    // 22 23 20 21
+                    // 33 30 31 32
+
+                    _sum0 = _sum0;
+                    _sum1 = _mm512_shuffle_epi32(_sum1, _MM_PERM_CBAD);
+                    _sum2 = _mm512_shuffle_epi32(_sum2, _MM_PERM_BADC);
+                    _sum3 = _mm512_shuffle_epi32(_sum3, _MM_PERM_ADCB);
+
+                    _mm512_storeu_si512((__m512i*)outptr0, _sum0);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + out_hstep), _sum1);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + out_hstep * 2), _sum2);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + out_hstep * 3), _sum3);
+
+                    outptr0 += 16;
+                }
+            }
+            else
+            {
+                _mm512_store_si512((__m512i*)outptr, _sum0);
+                _mm512_store_si512((__m512i*)(outptr + 16), _sum1);
+                _mm512_store_si512((__m512i*)(outptr + 32), _sum2);
+                _mm512_store_si512((__m512i*)(outptr + 48), _sum3);
+            }
+
+            outptr += 64;
+        }
+#endif // __AVX512F__
         for (; jj + 7 < max_jj; jj += 8)
         {
             const signed char* pA = pAT;
@@ -3069,6 +4747,107 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
         int jj = 0;
 #if __SSE2__
 #if defined(__x86_64__) || defined(_M_X64)
+#if __AVX512F__
+        for (; jj + 15 < max_jj; jj += 16)
+        {
+            __m512i _sum0;
+            __m512i _sum1;
+
+            if (k == 0)
+            {
+                _sum0 = _mm512_setzero_si512();
+                _sum1 = _mm512_setzero_si512();
+            }
+            else
+            {
+                _sum0 = _mm512_load_si512((const __m512i*)outptr);
+                _sum1 = _mm512_load_si512((const __m512i*)(outptr + 16));
+            }
+
+            const signed char* pA = pAT;
+            int kk = 0;
+            for (; kk + 1 < max_kk; kk += 2)
+            {
+                __m256i _pA = _mm256_castps_si256(_mm256_broadcast_ss((const float*)pA));
+                __m256i _pB = _mm256_loadu_si256((const __m256i*)pB);
+
+                __m512i _pA0 = _mm512_cvtepi8_epi16(_pA);
+                __m512i _pB0 = _mm512_cvtepi8_epi16(_pB);
+
+                // 0101 0101 0101 0101
+
+                // 0123 4567 89ab cdef
+                // 1230 5674 9ab8 defc
+                __m512i _pB1 = _mm512_shuffle_epi32(_pB0, _MM_PERM_ADCB);
+
+#if __AVX512VNNI__
+                _sum0 = _mm512_dpwssd_epi32(_sum0, _pA0, _pB0);
+                _sum1 = _mm512_dpwssd_epi32(_sum1, _pA0, _pB1);
+#else
+                _sum0 = _mm512_add_epi32(_sum0, _mm512_madd_epi16(_pA0, _pB0));
+                _sum1 = _mm512_add_epi32(_sum1, _mm512_madd_epi16(_pA0, _pB1));
+#endif
+
+                pA += 4;
+                pB += 32;
+            }
+            for (; kk < max_kk; kk += 1)
+            {
+                __m128i _pA = _mm_set1_epi16(((const short*)pA)[0]);
+                __m128i _pB = _mm_load_si128((const __m128i*)pB);
+
+                __m256i _pA0 = _mm256_cvtepi8_epi16(_pA);
+                __m256i _pB0 = _mm256_cvtepi8_epi16(_pB);
+
+                // 01010101 01010101
+
+                // 01234567 89abcdef
+                // 12305674 9ab8defc
+                __m256i _pB1 = _mm256_shufflehi_epi16(_mm256_shufflelo_epi16(_pB0, _MM_SHUFFLE(0, 3, 2, 1)), _MM_SHUFFLE(0, 3, 2, 1));
+
+                __m512i _s0 = _mm512_cvtepi16_epi32(_mm256_mullo_epi16(_pA0, _pB0));
+                __m512i _s1 = _mm512_cvtepi16_epi32(_mm256_mullo_epi16(_pA0, _pB1));
+
+                _sum0 = _mm512_add_epi32(_sum0, _s0);
+                _sum1 = _mm512_add_epi32(_sum1, _s1);
+
+                pA += 2;
+                pB += 16;
+            }
+
+            if (k_end)
+            {
+                // if (out_elempack == 1)
+                {
+                    // 00 11 02 13  04 15 06 17  08 19 0a 1b  0c 1d 0e 1f
+                    // 01 12 03 10  05 16 07 14  09 1a 0b 18  0d 1e 0f 1c
+
+                    __m512i _tmp0 = _mm512_unpacklo_epi32(_sum0, _sum1);
+                    __m512i _tmp1 = _mm512_unpackhi_epi32(_sum0, _sum1);
+
+                    _sum0 = _mm512_unpacklo_epi64(_tmp0, _tmp1);
+                    _sum1 = _mm512_unpackhi_epi64(_tmp0, _tmp1);
+
+                    _sum0 = _sum0;
+                    _sum1 = _mm512_shuffle_epi32(_sum1, _MM_PERM_CBAD);
+
+                    // 0123 4567 89ab cdef  x 0
+                    // 0123 4567 89ab cdef  x 1
+
+                    _mm512_storeu_si512((__m512i*)outptr0, _sum0);
+                    _mm512_storeu_si512((__m512i*)(outptr0 + out_hstep), _sum1);
+                    outptr0 += 16;
+                }
+            }
+            else
+            {
+                _mm512_store_si512((__m512i*)outptr, _sum0);
+                _mm512_store_si512((__m512i*)(outptr + 16), _sum1);
+            }
+
+            outptr += 32;
+        }
+#endif // __AVX512F__
         for (; jj + 7 < max_jj; jj += 8)
         {
             __m128i _sum0;
@@ -3420,6 +5199,70 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
         int jj = 0;
 #if __SSE2__
 #if defined(__x86_64__) || defined(_M_X64)
+#if __AVX512F__
+        for (; jj + 15 < max_jj; jj += 16)
+        {
+            __m512i _sum0;
+
+            if (k == 0)
+            {
+                _sum0 = _mm512_setzero_si512();
+            }
+            else
+            {
+                _sum0 = _mm512_load_si512((const __m512i*)outptr);
+            }
+
+            const signed char* pA = pAT;
+            int kk = 0;
+            for (; kk + 1 < max_kk; kk += 2)
+            {
+                __m256i _pA = _mm256_set1_epi16(((const short*)pA)[0]);
+                __m256i _pB = _mm256_loadu_si256((const __m256i*)pB);
+
+                __m512i _pA0 = _mm512_cvtepi8_epi16(_pA);
+                __m512i _pB0 = _mm512_cvtepi8_epi16(_pB);
+
+#if __AVX512VNNI__
+                _sum0 = _mm512_dpwssd_epi32(_sum0, _pA0, _pB0);
+#else
+                _sum0 = _mm512_add_epi32(_sum0, _mm512_madd_epi16(_pA0, _pB0));
+#endif
+
+                pA += 2;
+                pB += 32;
+            }
+            for (; kk < max_kk; kk += 1)
+            {
+                __m256i _pA = _mm256_set1_epi16(pA[0]);
+                __m128i _pB = _mm_load_si128((const __m128i*)pB);
+
+                __m256i _pB0 = _mm256_cvtepi8_epi16(_pB);
+
+                __m512i _s0 = _mm512_cvtepi16_epi32(_mm256_mullo_epi16(_pA, _pB0));
+
+                _sum0 = _mm512_add_epi32(_sum0, _s0);
+
+                pA += 1;
+                pB += 16;
+            }
+
+            if (k_end)
+            {
+                // if (out_elempack == 1)
+                {
+                    _mm512_storeu_si512((__m512i*)outptr0, _sum0);
+                    outptr0 += 16;
+                }
+            }
+            else
+            {
+                _mm512_store_si512((__m512i*)outptr, _sum0);
+            }
+
+            outptr += 16;
+        }
+#endif // __AVX512F__
         for (; jj + 7 < max_jj; jj += 8)
         {
             __m128i _sum0;
@@ -3817,6 +5660,91 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
     int jj = 0;
 #if __SSE2__
 #if defined(__x86_64__) || defined(_M_X64)
+#if __AVX512F__
+    for (; jj + 15 < max_jj; jj += 16)
+    {
+        if (elempack == 8)
+        {
+            const signed char* p0 = (const signed char*)bottom_blob.channel(k / 8) + (j + jj) * 8;
+
+            int kk = 0;
+            for (; kk < max_kk / 8; kk++)
+            {
+                __m128i _r01 = _mm_load_si128((const __m128i*)p0);
+                __m128i _r23 = _mm_load_si128((const __m128i*)(p0 + 16));
+                __m128i _r45 = _mm_load_si128((const __m128i*)(p0 + 32));
+                __m128i _r67 = _mm_load_si128((const __m128i*)(p0 + 48));
+                __m128i _r89 = _mm_load_si128((const __m128i*)(p0 + 64));
+                __m128i _rab = _mm_load_si128((const __m128i*)(p0 + 80));
+                __m128i _rcd = _mm_load_si128((const __m128i*)(p0 + 96));
+                __m128i _ref = _mm_load_si128((const __m128i*)(p0 + 112));
+
+                __m128i _t0 = _mm_unpacklo_epi16(_r01, _r23);
+                __m128i _t1 = _mm_unpackhi_epi16(_r01, _r23);
+                __m128i _t2 = _mm_unpacklo_epi16(_r45, _r67);
+                __m128i _t3 = _mm_unpackhi_epi16(_r45, _r67);
+                __m128i _t4 = _mm_unpacklo_epi16(_r89, _rab);
+                __m128i _t5 = _mm_unpackhi_epi16(_r89, _rab);
+                __m128i _t6 = _mm_unpacklo_epi16(_rcd, _ref);
+                __m128i _t7 = _mm_unpackhi_epi16(_rcd, _ref);
+
+                _r01 = _mm_unpacklo_epi16(_t0, _t1);
+                _r23 = _mm_unpackhi_epi16(_t0, _t1);
+                _r45 = _mm_unpacklo_epi16(_t2, _t3);
+                _r67 = _mm_unpackhi_epi16(_t2, _t3);
+                _r89 = _mm_unpacklo_epi16(_t4, _t5);
+                _rab = _mm_unpackhi_epi16(_t4, _t5);
+                _rcd = _mm_unpacklo_epi16(_t6, _t7);
+                _ref = _mm_unpackhi_epi16(_t6, _t7);
+
+                __m128i _r0 = _mm_unpacklo_epi64(_r01, _r45);
+                __m128i _r1 = _mm_unpacklo_epi64(_r89, _rcd);
+                __m128i _r2 = _mm_unpackhi_epi64(_r01, _r45);
+                __m128i _r3 = _mm_unpackhi_epi64(_r89, _rcd);
+                __m128i _r4 = _mm_unpacklo_epi64(_r23, _r67);
+                __m128i _r5 = _mm_unpacklo_epi64(_rab, _ref);
+                __m128i _r6 = _mm_unpackhi_epi64(_r23, _r67);
+                __m128i _r7 = _mm_unpackhi_epi64(_rab, _ref);
+
+                _mm_store_si128((__m128i*)pp, _r0);
+                _mm_store_si128((__m128i*)(pp + 16), _r1);
+                _mm_store_si128((__m128i*)(pp + 32), _r2);
+                _mm_store_si128((__m128i*)(pp + 48), _r3);
+                _mm_store_si128((__m128i*)(pp + 64), _r4);
+                _mm_store_si128((__m128i*)(pp + 80), _r5);
+                _mm_store_si128((__m128i*)(pp + 96), _r6);
+                _mm_store_si128((__m128i*)(pp + 112), _r7);
+
+                pp += 128;
+                p0 += bottom_blob.cstep * 8;
+            }
+        }
+
+        if (elempack == 1)
+        {
+            const signed char* p0 = (const signed char*)bottom_blob.channel(k) + (j + jj);
+
+            int kk = 0;
+            for (; kk + 1 < max_kk; kk += 2)
+            {
+                __m128i _r0 = _mm_loadu_si128((const __m128i*)p0);
+                __m128i _r1 = _mm_loadu_si128((const __m128i*)(p0 + bottom_blob.cstep));
+                __m128i _r01 = _mm_unpacklo_epi8(_r0, _r1);
+                __m128i _r23 = _mm_unpackhi_epi8(_r0, _r1);
+                _mm_storeu_si128((__m128i*)pp, _r01);
+                _mm_storeu_si128((__m128i*)(pp + 16), _r23);
+                pp += 32;
+                p0 += bottom_blob.cstep * 2;
+            }
+            for (; kk < max_kk; kk++)
+            {
+                _mm_storeu_si128((__m128i*)pp, _mm_loadu_si128((const __m128i*)p0));
+                pp += 16;
+                p0 += bottom_blob.cstep;
+            }
+        }
+    }
+#endif // __AVX512F__
     for (; jj + 7 < max_jj; jj += 8)
     {
         if (elempack == 8)
@@ -4038,6 +5966,328 @@ static void convolution_im2col_input_tile_int8(const Mat& bottom_blob, Mat& B, i
     int jj = 0;
 #if __SSE2__
 #if defined(__x86_64__) || defined(_M_X64)
+#if __AVX512F__
+    for (; jj + 15 < max_jj; jj += 16)
+    {
+        int dy0 = (j + jj) / outw;
+        int dy1 = (j + jj + 1) / outw;
+        int dy2 = (j + jj + 2) / outw;
+        int dy3 = (j + jj + 3) / outw;
+        int dy4 = (j + jj + 4) / outw;
+        int dy5 = (j + jj + 5) / outw;
+        int dy6 = (j + jj + 6) / outw;
+        int dy7 = (j + jj + 7) / outw;
+        int dy8 = (j + jj + 8) / outw;
+        int dy9 = (j + jj + 9) / outw;
+        int dya = (j + jj + 10) / outw;
+        int dyb = (j + jj + 11) / outw;
+        int dyc = (j + jj + 12) / outw;
+        int dyd = (j + jj + 13) / outw;
+        int dye = (j + jj + 14) / outw;
+        int dyf = (j + jj + 15) / outw;
+        int dx0 = (j + jj) % outw;
+        int dx1 = (j + jj + 1) % outw;
+        int dx2 = (j + jj + 2) % outw;
+        int dx3 = (j + jj + 3) % outw;
+        int dx4 = (j + jj + 4) % outw;
+        int dx5 = (j + jj + 5) % outw;
+        int dx6 = (j + jj + 6) % outw;
+        int dx7 = (j + jj + 7) % outw;
+        int dx8 = (j + jj + 8) % outw;
+        int dx9 = (j + jj + 9) % outw;
+        int dxa = (j + jj + 10) % outw;
+        int dxb = (j + jj + 11) % outw;
+        int dxc = (j + jj + 12) % outw;
+        int dxd = (j + jj + 13) % outw;
+        int dxe = (j + jj + 14) % outw;
+        int dxf = (j + jj + 15) % outw;
+
+        int kk = 0;
+        if (elempack == 1)
+        {
+            for (; kk + 1 < max_kk; kk += 2)
+            {
+                int p0 = (k + kk) / maxk;
+                int p1 = (k + kk + 1) / maxk;
+                int uv0 = (k + kk) % maxk;
+                int uv1 = (k + kk + 1) % maxk;
+                int u0 = uv0 / kernel_w;
+                int u1 = uv1 / kernel_w;
+                int v0 = uv0 % kernel_w;
+                int v1 = uv1 % kernel_w;
+
+                const Mat img0 = bottom_blob.channel(p0);
+                const Mat img1 = bottom_blob.channel(p1);
+
+                int x00 = stride_w * dx0 + dilation_w * v0;
+                int x01 = stride_w * dx1 + dilation_w * v0;
+                int x02 = stride_w * dx2 + dilation_w * v0;
+                int x03 = stride_w * dx3 + dilation_w * v0;
+                int x04 = stride_w * dx4 + dilation_w * v0;
+                int x05 = stride_w * dx5 + dilation_w * v0;
+                int x06 = stride_w * dx6 + dilation_w * v0;
+                int x07 = stride_w * dx7 + dilation_w * v0;
+                int x08 = stride_w * dx8 + dilation_w * v0;
+                int x09 = stride_w * dx9 + dilation_w * v0;
+                int x0a = stride_w * dxa + dilation_w * v0;
+                int x0b = stride_w * dxb + dilation_w * v0;
+                int x0c = stride_w * dxc + dilation_w * v0;
+                int x0d = stride_w * dxd + dilation_w * v0;
+                int x0e = stride_w * dxe + dilation_w * v0;
+                int x0f = stride_w * dxf + dilation_w * v0;
+                int y00 = stride_h * dy0 + dilation_h * u0;
+                int y01 = stride_h * dy1 + dilation_h * u0;
+                int y02 = stride_h * dy2 + dilation_h * u0;
+                int y03 = stride_h * dy3 + dilation_h * u0;
+                int y04 = stride_h * dy4 + dilation_h * u0;
+                int y05 = stride_h * dy5 + dilation_h * u0;
+                int y06 = stride_h * dy6 + dilation_h * u0;
+                int y07 = stride_h * dy7 + dilation_h * u0;
+                int y08 = stride_h * dy8 + dilation_h * u0;
+                int y09 = stride_h * dy9 + dilation_h * u0;
+                int y0a = stride_h * dya + dilation_h * u0;
+                int y0b = stride_h * dyb + dilation_h * u0;
+                int y0c = stride_h * dyc + dilation_h * u0;
+                int y0d = stride_h * dyd + dilation_h * u0;
+                int y0e = stride_h * dye + dilation_h * u0;
+                int y0f = stride_h * dyf + dilation_h * u0;
+
+                int x10 = stride_w * dx0 + dilation_w * v1;
+                int x11 = stride_w * dx1 + dilation_w * v1;
+                int x12 = stride_w * dx2 + dilation_w * v1;
+                int x13 = stride_w * dx3 + dilation_w * v1;
+                int x14 = stride_w * dx4 + dilation_w * v1;
+                int x15 = stride_w * dx5 + dilation_w * v1;
+                int x16 = stride_w * dx6 + dilation_w * v1;
+                int x17 = stride_w * dx7 + dilation_w * v1;
+                int x18 = stride_w * dx8 + dilation_w * v1;
+                int x19 = stride_w * dx9 + dilation_w * v1;
+                int x1a = stride_w * dxa + dilation_w * v1;
+                int x1b = stride_w * dxb + dilation_w * v1;
+                int x1c = stride_w * dxc + dilation_w * v1;
+                int x1d = stride_w * dxd + dilation_w * v1;
+                int x1e = stride_w * dxe + dilation_w * v1;
+                int x1f = stride_w * dxf + dilation_w * v1;
+                int y10 = stride_h * dy0 + dilation_h * u1;
+                int y11 = stride_h * dy1 + dilation_h * u1;
+                int y12 = stride_h * dy2 + dilation_h * u1;
+                int y13 = stride_h * dy3 + dilation_h * u1;
+                int y14 = stride_h * dy4 + dilation_h * u1;
+                int y15 = stride_h * dy5 + dilation_h * u1;
+                int y16 = stride_h * dy6 + dilation_h * u1;
+                int y17 = stride_h * dy7 + dilation_h * u1;
+                int y18 = stride_h * dy8 + dilation_h * u1;
+                int y19 = stride_h * dy9 + dilation_h * u1;
+                int y1a = stride_h * dya + dilation_h * u1;
+                int y1b = stride_h * dyb + dilation_h * u1;
+                int y1c = stride_h * dyc + dilation_h * u1;
+                int y1d = stride_h * dyd + dilation_h * u1;
+                int y1e = stride_h * dye + dilation_h * u1;
+                int y1f = stride_h * dyf + dilation_h * u1;
+
+                const signed char* sptr00 = img0.row<const signed char>(y00) + x00;
+                const signed char* sptr01 = img0.row<const signed char>(y01) + x01;
+                const signed char* sptr02 = img0.row<const signed char>(y02) + x02;
+                const signed char* sptr03 = img0.row<const signed char>(y03) + x03;
+                const signed char* sptr04 = img0.row<const signed char>(y04) + x04;
+                const signed char* sptr05 = img0.row<const signed char>(y05) + x05;
+                const signed char* sptr06 = img0.row<const signed char>(y06) + x06;
+                const signed char* sptr07 = img0.row<const signed char>(y07) + x07;
+                const signed char* sptr08 = img0.row<const signed char>(y08) + x08;
+                const signed char* sptr09 = img0.row<const signed char>(y09) + x09;
+                const signed char* sptr0a = img0.row<const signed char>(y0a) + x0a;
+                const signed char* sptr0b = img0.row<const signed char>(y0b) + x0b;
+                const signed char* sptr0c = img0.row<const signed char>(y0c) + x0c;
+                const signed char* sptr0d = img0.row<const signed char>(y0d) + x0d;
+                const signed char* sptr0e = img0.row<const signed char>(y0e) + x0e;
+                const signed char* sptr0f = img0.row<const signed char>(y0f) + x0f;
+
+                const signed char* sptr10 = img1.row<const signed char>(y10) + x10;
+                const signed char* sptr11 = img1.row<const signed char>(y11) + x11;
+                const signed char* sptr12 = img1.row<const signed char>(y12) + x12;
+                const signed char* sptr13 = img1.row<const signed char>(y13) + x13;
+                const signed char* sptr14 = img1.row<const signed char>(y14) + x14;
+                const signed char* sptr15 = img1.row<const signed char>(y15) + x15;
+                const signed char* sptr16 = img1.row<const signed char>(y16) + x16;
+                const signed char* sptr17 = img1.row<const signed char>(y17) + x17;
+                const signed char* sptr18 = img1.row<const signed char>(y18) + x18;
+                const signed char* sptr19 = img1.row<const signed char>(y19) + x19;
+                const signed char* sptr1a = img1.row<const signed char>(y1a) + x1a;
+                const signed char* sptr1b = img1.row<const signed char>(y1b) + x1b;
+                const signed char* sptr1c = img1.row<const signed char>(y1c) + x1c;
+                const signed char* sptr1d = img1.row<const signed char>(y1d) + x1d;
+                const signed char* sptr1e = img1.row<const signed char>(y1e) + x1e;
+                const signed char* sptr1f = img1.row<const signed char>(y1f) + x1f;
+
+                pp[0] = sptr00[0];
+                pp[1] = sptr10[0];
+                pp[2] = sptr01[0];
+                pp[3] = sptr11[0];
+                pp[4] = sptr02[0];
+                pp[5] = sptr12[0];
+                pp[6] = sptr03[0];
+                pp[7] = sptr13[0];
+                pp[8] = sptr04[0];
+                pp[9] = sptr14[0];
+                pp[10] = sptr05[0];
+                pp[11] = sptr15[0];
+                pp[12] = sptr06[0];
+                pp[13] = sptr16[0];
+                pp[14] = sptr07[0];
+                pp[15] = sptr17[0];
+                pp[16 + 0] = sptr08[0];
+                pp[16 + 1] = sptr18[0];
+                pp[16 + 2] = sptr09[0];
+                pp[16 + 3] = sptr19[0];
+                pp[16 + 4] = sptr0a[0];
+                pp[16 + 5] = sptr1a[0];
+                pp[16 + 6] = sptr0b[0];
+                pp[16 + 7] = sptr1b[0];
+                pp[16 + 8] = sptr0c[0];
+                pp[16 + 9] = sptr1c[0];
+                pp[16 + 10] = sptr0d[0];
+                pp[16 + 11] = sptr1d[0];
+                pp[16 + 12] = sptr0e[0];
+                pp[16 + 13] = sptr1e[0];
+                pp[16 + 14] = sptr0f[0];
+                pp[16 + 15] = sptr1f[0];
+                pp += 32;
+            }
+        }
+        for (; kk < max_kk / elempack; kk++)
+        {
+            int p = (k / elempack + kk) / maxk;
+            int uv = (k / elempack + kk) % maxk;
+            int u = uv / kernel_w;
+            int v = uv % kernel_w;
+
+            const Mat img = bottom_blob.channel(p);
+
+            int x0 = stride_w * dx0 + dilation_w * v;
+            int x1 = stride_w * dx1 + dilation_w * v;
+            int x2 = stride_w * dx2 + dilation_w * v;
+            int x3 = stride_w * dx3 + dilation_w * v;
+            int x4 = stride_w * dx4 + dilation_w * v;
+            int x5 = stride_w * dx5 + dilation_w * v;
+            int x6 = stride_w * dx6 + dilation_w * v;
+            int x7 = stride_w * dx7 + dilation_w * v;
+            int x8 = stride_w * dx8 + dilation_w * v;
+            int x9 = stride_w * dx9 + dilation_w * v;
+            int xa = stride_w * dxa + dilation_w * v;
+            int xb = stride_w * dxb + dilation_w * v;
+            int xc = stride_w * dxc + dilation_w * v;
+            int xd = stride_w * dxd + dilation_w * v;
+            int xe = stride_w * dxe + dilation_w * v;
+            int xf = stride_w * dxf + dilation_w * v;
+            int y0 = stride_h * dy0 + dilation_h * u;
+            int y1 = stride_h * dy1 + dilation_h * u;
+            int y2 = stride_h * dy2 + dilation_h * u;
+            int y3 = stride_h * dy3 + dilation_h * u;
+            int y4 = stride_h * dy4 + dilation_h * u;
+            int y5 = stride_h * dy5 + dilation_h * u;
+            int y6 = stride_h * dy6 + dilation_h * u;
+            int y7 = stride_h * dy7 + dilation_h * u;
+            int y8 = stride_h * dy8 + dilation_h * u;
+            int y9 = stride_h * dy9 + dilation_h * u;
+            int ya = stride_h * dya + dilation_h * u;
+            int yb = stride_h * dyb + dilation_h * u;
+            int yc = stride_h * dyc + dilation_h * u;
+            int yd = stride_h * dyd + dilation_h * u;
+            int ye = stride_h * dye + dilation_h * u;
+            int yf = stride_h * dyf + dilation_h * u;
+
+            const signed char* sptr0 = img.row<const signed char>(y0) + x0 * elempack;
+            const signed char* sptr1 = img.row<const signed char>(y1) + x1 * elempack;
+            const signed char* sptr2 = img.row<const signed char>(y2) + x2 * elempack;
+            const signed char* sptr3 = img.row<const signed char>(y3) + x3 * elempack;
+            const signed char* sptr4 = img.row<const signed char>(y4) + x4 * elempack;
+            const signed char* sptr5 = img.row<const signed char>(y5) + x5 * elempack;
+            const signed char* sptr6 = img.row<const signed char>(y6) + x6 * elempack;
+            const signed char* sptr7 = img.row<const signed char>(y7) + x7 * elempack;
+            const signed char* sptr8 = img.row<const signed char>(y8) + x8 * elempack;
+            const signed char* sptr9 = img.row<const signed char>(y9) + x9 * elempack;
+            const signed char* sptra = img.row<const signed char>(ya) + xa * elempack;
+            const signed char* sptrb = img.row<const signed char>(yb) + xb * elempack;
+            const signed char* sptrc = img.row<const signed char>(yc) + xc * elempack;
+            const signed char* sptrd = img.row<const signed char>(yd) + xd * elempack;
+            const signed char* sptre = img.row<const signed char>(ye) + xe * elempack;
+            const signed char* sptrf = img.row<const signed char>(yf) + xf * elempack;
+
+            if (elempack == 8)
+            {
+                __m128i _r0 = _mm_loadl_epi64((const __m128i*)sptr0);
+                __m128i _r1 = _mm_loadl_epi64((const __m128i*)sptr1);
+                __m128i _r2 = _mm_loadl_epi64((const __m128i*)sptr2);
+                __m128i _r3 = _mm_loadl_epi64((const __m128i*)sptr3);
+                __m128i _r4 = _mm_loadl_epi64((const __m128i*)sptr4);
+                __m128i _r5 = _mm_loadl_epi64((const __m128i*)sptr5);
+                __m128i _r6 = _mm_loadl_epi64((const __m128i*)sptr6);
+                __m128i _r7 = _mm_loadl_epi64((const __m128i*)sptr7);
+                __m128i _r8 = _mm_loadl_epi64((const __m128i*)sptr8);
+                __m128i _r9 = _mm_loadl_epi64((const __m128i*)sptr9);
+                __m128i _ra = _mm_loadl_epi64((const __m128i*)sptra);
+                __m128i _rb = _mm_loadl_epi64((const __m128i*)sptrb);
+                __m128i _rc = _mm_loadl_epi64((const __m128i*)sptrc);
+                __m128i _rd = _mm_loadl_epi64((const __m128i*)sptrd);
+                __m128i _re = _mm_loadl_epi64((const __m128i*)sptre);
+                __m128i _rf = _mm_loadl_epi64((const __m128i*)sptrf);
+                __m128i _r01 = _mm_unpacklo_epi16(_r0, _r1);
+                __m128i _r23 = _mm_unpacklo_epi16(_r2, _r3);
+                __m128i _r45 = _mm_unpacklo_epi16(_r4, _r5);
+                __m128i _r67 = _mm_unpacklo_epi16(_r6, _r7);
+                __m128i _r89 = _mm_unpacklo_epi16(_r8, _r9);
+                __m128i _rab = _mm_unpacklo_epi16(_ra, _rb);
+                __m128i _rcd = _mm_unpacklo_epi16(_rc, _rd);
+                __m128i _ref = _mm_unpacklo_epi16(_re, _rf);
+                _r0 = _mm_unpacklo_epi32(_r01, _r23);
+                _r1 = _mm_unpackhi_epi32(_r01, _r23);
+                _r2 = _mm_unpacklo_epi32(_r45, _r67);
+                _r3 = _mm_unpackhi_epi32(_r45, _r67);
+                _r4 = _mm_unpacklo_epi32(_r89, _rab);
+                _r5 = _mm_unpackhi_epi32(_r89, _rab);
+                _r6 = _mm_unpacklo_epi32(_rcd, _ref);
+                _r7 = _mm_unpackhi_epi32(_rcd, _ref);
+                _r8 = _mm_unpacklo_epi64(_r0, _r2);
+                _r9 = _mm_unpacklo_epi64(_r4, _r6);
+                _ra = _mm_unpackhi_epi64(_r0, _r2);
+                _rb = _mm_unpackhi_epi64(_r4, _r6);
+                _rc = _mm_unpacklo_epi64(_r1, _r3);
+                _rd = _mm_unpacklo_epi64(_r5, _r7);
+                _re = _mm_unpackhi_epi64(_r1, _r3);
+                _rf = _mm_unpackhi_epi64(_r5, _r7);
+                _mm_storeu_si128((__m128i*)pp, _r8);
+                _mm_storeu_si128((__m128i*)(pp + 16), _r9);
+                _mm_storeu_si128((__m128i*)(pp + 32), _ra);
+                _mm_storeu_si128((__m128i*)(pp + 48), _rb);
+                _mm_storeu_si128((__m128i*)(pp + 64), _rc);
+                _mm_storeu_si128((__m128i*)(pp + 80), _rd);
+                _mm_storeu_si128((__m128i*)(pp + 96), _re);
+                _mm_storeu_si128((__m128i*)(pp + 112), _rf);
+                pp += 128;
+            }
+            if (elempack == 1)
+            {
+                pp[0] = sptr0[0];
+                pp[1] = sptr1[0];
+                pp[2] = sptr2[0];
+                pp[3] = sptr3[0];
+                pp[4] = sptr4[0];
+                pp[5] = sptr5[0];
+                pp[6] = sptr6[0];
+                pp[7] = sptr7[0];
+                pp[8] = sptr8[0];
+                pp[9] = sptr9[0];
+                pp[10] = sptra[0];
+                pp[11] = sptrb[0];
+                pp[12] = sptrc[0];
+                pp[13] = sptrd[0];
+                pp[14] = sptre[0];
+                pp[15] = sptrf[0];
+                pp += 16;
+            }
+        }
+    }
+#endif // __AVX512F__
     for (; jj + 7 < max_jj; jj += 8)
     {
         int dy0 = (j + jj) / outw;

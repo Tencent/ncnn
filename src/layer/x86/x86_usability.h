@@ -1081,6 +1081,78 @@ static NCNN_FORCEINLINE void transpose8x16_epi16(__m128i& _r0, __m128i& _r1, __m
     _rf = _mm_unpackhi_epi64(_tmpr, _tmpv);
 }
 
+static NCNN_FORCEINLINE void transpose16x16_epi32(__m512i& _r0, __m512i& _r1, __m512i& _r2, __m512i& _r3, __m512i& _r4, __m512i& _r5, __m512i& _r6, __m512i& _r7,
+        __m512i& _r8, __m512i& _r9, __m512i& _ra, __m512i& _rb, __m512i& _rc, __m512i& _rd, __m512i& _re, __m512i& _rf)
+{
+    __m512 _tmp0 = _mm512_unpacklo_ps(_mm512_castsi512_ps(_r0), _mm512_castsi512_ps(_r1));
+    __m512 _tmp1 = _mm512_unpackhi_ps(_mm512_castsi512_ps(_r0), _mm512_castsi512_ps(_r1));
+    __m512 _tmp2 = _mm512_unpacklo_ps(_mm512_castsi512_ps(_r2), _mm512_castsi512_ps(_r3));
+    __m512 _tmp3 = _mm512_unpackhi_ps(_mm512_castsi512_ps(_r2), _mm512_castsi512_ps(_r3));
+    __m512 _tmp4 = _mm512_unpacklo_ps(_mm512_castsi512_ps(_r4), _mm512_castsi512_ps(_r5));
+    __m512 _tmp5 = _mm512_unpackhi_ps(_mm512_castsi512_ps(_r4), _mm512_castsi512_ps(_r5));
+    __m512 _tmp6 = _mm512_unpacklo_ps(_mm512_castsi512_ps(_r6), _mm512_castsi512_ps(_r7));
+    __m512 _tmp7 = _mm512_unpackhi_ps(_mm512_castsi512_ps(_r6), _mm512_castsi512_ps(_r7));
+    __m512 _tmp8 = _mm512_unpacklo_ps(_mm512_castsi512_ps(_r8), _mm512_castsi512_ps(_r9));
+    __m512 _tmp9 = _mm512_unpackhi_ps(_mm512_castsi512_ps(_r8), _mm512_castsi512_ps(_r9));
+    __m512 _tmpa = _mm512_unpacklo_ps(_mm512_castsi512_ps(_ra), _mm512_castsi512_ps(_rb));
+    __m512 _tmpb = _mm512_unpackhi_ps(_mm512_castsi512_ps(_ra), _mm512_castsi512_ps(_rb));
+    __m512 _tmpc = _mm512_unpacklo_ps(_mm512_castsi512_ps(_rc), _mm512_castsi512_ps(_rd));
+    __m512 _tmpd = _mm512_unpackhi_ps(_mm512_castsi512_ps(_rc), _mm512_castsi512_ps(_rd));
+    __m512 _tmpe = _mm512_unpacklo_ps(_mm512_castsi512_ps(_re), _mm512_castsi512_ps(_rf));
+    __m512 _tmpf = _mm512_unpackhi_ps(_mm512_castsi512_ps(_re), _mm512_castsi512_ps(_rf));
+
+    __m512 _tmpg = _mm512_shuffle_ps(_tmp0, _tmp2, _MM_SHUFFLE(1, 0, 1, 0));
+    __m512 _tmph = _mm512_shuffle_ps(_tmp0, _tmp2, _MM_SHUFFLE(3, 2, 3, 2));
+    __m512 _tmpi = _mm512_shuffle_ps(_tmp1, _tmp3, _MM_SHUFFLE(1, 0, 1, 0));
+    __m512 _tmpj = _mm512_shuffle_ps(_tmp1, _tmp3, _MM_SHUFFLE(3, 2, 3, 2));
+    __m512 _tmpk = _mm512_shuffle_ps(_tmp4, _tmp6, _MM_SHUFFLE(1, 0, 1, 0));
+    __m512 _tmpl = _mm512_shuffle_ps(_tmp4, _tmp6, _MM_SHUFFLE(3, 2, 3, 2));
+    __m512 _tmpm = _mm512_shuffle_ps(_tmp5, _tmp7, _MM_SHUFFLE(1, 0, 1, 0));
+    __m512 _tmpn = _mm512_shuffle_ps(_tmp5, _tmp7, _MM_SHUFFLE(3, 2, 3, 2));
+    __m512 _tmpo = _mm512_shuffle_ps(_tmp8, _tmpa, _MM_SHUFFLE(1, 0, 1, 0));
+    __m512 _tmpp = _mm512_shuffle_ps(_tmp8, _tmpa, _MM_SHUFFLE(3, 2, 3, 2));
+    __m512 _tmpq = _mm512_shuffle_ps(_tmp9, _tmpb, _MM_SHUFFLE(1, 0, 1, 0));
+    __m512 _tmpr = _mm512_shuffle_ps(_tmp9, _tmpb, _MM_SHUFFLE(3, 2, 3, 2));
+    __m512 _tmps = _mm512_shuffle_ps(_tmpc, _tmpe, _MM_SHUFFLE(1, 0, 1, 0));
+    __m512 _tmpt = _mm512_shuffle_ps(_tmpc, _tmpe, _MM_SHUFFLE(3, 2, 3, 2));
+    __m512 _tmpu = _mm512_shuffle_ps(_tmpd, _tmpf, _MM_SHUFFLE(1, 0, 1, 0));
+    __m512 _tmpv = _mm512_shuffle_ps(_tmpd, _tmpf, _MM_SHUFFLE(3, 2, 3, 2));
+
+    _tmp0 = _mm512_shuffle_f32x4(_tmpg, _tmpk, _MM_SHUFFLE(2, 0, 2, 0));
+    _tmp1 = _mm512_shuffle_f32x4(_tmpo, _tmps, _MM_SHUFFLE(2, 0, 2, 0));
+    _tmp2 = _mm512_shuffle_f32x4(_tmph, _tmpl, _MM_SHUFFLE(2, 0, 2, 0));
+    _tmp3 = _mm512_shuffle_f32x4(_tmpp, _tmpt, _MM_SHUFFLE(2, 0, 2, 0));
+    _tmp4 = _mm512_shuffle_f32x4(_tmpi, _tmpm, _MM_SHUFFLE(2, 0, 2, 0));
+    _tmp5 = _mm512_shuffle_f32x4(_tmpq, _tmpu, _MM_SHUFFLE(2, 0, 2, 0));
+    _tmp6 = _mm512_shuffle_f32x4(_tmpj, _tmpn, _MM_SHUFFLE(2, 0, 2, 0));
+    _tmp7 = _mm512_shuffle_f32x4(_tmpr, _tmpv, _MM_SHUFFLE(2, 0, 2, 0));
+    _tmp8 = _mm512_shuffle_f32x4(_tmpg, _tmpk, _MM_SHUFFLE(3, 1, 3, 1));
+    _tmp9 = _mm512_shuffle_f32x4(_tmpo, _tmps, _MM_SHUFFLE(3, 1, 3, 1));
+    _tmpa = _mm512_shuffle_f32x4(_tmph, _tmpl, _MM_SHUFFLE(3, 1, 3, 1));
+    _tmpb = _mm512_shuffle_f32x4(_tmpp, _tmpt, _MM_SHUFFLE(3, 1, 3, 1));
+    _tmpc = _mm512_shuffle_f32x4(_tmpi, _tmpm, _MM_SHUFFLE(3, 1, 3, 1));
+    _tmpd = _mm512_shuffle_f32x4(_tmpq, _tmpu, _MM_SHUFFLE(3, 1, 3, 1));
+    _tmpe = _mm512_shuffle_f32x4(_tmpj, _tmpn, _MM_SHUFFLE(3, 1, 3, 1));
+    _tmpf = _mm512_shuffle_f32x4(_tmpr, _tmpv, _MM_SHUFFLE(3, 1, 3, 1));
+
+    _r0 = _mm512_castps_si512(_mm512_shuffle_f32x4(_tmp0, _tmp1, _MM_SHUFFLE(2, 0, 2, 0)));
+    _r1 = _mm512_castps_si512(_mm512_shuffle_f32x4(_tmp2, _tmp3, _MM_SHUFFLE(2, 0, 2, 0)));
+    _r2 = _mm512_castps_si512(_mm512_shuffle_f32x4(_tmp4, _tmp5, _MM_SHUFFLE(2, 0, 2, 0)));
+    _r3 = _mm512_castps_si512(_mm512_shuffle_f32x4(_tmp6, _tmp7, _MM_SHUFFLE(2, 0, 2, 0)));
+    _r4 = _mm512_castps_si512(_mm512_shuffle_f32x4(_tmp8, _tmp9, _MM_SHUFFLE(2, 0, 2, 0)));
+    _r5 = _mm512_castps_si512(_mm512_shuffle_f32x4(_tmpa, _tmpb, _MM_SHUFFLE(2, 0, 2, 0)));
+    _r6 = _mm512_castps_si512(_mm512_shuffle_f32x4(_tmpc, _tmpd, _MM_SHUFFLE(2, 0, 2, 0)));
+    _r7 = _mm512_castps_si512(_mm512_shuffle_f32x4(_tmpe, _tmpf, _MM_SHUFFLE(2, 0, 2, 0)));
+    _r8 = _mm512_castps_si512(_mm512_shuffle_f32x4(_tmp0, _tmp1, _MM_SHUFFLE(3, 1, 3, 1)));
+    _r9 = _mm512_castps_si512(_mm512_shuffle_f32x4(_tmp2, _tmp3, _MM_SHUFFLE(3, 1, 3, 1)));
+    _ra = _mm512_castps_si512(_mm512_shuffle_f32x4(_tmp4, _tmp5, _MM_SHUFFLE(3, 1, 3, 1)));
+    _rb = _mm512_castps_si512(_mm512_shuffle_f32x4(_tmp6, _tmp7, _MM_SHUFFLE(3, 1, 3, 1)));
+    _rc = _mm512_castps_si512(_mm512_shuffle_f32x4(_tmp8, _tmp9, _MM_SHUFFLE(3, 1, 3, 1)));
+    _rd = _mm512_castps_si512(_mm512_shuffle_f32x4(_tmpa, _tmpb, _MM_SHUFFLE(3, 1, 3, 1)));
+    _re = _mm512_castps_si512(_mm512_shuffle_f32x4(_tmpc, _tmpd, _MM_SHUFFLE(3, 1, 3, 1)));
+    _rf = _mm512_castps_si512(_mm512_shuffle_f32x4(_tmpe, _tmpf, _MM_SHUFFLE(3, 1, 3, 1)));
+}
+
 static NCNN_FORCEINLINE void transpose16x8_epi32(__m512i& _r0, __m512i& _r1, __m512i& _r2, __m512i& _r3, __m512i& _r4, __m512i& _r5, __m512i& _r6, __m512i& _r7)
 {
     __m512 _tmp0 = _mm512_unpacklo_ps(_mm512_castsi512_ps(_r0), _mm512_castsi512_ps(_r1));
