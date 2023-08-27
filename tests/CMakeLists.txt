@@ -53,6 +53,16 @@ if(NCNN_PIXEL)
     ncnn_add_test(mat_pixel_resize)
     ncnn_add_test(mat_pixel)
     ncnn_add_test(squeezenet)
+    if(APPLE)
+        enable_language(OBJCXX)
+        add_executable(test_apple_api test_apple_api.mm)
+        target_link_libraries(test_apple_api PRIVATE ncnn)
+
+        add_test(NAME test_apple_api COMMAND ${CMAKE_COMMAND} -DTEST_EXECUTABLE=$<TARGET_FILE:test_apple_api> -P ${CMAKE_CURRENT_SOURCE_DIR}/../cmake/run_test.cmake)
+
+        # add test to a virtual project group
+        set_property(TARGET test_apple_api PROPERTY FOLDER "tests")
+    endif()
 endif()
 
 ncnn_add_test(c_api)

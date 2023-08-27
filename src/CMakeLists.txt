@@ -41,8 +41,15 @@ set(ncnn_SRCS
     simplestl.cpp
 )
 
-if(ANDROID)
-    list(APPEND ncnn_SRCS mat_pixel_android.cpp)
+if(NCNN_PLATFORM_API)
+    if(ANDROID)
+        list(APPEND ncnn_SRCS mat_pixel_android.cpp)
+    endif()
+
+    if(APPLE)
+        enable_language(OBJCXX)
+        list(APPEND ncnn_SRCS mat_pixel_apple.mm)
+    endif()
 endif()
 
 ncnn_src_group(ncnn_SRCS "sources")
@@ -311,8 +318,17 @@ if(NCNN_VULKAN)
     target_link_libraries(ncnn PRIVATE glslang SPIRV)
 endif()
 
-if(NCNN_PLATFORM_API AND ANDROID_NDK)
-    target_link_libraries(ncnn PUBLIC android jnigraphics log)
+if(NCNN_PLATFORM_API)
+    if(ANDROID_NDK)
+        target_link_libraries(ncnn PUBLIC android jnigraphics log)
+    endif()
+    if(APPLE)
+        if(IOS)
+            target_link_libraries(ncnn PUBLIC "-framework Foundation" "-framework CoreMedia" "-framework CoreVideo" "-framework Accelerate" "-framework UIKit" "-framework CoreGraphics")
+        else()
+            target_link_libraries(ncnn PUBLIC "-framework Foundation" "-framework CoreMedia" "-framework CoreVideo" "-framework Accelerate" "-framework AppKit" "-framework CoreGraphics")
+        endif()
+    endif()
 endif()
 
 if(WIN32)
