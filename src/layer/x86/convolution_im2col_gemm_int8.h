@@ -976,7 +976,6 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                     // cdef  0123  4567  89ab   x e
                     // cdef  0123  4567  89ab   x f
 
-
                     _sum0 = _tmp0;
                     _sum1 = _tmp1;
                     _sum2 = _tmp2;
@@ -993,7 +992,6 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                     _sumd = _mm512_shuffle_i32x4(_tmpd, _tmpd, _MM_SHUFFLE(0, 3, 2, 1));
                     _sume = _mm512_shuffle_i32x4(_tmpe, _tmpe, _MM_SHUFFLE(0, 3, 2, 1));
                     _sumf = _mm512_shuffle_i32x4(_tmpf, _tmpf, _MM_SHUFFLE(0, 3, 2, 1));
-
 
                     _mm512_store_si512((__m512i*)outptr0, _sum0);
                     _mm512_store_si512((__m512i*)(outptr0 + 16), _sum1);
@@ -1146,7 +1144,6 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                     // cdef  0123  4567  89ab   x e
                     // cdef  0123  4567  89ab   x f
 
-
                     _sum0 = _mm512_shuffle_i32x4(_sum0, _sum1, _MM_SHUFFLE(1, 0, 1, 0));
                     _sum1 = _mm512_shuffle_i32x4(_sum2, _sum3, _MM_SHUFFLE(1, 0, 1, 0));
                     _sum2 = _mm512_shuffle_i32x4(_sum4, _sum5, _MM_SHUFFLE(0, 3, 0, 3));
@@ -1186,7 +1183,6 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 }
                 if (out_elempack == 4)
                 {
-
                     // 00 11 22 33  44 55 66 77  88 99 aa bb  cc dd ee ff
                     // 01 12 23 30  45 56 67 78
                     // 02
@@ -1315,8 +1311,6 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                     // 42 52 62 72  86 96 a6 b6  ca da ea fa  0e 1e 2e 3e
                     // 43 53 63 73  87 97 a7 b7  cb db eb fb  0f 1f 2f 3f
 
-
-
                     // 00  44  88  cc
                     // 01  45  89  cd
                     // 02  46  8a  ce
@@ -1377,7 +1371,6 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                     // 4c  c4  4d  c5
                     // 4e  c6  4f  c7
 
-
                     _sum0 = _mm512_shuffle_i32x4(_tmp0, _tmp1, _MM_SHUFFLE(2, 0, 2, 0));
                     _sum1 = _mm512_shuffle_i32x4(_tmp2, _tmp3, _MM_SHUFFLE(2, 0, 2, 0));
                     _sum2 = _mm512_shuffle_i32x4(_tmp4, _tmp5, _MM_SHUFFLE(2, 0, 2, 0));
@@ -1397,7 +1390,6 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                     _sumd = _mm512_shuffle_i32x4(_tmpe, _tmpf, _MM_SHUFFLE(3, 1, 3, 1));
                     _sume = _mm512_shuffle_i32x4(_tmp8, _tmp9, _MM_SHUFFLE(3, 1, 3, 1));
                     _sumf = _mm512_shuffle_i32x4(_tmpa, _tmpb, _MM_SHUFFLE(3, 1, 3, 1));
-
 
                     _mm512_storeu_si512((__m512i*)outptr0, _sum0);
                     _mm512_storeu_si512((__m512i*)(outptr0 + 16), _sum1);
@@ -1429,7 +1421,6 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                     // 1230 5674 9ab8 defc
                     // 2301 6745 ab89 efcd
                     // 3012 7456 b89a fcde
-
 
                     // 00 11 22 33  44 55 66 77  88 99 aa bb  cc dd ee ff
                     // 01 12 23 30  45 56 67 78
