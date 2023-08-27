@@ -5436,7 +5436,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 __m256i _s0 = _mm256_cvtepi16_epi32(_mm_mullo_epi16(_pA, _pB));
 
                 _sum0 = _mm256_add_epi32(_sum0, _s0);
-#else // __AVX2__
+#else  // __AVX2__
                 __m128i _sl = _mm_mullo_epi16(_pA, _pB);
                 __m128i _sh = _mm_mulhi_epi16(_pA, _pB);
                 __m128i _s0 = _mm_unpacklo_epi16(_sl, _sh);
