@@ -89,6 +89,7 @@ void main()
     if (op_type == 17) res = log(v) * afp(0.434294481903);
     if (op_type == 18) res = round(v);
     if (op_type == 19) res = trunc(v);
+    if (op_type == 20) res = erf(v);
 
 #if NCNN_image_shader
     image3d_st4(top_blob_3d, ivec3(gx, gy, gz), res);

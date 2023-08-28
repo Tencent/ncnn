@@ -171,6 +171,11 @@ void main()
         res[0] = trunc(v[0]);
         res[1] = trunc(v[1]);
     }
+    if (op_type == 20)
+    {
+        res[0] = erf(v[0]);
+        res[1] = erf(v[1]);
+    }
 
 #if NCNN_image_shader
     image3d_st8(top_blob_3d, ivec3(gx, gy, gz), res);

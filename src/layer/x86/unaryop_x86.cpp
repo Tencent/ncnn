@@ -642,6 +642,32 @@ struct unary_op_trunc
 #endif // __SSE2__
 };
 
+struct unary_op_erf
+{
+    float func(const float& x) const
+    {
+        return (float)erf(x);
+    }
+#if __SSE2__
+    __m128 func_pack4(const __m128& x) const
+    {
+        return _mm_erf_ps(x);
+    }
+#if __AVX__
+    __m256 func_pack8(const __m256& x) const
+    {
+        return _mm256_erf_ps(x);
+    }
+#if __AVX512F__
+    __m512 func_pack16(const __m512& x) const
+    {
+        return _mm512_erf_ps(x);
+    }
+#endif // __AVX512F__
+#endif // __AVX__
+#endif // __SSE2__
+};
+
 } // namespace UnaryOp_x86_functor
 
 int UnaryOp_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
@@ -706,6 +732,9 @@ int UnaryOp_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
     if (op_type == Operation_TRUNC)
         return unary_op_inplace<unary_op_trunc>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ERF)
+        return unary_op_inplace<unary_op_erf>(bottom_top_blob, opt);
 
     return 0;
 }

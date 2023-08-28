@@ -472,6 +472,24 @@ struct unary_op_trunc
 #endif // __ARM_NEON
 };
 
+struct unary_op_erf
+{
+    float func(const float& x) const
+    {
+        return (float)erf(x);
+    }
+#if __ARM_NEON
+    float32x4_t func_pack4(const float32x4_t& x) const
+    {
+    float norm_x = x / sqrt(2.0f);
+    float32x4_t erf_approx = vmovq_n_f32(1.0f);
+    float32x4_t norm_x_vec = vdupq_n_f32(norm_x);
+    float32x4_t tanh_x = tanh(vmulq_f32(pi, norm_x_vec));
+    return vsubq_f32(erf_approx, vmulq_f32(0.5f, tanh_x));
+    }
+#endif // __ARM_NEON
+};
+
 } // namespace UnaryOp_arm_functor
 
 int UnaryOp_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
@@ -549,6 +567,9 @@ int UnaryOp_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
     if (op_type == Operation_TRUNC)
         return unary_op_inplace<unary_op_trunc>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ERF)
+        return unary_op_inplace<unary_op_erf>(bottom_top_blob, opt);
 
     return 0;
 }
@@ -685,6 +706,9 @@ int UnaryOp_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) 
 
     if (op_type == Operation_TRUNC)
         return unary_op_inplace_bf16s<unary_op_trunc>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ERF)
+        return unary_op_inplace_bf16s<unary_op_erf>(bottom_top_blob, opt);
 
     return 0;
 }

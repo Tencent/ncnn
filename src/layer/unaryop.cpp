@@ -218,6 +218,14 @@ struct unary_op_trunc
     }
 };
 
+struct unary_op_erf
+{
+    float operator()(const float& x) const
+    {
+        return (float)erf(x);
+    }
+};
+
 int UnaryOp::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     if (op_type == Operation_ABS)
@@ -279,6 +287,9 @@ int UnaryOp::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
     if (op_type == Operation_TRUNC)
         return unary_op_inplace<unary_op_trunc>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ERF)
+        return unary_op_inplace<unary_op_erf>(bottom_top_blob, opt);
 
     return 0;
 }
