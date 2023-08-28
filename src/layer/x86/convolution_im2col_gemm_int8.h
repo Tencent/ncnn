@@ -1714,13 +1714,13 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
 
                 // 0123 4567
                 // 0123 4567 0123 4567
-                // 3012 7456 3012 7456
-                // 2301 6745 2301 6745
                 // 1230 5674 1230 5674
+                // 2301 6745 2301 6745
+                // 3012 7456 3012 7456
                 __m512i _pB0 = _mm512_inserti32x8(_mm512_castsi256_si512(_pBB), _pBB, 1);
-                __m512i _pB1 = _mm512_shuffle_epi32(_pB0, _MM_PERM_CBAD);
+                __m512i _pB1 = _mm512_shuffle_epi32(_pB0, _MM_PERM_ADCB);
                 __m512i _pB2 = _mm512_shuffle_epi32(_pB0, _MM_PERM_BADC);
-                __m512i _pB3 = _mm512_shuffle_epi32(_pB0, _MM_PERM_ADCB);
+                __m512i _pB3 = _mm512_shuffle_epi32(_pB0, _MM_PERM_CBAD);
 
 #if __AVX512VNNI__
                 _sum0 = _mm512_dpwssd_epi32(_sum0, _pA0, _pB0);
@@ -1759,13 +1759,13 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
 
                 // 01234567
                 // 01234567 01234567
-                // 30127456 30127456
-                // 23016745 23016745
                 // 12305674 12305674
+                // 23016745 23016745
+                // 30127456 30127456
                 __m256i _pB0 = _mm256_inserti128_si256(_mm256_castsi128_si256(_pB), _pB, 1);
-                __m256i _pB1 = _mm256_shufflehi_epi16(_mm256_shufflelo_epi16(_pB0, _MM_SHUFFLE(2, 1, 0, 3)), _MM_SHUFFLE(2, 1, 0, 3));
+                __m256i _pB1 = _mm256_shufflehi_epi16(_mm256_shufflelo_epi16(_pB0, _MM_SHUFFLE(0, 3, 2, 1)), _MM_SHUFFLE(0, 3, 2, 1));
                 __m256i _pB2 = _mm256_shuffle_epi32(_pB0, _MM_SHUFFLE(2, 3, 0, 1));
-                __m256i _pB3 = _mm256_shufflehi_epi16(_mm256_shufflelo_epi16(_pB0, _MM_SHUFFLE(0, 3, 2, 1)), _MM_SHUFFLE(0, 3, 2, 1));
+                __m256i _pB3 = _mm256_shufflehi_epi16(_mm256_shufflelo_epi16(_pB0, _MM_SHUFFLE(2, 1, 0, 3)), _MM_SHUFFLE(2, 1, 0, 3));
 
                 __m512i _s0 = _mm512_cvtepi16_epi32(_mm256_mullo_epi16(_pA0, _pB0));
                 __m512i _s1 = _mm512_cvtepi16_epi32(_mm256_mullo_epi16(_pA0, _pB1));
@@ -1792,23 +1792,23 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
             if (k_end)
             {
                 // 00 11 22 33  44 55 66 77  80 91 a2 b3  c4 d5 e6 f7
-                // 03 10 21 32  47 54 65 76  83 90 a1 b2  c7 d4 e5 f6
-                // 02 13 20 31  46 57 64 75  82 93 a0 b1  c6 d7 e4 f5
                 // 01 12 23 30  45 56 67 74  81 92 a3 b0  c5 d6 e7 f4
+                // 02 13 20 31  46 57 64 75  82 93 a0 b1  c6 d7 e4 f5
+                // 03 10 21 32  47 54 65 76  83 90 a1 b2  c7 d4 e5 f6
 
                 // 40 51 62 73  04 15 26 37  c0 d1 e2 f3  84 95 a6 b7
-                // 43 50 61 72  07 14 25 36  c3 d0 e1 f2  87 94 a5 b6
-                // 42 53 60 71  06 17 24 35  c2 d3 e0 f1  86 97 a4 b5
                 // 41 52 63 70  05 16 27 34  c1 d2 e3 f0  85 96 a7 b4
+                // 42 53 60 71  06 17 24 35  c2 d3 e0 f1  86 97 a4 b5
+                // 43 50 61 72  07 14 25 36  c3 d0 e1 f2  87 94 a5 b6
 
-                _sum0 = _sum0;
-                _sum1 = _mm512_shuffle_epi32(_sum1, _MM_PERM_ADCB);
-                _sum2 = _mm512_shuffle_epi32(_sum2, _MM_PERM_BADC);
-                _sum3 = _mm512_shuffle_epi32(_sum3, _MM_PERM_CBAD);
-                _sum4 = _sum4;
-                _sum5 = _mm512_shuffle_epi32(_sum5, _MM_PERM_ADCB);
-                _sum6 = _mm512_shuffle_epi32(_sum6, _MM_PERM_BADC);
-                _sum7 = _mm512_shuffle_epi32(_sum7, _MM_PERM_CBAD);
+                __m512i _tmp0 = _sum0;
+                __m512i _tmp1 = _mm512_shuffle_epi32(_sum3, _MM_PERM_ADCB);
+                __m512i _tmp2 = _mm512_shuffle_epi32(_sum2, _MM_PERM_BADC);
+                __m512i _tmp3 = _mm512_shuffle_epi32(_sum1, _MM_PERM_CBAD);
+                __m512i _tmp4 = _sum4;
+                __m512i _tmp5 = _mm512_shuffle_epi32(_sum7, _MM_PERM_ADCB);
+                __m512i _tmp6 = _mm512_shuffle_epi32(_sum6, _MM_PERM_BADC);
+                __m512i _tmp7 = _mm512_shuffle_epi32(_sum5, _MM_PERM_CBAD);
 
                 // 00 11 22 33  44 55 66 77  80 91 a2 b3  c4 d5 e6 f7
                 // 10 21 32 03  54 65 76 47  90 a1 b2 83  d4 e5 f6 c7
@@ -1820,14 +1820,14 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 // 60 71 42 53  24 35 06 17  e0 f1 c2 d3  a4 b5 86 97
                 // 70 41 52 63  34 05 16 27  f0 c1 d2 e3  b4 85 96 a7
 
-                __m512i _sum01l = _mm512_unpacklo_epi32(_sum0, _sum1);
-                __m512i _sum01h = _mm512_unpackhi_epi32(_sum0, _sum1);
-                __m512i _sum23l = _mm512_unpacklo_epi32(_sum2, _sum3);
-                __m512i _sum23h = _mm512_unpackhi_epi32(_sum2, _sum3);
-                __m512i _sum45l = _mm512_unpacklo_epi32(_sum4, _sum5);
-                __m512i _sum45h = _mm512_unpackhi_epi32(_sum4, _sum5);
-                __m512i _sum67l = _mm512_unpacklo_epi32(_sum6, _sum7);
-                __m512i _sum67h = _mm512_unpackhi_epi32(_sum6, _sum7);
+                __m512i _sum01l = _mm512_unpacklo_epi32(_tmp0, _tmp1);
+                __m512i _sum01h = _mm512_unpackhi_epi32(_tmp0, _tmp1);
+                __m512i _sum23l = _mm512_unpacklo_epi32(_tmp2, _tmp3);
+                __m512i _sum23h = _mm512_unpackhi_epi32(_tmp2, _tmp3);
+                __m512i _sum45l = _mm512_unpacklo_epi32(_tmp4, _tmp5);
+                __m512i _sum45h = _mm512_unpackhi_epi32(_tmp4, _tmp5);
+                __m512i _sum67l = _mm512_unpacklo_epi32(_tmp6, _tmp7);
+                __m512i _sum67h = _mm512_unpackhi_epi32(_tmp6, _tmp7);
 
                 // 00 10 11 21  44 54 55 65  80 90 91 a1  c4 d4 d5 e5
                 // 22 32 33 03  66 76 77 47  a2 b2 b3 83  e6 f6 f7 c7
@@ -1877,14 +1877,14 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 // 42 52 62 72  06 16 26 36  c2 d2 e2 f2  86 96 a6 b6
                 // 43 53 63 73  07 17 27 37  c3 d3 e3 f3  87 97 a7 b7
 
-                __m512i _tmp0 = _mm512_shuffle_i32x4(_sum0, _sum4, _MM_SHUFFLE(2, 0, 2, 0));
-                __m512i _tmp1 = _mm512_shuffle_i32x4(_sum1, _sum5, _MM_SHUFFLE(2, 0, 2, 0));
-                __m512i _tmp2 = _mm512_shuffle_i32x4(_sum2, _sum6, _MM_SHUFFLE(2, 0, 2, 0));
-                __m512i _tmp3 = _mm512_shuffle_i32x4(_sum3, _sum7, _MM_SHUFFLE(2, 0, 2, 0));
-                __m512i _tmp4 = _mm512_shuffle_i32x4(_sum0, _sum4, _MM_SHUFFLE(3, 1, 3, 1));
-                __m512i _tmp5 = _mm512_shuffle_i32x4(_sum1, _sum5, _MM_SHUFFLE(3, 1, 3, 1));
-                __m512i _tmp6 = _mm512_shuffle_i32x4(_sum2, _sum6, _MM_SHUFFLE(3, 1, 3, 1));
-                __m512i _tmp7 = _mm512_shuffle_i32x4(_sum3, _sum7, _MM_SHUFFLE(3, 1, 3, 1));
+                _tmp0 = _mm512_shuffle_i32x4(_sum0, _sum4, _MM_SHUFFLE(2, 0, 2, 0));
+                _tmp1 = _mm512_shuffle_i32x4(_sum1, _sum5, _MM_SHUFFLE(2, 0, 2, 0));
+                _tmp2 = _mm512_shuffle_i32x4(_sum2, _sum6, _MM_SHUFFLE(2, 0, 2, 0));
+                _tmp3 = _mm512_shuffle_i32x4(_sum3, _sum7, _MM_SHUFFLE(2, 0, 2, 0));
+                _tmp4 = _mm512_shuffle_i32x4(_sum0, _sum4, _MM_SHUFFLE(3, 1, 3, 1));
+                _tmp5 = _mm512_shuffle_i32x4(_sum1, _sum5, _MM_SHUFFLE(3, 1, 3, 1));
+                _tmp6 = _mm512_shuffle_i32x4(_sum2, _sum6, _MM_SHUFFLE(3, 1, 3, 1));
+                _tmp7 = _mm512_shuffle_i32x4(_sum3, _sum7, _MM_SHUFFLE(3, 1, 3, 1));
 
                 // 00 10 20 30  80 90 a0 b0  40 50 60 70  c0 d0 e0 f0
                 // 01 11 21 31  81 91 a1 b1  41 51 61 71  c1 d1 e1 f1
@@ -2043,25 +2043,23 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 __m512i _pB0 = _mm512_cvtepi8_epi16(_pB);
 
                 // 0123 4567 89ab cdef
+                // 2301 6745 ab89 efcd
+                __m512i _pA1 = _mm512_shuffle_epi32(_pA0, _MM_PERM_BADC);
 
                 // 0123 0123 0123 0123
-                // 3012 3012 3012 3012
-                // 2301 2301 2301 2301
                 // 1230 1230 1230 1230
-                __m512i _pB1 = _mm512_shuffle_epi32(_pB0, _MM_PERM_CBAD);
-                __m512i _pB2 = _mm512_shuffle_epi32(_pB0, _MM_PERM_BADC);
-                __m512i _pB3 = _mm512_shuffle_epi32(_pB0, _MM_PERM_ADCB);
+                __m512i _pB1 = _mm512_shuffle_epi32(_pB0, _MM_PERM_ADCB);
 
 #if __AVX512VNNI__
                 _sum0 = _mm512_dpwssd_epi32(_sum0, _pA0, _pB0);
                 _sum1 = _mm512_dpwssd_epi32(_sum1, _pA0, _pB1);
-                _sum2 = _mm512_dpwssd_epi32(_sum2, _pA0, _pB2);
-                _sum3 = _mm512_dpwssd_epi32(_sum3, _pA0, _pB3);
+                _sum2 = _mm512_dpwssd_epi32(_sum2, _pA1, _pB0);
+                _sum3 = _mm512_dpwssd_epi32(_sum3, _pA1, _pB1);
 #else
                 _sum0 = _mm512_add_epi32(_sum0, _mm512_madd_epi16(_pA0, _pB0));
                 _sum1 = _mm512_add_epi32(_sum1, _mm512_madd_epi16(_pA0, _pB1));
-                _sum2 = _mm512_add_epi32(_sum2, _mm512_madd_epi16(_pA0, _pB2));
-                _sum3 = _mm512_add_epi32(_sum3, _mm512_madd_epi16(_pA0, _pB3));
+                _sum2 = _mm512_add_epi32(_sum2, _mm512_madd_epi16(_pA1, _pB0));
+                _sum3 = _mm512_add_epi32(_sum3, _mm512_madd_epi16(_pA1, _pB1));
 #endif
 
                 pA += 32;
@@ -2076,19 +2074,17 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 __m256i _pB0 = _mm256_cvtepi8_epi16(_pB);
 
                 // 01234567 89abcdef
+                // 23016745 ab89efcd
+                __m256i _pA1 = _mm256_shuffle_epi32(_pA0, _MM_SHUFFLE(2, 3, 0, 1));
 
                 // 01230123 01230123
-                // 30123012 30123012
-                // 23012301 23012301
                 // 12301230 12301230
-                __m256i _pB1 = _mm256_shufflehi_epi16(_mm256_shufflelo_epi16(_pB0, _MM_SHUFFLE(2, 1, 0, 3)), _MM_SHUFFLE(2, 1, 0, 3));
-                __m256i _pB2 = _mm256_shuffle_epi32(_pB0, _MM_SHUFFLE(2, 3, 0, 1));
-                __m256i _pB3 = _mm256_shufflehi_epi16(_mm256_shufflelo_epi16(_pB0, _MM_SHUFFLE(0, 3, 2, 1)), _MM_SHUFFLE(0, 3, 2, 1));
+                __m256i _pB1 = _mm256_shufflehi_epi16(_mm256_shufflelo_epi16(_pB0, _MM_SHUFFLE(0, 3, 2, 1)), _MM_SHUFFLE(0, 3, 2, 1));
 
                 __m512i _s0 = _mm512_cvtepi16_epi32(_mm256_mullo_epi16(_pA0, _pB0));
                 __m512i _s1 = _mm512_cvtepi16_epi32(_mm256_mullo_epi16(_pA0, _pB1));
-                __m512i _s2 = _mm512_cvtepi16_epi32(_mm256_mullo_epi16(_pA0, _pB2));
-                __m512i _s3 = _mm512_cvtepi16_epi32(_mm256_mullo_epi16(_pA0, _pB3));
+                __m512i _s2 = _mm512_cvtepi16_epi32(_mm256_mullo_epi16(_pA1, _pB0));
+                __m512i _s3 = _mm512_cvtepi16_epi32(_mm256_mullo_epi16(_pA1, _pB1));
 
                 _sum0 = _mm512_add_epi32(_sum0, _s0);
                 _sum1 = _mm512_add_epi32(_sum1, _s1);
@@ -2101,48 +2097,55 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
 
             if (k_end)
             {
-                // 00 11 22 33 40 51 62 73 80 91 a2 b3 c0 d1 e2 f3
-                // 03 10 21 32 43 50 61 72 83 90 a1 b2 c3 d0 e1 f2
-                // 02 13 20 31 42 53 60 71 82 93 a0 b1 c2 d3 e0 f1
-                // 01 12 23 30 41 52 63 70 81 92 a3 b0 c1 d2 e3 f0
-
-                _sum0 = _sum0;
-                _sum1 = _mm512_shuffle_epi32(_sum1, _MM_PERM_ADCB);
-                _sum2 = _mm512_shuffle_epi32(_sum2, _MM_PERM_BADC);
-                _sum3 = _mm512_shuffle_epi32(_sum3, _MM_PERM_CBAD);
-
-                // 00 11 22 33 40 51 62 73 80 91 a2 b3 c0 d1 e2 f3
-                // 10 21 32 03 50 61 72 43 90 a1 b2 83 d0 e1 f2 c3
-                // 20 31 02 13 60 71 42 53 a0 b1 82 93 e0 f1 c2 d3
-                // 30 01 12 23 70 41 52 63 b0 81 92 a3 f0 c1 d2 e3
-
-                __m512i _sum01l = _mm512_unpacklo_epi32(_sum0, _sum1);
-                __m512i _sum01h = _mm512_unpackhi_epi32(_sum0, _sum1);
-                __m512i _sum23l = _mm512_unpacklo_epi32(_sum2, _sum3);
-                __m512i _sum23h = _mm512_unpackhi_epi32(_sum2, _sum3);
-
-                // 00 10 11 21 40 50 51 61 80 90 91 a1 c0 d0 d1 e1
-                // 22 32 33 03 62 72 73 43 a2 b2 b3 83 e2 f2 f3 c3
-                // 20 30 31 01 60 70 71 41 a0 b0 b1 81 e0 f0 f1 c1
-                // 02 12 13 23 42 52 53 63 82 92 93 a3 c2 d2 d3 e3
-
-                _sum0 = _mm512_unpacklo_epi64(_sum01l, _sum23l);
-                _sum1 = _mm512_unpackhi_epi64(_sum01l, _sum23l);
-                _sum2 = _mm512_unpacklo_epi64(_sum01h, _sum23h);
-                _sum3 = _mm512_unpackhi_epi64(_sum01h, _sum23h);
-
-                // 00 10 20 30 40 50 60 70 80 90 a0 b0 c0 d0 e0 f0
-                // 11 21 31 01 51 61 71 41 91 a1 b1 81 d1 e1 f1 c1
-                // 22 32 02 12 62 72 42 52 a2 b2 82 92 e2 f2 c2 d2
-                // 33 03 13 23 73 43 53 63 b3 83 93 a3 f3 c3 d3 e3
-
-                _sum0 = _sum0;
-                _sum1 = _mm512_shuffle_epi32(_sum1, _MM_PERM_CBAD);
-                _sum2 = _mm512_shuffle_epi32(_sum2, _MM_PERM_BADC);
-                _sum3 = _mm512_shuffle_epi32(_sum3, _MM_PERM_ADCB);
-
                 if (out_elempack == 16)
                 {
+                    // TODO
+                    // 00 11 22 33  40 51 62 73  80 91 a2 b3  c0 d1 e2 f3
+                    // 01 12 23 30  41 52 63 70  81 92 a3 b0  c1 d2 e3 f0
+
+                    // 20 31 02 13  60 71 42 53  a0 b1 82 93  e0 f1 c2 d3
+                    // 21 32 03 10  61 72 43 50  a1 b2 83 90  e1 f2 c3 d0
+
+                    __m512i _tmp0 = _sum0;
+                    __m512i _tmp1 = _mm512_shuffle_epi32(_sum3, _MM_PERM_CBAD);
+                    __m512i _tmp2 = _sum2;
+                    __m512i _tmp3 = _mm512_shuffle_epi32(_sum1, _MM_PERM_CBAD);
+
+                    // 00 11 22 33  40 51 62 73  80 91 a2 b3  c0 d1 e2 f3
+                    // 10 21 32 03  50 61 72 43  90 a1 b2 83  d0 e1 f2 c3
+                    // 20 31 02 13  60 71 42 53  a0 b1 82 93  e0 f1 c2 d3
+                    // 30 01 12 23  70 41 52 63  b0 81 92 a3  f0 c1 d2 e3
+
+                    _sum0 = _mm512_unpacklo_epi32(_tmp0, _tmp1);
+                    _sum1 = _mm512_unpackhi_epi32(_tmp0, _tmp1);
+                    _sum2 = _mm512_unpacklo_epi32(_tmp2, _tmp3);
+                    _sum3 = _mm512_unpackhi_epi32(_tmp2, _tmp3);
+
+                    // 00 10 11 21  40 50 51 61  80 90 91 a1  c0 d0 d1 e1
+                    // 22 32 33 03  62 72 73 43  a2 b2 b3 83  e2 f2 f3 c3
+                    // 20 30 31 01  60 70 71 41  a0 b0 b1 81  e0 f0 f1 c1
+                    // 02 12 13 23  42 52 53 63  82 92 93 a3  c2 d2 d3 e3
+
+                    _tmp0 = _mm512_unpacklo_epi64(_sum0, _sum2);
+                    _tmp1 = _mm512_unpackhi_epi64(_sum0, _sum2);
+                    _tmp2 = _mm512_unpacklo_epi64(_sum3, _sum1);
+                    _tmp3 = _mm512_unpackhi_epi64(_sum3, _sum1);
+
+                    // 00 10 20 30  40 50 60 70  80 90 a0 b0  c0 d0 e0 f0
+                    // 11 21 31 01  51 61 71 41  91 a1 b1 81  d1 e1 f1 c1
+                    // 02 12 22 32  42 52 62 72  82 92 a2 b2  c2 d2 e2 f2
+                    // 13 23 33 03  53 63 73 43  93 a3 b3 83  d3 e3 f3 c3
+
+                    _sum0 = _tmp0;
+                    _sum1 = _mm512_shuffle_epi32(_tmp1, _MM_PERM_CBAD);
+                    _sum2 = _tmp2;
+                    _sum3 = _mm512_shuffle_epi32(_tmp3, _MM_PERM_CBAD);
+
+                    // 00 10 20 30  40 50 60 70  80 90 a0 b0  c0 d0 e0 f0
+                    // 01 11 21 31  41 51 61 71  81 91 a1 b1  c1 d1 e1 f1
+                    // 02 12 22 32  42 52 62 72  82 92 a2 b2  c2 d2 e2 f2
+                    // 03 13 23 33  43 53 63 73  83 93 a3 b3  c3 d3 e3 f3
+
                     _mm512_store_si512((__m512i*)outptr0, _sum0);
                     _mm512_store_si512((__m512i*)(outptr0 + 16), _sum1);
                     _mm512_store_si512((__m512i*)(outptr0 + 32), _sum2);
@@ -2151,14 +2154,60 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 }
                 if (out_elempack == 8)
                 {
-                    __m512i _tmp0 = _mm512_shuffle_i32x4(_sum0, _sum1, _MM_SHUFFLE(1, 0, 1, 0));
-                    __m512i _tmp1 = _mm512_shuffle_i32x4(_sum2, _sum3, _MM_SHUFFLE(1, 0, 1, 0));
-                    __m512i _tmp2 = _mm512_shuffle_i32x4(_sum0, _sum1, _MM_SHUFFLE(3, 2, 3, 2));
-                    __m512i _tmp3 = _mm512_shuffle_i32x4(_sum2, _sum3, _MM_SHUFFLE(3, 2, 3, 2));
+                    // TODO
+                    // 00 11 22 33  40 51 62 73  80 91 a2 b3  c0 d1 e2 f3
+                    // 01 12 23 30  41 52 63 70  81 92 a3 b0  c1 d2 e3 f0
+
+                    // 20 31 02 13  60 71 42 53  a0 b1 82 93  e0 f1 c2 d3
+                    // 21 32 03 10  61 72 43 50  a1 b2 83 90  e1 f2 c3 d0
+
+                    __m512i _tmp0 = _sum0;
+                    __m512i _tmp1 = _mm512_shuffle_epi32(_sum3, _MM_PERM_CBAD);
+                    __m512i _tmp2 = _sum2;
+                    __m512i _tmp3 = _mm512_shuffle_epi32(_sum1, _MM_PERM_CBAD);
+
+                    // 00 11 22 33  40 51 62 73  80 91 a2 b3  c0 d1 e2 f3
+                    // 10 21 32 03  50 61 72 43  90 a1 b2 83  d0 e1 f2 c3
+                    // 20 31 02 13  60 71 42 53  a0 b1 82 93  e0 f1 c2 d3
+                    // 30 01 12 23  70 41 52 63  b0 81 92 a3  f0 c1 d2 e3
+
+                    _sum0 = _mm512_unpacklo_epi32(_tmp0, _tmp1);
+                    _sum1 = _mm512_unpackhi_epi32(_tmp0, _tmp1);
+                    _sum2 = _mm512_unpacklo_epi32(_tmp2, _tmp3);
+                    _sum3 = _mm512_unpackhi_epi32(_tmp2, _tmp3);
+
+                    // 00 10 11 21  40 50 51 61  80 90 91 a1  c0 d0 d1 e1
+                    // 22 32 33 03  62 72 73 43  a2 b2 b3 83  e2 f2 f3 c3
+                    // 20 30 31 01  60 70 71 41  a0 b0 b1 81  e0 f0 f1 c1
+                    // 02 12 13 23  42 52 53 63  82 92 93 a3  c2 d2 d3 e3
+
+                    _tmp0 = _mm512_unpacklo_epi64(_sum0, _sum2);
+                    _tmp1 = _mm512_unpackhi_epi64(_sum0, _sum2);
+                    _tmp2 = _mm512_unpacklo_epi64(_sum3, _sum1);
+                    _tmp3 = _mm512_unpackhi_epi64(_sum3, _sum1);
+
+                    // 00 10 20 30  40 50 60 70  80 90 a0 b0  c0 d0 e0 f0
+                    // 11 21 31 01  51 61 71 41  91 a1 b1 81  d1 e1 f1 c1
+                    // 02 12 22 32  42 52 62 72  82 92 a2 b2  c2 d2 e2 f2
+                    // 13 23 33 03  53 63 73 43  93 a3 b3 83  d3 e3 f3 c3
+
+                    _sum0 = _tmp0;
+                    _sum1 = _mm512_shuffle_epi32(_tmp1, _MM_PERM_CBAD);
+                    _sum2 = _tmp2;
+                    _sum3 = _mm512_shuffle_epi32(_tmp3, _MM_PERM_CBAD);
+
+                    // 00 10 20 30  40 50 60 70  80 90 a0 b0  c0 d0 e0 f0
+                    // 01 11 21 31  41 51 61 71  81 91 a1 b1  c1 d1 e1 f1
+                    // 02 12 22 32  42 52 62 72  82 92 a2 b2  c2 d2 e2 f2
+                    // 03 13 23 33  43 53 63 73  83 93 a3 b3  c3 d3 e3 f3
+
+                    _tmp0 = _mm512_shuffle_i32x4(_sum0, _sum1, _MM_SHUFFLE(1, 0, 1, 0));
+                    _tmp1 = _mm512_shuffle_i32x4(_sum2, _sum3, _MM_SHUFFLE(1, 0, 1, 0));
+                    _tmp2 = _mm512_shuffle_i32x4(_sum0, _sum1, _MM_SHUFFLE(3, 2, 3, 2));
+                    _tmp3 = _mm512_shuffle_i32x4(_sum2, _sum3, _MM_SHUFFLE(3, 2, 3, 2));
 
                     _mm512_storeu_si512((__m512i*)outptr0, _tmp0);
                     _mm512_storeu_si512((__m512i*)(outptr0 + 16), _tmp1);
-
                     _mm512_storeu_si512((__m512i*)(outptr0 + out_hstep * 8), _tmp2);
                     _mm512_storeu_si512((__m512i*)(outptr0 + out_hstep * 8 + 16), _tmp3);
 
@@ -2166,10 +2215,56 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 }
                 if (out_elempack == 4)
                 {
-                    __m512i _tmp0 = _mm512_shuffle_i32x4(_sum0, _sum1, _MM_SHUFFLE(1, 0, 1, 0));
-                    __m512i _tmp1 = _mm512_shuffle_i32x4(_sum2, _sum3, _MM_SHUFFLE(1, 0, 1, 0));
-                    __m512i _tmp2 = _mm512_shuffle_i32x4(_sum0, _sum1, _MM_SHUFFLE(3, 2, 3, 2));
-                    __m512i _tmp3 = _mm512_shuffle_i32x4(_sum2, _sum3, _MM_SHUFFLE(3, 2, 3, 2));
+                    // 00 11 22 33  40 51 62 73  80 91 a2 b3  c0 d1 e2 f3
+                    // 01 12 23 30  41 52 63 70  81 92 a3 b0  c1 d2 e3 f0
+
+                    // 20 31 02 13  60 71 42 53  a0 b1 82 93  e0 f1 c2 d3
+                    // 21 32 03 10  61 72 43 50  a1 b2 83 90  e1 f2 c3 d0
+
+                    __m512i _tmp0 = _sum0;
+                    __m512i _tmp1 = _mm512_shuffle_epi32(_sum3, _MM_PERM_CBAD);
+                    __m512i _tmp2 = _sum2;
+                    __m512i _tmp3 = _mm512_shuffle_epi32(_sum1, _MM_PERM_CBAD);
+
+                    // 00 11 22 33  40 51 62 73  80 91 a2 b3  c0 d1 e2 f3
+                    // 10 21 32 03  50 61 72 43  90 a1 b2 83  d0 e1 f2 c3
+                    // 20 31 02 13  60 71 42 53  a0 b1 82 93  e0 f1 c2 d3
+                    // 30 01 12 23  70 41 52 63  b0 81 92 a3  f0 c1 d2 e3
+
+                    _sum0 = _mm512_unpacklo_epi32(_tmp0, _tmp1);
+                    _sum1 = _mm512_unpackhi_epi32(_tmp0, _tmp1);
+                    _sum2 = _mm512_unpacklo_epi32(_tmp2, _tmp3);
+                    _sum3 = _mm512_unpackhi_epi32(_tmp2, _tmp3);
+
+                    // 00 10 11 21  40 50 51 61  80 90 91 a1  c0 d0 d1 e1
+                    // 22 32 33 03  62 72 73 43  a2 b2 b3 83  e2 f2 f3 c3
+                    // 20 30 31 01  60 70 71 41  a0 b0 b1 81  e0 f0 f1 c1
+                    // 02 12 13 23  42 52 53 63  82 92 93 a3  c2 d2 d3 e3
+
+                    _tmp0 = _mm512_unpacklo_epi64(_sum0, _sum2);
+                    _tmp1 = _mm512_unpackhi_epi64(_sum0, _sum2);
+                    _tmp2 = _mm512_unpacklo_epi64(_sum3, _sum1);
+                    _tmp3 = _mm512_unpackhi_epi64(_sum3, _sum1);
+
+                    // 00 10 20 30  40 50 60 70  80 90 a0 b0  c0 d0 e0 f0
+                    // 11 21 31 01  51 61 71 41  91 a1 b1 81  d1 e1 f1 c1
+                    // 02 12 22 32  42 52 62 72  82 92 a2 b2  c2 d2 e2 f2
+                    // 13 23 33 03  53 63 73 43  93 a3 b3 83  d3 e3 f3 c3
+
+                    _sum0 = _tmp0;
+                    _sum1 = _mm512_shuffle_epi32(_tmp1, _MM_PERM_CBAD);
+                    _sum2 = _tmp2;
+                    _sum3 = _mm512_shuffle_epi32(_tmp3, _MM_PERM_CBAD);
+
+                    // 00 10 20 30  40 50 60 70  80 90 a0 b0  c0 d0 e0 f0
+                    // 01 11 21 31  41 51 61 71  81 91 a1 b1  c1 d1 e1 f1
+                    // 02 12 22 32  42 52 62 72  82 92 a2 b2  c2 d2 e2 f2
+                    // 03 13 23 33  43 53 63 73  83 93 a3 b3  c3 d3 e3 f3
+
+                    _tmp0 = _mm512_shuffle_i32x4(_sum0, _sum1, _MM_SHUFFLE(1, 0, 1, 0));
+                    _tmp1 = _mm512_shuffle_i32x4(_sum2, _sum3, _MM_SHUFFLE(1, 0, 1, 0));
+                    _tmp2 = _mm512_shuffle_i32x4(_sum0, _sum1, _MM_SHUFFLE(3, 2, 3, 2));
+                    _tmp3 = _mm512_shuffle_i32x4(_sum2, _sum3, _MM_SHUFFLE(3, 2, 3, 2));
 
                     _sum0 = _mm512_shuffle_i32x4(_tmp0, _tmp1, _MM_SHUFFLE(2, 0, 2, 0));
                     _sum1 = _mm512_shuffle_i32x4(_tmp0, _tmp1, _MM_SHUFFLE(3, 1, 3, 1));
@@ -2185,23 +2280,63 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 }
                 if (out_elempack == 1)
                 {
-                    transpose16x4_epi32(_sum0, _sum1, _sum2, _sum3);
+                    // 00 11 22 33  40 51 62 73  80 91 a2 b3  c0 d1 e2 f3
+                    // 01 12 23 30  41 52 63 70  81 92 a3 b0  c1 d2 e3 f0
+
+                    // 20 31 02 13  60 71 42 53  a0 b1 82 93  e0 f1 c2 d3
+                    // 21 32 03 10  61 72 43 50  a1 b2 83 90  e1 f2 c3 d0
+
+                    _sum2 = _mm512_shuffle_epi32(_sum2, _MM_PERM_BADC);
+                    _sum3 = _mm512_shuffle_epi32(_sum3, _MM_PERM_BADC);
+
+                    // 00 11 22 33  40 51 62 73  80 91 a2 b3  c0 d1 e2 f3
+                    // 01 12 23 30  41 52 63 70  81 92 a3 b0  c1 d2 e3 f0
+                    // 02 13 20 31  42 53 60 71  82 93 a0 b1  c2 d3 e0 f1
+                    // 03 10 21 32  43 50 61 72  83 90 a1 b2  c3 d0 e1 f2
+
+                    __m512i _tmp0 = _mm512_unpacklo_epi32(_sum0, _sum1);
+                    __m512i _tmp1 = _mm512_unpackhi_epi32(_sum0, _sum1);
+                    __m512i _tmp2 = _mm512_unpacklo_epi32(_sum2, _sum3);
+                    __m512i _tmp3 = _mm512_unpackhi_epi32(_sum2, _sum3);
+
+                    // 00 01 11 12  40 41 51 52  80 81 91 92  c0 c1 d1 d2
+                    // 22 23 33 30  62 63 73 70  a2 a3 b3 b0  e2 e3 f3 f0
+                    // 02 03 13 10  42 43 53 50  82 83 93 90  c2 c3 d3 d0
+                    // 20 21 31 32  60 61 71 72  a0 a1 b1 b2  e0 e1 f1 f2
+
+                    _sum0 = _mm512_unpacklo_epi64(_tmp0, _tmp2);
+                    _sum1 = _mm512_unpackhi_epi64(_tmp0, _tmp2);
+                    _sum2 = _mm512_unpacklo_epi64(_tmp3, _tmp1);
+                    _sum3 = _mm512_unpackhi_epi64(_tmp3, _tmp1);
+
+                    // 00 01 02 03  40 41 42 43  80 81 82 83  c0 c1 c2 c3
+                    // 11 12 13 10  51 52 53 50  91 92 93 90  d1 d2 d3 d0
+                    // 20 21 22 23  60 61 62 63  a0 a1 a2 a3  e0 e1 e2 e3
+                    // 31 32 33 30  71 72 73 70  b1 b2 b3 b0  f1 f2 f2 f0
+
+                    _sum1 = _mm512_shuffle_epi32(_sum1, _MM_PERM_CBAD);
+                    _sum3 = _mm512_shuffle_epi32(_sum3, _MM_PERM_CBAD);
+
+                    // 00 01 02 03  40 41 42 43  80 81 82 83  c0 c1 c2 c3
+                    // 10 11 12 13  50 51 52 53  90 91 92 93  d0 d1 d2 d3
+                    // 20 21 22 23  60 61 62 63  a0 a1 a2 a3  e0 e1 e2 e3
+                    // 30 31 32 33  70 71 72 73  b0 b1 b2 b3  f0 f1 f2 f2
 
                     _mm_storeu_si128((__m128i*)outptr0, _mm512_extracti32x4_epi32(_sum0, 0));
-                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep), _mm512_extracti32x4_epi32(_sum0, 1));
-                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 2), _mm512_extracti32x4_epi32(_sum0, 2));
-                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 3), _mm512_extracti32x4_epi32(_sum0, 3));
-                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 4), _mm512_extracti32x4_epi32(_sum1, 0));
+                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep), _mm512_extracti32x4_epi32(_sum1, 0));
+                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 2), _mm512_extracti32x4_epi32(_sum2, 0));
+                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 3), _mm512_extracti32x4_epi32(_sum3, 0));
+                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 4), _mm512_extracti32x4_epi32(_sum0, 1));
                     _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 5), _mm512_extracti32x4_epi32(_sum1, 1));
-                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 6), _mm512_extracti32x4_epi32(_sum1, 2));
-                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 7), _mm512_extracti32x4_epi32(_sum1, 3));
-                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 8), _mm512_extracti32x4_epi32(_sum2, 0));
-                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 9), _mm512_extracti32x4_epi32(_sum2, 1));
+                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 6), _mm512_extracti32x4_epi32(_sum2, 1));
+                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 7), _mm512_extracti32x4_epi32(_sum3, 1));
+                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 8), _mm512_extracti32x4_epi32(_sum0, 2));
+                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 9), _mm512_extracti32x4_epi32(_sum1, 2));
                     _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 10), _mm512_extracti32x4_epi32(_sum2, 2));
-                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 11), _mm512_extracti32x4_epi32(_sum2, 3));
-                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 12), _mm512_extracti32x4_epi32(_sum3, 0));
-                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 13), _mm512_extracti32x4_epi32(_sum3, 1));
-                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 14), _mm512_extracti32x4_epi32(_sum3, 2));
+                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 11), _mm512_extracti32x4_epi32(_sum3, 2));
+                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 12), _mm512_extracti32x4_epi32(_sum0, 3));
+                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 13), _mm512_extracti32x4_epi32(_sum1, 3));
+                    _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 14), _mm512_extracti32x4_epi32(_sum2, 3));
                     _mm_storeu_si128((__m128i*)(outptr0 + out_hstep * 15), _mm512_extracti32x4_epi32(_sum3, 3));
                     outptr0 += 4;
                 }
@@ -2987,9 +3122,10 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 _sum2 = _mm512_add_epi32(_sum2, _mm512_madd_epi16(_pA11, _pB01));
                 _sum3 = _mm512_add_epi32(_sum3, _mm512_madd_epi16(_pA11, _pB23));
 #endif // __AVX512VNNI__
-#else  // __AVX512F__ \
-// 0123 4567   \
-// 4567 0123
+#else  // __AVX512F__
+
+                // 0123 4567
+                // 4567 0123
                 __m256i _pA1 = _mm256_permute4x64_epi64(_pA0, _MM_SHUFFLE(1, 0, 3, 2));
 
                 // 0123 4567
