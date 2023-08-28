@@ -2987,9 +2987,9 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 _sum2 = _mm512_add_epi32(_sum2, _mm512_madd_epi16(_pA11, _pB01));
                 _sum3 = _mm512_add_epi32(_sum3, _mm512_madd_epi16(_pA11, _pB23));
 #endif // __AVX512VNNI__
-#else  // __AVX512F__
-                // 0123 4567
-                // 4567 0123
+#else  // __AVX512F__ \
+// 0123 4567   \
+// 4567 0123
                 __m256i _pA1 = _mm256_permute4x64_epi64(_pA0, _MM_SHUFFLE(1, 0, 3, 2));
 
                 // 0123 4567
