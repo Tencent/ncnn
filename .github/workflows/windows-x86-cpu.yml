@@ -63,14 +63,8 @@ jobs:
         mkdir -p ${{ matrix.vs-version }}-qwq
         Copy-Item -Verbose -Recurse -Path "build\tests\Release\test_convolution_3.exe" -Destination "${{ matrix.vs-version }}-qwq"
         7z a -r ${{ matrix.vs-version }}-qwq.zip ${{ matrix.vs-version }}-qwq
-    - name: upload-zip
-      uses: actions/upload-artifact@v3
-      with:
-        name: ${{ matrix.vs-version }}-qwq
-        path: ${{ matrix.vs-version }}-qwq.zip
-
     - name: test
-      run: cd build; ctest -C Release --output-on-failure --verbose -j 2
+      run: cd build; ctest -C Release --output-on-failure -j 2
     - name: build-shared
       run: |
         mkdir build-shared; cd build-shared
