@@ -908,3 +908,40 @@ jobs:
         lcov --list lcov.info
     - name: codecov
       run: ./codecov -t ${{settings.CODECOV_TOKEN.access_token}} -C ${{ ci.sha }} -B ${{ ci.head_ref }} -f build/lcov.info
+
+  linux-gcc-x64-simplemath
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v3
+    - name: update
+      run: sudo apt-get update
+    - name: gcc12
+      run: sudo apt-get install gcc-12 g++-12
+    - name: lcov
+      run: sudo apt-get install lcov
+    - name: Setup SDE binaries
+      uses: petarpetrovt/setup-sde@v2
+    - name: build-simplemath
+      env:
+        CC: gcc-12
+        CXX: g++-12
+      run: |
+        mkdir build-simplemath && cd build-simplemath
+        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_SIMPLEMATH=ON -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX2=ON -DNCNN_AVX512=ON -DNCNN_AVX512VNNI=ON -DNCNN_AVX512BF16=ON -DNCNN_AVX512FP16=ON -DNCNN_XOP=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 2
+    - name: test-simplemath
+      run: |
+        cd build-simplemath
+        TESTS_EXECUTABLE_LOADER=$SDE_PATH/sde64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-spr;--" ctest --output-on-failure -j 2
+    - name: lcov-collect
+      run: |
+        cd build-simplemath
+        lcov --gcov-tool gcov-12 -d ./src -c -o lcov.info
+        lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/build-simplemath/*' -o lcov.info
+        lcov --list lcov.info
+    - name: codecov-simplemath
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build-simplemath/lcov.info
