@@ -481,10 +481,9 @@ struct unary_op_erf
 #if __ARM_NEON
     float32x4_t func_pack4(const float32x4_t& x) const
     {
-    float norm_x = x / sqrt(2.0f);
+    float32x4_t norm_x_vec = x / vsqrtq_f32(vdupq_n_f32(2.0f));
     float32x4_t erf_approx = vmovq_n_f32(1.0f);
-    float32x4_t norm_x_vec = vdupq_n_f32(norm_x);
-    float32x4_t tanh_x = tanh(vmulq_f32(pi, norm_x_vec));
+    float32x4_t tanh_x = tanh_ps(vmulq_f32(pi, norm_x_vec));
     return vsubq_f32(erf_approx, vmulq_f32(0.5f, tanh_x));
     }
 #endif // __ARM_NEON
