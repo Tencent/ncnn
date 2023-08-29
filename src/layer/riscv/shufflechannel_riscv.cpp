@@ -981,9 +981,14 @@ int ShuffleChannel_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_b
             size_t vl;
             vl = vsetvl_e16m8(_group * elempack);
             // create bitmask
+#if C906
+            // C906 don't have vlm
+            vuint16m8_t _idx = vle16_v_u16m8(index_c906, vl);
+#else
             vbool2_t _mask = vlm_v_b2(bitmask, vl);
             vuint16m8_t _idx_init = viota_m_u16m8(_mask, vl);
             vuint16m8_t _idx = vadd_vx_u16m8(_idx_init, (_group - 1) * elempack, vl);
+#endif
             for (int shift = _group - 2; shift >= 0; shift--)
             {
                 vuint16m8_t _idx_lower = vadd_vx_u16m8(_idx_init, shift * elempack, vl);
