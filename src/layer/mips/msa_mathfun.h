@@ -267,4 +267,17 @@ static inline v4f32 atan2_ps(v4f32 a, v4f32 b)
     return (v4f32)__msa_ld_w(tmpx, 0);
 }
 
+static inline v4f32 remainder_ps(v4f32 x, v4f32 y)
+{
+    float tmpx[4];
+    float tmpy[4];
+    __msa_st_w(x, tmpx, 0);
+    __msa_st_w(y, tmpy, 0);
+    tmpx[0] = remainder(tmpx[0], tmpy[0]);
+    tmpx[1] = remainder(tmpx[1], tmpy[1]);
+    tmpx[2] = remainder(tmpx[2], tmpy[2]);
+    tmpx[3] = remainder(tmpx[3], tmpy[3]);
+    return __msa_ld_w(tmpx, 0);
+}
+
 #endif // MSA_MATHFUN_H

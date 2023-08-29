@@ -314,6 +314,7 @@ MAKE_FUNCTION(binary_op_rdiv, y / x, __msa_fdiv_w(y, x))
 MAKE_FUNCTION(binary_op_rpow, (float)pow(y, x), pow_ps(y, x))
 MAKE_FUNCTION(binary_op_atan2, (float)atan2(x, y), atan2_ps(x, y))
 MAKE_FUNCTION(binary_op_ratan2, (float)atan2(y, x), atan2_ps(y, x))
+MAKE_FUNCTION(binary_op_remainder, remainder(x, y), remainder_ps(x, y))
 // *INDENT-ON*
 // clang-format on
 
@@ -337,6 +338,7 @@ static void binary_op_vector(const float* ptr, const float* ptr1, float* outptr,
     if (op_type == BinaryOp::Operation_RPOW) return binary_op_vector<binary_op_rpow>(ptr, ptr1, outptr, aw, bw, ap, bp);
     if (op_type == BinaryOp::Operation_ATAN2) return binary_op_vector<binary_op_atan2>(ptr, ptr1, outptr, aw, bw, ap, bp);
     if (op_type == BinaryOp::Operation_RATAN2) return binary_op_vector<binary_op_ratan2>(ptr, ptr1, outptr, aw, bw, ap, bp);
+    if (op_type == BinaryOp::Operation_REMAINDER) return binary_op_vector<binary_op_remainder>(ptr, ptr1, outptr, aw, bw, ap, bp);
 
     // should never reach here
 }
