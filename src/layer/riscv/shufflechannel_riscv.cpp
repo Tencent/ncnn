@@ -89,7 +89,6 @@ int ShuffleChannel_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const O
 
 #if __riscv_vector
     const int packn = csrr_vlenb() / 4;
-    // TODO pack1
     if (elempack == packn)
     {
 #if C906
@@ -637,7 +636,6 @@ int ShuffleChannel_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_b
 
 #if __riscv_vector
     const int packn = csrr_vlenb() / 2;
-    // TODO pack1
     if (elempack == packn)
     {
 #if C906
