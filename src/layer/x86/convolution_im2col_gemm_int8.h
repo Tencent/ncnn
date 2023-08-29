@@ -935,59 +935,38 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                     }
 
                     // TODO
-                    //      00 10 20 30  44 54 64 74  88 98 a8 b8  cc dc ec fc
-                    //      01 11 21 31  45 55 65 75  89 99 a9 b9  cd dd ed fd
-                    //      02 12 22 32  46 56 66 76  8a 9a aa ba  ce de ee fe
-                    //      03 13 23 33  47 57 67 77  8b 9b ab bb  cf df ef ff
-
-                    //      c0 d0 e0 f0  04 14 24 34  48 58 68 78  8c 9c ac bc
-                    //      c1 d1 e1 f1  05 15 25 35  49 59 69 79  8d 9d ad bd
-                    //      c2 d2 e2 f2  06 16 26 36  4a 5a 6a 7a  8e 9e ae be
-                    //      c3 d3 e3 f3  07 17 27 37  4b 5b 6b 7b  8f 9f af bf
-
-                    //      80 90 a0 b0  c4 d4 e4 f4  08 18 28 38  4c 5c 6c 7c
-                    //      81 91 a1 b1  c5 d5 e5 f5  09 19 29 39  4d 5d 6d 7d
-                    //      82 92 a2 b2  c6 d6 e6 f6  0a 1a 2a 3a  4e 5e 6e 7e
-                    //      83 93 a3 b3  c7 d7 e7 f7  0b 1b 2b 3b  4f 5f 6f 7f
-
-                    //      40 50 60 70  84 94 a4 b4  c8 d8 e8 f8  0c 1c 2c 3c
-                    //      41 51 61 71  85 95 a5 b5  c9 d9 e9 f9  0d 1d 2d 3d
-                    //      42 52 62 72  86 96 a6 b6  ca da ea fa  0e 1e 2e 3e
-                    //      43 53 63 73  87 97 a7 b7  cb db eb fb  0f 1f 2f 3f
-
-                    // 0123  4567  89ab  cdef   x 0
-                    // 0123  4567  89ab  cdef   x 1
-                    // 0123  4567  89ab  cdef   x 2
-                    // 0123  4567  89ab  cdef   x 3
-                    // 4567  89ab  cdef  0123   x 4
-                    // 4567  89ab  cdef  0123   x 5
-                    // 4567  89ab  cdef  0123   x 6
-                    // 4567  89ab  cdef  0123   x 7
-                    // 89ab  cdef  0123  4567   x 8
-                    // 89ab  cdef  0123  4567   x 9
-                    // 89ab  cdef  0123  4567   x a
-                    // 89ab  cdef  0123  4567   x b
-                    // cdef  0123  4567  89ab   x c
-                    // cdef  0123  4567  89ab   x d
-                    // cdef  0123  4567  89ab   x e
-                    // cdef  0123  4567  89ab   x f
-
-                    // _sum0 = _tmp0;
-                    // _sum1 = _tmp1;
-                    // _sum2 = _tmp2;
-                    // _sum3 = _tmp3;
-                    // _sum4 = _mm512_shuffle_i32x4(_tmp4, _tmp4, _MM_SHUFFLE(2, 1, 0, 3));
-                    // _sum5 = _mm512_shuffle_i32x4(_tmp5, _tmp5, _MM_SHUFFLE(2, 1, 0, 3));
-                    // _sum6 = _mm512_shuffle_i32x4(_tmp6, _tmp6, _MM_SHUFFLE(2, 1, 0, 3));
-                    // _sum7 = _mm512_shuffle_i32x4(_tmp7, _tmp7, _MM_SHUFFLE(2, 1, 0, 3));
-                    // _sum8 = _mm512_shuffle_i32x4(_tmp8, _tmp8, _MM_SHUFFLE(1, 0, 3, 2));
-                    // _sum9 = _mm512_shuffle_i32x4(_tmp9, _tmp9, _MM_SHUFFLE(1, 0, 3, 2));
-                    // _suma = _mm512_shuffle_i32x4(_tmpa, _tmpa, _MM_SHUFFLE(1, 0, 3, 2));
-                    // _sumb = _mm512_shuffle_i32x4(_tmpb, _tmpb, _MM_SHUFFLE(1, 0, 3, 2));
-                    // _sumc = _mm512_shuffle_i32x4(_tmpc, _tmpc, _MM_SHUFFLE(0, 3, 2, 1));
-                    // _sumd = _mm512_shuffle_i32x4(_tmpd, _tmpd, _MM_SHUFFLE(0, 3, 2, 1));
-                    // _sume = _mm512_shuffle_i32x4(_tmpe, _tmpe, _MM_SHUFFLE(0, 3, 2, 1));
-                    // _sumf = _mm512_shuffle_i32x4(_tmpf, _tmpf, _MM_SHUFFLE(0, 3, 2, 1));
+                    __m512i _tmp0 = _mm512_shuffle_i32x4(_sum0, _sumc, _MM_SHUFFLE(2, 0, 2, 0));
+                    __m512i _tmp1 = _mm512_shuffle_i32x4(_sum4, _sum0, _MM_SHUFFLE(3, 1, 3, 1));
+                    __m512i _tmp2 = _mm512_shuffle_i32x4(_sum8, _sum4, _MM_SHUFFLE(0, 2, 0, 2));
+                    __m512i _tmp3 = _mm512_shuffle_i32x4(_sumc, _sum8, _MM_SHUFFLE(1, 3, 1, 3));
+                    __m512i _tmp4 = _mm512_shuffle_i32x4(_sum1, _sumd, _MM_SHUFFLE(2, 0, 2, 0));
+                    __m512i _tmp5 = _mm512_shuffle_i32x4(_sum5, _sum1, _MM_SHUFFLE(3, 1, 3, 1));
+                    __m512i _tmp6 = _mm512_shuffle_i32x4(_sum9, _sum5, _MM_SHUFFLE(0, 2, 0, 2));
+                    __m512i _tmp7 = _mm512_shuffle_i32x4(_sumd, _sum9, _MM_SHUFFLE(1, 3, 1, 3));
+                    __m512i _tmp8 = _mm512_shuffle_i32x4(_sum2, _sume, _MM_SHUFFLE(2, 0, 2, 0));
+                    __m512i _tmp9 = _mm512_shuffle_i32x4(_sum6, _sum2, _MM_SHUFFLE(3, 1, 3, 1));
+                    __m512i _tmpa = _mm512_shuffle_i32x4(_suma, _sum6, _MM_SHUFFLE(0, 2, 0, 2));
+                    __m512i _tmpb = _mm512_shuffle_i32x4(_sume, _suma, _MM_SHUFFLE(1, 3, 1, 3));
+                    __m512i _tmpc = _mm512_shuffle_i32x4(_sum3, _sumf, _MM_SHUFFLE(2, 0, 2, 0));
+                    __m512i _tmpd = _mm512_shuffle_i32x4(_sum7, _sum3, _MM_SHUFFLE(3, 1, 3, 1));
+                    __m512i _tmpe = _mm512_shuffle_i32x4(_sumb, _sum7, _MM_SHUFFLE(0, 2, 0, 2));
+                    __m512i _tmpf = _mm512_shuffle_i32x4(_sumf, _sumb, _MM_SHUFFLE(1, 3, 1, 3));
+                    _sum0 = _mm512_shuffle_i32x4(_tmp0, _tmp2, _MM_SHUFFLE(3, 1, 2, 0));
+                    _sum1 = _mm512_shuffle_i32x4(_tmp4, _tmp6, _MM_SHUFFLE(3, 1, 2, 0));
+                    _sum2 = _mm512_shuffle_i32x4(_tmp8, _tmpa, _MM_SHUFFLE(3, 1, 2, 0));
+                    _sum3 = _mm512_shuffle_i32x4(_tmpc, _tmpe, _MM_SHUFFLE(3, 1, 2, 0));
+                    _sum4 = _mm512_shuffle_i32x4(_tmp1, _tmp3, _MM_SHUFFLE(3, 1, 2, 0));
+                    _sum5 = _mm512_shuffle_i32x4(_tmp5, _tmp7, _MM_SHUFFLE(3, 1, 2, 0));
+                    _sum6 = _mm512_shuffle_i32x4(_tmp9, _tmpb, _MM_SHUFFLE(3, 1, 2, 0));
+                    _sum7 = _mm512_shuffle_i32x4(_tmpd, _tmpf, _MM_SHUFFLE(3, 1, 2, 0));
+                    _sum8 = _mm512_shuffle_i32x4(_tmp2, _tmp0, _MM_SHUFFLE(3, 1, 2, 0));
+                    _sum9 = _mm512_shuffle_i32x4(_tmp6, _tmp4, _MM_SHUFFLE(3, 1, 2, 0));
+                    _suma = _mm512_shuffle_i32x4(_tmpa, _tmp8, _MM_SHUFFLE(3, 1, 2, 0));
+                    _sumb = _mm512_shuffle_i32x4(_tmpe, _tmpc, _MM_SHUFFLE(3, 1, 2, 0));
+                    _sumc = _mm512_shuffle_i32x4(_tmp3, _tmp1, _MM_SHUFFLE(3, 1, 2, 0));
+                    _sumd = _mm512_shuffle_i32x4(_tmp7, _tmp5, _MM_SHUFFLE(3, 1, 2, 0));
+                    _sume = _mm512_shuffle_i32x4(_tmpb, _tmp9, _MM_SHUFFLE(3, 1, 2, 0));
+                    _sumf = _mm512_shuffle_i32x4(_tmpf, _tmpd, _MM_SHUFFLE(3, 1, 2, 0));
 
                     _mm512_store_si512((__m512i*)outptr0, _sum0);
                     _mm512_store_si512((__m512i*)(outptr0 + 16), _sum1);
@@ -1099,59 +1078,38 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                     }
 
                     // TODO
-                    //      00 10 20 30  44 54 64 74  88 98 a8 b8  cc dc ec fc
-                    //      01 11 21 31  45 55 65 75  89 99 a9 b9  cd dd ed fd
-                    //      02 12 22 32  46 56 66 76  8a 9a aa ba  ce de ee fe
-                    //      03 13 23 33  47 57 67 77  8b 9b ab bb  cf df ef ff
-
-                    //      c0 d0 e0 f0  04 14 24 34  48 58 68 78  8c 9c ac bc
-                    //      c1 d1 e1 f1  05 15 25 35  49 59 69 79  8d 9d ad bd
-                    //      c2 d2 e2 f2  06 16 26 36  4a 5a 6a 7a  8e 9e ae be
-                    //      c3 d3 e3 f3  07 17 27 37  4b 5b 6b 7b  8f 9f af bf
-
-                    //      80 90 a0 b0  c4 d4 e4 f4  08 18 28 38  4c 5c 6c 7c
-                    //      81 91 a1 b1  c5 d5 e5 f5  09 19 29 39  4d 5d 6d 7d
-                    //      82 92 a2 b2  c6 d6 e6 f6  0a 1a 2a 3a  4e 5e 6e 7e
-                    //      83 93 a3 b3  c7 d7 e7 f7  0b 1b 2b 3b  4f 5f 6f 7f
-
-                    //      40 50 60 70  84 94 a4 b4  c8 d8 e8 f8  0c 1c 2c 3c
-                    //      41 51 61 71  85 95 a5 b5  c9 d9 e9 f9  0d 1d 2d 3d
-                    //      42 52 62 72  86 96 a6 b6  ca da ea fa  0e 1e 2e 3e
-                    //      43 53 63 73  87 97 a7 b7  cb db eb fb  0f 1f 2f 3f
-
-                    // 0123  4567  89ab  cdef   x 0
-                    // 0123  4567  89ab  cdef   x 1
-                    // 0123  4567  89ab  cdef   x 2
-                    // 0123  4567  89ab  cdef   x 3
-                    // 4567  89ab  cdef  0123   x 4
-                    // 4567  89ab  cdef  0123   x 5
-                    // 4567  89ab  cdef  0123   x 6
-                    // 4567  89ab  cdef  0123   x 7
-                    // 89ab  cdef  0123  4567   x 8
-                    // 89ab  cdef  0123  4567   x 9
-                    // 89ab  cdef  0123  4567   x a
-                    // 89ab  cdef  0123  4567   x b
-                    // cdef  0123  4567  89ab   x c
-                    // cdef  0123  4567  89ab   x d
-                    // cdef  0123  4567  89ab   x e
-                    // cdef  0123  4567  89ab   x f
-
-                    // _sum0 = _mm512_shuffle_i32x4(_sum0, _sum1, _MM_SHUFFLE(1, 0, 1, 0));
-                    // _sum1 = _mm512_shuffle_i32x4(_sum2, _sum3, _MM_SHUFFLE(1, 0, 1, 0));
-                    // _sum2 = _mm512_shuffle_i32x4(_sum4, _sum5, _MM_SHUFFLE(0, 3, 0, 3));
-                    // _sum3 = _mm512_shuffle_i32x4(_sum6, _sum7, _MM_SHUFFLE(0, 3, 0, 3));
-                    // _sum4 = _mm512_shuffle_i32x4(_sum8, _sum9, _MM_SHUFFLE(3, 2, 3, 2));
-                    // _sum5 = _mm512_shuffle_i32x4(_suma, _sumb, _MM_SHUFFLE(3, 2, 3, 2));
-                    // _sum6 = _mm512_shuffle_i32x4(_sumc, _sumd, _MM_SHUFFLE(2, 1, 2, 1));
-                    // _sum7 = _mm512_shuffle_i32x4(_sume, _sumf, _MM_SHUFFLE(2, 1, 2, 1));
-                    // _sum8 = _mm512_shuffle_i32x4(_sum0, _sum1, _MM_SHUFFLE(3, 2, 3, 2));
-                    // _sum9 = _mm512_shuffle_i32x4(_sum2, _sum3, _MM_SHUFFLE(3, 2, 3, 2));
-                    // _suma = _mm512_shuffle_i32x4(_sum4, _sum5, _MM_SHUFFLE(2, 1, 2, 1));
-                    // _sumb = _mm512_shuffle_i32x4(_sum6, _sum7, _MM_SHUFFLE(2, 1, 2, 1));
-                    // _sumc = _mm512_shuffle_i32x4(_sum8, _sum9, _MM_SHUFFLE(1, 0, 1, 0));
-                    // _sumd = _mm512_shuffle_i32x4(_suma, _sumb, _MM_SHUFFLE(1, 0, 1, 0));
-                    // _sume = _mm512_shuffle_i32x4(_sumc, _sumd, _MM_SHUFFLE(0, 3, 0, 3));
-                    // _sumf = _mm512_shuffle_i32x4(_sume, _sumf, _MM_SHUFFLE(0, 3, 0, 3));
+                    __m512i _tmp0 = _mm512_shuffle_i32x4(_sum0, _sumc, _MM_SHUFFLE(2, 0, 2, 0));
+                    __m512i _tmp1 = _mm512_shuffle_i32x4(_sum4, _sum0, _MM_SHUFFLE(3, 1, 3, 1));
+                    __m512i _tmp2 = _mm512_shuffle_i32x4(_sum8, _sum4, _MM_SHUFFLE(0, 2, 0, 2));
+                    __m512i _tmp3 = _mm512_shuffle_i32x4(_sumc, _sum8, _MM_SHUFFLE(1, 3, 1, 3));
+                    __m512i _tmp4 = _mm512_shuffle_i32x4(_sum1, _sumd, _MM_SHUFFLE(2, 0, 2, 0));
+                    __m512i _tmp5 = _mm512_shuffle_i32x4(_sum5, _sum1, _MM_SHUFFLE(3, 1, 3, 1));
+                    __m512i _tmp6 = _mm512_shuffle_i32x4(_sum9, _sum5, _MM_SHUFFLE(0, 2, 0, 2));
+                    __m512i _tmp7 = _mm512_shuffle_i32x4(_sumd, _sum9, _MM_SHUFFLE(1, 3, 1, 3));
+                    __m512i _tmp8 = _mm512_shuffle_i32x4(_sum2, _sume, _MM_SHUFFLE(2, 0, 2, 0));
+                    __m512i _tmp9 = _mm512_shuffle_i32x4(_sum6, _sum2, _MM_SHUFFLE(3, 1, 3, 1));
+                    __m512i _tmpa = _mm512_shuffle_i32x4(_suma, _sum6, _MM_SHUFFLE(0, 2, 0, 2));
+                    __m512i _tmpb = _mm512_shuffle_i32x4(_sume, _suma, _MM_SHUFFLE(1, 3, 1, 3));
+                    __m512i _tmpc = _mm512_shuffle_i32x4(_sum3, _sumf, _MM_SHUFFLE(2, 0, 2, 0));
+                    __m512i _tmpd = _mm512_shuffle_i32x4(_sum7, _sum3, _MM_SHUFFLE(3, 1, 3, 1));
+                    __m512i _tmpe = _mm512_shuffle_i32x4(_sumb, _sum7, _MM_SHUFFLE(0, 2, 0, 2));
+                    __m512i _tmpf = _mm512_shuffle_i32x4(_sumf, _sumb, _MM_SHUFFLE(1, 3, 1, 3));
+                    _sum0 = _mm512_shuffle_i32x4(_tmp0, _tmp4, _MM_SHUFFLE(2, 0, 2, 0));
+                    _sum1 = _mm512_shuffle_i32x4(_tmp8, _tmpc, _MM_SHUFFLE(2, 0, 2, 0));
+                    _sum2 = _mm512_shuffle_i32x4(_tmp1, _tmp5, _MM_SHUFFLE(2, 0, 2, 0));
+                    _sum3 = _mm512_shuffle_i32x4(_tmp9, _tmpd, _MM_SHUFFLE(2, 0, 2, 0));
+                    _sum4 = _mm512_shuffle_i32x4(_tmp2, _tmp6, _MM_SHUFFLE(2, 0, 2, 0));
+                    _sum5 = _mm512_shuffle_i32x4(_tmpa, _tmpe, _MM_SHUFFLE(2, 0, 2, 0));
+                    _sum6 = _mm512_shuffle_i32x4(_tmp3, _tmp7, _MM_SHUFFLE(2, 0, 2, 0));
+                    _sum7 = _mm512_shuffle_i32x4(_tmpb, _tmpf, _MM_SHUFFLE(2, 0, 2, 0));
+                    _sum8 = _mm512_shuffle_i32x4(_tmp2, _tmp6, _MM_SHUFFLE(3, 1, 3, 1));
+                    _sum9 = _mm512_shuffle_i32x4(_tmpa, _tmpe, _MM_SHUFFLE(3, 1, 3, 1));
+                    _suma = _mm512_shuffle_i32x4(_tmp3, _tmp7, _MM_SHUFFLE(3, 1, 3, 1));
+                    _sumb = _mm512_shuffle_i32x4(_tmpb, _tmpf, _MM_SHUFFLE(3, 1, 3, 1));
+                    _sumc = _mm512_shuffle_i32x4(_tmp0, _tmp4, _MM_SHUFFLE(3, 1, 3, 1));
+                    _sumd = _mm512_shuffle_i32x4(_tmp8, _tmpc, _MM_SHUFFLE(3, 1, 3, 1));
+                    _sume = _mm512_shuffle_i32x4(_tmp1, _tmp5, _MM_SHUFFLE(3, 1, 3, 1));
+                    _sumf = _mm512_shuffle_i32x4(_tmp9, _tmpc, _MM_SHUFFLE(3, 1, 3, 1));
 
                     _mm512_storeu_si512((__m512i*)outptr0, _sum0);
                     _mm512_storeu_si512((__m512i*)(outptr0 + 16), _sum1);
@@ -1278,7 +1236,6 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                     __m512i _tmpd = _mm512_shuffle_i32x4(_sum6, _sum7, _MM_SHUFFLE(0, 2, 0, 2));
                     __m512i _tmpe = _mm512_shuffle_i32x4(_sum8, _sum9, _MM_SHUFFLE(1, 3, 1, 3));
                     __m512i _tmpf = _mm512_shuffle_i32x4(_suma, _sumb, _MM_SHUFFLE(1, 3, 1, 3));
-
                     _sum0 = _mm512_shuffle_i32x4(_tmp0, _tmp1, _MM_SHUFFLE(2, 0, 2, 0));
                     _sum1 = _mm512_shuffle_i32x4(_tmp2, _tmp3, _MM_SHUFFLE(2, 0, 2, 0));
                     _sum2 = _mm512_shuffle_i32x4(_tmp4, _tmp5, _MM_SHUFFLE(2, 0, 2, 0));
@@ -1397,44 +1354,34 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                     __m512i _tmp1 = _mm512_shuffle_i32x4(_sum1, _sum5, _MM_SHUFFLE(3, 1, 2, 0));
                     __m512i _tmp2 = _mm512_shuffle_i32x4(_sum2, _sum6, _MM_SHUFFLE(3, 1, 2, 0));
                     __m512i _tmp3 = _mm512_shuffle_i32x4(_sum3, _sum7, _MM_SHUFFLE(3, 1, 2, 0));
-                    __m512i _tmp4 = _mm512_shuffle_i32x4(_sum4, _sum0, _MM_SHUFFLE(3, 1, 2, 0));
-                    __m512i _tmp5 = _mm512_shuffle_i32x4(_sum5, _sum1, _MM_SHUFFLE(3, 1, 2, 0));
-                    __m512i _tmp6 = _mm512_shuffle_i32x4(_sum6, _sum2, _MM_SHUFFLE(3, 1, 2, 0));
-                    __m512i _tmp7 = _mm512_shuffle_i32x4(_sum7, _sum3, _MM_SHUFFLE(3, 1, 2, 0));
+                    __m512i _tmp4 = _mm512_shuffle_i32x4(_sumc, _sum0, _MM_SHUFFLE(3, 1, 2, 0));
+                    __m512i _tmp5 = _mm512_shuffle_i32x4(_sumd, _sum1, _MM_SHUFFLE(3, 1, 2, 0));
+                    __m512i _tmp6 = _mm512_shuffle_i32x4(_sume, _sum2, _MM_SHUFFLE(3, 1, 2, 0));
+                    __m512i _tmp7 = _mm512_shuffle_i32x4(_sumf, _sum3, _MM_SHUFFLE(3, 1, 2, 0));
                     __m512i _tmp8 = _mm512_shuffle_i32x4(_sum8, _sumc, _MM_SHUFFLE(3, 1, 2, 0));
                     __m512i _tmp9 = _mm512_shuffle_i32x4(_sum9, _sumd, _MM_SHUFFLE(3, 1, 2, 0));
                     __m512i _tmpa = _mm512_shuffle_i32x4(_suma, _sume, _MM_SHUFFLE(3, 1, 2, 0));
                     __m512i _tmpb = _mm512_shuffle_i32x4(_sumb, _sumf, _MM_SHUFFLE(3, 1, 2, 0));
-                    __m512i _tmpc = _mm512_shuffle_i32x4(_sumc, _sum8, _MM_SHUFFLE(3, 1, 2, 0));
-                    __m512i _tmpd = _mm512_shuffle_i32x4(_sumd, _sum9, _MM_SHUFFLE(3, 1, 2, 0));
-                    __m512i _tmpe = _mm512_shuffle_i32x4(_sume, _suma, _MM_SHUFFLE(3, 1, 2, 0));
-                    __m512i _tmpf = _mm512_shuffle_i32x4(_sumf, _sumb, _MM_SHUFFLE(3, 1, 2, 0));
-
+                    __m512i _tmpc = _mm512_shuffle_i32x4(_sum4, _sum8, _MM_SHUFFLE(3, 1, 2, 0));
+                    __m512i _tmpd = _mm512_shuffle_i32x4(_sum5, _sum9, _MM_SHUFFLE(3, 1, 2, 0));
+                    __m512i _tmpe = _mm512_shuffle_i32x4(_sum6, _suma, _MM_SHUFFLE(3, 1, 2, 0));
+                    __m512i _tmpf = _mm512_shuffle_i32x4(_sum7, _sumb, _MM_SHUFFLE(3, 1, 2, 0));
                     _sum0 = _mm512_shuffle_i32x4(_tmp0, _tmp8, _MM_SHUFFLE(3, 1, 2, 0));
                     _sum1 = _mm512_shuffle_i32x4(_tmp1, _tmp9, _MM_SHUFFLE(3, 1, 2, 0));
                     _sum2 = _mm512_shuffle_i32x4(_tmp2, _tmpa, _MM_SHUFFLE(3, 1, 2, 0));
                     _sum3 = _mm512_shuffle_i32x4(_tmp3, _tmpb, _MM_SHUFFLE(3, 1, 2, 0));
-                    _sum4 = _mm512_shuffle_i32x4(_tmpc, _tmp4, _MM_SHUFFLE(1, 2, 3, 0));
-                    _sum5 = _mm512_shuffle_i32x4(_tmpd, _tmp5, _MM_SHUFFLE(1, 2, 3, 0));
-                    _sum6 = _mm512_shuffle_i32x4(_tmpe, _tmp6, _MM_SHUFFLE(1, 2, 3, 0));
-                    _sum7 = _mm512_shuffle_i32x4(_tmpf, _tmp7, _MM_SHUFFLE(1, 2, 3, 0));
+                    _sum4 = _mm512_shuffle_i32x4(_tmp4, _tmpc, _MM_SHUFFLE(3, 1, 2, 0));
+                    _sum5 = _mm512_shuffle_i32x4(_tmp5, _tmpd, _MM_SHUFFLE(3, 1, 2, 0));
+                    _sum6 = _mm512_shuffle_i32x4(_tmp6, _tmpe, _MM_SHUFFLE(3, 1, 2, 0));
+                    _sum7 = _mm512_shuffle_i32x4(_tmp7, _tmpf, _MM_SHUFFLE(3, 1, 2, 0));
                     _sum8 = _mm512_shuffle_i32x4(_tmp8, _tmp0, _MM_SHUFFLE(3, 1, 2, 0));
                     _sum9 = _mm512_shuffle_i32x4(_tmp9, _tmp1, _MM_SHUFFLE(3, 1, 2, 0));
                     _suma = _mm512_shuffle_i32x4(_tmpa, _tmp2, _MM_SHUFFLE(3, 1, 2, 0));
                     _sumb = _mm512_shuffle_i32x4(_tmpb, _tmp3, _MM_SHUFFLE(3, 1, 2, 0));
-                    _sumc = _mm512_shuffle_i32x4(_tmp4, _tmpc, _MM_SHUFFLE(1, 2, 3, 0));
-                    _sumd = _mm512_shuffle_i32x4(_tmp5, _tmpd, _MM_SHUFFLE(1, 2, 3, 0));
-                    _sume = _mm512_shuffle_i32x4(_tmp6, _tmpe, _MM_SHUFFLE(1, 2, 3, 0));
-                    _sumf = _mm512_shuffle_i32x4(_tmp7, _tmpf, _MM_SHUFFLE(1, 2, 3, 0));
-
-                    _sum4 = _mm512_shuffle_i32x4(_sum4, _sum4, _MM_SHUFFLE(1, 3, 2, 0));
-                    _sum5 = _mm512_shuffle_i32x4(_sum5, _sum5, _MM_SHUFFLE(1, 3, 2, 0));
-                    _sum6 = _mm512_shuffle_i32x4(_sum6, _sum6, _MM_SHUFFLE(1, 3, 2, 0));
-                    _sum7 = _mm512_shuffle_i32x4(_sum7, _sum7, _MM_SHUFFLE(1, 3, 2, 0));
-                    _sumc = _mm512_shuffle_i32x4(_sumc, _sumc, _MM_SHUFFLE(1, 3, 2, 0));
-                    _sumd = _mm512_shuffle_i32x4(_sumd, _sumd, _MM_SHUFFLE(1, 3, 2, 0));
-                    _sume = _mm512_shuffle_i32x4(_sume, _sume, _MM_SHUFFLE(1, 3, 2, 0));
-                    _sumf = _mm512_shuffle_i32x4(_sumf, _sumf, _MM_SHUFFLE(1, 3, 2, 0));
+                    _sumc = _mm512_shuffle_i32x4(_tmpc, _tmp4, _MM_SHUFFLE(3, 1, 2, 0));
+                    _sumd = _mm512_shuffle_i32x4(_tmpd, _tmp5, _MM_SHUFFLE(3, 1, 2, 0));
+                    _sume = _mm512_shuffle_i32x4(_tmpe, _tmp6, _MM_SHUFFLE(3, 1, 2, 0));
+                    _sumf = _mm512_shuffle_i32x4(_tmpf, _tmp7, _MM_SHUFFLE(3, 1, 2, 0));
 
                     _mm512_storeu_si512((__m512i*)outptr0, _sum0);
                     _mm512_storeu_si512((__m512i*)(outptr0 + out_hstep), _sum1);
