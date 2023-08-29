@@ -1,6 +1,7 @@
 import subprocess
 import inspect
 import sys
+import os
 import torch
 
 # model -> torchscript
@@ -53,22 +54,26 @@ def export(model, inputs):
 def run(torchscript_path, inputs):
     print("[+] entering pnnx_run")
 
-    if len(inputs)==1:
+
+    # 获取当前文件的绝对路径
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+
+    if len(inputs) == 1:
         cmd = ""
         if sys.platform.startswith('linux'):
             print('当前系统为 Linux')
-            cmd += "./bin/pnnx-20230816-ubuntu/pnnx "
+            cmd += os.path.join(current_dir, "bin/pnnx-20230816-ubuntu/pnnx")
         elif sys.platform.startswith('win'):
             print('当前系统为 Windows')
-            cmd += "./bin/pnnx-20230816-windows/pnnx.exe "
+            cmd += os.path.join(current_dir, "bin/pnnx-20230816-windows/pnnx.exe")
         elif sys.platform.startswith('darwin'):
             print('当前系统为 macOS')
-            cmd += "./bin/pnnx-20230816-macos/pnnx "
+            cmd += os.path.join(current_dir, "bin/pnnx-20230816-macos/pnnx")
         else:
             print('无法识别当前系统')
-
+            return  # 如果无法识别当前系统，则直接返回
         
-        cmd += torchscript_path
+        cmd += " " + torchscript_path
         
         inputshape_list = [dim for dim in inputs.shape]
         inputshape_str = ','.join(map(str,inputshape_list))
