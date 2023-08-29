@@ -988,13 +988,13 @@ int ShuffleChannel_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_b
             vbool2_t _mask = vlm_v_b2(bitmask, vl);
             vuint16m8_t _idx_init = viota_m_u16m8(_mask, vl);
             vuint16m8_t _idx = vadd_vx_u16m8(_idx_init, (_group - 1) * elempack, vl);
-#endif
             for (int shift = _group - 2; shift >= 0; shift--)
             {
                 vuint16m8_t _idx_lower = vadd_vx_u16m8(_idx_init, shift * elempack, vl);
                 _idx = vslideup_vx_u16m8(vundefined_u16m8(), _idx, 1, vl);
                 _idx = vmerge_vvm_u16m8(_mask, _idx, _idx_lower, vl);
             }
+#endif
 
             for (int q = 0; q < channels_per_group; q++)
             {
