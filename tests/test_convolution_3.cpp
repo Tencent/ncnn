@@ -14,7 +14,6 @@
 
 #include "layer/convolution.h"
 #include "testutil.h"
-#include "cpu.h"
 
 static int test_convolution_vec(int w, int outch, int kernel, int dilation, int stride, int pad, int bias)
 {
@@ -394,15 +393,6 @@ static int test_convolution_1_2()
 int main()
 {
     SRAND(7767517);
-
-    fprintf(stderr, "ncnn::cpu_support_x86_avx() = %d\n", ncnn::cpu_support_x86_avx());
-    fprintf(stderr, "ncnn::cpu_support_x86_fma() = %d\n", ncnn::cpu_support_x86_fma());
-    fprintf(stderr, "ncnn::cpu_support_x86_xop() = %d\n", ncnn::cpu_support_x86_xop());
-    fprintf(stderr, "ncnn::cpu_support_x86_f16c() = %d\n", ncnn::cpu_support_x86_f16c());
-    fprintf(stderr, "ncnn::cpu_support_x86_avx2() = %d\n", ncnn::cpu_support_x86_avx2());
-    fprintf(stderr, "ncnn::cpu_support_x86_avx_vnni() = %d\n", ncnn::cpu_support_x86_avx_vnni());
-    fprintf(stderr, "ncnn::cpu_support_x86_avx512() = %d\n", ncnn::cpu_support_x86_avx512());
-    fprintf(stderr, "ncnn::cpu_support_x86_avx512_vnni() = %d\n", ncnn::cpu_support_x86_avx512_vnni());
 
 #if NCNN_INT8
     return 0
