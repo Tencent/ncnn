@@ -261,10 +261,10 @@ int ShuffleChannel_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const O
         // C906 128 bits
         for (int i = 0; i < _group; i++)
         {
-            index_c906[0 + i * 4] = i + 0 * _group;
-            index_c906[1 + i * 4] = i + 1 * _group;
-            index_c906[2 + i * 4] = i + 2 * _group;
-            index_c906[3 + i * 4] = i + 3 * _group;
+            index_c906[i + _group * 0] = 0 + i * 4;
+            index_c906[i + _group * 1] = 1 + i * 4;
+            index_c906[i + _group * 2] = 2 + i * 4;
+            index_c906[i + _group * 3] = 3 + i * 4;
         }
 #else
         create_bitmask(_group, bitmask, packn);
@@ -827,14 +827,14 @@ int ShuffleChannel_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_b
         // C906 128 bits, pack8
         for (int i = 0; i < _group; i++)
         {
-            index_c906[0 + i * 8] = i + 0 * _group;
-            index_c906[1 + i * 8] = i + 1 * _group;
-            index_c906[2 + i * 8] = i + 2 * _group;
-            index_c906[3 + i * 8] = i + 3 * _group;
-            index_c906[4 + i * 8] = i + 4 * _group;
-            index_c906[5 + i * 8] = i + 5 * _group;
-            index_c906[6 + i * 8] = i + 6 * _group;
-            index_c906[7 + i * 8] = i + 7 * _group;
+            index_c906[i + _group * 0] = 0 + i * 8;
+            index_c906[i + _group * 1] = 1 + i * 8;
+            index_c906[i + _group * 2] = 2 + i * 8;
+            index_c906[i + _group * 3] = 3 + i * 8;
+            index_c906[i + _group * 4] = 4 + i * 8;
+            index_c906[i + _group * 5] = 5 + i * 8;
+            index_c906[i + _group * 6] = 6 + i * 8;
+            index_c906[i + _group * 7] = 7 + i * 8;
         }
 #else
         create_bitmask(_group, bitmask, packn);
