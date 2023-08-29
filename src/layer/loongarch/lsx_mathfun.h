@@ -269,4 +269,17 @@ static inline __m128 atan2_ps(__m128 a, __m128 b)
     return (__m128)__lsx_vld(tmpx, 0);
 }
 
+static inline __m128 remainder_ps(__m128 x, __m128 y)
+{
+    float tmpx[4];
+    float tmpy[4];
+    __lsx_vst(x, tmpx, 0);
+    __lsx_vst(y, tmpy, 0);
+    tmpx[0] = remainder(tmpx[0], tmpy[0]);
+    tmpx[1] = remainder(tmpx[1], tmpy[1]);
+    tmpx[2] = remainder(tmpx[2], tmpy[2]);
+    tmpx[3] = remainder(tmpx[3], tmpy[3]);
+    return __lsx_vld(tmpx, 0);
+}
+
 #endif // LSX_MATHFUN_H
