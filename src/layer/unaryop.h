@@ -49,7 +49,8 @@ public:
         Operation_TANH = 16,
         Operation_LOG10 = 17,
         Operation_ROUND = 18,
-        Operation_TRUNC = 19
+        Operation_TRUNC = 19,
+        Operation_ERF = 20
     };
 
 public:
