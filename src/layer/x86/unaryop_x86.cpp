@@ -19,6 +19,7 @@
 #include <math.h>
 
 #if __SSE2__
+#include <xmmintrin.h>
 #include <emmintrin.h>
 #include "sse_mathfun.h"
 #if __SSE4_1__
