@@ -1781,4 +1781,3 @@ Operation type:
 - 17 = LOG10
 - 18 = ROUND
 - 19 = TRUNC
-- 20 = ERF
