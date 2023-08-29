@@ -424,5 +424,16 @@ static inline float32x4_t atan2_ps(float32x4_t a, float32x4_t b)
     return vld1q_f32(tmpx);
 }
 
+static inline float32x4_t remainder_ps(float32x4_t x, float32x4_t y)
+{
+    float tmpx[4];
+    float tmpy[4];
+    vst1q_f32(tmpx, x);
+    vst1q_f32(tmpy, y);
+    for (int i = 0; i < 4; i++)
+        tmpx[i] = remainderf(tmpx[i], tmpy[i]);
+    return vld1q_f32(tmpx);
+}
+
 #include "neon_mathfun_tanh.h"
 #endif // NEON_MATHFUN_H
