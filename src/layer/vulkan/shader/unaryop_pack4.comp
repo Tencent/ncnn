@@ -46,6 +46,21 @@ layout (push_constant) uniform parameter
     int cstep;
 } p;
 
+afpvec4 erf(afpvec4 x)
+{
+    afpvec4 a1 = afpvec4(0.254829592f);
+    afpvec4 a2 = afpvec4(-0.284496736f);
+    afpvec4 a3 = afpvec4(1.421413741f);
+    afpvec4 a4 = afpvec4(-1.453152027f);
+    afpvec4 a5 = afpvec4(1.061405429f);
+    afpvec4 p = afpvec4(0.3275911f);
+    afpvec4 s = sign(x);
+    afpvec4 x_abs = abs(x);
+    afpvec4 t = 1.0f / (1.0f + p * x_abs);
+    afpvec4 y = 1.0f - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * exp(-x_abs * x_abs);
+    return s * y;
+}
+
 void main()
 {
     int gx = int(gl_GlobalInvocationID.x);
@@ -89,7 +104,6 @@ void main()
     if (op_type == 17) res = log(v) * afp(0.434294481903);
     if (op_type == 18) res = round(v);
     if (op_type == 19) res = trunc(v);
-
     if (op_type == 20) res = erf(v);
 
 #if NCNN_image_shader
