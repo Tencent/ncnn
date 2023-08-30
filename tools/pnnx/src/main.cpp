@@ -449,7 +449,7 @@ int main(int argc, char** argv)
     {
         fprintf(stderr, "############# pass_ncnn\n");
 
-        pnnx::pass_ncnn(pnnx_graph);
+        pnnx::pass_ncnn(pnnx_graph, module_operators);
 
         pnnx::save_ncnn(pnnx_graph, ncnnparampath, ncnnbinpath, ncnnpypath, fp16);
     }
