@@ -19,12 +19,20 @@ def test_pnnx_export():
 def test_pnnx_run():
 
     torchscript_path = "resnet_test_model.pt"
-    x = torch.rand(1, 3, 224, 224)
-    pnnx.run(torchscript_path, x)
 
+    x = torch.rand(1, 3, 224, 224)
+    y = torch.rand(1, 3)
+    z = torch.rand(1, 3, 224, 224)
+    x2 = torch.rand(1, 3)
+    y2 = torch.rand(1, 3, 224, 224)
+    z2 = torch.rand(1, 3)
+
+    # pnnx.run(torchscript_path, x)
+    # pnnx.run(torchscript_path, x, pnnxparam="model.pnnx.param",  device= "cpu",  moduleop =("models.common.Focus","models.yolo.Detect"))
+    pnnx.run(torchscript_path, inputshape=(x,y,z), inputshape2=(x2,y2,z2), optlevel=0, pnnxparam="model.pnnx.param",  device= "cpu",  moduleop =("models.common.Focus","models.yolo.Detect"))
 
 
 
 if __name__ == "__main__":
-    test_pnnx_export()
-    # test_pnnx_run()
+    # test_pnnx_export()
+    test_pnnx_run()
