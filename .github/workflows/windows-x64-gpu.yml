@@ -115,7 +115,7 @@ jobs:
         $env:VULKAN_SDK="C:/VulkanSDK/1.3.236.0"
         $env:Path+=";C:/VulkanSDK/1.3.236.0/Bin"
         mkdir build; cd build
-        cmake -T ${{ matrix.toolset-version }},host=x64 -A x64 -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\bin\protoc.exe" -DNCNN_VULKAN=ON -DNCNN_BUILD_TESTS=ON ..
+        cmake -T ${{ matrix.toolset-version }},host=x64 -A x64 -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\cmake" -DNCNN_VULKAN=ON -DNCNN_BUILD_TESTS=ON ..
         cmake --build . --config Release -j 2
     - name: test
       if: matrix.vs-version != 'vs2015'
@@ -129,5 +129,5 @@ jobs:
         $env:VULKAN_SDK="C:/VulkanSDK/1.3.236.0"
         $env:Path+=";C:/VulkanSDK/1.3.236.0/Bin"
         mkdir build-shared; cd build-shared
-        cmake -T ${{ matrix.toolset-version }},host=x64 -A x64 -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\bin\protoc.exe" -DNCNN_VULKAN=ON -DNCNN_SHARED_LIB=ON ..
+        cmake -T ${{ matrix.toolset-version }},host=x64 -A x64 -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\cmake" -DNCNN_VULKAN=ON -DNCNN_SHARED_LIB=ON ..
         cmake --build . --config Release -j 2

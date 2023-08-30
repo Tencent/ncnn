@@ -117,7 +117,7 @@ Mat ModelBinFromDataReader::load(int w, int type) const
             return Mat();
         }
 
-        unsigned int flag = flag_struct.f0 + flag_struct.f1 + flag_struct.f2 + flag_struct.f3;
+        unsigned int flag = (int)flag_struct.f0 + flag_struct.f1 + flag_struct.f2 + flag_struct.f3;
 
         if (flag_struct.tag == 0x01306B47)
         {

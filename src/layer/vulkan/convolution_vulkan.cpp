@@ -444,7 +444,7 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
                 specializations[1].i = activation_type;
                 specializations[2].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
                 specializations[3].f = activation_params.w == 2 ? activation_params[1] : 0.f;
-                specializations[4 + 0].i = shape_winograd_gemm_packed.c;
+                specializations[4 + 0].i = shape_winograd_gemm_packed.h;
                 specializations[4 + 1].i = shape_winograd_gemm_packed.cstep;
                 specializations[4 + 2].i = block_x;
                 specializations[4 + 3].i = block_y;

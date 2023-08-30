@@ -471,10 +471,14 @@ struct unary_op_round_fp16s
             :);
         return y;
 #else
+#ifdef FE_TONEAREST
         int old_rm = fegetround();
         fesetround(FE_TONEAREST);
+#endif
         __fp16 y = (__fp16)nearbyintf(x);
+#ifdef FE_TONEAREST
         fesetround(old_rm);
+#endif
         return y;
 #endif
     }

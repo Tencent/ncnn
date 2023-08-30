@@ -2423,7 +2423,7 @@ jobs:
         $env:VULKAN_SDK="C:/VulkanSDK/1.3.236.0"
         $env:Path+=";C:/VulkanSDK/1.3.236.0/Bin"
         mkdir build-x86; cd build-x86
-        cmake -T v140,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x86\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\x86\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\x86\bin\protoc.exe" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
+        cmake -T v140,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x86\cmake" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . --config Release -j 2
         cmake --build . --config Release --target install
     - name: build-x64
@@ -2431,7 +2431,7 @@ jobs:
         $env:VULKAN_SDK="C:/VulkanSDK/1.3.236.0"
         $env:Path+=";C:/VulkanSDK/1.3.236.0/Bin"
         mkdir build-x64; cd build-x64
-        cmake -T v140,host=x64 -A x64 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x64\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\x64\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\x64\bin\protoc.exe" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
+        cmake -T v140,host=x64 -A x64 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x64\cmake" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . --config Release -j 2
         cmake --build . --config Release --target install
     - name: package
@@ -2488,7 +2488,7 @@ jobs:
         $env:VULKAN_SDK="C:/VulkanSDK/1.3.236.0"
         $env:Path+=";C:/VulkanSDK/1.3.236.0/Bin"
         mkdir build-x86; cd build-x86
-        cmake -T v140,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x86\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\x86\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\x86\bin\protoc.exe" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
+        cmake -T v140,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x86\cmake" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
         cmake --build . --config Release -j 2
         cmake --build . --config Release --target install
     - name: build-x64
@@ -2496,7 +2496,7 @@ jobs:
         $env:VULKAN_SDK="C:/VulkanSDK/1.3.236.0"
         $env:Path+=";C:/VulkanSDK/1.3.236.0/Bin"
         mkdir build-x64; cd build-x64
-        cmake -T v140,host=x64 -A x64 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x64\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\x64\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\x64\bin\protoc.exe" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
+        cmake -T v140,host=x64 -A x64 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x64\cmake" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
         cmake --build . --config Release -j 2
         cmake --build . --config Release --target install
     - name: package
@@ -2553,7 +2553,7 @@ jobs:
         $env:VULKAN_SDK="C:/VulkanSDK/1.3.236.0"
         $env:Path+=";C:/VulkanSDK/1.3.236.0/Bin"
         mkdir build-x86; cd build-x86
-        cmake -T v141,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x86\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\x86\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\x86\bin\protoc.exe" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
+        cmake -T v141,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x86\cmake" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . --config Release -j 2
         cmake --build . --config Release --target install
     - name: build-x64
@@ -2561,7 +2561,7 @@ jobs:
         $env:VULKAN_SDK="C:/VulkanSDK/1.3.236.0"
         $env:Path+=";C:/VulkanSDK/1.3.236.0/Bin"
         mkdir build-x64; cd build-x64
-        cmake -T v141,host=x64 -A x64 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x64\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\x64\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\x64\bin\protoc.exe" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
+        cmake -T v141,host=x64 -A x64 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x64\cmake" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . --config Release -j 2
         cmake --build . --config Release --target install
     - name: package
@@ -2618,7 +2618,7 @@ jobs:
         $env:VULKAN_SDK="C:/VulkanSDK/1.3.236.0"
         $env:Path+=";C:/VulkanSDK/1.3.236.0/Bin"
         mkdir build-x86; cd build-x86
-        cmake -T v141,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x86\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\x86\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\x86\bin\protoc.exe" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
+        cmake -T v141,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x86\cmake" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
         cmake --build . --config Release -j 2
         cmake --build . --config Release --target install
     - name: build-x64
@@ -2626,7 +2626,7 @@ jobs:
         $env:VULKAN_SDK="C:/VulkanSDK/1.3.236.0"
         $env:Path+=";C:/VulkanSDK/1.3.236.0/Bin"
         mkdir build-x64; cd build-x64
-        cmake -T v141,host=x64 -A x64 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x64\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\x64\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\x64\bin\protoc.exe" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
+        cmake -T v141,host=x64 -A x64 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x64\cmake" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
         cmake --build . --config Release -j 2
         cmake --build . --config Release --target install
     - name: package
@@ -2683,7 +2683,7 @@ jobs:
         $env:VULKAN_SDK="C:/VulkanSDK/1.3.236.0"
         $env:Path+=";C:/VulkanSDK/1.3.236.0/Bin"
         mkdir build-x86; cd build-x86
-        cmake -T v142,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x86\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\x86\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\x86\bin\protoc.exe" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
+        cmake -T v142,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x86\cmake" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . --config Release -j 2
         cmake --build . --config Release --target install
     - name: build-x64
@@ -2691,7 +2691,7 @@ jobs:
         $env:VULKAN_SDK="C:/VulkanSDK/1.3.236.0"
         $env:Path+=";C:/VulkanSDK/1.3.236.0/Bin"
         mkdir build-x64; cd build-x64
-        cmake -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x64\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\x64\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\x64\bin\protoc.exe" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
+        cmake -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x64\cmake" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . --config Release -j 2
         cmake --build . --config Release --target install
     - name: build-arm
@@ -2764,7 +2764,7 @@ jobs:
         $env:VULKAN_SDK="C:/VulkanSDK/1.3.236.0"
         $env:Path+=";C:/VulkanSDK/1.3.236.0/Bin"
         mkdir build-x86; cd build-x86
-        cmake -T v142,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x86\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\x86\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\x86\bin\protoc.exe" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
+        cmake -T v142,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x86\cmake" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
         cmake --build . --config Release -j 2
         cmake --build . --config Release --target install
     - name: build-x64
@@ -2772,7 +2772,7 @@ jobs:
         $env:VULKAN_SDK="C:/VulkanSDK/1.3.236.0"
         $env:Path+=";C:/VulkanSDK/1.3.236.0/Bin"
         mkdir build-x64; cd build-x64
-        cmake -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x64\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\x64\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\x64\bin\protoc.exe" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
+        cmake -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x64\cmake" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
         cmake --build . --config Release -j 2
         cmake --build . --config Release --target install
     - name: build-arm
@@ -2845,7 +2845,7 @@ jobs:
         $env:VULKAN_SDK="C:/VulkanSDK/1.3.236.0"
         $env:Path+=";C:/VulkanSDK/1.3.236.0/Bin"
         mkdir build-x86; cd build-x86
-        cmake -T v143,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x86\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\x86\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\x86\bin\protoc.exe" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
+        cmake -T v143,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x86\cmake" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . --config Release -j 2
         cmake --build . --config Release --target install
     - name: build-x64
@@ -2853,7 +2853,7 @@ jobs:
         $env:VULKAN_SDK="C:/VulkanSDK/1.3.236.0"
         $env:Path+=";C:/VulkanSDK/1.3.236.0/Bin"
         mkdir build-x64; cd build-x64
-        cmake -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x64\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\x64\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\x64\bin\protoc.exe" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
+        cmake -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x64\cmake" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . --config Release -j 2
         cmake --build . --config Release --target install
     - name: build-arm
@@ -2926,7 +2926,7 @@ jobs:
         $env:VULKAN_SDK="C:/VulkanSDK/1.3.236.0"
         $env:Path+=";C:/VulkanSDK/1.3.236.0/Bin"
         mkdir build-x86; cd build-x86
-        cmake -T v143,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x86\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\x86\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\x86\bin\protoc.exe" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
+        cmake -T v143,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x86\cmake" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
         cmake --build . --config Release -j 2
         cmake --build . --config Release --target install
     - name: build-x64
@@ -2934,7 +2934,7 @@ jobs:
         $env:VULKAN_SDK="C:/VulkanSDK/1.3.236.0"
         $env:Path+=";C:/VulkanSDK/1.3.236.0/Bin"
         mkdir build-x64; cd build-x64
-        cmake -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x64\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\x64\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\x64\bin\protoc.exe" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
+        cmake -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x64\cmake" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
         cmake --build . --config Release -j 2
         cmake --build . --config Release --target install
     - name: build-arm
