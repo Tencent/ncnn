@@ -9,5 +9,5 @@ format_code() {
     astyle -n -r "python/*.h,*.cpp,*.cc" --exclude=python/pybind11
 }
 
-format_code || { echo 'Formatting failed' ; exit 1; }//first time execute
-format_code || { echo 'Formatting failed' ; exit 1; }//second time execute
+format_code || { echo 'Formatting failed' ; exit 1; } #first time execute
+format_code || { echo 'Formatting failed' ; exit 1; } #second time execute
