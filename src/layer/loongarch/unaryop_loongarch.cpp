@@ -425,6 +425,7 @@ struct unary_op_erf
 #if __loongarch_sx
     __m128 func_pack4(const __m128& x) const
     {
+__m128 ones = (__m128)__lsx_vreplfr2vr_s(1.0f);
         __m128 a1 = (__m128)__lsx_vreplfr2vr_s(0.254829592f);
         __m128 a2 = (__m128)__lsx_vreplfr2vr_s(-0.284496736f);
         __m128 a3 = (__m128)__lsx_vreplfr2vr_s(1.421413741f);
@@ -436,7 +437,7 @@ struct unary_op_erf
     __m128i sig_mask = __lsx_vreplgr2vr_w(1 << 31);
     __m128i s = __lsx_vand_v((__m128i)x, sig_mask);
           __m128 x_abs = (__m128)__lsx_vbitclri_w(x, 31);
-        __m128 t = (__m128)__lsx_vfadd_s(x_abs, p);
+        __m128 t = (__m128)__lsx_vfdiv_s(ones, __lsx_vfadd_s(__lsx_vfmul_s(x_abs, p)));
         __m128 y = __lsx_vfsub_s(__lsx_vfmul_s(__lsx_vfmul_s(a5, t), t), __lsx_vfmul_s(__lsx_vfmul_s(a4, t), t));
         y = __lsx_vfsub_s(y, __lsx_vfsub_s(__lsx_vfsub_s(a3, t), t));
         y = __lsx_vfsub_s(y, __lsx_vfmul_s(__lsx_vfmul_s(a2, t), t));
