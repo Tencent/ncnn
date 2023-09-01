@@ -472,6 +472,35 @@ struct unary_op_trunc
 #endif // __ARM_NEON
 };
 
+struct unary_op_erf
+{
+    float func(const float& x) const
+    {
+        return (float)erf(x);
+    }
+#if __ARM_NEON
+    float32x4_t func_pack4(const float32x4_t& x) const
+    {
+        float32x4_t a1 = vmovq_n_f32(0.254829592f);
+        float32x4_t a2 = vmovq_n_f32(-0.284496736f);
+        float32x4_t a3 = vmovq_n_f32(1.421413741f);
+        float32x4_t a4 = vmovq_n_f32(-1.453152027f);
+        float32x4_t a5 = vmovq_n_f32(1.061405429f);
+        float32x4_t p = vmovq_n_f32(0.3275911f);
+        float32x4_t s = vsign_f32(x);
+        float32x4_t x_abs = vabs_f32(x);
+        float32x4_t t = vrecpeq_f32(vaddq_f32(x_abs, p));
+        float32x4_t y = vsub_f32(vmulq_f32(vmulq_f32(a5, t), t), vmulq_f32(vmulq_f32(a4, t), t));
+        y = vsub_f32(y, vmulq_f32(vmulq_f32(a3, t), t));
+        y = vsub_f32(y, vmulq_f32(vmulq_f32(a2, t), t));
+        y = vsub_f32(y, vmulq_f32(vmulq_f32(a1, t), t));
+        y = vmulq_f32(y, t);
+        y = vmulq_f32(y, exp_f32(-vmulq_f32(x_abs, x_abs)));
+        return s * y;
+    }
+#endif // __ARM_NEON
+};
+
 } // namespace UnaryOp_arm_functor
 
 int UnaryOp_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
@@ -549,6 +578,9 @@ int UnaryOp_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
     if (op_type == Operation_TRUNC)
         return unary_op_inplace<unary_op_trunc>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ERF)
+        return unary_op_inplace<unary_op_erf>(bottom_top_blob, opt);
 
     return 0;
 }
@@ -685,6 +717,9 @@ int UnaryOp_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) 
 
     if (op_type == Operation_TRUNC)
         return unary_op_inplace_bf16s<unary_op_trunc>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ERF)
+        return unary_op_inplace_bf16s<unary_op_erf>(bottom_top_blob, opt);
 
     return 0;
 }

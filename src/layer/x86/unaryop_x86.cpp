@@ -642,6 +642,77 @@ struct unary_op_trunc
 #endif // __SSE2__
 };
 
+struct unary_op_trunc
+{
+    float func(const float& x) const
+    {
+        return (float)erf(x);
+    }
+#if __SSE2__
+    __m128 func_pack4(const __m128& x) const
+    {
+        __m128 a1 = _mm_set1_ps(0.254829592f);
+        __m128 a2 = _mm_set1_ps(-0.284496736f);
+        __m128 a3 = _mm_set1_ps(1.421413741f);
+        __m128 a4 = _mm_set1_ps(-1.453152027f);
+        __m128 a5 = _mm_set1_ps(1.061405429f);
+        __m128 p = _mm_set1_ps(0.3275911f);
+        __m128 s = _mm_sign_ps(x);
+        __m128 x_abs = _mm_abs_ps(x);
+        __m128 t = _mm_rcp_ps(_mm_add_ps(x_abs, p));
+        __m128 y = _mm_sub_ps(_mm_mul_ps(_mm_mul_ps(a5, t), t), _mm_mul_ps(_mm_mul_ps(a4, t), t));
+        y = _mm_sub_ps(y, _mm_mul_ps(_mm_mul_ps(a3, t), t));
+        y = _mm_sub_ps(y, _mm_mul_ps(_mm_mul_ps(a2, t), t));
+        y = _mm_sub_ps(y, _mm_mul_ps(_mm_mul_ps(a1, t), t));
+        y = _mm_mul_ps(y, t);
+        y = _mm_mul_ps(y, _mm_exp_ps(-_mm_mul_ps(x_abs, x_abs)));
+        return _mm_mul_ps(s, y);
+    }
+#if __AVX__
+    __m256 func_pack8(const __m256& x) const
+    {
+        __m256 a1 = _mm256_set1_ps(0.254829592f);
+        __m256 a2 = _mm256_set1_ps(-0.284496736f);
+        __m256 a3 = _mm256_set1_ps(1.421413741f);
+        __m256 a4 = _mm256_set1_ps(-1.453152027f);
+        __m256 a5 = _mm256_set1_ps(1.061405429f);
+        __m256 p = _mm256_set1_ps(0.3275911f);
+        __m256 s = _mm256_sign_ps(x);
+        __m256 x_abs = _mm256_abs_ps(x);
+        __m256 t = _mm256_rcp_ps(_mm256_add_ps(x_abs, p));
+        __m256 y = _mm256_sub_ps(_mm256_mul_ps(_mm256_mul_ps(a5, t), t), _mm256_mul_ps(_mm256_mul_ps(a4, t), t));
+        y = _mm256_sub_ps(y, _mm256_mul_ps(_mm256_mul_ps(a3, t), t));
+        y = _mm256_sub_ps(y, _mm256_mul_ps(_mm256_mul_ps(a2, t), t));
+        y = _mm256_sub_ps(y, _mm256_mul_ps(_mm256_mul_ps(a1, t), t));
+        y = _mm256_mul_ps(y, t);
+        y = _mm256_mul_ps(y, _mm256_exp_ps(-_mm256_mul_ps(x_abs, x_abs)));
+        return _mm256_mul_ps(s, y);
+    }
+#if __AVX512F__
+    __m512 func_pack16(const __m512& x) const
+    {
+        __m512 a1 = _mm512_set1_ps(0.254829592f);
+        __m512 a2 = _mm512_set1_ps(-0.284496736f);
+        __m512 a3 = _mm512_set1_ps(1.421413741f);
+        __m512 a4 = _mm512_set1_ps(-1.453152027f);
+        __m512 a5 = _mm512_set1_ps(1.061405429f);
+        __m512 p = _mm512_set1_ps(0.3275911f);
+        __m512 s = _mm512_sign_ps(x);
+        __m512 x_abs = _mm512_abs_ps(x);
+        __m512 t = _mm512_rcp_ps(_mm512_add_ps(x_abs, p));
+        __m512 y = _mm512_sub_ps(_mm512_mul_ps(_mm512_mul_ps(a5, t), t), _mm512_mul_ps(_mm512_mul_ps(a4, t), t));
+        y = _mm512_sub_ps(y, _mm512_mul_ps(_mm512_mul_ps(a3, t), t));
+        y = _mm512_sub_ps(y, _mm512_mul_ps(_mm512_mul_ps(a2, t), t));
+        y = _mm512_sub_ps(y, _mm512_mul_ps(_mm512_mul_ps(a1, t), t));
+        y = _mm512_mul_ps(y, t);
+        y = _mm512_mul_ps(y, _mm512_exp_ps(-_mm512_mul_ps(x_abs, x_abs)));
+        return _mm512_mul_ps(s, y);
+    }
+#endif // __AVX512F__
+#endif // __AVX__
+#endif // __SSE2__
+};
+
 } // namespace UnaryOp_x86_functor
 
 int UnaryOp_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
@@ -706,6 +777,9 @@ int UnaryOp_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
     if (op_type == Operation_TRUNC)
         return unary_op_inplace<unary_op_trunc>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ERF)
+        return unary_op_inplace<unary_op_erf>(bottom_top_blob, opt);
 
     return 0;
 }
