@@ -46,8 +46,7 @@ pnnx.Output             output      1 0 out
     {
         op->params["0"] = captured_params.at("p").f;
         op->params["1"] = captured_params.at("eps").f;
-		op->params["2"] = captured_params.at("keepdim").b ? 1 : 0;
-
+        op->params["2"] = captured_params.at("keepdim").b ? 1 : 0;
     }
 };
 

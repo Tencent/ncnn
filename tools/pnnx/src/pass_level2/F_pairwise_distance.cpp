@@ -19,9 +19,8 @@ namespace pnnx {
 class F_pairwise_distance : public GraphRewriterPass
 {
 public:
-
-const char* match_pattern_graph() const
-           {
+    const char* match_pattern_graph() const
+    {
         return R"PNNXIR(7767517
 7 6
 pnnx.Input              input_0     0 1 x1
