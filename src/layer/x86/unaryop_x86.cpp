@@ -642,7 +642,7 @@ struct unary_op_trunc
 #endif // __SSE2__
 };
 
-struct unary_op_trunc
+struct unary_op_erf
 {
     float func(const float& x) const
     {
