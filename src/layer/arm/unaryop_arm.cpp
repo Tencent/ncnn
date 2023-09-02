@@ -481,14 +481,14 @@ struct unary_op_erf
 #if __ARM_NEON
     float32x4_t func_pack4(const float32x4_t& x) const
     {
-        float32x4_t a1 = vmovq_n_f32(0.254829592f);
-        float32x4_t a2 = vmovq_n_f32(-0.284496736f);
-        float32x4_t a3 = vmovq_n_f32(1.421413741f);
-        float32x4_t a4 = vmovq_n_f32(-1.453152027f);
-        float32x4_t a5 = vmovq_n_f32(1.061405429f);
-        float32x4_t p = vmovq_n_f32(0.3275911f);
-        float32x4_t s = vsign_f32(x);
-        float32x4_t x_abs = vabs_f32(x);
+        float32x4_t a1 = vdupq_n_f32(0.254829592f);
+        float32x4_t a2 = vdupq_n_f32(-0.284496736f);
+        float32x4_t a3 = vdupq_n_f32(1.421413741f);
+        float32x4_t a4 = vdupq_n_f32(-1.453152027f);
+        float32x4_t a5 = vdupq_n_f32(1.061405429f);
+        float32x4_t p = vdupq_n_f32(0.3275911f);
+        float32x4_t s = vcltq_f32(x, vdupq_n_f32(0));
+        float32x4_t x_abs = vabsq_f32(x);
         float32x4_t t = vrecpeq_f32(vaddq_f32(x_abs, p));
         float32x4_t y = vsub_f32(vmulq_f32(vmulq_f32(a5, t), t), vmulq_f32(vmulq_f32(a4, t), t));
         y = vsub_f32(y, vmulq_f32(vmulq_f32(a3, t), t));
