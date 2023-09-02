@@ -436,6 +436,27 @@ struct unary_op_trunc
 #endif // __mips_msa
 };
 
+struct unary_op_sin
+{
+    float func(const float& x) const
+    {
+        return (float)sin(x);
+    }
+#if __mips_msa
+    v4f32 func_pack4(const v4f32& x) const
+    {
+        // TODO msa optimize
+        float tmp[4];
+        __msa_st_w((v4i32)x, tmp, 0);
+        tmp[0] = erf(tmp[0]);
+        tmp[1] = erf(tmp[1]);
+        tmp[2] = erf(tmp[2]);
+        tmp[3] = erf(tmp[3]);
+        return (v4f32)__msa_ld_w(tmp, 0);
+    }
+#endif // __mips_msa
+};
+
 } // namespace UnaryOp_mips_functor
 
 int UnaryOp_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
@@ -501,6 +522,9 @@ int UnaryOp_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
     if (op_type == Operation_TRUNC)
         return unary_op_inplace<unary_op_trunc>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ERF)
+        return unary_op_inplace<unary_op_erf>(bottom_top_blob, opt);
 
     return 0;
 }
