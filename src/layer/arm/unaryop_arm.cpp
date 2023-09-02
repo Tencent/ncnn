@@ -490,13 +490,13 @@ struct unary_op_erf
         float32x4_t s = vcltq_f32(x, vdupq_n_f32(0));
         float32x4_t x_abs = vabsq_f32(x);
         float32x4_t t = vrecpeq_f32(vaddq_f32(x_abs, p));
-        float32x4_t y = vsub_f32(vmulq_f32(vmulq_f32(a5, t), t), vmulq_f32(vmulq_f32(a4, t), t));
-        y = vsub_f32(y, vmulq_f32(vmulq_f32(a3, t), t));
-        y = vsub_f32(y, vmulq_f32(vmulq_f32(a2, t), t));
-        y = vsub_f32(y, vmulq_f32(vmulq_f32(a1, t), t));
+        float32x4_t y = vsubq_f32(vmulq_f32(vmulq_f32(a5, t), t), vmulq_f32(vmulq_f32(a4, t), t));
+        y = vsubq_f32(y, vmulq_f32(vmulq_f32(a3, t), t));
+        y = vsubq_f32(y, vmulq_f32(vmulq_f32(a2, t), t));
+        y = vsubq_f32(y, vmulq_f32(vmulq_f32(a1, t), t));
         y = vmulq_f32(y, t);
-        y = vmulq_f32(y, exp_f32(-vmulq_f32(x_abs, x_abs)));
-        return s * y;
+        y = vmulq_f32(y, exp_ps(vnegq_f32(vmulq_f32(x_abs, x_abs))));
+        return vmulq_f32(s, y);
     }
 #endif // __ARM_NEON
 };
