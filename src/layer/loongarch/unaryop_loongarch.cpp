@@ -433,18 +433,17 @@ __m128 ones = (__m128)__lsx_vreplfr2vr_s(1.0f);
         __m128 a5 = (__m128)__lsx_vreplfr2vr_s(1.061405429f);
         __m128 p = (__m128)__lsx_vreplfr2vr_s(0.3275911f);
     __m128 x2 = (__m128)__lsx_vbitclri_w((__m128i)x, 31);
-    __m128i tiny_mask = __lsx_vfcmp_clt_s((__m128)x2, (__m128)(__m128)__lsx_vreplgr2vr_w(c_tanh_tiny.i));
     __m128i sig_mask = __lsx_vreplgr2vr_w(1 << 31);
     __m128i s = __lsx_vand_v((__m128i)x, sig_mask);
           __m128 x_abs = (__m128)__lsx_vbitclri_w(x, 31);
-        __m128 t = (__m128)__lsx_vfdiv_s(ones, __lsx_vfadd_s(__lsx_vfmul_s(x_abs, p)));
+        __m128 t = (__m128)__lsx_vfdiv_s(ones, __lsx_vfadd_s(ones, __lsx_vfmul_s(x_abs, p)));
         __m128 y = __lsx_vfsub_s(__lsx_vfmul_s(__lsx_vfmul_s(a5, t), t), __lsx_vfmul_s(__lsx_vfmul_s(a4, t), t));
         y = __lsx_vfsub_s(y, __lsx_vfsub_s(__lsx_vfsub_s(a3, t), t));
         y = __lsx_vfsub_s(y, __lsx_vfmul_s(__lsx_vfmul_s(a2, t), t));
         y = __lsx_vfsub_s(y, __lsx_vfsub_s(__lsx_vfmul_s(a1, t), t));
         y = __lsx_vfmul_s(y, t);
         y = __lsx_vfmul_s(y, exp_ps(-__lsx_vfmul_s(x_abs, x_abs)));
-        return (__m128)__lsx_vfmul_s(x, y);
+        return (__m128)__lsx_vfmul_s(s, y);
     }
 #endif // __loongarch_sx
 };

@@ -436,11 +436,11 @@ struct unary_op_trunc
 #endif // __mips_msa
 };
 
-struct unary_op_sin
+struct unary_op_erf
 {
     float func(const float& x) const
     {
-        return (float)sin(x);
+        return (float)erf(x);
     }
 #if __mips_msa
     v4f32 func_pack4(const v4f32& x) const
