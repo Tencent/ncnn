@@ -691,7 +691,7 @@ struct unary_op_erf
         y = _mm256_sub_ps(y, _mm256_mul_ps(_mm256_mul_ps(a2, t), t));
         y = _mm256_sub_ps(y, _mm256_mul_ps(_mm256_mul_ps(a1, t), t));
         y = _mm256_mul_ps(y, t);
-        y = _mm256_mul_ps(y, _mm256_exp_ps(_mm256_sub_ps(_mm256_setzero_ps(), _mm256_mul_ps(x_abs, x_abs))));
+        y = _mm256_mul_ps(y, exp256_ps(_mm256_sub_ps(_mm256_setzero_ps(), _mm256_mul_ps(x_abs, x_abs))));
         return _mm256_mul_ps(s, y);
     }
 #if __AVX512F__
@@ -714,7 +714,7 @@ struct unary_op_erf
         y = _mm512_sub_ps(y, _mm512_mul_ps(_mm512_mul_ps(a2, t), t));
         y = _mm512_sub_ps(y, _mm512_mul_ps(_mm512_mul_ps(a1, t), t));
         y = _mm512_mul_ps(y, t);
-        y = _mm512_mul_ps(y, _mm512_exp_ps(_mm512_sub_ps(_mm512_setzero_ps(), _mm512_mul_ps(x_abs, x_abs))));
+        y = _mm512_mul_ps(y, exp512_ps(_mm512_sub_ps(_mm512_setzero_ps(), _mm512_mul_ps(x_abs, x_abs))));
         return _mm512_mul_ps(s, y);
     }
 #endif // __AVX512F__
