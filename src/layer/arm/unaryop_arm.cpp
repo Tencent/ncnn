@@ -487,7 +487,7 @@ struct unary_op_erf
         float32x4_t a4 = vdupq_n_f32(-1.453152027f);
         float32x4_t a5 = vdupq_n_f32(1.061405429f);
         float32x4_t p = vdupq_n_f32(0.3275911f);
-        float32x4_t s = vcltq_f32(x, vdupq_n_f32(0.0f));
+        float32x4_t s = vcvtq_f32_s32(vcltq_f32(x, vdupq_n_f32(0.0f)));
         float32x4_t x_abs = vabsq_f32(x);
         float32x4_t t = vrecpeq_f32(vaddq_f32(x_abs, p));
         float32x4_t y = vsubq_f32(vmulq_f32(vmulq_f32(a5, t), t), vmulq_f32(vmulq_f32(a4, t), t));

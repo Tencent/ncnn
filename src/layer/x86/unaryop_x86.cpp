@@ -658,17 +658,17 @@ struct unary_op_erf
         __m128 a5 = _mm_set1_ps(1.061405429f);
         __m128 p = _mm_set1_ps(0.3275911f);
         const __m128 zero = _mm_set_ps1 (0.0f);
-        __m128 positives = _mm_and_ps(_mm_cmpgt_ps (value, zero), _mm_set_ps1(1.0f));
-        __m128 negatives = _mm_and_ps(_mm_cmplt_ps (value, zero), _mm_set_ps1(-1.0f));
+        __m128 positives = _mm_and_ps(_mm_cmpgt_ps (x, zero), _mm_set_ps1(1.0f));
+        __m128 negatives = _mm_and_ps(_mm_cmplt_ps (x, zero), _mm_set_ps1(-1.0f));
         __m128 s = _mm_or_ps(positives, negatives);
-        __m128 x_abs = _mm_andnot_ps(_mm_set1_ps(-0.0f), m);
+        __m128 x_abs = _mm_andnot_ps(_mm_set1_ps(-0.0f), x);
         __m128 t = _mm_rcp_ps(_mm_add_ps(x_abs, p));
         __m128 y = _mm_sub_ps(_mm_mul_ps(_mm_mul_ps(a5, t), t), _mm_mul_ps(_mm_mul_ps(a4, t), t));
         y = _mm_sub_ps(y, _mm_mul_ps(_mm_mul_ps(a3, t), t));
         y = _mm_sub_ps(y, _mm_mul_ps(_mm_mul_ps(a2, t), t));
         y = _mm_sub_ps(y, _mm_mul_ps(_mm_mul_ps(a1, t), t));
         y = _mm_mul_ps(y, t);
-        y = _mm_mul_ps(y, _mm_exp_ps(-_mm_mul_ps(x_abs, x_abs)));
+        y = _mm_mul_ps(y, exp_ps(_mm_sub_ps(_mm_setzero_ps(), _mm_mul_ps(x_abs, x_abs))));
         return _mm_mul_ps(s, y);
     }
 #if __AVX__
