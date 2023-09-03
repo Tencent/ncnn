@@ -680,15 +680,18 @@ struct unary_op_erf
         __m256 a4 = _mm256_set1_ps(-1.453152027f);
         __m256 a5 = _mm256_set1_ps(1.061405429f);
         __m256 p = _mm256_set1_ps(0.3275911f);
-        __m256 s = _mm256_sign_ps(x);
-        __m256 x_abs = _mm256_abs_ps(x);
+        const __m256 zero = _mm256_set1_ps(0.0f);
+        __m256 positives = _mm256_and_ps(_mm256_cmp_ps(x, zero, _CMP_GT_OQ), _mm256_set1_ps(1.0f));
+        __m256 negatives = _mm256_and_ps(_mm256_cmp_ps(x, zero, _CMP_LT_OQ), _mm256_set1_ps(-1.0f));
+        __m256 s = _mm256_or_ps(positives, negatives);
+        __m256 x_abs = _mm256_andnot_ps(_mm256_set1_ps(-0.0f), x);
         __m256 t = _mm256_rcp_ps(_mm256_add_ps(x_abs, p));
         __m256 y = _mm256_sub_ps(_mm256_mul_ps(_mm256_mul_ps(a5, t), t), _mm256_mul_ps(_mm256_mul_ps(a4, t), t));
         y = _mm256_sub_ps(y, _mm256_mul_ps(_mm256_mul_ps(a3, t), t));
         y = _mm256_sub_ps(y, _mm256_mul_ps(_mm256_mul_ps(a2, t), t));
         y = _mm256_sub_ps(y, _mm256_mul_ps(_mm256_mul_ps(a1, t), t));
         y = _mm256_mul_ps(y, t);
-        y = _mm256_mul_ps(y, _mm256_exp_ps(-_mm256_mul_ps(x_abs, x_abs)));
+        y = _mm256_mul_ps(y, _mm256_exp_ps(_mm256_sub_ps(_mm256_setzero_ps(), _mm256_mul_ps(x_abs, x_abs))));
         return _mm256_mul_ps(s, y);
     }
 #if __AVX512F__
@@ -700,15 +703,18 @@ struct unary_op_erf
         __m512 a4 = _mm512_set1_ps(-1.453152027f);
         __m512 a5 = _mm512_set1_ps(1.061405429f);
         __m512 p = _mm512_set1_ps(0.3275911f);
-        __m512 s = _mm512_sign_ps(x);
-        __m512 x_abs = _mm512_abs_ps(x);
-        __m512 t = _mm512_rcp_ps(_mm512_add_ps(x_abs, p));
+        const __m512 zero = _mm512_set1_ps(0.0f);
+        __m512 positives = _mm512_and_ps(_mm512_mask_blend_ps(_mm512_cmplt_ps_mask(zero, x), x, zero), _mm512_set1_ps(1.0f));
+        __m512 negatives = _mm512_and_ps(_mm512_mask_blend_ps(_mm512_cmplt_ps_mask(x, zero), x, zero), _mm512_set1_ps(-1.0f));
+        __m512 s = _mm512_or_ps(positives, negatives);
+        __m512 x_abs = _mm512_andnot_ps(_mm512_set1_ps(-0.0f), x);
+        __m512 t = _mm512_div_ps(_mm512_set1_ps(1.0), _mm512_add_ps(x_abs, p));
         __m512 y = _mm512_sub_ps(_mm512_mul_ps(_mm512_mul_ps(a5, t), t), _mm512_mul_ps(_mm512_mul_ps(a4, t), t));
         y = _mm512_sub_ps(y, _mm512_mul_ps(_mm512_mul_ps(a3, t), t));
         y = _mm512_sub_ps(y, _mm512_mul_ps(_mm512_mul_ps(a2, t), t));
         y = _mm512_sub_ps(y, _mm512_mul_ps(_mm512_mul_ps(a1, t), t));
         y = _mm512_mul_ps(y, t);
-        y = _mm512_mul_ps(y, _mm512_exp_ps(-_mm512_mul_ps(x_abs, x_abs)));
+        y = _mm512_mul_ps(y, _mm512_exp_ps(_mm512_sub_ps(_mm512_setzero_ps(), _mm512_mul_ps(x_abs, x_abs))));
         return _mm512_mul_ps(s, y);
     }
 #endif // __AVX512F__
