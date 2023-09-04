@@ -39,4 +39,4 @@ public:
 
 } // namespace ncnn
 
-#endif // LAYER_ELU_VULKAN_H
+#endif // LAYER_GELU_VULKAN_H
