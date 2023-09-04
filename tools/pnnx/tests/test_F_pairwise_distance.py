@@ -49,7 +49,7 @@ def test():
     import test_F_pairwise_distance_pnnx
     b0,b1,b2,b3 = test_F_pairwise_distance_pnnx.test_inference()
 
-     return torch.equal(a0,b0) and torch.equal(a1,b1) and torch.equal(a2,b2) and torch.equal(a3,b3)
+    return torch.equal(a0,b0) and torch.equal(a1,b1) and torch.equal(a2,b2) and torch.equal(a3,b3)
 
 if __name__ == "__main__":
     if test():
