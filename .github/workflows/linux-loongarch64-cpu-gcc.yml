@@ -35,7 +35,7 @@ jobs:
     runs-on: [self-hosted, linux, centos]
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     # - name: cache-qemu
     #   id: cache-qemu
@@ -45,7 +45,7 @@ jobs:
     #     key: qemu-loongarch64-install-20230524
     # - name: checkout-qemu
     #   if: steps.cache-qemu.outputs.cache-hit != 'true'
-    #   uses: actions/checkout@v3
+    #   uses: actions/checkout@v4
     #   with:
     #     repository: qemu/qemu
     #     path: qemu

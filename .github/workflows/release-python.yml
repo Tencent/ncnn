@@ -10,7 +10,7 @@ jobs:
     name: Build SDist
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: true
 
@@ -54,7 +54,7 @@ jobs:
           - { os: macos-latest, arch: universal2, build: 'cp*'            }
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: true
 
@@ -110,7 +110,7 @@ jobs:
             build: 'pp310-*'
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: true
 
