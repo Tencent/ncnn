@@ -12,6 +12,9 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+#ifndef LAYER_LINEARINT8_H
+#define LAYER_LINEARINT8_H
+
 #include "layer.h"
 
 namespace ncnn {
@@ -35,3 +38,5 @@ public:
 };
 
 } // namespace ncnn
+
+#endif // LAYER_LINEARINT8_H
