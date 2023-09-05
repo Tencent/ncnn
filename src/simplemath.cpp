@@ -597,6 +597,22 @@ float expf(float a)
     return r;
 }
 
+float frexp(float x, int* y){
+    int hx, k;
+    hx = __HI(x);
+    k = (hx >> 7) & 0x00ff;
+    k = k - 127;
+    __HI(x) = hx & 0x807f;
+    __HI(x) = __HI(x) | 0x3f80;
+    
+    *y = k + 1;  // y in [1/2, 1)
+    return x / 2;   
+}
+
+float log(float x){
+    return logf(x);
+}
+
 float log10f(float x)
 {
     static const float ln10 = 2.3025850929940456840179914546844;

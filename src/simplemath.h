@@ -103,7 +103,9 @@ float powf(float, float);
 * ====================================================
 */
 float expf(float);
+float frexp(float, int*);
 float logf(float);
+float log(float);
 float log10f(float);
 
 /*
