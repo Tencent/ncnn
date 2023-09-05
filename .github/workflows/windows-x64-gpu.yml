@@ -60,7 +60,7 @@ jobs:
     env:
       UseMultiToolTask: true
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: true
     - name: cache-protobuf
@@ -91,7 +91,7 @@ jobs:
         key: swiftshader-${{ matrix.vs-version }}-x64-install-20230420
     - name: checkout-swiftshader
       if: matrix.vs-version != 'vs2015' && steps.cache-swiftshader.outputs.cache-hit != 'true'
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         repository: google/swiftshader
         path: swiftshader
