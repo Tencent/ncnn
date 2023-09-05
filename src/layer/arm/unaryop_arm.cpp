@@ -472,35 +472,6 @@ struct unary_op_trunc
 #endif // __ARM_NEON
 };
 
-struct unary_op_erf
-{
-    float func(const float& x) const
-    {
-        return (float)erf(x);
-    }
-#if __ARM_NEON
-    float32x4_t func_pack4(const float32x4_t& x) const
-    {
-        float32x4_t a1 = vdupq_n_f32(0.254829592f);
-        float32x4_t a2 = vdupq_n_f32(-0.284496736f);
-        float32x4_t a3 = vdupq_n_f32(1.421413741f);
-        float32x4_t a4 = vdupq_n_f32(-1.453152027f);
-        float32x4_t a5 = vdupq_n_f32(1.061405429f);
-        float32x4_t p = vdupq_n_f32(0.3275911f);
-        const uint32x4_t szero = vreinterpretq_u32_f32(vdupq_n_f32(-0.0f));
-        float32x4_t sone = vdupq_n_f32(1.0f);
-        uint32x4_t s = vandq_u32(vreinterpretq_u32_f32(x), szero);
-        float32x4_t x_abs = vabsq_f32(x);
-        float32x4_t t = vrecpeq_f32(vmulq_f32(vaddq_f32(sone, p), x_abs));
-        float32x4_t y = vdupq_n_f32(1.0f);
-        float32x4_t err = vmulq_f32(vaddq_f32(vmulq_f32(vaddq_f32(vmulq_f32(vaddq_f32(vmulq_f32(vaddq_f32(vmulq_f32(a5, t), a4), t), a3), t), a2), t), a1), t);
-        err = exp_ps(vmulq_f32(vsubq_f32(vdupq_n_f32(0.0f), x_abs), x_abs));
-        y = vsubq_f32(y, err);
-        return vreinterpretq_f32_u32(vorrq_u32(vreinterpretq_u32_f32(y), s));
-    }
-#endif // __ARM_NEON
-};
-
 } // namespace UnaryOp_arm_functor
 
 int UnaryOp_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
@@ -580,7 +551,7 @@ int UnaryOp_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         return unary_op_inplace<unary_op_trunc>(bottom_top_blob, opt);
 
     if (op_type == Operation_ERF)
-        return unary_op_inplace<unary_op_erf>(bottom_top_blob, opt);
+        return UnaryOp::forward_inplace(bottom_top_blob, opt);
 
     return 0;
 }
@@ -719,7 +690,7 @@ int UnaryOp_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) 
         return unary_op_inplace_bf16s<unary_op_trunc>(bottom_top_blob, opt);
 
     if (op_type == Operation_ERF)
-        return unary_op_inplace_bf16s<unary_op_erf>(bottom_top_blob, opt);
+        return UnaryOp::forward_inplace(bottom_top_blob, opt);
 
     return 0;
 }
