@@ -437,6 +437,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/F_max_pool1d.cpp
     pass_ncnn/F_max_pool2d.cpp
     pass_ncnn/F_max_pool3d.cpp
+    pass_ncnn/F_mish.cpp
     pass_ncnn/F_normalize.cpp
     pass_ncnn/F_pad.cpp
     pass_ncnn/F_pixel_shuffle.cpp
