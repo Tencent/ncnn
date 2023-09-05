@@ -27,6 +27,8 @@ int LinearInt8::load_param(const ParamDict& pd)
     in_dim = pd.get(0, 0);
     out_dim = pd.get(1, 0);
     group_size = pd.get(2, 1);
+    if (in_dim * out_dim % group_size)
+        return -1;
     return 0;
 }
 
