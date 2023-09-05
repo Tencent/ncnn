@@ -910,7 +910,12 @@ jobs:
       run: ./codecov -t ${{settings.CODECOV_TOKEN.access_token}} -C ${{ ci.sha }} -B ${{ ci.head_ref }} -f build/lcov.info
 
   linux-gcc-x64-simplemath:
-    runs-on: ubuntu-22.04
+    name: linux-gcc-x64-simplemath
+    
+    runs-on: 
+      pool-name: docker
+      container:
+        image: bkci/ci:ubuntu
     steps:
     - uses: actions/checkout@v3
     - name: update
