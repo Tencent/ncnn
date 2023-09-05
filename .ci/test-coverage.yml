@@ -911,13 +911,18 @@ jobs:
 
   linux-gcc-x64-simplemath:
     name: linux-gcc-x64-simplemath
-    
+
     runs-on: 
       pool-name: docker
       container:
         image: bkci/ci:ubuntu
     steps:
-    - uses: actions/checkout@v3
+    - name: checkout
+      checkout: self
+      with:
+        strategy: FRESH_CHECKOUT
+        enableSubmodule: false
+        enableGitLfs: false
     - name: update
       run: sudo apt-get update
     - name: gcc12
