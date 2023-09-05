@@ -909,7 +909,7 @@ jobs:
     - name: codecov
       run: ./codecov -t ${{settings.CODECOV_TOKEN.access_token}} -C ${{ ci.sha }} -B ${{ ci.head_ref }} -f build/lcov.info
 
-  linux-gcc-x64-simplemath
+  linux-gcc-x64-simplemath:
     runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v3
