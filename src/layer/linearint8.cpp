@@ -57,7 +57,7 @@ int LinearInt8::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt
         const float* m = bottom_blob.row(j);
         float* out = top_blob.row(j);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int p = 0; p < out_dim; p++)
         {
             int base = w * p;
