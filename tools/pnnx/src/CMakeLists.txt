@@ -244,6 +244,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_normal.cpp
     pass_level2/torch_ones.cpp
     pass_level2/torch_ones_like.cpp
+    pass_level2/torch_positive.cpp
     pass_level2/torch_prod.cpp
     pass_level2/torch_quantize_per_tensor.cpp
     pass_level2/torch_randn.cpp
