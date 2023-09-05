@@ -324,14 +324,12 @@ pnnx_add_test(pnnx_fuse_pad_conv1d)
 pnnx_add_test(pnnx_fuse_pad_conv2d)
 pnnx_add_test(pnnx_fuse_pixel_unshuffle)
 
-if(Torch_VERSION VERSION_GREATER_EQUAL "1.8")
-    pnnx_add_test(torch_positive)
-endif()
 
 if(Torch_VERSION VERSION_GREATER_EQUAL "1.9")
     pnnx_add_test(F_mish)
     pnnx_add_test(nn_Mish)
     pnnx_add_test(ir_complex)
+    pnnx_add_test(torch_positive)
 endif()
 
 if(Torch_VERSION VERSION_GREATER_EQUAL "1.10")
