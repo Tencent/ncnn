@@ -360,6 +360,9 @@ int UnaryOp_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
     if (op_type == Operation_TRUNC)
         return unary_op_inplace<unary_op_trunc>(bottom_top_blob, opt);
 
+    if (op_type == Operation_ERF)
+        return UnaryOp::forward_inplace(bottom_top_blob, opt);
+
     return 0;
 #else  // __riscv_vector
     return UnaryOp::forward_inplace(bottom_top_blob, opt);
@@ -682,6 +685,9 @@ int UnaryOp_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt
 
     if (op_type == Operation_TRUNC)
         return unary_op_inplace_fp16s<unary_op_trunc_fp16s>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ERF)
+        return UnaryOp::forward_inplace(bottom_top_blob, opt);
 
     return 0;
 }
