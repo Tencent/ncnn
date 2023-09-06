@@ -47,7 +47,7 @@ static int test_linearint8(const ncnn::Mat& a, int in_dim, int out_dim, int grou
     return ret;
 }
 
-static int test_lrn_0()
+static int test_linearint8_0()
 {
     ncnn::Mat a = RandomMat(10, 1);
 
@@ -57,14 +57,11 @@ static int test_lrn_0()
            || test_linearint8(a, 10, 10, 4);
 }
 
-static int test_lrn_1()
+static int test_linearint8_1()
 {
     ncnn::Mat a = RandomMat(16, 1);
 
     return 0
-           || test_linearint8(a, 16, 6, 16)
-           || test_linearint8(a, 16, 6, 16)
-           || test_linearint8(a, 16, 6, 16)
            || test_linearint8(a, 16, 6, 16);
 }
 
@@ -73,6 +70,6 @@ int main()
     SRAND(7767517);
 
     return 0
-           || test_lrn_0()
-           || test_lrn_1();
+           || test_linearint8_0()
+           || test_linearint8_1();
 }
