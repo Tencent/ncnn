@@ -776,7 +776,7 @@ int UnaryOp_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         return unary_op_inplace<unary_op_trunc>(bottom_top_blob, opt);
 
     if (op_type == Operation_ERF)
-        return UnaryOp::forward_inplace(bottom_top_blob, opt);;
+        return UnaryOp::forward_inplace(bottom_top_blob, opt);
 
     return 0;
 }
