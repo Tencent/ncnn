@@ -54,6 +54,8 @@ int LinearInt8::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt
     if (top_blob.empty())
         return -100;
 
+    const int8_t *wt = (const int8_t *)weight;
+
     for (int j = 0; j < h; j++)
     {
         const float* m = bottom_blob.row(j);
@@ -63,12 +65,13 @@ int LinearInt8::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt
         for (int p = 0; p < out_dim; p++)
         {
             int base = w * p;
-            out[p] = 0;
+            float acc = 0.0f;
             for (int i = 0; i < w; i++)
             {
                 int index = base + i;
-                out[p] += m[i] * ((const int8_t*)weight)[index] * scales[index / group_size];
+                acc += m[i] * wt[index] * scales[index / group_size];
             }
+            out[p] = acc;
         }
     }
 
