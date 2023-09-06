@@ -429,19 +429,20 @@ float atan2f(float y, float x)
     {
         return copysignf(PI_2, y);
     }
+
     if (x > 0 && y > 0)
     {
         return atanf(y / x);
     }
-    if (x < 0 && y > 0)
+    else if (x < 0 && y > 0)
     {
         return PI - atanf(y / -x);
     }
-    if (x > 0 && y < 0)
+    else if (x > 0 && y < 0)
     {
         return -atanf(-y / x);
     }
-    if (x < 0 && y < 0)
+    else
     {
         return -PI + atanf(-y / -x);
     }
