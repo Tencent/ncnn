@@ -19,7 +19,7 @@ if sys.version_info < (3, 0):
 requirements = ["numpy", "tqdm", "requests", "portalocker", "opencv-python"]
 
 setup(
-    name="ncnn-gpu",
+    name="ncnn",
     version="${PACKAGE_VERSION}",
     author="nihui",
     author_email="nihuini@tencent.com",

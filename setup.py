@@ -137,7 +137,7 @@ with io.open("README.md", encoding="utf-8") as h:
     long_description = h.read()
 
 setup(
-    name="ncnn-gpu",
+    name="ncnn",
     version=find_version(),
     author="nihui",
     author_email="nihuini@tencent.com",
