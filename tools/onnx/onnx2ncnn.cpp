@@ -3714,7 +3714,7 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "EmbedLayerNormalization");
         }
-else if (op == "Erf")
+        else if (op == "Erf")
         {
             fprintf(pp, "%-16s", "Erf");
         }
@@ -4514,7 +4514,7 @@ else if (op == "Erf")
 
             fwrite_tensor_proto_data(B, bp);
         }
-else if (op == "Erf")
+        else if (op == "Erf")
         {
             // no-op
         }
