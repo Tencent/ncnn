@@ -54,7 +54,7 @@ int LinearInt8::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt
     if (top_blob.empty())
         return -100;
 
-    const int8_t *wt = (const int8_t *)weight;
+    const int8_t* wt = (const int8_t*)weight;
 
     for (int j = 0; j < h; j++)
     {
