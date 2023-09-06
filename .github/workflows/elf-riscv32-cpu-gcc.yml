@@ -32,7 +32,7 @@ jobs:
   newlib-rv32imc-gcc:
     runs-on: [self-hosted, linux, centos]
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     #- name: cache-riscv
       #id: cache-riscv
@@ -49,7 +49,7 @@ jobs:
 
     #- name: checkout-riscv-gnu-toolchain
       #if: steps.cache-riscv.outputs.cache-hit != 'true'
-      #uses: actions/checkout@v3
+      #uses: actions/checkout@v4
       #with:
         #repository: riscv/riscv-gnu-toolchain
         #path: riscv-gnu-toolchain
@@ -73,7 +73,7 @@ jobs:
 
     #- name: checkout-riscv-pk
       #if: steps.cache-riscv.outputs.cache-hit != 'true'
-      #uses: actions/checkout@v3
+      #uses: actions/checkout@v4
       #with:
         #repository: riscv/riscv-pk
         #path: riscv-pk
@@ -91,7 +91,7 @@ jobs:
 
     #- name: checkout-riscv-isa-sim
       #if: steps.cache-riscv.outputs.cache-hit != 'true'
-      #uses: actions/checkout@v3
+      #uses: actions/checkout@v4
       #with:
         #repository: riscv/riscv-isa-sim
         #path: riscv-isa-sim

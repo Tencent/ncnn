@@ -214,6 +214,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_clone.cpp
     pass_level2/torch_complex.cpp
     pass_level2/torch_cross.cpp
+    pass_level2/torch_cumprod.cpp
     pass_level2/torch_cumsum.cpp
     pass_level2/torch_dequantize.cpp
     pass_level2/torch_einsum.cpp
@@ -230,6 +231,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_imag.cpp
     pass_level2/torch_index_select.cpp
     pass_level2/torch_le.cpp
+    pass_level2/torch_lgamma.cpp
     pass_level2/torch_logsumexp.cpp
     pass_level2/torch_lt.cpp
     pass_level2/torch_matmul.cpp
@@ -237,11 +239,13 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_mean.cpp
     pass_level2/torch_min.cpp
     pass_level2/torch_mm.cpp
+    pass_level2/torch_narrow.cpp
     pass_level2/torch_ne.cpp
     pass_level2/torch_norm.cpp
     pass_level2/torch_normal.cpp
     pass_level2/torch_ones.cpp
     pass_level2/torch_ones_like.cpp
+    pass_level2/torch_positive.cpp
     pass_level2/torch_prod.cpp
     pass_level2/torch_quantize_per_tensor.cpp
     pass_level2/torch_randn.cpp

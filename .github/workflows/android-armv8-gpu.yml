@@ -30,7 +30,7 @@ jobs:
   android-aarch64-gpu:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: true
     - name: build
@@ -62,7 +62,7 @@ jobs:
   android-aarch64-gpu-ndk-r16b:
     runs-on: ubuntu-20.04
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: true
     - name: ndk-r16b
