@@ -71,6 +71,8 @@ namespace ncnn {
 #endif // NCNN_BF16
 
 #if NCNN_INT8
+#include "convolution_im2col_gemm_int8.h"
+
 #include "convolution_pack8to4_int8.h"
 #include "convolution_pack1to4_int8.h"
 #include "convolution_pack8to1_int8.h"
@@ -1303,6 +1305,7 @@ int Convolution_arm::create_pipeline_int8_arm(const Option& opt)
     }
 #endif // __ARM_NEON
 
+#if 0
 #if __ARM_NEON
     if (elempack == 8 && out_elempack == 4)
     {
@@ -1419,6 +1422,9 @@ int Convolution_arm::create_pipeline_int8_arm(const Option& opt)
             weight_data_tm = weight_data;
         }
     }
+#else
+    convolution_im2col_gemm_transform_kernel_int8(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h, opt);
+#endif
 
     scale_in_data.create(num_output);
     for (int p = 0; p < num_output; p++)
@@ -1515,6 +1521,15 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
     if (top_blob_int32.empty())
         return -100;
 
+    int _nT = nT ? nT : opt.num_threads;
+    if (nT != 0 && opt.num_threads != nT)
+    {
+        // force num_threads the same as in create_pipeline
+        // so we could use pre-packed A/B from the same tile config
+        NCNN_LOGE("opt.num_threads %d changed, convolution gemm will use load-time value %d", opt.num_threads, nT);
+    }
+
+#if 0
 #if __ARM_NEON
     if (elempack == 8 && out_elempack_int32 == 4)
     {
@@ -1624,6 +1639,9 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
             convolution_int8(bottom_blob_bordered, top_blob_int32, weight_data_tm, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
         }
     }
+#else
+    convolution_im2col_gemm_int8(bottom_blob_bordered, top_blob_int32, weight_sgemm_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, _nT, opt);
+#endif
 
     if (use_int8_requantize)
     {
