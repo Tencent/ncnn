@@ -1458,6 +1458,11 @@ int test_layer_opt(const char* layer_type, const ncnn::ParamDict& pd, const std:
         weights_fp16.resize(weights.size());
         for (size_t j = 0; j < weights.size(); j++)
         {
+            if (weights[j].elemsize != 4)
+            {
+                weights_fp16[j] = weights[j].clone();
+                continue;
+            }
             ncnn::Mat tmp;
             ncnn::cast_float32_to_bfloat16(weights[j], tmp, opt);
             ncnn::cast_bfloat16_to_float32(tmp, weights_fp16[j], opt);
@@ -1469,6 +1474,11 @@ int test_layer_opt(const char* layer_type, const ncnn::ParamDict& pd, const std:
         weights_fp16.resize(weights.size());
         for (size_t j = 0; j < weights.size(); j++)
         {
+            if (weights[j].elemsize != 4)
+            {
+                weights_fp16[j] = weights[j].clone();
+                continue;
+            }
             ncnn::Mat tmp;
             ncnn::cast_float32_to_float16(weights[j], tmp, opt);
             ncnn::cast_float16_to_float32(tmp, weights_fp16[j], opt);
