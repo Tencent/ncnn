@@ -46,6 +46,36 @@ static void convolution_im2col_pack_A_tile_int8(const Mat& A, Mat& AT, int i, in
 
         int kk = 0;
 #if __ARM_FEATURE_DOTPROD
+#if __ARM_FEATURE_MATMUL_INT8
+        for (; kk + 7 < max_kk; kk += 8)
+        {
+            int8x8_t _r0 = vld1_s8(p0);
+            int8x8_t _r1 = vld1_s8(p1);
+            int8x8_t _r2 = vld1_s8(p2);
+            int8x8_t _r3 = vld1_s8(p3);
+            int8x8_t _r4 = vld1_s8(p4);
+            int8x8_t _r5 = vld1_s8(p5);
+            int8x8_t _r6 = vld1_s8(p6);
+            int8x8_t _r7 = vld1_s8(p7);
+            vst1_s8(pp, _r0);
+            vst1_s8(pp + 8, _r1);
+            vst1_s8(pp + 16, _r2);
+            vst1_s8(pp + 24, _r3);
+            vst1_s8(pp + 32, _r4);
+            vst1_s8(pp + 40, _r5);
+            vst1_s8(pp + 48, _r6);
+            vst1_s8(pp + 56, _r7);
+            pp += 64;
+            p0 += 8;
+            p1 += 8;
+            p2 += 8;
+            p3 += 8;
+            p4 += 8;
+            p5 += 8;
+            p6 += 8;
+            p7 += 8;
+        }
+#endif // __ARM_FEATURE_MATMUL_INT8
         for (; kk + 3 < max_kk; kk += 4)
         {
             pp[0] = p0[0];
@@ -149,6 +179,24 @@ static void convolution_im2col_pack_A_tile_int8(const Mat& A, Mat& AT, int i, in
 
         int kk = 0;
 #if __ARM_FEATURE_DOTPROD
+#if __ARM_FEATURE_MATMUL_INT8
+        for (; kk + 7 < max_kk; kk += 8)
+        {
+            int8x8_t _r0 = vld1_s8(p0);
+            int8x8_t _r1 = vld1_s8(p1);
+            int8x8_t _r2 = vld1_s8(p2);
+            int8x8_t _r3 = vld1_s8(p3);
+            vst1_s8(pp, _r0);
+            vst1_s8(pp + 8, _r1);
+            vst1_s8(pp + 16, _r2);
+            vst1_s8(pp + 24, _r3);
+            pp += 32;
+            p0 += 8;
+            p1 += 8;
+            p2 += 8;
+            p3 += 8;
+        }
+#endif // __ARM_FEATURE_MATMUL_INT8
         for (; kk + 3 < max_kk; kk += 4)
         {
             pp[0] = p0[0];
@@ -211,6 +259,18 @@ static void convolution_im2col_pack_A_tile_int8(const Mat& A, Mat& AT, int i, in
 
         int kk = 0;
 #if __ARM_FEATURE_DOTPROD
+#if __ARM_FEATURE_MATMUL_INT8
+        for (; kk + 7 < max_kk; kk += 8)
+        {
+            int8x8_t _r0 = vld1_s8(p0);
+            int8x8_t _r1 = vld1_s8(p1);
+            vst1_s8(pp, _r0);
+            vst1_s8(pp + 8, _r1);
+            pp += 16;
+            p0 += 8;
+            p1 += 8;
+        }
+#endif // __ARM_FEATURE_MATMUL_INT8
         for (; kk + 3 < max_kk; kk += 4)
         {
             pp[0] = p0[0];
@@ -4568,6 +4628,44 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
             const signed char* pA = pAT;
             int kk = 0;
 #if __ARM_FEATURE_DOTPROD
+#if __ARM_FEATURE_MATMUL_INT8
+            int32x4_t _sum00 = vdupq_n_s32(0);
+            int32x4_t _sum01 = vdupq_n_s32(0);
+            int32x4_t _sum10 = vdupq_n_s32(0);
+            int32x4_t _sum11 = vdupq_n_s32(0);
+            for (; kk + 7 < max_kk; kk += 8)
+            {
+                int8x8_t _pA = vld1_s8(pA);
+                int8x16_t _pB0 = vld1q_s8(pB);
+                int8x16_t _pB1 = vld1q_s8(pB + 16);
+                int8x16_t _pB2 = vld1q_s8(pB + 32);
+                int8x16_t _pB3 = vld1q_s8(pB + 48);
+
+                // aaaaaaaa
+                // aaaaaaaa aaaaaaaa
+                int8x16_t _pAA = vcombine_s8(_pA, _pA);
+
+                // 00000000 11111111
+                // 22222222 33333333
+                // 44444444 55555555
+                // 66666666 77777777
+
+                // a0 a0 a1 a1
+                // a2 a2 a3 a3
+                // a4 a4 a5 a5
+                // a6 a6 a7 a7
+
+                _sum00 = vdotq_s32(_sum00, _pAA, _pB0);
+                _sum01 = vdotq_s32(_sum01, _pAA, _pB1);
+                _sum10 = vdotq_s32(_sum10, _pAA, _pB2);
+                _sum11 = vdotq_s32(_sum11, _pAA, _pB3);
+
+                pA += 8;
+                pB += 64;
+            }
+            _sum0 = vaddq_s32(_sum0, vpaddq_s32(_sum00, _sum01));
+            _sum1 = vaddq_s32(_sum1, vpaddq_s32(_sum10, _sum11));
+#endif // __ARM_FEATURE_MATMUL_INT8
             for (; kk + 3 < max_kk; kk += 4)
             {
                 int8x8_t _pA = vreinterpret_s8_s32(vld1_dup_s32((const int*)pA));
@@ -4641,6 +4739,33 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
             const signed char* pA = pAT;
             int kk = 0;
 #if __ARM_FEATURE_DOTPROD
+#if __ARM_FEATURE_MATMUL_INT8
+            int32x4_t _sum00 = vdupq_n_s32(0);
+            int32x4_t _sum01 = vdupq_n_s32(0);
+            for (; kk + 7 < max_kk; kk += 8)
+            {
+                int8x8_t _pA = vld1_s8(pA);
+                int8x16_t _pB0 = vld1q_s8(pB);
+                int8x16_t _pB1 = vld1q_s8(pB + 16);
+
+                // aaaaaaaa
+                // aaaaaaaa aaaaaaaa
+                int8x16_t _pAA = vcombine_s8(_pA, _pA);
+
+                // 00000000 11111111
+                // 22222222 33333333
+
+                // a0 a0 a1 a1
+                // a2 a2 a3 a3
+
+                _sum00 = vdotq_s32(_sum00, _pAA, _pB0);
+                _sum01 = vdotq_s32(_sum01, _pAA, _pB1);
+
+                pA += 8;
+                pB += 32;
+            }
+            _sum0 = vaddq_s32(_sum0, vpaddq_s32(_sum00, _sum01));
+#endif // __ARM_FEATURE_MATMUL_INT8
             for (; kk + 3 < max_kk; kk += 4)
             {
                 int8x8_t _pA = vld1_s8(pA);
@@ -4710,6 +4835,30 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
             const signed char* pA = pAT;
             int kk = 0;
 #if __ARM_FEATURE_DOTPROD
+#if __ARM_FEATURE_MATMUL_INT8
+            int32x4_t _sum00 = vdupq_n_s32(0);
+            for (; kk + 7 < max_kk; kk += 8)
+            {
+                int8x8_t _pA = vld1_s8(pA);
+                int8x16_t _pB = vld1q_s8(pB);
+
+                // aaaaaaaa
+                // aaaaaaaa aaaaaaaa
+                int8x16_t _pAA = vcombine_s8(_pA, _pA);
+
+                // 00000000 11111111
+
+                // a0 a0 a1 a1
+
+                _sum00 = vdotq_s32(_sum00, _pAA, _pB);
+
+                pA += 8;
+                pB += 16;
+            }
+            int32x2_t _ss = vpadd_s32(vget_low_s32(_sum00), vget_high_s32(_sum00));
+            sum0 += vget_lane_s32(_ss, 0);
+            sum1 += vget_lane_s32(_ss, 1);
+#endif // __ARM_FEATURE_MATMUL_INT8
             int32x2_t _sum0 = vdup_n_s32(0);
             for (; kk + 3 < max_kk; kk += 4)
             {
@@ -4909,7 +5058,21 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
             const signed char* p0 = (const signed char*)bottom_blob.channel(k / 8) + (j + jj) * 8;
 
             int kk = 0;
-#if __ARM_FEATURE_DOTPROD
+#if __ARM_FEATURE_MATMUL_INT8
+            for (; kk < max_kk / 8; kk++)
+            {
+                int8x16_t _r01 = vld1q_s8(p0);
+                int8x16_t _r23 = vld1q_s8(p0 + 16);
+                int8x16_t _r45 = vld1q_s8(p0 + 32);
+                int8x16_t _r67 = vld1q_s8(p0 + 48);
+                vst1q_s8(pp, _r01);
+                vst1q_s8(pp + 16, _r23);
+                vst1q_s8(pp + 32, _r45);
+                vst1q_s8(pp + 48, _r67);
+                pp += 64;
+                p0 += bottom_blob.cstep * 8;
+            }
+#elif __ARM_FEATURE_DOTPROD
             for (; kk < max_kk / 8; kk++)
             {
                 int32x4x2_t _r0246 = vld2q_s32((const int*)p0);
@@ -4921,7 +5084,7 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
                 pp += 64;
                 p0 += bottom_blob.cstep * 8;
             }
-#else // __ARM_FEATURE_DOTPROD
+#else // __ARM_FEATURE_MATMUL_INT8 || __ARM_FEATURE_DOTPROD
             for (; kk < max_kk / 8; kk++)
             {
                 int16x8x4_t _r0 = vld4q_s16((const short*)p0);
@@ -4932,7 +5095,7 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
                 pp += 64;
                 p0 += bottom_blob.cstep * 8;
             }
-#endif // __ARM_FEATURE_DOTPROD
+#endif // __ARM_FEATURE_MATMUL_INT8 || __ARM_FEATURE_DOTPROD
         }
 
         if (elempack == 1)
@@ -4941,75 +5104,56 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
 
             int kk = 0;
 #if __ARM_FEATURE_DOTPROD
+#if __ARM_FEATURE_MATMUL_INT8
+            for (; kk + 7 < max_kk; kk += 8)
+            {
+                int8x8_t _r0 = vld1_s8(p0);
+                int8x8_t _r1 = vld1_s8(p0 + bottom_blob.cstep);
+                int8x8_t _r2 = vld1_s8(p0 + bottom_blob.cstep * 2);
+                int8x8_t _r3 = vld1_s8(p0 + bottom_blob.cstep * 3);
+                int8x8_t _r4 = vld1_s8(p0 + bottom_blob.cstep * 4);
+                int8x8_t _r5 = vld1_s8(p0 + bottom_blob.cstep * 5);
+                int8x8_t _r6 = vld1_s8(p0 + bottom_blob.cstep * 6);
+                int8x8_t _r7 = vld1_s8(p0 + bottom_blob.cstep * 7);
+                // save as transpose8x8
+                int8x8x2_t _r01 = vzip_s8(_r0, _r1);
+                int8x8x2_t _r23 = vzip_s8(_r2, _r3);
+                int8x8x2_t _r45 = vzip_s8(_r4, _r5);
+                int8x8x2_t _r67 = vzip_s8(_r6, _r7);
+                int16x8x4_t _r0246;
+                _r0246.val[0] = vreinterpretq_s16_s8(vcombine_s8(_r01.val[0], _r01.val[1]));
+                _r0246.val[1] = vreinterpretq_s16_s8(vcombine_s8(_r23.val[0], _r23.val[1]));
+                _r0246.val[2] = vreinterpretq_s16_s8(vcombine_s8(_r45.val[0], _r45.val[1]));
+                _r0246.val[3] = vreinterpretq_s16_s8(vcombine_s8(_r67.val[0], _r67.val[1]));
+                vst4q_s16((short*)pp, _r0246);
+                pp += 64;
+                p0 += bottom_blob.cstep * 8;
+            }
+#endif // __ARM_FEATURE_MATMUL_INT8
             for (; kk + 3 < max_kk; kk += 4)
             {
-                pp[0] = p0[0];
-                pp[1] = p0[bottom_blob.cstep + 0];
-                pp[2] = p0[bottom_blob.cstep * 2 + 0];
-                pp[3] = p0[bottom_blob.cstep * 3 + 0];
-                pp[4] = p0[1];
-                pp[5] = p0[bottom_blob.cstep + 1];
-                pp[6] = p0[bottom_blob.cstep * 2 + 1];
-                pp[7] = p0[bottom_blob.cstep * 3 + 1];
-                pp[8] = p0[2];
-                pp[9] = p0[bottom_blob.cstep + 2];
-                pp[10] = p0[bottom_blob.cstep * 2 + 2];
-                pp[11] = p0[bottom_blob.cstep * 3 + 2];
-                pp[12] = p0[3];
-                pp[13] = p0[bottom_blob.cstep + 3];
-                pp[14] = p0[bottom_blob.cstep * 2 + 3];
-                pp[15] = p0[bottom_blob.cstep * 3 + 3];
-                pp[16] = p0[4];
-                pp[17] = p0[bottom_blob.cstep + 4];
-                pp[18] = p0[bottom_blob.cstep * 2 + 4];
-                pp[19] = p0[bottom_blob.cstep * 3 + 4];
-                pp[20] = p0[5];
-                pp[21] = p0[bottom_blob.cstep + 5];
-                pp[22] = p0[bottom_blob.cstep * 2 + 5];
-                pp[23] = p0[bottom_blob.cstep * 3 + 5];
-                pp[24] = p0[6];
-                pp[25] = p0[bottom_blob.cstep + 6];
-                pp[26] = p0[bottom_blob.cstep * 2 + 6];
-                pp[27] = p0[bottom_blob.cstep * 3 + 6];
-                pp[28] = p0[7];
-                pp[29] = p0[bottom_blob.cstep + 7];
-                pp[30] = p0[bottom_blob.cstep * 2 + 7];
-                pp[31] = p0[bottom_blob.cstep * 3 + 7];
+                int8x8x4_t _r01;
+                _r01.val[0] = vld1_s8(p0);
+                _r01.val[1] = vld1_s8(p0 + bottom_blob.cstep);
+                _r01.val[2] = vld1_s8(p0 + bottom_blob.cstep * 2);
+                _r01.val[3] = vld1_s8(p0 + bottom_blob.cstep * 3);
+                vst4_s8(pp, _r01);
                 pp += 32;
                 p0 += bottom_blob.cstep * 4;
             }
 #endif // __ARM_FEATURE_DOTPROD
             for (; kk + 1 < max_kk; kk += 2)
             {
-                pp[0] = p0[0];
-                pp[1] = p0[bottom_blob.cstep + 0];
-                pp[2] = p0[1];
-                pp[3] = p0[bottom_blob.cstep + 1];
-                pp[4] = p0[2];
-                pp[5] = p0[bottom_blob.cstep + 2];
-                pp[6] = p0[3];
-                pp[7] = p0[bottom_blob.cstep + 3];
-                pp[8] = p0[4];
-                pp[9] = p0[bottom_blob.cstep + 4];
-                pp[10] = p0[5];
-                pp[11] = p0[bottom_blob.cstep + 5];
-                pp[12] = p0[6];
-                pp[13] = p0[bottom_blob.cstep + 6];
-                pp[14] = p0[7];
-                pp[15] = p0[bottom_blob.cstep + 7];
+                int8x8x2_t _r01;
+                _r01.val[0] = vld1_s8(p0);
+                _r01.val[1] = vld1_s8(p0 + bottom_blob.cstep);
+                vst2_s8(pp, _r01);
                 pp += 16;
                 p0 += bottom_blob.cstep * 2;
             }
             for (; kk < max_kk; kk++)
             {
-                pp[0] = p0[0];
-                pp[1] = p0[1];
-                pp[2] = p0[2];
-                pp[3] = p0[3];
-                pp[4] = p0[4];
-                pp[5] = p0[5];
-                pp[6] = p0[6];
-                pp[7] = p0[7];
+                vst1_s8(pp, vld1_s8(p0));
                 pp += 8;
                 p0 += bottom_blob.cstep;
             }
@@ -5023,7 +5167,17 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
             const signed char* p0 = (const signed char*)bottom_blob.channel(k / 8) + (j + jj) * 8;
 
             int kk = 0;
-#if __ARM_FEATURE_DOTPROD
+#if __ARM_FEATURE_MATMUL_INT8
+            for (; kk < max_kk / 8; kk++)
+            {
+                int8x16_t _r01 = vld1q_s8(p0);
+                int8x16_t _r23 = vld1q_s8(p0 + 16);
+                vst1q_s8(pp, _r01);
+                vst1q_s8(pp + 16, _r23);
+                pp += 32;
+                p0 += bottom_blob.cstep * 8;
+            }
+#elif __ARM_FEATURE_DOTPROD
             for (; kk < max_kk / 8; kk++)
             {
                 int32x2x4_t _r0123;
@@ -5035,7 +5189,7 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
                 pp += 32;
                 p0 += bottom_blob.cstep * 8;
             }
-#else // __ARM_FEATURE_DOTPROD
+#else // __ARM_FEATURE_MATMUL_INT8 || __ARM_FEATURE_DOTPROD
             for (; kk < max_kk / 8; kk++)
             {
                 int16x4x4_t _r0123;
@@ -5047,7 +5201,7 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
                 pp += 32;
                 p0 += bottom_blob.cstep * 8;
             }
-#endif // __ARM_FEATURE_DOTPROD
+#endif // __ARM_FEATURE_MATMUL_INT8 || __ARM_FEATURE_DOTPROD
         }
 
         if (elempack == 1)
@@ -5056,6 +5210,45 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
 
             int kk = 0;
 #if __ARM_FEATURE_DOTPROD
+#if __ARM_FEATURE_MATMUL_INT8
+            for (; kk + 7 < max_kk; kk += 8)
+            {
+                pp[0] = p0[0];
+                pp[1] = p0[bottom_blob.cstep + 0];
+                pp[2] = p0[bottom_blob.cstep * 2 + 0];
+                pp[3] = p0[bottom_blob.cstep * 3 + 0];
+                pp[4] = p0[bottom_blob.cstep * 4 + 0];
+                pp[5] = p0[bottom_blob.cstep * 5 + 0];
+                pp[6] = p0[bottom_blob.cstep * 6 + 0];
+                pp[7] = p0[bottom_blob.cstep * 7 + 0];
+                pp[8] = p0[1];
+                pp[9] = p0[bottom_blob.cstep + 1];
+                pp[10] = p0[bottom_blob.cstep * 2 + 1];
+                pp[11] = p0[bottom_blob.cstep * 3 + 1];
+                pp[12] = p0[bottom_blob.cstep * 4 + 1];
+                pp[13] = p0[bottom_blob.cstep * 5 + 1];
+                pp[14] = p0[bottom_blob.cstep * 6 + 1];
+                pp[15] = p0[bottom_blob.cstep * 7 + 1];
+                pp[16] = p0[2];
+                pp[17] = p0[bottom_blob.cstep + 2];
+                pp[18] = p0[bottom_blob.cstep * 2 + 2];
+                pp[19] = p0[bottom_blob.cstep * 3 + 2];
+                pp[20] = p0[bottom_blob.cstep * 4 + 2];
+                pp[21] = p0[bottom_blob.cstep * 5 + 2];
+                pp[22] = p0[bottom_blob.cstep * 6 + 2];
+                pp[23] = p0[bottom_blob.cstep * 7 + 2];
+                pp[24] = p0[3];
+                pp[25] = p0[bottom_blob.cstep + 3];
+                pp[26] = p0[bottom_blob.cstep * 2 + 3];
+                pp[27] = p0[bottom_blob.cstep * 3 + 3];
+                pp[28] = p0[bottom_blob.cstep * 4 + 3];
+                pp[29] = p0[bottom_blob.cstep * 5 + 3];
+                pp[30] = p0[bottom_blob.cstep * 6 + 3];
+                pp[31] = p0[bottom_blob.cstep * 7 + 3];
+                pp += 32;
+                p0 += bottom_blob.cstep * 8;
+            }
+#endif // __ARM_FEATURE_MATMUL_INT8
             for (; kk + 3 < max_kk; kk += 4)
             {
                 pp[0] = p0[0];
@@ -5111,7 +5304,14 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
             const signed char* p0 = (const signed char*)bottom_blob.channel(k / 8) + (j + jj) * 8;
 
             int kk = 0;
-#if __ARM_FEATURE_DOTPROD
+#if __ARM_FEATURE_MATMUL_INT8
+            for (; kk < max_kk / 8; kk++)
+            {
+                vst1q_s8(pp, vld1q_s8(p0));
+                pp += 16;
+                p0 += bottom_blob.cstep * 8;
+            }
+#elif __ARM_FEATURE_DOTPROD
             for (; kk < max_kk / 8; kk++)
             {
                 int32x2x2_t _r01;
@@ -5121,7 +5321,7 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
                 pp += 16;
                 p0 += bottom_blob.cstep * 8;
             }
-#else // __ARM_FEATURE_DOTPROD
+#else // __ARM_FEATURE_MATMUL_INT8 || __ARM_FEATURE_DOTPROD
             for (; kk < max_kk / 8; kk++)
             {
                 int16x4x2_t _r01;
@@ -5131,7 +5331,7 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
                 pp += 16;
                 p0 += bottom_blob.cstep * 8;
             }
-#endif // __ARM_FEATURE_DOTPROD
+#endif // __ARM_FEATURE_MATMUL_INT8 || __ARM_FEATURE_DOTPROD
         }
 #endif // __ARM_NEON
 
@@ -5141,6 +5341,29 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
 
             int kk = 0;
 #if __ARM_FEATURE_DOTPROD
+#if __ARM_FEATURE_MATMUL_INT8
+            for (; kk + 7 < max_kk; kk += 8)
+            {
+                pp[0] = p0[0];
+                pp[1] = p0[bottom_blob.cstep];
+                pp[2] = p0[bottom_blob.cstep * 2];
+                pp[3] = p0[bottom_blob.cstep * 3];
+                pp[4] = p0[bottom_blob.cstep * 4];
+                pp[5] = p0[bottom_blob.cstep * 5];
+                pp[6] = p0[bottom_blob.cstep * 6];
+                pp[7] = p0[bottom_blob.cstep * 7];
+                pp[8] = p0[1];
+                pp[9] = p0[bottom_blob.cstep + 1];
+                pp[10] = p0[bottom_blob.cstep * 2 + 1];
+                pp[11] = p0[bottom_blob.cstep * 3 + 1];
+                pp[12] = p0[bottom_blob.cstep * 4 + 1];
+                pp[13] = p0[bottom_blob.cstep * 5 + 1];
+                pp[14] = p0[bottom_blob.cstep * 6 + 1];
+                pp[15] = p0[bottom_blob.cstep * 7 + 1];
+                pp += 16;
+                p0 += bottom_blob.cstep * 8;
+            }
+#endif // __ARM_FEATURE_MATMUL_INT8
             for (; kk + 3 < max_kk; kk += 4)
             {
                 pp[0] = p0[0];
