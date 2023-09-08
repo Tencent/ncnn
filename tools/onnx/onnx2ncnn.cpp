@@ -3714,6 +3714,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "EmbedLayerNormalization");
         }
+        else if (op == "Erf")
+        {
+            fprintf(pp, "%-16s", "Erf");
+        }
         else if (op == "Exp")
         {
             fprintf(pp, "%-16s", "UnaryOp");
@@ -4509,6 +4513,10 @@ int main(int argc, char** argv)
             fwrite(&quantize_tag, sizeof(int), 1, bp);
 
             fwrite_tensor_proto_data(B, bp);
+        }
+        else if (op == "Erf")
+        {
+            // no-op
         }
         else if (op == "Exp")
         {

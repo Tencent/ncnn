@@ -474,24 +474,24 @@ static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& w
 
             _MM_TRANSPOSE4_PS(_IFOG_4x4_0, _IFOG_4x4_1, _IFOG_4x4_2, _IFOG_4x4_3);
 
-            __m128 _I = sigmoid_sse(_IFOG_4x4_0);
-            __m128 _F = sigmoid_sse(_IFOG_4x4_1);
-            __m128 _O = sigmoid_sse(_IFOG_4x4_2);
-            __m128 _G = tanh_sse(_IFOG_4x4_3);
+            __m128 _lstm_I = sigmoid_sse(_IFOG_4x4_0);
+            __m128 _lstm_F = sigmoid_sse(_IFOG_4x4_1);
+            __m128 _lstm_O = sigmoid_sse(_IFOG_4x4_2);
+            __m128 _lstm_G = tanh_sse(_IFOG_4x4_3);
 
-            __m128 _cell2 = _mm_add_ps(_mm_mul_ps(_F, _mm_loadu_ps(cell_ptr + q)), _mm_mul_ps(_I, _G));
-            __m128 _H = _mm_mul_ps(_O, tanh_sse(_cell2));
+            __m128 _cell2 = _mm_add_ps(_mm_mul_ps(_lstm_F, _mm_loadu_ps(cell_ptr + q)), _mm_mul_ps(_lstm_I, _lstm_G));
+            __m128 _lstm_H = _mm_mul_ps(_lstm_O, tanh_sse(_cell2));
 
             _mm_storeu_ps(cell_ptr + q, _cell2);
 
             if (num_output == hidden_size)
             {
-                _mm_storeu_ps(hidden_ptr + q, _H);
-                _mm_storeu_ps(output_data + q, _H);
+                _mm_storeu_ps(hidden_ptr + q, _lstm_H);
+                _mm_storeu_ps(output_data + q, _lstm_H);
             }
             else
             {
-                _mm_storeu_ps(tmp_hidden_ptr + q, _H);
+                _mm_storeu_ps(tmp_hidden_ptr + q, _lstm_H);
             }
         }
 #else  // __SSE2__

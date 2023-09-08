@@ -162,6 +162,7 @@ ncnn_add_layer(Unfold)
 ncnn_add_layer(GridSample)
 ncnn_add_layer(CumulativeSum)
 ncnn_add_layer(CopyTo)
+ncnn_add_layer(Erf)
 ncnn_add_layer(Diag)
 
 if(NCNN_VULKAN)
