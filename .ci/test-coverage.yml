@@ -912,48 +912,6 @@ jobs:
   linux-gcc-x64-simplemath:
     name: linux-gcc-x64-simplemath
 
-    runs-on: 
-      pool-name: docker
-      container:
-        image: bkci/ci:ubuntu
-    steps:
-    - name: checkout
-      checkout: self
-      with:
-        strategy: FRESH_CHECKOUT
-        enableSubmodule: false
-        enableGitLfs: false
-    - name: update
-      run: sudo apt-get update
-    - name: gcc12
-      run: sudo apt-get install gcc-12 g++-12
-    - name: lcov
-      run: sudo apt-get install lcov
-    - name: build-simplemath
-      env:
-        CC: gcc-12
-        CXX: g++-12
-      run: |
-        mkdir build-simplemath && cd build-simplemath
-        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_SIMPLEMATH=ON -DNCNN_COVERAGE=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
-        cmake --build . -j 2
-    - name: test-simplemath
-      run: |
-        cd build-simplemath
-        ctest --output-on-failure -j 2
-    - name: lcov-collect
-      run: |
-        cd build-simplemath
-        lcov --gcov-tool gcov-12 -d ./src -c -o lcov.info
-        lcov -r lcov.info '/usr/*' -o lcov.info
-        lcov -r lcov.info '*/build-simplemath/*' -o lcov.info
-        lcov --list lcov.info
-    - name: codecov
-      run: ./codecov -t ${{settings.CODECOV_TOKEN.access_token}} -C ${{ ci.sha }} -B ${{ ci.head_ref }} -f build/lcov.info
-
-  linux-gcc-x64-simplemath:
-    name: linux-gcc-x64-simplemath
-
     runs-on:
       pool-name: docker
       container:
@@ -981,7 +939,7 @@ jobs:
     - name: build
       run: |
         mkdir build && cd build
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/host-c.gcc.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_SIMPLEMATH=ON -DNCNN_SIMPLESTL=ON -DNCNN_COVERAGE=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/host-c.gcc.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_STDIO=ON -DNCNN_STRING=ON -DNCNN_SIMPLESTL=ON -DNCNN_SIMPLEMATH=ON -DNCNN_BUILD_TESTS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
         cmake --build . -j $(nproc)
     - name: test
       run: cd build && ctest --output-on-failure -j $(nproc)
