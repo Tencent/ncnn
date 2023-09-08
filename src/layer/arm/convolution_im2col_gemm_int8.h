@@ -345,8 +345,9 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
         {
             const signed char* pA = pAT;
 
-#if 0 //NCNN_GNU_INLINE_ASM
+#if NCNN_GNU_INLINE_ASM
             asm volatile(
+#if !__ARM_FEATURE_MATMUL_INT8
                 "cmp    %w9, #0                     \n"
                 "beq    0f                          \n"
 
@@ -376,12 +377,100 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 "eor    v31.16b, v31.16b, v31.16b   \n"
 
                 "1:                                 \n"
+#endif // !__ARM_FEATURE_MATMUL_INT8
 
 #if __ARM_FEATURE_DOTPROD
                 "lsr    w4, %w8, #3                 \n" // w4 = max_kk >> 3
                 "cmp    w4, #0                      \n"
                 "beq    101f                        \n"
 
+#if __ARM_FEATURE_MATMUL_INT8
+                "eor    v0.16b, v0.16b, v0.16b      \n"
+                "eor    v1.16b, v1.16b, v1.16b      \n"
+                "eor    v2.16b, v2.16b, v2.16b      \n"
+                "eor    v3.16b, v3.16b, v3.16b      \n"
+                "eor    v4.16b, v4.16b, v4.16b      \n"
+                "eor    v5.16b, v5.16b, v5.16b      \n"
+                "eor    v6.16b, v6.16b, v6.16b      \n"
+                "eor    v7.16b, v7.16b, v7.16b      \n"
+                "eor    v8.16b, v8.16b, v8.16b      \n"
+                "eor    v9.16b, v9.16b, v9.16b      \n"
+                "eor    v10.16b, v10.16b, v10.16b   \n"
+                "eor    v11.16b, v11.16b, v11.16b   \n"
+                "eor    v12.16b, v12.16b, v12.16b   \n"
+                "eor    v13.16b, v13.16b, v13.16b   \n"
+                "eor    v14.16b, v14.16b, v14.16b   \n"
+                "eor    v15.16b, v15.16b, v15.16b   \n"
+
+                "2:                                 \n"
+                "ld1    {v16.16b, v17.16b, v18.16b, v19.16b}, [%1], #64 \n"
+                "ld1    {v20.16b, v21.16b, v22.16b, v23.16b}, [%2], #64 \n"
+
+                "smmla  v0.4s, v16.16b, v20.16b     \n"
+                "smmla  v1.4s, v17.16b, v20.16b     \n"
+                "smmla  v2.4s, v16.16b, v21.16b     \n"
+                "smmla  v3.4s, v17.16b, v21.16b     \n"
+                "smmla  v4.4s, v18.16b, v20.16b     \n"
+                "smmla  v5.4s, v19.16b, v20.16b     \n"
+                "smmla  v6.4s, v18.16b, v21.16b     \n"
+                "smmla  v7.4s, v19.16b, v21.16b     \n"
+
+                "subs   w4, w4, #1                  \n"
+
+                "smmla  v8.4s, v16.16b, v22.16b     \n"
+                "smmla  v9.4s, v17.16b, v22.16b     \n"
+                "smmla  v10.4s, v16.16b, v23.16b    \n"
+                "smmla  v11.4s, v17.16b, v23.16b    \n"
+                "smmla  v12.4s, v18.16b, v22.16b    \n"
+                "smmla  v13.4s, v19.16b, v22.16b    \n"
+                "smmla  v14.4s, v18.16b, v23.16b    \n"
+                "smmla  v15.4s, v19.16b, v23.16b    \n"
+                "bne    2b                          \n"
+
+                "uzp1   v16.4s, v0.4s, v1.4s        \n"
+                "uzp2   v17.4s, v0.4s, v1.4s        \n"
+                "uzp1   v18.4s, v2.4s, v3.4s        \n"
+                "uzp2   v19.4s, v2.4s, v3.4s        \n"
+                "uzp1   v20.4s, v4.4s, v5.4s        \n"
+                "uzp2   v21.4s, v4.4s, v5.4s        \n"
+                "uzp1   v22.4s, v6.4s, v7.4s        \n"
+                "uzp2   v23.4s, v6.4s, v7.4s        \n"
+                "uzp1   v24.4s, v8.4s, v9.4s        \n"
+                "uzp2   v25.4s, v8.4s, v9.4s        \n"
+                "uzp1   v26.4s, v10.4s, v11.4s      \n"
+                "uzp2   v27.4s, v10.4s, v11.4s      \n"
+                "uzp1   v28.4s, v12.4s, v13.4s      \n"
+                "uzp2   v29.4s, v12.4s, v13.4s      \n"
+                "uzp1   v30.4s, v14.4s, v15.4s      \n"
+                "uzp2   v31.4s, v14.4s, v15.4s      \n"
+
+                "cmp    %w9, #0                     \n"
+                "beq    1f                          \n"
+
+                "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%0], #64   \n"
+                "ld1    {v4.4s, v5.4s, v6.4s, v7.4s}, [%0], #64   \n"
+                "ld1    {v8.4s, v9.4s, v10.4s, v11.4s}, [%0], #64 \n"
+                "ld1    {v12.4s, v13.4s, v14.4s, v15.4s}, [%0]    \n"
+                "sub    %0, %0, #192                \n"
+
+                "add    v16.4s, v16.4s, v0.4s       \n"
+                "add    v17.4s, v17.4s, v1.4s       \n"
+                "add    v18.4s, v18.4s, v2.4s       \n"
+                "add    v19.4s, v19.4s, v3.4s       \n"
+                "add    v20.4s, v20.4s, v4.4s       \n"
+                "add    v21.4s, v21.4s, v5.4s       \n"
+                "add    v22.4s, v22.4s, v6.4s       \n"
+                "add    v23.4s, v23.4s, v7.4s       \n"
+                "add    v24.4s, v24.4s, v8.4s       \n"
+                "add    v25.4s, v25.4s, v9.4s       \n"
+                "add    v26.4s, v26.4s, v10.4s      \n"
+                "add    v27.4s, v27.4s, v11.4s      \n"
+                "add    v28.4s, v28.4s, v12.4s      \n"
+                "add    v29.4s, v29.4s, v13.4s      \n"
+                "add    v30.4s, v30.4s, v14.4s      \n"
+                "add    v31.4s, v31.4s, v15.4s      \n"
+                "b      1f                          \n"
+#else // __ARM_FEATURE_MATMUL_INT8
                 "2:                                 \n"
                 "ld1    {v0.16b, v1.16b, v2.16b, v3.16b}, [%1], #64 \n"
                 "ld1    {v4.16b, v5.16b, v6.16b, v7.16b}, [%2], #64 \n"
@@ -422,8 +511,39 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 "sdot   v30.4s, v3.16b, v7.4b[2]    \n"
                 "sdot   v31.4s, v3.16b, v7.4b[3]    \n"
                 "bne    2b                          \n"
+#endif // __ARM_FEATURE_MATMUL_INT8
 
                 "101:                               \n"
+#if __ARM_FEATURE_MATMUL_INT8
+                "cmp    %w9, #0                     \n"
+                "beq    0f                          \n"
+
+                "ld1    {v16.4s, v17.4s, v18.4s, v19.4s}, [%0], #64 \n"
+                "ld1    {v20.4s, v21.4s, v22.4s, v23.4s}, [%0], #64 \n"
+                "ld1    {v24.4s, v25.4s, v26.4s, v27.4s}, [%0], #64 \n"
+                "ld1    {v28.4s, v29.4s, v30.4s, v31.4s}, [%0]      \n"
+                "sub    %0, %0, #192                \n"
+                "b      1f                          \n"
+
+                "0:                                 \n"
+                "eor    v16.16b, v16.16b, v16.16b   \n"
+                "eor    v17.16b, v17.16b, v17.16b   \n"
+                "eor    v18.16b, v18.16b, v18.16b   \n"
+                "eor    v19.16b, v19.16b, v19.16b   \n"
+                "eor    v20.16b, v20.16b, v20.16b   \n"
+                "eor    v21.16b, v21.16b, v21.16b   \n"
+                "eor    v22.16b, v22.16b, v22.16b   \n"
+                "eor    v23.16b, v23.16b, v23.16b   \n"
+                "eor    v24.16b, v24.16b, v24.16b   \n"
+                "eor    v25.16b, v25.16b, v25.16b   \n"
+                "eor    v26.16b, v26.16b, v26.16b   \n"
+                "eor    v27.16b, v27.16b, v27.16b   \n"
+                "eor    v28.16b, v28.16b, v28.16b   \n"
+                "eor    v29.16b, v29.16b, v29.16b   \n"
+                "eor    v30.16b, v30.16b, v30.16b   \n"
+                "eor    v31.16b, v31.16b, v31.16b   \n"
+                "1:                                 \n"
+#endif // __ARM_FEATURE_MATMUL_INT8
                 "and    w4, %w8, #4                 \n" // w4 = remain = max_kk & 4
                 "cmp    w4, #0                      \n"
                 "beq    3f                          \n"
@@ -1135,7 +1255,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 _sume = vdupq_n_s32(0);
                 _sumf = vdupq_n_s32(0);
             }
-#else // __ARM_FEATURE_MATMUL_INT8
+#else  // __ARM_FEATURE_MATMUL_INT8
             if (k == 0)
             {
                 _sum0 = vdupq_n_s32(0);
@@ -1192,18 +1312,18 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
 
                     _sum0 = vmmlaq_s32(_sum0, _pA0, _pB0);
                     _sum1 = vmmlaq_s32(_sum1, _pA1, _pB0);
-                    _sum2 = vmmlaq_s32(_sum2, _pA2, _pB0);
-                    _sum3 = vmmlaq_s32(_sum3, _pA3, _pB0);
-                    _sum4 = vmmlaq_s32(_sum4, _pA0, _pB1);
-                    _sum5 = vmmlaq_s32(_sum5, _pA1, _pB1);
+                    _sum2 = vmmlaq_s32(_sum2, _pA0, _pB1);
+                    _sum3 = vmmlaq_s32(_sum3, _pA1, _pB1);
+                    _sum4 = vmmlaq_s32(_sum4, _pA2, _pB0);
+                    _sum5 = vmmlaq_s32(_sum5, _pA3, _pB0);
                     _sum6 = vmmlaq_s32(_sum6, _pA2, _pB1);
                     _sum7 = vmmlaq_s32(_sum7, _pA3, _pB1);
                     _sum8 = vmmlaq_s32(_sum8, _pA0, _pB2);
                     _sum9 = vmmlaq_s32(_sum9, _pA1, _pB2);
-                    _suma = vmmlaq_s32(_suma, _pA2, _pB2);
-                    _sumb = vmmlaq_s32(_sumb, _pA3, _pB2);
-                    _sumc = vmmlaq_s32(_sumc, _pA0, _pB3);
-                    _sumd = vmmlaq_s32(_sumd, _pA1, _pB3);
+                    _suma = vmmlaq_s32(_suma, _pA0, _pB3);
+                    _sumb = vmmlaq_s32(_sumb, _pA1, _pB3);
+                    _sumc = vmmlaq_s32(_sumc, _pA2, _pB2);
+                    _sumd = vmmlaq_s32(_sumd, _pA3, _pB2);
                     _sume = vmmlaq_s32(_sume, _pA2, _pB3);
                     _sumf = vmmlaq_s32(_sumf, _pA3, _pB3);
 
@@ -1224,18 +1344,18 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 {
                     _sum0 = _ss0.val[0];
                     _sum1 = _ss0.val[1];
-                    _sum2 = _ss2.val[0];
-                    _sum3 = _ss2.val[1];
-                    _sum4 = _ss1.val[0];
-                    _sum5 = _ss1.val[1];
+                    _sum2 = _ss1.val[0];
+                    _sum3 = _ss1.val[1];
+                    _sum4 = _ss2.val[0];
+                    _sum5 = _ss2.val[1];
                     _sum6 = _ss3.val[0];
                     _sum7 = _ss3.val[1];
                     _sum8 = _ss4.val[0];
                     _sum9 = _ss4.val[1];
-                    _suma = _ss6.val[0];
-                    _sumb = _ss6.val[1];
-                    _sumc = _ss5.val[0];
-                    _sumd = _ss5.val[1];
+                    _suma = _ss5.val[0];
+                    _sumb = _ss5.val[1];
+                    _sumc = _ss6.val[0];
+                    _sumd = _ss6.val[1];
                     _sume = _ss7.val[0];
                     _sumf = _ss7.val[1];
                 }
@@ -1260,18 +1380,18 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
 
                     _sum0 = vaddq_s32(_sum0, _ss0.val[0]);
                     _sum1 = vaddq_s32(_sum1, _ss0.val[1]);
-                    _sum2 = vaddq_s32(_sum2, _ss2.val[0]);
-                    _sum3 = vaddq_s32(_sum3, _ss2.val[1]);
-                    _sum4 = vaddq_s32(_sum4, _ss1.val[0]);
-                    _sum5 = vaddq_s32(_sum5, _ss1.val[1]);
+                    _sum2 = vaddq_s32(_sum2, _ss1.val[0]);
+                    _sum3 = vaddq_s32(_sum3, _ss1.val[1]);
+                    _sum4 = vaddq_s32(_sum4, _ss2.val[0]);
+                    _sum5 = vaddq_s32(_sum5, _ss2.val[1]);
                     _sum6 = vaddq_s32(_sum6, _ss3.val[0]);
                     _sum7 = vaddq_s32(_sum7, _ss3.val[1]);
                     _sum8 = vaddq_s32(_sum8, _ss4.val[0]);
                     _sum9 = vaddq_s32(_sum9, _ss4.val[1]);
-                    _suma = vaddq_s32(_suma, _ss6.val[0]);
-                    _sumb = vaddq_s32(_sumb, _ss6.val[1]);
-                    _sumc = vaddq_s32(_sumc, _ss5.val[0]);
-                    _sumd = vaddq_s32(_sumd, _ss5.val[1]);
+                    _suma = vaddq_s32(_suma, _ss5.val[0]);
+                    _sumb = vaddq_s32(_sumb, _ss5.val[1]);
+                    _sumc = vaddq_s32(_sumc, _ss6.val[0]);
+                    _sumd = vaddq_s32(_sumd, _ss6.val[1]);
                     _sume = vaddq_s32(_sume, _ss7.val[0]);
                     _sumf = vaddq_s32(_sumf, _ss7.val[1]);
                 }
