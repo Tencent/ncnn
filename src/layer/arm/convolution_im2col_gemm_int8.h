@@ -345,7 +345,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
         {
             const signed char* pA = pAT;
 
-#if 0//NCNN_GNU_INLINE_ASM
+#if 0 //NCNN_GNU_INLINE_ASM
             asm volatile(
                 "cmp    %w9, #0                     \n"
                 "beq    0f                          \n"
@@ -448,7 +448,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 "sdot   v29.4s, v1.16b, v3.4b[1]    \n"
                 "sdot   v30.4s, v1.16b, v3.4b[2]    \n"
                 "sdot   v31.4s, v1.16b, v3.4b[3]    \n"
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                 "lsr    w4, %w8, #2                 \n" // w4 = max_kk >> 2
                 "cmp    w4, #0                      \n"
                 "beq    3f                          \n"
@@ -576,7 +576,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 "sadalp v29.4s, v13.8h              \n"
                 "sadalp v30.4s, v14.8h              \n"
                 "sadalp v31.4s, v15.8h              \n"
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                 "ld1    {v0.16b}, [%1], #16         \n"
                 "ld1    {v2.16b}, [%2], #16         \n"
 
@@ -666,7 +666,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 "saddw2 v29.4s, v29.4s, v13.8h      \n"
                 "saddw2 v30.4s, v30.4s, v14.8h      \n"
                 "saddw2 v31.4s, v31.4s, v15.8h      \n"
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                 "ld1    {v0.8b}, [%1], #8           \n"
                 "ld1    {v4.8b}, [%2], #8           \n"
 
@@ -711,25 +711,25 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 "beq    8f                          \n"
 
 #if __ARM_FEATURE_DOTPROD
-                    // a0 b0 c0 d0
-                    // a1 b1 c1 d1
-                    // a2 b2 c2 d2
-                    // a3 b3 c3 d3
-                    // e0 f0 g0 h0
-                    // e1 f1 g1 h1
-                    // e2 f2 g2 h2
-                    // e3 f3 g3 h3
+                // a0 b0 c0 d0
+                // a1 b1 c1 d1
+                // a2 b2 c2 d2
+                // a3 b3 c3 d3
+                // e0 f0 g0 h0
+                // e1 f1 g1 h1
+                // e2 f2 g2 h2
+                // e3 f3 g3 h3
 
-                    // a4 b4 c4 d4
-                    // a5 b5 c5 d5
-                    // a6 b6 c6 d6
-                    // a7 b7 c7 d7
-                    // e4 f4 g4 h4
-                    // e5 f5 g5 h5
-                    // e6 f6 g6 h6
-                    // e7 f7 g7 h7
+                // a4 b4 c4 d4
+                // a5 b5 c5 d5
+                // a6 b6 c6 d6
+                // a7 b7 c7 d7
+                // e4 f4 g4 h4
+                // e5 f5 g5 h5
+                // e6 f6 g6 h6
+                // e7 f7 g7 h7
 
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
 
                 // 0 v16 = a0 b1 c2 d3   1 v17 = e4 f5 g6 h7
                 // 2 v18 = e0 f1 g2 h3   3 v19 = a4 b5 c6 d7
@@ -776,15 +776,15 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 "zip1   v14.4s, v21.4s, v25.4s      \n"
                 "zip2   v15.4s, v21.4s, v25.4s      \n"
 
-                    // 0 v16 = a0 b0 b1 a1       1 v17 = c2 d2 d3 c3
-                    // 2 v18 = c0 d0 d1 c1       3 v19 = a2 b2 b3 a3
-                    // 4 v20 = e0 f0 f1 e1       5 v21 = g2 h2 h3 g3
-                    // 6 v22 = g0 h0 h1 g1       7 v23 = e2 f2 f3 e3
+                // 0 v16 = a0 b0 b1 a1       1 v17 = c2 d2 d3 c3
+                // 2 v18 = c0 d0 d1 c1       3 v19 = a2 b2 b3 a3
+                // 4 v20 = e0 f0 f1 e1       5 v21 = g2 h2 h3 g3
+                // 6 v22 = g0 h0 h1 g1       7 v23 = e2 f2 f3 e3
 
-                    // 8 v24 = a4 b4 b5 b5       9 v25 = c6 d6 d7 c7
-                    // a v26 = c4 d4 d5 c5       b v27 = a6 b6 b7 a7
-                    // c v28 = e4 f4 f5 e5       d v29 = g6 h6 h7 g7
-                    // e v30 = g4 h4 h5 g5       f v31 = e6 f6 f7 e7
+                // 8 v24 = a4 b4 b5 b5       9 v25 = c6 d6 d7 c7
+                // a v26 = c4 d4 d5 c5       b v27 = a6 b6 b7 a7
+                // c v28 = e4 f4 f5 e5       d v29 = g6 h6 h7 g7
+                // e v30 = g4 h4 h5 g5       f v31 = e6 f6 f7 e7
 #endif // __ARM_FEATURE_DOTPROD
 
                 // if out_elempack == 8
@@ -809,7 +809,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 "st1    {v30.4s}, [%3], #16         \n"
                 "st1    {v27.4s}, [%3], #16         \n"
                 "st1    {v31.4s}, [%3], #16         \n"
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                 "zip1   v16.2d, v0.2d, v2.2d        \n"
                 "zip1   v17.2d, v4.2d, v6.2d        \n"
                 "zip2   v18.2d, v0.2d, v2.2d        \n"
@@ -839,14 +839,14 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 "rev64  v30.4s, v30.4s              \n"
                 "rev64  v31.4s, v31.4s              \n"
 
-                    // 0 v16 = a0 b0 c0 d0     1 v17 = e0 f0 g0 h0
-                    // 2 v18 = a1 b1 c1 d1     3 v19 = e1 f1 g1 h1
-                    // 4 v20 = a2 b2 c2 d2     5 v21 = e2 f2 g2 h2
-                    // 6 v22 = a3 b3 c3 d3     7 v23 = e3 f3 g3 h3
-                    // 8 v24 = a4 b4 c4 d4     9 v25 = e4 f4 g4 h4
-                    // a v26 = a5 b5 c5 d5     b v27 = e5 f5 g5 h5
-                    // c v28 = a6 b6 c6 d6     d v29 = e6 f6 g6 h6
-                    // e v30 = a7 b7 c7 d7     f v31 = e7 f7 g7 h7
+                // 0 v16 = a0 b0 c0 d0     1 v17 = e0 f0 g0 h0
+                // 2 v18 = a1 b1 c1 d1     3 v19 = e1 f1 g1 h1
+                // 4 v20 = a2 b2 c2 d2     5 v21 = e2 f2 g2 h2
+                // 6 v22 = a3 b3 c3 d3     7 v23 = e3 f3 g3 h3
+                // 8 v24 = a4 b4 c4 d4     9 v25 = e4 f4 g4 h4
+                // a v26 = a5 b5 c5 d5     b v27 = e5 f5 g5 h5
+                // c v28 = a6 b6 c6 d6     d v29 = e6 f6 g6 h6
+                // e v30 = a7 b7 c7 d7     f v31 = e7 f7 g7 h7
 
                 "st1    {v16.4s, v17.4s, v18.4s, v19.4s}, [%3], #64 \n"
                 "st1    {v20.4s, v21.4s, v22.4s, v23.4s}, [%3], #64 \n"
@@ -864,7 +864,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 "st1    {v24.4s, v25.4s, v26.4s, v27.4s}, [%3], #64 \n"
                 "st1    {v20.4s, v21.4s, v22.4s, v23.4s}, [x4], #64 \n"
                 "st1    {v28.4s, v29.4s, v30.4s, v31.4s}, [x4] \n"
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                 "zip1   v16.2d, v0.2d, v2.2d        \n"
                 "zip1   v24.2d, v4.2d, v6.2d        \n"
                 "zip2   v17.2d, v0.2d, v2.2d        \n"
@@ -894,14 +894,14 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 "rev64  v29.4s, v29.4s              \n"
                 "rev64  v31.4s, v31.4s              \n"
 
-                    // 0 v16 = a0 b0 c0 d0     1 v24 = e0 f0 g0 h0
-                    // 2 v17 = a1 b1 c1 d1     3 v25 = e1 f1 g1 h1
-                    // 4 v18 = a2 b2 c2 d2     5 v26 = e2 f2 g2 h2
-                    // 6 v19 = a3 b3 c3 d3     7 v27 = e3 f3 g3 h3
-                    // 8 v20 = a4 b4 c4 d4     9 v28 = e4 f4 g4 h4
-                    // a v21 = a5 b5 c5 d5     b v29 = e5 f5 g5 h5
-                    // c v22 = a6 b6 c6 d6     d v30 = e6 f6 g6 h6
-                    // e v23 = a7 b7 c7 d7     f v31 = e7 f7 g7 h7
+                // 0 v16 = a0 b0 c0 d0     1 v24 = e0 f0 g0 h0
+                // 2 v17 = a1 b1 c1 d1     3 v25 = e1 f1 g1 h1
+                // 4 v18 = a2 b2 c2 d2     5 v26 = e2 f2 g2 h2
+                // 6 v19 = a3 b3 c3 d3     7 v27 = e3 f3 g3 h3
+                // 8 v20 = a4 b4 c4 d4     9 v28 = e4 f4 g4 h4
+                // a v21 = a5 b5 c5 d5     b v29 = e5 f5 g5 h5
+                // c v22 = a6 b6 c6 d6     d v30 = e6 f6 g6 h6
+                // e v23 = a7 b7 c7 d7     f v31 = e7 f7 g7 h7
 
                 "add    x4, %3, %12, lsl #4         \n"
                 "st1    {v16.4s, v17.4s, v18.4s, v19.4s}, [%3], #64 \n"
@@ -914,23 +914,23 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 // if out_elempack == 1
                 "8:                                 \n"
 #if __ARM_FEATURE_DOTPROD
-                        // a0 b0 c0 d0
-                        // a1 b1 c1 d1
-                        // a2 b2 c2 d2
-                        // a3 b3 c3 d3
-                        // e0 f0 g0 h0
-                        // e1 f1 g1 h1
-                        // e2 f2 g2 h2
-                        // e3 f3 g3 h3
+                // a0 b0 c0 d0
+                // a1 b1 c1 d1
+                // a2 b2 c2 d2
+                // a3 b3 c3 d3
+                // e0 f0 g0 h0
+                // e1 f1 g1 h1
+                // e2 f2 g2 h2
+                // e3 f3 g3 h3
 
-                        // a4 b4 c4 d4
-                        // a5 b5 c5 d5
-                        // a6 b6 c6 d6
-                        // a7 b7 c7 d7
-                        // e4 f4 g4 h4
-                        // e5 f5 g5 h5
-                        // e6 f6 g6 h6
-                        // e7 f7 g7 h7
+                // a4 b4 c4 d4
+                // a5 b5 c5 d5
+                // a6 b6 c6 d6
+                // a7 b7 c7 d7
+                // e4 f4 g4 h4
+                // e5 f5 g5 h5
+                // e6 f6 g6 h6
+                // e7 f7 g7 h7
 
                 "zip1   v0.4s, v16.4s, v17.4s       \n"
                 "zip2   v1.4s, v16.4s, v17.4s       \n"
@@ -981,7 +981,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 "st1    {v28.4s, v29.4s}, [x4]      \n"
                 "add    x4, x4, %12, lsl #2         \n"
                 "st1    {v30.4s, v31.4s}, [x4]      \n"
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
 
                 // v16 = a0 b1 c2 d3   v17 = e4 f5 g6 h7
                 // v18 = e0 f1 g2 h3   v19 = a4 b5 c6 d7
@@ -1036,15 +1036,15 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 "zip2   v30.2d, v11.2d, v9.2d       \n"
                 "zip2   v31.2d, v15.2d, v13.2d      \n"
 
-                    // 0 v16 = a0 a1 a2 a3    1 v17 = a4 a5 a6 a7
-                    // 2 v18 = b1 b0 b3 b2    3 v19 = b5 b4 b7 b6
-                    // 4 v20 = c0 c1 c2 c3    5 v21 = c4 c5 c6 c7
-                    // 6 v22 = d1 d0 d3 d2    7 v23 = d5 d4 d7 d6
+                // 0 v16 = a0 a1 a2 a3    1 v17 = a4 a5 a6 a7
+                // 2 v18 = b1 b0 b3 b2    3 v19 = b5 b4 b7 b6
+                // 4 v20 = c0 c1 c2 c3    5 v21 = c4 c5 c6 c7
+                // 6 v22 = d1 d0 d3 d2    7 v23 = d5 d4 d7 d6
 
-                    // 8 v24 = e0 e1 e2 e3    9 v25 = e4 e5 e6 e7
-                    // a v26 = f1 f0 f3 f2    b v27 = f5 f4 f7 f6
-                    // c v28 = g0 g1 g2 g3    d v29 = g4 g5 g6 g7
-                    // e v30 = h1 h0 h3 h2    f v31 = h5 h4 h7 h6
+                // 8 v24 = e0 e1 e2 e3    9 v25 = e4 e5 e6 e7
+                // a v26 = f1 f0 f3 f2    b v27 = f5 f4 f7 f6
+                // c v28 = g0 g1 g2 g3    d v29 = g4 g5 g6 g7
+                // e v30 = h1 h0 h3 h2    f v31 = h5 h4 h7 h6
 
                 "rev64  v18.4s, v18.4s              \n"
                 "rev64  v19.4s, v19.4s              \n"
@@ -1098,7 +1098,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 "r"(out_elempack), // %11
                 "r"(out_hstep)     // %12
                 : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
-#else // NCNN_GNU_INLINE_ASM
+#else  // NCNN_GNU_INLINE_ASM
             int32x4_t _sum0;
             int32x4_t _sum1;
             int32x4_t _sum2;
@@ -1226,23 +1226,23 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                     pA += 64;
                     pB += 64;
                 }
-                    // a0 b0 c0 d0
-                    // a1 b1 c1 d1
-                    // a2 b2 c2 d2
-                    // a3 b3 c3 d3
-                    // e0 f0 g0 h0
-                    // e1 f1 g1 h1
-                    // e2 f2 g2 h2
-                    // e3 f3 g3 h3
+                // a0 b0 c0 d0
+                // a1 b1 c1 d1
+                // a2 b2 c2 d2
+                // a3 b3 c3 d3
+                // e0 f0 g0 h0
+                // e1 f1 g1 h1
+                // e2 f2 g2 h2
+                // e3 f3 g3 h3
 
-                    // a4 b4 c4 d4
-                    // a5 b5 c5 d5
-                    // a6 b6 c6 d6
-                    // a7 b7 c7 d7
-                    // e4 f4 g4 h4
-                    // e5 f5 g5 h5
-                    // e6 f6 g6 h6
-                    // e7 f7 g7 h7
+                // a4 b4 c4 d4
+                // a5 b5 c5 d5
+                // a6 b6 c6 d6
+                // a7 b7 c7 d7
+                // e4 f4 g4 h4
+                // e5 f5 g5 h5
+                // e6 f6 g6 h6
+                // e7 f7 g7 h7
 
                 int32x4x2_t _ss0 = vuzpq_s32(_s0, _s1);
                 int32x4x2_t _ss1 = vuzpq_s32(_s2, _s3);
@@ -1269,7 +1269,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 _sume = vaddq_s32(_sume, _ss7.val[0]);
                 _sumf = vaddq_s32(_sumf, _ss7.val[1]);
             }
-#else // __ARM_FEATURE_MATMUL_INT8
+#else  // __ARM_FEATURE_MATMUL_INT8
             for (; kk + 7 < max_kk; kk += 8)
             {
                 int8x16_t _pA0 = vld1q_s8(pA);
@@ -1351,7 +1351,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 _sume = vdotq_laneq_s32(_sume, _pA1, _pB1, 2);
                 _sumf = vdotq_laneq_s32(_sumf, _pA1, _pB1, 3);
 
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                 int8x16_t _pA0 = vld1q_s8(pA);
                 int8x16_t _pA2 = vld1q_s8(pA + 16);
                 int8x16_t _pB0 = vld1q_s8(pB);
@@ -1475,7 +1475,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 _sumd = vpadalq_s16(_sumd, _sd);
                 _sume = vpadalq_s16(_sume, _se);
                 _sumf = vpadalq_s16(_sumf, _sf);
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                 int8x16_t _pA0 = vld1q_s8(pA);
                 int8x16_t _pB0 = vld1q_s8(pB);
 
@@ -1563,7 +1563,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 _sumd = vaddw_s16(_sumd, vget_high_s16(_sab));
                 _sume = vaddw_s16(_sume, vget_high_s16(_scd));
                 _sumf = vaddw_s16(_sumf, vget_high_s16(_sef));
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                 int8x8_t _pA0 = vld1_s8(pA);
                 int8x8_t _pB0 = vld1_s8(pB);
 
@@ -1654,7 +1654,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                     vst1q_s32(outptr0 + 52, _sume);
                     vst1q_s32(outptr0 + 56, _sumb);
                     vst1q_s32(outptr0 + 60, _sumf);
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                     {
                         // a0 b1 c2 d3  e4 f5 g6 h7
                         // e0 f1 g2 h3  a4 b5 c6 d7
@@ -1827,7 +1827,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                     vst1q_s32(outptr0 + out_hstep * 4 + 20, _sumd);
                     vst1q_s32(outptr0 + out_hstep * 4 + 24, _sume);
                     vst1q_s32(outptr0 + out_hstep * 4 + 28, _sumf);
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                     {
                         // a0 b1 c2 d3  e4 f5 g6 h7
                         // e0 f1 g2 h3  a4 b5 c6 d7
@@ -1946,7 +1946,6 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                         // a5 b5 c5 d5  e5 f5 g5 h5
                         // a6 b6 c6 d6  e6 f6 g6 h6
                         // a7 b7 c7 d7  e7 f7 g7 h7
-
                     }
 
                     vst1q_s32(outptr0, _sum0);
@@ -2016,7 +2015,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                         _sume = vcombine_s32(vget_high_s32(_t4.val[1]), vget_high_s32(_t5.val[1]));
                         _sumf = vcombine_s32(vget_high_s32(_t6.val[1]), vget_high_s32(_t7.val[1]));
                     }
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                     {
                         // a0 b1 c2 d3  e4 f5 g6 h7
                         // e0 f1 g2 h3  a4 b5 c6 d7
@@ -2091,7 +2090,6 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                         // e4 e5 f5 f4  g6 g7 h7 h6
                         // e6 e7 f7 f6  g4 g5 h5 h4
 
-
                         _sum0 = vcombine_s32(vget_low_s32(_t0.val[0]), vget_low_s32(_t1.val[0]));
                         _sum1 = vcombine_s32(vget_low_s32(_t2.val[0]), vget_low_s32(_t3.val[0]));
                         _sum2 = vcombine_s32(vget_high_s32(_t0.val[0]), vget_high_s32(_t1.val[0]));
@@ -2118,7 +2116,6 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                         // g0 g1 g2 g3  g4 g5 g6 g7
                         // h1 h0 h3 h2  h5 h4 h7 h6
 
-
                         _sum2 = vrev64q_s32(_sum2);
                         _sum3 = vrev64q_s32(_sum3);
                         _sum6 = vrev64q_s32(_sum6);
@@ -2127,7 +2124,6 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                         _sumb = vrev64q_s32(_sumb);
                         _sume = vrev64q_s32(_sume);
                         _sumf = vrev64q_s32(_sumf);
-
                     }
 #endif // __ARM_FEATURE_DOTPROD
 
@@ -2178,7 +2174,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
         {
             const signed char* pA = pAT;
 
-#if 0//NCNN_GNU_INLINE_ASM
+#if 0 //NCNN_GNU_INLINE_ASM
 #if __aarch64__
             int32x4_t _sum0;
             int32x4_t _sum1;
@@ -2558,7 +2554,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
             }
 
             outptr += 32;
-#else // __aarch64__
+#else  // __aarch64__
             asm volatile(
                 "cmp        %9, #0              \n"
                 "beq        0f                  \n"
@@ -2825,7 +2821,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 "r"(out_hstep)     // %12
                 : "cc", "memory", "r4", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
 #endif // __aarch64__
-#else // NCNN_GNU_INLINE_ASM
+#else  // NCNN_GNU_INLINE_ASM
             int32x4_t _sum0;
             int32x4_t _sum1;
             int32x4_t _sum2;
@@ -2937,7 +2933,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 _sum5 = vdotq_laneq_s32(_sum5, _pA1, _pB, 1);
                 _sum6 = vdotq_laneq_s32(_sum6, _pA1, _pB, 2);
                 _sum7 = vdotq_laneq_s32(_sum7, _pA1, _pB, 3);
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                 int8x16_t _pA0 = vld1q_s8(pA);
                 int8x16_t _pA2 = vld1q_s8(pA + 16);
                 int8x16_t _pB02 = vld1q_s8(pB);
@@ -3012,7 +3008,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 _sum5 = vpadalq_s16(_sum5, _s5);
                 _sum6 = vpadalq_s16(_sum6, _s6);
                 _sum7 = vpadalq_s16(_sum7, _s7);
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                 int8x16_t _pA0 = vld1q_s8(pA);
                 int8x8_t _pB0 = vld1_s8(pB);
 
@@ -3071,7 +3067,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 _sum5 = vaddw_s16(_sum5, vget_high_s16(_s23));
                 _sum6 = vaddw_s16(_sum6, vget_high_s16(_s45));
                 _sum7 = vaddw_s16(_sum7, vget_high_s16(_s67));
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                 int8x8_t _pA0 = vld1_s8(pA);
                 int8x8_t _pB0 = vreinterpret_s8_s32(vld1_dup_s32((const int*)pB));
                 // int8x8_t _pB0 = vld1_s8(pB);
@@ -3124,7 +3120,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                     vst1q_s32(outptr0 + 20, _sum6);
                     vst1q_s32(outptr0 + 24, _sum3);
                     vst1q_s32(outptr0 + 28, _sum7);
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                     {
                         // a0 b1 c2 d3
                         // e0 f1 g2 h3
@@ -3217,7 +3213,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                     vst1q_s32(outptr0 + out_hstep * 4 + 4, _sum5);
                     vst1q_s32(outptr0 + out_hstep * 4 + 8, _sum6);
                     vst1q_s32(outptr0 + out_hstep * 4 + 12, _sum7);
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                     {
                         // a0 b1 c2 d3
                         // e0 f1 g2 h3
@@ -3316,7 +3312,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                         _sum6 = vcombine_s32(vget_low_s32(_t2.val[1]), vget_low_s32(_t3.val[1]));
                         _sum7 = vcombine_s32(vget_high_s32(_t2.val[1]), vget_high_s32(_t3.val[1]));
                     }
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                     {
                         // a0 b1 c2 d3
                         // e0 f1 g2 h3
@@ -3835,7 +3831,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 _sum5 = vdotq_laneq_s32(_sum5, _pA, _pB1, 1);
                 _sum6 = vdotq_laneq_s32(_sum6, _pA, _pB1, 2);
                 _sum7 = vdotq_laneq_s32(_sum7, _pA, _pB1, 3);
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                 int8x16_t _pA02 = vld1q_s8(pA);
                 int8x16_t _pB0 = vld1q_s8(pB);
                 int8x16_t _pB2 = vld1q_s8(pB + 16);
@@ -3902,7 +3898,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 _sum5 = vpadalq_s16(_sum5, _s5);
                 _sum6 = vpadalq_s16(_sum6, _s6);
                 _sum7 = vpadalq_s16(_sum7, _s7);
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                 int8x8_t _pA0 = vld1_s8(pA);
                 int8x16_t _pB0 = vld1q_s8(pB);
 
@@ -3965,7 +3961,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 _sum5 = vaddw_s16(_sum5, vget_low_s16(_s57));
                 _sum6 = vaddw_s16(_sum6, vget_high_s16(_s46));
                 _sum7 = vaddw_s16(_sum7, vget_high_s16(_s57));
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                 int8x8_t _pA0 = vreinterpret_s8_s32(vld1_dup_s32((const int*)pA));
                 int8x8_t _pB0 = vld1_s8(pB);
 
@@ -4002,16 +3998,16 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 if (out_elempack == 4)
                 {
 #if __ARM_FEATURE_DOTPROD
-                        // a0 b0 c0 d0
-                        // a1 b1 c1 d1
-                        // a2 b2 c2 d2
-                        // a3 b3 c3 d3
-                        // a4 b4 c4 d4
-                        // a5 b5 c5 d5
-                        // a6 b6 c6 d6
-                        // a7 b7 c7 d7
+                    // a0 b0 c0 d0
+                    // a1 b1 c1 d1
+                    // a2 b2 c2 d2
+                    // a3 b3 c3 d3
+                    // a4 b4 c4 d4
+                    // a5 b5 c5 d5
+                    // a6 b6 c6 d6
+                    // a7 b7 c7 d7
 
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                     {
                         // a0 b1 c2 d3   a4 b5 c6 d7
                         // c0 d1 a2 b3   c4 d5 a6 b7
@@ -4107,7 +4103,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                         _sum6 = vcombine_s32(vget_high_s32(_t0.val[1]), vget_high_s32(_t1.val[1]));
                         _sum7 = vcombine_s32(vget_high_s32(_t2.val[1]), vget_high_s32(_t3.val[1]));
                     }
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                     {
                         // a0 b1 c2 d3   a4 b5 c6 d7
                         // c0 d1 a2 b3   c4 d5 a6 b7
@@ -4256,7 +4252,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 _sum1 = vdotq_laneq_s32(_sum1, _pA, _pB, 1);
                 _sum2 = vdotq_laneq_s32(_sum2, _pA, _pB, 2);
                 _sum3 = vdotq_laneq_s32(_sum3, _pA, _pB, 3);
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                 int8x16_t _pA = vld1q_s8(pA);
                 int16x8_t _pB = vreinterpretq_s16_s8(vld1q_s8(pB));
 
@@ -4423,7 +4419,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
 
                 _sum0 = vdotq_lane_s32(_sum0, _pA, _pB, 0);
                 _sum1 = vdotq_lane_s32(_sum1, _pA, _pB, 1);
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                 int8x16_t _pA = vld1q_s8(pA);
                 int16x4_t _pB = vreinterpret_s16_s8(vld1_s8(pB));
 
@@ -4558,7 +4554,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 int8x8_t _pB = vld1_s8(pB);
 
                 _sum0 = vdotq_lane_s32(_sum0, _pA, _pB, 0);
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                 int8x16_t _pA = vld1q_s8(pA);
                 int8x8_t _pB0 = vreinterpret_s8_s16(vld1_dup_s16((const short*)pB));
                 int8x8_t _pB1 = vreinterpret_s8_s16(vld1_dup_s16((const short*)(pB + 2)));
@@ -5598,7 +5594,7 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
                 pp += 64;
                 p0 += bottom_blob.cstep * 8;
             }
-#else // __ARM_FEATURE_MATMUL_INT8 || __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_MATMUL_INT8 || __ARM_FEATURE_DOTPROD
             for (; kk < max_kk / 8; kk++)
             {
                 int16x8x4_t _r0 = vld4q_s16((const short*)p0);
@@ -5703,7 +5699,7 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
                 pp += 32;
                 p0 += bottom_blob.cstep * 8;
             }
-#else // __ARM_FEATURE_MATMUL_INT8 || __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_MATMUL_INT8 || __ARM_FEATURE_DOTPROD
             for (; kk < max_kk / 8; kk++)
             {
                 int16x4x4_t _r0123;
@@ -5835,7 +5831,7 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
                 pp += 16;
                 p0 += bottom_blob.cstep * 8;
             }
-#else // __ARM_FEATURE_MATMUL_INT8 || __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_MATMUL_INT8 || __ARM_FEATURE_DOTPROD
             for (; kk < max_kk / 8; kk++)
             {
                 int16x4x2_t _r01;
@@ -6638,7 +6634,7 @@ static void convolution_im2col_input_tile_int8(const Mat& bottom_blob, Mat& B, i
                 vst1_s32((int*)(pp + 48), _r45.val[1]);
                 vst1_s32((int*)(pp + 56), _r67.val[1]);
                 pp += 64;
-#else // __ARM_FEATURE_MATMUL_INT8 || __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_MATMUL_INT8 || __ARM_FEATURE_DOTPROD
                 int16x4_t _r0 = vreinterpret_s16_s8(vld1_s8(sptr0));
                 int16x4_t _r1 = vreinterpret_s16_s8(vld1_s8(sptr1));
                 int16x4_t _r2 = vreinterpret_s16_s8(vld1_s8(sptr2));
@@ -7077,7 +7073,7 @@ static void convolution_im2col_input_tile_int8(const Mat& bottom_blob, Mat& B, i
                 _r0123.val[3] = vreinterpret_s32_s8(vld1_s8(sptr3));
                 vst4_s32((int*)pp, _r0123);
                 pp += 32;
-#else // __ARM_FEATURE_MATMUL_INT8 || __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_MATMUL_INT8 || __ARM_FEATURE_DOTPROD
                 int16x4x4_t _r0123;
                 _r0123.val[0] = vreinterpret_s16_s8(vld1_s8(sptr0));
                 _r0123.val[1] = vreinterpret_s16_s8(vld1_s8(sptr1));
@@ -7355,7 +7351,7 @@ static void convolution_im2col_input_tile_int8(const Mat& bottom_blob, Mat& B, i
                 _r01.val[1] = vreinterpret_s32_s8(vld1_s8(sptr1));
                 vst2_s32((int*)pp, _r01);
                 pp += 16;
-#else // __ARM_FEATURE_MATMUL_INT8 || __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_MATMUL_INT8 || __ARM_FEATURE_DOTPROD
                 int16x4x2_t _r01;
                 _r01.val[0] = vreinterpret_s16_s8(vld1_s8(sptr0));
                 _r01.val[1] = vreinterpret_s16_s8(vld1_s8(sptr1));
