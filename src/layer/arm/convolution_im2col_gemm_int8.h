@@ -730,6 +730,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                     // e7 f7 g7 h7
 
 #else // __ARM_FEATURE_DOTPROD
+
                 // 0 v16 = a0 b1 c2 d3   1 v17 = e4 f5 g6 h7
                 // 2 v18 = e0 f1 g2 h3   3 v19 = a4 b5 c6 d7
                 // 4 v20 = c0 d1 a2 b3   5 v21 = g4 h5 e6 f7
@@ -981,6 +982,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 "add    x4, x4, %12, lsl #2         \n"
                 "st1    {v30.4s, v31.4s}, [x4]      \n"
 #else // __ARM_FEATURE_DOTPROD
+
                 // v16 = a0 b1 c2 d3   v17 = e4 f5 g6 h7
                 // v18 = e0 f1 g2 h3   v19 = a4 b5 c6 d7
                 // v20 = c0 d1 a2 b3   v21 = g4 h5 e6 f7

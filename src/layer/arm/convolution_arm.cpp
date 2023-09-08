@@ -48,6 +48,8 @@ namespace ncnn {
 #endif // NCNN_BF16
 
 #if NCNN_INT8
+#include "convolution_im2col_gemm_int8.h"
+
 #include "convolution_winograd_transform_int8.h"
 #include "convolution_winograd_dot_int8.h"
 #include "convolution_3x3_int8.h"
@@ -69,8 +71,6 @@ namespace ncnn {
 #endif // NCNN_BF16
 
 #if NCNN_INT8
-#include "convolution_im2col_gemm_int8.h"
-
 #include "convolution_pack8to4_int8.h"
 #include "convolution_pack1to4_int8.h"
 #include "convolution_pack8to1_int8.h"
