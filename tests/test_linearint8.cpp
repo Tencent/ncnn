@@ -1,5 +1,3 @@
-// TODO
-
 // Tencent is pleased to support the open source community by making ncnn available.
 //
 // Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
