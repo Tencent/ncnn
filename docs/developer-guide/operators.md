@@ -197,6 +197,18 @@ Element type:
 - 3 = int8
 - 4 = bfloat16
 
+# CeLU
+```
+y = max(0,x) + min(0,alpha*(exp(x/alpha)-1))
+```
+
+* one_blob_only
+* support_inplace
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | alpha   | float   | 0         |                   |
+
 # Clip
 ```
 y = clamp(x, min, max)
