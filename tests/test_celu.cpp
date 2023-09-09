@@ -25,7 +25,7 @@ static int test_celu(const ncnn::Mat& a, float alpha)
     int ret = test_layer<ncnn::CeLU>("CeLU", pd, weights, a);
     if (ret != 0)
     {
-        fprintf(stderr, "test_celu failed a.dims=%d a=(%d %d %d %d) slope=%f\n", a.dims, a.w, a.h, a.d, a.c, slope);
+        fprintf(stderr, "test_celu failed a.dims=%d a=(%d %d %d %d) alpha=%f\n", a.dims, a.w, a.h, a.d, a.c, alpha);
     }
 
     return ret;
