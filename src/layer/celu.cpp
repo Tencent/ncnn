@@ -39,14 +39,14 @@ int CeLU::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     int channels = bottom_top_blob.c;
     int size = w * h * d;
 
-    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
     {
         float* ptr = bottom_top_blob.channel(q);
 
         for (int i = 0; i < size; i++)
         {
-            ptr[i] = std::max(0.0f, ptr[i]) + std::min(0.0f, alpha*(expf(ptr[i]/alpha)-1));
+            ptr[i] = std::max(0.0f, ptr[i]) + std::min(0.0f, alpha * (expf(ptr[i] / alpha) - 1));
         }
     }
 
