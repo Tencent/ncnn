@@ -37,7 +37,7 @@ jobs:
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-full-source
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: true
     - name: package
@@ -57,7 +57,7 @@ jobs:
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-2004
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: true
     - name: apt
@@ -89,7 +89,7 @@ jobs:
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-2004-shared
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: true
     - name: apt
@@ -121,7 +121,7 @@ jobs:
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-2204
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: true
     - name: apt
@@ -153,7 +153,7 @@ jobs:
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-2204-shared
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: true
     - name: apt
@@ -190,7 +190,7 @@ jobs:
         key: openmp-macos-release-11.0.0-20230504
     - name: checkout
       if: steps.cache-openmp.outputs.cache-hit != 'true'
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
     - name: openmp
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
@@ -246,7 +246,7 @@ jobs:
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-macos
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: download-openmp-macos
       uses: actions/download-artifact@v3
       with:
@@ -318,7 +318,7 @@ jobs:
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-macos-vulkan
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: true
     - name: download-openmp-macos
@@ -423,7 +423,7 @@ jobs:
         key: openmp-ios-release-11.0.0-20230504
     - name: checkout
       if: steps.cache-openmp.outputs.cache-hit != 'true'
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
     - name: openmp
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
@@ -492,7 +492,7 @@ jobs:
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ios
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: download-openmp-ios
       uses: actions/download-artifact@v3
       with:
@@ -580,7 +580,7 @@ jobs:
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ios-vulkan
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: true
     - name: download-openmp-ios
@@ -705,7 +705,7 @@ jobs:
         key: openmp-ios-bitcode-release-11.0.0-20230504
     - name: checkout
       if: steps.cache-openmp.outputs.cache-hit != 'true'
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
     - name: openmp
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
@@ -774,7 +774,7 @@ jobs:
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ios-bitcode
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: download-openmp-ios-bitcode
       uses: actions/download-artifact@v3
       with:
@@ -862,7 +862,7 @@ jobs:
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ios-vulkan-bitcode
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: true
     - name: download-openmp-ios-bitcode
@@ -987,7 +987,7 @@ jobs:
         key: openmp-ios-simulator-release-11.0.0-20230504
     - name: checkout
       if: steps.cache-openmp.outputs.cache-hit != 'true'
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
     - name: openmp
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
@@ -1056,7 +1056,7 @@ jobs:
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: download-openmp-ios
       uses: actions/download-artifact@v3
       with:
@@ -1144,7 +1144,7 @@ jobs:
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator-vulkan
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: true
     - name: download-openmp-ios-simulator
@@ -1269,7 +1269,7 @@ jobs:
         key: openmp-ios-simulator-bitcode-release-11.0.0-20230504
     - name: checkout
       if: steps.cache-openmp.outputs.cache-hit != 'true'
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
     - name: openmp
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
@@ -1338,7 +1338,7 @@ jobs:
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator-bitcode
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: download-openmp-ios
       uses: actions/download-artifact@v3
       with:
@@ -1426,7 +1426,7 @@ jobs:
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator-vulkan-bitcode
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: true
     - name: download-openmp-ios-simulator
@@ -1551,7 +1551,7 @@ jobs:
         key: openmp-mac-catalyst-release-11.0.0-20230504
     - name: checkout
       if: steps.cache-openmp.outputs.cache-hit != 'true'
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
     - name: openmp
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
@@ -1607,7 +1607,7 @@ jobs:
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: download-openmp-ios
       uses: actions/download-artifact@v3
       with:
@@ -1682,7 +1682,7 @@ jobs:
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst-vulkan
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: true
     - name: download-openmp-mac-catalyst
@@ -1807,7 +1807,7 @@ jobs:
         key: openmp-mac-catalyst-bitcode-release-11.0.0-20230504
     - name: checkout
       if: steps.cache-openmp.outputs.cache-hit != 'true'
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
     - name: openmp
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
@@ -1863,7 +1863,7 @@ jobs:
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst-bitcode
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: download-openmp-ios
       uses: actions/download-artifact@v3
       with:
@@ -1938,7 +1938,7 @@ jobs:
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst-vulkan-bitcode
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: true
     - name: download-openmp-mac-catalyst
@@ -2058,7 +2058,7 @@ jobs:
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-android
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: ndk-fix-debug
       run: sed -i -e '/^  -g$/d' $ANDROID_NDK_LATEST_HOME/build/cmake/android-legacy.toolchain.cmake
     - name: build-armv7
@@ -2115,7 +2115,7 @@ jobs:
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-android-shared
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: ndk-fix-debug
       run: sed -i -e '/^  -g$/d' $ANDROID_NDK_LATEST_HOME/build/cmake/android-legacy.toolchain.cmake
     - name: build-armv7
@@ -2172,7 +2172,7 @@ jobs:
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-android-vulkan
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: true
     - name: cache-vulkansdk
@@ -2248,7 +2248,7 @@ jobs:
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-android-vulkan-shared
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: true
     - name: cache-vulkansdk
@@ -2324,7 +2324,7 @@ jobs:
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-webassembly
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: emsdk
       run: |
         git clone https://github.com/emscripten-core/emsdk.git
@@ -2390,7 +2390,7 @@ jobs:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2015
       UseMultiToolTask: true
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: true
     - name: cache-protobuf
@@ -2423,7 +2423,7 @@ jobs:
         $env:VULKAN_SDK="C:/VulkanSDK/1.3.236.0"
         $env:Path+=";C:/VulkanSDK/1.3.236.0/Bin"
         mkdir build-x86; cd build-x86
-        cmake -T v140,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x86\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\x86\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\x86\bin\protoc.exe" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
+        cmake -T v140,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x86\cmake" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . --config Release -j 2
         cmake --build . --config Release --target install
     - name: build-x64
@@ -2431,7 +2431,7 @@ jobs:
         $env:VULKAN_SDK="C:/VulkanSDK/1.3.236.0"
         $env:Path+=";C:/VulkanSDK/1.3.236.0/Bin"
         mkdir build-x64; cd build-x64
-        cmake -T v140,host=x64 -A x64 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x64\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\x64\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\x64\bin\protoc.exe" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
+        cmake -T v140,host=x64 -A x64 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x64\cmake" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . --config Release -j 2
         cmake --build . --config Release --target install
     - name: package
@@ -2455,7 +2455,7 @@ jobs:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2015-shared
       UseMultiToolTask: true
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: true
     - name: cache-protobuf
@@ -2488,7 +2488,7 @@ jobs:
         $env:VULKAN_SDK="C:/VulkanSDK/1.3.236.0"
         $env:Path+=";C:/VulkanSDK/1.3.236.0/Bin"
         mkdir build-x86; cd build-x86
-        cmake -T v140,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x86\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\x86\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\x86\bin\protoc.exe" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
+        cmake -T v140,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x86\cmake" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
         cmake --build . --config Release -j 2
         cmake --build . --config Release --target install
     - name: build-x64
@@ -2496,7 +2496,7 @@ jobs:
         $env:VULKAN_SDK="C:/VulkanSDK/1.3.236.0"
         $env:Path+=";C:/VulkanSDK/1.3.236.0/Bin"
         mkdir build-x64; cd build-x64
-        cmake -T v140,host=x64 -A x64 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x64\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\x64\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\x64\bin\protoc.exe" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
+        cmake -T v140,host=x64 -A x64 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x64\cmake" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
         cmake --build . --config Release -j 2
         cmake --build . --config Release --target install
     - name: package
@@ -2520,7 +2520,7 @@ jobs:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2017
       UseMultiToolTask: true
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: true
     - name: cache-protobuf
@@ -2553,7 +2553,7 @@ jobs:
         $env:VULKAN_SDK="C:/VulkanSDK/1.3.236.0"
         $env:Path+=";C:/VulkanSDK/1.3.236.0/Bin"
         mkdir build-x86; cd build-x86
-        cmake -T v141,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x86\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\x86\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\x86\bin\protoc.exe" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
+        cmake -T v141,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x86\cmake" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . --config Release -j 2
         cmake --build . --config Release --target install
     - name: build-x64
@@ -2561,7 +2561,7 @@ jobs:
         $env:VULKAN_SDK="C:/VulkanSDK/1.3.236.0"
         $env:Path+=";C:/VulkanSDK/1.3.236.0/Bin"
         mkdir build-x64; cd build-x64
-        cmake -T v141,host=x64 -A x64 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x64\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\x64\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\x64\bin\protoc.exe" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
+        cmake -T v141,host=x64 -A x64 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x64\cmake" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . --config Release -j 2
         cmake --build . --config Release --target install
     - name: package
@@ -2585,7 +2585,7 @@ jobs:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2017-shared
       UseMultiToolTask: true
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: true
     - name: cache-protobuf
@@ -2618,7 +2618,7 @@ jobs:
         $env:VULKAN_SDK="C:/VulkanSDK/1.3.236.0"
         $env:Path+=";C:/VulkanSDK/1.3.236.0/Bin"
         mkdir build-x86; cd build-x86
-        cmake -T v141,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x86\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\x86\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\x86\bin\protoc.exe" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
+        cmake -T v141,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x86\cmake" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
         cmake --build . --config Release -j 2
         cmake --build . --config Release --target install
     - name: build-x64
@@ -2626,7 +2626,7 @@ jobs:
         $env:VULKAN_SDK="C:/VulkanSDK/1.3.236.0"
         $env:Path+=";C:/VulkanSDK/1.3.236.0/Bin"
         mkdir build-x64; cd build-x64
-        cmake -T v141,host=x64 -A x64 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x64\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\x64\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\x64\bin\protoc.exe" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
+        cmake -T v141,host=x64 -A x64 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x64\cmake" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
         cmake --build . --config Release -j 2
         cmake --build . --config Release --target install
     - name: package
@@ -2650,7 +2650,7 @@ jobs:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2019
       UseMultiToolTask: true
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: true
     - name: cache-protobuf
@@ -2683,7 +2683,7 @@ jobs:
         $env:VULKAN_SDK="C:/VulkanSDK/1.3.236.0"
         $env:Path+=";C:/VulkanSDK/1.3.236.0/Bin"
         mkdir build-x86; cd build-x86
-        cmake -T v142,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x86\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\x86\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\x86\bin\protoc.exe" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
+        cmake -T v142,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x86\cmake" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . --config Release -j 2
         cmake --build . --config Release --target install
     - name: build-x64
@@ -2691,7 +2691,7 @@ jobs:
         $env:VULKAN_SDK="C:/VulkanSDK/1.3.236.0"
         $env:Path+=";C:/VulkanSDK/1.3.236.0/Bin"
         mkdir build-x64; cd build-x64
-        cmake -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x64\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\x64\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\x64\bin\protoc.exe" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
+        cmake -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x64\cmake" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . --config Release -j 2
         cmake --build . --config Release --target install
     - name: build-arm
@@ -2731,7 +2731,7 @@ jobs:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2019-shared
       UseMultiToolTask: true
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: true
     - name: cache-protobuf
@@ -2764,7 +2764,7 @@ jobs:
         $env:VULKAN_SDK="C:/VulkanSDK/1.3.236.0"
         $env:Path+=";C:/VulkanSDK/1.3.236.0/Bin"
         mkdir build-x86; cd build-x86
-        cmake -T v142,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x86\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\x86\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\x86\bin\protoc.exe" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
+        cmake -T v142,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x86\cmake" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
         cmake --build . --config Release -j 2
         cmake --build . --config Release --target install
     - name: build-x64
@@ -2772,7 +2772,7 @@ jobs:
         $env:VULKAN_SDK="C:/VulkanSDK/1.3.236.0"
         $env:Path+=";C:/VulkanSDK/1.3.236.0/Bin"
         mkdir build-x64; cd build-x64
-        cmake -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x64\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\x64\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\x64\bin\protoc.exe" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
+        cmake -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x64\cmake" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
         cmake --build . --config Release -j 2
         cmake --build . --config Release --target install
     - name: build-arm
@@ -2812,7 +2812,7 @@ jobs:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2022
       UseMultiToolTask: true
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: true
     - name: cache-protobuf
@@ -2845,7 +2845,7 @@ jobs:
         $env:VULKAN_SDK="C:/VulkanSDK/1.3.236.0"
         $env:Path+=";C:/VulkanSDK/1.3.236.0/Bin"
         mkdir build-x86; cd build-x86
-        cmake -T v143,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x86\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\x86\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\x86\bin\protoc.exe" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
+        cmake -T v143,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x86\cmake" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . --config Release -j 2
         cmake --build . --config Release --target install
     - name: build-x64
@@ -2853,7 +2853,7 @@ jobs:
         $env:VULKAN_SDK="C:/VulkanSDK/1.3.236.0"
         $env:Path+=";C:/VulkanSDK/1.3.236.0/Bin"
         mkdir build-x64; cd build-x64
-        cmake -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x64\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\x64\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\x64\bin\protoc.exe" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
+        cmake -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x64\cmake" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . --config Release -j 2
         cmake --build . --config Release --target install
     - name: build-arm
@@ -2893,7 +2893,7 @@ jobs:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2022-shared
       UseMultiToolTask: true
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: true
     - name: cache-protobuf
@@ -2926,7 +2926,7 @@ jobs:
         $env:VULKAN_SDK="C:/VulkanSDK/1.3.236.0"
         $env:Path+=";C:/VulkanSDK/1.3.236.0/Bin"
         mkdir build-x86; cd build-x86
-        cmake -T v143,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x86\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\x86\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\x86\bin\protoc.exe" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
+        cmake -T v143,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x86\cmake" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
         cmake --build . --config Release -j 2
         cmake --build . --config Release --target install
     - name: build-x64
@@ -2934,7 +2934,7 @@ jobs:
         $env:VULKAN_SDK="C:/VulkanSDK/1.3.236.0"
         $env:Path+=";C:/VulkanSDK/1.3.236.0/Bin"
         mkdir build-x64; cd build-x64
-        cmake -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x64\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\x64\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\x64\bin\protoc.exe" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
+        cmake -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x64\cmake" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
         cmake --build . --config Release -j 2
         cmake --build . --config Release --target install
     - name: build-arm

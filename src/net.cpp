@@ -1735,6 +1735,18 @@ int Net::load_model(const DataReader& dr)
     // load file
     int ret = 0;
 
+#if NCNN_VULKAN
+    if (opt.use_vulkan_compute)
+    {
+        if (!opt.pipeline_cache)
+        {
+            if (!d->pipeline_cache)
+                d->pipeline_cache = new PipelineCache(d->vkdev);
+            opt.pipeline_cache = d->pipeline_cache;
+        }
+    }
+#endif // NCNN_VULKAN
+
     ModelBinFromDataReader mb(dr);
     for (int i = 0; i < layer_count; i++)
     {
@@ -1765,23 +1777,6 @@ int Net::load_model(const DataReader& dr)
             // no int8 gpu support yet
             opt.use_vulkan_compute = false;
         }
-    }
-
-#if NCNN_VULKAN
-    if (opt.use_vulkan_compute)
-    {
-        if (!opt.pipeline_cache)
-        {
-            if (!d->pipeline_cache)
-                d->pipeline_cache = new PipelineCache(d->vkdev);
-            opt.pipeline_cache = d->pipeline_cache;
-        }
-    }
-#endif // NCNN_VULKAN
-
-    for (int i = 0; i < layer_count; i++)
-    {
-        Layer* layer = d->layers[i];
 
         Option opt1 = get_masked_option(opt, layer->featmask);
 #if NCNN_VULKAN

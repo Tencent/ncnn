@@ -10,7 +10,8 @@ git submodule update --init
 - [Build for Linux](#build-for-linux)
   - [Nvidia Jetson](#nvidia-jetson)
   - [Raspberry Pi](#raspberry-pi)
-  - [POWER9](#power9)
+  - [POWER](#power)
+  - [Intel oneAPI](#intel-oneapi)
   - [Verification](#verification)
 - [Build for Windows x64 using Visual Studio Community 2017](#build-for-windows-x64-using-visual-studio-community-2017)
 - [Build for macOS](#build-for-macos)
@@ -88,9 +89,9 @@ You can add `-GNinja` to `cmake` above to use Ninja build system (invoke build u
 
 For Rasberry Pi 3 on 32bit OS, add `-DCMAKE_TOOLCHAIN_FILE=../toolchains/pi3.toolchain.cmake` to cmake. You can also consider disabling Vulkan support as the Vulkan drivers for Rasberry Pi are still not mature, but it doesn't hurt to build the support in, but not use it.
 
-#### POWER9
+#### POWER
 
-With Clang 13 or higher:
+For POWER9 with Clang 13 or higher:
 
 ```shell
 cd ncnn
@@ -102,7 +103,17 @@ make -j$(nproc)
 
 Earlier versions of Clang may fail to build ncnn due to [Bug 49864](https://github.com/llvm/llvm-project/issues/49864). To use GCC instead, use the `power9le-linux-gnu-vsx.toolchain.cmake` toolchain file instead. Note that according to benchmarks, Clang appears to produce noticeably faster CPU inference than GCC for POWER9 targets.
 
-Note that the POWER9 toolchain files only support little-endian mode.
+For POWER8 instead of POWER9, use the `power8le-linux-gnu-vsx.clang.toolchain.cmake` or `power8le-linux-gnu-vsx.toolchain.cmake` toolchain file instead. POWER8 will be slower than POWER9.
+
+Note that the POWER toolchain files only support little-endian mode.
+
+#### Intel oneAPI
+
+Besides the prerequests in this section, Intel oneAPI BaseKit and HPCKit should be installed. They are available from https://www.intel.com/content/www/us/en/developer/tools/oneapi/base-toolkit.html and https://www.intel.com/content/www/us/en/developer/tools/oneapi/hpc-toolkit.html freely.
+
+Intel oneAPI offers two kinds of compilers, the classic `icc/icpc` and the LLVM based `icx/icpx`. To build with these compilers, add `CC=icc CXX=icpc` or `CC=icx CXX=icpx` before the `cmake` command. When compiling with `icc/icpc`, cmake will warn that `xop`, `avx512`, and `bf16` extensions are not supported by the compiler, while `icx/icpx` works well.
+
+Both of these compilers have been tested and passed the ncnn benchmark successfully. The results have been included in ncnn benchmark readme. Generally, `icx/icpx` are likely to show better performance than `icc/icpc` and the quantized models can benefit from the extensions `icx/icpx` supports.
 
 #### Verification
 
@@ -169,7 +180,7 @@ Build ncnn library (replace <protobuf-root-dir> with a proper path):
 cd <ncnn-root-dir>
 mkdir -p protobuf_build
 cd protobuf_build
-cmake -A x64 -DCMAKE_INSTALL_PREFIX=%cd%/install -DProtobuf_INCLUDE_DIR=<protobuf-root-dir>/protobuf_build/install/include -DProtobuf_LIBRARIES=<protobuf-root-dir>/protobuf_build/install/lib/libprotobuf.lib -DProtobuf_PROTOC_EXECUTABLE=<protobuf-root-dir>/protobuf_build/install/bin/protoc.exe -DNCNN_VULKAN=ON ..
+cmake -A x64 -DCMAKE_INSTALL_PREFIX=%cd%/install -Dprotobuf_DIR=<protobuf-root-dir>/protobuf_build/install/cmake -DNCNN_VULKAN=ON ..
 cmake --build . --config Release -j 2
 cmake --build . --config Release --target install
 ```
