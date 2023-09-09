@@ -12,7 +12,9 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "relu.h"
+#include "celu.h"
+
+#include <math.h>
 
 namespace ncnn {
 
@@ -44,7 +46,7 @@ int CeLU::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
         for (int i = 0; i < size; i++)
         {
-            ptr[i] = std::max(0,ptr[i]) + std::min(0,alpha*(expf(x/alpha)-1));
+            ptr[i] = std::max(0.0f, ptr[i]) + std::min(0.0f, alpha*(expf(ptr[i]/alpha)-1));
         }
     }
 
