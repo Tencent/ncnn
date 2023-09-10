@@ -146,7 +146,7 @@ int CeLU_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const O
     constants[3].i = bottom_top_blob.c;
     constants[4].i = bottom_top_blob.cstep;
 
-    const Pipeline* pipeline = elempack == 8   ? pipeline_celu_pack8
+    const Pipeline* pipeline = elempack == 8 ? pipeline_celu_pack8
                                : elempack == 4 ? pipeline_celu_pack4
                                : pipeline_celu;
 
@@ -170,7 +170,7 @@ int CeLU_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cmd, co
     constants[3].i = bottom_top_blob.c;
     constants[4].i = 0; //bottom_top_blob.cstep;
 
-    const Pipeline* pipeline = elempack == 8   ? pipeline_celu_pack8
+    const Pipeline* pipeline = elempack == 8 ? pipeline_celu_pack8
                                : elempack == 4 ? pipeline_celu_pack4
                                : pipeline_celu;
 
