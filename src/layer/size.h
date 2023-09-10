@@ -24,7 +24,7 @@ class Size : public Layer
 public:
     Size();
 
-    virtual int forward(const Mat& bottom_blob, mat& top_blob, const Option& opt) const;
+    virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 };
 
 } // namespace ncnn
