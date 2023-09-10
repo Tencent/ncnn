@@ -64,7 +64,7 @@ void main()
     afpvec8 v = buffer_ld8(bottom_top_blob_data, gi);
 #endif
 
-    v[0] = max(v[0], afp(0.0f)) + min(alpha*(exp(v[0]/alpha)-1), afp(0.0f));
+    v[0] = max(v[0], afp(0.0f)) + min(alpha * (exp(v[0] / alpha) - 1.0f), afp(0.0f));
     v[1] = max(v[1], afp(0.0f)) + min(alpha*(exp(v[1]/alpha)-1), afp(0.0f));
 
 #if NCNN_image_shader
