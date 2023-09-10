@@ -2,8 +2,8 @@ name: release-python
 # on: [push, pull_request]
 on:
   push:
-#    tags:
-#      - '*'
+    tags:
+      - '*'
 
 jobs:
   build_sdist:
@@ -234,7 +234,7 @@ jobs:
         name: artifact
         path: dist
 
-#    - uses: pypa/gh-action-pypi-publish@release/v1
-#      with:
-#        user: __token__
-#        password: ${{ secrets.PYPI_API_TOKEN }}
+    - uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        user: __token__
+        password: ${{ secrets.PYPI_API_TOKEN }}
