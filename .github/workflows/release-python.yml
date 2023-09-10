@@ -68,88 +68,88 @@ jobs:
         brew uninstall --ignore-dependencies libomp
 
     - name: prepare vulkan sdk for windows amd64 and macos x86_64
-        if: (matrix.os == 'windows-2019' && matrix.arch == 'AMD64') ||
-          (matrix.os == 'macos-latest' && matrix.arch == 'x86_64')
-        uses: humbletim/setup-vulkan-sdk@v1.2.0
-        with:
-          vulkan-query-version: 1.2.189.0
-          vulkan-components: Vulkan-Headers, Vulkan-Loader
-          vulkan-use-cache: true
+      if: (matrix.os == 'windows-2019' && matrix.arch == 'AMD64') ||
+        (matrix.os == 'macos-latest' && matrix.arch == 'x86_64')
+      uses: humbletim/setup-vulkan-sdk@v1.2.0
+      with:
+        vulkan-query-version: 1.2.189.0
+        vulkan-components: Vulkan-Headers, Vulkan-Loader
+        vulkan-use-cache: true
 
-          - name: prepare vulkan sdk for ubuntu x86_64
-            if: matrix.os == 'ubuntu-20.04' && matrix.arch == 'x86_64' &&  matrix.build != 'cp*-musllinux*'
-            shell: bash
-            run: |
-              cd ncnn-python-gpu
-              wget https://sdk.lunarg.com/sdk/download/1.2.189.0/linux/vulkansdk-linux-x86_64-1.2.189.0.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.2.189.0.tar.gz
-              tar -xf vulkansdk-linux-x86_64-1.2.189.0.tar.gz
+    - name: prepare vulkan sdk for ubuntu x86_64
+      if: matrix.os == 'ubuntu-20.04' && matrix.arch == 'x86_64' &&  matrix.build != 'cp*-musllinux*'
+      shell: bash
+      run: |
+        cd ncnn-python-gpu
+        wget https://sdk.lunarg.com/sdk/download/1.2.189.0/linux/vulkansdk-linux-x86_64-1.2.189.0.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.2.189.0.tar.gz
+        tar -xf vulkansdk-linux-x86_64-1.2.189.0.tar.gz
 
-          - id: verify-vulkan
-            if: (matrix.os == 'windows-2019' && matrix.arch == 'AMD64') ||
-              (matrix.os == 'macos-latest' && matrix.arch == 'x86_64')
-            name: verify vulkan sdk install for windows amd64 and macos x86_64
-            shell: bash
-            run: |
-              echo "VULKAN_SDK_VERSION='$VULKAN_SDK_VERSION'" >> "$GITHUB_OUTPUT"
-              echo "VULKAN_SDK='$VULKAN_SDK'" >> "$GITHUB_OUTPUT"
+    - id: verify-vulkan
+      if: (matrix.os == 'windows-2019' && matrix.arch == 'AMD64') ||
+        (matrix.os == 'macos-latest' && matrix.arch == 'x86_64')
+      name: verify vulkan sdk install for windows amd64 and macos x86_64
+      shell: bash
+      run: |
+        echo "VULKAN_SDK_VERSION='$VULKAN_SDK_VERSION'" >> "$GITHUB_OUTPUT"
+        echo "VULKAN_SDK='$VULKAN_SDK'" >> "$GITHUB_OUTPUT"
 
-          - name: Build wheels for ubuntu-20.04 x86_64 manylinux
-            if: matrix.os == 'ubuntu-20.04' && matrix.arch == 'x86_64' &&  matrix.build != 'cp*-musllinux*'
-            uses: pypa/cibuildwheel@v2.15.0
-            env:
-              CIBW_ARCHS_MACOS: ${{ matrix.arch }}
-              CIBW_ARCHS_LINUX: ${{ matrix.arch }}
-              CIBW_ARCHS_WINDOWS: ${{ matrix.arch }}
-              CIBW_BUILD: ${{ matrix.build }}
-              CIBW_BUILD_VERBOSITY: 1
-              CIBW_ENVIRONMENT: CMAKE_BUILD_PARALLEL_LEVEL=2 NCNN_VULKAN=TRUE VULKAN_SDK=/project/ncnn-python-gpu/1.2.189.0/x86_64
-            with:
-              output-dir: wheelhouse
+    - name: Build wheels for ubuntu-20.04 x86_64 manylinux
+      if: matrix.os == 'ubuntu-20.04' && matrix.arch == 'x86_64' &&  matrix.build != 'cp*-musllinux*'
+      uses: pypa/cibuildwheel@v2.15.0
+      env:
+        CIBW_ARCHS_MACOS: ${{ matrix.arch }}
+        CIBW_ARCHS_LINUX: ${{ matrix.arch }}
+        CIBW_ARCHS_WINDOWS: ${{ matrix.arch }}
+        CIBW_BUILD: ${{ matrix.build }}
+        CIBW_BUILD_VERBOSITY: 1
+        CIBW_ENVIRONMENT: CMAKE_BUILD_PARALLEL_LEVEL=2 NCNN_VULKAN=TRUE VULKAN_SDK=/project/ncnn-python-gpu/1.2.189.0/x86_64
+      with:
+        output-dir: wheelhouse
 
-          - name: Build wheels for windows amd64
-            if: matrix.os == 'windows-2019' && matrix.arch == 'AMD64'
-            uses: pypa/cibuildwheel@v2.15.0
-            env:
-              CIBW_ARCHS_MACOS: ${{ matrix.arch }}
-              CIBW_ARCHS_LINUX: ${{ matrix.arch }}
-              CIBW_ARCHS_WINDOWS: ${{ matrix.arch }}
-              CIBW_BUILD: ${{ matrix.build }}
-              CIBW_BUILD_VERBOSITY: 1
-              CIBW_ENVIRONMENT: CMAKE_BUILD_PARALLEL_LEVEL=2 NCNN_VULKAN=TRUE VULKAN_SDK=${{steps.verify-vulkan.outputs.VULKAN_SDK}}
-              CIBW_BEFORE_BUILD: pip install delvewheel
-              CIBW_REPAIR_WHEEL_COMMAND: delvewheel repair -w {dest_dir} {wheel}
-            with:
-              output-dir: wheelhouse
+    - name: Build wheels for windows amd64
+      if: matrix.os == 'windows-2019' && matrix.arch == 'AMD64'
+      uses: pypa/cibuildwheel@v2.15.0
+      env:
+        CIBW_ARCHS_MACOS: ${{ matrix.arch }}
+        CIBW_ARCHS_LINUX: ${{ matrix.arch }}
+        CIBW_ARCHS_WINDOWS: ${{ matrix.arch }}
+        CIBW_BUILD: ${{ matrix.build }}
+        CIBW_BUILD_VERBOSITY: 1
+        CIBW_ENVIRONMENT: CMAKE_BUILD_PARALLEL_LEVEL=2 NCNN_VULKAN=TRUE VULKAN_SDK=${{steps.verify-vulkan.outputs.VULKAN_SDK}}
+        CIBW_BEFORE_BUILD: pip install delvewheel
+        CIBW_REPAIR_WHEEL_COMMAND: delvewheel repair -w {dest_dir} {wheel}
+      with:
+        output-dir: wheelhouse
 
-          - name: Build wheels for macos x86_64
-            if: matrix.os == 'macos-latest' && matrix.arch == 'x86_64'
-            uses: pypa/cibuildwheel@v2.15.0
-            env:
-              CIBW_ARCHS_MACOS: ${{ matrix.arch }}
-              CIBW_ARCHS_LINUX: ${{ matrix.arch }}
-              CIBW_ARCHS_WINDOWS: ${{ matrix.arch }}
-              CIBW_BUILD: ${{ matrix.build }}
-              CIBW_BUILD_VERBOSITY: 1
-              CIBW_ENVIRONMENT: CMAKE_BUILD_PARALLEL_LEVEL=2 NCNN_VULKAN=TRUE VULKAN_SDK=${{steps.verify-vulkan.outputs.VULKAN_SDK}}
-            with:
-              output-dir: wheelhouse
+    - name: Build wheels for macos x86_64
+      if: matrix.os == 'macos-latest' && matrix.arch == 'x86_64'
+      uses: pypa/cibuildwheel@v2.15.0
+      env:
+        CIBW_ARCHS_MACOS: ${{ matrix.arch }}
+        CIBW_ARCHS_LINUX: ${{ matrix.arch }}
+        CIBW_ARCHS_WINDOWS: ${{ matrix.arch }}
+        CIBW_BUILD: ${{ matrix.build }}
+        CIBW_BUILD_VERBOSITY: 1
+        CIBW_ENVIRONMENT: CMAKE_BUILD_PARALLEL_LEVEL=2 NCNN_VULKAN=TRUE VULKAN_SDK=${{steps.verify-vulkan.outputs.VULKAN_SDK}}
+      with:
+        output-dir: wheelhouse
 
-          - name: Build wheels for cpu only now
-            if: matrix.arch == 'i686' || matrix.build == 'cp*-musllinux*' ||
-              (matrix.os == 'windows-2019' && matrix.arch == 'x86') ||
-              (matrix.os == 'windows-2019' && matrix.arch == 'ARM64') ||
-              (matrix.os == 'macos-latest' && matrix.arch == 'arm64') ||
-              (matrix.os == 'macos-latest' && matrix.arch == 'universal2')
-            uses: pypa/cibuildwheel@v2.15.0
-            env:
-              CIBW_ARCHS_MACOS: ${{ matrix.arch }}
-              CIBW_ARCHS_LINUX: ${{ matrix.arch }}
-              CIBW_ARCHS_WINDOWS: ${{ matrix.arch }}
-              CIBW_BUILD: ${{ matrix.build }}
-              CIBW_BUILD_VERBOSITY: 1
-              CIBW_ENVIRONMENT: CMAKE_BUILD_PARALLEL_LEVEL=2 NCNN_VULKAN=FALSE
-            with:
-              output-dir: wheelhouse
+    - name: Build wheels for cpu only now
+      if: matrix.arch == 'i686' || matrix.build == 'cp*-musllinux*' ||
+        (matrix.os == 'windows-2019' && matrix.arch == 'x86') ||
+        (matrix.os == 'windows-2019' && matrix.arch == 'ARM64') ||
+        (matrix.os == 'macos-latest' && matrix.arch == 'arm64') ||
+        (matrix.os == 'macos-latest' && matrix.arch == 'universal2')
+      uses: pypa/cibuildwheel@v2.15.0
+      env:
+        CIBW_ARCHS_MACOS: ${{ matrix.arch }}
+        CIBW_ARCHS_LINUX: ${{ matrix.arch }}
+        CIBW_ARCHS_WINDOWS: ${{ matrix.arch }}
+        CIBW_BUILD: ${{ matrix.build }}
+        CIBW_BUILD_VERBOSITY: 1
+        CIBW_ENVIRONMENT: CMAKE_BUILD_PARALLEL_LEVEL=2 NCNN_VULKAN=FALSE
+      with:
+        output-dir: wheelhouse
 
     - name: Show files
       run: ls -lh wheelhouse
