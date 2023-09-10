@@ -80,7 +80,6 @@ jobs:
       if: matrix.os == 'ubuntu-20.04' && matrix.arch == 'x86_64' &&  matrix.build != 'cp*-musllinux*'
       shell: bash
       run: |
-        cd ncnn-python-gpu
         wget https://sdk.lunarg.com/sdk/download/1.2.189.0/linux/vulkansdk-linux-x86_64-1.2.189.0.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.2.189.0.tar.gz
         tar -xf vulkansdk-linux-x86_64-1.2.189.0.tar.gz
 
@@ -102,7 +101,7 @@ jobs:
         CIBW_ARCHS_WINDOWS: ${{ matrix.arch }}
         CIBW_BUILD: ${{ matrix.build }}
         CIBW_BUILD_VERBOSITY: 1
-        CIBW_ENVIRONMENT: CMAKE_BUILD_PARALLEL_LEVEL=2 NCNN_VULKAN=TRUE VULKAN_SDK=/project/ncnn-python-gpu/1.2.189.0/x86_64
+        CIBW_ENVIRONMENT: CMAKE_BUILD_PARALLEL_LEVEL=2 NCNN_VULKAN=TRUE VULKAN_SDK=/project/1.2.189.0/x86_64
       with:
         output-dir: wheelhouse
 
