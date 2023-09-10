@@ -276,7 +276,6 @@ if(NCNN_VULKAN)
                 message(WARNING "Failed to find vulkan since cmake is too old\n"
                     "cmake >= 3.7 required. Consider `brew upgrade cmake`")
             endif()
-
         else()
             message(FATAL_ERROR "Error: CMake didn't find Vulkan. Please set VULKAN_SDK env var, e.g.:\n"
                 "Linux: export VULKAN_SDK=~/soft/vulkansdk/1.2.148.0/x86_64\n"

@@ -78,8 +78,6 @@ option(NCNN_INT8 "int8 inference" ON)
 option(NCNN_BF16 "bf16 inference" ON)
 option(NCNN_FORCE_INLINE "force inline some function" ON)
 
-
-
 if(ANDROID OR IOS OR NCNN_SIMPLESTL OR CMAKE_CROSSCOMPILING)
     option(NCNN_DISABLE_RTTI "disable rtti" ON)
     option(NCNN_BUILD_TOOLS "build tools" OFF)
