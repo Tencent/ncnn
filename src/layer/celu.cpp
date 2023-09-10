@@ -26,7 +26,7 @@ CeLU::CeLU()
 
 int CeLU::load_param(const ParamDict& pd)
 {
-    alpha = pd.get(0, 1.f);
+    alpha = pd.get(0, 1.0f);
 
     return 0;
 }
@@ -46,7 +46,7 @@ int CeLU::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
         for (int i = 0; i < size; i++)
         {
-            ptr[i] = std::max(0.0f, ptr[i]) + std::min(0.0f, alpha * (expf(ptr[i] / alpha) - 1));
+            ptr[i] = std::max(0.0f, ptr[i]) + std::min(0.0f, alpha * (expf(ptr[i] / alpha) - 1.0f));
         }
     }
 
