@@ -151,6 +151,9 @@
 ||2|width_scale|1.f|
 ||3|output_height|0|
 ||4|output_width|0|
+|LinearInt8|0|in_dim|0|scale weight|
+||1|out_dim|0|
+||2|group_size|0|
 |Log|0|base|-1.f|
 ||1|scale|1.f|
 ||2|shift|0.f|
