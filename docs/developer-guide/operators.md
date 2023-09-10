@@ -45,6 +45,7 @@
 * [InstanceNorm](#instancenorm)
 * [Interp](#interp)
 * [LayerNorm](#layernorm)
+* [LinearInt8](#linearint8)
 * [Log](#log)
 * [LRN](#lrn)
 * [LSTM](#lstm)
@@ -1103,6 +1104,24 @@ y = x * gamma + beta by elementwise
 | ------------- | ----- | --------------------- |
 | gamma_data    | float | [affine_size]         |
 | beta_data     | float | [affine_size]         |
+
+# LinearInt8
+```
+y = x (WS)^T
+```
+
+* one_blob_only
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | in_dim          | int | 0      |                   |
+| 1         | out_dim         | int | 0       |                   |
+| 2         | group_size         | int | 0       |                   |
+
+| weight        | type  | shape                 |
+| ------------- | ----- | --------------------- |
+| scale   | float | [in_dim * out_dim / group_size] |
+| weight     | int8 | [in_dim, out_dim]          |
 
 # Log
 ```
