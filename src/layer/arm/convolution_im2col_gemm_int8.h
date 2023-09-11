@@ -917,7 +917,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 "st1    {v28.4s, v29.4s}, [x4]      \n"
                 "add    x4, x4, %12, lsl #2         \n"
                 "st1    {v30.4s, v31.4s}, [x4]      \n"
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
 
                 // from
                 //      a0 b1 c2 d3
@@ -1834,7 +1834,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                     vst1q_s32(outptr0 + out_hstep * 7 + 4, _sumf);
                     outptr0 += 8;
                 }
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
 
                 // from
                 //      a0 b1 c2 d3
@@ -2470,7 +2470,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 "st1    {v22.4s}, [x4]              \n"
                 "add    x4, x4, %12, lsl #2         \n"
                 "st1    {v23.4s}, [x4]              \n"
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
 
                 // from
                 //      a0 b1 c2 d3
@@ -3258,7 +3258,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                     vst1q_s32(outptr0 + out_hstep * 7, _sum7);
                     outptr0 += 4;
                 }
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
 
                 // from
                 //      a0 b1 c2 d3
