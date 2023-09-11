@@ -321,7 +321,7 @@ static void convolution_im2col_pack_A_tile_int8(const Mat& A, Mat& AT, int i, in
 
 static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile, Mat& topT_tile, Mat& top_blob, int i, int max_ii, int j, int max_jj, int k, int max_kk, bool k_end)
 {
-    NCNN_LOGE("convolution_gemm_transB_packed_tile_int8 %d %d %d %d %d %d", i, max_ii, j, max_jj, k, max_kk);
+    // NCNN_LOGE("convolution_gemm_transB_packed_tile_int8 %d %d %d %d %d %d", i, max_ii, j, max_jj, k, max_kk);
 
     const int out_elempack = top_blob.elempack;
     const int out_hstep = (int)top_blob.cstep;
@@ -6577,13 +6577,13 @@ static void convolution_im2col_gemm_get_optimal_tile_mnk_int8(int M, int N, int 
     // solve M
     {
 #if __ARM_NEON
-        int nn_M = (M + 15) / 16;
+        int nn_M = (M + 31) / 32;
 #else
         int nn_M = (M + 7) / 8;
 #endif
 
 #if __ARM_NEON
-        TILE_M = std::max(4, ((M + nn_M - 1) / nn_M + 3) / 4 * 4);
+        TILE_M = std::max(8, ((M + nn_M - 1) / nn_M + 7) / 8 * 8);
 #else
         TILE_M = std::max(2, ((M + nn_M - 1) / nn_M + 1) / 2 * 2);
 #endif
@@ -6594,7 +6594,7 @@ static void convolution_im2col_gemm_get_optimal_tile_mnk_int8(int M, int N, int 
 
         int nn_M = (M + TILE_M - 1) / TILE_M;
 #if __ARM_NEON
-        TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 3) / 4 * 4);
+        TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 7) / 8 * 8);
 #else
         TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 1) / 2 * 2);
 #endif
@@ -6602,7 +6602,7 @@ static void convolution_im2col_gemm_get_optimal_tile_mnk_int8(int M, int N, int 
         if (nT > 1)
         {
 #if __ARM_NEON
-            TILE_M = std::min(TILE_M, (std::max(1, TILE_M / nT) + 3) / 4 * 4);
+            TILE_M = std::min(TILE_M, (std::max(1, TILE_M / nT) + 7) / 8 * 8);
 #else
             TILE_M = std::min(TILE_M, (std::max(1, TILE_M / nT) + 1) / 2 * 2);
 #endif
