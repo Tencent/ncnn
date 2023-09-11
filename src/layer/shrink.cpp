@@ -24,7 +24,7 @@ Shrink::Shrink()
 
 int Shrink::load_param(const ParamDict& pd)
 {
-    bias = pd.get(0, , 0.0f);
+    bias = pd.get(0, 0.0f);
     lambd = pd.get(1, 0.5f);
 
     return 0;
