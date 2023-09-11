@@ -2772,51 +2772,22 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 "vrev64.32  q13, q13            \n"
                 "vrev64.32  q14, q14            \n"
                 "vrev64.32  q15, q15            \n"
-
                 "vext.32    q12, q12, #2        \n"
                 "vext.32    q13, q13, #2        \n"
                 "vext.32    q14, q14, #2        \n"
                 "vext.32    q15, q15, #2        \n"
-
-                // a0 b1 c2 d3
-                // e0 f1 g2 h3
-                // c0 d1 a2 b3
-                // g0 h1 e2 f3
-
-                // d0 c1 b2 a3
-                // h0 g1 f2 e3
-                // b0 a1 d2 c3
-                // f0 e1 h2 g3
-
                 "vzip.32    q8, q14             \n"
                 "vzip.32    q10, q12            \n"
                 "vzip.32    q9, q15             \n"
                 "vzip.32    q11, q13            \n"
-
-                // q8  = a0 b0 b1 a1  q14 = c2 d2 d3 c3
-                // q10 = c0 d0 d1 c1  q12 = a2 b2 b3 a3
-                // q9  = e0 f0 f1 e1  q15 = g2 h2 h3 g3
-                // q11 = g0 h0 h1 g1  q13 = e2 f2 f3 e3
-
                 "vswp       d17, d20            \n"
                 "vswp       d19, d22            \n"
                 "vswp       d28, d25            \n"
                 "vswp       d30, d27            \n"
-
-                // q8  = a0 b0 c0 d0  q14 = b3 a3 d3 c3
-                // q10 = b1 a1 d1 c1  q12 = a2 b2 c2 d2
-                // q9  = e0 f0 g0 h0  q15 = f3 e3 h3 g3
-                // q11 = f1 e1 h1 g1  q13 = e2 f2 g2 h2
-
                 "vrev64.32  q10, q10            \n"
                 "vrev64.32  q11, q11            \n"
                 "vrev64.32  q14, q14            \n"
                 "vrev64.32  q15, q15            \n"
-
-                // q8  = a0 b0 c0 d0  q14 = a3 b3 c3 d3
-                // q9  = e0 f0 g0 h0  q15 = e3 f3 g3 h3
-                // q10 = a1 b1 c1 d1  q12 = a2 b2 c2 d2
-                // q11 = e1 f1 g1 h1  q13 = e2 f2 g2 h2
 
                 // if out_elempack == 8
                 "cmp        %11, #8             \n"
@@ -2846,15 +2817,14 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 //      e1 f1 g1 h1
                 //      e2 f2 g2 h2
                 //      e3 f3 g3 h3
+                "vswp       q9, q10             \n"
+                "vswp       q13, q14            \n"
+                "vswp       q10, q12            \n"
+                "vswp       q11, q13            \n"
+
                 "add        r4, %3, %12, lsl #4 \n"
-                "vst1.s32   {d16-d17}, [%3]!    \n"
-                "vst1.s32   {d20-d21}, [%3]!    \n"
-                "vst1.s32   {d24-d25}, [%3]!    \n"
-                "vst1.s32   {d28-d29}, [%3]!    \n"
-                "vst1.s32   {d18-d19}, [r4]!    \n"
-                "vst1.s32   {d22-d23}, [r4]!    \n"
-                "vst1.s32   {d26-d27}, [r4]!    \n"
-                "vst1.s32   {d30-d31}, [r4]     \n"
+                "vstm       %3!, {d16-d23}      \n"
+                "vstm       r4, {d24-d31}       \n"
                 "b          9f                  \n"
 
                 // if out_elempack == 1
