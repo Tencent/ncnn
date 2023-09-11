@@ -5074,35 +5074,14 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 "vrev64.32  q11, q11            \n"
                 "vext.32    q10, q10, #2        \n"
                 "vext.32    q11, q11, #2        \n"
-
                 "vzip.32    q8, q11             \n"
                 "vzip.32    q9, q10             \n"
+                "vswp       d17, d18            \n"
+                "vswp       d21, d22            \n"
+                "vrev64.32  q9, q9              \n"
+                "vrev64.32  q11, q11            \n"
 
-                //      a0 b0 b1 a1
-                //      c2 d2 d3 c3
-                //      c0 d0 d1 c1
-                //      a2 b2 b3 a3
-
-                "vswp       d17, d20            \n"
-                "vswp       d18, d23            \n"
-
-                //      a0 b0 c0 d0
-                //      b3 a3 d3 c3
-                //      b1 a1 d1 c1
-                //      a2 b2 c2 d2
-
-                "vrev64.32  q12, q9             \n"
-                "vrev64.32  q10, q10            \n"
-
-                //      a0 b0 c0 d0
-                //      . . . .
-                //      a1 b1 c1 d1
-                //      a2 b2 c2 d2
-                //      a3 b3 c3 d3
-
-                "vmov       q9, q8              \n"
-
-                "vstm       %3!, {d18-d25}      \n"
+                "vstm       %3!, {d16-d23}      \n"
                 "b          9f                  \n"
 
                 // if out_elempack == 1
@@ -5114,34 +5093,12 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 //      d0 d1 d2 d3
                 "vext.32    q9, q9, #2          \n"
                 "vext.32    q11, q11, #2        \n"
-
-                //      a0 b1 c2 d3
-                //      a2 b3 c0 d1
-                //      a3 b2 c1 d0
-                //      a1 b0 c3 d2
                 "vzip.32    q8, q11             \n"
                 "vzip.32    q9, q10             \n"
-
-                //      a0 a1 b1 b0
-                //      a2 a3 b3 b2
-                //      c0 c1 d1 d0
-                //      c2 c3 d3 d2
-
                 "vswp       d17, d18            \n"
                 "vswp       d21, d22            \n"
-
-                //      a0 a1 a2 a3
-                //      b1 b0 b3 b2
-                //      c0 c1 c2 c3
-                //      d1 d0 d3 d2
-
                 "vrev64.32  q9, q9              \n"
                 "vrev64.32  q11, q11            \n"
-
-                //      a0 a1 a2 a3
-                //      b0 b1 b2 b3
-                //      c0 c1 c2 c3
-                //      d0 d1 d2 d3
 
                 "add        r4, %3, %12, lsl #2 \n"
                 "vst1.s32   {d16-d17}, [%3]!    \n"
@@ -5436,18 +5393,8 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                         _sum3 = vrev64q_s32(_sum3);
                         _sum2 = vextq_s32(_sum2, _sum2, 2);
                         _sum3 = vextq_s32(_sum3, _sum3, 2);
-
-                //      a0 b1 c2 d3
-                //      c0 d1 a2 b3
-                //      d0 c1 b2 a3
-                //      b0 a1 d2 c3
                         int32x4x2_t _t0 = vzipq_s32(_sum0, _sum3);
                         int32x4x2_t _t1 = vzipq_s32(_sum1, _sum2);
-
-                //      a0 b0 b1 a1
-                //      c2 d2 d3 c3
-                //      c0 d0 d1 c1
-                //      a2 b2 b3 a3
                         _sum0 = vcombine_s32(vget_low_s32(_t0.val[0]), vget_low_s32(_t1.val[0]));
                         _sum1 = vcombine_s32(vget_high_s32(_t0.val[0]), vget_high_s32(_t1.val[0]));
                         _sum2 = vcombine_s32(vget_low_s32(_t1.val[1]), vget_low_s32(_t0.val[1]));
@@ -5472,22 +5419,12 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                     {
                         _sum1 = vextq_s32(_sum1, _sum1, 2);
                         _sum3 = vextq_s32(_sum3, _sum3, 2);
-                //      a0 b1 c2 d3
-                //      a2 b3 c0 d1
-                //      a3 b2 c1 d0
-                //      a1 b0 c3 d2
                         int32x4x2_t _t0 = vzipq_s32(_sum0, _sum3);
                         int32x4x2_t _t1 = vzipq_s32(_sum1, _sum2);
-
-                        // a0 a1 b1 b0
-                        // c2 c3 d3 d2
-                        // a2 a3 b3 b2
-                        // c0 c1 d1 d0
                         _sum0 = vcombine_s32(vget_low_s32(_t0.val[0]), vget_low_s32(_t1.val[0]));
                         _sum1 = vcombine_s32(vget_high_s32(_t0.val[0]), vget_high_s32(_t1.val[0]));
                         _sum2 = vcombine_s32(vget_low_s32(_t1.val[1]), vget_low_s32(_t0.val[1]));
                         _sum3 = vcombine_s32(vget_high_s32(_t1.val[1]), vget_high_s32(_t0.val[1]));
-
                         _sum1 = vrev64q_s32(_sum1);
                         _sum3 = vrev64q_s32(_sum3);
                     }
