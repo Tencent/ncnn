@@ -2301,7 +2301,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
         {
             const signed char* pA = pAT;
 
-#if 0//NCNN_GNU_INLINE_ASM
+#if NCNN_GNU_INLINE_ASM
 #if __aarch64__
             asm volatile(
                 "cmp    %w9, #0                     \n"
@@ -2495,13 +2495,11 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 "sadalp v23.4s, v15.8h              \n"
 #else  // __ARM_FEATURE_DOTPROD
                 "ld1    {v0.16b}, [%1], #16         \n"
-                "ld1    {v2.8b}, [%2], #8           \n"
+                "ld1r   {v2.2d}, [%2]               \n"
+                "add    %2, %2, #8                  \n"
 
                 "rev64  v1.4s, v0.4s                \n"
                 "rev64  v3.8h, v2.8h                \n"
-
-                "mov    v2.d[1], v2.d[0]            \n"
-                "mov    v3.d[1], v3.d[0]            \n"
 
                 "smull  v8.8h, v0.8b, v2.8b         \n"
                 "smull2 v9.8h, v0.16b, v2.16b       \n"
@@ -2514,12 +2512,12 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
 
                 "sadalp v16.4s, v8.8h               \n"
                 "sadalp v17.4s, v9.8h               \n"
-                "sadalp v20.4s, v10.8h              \n"
-                "sadalp v21.4s, v11.8h              \n"
-                "sadalp v24.4s, v12.8h              \n"
-                "sadalp v25.4s, v13.8h              \n"
-                "sadalp v28.4s, v14.8h              \n"
-                "sadalp v29.4s, v15.8h              \n"
+                "sadalp v18.4s, v10.8h              \n"
+                "sadalp v19.4s, v11.8h              \n"
+                "sadalp v20.4s, v12.8h              \n"
+                "sadalp v21.4s, v13.8h              \n"
+                "sadalp v22.4s, v14.8h              \n"
+                "sadalp v23.4s, v15.8h              \n"
 #endif // __ARM_FEATURE_DOTPROD
 
                 "4:                                 \n"
@@ -2552,8 +2550,11 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 "saddw2 v23.4s, v23.4s, v11.8h      \n"
 #else  // __ARM_FEATURE_DOTPROD
                 "ld1    {v0.8b}, [%1], #8           \n"
-                "ld1    {v4.8b}, [%2]               \n"
+                // "ld1    {v4.8b}, [%2]               \n"
+                "ld1r   {v4.2s}, [%2]               \n"
                 "add    %2, %2, #4                  \n"
+
+                // "zip1   v4.8b, v4.8b, v4.8b         \n"
 
                 "rev32  v1.4h, v0.4h                \n"
                 "rev64  v5.8b, v4.8b                \n"
@@ -2700,9 +2701,9 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 "zip2   v27.2d, v7.2d, v5.2d        \n"
 
                 "rev64  v17.4s, v17.4s              \n"
+                "rev64  v25.4s, v25.4s              \n"
                 "rev64  v19.4s, v19.4s              \n"
-                "rev64  v21.4s, v21.4s              \n"
-                "rev64  v23.4s, v23.4s              \n"
+                "rev64  v27.4s, v27.4s              \n"
 
                 "add    x4, %3, %12, lsl #4         \n"
                 "st1    {v16.4s, v17.4s, v18.4s, v19.4s}, [%3], #64 \n"
