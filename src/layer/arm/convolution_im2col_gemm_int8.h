@@ -4190,7 +4190,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 "r"(out_elempack), // %11
                 "r"(out_hstep)     // %12
                 : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
-#else  // NCNN_GNU_INLINE_ASM
+#else // NCNN_GNU_INLINE_ASM
             int32x4_t _sum0;
             int32x4_t _sum1;
             int32x4_t _sum2;
@@ -4551,7 +4551,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                     vst1q_s32(outptr0 + out_hstep * 3 + 4, _sum7);
                     outptr0 += 8;
                 }
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
 
                 // from
                 //      a0 b1 c2 d3
@@ -5270,7 +5270,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 _sum1 = vpadalq_s16(_sum1, _s1);
                 _sum2 = vpadalq_s16(_sum2, _s2);
                 _sum3 = vpadalq_s16(_sum3, _s3);
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
                 int8x8_t _pA0 = vld1_s8(pA);
                 int8x8_t _pB0 = vld1_s8(pB);
 
@@ -5312,7 +5312,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 _sum1 = vaddw_s16(_sum1, vget_high_s16(_s01));
                 _sum2 = vaddw_s16(_sum2, vget_low_s16(_s23));
                 _sum3 = vaddw_s16(_sum3, vget_high_s16(_s23));
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
 
                 int8x8_t _pA0 = vld1_s8(pA);
                 int8x8_t _pB0 = vreinterpret_s8_s32(vld1_dup_s32((const int*)pB));
@@ -5374,7 +5374,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                     vst1q_s32(outptr0 + out_hstep * 3, _sum3);
                     outptr0 += 4;
                 }
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
 
                 // from
                 //      a0 b1 c2 d3
