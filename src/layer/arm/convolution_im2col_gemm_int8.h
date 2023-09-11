@@ -405,7 +405,6 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 "2:                                 \n"
                 "ld1    {v16.16b, v17.16b, v18.16b, v19.16b}, [%1], #64 \n"
                 "ld1    {v20.16b, v21.16b, v22.16b, v23.16b}, [%2], #64 \n"
-
                 "smmla  v0.4s, v16.16b, v20.16b     \n"
                 "smmla  v1.4s, v17.16b, v20.16b     \n"
                 "smmla  v2.4s, v16.16b, v21.16b     \n"
@@ -414,9 +413,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 "smmla  v5.4s, v19.16b, v20.16b     \n"
                 "smmla  v6.4s, v18.16b, v21.16b     \n"
                 "smmla  v7.4s, v19.16b, v21.16b     \n"
-
                 "subs   w4, w4, #1                  \n"
-
                 "smmla  v8.4s, v16.16b, v22.16b     \n"
                 "smmla  v9.4s, v17.16b, v22.16b     \n"
                 "smmla  v10.4s, v16.16b, v23.16b    \n"
@@ -452,7 +449,6 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 "ld1    {v8.4s, v9.4s, v10.4s, v11.4s}, [%0], #64 \n"
                 "ld1    {v12.4s, v13.4s, v14.4s, v15.4s}, [%0]    \n"
                 "sub    %0, %0, #192                \n"
-
                 "add    v16.4s, v16.4s, v0.4s       \n"
                 "add    v17.4s, v17.4s, v1.4s       \n"
                 "add    v18.4s, v18.4s, v2.4s       \n"
@@ -474,7 +470,6 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 "2:                                 \n"
                 "ld1    {v0.16b, v1.16b, v2.16b, v3.16b}, [%1], #64 \n"
                 "ld1    {v4.16b, v5.16b, v6.16b, v7.16b}, [%2], #64 \n"
-
                 "sdot   v16.4s, v0.16b, v4.4b[0]    \n"
                 "sdot   v17.4s, v0.16b, v4.4b[1]    \n"
                 "sdot   v18.4s, v0.16b, v4.4b[2]    \n"
@@ -491,9 +486,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 "sdot   v29.4s, v1.16b, v5.4b[1]    \n"
                 "sdot   v30.4s, v1.16b, v5.4b[2]    \n"
                 "sdot   v31.4s, v1.16b, v5.4b[3]    \n"
-
                 "subs   w4, w4, #1                  \n"
-
                 "sdot   v16.4s, v2.16b, v6.4b[0]    \n"
                 "sdot   v17.4s, v2.16b, v6.4b[1]    \n"
                 "sdot   v18.4s, v2.16b, v6.4b[2]    \n"
@@ -549,10 +542,9 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 "cmp    w4, #0                      \n"
                 "beq    3f                          \n"
 
-                // +4
+                // kk += 4 part
                 "ld1    {v0.16b, v1.16b}, [%1], #32 \n"
                 "ld1    {v2.16b, v3.16b}, [%2], #32 \n"
-
                 "sdot   v16.4s, v0.16b, v2.4b[0]    \n"
                 "sdot   v17.4s, v0.16b, v2.4b[1]    \n"
                 "sdot   v18.4s, v0.16b, v2.4b[2]    \n"
@@ -577,12 +569,10 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 "2:                                 \n"
                 "ld1    {v0.16b, v1.16b}, [%1], #32 \n"
                 "ld1    {v4.16b, v5.16b}, [%2], #32 \n"
-
                 "rev64  v2.4s, v0.4s                \n"
                 "rev64  v3.4s, v1.4s                \n"
                 "rev64  v6.8h, v4.8h                \n"
                 "rev64  v7.8h, v5.8h                \n"
-
                 "smull  v8.8h, v0.8b, v4.8b         \n"
                 "smull2 v9.8h, v0.16b, v4.16b       \n"
                 "smull  v10.8h, v2.8b, v4.8b        \n"
@@ -591,7 +581,6 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 "smull2 v13.8h, v0.16b, v6.16b      \n"
                 "smull  v14.8h, v2.8b, v6.8b        \n"
                 "smull2 v15.8h, v2.16b, v6.16b      \n"
-
                 "smlal  v8.8h, v1.8b, v5.8b         \n"
                 "smlal2 v9.8h, v1.16b, v5.16b       \n"
                 "smlal  v10.8h, v3.8b, v5.8b        \n"
@@ -600,7 +589,6 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 "smlal2 v13.8h, v1.16b, v7.16b      \n"
                 "smlal  v14.8h, v3.8b, v7.8b        \n"
                 "smlal2 v15.8h, v3.16b, v7.16b      \n"
-
                 "sadalp v16.4s, v8.8h               \n"
                 "sadalp v17.4s, v9.8h               \n"
                 "sadalp v20.4s, v10.8h              \n"
@@ -609,12 +597,10 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 "sadalp v25.4s, v13.8h              \n"
                 "sadalp v28.4s, v14.8h              \n"
                 "sadalp v29.4s, v15.8h              \n"
-
                 "ext    v0.16b, v0.16b, v0.16b, #8  \n"
                 "ext    v2.16b, v2.16b, v2.16b, #8  \n"
                 "ext    v1.16b, v1.16b, v1.16b, #8  \n"
                 "ext    v3.16b, v3.16b, v3.16b, #8  \n"
-
                 "smull  v8.8h, v0.8b, v4.8b         \n"
                 "smull2 v9.8h, v0.16b, v4.16b       \n"
                 "smull  v10.8h, v2.8b, v4.8b        \n"
@@ -623,7 +609,6 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 "smull2 v13.8h, v0.16b, v6.16b      \n"
                 "smull  v14.8h, v2.8b, v6.8b        \n"
                 "smull2 v15.8h, v2.16b, v6.16b      \n"
-
                 "smlal  v8.8h, v1.8b, v5.8b         \n"
                 "smlal2 v9.8h, v1.16b, v5.16b       \n"
                 "smlal  v10.8h, v3.8b, v5.8b        \n"
@@ -632,9 +617,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 "smlal2 v13.8h, v1.16b, v7.16b      \n"
                 "smlal  v14.8h, v3.8b, v7.8b        \n"
                 "smlal2 v15.8h, v3.16b, v7.16b      \n"
-
                 "subs   w4, w4, #1                  \n"
-
                 "sadalp v18.4s, v8.8h               \n"
                 "sadalp v19.4s, v9.8h               \n"
                 "sadalp v22.4s, v10.8h              \n"
@@ -651,11 +634,10 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 "cmp    w4, #0                      \n"
                 "beq    4f                          \n"
 
-                // +2
+                // kk += 2 part
 #if __ARM_FEATURE_DOTPROD
                 "ld1    {v0.16b}, [%1], #16         \n"
                 "ld1    {v1.16b}, [%2], #16         \n"
-
                 "dup    v4.8h, v1.h[0]              \n"
                 "dup    v5.8h, v1.h[1]              \n"
                 "dup    v6.8h, v1.h[2]              \n"
@@ -676,7 +658,6 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 "sadalp v21.4s, v13.8h              \n"
                 "sadalp v22.4s, v14.8h              \n"
                 "sadalp v23.4s, v15.8h              \n"
-
                 "dup    v4.8h, v1.h[4]              \n"
                 "dup    v5.8h, v1.h[5]              \n"
                 "dup    v6.8h, v1.h[6]              \n"
@@ -700,10 +681,8 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
 #else  // __ARM_FEATURE_DOTPROD
                 "ld1    {v0.16b}, [%1], #16         \n"
                 "ld1    {v2.16b}, [%2], #16         \n"
-
                 "rev64  v1.4s, v0.4s                \n"
                 "rev64  v3.8h, v2.8h                \n"
-
                 "smull  v8.8h, v0.8b, v2.8b         \n"
                 "smull2 v9.8h, v0.16b, v2.16b       \n"
                 "smull  v10.8h, v1.8b, v2.8b        \n"
@@ -712,7 +691,6 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 "smull2 v13.8h, v0.16b, v3.16b      \n"
                 "smull  v14.8h, v1.8b, v3.8b        \n"
                 "smull2 v15.8h, v1.16b, v3.16b      \n"
-
                 "sadalp v16.4s, v8.8h               \n"
                 "sadalp v17.4s, v9.8h               \n"
                 "sadalp v20.4s, v10.8h              \n"
@@ -721,10 +699,8 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 "sadalp v25.4s, v13.8h              \n"
                 "sadalp v28.4s, v14.8h              \n"
                 "sadalp v29.4s, v15.8h              \n"
-
                 "ext    v0.16b, v0.16b, v0.16b, #8  \n"
                 "ext    v1.16b, v1.16b, v1.16b, #8  \n"
-
                 "smull  v8.8h, v0.8b, v2.8b         \n"
                 "smull2 v9.8h, v0.16b, v2.16b       \n"
                 "smull  v10.8h, v1.8b, v2.8b        \n"
@@ -733,7 +709,6 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 "smull2 v13.8h, v0.16b, v3.16b      \n"
                 "smull  v14.8h, v1.8b, v3.8b        \n"
                 "smull2 v15.8h, v1.16b, v3.16b      \n"
-
                 "sadalp v18.4s, v8.8h               \n"
                 "sadalp v19.4s, v9.8h               \n"
                 "sadalp v22.4s, v10.8h              \n"
@@ -749,11 +724,10 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 "cmp    w4, #0                      \n"
                 "beq    5f                          \n"
 
-                // +1
+                // kk += 1 part
 #if __ARM_FEATURE_DOTPROD
                 "ld1    {v0.8b}, [%1], #8           \n"
                 "ld1    {v1.8b}, [%2], #8           \n"
-
                 "dup    v8.8b, v1.b[0]              \n"
                 "dup    v9.8b, v1.b[1]              \n"
                 "dup    v10.8b, v1.b[2]             \n"
@@ -770,7 +744,6 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 "smull  v13.8h, v0.8b, v13.8b       \n"
                 "smull  v14.8h, v0.8b, v14.8b       \n"
                 "smull  v15.8h, v0.8b, v15.8b       \n"
-
                 "saddw  v16.4s, v16.4s, v8.4h       \n"
                 "saddw  v17.4s, v17.4s, v9.4h       \n"
                 "saddw  v18.4s, v18.4s, v10.4h      \n"
@@ -790,12 +763,10 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
 #else  // __ARM_FEATURE_DOTPROD
                 "ld1    {v0.8b}, [%1], #8           \n"
                 "ld1    {v4.8b}, [%2], #8           \n"
-
                 "ext    v1.8b, v0.8b, v0.8b, #4     \n"
                 "rev32  v2.4h, v0.4h                \n"
                 "rev64  v3.4h, v0.4h                \n"
                 "rev32  v5.8b, v4.8b                \n"
-
                 "smull  v8.8h, v0.8b, v4.8b         \n"
                 "smull  v9.8h, v1.8b, v4.8b         \n"
                 "smull  v10.8h, v2.8b, v4.8b        \n"
@@ -804,7 +775,6 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 "smull  v13.8h, v1.8b, v5.8b        \n"
                 "smull  v14.8h, v2.8b, v5.8b        \n"
                 "smull  v15.8h, v3.8b, v5.8b        \n"
-
                 "saddw  v16.4s, v16.4s, v8.4h       \n"
                 "saddw2 v17.4s, v17.4s, v8.8h       \n"
                 "saddw  v18.4s, v18.4s, v9.4h       \n"
@@ -827,92 +797,32 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 "cmp    %w10, #0                    \n"
                 "beq    10f                         \n"
 
+#if __ARM_FEATURE_DOTPROD
+                // from
+                //      a0 b0 c0 d0
+                //      a1 b1 c1 d1
+                //      a2 b2 c2 d2
+                //      a3 b3 c3 d3
+                //      e0 f0 g0 h0
+                //      e1 f1 g1 h1
+                //      e2 f2 g2 h2
+                //      e3 f3 g3 h3
+                //      a4 b4 c4 d4
+                //      a5 b5 c5 d5
+                //      a6 b6 c6 d6
+                //      a7 b7 c7 d7
+                //      e4 f4 g4 h4
+                //      e5 f5 g5 h5
+                //      e6 f6 g6 h6
+                //      e7 f7 g7 h7
                 // if out_elempack == 4 / 8
                 "cmp    %w11, #1                    \n"
                 "beq    8f                          \n"
-
-#if __ARM_FEATURE_DOTPROD
-                // a0 b0 c0 d0
-                // a1 b1 c1 d1
-                // a2 b2 c2 d2
-                // a3 b3 c3 d3
-                // e0 f0 g0 h0
-                // e1 f1 g1 h1
-                // e2 f2 g2 h2
-                // e3 f3 g3 h3
-
-                // a4 b4 c4 d4
-                // a5 b5 c5 d5
-                // a6 b6 c6 d6
-                // a7 b7 c7 d7
-                // e4 f4 g4 h4
-                // e5 f5 g5 h5
-                // e6 f6 g6 h6
-                // e7 f7 g7 h7
-
-#else  // __ARM_FEATURE_DOTPROD
-
-                // 0 v16 = a0 b1 c2 d3   1 v17 = e4 f5 g6 h7
-                // 2 v18 = e0 f1 g2 h3   3 v19 = a4 b5 c6 d7
-                // 4 v20 = c0 d1 a2 b3   5 v21 = g4 h5 e6 f7
-                // 6 v22 = g0 h1 e2 f3   7 v23 = c4 d5 a6 b7
-
-                // 8 v24 = a3 b2 c1 d0   9 v25 = e7 f6 g5 h4
-                // a v26 = e3 f2 g1 h0   b v27 = a7 b6 c5 d4
-                // c v28 = c3 d2 a1 b0   d v29 = g7 h6 e5 f4
-                // e v30 = g3 h2 e1 f0   f v31 = c7 d6 a5 b4
-
-                "rev64  v24.4s, v24.4s              \n"
-                "rev64  v25.4s, v25.4s              \n"
-                "rev64  v26.4s, v26.4s              \n"
-                "rev64  v27.4s, v27.4s              \n"
-                "rev64  v28.4s, v28.4s              \n"
-                "rev64  v29.4s, v29.4s              \n"
-                "rev64  v30.4s, v30.4s              \n"
-                "rev64  v31.4s, v31.4s              \n"
-
-                "ext    v24.16b, v24.16b, v24.16b, #8 \n"
-                "ext    v25.16b, v25.16b, v25.16b, #8 \n"
-                "ext    v26.16b, v26.16b, v26.16b, #8 \n"
-                "ext    v27.16b, v27.16b, v27.16b, #8 \n"
-                "ext    v28.16b, v28.16b, v28.16b, #8 \n"
-                "ext    v29.16b, v29.16b, v29.16b, #8 \n"
-                "ext    v30.16b, v30.16b, v30.16b, #8 \n"
-                "ext    v31.16b, v31.16b, v31.16b, #8 \n"
-
-                "zip1   v0.4s, v16.4s, v28.4s       \n"
-                "zip2   v1.4s, v16.4s, v28.4s       \n"
-                "zip1   v2.4s, v20.4s, v24.4s       \n"
-                "zip2   v3.4s, v20.4s, v24.4s       \n"
-                "zip1   v4.4s, v18.4s, v30.4s       \n"
-                "zip2   v5.4s, v18.4s, v30.4s       \n"
-                "zip1   v6.4s, v22.4s, v26.4s       \n"
-                "zip2   v7.4s, v22.4s, v26.4s       \n"
-                "zip1   v8.4s, v19.4s, v31.4s       \n"
-                "zip2   v9.4s, v19.4s, v31.4s       \n"
-                "zip1   v10.4s, v23.4s, v27.4s      \n"
-                "zip2   v11.4s, v23.4s, v27.4s      \n"
-                "zip1   v12.4s, v17.4s, v29.4s      \n"
-                "zip2   v13.4s, v17.4s, v29.4s      \n"
-                "zip1   v14.4s, v21.4s, v25.4s      \n"
-                "zip2   v15.4s, v21.4s, v25.4s      \n"
-
-                // 0 v16 = a0 b0 b1 a1       1 v17 = c2 d2 d3 c3
-                // 2 v18 = c0 d0 d1 c1       3 v19 = a2 b2 b3 a3
-                // 4 v20 = e0 f0 f1 e1       5 v21 = g2 h2 h3 g3
-                // 6 v22 = g0 h0 h1 g1       7 v23 = e2 f2 f3 e3
-
-                // 8 v24 = a4 b4 b5 b5       9 v25 = c6 d6 d7 c7
-                // a v26 = c4 d4 d5 c5       b v27 = a6 b6 b7 a7
-                // c v28 = e4 f4 f5 e5       d v29 = g6 h6 h7 g7
-                // e v30 = g4 h4 h5 g5       f v31 = e6 f6 f7 e7
-#endif // __ARM_FEATURE_DOTPROD
 
                 // if out_elempack == 8
                 "cmp    %11, #8                     \n"
                 "bne    7f                          \n"
 
-#if __ARM_FEATURE_DOTPROD
                 "st1    {v16.4s}, [%3], #16         \n"
                 "st1    {v20.4s}, [%3], #16         \n"
                 "st1    {v17.4s}, [%3], #16         \n"
@@ -921,7 +831,6 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 "st1    {v22.4s}, [%3], #16         \n"
                 "st1    {v19.4s}, [%3], #16         \n"
                 "st1    {v23.4s}, [%3], #16         \n"
-
                 "st1    {v24.4s}, [%3], #16         \n"
                 "st1    {v28.4s}, [%3], #16         \n"
                 "st1    {v25.4s}, [%3], #16         \n"
@@ -930,129 +839,36 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 "st1    {v30.4s}, [%3], #16         \n"
                 "st1    {v27.4s}, [%3], #16         \n"
                 "st1    {v31.4s}, [%3], #16         \n"
-#else  // __ARM_FEATURE_DOTPROD
-                "zip1   v16.2d, v0.2d, v2.2d        \n"
-                "zip1   v17.2d, v4.2d, v6.2d        \n"
-                "zip2   v18.2d, v0.2d, v2.2d        \n"
-                "zip2   v19.2d, v4.2d, v6.2d        \n"
-
-                "zip1   v20.2d, v3.2d, v1.2d        \n"
-                "zip1   v21.2d, v7.2d, v5.2d        \n"
-                "zip2   v22.2d, v3.2d, v1.2d        \n"
-                "zip2   v23.2d, v7.2d, v5.2d        \n"
-
-                "zip1   v24.2d, v8.2d, v10.2d       \n"
-                "zip1   v25.2d, v12.2d, v14.2d      \n"
-                "zip2   v26.2d, v8.2d, v10.2d       \n"
-                "zip2   v27.2d, v12.2d, v14.2d      \n"
-
-                "zip1   v28.2d, v11.2d, v9.2d       \n"
-                "zip1   v29.2d, v15.2d, v13.2d      \n"
-                "zip2   v30.2d, v11.2d, v9.2d       \n"
-                "zip2   v31.2d, v15.2d, v13.2d      \n"
-
-                "rev64  v18.4s, v18.4s              \n"
-                "rev64  v19.4s, v19.4s              \n"
-                "rev64  v22.4s, v22.4s              \n"
-                "rev64  v23.4s, v23.4s              \n"
-                "rev64  v26.4s, v26.4s              \n"
-                "rev64  v27.4s, v27.4s              \n"
-                "rev64  v30.4s, v30.4s              \n"
-                "rev64  v31.4s, v31.4s              \n"
-
-                // 0 v16 = a0 b0 c0 d0     1 v17 = e0 f0 g0 h0
-                // 2 v18 = a1 b1 c1 d1     3 v19 = e1 f1 g1 h1
-                // 4 v20 = a2 b2 c2 d2     5 v21 = e2 f2 g2 h2
-                // 6 v22 = a3 b3 c3 d3     7 v23 = e3 f3 g3 h3
-                // 8 v24 = a4 b4 c4 d4     9 v25 = e4 f4 g4 h4
-                // a v26 = a5 b5 c5 d5     b v27 = e5 f5 g5 h5
-                // c v28 = a6 b6 c6 d6     d v29 = e6 f6 g6 h6
-                // e v30 = a7 b7 c7 d7     f v31 = e7 f7 g7 h7
-
-                "st1    {v16.4s, v17.4s, v18.4s, v19.4s}, [%3], #64 \n"
-                "st1    {v20.4s, v21.4s, v22.4s, v23.4s}, [%3], #64 \n"
-                "st1    {v24.4s, v25.4s, v26.4s, v27.4s}, [%3], #64 \n"
-                "st1    {v28.4s, v29.4s, v30.4s, v31.4s}, [%3], #64 \n"
-#endif // __ARM_FEATURE_DOTPROD
                 "b      9f                          \n"
 
                 // if out_elempack == 4
                 "7:                                 \n"
-
-#if __ARM_FEATURE_DOTPROD
                 "add    x4, %3, %12, lsl #4         \n"
                 "st1    {v16.4s, v17.4s, v18.4s, v19.4s}, [%3], #64 \n"
                 "st1    {v24.4s, v25.4s, v26.4s, v27.4s}, [%3], #64 \n"
                 "st1    {v20.4s, v21.4s, v22.4s, v23.4s}, [x4], #64 \n"
                 "st1    {v28.4s, v29.4s, v30.4s, v31.4s}, [x4] \n"
-#else  // __ARM_FEATURE_DOTPROD
-                "zip1   v16.2d, v0.2d, v2.2d        \n"
-                "zip1   v24.2d, v4.2d, v6.2d        \n"
-                "zip2   v17.2d, v0.2d, v2.2d        \n"
-                "zip2   v25.2d, v4.2d, v6.2d        \n"
-
-                "zip1   v18.2d, v3.2d, v1.2d        \n"
-                "zip1   v26.2d, v7.2d, v5.2d        \n"
-                "zip2   v19.2d, v3.2d, v1.2d        \n"
-                "zip2   v27.2d, v7.2d, v5.2d        \n"
-
-                "zip1   v20.2d, v8.2d, v10.2d       \n"
-                "zip1   v28.2d, v12.2d, v14.2d      \n"
-                "zip2   v21.2d, v8.2d, v10.2d       \n"
-                "zip2   v29.2d, v12.2d, v14.2d      \n"
-
-                "zip1   v22.2d, v11.2d, v9.2d       \n"
-                "zip1   v30.2d, v15.2d, v13.2d      \n"
-                "zip2   v23.2d, v11.2d, v9.2d       \n"
-                "zip2   v31.2d, v15.2d, v13.2d      \n"
-
-                "rev64  v17.4s, v17.4s              \n"
-                "rev64  v19.4s, v19.4s              \n"
-                "rev64  v21.4s, v21.4s              \n"
-                "rev64  v23.4s, v23.4s              \n"
-                "rev64  v25.4s, v25.4s              \n"
-                "rev64  v27.4s, v27.4s              \n"
-                "rev64  v29.4s, v29.4s              \n"
-                "rev64  v31.4s, v31.4s              \n"
-
-                // 0 v16 = a0 b0 c0 d0     1 v24 = e0 f0 g0 h0
-                // 2 v17 = a1 b1 c1 d1     3 v25 = e1 f1 g1 h1
-                // 4 v18 = a2 b2 c2 d2     5 v26 = e2 f2 g2 h2
-                // 6 v19 = a3 b3 c3 d3     7 v27 = e3 f3 g3 h3
-                // 8 v20 = a4 b4 c4 d4     9 v28 = e4 f4 g4 h4
-                // a v21 = a5 b5 c5 d5     b v29 = e5 f5 g5 h5
-                // c v22 = a6 b6 c6 d6     d v30 = e6 f6 g6 h6
-                // e v23 = a7 b7 c7 d7     f v31 = e7 f7 g7 h7
-
-                "add    x4, %3, %12, lsl #4         \n"
-                "st1    {v16.4s, v17.4s, v18.4s, v19.4s}, [%3], #64 \n"
-                "st1    {v20.4s, v21.4s, v22.4s, v23.4s}, [%3], #64 \n"
-                "st1    {v24.4s, v25.4s, v26.4s, v27.4s}, [x4], #64 \n"
-                "st1    {v28.4s, v29.4s, v30.4s, v31.4s}, [x4] \n"
-#endif // __ARM_FEATURE_DOTPROD
                 "b      9f                          \n"
 
                 // if out_elempack == 1
                 "8:                                 \n"
-#if __ARM_FEATURE_DOTPROD
-                // a0 b0 c0 d0
-                // a1 b1 c1 d1
-                // a2 b2 c2 d2
-                // a3 b3 c3 d3
-                // e0 f0 g0 h0
-                // e1 f1 g1 h1
-                // e2 f2 g2 h2
-                // e3 f3 g3 h3
-
-                // a4 b4 c4 d4
-                // a5 b5 c5 d5
-                // a6 b6 c6 d6
-                // a7 b7 c7 d7
-                // e4 f4 g4 h4
-                // e5 f5 g5 h5
-                // e6 f6 g6 h6
-                // e7 f7 g7 h7
-
+                // to
+                //      a0 a1 a2 a3
+                //      a4 a5 a6 a7
+                //      b0 b1 b2 b3
+                //      b4 b5 b6 b7
+                //      c0 c1 c2 c3
+                //      c4 c5 c6 c7
+                //      d0 d1 d2 d3
+                //      d4 d5 d6 d7
+                //      e0 e1 e2 e3
+                //      e4 e5 e6 e7
+                //      f0 f1 f2 f3
+                //      f4 f5 f6 f7
+                //      g0 g1 g2 g3
+                //      g4 g5 g6 g7
+                //      h0 h1 h2 h3
+                //      h4 h5 h6 h7
                 "zip1   v0.4s, v16.4s, v17.4s       \n"
                 "zip2   v1.4s, v16.4s, v17.4s       \n"
                 "zip1   v2.4s, v18.4s, v19.4s       \n"
@@ -1069,7 +885,6 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 "zip2   v13.4s, v28.4s, v29.4s      \n"
                 "zip1   v14.4s, v30.4s, v31.4s      \n"
                 "zip2   v15.4s, v30.4s, v31.4s      \n"
-
                 "zip1   v16.2d, v0.2d, v2.2d        \n"
                 "zip1   v17.2d, v4.2d, v6.2d        \n"
                 "zip2   v18.2d, v0.2d, v2.2d        \n"
@@ -1102,44 +917,83 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 "st1    {v28.4s, v29.4s}, [x4]      \n"
                 "add    x4, x4, %12, lsl #2         \n"
                 "st1    {v30.4s, v31.4s}, [x4]      \n"
-#else  // __ARM_FEATURE_DOTPROD
+#else // __ARM_FEATURE_DOTPROD
 
-                // v16 = a0 b1 c2 d3   v17 = e4 f5 g6 h7
-                // v18 = e0 f1 g2 h3   v19 = a4 b5 c6 d7
-                // v20 = c0 d1 a2 b3   v21 = g4 h5 e6 f7
-                // v22 = g0 h1 e2 f3   v23 = c4 d5 a6 b7
+                // from
+                //      a0 b1 c2 d3
+                //      e4 f5 g6 h7
+                //      e0 f1 g2 h3
+                //      a4 b5 c6 d7
+                //      c0 d1 a2 b3
+                //      g4 h5 e6 f7
+                //      g0 h1 e2 f3
+                //      c4 d5 a6 b7
+                //      a3 b2 c1 d0
+                //      e7 f6 g5 h4
+                //      e3 f2 g1 h0
+                //      a7 b6 c5 d4
+                //      c3 d2 a1 b0
+                //      g7 h6 e5 f4
+                //      g3 h2 e1 f0
+                //      c7 d6 a5 b4
+                // if out_elempack == 4 / 8
+                "cmp    %w11, #1                    \n"
+                "beq    8f                          \n"
 
-                // v24 = a3 b2 c1 d0   v25 = e7 f6 g5 h4
-                // v26 = e3 f2 g1 h0   v27 = a7 b6 c5 d4
-                // v28 = c3 d2 a1 b0   v29 = g7 h6 e5 f4
-                // v30 = g3 h2 e1 f0   v31 = c7 d6 a5 b4
-
-                "ext    v20.16b, v20.16b, v20.16b, #8 \n"
-                "ext    v21.16b, v21.16b, v21.16b, #8 \n"
-                "ext    v22.16b, v22.16b, v22.16b, #8 \n"
-                "ext    v23.16b, v23.16b, v23.16b, #8 \n"
+                "rev64  v24.4s, v24.4s              \n"
+                "rev64  v25.4s, v25.4s              \n"
+                "rev64  v26.4s, v26.4s              \n"
+                "rev64  v27.4s, v27.4s              \n"
+                "rev64  v28.4s, v28.4s              \n"
+                "rev64  v29.4s, v29.4s              \n"
+                "rev64  v30.4s, v30.4s              \n"
+                "rev64  v31.4s, v31.4s              \n"
+                "ext    v24.16b, v24.16b, v24.16b, #8 \n"
+                "ext    v25.16b, v25.16b, v25.16b, #8 \n"
+                "ext    v26.16b, v26.16b, v26.16b, #8 \n"
+                "ext    v27.16b, v27.16b, v27.16b, #8 \n"
                 "ext    v28.16b, v28.16b, v28.16b, #8 \n"
                 "ext    v29.16b, v29.16b, v29.16b, #8 \n"
                 "ext    v30.16b, v30.16b, v30.16b, #8 \n"
                 "ext    v31.16b, v31.16b, v31.16b, #8 \n"
-
                 "zip1   v0.4s, v16.4s, v28.4s       \n"
                 "zip2   v1.4s, v16.4s, v28.4s       \n"
                 "zip1   v2.4s, v20.4s, v24.4s       \n"
                 "zip2   v3.4s, v20.4s, v24.4s       \n"
-                "zip1   v4.4s, v19.4s, v31.4s       \n"
-                "zip2   v5.4s, v19.4s, v31.4s       \n"
-                "zip1   v6.4s, v23.4s, v27.4s       \n"
-                "zip2   v7.4s, v23.4s, v27.4s       \n"
-                "zip1   v8.4s, v18.4s, v30.4s       \n"
-                "zip2   v9.4s, v18.4s, v30.4s       \n"
-                "zip1   v10.4s, v22.4s, v26.4s      \n"
-                "zip2   v11.4s, v22.4s, v26.4s      \n"
+                "zip1   v4.4s, v18.4s, v30.4s       \n"
+                "zip2   v5.4s, v18.4s, v30.4s       \n"
+                "zip1   v6.4s, v22.4s, v26.4s       \n"
+                "zip2   v7.4s, v22.4s, v26.4s       \n"
+                "zip1   v8.4s, v19.4s, v31.4s       \n"
+                "zip2   v9.4s, v19.4s, v31.4s       \n"
+                "zip1   v10.4s, v23.4s, v27.4s      \n"
+                "zip2   v11.4s, v23.4s, v27.4s      \n"
                 "zip1   v12.4s, v17.4s, v29.4s      \n"
                 "zip2   v13.4s, v17.4s, v29.4s      \n"
                 "zip1   v14.4s, v21.4s, v25.4s      \n"
                 "zip2   v15.4s, v21.4s, v25.4s      \n"
 
+                // if out_elempack == 8
+                "cmp    %11, #8                     \n"
+                "bne    7f                          \n"
+
+                // to
+                //      a0 b0 c0 d0
+                //      e0 f0 g0 h0
+                //      a1 b1 c1 d1
+                //      e1 f1 g1 h1
+                //      a2 b2 c2 d2
+                //      e2 f2 g2 h2
+                //      a3 b3 c3 d3
+                //      e3 f3 g3 h3
+                //      a4 b4 c4 d4
+                //      e4 f4 g4 h4
+                //      a5 b5 c5 d5
+                //      e5 f5 g5 h5
+                //      a6 b6 c6 d6
+                //      e6 f6 g6 h6
+                //      a7 b7 c7 d7
+                //      e7 f7 g7 h7
                 "zip1   v16.2d, v0.2d, v2.2d        \n"
                 "zip1   v17.2d, v4.2d, v6.2d        \n"
                 "zip2   v18.2d, v0.2d, v2.2d        \n"
@@ -1156,17 +1010,131 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 "zip1   v29.2d, v15.2d, v13.2d      \n"
                 "zip2   v30.2d, v11.2d, v9.2d       \n"
                 "zip2   v31.2d, v15.2d, v13.2d      \n"
+                "rev64  v18.4s, v18.4s              \n"
+                "rev64  v19.4s, v19.4s              \n"
+                "rev64  v22.4s, v22.4s              \n"
+                "rev64  v23.4s, v23.4s              \n"
+                "rev64  v26.4s, v26.4s              \n"
+                "rev64  v27.4s, v27.4s              \n"
+                "rev64  v30.4s, v30.4s              \n"
+                "rev64  v31.4s, v31.4s              \n"
 
-                // 0 v16 = a0 a1 a2 a3    1 v17 = a4 a5 a6 a7
-                // 2 v18 = b1 b0 b3 b2    3 v19 = b5 b4 b7 b6
-                // 4 v20 = c0 c1 c2 c3    5 v21 = c4 c5 c6 c7
-                // 6 v22 = d1 d0 d3 d2    7 v23 = d5 d4 d7 d6
+                "st1    {v16.4s, v17.4s, v18.4s, v19.4s}, [%3], #64 \n"
+                "st1    {v20.4s, v21.4s, v22.4s, v23.4s}, [%3], #64 \n"
+                "st1    {v24.4s, v25.4s, v26.4s, v27.4s}, [%3], #64 \n"
+                "st1    {v28.4s, v29.4s, v30.4s, v31.4s}, [%3], #64 \n"
+                "b      9f                          \n"
 
-                // 8 v24 = e0 e1 e2 e3    9 v25 = e4 e5 e6 e7
-                // a v26 = f1 f0 f3 f2    b v27 = f5 f4 f7 f6
-                // c v28 = g0 g1 g2 g3    d v29 = g4 g5 g6 g7
-                // e v30 = h1 h0 h3 h2    f v31 = h5 h4 h7 h6
+                // if out_elempack == 4
+                "7:                                 \n"
+                // to
+                //      a0 b0 c0 d0
+                //      a1 b1 c1 d1
+                //      a2 b2 c2 d2
+                //      a3 b3 c3 d3
+                //      a4 b4 c4 d4
+                //      a5 b5 c5 d5
+                //      a6 b6 c6 d6
+                //      a7 b7 c7 d7
+                //      e0 f0 g0 h0
+                //      e1 f1 g1 h1
+                //      e2 f2 g2 h2
+                //      e3 f3 g3 h3
+                //      e4 f4 g4 h4
+                //      e5 f5 g5 h5
+                //      e6 f6 g6 h6
+                //      e7 f7 g7 h7
+                "zip1   v16.2d, v0.2d, v2.2d        \n"
+                "zip1   v24.2d, v4.2d, v6.2d        \n"
+                "zip2   v17.2d, v0.2d, v2.2d        \n"
+                "zip2   v25.2d, v4.2d, v6.2d        \n"
+                "zip1   v18.2d, v3.2d, v1.2d        \n"
+                "zip1   v26.2d, v7.2d, v5.2d        \n"
+                "zip2   v19.2d, v3.2d, v1.2d        \n"
+                "zip2   v27.2d, v7.2d, v5.2d        \n"
+                "zip1   v20.2d, v8.2d, v10.2d       \n"
+                "zip1   v28.2d, v12.2d, v14.2d      \n"
+                "zip2   v21.2d, v8.2d, v10.2d       \n"
+                "zip2   v29.2d, v12.2d, v14.2d      \n"
+                "zip1   v22.2d, v11.2d, v9.2d       \n"
+                "zip1   v30.2d, v15.2d, v13.2d      \n"
+                "zip2   v23.2d, v11.2d, v9.2d       \n"
+                "zip2   v31.2d, v15.2d, v13.2d      \n"
+                "rev64  v17.4s, v17.4s              \n"
+                "rev64  v19.4s, v19.4s              \n"
+                "rev64  v21.4s, v21.4s              \n"
+                "rev64  v23.4s, v23.4s              \n"
+                "rev64  v25.4s, v25.4s              \n"
+                "rev64  v27.4s, v27.4s              \n"
+                "rev64  v29.4s, v29.4s              \n"
+                "rev64  v31.4s, v31.4s              \n"
 
+                "add    x4, %3, %12, lsl #4         \n"
+                "st1    {v16.4s, v17.4s, v18.4s, v19.4s}, [%3], #64 \n"
+                "st1    {v20.4s, v21.4s, v22.4s, v23.4s}, [%3], #64 \n"
+                "st1    {v24.4s, v25.4s, v26.4s, v27.4s}, [x4], #64 \n"
+                "st1    {v28.4s, v29.4s, v30.4s, v31.4s}, [x4] \n"
+                "b      9f                          \n"
+
+                // if out_elempack == 1
+                "8:                                 \n"
+                // to
+                //      a0 a1 a2 a3
+                //      a4 a5 a6 a7
+                //      b0 b1 b2 b3
+                //      b4 b5 b6 b7
+                //      c0 c1 c2 c3
+                //      c4 c5 c6 c7
+                //      d0 d1 d2 d3
+                //      d4 d5 d6 d7
+                //      e0 e1 e2 e3
+                //      e4 e5 e6 e7
+                //      f0 f1 f2 f3
+                //      f4 f5 f6 f7
+                //      g0 g1 g2 g3
+                //      g4 g5 g6 g7
+                //      h0 h1 h2 h3
+                //      h4 h5 h6 h7
+                "ext    v20.16b, v20.16b, v20.16b, #8 \n"
+                "ext    v21.16b, v21.16b, v21.16b, #8 \n"
+                "ext    v22.16b, v22.16b, v22.16b, #8 \n"
+                "ext    v23.16b, v23.16b, v23.16b, #8 \n"
+                "ext    v28.16b, v28.16b, v28.16b, #8 \n"
+                "ext    v29.16b, v29.16b, v29.16b, #8 \n"
+                "ext    v30.16b, v30.16b, v30.16b, #8 \n"
+                "ext    v31.16b, v31.16b, v31.16b, #8 \n"
+                "zip1   v0.4s, v16.4s, v28.4s       \n"
+                "zip2   v1.4s, v16.4s, v28.4s       \n"
+                "zip1   v2.4s, v20.4s, v24.4s       \n"
+                "zip2   v3.4s, v20.4s, v24.4s       \n"
+                "zip1   v4.4s, v19.4s, v31.4s       \n"
+                "zip2   v5.4s, v19.4s, v31.4s       \n"
+                "zip1   v6.4s, v23.4s, v27.4s       \n"
+                "zip2   v7.4s, v23.4s, v27.4s       \n"
+                "zip1   v8.4s, v18.4s, v30.4s       \n"
+                "zip2   v9.4s, v18.4s, v30.4s       \n"
+                "zip1   v10.4s, v22.4s, v26.4s      \n"
+                "zip2   v11.4s, v22.4s, v26.4s      \n"
+                "zip1   v12.4s, v17.4s, v29.4s      \n"
+                "zip2   v13.4s, v17.4s, v29.4s      \n"
+                "zip1   v14.4s, v21.4s, v25.4s      \n"
+                "zip2   v15.4s, v21.4s, v25.4s      \n"
+                "zip1   v16.2d, v0.2d, v2.2d        \n"
+                "zip1   v17.2d, v4.2d, v6.2d        \n"
+                "zip2   v18.2d, v0.2d, v2.2d        \n"
+                "zip2   v19.2d, v4.2d, v6.2d        \n"
+                "zip1   v20.2d, v3.2d, v1.2d        \n"
+                "zip1   v21.2d, v7.2d, v5.2d        \n"
+                "zip2   v22.2d, v3.2d, v1.2d        \n"
+                "zip2   v23.2d, v7.2d, v5.2d        \n"
+                "zip1   v24.2d, v8.2d, v10.2d       \n"
+                "zip1   v25.2d, v12.2d, v14.2d      \n"
+                "zip2   v26.2d, v8.2d, v10.2d       \n"
+                "zip2   v27.2d, v12.2d, v14.2d      \n"
+                "zip1   v28.2d, v11.2d, v9.2d       \n"
+                "zip1   v29.2d, v15.2d, v13.2d      \n"
+                "zip2   v30.2d, v11.2d, v9.2d       \n"
+                "zip2   v31.2d, v15.2d, v13.2d      \n"
                 "rev64  v18.4s, v18.4s              \n"
                 "rev64  v19.4s, v19.4s              \n"
                 "rev64  v22.4s, v22.4s              \n"
@@ -1744,27 +1712,26 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
 
             if (k_end)
             {
+#if __ARM_FEATURE_DOTPROD
+                // from
+                //      a0 b0 c0 d0
+                //      a1 b1 c1 d1
+                //      a2 b2 c2 d2
+                //      a3 b3 c3 d3
+                //      e0 f0 g0 h0
+                //      e1 f1 g1 h1
+                //      e2 f2 g2 h2
+                //      e3 f3 g3 h3
+                //      a4 b4 c4 d4
+                //      a5 b5 c5 d5
+                //      a6 b6 c6 d6
+                //      a7 b7 c7 d7
+                //      e4 f4 g4 h4
+                //      e5 f5 g5 h5
+                //      e6 f6 g6 h6
+                //      e7 f7 g7 h7
                 if (out_elempack == 8)
                 {
-#if __ARM_FEATURE_DOTPROD
-                    // a0 b0 c0 d0
-                    // a1 b1 c1 d1
-                    // a2 b2 c2 d2
-                    // a3 b3 c3 d3
-                    // e0 f0 g0 h0
-                    // e1 f1 g1 h1
-                    // e2 f2 g2 h2
-                    // e3 f3 g3 h3
-
-                    // a4 b4 c4 d4
-                    // a5 b5 c5 d5
-                    // a6 b6 c6 d6
-                    // a7 b7 c7 d7
-                    // e4 f4 g4 h4
-                    // e5 f5 g5 h5
-                    // e6 f6 g6 h6
-                    // e7 f7 g7 h7
-
                     vst1q_s32(outptr0, _sum0);
                     vst1q_s32(outptr0 + 4, _sum4);
                     vst1q_s32(outptr0 + 8, _sum1);
@@ -1781,18 +1748,131 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                     vst1q_s32(outptr0 + 52, _sume);
                     vst1q_s32(outptr0 + 56, _sumb);
                     vst1q_s32(outptr0 + 60, _sumf);
-#else  // __ARM_FEATURE_DOTPROD
+                    outptr0 += 64;
+                }
+                if (out_elempack == 4)
+                {
+                    vst1q_s32(outptr0, _sum0);
+                    vst1q_s32(outptr0 + 4, _sum1);
+                    vst1q_s32(outptr0 + 8, _sum2);
+                    vst1q_s32(outptr0 + 12, _sum3);
+                    vst1q_s32(outptr0 + 16, _sum8);
+                    vst1q_s32(outptr0 + 20, _sum9);
+                    vst1q_s32(outptr0 + 24, _suma);
+                    vst1q_s32(outptr0 + 28, _sumb);
+                    vst1q_s32(outptr0 + out_hstep * 4, _sum4);
+                    vst1q_s32(outptr0 + out_hstep * 4 + 4, _sum5);
+                    vst1q_s32(outptr0 + out_hstep * 4 + 8, _sum6);
+                    vst1q_s32(outptr0 + out_hstep * 4 + 12, _sum7);
+                    vst1q_s32(outptr0 + out_hstep * 4 + 16, _sumc);
+                    vst1q_s32(outptr0 + out_hstep * 4 + 20, _sumd);
+                    vst1q_s32(outptr0 + out_hstep * 4 + 24, _sume);
+                    vst1q_s32(outptr0 + out_hstep * 4 + 28, _sumf);
+                    outptr0 += 32;
+                }
+                if (out_elempack == 1)
+                {
+                    // to
+                    //      a0 a1 a2 a3
+                    //      a4 a5 a6 a7
+                    //      b0 b1 b2 b3
+                    //      b4 b5 b6 b7
+                    //      c0 c1 c2 c3
+                    //      c4 c5 c6 c7
+                    //      d0 d1 d2 d3
+                    //      d4 d5 d6 d7
+                    //      e0 e1 e2 e3
+                    //      e4 e5 e6 e7
+                    //      f0 f1 f2 f3
+                    //      f4 f5 f6 f7
+                    //      g0 g1 g2 g3
+                    //      g4 g5 g6 g7
+                    //      h0 h1 h2 h3
+                    //      h4 h5 h6 h7
                     {
-                        // a0 b1 c2 d3  e4 f5 g6 h7
-                        // e0 f1 g2 h3  a4 b5 c6 d7
-                        // c0 d1 a2 b3  g4 h5 e6 f7
-                        // g0 h1 e2 f3  c4 d5 a6 b7
+                        int32x4x2_t _t0 = vzipq_s32(_sum0, _sum1);
+                        int32x4x2_t _t1 = vzipq_s32(_sum2, _sum3);
+                        int32x4x2_t _t2 = vzipq_s32(_sum8, _sum9);
+                        int32x4x2_t _t3 = vzipq_s32(_suma, _sumb);
+                        int32x4x2_t _t4 = vzipq_s32(_sum4, _sum5);
+                        int32x4x2_t _t5 = vzipq_s32(_sum6, _sum7);
+                        int32x4x2_t _t6 = vzipq_s32(_sumc, _sumd);
+                        int32x4x2_t _t7 = vzipq_s32(_sume, _sumf);
+                        _sum0 = vcombine_s32(vget_low_s32(_t0.val[0]), vget_low_s32(_t1.val[0]));
+                        _sum1 = vcombine_s32(vget_low_s32(_t2.val[0]), vget_low_s32(_t3.val[0]));
+                        _sum2 = vcombine_s32(vget_high_s32(_t0.val[0]), vget_high_s32(_t1.val[0]));
+                        _sum3 = vcombine_s32(vget_high_s32(_t2.val[0]), vget_high_s32(_t3.val[0]));
+                        _sum4 = vcombine_s32(vget_low_s32(_t0.val[1]), vget_low_s32(_t1.val[1]));
+                        _sum5 = vcombine_s32(vget_low_s32(_t2.val[1]), vget_low_s32(_t3.val[1]));
+                        _sum6 = vcombine_s32(vget_high_s32(_t0.val[1]), vget_high_s32(_t1.val[1]));
+                        _sum7 = vcombine_s32(vget_high_s32(_t2.val[1]), vget_high_s32(_t3.val[1]));
+                        _sum8 = vcombine_s32(vget_low_s32(_t4.val[0]), vget_low_s32(_t5.val[0]));
+                        _sum9 = vcombine_s32(vget_low_s32(_t6.val[0]), vget_low_s32(_t7.val[0]));
+                        _suma = vcombine_s32(vget_high_s32(_t4.val[0]), vget_high_s32(_t5.val[0]));
+                        _sumb = vcombine_s32(vget_high_s32(_t6.val[0]), vget_high_s32(_t7.val[0]));
+                        _sumc = vcombine_s32(vget_low_s32(_t4.val[1]), vget_low_s32(_t5.val[1]));
+                        _sumd = vcombine_s32(vget_low_s32(_t6.val[1]), vget_low_s32(_t7.val[1]));
+                        _sume = vcombine_s32(vget_high_s32(_t4.val[1]), vget_high_s32(_t5.val[1]));
+                        _sumf = vcombine_s32(vget_high_s32(_t6.val[1]), vget_high_s32(_t7.val[1]));
+                    }
 
-                        // a3 b2 c1 d0  e7 f6 g5 h4
-                        // e3 f2 g1 h0  a7 b6 c5 d4
-                        // c3 d2 a1 b0  g7 h6 e5 f4
-                        // g3 h2 e1 f0  c7 d6 a5 b4
+                    vst1q_s32(outptr0, _sum0);
+                    vst1q_s32(outptr0 + 4, _sum1);
+                    vst1q_s32(outptr0 + out_hstep, _sum2);
+                    vst1q_s32(outptr0 + out_hstep + 4, _sum3);
+                    vst1q_s32(outptr0 + out_hstep * 2, _sum4);
+                    vst1q_s32(outptr0 + out_hstep * 2 + 4, _sum5);
+                    vst1q_s32(outptr0 + out_hstep * 3, _sum6);
+                    vst1q_s32(outptr0 + out_hstep * 3 + 4, _sum7);
+                    vst1q_s32(outptr0 + out_hstep * 4, _sum8);
+                    vst1q_s32(outptr0 + out_hstep * 4 + 4, _sum9);
+                    vst1q_s32(outptr0 + out_hstep * 5, _suma);
+                    vst1q_s32(outptr0 + out_hstep * 5 + 4, _sumb);
+                    vst1q_s32(outptr0 + out_hstep * 6, _sumc);
+                    vst1q_s32(outptr0 + out_hstep * 6 + 4, _sumd);
+                    vst1q_s32(outptr0 + out_hstep * 7, _sume);
+                    vst1q_s32(outptr0 + out_hstep * 7 + 4, _sumf);
+                    outptr0 += 8;
+                }
+#else // __ARM_FEATURE_DOTPROD
 
+                // from
+                //      a0 b1 c2 d3
+                //      e4 f5 g6 h7
+                //      e0 f1 g2 h3
+                //      a4 b5 c6 d7
+                //      c0 d1 a2 b3
+                //      g4 h5 e6 f7
+                //      g0 h1 e2 f3
+                //      c4 d5 a6 b7
+                //      a3 b2 c1 d0
+                //      e7 f6 g5 h4
+                //      e3 f2 g1 h0
+                //      a7 b6 c5 d4
+                //      c3 d2 a1 b0
+                //      g7 h6 e5 f4
+                //      g3 h2 e1 f0
+                //      c7 d6 a5 b4
+                if (out_elempack == 8)
+                {
+                    // to
+                    //      a0 b0 c0 d0
+                    //      e0 f0 g0 h0
+                    //      a1 b1 c1 d1
+                    //      e1 f1 g1 h1
+                    //      a2 b2 c2 d2
+                    //      e2 f2 g2 h2
+                    //      a3 b3 c3 d3
+                    //      e3 f3 g3 h3
+                    //      a4 b4 c4 d4
+                    //      e4 f4 g4 h4
+                    //      a5 b5 c5 d5
+                    //      e5 f5 g5 h5
+                    //      a6 b6 c6 d6
+                    //      e6 f6 g6 h6
+                    //      a7 b7 c7 d7
+                    //      e7 f7 g7 h7
+                    {
                         _sum8 = vrev64q_s32(_sum8);
                         _sum9 = vrev64q_s32(_sum9);
                         _suma = vrev64q_s32(_suma);
@@ -1801,7 +1881,6 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                         _sumd = vrev64q_s32(_sumd);
                         _sume = vrev64q_s32(_sume);
                         _sumf = vrev64q_s32(_sumf);
-
                         _sum8 = vextq_s32(_sum8, _sum8, 2);
                         _sum9 = vextq_s32(_sum9, _sum9, 2);
                         _suma = vextq_s32(_suma, _suma, 2);
@@ -1810,61 +1889,14 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                         _sumd = vextq_s32(_sumd, _sumd, 2);
                         _sume = vextq_s32(_sume, _sume, 2);
                         _sumf = vextq_s32(_sumf, _sumf, 2);
-
-                        // a0 b1 c2 d3  e4 f5 g6 h7
-                        // e0 f1 g2 h3  a4 b5 c6 d7
-                        // c0 d1 a2 b3  g4 h5 e6 f7
-                        // g0 h1 e2 f3  c4 d5 a6 b7
-
-                        // d0 c1 b2 a3  h4 g5 f6 e7
-                        // h0 g1 f2 e3  d4 c5 b6 a7
-                        // b0 a1 d2 c3  f4 e5 h6 g7
-                        // f0 e1 h2 g3  b4 a5 d6 c7
-
                         int32x4x2_t _t0 = vzipq_s32(_sum0, _sumc);
                         int32x4x2_t _t1 = vzipq_s32(_sum4, _sum8);
                         int32x4x2_t _t2 = vzipq_s32(_sum2, _sume);
                         int32x4x2_t _t3 = vzipq_s32(_sum6, _suma);
-
                         int32x4x2_t _t4 = vzipq_s32(_sum3, _sumf);
                         int32x4x2_t _t5 = vzipq_s32(_sum7, _sumb);
                         int32x4x2_t _t6 = vzipq_s32(_sum1, _sumd);
                         int32x4x2_t _t7 = vzipq_s32(_sum5, _sum9);
-
-                        // a0 b1 c2 d3
-                        // b0 a1 d2 c3
-
-                        // c0 d1 a2 b3
-                        // d0 c1 b2 a3
-
-                        // e0 f1 g2 h3
-                        // f0 e1 h2 g3
-
-                        // g0 h1 e2 f3
-                        // h0 g1 f2 e3
-
-                        // a4 b5 c6 d7
-                        // b4 a5 d6 c7
-
-                        // c4 d5 a6 b7
-                        // d4 c5 b6 a7
-
-                        // e4 f5 g6 h7
-                        // f4 e5 h6 g7
-
-                        // g4 h5 e6 f7
-                        // h4 g5 f6 e7
-
-                        // a0 b0 b1 a1  c2 d2 d3 c3
-                        // c0 d0 d1 c1  a2 b2 b3 a3
-                        // e0 f0 f1 e1  g2 h2 h3 g3
-                        // g0 h0 h1 g1  e2 f2 f3 e3
-
-                        // a4 b4 b5 b5  c6 d6 d7 c7
-                        // c4 d4 d5 c5  a6 b6 b7 a7
-                        // e4 f4 f5 e5  g6 h6 h7 g7
-                        // g4 h4 h5 g5  e6 f6 f7 e7
-
                         _sum0 = vcombine_s32(vget_low_s32(_t0.val[0]), vget_low_s32(_t1.val[0]));
                         _sum1 = vcombine_s32(vget_low_s32(_t2.val[0]), vget_low_s32(_t3.val[0]));
                         _sum2 = vcombine_s32(vget_high_s32(_t0.val[0]), vget_high_s32(_t1.val[0]));
@@ -1873,7 +1905,6 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                         _sum5 = vcombine_s32(vget_low_s32(_t3.val[1]), vget_low_s32(_t2.val[1]));
                         _sum6 = vcombine_s32(vget_high_s32(_t1.val[1]), vget_high_s32(_t0.val[1]));
                         _sum7 = vcombine_s32(vget_high_s32(_t3.val[1]), vget_high_s32(_t2.val[1]));
-
                         _sum8 = vcombine_s32(vget_low_s32(_t4.val[0]), vget_low_s32(_t5.val[0]));
                         _sum9 = vcombine_s32(vget_low_s32(_t6.val[0]), vget_low_s32(_t7.val[0]));
                         _suma = vcombine_s32(vget_high_s32(_t4.val[0]), vget_high_s32(_t5.val[0]));
@@ -1882,12 +1913,6 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                         _sumd = vcombine_s32(vget_low_s32(_t7.val[1]), vget_low_s32(_t6.val[1]));
                         _sume = vcombine_s32(vget_high_s32(_t5.val[1]), vget_high_s32(_t4.val[1]));
                         _sumf = vcombine_s32(vget_high_s32(_t7.val[1]), vget_high_s32(_t6.val[1]));
-
-                        // a0 b0 c0 d0  e0 f0 g0 h0
-                        // d1 c1 b1 a1  h1 g1 f1 e1
-                        // a2 b2 c2 d2  e2 f2 g2 h2
-                        // d3 c3 b3 a3  h3 g3 f3 e3
-
                         _sum2 = vrev64q_s32(_sum2);
                         _sum3 = vrev64q_s32(_sum3);
                         _sum6 = vrev64q_s32(_sum6);
@@ -1914,58 +1939,28 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                     vst1q_s32(outptr0 + 52, _sumd);
                     vst1q_s32(outptr0 + 56, _sume);
                     vst1q_s32(outptr0 + 60, _sumf);
-#endif // __ARM_FEATURE_DOTPROD
                     outptr0 += 64;
                 }
                 if (out_elempack == 4)
                 {
-#if __ARM_FEATURE_DOTPROD
-                    // a0 b0 c0 d0
-                    // a1 b1 c1 d1
-                    // a2 b2 c2 d2
-                    // a3 b3 c3 d3
-                    // e0 f0 g0 h0
-                    // e1 f1 g1 h1
-                    // e2 f2 g2 h2
-                    // e3 f3 g3 h3
-
-                    // a4 b4 c4 d4
-                    // a5 b5 c5 d5
-                    // a6 b6 c6 d6
-                    // a7 b7 c7 d7
-                    // e4 f4 g4 h4
-                    // e5 f5 g5 h5
-                    // e6 f6 g6 h6
-                    // e7 f7 g7 h7
-
-                    vst1q_s32(outptr0, _sum0);
-                    vst1q_s32(outptr0 + 4, _sum1);
-                    vst1q_s32(outptr0 + 8, _sum2);
-                    vst1q_s32(outptr0 + 12, _sum3);
-                    vst1q_s32(outptr0 + 16, _sum8);
-                    vst1q_s32(outptr0 + 20, _sum9);
-                    vst1q_s32(outptr0 + 24, _suma);
-                    vst1q_s32(outptr0 + 28, _sumb);
-                    vst1q_s32(outptr0 + out_hstep * 4, _sum4);
-                    vst1q_s32(outptr0 + out_hstep * 4 + 4, _sum5);
-                    vst1q_s32(outptr0 + out_hstep * 4 + 8, _sum6);
-                    vst1q_s32(outptr0 + out_hstep * 4 + 12, _sum7);
-                    vst1q_s32(outptr0 + out_hstep * 4 + 16, _sumc);
-                    vst1q_s32(outptr0 + out_hstep * 4 + 20, _sumd);
-                    vst1q_s32(outptr0 + out_hstep * 4 + 24, _sume);
-                    vst1q_s32(outptr0 + out_hstep * 4 + 28, _sumf);
-#else  // __ARM_FEATURE_DOTPROD
+                    // to
+                    //      a0 b0 c0 d0
+                    //      a1 b1 c1 d1
+                    //      a2 b2 c2 d2
+                    //      a3 b3 c3 d3
+                    //      a4 b4 c4 d4
+                    //      a5 b5 c5 d5
+                    //      a6 b6 c6 d6
+                    //      a7 b7 c7 d7
+                    //      e0 f0 g0 h0
+                    //      e1 f1 g1 h1
+                    //      e2 f2 g2 h2
+                    //      e3 f3 g3 h3
+                    //      e4 f4 g4 h4
+                    //      e5 f5 g5 h5
+                    //      e6 f6 g6 h6
+                    //      e7 f7 g7 h7
                     {
-                        // a0 b1 c2 d3  e4 f5 g6 h7
-                        // e0 f1 g2 h3  a4 b5 c6 d7
-                        // c0 d1 a2 b3  g4 h5 e6 f7
-                        // g0 h1 e2 f3  c4 d5 a6 b7
-
-                        // a3 b2 c1 d0  e7 f6 g5 h4
-                        // e3 f2 g1 h0  a7 b6 c5 d4
-                        // c3 d2 a1 b0  g7 h6 e5 f4
-                        // g3 h2 e1 f0  c7 d6 a5 b4
-
                         _sum8 = vrev64q_s32(_sum8);
                         _sum9 = vrev64q_s32(_sum9);
                         _suma = vrev64q_s32(_suma);
@@ -1974,7 +1969,6 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                         _sumd = vrev64q_s32(_sumd);
                         _sume = vrev64q_s32(_sume);
                         _sumf = vrev64q_s32(_sumf);
-
                         _sum8 = vextq_s32(_sum8, _sum8, 2);
                         _sum9 = vextq_s32(_sum9, _sum9, 2);
                         _suma = vextq_s32(_suma, _suma, 2);
@@ -1983,177 +1977,78 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                         _sumd = vextq_s32(_sumd, _sumd, 2);
                         _sume = vextq_s32(_sume, _sume, 2);
                         _sumf = vextq_s32(_sumf, _sumf, 2);
-
-                        // a0 b1 c2 d3  e4 f5 g6 h7
-                        // e0 f1 g2 h3  a4 b5 c6 d7
-                        // c0 d1 a2 b3  g4 h5 e6 f7
-                        // g0 h1 e2 f3  c4 d5 a6 b7
-
-                        // d0 c1 b2 a3  h4 g5 f6 e7
-                        // h0 g1 f2 e3  d4 c5 b6 a7
-                        // b0 a1 d2 c3  f4 e5 h6 g7
-                        // f0 e1 h2 g3  b4 a5 d6 c7
-
                         int32x4x2_t _t0 = vzipq_s32(_sum0, _sumc);
                         int32x4x2_t _t1 = vzipq_s32(_sum4, _sum8);
                         int32x4x2_t _t2 = vzipq_s32(_sum2, _sume);
                         int32x4x2_t _t3 = vzipq_s32(_sum6, _suma);
-
                         int32x4x2_t _t4 = vzipq_s32(_sum3, _sumf);
                         int32x4x2_t _t5 = vzipq_s32(_sum7, _sumb);
                         int32x4x2_t _t6 = vzipq_s32(_sum1, _sumd);
                         int32x4x2_t _t7 = vzipq_s32(_sum5, _sum9);
-
-                        // a0 b1 c2 d3
-                        // b0 a1 d2 c3
-
-                        // c0 d1 a2 b3
-                        // d0 c1 b2 a3
-
-                        // e0 f1 g2 h3
-                        // f0 e1 h2 g3
-
-                        // g0 h1 e2 f3
-                        // h0 g1 f2 e3
-
-                        // a4 b5 c6 d7
-                        // b4 a5 d6 c7
-
-                        // c4 d5 a6 b7
-                        // d4 c5 b6 a7
-
-                        // e4 f5 g6 h7
-                        // f4 e5 h6 g7
-
-                        // g4 h5 e6 f7
-                        // h4 g5 f6 e7
-
-                        // a0 b0 b1 a1  c2 d2 d3 c3
-                        // c0 d0 d1 c1  a2 b2 b3 a3
-                        // e0 f0 f1 e1  g2 h2 h3 g3
-                        // g0 h0 h1 g1  e2 f2 f3 e3
-
-                        // a4 b4 b5 b5  c6 d6 d7 c7
-                        // c4 d4 d5 c5  a6 b6 b7 a7
-                        // e4 f4 f5 e5  g6 h6 h7 g7
-                        // g4 h4 h5 g5  e6 f6 f7 e7
-
                         _sum0 = vcombine_s32(vget_low_s32(_t0.val[0]), vget_low_s32(_t1.val[0]));
-                        _sum1 = vcombine_s32(vget_low_s32(_t2.val[0]), vget_low_s32(_t3.val[0]));
-                        _sum2 = vcombine_s32(vget_high_s32(_t0.val[0]), vget_high_s32(_t1.val[0]));
-                        _sum3 = vcombine_s32(vget_high_s32(_t2.val[0]), vget_high_s32(_t3.val[0]));
-                        _sum4 = vcombine_s32(vget_low_s32(_t1.val[1]), vget_low_s32(_t0.val[1]));
-                        _sum5 = vcombine_s32(vget_low_s32(_t3.val[1]), vget_low_s32(_t2.val[1]));
-                        _sum6 = vcombine_s32(vget_high_s32(_t1.val[1]), vget_high_s32(_t0.val[1]));
-                        _sum7 = vcombine_s32(vget_high_s32(_t3.val[1]), vget_high_s32(_t2.val[1]));
-
-                        _sum8 = vcombine_s32(vget_low_s32(_t4.val[0]), vget_low_s32(_t5.val[0]));
-                        _sum9 = vcombine_s32(vget_low_s32(_t6.val[0]), vget_low_s32(_t7.val[0]));
-                        _suma = vcombine_s32(vget_high_s32(_t4.val[0]), vget_high_s32(_t5.val[0]));
-                        _sumb = vcombine_s32(vget_high_s32(_t6.val[0]), vget_high_s32(_t7.val[0]));
-                        _sumc = vcombine_s32(vget_low_s32(_t5.val[1]), vget_low_s32(_t4.val[1]));
-                        _sumd = vcombine_s32(vget_low_s32(_t7.val[1]), vget_low_s32(_t6.val[1]));
-                        _sume = vcombine_s32(vget_high_s32(_t5.val[1]), vget_high_s32(_t4.val[1]));
+                        _sum1 = vcombine_s32(vget_high_s32(_t0.val[0]), vget_high_s32(_t1.val[0]));
+                        _sum2 = vcombine_s32(vget_low_s32(_t1.val[1]), vget_low_s32(_t0.val[1]));
+                        _sum3 = vcombine_s32(vget_high_s32(_t1.val[1]), vget_high_s32(_t0.val[1]));
+                        _sum4 = vcombine_s32(vget_low_s32(_t4.val[0]), vget_low_s32(_t5.val[0]));
+                        _sum5 = vcombine_s32(vget_high_s32(_t4.val[0]), vget_high_s32(_t5.val[0]));
+                        _sum6 = vcombine_s32(vget_low_s32(_t5.val[1]), vget_low_s32(_t4.val[1]));
+                        _sum7 = vcombine_s32(vget_high_s32(_t5.val[1]), vget_high_s32(_t4.val[1]));
+                        _sum8 = vcombine_s32(vget_low_s32(_t2.val[0]), vget_low_s32(_t3.val[0]));
+                        _sum9 = vcombine_s32(vget_high_s32(_t2.val[0]), vget_high_s32(_t3.val[0]));
+                        _suma = vcombine_s32(vget_low_s32(_t3.val[1]), vget_low_s32(_t2.val[1]));
+                        _sumb = vcombine_s32(vget_high_s32(_t3.val[1]), vget_high_s32(_t2.val[1]));
+                        _sumc = vcombine_s32(vget_low_s32(_t6.val[0]), vget_low_s32(_t7.val[0]));
+                        _sumd = vcombine_s32(vget_high_s32(_t6.val[0]), vget_high_s32(_t7.val[0]));
+                        _sume = vcombine_s32(vget_low_s32(_t7.val[1]), vget_low_s32(_t6.val[1]));
                         _sumf = vcombine_s32(vget_high_s32(_t7.val[1]), vget_high_s32(_t6.val[1]));
-
-                        _sum2 = vrev64q_s32(_sum2);
+                        _sum1 = vrev64q_s32(_sum1);
                         _sum3 = vrev64q_s32(_sum3);
-                        _sum6 = vrev64q_s32(_sum6);
+                        _sum5 = vrev64q_s32(_sum5);
                         _sum7 = vrev64q_s32(_sum7);
-                        _suma = vrev64q_s32(_suma);
+                        _sum9 = vrev64q_s32(_sum9);
                         _sumb = vrev64q_s32(_sumb);
-                        _sume = vrev64q_s32(_sume);
+                        _sumd = vrev64q_s32(_sumd);
                         _sumf = vrev64q_s32(_sumf);
-
-                        // a0 b0 c0 d0  e0 f0 g0 h0
-                        // a1 b1 c1 d1  e1 f1 g1 h1
-                        // a2 b2 c2 d2  e2 f2 g2 h2
-                        // a3 b3 c3 d3  e3 f3 g3 h3
-                        // a4 b4 c4 d4  e4 f4 g4 h4
-                        // a5 b5 c5 d5  e5 f5 g5 h5
-                        // a6 b6 c6 d6  e6 f6 g6 h6
-                        // a7 b7 c7 d7  e7 f7 g7 h7
                     }
 
                     vst1q_s32(outptr0, _sum0);
-                    vst1q_s32(outptr0 + 4, _sum2);
-                    vst1q_s32(outptr0 + 8, _sum4);
-                    vst1q_s32(outptr0 + 12, _sum6);
-                    vst1q_s32(outptr0 + 16, _sum8);
-                    vst1q_s32(outptr0 + 20, _suma);
-                    vst1q_s32(outptr0 + 24, _sumc);
-                    vst1q_s32(outptr0 + 28, _sume);
-                    vst1q_s32(outptr0 + out_hstep * 4, _sum1);
-                    vst1q_s32(outptr0 + out_hstep * 4 + 4, _sum3);
-                    vst1q_s32(outptr0 + out_hstep * 4 + 8, _sum5);
-                    vst1q_s32(outptr0 + out_hstep * 4 + 12, _sum7);
-                    vst1q_s32(outptr0 + out_hstep * 4 + 16, _sum9);
-                    vst1q_s32(outptr0 + out_hstep * 4 + 20, _sumb);
-                    vst1q_s32(outptr0 + out_hstep * 4 + 24, _sumd);
+                    vst1q_s32(outptr0 + 4, _sum1);
+                    vst1q_s32(outptr0 + 8, _sum2);
+                    vst1q_s32(outptr0 + 12, _sum3);
+                    vst1q_s32(outptr0 + 16, _sum4);
+                    vst1q_s32(outptr0 + 20, _sum5);
+                    vst1q_s32(outptr0 + 24, _sum6);
+                    vst1q_s32(outptr0 + 28, _sum7);
+                    vst1q_s32(outptr0 + out_hstep * 4, _sum8);
+                    vst1q_s32(outptr0 + out_hstep * 4 + 4, _sum9);
+                    vst1q_s32(outptr0 + out_hstep * 4 + 8, _suma);
+                    vst1q_s32(outptr0 + out_hstep * 4 + 12, _sumb);
+                    vst1q_s32(outptr0 + out_hstep * 4 + 16, _sumc);
+                    vst1q_s32(outptr0 + out_hstep * 4 + 20, _sumd);
+                    vst1q_s32(outptr0 + out_hstep * 4 + 24, _sume);
                     vst1q_s32(outptr0 + out_hstep * 4 + 28, _sumf);
-#endif // __ARM_FEATURE_DOTPROD
                     outptr0 += 32;
                 }
                 if (out_elempack == 1)
                 {
-#if __ARM_FEATURE_DOTPROD
+                    // to
+                    //      a0 a1 a2 a3
+                    //      a4 a5 a6 a7
+                    //      b0 b1 b2 b3
+                    //      b4 b5 b6 b7
+                    //      c0 c1 c2 c3
+                    //      c4 c5 c6 c7
+                    //      d0 d1 d2 d3
+                    //      d4 d5 d6 d7
+                    //      e0 e1 e2 e3
+                    //      e4 e5 e6 e7
+                    //      f0 f1 f2 f3
+                    //      f4 f5 f6 f7
+                    //      g0 g1 g2 g3
+                    //      g4 g5 g6 g7
+                    //      h0 h1 h2 h3
+                    //      h4 h5 h6 h7
                     {
-                        // a0 b0 c0 d0
-                        // a1 b1 c1 d1
-                        // a2 b2 c2 d2
-                        // a3 b3 c3 d3
-                        // e0 f0 g0 h0
-                        // e1 f1 g1 h1
-                        // e2 f2 g2 h2
-                        // e3 f3 g3 h3
-
-                        // a4 b4 c4 d4
-                        // a5 b5 c5 d5
-                        // a6 b6 c6 d6
-                        // a7 b7 c7 d7
-                        // e4 f4 g4 h4
-                        // e5 f5 g5 h5
-                        // e6 f6 g6 h6
-                        // e7 f7 g7 h7
-
-                        int32x4x2_t _t0 = vzipq_s32(_sum0, _sum1);
-                        int32x4x2_t _t1 = vzipq_s32(_sum2, _sum3);
-                        int32x4x2_t _t2 = vzipq_s32(_sum8, _sum9);
-                        int32x4x2_t _t3 = vzipq_s32(_suma, _sumb);
-                        int32x4x2_t _t4 = vzipq_s32(_sum4, _sum5);
-                        int32x4x2_t _t5 = vzipq_s32(_sum6, _sum7);
-                        int32x4x2_t _t6 = vzipq_s32(_sumc, _sumd);
-                        int32x4x2_t _t7 = vzipq_s32(_sume, _sumf);
-
-                        _sum0 = vcombine_s32(vget_low_s32(_t0.val[0]), vget_low_s32(_t1.val[0]));
-                        _sum1 = vcombine_s32(vget_low_s32(_t2.val[0]), vget_low_s32(_t3.val[0]));
-                        _sum2 = vcombine_s32(vget_high_s32(_t0.val[0]), vget_high_s32(_t1.val[0]));
-                        _sum3 = vcombine_s32(vget_high_s32(_t2.val[0]), vget_high_s32(_t3.val[0]));
-                        _sum4 = vcombine_s32(vget_low_s32(_t0.val[1]), vget_low_s32(_t1.val[1]));
-                        _sum5 = vcombine_s32(vget_low_s32(_t2.val[1]), vget_low_s32(_t3.val[1]));
-                        _sum6 = vcombine_s32(vget_high_s32(_t0.val[1]), vget_high_s32(_t1.val[1]));
-                        _sum7 = vcombine_s32(vget_high_s32(_t2.val[1]), vget_high_s32(_t3.val[1]));
-                        _sum8 = vcombine_s32(vget_low_s32(_t4.val[0]), vget_low_s32(_t5.val[0]));
-                        _sum9 = vcombine_s32(vget_low_s32(_t6.val[0]), vget_low_s32(_t7.val[0]));
-                        _suma = vcombine_s32(vget_high_s32(_t4.val[0]), vget_high_s32(_t5.val[0]));
-                        _sumb = vcombine_s32(vget_high_s32(_t6.val[0]), vget_high_s32(_t7.val[0]));
-                        _sumc = vcombine_s32(vget_low_s32(_t4.val[1]), vget_low_s32(_t5.val[1]));
-                        _sumd = vcombine_s32(vget_low_s32(_t6.val[1]), vget_low_s32(_t7.val[1]));
-                        _sume = vcombine_s32(vget_high_s32(_t4.val[1]), vget_high_s32(_t5.val[1]));
-                        _sumf = vcombine_s32(vget_high_s32(_t6.val[1]), vget_high_s32(_t7.val[1]));
-                    }
-#else  // __ARM_FEATURE_DOTPROD
-                    {
-                        // a0 b1 c2 d3  e4 f5 g6 h7
-                        // e0 f1 g2 h3  a4 b5 c6 d7
-                        // c0 d1 a2 b3  g4 h5 e6 f7
-                        // g0 h1 e2 f3  c4 d5 a6 b7
-
-                        // a3 b2 c1 d0  e7 f6 g5 h4
-                        // e3 f2 g1 h0  a7 b6 c5 d4
-                        // c3 d2 a1 b0  g7 h6 e5 f4
-                        // g3 h2 e1 f0  c7 d6 a5 b4
-
                         _sum4 = vextq_s32(_sum4, _sum4, 2);
                         _sum5 = vextq_s32(_sum5, _sum5, 2);
                         _sum6 = vextq_s32(_sum6, _sum6, 2);
@@ -2162,61 +2057,14 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                         _sumd = vextq_s32(_sumd, _sumd, 2);
                         _sume = vextq_s32(_sume, _sume, 2);
                         _sumf = vextq_s32(_sumf, _sumf, 2);
-
-                        // a0 b1 c2 d3  e4 f5 g6 h7
-                        // e0 f1 g2 h3  a4 b5 c6 d7
-                        // a2 b3 c0 d1  e6 f7 g4 h5
-                        // e2 f3 g0 h1  a6 b7 c4 d5
-
-                        // a3 b2 c1 d0  e7 f6 g5 h4
-                        // e3 f2 g1 h0  a7 b6 c5 d4
-                        // a1 b0 c3 d2  e5 f4 g7 h6
-                        // e1 f0 g3 h2  a5 b4 c7 d6
-
                         int32x4x2_t _t0 = vzipq_s32(_sum0, _sumc);
                         int32x4x2_t _t1 = vzipq_s32(_sum4, _sum8);
                         int32x4x2_t _t2 = vzipq_s32(_sum3, _sumf);
                         int32x4x2_t _t3 = vzipq_s32(_sum7, _sumb);
-
                         int32x4x2_t _t4 = vzipq_s32(_sum2, _sume);
                         int32x4x2_t _t5 = vzipq_s32(_sum6, _suma);
                         int32x4x2_t _t6 = vzipq_s32(_sum1, _sumd);
                         int32x4x2_t _t7 = vzipq_s32(_sum5, _sum9);
-
-                        // a0 b1 c2 d3
-                        // a1 b0 c3 d2
-
-                        // a2 b3 c0 d1
-                        // a3 b2 c1 d0
-
-                        // a4 b5 c6 d7
-                        // a5 b4 c7 d6
-
-                        // a6 b7 c4 d5
-                        // a7 b6 c5 d4
-
-                        // e0 f1 g2 h3
-                        // e1 f0 g3 h2
-
-                        // e2 f3 g0 h1
-                        // e3 f2 g1 h0
-
-                        // e4 f5 g6 h7
-                        // e5 f4 g7 h6
-
-                        // e6 f7 g4 h5
-                        // e7 f6 g5 h4
-
-                        // a0 a1 b1 b0  c2 c3 d3 d2
-                        // a2 a3 b3 b2  c0 c1 d1 d0
-                        // a4 a5 b5 b4  c6 c7 d7 d6
-                        // a6 a7 b7 b6  c4 c5 d5 d4
-
-                        // e0 e1 f1 f0  g2 g3 h3 h2
-                        // e2 e3 f3 f2  g0 g1 h1 h0
-                        // e4 e5 f5 f4  g6 g7 h7 h6
-                        // e6 e7 f7 f6  g4 g5 h5 h4
-
                         _sum0 = vcombine_s32(vget_low_s32(_t0.val[0]), vget_low_s32(_t1.val[0]));
                         _sum1 = vcombine_s32(vget_low_s32(_t2.val[0]), vget_low_s32(_t3.val[0]));
                         _sum2 = vcombine_s32(vget_high_s32(_t0.val[0]), vget_high_s32(_t1.val[0]));
@@ -2233,16 +2081,6 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                         _sumd = vcombine_s32(vget_low_s32(_t7.val[1]), vget_low_s32(_t6.val[1]));
                         _sume = vcombine_s32(vget_high_s32(_t5.val[1]), vget_high_s32(_t4.val[1]));
                         _sumf = vcombine_s32(vget_high_s32(_t7.val[1]), vget_high_s32(_t6.val[1]));
-
-                        // a0 a1 a2 a3  a4 a5 a6 a7
-                        // b1 b0 b3 b2  b5 b4 b7 b6
-                        // c0 c1 c2 c3  c4 c5 c6 c7
-                        // d1 d0 d3 d2  d5 d4 d7 d6
-                        // e0 e1 e2 e3  e4 e5 e6 e7
-                        // f1 f0 f3 f2  f5 f4 f7 f6
-                        // g0 g1 g2 g3  g4 g5 g6 g7
-                        // h1 h0 h3 h2  h5 h4 h7 h6
-
                         _sum2 = vrev64q_s32(_sum2);
                         _sum3 = vrev64q_s32(_sum3);
                         _sum6 = vrev64q_s32(_sum6);
@@ -2252,7 +2090,6 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                         _sume = vrev64q_s32(_sume);
                         _sumf = vrev64q_s32(_sumf);
                     }
-#endif // __ARM_FEATURE_DOTPROD
 
                     vst1q_s32(outptr0, _sum0);
                     vst1q_s32(outptr0 + 4, _sum1);
@@ -2272,6 +2109,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                     vst1q_s32(outptr0 + out_hstep * 7 + 4, _sumf);
                     outptr0 += 8;
                 }
+#endif // __ARM_FEATURE_DOTPROD
             }
             else
             {
