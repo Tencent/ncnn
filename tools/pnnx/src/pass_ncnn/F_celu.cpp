@@ -12,46 +12,38 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "celu.h"
+#include "pass_ncnn.h"
 
-#include <math.h>
+namespace pnnx {
 
 namespace ncnn {
 
-CELU::CELU()
+class F_celu : public GraphRewriterPass
 {
-    one_blob_only = true;
-    support_inplace = true;
-}
-
-int CELU::load_param(const ParamDict& pd)
-{
-    alpha = pd.get(0, 1.f);
-
-    return 0;
-}
-
-int CELU::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
-{
-    int w = bottom_top_blob.w;
-    int h = bottom_top_blob.h;
-    int d = bottom_top_blob.d;
-    int channels = bottom_top_blob.c;
-    int size = w * h * d;
-
-    #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q = 0; q < channels; q++)
+public:
+    const char* match_pattern_graph() const
     {
-        float* ptr = bottom_top_blob.channel(q);
-
-        for (int i = 0; i < size; i++)
-        {
-            if (ptr[i] < 0.f)
-                ptr[i] = (expf(ptr[i] / alpha) - 1.f) * alpha;
-        }
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input           input          0 1 input
+F.celu               op_0           1 1 input out alpha=%alpha
+pnnx.Output          output         1 0 out
+)PNNXIR";
     }
 
-    return 0;
-}
+    const char* type_str() const
+    {
+        return "CELU";
+    }
+
+    const char* name_str() const
+    {
+        return "celu";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(F_celu, 20)
 
 } // namespace ncnn
+
+} // namespace pnnx

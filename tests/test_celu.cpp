@@ -1,6 +1,6 @@
 // Tencent is pleased to support the open source community by making ncnn available.
 //
-// Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
+// Copyright (C) 2023 THL A29 Limited, a Tencent company. All rights reserved.
 //
 // Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 // in compliance with the License. You may obtain a copy of the License at
@@ -18,11 +18,11 @@
 static int test_celu(const ncnn::Mat& a, float alpha)
 {
     ncnn::ParamDict pd;
-    pd.set(0, alpha); //alpha
+    pd.set(0, alpha);
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer<ncnn::CeLU>("CeLU", pd, weights, a);
+    int ret = test_layer<ncnn::CELU>("CELU", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_celu failed a.dims=%d a=(%d %d %d %d) alpha=%f\n", a.dims, a.w, a.h, a.d, a.c, alpha);
