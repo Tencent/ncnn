@@ -3641,6 +3641,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "UnaryOp");
         }
+        else if (op == "Celu")
+        {
+            fprintf(pp, "%-16s", "CELU");
+        }
         else if (op == "Clip")
         {
             fprintf(pp, "%-16s", "Clip");
@@ -4153,6 +4157,12 @@ int main(int argc, char** argv)
         {
             int op_type = 3;
             fprintf(pp, " 0=%d", op_type);
+        }
+        else if (op == "CeLU")
+        {
+            float alpha = get_node_attr_f(node, "alpha", 1.0f);
+
+            fprintf(pp, " 0=%e", alpha);
         }
         else if (op == "Clip")
         {
