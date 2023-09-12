@@ -6052,12 +6052,6 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                     int8x16_t _pB3 = vld1q_s8(pB + 48);
 
 #if __ARM_FEATURE_MATMUL_INT8
-                    // aaaaaaaa bbbbbbbb
-                    // 00000000 11111111
-                    // 22222222 33333333
-                    // 44444444 55555555
-                    // 66666666 77777777
-
                     _sum01 = vmmlaq_s32(_sum01, _pA, _pB0);
                     _sum23 = vmmlaq_s32(_sum23, _pA, _pB1);
                     _sum45 = vmmlaq_s32(_sum45, _pA, _pB2);
@@ -6128,10 +6122,6 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                     _sum30 = vdot_laneq_s32(_sum30, _pA, _pB1, 2);
                     _sum31 = vdot_laneq_s32(_sum31, _pA, _pB1, 3);
 #else  // __ARM_FEATURE_DOTPROD
-                    // aabbccdd -> aaaaaaaa bbbbbbbb cccccccc dddddddd
-
-                    // 00112233 44556677 8899aabb ccddeeff
-
                     int8x8_t _pA0 = vreinterpret_s8_s16(vdup_lane_s16(vreinterpret_s16_s8(_pA), 0));
                     int8x8_t _pA1 = vreinterpret_s8_s16(vdup_lane_s16(vreinterpret_s16_s8(_pA), 1));
                     int8x8_t _pA2 = vreinterpret_s8_s16(vdup_lane_s16(vreinterpret_s16_s8(_pA), 2));
@@ -6262,10 +6252,6 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                     int8x16_t _pB1 = vld1q_s8(pB + 16);
 
 #if __ARM_FEATURE_MATMUL_INT8
-                    // aaaaaaaa bbbbbbbb
-                    // 00000000 11111111
-                    // 22222222 33333333
-
                     _sum01 = vmmlaq_s32(_sum01, _pA, _pB0);
                     _sum23 = vmmlaq_s32(_sum23, _pA, _pB1);
 #else  // __ARM_FEATURE_MATMUL_INT8
