@@ -1682,7 +1682,9 @@ y = x - bias , x > lambd
 y = x + bias , x < -lambd
 ```
 
-| param id  | name          | type  | default   | description       |
+* one_blob_only
+* support_inplace
+
 | param id  | name          | type | default   | description       |
 | --------- | ------------- | ---- | --------- | ----------------- |
 | 0         | bias         | float  | 0.0f         |                   |
