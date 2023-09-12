@@ -18,7 +18,7 @@
 
 namespace ncnn {
 
-CeLU_vulkan::CeLU_vulkan()
+CELU_vulkan::CELU_vulkan()
 {
     support_vulkan = true;
     support_image_storage = true;
@@ -28,7 +28,7 @@ CeLU_vulkan::CeLU_vulkan()
     pipeline_celu_pack8 = 0;
 }
 
-int CeLU_vulkan::create_pipeline(const Option& opt)
+int CELU_vulkan::create_pipeline(const Option& opt)
 {
     const Mat& shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
@@ -118,7 +118,7 @@ int CeLU_vulkan::create_pipeline(const Option& opt)
     return 0;
 }
 
-int CeLU_vulkan::destroy_pipeline(const Option& /*opt*/)
+int CELU_vulkan::destroy_pipeline(const Option& /*opt*/)
 {
     delete pipeline_celu;
     pipeline_celu = 0;
@@ -132,7 +132,7 @@ int CeLU_vulkan::destroy_pipeline(const Option& /*opt*/)
     return 0;
 }
 
-int CeLU_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& /*opt*/) const
+int CELU_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& /*opt*/) const
 {
     int elempack = bottom_top_blob.elempack;
 
@@ -155,7 +155,7 @@ int CeLU_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const O
     return 0;
 }
 
-int CeLU_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cmd, const Option& /*opt*/) const
+int CELU_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cmd, const Option& /*opt*/) const
 {
     int elempack = bottom_top_blob.elempack;
 
