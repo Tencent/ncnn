@@ -74,6 +74,7 @@
 * [SELU](#selu)
 * [ShuffleChannel](#shufflechannel)
 * [Sigmoid](#sigmoid)
+* [Size](#size)
 * [Slice](#slice)
 * [Softmax](#softmax)
 * [Softplus](#softplus)
@@ -1695,6 +1696,14 @@ y = 1 / (1 + exp(-x))
 
 * one_blob_only
 * support_inplace
+
+# Size
+```
+y = size(x)
+```
+
+* one_blob_only
+
 
 # Slice
 ```
