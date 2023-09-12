@@ -22,7 +22,7 @@ namespace ncnn {
 class CELU_vulkan : virtual public CELU
 {
 public:
-    CeLU_vulkan();
+    CELU_vulkan();
 
     virtual int create_pipeline(const Option& opt);
     virtual int destroy_pipeline(const Option& opt);
