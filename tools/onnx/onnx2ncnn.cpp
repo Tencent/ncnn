@@ -3643,7 +3643,7 @@ int main(int argc, char** argv)
         }
         else if (op == "Celu")
         {
-            fprintf(pp, "%-16s", "CeLU");
+            fprintf(pp, "%-16s", "CELU");
         }
         else if (op == "Clip")
         {
