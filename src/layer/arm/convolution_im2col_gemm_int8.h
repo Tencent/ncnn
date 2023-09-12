@@ -5823,7 +5823,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                     vst1_s32(outptr0 + out_hstep * 3, vget_high_s32(_sum1));
                     outptr0 += 2;
                 }
-#else // __ARM_FEATURE_DOTPROD
+#else  // __ARM_FEATURE_DOTPROD
 
                 // from
                 //      a0 b1 c0 d1
@@ -6027,12 +6027,22 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
             const signed char* pA = pAT;
             int kk = 0;
 #if __ARM_FEATURE_DOTPROD
-#if __ARM_FEATURE_MATMUL_INT8
             {
+#if __ARM_FEATURE_MATMUL_INT8
                 int32x4_t _sum01 = vdupq_n_s32(0);
                 int32x4_t _sum23 = vdupq_n_s32(0);
                 int32x4_t _sum45 = vdupq_n_s32(0);
                 int32x4_t _sum67 = vdupq_n_s32(0);
+#else  // __ARM_FEATURE_MATMUL_INT8
+                int32x2_t _sum00 = vdup_n_s32(0);
+                int32x2_t _sum01 = vdup_n_s32(0);
+                int32x2_t _sum10 = vdup_n_s32(0);
+                int32x2_t _sum11 = vdup_n_s32(0);
+                int32x2_t _sum20 = vdup_n_s32(0);
+                int32x2_t _sum21 = vdup_n_s32(0);
+                int32x2_t _sum30 = vdup_n_s32(0);
+                int32x2_t _sum31 = vdup_n_s32(0);
+#endif // __ARM_FEATURE_MATMUL_INT8
                 for (; kk + 7 < max_kk; kk += 8)
                 {
                     int8x16_t _pA = vld1q_s8(pA);
@@ -6041,6 +6051,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                     int8x16_t _pB2 = vld1q_s8(pB + 32);
                     int8x16_t _pB3 = vld1q_s8(pB + 48);
 
+#if __ARM_FEATURE_MATMUL_INT8
                     // aaaaaaaa bbbbbbbb
                     // 00000000 11111111
                     // 22222222 33333333
@@ -6051,56 +6062,109 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                     _sum23 = vmmlaq_s32(_sum23, _pA, _pB1);
                     _sum45 = vmmlaq_s32(_sum45, _pA, _pB2);
                     _sum67 = vmmlaq_s32(_sum67, _pA, _pB3);
-
-                    // a0 a1 b0 b1
-                    // a2 a3 b2 b3
-                    // a4 a5 b4 b5
-                    // a6 a7 b6 b7
+#else  // __ARM_FEATURE_MATMUL_INT8
+                    _sum00 = vdot_laneq_s32(_sum00, vget_low_s8(_pA), _pB0, 0);
+                    _sum01 = vdot_laneq_s32(_sum01, vget_low_s8(_pA), _pB0, 1);
+                    _sum10 = vdot_laneq_s32(_sum10, vget_low_s8(_pA), _pB0, 2);
+                    _sum11 = vdot_laneq_s32(_sum11, vget_low_s8(_pA), _pB0, 3);
+                    _sum20 = vdot_laneq_s32(_sum20, vget_low_s8(_pA), _pB1, 0);
+                    _sum21 = vdot_laneq_s32(_sum21, vget_low_s8(_pA), _pB1, 1);
+                    _sum30 = vdot_laneq_s32(_sum30, vget_low_s8(_pA), _pB1, 2);
+                    _sum31 = vdot_laneq_s32(_sum31, vget_low_s8(_pA), _pB1, 3);
+                    _sum00 = vdot_laneq_s32(_sum00, vget_high_s8(_pA), _pB2, 0);
+                    _sum01 = vdot_laneq_s32(_sum01, vget_high_s8(_pA), _pB2, 1);
+                    _sum10 = vdot_laneq_s32(_sum10, vget_high_s8(_pA), _pB2, 2);
+                    _sum11 = vdot_laneq_s32(_sum11, vget_high_s8(_pA), _pB2, 3);
+                    _sum20 = vdot_laneq_s32(_sum20, vget_high_s8(_pA), _pB3, 0);
+                    _sum21 = vdot_laneq_s32(_sum21, vget_high_s8(_pA), _pB3, 1);
+                    _sum30 = vdot_laneq_s32(_sum30, vget_high_s8(_pA), _pB3, 2);
+                    _sum31 = vdot_laneq_s32(_sum31, vget_high_s8(_pA), _pB3, 3);
+#endif // __ARM_FEATURE_MATMUL_INT8
 
                     pA += 16;
                     pB += 64;
                 }
+#if __ARM_FEATURE_MATMUL_INT8
                 _sum0 = vaddq_s32(_sum0, vcombine_s32(vget_low_s32(_sum01), vget_low_s32(_sum23)));
                 _sum1 = vaddq_s32(_sum1, vcombine_s32(vget_low_s32(_sum45), vget_low_s32(_sum67)));
                 _sum2 = vaddq_s32(_sum2, vcombine_s32(vget_high_s32(_sum01), vget_high_s32(_sum23)));
                 _sum3 = vaddq_s32(_sum3, vcombine_s32(vget_high_s32(_sum45), vget_high_s32(_sum67)));
-            }
+#else  // __ARM_FEATURE_MATMUL_INT8
+                int32x2x2_t _sum0x = vzip_s32(_sum00, _sum01);
+                int32x2x2_t _sum1x = vzip_s32(_sum10, _sum11);
+                int32x2x2_t _sum2x = vzip_s32(_sum20, _sum21);
+                int32x2x2_t _sum3x = vzip_s32(_sum30, _sum31);
+                _sum0 = vaddq_s32(_sum0, vcombine_s32(_sum0x.val[0], _sum1x.val[0]));
+                _sum1 = vaddq_s32(_sum1, vcombine_s32(_sum2x.val[0], _sum3x.val[0]));
+                _sum2 = vaddq_s32(_sum2, vcombine_s32(_sum0x.val[1], _sum1x.val[1]));
+                _sum3 = vaddq_s32(_sum3, vcombine_s32(_sum2x.val[1], _sum3x.val[1]));
 #endif // __ARM_FEATURE_MATMUL_INT8
-            int32x2_t _sum00 = vdup_n_s32(0);
-            int32x2_t _sum01 = vdup_n_s32(0);
-            int32x2_t _sum10 = vdup_n_s32(0);
-            int32x2_t _sum11 = vdup_n_s32(0);
-            int32x2_t _sum20 = vdup_n_s32(0);
-            int32x2_t _sum21 = vdup_n_s32(0);
-            int32x2_t _sum30 = vdup_n_s32(0);
-            int32x2_t _sum31 = vdup_n_s32(0);
-            for (; kk + 3 < max_kk; kk += 4)
-            {
-                int8x8_t _pA = vld1_s8(pA);
-                int8x16_t _pB0 = vld1q_s8(pB);
-                int8x16_t _pB1 = vld1q_s8(pB + 16);
-
-                _sum00 = vdot_laneq_s32(_sum00, _pA, _pB0, 0);
-                _sum01 = vdot_laneq_s32(_sum01, _pA, _pB0, 1);
-                _sum10 = vdot_laneq_s32(_sum10, _pA, _pB0, 2);
-                _sum11 = vdot_laneq_s32(_sum11, _pA, _pB0, 3);
-                _sum20 = vdot_laneq_s32(_sum20, _pA, _pB1, 0);
-                _sum21 = vdot_laneq_s32(_sum21, _pA, _pB1, 1);
-                _sum30 = vdot_laneq_s32(_sum30, _pA, _pB1, 2);
-                _sum31 = vdot_laneq_s32(_sum31, _pA, _pB1, 3);
-
-                pA += 8;
-                pB += 32;
             }
-            int32x2x2_t _sum0x = vzip_s32(_sum00, _sum01);
-            int32x2x2_t _sum1x = vzip_s32(_sum10, _sum11);
-            int32x2x2_t _sum2x = vzip_s32(_sum20, _sum21);
-            int32x2x2_t _sum3x = vzip_s32(_sum30, _sum31);
-            _sum0 = vaddq_s32(_sum0, vcombine_s32(_sum0x.val[0], _sum1x.val[0]));
-            _sum1 = vaddq_s32(_sum1, vcombine_s32(_sum2x.val[0], _sum3x.val[0]));
-            _sum2 = vaddq_s32(_sum2, vcombine_s32(_sum0x.val[1], _sum1x.val[1]));
-            _sum3 = vaddq_s32(_sum3, vcombine_s32(_sum2x.val[1], _sum3x.val[1]));
 #endif // __ARM_FEATURE_DOTPROD
+            {
+#if __ARM_FEATURE_DOTPROD
+                int32x2_t _sum00 = vdup_n_s32(0);
+                int32x2_t _sum01 = vdup_n_s32(0);
+                int32x2_t _sum10 = vdup_n_s32(0);
+                int32x2_t _sum11 = vdup_n_s32(0);
+                int32x2_t _sum20 = vdup_n_s32(0);
+                int32x2_t _sum21 = vdup_n_s32(0);
+                int32x2_t _sum30 = vdup_n_s32(0);
+                int32x2_t _sum31 = vdup_n_s32(0);
+#endif // __ARM_FEATURE_DOTPROD
+                for (; kk + 3 < max_kk; kk += 4)
+                {
+                    int8x8_t _pA = vld1_s8(pA);
+                    int8x16_t _pB0 = vld1q_s8(pB);
+                    int8x16_t _pB1 = vld1q_s8(pB + 16);
+
+#if __ARM_FEATURE_DOTPROD
+                    _sum00 = vdot_laneq_s32(_sum00, _pA, _pB0, 0);
+                    _sum01 = vdot_laneq_s32(_sum01, _pA, _pB0, 1);
+                    _sum10 = vdot_laneq_s32(_sum10, _pA, _pB0, 2);
+                    _sum11 = vdot_laneq_s32(_sum11, _pA, _pB0, 3);
+                    _sum20 = vdot_laneq_s32(_sum20, _pA, _pB1, 0);
+                    _sum21 = vdot_laneq_s32(_sum21, _pA, _pB1, 1);
+                    _sum30 = vdot_laneq_s32(_sum30, _pA, _pB1, 2);
+                    _sum31 = vdot_laneq_s32(_sum31, _pA, _pB1, 3);
+#else  // __ARM_FEATURE_DOTPROD
+                    // aabbccdd -> aaaaaaaa bbbbbbbb cccccccc dddddddd
+
+                    // 00112233 44556677 8899aabb ccddeeff
+
+                    int8x8_t _pA0 = vreinterpret_s8_s16(vdup_lane_s16(vreinterpret_s16_s8(_pA), 0));
+                    int8x8_t _pA1 = vreinterpret_s8_s16(vdup_lane_s16(vreinterpret_s16_s8(_pA), 1));
+                    int8x8_t _pA2 = vreinterpret_s8_s16(vdup_lane_s16(vreinterpret_s16_s8(_pA), 2));
+                    int8x8_t _pA3 = vreinterpret_s8_s16(vdup_lane_s16(vreinterpret_s16_s8(_pA), 3));
+
+                    int16x8_t _s0 = vmull_s8(_pA0, vget_low_s8(_pB0));
+                    int16x8_t _s1 = vmull_s8(_pA0, vget_high_s8(_pB0));
+                    int16x8_t _s2 = vmull_s8(_pA1, vget_low_s8(_pB0));
+                    int16x8_t _s3 = vmull_s8(_pA1, vget_high_s8(_pB0));
+                    _s0 = vmlal_s8(_s0, _pA2, vget_low_s8(_pB1));
+                    _s1 = vmlal_s8(_s1, _pA2, vget_high_s8(_pB1));
+                    _s2 = vmlal_s8(_s2, _pA3, vget_low_s8(_pB1));
+                    _s3 = vmlal_s8(_s3, _pA3, vget_high_s8(_pB1));
+                    _sum0 = vpadalq_s16(_sum0, _s0);
+                    _sum1 = vpadalq_s16(_sum1, _s1);
+                    _sum2 = vpadalq_s16(_sum2, _s2);
+                    _sum3 = vpadalq_s16(_sum3, _s3);
+#endif // __ARM_FEATURE_DOTPROD
+
+                    pA += 8;
+                    pB += 32;
+                }
+#if __ARM_FEATURE_DOTPROD
+                int32x2x2_t _sum0x = vzip_s32(_sum00, _sum01);
+                int32x2x2_t _sum1x = vzip_s32(_sum10, _sum11);
+                int32x2x2_t _sum2x = vzip_s32(_sum20, _sum21);
+                int32x2x2_t _sum3x = vzip_s32(_sum30, _sum31);
+                _sum0 = vaddq_s32(_sum0, vcombine_s32(_sum0x.val[0], _sum1x.val[0]));
+                _sum1 = vaddq_s32(_sum1, vcombine_s32(_sum2x.val[0], _sum3x.val[0]));
+                _sum2 = vaddq_s32(_sum2, vcombine_s32(_sum0x.val[1], _sum1x.val[1]));
+                _sum3 = vaddq_s32(_sum3, vcombine_s32(_sum2x.val[1], _sum3x.val[1]));
+#endif // __ARM_FEATURE_DOTPROD
+            }
             for (; kk + 1 < max_kk; kk += 2)
             {
                 int16x4_t _pA = vreinterpret_s16_s32(vld1_dup_s32((const int*)pA));
@@ -6181,55 +6245,95 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
             const signed char* pA = pAT;
             int kk = 0;
 #if __ARM_FEATURE_DOTPROD
-#if __ARM_FEATURE_MATMUL_INT8
             {
+#if __ARM_FEATURE_MATMUL_INT8
                 int32x4_t _sum01 = vdupq_n_s32(0);
                 int32x4_t _sum23 = vdupq_n_s32(0);
+#else  // __ARM_FEATURE_MATMUL_INT8
+                int32x2_t _sum00 = vdup_n_s32(0);
+                int32x2_t _sum01 = vdup_n_s32(0);
+                int32x2_t _sum10 = vdup_n_s32(0);
+                int32x2_t _sum11 = vdup_n_s32(0);
+#endif // __ARM_FEATURE_MATMUL_INT8
                 for (; kk + 7 < max_kk; kk += 8)
                 {
                     int8x16_t _pA = vld1q_s8(pA);
                     int8x16_t _pB0 = vld1q_s8(pB);
                     int8x16_t _pB1 = vld1q_s8(pB + 16);
 
+#if __ARM_FEATURE_MATMUL_INT8
                     // aaaaaaaa bbbbbbbb
                     // 00000000 11111111
                     // 22222222 33333333
 
                     _sum01 = vmmlaq_s32(_sum01, _pA, _pB0);
                     _sum23 = vmmlaq_s32(_sum23, _pA, _pB1);
-
-                    // a0 a1 b0 b1
-                    // a2 a3 b2 b3
+#else  // __ARM_FEATURE_MATMUL_INT8
+                    _sum00 = vdot_laneq_s32(_sum00, vget_low_s8(_pA), _pB0, 0);
+                    _sum01 = vdot_laneq_s32(_sum01, vget_low_s8(_pA), _pB0, 1);
+                    _sum10 = vdot_laneq_s32(_sum10, vget_low_s8(_pA), _pB0, 2);
+                    _sum11 = vdot_laneq_s32(_sum11, vget_low_s8(_pA), _pB0, 3);
+                    _sum00 = vdot_laneq_s32(_sum00, vget_high_s8(_pA), _pB1, 0);
+                    _sum01 = vdot_laneq_s32(_sum01, vget_high_s8(_pA), _pB1, 1);
+                    _sum10 = vdot_laneq_s32(_sum10, vget_high_s8(_pA), _pB1, 2);
+                    _sum11 = vdot_laneq_s32(_sum11, vget_high_s8(_pA), _pB1, 3);
+#endif // __ARM_FEATURE_MATMUL_INT8
 
                     pA += 16;
                     pB += 32;
                 }
+#if __ARM_FEATURE_MATMUL_INT8
                 _sum0 = vaddq_s32(_sum0, vcombine_s32(vget_low_s32(_sum01), vget_low_s32(_sum23)));
                 _sum1 = vaddq_s32(_sum1, vcombine_s32(vget_high_s32(_sum01), vget_high_s32(_sum23)));
-            }
+#else  // __ARM_FEATURE_MATMUL_INT8
+                int32x2x2_t _sum0x = vzip_s32(_sum00, _sum01);
+                int32x2x2_t _sum1x = vzip_s32(_sum10, _sum11);
+                _sum0 = vaddq_s32(_sum0, vcombine_s32(_sum0x.val[0], _sum1x.val[0]));
+                _sum1 = vaddq_s32(_sum1, vcombine_s32(_sum0x.val[1], _sum1x.val[1]));
 #endif // __ARM_FEATURE_MATMUL_INT8
-            int32x2_t _sum00 = vdup_n_s32(0);
-            int32x2_t _sum01 = vdup_n_s32(0);
-            int32x2_t _sum10 = vdup_n_s32(0);
-            int32x2_t _sum11 = vdup_n_s32(0);
-            for (; kk + 3 < max_kk; kk += 4)
-            {
-                int8x8_t _pA = vld1_s8(pA);
-                int8x16_t _pB = vld1q_s8(pB);
-
-                _sum00 = vdot_laneq_s32(_sum00, _pA, _pB, 0);
-                _sum01 = vdot_laneq_s32(_sum01, _pA, _pB, 1);
-                _sum10 = vdot_laneq_s32(_sum10, _pA, _pB, 2);
-                _sum11 = vdot_laneq_s32(_sum11, _pA, _pB, 3);
-
-                pA += 8;
-                pB += 16;
             }
-            int32x2x2_t _sum0x = vzip_s32(_sum00, _sum01);
-            int32x2x2_t _sum1x = vzip_s32(_sum10, _sum11);
-            _sum0 = vaddq_s32(_sum0, vcombine_s32(_sum0x.val[0], _sum1x.val[0]));
-            _sum1 = vaddq_s32(_sum1, vcombine_s32(_sum0x.val[1], _sum1x.val[1]));
 #endif // __ARM_FEATURE_DOTPROD
+            {
+#if __ARM_FEATURE_DOTPROD
+                int32x2_t _sum00 = vdup_n_s32(0);
+                int32x2_t _sum01 = vdup_n_s32(0);
+                int32x2_t _sum10 = vdup_n_s32(0);
+                int32x2_t _sum11 = vdup_n_s32(0);
+#endif // __ARM_FEATURE_DOTPROD
+                for (; kk + 3 < max_kk; kk += 4)
+                {
+                    int8x8_t _pA = vld1_s8(pA);
+                    int8x16_t _pB = vld1q_s8(pB);
+
+#if __ARM_FEATURE_DOTPROD
+                    _sum00 = vdot_laneq_s32(_sum00, _pA, _pB, 0);
+                    _sum01 = vdot_laneq_s32(_sum01, _pA, _pB, 1);
+                    _sum10 = vdot_laneq_s32(_sum10, _pA, _pB, 2);
+                    _sum11 = vdot_laneq_s32(_sum11, _pA, _pB, 3);
+#else  // __ARM_FEATURE_DOTPROD
+                    int8x8_t _pA0 = vreinterpret_s8_s16(vdup_lane_s16(vreinterpret_s16_s8(_pA), 0));
+                    int8x8_t _pA1 = vreinterpret_s8_s16(vdup_lane_s16(vreinterpret_s16_s8(_pA), 1));
+                    int8x8_t _pA2 = vreinterpret_s8_s16(vdup_lane_s16(vreinterpret_s16_s8(_pA), 2));
+                    int8x8_t _pA3 = vreinterpret_s8_s16(vdup_lane_s16(vreinterpret_s16_s8(_pA), 3));
+
+                    int16x8_t _s0 = vmull_s8(_pA0, vget_low_s8(_pB));
+                    int16x8_t _s1 = vmull_s8(_pA1, vget_low_s8(_pB));
+                    _s0 = vmlal_s8(_s0, _pA2, vget_high_s8(_pB));
+                    _s1 = vmlal_s8(_s1, _pA3, vget_high_s8(_pB));
+                    _sum0 = vpadalq_s16(_sum0, _s0);
+                    _sum1 = vpadalq_s16(_sum1, _s1);
+#endif // __ARM_FEATURE_DOTPROD
+
+                    pA += 8;
+                    pB += 16;
+                }
+#if __ARM_FEATURE_DOTPROD
+                int32x2x2_t _sum0x = vzip_s32(_sum00, _sum01);
+                int32x2x2_t _sum1x = vzip_s32(_sum10, _sum11);
+                _sum0 = vaddq_s32(_sum0, vcombine_s32(_sum0x.val[0], _sum1x.val[0]));
+                _sum1 = vaddq_s32(_sum1, vcombine_s32(_sum0x.val[1], _sum1x.val[1]));
+#endif // __ARM_FEATURE_DOTPROD
+            }
             for (; kk + 1 < max_kk; kk += 2)
             {
                 int16x4_t _pA = vreinterpret_s16_s32(vld1_dup_s32((const int*)pA));
