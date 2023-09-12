@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class CeLU_vulkan : virtual public CeLU
+class CELU_vulkan : virtual public CELU
 {
 public:
     CeLU_vulkan();
@@ -27,7 +27,7 @@ public:
     virtual int create_pipeline(const Option& opt);
     virtual int destroy_pipeline(const Option& opt);
 
-    using CeLU::forward_inplace;
+    using CELU::forward_inplace;
     virtual int forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const;
     virtual int forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const;
 
