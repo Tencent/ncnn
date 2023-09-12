@@ -164,6 +164,7 @@ ncnn_add_layer(CumulativeSum)
 ncnn_add_layer(CopyTo)
 ncnn_add_layer(Erf)
 ncnn_add_layer(Diag)
+ncnn_add_layer(CELU)
 ncnn_add_layer(Shrink)
 
 if(NCNN_VULKAN)
