@@ -1,6 +1,7 @@
 
 * [AbsVal](#absval)
 * [ArgMax](#argmax)
+* [ArgMin](#argmin)
 * [BatchNorm](#batchnorm)
 * [Bias](#bias)
 * [BinaryOp](#binaryop)
@@ -102,6 +103,18 @@ y = argmax(x, out_max_val, topk)
 | param id  | name          | type  | default   | description       |
 | --------- | ------------- | ----- | --------- | ----------------- |
 | 0         | out_max_val   | int   | 0         |                   |
+| 1         | topk          | int   | 1         |                   |
+
+# ArgMin
+```
+y = argmin(x, out_min_val, topk)
+```
+
+* one_blob_only
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | out_min_val   | int   | 0         |                   |
 | 1         | topk          | int   | 1         |                   |
 
 # BatchNorm
