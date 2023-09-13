@@ -98,6 +98,7 @@ static inline vfloat32m1_t vdupq_n_f32_riscv(float32_t f) {
     return vfmv_v_f_f32m1(f, 4);
 }
 
+#if C906
 #define VL 4
 
 static inline vfloat32m1x2_t vzip_f32(vfloat32m1_t vector1, vfloat32m1_t vector2) {
@@ -364,6 +365,7 @@ static inline void store_float_v4(vfloat32m1_t vector1, vfloat32m1_t vector2, vf
     vse32_v_f32m1(buf + 8, vget_f32m1x4_f32m1(zip, 2), VL);
     vse32_v_f32m1(buf + 12, vget_f32m1x4_f32m1(zip, 3), VL);
 }
+#endif // C906
 
 #if __riscv_zfh
 static inline vfloat16m8_t vle16_v_f16m8_f16m1(const __fp16* ptr)
