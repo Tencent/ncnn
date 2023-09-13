@@ -164,11 +164,6 @@ void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
-                // vfloat32m4_t _r0123;
-                // vse32_v_f32m1(pp, vle32_v_f32m1(p0, VL), VL);
-                // vse32_v_f32m1(pp + 4, vle32_v_f32m1(p1, VL), VL);
-                // vse32_v_f32m1(pp + 8, vle32_v_f32m1(p2, VL), VL);
-                // vse32_v_f32m1(pp + 12, vle32_v_f32m1(p3, VL), VL);
                 store_float_v4(vle32_v_f32m1(p0, VL), vle32_v_f32m1(p1, VL), vle32_v_f32m1(p2, VL), vle32_v_f32m1(p3, VL), pp);
                 pp += 16;
                 p0 += 4;
@@ -204,13 +199,7 @@ void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
 #if C906
             for (; kk + 3 < max_kk; kk += 4)
             {
-                // vfloat32m1x2_t _r01;
-                // _r01.val[0] = vle32_v_f32m1(p0, VL);
-                // _r01.val[1] = vle32_v_f32m1(p1, VL);
                 store_float32_v2(vle32_v_f32m1(p0, VL), vle32_v_f32m1(p1, VL), pp);
-                // vse32_v_f32m1(pp, vle32_v_f32m1(p0, VL), VL); 
-                // vse32_v_f32m1(pp + 4, vle32_v_f32m1(p1, VL), VL); 
-                // vsseg2e32_v_f32m1x2(pp, _r01, VL);
                 pp += 8;
                 p0 += 4;
                 p1 += 4;
@@ -345,11 +334,7 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
-                // vfloat32m1x2_t _r01;
-                // vse32_v_f32m1(pp, vle32_v_f32m1(p0, VL), VL); 
-                // vse32_v_f32m1(pp + 4, vle32_v_f32m1(p0 + 4, VL), VL);
                 store_float32_v2(vle32_v_f32m1(p0, VL), vle32_v_f32m1(p0 + 4, VL), pp);
-                // vsseg2e32_v_f32m1x2(pp, _r01, VL);
                 pp += 8;
                 p0 += A_hstep * 4;
             }
@@ -628,12 +613,6 @@ static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
-                // vfloat32m1x4_t _r0123;
-                // vget_f32m1x4_f32m1(_r0123, 0) = vle32_v_f32m1(p0, VL);
-                // vget_f32m1x4_f32m1(_r0123, 1) = vle32_v_f32m1(p1, VL);
-                // vget_f32m1x4_f32m1(_r0123, 2) = vle32_v_f32m1(p2, VL);
-                // vget_f32m1x4_f32m1(_r0123, 3) = vle32_v_f32m1(p3, VL);
-                // vst4q_f32(pp, _r0123);
                 store_float_v4(vle32_v_f32m1(p0, VL), vle32_v_f32m1(p1, VL), vle32_v_f32m1(p2, VL), vle32_v_f32m1(p3, VL), pp);
                 pp += 16;
                 p0 += 4;
@@ -669,10 +648,6 @@ static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max
 #if C906
             for (; kk + 3 < max_kk; kk += 4)
             {
-                // float32x4x2_t _r01;
-                // vget_f32m1x4_f32m1(_r01, 0) = vle32_v_f32m1(p0, VL);
-                // vget_f32m1x4_f32m1(_r01, 1) = vle32_v_f32m1(p1, VL);
-                // vst2q_f32(pp, _r01);
                 store_float32_v2(vle32_v_f32m1(p0, VL), vle32_v_f32m1(p1, VL), pp);
                 pp += 8;
                 p0 += 4;
@@ -851,10 +826,6 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
-                // float32x4x2_t _r01;
-                // vget_f32m1x4_f32m1(_r01, 0) = vle32_v_f32m1(p0, VL);
-                // vget_f32m1x4_f32m1(_r01, 1) = vle32_v_f32m1(p0 + 4, VL);
-                // vst2q_f32(pp, _r01);
                 store_float32_v2(vle32_v_f32m1(p0, VL), vle32_v_f32m1(p0 + 4, VL), pp);
                 pp += 8;
                 p0 += B_hstep * 4;
@@ -927,20 +898,8 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
 
             for (int jj = 0; jj + 3 < max_jj; jj += 4)
             {
-                // vfloat32m1x4_t _r0;
-                // vfloat32m1x4_t _r1;
-                // vget_f32m1x4_f32m1(_r0, 0) = vle32_v_f32m1(pp, VL);
-                // vget_f32m1x4_f32m1(_r1, 0) = vle32_v_f32m1(pp + 4, VL);
-                // vget_f32m1x4_f32m1(_r0, 1) = vle32_v_f32m1(pp + 8, VL);
-                // vget_f32m1x4_f32m1(_r1, 1) = vle32_v_f32m1(pp + 12, VL);
-                // vget_f32m1x4_f32m1(_r0, 2) = vle32_v_f32m1(pp + 16, VL);
-                // vget_f32m1x4_f32m1(_r1, 2) = vle32_v_f32m1(pp + 20, VL);
-                // vget_f32m1x4_f32m1(_r0, 3) = vle32_v_f32m1(pp + 24, VL);
-                // vget_f32m1x4_f32m1(_r1, 3) = vle32_v_f32m1(pp + 28, VL);
                 store_float_v4(vle32_v_f32m1(pp, VL), vle32_v_f32m1(pp + 8, VL), vle32_v_f32m1(pp + 16, VL), vle32_v_f32m1(pp + 24, VL), p0);
                 store_float_v4(vle32_v_f32m1(pp + 4, VL), vle32_v_f32m1(pp + 12, VL), vle32_v_f32m1(pp + 20, VL), vle32_v_f32m1(pp + 28, VL), p0 + 16);
-                // vst4q_f32(p0, _r0);
-                // vst4q_f32(p0 + 16, _r1);
                 pp += 32;
                 p0 += out_hstep * 4;
             }
@@ -2944,18 +2903,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             }
             else
             {
-                // vfloat32m1x2_t _tmp01;
-                // vget_f32m1x4_f32m1(_tmp01, 0) = _sum00;
-                // vget_f32m1x4_f32m1(_tmp01, 1) = _sum10;
-                // vfloat32m1x2_t _tmp23;
-                // vget_f32m1x4_f32m1(_tmp23, 0) = _sum01;
-                // vget_f32m1x4_f32m1(_tmp23, 1) = _sum11;
-                // vfloat32m1x2_t _tmp45;
-                // vget_f32m1x4_f32m1(_tmp45, 0) = _sum02;
-                // vget_f32m1x4_f32m1(_tmp45, 1) = _sum12;
-                // vst2q_f32(outptr, _tmp01);
-                // vst2q_f32(outptr + 8, _tmp23);
-                // vst2q_f32(outptr + 16, _tmp45);
                 store_float32_v2(_sum00, _sum10, outptr);
                 store_float32_v2(_sum01, _sum11, outptr + 8);
                 store_float32_v2(_sum02, _sum12, outptr + 16);
@@ -3052,14 +2999,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             }
             else
             {
-                // vfloat32m1x2_t _tmp01;
-                // vget_f32m1x4_f32m1(_tmp01, 0) = _sum00;
-                // vget_f32m1x4_f32m1(_tmp01, 1) = _sum10;
-                // vfloat32m1x2_t _tmp23;
-                // vget_f32m1x4_f32m1(_tmp23, 0) = _sum01;
-                // vget_f32m1x4_f32m1(_tmp23, 1) = _sum11;
-                // vst2q_f32(outptr, _tmp01);
-                // vst2q_f32(outptr + 8, _tmp23);
                 store_float32_v2(_sum00, _sum10, outptr);
                 store_float32_v2(_sum01, _sum11, outptr + 8);
             }
@@ -3136,10 +3075,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             }
             else
             {
-                // vfloat32m1x2_t _tmp01;
-                // vget_f32m1x2_f32m1(_tmp01, 0) = _sum0;
-                // vget_f32m1x2_f32m1(_tmp01, 1) = _sum1;
-                // vst2q_f32(outptr, _tmp01);
                 store_float32_v2(_sum0, _sum1, outptr);
             }
 
