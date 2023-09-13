@@ -159,40 +159,54 @@ static inline void transpose8x8_ps(vfloat32m1_t& _r0l, vfloat32m1_t& _r0h,
                                    vfloat32m1_t& _r6l, vfloat32m1_t& _r6h,
                                    vfloat32m1_t& _r7l, vfloat32m1_t& _r7h)
 {
-    vfloat32m1x2_t _r01lz = vzip_f32(_r0l, _r1l);
-    vfloat32m1x2_t _r23lz = vzip_f32(_r2l, _r3l);
-    vfloat32m1x2_t _r01hz = vzip_f32(_r0h, _r1h);
-    vfloat32m1x2_t _r23hz = vzip_f32(_r2h, _r3h);
-    vfloat32m1x2_t _r45lz = vzip_f32(_r4l, _r5l);
-    vfloat32m1x2_t _r67lz = vzip_f32(_r6l, _r7l);
-    vfloat32m1x2_t _r45hz = vzip_f32(_r4h, _r5h);
-    vfloat32m1x2_t _r67hz = vzip_f32(_r6h, _r7h); 
-    _r0l = vcombine_f32(vget_low_f32(vget_f32m1x2_f32m1(_r01lz, 0)), vget_low_f32(vget_f32m1x2_f32m1(_r23lz, 0)));
-    _r0h = vcombine_f32(vget_low_f32(vget_f32m1x2_f32m1(_r45lz, 0)), vget_low_f32(vget_f32m1x2_f32m1(_r67lz, 0)));
-    _r1l = vcombine_f32(vget_high_f32(vget_f32m1x2_f32m1(_r01lz, 0)), vget_high_f32(vget_f32m1x2_f32m1(_r23lz, 0)));
-    _r1h = vcombine_f32(vget_high_f32(vget_f32m1x2_f32m1(_r45lz, 0)), vget_high_f32(vget_f32m1x2_f32m1(_r67lz, 0)));
-    _r2l = vcombine_f32(vget_low_f32(vget_f32m1x2_f32m1(_r01lz, 1)), vget_low_f32(vget_f32m1x2_f32m1(_r23lz, 1)));
-    _r2h = vcombine_f32(vget_low_f32(vget_f32m1x2_f32m1(_r45lz, 1)), vget_low_f32(vget_f32m1x2_f32m1(_r67lz, 1)));
-    _r3l = vcombine_f32(vget_high_f32(vget_f32m1x2_f32m1(_r01lz, 1)), vget_high_f32(vget_f32m1x2_f32m1(_r23lz, 1)));
-    _r3h = vcombine_f32(vget_high_f32(vget_f32m1x2_f32m1(_r45lz, 1)), vget_high_f32(vget_f32m1x2_f32m1(_r67lz, 1)));
-    _r4l = vcombine_f32(vget_low_f32(vget_f32m1x2_f32m1(_r01hz, 0)), vget_low_f32(vget_f32m1x2_f32m1(_r23hz, 0)));
-    _r4h = vcombine_f32(vget_low_f32(vget_f32m1x2_f32m1(_r45hz, 0)), vget_low_f32(vget_f32m1x2_f32m1(_r67hz, 0)));
-    _r5l = vcombine_f32(vget_high_f32(vget_f32m1x2_f32m1(_r01hz, 0)), vget_high_f32(vget_f32m1x2_f32m1(_r23hz, 0)));
-    _r5h = vcombine_f32(vget_high_f32(vget_f32m1x2_f32m1(_r45hz, 0)), vget_high_f32(vget_f32m1x2_f32m1(_r67hz, 0)));
-    _r6l = vcombine_f32(vget_low_f32(vget_f32m1x2_f32m1(_r01hz, 1)), vget_low_f32(vget_f32m1x2_f32m1(_r23hz, 1)));
-    _r6h = vcombine_f32(vget_low_f32(vget_f32m1x2_f32m1(_r45hz, 1)), vget_low_f32(vget_f32m1x2_f32m1(_r67hz, 1)));
-    _r7l = vcombine_f32(vget_high_f32(vget_f32m1x2_f32m1(_r01hz, 1)), vget_high_f32(vget_f32m1x2_f32m1(_r23hz, 1)));
-    _r7h = vcombine_f32(vget_high_f32(vget_f32m1x2_f32m1(_r45hz, 1)), vget_high_f32(vget_f32m1x2_f32m1(_r67hz, 1)));
+    float tmp[8][8];
+    vsse32_v_f32m1(&tmp[0][0], sizeof(float) * 8, _r0l, VL);
+    vsse32_v_f32m1(&tmp[4][0], sizeof(float) * 8, _r0h, VL);
+    vsse32_v_f32m1(&tmp[0][1], sizeof(float) * 8, _r1l, VL);
+    vsse32_v_f32m1(&tmp[4][1], sizeof(float) * 8, _r1h, VL);
+    vsse32_v_f32m1(&tmp[0][2], sizeof(float) * 8, _r2l, VL);
+    vsse32_v_f32m1(&tmp[4][2], sizeof(float) * 8, _r2h, VL);
+    vsse32_v_f32m1(&tmp[0][3], sizeof(float) * 8, _r3l, VL);
+    vsse32_v_f32m1(&tmp[4][3], sizeof(float) * 8, _r3h, VL);
+    vsse32_v_f32m1(&tmp[0][4], sizeof(float) * 8, _r4l, VL);
+    vsse32_v_f32m1(&tmp[4][4], sizeof(float) * 8, _r4h, VL);
+    vsse32_v_f32m1(&tmp[0][5], sizeof(float) * 8, _r5l, VL);
+    vsse32_v_f32m1(&tmp[4][5], sizeof(float) * 8, _r5h, VL);
+    vsse32_v_f32m1(&tmp[0][6], sizeof(float) * 8, _r6l, VL);
+    vsse32_v_f32m1(&tmp[4][6], sizeof(float) * 8, _r6h, VL);
+    vsse32_v_f32m1(&tmp[0][7], sizeof(float) * 8, _r7l, VL);
+    vsse32_v_f32m1(&tmp[4][7], sizeof(float) * 8, _r7h, VL);
+    float *ptr = (float *)tmp;
+    _r0l = vle32_v_f32m1(ptr + 0 * 4, VL);
+    _r0h = vle32_v_f32m1(ptr + 1 * 4, VL);
+    _r1l = vle32_v_f32m1(ptr + 2 * 4, VL);
+    _r1h = vle32_v_f32m1(ptr + 3 * 4, VL);
+    _r2l = vle32_v_f32m1(ptr + 4 * 4, VL);
+    _r2h = vle32_v_f32m1(ptr + 5 * 4, VL);
+    _r3l = vle32_v_f32m1(ptr + 6 * 4, VL);
+    _r3h = vle32_v_f32m1(ptr + 7 * 4, VL);
+    _r4l = vle32_v_f32m1(ptr + 8 * 4, VL);
+    _r4h = vle32_v_f32m1(ptr + 9 * 4, VL);
+    _r5l = vle32_v_f32m1(ptr + 10 * 4, VL);
+    _r5h = vle32_v_f32m1(ptr + 11 * 4, VL);
+    _r6l = vle32_v_f32m1(ptr + 12 * 4, VL);
+    _r6h = vle32_v_f32m1(ptr + 13 * 4, VL);
+    _r7l = vle32_v_f32m1(ptr + 14 * 4, VL);
+    _r7h = vle32_v_f32m1(ptr + 15 * 4, VL);   
 }
 
 static inline void transpose4x4_ps(vfloat32m1_t &_r0, vfloat32m1_t &_r1, vfloat32m1_t &_r2, vfloat32m1_t &_r3)
 {
-    vfloat32m1x2_t _r01z = vzip_f32(_r0, _r1);
-    vfloat32m1x2_t _r23z = vzip_f32(_r2, _r3);
-    _r0 = vcombine_f32(vget_low_f32(vget_f32m1x2_f32m1(_r01z, 0)), vget_low_f32(vget_f32m1x2_f32m1(_r23z, 0)));
-    _r1 = vcombine_f32(vget_high_f32(vget_f32m1x2_f32m1(_r01z, 0)), vget_high_f32(vget_f32m1x2_f32m1(_r23z, 0)));
-    _r2 = vcombine_f32(vget_low_f32(vget_f32m1x2_f32m1(_r01z, 1)), vget_low_f32(vget_f32m1x2_f32m1(_r23z, 1)));
-    _r3 = vcombine_f32(vget_high_f32(vget_f32m1x2_f32m1(_r01z, 1)), vget_high_f32(vget_f32m1x2_f32m1(_r23z, 1)));
+    float tmp[4][4];
+    vsse32_v_f32m1(&tmp[0][0], sizeof(float) * 4, _r0, VL);
+    vsse32_v_f32m1(&tmp[0][1], sizeof(float) * 4, _r1, VL);
+    vsse32_v_f32m1(&tmp[0][2], sizeof(float) * 4, _r2, VL);
+    vsse32_v_f32m1(&tmp[0][3], sizeof(float) * 4, _r3, VL);
+    float *ptr = (float *)tmp;
+    _r0 = vle32_v_f32m1(ptr + 0 * 4, VL);
+    _r1 = vle32_v_f32m1(ptr + 1 * 4, VL);
+    _r2 = vle32_v_f32m1(ptr + 2 * 4, VL);
+    _r3 = vle32_v_f32m1(ptr + 3 * 4, VL);
 }
 
 static inline void transpose8x12_ps(vfloat32m1_t& _r0l, vfloat32m1_t& _r0h,
@@ -208,42 +222,56 @@ static inline void transpose8x12_ps(vfloat32m1_t& _r0l, vfloat32m1_t& _r0h,
                                     vfloat32m1_t& _ral, vfloat32m1_t& _rah,
                                     vfloat32m1_t& _rbl, vfloat32m1_t& _rbh)
 {
-    vfloat32m1x2_t _r01lz = vzip_f32(_r0l, _r1l);
-    vfloat32m1x2_t _r23lz = vzip_f32(_r2l, _r3l);
-    vfloat32m1x2_t _r01hz = vzip_f32(_r0h, _r1h);
-    vfloat32m1x2_t _r23hz = vzip_f32(_r2h, _r3h);
-    vfloat32m1x2_t _r45lz = vzip_f32(_r4l, _r5l);
-    vfloat32m1x2_t _r67lz = vzip_f32(_r6l, _r7l);
-    vfloat32m1x2_t _r45hz = vzip_f32(_r4h, _r5h);
-    vfloat32m1x2_t _r67hz = vzip_f32(_r6h, _r7h);
-    vfloat32m1x2_t _r89lz = vzip_f32(_r8l, _r9l);
-    vfloat32m1x2_t _rablz = vzip_f32(_ral, _rbl);
-    vfloat32m1x2_t _r89hz = vzip_f32(_r8h, _r9h);
-    vfloat32m1x2_t _rabhz = vzip_f32(_rah, _rbh);
-    _r0l = vcombine_f32(vget_low_f32(vget_f32m1x2_f32m1(_r01lz, 0)), vget_low_f32(vget_f32m1x2_f32m1(_r23lz, 0)));
-    _r0h = vcombine_f32(vget_low_f32(vget_f32m1x2_f32m1(_r45lz, 0)), vget_low_f32(vget_f32m1x2_f32m1(_r67lz, 0)));
-    _r1l = vcombine_f32(vget_low_f32(vget_f32m1x2_f32m1(_r89lz, 0)), vget_low_f32(vget_f32m1x2_f32m1(_rablz, 0)));
-    _r1h = vcombine_f32(vget_high_f32(vget_f32m1x2_f32m1(_r01lz, 0)), vget_high_f32(vget_f32m1x2_f32m1(_r23lz, 0)));
-    _r2l = vcombine_f32(vget_high_f32(vget_f32m1x2_f32m1(_r45lz, 0)), vget_high_f32(vget_f32m1x2_f32m1(_r67lz, 0)));
-    _r2h = vcombine_f32(vget_high_f32(vget_f32m1x2_f32m1(_r89lz, 0)), vget_high_f32(vget_f32m1x2_f32m1(_rablz, 0)));
-    _r3l = vcombine_f32(vget_low_f32(vget_f32m1x2_f32m1(_r01lz, 1)), vget_low_f32(vget_f32m1x2_f32m1(_r23lz, 1)));
-    _r3h = vcombine_f32(vget_low_f32(vget_f32m1x2_f32m1(_r45lz, 1)), vget_low_f32(vget_f32m1x2_f32m1(_r67lz, 1)));
-    _r4l = vcombine_f32(vget_low_f32(vget_f32m1x2_f32m1(_r89lz, 1)), vget_low_f32(vget_f32m1x2_f32m1(_rablz, 1)));
-    _r4h = vcombine_f32(vget_high_f32(vget_f32m1x2_f32m1(_r01lz, 1)), vget_high_f32(vget_f32m1x2_f32m1(_r23lz, 1)));
-    _r5l = vcombine_f32(vget_high_f32(vget_f32m1x2_f32m1(_r45lz, 1)), vget_high_f32(vget_f32m1x2_f32m1(_r67lz, 1)));
-    _r5h = vcombine_f32(vget_high_f32(vget_f32m1x2_f32m1(_r89lz, 1)), vget_high_f32(vget_f32m1x2_f32m1(_rablz, 1)));
-    _r6l = vcombine_f32(vget_low_f32(vget_f32m1x2_f32m1(_r01hz, 0)), vget_low_f32(vget_f32m1x2_f32m1(_r23hz, 0)));
-    _r6h = vcombine_f32(vget_low_f32(vget_f32m1x2_f32m1(_r45hz, 0)), vget_low_f32(vget_f32m1x2_f32m1(_r67hz, 0)));
-    _r7l = vcombine_f32(vget_low_f32(vget_f32m1x2_f32m1(_r89hz, 0)), vget_low_f32(vget_f32m1x2_f32m1(_rabhz, 0)));
-    _r7h = vcombine_f32(vget_high_f32(vget_f32m1x2_f32m1(_r01hz, 0)), vget_high_f32(vget_f32m1x2_f32m1(_r23hz, 0)));
-    _r8l = vcombine_f32(vget_high_f32(vget_f32m1x2_f32m1(_r45hz, 0)), vget_high_f32(vget_f32m1x2_f32m1(_r67hz, 0)));
-    _r8h = vcombine_f32(vget_high_f32(vget_f32m1x2_f32m1(_r89hz, 0)), vget_high_f32(vget_f32m1x2_f32m1(_rabhz, 0)));
-    _r9l = vcombine_f32(vget_low_f32(vget_f32m1x2_f32m1(_r01hz, 1)), vget_low_f32(vget_f32m1x2_f32m1(_r23hz, 1)));
-    _r9h = vcombine_f32(vget_low_f32(vget_f32m1x2_f32m1(_r45hz, 1)), vget_low_f32(vget_f32m1x2_f32m1(_r67hz, 1)));
-    _ral = vcombine_f32(vget_low_f32(vget_f32m1x2_f32m1(_r89hz, 1)), vget_low_f32(vget_f32m1x2_f32m1(_rabhz, 1)));
-    _rah = vcombine_f32(vget_high_f32(vget_f32m1x2_f32m1(_r01hz, 1)), vget_high_f32(vget_f32m1x2_f32m1(_r23hz, 1)));
-    _rbl = vcombine_f32(vget_high_f32(vget_f32m1x2_f32m1(_r45hz, 1)), vget_high_f32(vget_f32m1x2_f32m1(_r67hz, 1)));
-    _rbh = vcombine_f32(vget_high_f32(vget_f32m1x2_f32m1(_r89hz, 1)), vget_high_f32(vget_f32m1x2_f32m1(_rabhz, 1)));
+    float tmp[8][12];
+    vsse32_v_f32m1(&tmp[0][0], sizeof(float) * 12, _r0l, VL);
+    vsse32_v_f32m1(&tmp[4][0], sizeof(float) * 12, _r0h, VL);
+    vsse32_v_f32m1(&tmp[0][1], sizeof(float) * 12, _r1l, VL);
+    vsse32_v_f32m1(&tmp[4][1], sizeof(float) * 12, _r1h, VL);
+    vsse32_v_f32m1(&tmp[0][2], sizeof(float) * 12, _r2l, VL);
+    vsse32_v_f32m1(&tmp[4][2], sizeof(float) * 12, _r2h, VL);
+    vsse32_v_f32m1(&tmp[0][3], sizeof(float) * 12, _r3l, VL);
+    vsse32_v_f32m1(&tmp[4][3], sizeof(float) * 12, _r3h, VL);
+    vsse32_v_f32m1(&tmp[0][4], sizeof(float) * 12, _r4l, VL);
+    vsse32_v_f32m1(&tmp[4][4], sizeof(float) * 12, _r4h, VL);
+    vsse32_v_f32m1(&tmp[0][5], sizeof(float) * 12, _r5l, VL);
+    vsse32_v_f32m1(&tmp[4][5], sizeof(float) * 12, _r5h, VL);
+    vsse32_v_f32m1(&tmp[0][6], sizeof(float) * 12, _r6l, VL);
+    vsse32_v_f32m1(&tmp[4][6], sizeof(float) * 12, _r6h, VL);
+    vsse32_v_f32m1(&tmp[0][7], sizeof(float) * 12, _r7l, VL);
+    vsse32_v_f32m1(&tmp[4][7], sizeof(float) * 12, _r7h, VL);
+    vsse32_v_f32m1(&tmp[0][8], sizeof(float) * 12, _r8l, VL);
+    vsse32_v_f32m1(&tmp[4][8], sizeof(float) * 12, _r8h, VL);
+    vsse32_v_f32m1(&tmp[0][9], sizeof(float) * 12, _r9l, VL);
+    vsse32_v_f32m1(&tmp[4][9], sizeof(float) * 12, _r9h, VL);
+    vsse32_v_f32m1(&tmp[0][10], sizeof(float) * 12, _ral, VL);
+    vsse32_v_f32m1(&tmp[4][10], sizeof(float) * 12, _rah, VL);
+    vsse32_v_f32m1(&tmp[0][11], sizeof(float) * 12, _rbl, VL);
+    vsse32_v_f32m1(&tmp[4][11], sizeof(float) * 12, _rbh, VL);
+    float *ptr = (float *)tmp;
+    _r0l = vle32_v_f32m1(ptr + 0 * 4, VL);
+    _r0h = vle32_v_f32m1(ptr + 1 * 4, VL);
+    _r1l = vle32_v_f32m1(ptr + 2 * 4, VL);
+    _r1h = vle32_v_f32m1(ptr + 3 * 4, VL);
+    _r2l = vle32_v_f32m1(ptr + 4 * 4, VL);
+    _r2h = vle32_v_f32m1(ptr + 5 * 4, VL);
+    _r3l = vle32_v_f32m1(ptr + 6 * 4, VL);
+    _r3h = vle32_v_f32m1(ptr + 7 * 4, VL);
+    _r4l = vle32_v_f32m1(ptr + 8 * 4, VL);
+    _r4h = vle32_v_f32m1(ptr + 9 * 4, VL);
+    _r5l = vle32_v_f32m1(ptr + 10 * 4, VL);
+    _r5h = vle32_v_f32m1(ptr + 11 * 4, VL);
+    _r6l = vle32_v_f32m1(ptr + 12 * 4, VL);
+    _r6h = vle32_v_f32m1(ptr + 13 * 4, VL);
+    _r7l = vle32_v_f32m1(ptr + 14 * 4, VL);
+    _r7h = vle32_v_f32m1(ptr + 15 * 4, VL);  
+    _r8l = vle32_v_f32m1(ptr + 16 * 4, VL);
+    _r8h = vle32_v_f32m1(ptr + 17 * 4, VL);
+    _r9l = vle32_v_f32m1(ptr + 18 * 4, VL);
+    _r9h = vle32_v_f32m1(ptr + 19 * 4, VL);
+    _ral = vle32_v_f32m1(ptr + 20 * 4, VL);
+    _rah = vle32_v_f32m1(ptr + 21 * 4, VL);
+    _rbl = vle32_v_f32m1(ptr + 22 * 4, VL);
+    _rbh = vle32_v_f32m1(ptr + 23 * 4, VL);  
 }
 
 static inline void transpose12x8_ps(vfloat32m1_t& _r0l, vfloat32m1_t& _r0m, vfloat32m1_t& _r0h,
@@ -255,80 +283,108 @@ static inline void transpose12x8_ps(vfloat32m1_t& _r0l, vfloat32m1_t& _r0m, vflo
                                     vfloat32m1_t& _r6l, vfloat32m1_t& _r6m, vfloat32m1_t& _r6h,
                                     vfloat32m1_t& _r7l, vfloat32m1_t& _r7m, vfloat32m1_t& _r7h)
 {
-    vfloat32m1x2_t _r01lz = vzip_f32(_r0l, _r1l);
-    vfloat32m1x2_t _r23lz = vzip_f32(_r2l, _r3l);
-    vfloat32m1x2_t _r01mz = vzip_f32(_r0m, _r1m);
-    vfloat32m1x2_t _r23mz = vzip_f32(_r2m, _r3m);
-    vfloat32m1x2_t _r01hz = vzip_f32(_r0h, _r1h);
-    vfloat32m1x2_t _r23hz = vzip_f32(_r2h, _r3h);
-    vfloat32m1x2_t _r45lz = vzip_f32(_r4l, _r5l);
-    vfloat32m1x2_t _r67lz = vzip_f32(_r6l, _r7l);
-    vfloat32m1x2_t _r45mz = vzip_f32(_r4m, _r5m);
-    vfloat32m1x2_t _r67mz = vzip_f32(_r6m, _r7m);
-    vfloat32m1x2_t _r45hz = vzip_f32(_r4h, _r5h);
-    vfloat32m1x2_t _r67hz = vzip_f32(_r6h, _r7h);
-    _r0l = vcombine_f32(vget_low_f32(vget_f32m1x2_f32m1(_r01lz, 0)), vget_low_f32(vget_f32m1x2_f32m1(_r23lz, 0)));
-    _r0m = vcombine_f32(vget_low_f32(vget_f32m1x2_f32m1(_r45lz, 0)), vget_low_f32(vget_f32m1x2_f32m1(_r67lz, 0)));
-    _r0h = vcombine_f32(vget_high_f32(vget_f32m1x2_f32m1(_r01lz, 0)), vget_high_f32(vget_f32m1x2_f32m1(_r23lz, 0)));
-    _r1l = vcombine_f32(vget_high_f32(vget_f32m1x2_f32m1(_r45lz, 0)), vget_high_f32(vget_f32m1x2_f32m1(_r67lz, 0)));
-    _r1m = vcombine_f32(vget_low_f32(vget_f32m1x2_f32m1(_r01lz, 1)), vget_low_f32(vget_f32m1x2_f32m1(_r23lz, 1)));
-    _r1h = vcombine_f32(vget_low_f32(vget_f32m1x2_f32m1(_r45lz, 1)), vget_low_f32(vget_f32m1x2_f32m1(_r67lz, 1)));
-    _r2l = vcombine_f32(vget_high_f32(vget_f32m1x2_f32m1(_r01lz, 1)), vget_high_f32(vget_f32m1x2_f32m1(_r23lz, 1)));
-    _r2m = vcombine_f32(vget_high_f32(vget_f32m1x2_f32m1(_r45lz, 1)), vget_high_f32(vget_f32m1x2_f32m1(_r67lz, 1)));
-    _r2h = vcombine_f32(vget_low_f32(vget_f32m1x2_f32m1(_r01mz, 0)), vget_low_f32(vget_f32m1x2_f32m1(_r23mz, 0)));
-    _r3l = vcombine_f32(vget_low_f32(vget_f32m1x2_f32m1(_r45mz, 0)), vget_low_f32(vget_f32m1x2_f32m1(_r67mz, 0)));
-    _r3m = vcombine_f32(vget_high_f32(vget_f32m1x2_f32m1(_r01mz, 0)), vget_high_f32(vget_f32m1x2_f32m1(_r23mz, 0)));
-    _r3h = vcombine_f32(vget_high_f32(vget_f32m1x2_f32m1(_r45mz, 0)), vget_high_f32(vget_f32m1x2_f32m1(_r67mz, 0)));
-    _r4l = vcombine_f32(vget_low_f32(vget_f32m1x2_f32m1(_r01mz, 1)), vget_low_f32(vget_f32m1x2_f32m1(_r23mz, 1)));
-    _r4m = vcombine_f32(vget_low_f32(vget_f32m1x2_f32m1(_r45mz, 1)), vget_low_f32(vget_f32m1x2_f32m1(_r67mz, 1)));
-    _r4h = vcombine_f32(vget_high_f32(vget_f32m1x2_f32m1(_r01mz, 1)), vget_high_f32(vget_f32m1x2_f32m1(_r23mz, 1)));
-    _r5l = vcombine_f32(vget_high_f32(vget_f32m1x2_f32m1(_r45mz, 1)), vget_high_f32(vget_f32m1x2_f32m1(_r67mz, 1)));
-    _r5m = vcombine_f32(vget_low_f32(vget_f32m1x2_f32m1(_r01hz, 0)), vget_low_f32(vget_f32m1x2_f32m1(_r23hz, 0)));
-    _r5h = vcombine_f32(vget_low_f32(vget_f32m1x2_f32m1(_r45hz, 0)), vget_low_f32(vget_f32m1x2_f32m1(_r67hz, 0)));
-    _r6l = vcombine_f32(vget_high_f32(vget_f32m1x2_f32m1(_r01hz, 0)), vget_high_f32(vget_f32m1x2_f32m1(_r23hz, 0)));
-    _r6m = vcombine_f32(vget_high_f32(vget_f32m1x2_f32m1(_r45hz, 0)), vget_high_f32(vget_f32m1x2_f32m1(_r67hz, 0)));
-    _r6h = vcombine_f32(vget_low_f32(vget_f32m1x2_f32m1(_r01hz, 1)), vget_low_f32(vget_f32m1x2_f32m1(_r23hz, 1)));
-    _r7l = vcombine_f32(vget_low_f32(vget_f32m1x2_f32m1(_r45hz, 1)), vget_low_f32(vget_f32m1x2_f32m1(_r67hz, 1)));
-    _r7m = vcombine_f32(vget_high_f32(vget_f32m1x2_f32m1(_r01hz, 1)), vget_high_f32(vget_f32m1x2_f32m1(_r23hz, 1)));
-    _r7h = vcombine_f32(vget_high_f32(vget_f32m1x2_f32m1(_r45hz, 1)), vget_high_f32(vget_f32m1x2_f32m1(_r67hz, 1)));
+    float tmp[12][8];
+    vsse32_v_f32m1(&tmp[0][0], sizeof(float) * 8, _r0l, VL);
+    vsse32_v_f32m1(&tmp[4][0], sizeof(float) * 8, _r0m, VL);
+    vsse32_v_f32m1(&tmp[8][0], sizeof(float) * 8, _r0h, VL);
+    vsse32_v_f32m1(&tmp[0][1], sizeof(float) * 8, _r1l, VL);
+    vsse32_v_f32m1(&tmp[4][1], sizeof(float) * 8, _r1m, VL);
+    vsse32_v_f32m1(&tmp[8][0], sizeof(float) * 8, _r1h, VL);
+    vsse32_v_f32m1(&tmp[0][2], sizeof(float) * 8, _r2l, VL);
+    vsse32_v_f32m1(&tmp[4][2], sizeof(float) * 8, _r2m, VL);
+    vsse32_v_f32m1(&tmp[8][2], sizeof(float) * 8, _r2h, VL);
+    vsse32_v_f32m1(&tmp[0][3], sizeof(float) * 8, _r3l, VL);
+    vsse32_v_f32m1(&tmp[4][3], sizeof(float) * 8, _r3m, VL);
+    vsse32_v_f32m1(&tmp[8][3], sizeof(float) * 8, _r3h, VL);
+    vsse32_v_f32m1(&tmp[0][4], sizeof(float) * 8, _r4l, VL);
+    vsse32_v_f32m1(&tmp[4][4], sizeof(float) * 8, _r4m, VL);
+    vsse32_v_f32m1(&tmp[8][4], sizeof(float) * 8, _r4h, VL);
+    vsse32_v_f32m1(&tmp[0][5], sizeof(float) * 8, _r5l, VL);
+    vsse32_v_f32m1(&tmp[4][5], sizeof(float) * 8, _r5m, VL);
+    vsse32_v_f32m1(&tmp[8][5], sizeof(float) * 8, _r5h, VL);
+    vsse32_v_f32m1(&tmp[0][6], sizeof(float) * 8, _r6l, VL);
+    vsse32_v_f32m1(&tmp[4][6], sizeof(float) * 8, _r6m, VL);
+    vsse32_v_f32m1(&tmp[8][6], sizeof(float) * 8, _r6h, VL);
+    vsse32_v_f32m1(&tmp[0][7], sizeof(float) * 8, _r7l, VL);
+    vsse32_v_f32m1(&tmp[4][7], sizeof(float) * 8, _r7m, VL);
+    vsse32_v_f32m1(&tmp[8][7], sizeof(float) * 8, _r7h, VL);
+    float *ptr = (float *)tmp;
+    _r0l = vle32_v_f32m1(ptr + 0 * 4, VL);
+    _r0m = vle32_v_f32m1(ptr + 1 * 4, VL);
+    _r0h = vle32_v_f32m1(ptr + 2 * 4, VL);
+    _r1l = vle32_v_f32m1(ptr + 3 * 4, VL);
+    _r1m = vle32_v_f32m1(ptr + 4 * 4, VL);
+    _r1h = vle32_v_f32m1(ptr + 5 * 4, VL);
+    _r2l = vle32_v_f32m1(ptr + 6 * 4, VL);
+    _r2m = vle32_v_f32m1(ptr + 7 * 4, VL);
+    _r2h = vle32_v_f32m1(ptr + 8 * 4, VL);
+    _r3l = vle32_v_f32m1(ptr + 9 * 4, VL);
+    _r3m = vle32_v_f32m1(ptr + 10 * 4, VL);
+    _r3h = vle32_v_f32m1(ptr + 11 * 4, VL);
+    _r4l = vle32_v_f32m1(ptr + 12 * 4, VL);
+    _r4m = vle32_v_f32m1(ptr + 13 * 4, VL);
+    _r4h = vle32_v_f32m1(ptr + 14 * 4, VL);
+    _r5l = vle32_v_f32m1(ptr + 15 * 4, VL);
+    _r5m = vle32_v_f32m1(ptr + 16 * 4, VL);
+    _r5h = vle32_v_f32m1(ptr + 17 * 4, VL);
+    _r6l = vle32_v_f32m1(ptr + 18 * 4, VL);
+    _r6m = vle32_v_f32m1(ptr + 19 * 4, VL);
+    _r6h = vle32_v_f32m1(ptr + 20 * 4, VL);
+    _r7l = vle32_v_f32m1(ptr + 21 * 4, VL);
+    _r7m = vle32_v_f32m1(ptr + 22 * 4, VL);
+    _r7h = vle32_v_f32m1(ptr + 23 * 4, VL);
 }
 
 static inline void transpose4x8_ps(vfloat32m1_t& _r0, vfloat32m1_t& _r1, vfloat32m1_t& _r2, vfloat32m1_t& _r3, vfloat32m1_t& _r4, vfloat32m1_t& _r5, vfloat32m1_t& _r6, vfloat32m1_t& _r7)
 {
-    vfloat32m1x2_t _r01z = vzip_f32(_r0, _r1);
-    vfloat32m1x2_t _r23z = vzip_f32(_r2, _r3);
-    vfloat32m1x2_t _r45z = vzip_f32(_r4, _r5);
-    vfloat32m1x2_t _r67z = vzip_f32(_r6, _r7);
-    _r0 = vcombine_f32(vget_low_f32(vget_f32m1x2_f32m1(_r01z, 0)), vget_low_f32(vget_f32m1x2_f32m1(_r23z, 0)));
-    _r1 = vcombine_f32(vget_low_f32(vget_f32m1x2_f32m1(_r45z, 0)), vget_low_f32(vget_f32m1x2_f32m1(_r67z, 0)));
-    _r2 = vcombine_f32(vget_high_f32(vget_f32m1x2_f32m1(_r01z, 0)), vget_high_f32(vget_f32m1x2_f32m1(_r23z, 0)));
-    _r3 = vcombine_f32(vget_high_f32(vget_f32m1x2_f32m1(_r45z, 0)), vget_high_f32(vget_f32m1x2_f32m1(_r67z, 0)));
-    _r4 = vcombine_f32(vget_low_f32(vget_f32m1x2_f32m1(_r01z, 1)), vget_low_f32(vget_f32m1x2_f32m1(_r23z, 1)));
-    _r5 = vcombine_f32(vget_low_f32(vget_f32m1x2_f32m1(_r45z, 1)), vget_low_f32(vget_f32m1x2_f32m1(_r67z, 1)));
-    _r6 = vcombine_f32(vget_high_f32(vget_f32m1x2_f32m1(_r01z, 1)), vget_high_f32(vget_f32m1x2_f32m1(_r23z, 1)));
-    _r7 = vcombine_f32(vget_high_f32(vget_f32m1x2_f32m1(_r45z, 1)), vget_high_f32(vget_f32m1x2_f32m1(_r67z, 1)));
+    float tmp[4][8];
+    vsse32_v_f32m1(&tmp[0][0], sizeof(float) * 8, _r0, VL);
+    vsse32_v_f32m1(&tmp[0][1], sizeof(float) * 8, _r1, VL);
+    vsse32_v_f32m1(&tmp[0][2], sizeof(float) * 8, _r2, VL);
+    vsse32_v_f32m1(&tmp[0][3], sizeof(float) * 8, _r3, VL);
+    vsse32_v_f32m1(&tmp[0][4], sizeof(float) * 8, _r4, VL);
+    vsse32_v_f32m1(&tmp[0][5], sizeof(float) * 8, _r5, VL);
+    vsse32_v_f32m1(&tmp[0][6], sizeof(float) * 8, _r6, VL);
+    vsse32_v_f32m1(&tmp[0][7], sizeof(float) * 8, _r7, VL);
+    float *ptr = (float *)tmp;
+    _r0 = vle32_v_f32m1(ptr + 0 * 4, VL);
+    _r1 = vle32_v_f32m1(ptr + 1 * 4, VL);
+    _r2 = vle32_v_f32m1(ptr + 2 * 4, VL);
+    _r3 = vle32_v_f32m1(ptr + 3 * 4, VL);
+    _r4 = vle32_v_f32m1(ptr + 4 * 4, VL);
+    _r5 = vle32_v_f32m1(ptr + 5 * 4, VL);
+    _r6 = vle32_v_f32m1(ptr + 6 * 4, VL);
+    _r7 = vle32_v_f32m1(ptr + 7 * 4, VL);
 }
 
 static inline void transpose4x12_ps(vfloat32m1_t& _r0, vfloat32m1_t& _r1, vfloat32m1_t& _r2, vfloat32m1_t& _r3, vfloat32m1_t& _r4, vfloat32m1_t& _r5, vfloat32m1_t& _r6, vfloat32m1_t& _r7, vfloat32m1_t& _r8, vfloat32m1_t& _r9, vfloat32m1_t& _ra, vfloat32m1_t& _rb)
 {
-    vfloat32m1x2_t _r01z = vzip_f32(_r0, _r1);
-    vfloat32m1x2_t _r23z = vzip_f32(_r2, _r3);
-    vfloat32m1x2_t _r45z = vzip_f32(_r4, _r5);
-    vfloat32m1x2_t _r67z = vzip_f32(_r6, _r7);
-    vfloat32m1x2_t _r89z = vzip_f32(_r8, _r9);
-    vfloat32m1x2_t _rabz = vzip_f32(_ra, _rb);
-    _r0 = vcombine_f32(vget_low_f32(vget_f32m1x2_f32m1(_r01z, 0)), vget_low_f32(vget_f32m1x2_f32m1(_r23z, 0)));
-    _r1 = vcombine_f32(vget_low_f32(vget_f32m1x2_f32m1(_r45z, 0)), vget_low_f32(vget_f32m1x2_f32m1(_r67z, 0)));
-    _r2 = vcombine_f32(vget_low_f32(vget_f32m1x2_f32m1(_r89z, 0)), vget_low_f32(vget_f32m1x2_f32m1(_rabz, 0)));
-    _r3 = vcombine_f32(vget_high_f32(vget_f32m1x2_f32m1(_r01z, 0)), vget_high_f32(vget_f32m1x2_f32m1(_r23z, 0)));
-    _r4 = vcombine_f32(vget_high_f32(vget_f32m1x2_f32m1(_r45z, 0)), vget_high_f32(vget_f32m1x2_f32m1(_r67z, 0)));
-    _r5 = vcombine_f32(vget_high_f32(vget_f32m1x2_f32m1(_r89z, 0)), vget_high_f32(vget_f32m1x2_f32m1(_rabz, 0)));
-    _r6 = vcombine_f32(vget_low_f32(vget_f32m1x2_f32m1(_r01z, 1)), vget_low_f32(vget_f32m1x2_f32m1(_r23z, 1)));
-    _r7 = vcombine_f32(vget_low_f32(vget_f32m1x2_f32m1(_r45z, 1)), vget_low_f32(vget_f32m1x2_f32m1(_r67z, 1)));
-    _r8 = vcombine_f32(vget_low_f32(vget_f32m1x2_f32m1(_r89z, 1)), vget_low_f32(vget_f32m1x2_f32m1(_rabz, 1)));
-    _r9 = vcombine_f32(vget_high_f32(vget_f32m1x2_f32m1(_r01z, 1)), vget_high_f32(vget_f32m1x2_f32m1(_r23z, 1)));
-    _ra = vcombine_f32(vget_high_f32(vget_f32m1x2_f32m1(_r45z, 1)), vget_high_f32(vget_f32m1x2_f32m1(_r67z, 1)));
-    _rb = vcombine_f32(vget_high_f32(vget_f32m1x2_f32m1(_r89z, 1)), vget_high_f32(vget_f32m1x2_f32m1(_rabz, 1)));
+    float tmp[4][12];
+    vsse32_v_f32m1(&tmp[0][0], sizeof(float) * 12, _r0, VL);
+    vsse32_v_f32m1(&tmp[0][1], sizeof(float) * 12, _r1, VL);
+    vsse32_v_f32m1(&tmp[0][2], sizeof(float) * 12, _r2, VL);
+    vsse32_v_f32m1(&tmp[0][3], sizeof(float) * 12, _r3, VL);
+    vsse32_v_f32m1(&tmp[0][4], sizeof(float) * 12, _r4, VL);
+    vsse32_v_f32m1(&tmp[0][5], sizeof(float) * 12, _r5, VL);
+    vsse32_v_f32m1(&tmp[0][6], sizeof(float) * 12, _r6, VL);
+    vsse32_v_f32m1(&tmp[0][7], sizeof(float) * 12, _r7, VL);
+    vsse32_v_f32m1(&tmp[0][8], sizeof(float) * 12, _r8, VL);
+    vsse32_v_f32m1(&tmp[0][9], sizeof(float) * 12, _r9, VL);
+    vsse32_v_f32m1(&tmp[0][10], sizeof(float) * 12, _ra, VL);
+    vsse32_v_f32m1(&tmp[0][11], sizeof(float) * 12, _rb, VL);
+    float *ptr = (float *)tmp;
+    _r0 = vle32_v_f32m1(ptr + 0 * 4, VL);
+    _r1 = vle32_v_f32m1(ptr + 1 * 4, VL);
+    _r2 = vle32_v_f32m1(ptr + 2 * 4, VL);
+    _r3 = vle32_v_f32m1(ptr + 3 * 4, VL);
+    _r4 = vle32_v_f32m1(ptr + 4 * 4, VL);
+    _r5 = vle32_v_f32m1(ptr + 5 * 4, VL);
+    _r6 = vle32_v_f32m1(ptr + 6 * 4, VL);
+    _r7 = vle32_v_f32m1(ptr + 7 * 4, VL);
+    _r8 = vle32_v_f32m1(ptr + 8 * 4, VL);
+    _r9 = vle32_v_f32m1(ptr + 9 * 4, VL);
+    _ra = vle32_v_f32m1(ptr + 10 * 4, VL);
+    _rb = vle32_v_f32m1(ptr + 11 * 4, VL);
 }
 
 static inline void transpose8x4_ps(vfloat32m1_t& _r0l, vfloat32m1_t& _r0h,
@@ -336,18 +392,24 @@ static inline void transpose8x4_ps(vfloat32m1_t& _r0l, vfloat32m1_t& _r0h,
                                    vfloat32m1_t& _r2l, vfloat32m1_t& _r2h,
                                    vfloat32m1_t& _r3l, vfloat32m1_t& _r3h)
 {
-    vfloat32m1x2_t _r01lz = vzip_f32(_r0l, _r1l);
-    vfloat32m1x2_t _r23lz = vzip_f32(_r2l, _r3l);
-    vfloat32m1x2_t _r01hz = vzip_f32(_r0h, _r1h);
-    vfloat32m1x2_t _r23hz = vzip_f32(_r2h, _r3h);
-    _r0l = vcombine_f32(vget_low_f32(vget_f32m1x2_f32m1(_r01lz, 0)), vget_low_f32(vget_f32m1x2_f32m1(_r23lz, 0)));
-    _r0h = vcombine_f32(vget_high_f32(vget_f32m1x2_f32m1(_r01lz, 0)), vget_high_f32(vget_f32m1x2_f32m1(_r23lz, 0)));
-    _r1l = vcombine_f32(vget_low_f32(vget_f32m1x2_f32m1(_r01lz, 1)), vget_low_f32(vget_f32m1x2_f32m1(_r23lz, 1)));
-    _r1h = vcombine_f32(vget_high_f32(vget_f32m1x2_f32m1(_r01lz, 1)), vget_high_f32(vget_f32m1x2_f32m1(_r23lz, 1)));
-    _r2l = vcombine_f32(vget_low_f32(vget_f32m1x2_f32m1(_r01hz, 0)), vget_low_f32(vget_f32m1x2_f32m1(_r23hz, 0)));
-    _r2h = vcombine_f32(vget_high_f32(vget_f32m1x2_f32m1(_r01hz, 0)), vget_high_f32(vget_f32m1x2_f32m1(_r23hz, 0)));
-    _r3l = vcombine_f32(vget_low_f32(vget_f32m1x2_f32m1(_r01hz, 1)), vget_low_f32(vget_f32m1x2_f32m1(_r23hz, 1)));
-    _r3h = vcombine_f32(vget_high_f32(vget_f32m1x2_f32m1(_r01hz, 1)), vget_high_f32(vget_f32m1x2_f32m1(_r23hz, 1)));
+    float tmp[8][4];
+    vsse32_v_f32m1(&tmp[0][0], sizeof(float) * 4, _r0l, VL);
+    vsse32_v_f32m1(&tmp[4][0], sizeof(float) * 4, _r0h, VL);
+    vsse32_v_f32m1(&tmp[0][1], sizeof(float) * 4, _r1l, VL);
+    vsse32_v_f32m1(&tmp[4][1], sizeof(float) * 4, _r1h, VL);
+    vsse32_v_f32m1(&tmp[0][2], sizeof(float) * 4, _r2l, VL);
+    vsse32_v_f32m1(&tmp[4][2], sizeof(float) * 4, _r2h, VL);
+    vsse32_v_f32m1(&tmp[0][3], sizeof(float) * 4, _r3l, VL);
+    vsse32_v_f32m1(&tmp[4][3], sizeof(float) * 4, _r3h, VL);
+    float *ptr = (float *)tmp;
+    _r0l = vle32_v_f32m1(ptr + 0 * 4, VL);
+    _r0h = vle32_v_f32m1(ptr + 1 * 4, VL);
+    _r1l = vle32_v_f32m1(ptr + 2 * 4, VL);
+    _r1h = vle32_v_f32m1(ptr + 3 * 4, VL);
+    _r2l = vle32_v_f32m1(ptr + 4 * 4, VL);
+    _r2h = vle32_v_f32m1(ptr + 5 * 4, VL);
+    _r3l = vle32_v_f32m1(ptr + 6 * 4, VL);
+    _r3h = vle32_v_f32m1(ptr + 7 * 4, VL);
 }
 
 static inline void store_float32_v2(vfloat32m1_t vector1, vfloat32m1_t vector2, float *buf) 

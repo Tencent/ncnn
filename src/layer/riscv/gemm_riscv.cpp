@@ -15,9 +15,7 @@
 #include "gemm_riscv.h"
 
 #if __riscv_vector
-#if C906
 #include <riscv_vector.h>
-#endif // C906
 #endif // __riscv_vector
 
 #include "riscv_usability.h"
