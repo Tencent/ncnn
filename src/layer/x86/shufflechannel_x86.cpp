@@ -61,17 +61,15 @@ int ShuffleChannel_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
     if (elempack == 16)
     {
         __m512i _idxlo = _mm512_set_epi64(
-            0x1700000007,0x1600000006,
-            0x1500000005,0x1400000004,
-            0x1300000003,0x1200000002,
-            0x1100000001,0x1000000000
-        );
+                             0x1700000007, 0x1600000006,
+                             0x1500000005, 0x1400000004,
+                             0x1300000003, 0x1200000002,
+                             0x1100000001, 0x1000000000);
         __m512i _idxhi = _mm512_set_epi64(
-            0x1f0000000f,0x1e0000000e,
-            0x1d0000000d,0x1c0000000c,
-            0x1b0000000b,0x1a0000000a,
-            0x1900000009,0x1800000008
-        );
+                             0x1f0000000f, 0x1e0000000e,
+                             0x1d0000000d, 0x1c0000000c,
+                             0x1b0000000b, 0x1a0000000a,
+                             0x1900000009, 0x1800000008);
 
         if (_group == 2 && channels % _group != 0)
         {
@@ -94,8 +92,7 @@ int ShuffleChannel_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
                     __m512 _p2 = _mm512_loadu_ps(ptr2);
 
                     __m512 _p12 = _mm512_castsi512_ps(
-                        _mm512_alignr_epi64(_mm512_castps_si512(_p1), _mm512_castps_si512(_p2), 4)
-                    );
+                                      _mm512_alignr_epi64(_mm512_castps_si512(_p1), _mm512_castps_si512(_p2), 4));
 
                     __m512 _lo = _mm512_permutex2var_ps(_p0, _idxlo, _p12);
                     __m512 _hi = _mm512_permutex2var_ps(_p0, _idxhi, _p12);
@@ -112,7 +109,7 @@ int ShuffleChannel_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
             }
 
             // handle the last channel
-            {   
+            {
                 const float* ptr0 = bottom_blob.channel(channels_per_group);
                 const float* ptr1 = bottom_blob.channel(channels_per_group * 2);
                 float* outptr = top_blob.channel(channels_per_group * 2);
@@ -433,7 +430,7 @@ int ShuffleChannel_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
 
                     __m256 _lo = _mm256_unpacklo_ps(_p0, _p1);
                     __m256 _hi = _mm256_unpackhi_ps(_p0, _p1);
-                    
+
                     __m256 _lo_ = _mm256_permute2f128_ps(_lo, _hi, 0x20);
                     __m256 _hi_ = _mm256_permute2f128_ps(_lo, _hi, 0x31);
 
@@ -620,7 +617,7 @@ int ShuffleChannel_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
                     outptr += 4;
                 }
             }
-            
+
             return 0;
         }
         if (_group > 4 || channels % _group != 0)
