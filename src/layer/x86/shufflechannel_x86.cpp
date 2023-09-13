@@ -75,7 +75,6 @@ int ShuffleChannel_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
 
         if (_group == 2 && channels % _group != 0)
         {
-            NCNN_LOGE("AVX512F 2n+1 channels.");
             top_blob.create(w, h, channels, elemsize, elempack, opt.blob_allocator);
             if (top_blob.empty())
                 return -100;
@@ -144,7 +143,6 @@ int ShuffleChannel_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
         }
         if (_group > 4 || channels % _group != 0)
         {
-            NCNN_LOGE("AVX512F slow path.");
             // slow path for too large group or shuffle inside elempack
             Option opt_pack = opt;
             opt_pack.blob_allocator = opt.workspace_allocator;
@@ -168,7 +166,6 @@ int ShuffleChannel_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
 
         if (_group == 2)
         {
-            NCNN_LOGE("AVX512F group=2.");
             for (int q = 0; q < channels_per_group; q++)
             {
                 const float* ptr0 = bottom_blob.channel(q);
@@ -198,7 +195,6 @@ int ShuffleChannel_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
         }
         if (_group == 3)
         {
-            NCNN_LOGE("AVX512F group=3.");
             for (int q = 0; q < channels_per_group; q++)
             {
                 const float* ptr0 = bottom_blob.channel(q);
@@ -281,7 +277,6 @@ int ShuffleChannel_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
         }
         if (_group == 4)
         {
-            NCNN_LOGE("AVX512F group=4.");
             for (int q = 0; q < channels_per_group; q++)
             {
                 const float* ptr0 = bottom_blob.channel(q);
@@ -334,7 +329,6 @@ int ShuffleChannel_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
     {
         if (_group == 2 && channels % _group != 0)
         {
-            NCNN_LOGE("AVX 2n+1 channels.");
             top_blob.create(w, h, channels, elemsize, elempack, opt.blob_allocator);
             if (top_blob.empty())
                 return -100;
@@ -402,7 +396,6 @@ int ShuffleChannel_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
         }
         if (_group > 4 || channels % _group != 0)
         {
-            NCNN_LOGE("AVX slow path.");
             // slow path for too large group or shuffle inside elempack
             Option opt_pack = opt;
             opt_pack.blob_allocator = opt.workspace_allocator;
@@ -426,7 +419,6 @@ int ShuffleChannel_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
 
         if (_group == 2)
         {
-            NCNN_LOGE("AVX group=2.");
             for (int q = 0; q < channels_per_group; q++)
             {
                 const float* ptr0 = bottom_blob.channel(q);
@@ -459,7 +451,6 @@ int ShuffleChannel_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
         }
         if (_group == 3)
         {
-            NCNN_LOGE("AVX group=3.");
             for (int q = 0; q < channels_per_group; q++)
             {
                 const float* ptr0 = bottom_blob.channel(q);
@@ -516,7 +507,6 @@ int ShuffleChannel_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
         }
         if (_group == 4)
         {
-            NCNN_LOGE("AVX group=4.");
             for (int q = 0; q < channels_per_group; q++)
             {
                 const float* ptr0 = bottom_blob.channel(q);
@@ -574,7 +564,6 @@ int ShuffleChannel_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
     {
         if (_group == 2 && channels % _group != 0)
         {
-            NCNN_LOGE("SSE2 2n+1 channels.");
             top_blob.create(w, h, channels, elemsize, elempack, opt.blob_allocator);
             if (top_blob.empty())
                 return -100;
@@ -636,7 +625,6 @@ int ShuffleChannel_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
         }
         if (_group > 4 || channels % _group != 0)
         {
-            NCNN_LOGE("SSE2 slow path.");
             // slow path for too large group or shuffle inside elempack
             Option opt_pack = opt;
             opt_pack.blob_allocator = opt.workspace_allocator;
@@ -660,7 +648,6 @@ int ShuffleChannel_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
 
         if (_group == 2)
         {
-            NCNN_LOGE("SSE2 group=2.");
             for (int q = 0; q < channels_per_group; q++)
             {
                 const float* ptr0 = bottom_blob.channel(q);
@@ -690,7 +677,6 @@ int ShuffleChannel_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
         }
         if (_group == 3)
         {
-            NCNN_LOGE("SSE2 group=3.");
             for (int q = 0; q < channels_per_group; q++)
             {
                 const float* ptr0 = bottom_blob.channel(q);
@@ -734,7 +720,6 @@ int ShuffleChannel_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
         }
         if (_group == 4)
         {
-            NCNN_LOGE("SSE2 group=4.");
             for (int q = 0; q < channels_per_group; q++)
             {
                 const float* ptr0 = bottom_blob.channel(q);
