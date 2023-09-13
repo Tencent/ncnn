@@ -1678,17 +1678,18 @@ else        y = x * lambda
 
 # Shrink
 ```
-y = x - bias , x > lambd
-y = x + bias , x < -lambd
+if x < -lambd y = x + bias
+if x >  lambd y = x - bias
+else          y = x
 ```
 
 * one_blob_only
 * support_inplace
 
 | param id  | name          | type | default   | description       |
-| --------- | ------------- | ---- | --------- | ----------------- |
-| 0         | bias         | float  | 0.0f         |                   |
-| 1         | lambd       | float  | 0.5f         |                   |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | bias          | float | 0.0f          |                   |
+| 1         | lambd         | float | 0.5f          |                   |
 
 # ShuffleChannel
 ```
