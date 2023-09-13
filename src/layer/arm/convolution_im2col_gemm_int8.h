@@ -258,6 +258,7 @@ static void convolution_im2col_pack_A_tile_int8(const Mat& A, Mat& AT, int i, in
         const signed char* p1 = (const signed char*)A + (i + ii + 1) * A_hstep + k;
 
         int kk = 0;
+#if __ARM_NEON
 #if __ARM_FEATURE_DOTPROD
 #if __ARM_FEATURE_MATMUL_INT8
         for (; kk + 7 < max_kk; kk += 8)
@@ -296,6 +297,7 @@ static void convolution_im2col_pack_A_tile_int8(const Mat& A, Mat& AT, int i, in
             p0 += 2;
             p1 += 2;
         }
+#endif // __ARM_NEON
         for (; kk < max_kk; kk++)
         {
             pp[0] = p0[0];
@@ -6397,12 +6399,9 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
 #if __ARM_FEATURE_MATMUL_INT8
                 _sum = vmmlaq_s32(_sum, _pA, _pB);
 #else  // __ARM_FEATURE_MATMUL_INT8
-                // aaaabbbb ccccdddd -> aaaaaaaa bbbbbbbb   cccccccc dddddddd
                 int32x4x2_t _pAA = vzipq_s32(vreinterpretq_s32_s8(_pA), vreinterpretq_s32_s8(_pA));
                 int8x16_t _pA01 = vreinterpretq_s8_s32(_pAA.val[0]);
                 int8x16_t _pA23 = vreinterpretq_s8_s32(_pAA.val[1]);
-
-                // 00001111 22223333 -> 00001111 00001111   22223333 22223333
                 int8x16_t _pB01 = vcombine_s8(vget_low_s8(_pB), vget_low_s8(_pB));
                 int8x16_t _pB23 = vcombine_s8(vget_high_s8(_pB), vget_high_s8(_pB));
 
@@ -6420,7 +6419,6 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 int8x8_t _pB = vld1_s8(pB);
 
 #if __ARM_FEATURE_DOTPROD
-                // aaaabbbb -> aaaaaaaa bbbbbbbb
                 int32x2x2_t _pAA = vzip_s32(vreinterpret_s32_s8(_pA), vreinterpret_s32_s8(_pA));
                 int8x16_t _pA01 = vreinterpretq_s8_s32(vcombine_s32(_pAA.val[0], _pAA.val[1]));
 
@@ -6428,10 +6426,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
 
                 _sum = vdotq_s32(_sum, _pA01, _pB01);
 #else  // __ARM_FEATURE_DOTPROD
-                // aabbccdd -> aaaabbbb ccccdddd
                 int16x4x2_t _pA01 = vzip_s16(vreinterpret_s16_s8(_pA), vreinterpret_s16_s8(_pA));
-
-                // 00112233 -> 00110011 22332233
                 int32x2x2_t _pB01 = vzip_s32(vreinterpret_s32_s8(_pB), vreinterpret_s32_s8(_pB));
 
                 int16x8_t _s0 = vmull_s8(vreinterpret_s8_s16(_pA01.val[0]), vreinterpret_s8_s32(_pB01.val[0]));
@@ -6447,10 +6442,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 int8x8_t _pA = vld1_s8(pA);
                 int8x8_t _pB = vld1_s8(pB);
 
-                // aabb.... -> aaaabbbb ...
                 _pA = vreinterpret_s8_s16(vzip_s16(vreinterpret_s16_s8(_pA), vreinterpret_s16_s8(_pA)).val[0]);
-
-                // 0011.... -> 00110011 ...
                 _pB = vreinterpret_s8_s32(vzip_s32(vreinterpret_s32_s8(_pB), vreinterpret_s32_s8(_pB)).val[0]);
 
                 int16x8_t _s0 = vmull_s8(_pA, _pB);
@@ -6464,9 +6456,6 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 int8x8_t _pA = vreinterpret_s8_s16(vld1_dup_s16((const short*)pA));
                 int8x8_t _pB = vreinterpret_s8_s16(vld1_dup_s16((const short*)pB));
 
-                // ab...... -> aabb....
-
-                // 0101....
                 _pA = vzip_s8(_pA, _pA).val[0];
 
                 int16x8_t _s0 = vmull_s8(_pA, _pB);
@@ -6514,6 +6503,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
 
             const signed char* pA = pAT;
             int kk = 0;
+#if __ARM_NEON
             for (; kk + 1 < max_kk; kk += 2)
             {
                 sum00 += pA[0] * pB[0];
@@ -6528,6 +6518,59 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 pA += 4;
                 pB += 4;
             }
+#endif // __ARM_NEON
+#if __ARM_FEATURE_SIMD32 && NCNN_GNU_INLINE_ASM
+            for (; kk + 1 < max_kk; kk += 2)
+            {
+                // fomit-frame-pointer implied in optimized flag spare one register
+                // let us stay away from error: ‘asm’ operand has impossible constraints   --- nihui
+#if __OPTIMIZE__
+                asm volatile(
+                    "ldr    r2, [%0], #4    \n" // int8x4_t _pA = *((int8x4_t*)pA); pA += 4;
+                    "ldr    r4, [%1], #4    \n" // int8x4_t _pB = *((int8x4_t*)pB); pB += 4;
+                    "ror    r3, r2, #8      \n" // int8x4_t _pA_r8 = __ror(_pA, 8);
+                    "ror    r5, r4, #8      \n" // int8x4_t _pB_r8 = __ror(_pB, 8);
+                    "sxtb16 r2, r2          \n" // int16x2_t _pA0 = __sxtb16(_pA);
+                    "sxtb16 r4, r4          \n" // int16x2_t _pA1 = __sxtb16(_pA_r8);
+                    "sxtb16 r3, r3          \n" // int16x2_t _pB0 = __sxtb16(_pB);
+                    "sxtb16 r5, r5          \n" // int16x2_t _pB1 = __sxtb16(_pB_r8);
+                    "smlad  %2, r2, r4, %2  \n" // sum00 = __smlad(_pA0, _pB0, sum00);
+                    "smlad  %3, r3, r4, %3  \n" // sum10 = __smlad(_pA1, _pB0, sum10);
+                    "smlad  %4, r2, r5, %4  \n" // sum01 = __smlad(_pA0, _pB1, sum01);
+                    "smlad  %5, r3, r5, %5  \n" // sum11 = __smlad(_pA1, _pB1, sum11);
+                    : "=r"(pA),
+                    "=r"(pB),
+                    "=r"(sum00),
+                    "=r"(sum10),
+                    "=r"(sum01),
+                    "=r"(sum11)
+                    : "0"(pA),
+                    "1"(pB),
+                    "2"(sum00),
+                    "3"(sum10),
+                    "4"(sum01),
+                    "5"(sum11)
+                    : "memory", "r2", "r3", "r4", "r5");
+#else
+                int _pA0 = *((int*)pA);
+                int _pB0 = *((int*)pB);
+                int _pA1;
+                int _pB1;
+                asm volatile("ror %0, %1, #8" : "=r"(_pA1) : "r"(_pA0) :);
+                asm volatile("ror %0, %1, #8" : "=r"(_pB1) : "r"(_pB0) :);
+                asm volatile("sxtb16 %0, %0" : "=r"(_pA0) : "0"(_pA0) :);
+                asm volatile("sxtb16 %0, %0" : "=r"(_pA1) : "0"(_pA1) :);
+                asm volatile("sxtb16 %0, %0" : "=r"(_pB0) : "0"(_pB0) :);
+                asm volatile("sxtb16 %0, %0" : "=r"(_pB1) : "0"(_pB1) :);
+                asm volatile("smlad %0, %2, %3, %0" : "=r"(sum00) : "0"(sum00), "r"(_pA0), "r"(_pB0) :);
+                asm volatile("smlad %0, %2, %3, %0" : "=r"(sum10) : "0"(sum10), "r"(_pA1), "r"(_pB0) :);
+                asm volatile("smlad %0, %2, %3, %0" : "=r"(sum01) : "0"(sum01), "r"(_pA0), "r"(_pB1) :);
+                asm volatile("smlad %0, %2, %3, %0" : "=r"(sum11) : "0"(sum11), "r"(_pA1), "r"(_pB1) :);
+                pA += 4;
+                pB += 4;
+#endif
+            }
+#endif // __ARM_FEATURE_SIMD32 && NCNN_GNU_INLINE_ASM
             for (; kk < max_kk; kk += 1)
             {
                 sum00 += pA[0] * pB[0];
@@ -6643,9 +6686,6 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                     int8x8_t _pA = vld1_s8(pA);
                     int8x8_t _pB = vreinterpret_s8_s32(vld1_dup_s32((const int*)pB));
 
-                    // aabb ccdd
-
-                    // 0011 0011 -> 0000 1111
                     _pB = vreinterpret_s8_s16(vzip_s16(vreinterpret_s16_s8(_pB), vreinterpret_s16_s8(_pB)).val[0]);
 
                     int16x8_t _s0 = vmull_s8(_pA, _pB);
@@ -6660,7 +6700,6 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
 #endif // __ARM_FEATURE_DOTPROD
             int sum0 = vget_lane_s32(_sum, 0);
             int sum1 = vget_lane_s32(_sum, 1);
-#endif // __ARM_NEON
             for (; kk + 1 < max_kk; kk += 2)
             {
                 sum0 += pA[0] * pB[0];
@@ -6670,6 +6709,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 pA += 4;
                 pB += 2;
             }
+#endif // __ARM_NEON
             for (; kk < max_kk; kk += 1)
             {
                 sum0 += pA[0] * pB[0];
@@ -7013,9 +7053,6 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                     int8x8_t _pA = vreinterpret_s8_s32(vld1_dup_s32((const int*)pA));
                     int8x8_t _pB = vld1_s8(pB);
 
-                    // aabb aabb -> aaaa bbbb
-
-                    // 0011 2233
                     _pA = vreinterpret_s8_s16(vzip_s16(vreinterpret_s16_s8(_pA), vreinterpret_s16_s8(_pA)).val[0]);
 
                     int16x8_t _s0 = vmull_s8(_pA, _pB);
@@ -7030,7 +7067,6 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
 #endif // __ARM_FEATURE_DOTPROD
             int sum0 = vget_lane_s32(_sum, 0);
             int sum1 = vget_lane_s32(_sum, 1);
-#endif // __ARM_NEON
             for (; kk + 1 < max_kk; kk += 2)
             {
                 sum0 += pA[0] * pB[0];
@@ -7040,6 +7076,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 pA += 2;
                 pB += 4;
             }
+#endif // __ARM_NEON
             for (; kk < max_kk; kk += 1)
             {
                 sum0 += pA[0] * pB[0];
@@ -7535,6 +7572,7 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
             const signed char* p0 = (const signed char*)bottom_blob.channel(k) + (j + jj);
 
             int kk = 0;
+#if __ARM_NEON
 #if __ARM_FEATURE_DOTPROD
 #if __ARM_FEATURE_MATMUL_INT8
             for (; kk + 7 < max_kk; kk += 8)
@@ -7582,6 +7620,7 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
                 pp += 4;
                 p0 += bottom_blob.cstep * 2;
             }
+#endif // __ARM_NEON
             for (; kk < max_kk; kk++)
             {
                 pp[0] = p0[0];
@@ -8787,6 +8826,7 @@ static void convolution_im2col_input_tile_int8(const Mat& bottom_blob, Mat& B, i
         int dx1 = (j + jj + 1) % outw;
 
         int kk = 0;
+#if __ARM_NEON
         if (elempack == 1)
         {
 #if __ARM_FEATURE_DOTPROD
@@ -9004,6 +9044,7 @@ static void convolution_im2col_input_tile_int8(const Mat& bottom_blob, Mat& B, i
                 pp += 4;
             }
         }
+#endif // __ARM_NEON
         for (; kk < max_kk / elempack; kk++)
         {
             int p = (k / elempack + kk) / maxk;
