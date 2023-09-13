@@ -87,6 +87,8 @@ static inline vfloat32m8_t vle32_v_f32m8_f32m1(const float* ptr)
 }
 
 #if C906
+#define VL 4
+
 static inline vfloat32m1_t vfmaq_laneq_f32_riscv(vfloat32m1_t sum, vfloat32m1_t a, vfloat32m1_t b, int lane) {
     float t[4];
     vse32_v_f32m1(t, b, 4);
@@ -96,10 +98,8 @@ static inline vfloat32m1_t vfmaq_laneq_f32_riscv(vfloat32m1_t sum, vfloat32m1_t 
 }
 
 static inline vfloat32m1_t vdupq_n_f32_riscv(float32_t f) {
-    return vfmv_v_f_f32m1(f, 4);
+    return vfmv_v_f_f32m1(f, VL);
 }
-
-#define VL 4
 
 static inline vfloat32m1x2_t vzip_f32(vfloat32m1_t vector1, vfloat32m1_t vector2) {
     vfloat32m2_t d = vundefined_f32m2();
@@ -414,18 +414,16 @@ static inline void transpose8x4_ps(vfloat32m1_t& _r0l, vfloat32m1_t& _r0h,
 
 static inline void store_float32_v2(vfloat32m1_t vector1, vfloat32m1_t vector2, float *buf) 
 {
-    vfloat32m1x2_t zip = vzip_f32(vector1, vector2);
-    vse32_v_f32m1(buf, vget_f32m1x2_f32m1(zip, 0), VL);
-    vse32_v_f32m1(buf + 4, vget_f32m1x2_f32m1(zip, 1), VL);
+    vsse32_v_f32m1(buf + 0, sizeof(float) * 2, vector1, VL);
+    vsse32_v_f32m1(buf + 1, sizeof(float) * 2, vector2, VL);
 }
 
 static inline void store_float_v4(vfloat32m1_t vector1, vfloat32m1_t vector2, vfloat32m1_t vector3, vfloat32m1_t vector4, float *buf) 
 {
-    vfloat32m1x4_t zip = vzip_f32_v4(vector1, vector2, vector3, vector4);
-    vse32_v_f32m1(buf, vget_f32m1x4_f32m1(zip, 0), VL);
-    vse32_v_f32m1(buf + 4, vget_f32m1x4_f32m1(zip, 1), VL);
-    vse32_v_f32m1(buf + 8, vget_f32m1x4_f32m1(zip, 2), VL);
-    vse32_v_f32m1(buf + 12, vget_f32m1x4_f32m1(zip, 3), VL);
+    vsse32_v_f32m1(buf + 0, sizeof(float) * 4, vector1, VL);
+    vsse32_v_f32m1(buf + 1, sizeof(float) * 4, vector2, VL);
+    vsse32_v_f32m1(buf + 2, sizeof(float) * 4, vector3, VL);
+    vsse32_v_f32m1(buf + 3, sizeof(float) * 4, vector4, VL);
 }
 #endif // C906
 
