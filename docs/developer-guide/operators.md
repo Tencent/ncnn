@@ -6,6 +6,7 @@
 * [BinaryOp](#binaryop)
 * [BNLL](#bnll)
 * [Cast](#cast)
+* [CELU](#celu)
 * [Clip](#clip)
 * [Concat](#concat)
 * [Convolution](#convolution)
@@ -196,6 +197,19 @@ Element type:
 - 2 = float16
 - 3 = int8
 - 4 = bfloat16
+
+# CELU
+```
+if x < 0    y = (exp(x / alpha) - 1.f) * alpha
+else        y = x
+```
+
+* one_blob_only
+* support_inplace
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | alpha         | float | 1.f       |                   |
 
 # Clip
 ```

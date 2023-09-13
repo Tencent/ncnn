@@ -412,6 +412,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/F_avg_pool2d.cpp
     pass_ncnn/F_avg_pool3d.cpp
     pass_ncnn/F_batch_norm.cpp
+    pass_ncnn/F_celu.cpp
     pass_ncnn/F_conv_transpose1d.cpp
     pass_ncnn/F_conv_transpose2d.cpp
     pass_ncnn/F_conv_transpose3d.cpp
@@ -468,6 +469,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/nn_BatchNorm1d.cpp
     pass_ncnn/nn_BatchNorm2d.cpp
     pass_ncnn/nn_BatchNorm3d.cpp
+    pass_ncnn/nn_CELU.cpp
     pass_ncnn/nn_ChannelShuffle.cpp
     pass_ncnn/nn_ConstantPad1d.cpp
     pass_ncnn/nn_ConstantPad2d.cpp

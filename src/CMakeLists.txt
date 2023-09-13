@@ -164,6 +164,7 @@ ncnn_add_layer(CumulativeSum)
 ncnn_add_layer(CopyTo)
 ncnn_add_layer(Erf)
 ncnn_add_layer(Diag)
+ncnn_add_layer(CELU)
 
 if(NCNN_VULKAN)
     ncnn_add_shader(${CMAKE_CURRENT_SOURCE_DIR}/convert_ycbcr.comp)
