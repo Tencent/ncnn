@@ -6540,8 +6540,6 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 int _pB0 = *((int*)pB);
                 int _pA1;
                 int _pB1;
-                // clang-format off
-                // *INDENT-OFF*
                 asm volatile("ror %0, %1, #8" : "=r"(_pA1) : "r"(_pA0) :);
                 asm volatile("ror %0, %1, #8" : "=r"(_pB1) : "r"(_pB0) :);
                 asm volatile("sxtb16 %0, %0" : "=r"(_pA0) : "0"(_pA0) :);
@@ -6552,8 +6550,6 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 asm volatile("smlad %0, %2, %3, %0" : "=r"(sum10) : "0"(sum10), "r"(_pA1), "r"(_pB0) :);
                 asm volatile("smlad %0, %2, %3, %0" : "=r"(sum01) : "0"(sum01), "r"(_pA0), "r"(_pB1) :);
                 asm volatile("smlad %0, %2, %3, %0" : "=r"(sum11) : "0"(sum11), "r"(_pA1), "r"(_pB1) :);
-                // *INDENT-ON*
-                // clang-format on
                 pA += 4;
                 pB += 4;
 #endif
