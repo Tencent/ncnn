@@ -6602,12 +6602,13 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
             const signed char* pA = pAT;
             int kk = 0;
 #if __ARM_FEATURE_DOTPROD
-#if __ARM_FEATURE_MATMUL_INT8
             {
+#if __ARM_FEATURE_MATMUL_INT8
                 int32x4_t _sum00 = vdupq_n_s32(0);
                 int32x4_t _sum01 = vdupq_n_s32(0);
                 int32x4_t _sum10 = vdupq_n_s32(0);
                 int32x4_t _sum11 = vdupq_n_s32(0);
+#endif // __ARM_FEATURE_MATMUL_INT8
                 for (; kk + 7 < max_kk; kk += 8)
                 {
                     int8x8_t _pA = vld1_s8(pA);
@@ -6616,45 +6617,51 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                     int8x16_t _pB2 = vld1q_s8(pB + 32);
                     int8x16_t _pB3 = vld1q_s8(pB + 48);
 
-                    // aaaaaaaa
-                    // aaaaaaaa aaaaaaaa
+#if __ARM_FEATURE_MATMUL_INT8
                     int8x16_t _pAA = vcombine_s8(_pA, _pA);
-
-                    // 00000000 11111111
-                    // 22222222 33333333
-                    // 44444444 55555555
-                    // 66666666 77777777
-
-                    // a0 a0 a1 a1
-                    // a2 a2 a3 a3
-                    // a4 a4 a5 a5
-                    // a6 a6 a7 a7
-
                     _sum00 = vdotq_s32(_sum00, _pAA, _pB0);
                     _sum01 = vdotq_s32(_sum01, _pAA, _pB1);
                     _sum10 = vdotq_s32(_sum10, _pAA, _pB2);
                     _sum11 = vdotq_s32(_sum11, _pAA, _pB3);
+#else  // __ARM_FEATURE_MATMUL_INT8
+                    _sum0 = vdotq_lane_s32(_sum0, _pB0, _pA, 0);
+                    _sum1 = vdotq_lane_s32(_sum1, _pB1, _pA, 0);
+                    _sum0 = vdotq_lane_s32(_sum0, _pB2, _pA, 1);
+                    _sum1 = vdotq_lane_s32(_sum1, _pB3, _pA, 1);
+#endif // __ARM_FEATURE_MATMUL_INT8
 
                     pA += 8;
                     pB += 64;
                 }
+#if __ARM_FEATURE_MATMUL_INT8
                 _sum0 = vaddq_s32(_sum0, vpaddq_s32(_sum00, _sum01));
                 _sum1 = vaddq_s32(_sum1, vpaddq_s32(_sum10, _sum11));
-            }
 #endif // __ARM_FEATURE_MATMUL_INT8
+            }
+#endif // __ARM_FEATURE_DOTPROD
             for (; kk + 3 < max_kk; kk += 4)
             {
                 int8x8_t _pA = vreinterpret_s8_s32(vld1_dup_s32((const int*)pA));
                 int8x16_t _pB0 = vld1q_s8(pB);
                 int8x16_t _pB1 = vld1q_s8(pB + 16);
 
+#if __ARM_FEATURE_DOTPROD
                 _sum0 = vdotq_lane_s32(_sum0, _pB0, _pA, 0);
                 _sum1 = vdotq_lane_s32(_sum1, _pB1, _pA, 0);
+#else  // __ARM_FEATURE_DOTPROD
+                int8x8_t _pA0 = vreinterpret_s8_s16(vdup_lane_s16(vreinterpret_s16_s8(_pA), 0));
+                int8x8_t _pA1 = vreinterpret_s8_s16(vdup_lane_s16(vreinterpret_s16_s8(_pA), 1));
+                int16x8_t _s0 = vmull_s8(_pA0, vget_low_s8(_pB0));
+                int16x8_t _s1 = vmull_s8(_pA0, vget_high_s8(_pB0));
+                _s0 = vmlal_s8(_s0, _pA1, vget_low_s8(_pB1));
+                _s1 = vmlal_s8(_s1, _pA1, vget_high_s8(_pB1));
+                _sum0 = vpadalq_s16(_sum0, _s0);
+                _sum1 = vpadalq_s16(_sum1, _s1);
+#endif // __ARM_FEATURE_DOTPROD
 
                 pA += 4;
                 pB += 32;
             }
-#endif // __ARM_FEATURE_DOTPROD
             for (; kk + 1 < max_kk; kk += 2)
             {
                 int8x8_t _pA = vreinterpret_s8_s16(vld1_dup_s16((const short*)pA));
@@ -6715,44 +6722,52 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
             const signed char* pA = pAT;
             int kk = 0;
 #if __ARM_FEATURE_DOTPROD
-#if __ARM_FEATURE_MATMUL_INT8
-            int32x4_t _sum00 = vdupq_n_s32(0);
-            int32x4_t _sum01 = vdupq_n_s32(0);
-            for (; kk + 7 < max_kk; kk += 8)
             {
-                int8x8_t _pA = vld1_s8(pA);
-                int8x16_t _pB0 = vld1q_s8(pB);
-                int8x16_t _pB1 = vld1q_s8(pB + 16);
-
-                // aaaaaaaa
-                // aaaaaaaa aaaaaaaa
-                int8x16_t _pAA = vcombine_s8(_pA, _pA);
-
-                // 00000000 11111111
-                // 22222222 33333333
-
-                // a0 a0 a1 a1
-                // a2 a2 a3 a3
-
-                _sum00 = vdotq_s32(_sum00, _pAA, _pB0);
-                _sum01 = vdotq_s32(_sum01, _pAA, _pB1);
-
-                pA += 8;
-                pB += 32;
-            }
-            _sum0 = vaddq_s32(_sum0, vpaddq_s32(_sum00, _sum01));
+#if __ARM_FEATURE_MATMUL_INT8
+                int32x4_t _sum00 = vdupq_n_s32(0);
+                int32x4_t _sum01 = vdupq_n_s32(0);
 #endif // __ARM_FEATURE_MATMUL_INT8
+                for (; kk + 7 < max_kk; kk += 8)
+                {
+                    int8x8_t _pA = vld1_s8(pA);
+                    int8x16_t _pB0 = vld1q_s8(pB);
+                    int8x16_t _pB1 = vld1q_s8(pB + 16);
+
+#if __ARM_FEATURE_MATMUL_INT8
+                    int8x16_t _pAA = vcombine_s8(_pA, _pA);
+                    _sum00 = vdotq_s32(_sum00, _pAA, _pB0);
+                    _sum01 = vdotq_s32(_sum01, _pAA, _pB1);
+#else  // __ARM_FEATURE_MATMUL_INT8
+                    _sum0 = vdotq_lane_s32(_sum0, _pB0, _pA, 0);
+                    _sum0 = vdotq_lane_s32(_sum0, _pB1, _pA, 1);
+#endif // __ARM_FEATURE_MATMUL_INT8
+
+                    pA += 8;
+                    pB += 32;
+                }
+#if __ARM_FEATURE_MATMUL_INT8
+                _sum0 = vaddq_s32(_sum0, vpaddq_s32(_sum00, _sum01));
+#endif // __ARM_FEATURE_MATMUL_INT8
+            }
+#endif // __ARM_FEATURE_DOTPROD
             for (; kk + 3 < max_kk; kk += 4)
             {
                 int8x8_t _pA = vld1_s8(pA);
                 int8x16_t _pB = vld1q_s8(pB);
 
+#if __ARM_FEATURE_DOTPROD
                 _sum0 = vdotq_lane_s32(_sum0, _pB, _pA, 0);
+#else  // __ARM_FEATURE_DOTPROD
+                int8x8_t _pA0 = vreinterpret_s8_s16(vdup_lane_s16(vreinterpret_s16_s8(_pA), 0));
+                int8x8_t _pA1 = vreinterpret_s8_s16(vdup_lane_s16(vreinterpret_s16_s8(_pA), 1));
+                int16x8_t _s0 = vmull_s8(_pA0, vget_low_s8(_pB));
+                _s0 = vmlal_s8(_s0, _pA1, vget_high_s8(_pB));
+                _sum0 = vpadalq_s16(_sum0, _s0);
+#endif // __ARM_FEATURE_DOTPROD
 
                 pA += 4;
                 pB += 16;
             }
-#endif // __ARM_FEATURE_DOTPROD
             for (; kk + 1 < max_kk; kk += 2)
             {
                 int8x8_t _pA = vreinterpret_s8_s16(vld1_dup_s16((const short*)pA));
