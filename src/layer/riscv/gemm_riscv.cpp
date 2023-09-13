@@ -42,6 +42,7 @@ void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
     float* pp = AT;
 
     int ii = 0;
+#if __riscv_vector
     for (; ii + 7 < max_ii; ii += 8)
     {
         if (elempack == 4)
@@ -186,6 +187,7 @@ void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
             }
         }
     }
+#endif // __riscv_vector
     for (; ii + 1 < max_ii; ii += 2)
     {
         // if (elempack == 1)
@@ -194,6 +196,7 @@ void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
             const float* p1 = (const float*)A + (i + ii + 1) * A_hstep + k;
 
             int kk = 0;
+#if __riscv_vector
             for (; kk + 3 < max_kk; kk += 4)
             {
                 // vfloat32m1x2_t _r01;
@@ -207,6 +210,7 @@ void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
                 p0 += 4;
                 p1 += 4;
             }
+#endif // __riscv_vector
             for (; kk < max_kk; kk++)
             {
                 pp[0] = p0[0];
@@ -224,12 +228,14 @@ void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
             const float* p0 = (const float*)A + (i + ii) * A_hstep + k;
 
             int kk = 0;
+#if __riscv_vector
             for (; kk + 3 < max_kk; kk += 4)
             {
                 vse32_v_f32m1(pp, vle32_v_f32m1(p0, VL), VL);
                 pp += 4;
                 p0 += 4;
             }
+#endif // __riscv_vector
             for (; kk < max_kk; kk++)
             {
                 pp[0] = p0[0];
@@ -248,6 +254,7 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
     float* pp = AT;
 
     int ii = 0;
+#if __riscv_vector
     for (; ii + 7 < max_ii; ii += 8)
     {
         if (elempack == 4)
@@ -316,8 +323,10 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
             }
         }
     }
+#endif // __riscv_vector
     for (; ii + 1 < max_ii; ii += 2)
     {
+#if __riscv_vector
         if (elempack == 4)
         {
             const float* p0 = (const float*)A + k * A_hstep + (i + ii) * 4;
@@ -334,6 +343,7 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
                 p0 += A_hstep * 4;
             }
         }
+#endif // __riscv_vector
         if (elempack == 1)
         {
             const float* p0 = (const float*)A + k * A_hstep + (i + ii);
@@ -350,6 +360,7 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
     }
     for (; ii < max_ii; ii += 1)
     {
+#if __riscv_vector
         if (elempack == 4)
         {
             const float* p0 = (const float*)A + k * A_hstep + (i + ii) * 4;
@@ -362,6 +373,7 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
                 p0 += A_hstep * 4;
             }
         }
+#endif // __riscv_vector
         if (elempack == 1)
         {
             const float* p0 = (const float*)A + k * A_hstep + (i + ii);
@@ -385,6 +397,7 @@ static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max
     float* pp = BT;
 
     int jj = 0;
+#if __riscv_vector
     for (; jj + 11 < max_jj; jj += 12)
     {
         if (elempack == 4)
@@ -627,6 +640,7 @@ static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max
             }
         }
     }
+#endif // __riscv_vector
     for (; jj + 1 < max_jj; jj += 2)
     {
         // if (elempack == 1)
@@ -635,6 +649,7 @@ static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max
             const float* p1 = (const float*)B + (j + jj + 1) * B_hstep + k;
 
             int kk = 0;
+#if __riscv_vector
             for (; kk + 3 < max_kk; kk += 4)
             {
                 // float32x4x2_t _r01;
@@ -646,6 +661,7 @@ static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max
                 p0 += 4;
                 p1 += 4;
             }
+#endif // __riscv_vector
             for (; kk < max_kk; kk++)
             {
                 pp[0] = p0[0];
@@ -663,12 +679,14 @@ static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max
             const float* p0 = (const float*)B + (j + jj) * B_hstep + k;
 
             int kk = 0;
+#if __riscv_vector
             for (; kk + 3 < max_kk; kk += 4)
             {
                 vse32_v_f32m1(pp, vle32_v_f32m1(p0, VL), VL);
                 pp += 4;
                 p0 += 4;
             }
+#endif // __riscv_vector
             for (; kk < max_kk; kk++)
             {
                 pp[0] = p0[0];
@@ -687,6 +705,7 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
     float* pp = BT;
 
     int jj = 0;
+#if __riscv_vector
     for (; jj + 11 < max_jj; jj += 12)
     {
         if (elempack == 4)
@@ -798,8 +817,10 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
             }
         }
     }
+#endif // __riscv_vector
     for (; jj + 1 < max_jj; jj += 2)
     {
+#if __riscv_vector
         if (elempack == 4)
         {
             const float* p0 = (const float*)B + k * B_hstep + (j + jj) * 4;
@@ -816,6 +837,7 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
                 p0 += B_hstep * 4;
             }
         }
+#endif // __riscv_vector
         if (elempack == 1)
         {
             const float* p0 = (const float*)B + k * B_hstep + (j + jj);
@@ -832,6 +854,7 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
     }
     for (; jj < max_jj; jj += 1)
     {
+#if __riscv_vector
         if (elempack == 4)
         {
             const float* p0 = (const float*)B + k * B_hstep + (j + jj) * 4;
@@ -844,6 +867,7 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
                 p0 += B_hstep * 4;
             }
         }
+#endif // __riscv_vector
         if (elempack == 1)
         {
             const float* p0 = (const float*)B + k * B_hstep + (j + jj);
@@ -867,6 +891,7 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
     const float* pp = topT;
 
     int ii = 0;
+#if __riscv_vector
     for (; ii + 7 < max_ii; ii += 8)
     {
         if (out_elempack == 4)
@@ -940,8 +965,10 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
             }
         }
     }
+#endif // __riscv_vector
     for (; ii + 1 < max_ii; ii += 2)
     {
+#if __riscv_vector
         if (out_elempack == 4)
         {
             float* p0 = (float*)top_blob + j * out_hstep + (i + ii) * 4;
@@ -960,6 +987,7 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
                 p0 += out_hstep * 4;
             }
         }
+#endif // __riscv_vector
         if (out_elempack == 1)
         {
             float* p0 = (float*)top_blob + j * out_hstep + (i + ii);
@@ -975,6 +1003,7 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
     }
     for (; ii < max_ii; ii += 1)
     {
+#if __riscv_vector
         if (out_elempack == 4)
         {
             float* p0 = (float*)top_blob + j * out_hstep + (i + ii) * 4;
@@ -987,6 +1016,7 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
                 p0 += out_hstep * 4;
             }
         }
+#endif // __riscv_vector
         if (out_elempack == 1)
         {
             float* p0 = (float*)top_blob + j * out_hstep + (i + ii);
@@ -1013,6 +1043,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
     float* outptr = topT_tile;
 
     int ii = 0;
+#if __riscv_vector
     for (; ii + 7 < max_ii; ii += 8)
     {
         float* outptr0 = (float*)top_blob + (i + ii) * out_hstep + j * out_elempack;
@@ -2745,6 +2776,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
 
         pAT += max_kk * 4;
     }
+#endif // __riscv_vector
     for (; ii + 1 < max_ii; ii += 2)
     {
         float* outptr0 = (float*)top_blob + (i + ii) * out_hstep + j;
@@ -2764,6 +2796,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
         }
 
         int jj = 0;
+#if __riscv_vector
         for (; jj + 11 < max_jj; jj += 12)
         {
             vfloat32m1_t _sum00;
@@ -3077,6 +3110,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
 
             outptr += 8;
         }
+#endif // __riscv_vector
         for (; jj + 1 < max_jj; jj += 2)
         {
             float sum00;
@@ -3258,7 +3292,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
         }
 
         int jj = 0;
-
+#if __riscv_vector
         for (; jj + 11 < max_jj; jj += 12)
         {
             vfloat32m1_t _sum0;
@@ -3450,6 +3484,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
 
             outptr += 4;
         }
+#endif // __riscv_vector
         for (; jj + 1 < max_jj; jj += 2)
         {
             float sum0;
@@ -4080,11 +4115,13 @@ int Gemm_riscv::create_pipeline(const Option& opt)
     {
         CT_data = C_data;
 
+#if __riscv_vector
         if (constant_broadcast_type_C == 3 && opt.use_packing_layout)
         {
             int C_elempack = constantM % 4 == 0 ? 4 : 1;
             convert_packing(C_data, CT_data, C_elempack, opt);
         }
+#endif // __riscv_vector
 
         // pre-multiply C with beta
         if (beta != 1.f)
@@ -4222,11 +4259,13 @@ int Gemm_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
     }
 
     int out_elempack = 1;
+#if __riscv_vector
     if (opt.use_packing_layout)
     {
         int outh = output_transpose ? N : M;
         out_elempack = outh % 4 == 0 ? 4 : 1;
     }
+#endif // __riscv_vector
     if (output_elempack)
         out_elempack = output_elempack;
     size_t out_elemsize = 4u * out_elempack;
