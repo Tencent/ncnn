@@ -29,9 +29,9 @@ def test():
 
     torch.manual_seed(0)
     x = torch.rand(2, 3)
-    u = torch.rand(3)
+    y = torch.rand(3)
 
-    output_a = net(x, y)
+    a = net(x, y)
 
     # export torchscript
     mod = torch.jit.trace(net, (x, y))
