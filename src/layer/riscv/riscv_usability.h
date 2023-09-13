@@ -91,63 +91,14 @@ static inline vfloat32m8_t vle32_v_f32m8_f32m1(const float* ptr)
 
 static inline vfloat32m1_t vfmaq_laneq_f32_riscv(vfloat32m1_t sum, vfloat32m1_t a, vfloat32m1_t b, int lane) {
     float t[4];
-    vse32_v_f32m1(t, b, 4);
+    vse32_v_f32m1(t, b, VL);
     vfloat32m1_t ret = vfmadd_vf_f32m1(
-            a, t[lane], sum, 4);
+            a, t[lane], sum, VL);
     return ret;     
 }
 
 static inline vfloat32m1_t vdupq_n_f32_riscv(float32_t f) {
     return vfmv_v_f_f32m1(f, VL);
-}
-
-static inline vfloat32m1x2_t vzip_f32(vfloat32m1_t vector1, vfloat32m1_t vector2) {
-    vfloat32m2_t d = vundefined_f32m2();
-    d = vset_v_f32m1_f32m2(d, 0, vector1);
-    d = vset_v_f32m1_f32m2(d, 1, vector2);
-    vuint32m2_t index;
-    uint32_t index_128[8] = {0, 4, 1, 5, 2, 6, 3, 7};
-    index = vle32_v_u32m2(index_128, 8);
-    vfloat32m2_t g_d = vrgather_vv_f32m2(d, index, 8);
-    vfloat32m1_t v0 = vget_v_f32m2_f32m1(g_d, 0);
-    vfloat32m1_t v1 = vget_v_f32m2_f32m1(g_d, 1);
-    return vcreate_f32m1x2(v0, v1);
-}
-
-static inline vfloat32m1x4_t vzip_f32_v4(vfloat32m1_t vector1, vfloat32m1_t vector2, vfloat32m1_t vector3, vfloat32m1_t vector4) {
-    vfloat32m4_t d = vundefined_f32m4();
-    d = vset_v_f32m1_f32m4(d, 0, vector1);
-    d = vset_v_f32m1_f32m4(d, 1, vector2);
-    d = vset_v_f32m1_f32m4(d, 2, vector3);
-    d = vset_v_f32m1_f32m4(d, 3, vector4);
-    
-    vuint32m4_t index;
-    uint32_t index_128[16] = {0, 4, 8, 12, 1, 5, 9, 13, 2, 6, 10, 14, 3, 7, 11, 15};
-    index = vle32_v_u32m4(index_128, 16);
-    vfloat32m4_t g_d = vrgather_vv_f32m4(d, index, 16);
-    vfloat32m1_t v0 = vget_v_f32m4_f32m1(g_d, 0);
-    vfloat32m1_t v1 = vget_v_f32m4_f32m1(g_d, 1);
-    vfloat32m1_t v2 = vget_v_f32m4_f32m1(g_d, 2);
-    vfloat32m1_t v3 = vget_v_f32m4_f32m1(g_d, 3);
-    return vcreate_f32m1x4(v0, v1, v2, v3);
-}
-
-static inline vfloat32m1_t vget_low_f32(vfloat32m1_t a) {
-    return vmv_v_v_f32m1(a, 2);
-}
-
-static inline vfloat32m1_t vget_high_f32(vfloat32m1_t a) 
-{
-    float t[4];
-    vse32_v_f32m1(t, a, 4);
-    return vle32_v_f32m1(t + 2, 2);
-}
-
-static inline vfloat32m1_t vcombine_f32(vfloat32m1_t a, vfloat32m1_t b) {
-    float t[4];
-    vse32_v_f32m1(t, a, 2);
-    vse32_v_f32m1(t + 2, b, 2);
-    return vle32_v_f32m1(t, 4);
 }
 
 static inline void transpose8x8_ps(vfloat32m1_t& _r0l, vfloat32m1_t& _r0h,
