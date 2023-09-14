@@ -44,6 +44,7 @@
 * [Input](#input)
 * [InstanceNorm](#instancenorm)
 * [Interp](#interp)
+* [IsInf](#isinf)
 * [LayerNorm](#layernorm)
 * [Log](#log)
 * [LRN](#lrn)
@@ -1082,6 +1083,14 @@ Resize type:
 - 1 = Nearest
 - 2 = Bilinear
 - 3 = Bicubic
+
+# IsNaN
+```
+y = isNaN(x)
+```
+
+* one_blob_only
+* support_inplace
 
 # LayerNorm
 ```
