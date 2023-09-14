@@ -288,11 +288,6 @@ if(NCNN_VULKAN)
     endif()
 
     target_link_libraries(ncnn PUBLIC Vulkan::Vulkan)
-    if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
-        # Link directory for vulkan-1
-        target_link_libraries(ncnn PUBLIC ${Vulkan_LIBRARIES})
-    endif()
-
     # Support mac platform static library compilation
     if(NOT NCNN_SHARED_LIB AND CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin" AND NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
         find_library(CoreFoundation NAMES CoreFoundation)
