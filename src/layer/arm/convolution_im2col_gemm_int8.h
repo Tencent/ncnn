@@ -2708,7 +2708,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 "beq        4f                  \n"
 
                 // kk += 2 part
-                "vld1.s8    {d0-d1}, [%1 :64]]! \n"
+                "vld1.s8    {d0-d1}, [%1 :64]!  \n"
                 "vld1.s8    {d4}, [%2]!         \n"
                 "vrev64.32  q1, q0              \n"
                 "vrev64.16  d5, d4              \n"
@@ -2735,7 +2735,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 "beq        5f                  \n"
 
                 // kk += 1 part
-                "vld1.s8    {d0}, [%1 :64]]!    \n"
+                "vld1.s8    {d0}, [%1 :64]!     \n"
                 "vld1.s32   {d2[]}, [%2]!       \n"
                 "vrev64.16  d1, d0              \n"
                 "vrev64.8   d3, d2              \n"
@@ -5192,7 +5192,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 "beq        3f                  \n"
 
                 "2:                             \n"
-                "vld1.s8    {d0-d1}, [%1 :64]]! \n"
+                "vld1.s8    {d0-d1}, [%1 :64]!  \n"
                 "vld1.s8    {d4-d5}, [%2]!      \n"
                 "vrev64.32  q1, q0              \n"
                 "vmull.s8   q4, d0, d4          \n"
@@ -5217,7 +5217,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 "beq        4f                  \n"
 
                 // kk += 2 part
-                "vld1.s8    {d0}, [%1 :64]]!    \n"
+                "vld1.s8    {d0}, [%1 :64]!     \n"
                 "vld1.s8    {d4}, [%2]!         \n"
                 "vext.8     d1, d0, d0, #4      \n"
                 "vrev64.16  d5, d4              \n"
