@@ -152,7 +152,7 @@ jobs:
       with:
         output-dir: wheelhouse
 
-    - name: Build wheels for x86 windows arm64 windows (cpu only)
+    - name: Build wheels for x86 windows arm64 windows arm64 macos universal2 macos(cpu only)
       if: (matrix.os == 'windows-2019' && matrix.arch == 'X86')   ||
           (matrix.os == 'windows-2019' && matrix.arch == 'ARM64') ||
           (matrix.os == 'macos-latest' && matrix.arch == 'arm64') ||
