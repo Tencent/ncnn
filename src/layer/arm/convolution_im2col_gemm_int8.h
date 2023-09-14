@@ -7527,16 +7527,41 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
 #if __ARM_FEATURE_MATMUL_INT8
             for (; kk < max_kk / 8; kk++)
             {
+#if NCNN_GNU_INLINE_ASM
+                asm volatile(
+                    "prfm   pldl1keep, [%0, #256]       \n"
+                    "ld1    {v0.16b, v1.16b}, [%0], %4  \n"
+                    "st1    {v0.16b, v1.16b}, [%1], #32 \n"
+                    : "=r"(p0), // %0
+                    "=r"(pp)  // %1
+                    : "0"(p0),
+                    "1"(pp),
+                    "r"(cstep)
+                    : "memory", "v0", "v1", "v2", "v3");
+#else  // NCNN_GNU_INLINE_ASM
                 int8x16_t _r01 = vld1q_s8(p0);
                 int8x16_t _r23 = vld1q_s8(p0 + 16);
                 vst1q_s8(pp, _r01);
                 vst1q_s8(pp + 16, _r23);
                 pp += 32;
                 p0 += cstep;
+#endif // NCNN_GNU_INLINE_ASM
             }
 #elif __ARM_FEATURE_DOTPROD
             for (; kk < max_kk / 8; kk++)
             {
+#if NCNN_GNU_INLINE_ASM
+                asm volatile(
+                    "prfm   pldl1keep, [%0, #256]       \n"
+                    "ld1    {v0.8b, v1.8b, v2.8b, v3.8b}, [%0], %4 \n"
+                    "st4    {v0.2s, v1.2s, v2.2s, v3.2s}, [%1], #32 \n"
+                    : "=r"(p0), // %0
+                    "=r"(pp)  // %1
+                    : "0"(p0),
+                    "1"(pp),
+                    "r"(cstep)
+                    : "memory", "v0", "v1", "v2", "v3");
+#else  // NCNN_GNU_INLINE_ASM
                 int32x2x4_t _r0123;
                 _r0123.val[0] = vreinterpret_s32_s8(vld1_s8(p0));
                 _r0123.val[1] = vreinterpret_s32_s8(vld1_s8(p0 + 8));
@@ -7545,14 +7570,27 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
                 vst4_s32((int*)pp, _r0123);
                 pp += 32;
                 p0 += cstep;
+#endif // NCNN_GNU_INLINE_ASM
             }
 #else  // __ARM_FEATURE_MATMUL_INT8 || __ARM_FEATURE_DOTPROD
             for (; kk < max_kk / 8; kk++)
             {
 #if NCNN_GNU_INLINE_ASM
+#if __aarch64__
+                asm volatile(
+                    "prfm   pldl1keep, [%0, #256]       \n"
+                    "ld1    {v0.8b, v1.8b, v2.8b, v3.8b}, [%0], %4 \n"
+                    "st4    {v0.4h, v1.4h, v2.4h, v3.4h}, [%1], #32 \n"
+                    : "=r"(p0), // %0
+                    "=r"(pp)  // %1
+                    : "0"(p0),
+                    "1"(pp),
+                    "r"(cstep)
+                    : "memory", "v0", "v1", "v2", "v3");
+#else
                 asm volatile(
                     "pld        [%0, #256]          \n"
-                    "vld1.s8    {d0-d3}, [%0]       \n"
+                    "vld1.s8    {d0-d3}, [%0], %4   \n"
                     "vst4.s16   {d0-d3}, [%1 :64]!  \n"
                     : "=r"(p0), // %0
                     "=r"(pp)  // %1
@@ -7560,6 +7598,7 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
                     "1"(pp),
                     "r"(cstep)
                     : "memory", "q0", "q1", "q2", "q3");
+#endif // __aarch64__
 #else  // NCNN_GNU_INLINE_ASM
                 int16x4x4_t _r0123;
                 _r0123.val[0] = vreinterpret_s16_s8(vld1_s8(p0));
@@ -7568,8 +7607,8 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
                 _r0123.val[3] = vreinterpret_s16_s8(vld1_s8(p0 + 24));
                 vst4_s16((short*)pp, _r0123);
                 pp += 32;
-#endif // NCNN_GNU_INLINE_ASM
                 p0 += cstep;
+#endif // NCNN_GNU_INLINE_ASM
             }
 #endif // __ARM_FEATURE_MATMUL_INT8 || __ARM_FEATURE_DOTPROD
         }
