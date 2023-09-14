@@ -73,6 +73,7 @@ int ShuffleChannel_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
 
         if (_group == 2 && channels % _group != 0)
         {
+            NCNN_LOGE("AVX512F 2n+1.");
             top_blob.create(w, h, channels, elemsize, elempack, opt.blob_allocator);
             if (top_blob.empty())
                 return -100;
@@ -92,7 +93,7 @@ int ShuffleChannel_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
                     __m512 _p2 = _mm512_loadu_ps(ptr2);
 
                     __m512 _p12 = _mm512_castsi512_ps(
-                                      _mm512_alignr_epi64(_mm512_castps_si512(_p1), _mm512_castps_si512(_p2), 4));
+                                      _mm512_alignr_epi64(_mm512_castps_si512(_p2), _mm512_castps_si512(_p1), 4));
 
                     __m512 _lo = _mm512_permutex2var_ps(_p0, _idxlo, _p12);
                     __m512 _hi = _mm512_permutex2var_ps(_p0, _idxhi, _p12);
@@ -163,6 +164,7 @@ int ShuffleChannel_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
 
         if (_group == 2)
         {
+            NCNN_LOGE("AVX512F 2.");
             for (int q = 0; q < channels_per_group; q++)
             {
                 const float* ptr0 = bottom_blob.channel(q);
@@ -192,6 +194,7 @@ int ShuffleChannel_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
         }
         if (_group == 3)
         {
+            NCNN_LOGE("AVX512F 3.");
             for (int q = 0; q < channels_per_group; q++)
             {
                 const float* ptr0 = bottom_blob.channel(q);
@@ -274,6 +277,7 @@ int ShuffleChannel_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
         }
         if (_group == 4)
         {
+            NCNN_LOGE("AVX512F 4.");
             for (int q = 0; q < channels_per_group; q++)
             {
                 const float* ptr0 = bottom_blob.channel(q);
