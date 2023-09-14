@@ -471,7 +471,7 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |nn.BatchNorm2d             | :heavy_check_mark: | :heavy_check_mark: |
 |nn.BatchNorm3d             | :heavy_check_mark: | :heavy_check_mark: |
 |nn.Bilinear                |   |
-|nn.CELU                    | :heavy_check_mark: |
+|nn.CELU                    | :heavy_check_mark: | :heavy_check_mark: |
 |nn.ChannelShuffle          | :heavy_check_mark: | :heavy_check_mark: |
 |nn.ConstantPad1d           | :heavy_check_mark: | :heavy_check_mark: |
 |nn.ConstantPad2d           | :heavy_check_mark: | :heavy_check_mark: |

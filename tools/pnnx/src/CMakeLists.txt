@@ -217,6 +217,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_cumprod.cpp
     pass_level2/torch_cumsum.cpp
     pass_level2/torch_dequantize.cpp
+    pass_level2/torch_diag.cpp
     pass_level2/torch_einsum.cpp
     pass_level2/torch_empty.cpp
     pass_level2/torch_empty_like.cpp
@@ -411,6 +412,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/F_avg_pool2d.cpp
     pass_ncnn/F_avg_pool3d.cpp
     pass_ncnn/F_batch_norm.cpp
+    pass_ncnn/F_celu.cpp
     pass_ncnn/F_conv_transpose1d.cpp
     pass_ncnn/F_conv_transpose2d.cpp
     pass_ncnn/F_conv_transpose3d.cpp
@@ -467,6 +469,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/nn_BatchNorm1d.cpp
     pass_ncnn/nn_BatchNorm2d.cpp
     pass_ncnn/nn_BatchNorm3d.cpp
+    pass_ncnn/nn_CELU.cpp
     pass_ncnn/nn_ChannelShuffle.cpp
     pass_ncnn/nn_ConstantPad1d.cpp
     pass_ncnn/nn_ConstantPad2d.cpp
@@ -534,6 +537,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/torch_clamp.cpp
     pass_ncnn/torch_clone.cpp
     pass_ncnn/torch_cumsum.cpp
+    pass_ncnn/torch_diag.cpp
     pass_ncnn/torch_flatten.cpp
     pass_ncnn/torch_logsumexp.cpp
     pass_ncnn/torch_matmul.cpp
