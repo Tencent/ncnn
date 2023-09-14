@@ -38,7 +38,7 @@ Gemm_riscv::Gemm_riscv()
     support_inplace = false;
 }
 
-void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
+static void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
 {
     const int elempack = A.elempack;
     const int A_hstep = A.dims == 3 ? (int)A.cstep : A.w;
