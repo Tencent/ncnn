@@ -214,8 +214,10 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_clone.cpp
     pass_level2/torch_complex.cpp
     pass_level2/torch_cross.cpp
+    pass_level2/torch_cumprod.cpp
     pass_level2/torch_cumsum.cpp
     pass_level2/torch_dequantize.cpp
+    pass_level2/torch_diag.cpp
     pass_level2/torch_einsum.cpp
     pass_level2/torch_empty.cpp
     pass_level2/torch_empty_like.cpp
@@ -230,6 +232,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_imag.cpp
     pass_level2/torch_index_select.cpp
     pass_level2/torch_le.cpp
+    pass_level2/torch_lgamma.cpp
     pass_level2/torch_logsumexp.cpp
     pass_level2/torch_lt.cpp
     pass_level2/torch_matmul.cpp
@@ -238,11 +241,13 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_min.cpp
     pass_level2/torch_mm.cpp
     pass_level2/torch_mv.cpp
+    pass_level2/torch_narrow.cpp
     pass_level2/torch_ne.cpp
     pass_level2/torch_norm.cpp
     pass_level2/torch_normal.cpp
     pass_level2/torch_ones.cpp
     pass_level2/torch_ones_like.cpp
+    pass_level2/torch_positive.cpp
     pass_level2/torch_prod.cpp
     pass_level2/torch_quantize_per_tensor.cpp
     pass_level2/torch_randn.cpp
@@ -408,6 +413,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/F_avg_pool2d.cpp
     pass_ncnn/F_avg_pool3d.cpp
     pass_ncnn/F_batch_norm.cpp
+    pass_ncnn/F_celu.cpp
     pass_ncnn/F_conv_transpose1d.cpp
     pass_ncnn/F_conv_transpose2d.cpp
     pass_ncnn/F_conv_transpose3d.cpp
@@ -464,6 +470,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/nn_BatchNorm1d.cpp
     pass_ncnn/nn_BatchNorm2d.cpp
     pass_ncnn/nn_BatchNorm3d.cpp
+    pass_ncnn/nn_CELU.cpp
     pass_ncnn/nn_ChannelShuffle.cpp
     pass_ncnn/nn_ConstantPad1d.cpp
     pass_ncnn/nn_ConstantPad2d.cpp
@@ -531,6 +538,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/torch_clamp.cpp
     pass_ncnn/torch_clone.cpp
     pass_ncnn/torch_cumsum.cpp
+    pass_ncnn/torch_diag.cpp
     pass_ncnn/torch_flatten.cpp
     pass_ncnn/torch_logsumexp.cpp
     pass_ncnn/torch_matmul.cpp

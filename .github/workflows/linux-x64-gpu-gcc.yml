@@ -38,7 +38,7 @@ jobs:
   linux-gcc-gpu:
     runs-on: [self-hosted, linux, cvm]
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: true
     - name: cache-swiftshader
@@ -49,7 +49,7 @@ jobs:
         key: swiftshader-linux-install-20230420
     - name: checkout-swiftshader
       if: steps.cache-swiftshader.outputs.cache-hit != 'true'
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         repository: google/swiftshader
         path: swiftshader
@@ -87,7 +87,7 @@ jobs:
   linux-gcc-gpu-system-glslang:
     runs-on: ubuntu-20.04
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: install-deps
       run: |
@@ -108,7 +108,7 @@ jobs:
   linux-gcc-gpu-t4:
     runs-on: [self-hosted, linux, t4]
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: true
     - name: build

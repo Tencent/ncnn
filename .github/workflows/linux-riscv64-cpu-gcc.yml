@@ -34,7 +34,7 @@ jobs:
   linux-gcc-riscv64:
     runs-on: ubuntu-20.04
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: cache-qemu
       id: cache-qemu
@@ -49,7 +49,7 @@ jobs:
         sudo apt-get install autoconf automake autotools-dev ninja-build
     - name: checkout-qemu
       if: steps.cache-qemu.outputs.cache-hit != 'true'
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         repository: qemu/qemu
         path: qemu
@@ -83,7 +83,7 @@ jobs:
   linux-gcc-riscv64-c906:
     runs-on: [self-hosted, linux, centos]
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: configure
       run: |
@@ -102,7 +102,7 @@ jobs:
   linux-gcc-riscv64-rvv:
     runs-on: [self-hosted, linux, centos]
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     #- name: cache-qemu
       #id: cache-qemu
@@ -117,7 +117,7 @@ jobs:
         #sudo apt-get install autoconf automake autotools-dev ninja-build
     #- name: checkout-qemu
       #if: steps.cache-qemu.outputs.cache-hit != 'true'
-      #uses: actions/checkout@v3
+      #uses: actions/checkout@v4
       #with:
         #repository: qemu/qemu
         #path: qemu
@@ -147,7 +147,7 @@ jobs:
 
     #- name: checkout-riscv-gnu-toolchain
       #if: steps.cache-riscv.outputs.cache-hit != 'true'
-      #uses: actions/checkout@v3
+      #uses: actions/checkout@v4
       #with:
         #repository: riscv/riscv-gnu-toolchain
         #path: riscv-gnu-toolchain

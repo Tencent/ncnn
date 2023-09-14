@@ -23,7 +23,7 @@ class Model(nn.Module):
     def forward(self, x, y, z, w):
         x = F.celu(x)
         y = F.celu(y, 0.8)
-        z = F.celu(z, -0.5)
+        z = F.celu(z, 0.5)
         w = F.celu(w, 2)
         return x, y, z, w
 
