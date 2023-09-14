@@ -7302,11 +7302,24 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
         if (elempack == 8)
         {
             const signed char* p0 = (const signed char*)bottom_blob.channel(k / 8) + (j + jj) * 8;
+            const int cstep = bottom_blob.cstep * 8;
 
             int kk = 0;
 #if __ARM_FEATURE_MATMUL_INT8
             for (; kk < max_kk / 8; kk++)
             {
+#if NCNN_GNU_INLINE_ASM
+                asm volatile(
+                    "prfm   pldl1keep, [%0, #512]       \n"
+                    "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%0], %4 \n"
+                    "st1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%1], #64 \n"
+                    : "=r"(p0), // %0
+                    "=r"(pp)  // %1
+                    : "0"(p0),
+                    "1"(pp),
+                    "r"(cstep)
+                    : "memory", "v0", "v1", "v2", "v3");
+#else  // NCNN_GNU_INLINE_ASM
                 int8x16_t _r01 = vld1q_s8(p0);
                 int8x16_t _r23 = vld1q_s8(p0 + 16);
                 int8x16_t _r45 = vld1q_s8(p0 + 32);
@@ -7316,11 +7329,28 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
                 vst1q_s8(pp + 32, _r45);
                 vst1q_s8(pp + 48, _r67);
                 pp += 64;
-                p0 += bottom_blob.cstep * 8;
+                p0 += cstep;
+#endif // NCNN_GNU_INLINE_ASM
             }
 #elif __ARM_FEATURE_DOTPROD
             for (; kk < max_kk / 8; kk++)
             {
+#if NCNN_GNU_INLINE_ASM
+                asm volatile(
+                    "prfm   pldl1keep, [%0, #512]       \n"
+                    "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%0], %4 \n"
+                    "uzp1   v4.4s, v0.4s, v1.4s         \n"
+                    "uzp2   v6.4s, v0.4s, v1.4s         \n"
+                    "uzp1   v5.4s, v2.4s, v3.4s         \n"
+                    "uzp2   v7.4s, v2.4s, v3.4s         \n"
+                    "st1    {v4.4s, v5.4s, v6.4s, v7.4s}, [%1], #64 \n"
+                    : "=r"(p0), // %0
+                    "=r"(pp)  // %1
+                    : "0"(p0),
+                    "1"(pp),
+                    "r"(cstep)
+                    : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7");
+#else  // NCNN_GNU_INLINE_ASM
                 int32x4x2_t _r0246 = vld2q_s32((const int*)p0);
                 int32x4x2_t _r1357 = vld2q_s32((const int*)(p0 + 32));
                 vst1q_s32((int*)pp, _r0246.val[0]);
@@ -7328,18 +7358,32 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
                 vst1q_s32((int*)(pp + 32), _r0246.val[1]);
                 vst1q_s32((int*)(pp + 48), _r1357.val[1]);
                 pp += 64;
-                p0 += bottom_blob.cstep * 8;
+                p0 += cstep;
+#endif // NCNN_GNU_INLINE_ASM
             }
 #else  // __ARM_FEATURE_MATMUL_INT8 || __ARM_FEATURE_DOTPROD
             for (; kk < max_kk / 8; kk++)
             {
+#if NCNN_GNU_INLINE_ASM
+                asm volatile(
+                    "prfm   pldl1keep, [%0, #512]       \n"
+                    "ld4    {v0.8h, v1.8h, v2.8h, v3.8h}, [%0], %4 \n"
+                    "st1    {v0.8h, v1.8h, v2.8h, v3.8h}, [%1], #64 \n"
+                    : "=r"(p0), // %0
+                    "=r"(pp)  // %1
+                    : "0"(p0),
+                    "1"(pp),
+                    "r"(cstep)
+                    : "memory", "v0", "v1", "v2", "v3");
+#else  // NCNN_GNU_INLINE_ASM
                 int16x8x4_t _r0 = vld4q_s16((const short*)p0);
                 vst1q_s16((short*)pp, _r0.val[0]);
                 vst1q_s16((short*)(pp + 16), _r0.val[1]);
                 vst1q_s16((short*)(pp + 32), _r0.val[2]);
                 vst1q_s16((short*)(pp + 48), _r0.val[3]);
                 pp += 64;
-                p0 += bottom_blob.cstep * 8;
+                p0 += cstep;
+#endif // NCNN_GNU_INLINE_ASM
             }
 #endif // __ARM_FEATURE_MATMUL_INT8 || __ARM_FEATURE_DOTPROD
         }
@@ -7347,20 +7391,51 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
         if (elempack == 1)
         {
             const signed char* p0 = (const signed char*)bottom_blob.channel(k) + (j + jj);
+            const int cstep = bottom_blob.cstep;
 
             int kk = 0;
 #if __ARM_FEATURE_DOTPROD
 #if __ARM_FEATURE_MATMUL_INT8
             for (; kk + 7 < max_kk; kk += 8)
             {
+#if NCNN_GNU_INLINE_ASM
+                asm volatile(
+                    "prfm   pldl1keep, [%0, #64]        \n"
+                    "ld1    {v0.8b}, [%0], %4           \n"
+                    "prfm   pldl1keep, [%0, #64]        \n"
+                    "ld1    {v1.8b}, [%0], %4           \n"
+                    "prfm   pldl1keep, [%0, #64]        \n"
+                    "ld1    {v0.d}[1], [%0], %4         \n"
+                    "prfm   pldl1keep, [%0, #64]        \n"
+                    "ld1    {v1.d}[1], [%0], %4         \n"
+                    "prfm   pldl1keep, [%0, #64]        \n"
+                    "ld1    {v2.8b}, [%0], %4           \n"
+                    "prfm   pldl1keep, [%0, #64]        \n"
+                    "ld1    {v3.8b}, [%0], %4           \n"
+                    "prfm   pldl1keep, [%0, #64]        \n"
+                    "ld1    {v2.d}[1], [%0], %4         \n"
+                    "prfm   pldl1keep, [%0, #64]        \n"
+                    "ld1    {v3.d}[1], [%0], %4         \n"
+                    "zip1   v4.16b, v0.16b, v1.16b      \n"
+                    "zip2   v5.16b, v0.16b, v1.16b      \n"
+                    "zip1   v6.16b, v2.16b, v3.16b      \n"
+                    "zip2   v7.16b, v2.16b, v3.16b      \n"
+                    "st4    {v4.8h, v5.8h, v6.8h, v7.8h}, [%1], #64 \n"
+                    : "=r"(p0), // %0
+                    "=r"(pp)  // %1
+                    : "0"(p0),
+                    "1"(pp),
+                    "r"(cstep)
+                    : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7");
+#else  // NCNN_GNU_INLINE_ASM
                 int8x8_t _r0 = vld1_s8(p0);
-                int8x8_t _r1 = vld1_s8(p0 + bottom_blob.cstep);
-                int8x8_t _r2 = vld1_s8(p0 + bottom_blob.cstep * 2);
-                int8x8_t _r3 = vld1_s8(p0 + bottom_blob.cstep * 3);
-                int8x8_t _r4 = vld1_s8(p0 + bottom_blob.cstep * 4);
-                int8x8_t _r5 = vld1_s8(p0 + bottom_blob.cstep * 5);
-                int8x8_t _r6 = vld1_s8(p0 + bottom_blob.cstep * 6);
-                int8x8_t _r7 = vld1_s8(p0 + bottom_blob.cstep * 7);
+                int8x8_t _r1 = vld1_s8(p0 + cstep);
+                int8x8_t _r2 = vld1_s8(p0 + cstep * 2);
+                int8x8_t _r3 = vld1_s8(p0 + cstep * 3);
+                int8x8_t _r4 = vld1_s8(p0 + cstep * 4);
+                int8x8_t _r5 = vld1_s8(p0 + cstep * 5);
+                int8x8_t _r6 = vld1_s8(p0 + cstep * 6);
+                int8x8_t _r7 = vld1_s8(p0 + cstep * 7);
                 // save as transpose8x8
                 int8x8x2_t _r01 = vzip_s8(_r0, _r1);
                 int8x8x2_t _r23 = vzip_s8(_r2, _r3);
@@ -7373,35 +7448,70 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
                 _r0246.val[3] = vreinterpretq_s16_s8(vcombine_s8(_r67.val[0], _r67.val[1]));
                 vst4q_s16((short*)pp, _r0246);
                 pp += 64;
-                p0 += bottom_blob.cstep * 8;
+                p0 += cstep * 8;
+#endif // NCNN_GNU_INLINE_ASM
             }
 #endif // __ARM_FEATURE_MATMUL_INT8
             for (; kk + 3 < max_kk; kk += 4)
             {
+#if NCNN_GNU_INLINE_ASM
+                asm volatile(
+                    "prfm   pldl1keep, [%0, #64]        \n"
+                    "ld1    {v0.8b}, [%0], %4           \n"
+                    "prfm   pldl1keep, [%0, #64]        \n"
+                    "ld1    {v1.8b}, [%0], %4           \n"
+                    "prfm   pldl1keep, [%0, #64]        \n"
+                    "ld1    {v2.8b}, [%0], %4           \n"
+                    "prfm   pldl1keep, [%0, #64]        \n"
+                    "ld1    {v3.8b}, [%0], %4           \n"
+                    "st4    {v0.8b, v1.8b, v2.8b, v3.8b}, [%1], #32 \n"
+                    : "=r"(p0), // %0
+                    "=r"(pp)  // %1
+                    : "0"(p0),
+                    "1"(pp),
+                    "r"(cstep)
+                    : "memory", "v0", "v1", "v2", "v3");
+#else  // NCNN_GNU_INLINE_ASM
                 int8x8x4_t _r01;
                 _r01.val[0] = vld1_s8(p0);
-                _r01.val[1] = vld1_s8(p0 + bottom_blob.cstep);
-                _r01.val[2] = vld1_s8(p0 + bottom_blob.cstep * 2);
-                _r01.val[3] = vld1_s8(p0 + bottom_blob.cstep * 3);
+                _r01.val[1] = vld1_s8(p0 + cstep);
+                _r01.val[2] = vld1_s8(p0 + cstep * 2);
+                _r01.val[3] = vld1_s8(p0 + cstep * 3);
                 vst4_s8(pp, _r01);
                 pp += 32;
-                p0 += bottom_blob.cstep * 4;
+                p0 += cstep * 4;
+#endif // NCNN_GNU_INLINE_ASM
             }
 #endif // __ARM_FEATURE_DOTPROD
             for (; kk + 1 < max_kk; kk += 2)
             {
+#if NCNN_GNU_INLINE_ASM
+                asm volatile(
+                    "prfm   pldl1keep, [%0, #64]        \n"
+                    "ld1    {v0.8b}, [%0], %4           \n"
+                    "prfm   pldl1keep, [%0, #64]        \n"
+                    "ld1    {v1.8b}, [%0], %4           \n"
+                    "st2    {v0.8b, v1.8b}, [%1], #16   \n"
+                    : "=r"(p0), // %0
+                    "=r"(pp)  // %1
+                    : "0"(p0),
+                    "1"(pp),
+                    "r"(cstep)
+                    : "memory", "v0", "v1");
+#else  // NCNN_GNU_INLINE_ASM
                 int8x8x2_t _r01;
                 _r01.val[0] = vld1_s8(p0);
-                _r01.val[1] = vld1_s8(p0 + bottom_blob.cstep);
+                _r01.val[1] = vld1_s8(p0 + cstep);
                 vst2_s8(pp, _r01);
                 pp += 16;
-                p0 += bottom_blob.cstep * 2;
+                p0 += cstep * 2;
+#endif // NCNN_GNU_INLINE_ASM
             }
             for (; kk < max_kk; kk++)
             {
                 vst1_s8(pp, vld1_s8(p0));
                 pp += 8;
-                p0 += bottom_blob.cstep;
+                p0 += cstep;
             }
         }
     }
@@ -7678,7 +7788,7 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
 
 static void convolution_im2col_input_tile_int8(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h)
 {
-    if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+    if (kernel_w == 1 && kernel_h == 1 && stride_w == 1 && stride_h == 1)
     {
         convolution_im2col_input_tile_conv1x1s1d1_int8(bottom_blob, B, j, max_jj, k, max_kk);
         return;
@@ -7723,688 +7833,1052 @@ static void convolution_im2col_input_tile_int8(const Mat& bottom_blob, Mat& B, i
         int dx6 = (j + jj + 6) % outw;
         int dx7 = (j + jj + 7) % outw;
 
-        int kk = 0;
-        if (elempack == 1)
+        if (dy0 == dy7)
         {
-#if __ARM_FEATURE_DOTPROD
-#if __ARM_FEATURE_MATMUL_INT8
-            for (; kk + 7 < max_kk; kk += 8)
-            {
-                int p0 = (k + kk) / maxk;
-                int p1 = (k + kk + 1) / maxk;
-                int p2 = (k + kk + 2) / maxk;
-                int p3 = (k + kk + 3) / maxk;
-                int p4 = (k + kk + 4) / maxk;
-                int p5 = (k + kk + 5) / maxk;
-                int p6 = (k + kk + 6) / maxk;
-                int p7 = (k + kk + 7) / maxk;
-                int uv0 = (k + kk) % maxk;
-                int uv1 = (k + kk + 1) % maxk;
-                int uv2 = (k + kk + 2) % maxk;
-                int uv3 = (k + kk + 3) % maxk;
-                int uv4 = (k + kk + 4) % maxk;
-                int uv5 = (k + kk + 5) % maxk;
-                int uv6 = (k + kk + 6) % maxk;
-                int uv7 = (k + kk + 7) % maxk;
-                int u0 = uv0 / kernel_w;
-                int u1 = uv1 / kernel_w;
-                int u2 = uv2 / kernel_w;
-                int u3 = uv3 / kernel_w;
-                int u4 = uv4 / kernel_w;
-                int u5 = uv5 / kernel_w;
-                int u6 = uv6 / kernel_w;
-                int u7 = uv7 / kernel_w;
-                int v0 = uv0 % kernel_w;
-                int v1 = uv1 % kernel_w;
-                int v2 = uv2 % kernel_w;
-                int v3 = uv3 % kernel_w;
-                int v4 = uv4 % kernel_w;
-                int v5 = uv5 % kernel_w;
-                int v6 = uv6 % kernel_w;
-                int v7 = uv7 % kernel_w;
-
-                const Mat img0 = bottom_blob.channel(p0);
-                const Mat img1 = bottom_blob.channel(p1);
-                const Mat img2 = bottom_blob.channel(p2);
-                const Mat img3 = bottom_blob.channel(p3);
-                const Mat img4 = bottom_blob.channel(p4);
-                const Mat img5 = bottom_blob.channel(p5);
-                const Mat img6 = bottom_blob.channel(p6);
-                const Mat img7 = bottom_blob.channel(p7);
-
-                int x00 = stride_w * dx0 + dilation_w * v0;
-                int x01 = stride_w * dx1 + dilation_w * v0;
-                int x02 = stride_w * dx2 + dilation_w * v0;
-                int x03 = stride_w * dx3 + dilation_w * v0;
-                int x04 = stride_w * dx4 + dilation_w * v0;
-                int x05 = stride_w * dx5 + dilation_w * v0;
-                int x06 = stride_w * dx6 + dilation_w * v0;
-                int x07 = stride_w * dx7 + dilation_w * v0;
-                int y00 = stride_h * dy0 + dilation_h * u0;
-                int y01 = stride_h * dy1 + dilation_h * u0;
-                int y02 = stride_h * dy2 + dilation_h * u0;
-                int y03 = stride_h * dy3 + dilation_h * u0;
-                int y04 = stride_h * dy4 + dilation_h * u0;
-                int y05 = stride_h * dy5 + dilation_h * u0;
-                int y06 = stride_h * dy6 + dilation_h * u0;
-                int y07 = stride_h * dy7 + dilation_h * u0;
-
-                int x10 = stride_w * dx0 + dilation_w * v1;
-                int x11 = stride_w * dx1 + dilation_w * v1;
-                int x12 = stride_w * dx2 + dilation_w * v1;
-                int x13 = stride_w * dx3 + dilation_w * v1;
-                int x14 = stride_w * dx4 + dilation_w * v1;
-                int x15 = stride_w * dx5 + dilation_w * v1;
-                int x16 = stride_w * dx6 + dilation_w * v1;
-                int x17 = stride_w * dx7 + dilation_w * v1;
-                int y10 = stride_h * dy0 + dilation_h * u1;
-                int y11 = stride_h * dy1 + dilation_h * u1;
-                int y12 = stride_h * dy2 + dilation_h * u1;
-                int y13 = stride_h * dy3 + dilation_h * u1;
-                int y14 = stride_h * dy4 + dilation_h * u1;
-                int y15 = stride_h * dy5 + dilation_h * u1;
-                int y16 = stride_h * dy6 + dilation_h * u1;
-                int y17 = stride_h * dy7 + dilation_h * u1;
-
-                int x20 = stride_w * dx0 + dilation_w * v2;
-                int x21 = stride_w * dx1 + dilation_w * v2;
-                int x22 = stride_w * dx2 + dilation_w * v2;
-                int x23 = stride_w * dx3 + dilation_w * v2;
-                int x24 = stride_w * dx4 + dilation_w * v2;
-                int x25 = stride_w * dx5 + dilation_w * v2;
-                int x26 = stride_w * dx6 + dilation_w * v2;
-                int x27 = stride_w * dx7 + dilation_w * v2;
-                int y20 = stride_h * dy0 + dilation_h * u2;
-                int y21 = stride_h * dy1 + dilation_h * u2;
-                int y22 = stride_h * dy2 + dilation_h * u2;
-                int y23 = stride_h * dy3 + dilation_h * u2;
-                int y24 = stride_h * dy4 + dilation_h * u2;
-                int y25 = stride_h * dy5 + dilation_h * u2;
-                int y26 = stride_h * dy6 + dilation_h * u2;
-                int y27 = stride_h * dy7 + dilation_h * u2;
-
-                int x30 = stride_w * dx0 + dilation_w * v3;
-                int x31 = stride_w * dx1 + dilation_w * v3;
-                int x32 = stride_w * dx2 + dilation_w * v3;
-                int x33 = stride_w * dx3 + dilation_w * v3;
-                int x34 = stride_w * dx4 + dilation_w * v3;
-                int x35 = stride_w * dx5 + dilation_w * v3;
-                int x36 = stride_w * dx6 + dilation_w * v3;
-                int x37 = stride_w * dx7 + dilation_w * v3;
-                int y30 = stride_h * dy0 + dilation_h * u3;
-                int y31 = stride_h * dy1 + dilation_h * u3;
-                int y32 = stride_h * dy2 + dilation_h * u3;
-                int y33 = stride_h * dy3 + dilation_h * u3;
-                int y34 = stride_h * dy4 + dilation_h * u3;
-                int y35 = stride_h * dy5 + dilation_h * u3;
-                int y36 = stride_h * dy6 + dilation_h * u3;
-                int y37 = stride_h * dy7 + dilation_h * u3;
-
-                int x40 = stride_w * dx0 + dilation_w * v4;
-                int x41 = stride_w * dx1 + dilation_w * v4;
-                int x42 = stride_w * dx2 + dilation_w * v4;
-                int x43 = stride_w * dx3 + dilation_w * v4;
-                int x44 = stride_w * dx4 + dilation_w * v4;
-                int x45 = stride_w * dx5 + dilation_w * v4;
-                int x46 = stride_w * dx6 + dilation_w * v4;
-                int x47 = stride_w * dx7 + dilation_w * v4;
-                int y40 = stride_h * dy0 + dilation_h * u4;
-                int y41 = stride_h * dy1 + dilation_h * u4;
-                int y42 = stride_h * dy2 + dilation_h * u4;
-                int y43 = stride_h * dy3 + dilation_h * u4;
-                int y44 = stride_h * dy4 + dilation_h * u4;
-                int y45 = stride_h * dy5 + dilation_h * u4;
-                int y46 = stride_h * dy6 + dilation_h * u4;
-                int y47 = stride_h * dy7 + dilation_h * u4;
-
-                int x50 = stride_w * dx0 + dilation_w * v5;
-                int x51 = stride_w * dx1 + dilation_w * v5;
-                int x52 = stride_w * dx2 + dilation_w * v5;
-                int x53 = stride_w * dx3 + dilation_w * v5;
-                int x54 = stride_w * dx4 + dilation_w * v5;
-                int x55 = stride_w * dx5 + dilation_w * v5;
-                int x56 = stride_w * dx6 + dilation_w * v5;
-                int x57 = stride_w * dx7 + dilation_w * v5;
-                int y50 = stride_h * dy0 + dilation_h * u5;
-                int y51 = stride_h * dy1 + dilation_h * u5;
-                int y52 = stride_h * dy2 + dilation_h * u5;
-                int y53 = stride_h * dy3 + dilation_h * u5;
-                int y54 = stride_h * dy4 + dilation_h * u5;
-                int y55 = stride_h * dy5 + dilation_h * u5;
-                int y56 = stride_h * dy6 + dilation_h * u5;
-                int y57 = stride_h * dy7 + dilation_h * u5;
-
-                int x60 = stride_w * dx0 + dilation_w * v6;
-                int x61 = stride_w * dx1 + dilation_w * v6;
-                int x62 = stride_w * dx2 + dilation_w * v6;
-                int x63 = stride_w * dx3 + dilation_w * v6;
-                int x64 = stride_w * dx4 + dilation_w * v6;
-                int x65 = stride_w * dx5 + dilation_w * v6;
-                int x66 = stride_w * dx6 + dilation_w * v6;
-                int x67 = stride_w * dx7 + dilation_w * v6;
-                int y60 = stride_h * dy0 + dilation_h * u6;
-                int y61 = stride_h * dy1 + dilation_h * u6;
-                int y62 = stride_h * dy2 + dilation_h * u6;
-                int y63 = stride_h * dy3 + dilation_h * u6;
-                int y64 = stride_h * dy4 + dilation_h * u6;
-                int y65 = stride_h * dy5 + dilation_h * u6;
-                int y66 = stride_h * dy6 + dilation_h * u6;
-                int y67 = stride_h * dy7 + dilation_h * u6;
-
-                int x70 = stride_w * dx0 + dilation_w * v7;
-                int x71 = stride_w * dx1 + dilation_w * v7;
-                int x72 = stride_w * dx2 + dilation_w * v7;
-                int x73 = stride_w * dx3 + dilation_w * v7;
-                int x74 = stride_w * dx4 + dilation_w * v7;
-                int x75 = stride_w * dx5 + dilation_w * v7;
-                int x76 = stride_w * dx6 + dilation_w * v7;
-                int x77 = stride_w * dx7 + dilation_w * v7;
-                int y70 = stride_h * dy0 + dilation_h * u7;
-                int y71 = stride_h * dy1 + dilation_h * u7;
-                int y72 = stride_h * dy2 + dilation_h * u7;
-                int y73 = stride_h * dy3 + dilation_h * u7;
-                int y74 = stride_h * dy4 + dilation_h * u7;
-                int y75 = stride_h * dy5 + dilation_h * u7;
-                int y76 = stride_h * dy6 + dilation_h * u7;
-                int y77 = stride_h * dy7 + dilation_h * u7;
-
-                const signed char* sptr00 = img0.row<const signed char>(y00) + x00;
-                const signed char* sptr01 = img0.row<const signed char>(y01) + x01;
-                const signed char* sptr02 = img0.row<const signed char>(y02) + x02;
-                const signed char* sptr03 = img0.row<const signed char>(y03) + x03;
-                const signed char* sptr04 = img0.row<const signed char>(y04) + x04;
-                const signed char* sptr05 = img0.row<const signed char>(y05) + x05;
-                const signed char* sptr06 = img0.row<const signed char>(y06) + x06;
-                const signed char* sptr07 = img0.row<const signed char>(y07) + x07;
-
-                const signed char* sptr10 = img1.row<const signed char>(y10) + x10;
-                const signed char* sptr11 = img1.row<const signed char>(y11) + x11;
-                const signed char* sptr12 = img1.row<const signed char>(y12) + x12;
-                const signed char* sptr13 = img1.row<const signed char>(y13) + x13;
-                const signed char* sptr14 = img1.row<const signed char>(y14) + x14;
-                const signed char* sptr15 = img1.row<const signed char>(y15) + x15;
-                const signed char* sptr16 = img1.row<const signed char>(y16) + x16;
-                const signed char* sptr17 = img1.row<const signed char>(y17) + x17;
-
-                const signed char* sptr20 = img2.row<const signed char>(y20) + x20;
-                const signed char* sptr21 = img2.row<const signed char>(y21) + x21;
-                const signed char* sptr22 = img2.row<const signed char>(y22) + x22;
-                const signed char* sptr23 = img2.row<const signed char>(y23) + x23;
-                const signed char* sptr24 = img2.row<const signed char>(y24) + x24;
-                const signed char* sptr25 = img2.row<const signed char>(y25) + x25;
-                const signed char* sptr26 = img2.row<const signed char>(y26) + x26;
-                const signed char* sptr27 = img2.row<const signed char>(y27) + x27;
-
-                const signed char* sptr30 = img3.row<const signed char>(y30) + x30;
-                const signed char* sptr31 = img3.row<const signed char>(y31) + x31;
-                const signed char* sptr32 = img3.row<const signed char>(y32) + x32;
-                const signed char* sptr33 = img3.row<const signed char>(y33) + x33;
-                const signed char* sptr34 = img3.row<const signed char>(y34) + x34;
-                const signed char* sptr35 = img3.row<const signed char>(y35) + x35;
-                const signed char* sptr36 = img3.row<const signed char>(y36) + x36;
-                const signed char* sptr37 = img3.row<const signed char>(y37) + x37;
-
-                const signed char* sptr40 = img4.row<const signed char>(y40) + x40;
-                const signed char* sptr41 = img4.row<const signed char>(y41) + x41;
-                const signed char* sptr42 = img4.row<const signed char>(y42) + x42;
-                const signed char* sptr43 = img4.row<const signed char>(y43) + x43;
-                const signed char* sptr44 = img4.row<const signed char>(y44) + x44;
-                const signed char* sptr45 = img4.row<const signed char>(y45) + x45;
-                const signed char* sptr46 = img4.row<const signed char>(y46) + x46;
-                const signed char* sptr47 = img4.row<const signed char>(y47) + x47;
-
-                const signed char* sptr50 = img5.row<const signed char>(y50) + x50;
-                const signed char* sptr51 = img5.row<const signed char>(y51) + x51;
-                const signed char* sptr52 = img5.row<const signed char>(y52) + x52;
-                const signed char* sptr53 = img5.row<const signed char>(y53) + x53;
-                const signed char* sptr54 = img5.row<const signed char>(y54) + x54;
-                const signed char* sptr55 = img5.row<const signed char>(y55) + x55;
-                const signed char* sptr56 = img5.row<const signed char>(y56) + x56;
-                const signed char* sptr57 = img5.row<const signed char>(y57) + x57;
-
-                const signed char* sptr60 = img6.row<const signed char>(y60) + x60;
-                const signed char* sptr61 = img6.row<const signed char>(y61) + x61;
-                const signed char* sptr62 = img6.row<const signed char>(y62) + x62;
-                const signed char* sptr63 = img6.row<const signed char>(y63) + x63;
-                const signed char* sptr64 = img6.row<const signed char>(y64) + x64;
-                const signed char* sptr65 = img6.row<const signed char>(y65) + x65;
-                const signed char* sptr66 = img6.row<const signed char>(y66) + x66;
-                const signed char* sptr67 = img6.row<const signed char>(y67) + x67;
-
-                const signed char* sptr70 = img7.row<const signed char>(y70) + x70;
-                const signed char* sptr71 = img7.row<const signed char>(y71) + x71;
-                const signed char* sptr72 = img7.row<const signed char>(y72) + x72;
-                const signed char* sptr73 = img7.row<const signed char>(y73) + x73;
-                const signed char* sptr74 = img7.row<const signed char>(y74) + x74;
-                const signed char* sptr75 = img7.row<const signed char>(y75) + x75;
-                const signed char* sptr76 = img7.row<const signed char>(y76) + x76;
-                const signed char* sptr77 = img7.row<const signed char>(y77) + x77;
-
-                pp[0] = sptr00[0];
-                pp[1] = sptr10[0];
-                pp[2] = sptr20[0];
-                pp[3] = sptr30[0];
-                pp[4] = sptr40[0];
-                pp[5] = sptr50[0];
-                pp[6] = sptr60[0];
-                pp[7] = sptr70[0];
-                pp[8] = sptr01[0];
-                pp[9] = sptr11[0];
-                pp[10] = sptr21[0];
-                pp[11] = sptr31[0];
-                pp[12] = sptr41[0];
-                pp[13] = sptr51[0];
-                pp[14] = sptr61[0];
-                pp[15] = sptr71[0];
-                pp[16] = sptr02[0];
-                pp[17] = sptr12[0];
-                pp[18] = sptr22[0];
-                pp[19] = sptr32[0];
-                pp[20] = sptr42[0];
-                pp[21] = sptr52[0];
-                pp[22] = sptr62[0];
-                pp[23] = sptr72[0];
-                pp[24] = sptr03[0];
-                pp[25] = sptr13[0];
-                pp[26] = sptr23[0];
-                pp[27] = sptr33[0];
-                pp[28] = sptr43[0];
-                pp[29] = sptr53[0];
-                pp[30] = sptr63[0];
-                pp[31] = sptr73[0];
-                pp[32] = sptr04[0];
-                pp[33] = sptr14[0];
-                pp[34] = sptr24[0];
-                pp[35] = sptr34[0];
-                pp[36] = sptr44[0];
-                pp[37] = sptr54[0];
-                pp[38] = sptr64[0];
-                pp[39] = sptr74[0];
-                pp[40] = sptr05[0];
-                pp[41] = sptr15[0];
-                pp[42] = sptr25[0];
-                pp[43] = sptr35[0];
-                pp[44] = sptr45[0];
-                pp[45] = sptr55[0];
-                pp[46] = sptr65[0];
-                pp[47] = sptr75[0];
-                pp[48] = sptr06[0];
-                pp[49] = sptr16[0];
-                pp[50] = sptr26[0];
-                pp[51] = sptr36[0];
-                pp[52] = sptr46[0];
-                pp[53] = sptr56[0];
-                pp[54] = sptr66[0];
-                pp[55] = sptr76[0];
-                pp[56] = sptr07[0];
-                pp[57] = sptr17[0];
-                pp[58] = sptr27[0];
-                pp[59] = sptr37[0];
-                pp[60] = sptr47[0];
-                pp[61] = sptr57[0];
-                pp[62] = sptr67[0];
-                pp[63] = sptr77[0];
-                pp += 64;
-            }
-#endif // __ARM_FEATURE_MATMUL_INT8
-            for (; kk + 3 < max_kk; kk += 4)
-            {
-                int p0 = (k + kk) / maxk;
-                int p1 = (k + kk + 1) / maxk;
-                int p2 = (k + kk + 2) / maxk;
-                int p3 = (k + kk + 3) / maxk;
-                int uv0 = (k + kk) % maxk;
-                int uv1 = (k + kk + 1) % maxk;
-                int uv2 = (k + kk + 2) % maxk;
-                int uv3 = (k + kk + 3) % maxk;
-                int u0 = uv0 / kernel_w;
-                int u1 = uv1 / kernel_w;
-                int u2 = uv2 / kernel_w;
-                int u3 = uv3 / kernel_w;
-                int v0 = uv0 % kernel_w;
-                int v1 = uv1 % kernel_w;
-                int v2 = uv2 % kernel_w;
-                int v3 = uv3 % kernel_w;
-
-                const Mat img0 = bottom_blob.channel(p0);
-                const Mat img1 = bottom_blob.channel(p1);
-                const Mat img2 = bottom_blob.channel(p2);
-                const Mat img3 = bottom_blob.channel(p3);
-
-                int x00 = stride_w * dx0 + dilation_w * v0;
-                int x01 = stride_w * dx1 + dilation_w * v0;
-                int x02 = stride_w * dx2 + dilation_w * v0;
-                int x03 = stride_w * dx3 + dilation_w * v0;
-                int x04 = stride_w * dx4 + dilation_w * v0;
-                int x05 = stride_w * dx5 + dilation_w * v0;
-                int x06 = stride_w * dx6 + dilation_w * v0;
-                int x07 = stride_w * dx7 + dilation_w * v0;
-                int y00 = stride_h * dy0 + dilation_h * u0;
-                int y01 = stride_h * dy1 + dilation_h * u0;
-                int y02 = stride_h * dy2 + dilation_h * u0;
-                int y03 = stride_h * dy3 + dilation_h * u0;
-                int y04 = stride_h * dy4 + dilation_h * u0;
-                int y05 = stride_h * dy5 + dilation_h * u0;
-                int y06 = stride_h * dy6 + dilation_h * u0;
-                int y07 = stride_h * dy7 + dilation_h * u0;
-
-                int x10 = stride_w * dx0 + dilation_w * v1;
-                int x11 = stride_w * dx1 + dilation_w * v1;
-                int x12 = stride_w * dx2 + dilation_w * v1;
-                int x13 = stride_w * dx3 + dilation_w * v1;
-                int x14 = stride_w * dx4 + dilation_w * v1;
-                int x15 = stride_w * dx5 + dilation_w * v1;
-                int x16 = stride_w * dx6 + dilation_w * v1;
-                int x17 = stride_w * dx7 + dilation_w * v1;
-                int y10 = stride_h * dy0 + dilation_h * u1;
-                int y11 = stride_h * dy1 + dilation_h * u1;
-                int y12 = stride_h * dy2 + dilation_h * u1;
-                int y13 = stride_h * dy3 + dilation_h * u1;
-                int y14 = stride_h * dy4 + dilation_h * u1;
-                int y15 = stride_h * dy5 + dilation_h * u1;
-                int y16 = stride_h * dy6 + dilation_h * u1;
-                int y17 = stride_h * dy7 + dilation_h * u1;
-
-                int x20 = stride_w * dx0 + dilation_w * v2;
-                int x21 = stride_w * dx1 + dilation_w * v2;
-                int x22 = stride_w * dx2 + dilation_w * v2;
-                int x23 = stride_w * dx3 + dilation_w * v2;
-                int x24 = stride_w * dx4 + dilation_w * v2;
-                int x25 = stride_w * dx5 + dilation_w * v2;
-                int x26 = stride_w * dx6 + dilation_w * v2;
-                int x27 = stride_w * dx7 + dilation_w * v2;
-                int y20 = stride_h * dy0 + dilation_h * u2;
-                int y21 = stride_h * dy1 + dilation_h * u2;
-                int y22 = stride_h * dy2 + dilation_h * u2;
-                int y23 = stride_h * dy3 + dilation_h * u2;
-                int y24 = stride_h * dy4 + dilation_h * u2;
-                int y25 = stride_h * dy5 + dilation_h * u2;
-                int y26 = stride_h * dy6 + dilation_h * u2;
-                int y27 = stride_h * dy7 + dilation_h * u2;
-
-                int x30 = stride_w * dx0 + dilation_w * v3;
-                int x31 = stride_w * dx1 + dilation_w * v3;
-                int x32 = stride_w * dx2 + dilation_w * v3;
-                int x33 = stride_w * dx3 + dilation_w * v3;
-                int x34 = stride_w * dx4 + dilation_w * v3;
-                int x35 = stride_w * dx5 + dilation_w * v3;
-                int x36 = stride_w * dx6 + dilation_w * v3;
-                int x37 = stride_w * dx7 + dilation_w * v3;
-                int y30 = stride_h * dy0 + dilation_h * u3;
-                int y31 = stride_h * dy1 + dilation_h * u3;
-                int y32 = stride_h * dy2 + dilation_h * u3;
-                int y33 = stride_h * dy3 + dilation_h * u3;
-                int y34 = stride_h * dy4 + dilation_h * u3;
-                int y35 = stride_h * dy5 + dilation_h * u3;
-                int y36 = stride_h * dy6 + dilation_h * u3;
-                int y37 = stride_h * dy7 + dilation_h * u3;
-
-                const signed char* sptr00 = img0.row<const signed char>(y00) + x00;
-                const signed char* sptr01 = img0.row<const signed char>(y01) + x01;
-                const signed char* sptr02 = img0.row<const signed char>(y02) + x02;
-                const signed char* sptr03 = img0.row<const signed char>(y03) + x03;
-                const signed char* sptr04 = img0.row<const signed char>(y04) + x04;
-                const signed char* sptr05 = img0.row<const signed char>(y05) + x05;
-                const signed char* sptr06 = img0.row<const signed char>(y06) + x06;
-                const signed char* sptr07 = img0.row<const signed char>(y07) + x07;
-
-                const signed char* sptr10 = img1.row<const signed char>(y10) + x10;
-                const signed char* sptr11 = img1.row<const signed char>(y11) + x11;
-                const signed char* sptr12 = img1.row<const signed char>(y12) + x12;
-                const signed char* sptr13 = img1.row<const signed char>(y13) + x13;
-                const signed char* sptr14 = img1.row<const signed char>(y14) + x14;
-                const signed char* sptr15 = img1.row<const signed char>(y15) + x15;
-                const signed char* sptr16 = img1.row<const signed char>(y16) + x16;
-                const signed char* sptr17 = img1.row<const signed char>(y17) + x17;
-
-                const signed char* sptr20 = img2.row<const signed char>(y20) + x20;
-                const signed char* sptr21 = img2.row<const signed char>(y21) + x21;
-                const signed char* sptr22 = img2.row<const signed char>(y22) + x22;
-                const signed char* sptr23 = img2.row<const signed char>(y23) + x23;
-                const signed char* sptr24 = img2.row<const signed char>(y24) + x24;
-                const signed char* sptr25 = img2.row<const signed char>(y25) + x25;
-                const signed char* sptr26 = img2.row<const signed char>(y26) + x26;
-                const signed char* sptr27 = img2.row<const signed char>(y27) + x27;
-
-                const signed char* sptr30 = img3.row<const signed char>(y30) + x30;
-                const signed char* sptr31 = img3.row<const signed char>(y31) + x31;
-                const signed char* sptr32 = img3.row<const signed char>(y32) + x32;
-                const signed char* sptr33 = img3.row<const signed char>(y33) + x33;
-                const signed char* sptr34 = img3.row<const signed char>(y34) + x34;
-                const signed char* sptr35 = img3.row<const signed char>(y35) + x35;
-                const signed char* sptr36 = img3.row<const signed char>(y36) + x36;
-                const signed char* sptr37 = img3.row<const signed char>(y37) + x37;
-
-                pp[0] = sptr00[0];
-                pp[1] = sptr10[0];
-                pp[2] = sptr20[0];
-                pp[3] = sptr30[0];
-                pp[4] = sptr01[0];
-                pp[5] = sptr11[0];
-                pp[6] = sptr21[0];
-                pp[7] = sptr31[0];
-                pp[8] = sptr02[0];
-                pp[9] = sptr12[0];
-                pp[10] = sptr22[0];
-                pp[11] = sptr32[0];
-                pp[12] = sptr03[0];
-                pp[13] = sptr13[0];
-                pp[14] = sptr23[0];
-                pp[15] = sptr33[0];
-                pp[16] = sptr04[0];
-                pp[17] = sptr14[0];
-                pp[18] = sptr24[0];
-                pp[19] = sptr34[0];
-                pp[20] = sptr05[0];
-                pp[21] = sptr15[0];
-                pp[22] = sptr25[0];
-                pp[23] = sptr35[0];
-                pp[24] = sptr06[0];
-                pp[25] = sptr16[0];
-                pp[26] = sptr26[0];
-                pp[27] = sptr36[0];
-                pp[28] = sptr07[0];
-                pp[29] = sptr17[0];
-                pp[30] = sptr27[0];
-                pp[31] = sptr37[0];
-                pp += 32;
-            }
-#endif // __ARM_FEATURE_DOTPROD
-            for (; kk + 1 < max_kk; kk += 2)
-            {
-                int p0 = (k + kk) / maxk;
-                int p1 = (k + kk + 1) / maxk;
-                int uv0 = (k + kk) % maxk;
-                int uv1 = (k + kk + 1) % maxk;
-                int u0 = uv0 / kernel_w;
-                int u1 = uv1 / kernel_w;
-                int v0 = uv0 % kernel_w;
-                int v1 = uv1 % kernel_w;
-
-                const Mat img0 = bottom_blob.channel(p0);
-                const Mat img1 = bottom_blob.channel(p1);
-
-                int x00 = stride_w * dx0 + dilation_w * v0;
-                int x01 = stride_w * dx1 + dilation_w * v0;
-                int x02 = stride_w * dx2 + dilation_w * v0;
-                int x03 = stride_w * dx3 + dilation_w * v0;
-                int x04 = stride_w * dx4 + dilation_w * v0;
-                int x05 = stride_w * dx5 + dilation_w * v0;
-                int x06 = stride_w * dx6 + dilation_w * v0;
-                int x07 = stride_w * dx7 + dilation_w * v0;
-                int y00 = stride_h * dy0 + dilation_h * u0;
-                int y01 = stride_h * dy1 + dilation_h * u0;
-                int y02 = stride_h * dy2 + dilation_h * u0;
-                int y03 = stride_h * dy3 + dilation_h * u0;
-                int y04 = stride_h * dy4 + dilation_h * u0;
-                int y05 = stride_h * dy5 + dilation_h * u0;
-                int y06 = stride_h * dy6 + dilation_h * u0;
-                int y07 = stride_h * dy7 + dilation_h * u0;
-
-                int x10 = stride_w * dx0 + dilation_w * v1;
-                int x11 = stride_w * dx1 + dilation_w * v1;
-                int x12 = stride_w * dx2 + dilation_w * v1;
-                int x13 = stride_w * dx3 + dilation_w * v1;
-                int x14 = stride_w * dx4 + dilation_w * v1;
-                int x15 = stride_w * dx5 + dilation_w * v1;
-                int x16 = stride_w * dx6 + dilation_w * v1;
-                int x17 = stride_w * dx7 + dilation_w * v1;
-                int y10 = stride_h * dy0 + dilation_h * u1;
-                int y11 = stride_h * dy1 + dilation_h * u1;
-                int y12 = stride_h * dy2 + dilation_h * u1;
-                int y13 = stride_h * dy3 + dilation_h * u1;
-                int y14 = stride_h * dy4 + dilation_h * u1;
-                int y15 = stride_h * dy5 + dilation_h * u1;
-                int y16 = stride_h * dy6 + dilation_h * u1;
-                int y17 = stride_h * dy7 + dilation_h * u1;
-
-                const signed char* sptr00 = img0.row<const signed char>(y00) + x00;
-                const signed char* sptr01 = img0.row<const signed char>(y01) + x01;
-                const signed char* sptr02 = img0.row<const signed char>(y02) + x02;
-                const signed char* sptr03 = img0.row<const signed char>(y03) + x03;
-                const signed char* sptr04 = img0.row<const signed char>(y04) + x04;
-                const signed char* sptr05 = img0.row<const signed char>(y05) + x05;
-                const signed char* sptr06 = img0.row<const signed char>(y06) + x06;
-                const signed char* sptr07 = img0.row<const signed char>(y07) + x07;
-
-                const signed char* sptr10 = img1.row<const signed char>(y10) + x10;
-                const signed char* sptr11 = img1.row<const signed char>(y11) + x11;
-                const signed char* sptr12 = img1.row<const signed char>(y12) + x12;
-                const signed char* sptr13 = img1.row<const signed char>(y13) + x13;
-                const signed char* sptr14 = img1.row<const signed char>(y14) + x14;
-                const signed char* sptr15 = img1.row<const signed char>(y15) + x15;
-                const signed char* sptr16 = img1.row<const signed char>(y16) + x16;
-                const signed char* sptr17 = img1.row<const signed char>(y17) + x17;
-
-                pp[0] = sptr00[0];
-                pp[1] = sptr10[0];
-                pp[2] = sptr01[0];
-                pp[3] = sptr11[0];
-                pp[4] = sptr02[0];
-                pp[5] = sptr12[0];
-                pp[6] = sptr03[0];
-                pp[7] = sptr13[0];
-                pp[8] = sptr04[0];
-                pp[9] = sptr14[0];
-                pp[10] = sptr05[0];
-                pp[11] = sptr15[0];
-                pp[12] = sptr06[0];
-                pp[13] = sptr16[0];
-                pp[14] = sptr07[0];
-                pp[15] = sptr17[0];
-                pp += 16;
-            }
-        }
-        for (; kk < max_kk / elempack; kk++)
-        {
-            int p = (k / elempack + kk) / maxk;
-            int uv = (k / elempack + kk) % maxk;
-            int u = uv / kernel_w;
-            int v = uv % kernel_w;
-
-            const Mat img = bottom_blob.channel(p);
-
-            int x0 = stride_w * dx0 + dilation_w * v;
-            int x1 = stride_w * dx1 + dilation_w * v;
-            int x2 = stride_w * dx2 + dilation_w * v;
-            int x3 = stride_w * dx3 + dilation_w * v;
-            int x4 = stride_w * dx4 + dilation_w * v;
-            int x5 = stride_w * dx5 + dilation_w * v;
-            int x6 = stride_w * dx6 + dilation_w * v;
-            int x7 = stride_w * dx7 + dilation_w * v;
-            int y0 = stride_h * dy0 + dilation_h * u;
-            int y1 = stride_h * dy1 + dilation_h * u;
-            int y2 = stride_h * dy2 + dilation_h * u;
-            int y3 = stride_h * dy3 + dilation_h * u;
-            int y4 = stride_h * dy4 + dilation_h * u;
-            int y5 = stride_h * dy5 + dilation_h * u;
-            int y6 = stride_h * dy6 + dilation_h * u;
-            int y7 = stride_h * dy7 + dilation_h * u;
-
-            const signed char* sptr0 = img.row<const signed char>(y0) + x0 * elempack;
-            const signed char* sptr1 = img.row<const signed char>(y1) + x1 * elempack;
-            const signed char* sptr2 = img.row<const signed char>(y2) + x2 * elempack;
-            const signed char* sptr3 = img.row<const signed char>(y3) + x3 * elempack;
-            const signed char* sptr4 = img.row<const signed char>(y4) + x4 * elempack;
-            const signed char* sptr5 = img.row<const signed char>(y5) + x5 * elempack;
-            const signed char* sptr6 = img.row<const signed char>(y6) + x6 * elempack;
-            const signed char* sptr7 = img.row<const signed char>(y7) + x7 * elempack;
-
-            if (elempack == 8)
-            {
-#if __ARM_FEATURE_MATMUL_INT8
-                int8x8_t _r0 = vld1_s8(sptr0);
-                int8x8_t _r1 = vld1_s8(sptr1);
-                int8x8_t _r2 = vld1_s8(sptr2);
-                int8x8_t _r3 = vld1_s8(sptr3);
-                int8x8_t _r4 = vld1_s8(sptr4);
-                int8x8_t _r5 = vld1_s8(sptr5);
-                int8x8_t _r6 = vld1_s8(sptr6);
-                int8x8_t _r7 = vld1_s8(sptr7);
-                vst1_s8(pp, _r0);
-                vst1_s8(pp + 8, _r1);
-                vst1_s8(pp + 16, _r2);
-                vst1_s8(pp + 24, _r3);
-                vst1_s8(pp + 32, _r4);
-                vst1_s8(pp + 40, _r5);
-                vst1_s8(pp + 48, _r6);
-                vst1_s8(pp + 56, _r7);
-                pp += 64;
-#elif __ARM_FEATURE_DOTPROD
-                int32x2_t _r0 = vreinterpret_s32_s8(vld1_s8(sptr0));
-                int32x2_t _r1 = vreinterpret_s32_s8(vld1_s8(sptr1));
-                int32x2_t _r2 = vreinterpret_s32_s8(vld1_s8(sptr2));
-                int32x2_t _r3 = vreinterpret_s32_s8(vld1_s8(sptr3));
-                int32x2_t _r4 = vreinterpret_s32_s8(vld1_s8(sptr4));
-                int32x2_t _r5 = vreinterpret_s32_s8(vld1_s8(sptr5));
-                int32x2_t _r6 = vreinterpret_s32_s8(vld1_s8(sptr6));
-                int32x2_t _r7 = vreinterpret_s32_s8(vld1_s8(sptr7));
-                int32x2x2_t _r01 = vzip_s32(_r0, _r1);
-                int32x2x2_t _r23 = vzip_s32(_r2, _r3);
-                int32x2x2_t _r45 = vzip_s32(_r4, _r5);
-                int32x2x2_t _r67 = vzip_s32(_r6, _r7);
-                vst1_s32((int*)pp, _r01.val[0]);
-                vst1_s32((int*)(pp + 8), _r23.val[0]);
-                vst1_s32((int*)(pp + 16), _r45.val[0]);
-                vst1_s32((int*)(pp + 24), _r67.val[0]);
-                vst1_s32((int*)(pp + 32), _r01.val[1]);
-                vst1_s32((int*)(pp + 40), _r23.val[1]);
-                vst1_s32((int*)(pp + 48), _r45.val[1]);
-                vst1_s32((int*)(pp + 56), _r67.val[1]);
-                pp += 64;
-#else  // __ARM_FEATURE_MATMUL_INT8 || __ARM_FEATURE_DOTPROD
-                int16x4_t _r0 = vreinterpret_s16_s8(vld1_s8(sptr0));
-                int16x4_t _r1 = vreinterpret_s16_s8(vld1_s8(sptr1));
-                int16x4_t _r2 = vreinterpret_s16_s8(vld1_s8(sptr2));
-                int16x4_t _r3 = vreinterpret_s16_s8(vld1_s8(sptr3));
-                int16x4_t _r4 = vreinterpret_s16_s8(vld1_s8(sptr4));
-                int16x4_t _r5 = vreinterpret_s16_s8(vld1_s8(sptr5));
-                int16x4_t _r6 = vreinterpret_s16_s8(vld1_s8(sptr6));
-                int16x4_t _r7 = vreinterpret_s16_s8(vld1_s8(sptr7));
-                int16x4x2_t _r01 = vzip_s16(_r0, _r1);
-                int16x4x2_t _r23 = vzip_s16(_r2, _r3);
-                int16x4x2_t _r45 = vzip_s16(_r4, _r5);
-                int16x4x2_t _r67 = vzip_s16(_r6, _r7);
-                int32x4x4_t _r0123;
-                _r0123.val[0] = vreinterpretq_s32_s16(vcombine_s16(_r01.val[0], _r01.val[1]));
-                _r0123.val[1] = vreinterpretq_s32_s16(vcombine_s16(_r23.val[0], _r23.val[1]));
-                _r0123.val[2] = vreinterpretq_s32_s16(vcombine_s16(_r45.val[0], _r45.val[1]));
-                _r0123.val[3] = vreinterpretq_s32_s16(vcombine_s16(_r67.val[0], _r67.val[1]));
-                vst4q_s32((int*)pp, _r0123);
-                pp += 64;
-#endif // __ARM_FEATURE_MATMUL_INT8 || __ARM_FEATURE_DOTPROD
-            }
+            int kk = 0;
             if (elempack == 1)
             {
-                pp[0] = sptr0[0];
-                pp[1] = sptr1[0];
-                pp[2] = sptr2[0];
-                pp[3] = sptr3[0];
-                pp[4] = sptr4[0];
-                pp[5] = sptr5[0];
-                pp[6] = sptr6[0];
-                pp[7] = sptr7[0];
-                pp += 8;
+#if __ARM_FEATURE_DOTPROD
+#if __ARM_FEATURE_MATMUL_INT8
+                for (; kk + 7 < max_kk; kk += 8)
+                {
+                    int p0 = (k + kk) / maxk;
+                    int p1 = (k + kk + 1) / maxk;
+                    int p2 = (k + kk + 2) / maxk;
+                    int p3 = (k + kk + 3) / maxk;
+                    int p4 = (k + kk + 4) / maxk;
+                    int p5 = (k + kk + 5) / maxk;
+                    int p6 = (k + kk + 6) / maxk;
+                    int p7 = (k + kk + 7) / maxk;
+                    int uv0 = (k + kk) % maxk;
+                    int uv1 = (k + kk + 1) % maxk;
+                    int uv2 = (k + kk + 2) % maxk;
+                    int uv3 = (k + kk + 3) % maxk;
+                    int uv4 = (k + kk + 4) % maxk;
+                    int uv5 = (k + kk + 5) % maxk;
+                    int uv6 = (k + kk + 6) % maxk;
+                    int uv7 = (k + kk + 7) % maxk;
+                    int u0 = uv0 / kernel_w;
+                    int u1 = uv1 / kernel_w;
+                    int u2 = uv2 / kernel_w;
+                    int u3 = uv3 / kernel_w;
+                    int u4 = uv4 / kernel_w;
+                    int u5 = uv5 / kernel_w;
+                    int u6 = uv6 / kernel_w;
+                    int u7 = uv7 / kernel_w;
+                    int v0 = uv0 % kernel_w;
+                    int v1 = uv1 % kernel_w;
+                    int v2 = uv2 % kernel_w;
+                    int v3 = uv3 % kernel_w;
+                    int v4 = uv4 % kernel_w;
+                    int v5 = uv5 % kernel_w;
+                    int v6 = uv6 % kernel_w;
+                    int v7 = uv7 % kernel_w;
+
+                    const Mat img0 = bottom_blob.channel(p0);
+                    const Mat img1 = bottom_blob.channel(p1);
+                    const Mat img2 = bottom_blob.channel(p2);
+                    const Mat img3 = bottom_blob.channel(p3);
+                    const Mat img4 = bottom_blob.channel(p4);
+                    const Mat img5 = bottom_blob.channel(p5);
+                    const Mat img6 = bottom_blob.channel(p6);
+                    const Mat img7 = bottom_blob.channel(p7);
+
+                    int x00 = stride_w * dx0 + dilation_w * v0;
+                    int y00 = stride_h * dy0 + dilation_h * u0;
+
+                    int x10 = stride_w * dx0 + dilation_w * v1;
+                    int y10 = stride_h * dy0 + dilation_h * u1;
+
+                    int x20 = stride_w * dx0 + dilation_w * v2;
+                    int y20 = stride_h * dy0 + dilation_h * u2;
+
+                    int x30 = stride_w * dx0 + dilation_w * v3;
+                    int y30 = stride_h * dy0 + dilation_h * u3;
+
+                    int x40 = stride_w * dx0 + dilation_w * v4;
+                    int y40 = stride_h * dy0 + dilation_h * u4;
+
+                    int x50 = stride_w * dx0 + dilation_w * v5;
+                    int y50 = stride_h * dy0 + dilation_h * u5;
+
+                    int x60 = stride_w * dx0 + dilation_w * v6;
+                    int y60 = stride_h * dy0 + dilation_h * u6;
+
+                    int x70 = stride_w * dx0 + dilation_w * v7;
+                    int y70 = stride_h * dy0 + dilation_h * u7;
+
+                    const signed char* sptr0 = img0.row<const signed char>(y00) + x00;
+                    const signed char* sptr1 = img1.row<const signed char>(y10) + x10;
+                    const signed char* sptr2 = img2.row<const signed char>(y20) + x20;
+                    const signed char* sptr3 = img3.row<const signed char>(y30) + x30;
+                    const signed char* sptr4 = img4.row<const signed char>(y40) + x40;
+                    const signed char* sptr5 = img5.row<const signed char>(y50) + x50;
+                    const signed char* sptr6 = img6.row<const signed char>(y60) + x60;
+                    const signed char* sptr7 = img7.row<const signed char>(y70) + x70;
+
+                    pp[0] = sptr0[0];
+                    pp[1] = sptr1[0];
+                    pp[2] = sptr2[0];
+                    pp[3] = sptr3[0];
+                    pp[4] = sptr4[0];
+                    pp[5] = sptr5[0];
+                    pp[6] = sptr6[0];
+                    pp[7] = sptr7[0];
+                    pp[8] = sptr0[stride_w];
+                    pp[9] = sptr1[stride_w];
+                    pp[10] = sptr2[stride_w];
+                    pp[11] = sptr3[stride_w];
+                    pp[12] = sptr4[stride_w];
+                    pp[13] = sptr5[stride_w];
+                    pp[14] = sptr6[stride_w];
+                    pp[15] = sptr7[stride_w];
+                    pp[16] = sptr0[stride_w * 2];
+                    pp[17] = sptr1[stride_w * 2];
+                    pp[18] = sptr2[stride_w * 2];
+                    pp[19] = sptr3[stride_w * 2];
+                    pp[20] = sptr4[stride_w * 2];
+                    pp[21] = sptr5[stride_w * 2];
+                    pp[22] = sptr6[stride_w * 2];
+                    pp[23] = sptr7[stride_w * 2];
+                    pp[24] = sptr0[stride_w * 3];
+                    pp[25] = sptr1[stride_w * 3];
+                    pp[26] = sptr2[stride_w * 3];
+                    pp[27] = sptr3[stride_w * 3];
+                    pp[28] = sptr4[stride_w * 3];
+                    pp[29] = sptr5[stride_w * 3];
+                    pp[30] = sptr6[stride_w * 3];
+                    pp[31] = sptr7[stride_w * 3];
+                    pp[32] = sptr0[stride_w * 4];
+                    pp[33] = sptr1[stride_w * 4];
+                    pp[34] = sptr2[stride_w * 4];
+                    pp[35] = sptr3[stride_w * 4];
+                    pp[36] = sptr4[stride_w * 4];
+                    pp[37] = sptr5[stride_w * 4];
+                    pp[38] = sptr6[stride_w * 4];
+                    pp[39] = sptr7[stride_w * 4];
+                    pp[40] = sptr0[stride_w * 5];
+                    pp[41] = sptr1[stride_w * 5];
+                    pp[42] = sptr2[stride_w * 5];
+                    pp[43] = sptr3[stride_w * 5];
+                    pp[44] = sptr4[stride_w * 5];
+                    pp[45] = sptr5[stride_w * 5];
+                    pp[46] = sptr6[stride_w * 5];
+                    pp[47] = sptr7[stride_w * 5];
+                    pp[48] = sptr0[stride_w * 6];
+                    pp[49] = sptr1[stride_w * 6];
+                    pp[50] = sptr2[stride_w * 6];
+                    pp[51] = sptr3[stride_w * 6];
+                    pp[52] = sptr4[stride_w * 6];
+                    pp[53] = sptr5[stride_w * 6];
+                    pp[54] = sptr6[stride_w * 6];
+                    pp[55] = sptr7[stride_w * 6];
+                    pp[56] = sptr0[stride_w * 7];
+                    pp[57] = sptr1[stride_w * 7];
+                    pp[58] = sptr2[stride_w * 7];
+                    pp[59] = sptr3[stride_w * 7];
+                    pp[60] = sptr4[stride_w * 7];
+                    pp[61] = sptr5[stride_w * 7];
+                    pp[62] = sptr6[stride_w * 7];
+                    pp[63] = sptr7[stride_w * 7];
+                    pp += 64;
+                }
+#endif // __ARM_FEATURE_MATMUL_INT8
+                for (; kk + 3 < max_kk; kk += 4)
+                {
+                    int p0 = (k + kk) / maxk;
+                    int p1 = (k + kk + 1) / maxk;
+                    int p2 = (k + kk + 2) / maxk;
+                    int p3 = (k + kk + 3) / maxk;
+                    int uv0 = (k + kk) % maxk;
+                    int uv1 = (k + kk + 1) % maxk;
+                    int uv2 = (k + kk + 2) % maxk;
+                    int uv3 = (k + kk + 3) % maxk;
+                    int u0 = uv0 / kernel_w;
+                    int u1 = uv1 / kernel_w;
+                    int u2 = uv2 / kernel_w;
+                    int u3 = uv3 / kernel_w;
+                    int v0 = uv0 % kernel_w;
+                    int v1 = uv1 % kernel_w;
+                    int v2 = uv2 % kernel_w;
+                    int v3 = uv3 % kernel_w;
+
+                    const Mat img0 = bottom_blob.channel(p0);
+                    const Mat img1 = bottom_blob.channel(p1);
+                    const Mat img2 = bottom_blob.channel(p2);
+                    const Mat img3 = bottom_blob.channel(p3);
+
+                    int x00 = stride_w * dx0 + dilation_w * v0;
+                    int y00 = stride_h * dy0 + dilation_h * u0;
+
+                    int x10 = stride_w * dx0 + dilation_w * v1;
+                    int y10 = stride_h * dy0 + dilation_h * u1;
+
+                    int x20 = stride_w * dx0 + dilation_w * v2;
+                    int y20 = stride_h * dy0 + dilation_h * u2;
+
+                    int x30 = stride_w * dx0 + dilation_w * v3;
+                    int y30 = stride_h * dy0 + dilation_h * u3;
+
+                    const signed char* sptr0 = img0.row<const signed char>(y00) + x00;
+                    const signed char* sptr1 = img1.row<const signed char>(y10) + x10;
+                    const signed char* sptr2 = img2.row<const signed char>(y20) + x20;
+                    const signed char* sptr3 = img3.row<const signed char>(y30) + x30;
+
+                    pp[0] = sptr0[0];
+                    pp[1] = sptr1[0];
+                    pp[2] = sptr2[0];
+                    pp[3] = sptr3[0];
+                    pp[4] = sptr0[stride_w];
+                    pp[5] = sptr1[stride_w];
+                    pp[6] = sptr2[stride_w];
+                    pp[7] = sptr3[stride_w];
+                    pp[8] = sptr0[stride_w * 2];
+                    pp[9] = sptr1[stride_w * 2];
+                    pp[10] = sptr2[stride_w * 2];
+                    pp[11] = sptr3[stride_w * 2];
+                    pp[12] = sptr0[stride_w * 3];
+                    pp[13] = sptr1[stride_w * 3];
+                    pp[14] = sptr2[stride_w * 3];
+                    pp[15] = sptr3[stride_w * 3];
+                    pp[16] = sptr0[stride_w * 4];
+                    pp[17] = sptr1[stride_w * 4];
+                    pp[18] = sptr2[stride_w * 4];
+                    pp[19] = sptr3[stride_w * 4];
+                    pp[20] = sptr0[stride_w * 5];
+                    pp[21] = sptr1[stride_w * 5];
+                    pp[22] = sptr2[stride_w * 5];
+                    pp[23] = sptr3[stride_w * 5];
+                    pp[24] = sptr0[stride_w * 6];
+                    pp[25] = sptr1[stride_w * 6];
+                    pp[26] = sptr2[stride_w * 6];
+                    pp[27] = sptr3[stride_w * 6];
+                    pp[28] = sptr0[stride_w * 7];
+                    pp[29] = sptr1[stride_w * 7];
+                    pp[30] = sptr2[stride_w * 7];
+                    pp[31] = sptr3[stride_w * 7];
+                    pp += 32;
+                }
+#endif // __ARM_FEATURE_DOTPROD
+                for (; kk + 1 < max_kk; kk += 2)
+                {
+                    int p0 = (k + kk) / maxk;
+                    int p1 = (k + kk + 1) / maxk;
+                    int uv0 = (k + kk) % maxk;
+                    int uv1 = (k + kk + 1) % maxk;
+                    int u0 = uv0 / kernel_w;
+                    int u1 = uv1 / kernel_w;
+                    int v0 = uv0 % kernel_w;
+                    int v1 = uv1 % kernel_w;
+
+                    const Mat img0 = bottom_blob.channel(p0);
+                    const Mat img1 = bottom_blob.channel(p1);
+
+                    int x00 = stride_w * dx0 + dilation_w * v0;
+                    int y00 = stride_h * dy0 + dilation_h * u0;
+
+                    int x10 = stride_w * dx0 + dilation_w * v1;
+                    int y10 = stride_h * dy0 + dilation_h * u1;
+
+                    const signed char* sptr0 = img0.row<const signed char>(y00) + x00;
+                    const signed char* sptr1 = img1.row<const signed char>(y10) + x10;
+
+                    pp[0] = sptr0[0];
+                    pp[1] = sptr1[0];
+                    pp[2] = sptr0[stride_w];
+                    pp[3] = sptr1[stride_w];
+                    pp[4] = sptr0[stride_w * 2];
+                    pp[5] = sptr1[stride_w * 2];
+                    pp[6] = sptr0[stride_w * 3];
+                    pp[7] = sptr1[stride_w * 3];
+                    pp[8] = sptr0[stride_w * 4];
+                    pp[9] = sptr1[stride_w * 4];
+                    pp[10] = sptr0[stride_w * 5];
+                    pp[11] = sptr1[stride_w * 5];
+                    pp[12] = sptr0[stride_w * 6];
+                    pp[13] = sptr1[stride_w * 6];
+                    pp[14] = sptr0[stride_w * 7];
+                    pp[15] = sptr1[stride_w * 7];
+                    pp += 16;
+                }
+            }
+            for (; kk < max_kk / elempack; kk++)
+            {
+                int p = (k / elempack + kk) / maxk;
+                int uv = (k / elempack + kk) % maxk;
+                int u = uv / kernel_w;
+                int v = uv % kernel_w;
+
+                const Mat img = bottom_blob.channel(p);
+
+                int x0 = stride_w * dx0 + dilation_w * v;
+                int y0 = stride_h * dy0 + dilation_h * u;
+
+                const signed char* sptr = img.row<const signed char>(y0) + x0 * elempack;
+
+                if (elempack == 8)
+                {
+#if __ARM_FEATURE_MATMUL_INT8
+                    int8x8_t _r0 = vld1_s8(sptr);
+                    int8x8_t _r1 = vld1_s8(sptr + stride_w * 8);
+                    int8x8_t _r2 = vld1_s8(sptr + stride_w * 16);
+                    int8x8_t _r3 = vld1_s8(sptr + stride_w * 24);
+                    int8x8_t _r4 = vld1_s8(sptr + stride_w * 32);
+                    int8x8_t _r5 = vld1_s8(sptr + stride_w * 40);
+                    int8x8_t _r6 = vld1_s8(sptr + stride_w * 48);
+                    int8x8_t _r7 = vld1_s8(sptr + stride_w * 56);
+                    vst1_s8(pp, _r0);
+                    vst1_s8(pp + 8, _r1);
+                    vst1_s8(pp + 16, _r2);
+                    vst1_s8(pp + 24, _r3);
+                    vst1_s8(pp + 32, _r4);
+                    vst1_s8(pp + 40, _r5);
+                    vst1_s8(pp + 48, _r6);
+                    vst1_s8(pp + 56, _r7);
+                    pp += 64;
+#elif __ARM_FEATURE_DOTPROD
+                    int32x2_t _r0 = vreinterpret_s32_s8(vld1_s8(sptr));
+                    int32x2_t _r1 = vreinterpret_s32_s8(vld1_s8(sptr + stride_w * 8));
+                    int32x2_t _r2 = vreinterpret_s32_s8(vld1_s8(sptr + stride_w * 16));
+                    int32x2_t _r3 = vreinterpret_s32_s8(vld1_s8(sptr + stride_w * 24));
+                    int32x2_t _r4 = vreinterpret_s32_s8(vld1_s8(sptr + stride_w * 32));
+                    int32x2_t _r5 = vreinterpret_s32_s8(vld1_s8(sptr + stride_w * 40));
+                    int32x2_t _r6 = vreinterpret_s32_s8(vld1_s8(sptr + stride_w * 48));
+                    int32x2_t _r7 = vreinterpret_s32_s8(vld1_s8(sptr + stride_w * 56));
+                    int32x2x2_t _r01 = vzip_s32(_r0, _r1);
+                    int32x2x2_t _r23 = vzip_s32(_r2, _r3);
+                    int32x2x2_t _r45 = vzip_s32(_r4, _r5);
+                    int32x2x2_t _r67 = vzip_s32(_r6, _r7);
+                    vst1_s32((int*)pp, _r01.val[0]);
+                    vst1_s32((int*)(pp + 8), _r23.val[0]);
+                    vst1_s32((int*)(pp + 16), _r45.val[0]);
+                    vst1_s32((int*)(pp + 24), _r67.val[0]);
+                    vst1_s32((int*)(pp + 32), _r01.val[1]);
+                    vst1_s32((int*)(pp + 40), _r23.val[1]);
+                    vst1_s32((int*)(pp + 48), _r45.val[1]);
+                    vst1_s32((int*)(pp + 56), _r67.val[1]);
+                    pp += 64;
+#else  // __ARM_FEATURE_MATMUL_INT8 || __ARM_FEATURE_DOTPROD
+                    int16x4_t _r0 = vreinterpret_s16_s8(vld1_s8(sptr));
+                    int16x4_t _r1 = vreinterpret_s16_s8(vld1_s8(sptr + stride_w * 8));
+                    int16x4_t _r2 = vreinterpret_s16_s8(vld1_s8(sptr + stride_w * 16));
+                    int16x4_t _r3 = vreinterpret_s16_s8(vld1_s8(sptr + stride_w * 24));
+                    int16x4_t _r4 = vreinterpret_s16_s8(vld1_s8(sptr + stride_w * 32));
+                    int16x4_t _r5 = vreinterpret_s16_s8(vld1_s8(sptr + stride_w * 40));
+                    int16x4_t _r6 = vreinterpret_s16_s8(vld1_s8(sptr + stride_w * 48));
+                    int16x4_t _r7 = vreinterpret_s16_s8(vld1_s8(sptr + stride_w * 56));
+                    int16x4x2_t _r01 = vzip_s16(_r0, _r1);
+                    int16x4x2_t _r23 = vzip_s16(_r2, _r3);
+                    int16x4x2_t _r45 = vzip_s16(_r4, _r5);
+                    int16x4x2_t _r67 = vzip_s16(_r6, _r7);
+                    int32x4x4_t _r0123;
+                    _r0123.val[0] = vreinterpretq_s32_s16(vcombine_s16(_r01.val[0], _r01.val[1]));
+                    _r0123.val[1] = vreinterpretq_s32_s16(vcombine_s16(_r23.val[0], _r23.val[1]));
+                    _r0123.val[2] = vreinterpretq_s32_s16(vcombine_s16(_r45.val[0], _r45.val[1]));
+                    _r0123.val[3] = vreinterpretq_s32_s16(vcombine_s16(_r67.val[0], _r67.val[1]));
+                    vst4q_s32((int*)pp, _r0123);
+                    pp += 64;
+#endif // __ARM_FEATURE_MATMUL_INT8 || __ARM_FEATURE_DOTPROD
+                }
+                if (elempack == 1)
+                {
+                    pp[0] = sptr[0];
+                    pp[1] = sptr[stride_w];
+                    pp[2] = sptr[stride_w * 2];
+                    pp[3] = sptr[stride_w * 3];
+                    pp[4] = sptr[stride_w * 4];
+                    pp[5] = sptr[stride_w * 5];
+                    pp[6] = sptr[stride_w * 6];
+                    pp[7] = sptr[stride_w * 7];
+                    pp += 8;
+                }
+            }
+        }
+        else
+        {
+            int kk = 0;
+            if (elempack == 1)
+            {
+#if __ARM_FEATURE_DOTPROD
+#if __ARM_FEATURE_MATMUL_INT8
+                for (; kk + 7 < max_kk; kk += 8)
+                {
+                    int p0 = (k + kk) / maxk;
+                    int p1 = (k + kk + 1) / maxk;
+                    int p2 = (k + kk + 2) / maxk;
+                    int p3 = (k + kk + 3) / maxk;
+                    int p4 = (k + kk + 4) / maxk;
+                    int p5 = (k + kk + 5) / maxk;
+                    int p6 = (k + kk + 6) / maxk;
+                    int p7 = (k + kk + 7) / maxk;
+                    int uv0 = (k + kk) % maxk;
+                    int uv1 = (k + kk + 1) % maxk;
+                    int uv2 = (k + kk + 2) % maxk;
+                    int uv3 = (k + kk + 3) % maxk;
+                    int uv4 = (k + kk + 4) % maxk;
+                    int uv5 = (k + kk + 5) % maxk;
+                    int uv6 = (k + kk + 6) % maxk;
+                    int uv7 = (k + kk + 7) % maxk;
+                    int u0 = uv0 / kernel_w;
+                    int u1 = uv1 / kernel_w;
+                    int u2 = uv2 / kernel_w;
+                    int u3 = uv3 / kernel_w;
+                    int u4 = uv4 / kernel_w;
+                    int u5 = uv5 / kernel_w;
+                    int u6 = uv6 / kernel_w;
+                    int u7 = uv7 / kernel_w;
+                    int v0 = uv0 % kernel_w;
+                    int v1 = uv1 % kernel_w;
+                    int v2 = uv2 % kernel_w;
+                    int v3 = uv3 % kernel_w;
+                    int v4 = uv4 % kernel_w;
+                    int v5 = uv5 % kernel_w;
+                    int v6 = uv6 % kernel_w;
+                    int v7 = uv7 % kernel_w;
+
+                    const Mat img0 = bottom_blob.channel(p0);
+                    const Mat img1 = bottom_blob.channel(p1);
+                    const Mat img2 = bottom_blob.channel(p2);
+                    const Mat img3 = bottom_blob.channel(p3);
+                    const Mat img4 = bottom_blob.channel(p4);
+                    const Mat img5 = bottom_blob.channel(p5);
+                    const Mat img6 = bottom_blob.channel(p6);
+                    const Mat img7 = bottom_blob.channel(p7);
+
+                    int x00 = stride_w * dx0 + dilation_w * v0;
+                    int x01 = stride_w * dx1 + dilation_w * v0;
+                    int x02 = stride_w * dx2 + dilation_w * v0;
+                    int x03 = stride_w * dx3 + dilation_w * v0;
+                    int x04 = stride_w * dx4 + dilation_w * v0;
+                    int x05 = stride_w * dx5 + dilation_w * v0;
+                    int x06 = stride_w * dx6 + dilation_w * v0;
+                    int x07 = stride_w * dx7 + dilation_w * v0;
+                    int y00 = stride_h * dy0 + dilation_h * u0;
+                    int y01 = stride_h * dy1 + dilation_h * u0;
+                    int y02 = stride_h * dy2 + dilation_h * u0;
+                    int y03 = stride_h * dy3 + dilation_h * u0;
+                    int y04 = stride_h * dy4 + dilation_h * u0;
+                    int y05 = stride_h * dy5 + dilation_h * u0;
+                    int y06 = stride_h * dy6 + dilation_h * u0;
+                    int y07 = stride_h * dy7 + dilation_h * u0;
+
+                    int x10 = stride_w * dx0 + dilation_w * v1;
+                    int x11 = stride_w * dx1 + dilation_w * v1;
+                    int x12 = stride_w * dx2 + dilation_w * v1;
+                    int x13 = stride_w * dx3 + dilation_w * v1;
+                    int x14 = stride_w * dx4 + dilation_w * v1;
+                    int x15 = stride_w * dx5 + dilation_w * v1;
+                    int x16 = stride_w * dx6 + dilation_w * v1;
+                    int x17 = stride_w * dx7 + dilation_w * v1;
+                    int y10 = stride_h * dy0 + dilation_h * u1;
+                    int y11 = stride_h * dy1 + dilation_h * u1;
+                    int y12 = stride_h * dy2 + dilation_h * u1;
+                    int y13 = stride_h * dy3 + dilation_h * u1;
+                    int y14 = stride_h * dy4 + dilation_h * u1;
+                    int y15 = stride_h * dy5 + dilation_h * u1;
+                    int y16 = stride_h * dy6 + dilation_h * u1;
+                    int y17 = stride_h * dy7 + dilation_h * u1;
+
+                    int x20 = stride_w * dx0 + dilation_w * v2;
+                    int x21 = stride_w * dx1 + dilation_w * v2;
+                    int x22 = stride_w * dx2 + dilation_w * v2;
+                    int x23 = stride_w * dx3 + dilation_w * v2;
+                    int x24 = stride_w * dx4 + dilation_w * v2;
+                    int x25 = stride_w * dx5 + dilation_w * v2;
+                    int x26 = stride_w * dx6 + dilation_w * v2;
+                    int x27 = stride_w * dx7 + dilation_w * v2;
+                    int y20 = stride_h * dy0 + dilation_h * u2;
+                    int y21 = stride_h * dy1 + dilation_h * u2;
+                    int y22 = stride_h * dy2 + dilation_h * u2;
+                    int y23 = stride_h * dy3 + dilation_h * u2;
+                    int y24 = stride_h * dy4 + dilation_h * u2;
+                    int y25 = stride_h * dy5 + dilation_h * u2;
+                    int y26 = stride_h * dy6 + dilation_h * u2;
+                    int y27 = stride_h * dy7 + dilation_h * u2;
+
+                    int x30 = stride_w * dx0 + dilation_w * v3;
+                    int x31 = stride_w * dx1 + dilation_w * v3;
+                    int x32 = stride_w * dx2 + dilation_w * v3;
+                    int x33 = stride_w * dx3 + dilation_w * v3;
+                    int x34 = stride_w * dx4 + dilation_w * v3;
+                    int x35 = stride_w * dx5 + dilation_w * v3;
+                    int x36 = stride_w * dx6 + dilation_w * v3;
+                    int x37 = stride_w * dx7 + dilation_w * v3;
+                    int y30 = stride_h * dy0 + dilation_h * u3;
+                    int y31 = stride_h * dy1 + dilation_h * u3;
+                    int y32 = stride_h * dy2 + dilation_h * u3;
+                    int y33 = stride_h * dy3 + dilation_h * u3;
+                    int y34 = stride_h * dy4 + dilation_h * u3;
+                    int y35 = stride_h * dy5 + dilation_h * u3;
+                    int y36 = stride_h * dy6 + dilation_h * u3;
+                    int y37 = stride_h * dy7 + dilation_h * u3;
+
+                    int x40 = stride_w * dx0 + dilation_w * v4;
+                    int x41 = stride_w * dx1 + dilation_w * v4;
+                    int x42 = stride_w * dx2 + dilation_w * v4;
+                    int x43 = stride_w * dx3 + dilation_w * v4;
+                    int x44 = stride_w * dx4 + dilation_w * v4;
+                    int x45 = stride_w * dx5 + dilation_w * v4;
+                    int x46 = stride_w * dx6 + dilation_w * v4;
+                    int x47 = stride_w * dx7 + dilation_w * v4;
+                    int y40 = stride_h * dy0 + dilation_h * u4;
+                    int y41 = stride_h * dy1 + dilation_h * u4;
+                    int y42 = stride_h * dy2 + dilation_h * u4;
+                    int y43 = stride_h * dy3 + dilation_h * u4;
+                    int y44 = stride_h * dy4 + dilation_h * u4;
+                    int y45 = stride_h * dy5 + dilation_h * u4;
+                    int y46 = stride_h * dy6 + dilation_h * u4;
+                    int y47 = stride_h * dy7 + dilation_h * u4;
+
+                    int x50 = stride_w * dx0 + dilation_w * v5;
+                    int x51 = stride_w * dx1 + dilation_w * v5;
+                    int x52 = stride_w * dx2 + dilation_w * v5;
+                    int x53 = stride_w * dx3 + dilation_w * v5;
+                    int x54 = stride_w * dx4 + dilation_w * v5;
+                    int x55 = stride_w * dx5 + dilation_w * v5;
+                    int x56 = stride_w * dx6 + dilation_w * v5;
+                    int x57 = stride_w * dx7 + dilation_w * v5;
+                    int y50 = stride_h * dy0 + dilation_h * u5;
+                    int y51 = stride_h * dy1 + dilation_h * u5;
+                    int y52 = stride_h * dy2 + dilation_h * u5;
+                    int y53 = stride_h * dy3 + dilation_h * u5;
+                    int y54 = stride_h * dy4 + dilation_h * u5;
+                    int y55 = stride_h * dy5 + dilation_h * u5;
+                    int y56 = stride_h * dy6 + dilation_h * u5;
+                    int y57 = stride_h * dy7 + dilation_h * u5;
+
+                    int x60 = stride_w * dx0 + dilation_w * v6;
+                    int x61 = stride_w * dx1 + dilation_w * v6;
+                    int x62 = stride_w * dx2 + dilation_w * v6;
+                    int x63 = stride_w * dx3 + dilation_w * v6;
+                    int x64 = stride_w * dx4 + dilation_w * v6;
+                    int x65 = stride_w * dx5 + dilation_w * v6;
+                    int x66 = stride_w * dx6 + dilation_w * v6;
+                    int x67 = stride_w * dx7 + dilation_w * v6;
+                    int y60 = stride_h * dy0 + dilation_h * u6;
+                    int y61 = stride_h * dy1 + dilation_h * u6;
+                    int y62 = stride_h * dy2 + dilation_h * u6;
+                    int y63 = stride_h * dy3 + dilation_h * u6;
+                    int y64 = stride_h * dy4 + dilation_h * u6;
+                    int y65 = stride_h * dy5 + dilation_h * u6;
+                    int y66 = stride_h * dy6 + dilation_h * u6;
+                    int y67 = stride_h * dy7 + dilation_h * u6;
+
+                    int x70 = stride_w * dx0 + dilation_w * v7;
+                    int x71 = stride_w * dx1 + dilation_w * v7;
+                    int x72 = stride_w * dx2 + dilation_w * v7;
+                    int x73 = stride_w * dx3 + dilation_w * v7;
+                    int x74 = stride_w * dx4 + dilation_w * v7;
+                    int x75 = stride_w * dx5 + dilation_w * v7;
+                    int x76 = stride_w * dx6 + dilation_w * v7;
+                    int x77 = stride_w * dx7 + dilation_w * v7;
+                    int y70 = stride_h * dy0 + dilation_h * u7;
+                    int y71 = stride_h * dy1 + dilation_h * u7;
+                    int y72 = stride_h * dy2 + dilation_h * u7;
+                    int y73 = stride_h * dy3 + dilation_h * u7;
+                    int y74 = stride_h * dy4 + dilation_h * u7;
+                    int y75 = stride_h * dy5 + dilation_h * u7;
+                    int y76 = stride_h * dy6 + dilation_h * u7;
+                    int y77 = stride_h * dy7 + dilation_h * u7;
+
+                    const signed char* sptr00 = img0.row<const signed char>(y00) + x00;
+                    const signed char* sptr01 = img0.row<const signed char>(y01) + x01;
+                    const signed char* sptr02 = img0.row<const signed char>(y02) + x02;
+                    const signed char* sptr03 = img0.row<const signed char>(y03) + x03;
+                    const signed char* sptr04 = img0.row<const signed char>(y04) + x04;
+                    const signed char* sptr05 = img0.row<const signed char>(y05) + x05;
+                    const signed char* sptr06 = img0.row<const signed char>(y06) + x06;
+                    const signed char* sptr07 = img0.row<const signed char>(y07) + x07;
+
+                    const signed char* sptr10 = img1.row<const signed char>(y10) + x10;
+                    const signed char* sptr11 = img1.row<const signed char>(y11) + x11;
+                    const signed char* sptr12 = img1.row<const signed char>(y12) + x12;
+                    const signed char* sptr13 = img1.row<const signed char>(y13) + x13;
+                    const signed char* sptr14 = img1.row<const signed char>(y14) + x14;
+                    const signed char* sptr15 = img1.row<const signed char>(y15) + x15;
+                    const signed char* sptr16 = img1.row<const signed char>(y16) + x16;
+                    const signed char* sptr17 = img1.row<const signed char>(y17) + x17;
+
+                    const signed char* sptr20 = img2.row<const signed char>(y20) + x20;
+                    const signed char* sptr21 = img2.row<const signed char>(y21) + x21;
+                    const signed char* sptr22 = img2.row<const signed char>(y22) + x22;
+                    const signed char* sptr23 = img2.row<const signed char>(y23) + x23;
+                    const signed char* sptr24 = img2.row<const signed char>(y24) + x24;
+                    const signed char* sptr25 = img2.row<const signed char>(y25) + x25;
+                    const signed char* sptr26 = img2.row<const signed char>(y26) + x26;
+                    const signed char* sptr27 = img2.row<const signed char>(y27) + x27;
+
+                    const signed char* sptr30 = img3.row<const signed char>(y30) + x30;
+                    const signed char* sptr31 = img3.row<const signed char>(y31) + x31;
+                    const signed char* sptr32 = img3.row<const signed char>(y32) + x32;
+                    const signed char* sptr33 = img3.row<const signed char>(y33) + x33;
+                    const signed char* sptr34 = img3.row<const signed char>(y34) + x34;
+                    const signed char* sptr35 = img3.row<const signed char>(y35) + x35;
+                    const signed char* sptr36 = img3.row<const signed char>(y36) + x36;
+                    const signed char* sptr37 = img3.row<const signed char>(y37) + x37;
+
+                    const signed char* sptr40 = img4.row<const signed char>(y40) + x40;
+                    const signed char* sptr41 = img4.row<const signed char>(y41) + x41;
+                    const signed char* sptr42 = img4.row<const signed char>(y42) + x42;
+                    const signed char* sptr43 = img4.row<const signed char>(y43) + x43;
+                    const signed char* sptr44 = img4.row<const signed char>(y44) + x44;
+                    const signed char* sptr45 = img4.row<const signed char>(y45) + x45;
+                    const signed char* sptr46 = img4.row<const signed char>(y46) + x46;
+                    const signed char* sptr47 = img4.row<const signed char>(y47) + x47;
+
+                    const signed char* sptr50 = img5.row<const signed char>(y50) + x50;
+                    const signed char* sptr51 = img5.row<const signed char>(y51) + x51;
+                    const signed char* sptr52 = img5.row<const signed char>(y52) + x52;
+                    const signed char* sptr53 = img5.row<const signed char>(y53) + x53;
+                    const signed char* sptr54 = img5.row<const signed char>(y54) + x54;
+                    const signed char* sptr55 = img5.row<const signed char>(y55) + x55;
+                    const signed char* sptr56 = img5.row<const signed char>(y56) + x56;
+                    const signed char* sptr57 = img5.row<const signed char>(y57) + x57;
+
+                    const signed char* sptr60 = img6.row<const signed char>(y60) + x60;
+                    const signed char* sptr61 = img6.row<const signed char>(y61) + x61;
+                    const signed char* sptr62 = img6.row<const signed char>(y62) + x62;
+                    const signed char* sptr63 = img6.row<const signed char>(y63) + x63;
+                    const signed char* sptr64 = img6.row<const signed char>(y64) + x64;
+                    const signed char* sptr65 = img6.row<const signed char>(y65) + x65;
+                    const signed char* sptr66 = img6.row<const signed char>(y66) + x66;
+                    const signed char* sptr67 = img6.row<const signed char>(y67) + x67;
+
+                    const signed char* sptr70 = img7.row<const signed char>(y70) + x70;
+                    const signed char* sptr71 = img7.row<const signed char>(y71) + x71;
+                    const signed char* sptr72 = img7.row<const signed char>(y72) + x72;
+                    const signed char* sptr73 = img7.row<const signed char>(y73) + x73;
+                    const signed char* sptr74 = img7.row<const signed char>(y74) + x74;
+                    const signed char* sptr75 = img7.row<const signed char>(y75) + x75;
+                    const signed char* sptr76 = img7.row<const signed char>(y76) + x76;
+                    const signed char* sptr77 = img7.row<const signed char>(y77) + x77;
+
+                    pp[0] = sptr00[0];
+                    pp[1] = sptr10[0];
+                    pp[2] = sptr20[0];
+                    pp[3] = sptr30[0];
+                    pp[4] = sptr40[0];
+                    pp[5] = sptr50[0];
+                    pp[6] = sptr60[0];
+                    pp[7] = sptr70[0];
+                    pp[8] = sptr01[0];
+                    pp[9] = sptr11[0];
+                    pp[10] = sptr21[0];
+                    pp[11] = sptr31[0];
+                    pp[12] = sptr41[0];
+                    pp[13] = sptr51[0];
+                    pp[14] = sptr61[0];
+                    pp[15] = sptr71[0];
+                    pp[16] = sptr02[0];
+                    pp[17] = sptr12[0];
+                    pp[18] = sptr22[0];
+                    pp[19] = sptr32[0];
+                    pp[20] = sptr42[0];
+                    pp[21] = sptr52[0];
+                    pp[22] = sptr62[0];
+                    pp[23] = sptr72[0];
+                    pp[24] = sptr03[0];
+                    pp[25] = sptr13[0];
+                    pp[26] = sptr23[0];
+                    pp[27] = sptr33[0];
+                    pp[28] = sptr43[0];
+                    pp[29] = sptr53[0];
+                    pp[30] = sptr63[0];
+                    pp[31] = sptr73[0];
+                    pp[32] = sptr04[0];
+                    pp[33] = sptr14[0];
+                    pp[34] = sptr24[0];
+                    pp[35] = sptr34[0];
+                    pp[36] = sptr44[0];
+                    pp[37] = sptr54[0];
+                    pp[38] = sptr64[0];
+                    pp[39] = sptr74[0];
+                    pp[40] = sptr05[0];
+                    pp[41] = sptr15[0];
+                    pp[42] = sptr25[0];
+                    pp[43] = sptr35[0];
+                    pp[44] = sptr45[0];
+                    pp[45] = sptr55[0];
+                    pp[46] = sptr65[0];
+                    pp[47] = sptr75[0];
+                    pp[48] = sptr06[0];
+                    pp[49] = sptr16[0];
+                    pp[50] = sptr26[0];
+                    pp[51] = sptr36[0];
+                    pp[52] = sptr46[0];
+                    pp[53] = sptr56[0];
+                    pp[54] = sptr66[0];
+                    pp[55] = sptr76[0];
+                    pp[56] = sptr07[0];
+                    pp[57] = sptr17[0];
+                    pp[58] = sptr27[0];
+                    pp[59] = sptr37[0];
+                    pp[60] = sptr47[0];
+                    pp[61] = sptr57[0];
+                    pp[62] = sptr67[0];
+                    pp[63] = sptr77[0];
+                    pp += 64;
+                }
+#endif // __ARM_FEATURE_MATMUL_INT8
+                for (; kk + 3 < max_kk; kk += 4)
+                {
+                    int p0 = (k + kk) / maxk;
+                    int p1 = (k + kk + 1) / maxk;
+                    int p2 = (k + kk + 2) / maxk;
+                    int p3 = (k + kk + 3) / maxk;
+                    int uv0 = (k + kk) % maxk;
+                    int uv1 = (k + kk + 1) % maxk;
+                    int uv2 = (k + kk + 2) % maxk;
+                    int uv3 = (k + kk + 3) % maxk;
+                    int u0 = uv0 / kernel_w;
+                    int u1 = uv1 / kernel_w;
+                    int u2 = uv2 / kernel_w;
+                    int u3 = uv3 / kernel_w;
+                    int v0 = uv0 % kernel_w;
+                    int v1 = uv1 % kernel_w;
+                    int v2 = uv2 % kernel_w;
+                    int v3 = uv3 % kernel_w;
+
+                    const Mat img0 = bottom_blob.channel(p0);
+                    const Mat img1 = bottom_blob.channel(p1);
+                    const Mat img2 = bottom_blob.channel(p2);
+                    const Mat img3 = bottom_blob.channel(p3);
+
+                    int x00 = stride_w * dx0 + dilation_w * v0;
+                    int x01 = stride_w * dx1 + dilation_w * v0;
+                    int x02 = stride_w * dx2 + dilation_w * v0;
+                    int x03 = stride_w * dx3 + dilation_w * v0;
+                    int x04 = stride_w * dx4 + dilation_w * v0;
+                    int x05 = stride_w * dx5 + dilation_w * v0;
+                    int x06 = stride_w * dx6 + dilation_w * v0;
+                    int x07 = stride_w * dx7 + dilation_w * v0;
+                    int y00 = stride_h * dy0 + dilation_h * u0;
+                    int y01 = stride_h * dy1 + dilation_h * u0;
+                    int y02 = stride_h * dy2 + dilation_h * u0;
+                    int y03 = stride_h * dy3 + dilation_h * u0;
+                    int y04 = stride_h * dy4 + dilation_h * u0;
+                    int y05 = stride_h * dy5 + dilation_h * u0;
+                    int y06 = stride_h * dy6 + dilation_h * u0;
+                    int y07 = stride_h * dy7 + dilation_h * u0;
+
+                    int x10 = stride_w * dx0 + dilation_w * v1;
+                    int x11 = stride_w * dx1 + dilation_w * v1;
+                    int x12 = stride_w * dx2 + dilation_w * v1;
+                    int x13 = stride_w * dx3 + dilation_w * v1;
+                    int x14 = stride_w * dx4 + dilation_w * v1;
+                    int x15 = stride_w * dx5 + dilation_w * v1;
+                    int x16 = stride_w * dx6 + dilation_w * v1;
+                    int x17 = stride_w * dx7 + dilation_w * v1;
+                    int y10 = stride_h * dy0 + dilation_h * u1;
+                    int y11 = stride_h * dy1 + dilation_h * u1;
+                    int y12 = stride_h * dy2 + dilation_h * u1;
+                    int y13 = stride_h * dy3 + dilation_h * u1;
+                    int y14 = stride_h * dy4 + dilation_h * u1;
+                    int y15 = stride_h * dy5 + dilation_h * u1;
+                    int y16 = stride_h * dy6 + dilation_h * u1;
+                    int y17 = stride_h * dy7 + dilation_h * u1;
+
+                    int x20 = stride_w * dx0 + dilation_w * v2;
+                    int x21 = stride_w * dx1 + dilation_w * v2;
+                    int x22 = stride_w * dx2 + dilation_w * v2;
+                    int x23 = stride_w * dx3 + dilation_w * v2;
+                    int x24 = stride_w * dx4 + dilation_w * v2;
+                    int x25 = stride_w * dx5 + dilation_w * v2;
+                    int x26 = stride_w * dx6 + dilation_w * v2;
+                    int x27 = stride_w * dx7 + dilation_w * v2;
+                    int y20 = stride_h * dy0 + dilation_h * u2;
+                    int y21 = stride_h * dy1 + dilation_h * u2;
+                    int y22 = stride_h * dy2 + dilation_h * u2;
+                    int y23 = stride_h * dy3 + dilation_h * u2;
+                    int y24 = stride_h * dy4 + dilation_h * u2;
+                    int y25 = stride_h * dy5 + dilation_h * u2;
+                    int y26 = stride_h * dy6 + dilation_h * u2;
+                    int y27 = stride_h * dy7 + dilation_h * u2;
+
+                    int x30 = stride_w * dx0 + dilation_w * v3;
+                    int x31 = stride_w * dx1 + dilation_w * v3;
+                    int x32 = stride_w * dx2 + dilation_w * v3;
+                    int x33 = stride_w * dx3 + dilation_w * v3;
+                    int x34 = stride_w * dx4 + dilation_w * v3;
+                    int x35 = stride_w * dx5 + dilation_w * v3;
+                    int x36 = stride_w * dx6 + dilation_w * v3;
+                    int x37 = stride_w * dx7 + dilation_w * v3;
+                    int y30 = stride_h * dy0 + dilation_h * u3;
+                    int y31 = stride_h * dy1 + dilation_h * u3;
+                    int y32 = stride_h * dy2 + dilation_h * u3;
+                    int y33 = stride_h * dy3 + dilation_h * u3;
+                    int y34 = stride_h * dy4 + dilation_h * u3;
+                    int y35 = stride_h * dy5 + dilation_h * u3;
+                    int y36 = stride_h * dy6 + dilation_h * u3;
+                    int y37 = stride_h * dy7 + dilation_h * u3;
+
+                    const signed char* sptr00 = img0.row<const signed char>(y00) + x00;
+                    const signed char* sptr01 = img0.row<const signed char>(y01) + x01;
+                    const signed char* sptr02 = img0.row<const signed char>(y02) + x02;
+                    const signed char* sptr03 = img0.row<const signed char>(y03) + x03;
+                    const signed char* sptr04 = img0.row<const signed char>(y04) + x04;
+                    const signed char* sptr05 = img0.row<const signed char>(y05) + x05;
+                    const signed char* sptr06 = img0.row<const signed char>(y06) + x06;
+                    const signed char* sptr07 = img0.row<const signed char>(y07) + x07;
+
+                    const signed char* sptr10 = img1.row<const signed char>(y10) + x10;
+                    const signed char* sptr11 = img1.row<const signed char>(y11) + x11;
+                    const signed char* sptr12 = img1.row<const signed char>(y12) + x12;
+                    const signed char* sptr13 = img1.row<const signed char>(y13) + x13;
+                    const signed char* sptr14 = img1.row<const signed char>(y14) + x14;
+                    const signed char* sptr15 = img1.row<const signed char>(y15) + x15;
+                    const signed char* sptr16 = img1.row<const signed char>(y16) + x16;
+                    const signed char* sptr17 = img1.row<const signed char>(y17) + x17;
+
+                    const signed char* sptr20 = img2.row<const signed char>(y20) + x20;
+                    const signed char* sptr21 = img2.row<const signed char>(y21) + x21;
+                    const signed char* sptr22 = img2.row<const signed char>(y22) + x22;
+                    const signed char* sptr23 = img2.row<const signed char>(y23) + x23;
+                    const signed char* sptr24 = img2.row<const signed char>(y24) + x24;
+                    const signed char* sptr25 = img2.row<const signed char>(y25) + x25;
+                    const signed char* sptr26 = img2.row<const signed char>(y26) + x26;
+                    const signed char* sptr27 = img2.row<const signed char>(y27) + x27;
+
+                    const signed char* sptr30 = img3.row<const signed char>(y30) + x30;
+                    const signed char* sptr31 = img3.row<const signed char>(y31) + x31;
+                    const signed char* sptr32 = img3.row<const signed char>(y32) + x32;
+                    const signed char* sptr33 = img3.row<const signed char>(y33) + x33;
+                    const signed char* sptr34 = img3.row<const signed char>(y34) + x34;
+                    const signed char* sptr35 = img3.row<const signed char>(y35) + x35;
+                    const signed char* sptr36 = img3.row<const signed char>(y36) + x36;
+                    const signed char* sptr37 = img3.row<const signed char>(y37) + x37;
+
+                    pp[0] = sptr00[0];
+                    pp[1] = sptr10[0];
+                    pp[2] = sptr20[0];
+                    pp[3] = sptr30[0];
+                    pp[4] = sptr01[0];
+                    pp[5] = sptr11[0];
+                    pp[6] = sptr21[0];
+                    pp[7] = sptr31[0];
+                    pp[8] = sptr02[0];
+                    pp[9] = sptr12[0];
+                    pp[10] = sptr22[0];
+                    pp[11] = sptr32[0];
+                    pp[12] = sptr03[0];
+                    pp[13] = sptr13[0];
+                    pp[14] = sptr23[0];
+                    pp[15] = sptr33[0];
+                    pp[16] = sptr04[0];
+                    pp[17] = sptr14[0];
+                    pp[18] = sptr24[0];
+                    pp[19] = sptr34[0];
+                    pp[20] = sptr05[0];
+                    pp[21] = sptr15[0];
+                    pp[22] = sptr25[0];
+                    pp[23] = sptr35[0];
+                    pp[24] = sptr06[0];
+                    pp[25] = sptr16[0];
+                    pp[26] = sptr26[0];
+                    pp[27] = sptr36[0];
+                    pp[28] = sptr07[0];
+                    pp[29] = sptr17[0];
+                    pp[30] = sptr27[0];
+                    pp[31] = sptr37[0];
+                    pp += 32;
+                }
+#endif // __ARM_FEATURE_DOTPROD
+                for (; kk + 1 < max_kk; kk += 2)
+                {
+                    int p0 = (k + kk) / maxk;
+                    int p1 = (k + kk + 1) / maxk;
+                    int uv0 = (k + kk) % maxk;
+                    int uv1 = (k + kk + 1) % maxk;
+                    int u0 = uv0 / kernel_w;
+                    int u1 = uv1 / kernel_w;
+                    int v0 = uv0 % kernel_w;
+                    int v1 = uv1 % kernel_w;
+
+                    const Mat img0 = bottom_blob.channel(p0);
+                    const Mat img1 = bottom_blob.channel(p1);
+
+                    int x00 = stride_w * dx0 + dilation_w * v0;
+                    int x01 = stride_w * dx1 + dilation_w * v0;
+                    int x02 = stride_w * dx2 + dilation_w * v0;
+                    int x03 = stride_w * dx3 + dilation_w * v0;
+                    int x04 = stride_w * dx4 + dilation_w * v0;
+                    int x05 = stride_w * dx5 + dilation_w * v0;
+                    int x06 = stride_w * dx6 + dilation_w * v0;
+                    int x07 = stride_w * dx7 + dilation_w * v0;
+                    int y00 = stride_h * dy0 + dilation_h * u0;
+                    int y01 = stride_h * dy1 + dilation_h * u0;
+                    int y02 = stride_h * dy2 + dilation_h * u0;
+                    int y03 = stride_h * dy3 + dilation_h * u0;
+                    int y04 = stride_h * dy4 + dilation_h * u0;
+                    int y05 = stride_h * dy5 + dilation_h * u0;
+                    int y06 = stride_h * dy6 + dilation_h * u0;
+                    int y07 = stride_h * dy7 + dilation_h * u0;
+
+                    int x10 = stride_w * dx0 + dilation_w * v1;
+                    int x11 = stride_w * dx1 + dilation_w * v1;
+                    int x12 = stride_w * dx2 + dilation_w * v1;
+                    int x13 = stride_w * dx3 + dilation_w * v1;
+                    int x14 = stride_w * dx4 + dilation_w * v1;
+                    int x15 = stride_w * dx5 + dilation_w * v1;
+                    int x16 = stride_w * dx6 + dilation_w * v1;
+                    int x17 = stride_w * dx7 + dilation_w * v1;
+                    int y10 = stride_h * dy0 + dilation_h * u1;
+                    int y11 = stride_h * dy1 + dilation_h * u1;
+                    int y12 = stride_h * dy2 + dilation_h * u1;
+                    int y13 = stride_h * dy3 + dilation_h * u1;
+                    int y14 = stride_h * dy4 + dilation_h * u1;
+                    int y15 = stride_h * dy5 + dilation_h * u1;
+                    int y16 = stride_h * dy6 + dilation_h * u1;
+                    int y17 = stride_h * dy7 + dilation_h * u1;
+
+                    const signed char* sptr00 = img0.row<const signed char>(y00) + x00;
+                    const signed char* sptr01 = img0.row<const signed char>(y01) + x01;
+                    const signed char* sptr02 = img0.row<const signed char>(y02) + x02;
+                    const signed char* sptr03 = img0.row<const signed char>(y03) + x03;
+                    const signed char* sptr04 = img0.row<const signed char>(y04) + x04;
+                    const signed char* sptr05 = img0.row<const signed char>(y05) + x05;
+                    const signed char* sptr06 = img0.row<const signed char>(y06) + x06;
+                    const signed char* sptr07 = img0.row<const signed char>(y07) + x07;
+
+                    const signed char* sptr10 = img1.row<const signed char>(y10) + x10;
+                    const signed char* sptr11 = img1.row<const signed char>(y11) + x11;
+                    const signed char* sptr12 = img1.row<const signed char>(y12) + x12;
+                    const signed char* sptr13 = img1.row<const signed char>(y13) + x13;
+                    const signed char* sptr14 = img1.row<const signed char>(y14) + x14;
+                    const signed char* sptr15 = img1.row<const signed char>(y15) + x15;
+                    const signed char* sptr16 = img1.row<const signed char>(y16) + x16;
+                    const signed char* sptr17 = img1.row<const signed char>(y17) + x17;
+
+                    pp[0] = sptr00[0];
+                    pp[1] = sptr10[0];
+                    pp[2] = sptr01[0];
+                    pp[3] = sptr11[0];
+                    pp[4] = sptr02[0];
+                    pp[5] = sptr12[0];
+                    pp[6] = sptr03[0];
+                    pp[7] = sptr13[0];
+                    pp[8] = sptr04[0];
+                    pp[9] = sptr14[0];
+                    pp[10] = sptr05[0];
+                    pp[11] = sptr15[0];
+                    pp[12] = sptr06[0];
+                    pp[13] = sptr16[0];
+                    pp[14] = sptr07[0];
+                    pp[15] = sptr17[0];
+                    pp += 16;
+                }
+            }
+            for (; kk < max_kk / elempack; kk++)
+            {
+                int p = (k / elempack + kk) / maxk;
+                int uv = (k / elempack + kk) % maxk;
+                int u = uv / kernel_w;
+                int v = uv % kernel_w;
+
+                const Mat img = bottom_blob.channel(p);
+
+                int x0 = stride_w * dx0 + dilation_w * v;
+                int x1 = stride_w * dx1 + dilation_w * v;
+                int x2 = stride_w * dx2 + dilation_w * v;
+                int x3 = stride_w * dx3 + dilation_w * v;
+                int x4 = stride_w * dx4 + dilation_w * v;
+                int x5 = stride_w * dx5 + dilation_w * v;
+                int x6 = stride_w * dx6 + dilation_w * v;
+                int x7 = stride_w * dx7 + dilation_w * v;
+                int y0 = stride_h * dy0 + dilation_h * u;
+                int y1 = stride_h * dy1 + dilation_h * u;
+                int y2 = stride_h * dy2 + dilation_h * u;
+                int y3 = stride_h * dy3 + dilation_h * u;
+                int y4 = stride_h * dy4 + dilation_h * u;
+                int y5 = stride_h * dy5 + dilation_h * u;
+                int y6 = stride_h * dy6 + dilation_h * u;
+                int y7 = stride_h * dy7 + dilation_h * u;
+
+                const signed char* sptr0 = img.row<const signed char>(y0) + x0 * elempack;
+                const signed char* sptr1 = img.row<const signed char>(y1) + x1 * elempack;
+                const signed char* sptr2 = img.row<const signed char>(y2) + x2 * elempack;
+                const signed char* sptr3 = img.row<const signed char>(y3) + x3 * elempack;
+                const signed char* sptr4 = img.row<const signed char>(y4) + x4 * elempack;
+                const signed char* sptr5 = img.row<const signed char>(y5) + x5 * elempack;
+                const signed char* sptr6 = img.row<const signed char>(y6) + x6 * elempack;
+                const signed char* sptr7 = img.row<const signed char>(y7) + x7 * elempack;
+
+                if (elempack == 8)
+                {
+#if __ARM_FEATURE_MATMUL_INT8
+                    int8x8_t _r0 = vld1_s8(sptr0);
+                    int8x8_t _r1 = vld1_s8(sptr1);
+                    int8x8_t _r2 = vld1_s8(sptr2);
+                    int8x8_t _r3 = vld1_s8(sptr3);
+                    int8x8_t _r4 = vld1_s8(sptr4);
+                    int8x8_t _r5 = vld1_s8(sptr5);
+                    int8x8_t _r6 = vld1_s8(sptr6);
+                    int8x8_t _r7 = vld1_s8(sptr7);
+                    vst1_s8(pp, _r0);
+                    vst1_s8(pp + 8, _r1);
+                    vst1_s8(pp + 16, _r2);
+                    vst1_s8(pp + 24, _r3);
+                    vst1_s8(pp + 32, _r4);
+                    vst1_s8(pp + 40, _r5);
+                    vst1_s8(pp + 48, _r6);
+                    vst1_s8(pp + 56, _r7);
+                    pp += 64;
+#elif __ARM_FEATURE_DOTPROD
+                    int32x2_t _r0 = vreinterpret_s32_s8(vld1_s8(sptr0));
+                    int32x2_t _r1 = vreinterpret_s32_s8(vld1_s8(sptr1));
+                    int32x2_t _r2 = vreinterpret_s32_s8(vld1_s8(sptr2));
+                    int32x2_t _r3 = vreinterpret_s32_s8(vld1_s8(sptr3));
+                    int32x2_t _r4 = vreinterpret_s32_s8(vld1_s8(sptr4));
+                    int32x2_t _r5 = vreinterpret_s32_s8(vld1_s8(sptr5));
+                    int32x2_t _r6 = vreinterpret_s32_s8(vld1_s8(sptr6));
+                    int32x2_t _r7 = vreinterpret_s32_s8(vld1_s8(sptr7));
+                    int32x2x2_t _r01 = vzip_s32(_r0, _r1);
+                    int32x2x2_t _r23 = vzip_s32(_r2, _r3);
+                    int32x2x2_t _r45 = vzip_s32(_r4, _r5);
+                    int32x2x2_t _r67 = vzip_s32(_r6, _r7);
+                    vst1_s32((int*)pp, _r01.val[0]);
+                    vst1_s32((int*)(pp + 8), _r23.val[0]);
+                    vst1_s32((int*)(pp + 16), _r45.val[0]);
+                    vst1_s32((int*)(pp + 24), _r67.val[0]);
+                    vst1_s32((int*)(pp + 32), _r01.val[1]);
+                    vst1_s32((int*)(pp + 40), _r23.val[1]);
+                    vst1_s32((int*)(pp + 48), _r45.val[1]);
+                    vst1_s32((int*)(pp + 56), _r67.val[1]);
+                    pp += 64;
+#else  // __ARM_FEATURE_MATMUL_INT8 || __ARM_FEATURE_DOTPROD
+                    int16x4_t _r0 = vreinterpret_s16_s8(vld1_s8(sptr0));
+                    int16x4_t _r1 = vreinterpret_s16_s8(vld1_s8(sptr1));
+                    int16x4_t _r2 = vreinterpret_s16_s8(vld1_s8(sptr2));
+                    int16x4_t _r3 = vreinterpret_s16_s8(vld1_s8(sptr3));
+                    int16x4_t _r4 = vreinterpret_s16_s8(vld1_s8(sptr4));
+                    int16x4_t _r5 = vreinterpret_s16_s8(vld1_s8(sptr5));
+                    int16x4_t _r6 = vreinterpret_s16_s8(vld1_s8(sptr6));
+                    int16x4_t _r7 = vreinterpret_s16_s8(vld1_s8(sptr7));
+                    int16x4x2_t _r01 = vzip_s16(_r0, _r1);
+                    int16x4x2_t _r23 = vzip_s16(_r2, _r3);
+                    int16x4x2_t _r45 = vzip_s16(_r4, _r5);
+                    int16x4x2_t _r67 = vzip_s16(_r6, _r7);
+                    int32x4x4_t _r0123;
+                    _r0123.val[0] = vreinterpretq_s32_s16(vcombine_s16(_r01.val[0], _r01.val[1]));
+                    _r0123.val[1] = vreinterpretq_s32_s16(vcombine_s16(_r23.val[0], _r23.val[1]));
+                    _r0123.val[2] = vreinterpretq_s32_s16(vcombine_s16(_r45.val[0], _r45.val[1]));
+                    _r0123.val[3] = vreinterpretq_s32_s16(vcombine_s16(_r67.val[0], _r67.val[1]));
+                    vst4q_s32((int*)pp, _r0123);
+                    pp += 64;
+#endif // __ARM_FEATURE_MATMUL_INT8 || __ARM_FEATURE_DOTPROD
+                }
+                if (elempack == 1)
+                {
+                    pp[0] = sptr0[0];
+                    pp[1] = sptr1[0];
+                    pp[2] = sptr2[0];
+                    pp[3] = sptr3[0];
+                    pp[4] = sptr4[0];
+                    pp[5] = sptr5[0];
+                    pp[6] = sptr6[0];
+                    pp[7] = sptr7[0];
+                    pp += 8;
+                }
             }
         }
     }
@@ -8420,414 +8894,684 @@ static void convolution_im2col_input_tile_int8(const Mat& bottom_blob, Mat& B, i
         int dx2 = (j + jj + 2) % outw;
         int dx3 = (j + jj + 3) % outw;
 
-        int kk = 0;
-        if (elempack == 1)
+        if (dy0 == dy3)
         {
-#if __ARM_FEATURE_DOTPROD
-#if __ARM_FEATURE_MATMUL_INT8
-            for (; kk + 7 < max_kk; kk += 8)
-            {
-                int p0 = (k + kk) / maxk;
-                int p1 = (k + kk + 1) / maxk;
-                int p2 = (k + kk + 2) / maxk;
-                int p3 = (k + kk + 3) / maxk;
-                int p4 = (k + kk + 4) / maxk;
-                int p5 = (k + kk + 5) / maxk;
-                int p6 = (k + kk + 6) / maxk;
-                int p7 = (k + kk + 7) / maxk;
-                int uv0 = (k + kk) % maxk;
-                int uv1 = (k + kk + 1) % maxk;
-                int uv2 = (k + kk + 2) % maxk;
-                int uv3 = (k + kk + 3) % maxk;
-                int uv4 = (k + kk + 4) % maxk;
-                int uv5 = (k + kk + 5) % maxk;
-                int uv6 = (k + kk + 6) % maxk;
-                int uv7 = (k + kk + 7) % maxk;
-                int u0 = uv0 / kernel_w;
-                int u1 = uv1 / kernel_w;
-                int u2 = uv2 / kernel_w;
-                int u3 = uv3 / kernel_w;
-                int u4 = uv4 / kernel_w;
-                int u5 = uv5 / kernel_w;
-                int u6 = uv6 / kernel_w;
-                int u7 = uv7 / kernel_w;
-                int v0 = uv0 % kernel_w;
-                int v1 = uv1 % kernel_w;
-                int v2 = uv2 % kernel_w;
-                int v3 = uv3 % kernel_w;
-                int v4 = uv4 % kernel_w;
-                int v5 = uv5 % kernel_w;
-                int v6 = uv6 % kernel_w;
-                int v7 = uv7 % kernel_w;
-
-                const Mat img0 = bottom_blob.channel(p0);
-                const Mat img1 = bottom_blob.channel(p1);
-                const Mat img2 = bottom_blob.channel(p2);
-                const Mat img3 = bottom_blob.channel(p3);
-                const Mat img4 = bottom_blob.channel(p4);
-                const Mat img5 = bottom_blob.channel(p5);
-                const Mat img6 = bottom_blob.channel(p6);
-                const Mat img7 = bottom_blob.channel(p7);
-
-                int x00 = stride_w * dx0 + dilation_w * v0;
-                int x01 = stride_w * dx1 + dilation_w * v0;
-                int x02 = stride_w * dx2 + dilation_w * v0;
-                int x03 = stride_w * dx3 + dilation_w * v0;
-                int y00 = stride_h * dy0 + dilation_h * u0;
-                int y01 = stride_h * dy1 + dilation_h * u0;
-                int y02 = stride_h * dy2 + dilation_h * u0;
-                int y03 = stride_h * dy3 + dilation_h * u0;
-
-                int x10 = stride_w * dx0 + dilation_w * v1;
-                int x11 = stride_w * dx1 + dilation_w * v1;
-                int x12 = stride_w * dx2 + dilation_w * v1;
-                int x13 = stride_w * dx3 + dilation_w * v1;
-                int y10 = stride_h * dy0 + dilation_h * u1;
-                int y11 = stride_h * dy1 + dilation_h * u1;
-                int y12 = stride_h * dy2 + dilation_h * u1;
-                int y13 = stride_h * dy3 + dilation_h * u1;
-
-                int x20 = stride_w * dx0 + dilation_w * v2;
-                int x21 = stride_w * dx1 + dilation_w * v2;
-                int x22 = stride_w * dx2 + dilation_w * v2;
-                int x23 = stride_w * dx3 + dilation_w * v2;
-                int y20 = stride_h * dy0 + dilation_h * u2;
-                int y21 = stride_h * dy1 + dilation_h * u2;
-                int y22 = stride_h * dy2 + dilation_h * u2;
-                int y23 = stride_h * dy3 + dilation_h * u2;
-
-                int x30 = stride_w * dx0 + dilation_w * v3;
-                int x31 = stride_w * dx1 + dilation_w * v3;
-                int x32 = stride_w * dx2 + dilation_w * v3;
-                int x33 = stride_w * dx3 + dilation_w * v3;
-                int y30 = stride_h * dy0 + dilation_h * u3;
-                int y31 = stride_h * dy1 + dilation_h * u3;
-                int y32 = stride_h * dy2 + dilation_h * u3;
-                int y33 = stride_h * dy3 + dilation_h * u3;
-
-                int x40 = stride_w * dx0 + dilation_w * v4;
-                int x41 = stride_w * dx1 + dilation_w * v4;
-                int x42 = stride_w * dx2 + dilation_w * v4;
-                int x43 = stride_w * dx3 + dilation_w * v4;
-                int y40 = stride_h * dy0 + dilation_h * u4;
-                int y41 = stride_h * dy1 + dilation_h * u4;
-                int y42 = stride_h * dy2 + dilation_h * u4;
-                int y43 = stride_h * dy3 + dilation_h * u4;
-
-                int x50 = stride_w * dx0 + dilation_w * v5;
-                int x51 = stride_w * dx1 + dilation_w * v5;
-                int x52 = stride_w * dx2 + dilation_w * v5;
-                int x53 = stride_w * dx3 + dilation_w * v5;
-                int y50 = stride_h * dy0 + dilation_h * u5;
-                int y51 = stride_h * dy1 + dilation_h * u5;
-                int y52 = stride_h * dy2 + dilation_h * u5;
-                int y53 = stride_h * dy3 + dilation_h * u5;
-
-                int x60 = stride_w * dx0 + dilation_w * v6;
-                int x61 = stride_w * dx1 + dilation_w * v6;
-                int x62 = stride_w * dx2 + dilation_w * v6;
-                int x63 = stride_w * dx3 + dilation_w * v6;
-                int y60 = stride_h * dy0 + dilation_h * u6;
-                int y61 = stride_h * dy1 + dilation_h * u6;
-                int y62 = stride_h * dy2 + dilation_h * u6;
-                int y63 = stride_h * dy3 + dilation_h * u6;
-
-                int x70 = stride_w * dx0 + dilation_w * v7;
-                int x71 = stride_w * dx1 + dilation_w * v7;
-                int x72 = stride_w * dx2 + dilation_w * v7;
-                int x73 = stride_w * dx3 + dilation_w * v7;
-                int y70 = stride_h * dy0 + dilation_h * u7;
-                int y71 = stride_h * dy1 + dilation_h * u7;
-                int y72 = stride_h * dy2 + dilation_h * u7;
-                int y73 = stride_h * dy3 + dilation_h * u7;
-
-                const signed char* sptr00 = img0.row<const signed char>(y00) + x00;
-                const signed char* sptr01 = img0.row<const signed char>(y01) + x01;
-                const signed char* sptr02 = img0.row<const signed char>(y02) + x02;
-                const signed char* sptr03 = img0.row<const signed char>(y03) + x03;
-
-                const signed char* sptr10 = img1.row<const signed char>(y10) + x10;
-                const signed char* sptr11 = img1.row<const signed char>(y11) + x11;
-                const signed char* sptr12 = img1.row<const signed char>(y12) + x12;
-                const signed char* sptr13 = img1.row<const signed char>(y13) + x13;
-
-                const signed char* sptr20 = img2.row<const signed char>(y20) + x20;
-                const signed char* sptr21 = img2.row<const signed char>(y21) + x21;
-                const signed char* sptr22 = img2.row<const signed char>(y22) + x22;
-                const signed char* sptr23 = img2.row<const signed char>(y23) + x23;
-
-                const signed char* sptr30 = img3.row<const signed char>(y30) + x30;
-                const signed char* sptr31 = img3.row<const signed char>(y31) + x31;
-                const signed char* sptr32 = img3.row<const signed char>(y32) + x32;
-                const signed char* sptr33 = img3.row<const signed char>(y33) + x33;
-
-                const signed char* sptr40 = img4.row<const signed char>(y40) + x40;
-                const signed char* sptr41 = img4.row<const signed char>(y41) + x41;
-                const signed char* sptr42 = img4.row<const signed char>(y42) + x42;
-                const signed char* sptr43 = img4.row<const signed char>(y43) + x43;
-
-                const signed char* sptr50 = img5.row<const signed char>(y50) + x50;
-                const signed char* sptr51 = img5.row<const signed char>(y51) + x51;
-                const signed char* sptr52 = img5.row<const signed char>(y52) + x52;
-                const signed char* sptr53 = img5.row<const signed char>(y53) + x53;
-
-                const signed char* sptr60 = img6.row<const signed char>(y60) + x60;
-                const signed char* sptr61 = img6.row<const signed char>(y61) + x61;
-                const signed char* sptr62 = img6.row<const signed char>(y62) + x62;
-                const signed char* sptr63 = img6.row<const signed char>(y63) + x63;
-
-                const signed char* sptr70 = img7.row<const signed char>(y70) + x70;
-                const signed char* sptr71 = img7.row<const signed char>(y71) + x71;
-                const signed char* sptr72 = img7.row<const signed char>(y72) + x72;
-                const signed char* sptr73 = img7.row<const signed char>(y73) + x73;
-
-                pp[0] = sptr00[0];
-                pp[1] = sptr10[0];
-                pp[2] = sptr20[0];
-                pp[3] = sptr30[0];
-                pp[4] = sptr40[0];
-                pp[5] = sptr50[0];
-                pp[6] = sptr60[0];
-                pp[7] = sptr70[0];
-                pp[8] = sptr01[0];
-                pp[9] = sptr11[0];
-                pp[10] = sptr21[0];
-                pp[11] = sptr31[0];
-                pp[12] = sptr41[0];
-                pp[13] = sptr51[0];
-                pp[14] = sptr61[0];
-                pp[15] = sptr71[0];
-                pp[16] = sptr02[0];
-                pp[17] = sptr12[0];
-                pp[18] = sptr22[0];
-                pp[19] = sptr32[0];
-                pp[20] = sptr42[0];
-                pp[21] = sptr52[0];
-                pp[22] = sptr62[0];
-                pp[23] = sptr72[0];
-                pp[24] = sptr03[0];
-                pp[25] = sptr13[0];
-                pp[26] = sptr23[0];
-                pp[27] = sptr33[0];
-                pp[28] = sptr43[0];
-                pp[29] = sptr53[0];
-                pp[30] = sptr63[0];
-                pp[31] = sptr73[0];
-                pp += 32;
-            }
-#endif // __ARM_FEATURE_MATMUL_INT8
-            for (; kk + 3 < max_kk; kk += 4)
-            {
-                int p0 = (k + kk) / maxk;
-                int p1 = (k + kk + 1) / maxk;
-                int p2 = (k + kk + 2) / maxk;
-                int p3 = (k + kk + 3) / maxk;
-                int uv0 = (k + kk) % maxk;
-                int uv1 = (k + kk + 1) % maxk;
-                int uv2 = (k + kk + 2) % maxk;
-                int uv3 = (k + kk + 3) % maxk;
-                int u0 = uv0 / kernel_w;
-                int u1 = uv1 / kernel_w;
-                int u2 = uv2 / kernel_w;
-                int u3 = uv3 / kernel_w;
-                int v0 = uv0 % kernel_w;
-                int v1 = uv1 % kernel_w;
-                int v2 = uv2 % kernel_w;
-                int v3 = uv3 % kernel_w;
-
-                const Mat img0 = bottom_blob.channel(p0);
-                const Mat img1 = bottom_blob.channel(p1);
-                const Mat img2 = bottom_blob.channel(p2);
-                const Mat img3 = bottom_blob.channel(p3);
-
-                int x00 = stride_w * dx0 + dilation_w * v0;
-                int x01 = stride_w * dx1 + dilation_w * v0;
-                int x02 = stride_w * dx2 + dilation_w * v0;
-                int x03 = stride_w * dx3 + dilation_w * v0;
-                int y00 = stride_h * dy0 + dilation_h * u0;
-                int y01 = stride_h * dy1 + dilation_h * u0;
-                int y02 = stride_h * dy2 + dilation_h * u0;
-                int y03 = stride_h * dy3 + dilation_h * u0;
-
-                int x10 = stride_w * dx0 + dilation_w * v1;
-                int x11 = stride_w * dx1 + dilation_w * v1;
-                int x12 = stride_w * dx2 + dilation_w * v1;
-                int x13 = stride_w * dx3 + dilation_w * v1;
-                int y10 = stride_h * dy0 + dilation_h * u1;
-                int y11 = stride_h * dy1 + dilation_h * u1;
-                int y12 = stride_h * dy2 + dilation_h * u1;
-                int y13 = stride_h * dy3 + dilation_h * u1;
-
-                int x20 = stride_w * dx0 + dilation_w * v2;
-                int x21 = stride_w * dx1 + dilation_w * v2;
-                int x22 = stride_w * dx2 + dilation_w * v2;
-                int x23 = stride_w * dx3 + dilation_w * v2;
-                int y20 = stride_h * dy0 + dilation_h * u2;
-                int y21 = stride_h * dy1 + dilation_h * u2;
-                int y22 = stride_h * dy2 + dilation_h * u2;
-                int y23 = stride_h * dy3 + dilation_h * u2;
-
-                int x30 = stride_w * dx0 + dilation_w * v3;
-                int x31 = stride_w * dx1 + dilation_w * v3;
-                int x32 = stride_w * dx2 + dilation_w * v3;
-                int x33 = stride_w * dx3 + dilation_w * v3;
-                int y30 = stride_h * dy0 + dilation_h * u3;
-                int y31 = stride_h * dy1 + dilation_h * u3;
-                int y32 = stride_h * dy2 + dilation_h * u3;
-                int y33 = stride_h * dy3 + dilation_h * u3;
-
-                const signed char* sptr00 = img0.row<const signed char>(y00) + x00;
-                const signed char* sptr01 = img0.row<const signed char>(y01) + x01;
-                const signed char* sptr02 = img0.row<const signed char>(y02) + x02;
-                const signed char* sptr03 = img0.row<const signed char>(y03) + x03;
-
-                const signed char* sptr10 = img1.row<const signed char>(y10) + x10;
-                const signed char* sptr11 = img1.row<const signed char>(y11) + x11;
-                const signed char* sptr12 = img1.row<const signed char>(y12) + x12;
-                const signed char* sptr13 = img1.row<const signed char>(y13) + x13;
-
-                const signed char* sptr20 = img2.row<const signed char>(y20) + x20;
-                const signed char* sptr21 = img2.row<const signed char>(y21) + x21;
-                const signed char* sptr22 = img2.row<const signed char>(y22) + x22;
-                const signed char* sptr23 = img2.row<const signed char>(y23) + x23;
-
-                const signed char* sptr30 = img3.row<const signed char>(y30) + x30;
-                const signed char* sptr31 = img3.row<const signed char>(y31) + x31;
-                const signed char* sptr32 = img3.row<const signed char>(y32) + x32;
-                const signed char* sptr33 = img3.row<const signed char>(y33) + x33;
-
-                pp[0] = sptr00[0];
-                pp[1] = sptr10[0];
-                pp[2] = sptr20[0];
-                pp[3] = sptr30[0];
-                pp[4] = sptr01[0];
-                pp[5] = sptr11[0];
-                pp[6] = sptr21[0];
-                pp[7] = sptr31[0];
-                pp[8] = sptr02[0];
-                pp[9] = sptr12[0];
-                pp[10] = sptr22[0];
-                pp[11] = sptr32[0];
-                pp[12] = sptr03[0];
-                pp[13] = sptr13[0];
-                pp[14] = sptr23[0];
-                pp[15] = sptr33[0];
-                pp += 16;
-            }
-#endif // __ARM_FEATURE_DOTPROD
-            for (; kk + 1 < max_kk; kk += 2)
-            {
-                int p0 = (k + kk) / maxk;
-                int p1 = (k + kk + 1) / maxk;
-                int uv0 = (k + kk) % maxk;
-                int uv1 = (k + kk + 1) % maxk;
-                int u0 = uv0 / kernel_w;
-                int u1 = uv1 / kernel_w;
-                int v0 = uv0 % kernel_w;
-                int v1 = uv1 % kernel_w;
-
-                const Mat img0 = bottom_blob.channel(p0);
-                const Mat img1 = bottom_blob.channel(p1);
-
-                int x00 = stride_w * dx0 + dilation_w * v0;
-                int x01 = stride_w * dx1 + dilation_w * v0;
-                int x02 = stride_w * dx2 + dilation_w * v0;
-                int x03 = stride_w * dx3 + dilation_w * v0;
-                int y00 = stride_h * dy0 + dilation_h * u0;
-                int y01 = stride_h * dy1 + dilation_h * u0;
-                int y02 = stride_h * dy2 + dilation_h * u0;
-                int y03 = stride_h * dy3 + dilation_h * u0;
-
-                int x10 = stride_w * dx0 + dilation_w * v1;
-                int x11 = stride_w * dx1 + dilation_w * v1;
-                int x12 = stride_w * dx2 + dilation_w * v1;
-                int x13 = stride_w * dx3 + dilation_w * v1;
-                int y10 = stride_h * dy0 + dilation_h * u1;
-                int y11 = stride_h * dy1 + dilation_h * u1;
-                int y12 = stride_h * dy2 + dilation_h * u1;
-                int y13 = stride_h * dy3 + dilation_h * u1;
-
-                const signed char* sptr00 = img0.row<const signed char>(y00) + x00;
-                const signed char* sptr01 = img0.row<const signed char>(y01) + x01;
-                const signed char* sptr02 = img0.row<const signed char>(y02) + x02;
-                const signed char* sptr03 = img0.row<const signed char>(y03) + x03;
-
-                const signed char* sptr10 = img1.row<const signed char>(y10) + x10;
-                const signed char* sptr11 = img1.row<const signed char>(y11) + x11;
-                const signed char* sptr12 = img1.row<const signed char>(y12) + x12;
-                const signed char* sptr13 = img1.row<const signed char>(y13) + x13;
-
-                pp[0] = sptr00[0];
-                pp[1] = sptr10[0];
-                pp[2] = sptr01[0];
-                pp[3] = sptr11[0];
-                pp[4] = sptr02[0];
-                pp[5] = sptr12[0];
-                pp[6] = sptr03[0];
-                pp[7] = sptr13[0];
-                pp += 8;
-            }
-        }
-        for (; kk < max_kk / elempack; kk++)
-        {
-            int p = (k / elempack + kk) / maxk;
-            int uv = (k / elempack + kk) % maxk;
-            int u = uv / kernel_w;
-            int v = uv % kernel_w;
-
-            const Mat img = bottom_blob.channel(p);
-
-            int x0 = stride_w * dx0 + dilation_w * v;
-            int x1 = stride_w * dx1 + dilation_w * v;
-            int x2 = stride_w * dx2 + dilation_w * v;
-            int x3 = stride_w * dx3 + dilation_w * v;
-            int y0 = stride_h * dy0 + dilation_h * u;
-            int y1 = stride_h * dy1 + dilation_h * u;
-            int y2 = stride_h * dy2 + dilation_h * u;
-            int y3 = stride_h * dy3 + dilation_h * u;
-
-            const signed char* sptr0 = img.row<const signed char>(y0) + x0 * elempack;
-            const signed char* sptr1 = img.row<const signed char>(y1) + x1 * elempack;
-            const signed char* sptr2 = img.row<const signed char>(y2) + x2 * elempack;
-            const signed char* sptr3 = img.row<const signed char>(y3) + x3 * elempack;
-
-            if (elempack == 8)
-            {
-#if __ARM_FEATURE_MATMUL_INT8
-                int8x8_t _r0 = vld1_s8(sptr0);
-                int8x8_t _r1 = vld1_s8(sptr1);
-                int8x8_t _r2 = vld1_s8(sptr2);
-                int8x8_t _r3 = vld1_s8(sptr3);
-                vst1_s8(pp, _r0);
-                vst1_s8(pp + 8, _r1);
-                vst1_s8(pp + 16, _r2);
-                vst1_s8(pp + 24, _r3);
-                pp += 32;
-#elif __ARM_FEATURE_DOTPROD
-                int32x2x4_t _r0123;
-                _r0123.val[0] = vreinterpret_s32_s8(vld1_s8(sptr0));
-                _r0123.val[1] = vreinterpret_s32_s8(vld1_s8(sptr1));
-                _r0123.val[2] = vreinterpret_s32_s8(vld1_s8(sptr2));
-                _r0123.val[3] = vreinterpret_s32_s8(vld1_s8(sptr3));
-                vst4_s32((int*)pp, _r0123);
-                pp += 32;
-#else  // __ARM_FEATURE_MATMUL_INT8 || __ARM_FEATURE_DOTPROD
-                int16x4x4_t _r0123;
-                _r0123.val[0] = vreinterpret_s16_s8(vld1_s8(sptr0));
-                _r0123.val[1] = vreinterpret_s16_s8(vld1_s8(sptr1));
-                _r0123.val[2] = vreinterpret_s16_s8(vld1_s8(sptr2));
-                _r0123.val[3] = vreinterpret_s16_s8(vld1_s8(sptr3));
-                vst4_s16((short*)pp, _r0123);
-                pp += 32;
-#endif // __ARM_FEATURE_MATMUL_INT8 || __ARM_FEATURE_DOTPROD
-            }
+            int kk = 0;
             if (elempack == 1)
             {
-                pp[0] = sptr0[0];
-                pp[1] = sptr1[0];
-                pp[2] = sptr2[0];
-                pp[3] = sptr3[0];
-                pp += 4;
+#if __ARM_FEATURE_DOTPROD
+#if __ARM_FEATURE_MATMUL_INT8
+                for (; kk + 7 < max_kk; kk += 8)
+                {
+                    int p0 = (k + kk) / maxk;
+                    int p1 = (k + kk + 1) / maxk;
+                    int p2 = (k + kk + 2) / maxk;
+                    int p3 = (k + kk + 3) / maxk;
+                    int p4 = (k + kk + 4) / maxk;
+                    int p5 = (k + kk + 5) / maxk;
+                    int p6 = (k + kk + 6) / maxk;
+                    int p7 = (k + kk + 7) / maxk;
+                    int uv0 = (k + kk) % maxk;
+                    int uv1 = (k + kk + 1) % maxk;
+                    int uv2 = (k + kk + 2) % maxk;
+                    int uv3 = (k + kk + 3) % maxk;
+                    int uv4 = (k + kk + 4) % maxk;
+                    int uv5 = (k + kk + 5) % maxk;
+                    int uv6 = (k + kk + 6) % maxk;
+                    int uv7 = (k + kk + 7) % maxk;
+                    int u0 = uv0 / kernel_w;
+                    int u1 = uv1 / kernel_w;
+                    int u2 = uv2 / kernel_w;
+                    int u3 = uv3 / kernel_w;
+                    int u4 = uv4 / kernel_w;
+                    int u5 = uv5 / kernel_w;
+                    int u6 = uv6 / kernel_w;
+                    int u7 = uv7 / kernel_w;
+                    int v0 = uv0 % kernel_w;
+                    int v1 = uv1 % kernel_w;
+                    int v2 = uv2 % kernel_w;
+                    int v3 = uv3 % kernel_w;
+                    int v4 = uv4 % kernel_w;
+                    int v5 = uv5 % kernel_w;
+                    int v6 = uv6 % kernel_w;
+                    int v7 = uv7 % kernel_w;
+
+                    const Mat img0 = bottom_blob.channel(p0);
+                    const Mat img1 = bottom_blob.channel(p1);
+                    const Mat img2 = bottom_blob.channel(p2);
+                    const Mat img3 = bottom_blob.channel(p3);
+                    const Mat img4 = bottom_blob.channel(p4);
+                    const Mat img5 = bottom_blob.channel(p5);
+                    const Mat img6 = bottom_blob.channel(p6);
+                    const Mat img7 = bottom_blob.channel(p7);
+
+                    int x00 = stride_w * dx0 + dilation_w * v0;
+                    int y00 = stride_h * dy0 + dilation_h * u0;
+
+                    int x10 = stride_w * dx0 + dilation_w * v1;
+                    int y10 = stride_h * dy0 + dilation_h * u1;
+
+                    int x20 = stride_w * dx0 + dilation_w * v2;
+                    int y20 = stride_h * dy0 + dilation_h * u2;
+
+                    int x30 = stride_w * dx0 + dilation_w * v3;
+                    int y30 = stride_h * dy0 + dilation_h * u3;
+
+                    int x40 = stride_w * dx0 + dilation_w * v4;
+                    int y40 = stride_h * dy0 + dilation_h * u4;
+
+                    int x50 = stride_w * dx0 + dilation_w * v5;
+                    int y50 = stride_h * dy0 + dilation_h * u5;
+
+                    int x60 = stride_w * dx0 + dilation_w * v6;
+                    int y60 = stride_h * dy0 + dilation_h * u6;
+
+                    int x70 = stride_w * dx0 + dilation_w * v7;
+                    int y70 = stride_h * dy0 + dilation_h * u7;
+
+                    const signed char* sptr0 = img0.row<const signed char>(y00) + x00;
+                    const signed char* sptr1 = img1.row<const signed char>(y10) + x10;
+                    const signed char* sptr2 = img2.row<const signed char>(y20) + x20;
+                    const signed char* sptr3 = img3.row<const signed char>(y30) + x30;
+                    const signed char* sptr4 = img4.row<const signed char>(y40) + x40;
+                    const signed char* sptr5 = img5.row<const signed char>(y50) + x50;
+                    const signed char* sptr6 = img6.row<const signed char>(y60) + x60;
+                    const signed char* sptr7 = img7.row<const signed char>(y70) + x70;
+
+                    pp[0] = sptr0[0];
+                    pp[1] = sptr1[0];
+                    pp[2] = sptr2[0];
+                    pp[3] = sptr3[0];
+                    pp[4] = sptr4[0];
+                    pp[5] = sptr5[0];
+                    pp[6] = sptr6[0];
+                    pp[7] = sptr7[0];
+                    pp[8] = sptr0[stride_w];
+                    pp[9] = sptr1[stride_w];
+                    pp[10] = sptr2[stride_w];
+                    pp[11] = sptr3[stride_w];
+                    pp[12] = sptr4[stride_w];
+                    pp[13] = sptr5[stride_w];
+                    pp[14] = sptr6[stride_w];
+                    pp[15] = sptr7[stride_w];
+                    pp[16] = sptr0[stride_w * 2];
+                    pp[17] = sptr1[stride_w * 2];
+                    pp[18] = sptr2[stride_w * 2];
+                    pp[19] = sptr3[stride_w * 2];
+                    pp[20] = sptr4[stride_w * 2];
+                    pp[21] = sptr5[stride_w * 2];
+                    pp[22] = sptr6[stride_w * 2];
+                    pp[23] = sptr7[stride_w * 2];
+                    pp[24] = sptr0[stride_w * 3];
+                    pp[25] = sptr1[stride_w * 3];
+                    pp[26] = sptr2[stride_w * 3];
+                    pp[27] = sptr3[stride_w * 3];
+                    pp[28] = sptr4[stride_w * 3];
+                    pp[29] = sptr5[stride_w * 3];
+                    pp[30] = sptr6[stride_w * 3];
+                    pp[31] = sptr7[stride_w * 3];
+                    pp += 32;
+                }
+#endif // __ARM_FEATURE_MATMUL_INT8
+                for (; kk + 3 < max_kk; kk += 4)
+                {
+                    int p0 = (k + kk) / maxk;
+                    int p1 = (k + kk + 1) / maxk;
+                    int p2 = (k + kk + 2) / maxk;
+                    int p3 = (k + kk + 3) / maxk;
+                    int uv0 = (k + kk) % maxk;
+                    int uv1 = (k + kk + 1) % maxk;
+                    int uv2 = (k + kk + 2) % maxk;
+                    int uv3 = (k + kk + 3) % maxk;
+                    int u0 = uv0 / kernel_w;
+                    int u1 = uv1 / kernel_w;
+                    int u2 = uv2 / kernel_w;
+                    int u3 = uv3 / kernel_w;
+                    int v0 = uv0 % kernel_w;
+                    int v1 = uv1 % kernel_w;
+                    int v2 = uv2 % kernel_w;
+                    int v3 = uv3 % kernel_w;
+
+                    const Mat img0 = bottom_blob.channel(p0);
+                    const Mat img1 = bottom_blob.channel(p1);
+                    const Mat img2 = bottom_blob.channel(p2);
+                    const Mat img3 = bottom_blob.channel(p3);
+
+                    int x00 = stride_w * dx0 + dilation_w * v0;
+                    int y00 = stride_h * dy0 + dilation_h * u0;
+
+                    int x10 = stride_w * dx0 + dilation_w * v1;
+                    int y10 = stride_h * dy0 + dilation_h * u1;
+
+                    int x20 = stride_w * dx0 + dilation_w * v2;
+                    int y20 = stride_h * dy0 + dilation_h * u2;
+
+                    int x30 = stride_w * dx0 + dilation_w * v3;
+                    int y30 = stride_h * dy0 + dilation_h * u3;
+
+                    const signed char* sptr0 = img0.row<const signed char>(y00) + x00;
+                    const signed char* sptr1 = img1.row<const signed char>(y10) + x10;
+                    const signed char* sptr2 = img2.row<const signed char>(y20) + x20;
+                    const signed char* sptr3 = img3.row<const signed char>(y30) + x30;
+
+                    pp[0] = sptr0[0];
+                    pp[1] = sptr1[0];
+                    pp[2] = sptr2[0];
+                    pp[3] = sptr3[0];
+                    pp[4] = sptr0[stride_w];
+                    pp[5] = sptr1[stride_w];
+                    pp[6] = sptr2[stride_w];
+                    pp[7] = sptr3[stride_w];
+                    pp[8] = sptr0[stride_w * 2];
+                    pp[9] = sptr1[stride_w * 2];
+                    pp[10] = sptr2[stride_w * 2];
+                    pp[11] = sptr3[stride_w * 2];
+                    pp[12] = sptr0[stride_w * 3];
+                    pp[13] = sptr1[stride_w * 3];
+                    pp[14] = sptr2[stride_w * 3];
+                    pp[15] = sptr3[stride_w * 3];
+                    pp += 16;
+                }
+#endif // __ARM_FEATURE_DOTPROD
+                for (; kk + 1 < max_kk; kk += 2)
+                {
+                    int p0 = (k + kk) / maxk;
+                    int p1 = (k + kk + 1) / maxk;
+                    int uv0 = (k + kk) % maxk;
+                    int uv1 = (k + kk + 1) % maxk;
+                    int u0 = uv0 / kernel_w;
+                    int u1 = uv1 / kernel_w;
+                    int v0 = uv0 % kernel_w;
+                    int v1 = uv1 % kernel_w;
+
+                    const Mat img0 = bottom_blob.channel(p0);
+                    const Mat img1 = bottom_blob.channel(p1);
+
+                    int x00 = stride_w * dx0 + dilation_w * v0;
+                    int y00 = stride_h * dy0 + dilation_h * u0;
+
+                    int x10 = stride_w * dx0 + dilation_w * v1;
+                    int y10 = stride_h * dy0 + dilation_h * u1;
+
+                    const signed char* sptr0 = img0.row<const signed char>(y00) + x00;
+                    const signed char* sptr1 = img1.row<const signed char>(y10) + x10;
+
+                    pp[0] = sptr0[0];
+                    pp[1] = sptr1[0];
+                    pp[2] = sptr0[stride_w];
+                    pp[3] = sptr1[stride_w];
+                    pp[4] = sptr0[stride_w * 2];
+                    pp[5] = sptr1[stride_w * 2];
+                    pp[6] = sptr0[stride_w * 3];
+                    pp[7] = sptr1[stride_w * 3];
+                    pp += 8;
+                }
+            }
+            for (; kk < max_kk / elempack; kk++)
+            {
+                int p = (k / elempack + kk) / maxk;
+                int uv = (k / elempack + kk) % maxk;
+                int u = uv / kernel_w;
+                int v = uv % kernel_w;
+
+                const Mat img = bottom_blob.channel(p);
+
+                int x0 = stride_w * dx0 + dilation_w * v;
+                int y0 = stride_h * dy0 + dilation_h * u;
+
+                const signed char* sptr = img.row<const signed char>(y0) + x0 * elempack;
+
+                if (elempack == 8)
+                {
+#if __ARM_FEATURE_MATMUL_INT8
+                    int8x8_t _r0 = vld1_s8(sptr);
+                    int8x8_t _r1 = vld1_s8(sptr + stride_w * 8);
+                    int8x8_t _r2 = vld1_s8(sptr + stride_w * 16);
+                    int8x8_t _r3 = vld1_s8(sptr + stride_w * 24);
+                    vst1_s8(pp, _r0);
+                    vst1_s8(pp + 8, _r1);
+                    vst1_s8(pp + 16, _r2);
+                    vst1_s8(pp + 24, _r3);
+                    pp += 32;
+#elif __ARM_FEATURE_DOTPROD
+                    int32x2x4_t _r0123;
+                    _r0123.val[0] = vreinterpret_s32_s8(vld1_s8(sptr));
+                    _r0123.val[1] = vreinterpret_s32_s8(vld1_s8(sptr + stride_w * 8));
+                    _r0123.val[2] = vreinterpret_s32_s8(vld1_s8(sptr + stride_w * 16));
+                    _r0123.val[3] = vreinterpret_s32_s8(vld1_s8(sptr + stride_w * 24));
+                    vst4_s32((int*)pp, _r0123);
+                    pp += 32;
+#else  // __ARM_FEATURE_MATMUL_INT8 || __ARM_FEATURE_DOTPROD
+                    int16x4x4_t _r0123;
+                    _r0123.val[0] = vreinterpret_s16_s8(vld1_s8(sptr));
+                    _r0123.val[1] = vreinterpret_s16_s8(vld1_s8(sptr + stride_w * 8));
+                    _r0123.val[2] = vreinterpret_s16_s8(vld1_s8(sptr + stride_w * 16));
+                    _r0123.val[3] = vreinterpret_s16_s8(vld1_s8(sptr + stride_w * 24));
+                    vst4_s16((short*)pp, _r0123);
+                    pp += 32;
+#endif // __ARM_FEATURE_MATMUL_INT8 || __ARM_FEATURE_DOTPROD
+                }
+                if (elempack == 1)
+                {
+                    pp[0] = sptr[0];
+                    pp[1] = sptr[stride_w];
+                    pp[2] = sptr[stride_w * 2];
+                    pp[3] = sptr[stride_w * 3];
+                    pp += 4;
+                }
+            }
+        }
+        else
+        {
+            int kk = 0;
+            if (elempack == 1)
+            {
+#if __ARM_FEATURE_DOTPROD
+#if __ARM_FEATURE_MATMUL_INT8
+                for (; kk + 7 < max_kk; kk += 8)
+                {
+                    int p0 = (k + kk) / maxk;
+                    int p1 = (k + kk + 1) / maxk;
+                    int p2 = (k + kk + 2) / maxk;
+                    int p3 = (k + kk + 3) / maxk;
+                    int p4 = (k + kk + 4) / maxk;
+                    int p5 = (k + kk + 5) / maxk;
+                    int p6 = (k + kk + 6) / maxk;
+                    int p7 = (k + kk + 7) / maxk;
+                    int uv0 = (k + kk) % maxk;
+                    int uv1 = (k + kk + 1) % maxk;
+                    int uv2 = (k + kk + 2) % maxk;
+                    int uv3 = (k + kk + 3) % maxk;
+                    int uv4 = (k + kk + 4) % maxk;
+                    int uv5 = (k + kk + 5) % maxk;
+                    int uv6 = (k + kk + 6) % maxk;
+                    int uv7 = (k + kk + 7) % maxk;
+                    int u0 = uv0 / kernel_w;
+                    int u1 = uv1 / kernel_w;
+                    int u2 = uv2 / kernel_w;
+                    int u3 = uv3 / kernel_w;
+                    int u4 = uv4 / kernel_w;
+                    int u5 = uv5 / kernel_w;
+                    int u6 = uv6 / kernel_w;
+                    int u7 = uv7 / kernel_w;
+                    int v0 = uv0 % kernel_w;
+                    int v1 = uv1 % kernel_w;
+                    int v2 = uv2 % kernel_w;
+                    int v3 = uv3 % kernel_w;
+                    int v4 = uv4 % kernel_w;
+                    int v5 = uv5 % kernel_w;
+                    int v6 = uv6 % kernel_w;
+                    int v7 = uv7 % kernel_w;
+
+                    const Mat img0 = bottom_blob.channel(p0);
+                    const Mat img1 = bottom_blob.channel(p1);
+                    const Mat img2 = bottom_blob.channel(p2);
+                    const Mat img3 = bottom_blob.channel(p3);
+                    const Mat img4 = bottom_blob.channel(p4);
+                    const Mat img5 = bottom_blob.channel(p5);
+                    const Mat img6 = bottom_blob.channel(p6);
+                    const Mat img7 = bottom_blob.channel(p7);
+
+                    int x00 = stride_w * dx0 + dilation_w * v0;
+                    int x01 = stride_w * dx1 + dilation_w * v0;
+                    int x02 = stride_w * dx2 + dilation_w * v0;
+                    int x03 = stride_w * dx3 + dilation_w * v0;
+                    int y00 = stride_h * dy0 + dilation_h * u0;
+                    int y01 = stride_h * dy1 + dilation_h * u0;
+                    int y02 = stride_h * dy2 + dilation_h * u0;
+                    int y03 = stride_h * dy3 + dilation_h * u0;
+
+                    int x10 = stride_w * dx0 + dilation_w * v1;
+                    int x11 = stride_w * dx1 + dilation_w * v1;
+                    int x12 = stride_w * dx2 + dilation_w * v1;
+                    int x13 = stride_w * dx3 + dilation_w * v1;
+                    int y10 = stride_h * dy0 + dilation_h * u1;
+                    int y11 = stride_h * dy1 + dilation_h * u1;
+                    int y12 = stride_h * dy2 + dilation_h * u1;
+                    int y13 = stride_h * dy3 + dilation_h * u1;
+
+                    int x20 = stride_w * dx0 + dilation_w * v2;
+                    int x21 = stride_w * dx1 + dilation_w * v2;
+                    int x22 = stride_w * dx2 + dilation_w * v2;
+                    int x23 = stride_w * dx3 + dilation_w * v2;
+                    int y20 = stride_h * dy0 + dilation_h * u2;
+                    int y21 = stride_h * dy1 + dilation_h * u2;
+                    int y22 = stride_h * dy2 + dilation_h * u2;
+                    int y23 = stride_h * dy3 + dilation_h * u2;
+
+                    int x30 = stride_w * dx0 + dilation_w * v3;
+                    int x31 = stride_w * dx1 + dilation_w * v3;
+                    int x32 = stride_w * dx2 + dilation_w * v3;
+                    int x33 = stride_w * dx3 + dilation_w * v3;
+                    int y30 = stride_h * dy0 + dilation_h * u3;
+                    int y31 = stride_h * dy1 + dilation_h * u3;
+                    int y32 = stride_h * dy2 + dilation_h * u3;
+                    int y33 = stride_h * dy3 + dilation_h * u3;
+
+                    int x40 = stride_w * dx0 + dilation_w * v4;
+                    int x41 = stride_w * dx1 + dilation_w * v4;
+                    int x42 = stride_w * dx2 + dilation_w * v4;
+                    int x43 = stride_w * dx3 + dilation_w * v4;
+                    int y40 = stride_h * dy0 + dilation_h * u4;
+                    int y41 = stride_h * dy1 + dilation_h * u4;
+                    int y42 = stride_h * dy2 + dilation_h * u4;
+                    int y43 = stride_h * dy3 + dilation_h * u4;
+
+                    int x50 = stride_w * dx0 + dilation_w * v5;
+                    int x51 = stride_w * dx1 + dilation_w * v5;
+                    int x52 = stride_w * dx2 + dilation_w * v5;
+                    int x53 = stride_w * dx3 + dilation_w * v5;
+                    int y50 = stride_h * dy0 + dilation_h * u5;
+                    int y51 = stride_h * dy1 + dilation_h * u5;
+                    int y52 = stride_h * dy2 + dilation_h * u5;
+                    int y53 = stride_h * dy3 + dilation_h * u5;
+
+                    int x60 = stride_w * dx0 + dilation_w * v6;
+                    int x61 = stride_w * dx1 + dilation_w * v6;
+                    int x62 = stride_w * dx2 + dilation_w * v6;
+                    int x63 = stride_w * dx3 + dilation_w * v6;
+                    int y60 = stride_h * dy0 + dilation_h * u6;
+                    int y61 = stride_h * dy1 + dilation_h * u6;
+                    int y62 = stride_h * dy2 + dilation_h * u6;
+                    int y63 = stride_h * dy3 + dilation_h * u6;
+
+                    int x70 = stride_w * dx0 + dilation_w * v7;
+                    int x71 = stride_w * dx1 + dilation_w * v7;
+                    int x72 = stride_w * dx2 + dilation_w * v7;
+                    int x73 = stride_w * dx3 + dilation_w * v7;
+                    int y70 = stride_h * dy0 + dilation_h * u7;
+                    int y71 = stride_h * dy1 + dilation_h * u7;
+                    int y72 = stride_h * dy2 + dilation_h * u7;
+                    int y73 = stride_h * dy3 + dilation_h * u7;
+
+                    const signed char* sptr00 = img0.row<const signed char>(y00) + x00;
+                    const signed char* sptr01 = img0.row<const signed char>(y01) + x01;
+                    const signed char* sptr02 = img0.row<const signed char>(y02) + x02;
+                    const signed char* sptr03 = img0.row<const signed char>(y03) + x03;
+
+                    const signed char* sptr10 = img1.row<const signed char>(y10) + x10;
+                    const signed char* sptr11 = img1.row<const signed char>(y11) + x11;
+                    const signed char* sptr12 = img1.row<const signed char>(y12) + x12;
+                    const signed char* sptr13 = img1.row<const signed char>(y13) + x13;
+
+                    const signed char* sptr20 = img2.row<const signed char>(y20) + x20;
+                    const signed char* sptr21 = img2.row<const signed char>(y21) + x21;
+                    const signed char* sptr22 = img2.row<const signed char>(y22) + x22;
+                    const signed char* sptr23 = img2.row<const signed char>(y23) + x23;
+
+                    const signed char* sptr30 = img3.row<const signed char>(y30) + x30;
+                    const signed char* sptr31 = img3.row<const signed char>(y31) + x31;
+                    const signed char* sptr32 = img3.row<const signed char>(y32) + x32;
+                    const signed char* sptr33 = img3.row<const signed char>(y33) + x33;
+
+                    const signed char* sptr40 = img4.row<const signed char>(y40) + x40;
+                    const signed char* sptr41 = img4.row<const signed char>(y41) + x41;
+                    const signed char* sptr42 = img4.row<const signed char>(y42) + x42;
+                    const signed char* sptr43 = img4.row<const signed char>(y43) + x43;
+
+                    const signed char* sptr50 = img5.row<const signed char>(y50) + x50;
+                    const signed char* sptr51 = img5.row<const signed char>(y51) + x51;
+                    const signed char* sptr52 = img5.row<const signed char>(y52) + x52;
+                    const signed char* sptr53 = img5.row<const signed char>(y53) + x53;
+
+                    const signed char* sptr60 = img6.row<const signed char>(y60) + x60;
+                    const signed char* sptr61 = img6.row<const signed char>(y61) + x61;
+                    const signed char* sptr62 = img6.row<const signed char>(y62) + x62;
+                    const signed char* sptr63 = img6.row<const signed char>(y63) + x63;
+
+                    const signed char* sptr70 = img7.row<const signed char>(y70) + x70;
+                    const signed char* sptr71 = img7.row<const signed char>(y71) + x71;
+                    const signed char* sptr72 = img7.row<const signed char>(y72) + x72;
+                    const signed char* sptr73 = img7.row<const signed char>(y73) + x73;
+
+                    pp[0] = sptr00[0];
+                    pp[1] = sptr10[0];
+                    pp[2] = sptr20[0];
+                    pp[3] = sptr30[0];
+                    pp[4] = sptr40[0];
+                    pp[5] = sptr50[0];
+                    pp[6] = sptr60[0];
+                    pp[7] = sptr70[0];
+                    pp[8] = sptr01[0];
+                    pp[9] = sptr11[0];
+                    pp[10] = sptr21[0];
+                    pp[11] = sptr31[0];
+                    pp[12] = sptr41[0];
+                    pp[13] = sptr51[0];
+                    pp[14] = sptr61[0];
+                    pp[15] = sptr71[0];
+                    pp[16] = sptr02[0];
+                    pp[17] = sptr12[0];
+                    pp[18] = sptr22[0];
+                    pp[19] = sptr32[0];
+                    pp[20] = sptr42[0];
+                    pp[21] = sptr52[0];
+                    pp[22] = sptr62[0];
+                    pp[23] = sptr72[0];
+                    pp[24] = sptr03[0];
+                    pp[25] = sptr13[0];
+                    pp[26] = sptr23[0];
+                    pp[27] = sptr33[0];
+                    pp[28] = sptr43[0];
+                    pp[29] = sptr53[0];
+                    pp[30] = sptr63[0];
+                    pp[31] = sptr73[0];
+                    pp += 32;
+                }
+#endif // __ARM_FEATURE_MATMUL_INT8
+                for (; kk + 3 < max_kk; kk += 4)
+                {
+                    int p0 = (k + kk) / maxk;
+                    int p1 = (k + kk + 1) / maxk;
+                    int p2 = (k + kk + 2) / maxk;
+                    int p3 = (k + kk + 3) / maxk;
+                    int uv0 = (k + kk) % maxk;
+                    int uv1 = (k + kk + 1) % maxk;
+                    int uv2 = (k + kk + 2) % maxk;
+                    int uv3 = (k + kk + 3) % maxk;
+                    int u0 = uv0 / kernel_w;
+                    int u1 = uv1 / kernel_w;
+                    int u2 = uv2 / kernel_w;
+                    int u3 = uv3 / kernel_w;
+                    int v0 = uv0 % kernel_w;
+                    int v1 = uv1 % kernel_w;
+                    int v2 = uv2 % kernel_w;
+                    int v3 = uv3 % kernel_w;
+
+                    const Mat img0 = bottom_blob.channel(p0);
+                    const Mat img1 = bottom_blob.channel(p1);
+                    const Mat img2 = bottom_blob.channel(p2);
+                    const Mat img3 = bottom_blob.channel(p3);
+
+                    int x00 = stride_w * dx0 + dilation_w * v0;
+                    int x01 = stride_w * dx1 + dilation_w * v0;
+                    int x02 = stride_w * dx2 + dilation_w * v0;
+                    int x03 = stride_w * dx3 + dilation_w * v0;
+                    int y00 = stride_h * dy0 + dilation_h * u0;
+                    int y01 = stride_h * dy1 + dilation_h * u0;
+                    int y02 = stride_h * dy2 + dilation_h * u0;
+                    int y03 = stride_h * dy3 + dilation_h * u0;
+
+                    int x10 = stride_w * dx0 + dilation_w * v1;
+                    int x11 = stride_w * dx1 + dilation_w * v1;
+                    int x12 = stride_w * dx2 + dilation_w * v1;
+                    int x13 = stride_w * dx3 + dilation_w * v1;
+                    int y10 = stride_h * dy0 + dilation_h * u1;
+                    int y11 = stride_h * dy1 + dilation_h * u1;
+                    int y12 = stride_h * dy2 + dilation_h * u1;
+                    int y13 = stride_h * dy3 + dilation_h * u1;
+
+                    int x20 = stride_w * dx0 + dilation_w * v2;
+                    int x21 = stride_w * dx1 + dilation_w * v2;
+                    int x22 = stride_w * dx2 + dilation_w * v2;
+                    int x23 = stride_w * dx3 + dilation_w * v2;
+                    int y20 = stride_h * dy0 + dilation_h * u2;
+                    int y21 = stride_h * dy1 + dilation_h * u2;
+                    int y22 = stride_h * dy2 + dilation_h * u2;
+                    int y23 = stride_h * dy3 + dilation_h * u2;
+
+                    int x30 = stride_w * dx0 + dilation_w * v3;
+                    int x31 = stride_w * dx1 + dilation_w * v3;
+                    int x32 = stride_w * dx2 + dilation_w * v3;
+                    int x33 = stride_w * dx3 + dilation_w * v3;
+                    int y30 = stride_h * dy0 + dilation_h * u3;
+                    int y31 = stride_h * dy1 + dilation_h * u3;
+                    int y32 = stride_h * dy2 + dilation_h * u3;
+                    int y33 = stride_h * dy3 + dilation_h * u3;
+
+                    const signed char* sptr00 = img0.row<const signed char>(y00) + x00;
+                    const signed char* sptr01 = img0.row<const signed char>(y01) + x01;
+                    const signed char* sptr02 = img0.row<const signed char>(y02) + x02;
+                    const signed char* sptr03 = img0.row<const signed char>(y03) + x03;
+
+                    const signed char* sptr10 = img1.row<const signed char>(y10) + x10;
+                    const signed char* sptr11 = img1.row<const signed char>(y11) + x11;
+                    const signed char* sptr12 = img1.row<const signed char>(y12) + x12;
+                    const signed char* sptr13 = img1.row<const signed char>(y13) + x13;
+
+                    const signed char* sptr20 = img2.row<const signed char>(y20) + x20;
+                    const signed char* sptr21 = img2.row<const signed char>(y21) + x21;
+                    const signed char* sptr22 = img2.row<const signed char>(y22) + x22;
+                    const signed char* sptr23 = img2.row<const signed char>(y23) + x23;
+
+                    const signed char* sptr30 = img3.row<const signed char>(y30) + x30;
+                    const signed char* sptr31 = img3.row<const signed char>(y31) + x31;
+                    const signed char* sptr32 = img3.row<const signed char>(y32) + x32;
+                    const signed char* sptr33 = img3.row<const signed char>(y33) + x33;
+
+                    pp[0] = sptr00[0];
+                    pp[1] = sptr10[0];
+                    pp[2] = sptr20[0];
+                    pp[3] = sptr30[0];
+                    pp[4] = sptr01[0];
+                    pp[5] = sptr11[0];
+                    pp[6] = sptr21[0];
+                    pp[7] = sptr31[0];
+                    pp[8] = sptr02[0];
+                    pp[9] = sptr12[0];
+                    pp[10] = sptr22[0];
+                    pp[11] = sptr32[0];
+                    pp[12] = sptr03[0];
+                    pp[13] = sptr13[0];
+                    pp[14] = sptr23[0];
+                    pp[15] = sptr33[0];
+                    pp += 16;
+                }
+#endif // __ARM_FEATURE_DOTPROD
+                for (; kk + 1 < max_kk; kk += 2)
+                {
+                    int p0 = (k + kk) / maxk;
+                    int p1 = (k + kk + 1) / maxk;
+                    int uv0 = (k + kk) % maxk;
+                    int uv1 = (k + kk + 1) % maxk;
+                    int u0 = uv0 / kernel_w;
+                    int u1 = uv1 / kernel_w;
+                    int v0 = uv0 % kernel_w;
+                    int v1 = uv1 % kernel_w;
+
+                    const Mat img0 = bottom_blob.channel(p0);
+                    const Mat img1 = bottom_blob.channel(p1);
+
+                    int x00 = stride_w * dx0 + dilation_w * v0;
+                    int x01 = stride_w * dx1 + dilation_w * v0;
+                    int x02 = stride_w * dx2 + dilation_w * v0;
+                    int x03 = stride_w * dx3 + dilation_w * v0;
+                    int y00 = stride_h * dy0 + dilation_h * u0;
+                    int y01 = stride_h * dy1 + dilation_h * u0;
+                    int y02 = stride_h * dy2 + dilation_h * u0;
+                    int y03 = stride_h * dy3 + dilation_h * u0;
+
+                    int x10 = stride_w * dx0 + dilation_w * v1;
+                    int x11 = stride_w * dx1 + dilation_w * v1;
+                    int x12 = stride_w * dx2 + dilation_w * v1;
+                    int x13 = stride_w * dx3 + dilation_w * v1;
+                    int y10 = stride_h * dy0 + dilation_h * u1;
+                    int y11 = stride_h * dy1 + dilation_h * u1;
+                    int y12 = stride_h * dy2 + dilation_h * u1;
+                    int y13 = stride_h * dy3 + dilation_h * u1;
+
+                    const signed char* sptr00 = img0.row<const signed char>(y00) + x00;
+                    const signed char* sptr01 = img0.row<const signed char>(y01) + x01;
+                    const signed char* sptr02 = img0.row<const signed char>(y02) + x02;
+                    const signed char* sptr03 = img0.row<const signed char>(y03) + x03;
+
+                    const signed char* sptr10 = img1.row<const signed char>(y10) + x10;
+                    const signed char* sptr11 = img1.row<const signed char>(y11) + x11;
+                    const signed char* sptr12 = img1.row<const signed char>(y12) + x12;
+                    const signed char* sptr13 = img1.row<const signed char>(y13) + x13;
+
+                    pp[0] = sptr00[0];
+                    pp[1] = sptr10[0];
+                    pp[2] = sptr01[0];
+                    pp[3] = sptr11[0];
+                    pp[4] = sptr02[0];
+                    pp[5] = sptr12[0];
+                    pp[6] = sptr03[0];
+                    pp[7] = sptr13[0];
+                    pp += 8;
+                }
+            }
+            for (; kk < max_kk / elempack; kk++)
+            {
+                int p = (k / elempack + kk) / maxk;
+                int uv = (k / elempack + kk) % maxk;
+                int u = uv / kernel_w;
+                int v = uv % kernel_w;
+
+                const Mat img = bottom_blob.channel(p);
+
+                int x0 = stride_w * dx0 + dilation_w * v;
+                int x1 = stride_w * dx1 + dilation_w * v;
+                int x2 = stride_w * dx2 + dilation_w * v;
+                int x3 = stride_w * dx3 + dilation_w * v;
+                int y0 = stride_h * dy0 + dilation_h * u;
+                int y1 = stride_h * dy1 + dilation_h * u;
+                int y2 = stride_h * dy2 + dilation_h * u;
+                int y3 = stride_h * dy3 + dilation_h * u;
+
+                const signed char* sptr0 = img.row<const signed char>(y0) + x0 * elempack;
+                const signed char* sptr1 = img.row<const signed char>(y1) + x1 * elempack;
+                const signed char* sptr2 = img.row<const signed char>(y2) + x2 * elempack;
+                const signed char* sptr3 = img.row<const signed char>(y3) + x3 * elempack;
+
+                if (elempack == 8)
+                {
+#if __ARM_FEATURE_MATMUL_INT8
+                    int8x8_t _r0 = vld1_s8(sptr0);
+                    int8x8_t _r1 = vld1_s8(sptr1);
+                    int8x8_t _r2 = vld1_s8(sptr2);
+                    int8x8_t _r3 = vld1_s8(sptr3);
+                    vst1_s8(pp, _r0);
+                    vst1_s8(pp + 8, _r1);
+                    vst1_s8(pp + 16, _r2);
+                    vst1_s8(pp + 24, _r3);
+                    pp += 32;
+#elif __ARM_FEATURE_DOTPROD
+                    int32x2x4_t _r0123;
+                    _r0123.val[0] = vreinterpret_s32_s8(vld1_s8(sptr0));
+                    _r0123.val[1] = vreinterpret_s32_s8(vld1_s8(sptr1));
+                    _r0123.val[2] = vreinterpret_s32_s8(vld1_s8(sptr2));
+                    _r0123.val[3] = vreinterpret_s32_s8(vld1_s8(sptr3));
+                    vst4_s32((int*)pp, _r0123);
+                    pp += 32;
+#else  // __ARM_FEATURE_MATMUL_INT8 || __ARM_FEATURE_DOTPROD
+                    int16x4x4_t _r0123;
+                    _r0123.val[0] = vreinterpret_s16_s8(vld1_s8(sptr0));
+                    _r0123.val[1] = vreinterpret_s16_s8(vld1_s8(sptr1));
+                    _r0123.val[2] = vreinterpret_s16_s8(vld1_s8(sptr2));
+                    _r0123.val[3] = vreinterpret_s16_s8(vld1_s8(sptr3));
+                    vst4_s16((short*)pp, _r0123);
+                    pp += 32;
+#endif // __ARM_FEATURE_MATMUL_INT8 || __ARM_FEATURE_DOTPROD
+                }
+                if (elempack == 1)
+                {
+                    pp[0] = sptr0[0];
+                    pp[1] = sptr1[0];
+                    pp[2] = sptr2[0];
+                    pp[3] = sptr3[0];
+                    pp += 4;
+                }
             }
         }
     }
@@ -8839,272 +9583,501 @@ static void convolution_im2col_input_tile_int8(const Mat& bottom_blob, Mat& B, i
         int dx0 = (j + jj) % outw;
         int dx1 = (j + jj + 1) % outw;
 
-        int kk = 0;
-#if __ARM_NEON
-        if (elempack == 1)
+        if (dy0 == dy1)
         {
-#if __ARM_FEATURE_DOTPROD
-#if __ARM_FEATURE_MATMUL_INT8
-            for (; kk + 7 < max_kk; kk += 8)
-            {
-                int p0 = (k + kk) / maxk;
-                int p1 = (k + kk + 1) / maxk;
-                int p2 = (k + kk + 2) / maxk;
-                int p3 = (k + kk + 3) / maxk;
-                int p4 = (k + kk + 4) / maxk;
-                int p5 = (k + kk + 5) / maxk;
-                int p6 = (k + kk + 6) / maxk;
-                int p7 = (k + kk + 7) / maxk;
-                int uv0 = (k + kk) % maxk;
-                int uv1 = (k + kk + 1) % maxk;
-                int uv2 = (k + kk + 2) % maxk;
-                int uv3 = (k + kk + 3) % maxk;
-                int uv4 = (k + kk + 4) % maxk;
-                int uv5 = (k + kk + 5) % maxk;
-                int uv6 = (k + kk + 6) % maxk;
-                int uv7 = (k + kk + 7) % maxk;
-                int u0 = uv0 / kernel_w;
-                int u1 = uv1 / kernel_w;
-                int u2 = uv2 / kernel_w;
-                int u3 = uv3 / kernel_w;
-                int u4 = uv4 / kernel_w;
-                int u5 = uv5 / kernel_w;
-                int u6 = uv6 / kernel_w;
-                int u7 = uv7 / kernel_w;
-                int v0 = uv0 % kernel_w;
-                int v1 = uv1 % kernel_w;
-                int v2 = uv2 % kernel_w;
-                int v3 = uv3 % kernel_w;
-                int v4 = uv4 % kernel_w;
-                int v5 = uv5 % kernel_w;
-                int v6 = uv6 % kernel_w;
-                int v7 = uv7 % kernel_w;
-
-                const Mat img0 = bottom_blob.channel(p0);
-                const Mat img1 = bottom_blob.channel(p1);
-                const Mat img2 = bottom_blob.channel(p2);
-                const Mat img3 = bottom_blob.channel(p3);
-                const Mat img4 = bottom_blob.channel(p4);
-                const Mat img5 = bottom_blob.channel(p5);
-                const Mat img6 = bottom_blob.channel(p6);
-                const Mat img7 = bottom_blob.channel(p7);
-
-                int x00 = stride_w * dx0 + dilation_w * v0;
-                int x01 = stride_w * dx1 + dilation_w * v0;
-                int y00 = stride_h * dy0 + dilation_h * u0;
-                int y01 = stride_h * dy1 + dilation_h * u0;
-                int x10 = stride_w * dx0 + dilation_w * v1;
-                int x11 = stride_w * dx1 + dilation_w * v1;
-                int y10 = stride_h * dy0 + dilation_h * u1;
-                int y11 = stride_h * dy1 + dilation_h * u1;
-
-                int x20 = stride_w * dx0 + dilation_w * v2;
-                int x21 = stride_w * dx1 + dilation_w * v2;
-                int y20 = stride_h * dy0 + dilation_h * u2;
-                int y21 = stride_h * dy1 + dilation_h * u2;
-                int x30 = stride_w * dx0 + dilation_w * v3;
-                int x31 = stride_w * dx1 + dilation_w * v3;
-                int y30 = stride_h * dy0 + dilation_h * u3;
-                int y31 = stride_h * dy1 + dilation_h * u3;
-
-                int x40 = stride_w * dx0 + dilation_w * v4;
-                int x41 = stride_w * dx1 + dilation_w * v4;
-                int y40 = stride_h * dy0 + dilation_h * u4;
-                int y41 = stride_h * dy1 + dilation_h * u4;
-                int x50 = stride_w * dx0 + dilation_w * v5;
-                int x51 = stride_w * dx1 + dilation_w * v5;
-                int y50 = stride_h * dy0 + dilation_h * u5;
-                int y51 = stride_h * dy1 + dilation_h * u5;
-
-                int x60 = stride_w * dx0 + dilation_w * v6;
-                int x61 = stride_w * dx1 + dilation_w * v6;
-                int y60 = stride_h * dy0 + dilation_h * u6;
-                int y61 = stride_h * dy1 + dilation_h * u6;
-                int x70 = stride_w * dx0 + dilation_w * v7;
-                int x71 = stride_w * dx1 + dilation_w * v7;
-                int y70 = stride_h * dy0 + dilation_h * u7;
-                int y71 = stride_h * dy1 + dilation_h * u7;
-
-                const signed char* sptr00 = img0.row<const signed char>(y00) + x00;
-                const signed char* sptr01 = img0.row<const signed char>(y01) + x01;
-                const signed char* sptr10 = img1.row<const signed char>(y10) + x10;
-                const signed char* sptr11 = img1.row<const signed char>(y11) + x11;
-                const signed char* sptr20 = img2.row<const signed char>(y20) + x20;
-                const signed char* sptr21 = img2.row<const signed char>(y21) + x21;
-                const signed char* sptr30 = img3.row<const signed char>(y30) + x30;
-                const signed char* sptr31 = img3.row<const signed char>(y31) + x31;
-
-                const signed char* sptr40 = img4.row<const signed char>(y40) + x40;
-                const signed char* sptr41 = img4.row<const signed char>(y41) + x41;
-                const signed char* sptr50 = img5.row<const signed char>(y50) + x50;
-                const signed char* sptr51 = img5.row<const signed char>(y51) + x51;
-                const signed char* sptr60 = img6.row<const signed char>(y60) + x60;
-                const signed char* sptr61 = img6.row<const signed char>(y61) + x61;
-                const signed char* sptr70 = img7.row<const signed char>(y70) + x70;
-                const signed char* sptr71 = img7.row<const signed char>(y71) + x71;
-
-                pp[0] = sptr00[0];
-                pp[1] = sptr10[0];
-                pp[2] = sptr20[0];
-                pp[3] = sptr30[0];
-                pp[4] = sptr40[0];
-                pp[5] = sptr50[0];
-                pp[6] = sptr60[0];
-                pp[7] = sptr70[0];
-                pp[8] = sptr01[0];
-                pp[9] = sptr11[0];
-                pp[10] = sptr21[0];
-                pp[11] = sptr31[0];
-                pp[12] = sptr41[0];
-                pp[13] = sptr51[0];
-                pp[14] = sptr61[0];
-                pp[15] = sptr71[0];
-                pp += 16;
-            }
-#endif // __ARM_FEATURE_MATMUL_INT8
-            for (; kk + 3 < max_kk; kk += 4)
-            {
-                int p0 = (k + kk) / maxk;
-                int p1 = (k + kk + 1) / maxk;
-                int p2 = (k + kk + 2) / maxk;
-                int p3 = (k + kk + 3) / maxk;
-                int uv0 = (k + kk) % maxk;
-                int uv1 = (k + kk + 1) % maxk;
-                int uv2 = (k + kk + 2) % maxk;
-                int uv3 = (k + kk + 3) % maxk;
-                int u0 = uv0 / kernel_w;
-                int u1 = uv1 / kernel_w;
-                int u2 = uv2 / kernel_w;
-                int u3 = uv3 / kernel_w;
-                int v0 = uv0 % kernel_w;
-                int v1 = uv1 % kernel_w;
-                int v2 = uv2 % kernel_w;
-                int v3 = uv3 % kernel_w;
-
-                const Mat img0 = bottom_blob.channel(p0);
-                const Mat img1 = bottom_blob.channel(p1);
-                const Mat img2 = bottom_blob.channel(p2);
-                const Mat img3 = bottom_blob.channel(p3);
-
-                int x00 = stride_w * dx0 + dilation_w * v0;
-                int x01 = stride_w * dx1 + dilation_w * v0;
-                int y00 = stride_h * dy0 + dilation_h * u0;
-                int y01 = stride_h * dy1 + dilation_h * u0;
-                int x10 = stride_w * dx0 + dilation_w * v1;
-                int x11 = stride_w * dx1 + dilation_w * v1;
-                int y10 = stride_h * dy0 + dilation_h * u1;
-                int y11 = stride_h * dy1 + dilation_h * u1;
-                int x20 = stride_w * dx0 + dilation_w * v2;
-                int x21 = stride_w * dx1 + dilation_w * v2;
-                int y20 = stride_h * dy0 + dilation_h * u2;
-                int y21 = stride_h * dy1 + dilation_h * u2;
-                int x30 = stride_w * dx0 + dilation_w * v3;
-                int x31 = stride_w * dx1 + dilation_w * v3;
-                int y30 = stride_h * dy0 + dilation_h * u3;
-                int y31 = stride_h * dy1 + dilation_h * u3;
-
-                const signed char* sptr00 = img0.row<const signed char>(y00) + x00;
-                const signed char* sptr01 = img0.row<const signed char>(y01) + x01;
-                const signed char* sptr10 = img1.row<const signed char>(y10) + x10;
-                const signed char* sptr11 = img1.row<const signed char>(y11) + x11;
-                const signed char* sptr20 = img2.row<const signed char>(y20) + x20;
-                const signed char* sptr21 = img2.row<const signed char>(y21) + x21;
-                const signed char* sptr30 = img3.row<const signed char>(y30) + x30;
-                const signed char* sptr31 = img3.row<const signed char>(y31) + x31;
-
-                pp[0] = sptr00[0];
-                pp[1] = sptr10[0];
-                pp[2] = sptr20[0];
-                pp[3] = sptr30[0];
-                pp[4] = sptr01[0];
-                pp[5] = sptr11[0];
-                pp[6] = sptr21[0];
-                pp[7] = sptr31[0];
-                pp += 8;
-            }
-#endif // __ARM_FEATURE_DOTPROD
-            for (; kk + 1 < max_kk; kk += 2)
-            {
-                int p0 = (k + kk) / maxk;
-                int p1 = (k + kk + 1) / maxk;
-                int uv0 = (k + kk) % maxk;
-                int uv1 = (k + kk + 1) % maxk;
-                int u0 = uv0 / kernel_w;
-                int u1 = uv1 / kernel_w;
-                int v0 = uv0 % kernel_w;
-                int v1 = uv1 % kernel_w;
-
-                const Mat img0 = bottom_blob.channel(p0);
-                const Mat img1 = bottom_blob.channel(p1);
-
-                int x00 = stride_w * dx0 + dilation_w * v0;
-                int x01 = stride_w * dx1 + dilation_w * v0;
-                int y00 = stride_h * dy0 + dilation_h * u0;
-                int y01 = stride_h * dy1 + dilation_h * u0;
-                int x10 = stride_w * dx0 + dilation_w * v1;
-                int x11 = stride_w * dx1 + dilation_w * v1;
-                int y10 = stride_h * dy0 + dilation_h * u1;
-                int y11 = stride_h * dy1 + dilation_h * u1;
-
-                const signed char* sptr00 = img0.row<const signed char>(y00) + x00;
-                const signed char* sptr01 = img0.row<const signed char>(y01) + x01;
-                const signed char* sptr10 = img1.row<const signed char>(y10) + x10;
-                const signed char* sptr11 = img1.row<const signed char>(y11) + x11;
-
-                pp[0] = sptr00[0];
-                pp[1] = sptr10[0];
-                pp[2] = sptr01[0];
-                pp[3] = sptr11[0];
-                pp += 4;
-            }
-        }
-#endif // __ARM_NEON
-        for (; kk < max_kk / elempack; kk++)
-        {
-            int p = (k / elempack + kk) / maxk;
-            int uv = (k / elempack + kk) % maxk;
-            int u = uv / kernel_w;
-            int v = uv % kernel_w;
-
-            const Mat img = bottom_blob.channel(p);
-
-            int x0 = stride_w * dx0 + dilation_w * v;
-            int x1 = stride_w * dx1 + dilation_w * v;
-            int y0 = stride_h * dy0 + dilation_h * u;
-            int y1 = stride_h * dy1 + dilation_h * u;
-
-            const signed char* sptr0 = img.row<const signed char>(y0) + x0 * elempack;
-            const signed char* sptr1 = img.row<const signed char>(y1) + x1 * elempack;
-
+            int kk = 0;
 #if __ARM_NEON
-            if (elempack == 8)
-            {
-#if __ARM_FEATURE_MATMUL_INT8
-                int8x8_t _r0 = vld1_s8(sptr0);
-                int8x8_t _r1 = vld1_s8(sptr1);
-                vst1_s8(pp, _r0);
-                vst1_s8(pp + 8, _r1);
-                pp += 16;
-#elif __ARM_FEATURE_DOTPROD
-                int32x2x2_t _r01;
-                _r01.val[0] = vreinterpret_s32_s8(vld1_s8(sptr0));
-                _r01.val[1] = vreinterpret_s32_s8(vld1_s8(sptr1));
-                vst2_s32((int*)pp, _r01);
-                pp += 16;
-#else  // __ARM_FEATURE_MATMUL_INT8 || __ARM_FEATURE_DOTPROD
-                int16x4x2_t _r01;
-                _r01.val[0] = vreinterpret_s16_s8(vld1_s8(sptr0));
-                _r01.val[1] = vreinterpret_s16_s8(vld1_s8(sptr1));
-                vst2_s16((short*)pp, _r01);
-                pp += 16;
-#endif // __ARM_FEATURE_MATMUL_INT8 || __ARM_FEATURE_DOTPROD
-            }
-#endif // __ARM_NEON
             if (elempack == 1)
             {
-                pp[0] = sptr0[0];
-                pp[1] = sptr1[0];
-                pp += 2;
+#if __ARM_FEATURE_DOTPROD
+#if __ARM_FEATURE_MATMUL_INT8
+                for (; kk + 7 < max_kk; kk += 8)
+                {
+                    int p0 = (k + kk) / maxk;
+                    int p1 = (k + kk + 1) / maxk;
+                    int p2 = (k + kk + 2) / maxk;
+                    int p3 = (k + kk + 3) / maxk;
+                    int p4 = (k + kk + 4) / maxk;
+                    int p5 = (k + kk + 5) / maxk;
+                    int p6 = (k + kk + 6) / maxk;
+                    int p7 = (k + kk + 7) / maxk;
+                    int uv0 = (k + kk) % maxk;
+                    int uv1 = (k + kk + 1) % maxk;
+                    int uv2 = (k + kk + 2) % maxk;
+                    int uv3 = (k + kk + 3) % maxk;
+                    int uv4 = (k + kk + 4) % maxk;
+                    int uv5 = (k + kk + 5) % maxk;
+                    int uv6 = (k + kk + 6) % maxk;
+                    int uv7 = (k + kk + 7) % maxk;
+                    int u0 = uv0 / kernel_w;
+                    int u1 = uv1 / kernel_w;
+                    int u2 = uv2 / kernel_w;
+                    int u3 = uv3 / kernel_w;
+                    int u4 = uv4 / kernel_w;
+                    int u5 = uv5 / kernel_w;
+                    int u6 = uv6 / kernel_w;
+                    int u7 = uv7 / kernel_w;
+                    int v0 = uv0 % kernel_w;
+                    int v1 = uv1 % kernel_w;
+                    int v2 = uv2 % kernel_w;
+                    int v3 = uv3 % kernel_w;
+                    int v4 = uv4 % kernel_w;
+                    int v5 = uv5 % kernel_w;
+                    int v6 = uv6 % kernel_w;
+                    int v7 = uv7 % kernel_w;
+
+                    const Mat img0 = bottom_blob.channel(p0);
+                    const Mat img1 = bottom_blob.channel(p1);
+                    const Mat img2 = bottom_blob.channel(p2);
+                    const Mat img3 = bottom_blob.channel(p3);
+                    const Mat img4 = bottom_blob.channel(p4);
+                    const Mat img5 = bottom_blob.channel(p5);
+                    const Mat img6 = bottom_blob.channel(p6);
+                    const Mat img7 = bottom_blob.channel(p7);
+
+                    int x00 = stride_w * dx0 + dilation_w * v0;
+                    int y00 = stride_h * dy0 + dilation_h * u0;
+                    int x10 = stride_w * dx0 + dilation_w * v1;
+                    int y10 = stride_h * dy0 + dilation_h * u1;
+
+                    int x20 = stride_w * dx0 + dilation_w * v2;
+                    int y20 = stride_h * dy0 + dilation_h * u2;
+                    int x30 = stride_w * dx0 + dilation_w * v3;
+                    int y30 = stride_h * dy0 + dilation_h * u3;
+
+                    int x40 = stride_w * dx0 + dilation_w * v4;
+                    int y40 = stride_h * dy0 + dilation_h * u4;
+                    int x50 = stride_w * dx0 + dilation_w * v5;
+                    int y50 = stride_h * dy0 + dilation_h * u5;
+
+                    int x60 = stride_w * dx0 + dilation_w * v6;
+                    int y60 = stride_h * dy0 + dilation_h * u6;
+                    int x70 = stride_w * dx0 + dilation_w * v7;
+                    int y70 = stride_h * dy0 + dilation_h * u7;
+
+                    const signed char* sptr0 = img0.row<const signed char>(y00) + x00;
+                    const signed char* sptr1 = img1.row<const signed char>(y10) + x10;
+                    const signed char* sptr2 = img2.row<const signed char>(y20) + x20;
+                    const signed char* sptr3 = img3.row<const signed char>(y30) + x30;
+
+                    const signed char* sptr4 = img4.row<const signed char>(y40) + x40;
+                    const signed char* sptr5 = img5.row<const signed char>(y50) + x50;
+                    const signed char* sptr6 = img6.row<const signed char>(y60) + x60;
+                    const signed char* sptr7 = img7.row<const signed char>(y70) + x70;
+
+                    pp[0] = sptr0[0];
+                    pp[1] = sptr1[0];
+                    pp[2] = sptr2[0];
+                    pp[3] = sptr3[0];
+                    pp[4] = sptr4[0];
+                    pp[5] = sptr5[0];
+                    pp[6] = sptr6[0];
+                    pp[7] = sptr7[0];
+                    pp[8] = sptr0[stride_w];
+                    pp[9] = sptr1[stride_w];
+                    pp[10] = sptr2[stride_w];
+                    pp[11] = sptr3[stride_w];
+                    pp[12] = sptr4[stride_w];
+                    pp[13] = sptr5[stride_w];
+                    pp[14] = sptr6[stride_w];
+                    pp[15] = sptr7[stride_w];
+                    pp += 16;
+                }
+#endif // __ARM_FEATURE_MATMUL_INT8
+                for (; kk + 3 < max_kk; kk += 4)
+                {
+                    int p0 = (k + kk) / maxk;
+                    int p1 = (k + kk + 1) / maxk;
+                    int p2 = (k + kk + 2) / maxk;
+                    int p3 = (k + kk + 3) / maxk;
+                    int uv0 = (k + kk) % maxk;
+                    int uv1 = (k + kk + 1) % maxk;
+                    int uv2 = (k + kk + 2) % maxk;
+                    int uv3 = (k + kk + 3) % maxk;
+                    int u0 = uv0 / kernel_w;
+                    int u1 = uv1 / kernel_w;
+                    int u2 = uv2 / kernel_w;
+                    int u3 = uv3 / kernel_w;
+                    int v0 = uv0 % kernel_w;
+                    int v1 = uv1 % kernel_w;
+                    int v2 = uv2 % kernel_w;
+                    int v3 = uv3 % kernel_w;
+
+                    const Mat img0 = bottom_blob.channel(p0);
+                    const Mat img1 = bottom_blob.channel(p1);
+                    const Mat img2 = bottom_blob.channel(p2);
+                    const Mat img3 = bottom_blob.channel(p3);
+
+                    int x00 = stride_w * dx0 + dilation_w * v0;
+                    int y00 = stride_h * dy0 + dilation_h * u0;
+                    int x10 = stride_w * dx0 + dilation_w * v1;
+                    int y10 = stride_h * dy0 + dilation_h * u1;
+                    int x20 = stride_w * dx0 + dilation_w * v2;
+                    int y20 = stride_h * dy0 + dilation_h * u2;
+                    int x30 = stride_w * dx0 + dilation_w * v3;
+                    int y30 = stride_h * dy0 + dilation_h * u3;
+
+                    const signed char* sptr0 = img0.row<const signed char>(y00) + x00;
+                    const signed char* sptr1 = img1.row<const signed char>(y10) + x10;
+                    const signed char* sptr2 = img2.row<const signed char>(y20) + x20;
+                    const signed char* sptr3 = img3.row<const signed char>(y30) + x30;
+
+                    pp[0] = sptr0[0];
+                    pp[1] = sptr1[0];
+                    pp[2] = sptr2[0];
+                    pp[3] = sptr3[0];
+                    pp[4] = sptr0[stride_w];
+                    pp[5] = sptr1[stride_w];
+                    pp[6] = sptr2[stride_w];
+                    pp[7] = sptr3[stride_w];
+                    pp += 8;
+                }
+#endif // __ARM_FEATURE_DOTPROD
+                for (; kk + 1 < max_kk; kk += 2)
+                {
+                    int p0 = (k + kk) / maxk;
+                    int p1 = (k + kk + 1) / maxk;
+                    int uv0 = (k + kk) % maxk;
+                    int uv1 = (k + kk + 1) % maxk;
+                    int u0 = uv0 / kernel_w;
+                    int u1 = uv1 / kernel_w;
+                    int v0 = uv0 % kernel_w;
+                    int v1 = uv1 % kernel_w;
+
+                    const Mat img0 = bottom_blob.channel(p0);
+                    const Mat img1 = bottom_blob.channel(p1);
+
+                    int x00 = stride_w * dx0 + dilation_w * v0;
+                    int y00 = stride_h * dy0 + dilation_h * u0;
+                    int x10 = stride_w * dx0 + dilation_w * v1;
+                    int y10 = stride_h * dy0 + dilation_h * u1;
+
+                    const signed char* sptr0 = img0.row<const signed char>(y00) + x00;
+                    const signed char* sptr1 = img1.row<const signed char>(y10) + x10;
+
+                    pp[0] = sptr0[0];
+                    pp[1] = sptr1[0];
+                    pp[2] = sptr0[stride_w];
+                    pp[3] = sptr1[stride_w];
+                    pp += 4;
+                }
+            }
+#endif // __ARM_NEON
+            for (; kk < max_kk / elempack; kk++)
+            {
+                int p = (k / elempack + kk) / maxk;
+                int uv = (k / elempack + kk) % maxk;
+                int u = uv / kernel_w;
+                int v = uv % kernel_w;
+
+                const Mat img = bottom_blob.channel(p);
+
+                int x0 = stride_w * dx0 + dilation_w * v;
+                int y0 = stride_h * dy0 + dilation_h * u;
+
+                const signed char* sptr = img.row<const signed char>(y0) + x0 * elempack;
+
+#if __ARM_NEON
+                if (elempack == 8)
+                {
+#if __ARM_FEATURE_MATMUL_INT8
+                    int8x8_t _r0 = vld1_s8(sptr);
+                    int8x8_t _r1 = vld1_s8(sptr + stride_w * 8);
+                    vst1_s8(pp, _r0);
+                    vst1_s8(pp + 8, _r1);
+                    pp += 16;
+#elif __ARM_FEATURE_DOTPROD
+                    int32x2x2_t _r01;
+                    _r01.val[0] = vreinterpret_s32_s8(vld1_s8(sptr));
+                    _r01.val[1] = vreinterpret_s32_s8(vld1_s8(sptr + stride_w * 8));
+                    vst2_s32((int*)pp, _r01);
+                    pp += 16;
+#else  // __ARM_FEATURE_MATMUL_INT8 || __ARM_FEATURE_DOTPROD
+                    int16x4x2_t _r01;
+                    _r01.val[0] = vreinterpret_s16_s8(vld1_s8(sptr));
+                    _r01.val[1] = vreinterpret_s16_s8(vld1_s8(sptr + stride_w * 8));
+                    vst2_s16((short*)pp, _r01);
+                    pp += 16;
+#endif // __ARM_FEATURE_MATMUL_INT8 || __ARM_FEATURE_DOTPROD
+                }
+#endif // __ARM_NEON
+                if (elempack == 1)
+                {
+                    pp[0] = sptr[0];
+                    pp[1] = sptr[stride_w];
+                    pp += 2;
+                }
+            }
+        }
+        else
+        {
+            int kk = 0;
+#if __ARM_NEON
+            if (elempack == 1)
+            {
+#if __ARM_FEATURE_DOTPROD
+#if __ARM_FEATURE_MATMUL_INT8
+                for (; kk + 7 < max_kk; kk += 8)
+                {
+                    int p0 = (k + kk) / maxk;
+                    int p1 = (k + kk + 1) / maxk;
+                    int p2 = (k + kk + 2) / maxk;
+                    int p3 = (k + kk + 3) / maxk;
+                    int p4 = (k + kk + 4) / maxk;
+                    int p5 = (k + kk + 5) / maxk;
+                    int p6 = (k + kk + 6) / maxk;
+                    int p7 = (k + kk + 7) / maxk;
+                    int uv0 = (k + kk) % maxk;
+                    int uv1 = (k + kk + 1) % maxk;
+                    int uv2 = (k + kk + 2) % maxk;
+                    int uv3 = (k + kk + 3) % maxk;
+                    int uv4 = (k + kk + 4) % maxk;
+                    int uv5 = (k + kk + 5) % maxk;
+                    int uv6 = (k + kk + 6) % maxk;
+                    int uv7 = (k + kk + 7) % maxk;
+                    int u0 = uv0 / kernel_w;
+                    int u1 = uv1 / kernel_w;
+                    int u2 = uv2 / kernel_w;
+                    int u3 = uv3 / kernel_w;
+                    int u4 = uv4 / kernel_w;
+                    int u5 = uv5 / kernel_w;
+                    int u6 = uv6 / kernel_w;
+                    int u7 = uv7 / kernel_w;
+                    int v0 = uv0 % kernel_w;
+                    int v1 = uv1 % kernel_w;
+                    int v2 = uv2 % kernel_w;
+                    int v3 = uv3 % kernel_w;
+                    int v4 = uv4 % kernel_w;
+                    int v5 = uv5 % kernel_w;
+                    int v6 = uv6 % kernel_w;
+                    int v7 = uv7 % kernel_w;
+
+                    const Mat img0 = bottom_blob.channel(p0);
+                    const Mat img1 = bottom_blob.channel(p1);
+                    const Mat img2 = bottom_blob.channel(p2);
+                    const Mat img3 = bottom_blob.channel(p3);
+                    const Mat img4 = bottom_blob.channel(p4);
+                    const Mat img5 = bottom_blob.channel(p5);
+                    const Mat img6 = bottom_blob.channel(p6);
+                    const Mat img7 = bottom_blob.channel(p7);
+
+                    int x00 = stride_w * dx0 + dilation_w * v0;
+                    int x01 = stride_w * dx1 + dilation_w * v0;
+                    int y00 = stride_h * dy0 + dilation_h * u0;
+                    int y01 = stride_h * dy1 + dilation_h * u0;
+                    int x10 = stride_w * dx0 + dilation_w * v1;
+                    int x11 = stride_w * dx1 + dilation_w * v1;
+                    int y10 = stride_h * dy0 + dilation_h * u1;
+                    int y11 = stride_h * dy1 + dilation_h * u1;
+
+                    int x20 = stride_w * dx0 + dilation_w * v2;
+                    int x21 = stride_w * dx1 + dilation_w * v2;
+                    int y20 = stride_h * dy0 + dilation_h * u2;
+                    int y21 = stride_h * dy1 + dilation_h * u2;
+                    int x30 = stride_w * dx0 + dilation_w * v3;
+                    int x31 = stride_w * dx1 + dilation_w * v3;
+                    int y30 = stride_h * dy0 + dilation_h * u3;
+                    int y31 = stride_h * dy1 + dilation_h * u3;
+
+                    int x40 = stride_w * dx0 + dilation_w * v4;
+                    int x41 = stride_w * dx1 + dilation_w * v4;
+                    int y40 = stride_h * dy0 + dilation_h * u4;
+                    int y41 = stride_h * dy1 + dilation_h * u4;
+                    int x50 = stride_w * dx0 + dilation_w * v5;
+                    int x51 = stride_w * dx1 + dilation_w * v5;
+                    int y50 = stride_h * dy0 + dilation_h * u5;
+                    int y51 = stride_h * dy1 + dilation_h * u5;
+
+                    int x60 = stride_w * dx0 + dilation_w * v6;
+                    int x61 = stride_w * dx1 + dilation_w * v6;
+                    int y60 = stride_h * dy0 + dilation_h * u6;
+                    int y61 = stride_h * dy1 + dilation_h * u6;
+                    int x70 = stride_w * dx0 + dilation_w * v7;
+                    int x71 = stride_w * dx1 + dilation_w * v7;
+                    int y70 = stride_h * dy0 + dilation_h * u7;
+                    int y71 = stride_h * dy1 + dilation_h * u7;
+
+                    const signed char* sptr00 = img0.row<const signed char>(y00) + x00;
+                    const signed char* sptr01 = img0.row<const signed char>(y01) + x01;
+                    const signed char* sptr10 = img1.row<const signed char>(y10) + x10;
+                    const signed char* sptr11 = img1.row<const signed char>(y11) + x11;
+                    const signed char* sptr20 = img2.row<const signed char>(y20) + x20;
+                    const signed char* sptr21 = img2.row<const signed char>(y21) + x21;
+                    const signed char* sptr30 = img3.row<const signed char>(y30) + x30;
+                    const signed char* sptr31 = img3.row<const signed char>(y31) + x31;
+
+                    const signed char* sptr40 = img4.row<const signed char>(y40) + x40;
+                    const signed char* sptr41 = img4.row<const signed char>(y41) + x41;
+                    const signed char* sptr50 = img5.row<const signed char>(y50) + x50;
+                    const signed char* sptr51 = img5.row<const signed char>(y51) + x51;
+                    const signed char* sptr60 = img6.row<const signed char>(y60) + x60;
+                    const signed char* sptr61 = img6.row<const signed char>(y61) + x61;
+                    const signed char* sptr70 = img7.row<const signed char>(y70) + x70;
+                    const signed char* sptr71 = img7.row<const signed char>(y71) + x71;
+
+                    pp[0] = sptr00[0];
+                    pp[1] = sptr10[0];
+                    pp[2] = sptr20[0];
+                    pp[3] = sptr30[0];
+                    pp[4] = sptr40[0];
+                    pp[5] = sptr50[0];
+                    pp[6] = sptr60[0];
+                    pp[7] = sptr70[0];
+                    pp[8] = sptr01[0];
+                    pp[9] = sptr11[0];
+                    pp[10] = sptr21[0];
+                    pp[11] = sptr31[0];
+                    pp[12] = sptr41[0];
+                    pp[13] = sptr51[0];
+                    pp[14] = sptr61[0];
+                    pp[15] = sptr71[0];
+                    pp += 16;
+                }
+#endif // __ARM_FEATURE_MATMUL_INT8
+                for (; kk + 3 < max_kk; kk += 4)
+                {
+                    int p0 = (k + kk) / maxk;
+                    int p1 = (k + kk + 1) / maxk;
+                    int p2 = (k + kk + 2) / maxk;
+                    int p3 = (k + kk + 3) / maxk;
+                    int uv0 = (k + kk) % maxk;
+                    int uv1 = (k + kk + 1) % maxk;
+                    int uv2 = (k + kk + 2) % maxk;
+                    int uv3 = (k + kk + 3) % maxk;
+                    int u0 = uv0 / kernel_w;
+                    int u1 = uv1 / kernel_w;
+                    int u2 = uv2 / kernel_w;
+                    int u3 = uv3 / kernel_w;
+                    int v0 = uv0 % kernel_w;
+                    int v1 = uv1 % kernel_w;
+                    int v2 = uv2 % kernel_w;
+                    int v3 = uv3 % kernel_w;
+
+                    const Mat img0 = bottom_blob.channel(p0);
+                    const Mat img1 = bottom_blob.channel(p1);
+                    const Mat img2 = bottom_blob.channel(p2);
+                    const Mat img3 = bottom_blob.channel(p3);
+
+                    int x00 = stride_w * dx0 + dilation_w * v0;
+                    int x01 = stride_w * dx1 + dilation_w * v0;
+                    int y00 = stride_h * dy0 + dilation_h * u0;
+                    int y01 = stride_h * dy1 + dilation_h * u0;
+                    int x10 = stride_w * dx0 + dilation_w * v1;
+                    int x11 = stride_w * dx1 + dilation_w * v1;
+                    int y10 = stride_h * dy0 + dilation_h * u1;
+                    int y11 = stride_h * dy1 + dilation_h * u1;
+                    int x20 = stride_w * dx0 + dilation_w * v2;
+                    int x21 = stride_w * dx1 + dilation_w * v2;
+                    int y20 = stride_h * dy0 + dilation_h * u2;
+                    int y21 = stride_h * dy1 + dilation_h * u2;
+                    int x30 = stride_w * dx0 + dilation_w * v3;
+                    int x31 = stride_w * dx1 + dilation_w * v3;
+                    int y30 = stride_h * dy0 + dilation_h * u3;
+                    int y31 = stride_h * dy1 + dilation_h * u3;
+
+                    const signed char* sptr00 = img0.row<const signed char>(y00) + x00;
+                    const signed char* sptr01 = img0.row<const signed char>(y01) + x01;
+                    const signed char* sptr10 = img1.row<const signed char>(y10) + x10;
+                    const signed char* sptr11 = img1.row<const signed char>(y11) + x11;
+                    const signed char* sptr20 = img2.row<const signed char>(y20) + x20;
+                    const signed char* sptr21 = img2.row<const signed char>(y21) + x21;
+                    const signed char* sptr30 = img3.row<const signed char>(y30) + x30;
+                    const signed char* sptr31 = img3.row<const signed char>(y31) + x31;
+
+                    pp[0] = sptr00[0];
+                    pp[1] = sptr10[0];
+                    pp[2] = sptr20[0];
+                    pp[3] = sptr30[0];
+                    pp[4] = sptr01[0];
+                    pp[5] = sptr11[0];
+                    pp[6] = sptr21[0];
+                    pp[7] = sptr31[0];
+                    pp += 8;
+                }
+#endif // __ARM_FEATURE_DOTPROD
+                for (; kk + 1 < max_kk; kk += 2)
+                {
+                    int p0 = (k + kk) / maxk;
+                    int p1 = (k + kk + 1) / maxk;
+                    int uv0 = (k + kk) % maxk;
+                    int uv1 = (k + kk + 1) % maxk;
+                    int u0 = uv0 / kernel_w;
+                    int u1 = uv1 / kernel_w;
+                    int v0 = uv0 % kernel_w;
+                    int v1 = uv1 % kernel_w;
+
+                    const Mat img0 = bottom_blob.channel(p0);
+                    const Mat img1 = bottom_blob.channel(p1);
+
+                    int x00 = stride_w * dx0 + dilation_w * v0;
+                    int x01 = stride_w * dx1 + dilation_w * v0;
+                    int y00 = stride_h * dy0 + dilation_h * u0;
+                    int y01 = stride_h * dy1 + dilation_h * u0;
+                    int x10 = stride_w * dx0 + dilation_w * v1;
+                    int x11 = stride_w * dx1 + dilation_w * v1;
+                    int y10 = stride_h * dy0 + dilation_h * u1;
+                    int y11 = stride_h * dy1 + dilation_h * u1;
+
+                    const signed char* sptr00 = img0.row<const signed char>(y00) + x00;
+                    const signed char* sptr01 = img0.row<const signed char>(y01) + x01;
+                    const signed char* sptr10 = img1.row<const signed char>(y10) + x10;
+                    const signed char* sptr11 = img1.row<const signed char>(y11) + x11;
+
+                    pp[0] = sptr00[0];
+                    pp[1] = sptr10[0];
+                    pp[2] = sptr01[0];
+                    pp[3] = sptr11[0];
+                    pp += 4;
+                }
+            }
+#endif // __ARM_NEON
+            for (; kk < max_kk / elempack; kk++)
+            {
+                int p = (k / elempack + kk) / maxk;
+                int uv = (k / elempack + kk) % maxk;
+                int u = uv / kernel_w;
+                int v = uv % kernel_w;
+
+                const Mat img = bottom_blob.channel(p);
+
+                int x0 = stride_w * dx0 + dilation_w * v;
+                int x1 = stride_w * dx1 + dilation_w * v;
+                int y0 = stride_h * dy0 + dilation_h * u;
+                int y1 = stride_h * dy1 + dilation_h * u;
+
+                const signed char* sptr0 = img.row<const signed char>(y0) + x0 * elempack;
+                const signed char* sptr1 = img.row<const signed char>(y1) + x1 * elempack;
+
+#if __ARM_NEON
+                if (elempack == 8)
+                {
+#if __ARM_FEATURE_MATMUL_INT8
+                    int8x8_t _r0 = vld1_s8(sptr0);
+                    int8x8_t _r1 = vld1_s8(sptr1);
+                    vst1_s8(pp, _r0);
+                    vst1_s8(pp + 8, _r1);
+                    pp += 16;
+#elif __ARM_FEATURE_DOTPROD
+                    int32x2x2_t _r01;
+                    _r01.val[0] = vreinterpret_s32_s8(vld1_s8(sptr0));
+                    _r01.val[1] = vreinterpret_s32_s8(vld1_s8(sptr1));
+                    vst2_s32((int*)pp, _r01);
+                    pp += 16;
+#else  // __ARM_FEATURE_MATMUL_INT8 || __ARM_FEATURE_DOTPROD
+                    int16x4x2_t _r01;
+                    _r01.val[0] = vreinterpret_s16_s8(vld1_s8(sptr0));
+                    _r01.val[1] = vreinterpret_s16_s8(vld1_s8(sptr1));
+                    vst2_s16((short*)pp, _r01);
+                    pp += 16;
+#endif // __ARM_FEATURE_MATMUL_INT8 || __ARM_FEATURE_DOTPROD
+                }
+#endif // __ARM_NEON
+                if (elempack == 1)
+                {
+                    pp[0] = sptr0[0];
+                    pp[1] = sptr1[0];
+                    pp += 2;
+                }
             }
         }
     }
