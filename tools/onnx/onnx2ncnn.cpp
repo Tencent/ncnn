@@ -3791,6 +3791,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "InstanceNorm");
         }
+        else if (op == "IsNaN")
+        {
+            fprintf(pp, "%-16s", "IsNaN");
+        }
         else if (op == "LayerNorm")
         {
             fprintf(pp, "%-16s", "LayerNorm");
@@ -4865,6 +4869,10 @@ int main(int argc, char** argv)
                 fwrite_tensor_proto_data(scale, bp);
                 fwrite_tensor_proto_data(B, bp);
             }
+        }
+        else if (op == "IsNaN")
+        {
+            // no-op
         }
         else if (op == "LayerNorm")
         {
