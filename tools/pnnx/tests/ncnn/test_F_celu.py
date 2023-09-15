@@ -1,6 +1,6 @@
 # Tencent is pleased to support the open source community by making ncnn available.
 #
-# Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
+# Copyright (C) 2023 THL A29 Limited, a Tencent company. All rights reserved.
 #
 # Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 # in compliance with the License. You may obtain a copy of the License at
@@ -32,12 +32,12 @@ def test():
     net.eval()
 
     torch.manual_seed(0)
-    x = torch.rand(1, 16)
-    y = torch.rand(12, 2, 16)
-    z = torch.rand(1, 3, 12, 16)
-    w = torch.rand(1, 5, 7, 9, 11)
+    x = torch.rand(16)
+    y = torch.rand(2, 16)
+    z = torch.rand(3, 12, 16)
+    w = torch.rand(5, 7, 9, 11)
 
-    a0, a1, a2, a3 = net(x, y, z, w)
+    a = net(x, y, z, w)
 
     # export torchscript
     mod = torch.jit.trace(net, (x, y, z, w))
@@ -45,13 +45,16 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_F_celu.pt inputshape=[1,16],[12,2,16],[1,3,12,16],[1,5,7,9,11]")
+    os.system("../../src/pnnx test_F_celu.pt inputshape=[16],[2,16],[3,12,16],[5,7,9,11]")
 
-    # pnnx inference
-    import test_F_celu_pnnx
-    b0, b1, b2, b3 = test_F_celu_pnnx.test_inference()
+    # ncnn inference
+    import test_F_celu_ncnn
+    b = test_F_celu_ncnn.test_inference()
 
-    return torch.equal(a0, b0) and torch.equal(a1, b1) and torch.equal(a2, b2) and torch.equal(a3, b3)
+    for a0, b0 in zip(a, b):
+        if not torch.allclose(a0, b0, 1e-4, 1e-4):
+            return False
+    return True
 
 if __name__ == "__main__":
     if test():

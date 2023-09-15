@@ -6,6 +6,7 @@
 * [BinaryOp](#binaryop)
 * [BNLL](#bnll)
 * [Cast](#cast)
+* [CELU](#celu)
 * [Clip](#clip)
 * [Concat](#concat)
 * [Convolution](#convolution)
@@ -25,6 +26,7 @@
 * [DeconvolutionDepthWise3D](#deconvolutiondepthwise3d)
 * [DeformableConv2D](#deformableconv2d)
 * [Dequantize](#dequantize)
+* [Diag](#diag)
 * [Dropout](#dropout)
 * [Eltwise](#eltwise)
 * [ELU](#elu)
@@ -195,6 +197,19 @@ Element type:
 - 2 = float16
 - 3 = int8
 - 4 = bfloat16
+
+# CELU
+```
+if x < 0    y = (exp(x / alpha) - 1.f) * alpha
+else        y = x
+```
+
+* one_blob_only
+* support_inplace
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | alpha         | float | 1.f       |                   |
 
 # Clip
 ```
@@ -748,6 +763,17 @@ y = x * scale + bias
 | ------------- | ----- | --------------------- |
 | scale_data    | float | [scale_data_size]     |
 | bias_data     | float | [bias_data_size]      |
+
+# Diag
+```
+y = diag(x, diagonal)
+```
+
+* one_blob_only
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | diagonal      | int   | 0         |                   |
 
 # Dropout
 ```
