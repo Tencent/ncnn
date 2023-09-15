@@ -24,7 +24,7 @@ static int test_size(const ncnn::Mat& a)
     int ret = test_layer<ncnn::Size>("Size", pd, weights, a);
     if (ret != 0)
     {
-        fprintf(stderr, "test_size failed a.dims=%d a=(%d %d %d)\n", a.dims, a.w, a.h, a.c);
+        fprintf(stderr, "test_size failed a.dims=%d a=(%d %d %d %d)\n", a.dims, a.w, a.h, a.d, a.c);
     }
 
     return ret;
