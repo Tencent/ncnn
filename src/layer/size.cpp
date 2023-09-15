@@ -24,7 +24,7 @@ Size::Size()
 
 int Size::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
-    top_blob.create(1);
+    top_blob.create(1, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
 
