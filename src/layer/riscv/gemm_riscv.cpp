@@ -34,6 +34,8 @@ Gemm_riscv::Gemm_riscv()
 #endif // __riscv_vector
     one_blob_only = false;
     support_inplace = false;
+
+    nT = 0;
 }
 
 static void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
