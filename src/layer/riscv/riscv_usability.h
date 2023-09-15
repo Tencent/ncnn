@@ -96,7 +96,7 @@ static inline vfloat32m1_t vfmaq_laneq_f32_riscv(vfloat32m1_t sum, vfloat32m1_t 
     return ret;     
 }
 
-static inline vfloat32m1_t vdupq_n_f32_riscv(float32_t f) {
+static inline vfloat32m1_t vdupq_n_f32_riscv(float f) {
     return vfmv_v_f_f32m1(f, VL);
 }
 
