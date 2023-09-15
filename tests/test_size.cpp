@@ -33,12 +33,20 @@ static int test_size(const ncnn::Mat& a)
 static int test_size_0()
 {
     return 0
+           || test_size(RandomMat(12, 3, 18, 24))
+           || test_size(RandomMat(21, 3, 16, 32))
+           || test_size(RandomMat(3, 5, 13, 18));
+}
+
+static int test_size_1()
+{
+    return 0
            || test_size(RandomMat(12, 3, 18))
            || test_size(RandomMat(21, 3, 16))
            || test_size(RandomMat(3, 5, 13));
 }
 
-static int test_size_1()
+static int test_size_2()
 {
     return 0
            || test_size(RandomMat(12, 36))
@@ -46,7 +54,7 @@ static int test_size_1()
            || test_size(RandomMat(18, 16));
 }
 
-static int test_size_2()
+static int test_size_3()
 {
     return 0
            || test_size(RandomMat(128))
@@ -61,5 +69,6 @@ int main()
     return 0
            || test_size_0()
            || test_size_1()
-           || test_size_2();
+           || test_size_2()
+           || test_size_3();
 }
