@@ -272,8 +272,8 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
                 vfloat32m1_t _r5;
                 vfloat32m1_t _r6;
                 vfloat32m1_t _r7;
-                vlseg4e32_v_f32m1(&r0, &r1, &r2, &r3, p0, VL);
-                vlseg4e32_v_f32m1(&r4, &r5, &r6, &r7, p0 + 16, VL);
+                vlseg4e32_v_f32m1(&_r0, &_r1, &_r2, &_r3, p0, VL);
+                vlseg4e32_v_f32m1(&_r4, &_r5, &_r6, &_r7, p0 + 16, VL);
                 vse32_v_f32m1(pp, _r0, VL);
                 vse32_v_f32m1(pp + 4, _r4, VL);
                 vse32_v_f32m1(pp + 4 * 2, _r1, VL);
@@ -313,7 +313,7 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
                 vfloat32m1_t _r1;
                 vfloat32m1_t _r2;
                 vfloat32m1_t _r3;
-                vlseg4e32_v_f32m1(&r0, &r1, &r2, &r3, p0, VL);
+                vlseg4e32_v_f32m1(&_r0, &_r1, &_r2, &_r3, p0, VL);
                 vse32_v_f32m1(pp, _r0, VL);
                 vse32_v_f32m1(pp + 4, _r1, VL);
                 vse32_v_f32m1(pp + 4 * 2, _r2, VL);
@@ -737,9 +737,9 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
                 vfloat32m1_t _r9;
                 vfloat32m1_t _ra;
                 vfloat32m1_t _rb;
-                vlseg4e32_v_f32m1(&r0, &r1, &r2, &r3, p0, VL);
-                vlseg4e32_v_f32m1(&r4, &r5, &r6, &r7, p0 + 16, VL);
-                vlseg4e32_v_f32m1(&r8, &r9, &ra, &rb, p0 + 32, VL);
+                vlseg4e32_v_f32m1(&_r0, &_r1, &_r2, &_r3, p0, VL);
+                vlseg4e32_v_f32m1(&_r4, &_r5, &_r6, &_r7, p0 + 16, VL);
+                vlseg4e32_v_f32m1(&_r8, &_r9, &_ra, &_rb, p0 + 32, VL);
                 vse32_v_f32m1(pp, _r0, VL);
                 vse32_v_f32m1(pp + 4, _r4, VL);
                 vse32_v_f32m1(pp + 4 * 2, _r8, VL);
@@ -788,8 +788,8 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
                 vfloat32m1_t _r5;
                 vfloat32m1_t _r6;
                 vfloat32m1_t _r7;
-                vlseg4e32_v_f32m1(&r0, &r1, &r2, &r3, p0, VL);
-                vlseg4e32_v_f32m1(&r4, &r5, &r6, &r7, p0 + 16, VL);
+                vlseg4e32_v_f32m1(&_r0, &_r1, &_r2, &_r3, p0, VL);
+                vlseg4e32_v_f32m1(&_r4, &_r5, &_r6, &_r7, p0 + 16, VL);
                 vse32_v_f32m1(pp, _r0, VL);
                 vse32_v_f32m1(pp + 4, _r4, VL);
                 vse32_v_f32m1(pp + 4 * 2, _r1, VL);
@@ -829,7 +829,7 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
                 vfloat32m1_t _r1;
                 vfloat32m1_t _r2;
                 vfloat32m1_t _r3;
-                vlseg4e32_v_f32m1(&r0, &r1, &r2, &r3, p0, VL);
+                vlseg4e32_v_f32m1(&_r0, &_r1, &_r2, &_r3, p0, VL);
                 vse32_v_f32m1(pp, _r0, VL);
                 vse32_v_f32m1(pp + 4, _r1, VL);
                 vse32_v_f32m1(pp + 4 * 2, _r2, VL);
