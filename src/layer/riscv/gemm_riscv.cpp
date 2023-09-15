@@ -2900,9 +2900,9 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 vfloat32m1_t _tmp3;
                 vfloat32m1_t _tmp4;
                 vfloat32m1_t _tmp5;
-                vlseg2e32_v_f32m1(&_tmp0, &_tmp1, pC, VL);
-                vlseg2e32_v_f32m1(&_tmp2, &_tmp3, pC + 8, VL);
-                vlseg2e32_v_f32m1(&_tmp4, &_tmp5, pC + 16, VL);
+                vlseg2e32_v_f32m1(&_tmp0, &_tmp1, outptr, VL);
+                vlseg2e32_v_f32m1(&_tmp2, &_tmp3, outptr + 8, VL);
+                vlseg2e32_v_f32m1(&_tmp4, &_tmp5, outptr + 16, VL);
                 _sum00 = _tmp0;
                 _sum01 = _tmp2;
                 _sum02 = _tmp4;
@@ -3014,8 +3014,8 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 vfloat32m1_t _tmp1;
                 vfloat32m1_t _tmp2;
                 vfloat32m1_t _tmp3;
-                vlseg2e32_v_f32m1(&_tmp0, &_tmp1, pC, VL);
-                vlseg2e32_v_f32m1(&_tmp2, &_tmp3, pC + 8, VL);
+                vlseg2e32_v_f32m1(&_tmp0, &_tmp1, outptr, VL);
+                vlseg2e32_v_f32m1(&_tmp2, &_tmp3, outptr + 8, VL);
                 _sum00 = _tmp0;
                 _sum01 = _tmp2;
                 _sum10 = _tmp1;
