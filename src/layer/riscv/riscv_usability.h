@@ -86,7 +86,6 @@ static inline vfloat32m8_t vle32_v_f32m8_f32m1(const float* ptr)
     return vloxei32_v_f32m8(ptr, bindex, vl);
 }
 
-#if C906
 #define VL 4
 
 static inline vfloat32m1_t vfmaq_laneq_f32_riscv(vfloat32m1_t sum, vfloat32m1_t a, vfloat32m1_t b, int lane) {
@@ -376,7 +375,6 @@ static inline void store_float_v4(vfloat32m1_t vector1, vfloat32m1_t vector2, vf
     vsse32_v_f32m1(buf + 2, sizeof(float) * 4, vector3, VL);
     vsse32_v_f32m1(buf + 3, sizeof(float) * 4, vector4, VL);
 }
-#endif // C906
 
 #if __riscv_zfh
 static inline vfloat16m8_t vle16_v_f16m8_f16m1(const __fp16* ptr)
