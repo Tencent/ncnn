@@ -592,7 +592,7 @@ if(PROTOBUF_FOUND)
         message(STATUS "Building with onnx-zero")
     endif()
 else()
-    message(WARNING "Building without onnx-zer")
+    message(STATUS "Building without onnx-zero")
 endif()
 
 set(pnnx_SRCS
