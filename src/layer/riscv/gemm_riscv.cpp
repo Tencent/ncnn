@@ -967,9 +967,9 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
             for (int jj = 0; jj + 3 < max_jj; jj += 4)
             {
                 vfloat32m1_t v0 = vle32_v_f32m1(pp, VL);
-                vfloat32m1_t v1 = vle32_v_f32m1(pp + 8, VL);
-                vfloat32m1_t v2 = vle32_v_f32m1(pp + 16, VL);
-                vfloat32m1_t v3 = vle32_v_f32m1(pp + 24, VL);
+                vfloat32m1_t v1 = vle32_v_f32m1(pp + 4, VL);
+                vfloat32m1_t v2 = vle32_v_f32m1(pp + 8, VL);
+                vfloat32m1_t v3 = vle32_v_f32m1(pp + 12, VL);
                 store_float_v4(v0, v1, v2, v3, p0);
                 pp += 16;
                 p0 += out_hstep * 4;
@@ -3764,6 +3764,8 @@ static int gemm_riscv(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, i
                 gettimeofday(&end_time, NULL);
                 elapsed_time = (end_time.tv_sec - start_time.tv_sec) * 1000000L + (end_time.tv_usec - start_time.tv_usec);
                 printf("gemm_transB_packed_tile time elapsed: %ld microseconds\n", elapsed_time); 
+#else 
+                gemm_transB_packed_tile(AT_tile, BT_tile, CT_tile, topT_tile, top_blob, broadcast_type_C, i, max_ii, j, max_jj, k, max_kk, k_end);
 #endif
             }
 
