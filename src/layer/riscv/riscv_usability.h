@@ -362,13 +362,13 @@ static inline void transpose8x4_ps(vfloat32m1_t& _r0l, vfloat32m1_t& _r0h,
     _r3h = vle32_v_f32m1(ptr + 7 * 4, VL);
 }
 
-static inline void store_float_v2(vfloat32m1_t vector1, vfloat32m1_t vector2, float *buf) 
+static inline void store_float_v2(vfloat32m1_t& vector1, vfloat32m1_t& vector2, float *buf) 
 {
     vsse32_v_f32m1(buf + 0, sizeof(float) * 2, vector1, VL);
     vsse32_v_f32m1(buf + 1, sizeof(float) * 2, vector2, VL);
 }
 
-static inline void store_float_v4(vfloat32m1_t vector1, vfloat32m1_t vector2, vfloat32m1_t vector3, vfloat32m1_t vector4, float *buf) 
+static inline void store_float_v4(vfloat32m1_t& vector1, vfloat32m1_t& vector2, vfloat32m1_t& vector3, vfloat32m1_t& vector4, float *buf) 
 {
     vsse32_v_f32m1(buf + 0, sizeof(float) * 4, vector1, VL);
     vsse32_v_f32m1(buf + 1, sizeof(float) * 4, vector2, VL);

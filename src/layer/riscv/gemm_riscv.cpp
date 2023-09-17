@@ -13,6 +13,8 @@
 // specific language governing permissions and limitations under the License.
 
 #include "gemm_riscv.h"
+#include <stdio.h>
+#include <sys/time.h>
 
 #if __riscv_vector
 #include <riscv_vector.h>
@@ -165,7 +167,11 @@ static void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
-                store_float_v4(vle32_v_f32m1(p0, VL), vle32_v_f32m1(p1, VL), vle32_v_f32m1(p2, VL), vle32_v_f32m1(p3, VL), pp);
+                vfloat32m1_t v0 = vle32_v_f32m1(p0, VL);
+                vfloat32m1_t v1 = vle32_v_f32m1(p1, VL);
+                vfloat32m1_t v2 = vle32_v_f32m1(p2, VL);
+                vfloat32m1_t v3 = vle32_v_f32m1(p3, VL);
+                store_float_v4(v0, v1, v2, v3, pp);
                 pp += 16;
                 p0 += 4;
                 p1 += 4;
@@ -198,7 +204,9 @@ static void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max
 #if __riscv_vector
             for (; kk + 3 < max_kk; kk += 4)
             {
-                store_float_v2(vle32_v_f32m1(p0, VL), vle32_v_f32m1(p1, VL), pp);
+                vfloat32m1_t v0 = vle32_v_f32m1(p0, VL);
+                vfloat32m1_t v1 = vle32_v_f32m1(p1, VL);
+                store_float_v2(v0, v1, pp);
                 pp += 8;
                 p0 += 4;
                 p1 += 4;
@@ -339,7 +347,9 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
-                store_float_v2(vle32_v_f32m1(p0, VL), vle32_v_f32m1(p0 + 4, VL), pp);
+                vfloat32m1_t v0 = vle32_v_f32m1(p0, VL);
+                vfloat32m1_t v1 = vle32_v_f32m1(p0 + 4, VL);
+                store_float_v2(v0, v1, pp);
                 pp += 8;
                 p0 += A_hstep * 4;
             }
@@ -614,7 +624,11 @@ static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
-                store_float_v4(vle32_v_f32m1(p0, VL), vle32_v_f32m1(p1, VL), vle32_v_f32m1(p2, VL), vle32_v_f32m1(p3, VL), pp);
+                vfloat32m1_t v0 = vle32_v_f32m1(p0, VL);
+                vfloat32m1_t v1 = vle32_v_f32m1(p1, VL);
+                vfloat32m1_t v2 = vle32_v_f32m1(p2, VL);
+                vfloat32m1_t v3 = vle32_v_f32m1(p3, VL);
+                store_float_v4(v0, v1, v2, v3, pp);
                 pp += 16;
                 p0 += 4;
                 p1 += 4;
@@ -647,7 +661,9 @@ static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max
 #if __riscv_vector
             for (; kk + 3 < max_kk; kk += 4)
             {
-                store_float_v2(vle32_v_f32m1(p0, VL), vle32_v_f32m1(p1, VL), pp);
+                vfloat32m1_t v0 = vle32_v_f32m1(p0, VL);
+                vfloat32m1_t v1 = vle32_v_f32m1(p1, VL);
+                store_float_v2(v0, v1, pp);
                 pp += 8;
                 p0 += 4;
                 p1 += 4;
@@ -843,7 +859,9 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
-                store_float_v2(vle32_v_f32m1(p0, VL), vle32_v_f32m1(p0 + 4, VL), pp);
+                vfloat32m1_t v0 = vle32_v_f32m1(p0, VL);
+                vfloat32m1_t v1 = vle32_v_f32m1(p0 + 4, VL);
+                store_float_v2(v0, v1, pp);
                 pp += 8;
                 p0 += B_hstep * 4;
             }
@@ -911,8 +929,16 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
 
             for (int jj = 0; jj + 3 < max_jj; jj += 4)
             {
-                store_float_v4(vle32_v_f32m1(pp, VL), vle32_v_f32m1(pp + 8, VL), vle32_v_f32m1(pp + 16, VL), vle32_v_f32m1(pp + 24, VL), p0);
-                store_float_v4(vle32_v_f32m1(pp + 4, VL), vle32_v_f32m1(pp + 12, VL), vle32_v_f32m1(pp + 20, VL), vle32_v_f32m1(pp + 28, VL), p0 + 16);
+                vfloat32m1_t v0 = vle32_v_f32m1(pp, VL);
+                vfloat32m1_t v1 = vle32_v_f32m1(pp + 8, VL);
+                vfloat32m1_t v2 = vle32_v_f32m1(pp + 16, VL);
+                vfloat32m1_t v3 = vle32_v_f32m1(pp + 24, VL);
+                store_float_v4(v0, v1, v2, v3, p0);
+                v0 = vle32_v_f32m1(pp + 4, VL);
+                v1 = vle32_v_f32m1(pp + 12, VL);
+                v2 = vle32_v_f32m1(pp + 20, VL);
+                v3 = vle32_v_f32m1(pp + 28, VL);
+                store_float_v4(v0, v1, v2, v3, p0 + 16);
                 pp += 32;
                 p0 += out_hstep * 4;
             }
@@ -940,7 +966,11 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
 
             for (int jj = 0; jj + 3 < max_jj; jj += 4)
             {
-                store_float_v4(vle32_v_f32m1(pp, VL), vle32_v_f32m1(pp + 4, VL), vle32_v_f32m1(pp + 8, VL), vle32_v_f32m1(pp + 12, VL), p0);
+                vfloat32m1_t v0 = vle32_v_f32m1(pp, VL);
+                vfloat32m1_t v1 = vle32_v_f32m1(pp + 8, VL);
+                vfloat32m1_t v2 = vle32_v_f32m1(pp + 16, VL);
+                vfloat32m1_t v3 = vle32_v_f32m1(pp + 24, VL);
+                store_float_v4(v0, v1, v2, v3, p0);
                 pp += 16;
                 p0 += out_hstep * 4;
             }
@@ -2830,21 +2860,9 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                     }
                     if (broadcast_type_C == 3)
                     {
-                        vfloat32m1_t _tmp0;
-                        vfloat32m1_t _tmp1;
-                        vfloat32m1_t _tmp2;
-                        vfloat32m1_t _tmp3;
-                        vfloat32m1_t _tmp4;
-                        vfloat32m1_t _tmp5;
-                        vlseg2e32_v_f32m1(&_tmp0, &_tmp1, pC, VL);
-                        vlseg2e32_v_f32m1(&_tmp2, &_tmp3, pC + 8, VL);
-                        vlseg2e32_v_f32m1(&_tmp4, &_tmp5, pC + 16, VL);
-                        _sum00 = _tmp0;
-                        _sum01 = _tmp2;
-                        _sum02 = _tmp4;
-                        _sum10 = _tmp1;
-                        _sum11 = _tmp3;
-                        _sum12 = _tmp5;
+                        vlseg2e32_v_f32m1(&_sum00, &_sum10, pC, VL);
+                        vlseg2e32_v_f32m1(&_sum01, &_sum11, pC + 8, VL);
+                        vlseg2e32_v_f32m1(&_sum02, &_sum12, pC + 16, VL);
                         pC += 24;
                     }
                     if (broadcast_type_C == 4)
@@ -2861,21 +2879,9 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             }
             else
             {
-                vfloat32m1_t _tmp0;
-                vfloat32m1_t _tmp1;
-                vfloat32m1_t _tmp2;
-                vfloat32m1_t _tmp3;
-                vfloat32m1_t _tmp4;
-                vfloat32m1_t _tmp5;
-                vlseg2e32_v_f32m1(&_tmp0, &_tmp1, outptr, VL);
-                vlseg2e32_v_f32m1(&_tmp2, &_tmp3, outptr + 8, VL);
-                vlseg2e32_v_f32m1(&_tmp4, &_tmp5, outptr + 16, VL);
-                _sum00 = _tmp0;
-                _sum01 = _tmp2;
-                _sum02 = _tmp4;
-                _sum10 = _tmp1;
-                _sum11 = _tmp3;
-                _sum12 = _tmp5;
+                vlseg2e32_v_f32m1(&_sum00, &_sum10, outptr, VL);
+                vlseg2e32_v_f32m1(&_sum01, &_sum11, outptr + 8, VL);
+                vlseg2e32_v_f32m1(&_sum02, &_sum12, outptr + 16, VL);
             }
 
             const float* pA = pAT;
@@ -2953,16 +2959,8 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                     }
                     if (broadcast_type_C == 3)
                     {
-                        vfloat32m1_t _tmp0;
-                        vfloat32m1_t _tmp1;
-                        vfloat32m1_t _tmp2;
-                        vfloat32m1_t _tmp3;
-                        vlseg2e32_v_f32m1(&_tmp0, &_tmp1, pC, VL);
-                        vlseg2e32_v_f32m1(&_tmp2, &_tmp3, pC + 8, VL);
-                        _sum00 = _tmp0;
-                        _sum01 = _tmp2;
-                        _sum10 = _tmp1;
-                        _sum11 = _tmp3;
+                        vlseg2e32_v_f32m1(&_sum00, &_sum10, pC, VL);
+                        vlseg2e32_v_f32m1(&_sum01, &_sum11, pC + 8, VL);
                         pC += 16;
                     }
                     if (broadcast_type_C == 4)
@@ -2977,16 +2975,8 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             }
             else
             {
-                vfloat32m1_t _tmp0;
-                vfloat32m1_t _tmp1;
-                vfloat32m1_t _tmp2;
-                vfloat32m1_t _tmp3;
-                vlseg2e32_v_f32m1(&_tmp0, &_tmp1, outptr, VL);
-                vlseg2e32_v_f32m1(&_tmp2, &_tmp3, outptr + 8, VL);
-                _sum00 = _tmp0;
-                _sum01 = _tmp2;
-                _sum10 = _tmp1;
-                _sum11 = _tmp3;
+                vlseg2e32_v_f32m1(&_sum00, &_sum10, outptr, VL);
+                vlseg2e32_v_f32m1(&_sum01, &_sum11, outptr + 8, VL);
             }
 
             const float* pA = pAT;
@@ -3048,11 +3038,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                     }
                     if (broadcast_type_C == 3)
                     {
-                        vfloat32m1_t _tmp0;
-                        vfloat32m1_t _tmp1;
-                        vlseg2e32_v_f32m1(&_tmp0, &_tmp1, pC, VL);
-                        _sum0 = _tmp0;
-                        _sum1 = _tmp1;
+                        vlseg2e32_v_f32m1(&_sum0, &_sum1, pC, VL);
                         pC += 8;
                     }
                     if (broadcast_type_C == 4)
@@ -3661,12 +3647,17 @@ static int gemm_riscv(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, i
     const int K = transA ? (A.dims == 3 ? A.c : A.h) * A.elempack : A.w;
     const int N = transB ? (B.dims == 3 ? B.c : B.h) * B.elempack : B.w;
 
-    // NCNN_LOGE("M/N/K = %d %d %d", M, N, K);
+    NCNN_LOGE("M/N/K = %d %d %d", M, N, K);
 
     int TILE_M, TILE_N, TILE_K;
+    struct timeval start_time, end_time;
+    long elapsed_time;
+    gettimeofday(&start_time, NULL);
     get_optimal_tile_mnk(M, N, K, constant_TILE_M, constant_TILE_N, constant_TILE_K, TILE_M, TILE_N, TILE_K, nT);
-
-    // NCNN_LOGE("TILE M/N/K = %d %d %d", TILE_M, TILE_N, TILE_K);
+    gettimeofday(&end_time, NULL);
+    elapsed_time = (end_time.tv_sec - start_time.tv_sec) * 1000000L + (end_time.tv_usec - start_time.tv_usec);
+    printf("get_optimal_tile_mnk time elapsed: %ld microseconds\n", elapsed_time);
+    NCNN_LOGE("TILE M/N/K = %d %d %d", TILE_M, TILE_N, TILE_K);
 
     int nn_M = (M + TILE_M - 1) / TILE_M;
     int nn_N = (N + TILE_N - 1) / TILE_N;
@@ -3678,6 +3669,7 @@ static int gemm_riscv(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, i
     const int nn_NK = nn_N * nn_K;
 
     // pack B
+    gettimeofday(&start_time, NULL);
     #pragma omp parallel for num_threads(nT)
     for (int ppjk = 0; ppjk < nn_NK; ppjk++)
     {
@@ -3701,6 +3693,9 @@ static int gemm_riscv(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, i
             transpose_pack_B_tile(B, BT_tile, j, max_jj, k, max_kk);
         }
     }
+    gettimeofday(&end_time, NULL);
+    elapsed_time = (end_time.tv_sec - start_time.tv_sec) * 1000000L + (end_time.tv_usec - start_time.tv_usec);
+    printf("packB time elapsed: %ld microseconds\n", elapsed_time);
 
     Mat topT;
     if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
@@ -3755,8 +3750,11 @@ static int gemm_riscv(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, i
                 }
 
                 bool k_end = !output_transpose && k + TILE_K >= K;
-
+                gettimeofday(&start_time, NULL);
                 gemm_transB_packed_tile(AT_tile, BT_tile, CT_tile, topT_tile, top_blob, broadcast_type_C, i, max_ii, j, max_jj, k, max_kk, k_end);
+                gettimeofday(&end_time, NULL);
+                elapsed_time = (end_time.tv_sec - start_time.tv_sec) * 1000000L + (end_time.tv_usec - start_time.tv_usec);
+                printf("gemm_transB_packed_tile time elapsed: %ld microseconds\n", elapsed_time); 
             }
 
             if (output_transpose)
@@ -4025,6 +4023,8 @@ int Gemm_riscv::create_pipeline(const Option& opt)
 
         int TILE_M, TILE_N, TILE_K;
         get_optimal_tile_mnk(M, 0, K, constant_TILE_M, constant_TILE_N, constant_TILE_K, TILE_M, TILE_N, TILE_K, opt.num_threads);
+
+        printf("create_pipeline %d %d %d\n", TILE_M, TILE_N, TILE_K);
 
         const int nn_M = (M + TILE_M - 1) / TILE_M;
 
