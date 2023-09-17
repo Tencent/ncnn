@@ -1,5 +1,0 @@
-7767517
-3 3
-Input                    in0                      0 1 in0
-Input                    in1                      0 1 in1
-MatMul                   matmul_0                 2 1 in0 in1 out0
