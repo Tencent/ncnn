@@ -88,12 +88,11 @@ static inline vfloat32m8_t vle32_v_f32m8_f32m1(const float* ptr)
 
 #define VL 4
 
-static inline vfloat32m1_t vfmaq_laneq_f32_riscv(vfloat32m1_t sum, vfloat32m1_t a, vfloat32m1_t b, int lane) {
+static inline void vfmaq_laneq_f32_riscv(vfloat32m1_t& sum, vfloat32m1_t a, vfloat32m1_t b, int lane) {
     float t[4];
     vse32_v_f32m1(t, b, VL);
-    vfloat32m1_t ret = vfmadd_vf_f32m1(
-            a, t[lane], sum, VL);
-    return ret;     
+    sum = vfmadd_vf_f32m1(
+            a, t[lane], sum, VL);  
 }
 
 static inline vfloat32m1_t vdupq_n_f32_riscv(float f) {

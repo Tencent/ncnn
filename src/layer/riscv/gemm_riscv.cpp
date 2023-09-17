@@ -1293,30 +1293,30 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 vfloat32m1_t _pB1 = vle32_v_f32m1(pB + 4, VL);
                 vfloat32m1_t _pB2 = vle32_v_f32m1(pB + 8, VL);
 
-                _sum00 = vfmaq_laneq_f32_riscv(_sum00, _pA0, _pB0, 0);
-                _sum01 = vfmaq_laneq_f32_riscv(_sum01, _pA1, _pB0, 0);
-                _sum10 = vfmaq_laneq_f32_riscv(_sum10, _pA0, _pB0, 1);
-                _sum11 = vfmaq_laneq_f32_riscv(_sum11, _pA1, _pB0, 1);
-                _sum20 = vfmaq_laneq_f32_riscv(_sum20, _pA0, _pB0, 2);
-                _sum21 = vfmaq_laneq_f32_riscv(_sum21, _pA1, _pB0, 2);
-                _sum30 = vfmaq_laneq_f32_riscv(_sum30, _pA0, _pB0, 3);
-                _sum31 = vfmaq_laneq_f32_riscv(_sum31, _pA1, _pB0, 3);
-                _sum40 = vfmaq_laneq_f32_riscv(_sum40, _pA0, _pB1, 0);
-                _sum41 = vfmaq_laneq_f32_riscv(_sum41, _pA1, _pB1, 0);
-                _sum50 = vfmaq_laneq_f32_riscv(_sum50, _pA0, _pB1, 1);
-                _sum51 = vfmaq_laneq_f32_riscv(_sum51, _pA1, _pB1, 1);
-                _sum60 = vfmaq_laneq_f32_riscv(_sum60, _pA0, _pB1, 2);
-                _sum61 = vfmaq_laneq_f32_riscv(_sum61, _pA1, _pB1, 2);
-                _sum70 = vfmaq_laneq_f32_riscv(_sum70, _pA0, _pB1, 3);
-                _sum71 = vfmaq_laneq_f32_riscv(_sum71, _pA1, _pB1, 3);
-                _sum80 = vfmaq_laneq_f32_riscv(_sum80, _pA0, _pB2, 0);
-                _sum81 = vfmaq_laneq_f32_riscv(_sum81, _pA1, _pB2, 0);
-                _sum90 = vfmaq_laneq_f32_riscv(_sum90, _pA0, _pB2, 1);
-                _sum91 = vfmaq_laneq_f32_riscv(_sum91, _pA1, _pB2, 1);
-                _suma0 = vfmaq_laneq_f32_riscv(_suma0, _pA0, _pB2, 2);
-                _suma1 = vfmaq_laneq_f32_riscv(_suma1, _pA1, _pB2, 2);
-                _sumb0 = vfmaq_laneq_f32_riscv(_sumb0, _pA0, _pB2, 3);
-                _sumb1 = vfmaq_laneq_f32_riscv(_sumb1, _pA1, _pB2, 3);
+                vfmaq_laneq_f32_riscv(_sum00, _pA0, _pB0, 0);
+                vfmaq_laneq_f32_riscv(_sum01, _pA1, _pB0, 0);
+                vfmaq_laneq_f32_riscv(_sum10, _pA0, _pB0, 1);
+                vfmaq_laneq_f32_riscv(_sum11, _pA1, _pB0, 1);
+                vfmaq_laneq_f32_riscv(_sum20, _pA0, _pB0, 2);
+                vfmaq_laneq_f32_riscv(_sum21, _pA1, _pB0, 2);
+                vfmaq_laneq_f32_riscv(_sum30, _pA0, _pB0, 3);
+                vfmaq_laneq_f32_riscv(_sum31, _pA1, _pB0, 3);
+                vfmaq_laneq_f32_riscv(_sum40, _pA0, _pB1, 0);
+                vfmaq_laneq_f32_riscv(_sum41, _pA1, _pB1, 0);
+                vfmaq_laneq_f32_riscv(_sum50, _pA0, _pB1, 1);
+                vfmaq_laneq_f32_riscv(_sum51, _pA1, _pB1, 1);
+                vfmaq_laneq_f32_riscv(_sum60, _pA0, _pB1, 2);
+                vfmaq_laneq_f32_riscv(_sum61, _pA1, _pB1, 2);
+                vfmaq_laneq_f32_riscv(_sum70, _pA0, _pB1, 3);
+                vfmaq_laneq_f32_riscv(_sum71, _pA1, _pB1, 3);
+                vfmaq_laneq_f32_riscv(_sum80, _pA0, _pB2, 0);
+                vfmaq_laneq_f32_riscv(_sum81, _pA1, _pB2, 0);
+                vfmaq_laneq_f32_riscv(_sum90, _pA0, _pB2, 1);
+                vfmaq_laneq_f32_riscv(_sum91, _pA1, _pB2, 1);
+                vfmaq_laneq_f32_riscv(_suma0, _pA0, _pB2, 2);
+                vfmaq_laneq_f32_riscv(_suma1, _pA1, _pB2, 2);
+                vfmaq_laneq_f32_riscv(_sumb0, _pA0, _pB2, 3);
+                vfmaq_laneq_f32_riscv(_sumb1, _pA1, _pB2, 3);
 
                 pA += 8;
                 pB += 12;
@@ -1328,30 +1328,30 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 _pB1 = vle32_v_f32m1(pB + 4, VL);
                 _pB2 = vle32_v_f32m1(pB + 8, VL);
 
-                _sum00 = vfmaq_laneq_f32_riscv(_sum00, _pA0, _pB0, 0);
-                _sum01 = vfmaq_laneq_f32_riscv(_sum01, _pA1, _pB0, 0);
-                _sum10 = vfmaq_laneq_f32_riscv(_sum10, _pA0, _pB0, 1);
-                _sum11 = vfmaq_laneq_f32_riscv(_sum11, _pA1, _pB0, 1);
-                _sum20 = vfmaq_laneq_f32_riscv(_sum20, _pA0, _pB0, 2);
-                _sum21 = vfmaq_laneq_f32_riscv(_sum21, _pA1, _pB0, 2);
-                _sum30 = vfmaq_laneq_f32_riscv(_sum30, _pA0, _pB0, 3);
-                _sum31 = vfmaq_laneq_f32_riscv(_sum31, _pA1, _pB0, 3);
-                _sum40 = vfmaq_laneq_f32_riscv(_sum40, _pA0, _pB1, 0);
-                _sum41 = vfmaq_laneq_f32_riscv(_sum41, _pA1, _pB1, 0);
-                _sum50 = vfmaq_laneq_f32_riscv(_sum50, _pA0, _pB1, 1);
-                _sum51 = vfmaq_laneq_f32_riscv(_sum51, _pA1, _pB1, 1);
-                _sum60 = vfmaq_laneq_f32_riscv(_sum60, _pA0, _pB1, 2);
-                _sum61 = vfmaq_laneq_f32_riscv(_sum61, _pA1, _pB1, 2);
-                _sum70 = vfmaq_laneq_f32_riscv(_sum70, _pA0, _pB1, 3);
-                _sum71 = vfmaq_laneq_f32_riscv(_sum71, _pA1, _pB1, 3);
-                _sum80 = vfmaq_laneq_f32_riscv(_sum80, _pA0, _pB2, 0);
-                _sum81 = vfmaq_laneq_f32_riscv(_sum81, _pA1, _pB2, 0);
-                _sum90 = vfmaq_laneq_f32_riscv(_sum90, _pA0, _pB2, 1);
-                _sum91 = vfmaq_laneq_f32_riscv(_sum91, _pA1, _pB2, 1);
-                _suma0 = vfmaq_laneq_f32_riscv(_suma0, _pA0, _pB2, 2);
-                _suma1 = vfmaq_laneq_f32_riscv(_suma1, _pA1, _pB2, 2);
-                _sumb0 = vfmaq_laneq_f32_riscv(_sumb0, _pA0, _pB2, 3);
-                _sumb1 = vfmaq_laneq_f32_riscv(_sumb1, _pA1, _pB2, 3);
+                vfmaq_laneq_f32_riscv(_sum00, _pA0, _pB0, 0);
+                vfmaq_laneq_f32_riscv(_sum01, _pA1, _pB0, 0);
+                vfmaq_laneq_f32_riscv(_sum10, _pA0, _pB0, 1);
+                vfmaq_laneq_f32_riscv(_sum11, _pA1, _pB0, 1);
+                vfmaq_laneq_f32_riscv(_sum20, _pA0, _pB0, 2);
+                vfmaq_laneq_f32_riscv(_sum21, _pA1, _pB0, 2);
+                vfmaq_laneq_f32_riscv(_sum30, _pA0, _pB0, 3);
+                vfmaq_laneq_f32_riscv(_sum31, _pA1, _pB0, 3);
+                vfmaq_laneq_f32_riscv(_sum40, _pA0, _pB1, 0);
+                vfmaq_laneq_f32_riscv(_sum41, _pA1, _pB1, 0);
+                vfmaq_laneq_f32_riscv(_sum50, _pA0, _pB1, 1);
+                vfmaq_laneq_f32_riscv(_sum51, _pA1, _pB1, 1);
+                vfmaq_laneq_f32_riscv(_sum60, _pA0, _pB1, 2);
+                vfmaq_laneq_f32_riscv(_sum61, _pA1, _pB1, 2);
+                vfmaq_laneq_f32_riscv(_sum70, _pA0, _pB1, 3);
+                vfmaq_laneq_f32_riscv(_sum71, _pA1, _pB1, 3);
+                vfmaq_laneq_f32_riscv(_sum80, _pA0, _pB2, 0);
+                vfmaq_laneq_f32_riscv(_sum81, _pA1, _pB2, 0);
+                vfmaq_laneq_f32_riscv(_sum90, _pA0, _pB2, 1);
+                vfmaq_laneq_f32_riscv(_sum91, _pA1, _pB2, 1);
+                vfmaq_laneq_f32_riscv(_suma0, _pA0, _pB2, 2);
+                vfmaq_laneq_f32_riscv(_suma1, _pA1, _pB2, 2);
+                vfmaq_laneq_f32_riscv(_sumb0, _pA0, _pB2, 3);
+                vfmaq_laneq_f32_riscv(_sumb1, _pA1, _pB2, 3);
 
                 pA += 8;
                 pB += 12;
@@ -1363,30 +1363,30 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 _pB1 = vle32_v_f32m1(pB + 4, VL);
                 _pB2 = vle32_v_f32m1(pB + 8, VL);
 
-                _sum00 = vfmaq_laneq_f32_riscv(_sum00, _pA0, _pB0, 0);
-                _sum01 = vfmaq_laneq_f32_riscv(_sum01, _pA1, _pB0, 0);
-                _sum10 = vfmaq_laneq_f32_riscv(_sum10, _pA0, _pB0, 1);
-                _sum11 = vfmaq_laneq_f32_riscv(_sum11, _pA1, _pB0, 1);
-                _sum20 = vfmaq_laneq_f32_riscv(_sum20, _pA0, _pB0, 2);
-                _sum21 = vfmaq_laneq_f32_riscv(_sum21, _pA1, _pB0, 2);
-                _sum30 = vfmaq_laneq_f32_riscv(_sum30, _pA0, _pB0, 3);
-                _sum31 = vfmaq_laneq_f32_riscv(_sum31, _pA1, _pB0, 3);
-                _sum40 = vfmaq_laneq_f32_riscv(_sum40, _pA0, _pB1, 0);
-                _sum41 = vfmaq_laneq_f32_riscv(_sum41, _pA1, _pB1, 0);
-                _sum50 = vfmaq_laneq_f32_riscv(_sum50, _pA0, _pB1, 1);
-                _sum51 = vfmaq_laneq_f32_riscv(_sum51, _pA1, _pB1, 1);
-                _sum60 = vfmaq_laneq_f32_riscv(_sum60, _pA0, _pB1, 2);
-                _sum61 = vfmaq_laneq_f32_riscv(_sum61, _pA1, _pB1, 2);
-                _sum70 = vfmaq_laneq_f32_riscv(_sum70, _pA0, _pB1, 3);
-                _sum71 = vfmaq_laneq_f32_riscv(_sum71, _pA1, _pB1, 3);
-                _sum80 = vfmaq_laneq_f32_riscv(_sum80, _pA0, _pB2, 0);
-                _sum81 = vfmaq_laneq_f32_riscv(_sum81, _pA1, _pB2, 0);
-                _sum90 = vfmaq_laneq_f32_riscv(_sum90, _pA0, _pB2, 1);
-                _sum91 = vfmaq_laneq_f32_riscv(_sum91, _pA1, _pB2, 1);
-                _suma0 = vfmaq_laneq_f32_riscv(_suma0, _pA0, _pB2, 2);
-                _suma1 = vfmaq_laneq_f32_riscv(_suma1, _pA1, _pB2, 2);
-                _sumb0 = vfmaq_laneq_f32_riscv(_sumb0, _pA0, _pB2, 3);
-                _sumb1 = vfmaq_laneq_f32_riscv(_sumb1, _pA1, _pB2, 3);
+                vfmaq_laneq_f32_riscv(_sum00, _pA0, _pB0, 0);
+                vfmaq_laneq_f32_riscv(_sum01, _pA1, _pB0, 0);
+                vfmaq_laneq_f32_riscv(_sum10, _pA0, _pB0, 1);
+                vfmaq_laneq_f32_riscv(_sum11, _pA1, _pB0, 1);
+                vfmaq_laneq_f32_riscv(_sum20, _pA0, _pB0, 2);
+                vfmaq_laneq_f32_riscv(_sum21, _pA1, _pB0, 2);
+                vfmaq_laneq_f32_riscv(_sum30, _pA0, _pB0, 3);
+                vfmaq_laneq_f32_riscv(_sum31, _pA1, _pB0, 3);
+                vfmaq_laneq_f32_riscv(_sum40, _pA0, _pB1, 0);
+                vfmaq_laneq_f32_riscv(_sum41, _pA1, _pB1, 0);
+                vfmaq_laneq_f32_riscv(_sum50, _pA0, _pB1, 1);
+                vfmaq_laneq_f32_riscv(_sum51, _pA1, _pB1, 1);
+                vfmaq_laneq_f32_riscv(_sum60, _pA0, _pB1, 2);
+                vfmaq_laneq_f32_riscv(_sum61, _pA1, _pB1, 2);
+                vfmaq_laneq_f32_riscv(_sum70, _pA0, _pB1, 3);
+                vfmaq_laneq_f32_riscv(_sum71, _pA1, _pB1, 3);
+                vfmaq_laneq_f32_riscv(_sum80, _pA0, _pB2, 0);
+                vfmaq_laneq_f32_riscv(_sum81, _pA1, _pB2, 0);
+                vfmaq_laneq_f32_riscv(_sum90, _pA0, _pB2, 1);
+                vfmaq_laneq_f32_riscv(_sum91, _pA1, _pB2, 1);
+                vfmaq_laneq_f32_riscv(_suma0, _pA0, _pB2, 2);
+                vfmaq_laneq_f32_riscv(_suma1, _pA1, _pB2, 2);
+                vfmaq_laneq_f32_riscv(_sumb0, _pA0, _pB2, 3);
+                vfmaq_laneq_f32_riscv(_sumb1, _pA1, _pB2, 3);
 
                 pA += 8;
                 pB += 12;
@@ -1398,30 +1398,30 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 _pB1 = vle32_v_f32m1(pB + 4, VL);
                 _pB2 = vle32_v_f32m1(pB + 8, VL);
 
-                _sum00 = vfmaq_laneq_f32_riscv(_sum00, _pA0, _pB0, 0);
-                _sum01 = vfmaq_laneq_f32_riscv(_sum01, _pA1, _pB0, 0);
-                _sum10 = vfmaq_laneq_f32_riscv(_sum10, _pA0, _pB0, 1);
-                _sum11 = vfmaq_laneq_f32_riscv(_sum11, _pA1, _pB0, 1);
-                _sum20 = vfmaq_laneq_f32_riscv(_sum20, _pA0, _pB0, 2);
-                _sum21 = vfmaq_laneq_f32_riscv(_sum21, _pA1, _pB0, 2);
-                _sum30 = vfmaq_laneq_f32_riscv(_sum30, _pA0, _pB0, 3);
-                _sum31 = vfmaq_laneq_f32_riscv(_sum31, _pA1, _pB0, 3);
-                _sum40 = vfmaq_laneq_f32_riscv(_sum40, _pA0, _pB1, 0);
-                _sum41 = vfmaq_laneq_f32_riscv(_sum41, _pA1, _pB1, 0);
-                _sum50 = vfmaq_laneq_f32_riscv(_sum50, _pA0, _pB1, 1);
-                _sum51 = vfmaq_laneq_f32_riscv(_sum51, _pA1, _pB1, 1);
-                _sum60 = vfmaq_laneq_f32_riscv(_sum60, _pA0, _pB1, 2);
-                _sum61 = vfmaq_laneq_f32_riscv(_sum61, _pA1, _pB1, 2);
-                _sum70 = vfmaq_laneq_f32_riscv(_sum70, _pA0, _pB1, 3);
-                _sum71 = vfmaq_laneq_f32_riscv(_sum71, _pA1, _pB1, 3);
-                _sum80 = vfmaq_laneq_f32_riscv(_sum80, _pA0, _pB2, 0);
-                _sum81 = vfmaq_laneq_f32_riscv(_sum81, _pA1, _pB2, 0);
-                _sum90 = vfmaq_laneq_f32_riscv(_sum90, _pA0, _pB2, 1);
-                _sum91 = vfmaq_laneq_f32_riscv(_sum91, _pA1, _pB2, 1);
-                _suma0 = vfmaq_laneq_f32_riscv(_suma0, _pA0, _pB2, 2);
-                _suma1 = vfmaq_laneq_f32_riscv(_suma1, _pA1, _pB2, 2);
-                _sumb0 = vfmaq_laneq_f32_riscv(_sumb0, _pA0, _pB2, 3);
-                _sumb1 = vfmaq_laneq_f32_riscv(_sumb1, _pA1, _pB2, 3);
+                vfmaq_laneq_f32_riscv(_sum00, _pA0, _pB0, 0);
+                vfmaq_laneq_f32_riscv(_sum01, _pA1, _pB0, 0);
+                vfmaq_laneq_f32_riscv(_sum10, _pA0, _pB0, 1);
+                vfmaq_laneq_f32_riscv(_sum11, _pA1, _pB0, 1);
+                vfmaq_laneq_f32_riscv(_sum20, _pA0, _pB0, 2);
+                vfmaq_laneq_f32_riscv(_sum21, _pA1, _pB0, 2);
+                vfmaq_laneq_f32_riscv(_sum30, _pA0, _pB0, 3);
+                vfmaq_laneq_f32_riscv(_sum31, _pA1, _pB0, 3);
+                vfmaq_laneq_f32_riscv(_sum40, _pA0, _pB1, 0);
+                vfmaq_laneq_f32_riscv(_sum41, _pA1, _pB1, 0);
+                vfmaq_laneq_f32_riscv(_sum50, _pA0, _pB1, 1);
+                vfmaq_laneq_f32_riscv(_sum51, _pA1, _pB1, 1);
+                vfmaq_laneq_f32_riscv(_sum60, _pA0, _pB1, 2);
+                vfmaq_laneq_f32_riscv(_sum61, _pA1, _pB1, 2);
+                vfmaq_laneq_f32_riscv(_sum70, _pA0, _pB1, 3);
+                vfmaq_laneq_f32_riscv(_sum71, _pA1, _pB1, 3);
+                vfmaq_laneq_f32_riscv(_sum80, _pA0, _pB2, 0);
+                vfmaq_laneq_f32_riscv(_sum81, _pA1, _pB2, 0);
+                vfmaq_laneq_f32_riscv(_sum90, _pA0, _pB2, 1);
+                vfmaq_laneq_f32_riscv(_sum91, _pA1, _pB2, 1);
+                vfmaq_laneq_f32_riscv(_suma0, _pA0, _pB2, 2);
+                vfmaq_laneq_f32_riscv(_suma1, _pA1, _pB2, 2);
+                vfmaq_laneq_f32_riscv(_sumb0, _pA0, _pB2, 3);
+                vfmaq_laneq_f32_riscv(_sumb1, _pA1, _pB2, 3);
 
                 pA += 8;
                 pB += 12;
@@ -1435,30 +1435,30 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 vfloat32m1_t _pB1 = vle32_v_f32m1(pB + 4, VL);
                 vfloat32m1_t _pB2 = vle32_v_f32m1(pB + 8, VL);
 
-                _sum00 = vfmaq_laneq_f32_riscv(_sum00, _pA0, _pB0, 0);
-                _sum01 = vfmaq_laneq_f32_riscv(_sum01, _pA1, _pB0, 0);
-                _sum10 = vfmaq_laneq_f32_riscv(_sum10, _pA0, _pB0, 1);
-                _sum11 = vfmaq_laneq_f32_riscv(_sum11, _pA1, _pB0, 1);
-                _sum20 = vfmaq_laneq_f32_riscv(_sum20, _pA0, _pB0, 2);
-                _sum21 = vfmaq_laneq_f32_riscv(_sum21, _pA1, _pB0, 2);
-                _sum30 = vfmaq_laneq_f32_riscv(_sum30, _pA0, _pB0, 3);
-                _sum31 = vfmaq_laneq_f32_riscv(_sum31, _pA1, _pB0, 3);
-                _sum40 = vfmaq_laneq_f32_riscv(_sum40, _pA0, _pB1, 0);
-                _sum41 = vfmaq_laneq_f32_riscv(_sum41, _pA1, _pB1, 0);
-                _sum50 = vfmaq_laneq_f32_riscv(_sum50, _pA0, _pB1, 1);
-                _sum51 = vfmaq_laneq_f32_riscv(_sum51, _pA1, _pB1, 1);
-                _sum60 = vfmaq_laneq_f32_riscv(_sum60, _pA0, _pB1, 2);
-                _sum61 = vfmaq_laneq_f32_riscv(_sum61, _pA1, _pB1, 2);
-                _sum70 = vfmaq_laneq_f32_riscv(_sum70, _pA0, _pB1, 3);
-                _sum71 = vfmaq_laneq_f32_riscv(_sum71, _pA1, _pB1, 3);
-                _sum80 = vfmaq_laneq_f32_riscv(_sum80, _pA0, _pB2, 0);
-                _sum81 = vfmaq_laneq_f32_riscv(_sum81, _pA1, _pB2, 0);
-                _sum90 = vfmaq_laneq_f32_riscv(_sum90, _pA0, _pB2, 1);
-                _sum91 = vfmaq_laneq_f32_riscv(_sum91, _pA1, _pB2, 1);
-                _suma0 = vfmaq_laneq_f32_riscv(_suma0, _pA0, _pB2, 2);
-                _suma1 = vfmaq_laneq_f32_riscv(_suma1, _pA1, _pB2, 2);
-                _sumb0 = vfmaq_laneq_f32_riscv(_sumb0, _pA0, _pB2, 3);
-                _sumb1 = vfmaq_laneq_f32_riscv(_sumb1, _pA1, _pB2, 3);
+                vfmaq_laneq_f32_riscv(_sum00, _pA0, _pB0, 0);
+                vfmaq_laneq_f32_riscv(_sum01, _pA1, _pB0, 0);
+                vfmaq_laneq_f32_riscv(_sum10, _pA0, _pB0, 1);
+                vfmaq_laneq_f32_riscv(_sum11, _pA1, _pB0, 1);
+                vfmaq_laneq_f32_riscv(_sum20, _pA0, _pB0, 2);
+                vfmaq_laneq_f32_riscv(_sum21, _pA1, _pB0, 2);
+                vfmaq_laneq_f32_riscv(_sum30, _pA0, _pB0, 3);
+                vfmaq_laneq_f32_riscv(_sum31, _pA1, _pB0, 3);
+                vfmaq_laneq_f32_riscv(_sum40, _pA0, _pB1, 0);
+                vfmaq_laneq_f32_riscv(_sum41, _pA1, _pB1, 0);
+                vfmaq_laneq_f32_riscv(_sum50, _pA0, _pB1, 1);
+                vfmaq_laneq_f32_riscv(_sum51, _pA1, _pB1, 1);
+                vfmaq_laneq_f32_riscv(_sum60, _pA0, _pB1, 2);
+                vfmaq_laneq_f32_riscv(_sum61, _pA1, _pB1, 2);
+                vfmaq_laneq_f32_riscv(_sum70, _pA0, _pB1, 3);
+                vfmaq_laneq_f32_riscv(_sum71, _pA1, _pB1, 3);
+                vfmaq_laneq_f32_riscv(_sum80, _pA0, _pB2, 0);
+                vfmaq_laneq_f32_riscv(_sum81, _pA1, _pB2, 0);
+                vfmaq_laneq_f32_riscv(_sum90, _pA0, _pB2, 1);
+                vfmaq_laneq_f32_riscv(_sum91, _pA1, _pB2, 1);
+                vfmaq_laneq_f32_riscv(_suma0, _pA0, _pB2, 2);
+                vfmaq_laneq_f32_riscv(_suma1, _pA1, _pB2, 2);
+                vfmaq_laneq_f32_riscv(_sumb0, _pA0, _pB2, 3);
+                vfmaq_laneq_f32_riscv(_sumb1, _pA1, _pB2, 3);
 
                 pA += 8;
                 pB += 12;
@@ -1708,22 +1708,22 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 vfloat32m1_t _pB0 = vle32_v_f32m1(pB, VL);
                 vfloat32m1_t _pB1 = vle32_v_f32m1(pB + 4, VL);
 
-                _sum00 = vfmaq_laneq_f32_riscv(_sum00, _pA0, _pB0, 0);
-                _sum01 = vfmaq_laneq_f32_riscv(_sum01, _pA1, _pB0, 0);
-                _sum10 = vfmaq_laneq_f32_riscv(_sum10, _pA0, _pB0, 1);
-                _sum11 = vfmaq_laneq_f32_riscv(_sum11, _pA1, _pB0, 1);
-                _sum20 = vfmaq_laneq_f32_riscv(_sum20, _pA0, _pB0, 2);
-                _sum21 = vfmaq_laneq_f32_riscv(_sum21, _pA1, _pB0, 2);
-                _sum30 = vfmaq_laneq_f32_riscv(_sum30, _pA0, _pB0, 3);
-                _sum31 = vfmaq_laneq_f32_riscv(_sum31, _pA1, _pB0, 3);
-                _sum40 = vfmaq_laneq_f32_riscv(_sum40, _pA0, _pB1, 0);
-                _sum41 = vfmaq_laneq_f32_riscv(_sum41, _pA1, _pB1, 0);
-                _sum50 = vfmaq_laneq_f32_riscv(_sum50, _pA0, _pB1, 1);
-                _sum51 = vfmaq_laneq_f32_riscv(_sum51, _pA1, _pB1, 1);
-                _sum60 = vfmaq_laneq_f32_riscv(_sum60, _pA0, _pB1, 2);
-                _sum61 = vfmaq_laneq_f32_riscv(_sum61, _pA1, _pB1, 2);
-                _sum70 = vfmaq_laneq_f32_riscv(_sum70, _pA0, _pB1, 3);
-                _sum71 = vfmaq_laneq_f32_riscv(_sum71, _pA1, _pB1, 3);
+                vfmaq_laneq_f32_riscv(_sum00, _pA0, _pB0, 0);
+                vfmaq_laneq_f32_riscv(_sum01, _pA1, _pB0, 0);
+                vfmaq_laneq_f32_riscv(_sum10, _pA0, _pB0, 1);
+                vfmaq_laneq_f32_riscv(_sum11, _pA1, _pB0, 1);
+                vfmaq_laneq_f32_riscv(_sum20, _pA0, _pB0, 2);
+                vfmaq_laneq_f32_riscv(_sum21, _pA1, _pB0, 2);
+                vfmaq_laneq_f32_riscv(_sum30, _pA0, _pB0, 3);
+                vfmaq_laneq_f32_riscv(_sum31, _pA1, _pB0, 3);
+                vfmaq_laneq_f32_riscv(_sum40, _pA0, _pB1, 0);
+                vfmaq_laneq_f32_riscv(_sum41, _pA1, _pB1, 0);
+                vfmaq_laneq_f32_riscv(_sum50, _pA0, _pB1, 1);
+                vfmaq_laneq_f32_riscv(_sum51, _pA1, _pB1, 1);
+                vfmaq_laneq_f32_riscv(_sum60, _pA0, _pB1, 2);
+                vfmaq_laneq_f32_riscv(_sum61, _pA1, _pB1, 2);
+                vfmaq_laneq_f32_riscv(_sum70, _pA0, _pB1, 3);
+                vfmaq_laneq_f32_riscv(_sum71, _pA1, _pB1, 3);
 
                 pA += 8;
                 pB += 8;
@@ -1892,14 +1892,14 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
 
                 vfloat32m1_t _pB0 = vle32_v_f32m1(pB, VL);
 
-                _sum00 = vfmaq_laneq_f32_riscv(_sum00, _pA0, _pB0, 0);
-                _sum01 = vfmaq_laneq_f32_riscv(_sum01, _pA1, _pB0, 0);
-                _sum10 = vfmaq_laneq_f32_riscv(_sum10, _pA0, _pB0, 1);
-                _sum11 = vfmaq_laneq_f32_riscv(_sum11, _pA1, _pB0, 1);
-                _sum20 = vfmaq_laneq_f32_riscv(_sum20, _pA0, _pB0, 2);
-                _sum21 = vfmaq_laneq_f32_riscv(_sum21, _pA1, _pB0, 2);
-                _sum30 = vfmaq_laneq_f32_riscv(_sum30, _pA0, _pB0, 3);
-                _sum31 = vfmaq_laneq_f32_riscv(_sum31, _pA1, _pB0, 3);
+                vfmaq_laneq_f32_riscv(_sum00, _pA0, _pB0, 0);
+                vfmaq_laneq_f32_riscv(_sum01, _pA1, _pB0, 0);
+                vfmaq_laneq_f32_riscv(_sum10, _pA0, _pB0, 1);
+                vfmaq_laneq_f32_riscv(_sum11, _pA1, _pB0, 1);
+                vfmaq_laneq_f32_riscv(_sum20, _pA0, _pB0, 2);
+                vfmaq_laneq_f32_riscv(_sum21, _pA1, _pB0, 2);
+                vfmaq_laneq_f32_riscv(_sum30, _pA0, _pB0, 3);
+                vfmaq_laneq_f32_riscv(_sum31, _pA1, _pB0, 3);
 
                 pA += 8;
                 pB += 4;
@@ -2016,10 +2016,10 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
 
                 vfloat32m1_t _pB0 = vle32_v_f32m1(pB, VL / 2);
 
-                _sum00 = vfmaq_laneq_f32_riscv(_sum00, _pA0, _pB0, 0);
-                _sum01 = vfmaq_laneq_f32_riscv(_sum01, _pA1, _pB0, 0);
-                _sum10 = vfmaq_laneq_f32_riscv(_sum10, _pA0, _pB0, 1);
-                _sum11 = vfmaq_laneq_f32_riscv(_sum11, _pA1, _pB0, 1);
+                vfmaq_laneq_f32_riscv(_sum00, _pA0, _pB0, 0);
+                vfmaq_laneq_f32_riscv(_sum01, _pA1, _pB0, 0);
+                vfmaq_laneq_f32_riscv(_sum10, _pA0, _pB0, 1);
+                vfmaq_laneq_f32_riscv(_sum11, _pA1, _pB0, 1);
 
                 pA += 8;
                 pB += 2;
@@ -2309,18 +2309,18 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 vfloat32m1_t _pB1 = vle32_v_f32m1(pB + 4, VL);
                 vfloat32m1_t _pB2 = vle32_v_f32m1(pB + 8, VL);
 
-                _sum0 = vfmaq_laneq_f32_riscv(_sum0, _pA, _pB0, 0);
-                _sum1 = vfmaq_laneq_f32_riscv(_sum1, _pA, _pB0, 1);
-                _sum2 = vfmaq_laneq_f32_riscv(_sum2, _pA, _pB0, 2);
-                _sum3 = vfmaq_laneq_f32_riscv(_sum3, _pA, _pB0, 3);
-                _sum4 = vfmaq_laneq_f32_riscv(_sum4, _pA, _pB1, 0);
-                _sum5 = vfmaq_laneq_f32_riscv(_sum5, _pA, _pB1, 1);
-                _sum6 = vfmaq_laneq_f32_riscv(_sum6, _pA, _pB1, 2);
-                _sum7 = vfmaq_laneq_f32_riscv(_sum7, _pA, _pB1, 3);
-                _sum8 = vfmaq_laneq_f32_riscv(_sum8, _pA, _pB2, 0);
-                _sum9 = vfmaq_laneq_f32_riscv(_sum9, _pA, _pB2, 1);
-                _suma = vfmaq_laneq_f32_riscv(_suma, _pA, _pB2, 2);
-                _sumb = vfmaq_laneq_f32_riscv(_sumb, _pA, _pB2, 3);
+                vfmaq_laneq_f32_riscv(_sum0, _pA, _pB0, 0);
+                vfmaq_laneq_f32_riscv(_sum1, _pA, _pB0, 1);
+                vfmaq_laneq_f32_riscv(_sum2, _pA, _pB0, 2);
+                vfmaq_laneq_f32_riscv(_sum3, _pA, _pB0, 3);
+                vfmaq_laneq_f32_riscv(_sum4, _pA, _pB1, 0);
+                vfmaq_laneq_f32_riscv(_sum5, _pA, _pB1, 1);
+                vfmaq_laneq_f32_riscv(_sum6, _pA, _pB1, 2);
+                vfmaq_laneq_f32_riscv(_sum7, _pA, _pB1, 3);
+                vfmaq_laneq_f32_riscv(_sum8, _pA, _pB2, 0);
+                vfmaq_laneq_f32_riscv(_sum9, _pA, _pB2, 1);
+                vfmaq_laneq_f32_riscv(_suma, _pA, _pB2, 2);
+                vfmaq_laneq_f32_riscv(_sumb, _pA, _pB2, 3);
 
                 pA += 4;
                 pB += 12;
@@ -2473,14 +2473,14 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 vfloat32m1_t _pB0 = vle32_v_f32m1(pB, VL);
                 vfloat32m1_t _pB1 = vle32_v_f32m1(pB + 4, VL);
 
-                _sum0 = vfmaq_laneq_f32_riscv(_sum0, _pA, _pB0, 0);
-                _sum1 = vfmaq_laneq_f32_riscv(_sum1, _pA, _pB0, 1);
-                _sum2 = vfmaq_laneq_f32_riscv(_sum2, _pA, _pB0, 2);
-                _sum3 = vfmaq_laneq_f32_riscv(_sum3, _pA, _pB0, 3);
-                _sum4 = vfmaq_laneq_f32_riscv(_sum4, _pA, _pB1, 0);
-                _sum5 = vfmaq_laneq_f32_riscv(_sum5, _pA, _pB1, 1);
-                _sum6 = vfmaq_laneq_f32_riscv(_sum6, _pA, _pB1, 2);
-                _sum7 = vfmaq_laneq_f32_riscv(_sum7, _pA, _pB1, 3);
+                vfmaq_laneq_f32_riscv(_sum0, _pA, _pB0, 0);
+                vfmaq_laneq_f32_riscv(_sum1, _pA, _pB0, 1);
+                vfmaq_laneq_f32_riscv(_sum2, _pA, _pB0, 2);
+                vfmaq_laneq_f32_riscv(_sum3, _pA, _pB0, 3);
+                vfmaq_laneq_f32_riscv(_sum4, _pA, _pB1, 0);
+                vfmaq_laneq_f32_riscv(_sum5, _pA, _pB1, 1);
+                vfmaq_laneq_f32_riscv(_sum6, _pA, _pB1, 2);
+                vfmaq_laneq_f32_riscv(_sum7, _pA, _pB1, 3);
 
                 pA += 4;
                 pB += 8;
@@ -2592,10 +2592,10 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 vfloat32m1_t _pA = vle32_v_f32m1(pA, VL);
                 vfloat32m1_t _pB = vle32_v_f32m1(pB, VL);
 
-                _sum0 = vfmaq_laneq_f32_riscv(_sum0, _pA, _pB, 0);
-                _sum1 = vfmaq_laneq_f32_riscv(_sum1, _pA, _pB, 1);
-                _sum2 = vfmaq_laneq_f32_riscv(_sum2, _pA, _pB, 2);
-                _sum3 = vfmaq_laneq_f32_riscv(_sum3, _pA, _pB, 3);
+                vfmaq_laneq_f32_riscv(_sum0, _pA, _pB, 0);
+                vfmaq_laneq_f32_riscv(_sum1, _pA, _pB, 1);
+                vfmaq_laneq_f32_riscv(_sum2, _pA, _pB, 2);
+                vfmaq_laneq_f32_riscv(_sum3, _pA, _pB, 3);
                 pA += 4;
                 pB += 4;
             }
@@ -2680,8 +2680,8 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 vfloat32m1_t _pA = vle32_v_f32m1(pA, VL);
                 vfloat32m1_t _pB = vle32_v_f32m1(pB, VL / 2);
 
-                _sum0 = vfmaq_laneq_f32_riscv(_sum0, _pA, _pB, 0);
-                _sum1 = vfmaq_laneq_f32_riscv(_sum1, _pA, _pB, 1);
+                vfmaq_laneq_f32_riscv(_sum0, _pA, _pB, 0);
+                vfmaq_laneq_f32_riscv(_sum1, _pA, _pB, 1);
 
 
                 pA += 4;
@@ -2894,12 +2894,12 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
 
                 vfloat32m1_t _pA = vle32_v_f32m1(pA, VL / 2);
 
-                _sum00 = vfmaq_laneq_f32_riscv(_sum00, _pB0, _pA, 0);
-                _sum01 = vfmaq_laneq_f32_riscv(_sum01, _pB1, _pA, 0);
-                _sum02 = vfmaq_laneq_f32_riscv(_sum02, _pB2, _pA, 0);
-                _sum10 = vfmaq_laneq_f32_riscv(_sum10, _pB0, _pA, 1);
-                _sum11 = vfmaq_laneq_f32_riscv(_sum11, _pB1, _pA, 1);
-                _sum12 = vfmaq_laneq_f32_riscv(_sum12, _pB2, _pA, 1);
+                vfmaq_laneq_f32_riscv(_sum00, _pB0, _pA, 0);
+                vfmaq_laneq_f32_riscv(_sum01, _pB1, _pA, 0);
+                vfmaq_laneq_f32_riscv(_sum02, _pB2, _pA, 0);
+                vfmaq_laneq_f32_riscv(_sum10, _pB0, _pA, 1);
+                vfmaq_laneq_f32_riscv(_sum11, _pB1, _pA, 1);
+                vfmaq_laneq_f32_riscv(_sum12, _pB2, _pA, 1);
 
                 pA += 2;
                 pB += 12;
@@ -2987,10 +2987,10 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 vfloat32m1_t _pB1 = vle32_v_f32m1(pB + 4, VL);
 
                 vfloat32m1_t _pA = vle32_v_f32m1(pA, VL / 2);
-                _sum00 = vfmaq_laneq_f32_riscv(_sum00, _pB0, _pA, 0);
-                _sum01 = vfmaq_laneq_f32_riscv(_sum01, _pB1, _pA, 0);
-                _sum10 = vfmaq_laneq_f32_riscv(_sum10, _pB0, _pA, 1);
-                _sum11 = vfmaq_laneq_f32_riscv(_sum11, _pB1, _pA, 1);
+                vfmaq_laneq_f32_riscv(_sum00, _pB0, _pA, 0);
+                vfmaq_laneq_f32_riscv(_sum01, _pB1, _pA, 0);
+                vfmaq_laneq_f32_riscv(_sum10, _pB0, _pA, 1);
+                vfmaq_laneq_f32_riscv(_sum11, _pB1, _pA, 1);
                 pA += 2;
                 pB += 8;
             }
@@ -3065,8 +3065,8 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 vfloat32m1_t _pB = vle32_v_f32m1(pB, VL);
 
                 vfloat32m1_t _pA = vle32_v_f32m1(pA, VL / 2);
-                _sum0 = vfmaq_laneq_f32_riscv(_sum0, _pB, _pA, 0);
-                _sum1 = vfmaq_laneq_f32_riscv(_sum1, _pB, _pA, 1);
+                vfmaq_laneq_f32_riscv(_sum0, _pB, _pA, 0);
+                vfmaq_laneq_f32_riscv(_sum1, _pB, _pA, 1);
 
 
                 pA += 2;
