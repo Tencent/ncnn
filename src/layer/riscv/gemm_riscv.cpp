@@ -42,9 +42,6 @@ Gemm_riscv::Gemm_riscv()
 
 static void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
 {
-    struct timeval start_time, end_time;
-    long elapsed_time;
-    gettimeofday(&start_time, NULL);
     const int elempack = A.elempack;
     const int A_hstep = A.dims == 3 ? (int)A.cstep : A.w;
 
@@ -248,16 +245,10 @@ static void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max
             }
         }
     }
-    gettimeofday(&end_time, NULL);
-    elapsed_time = (end_time.tv_sec - start_time.tv_sec) * 1000000L + (end_time.tv_usec - start_time.tv_usec);
-    printf("pack_A_tile time elapsed: %ld microseconds\n", elapsed_time);
 }
 
 static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
 {
-    struct timeval start_time, end_time;
-    long elapsed_time;
-    gettimeofday(&start_time, NULL);
     const int elempack = A.elempack;
     const int A_hstep = A.dims == 3 ? (int)A.cstep : A.w;
 
@@ -407,16 +398,10 @@ static void transpose_pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int 
             }
         }
     }
-    gettimeofday(&end_time, NULL);
-    elapsed_time = (end_time.tv_sec - start_time.tv_sec) * 1000000L + (end_time.tv_usec - start_time.tv_usec);
-    printf("transpose_pack_A_tile time elapsed: %ld microseconds\n", elapsed_time);
 }
 
 static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk)
 {
-    struct timeval start_time, end_time;
-    long elapsed_time;
-    gettimeofday(&start_time, NULL);
     const int elempack = B.elempack;
     const int B_hstep = B.dims == 3 ? (int)B.cstep : B.w;
 
@@ -717,16 +702,10 @@ static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max
             }
         }
     }
-    gettimeofday(&end_time, NULL);
-    elapsed_time = (end_time.tv_sec - start_time.tv_sec) * 1000000L + (end_time.tv_usec - start_time.tv_usec);
-    printf("pack_B_tile time elapsed: %ld microseconds\n", elapsed_time);
 }
 
 static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk)
 {
-    struct timeval start_time, end_time;
-    long elapsed_time;
-    gettimeofday(&start_time, NULL);
     const int elempack = B.elempack;
     const int B_hstep = B.dims == 3 ? (int)B.cstep : B.w;
 
@@ -931,16 +910,10 @@ static void transpose_pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int 
             }
         }
     }
-    gettimeofday(&end_time, NULL);
-    elapsed_time = (end_time.tv_sec - start_time.tv_sec) * 1000000L + (end_time.tv_usec - start_time.tv_usec);
-    printf("transpose_pack_B_tile time elapsed: %ld microseconds\n", elapsed_time);
 }
 
 static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, int max_ii, int j, int max_jj)
 {
-    struct timeval start_time, end_time;
-    long elapsed_time;
-    gettimeofday(&start_time, NULL);
     const int out_elempack = top_blob.elempack;
     const int out_hstep = top_blob.dims == 3 ? (int)top_blob.cstep : top_blob.w;
 
@@ -1079,16 +1052,10 @@ static void transpose_unpack_output_tile(const Mat& topT, Mat& top_blob, int i, 
             }
         }
     }
-    gettimeofday(&end_time, NULL);
-    elapsed_time = (end_time.tv_sec - start_time.tv_sec) * 1000000L + (end_time.tv_usec - start_time.tv_usec);
-    printf("transpose_unpack_output_tile time elapsed: %ld microseconds\n", elapsed_time);
 }
 
 static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, const Mat& CT_tile, Mat& topT_tile, Mat& top_blob, int broadcast_type_C, int i, int max_ii, int j, int max_jj, int k, int max_kk, bool k_end)
 {
-    struct timeval start_time, end_time;
-    long elapsed_time;
-    gettimeofday(&start_time, NULL);
     const int out_elempack = top_blob.elempack;
     const int out_hstep = top_blob.dims == 3 ? (int)top_blob.cstep : top_blob.w;
 
@@ -3582,9 +3549,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
 
         pAT += max_kk;
     }
-    gettimeofday(&end_time, NULL);
-    elapsed_time = (end_time.tv_sec - start_time.tv_sec) * 1000000L + (end_time.tv_usec - start_time.tv_usec);
-    printf("gemm_transB_packed_tile time elapsed: %ld microseconds\n", elapsed_time);
 }
 
 static void get_optimal_tile_mnk(int M, int N, int K, int constant_TILE_M, int constant_TILE_N, int constant_TILE_K, int& TILE_M, int& TILE_N, int& TILE_K, int nT)
@@ -3659,17 +3623,8 @@ static int gemm_riscv(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, i
     // NCNN_LOGE("M/N/K = %d %d %d", M, N, K);
 
     int TILE_M, TILE_N, TILE_K;
-#if TIME_TEST
-    struct timeval start_time, end_time;
-    long elapsed_time;
-    gettimeofday(&start_time, NULL);
+    
     get_optimal_tile_mnk(M, N, K, constant_TILE_M, constant_TILE_N, constant_TILE_K, TILE_M, TILE_N, TILE_K, nT);
-    gettimeofday(&end_time, NULL);
-    elapsed_time = (end_time.tv_sec - start_time.tv_sec) * 1000000L + (end_time.tv_usec - start_time.tv_usec);
-    printf("get_optimal_tile_mnk time elapsed: %ld microseconds\n", elapsed_time);
-#else
-    get_optimal_tile_mnk(M, N, K, constant_TILE_M, constant_TILE_N, constant_TILE_K, TILE_M, TILE_N, TILE_K, nT);
-#endif
     // NCNN_LOGE("TILE M/N/K = %d %d %d", TILE_M, TILE_N, TILE_K);
 
     int nn_M = (M + TILE_M - 1) / TILE_M;
@@ -3708,11 +3663,6 @@ static int gemm_riscv(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, i
             transpose_pack_B_tile(B, BT_tile, j, max_jj, k, max_kk);
         }
     }
-#if TIME_TEST
-    gettimeofday(&end_time, NULL);
-    elapsed_time = (end_time.tv_sec - start_time.tv_sec) * 1000000L + (end_time.tv_usec - start_time.tv_usec);
-    printf("packB time elapsed: %ld microseconds\n", elapsed_time);
-#endif
 
     Mat topT;
     if (K > TILE_K || broadcast_type_C == 3 || output_transpose)
@@ -3767,15 +3717,7 @@ static int gemm_riscv(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, i
                 }
 
                 bool k_end = !output_transpose && k + TILE_K >= K;
-#if TIME_TEST 
-                gettimeofday(&start_time, NULL);
                 gemm_transB_packed_tile(AT_tile, BT_tile, CT_tile, topT_tile, top_blob, broadcast_type_C, i, max_ii, j, max_jj, k, max_kk, k_end);
-                gettimeofday(&end_time, NULL);
-                elapsed_time = (end_time.tv_sec - start_time.tv_sec) * 1000000L + (end_time.tv_usec - start_time.tv_usec);
-                printf("gemm_transB_packed_tile time elapsed: %ld microseconds\n", elapsed_time); 
-#else 
-                gemm_transB_packed_tile(AT_tile, BT_tile, CT_tile, topT_tile, top_blob, broadcast_type_C, i, max_ii, j, max_jj, k, max_kk, k_end);
-#endif
             }
 
             if (output_transpose)
