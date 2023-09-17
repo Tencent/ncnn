@@ -1287,6 +1287,36 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 vfloat32m1_t _pA0 = vle32_v_f32m1(pA, VL);
                 vfloat32m1_t _pA1 = vle32_v_f32m1(pA + 4, VL);
 
+                _sum00 = vfmadd_vf_f32m1(_pA0, pB[0], _sum00, VL);
+                _sum01 = vfmadd_vf_f32m1(_pA1, pB[0], _sum01, VL);
+                _sum10 = vfmadd_vf_f32m1(_pA0, pB[1], _sum10, VL);
+                _sum11 = vfmadd_vf_f32m1(_pA1, pB[1], _sum11, VL);
+                _sum20 = vfmadd_vf_f32m1(_pA0, pB[2], _sum20, VL);
+                _sum21 = vfmadd_vf_f32m1(_pA1, pB[2], _sum21, VL);
+                _sum30 = vfmadd_vf_f32m1(_pA0, pB[3], _sum30, VL);
+                _sum31 = vfmadd_vf_f32m1(_pA1, pB[3], _sum31, VL);
+                _sum40 = vfmadd_vf_f32m1(_pA0, pB[4], _sum40, VL);
+                _sum41 = vfmadd_vf_f32m1(_pA1, pB[4], _sum41, VL);
+                _sum50 = vfmadd_vf_f32m1(_pA0, pB[5], _sum50, VL);
+                _sum51 = vfmadd_vf_f32m1(_pA1, pB[5], _sum51, VL);
+                _sum60 = vfmadd_vf_f32m1(_pA0, pB[6], _sum60, VL);
+                _sum61 = vfmadd_vf_f32m1(_pA1, pB[6], _sum61, VL);
+                _sum70 = vfmadd_vf_f32m1(_pA0, pB[7], _sum70, VL);
+                _sum71 = vfmadd_vf_f32m1(_pA1, pB[7], _sum71, VL);
+                _sum80 = vfmadd_vf_f32m1(_pA0, pB[8], _sum80, VL);
+                _sum81 = vfmadd_vf_f32m1(_pA1, pB[8], _sum81, VL);
+                _sum90 = vfmadd_vf_f32m1(_pA0, pB[9], _sum90, VL);
+                _sum91 = vfmadd_vf_f32m1(_pA1, pB[9], _sum91, VL);
+                _suma0 = vfmadd_vf_f32m1(_pA0, pB[10], _suma0, VL);
+                _suma1 = vfmadd_vf_f32m1(_pA1, pB[10], _suma1, VL);
+                _sumb0 = vfmadd_vf_f32m1(_pA0, pB[11], _sumb0, VL);
+                _sumb1 = vfmadd_vf_f32m1(_pA1, pB[11], _sumb1, VL);
+
+                pA += 8;
+                pB += 12;
+
+                _pA0 = vle32_v_f32m1(pA, VL);
+                _pA1 = vle32_v_f32m1(pA + 4, VL);
 
                 _sum00 = vfmadd_vf_f32m1(_pA0, pB[0], _sum00, VL);
                 _sum01 = vfmadd_vf_f32m1(_pA1, pB[0], _sum01, VL);
@@ -1319,7 +1349,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 _pA0 = vle32_v_f32m1(pA, VL);
                 _pA1 = vle32_v_f32m1(pA + 4, VL);
 
-
                 _sum00 = vfmadd_vf_f32m1(_pA0, pB[0], _sum00, VL);
                 _sum01 = vfmadd_vf_f32m1(_pA1, pB[0], _sum01, VL);
                 _sum10 = vfmadd_vf_f32m1(_pA0, pB[1], _sum10, VL);
@@ -1350,39 +1379,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
 
                 _pA0 = vle32_v_f32m1(pA, VL);
                 _pA1 = vle32_v_f32m1(pA + 4, VL);
-
-
-                _sum00 = vfmadd_vf_f32m1(_pA0, pB[0], _sum00, VL);
-                _sum01 = vfmadd_vf_f32m1(_pA1, pB[0], _sum01, VL);
-                _sum10 = vfmadd_vf_f32m1(_pA0, pB[1], _sum10, VL);
-                _sum11 = vfmadd_vf_f32m1(_pA1, pB[1], _sum11, VL);
-                _sum20 = vfmadd_vf_f32m1(_pA0, pB[2], _sum20, VL);
-                _sum21 = vfmadd_vf_f32m1(_pA1, pB[2], _sum21, VL);
-                _sum30 = vfmadd_vf_f32m1(_pA0, pB[3], _sum30, VL);
-                _sum31 = vfmadd_vf_f32m1(_pA1, pB[3], _sum31, VL);
-                _sum40 = vfmadd_vf_f32m1(_pA0, pB[4], _sum40, VL);
-                _sum41 = vfmadd_vf_f32m1(_pA1, pB[4], _sum41, VL);
-                _sum50 = vfmadd_vf_f32m1(_pA0, pB[5], _sum50, VL);
-                _sum51 = vfmadd_vf_f32m1(_pA1, pB[5], _sum51, VL);
-                _sum60 = vfmadd_vf_f32m1(_pA0, pB[6], _sum60, VL);
-                _sum61 = vfmadd_vf_f32m1(_pA1, pB[6], _sum61, VL);
-                _sum70 = vfmadd_vf_f32m1(_pA0, pB[7], _sum70, VL);
-                _sum71 = vfmadd_vf_f32m1(_pA1, pB[7], _sum71, VL);
-                _sum80 = vfmadd_vf_f32m1(_pA0, pB[8], _sum80, VL);
-                _sum81 = vfmadd_vf_f32m1(_pA1, pB[8], _sum81, VL);
-                _sum90 = vfmadd_vf_f32m1(_pA0, pB[9], _sum90, VL);
-                _sum91 = vfmadd_vf_f32m1(_pA1, pB[9], _sum91, VL);
-                _suma0 = vfmadd_vf_f32m1(_pA0, pB[10], _suma0, VL);
-                _suma1 = vfmadd_vf_f32m1(_pA1, pB[10], _suma1, VL);
-                _sumb0 = vfmadd_vf_f32m1(_pA0, pB[11], _sumb0, VL);
-                _sumb1 = vfmadd_vf_f32m1(_pA1, pB[11], _sumb1, VL);
-
-                pA += 8;
-                pB += 12;
-
-                _pA0 = vle32_v_f32m1(pA, VL);
-                _pA1 = vle32_v_f32m1(pA + 4, VL);
-
 
                 _sum00 = vfmadd_vf_f32m1(_pA0, pB[0], _sum00, VL);
                 _sum01 = vfmadd_vf_f32m1(_pA1, pB[0], _sum01, VL);
@@ -1416,7 +1412,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             {
                 vfloat32m1_t _pA0 = vle32_v_f32m1(pA, VL);
                 vfloat32m1_t _pA1 = vle32_v_f32m1(pA + 4, VL);
-
 
                 _sum00 = vfmadd_vf_f32m1(_pA0, pB[0], _sum00, VL);
                 _sum01 = vfmadd_vf_f32m1(_pA1, pB[0], _sum01, VL);
@@ -1688,7 +1683,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 vfloat32m1_t _pA0 = vle32_v_f32m1(pA, VL);
                 vfloat32m1_t _pA1 = vle32_v_f32m1(pA + 4, VL);
 
-
                 _sum00 = vfmadd_vf_f32m1(_pA0, pB[0], _sum00, VL);
                 _sum01 = vfmadd_vf_f32m1(_pA1, pB[0], _sum01, VL);
                 _sum10 = vfmadd_vf_f32m1(_pA0, pB[1], _sum10, VL);
@@ -1871,7 +1865,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 vfloat32m1_t _pA0 = vle32_v_f32m1(pA, VL);
                 vfloat32m1_t _pA1 = vle32_v_f32m1(pA + 4, VL);
 
-
                 _sum00 = vfmadd_vf_f32m1(_pA0, pB[0], _sum00, VL);
                 _sum01 = vfmadd_vf_f32m1(_pA1, pB[0], _sum01, VL);
                 _sum10 = vfmadd_vf_f32m1(_pA0, pB[1], _sum10, VL);
@@ -1993,7 +1986,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             {
                 vfloat32m1_t _pA0 = vle32_v_f32m1(pA, VL);
                 vfloat32m1_t _pA1 = vle32_v_f32m1(pA + 4, VL);
-
 
                 _sum00 = vfmadd_vf_f32m1(_pA0, pB[0], _sum00, VL);
                 _sum01 = vfmadd_vf_f32m1(_pA1, pB[0], _sum01, VL);
@@ -2655,7 +2647,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 _sum0 = vfmadd_vf_f32m1(_pA, pB[0], _sum0, VL);
                 _sum1 = vfmadd_vf_f32m1(_pA, pB[1], _sum1, VL);
 
-
                 pA += 4;
                 pB += 2;
             }
@@ -2864,7 +2855,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 vfloat32m1_t _pB1 = vle32_v_f32m1(pB + 4, VL);
                 vfloat32m1_t _pB2 = vle32_v_f32m1(pB + 8, VL);
 
-
                 _sum00 = vfmadd_vf_f32m1(_pB0, pA[0], _sum00, VL);
                 _sum01 = vfmadd_vf_f32m1(_pB1, pA[0], _sum01, VL);
                 _sum02 = vfmadd_vf_f32m1(_pB2, pA[0], _sum02, VL);
@@ -2957,7 +2947,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 vfloat32m1_t _pB0 = vle32_v_f32m1(pB, VL);
                 vfloat32m1_t _pB1 = vle32_v_f32m1(pB + 4, VL);
 
-
                 _sum00 = vfmadd_vf_f32m1(_pB0, pA[0], _sum00, VL);
                 _sum01 = vfmadd_vf_f32m1(_pB1, pA[0], _sum01, VL);
                 _sum10 = vfmadd_vf_f32m1(_pB0, pA[1], _sum10, VL);
@@ -3035,10 +3024,8 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             {
                 vfloat32m1_t _pB = vle32_v_f32m1(pB, VL);
 
-
                 _sum0 = vfmadd_vf_f32m1(_pB, pA[0], _sum0, VL);
                 _sum1 = vfmadd_vf_f32m1(_pB, pA[1], _sum1, VL);
-
 
                 pA += 2;
                 pB += 4;
@@ -3358,7 +3345,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 _sum0 = vfmadd_vv_f32m1(_pA0, _pB0, _sum0, VL);
                 _sum1 = vfmadd_vv_f32m1(_pA0, _pB1, _sum1, VL);
 
-
                 pA += 1;
                 pB += 8;
             }
@@ -3621,7 +3607,7 @@ static int gemm_riscv(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, i
     // NCNN_LOGE("M/N/K = %d %d %d", M, N, K);
 
     int TILE_M, TILE_N, TILE_K;
-    
+
     get_optimal_tile_mnk(M, N, K, constant_TILE_M, constant_TILE_N, constant_TILE_K, TILE_M, TILE_N, TILE_K, nT);
     // NCNN_LOGE("TILE M/N/K = %d %d %d", TILE_M, TILE_N, TILE_K);
 
@@ -4288,6 +4274,3 @@ int Gemm_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
 }
 
 } // namespace ncnn
-
-
-

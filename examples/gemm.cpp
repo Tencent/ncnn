@@ -2,7 +2,6 @@
 #include <stdio.h>
 #include <sys/time.h>
 
-
 int main(int argc, char** argv)
 {
     if (argc != 4)
@@ -25,13 +24,13 @@ int main(int argc, char** argv)
     net.load_param("test_gemm.ncnn.param");
     net.load_model("test_gemm.ncnn.model.bin");
 
- // 创建网络提取器，设置网络输入，线程数，light模式等等
+    // 创建网络提取器，设置网络输入，线程数，light模式等等
     ncnn::Extractor ex = net.create_extractor();
     // ex.set_light_mode(false);
     // ex.set_num_threads(1);
     ex.input("in0", a);
     ex.input("in1", b);
- // 调用extract接口，完成网络推理，获得输出结果
+    // 调用extract接口，完成网络推理，获得输出结果
     ncnn::Mat c;
     // add timeit code
     struct timeval start_time, end_time;
