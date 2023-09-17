@@ -13,8 +13,6 @@
 // specific language governing permissions and limitations under the License.
 
 #include "gemm_riscv.h"
-#include <stdio.h>
-#include <sys/time.h>
 
 #if __riscv_vector
 #include <riscv_vector.h>
