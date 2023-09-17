@@ -8231,7 +8231,13 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
 }
 
 template<int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h>
+#if __ARM_FEATURE_MATMUL_INT8
+void convolution_im2col_input_tile_int8_i8mm(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk)
+#elif __ARM_FEATURE_DOTPROD
+void convolution_im2col_input_tile_int8_asimddp(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk)
+#else  // __ARM_FEATURE_MATMUL_INT8 || __ARM_FEATURE_DOTPROD
 void convolution_im2col_input_tile_int8(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk)
+#endif // __ARM_FEATURE_MATMUL_INT8 || __ARM_FEATURE_DOTPROD
 {
     const int w = bottom_blob.w;
     // const int channels = bottom_blob.c;
@@ -10741,12 +10747,28 @@ void convolution_im2col_input_tile_int8(const Mat& bottom_blob, Mat& B, int j, i
     }
 }
 
+#if __ARM_FEATURE_MATMUL_INT8
+template void convolution_im2col_input_tile_int8_i8mm<1, 1, 1, 1, 2, 2>(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk);
+template void convolution_im2col_input_tile_int8_i8mm<3, 3, 1, 1, 1, 1>(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk);
+template void convolution_im2col_input_tile_int8_i8mm<3, 3, 1, 1, 2, 2>(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk);
+template void convolution_im2col_input_tile_int8_i8mm<5, 5, 1, 1, 1, 1>(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk);
+template void convolution_im2col_input_tile_int8_i8mm<5, 5, 1, 1, 2, 2>(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk);
+template void convolution_im2col_input_tile_int8_i8mm<7, 7, 1, 1, 2, 2>(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk);
+#elif __ARM_FEATURE_DOTPROD
+template void convolution_im2col_input_tile_int8_asimddp<1, 1, 1, 1, 2, 2>(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk);
+template void convolution_im2col_input_tile_int8_asimddp<3, 3, 1, 1, 1, 1>(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk);
+template void convolution_im2col_input_tile_int8_asimddp<3, 3, 1, 1, 2, 2>(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk);
+template void convolution_im2col_input_tile_int8_asimddp<5, 5, 1, 1, 1, 1>(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk);
+template void convolution_im2col_input_tile_int8_asimddp<5, 5, 1, 1, 2, 2>(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk);
+template void convolution_im2col_input_tile_int8_asimddp<7, 7, 1, 1, 2, 2>(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk);
+#else  // __ARM_FEATURE_MATMUL_INT8 || __ARM_FEATURE_DOTPROD
 template void convolution_im2col_input_tile_int8<1, 1, 1, 1, 2, 2>(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk);
 template void convolution_im2col_input_tile_int8<3, 3, 1, 1, 1, 1>(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk);
 template void convolution_im2col_input_tile_int8<3, 3, 1, 1, 2, 2>(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk);
 template void convolution_im2col_input_tile_int8<5, 5, 1, 1, 1, 1>(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk);
 template void convolution_im2col_input_tile_int8<5, 5, 1, 1, 2, 2>(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk);
 template void convolution_im2col_input_tile_int8<7, 7, 1, 1, 2, 2>(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk);
+#endif // __ARM_FEATURE_MATMUL_INT8 || __ARM_FEATURE_DOTPROD
 
 static void convolution_im2col_input_tile_int8(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h)
 {
@@ -10758,37 +10780,73 @@ static void convolution_im2col_input_tile_int8(const Mat& bottom_blob, Mat& B, i
 
     if (kernel_w == 1 && kernel_h == 1 && stride_w == 2 && stride_h == 2)
     {
+#if __ARM_FEATURE_MATMUL_INT8
+        convolution_im2col_input_tile_int8_i8mm<1, 1, 1, 1, 2, 2>(bottom_blob, B, j, max_jj, k, max_kk);
+#elif __ARM_FEATURE_DOTPROD
+        convolution_im2col_input_tile_int8_asimddp<1, 1, 1, 1, 2, 2>(bottom_blob, B, j, max_jj, k, max_kk);
+#else  // __ARM_FEATURE_MATMUL_INT8 || __ARM_FEATURE_DOTPROD
         convolution_im2col_input_tile_int8<1, 1, 1, 1, 2, 2>(bottom_blob, B, j, max_jj, k, max_kk);
+#endif // __ARM_FEATURE_MATMUL_INT8 || __ARM_FEATURE_DOTPROD
         return;
     }
 
     if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
     {
+#if __ARM_FEATURE_MATMUL_INT8
+        convolution_im2col_input_tile_int8_i8mm<3, 3, 1, 1, 1, 1>(bottom_blob, B, j, max_jj, k, max_kk);
+#elif __ARM_FEATURE_DOTPROD
+        convolution_im2col_input_tile_int8_asimddp<3, 3, 1, 1, 1, 1>(bottom_blob, B, j, max_jj, k, max_kk);
+#else  // __ARM_FEATURE_MATMUL_INT8 || __ARM_FEATURE_DOTPROD
         convolution_im2col_input_tile_int8<3, 3, 1, 1, 1, 1>(bottom_blob, B, j, max_jj, k, max_kk);
+#endif // __ARM_FEATURE_MATMUL_INT8 || __ARM_FEATURE_DOTPROD
         return;
     }
 
     if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
     {
+#if __ARM_FEATURE_MATMUL_INT8
+        convolution_im2col_input_tile_int8_i8mm<3, 3, 1, 1, 2, 2>(bottom_blob, B, j, max_jj, k, max_kk);
+#elif __ARM_FEATURE_DOTPROD
+        convolution_im2col_input_tile_int8_asimddp<3, 3, 1, 1, 2, 2>(bottom_blob, B, j, max_jj, k, max_kk);
+#else  // __ARM_FEATURE_MATMUL_INT8 || __ARM_FEATURE_DOTPROD
         convolution_im2col_input_tile_int8<3, 3, 1, 1, 2, 2>(bottom_blob, B, j, max_jj, k, max_kk);
+#endif // __ARM_FEATURE_MATMUL_INT8 || __ARM_FEATURE_DOTPROD
         return;
     }
 
     if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
     {
+#if __ARM_FEATURE_MATMUL_INT8
+        convolution_im2col_input_tile_int8_i8mm<5, 5, 1, 1, 1, 1>(bottom_blob, B, j, max_jj, k, max_kk);
+#elif __ARM_FEATURE_DOTPROD
+        convolution_im2col_input_tile_int8_asimddp<5, 5, 1, 1, 1, 1>(bottom_blob, B, j, max_jj, k, max_kk);
+#else  // __ARM_FEATURE_MATMUL_INT8 || __ARM_FEATURE_DOTPROD
         convolution_im2col_input_tile_int8<5, 5, 1, 1, 1, 1>(bottom_blob, B, j, max_jj, k, max_kk);
+#endif // __ARM_FEATURE_MATMUL_INT8 || __ARM_FEATURE_DOTPROD
         return;
     }
 
     if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
     {
+#if __ARM_FEATURE_MATMUL_INT8
+        convolution_im2col_input_tile_int8_i8mm<5, 5, 1, 1, 2, 2>(bottom_blob, B, j, max_jj, k, max_kk);
+#elif __ARM_FEATURE_DOTPROD
+        convolution_im2col_input_tile_int8_asimddp<5, 5, 1, 1, 2, 2>(bottom_blob, B, j, max_jj, k, max_kk);
+#else  // __ARM_FEATURE_MATMUL_INT8 || __ARM_FEATURE_DOTPROD
         convolution_im2col_input_tile_int8<5, 5, 1, 1, 2, 2>(bottom_blob, B, j, max_jj, k, max_kk);
+#endif // __ARM_FEATURE_MATMUL_INT8 || __ARM_FEATURE_DOTPROD
         return;
     }
 
     if (kernel_w == 7 && kernel_h == 7 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
     {
+#if __ARM_FEATURE_MATMUL_INT8
+        convolution_im2col_input_tile_int8_i8mm<7, 7, 1, 1, 2, 2>(bottom_blob, B, j, max_jj, k, max_kk);
+#elif __ARM_FEATURE_DOTPROD
+        convolution_im2col_input_tile_int8_asimddp<7, 7, 1, 1, 2, 2>(bottom_blob, B, j, max_jj, k, max_kk);
+#else  // __ARM_FEATURE_MATMUL_INT8 || __ARM_FEATURE_DOTPROD
         convolution_im2col_input_tile_int8<7, 7, 1, 1, 2, 2>(bottom_blob, B, j, max_jj, k, max_kk);
+#endif // __ARM_FEATURE_MATMUL_INT8 || __ARM_FEATURE_DOTPROD
         return;
     }
 
