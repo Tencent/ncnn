@@ -1322,34 +1322,31 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 vfloat32m1_t _pA0 = vle32_v_f32m1(pA, VL);
                 vfloat32m1_t _pA1 = vle32_v_f32m1(pA + 4, VL);
 
-                vfloat32m1_t _pB0 = vle32_v_f32m1(pB, VL);
-                vfloat32m1_t _pB1 = vle32_v_f32m1(pB + 4, VL);
-                vfloat32m1_t _pB2 = vle32_v_f32m1(pB + 8, VL);
 
-                vfmaq_laneq_f32_riscv(_sum00, _pA0, _pB0, 0);
-                vfmaq_laneq_f32_riscv(_sum01, _pA1, _pB0, 0);
-                vfmaq_laneq_f32_riscv(_sum10, _pA0, _pB0, 1);
-                vfmaq_laneq_f32_riscv(_sum11, _pA1, _pB0, 1);
-                vfmaq_laneq_f32_riscv(_sum20, _pA0, _pB0, 2);
-                vfmaq_laneq_f32_riscv(_sum21, _pA1, _pB0, 2);
-                vfmaq_laneq_f32_riscv(_sum30, _pA0, _pB0, 3);
-                vfmaq_laneq_f32_riscv(_sum31, _pA1, _pB0, 3);
-                vfmaq_laneq_f32_riscv(_sum40, _pA0, _pB1, 0);
-                vfmaq_laneq_f32_riscv(_sum41, _pA1, _pB1, 0);
-                vfmaq_laneq_f32_riscv(_sum50, _pA0, _pB1, 1);
-                vfmaq_laneq_f32_riscv(_sum51, _pA1, _pB1, 1);
-                vfmaq_laneq_f32_riscv(_sum60, _pA0, _pB1, 2);
-                vfmaq_laneq_f32_riscv(_sum61, _pA1, _pB1, 2);
-                vfmaq_laneq_f32_riscv(_sum70, _pA0, _pB1, 3);
-                vfmaq_laneq_f32_riscv(_sum71, _pA1, _pB1, 3);
-                vfmaq_laneq_f32_riscv(_sum80, _pA0, _pB2, 0);
-                vfmaq_laneq_f32_riscv(_sum81, _pA1, _pB2, 0);
-                vfmaq_laneq_f32_riscv(_sum90, _pA0, _pB2, 1);
-                vfmaq_laneq_f32_riscv(_sum91, _pA1, _pB2, 1);
-                vfmaq_laneq_f32_riscv(_suma0, _pA0, _pB2, 2);
-                vfmaq_laneq_f32_riscv(_suma1, _pA1, _pB2, 2);
-                vfmaq_laneq_f32_riscv(_sumb0, _pA0, _pB2, 3);
-                vfmaq_laneq_f32_riscv(_sumb1, _pA1, _pB2, 3);
+                _sum00 = vfmadd_vf_f32m1(_pA0, pB[0], _sum00, VL);
+                _sum01 = vfmadd_vf_f32m1(_pA1, pB[0], _sum01, VL);
+                _sum10 = vfmadd_vf_f32m1(_pA0, pB[1], _sum10, VL);
+                _sum11 = vfmadd_vf_f32m1(_pA1, pB[1], _sum11, VL);
+                _sum20 = vfmadd_vf_f32m1(_pA0, pB[2], _sum20, VL);
+                _sum21 = vfmadd_vf_f32m1(_pA1, pB[2], _sum21, VL);
+                _sum30 = vfmadd_vf_f32m1(_pA0, pB[3], _sum30, VL);
+                _sum31 = vfmadd_vf_f32m1(_pA1, pB[3], _sum31, VL);
+                _sum40 = vfmadd_vf_f32m1(_pA0, pB[4], _sum40, VL);
+                _sum41 = vfmadd_vf_f32m1(_pA1, pB[4], _sum41, VL);
+                _sum50 = vfmadd_vf_f32m1(_pA0, pB[5], _sum50, VL);
+                _sum51 = vfmadd_vf_f32m1(_pA1, pB[5], _sum51, VL);
+                _sum60 = vfmadd_vf_f32m1(_pA0, pB[6], _sum60, VL);
+                _sum61 = vfmadd_vf_f32m1(_pA1, pB[6], _sum61, VL);
+                _sum70 = vfmadd_vf_f32m1(_pA0, pB[7], _sum70, VL);
+                _sum71 = vfmadd_vf_f32m1(_pA1, pB[7], _sum71, VL);
+                _sum80 = vfmadd_vf_f32m1(_pA0, pB[8], _sum80, VL);
+                _sum81 = vfmadd_vf_f32m1(_pA1, pB[8], _sum81, VL);
+                _sum90 = vfmadd_vf_f32m1(_pA0, pB[9], _sum90, VL);
+                _sum91 = vfmadd_vf_f32m1(_pA1, pB[9], _sum91, VL);
+                _suma0 = vfmadd_vf_f32m1(_pA0, pB[10], _suma0, VL);
+                _suma1 = vfmadd_vf_f32m1(_pA1, pB[10], _suma1, VL);
+                _sumb0 = vfmadd_vf_f32m1(_pA0, pB[11], _sumb0, VL);
+                _sumb1 = vfmadd_vf_f32m1(_pA1, pB[11], _sumb1, VL);
 
                 pA += 8;
                 pB += 12;
@@ -1357,34 +1354,31 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 _pA0 = vle32_v_f32m1(pA, VL);
                 _pA1 = vle32_v_f32m1(pA + 4, VL);
 
-                _pB0 = vle32_v_f32m1(pB, VL);
-                _pB1 = vle32_v_f32m1(pB + 4, VL);
-                _pB2 = vle32_v_f32m1(pB + 8, VL);
 
-                vfmaq_laneq_f32_riscv(_sum00, _pA0, _pB0, 0);
-                vfmaq_laneq_f32_riscv(_sum01, _pA1, _pB0, 0);
-                vfmaq_laneq_f32_riscv(_sum10, _pA0, _pB0, 1);
-                vfmaq_laneq_f32_riscv(_sum11, _pA1, _pB0, 1);
-                vfmaq_laneq_f32_riscv(_sum20, _pA0, _pB0, 2);
-                vfmaq_laneq_f32_riscv(_sum21, _pA1, _pB0, 2);
-                vfmaq_laneq_f32_riscv(_sum30, _pA0, _pB0, 3);
-                vfmaq_laneq_f32_riscv(_sum31, _pA1, _pB0, 3);
-                vfmaq_laneq_f32_riscv(_sum40, _pA0, _pB1, 0);
-                vfmaq_laneq_f32_riscv(_sum41, _pA1, _pB1, 0);
-                vfmaq_laneq_f32_riscv(_sum50, _pA0, _pB1, 1);
-                vfmaq_laneq_f32_riscv(_sum51, _pA1, _pB1, 1);
-                vfmaq_laneq_f32_riscv(_sum60, _pA0, _pB1, 2);
-                vfmaq_laneq_f32_riscv(_sum61, _pA1, _pB1, 2);
-                vfmaq_laneq_f32_riscv(_sum70, _pA0, _pB1, 3);
-                vfmaq_laneq_f32_riscv(_sum71, _pA1, _pB1, 3);
-                vfmaq_laneq_f32_riscv(_sum80, _pA0, _pB2, 0);
-                vfmaq_laneq_f32_riscv(_sum81, _pA1, _pB2, 0);
-                vfmaq_laneq_f32_riscv(_sum90, _pA0, _pB2, 1);
-                vfmaq_laneq_f32_riscv(_sum91, _pA1, _pB2, 1);
-                vfmaq_laneq_f32_riscv(_suma0, _pA0, _pB2, 2);
-                vfmaq_laneq_f32_riscv(_suma1, _pA1, _pB2, 2);
-                vfmaq_laneq_f32_riscv(_sumb0, _pA0, _pB2, 3);
-                vfmaq_laneq_f32_riscv(_sumb1, _pA1, _pB2, 3);
+                _sum00 = vfmadd_vf_f32m1(_pA0, pB[0], _sum00, VL);
+                _sum01 = vfmadd_vf_f32m1(_pA1, pB[0], _sum01, VL);
+                _sum10 = vfmadd_vf_f32m1(_pA0, pB[1], _sum10, VL);
+                _sum11 = vfmadd_vf_f32m1(_pA1, pB[1], _sum11, VL);
+                _sum20 = vfmadd_vf_f32m1(_pA0, pB[2], _sum20, VL);
+                _sum21 = vfmadd_vf_f32m1(_pA1, pB[2], _sum21, VL);
+                _sum30 = vfmadd_vf_f32m1(_pA0, pB[3], _sum30, VL);
+                _sum31 = vfmadd_vf_f32m1(_pA1, pB[3], _sum31, VL);
+                _sum40 = vfmadd_vf_f32m1(_pA0, pB[4], _sum40, VL);
+                _sum41 = vfmadd_vf_f32m1(_pA1, pB[4], _sum41, VL);
+                _sum50 = vfmadd_vf_f32m1(_pA0, pB[5], _sum50, VL);
+                _sum51 = vfmadd_vf_f32m1(_pA1, pB[5], _sum51, VL);
+                _sum60 = vfmadd_vf_f32m1(_pA0, pB[6], _sum60, VL);
+                _sum61 = vfmadd_vf_f32m1(_pA1, pB[6], _sum61, VL);
+                _sum70 = vfmadd_vf_f32m1(_pA0, pB[7], _sum70, VL);
+                _sum71 = vfmadd_vf_f32m1(_pA1, pB[7], _sum71, VL);
+                _sum80 = vfmadd_vf_f32m1(_pA0, pB[8], _sum80, VL);
+                _sum81 = vfmadd_vf_f32m1(_pA1, pB[8], _sum81, VL);
+                _sum90 = vfmadd_vf_f32m1(_pA0, pB[9], _sum90, VL);
+                _sum91 = vfmadd_vf_f32m1(_pA1, pB[9], _sum91, VL);
+                _suma0 = vfmadd_vf_f32m1(_pA0, pB[10], _suma0, VL);
+                _suma1 = vfmadd_vf_f32m1(_pA1, pB[10], _suma1, VL);
+                _sumb0 = vfmadd_vf_f32m1(_pA0, pB[11], _sumb0, VL);
+                _sumb1 = vfmadd_vf_f32m1(_pA1, pB[11], _sumb1, VL);
 
                 pA += 8;
                 pB += 12;
@@ -1392,34 +1386,31 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 _pA0 = vle32_v_f32m1(pA, VL);
                 _pA1 = vle32_v_f32m1(pA + 4, VL);
 
-                _pB0 = vle32_v_f32m1(pB, VL);
-                _pB1 = vle32_v_f32m1(pB + 4, VL);
-                _pB2 = vle32_v_f32m1(pB + 8, VL);
 
-                vfmaq_laneq_f32_riscv(_sum00, _pA0, _pB0, 0);
-                vfmaq_laneq_f32_riscv(_sum01, _pA1, _pB0, 0);
-                vfmaq_laneq_f32_riscv(_sum10, _pA0, _pB0, 1);
-                vfmaq_laneq_f32_riscv(_sum11, _pA1, _pB0, 1);
-                vfmaq_laneq_f32_riscv(_sum20, _pA0, _pB0, 2);
-                vfmaq_laneq_f32_riscv(_sum21, _pA1, _pB0, 2);
-                vfmaq_laneq_f32_riscv(_sum30, _pA0, _pB0, 3);
-                vfmaq_laneq_f32_riscv(_sum31, _pA1, _pB0, 3);
-                vfmaq_laneq_f32_riscv(_sum40, _pA0, _pB1, 0);
-                vfmaq_laneq_f32_riscv(_sum41, _pA1, _pB1, 0);
-                vfmaq_laneq_f32_riscv(_sum50, _pA0, _pB1, 1);
-                vfmaq_laneq_f32_riscv(_sum51, _pA1, _pB1, 1);
-                vfmaq_laneq_f32_riscv(_sum60, _pA0, _pB1, 2);
-                vfmaq_laneq_f32_riscv(_sum61, _pA1, _pB1, 2);
-                vfmaq_laneq_f32_riscv(_sum70, _pA0, _pB1, 3);
-                vfmaq_laneq_f32_riscv(_sum71, _pA1, _pB1, 3);
-                vfmaq_laneq_f32_riscv(_sum80, _pA0, _pB2, 0);
-                vfmaq_laneq_f32_riscv(_sum81, _pA1, _pB2, 0);
-                vfmaq_laneq_f32_riscv(_sum90, _pA0, _pB2, 1);
-                vfmaq_laneq_f32_riscv(_sum91, _pA1, _pB2, 1);
-                vfmaq_laneq_f32_riscv(_suma0, _pA0, _pB2, 2);
-                vfmaq_laneq_f32_riscv(_suma1, _pA1, _pB2, 2);
-                vfmaq_laneq_f32_riscv(_sumb0, _pA0, _pB2, 3);
-                vfmaq_laneq_f32_riscv(_sumb1, _pA1, _pB2, 3);
+                _sum00 = vfmadd_vf_f32m1(_pA0, pB[0], _sum00, VL);
+                _sum01 = vfmadd_vf_f32m1(_pA1, pB[0], _sum01, VL);
+                _sum10 = vfmadd_vf_f32m1(_pA0, pB[1], _sum10, VL);
+                _sum11 = vfmadd_vf_f32m1(_pA1, pB[1], _sum11, VL);
+                _sum20 = vfmadd_vf_f32m1(_pA0, pB[2], _sum20, VL);
+                _sum21 = vfmadd_vf_f32m1(_pA1, pB[2], _sum21, VL);
+                _sum30 = vfmadd_vf_f32m1(_pA0, pB[3], _sum30, VL);
+                _sum31 = vfmadd_vf_f32m1(_pA1, pB[3], _sum31, VL);
+                _sum40 = vfmadd_vf_f32m1(_pA0, pB[4], _sum40, VL);
+                _sum41 = vfmadd_vf_f32m1(_pA1, pB[4], _sum41, VL);
+                _sum50 = vfmadd_vf_f32m1(_pA0, pB[5], _sum50, VL);
+                _sum51 = vfmadd_vf_f32m1(_pA1, pB[5], _sum51, VL);
+                _sum60 = vfmadd_vf_f32m1(_pA0, pB[6], _sum60, VL);
+                _sum61 = vfmadd_vf_f32m1(_pA1, pB[6], _sum61, VL);
+                _sum70 = vfmadd_vf_f32m1(_pA0, pB[7], _sum70, VL);
+                _sum71 = vfmadd_vf_f32m1(_pA1, pB[7], _sum71, VL);
+                _sum80 = vfmadd_vf_f32m1(_pA0, pB[8], _sum80, VL);
+                _sum81 = vfmadd_vf_f32m1(_pA1, pB[8], _sum81, VL);
+                _sum90 = vfmadd_vf_f32m1(_pA0, pB[9], _sum90, VL);
+                _sum91 = vfmadd_vf_f32m1(_pA1, pB[9], _sum91, VL);
+                _suma0 = vfmadd_vf_f32m1(_pA0, pB[10], _suma0, VL);
+                _suma1 = vfmadd_vf_f32m1(_pA1, pB[10], _suma1, VL);
+                _sumb0 = vfmadd_vf_f32m1(_pA0, pB[11], _sumb0, VL);
+                _sumb1 = vfmadd_vf_f32m1(_pA1, pB[11], _sumb1, VL);
 
                 pA += 8;
                 pB += 12;
@@ -1427,34 +1418,31 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 _pA0 = vle32_v_f32m1(pA, VL);
                 _pA1 = vle32_v_f32m1(pA + 4, VL);
 
-                _pB0 = vle32_v_f32m1(pB, VL);
-                _pB1 = vle32_v_f32m1(pB + 4, VL);
-                _pB2 = vle32_v_f32m1(pB + 8, VL);
 
-                vfmaq_laneq_f32_riscv(_sum00, _pA0, _pB0, 0);
-                vfmaq_laneq_f32_riscv(_sum01, _pA1, _pB0, 0);
-                vfmaq_laneq_f32_riscv(_sum10, _pA0, _pB0, 1);
-                vfmaq_laneq_f32_riscv(_sum11, _pA1, _pB0, 1);
-                vfmaq_laneq_f32_riscv(_sum20, _pA0, _pB0, 2);
-                vfmaq_laneq_f32_riscv(_sum21, _pA1, _pB0, 2);
-                vfmaq_laneq_f32_riscv(_sum30, _pA0, _pB0, 3);
-                vfmaq_laneq_f32_riscv(_sum31, _pA1, _pB0, 3);
-                vfmaq_laneq_f32_riscv(_sum40, _pA0, _pB1, 0);
-                vfmaq_laneq_f32_riscv(_sum41, _pA1, _pB1, 0);
-                vfmaq_laneq_f32_riscv(_sum50, _pA0, _pB1, 1);
-                vfmaq_laneq_f32_riscv(_sum51, _pA1, _pB1, 1);
-                vfmaq_laneq_f32_riscv(_sum60, _pA0, _pB1, 2);
-                vfmaq_laneq_f32_riscv(_sum61, _pA1, _pB1, 2);
-                vfmaq_laneq_f32_riscv(_sum70, _pA0, _pB1, 3);
-                vfmaq_laneq_f32_riscv(_sum71, _pA1, _pB1, 3);
-                vfmaq_laneq_f32_riscv(_sum80, _pA0, _pB2, 0);
-                vfmaq_laneq_f32_riscv(_sum81, _pA1, _pB2, 0);
-                vfmaq_laneq_f32_riscv(_sum90, _pA0, _pB2, 1);
-                vfmaq_laneq_f32_riscv(_sum91, _pA1, _pB2, 1);
-                vfmaq_laneq_f32_riscv(_suma0, _pA0, _pB2, 2);
-                vfmaq_laneq_f32_riscv(_suma1, _pA1, _pB2, 2);
-                vfmaq_laneq_f32_riscv(_sumb0, _pA0, _pB2, 3);
-                vfmaq_laneq_f32_riscv(_sumb1, _pA1, _pB2, 3);
+                _sum00 = vfmadd_vf_f32m1(_pA0, pB[0], _sum00, VL);
+                _sum01 = vfmadd_vf_f32m1(_pA1, pB[0], _sum01, VL);
+                _sum10 = vfmadd_vf_f32m1(_pA0, pB[1], _sum10, VL);
+                _sum11 = vfmadd_vf_f32m1(_pA1, pB[1], _sum11, VL);
+                _sum20 = vfmadd_vf_f32m1(_pA0, pB[2], _sum20, VL);
+                _sum21 = vfmadd_vf_f32m1(_pA1, pB[2], _sum21, VL);
+                _sum30 = vfmadd_vf_f32m1(_pA0, pB[3], _sum30, VL);
+                _sum31 = vfmadd_vf_f32m1(_pA1, pB[3], _sum31, VL);
+                _sum40 = vfmadd_vf_f32m1(_pA0, pB[4], _sum40, VL);
+                _sum41 = vfmadd_vf_f32m1(_pA1, pB[4], _sum41, VL);
+                _sum50 = vfmadd_vf_f32m1(_pA0, pB[5], _sum50, VL);
+                _sum51 = vfmadd_vf_f32m1(_pA1, pB[5], _sum51, VL);
+                _sum60 = vfmadd_vf_f32m1(_pA0, pB[6], _sum60, VL);
+                _sum61 = vfmadd_vf_f32m1(_pA1, pB[6], _sum61, VL);
+                _sum70 = vfmadd_vf_f32m1(_pA0, pB[7], _sum70, VL);
+                _sum71 = vfmadd_vf_f32m1(_pA1, pB[7], _sum71, VL);
+                _sum80 = vfmadd_vf_f32m1(_pA0, pB[8], _sum80, VL);
+                _sum81 = vfmadd_vf_f32m1(_pA1, pB[8], _sum81, VL);
+                _sum90 = vfmadd_vf_f32m1(_pA0, pB[9], _sum90, VL);
+                _sum91 = vfmadd_vf_f32m1(_pA1, pB[9], _sum91, VL);
+                _suma0 = vfmadd_vf_f32m1(_pA0, pB[10], _suma0, VL);
+                _suma1 = vfmadd_vf_f32m1(_pA1, pB[10], _suma1, VL);
+                _sumb0 = vfmadd_vf_f32m1(_pA0, pB[11], _sumb0, VL);
+                _sumb1 = vfmadd_vf_f32m1(_pA1, pB[11], _sumb1, VL);
 
                 pA += 8;
                 pB += 12;
@@ -1464,34 +1452,31 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 vfloat32m1_t _pA0 = vle32_v_f32m1(pA, VL);
                 vfloat32m1_t _pA1 = vle32_v_f32m1(pA + 4, VL);
 
-                vfloat32m1_t _pB0 = vle32_v_f32m1(pB, VL);
-                vfloat32m1_t _pB1 = vle32_v_f32m1(pB + 4, VL);
-                vfloat32m1_t _pB2 = vle32_v_f32m1(pB + 8, VL);
 
-                vfmaq_laneq_f32_riscv(_sum00, _pA0, _pB0, 0);
-                vfmaq_laneq_f32_riscv(_sum01, _pA1, _pB0, 0);
-                vfmaq_laneq_f32_riscv(_sum10, _pA0, _pB0, 1);
-                vfmaq_laneq_f32_riscv(_sum11, _pA1, _pB0, 1);
-                vfmaq_laneq_f32_riscv(_sum20, _pA0, _pB0, 2);
-                vfmaq_laneq_f32_riscv(_sum21, _pA1, _pB0, 2);
-                vfmaq_laneq_f32_riscv(_sum30, _pA0, _pB0, 3);
-                vfmaq_laneq_f32_riscv(_sum31, _pA1, _pB0, 3);
-                vfmaq_laneq_f32_riscv(_sum40, _pA0, _pB1, 0);
-                vfmaq_laneq_f32_riscv(_sum41, _pA1, _pB1, 0);
-                vfmaq_laneq_f32_riscv(_sum50, _pA0, _pB1, 1);
-                vfmaq_laneq_f32_riscv(_sum51, _pA1, _pB1, 1);
-                vfmaq_laneq_f32_riscv(_sum60, _pA0, _pB1, 2);
-                vfmaq_laneq_f32_riscv(_sum61, _pA1, _pB1, 2);
-                vfmaq_laneq_f32_riscv(_sum70, _pA0, _pB1, 3);
-                vfmaq_laneq_f32_riscv(_sum71, _pA1, _pB1, 3);
-                vfmaq_laneq_f32_riscv(_sum80, _pA0, _pB2, 0);
-                vfmaq_laneq_f32_riscv(_sum81, _pA1, _pB2, 0);
-                vfmaq_laneq_f32_riscv(_sum90, _pA0, _pB2, 1);
-                vfmaq_laneq_f32_riscv(_sum91, _pA1, _pB2, 1);
-                vfmaq_laneq_f32_riscv(_suma0, _pA0, _pB2, 2);
-                vfmaq_laneq_f32_riscv(_suma1, _pA1, _pB2, 2);
-                vfmaq_laneq_f32_riscv(_sumb0, _pA0, _pB2, 3);
-                vfmaq_laneq_f32_riscv(_sumb1, _pA1, _pB2, 3);
+                _sum00 = vfmadd_vf_f32m1(_pA0, pB[0], _sum00, VL);
+                _sum01 = vfmadd_vf_f32m1(_pA1, pB[0], _sum01, VL);
+                _sum10 = vfmadd_vf_f32m1(_pA0, pB[1], _sum10, VL);
+                _sum11 = vfmadd_vf_f32m1(_pA1, pB[1], _sum11, VL);
+                _sum20 = vfmadd_vf_f32m1(_pA0, pB[2], _sum20, VL);
+                _sum21 = vfmadd_vf_f32m1(_pA1, pB[2], _sum21, VL);
+                _sum30 = vfmadd_vf_f32m1(_pA0, pB[3], _sum30, VL);
+                _sum31 = vfmadd_vf_f32m1(_pA1, pB[3], _sum31, VL);
+                _sum40 = vfmadd_vf_f32m1(_pA0, pB[4], _sum40, VL);
+                _sum41 = vfmadd_vf_f32m1(_pA1, pB[4], _sum41, VL);
+                _sum50 = vfmadd_vf_f32m1(_pA0, pB[5], _sum50, VL);
+                _sum51 = vfmadd_vf_f32m1(_pA1, pB[5], _sum51, VL);
+                _sum60 = vfmadd_vf_f32m1(_pA0, pB[6], _sum60, VL);
+                _sum61 = vfmadd_vf_f32m1(_pA1, pB[6], _sum61, VL);
+                _sum70 = vfmadd_vf_f32m1(_pA0, pB[7], _sum70, VL);
+                _sum71 = vfmadd_vf_f32m1(_pA1, pB[7], _sum71, VL);
+                _sum80 = vfmadd_vf_f32m1(_pA0, pB[8], _sum80, VL);
+                _sum81 = vfmadd_vf_f32m1(_pA1, pB[8], _sum81, VL);
+                _sum90 = vfmadd_vf_f32m1(_pA0, pB[9], _sum90, VL);
+                _sum91 = vfmadd_vf_f32m1(_pA1, pB[9], _sum91, VL);
+                _suma0 = vfmadd_vf_f32m1(_pA0, pB[10], _suma0, VL);
+                _suma1 = vfmadd_vf_f32m1(_pA1, pB[10], _suma1, VL);
+                _sumb0 = vfmadd_vf_f32m1(_pA0, pB[11], _sumb0, VL);
+                _sumb1 = vfmadd_vf_f32m1(_pA1, pB[11], _sumb1, VL);
 
                 pA += 8;
                 pB += 12;
@@ -1738,25 +1723,23 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 vfloat32m1_t _pA0 = vle32_v_f32m1(pA, VL);
                 vfloat32m1_t _pA1 = vle32_v_f32m1(pA + 4, VL);
 
-                vfloat32m1_t _pB0 = vle32_v_f32m1(pB, VL);
-                vfloat32m1_t _pB1 = vle32_v_f32m1(pB + 4, VL);
 
-                vfmaq_laneq_f32_riscv(_sum00, _pA0, _pB0, 0);
-                vfmaq_laneq_f32_riscv(_sum01, _pA1, _pB0, 0);
-                vfmaq_laneq_f32_riscv(_sum10, _pA0, _pB0, 1);
-                vfmaq_laneq_f32_riscv(_sum11, _pA1, _pB0, 1);
-                vfmaq_laneq_f32_riscv(_sum20, _pA0, _pB0, 2);
-                vfmaq_laneq_f32_riscv(_sum21, _pA1, _pB0, 2);
-                vfmaq_laneq_f32_riscv(_sum30, _pA0, _pB0, 3);
-                vfmaq_laneq_f32_riscv(_sum31, _pA1, _pB0, 3);
-                vfmaq_laneq_f32_riscv(_sum40, _pA0, _pB1, 0);
-                vfmaq_laneq_f32_riscv(_sum41, _pA1, _pB1, 0);
-                vfmaq_laneq_f32_riscv(_sum50, _pA0, _pB1, 1);
-                vfmaq_laneq_f32_riscv(_sum51, _pA1, _pB1, 1);
-                vfmaq_laneq_f32_riscv(_sum60, _pA0, _pB1, 2);
-                vfmaq_laneq_f32_riscv(_sum61, _pA1, _pB1, 2);
-                vfmaq_laneq_f32_riscv(_sum70, _pA0, _pB1, 3);
-                vfmaq_laneq_f32_riscv(_sum71, _pA1, _pB1, 3);
+                _sum00 = vfmadd_vf_f32m1(_pA0, pB[0], _sum00, VL);
+                _sum01 = vfmadd_vf_f32m1(_pA1, pB[0], _sum01, VL);
+                _sum10 = vfmadd_vf_f32m1(_pA0, pB[1], _sum10, VL);
+                _sum11 = vfmadd_vf_f32m1(_pA1, pB[1], _sum11, VL);
+                _sum20 = vfmadd_vf_f32m1(_pA0, pB[2], _sum20, VL);
+                _sum21 = vfmadd_vf_f32m1(_pA1, pB[2], _sum21, VL);
+                _sum30 = vfmadd_vf_f32m1(_pA0, pB[3], _sum30, VL);
+                _sum31 = vfmadd_vf_f32m1(_pA1, pB[3], _sum31, VL);
+                _sum40 = vfmadd_vf_f32m1(_pA0, pB[4], _sum40, VL);
+                _sum41 = vfmadd_vf_f32m1(_pA1, pB[4], _sum41, VL);
+                _sum50 = vfmadd_vf_f32m1(_pA0, pB[5], _sum50, VL);
+                _sum51 = vfmadd_vf_f32m1(_pA1, pB[5], _sum51, VL);
+                _sum60 = vfmadd_vf_f32m1(_pA0, pB[6], _sum60, VL);
+                _sum61 = vfmadd_vf_f32m1(_pA1, pB[6], _sum61, VL);
+                _sum70 = vfmadd_vf_f32m1(_pA0, pB[7], _sum70, VL);
+                _sum71 = vfmadd_vf_f32m1(_pA1, pB[7], _sum71, VL);
 
                 pA += 8;
                 pB += 8;
@@ -1923,16 +1906,15 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 vfloat32m1_t _pA0 = vle32_v_f32m1(pA, VL);
                 vfloat32m1_t _pA1 = vle32_v_f32m1(pA + 4, VL);
 
-                vfloat32m1_t _pB0 = vle32_v_f32m1(pB, VL);
 
-                vfmaq_laneq_f32_riscv(_sum00, _pA0, _pB0, 0);
-                vfmaq_laneq_f32_riscv(_sum01, _pA1, _pB0, 0);
-                vfmaq_laneq_f32_riscv(_sum10, _pA0, _pB0, 1);
-                vfmaq_laneq_f32_riscv(_sum11, _pA1, _pB0, 1);
-                vfmaq_laneq_f32_riscv(_sum20, _pA0, _pB0, 2);
-                vfmaq_laneq_f32_riscv(_sum21, _pA1, _pB0, 2);
-                vfmaq_laneq_f32_riscv(_sum30, _pA0, _pB0, 3);
-                vfmaq_laneq_f32_riscv(_sum31, _pA1, _pB0, 3);
+                _sum00 = vfmadd_vf_f32m1(_pA0, pB[0], _sum00, VL);
+                _sum01 = vfmadd_vf_f32m1(_pA1, pB[0], _sum01, VL);
+                _sum10 = vfmadd_vf_f32m1(_pA0, pB[1], _sum10, VL);
+                _sum11 = vfmadd_vf_f32m1(_pA1, pB[1], _sum11, VL);
+                _sum20 = vfmadd_vf_f32m1(_pA0, pB[2], _sum20, VL);
+                _sum21 = vfmadd_vf_f32m1(_pA1, pB[2], _sum21, VL);
+                _sum30 = vfmadd_vf_f32m1(_pA0, pB[3], _sum30, VL);
+                _sum31 = vfmadd_vf_f32m1(_pA1, pB[3], _sum31, VL);
 
                 pA += 8;
                 pB += 4;
@@ -2047,12 +2029,11 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 vfloat32m1_t _pA0 = vle32_v_f32m1(pA, VL);
                 vfloat32m1_t _pA1 = vle32_v_f32m1(pA + 4, VL);
 
-                vfloat32m1_t _pB0 = vle32_v_f32m1(pB, VL / 2);
 
-                vfmaq_laneq_f32_riscv(_sum00, _pA0, _pB0, 0);
-                vfmaq_laneq_f32_riscv(_sum01, _pA1, _pB0, 0);
-                vfmaq_laneq_f32_riscv(_sum10, _pA0, _pB0, 1);
-                vfmaq_laneq_f32_riscv(_sum11, _pA1, _pB0, 1);
+                _sum00 = vfmadd_vf_f32m1(_pA0, pB[0], _sum00, VL);
+                _sum01 = vfmadd_vf_f32m1(_pA1, pB[0], _sum01, VL);
+                _sum10 = vfmadd_vf_f32m1(_pA0, pB[1], _sum10, VL);
+                _sum11 = vfmadd_vf_f32m1(_pA1, pB[1], _sum11, VL);
 
                 pA += 8;
                 pB += 2;
@@ -2338,22 +2319,19 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             for (; kk < max_kk; kk += 1)
             {
                 vfloat32m1_t _pA = vle32_v_f32m1(pA, VL);
-                vfloat32m1_t _pB0 = vle32_v_f32m1(pB, VL);
-                vfloat32m1_t _pB1 = vle32_v_f32m1(pB + 4, VL);
-                vfloat32m1_t _pB2 = vle32_v_f32m1(pB + 8, VL);
 
-                vfmaq_laneq_f32_riscv(_sum0, _pA, _pB0, 0);
-                vfmaq_laneq_f32_riscv(_sum1, _pA, _pB0, 1);
-                vfmaq_laneq_f32_riscv(_sum2, _pA, _pB0, 2);
-                vfmaq_laneq_f32_riscv(_sum3, _pA, _pB0, 3);
-                vfmaq_laneq_f32_riscv(_sum4, _pA, _pB1, 0);
-                vfmaq_laneq_f32_riscv(_sum5, _pA, _pB1, 1);
-                vfmaq_laneq_f32_riscv(_sum6, _pA, _pB1, 2);
-                vfmaq_laneq_f32_riscv(_sum7, _pA, _pB1, 3);
-                vfmaq_laneq_f32_riscv(_sum8, _pA, _pB2, 0);
-                vfmaq_laneq_f32_riscv(_sum9, _pA, _pB2, 1);
-                vfmaq_laneq_f32_riscv(_suma, _pA, _pB2, 2);
-                vfmaq_laneq_f32_riscv(_sumb, _pA, _pB2, 3);
+                _sum0 = vfmadd_vf_f32m1(_pA, pB[0], _sum0, VL);
+                _sum1 = vfmadd_vf_f32m1(_pA, pB[1], _sum1, VL);
+                _sum2 = vfmadd_vf_f32m1(_pA, pB[2], _sum2, VL);
+                _sum3 = vfmadd_vf_f32m1(_pA, pB[3], _sum3, VL);
+                _sum4 = vfmadd_vf_f32m1(_pA, pB[4], _sum4, VL);
+                _sum5 = vfmadd_vf_f32m1(_pA, pB[5], _sum5, VL);
+                _sum6 = vfmadd_vf_f32m1(_pA, pB[6], _sum6, VL);
+                _sum7 = vfmadd_vf_f32m1(_pA, pB[7], _sum7, VL);
+                _sum8 = vfmadd_vf_f32m1(_pA, pB[8], _sum8, VL);
+                _sum9 = vfmadd_vf_f32m1(_pA, pB[9], _sum9, VL);
+                _suma = vfmadd_vf_f32m1(_pA, pB[10], _suma, VL);
+                _sumb = vfmadd_vf_f32m1(_pA, pB[11], _sumb, VL);
 
                 pA += 4;
                 pB += 12;
@@ -2503,17 +2481,15 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             for (; kk < max_kk; kk += 1)
             {
                 vfloat32m1_t _pA = vle32_v_f32m1(pA, VL);
-                vfloat32m1_t _pB0 = vle32_v_f32m1(pB, VL);
-                vfloat32m1_t _pB1 = vle32_v_f32m1(pB + 4, VL);
 
-                vfmaq_laneq_f32_riscv(_sum0, _pA, _pB0, 0);
-                vfmaq_laneq_f32_riscv(_sum1, _pA, _pB0, 1);
-                vfmaq_laneq_f32_riscv(_sum2, _pA, _pB0, 2);
-                vfmaq_laneq_f32_riscv(_sum3, _pA, _pB0, 3);
-                vfmaq_laneq_f32_riscv(_sum4, _pA, _pB1, 0);
-                vfmaq_laneq_f32_riscv(_sum5, _pA, _pB1, 1);
-                vfmaq_laneq_f32_riscv(_sum6, _pA, _pB1, 2);
-                vfmaq_laneq_f32_riscv(_sum7, _pA, _pB1, 3);
+                _sum0 = vfmadd_vf_f32m1(_pA, pB[0], _sum0, VL);
+                _sum1 = vfmadd_vf_f32m1(_pA, pB[1], _sum1, VL);
+                _sum2 = vfmadd_vf_f32m1(_pA, pB[2], _sum2, VL);
+                _sum3 = vfmadd_vf_f32m1(_pA, pB[3], _sum3, VL);
+                _sum4 = vfmadd_vf_f32m1(_pA, pB[4], _sum4, VL);
+                _sum5 = vfmadd_vf_f32m1(_pA, pB[5], _sum5, VL);
+                _sum6 = vfmadd_vf_f32m1(_pA, pB[6], _sum6, VL);
+                _sum7 = vfmadd_vf_f32m1(_pA, pB[7], _sum7, VL);
 
                 pA += 4;
                 pB += 8;
@@ -2623,12 +2599,11 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             for (; kk < max_kk; kk += 1)
             {
                 vfloat32m1_t _pA = vle32_v_f32m1(pA, VL);
-                vfloat32m1_t _pB = vle32_v_f32m1(pB, VL);
 
-                vfmaq_laneq_f32_riscv(_sum0, _pA, _pB, 0);
-                vfmaq_laneq_f32_riscv(_sum1, _pA, _pB, 1);
-                vfmaq_laneq_f32_riscv(_sum2, _pA, _pB, 2);
-                vfmaq_laneq_f32_riscv(_sum3, _pA, _pB, 3);
+                _sum0 = vfmadd_vf_f32m1(_pA, pB[0], _sum0, VL);
+                _sum1 = vfmadd_vf_f32m1(_pA, pB[1], _sum1, VL);
+                _sum2 = vfmadd_vf_f32m1(_pA, pB[2], _sum2, VL);
+                _sum3 = vfmadd_vf_f32m1(_pA, pB[3], _sum3, VL);
                 pA += 4;
                 pB += 4;
             }
@@ -2711,10 +2686,9 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             for (; kk < max_kk; kk += 1)
             {
                 vfloat32m1_t _pA = vle32_v_f32m1(pA, VL);
-                vfloat32m1_t _pB = vle32_v_f32m1(pB, VL / 2);
 
-                vfmaq_laneq_f32_riscv(_sum0, _pA, _pB, 0);
-                vfmaq_laneq_f32_riscv(_sum1, _pA, _pB, 1);
+                _sum0 = vfmadd_vf_f32m1(_pA, pB[0], _sum0, VL);
+                _sum1 = vfmadd_vf_f32m1(_pA, pB[1], _sum1, VL);
 
 
                 pA += 4;
@@ -2925,14 +2899,13 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 vfloat32m1_t _pB1 = vle32_v_f32m1(pB + 4, VL);
                 vfloat32m1_t _pB2 = vle32_v_f32m1(pB + 8, VL);
 
-                vfloat32m1_t _pA = vle32_v_f32m1(pA, VL / 2);
 
-                vfmaq_laneq_f32_riscv(_sum00, _pB0, _pA, 0);
-                vfmaq_laneq_f32_riscv(_sum01, _pB1, _pA, 0);
-                vfmaq_laneq_f32_riscv(_sum02, _pB2, _pA, 0);
-                vfmaq_laneq_f32_riscv(_sum10, _pB0, _pA, 1);
-                vfmaq_laneq_f32_riscv(_sum11, _pB1, _pA, 1);
-                vfmaq_laneq_f32_riscv(_sum12, _pB2, _pA, 1);
+                _sum00 = vfmadd_vf_f32m1(_pB0, pA[0], _sum00, VL);
+                _sum01 = vfmadd_vf_f32m1(_pB1, pA[0], _sum01, VL);
+                _sum02 = vfmadd_vf_f32m1(_pB2, pA[0], _sum02, VL);
+                _sum10 = vfmadd_vf_f32m1(_pB0, pA[1], _sum10, VL);
+                _sum11 = vfmadd_vf_f32m1(_pB1, pA[1], _sum11, VL);
+                _sum12 = vfmadd_vf_f32m1(_pB2, pA[1], _sum12, VL);
 
                 pA += 2;
                 pB += 12;
@@ -3019,11 +2992,11 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 vfloat32m1_t _pB0 = vle32_v_f32m1(pB, VL);
                 vfloat32m1_t _pB1 = vle32_v_f32m1(pB + 4, VL);
 
-                vfloat32m1_t _pA = vle32_v_f32m1(pA, VL / 2);
-                vfmaq_laneq_f32_riscv(_sum00, _pB0, _pA, 0);
-                vfmaq_laneq_f32_riscv(_sum01, _pB1, _pA, 0);
-                vfmaq_laneq_f32_riscv(_sum10, _pB0, _pA, 1);
-                vfmaq_laneq_f32_riscv(_sum11, _pB1, _pA, 1);
+
+                _sum00 = vfmadd_vf_f32m1(_pB0, pA[0], _sum00, VL);
+                _sum01 = vfmadd_vf_f32m1(_pB1, pA[0], _sum01, VL);
+                _sum10 = vfmadd_vf_f32m1(_pB0, pA[1], _sum10, VL);
+                _sum11 = vfmadd_vf_f32m1(_pB1, pA[1], _sum11, VL);
                 pA += 2;
                 pB += 8;
             }
@@ -3097,9 +3070,9 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             {
                 vfloat32m1_t _pB = vle32_v_f32m1(pB, VL);
 
-                vfloat32m1_t _pA = vle32_v_f32m1(pA, VL / 2);
-                vfmaq_laneq_f32_riscv(_sum0, _pB, _pA, 0);
-                vfmaq_laneq_f32_riscv(_sum1, _pB, _pA, 1);
+
+                _sum0 = vfmadd_vf_f32m1(_pB, pA[0], _sum0, VL);
+                _sum1 = vfmadd_vf_f32m1(_pB, pA[1], _sum1, VL);
 
 
                 pA += 2;
@@ -4377,5 +4350,6 @@ int Gemm_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
 }
 
 } // namespace ncnn
+
 
 
