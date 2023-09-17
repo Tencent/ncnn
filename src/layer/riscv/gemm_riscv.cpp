@@ -3985,8 +3985,6 @@ int Gemm_riscv::create_pipeline(const Option& opt)
         int TILE_M, TILE_N, TILE_K;
         get_optimal_tile_mnk(M, 0, K, constant_TILE_M, constant_TILE_N, constant_TILE_K, TILE_M, TILE_N, TILE_K, opt.num_threads);
 
-        printf("create_pipeline %d %d %d\n", TILE_M, TILE_N, TILE_K);
-
         const int nn_M = (M + TILE_M - 1) / TILE_M;
 
         AT_data.create(TILE_K * TILE_M, (K + TILE_K - 1) / TILE_K, (M + TILE_M - 1) / TILE_M, 4u, (Allocator*)0);
