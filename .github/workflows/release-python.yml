@@ -122,16 +122,16 @@ jobs:
         CIBW_BUILD: ${{ matrix.build }}
         CIBW_BUILD_VERBOSITY: 1
         CIBW_ENVIRONMENT_WINDOWS: >
-          PATH="D:\\a\\ncnn\\ncnn\\Vulkan-Loader\\build\\loader\\Debug;$PATH"
+          PATH="D:\\a\\ncnn\\ncnn\\Vulkan-Loader\\build\\loader\\Release;$PATH"
           CMAKE_BUILD_PARALLEL_LEVEL=2 NCNN_VULKAN=ON 
           VULKAN_SDK=D:/a/ncnn/ncnn/Vulkan-Loader/external/Vulkan-Headers
         CIBW_BEFORE_ALL: git clone https://github.com/KhronosGroup/Vulkan-Loader.git &&
           cd Vulkan-Loader && mkdir build && cd build &&
-          python3 ../scripts/update_deps.py --dir ../external --config debug &&
-          cmake -C ../external/helper.cmake -G "Visual Studio 16 2019" -A x64 -DCMAKE_BUILD_TYPE=Debug .. &&
-          cmake --build . &&
+          python3 ../scripts/update_deps.py --dir ../external --config release &&
+          cmake -C ../external/helper.cmake -G "Visual Studio 16 2019" -A x64 -DCMAKE_BUILD_TYPE=Release .. &&
+          cmake --build . --config Release &&
           mklink /d "D:/a/ncnn/ncnn/Vulkan-Loader/external/Vulkan-Headers/build/install/lib"
-          "D:/a/ncnn/ncnn/Vulkan-Loader/build/loader/Debug"
+          "D:/a/ncnn/ncnn/Vulkan-Loader/build/loader/Release"
         CIBW_BEFORE_BUILD: pip install delvewheel
         CIBW_REPAIR_WHEEL_COMMAND: delvewheel repair -w {dest_dir} {wheel}
       with:
@@ -145,16 +145,16 @@ jobs:
         CIBW_BUILD: ${{ matrix.build }}
         CIBW_BUILD_VERBOSITY: 1
         CIBW_ENVIRONMENT_WINDOWS: >
-          PATH="D:\\a\\ncnn\\ncnn\\Vulkan-Loader\\build\\loader\\Debug;$PATH"
+          PATH="D:\\a\\ncnn\\ncnn\\Vulkan-Loader\\build\\loader\\Release;$PATH"
           CMAKE_BUILD_PARALLEL_LEVEL=2 NCNN_VULKAN=ON 
           VULKAN_SDK=D:/a/ncnn/ncnn/Vulkan-Loader/external/Vulkan-Headers
         CIBW_BEFORE_ALL: git clone https://github.com/KhronosGroup/Vulkan-Loader.git &&
           cd Vulkan-Loader && mkdir build && cd build &&
-          python3 ../scripts/update_deps.py --dir ../external --arch ${{ matrix.arch }} --config debug &&
-          cmake -C ../external/helper.cmake -G "Visual Studio 16 2019" -A Win32 -DCMAKE_BUILD_TYPE=Debug .. &&
-          cmake --build . &&
+          python3 ../scripts/update_deps.py --dir ../external --arch ${{ matrix.arch }} --config release &&
+          cmake -C ../external/helper.cmake -G "Visual Studio 16 2019" -A Win32 -DCMAKE_BUILD_TYPE=Release .. &&
+          cmake --build . --config Release &&
           mklink /d "D:/a/ncnn/ncnn/Vulkan-Loader/external/Vulkan-Headers/build/install/lib"
-          "D:/a/ncnn/ncnn/Vulkan-Loader/build/loader/Debug"
+          "D:/a/ncnn/ncnn/Vulkan-Loader/build/loader/Release"
         CIBW_BEFORE_BUILD: pip install delvewheel
         CIBW_REPAIR_WHEEL_COMMAND: delvewheel repair -w {dest_dir} {wheel}
       with:
@@ -168,16 +168,16 @@ jobs:
         CIBW_BUILD: ${{ matrix.build }}
         CIBW_BUILD_VERBOSITY: 1
         CIBW_ENVIRONMENT_WINDOWS: >
-          PATH="D:\\a\\ncnn\\ncnn\\Vulkan-Loader\\build\\loader\\Debug;$PATH"
+          PATH="D:\\a\\ncnn\\ncnn\\Vulkan-Loader\\build\\loader\\Release;$PATH"
           CMAKE_BUILD_PARALLEL_LEVEL=2 NCNN_VULKAN=ON 
           VULKAN_SDK=D:/a/ncnn/ncnn/Vulkan-Loader/external/Vulkan-Headers
         CIBW_BEFORE_ALL: git clone https://github.com/KhronosGroup/Vulkan-Loader.git &&
           cd Vulkan-Loader && mkdir build && cd build &&
-          python3 ../scripts/update_deps.py --dir ../external --config debug &&
-          cmake -C ../external/helper.cmake -G "Visual Studio 16 2019" -A ARM64 -DCMAKE_BUILD_TYPE=Debug -DUSE_MASM=OFF ..  &&
-          cmake --build . &&
+          python3 ../scripts/update_deps.py --dir ../external --config release &&
+          cmake -C ../external/helper.cmake -G "Visual Studio 16 2019" -A ARM64 -DCMAKE_BUILD_TYPE=Release -DUSE_MASM=OFF ..  &&
+          cmake --build . --config Release &&
           mklink /d "D:/a/ncnn/ncnn/Vulkan-Loader/external/Vulkan-Headers/build/install/lib"
-          "D:/a/ncnn/ncnn/Vulkan-Loader/build/loader/Debug"
+          "D:/a/ncnn/ncnn/Vulkan-Loader/build/loader/Release"
         CIBW_BEFORE_BUILD: pip install delvewheel
         CIBW_REPAIR_WHEEL_COMMAND: delvewheel repair -w {dest_dir} {wheel} --no-dll "msvcp140.dll;vcomp140.dll"
       with:
@@ -257,8 +257,6 @@ jobs:
       uses: pypa/cibuildwheel@v2.15.0
       env:
         CIBW_ARCHS_MACOS: ${{ matrix.arch }}
-        CIBW_ARCHS_LINUX: ${{ matrix.arch }}
-        CIBW_ARCHS_WINDOWS: ${{ matrix.arch }}
         CIBW_BUILD: ${{ matrix.build }}
         CIBW_BUILD_VERBOSITY: 1
         CIBW_ENVIRONMENT: CMAKE_BUILD_PARALLEL_LEVEL=2 NCNN_VULKAN=ON VULKAN_SDK=$GITHUB_WORKSPACE/vulkansdk-macos-1.3.236.0/macOS
@@ -276,8 +274,6 @@ jobs:
       uses: pypa/cibuildwheel@v2.15.0
       env:
         CIBW_ARCHS_MACOS: ${{ matrix.arch }}
-        CIBW_ARCHS_LINUX: ${{ matrix.arch }}
-        CIBW_ARCHS_WINDOWS: ${{ matrix.arch }}
         CIBW_BUILD: ${{ matrix.build }}
         CIBW_BUILD_VERBOSITY: 1
         CIBW_ENVIRONMENT: CMAKE_BUILD_PARALLEL_LEVEL=2 NCNN_VULKAN=ON VULKAN_SDK=$GITHUB_WORKSPACE/vulkansdk-macos-1.3.236.0/macOS
