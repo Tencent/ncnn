@@ -1,4 +1,6 @@
 #include "net.h"
+#include <stdio.h>
+#include <sys/time.h>
 
 
 int main(int argc, char** argv)
@@ -32,8 +34,18 @@ int main(int argc, char** argv)
  // 调用extract接口，完成网络推理，获得输出结果
     ncnn::Mat c;
     // add timeit code
+    struct timeval start_time, end_time;
+    long elapsed_time;
+
+    // 获取起始时间
+    gettimeofday(&start_time, NULL);
+
+    // 计时
 
     ex.extract("out0", c);
+    gettimeofday(&end_time, NULL);
+    elapsed_time = (end_time.tv_sec - start_time.tv_sec) * 1000000L + (end_time.tv_usec - start_time.tv_usec);
+    printf("Time elapsed: %ld microseconds\n", elapsed_time);
     // printf("%f\n", c[0]);
     return 0;
 }
