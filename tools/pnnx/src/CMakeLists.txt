@@ -557,23 +557,40 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/torchvision_DeformConv2d.cpp
 )
 
-find_package(Protobuf)
 if(PROTOBUF_FOUND)
-    protobuf_generate_cpp(ONNX_PROTO_SRCS ONNX_PROTO_HDRS onnx.proto)
+    if(DEFINED PROTOBUF_VERSION AND PROTOBUF_VERSION VERSION_GREATER_EQUAL 3.22)
+        set(CMAKE_CXX_STANDARD 17)
+    endif()
 
-    add_library(pnnx2onnx STATIC
-        save_onnx.cpp
-        save_onnx_cxxabi_bridge.cpp
-        ${ONNX_PROTO_SRCS} ${ONNX_PROTO_HDRS}
-    )
+    if(Protobuf_FOUND OR protobuf_MODULE_COMPATIBLE)
+        protobuf_generate_cpp(ONNX_PROTO_SRCS ONNX_PROTO_HDRS onnx.proto)
 
-    target_include_directories(pnnx2onnx PRIVATE ${PROTOBUF_INCLUDE_DIR} ${CMAKE_CURRENT_BINARY_DIR})
-    target_link_libraries(pnnx2onnx PRIVATE ${PROTOBUF_LIBRARIES})
+        add_library(pnnx2onnx STATIC
+            save_onnx.cpp
+            save_onnx_cxxabi_bridge.cpp
+            ${ONNX_PROTO_SRCS} ${ONNX_PROTO_HDRS}
+        )
 
-    # libtorch is usually compiled with old cxx11 abi
-    set_source_files_properties(save_onnx_cxxabi_bridge.cpp PROPERTIES COMPILE_FLAGS "${TORCH_CXX_FLAGS}")
+        target_include_directories(pnnx2onnx PRIVATE ${PROTOBUF_INCLUDE_DIR} ${CMAKE_CURRENT_BINARY_DIR})
+        target_link_libraries(pnnx2onnx PRIVATE ${PROTOBUF_LIBRARIES})
 
-    message(STATUS "Building with onnx-zero")
+        # libtorch is usually compiled with old cxx11 abi
+        set_source_files_properties(save_onnx_cxxabi_bridge.cpp PROPERTIES COMPILE_FLAGS "${TORCH_CXX_FLAGS}")
+
+        message(STATUS "Building with onnx-zero")
+    else()
+
+        add_library(pnnx2onnx STATIC
+            save_onnx.cpp
+            save_onnx_cxxabi_bridge.cpp
+            onnx.proto
+        )
+        set_source_files_properties(save_onnx_cxxabi_bridge.cpp PROPERTIES COMPILE_FLAGS "${TORCH_CXX_FLAGS}")
+        target_include_directories(pnnx2onnx PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
+        protobuf_generate(TARGET pnnx2onnx)
+        target_link_libraries(pnnx2onnx PRIVATE protobuf::libprotobuf)
+        message(STATUS "Building with onnx-zero")
+    endif()
 else()
     message(STATUS "Building without onnx-zero")
 endif()
