@@ -580,7 +580,7 @@ if(PROTOBUF_FOUND)
         message(STATUS "Building with onnx-zero")
     else()
 
-            add_library(pnnx2onnx STATIC
+        add_library(pnnx2onnx STATIC
             save_onnx.cpp
             save_onnx_cxxabi_bridge.cpp
             onnx.proto
