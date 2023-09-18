@@ -598,9 +598,3 @@ endif()
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 set_property(TARGET ncnn PROPERTY FOLDER "libncnn")
 set_property(TARGET ncnn-generate-spirv PROPERTY FOLDER "libncnn")
-
-# simplemath
-if(NCNN_SIMPLEMATH)
-    add_definitions(-DNCNN_SIMPLEMATH)
-    message(STATUS "NCNN_SIMPLEMATH enabled")
-endif()

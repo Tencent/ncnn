@@ -12,8 +12,10 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#if NCNN_SIMPLEMATH
+#ifndef NCNN_SIMPLEMATH_H
+#define NCNN_SIMPLEMATH_H
 #include <stdint.h>
+
 #define SIN_RED_SWITCHOVER (201.15625f)
 #define COS_RED_SWITCHOVER (142.90625f)
 #define __HI(X)            *(1 + (short*)&x)
