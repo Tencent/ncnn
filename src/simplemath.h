@@ -16,6 +16,9 @@
 #define NCNN_SIMPLEMATH_H
 #include <stdint.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 /*
 * ====================================================
 * discrete functions
@@ -86,4 +89,9 @@ float copysignf(float, float);
 void fesetround(int);
 int fegetround();
 float nearbyintf(float);
+
+#ifdef __cplusplus
+} // extern "C"
+#endif
+
 #endif // NCNN_SIMPLEMATH

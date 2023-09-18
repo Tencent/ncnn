@@ -272,6 +272,9 @@ float sinf_cosf_core(float a, int i)
     return r;
 }
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 /*
 * ====================================================
 * Discontinuous function
@@ -790,4 +793,9 @@ float nearbyintf(float x)
         }
     }
 }
+
+#ifdef __cplusplus
+} // extern "C"
+#endif
+
 #endif // NCNN_SIMPLEMATH
