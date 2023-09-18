@@ -14,6 +14,7 @@
 
 #include "pass_ncnn.h"
 
+#include <math.h>
 #include <string.h>
 
 namespace pnnx {
