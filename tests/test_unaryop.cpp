@@ -43,7 +43,6 @@ static int test_unaryop(const ncnn::Mat& _a)
     if (op_type == 18)
     {
         const float* ptr = _a.channel(0);
-        printf("*ptr = %f\n", *ptr);
     }
 
     ncnn::ParamDict pd;
