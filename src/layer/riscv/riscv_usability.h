@@ -88,19 +88,6 @@ static inline vfloat32m8_t vle32_v_f32m8_f32m1(const float* ptr)
 
 #define VL 4
 
-static inline void vfmaq_laneq_f32_riscv(vfloat32m1_t& sum, vfloat32m1_t a, vfloat32m1_t b, int lane)
-{
-    float t[4];
-    vse32_v_f32m1(t, b, VL);
-    sum = vfmadd_vf_f32m1(
-              a, t[lane], sum, VL);
-}
-
-static inline vfloat32m1_t vdupq_n_f32_riscv(float f)
-{
-    return vfmv_v_f_f32m1(f, VL);
-}
-
 static inline void transpose8x8_ps(vfloat32m1_t& _r0l, vfloat32m1_t& _r0h,
                                    vfloat32m1_t& _r1l, vfloat32m1_t& _r1h,
                                    vfloat32m1_t& _r2l, vfloat32m1_t& _r2h,
