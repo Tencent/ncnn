@@ -39,8 +39,10 @@ int Sign::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         {
             if (ptr[i] < 0)
                 ptr[i] = -1.0f;
-            if (ptr[i] > 0)
+            else if (ptr[i] > 0)
                 ptr[i] = 1.0f;
+            else
+                ptr[i] = 0.0f;
         }
     }
 
