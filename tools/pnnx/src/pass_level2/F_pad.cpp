@@ -218,7 +218,7 @@ public:
 pnnx.Input              input_0     0 1 input
 pnnx.Input              input_1     0 1 pad
 pnnx.Input              input_2     0 1 mode
-prim::Constant          op_0        0 1 value value=None
+prim::Constant          op_0        0 1 value value=*
 aten::pad               op_1        4 1 input pad mode value out
 pnnx.Output             output      1 0 out
 )PNNXIR";
