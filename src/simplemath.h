@@ -24,71 +24,71 @@ extern "C" {
 * discrete functions
 * ====================================================
 */
-float fabs(float);
-float fabsf(float);
-float fmod(float, float);
-float floor(float);
-float floorf(float);
-float round(float);
-float roundf(float);
-float ceil(float);
-float ceilf(float);
-float fmaxf(float, float);
-float truncf(float);
+NCNN_EXPORT float fabs(float);
+NCNN_EXPORT float fabsf(float);
+NCNN_EXPORT float fmod(float, float);
+NCNN_EXPORT float floor(float);
+NCNN_EXPORT float floorf(float);
+NCNN_EXPORT float round(float);
+NCNN_EXPORT float roundf(float);
+NCNN_EXPORT float ceil(float);
+NCNN_EXPORT float ceilf(float);
+NCNN_EXPORT float fmaxf(float, float);
+NCNN_EXPORT float truncf(float);
 
 /*
 * ====================================================
 * trigonometric functions
 * ====================================================
 */
-float sinf(float);
-float cosf(float);
-float tanf(float);
-float asinf(float);
-float acosf(float);
-float atanf(float);
-float atan2f(float, float);
-float tanhf(float);
+NCNN_EXPORT float sinf(float);
+NCNN_EXPORT float cosf(float);
+NCNN_EXPORT float tanf(float);
+NCNN_EXPORT float asinf(float);
+NCNN_EXPORT float acosf(float);
+NCNN_EXPORT float atanf(float);
+NCNN_EXPORT float atan2f(float, float);
+NCNN_EXPORT float tanhf(float);
 
 /*
 * ====================================================
 * power functions
 * ====================================================
 */
-float sqrtf(float);
-float sqrt(float);
-float powf(float, float);
+NCNN_EXPORT float sqrtf(float);
+NCNN_EXPORT float sqrt(float);
+NCNN_EXPORT float powf(float, float);
 
 /*
 * ====================================================
 * exponential and logarithm functions
 * ====================================================
 */
-float expf(float);
-float frexp(float, int*);
-float logf(float);
-float log(float);
-float log10f(float);
+NCNN_EXPORT float expf(float);
+NCNN_EXPORT float frexp(float, int*);
+NCNN_EXPORT float logf(float);
+NCNN_EXPORT float log(float);
+NCNN_EXPORT float log10f(float);
 
 /*
 * ====================================================
 * probability functions
 * ====================================================
 */
-float erf(float);
-float erfcf(float);
+NCNN_EXPORT float erf(float);
+NCNN_EXPORT float erfcf(float);
 
 /*
 * ====================================================
 * other functions
 * ====================================================
 */
-int msb(unsigned int);
-float fmaf(float, float, float);
-float copysignf(float, float);
-void fesetround(int);
-int fegetround();
-float nearbyintf(float);
+NCNN_EXPORT int msb(unsigned int);
+NCNN_EXPORT float fmaf(float, float, float);
+NCNN_EXPORT float copysignf(float, float);
+NCNN_EXPORT void fesetround(int);
+NCNN_EXPORT int fegetround();
+NCNN_EXPORT float nearbyintf(float);
 
 #ifdef __cplusplus
 } // extern "C"
