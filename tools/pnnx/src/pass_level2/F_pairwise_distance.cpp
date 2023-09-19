@@ -29,7 +29,7 @@ prim::Constant          op_0     	0 1 p value=%p
 prim::Constant          op_1    	0 1 eps value=%eps
 prim::Constant          op_2    	0 1 keepdim value=%keepdim
 aten::pairwise_distance op_3     	5 1 x1 x2 p eps keepdim out
-pnnx.Output             output      1 0 out
+pnnx.Output             output          1 0 out
 )PNNXIR";
     }
 
