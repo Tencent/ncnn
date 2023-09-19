@@ -3902,6 +3902,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "Sigmoid");
         }
+        else if (op == "Sign")
+        {
+            fprintf(pp, "%-16s", "Sign");
+        }
         else if (op == "Sin")
         {
             fprintf(pp, "%-16s", "UnaryOp");
@@ -5754,6 +5758,10 @@ int main(int argc, char** argv)
             fprintf(pp, " 1=%d", reverse);
         }
         else if (op == "Sigmoid")
+        {
+            // no param
+        }
+        else if (op == "Sign")
         {
             // no param
         }
