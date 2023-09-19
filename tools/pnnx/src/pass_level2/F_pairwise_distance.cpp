@@ -23,8 +23,8 @@ public:
     {
         return R"PNNXIR(7767517
 7 6
-pnnx.Input              input_0     0 1 x1
-pnnx.Input              input_1     0 1 x2
+pnnx.Input              input_0         0 1 x1
+pnnx.Input              input_1         0 1 x2
 prim::Constant          op_0     	0 1 p value=%p
 prim::Constant          op_1    	0 1 eps value=%eps
 prim::Constant          op_2    	0 1 keepdim value=%keepdim
