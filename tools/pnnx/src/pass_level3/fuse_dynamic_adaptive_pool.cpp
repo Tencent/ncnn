@@ -94,14 +94,96 @@ pnnx.Output             output      1 0 out
     }
 };
 
+class fuse_dynamic_adaptive_pool_pass_2 : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+9 9
+pnnx.Input              input       0 1 input
+prim::Constant          op_0        0 1 dynamic_axis value=%dynamic_axis
+aten::size              op_1        2 1 input dynamic_axis 4
+prim::NumToTensor       op_2        1 1 4 5
+aten::Int               op_3        1 1 5 outh
+prim::Constant          op_4        0 1 outw value=%outw
+prim::ListConstruct     op_5        2 1 outh outw output_size
+F.adaptive_max_pool2d   op_6        2 2 input output_size out indices return_indices=True
+pnnx.Output             output      2 0 out indices
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "F.adaptive_max_pool2d";
+    }
+
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
+    {
+        int dynamic_axis = captured_params.at("dynamic_axis").i;
+        size_t input_rank = matched_operators.at("op_6")->inputs[0]->shape.size();
+        return (input_rank == 3 && dynamic_axis == 1) || (input_rank == 4 && dynamic_axis == 2);
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        int outw = captured_params.at("outw").i;
+        op->params["output_size"] = std::vector<int>{0, outw};
+        op->params["return_indices"] = true;
+    }
+};
+
+class fuse_dynamic_adaptive_pool_pass_3 : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+9 9
+pnnx.Input              input       0 1 input
+prim::Constant          op_0        0 1 dynamic_axis value=%dynamic_axis
+aten::size              op_1        2 1 input dynamic_axis 4
+prim::NumToTensor       op_2        1 1 4 5
+aten::Int               op_3        1 1 5 outw
+prim::Constant          op_4        0 1 outh value=%outh
+prim::ListConstruct     op_5        2 1 outh outw output_size
+F.adaptive_max_pool2d   op_6        2 2 input output_size out indices return_indices=True
+pnnx.Output             output      2 0 out indices
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "F.adaptive_max_pool2d";
+    }
+
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
+    {
+        int dynamic_axis = captured_params.at("dynamic_axis").i;
+        size_t input_rank = matched_operators.at("op_6")->inputs[0]->shape.size();
+        return (input_rank == 3 && dynamic_axis == 2) || (input_rank == 4 && dynamic_axis == 3);
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        int outh = captured_params.at("outh").i;
+        op->params["output_size"] = std::vector<int>{outh, 0};
+        op->params["return_indices"] = true;
+    }
+};
+
 void fuse_dynamic_adaptive_pool(Graph& graph)
 {
     fuse_dynamic_adaptive_pool_pass a;
     fuse_dynamic_adaptive_pool_pass_1 b;
+    fuse_dynamic_adaptive_pool_pass_2 c;
+    fuse_dynamic_adaptive_pool_pass_3 d;
     int opindex = 0;
 
     pnnx_graph_rewrite(graph, &a, opindex);
     pnnx_graph_rewrite(graph, &b, opindex);
+    pnnx_graph_rewrite(graph, &c, opindex);
+    pnnx_graph_rewrite(graph, &d, opindex);
 }
 
 } // namespace pnnx
