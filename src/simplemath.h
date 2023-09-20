@@ -14,7 +14,6 @@
 
 #ifndef NCNN_SIMPLEMATH_H
 #define NCNN_SIMPLEMATH_H
-#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
