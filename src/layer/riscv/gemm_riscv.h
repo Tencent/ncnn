@@ -39,4 +39,4 @@ public:
 
 } // namespace ncnn
 
-#endif // LAYER_CAST_RISCV_H
+#endif // LAYER_GEMM_RISCV_H
