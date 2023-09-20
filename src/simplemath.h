@@ -15,6 +15,10 @@
 #ifndef NCNN_SIMPLEMATH_H
 #define NCNN_SIMPLEMATH_H
 
+#include "platform.h"
+
+#if NCNN_SIMPLEMATH
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -94,3 +98,5 @@ NCNN_EXPORT float nearbyintf(float);
 #endif
 
 #endif // NCNN_SIMPLEMATH
+
+#endif // NCNN_SIMPLEMATH_H
