@@ -50,9 +50,9 @@ bool GraphRewriterPass::match(const std::map<std::string, Parameter>& captured_p
     return match(captured_params);
 }
 
-bool GraphRewriterPass::match(const std::map<std::string, const Operator*>& /*matched_operators*/) const
+bool GraphRewriterPass::match(const std::map<std::string, const Operator*>& /*matched_operators*/, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
 {
-    return true;
+    return match(captured_params, captured_attrs);
 }
 
 void GraphRewriterPass::write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
@@ -893,7 +893,7 @@ void pnnx_graph_rewrite(Graph& graph, const GraphRewriterPass* pass, int& opinde
                     break;
             }
 
-            if (matched && (!pass->match(captured_params, captured_attrs) || !pass->match(matched_operators)))
+            if (matched && !pass->match(matched_operators, captured_params, captured_attrs))
             {
                 matched_operators.clear();
                 matched_inputs.clear();

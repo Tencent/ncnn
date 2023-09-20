@@ -302,6 +302,7 @@ set(pnnx_pass_level3_SRCS
     pass_level3/expand_quantization_modules.cpp
     pass_level3/fuse_opnto1_tensors.cpp
     pass_level3/fuse_op1ton_unpack.cpp
+    pass_level3/fuse_dynamic_adaptive_pool.cpp
     pass_level3/fuse_einsum_operands.cpp
     pass_level3/fuse_expression.cpp
     pass_level3/fuse_index_expression.cpp
