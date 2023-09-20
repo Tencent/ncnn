@@ -30,7 +30,6 @@
 #include <vector>
 #endif
 
-
 class DataReaderFromEmpty : public ncnn::DataReader
 {
 public:
