@@ -32,6 +32,7 @@ public:
 
     // public:
     int nT;
+    size_t vl;
     Mat AT_data;
     Mat BT_data;
     Mat CT_data;
