@@ -14,6 +14,7 @@
 
 #include "net.h"
 
+#include <math.h>
 #if defined(USE_NCNN_SIMPLEOCV)
 #include "simpleocv.h"
 #else
