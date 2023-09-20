@@ -3894,6 +3894,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "BinaryOp");
         }
+        else if (op == "Shrink")
+        {
+            fprintf(pp, "%-16s", "Shrink");
+        }
         else if (op == "ShuffleChannel")
         {
             fprintf(pp, "%-16s", "ShuffleChannel");
@@ -5745,6 +5749,13 @@ int main(int argc, char** argv)
                 fprintf(pp, " 1=%d", with_scalar);
                 fprintf(pp, " 2=%e", b);
             }
+        }
+        else if (op == "Shrink")
+        {
+            float bias = get_node_attr_f(node, "bias", 0.0f);
+            float lambd = get_node_attr_f(node, "lambd", 0.5f);
+            fprintf(pp, " 0=%e", bias);
+            fprintf(pp, " 1=%e", lambd);
         }
         else if (op == "ShuffleChannel")
         {
