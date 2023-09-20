@@ -37,9 +37,9 @@ Gemm_riscv::Gemm_riscv()
 
     nT = 0;
 #if __riscv_vector
-// When processing float data, 
-// even if the current hardware provides vector registers of more than 128 bits, 
-// vl=4 is still used, even though this will waste the width of the vector register.
+    // When processing float data,
+    // even if the current hardware provides vector registers of more than 128 bits,
+    // vl=4 is still used, even though this will waste the width of the vector register.
     vl = vsetvlmax_e32m1();
     vl = vl >= 4 ? 4 : vl;
 #else
