@@ -17,7 +17,6 @@
 using namespace pnnx;
 namespace py = pybind11;
 
-
-PYBIND11_MODULE(ncnn, m) {
-
+PYBIND11_MODULE(ncnn, m)
+{
 }
