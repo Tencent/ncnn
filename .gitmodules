@@ -5,5 +5,5 @@
 	path = python/pybind11
 	url = https://github.com/pybind/pybind11.git
 [submodule "tools/pnnx/python/pybind11"]
-	path = tools/pnnx/python/python/pybind11
+	path = tools/pnnx/python/pybind11
 	url = https://github.com/pybind/pybind11.git
