@@ -365,19 +365,7 @@ _RVV_FLOAT32_POW_OP(2, 16)
 _RVV_FLOAT32_POW_OP(4, 8)
 _RVV_FLOAT32_POW_OP(8, 4)
 
-#if __riscv_v >= 1000000
-#define _RVV_FLOAT32_SIGMOID_OP(LMUL, MLEN)                                                                                                \
-    static inline vfloat32m##LMUL##_t sigmoid_ps(vfloat32m##LMUL##_t _v, size_t vl)                                                        \
-    {                                                                                                                                      \
-        _v = vfneg_v_f32m##LMUL(_v, vl);                                                                                                   \
-        _v = exp_ps(_v, vl);                                                                                                               \
-        _v = vfadd_vf_f32m##LMUL(_v, 1.f, vl);                                                                                             \
-        vfloat32m##LMUL##_t _reciprocal = vfrec7_v_f32m##LMUL(_v, vl);                                                                     \
-        _reciprocal = vfmul_vv_f32m##LMUL(vfrsub_vf_f32m##LMUL(vfmul_vv_f32m##LMUL(_v, _reciprocal, vl), 2.f, vl), _reciprocal, vl);       \
-        /* _reciprocal = vfmul_vv_f32m##LMUL(vfrsub_vf_f32m##LMUL(vfmul_vv_f32m##LMUL(_v, _reciprocal, vl), 2.f, vl), _reciprocal, vl); */ \
-        return _reciprocal;                                                                                                                \
-    }
-#else // __riscv_v >= 1000000
+#if C906
 #define _RVV_FLOAT32_SIGMOID_OP(LMUL, MLEN)                                                                                                \
     static inline vfloat32m##LMUL##_t sigmoid_ps(vfloat32m##LMUL##_t _v, size_t vl)                                                        \
     {                                                                                                                                      \
@@ -389,7 +377,19 @@ _RVV_FLOAT32_POW_OP(8, 4)
         /* _reciprocal = vfmul_vv_f32m##LMUL(vfrsub_vf_f32m##LMUL(vfmul_vv_f32m##LMUL(_v, _reciprocal, vl), 2.f, vl), _reciprocal, vl); */ \
         return _reciprocal;                                                                                                                \
     }
-#endif // __riscv_v >= 1000000
+#else // C906
+#define _RVV_FLOAT32_SIGMOID_OP(LMUL, MLEN)                                                                                                \
+    static inline vfloat32m##LMUL##_t sigmoid_ps(vfloat32m##LMUL##_t _v, size_t vl)                                                        \
+    {                                                                                                                                      \
+        _v = vfneg_v_f32m##LMUL(_v, vl);                                                                                                   \
+        _v = exp_ps(_v, vl);                                                                                                               \
+        _v = vfadd_vf_f32m##LMUL(_v, 1.f, vl);                                                                                             \
+        vfloat32m##LMUL##_t _reciprocal = vfrec7_v_f32m##LMUL(_v, vl);                                                                     \
+        _reciprocal = vfmul_vv_f32m##LMUL(vfrsub_vf_f32m##LMUL(vfmul_vv_f32m##LMUL(_v, _reciprocal, vl), 2.f, vl), _reciprocal, vl);       \
+        /* _reciprocal = vfmul_vv_f32m##LMUL(vfrsub_vf_f32m##LMUL(vfmul_vv_f32m##LMUL(_v, _reciprocal, vl), 2.f, vl), _reciprocal, vl); */ \
+        return _reciprocal;                                                                                                                \
+    }
+#endif // C906
 
 _RVV_FLOAT32_SIGMOID_OP(1, 32)
 _RVV_FLOAT32_SIGMOID_OP(2, 16)
