@@ -223,19 +223,12 @@ float trig_red_f(float a, float switch_over, int* q)
 float sinf_poly(float a, float s)
 {
     float r, t;
-    // printf("a = %f, s = %f, r = %f, t = %f\n", a, s, r, t);
     r = 2.86567956e-6f; //  0x1.80a000p-19
-    // printf("a = %f, s = %f, r = %f, t = %f\n", a, s, r, t);
     r = r * s - 1.98559923e-4f; // -0x1.a0690cp-13
-    // printf("a = %f, s = %f, r = %f, t = %f\n", a, s, r, t);
     r = r * s + 8.33338592e-3f; //  0x1.111182p-07
-    // printf("a = %f, s = %f, r = %f, t = %f\n", a, s, r, t);
     r = r * s - 1.66666672e-1f; // -0x1.555556p-03
-    // printf("a = %f, s = %f, r = %f, t = %f\n", a, s, r, t);
     t = a * s + 0.0f; // ensure -0 is passed through
-    // printf("a = %f, s = %f, r = %f, t = %f\n", a, s, r, t);
     r = r * t + a;
-    // printf("a = %f, s = %f, r = %f, t = %f\n", a, s, r, t);
     return r;
 }
 
@@ -263,7 +256,6 @@ float sinf_cosf_core(float a, int i)
     float r, s;
 
     s = a * a;
-    // printf("sinf_cosf_core: a = %f, s = %f\n", a, s);
     r = (i & 1) ? cosf_poly(s) : sinf_poly(a, s);
     if (i & 2)
     {
