@@ -22,3 +22,24 @@ if(CMAKE_CXX_COMPILER_ARCHITECTURE_ID MATCHES "ARM64")
 endif()
 
 add_subdirectory(pybind11)
+
+if("${CMAKE_LIBRARY_OUTPUT_DIRECTORY}" STREQUAL "")
+    if(MSVC OR CMAKE_GENERATOR STREQUAL "Xcode")
+        set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_DEBUG ${CMAKE_CURRENT_BINARY_DIR}/pnnx/)
+        set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE ${CMAKE_CURRENT_BINARY_DIR}/pnnx/)
+    endif(MSVC OR CMAKE_GENERATOR STREQUAL "Xcode")
+endif("${CMAKE_LIBRARY_OUTPUT_DIRECTORY}" STREQUAL "")
+
+include_directories(${pybind11_INCLUDE_DIR} ${PYTHON_INCLUDE_DIRS})
+pybind11_add_module(pypnnx src/main.cpp)
+set_target_properties(pypnnx PROPERTIES OUTPUT_NAME "pnnx")
+target_link_libraries(pypnnx PUBLIC pnnx)
+set_target_properties(pypnnx PROPERTIES PREFIX "" LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/pnnx")
+set_property(TARGET pypnnx PROPERTY FOLDER "python")
+if("${CMAKE_LIBRARY_OUTPUT_DIRECTORY}" STREQUAL "")
+    add_custom_command(TARGET pypnnx POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_BINARY_DIR}/pnnx/pnnx${PYTHON_MODULE_PREFIX}${PYTHON_MODULE_EXTENSION}
+            ${PROJECT_SOURCE_DIR}/pnnx/pnnx${PYTHON_MODULE_PREFIX}${PYTHON_MODULE_EXTENSION})
+endif("${CMAKE_LIBRARY_OUTPUT_DIRECTORY}" STREQUAL "")
+
+configure_file(setup.py.i ${PROJECT_SOURCE_DIR}/setup.py)
