@@ -28,7 +28,7 @@ int Size::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
     if (top_blob.empty())
         return -100;
 
-    top_blob[0] = bottom_blob.w * bottom_blob.h * bottom_blob.d * bottom_blob.c;
+    *(int*)top_blob = bottom_blob.w * bottom_blob.h * bottom_blob.d * bottom_blob.c;
 
     return 0;
 }
