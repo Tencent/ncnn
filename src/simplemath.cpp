@@ -33,10 +33,10 @@
 * some useful constants
 * ====================================================
 */
-const float PI = 3.14159265358979323846;
-const float PI_2 = 1.57079632679489661923; /* PI/2 */
-const float E = 2.71828182845904523536;
-const uint32_t two_over_pi_f[] = {
+static const float PI = 3.14159265358979323846;
+static const float PI_2 = 1.57079632679489661923; /* PI/2 */
+static const float E = 2.71828182845904523536;
+static const uint32_t two_over_pi_f[] = {
     0x28be60db,
     0x9391054a,
     0x7f09d5f4,
@@ -52,7 +52,7 @@ const uint32_t two_over_pi_f[] = {
 */
 
 /* re-interpret the bit pattern of an IEEE-754 float as a uint32 */
-uint32_t float_as_uint32(float a)
+static uint32_t float_as_uint32(float a)
 {
     uint32_t r;
     uint32_t* rp = &r;
@@ -64,7 +64,7 @@ uint32_t float_as_uint32(float a)
 }
 
 /* re-interpret the bit pattern of a uint32 as an IEEE-754 float */
-float uint32_as_float(uint32_t a)
+static float uint32_as_float(uint32_t a)
 {
     float r;
     float* rp = &r;
@@ -76,7 +76,7 @@ float uint32_as_float(uint32_t a)
 }
 
 /* Henry S. Warren, "Hacker's Delight, 2nd ed.", Addison-Wesley 2012. Fig. 8-2 */
-uint32_t umul32_hi(uint32_t a, uint32_t b)
+static uint32_t umul32_hi(uint32_t a, uint32_t b)
 {
     uint16_t a_lo = (uint16_t)a;
     uint16_t a_hi = a >> 16;
@@ -94,7 +94,7 @@ uint32_t umul32_hi(uint32_t a, uint32_t b)
 * Reduce a trig function argument using the slow Payne-Hanek method
 * copy from https://stackoverflow.com/questions/64058564/single-precision-argument-reduction-for-trigonometric-functions-in-c
 */
-float trig_red_slowpath_f(float a, int* quadrant)
+static float trig_red_slowpath_f(float a, int* quadrant)
 {
     uint32_t ia, hi, mid, lo, tmp, i, l, h, plo, phi;
     int32_t e, q;
@@ -190,7 +190,7 @@ float trig_red_slowpath_f(float a, int* quadrant)
     -0.0f for an input of -0.0f.
     copy from https://stackoverflow.com/questions/64058564/single-precision-argument-reduction-for-trigonometric-functions-in-c
 */
-float trig_red_f(float a, float switch_over, int* q)
+static float trig_red_f(float a, float switch_over, int* q)
 {
     float j, r;
 
@@ -220,7 +220,7 @@ float trig_red_f(float a, float switch_over, int* q)
     Returns -0.0f for an argument of -0.0f
     copy from https://stackoverflow.com/questions/64058564/single-precision-argument-reduction-for-trigonometric-functions-in-c
 */
-float sinf_poly(float a, float s)
+static float sinf_poly(float a, float s)
 {
     float r, t;
     r = 2.86567956e-6f; //  0x1.80a000p-19
@@ -235,7 +235,7 @@ float sinf_poly(float a, float s)
 /* Approximate cosine on [-PI/4,+PI/4]. Maximum ulp error with USE_FMA = 0.87444
     * copy from https://stackoverflow.com/questions/64058564/single-precision-argument-reduction-for-trigonometric-functions-in-c
 */
-float cosf_poly(float s)
+static float cosf_poly(float s)
 {
     float r;
 
@@ -251,7 +251,7 @@ float cosf_poly(float s)
 /* Map sine or cosine value based on quadrant
     * copy from https://stackoverflow.com/questions/64058564/single-precision-argument-reduction-for-trigonometric-functions-in-c
 */
-float sinf_cosf_core(float a, int i)
+static float sinf_cosf_core(float a, int i)
 {
     float r, s;
 
