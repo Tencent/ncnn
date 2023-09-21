@@ -23,7 +23,12 @@ class Model(nn.Module):
         self.prelu_0 = nn.PReLU(num_parameters=12)
         self.prelu_1 = nn.PReLU(num_parameters=1, init=0.12)
 
-    def forward(self, x, y, z):
+    def forward(self, x, y, z, w):
+        x = x * 2 - 1
+        y = y * 2 - 1
+        z = z * 2 - 1
+        w = w * 2 - 1
+
         x = self.prelu_0(x)
         x = self.prelu_1(x)
 
@@ -32,7 +37,10 @@ class Model(nn.Module):
 
         z = self.prelu_0(z)
         z = self.prelu_1(z)
-        return x, y, z
+
+        # w = self.prelu_0(w) TODO
+        # w = self.prelu_1(w) TODO
+        return x, y, z, w
 
 def test():
     net = Model()
@@ -42,16 +50,17 @@ def test():
     x = torch.rand(1, 12)
     y = torch.rand(1, 12, 64)
     z = torch.rand(1, 12, 24, 64)
+    w = torch.rand(1, 12, 24, 32, 64)
 
-    a = net(x, y, z)
+    a = net(x, y, z, w)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, y, z))
+    mod = torch.jit.trace(net, (x, y, z, w))
     mod.save("test_nn_PReLU.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_nn_PReLU.pt inputshape=[1,12],[1,12,64],[1,12,24,64]")
+    os.system("../../src/pnnx test_nn_PReLU.pt inputshape=[1,12],[1,12,64],[1,12,24,64],[1,12,24,32,64]")
 
     # ncnn inference
     import test_nn_PReLU_ncnn
