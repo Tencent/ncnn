@@ -1,6 +1,6 @@
 # Tencent is pleased to support the open source community by making ncnn available.
 #
-# Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
+# Copyright (C) 2023 THL A29 Limited, a Tencent company. All rights reserved.
 #
 # Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 # in compliance with the License. You may obtain a copy of the License at
@@ -16,9 +16,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-def hardsigmoid_forward_0(x):
-    return F.relu6(x + 3., True) / 6.
-
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
@@ -28,10 +25,10 @@ class Model(nn.Module):
         y = y * 2 - 1
         z = z * 2 - 1
         w = w * 2 - 1
-        x = F.hardsigmoid(x)
-        y = F.hardsigmoid(y)
-        z = hardsigmoid_forward_0(z)
-        w = F.hardsigmoid(w)
+        x = F.selu(x)
+        y = F.selu(y)
+        z = F.selu(z)
+        w = F.selu(w)
         return x, y, z, w
 
 def test():
@@ -48,15 +45,15 @@ def test():
 
     # export torchscript
     mod = torch.jit.trace(net, (x, y, z, w))
-    mod.save("test_F_hardsigmoid.pt")
+    mod.save("test_F_selu.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_F_hardsigmoid.pt inputshape=[16],[2,16],[3,12,16],[5,7,9,11]")
+    os.system("../../src/pnnx test_F_selu.pt inputshape=[16],[2,16],[3,12,16],[5,7,9,11]")
 
     # ncnn inference
-    import test_F_hardsigmoid_ncnn
-    b = test_F_hardsigmoid_ncnn.test_inference()
+    import test_F_selu_ncnn
+    b = test_F_selu_ncnn.test_inference()
 
     for a0, b0 in zip(a, b):
         if not torch.allclose(a0, b0, 1e-4, 1e-4):

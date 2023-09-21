@@ -21,6 +21,10 @@ class Model(nn.Module):
         super(Model, self).__init__()
 
     def forward(self, x, y, z, w):
+        x = x * 2 - 1
+        y = y * 2 - 1
+        z = z * 2 - 1
+        w = w * 2 - 1
         x = F.relu6(x)
         y = F.relu6(y)
         z = F.relu6(z)
