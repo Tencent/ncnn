@@ -3862,6 +3862,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "PReLU");
         }
+        else if (op == "Range")
+        {
+            fprintf(pp, "%-16s", "Range");
+        }
         else if (op == "Reciprocal")
         {
             fprintf(pp, "%-16s", "UnaryOp");
@@ -5468,6 +5472,10 @@ int main(int argc, char** argv)
             fprintf(pp, " 0=%d", num_slope);
 
             fwrite_tensor_proto_data(slope, bp);
+        }
+        else if (op == "Range")
+        {
+            // no param
         }
         else if (op == "Reciprocal")
         {
