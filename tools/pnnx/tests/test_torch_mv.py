@@ -1,6 +1,6 @@
 # Tencent is pleased to support the open source community by making ncnn available.
 #
-# Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
+# Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
 #
 # Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 # in compliance with the License. You may obtain a copy of the License at
@@ -14,45 +14,38 @@
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-    def forward(self, x):
-        out0 = F.adaptive_max_pool3d(x, output_size=(7,6,5))
-        out1 = F.adaptive_max_pool3d(x, output_size=1)
-        out2 = F.adaptive_max_pool3d(x, output_size=(None,4,3))
-        out3 = F.adaptive_max_pool3d(x, output_size=(5,None,None))
-        return out0, out1, out2, out3
+    def forward(self, x, y):
+        out = torch.mv(x, y)
+        return out
 
 def test():
     net = Model()
     net.eval()
 
     torch.manual_seed(0)
-    x = torch.rand(1, 12, 24, 33, 64)
+    x = torch.rand(2, 3)
+    y = torch.rand(3)
 
-    a = net(x)
+    a = net(x, y)
 
     # export torchscript
-    mod = torch.jit.trace(net, x)
-    mod.save("test_F_adaptive_max_pool3d.pt")
+    mod = torch.jit.trace(net, (x, y))
+    mod.save("test_torch_mv.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_F_adaptive_max_pool3d.pt inputshape=[1,12,24,33,64]")
+    os.system("../src/pnnx test_torch_mv.pt inputshape=[2,3],[3]")
 
-    # ncnn inference
-    import test_F_adaptive_max_pool3d_ncnn
-    b = test_F_adaptive_max_pool3d_ncnn.test_inference()
+    # pnnx inference
+    import test_torch_mv_pnnx
+    b = test_torch_mv_pnnx.test_inference()
 
-    for a0, b0 in zip(a, b):
-        b0 = b0.reshape_as(a0)
-        if not torch.allclose(a0, b0, 1e-4, 1e-4):
-            return False
-    return True
+    return torch.equal(a, b)
 
 if __name__ == "__main__":
     if test():

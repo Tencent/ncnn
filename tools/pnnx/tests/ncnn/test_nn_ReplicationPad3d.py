@@ -20,39 +20,38 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
+        self.pad_0 = nn.ReplicationPad3d(2)
+        self.pad_1 = nn.ReplicationPad3d(padding=(1,2,3,4,5,6))
+        self.pad_2 = nn.ReplicationPad3d(padding=(1,0,2,0,0,3))
+
     def forward(self, x):
-        out0 = F.adaptive_max_pool3d(x, output_size=(7,6,5))
-        out1 = F.adaptive_max_pool3d(x, output_size=1)
-        out2 = F.adaptive_max_pool3d(x, output_size=(None,4,3))
-        out3 = F.adaptive_max_pool3d(x, output_size=(5,None,None))
-        return out0, out1, out2, out3
+        x = self.pad_0(x)
+        x = self.pad_1(x)
+        x = self.pad_2(x)
+        return x
 
 def test():
     net = Model()
     net.eval()
 
     torch.manual_seed(0)
-    x = torch.rand(1, 12, 24, 33, 64)
+    x = torch.rand(1, 12, 13, 13, 13)
 
     a = net(x)
 
     # export torchscript
     mod = torch.jit.trace(net, x)
-    mod.save("test_F_adaptive_max_pool3d.pt")
+    mod.save("test_nn_ReplicationPad3d.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_F_adaptive_max_pool3d.pt inputshape=[1,12,24,33,64]")
+    os.system("../../src/pnnx test_nn_ReplicationPad3d.pt inputshape=[1,12,13,13,13]")
 
     # ncnn inference
-    import test_F_adaptive_max_pool3d_ncnn
-    b = test_F_adaptive_max_pool3d_ncnn.test_inference()
+    import test_nn_ReplicationPad3d_ncnn
+    b = test_nn_ReplicationPad3d_ncnn.test_inference()
 
-    for a0, b0 in zip(a, b):
-        b0 = b0.reshape_as(a0)
-        if not torch.allclose(a0, b0, 1e-4, 1e-4):
-            return False
-    return True
+    return torch.allclose(a, b, 1e-4, 1e-4)
 
 if __name__ == "__main__":
     if test():

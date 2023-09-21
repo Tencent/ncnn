@@ -64,9 +64,9 @@ void main()
     // y = 0.5x * (1 + tanh(sqrt(2/Pi) * (x + 0.044715x^3)))
 
 #if NCNN_moltenvk
-    v = 0.5f * v * (1.0f + afpvec4(tanh(vec4(0.79788452f * (v + 0.044715f * v * v * v)))));
+    v = afpvec4(0.5f) * v * (afpvec4(1.0f) + afpvec4(tanh(vec4(afpvec4(0.79788452f) * (v + afpvec4(0.044715f) * v * v * v)))));
 #else
-    v = 0.5f * v * (1.0f + tanh(0.79788452f * (v + 0.044715f * v * v * v)));
+    v = afpvec4(0.5f) * v * (afpvec4(1.0f) + tanh(afpvec4(0.79788452f) * (v + afpvec4(0.044715f) * v * v * v)));
 #endif
 
 #if NCNN_image_shader
