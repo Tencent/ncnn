@@ -342,8 +342,10 @@ set(pnnx_pass_level5_SRCS
     pass_level5/fuse_constant_expression.cpp
     pass_level5/fuse_conv1d_batchnorm1d.cpp
     pass_level5/fuse_conv2d_batchnorm2d.cpp
+    pass_level5/fuse_conv3d_batchnorm3d.cpp
     pass_level5/fuse_convtranspose1d_batchnorm1d.cpp
     pass_level5/fuse_convtranspose2d_batchnorm2d.cpp
+    pass_level5/fuse_convtranspose3d_batchnorm3d.cpp
     pass_level5/fuse_contiguous_view.cpp
     pass_level5/fuse_linear_batchnorm1d.cpp
     pass_level5/fuse_pad_conv1d.cpp
