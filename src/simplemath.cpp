@@ -17,9 +17,6 @@
 #if NCNN_SIMPLEMATH
 
 #include "simplemath.h"
-
-#define SIN_RED_SWITCHOVER (201.15625f)
-#define COS_RED_SWITCHOVER (142.90625f)
 #define __HI(X)            *(1 + (short*)&x)
 #define __LO(X)            *(short*)&x
 #define INFINITY           (1.0 / 0)
@@ -36,32 +33,6 @@
 static const float PI = 3.14159265358979323846;
 static const float PI_2 = 1.57079632679489661923; /* PI/2 */
 static const float E = 2.71828182845904523536;
-static const uint32_t two_over_pi_f[] = {
-    0x28be60db,
-    0x9391054a,
-    0x7f09d5f4,
-    0x7d4d3770,
-    0x36d8a566,
-    0x4f10e410
-}; /* 2 / PI*/
-
-/*
-* ====================================================
-* util functions
-* ====================================================
-*/
-
-/* re-interpret the bit pattern of an IEEE-754 float as a uint32 */
-static uint32_t float_as_uint32(float a)
-{
-    uint32_t r;
-    uint32_t* rp = &r;
-    float* ap = &a;
-
-    *rp = *(uint32_t*)ap;
-
-    return r;
-}
 
 /* re-interpret the bit pattern of a uint32 as an IEEE-754 float */
 static float uint32_as_float(uint32_t a)
@@ -75,194 +46,6 @@ static float uint32_as_float(uint32_t a)
     return r;
 }
 
-/* Henry S. Warren, "Hacker's Delight, 2nd ed.", Addison-Wesley 2012. Fig. 8-2 */
-static uint32_t umul32_hi(uint32_t a, uint32_t b)
-{
-    uint16_t a_lo = (uint16_t)a;
-    uint16_t a_hi = a >> 16;
-    uint16_t b_lo = (uint16_t)b;
-    uint16_t b_hi = b >> 16;
-    uint32_t p0 = (uint32_t)a_lo * b_lo;
-    uint32_t p1 = (uint32_t)a_lo * b_hi;
-    uint32_t p2 = (uint32_t)a_hi * b_lo;
-    uint32_t p3 = (uint32_t)a_hi * b_hi;
-    uint32_t t = (p0 >> 16) + p1;
-    return (t >> 16) + (((uint32_t)(uint16_t)t + p2) >> 16) + p3;
-}
-
-/*
-* Reduce a trig function argument using the slow Payne-Hanek method
-* copy from https://stackoverflow.com/questions/64058564/single-precision-argument-reduction-for-trigonometric-functions-in-c
-*/
-static float trig_red_slowpath_f(float a, int* quadrant)
-{
-    uint32_t ia, hi, mid, lo, tmp, i, l, h, plo, phi;
-    int32_t e, q;
-    float r;
-
-    ia = ((float_as_uint32(a) & 0x007fffff) << 8) | 0x80000000;
-    e = ((float_as_uint32(a) >> 23) & 0xff) - 126;
-
-    /* compute product x * 2/pi in 2.62 fixed-point format */
-    i = (uint32_t)e >> 5;
-    e = (uint32_t)e & 31;
-
-    hi = i ? two_over_pi_f[i - 1] : 0;
-    mid = two_over_pi_f[i + 0];
-    lo = two_over_pi_f[i + 1];
-    tmp = two_over_pi_f[i + 2];
-
-    if (e)
-    {
-        hi = (hi << e) | (mid >> (32 - e));
-        mid = (mid << e) | (lo >> (32 - e));
-        lo = (lo << e) | (tmp >> (32 - e));
-    }
-
-    /* compute 64-bit product phi:plo */
-    phi = 0;
-    l = ia * lo;
-    h = umul32_hi(ia, lo);
-    plo = phi + l;
-    phi = h + (plo < l);
-    l = ia * mid;
-    h = umul32_hi(ia, mid);
-    plo = phi + l;
-    phi = h + (plo < l);
-    l = ia * hi;
-    phi = phi + l;
-
-    /* split fixed-point result into integer and fraction portions */
-    q = phi >> 30;          // integral portion = quadrant<1:0>
-    phi = phi & 0x3fffffff; // fraction
-    if (phi & 0x20000000)
-    {   // fraction >= 0.5
-        phi = phi - 0x40000000; // fraction - 1.0
-        q = q + 1;
-    }
-
-    /* compute remainder of x / (pi/2) */
-    /* record sign of fraction */
-    uint32_t s = phi & 0x80000000;
-
-    /* take absolute value of fraction */
-    if ((int32_t)phi < 0)
-    {
-        phi = ~phi;
-        plo = 0 - plo;
-        phi += (plo == 0);
-    }
-
-    /* normalize fraction */
-    e = 0;
-    while ((int32_t)phi > 0)
-    {
-        phi = (phi << 1) | (plo >> 31);
-        plo = plo << 1;
-        e--;
-    }
-
-    /* multiply 32 high-order bits of fraction with pi/2 */
-    phi = umul32_hi(phi, 0xc90fdaa2); // (uint32_t)rint(PI/2 * 2**31)
-
-    /* normalize product */
-    if ((int32_t)phi > 0)
-    {
-        phi = phi << 1;
-        e--;
-    }
-
-    /* round and convert to floating point */
-    uint32_t ri = s + ((e + 128) << 23) + (phi >> 8) + ((phi & 0xff) > 0x7e);
-    r = uint32_as_float(ri);
-    if (a < 0.0f)
-    {
-        r = -r;
-        q = -q;
-    }
-
-    *quadrant = q;
-    return r;
-}
-
-/* Argument reduction for trigonometric functions that reduces the argument
-    to the interval [-PI/4, +PI/4] and also returns the quadrant. It returns
-    -0.0f for an input of -0.0f.
-    copy from https://stackoverflow.com/questions/64058564/single-precision-argument-reduction-for-trigonometric-functions-in-c
-*/
-static float trig_red_f(float a, float switch_over, int* q)
-{
-    float j, r;
-
-    if (fabsf(a) > switch_over)
-    {
-        /* Payne-Hanek style reduction. M. Payne and R. Hanek, "Radian reduction
-            for trigonometric functions". SIGNUM Newsletter, 18:19-24, 1983
-        */
-        r = trig_red_slowpath_f(a, q);
-    }
-    else
-    {
-        /* Cody-Waite style reduction. W. J. Cody and W. Waite, "Software Manual
-            for the Elementary Functions", Prentice-Hall 1980
-        */
-        j = (round(a * 6.36619747e-1f) + 1.2582912e+7f); // 0x1.45f306p-1, 0x1.8p+23
-        j = j - 1.25829120e+7f;                          // 0x1.8p+23
-        r = a - j * 1.57078552e+00f;                     // 0x1.921f00p+00 // pio2_high
-        r = r - j * 1.08043314e-05f;                     // 0x1.6a8880p-17 // pio2_mid
-        r = r - j * 2.56334407e-12f;                     // 0x1.68c234p-39 // pio2_low
-        *q = (int)j;
-    }
-    return r;
-}
-
-/* Approximate sine on [-PI/4,+PI/4]. Maximum ulp error with USE_FMA = 0.64196
-    Returns -0.0f for an argument of -0.0f
-    copy from https://stackoverflow.com/questions/64058564/single-precision-argument-reduction-for-trigonometric-functions-in-c
-*/
-static float sinf_poly(float a, float s)
-{
-    float r, t;
-    r = 2.86567956e-6f; //  0x1.80a000p-19
-    r = r * s - 1.98559923e-4f; // -0x1.a0690cp-13
-    r = r * s + 8.33338592e-3f; //  0x1.111182p-07
-    r = r * s - 1.66666672e-1f; // -0x1.555556p-03
-    t = a * s + 0.0f; // ensure -0 is passed through
-    r = r * t + a;
-    return r;
-}
-
-/* Approximate cosine on [-PI/4,+PI/4]. Maximum ulp error with USE_FMA = 0.87444
-    * copy from https://stackoverflow.com/questions/64058564/single-precision-argument-reduction-for-trigonometric-functions-in-c
-*/
-static float cosf_poly(float s)
-{
-    float r;
-
-    r = 2.44677067e-5f;         //  0x1.9a8000p-16
-    r = r * s - 1.38877297e-3f; // -0x1.6c0efap-10
-    r = r * s + 4.16666567e-2f; //  0x1.555550p-05
-    r = r * s - 5.00000000e-1f; // -0x1.000000p-01
-    r = r * s + 1.00000000e+0f; //  0x1.000000p+00
-
-    return r;
-}
-
-/* Map sine or cosine value based on quadrant
-    * copy from https://stackoverflow.com/questions/64058564/single-precision-argument-reduction-for-trigonometric-functions-in-c
-*/
-static float sinf_cosf_core(float a, int i)
-{
-    float r, s;
-
-    s = a * a;
-    r = (i & 1) ? cosf_poly(s) : sinf_poly(a, s);
-    if (i & 2)
-    {
-        r = 0.0f - r; // don't change "sign" of NaNs
-    }
-    return r;
-}
 
 #ifdef __cplusplus
 extern "C" {
@@ -360,6 +143,9 @@ float frac(float x)
 * ====================================================
 */
 
+/*
+    modify from https://developer.download.nvidia.cn/cg/sin.html
+*/
 float sinf(float a)
 {
     const int x = 0;
