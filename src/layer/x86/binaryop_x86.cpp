@@ -795,7 +795,10 @@ struct binary_op_remainder
 {
     float func(const float& x, const float& y) const
     {
-        return (float)remainderf(x, y);
+        float div_result = x / y;
+        float round_result = roundf(div_result);
+        float res = x - y * round_result;
+        return res;
     }
 #if __SSE2__
     __m128 func_pack4(const __m128& x, const __m128& y) const

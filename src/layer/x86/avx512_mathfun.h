@@ -859,7 +859,7 @@ static NCNN_FORCEINLINE __m512 abs512_ps(__m512 x)
 static NCNN_FORCEINLINE __m512 remainder512_ps(__m512 x, __m512 y)
 {
     const __m512 round_div_result = _mm512_div_round_ps(x, y, (_MM_FROUND_TO_NEG_INF | _MM_FROUND_NO_EXC));
-    const __m512 mul_result = _mm512_mul_ps(round_div_result, y);
+    const __m512 mul_result = _mm512_mul_ps(y, round_div_result);
     return _mm512_sub_ps(x, mul_result);
 }
 

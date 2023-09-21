@@ -1166,7 +1166,7 @@ static NCNN_FORCEINLINE __m128 remainder_ps(__m128 x, __m128 y)
 {
     const __m128 div_result = _mm_div_ps(x, y);
     const __m128 round_result = _mm_round_ps(div_result, (_MM_FROUND_TO_NEG_INF | _MM_FROUND_NO_EXC));
-    const __m128 mul_result = _mm_mul_ps(round_result, y);
+    const __m128 mul_result = _mm_mul_ps(y, round_result);
     return _mm_sub_ps(x, mul_result);
 }
 
