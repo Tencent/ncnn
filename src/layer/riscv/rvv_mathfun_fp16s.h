@@ -377,7 +377,7 @@ _RVV_FLOAT16_POW_OP(8, 2)
         /* _reciprocal = vfmul_vv_f16m##LMUL(vfrsub_vf_f16m##LMUL(vfmul_vv_f16m##LMUL(_v, _reciprocal, vl), 2.f, vl), _reciprocal, vl); */ \
         return _reciprocal;                                                                                                                \
     }
-#else  // __riscv_v >= 1000000
+#else // __riscv_v >= 1000000
 #define _RVV_FLOAT16_SIGMOID_OP(LMUL, MLEN)                                                                                                \
     static inline vfloat16m##LMUL##_t sigmoid_ps(vfloat16m##LMUL##_t _v, size_t vl)                                                        \
     {                                                                                                                                      \
