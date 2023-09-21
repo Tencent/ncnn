@@ -1788,6 +1788,54 @@ cooling_down = 1
       yolo-fastestv2  min =  316.93  max =  319.86  avg =  318.33
 ```
 
+### Avaota Aim T527, Allwinner T527 (Cortex-A55 2.2GHz x 4 + Cortex-A55 1.8GHz x 4)
+
+```
+./benchncnn 4 4 2 -1 1
+loop_count = 4
+num_threads = 4
+powersave = 2
+gpu_device = -1
+cooling_down = 1
+          squeezenet  min =   14.15  max =   14.21  avg =   14.17
+     squeezenet_int8  min =   21.05  max =   21.12  avg =   21.09
+           mobilenet  min =   19.22  max =   19.30  avg =   19.25
+      mobilenet_int8  min =   18.65  max =   19.52  avg =   19.07
+        mobilenet_v2  min =   20.23  max =   21.01  avg =   20.63
+        mobilenet_v3  min =   15.34  max =   15.48  avg =   15.41
+          shufflenet  min =   10.30  max =   10.37  avg =   10.33
+       shufflenet_v2  min =    9.18  max =    9.34  avg =    9.23
+             mnasnet  min =   15.58  max =   15.62  avg =   15.60
+     proxylessnasnet  min =   19.64  max =   19.73  avg =   19.67
+     efficientnet_b0  min =   25.62  max =   25.81  avg =   25.69
+   efficientnetv2_b0  min =   36.95  max =   37.46  avg =   37.17
+        regnety_400m  min =   23.75  max =   24.13  avg =   23.90
+           blazeface  min =    3.37  max =    3.42  avg =    3.40
+           googlenet  min =   57.36  max =   58.32  avg =   57.88
+      googlenet_int8  min =   60.80  max =   62.30  avg =   61.50
+            resnet18  min =   39.99  max =   40.34  avg =   40.17
+       resnet18_int8  min =   54.18  max =   56.08  avg =   55.16
+             alexnet  min =   41.87  max =   42.21  avg =   42.08
+               vgg16  min =  260.14  max =  260.94  avg =  260.51
+          vgg16_int8  min =  347.42  max =  348.90  avg =  348.30
+            resnet50  min =   90.91  max =   91.26  avg =   91.07
+       resnet50_int8  min =  121.94  max =  122.56  avg =  122.28
+      squeezenet_ssd  min =   57.11  max =   57.57  avg =   57.37
+ squeezenet_ssd_int8  min =   74.70  max =   75.18  avg =   74.91
+       mobilenet_ssd  min =   49.60  max =   49.96  avg =   49.71
+  mobilenet_ssd_int8  min =   49.45  max =   49.93  avg =   49.63
+      mobilenet_yolo  min =  114.98  max =  115.37  avg =  115.18
+  mobilenetv2_yolov3  min =   75.74  max =   75.97  avg =   75.87
+         yolov4-tiny  min =   99.09  max =   99.43  avg =   99.25
+           nanodet_m  min =   29.40  max =   29.77  avg =   29.60
+    yolo-fastest-1.1  min =   13.78  max =   13.85  avg =   13.82
+      yolo-fastestv2  min =   12.91  max =   13.10  avg =   12.98
+  vision_transformer  min = 1641.78  max = 1648.71  avg = 1646.65
+          FastestDet  min =   12.24  max =   12.61  avg =   12.42
+
+```
+
+
 ### Khadas VIM3, Amlogic A311D (Cortex-A73 2.2GHz x 4 + Cortex-A53 1.8GHz x 2)
 
 ```

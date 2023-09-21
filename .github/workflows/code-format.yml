@@ -15,7 +15,7 @@ jobs:
       contents: write  # for stefanzweifel/git-auto-commit-action to push code in repo
     runs-on: ubuntu-20.04
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: cache-clang-format
       id: cache-clang-format
