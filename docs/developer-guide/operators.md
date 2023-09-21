@@ -72,6 +72,7 @@
 * [RNN](#rnn)
 * [Scale](#scale)
 * [SELU](#selu)
+* [Shrink](#shrink)
 * [ShuffleChannel](#shufflechannel)
 * [Sigmoid](#sigmoid)
 * [Slice](#slice)
@@ -1674,6 +1675,21 @@ else        y = x * lambda
 | --------- | ------------- | ----- | --------- | ----------------- |
 | 0         | alpha         | float | 1.67326324f|                  |
 | 1         | lambda        | float | 1.050700987f|                 |
+
+# Shrink
+```
+if x < -lambd y = x + bias
+if x >  lambd y = x - bias
+else          y = x
+```
+
+* one_blob_only
+* support_inplace
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | bias          | float | 0.0f      |                   |
+| 1         | lambd         | float | 0.5f      |                   |
 
 # ShuffleChannel
 ```
