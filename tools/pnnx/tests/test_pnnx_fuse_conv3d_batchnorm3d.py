@@ -37,12 +37,13 @@ class Model(nn.Module):
         else:
             self.conv_4 = nn.Conv3d(in_channels=28, out_channels=32, kernel_size=3, stride=1, padding='same', dilation=(1,2,1), groups=2, bias=False, padding_mode='zeros')
         self.bn_4 = nn.BatchNorm3d(num_features=32)
-        self.conv_5 = nn.Conv3d(in_channels=32, out_channels=32, kernel_size=2, stride=2, padding=3, dilation=1, groups=32, bias=True, padding_mode='reflect')
-        self.bn_5 = nn.BatchNorm3d(num_features=32)
-        self.conv_6 = nn.Conv3d(in_channels=32, out_channels=28, kernel_size=2, stride=1, padding=2, dilation=1, groups=1, bias=False, padding_mode='replicate')
-        self.bn_6 = nn.BatchNorm3d(num_features=28)
-        #self.conv_7 = nn.Conv3d(in_channels=28, out_channels=24, kernel_size=3, stride=2, padding=(5,6), dilation=2, groups=1, bias=True, padding_mode='circular')
-        #self.bn_7 = nn.BatchNorm3d(num_features=24)
+        if version.parse(torch.__version__) >= version.parse('1.10'):
+            self.conv_5 = nn.Conv3d(in_channels=32, out_channels=32, kernel_size=2, stride=2, padding=3, dilation=1, groups=32, bias=True, padding_mode='reflect')
+            self.bn_5 = nn.BatchNorm3d(num_features=32)
+            self.conv_6 = nn.Conv3d(in_channels=32, out_channels=28, kernel_size=2, stride=1, padding=2, dilation=1, groups=1, bias=False, padding_mode='replicate')
+            self.bn_6 = nn.BatchNorm3d(num_features=28)
+            #self.conv_7 = nn.Conv3d(in_channels=28, out_channels=24, kernel_size=3, stride=2, padding=(5,6), dilation=2, groups=1, bias=True, padding_mode='circular')
+            #self.bn_7 = nn.BatchNorm3d(num_features=24)
 
     def forward(self, x):
         x = self.conv_0(x)
@@ -55,6 +56,9 @@ class Model(nn.Module):
         x = self.bn_3(x)
         x = self.conv_4(x)
         x = self.bn_4(x)
+        if version.parse(torch.__version__) < version.parse('1.10'):
+            return x
+
         x = self.conv_5(x)
         x = self.bn_5(x)
         x = self.conv_6(x)
