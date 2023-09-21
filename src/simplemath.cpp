@@ -349,6 +349,11 @@ float truncf(float x)
     return static_cast<float>(intValue);
 }
 
+float frac(float x)
+{
+    return x - floor(x);
+}
+
 /*
 * ====================================================
 * trigonometric functions
@@ -357,24 +362,74 @@ float truncf(float x)
 
 float sinf(float a)
 {
-    float r;
-    int i;
+    const int x = 0;
+    const int y = 1;
+    const int z = 2;
+    const int w = 3;
 
-    a = a * 0.0f + a; // inf -> NaN
-    r = trig_red_f(a, SIN_RED_SWITCHOVER, &i);
-    r = sinf_cosf_core(r, i);
-    return r;
+    float c0[4] = {0.0, 0.5, 1.0, 0.0};
+    float c1[4] = {0.25, -9.0, 0.75, 0.159154943091};
+    float c2[4] = {24.9808039603, -24.9808039603, -60.1458091736, 60.1458091736};
+    float c3[4] = {85.4537887573, -85.4537887573, -64.9393539429, 64.9393539429};
+    float c4[4] = {19.7392082214, -19.7392082214, -1.0, 1.0};
+    float r0[3], r1[3], r2[3];
+
+    // r1.x = c1.w * a - c1.x
+    r1[x] = c1[w] * a - c1[x];
+    // r1.y  = frac( r1.x );
+    r1[y] = frac(r1[x]);
+    // r2.x  = (float) ( r1.y < c1.x );
+    r2[x] = (float)(r1[y] < c1[x]);
+    // r2.yz = (float2) ( r1.yy >= c1.yz );
+    r2[y] = (float)(r1[y] >= c1[y]);
+    r2[z] = (float)(r1[y] >= c1[z]);
+    // r2.y  = dot( r2, c4.zwz );
+    r2[y] = r2[x] * c4[z] + r2[y] * c4[w] + r2[z] * c4[z];
+
+    // r0 = c0.xyz - r1.yyy
+    r0[x] = c0[x] - r1[y];
+    r0[y] = c0[y] - r1[y];
+    r0[z] = c0[z] - r1[y];
+
+    // r0 = r0 * r0
+    r0[x] = r0[x] * r0[x];
+    r0[y] = r0[y] * r0[y];
+    r0[z] = r0[z] * r0[z];
+
+    // r1 = c2.xyx * r0 + c2.zwz
+    r1[x] = c2[x] * r0[x] + c2[z];
+    r1[y] = c2[y] * r0[y] + c2[w];
+    r1[z] = c2[x] * r0[z] + c2[z];
+
+    // r1 = r1 * r0 + c3.xyx
+    r1[x] = r1[x] * r0[x] + c3[x];
+    r1[y] = r1[y] * r0[y] + c3[y];
+    r1[z] = r1[z] * r0[z] + c3[x];
+
+    // r1 = r1 * r0 + c3.zwz
+    r1[x] = r1[x] * r0[x] + c3[z];
+    r1[y] = r1[y] * r0[y] + c3[w];
+    r1[z] = r1[z] * r0[z] + c3[z];
+
+    // r1 = r1 * r0 + c4.xyx
+    r1[x] = r1[x] * r0[x] + c4[x];
+    r1[y] = r1[y] * r0[y] + c4[y];
+    r1[z] = r1[z] * r0[z] + c4[x];
+
+    // r1 = r1 * r0 + c4.zwz
+    r1[x] = r1[x] * r0[x] + c4[z];
+    r1[y] = r1[y] * r0[y] + c4[w];
+    r1[z] = r1[z] * r0[z] + c4[z];
+
+    //r0.x = dot(r1, -r2)
+    r0[x] = -(r1[x] * r2[x] + r1[y] * r2[y] + r1[z] * r2[z]);
+
+    return r0[x];
 }
 
-float cosf(float a)
+float cosf(float x)
 {
-    float r;
-    int i;
-
-    a = a * 0.0f + a; // inf -> NaN
-    r = trig_red_f(a, COS_RED_SWITCHOVER, &i);
-    r = sinf_cosf_core(r, i + 1);
-    return r;
+    return sinf(PI_2 + x);
 }
 
 float tanf(float x)

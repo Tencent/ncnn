@@ -38,7 +38,7 @@ NCNN_EXPORT float ceil(float);
 NCNN_EXPORT float ceilf(float);
 NCNN_EXPORT float fmaxf(float, float);
 NCNN_EXPORT float truncf(float);
-
+NCNN_EXPORT float frac(float);
 /*
 * ====================================================
 * trigonometric functions
