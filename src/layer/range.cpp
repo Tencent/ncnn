@@ -26,7 +26,6 @@ Range::Range()
 
 int Range::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
-
     if (bottom_blobs.size() < 2 || bottom_blobs.size() > 3)
         return -100;
 
