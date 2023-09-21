@@ -40,7 +40,7 @@ int Range::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_b
 
     const int* start_ptr = start;
     const int* limit_ptr = limit;
-    const int* delta_ptr = delta.data; // use the data member to get the pointer
+    const int* delta_ptr = delta;
 
     int start_val = start_ptr[0];
     int limit_val = limit_ptr[0];
