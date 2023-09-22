@@ -30,8 +30,15 @@ int Range::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_b
         return -100;
 
     const Mat& start = bottom_blobs[0];
+    if(start.empty())
+        return -100;
+
     const Mat& limit = bottom_blobs[1];
+    if(limit.empty())
+        return -100;
+
     const Mat& delta = bottom_blobs.size() == 3 ? bottom_blobs[2] : Mat();
+
     Mat& output = top_blobs[0];
 
     if (start.w * start.h * start.d * start.c != 1 || limit.w * limit.h * limit.d * limit.c != 1 || (!delta.empty() && delta.w * delta.h * delta.d * delta.c != 1))
@@ -41,16 +48,14 @@ int Range::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_b
     const int* limit_ptr = limit;
     const int* delta_ptr = delta;
 
-    int start_val = start_ptr[0];
-    int limit_val = limit_ptr[0];
-    int delta_val = delta.empty() ? 1 : delta_ptr[0];
+    int start_val = *start_ptr;
+    int limit_val = *limit_ptr;
+    int delta_val = delta.empty() ? 1 : *delta_ptr;
 
     if (delta_val == 0)
         return -100;
 
-    int number_of_elements = static_cast<int>(ceil(static_cast<float>(limit_val - start_val) / delta_val));
-    if (number_of_elements < 0)
-        number_of_elements = 0;
+    int number_of_elements = (int) std::max((int) ceilf((limit_val - start_val) / delta_val), 0);
 
     output.create(number_of_elements, start.elemsize, opt.blob_allocator);
     if (output.empty())
@@ -61,7 +66,7 @@ int Range::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_b
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int i = 0; i < number_of_elements; i++)
     {
-        outptr[i] = start_val + (i * delta_val);
+        ((int*)outptr)[i] = start_val + (i * delta_val);
     }
 
     return 0;
