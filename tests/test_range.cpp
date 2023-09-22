@@ -49,9 +49,9 @@ static int test_range(const ncnn::Mat& _a, const ncnn::Mat& _b, const ncnn::Mat&
 static int test_range_0()
 {
     return 0
-           || test_range(RandomIntMat(1), RandomIntMat(1), Mat())
-           || test_range(RandomIntMat(1), RandomIntMat(1), Mat())
-           || test_range(RandomIntMat(1), RandomIntMat(1), Mat());
+           || test_range(RandomIntMat(1), RandomIntMat(1), ncnn::Mat())
+           || test_range(RandomIntMat(1), RandomIntMat(1), ncnn::Mat())
+           || test_range(RandomIntMat(1), RandomIntMat(1), ncnn::Mat());
 }
 
 static int test_range_1()
