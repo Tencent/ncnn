@@ -15,7 +15,7 @@
 #include "layer/range.h"
 #include "testutil.h"
 
-static int test_range(const ncnn::Mat& a, const ncnn::Mat& b, const ncnn::Mat& c)
+static int test_range(ncnn::Mat& a, ncnn::Mat& b, ncnn::Mat& c)
 {
 
     // the values should be greater than 0
@@ -49,7 +49,7 @@ static int test_range_0()
            || test_range(RandomIntMat(1), RandomIntMat(1));
 }
 
-static int test_bias_1()
+static int test_range_1()
 {
     return 0
            || test_range(RandomIntMat(1), RandomIntMat(1), RandomIntMat(1))
