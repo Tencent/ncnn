@@ -28,9 +28,6 @@ Gemm_riscv::Gemm_riscv()
 {
 #if __riscv_vector
     support_packing = true;
-// #if __riscv_zfh
-//     support_fp16_storage = true;
-// #endif
 #endif // __riscv_vector
     one_blob_only = false;
     support_inplace = false;
