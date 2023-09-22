@@ -23,10 +23,14 @@ static int test_range(const ncnn::Mat& _a, const ncnn::Mat& _b, const ncnn::Mat&
     ncnn::Mat c = _c;
 
     // the values should be greater than 0
-    RandomizeInt(a, 0, 100000);
-    RandomizeInt(b, a[0], a[0]* 10);
+    a = a.clone();
+    RandomizeInt(a, 0, 100);
+    int* a_ptr = a;
+    b = b.clone();
+    RandomizeInt(b, *a_ptr + 10, *a_ptr + 100);
     if(!c.empty())
-        RandomizeInt(c, 1, 5);
+        c = c.clone();
+    RandomizeInt(c, 1, 5);
 
     ncnn::ParamDict pd;
 
