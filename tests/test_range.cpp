@@ -15,8 +15,12 @@
 #include "layer/range.h"
 #include "testutil.h"
 
-static int test_range(ncnn::Mat& a, ncnn::Mat& b, ncnn::Mat& c)
+static int test_range(const ncnn::Mat& _a, const ncnn::Mat& _b, const ncnn::Mat& _c)
 {
+
+    ncnn::Mat a = _a;
+    ncnn::Mat b = _b;
+    ncnn::Mat c = _c;
 
     // the values should be greater than 0
     RandomizeInt(a, 0, 100000);
