@@ -21,7 +21,8 @@ static int test_range(ncnn::Mat& a, ncnn::Mat& b, ncnn::Mat& c)
     // the values should be greater than 0
     RandomizeInt(a, 0, 100000);
     RandomizeInt(b, a[0], a[0]* 10);
-    RandomizeInt(c, 1, 5);
+    if(!c.empty())
+        RandomizeInt(c, 1, 5);
 
     ncnn::ParamDict pd;
 
@@ -44,9 +45,9 @@ static int test_range(ncnn::Mat& a, ncnn::Mat& b, ncnn::Mat& c)
 static int test_range_0()
 {
     return 0
-           || test_range(RandomIntMat(1), RandomIntMat(1))
-           || test_range(RandomIntMat(1), RandomIntMat(1))
-           || test_range(RandomIntMat(1), RandomIntMat(1));
+           || test_range(RandomIntMat(1), RandomIntMat(1), Mat())
+           || test_range(RandomIntMat(1), RandomIntMat(1), Mat())
+           || test_range(RandomIntMat(1), RandomIntMat(1), Mat());
 }
 
 static int test_range_1()
