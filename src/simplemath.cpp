@@ -17,13 +17,13 @@
 #if NCNN_SIMPLEMATH
 
 #include "simplemath.h"
-#define __HI(X)            *(1 + (short*)&x)
-#define __LO(X)            *(short*)&x
-#define INFINITY           (1.0 / 0)
-#define FE_TONEAREST       0
-#define FE_DOWNWARD        1024
-#define FE_UPWARD          2048
-#define FE_TOWARDZERO      3072
+#define __HI(X)       *(1 + (short*)&x)
+#define __LO(X)       *(short*)&x
+#define INFINITY      (1.0 / 0)
+#define FE_TONEAREST  0
+#define FE_DOWNWARD   1024
+#define FE_UPWARD     2048
+#define FE_TOWARDZERO 3072
 
 /*
 * ====================================================
@@ -45,7 +45,6 @@ static float uint32_as_float(uint32_t a)
 
     return r;
 }
-
 
 #ifdef __cplusplus
 extern "C" {
@@ -321,7 +320,7 @@ float tanhf(float v)
     {
         return copysignf(1, v);
     }
-    float exp2v = expf(2*v);
+    float exp2v = expf(2 * v);
     return (exp2v - 1) / (exp2v + 1);
 }
 
