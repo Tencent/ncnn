@@ -17,34 +17,34 @@
 
 static int test_range(const ncnn::Mat& _a, const ncnn::Mat& _b, const ncnn::Mat& _c)
 {
-
     ncnn::Mat a = _a;
     ncnn::Mat b = _b;
     ncnn::Mat c = _c;
 
     // the values should be greater than 0
     a = a.clone();
-    RandomizeInt(a, 0, 100);
-    int* a_ptr = a;
+    Randomize(a, 0.0f, 100.0f);
+    float* a_ptr = a;
     b = b.clone();
-    RandomizeInt(b, *a_ptr + 10, *a_ptr + 100);
-    if(!c.empty())
+    Randomize(b, a_ptr[0] + 10.0f, a_ptr[0] + 100.0f);
+    if (!c.empty())
+    {
         c = c.clone();
-    RandomizeInt(c, 1, 5);
-
+        Randomize(c, 1.0f, 5.0f);
+    }
     ncnn::ParamDict pd;
 
     std::vector<ncnn::Mat> weights(0);
-    std::vector<ncnn::Mat> inputs;
-    inputs.push_back(a);
-    inputs.push_back(b);
-    if(!c.empty())
-        inputs.push_back(c);
+    std::vector<ncnn::Mat> inputs(!c.empty() ? 3 : 2);
+    inputs[0] = a;
+    inputs[1] = b;
+    if (!c.empty())
+        inputs[2] = c;
 
     int ret = test_layer<ncnn::Range>("Range", pd, weights, inputs);
     if (ret != 0)
     {
-        fprintf(stderr, "test_range failed a.dims=%d a=(%d %d %d %d)\n", a.dims, a.w, a.h, a.d, a.c);
+        fprintf(stderr, "test_range failed a.dims=%d a=(%d %d %d %d), b.dims=%d, b=(%d, %d, %d, %d), c.dims=%d, c=(%d, %d, %d, %d)\n", a.dims, a.w, a.h, a.d, a.c, b.dims, b.w, b.h, b.d, b.c, b.dims, b.w, b.h, b.d, b.c);
     }
 
     return ret;
@@ -53,17 +53,17 @@ static int test_range(const ncnn::Mat& _a, const ncnn::Mat& _b, const ncnn::Mat&
 static int test_range_0()
 {
     return 0
-           || test_range(RandomIntMat(1), RandomIntMat(1), ncnn::Mat())
-           || test_range(RandomIntMat(1), RandomIntMat(1), ncnn::Mat())
-           || test_range(RandomIntMat(1), RandomIntMat(1), ncnn::Mat());
+           || test_range(RandomMat(1), RandomMat(1), ncnn::Mat())
+           || test_range(RandomMat(1), RandomMat(1), ncnn::Mat())
+           || test_range(RandomMat(1), RandomMat(1), ncnn::Mat());
 }
 
 static int test_range_1()
 {
     return 0
-           || test_range(RandomIntMat(1), RandomIntMat(1), RandomIntMat(1))
-           || test_range(RandomIntMat(1), RandomIntMat(1), RandomIntMat(1))
-           || test_range(RandomIntMat(1), RandomIntMat(1), RandomIntMat(1));
+           || test_range(RandomMat(1), RandomMat(1), RandomMat(1))
+           || test_range(RandomMat(1), RandomMat(1), RandomMat(1))
+           || test_range(RandomMat(1), RandomMat(1), RandomMat(1));
 }
 
 int main()
