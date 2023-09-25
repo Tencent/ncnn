@@ -341,11 +341,10 @@ else()
         set_target_properties(ncnn PROPERTIES POSITION_INDEPENDENT_CODE ON INTERFACE_POSITION_INDEPENDENT_CODE ON)
     endif()
 
-    if(CMAKE_BUILD_TYPE MATCHES "(Release|RELEASE|release)")
+    if(CMAKE_BUILD_TYPE MATCHES "(Release|RELEASE|release)" AND (NOT(NCNN_TARGET_ARCH STREQUAL "x86")))
         if(NOT CMAKE_SYSTEM_NAME STREQUAL "Emscripten" AND NOT (CMAKE_CXX_COMPILER_ID MATCHES "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.6))
             target_compile_options(ncnn PRIVATE -Ofast)
         endif()
-
         target_compile_options(ncnn PRIVATE -ffast-math)
     endif()
 
