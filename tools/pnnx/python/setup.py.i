@@ -11,10 +11,10 @@ try:
 
 
 except ImportError:
-bdist_wheel = None
+    bdist_wheel = None
 
 if sys.version_info < (3, 0):
-sys.exit("Sorry, Python < 3.0 is not supported")
+    sys.exit("Sorry, Python < 3.0 is not supported")
 
 requirements = ["torch"]
 
@@ -45,3 +45,4 @@ setup(
         package_data={"pnnx": ["pnnx{PYTHON_MODULE_PREFIX}${PYTHON_MODULE_EXTENSION}"]},
         install_requires=requirements,
         cmdclass={"bdist_wheel": bdist_wheel},
+)

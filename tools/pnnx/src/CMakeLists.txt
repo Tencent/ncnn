@@ -596,36 +596,79 @@ else()
     message(STATUS "Building without onnx-zero")
 endif()
 
-set(pnnx_SRCS
-    main.cpp
-    ir.cpp
-    storezip.cpp
-    utils.cpp
-
-    pass_level0.cpp
-    pass_level1.cpp
-    pass_level2.cpp
-    pass_level3.cpp
-    pass_level4.cpp
-    pass_level5.cpp
-
-    ${pnnx_pass_level0_SRCS}
-    ${pnnx_pass_level1_SRCS}
-    ${pnnx_pass_level2_SRCS}
-    ${pnnx_pass_level3_SRCS}
-    ${pnnx_pass_level4_SRCS}
-    ${pnnx_pass_level5_SRCS}
-
-    pass_ncnn.cpp
-    save_ncnn.cpp
-    ${pnnx_pass_ncnn_SRCS}
-)
 
 if(NOT MSVC)
     add_definitions(-Wall -Wextra)
 endif()
 
-add_executable(pnnx ${pnnx_SRCS})
+if(PNNX_LIB)
+    set(pnnx_SRCS
+        main.cpp
+        ir.cpp
+        storezip.cpp
+        utils.cpp
+        pass_level0.cpp
+        pass_level1.cpp
+        pass_level2.cpp
+        pass_level3.cpp
+        pass_level4.cpp
+        pass_level5.cpp
+        pass_ncnn.cpp
+        save_ncnn.cpp
+        )
+    add_library(pnnx ${pnnx_SRCS})
+    include(GNUInstallDirs)
+
+    target_include_directories(pnnx
+            PUBLIC
+            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+            $<INSTALL_INTERFACE:include/pnnx>
+            $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
+            )
+
+    install(TARGETS pnnx EXPORT pnnx
+            LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+            )
+    install(FILES
+        "ir.h"
+        "pass_level0.h"
+        "pass_level1.h"
+        "pass_level2.h"
+        "pass_level3.h"
+        "pass_level4.h"
+        "pass_level5.h"
+        "pass_ncnn.h"
+        "save_ncnn.h"
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/pnnx
+        )
+    install(EXPORT pnnx DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/pnnx)
+else()
+    set(pnnx_SRCS
+        main.cpp
+        ir.cpp
+        storezip.cpp
+        utils.cpp
+
+        pass_level0.cpp
+        pass_level1.cpp
+        pass_level2.cpp
+        pass_level3.cpp
+        pass_level4.cpp
+        pass_level5.cpp
+
+        ${pnnx_pass_level0_SRCS}
+        ${pnnx_pass_level1_SRCS}
+        ${pnnx_pass_level2_SRCS}
+        ${pnnx_pass_level3_SRCS}
+        ${pnnx_pass_level4_SRCS}
+        ${pnnx_pass_level5_SRCS}
+
+        pass_ncnn.cpp
+        save_ncnn.cpp
+        ${pnnx_pass_ncnn_SRCS}
+        )
+    add_executable(pnnx ${pnnx_SRCS})
+endif()
 
 target_compile_definitions(pnnx PRIVATE BUILD_PNNX)
 
@@ -670,3 +713,5 @@ if (WIN32)
     file(GLOB TORCH_DLL "${TORCH_INSTALL_PREFIX}/lib/*.dll")
     install(FILES ${TORCH_DLL} DESTINATION ${CMAKE_INSTALL_BINDIR})
 endif()
+
+

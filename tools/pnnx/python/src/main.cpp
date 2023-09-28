@@ -14,9 +14,32 @@
  */
 
 #include <pybind11/pybind11.h>
+
+#include <ir.h>
+#include <pass_level0.h>
+#include <pass_level1.h>
+#include <pass_level2.h>
+#include <pass_level3.h>
+#include <pass_level4.h>
+#include <pass_level5.h>
+
+#include "pass_ncnn.h"
+#include "save_ncnn.h"
+
 using namespace pnnx;
 namespace py = pybind11;
 
-PYBIND11_MODULE(ncnn, m)
-{
+int add(int i, int j) {
+    return i + j;
+}
+
+PYBIND11_MODULE(pnnx, m) {
+    m.doc() = "pybind11 example plugin";
+    m.def("add", &add, "A function which adds two numbers");
+
+    #ifdef VERSION_INFO
+        m.attr("__version__") = VERSION_INFO;
+    #else
+        m.attr("__version__") = "dev";
+    #endif
 }

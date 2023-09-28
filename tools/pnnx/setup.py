@@ -22,15 +22,15 @@ def find_version():
         return version_major[0] + "." + version_minor[0] + "." + pnnx_version
     raise RuntimeError("Unable to find version string.")
 
-# Parse parameters from environment
-Torch_INSTALL_DIR = ""
-for i, arg in enumerate(sys.argv):
-    if arg == "--torch_install_dir":
-        Torch_INSTALL_DIR = sys.argv[i+1]
-
 
 # Parse environment variables
 Torch_INSTALL_DIR = os.environ.get("Torch_INSTALL_DIR", "")
+
+# Parse parameters from environment
+Torch_INSTALL_DIR = "S:\Torch\libtorch"
+for i, arg in enumerate(sys.argv):
+    if arg == "--torch_install_dir":
+        Torch_INSTALL_DIR = sys.argv[i+1]
 
 # Convert distutils Windows platform specifiers to CMake -A arguments
 PLAT_TO_CMAKE = {
@@ -73,6 +73,7 @@ class CMakeBuild(build_ext):
             "-DPYTHON_EXECUTABLE={}".format(sys.executable),
             "-DCMAKE_BUILD_TYPE={}".format(cfg),  # not used on MSVC, but no harm
             "-DPNNX_PYTHON=ON",
+            "-DPNNX_LIB=ON"
         ]
         if Torch_INSTALL_DIR != "":
             cmake_args.append("-DTorch_INSTALL_DIR=" + Torch_INSTALL_DIR)
@@ -126,13 +127,13 @@ class CMakeBuild(build_ext):
 if sys.version_info < (3, 0):
     sys.exit("Sorry, Python < 3.0 is not supported")
 
-requirements = ["numpy", "tqdm", "requests", "portalocker", "opencv-python"]
+requirements = []
 
 with io.open("README.md", encoding="utf-8") as h:
     long_description = h.read()
 
 setup(
-    name="ncnn",
+    name="pnnx",
     version=find_version(),
     author="nihui",
     author_email="nihuini@tencent.com",
