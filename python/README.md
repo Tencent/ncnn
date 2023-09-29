@@ -33,7 +33,41 @@ If you want to build ncnn with some options not as default, or just like to buil
 * Visual Studio 2015 or higher
 * CMake >= 3.4
 
-## Build
+##  Build & Install
+
+1. clone ncnn and init submodule.
+
+```bash
+cd /pathto/ncnn
+git submodule init && git submodule update
+```
+
+2. build and install.
+
+```
+python setup.py install
+```
+
+if you want to enable the usage of vulkan, you can install as following:
+
+```
+python setup.py install --vulkan=on
+```
+
+> **Attention:**
+>
+> To enable Vulkan support, you must first install the Vulkan SDK.
+>
+> **For Windows or Linux Users:**
+>
+> Ensure that the `VULKAN_SDK` environment variable is set to the path of the Vulkan SDK.
+>
+> **For MacOS Users:**
+>
+> On MacOS, you will need to specify additional environment variables. For guidance on setting these variables, please refer to lines 279-286 in the following file: [ncnn/.github/workflows/release-python.yml at master · Tencent/ncnn](https://github.com/Tencent/ncnn/blob/master/.github/workflows/release-python.yml).
+
+## Custom-build & Install
+
 1. clone ncnn and init submodule.
 ```bash
 cd /pathto/ncnn
@@ -47,7 +81,8 @@ cmake -DNCNN_PYTHON=ON ..
 make
 ```
 
-## Install
+3. install
+
 ```bash
 cd /pathto/ncnn
 pip install .
@@ -60,6 +95,7 @@ python3 setup.py install
 ```
 
 ## Tests
+
 **test**
 ```bash
 cd /pathto/ncnn/python

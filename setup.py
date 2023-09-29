@@ -7,6 +7,7 @@ import subprocess
 
 from setuptools import setup, find_packages, Extension
 from setuptools.command.build_ext import build_ext
+from setuptools.command.install import install
 
 
 def find_version():
@@ -21,12 +22,6 @@ def find_version():
 
         return version_major[0] + "." + version_minor[0] + "." + ncnn_version
     raise RuntimeError("Unable to find version string.")
-
-# Parse parameters from environment
-NCNN_VULKAN = "OFF"
-for i, arg in enumerate(sys.argv):
-    if arg == "--vulkan":
-        NCNN_VULKAN = "ON"
 
 # Parse environment variables
 NCNN_VULKAN = os.environ.get("NCNN_VULKAN", "")
@@ -45,6 +40,24 @@ OpenMP_libomp_LIBRARY = os.environ.get("OpenMP_libomp_LIBRARY", "")
 ENABLE_BITCODE = os.environ.get("ENABLE_BITCODE", "")
 ENABLE_ARC = os.environ.get("ENABLE_ARC", "")
 ENABLE_VISIBILITY = os.environ.get("ENABLE_VISIBILITY", "")
+
+# Parse variables from command line with setup.py install
+class InstallCommand(install):
+    user_options = install.user_options + [
+        ('vulkan=', None, 'Enable the usage of Vulkan.'),
+    ]
+    def initialize_options(self):
+        install.initialize_options(self)
+        self.vulkan = None
+
+    def finalize_options(self):
+        install.finalize_options(self)
+
+    def run(self):
+        global NCNN_VULKAN
+        if self.vulkan == 'on' or self.vulkan == "ON":
+            NCNN_VULKAN = "ON"
+        install.run(self)
 
 # Convert distutils Windows platform specifiers to CMake -A arguments
 PLAT_TO_CMAKE = {
@@ -206,5 +219,5 @@ setup(
     package_dir={"": "python"},
     install_requires=requirements,
     ext_modules=[CMakeExtension("ncnn")],
-    cmdclass={"build_ext": CMakeBuild},
+    cmdclass={'install': InstallCommand, "build_ext": CMakeBuild},
 )
