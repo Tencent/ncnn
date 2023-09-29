@@ -84,21 +84,21 @@ void main()
     const ivec2 gx2 = gx + ivec2(0, 1);
     const ivec2 gy2 = gy + ivec2(0, 1);
 
-	afpvec8 sum0 = afpvec8(afpvec4(0.0f), afpvec4(0.0f));
-	afpvec8 sum1 = afpvec8(afpvec4(0.0f), afpvec4(0.0f));
-	afpvec8 sum2 = afpvec8(afpvec4(0.0f), afpvec4(0.0f));
-	afpvec8 sum3 = afpvec8(afpvec4(0.0f), afpvec4(0.0f));
+    afpvec8 sum0 = afpvec8(afpvec4(0.0f), afpvec4(0.0f));
+    afpvec8 sum1 = afpvec8(afpvec4(0.0f), afpvec4(0.0f));
+    afpvec8 sum2 = afpvec8(afpvec4(0.0f), afpvec4(0.0f));
+    afpvec8 sum3 = afpvec8(afpvec4(0.0f), afpvec4(0.0f));
 
     if (bias_term == 1)
     {
 #if NCNN_image_shader
         sum0 = image3d_ld8(bias_blob, ivec3(gy2.x, 0, 0));
-		sum2 = image3d_ld8(bias_blob, ivec3(gy2.y, 0, 0));
+        sum2 = image3d_ld8(bias_blob, ivec3(gy2.y, 0, 0));
 #else
         sum0 = buffer_ld8(bias_data, gy2.x);
-		sum2 = buffer_ld8(bias_data, gy2.y);
+        sum2 = buffer_ld8(bias_data, gy2.y);
 #endif
-		sum1 = sum0;
+        sum1 = sum0;
         sum3 = sum2;
     }
 
@@ -181,7 +181,7 @@ void main()
     for (int y = 0; y < psc(h); y++)
     {    
         for (int x = 0; x < kernel_w; x++)
-	    {
+        {
             afpvec8 v0 = buffer_ld8(bottom_blob_data, v_offset.x + x * dilation_w);
             afpvec8 v1 = buffer_ld8(bottom_blob_data, v_offset.y + x * dilation_w);
             
@@ -238,14 +238,14 @@ void main()
             sum3[1].g += dot(v1[0], kd[0]) + dot(v1[1], kd[1]);
             sum3[1].b += dot(v1[0], ke[0]) + dot(v1[1], ke[1]);
             sum3[1].a += dot(v1[0], kf[0]) + dot(v1[1], kf[1]);
-	    }       
+        }       
         v_offset += psc(w);
         w_offset += kernel_w;
     }
     
 #endif	
 
-	sum0 = activation_afpvec8(sum0, activation_type, activation_param_0, activation_param_1);
+    sum0 = activation_afpvec8(sum0, activation_type, activation_param_0, activation_param_1);
     sum1 = activation_afpvec8(sum1, activation_type, activation_param_0, activation_param_1);
     sum2 = activation_afpvec8(sum2, activation_type, activation_param_0, activation_param_1);
     sum3 = activation_afpvec8(sum3, activation_type, activation_param_0, activation_param_1);
