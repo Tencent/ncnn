@@ -14,6 +14,7 @@
  */
 
 #include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
 
 #include <ir.h>
 #include <pass_level0.h>
@@ -29,23 +30,7 @@
 using namespace pnnx;
 namespace py = pybind11;
 
-<<<<<<< Updated upstream
-int add(int i, int j)
-{
-    return i + j;
-}
-
-PYBIND11_MODULE(pnnx, m)
-{
-    m.doc() = "pybind11 example plugin";
-    m.def("add", &add, "A function which adds two numbers");
-
-#ifdef VERSION_INFO
-    m.attr("__version__") = VERSION_INFO;
-#else
-    m.attr("__version__") = "dev";
-#endif
-    == == == = static c10::ScalarType input_type_to_c10_ScalarType(const std::string& t)
+static c10::ScalarType input_type_to_c10_ScalarType(const std::string& t)
     {
         if (t == "c64") return torch::kComplexFloat;
         if (t == "c32") return torch::kComplexHalf;
@@ -63,42 +48,40 @@ PYBIND11_MODULE(pnnx, m)
         return torch::kFloat32;
     }
 
-    void pnnx_module_export_with_shapes(torch::jit::Module model,
+void pnnx_module_export_with_shapes(torch::jit::Module model,
                                         std::vector<std::vector<int64_t> > input_shapes,
                                         std::vector<std::string> input_types = {"f32"},
                                         std::string device = "cpu")
+{
+    std::vector<at::Tensor> input_tensors;
+    for (size_t i = 0; i < input_shapes.size(); i++)
     {
-        std::vector<at::Tensor> input_tensors;
-        for (size_t i = 0; i < input_shapes.size(); i++)
-        {
-            const std::vector<int64_t>& shape = input_shapes[i];
-            const std::string& type = input_types[i];
+        const std::vector<int64_t>& shape = input_shapes[i];
+        const std::string& type = input_types[i];
 
-            at::Tensor t = torch::ones(shape, input_type_to_c10_ScalarType(type));
-            if (device == "gpu")
-                t = t.cuda();
+        at::Tensor t = torch::ones(shape, input_type_to_c10_ScalarType(type));
+        if (device == "gpu")
+            t = t.cuda();
 
-            input_tensors.push_back(t);
-        }
+        input_tensors.push_back(t);
     }
+}
 
-    PYBIND11_MODULE(pnnx, m)
-    {
-        m.doc() = R"pbdoc(
-        pnnx python wrapper
-        -----------------------
-        .. currentmodule:: pypnnx
-        .. autosummary::
-           :toctree: _generate
+PYBIND11_MODULE(pnnx, m)
+{
+    m.doc() = R"pbdoc(
+    pnnx python wrapper
+    -----------------------
+    .. currentmodule:: pypnnx
+    .. autosummary::
+       :toctree: _generate
     )pbdoc";
 
-        m.def("pnnx_module_export_with_shapes", &pnnx_module_export_with_shapes, "Export pytorch model with shapes.");
+    m.def("pnnx_module_export_with_shapes", &pnnx_module_export_with_shapes, "Export pytorch model with shapes.");
 
-#ifdef VERSION_INFO
+    #ifdef VERSION_INFO
         m.attr("__version__") = VERSION_INFO;
-#else
+    #else
         m.attr("__version__") = "dev";
-#endif
-
-        >>>>>>> Stashed changes
-    }
+    #endif
+}
