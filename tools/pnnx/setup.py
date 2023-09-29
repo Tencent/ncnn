@@ -7,6 +7,7 @@ import subprocess
 
 from setuptools import setup, find_packages, Extension
 from setuptools.command.build_ext import build_ext
+from setuptools.command.install import install
 
 
 def find_version():
@@ -26,13 +27,27 @@ def find_version():
 # Parse environment variables
 Torch_INSTALL_DIR = os.environ.get("Torch_INSTALL_DIR", "")
 
-# Parse parameters from environment
-Torch_INSTALL_DIR = "S:\Torch\libtorch"
-for i, arg in enumerate(sys.argv):
-    if arg == "--torch_install_dir":
-        Torch_INSTALL_DIR = sys.argv[i+1]
+# Parse variables from command line with setup.py install
+class InstallCommand(install):
+    user_options = install.user_options + [
+        ('torchdir=', None, 'Specify the libtorch dir.'),
+    ]
 
-# Convert distutils Windows platform specifiers to CMake -A arguments
+    def initialize_options(self):
+        install.initialize_options(self)
+        self.torchdir = None
+
+    def finalize_options(self):
+        print("torchdir", self.torchdir)
+        install.finalize_options(self)
+
+    def run(self):
+        print(self.torchdir)
+        global Torch_INSTALL_DIR
+        Torch_INSTALL_DIR = self.torchdir
+        install.run(self)
+
+    # Convert distutils Windows platform specifiers to CMake -A arguments
 PLAT_TO_CMAKE = {
     "win32": "Win32",
     "win-amd64": "x64",
@@ -160,5 +175,5 @@ setup(
     package_dir={"": "python"},
     install_requires=requirements,
     ext_modules=[CMakeExtension("pnnx")],
-    cmdclass={"build_ext": CMakeBuild},
+    cmdclass={'install': InstallCommand, "build_ext": CMakeBuild},
 )

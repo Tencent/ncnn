@@ -29,6 +29,7 @@
 using namespace pnnx;
 namespace py = pybind11;
 
+<<<<<<< Updated upstream
 int add(int i, int j)
 {
     return i + j;
@@ -44,4 +45,62 @@ PYBIND11_MODULE(pnnx, m)
 #else
     m.attr("__version__") = "dev";
 #endif
+=======
+static c10::ScalarType input_type_to_c10_ScalarType(const std::string& t)
+{
+    if (t == "c64") return torch::kComplexFloat;
+    if (t == "c32") return torch::kComplexHalf;
+    if (t == "c128") return torch::kComplexDouble;
+    if (t == "f32") return torch::kFloat32;
+    if (t == "f16") return torch::kFloat16;
+    if (t == "f64") return torch::kFloat64;
+    if (t == "i32") return torch::kInt32;
+    if (t == "i16") return torch::kInt16;
+    if (t == "i64") return torch::kInt64;
+    if (t == "i8") return torch::kInt8;
+    if (t == "u8") return torch::kUInt8;
+
+    fprintf(stderr, "unsupported type %s fallback to f32\n", t.c_str());
+    return torch::kFloat32;
+}
+
+void pnnx_module_export_with_shapes(torch::jit::Module model,
+                       std::vector<std::vector<int64_t> > input_shapes,
+                       std::vector<std::string> input_types = {"f32"},
+                       std::string device = "cpu"){
+
+    std::vector<at::Tensor> input_tensors;
+    for (size_t i = 0; i < input_shapes.size(); i++)
+    {
+        const std::vector<int64_t>& shape = input_shapes[i];
+        const std::string& type = input_types[i];
+
+        at::Tensor t = torch::ones(shape, input_type_to_c10_ScalarType(type));
+        if (device == "gpu")
+            t = t.cuda();
+
+        input_tensors.push_back(t);
+    }
+
+}
+
+PYBIND11_MODULE(pnnx, m) {
+    m.doc() = R"pbdoc(
+        pnnx python wrapper
+        -----------------------
+        .. currentmodule:: pypnnx
+        .. autosummary::
+           :toctree: _generate
+    )pbdoc";
+
+    m.def("pnnx_module_export_with_shapes", &pnnx_module_export_with_shapes, "Export pytorch model with shapes.");
+
+    #ifdef VERSION_INFO
+        m.attr("__version__") = VERSION_INFO;
+    #else
+        m.attr("__version__") = "dev";
+    #endif
+
+
+>>>>>>> Stashed changes
 }
