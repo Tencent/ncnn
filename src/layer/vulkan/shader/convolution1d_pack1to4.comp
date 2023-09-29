@@ -134,7 +134,7 @@ void main()
     for (int y = 0; y < psc(h); y++)
     {    
         for (int x = 0; x < kernel_w; x++)
-	    {
+        {
             afp v0 = buffer_ld1(bottom_blob_data, v_offset.x + x * dilation_w);
             afp v1 = buffer_ld1(bottom_blob_data, v_offset.y + x * dilation_w);
             
@@ -145,7 +145,7 @@ void main()
             sum1 += v1 * k0;
             sum2 += v0 * k1;
             sum3 += v1 * k1;
-	    }       
+        }       
         v_offset += psc(w);
         w_offset += kernel_w;
     }
