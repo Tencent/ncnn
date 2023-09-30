@@ -15,6 +15,7 @@
 
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
+#include <pybind11/numpy.h>
 
 #include <ir.h>
 #include <pass_level0.h>
@@ -29,6 +30,14 @@
 
 using namespace pnnx;
 namespace py = pybind11;
+
+static std::string get_basename(const std::string& path)
+{
+    std::string base = path.substr(0, path.find_last_of('.'));
+    // sanitize -
+    std::replace(base.begin(), base.end(), '-', '_');
+    return base;
+}
 
 static c10::ScalarType input_type_to_c10_ScalarType(const std::string& t)
 {
@@ -48,11 +57,38 @@ static c10::ScalarType input_type_to_c10_ScalarType(const std::string& t)
     return torch::kFloat32;
 }
 
-void pnnx_module_export_with_shapes(torch::jit::Module model,
-                                    std::vector<std::vector<int64_t> > input_shapes,
-                                    std::vector<std::string> input_types = {"f32"},
-                                    std::string device = "cpu")
+static void py_input_to_c_input(std::vector<std::vector<int64_t>>& input_shapes,
+                                const py::list& py_input_shapes ){
+    for (auto vec: py_input_shapes){
+        std::vector<int64_t> sub_shapes = {};
+        for (auto v : vec){
+//            std::cout << v.cast<int64_t>() << "\n";
+            sub_shapes.push_back(v.cast<int64_t>());
+        }
+        input_shapes.push_back(sub_shapes);
+    }
+}
+
+void pnnx_export(const std::string& ptpath,
+                const py::list& py_input_shapes,
+                const std::vector<std::string>& input_types,
+                const py::list& py_input_shapes2,
+                const std::vector<std::string>& input_types2,
+                const std::string& device,
+                const std::vector<std::string>& module_operators,
+                const int64_t optlevel,
+                const std::string pnnxparam,
+                const std::string pnnxbin,
+                const std::string pnnxpy,
+                const std::string pnnxonnx)
 {
+    std::vector<std::vector<int64_t>> input_shapes={};
+    py_input_to_c_input(input_shapes, py_input_shapes);
+
+    std::vector<std::vector<int64_t>> input_shapes2={};
+    py_input_to_c_input(input_shapes2, py_input_shapes2);
+
+
     std::vector<at::Tensor> input_tensors;
     for (size_t i = 0; i < input_shapes.size(); i++)
     {
@@ -65,6 +101,131 @@ void pnnx_module_export_with_shapes(torch::jit::Module model,
 
         input_tensors.push_back(t);
     }
+
+
+    std::vector<at::Tensor> input_tensors2;
+    std::cout << input_shapes2.size() << std::endl;
+    for (size_t i = 0; i < input_shapes2.size(); i++)
+    {
+        const std::vector<int64_t>& shape = input_shapes2[i];
+        const std::string& type = input_types2[i];
+
+        at::Tensor t = torch::ones(shape, input_type_to_c10_ScalarType(type));
+        if (device == "gpu")
+            t = t.cuda();
+
+        input_tensors2.push_back(t);
+    }
+
+    torch::jit::Module mod;
+
+    try
+    {
+        mod = torch::jit::load(ptpath, (device == "gpu") ? c10::kCUDA : c10::kCPU);
+    }
+    catch (const c10::Error& e)
+    {
+        fprintf(stderr, "Load torchscript failed: %s\n", e.what());
+
+        fprintf(stderr, "Please export model to torchscript as follows\n");
+        fprintf(stderr, "------------------------------------------\n");
+        fprintf(stderr, "import torch\n");
+        fprintf(stderr, "import torchvision.models as models\n\n");
+        fprintf(stderr, "net = models.resnet18(pretrained=True)\n");
+        fprintf(stderr, "net = net.eval()\n\n");
+        fprintf(stderr, "x = torch.rand(1, 3, 224, 224)\n");
+        fprintf(stderr, "mod = torch.jit.trace(net, x)\n");
+        fprintf(stderr, "mod.save(\"resnet18.pt\")\n");
+        fprintf(stderr, "------------------------------------------\n");
+
+        return;
+    }
+
+    mod.eval();
+
+    //     mod.dump(true, false, false);
+    //     mod.dump(true, true, true);
+
+    auto method = mod.find_method("forward");
+    if (!method)
+    {
+        auto methods = mod.get_methods();
+        if (methods.empty())
+        {
+            fprintf(stderr, "No method in torchscript\n");
+            return;
+        }
+
+        method = methods[0];
+        fprintf(stderr, "Use method %s as the entrypoint instead of forward\n", method->name().c_str());
+    }
+
+    auto g = method->graph();
+
+    //     g->dump();
+
+    fprintf(stderr, "############# pass_level0\n");
+
+    std::string ptbase = get_basename(ptpath);
+    std::set<std::string> foldable_constants;
+    std::string foldable_constants_zippath = ptbase + ".foldable_constants.zip";
+    pnnx::pass_level0(mod, g, input_tensors, input_tensors2, module_operators, ptpath, device, foldable_constants, foldable_constants_zippath);
+
+    //     g->dump();
+
+    fprintf(stderr, "############# pass_level1\n");
+
+    pnnx::Graph pnnx_graph;
+    pnnx::pass_level1(mod, g, module_operators, pnnx_graph);
+
+    //     g->dump();
+
+    fprintf(stderr, "############# pass_level2\n");
+
+    pnnx::pass_level2(pnnx_graph);
+
+    pnnx_graph.save("debug.param", "debug.bin");
+
+    if (optlevel >= 1)
+    {
+        fprintf(stderr, "############# pass_level3\n");
+
+        pnnx::pass_level3(pnnx_graph, foldable_constants, foldable_constants_zippath);
+
+        fprintf(stderr, "############# pass_level4\n");
+
+        pnnx::pass_level4(pnnx_graph);
+    }
+
+    pnnx_graph.save("debug2.param", "debug2.bin");
+
+    if (optlevel >= 2)
+    {
+        fprintf(stderr, "############# pass_level5\n");
+
+        pnnx::pass_level5(pnnx_graph, foldable_constants, foldable_constants_zippath);
+    }
+
+    // delete foldable_constants_zippath
+    remove(foldable_constants_zippath.c_str());
+
+    std::string pnnxparampath = ptbase + ".pnnx.param";
+    std::string pnnxbinpath = ptbase + ".pnnx.bin";
+    std::string pnnxpypath = ptbase + "_pnnx.py";
+
+    if (strcmp(pnnxparam.c_str(), "") != 0){
+        pnnxparampath = pnnxparam;
+    }
+    if (strcmp(pnnxbin.c_str(), "") != 0){
+        pnnxbinpath = pnnxbin;
+    }
+    if (strcmp(pnnxpy.c_str(), "") != 0){
+        pnnxpypath = pnnxpy;
+    }
+
+    pnnx_graph.save(pnnxparampath, pnnxbinpath);
+
+    pnnx_graph.python(pnnxpypath, pnnxbinpath);
 }
 
 PYBIND11_MODULE(pnnx, m)
@@ -77,7 +238,7 @@ PYBIND11_MODULE(pnnx, m)
        :toctree: _generate
     )pbdoc";
 
-    m.def("pnnx_module_export_with_shapes", &pnnx_module_export_with_shapes, "Export pytorch model with shapes.");
+    m.def("pnnx_export", &pnnx_export, "Export pytorch model.");
 
 #ifdef VERSION_INFO
     m.attr("__version__") = VERSION_INFO;

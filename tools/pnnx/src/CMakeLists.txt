@@ -613,8 +613,16 @@ if(PNNX_LIB)
         pass_level3.cpp
         pass_level4.cpp
         pass_level5.cpp
+        ${pnnx_pass_level0_SRCS}
+        ${pnnx_pass_level1_SRCS}
+        ${pnnx_pass_level2_SRCS}
+        ${pnnx_pass_level3_SRCS}
+        ${pnnx_pass_level4_SRCS}
+        ${pnnx_pass_level5_SRCS}
+
         pass_ncnn.cpp
         save_ncnn.cpp
+        ${pnnx_pass_ncnn_SRCS}
         )
     add_library(pnnx ${pnnx_SRCS})
     include(GNUInstallDirs)
