@@ -73,20 +73,20 @@ static void py_input_to_c_input(std::vector<std::vector<int64_t> >& input_shapes
 }
 
 void pnnx_export(const std::string& ptpath,
-                const py::list& py_input_shapes,
-                const std::vector<std::string>& input_types,
-                const py::list& py_input_shapes2,
-                const std::vector<std::string>& input_types2,
-                const std::string& device,
-                const std::vector<std::string>& module_operators,
-                const int64_t optlevel,
-                const std::string pnnxparam,
-                const std::string pnnxbin,
-                const std::string pnnxpy,
-                const std::string pnnxonnx,
-                const std::string ncnnparam,
-                const std::string ncnnbin,
-                const std::string ncnnpy)
+                 const py::list& py_input_shapes,
+                 const std::vector<std::string>& input_types,
+                 const py::list& py_input_shapes2,
+                 const std::vector<std::string>& input_types2,
+                 const std::string& device,
+                 const std::vector<std::string>& module_operators,
+                 const int64_t optlevel,
+                 const std::string pnnxparam,
+                 const std::string pnnxbin,
+                 const std::string pnnxpy,
+                 const std::string pnnxonnx,
+                 const std::string ncnnparam,
+                 const std::string ncnnbin,
+                 const std::string ncnnpy)
 {
     std::vector<std::vector<int64_t> > input_shapes = {};
     py_input_to_c_input(input_shapes, py_input_shapes);
@@ -234,16 +234,20 @@ void pnnx_export(const std::string& ptpath,
     {
         pnnxpypath = pnnxpy;
     }
-    if (strcmp(pnnxonnx.c_str(), "") != 0){
+    if (strcmp(pnnxonnx.c_str(), "") != 0)
+    {
         pnnxonnxpath = pnnxonnx;
     }
-    if (strcmp(ncnnparam.c_str(), "") != 0){
+    if (strcmp(ncnnparam.c_str(), "") != 0)
+    {
         ncnnparampath = ncnnparam;
     }
-    if (strcmp(ncnnbin.c_str(), "") != 0){
+    if (strcmp(ncnnbin.c_str(), "") != 0)
+    {
         ncnnbinpath = ncnnbin;
     }
-    if (strcmp(ncnnpy.c_str(), "") != 0){
+    if (strcmp(ncnnpy.c_str(), "") != 0)
+    {
         ncnnpypath = ncnnpy;
     }
 
