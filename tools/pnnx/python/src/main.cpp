@@ -57,12 +57,15 @@ static c10::ScalarType input_type_to_c10_ScalarType(const std::string& t)
     return torch::kFloat32;
 }
 
-static void py_input_to_c_input(std::vector<std::vector<int64_t>>& input_shapes,
-                                const py::list& py_input_shapes ){
-    for (auto vec: py_input_shapes){
+static void py_input_to_c_input(std::vector<std::vector<int64_t> >& input_shapes,
+                                const py::list& py_input_shapes)
+{
+    for (auto vec : py_input_shapes)
+    {
         std::vector<int64_t> sub_shapes = {};
-        for (auto v : vec){
-//            std::cout << v.cast<int64_t>() << "\n";
+        for (auto v : vec)
+        {
+            //            std::cout << v.cast<int64_t>() << "\n";
             sub_shapes.push_back(v.cast<int64_t>());
         }
         input_shapes.push_back(sub_shapes);
@@ -70,24 +73,23 @@ static void py_input_to_c_input(std::vector<std::vector<int64_t>>& input_shapes,
 }
 
 void pnnx_export(const std::string& ptpath,
-                const py::list& py_input_shapes,
-                const std::vector<std::string>& input_types,
-                const py::list& py_input_shapes2,
-                const std::vector<std::string>& input_types2,
-                const std::string& device,
-                const std::vector<std::string>& module_operators,
-                const int64_t optlevel,
-                const std::string pnnxparam,
-                const std::string pnnxbin,
-                const std::string pnnxpy,
-                const std::string pnnxonnx)
+                 const py::list& py_input_shapes,
+                 const std::vector<std::string>& input_types,
+                 const py::list& py_input_shapes2,
+                 const std::vector<std::string>& input_types2,
+                 const std::string& device,
+                 const std::vector<std::string>& module_operators,
+                 const int64_t optlevel,
+                 const std::string pnnxparam,
+                 const std::string pnnxbin,
+                 const std::string pnnxpy,
+                 const std::string pnnxonnx)
 {
-    std::vector<std::vector<int64_t>> input_shapes={};
+    std::vector<std::vector<int64_t> > input_shapes = {};
     py_input_to_c_input(input_shapes, py_input_shapes);
 
-    std::vector<std::vector<int64_t>> input_shapes2={};
+    std::vector<std::vector<int64_t> > input_shapes2 = {};
     py_input_to_c_input(input_shapes2, py_input_shapes2);
-
 
     std::vector<at::Tensor> input_tensors;
     for (size_t i = 0; i < input_shapes.size(); i++)
@@ -101,7 +103,6 @@ void pnnx_export(const std::string& ptpath,
 
         input_tensors.push_back(t);
     }
-
 
     std::vector<at::Tensor> input_tensors2;
     std::cout << input_shapes2.size() << std::endl;
@@ -213,13 +214,16 @@ void pnnx_export(const std::string& ptpath,
     std::string pnnxbinpath = ptbase + ".pnnx.bin";
     std::string pnnxpypath = ptbase + "_pnnx.py";
 
-    if (strcmp(pnnxparam.c_str(), "") != 0){
+    if (strcmp(pnnxparam.c_str(), "") != 0)
+    {
         pnnxparampath = pnnxparam;
     }
-    if (strcmp(pnnxbin.c_str(), "") != 0){
+    if (strcmp(pnnxbin.c_str(), "") != 0)
+    {
         pnnxbinpath = pnnxbin;
     }
-    if (strcmp(pnnxpy.c_str(), "") != 0){
+    if (strcmp(pnnxpy.c_str(), "") != 0)
+    {
         pnnxpypath = pnnxpy;
     }
 
