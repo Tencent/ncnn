@@ -17,6 +17,17 @@
 #include <pybind11/stl.h>
 #include <pybind11/numpy.h>
 
+#if _WIN32
+#include <windows.h>
+#else
+#include <dlfcn.h>
+#endif
+
+#ifdef PNNX_TORCHVISION
+// register torchvision ops via including headers
+#include <torchvision/vision.h>
+#endif
+
 #include <ir.h>
 #include <pass_level0.h>
 #include <pass_level1.h>
@@ -78,6 +89,7 @@ void pnnx_export(const std::string& ptpath,
                  const py::list& py_input_shapes2,
                  const std::vector<std::string>& input_types2,
                  const std::string& device,
+                 const std::vector<std::string>& customop_modules,
                  const std::vector<std::string>& module_operators,
                  const int64_t optlevel,
                  const std::string pnnxparam,
@@ -88,6 +100,24 @@ void pnnx_export(const std::string& ptpath,
                  const std::string ncnnbin,
                  const std::string ncnnpy)
 {
+    for (auto m : customop_modules)
+    {
+        fprintf(stderr, "load custom module %s\n", m.c_str());
+#if _WIN32
+        HMODULE handle = LoadLibraryExA(m.c_str(), NULL, LOAD_WITH_ALTERED_SEARCH_PATH);
+        if (!handle)
+        {
+            fprintf(stderr, "LoadLibraryExA %s failed %d\n", m.c_str(), GetLastError());
+        }
+#else
+        void* handle = dlopen(m.c_str(), RTLD_LAZY);
+        if (!handle)
+        {
+            fprintf(stderr, "dlopen %s failed %s\n", m.c_str(), dlerror());
+        }
+#endif
+    }
+
     std::vector<std::vector<int64_t> > input_shapes = {};
     py_input_to_c_input(input_shapes, py_input_shapes);
 

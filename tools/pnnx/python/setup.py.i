@@ -9,7 +9,6 @@ try:
             _bdist_wheel.finalize_options(self)
             self.root_is_pure = False
 
-
 except ImportError:
     bdist_wheel = None
 

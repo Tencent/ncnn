@@ -9,7 +9,6 @@ from setuptools import setup, find_packages, Extension
 from setuptools.command.build_ext import build_ext
 from setuptools.command.install import install
 
-
 def find_version():
     with io.open("CMakeLists.txt", encoding="utf8") as f:
         version_file = f.read()
@@ -22,7 +21,6 @@ def find_version():
 
         return version_major[0] + "." + version_minor[0] + "." + pnnx_version
     raise RuntimeError("Unable to find version string.")
-
 
 # Parse environment variables
 Torch_INSTALL_DIR = os.environ.get("Torch_INSTALL_DIR", "")
@@ -47,7 +45,7 @@ class InstallCommand(install):
         Torch_INSTALL_DIR = self.torchdir
         install.run(self)
 
-    # Convert distutils Windows platform specifiers to CMake -A arguments
+# Convert distutils Windows platform specifiers to CMake -A arguments
 PLAT_TO_CMAKE = {
     "win32": "Win32",
     "win-amd64": "x64",
@@ -62,7 +60,6 @@ class CMakeExtension(Extension):
     def __init__(self, name, sourcedir=""):
         Extension.__init__(self, name, sources=[])
         self.sourcedir = os.path.abspath(sourcedir)
-
 
 class CMakeBuild(build_ext):
     def build_extension(self, ext):
@@ -137,7 +134,6 @@ class CMakeBuild(build_ext):
         subprocess.check_call(
             ["cmake", "--build", "."] + build_args, cwd=self.build_temp
         )
-
 
 if sys.version_info < (3, 0):
     sys.exit("Sorry, Python < 3.0 is not supported")
