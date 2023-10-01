@@ -31,7 +31,7 @@ class Model(nn.Module):
         w = F.relu(w)
         return x, y, z, w
 
-def test_convert():
+def test_export():
     net = Model()
     net.eval()
 
@@ -45,6 +45,10 @@ def test_convert():
 
     pnnx.export(net, "test_F_relu", (x, y, z, w))
 
+    # import sys
+    # import os
+    # sys.path.append(os.path.join(os.getcwd()))
+
     # fix aten::
     import re
     f=open('test_F_relu_pnnx.py','r')
@@ -53,6 +57,7 @@ def test_convert():
     f=open('test_F_relu_pnnx.py','w+')
     for eachline in alllines:
         a=re.sub('aten::','F.',eachline)
+        a=re.sub(r'\\', r'\\\\',a)
         f.writelines(a)
     f.close()
 

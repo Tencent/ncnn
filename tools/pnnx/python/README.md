@@ -36,14 +36,24 @@ git clone https://github.com/Tencent/ncnn.git
 cd /pathto/ncnn
 git submodule init && git submodule update
 ```
-2. install 
+2. install pytorch and LibTorch
+
+install pytorch according to https://pytorch.org/ . for example:
+```bash
+pip install torch
+```
+download LibTorch according to https://pytorch.org/ .
+```bash
+unzip the downloaded file.
+```
+
+3. install
 ```bash
 cd /pathto/ncnntools/pnnx
 python setup.py install --torchdir=<your libtorch dir>
 ```
 > **Note:**
-> libtorch (https://pytorch.org/) which are C++ distributions of 
-pytorch is needed to build pnnx from source, and torchdir needs to be 
+> LibTorch which are C++ distributions of pytorch is needed to build pnnx from source, and torchdir needs to be 
 specified with the path to libtorch. e.g. --torchdir=S:\libtorch
 
 > **Note:**

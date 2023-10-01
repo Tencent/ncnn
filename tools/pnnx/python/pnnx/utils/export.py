@@ -122,12 +122,8 @@ def export(model, filename, inputs = None, input_shapes = None, input_shapes2 = 
     if type(inputs) == torch.Tensor:
         inputs = [inputs]
 
-    if len(input_shapes) != len(input_types):
-        raise Exception("input_shapes should has the same length with input_types!")
-    if len(input_shapes2) != len(input_types2):
-        raise Exception("input_shapes2 should has the same length with input_types2!")
-
     if not (inputs is None):
+        model.eval()
         mod = torch.jit.trace(model, inputs, check_trace=check_trace)
         mod.save(filename)
         current_path = os.path.abspath(filename)
@@ -151,6 +147,11 @@ def export(model, filename, inputs = None, input_shapes = None, input_shapes2 = 
             if type(input_types) != list:
                 input_types = [input_types]
 
+        if len(input_shapes) != len(input_types):
+            raise Exception("input_shapes should has the same length with input_types!")
+        if len(input_shapes2) != len(input_types2):
+            raise Exception("input_shapes2 should has the same length with input_types2!")
+
         pnnx.pnnx_export(current_path, input_shapes, input_types, input_shapes2,
                          input_types2, device, customop_modules, module_operators,
                          optlevel, pnnxparam,pnnxbin, pnnxpy, pnnxonnx, ncnnparam,
@@ -158,16 +159,20 @@ def export(model, filename, inputs = None, input_shapes = None, input_shapes2 = 
     else: # use input_shapes and input_types
         if (input_shapes is None) or (input_types is None):
             raise Exception("input_shapes and input_types should be specified together.")
-
-        mod = torch.jit.trace(model, inputs)
+        model.eval()
+        mod = torch.jit.trace(model, inputs, check_trace=check_trace)
         mod.save(filename)
         current_path = os.path.abspath(filename)
 
-        devicename = next(net.parameters()).device
-        if ("cpu" in devicename):
-            device = "cpu"
-        elif ("cuda" in devicename):
-            device = "gpu"
+        if device is None:
+            try:
+                devicename = str(next(model.parameters()).device)
+                if ("cpu" in devicename):
+                    device = "cpu"
+                elif ("cuda" in devicename):
+                    device = "gpu"
+            except: # model without parameters
+                device = "cpu"
 
         pnnx.pnnx_export(current_path, input_shapes, input_types, input_shapes2,
                          input_types2, device, customop_modules, module_operators,

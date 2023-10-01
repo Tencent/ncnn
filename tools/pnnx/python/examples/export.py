@@ -12,13 +12,30 @@
 # CONDITIONS OF ANY KIND, either express or implied. See the License for the
 # specific language governing permissions and limitations under the License.
 
-import os
-os.environ["KMP_DUPLICATE_LIB_OK"]  =  "TRUE"
+import pnnx
 
 import torch
-from .pnnx import *
+import torch.nn as nn
+import torch.nn.functional as F
 
-from .utils.export import export
-from .utils.convert import convert
+class Model(nn.Module):
+    def __init__(self):
+        super(Model, self).__init__()
 
-__version__ = pnnx.__version__
+    def forward(self, x, y, z, w):
+        x = F.relu(x)
+        y = F.relu(y)
+        z = F.relu(z)
+        w = F.relu(w)
+        return x, y, z, w
+
+if __name__ == "__main__":
+    net = Model()
+
+    torch.manual_seed(0)
+    x = torch.rand(1, 16)
+    y = torch.rand(12, 2, 16)
+    z = torch.rand(1, 3, 12, 16)
+    w = torch.rand(1, 5, 7, 9, 11)
+
+    pnnx.export(net, "test_F_relu", (x, y, z, w))

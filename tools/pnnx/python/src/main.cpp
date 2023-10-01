@@ -138,7 +138,6 @@ void pnnx_export(const std::string& ptpath,
     }
 
     std::vector<at::Tensor> input_tensors2;
-    std::cout << input_shapes2.size() << std::endl;
     for (size_t i = 0; i < input_shapes2.size(); i++)
     {
         const std::vector<int64_t>& shape = input_shapes2[i];

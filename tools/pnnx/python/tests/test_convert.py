@@ -57,9 +57,12 @@ def test_convert():
     f=open('test_F_relu_pnnx.py','w+')
     for eachline in alllines:
         a=re.sub('aten::','F.',eachline)
+        a=re.sub(r'\\', r'\\\\',a)
         f.writelines(a)
     f.close()
-
+    import sys
+    import os
+    sys.path.append(os.path.join(os.getcwd()))
     import test_F_relu_pnnx
     b0, b1, b2, b3 = test_F_relu_pnnx.test_inference()
 
