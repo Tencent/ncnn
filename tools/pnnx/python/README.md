@@ -37,17 +37,12 @@ git clone https://github.com/Tencent/ncnn.git
 cd /pathto/ncnn
 git submodule init && git submodule update
 ```
-2. install pytorch and LibTorch
+2. install pytorch 
 
 install pytorch according to https://pytorch.org/ . Anaconda is strongly recommended for example:
 ```bash
-conda install torch
+conda install pytorch
 ```
-download LibTorch according to https://pytorch.org/ .
-```bash
-unzip the downloaded file.
-```
-
 3. install
 ```bash
 cd /pathto/ncnntools/pnnx
