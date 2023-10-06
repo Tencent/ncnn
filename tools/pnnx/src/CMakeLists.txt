@@ -154,6 +154,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/F_mish.cpp
     pass_level2/F_normalize.cpp
     pass_level2/F_pad.cpp
+    pass_level2/F_pairwise_distance.cpp
     pass_level2/F_pixel_shuffle.cpp
     pass_level2/F_pixel_unshuffle.cpp
     pass_level2/F_prelu.cpp
@@ -302,6 +303,7 @@ set(pnnx_pass_level3_SRCS
     pass_level3/expand_quantization_modules.cpp
     pass_level3/fuse_opnto1_tensors.cpp
     pass_level3/fuse_op1ton_unpack.cpp
+    pass_level3/fuse_dynamic_adaptive_pool.cpp
     pass_level3/fuse_einsum_operands.cpp
     pass_level3/fuse_expression.cpp
     pass_level3/fuse_index_expression.cpp
@@ -341,8 +343,10 @@ set(pnnx_pass_level5_SRCS
     pass_level5/fuse_constant_expression.cpp
     pass_level5/fuse_conv1d_batchnorm1d.cpp
     pass_level5/fuse_conv2d_batchnorm2d.cpp
+    pass_level5/fuse_conv3d_batchnorm3d.cpp
     pass_level5/fuse_convtranspose1d_batchnorm1d.cpp
     pass_level5/fuse_convtranspose2d_batchnorm2d.cpp
+    pass_level5/fuse_convtranspose3d_batchnorm3d.cpp
     pass_level5/fuse_contiguous_view.cpp
     pass_level5/fuse_linear_batchnorm1d.cpp
     pass_level5/fuse_pad_conv1d.cpp
@@ -513,6 +517,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/nn_ReLU6.cpp
     pass_ncnn/nn_ReplicationPad1d.cpp
     pass_ncnn/nn_ReplicationPad2d.cpp
+    pass_ncnn/nn_ReplicationPad3d.cpp
     pass_ncnn/nn_RNN.cpp
     pass_ncnn/nn_SELU.cpp
     pass_ncnn/nn_Sigmoid.cpp
@@ -557,23 +562,40 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/torchvision_DeformConv2d.cpp
 )
 
-find_package(Protobuf)
 if(PROTOBUF_FOUND)
-    protobuf_generate_cpp(ONNX_PROTO_SRCS ONNX_PROTO_HDRS onnx.proto)
+    if(DEFINED PROTOBUF_VERSION AND PROTOBUF_VERSION VERSION_GREATER_EQUAL 3.22)
+        set(CMAKE_CXX_STANDARD 17)
+    endif()
 
-    add_library(pnnx2onnx STATIC
-        save_onnx.cpp
-        save_onnx_cxxabi_bridge.cpp
-        ${ONNX_PROTO_SRCS} ${ONNX_PROTO_HDRS}
-    )
+    if(Protobuf_FOUND OR protobuf_MODULE_COMPATIBLE)
+        protobuf_generate_cpp(ONNX_PROTO_SRCS ONNX_PROTO_HDRS onnx.proto)
 
-    target_include_directories(pnnx2onnx PRIVATE ${PROTOBUF_INCLUDE_DIR} ${CMAKE_CURRENT_BINARY_DIR})
-    target_link_libraries(pnnx2onnx PRIVATE ${PROTOBUF_LIBRARIES})
+        add_library(pnnx2onnx STATIC
+            save_onnx.cpp
+            save_onnx_cxxabi_bridge.cpp
+            ${ONNX_PROTO_SRCS} ${ONNX_PROTO_HDRS}
+        )
 
-    # libtorch is usually compiled with old cxx11 abi
-    set_source_files_properties(save_onnx_cxxabi_bridge.cpp PROPERTIES COMPILE_FLAGS "${TORCH_CXX_FLAGS}")
+        target_include_directories(pnnx2onnx PRIVATE ${PROTOBUF_INCLUDE_DIR} ${CMAKE_CURRENT_BINARY_DIR})
+        target_link_libraries(pnnx2onnx PRIVATE ${PROTOBUF_LIBRARIES})
 
-    message(STATUS "Building with onnx-zero")
+        # libtorch is usually compiled with old cxx11 abi
+        set_source_files_properties(save_onnx_cxxabi_bridge.cpp PROPERTIES COMPILE_FLAGS "${TORCH_CXX_FLAGS}")
+
+        message(STATUS "Building with onnx-zero")
+    else()
+
+        add_library(pnnx2onnx STATIC
+            save_onnx.cpp
+            save_onnx_cxxabi_bridge.cpp
+            onnx.proto
+        )
+        set_source_files_properties(save_onnx_cxxabi_bridge.cpp PROPERTIES COMPILE_FLAGS "${TORCH_CXX_FLAGS}")
+        target_include_directories(pnnx2onnx PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
+        protobuf_generate(TARGET pnnx2onnx)
+        target_link_libraries(pnnx2onnx PRIVATE protobuf::libprotobuf)
+        message(STATUS "Building with onnx-zero")
+    endif()
 else()
     message(STATUS "Building without onnx-zero")
 endif()
