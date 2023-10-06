@@ -43,7 +43,7 @@ def test_export():
 
     a0, a1, a2, a3 = net(x, y, z, w)
 
-    pnnx.export(net, "test_F_relu", (x, y, z, w))
+    pnnx.export(net, "test_F_relu_export", (x, y, z, w))
 
     # import sys
     # import os
@@ -51,17 +51,17 @@ def test_export():
 
     # fix aten::
     import re
-    f=open('test_F_relu_pnnx.py','r')
+    f=open('test_F_relu_export_pnnx.py','r')
     alllines=f.readlines()
     f.close()
-    f=open('test_F_relu_pnnx.py','w+')
+    f=open('test_F_relu_export_pnnx.py','w+')
     for eachline in alllines:
         a=re.sub('aten::','F.',eachline)
         a=re.sub(r'\\', r'\\\\',a)
         f.writelines(a)
     f.close()
 
-    import test_F_relu_pnnx
-    b0, b1, b2, b3 = test_F_relu_pnnx.test_inference()
+    import test_F_relu_export_pnnx
+    b0, b1, b2, b3 = test_F_relu_export_pnnx.test_inference()
 
     assert torch.equal(a0, b0) and torch.equal(a1, b1) and torch.equal(a2, b2) and torch.equal(a3, b3)

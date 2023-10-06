@@ -12,13 +12,13 @@
 # CONDITIONS OF ANY KIND, either express or implied. See the License for the
 # specific language governing permissions and limitations under the License.
 
-import os
-os.environ["KMP_DUPLICATE_LIB_OK"]  =  "TRUE"
-
 import torch
 from .pnnx import *
 
 from .utils.export import export
 from .utils.convert import convert
+
+import os
+os.environ["KMP_DUPLICATE_LIB_OK"]  =  "TRUE"
 
 __version__ = pnnx.__version__

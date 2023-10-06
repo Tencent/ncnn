@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.4)
 
 project(pypnnx)
 
-set(PACKAGE_VERSION {PNNX_VERSION_STRING})
+set(PACKAGE_VERSION ${PNNX_VERSION_STRING})
 add_definitions(-DVERSION_INFO="${PACKAGE_VERSION}")
 
 set( CMAKE_CXX_STANDARD  14)

@@ -38,6 +38,6 @@ def test_export():
     a0 = net(x)
 
     mod = torch.jit.trace(net, x)
-    mod.save("test_F_relu.pt")
+    mod.save("test_F_relu_dconvert.pt")
 
-    pnnx.convert("test_F_relu.pt", [1, 16], "f32", input_shapes2 = [1, 8], input_types2 = "f32")
+    pnnx.convert("test_F_relu_dconvert.pt", [1, 16], "f32", input_shapes2 = [1, 8], input_types2 = "f32")

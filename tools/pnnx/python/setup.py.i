@@ -41,7 +41,7 @@ setup(
         python_requires=">=3.6",
         packages=find_packages(),
         package_dir={"": "."},
-        package_data={"pnnx": ["pnnx{PYTHON_MODULE_PREFIX}${PYTHON_MODULE_EXTENSION}"]},
+        package_data={"pnnx": ["pnnx${PYTHON_MODULE_PREFIX}${PYTHON_MODULE_EXTENSION}"]},
         install_requires=requirements,
         cmdclass={"bdist_wheel": bdist_wheel},
 )

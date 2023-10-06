@@ -23,26 +23,36 @@ def find_version():
     raise RuntimeError("Unable to find version string.")
 
 # Parse environment variables
-Torch_INSTALL_DIR = os.environ.get("Torch_INSTALL_DIR", "")
+PYTHON_DIR = os.environ.get("PYTHON_DIR", "")
+PYTHON_LIBRARY = os.environ.get("PYTHON_LIBRARY", "")
+PYTHON_INCLUDE_DIR = os.environ.get("PYTHON_INCLUDE_DIR", "")
+PYTHON_EXECUTABLE = os.environ.get("PYTHON_EXECUTABLE", "")
+PLATFORM = os.environ.get("PLATFORM", "")
+ARCHS = os.environ.get("ARCHS", "")
+DEPLOYMENT_TARGET = os.environ.get("DEPLOYMENT_TARGET", "")
 
 # Parse variables from command line with setup.py install
 class InstallCommand(install):
     user_options = install.user_options + [
-        ('torchdir=', None, 'Specify the libtorch dir.'),
+        ('pythondir=', None, 'Specify the python dir.'),
+        ('pythonexc=', None, 'Specify the python executable.'),
     ]
 
     def initialize_options(self):
         install.initialize_options(self)
-        self.torchdir = None
+        self.pythondir = None
+        self.pythonexc = None
 
     def finalize_options(self):
-        print("torchdir", self.torchdir)
+        print("pythondir", self.pythondir)
+        print("pythonexc", self.pythonexc)
         install.finalize_options(self)
 
     def run(self):
-        print(self.torchdir)
-        global Torch_INSTALL_DIR
-        Torch_INSTALL_DIR = self.torchdir
+        global PYTHON_DIR
+        global PYTHON_EXECUTABLE
+        PYTHON_DIR = self.pythondir
+        PYTHON_EXECUTABLE = self.pythonexc
         install.run(self)
 
 # Convert distutils Windows platform specifiers to CMake -A arguments
@@ -82,15 +92,32 @@ class CMakeBuild(build_ext):
         cmake_args = [
             "-DCMAKE_LIBRARY_OUTPUT_DIRECTORY={}".format(extdir),
             "-DCMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE={}".format(extdir),
-            "-DPYTHON_EXECUTABLE={}".format(sys.executable),
             "-DCMAKE_BUILD_TYPE={}".format(cfg),  # not used on MSVC, but no harm
             "-DPNNX_PYTHON=ON",
             "-DPNNX_LIB=ON"
         ]
-        if Torch_INSTALL_DIR != "":
-            cmake_args.append("-DTorch_INSTALL_DIR=" + Torch_INSTALL_DIR)
+
+        if PYTHON_DIR != "":
+            cmake_args.append("-DPython3_DIR=" + PYTHON_DIR)
+
+        if PYTHON_LIBRARY != "":
+            cmake_args.append("-DPYTHON_LIBRARY=" + PYTHON_LIBRARY)
+
+        if PYTHON_INCLUDE_DIR != "":
+            cmake_args.append("-DPYTHON_INCLUDE_DIR=" + PYTHON_INCLUDE_DIR)
+
+        if PYTHON_EXECUTABLE != "":
+            cmake_args.append("-DPython3_EXECUTABLE=" + PYTHON_EXECUTABLE)
         else:
-            raise Exception("Torch_INSTALL_DIR is needed.")
+            cmake_args.append("-DPython3_EXECUTABLE={}".format(sys.executable))
+
+        if PLATFORM != "":
+            cmake_args.append("-DPLATFORM=" + PLATFORM)
+        if ARCHS != "":
+            cmake_args.append("-DARCHS=" + ARCHS)
+        if DEPLOYMENT_TARGET != "":
+            cmake_args.append("-DDEPLOYMENT_TARGET=" + DEPLOYMENT_TARGET)
+
 
         build_args = []
 
@@ -138,7 +165,7 @@ class CMakeBuild(build_ext):
 if sys.version_info < (3, 0):
     sys.exit("Sorry, Python < 3.0 is not supported")
 
-requirements = []
+requirements = ["torch"]
 
 with io.open("README.md", encoding="utf-8") as h:
     long_description = h.read()
@@ -171,5 +198,5 @@ setup(
     package_dir={"": "python"},
     install_requires=requirements,
     ext_modules=[CMakeExtension("pnnx")],
-    cmdclass={'install': InstallCommand, "build_ext": CMakeBuild},
+    cmdclass={"install": InstallCommand, "build_ext": CMakeBuild},
 )

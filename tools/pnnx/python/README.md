@@ -12,6 +12,7 @@ python -m pip install -U pnnx
 ```
 
 # Build & Install from source
+
 ## Prerequisites
 
 **On Unix (Linux, OS X)**
@@ -38,9 +39,9 @@ git submodule init && git submodule update
 ```
 2. install pytorch and LibTorch
 
-install pytorch according to https://pytorch.org/ . for example:
+install pytorch according to https://pytorch.org/ . Anaconda is strongly recommended for example:
 ```bash
-pip install torch
+conda install torch
 ```
 download LibTorch according to https://pytorch.org/ .
 ```bash
@@ -50,11 +51,10 @@ unzip the downloaded file.
 3. install
 ```bash
 cd /pathto/ncnntools/pnnx
-python setup.py install --torchdir=<your libtorch dir>
+python setup.py install --pythondir=<python root dir> --pythonexc=<your executable python>
 ```
 > **Note:**
-> LibTorch which are C++ distributions of pytorch is needed to build pnnx from source, and torchdir needs to be 
-specified with the path to libtorch. e.g. --torchdir=S:\libtorch
+> specified with the path to the python with torch installed . e.g. --torchdir=/home/uer123/anaconda3/envs/ncnn/bin  --pythonexc=/home/uer123/anaconda3/envs/ncnn/bin/python
 
 > **Note:**
 > pnnx to onnx convertion has not been supported in the python wrapper now.
@@ -109,7 +109,7 @@ in model graph.
 for example, "f32" for the model with only 1 input, ["f32", "f32"] for the model that have 2 inputs.
 
 | typename | torch type                      |
-|:--------:|:--------------------------------| 
+|:--------:|:--------------------------------|
 |   f32    | torch.float32 or torch.float    |
 |   f64    | torch.float64 or torch.double   |
 |   f16    | torch.float16 or torch.half     |

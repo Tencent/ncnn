@@ -37,4 +37,4 @@ def test_export():
 
     a0 = net(x)
 
-    pnnx.export(net, "test_F_relu", x, input_shapes2 = [1, 8], input_types2 = "f32")
+    pnnx.export(net, "test_F_relu_dexport", x, input_shapes2 = [1, 8], input_types2 = "f32")

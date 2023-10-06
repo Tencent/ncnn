@@ -2,8 +2,8 @@ name: release-python-pnnx
 # on: [push, pull_request]
 on:
   push:
-    tags:
-      - '*'
+   tags:
+     - '*'
 
 jobs:
   build_sdist:
@@ -14,141 +14,138 @@ jobs:
       with:
         submodules: true
 
-    - uses: actions/setup-python@v4
-      with:
-        python-version: '3.x'
-
     - name: Install deps
       run: python -m pip install twine build
 
     - name: Build SDist
-      run: python -m build -s
+      run: |
+          cd tools/pnnx  
+          python -m build -s
 
     - name: Check metadata
-      run: twine check dist/*
+      run: |
+        cd tools/pnnx  
+        twine check dist/*
 
     - uses: actions/upload-artifact@v3
       with:
-        path: dist/*.tar.gz
+        path: tools/pnnx/dist/*.tar.gz
 
   build_wheels:
-    name: ${{ matrix.arch }} ${{ matrix.build }} on ${{ matrix.os }}
+    name:  python ${{ matrix.pyversion }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          - { os: ubuntu-20.04, arch: x86_64,     build: 'cp*-manylinux*' }
-          - { os: ubuntu-20.04, arch: x86_64,     build: 'cp*-musllinux*' }
-          - { os: ubuntu-20.04, arch: x86_64,     build: 'pp*'            }
-          - { os: ubuntu-20.04, arch: i686,       build: 'cp*-manylinux*' }
-          - { os: ubuntu-20.04, arch: i686,       build: 'cp*-musllinux*' }
-          - { os: ubuntu-20.04, arch: i686,       build: 'pp*'            }
-          - { os: windows-2019, arch: x86,        build: 'cp*'            }
-          - { os: windows-2019, arch: AMD64,      build: 'cp*'            }
-          - { os: windows-2019, arch: AMD64,      build: 'pp*'            }
-          - { os: windows-2019, arch: ARM64,      build: 'cp*'            }
-          - { os: macos-latest, arch: x86_64,     build: 'cp*'            }
-          - { os: macos-latest, arch: x86_64,     build: 'pp*'            }
-          - { os: macos-latest, arch: arm64,      build: 'cp*'            }
-          - { os: macos-latest, arch: universal2, build: 'cp*'            }
+          - { os: ubuntu-latest, pyversion: '3.6' }
+          # - { os: ubuntu-latest, pyversion: '3.7' } # error: no rule to make target libopenblas.so
+          - { os: ubuntu-latest, pyversion: '3.8' }
+          - { os: ubuntu-latest, pyversion: '3.9' }
+          - { os: ubuntu-latest, pyversion: '3.10'}
+          - { os: ubuntu-latest, pyversion: '3.11'}
+          # - { os: ubuntu-latest, pyversion: '3.12'} # error: package version conflicts
+          # - { os: windows-latest, pyversion: '3.6' } # error: Python ABI tag may be incorrect
+          - { os: windows-latest, pyversion: '3.7' }
+          - { os: windows-latest, pyversion: '3.8' }
+          - { os: windows-latest, pyversion: '3.9' }
+          - { os: windows-latest, pyversion: '3.10'}
+          - { os: windows-latest, pyversion: '3.11'}
+          # - { os: windows-latest, pyversion: '3.12'} # error: package version conflicts
+          # - { os: macos-latest, pyversion: '3.6' } # error: not a supported wheel on this platform
+          # - { os: macos-latest, pyversion: '3.7' } # error: not a supported wheel on this platform
+          # - { os: macos-latest, pyversion: '3.8' } # error: not a supported wheel on this platform
+          - { os: macos-latest, pyversion: '3.9' }
+          - { os: macos-latest, pyversion: '3.10'}
+          - { os: macos-latest, pyversion: '3.11'}
+          # - { os: macos-latest, pyversion: '3.12'} # error: package version conflicts
 
     steps:
     - uses: actions/checkout@v4
       with:
         submodules: true
 
-    - uses: actions/setup-python@v4
+    - name: Setup conda
+      uses: s-weigand/setup-conda@v1
       with:
-        python-version: '3.x'
+        update-conda: true
+        python-version: ${{ matrix.pyversion }}
+        conda-channels: anaconda, conda-forge
 
-    - name: brew uninstall libomp
+    # build wheels for ubuntu-latest
+    - name: Build wheels for Linux
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt install protobuf-compiler
+        conda install pytorch -y
+        export PYTHON_EXECUTABLE="/usr/share/miniconda/envs/__setup_conda/bin/python"
+        export PYTHON_DIR="/usr/share/miniconda/envs/__setup_conda/bin"
+        cd tools/pnnx/
+        pip install wheel setuptools 
+        python setup.py bdist_wheel
+        cd ./dist
+        pip install pytest numpy
+        pip install ./pnnx*
+        cd ../python
+        pytest tests
+
+    - name: Install torch for windows
+      if: matrix.os == 'windows-latest'
+      shell: cmd
+      run: |  
+        conda install pytorch -y
+
+    - name: Build wheels for windows
+      if: matrix.os == 'windows-latest'
+      shell: cmd
+      run: |  
+        set PYTHON_EXECUTABLE=C:/Miniconda/envs/__setup_conda/python.exe
+        set PYTHON_DIR=C:/Miniconda/envs/__setup_conda
+        cd tools/pnnx/
+        pip install wheel setuptools delvewheel
+        python setup.py bdist_wheel
+        cd ./dist
+        for %%F in (./*.whl) do python -m delvewheel repair -w ./ "%%~fF" --add-path "C:/Miniconda/envs/__setup_conda/Lib/site-packages/torch/lib"
+        pip install pytest numpy
+        for %%F in (./*.whl) do pip install "%%~fF"
+        cd ../python
+        pytest tests
+    
+    # build wheels for macos-latest
+    - name: Build wheels for macos
       if: matrix.os == 'macos-latest'
       run: |
-        brew uninstall --ignore-dependencies libomp
-
-    - name: Build wheels
-      uses: pypa/cibuildwheel@v2.15.0
-      env:
-        CIBW_ARCHS_MACOS: ${{ matrix.arch }}
-        CIBW_ARCHS_LINUX: ${{ matrix.arch }}
-        CIBW_ARCHS_WINDOWS: ${{ matrix.arch }}
-        CIBW_BUILD: ${{ matrix.build }}
-        CIBW_BUILD_VERBOSITY: 1
-        CIBW_ENVIRONMENT: CMAKE_BUILD_PARALLEL_LEVEL=2
+        brew install protobuf
+        conda install pytorch -y
+        export PYTHON_EXECUTABLE="/usr/local/miniconda/envs/__setup_conda/bin/python"
+        export PYTHON_DIR="/usr/local/miniconda/envs/__setup_conda/bin"
+        cd tools/pnnx/
+        pip install wheel setuptools delocate
+        export PLATFORM="MAC"
+        export ARCHS="x86_64"
+        export DEPLOYMENT_TARGET="10.9"
+        export DYLD_LIBRARY_PATH=/usr/local/miniconda/envs/__setup_conda/lib:$DYLD_LIBRARY_PATH
+        LDFLAGS="-L/usr/local/miniconda/envs/__setup_conda/lib" python setup.py bdist_wheel
+        cd ./dist
+        pip install pytest numpy
+        pip install ./pnnx*
+        cd ../python
+        pytest tests
 
     - name: Show files
-      run: ls -lh wheelhouse
-      shell: bash
-
-    - name: Verify clean directory
-      run: git diff --exit-code
+      run: ls -lh tools/pnnx/dist
       shell: bash
 
     - name: Upload wheels
       uses: actions/upload-artifact@v3
       with:
-        path: wheelhouse/*.whl
-
-  build_wheels_qemu:
-    name: ${{ matrix.arch }} ${{ matrix.build }}
-    runs-on: ubuntu-20.04
-
-    strategy:
-      fail-fast: false
-      matrix:
-        arch: [aarch64, ppc64le, s390x]
-        build: ['cp36-*', 'cp37-*', 'cp38-*', 'cp39-*', 'cp310-*', 'cp311-*', 'cp312-*']
-        include:
-          - arch: aarch64
-            build: 'pp37-*'
-          - arch: aarch64
-            build: 'pp38-*'
-          - arch: aarch64
-            build: 'pp39-*'
-          - arch: aarch64
-            build: 'pp310-*'
-
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: true
-
-    - uses: actions/setup-python@v4
-      with:
-        python-version: '3.x'
-
-    - name: Set up QEMU
-      uses: docker/setup-qemu-action@v3
-      with:
-        platforms: all
-
-    - name: Build wheels
-      uses: pypa/cibuildwheel@v2.15.0
-      env:
-        CIBW_ARCHS_LINUX: ${{ matrix.arch }}
-        CIBW_BUILD: ${{ matrix.build }}
-        CIBW_BUILD_VERBOSITY: 1
-        CIBW_ENVIRONMENT: CMAKE_BUILD_PARALLEL_LEVEL=2
-
-    - name: Show files
-      run: ls -lh wheelhouse
-      shell: bash
-
-    - name: Verify clean directory
-      run: git diff --exit-code
-      shell: bash
-
-    - name: Upload wheels
-      uses: actions/upload-artifact@v3
-      with:
-        path: wheelhouse/*.whl
+        path: tools/pnnx/dist/*.whl
 
   upload_all:
     permissions:
       contents: none
     name: Upload
-    needs: [build_wheels, build_wheels_qemu, build_sdist]
+    needs: [build_wheels, build_sdist]
     runs-on: ubuntu-latest
 
     steps:
@@ -161,7 +158,7 @@ jobs:
         name: artifact
         path: dist
 
-    - uses: pypa/gh-action-pypi-publish@release/v1
-      with:
-        user: __token__
-        password: ${{ secrets.PYPI_API_TOKEN }}
+    # - uses: pypa/gh-action-pypi-publish@release/v1
+    #   with:
+    #     user: __token__
+    #     password: ${{ secrets.PYPI_API_TOKEN }}
