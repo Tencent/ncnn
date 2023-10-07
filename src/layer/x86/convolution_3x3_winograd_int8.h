@@ -1630,7 +1630,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 _mm256_storeu_si256((__m256i*)(outptr + 16), _sum2);
                 _mm256_storeu_si256((__m256i*)(outptr + 24), _sum3);
                 outptr += 32;
-#else // __AVX2__
+#else  // __AVX2__
                 if (k_end)
                 {
                     // from
