@@ -634,7 +634,6 @@ else()
     else()
     message(STATUS "Building without onnx-zero")
     endif()
-
 endif()
 
 
