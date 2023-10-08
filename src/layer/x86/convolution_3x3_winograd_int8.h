@@ -4035,63 +4035,10 @@ static inline void conv3x3s1_winograd23_transform_output_tile_int8(const Mat& to
                 }
                 if (out_elempack == 1)
                 {
-                    int tmp0[16];
-                    int tmp1[16];
-                    _mm512_storeu_si512((__m512i*)tmp0, _tmp0);
-                    _mm512_storeu_si512((__m512i*)tmp1, _tmp1);
-
-                    int* outptr1 = outptr0 + N;
-                    int* outptr2 = outptr0 + N * 2;
-                    int* outptr3 = outptr0 + N * 3;
-                    int* outptr4 = outptr0 + N * 4;
-                    int* outptr5 = outptr0 + N * 5;
-                    int* outptr6 = outptr0 + N * 6;
-                    int* outptr7 = outptr0 + N * 7;
-                    int* outptr8 = outptr0 + N * 8;
-                    int* outptr9 = outptr0 + N * 9;
-                    int* outptra = outptr0 + N * 10;
-                    int* outptrb = outptr0 + N * 11;
-                    int* outptrc = outptr0 + N * 12;
-                    int* outptrd = outptr0 + N * 13;
-                    int* outptre = outptr0 + N * 14;
-                    int* outptrf = outptr0 + N * 15;
-
-                    outptr0[0] = tmp0[0];
-                    outptr1[0] = tmp0[1];
-                    outptr2[0] = tmp0[2];
-                    outptr3[0] = tmp0[3];
-                    outptr4[0] = tmp0[4];
-                    outptr5[0] = tmp0[5];
-                    outptr6[0] = tmp0[6];
-                    outptr7[0] = tmp0[7];
-                    outptr8[0] = tmp0[8];
-                    outptr9[0] = tmp0[9];
-                    outptra[0] = tmp0[10];
-                    outptrb[0] = tmp0[11];
-                    outptrc[0] = tmp0[12];
-                    outptrd[0] = tmp0[13];
-                    outptre[0] = tmp0[14];
-                    outptrf[0] = tmp0[15];
-
-                    if (tj * 2 + 1 < outw)
-                    {
-                        outptr0[1] = tmp1[0];
-                        outptr1[1] = tmp1[1];
-                        outptr2[1] = tmp1[2];
-                        outptr3[1] = tmp1[3];
-                        outptr4[1] = tmp1[4];
-                        outptr5[1] = tmp1[5];
-                        outptr6[1] = tmp1[6];
-                        outptr7[1] = tmp1[7];
-                        outptr8[1] = tmp1[8];
-                        outptr9[1] = tmp1[9];
-                        outptra[1] = tmp1[10];
-                        outptrb[1] = tmp1[11];
-                        outptrc[1] = tmp1[12];
-                        outptrd[1] = tmp1[13];
-                        outptre[1] = tmp1[14];
-                        outptrf[1] = tmp1[15];
-                    }
+                    __m512i _vindex = _mm512_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
+                    _vindex = _mm512_mullo_epi32(_vindex, _mm512_set1_epi32(N));
+                    _mm512_i32scatter_epi32(outptr0, _vindex, _tmp0, sizeof(int));
+                    if (tj * 2 + 1 < outw) _mm512_i32scatter_epi32(outptr0 + 1, _vindex, _tmp1, sizeof(int));
                 }
 
                 outptr0 += outw * out_elempack;
@@ -4190,6 +4137,12 @@ static inline void conv3x3s1_winograd23_transform_output_tile_int8(const Mat& to
                 }
                 if (out_elempack == 1)
                 {
+#if __AVX512F__
+                    __m256i _vindex = _mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7);
+                    _vindex = _mm256_mullo_epi32(_vindex, _mm256_set1_epi32(N));
+                    _mm256_i32scatter_epi32(outptr0, _vindex, _tmp0, sizeof(int));
+                    if (tj * 2 + 1 < outw) _mm256_i32scatter_epi32(outptr0 + 1, _vindex, _tmp1, sizeof(int));
+#else
                     int tmp0[8];
                     int tmp1[8];
                     _mm256_storeu_si256((__m256i*)tmp0, _tmp0);
@@ -4223,6 +4176,7 @@ static inline void conv3x3s1_winograd23_transform_output_tile_int8(const Mat& to
                         outptr6[1] = tmp1[6];
                         outptr7[1] = tmp1[7];
                     }
+#endif // __AVX512F__
                 }
 
                 outptr0 += outw * out_elempack;
@@ -4306,6 +4260,12 @@ static inline void conv3x3s1_winograd23_transform_output_tile_int8(const Mat& to
                 }
                 if (out_elempack == 1)
                 {
+#if __AVX512F__
+                    __m128i _vindex = _mm_setr_epi32(0, 1, 2, 3);
+                    _vindex = _mm_mullo_epi32(_vindex, _mm_set1_epi32(N));
+                    _mm_i32scatter_epi32(outptr0, _vindex, _tmp0, sizeof(int));
+                    if (tj * 2 + 1 < outw) _mm_i32scatter_epi32(outptr0 + 1, _vindex, _tmp1, sizeof(int));
+#else
                     int tmp0[4];
                     int tmp1[4];
                     _mm_storeu_si128((__m128i*)tmp0, _tmp0);
@@ -4327,6 +4287,7 @@ static inline void conv3x3s1_winograd23_transform_output_tile_int8(const Mat& to
                         outptr2[1] = tmp1[2];
                         outptr3[1] = tmp1[3];
                     }
+#endif // __AVX512F__
                 }
 
                 outptr0 += outw * out_elempack;
@@ -5493,104 +5454,12 @@ static inline void conv3x3s1_winograd43_transform_output_tile_int8(const Mat& to
                 }
                 if (out_elempack == 1)
                 {
-                    int tmp0[16];
-                    int tmp1[16];
-                    int tmp2[16];
-                    int tmp3[16];
-                    _mm512_storeu_si512((__m512i*)tmp0, _tmp0);
-                    _mm512_storeu_si512((__m512i*)tmp1, _tmp1);
-                    _mm512_storeu_si512((__m512i*)tmp2, _tmp2);
-                    _mm512_storeu_si512((__m512i*)tmp3, _tmp3);
-
-                    int* outptr1 = outptr0 + N;
-                    int* outptr2 = outptr0 + N * 2;
-                    int* outptr3 = outptr0 + N * 3;
-                    int* outptr4 = outptr0 + N * 4;
-                    int* outptr5 = outptr0 + N * 5;
-                    int* outptr6 = outptr0 + N * 6;
-                    int* outptr7 = outptr0 + N * 7;
-                    int* outptr8 = outptr0 + N * 8;
-                    int* outptr9 = outptr0 + N * 9;
-                    int* outptra = outptr0 + N * 10;
-                    int* outptrb = outptr0 + N * 11;
-                    int* outptrc = outptr0 + N * 12;
-                    int* outptrd = outptr0 + N * 13;
-                    int* outptre = outptr0 + N * 14;
-                    int* outptrf = outptr0 + N * 15;
-
-                    outptr0[0] = tmp0[0];
-                    outptr1[0] = tmp0[1];
-                    outptr2[0] = tmp0[2];
-                    outptr3[0] = tmp0[3];
-                    outptr4[0] = tmp0[4];
-                    outptr5[0] = tmp0[5];
-                    outptr6[0] = tmp0[6];
-                    outptr7[0] = tmp0[7];
-                    outptr8[0] = tmp0[8];
-                    outptr9[0] = tmp0[9];
-                    outptra[0] = tmp0[10];
-                    outptrb[0] = tmp0[11];
-                    outptrc[0] = tmp0[12];
-                    outptrd[0] = tmp0[13];
-                    outptre[0] = tmp0[14];
-                    outptrf[0] = tmp0[15];
-                    if (tj * 4 + 1 < outw)
-                    {
-                        outptr0[1] = tmp1[0];
-                        outptr1[1] = tmp1[1];
-                        outptr2[1] = tmp1[2];
-                        outptr3[1] = tmp1[3];
-                        outptr4[1] = tmp1[4];
-                        outptr5[1] = tmp1[5];
-                        outptr6[1] = tmp1[6];
-                        outptr7[1] = tmp1[7];
-                        outptr8[1] = tmp1[8];
-                        outptr9[1] = tmp1[9];
-                        outptra[1] = tmp1[10];
-                        outptrb[1] = tmp1[11];
-                        outptrc[1] = tmp1[12];
-                        outptrd[1] = tmp1[13];
-                        outptre[1] = tmp1[14];
-                        outptrf[1] = tmp1[15];
-                    }
-                    if (tj * 4 + 2 < outw)
-                    {
-                        outptr0[2] = tmp2[0];
-                        outptr1[2] = tmp2[1];
-                        outptr2[2] = tmp2[2];
-                        outptr3[2] = tmp2[3];
-                        outptr4[2] = tmp2[4];
-                        outptr5[2] = tmp2[5];
-                        outptr6[2] = tmp2[6];
-                        outptr7[2] = tmp2[7];
-                        outptr8[2] = tmp2[8];
-                        outptr9[2] = tmp2[9];
-                        outptra[2] = tmp2[10];
-                        outptrb[2] = tmp2[11];
-                        outptrc[2] = tmp2[12];
-                        outptrd[2] = tmp2[13];
-                        outptre[2] = tmp2[14];
-                        outptrf[2] = tmp2[15];
-                    }
-                    if (tj * 4 + 3 < outw)
-                    {
-                        outptr0[3] = tmp3[0];
-                        outptr1[3] = tmp3[1];
-                        outptr2[3] = tmp3[2];
-                        outptr3[3] = tmp3[3];
-                        outptr4[3] = tmp3[4];
-                        outptr5[3] = tmp3[5];
-                        outptr6[3] = tmp3[6];
-                        outptr7[3] = tmp3[7];
-                        outptr8[3] = tmp3[8];
-                        outptr9[3] = tmp3[9];
-                        outptra[3] = tmp3[10];
-                        outptrb[3] = tmp3[11];
-                        outptrc[3] = tmp3[12];
-                        outptrd[3] = tmp3[13];
-                        outptre[3] = tmp3[14];
-                        outptrf[3] = tmp3[15];
-                    }
+                    __m512i _vindex = _mm512_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
+                    _vindex = _mm512_mullo_epi32(_vindex, _mm512_set1_epi32(N));
+                    _mm512_i32scatter_epi32(outptr0, _vindex, _tmp0, sizeof(int));
+                    if (tj * 4 + 1 < outw) _mm512_i32scatter_epi32(outptr0 + 1, _vindex, _tmp1, sizeof(int));
+                    if (tj * 4 + 2 < outw) _mm512_i32scatter_epi32(outptr0 + 2, _vindex, _tmp2, sizeof(int));
+                    if (tj * 4 + 3 < outw) _mm512_i32scatter_epi32(outptr0 + 3, _vindex, _tmp3, sizeof(int));
                 }
 
                 outptr0 += outw * out_elempack;
@@ -5773,6 +5642,14 @@ static inline void conv3x3s1_winograd43_transform_output_tile_int8(const Mat& to
                 }
                 if (out_elempack == 1)
                 {
+#if __AVX512F__
+                    __m256i _vindex = _mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7);
+                    _vindex = _mm256_mullo_epi32(_vindex, _mm256_set1_epi32(N));
+                    _mm256_i32scatter_epi32(outptr0, _vindex, _tmp0, sizeof(int));
+                    if (tj * 4 + 1 < outw) _mm256_i32scatter_epi32(outptr0 + 1, _vindex, _tmp1, sizeof(int));
+                    if (tj * 4 + 2 < outw) _mm256_i32scatter_epi32(outptr0 + 2, _vindex, _tmp2, sizeof(int));
+                    if (tj * 4 + 3 < outw) _mm256_i32scatter_epi32(outptr0 + 3, _vindex, _tmp3, sizeof(int));
+#else
                     int tmp0[8];
                     int tmp1[8];
                     int tmp2[8];
@@ -5831,6 +5708,7 @@ static inline void conv3x3s1_winograd43_transform_output_tile_int8(const Mat& to
                         outptr6[3] = tmp3[6];
                         outptr7[3] = tmp3[7];
                     }
+#endif // __AVX512F__
                 }
 
                 outptr0 += outw * out_elempack;
@@ -5991,6 +5869,14 @@ static inline void conv3x3s1_winograd43_transform_output_tile_int8(const Mat& to
                 }
                 if (out_elempack == 1)
                 {
+#if __AVX512F__
+                    __m128i _vindex = _mm_setr_epi32(0, 1, 2, 3);
+                    _vindex = _mm_mullo_epi32(_vindex, _mm_set1_epi32(N));
+                    _mm_i32scatter_epi32(outptr0, _vindex, _tmp0, sizeof(int));
+                    if (tj * 4 + 1 < outw) _mm_i32scatter_epi32(outptr0 + 1, _vindex, _tmp1, sizeof(int));
+                    if (tj * 4 + 2 < outw) _mm_i32scatter_epi32(outptr0 + 2, _vindex, _tmp2, sizeof(int));
+                    if (tj * 4 + 3 < outw) _mm_i32scatter_epi32(outptr0 + 3, _vindex, _tmp3, sizeof(int));
+#else
                     int tmp0[4];
                     int tmp1[4];
                     int tmp2[4];
@@ -6029,6 +5915,7 @@ static inline void conv3x3s1_winograd43_transform_output_tile_int8(const Mat& to
                         outptr2[3] = tmp3[2];
                         outptr3[3] = tmp3[3];
                     }
+#endif // __AVX512F__
                 }
 
                 outptr0 += outw * out_elempack;
