@@ -14,16 +14,12 @@
 
 #if !(__AVX512VNNI__ || __AVXVNNI__ || __AVX2__ || __XOP__)
 #if NCNN_RUNTIME_CPU && NCNN_AVX512VNNI && __AVX512F__ && !__AVX512VNNI__
-void conv3x3s1_winograd23_transform_kernel_int8_avx512vnni(const Mat& kernel, Mat& AT, int inch, int outch, const Option& opt);
 void conv3x3s1_winograd23_int8_avx512vnni(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, int nT, const Option& opt);
-void conv3x3s1_winograd43_transform_kernel_int8_avx512vnni(const Mat& kernel, Mat& AT, int inch, int outch, const Option& opt);
 void conv3x3s1_winograd43_int8_avx512vnni(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, int nT, const Option& opt);
 #endif
 
 #if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX2__ && !__AVXVNNI__
-void conv3x3s1_winograd23_transform_kernel_int8_avxvnni(const Mat& kernel, Mat& AT, int inch, int outch, const Option& opt);
 void conv3x3s1_winograd23_int8_avxvnni(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, int nT, const Option& opt);
-void conv3x3s1_winograd43_transform_kernel_int8_avxvnni(const Mat& kernel, Mat& AT, int inch, int outch, const Option& opt);
 void conv3x3s1_winograd43_int8_avxvnni(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, int nT, const Option& opt);
 #endif
 
@@ -35,9 +31,7 @@ void conv3x3s1_winograd43_int8_avx2(const Mat& bottom_blob, Mat& top_blob, const
 #endif
 
 #if NCNN_RUNTIME_CPU && NCNN_XOP && __SSE2__ && !__XOP__
-void conv3x3s1_winograd23_transform_kernel_int8_xop(const Mat& kernel, Mat& AT, int inch, int outch, const Option& opt);
 void conv3x3s1_winograd23_int8_xop(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, int nT, const Option& opt);
-void conv3x3s1_winograd43_transform_kernel_int8_xop(const Mat& kernel, Mat& AT, int inch, int outch, const Option& opt);
 void conv3x3s1_winograd43_int8_xop(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, int nT, const Option& opt);
 #endif
 #endif
@@ -3418,34 +3412,10 @@ static inline void conv3x3s1_winograd23_transform_kernel_tile_int8(const Mat& ke
 static void conv3x3s1_winograd23_transform_kernel_int8(const Mat& kernel, Mat& AT, int inch, int outch, const Option& opt)
 {
 #if !(__AVX512VNNI__ || __AVXVNNI__ || __AVX2__ || __XOP__)
-#if NCNN_RUNTIME_CPU && NCNN_AVX512VNNI && __AVX512F__ && !__AVX512VNNI__
-    if (ncnn::cpu_support_x86_avx512_vnni())
-    {
-        conv3x3s1_winograd23_transform_kernel_int8_avx512vnni(kernel, AT, inch, outch, opt);
-        return;
-    }
-#endif
-
-#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX2__ && !__AVXVNNI__
-    if (ncnn::cpu_support_x86_avx_vnni())
-    {
-        conv3x3s1_winograd23_transform_kernel_int8_avxvnni(kernel, AT, inch, outch, opt);
-        return;
-    }
-#endif
-
 #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__
     if (ncnn::cpu_support_x86_avx2())
     {
         conv3x3s1_winograd23_transform_kernel_int8_avx2(kernel, AT, inch, outch, opt);
-        return;
-    }
-#endif
-
-#if NCNN_RUNTIME_CPU && NCNN_XOP && __SSE2__ && !__XOP__
-    if (ncnn::cpu_support_x86_xop())
-    {
-        conv3x3s1_winograd23_transform_kernel_int8_xop(kernel, AT, inch, outch, opt);
         return;
     }
 #endif
@@ -4710,34 +4680,10 @@ static inline void conv3x3s1_winograd43_transform_kernel_tile_int8(const Mat& ke
 static void conv3x3s1_winograd43_transform_kernel_int8(const Mat& kernel, Mat& AT, int inch, int outch, const Option& opt)
 {
 #if !(__AVX512VNNI__ || __AVXVNNI__ || __AVX2__ || __XOP__)
-#if NCNN_RUNTIME_CPU && NCNN_AVX512VNNI && __AVX512F__ && !__AVX512VNNI__
-    if (ncnn::cpu_support_x86_avx512_vnni())
-    {
-        conv3x3s1_winograd43_transform_kernel_int8_avx512vnni(kernel, AT, inch, outch, opt);
-        return;
-    }
-#endif
-
-#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX2__ && !__AVXVNNI__
-    if (ncnn::cpu_support_x86_avx_vnni())
-    {
-        conv3x3s1_winograd43_transform_kernel_int8_avxvnni(kernel, AT, inch, outch, opt);
-        return;
-    }
-#endif
-
 #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__
     if (ncnn::cpu_support_x86_avx2())
     {
         conv3x3s1_winograd43_transform_kernel_int8_avx2(kernel, AT, inch, outch, opt);
-        return;
-    }
-#endif
-
-#if NCNN_RUNTIME_CPU && NCNN_XOP && __SSE2__ && !__XOP__
-    if (ncnn::cpu_support_x86_xop())
-    {
-        conv3x3s1_winograd43_transform_kernel_int8_xop(kernel, AT, inch, outch, opt);
         return;
     }
 #endif
