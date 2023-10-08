@@ -235,7 +235,7 @@ static void transpose_pack_B_tile_int8(const Mat& B, Mat& BT, int batch, int max
 
         int jj = 0;
 #if __SSE2__
-#if 0//__AVX512F__
+#if __AVX512F__
         for (; jj + 15 < max_jj; jj += 16)
         {
             const short* p0 = B;
@@ -252,16 +252,6 @@ static void transpose_pack_B_tile_int8(const Mat& B, Mat& BT, int batch, int max
                 __m512i _r5 = _mm512_loadu_si512((const __m512i*)(p0 + 160));
                 __m512i _r6 = _mm512_loadu_si512((const __m512i*)(p0 + 192));
                 __m512i _r7 = _mm512_loadu_si512((const __m512i*)(p0 + 224));
-
-                // 0000 0000 1111 1111
-                // 2222 2222 3333 3333
-                // 4444 4444 5555 5555
-                // 6666 6666 7777 7777
-                // 8888 8888 9999 9999
-                // aaaa aaaa bbbb bbbb
-                // cccc cccc dddd dddd
-                // eeee eeee ffff ffff
-
                 __m512i _tmp0 = _mm512_shuffle_i32x4(_r0, _r2, _MM_SHUFFLE(1, 0, 1, 0));
                 __m512i _tmp1 = _mm512_shuffle_i32x4(_r0, _r2, _MM_SHUFFLE(3, 2, 3, 2));
                 __m512i _tmp2 = _mm512_shuffle_i32x4(_r1, _r3, _MM_SHUFFLE(1, 0, 1, 0));
@@ -270,16 +260,6 @@ static void transpose_pack_B_tile_int8(const Mat& B, Mat& BT, int batch, int max
                 __m512i _tmp5 = _mm512_shuffle_i32x4(_r4, _r6, _MM_SHUFFLE(3, 2, 3, 2));
                 __m512i _tmp6 = _mm512_shuffle_i32x4(_r5, _r7, _MM_SHUFFLE(1, 0, 1, 0));
                 __m512i _tmp7 = _mm512_shuffle_i32x4(_r5, _r7, _MM_SHUFFLE(3, 2, 3, 2));
-
-                // 0000 0000 4444 4444
-                // 1111 1111 5555 5555
-                // 2222 2222 6666 6666
-                // 3333 3333 7777 7777
-                // 8888 8888 cccc cccc
-                // 9999 9999 dddd dddd
-                // aaaa aaaa eeee eeee
-                // bbbb bbbb ffff ffff
-
                 _r0 = _mm512_unpacklo_epi32(_tmp0, _tmp1);
                 _r1 = _mm512_unpackhi_epi32(_tmp0, _tmp1);
                 _r2 = _mm512_unpacklo_epi32(_tmp2, _tmp3);
@@ -288,16 +268,6 @@ static void transpose_pack_B_tile_int8(const Mat& B, Mat& BT, int batch, int max
                 _r5 = _mm512_unpackhi_epi32(_tmp4, _tmp5);
                 _r6 = _mm512_unpacklo_epi32(_tmp6, _tmp7);
                 _r7 = _mm512_unpackhi_epi32(_tmp6, _tmp7);
-
-                // 0101 0101 4545 4545  0145
-                // 0101 0101 4545 4545  2367
-                // 2323 2323 6767 6767
-                // 2323 2323 6767 6767
-                // 8989 8989 cdcd cdcd
-                // 8989 8989 cdcd cdcd
-                // abab abab efef efef
-                // abab abab efef efef
-
                 _tmp0 = _mm512_unpacklo_epi64(_r0, _r2);
                 _tmp1 = _mm512_unpackhi_epi64(_r0, _r2);
                 _tmp2 = _mm512_unpacklo_epi64(_r1, _r3);
@@ -306,16 +276,6 @@ static void transpose_pack_B_tile_int8(const Mat& B, Mat& BT, int batch, int max
                 _tmp5 = _mm512_unpackhi_epi64(_r4, _r6);
                 _tmp6 = _mm512_unpacklo_epi64(_r5, _r7);
                 _tmp7 = _mm512_unpackhi_epi64(_r5, _r7);
-
-                // 0123 0123 4567 4567  04
-                // 0123 0123 4567 4567  15
-                // 0123 0123 4567 4567  26
-                // 0123 0123 4567 4567  37
-                // 89ab 89ab cdef cdef
-                // 89ab 89ab cdef cdef
-                // 89ab 89ab cdef cdef
-                // 89ab 89ab cdef cdef
-
                 _r0 = _mm512_shuffle_i32x4(_tmp0, _tmp4, _MM_SHUFFLE(2, 0, 2, 0));
                 _r1 = _mm512_shuffle_i32x4(_tmp1, _tmp5, _MM_SHUFFLE(2, 0, 2, 0));
                 _r2 = _mm512_shuffle_i32x4(_tmp2, _tmp6, _MM_SHUFFLE(2, 0, 2, 0));
@@ -324,7 +284,6 @@ static void transpose_pack_B_tile_int8(const Mat& B, Mat& BT, int batch, int max
                 _r5 = _mm512_shuffle_i32x4(_tmp1, _tmp5, _MM_SHUFFLE(3, 1, 3, 1));
                 _r6 = _mm512_shuffle_i32x4(_tmp2, _tmp6, _MM_SHUFFLE(3, 1, 3, 1));
                 _r7 = _mm512_shuffle_i32x4(_tmp3, _tmp7, _MM_SHUFFLE(3, 1, 3, 1));
-
                 _mm512_storeu_si512((__m512i*)pp, _r0);
                 _mm512_storeu_si512((__m512i*)(pp + 32), _r1);
                 _mm512_storeu_si512((__m512i*)(pp + 64), _r2);
@@ -372,10 +331,8 @@ static void transpose_pack_B_tile_int8(const Mat& B, Mat& BT, int batch, int max
             p0 += (b * max_jj + jj) * 2;
             for (; kk + 1 < max_kk; kk += 2)
             {
-                __m256i _r0 = _mm256_loadu_si256((const __m256i*)p0);
-                __m256i _r1 = _mm256_loadu_si256((const __m256i*)(p0 + 16));
-                _mm256_store_si256((__m256i*)pp, _r0);
-                _mm256_store_si256((__m256i*)(pp + 16), _r1);
+                __m512i _r0 = _mm512_loadu_si512((const __m512i*)p0);
+                _mm512_storeu_si512((__m512i*)pp, _r0);
                 p0 += max_jj * batch * 2;
                 pp += 32;
             }
@@ -654,6 +611,310 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             const short* pB = BT_tile.row<const short>(b);
 
             int jj = 0;
+            for (; jj + 15 < max_jj; jj += 16)
+            {
+                const short* pA = pAT;
+
+                __m512i _sum0;
+                __m512i _sum1;
+                __m512i _sum2;
+                __m512i _sum3;
+                __m512i _sum4;
+                __m512i _sum5;
+                __m512i _sum6;
+                __m512i _sum7;
+                __m512i _sum8;
+                __m512i _sum9;
+                __m512i _suma;
+                __m512i _sumb;
+                __m512i _sumc;
+                __m512i _sumd;
+                __m512i _sume;
+                __m512i _sumf;
+
+                if (k == 0)
+                {
+                    _sum0 = _mm512_setzero_si512();
+                    _sum1 = _mm512_setzero_si512();
+                    _sum2 = _mm512_setzero_si512();
+                    _sum3 = _mm512_setzero_si512();
+                    _sum4 = _mm512_setzero_si512();
+                    _sum5 = _mm512_setzero_si512();
+                    _sum6 = _mm512_setzero_si512();
+                    _sum7 = _mm512_setzero_si512();
+                    _sum8 = _mm512_setzero_si512();
+                    _sum9 = _mm512_setzero_si512();
+                    _suma = _mm512_setzero_si512();
+                    _sumb = _mm512_setzero_si512();
+                    _sumc = _mm512_setzero_si512();
+                    _sumd = _mm512_setzero_si512();
+                    _sume = _mm512_setzero_si512();
+                    _sumf = _mm512_setzero_si512();
+                }
+                else
+                {
+                    _sum0 = _mm512_load_si512((const __m512i*)outptr);
+                    _sum1 = _mm512_load_si512((const __m512i*)(outptr + 16));
+                    _sum2 = _mm512_load_si512((const __m512i*)(outptr + 32));
+                    _sum3 = _mm512_load_si512((const __m512i*)(outptr + 48));
+                    _sum4 = _mm512_load_si512((const __m512i*)(outptr + 64));
+                    _sum5 = _mm512_load_si512((const __m512i*)(outptr + 80));
+                    _sum6 = _mm512_load_si512((const __m512i*)(outptr + 96));
+                    _sum7 = _mm512_load_si512((const __m512i*)(outptr + 112));
+                    _sum8 = _mm512_load_si512((const __m512i*)(outptr + 128));
+                    _sum9 = _mm512_load_si512((const __m512i*)(outptr + 128 + 16));
+                    _suma = _mm512_load_si512((const __m512i*)(outptr + 128 + 32));
+                    _sumb = _mm512_load_si512((const __m512i*)(outptr + 128 + 48));
+                    _sumc = _mm512_load_si512((const __m512i*)(outptr + 128 + 64));
+                    _sumd = _mm512_load_si512((const __m512i*)(outptr + 128 + 80));
+                    _sume = _mm512_load_si512((const __m512i*)(outptr + 128 + 96));
+                    _sumf = _mm512_load_si512((const __m512i*)(outptr + 128 + 112));
+                }
+
+                int kk = 0;
+                for (; kk + 1 < max_kk; kk += 2)
+                {
+                    __m512i _pA0 = _mm512_loadu_si512((const __m512i*)pA);
+                    __m512i _pB0 = _mm512_loadu_si512((const __m512i*)pB);
+                    __m512i _pA1 = _mm512_shuffle_i32x4(_pA0, _pA0, _MM_SHUFFLE(2, 1, 0, 3));
+                    __m512i _pA2 = _mm512_shuffle_i32x4(_pA0, _pA0, _MM_SHUFFLE(1, 0, 3, 2));
+                    __m512i _pA3 = _mm512_shuffle_i32x4(_pA0, _pA0, _MM_SHUFFLE(0, 3, 2, 1));
+                    __m512i _pB1 = _mm512_shuffle_epi32(_pB0, _MM_PERM_ADCB);
+                    __m512i _pB2 = _mm512_shuffle_epi32(_pB0, _MM_PERM_BADC);
+                    __m512i _pB3 = _mm512_shuffle_epi32(_pB0, _MM_PERM_CBAD);
+
+#if __AVX512VNNI__
+                    _sum0 = _mm512_dpwssd_epi32(_sum0, _pA0, _pB0);
+                    _sum1 = _mm512_dpwssd_epi32(_sum1, _pA0, _pB1);
+                    _sum2 = _mm512_dpwssd_epi32(_sum2, _pA0, _pB2);
+                    _sum3 = _mm512_dpwssd_epi32(_sum3, _pA0, _pB3);
+                    _sum4 = _mm512_dpwssd_epi32(_sum4, _pA1, _pB0);
+                    _sum5 = _mm512_dpwssd_epi32(_sum5, _pA1, _pB1);
+                    _sum6 = _mm512_dpwssd_epi32(_sum6, _pA1, _pB2);
+                    _sum7 = _mm512_dpwssd_epi32(_sum7, _pA1, _pB3);
+                    _sum8 = _mm512_dpwssd_epi32(_sum8, _pA2, _pB0);
+                    _sum9 = _mm512_dpwssd_epi32(_sum9, _pA2, _pB1);
+                    _suma = _mm512_dpwssd_epi32(_suma, _pA2, _pB2);
+                    _sumb = _mm512_dpwssd_epi32(_sumb, _pA2, _pB3);
+                    _sumc = _mm512_dpwssd_epi32(_sumc, _pA3, _pB0);
+                    _sumd = _mm512_dpwssd_epi32(_sumd, _pA3, _pB1);
+                    _sume = _mm512_dpwssd_epi32(_sume, _pA3, _pB2);
+                    _sumf = _mm512_dpwssd_epi32(_sumf, _pA3, _pB3);
+#else
+                    _sum0 = _mm512_add_epi32(_sum0, _mm512_madd_epi16(_pA0, _pB0));
+                    _sum1 = _mm512_add_epi32(_sum1, _mm512_madd_epi16(_pA0, _pB1));
+                    _sum2 = _mm512_add_epi32(_sum2, _mm512_madd_epi16(_pA0, _pB2));
+                    _sum3 = _mm512_add_epi32(_sum3, _mm512_madd_epi16(_pA0, _pB3));
+                    _sum4 = _mm512_add_epi32(_sum4, _mm512_madd_epi16(_pA1, _pB0));
+                    _sum5 = _mm512_add_epi32(_sum5, _mm512_madd_epi16(_pA1, _pB1));
+                    _sum6 = _mm512_add_epi32(_sum6, _mm512_madd_epi16(_pA1, _pB2));
+                    _sum7 = _mm512_add_epi32(_sum7, _mm512_madd_epi16(_pA1, _pB3));
+                    _sum8 = _mm512_add_epi32(_sum8, _mm512_madd_epi16(_pA2, _pB0));
+                    _sum9 = _mm512_add_epi32(_sum9, _mm512_madd_epi16(_pA2, _pB1));
+                    _suma = _mm512_add_epi32(_suma, _mm512_madd_epi16(_pA2, _pB2));
+                    _sumb = _mm512_add_epi32(_sumb, _mm512_madd_epi16(_pA2, _pB3));
+                    _sumc = _mm512_add_epi32(_sumc, _mm512_madd_epi16(_pA3, _pB0));
+                    _sumd = _mm512_add_epi32(_sumd, _mm512_madd_epi16(_pA3, _pB1));
+                    _sume = _mm512_add_epi32(_sume, _mm512_madd_epi16(_pA3, _pB2));
+                    _sumf = _mm512_add_epi32(_sumf, _mm512_madd_epi16(_pA3, _pB3));
+#endif
+
+                    pA += 32;
+                    pB += 32;
+                }
+                for (; kk < max_kk; kk++)
+                {
+                    __m512i _pA0 = _mm512_cvtepi16_epi32(_mm256_load_si256((const __m256i*)pA));
+                    __m512i _pB0 = _mm512_cvtepi16_epi32(_mm256_load_si256((const __m256i*)pB));
+
+                    __m512i _pA1 = _mm512_shuffle_i32x4(_pA0, _pA0, _MM_SHUFFLE(2, 1, 0, 3));
+                    __m512i _pA2 = _mm512_shuffle_i32x4(_pA0, _pA0, _MM_SHUFFLE(1, 0, 3, 2));
+                    __m512i _pA3 = _mm512_shuffle_i32x4(_pA0, _pA0, _MM_SHUFFLE(0, 3, 2, 1));
+
+                    __m512i _pB1 = _mm512_shuffle_epi32(_pB0, _MM_SHUFFLE(0, 3, 2, 1));
+                    __m512i _pB2 = _mm512_permutex_epi64(_pB0, _MM_SHUFFLE(2, 3, 0, 1));
+                    __m512i _pB3 = _mm512_shuffle_epi32(_pB0, _MM_SHUFFLE(2, 1, 0, 3));
+
+                    __m512i _s0 = _mm512_mullo_epi32(_pA0, _pB0);
+                    __m512i _s1 = _mm512_mullo_epi32(_pA0, _pB1);
+                    __m512i _s2 = _mm512_mullo_epi32(_pA0, _pB2);
+                    __m512i _s3 = _mm512_mullo_epi32(_pA0, _pB3);
+                    __m512i _s4 = _mm512_mullo_epi32(_pA1, _pB0);
+                    __m512i _s5 = _mm512_mullo_epi32(_pA1, _pB1);
+                    __m512i _s6 = _mm512_mullo_epi32(_pA1, _pB2);
+                    __m512i _s7 = _mm512_mullo_epi32(_pA1, _pB3);
+                    __m512i _s8 = _mm512_mullo_epi32(_pA2, _pB0);
+                    __m512i _s9 = _mm512_mullo_epi32(_pA2, _pB1);
+                    __m512i _sa = _mm512_mullo_epi32(_pA2, _pB2);
+                    __m512i _sb = _mm512_mullo_epi32(_pA2, _pB3);
+                    __m512i _sc = _mm512_mullo_epi32(_pA3, _pB0);
+                    __m512i _sd = _mm512_mullo_epi32(_pA3, _pB1);
+                    __m512i _se = _mm512_mullo_epi32(_pA3, _pB2);
+                    __m512i _sf = _mm512_mullo_epi32(_pA3, _pB3);
+                    _sum0 = _mm512_add_epi32(_sum0, _s0);
+                    _sum1 = _mm512_add_epi32(_sum1, _s1);
+                    _sum2 = _mm512_add_epi32(_sum2, _s2);
+                    _sum3 = _mm512_add_epi32(_sum3, _s3);
+                    _sum4 = _mm512_add_epi32(_sum4, _s4);
+                    _sum5 = _mm512_add_epi32(_sum5, _s5);
+                    _sum6 = _mm512_add_epi32(_sum6, _s6);
+                    _sum7 = _mm512_add_epi32(_sum7, _s7);
+                    _sum8 = _mm512_add_epi32(_sum8, _s8);
+                    _sum9 = _mm512_add_epi32(_sum9, _s9);
+                    _suma = _mm512_add_epi32(_suma, _sa);
+                    _sumb = _mm512_add_epi32(_sumb, _sb);
+                    _sumc = _mm512_add_epi32(_sumc, _sc);
+                    _sumd = _mm512_add_epi32(_sumd, _sd);
+                    _sume = _mm512_add_epi32(_sume, _se);
+                    _sumf = _mm512_add_epi32(_sumf, _sf);
+
+                    pA += 16;
+                    pB += 16;
+                }
+
+                if (k_end)
+                {
+                    // from
+                    //      00 11 22 33 44 55 66 77 88 99 aa bb cc dd ee ff
+                    //      01 12 23 30 45 56 67 74 89 9a ab b8 cd de ef fc
+                    //      02 13 20 31 46 57 64 75 8a 9b a8 b9 ce df ec fd
+                    //      03 10 21 32 47 54 65 76 8b 98 a9 ba cf dc ed fe
+                    //      c0 d1 e2 f3 04 15 26 37 48 59 6a 7b 8c 9d ae bf
+                    //      c1 d2 e3 f0 05 16 27 34 49 5a 6b 78 8d 9e af bc
+                    //      c2 d3 e0 f1 06 17 24 35 4a 5b 68 79 8e 9f ac bd
+                    //      c3 d0 e1 f2 07 14 25 36 4b 58 69 7a 8f 9c ad be
+                    //      80 91 a2 b3 c4 d5 e6 f7 08 19 2a 3b 4c 5d 6e 7f
+                    //      81 92 a3 b0 c5 d6 e7 f4 09 1a 2b 38 4d 5e 6f 7c
+                    //      82 93 a0 b1 c6 d7 e4 f5 0a 1b 28 39 4e 5f 6c 7d
+                    //      83 90 a1 b2 c7 d4 e5 f6 0b 18 29 3a 4f 5c 6d 7e
+                    //      40 51 62 73 84 95 a6 b7 c8 d9 ea fb 0c 1d 2e 3f
+                    //      41 52 63 70 85 96 a7 b4 c9 da eb f8 0d 1e 2f 3c
+                    //      42 53 60 71 86 97 a4 b5 ca db e8 f9 0e 1f 2c 3d
+                    //      43 50 61 72 87 94 a5 b6 cb d8 e9 fa 0f 1c 2d 3e
+                    // to
+                    //      00 10 20 30 44 54 64 74 88 98 a8 b8 cc dc ec fc
+                    //      01 11 21 31 45 55 65 75 89 99 a9 b9 cd dd ed fd
+                    //      02 12 22 32 46 56 66 76 8a 9a aa ba ce de ee fe
+                    //      03 13 23 33 47 57 67 77 8b 9b ab bb cf df ef ff
+                    //      c0 d0 e0 f0 04 14 24 34 48 58 68 78 8c 9c ac bc
+                    //      c1 d1 e1 f1 05 15 25 35 49 59 69 79 8d 9d ad bd
+                    //      c2 d2 e2 f2 06 16 26 36 4a 5a 6a 7a 8e 9e ae be
+                    //      c3 d3 e3 f3 07 17 27 37 4b 5b 6b 7b 8f 9f af bf
+                    //      80 90 a0 b0 c4 d4 e4 f4 08 18 28 38 4c 5c 6c 7c
+                    //      81 91 a1 b1 c5 d5 e5 f5 09 19 29 39 4d 5d 6d 7d
+                    //      82 92 a2 b2 c6 d6 e6 f6 0a 1a 2a 3a 4e 5e 6e 7e
+                    //      83 93 a3 b3 c7 d7 e7 f7 0b 1b 2b 3b 4f 5f 6f 7f
+                    //      40 50 60 70 84 94 a4 b4 c8 d8 e8 f8 0c 1c 2c 3c
+                    //      41 51 61 71 85 95 a5 b5 c9 d9 e9 f9 0d 1d 2d 3d
+                    //      42 52 62 72 86 96 a6 b6 ca da ea fa 0e 1e 2e 3e
+                    //      43 53 63 73 87 97 a7 b7 cb db eb fb 0f 1f 2f 3f
+                    {
+                        _sum1 = _mm512_shuffle_epi32(_sum1, _MM_PERM_CBAD);
+                        _sum2 = _mm512_shuffle_epi32(_sum2, _MM_PERM_BADC);
+                        _sum3 = _mm512_shuffle_epi32(_sum3, _MM_PERM_ADCB);
+                        _sum5 = _mm512_shuffle_epi32(_sum5, _MM_PERM_CBAD);
+                        _sum6 = _mm512_shuffle_epi32(_sum6, _MM_PERM_BADC);
+                        _sum7 = _mm512_shuffle_epi32(_sum7, _MM_PERM_ADCB);
+                        _sum9 = _mm512_shuffle_epi32(_sum9, _MM_PERM_CBAD);
+                        _suma = _mm512_shuffle_epi32(_suma, _MM_PERM_BADC);
+                        _sumb = _mm512_shuffle_epi32(_sumb, _MM_PERM_ADCB);
+                        _sumd = _mm512_shuffle_epi32(_sumd, _MM_PERM_CBAD);
+                        _sume = _mm512_shuffle_epi32(_sume, _MM_PERM_BADC);
+                        _sumf = _mm512_shuffle_epi32(_sumf, _MM_PERM_ADCB);
+                        __m512i _tmp0 = _mm512_unpacklo_epi32(_sum0, _sum3);
+                        __m512i _tmp1 = _mm512_unpackhi_epi32(_sum0, _sum3);
+                        __m512i _tmp2 = _mm512_unpacklo_epi32(_sum2, _sum1);
+                        __m512i _tmp3 = _mm512_unpackhi_epi32(_sum2, _sum1);
+                        __m512i _tmp4 = _mm512_unpacklo_epi32(_sum4, _sum7);
+                        __m512i _tmp5 = _mm512_unpackhi_epi32(_sum4, _sum7);
+                        __m512i _tmp6 = _mm512_unpacklo_epi32(_sum6, _sum5);
+                        __m512i _tmp7 = _mm512_unpackhi_epi32(_sum6, _sum5);
+                        __m512i _tmp8 = _mm512_unpacklo_epi32(_sum8, _sumb);
+                        __m512i _tmp9 = _mm512_unpackhi_epi32(_sum8, _sumb);
+                        __m512i _tmpa = _mm512_unpacklo_epi32(_suma, _sum9);
+                        __m512i _tmpb = _mm512_unpackhi_epi32(_suma, _sum9);
+                        __m512i _tmpc = _mm512_unpacklo_epi32(_sumc, _sumf);
+                        __m512i _tmpd = _mm512_unpackhi_epi32(_sumc, _sumf);
+                        __m512i _tmpe = _mm512_unpacklo_epi32(_sume, _sumd);
+                        __m512i _tmpf = _mm512_unpackhi_epi32(_sume, _sumd);
+                        _sum0 = _mm512_unpacklo_epi64(_tmp0, _tmp2);
+                        _sum1 = _mm512_unpackhi_epi64(_tmp0, _tmp2);
+                        _sum2 = _mm512_unpacklo_epi64(_tmp3, _tmp1);
+                        _sum3 = _mm512_unpackhi_epi64(_tmp3, _tmp1);
+                        _sum4 = _mm512_unpacklo_epi64(_tmp4, _tmp6);
+                        _sum5 = _mm512_unpackhi_epi64(_tmp4, _tmp6);
+                        _sum6 = _mm512_unpacklo_epi64(_tmp7, _tmp5);
+                        _sum7 = _mm512_unpackhi_epi64(_tmp7, _tmp5);
+                        _sum8 = _mm512_unpacklo_epi64(_tmp8, _tmpa);
+                        _sum9 = _mm512_unpackhi_epi64(_tmp8, _tmpa);
+                        _suma = _mm512_unpacklo_epi64(_tmpb, _tmp9);
+                        _sumb = _mm512_unpackhi_epi64(_tmpb, _tmp9);
+                        _sumc = _mm512_unpacklo_epi64(_tmpc, _tmpe);
+                        _sumd = _mm512_unpackhi_epi64(_tmpc, _tmpe);
+                        _sume = _mm512_unpacklo_epi64(_tmpf, _tmpd);
+                        _sumf = _mm512_unpackhi_epi64(_tmpf, _tmpd);
+                        _sum1 = _mm512_shuffle_epi32(_sum1, _MM_PERM_CBAD);
+                        _sum3 = _mm512_shuffle_epi32(_sum3, _MM_PERM_CBAD);
+                        _sum5 = _mm512_shuffle_epi32(_sum5, _MM_PERM_CBAD);
+                        _sum7 = _mm512_shuffle_epi32(_sum7, _MM_PERM_CBAD);
+                        _sum9 = _mm512_shuffle_epi32(_sum9, _MM_PERM_CBAD);
+                        _sumb = _mm512_shuffle_epi32(_sumb, _MM_PERM_CBAD);
+                        _sumd = _mm512_shuffle_epi32(_sumd, _MM_PERM_CBAD);
+                        _sumf = _mm512_shuffle_epi32(_sumf, _MM_PERM_CBAD);
+                    }
+
+                    __m512i _tmp0 = _mm512_shuffle_i32x4(_sum0, _sumc, _MM_SHUFFLE(2, 0, 2, 0));
+                    __m512i _tmp1 = _mm512_shuffle_i32x4(_sum4, _sum0, _MM_SHUFFLE(3, 1, 3, 1));
+                    __m512i _tmp2 = _mm512_shuffle_i32x4(_sum8, _sum4, _MM_SHUFFLE(0, 2, 0, 2));
+                    __m512i _tmp3 = _mm512_shuffle_i32x4(_sumc, _sum8, _MM_SHUFFLE(1, 3, 1, 3));
+                    __m512i _tmp4 = _mm512_shuffle_i32x4(_sum1, _sumd, _MM_SHUFFLE(2, 0, 2, 0));
+                    __m512i _tmp5 = _mm512_shuffle_i32x4(_sum5, _sum1, _MM_SHUFFLE(3, 1, 3, 1));
+                    __m512i _tmp6 = _mm512_shuffle_i32x4(_sum9, _sum5, _MM_SHUFFLE(0, 2, 0, 2));
+                    __m512i _tmp7 = _mm512_shuffle_i32x4(_sumd, _sum9, _MM_SHUFFLE(1, 3, 1, 3));
+                    __m512i _tmp8 = _mm512_shuffle_i32x4(_sum2, _sume, _MM_SHUFFLE(2, 0, 2, 0));
+                    __m512i _tmp9 = _mm512_shuffle_i32x4(_sum6, _sum2, _MM_SHUFFLE(3, 1, 3, 1));
+                    __m512i _tmpa = _mm512_shuffle_i32x4(_suma, _sum6, _MM_SHUFFLE(0, 2, 0, 2));
+                    __m512i _tmpb = _mm512_shuffle_i32x4(_sume, _suma, _MM_SHUFFLE(1, 3, 1, 3));
+                    __m512i _tmpc = _mm512_shuffle_i32x4(_sum3, _sumf, _MM_SHUFFLE(2, 0, 2, 0));
+                    __m512i _tmpd = _mm512_shuffle_i32x4(_sum7, _sum3, _MM_SHUFFLE(3, 1, 3, 1));
+                    __m512i _tmpe = _mm512_shuffle_i32x4(_sumb, _sum7, _MM_SHUFFLE(0, 2, 0, 2));
+                    __m512i _tmpf = _mm512_shuffle_i32x4(_sumf, _sumb, _MM_SHUFFLE(1, 3, 1, 3));
+                    _sum0 = _mm512_shuffle_i32x4(_tmp0, _tmp2, _MM_SHUFFLE(3, 1, 2, 0));
+                    _sum1 = _mm512_shuffle_i32x4(_tmp4, _tmp6, _MM_SHUFFLE(3, 1, 2, 0));
+                    _sum2 = _mm512_shuffle_i32x4(_tmp8, _tmpa, _MM_SHUFFLE(3, 1, 2, 0));
+                    _sum3 = _mm512_shuffle_i32x4(_tmpc, _tmpe, _MM_SHUFFLE(3, 1, 2, 0));
+                    _sum4 = _mm512_shuffle_i32x4(_tmp1, _tmp3, _MM_SHUFFLE(3, 1, 2, 0));
+                    _sum5 = _mm512_shuffle_i32x4(_tmp5, _tmp7, _MM_SHUFFLE(3, 1, 2, 0));
+                    _sum6 = _mm512_shuffle_i32x4(_tmp9, _tmpb, _MM_SHUFFLE(3, 1, 2, 0));
+                    _sum7 = _mm512_shuffle_i32x4(_tmpd, _tmpf, _MM_SHUFFLE(3, 1, 2, 0));
+                    _sum8 = _mm512_shuffle_i32x4(_tmp2, _tmp0, _MM_SHUFFLE(3, 1, 2, 0));
+                    _sum9 = _mm512_shuffle_i32x4(_tmp6, _tmp4, _MM_SHUFFLE(3, 1, 2, 0));
+                    _suma = _mm512_shuffle_i32x4(_tmpa, _tmp8, _MM_SHUFFLE(3, 1, 2, 0));
+                    _sumb = _mm512_shuffle_i32x4(_tmpe, _tmpc, _MM_SHUFFLE(3, 1, 2, 0));
+                    _sumc = _mm512_shuffle_i32x4(_tmp3, _tmp1, _MM_SHUFFLE(3, 1, 2, 0));
+                    _sumd = _mm512_shuffle_i32x4(_tmp7, _tmp5, _MM_SHUFFLE(3, 1, 2, 0));
+                    _sume = _mm512_shuffle_i32x4(_tmpb, _tmp9, _MM_SHUFFLE(3, 1, 2, 0));
+                    _sumf = _mm512_shuffle_i32x4(_tmpf, _tmpd, _MM_SHUFFLE(3, 1, 2, 0));
+                }
+
+                _mm512_store_si512((__m512i*)outptr, _sum0);
+                _mm512_store_si512((__m512i*)(outptr + 16), _sum1);
+                _mm512_store_si512((__m512i*)(outptr + 32), _sum2);
+                _mm512_store_si512((__m512i*)(outptr + 48), _sum3);
+                _mm512_store_si512((__m512i*)(outptr + 64), _sum4);
+                _mm512_store_si512((__m512i*)(outptr + 80), _sum5);
+                _mm512_store_si512((__m512i*)(outptr + 96), _sum6);
+                _mm512_store_si512((__m512i*)(outptr + 112), _sum7);
+                _mm512_store_si512((__m512i*)(outptr + 128), _sum8);
+                _mm512_store_si512((__m512i*)(outptr + 128 + 16), _sum9);
+                _mm512_store_si512((__m512i*)(outptr + 128 + 32), _suma);
+                _mm512_store_si512((__m512i*)(outptr + 128 + 48), _sumb);
+                _mm512_store_si512((__m512i*)(outptr + 128 + 64), _sumc);
+                _mm512_store_si512((__m512i*)(outptr + 128 + 80), _sumd);
+                _mm512_store_si512((__m512i*)(outptr + 128 + 96), _sume);
+                _mm512_store_si512((__m512i*)(outptr + 128 + 112), _sumf);
+                outptr += 256;
+            }
             for (; jj + 7 < max_jj; jj += 8)
             {
                 const short* pA = pAT;
@@ -1062,6 +1323,192 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             const short* pB = BT_tile.row<const short>(b);
 
             int jj = 0;
+#if __AVX512F__
+            for (; jj + 15 < max_jj; jj += 16)
+            {
+                const short* pA = pAT;
+
+                __m512i _sum0;
+                __m512i _sum1;
+                __m512i _sum2;
+                __m512i _sum3;
+                __m512i _sum4;
+                __m512i _sum5;
+                __m512i _sum6;
+                __m512i _sum7;
+
+                if (k == 0)
+                {
+                    _sum0 = _mm512_setzero_si512();
+                    _sum1 = _mm512_setzero_si512();
+                    _sum2 = _mm512_setzero_si512();
+                    _sum3 = _mm512_setzero_si512();
+                    _sum4 = _mm512_setzero_si512();
+                    _sum5 = _mm512_setzero_si512();
+                    _sum6 = _mm512_setzero_si512();
+                    _sum7 = _mm512_setzero_si512();
+                }
+                else
+                {
+                    _sum0 = _mm512_loadu_si512((const __m512i*)outptr);
+                    _sum1 = _mm512_loadu_si512((const __m512i*)(outptr + 16));
+                    _sum2 = _mm512_loadu_si512((const __m512i*)(outptr + 32));
+                    _sum3 = _mm512_loadu_si512((const __m512i*)(outptr + 48));
+                    _sum4 = _mm512_loadu_si512((const __m512i*)(outptr + 64));
+                    _sum5 = _mm512_loadu_si512((const __m512i*)(outptr + 80));
+                    _sum6 = _mm512_loadu_si512((const __m512i*)(outptr + 96));
+                    _sum7 = _mm512_loadu_si512((const __m512i*)(outptr + 112));
+                }
+
+                int kk = 0;
+                for (; kk + 1 < max_kk; kk += 2)
+                {
+                    __m256i _pA0 = _mm256_loadu_si256((const __m256i*)pA);
+                    __m512i _pB0 = _mm512_loadu_si512((const __m512i*)pB);
+
+                    __m512i _pA00 = _mm512_inserti32x8(_mm512_castsi256_si512(_pA0), _pA0, 1);
+                    __m512i _pA11 = _mm512_permutex_epi64(_pA00, _MM_SHUFFLE(1, 0, 3, 2));
+                    __m512i _pB1 = _mm512_shuffle_epi32(_pB0, _MM_PERM_ADCB);
+                    __m512i _pB2 = _mm512_shuffle_epi32(_pB0, _MM_PERM_BADC);
+                    __m512i _pB3 = _mm512_shuffle_epi32(_pB0, _MM_PERM_CBAD);
+
+#if __AVX512VNNI__
+                    _sum0 = _mm512_dpwssd_epi32(_sum0, _pA00, _pB0);
+                    _sum1 = _mm512_dpwssd_epi32(_sum1, _pA00, _pB1);
+                    _sum2 = _mm512_dpwssd_epi32(_sum2, _pA00, _pB2);
+                    _sum3 = _mm512_dpwssd_epi32(_sum3, _pA00, _pB3);
+                    _sum4 = _mm512_dpwssd_epi32(_sum4, _pA11, _pB0);
+                    _sum5 = _mm512_dpwssd_epi32(_sum5, _pA11, _pB1);
+                    _sum6 = _mm512_dpwssd_epi32(_sum6, _pA11, _pB2);
+                    _sum7 = _mm512_dpwssd_epi32(_sum7, _pA11, _pB3);
+#else
+                    _sum0 = _mm512_add_epi32(_sum0, _mm512_madd_epi16(_pA00, _pB0));
+                    _sum1 = _mm512_add_epi32(_sum1, _mm512_madd_epi16(_pA00, _pB1));
+                    _sum2 = _mm512_add_epi32(_sum2, _mm512_madd_epi16(_pA00, _pB2));
+                    _sum3 = _mm512_add_epi32(_sum3, _mm512_madd_epi16(_pA00, _pB3));
+                    _sum4 = _mm512_add_epi32(_sum4, _mm512_madd_epi16(_pA11, _pB0));
+                    _sum5 = _mm512_add_epi32(_sum5, _mm512_madd_epi16(_pA11, _pB1));
+                    _sum6 = _mm512_add_epi32(_sum6, _mm512_madd_epi16(_pA11, _pB2));
+                    _sum7 = _mm512_add_epi32(_sum7, _mm512_madd_epi16(_pA11, _pB3));
+#endif // __AVX512VNNI__
+
+                    pA += 16;
+                    pB += 32;
+                }
+                for (; kk < max_kk; kk++)
+                {
+                    __m128i _pA = _mm_load_si128((const __m128i*)pA);
+                    __m256i _pB = _mm256_loadu_si256((const __m256i*)pB);
+
+                    __m256i _pA0 = _mm256_cvtepi16_epi32(_pA);
+                    __m512i _pB0 = _mm512_cvtepi16_epi32(_pB);
+
+                    __m512i _pA00 = _mm512_inserti32x8(_mm512_castsi256_si512(_pA0), _pA0, 1);
+                    __m512i _pA11 = _mm512_permutex_epi64(_pA00, _MM_SHUFFLE(1, 0, 3, 2));
+
+                    __m512i _pB1 = _mm512_shuffle_epi32(_pB0, _MM_SHUFFLE(0, 3, 2, 1));
+                    __m512i _pB2 = _mm512_permutex_epi64(_pB0, _MM_SHUFFLE(2, 3, 0, 1));
+                    __m512i _pB3 = _mm512_shuffle_epi32(_pB0, _MM_SHUFFLE(2, 1, 0, 3));
+
+                    __m512i _s0 = _mm512_mullo_epi32(_pA00, _pB0);
+                    __m512i _s1 = _mm512_mullo_epi32(_pA00, _pB1);
+                    __m512i _s2 = _mm512_mullo_epi32(_pA00, _pB2);
+                    __m512i _s3 = _mm512_mullo_epi32(_pA00, _pB3);
+                    __m512i _s4 = _mm512_mullo_epi32(_pA11, _pB0);
+                    __m512i _s5 = _mm512_mullo_epi32(_pA11, _pB1);
+                    __m512i _s6 = _mm512_mullo_epi32(_pA11, _pB2);
+                    __m512i _s7 = _mm512_mullo_epi32(_pA11, _pB3);
+                    _sum0 = _mm512_add_epi32(_sum0, _s0);
+                    _sum1 = _mm512_add_epi32(_sum1, _s1);
+                    _sum2 = _mm512_add_epi32(_sum2, _s2);
+                    _sum3 = _mm512_add_epi32(_sum3, _s3);
+                    _sum4 = _mm512_add_epi32(_sum4, _s4);
+                    _sum5 = _mm512_add_epi32(_sum5, _s5);
+                    _sum6 = _mm512_add_epi32(_sum6, _s6);
+                    _sum7 = _mm512_add_epi32(_sum7, _s7);
+
+                    pA += 8;
+                    pB += 16;
+                }
+
+                if (k_end)
+                {
+                    // from
+                    //      00 11 22 33 44 55 66 77 08 19 2a 3b 4c 5d 6e 7f
+                    //      01 12 23 30 45 56 67 74 09 1a 2b 38 4d 5e 6f 7c
+                    //      02 13 20 31 46 57 64 75 0a 1b 28 39 4e 5f 6c 7d
+                    //      03 10 21 32 47 54 65 76 0b 18 29 3a 4f 5c 6d 7e
+                    //      40 51 62 73 04 15 26 37 48 59 6a 7b 0c 1d 2e 3f
+                    //      41 52 63 70 05 16 27 34 49 5a 6b 78 0d 1e 2f 3c
+                    //      42 53 60 71 06 17 24 35 4a 5b 68 79 0e 1f 2c 3d
+                    //      43 50 61 72 07 14 25 36 4b 58 69 7a 0f 1c 2d 3e
+                    // to
+                    //      00 10 20 30 44 54 64 74 08 18 28 38 4c 5c 6c 7c
+                    //      01 11 21 31 45 55 65 75 09 19 29 39 4d 5d 6d 7d
+                    //      02 12 22 32 46 56 66 76 0a 1a 2a 3a 4e 5e 6e 7e
+                    //      03 13 23 33 47 57 67 77 0b 1b 2b 3b 4f 5f 6f 7f
+                    //      40 50 60 70 04 14 24 34 48 58 68 78 0c 1c 2c 3c
+                    //      41 51 61 71 05 15 25 35 49 59 69 79 0d 1d 2d 3d
+                    //      42 52 62 72 06 16 26 36 4a 5a 6a 7a 0e 1e 2e 3e
+                    //      43 53 63 73 07 17 27 37 4b 5b 6b 7b 0f 1f 2f 3f
+                    {
+                        _sum1 = _mm512_shuffle_epi32(_sum1, _MM_PERM_CBAD);
+                        _sum2 = _mm512_shuffle_epi32(_sum2, _MM_PERM_BADC);
+                        _sum3 = _mm512_shuffle_epi32(_sum3, _MM_PERM_ADCB);
+                        _sum5 = _mm512_shuffle_epi32(_sum5, _MM_PERM_CBAD);
+                        _sum6 = _mm512_shuffle_epi32(_sum6, _MM_PERM_BADC);
+                        _sum7 = _mm512_shuffle_epi32(_sum7, _MM_PERM_ADCB);
+                        __m512i _tmp0 = _mm512_unpacklo_epi32(_sum0, _sum3);
+                        __m512i _tmp1 = _mm512_unpackhi_epi32(_sum0, _sum3);
+                        __m512i _tmp2 = _mm512_unpacklo_epi32(_sum2, _sum1);
+                        __m512i _tmp3 = _mm512_unpackhi_epi32(_sum2, _sum1);
+                        __m512i _tmp4 = _mm512_unpacklo_epi32(_sum4, _sum7);
+                        __m512i _tmp5 = _mm512_unpackhi_epi32(_sum4, _sum7);
+                        __m512i _tmp6 = _mm512_unpacklo_epi32(_sum6, _sum5);
+                        __m512i _tmp7 = _mm512_unpackhi_epi32(_sum6, _sum5);
+                        _sum0 = _mm512_unpacklo_epi64(_tmp0, _tmp2);
+                        _sum1 = _mm512_unpackhi_epi64(_tmp0, _tmp2);
+                        _sum2 = _mm512_unpacklo_epi64(_tmp3, _tmp1);
+                        _sum3 = _mm512_unpackhi_epi64(_tmp3, _tmp1);
+                        _sum4 = _mm512_unpacklo_epi64(_tmp4, _tmp6);
+                        _sum5 = _mm512_unpackhi_epi64(_tmp4, _tmp6);
+                        _sum6 = _mm512_unpacklo_epi64(_tmp7, _tmp5);
+                        _sum7 = _mm512_unpackhi_epi64(_tmp7, _tmp5);
+                        _sum1 = _mm512_shuffle_epi32(_sum1, _MM_PERM_CBAD);
+                        _sum3 = _mm512_shuffle_epi32(_sum3, _MM_PERM_CBAD);
+                        _sum5 = _mm512_shuffle_epi32(_sum5, _MM_PERM_CBAD);
+                        _sum7 = _mm512_shuffle_epi32(_sum7, _MM_PERM_CBAD);
+                    }
+
+                    __m512i _tmp0 = _mm512_shuffle_i32x4(_sum0, _sum4, _MM_SHUFFLE(1, 0, 1, 0));
+                    __m512i _tmp1 = _mm512_shuffle_i32x4(_sum0, _sum4, _MM_SHUFFLE(3, 2, 3, 2));
+                    __m512i _tmp2 = _mm512_shuffle_i32x4(_sum1, _sum5, _MM_SHUFFLE(1, 0, 1, 0));
+                    __m512i _tmp3 = _mm512_shuffle_i32x4(_sum1, _sum5, _MM_SHUFFLE(3, 2, 3, 2));
+                    __m512i _tmp4 = _mm512_shuffle_i32x4(_sum2, _sum6, _MM_SHUFFLE(1, 0, 1, 0));
+                    __m512i _tmp5 = _mm512_shuffle_i32x4(_sum2, _sum6, _MM_SHUFFLE(3, 2, 3, 2));
+                    __m512i _tmp6 = _mm512_shuffle_i32x4(_sum3, _sum7, _MM_SHUFFLE(1, 0, 1, 0));
+                    __m512i _tmp7 = _mm512_shuffle_i32x4(_sum3, _sum7, _MM_SHUFFLE(3, 2, 3, 2));
+                    _sum0 = _mm512_shuffle_i32x4(_tmp0, _tmp2, _MM_SHUFFLE(2, 0, 2, 0));
+                    _sum1 = _mm512_shuffle_i32x4(_tmp4, _tmp6, _MM_SHUFFLE(2, 0, 2, 0));
+                    _sum2 = _mm512_shuffle_i32x4(_tmp0, _tmp2, _MM_SHUFFLE(1, 3, 1, 3));
+                    _sum3 = _mm512_shuffle_i32x4(_tmp4, _tmp6, _MM_SHUFFLE(1, 3, 1, 3));
+                    _sum4 = _mm512_shuffle_i32x4(_tmp1, _tmp3, _MM_SHUFFLE(2, 0, 2, 0));
+                    _sum5 = _mm512_shuffle_i32x4(_tmp5, _tmp7, _MM_SHUFFLE(2, 0, 2, 0));
+                    _sum6 = _mm512_shuffle_i32x4(_tmp1, _tmp3, _MM_SHUFFLE(1, 3, 1, 3));
+                    _sum7 = _mm512_shuffle_i32x4(_tmp5, _tmp7, _MM_SHUFFLE(1, 3, 1, 3));
+                }
+
+                _mm512_storeu_si512((__m512i*)outptr, _sum0);
+                _mm512_storeu_si512((__m512i*)(outptr + 16), _sum1);
+                _mm512_storeu_si512((__m512i*)(outptr + 32), _sum2);
+                _mm512_storeu_si512((__m512i*)(outptr + 48), _sum3);
+                _mm512_storeu_si512((__m512i*)(outptr + 64), _sum4);
+                _mm512_storeu_si512((__m512i*)(outptr + 80), _sum5);
+                _mm512_storeu_si512((__m512i*)(outptr + 96), _sum6);
+                _mm512_storeu_si512((__m512i*)(outptr + 112), _sum7);
+                outptr += 128;
+            }
+#endif // __AVX512F__
             for (; jj + 7 < max_jj; jj += 8)
             {
                 const short* pA = pAT;
@@ -1573,6 +2020,124 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             const short* pB = BT_tile.row<const short>(b);
 
             int jj = 0;
+#if __AVX512F__
+            for (; jj + 15 < max_jj; jj += 16)
+            {
+                const short* pA = pAT;
+
+                __m512i _sum0;
+                __m512i _sum1;
+                __m512i _sum2;
+                __m512i _sum3;
+
+                if (k == 0)
+                {
+                    _sum0 = _mm512_setzero_si512();
+                    _sum1 = _mm512_setzero_si512();
+                    _sum2 = _mm512_setzero_si512();
+                    _sum3 = _mm512_setzero_si512();
+                }
+                else
+                {
+                    _sum0 = _mm512_loadu_si512((const __m512i*)outptr);
+                    _sum1 = _mm512_loadu_si512((const __m512i*)(outptr + 16));
+                    _sum2 = _mm512_loadu_si512((const __m512i*)(outptr + 32));
+                    _sum3 = _mm512_loadu_si512((const __m512i*)(outptr + 48));
+                }
+
+                int kk = 0;
+                for (; kk + 1 < max_kk; kk += 2)
+                {
+                    __m128i _pA = _mm_loadu_si128((const __m128i*)pA);
+                    __m512i _pB0 = _mm512_loadu_si512((const __m512i*)pB);
+                    __m256i _pAA = _mm256_inserti128_si256(_mm256_castsi128_si256(_pA), _pA, 1);
+                    __m512i _pA0 = _mm512_inserti32x8(_mm512_castsi256_si512(_pAA), _pAA, 1);
+                    __m512i _pA1 = _mm512_shuffle_epi32(_pA0, _MM_PERM_BADC);
+                    __m512i _pB1 = _mm512_shuffle_epi32(_pB0, _MM_PERM_ADCB);
+
+#if __AVX512VNNI__
+                    _sum0 = _mm512_dpwssd_epi32(_sum0, _pA0, _pB0);
+                    _sum1 = _mm512_dpwssd_epi32(_sum1, _pA0, _pB1);
+                    _sum2 = _mm512_dpwssd_epi32(_sum2, _pA1, _pB0);
+                    _sum3 = _mm512_dpwssd_epi32(_sum3, _pA1, _pB1);
+#else
+                    _sum0 = _mm512_add_epi32(_sum0, _mm512_madd_epi16(_pA0, _pB0));
+                    _sum1 = _mm512_add_epi32(_sum1, _mm512_madd_epi16(_pA0, _pB1));
+                    _sum2 = _mm512_add_epi32(_sum2, _mm512_madd_epi16(_pA1, _pB0));
+                    _sum3 = _mm512_add_epi32(_sum3, _mm512_madd_epi16(_pA1, _pB1));
+#endif
+
+                    pA += 8;
+                    pB += 32;
+                }
+                for (; kk < max_kk; kk++)
+                {
+                    __m256i _pA = _mm256_castpd_si256(_mm256_broadcast_sd((const double*)pA));
+                    __m256i _pB = _mm256_loadu_si256((const __m256i*)pB);
+
+                    __m512i _pA0 = _mm512_cvtepi16_epi32(_pA);
+                    __m512i _pB0 = _mm512_cvtepi16_epi32(_pB);
+                    __m512i _pA1 = _mm512_permutex_epi64(_pA0, _MM_SHUFFLE(2, 3, 0, 1));
+                    __m512i _pB1 = _mm512_shuffle_epi32(_pB0, _MM_SHUFFLE(0, 3, 2, 1));
+
+                    __m512i _s0 = _mm512_mullo_epi32(_pA0, _pB0);
+                    __m512i _s1 = _mm512_mullo_epi32(_pA0, _pB1);
+                    __m512i _s2 = _mm512_mullo_epi32(_pA1, _pB0);
+                    __m512i _s3 = _mm512_mullo_epi32(_pA1, _pB1);
+
+                    _sum0 = _mm512_add_epi32(_sum0, _s0);
+                    _sum1 = _mm512_add_epi32(_sum1, _s1);
+                    _sum2 = _mm512_add_epi32(_sum2, _s2);
+                    _sum3 = _mm512_add_epi32(_sum3, _s3);
+
+                    pA += 4;
+                    pB += 16;
+                }
+
+                if (k_end)
+                {
+                    // from
+                    //      00 11 22 33 04 15 26 37 08 19 2a 3b 0c 1d 2e 3f
+                    //      01 12 23 30 05 16 27 34 09 1a 2b 38 0d 1e 2f 3c
+                    //      20 31 02 13 24 35 06 17 28 3a 0a 1b 2c 3d 0e 1f
+                    //      21 32 03 10 25 36 07 14 29 3a 0b 18 2d 3e 0f 1c
+                    // to
+                    //      00 10 20 30 04 14 24 34 08 18 28 38 0c 1c 2c 3c
+                    //      01 11 21 31 05 15 25 35 09 19 29 39 0d 1d 2d 3d
+                    //      02 12 22 32 06 16 26 36 0a 1a 2a 3a 0e 1e 2e 3e
+                    //      03 13 23 33 07 17 27 37 0b 1b 2b 3b 0f 1f 2f 3f
+                    {
+                        _sum1 = _mm512_shuffle_epi32(_sum1, _MM_PERM_CBAD);
+                        _sum3 = _mm512_shuffle_epi32(_sum3, _MM_PERM_CBAD);
+                        __m512i _tmp0 = _mm512_unpacklo_epi32(_sum0, _sum3);
+                        __m512i _tmp1 = _mm512_unpackhi_epi32(_sum0, _sum3);
+                        __m512i _tmp2 = _mm512_unpacklo_epi32(_sum2, _sum1);
+                        __m512i _tmp3 = _mm512_unpackhi_epi32(_sum2, _sum1);
+                        _sum0 = _mm512_unpacklo_epi64(_tmp0, _tmp2);
+                        _sum1 = _mm512_unpackhi_epi64(_tmp0, _tmp2);
+                        _sum2 = _mm512_unpacklo_epi64(_tmp3, _tmp1);
+                        _sum3 = _mm512_unpackhi_epi64(_tmp3, _tmp1);
+                        _sum1 = _mm512_shuffle_epi32(_sum1, _MM_PERM_CBAD);
+                        _sum3 = _mm512_shuffle_epi32(_sum3, _MM_PERM_CBAD);
+                    }
+
+                    __m512i _tmp0 = _mm512_shuffle_i32x4(_sum0, _sum1, _MM_SHUFFLE(1, 0, 1, 0));
+                    __m512i _tmp1 = _mm512_shuffle_i32x4(_sum2, _sum3, _MM_SHUFFLE(1, 0, 1, 0));
+                    __m512i _tmp2 = _mm512_shuffle_i32x4(_sum0, _sum1, _MM_SHUFFLE(3, 2, 3, 2));
+                    __m512i _tmp3 = _mm512_shuffle_i32x4(_sum2, _sum3, _MM_SHUFFLE(3, 2, 3, 2));
+                    _sum0 = _mm512_shuffle_i32x4(_tmp0, _tmp1, _MM_SHUFFLE(2, 0, 2, 0));
+                    _sum1 = _mm512_shuffle_i32x4(_tmp0, _tmp1, _MM_SHUFFLE(3, 1, 3, 1));
+                    _sum2 = _mm512_shuffle_i32x4(_tmp2, _tmp3, _MM_SHUFFLE(2, 0, 2, 0));
+                    _sum3 = _mm512_shuffle_i32x4(_tmp2, _tmp3, _MM_SHUFFLE(3, 1, 3, 1));
+                }
+
+                _mm512_storeu_si512((__m512i*)outptr, _sum0);
+                _mm512_storeu_si512((__m512i*)(outptr + 16), _sum1);
+                _mm512_storeu_si512((__m512i*)(outptr + 32), _sum2);
+                _mm512_storeu_si512((__m512i*)(outptr + 48), _sum3);
+                outptr += 64;
+            }
+#endif // __AVX512F__
             for (; jj + 7 < max_jj; jj += 8)
             {
                 const short* pA = pAT;
@@ -2112,6 +2677,71 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             int jj = 0;
 #if __SSE2__
 #if __AVX512F__
+            for (; jj + 15 < max_jj; jj += 16)
+            {
+                const short* pA = pAT;
+
+                __m512i _sum0;
+                __m512i _sum1;
+
+                if (k == 0)
+                {
+                    _sum0 = _mm512_setzero_si512();
+                    _sum1 = _mm512_setzero_si512();
+                }
+                else
+                {
+                    _sum0 = _mm512_loadu_si512((const __m512i*)outptr);
+                    _sum1 = _mm512_loadu_si512((const __m512i*)(outptr + 16));
+                }
+
+                int kk = 0;
+                for (; kk + 1 < max_kk; kk += 2)
+                {
+                    __m512i _pA0 = _mm512_set1_epi32(((const int*)pA)[0]);
+                    __m512i _pA1 = _mm512_set1_epi32(((const int*)pA)[1]);
+                    __m512i _pB0 = _mm512_loadu_si512((const __m512i*)pB);
+#if __AVX512VNNI__
+                    _sum0 = _mm512_dpwssd_epi32(_sum0, _pA0, _pB0);
+                    _sum1 = _mm512_dpwssd_epi32(_sum1, _pA1, _pB0);
+#else
+                    _sum0 = _mm512_add_epi32(_sum0, _mm512_madd_epi16(_pA0, _pB0));
+                    _sum1 = _mm512_add_epi32(_sum1, _mm512_madd_epi16(_pA1, _pB0));
+#endif // __AVX512VNNI__
+
+                    pA += 4;
+                    pB += 32;
+                }
+                for (; kk < max_kk; kk++)
+                {
+                    __m512i _pA0 = _mm512_set1_epi32(pA[0]);
+                    __m512i _pA1 = _mm512_set1_epi32(pA[1]);
+                    __m256i _pB = _mm256_loadu_si256((const __m256i*)pB);
+                    __m512i _pB0 = _mm512_cvtepi16_epi32(_pB);
+
+                    __m512i _s0 = _mm512_mullo_epi32(_pA0, _pB0);
+                    __m512i _s1 = _mm512_mullo_epi32(_pA1, _pB0);
+                    _sum0 = _mm512_add_epi32(_sum0, _s0);
+                    _sum1 = _mm512_add_epi32(_sum1, _s1);
+
+                    pA += 2;
+                    pB += 16;
+                }
+
+                if (k_end)
+                {
+                    __m512i _tmp0 = _mm512_unpacklo_epi32(_sum0, _sum1);
+                    __m512i _tmp1 = _mm512_unpackhi_epi32(_sum0, _sum1);
+                    _sum0 = _mm512_shuffle_i32x4(_tmp0, _tmp1, _MM_SHUFFLE(1, 0, 1, 0));
+                    _sum1 = _mm512_shuffle_i32x4(_tmp0, _tmp1, _MM_SHUFFLE(3, 2, 3, 2));
+                    _sum0 = _mm512_shuffle_i32x4(_sum0, _sum0, _MM_SHUFFLE(3, 1, 2, 0));
+                    _sum1 = _mm512_shuffle_i32x4(_sum1, _sum1, _MM_SHUFFLE(3, 1, 2, 0));
+                }
+
+                _mm512_storeu_si512((__m512i*)outptr, _sum0);
+                _mm512_storeu_si512((__m512i*)(outptr + 16), _sum1);
+                outptr += 32;
+            }
 #endif // __AVX512F__
             for (; jj + 7 < max_jj; jj += 8)
             {
@@ -2411,7 +3041,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
 
             int jj = 0;
 #if __SSE2__
-#if 0//__AVX512F__
+#if __AVX512F__
             for (; jj + 15 < max_jj; jj += 16)
             {
                 const short* pA = pAT;
@@ -2448,7 +3078,6 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                     __m512i _pB0 = _mm512_cvtepi16_epi32(_mm256_loadu_si256((const __m256i*)pB));
 
                     __m512i _s0 = _mm512_mullo_epi32(_pA, _pB0);
-
                     _sum0 = _mm512_add_epi32(_sum0, _s0);
 
                     pA += 1;
