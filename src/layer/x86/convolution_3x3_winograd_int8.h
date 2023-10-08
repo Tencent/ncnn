@@ -2756,7 +2756,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             {
                 const short* pA = pAT;
 
-#if __AVX2__
+#if 0//__AVX2__
                 __m256i _sum0;
                 __m256i _sum1;
 #else
@@ -2768,7 +2768,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
 
                 if (k == 0)
                 {
-#if __AVX2__
+#if 0//__AVX2__
                     _sum0 = _mm256_setzero_si256();
                     _sum1 = _mm256_setzero_si256();
 #else
@@ -2780,7 +2780,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 }
                 else
                 {
-#if __AVX2__
+#if 0//__AVX2__
                     _sum0 = _mm256_loadu_si256((const __m256i*)outptr);
                     _sum1 = _mm256_loadu_si256((const __m256i*)(outptr + 8));
 #else
@@ -2794,7 +2794,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 int kk = 0;
                 for (; kk + 1 < max_kk; kk += 2)
                 {
-#if __AVX2__
+#if 0//__AVX2__
                     __m256i _pA0 = _mm256_castps_si256(_mm256_broadcast_ss((const float*)pA));
                     __m256i _pA1 = _mm256_castps_si256(_mm256_broadcast_ss((const float*)(pA + 2)));
                     __m256i _pB0 = _mm256_loadu_si256((const __m256i*)pB);
@@ -2822,7 +2822,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 for (; kk < max_kk; kk++)
                 {
                     __m128i _pB = _mm_load_si128((const __m128i*)pB);
-#if __AVX2__
+#if 0//__AVX2__
                     __m256i _pA0 = _mm256_set1_epi32(pA[0]);
                     __m256i _pA1 = _mm256_set1_epi32(pA[1]);
                     __m256i _pB0 = _mm256_cvtepi16_epi32(_pB);
@@ -2852,7 +2852,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                     pB += 8;
                 }
 
-#if __AVX2__
+#if 0//__AVX2__
                 if (k_end)
                 {
                     __m256i _tmp0 = _mm256_unpacklo_epi32(_sum0, _sum1);
