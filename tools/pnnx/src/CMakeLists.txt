@@ -733,7 +733,7 @@ if(WIN32)
     target_compile_definitions(pnnx PUBLIC NOMINMAX)
 endif()
 
-if(PNNX_PYHON)
+if(PNNX_PYTHON)
     #if(PROTOBUF_FOUND)
     #    target_compile_definitions(pnnx PRIVATE BUILD_PNNX2ONNX)
     #    target_link_libraries(pnnx PRIVATE pnnx2onnx)
