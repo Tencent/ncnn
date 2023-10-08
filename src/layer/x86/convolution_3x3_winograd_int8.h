@@ -731,9 +731,9 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                     __m512i _pA2 = _mm512_shuffle_i32x4(_pA0, _pA0, _MM_SHUFFLE(1, 0, 3, 2));
                     __m512i _pA3 = _mm512_shuffle_i32x4(_pA0, _pA0, _MM_SHUFFLE(0, 3, 2, 1));
 
-                    __m512i _pB1 = _mm512_shuffle_epi32(_pB0, _MM_SHUFFLE(0, 3, 2, 1));
+                    __m512i _pB1 = _mm512_shuffle_epi32(_pB0, _MM_PERM_ADCB);
                     __m512i _pB2 = _mm512_permutex_epi64(_pB0, _MM_SHUFFLE(2, 3, 0, 1));
-                    __m512i _pB3 = _mm512_shuffle_epi32(_pB0, _MM_SHUFFLE(2, 1, 0, 3));
+                    __m512i _pB3 = _mm512_shuffle_epi32(_pB0, _MM_PERM_CBAD);
 
                     __m512i _s0 = _mm512_mullo_epi32(_pA0, _pB0);
                     __m512i _s1 = _mm512_mullo_epi32(_pA0, _pB1);
@@ -2078,7 +2078,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                     __m512i _pA0 = _mm512_cvtepi16_epi32(_pA);
                     __m512i _pB0 = _mm512_cvtepi16_epi32(_pB);
                     __m512i _pA1 = _mm512_permutex_epi64(_pA0, _MM_SHUFFLE(2, 3, 0, 1));
-                    __m512i _pB1 = _mm512_shuffle_epi32(_pB0, _MM_SHUFFLE(0, 3, 2, 1));
+                    __m512i _pB1 = _mm512_shuffle_epi32(_pB0, _MM_PERM_ADCB);
 
                     __m512i _s0 = _mm512_mullo_epi32(_pA0, _pB0);
                     __m512i _s1 = _mm512_mullo_epi32(_pA0, _pB1);
