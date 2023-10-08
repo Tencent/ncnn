@@ -2822,7 +2822,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                     __m256i _s1 = _mm256_mullo_epi32(_pA1, _pB0);
                     _sum0 = _mm256_add_epi32(_sum0, _s0);
                     _sum1 = _mm256_add_epi32(_sum1, _s1);
-#else // __AVX2__
+#else  // __AVX2__
                     __m128i _pA0 = _mm_set1_epi16(pA[0]);
                     __m128i _pA1 = _mm_set1_epi16(pA[1]);
 
@@ -2855,7 +2855,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 _mm256_storeu_si256((__m256i*)outptr, _sum0);
                 _mm256_storeu_si256((__m256i*)(outptr + 8), _sum1);
                 outptr += 16;
-#else // __AVX2__
+#else  // __AVX2__
                 if (k_end)
                 {
                     __m128i _tmp0 = _mm_unpacklo_epi32(_sum0, _sum2);
