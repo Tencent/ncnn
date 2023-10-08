@@ -2795,10 +2795,12 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 for (; kk + 1 < max_kk; kk += 2)
                 {
 #if __AVX2__
-                    __m256i _pA0 = _mm256_set1_epi32(((const int*)pA)[0]);
-                    __m256i _pA1 = _mm256_set1_epi32(((const int*)pA)[1]);
+                    __m256i _pA0 = _mm256_castps_si256(_mm256_broadcast_ss((const float*)pA));
+                    __m256i _pA1 = _mm256_castps_si256(_mm256_broadcast_ss((const float*)(pA + 2)));
+                    // __m256i _pA0 = _mm256_set1_epi32(((const int*)pA)[0]);
+                    // __m256i _pA1 = _mm256_set1_epi32(((const int*)pA)[1]);
                     __m256i _pB0 = _mm256_loadu_si256((const __m256i*)pB);
-#if __AVX512VNNI__ || __AVXVNNI__
+#if 0 //__AVX512VNNI__ || __AVXVNNI__
                     _sum0 = _mm256_dpwssd_epi32(_sum0, _pA0, _pB0);
                     _sum1 = _mm256_dpwssd_epi32(_sum1, _pA1, _pB0);
 #else
