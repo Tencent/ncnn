@@ -287,7 +287,6 @@ static void transpose_pack_B_tile_int8(const Mat& B, Mat& BT, int batch, int max
                 _mm512_storeu_si512((__m512i*)(pp + 160), _r5);
                 _mm512_storeu_si512((__m512i*)(pp + 192), _r6);
                 _mm512_storeu_si512((__m512i*)(pp + 224), _r7);
-
                 p0 += max_jj * batch * 16;
                 pp += 256;
             }
@@ -3523,60 +3522,12 @@ static inline void conv3x3s1_winograd23_transform_input_tile_int8(const Mat& bot
                     }
                     if (elempack == 1)
                     {
-                        const signed char* r1 = r0 + N;
-                        const signed char* r2 = r0 + N * 2;
-                        const signed char* r3 = r0 + N * 3;
-                        const signed char* r4 = r0 + N * 4;
-                        const signed char* r5 = r0 + N * 5;
-                        const signed char* r6 = r0 + N * 6;
-                        const signed char* r7 = r0 + N * 7;
-                        const signed char* r8 = r0 + N * 8;
-                        const signed char* r9 = r0 + N * 9;
-                        const signed char* ra = r0 + N * 10;
-                        const signed char* rb = r0 + N * 11;
-                        const signed char* rc = r0 + N * 12;
-                        const signed char* rd = r0 + N * 13;
-                        const signed char* re = r0 + N * 14;
-                        const signed char* rf = r0 + N * 15;
-
-                        __m128i _t0 = _mm_loadl_epi64((const __m128i*)r0);
-                        __m128i _t1 = _mm_loadl_epi64((const __m128i*)r1);
-                        __m128i _t2 = _mm_loadl_epi64((const __m128i*)r2);
-                        __m128i _t3 = _mm_loadl_epi64((const __m128i*)r3);
-                        __m128i _t4 = _mm_loadl_epi64((const __m128i*)r4);
-                        __m128i _t5 = _mm_loadl_epi64((const __m128i*)r5);
-                        __m128i _t6 = _mm_loadl_epi64((const __m128i*)r6);
-                        __m128i _t7 = _mm_loadl_epi64((const __m128i*)r7);
-                        __m128i _t8 = _mm_loadl_epi64((const __m128i*)r8);
-                        __m128i _t9 = _mm_loadl_epi64((const __m128i*)r9);
-                        __m128i _ta = _mm_loadl_epi64((const __m128i*)ra);
-                        __m128i _tb = _mm_loadl_epi64((const __m128i*)rb);
-                        __m128i _tc = _mm_loadl_epi64((const __m128i*)rc);
-                        __m128i _td = _mm_loadl_epi64((const __m128i*)rd);
-                        __m128i _te = _mm_loadl_epi64((const __m128i*)re);
-                        __m128i _tf = _mm_loadl_epi64((const __m128i*)rf);
-
-                        __m128i _t01 = _mm_unpacklo_epi8(_t0, _t1);
-                        __m128i _t23 = _mm_unpacklo_epi8(_t2, _t3);
-                        __m128i _t45 = _mm_unpacklo_epi8(_t4, _t5);
-                        __m128i _t67 = _mm_unpacklo_epi8(_t6, _t7);
-                        __m128i _t89 = _mm_unpacklo_epi8(_t8, _t9);
-                        __m128i _tab = _mm_unpacklo_epi8(_ta, _tb);
-                        __m128i _tcd = _mm_unpacklo_epi8(_tc, _td);
-                        __m128i _tef = _mm_unpacklo_epi8(_te, _tf);
-                        _t0 = _mm_unpacklo_epi16(_t01, _t23);
-                        _t1 = _mm_unpacklo_epi16(_t45, _t67);
-                        _t2 = _mm_unpacklo_epi16(_t89, _tab);
-                        _t3 = _mm_unpacklo_epi16(_tcd, _tef);
-                        _t4 = _mm_unpacklo_epi32(_t0, _t1);
-                        _t5 = _mm_unpackhi_epi32(_t0, _t1);
-                        _t6 = _mm_unpacklo_epi32(_t2, _t3);
-                        _t7 = _mm_unpackhi_epi32(_t2, _t3);
-
-                        _r0 = _mm256_cvtepi8_epi16(_mm_unpacklo_epi64(_t4, _t6));
-                        if (tj * 2 + 1 < w) _r1 = _mm256_cvtepi8_epi16(_mm_unpackhi_epi64(_t4, _t6));
-                        if (tj * 2 + 2 < w) _r2 = _mm256_cvtepi8_epi16(_mm_unpacklo_epi64(_t5, _t7));
-                        if (tj * 2 + 3 < w) _r3 = _mm256_cvtepi8_epi16(_mm_unpackhi_epi64(_t5, _t7));
+                        __m512i _vindex = _mm512_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
+                        _vindex = _mm512_mullo_epi32(_vindex, _mm512_set1_epi32(N));
+                        _r0 = _mm256_cvtepi8_epi16(_mm512_cvtepi32_epi8(_mm512_i32gather_epi32(_vindex, (const int*)r0, sizeof(signed char))));
+                        if (tj * 2 + 1 < w) _r1 = _mm256_cvtepi8_epi16(_mm512_cvtepi32_epi8(_mm512_i32gather_epi32(_vindex, (const int*)(r0 + 1), sizeof(signed char))));
+                        if (tj * 2 + 2 < w) _r2 = _mm256_cvtepi8_epi16(_mm512_cvtepi32_epi8(_mm512_i32gather_epi32(_vindex, (const int*)(r0 + 2), sizeof(signed char))));
+                        if (tj * 2 + 3 < w) _r3 = _mm256_cvtepi8_epi16(_mm512_cvtepi32_epi8(_mm512_i32gather_epi32(_vindex, (const int*)(r0 + 3), sizeof(signed char))));
                     }
                 }
 
@@ -3678,6 +3629,36 @@ static inline void conv3x3s1_winograd23_transform_input_tile_int8(const Mat& bot
                     }
                     if (elempack == 1)
                     {
+#if __AVX2__
+                        __m256i _vindex = _mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7);
+                        _vindex = _mm256_mullo_epi32(_vindex, _mm256_set1_epi32(N));
+#if __AVX512F__
+                        _r0 = _mm_cvtepi8_epi16(_mm256_cvtepi32_epi8(_mm256_i32gather_epi32((const int*)r0, _vindex, sizeof(signed char))));
+                        if (tj * 2 + 1 < w) _r1 = _mm_cvtepi8_epi16(_mm256_cvtepi32_epi8(_mm256_i32gather_epi32((const int*)(r0 + 1), _vindex, sizeof(signed char))));
+                        if (tj * 2 + 2 < w) _r2 = _mm_cvtepi8_epi16(_mm256_cvtepi32_epi8(_mm256_i32gather_epi32((const int*)(r0 + 2), _vindex, sizeof(signed char))));
+                        if (tj * 2 + 3 < w) _r3 = _mm_cvtepi8_epi16(_mm256_cvtepi32_epi8(_mm256_i32gather_epi32((const int*)(r0 + 3), _vindex, sizeof(signed char))));
+#else
+                        __m128i _sindex8 = _mm_setr_epi8(0, 4, 8, 12, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1);
+                        __m256i _sindex88 = _mm256_inserti128_si256(_mm256_castsi128_si256(_sindex8), _sindex8, 1);
+                        __m256i _val0_32 = _mm256_shuffle_epi8(_mm256_i32gather_epi32((const int*)r0, _vindex, sizeof(signed char)), _sindex88);
+                        _r0 = _mm_cvtepi8_epi16(_mm_unpacklo_epi32(_mm256_extracti128_si256(_val0_32, 0), _mm256_extracti128_si256(_val0_32, 1)));
+                        if (tj * 2 + 1 < w)
+                        {
+                            __m256i _val1_32 = _mm256_shuffle_epi8(_mm256_i32gather_epi32((const int*)(r0 + 1), _vindex, sizeof(signed char)), _sindex88);
+                            _r1 = _mm_cvtepi8_epi16(_mm_unpacklo_epi32(_mm256_extracti128_si256(_val1_32, 0), _mm256_extracti128_si256(_val1_32, 1)));
+                        }
+                        if (tj * 2 + 2 < w)
+                        {
+                            __m256i _val2_32 = _mm256_shuffle_epi8(_mm256_i32gather_epi32((const int*)(r0 + 2), _vindex, sizeof(signed char)), _sindex88);
+                            _r2 = _mm_cvtepi8_epi16(_mm_unpacklo_epi32(_mm256_extracti128_si256(_val2_32, 0), _mm256_extracti128_si256(_val2_32, 1)));
+                        }
+                        if (tj * 2 + 3 < w)
+                        {
+                            __m256i _val3_32 = _mm256_shuffle_epi8(_mm256_i32gather_epi32((const int*)(r0 + 3), _vindex, sizeof(signed char)), _sindex88);
+                            _r3 = _mm_cvtepi8_epi16(_mm_unpacklo_epi32(_mm256_extracti128_si256(_val3_32, 0), _mm256_extracti128_si256(_val3_32, 1)));
+                        }
+#endif // __AVX512F__
+#else  // __AVX2__
                         const signed char* r1 = r0 + N;
                         const signed char* r2 = r0 + N * 2;
                         const signed char* r3 = r0 + N * 3;
@@ -3711,6 +3692,7 @@ static inline void conv3x3s1_winograd23_transform_input_tile_int8(const Mat& bot
                         if (tj * 2 + 1 < w) _r1 = _mm_unpackhi_epi8(_t2, _extt2);
                         if (tj * 2 + 2 < w) _r2 = _mm_unpacklo_epi8(_t3, _extt3);
                         if (tj * 2 + 3 < w) _r3 = _mm_unpackhi_epi8(_t3, _extt3);
+#endif // __AVX2__
                     }
                 }
 
@@ -4803,62 +4785,14 @@ static inline void conv3x3s1_winograd43_transform_input_tile_int8(const Mat& bot
                     }
                     if (elempack == 1)
                     {
-                        const signed char* r1 = r0 + N;
-                        const signed char* r2 = r0 + N * 2;
-                        const signed char* r3 = r0 + N * 3;
-                        const signed char* r4 = r0 + N * 4;
-                        const signed char* r5 = r0 + N * 5;
-                        const signed char* r6 = r0 + N * 6;
-                        const signed char* r7 = r0 + N * 7;
-                        const signed char* r8 = r0 + N * 8;
-                        const signed char* r9 = r0 + N * 9;
-                        const signed char* ra = r0 + N * 10;
-                        const signed char* rb = r0 + N * 11;
-                        const signed char* rc = r0 + N * 12;
-                        const signed char* rd = r0 + N * 13;
-                        const signed char* re = r0 + N * 14;
-                        const signed char* rf = r0 + N * 15;
-
-                        __m128i _t0 = _mm_loadl_epi64((const __m128i*)r0);
-                        __m128i _t1 = _mm_loadl_epi64((const __m128i*)r1);
-                        __m128i _t2 = _mm_loadl_epi64((const __m128i*)r2);
-                        __m128i _t3 = _mm_loadl_epi64((const __m128i*)r3);
-                        __m128i _t4 = _mm_loadl_epi64((const __m128i*)r4);
-                        __m128i _t5 = _mm_loadl_epi64((const __m128i*)r5);
-                        __m128i _t6 = _mm_loadl_epi64((const __m128i*)r6);
-                        __m128i _t7 = _mm_loadl_epi64((const __m128i*)r7);
-                        __m128i _t8 = _mm_loadl_epi64((const __m128i*)r8);
-                        __m128i _t9 = _mm_loadl_epi64((const __m128i*)r9);
-                        __m128i _ta = _mm_loadl_epi64((const __m128i*)ra);
-                        __m128i _tb = _mm_loadl_epi64((const __m128i*)rb);
-                        __m128i _tc = _mm_loadl_epi64((const __m128i*)rc);
-                        __m128i _td = _mm_loadl_epi64((const __m128i*)rd);
-                        __m128i _te = _mm_loadl_epi64((const __m128i*)re);
-                        __m128i _tf = _mm_loadl_epi64((const __m128i*)rf);
-
-                        __m128i _t01 = _mm_unpacklo_epi8(_t0, _t1);
-                        __m128i _t23 = _mm_unpacklo_epi8(_t2, _t3);
-                        __m128i _t45 = _mm_unpacklo_epi8(_t4, _t5);
-                        __m128i _t67 = _mm_unpacklo_epi8(_t6, _t7);
-                        __m128i _t89 = _mm_unpacklo_epi8(_t8, _t9);
-                        __m128i _tab = _mm_unpacklo_epi8(_ta, _tb);
-                        __m128i _tcd = _mm_unpacklo_epi8(_tc, _td);
-                        __m128i _tef = _mm_unpacklo_epi8(_te, _tf);
-                        _t0 = _mm_unpacklo_epi16(_t01, _t23);
-                        _t1 = _mm_unpacklo_epi16(_t45, _t67);
-                        _t2 = _mm_unpacklo_epi16(_t89, _tab);
-                        _t3 = _mm_unpacklo_epi16(_tcd, _tef);
-                        _t4 = _mm_unpacklo_epi32(_t0, _t1);
-                        _t5 = _mm_unpackhi_epi32(_t0, _t1);
-                        _t6 = _mm_unpacklo_epi32(_t2, _t3);
-                        _t7 = _mm_unpackhi_epi32(_t2, _t3);
-
-                        _r0 = _mm256_cvtepi8_epi16(_mm_unpacklo_epi64(_t4, _t6));
-                        if (tj * 4 + 1 < w) _r1 = _mm256_cvtepi8_epi16(_mm_unpackhi_epi64(_t4, _t6));
-                        if (tj * 4 + 2 < w) _r2 = _mm256_cvtepi8_epi16(_mm_unpacklo_epi64(_t5, _t7));
-                        if (tj * 4 + 3 < w) _r3 = _mm256_cvtepi8_epi16(_mm_unpackhi_epi64(_t5, _t7));
-                        if (tj * 4 + 4 < w) _r4 = _mm256_setr_epi16(r0[4], r1[4], r2[4], r3[4], r4[4], r5[4], r6[4], r7[4], r8[4], r9[4], ra[4], rb[4], rc[4], rd[4], re[4], rf[4]);
-                        if (tj * 4 + 5 < w) _r5 = _mm256_setr_epi16(r0[5], r1[5], r2[5], r3[5], r4[5], r5[5], r6[5], r7[5], r8[5], r9[5], ra[5], rb[5], rc[5], rd[5], re[5], rf[5]);
+                        __m512i _vindex = _mm512_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
+                        _vindex = _mm512_mullo_epi32(_vindex, _mm512_set1_epi32(N));
+                        _r0 = _mm256_cvtepi8_epi16(_mm512_cvtepi32_epi8(_mm512_i32gather_epi32(_vindex, (const int*)r0, sizeof(signed char))));
+                        if (tj * 4 + 1 < w) _r1 = _mm256_cvtepi8_epi16(_mm512_cvtepi32_epi8(_mm512_i32gather_epi32(_vindex, (const int*)(r0 + 1), sizeof(signed char))));
+                        if (tj * 4 + 2 < w) _r2 = _mm256_cvtepi8_epi16(_mm512_cvtepi32_epi8(_mm512_i32gather_epi32(_vindex, (const int*)(r0 + 2), sizeof(signed char))));
+                        if (tj * 4 + 3 < w) _r3 = _mm256_cvtepi8_epi16(_mm512_cvtepi32_epi8(_mm512_i32gather_epi32(_vindex, (const int*)(r0 + 3), sizeof(signed char))));
+                        if (tj * 4 + 4 < w) _r4 = _mm256_cvtepi8_epi16(_mm512_cvtepi32_epi8(_mm512_i32gather_epi32(_vindex, (const int*)(r0 + 4), sizeof(signed char))));
+                        if (tj * 4 + 5 < w) _r5 = _mm256_cvtepi8_epi16(_mm512_cvtepi32_epi8(_mm512_i32gather_epi32(_vindex, (const int*)(r0 + 5), sizeof(signed char))));
                     }
                 }
 
@@ -4990,6 +4924,48 @@ static inline void conv3x3s1_winograd43_transform_input_tile_int8(const Mat& bot
                     }
                     if (elempack == 1)
                     {
+#if __AVX2__
+                        __m256i _vindex = _mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7);
+                        _vindex = _mm256_mullo_epi32(_vindex, _mm256_set1_epi32(N));
+#if __AVX512F__
+                        _r0 = _mm_cvtepi8_epi16(_mm256_cvtepi32_epi8(_mm256_i32gather_epi32((const int*)r0, _vindex, sizeof(signed char))));
+                        if (tj * 4 + 1 < w) _r1 = _mm_cvtepi8_epi16(_mm256_cvtepi32_epi8(_mm256_i32gather_epi32((const int*)(r0 + 1), _vindex, sizeof(signed char))));
+                        if (tj * 4 + 2 < w) _r2 = _mm_cvtepi8_epi16(_mm256_cvtepi32_epi8(_mm256_i32gather_epi32((const int*)(r0 + 2), _vindex, sizeof(signed char))));
+                        if (tj * 4 + 3 < w) _r3 = _mm_cvtepi8_epi16(_mm256_cvtepi32_epi8(_mm256_i32gather_epi32((const int*)(r0 + 3), _vindex, sizeof(signed char))));
+                        if (tj * 4 + 4 < w) _r4 = _mm_cvtepi8_epi16(_mm256_cvtepi32_epi8(_mm256_i32gather_epi32((const int*)(r0 + 4), _vindex, sizeof(signed char))));
+                        if (tj * 4 + 5 < w) _r5 = _mm_cvtepi8_epi16(_mm256_cvtepi32_epi8(_mm256_i32gather_epi32((const int*)(r0 + 5), _vindex, sizeof(signed char))));
+#else
+                        __m128i _sindex8 = _mm_setr_epi8(0, 4, 8, 12, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1);
+                        __m256i _sindex88 = _mm256_inserti128_si256(_mm256_castsi128_si256(_sindex8), _sindex8, 1);
+                        __m256i _val0_32 = _mm256_shuffle_epi8(_mm256_i32gather_epi32((const int*)r0, _vindex, sizeof(signed char)), _sindex88);
+                        _r0 = _mm_cvtepi8_epi16(_mm_unpacklo_epi32(_mm256_extracti128_si256(_val0_32, 0), _mm256_extracti128_si256(_val0_32, 1)));
+                        if (tj * 4 + 1 < w)
+                        {
+                            __m256i _val1_32 = _mm256_shuffle_epi8(_mm256_i32gather_epi32((const int*)(r0 + 1), _vindex, sizeof(signed char)), _sindex88);
+                            _r1 = _mm_cvtepi8_epi16(_mm_unpacklo_epi32(_mm256_extracti128_si256(_val1_32, 0), _mm256_extracti128_si256(_val1_32, 1)));
+                        }
+                        if (tj * 4 + 2 < w)
+                        {
+                            __m256i _val2_32 = _mm256_shuffle_epi8(_mm256_i32gather_epi32((const int*)(r0 + 2), _vindex, sizeof(signed char)), _sindex88);
+                            _r2 = _mm_cvtepi8_epi16(_mm_unpacklo_epi32(_mm256_extracti128_si256(_val2_32, 0), _mm256_extracti128_si256(_val2_32, 1)));
+                        }
+                        if (tj * 4 + 3 < w)
+                        {
+                            __m256i _val3_32 = _mm256_shuffle_epi8(_mm256_i32gather_epi32((const int*)(r0 + 3), _vindex, sizeof(signed char)), _sindex88);
+                            _r3 = _mm_cvtepi8_epi16(_mm_unpacklo_epi32(_mm256_extracti128_si256(_val3_32, 0), _mm256_extracti128_si256(_val3_32, 1)));
+                        }
+                        if (tj * 4 + 4 < w)
+                        {
+                            __m256i _val4_32 = _mm256_shuffle_epi8(_mm256_i32gather_epi32((const int*)(r0 + 4), _vindex, sizeof(signed char)), _sindex88);
+                            _r4 = _mm_cvtepi8_epi16(_mm_unpacklo_epi32(_mm256_extracti128_si256(_val4_32, 0), _mm256_extracti128_si256(_val4_32, 1)));
+                        }
+                        if (tj * 4 + 5 < w)
+                        {
+                            __m256i _val5_32 = _mm256_shuffle_epi8(_mm256_i32gather_epi32((const int*)(r0 + 5), _vindex, sizeof(signed char)), _sindex88);
+                            _r5 = _mm_cvtepi8_epi16(_mm_unpacklo_epi32(_mm256_extracti128_si256(_val5_32, 0), _mm256_extracti128_si256(_val5_32, 1)));
+                        }
+#endif // __AVX512F__
+#else  // __AVX2__
                         const signed char* r1 = r0 + N;
                         const signed char* r2 = r0 + N * 2;
                         const signed char* r3 = r0 + N * 3;
@@ -5025,6 +5001,7 @@ static inline void conv3x3s1_winograd43_transform_input_tile_int8(const Mat& bot
                         if (tj * 4 + 3 < w) _r3 = _mm_unpackhi_epi8(_t3, _extt3);
                         if (tj * 4 + 4 < w) _r4 = _mm_setr_epi16(r0[4], r1[4], r2[4], r3[4], r4[4], r5[4], r6[4], r7[4]);
                         if (tj * 4 + 5 < w) _r5 = _mm_setr_epi16(r0[5], r1[5], r2[5], r3[5], r4[5], r5[5], r6[5], r7[5]);
+#endif // __AVX2__
                     }
                 }
 
