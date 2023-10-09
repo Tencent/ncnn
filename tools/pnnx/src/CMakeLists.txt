@@ -648,15 +648,33 @@ if(PROTOBUF_FOUND)
 endif()
 
 if(TorchVision_FOUND)
-    get_target_property(TorchVision_location TorchVision::TorchVision LOCATION)
     get_target_property(TorchVision_type TorchVision::TorchVision TYPE)
-    message(STATUS "TorchVision_location = ${TorchVision_location}")
     message(STATUS "TorchVision_type = ${TorchVision_type}")
     if(TorchVision_type STREQUAL "SHARED_LIBRARY")
-        target_link_libraries(pnnx PRIVATE -Wl,--no-as-needed ${TorchVision_location} -Wl,--as-needed)
+        if("${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU")
+            target_link_libraries(pnnx INTERFACE "-Wl,--no-as-needed,\"$<TARGET_FILE:TorchVision::TorchVision>\" -Wl,--as-needed")
+        else()
+            target_link_libraries(pnnx INTERFACE TorchVision::TorchVision)
+        endif()
+        target_link_libraries(pnnx INTERFACE $<TARGET_PROPERTY:TorchVision::TorchVision,INTERFACE_LINK_LIBRARIES>)
     elseif(TorchVision_type STREQUAL "STATIC_LIBRARY")
-        target_link_libraries(pnnx PRIVATE -Wl,--whole-archive ${TorchVision_location} -Wl,--no-whole-archive)
+        if(APPLE)
+            target_link_libraries(pnnx INTERFACE -Wl,-force_load,\"$<TARGET_FILE:TorchVision::TorchVision>\")
+        elseif(MSVC)
+            target_link_libraries(pnnx INTERFACE "$<TARGET_FILE:TorchVision::TorchVision>")
+            target_link_options(pnnx INTERFACE "-WHOLEARCHIVE:$<TARGET_FILE:TorchVision::TorchVision>")
+        else()
+            target_link_libraries(pnnx INTERFACE "-Wl,--whole-archive,\"$<TARGET_FILE:TorchVision::TorchVision>\" -Wl,--no-whole-archive")
+        endif()
     endif()
+
+    set_target_properties(pnnx PROPERTIES
+        INTERFACE_COMPILE_DEFINITIONS $<TARGET_PROPERTY:TorchVision::TorchVision,INTERFACE_COMPILE_DEFINITIONS>
+        INTERFACE_COMPILE_OPTIONS $<TARGET_PROPERTY:TorchVision::TorchVision,INTERFACE_COMPILE_OPTIONS>
+        INTERFACE_INCLUDE_DIRECTORIES $<TARGET_PROPERTY:TorchVision::TorchVision,INTERFACE_INCLUDE_DIRECTORIES>
+        INTERFACE_SYSTEM_INCLUDE_DIRECTORIES $<TARGET_PROPERTY:TorchVision::TorchVision,INTERFACE_SYSTEM_INCLUDE_DIRECTORIES>
+    )
+
     #target_link_libraries(pnnx PRIVATE TorchVision::TorchVision)
 endif()
 
