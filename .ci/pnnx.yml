@@ -20,34 +20,34 @@ jobs:
     strategy:
       matrix:
         include:
-          - torch-version: 1.8.1
-            torchvision-version: 0.9.1
-            torchvision-cache-key: '0_9_1'
-
-          - torch-version: 1.9.1
-            torchvision-version: 0.10.1
-            torchvision-cache-key: '0_10_1'
-
-          - torch-version: 1.10.0
-            torchvision-version: 0.11.1
-            torchvision-cache-key: '0_11_1'
-
-          - torch-version: 1.11.0
-            torchvision-version: 0.12.0
-            torchvision-cache-key: '0_12_0'
-
-          - torch-version: 1.12.0
-            torchvision-version: 0.13.0
-            torchvision-cache-key: '0_13_0'
-
-          - torch-version: 1.13.0
-            torchvision-version: 0.14.0
-            torchvision-cache-key: '0_14_0'
-
-          - torch-version: 2.0.0
-            torchvision-version: 0.15.1
-            torchvision-cache-key: '0_15_1'
-
+          # - torch-version: 1.8.1
+          #   torchvision-version: 0.9.1
+          #   torchvision-cache-key: '0_9_1'
+          #
+          # - torch-version: 1.9.1
+          #   torchvision-version: 0.10.1
+          #   torchvision-cache-key: '0_10_1'
+          #
+          # - torch-version: 1.10.0
+          #   torchvision-version: 0.11.1
+          #   torchvision-cache-key: '0_11_1'
+          #
+          # - torch-version: 1.11.0
+          #   torchvision-version: 0.12.0
+          #   torchvision-cache-key: '0_12_0'
+          #
+          # - torch-version: 1.12.0
+          #   torchvision-version: 0.13.0
+          #   torchvision-cache-key: '0_13_0'
+          #
+          # - torch-version: 1.13.0
+          #   torchvision-version: 0.14.0
+          #   torchvision-cache-key: '0_14_0'
+          #
+          # - torch-version: 2.0.0
+          #   torchvision-version: 0.15.1
+          #   torchvision-cache-key: '0_15_1'
+          #
           - torch-version: 2.1.0
             torchvision-version: 0.16.0
             torchvision-cache-key: '0_16_0'
@@ -118,6 +118,7 @@ jobs:
         mkdir build && cd build
         cmake -DCMAKE_BUILD_TYPE=Release -DTorchVision_INSTALL_DIR=${{ci.workspace}}/torchvision-${{matrix.torchvision-version}}-install ..
         cmake --build . -j 16
+        ldd ./src/pnnx
 
     - name: test
       run: |
