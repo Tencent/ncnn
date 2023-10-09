@@ -382,6 +382,28 @@ static void transpose_pack_B_tile_int8(const Mat& B, Mat& BT, int batch, int max
             p0 += (b * max_jj + jj) * 8;
             for (; kk + 7 < max_kk; kk += 8)
             {
+#if __AVX__
+                __m256 _r0 = _mm256_loadu_ps((const float*)p0);
+                __m256 _r1 = _mm256_loadu_ps((const float*)(p0 + 16));
+                __m256 _r2 = _mm256_loadu_ps((const float*)(p0 + 32));
+                __m256 _r3 = _mm256_loadu_ps((const float*)(p0 + 48));
+                __m256 _tmp0 = _mm256_permute2f128_ps(_r0, _r2, _MM_SHUFFLE(0, 2, 0, 0));
+                __m256 _tmp1 = _mm256_permute2f128_ps(_r0, _r2, _MM_SHUFFLE(0, 3, 0, 1));
+                __m256 _tmp2 = _mm256_permute2f128_ps(_r1, _r3, _MM_SHUFFLE(0, 2, 0, 0));
+                __m256 _tmp3 = _mm256_permute2f128_ps(_r1, _r3, _MM_SHUFFLE(0, 3, 0, 1));
+                _r0 = _mm256_unpacklo_ps(_tmp0, _tmp1);
+                _r1 = _mm256_unpackhi_ps(_tmp0, _tmp1);
+                _r2 = _mm256_unpacklo_ps(_tmp2, _tmp3);
+                _r3 = _mm256_unpackhi_ps(_tmp2, _tmp3);
+                _tmp0 = _mm256_castpd_ps(_mm256_unpacklo_pd(_mm256_castps_pd(_r0), _mm256_castps_pd(_r2)));
+                _tmp1 = _mm256_castpd_ps(_mm256_unpackhi_pd(_mm256_castps_pd(_r0), _mm256_castps_pd(_r2)));
+                _tmp2 = _mm256_castpd_ps(_mm256_unpacklo_pd(_mm256_castps_pd(_r1), _mm256_castps_pd(_r3)));
+                _tmp3 = _mm256_castpd_ps(_mm256_unpackhi_pd(_mm256_castps_pd(_r1), _mm256_castps_pd(_r3)));
+                _mm256_storeu_ps((float*)pp, _tmp0);
+                _mm256_storeu_ps((float*)(pp + 16), _tmp1);
+                _mm256_storeu_ps((float*)(pp + 32), _tmp2);
+                _mm256_storeu_ps((float*)(pp + 48), _tmp3);
+#else
                 __m128i _r0 = _mm_load_si128((const __m128i*)p0);
                 __m128i _r1 = _mm_load_si128((const __m128i*)(p0 + 8));
                 __m128i _r2 = _mm_load_si128((const __m128i*)(p0 + 8 * 2));
@@ -391,14 +413,15 @@ static void transpose_pack_B_tile_int8(const Mat& B, Mat& BT, int batch, int max
                 __m128i _r6 = _mm_load_si128((const __m128i*)(p0 + 8 * 6));
                 __m128i _r7 = _mm_load_si128((const __m128i*)(p0 + 8 * 7));
                 transpose4x8_epi32(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
-                _mm_storeu_si128((__m128i*)pp, _r0);
-                _mm_storeu_si128((__m128i*)(pp + 8), _r1);
-                _mm_storeu_si128((__m128i*)(pp + 8 * 2), _r2);
-                _mm_storeu_si128((__m128i*)(pp + 8 * 3), _r3);
-                _mm_storeu_si128((__m128i*)(pp + 8 * 4), _r4);
-                _mm_storeu_si128((__m128i*)(pp + 8 * 5), _r5);
-                _mm_storeu_si128((__m128i*)(pp + 8 * 6), _r6);
-                _mm_storeu_si128((__m128i*)(pp + 8 * 7), _r7);
+                _mm_store_si128((__m128i*)pp, _r0);
+                _mm_store_si128((__m128i*)(pp + 8), _r1);
+                _mm_store_si128((__m128i*)(pp + 8 * 2), _r2);
+                _mm_store_si128((__m128i*)(pp + 8 * 3), _r3);
+                _mm_store_si128((__m128i*)(pp + 8 * 4), _r4);
+                _mm_store_si128((__m128i*)(pp + 8 * 5), _r5);
+                _mm_store_si128((__m128i*)(pp + 8 * 6), _r6);
+                _mm_store_si128((__m128i*)(pp + 8 * 7), _r7);
+#endif // __AVX__
                 p0 += max_jj * batch * 8;
                 pp += 64;
             }
@@ -406,10 +429,15 @@ static void transpose_pack_B_tile_int8(const Mat& B, Mat& BT, int batch, int max
             p0 += (b * max_jj + jj) * 2;
             for (; kk + 1 < max_kk; kk += 2)
             {
+#if __AVX__
+                __m256 _r0 = _mm256_loadu_ps((const float*)p0);
+                _mm256_storeu_ps((float*)pp, _r0);
+#else
                 __m128i _r0 = _mm_loadu_si128((const __m128i*)p0);
                 __m128i _r1 = _mm_loadu_si128((const __m128i*)(p0 + 8));
                 _mm_store_si128((__m128i*)pp, _r0);
                 _mm_store_si128((__m128i*)(pp + 8), _r1);
+#endif // __AVX__
                 p0 += max_jj * batch * 2;
                 pp += 16;
             }
