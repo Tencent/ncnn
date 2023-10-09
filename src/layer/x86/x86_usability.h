@@ -646,54 +646,6 @@ static NCNN_FORCEINLINE __m256i float2bfloat_avx(const __m256& v0, const __m256&
 }
 
 #if __AVX2__
-static NCNN_FORCEINLINE void transpose8x8_epi32(__m256i& _r0, __m256i& _r1, __m256i& _r2, __m256i& _r3, __m256i& _r4, __m256i& _r5, __m256i& _r6, __m256i& _r7)
-{
-    __m256i _tmp0 = _mm256_unpacklo_epi32(_r0, _r1);
-    __m256i _tmp1 = _mm256_unpackhi_epi32(_r0, _r1);
-    __m256i _tmp2 = _mm256_unpacklo_epi32(_r2, _r3);
-    __m256i _tmp3 = _mm256_unpackhi_epi32(_r2, _r3);
-    __m256i _tmp4 = _mm256_unpacklo_epi32(_r4, _r5);
-    __m256i _tmp5 = _mm256_unpackhi_epi32(_r4, _r5);
-    __m256i _tmp6 = _mm256_unpacklo_epi32(_r6, _r7);
-    __m256i _tmp7 = _mm256_unpackhi_epi32(_r6, _r7);
-
-    __m256i _tmp8 = _mm256_unpacklo_epi64(_tmp0, _tmp2);
-    __m256i _tmp9 = _mm256_unpackhi_epi64(_tmp0, _tmp2);
-    __m256i _tmpa = _mm256_unpacklo_epi64(_tmp4, _tmp6);
-    __m256i _tmpb = _mm256_unpackhi_epi64(_tmp4, _tmp6);
-    __m256i _tmpc = _mm256_unpacklo_epi64(_tmp1, _tmp3);
-    __m256i _tmpd = _mm256_unpackhi_epi64(_tmp1, _tmp3);
-    __m256i _tmpe = _mm256_unpacklo_epi64(_tmp5, _tmp7);
-    __m256i _tmpf = _mm256_unpackhi_epi64(_tmp5, _tmp7);
-
-    _r0 = _mm256_permute2x128_si256(_tmp8, _tmpa, _MM_SHUFFLE(0, 2, 0, 0));
-    _r1 = _mm256_permute2x128_si256(_tmp9, _tmpb, _MM_SHUFFLE(0, 2, 0, 0));
-    _r2 = _mm256_permute2x128_si256(_tmpc, _tmpe, _MM_SHUFFLE(0, 2, 0, 0));
-    _r3 = _mm256_permute2x128_si256(_tmpd, _tmpf, _MM_SHUFFLE(0, 2, 0, 0));
-    _r4 = _mm256_permute2x128_si256(_tmp8, _tmpa, _MM_SHUFFLE(0, 3, 0, 1));
-    _r5 = _mm256_permute2x128_si256(_tmp9, _tmpb, _MM_SHUFFLE(0, 3, 0, 1));
-    _r6 = _mm256_permute2x128_si256(_tmpc, _tmpe, _MM_SHUFFLE(0, 3, 0, 1));
-    _r7 = _mm256_permute2x128_si256(_tmpd, _tmpf, _MM_SHUFFLE(0, 3, 0, 1));
-}
-
-static NCNN_FORCEINLINE void transpose8x4_epi32(__m256i& _r0, __m256i& _r1, __m256i& _r2, __m256i& _r3)
-{
-    __m256i _tmp0 = _mm256_unpacklo_epi32(_r0, _r1);
-    __m256i _tmp1 = _mm256_unpackhi_epi32(_r0, _r1);
-    __m256i _tmp2 = _mm256_unpacklo_epi32(_r2, _r3);
-    __m256i _tmp3 = _mm256_unpackhi_epi32(_r2, _r3);
-
-    __m256i _tmp4 = _mm256_unpacklo_epi64(_tmp0, _tmp2);
-    __m256i _tmp5 = _mm256_unpackhi_epi64(_tmp0, _tmp2);
-    __m256i _tmp6 = _mm256_unpacklo_epi64(_tmp1, _tmp3);
-    __m256i _tmp7 = _mm256_unpackhi_epi64(_tmp1, _tmp3);
-
-    _r0 = _mm256_permute2x128_si256(_tmp4, _tmp5, _MM_SHUFFLE(0, 2, 0, 0));
-    _r1 = _mm256_permute2x128_si256(_tmp6, _tmp7, _MM_SHUFFLE(0, 2, 0, 0));
-    _r2 = _mm256_permute2x128_si256(_tmp4, _tmp5, _MM_SHUFFLE(0, 3, 0, 1));
-    _r3 = _mm256_permute2x128_si256(_tmp6, _tmp7, _MM_SHUFFLE(0, 3, 0, 1));
-}
-
 static NCNN_FORCEINLINE void transpose8x2_epi32(__m256i& _r0, __m256i& _r1)
 {
     __m256i _tmp0 = _mm256_unpacklo_epi32(_r0, _r1);
@@ -740,33 +692,6 @@ static NCNN_FORCEINLINE void transpose16x8_epi16(__m256i& _r0, __m256i& _r1, __m
     _r5 = _mm256_permute2x128_si256(_tmp2, _tmp3, _MM_SHUFFLE(0, 3, 0, 1));
     _r6 = _mm256_permute2x128_si256(_tmp4, _tmp5, _MM_SHUFFLE(0, 3, 0, 1));
     _r7 = _mm256_permute2x128_si256(_tmp6, _tmp7, _MM_SHUFFLE(0, 3, 0, 1));
-}
-
-static NCNN_FORCEINLINE void transpose16x4_epi16(__m256i& _r0, __m256i& _r1, __m256i& _r2, __m256i& _r3)
-{
-    __m256i _tmp0 = _mm256_unpacklo_epi16(_r0, _r1);
-    __m256i _tmp1 = _mm256_unpackhi_epi16(_r0, _r1);
-    __m256i _tmp2 = _mm256_unpacklo_epi16(_r2, _r3);
-    __m256i _tmp3 = _mm256_unpackhi_epi16(_r2, _r3);
-
-    __m256i _tmp4 = _mm256_unpacklo_epi32(_tmp0, _tmp2);
-    __m256i _tmp5 = _mm256_unpackhi_epi32(_tmp0, _tmp2);
-    __m256i _tmp6 = _mm256_unpacklo_epi32(_tmp1, _tmp3);
-    __m256i _tmp7 = _mm256_unpackhi_epi32(_tmp1, _tmp3);
-
-    _r0 = _mm256_permute2x128_si256(_tmp4, _tmp5, _MM_SHUFFLE(0, 2, 0, 0));
-    _r1 = _mm256_permute2x128_si256(_tmp6, _tmp7, _MM_SHUFFLE(0, 2, 0, 0));
-    _r2 = _mm256_permute2x128_si256(_tmp4, _tmp5, _MM_SHUFFLE(0, 3, 0, 1));
-    _r3 = _mm256_permute2x128_si256(_tmp6, _tmp7, _MM_SHUFFLE(0, 3, 0, 1));
-}
-
-static NCNN_FORCEINLINE void transpose16x2_epi16(__m256i& _r0, __m256i& _r1)
-{
-    __m256i _tmp0 = _mm256_unpacklo_epi16(_r0, _r1);
-    __m256i _tmp1 = _mm256_unpackhi_epi16(_r0, _r1);
-
-    _r0 = _mm256_permute2x128_si256(_tmp0, _tmp1, _MM_SHUFFLE(0, 2, 0, 0));
-    _r1 = _mm256_permute2x128_si256(_tmp0, _tmp1, _MM_SHUFFLE(0, 3, 0, 1));
 }
 
 #if __AVX512F__
