@@ -1061,6 +1061,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                         _sum7 = _mm512_shuffle_epi32(_sum7, _MM_PERM_CBAD);
                     }
 
+                    // TODO
                     __m512i _tmp0 = _mm512_shuffle_i32x4(_sum0, _sum4, _MM_SHUFFLE(2, 0, 2, 0));
                     __m512i _tmp1 = _mm512_shuffle_i32x4(_sum1, _sum5, _MM_SHUFFLE(2, 0, 2, 0));
                     __m512i _tmp2 = _mm512_shuffle_i32x4(_sum2, _sum6, _MM_SHUFFLE(2, 0, 2, 0));
@@ -5383,30 +5384,12 @@ static inline void conv3x3s1_winograd43_transform_output_tile_int8(const Mat& to
                 __m512i _tmp2 = _mm512_add_epi32(_tmp02a, _mm512_slli_epi32(_tmp02b, 2));
                 __m512i _tmp3 = _mm512_add_epi32(_mm512_add_epi32(_tmp13a, _mm512_slli_epi32(_tmp13b, 3)), _r5);
 
-                {
-                    // use integer trick for division by 576
-                    __m512i _magic = _mm512_set1_epi32(954437177);
-                    __m512i _t00 = _mm512_mul_epi32(_magic, _tmp0);
-                    __m512i _t01 = _mm512_mul_epi32(_magic, _tmp1);
-                    __m512i _t02 = _mm512_mul_epi32(_magic, _tmp2);
-                    __m512i _t03 = _mm512_mul_epi32(_magic, _tmp3);
-                    __m512i _t10 = _mm512_mul_epi32(_magic, _mm512_bsrli_epi128(_tmp0, 4));
-                    __m512i _t11 = _mm512_mul_epi32(_magic, _mm512_bsrli_epi128(_tmp1, 4));
-                    __m512i _t12 = _mm512_mul_epi32(_magic, _mm512_bsrli_epi128(_tmp2, 4));
-                    __m512i _t13 = _mm512_mul_epi32(_magic, _mm512_bsrli_epi128(_tmp3, 4));
-                    __m512i _t0 = _mm512_mask_blend_epi32(0xAAAA, _mm512_bsrli_epi128(_t00, 4), _t10);
-                    __m512i _t1 = _mm512_mask_blend_epi32(0xAAAA, _mm512_bsrli_epi128(_t01, 4), _t11);
-                    __m512i _t2 = _mm512_mask_blend_epi32(0xAAAA, _mm512_bsrli_epi128(_t02, 4), _t12);
-                    __m512i _t3 = _mm512_mask_blend_epi32(0xAAAA, _mm512_bsrli_epi128(_t03, 4), _t13);
-                    _t0 = _mm512_srai_epi32(_t0, 7);
-                    _t1 = _mm512_srai_epi32(_t1, 7);
-                    _t2 = _mm512_srai_epi32(_t2, 7);
-                    _t3 = _mm512_srai_epi32(_t3, 7);
-                    _tmp0 = _mm512_add_epi32(_t0, _mm512_srli_epi32(_t0, 31));
-                    _tmp1 = _mm512_add_epi32(_t1, _mm512_srli_epi32(_t1, 31));
-                    _tmp2 = _mm512_add_epi32(_t2, _mm512_srli_epi32(_t2, 31));
-                    _tmp3 = _mm512_add_epi32(_t3, _mm512_srli_epi32(_t3, 31));
-                }
+                // TODO use integer trick for division by 576
+                __m512 _v576 = _mm512_set1_ps(1.0 / 576);
+                _tmp0 = _mm512_cvttps_epi32(_mm512_mul_ps(_mm512_cvtepi32_ps(_tmp0), _v576));
+                _tmp1 = _mm512_cvttps_epi32(_mm512_mul_ps(_mm512_cvtepi32_ps(_tmp1), _v576));
+                _tmp2 = _mm512_cvttps_epi32(_mm512_mul_ps(_mm512_cvtepi32_ps(_tmp2), _v576));
+                _tmp3 = _mm512_cvttps_epi32(_mm512_mul_ps(_mm512_cvtepi32_ps(_tmp3), _v576));
 
                 if (out_elempack == 16)
                 {
@@ -5621,30 +5604,12 @@ static inline void conv3x3s1_winograd43_transform_output_tile_int8(const Mat& to
                 __m256i _tmp2 = _mm256_add_epi32(_tmp02a, _mm256_slli_epi32(_tmp02b, 2));
                 __m256i _tmp3 = _mm256_add_epi32(_mm256_add_epi32(_tmp13a, _mm256_slli_epi32(_tmp13b, 3)), _r5);
 
-                {
-                    // use integer trick for division by 576
-                    __m256i _magic = _mm256_set1_epi32(954437177);
-                    __m256i _t00 = _mm256_mul_epi32(_magic, _tmp0);
-                    __m256i _t01 = _mm256_mul_epi32(_magic, _tmp1);
-                    __m256i _t02 = _mm256_mul_epi32(_magic, _tmp2);
-                    __m256i _t03 = _mm256_mul_epi32(_magic, _tmp3);
-                    __m256i _t10 = _mm256_mul_epi32(_magic, _mm256_srli_si256(_tmp0, 4));
-                    __m256i _t11 = _mm256_mul_epi32(_magic, _mm256_srli_si256(_tmp1, 4));
-                    __m256i _t12 = _mm256_mul_epi32(_magic, _mm256_srli_si256(_tmp2, 4));
-                    __m256i _t13 = _mm256_mul_epi32(_magic, _mm256_srli_si256(_tmp3, 4));
-                    __m256i _t0 = _mm256_blend_epi32(_mm256_srli_si256(_t00, 4), _t10, 0xAA);
-                    __m256i _t1 = _mm256_blend_epi32(_mm256_srli_si256(_t01, 4), _t11, 0xAA);
-                    __m256i _t2 = _mm256_blend_epi32(_mm256_srli_si256(_t02, 4), _t12, 0xAA);
-                    __m256i _t3 = _mm256_blend_epi32(_mm256_srli_si256(_t03, 4), _t13, 0xAA);
-                    _t0 = _mm256_srai_epi32(_t0, 7);
-                    _t1 = _mm256_srai_epi32(_t1, 7);
-                    _t2 = _mm256_srai_epi32(_t2, 7);
-                    _t3 = _mm256_srai_epi32(_t3, 7);
-                    _tmp0 = _mm256_add_epi32(_t0, _mm256_srli_epi32(_t0, 31));
-                    _tmp1 = _mm256_add_epi32(_t1, _mm256_srli_epi32(_t1, 31));
-                    _tmp2 = _mm256_add_epi32(_t2, _mm256_srli_epi32(_t2, 31));
-                    _tmp3 = _mm256_add_epi32(_t3, _mm256_srli_epi32(_t3, 31));
-                }
+                // TODO use integer trick for division by 576
+                __m256 _v576 = _mm256_set1_ps(1.0 / 576);
+                _tmp0 = _mm256_cvttps_epi32(_mm256_mul_ps(_mm256_cvtepi32_ps(_tmp0), _v576));
+                _tmp1 = _mm256_cvttps_epi32(_mm256_mul_ps(_mm256_cvtepi32_ps(_tmp1), _v576));
+                _tmp2 = _mm256_cvttps_epi32(_mm256_mul_ps(_mm256_cvtepi32_ps(_tmp2), _v576));
+                _tmp3 = _mm256_cvttps_epi32(_mm256_mul_ps(_mm256_cvtepi32_ps(_tmp3), _v576));
 
                 if (out_elempack == 8)
                 {
@@ -5888,34 +5853,12 @@ static inline void conv3x3s1_winograd43_transform_output_tile_int8(const Mat& to
                 __m128i _tmp2 = _mm_add_epi32(_tmp02a, _mm_slli_epi32(_tmp02b, 2));
                 __m128i _tmp3 = _mm_add_epi32(_mm_add_epi32(_tmp13a, _mm_slli_epi32(_tmp13b, 3)), _r5);
 
-                {
-                    // use integer trick for division by 576
-                    __m128i _magic = _mm_set1_epi32(954437177);
-                    __m128i _t00 = _mm_mul_epu32(_magic, _tmp0);
-                    __m128i _t01 = _mm_mul_epu32(_magic, _tmp1);
-                    __m128i _t02 = _mm_mul_epu32(_magic, _tmp2);
-                    __m128i _t03 = _mm_mul_epu32(_magic, _tmp3);
-                    __m128i _t10 = _mm_mul_epu32(_magic, _mm_srli_si128(_tmp0, 4));
-                    __m128i _t11 = _mm_mul_epu32(_magic, _mm_srli_si128(_tmp1, 4));
-                    __m128i _t12 = _mm_mul_epu32(_magic, _mm_srli_si128(_tmp2, 4));
-                    __m128i _t13 = _mm_mul_epu32(_magic, _mm_srli_si128(_tmp3, 4));
-                    __m128i _t0 = _mm_unpackhi_epi64(_mm_unpacklo_epi32(_t00, _t10), _mm_unpackhi_epi32(_t00, _t10));
-                    __m128i _t1 = _mm_unpackhi_epi64(_mm_unpacklo_epi32(_t01, _t11), _mm_unpackhi_epi32(_t01, _t11));
-                    __m128i _t2 = _mm_unpackhi_epi64(_mm_unpacklo_epi32(_t02, _t12), _mm_unpackhi_epi32(_t02, _t12));
-                    __m128i _t3 = _mm_unpackhi_epi64(_mm_unpacklo_epi32(_t03, _t13), _mm_unpackhi_epi32(_t03, _t13));
-                    _t0 = _mm_sub_epi32(_t0, _mm_and_si128(_magic, _mm_srai_epi32(_tmp0, 31)));
-                    _t1 = _mm_sub_epi32(_t1, _mm_and_si128(_magic, _mm_srai_epi32(_tmp1, 31)));
-                    _t2 = _mm_sub_epi32(_t2, _mm_and_si128(_magic, _mm_srai_epi32(_tmp2, 31)));
-                    _t3 = _mm_sub_epi32(_t3, _mm_and_si128(_magic, _mm_srai_epi32(_tmp3, 31)));
-                    _t0 = _mm_srai_epi32(_t0, 7);
-                    _t1 = _mm_srai_epi32(_t1, 7);
-                    _t2 = _mm_srai_epi32(_t2, 7);
-                    _t3 = _mm_srai_epi32(_t3, 7);
-                    _tmp0 = _mm_add_epi32(_t0, _mm_srli_epi32(_t0, 31));
-                    _tmp1 = _mm_add_epi32(_t1, _mm_srli_epi32(_t1, 31));
-                    _tmp2 = _mm_add_epi32(_t2, _mm_srli_epi32(_t2, 31));
-                    _tmp3 = _mm_add_epi32(_t3, _mm_srli_epi32(_t3, 31));
-                }
+                // TODO use integer trick for division by 576
+                __m128 _v576 = _mm_set1_ps(1.0 / 576);
+                _tmp0 = _mm_cvttps_epi32(_mm_mul_ps(_mm_cvtepi32_ps(_tmp0), _v576));
+                _tmp1 = _mm_cvttps_epi32(_mm_mul_ps(_mm_cvtepi32_ps(_tmp1), _v576));
+                _tmp2 = _mm_cvttps_epi32(_mm_mul_ps(_mm_cvtepi32_ps(_tmp2), _v576));
+                _tmp3 = _mm_cvttps_epi32(_mm_mul_ps(_mm_cvtepi32_ps(_tmp3), _v576));
 
                 if (out_elempack == 4)
                 {
