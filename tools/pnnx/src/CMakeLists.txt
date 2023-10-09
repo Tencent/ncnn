@@ -648,6 +648,9 @@ if(PROTOBUF_FOUND)
 endif()
 
 if(TorchVision_FOUND)
+    get_property(TorchVision_location TARGET TorchVision::TorchVision PROPERTY LOCATION)
+    message(STATUS "TorchVision_location = ${TorchVision_location}")
+
     target_link_libraries(pnnx PRIVATE TorchVision::TorchVision)
 endif()
 
