@@ -28,6 +28,7 @@
 #ifdef PNNX_TORCHVISION
 // register torchvision ops via including headers
 #include <torchvision/vision.h>
+#include <torchvision/ops/ops.h>
 #endif
 
 #include "ir.h"
