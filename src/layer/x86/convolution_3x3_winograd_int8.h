@@ -4757,11 +4757,16 @@ static inline void conv3x3s1_winograd43_transform_input_tile_int8(const Mat& bot
                     }
                 }
 
+                __m256i _tmp12a = _mm256_sub_epi16(_r3, _mm256_mullo_epi16(_r1, _v4));
+                __m256i _tmp12b = _mm256_sub_epi16(_r4, _mm256_mullo_epi16(_r2, _v4));
+                __m256i _tmp34a = _mm256_mullo_epi16(_mm256_sub_epi16(_r3, _r1), _v2);
+                __m256i _tmp34b = _mm256_sub_epi16(_r4, _r2);
+
                 __m256i _tmp0 = _mm256_add_epi16(_r4, _mm256_sub_epi16(_mm256_mullo_epi16(_r0, _v4), _mm256_mullo_epi16(_r2, _v5)));
-                __m256i _tmp1 = _mm256_sub_epi16(_mm256_add_epi16(_r4, _r3), _mm256_mullo_epi16(_mm256_add_epi16(_r1, _r2), _v4));
-                __m256i _tmp2 = _mm256_add_epi16(_mm256_sub_epi16(_r4, _r3), _mm256_mullo_epi16(_mm256_sub_epi16(_r1, _r2), _v4));
-                __m256i _tmp3 = _mm256_add_epi16(_mm256_sub_epi16(_r4, _r2), _mm256_mullo_epi16(_mm256_sub_epi16(_r3, _r1), _v2));
-                __m256i _tmp4 = _mm256_add_epi16(_mm256_sub_epi16(_r4, _r2), _mm256_mullo_epi16(_mm256_sub_epi16(_r1, _r3), _v2));
+                __m256i _tmp1 = _mm256_add_epi16(_tmp12b, _tmp12a);
+                __m256i _tmp2 = _mm256_sub_epi16(_tmp12b, _tmp12a);
+                __m256i _tmp3 = _mm256_add_epi16(_tmp34b, _tmp34a);
+                __m256i _tmp4 = _mm256_sub_epi16(_tmp34b, _tmp34a);
                 __m256i _tmp5 = _mm256_add_epi16(_r5, _mm256_sub_epi16(_mm256_mullo_epi16(_r1, _v4), _mm256_mullo_epi16(_r3, _v5)));
 
                 _mm256_store_si256((__m256i*)tmp[0][m], _tmp0);
@@ -4790,11 +4795,16 @@ static inline void conv3x3s1_winograd43_transform_input_tile_int8(const Mat& bot
                 __m256i _r4 = _mm256_load_si256((const __m256i*)tmp[m][4]);
                 __m256i _r5 = _mm256_load_si256((const __m256i*)tmp[m][5]);
 
+                __m256i _tmp12a = _mm256_sub_epi16(_r3, _mm256_mullo_epi16(_r1, _v4));
+                __m256i _tmp12b = _mm256_sub_epi16(_r4, _mm256_mullo_epi16(_r2, _v4));
+                __m256i _tmp34a = _mm256_mullo_epi16(_mm256_sub_epi16(_r3, _r1), _v2);
+                __m256i _tmp34b = _mm256_sub_epi16(_r4, _r2);
+
                 __m256i _tmp0 = _mm256_add_epi16(_r4, _mm256_sub_epi16(_mm256_mullo_epi16(_r0, _v4), _mm256_mullo_epi16(_r2, _v5)));
-                __m256i _tmp1 = _mm256_sub_epi16(_mm256_add_epi16(_r4, _r3), _mm256_mullo_epi16(_mm256_add_epi16(_r1, _r2), _v4));
-                __m256i _tmp2 = _mm256_add_epi16(_mm256_sub_epi16(_r4, _r3), _mm256_mullo_epi16(_mm256_sub_epi16(_r1, _r2), _v4));
-                __m256i _tmp3 = _mm256_add_epi16(_mm256_sub_epi16(_r4, _r2), _mm256_mullo_epi16(_mm256_sub_epi16(_r3, _r1), _v2));
-                __m256i _tmp4 = _mm256_add_epi16(_mm256_sub_epi16(_r4, _r2), _mm256_mullo_epi16(_mm256_sub_epi16(_r1, _r3), _v2));
+                __m256i _tmp1 = _mm256_add_epi16(_tmp12b, _tmp12a);
+                __m256i _tmp2 = _mm256_sub_epi16(_tmp12b, _tmp12a);
+                __m256i _tmp3 = _mm256_add_epi16(_tmp34b, _tmp34a);
+                __m256i _tmp4 = _mm256_sub_epi16(_tmp34b, _tmp34a);
                 __m256i _tmp5 = _mm256_add_epi16(_r5, _mm256_sub_epi16(_mm256_mullo_epi16(_r1, _v4), _mm256_mullo_epi16(_r3, _v5)));
 
                 _mm256_store_si256((__m256i*)p0, _tmp0);
@@ -4966,11 +4976,16 @@ static inline void conv3x3s1_winograd43_transform_input_tile_int8(const Mat& bot
                     }
                 }
 
+                __m128i _tmp12a = _mm_sub_epi16(_r3, _mm_mullo_epi16(_r1, _v4));
+                __m128i _tmp12b = _mm_sub_epi16(_r4, _mm_mullo_epi16(_r2, _v4));
+                __m128i _tmp34a = _mm_mullo_epi16(_mm_sub_epi16(_r3, _r1), _v2);
+                __m128i _tmp34b = _mm_sub_epi16(_r4, _r2);
+
                 __m128i _tmp0 = _mm_add_epi16(_r4, _mm_sub_epi16(_mm_mullo_epi16(_r0, _v4), _mm_mullo_epi16(_r2, _v5)));
-                __m128i _tmp1 = _mm_sub_epi16(_mm_add_epi16(_r4, _r3), _mm_mullo_epi16(_mm_add_epi16(_r1, _r2), _v4));
-                __m128i _tmp2 = _mm_add_epi16(_mm_sub_epi16(_r4, _r3), _mm_mullo_epi16(_mm_sub_epi16(_r1, _r2), _v4));
-                __m128i _tmp3 = _mm_add_epi16(_mm_sub_epi16(_r4, _r2), _mm_mullo_epi16(_mm_sub_epi16(_r3, _r1), _v2));
-                __m128i _tmp4 = _mm_add_epi16(_mm_sub_epi16(_r4, _r2), _mm_mullo_epi16(_mm_sub_epi16(_r1, _r3), _v2));
+                __m128i _tmp1 = _mm_add_epi16(_tmp12b, _tmp12a);
+                __m128i _tmp2 = _mm_sub_epi16(_tmp12b, _tmp12a);
+                __m128i _tmp3 = _mm_add_epi16(_tmp34b, _tmp34a);
+                __m128i _tmp4 = _mm_sub_epi16(_tmp34b, _tmp34a);
                 __m128i _tmp5 = _mm_add_epi16(_r5, _mm_sub_epi16(_mm_mullo_epi16(_r1, _v4), _mm_mullo_epi16(_r3, _v5)));
 
 #if defined(__GNUC__) && (__GNUC__ <= 4) && (__GNUC_MINOR__ < 6)
@@ -5017,11 +5032,16 @@ static inline void conv3x3s1_winograd43_transform_input_tile_int8(const Mat& bot
                 __m128i _r5 = _mm_load_si128((const __m128i*)tmp[m][5]);
 #endif
 
+                __m128i _tmp12a = _mm_sub_epi16(_r3, _mm_mullo_epi16(_r1, _v4));
+                __m128i _tmp12b = _mm_sub_epi16(_r4, _mm_mullo_epi16(_r2, _v4));
+                __m128i _tmp34a = _mm_mullo_epi16(_mm_sub_epi16(_r3, _r1), _v2);
+                __m128i _tmp34b = _mm_sub_epi16(_r4, _r2);
+
                 __m128i _tmp0 = _mm_add_epi16(_r4, _mm_sub_epi16(_mm_mullo_epi16(_r0, _v4), _mm_mullo_epi16(_r2, _v5)));
-                __m128i _tmp1 = _mm_sub_epi16(_mm_add_epi16(_r4, _r3), _mm_mullo_epi16(_mm_add_epi16(_r1, _r2), _v4));
-                __m128i _tmp2 = _mm_add_epi16(_mm_sub_epi16(_r4, _r3), _mm_mullo_epi16(_mm_sub_epi16(_r1, _r2), _v4));
-                __m128i _tmp3 = _mm_add_epi16(_mm_sub_epi16(_r4, _r2), _mm_mullo_epi16(_mm_sub_epi16(_r3, _r1), _v2));
-                __m128i _tmp4 = _mm_add_epi16(_mm_sub_epi16(_r4, _r2), _mm_mullo_epi16(_mm_sub_epi16(_r1, _r3), _v2));
+                __m128i _tmp1 = _mm_add_epi16(_tmp12b, _tmp12a);
+                __m128i _tmp2 = _mm_sub_epi16(_tmp12b, _tmp12a);
+                __m128i _tmp3 = _mm_add_epi16(_tmp34b, _tmp34a);
+                __m128i _tmp4 = _mm_sub_epi16(_tmp34b, _tmp34a);
                 __m128i _tmp5 = _mm_add_epi16(_r5, _mm_sub_epi16(_mm_mullo_epi16(_r1, _v4), _mm_mullo_epi16(_r3, _v5)));
 
                 _mm_store_si128((__m128i*)p0, _tmp0);
@@ -5111,16 +5131,25 @@ static inline void conv3x3s1_winograd43_transform_input_tile_int8(const Mat& bot
                     }
                 }
 
+                short tmp120a = r30 - r10 * 4;
+                short tmp121a = r31 - r11 * 4;
+                short tmp120b = r40 - r20 * 4;
+                short tmp121b = r41 - r21 * 4;
+                short tmp340a = (r30 - r10) * 2;
+                short tmp341a = (r31 - r11) * 2;
+                short tmp340b = r40 - r20;
+                short tmp341b = r41 - r21;
+
                 tmp[0][m][0] = r40 + r00 * 4 - r20 * 5;
                 tmp[0][m][1] = r41 + r01 * 4 - r21 * 5;
-                tmp[1][m][0] = r40 - r20 * 4 + r30 - r10 * 4;
-                tmp[1][m][1] = r41 - r21 * 4 + r31 - r11 * 4;
-                tmp[2][m][0] = r40 - r20 * 4 - r30 + r10 * 4;
-                tmp[2][m][1] = r41 - r21 * 4 - r31 + r11 * 4;
-                tmp[3][m][0] = r40 - r20 + r30 * 2 - r10 * 2;
-                tmp[3][m][1] = r41 - r21 + r31 * 2 - r11 * 2;
-                tmp[4][m][0] = r40 - r20 - r30 * 2 + r10 * 2;
-                tmp[4][m][1] = r41 - r21 - r31 * 2 + r11 * 2;
+                tmp[1][m][0] = tmp120b + tmp120a;
+                tmp[1][m][1] = tmp121b + tmp121a;
+                tmp[2][m][0] = tmp120b - tmp120a;
+                tmp[2][m][1] = tmp121b - tmp121a;
+                tmp[3][m][0] = tmp340b + tmp340a;
+                tmp[3][m][1] = tmp341b + tmp341a;
+                tmp[4][m][0] = tmp340b - tmp340a;
+                tmp[4][m][1] = tmp341b - tmp341a;
                 tmp[5][m][0] = r50 + r10 * 4 - r30 * 5;
                 tmp[5][m][1] = r51 + r11 * 4 - r31 * 5;
 
@@ -5149,16 +5178,25 @@ static inline void conv3x3s1_winograd43_transform_input_tile_int8(const Mat& bot
                 short r50 = tmp[m][5][0];
                 short r51 = tmp[m][5][1];
 
+                short tmp120a = r30 - r10 * 4;
+                short tmp121a = r31 - r11 * 4;
+                short tmp120b = r40 - r20 * 4;
+                short tmp121b = r41 - r21 * 4;
+                short tmp340a = (r30 - r10) * 2;
+                short tmp341a = (r31 - r11) * 2;
+                short tmp340b = r40 - r20;
+                short tmp341b = r41 - r21;
+
                 p0[0] = r40 + r00 * 4 - r20 * 5;
                 p0[1] = r41 + r01 * 4 - r21 * 5;
-                p1[0] = r40 - r20 * 4 + r30 - r10 * 4;
-                p1[1] = r41 - r21 * 4 + r31 - r11 * 4;
-                p2[0] = r40 - r20 * 4 - r30 + r10 * 4;
-                p2[1] = r41 - r21 * 4 - r31 + r11 * 4;
-                p3[0] = r40 - r20 + r30 * 2 - r10 * 2;
-                p3[1] = r41 - r21 + r31 * 2 - r11 * 2;
-                p4[0] = r40 - r20 - r30 * 2 + r10 * 2;
-                p4[1] = r41 - r21 - r31 * 2 + r11 * 2;
+                p1[0] = tmp120b + tmp120a;
+                p1[1] = tmp121b + tmp121a;
+                p2[0] = tmp120b - tmp120a;
+                p2[1] = tmp121b - tmp121a;
+                p3[0] = tmp340b + tmp340a;
+                p3[1] = tmp341b + tmp341a;
+                p4[0] = tmp340b - tmp340a;
+                p4[1] = tmp341b - tmp341a;
                 p5[0] = r50 + r10 * 4 - r30 * 5;
                 p5[1] = r51 + r11 * 4 - r31 * 5;
 
@@ -5206,11 +5244,16 @@ static inline void conv3x3s1_winograd43_transform_input_tile_int8(const Mat& bot
                     }
                 }
 
+                short tmp12a = r3 - r1 * 4;
+                short tmp12b = r4 - r2 * 4;
+                short tmp34a = (r3 - r1) * 2;
+                short tmp34b = r4 - r2;
+
                 tmp[0][m] = r4 + r0 * 4 - r2 * 5;
-                tmp[1][m] = r4 - r2 * 4 + r3 - r1 * 4;
-                tmp[2][m] = r4 - r2 * 4 - r3 + r1 * 4;
-                tmp[3][m] = r4 - r2 + r3 * 2 - r1 * 2;
-                tmp[4][m] = r4 - r2 - r3 * 2 + r1 * 2;
+                tmp[1][m] = tmp12b + tmp12a;
+                tmp[2][m] = tmp12b - tmp12a;
+                tmp[3][m] = tmp34b + tmp34a;
+                tmp[4][m] = tmp34b - tmp34a;
                 tmp[5][m] = r5 + r1 * 4 - r3 * 5;
 
                 r0123 += w;
@@ -5232,11 +5275,16 @@ static inline void conv3x3s1_winograd43_transform_input_tile_int8(const Mat& bot
                 short r4 = tmp[m][4];
                 short r5 = tmp[m][5];
 
+                short tmp12a = r3 - r1 * 4;
+                short tmp12b = r4 - r2 * 4;
+                short tmp34a = (r3 - r1) * 2;
+                short tmp34b = r4 - r2;
+
                 p0[0] = r4 + r0 * 4 - r2 * 5;
-                p1[0] = r4 - r2 * 4 + r3 - r1 * 4;
-                p2[0] = r4 - r2 * 4 - r3 + r1 * 4;
-                p3[0] = r4 - r2 + r3 * 2 - r1 * 2;
-                p4[0] = r4 - r2 - r3 * 2 + r1 * 2;
+                p1[0] = tmp12b + tmp12a;
+                p2[0] = tmp12b - tmp12a;
+                p3[0] = tmp34b + tmp34a;
+                p4[0] = tmp34b - tmp34a;
                 p5[0] = r5 + r1 * 4 - r3 * 5;
 
                 p0 += max_jj * 6;
