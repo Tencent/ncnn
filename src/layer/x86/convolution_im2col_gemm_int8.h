@@ -6349,14 +6349,14 @@ void convolution_im2col_input_tile_int8(const Mat& bottom_blob, Mat& B, int j, i
                     _rd = _mm_unpacklo_epi64(_r5, _r7);
                     _re = _mm_unpackhi_epi64(_r1, _r3);
                     _rf = _mm_unpackhi_epi64(_r5, _r7);
-                    _mm_storeu_si128((__m128i*)pp, _r8);
-                    _mm_storeu_si128((__m128i*)(pp + 16), _r9);
-                    _mm_storeu_si128((__m128i*)(pp + 32), _ra);
-                    _mm_storeu_si128((__m128i*)(pp + 48), _rb);
-                    _mm_storeu_si128((__m128i*)(pp + 64), _rc);
-                    _mm_storeu_si128((__m128i*)(pp + 80), _rd);
-                    _mm_storeu_si128((__m128i*)(pp + 96), _re);
-                    _mm_storeu_si128((__m128i*)(pp + 112), _rf);
+                    _mm_store_si128((__m128i*)pp, _r8);
+                    _mm_store_si128((__m128i*)(pp + 16), _r9);
+                    _mm_store_si128((__m128i*)(pp + 32), _ra);
+                    _mm_store_si128((__m128i*)(pp + 48), _rb);
+                    _mm_store_si128((__m128i*)(pp + 64), _rc);
+                    _mm_store_si128((__m128i*)(pp + 80), _rd);
+                    _mm_store_si128((__m128i*)(pp + 96), _re);
+                    _mm_store_si128((__m128i*)(pp + 112), _rf);
                     pp += 128;
                 }
                 if (elempack == 1)
@@ -6636,14 +6636,14 @@ void convolution_im2col_input_tile_int8(const Mat& bottom_blob, Mat& B, int j, i
                     _rd = _mm_unpacklo_epi64(_r5, _r7);
                     _re = _mm_unpackhi_epi64(_r1, _r3);
                     _rf = _mm_unpackhi_epi64(_r5, _r7);
-                    _mm_storeu_si128((__m128i*)pp, _r8);
-                    _mm_storeu_si128((__m128i*)(pp + 16), _r9);
-                    _mm_storeu_si128((__m128i*)(pp + 32), _ra);
-                    _mm_storeu_si128((__m128i*)(pp + 48), _rb);
-                    _mm_storeu_si128((__m128i*)(pp + 64), _rc);
-                    _mm_storeu_si128((__m128i*)(pp + 80), _rd);
-                    _mm_storeu_si128((__m128i*)(pp + 96), _re);
-                    _mm_storeu_si128((__m128i*)(pp + 112), _rf);
+                    _mm_store_si128((__m128i*)pp, _r8);
+                    _mm_store_si128((__m128i*)(pp + 16), _r9);
+                    _mm_store_si128((__m128i*)(pp + 32), _ra);
+                    _mm_store_si128((__m128i*)(pp + 48), _rb);
+                    _mm_store_si128((__m128i*)(pp + 64), _rc);
+                    _mm_store_si128((__m128i*)(pp + 80), _rd);
+                    _mm_store_si128((__m128i*)(pp + 96), _re);
+                    _mm_store_si128((__m128i*)(pp + 112), _rf);
                     pp += 128;
                 }
                 if (elempack == 1)
@@ -6721,7 +6721,7 @@ void convolution_im2col_input_tile_int8(const Mat& bottom_blob, Mat& B, int j, i
                         __m128i _r0 = _mm_loadl_epi64((const __m128i*)sptr0);
                         __m128i _r1 = _mm_loadl_epi64((const __m128i*)sptr1);
                         __m128i _r01 = _mm_unpacklo_epi8(_r0, _r1);
-                        _mm_store_si128((__m128i*)pp, _r01);
+                        _mm_storeu_si128((__m128i*)pp, _r01);
                         pp += 16;
                     }
                     else if (stride_w == 2)
@@ -6735,7 +6735,7 @@ void convolution_im2col_input_tile_int8(const Mat& bottom_blob, Mat& B, int j, i
                         _tmp0 = _mm_shuffle_epi32(_tmp0, _MM_SHUFFLE(3, 1, 2, 0));
                         _tmp1 = _mm_shuffle_epi32(_tmp1, _MM_SHUFFLE(3, 1, 2, 0));
                         __m128i _r01 = _mm_castps_si128(_mm_shuffle_ps(_mm_castsi128_ps(_tmp0), _mm_castsi128_ps(_tmp1), _MM_SHUFFLE(1, 0, 1, 0)));
-                        _mm_store_si128((__m128i*)pp, _r01);
+                        _mm_storeu_si128((__m128i*)pp, _r01);
                         pp += 16;
                     }
                     else
@@ -7670,14 +7670,14 @@ static void convolution_im2col_input_tile_int8(const Mat& bottom_blob, Mat& B, i
                     _rd = _mm_unpacklo_epi64(_r5, _r7);
                     _re = _mm_unpackhi_epi64(_r1, _r3);
                     _rf = _mm_unpackhi_epi64(_r5, _r7);
-                    _mm_storeu_si128((__m128i*)pp, _r8);
-                    _mm_storeu_si128((__m128i*)(pp + 16), _r9);
-                    _mm_storeu_si128((__m128i*)(pp + 32), _ra);
-                    _mm_storeu_si128((__m128i*)(pp + 48), _rb);
-                    _mm_storeu_si128((__m128i*)(pp + 64), _rc);
-                    _mm_storeu_si128((__m128i*)(pp + 80), _rd);
-                    _mm_storeu_si128((__m128i*)(pp + 96), _re);
-                    _mm_storeu_si128((__m128i*)(pp + 112), _rf);
+                    _mm_store_si128((__m128i*)pp, _r8);
+                    _mm_store_si128((__m128i*)(pp + 16), _r9);
+                    _mm_store_si128((__m128i*)(pp + 32), _ra);
+                    _mm_store_si128((__m128i*)(pp + 48), _rb);
+                    _mm_store_si128((__m128i*)(pp + 64), _rc);
+                    _mm_store_si128((__m128i*)(pp + 80), _rd);
+                    _mm_store_si128((__m128i*)(pp + 96), _re);
+                    _mm_store_si128((__m128i*)(pp + 112), _rf);
                     pp += 128;
                 }
                 if (elempack == 1)
@@ -7957,14 +7957,14 @@ static void convolution_im2col_input_tile_int8(const Mat& bottom_blob, Mat& B, i
                     _rd = _mm_unpacklo_epi64(_r5, _r7);
                     _re = _mm_unpackhi_epi64(_r1, _r3);
                     _rf = _mm_unpackhi_epi64(_r5, _r7);
-                    _mm_storeu_si128((__m128i*)pp, _r8);
-                    _mm_storeu_si128((__m128i*)(pp + 16), _r9);
-                    _mm_storeu_si128((__m128i*)(pp + 32), _ra);
-                    _mm_storeu_si128((__m128i*)(pp + 48), _rb);
-                    _mm_storeu_si128((__m128i*)(pp + 64), _rc);
-                    _mm_storeu_si128((__m128i*)(pp + 80), _rd);
-                    _mm_storeu_si128((__m128i*)(pp + 96), _re);
-                    _mm_storeu_si128((__m128i*)(pp + 112), _rf);
+                    _mm_store_si128((__m128i*)pp, _r8);
+                    _mm_store_si128((__m128i*)(pp + 16), _r9);
+                    _mm_store_si128((__m128i*)(pp + 32), _ra);
+                    _mm_store_si128((__m128i*)(pp + 48), _rb);
+                    _mm_store_si128((__m128i*)(pp + 64), _rc);
+                    _mm_store_si128((__m128i*)(pp + 80), _rd);
+                    _mm_store_si128((__m128i*)(pp + 96), _re);
+                    _mm_store_si128((__m128i*)(pp + 112), _rf);
                     pp += 128;
                 }
                 if (elempack == 1)
@@ -8042,7 +8042,7 @@ static void convolution_im2col_input_tile_int8(const Mat& bottom_blob, Mat& B, i
                         __m128i _r0 = _mm_loadl_epi64((const __m128i*)sptr0);
                         __m128i _r1 = _mm_loadl_epi64((const __m128i*)sptr1);
                         __m128i _r01 = _mm_unpacklo_epi8(_r0, _r1);
-                        _mm_store_si128((__m128i*)pp, _r01);
+                        _mm_storeu_si128((__m128i*)pp, _r01);
                         pp += 16;
                     }
                     else if (stride_w == 2)
@@ -8056,7 +8056,7 @@ static void convolution_im2col_input_tile_int8(const Mat& bottom_blob, Mat& B, i
                         _tmp0 = _mm_shuffle_epi32(_tmp0, _MM_SHUFFLE(3, 1, 2, 0));
                         _tmp1 = _mm_shuffle_epi32(_tmp1, _MM_SHUFFLE(3, 1, 2, 0));
                         __m128i _r01 = _mm_castps_si128(_mm_shuffle_ps(_mm_castsi128_ps(_tmp0), _mm_castsi128_ps(_tmp1), _MM_SHUFFLE(1, 0, 1, 0)));
-                        _mm_store_si128((__m128i*)pp, _r01);
+                        _mm_storeu_si128((__m128i*)pp, _r01);
                         pp += 16;
                     }
                     else
