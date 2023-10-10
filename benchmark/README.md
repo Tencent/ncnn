@@ -5164,6 +5164,61 @@ cooling_down = 0
   mobilenetv2_yolov3  min =    3.69  max =    5.14  avg =    3.91
 ```
 
+### nVIDIA RTX A3000 of Notebook (6GB)
+```
+cx@HP-ZBook-Fury-15-6-inch-G8-Mobile-Workstation-PC:~/ncnn/build/benchmark$ ./benchncnn 10 1 0 1
+[0 Intel(R) UHD Graphics (TGL GT1)]  queueC=0[1]  queueG=0[1]  queueT=0[1]
+[0 Intel(R) UHD Graphics (TGL GT1)]  bugsbn1=0  bugbilz=0  bugcopc=0  bugihfa=0
+[0 Intel(R) UHD Graphics (TGL GT1)]  fp16-p/s/a=1/1/1  int8-p/s/a=1/1/1
+[0 Intel(R) UHD Graphics (TGL GT1)]  subgroup=32  basic/vote/ballot/shuffle=1/1/1/1
+[0 Intel(R) UHD Graphics (TGL GT1)]  fp16-matrix-16_8_8/16_8_16/16_16_16=0/0/0
+[1 NVIDIA RTX A3000 Laptop GPU]  queueC=2[8]  queueG=0[16]  queueT=1[2]
+[1 NVIDIA RTX A3000 Laptop GPU]  bugsbn1=0  bugbilz=0  bugcopc=0  bugihfa=0
+[1 NVIDIA RTX A3000 Laptop GPU]  fp16-p/s/a=1/1/1  int8-p/s/a=1/1/1
+[1 NVIDIA RTX A3000 Laptop GPU]  subgroup=32  basic/vote/ballot/shuffle=1/1/1/1
+[1 NVIDIA RTX A3000 Laptop GPU]  fp16-matrix-16_8_8/16_8_16/16_16_16=1/1/1
+loop_count = 10
+num_threads = 1
+powersave = 0
+gpu_device = 1
+cooling_down = 1
+          squeezenet  min =    1.49  max =    1.94  avg =    1.74
+     squeezenet_int8  min =    6.13  max =    6.20  avg =    6.16
+           mobilenet  min =    4.05  max =    4.82  avg =    4.65
+      mobilenet_int8  min =   10.24  max =   10.29  avg =   10.26
+        mobilenet_v2  min =    0.98  max =    1.14  avg =    1.03
+        mobilenet_v3  min =    1.74  max =    1.82  avg =    1.77
+          shufflenet  min =    1.43  max =   30.51  avg =    9.51
+       shufflenet_v2  min =    3.43  max =    3.89  avg =    3.77
+             mnasnet  min =    6.50  max =    6.75  avg =    6.62
+     proxylessnasnet  min =    6.46  max =    7.28  avg =    7.00
+     efficientnet_b0  min =    3.14  max =   15.11  avg =    7.29
+   efficientnetv2_b0  min =   18.50  max =   20.13  avg =   19.17
+        regnety_400m  min =    2.16  max =    3.57  avg =    2.70
+           blazeface  min =    2.52  max =    2.76  avg =    2.65
+           googlenet  min =    2.67  max =   14.67  avg =    9.85
+      googlenet_int8  min =   19.08  max =   19.40  avg =   19.19
+            resnet18  min =    5.19  max =    9.44  avg =    8.48
+       resnet18_int8  min =   16.57  max =   17.69  avg =   16.96
+             alexnet  min =    1.98  max =    3.24  avg =    2.23
+               vgg16  min =    3.59  max =   12.34  avg =   10.99
+          vgg16_int8  min =  110.63  max =  124.31  avg =  118.16
+            resnet50  min =    3.01  max =    4.93  avg =    3.77
+       resnet50_int8  min =   41.58  max =   44.80  avg =   43.24
+      squeezenet_ssd  min =    4.08  max =    4.70  avg =    4.32
+ squeezenet_ssd_int8  min =   17.32  max =   17.92  avg =   17.46
+       mobilenet_ssd  min =    2.26  max =    8.23  avg =    5.57
+  mobilenet_ssd_int8  min =   20.35  max =   21.89  avg =   20.76
+      mobilenet_yolo  min =    2.14  max =   16.94  avg =    6.44
+  mobilenetv2_yolov3  min =    3.64  max =    5.09  avg =    4.02
+         yolov4-tiny  min =   10.94  max =   17.46  avg =   13.58
+           nanodet_m  min =    6.57  max =   13.91  avg =    9.82
+    yolo-fastest-1.1  min =    5.40  max =   14.22  avg =   10.78
+      yolo-fastestv2  min =    7.49  max =    9.43  avg =    7.99
+  vision_transformer  min =   76.04  max =   76.96  avg =   76.43
+          FastestDet  min =    6.31  max =    6.60  avg =    6.43
+```
+
 ### nVIDIA RTX2080 of Desktop
 ```
 E:\projects\framework\ncnn\benchmark>benchncnn.exe 4096 1 0 0 0
