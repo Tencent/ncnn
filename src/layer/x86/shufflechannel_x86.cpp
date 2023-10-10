@@ -343,10 +343,6 @@ int ShuffleChannel_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
                 for (int i = 0; i < size; i++)
                 {
                     __m256 _p0 = _mm256_loadu_ps(ptr0);
-                    // macro `_mm256_loadu2_m128` is declared in Intel® Intrinsics Guide but somehow missed in <immintrin.h>
-                    // __m256 _p1 = _mm256_loadu2_m128(ptr2, ptr1);
-                    // issue #5072 _mm256_set_m128 is only availble on gcc8+
-                    // __m256 _p1 = _mm256_set_m128(_mm_loadu_ps(ptr2), _mm_loadu_ps(ptr1));
 
                     __m256 _p1 = _mm256_castps128_ps256(_mm_loadu_ps(ptr1));
                     _p1 = _mm256_insertf128_ps(_p1, _mm_loadu_ps(ptr2), 1);
