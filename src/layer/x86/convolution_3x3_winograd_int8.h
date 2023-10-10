@@ -1147,7 +1147,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 for (; kk + 1 < max_kk; kk += 2)
                 {
                     __m512i _pA0 = _mm512_loadu_si512((const __m512i*)pA);
-                    __m512i _pB = _mm512_castsi128_si512(_mm_load_si128((const __m128i*)pB));
+                    __m512i _pB = _mm512_castsi128_si512(_mm_loadu_si128((const __m128i*)pB));
                     __m512i _pB0 = _mm512_shuffle_i32x4(_pB, _pB, _MM_SHUFFLE(0, 0, 0, 0));
                     __m512i _pA1 = _mm512_shuffle_epi32(_pA0, _MM_PERM_BADC);
                     __m512i _pB1 = _mm512_shuffle_epi32(_pB0, _MM_PERM_ADCB);
@@ -1851,7 +1851,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 for (; kk + 1 < max_kk; kk += 2)
                 {
                     __m256i _pA0 = _mm256_loadu_si256((const __m256i*)pA);
-                    __m128i _pB = _mm_load_si128((const __m128i*)pB);
+                    __m128i _pB = _mm_loadu_si128((const __m128i*)pB);
                     __m256i _pA1 = _mm256_shuffle_epi32(_pA0, _MM_SHUFFLE(1, 0, 3, 2));
                     __m256i _pB0 = _mm256_inserti128_si256(_mm256_castsi128_si256(_pB), _pB, 1);
                     __m256i _pB1 = _mm256_shuffle_epi32(_pB0, _MM_SHUFFLE(0, 3, 2, 1));
@@ -3292,7 +3292,7 @@ static void get_optimal_tile_mnk_int8(int M, int N, int K, int& TILE_M, int& TIL
 
 #if __AVX512F__
         TILE_M = std::max(16, tile_size / 16 * 16);
-#elif __AVX__
+#elif __AVX2__
         TILE_M = std::max(8, tile_size / 8 * 8);
 #elif __SSE2__
         TILE_M = std::max(4, tile_size / 4 * 4);
@@ -3305,7 +3305,7 @@ static void get_optimal_tile_mnk_int8(int M, int N, int K, int& TILE_M, int& TIL
         int nn_M = (M + TILE_M - 1) / TILE_M;
 #if __AVX512F__
         TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 15) / 16 * 16);
-#elif __AVX__
+#elif __AVX2__
         TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 7) / 8 * 8);
 #elif __SSE2__
         TILE_M = std::min(TILE_M, ((M + nn_M - 1) / nn_M + 3) / 4 * 4);
@@ -3317,7 +3317,7 @@ static void get_optimal_tile_mnk_int8(int M, int N, int K, int& TILE_M, int& TIL
         {
 #if __AVX512F__
             TILE_M = std::min(TILE_M, (std::max(1, TILE_M / nT) + 15) / 16 * 16);
-#elif __AVX__
+#elif __AVX2__
             TILE_M = std::min(TILE_M, (std::max(1, TILE_M / nT) + 7) / 8 * 8);
 #elif __SSE2__
             TILE_M = std::min(TILE_M, (std::max(1, TILE_M / nT) + 3) / 4 * 4);
@@ -3333,7 +3333,7 @@ static void get_optimal_tile_mnk_int8(int M, int N, int K, int& TILE_M, int& TIL
 
 #if __AVX512F__
         TILE_K = std::max(16, tile_size / 16 * 16);
-#elif __AVX__
+#elif __AVX2__
         TILE_K = std::max(8, tile_size / 8 * 8);
 #elif __SSE2__
         TILE_K = std::max(4, tile_size / 4 * 4);
@@ -3344,7 +3344,7 @@ static void get_optimal_tile_mnk_int8(int M, int N, int K, int& TILE_M, int& TIL
         int nn_K = (K + TILE_K - 1) / TILE_K;
 #if __AVX512F__
         TILE_K = std::min(TILE_K, ((K + nn_K - 1) / nn_K + 15) / 16 * 16);
-#elif __AVX__
+#elif __AVX2__
         TILE_K = std::min(TILE_K, ((K + nn_K - 1) / nn_K + 7) / 8 * 8);
 #elif __SSE2__
         TILE_K = std::min(TILE_K, ((K + nn_K - 1) / nn_K + 3) / 4 * 4);
@@ -3357,22 +3357,14 @@ static void get_optimal_tile_mnk_int8(int M, int N, int K, int& TILE_M, int& TIL
     {
         int tile_size = (int)((l2_cache_size_int8 - TILE_M * TILE_K) / (TILE_M * 2 + TILE_K));
 
-#if __AVX512F__
-        TILE_N = std::max(4, tile_size / 4 * 4);
-#elif __AVX__
-        TILE_N = std::max(4, tile_size / 4 * 4);
-#elif __SSE2__
+#if __SSE2__
         TILE_N = std::max(4, tile_size / 4 * 4);
 #else
         TILE_N = std::max(1, tile_size);
 #endif
 
         int nn_N = (N + TILE_N - 1) / TILE_N;
-#if __AVX512F__
-        TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 3) / 4 * 4);
-#elif __AVX__
-        TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 3) / 4 * 4);
-#elif __SSE2__
+#if __SSE2__
         TILE_N = std::min(TILE_N, ((N + nn_N - 1) / nn_N + 3) / 4 * 4);
 #else
         TILE_N = std::min(TILE_N, (N + nn_N - 1) / nn_N);
