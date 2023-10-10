@@ -254,11 +254,11 @@ static void resize_bicubic_image_pack4(const Mat& src, Mat& dst, float* alpha, i
             float32x4_t _rows1 = vld1q_f32(rows1p);
             float32x4_t _rows2 = vld1q_f32(rows2p);
             float32x4_t _rows3 = vld1q_f32(rows3p);
-            float32x4_t _D = vmulq_lane_f32(_rows0, vget_low_f32(_b0123), 0);
-            _D = vmlaq_lane_f32(_D, _rows1, vget_low_f32(_b0123), 1);
-            _D = vmlaq_lane_f32(_D, _rows2, vget_high_f32(_b0123), 0);
-            _D = vmlaq_lane_f32(_D, _rows3, vget_high_f32(_b0123), 1);
-            vst1q_f32(Dp, _D);
+            float32x4_t _Dp = vmulq_lane_f32(_rows0, vget_low_f32(_b0123), 0);
+            _Dp = vmlaq_lane_f32(_Dp, _rows1, vget_low_f32(_b0123), 1);
+            _Dp = vmlaq_lane_f32(_Dp, _rows2, vget_high_f32(_b0123), 0);
+            _Dp = vmlaq_lane_f32(_Dp, _rows3, vget_high_f32(_b0123), 1);
+            vst1q_f32(Dp, _Dp);
 
             Dp += 4;
             rows0p += 4;

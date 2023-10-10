@@ -180,7 +180,7 @@ Build ncnn library (replace <protobuf-root-dir> with a proper path):
 cd <ncnn-root-dir>
 mkdir -p protobuf_build
 cd protobuf_build
-cmake -A x64 -DCMAKE_INSTALL_PREFIX=%cd%/install -DProtobuf_INCLUDE_DIR=<protobuf-root-dir>/protobuf_build/install/include -DProtobuf_LIBRARIES=<protobuf-root-dir>/protobuf_build/install/lib/libprotobuf.lib -DProtobuf_PROTOC_EXECUTABLE=<protobuf-root-dir>/protobuf_build/install/bin/protoc.exe -DNCNN_VULKAN=ON ..
+cmake -A x64 -DCMAKE_INSTALL_PREFIX=%cd%/install -Dprotobuf_DIR=<protobuf-root-dir>/protobuf_build/install/cmake -DNCNN_VULKAN=ON ..
 cmake --build . --config Release -j 2
 cmake --build . --config Release --target install
 ```
@@ -601,39 +601,11 @@ Pick `build-XYZ/install` folder for further usage.
 
 ### Build for AllWinner D1
 
-Download c906 toolchain package from https://occ.t-head.cn/community/download?id=4046947553902661632
+Download c906 toolchain package from https://xuantie.t-head.cn/community/download?id=4224193099938729984
 
 ```shell
-tar -xf Xuantie-900-gcc-linux-5.10.4-glibc-x86_64-V2.2.6-20220516.tar.gz
-export RISCV_ROOT_PATH=/home/nihui/osd/Xuantie-900-gcc-linux-5.10.4-glibc-x86_64-V2.2.6
-```
-
-You need to fix riscv_vector.h header for workaround vfrec7/vfrsqrt7 bug.
-
-Open ```$RISCV_ROOT_PATH/lib/gcc/riscv64-unknown-linux-gnu/10.2.0/include/riscv_vector.h```, goto the file end, you will find three ```#endif```, and apply changes as the following
-```c
-#endif
-
-#define vfrec7_v_f32m1(x, vl) vfrdiv_vf_f32m1(x, 1.f, vl)
-#define vfrec7_v_f32m2(x, vl) vfrdiv_vf_f32m2(x, 1.f, vl)
-#define vfrec7_v_f32m4(x, vl) vfrdiv_vf_f32m4(x, 1.f, vl)
-#define vfrec7_v_f32m8(x, vl) vfrdiv_vf_f32m8(x, 1.f, vl)
-#define vfrec7_v_f16m1(x, vl) vfrdiv_vf_f16m1(x, 1.f, vl)
-#define vfrec7_v_f16m2(x, vl) vfrdiv_vf_f16m2(x, 1.f, vl)
-#define vfrec7_v_f16m4(x, vl) vfrdiv_vf_f16m4(x, 1.f, vl)
-#define vfrec7_v_f16m8(x, vl) vfrdiv_vf_f16m8(x, 1.f, vl)
-
-#define vfrsqrt7_v_f32m1(x, vl) vfrdiv_vf_f32m1(vfsqrt_v_f32m1(x, vl), 1.f, vl)
-#define vfrsqrt7_v_f32m2(x, vl) vfrdiv_vf_f32m2(vfsqrt_v_f32m2(x, vl), 1.f, vl)
-#define vfrsqrt7_v_f32m4(x, vl) vfrdiv_vf_f32m4(vfsqrt_v_f32m4(x, vl), 1.f, vl)
-#define vfrsqrt7_v_f32m8(x, vl) vfrdiv_vf_f32m8(vfsqrt_v_f32m8(x, vl), 1.f, vl)
-#define vfrsqrt7_v_f16m1(x, vl) vfrdiv_vf_f16m1(vfsqrt_v_f16m1(x, vl), 1.f, vl)
-#define vfrsqrt7_v_f16m2(x, vl) vfrdiv_vf_f16m2(vfsqrt_v_f16m2(x, vl), 1.f, vl)
-#define vfrsqrt7_v_f16m4(x, vl) vfrdiv_vf_f16m4(vfsqrt_v_f16m4(x, vl), 1.f, vl)
-#define vfrsqrt7_v_f16m8(x, vl) vfrdiv_vf_f16m8(vfsqrt_v_f16m8(x, vl), 1.f, vl)
-
-#endif
-#endif
+tar -xf Xuantie-900-gcc-linux-5.10.4-glibc-x86_64-V2.6.1-20220906.tar.gz
+export RISCV_ROOT_PATH=/home/nihui/osd/Xuantie-900-gcc-linux-5.10.4-glibc-x86_64-V2.6.1
 ```
 
 Build ncnn with riscv-v vector and simpleocv enabled:

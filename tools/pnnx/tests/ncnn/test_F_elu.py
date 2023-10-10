@@ -20,30 +20,36 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-    def forward(self, x, y, z):
+    def forward(self, x, y, z, w):
+        x = x * 2 - 1
+        y = y * 2 - 1
+        z = z * 2 - 1
+        w = w * 2 - 1
         x = F.elu(x)
         y = F.elu(y, 1.2)
         z = F.elu(z, -0.6)
-        return x, y, z
+        w = F.elu(w, 0.1)
+        return x, y, z, w
 
 def test():
     net = Model()
     net.eval()
 
     torch.manual_seed(0)
-    x = torch.rand(1, 16)
-    y = torch.rand(1, 2, 16)
-    z = torch.rand(1, 3, 12, 16)
+    x = torch.rand(16)
+    y = torch.rand(2, 16)
+    z = torch.rand(3, 12, 16)
+    w = torch.rand(5, 7, 9, 11)
 
-    a = net(x, y, z)
+    a = net(x, y, z, w)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, y, z))
+    mod = torch.jit.trace(net, (x, y, z, w))
     mod.save("test_F_elu.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_F_elu.pt inputshape=[1,16],[1,2,16],[1,3,12,16]")
+    os.system("../../src/pnnx test_F_elu.pt inputshape=[16],[2,16],[3,12,16],[5,7,9,11]")
 
     # ncnn inference
     import test_F_elu_ncnn

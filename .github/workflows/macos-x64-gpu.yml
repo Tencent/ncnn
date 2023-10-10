@@ -45,7 +45,7 @@ jobs:
   macos-clang-gpu:
     runs-on: macos-12
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: true
     - name: protobuf
@@ -120,7 +120,7 @@ jobs:
         key: swiftshader-macos-install-20230420
     - name: checkout-swiftshader
       if: steps.cache-swiftshader.outputs.cache-hit != 'true'
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         repository: google/swiftshader
         path: swiftshader

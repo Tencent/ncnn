@@ -383,10 +383,14 @@ struct unary_op_round
             :);
         return y;
 #else
+#ifdef FE_TONEAREST
         int old_rm = fegetround();
         fesetround(FE_TONEAREST);
+#endif
         float y = nearbyintf(x);
+#ifdef FE_TONEAREST
         fesetround(old_rm);
+#endif
         return y;
 #endif
     }

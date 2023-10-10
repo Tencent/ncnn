@@ -39,6 +39,21 @@ set(TorchVision_INSTALL_DIR "/home/nihui/osd/vision/build/install" CACHE STRING 
 #set(Torch_DIR "${Torch_INSTALL_DIR}/share/cmake/Torch")
 set(TorchVision_DIR "${TorchVision_INSTALL_DIR}/share/cmake/TorchVision")
 
+find_package(protobuf CONFIG)
+
+if(protobuf_FOUND)
+    set(PROTOBUF_FOUND ${protobuf_FOUND})
+    set(PROTOBUF_VERSION ${protobuf_VERSION})
+else()
+    # fallback to system
+    find_package(Protobuf)
+    set(PROTOBUF_FOUND ${Protobuf_FOUND})
+    set(PROTOBUF_VERSION ${Protobuf_VERSION})
+    if(TARGET protobuf::protoc)
+        set_target_properties(protobuf::protoc PROPERTIES IMPORTED_LOCATION_RELEASE "${PROTOBUF_PROTOC_EXECUTABLE}")
+    endif()
+endif()
+
 find_package(Python3 COMPONENTS Interpreter Development)
 
 PNNXProbeForPyTorchInstall()

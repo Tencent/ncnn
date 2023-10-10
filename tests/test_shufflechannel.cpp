@@ -53,7 +53,10 @@ static int test_shufflechannel_0()
            || test_shufflechannel(5, 7, 24, 2, 0)
            || test_shufflechannel(3, 7, 24, 3, 0)
            || test_shufflechannel(5, 9, 24, 4, 0)
+           || test_shufflechannel(3, 7, 32, 2, 0)
            || test_shufflechannel(3, 7, 32, 8, 0)
+           || test_shufflechannel(5, 7, 48, 2, 0)
+           || test_shufflechannel(5, 7, 48, 3, 0)
            || test_shufflechannel(5, 9, 64, 4, 0);
 }
 
@@ -76,7 +79,10 @@ static int test_shufflechannel_1()
            || test_shufflechannel(5, 7, 24, 2, 1)
            || test_shufflechannel(3, 7, 24, 3, 1)
            || test_shufflechannel(5, 9, 24, 4, 1)
+           || test_shufflechannel(3, 7, 32, 2, 1)
            || test_shufflechannel(3, 7, 32, 8, 1)
+           || test_shufflechannel(5, 7, 48, 2, 1)
+           || test_shufflechannel(5, 7, 48, 3, 1)
            || test_shufflechannel(3, 7, 64, 4, 1);
 }
 

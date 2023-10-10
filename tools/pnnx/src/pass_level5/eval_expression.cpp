@@ -193,6 +193,11 @@ static std::string eval_expression(const Operator* op)
                 if (t == "int")
                 {
                     int r = int(af);
+                    if (token_is_interger_literal(a))
+                    {
+                        r = std::stoi(a);
+                    }
+
                     exprstack.push(std::to_string(r));
                 }
                 if (t == "abs")
@@ -339,6 +344,10 @@ static std::string eval_expression(const Operator* op)
         else if (t == "atan2"
                  || t == "add"
                  || t == "sub"
+                 || t == "max"
+                 || t == "maximum"
+                 || t == "min"
+                 || t == "minimum"
                  || t == "mul"
                  || t == "div"
                  || t == "floor_divide"
@@ -369,6 +378,16 @@ static std::string eval_expression(const Operator* op)
                 if (t == "sub")
                 {
                     float r = af - bf;
+                    exprstack.push(std::to_string(r));
+                }
+                if (t == "max" || t == "maximum")
+                {
+                    float r = std::max(af, bf);
+                    exprstack.push(std::to_string(r));
+                }
+                if (t == "minimum")
+                {
+                    float r = std::min(af, bf);
                     exprstack.push(std::to_string(r));
                 }
                 if (t == "mul")
