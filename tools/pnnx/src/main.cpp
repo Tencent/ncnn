@@ -300,6 +300,11 @@ int main(int argc, char** argv)
         fprintf(stderr, "\n");
     }
 
+#ifdef PNNX_TORCHVISION
+    // call some vision api to register vision ops  :P
+    (void)vision::cuda_version();
+#endif
+
     for (auto m : customop_modules)
     {
         fprintf(stderr, "load custom module %s\n", m.c_str());
