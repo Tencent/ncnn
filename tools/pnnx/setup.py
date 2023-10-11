@@ -24,9 +24,12 @@ def find_version():
 
 # Parse environment variables
 PYTHON_DIR = os.environ.get("PYTHON_DIR", "")
-PYTHON_LIBRARY = os.environ.get("PYTHON_LIBRARY", "")
-PYTHON_INCLUDE_DIR = os.environ.get("PYTHON_INCLUDE_DIR", "")
 PYTHON_EXECUTABLE = os.environ.get("PYTHON_EXECUTABLE", "")
+TORCH_INSTALL_DIR=os.environ.get("TORCH_INSTALL_DIR", "")
+TORCHVISION_INSTALL_DIR=os.environ.get("TORCHVISION_INSTALL_DIR", "")
+PROTOBUF_INCLUDE_DIR=os.environ.get("PROTOBUF_INCLUDE_DIR", "")
+PROTOBUF_LIBRARIES=os.environ.get("PROTOBUF_LIBRARIES", "")
+PROTOBUF_PROTOC_EXECUTABLE=os.environ.get("PROTOBUF_PROTOC_EXECUTABLE", "")
 PLATFORM = os.environ.get("PLATFORM", "")
 ARCHS = os.environ.get("ARCHS", "")
 DEPLOYMENT_TARGET = os.environ.get("DEPLOYMENT_TARGET", "")
@@ -100,16 +103,21 @@ class CMakeBuild(build_ext):
         if PYTHON_DIR != "":
             cmake_args.append("-DPython3_DIR=" + PYTHON_DIR)
 
-        if PYTHON_LIBRARY != "":
-            cmake_args.append("-DPYTHON_LIBRARY=" + PYTHON_LIBRARY)
-
-        if PYTHON_INCLUDE_DIR != "":
-            cmake_args.append("-DPYTHON_INCLUDE_DIR=" + PYTHON_INCLUDE_DIR)
-
         if PYTHON_EXECUTABLE != "":
             cmake_args.append("-DPython3_EXECUTABLE=" + PYTHON_EXECUTABLE)
         else:
             cmake_args.append("-DPython3_EXECUTABLE={}".format(sys.executable))
+
+        if TORCH_INSTALL_DIR != "":
+            cmake_args.append("-DTorch_INSTALL_DIR=" + TORCH_INSTALL_DIR)
+        if TORCHVISION_INSTALL_DIR != "":
+            cmake_args.append("-DTorchVision_INSTALL_DIR=" + TORCHVISION_INSTALL_DIR)
+        if PROTOBUF_INCLUDE_DIR != "":
+            cmake_args.append("-DProtobuf_INCLUDE_DIR=" + PROTOBUF_INCLUDE_DIR)
+        if PROTOBUF_LIBRARIES != "":
+            cmake_args.append("-DProtobuf_LIBRARIES=" + PROTOBUF_LIBRARIES)
+        if PROTOBUF_PROTOC_EXECUTABLE != "":
+            cmake_args.append("-DProtobuf_PROTOC_EXECUTABLE=" + PROTOBUF_PROTOC_EXECUTABLE)
 
         if PLATFORM != "":
             cmake_args.append("-DPLATFORM=" + PLATFORM)

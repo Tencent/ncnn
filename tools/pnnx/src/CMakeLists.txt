@@ -601,9 +601,6 @@ if(NOT MSVC)
 endif()
 
 if(PNNX_LIB)
-    if(NOT MSVC)
-        add_definitions(-fPIC)
-    endif()
     set(pnnx_SRCS
         ir.cpp
         storezip.cpp

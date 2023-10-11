@@ -36,6 +36,9 @@ set_target_properties(pypnnx PROPERTIES OUTPUT_NAME "pnnx")
 target_link_libraries(pypnnx PUBLIC pnnx)
 set_target_properties(pypnnx PROPERTIES PREFIX "" LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/pnnx")
 set_property(TARGET pypnnx PROPERTY FOLDER "python")
+if(TorchVision_FOUND)
+    target_link_libraries(pypnnx PRIVATE TorchVision::TorchVision)
+endif()
 if("${CMAKE_LIBRARY_OUTPUT_DIRECTORY}" STREQUAL "")
     add_custom_command(TARGET pypnnx POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_BINARY_DIR}/pnnx/pnnx${PYTHON_MODULE_PREFIX}${PYTHON_MODULE_EXTENSION}
