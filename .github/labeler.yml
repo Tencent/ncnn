@@ -1,7 +1,5 @@
 cmake:
 - cmake/**
-- **/CMakeLists.txt
-- **/*.cmake
 - toolchains/**
 
 doc: docs/**
