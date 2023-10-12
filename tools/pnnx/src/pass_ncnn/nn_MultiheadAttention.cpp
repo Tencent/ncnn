@@ -133,7 +133,7 @@ pnnx.Output             output      1 0 out
 )PNNXIR";
     }
 
-    bool match(const std::map<std::string, const Operator*>& matched_operators) const
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& /*captured_params*/, const std::map<std::string, Attribute>& /*captured_attrs*/) const
     {
         const Operator* mha = matched_operators.at("op_0");
         return mha->inputnames.size() == 2 && mha->inputnames[1] == "attn_mask";
@@ -178,7 +178,7 @@ pnnx.Output             output      1 0 out
 )PNNXIR";
     }
 
-    bool match(const std::map<std::string, const Operator*>& matched_operators) const
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& /*captured_params*/, const std::map<std::string, Attribute>& /*captured_attrs*/) const
     {
         const Operator* mha = matched_operators.at("op_0");
         return mha->inputnames.size() == 2 && mha->inputnames[1] == "attn_mask";
@@ -342,7 +342,7 @@ pnnx.Output             output      1 0 out
 )PNNXIR";
     }
 
-    bool match(const std::map<std::string, const Operator*>& matched_operators) const
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& /*captured_params*/, const std::map<std::string, Attribute>& /*captured_attrs*/) const
     {
         const Operator* mha = matched_operators.at("op_0");
         return mha->inputnames.size() == 4 && mha->inputnames[3] == "attn_mask";
@@ -391,7 +391,7 @@ pnnx.Output             output      1 0 out
 )PNNXIR";
     }
 
-    bool match(const std::map<std::string, const Operator*>& matched_operators) const
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& /*captured_params*/, const std::map<std::string, Attribute>& /*captured_attrs*/) const
     {
         const Operator* mha = matched_operators.at("op_0");
         return mha->inputnames.size() == 4 && mha->inputnames[3] == "attn_mask";
@@ -438,7 +438,7 @@ pnnx.Output             output      1 0 out
 )PNNXIR";
     }
 
-    bool match(const std::map<std::string, const Operator*>& matched_operators) const
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& /*captured_params*/, const std::map<std::string, Attribute>& /*captured_attrs*/) const
     {
         const Operator* mha = matched_operators.at("op_0");
         return mha->inputnames.size() == 3 && mha->inputnames[2] == "attn_mask";
@@ -485,7 +485,7 @@ pnnx.Output             output      1 0 out
 )PNNXIR";
     }
 
-    bool match(const std::map<std::string, const Operator*>& matched_operators) const
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& /*captured_params*/, const std::map<std::string, Attribute>& /*captured_attrs*/) const
     {
         const Operator* mha = matched_operators.at("op_0");
         return mha->inputnames.size() == 3 && mha->inputnames[2] == "attn_mask";

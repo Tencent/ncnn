@@ -20,6 +20,7 @@
 #include "pass_level3/expand_quantization_modules.h"
 #include "pass_level3/fuse_opnto1_tensors.h"
 #include "pass_level3/fuse_op1ton_unpack.h"
+#include "pass_level3/fuse_dynamic_adaptive_pool.h"
 #include "pass_level3/fuse_einsum_operands.h"
 #include "pass_level3/fuse_expression.h"
 #include "pass_level3/fuse_index_expression.h"
@@ -51,6 +52,8 @@ void pass_level3(Graph& g, const std::set<std::string>& foldable_constants, cons
     fuse_multiheadattention_unpack(g);
 
     fuse_rnn_unpack(g);
+
+    fuse_dynamic_adaptive_pool(g);
 
     expand_quantization_modules(g);
 

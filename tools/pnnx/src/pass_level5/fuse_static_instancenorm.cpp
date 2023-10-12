@@ -46,7 +46,7 @@ pnnx.Output             output      1 0 out
 )PNNXIR";
     }
 
-    bool match(const std::map<std::string, const Operator*>& matched_operators) const
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& /*captured_params*/, const std::map<std::string, Attribute>& /*captured_attrs*/) const
     {
         size_t input_rank = matched_operators.at("op_0")->inputs[0]->shape.size();
         return input_rank == 2 || input_rank == 3;

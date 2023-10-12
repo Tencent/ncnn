@@ -154,6 +154,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/F_mish.cpp
     pass_level2/F_normalize.cpp
     pass_level2/F_pad.cpp
+    pass_level2/F_pairwise_distance.cpp
     pass_level2/F_pixel_shuffle.cpp
     pass_level2/F_pixel_unshuffle.cpp
     pass_level2/F_prelu.cpp
@@ -302,6 +303,7 @@ set(pnnx_pass_level3_SRCS
     pass_level3/expand_quantization_modules.cpp
     pass_level3/fuse_opnto1_tensors.cpp
     pass_level3/fuse_op1ton_unpack.cpp
+    pass_level3/fuse_dynamic_adaptive_pool.cpp
     pass_level3/fuse_einsum_operands.cpp
     pass_level3/fuse_expression.cpp
     pass_level3/fuse_index_expression.cpp
@@ -341,8 +343,10 @@ set(pnnx_pass_level5_SRCS
     pass_level5/fuse_constant_expression.cpp
     pass_level5/fuse_conv1d_batchnorm1d.cpp
     pass_level5/fuse_conv2d_batchnorm2d.cpp
+    pass_level5/fuse_conv3d_batchnorm3d.cpp
     pass_level5/fuse_convtranspose1d_batchnorm1d.cpp
     pass_level5/fuse_convtranspose2d_batchnorm2d.cpp
+    pass_level5/fuse_convtranspose3d_batchnorm3d.cpp
     pass_level5/fuse_contiguous_view.cpp
     pass_level5/fuse_linear_batchnorm1d.cpp
     pass_level5/fuse_pad_conv1d.cpp
