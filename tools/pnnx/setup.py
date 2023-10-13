@@ -33,6 +33,7 @@ PROTOBUF_PROTOC_EXECUTABLE=os.environ.get("PROTOBUF_PROTOC_EXECUTABLE", "")
 PLATFORM = os.environ.get("PLATFORM", "")
 ARCHS = os.environ.get("ARCHS", "")
 DEPLOYMENT_TARGET = os.environ.get("DEPLOYMENT_TARGET", "")
+CMAKE_BUILD_TYPE = os.environ.get("CMAKE_BUILD_TYPE", "")
 
 # Parse variables from command line with setup.py install
 class InstallCommand(install):
@@ -125,6 +126,9 @@ class CMakeBuild(build_ext):
             cmake_args.append("-DARCHS=" + ARCHS)
         if DEPLOYMENT_TARGET != "":
             cmake_args.append("-DDEPLOYMENT_TARGET=" + DEPLOYMENT_TARGET)
+
+        if CMAKE_BUILD_TYPE != "":
+            cmake_args.append("-DCMAKE_BUILD_TYPE=" + CMAKE_BUILD_TYPE)
 
 
         build_args = []
