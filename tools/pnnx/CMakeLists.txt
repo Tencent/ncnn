@@ -36,6 +36,10 @@ option(PNNX_COVERAGE "build for coverage" OFF)
 option(PNNX_LIB "build static library" OFF)
 option(PNNX_PYTHON "build python api" OFF)
 
+if(PNNX_PYTHON)
+    set(CMAKE_CXX_STANDARD 17)
+endif()
+
 #set(Torch_INSTALL_DIR "/home/nihui/.local/lib/python3.9/site-packages/torch" CACHE STRING "")
 #set(Torch_INSTALL_DIR "/home/nihui/osd/pnnx/pytorch-v1.10.0/build/install" CACHE STRING "")
 #set(Torch_INSTALL_DIR "/home/nihui/osd/pnnx/libtorch" CACHE STRING "")
