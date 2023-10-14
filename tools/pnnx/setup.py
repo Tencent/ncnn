@@ -25,15 +25,17 @@ def find_version():
 # Parse environment variables
 PYTHON_DIR = os.environ.get("PYTHON_DIR", "")
 PYTHON_EXECUTABLE = os.environ.get("PYTHON_EXECUTABLE", "")
-TORCH_INSTALL_DIR=os.environ.get("TORCH_INSTALL_DIR", "")
-TORCHVISION_INSTALL_DIR=os.environ.get("TORCHVISION_INSTALL_DIR", "")
-PROTOBUF_INCLUDE_DIR=os.environ.get("PROTOBUF_INCLUDE_DIR", "")
-PROTOBUF_LIBRARIES=os.environ.get("PROTOBUF_LIBRARIES", "")
-PROTOBUF_PROTOC_EXECUTABLE=os.environ.get("PROTOBUF_PROTOC_EXECUTABLE", "")
+TORCH_INSTALL_DIR = os.environ.get("TORCH_INSTALL_DIR", "")
+TORCHVISION_INSTALL_DIR = os.environ.get("TORCHVISION_INSTALL_DIR", "")
+PROTOBUF_INCLUDE_DIR = os.environ.get("PROTOBUF_INCLUDE_DIR", "")
+PROTOBUF_LIBRARIES = os.environ.get("PROTOBUF_LIBRARIES", "")
+PROTOBUF_PROTOC_EXECUTABLE = os.environ.get("PROTOBUF_PROTOC_EXECUTABLE", "")
 PLATFORM = os.environ.get("PLATFORM", "")
 ARCHS = os.environ.get("ARCHS", "")
 DEPLOYMENT_TARGET = os.environ.get("DEPLOYMENT_TARGET", "")
 CMAKE_BUILD_TYPE = os.environ.get("CMAKE_BUILD_TYPE", "")
+CMAKE_CXX_COMPILER = os.environ.get("CMAKE_CXX_COMPILER", "")
+CMAKE_C_COMPILER = os.environ.get("CMAKE_C_COMPILER", "")
 
 # Parse variables from command line with setup.py install
 class InstallCommand(install):
@@ -129,8 +131,11 @@ class CMakeBuild(build_ext):
 
         if CMAKE_BUILD_TYPE != "":
             cmake_args.append("-DCMAKE_BUILD_TYPE=" + CMAKE_BUILD_TYPE)
-
-
+        if CMAKE_CXX_COMPILER != "":
+            cmake_args.append("-DCMAKE_CXX_COMPILER=" + CMAKE_CXX_COMPILER)
+        if CMAKE_C_COMPILER != "":
+            cmake_args.append("-DCMAKE_C_COMPILER=" + CMAKE_C_COMPILER)
+            
         build_args = []
 
         if self.compiler.compiler_type == "msvc":
