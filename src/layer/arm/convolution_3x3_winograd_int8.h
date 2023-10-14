@@ -144,6 +144,62 @@ static void transpose_pack_B_tile_int8(const Mat& B, Mat& BT, int batch, int max
             }
         }
 #endif // __aarch64__
+        for (; jj + 5 < max_jj; jj += 6)
+        {
+            const short* p0 = B;
+
+            int kk = 0;
+            p0 += (b * max_jj + jj) * 8;
+            for (; kk + 7 < max_kk; kk += 8)
+            {
+                int16x8_t _r0 = vld1q_s16(p0);
+                int16x8_t _r1 = vld1q_s16(p0 + 8);
+                int16x8_t _r2 = vld1q_s16(p0 + 16);
+                int16x8_t _r3 = vld1q_s16(p0 + 24);
+                int16x8_t _r4 = vld1q_s16(p0 + 32);
+                int16x8_t _r5 = vld1q_s16(p0 + 40);
+                int16x8x2_t _r01 = vzipq_s16(_r0, _r1);
+                int16x8x2_t _r23 = vzipq_s16(_r2, _r3);
+                int16x8x2_t _r45 = vzipq_s16(_r4, _r5);
+                int32x4x3_t _r012;
+                _r012.val[0] = vreinterpretq_s32_s16(_r01.val[0]);
+                _r012.val[1] = vreinterpretq_s32_s16(_r23.val[0]);
+                _r012.val[2] = vreinterpretq_s32_s16(_r45.val[0]);
+                int32x4x3_t _r345;
+                _r345.val[0] = vreinterpretq_s32_s16(_r01.val[1]);
+                _r345.val[1] = vreinterpretq_s32_s16(_r23.val[1]);
+                _r345.val[2] = vreinterpretq_s32_s16(_r45.val[1]);
+                vst3q_s32((int*)pp, _r012);
+                vst3q_s32((int*)(pp + 24), _r345);
+                p0 += max_jj * batch * 8;
+                pp += 48;
+            }
+            p0 -= (b * max_jj + jj) * 8;
+            p0 += (b * max_jj + jj) * 2;
+            for (; kk + 1 < max_kk; kk += 2)
+            {
+                int16x8x2_t _r01 = vld2q_s16(p0);
+                int32x4x2_t _r01x = vtrnq_s32(vreinterpretq_s32_s16(_r01.val[0]), vreinterpretq_s32_s16(_r01.val[1]));
+                int32x2x3_t _r012;
+                _r012.val[0] = vget_low_s32(_r01x.val[0]);
+                _r012.val[1] = vget_low_s32(_r01x.val[1]);
+                _r012.val[2] = vget_high_s32(_r01x.val[0]);
+                vst3_s32((int*)pp, _r012);
+                p0 += max_jj * batch * 2;
+                pp += 12;
+            }
+            p0 -= (b * max_jj + jj) * 2;
+            p0 += (b * max_jj + jj);
+            for (; kk < max_kk; kk++)
+            {
+                int16x4_t _r0 = vld1_s16(p0);
+                vst1_s16(pp, _r0);
+                pp[4] = p0[4];
+                pp[5] = p0[5];
+                p0 += max_jj * batch;
+                pp += 6;
+            }
+        }
         for (; jj + 3 < max_jj; jj += 4)
         {
             const short* p0 = B;
@@ -175,10 +231,8 @@ static void transpose_pack_B_tile_int8(const Mat& B, Mat& BT, int batch, int max
             p0 += (b * max_jj + jj);
             for (; kk < max_kk; kk++)
             {
-                pp[0] = p0[0];
-                pp[1] = p0[1];
-                pp[2] = p0[2];
-                pp[3] = p0[3];
+                int16x4_t _r0 = vld1_s16(p0);
+                vst1_s16(pp, _r0);
                 p0 += max_jj * batch;
                 pp += 4;
             }
@@ -379,6 +433,89 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 outptr += 64;
             }
 #endif // __aarch64__
+            for (; jj + 5 < max_jj; jj += 6)
+            {
+                const short* pA = pAT;
+
+                int32x4_t _sum0;
+                int32x4_t _sum1;
+                int32x4_t _sum2;
+                int32x4_t _sum3;
+                int32x4_t _sum4;
+                int32x4_t _sum5;
+                int32x4_t _sum6;
+                int32x4_t _sum7;
+                int32x4_t _sum8;
+                int32x4_t _sum9;
+                int32x4_t _suma;
+                int32x4_t _sumb;
+
+                if (k == 0)
+                {
+                    _sum0 = vdupq_n_s32(0);
+                    _sum1 = vdupq_n_s32(0);
+                    _sum2 = vdupq_n_s32(0);
+                    _sum3 = vdupq_n_s32(0);
+                    _sum4 = vdupq_n_s32(0);
+                    _sum5 = vdupq_n_s32(0);
+                    _sum6 = vdupq_n_s32(0);
+                    _sum7 = vdupq_n_s32(0);
+                    _sum8 = vdupq_n_s32(0);
+                    _sum9 = vdupq_n_s32(0);
+                    _suma = vdupq_n_s32(0);
+                    _sumb = vdupq_n_s32(0);
+                }
+                else
+                {
+                    _sum0 = vld1q_s32(outptr);
+                    _sum1 = vld1q_s32(outptr + 4);
+                    _sum2 = vld1q_s32(outptr + 8);
+                    _sum3 = vld1q_s32(outptr + 12);
+                    _sum4 = vld1q_s32(outptr + 16);
+                    _sum5 = vld1q_s32(outptr + 20);
+                    _sum6 = vld1q_s32(outptr + 24);
+                    _sum7 = vld1q_s32(outptr + 28);
+                    _sum8 = vld1q_s32(outptr + 32);
+                    _sum9 = vld1q_s32(outptr + 36);
+                    _suma = vld1q_s32(outptr + 40);
+                    _sumb = vld1q_s32(outptr + 44);
+                }
+
+                int kk = 0;
+                for (; kk < max_kk; kk++)
+                {
+                    int16x8_t _pA = vld1q_s16(pA);
+                    int16x8_t _pB = vld1q_s16(pB);
+                    _sum0 = vmlal_lane_s16(_sum0, vget_low_s16(_pA), vget_low_s16(_pB), 0);
+                    _sum1 = vmlal_lane_s16(_sum1, vget_high_s16(_pA), vget_low_s16(_pB), 0);
+                    _sum2 = vmlal_lane_s16(_sum2, vget_low_s16(_pA), vget_low_s16(_pB), 1);
+                    _sum3 = vmlal_lane_s16(_sum3, vget_high_s16(_pA), vget_low_s16(_pB), 1);
+                    _sum4 = vmlal_lane_s16(_sum4, vget_low_s16(_pA), vget_low_s16(_pB), 2);
+                    _sum5 = vmlal_lane_s16(_sum5, vget_high_s16(_pA), vget_low_s16(_pB), 2);
+                    _sum6 = vmlal_lane_s16(_sum6, vget_low_s16(_pA), vget_low_s16(_pB), 3);
+                    _sum7 = vmlal_lane_s16(_sum7, vget_high_s16(_pA), vget_low_s16(_pB), 3);
+                    _sum8 = vmlal_lane_s16(_sum8, vget_low_s16(_pA), vget_high_s16(_pB), 0);
+                    _sum9 = vmlal_lane_s16(_sum9, vget_high_s16(_pA), vget_high_s16(_pB), 0);
+                    _suma = vmlal_lane_s16(_suma, vget_low_s16(_pA), vget_high_s16(_pB), 1);
+                    _sumb = vmlal_lane_s16(_sumb, vget_high_s16(_pA), vget_high_s16(_pB), 1);
+                    pA += 8;
+                    pB += 6;
+                }
+
+                vst1q_s32(outptr, _sum0);
+                vst1q_s32(outptr + 4, _sum1);
+                vst1q_s32(outptr + 8, _sum2);
+                vst1q_s32(outptr + 12, _sum3);
+                vst1q_s32(outptr + 16, _sum4);
+                vst1q_s32(outptr + 20, _sum5);
+                vst1q_s32(outptr + 24, _sum6);
+                vst1q_s32(outptr + 28, _sum7);
+                vst1q_s32(outptr + 32, _sum8);
+                vst1q_s32(outptr + 36, _sum9);
+                vst1q_s32(outptr + 40, _suma);
+                vst1q_s32(outptr + 44, _sumb);
+                outptr += 48;
+            }
             for (; jj + 3 < max_jj; jj += 4)
             {
                 const short* pA = pAT;
@@ -594,6 +731,59 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 outptr += 32;
             }
 #endif // __aarch64__
+            for (; jj + 5 < max_jj; jj += 6)
+            {
+                const short* pA = pAT;
+
+                int32x4_t _sum0;
+                int32x4_t _sum1;
+                int32x4_t _sum2;
+                int32x4_t _sum3;
+                int32x4_t _sum4;
+                int32x4_t _sum5;
+
+                if (k == 0)
+                {
+                    _sum0 = vdupq_n_s32(0);
+                    _sum1 = vdupq_n_s32(0);
+                    _sum2 = vdupq_n_s32(0);
+                    _sum3 = vdupq_n_s32(0);
+                    _sum4 = vdupq_n_s32(0);
+                    _sum5 = vdupq_n_s32(0);
+                }
+                else
+                {
+                    _sum0 = vld1q_s32(outptr);
+                    _sum1 = vld1q_s32(outptr + 4);
+                    _sum2 = vld1q_s32(outptr + 8);
+                    _sum3 = vld1q_s32(outptr + 12);
+                    _sum4 = vld1q_s32(outptr + 16);
+                    _sum5 = vld1q_s32(outptr + 20);
+                }
+
+                int kk = 0;
+                for (; kk < max_kk; kk++)
+                {
+                    int16x4_t _pA = vld1_s16(pA);
+                    int16x8_t _pB = vld1q_s16(pB);
+                    _sum0 = vmlal_lane_s16(_sum0, _pA, vget_low_s16(_pB), 0);
+                    _sum1 = vmlal_lane_s16(_sum1, _pA, vget_low_s16(_pB), 1);
+                    _sum2 = vmlal_lane_s16(_sum2, _pA, vget_low_s16(_pB), 2);
+                    _sum3 = vmlal_lane_s16(_sum3, _pA, vget_low_s16(_pB), 3);
+                    _sum4 = vmlal_lane_s16(_sum4, _pA, vget_high_s16(_pB), 0);
+                    _sum5 = vmlal_lane_s16(_sum5, _pA, vget_high_s16(_pB), 1);
+                    pA += 4;
+                    pB += 6;
+                }
+
+                vst1q_s32(outptr, _sum0);
+                vst1q_s32(outptr + 4, _sum1);
+                vst1q_s32(outptr + 8, _sum2);
+                vst1q_s32(outptr + 12, _sum3);
+                vst1q_s32(outptr + 16, _sum4);
+                vst1q_s32(outptr + 20, _sum5);
+                outptr += 24;
+            }
             for (; jj + 3 < max_jj; jj += 4)
             {
                 const short* pA = pAT;
@@ -763,6 +953,48 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 outptr += 16;
             }
 #endif // __aarch64__
+            for (; jj + 5 < max_jj; jj += 6)
+            {
+                const short* pA = pAT;
+
+                int32x4_t _sum0;
+                int32x4_t _sum1;
+                int32x4_t _sum2;
+
+                if (k == 0)
+                {
+                    _sum0 = vdupq_n_s32(0);
+                    _sum1 = vdupq_n_s32(0);
+                    _sum2 = vdupq_n_s32(0);
+                }
+                else
+                {
+                    int32x4x2_t _s01 = vld2q_s32(outptr);
+                    _sum0 = _s01.val[0];
+                    _sum1 = _s01.val[1];
+                    _sum2 = vld1q_s32(outptr + 8);
+                }
+
+                int kk = 0;
+                for (; kk < max_kk; kk++)
+                {
+                    int16x4_t _pA = vreinterpret_s16_s32(vld1_dup_s32((const int*)pA));
+                    int16x8_t _pB = vld1q_s16(pB);
+                    int16x4_t _pB2 = vzip_s16(vget_high_s16(_pB), vget_high_s16(_pB)).val[0];
+                    _sum0 = vmlal_lane_s16(_sum0, vget_low_s16(_pB), _pA, 0);
+                    _sum1 = vmlal_lane_s16(_sum1, vget_low_s16(_pB), _pA, 1);
+                    _sum2 = vmlal_s16(_sum2, _pA, vreinterpret_s16_s32(_pB2));
+                    pA += 2;
+                    pB += 6;
+                }
+
+                int32x4x2_t _s01;
+                _s01.val[0] = _sum0;
+                _s01.val[1] = _sum1;
+                vst2q_s32(outptr, _s01);
+                vst1q_s32(outptr + 8, _sum2);
+                outptr += 12;
+            }
             for (; jj + 3 < max_jj; jj += 4)
             {
                 const short* pA = pAT;
@@ -919,6 +1151,39 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 outptr += 8;
             }
 #endif // __aarch64__
+            for (; jj + 5 < max_jj; jj += 6)
+            {
+                const short* pA = pAT;
+
+                int32x4_t _sum0;
+                int32x4_t _sum1;
+
+                if (k == 0)
+                {
+                    _sum0 = vdupq_n_s32(0);
+                    _sum1 = vdupq_n_s32(0);
+                }
+                else
+                {
+                    _sum0 = vld1q_s32(outptr);
+                    _sum1 = vld1q_s32(outptr + 4);
+                }
+
+                int kk = 0;
+                for (; kk < max_kk; kk++)
+                {
+                    int16x4_t _pA = vld1_dup_s16(pA);
+                    int16x8_t _pB = vld1q_s16(pB);
+                    _sum0 = vmlal_s16(_sum0, _pA, vget_low_s16(_pB));
+                    _sum1 = vmlal_s16(_sum1, _pA, vget_high_s16(_pB));
+                    pA += 1;
+                    pB += 6;
+                }
+
+                vst1q_s32(outptr, _sum0);
+                vst1_s32(outptr + 4, vget_low_s32(_sum1));
+                outptr += 6;
+            }
             for (; jj + 3 < max_jj; jj += 4)
             {
                 const short* pA = pAT;
