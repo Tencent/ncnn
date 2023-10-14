@@ -37,6 +37,7 @@ CMAKE_BUILD_TYPE = os.environ.get("CMAKE_BUILD_TYPE", "")
 CMAKE_CXX_COMPILER = os.environ.get("CMAKE_CXX_COMPILER", "")
 CMAKE_C_COMPILER = os.environ.get("CMAKE_C_COMPILER", "")
 CMAKE_CXX_FLAGS = os.environ.get("CMAKE_CXX_FLAGS", "")
+PNNX_BUILD_WITH_STATIC_CRT = os.environ.get("PNNX_BUILD_WITH_STATIC_CRT", "")
 
 # Parse variables from command line with setup.py install
 class InstallCommand(install):
@@ -138,6 +139,9 @@ class CMakeBuild(build_ext):
             cmake_args.append("-DCMAKE_C_COMPILER=" + CMAKE_C_COMPILER)
         if CMAKE_CXX_FLAGS != "":
             cmake_args.append("-DCMAKE_CXX_FLAGS=" + CMAKE_CXX_FLAGS)
+
+        if PNNX_BUILD_WITH_STATIC_CRT != "":
+            cmake_args.append("-DPNNX_BUILD_WITH_STATIC_CRT=" + PNNX_BUILD_WITH_STATIC_CRT)
             
         build_args = []
 
