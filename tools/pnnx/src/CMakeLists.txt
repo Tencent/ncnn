@@ -626,7 +626,7 @@ if(PNNX_LIB)
         save_ncnn.cpp
         ${pnnx_pass_ncnn_SRCS}
         )
-    add_library(pnnx ${pnnx_SRCS})
+    add_library(pnnx SHARED ${pnnx_SRCS})
     include(GNUInstallDirs)
 
     target_include_directories(pnnx
