@@ -127,13 +127,13 @@ static void transpose_pack_B_tile_int8(const Mat& B, Mat& BT, int batch, int max
                     "st1    {v20.8h, v21.8h, v22.8h, v23.8h}, [%1], #64 \n"
                     "st1    {v24.8h, v25.8h, v26.8h, v27.8h}, [%1], #64 \n"
                     "st1    {v28.8h, v29.8h, v30.8h, v31.8h}, [%1], #64 \n"
-                    : "=r"(p0),  // %0
-                    "=r"(pp) // %1
+                    : "=r"(p0), // %0
+                    "=r"(pp)  // %1
                     : "0"(p0),
                     "1"(pp)
                     : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
                 p0 += max_jj * batch * 8;
-#else // NCNN_GNU_INLINE_ASM
+#else  // NCNN_GNU_INLINE_ASM
                 int16x8x4_t _r0 = vld4q_s16(p0);
                 int16x8x4_t _r1 = vld4q_s16(p0 + 32);
                 int16x8x4_t _r2 = vld4q_s16(p0 + 64);
@@ -208,13 +208,13 @@ static void transpose_pack_B_tile_int8(const Mat& B, Mat& BT, int batch, int max
                     "zip2   v23.8h, v3.8h, v7.8h    \n"
                     "st4    {v16.8h, v17.8h, v18.8h, v19.8h}, [%1], #64 \n"
                     "st4    {v20.8h, v21.8h, v22.8h, v23.8h}, [%1], #64 \n"
-                    : "=r"(p0),  // %0
-                    "=r"(pp) // %1
+                    : "=r"(p0), // %0
+                    "=r"(pp)  // %1
                     : "0"(p0),
                     "1"(pp)
                     : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23");
                 p0 += max_jj * batch * 8;
-#else // NCNN_GNU_INLINE_ASM
+#else  // NCNN_GNU_INLINE_ASM
                 int16x8_t _r0 = vld1q_s16(p0);
                 int16x8_t _r1 = vld1q_s16(p0 + 8);
                 int16x8_t _r2 = vld1q_s16(p0 + 16);
@@ -332,13 +332,13 @@ static void transpose_pack_B_tile_int8(const Mat& B, Mat& BT, int batch, int max
                 asm volatile(
                     "ld1    {v0.8h, v1.8h, v2.8h, v3.8h}, [%0] \n"
                     "st4    {v0.8h, v1.8h, v2.8h, v3.8h}, [%1], #64 \n"
-                    : "=r"(p0),  // %0
-                    "=r"(pp) // %1
+                    : "=r"(p0), // %0
+                    "=r"(pp)  // %1
                     : "0"(p0),
                     "1"(pp)
                     : "memory", "v0", "v1", "v2", "v3");
                 p0 += max_jj * batch * 8;
-#else // NCNN_GNU_INLINE_ASM
+#else  // NCNN_GNU_INLINE_ASM
                 int16x8x4_t _r0123;
                 _r0123.val[0] = vld1q_s16(p0);
                 _r0123.val[1] = vld1q_s16(p0 + 8);
@@ -832,10 +832,10 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                     : "0"(outptr),
                     "1"(pA),
                     "2"(pB),
-                    "r"(max_kk),  // %6
-                    "r"(k)        // %7
+                    "r"(max_kk), // %6
+                    "r"(k)       // %7
                     : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
-#else // NCNN_GNU_INLINE_ASM
+#else  // NCNN_GNU_INLINE_ASM
                 int32x4_t _sum0;
                 int32x4_t _sum1;
                 int32x4_t _sum2;
@@ -1340,10 +1340,10 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                     : "0"(outptr),
                     "1"(pA),
                     "2"(pB),
-                    "r"(max_kk),  // %6
-                    "r"(k)        // %7
+                    "r"(max_kk), // %6
+                    "r"(k)       // %7
                     : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
-#else // NCNN_GNU_INLINE_ASM
+#else  // NCNN_GNU_INLINE_ASM
                 int32x4_t _sum0;
                 int32x4_t _sum1;
                 int32x4_t _sum2;
