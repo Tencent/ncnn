@@ -1278,7 +1278,7 @@ int Convolution_arm::create_pipeline_int8_arm(const Option& opt)
     const int maxk = kernel_w * kernel_h;
     const int num_input = weight_data_size / maxk / num_output;
 
-    bool prefer_winograd = (opt.use_winograd23_convolution || opt.use_winograd43_convolution) && (num_input > 8 || num_output > 8);
+    bool prefer_winograd = (opt.use_winograd23_convolution || opt.use_winograd43_convolution) && (num_input >= 8 && num_output >= 8);
     if (ncnn::cpu_support_arm_asimddp())
     {
         prefer_winograd = false;
@@ -1398,7 +1398,14 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
 #if __ARM_NEON
     if (opt.use_packing_layout)
     {
-        out_elempack_int32 = num_output % 4 == 0 ? 4 : 1;
+        if (opt.use_winograd_convolution || opt.use_sgemm_convolution)
+        {
+            out_elempack_int32 = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+        }
+        else
+        {
+            out_elempack_int32 = num_output % 4 == 0 ? 4 : 1;
+        }
     }
 #endif // __ARM_NEON
 
@@ -1407,7 +1414,7 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
     if (top_blob_int32.empty())
         return -100;
 
-    bool prefer_winograd = (opt.use_winograd23_convolution || opt.use_winograd43_convolution) && (num_input > 8 || num_output > 8);
+    bool prefer_winograd = (opt.use_winograd23_convolution || opt.use_winograd43_convolution) && (num_input >= 8 && num_output >= 8);
     if (ncnn::cpu_support_arm_asimddp())
     {
         prefer_winograd = false;
