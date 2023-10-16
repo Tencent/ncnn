@@ -1394,11 +1394,17 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
     int channels = bottom_blob_bordered.c;
     const int num_input = channels * elempack;
 
+    bool prefer_winograd = (opt.use_winograd23_convolution || opt.use_winograd43_convolution) && (num_input >= 8 && num_output >= 8);
+    if (ncnn::cpu_support_arm_asimddp())
+    {
+        prefer_winograd = false;
+    }
+
     int out_elempack_int32 = 1;
 #if __ARM_NEON
     if (opt.use_packing_layout)
     {
-        if (opt.use_winograd_convolution || opt.use_sgemm_convolution)
+        if ((opt.use_winograd_convolution && prefer_winograd) || opt.use_sgemm_convolution)
         {
             out_elempack_int32 = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
         }
@@ -1413,12 +1419,6 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
     top_blob_int32.create(outw, outh, num_output / out_elempack_int32, (size_t)(4u * out_elempack_int32), out_elempack_int32, opt.workspace_allocator);
     if (top_blob_int32.empty())
         return -100;
-
-    bool prefer_winograd = (opt.use_winograd23_convolution || opt.use_winograd43_convolution) && (num_input >= 8 && num_output >= 8);
-    if (ncnn::cpu_support_arm_asimddp())
-    {
-        prefer_winograd = false;
-    }
 
     int _nT = nT ? nT : opt.num_threads;
     if (nT != 0 && opt.num_threads != nT)
