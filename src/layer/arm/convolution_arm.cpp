@@ -1278,8 +1278,11 @@ int Convolution_arm::create_pipeline_int8_arm(const Option& opt)
     const int maxk = kernel_w * kernel_h;
     const int num_input = weight_data_size / maxk / num_output;
 
-    // TODO test ncnn::cpu_support_arm_asimddp() && num_input >= 256 && num_output >= 256
     bool prefer_winograd = (opt.use_winograd23_convolution || opt.use_winograd43_convolution) && (num_input > 8 || num_output > 8);
+    if (ncnn::cpu_support_arm_asimddp() && (num_input < 256 || num_output < 256))
+    {
+        prefer_winograd = false;
+    }
 
     int elempack = 1;
     int out_elempack = 1;
@@ -1404,8 +1407,11 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
     if (top_blob_int32.empty())
         return -100;
 
-    // TODO test ncnn::cpu_support_arm_asimddp() && num_input >= 256 && num_output >= 256
     bool prefer_winograd = (opt.use_winograd23_convolution || opt.use_winograd43_convolution) && (num_input > 8 || num_output > 8);
+    if (ncnn::cpu_support_arm_asimddp() && (num_input < 256 || num_output < 256))
+    {
+        prefer_winograd = false;
+    }
 
     int _nT = nT ? nT : opt.num_threads;
     if (nT != 0 && opt.num_threads != nT)
