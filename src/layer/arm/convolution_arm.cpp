@@ -1279,7 +1279,7 @@ int Convolution_arm::create_pipeline_int8_arm(const Option& opt)
     const int num_input = weight_data_size / maxk / num_output;
 
     bool prefer_winograd = (opt.use_winograd23_convolution || opt.use_winograd43_convolution) && (num_input > 8 || num_output > 8);
-    if (ncnn::cpu_support_arm_asimddp() && (num_input < 256 || num_output < 256))
+    if (ncnn::cpu_support_arm_asimddp())
     {
         prefer_winograd = false;
     }
@@ -1408,7 +1408,7 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
         return -100;
 
     bool prefer_winograd = (opt.use_winograd23_convolution || opt.use_winograd43_convolution) && (num_input > 8 || num_output > 8);
-    if (ncnn::cpu_support_arm_asimddp() && (num_input < 256 || num_output < 256))
+    if (ncnn::cpu_support_arm_asimddp())
     {
         prefer_winograd = false;
     }
