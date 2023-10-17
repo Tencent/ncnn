@@ -243,11 +243,10 @@ struct binary_op_remainder
 {
     float operator()(const float& x, const float& y) const
     {
-        float div_result = x / y;
-        float round_result = roundf(div_result);
-        float res = x - y * round_result;
-        return res;
-        // return (float)remainderf(x, y);
+        const float div_result = x / y;
+        const float floor_result = floorf(div_result);
+        const float mul_result = floor_result * y;
+        return x - mul_result;
     }
 };
 

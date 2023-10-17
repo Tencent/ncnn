@@ -33,7 +33,6 @@
 #define SSE_MATHFUN_H
 
 #define USE_SSE2 1
-#define USE_SSE4 1
 
 #include <xmmintrin.h>
 #include <x86_usability.h>
@@ -56,10 +55,6 @@ typedef __m128 v4sf; // vector of 4 float (sse1)
 typedef __m128i v4si; // vector of 4 int (sse2)
 #else
 typedef __m64 v2si; // vector of 2 int (mmx)
-#endif
-
-#ifdef USE_SSE4
-#include <smmintrin.h>
 #endif
 
 /* declare some SSE constants -- why can't I figure a better way to do that? */
@@ -1165,8 +1160,13 @@ static NCNN_FORCEINLINE __m128 abs_ps(__m128 inputs)
 static NCNN_FORCEINLINE __m128 remainder_ps(__m128 x, __m128 y)
 {
     const __m128 div_result = _mm_div_ps(x, y);
-    const __m128 round_result = _mm_round_ps(div_result, (_MM_FROUND_TO_NEG_INF | _MM_FROUND_NO_EXC));
-    const __m128 mul_result = _mm_mul_ps(y, round_result);
+    // Need SSE4.1
+    // const __m128 floor_result = _mm_floor_ps(div_result);
+    const __m128 trunc_result = _mm_cvtepi32_ps(_mm_cvttps_epi32(div_result));
+    const __m128 cmp = _mm_cmplt_ps(div_result, trunc_result);
+    const __m128 one = _mm_set1_ps(1.0f);
+    const __m128 floor_result = _mm_sub_ps(trunc_result, _mm_and_ps(cmp, one));
+    const __m128 mul_result = _mm_mul_ps(y, floor_result);
     return _mm_sub_ps(x, mul_result);
 }
 
