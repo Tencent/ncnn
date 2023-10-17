@@ -55,6 +55,14 @@ static int test_binaryop(const ncnn::Mat& _a, const ncnn::Mat& _b, int flag)
                 b[i] = 0.001f;
         }
     }
+    if (op_type == 12) {
+        // divisor must be non-zero for remainder
+        b = b.clone();
+        for (int i = 0; i < b.total(); i++) {
+            if (b[i] == 0.f)
+                b[i] = 0.001f;
+        }
+    }
 
     ncnn::ParamDict pd;
     pd.set(0, op_type);
