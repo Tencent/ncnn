@@ -1280,13 +1280,15 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                     : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
 #else  // __aarch64__
                 asm volatile(
+                    "pld        [%1, #256]          \n"
+                    "pld        [%2, #192]          \n"
+
                     "cmp        %7, #0              \n"
                     "beq        0f                  \n"
 
                     "vldm       %0!, {d8-d15}       \n"
-                    "vldm       %0!, {d16-d23}      \n"
-                    "vldm       %0, {d24-d31}       \n"
-                    "sub        %0, %0, #128        \n"
+                    "vldm       %0, {d16-d31}       \n"
+                    "sub        %0, %0, #64         \n"
                     "b          1f                  \n"
 
                     "0:                             \n"
@@ -1304,9 +1306,6 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                     "veor       q15, q15            \n"
 
                     "1:                             \n"
-
-                    "pld        [%1, #256]          \n"
-                    "pld        [%2, #192]          \n"
 
                     "lsr        r4, %6, #2          \n" // r4 = max_kk >> 2
                     "cmp        r4, #0              \n"
@@ -1427,7 +1426,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                     "sub        %2, %2, #8          \n"
 
                     "3:                             \n"
-                    "and        r4, %6, #3          \n" // w4 = remain = remain & 3
+                    "and        r4, %6, #3          \n" // w4 = remain = max_kk & 3
                     "cmp        r4, #0              \n"
                     "beq        5f                  \n"
 
@@ -1457,8 +1456,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
 
                     "5:                             \n"
                     "vstm       %0!, {d8-d15}       \n"
-                    "vstm       %0!, {d16-d23}      \n"
-                    "vstm       %0!, {d24-d31}      \n"
+                    "vstm       %0!, {d16-d31}      \n"
 
                     : "=r"(outptr), // %0
                     "=r"(pA),     // %1
@@ -1733,12 +1731,13 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                     : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
 #else  // __aarch64__
                 asm volatile(
+                    "pld        [%1, #256]          \n"
+                    "pld        [%2, #256]          \n"
+
                     "cmp        %7, #0              \n"
                     "beq        0f                  \n"
 
-                    "vldm       %0!, {d16-d23}      \n"
-                    "vldm       %0, {d24-d31}       \n"
-                    "sub        %0, %0, #64         \n"
+                    "vldm       %0, {d16-d31}       \n"
                     "b          1f                  \n"
 
                     "0:                             \n"
@@ -1752,9 +1751,6 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                     "veor       q15, q15            \n"
 
                     "1:                             \n"
-
-                    "pld        [%1, #256]          \n"
-                    "pld        [%2, #256]          \n"
 
                     "lsr        r4, %6, #2          \n" // r4 = max_kk >> 2
                     "cmp        r4, #0              \n"
@@ -1833,7 +1829,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                     "sub        %2, %2, #16         \n"
 
                     "3:                             \n"
-                    "and        r4, %6, #3          \n" // w4 = remain = remain & 3
+                    "and        r4, %6, #3          \n" // w4 = remain = max_kk & 3
                     "cmp        r4, #0              \n"
                     "beq        5f                  \n"
 
@@ -1857,8 +1853,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                     "bne        4b                  \n"
 
                     "5:                             \n"
-                    "vstm       %0!, {d16-d23}      \n"
-                    "vstm       %0!, {d24-d31}      \n"
+                    "vstm       %0!, {d16-d31}      \n"
 
                     : "=r"(outptr), // %0
                     "=r"(pA),     // %1
@@ -1935,6 +1930,209 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
             {
                 const short* pA = pAT;
 
+#if NCNN_GNU_INLINE_ASM
+#if __aarch64__
+                asm volatile(
+                    "prfm   pldl1keep, [%1, #512]       \n"
+                    "prfm   pldl1keep, [%2, #128]       \n"
+                    "cmp    %w7, #0                     \n"
+                    "beq    0f                          \n"
+
+                    "ld1    {v28.4s, v29.4s, v30.4s, v31.4s}, [%0]      \n"
+                    "b      1f                          \n"
+
+                    "0:                                 \n"
+                    "eor    v28.16b, v28.16b, v28.16b   \n"
+                    "eor    v29.16b, v29.16b, v29.16b   \n"
+                    "eor    v30.16b, v30.16b, v30.16b   \n"
+                    "eor    v31.16b, v31.16b, v31.16b   \n"
+
+                    "1:                                 \n"
+                    "lsr    w4, %w6, #3                 \n" // w4 = max_kk >> 3
+                    "cmp    w4, #0                      \n"
+                    "beq    3f                          \n"
+
+                    "ld1    {v4.8h, v5.8h}, [%1], #32   \n"
+                    "ld1    {v0.4h}, [%2], #8           \n"
+
+                    "2:                                 \n"
+
+                    "ld1    {v6.8h, v7.8h}, [%1], #32   \n"
+
+                    "smlal  v28.4s, v4.4h, v0.h[0]      \n"
+                    "smlal2 v29.4s, v4.8h, v0.h[0]      \n"
+                    "smlal  v30.4s, v4.4h, v0.h[1]      \n"
+                    "smlal2 v31.4s, v4.8h, v0.h[1]      \n"
+
+                    "ld1    {v1.4h}, [%2], #8           \n"
+
+                    "smlal  v28.4s, v5.4h, v0.h[2]      \n"
+                    "smlal2 v29.4s, v5.8h, v0.h[2]      \n"
+
+                    "prfm   pldl1keep, [%1, #512]       \n"
+
+                    "smlal  v30.4s, v5.4h, v0.h[3]      \n"
+                    "smlal2 v31.4s, v5.8h, v0.h[3]      \n"
+
+                    "ld1    {v4.8h, v5.8h}, [%1], #32   \n"
+
+                    "smlal  v28.4s, v6.4h, v1.h[0]      \n"
+                    "smlal2 v29.4s, v6.8h, v1.h[0]      \n"
+
+                    "prfm   pldl1keep, [%2, #128]       \n"
+
+                    "smlal  v30.4s, v6.4h, v1.h[1]      \n"
+                    "smlal2 v31.4s, v6.8h, v1.h[1]      \n"
+
+                    "ld1    {v0.4h}, [%2], #8           \n"
+
+                    "smlal  v28.4s, v7.4h, v1.h[2]      \n"
+                    "smlal2 v29.4s, v7.8h, v1.h[2]      \n"
+
+                    "subs   w4, w4, #1                  \n"
+
+                    "smlal  v30.4s, v7.4h, v1.h[3]      \n"
+                    "smlal2 v31.4s, v7.8h, v1.h[3]      \n"
+
+                    "bne    2b                          \n"
+
+                    "sub    %1, %1, #32                 \n"
+                    "sub    %2, %2, #8                  \n"
+
+                    "3:                                 \n"
+                    "and    w4, %w6, #7                 \n" // w4 = remain = max_kk & 7
+                    "cmp    w4, #0                      \n"
+                    "beq    5f                          \n"
+
+                    "4:                                 \n"
+                    "ld1    {v4.8h}, [%1], #16          \n"
+                    "ld1    {v0.4h}, [%2]               \n"
+                    "add    %2, %2, #4                  \n"
+                    "smlal  v28.4s, v4.4h, v0.h[0]      \n"
+                    "smlal2 v29.4s, v4.8h, v0.h[0]      \n"
+                    "subs   w4, w4, #1                  \n"
+                    "smlal  v30.4s, v4.4h, v0.h[1]      \n"
+                    "smlal2 v31.4s, v4.8h, v0.h[1]      \n"
+                    "bne    4b                          \n"
+
+                    "5:                                 \n"
+                    "st1    {v28.4s, v29.4s, v30.4s, v31.4s}, [%0], #64 \n"
+
+                    : "=r"(outptr), // %0
+                    "=r"(pA),     // %1
+                    "=r"(pB)      // %2
+                    : "0"(outptr),
+                    "1"(pA),
+                    "2"(pB),
+                    "r"(max_kk), // %6
+                    "r"(k)       // %7
+                    : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
+#else  // __aarch64__
+                asm volatile(
+                    "pld        [%1, #512]          \n"
+                    "pld        [%2, #128]          \n"
+
+                    "cmp        %7, #0              \n"
+                    "beq        0f                  \n"
+
+                    "vldm       %0, {d24-d31}       \n"
+                    "b          1f                  \n"
+
+                    "0:                             \n"
+                    "veor       q12, q12            \n"
+                    "veor       q13, q13            \n"
+                    "veor       q14, q14            \n"
+                    "veor       q15, q15            \n"
+
+                    "1:                             \n"
+
+                    "lsr        r4, %6, #2          \n" // r4 = max_kk >> 2
+                    "cmp        r4, #0              \n"
+                    "beq        3f                  \n"
+
+                    "vld1.s16   {d2-d5}, [%1]!      \n"
+                    "vld1.s16   {d0}, [%2]!         \n"
+
+                    ".align 4                       \n"
+                    "2:                             \n"
+
+                    "vld1.s16   {d6-d9}, [%1]!      \n"
+
+                    "vmlal.s16  q12, d2, d0[0]      \n"
+                    "vmlal.s16  q14, d2, d0[1]      \n"
+                    "vmlal.s16  q13, d3, d0[0]      \n"
+                    "vmlal.s16  q15, d3, d0[1]      \n"
+
+                    "vld1.s16   {d1}, [%2]!         \n"
+
+                    "vmlal.s16  q12, d4, d0[2]      \n"
+                    "vmlal.s16  q14, d4, d0[3]      \n"
+
+                    "pld        [%1, #512]          \n"
+
+                    "vmlal.s16  q13, d5, d0[2]      \n"
+                    "vmlal.s16  q15, d5, d0[3]      \n"
+
+                    "vld1.s16   {d2-d5}, [%1]!      \n"
+
+                    "vmlal.s16  q12, d6, d1[0]      \n"
+                    "vmlal.s16  q14, d6, d1[1]      \n"
+
+                    "pld        [%2, #128]          \n"
+
+                    "vmlal.s16  q13, d7, d1[0]      \n"
+                    "vmlal.s16  q15, d7, d1[1]      \n"
+
+                    "vld1.s16   {d0}, [%2]!         \n"
+
+                    "vmlal.s16  q12, d8, d1[2]      \n"
+                    "vmlal.s16  q14, d8, d1[3]      \n"
+
+                    "subs       r4, r4, #1          \n"
+
+                    "vmlal.s16  q13, d9, d1[2]      \n"
+                    "vmlal.s16  q15, d9, d1[3]      \n"
+
+                    "bne        2b                  \n"
+
+                    "sub        %1, %1, #32         \n"
+                    "sub        %2, %2, #8          \n"
+
+                    "3:                             \n"
+                    "and        r4, %6, #3          \n" // w4 = remain = max_kk & 3
+                    "cmp        r4, #0              \n"
+                    "beq        5f                  \n"
+
+                    "4:                             \n"
+
+                    "vld1.s16   {d0-d1}, [%1]!      \n"
+                    "vld1.s16   {d2}, [%2]          \n"
+                    "add        %2, %2, #4          \n"
+
+                    "vmlal.s16  q12, d0, d2[0]      \n"
+                    "vmlal.s16  q14, d0, d2[1]      \n"
+
+                    "subs       r4, r4, #1          \n"
+
+                    "vmlal.s16  q13, d1, d2[0]      \n"
+                    "vmlal.s16  q15, d1, d2[1]      \n"
+
+                    "bne        4b                  \n"
+
+                    "5:                             \n"
+                    "vstm       %0!, {d24-d31}      \n"
+
+                    : "=r"(outptr), // %0
+                    "=r"(pA),     // %1
+                    "=r"(pB)      // %2
+                    : "0"(outptr),
+                    "1"(pA),
+                    "2"(pB),
+                    "r"(max_kk), // %6
+                    "r"(k)       // %7
+                    : "cc", "memory", "r4", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
+#endif // __aarch64__
+#else  // NCNN_GNU_INLINE_ASM
                 int32x4_t _sum0;
                 int32x4_t _sum1;
                 int32x4_t _sum2;
@@ -1974,11 +2172,170 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 vst1q_s32(outptr + 8, _sum2);
                 vst1q_s32(outptr + 12, _sum3);
                 outptr += 16;
+#endif // NCNN_GNU_INLINE_ASM
             }
             for (; jj < max_jj; jj++)
             {
                 const short* pA = pAT;
 
+#if NCNN_GNU_INLINE_ASM
+#if __aarch64__
+                asm volatile(
+                    "prfm   pldl1keep, [%1, #512]       \n"
+                    "prfm   pldl1keep, [%2, #64]        \n"
+                    "cmp    %w7, #0                     \n"
+                    "beq    0f                          \n"
+
+                    "ld1    {v30.4s, v31.4s}, [%0]      \n"
+                    "b      1f                          \n"
+
+                    "0:                                 \n"
+                    "eor    v30.16b, v30.16b, v30.16b   \n"
+                    "eor    v31.16b, v31.16b, v31.16b   \n"
+
+                    "1:                                 \n"
+                    "lsr    w4, %w6, #3                 \n" // w4 = max_kk >> 3
+                    "cmp    w4, #0                      \n"
+                    "beq    3f                          \n"
+
+                    "ld1    {v4.8h, v5.8h}, [%1], #32   \n"
+
+                    "2:                                 \n"
+
+                    "ld1    {v0.4h}, [%2], #8           \n"
+
+                    "ld1    {v6.8h, v7.8h}, [%1], #32   \n"
+
+                    "smlal  v30.4s, v4.4h, v0.h[0]      \n"
+                    "smlal2 v31.4s, v4.8h, v0.h[0]      \n"
+
+                    "prfm   pldl1keep, [%1, #512]       \n"
+
+                    "smlal  v30.4s, v5.4h, v0.h[1]      \n"
+                    "smlal2 v31.4s, v5.8h, v0.h[1]      \n"
+
+                    "ld1    {v4.8h, v5.8h}, [%1], #32   \n"
+
+                    "smlal  v30.4s, v6.4h, v0.h[2]      \n"
+                    "smlal2 v31.4s, v6.8h, v0.h[2]      \n"
+
+                    "prfm   pldl1keep, [%2, #64]        \n"
+
+                    "smlal  v30.4s, v7.4h, v0.h[3]      \n"
+                    "subs   w4, w4, #1                  \n"
+
+                    "smlal2 v31.4s, v7.8h, v0.h[3]      \n"
+
+                    "bne    2b                          \n"
+
+                    "sub    %1, %1, #32                 \n"
+
+                    "3:                                 \n"
+                    "and    w4, %w6, #7                 \n" // w4 = remain = max_kk & 7
+                    "cmp    w4, #0                      \n"
+                    "beq    5f                          \n"
+
+                    "4:                                 \n"
+                    "ld1    {v4.8h}, [%1], #16          \n"
+                    "ld1r   {v0.4h}, [%2], #2           \n"
+                    "subs   w4, w4, #1                  \n"
+                    "smlal  v30.4s, v4.4h, v0.h[0]      \n"
+                    "smlal2 v31.4s, v4.8h, v0.h[0]      \n"
+                    "bne    4b                          \n"
+
+                    "5:                                 \n"
+                    "st1    {v28.4s, v29.4s, v30.4s, v31.4s}, [%0], #64 \n"
+
+                    : "=r"(outptr), // %0
+                    "=r"(pA),     // %1
+                    "=r"(pB)      // %2
+                    : "0"(outptr),
+                    "1"(pA),
+                    "2"(pB),
+                    "r"(max_kk), // %6
+                    "r"(k)       // %7
+                    : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
+#else  // __aarch64__
+                asm volatile(
+                    "pld        [%1, #512]          \n"
+                    "pld        [%2, #64]           \n"
+
+                    "cmp        %7, #0              \n"
+                    "beq        0f                  \n"
+
+                    "vld1.s32   {d28-d31}, [%0]     \n"
+                    "b          1f                  \n"
+
+                    "0:                             \n"
+                    "veor       q14, q14            \n"
+                    "veor       q15, q15            \n"
+
+                    "1:                             \n"
+
+                    "lsr        r4, %6, #2          \n" // r4 = max_kk >> 2
+                    "cmp        r4, #0              \n"
+                    "beq        3f                  \n"
+
+                    "vld1.s16   {d2-d5}, [%1]!      \n"
+
+                    ".align 4                       \n"
+                    "2:                             \n"
+
+                    "vld1.s16   {d0}, [%2]!         \n"
+
+                    "vld1.s16   {d6-d9}, [%1]!      \n"
+
+                    "vmlal.s16  q14, d2, d0[0]      \n"
+                    "vmlal.s16  q15, d3, d0[0]      \n"
+
+                    "pld        [%1, #512]          \n"
+
+                    "vmlal.s16  q14, d4, d0[1]      \n"
+                    "vmlal.s16  q15, d5, d0[1]      \n"
+
+                    "vld1.s16   {d2-d5}, [%1]!      \n"
+
+                    "vmlal.s16  q14, d6, d0[2]      \n"
+                    "vmlal.s16  q15, d7, d0[2]      \n"
+
+                    "pld        [%2, #64]           \n"
+
+                    "vmlal.s16  q14, d8, d0[3]      \n"
+                    "subs       r4, r4, #1          \n"
+                    "vmlal.s16  q15, d9, d0[3]      \n"
+
+                    "bne        2b                  \n"
+
+                    "sub        %1, %1, #32         \n"
+
+                    "3:                             \n"
+                    "and        r4, %6, #3          \n" // w4 = remain = max_kk & 3
+                    "cmp        r4, #0              \n"
+                    "beq        5f                  \n"
+
+                    "4:                             \n"
+
+                    "vld1.s16   {d0-d1}, [%1]!      \n"
+                    "vld1.s16   {d2[]}, [%2]!       \n"
+                    "subs       r4, r4, #1          \n"
+                    "vmlal.s16  q14, d0, d2[0]      \n"
+                    "vmlal.s16  q15, d1, d2[0]      \n"
+                    "bne        4b                  \n"
+
+                    "5:                             \n"
+                    "vst1.s32   {d28-d31}, [%0]!    \n"
+
+                    : "=r"(outptr), // %0
+                    "=r"(pA),     // %1
+                    "=r"(pB)      // %2
+                    : "0"(outptr),
+                    "1"(pA),
+                    "2"(pB),
+                    "r"(max_kk), // %6
+                    "r"(k)       // %7
+                    : "cc", "memory", "r4", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
+#endif // __aarch64__
+#else  // NCNN_GNU_INLINE_ASM
                 int32x4_t _sum0;
                 int32x4_t _sum1;
 
@@ -2007,6 +2364,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 vst1q_s32(outptr, _sum0);
                 vst1q_s32(outptr + 4, _sum1);
                 outptr += 8;
+#endif // NCNN_GNU_INLINE_ASM
             }
         }
     }
