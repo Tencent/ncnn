@@ -189,8 +189,8 @@ void main()
     }
     if (op_type == 12)
     {
-        res[0] = mod(v1[0], v2[0]);
-        res[1] = mod(v1[1], v2[1]);
+        res[0] = v1[0] - floorf(v1[0] / v2[0]) * v2[0];
+        res[1] = v1[1] - floorf(v1[1] / v2[1]) * v2[1];
     }
 
 #if NCNN_image_shader
