@@ -314,7 +314,7 @@ MAKE_FUNCTION(binary_op_rdiv, y / x, __lsx_vfdiv_s(y, x))
 MAKE_FUNCTION(binary_op_rpow, (float)pow(y, x), pow_ps(y, x))
 MAKE_FUNCTION(binary_op_atan2, (float)atan2(x, y), atan2_ps(x, y))
 MAKE_FUNCTION(binary_op_ratan2, (float)atan2(y, x), atan2_ps(y, x))
-MAKE_FUNCTION(binary_op_remainder, remainder(x, y), remainder_ps(x, y))
+MAKE_FUNCTION(binary_op_remainder, remainderf(x, y), remainder_ps(x, y))
 // *INDENT-ON*
 // clang-format on
 

@@ -275,10 +275,10 @@ static inline __m128 remainder_ps(__m128 x, __m128 y)
     float tmpy[4];
     __lsx_vst(x, tmpx, 0);
     __lsx_vst(y, tmpy, 0);
-    tmpx[0] = remainder(tmpx[0], tmpy[0]);
-    tmpx[1] = remainder(tmpx[1], tmpy[1]);
-    tmpx[2] = remainder(tmpx[2], tmpy[2]);
-    tmpx[3] = remainder(tmpx[3], tmpy[3]);
+    tmpx[0] = remainderf(tmpx[0], tmpy[0]);
+    tmpx[1] = remainderf(tmpx[1], tmpy[1]);
+    tmpx[2] = remainderf(tmpx[2], tmpy[2]);
+    tmpx[3] = remainderf(tmpx[3], tmpy[3]);
     return __lsx_vld(tmpx, 0);
 }
 
