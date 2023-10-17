@@ -31,9 +31,9 @@ def test():
     net.eval()
 
     torch.manual_seed(0)
-    x = torch.rand(1, 3, 16)
-    y = torch.rand(1, 5, 9, 11)
-    z = torch.rand(14, 8, 5, 9, 10)
+    x = torch.rand(1, 3, 16,dtype=torch.complex64)
+    y = torch.rand(1, 5, 9, 11,dtype=torch.complex64)
+    z = torch.rand(14, 8, 5, 9, 10,dtype=torch.complex64)
 
     a = net(x, y, z)
 
@@ -43,7 +43,7 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_torch_view_as_real.pt inputshape=[1,3,16],[1,5,9,11],[14,8,5,9,10]")
+    os.system("../src/pnnx test_torch_view_as_real.pt inputshape=[1,3,16]c64,[1,5,9,11]c64,[14,8,5,9,10]c64")
 
     # pnnx inference
     import test_torch_view_as_real_pnnx
