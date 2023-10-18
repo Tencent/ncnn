@@ -110,7 +110,6 @@ static void transpose_pack_B_tile_int8(const Mat& B, Mat& BT, int batch, int max
                 asm volatile(
                     "prfm   pldl1keep, [%0, #512]   \n"
                     "prfm   pldl1keep, [%0, #1024]  \n"
-                    "prfm   pldl1keep, [%0, #1536]  \n"
                     "ld4    {v0.8h, v1.8h, v2.8h, v3.8h}, [%0], #64 \n"
                     "ld4    {v4.8h, v5.8h, v6.8h, v7.8h}, [%0], #64 \n"
                     "ld4    {v16.8h, v17.8h, v18.8h, v19.8h}, [%0] \n"
