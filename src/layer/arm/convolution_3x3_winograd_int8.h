@@ -108,6 +108,9 @@ static void transpose_pack_B_tile_int8(const Mat& B, Mat& BT, int batch, int max
                 // transpose 8x12
 #if NCNN_GNU_INLINE_ASM
                 asm volatile(
+                    "prfm   pldl1keep, [%0, #512]   \n"
+                    "prfm   pldl1keep, [%0, #1024]  \n"
+                    "prfm   pldl1keep, [%0, #1536]  \n"
                     "ld4    {v0.8h, v1.8h, v2.8h, v3.8h}, [%0], #64 \n"
                     "ld4    {v4.8h, v5.8h, v6.8h, v7.8h}, [%0], #64 \n"
                     "ld4    {v16.8h, v17.8h, v18.8h, v19.8h}, [%0] \n"
@@ -195,6 +198,8 @@ static void transpose_pack_B_tile_int8(const Mat& B, Mat& BT, int batch, int max
                 // transpose 8x8
 #if NCNN_GNU_INLINE_ASM
                 asm volatile(
+                    "prfm   pldl1keep, [%0, #512]   \n"
+                    "prfm   pldl1keep, [%0, #1024]  \n"
                     "ld1    {v0.8h, v1.8h, v2.8h, v3.8h}, [%0], #64 \n"
                     "ld1    {v4.8h, v5.8h, v6.8h, v7.8h}, [%0] \n"
                     "sub    %0, %0, #64             \n"
@@ -275,6 +280,7 @@ static void transpose_pack_B_tile_int8(const Mat& B, Mat& BT, int batch, int max
 #if NCNN_GNU_INLINE_ASM
 #if __aarch64__
                 asm volatile(
+                    "prfm   pldl1keep, [%0, #768]   \n"
                     "ld1    {v0.8h, v1.8h, v2.8h}, [%0], #48 \n"
                     "ld1    {v3.8h, v4.8h, v5.8h}, [%0] \n"
                     "sub    %0, %0, #48             \n"
@@ -371,6 +377,7 @@ static void transpose_pack_B_tile_int8(const Mat& B, Mat& BT, int batch, int max
 #if NCNN_GNU_INLINE_ASM
 #if __aarch64__
                 asm volatile(
+                    "prfm   pldl1keep, [%0, #512]   \n"
                     "ld1    {v0.8h, v1.8h, v2.8h, v3.8h}, [%0] \n"
                     "st4    {v0.8h, v1.8h, v2.8h, v3.8h}, [%1], #64 \n"
                     : "=r"(p0), // %0
@@ -436,6 +443,7 @@ static void transpose_pack_B_tile_int8(const Mat& B, Mat& BT, int batch, int max
 #if NCNN_GNU_INLINE_ASM
 #if __aarch64__
                 asm volatile(
+                    "prfm   pldl1keep, [%0, #256]   \n"
                     "ld1    {v0.8h, v1.8h}, [%0]    \n"
                     "st2    {v0.8h, v1.8h}, [%1], #32 \n"
                     : "=r"(p0), // %0
@@ -499,6 +507,7 @@ static void transpose_pack_B_tile_int8(const Mat& B, Mat& BT, int batch, int max
 #if NCNN_GNU_INLINE_ASM
 #if __aarch64__
                 asm volatile(
+                    "prfm   pldl1keep, [%0, #128]   \n"
                     "ld1    {v0.8h}, [%0]           \n"
                     "st1    {v0.8h}, [%1], #16      \n"
                     : "=r"(p0), // %0
@@ -619,14 +628,11 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
 
                     "ld1    {v4.8h, v5.8h}, [%1], #32   \n"
                     "ld1    {v0.8h, v1.8h}, [%2], #32   \n"
-
                     ".align 4                           \n"
                     "2:                                 \n"
-
                     "smlal  v8.4s, v4.4h, v0.h[0]       \n"
                     "smlal  v10.4s, v4.4h, v0.h[1]      \n"
                     "ld1    {v2.8h, v3.8h}, [%2], #32   \n"
-
                     "smlal2 v9.4s, v4.8h, v0.h[0]       \n"
                     "smlal2 v11.4s, v4.8h, v0.h[1]      \n"
                     "ld1    {v6.8h, v7.8h}, [%1], #32   \n"
@@ -634,7 +640,6 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                     "smlal  v14.4s, v4.4h, v0.h[3]      \n"
                     "smlal2 v13.4s, v4.8h, v0.h[2]      \n"
                     "smlal2 v15.4s, v4.8h, v0.h[3]      \n"
-
                     "smlal  v16.4s, v4.4h, v0.h[4]      \n"
                     "smlal  v18.4s, v4.4h, v0.h[5]      \n"
                     "smlal2 v17.4s, v4.8h, v0.h[4]      \n"
@@ -643,7 +648,6 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                     "smlal  v22.4s, v4.4h, v0.h[7]      \n"
                     "smlal2 v21.4s, v4.8h, v0.h[6]      \n"
                     "smlal2 v23.4s, v4.8h, v0.h[7]      \n"
-
                     "smlal  v24.4s, v4.4h, v1.h[0]      \n"
                     "smlal  v26.4s, v4.4h, v1.h[1]      \n"
                     "smlal2 v25.4s, v4.8h, v1.h[0]      \n"
@@ -652,7 +656,6 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                     "smlal  v30.4s, v4.4h, v1.h[3]      \n"
                     "smlal2 v29.4s, v4.8h, v1.h[2]      \n"
                     "smlal2 v31.4s, v4.8h, v1.h[3]      \n"
-
                     "smlal  v8.4s, v5.4h, v1.h[4]       \n"
                     "smlal  v10.4s, v5.4h, v1.h[5]      \n"
                     "smlal2 v9.4s, v5.8h, v1.h[4]       \n"
@@ -661,19 +664,16 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                     "smlal  v14.4s, v5.4h, v1.h[7]      \n"
                     "smlal2 v13.4s, v5.8h, v1.h[6]      \n"
                     "smlal2 v15.4s, v5.8h, v1.h[7]      \n"
-
                     "smlal  v16.4s, v5.4h, v2.h[0]      \n"
                     "smlal  v18.4s, v5.4h, v2.h[1]      \n"
+                    "prfm   pldl1keep, [%2, #512]       \n"
                     "ld1    {v0.8h, v1.8h}, [%2], #32   \n"
                     "smlal2 v17.4s, v5.8h, v2.h[0]      \n"
                     "smlal2 v19.4s, v5.8h, v2.h[1]      \n"
-                    "prfm   pldl1keep, [%2, #512]       \n"
-
                     "smlal  v20.4s, v5.4h, v2.h[2]      \n"
                     "smlal  v22.4s, v5.4h, v2.h[3]      \n"
                     "smlal2 v21.4s, v5.8h, v2.h[2]      \n"
                     "smlal2 v23.4s, v5.8h, v2.h[3]      \n"
-
                     "smlal  v24.4s, v5.4h, v2.h[4]      \n"
                     "smlal  v26.4s, v5.4h, v2.h[5]      \n"
                     "smlal2 v25.4s, v5.8h, v2.h[4]      \n"
@@ -682,19 +682,16 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                     "smlal  v30.4s, v5.4h, v2.h[7]      \n"
                     "smlal2 v29.4s, v5.8h, v2.h[6]      \n"
                     "smlal2 v31.4s, v5.8h, v2.h[7]      \n"
-
                     "smlal  v8.4s, v6.4h, v3.h[0]       \n"
                     "smlal  v10.4s, v6.4h, v3.h[1]      \n"
+                    "prfm   pldl1keep, [%1, #512]       \n"
                     "ld1    {v4.8h, v5.8h}, [%1], #32   \n"
                     "smlal2 v9.4s, v6.8h, v3.h[0]       \n"
                     "smlal2 v11.4s, v6.8h, v3.h[1]      \n"
-                    "prfm   pldl1keep, [%1, #512]       \n"
-
                     "smlal  v12.4s, v6.4h, v3.h[2]      \n"
                     "smlal  v14.4s, v6.4h, v3.h[3]      \n"
                     "smlal2 v13.4s, v6.8h, v3.h[2]      \n"
                     "smlal2 v15.4s, v6.8h, v3.h[3]      \n"
-
                     "smlal  v16.4s, v6.4h, v3.h[4]      \n"
                     "smlal  v18.4s, v6.4h, v3.h[5]      \n"
                     "smlal2 v17.4s, v6.8h, v3.h[4]      \n"
@@ -703,18 +700,15 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                     "smlal  v22.4s, v6.4h, v3.h[7]      \n"
                     "smlal2 v21.4s, v6.8h, v3.h[6]      \n"
                     "smlal2 v23.4s, v6.8h, v3.h[7]      \n"
-
                     "smlal  v24.4s, v6.4h, v0.h[0]      \n"
                     "smlal  v26.4s, v6.4h, v0.h[1]      \n"
                     "ld1    {v2.8h, v3.8h}, [%2], #32   \n"
                     "smlal2 v25.4s, v6.8h, v0.h[0]      \n"
                     "smlal2 v27.4s, v6.8h, v0.h[1]      \n"
-
                     "smlal  v28.4s, v6.4h, v0.h[2]      \n"
                     "smlal  v30.4s, v6.4h, v0.h[3]      \n"
                     "smlal2 v29.4s, v6.8h, v0.h[2]      \n"
                     "smlal2 v31.4s, v6.8h, v0.h[3]      \n"
-
                     "smlal  v8.4s, v7.4h, v0.h[4]       \n"
                     "smlal  v10.4s, v7.4h, v0.h[5]      \n"
                     "smlal2 v9.4s, v7.8h, v0.h[4]       \n"
@@ -723,7 +717,6 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                     "smlal  v14.4s, v7.4h, v0.h[7]      \n"
                     "smlal2 v13.4s, v7.8h, v0.h[6]      \n"
                     "smlal2 v15.4s, v7.8h, v0.h[7]      \n"
-
                     "smlal  v16.4s, v7.4h, v1.h[0]      \n"
                     "smlal  v18.4s, v7.4h, v1.h[1]      \n"
                     "smlal2 v17.4s, v7.8h, v1.h[0]      \n"
@@ -732,7 +725,6 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                     "smlal  v22.4s, v7.4h, v1.h[3]      \n"
                     "smlal2 v21.4s, v7.8h, v1.h[2]      \n"
                     "smlal2 v23.4s, v7.8h, v1.h[3]      \n"
-
                     "smlal  v24.4s, v7.4h, v1.h[4]      \n"
                     "smlal  v26.4s, v7.4h, v1.h[5]      \n"
                     "smlal2 v25.4s, v7.8h, v1.h[4]      \n"
@@ -741,22 +733,17 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                     "smlal  v30.4s, v7.4h, v1.h[7]      \n"
                     "smlal2 v29.4s, v7.8h, v1.h[6]      \n"
                     "smlal2 v31.4s, v7.8h, v1.h[7]      \n"
-
                     "smlal  v8.4s, v4.4h, v2.h[0]       \n"
                     "smlal  v10.4s, v4.4h, v2.h[1]      \n"
+                    "prfm   pldl1keep, [%2, #512]       \n"
                     "ld1    {v0.8h, v1.8h}, [%2], #32   \n"
-
                     "smlal2 v9.4s, v4.8h, v2.h[0]       \n"
                     "smlal2 v11.4s, v4.8h, v2.h[1]      \n"
-
                     "ld1    {v6.8h, v7.8h}, [%1], #32   \n"
-
                     "smlal  v12.4s, v4.4h, v2.h[2]      \n"
                     "smlal  v14.4s, v4.4h, v2.h[3]      \n"
-                    "prfm   pldl1keep, [%2, #512]       \n"
                     "smlal2 v13.4s, v4.8h, v2.h[2]      \n"
                     "smlal2 v15.4s, v4.8h, v2.h[3]      \n"
-
                     "smlal  v16.4s, v4.4h, v2.h[4]      \n"
                     "smlal  v18.4s, v4.4h, v2.h[5]      \n"
                     "smlal2 v17.4s, v4.8h, v2.h[4]      \n"
@@ -765,7 +752,6 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                     "smlal  v22.4s, v4.4h, v2.h[7]      \n"
                     "smlal2 v21.4s, v4.8h, v2.h[6]      \n"
                     "smlal2 v23.4s, v4.8h, v2.h[7]      \n"
-
                     "smlal  v24.4s, v4.4h, v3.h[0]      \n"
                     "smlal  v26.4s, v4.4h, v3.h[1]      \n"
                     "smlal2 v25.4s, v4.8h, v3.h[0]      \n"
@@ -774,7 +760,6 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                     "smlal  v30.4s, v4.4h, v3.h[3]      \n"
                     "smlal2 v29.4s, v4.8h, v3.h[2]      \n"
                     "smlal2 v31.4s, v4.8h, v3.h[3]      \n"
-
                     "smlal  v8.4s, v5.4h, v3.h[4]       \n"
                     "smlal  v10.4s, v5.4h, v3.h[5]      \n"
                     "smlal2 v9.4s, v5.8h, v3.h[4]       \n"
@@ -783,7 +768,6 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                     "smlal  v14.4s, v5.4h, v3.h[7]      \n"
                     "smlal2 v13.4s, v5.8h, v3.h[6]      \n"
                     "smlal2 v15.4s, v5.8h, v3.h[7]      \n"
-
                     "smlal  v16.4s, v5.4h, v0.h[0]      \n"
                     "smlal  v18.4s, v5.4h, v0.h[1]      \n"
                     "ld1    {v2.8h, v3.8h}, [%2], #32   \n"
@@ -793,7 +777,6 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                     "smlal  v22.4s, v5.4h, v0.h[3]      \n"
                     "smlal2 v21.4s, v5.8h, v0.h[2]      \n"
                     "smlal2 v23.4s, v5.8h, v0.h[3]      \n"
-
                     "smlal  v24.4s, v5.4h, v0.h[4]      \n"
                     "smlal  v26.4s, v5.4h, v0.h[5]      \n"
                     "smlal2 v25.4s, v5.8h, v0.h[4]      \n"
@@ -802,19 +785,16 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                     "smlal  v30.4s, v5.4h, v0.h[7]      \n"
                     "smlal2 v29.4s, v5.8h, v0.h[6]      \n"
                     "smlal2 v31.4s, v5.8h, v0.h[7]      \n"
-
                     "smlal  v8.4s, v6.4h, v1.h[0]       \n"
                     "smlal  v10.4s, v6.4h, v1.h[1]      \n"
+                    "prfm   pldl1keep, [%1, #512]       \n"
                     "ld1    {v4.8h, v5.8h}, [%1], #32   \n"
                     "smlal2 v9.4s, v6.8h, v1.h[0]       \n"
                     "smlal2 v11.4s, v6.8h, v1.h[1]      \n"
-                    "prfm   pldl1keep, [%1, #512]       \n"
-
                     "smlal  v12.4s, v6.4h, v1.h[2]      \n"
                     "smlal  v14.4s, v6.4h, v1.h[3]      \n"
                     "smlal2 v13.4s, v6.8h, v1.h[2]      \n"
                     "smlal2 v15.4s, v6.8h, v1.h[3]      \n"
-
                     "smlal  v16.4s, v6.4h, v1.h[4]      \n"
                     "smlal  v18.4s, v6.4h, v1.h[5]      \n"
                     "smlal2 v17.4s, v6.8h, v1.h[4]      \n"
@@ -823,18 +803,16 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                     "smlal  v22.4s, v6.4h, v1.h[7]      \n"
                     "smlal2 v21.4s, v6.8h, v1.h[6]      \n"
                     "smlal2 v23.4s, v6.8h, v1.h[7]      \n"
-
                     "smlal  v24.4s, v6.4h, v2.h[0]      \n"
                     "smlal  v26.4s, v6.4h, v2.h[1]      \n"
+                    "prfm   pldl1keep, [%2, #512]       \n"
                     "ld1    {v0.8h, v1.8h}, [%2], #32   \n"
                     "smlal2 v25.4s, v6.8h, v2.h[0]      \n"
                     "smlal2 v27.4s, v6.8h, v2.h[1]      \n"
-                    "prfm   pldl1keep, [%2, #512]       \n"
                     "smlal  v28.4s, v6.4h, v2.h[2]      \n"
                     "smlal  v30.4s, v6.4h, v2.h[3]      \n"
                     "smlal2 v29.4s, v6.8h, v2.h[2]      \n"
                     "smlal2 v31.4s, v6.8h, v2.h[3]      \n"
-
                     "smlal  v8.4s, v7.4h, v2.h[4]       \n"
                     "smlal  v10.4s, v7.4h, v2.h[5]      \n"
                     "smlal2 v9.4s, v7.8h, v2.h[4]       \n"
@@ -843,7 +821,6 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                     "smlal  v14.4s, v7.4h, v2.h[7]      \n"
                     "smlal2 v13.4s, v7.8h, v2.h[6]      \n"
                     "smlal2 v15.4s, v7.8h, v2.h[7]      \n"
-
                     "smlal  v16.4s, v7.4h, v3.h[0]      \n"
                     "smlal  v18.4s, v7.4h, v3.h[1]      \n"
                     "smlal2 v17.4s, v7.8h, v3.h[0]      \n"
@@ -852,18 +829,15 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                     "smlal  v22.4s, v7.4h, v3.h[3]      \n"
                     "smlal2 v21.4s, v7.8h, v3.h[2]      \n"
                     "smlal2 v23.4s, v7.8h, v3.h[3]      \n"
-
                     "smlal  v24.4s, v7.4h, v3.h[4]      \n"
                     "smlal  v26.4s, v7.4h, v3.h[5]      \n"
                     "smlal2 v25.4s, v7.8h, v3.h[4]      \n"
                     "smlal2 v27.4s, v7.8h, v3.h[5]      \n"
                     "subs   w4, w4, #1                  \n"
-
                     "smlal  v28.4s, v7.4h, v3.h[6]      \n"
                     "smlal  v30.4s, v7.4h, v3.h[7]      \n"
                     "smlal2 v29.4s, v7.8h, v3.h[6]      \n"
                     "smlal2 v31.4s, v7.8h, v3.h[7]      \n"
-
                     "bne    2b                          \n"
                     "sub    %1, %1, #32                 \n"
                     "sub    %2, %2, #32                 \n"
@@ -1143,16 +1117,16 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                     "smlal2 v31.4s, v5.8h, v1.h[7]      \n"
                     "smlal  v16.4s, v6.4h, v2.h[0]      \n"
                     "smlal  v18.4s, v6.4h, v2.h[1]      \n"
+                    "prfm   pldl1keep, [%1, #512]       \n"
                     "ld1    {v4.8h, v5.8h}, [%1], #32   \n"
                     "smlal2 v17.4s, v6.8h, v2.h[0]      \n"
                     "smlal2 v19.4s, v6.8h, v2.h[1]      \n"
+                    "prfm   pldl1keep, [%2, #512]       \n"
                     "ld1    {v0.8h, v1.8h}, [%2], #32   \n"
                     "smlal  v20.4s, v6.4h, v2.h[2]      \n"
                     "smlal  v22.4s, v6.4h, v2.h[3]      \n"
-                    "prfm   pldl1keep, [%1, #512]       \n"
                     "smlal2 v21.4s, v6.8h, v2.h[2]      \n"
                     "smlal2 v23.4s, v6.8h, v2.h[3]      \n"
-                    "prfm   pldl1keep, [%2, #512]       \n"
                     "smlal  v24.4s, v6.4h, v2.h[4]      \n"
                     "smlal  v26.4s, v6.4h, v2.h[5]      \n"
                     "smlal2 v25.4s, v6.8h, v2.h[4]      \n"
@@ -1334,7 +1308,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
 #if __aarch64__
                 asm volatile(
                     "prfm   pldl1keep, [%1, #512]       \n"
-                    "prfm   pldl1keep, [%2, #512]       \n"
+                    "prfm   pldl1keep, [%2, #384]       \n"
                     "cmp    %w7, #0                     \n"
                     "beq    0f                          \n"
 
@@ -1365,29 +1339,22 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
 
                     "ld1    {v6.8h, v7.8h}, [%1], #32   \n"
                     "ld1    {v0.8h, v1.8h}, [%2], #32   \n"
-
                     ".align 4                           \n"
                     "2:                                 \n"
-
                     "smlal  v20.4s, v6.4h, v0.h[0]      \n"
                     "smlal  v22.4s, v6.4h, v0.h[1]      \n"
                     "ld1    {v8.8h, v9.8h}, [%1], #32   \n"
-
                     "smlal2 v21.4s, v6.8h, v0.h[0]      \n"
                     "smlal2 v23.4s, v6.8h, v0.h[1]      \n"
-                    "prfm   pldl1keep, [%1, #512]       \n"
-
+                    "ld1    {v2.8h, v3.8h}, [%2], #32   \n"
                     "smlal  v24.4s, v6.4h, v0.h[2]      \n"
                     "smlal  v26.4s, v6.4h, v0.h[3]      \n"
-                    "ld1    {v2.8h, v3.8h}, [%2], #32   \n"
                     "smlal2 v25.4s, v6.8h, v0.h[2]      \n"
                     "smlal2 v27.4s, v6.8h, v0.h[3]      \n"
-                    "prfm   pldl1keep, [%2, #512]       \n"
                     "smlal  v28.4s, v6.4h, v0.h[4]      \n"
                     "smlal  v30.4s, v6.4h, v0.h[5]      \n"
                     "smlal2 v29.4s, v6.8h, v0.h[4]      \n"
                     "smlal2 v31.4s, v6.8h, v0.h[5]      \n"
-
                     "smlal  v20.4s, v7.4h, v0.h[6]      \n"
                     "smlal  v22.4s, v7.4h, v0.h[7]      \n"
                     "smlal2 v21.4s, v7.8h, v0.h[6]      \n"
@@ -1400,9 +1367,9 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                     "smlal  v30.4s, v7.4h, v1.h[3]      \n"
                     "smlal2 v29.4s, v7.8h, v1.h[2]      \n"
                     "smlal2 v31.4s, v7.8h, v1.h[3]      \n"
-
                     "smlal  v20.4s, v8.4h, v1.h[4]      \n"
                     "smlal  v22.4s, v8.4h, v1.h[5]      \n"
+                    "prfm   pldl1keep, [%1, #512]       \n"
                     "ld1    {v6.8h, v7.8h}, [%1], #32   \n"
                     "smlal2 v21.4s, v8.8h, v1.h[4]      \n"
                     "smlal2 v23.4s, v8.8h, v1.h[5]      \n"
@@ -1410,13 +1377,11 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                     "smlal  v26.4s, v8.4h, v1.h[7]      \n"
                     "smlal2 v25.4s, v8.8h, v1.h[6]      \n"
                     "smlal2 v27.4s, v8.8h, v1.h[7]      \n"
-
                     "smlal  v28.4s, v8.4h, v2.h[0]      \n"
                     "smlal  v30.4s, v8.4h, v2.h[1]      \n"
                     "ld1    {v4.8h, v5.8h}, [%2], #32   \n"
                     "smlal2 v29.4s, v8.8h, v2.h[0]      \n"
                     "smlal2 v31.4s, v8.8h, v2.h[1]      \n"
-
                     "smlal  v20.4s, v9.4h, v2.h[2]      \n"
                     "smlal  v22.4s, v9.4h, v2.h[3]      \n"
                     "smlal2 v21.4s, v9.8h, v2.h[2]      \n"
@@ -1429,13 +1394,11 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                     "smlal  v30.4s, v9.4h, v2.h[7]      \n"
                     "smlal2 v29.4s, v9.8h, v2.h[6]      \n"
                     "smlal2 v31.4s, v9.8h, v2.h[7]      \n"
-
                     "smlal  v20.4s, v6.4h, v3.h[0]      \n"
                     "smlal  v22.4s, v6.4h, v3.h[1]      \n"
                     "ld1    {v8.8h, v9.8h}, [%1], #32   \n"
                     "smlal2 v21.4s, v6.8h, v3.h[0]      \n"
                     "smlal2 v23.4s, v6.8h, v3.h[1]      \n"
-                    "prfm   pldl1keep, [%1, #512]       \n"
                     "smlal  v24.4s, v6.4h, v3.h[2]      \n"
                     "smlal  v26.4s, v6.4h, v3.h[3]      \n"
                     "smlal2 v25.4s, v6.8h, v3.h[2]      \n"
@@ -1444,25 +1407,23 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                     "smlal  v30.4s, v6.4h, v3.h[5]      \n"
                     "smlal2 v29.4s, v6.8h, v3.h[4]      \n"
                     "smlal2 v31.4s, v6.8h, v3.h[5]      \n"
-
                     "smlal  v20.4s, v7.4h, v3.h[6]      \n"
                     "smlal  v22.4s, v7.4h, v3.h[7]      \n"
                     "smlal2 v21.4s, v7.8h, v3.h[6]      \n"
                     "smlal2 v23.4s, v7.8h, v3.h[7]      \n"
-
                     "smlal  v24.4s, v7.4h, v4.h[0]      \n"
                     "smlal  v26.4s, v7.4h, v4.h[1]      \n"
+                    "prfm   pldl1keep, [%2, #384]       \n"
                     "ld1    {v0.8h, v1.8h}, [%2], #32   \n"
                     "smlal2 v25.4s, v7.8h, v4.h[0]      \n"
                     "smlal2 v27.4s, v7.8h, v4.h[1]      \n"
-                    "prfm   pldl1keep, [%2, #512]       \n"
                     "smlal  v28.4s, v7.4h, v4.h[2]      \n"
                     "smlal  v30.4s, v7.4h, v4.h[3]      \n"
                     "smlal2 v29.4s, v7.8h, v4.h[2]      \n"
                     "smlal2 v31.4s, v7.8h, v4.h[3]      \n"
-
                     "smlal  v20.4s, v8.4h, v4.h[4]      \n"
                     "smlal  v22.4s, v8.4h, v4.h[5]      \n"
+                    "prfm   pldl1keep, [%1, #512]       \n"
                     "ld1    {v6.8h, v7.8h}, [%1], #32   \n"
                     "smlal2 v21.4s, v8.8h, v4.h[4]      \n"
                     "smlal2 v23.4s, v8.8h, v4.h[5]      \n"
@@ -1474,7 +1435,6 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                     "smlal  v30.4s, v8.4h, v5.h[1]      \n"
                     "smlal2 v29.4s, v8.8h, v5.h[0]      \n"
                     "smlal2 v31.4s, v8.8h, v5.h[1]      \n"
-
                     "smlal  v20.4s, v9.4h, v5.h[2]      \n"
                     "smlal  v22.4s, v9.4h, v5.h[3]      \n"
                     "smlal2 v21.4s, v9.8h, v5.h[2]      \n"
@@ -1488,7 +1448,6 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                     "smlal  v30.4s, v9.4h, v5.h[7]      \n"
                     "smlal2 v29.4s, v9.8h, v5.h[6]      \n"
                     "smlal2 v31.4s, v9.8h, v5.h[7]      \n"
-
                     "bne    2b                          \n"
                     "sub    %1, %1, #32                 \n"
                     "sub    %2, %2, #32                 \n"
@@ -1848,16 +1807,14 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                     "ld1    {v0.8h, v1.8h}, [%2], #32   \n"
                     ".align 4                           \n"
                     "2:                                 \n"
-                    "ld1    {v6.8h, v7.8h}, [%1], #32   \n"
                     "smlal  v24.4s, v4.4h, v0.h[0]      \n"
                     "smlal  v26.4s, v4.4h, v0.h[1]      \n"
-                    "prfm   pldl1keep, [%1, #512]       \n"
+                    "ld1    {v6.8h, v7.8h}, [%1], #32   \n"
                     "smlal2 v25.4s, v4.8h, v0.h[0]      \n"
                     "smlal2 v27.4s, v4.8h, v0.h[1]      \n"
                     "ld1    {v2.8h, v3.8h}, [%2], #32   \n"
                     "smlal  v28.4s, v4.4h, v0.h[2]      \n"
                     "smlal  v30.4s, v4.4h, v0.h[3]      \n"
-                    "prfm   pldl1keep, [%2, #512]       \n"
                     "smlal2 v29.4s, v4.8h, v0.h[2]      \n"
                     "smlal2 v31.4s, v4.8h, v0.h[3]      \n"
                     "smlal  v24.4s, v5.4h, v0.h[4]      \n"
@@ -1870,6 +1827,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                     "smlal2 v31.4s, v5.8h, v0.h[7]      \n"
                     "smlal  v24.4s, v6.4h, v1.h[0]      \n"
                     "smlal  v26.4s, v6.4h, v1.h[1]      \n"
+                    "prfm   pldl1keep, [%1, #512]       \n"
                     "ld1    {v4.8h, v5.8h}, [%1], #32   \n"
                     "smlal2 v25.4s, v6.8h, v1.h[0]      \n"
                     "smlal2 v27.4s, v6.8h, v1.h[1]      \n"
@@ -1890,10 +1848,10 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                     "ld1    {v6.8h, v7.8h}, [%1], #32   \n"
                     "smlal2 v25.4s, v4.8h, v2.h[0]      \n"
                     "smlal2 v27.4s, v4.8h, v2.h[1]      \n"
-                    "prfm   pldl1keep, [%1, #512]       \n"
+                    "prfm   pldl1keep, [%2, #512]       \n"
+                    "ld1    {v0.8h, v1.8h}, [%2], #32   \n"
                     "smlal  v28.4s, v4.4h, v2.h[2]      \n"
                     "smlal  v30.4s, v4.4h, v2.h[3]      \n"
-                    "ld1    {v0.8h, v1.8h}, [%2], #32   \n"
                     "smlal2 v29.4s, v4.8h, v2.h[2]      \n"
                     "smlal2 v31.4s, v4.8h, v2.h[3]      \n"
                     "smlal  v24.4s, v5.4h, v2.h[4]      \n"
@@ -1906,6 +1864,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                     "smlal2 v31.4s, v5.8h, v2.h[7]      \n"
                     "smlal  v24.4s, v6.4h, v3.h[0]      \n"
                     "smlal  v26.4s, v6.4h, v3.h[1]      \n"
+                    "prfm   pldl1keep, [%1, #512]       \n"
                     "ld1    {v4.8h, v5.8h}, [%1], #32   \n"
                     "smlal2 v25.4s, v6.8h, v3.h[0]      \n"
                     "smlal2 v27.4s, v6.8h, v3.h[1]      \n"
@@ -2155,41 +2114,41 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                     "ld1    {v0.8h}, [%2], #16          \n"
                     ".align 4                           \n"
                     "2:                                 \n"
-                    "ld1    {v6.8h, v7.8h}, [%1], #32   \n"
                     "smlal  v28.4s, v4.4h, v0.h[0]      \n"
                     "smlal  v30.4s, v4.4h, v0.h[1]      \n"
-                    "prfm   pldl1keep, [%1, #512]       \n"
+                    "ld1    {v6.8h, v7.8h}, [%1], #32   \n"
                     "smlal2 v29.4s, v4.8h, v0.h[0]      \n"
                     "smlal2 v31.4s, v4.8h, v0.h[1]      \n"
                     "ld1    {v1.8h}, [%2], #16          \n"
                     "smlal  v28.4s, v5.4h, v0.h[2]      \n"
                     "smlal  v30.4s, v5.4h, v0.h[3]      \n"
-                    "prfm   pldl1keep, [%2, #256]       \n"
                     "smlal2 v29.4s, v5.8h, v0.h[2]      \n"
                     "smlal2 v31.4s, v5.8h, v0.h[3]      \n"
-                    "ld1    {v4.8h, v5.8h}, [%1], #32   \n"
                     "smlal  v28.4s, v6.4h, v0.h[4]      \n"
                     "smlal  v30.4s, v6.4h, v0.h[5]      \n"
+                    "prfm   pldl1keep, [%1, #512]       \n"
+                    "ld1    {v4.8h, v5.8h}, [%1], #32   \n"
                     "smlal2 v29.4s, v6.8h, v0.h[4]      \n"
                     "smlal2 v31.4s, v6.8h, v0.h[5]      \n"
                     "smlal  v28.4s, v7.4h, v0.h[6]      \n"
                     "smlal  v30.4s, v7.4h, v0.h[7]      \n"
                     "smlal2 v29.4s, v7.8h, v0.h[6]      \n"
                     "smlal2 v31.4s, v7.8h, v0.h[7]      \n"
-                    "ld1    {v6.8h, v7.8h}, [%1], #32   \n"
                     "smlal  v28.4s, v4.4h, v1.h[0]      \n"
                     "smlal  v30.4s, v4.4h, v1.h[1]      \n"
-                    "prfm   pldl1keep, [%1, #512]       \n"
+                    "ld1    {v6.8h, v7.8h}, [%1], #32   \n"
                     "smlal2 v29.4s, v4.8h, v1.h[0]      \n"
                     "smlal2 v31.4s, v4.8h, v1.h[1]      \n"
+                    "prfm   pldl1keep, [%2, #256]       \n"
                     "ld1    {v0.8h}, [%2], #16          \n"
                     "smlal  v28.4s, v5.4h, v1.h[2]      \n"
                     "smlal  v30.4s, v5.4h, v1.h[3]      \n"
                     "smlal2 v29.4s, v5.8h, v1.h[2]      \n"
                     "smlal2 v31.4s, v5.8h, v1.h[3]      \n"
-                    "ld1    {v4.8h, v5.8h}, [%1], #32   \n"
                     "smlal  v28.4s, v6.4h, v1.h[4]      \n"
                     "smlal  v30.4s, v6.4h, v1.h[5]      \n"
+                    "prfm   pldl1keep, [%1, #512]       \n"
+                    "ld1    {v4.8h, v5.8h}, [%1], #32   \n"
                     "smlal2 v29.4s, v6.8h, v1.h[4]      \n"
                     "smlal2 v31.4s, v6.8h, v1.h[5]      \n"
                     "subs   w4, w4, #1                  \n"
@@ -2386,12 +2345,12 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                     "smlal  v28.4s, v4.4h, v0.h[0]      \n"
                     "ld1    {v6.8h, v7.8h}, [%1], #32   \n"
                     "smlal2 v29.4s, v4.8h, v0.h[0]      \n"
-                    "prfm   pldl1keep, [%1, #512]       \n"
-                    "smlal  v30.4s, v5.4h, v0.h[1]      \n"
-                    "ld1    {v1.8h}, [%2], #16          \n"
-                    "smlal2 v31.4s, v5.8h, v0.h[1]      \n"
                     "prfm   pldl1keep, [%2, #128]       \n"
+                    "ld1    {v1.8h}, [%2], #16          \n"
+                    "smlal  v30.4s, v5.4h, v0.h[1]      \n"
+                    "smlal2 v31.4s, v5.8h, v0.h[1]      \n"
                     "smlal  v28.4s, v6.4h, v0.h[2]      \n"
+                    "prfm   pldl1keep, [%1, #512]       \n"
                     "ld1    {v4.8h, v5.8h}, [%1], #32   \n"
                     "smlal2 v29.4s, v6.8h, v0.h[2]      \n"
                     "smlal  v30.4s, v7.4h, v0.h[3]      \n"
@@ -2399,10 +2358,10 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                     "smlal  v28.4s, v4.4h, v0.h[4]      \n"
                     "ld1    {v6.8h, v7.8h}, [%1], #32   \n"
                     "smlal2 v29.4s, v4.8h, v0.h[4]      \n"
-                    "prfm   pldl1keep, [%1, #512]       \n"
                     "smlal  v30.4s, v5.4h, v0.h[5]      \n"
                     "smlal2 v31.4s, v5.8h, v0.h[5]      \n"
                     "smlal  v28.4s, v6.4h, v0.h[6]      \n"
+                    "prfm   pldl1keep, [%1, #512]       \n"
                     "ld1    {v4.8h, v5.8h}, [%1], #32   \n"
                     "smlal2 v29.4s, v6.8h, v0.h[6]      \n"
                     "subs   w4, w4, #1                  \n"
