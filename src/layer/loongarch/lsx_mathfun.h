@@ -279,7 +279,7 @@ static inline __m128 remainder_ps(__m128 x, __m128 y)
     tmpx[1] = remainderf(tmpx[1], tmpy[1]);
     tmpx[2] = remainderf(tmpx[2], tmpy[2]);
     tmpx[3] = remainderf(tmpx[3], tmpy[3]);
-    return __lsx_vld(tmpx, 0);
+    return (__m128)__lsx_vld(tmpx, 0);
 }
 
 #endif // LSX_MATHFUN_H
