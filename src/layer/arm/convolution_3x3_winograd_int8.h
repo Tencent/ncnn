@@ -2222,7 +2222,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                     "eor    v29.16b, v29.16b, v29.16b   \n"
                     ".align 4                           \n"
                     "2:                                 \n"
-                    "mov    v0.8h, v1.8h                \n"
+                    "mov    v0.16b, v1.16b              \n"
                     "smlal  v28.4s, v4.4h, v0.h[0]      \n"
                     "ld1    {v6.8h, v7.8h}, [%1], #32   \n"
                     "smlal2 v29.4s, v4.8h, v0.h[0]      \n"
