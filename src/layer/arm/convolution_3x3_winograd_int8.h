@@ -62,7 +62,7 @@ static void pack_A_tile_int8(const Mat& A, Mat& AT, int batch, int max_ii, int m
             const short* p0 = (const short*)A + ii * N + b;
 
             int kk = 0;
-#if __ARM_FEATURE_SIMD32 && NCNN_GNU_INLINE_ASM
+#if !__ARM_NEON && __ARM_FEATURE_SIMD32 && NCNN_GNU_INLINE_ASM
             for (; kk + 1 < max_kk; kk += 2)
             {
                 pp[0] = p0[0];
@@ -488,7 +488,7 @@ static void transpose_pack_B_tile_int8(const Mat& B, Mat& BT, int batch, int max
             p0 += (b * max_jj + jj) * 2;
             for (; kk + 1 < max_kk; kk += 2)
             {
-#if __ARM_FEATURE_SIMD32 && NCNN_GNU_INLINE_ASM
+#if !__ARM_NEON && __ARM_FEATURE_SIMD32 && NCNN_GNU_INLINE_ASM
                 pp[0] = p0[0];
                 pp[1] = p0[1];
                 pp[2] = p0[2];
@@ -3053,7 +3053,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 }
 
                 int kk = 0;
-#if __ARM_FEATURE_SIMD32 && NCNN_GNU_INLINE_ASM
+#if !__ARM_NEON && __ARM_FEATURE_SIMD32 && NCNN_GNU_INLINE_ASM
                 for (; kk + 1 < max_kk; kk += 2)
                 {
                     // fomit-frame-pointer implied in optimized flag spare one register
@@ -3106,7 +3106,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                     pB += 4;
 #endif
                 }
-#endif // __ARM_FEATURE_SIMD32 && NCNN_GNU_INLINE_ASM
+#endif // !__ARM_NEON && __ARM_FEATURE_SIMD32 && NCNN_GNU_INLINE_ASM
                 for (; kk < max_kk; kk++)
                 {
                     sum00 += pA[0] * pB[0];
@@ -3142,7 +3142,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 }
 
                 int kk = 0;
-#if __ARM_FEATURE_SIMD32 && NCNN_GNU_INLINE_ASM
+#if !__ARM_NEON && __ARM_FEATURE_SIMD32 && NCNN_GNU_INLINE_ASM
                 for (; kk + 1 < max_kk; kk += 2)
                 {
                     asm volatile(
@@ -3161,7 +3161,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                         "3"(sum1)
                         : "memory", "r2", "r3", "r4");
                 }
-#endif // __ARM_FEATURE_SIMD32 && NCNN_GNU_INLINE_ASM
+#endif // !__ARM_NEON && __ARM_FEATURE_SIMD32 && NCNN_GNU_INLINE_ASM
                 for (; kk < max_kk; kk++)
                 {
                     sum0 += pA[0] * pB[0];
@@ -3340,7 +3340,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 }
 
                 int kk = 0;
-#if __ARM_FEATURE_SIMD32 && NCNN_GNU_INLINE_ASM
+#if !__ARM_NEON && __ARM_FEATURE_SIMD32 && NCNN_GNU_INLINE_ASM
                 for (; kk + 1 < max_kk; kk += 2)
                 {
                     asm volatile(
@@ -3359,7 +3359,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                         "3"(sum1)
                         : "memory", "r2", "r3", "r4");
                 }
-#endif // __ARM_FEATURE_SIMD32 && NCNN_GNU_INLINE_ASM
+#endif // !__ARM_NEON && __ARM_FEATURE_SIMD32 && NCNN_GNU_INLINE_ASM
                 for (; kk < max_kk; kk++)
                 {
                     sum0 += pA[0] * pB[0];
@@ -3388,7 +3388,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 }
 
                 int kk = 0;
-#if __ARM_FEATURE_SIMD32 && NCNN_GNU_INLINE_ASM
+#if !__ARM_NEON && __ARM_FEATURE_SIMD32 && NCNN_GNU_INLINE_ASM
                 for (; kk + 1 < max_kk; kk += 2)
                 {
                     asm volatile(
@@ -3403,7 +3403,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                         "2"(sum)
                         : "memory", "r2", "r3");
                 }
-#endif // __ARM_FEATURE_SIMD32 && NCNN_GNU_INLINE_ASM
+#endif // !__ARM_NEON && __ARM_FEATURE_SIMD32 && NCNN_GNU_INLINE_ASM
                 for (; kk < max_kk; kk++)
                 {
                     sum += pA[0] * pB[0];
