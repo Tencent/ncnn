@@ -1279,10 +1279,12 @@ int Convolution_arm::create_pipeline_int8_arm(const Option& opt)
     const int num_input = weight_data_size / maxk / num_output;
 
     bool prefer_winograd = (opt.use_winograd23_convolution || opt.use_winograd43_convolution) && (num_input >= 8 && num_output >= 8) && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1;
-    if (ncnn::cpu_support_arm_asimddp()) // && (num_input < 256 || num_output < 256))
+#if NCNN_ARM82DOT
+    if (ncnn::cpu_support_arm_asimddp())
     {
         prefer_winograd = false;
     }
+#endif
 
     int elempack = 1;
     int out_elempack = 1;
@@ -1391,10 +1393,12 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
     const int num_input = channels * elempack;
 
     bool prefer_winograd = (opt.use_winograd23_convolution || opt.use_winograd43_convolution) && (num_input >= 8 && num_output >= 8) && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1;
-    if (ncnn::cpu_support_arm_asimddp()) // && (num_input < 256 || num_output < 256))
+#if NCNN_ARM82DOT
+    if (ncnn::cpu_support_arm_asimddp())
     {
         prefer_winograd = false;
     }
+#endif
 
     int out_elempack_int32 = 1;
 #if __ARM_NEON
