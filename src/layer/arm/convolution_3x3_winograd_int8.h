@@ -3035,6 +3035,60 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 }
 
                 int kk = 0;
+#if __ARM_FEATURE_SIMD32 && NCNN_GNU_INLINE_ASM
+                for (; kk + 1 < max_kk; kk += 2)
+                {
+                    // fomit-frame-pointer implied in optimized flag spare one register
+                    // let us stay away from error: ‘asm’ operand has impossible constraints   --- nihui
+#if __OPTIMIZE__
+                    asm volatile(
+                        "ldr    r2, [%0], #4    \n" // int16x2_t _pA0 = *((int16x2_t*)pA); pA += 2;
+                        "ldr    r3, [%0], #4    \n" // int16x2_t _pA1 = *((int16x2_t*)pA); pA += 2;
+                        "ldr    r4, [%1], #4    \n" // int16x2_t _pB0 = *((int16x2_t*)pB); pB += 2;
+                        "ldr    r5, [%1], #4    \n" // int16x2_t _pB1 = *((int16x2_t*)pB); pB += 2;
+                        "smlad  %2, r2, r4, %2  \n" // sum00 = __smlad(_pA0, _pB0, sum00);
+                        "smlad  %3, r3, r4, %3  \n" // sum01 = __smlad(_pA1, _pB0, sum01);
+                        "smlad  %4, r2, r5, %4  \n" // sum10 = __smlad(_pA0, _pB1, sum10);
+                        "smlad  %5, r3, r5, %5  \n" // sum11 = __smlad(_pA1, _pB1, sum11);
+                        : "=r"(pA),
+                        "=r"(pB),
+                        "=r"(sum00),
+                        "=r"(sum01),
+                        "=r"(sum10),
+                        "=r"(sum11)
+                        : "0"(pA),
+                        "1"(pB),
+                        "2"(sum00),
+                        "3"(sum01),
+                        "4"(sum10),
+                        "5"(sum11)
+                        : "memory", "r2", "r3", "r4", "r5");
+#else
+                    int _pA0 = *((int*)pA);
+                    int _pA1 = *((int*)(pA + 2));
+                    int _pB0 = *((int*)pB);
+                    int _pB1 = *((int*)(pB + 2));
+                    asm volatile("smlad %0, %2, %3, %0"
+                                 : "=r"(sum00)
+                                 : "0"(sum00), "r"(_pA0), "r"(_pB0)
+                                 :);
+                    asm volatile("smlad %0, %2, %3, %0"
+                                 : "=r"(sum01)
+                                 : "0"(sum01), "r"(_pA1), "r"(_pB0)
+                                 :);
+                    asm volatile("smlad %0, %2, %3, %0"
+                                 : "=r"(sum10)
+                                 : "0"(sum10), "r"(_pA0), "r"(_pB1)
+                                 :);
+                    asm volatile("smlad %0, %2, %3, %0"
+                                 : "=r"(sum11)
+                                 : "0"(sum11), "r"(_pA1), "r"(_pB1)
+                                 :);
+                    pA += 4;
+                    pB += 4;
+#endif
+                }
+#endif // __ARM_FEATURE_SIMD32 && NCNN_GNU_INLINE_ASM
                 for (; kk < max_kk; kk++)
                 {
                     sum00 += pA[0] * pB[0];
@@ -3070,6 +3124,26 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 }
 
                 int kk = 0;
+#if __ARM_FEATURE_SIMD32 && NCNN_GNU_INLINE_ASM
+                for (; kk + 1 < max_kk; kk += 2)
+                {
+                    asm volatile(
+                        "ldr    r2, [%0], #4    \n" // int16x2_t _pA0 = *((int16x2_t*)pA); pA += 2;
+                        "ldr    r3, [%1], #4    \n" // int16x2_t _pB0 = *((int16x2_t*)pB); pB += 2;
+                        "ldr    r4, [%1], #4    \n" // int16x2_t _pB1 = *((int16x2_t*)pB); pB += 2;
+                        "smlad  %2, r2, r3, %2  \n" // sum0 = __smlad(_pA0, _pB0, sum0);
+                        "smlad  %3, r2, r4, %3  \n" // sum1 = __smlad(_pA0, _pB1, sum1);
+                        : "=r"(pA),
+                        "=r"(pB),
+                        "=r"(sum0),
+                        "=r"(sum1)
+                        : "0"(pA),
+                        "1"(pB),
+                        "2"(sum0),
+                        "3"(sum1)
+                        : "memory", "r2", "r3", "r4");
+                }
+#endif // __ARM_FEATURE_SIMD32 && NCNN_GNU_INLINE_ASM
                 for (; kk < max_kk; kk++)
                 {
                     sum0 += pA[0] * pB[0];
@@ -3248,6 +3322,26 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 }
 
                 int kk = 0;
+#if __ARM_FEATURE_SIMD32 && NCNN_GNU_INLINE_ASM
+                for (; kk + 1 < max_kk; kk += 2)
+                {
+                    asm volatile(
+                        "ldr    r2, [%0], #4    \n" // int16x2_t _pA0 = *((int16x2_t*)pA); pA += 2;
+                        "ldr    r3, [%0], #4    \n" // int16x2_t _pA1 = *((int16x2_t*)pA); pA += 2;
+                        "ldr    r4, [%1], #4    \n" // int16x2_t _pB0 = *((int16x2_t*)pB); pB += 2;
+                        "smlad  %2, r2, r4, %2  \n" // sum0 = __smlad(_pA0, _pB0, sum0);
+                        "smlad  %3, r3, r4, %3  \n" // sum1 = __smlad(_pA1, _pB0, sum1);
+                        : "=r"(pA),
+                        "=r"(pB),
+                        "=r"(sum0),
+                        "=r"(sum1)
+                        : "0"(pA),
+                        "1"(pB),
+                        "2"(sum0),
+                        "3"(sum1)
+                        : "memory", "r2", "r3", "r4");
+                }
+#endif // __ARM_FEATURE_SIMD32 && NCNN_GNU_INLINE_ASM
                 for (; kk < max_kk; kk++)
                 {
                     sum0 += pA[0] * pB[0];
@@ -3276,6 +3370,22 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 }
 
                 int kk = 0;
+#if __ARM_FEATURE_SIMD32 && NCNN_GNU_INLINE_ASM
+                for (; kk + 1 < max_kk; kk += 2)
+                {
+                    asm volatile(
+                        "ldr    r2, [%0], #4    \n" // int16x2_t _pA = *((int16x2_t*)pA); pA += 2;
+                        "ldr    r3, [%1], #4    \n" // int16x2_t _pB = *((int16x2_t*)pB); pB += 2;
+                        "smlad  %2, r2, r3, %2  \n" // sum = __smlad(_pA, _pB, sum);
+                        : "=r"(pA),
+                        "=r"(pB),
+                        "=r"(sum)
+                        : "0"(pA),
+                        "1"(pB),
+                        "2"(sum)
+                        : "memory", "r2", "r3");
+                }
+#endif // __ARM_FEATURE_SIMD32 && NCNN_GNU_INLINE_ASM
                 for (; kk < max_kk; kk++)
                 {
                     sum += pA[0] * pB[0];
