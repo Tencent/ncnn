@@ -62,6 +62,17 @@ static void pack_A_tile_int8(const Mat& A, Mat& AT, int batch, int max_ii, int m
             const short* p0 = (const short*)A + ii * N + b;
 
             int kk = 0;
+#if __ARM_FEATURE_SIMD32 && NCNN_GNU_INLINE_ASM
+            for (; kk + 1 < max_kk; kk += 2)
+            {
+                pp[0] = p0[0];
+                pp[1] = p0[batch];
+                pp[2] = p0[N];
+                pp[3] = p0[batch + N];
+                p0 += batch * 2;
+                pp += 4;
+            }
+#endif
             for (; kk < max_kk; kk++)
             {
                 pp[0] = p0[0];
@@ -477,10 +488,17 @@ static void transpose_pack_B_tile_int8(const Mat& B, Mat& BT, int batch, int max
             p0 += (b * max_jj + jj) * 2;
             for (; kk + 1 < max_kk; kk += 2)
             {
+#if __ARM_FEATURE_SIMD32 && NCNN_GNU_INLINE_ASM
+                pp[0] = p0[0];
+                pp[1] = p0[1];
+                pp[2] = p0[2];
+                pp[3] = p0[3];
+#else
                 pp[0] = p0[0];
                 pp[1] = p0[2];
                 pp[2] = p0[1];
                 pp[3] = p0[3];
+#endif
                 p0 += max_jj * batch * 2;
                 pp += 4;
             }
@@ -3129,10 +3147,10 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 {
                     asm volatile(
                         "ldr    r2, [%0], #4    \n" // int16x2_t _pA0 = *((int16x2_t*)pA); pA += 2;
-                        "ldr    r3, [%1], #4    \n" // int16x2_t _pB0 = *((int16x2_t*)pB); pB += 2;
-                        "ldr    r4, [%1], #4    \n" // int16x2_t _pB1 = *((int16x2_t*)pB); pB += 2;
-                        "smlad  %2, r2, r3, %2  \n" // sum0 = __smlad(_pA0, _pB0, sum0);
-                        "smlad  %3, r2, r4, %3  \n" // sum1 = __smlad(_pA0, _pB1, sum1);
+                        "ldr    r3, [%0], #4    \n" // int16x2_t _pA1 = *((int16x2_t*)pA); pA += 2;
+                        "ldr    r4, [%1], #4    \n" // int16x2_t _pB = *((int16x2_t*)pB); pB += 2;
+                        "smlad  %2, r2, r4, %2  \n" // sum0 = __smlad(_pA0, _pB, sum0);
+                        "smlad  %3, r3, r4, %3  \n" // sum1 = __smlad(_pA1, _pB, sum1);
                         : "=r"(pA),
                         "=r"(pB),
                         "=r"(sum0),
@@ -3326,11 +3344,11 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 for (; kk + 1 < max_kk; kk += 2)
                 {
                     asm volatile(
-                        "ldr    r2, [%0], #4    \n" // int16x2_t _pA0 = *((int16x2_t*)pA); pA += 2;
-                        "ldr    r3, [%0], #4    \n" // int16x2_t _pA1 = *((int16x2_t*)pA); pA += 2;
-                        "ldr    r4, [%1], #4    \n" // int16x2_t _pB0 = *((int16x2_t*)pB); pB += 2;
-                        "smlad  %2, r2, r4, %2  \n" // sum0 = __smlad(_pA0, _pB0, sum0);
-                        "smlad  %3, r3, r4, %3  \n" // sum1 = __smlad(_pA1, _pB0, sum1);
+                        "ldr    r2, [%0], #4    \n" // int16x2_t _pA = *((int16x2_t*)pA); pA += 2;
+                        "ldr    r3, [%1], #4    \n" // int16x2_t _pB0 = *((int16x2_t*)pB); pB += 2;
+                        "ldr    r4, [%1], #4    \n" // int16x2_t _pB1 = *((int16x2_t*)pB); pB += 2;
+                        "smlad  %2, r2, r3, %2  \n" // sum0 = __smlad(_pA, _pB0, sum0);
+                        "smlad  %3, r2, r4, %3  \n" // sum1 = __smlad(_pA, _pB1, sum1);
                         : "=r"(pA),
                         "=r"(pB),
                         "=r"(sum0),
