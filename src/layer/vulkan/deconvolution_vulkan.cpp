@@ -146,14 +146,14 @@ int Deconvolution_vulkan::create_pipeline(const Option& _opt)
 
     if (opt.use_sgemm_convolution)
     {
-        bool use_cooperative_matrix = vkdev->info.support_cooperative_matrix_16_8_8() && opt.use_cooperative_matrix && !opt.use_image_storage && !opt.use_shader_pack8 && opt.use_fp16_storage && num_input % 8 == 0 && num_output % 8 == 0;
+        bool use_cooperative_matrix_16_8_8 = vkdev->info.support_cooperative_matrix_16_8_8() && opt.use_cooperative_matrix && !opt.use_image_storage && !opt.use_shader_pack8 && opt.use_fp16_storage && num_input % 8 == 0 && num_output % 8 == 0;
+        bool use_cooperative_matrix_16_16_16 = vkdev->info.support_cooperative_matrix_16_16_16() && opt.use_cooperative_matrix && !opt.use_image_storage && !opt.use_shader_pack8 && opt.use_fp16_storage && num_input % 16 == 0 && num_output % 16 == 0;
 
         // src = kw-kh-inch-outch
         // dst = pa-pb-inch/pa-kw-kh-outch/pb (sgemm)
-        if (use_cooperative_matrix)
+        if (use_cooperative_matrix_16_8_8)
         {
             // dst = 8a-8b-inch/8a-maxk-outch/8b
-            // dst = 16a-16b-inch/16a-maxk-outch/16b
             Mat weight_data_r2 = weight_data.reshape(maxk, num_input, num_output);
 
             weight_data_packed.create(num_input / 8, maxk * num_output / 8, (size_t)4 * 8 * 8, 8 * 8);
@@ -169,6 +169,34 @@ int Deconvolution_vulkan::create_pipeline(const Option& _opt)
                         for (int i = 0; i < 8; i++)
                         {
                             for (int j = 0; j < 8; j++)
+                            {
+                                const float* k00 = weight_data_r2.channel(q + j).row(p + i);
+                                g00[0] = k00[k];
+                                g00++;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        else if (use_cooperative_matrix_16_16_16)
+        {
+            // dst = 16a-16b-inch/16a-maxk-outch/16b
+            Mat weight_data_r2 = weight_data.reshape(maxk, num_input, num_output);
+
+            weight_data_packed.create(num_input / 16, maxk * num_output / 16, (size_t)4 * 16 * 16, 16 * 16);
+
+            for (int q = 0; q + 15 < num_output; q += 16)
+            {
+                for (int k = 0; k < maxk; k++)
+                {
+                    float* g00 = weight_data_packed.row(q / 16 * maxk + k);
+
+                    for (int p = 0; p + 15 < num_input; p += 16)
+                    {
+                        for (int i = 0; i < 16; i++)
+                        {
+                            for (int j = 0; j < 16; j++)
                             {
                                 const float* k00 = weight_data_r2.channel(q + j).row(p + i);
                                 g00[0] = k00[k];
@@ -253,16 +281,29 @@ int Deconvolution_vulkan::create_pipeline(const Option& _opt)
             if (elempack == 4 && out_elempack == 8) shader_type_index = LayerShaderType::deconvolution_pack4to8_gemm;
             if (elempack == 8 && out_elempack == 4) shader_type_index = LayerShaderType::deconvolution_pack8to4_gemm;
 
-            if (use_cooperative_matrix)
+            if (use_cooperative_matrix_16_8_8)
             {
-                shader_type_index = LayerShaderType::deconvolution_pack4_gemm_cm_16_8_8;
+                if (vkdev->info.support_VK_KHR_cooperative_matrix())
+                    shader_type_index = LayerShaderType::deconvolution_pack4_gemm_khr_cm_16_8_8;
+                else
+                    shader_type_index = LayerShaderType::deconvolution_pack4_gemm_nv_cm_16_8_8;
+            }
+            else if (use_cooperative_matrix_16_16_16)
+            {
+                if (vkdev->info.support_VK_KHR_cooperative_matrix())
+                    shader_type_index = LayerShaderType::deconvolution_pack4_gemm_khr_cm_16_16_16;
+                else
+                    shader_type_index = LayerShaderType::deconvolution_pack4_gemm_nv_cm_16_16_16;
             }
 
             pipeline_deconvolution_gemm = new Pipeline(vkdev);
-            if (use_cooperative_matrix)
+            if (use_cooperative_matrix_16_8_8)
             {
-                // TODO proper unroll y
-                pipeline_deconvolution_gemm->set_local_size_xyz(32, 4, 1); // 16_8_8 ly*4
+                pipeline_deconvolution_gemm->set_local_size_xyz(32, 1, 1); // 16_8_8
+            }
+            else if (use_cooperative_matrix_16_16_16)
+            {
+                pipeline_deconvolution_gemm->set_local_size_xyz(32, 1, 1); // 16_16_16
             }
             else if (opt.use_shader_local_memory)
             {
@@ -505,7 +546,8 @@ int Deconvolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
     VkMat top_blob_bordered;
     if (opt.use_sgemm_convolution)
     {
-        bool use_cooperative_matrix = vkdev->info.support_cooperative_matrix_16_8_8() && opt.use_cooperative_matrix && !opt.use_image_storage && !opt.use_shader_pack8 && opt.use_fp16_storage && channels * elempack % 8 == 0 && num_output % 8 == 0;
+        bool use_cooperative_matrix_16_8_8 = vkdev->info.support_cooperative_matrix_16_8_8() && opt.use_cooperative_matrix && !opt.use_image_storage && !opt.use_shader_pack8 && opt.use_fp16_storage && channels * elempack % 8 == 0 && num_output % 8 == 0;
+        bool use_cooperative_matrix_16_16_16 = vkdev->info.support_cooperative_matrix_16_16_16() && opt.use_cooperative_matrix && !opt.use_image_storage && !opt.use_shader_pack8 && opt.use_fp16_storage && channels * elempack % 16 == 0 && num_output % 16 == 0;
 
         const int maxk = kernel_w * kernel_h;
 
@@ -534,10 +576,16 @@ int Deconvolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
             dispatcher.h = top_blob_col.h;
             dispatcher.c = 1;
 
-            if (use_cooperative_matrix)
+            if (use_cooperative_matrix_16_8_8)
             {
-                dispatcher.w = ((top_blob_col.w + 15) / 16 + 3) / 4 * 32;
-                dispatcher.h = (top_blob_col.h + 1) / 2;
+                dispatcher.w = ((top_blob_col.w + 15) / 16 + 1) / 2 * 32;
+                dispatcher.h = ((top_blob_col.h + 1) / 2 + 3) / 4;
+                dispatcher.c = 1;
+            }
+            else if (use_cooperative_matrix_16_16_16)
+            {
+                dispatcher.w = ((top_blob_col.w + 15) / 16 + 1) / 2 * 32;
+                dispatcher.h = ((top_blob_col.h + 3) / 4 + 1) / 2;
                 dispatcher.c = 1;
             }
 

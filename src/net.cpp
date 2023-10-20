@@ -162,9 +162,7 @@ int NetPrivate::upload_model()
         }
     }
 
-    cmd.submit_and_wait();
-
-    return 0;
+    return cmd.submit_and_wait();
 }
 #endif // NCNN_VULKAN
 
@@ -288,9 +286,10 @@ int NetPrivate::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std:
         }
     }
 
+    int ret;
     if (cmd_submit_and_wait)
     {
-        cmd.submit_and_wait();
+        ret = cmd.submit_and_wait();
 
 #if NCNN_BENCHMARK
         std::vector<uint64_t> results(layer_index * 2);
@@ -308,9 +307,10 @@ int NetPrivate::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std:
 #endif // NCNN_BENCHMARK
 
         cmd.reset();
+        if (ret != 0)
+            return ret;
     }
 
-    int ret;
     if (layer->support_vulkan)
     {
 #if NCNN_BENCHMARK
@@ -505,9 +505,10 @@ IMAGE_ALLOCATION_FAILED:
         }
     }
 
+    int ret;
     if (cmd_submit_and_wait)
     {
-        cmd.submit_and_wait();
+        ret = cmd.submit_and_wait();
 
 #if NCNN_BENCHMARK
         std::vector<uint64_t> results(layer_index * 2);
@@ -525,9 +526,11 @@ IMAGE_ALLOCATION_FAILED:
 #endif // NCNN_BENCHMARK
 
         cmd.reset();
+
+        if (ret != 0)
+            return ret;
     }
 
-    int ret;
     if (layer->support_vulkan && !image_allocation_failed)
     {
 #if NCNN_BENCHMARK
@@ -1732,6 +1735,18 @@ int Net::load_model(const DataReader& dr)
     // load file
     int ret = 0;
 
+#if NCNN_VULKAN
+    if (opt.use_vulkan_compute)
+    {
+        if (!opt.pipeline_cache)
+        {
+            if (!d->pipeline_cache)
+                d->pipeline_cache = new PipelineCache(d->vkdev);
+            opt.pipeline_cache = d->pipeline_cache;
+        }
+    }
+#endif // NCNN_VULKAN
+
     ModelBinFromDataReader mb(dr);
     for (int i = 0; i < layer_count; i++)
     {
@@ -1762,23 +1777,6 @@ int Net::load_model(const DataReader& dr)
             // no int8 gpu support yet
             opt.use_vulkan_compute = false;
         }
-    }
-
-#if NCNN_VULKAN
-    if (opt.use_vulkan_compute)
-    {
-        if (!opt.pipeline_cache)
-        {
-            if (!d->pipeline_cache)
-                d->pipeline_cache = new PipelineCache(d->vkdev);
-            opt.pipeline_cache = d->pipeline_cache;
-        }
-    }
-#endif // NCNN_VULKAN
-
-    for (int i = 0; i < layer_count; i++)
-    {
-        Layer* layer = d->layers[i];
 
         Option opt1 = get_masked_option(opt, layer->featmask);
 #if NCNN_VULKAN
@@ -1827,9 +1825,9 @@ int Net::load_model(const DataReader& dr)
     }
 
 #if NCNN_VULKAN
-    if (opt.use_vulkan_compute)
+    if (ret == 0 && opt.use_vulkan_compute)
     {
-        d->upload_model();
+        ret = d->upload_model();
     }
 #endif // NCNN_VULKAN
 
@@ -2506,11 +2504,11 @@ int Extractor::extract(int blob_index, Mat& feat, int type)
                 VkImageMat feat_gpu;
                 ret = extract(blob_index, feat_gpu, cmd);
 
-                if (d->blob_mats[blob_index].dims == 0 && feat_gpu.dims != 0)
+                if (ret == 0 && d->blob_mats[blob_index].dims == 0 && feat_gpu.dims != 0)
                 {
                     cmd.record_download(feat_gpu, d->blob_mats[blob_index], d->opt);
 
-                    cmd.submit_and_wait();
+                    ret = cmd.submit_and_wait();
 
 #if NCNN_BENCHMARK
                     std::vector<uint64_t> results(d->net->layers().size() * 2);
@@ -2533,11 +2531,11 @@ int Extractor::extract(int blob_index, Mat& feat, int type)
                 VkMat feat_gpu;
                 ret = extract(blob_index, feat_gpu, cmd);
 
-                if (d->blob_mats[blob_index].dims == 0 && feat_gpu.dims != 0)
+                if (ret == 0 && d->blob_mats[blob_index].dims == 0 && feat_gpu.dims != 0)
                 {
                     cmd.record_download(feat_gpu, d->blob_mats[blob_index], d->opt);
 
-                    cmd.submit_and_wait();
+                    ret = cmd.submit_and_wait();
 
 #if NCNN_BENCHMARK
                     std::vector<uint64_t> results(d->net->layers().size() * 2);

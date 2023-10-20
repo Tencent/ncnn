@@ -162,6 +162,10 @@ ncnn_add_layer(Unfold)
 ncnn_add_layer(GridSample)
 ncnn_add_layer(CumulativeSum)
 ncnn_add_layer(CopyTo)
+ncnn_add_layer(Erf)
+ncnn_add_layer(Diag)
+ncnn_add_layer(CELU)
+ncnn_add_layer(Shrink)
 
 if(NCNN_VULKAN)
     ncnn_add_shader(${CMAKE_CURRENT_SOURCE_DIR}/convert_ycbcr.comp)
@@ -265,18 +269,17 @@ endif()
 if(NCNN_VULKAN)
     find_package(Vulkan QUIET)
     if(NOT Vulkan_FOUND)
-        message(STATUS "=== CMAKE_SYSTEM_NAME is: ${CMAKE_SYSTEM_NAME}")
         if(DEFINED ENV{VULKAN_SDK})
             if(CMAKE_SYSTEM_NAME MATCHES "Linux")
                 list(APPEND CMAKE_MODULE_PATH "$ENV{VULKAN_SDK}/../source/VulkanTools/cmake")
             elseif(CMAKE_SYSTEM_NAME MATCHES "Windows")
                 list(APPEND CMAKE_MODULE_PATH "$ENV{VULKAN_SDK}/Samples/cmake")
             elseif(CMAKE_SYSTEM_NAME MATCHES "Darwin")
-                message(WARNING "Failed to find vulkan since cmake too old\n"
+                message(WARNING "Failed to find vulkan since cmake is too old\n"
                     "cmake >= 3.7 required. Consider `brew upgrade cmake`")
             endif()
         else()
-            message(FATAL_ERROR "!! CMake didn't find Vulkan. Please set VULKAN_SDK env var, e.g.:\n"
+            message(FATAL_ERROR "Error: CMake didn't find Vulkan. Please set VULKAN_SDK env var, e.g.:\n"
                 "Linux: export VULKAN_SDK=~/soft/vulkansdk/1.2.148.0/x86_64\n"
                 "Windows: set VULKAN_SDK=E:/lib/VulkanSDK/1.2.148.0\n"
                 "MacOS: export VULKAN_SDK=~/soft/vulkansdk/1.2.148.0/macOS\n"
@@ -286,7 +289,28 @@ if(NCNN_VULKAN)
     endif()
 
     target_link_libraries(ncnn PUBLIC Vulkan::Vulkan)
-
+    # Support mac platform static library compilation
+    if(NOT NCNN_SHARED_LIB AND CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin" AND NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
+        find_library(CoreFoundation NAMES CoreFoundation)
+        find_library(Foundation NAMES Foundation)
+        find_library(QuartzCore NAMES QuartzCore)
+        find_library(CoreGraphics NAMES CoreGraphics)
+        find_library(Cocoa NAMES Cocoa)
+        find_library(Metal NAMES Metal)
+        find_library(IOKit NAMES IOKit)
+        find_library(IOSurface NAMES IOSurface)
+        list(APPEND vulkan_dependent_LINK_LIBRARIES
+            ${Metal}
+            ${IOKit}
+            ${IOSurface}
+            ${QuartzCore}
+            ${CoreGraphics}
+            ${Cocoa}
+            ${Foundation}
+            ${CoreFoundation}
+        )
+        target_link_libraries(ncnn PRIVATE ${vulkan_dependent_LINK_LIBRARIES})
+    endif()
     target_include_directories(ncnn PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../>)
     target_link_libraries(ncnn PRIVATE glslang SPIRV)
 endif()
@@ -499,6 +523,18 @@ if(NCNN_TARGET_ARCH STREQUAL "riscv" AND NOT C906)
         elseif(NCNN_COMPILER_SUPPORT_RVV)
             target_compile_options(ncnn PRIVATE -march=rv64gcv)
         endif()
+    endif()
+endif()
+
+if(NCNN_PPC64LE_VSX)
+    # Auto-translate SSE2 to VSX if compiler is new enough.
+    if(NCNN_VSX_SSE2)
+        target_compile_options(ncnn PRIVATE -DNO_WARN_X86_INTRINSICS -D__SSE2__)
+    endif()
+
+    # Auto-translate SSE4.1 to VSX if compiler is new enough.
+    if(NCNN_VSX_SSE41)
+        target_compile_options(ncnn PRIVATE -DNO_WARN_X86_INTRINSICS -D__SSE4_1__)
     endif()
 endif()
 

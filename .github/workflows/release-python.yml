@@ -10,7 +10,7 @@ jobs:
     name: Build SDist
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: true
 
@@ -54,7 +54,7 @@ jobs:
           - { os: macos-latest, arch: universal2, build: 'cp*'            }
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: true
 
@@ -68,7 +68,7 @@ jobs:
         brew uninstall --ignore-dependencies libomp
 
     - name: Build wheels
-      uses: pypa/cibuildwheel@v2.13.0
+      uses: pypa/cibuildwheel@v2.16.2
       env:
         CIBW_ARCHS_MACOS: ${{ matrix.arch }}
         CIBW_ARCHS_LINUX: ${{ matrix.arch }}
@@ -98,7 +98,7 @@ jobs:
       fail-fast: false
       matrix:
         arch: [aarch64, ppc64le, s390x]
-        build: ['cp36-*', 'cp37-*', 'cp38-*', 'cp39-*', 'cp310-*', 'cp311-*']
+        build: ['cp36-*', 'cp37-*', 'cp38-*', 'cp39-*', 'cp310-*', 'cp311-*', 'cp312-*']
         include:
           - arch: aarch64
             build: 'pp37-*'
@@ -106,9 +106,11 @@ jobs:
             build: 'pp38-*'
           - arch: aarch64
             build: 'pp39-*'
+          - arch: aarch64
+            build: 'pp310-*'
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: true
 
@@ -117,12 +119,12 @@ jobs:
         python-version: '3.x'
 
     - name: Set up QEMU
-      uses: docker/setup-qemu-action@v2
+      uses: docker/setup-qemu-action@v3
       with:
         platforms: all
 
     - name: Build wheels
-      uses: pypa/cibuildwheel@v2.13.0
+      uses: pypa/cibuildwheel@v2.16.2
       env:
         CIBW_ARCHS_LINUX: ${{ matrix.arch }}
         CIBW_BUILD: ${{ matrix.build }}

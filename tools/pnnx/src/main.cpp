@@ -47,7 +47,10 @@
 
 static std::string get_basename(const std::string& path)
 {
-    return path.substr(0, path.find_last_of('.'));
+    std::string base = path.substr(0, path.find_last_of('.'));
+    // sanitize -
+    std::replace(base.begin(), base.end(), '-', '_');
+    return base;
 }
 
 static void parse_string_list(char* s, std::vector<std::string>& list)
@@ -297,6 +300,11 @@ int main(int argc, char** argv)
         fprintf(stderr, "\n");
     }
 
+#ifdef PNNX_TORCHVISION
+    // call some vision api to register vision ops  :P
+    (void)vision::cuda_version();
+#endif
+
     for (auto m : customop_modules)
     {
         fprintf(stderr, "load custom module %s\n", m.c_str());
@@ -446,7 +454,7 @@ int main(int argc, char** argv)
     {
         fprintf(stderr, "############# pass_ncnn\n");
 
-        pnnx::pass_ncnn(pnnx_graph);
+        pnnx::pass_ncnn(pnnx_graph, module_operators);
 
         pnnx::save_ncnn(pnnx_graph, ncnnparampath, ncnnbinpath, ncnnpypath, fp16);
     }

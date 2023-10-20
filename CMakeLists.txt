@@ -364,6 +364,30 @@ elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(riscv)")
     endif()
 elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(powerpc|ppc)")
     set(NCNN_TARGET_ARCH powerpc)
+
+    if(NCNN_PPC64LE_VSX)
+        set(NCNN_TARGET_ARCH x86)
+
+        set(CMAKE_REQUIRED_FLAGS "-DNO_WARN_X86_INTRINSICS -D__SSE2__")
+        check_cxx_source_compiles("#include <emmintrin.h>\nint main() { return 0; }" NCNN_COMPILER_SUPPORT_PPC64LE_SSE2)
+        unset(CMAKE_REQUIRED_FLAGS)
+
+        set(CMAKE_REQUIRED_FLAGS "-DNO_WARN_X86_INTRINSICS -D__SSE4_1__")
+        check_cxx_source_compiles("#include <smmintrin.h>\nint main() { __m128i _v, _a, _b; _v = _mm_packus_epi32(_a, _b); return 0; }" NCNN_COMPILER_SUPPORT_PPC64LE_SSE41)
+        unset(CMAKE_REQUIRED_FLAGS)
+
+        if(NCNN_COMPILER_SUPPORT_PPC64LE_SSE2)
+            option(NCNN_VSX_SSE2 "optimize ppc64le platform with sse2 extension" ON)
+        else()
+            message(WARNING "The compiler does not support sse2 extension. NCNN_VSX_SSE2 will be OFF.")
+        endif()
+
+        if(NCNN_COMPILER_SUPPORT_PPC64LE_SSE41)
+            option(NCNN_VSX_SSE41 "optimize ppc64le platform with sse4.1 extension" ON)
+        else()
+            message(WARNING "The compiler does not support sse4.1 extension. NCNN_VSX_SSE41 will be OFF.")
+        endif()
+    endif()
 elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(xtensa)")
     set(NCNN_TARGET_ARCH xtensa)
 elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(s390x)")
@@ -384,15 +408,21 @@ else()
         check_cxx_compiler_flag("/arch:AVX" NCNN_COMPILER_SUPPORT_X86_XOP)
         check_cxx_compiler_flag("/arch:AVX" NCNN_COMPILER_SUPPORT_X86_F16C)
         check_cxx_compiler_flag("/arch:AVX2" NCNN_COMPILER_SUPPORT_X86_AVX2)
-        check_cxx_compiler_flag("/arch:AVX2" NCNN_COMPILER_SUPPORT_X86_AVX_VNNI)
         check_cxx_compiler_flag("/arch:AVX512" NCNN_COMPILER_SUPPORT_X86_AVX512)
-        check_cxx_compiler_flag("/arch:AVX512" NCNN_COMPILER_SUPPORT_X86_AVX512_VNNI)
-        if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 19.16)
-            # vs2017+ supports avx512 and vnni
-            set(NCNN_COMPILER_SUPPORT_X86_AVX_VNNI OFF)
-            set(NCNN_COMPILER_SUPPORT_X86_AVX512 OFF)
-            set(NCNN_COMPILER_SUPPORT_X86_AVX512_VNNI OFF)
-        endif()
+
+        set(CMAKE_REQUIRED_FLAGS "/arch:AVX2")
+        check_cxx_source_compiles("#include <immintrin.h>\nint main() { __m256i _s, _a, _b; _s = _mm256_dpwssd_epi32(_s, _a, _b); return 0; }" NCNN_COMPILER_SUPPORT_X86_AVX_VNNI)
+
+        set(CMAKE_REQUIRED_FLAGS "/arch:AVX512")
+        check_cxx_source_compiles("#include <immintrin.h>\nint main() { __m512i _s, _a, _b; _s = _mm512_dpwssd_epi32(_s, _a, _b); return 0; }" NCNN_COMPILER_SUPPORT_X86_AVX512_VNNI)
+
+        set(CMAKE_REQUIRED_FLAGS "/arch:AVX512")
+        check_cxx_source_compiles("#include <immintrin.h>\nint main() { __m256bh _s; __m512bh _a, _b; _s = _mm512_cvtneps_pbh(_mm512_dpbf16_ps(_mm512_cvtpbh_ps(_s), _a, _b)); return 0; }" NCNN_COMPILER_SUPPORT_X86_AVX512_BF16)
+
+        set(CMAKE_REQUIRED_FLAGS "/arch:AVX512")
+        check_cxx_source_compiles("#include <immintrin.h>\nint main() { __m512h _s, _a, _b; _s = _mm512_fmadd_ph(_s, _a, _b); __m512 _s2; _s2 = _mm512_cvtxph_ps(_mm512_cvtxps_ph(_s2)); return 0; }" NCNN_COMPILER_SUPPORT_X86_AVX512_FP16)
+
+        unset(CMAKE_REQUIRED_FLAGS)
     else()
         check_cxx_compiler_flag("-mavx" NCNN_COMPILER_SUPPORT_X86_AVX)
 

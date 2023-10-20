@@ -74,6 +74,7 @@ ncnn 目前已在腾讯多款应用中使用，如：QQ，Qzone，微信，天�
 [pass-ios-cpu]: https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/ios-cpu.yml?branch=master
 [pass-ios-simulator]: https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/ios-simulator.yml?branch=master
 [pass-ios-simulator]: https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/ios-simulator.yml?branch=master
+[pass-ios-simulator-gpu]: https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/ios-simulator-gpu.yml?branch=master
 [pass-linux-aarch64-cpu-gcc]: https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/linux-aarch64-cpu-gcc.yml?branch=master
 [pass-linux-arm-cpu-gcc]: https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/linux-arm-cpu-gcc.yml?branch=master
 [pass-linux-loongarch64-cpu-gcc]: https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/linux-loongarch64-cpu-gcc.yml?branch=master
@@ -111,6 +112,7 @@ ncnn 目前已在腾讯多款应用中使用，如：QQ，Qzone，微信，天�
 [ci-ios-cpu]: https://github.com/Tencent/ncnn/actions?query=workflow%3Aios-cpu
 [ci-ios-simulator]: https://github.com/Tencent/ncnn/actions?query=workflow%3Aios-simulator
 [ci-ios-simulator]: https://github.com/Tencent/ncnn/actions?query=workflow%3Aios-simulator
+[ci-ios-simulator-gpu]: https://github.com/Tencent/ncnn/actions?query=workflow%3Aios-simulator-gpu
 [ci-linux-aarch64-cpu-gcc]: https://github.com/Tencent/ncnn/actions?query=workflow%3Alinux-aarch64-cpu-gcc
 [ci-linux-arm-cpu-gcc]: https://github.com/Tencent/ncnn/actions?query=workflow%3Alinux-arm-cpu-gcc
 [ci-linux-loongarch64-cpu-gcc]: https://github.com/Tencent/ncnn/actions?query=workflow%3Alinux-loongarch64-cpu-gcc
@@ -201,9 +203,9 @@ ncnn 目前已在腾讯多款应用中使用，如：QQ，Qzone，微信，天�
 
 ## HowTo
 
-**[how to build ncnn library](https://github.com/Tencent/ncnn/wiki/how-to-build) on Linux / Windows / macOS / Raspberry Pi3, Pi4 / Android / NVIDIA Jetson / iOS / WebAssembly / AllWinner D1 / Loongson 2K1000**
+**[how to build ncnn library](https://github.com/Tencent/ncnn/wiki/how-to-build) on Linux / Windows / macOS / Raspberry Pi3, Pi4 / POWER / Android / NVIDIA Jetson / iOS / WebAssembly / AllWinner D1 / Loongson 2K1000**
 
-- [Build for Linux / NVIDIA Jetson / Raspberry Pi3, Pi4](https://github.com/Tencent/ncnn/wiki/how-to-build#build-for-linux)
+- [Build for Linux / NVIDIA Jetson / Raspberry Pi3, Pi4 / POWER](https://github.com/Tencent/ncnn/wiki/how-to-build#build-for-linux)
 - [Build for Windows x64 using VS2017](https://github.com/Tencent/ncnn/wiki/how-to-build#build-for-windows-x64-using-visual-studio-community-2017)
 - [Build for macOS](https://github.com/Tencent/ncnn/wiki/how-to-build#build-for-macos)
 - [Build for ARM Cortex-A family with cross-compiling](https://github.com/Tencent/ncnn/wiki/how-to-build#build-for-arm-cortex-a-family-with-cross-compiling)
@@ -296,6 +298,7 @@ ncnn 目前已在腾讯多款应用中使用，如：QQ，Qzone，微信，天�
 | arm-gpu    | ❔      | ❔    | ✔️      | /     | /   |
 | apple-cpu  | /       | /     | /       | ✔️    | ✅  |
 | apple-gpu  | /       | /     | /       | ✔️    | ✔️  |
+| ibm-cpu    | /       | ✔️     | /       | /    | /  |
 
 ---
 
