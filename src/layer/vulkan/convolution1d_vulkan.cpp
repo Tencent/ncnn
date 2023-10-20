@@ -166,7 +166,7 @@ int Convolution1D_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
     {
         cmd.record_upload(weight_data_packed, weight_data_gpu, opt);
     }
-    
+
     weight_data_packed.release();
 
     if (bias_term)
@@ -195,7 +195,6 @@ int Convolution1D_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
     int elempack = bottom_blob.elempack;
 
     const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
-
 
     VkMat bottom_blob_bordered = bottom_blob;
     if (pad_left > 0 || pad_right > 0)
@@ -259,13 +258,12 @@ int Convolution1D_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
         }
     }
 
-
     int outw = (bottom_blob_bordered.w - kernel_extent_w) / stride_w + 1;
 
     int out_elempack = opt.use_shader_pack8 && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
-    
+
     size_t out_elemsize = elemsize / elempack * out_elempack;
-    
+
     if (opt.use_fp16_packed && !opt.use_fp16_storage)
     {
         if (out_elempack == 8) out_elemsize = 8 * 2u;
@@ -276,7 +274,6 @@ int Convolution1D_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
     top_blob.create(outw, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
     if (top_blob.empty())
         return -100;
-    
 
     std::vector<VkMat> bindings(4);
     bindings[0] = bottom_blob_bordered;
@@ -315,7 +312,6 @@ int Convolution1D_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top
     int elempack = bottom_blob.elempack;
 
     const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
-
 
     VkImageMat bottom_blob_bordered = bottom_blob;
     if (pad_left > 0 || pad_right > 0)
@@ -379,11 +375,10 @@ int Convolution1D_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top
         }
     }
 
-
     int outw = (bottom_blob_bordered.w - kernel_extent_w) / stride_w + 1;
 
     int out_elempack = opt.use_shader_pack8 && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
-    
+
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
     if (opt.use_fp16_packed && !opt.use_fp16_storage)
@@ -396,7 +391,6 @@ int Convolution1D_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top
     top_blob.create(outw, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
     if (top_blob.empty())
         return -100;
-
 
     std::vector<VkImageMat> bindings(4);
     bindings[0] = bottom_blob_bordered;
