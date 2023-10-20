@@ -614,6 +614,7 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
     {
         // clang-format off
         // *INDENT-OFF*
+
 #if NCNN_ARM82
         if (opt.use_fp16_storage && cpu_support_arm_asimdhp() && layer->support_fp16_storage)
         {
@@ -640,6 +641,7 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
             bottom_blob = bottom_blob_bf16;
         }
 #endif // NCNN_BF16
+
         // *INDENT-ON*
         // clang-format on
     }
@@ -722,6 +724,7 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
     {
         // clang-format off
         // *INDENT-OFF*
+
 #if NCNN_ARM82
         if (opt.use_fp16_storage && cpu_support_arm_asimdhp() && !layer->support_fp16_storage)
         {
@@ -748,6 +751,7 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
             bottom_blob = bottom_blob_fp32;
         }
 #endif // NCNN_BF16
+
         // *INDENT-ON*
         // clang-format on
     }
