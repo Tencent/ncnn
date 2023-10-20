@@ -914,6 +914,7 @@ This function is often used in conjunction with affine_grid() to build Spatial T
 | 0         | sample_type   | int   | 1         |                   |
 | 1         | padding_mode  | int   | 1         |                   |
 | 2         | align_corner  | int   | 0         |                   |
+| 3         | permute_fusion| int   | 0         | fuse with permute |
 
 
 Sample type:
