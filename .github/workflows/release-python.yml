@@ -270,9 +270,8 @@ jobs:
       with:
         output-dir: wheelhouse
 
-    - name: Build wheels for macos arm64 and macos universal2
-      if: (matrix.os == 'macos-latest' && matrix.arch == 'arm64') ||
-        (matrix.os == 'macos-latest' && matrix.arch == 'universal2')
+    - name: Build wheels for macos arm64
+      if: matrix.os == 'macos-latest' && matrix.arch == 'arm64'
       uses: pypa/cibuildwheel@v2.16.2
       env:
         CIBW_ARCHS_MACOS: ${{ matrix.arch }}
@@ -282,6 +281,24 @@ jobs:
           CMAKE_TOOLCHAIN_FILE=$GITHUB_WORKSPACE/toolchains/ios.toolchain.cmake PLATFORM=MAC_ARM64 ARCHS="arm64"
           DEPLOYMENT_TARGET="11.0" ENABLE_BITCODE=OFF ENABLE_ARC=OFF ENABLE_VISIBILITY=OFF
           OpenMP_C_FLAGS="-Xclang -fopenmp" OpenMP_CXX_FLAGS="-Xclang -fopenmp"
+          OpenMP_C_LIB_NAMES="libomp" OpenMP_CXX_LIB_NAMES="libomp"
+          OpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/libomp.a"
+          Vulkan_INCLUDE_DIR=$GITHUB_WORKSPACE/vulkansdk-macos-1.3.236.0/MoltenVK/include
+          Vulkan_LIBRARY=$GITHUB_WORKSPACE/vulkansdk-macos-1.3.236.0/MoltenVK/dylib/macOS/libMoltenVK.dylib
+      with:
+        output-dir: wheelhouse
+
+    - name: Build wheels for macos universal2 
+      if: matrix.os == 'macos-latest' && matrix.arch == 'universal2'
+      uses: pypa/cibuildwheel@v2.16.2
+      env:
+        CIBW_ARCHS_MACOS: ${{ matrix.arch }}
+        CIBW_BUILD: ${{ matrix.build }}
+        CIBW_BUILD_VERBOSITY: 1
+        CIBW_ENVIRONMENT: CMAKE_BUILD_PARALLEL_LEVEL=2 NCNN_VULKAN=ON VULKAN_SDK=$GITHUB_WORKSPACE/vulkansdk-macos-1.3.236.0/macOS
+          CMAKE_TOOLCHAIN_FILE=$GITHUB_WORKSPACE/toolchains/ios.toolchain.cmake PLATFORM=MAC_UNIVERSAL ARCHS="arm64;x86_64"
+          DEPLOYMENT_TARGET="11.0" ENABLE_BITCODE=OFF ENABLE_ARC=OFF ENABLE_VISIBILITY=OFF 
+          OpenMP_C_FLAGS="-Xclang -fopenmp" OpenMP_CXX_FLAGS="-Xclang -fopenmp" 
           OpenMP_C_LIB_NAMES="libomp" OpenMP_CXX_LIB_NAMES="libomp"
           OpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/libomp.a"
           Vulkan_INCLUDE_DIR=$GITHUB_WORKSPACE/vulkansdk-macos-1.3.236.0/MoltenVK/include
