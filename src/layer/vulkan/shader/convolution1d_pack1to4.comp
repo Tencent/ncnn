@@ -33,17 +33,11 @@ layout (constant_id = 5) const float activation_param_0 = 0;
 layout (constant_id = 6) const float activation_param_1 = 0;
 
 #define shape_constant_id_offset 7
-layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
-layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
-layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
-layout (constant_id = shape_constant_id_offset + 3) const int c = 0;
-layout (constant_id = shape_constant_id_offset + 4) const int cstep = 0;
+layout (constant_id = shape_constant_id_offset + 0) const int w = 0;
+layout (constant_id = shape_constant_id_offset + 1) const int h = 0;
 
-layout (constant_id = shape_constant_id_offset + 5) const int outdims = 0;
-layout (constant_id = shape_constant_id_offset + 6) const int outw = 0;
-layout (constant_id = shape_constant_id_offset + 7) const int outh = 0;
-layout (constant_id = shape_constant_id_offset + 8) const int outc = 0;
-layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
+layout (constant_id = shape_constant_id_offset + 2) const int outw = 0;
+layout (constant_id = shape_constant_id_offset + 3) const int outh = 0;
 
 #if NCNN_image_shader
 layout (binding = 0) uniform unfp sampler3D bottom_blob;
@@ -59,24 +53,18 @@ layout (binding = 3) readonly buffer bias_blob { sfpvec4 bias_data[]; };
 
 layout (push_constant) uniform parameter
 {
-    int dims;
     int w;
     int h;
-    int c;
-    int cstep;
 
-    int outdims;
     int outw;
     int outh;
-    int outc;
-    int outcstep;
 } p;
 
 void main()
 {
     int gx = int(gl_GlobalInvocationID.x) * 2;
     int gy = int(gl_GlobalInvocationID.y) * 2;
-	
+
     if (gx >= psc(outw) || gy >= psc(outh))
         return;
 
@@ -150,7 +138,7 @@ void main()
         w_offset += kernel_w;
     }
     
-#endif	
+#endif
 
     sum0 = activation_afpvec4(sum0, activation_type, activation_param_0, activation_param_1);
     sum1 = activation_afpvec4(sum1, activation_type, activation_param_0, activation_param_1);
@@ -165,7 +153,7 @@ void main()
     image3d_st4(top_blob, ivec3(gx2.y, gy2.y, 0), sum3);
     
 #else
-	
+
     const int gi = gy * psc(outw) + gx;
 
     buffer_st4(top_blob_data, gi, sum0);
