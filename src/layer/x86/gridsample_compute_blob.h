@@ -51,12 +51,12 @@ template<GridSample::PaddingMode pd, bool align_corner>
 struct compute_coord
 {
 #if __AVX__
-    __m256 operator()(__m256 length, __m256 coord)
+    __m256 operator()(__m256 /*length*/, __m256 coord)
     {
         return coord;
     }
 #endif // __AVX__
-    float operator()(int length, float coord)
+    float operator()(int /*length*/, float coord)
     {
         return coord;
     }

@@ -284,9 +284,6 @@ static void gridsample_3d_bilinear_apply_interpolation_p4(const Mat& src, Mat& d
         }
     }
 }
-#pragma fenv_access(off)
-
-#pragma float_control(precise, off)
 #endif // __SSE2__
 
 static void gridsample_2d_bilinear_apply_interpolation_p1(const Mat& src, Mat& dst, const Mat& offset_value, const Option& opt)
