@@ -98,7 +98,7 @@ int Convolution1D_vulkan::create_pipeline(const Option& _opt)
     }
 
     {
-        std::vector<vk_specialization_type> specializations(7 + 10);
+        std::vector<vk_specialization_type> specializations(7 + 4);
         specializations[0].i = kernel_w;
         specializations[1].i = dilation_w;
         specializations[2].i = stride_w;
@@ -110,12 +110,6 @@ int Convolution1D_vulkan::create_pipeline(const Option& _opt)
         specializations[7 + 1].i = 0;
         specializations[7 + 2].i = 0;
         specializations[7 + 3].i = 0;
-        specializations[7 + 4].i = 0;
-        specializations[7 + 5].i = 0;
-        specializations[7 + 6].i = 0;
-        specializations[7 + 7].i = 0;
-        specializations[7 + 8].i = 0;
-        specializations[7 + 9].i = 0;
 
         int shader_type_index = -1;
         if (elempack == 1 && out_elempack == 1) shader_type_index = LayerShaderType::convolution1d;
@@ -189,8 +183,6 @@ int Convolution1D_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 int Convolution1D_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const
 {
     int w = bottom_blob.w;
-    int h = bottom_blob.h;
-    int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
@@ -281,22 +273,16 @@ int Convolution1D_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
     bindings[2] = weight_data_gpu;
     bindings[3] = bias_data_gpu;
 
-    std::vector<vk_constant_type> constants(10);
-    constants[0].i = bottom_blob_bordered.dims;
-    constants[1].i = bottom_blob_bordered.w;
-    constants[2].i = bottom_blob_bordered.h;
-    constants[3].i = bottom_blob_bordered.c;
-    constants[4].i = bottom_blob_bordered.cstep;
-    constants[5].i = top_blob.dims;
-    constants[6].i = top_blob.w;
-    constants[7].i = top_blob.h;
-    constants[8].i = top_blob.c;
-    constants[9].i = top_blob.cstep;
+    std::vector<vk_constant_type> constants(4);
+    constants[0].i = bottom_blob_bordered.w;
+    constants[1].i = bottom_blob_bordered.h;
+    constants[2].i = top_blob.w;
+    constants[3].i = top_blob.h;
 
     VkMat dispatcher;
     dispatcher.w = (top_blob.w + 1) / 2;
     dispatcher.h = (top_blob.h + 1) / 2;
-    dispatcher.c = (top_blob.c + 1) / 2;
+    dispatcher.c = 1;
 
     cmd.record_pipeline(pipeline_convolution1d, bindings, constants, dispatcher);
 
@@ -306,8 +292,6 @@ int Convolution1D_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
 int Convolution1D_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, VkCompute& cmd, const Option& opt) const
 {
     int w = bottom_blob.w;
-    int h = bottom_blob.h;
-    int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
@@ -398,22 +382,16 @@ int Convolution1D_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top
     bindings[2] = weight_data_gpu_image;
     bindings[3] = bias_data_gpu_image;
 
-    std::vector<vk_constant_type> constants(10);
-    constants[0].i = bottom_blob_bordered.dims;
-    constants[1].i = bottom_blob_bordered.w;
-    constants[2].i = bottom_blob_bordered.h;
-    constants[3].i = bottom_blob_bordered.c;
-    constants[4].i = 0; //bottom_blob_bordered.cstep;
-    constants[5].i = top_blob.dims;
-    constants[6].i = top_blob.w;
-    constants[7].i = top_blob.h;
-    constants[8].i = top_blob.c;
-    constants[9].i = 0; //top_blob.cstep;
+    std::vector<vk_constant_type> constants(4);
+    constants[0].i = bottom_blob_bordered.w;
+    constants[1].i = bottom_blob_bordered.h;
+    constants[2].i = top_blob.w;
+    constants[3].i = top_blob.h;
 
     VkImageMat dispatcher;
     dispatcher.w = (top_blob.w + 1) / 2;
     dispatcher.h = (top_blob.h + 1) / 2;
-    dispatcher.c = (top_blob.c + 1) / 2;
+    dispatcher.c = 1;
 
     cmd.record_pipeline(pipeline_convolution1d, bindings, constants, dispatcher);
 
