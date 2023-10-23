@@ -7,6 +7,7 @@ import subprocess
 
 from setuptools import setup, find_packages, Extension
 from setuptools.command.build_ext import build_ext
+from setuptools.command.install import install
 
 
 def find_version():
@@ -22,6 +23,41 @@ def find_version():
         return version_major[0] + "." + version_minor[0] + "." + ncnn_version
     raise RuntimeError("Unable to find version string.")
 
+# Parse environment variables
+NCNN_VULKAN = os.environ.get("NCNN_VULKAN", "")
+Vulkan_INCLUDE_DIR = os.environ.get("Vulkan_INCLUDE_DIR", "")
+Vulkan_LIBRARY = os.environ.get("Vulkan_LIBRARY", "")
+VULKAN_SDK = os.environ.get("VULKAN_SDK", "")
+CMAKE_TOOLCHAIN_FILE = os.environ.get("CMAKE_TOOLCHAIN_FILE", "")
+PLATFORM = os.environ.get("PLATFORM", "")
+ARCHS = os.environ.get("ARCHS", "")
+DEPLOYMENT_TARGET = os.environ.get("DEPLOYMENT_TARGET", "")
+OpenMP_C_FLAGS = os.environ.get("OpenMP_C_FLAGS", "")
+OpenMP_CXX_FLAGS = os.environ.get("OpenMP_CXX_FLAGS", "")
+OpenMP_C_LIB_NAMES = os.environ.get("OpenMP_C_LIB_NAMES", "")
+OpenMP_CXX_LIB_NAMES = os.environ.get("OpenMP_CXX_LIB_NAMES", "")
+OpenMP_libomp_LIBRARY = os.environ.get("OpenMP_libomp_LIBRARY", "")
+ENABLE_BITCODE = os.environ.get("ENABLE_BITCODE", "")
+ENABLE_ARC = os.environ.get("ENABLE_ARC", "")
+ENABLE_VISIBILITY = os.environ.get("ENABLE_VISIBILITY", "")
+
+# Parse variables from command line with setup.py install
+class InstallCommand(install):
+    user_options = install.user_options + [
+        ('vulkan=', None, 'Enable the usage of Vulkan.'),
+    ]
+    def initialize_options(self):
+        install.initialize_options(self)
+        self.vulkan = None
+
+    def finalize_options(self):
+        install.finalize_options(self)
+
+    def run(self):
+        global NCNN_VULKAN
+        if self.vulkan == 'on' or self.vulkan == "ON":
+            NCNN_VULKAN = "ON"
+        install.run(self)
 
 # Convert distutils Windows platform specifiers to CMake -A arguments
 PLAT_TO_CMAKE = {
@@ -70,6 +106,39 @@ class CMakeBuild(build_ext):
             "-DNCNN_BUILD_EXAMPLES=OFF",
             "-DNCNN_BUILD_TOOLS=OFF",
         ]
+        if NCNN_VULKAN != "":
+            cmake_args.append("-DNCNN_VULKAN=" + NCNN_VULKAN)
+        if Vulkan_INCLUDE_DIR != "":
+            cmake_args.append("-DVulkan_INCLUDE_DIR=" + Vulkan_INCLUDE_DIR)
+        if Vulkan_LIBRARY != "":
+            cmake_args.append("-DVulkan_LIBRARY=" + Vulkan_LIBRARY)
+        if VULKAN_SDK != "":
+            cmake_args.append("-DVULKAN_SDK=" + VULKAN_SDK)
+        if CMAKE_TOOLCHAIN_FILE != "":
+            cmake_args.append("-DCMAKE_TOOLCHAIN_FILE=" + CMAKE_TOOLCHAIN_FILE)
+        if PLATFORM != "":
+            cmake_args.append("-DPLATFORM=" + PLATFORM)
+        if ARCHS != "":
+            cmake_args.append("-DARCHS=" + ARCHS)
+        if DEPLOYMENT_TARGET != "":
+            cmake_args.append("-DDEPLOYMENT_TARGET=" + DEPLOYMENT_TARGET)
+        if OpenMP_C_FLAGS != "":
+            cmake_args.append("-DOpenMP_C_FLAGS=" + OpenMP_C_FLAGS)
+        if OpenMP_CXX_FLAGS != "":
+            cmake_args.append("-DOpenMP_CXX_FLAGS=" + OpenMP_CXX_FLAGS)
+        if OpenMP_C_LIB_NAMES != "":
+            cmake_args.append("-DOpenMP_C_LIB_NAMES=" + OpenMP_C_LIB_NAMES)
+        if OpenMP_CXX_LIB_NAMES != "":
+            cmake_args.append("-DOpenMP_CXX_LIB_NAMES=" + OpenMP_CXX_LIB_NAMES)
+        if OpenMP_libomp_LIBRARY != "":
+            cmake_args.append("-DOpenMP_libomp_LIBRARY=" + OpenMP_libomp_LIBRARY)
+        if ENABLE_BITCODE != "":
+            cmake_args.append("-DENABLE_BITCODE=" + ENABLE_BITCODE)
+        if ENABLE_ARC != "":
+            cmake_args.append("-DENABLE_ARC=" + ENABLE_ARC)
+        if ENABLE_VISIBILITY != "":
+            cmake_args.append("-DENABLE_VISIBILITY=" + ENABLE_VISIBILITY)
+
         build_args = []
 
         if self.compiler.compiler_type == "msvc":
@@ -150,5 +219,5 @@ setup(
     package_dir={"": "python"},
     install_requires=requirements,
     ext_modules=[CMakeExtension("ncnn")],
-    cmdclass={"build_ext": CMakeBuild},
+    cmdclass={'install': InstallCommand, "build_ext": CMakeBuild},
 )
