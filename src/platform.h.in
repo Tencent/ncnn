@@ -20,6 +20,7 @@
 #cmakedefine01 NCNN_SIMPLEOCV
 #cmakedefine01 NCNN_SIMPLEOMP
 #cmakedefine01 NCNN_SIMPLESTL
+#cmakedefine01 NCNN_SIMPLEMATH
 #cmakedefine01 NCNN_THREADS
 #cmakedefine01 NCNN_BENCHMARK
 #cmakedefine01 NCNN_C_API
@@ -243,6 +244,14 @@ private:
 #include <list>
 #include <vector>
 #include <string>
+#endif
+
+// simplemath
+#if NCNN_SIMPLEMATH
+#include "simplemath.h"
+#else
+#include <math.h>
+#include <fenv.h>
 #endif
 
 #endif // __cplusplus

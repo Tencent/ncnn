@@ -16,8 +16,6 @@
 
 #include "x86_activation.h"
 
-#include <math.h>
-
 namespace ncnn {
 
 Mish_x86::Mish_x86()

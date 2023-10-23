@@ -14,8 +14,6 @@
 
 #include "binaryop_loongarch.h"
 
-#include <math.h>
-
 #if __loongarch_sx
 #include <lsxintrin.h>
 #include "lsx_mathfun.h"

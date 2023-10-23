@@ -14,9 +14,8 @@
 
 #include "unaryop_loongarch.h"
 
-#include <fenv.h>
+// #include <fenv.h>
 #include <float.h>
-#include <math.h>
 
 #if __loongarch_sx
 #include <lsxintrin.h>

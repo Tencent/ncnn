@@ -26,8 +26,6 @@
 #endif // __AVX__
 #endif // __SSE2__
 
-#include <math.h>
-
 namespace ncnn {
 
 BinaryOp_x86::BinaryOp_x86()

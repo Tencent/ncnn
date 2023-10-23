@@ -15,7 +15,6 @@
 #ifndef X86_USABILITY_H
 #define X86_USABILITY_H
 
-#include <math.h>
 #if __SSE2__
 #include <emmintrin.h>
 #if __SSE4_1__

@@ -25,7 +25,10 @@
 #include "datareader.h"
 #include "net.h"
 #include "gpu.h"
+
+#ifndef NCNN_SIMPLESTL
 #include <vector>
+#endif
 
 class DataReaderFromEmpty : public ncnn::DataReader
 {

@@ -14,9 +14,8 @@
 
 #include "unaryop_arm.h"
 
-#include <fenv.h>
+// #include <fenv.h>
 #include <float.h>
-#include <math.h>
 
 #if __ARM_NEON
 #include <arm_neon.h>

@@ -14,8 +14,6 @@
 
 #include "glu.h"
 
-#include <math.h>
-
 namespace ncnn {
 
 GLU::GLU()
