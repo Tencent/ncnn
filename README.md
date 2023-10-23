@@ -220,6 +220,8 @@ ncnn 目前已在腾讯多款应用中使用，如：QQ，Qzone，微信，天�
 
 **[download prebuild binary package for android and ios](https://github.com/Tencent/ncnn/releases)**
 
+**[convert pytorch or onnx model to ncnn](https://github.com/Tencent/ncnn/wiki/use-ncnn-with-pytorch-or-onnx)**
+
 **[use ncnn with alexnet](https://github.com/Tencent/ncnn/wiki/use-ncnn-with-alexnet) with detailed steps, recommended for beginners :)**
 
 **[ncnn 组件使用指北 alexnet](https://github.com/Tencent/ncnn/wiki/use-ncnn-with-alexnet.zh) 附带详细步骤，新人强烈推荐 :)**
