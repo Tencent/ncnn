@@ -47,10 +47,24 @@
 
 static std::string get_basename(const std::string& path)
 {
-    std::string base = path.substr(0, path.find_last_of('.'));
+    std::string dirpath;
+    std::string filename;
+
+    size_t dirpos = path.find_last_of("/\\");
+    if (dirpos != std::string::npos)
+    {
+        dirpath = path.substr(0, dirpos + 1);
+        filename = path.substr(dirpos + 1);
+    }
+    else
+    {
+        filename = path;
+    }
+
+    std::string base = filename.substr(0, path.find_last_of('.'));
     // sanitize -
     std::replace(base.begin(), base.end(), '-', '_');
-    return base;
+    return dirpath + base;
 }
 
 static void parse_string_list(char* s, std::vector<std::string>& list)
