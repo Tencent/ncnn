@@ -654,7 +654,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
     // NCNN_LOGE("convolution_gemm_transB_packed_tile_int8 %d %d %d %d %d %d", i, max_ii, j, max_jj, k, max_kk);
 
     const int out_elempack = top_blob.elempack;
-    const int out_hstep = (int)top_blob.cstep;
+    const size_t out_hstep = top_blob.cstep;
 
     const signed char* pAT = AT_tile;
     const signed char* pBT = BT_tile;
@@ -1150,7 +1150,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 "beq    8f                          \n"
 
                 // if out_elempack == 8
-                "cmp    %11, #8                     \n"
+                "cmp    %w11, #8                    \n"
                 "bne    7f                          \n"
 
                 "st1    {v16.4s}, [%3], #16         \n"
@@ -1304,7 +1304,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 "zip2   v15.4s, v21.4s, v25.4s      \n"
 
                 // if out_elempack == 8
-                "cmp    %11, #8                     \n"
+                "cmp    %w11, #8                    \n"
                 "bne    7f                          \n"
 
                 // to
@@ -2737,7 +2737,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 "beq    8f                          \n"
 
                 // if out_elempack == 8
-                "cmp    %11, #8                     \n"
+                "cmp    %w11, #8                    \n"
                 "bne    7f                          \n"
 
                 "st1    {v16.4s}, [%3], #16         \n"
@@ -2833,7 +2833,7 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                 "zip2   v7.4s, v19.4s, v21.4s       \n"
 
                 // if out_elempack == 8
-                "cmp    %11, #8                     \n"
+                "cmp    %w11, #8                    \n"
                 "bne    7f                          \n"
 
                 // to
@@ -7636,7 +7636,7 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
         if (elempack == 8)
         {
             const signed char* p0 = (const signed char*)bottom_blob.channel(k / 8) + (j + jj) * 8;
-            const int cstep = bottom_blob.cstep * 8;
+            const size_t cstep = bottom_blob.cstep * 8;
 
             int kk = 0;
 #if __ARM_FEATURE_MATMUL_INT8
@@ -7725,7 +7725,7 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
         if (elempack == 1)
         {
             const signed char* p0 = (const signed char*)bottom_blob.channel(k) + (j + jj);
-            const int cstep = bottom_blob.cstep;
+            const size_t cstep = bottom_blob.cstep;
 
             int kk = 0;
 #if __ARM_FEATURE_DOTPROD
@@ -7855,7 +7855,7 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
         if (elempack == 8)
         {
             const signed char* p0 = (const signed char*)bottom_blob.channel(k / 8) + (j + jj) * 8;
-            const int cstep = bottom_blob.cstep * 8;
+            const size_t cstep = bottom_blob.cstep * 8;
 
             int kk = 0;
 #if __ARM_FEATURE_MATMUL_INT8
@@ -7950,7 +7950,7 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
         if (elempack == 1)
         {
             const signed char* p0 = (const signed char*)bottom_blob.channel(k) + (j + jj);
-            const int cstep = bottom_blob.cstep;
+            const size_t cstep = bottom_blob.cstep;
 
             int kk = 0;
 #if __ARM_FEATURE_DOTPROD
@@ -8046,7 +8046,7 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
         if (elempack == 8)
         {
             const signed char* p0 = (const signed char*)bottom_blob.channel(k / 8) + (j + jj) * 8;
-            const int cstep = bottom_blob.cstep * 8;
+            const size_t cstep = bottom_blob.cstep * 8;
 
             int kk = 0;
 #if __ARM_FEATURE_MATMUL_INT8
@@ -8135,7 +8135,7 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
         if (elempack == 1)
         {
             const signed char* p0 = (const signed char*)bottom_blob.channel(k) + (j + jj);
-            const int cstep = bottom_blob.cstep;
+            const size_t cstep = bottom_blob.cstep;
 
             int kk = 0;
 #if __ARM_NEON
@@ -8202,7 +8202,7 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
         if (elempack == 8)
         {
             const signed char* p0 = (const signed char*)bottom_blob.channel(k / 8) + (j + jj) * 8;
-            const int cstep = bottom_blob.cstep * 8;
+            const size_t cstep = bottom_blob.cstep * 8;
 
             int kk = 0;
             for (; kk < max_kk / 8; kk++)
@@ -8217,7 +8217,7 @@ static void convolution_im2col_input_tile_conv1x1s1d1_int8(const Mat& bottom_blo
         if (elempack == 1)
         {
             const signed char* p0 = (const signed char*)bottom_blob.channel(k) + (j + jj);
-            const int cstep = bottom_blob.cstep;
+            const size_t cstep = bottom_blob.cstep;
 
             int kk = 0;
             for (; kk < max_kk; kk++)

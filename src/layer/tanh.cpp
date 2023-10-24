@@ -14,8 +14,6 @@
 
 #include "tanh.h"
 
-#include <math.h>
-
 namespace ncnn {
 
 TanH::TanH()

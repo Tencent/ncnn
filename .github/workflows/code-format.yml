@@ -51,7 +51,7 @@ jobs:
         rm -rf $GITHUB_WORKSPACE/clang-format-install
         export PATH=~/bin:$PATH
         sh codeformat.sh
-    - uses: stefanzweifel/git-auto-commit-action@v4
+    - uses: stefanzweifel/git-auto-commit-action@v5
       with:
         commit_message: apply code-format changes
 

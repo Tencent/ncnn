@@ -23,6 +23,7 @@ class Model(nn.Module):
         self.act_0 = nn.Softmax2d()
 
     def forward(self, x):
+        x = x * 2 - 1
         x = self.act_0(x)
         return x
 

@@ -14,7 +14,7 @@
 
 #include "layernorm_x86.h"
 #include "x86_usability.h"
-#include <math.h>
+
 #include <cpu.h>
 
 #if __SSE2__

@@ -15,7 +15,6 @@
 #ifndef X86_ACTIVATION_H
 #define X86_ACTIVATION_H
 
-#include <math.h>
 #include "mat.h"
 #include "fused_activation.h"
 #include "x86_usability.h"
