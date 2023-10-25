@@ -88,6 +88,29 @@ static int test_slice(const ncnn::Mat& a, const ncnn::Mat& slices, int axis)
     return ret;
 }
 
+static int test_slice_indices(const ncnn::Mat& a, const ncnn::Mat& indices, int axis)
+{
+    ncnn::ParamDict pd;
+    pd.set(1, axis);
+    pd.set(2, indices);
+
+    std::vector<ncnn::Mat> weights(0);
+
+    std::vector<ncnn::Mat> a0(1);
+    a0[0] = a;
+
+    int ret = test_layer<ncnn::Slice>("Slice", pd, weights, a0, indices.w);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_slice_indices failed a.dims=%d a=(%d %d %d %d)", a.dims, a.w, a.h, a.d, a.c);
+        fprintf(stderr, " indices=");
+        print_int_array(indices);
+        fprintf(stderr, " axis=%d\n", axis);
+    }
+
+    return ret;
+}
+
 static int test_slice_0()
 {
     ncnn::Mat a[] = {
@@ -108,7 +131,11 @@ static int test_slice_0()
                   || test_slice(a[i], IntArrayMat(32, 8, -233), 0)
                   || test_slice(a[i], IntArrayMat(2, 12, 16, -233), 1)
                   || test_slice(a[i], IntArrayMat(16, 4, 5, -233), -2)
-                  || test_slice(a[i], IntArrayMat(8, 2, 16, -233), 3);
+                  || test_slice(a[i], IntArrayMat(8, 2, 16, -233), 3)
+                  || test_slice_indices(a[i], IntArrayMat(2, -24, -8), 0)
+                  || test_slice_indices(a[i], IntArrayMat(4, 20, 4), 1)
+                  || test_slice_indices(a[i], IntArrayMat(16, -16), -2)
+                  || test_slice_indices(a[i], IntArrayMat(1, -12), 3);
 
         if (ret != 0)
             return ret;
@@ -135,7 +162,10 @@ static int test_slice_1()
                   || test_slice(a[i], IntArrayMat(12, 16, -233), 0)
                   || test_slice(a[i], IntArrayMat(32, 8, -233), 0)
                   || test_slice(a[i], IntArrayMat(2, 12, 16, -233), 1)
-                  || test_slice(a[i], IntArrayMat(16, 4, 5, -233), -1);
+                  || test_slice(a[i], IntArrayMat(16, 4, 5, -233), -1)
+                  || test_slice_indices(a[i], IntArrayMat(2, -24, -8), 0)
+                  || test_slice_indices(a[i], IntArrayMat(4, 20, 4), 1)
+                  || test_slice_indices(a[i], IntArrayMat(1, -12), 2);
 
         if (ret != 0)
             return ret;
@@ -160,7 +190,9 @@ static int test_slice_2()
                   || test_slice(a[i], IntArrayMat(3, 12, 16, -233), 0)
                   || test_slice(a[i], IntArrayMat(12, 16, -233), 0)
                   || test_slice(a[i], IntArrayMat(32, 8, -233), -2)
-                  || test_slice(a[i], IntArrayMat(2, 12, 16, -233), -1);
+                  || test_slice(a[i], IntArrayMat(2, 12, 16, -233), -1)
+                  || test_slice_indices(a[i], IntArrayMat(2, -24, -8), 0)
+                  || test_slice_indices(a[i], IntArrayMat(1, -12), 1);
 
         if (ret != 0)
             return ret;
@@ -183,7 +215,8 @@ static int test_slice_3()
                   || test_slice(a[i], IntArrayMat(-233, -233, -233), 0)
                   || test_slice(a[i], IntArrayMat(3, 12, 16, -233), 0)
                   || test_slice(a[i], IntArrayMat(12, 16, -233), 0)
-                  || test_slice(a[i], IntArrayMat(32, 8, -233), -1);
+                  || test_slice(a[i], IntArrayMat(32, 8, -233), -1)
+                  || test_slice_indices(a[i], IntArrayMat(2, -24, -8), 0);
 
         if (ret != 0)
             return ret;

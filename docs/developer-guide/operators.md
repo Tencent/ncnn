@@ -1722,6 +1722,7 @@ split x along axis into slices, each part slice size is based on slices array
 | --------- | ------------- | ----- | --------- | ----------------- |
 | 0         | slices        | array | [ ]       |                   |
 | 1         | axis          | int   | 0         |                   |
+| 2         | indices       | array | [ ]       |                   |
 
 # Softmax
 ```
