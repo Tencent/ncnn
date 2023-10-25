@@ -1291,7 +1291,7 @@ static bool is_smt_cpu(int cpuid)
 static int set_sched_affinity(const ncnn::CpuSet& thread_affinity_mask)
 {
     // set affinity for thread
-#if defined(__BIONIC__)
+#if defined(__BIONIC__) && !defined(__OHOS__)
     pid_t pid = gettid();
 #else
     pid_t pid = syscall(SYS_gettid);
@@ -1677,7 +1677,7 @@ static unsigned int get_midr_from_register()
 static int get_sched_affinity(ncnn::CpuSet& thread_affinity_mask)
 {
     // get affinity for thread
-#if defined(__BIONIC__)
+#if defined(__BIONIC__) && !defined(__OHOS__)
     pid_t pid = gettid();
 #else
     pid_t pid = syscall(SYS_gettid);
