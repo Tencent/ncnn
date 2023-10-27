@@ -24,6 +24,7 @@ git submodule update --init
 - [Build for Loongson 2K1000](#build-for-loongson-2k1000)
 - [Build for Termux on Android](#build-for-termux-on-android)
 - [Build for QNX](#build-for-qnx)
+- [Build for Nintendo 3DS Homebrew Launcher](https://github.com/Deepdive543443/ncnn/edit/master/docs/how-to-build/how-to-build.md#build-for-nintendo-3ds-homebrew-launcher)
 
 ***
 
