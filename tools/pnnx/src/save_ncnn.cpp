@@ -448,6 +448,14 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
         fprintf(pyfp, "        return tuple(out)\n");
     }
 
+    fprintf(pyfp, "\n");
+
+    // main
+    {
+        fprintf(pyfp, "if __name__ == \"__main__\":\n");
+        fprintf(pyfp, "    print(test_inference())\n");
+    }
+
     fclose(pyfp);
 
     return 0;
