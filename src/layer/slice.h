@@ -30,6 +30,7 @@ public:
 
 public:
     Mat slices;
+    Mat indices;
     int axis;
 };
 

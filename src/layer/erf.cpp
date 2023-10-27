@@ -13,7 +13,6 @@
 // specific language governing permissions and limitations under the License.
 
 #include "erf.h"
-#include <math.h>
 
 namespace ncnn {
 

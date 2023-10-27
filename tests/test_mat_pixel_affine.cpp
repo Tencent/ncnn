@@ -15,7 +15,6 @@
 #include "mat.h"
 #include "prng.h"
 
-#include <math.h>
 #include <string.h>
 
 static struct prng_rand_t g_prng_rand_state;

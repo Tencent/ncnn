@@ -15,7 +15,6 @@
 #include "softmax.h"
 
 #include <float.h>
-#include <math.h>
 
 namespace ncnn {
 

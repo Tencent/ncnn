@@ -1734,6 +1734,7 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 0=%d", sample_type)
             fprintf_param_value(" 1=%d", padding_mode)
             fprintf_param_value(" 2=%d", align_corner)
+            fprintf_param_value(" 3=%d", permute_fusion)
         }
         else if (layer->type == "GroupNorm")
         {

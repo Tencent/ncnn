@@ -14,8 +14,6 @@
 
 #include "quantize_x86.h"
 
-#include <math.h>
-
 #if __SSE2__
 #include <emmintrin.h>
 #if __AVX__

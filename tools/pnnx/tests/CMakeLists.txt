@@ -237,6 +237,8 @@ pnnx_add_test(torch_topk)
 pnnx_add_test(torch_transpose)
 pnnx_add_test(torch_unbind)
 pnnx_add_test(torch_unsqueeze)
+pnnx_add_test(torch_view_as_complex)
+pnnx_add_test(torch_view_as_real)
 pnnx_add_test(torch_zeros)
 pnnx_add_test(torch_zeros_like)
 

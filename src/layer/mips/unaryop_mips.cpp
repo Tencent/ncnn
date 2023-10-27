@@ -14,9 +14,8 @@
 
 #include "unaryop_mips.h"
 
-#include <fenv.h>
+// #include <fenv.h>
 #include <float.h>
-#include <math.h>
 
 #if __mips_msa
 #include <msa.h>
