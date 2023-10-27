@@ -2629,7 +2629,6 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
 
     // test inference
     {
-        fprintf(pyfp, "@torch.no_grad()\n");
         fprintf(pyfp, "def test_inference():\n");
         fprintf(pyfp, "    net = Model()\n");
         fprintf(pyfp, "    net.eval()\n");
