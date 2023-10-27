@@ -300,7 +300,7 @@ int Deconvolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                     }
                     else
                     {
-                        outm.fill(_mm512_load_ps((const float*)bias_data + p * 16));
+                        outm.fill(_mm512_loadu_ps((const float*)bias_data + p * 16));
                     }
 
                     for (int u = 0; u < kernel_h; u++)
@@ -344,7 +344,7 @@ int Deconvolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                     }
                     else
                     {
-                        outm.fill(_mm256_load_ps((const float*)bias_data + p * 8));
+                        outm.fill(_mm256_loadu_ps((const float*)bias_data + p * 8));
                     }
 
                     for (int u = 0; u < kernel_h; u++)
@@ -388,7 +388,7 @@ int Deconvolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                     }
                     else
                     {
-                        outm.fill(_mm_load_ps((const float*)bias_data + p * 4));
+                        outm.fill(_mm_loadu_ps((const float*)bias_data + p * 4));
                     }
 
                     for (int u = 0; u < kernel_h; u++)
