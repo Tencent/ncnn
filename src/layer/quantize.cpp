@@ -14,8 +14,6 @@
 
 #include "quantize.h"
 
-#include <math.h>
-
 namespace ncnn {
 
 Quantize::Quantize()

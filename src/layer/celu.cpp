@@ -14,8 +14,6 @@
 
 #include "celu.h"
 
-#include <math.h>
-
 namespace ncnn {
 
 CELU::CELU()

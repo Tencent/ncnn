@@ -16,8 +16,6 @@
 
 #include "layer_type.h"
 
-#include <math.h>
-
 namespace ncnn {
 
 YoloDetectionOutput::YoloDetectionOutput()
