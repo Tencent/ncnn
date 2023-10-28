@@ -564,7 +564,6 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/torchvision_DeformConv2d.cpp
 )
 
-
 if(PROTOBUF_FOUND)
     if(DEFINED PROTOBUF_VERSION AND PROTOBUF_VERSION VERSION_GREATER_EQUAL 3.22)
         set(CMAKE_CXX_STANDARD 17)
@@ -599,6 +598,9 @@ if(PROTOBUF_FOUND)
         target_link_libraries(pnnx2onnx PRIVATE protobuf::libprotobuf)
         message(STATUS "Building with onnx-zero")
     endif()
+else()
+    message(STATUS "Building without onnx-zero")
+endif()
 
 set(pnnx_SRCS
     main.cpp
