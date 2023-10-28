@@ -1,5 +1,5 @@
 # pnnx
-python wrapper of pnnx with [pybind11](https://github.com/pybind/pybind11), only support python3.x now.
+python wrapper of pnnx, only support python3.x now.
 
 Install from pip
 ==================
@@ -7,8 +7,7 @@ Install from pip
 pnnx is available as wheel packages for macOS, Windows and Linux distributions, you can install with pip:
 
 ```
-python -m pip install -U pip
-python -m pip install -U pnnx
+pip install pnnx
 ```
 
 # Build & Install from source
@@ -31,11 +30,9 @@ python -m pip install -U pnnx
 * CMake >= 3.4
 
 ## Build & install
-1. clone ncnn and init submodule.
+1. clone ncnn.
 ```bash
 git clone https://github.com/Tencent/ncnn.git
-cd /pathto/ncnn
-git submodule init && git submodule update
 ```
 2. install pytorch 
 
@@ -46,13 +43,20 @@ conda install pytorch
 3. install
 ```bash
 cd /pathto/ncnntools/pnnx
-python setup.py install --pythondir=<python root dir> --pythonexc=<your executable python>
+python setup.py install
 ```
-> **Note:**
-> specified with the path to the python with torch installed . e.g. --torchdir=/home/uer123/anaconda3/envs/ncnn/bin  --pythonexc=/home/uer123/anaconda3/envs/ncnn/bin/python
 
 > **Note:**
-> pnnx to onnx convertion has not been supported in the python wrapper now.
+> If torchvision and pnnx2onnx are needed, you can set the following environment variables before 'python setup.py install' to enable them. e.g. on ubuntu:
+>
+> ```
+> export TORCHVISION_INSTALL_DIR="/project/torchvision"
+> export PROTOBUF_INCLUDE_DIR="/project/protobuf/include"
+> export PROTOBUF_LIBRARIES="/project/protobuf/lib64/libprotobuf.a"
+> export PROTOBUF_PROTOC_EXECUTABLE="/project/protobuf/bin/protoc" 
+> ```
+>
+> To do these, you must install Torchvision and Protobuf first.
 
 
 ## Tests
