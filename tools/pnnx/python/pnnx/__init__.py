@@ -12,12 +12,22 @@
 # CONDITIONS OF ANY KIND, either express or implied. See the License for the
 # specific language governing permissions and limitations under the License.
 
-from .pnnx import *
+import os
+import platform
+EXEC_DIR_PATH = os.path.dirname(os.path.abspath(__file__))
+if platform.system() == 'Linux' or platform.system() == "Darwin":
+    EXEC_PATH = EXEC_DIR_PATH + "/pnnx"
+elif platform.system() == "Windows":
+    EXEC_PATH = EXEC_DIR_PATH + "/pnnx.exe"
+else:
+    raise Exception("Unsupported platform for pnnx.")
 
 from .utils.export import export
 from .utils.convert import convert
 
-import os
-os.environ["KMP_DUPLICATE_LIB_OK"]  =  "TRUE"
+try:
+    import importlib.metadata
+    __version__ = importlib.metadata.version("pnnx")
+except:
+    pass
 
-__version__ = pnnx.__version__

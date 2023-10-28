@@ -14,62 +14,14 @@
 
 import torch
 import os
-import pnnx
-
-
-def check_type(data, dataname, types, typesname):
-    if not(data is None):
-        if (type(data) in types):
-            return True
-        else:
-            raise Exception(dataname + " should be "+ typesname + ".")
-    else:
-        return True
-
-def get_shape_from_inputs(inputs):
-    shapes = []
-    for item in inputs:
-        sub_shapes = []
-        for l in item.shape:
-            sub_shapes.append(l)
-        shapes.append(sub_shapes)
-    return shapes
-
-def input_torch_type_to_str(tensor):
-    if tensor.dtype == torch.float32 or tensor.dtype == torch.float:
-        return "f32"
-    if tensor.dtype == torch.float64 or tensor.dtype == torch.double:
-        return "f64"
-    if tensor.dtype == torch.float16 or tensor.dtype == torch.half:
-        return "f16"
-    if tensor.dtype == torch.uint8:
-        return "u8"
-    if tensor.dtype == torch.int8:
-        return "i8"
-    if tensor.dtype == torch.int16 or tensor.dtype == torch.short:
-        return "i16"
-    if tensor.dtype == torch.int32 or tensor.dtype == torch.int:
-        return "i32"
-    if tensor.dtype == torch.int64 or tensor.dtype == torch.long:
-        return "i64"
-    if tensor.dtype == torch.complex32:
-        return "c32"
-    if tensor.dtype == torch.complex64:
-        return "c64"
-    if tensor.dtype == torch.complex128:
-        return "c128"
-
-    return "f32"
-
-def get_type_from_inputs(inputs):
-    types = []
-    for item in inputs:
-        types.append(input_torch_type_to_str(item))
-    return types
+from .utils import check_type, get_shape_from_inputs, \
+                    get_type_from_inputs, generate_inputs_arg, str_in_list_to_str
+import subprocess
+from .. import EXEC_PATH
 
 def export(model, filename, inputs = None, input_shapes = None, input_shapes2 = None,
-           input_types = None, input_types2 = None, device = None, customop_modules = None,
-           module_operators = None, optlevel = None, pnnxparam = None, pnnxbin = None,
+           input_types = None, input_types2 = None, device = None, customop = None,
+           moduleop = None, optlevel = None, pnnxparam = None, pnnxbin = None,
            pnnxpy = None, pnnxonnx = None, ncnnparam = None, ncnnbin = None, ncnnpy = None,
            check_trace=True):
     if (inputs is None) and (input_shapes is None):
@@ -84,8 +36,8 @@ def export(model, filename, inputs = None, input_shapes = None, input_shapes2 = 
     check_type(input_shapes2, "input_shapes2", [list], "list of list with int type inside")
     check_type(input_types2, "input_types2", [str, list], "str or  list of str")
     check_type(device, "device", [str], "str")
-    check_type(customop_modules, "customop_modules", [str, list], "str or list of str")
-    check_type(module_operators, "module_operators", [str, list], "str or list of str")
+    check_type(customop, "customop", [str, list], "str or list of str")
+    check_type(moduleop, "moduleop", [str, list], "str or list of str")
     check_type(optlevel, "optlevel", [int], "int")
 
     if input_shapes2 is None:
@@ -96,30 +48,16 @@ def export(model, filename, inputs = None, input_shapes = None, input_shapes2 = 
         input_types2 = []
     elif type(input_types2) != list:
         input_types2 = [input_types2]
-    if customop_modules is None:
-        customop_modules = []
-    elif type(customop_modules) != list:
-        customop_modules = [customop_modules]
-    if module_operators is None:
-        module_operators = []
-    elif type(module_operators) != list:
-        module_operators = [module_operators]
+    if customop is None:
+        customop = []
+    elif type(customop) != list:
+        customop = [customop]
+    if moduleop is None:
+        moduleop = []
+    elif type(moduleop) != list:
+        moduleop = [moduleop]
     if optlevel is None:
         optlevel = 2
-    if pnnxparam is None:
-        pnnxparam = ""
-    if pnnxbin is None:
-        pnnxbin = ""
-    if pnnxpy is None:
-        pnnxpy = ""
-    if pnnxonnx is None:
-        pnnxonnx = ""
-    if ncnnparam is None:
-        ncnnparam = ""
-    if ncnnbin is None:
-        ncnnbin = ""
-    if ncnnpy is None:
-        ncnnpy = ""
     if type(inputs) == torch.Tensor:
         inputs = [inputs]
 
@@ -153,10 +91,36 @@ def export(model, filename, inputs = None, input_shapes = None, input_shapes2 = 
         if len(input_shapes2) != len(input_types2):
             raise Exception("input_shapes2 should has the same length with input_types2!")
 
-        pnnx.pnnx_export(current_path, input_shapes, input_types, input_shapes2,
-                         input_types2, device, customop_modules, module_operators,
-                         optlevel, pnnxparam,pnnxbin, pnnxpy, pnnxonnx, ncnnparam,
-                         ncnnbin, ncnnpy)
+        input_arg1 = generate_inputs_arg(input_shapes, input_types)
+
+        command_list = [EXEC_PATH, current_path, "inputshape=" + input_arg1,
+                        "device=" + device,
+                        "optlevel=" + str(optlevel)]
+        if not (len(input_shapes2) == 0):
+            input_arg2 = generate_inputs_arg(input_shapes2, input_types2)
+            command_list.append("inputshape2=" + input_arg2)
+        if not (len(customop) == 0):
+            command_list.append("customop=" + str_in_list_to_str(customop))
+        if not (len(moduleop) == 0):
+            command_list.append("moduleop=" + str_in_list_to_str(moduleop))
+
+        if not (pnnxparam is None):
+            command_list.append("pnnxparam=" + pnnxparam)
+        if not (pnnxbin is None):
+            command_list.append("pnnxbin=" + pnnxbin)
+        if not (pnnxpy is None):
+            command_list.append("pnnxpy=" + pnnxpy)
+        if not (pnnxonnx is None):
+            command_list.append("pnnxonnx=" + pnnxonnx)
+        if not (ncnnparam is None):
+            command_list.append("ncnnparam=" + ncnnparam)
+        if not (ncnnbin is None):
+            command_list.append("ncnnbin=" + ncnnbin)
+        if not (ncnnpy is None):
+            command_list.append("ncnnpy=" + ncnnpy)
+        current_dir = os.getcwd()
+        subprocess.run(command_list, stdout=subprocess.PIPE, text=True, cwd=current_dir)
+
     else: # use input_shapes and input_types
         if (input_shapes is None) or (input_types is None):
             raise Exception("input_shapes and input_types should be specified together.")
@@ -175,7 +139,31 @@ def export(model, filename, inputs = None, input_shapes = None, input_shapes2 = 
             except: # model without parameters
                 device = "cpu"
 
-        pnnx.pnnx_export(current_path, input_shapes, input_types, input_shapes2,
-                         input_types2, device, customop_modules, module_operators,
-                         optlevel, pnnxparam, pnnxbin, pnnxpy, pnnxonnx, ncnnparam,
-                         ncnnbin, ncnnpy)
+        input_arg1 = generate_inputs_arg(input_shapes, input_types)
+
+        command_list = [EXEC_PATH, current_path, "inputshape=" + input_arg1,
+                        "device=" + device,
+                        "optlevel=" + str(optlevel)]
+        if not (len(input_shapes2) == 0):
+            input_arg2 = generate_inputs_arg(input_shapes2, input_types2)
+            command_list.append("inputshape2=" + input_arg2)
+        if not (len(customop) == 0):
+            command_list.append("customop=" + str_in_list_to_str(customop))
+        if not (len(moduleop) == 0):
+            command_list.append("moduleop=" + str_in_list_to_str(moduleop))
+        if not (pnnxparam is None):
+            command_list.append("pnnxparam=" + pnnxparam)
+        if not (pnnxbin is None):
+            command_list.append("pnnxbin=" + pnnxbin)
+        if not (pnnxpy is None):
+            command_list.append("pnnxpy=" + pnnxpy)
+        if not (pnnxonnx is None):
+            command_list.append("pnnxonnx=" + pnnxonnx)
+        if not (ncnnparam is None):
+            command_list.append("ncnnparam=" + ncnnparam)
+        if not (ncnnbin is None):
+            command_list.append("ncnnbin=" + ncnnbin)
+        if not (ncnnpy is None):
+            command_list.append("ncnnpy=" + ncnnpy)
+        current_dir = os.getcwd()
+        subprocess.run(command_list, stdout=subprocess.PIPE, text=True, cwd=current_dir)

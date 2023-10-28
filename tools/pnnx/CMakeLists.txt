@@ -4,9 +4,6 @@ if(NOT CMAKE_VERSION VERSION_LESS "3.15")
     cmake_policy(SET CMP0091 NEW)
 endif()
 
-set(PNNX_VERSION_MAJOR 1)
-set(PNNX_VERSION_MINOR 0)
-
 project(pnnx)
 cmake_minimum_required(VERSION 3.12)
 
@@ -33,8 +30,6 @@ set(CMAKE_CXX_STANDARD 14)
 #set(CMAKE_BUILD_TYPE release)
 
 option(PNNX_COVERAGE "build for coverage" OFF)
-option(PNNX_LIB "build static library" OFF)
-option(PNNX_PYTHON "build python api" OFF)
 
 #set(Torch_INSTALL_DIR "/home/nihui/.local/lib/python3.9/site-packages/torch" CACHE STRING "")
 #set(Torch_INSTALL_DIR "/home/nihui/osd/pnnx/pytorch-v1.10.0/build/install" CACHE STRING "")
@@ -62,7 +57,6 @@ endif()
 find_package(Python3 COMPONENTS Interpreter Development)
 
 PNNXProbeForPyTorchInstall()
-
 find_package(Torch REQUIRED)
 
 find_package(TorchVision QUIET)
@@ -94,7 +88,3 @@ add_subdirectory(src)
 
 enable_testing()
 add_subdirectory(tests)
-
-if(PNNX_PYTHON)
-    add_subdirectory(python)
-endif()

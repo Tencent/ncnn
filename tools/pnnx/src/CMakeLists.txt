@@ -562,129 +562,58 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/torchvision_DeformConv2d.cpp
 )
 
+
+find_package(Protobuf)
 if(PROTOBUF_FOUND)
-    if(DEFINED PROTOBUF_VERSION AND PROTOBUF_VERSION VERSION_GREATER_EQUAL 3.22)
-        set(CMAKE_CXX_STANDARD 17)
-    endif()
+    protobuf_generate_cpp(ONNX_PROTO_SRCS ONNX_PROTO_HDRS onnx.proto)
 
-    if(Protobuf_FOUND OR protobuf_MODULE_COMPATIBLE)
-        protobuf_generate_cpp(ONNX_PROTO_SRCS ONNX_PROTO_HDRS onnx.proto)
+    add_library(pnnx2onnx STATIC
+        save_onnx.cpp
+        save_onnx_cxxabi_bridge.cpp
+        ${ONNX_PROTO_SRCS} ${ONNX_PROTO_HDRS}
+    )
 
-        add_library(pnnx2onnx STATIC
-            save_onnx.cpp
-            save_onnx_cxxabi_bridge.cpp
-            ${ONNX_PROTO_SRCS} ${ONNX_PROTO_HDRS}
-        )
+    target_include_directories(pnnx2onnx PRIVATE ${PROTOBUF_INCLUDE_DIR} ${CMAKE_CURRENT_BINARY_DIR})
+    target_link_libraries(pnnx2onnx PRIVATE ${PROTOBUF_LIBRARIES})
 
-        target_include_directories(pnnx2onnx PRIVATE ${PROTOBUF_INCLUDE_DIR} ${CMAKE_CURRENT_BINARY_DIR})
-        target_link_libraries(pnnx2onnx PRIVATE ${PROTOBUF_LIBRARIES})
+    # libtorch is usually compiled with old cxx11 abi
+    set_source_files_properties(save_onnx_cxxabi_bridge.cpp PROPERTIES COMPILE_FLAGS "${TORCH_CXX_FLAGS}")
 
-        # libtorch is usually compiled with old cxx11 abi
-        set_source_files_properties(save_onnx_cxxabi_bridge.cpp PROPERTIES COMPILE_FLAGS "${TORCH_CXX_FLAGS}")
-
-        message(STATUS "Building with onnx-zero")
-    else()
-
-        add_library(pnnx2onnx STATIC
-            save_onnx.cpp
-            save_onnx_cxxabi_bridge.cpp
-            onnx.proto
-        )
-        set_source_files_properties(save_onnx_cxxabi_bridge.cpp PROPERTIES COMPILE_FLAGS "${TORCH_CXX_FLAGS}")
-        target_include_directories(pnnx2onnx PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
-        protobuf_generate(TARGET pnnx2onnx)
-        target_link_libraries(pnnx2onnx PRIVATE protobuf::libprotobuf)
-        message(STATUS "Building with onnx-zero")
-    endif()
+    message(STATUS "Building with onnx-zero")
 else()
     message(STATUS "Building without onnx-zero")
 endif()
+
+set(pnnx_SRCS
+    main.cpp
+    ir.cpp
+    storezip.cpp
+    utils.cpp
+
+    pass_level0.cpp
+    pass_level1.cpp
+    pass_level2.cpp
+    pass_level3.cpp
+    pass_level4.cpp
+    pass_level5.cpp
+
+    ${pnnx_pass_level0_SRCS}
+    ${pnnx_pass_level1_SRCS}
+    ${pnnx_pass_level2_SRCS}
+    ${pnnx_pass_level3_SRCS}
+    ${pnnx_pass_level4_SRCS}
+    ${pnnx_pass_level5_SRCS}
+
+    pass_ncnn.cpp
+    save_ncnn.cpp
+    ${pnnx_pass_ncnn_SRCS}
+)
 
 if(NOT MSVC)
     add_definitions(-Wall -Wextra)
 endif()
 
-if(PNNX_LIB)
-    set(pnnx_SRCS
-        ir.cpp
-        storezip.cpp
-        utils.cpp
-        pass_level0.cpp
-        pass_level1.cpp
-        pass_level2.cpp
-        pass_level3.cpp
-        pass_level4.cpp
-        pass_level5.cpp
-        ${pnnx_pass_level0_SRCS}
-        ${pnnx_pass_level1_SRCS}
-        ${pnnx_pass_level2_SRCS}
-        ${pnnx_pass_level3_SRCS}
-        ${pnnx_pass_level4_SRCS}
-        ${pnnx_pass_level5_SRCS}
-
-        pass_ncnn.cpp
-        save_ncnn.cpp
-        ${pnnx_pass_ncnn_SRCS}
-        )
-    if(NOT MSVC)
-        add_library(pnnx SHARED ${pnnx_SRCS})
-    else()
-        add_library(pnnx ${pnnx_SRCS})
-    endif()
-    include(GNUInstallDirs)
-
-    target_include_directories(pnnx
-            PUBLIC
-            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
-            $<INSTALL_INTERFACE:include/pnnx>
-            $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
-            )
-    install(TARGETS pnnx2onnx EXPORT pnnx)
-    install(TARGETS pnnx EXPORT pnnx
-            LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-            )
-    install(FILES
-        "ir.h"
-        "pass_level0.h"
-        "pass_level1.h"
-        "pass_level2.h"
-        "pass_level3.h"
-        "pass_level4.h"
-        "pass_level5.h"
-        "pass_ncnn.h"
-        "save_ncnn.h"
-        "storezip.h"
-        "utils.h"
-        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/pnnx
-        )
-    install(EXPORT pnnx DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/pnnx)
-else()
-    set(pnnx_SRCS
-        main.cpp
-        ir.cpp
-        storezip.cpp
-        utils.cpp
-
-        pass_level0.cpp
-        pass_level1.cpp
-        pass_level2.cpp
-        pass_level3.cpp
-        pass_level4.cpp
-        pass_level5.cpp
-
-        ${pnnx_pass_level0_SRCS}
-        ${pnnx_pass_level1_SRCS}
-        ${pnnx_pass_level2_SRCS}
-        ${pnnx_pass_level3_SRCS}
-        ${pnnx_pass_level4_SRCS}
-        ${pnnx_pass_level5_SRCS}
-
-        pass_ncnn.cpp
-        save_ncnn.cpp
-        ${pnnx_pass_ncnn_SRCS}
-        )
-    add_executable(pnnx ${pnnx_SRCS})
-endif()
+add_executable(pnnx ${pnnx_SRCS})
 
 target_compile_definitions(pnnx PRIVATE BUILD_PNNX)
 
@@ -729,5 +658,3 @@ if (WIN32)
     file(GLOB TORCH_DLL "${TORCH_INSTALL_PREFIX}/lib/*.dll")
     install(FILES ${TORCH_DLL} DESTINATION ${CMAKE_INSTALL_BINDIR})
 endif()
-
-

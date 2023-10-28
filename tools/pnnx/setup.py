@@ -9,59 +9,19 @@ from setuptools import setup, find_packages, Extension
 from setuptools.command.build_ext import build_ext
 from setuptools.command.install import install
 
-def find_version():
-    with io.open("CMakeLists.txt", encoding="utf8") as f:
-        version_file = f.read()
-
-    version_major = re.findall(r"PNNX_VERSION_MAJOR (.+?)", version_file)
-    version_minor = re.findall(r"PNNX_VERSION_MINOR (.+?)", version_file)
-
-    if version_major and version_minor:
-        pnnx_version = time.strftime("%Y%m%d", time.localtime())
-
-        return version_major[0] + "." + version_minor[0] + "." + pnnx_version
-    raise RuntimeError("Unable to find version string.")
+def set_version():
+    pnnx_version = time.strftime("%Y%m%d", time.localtime())
+    return pnnx_version
 
 # Parse environment variables
-PYTHON_DIR = os.environ.get("PYTHON_DIR", "")
-PYTHON_EXECUTABLE = os.environ.get("PYTHON_EXECUTABLE", "")
 TORCH_INSTALL_DIR = os.environ.get("TORCH_INSTALL_DIR", "")
 TORCHVISION_INSTALL_DIR = os.environ.get("TORCHVISION_INSTALL_DIR", "")
 PROTOBUF_INCLUDE_DIR = os.environ.get("PROTOBUF_INCLUDE_DIR", "")
 PROTOBUF_LIBRARIES = os.environ.get("PROTOBUF_LIBRARIES", "")
 PROTOBUF_PROTOC_EXECUTABLE = os.environ.get("PROTOBUF_PROTOC_EXECUTABLE", "")
-PLATFORM = os.environ.get("PLATFORM", "")
-ARCHS = os.environ.get("ARCHS", "")
-DEPLOYMENT_TARGET = os.environ.get("DEPLOYMENT_TARGET", "")
 CMAKE_BUILD_TYPE = os.environ.get("CMAKE_BUILD_TYPE", "")
-CMAKE_CXX_COMPILER = os.environ.get("CMAKE_CXX_COMPILER", "")
-CMAKE_C_COMPILER = os.environ.get("CMAKE_C_COMPILER", "")
-CMAKE_CXX_FLAGS = os.environ.get("CMAKE_CXX_FLAGS", "")
 PNNX_BUILD_WITH_STATIC_CRT = os.environ.get("PNNX_BUILD_WITH_STATIC_CRT", "")
 
-# Parse variables from command line with setup.py install
-class InstallCommand(install):
-    user_options = install.user_options + [
-        ('pythondir=', None, 'Specify the python dir.'),
-        ('pythonexc=', None, 'Specify the python executable.'),
-    ]
-
-    def initialize_options(self):
-        install.initialize_options(self)
-        self.pythondir = None
-        self.pythonexc = None
-
-    def finalize_options(self):
-        print("pythondir", self.pythondir)
-        print("pythonexc", self.pythonexc)
-        install.finalize_options(self)
-
-    def run(self):
-        global PYTHON_DIR
-        global PYTHON_EXECUTABLE
-        PYTHON_DIR = self.pythondir
-        PYTHON_EXECUTABLE = self.pythonexc
-        install.run(self)
 
 # Convert distutils Windows platform specifiers to CMake -A arguments
 PLAT_TO_CMAKE = {
@@ -98,20 +58,12 @@ class CMakeBuild(build_ext):
         # EXAMPLE_VERSION_INFO shows you how to pass a value into the C++ code
         # from Python.
         cmake_args = [
-            "-DCMAKE_LIBRARY_OUTPUT_DIRECTORY={}".format(extdir),
-            "-DCMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE={}".format(extdir),
+            "-DCMAKE_RUNTIME_OUTPUT_DIRECTORY={}".format(extdir),
+            "-DCMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE={}".format(extdir),
+            "-DPython3_EXECUTABLE={}".format(sys.executable),
             "-DCMAKE_BUILD_TYPE={}".format(cfg),  # not used on MSVC, but no harm
-            "-DPNNX_PYTHON=ON",
-            "-DPNNX_LIB=ON"
+            "-DPNNX_PYTHON=ON"
         ]
-
-        if PYTHON_DIR != "":
-            cmake_args.append("-DPython3_DIR=" + PYTHON_DIR)
-
-        if PYTHON_EXECUTABLE != "":
-            cmake_args.append("-DPython3_EXECUTABLE=" + PYTHON_EXECUTABLE)
-        else:
-            cmake_args.append("-DPython3_EXECUTABLE={}".format(sys.executable))
 
         if TORCH_INSTALL_DIR != "":
             cmake_args.append("-DTorch_INSTALL_DIR=" + TORCH_INSTALL_DIR)
@@ -123,23 +75,8 @@ class CMakeBuild(build_ext):
             cmake_args.append("-DProtobuf_LIBRARIES=" + PROTOBUF_LIBRARIES)
         if PROTOBUF_PROTOC_EXECUTABLE != "":
             cmake_args.append("-DProtobuf_PROTOC_EXECUTABLE=" + PROTOBUF_PROTOC_EXECUTABLE)
-
-        if PLATFORM != "":
-            cmake_args.append("-DPLATFORM=" + PLATFORM)
-        if ARCHS != "":
-            cmake_args.append("-DARCHS=" + ARCHS)
-        if DEPLOYMENT_TARGET != "":
-            cmake_args.append("-DDEPLOYMENT_TARGET=" + DEPLOYMENT_TARGET)
-
         if CMAKE_BUILD_TYPE != "":
             cmake_args.append("-DCMAKE_BUILD_TYPE=" + CMAKE_BUILD_TYPE)
-        if CMAKE_CXX_COMPILER != "":
-            cmake_args.append("-DCMAKE_CXX_COMPILER=" + CMAKE_CXX_COMPILER)
-        if CMAKE_C_COMPILER != "":
-            cmake_args.append("-DCMAKE_C_COMPILER=" + CMAKE_C_COMPILER)
-        if CMAKE_CXX_FLAGS != "":
-            cmake_args.append("-DCMAKE_CXX_FLAGS=" + CMAKE_CXX_FLAGS)
-
         if PNNX_BUILD_WITH_STATIC_CRT != "":
             cmake_args.append("-DPNNX_BUILD_WITH_STATIC_CRT=" + PNNX_BUILD_WITH_STATIC_CRT)
             
@@ -196,7 +133,7 @@ with io.open("README.md", encoding="utf-8") as h:
 
 setup(
     name="pnnx",
-    version=find_version(),
+    version=set_version(),
     author="nihui",
     author_email="nihuini@tencent.com",
     description="pnnx is an open standard for PyTorch model interoperability.",
@@ -222,5 +159,5 @@ setup(
     package_dir={"": "python"},
     install_requires=requirements,
     ext_modules=[CMakeExtension("pnnx")],
-    cmdclass={"install": InstallCommand, "build_ext": CMakeBuild},
+    cmdclass={"build_ext": CMakeBuild},
 )

@@ -12,23 +12,14 @@
 # CONDITIONS OF ANY KIND, either express or implied. See the License for the
 # specific language governing permissions and limitations under the License.
 
-import torch
 import os
-import pnnx
-
-
-def check_type(data, dataname, types, typesname):
-    if not(data is None):
-        if (type(data) in types):
-            return True
-        else:
-            raise Exception(dataname + " should be "+ typesname + ".")
-    else:
-        return True
+from .utils import check_type, generate_inputs_arg, str_in_list_to_str
+import subprocess
+from .. import EXEC_PATH
 
 def convert(ptpath, input_shapes, input_types, input_shapes2 = None,
-            input_types2 = None, device = None, customop_modules = None,
-            module_operators = None, optlevel = None, pnnxparam = None,
+            input_types2 = None, device = None, customop = None,
+            moduleop = None, optlevel = None, pnnxparam = None,
             pnnxbin = None, pnnxpy = None, pnnxonnx = None, ncnnparam = None,
             ncnnbin = None, ncnnpy = None):
 
@@ -38,8 +29,8 @@ def convert(ptpath, input_shapes, input_types, input_shapes2 = None,
     check_type(input_shapes2, "input_shapes2", [list], "list of list with int type inside")
     check_type(input_types2, "input_types2", [str, list], "str or  list of str")
     check_type(device, "device", [str], "str")
-    check_type(customop_modules, "customop_modules", [str, list], "str or list of str")
-    check_type(module_operators, "module_operators", [str, list], "str or list of str")
+    check_type(customop, "customop", [str, list], "str or list of str")
+    check_type(moduleop, "moduleop", [str, list], "str or list of str")
     check_type(optlevel, "optlevel", [int], "int")
 
     if input_shapes2 is None:
@@ -50,32 +41,19 @@ def convert(ptpath, input_shapes, input_types, input_shapes2 = None,
         input_types2 = []
     elif type(input_types2) != list:
         input_types2 = [input_types2]
-    if customop_modules is None:
-        customop_modules = []
-    elif type(customop_modules) != list:
-        customop_modules = [customop_modules]
-    if module_operators is None:
-        module_operators = []
-    elif type(module_operators) != list:
-        module_operators = [module_operators]
+    if customop is None:
+        customop = []
+    elif type(customop) != list:
+        customop = [customop]
+    if moduleop is None:
+        moduleop = []
+    elif type(moduleop) != list:
+        moduleop = [moduleop]
     if device is None:
         device = "cpu"
     if optlevel is None:
         optlevel = 2
-    if pnnxparam is None:
-        pnnxparam = ""
-    if pnnxbin is None:
-        pnnxbin = ""
-    if pnnxpy is None:
-        pnnxpy = ""
-    if pnnxonnx is None:
-        pnnxonnx = ""
-    if ncnnparam is None:
-        ncnnparam = ""
-    if ncnnbin is None:
-        ncnnbin = ""
-    if ncnnpy is None:
-        ncnnpy = ""
+
     if type(input_shapes[0]) != list:
         input_shapes = [input_shapes]
     if type(input_types) != list:
@@ -86,7 +64,31 @@ def convert(ptpath, input_shapes, input_types, input_shapes2 = None,
     if len(input_shapes2) != len(input_types2):
         raise Exception("input_shapes2 should has the same length with input_types2!")
 
-    pnnx.pnnx_export(ptpath, input_shapes, input_types, input_shapes2,
-                     input_types2, device, customop_modules, module_operators,
-                     optlevel, pnnxparam,pnnxbin, pnnxpy, pnnxonnx, ncnnparam,
-                     ncnnbin, ncnnpy)
+    input_arg1 = generate_inputs_arg(input_shapes, input_types)
+
+    command_list = [EXEC_PATH, ptpath, "inputshape="+input_arg1,
+                    "device="+device,
+                    "optlevel="+str(optlevel)]
+    if not (len(input_shapes2) == 0):
+        input_arg2 = generate_inputs_arg(input_shapes2, input_types2)
+        command_list.append("inputshape2=" + input_arg2)
+    if not (len(customop) == 0):
+        command_list.append("customop=" + str_in_list_to_str(customop))
+    if not (len(moduleop) == 0):
+        command_list.append("moduleop=" + str_in_list_to_str(moduleop))
+    if not(pnnxparam is None):
+        command_list.append("pnnxparam="+pnnxparam)
+    if not(pnnxbin is None):
+        command_list.append("pnnxbin="+pnnxbin)
+    if not(pnnxpy is None):
+        command_list.append("pnnxpy="+pnnxpy)
+    if not(pnnxonnx is None):
+        command_list.append("pnnxonnx="+pnnxonnx)
+    if not(ncnnparam is None):
+        command_list.append("ncnnparam="+ncnnparam)
+    if not(ncnnbin is None):
+        command_list.append("ncnnbin="+ncnnbin)
+    if not(ncnnpy is None):
+        command_list.append("ncnnpy="+ncnnpy)
+    current_dir = os.getcwd()
+    subprocess.run(command_list, stdout=subprocess.PIPE, text=True, cwd=current_dir)
