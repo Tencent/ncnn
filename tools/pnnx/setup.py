@@ -62,7 +62,6 @@ class CMakeBuild(build_ext):
             "-DCMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE={}".format(extdir),
             "-DPython3_EXECUTABLE={}".format(sys.executable),
             "-DCMAKE_BUILD_TYPE={}".format(cfg),  # not used on MSVC, but no harm
-            "-DPNNX_PYTHON=ON"
         ]
 
         if TORCH_INSTALL_DIR != "":
@@ -111,7 +110,7 @@ class CMakeBuild(build_ext):
                 # CMake 3.12+ only.
                 build_args += ["-j{}".format(self.parallel)]
             else:
-                build_args += ["-j4"]
+                build_args += ["-j2"]
 
         if not os.path.exists(self.build_temp):
             os.makedirs(self.build_temp)
@@ -143,18 +142,16 @@ setup(
     classifiers=[
         "Programming Language :: C++",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
-        "Programming Language :: Python :: 3.12",
         "License :: OSI Approved :: BSD License",
         "Operating System :: OS Independent",
     ],
     license="BSD-3",
-    python_requires=">=3.6",
+    python_requires=">=3.7",
     packages=find_packages("python"),
     package_dir={"": "python"},
     install_requires=requirements,

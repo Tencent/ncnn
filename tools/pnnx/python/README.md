@@ -1,5 +1,5 @@
 # pnnx
-python wrapper of pnnx, only support python3.x now.
+python wrapper of pnnx, only support python 3.7+  now.
 
 Install from pip
 ==================
