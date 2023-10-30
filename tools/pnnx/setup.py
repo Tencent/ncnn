@@ -21,6 +21,7 @@ PROTOBUF_LIBRARIES = os.environ.get("PROTOBUF_LIBRARIES", "")
 PROTOBUF_PROTOC_EXECUTABLE = os.environ.get("PROTOBUF_PROTOC_EXECUTABLE", "")
 CMAKE_BUILD_TYPE = os.environ.get("CMAKE_BUILD_TYPE", "")
 PNNX_BUILD_WITH_STATIC_CRT = os.environ.get("PNNX_BUILD_WITH_STATIC_CRT", "")
+PNNX_WHEEL_WITHOUT_BUILD = os.environ.get("PNNX_WHEEL_WITHOUT_BUILD", "")
 
 
 # Convert distutils Windows platform specifiers to CMake -A arguments
@@ -115,12 +116,15 @@ class CMakeBuild(build_ext):
         if not os.path.exists(self.build_temp):
             os.makedirs(self.build_temp)
 
-        subprocess.check_call(
-            ["cmake", ext.sourcedir] + cmake_args, cwd=self.build_temp
-        )
-        subprocess.check_call(
-            ["cmake", "--build", "."] + build_args, cwd=self.build_temp
-        )
+        if not (PNNX_WHEEL_WITHOUT_BUILD == "ON"):
+            subprocess.check_call(
+                ["cmake", ext.sourcedir] + cmake_args, cwd=self.build_temp
+            )
+            subprocess.check_call(
+                ["cmake", "--build", "."] + build_args, cwd=self.build_temp
+            )
+        else:
+            pass
 
 if sys.version_info < (3, 0):
     sys.exit("Sorry, Python < 3.0 is not supported")
@@ -153,6 +157,7 @@ setup(
     license="BSD-3",
     python_requires=">=3.7",
     packages=find_packages("python"),
+    package_data={"pnnx": ["pnnx", "pnnx.exe"]},
     package_dir={"": "python"},
     install_requires=requirements,
     ext_modules=[CMakeExtension("pnnx")],
