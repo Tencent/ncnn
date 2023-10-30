@@ -47,11 +47,21 @@ int DeconvolutionDepthWise::load_param(const ParamDict& pd)
     activation_type = pd.get(9, 0);
     activation_params = pd.get(10, Mat());
 
+    dynamic_weight = pd.get(28, 0);
+
+    if (dynamic_weight)
+    {
+        one_blob_only = false;
+    }
+
     return 0;
 }
 
 int DeconvolutionDepthWise::load_model(const ModelBin& mb)
 {
+    if (dynamic_weight)
+        return 0;
+
     weight_data = mb.load(weight_data_size, 0);
     if (weight_data.empty())
         return -100;
@@ -233,6 +243,93 @@ int DeconvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const
         return -100;
 
     int ret = deconvolutiondepthwise(bottom_blob, top_blob_bordered, weight_data, bias_data, kernel_w, kernel_h, stride_w, stride_h, dilation_w, dilation_h, group, activation_type, activation_params, opt);
+    if (ret != 0)
+        return ret;
+
+    cut_padding(top_blob_bordered, top_blob, opt);
+    if (top_blob.empty())
+        return -100;
+
+    return 0;
+}
+
+int DeconvolutionDepthWise::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+{
+    const Mat& bottom_blob = bottom_blobs[0];
+    const Mat& _weight_data = bottom_blobs[1];
+    Mat& top_blob = top_blobs[0];
+
+    const int _num_input = bottom_blob.c;
+    const int _kernel_w = _weight_data.w;
+    const int _kernel_h = _weight_data.h;
+    const int _num_output = _weight_data.d * group;
+
+    Mat weight_data_flattened;
+    flatten(_weight_data, weight_data_flattened, opt);
+    if (weight_data_flattened.empty())
+        return -100;
+
+    // transpose group-inch/group-outch/group-kh-kw to group-outch/group-inch/group-kh-kw
+    Mat weight_data_transposed;
+    {
+        weight_data_transposed.create(_kernel_w * _kernel_h * _num_output * _num_input / group, 4u, opt.workspace_allocator);
+        if (weight_data_transposed.empty())
+            return -100;
+
+        const int outch_g = _num_output / group;
+        const int inch_g = _num_input / group;
+        const int maxk = _kernel_h * _kernel_w;
+
+        for (int g = 0; g < group; g++)
+        {
+            // reorder weight from inch-outch to outch-inch
+            float* wg2 = (float*)weight_data_transposed + g * outch_g * inch_g * maxk;
+            const float* wg = (const float*)weight_data_flattened + g * inch_g * outch_g * maxk;
+            for (int i = 0; i < outch_g; i++)
+            {
+                for (int j = 0; j < inch_g; j++)
+                {
+                    for (int k = 0; k < maxk; k++)
+                    {
+                        wg2[(i * inch_g + j) * maxk + k] = wg[(j * outch_g + i) * maxk + k];
+                    }
+                }
+            }
+        }
+    }
+
+    Mat bias_data_flattened;
+    if (bias_term)
+    {
+        const Mat& _bias_data = bottom_blobs[2];
+        flatten(_bias_data, bias_data_flattened, opt);
+        if (bias_data_flattened.empty())
+            return -100;
+    }
+
+    const int w = bottom_blob.w;
+    const int h = bottom_blob.h;
+
+    const int kernel_extent_w = dilation_w * (_kernel_w - 1) + 1;
+    const int kernel_extent_h = dilation_h * (_kernel_h - 1) + 1;
+
+    int outw = (w - 1) * stride_w + kernel_extent_w + output_pad_right;
+    int outh = (h - 1) * stride_h + kernel_extent_h + output_pad_bottom;
+
+    Mat top_blob_bordered;
+    if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0 || (output_w > 0 && output_h > 0))
+    {
+        top_blob_bordered.create(outw, outh, _num_output, 4u, opt.workspace_allocator);
+    }
+    else
+    {
+        top_blob_bordered = top_blob;
+        top_blob_bordered.create(outw, outh, _num_output, 4u, opt.blob_allocator);
+    }
+    if (top_blob_bordered.empty())
+        return -100;
+
+    int ret = deconvolutiondepthwise(bottom_blob, top_blob_bordered, weight_data_transposed, bias_data_flattened, _kernel_w, _kernel_h, stride_w, stride_h, dilation_w, dilation_h, group, activation_type, activation_params, opt);
     if (ret != 0)
         return ret;
 
