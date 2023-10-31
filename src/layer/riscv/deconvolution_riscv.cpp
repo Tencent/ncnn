@@ -14,6 +14,7 @@
 
 #include "deconvolution_riscv.h"
 
+#include "cpu.h"
 #include "layer_type.h"
 
 #if __riscv_vector
