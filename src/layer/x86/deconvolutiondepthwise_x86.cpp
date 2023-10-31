@@ -601,7 +601,7 @@ int DeconvolutionDepthWise_x86::forward(const std::vector<Mat>& bottom_blobs, st
     // transpose group-inch/group-outch/group-kh-kw to group-outch/group-inch/group-kh-kw
     Mat weight_data_transposed;
     {
-        weight_data_transposed.create(_kernel_w * _kernel_h * _num_output * _num_input / group, weight_data_flattened.elemsize, opt.workspace_allocator);
+        weight_data_transposed.create(_kernel_w * _kernel_h * _num_output * _num_input / group, 4u, opt.workspace_allocator);
         if (weight_data_transposed.empty())
             return -100;
 
