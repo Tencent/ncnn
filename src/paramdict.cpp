@@ -445,7 +445,6 @@ int ParamDict::load_param_bin(const DataReader& dr)
 #if __BIG_ENDIAN__
         swap_endianness_32(&id);
 #endif
-
     }
 
     return 0;
