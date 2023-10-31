@@ -529,6 +529,7 @@ y = activation(x3, act_type, act_params)
 | 19        | output_pad_bottom| int | output_pad_right |           |
 | 20        | output_w      | int   | 0         |                   |
 | 21        | output_h      | int   | output_w  |                   |
+| 28        | dynamic_weight| int   | 0         |                   |
 
 | weight        | type  | shape                 |
 | ------------- | ----- | --------------------- |
@@ -558,6 +559,7 @@ y = activation(x3, act_type, act_params)
 | 15        | pad_right     | int   | pad_left  |                   |
 | 18        | output_pad_right| int | 0         |                   |
 | 20        | output_w      | int   | 0         |                   |
+| 28        | dynamic_weight| int   | 0         |                   |
 
 | weight        | type  | shape                 |
 | ------------- | ----- | --------------------- |
@@ -638,6 +640,7 @@ y = activation(x3, act_type, act_params)
 | 19        | output_pad_bottom| int | output_pad_right |           |
 | 20        | output_w      | int   | 0         |                   |
 | 21        | output_h      | int   | output_w  |                   |
+| 28        | dynamic_weight| int   | 0         |                   |
 
 | weight        | type  | shape                 |
 | ------------- | ----- | --------------------- |
@@ -668,6 +671,7 @@ y = activation(x3, act_type, act_params)
 | 15        | pad_right     | int   | pad_left  |                   |
 | 18        | output_pad_right| int | 0         |                   |
 | 20        | output_w      | int   | 0         |                   |
+| 28        | dynamic_weight| int   | 0         |                   |
 
 | weight        | type  | shape                 |
 | ------------- | ----- | --------------------- |
