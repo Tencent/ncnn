@@ -33,7 +33,7 @@ permissions:
   contents: read
 
 jobs:
-  watchos-iphone-os:
+  watchos:
     runs-on: macos-12
     steps:
     - uses: actions/checkout@v4
@@ -51,6 +51,21 @@ jobs:
       run: |
         mkdir build-arm64_32 && cd build-arm64_32
         cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DPLATFORM=WATCHOS -DARCHS="arm64_32" \
+            -DDEPLOYMENT_TARGET=$WATCHOS_DEPLOYMENT_TARGET -DENABLE_BITCODE=$ENABLE_BITCODE -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
+            -DNCNN_OPENMP=OFF -DNCNN_THREADS=OFF \
+            -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
+            ..
+        cmake --build . -j 3
+
+  watchos-simulator:
+    runs-on: macos-12
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: build-x86_64
+      run: |
+        mkdir build-x86_64 && cd build-x86_64
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DPLATFORM=SIMULATOR_WATCHOS -DARCHS="x86_64" \
             -DDEPLOYMENT_TARGET=$WATCHOS_DEPLOYMENT_TARGET -DENABLE_BITCODE=$ENABLE_BITCODE -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
             -DNCNN_OPENMP=OFF -DNCNN_THREADS=OFF \
             -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
