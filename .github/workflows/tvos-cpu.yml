@@ -53,15 +53,6 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: build-i386
-      run: |
-        mkdir build-i386 && cd build-i386
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DPLATFORM=SIMULATOR_TVOS -DARCHS="i386" \
-            -DDEPLOYMENT_TARGET=$TVOS_DEPLOYMENT_TARGET -DENABLE_BITCODE=$ENABLE_BITCODE -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
-            -DNCNN_OPENMP=OFF -DNCNN_THREADS=OFF \
-            -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
-            ..
-        cmake --build . -j 3
     - name: build-x86_64
       run: |
         mkdir build-x86_64 && cd build-x86_64

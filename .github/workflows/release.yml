@@ -2211,16 +2211,6 @@ jobs:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-tvos-simulator
     steps:
     - uses: actions/checkout@v4
-    - name: build-i386
-      run: |
-        mkdir build-i386 && cd build-i386
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DPLATFORM=SIMULATOR_TVOS -DARCHS="i386" \
-            -DDEPLOYMENT_TARGET=$TVOS_DEPLOYMENT_TARGET -DENABLE_BITCODE=$ENABLE_BITCODE -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
-            -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DNCNN_OPENMP=OFF -DNCNN_THREADS=OFF \
-            -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
-        cmake --build . --target install/strip
     - name: build-x86_64
       run: |
         mkdir build-x86_64 && cd build-x86_64
@@ -2251,7 +2241,6 @@ jobs:
         ln -s Versions/Current/Resources ncnn.framework/Resources
         ln -s Versions/Current/ncnn ncnn.framework/ncnn
         lipo -create \
-            build-i386/install/lib/libncnn.a \
             build-x86_64/install/lib/libncnn.a \
             build-arm64/install/lib/libncnn.a \
             -o ncnn.framework/Versions/A/ncnn
