@@ -2688,6 +2688,14 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
         }
     }
 
+    fprintf(pyfp, "\n");
+
+    // main
+    {
+        fprintf(pyfp, "if __name__ == \"__main__\":\n");
+        fprintf(pyfp, "    print(test_inference())\n");
+    }
+
     fclose(pyfp);
 
     return 0;

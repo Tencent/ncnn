@@ -24,6 +24,7 @@ git submodule update --init
 - [Build for Loongson 2K1000](#build-for-loongson-2k1000)
 - [Build for Termux on Android](#build-for-termux-on-android)
 - [Build for QNX](#build-for-qnx)
+- [Build for Nintendo 3DS Homebrew Launcher](#build-for-nintendo-3ds-homebrew-launcher)
 
 ***
 
@@ -742,3 +743,60 @@ make install
 ```
 
 Pick `build-qnx/install` folder for further usage.
+
+### Build for Nintendo 3DS Homebrew Launcher
+Install DevkitPRO toolchains
+- If you are working on windows, download DevkitPro installer from [DevkitPro](https://devkitpro.org/wiki/Getting_Started).
+- If you are using Ubuntu, the official guidelines from DevkitPro might not work for you. Try using the lines below to install 
+```
+sudo apt-get update
+sudo apt-get upgrade
+wget https://apt.devkitpro.org/install-devkitpro-pacman
+chmod +x ./install-devkitpro-pacman
+sudo ./install-devkitpro-pacman
+```
+
+```
+export DEVKITPRO=/opt/devkitpro
+export DEVKITARM=/opt/devkitpro/devkitARM
+export DEVKITPPC=/opt/devkitpro/devkitPPC
+export export PATH=$/opt/devkitpro/tools/bin:$PATH
+source ~/.profile
+```
+```
+sudo dkp-pacman -Sy
+sudo dkp-pacman -Syu
+sudo dkp-pacman -S 3ds-dev
+```
+Copy the toolchain files from [3DS-cmake](https://github.com/Xtansia/3ds-cmake)(DevitARM3DS.cmake and the cmake folder) to NCNN's toolchains folder.
+```
+├── toolchains
+│   ├── cmake
+│   │   ├── bin2s_header.h.in
+│   │   ├── FindCITRO3D.cmake
+│   │   ├── FindCTRULIB.cmake
+│   │   ├── FindFreetype.cmake
+│   │   ├── FindJPEG.cmake
+│   │   ├── FindPNG.cmake
+│   │   ├── FindSF2D.cmake
+│   │   ├── FindSFIL.cmake
+│   │   ├── FindSFTD.cmake
+│   │   ├── FindZLIB.cmake
+│   │   ├── LibFindMacros.cmake
+│   │   ├── Tools3DS.cmake
+│   │   ├── ToolsGBA.cmake
+│   │   └── try_add_imported_target.cmake
+│   ├── DevkitArm3DS.cmake
+...
+
+```
+Build with:
+```
+cd ncnn
+mkdir build && cd build
+cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/DevkitArm3DS.cmake .. -DNCNN_SIMPLEOCV=ON -DNCNN_OPENMP=OFF -DNCNN_VFPV4=OFF ..
+make -j4
+make install
+```
+Modify the Makefile in Homebrew example to link and use NCNN in your 3DS Homebrew app.
+

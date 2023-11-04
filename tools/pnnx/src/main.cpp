@@ -61,7 +61,7 @@ static std::string get_basename(const std::string& path)
         filename = path;
     }
 
-    std::string base = filename.substr(0, path.find_last_of('.'));
+    std::string base = filename.substr(0, filename.find_last_of('.'));
     // sanitize -
     std::replace(base.begin(), base.end(), '-', '_');
     return dirpath + base;
