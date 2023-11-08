@@ -2187,8 +2187,13 @@ extern PFN_vkEnumerateInstanceExtensionProperties vkEnumerateInstanceExtensionPr
 extern PFN_vkCreateInstance vkCreateInstance;
 extern PFN_vkGetInstanceProcAddr vkGetInstanceProcAddr;
 
-int load_vulkan_driver(const char* driver_path);
+// Load vulkan driver dynamic library when driver_path is provided
+// Load from env VK_ICD_FILENAMES and NCNN_VULKAN_DRIVER otherwise
+// If failed, it will try system libvulkan and well-known library names
+// The three vulkan base function pointers will be set on success
+int load_vulkan_driver(const char* driver_path = 0);
 
+// Unload vulkan driver library and clear
 int unload_vulkan_driver();
 
 } // namespace ncnn

@@ -63,15 +63,19 @@ PFN_vkGetInstanceProcAddr vkGetInstanceProcAddr = 0;
 
 int load_vulkan_driver(const char* /*driver_path*/)
 {
-    ncnn::vkEnumerateInstanceExtensionProperties = ::vkEnumerateInstanceExtensionProperties;
-    ncnn::vkCreateInstance = ::vkCreateInstance;
-    ncnn::vkGetInstanceProcAddr = ::vkGetInstanceProcAddr;
+    vkEnumerateInstanceExtensionProperties = ::vkEnumerateInstanceExtensionProperties;
+    vkCreateInstance = ::vkCreateInstance;
+    vkGetInstanceProcAddr = ::vkGetInstanceProcAddr;
 
     return 0;
 }
 
 int unload_vulkan_driver()
 {
+    vkEnumerateInstanceExtensionProperties = 0;
+    vkCreateInstance = 0;
+    vkGetInstanceProcAddr = 0;
+
     return 0;
 }
 
@@ -629,6 +633,10 @@ int load_vulkan_driver(const char* driver_path)
 
 int unload_vulkan_driver()
 {
+    vkEnumerateInstanceExtensionProperties = 0;
+    vkCreateInstance = 0;
+    vkGetInstanceProcAddr = 0;
+
 #if defined _WIN32
     if (g_libvulkan)
     {
