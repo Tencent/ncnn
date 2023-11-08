@@ -19,10 +19,6 @@
 
 #include "simplevk.h"
 
-#if __APPLE__
-#include "TargetConditionals.h"
-#endif
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -41,9 +37,9 @@
 #endif
 #endif
 
-#if __APPLE__ && TARGET_OS_IPHONE
+#if __APPLE__
 
-// always use static vulkan library on ios and mac-catalyst
+// always use static vulkan library on macos ios ..
 extern "C" {
 
     PFN_vkEnumerateInstanceExtensionProperties vkEnumerateInstanceExtensionProperties;
@@ -59,7 +55,7 @@ PFN_vkEnumerateInstanceExtensionProperties vkEnumerateInstanceExtensionPropertie
 PFN_vkCreateInstance vkCreateInstance = 0;
 PFN_vkGetInstanceProcAddr vkGetInstanceProcAddr = 0;
 
-#if __APPLE__ && TARGET_OS_IPHONE
+#if __APPLE__
 
 int load_vulkan_driver(const char* /*driver_path*/)
 {
@@ -79,7 +75,7 @@ int unload_vulkan_driver()
     return 0;
 }
 
-#else // __APPLE__ && TARGET_OS_IPHONE
+#else // __APPLE__
 
 #if defined _WIN32
 static HMODULE g_libvulkan = 0;
@@ -665,7 +661,7 @@ int unload_vulkan_driver()
     return 0;
 }
 
-#endif // __APPLE__ && TARGET_OS_IPHONE
+#endif // __APPLE__
 
 } // namespace ncnn
 
