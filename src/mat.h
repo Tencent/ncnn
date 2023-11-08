@@ -41,10 +41,6 @@
 #include "option.h"
 #include "platform.h"
 
-#if NCNN_VULKAN
-#include <vulkan/vulkan.h>
-#endif // NCNN_VULKAN
-
 #if NCNN_PIXEL
 #if NCNN_PLATFORM_API
 #if __ANDROID_API__ >= 9

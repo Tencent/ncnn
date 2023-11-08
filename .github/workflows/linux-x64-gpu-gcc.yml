@@ -117,7 +117,6 @@ jobs:
         CXX: g++
         LD_LIBRARY_PATH: /data/action/install/lib64
       run: |
-        export VULKAN_SDK=/data/action/osd/1.2.189.0/x86_64
         mkdir build && cd build
         cmake -DNCNN_VULKAN=ON -DNCNN_BUILD_TESTS=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
         cmake --build . -j 4

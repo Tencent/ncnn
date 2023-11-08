@@ -19,8 +19,6 @@
 #include "platform.h"
 #if NCNN_VULKAN
 #include "gpu.h"
-
-#include <vulkan/vulkan.h>
 #endif // NCNN_VULKAN
 
 namespace ncnn {

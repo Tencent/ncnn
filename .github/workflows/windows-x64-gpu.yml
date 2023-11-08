@@ -78,10 +78,6 @@ jobs:
         mkdir build-${{ matrix.vs-version }}; cd build-${{ matrix.vs-version }}; cmake -T ${{ matrix.toolset-version }},host=x64 -A x64 -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE\protobuf-install" -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF -DNCNN_BUILD_TESTS=ON ../cmake
         cmake --build . --config Release -j 2
         cmake --build . --config Release --target install
-    - name: vulkansdk
-      run: |
-        Invoke-WebRequest -Uri https://sdk.lunarg.com/sdk/download/1.3.236.0/windows/VulkanSDK-1.3.236.0-Installer.exe?Human=true -OutFile VulkanSDK.exe
-        .\VulkanSDK.exe --accept-licenses --default-answer --confirm-command install
     - name: cache-swiftshader
       if: matrix.vs-version != 'vs2015'
       id: cache-swiftshader
@@ -112,8 +108,6 @@ jobs:
         Copy-Item -Path "Windows\*" -Destination "$env:GITHUB_WORKSPACE\swiftshader-install"
     - name: build
       run: |
-        $env:VULKAN_SDK="C:/VulkanSDK/1.3.236.0"
-        $env:Path+=";C:/VulkanSDK/1.3.236.0/Bin"
         mkdir build; cd build
         cmake -T ${{ matrix.toolset-version }},host=x64 -A x64 -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\cmake" -DNCNN_VULKAN=ON -DNCNN_BUILD_TESTS=ON ..
         cmake --build . --config Release -j 2
@@ -122,12 +116,9 @@ jobs:
       run: |
         echo "[Processor]`nThreadCount=1`n" > build/tests/Release/SwiftShader.ini
         Copy-Item -Path "$env:GITHUB_WORKSPACE\swiftshader-install\vulkan-1.dll" -Destination 'build\tests'
-        $env:Path+=";C:/VulkanSDK/1.3.236.0/Bin"
         cd build; ctest -C Release --output-on-failure -j 2
     - name: build-shared
       run: |
-        $env:VULKAN_SDK="C:/VulkanSDK/1.3.236.0"
-        $env:Path+=";C:/VulkanSDK/1.3.236.0/Bin"
         mkdir build-shared; cd build-shared
         cmake -T ${{ matrix.toolset-version }},host=x64 -A x64 -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\cmake" -DNCNN_VULKAN=ON -DNCNN_SHARED_LIB=ON ..
         cmake --build . --config Release -j 2
