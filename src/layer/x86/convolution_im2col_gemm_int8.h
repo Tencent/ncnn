@@ -5069,8 +5069,6 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                     // 04 15 06 17
                     // 10 01 12 03
                     // 14 05 16 07
-                    _sum0 = _sum0;
-                    _sum1 = _sum1;
                     _sum2 = _mm_shuffle_epi32(_sum2, _MM_SHUFFLE(2, 3, 0, 1));
                     _sum3 = _mm_shuffle_epi32(_sum3, _MM_SHUFFLE(2, 3, 0, 1));
 
