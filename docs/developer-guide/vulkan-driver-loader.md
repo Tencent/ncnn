@@ -1,3 +1,5 @@
+# ncnn vulkan driver loader
+
 ncnn turns on the ```NCNN_SIMPLEVK``` cmake option by default, when ```NCNN_VULKAN``` is enabled
 
 simplevk is ncnn's built-in vulkan loader. It provides vulkan function declarations and function entries that meet ncnn's needs. It allows the use and compilation of vulkan-related codes without relying on vulkan-sdk. It can dynamically load the vulkan runtime library at runtime or directly load the graphics card driver. vulkan driver. When distributing ncnn applications, it is not required that the target system has a vulkan driver.
@@ -13,7 +15,7 @@ net.load_param("model.param");
 net.load_param("model.bin");
 ```
 
-# Create and manage gpu context
+## Create and manage gpu context
 
 ```cpp
 int create_gpu_instance(const char* driver_path = 0);
@@ -23,7 +25,7 @@ void destroy_gpu_instance();
 VkInstance get_gpu_instance();
 ```
 
-# Loading order
+## Loading order
 
 ```
 If driver_path == 0
@@ -38,7 +40,7 @@ If driver_path != 0
 3 search driver by name nvoglv64.dll / amdvlk64.dll / libGLX_nvidia.so.0 .... and load it
 ```
 
-# Load from system vulkan library or graphics driver
+## Load from system vulkan library or graphics driver
 
 This is the default behavior and it should work on most systems
 
@@ -69,7 +71,7 @@ libvulkan_intel.so
 libMaliVulkan.so.1
 libVK_IMG.so
 
-# Load from driver_path
+## Load from driver_path
 
 for advanced developer
 
@@ -81,7 +83,7 @@ int ret = create_gpu_instance("/vendor/lib64/hw/vulkan.adreno.so");
 int ret = create_gpu_instance("/data/local/tmp/vulkan.ad07XX.so");
 ```
 
-# Load from env VK_ICD_FILENAMES
+## Load from env VK_ICD_FILENAMES
 
 for debug purpose
 
@@ -92,7 +94,7 @@ export VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.x86_64.json
 export VK_ICD_FILENAMES=/etc/vulkan/icd.d/nvidia_icd.json
 ```
 
-# Load from env NCNN_VULKAN_DRIVER
+## Load from env NCNN_VULKAN_DRIVER
 
 for debug purpose
 
