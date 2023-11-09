@@ -1,38 +1,46 @@
-name: windows-arm-cpu
+name: windows-x86-gpu
 on:
   push:
     branches: [master]
     paths:
-    - '.github/workflows/windows-arm-cpu.yml'
+    - '.github/workflows/windows-x86-gpu.yml'
     - 'CMakeLists.txt'
     - 'cmake/**'
     - 'src/*'
     - 'src/layer/*'
-    - 'src/layer/arm/**'
-    - 'tests/**'
+    - 'src/layer/x86/**'
+    - 'src/layer/vulkan/**'
   pull_request:
     branches: [master]
     paths:
-    - '.github/workflows/windows-arm-cpu.yml'
+    - '.github/workflows/windows-x86-gpu.yml'
     - 'CMakeLists.txt'
     - 'cmake/**'
     - 'src/*'
     - 'src/layer/*'
-    - 'src/layer/arm/**'
-    - 'tests/**'
+    - 'src/layer/x86/**'
+    - 'src/layer/vulkan/**'
 concurrency:
-  group: windows-arm-cpu-${{ github.ref }}
+  group: windows-x86-gpu-${{ github.ref }}
   cancel-in-progress: true
 permissions:
   contents: read
 
 jobs:
-  windows:
+  windows-x86:
     name: ${{ matrix.vs-version }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         include:
+          - vs-version: vs2015
+            toolset-version: v140
+            os: windows-2019
+
+          - vs-version: vs2017
+            toolset-version: v141
+            os: windows-2019
+
           - vs-version: vs2019
             toolset-version: v142
             os: windows-2022
@@ -45,13 +53,15 @@ jobs:
       UseMultiToolTask: true
     steps:
     - uses: actions/checkout@v4
+      with:
+        submodules: true
     - name: build
       run: |
         mkdir build; cd build
-        cmake -T ${{ matrix.toolset-version }},host=x64 -A arm -DNCNN_BUILD_TESTS=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
+        cmake -T ${{ matrix.toolset-version }},host=x64 -A Win32 -DNCNN_VULKAN=ON -DNCNN_BUILD_TESTS=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
         cmake --build . --config Release -j 2
     - name: build-shared
       run: |
         mkdir build-shared; cd build-shared
-        cmake -T ${{ matrix.toolset-version }},host=x64 -A arm -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_SHARED_LIB=ON ..
+        cmake -T ${{ matrix.toolset-version }},host=x64 -A Win32 -DNCNN_VULKAN=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_SHARED_LIB=ON ..
         cmake --build . --config Release -j 2

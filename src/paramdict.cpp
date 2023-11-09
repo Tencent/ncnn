@@ -368,6 +368,10 @@ int ParamDict::load_param_bin(const DataReader& dr)
         return -1;
     }
 
+#if __BIG_ENDIAN__
+    swap_endianness_32(&id);
+#endif
+
     while (id != -233)
     {
         bool is_array = id <= -23300;
@@ -392,6 +396,10 @@ int ParamDict::load_param_bin(const DataReader& dr)
                 return -1;
             }
 
+#if __BIG_ENDIAN__
+            swap_endianness_32(&len);
+#endif
+
             d->params[id].v.create(len);
 
             float* ptr = d->params[id].v;
@@ -401,6 +409,13 @@ int ParamDict::load_param_bin(const DataReader& dr)
                 NCNN_LOGE("ParamDict read array element failed %zd", nread);
                 return -1;
             }
+
+#if __BIG_ENDIAN__
+            for (int i = 0; i < len; i++)
+            {
+                swap_endianness_32(ptr + i);
+            }
+#endif
 
             d->params[id].type = 4;
         }
@@ -413,6 +428,10 @@ int ParamDict::load_param_bin(const DataReader& dr)
                 return -1;
             }
 
+#if __BIG_ENDIAN__
+            swap_endianness_32(&d->params[id].f);
+#endif
+
             d->params[id].type = 1;
         }
 
@@ -422,6 +441,10 @@ int ParamDict::load_param_bin(const DataReader& dr)
             NCNN_LOGE("ParamDict read EOP failed %zd", nread);
             return -1;
         }
+
+#if __BIG_ENDIAN__
+        swap_endianness_32(&id);
+#endif
     }
 
     return 0;

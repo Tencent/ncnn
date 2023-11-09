@@ -684,9 +684,9 @@ int Convolution_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector
     pd.set(1, _kernel_w);
     pd.set(11, _kernel_h);
     pd.set(2, dilation_w);
-    pd.set(21, dilation_h);
+    pd.set(12, dilation_h);
     pd.set(3, stride_w);
-    pd.set(31, stride_h);
+    pd.set(13, stride_h);
     pd.set(4, pad_left);
     pd.set(15, pad_right);
     pd.set(14, pad_top);
