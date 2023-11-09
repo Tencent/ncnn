@@ -1131,8 +1131,8 @@ int create_gpu_instance(const char* driver_path)
 {
     MutexLockGuard lock(g_instance_lock);
 
-    if ((VkInstance)g_instance != 0)
-        return 0;
+    if (g_instance.created != 0)
+        return g_instance.instance ? 0 : -1;
 
     g_instance.created = 1;
 
@@ -2035,7 +2035,7 @@ void destroy_gpu_instance()
 {
     MutexLockGuard lock(g_instance_lock);
 
-    if ((VkInstance)g_instance == 0)
+    if (g_instance.created == 0)
         return;
 
     // NCNN_LOGE("destroy_gpu_instance");
@@ -2062,30 +2062,24 @@ void destroy_gpu_instance()
     vkDestroyInstance(g_instance, 0);
 
     g_instance.instance = 0;
-    g_instance.created = 0;
 
 #if NCNN_SIMPLEVK
     unload_vulkan_driver();
 #endif
-}
 
-static bool is_gpu_instance_ready()
-{
-    MutexLockGuard lock(g_instance_lock);
-
-    return (VkInstance)g_instance != 0;
+    g_instance.created = 0;
 }
 
 static void try_create_gpu_instance()
 {
-    if (g_instance.created != 0)
     {
-        // do not try again and again  :]
-        return;
+        MutexLockGuard lock(g_instance_lock);
+
+        if (g_instance.created != 0)
+            return;
     }
 
-    if (!is_gpu_instance_ready())
-        create_gpu_instance();
+    create_gpu_instance();
 }
 
 int get_gpu_count()

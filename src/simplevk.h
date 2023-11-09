@@ -2197,7 +2197,7 @@ extern PFN_vkEnumerateInstanceLayerProperties vkEnumerateInstanceLayerProperties
 int load_vulkan_driver(const char* driver_path = 0);
 
 // Unload vulkan driver library and clear
-int unload_vulkan_driver();
+void unload_vulkan_driver();
 
 } // namespace ncnn
 

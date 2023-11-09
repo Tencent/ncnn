@@ -441,8 +441,8 @@ static int load_vulkan_android(const char* driver_path)
 
     hwvulkan_module_t* hvkmi = (hwvulkan_module_t*)hmi;
 
-    NCNN_LOGE("hvkmi name = %s", hvkmi->name);
-    NCNN_LOGE("hvkmi author = %s", hvkmi->author);
+    // NCNN_LOGE("hvkmi name = %s", hvkmi->name);
+    // NCNN_LOGE("hvkmi author = %s", hvkmi->author);
 
     hwvulkan_device_t* hvkdi = 0;
     int result = hvkmi->methods->open(hvkmi, "vk0", (hw_device_t**)&hvkdi);
@@ -466,6 +466,8 @@ static int load_vulkan_android(const char* driver_path)
 
 int load_vulkan_driver(const char* driver_path)
 {
+    unload_vulkan_driver();
+
     int ret = 0;
 
     std::string driver_path_from_icd_env;
@@ -574,7 +576,7 @@ int load_vulkan_driver(const char* driver_path)
     return ret;
 }
 
-int unload_vulkan_driver()
+void unload_vulkan_driver()
 {
     vkGetInstanceProcAddr = 0;
     vkEnumerateInstanceExtensionProperties = 0;
@@ -605,8 +607,6 @@ int unload_vulkan_driver()
         g_libvulkan = 0;
     }
 #endif // _WIN32
-
-    return 0;
 }
 
 #endif // __APPLE__
