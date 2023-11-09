@@ -39,11 +39,8 @@
 
 #if __APPLE__
 
-extern "C" {
-
 // always use static vulkan linkage on apple platform
-    extern PFN_vkGetInstanceProcAddr vkGetInstanceProcAddr;
-}
+extern "C" VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL vkGetInstanceProcAddr(VkInstance instance, const char* pName);
 
 #endif
 
