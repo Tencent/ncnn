@@ -41,7 +41,7 @@
 
 extern "C" {
 
-    // always use static vulkan linkage on apple platform
+// always use static vulkan linkage on apple platform
     extern PFN_vkGetInstanceProcAddr vkGetInstanceProcAddr;
 }
 
@@ -277,7 +277,7 @@ static int load_vulkan_windows(const char* driver_path)
     if (GetInstanceProcAddr)
     {
         // load icd driver
-        typedef VkResult(VKAPI_PTR* PFN_icdNegotiateLoaderICDInterfaceVersion)(uint32_t * pSupportedVersion);
+        typedef VkResult(VKAPI_PTR * PFN_icdNegotiateLoaderICDInterfaceVersion)(uint32_t * pSupportedVersion);
         PFN_icdNegotiateLoaderICDInterfaceVersion icdNegotiateLoaderICDInterfaceVersion = (PFN_icdNegotiateLoaderICDInterfaceVersion)GetProcAddress(libvulkan, "vk_icdNegotiateLoaderICDInterfaceVersion");
         if (icdNegotiateLoaderICDInterfaceVersion)
         {
@@ -331,7 +331,7 @@ static int load_vulkan_linux(const char* driver_path)
     if (GetInstanceProcAddr)
     {
         // load icd driver
-        typedef VkResult(VKAPI_PTR* PFN_icdNegotiateLoaderICDInterfaceVersion)(uint32_t * pSupportedVersion);
+        typedef VkResult(VKAPI_PTR * PFN_icdNegotiateLoaderICDInterfaceVersion)(uint32_t * pSupportedVersion);
         PFN_icdNegotiateLoaderICDInterfaceVersion icdNegotiateLoaderICDInterfaceVersion = (PFN_icdNegotiateLoaderICDInterfaceVersion)dlsym(libvulkan, "vk_icdNegotiateLoaderICDInterfaceVersion");
         if (icdNegotiateLoaderICDInterfaceVersion)
         {
