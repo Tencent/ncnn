@@ -17,13 +17,13 @@ net.load_param("model.bin");
 
 Using the in-house vulkan loader instead of the standard libvulkan has the following benefits
 
-1. Can compile ncnn vulkan code without installing vulkan-sdk
-2. Can deploy and distribute applications without libvulkan linkage
-3. Can load external vulkan driver instead of system driver
-4. Can directly load android hal module
-5. Can directly load graphics card driver files via NCNN_VULKAN_DRIVER env
-6. Able to actively search for graphics card driver files in the system and load them
-7. Can compile android libraries supporting vulkan under the platform of android-api<24
+- Can compile ncnn vulkan code without installing vulkan-sdk
+- Can deploy and distribute applications without libvulkan linkage
+- Can load external vulkan driver instead of system driver
+- Can directly load android hal module
+- Can directly load graphics card driver files via NCNN_VULKAN_DRIVER env
+- Able to actively search for graphics card driver files in the system and load them
+- Can compile android libraries supporting vulkan under the platform of android-api<24
 
 ## Create and manage gpu context
 
