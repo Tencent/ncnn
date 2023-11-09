@@ -271,7 +271,7 @@ if(NCNN_VULKAN)
     if(NCNN_SIMPLEVK)
         if(APPLE)
             # simplevk always use static vulkan linkage on apple platform
-            if(NOT DEFINED ${Vulkan_LIBRARY})
+            if(NOT DEFINED Vulkan_LIBRARY)
                 message(WARNING "Vulkan_LIBRARY shall be defined for simplevk static linkage on APPLE platforms")
             endif()
             target_link_libraries(ncnn PUBLIC ${Vulkan_LIBRARY})
