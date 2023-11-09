@@ -61,6 +61,8 @@ PFN_vkEnumerateInstanceLayerProperties vkEnumerateInstanceLayerProperties = 0;
 
 int load_vulkan_driver(const char* /*driver_path*/)
 {
+    unload_vulkan_driver();
+
     vkGetInstanceProcAddr = ::vkGetInstanceProcAddr;
     vkEnumerateInstanceExtensionProperties = (PFN_vkEnumerateInstanceExtensionProperties)vkGetInstanceProcAddr(NULL, "vkEnumerateInstanceExtensionProperties");
     vkCreateInstance = (PFN_vkCreateInstance)vkGetInstanceProcAddr(NULL, "vkCreateInstance");
@@ -68,14 +70,12 @@ int load_vulkan_driver(const char* /*driver_path*/)
     return 0;
 }
 
-int unload_vulkan_driver()
+void unload_vulkan_driver()
 {
     vkGetInstanceProcAddr = 0;
     vkEnumerateInstanceExtensionProperties = 0;
     vkCreateInstance = 0;
     vkEnumerateInstanceLayerProperties = 0;
-
-    return 0;
 }
 
 #else // __APPLE__
