@@ -40,6 +40,7 @@ set(ncnn_SRCS
     simpleomp.cpp
     simplestl.cpp
     simplemath.cpp
+    simplevk.cpp
 )
 
 if(ANDROID)
@@ -267,30 +268,43 @@ if(NCNN_THREADS)
 endif()
 
 if(NCNN_VULKAN)
-    find_package(Vulkan QUIET)
-    if(NOT Vulkan_FOUND)
-        if(DEFINED ENV{VULKAN_SDK})
-            if(CMAKE_SYSTEM_NAME MATCHES "Linux")
-                list(APPEND CMAKE_MODULE_PATH "$ENV{VULKAN_SDK}/../source/VulkanTools/cmake")
-            elseif(CMAKE_SYSTEM_NAME MATCHES "Windows")
-                list(APPEND CMAKE_MODULE_PATH "$ENV{VULKAN_SDK}/Samples/cmake")
-            elseif(CMAKE_SYSTEM_NAME MATCHES "Darwin")
-                message(WARNING "Failed to find vulkan since cmake is too old\n"
-                    "cmake >= 3.7 required. Consider `brew upgrade cmake`")
+    if(NCNN_SIMPLEVK)
+        if(APPLE)
+            # simplevk always use static vulkan linkage on apple platform
+            if(NOT DEFINED Vulkan_LIBRARY)
+                message(WARNING "Vulkan_LIBRARY shall be defined for simplevk static linkage on APPLE platforms")
             endif()
+            target_link_libraries(ncnn PUBLIC ${Vulkan_LIBRARY})
         else()
-            message(FATAL_ERROR "Error: CMake didn't find Vulkan. Please set VULKAN_SDK env var, e.g.:\n"
-                "Linux: export VULKAN_SDK=~/soft/vulkansdk/1.2.148.0/x86_64\n"
-                "Windows: set VULKAN_SDK=E:/lib/VulkanSDK/1.2.148.0\n"
-                "MacOS: export VULKAN_SDK=~/soft/vulkansdk/1.2.148.0/macOS\n"
-            )
+            target_link_libraries(ncnn PRIVATE ${CMAKE_DL_LIBS})
         endif()
-        find_package(Vulkan REQUIRED)
+    else()
+        find_package(Vulkan QUIET)
+        if(NOT Vulkan_FOUND)
+            if(DEFINED ENV{VULKAN_SDK})
+                if(CMAKE_SYSTEM_NAME MATCHES "Linux")
+                    list(APPEND CMAKE_MODULE_PATH "$ENV{VULKAN_SDK}/../source/VulkanTools/cmake")
+                elseif(CMAKE_SYSTEM_NAME MATCHES "Windows")
+                    list(APPEND CMAKE_MODULE_PATH "$ENV{VULKAN_SDK}/Samples/cmake")
+                elseif(CMAKE_SYSTEM_NAME MATCHES "Darwin")
+                    message(WARNING "Failed to find vulkan since cmake is too old\n"
+                        "cmake >= 3.7 required. Consider `brew upgrade cmake`")
+                endif()
+            else()
+                message(FATAL_ERROR "Error: CMake didn't find Vulkan. Please set VULKAN_SDK env var, e.g.:\n"
+                    "Linux: export VULKAN_SDK=~/soft/vulkansdk/1.2.148.0/x86_64\n"
+                    "Windows: set VULKAN_SDK=E:/lib/VulkanSDK/1.2.148.0\n"
+                    "MacOS: export VULKAN_SDK=~/soft/vulkansdk/1.2.148.0/macOS\n"
+                )
+            endif()
+            find_package(Vulkan REQUIRED)
+        endif()
+
+        target_link_libraries(ncnn PUBLIC Vulkan::Vulkan)
     endif()
 
-    target_link_libraries(ncnn PUBLIC Vulkan::Vulkan)
     # Support mac platform static library compilation
-    if(NOT NCNN_SHARED_LIB AND CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin" AND NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
+    if(NOT NCNN_SHARED_LIB AND APPLE AND NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
         find_library(CoreFoundation NAMES CoreFoundation)
         find_library(Foundation NAMES Foundation)
         find_library(QuartzCore NAMES QuartzCore)
@@ -311,6 +325,8 @@ if(NCNN_VULKAN)
         )
         target_link_libraries(ncnn PRIVATE ${vulkan_dependent_LINK_LIBRARIES})
     endif()
+
+    # link in-house glslang
     target_include_directories(ncnn PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../>)
     target_link_libraries(ncnn PRIVATE glslang SPIRV)
 endif()
@@ -581,6 +597,7 @@ if(NCNN_INSTALL_SDK)
         simpleomp.h
         simplestl.h
         simplemath.h
+        simplevk.h
         vulkan_header_fix.h
         ${CMAKE_CURRENT_BINARY_DIR}/ncnn_export.h
         ${CMAKE_CURRENT_BINARY_DIR}/layer_shader_type_enum.h
