@@ -39,12 +39,13 @@
 
 #if __APPLE__
 
-// always use static vulkan library on macos ios ..
+// always use static vulkan linkage on apple platform
 extern "C" {
 
-    PFN_vkEnumerateInstanceExtensionProperties vkEnumerateInstanceExtensionProperties;
-    PFN_vkCreateInstance vkCreateInstance;
-    PFN_vkGetInstanceProcAddr vkGetInstanceProcAddr;
+    extern PFN_vkEnumerateInstanceExtensionProperties vkEnumerateInstanceExtensionProperties;
+    extern PFN_vkCreateInstance vkCreateInstance;
+    extern PFN_vkGetInstanceProcAddr vkGetInstanceProcAddr;
+
 }
 #endif
 
