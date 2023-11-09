@@ -45,7 +45,6 @@ extern "C" {
     extern PFN_vkEnumerateInstanceExtensionProperties vkEnumerateInstanceExtensionProperties;
     extern PFN_vkCreateInstance vkCreateInstance;
     extern PFN_vkGetInstanceProcAddr vkGetInstanceProcAddr;
-
 }
 #endif
 
