@@ -68,7 +68,7 @@ vulkan-1.dll
 libvulkan.so
 
 #### macOS iOS and other APPLE platforms
-static moltenvk driver linking required, should be always success
+Requires static meltvk driver linking and should always succeed
 
 If failed, it will try to find graphics driver object and load it
 
