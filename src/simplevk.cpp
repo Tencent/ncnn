@@ -37,41 +37,36 @@
 #endif
 #endif
 
-#if __APPLE__
-
-// always use static vulkan linkage on apple platform
-extern "C" {
-
-    extern PFN_vkEnumerateInstanceExtensionProperties vkEnumerateInstanceExtensionProperties;
-    extern PFN_vkCreateInstance vkCreateInstance;
-    extern PFN_vkGetInstanceProcAddr vkGetInstanceProcAddr;
-
-}
-#endif
-
 namespace ncnn {
 
-// vulkan base functions
+// vulkan loader entrypoint
+PFN_vkGetInstanceProcAddr vkGetInstanceProcAddr = 0;
+
+// vulkan global functions
 PFN_vkEnumerateInstanceExtensionProperties vkEnumerateInstanceExtensionProperties = 0;
 PFN_vkCreateInstance vkCreateInstance = 0;
-PFN_vkGetInstanceProcAddr vkGetInstanceProcAddr = 0;
+PFN_vkEnumerateInstanceLayerProperties vkEnumerateInstanceLayerProperties = 0;
 
 #if __APPLE__
 
 int load_vulkan_driver(const char* /*driver_path*/)
 {
-    vkEnumerateInstanceExtensionProperties = ::vkEnumerateInstanceExtensionProperties;
-    vkCreateInstance = ::vkCreateInstance;
-    vkGetInstanceProcAddr = ::vkGetInstanceProcAddr;
+    // always use static vulkan linkage on apple platform
+    extern PFN_vkGetInstanceProcAddr ::vkGetInstanceProcAddr;
 
+    vkGetInstanceProcAddr = ::vkGetInstanceProcAddr;
+    vkEnumerateInstanceExtensionProperties = (PFN_vkEnumerateInstanceExtensionProperties)vkGetInstanceProcAddr(NULL, "vkEnumerateInstanceExtensionProperties");
+    vkCreateInstance = (PFN_vkCreateInstance)vkGetInstanceProcAddr(NULL, "vkCreateInstance");
+    vkEnumerateInstanceLayerProperties = (PFN_vkEnumerateInstanceLayerProperties)vkGetInstanceProcAddr(NULL, "vkEnumerateInstanceLayerProperties");
     return 0;
 }
 
 int unload_vulkan_driver()
 {
+    vkGetInstanceProcAddr = 0;
     vkEnumerateInstanceExtensionProperties = 0;
     vkCreateInstance = 0;
-    vkGetInstanceProcAddr = 0;
+    vkEnumerateInstanceLayerProperties = 0;
 
     return 0;
 }
@@ -269,50 +264,28 @@ static int load_vulkan_windows(const char* driver_path)
         return -1;
     }
 
-    PFN_vkEnumerateInstanceExtensionProperties EnumerateInstanceExtensionProperties = 0;
-    PFN_vkCreateInstance CreateInstance = 0;
     PFN_vkGetInstanceProcAddr GetInstanceProcAddr = 0;
 
-    PFN_vkGetInstanceProcAddr icdGetInstanceProcAddr = (PFN_vkGetInstanceProcAddr)GetProcAddress(libvulkan, "vk_icdGetInstanceProcAddr");
-    if (icdGetInstanceProcAddr)
+    GetInstanceProcAddr = (PFN_vkGetInstanceProcAddr)GetProcAddress(libvulkan, "vk_icdGetInstanceProcAddr");
+    if (GetInstanceProcAddr)
     {
         // load icd driver
-        EnumerateInstanceExtensionProperties = (PFN_vkEnumerateInstanceExtensionProperties)icdGetInstanceProcAddr(NULL, "vkEnumerateInstanceExtensionProperties");
-        if (!EnumerateInstanceExtensionProperties)
+        typedef VKAPI_ATTR VkResult VKAPI_CALL (*PFN_icdNegotiateLoaderICDInterfaceVersion)(uint32_t * pSupportedVersion);
+        PFN_icdNegotiateLoaderICDInterfaceVersion icdNegotiateLoaderICDInterfaceVersion = (PFN_icdNegotiateLoaderICDInterfaceVersion)GetProcAddress(libvulkan, "vk_icdNegotiateLoaderICDInterfaceVersion");
+        if (icdNegotiateLoaderICDInterfaceVersion)
         {
-            NCNN_LOGE("icdGetInstanceProcAddr vkEnumerateInstanceExtensionProperties failed");
-            FreeLibrary(libvulkan);
-            return -1;
+            uint32_t supported_version = 5;
+            VkResult ret = icdNegotiateLoaderICDInterfaceVersion(&supported_version);
+            if (ret != VK_SUCCESS)
+            {
+                NCNN_LOGE("icdNegotiateLoaderICDInterfaceVersion failed");
+                FreeLibrary(libvulkan);
+                return -1;
+            }
         }
-
-        CreateInstance = (PFN_vkCreateInstance)icdGetInstanceProcAddr(NULL, "vkCreateInstance");
-        if (!CreateInstance)
-        {
-            NCNN_LOGE("icdGetInstanceProcAddr vkCreateInstance failed");
-            FreeLibrary(libvulkan);
-            return -1;
-        }
-
-        GetInstanceProcAddr = icdGetInstanceProcAddr;
     }
     else
     {
-        EnumerateInstanceExtensionProperties = (PFN_vkEnumerateInstanceExtensionProperties)GetProcAddress(libvulkan, "vkEnumerateInstanceExtensionProperties");
-        if (!EnumerateInstanceExtensionProperties)
-        {
-            NCNN_LOGE("GetProcAddress failed %d", GetLastError());
-            FreeLibrary(libvulkan);
-            return -1;
-        }
-
-        CreateInstance = (PFN_vkCreateInstance)GetProcAddress(libvulkan, "vkCreateInstance");
-        if (!CreateInstance)
-        {
-            NCNN_LOGE("GetProcAddress failed %d", GetLastError());
-            FreeLibrary(libvulkan);
-            return -1;
-        }
-
         GetInstanceProcAddr = (PFN_vkGetInstanceProcAddr)GetProcAddress(libvulkan, "vkGetInstanceProcAddr");
         if (!GetInstanceProcAddr)
         {
@@ -323,9 +296,10 @@ static int load_vulkan_windows(const char* driver_path)
     }
 
     g_libvulkan = libvulkan;
-    vkEnumerateInstanceExtensionProperties = EnumerateInstanceExtensionProperties;
-    vkCreateInstance = CreateInstance;
     vkGetInstanceProcAddr = GetInstanceProcAddr;
+    vkEnumerateInstanceExtensionProperties = (PFN_vkEnumerateInstanceExtensionProperties)vkGetInstanceProcAddr(NULL, "vkEnumerateInstanceExtensionProperties");
+    vkCreateInstance = (PFN_vkCreateInstance)vkGetInstanceProcAddr(NULL, "vkCreateInstance");
+    vkEnumerateInstanceLayerProperties = (PFN_vkEnumerateInstanceLayerProperties)vkGetInstanceProcAddr(NULL, "vkEnumerateInstanceLayerProperties");
     return 0;
 }
 #else
@@ -344,17 +318,14 @@ static int load_vulkan_linux(const char* driver_path)
         return -1;
     }
 
-    PFN_vkEnumerateInstanceExtensionProperties EnumerateInstanceExtensionProperties = 0;
-    PFN_vkCreateInstance CreateInstance = 0;
     PFN_vkGetInstanceProcAddr GetInstanceProcAddr = 0;
 
-    typedef VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL (*PFN_vk_icdGetInstanceProcAddr)(VkInstance instance, const char* pName);
-    PFN_vk_icdGetInstanceProcAddr icdGetInstanceProcAddr = (PFN_vk_icdGetInstanceProcAddr)dlsym(libvulkan, "vk_icdGetInstanceProcAddr");
-    if (icdGetInstanceProcAddr)
+    GetInstanceProcAddr = (PFN_vkGetInstanceProcAddr)dlsym(libvulkan, "vk_icdGetInstanceProcAddr");
+    if (GetInstanceProcAddr)
     {
         // load icd driver
-        typedef VKAPI_ATTR VkResult VKAPI_CALL (*PFN_vk_icdNegotiateLoaderICDInterfaceVersion)(uint32_t * pSupportedVersion);
-        PFN_vk_icdNegotiateLoaderICDInterfaceVersion icdNegotiateLoaderICDInterfaceVersion = (PFN_vk_icdNegotiateLoaderICDInterfaceVersion)dlsym(libvulkan, "vk_icdNegotiateLoaderICDInterfaceVersion");
+        typedef VKAPI_ATTR VkResult VKAPI_CALL (*PFN_icdNegotiateLoaderICDInterfaceVersion)(uint32_t * pSupportedVersion);
+        PFN_icdNegotiateLoaderICDInterfaceVersion icdNegotiateLoaderICDInterfaceVersion = (PFN_icdNegotiateLoaderICDInterfaceVersion)dlsym(libvulkan, "vk_icdNegotiateLoaderICDInterfaceVersion");
         if (icdNegotiateLoaderICDInterfaceVersion)
         {
             uint32_t supported_version = 5;
@@ -366,43 +337,9 @@ static int load_vulkan_linux(const char* driver_path)
                 return -1;
             }
         }
-
-        EnumerateInstanceExtensionProperties = (PFN_vkEnumerateInstanceExtensionProperties)icdGetInstanceProcAddr(NULL, "vkEnumerateInstanceExtensionProperties");
-        if (!EnumerateInstanceExtensionProperties)
-        {
-            NCNN_LOGE("icdGetInstanceProcAddr vkEnumerateInstanceExtensionProperties failed");
-            dlclose(libvulkan);
-            return -1;
-        }
-
-        CreateInstance = (PFN_vkCreateInstance)icdGetInstanceProcAddr(NULL, "vkCreateInstance");
-        if (!CreateInstance)
-        {
-            NCNN_LOGE("icdGetInstanceProcAddr vkCreateInstance failed");
-            dlclose(libvulkan);
-            return -1;
-        }
-
-        GetInstanceProcAddr = (PFN_vkGetInstanceProcAddr)icdGetInstanceProcAddr;
     }
     else
     {
-        EnumerateInstanceExtensionProperties = (PFN_vkEnumerateInstanceExtensionProperties)dlsym(libvulkan, "vkEnumerateInstanceExtensionProperties");
-        if (!EnumerateInstanceExtensionProperties)
-        {
-            NCNN_LOGE("dlsym failed %s", dlerror());
-            dlclose(libvulkan);
-            return -1;
-        }
-
-        CreateInstance = (PFN_vkCreateInstance)dlsym(libvulkan, "vkCreateInstance");
-        if (!CreateInstance)
-        {
-            NCNN_LOGE("dlsym failed %s", dlerror());
-            dlclose(libvulkan);
-            return -1;
-        }
-
         GetInstanceProcAddr = (PFN_vkGetInstanceProcAddr)dlsym(libvulkan, "vkGetInstanceProcAddr");
         if (!GetInstanceProcAddr)
         {
@@ -413,9 +350,10 @@ static int load_vulkan_linux(const char* driver_path)
     }
 
     g_libvulkan = libvulkan;
-    vkEnumerateInstanceExtensionProperties = EnumerateInstanceExtensionProperties;
-    vkCreateInstance = CreateInstance;
     vkGetInstanceProcAddr = GetInstanceProcAddr;
+    vkEnumerateInstanceExtensionProperties = (PFN_vkEnumerateInstanceExtensionProperties)vkGetInstanceProcAddr(NULL, "vkEnumerateInstanceExtensionProperties");
+    vkCreateInstance = (PFN_vkCreateInstance)vkGetInstanceProcAddr(NULL, "vkCreateInstance");
+    vkEnumerateInstanceLayerProperties = (PFN_vkEnumerateInstanceLayerProperties)vkGetInstanceProcAddr(NULL, "vkEnumerateInstanceLayerProperties");
     return 0;
 }
 
@@ -510,9 +448,10 @@ static int load_vulkan_android(const char* driver_path)
 
     g_libvulkan = libvulkan;
     g_hvkdi = hvkdi;
+    vkGetInstanceProcAddr = hvkdi->GetInstanceProcAddr;
     vkEnumerateInstanceExtensionProperties = hvkdi->EnumerateInstanceExtensionProperties;
     vkCreateInstance = hvkdi->CreateInstance;
-    vkGetInstanceProcAddr = hvkdi->GetInstanceProcAddr;
+    vkEnumerateInstanceLayerProperties = (PFN_vkEnumerateInstanceLayerProperties)vkGetInstanceProcAddr(NULL, "vkEnumerateInstanceLayerProperties");
     return 0;
 }
 #endif // __ANDROID__
@@ -630,9 +569,10 @@ int load_vulkan_driver(const char* driver_path)
 
 int unload_vulkan_driver()
 {
+    vkGetInstanceProcAddr = 0;
     vkEnumerateInstanceExtensionProperties = 0;
     vkCreateInstance = 0;
-    vkGetInstanceProcAddr = 0;
+    vkEnumerateInstanceLayerProperties = 0;
 
 #if defined _WIN32
     if (g_libvulkan)

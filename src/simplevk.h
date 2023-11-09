@@ -2182,10 +2182,13 @@ typedef VkResult(VKAPI_PTR* PFN_vkCreateAndroidSurfaceKHR)(VkInstance instance, 
 
 namespace ncnn {
 
-// vulkan base functions
+// vulkan loader entrypoint
+extern PFN_vkGetInstanceProcAddr vkGetInstanceProcAddr;
+
+// vulkan global functions
 extern PFN_vkEnumerateInstanceExtensionProperties vkEnumerateInstanceExtensionProperties;
 extern PFN_vkCreateInstance vkCreateInstance;
-extern PFN_vkGetInstanceProcAddr vkGetInstanceProcAddr;
+extern PFN_vkEnumerateInstanceLayerProperties vkEnumerateInstanceLayerProperties;
 
 // Load vulkan driver dynamic library when driver_path is provided
 // Load from env VK_ICD_FILENAMES and NCNN_VULKAN_DRIVER otherwise

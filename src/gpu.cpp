@@ -171,7 +171,6 @@ PFN_vkDeviceWaitIdle vkDeviceWaitIdle = 0;
 PFN_vkEndCommandBuffer vkEndCommandBuffer = 0;
 PFN_vkEnumerateDeviceExtensionProperties vkEnumerateDeviceExtensionProperties = 0;
 PFN_vkEnumerateDeviceLayerProperties vkEnumerateDeviceLayerProperties = 0;
-PFN_vkEnumerateInstanceLayerProperties vkEnumerateInstanceLayerProperties = 0;
 PFN_vkEnumeratePhysicalDevices vkEnumeratePhysicalDevices = 0;
 PFN_vkFlushMappedMemoryRanges vkFlushMappedMemoryRanges = 0;
 PFN_vkFreeCommandBuffers vkFreeCommandBuffers = 0;
@@ -861,7 +860,6 @@ static int init_instance_core()
     vkEndCommandBuffer = (PFN_vkEndCommandBuffer)vkGetInstanceProcAddr(g_instance, "vkEndCommandBuffer");
     vkEnumerateDeviceExtensionProperties = (PFN_vkEnumerateDeviceExtensionProperties)vkGetInstanceProcAddr(g_instance, "vkEnumerateDeviceExtensionProperties");
     vkEnumerateDeviceLayerProperties = (PFN_vkEnumerateDeviceLayerProperties)vkGetInstanceProcAddr(g_instance, "vkEnumerateDeviceLayerProperties");
-    vkEnumerateInstanceLayerProperties = (PFN_vkEnumerateInstanceLayerProperties)vkGetInstanceProcAddr(g_instance, "vkEnumerateInstanceLayerProperties");
     vkEnumeratePhysicalDevices = (PFN_vkEnumeratePhysicalDevices)vkGetInstanceProcAddr(g_instance, "vkEnumeratePhysicalDevices");
     vkFlushMappedMemoryRanges = (PFN_vkFlushMappedMemoryRanges)vkGetInstanceProcAddr(g_instance, "vkFlushMappedMemoryRanges");
     vkFreeCommandBuffers = (PFN_vkFreeCommandBuffers)vkGetInstanceProcAddr(g_instance, "vkFreeCommandBuffers");
