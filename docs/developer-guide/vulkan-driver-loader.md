@@ -59,27 +59,46 @@ sample usage
 int ret = create_gpu_instance();
 ```
 
-vulkan-1.dll / libvulkan.so / libvulkan.dylib
+Load from system-installed libvulkan
 
-nvoglv64.dll
-amdvlk64.dll
-igvk64.dll
+#### Windows
+vulkan-1.dll
 
-nvoglv32.dll
-amdvlk32.dll
-igvk32.dll
+#### Linux Android
+libvulkan.so
 
-/vendor/lib64/hw/vulkan.adreno.so
-/vendor/lib64/egl/libGLES_mali.so
+#### macOS iOS and other APPLE platforms
+static moltenvk driver linking required, should be always success
 
-/vendor/lib/hw/vulkan.adreno.so
-/vendor/lib/egl/libGLES_mali.so
+If failed, it will try to find graphics driver object and load it
 
-libGLX_nvidia.so.0
-libvulkan_radeon.so
-libvulkan_intel.so
-libMaliVulkan.so.1
-libVK_IMG.so
+#### Windows
+search ```C:\Windows\System32\DriverStore\FileRepository``` for
+- nvoglv64.dll
+- amdvlk64.dll
+- igvk64.dll
+
+for 32bit applications
+- nvoglv32.dll
+- amdvlk32.dll
+- igvk32.dll
+
+#### Linux
+`dlopen()` search for
+- libGLX_nvidia.so.0
+- libvulkan_radeon.so
+- libvulkan_intel.so
+- libMaliVulkan.so.1
+- libVK_IMG.so
+
+#### Android
+for 64bit applications
+- /vendor/lib64/hw/vulkan.adreno.so
+- /vendor/lib64/egl/libGLES_mali.so
+
+for 32bit applications
+- /vendor/lib/hw/vulkan.adreno.so
+- /vendor/lib/egl/libGLES_mali.so
 
 ## Load from driver_path
 

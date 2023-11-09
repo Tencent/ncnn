@@ -37,6 +37,16 @@
 #endif
 #endif
 
+#if __APPLE__
+
+extern "C" {
+
+    // always use static vulkan linkage on apple platform
+    extern PFN_vkGetInstanceProcAddr vkGetInstanceProcAddr;
+}
+
+#endif
+
 namespace ncnn {
 
 // vulkan loader entrypoint
@@ -51,9 +61,6 @@ PFN_vkEnumerateInstanceLayerProperties vkEnumerateInstanceLayerProperties = 0;
 
 int load_vulkan_driver(const char* /*driver_path*/)
 {
-    // always use static vulkan linkage on apple platform
-    extern PFN_vkGetInstanceProcAddr ::vkGetInstanceProcAddr;
-
     vkGetInstanceProcAddr = ::vkGetInstanceProcAddr;
     vkEnumerateInstanceExtensionProperties = (PFN_vkEnumerateInstanceExtensionProperties)vkGetInstanceProcAddr(NULL, "vkEnumerateInstanceExtensionProperties");
     vkCreateInstance = (PFN_vkCreateInstance)vkGetInstanceProcAddr(NULL, "vkCreateInstance");
