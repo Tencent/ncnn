@@ -175,7 +175,6 @@ jobs:
         wget https://sdk.lunarg.com/sdk/download/1.3.236.0/mac/vulkansdk-macos-1.3.236.0.dmg?Human=true -O vulkansdk-macos-1.3.236.0.dmg
         hdiutil attach vulkansdk-macos-1.3.236.0.dmg
         sudo /Volumes/vulkansdk-macos-1.3.236.0/InstallVulkan.app/Contents/MacOS/InstallVulkan --root $GITHUB_WORKSPACE/vulkansdk-macos-1.3.236.0 --accept-licenses --default-answer --confirm-command install
-        hdiutil detach /Volumes/vulkansdk-macos-1.3.236.0
 
     - name: Build wheels for macos x86_64
       if: matrix.os == 'macos-latest' && matrix.arch == 'x86_64'
