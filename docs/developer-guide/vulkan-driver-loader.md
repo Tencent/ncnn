@@ -73,12 +73,12 @@ Requires static meltvk driver linking and should always succeed
 If failed, it will try to find graphics driver object and load it
 
 #### Windows
-search ```C:\Windows\System32\DriverStore\FileRepository``` for
+for 64bit applications. search in ```%SystemRoot%\System32\DriverStore\FileRepository```
 - nvoglv64.dll
 - amdvlk64.dll
 - igvk64.dll
 
-for 32bit applications
+for 32bit applications. search in ```%SystemRoot%\System32\DriverStore\FileRepository```
 - nvoglv32.dll
 - amdvlk32.dll
 - igvk32.dll

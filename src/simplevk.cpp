@@ -554,8 +554,8 @@ int load_vulkan_driver(const char* driver_path)
         for (int i = 0; i < well_known_path_count; i++)
         {
 #if defined _WIN32
-            // find driver dll in C:\\Windows\\System32\\DriverStore\\FileRepository
-            std::string dllpath = search_file("C:\\Windows\\System32\\DriverStore\\FileRepository", well_known_path[i]);
+            // find driver dll in %SystemRoot%\System32\DriverStore\FileRepository  (32bit and 64bit both and in here)
+            std::string dllpath = search_file("%SystemRoot%\\System32\\DriverStore\\FileRepository", well_known_path[i]);
             if (dllpath.empty())
                 continue;
 
