@@ -70,90 +70,26 @@ jobs:
         python-version: '3.x'
 
     # build wheels for ubuntu-20.04
-    - name: Build wheels for ubuntu manylinux
-      if: matrix.os == 'ubuntu-20.04'  &&  matrix.build != 'cp*-musllinux*'
+    - name: Build wheels for ubuntu
+      if: matrix.os == 'ubuntu-20.04'
       uses: pypa/cibuildwheel@v2.16.2
       env:
         CIBW_ARCHS_LINUX: ${{ matrix.arch }}
         CIBW_BUILD: ${{ matrix.build }}
         CIBW_BUILD_VERBOSITY: 1
-        CIBW_ENVIRONMENT: CMAKE_BUILD_PARALLEL_LEVEL=2 NCNN_VULKAN=ON 
-          VULKAN_SDK=/project/Vulkan-Loader/build/Vulkan-Headers
-          LD_LIBRARY_PATH=/project/Vulkan-Loader/build/loader
-        CIBW_BEFORE_ALL: yum -y install libXrandr-devel &&
-          git clone https://github.com/KhronosGroup/Vulkan-Loader.git &&
-          cd Vulkan-Loader && mkdir build && cd build &&
-          ../scripts/update_deps.py &&
-          cmake -DCMAKE_BUILD_TYPE=Release -DVULKAN_HEADERS_INSTALL_DIR=$(pwd)/Vulkan-Headers/build/install .. &&
-          make -j$(nproc) &&
-          cd Vulkan-Headers &&
-          ln -s ../loader lib
-      with:
-        output-dir: wheelhouse
-
-    - name: Build wheels for ubuntu musllinux
-      if: matrix.os == 'ubuntu-20.04'  &&  matrix.build == 'cp*-musllinux*'
-      uses: pypa/cibuildwheel@v2.16.2
-      env:
-        CIBW_ARCHS_LINUX: ${{ matrix.arch }}
-        CIBW_BUILD: ${{ matrix.build }}
-        CIBW_BUILD_VERBOSITY: 1
-        CIBW_ENVIRONMENT: CMAKE_BUILD_PARALLEL_LEVEL=2 NCNN_VULKAN=ON 
-          VULKAN_SDK=/project/Vulkan-Loader/build/Vulkan-Headers
-          LD_LIBRARY_PATH=/project/Vulkan-Loader/build/loader
-        CIBW_BEFORE_ALL: apk add libxrandr-dev &&
-          git clone https://github.com/KhronosGroup/Vulkan-Loader.git &&
-          cd Vulkan-Loader && mkdir build && cd build &&
-          ../scripts/update_deps.py &&
-          cmake -DCMAKE_BUILD_TYPE=Release -DVULKAN_HEADERS_INSTALL_DIR=$(pwd)/Vulkan-Headers/build/install .. &&
-          make -j$(nproc) &&
-          cd Vulkan-Headers &&
-          ln -s ../loader lib
+        CIBW_ENVIRONMENT: CMAKE_BUILD_PARALLEL_LEVEL=2
       with:
         output-dir: wheelhouse
 
     # build wheels for windows-2019
-    - name: Build wheels for windows amd64
-      if: matrix.os == 'windows-2019' && matrix.arch == 'AMD64'
+    - name: Build wheels for windows
+      if: matrix.os == 'windows-2019' && (matrix.arch == 'AMD64' || matrix.arch == 'x86')
       uses: pypa/cibuildwheel@v2.16.2
       env:
         CIBW_ARCHS_WINDOWS: ${{ matrix.arch }}
         CIBW_BUILD: ${{ matrix.build }}
         CIBW_BUILD_VERBOSITY: 1
-        CIBW_ENVIRONMENT_WINDOWS: >
-          PATH="D:\\a\\ncnn\\ncnn\\Vulkan-Loader\\build\\loader\\Release;$PATH"
-          CMAKE_BUILD_PARALLEL_LEVEL=2 NCNN_VULKAN=ON 
-          VULKAN_SDK=D:/a/ncnn/ncnn/Vulkan-Loader/external/Vulkan-Headers
-        CIBW_BEFORE_ALL: git clone https://github.com/KhronosGroup/Vulkan-Loader.git &&
-          cd Vulkan-Loader && mkdir build && cd build &&
-          python3 ../scripts/update_deps.py --dir ../external --config release &&
-          cmake -C ../external/helper.cmake -G "Visual Studio 16 2019" -A x64 -DCMAKE_BUILD_TYPE=Release .. &&
-          cmake --build . --config Release &&
-          mklink /d "D:/a/ncnn/ncnn/Vulkan-Loader/external/Vulkan-Headers/build/install/lib"
-          "D:/a/ncnn/ncnn/Vulkan-Loader/build/loader/Release"
-        CIBW_BEFORE_BUILD: pip install delvewheel
-        CIBW_REPAIR_WHEEL_COMMAND: delvewheel repair -w {dest_dir} {wheel}
-      with:
-        output-dir: wheelhouse
-
-    - name: Build wheels for windows x86
-      if: matrix.os == 'windows-2019' && matrix.arch == 'x86'
-      uses: pypa/cibuildwheel@v2.16.2
-      env:
-        CIBW_ARCHS_WINDOWS: ${{ matrix.arch }}
-        CIBW_BUILD: ${{ matrix.build }}
-        CIBW_BUILD_VERBOSITY: 1
-        CIBW_ENVIRONMENT_WINDOWS: >
-          PATH="D:\\a\\ncnn\\ncnn\\Vulkan-Loader\\build\\loader\\Release;$PATH"
-          CMAKE_BUILD_PARALLEL_LEVEL=2 NCNN_VULKAN=ON 
-          VULKAN_SDK=D:/a/ncnn/ncnn/Vulkan-Loader/external/Vulkan-Headers
-        CIBW_BEFORE_ALL: git clone https://github.com/KhronosGroup/Vulkan-Loader.git &&
-          cd Vulkan-Loader && mkdir build && cd build &&
-          python3 ../scripts/update_deps.py --dir ../external --arch ${{ matrix.arch }} --config release &&
-          cmake -C ../external/helper.cmake -G "Visual Studio 16 2019" -A Win32 -DCMAKE_BUILD_TYPE=Release .. &&
-          cmake --build . --config Release &&
-          mklink /d "D:/a/ncnn/ncnn/Vulkan-Loader/external/Vulkan-Headers/build/install/lib"
-          "D:/a/ncnn/ncnn/Vulkan-Loader/build/loader/Release"
+        CIBW_ENVIRONMENT_WINDOWS: CMAKE_BUILD_PARALLEL_LEVEL=2
         CIBW_BEFORE_BUILD: pip install delvewheel
         CIBW_REPAIR_WHEEL_COMMAND: delvewheel repair -w {dest_dir} {wheel}
       with:
@@ -166,17 +102,7 @@ jobs:
         CIBW_ARCHS_WINDOWS: ${{ matrix.arch }}
         CIBW_BUILD: ${{ matrix.build }}
         CIBW_BUILD_VERBOSITY: 1
-        CIBW_ENVIRONMENT_WINDOWS: >
-          PATH="D:\\a\\ncnn\\ncnn\\Vulkan-Loader\\build\\loader\\Release;$PATH"
-          CMAKE_BUILD_PARALLEL_LEVEL=2 NCNN_VULKAN=ON 
-          VULKAN_SDK=D:/a/ncnn/ncnn/Vulkan-Loader/external/Vulkan-Headers
-        CIBW_BEFORE_ALL: git clone https://github.com/KhronosGroup/Vulkan-Loader.git &&
-          cd Vulkan-Loader && mkdir build && cd build &&
-          python3 ../scripts/update_deps.py --dir ../external --config release &&
-          cmake -C ../external/helper.cmake -G "Visual Studio 16 2019" -A ARM64 -DCMAKE_BUILD_TYPE=Release -DUSE_MASM=OFF ..  &&
-          cmake --build . --config Release &&
-          mklink /d "D:/a/ncnn/ncnn/Vulkan-Loader/external/Vulkan-Headers/build/install/lib"
-          "D:/a/ncnn/ncnn/Vulkan-Loader/build/loader/Release"
+        CIBW_ENVIRONMENT_WINDOWS: CMAKE_BUILD_PARALLEL_LEVEL=2
         CIBW_BEFORE_BUILD: pip install delvewheel
         CIBW_REPAIR_WHEEL_COMMAND: delvewheel repair -w {dest_dir} {wheel} --no-dll "msvcp140.dll;vcomp140.dll"
       with:
@@ -243,14 +169,6 @@ jobs:
         sudo cp $GITHUB_WORKSPACE/openmp-install/include/* $DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include
         sudo cp $GITHUB_WORKSPACE/openmp-install/lib/libomp.a $DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib
 
-    - name: vulkansdk for macos
-      if: matrix.os == 'macos-latest'
-      run: |
-        wget https://sdk.lunarg.com/sdk/download/1.3.236.0/mac/vulkansdk-macos-1.3.236.0.dmg?Human=true -O vulkansdk-macos-1.3.236.0.dmg
-        hdiutil attach vulkansdk-macos-1.3.236.0.dmg
-        sudo /Volumes/vulkansdk-macos-1.3.236.0/InstallVulkan.app/Contents/MacOS/InstallVulkan --root $GITHUB_WORKSPACE/vulkansdk-macos-1.3.236.0 --accept-licenses --default-answer --confirm-command install
-        hdiutil detach /Volumes/vulkansdk-macos-1.3.236.0
-
     - name: Build wheels for macos x86_64
       if: matrix.os == 'macos-latest' && matrix.arch == 'x86_64'
       uses: pypa/cibuildwheel@v2.16.2
@@ -258,14 +176,12 @@ jobs:
         CIBW_ARCHS_MACOS: ${{ matrix.arch }}
         CIBW_BUILD: ${{ matrix.build }}
         CIBW_BUILD_VERBOSITY: 1
-        CIBW_ENVIRONMENT: CMAKE_BUILD_PARALLEL_LEVEL=2 NCNN_VULKAN=ON VULKAN_SDK=$GITHUB_WORKSPACE/vulkansdk-macos-1.3.236.0/macOS
+        CIBW_ENVIRONMENT: CMAKE_BUILD_PARALLEL_LEVEL=2
           CMAKE_TOOLCHAIN_FILE=$GITHUB_WORKSPACE/toolchains/ios.toolchain.cmake PLATFORM=MAC ARCHS="x86_64"
           DEPLOYMENT_TARGET="10.9" ENABLE_BITCODE=OFF ENABLE_ARC=OFF ENABLE_VISIBILITY=OFF
           OpenMP_C_FLAGS="-Xclang -fopenmp" OpenMP_CXX_FLAGS="-Xclang -fopenmp"
           OpenMP_C_LIB_NAMES="libomp" OpenMP_CXX_LIB_NAMES="libomp"
           OpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/libomp.a"
-          Vulkan_INCLUDE_DIR=$GITHUB_WORKSPACE/vulkansdk-macos-1.3.236.0/MoltenVK/include
-          Vulkan_LIBRARY=$GITHUB_WORKSPACE/vulkansdk-macos-1.3.236.0/MoltenVK/dylib/macOS/libMoltenVK.dylib
       with:
         output-dir: wheelhouse
 
@@ -276,14 +192,12 @@ jobs:
         CIBW_ARCHS_MACOS: ${{ matrix.arch }}
         CIBW_BUILD: ${{ matrix.build }}
         CIBW_BUILD_VERBOSITY: 1
-        CIBW_ENVIRONMENT: CMAKE_BUILD_PARALLEL_LEVEL=2 NCNN_VULKAN=ON VULKAN_SDK=$GITHUB_WORKSPACE/vulkansdk-macos-1.3.236.0/macOS
+        CIBW_ENVIRONMENT: CMAKE_BUILD_PARALLEL_LEVEL=2
           CMAKE_TOOLCHAIN_FILE=$GITHUB_WORKSPACE/toolchains/ios.toolchain.cmake PLATFORM=MAC_ARM64 ARCHS="arm64"
           DEPLOYMENT_TARGET="11.0" ENABLE_BITCODE=OFF ENABLE_ARC=OFF ENABLE_VISIBILITY=OFF
           OpenMP_C_FLAGS="-Xclang -fopenmp" OpenMP_CXX_FLAGS="-Xclang -fopenmp"
           OpenMP_C_LIB_NAMES="libomp" OpenMP_CXX_LIB_NAMES="libomp"
           OpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/libomp.a"
-          Vulkan_INCLUDE_DIR=$GITHUB_WORKSPACE/vulkansdk-macos-1.3.236.0/MoltenVK/include
-          Vulkan_LIBRARY=$GITHUB_WORKSPACE/vulkansdk-macos-1.3.236.0/MoltenVK/dylib/macOS/libMoltenVK.dylib
       with:
         output-dir: wheelhouse
 
@@ -338,47 +252,12 @@ jobs:
         platforms: all
 
     - name: Build wheels for manylinux with qemu
-      if: (matrix.build != 'cp36-musllinux*') && (matrix.build != 'cp37-musllinux*') &&
-          (matrix.build != 'cp38-musllinux*') && (matrix.build != 'cp39-musllinux*') &&
-          (matrix.build != 'cp310-musllinux*') && (matrix.build != 'cp311-musllinux*') &&
-          (matrix.build != 'cp312-musllinux*')
       uses: pypa/cibuildwheel@v2.16.2
       env:
         CIBW_ARCHS_LINUX: ${{ matrix.arch }}
         CIBW_BUILD: ${{ matrix.build }}
         CIBW_BUILD_VERBOSITY: 1
-        CIBW_ENVIRONMENT: CMAKE_BUILD_PARALLEL_LEVEL=2 NCNN_VULKAN=ON VULKAN_SDK=/project/Vulkan-Loader/build/Vulkan-Headers
-          LD_LIBRARY_PATH=/project/Vulkan-Loader/build/loader
-        CIBW_BEFORE_ALL: yum -y install libXrandr-devel &&
-          git clone https://github.com/KhronosGroup/Vulkan-Loader.git &&
-          cd Vulkan-Loader && mkdir build && cd build &&
-          ../scripts/update_deps.py &&
-          cmake -DCMAKE_BUILD_TYPE=Release -DVULKAN_HEADERS_INSTALL_DIR=$(pwd)/Vulkan-Headers/build/install .. &&
-          make -j$(nproc) &&
-          cd Vulkan-Headers &&
-          ln -s ../loader lib
-      with:
-        output-dir: wheelhouse
-
-    - name: Build wheels for musllinux with qemu
-      if: (matrix.build == 'cp36-musllinux*') || (matrix.build == 'cp37-musllinux*') ||
-          (matrix.build == 'cp38-musllinux*') || (matrix.build == 'cp39-musllinux*') ||
-          (matrix.build == 'cp310-musllinux*') || (matrix.build == 'cp311-musllinux*') ||
-          (matrix.build == 'cp312-musllinux*')
-      uses: pypa/cibuildwheel@v2.16.2
-      env:
-        CIBW_ARCHS_LINUX: ${{ matrix.arch }}
-        CIBW_BUILD: ${{ matrix.build }}
-        CIBW_BUILD_VERBOSITY: 1
-        CIBW_ENVIRONMENT: CMAKE_BUILD_PARALLEL_LEVEL=2 NCNN_VULKAN=ON VULKAN_SDK=/project/Vulkan-Loader/build/Vulkan-Headers LD_LIBRARY_PATH=/project/Vulkan-Loader/build/loader
-        CIBW_BEFORE_ALL: apk add libxrandr-dev &&
-          git clone https://github.com/KhronosGroup/Vulkan-Loader.git &&
-          cd Vulkan-Loader && mkdir build && cd build &&
-          ../scripts/update_deps.py &&
-          cmake -DCMAKE_BUILD_TYPE=Release -DVULKAN_HEADERS_INSTALL_DIR=$(pwd)/Vulkan-Headers/build/install .. &&
-          make -j$(nproc) &&
-          cd Vulkan-Headers &&
-          ln -s ../loader lib
+        CIBW_ENVIRONMENT: CMAKE_BUILD_PARALLEL_LEVEL=2
       with:
         output-dir: wheelhouse
 

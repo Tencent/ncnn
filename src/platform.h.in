@@ -30,6 +30,7 @@
 #cmakedefine01 NCNN_PIXEL_AFFINE
 #cmakedefine01 NCNN_PIXEL_DRAWING
 #cmakedefine01 NCNN_VULKAN
+#cmakedefine01 NCNN_SIMPLEVK
 #cmakedefine01 NCNN_SYSTEM_GLSLANG
 #cmakedefine01 NCNN_RUNTIME_CPU
 #cmakedefine01 NCNN_GNU_INLINE_ASM
@@ -275,6 +276,15 @@ static inline void swap_endianness_32(void* x)
 #include <math.h>
 #include <fenv.h>
 #endif
+
+#if NCNN_VULKAN
+#if NCNN_SIMPLEVK
+#include "simplevk.h"
+#else
+#include <vulkan/vulkan.h>
+#endif
+#include "vulkan_header_fix.h"
+#endif // NCNN_VULKAN
 
 #endif // __cplusplus
 

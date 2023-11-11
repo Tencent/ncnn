@@ -1,27 +1,27 @@
-name: windows-arm-cpu
+name: windows-arm64-gpu
 on:
   push:
     branches: [master]
     paths:
-    - '.github/workflows/windows-arm-cpu.yml'
+    - '.github/workflows/windows-arm64-gpu.yml'
     - 'CMakeLists.txt'
     - 'cmake/**'
     - 'src/*'
     - 'src/layer/*'
     - 'src/layer/arm/**'
-    - 'tests/**'
+    - 'src/layer/vulkan/**'
   pull_request:
     branches: [master]
     paths:
-    - '.github/workflows/windows-arm-cpu.yml'
+    - '.github/workflows/windows-arm64-gpu.yml'
     - 'CMakeLists.txt'
     - 'cmake/**'
     - 'src/*'
     - 'src/layer/*'
     - 'src/layer/arm/**'
-    - 'tests/**'
+    - 'src/layer/vulkan/**'
 concurrency:
-  group: windows-arm-cpu-${{ github.ref }}
+  group: windows-arm64-gpu-${{ github.ref }}
   cancel-in-progress: true
 permissions:
   contents: read
@@ -45,13 +45,15 @@ jobs:
       UseMultiToolTask: true
     steps:
     - uses: actions/checkout@v4
+      with:
+        submodules: true
     - name: build
       run: |
         mkdir build; cd build
-        cmake -T ${{ matrix.toolset-version }},host=x64 -A arm -DNCNN_BUILD_TESTS=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
+        cmake -T ${{ matrix.toolset-version }},host=x64 -A arm64 -DNCNN_VULKAN=ON -DNCNN_BUILD_TESTS=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
         cmake --build . --config Release -j 2
     - name: build-shared
       run: |
         mkdir build-shared; cd build-shared
-        cmake -T ${{ matrix.toolset-version }},host=x64 -A arm -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_SHARED_LIB=ON ..
+        cmake -T ${{ matrix.toolset-version }},host=x64 -A arm64 -DNCNN_VULKAN=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_SHARED_LIB=ON ..
         cmake --build . --config Release -j 2
