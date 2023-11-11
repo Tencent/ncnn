@@ -2,9 +2,9 @@ set(CMAKE_SYSTEM_NAME Linux)
 set(CMAKE_SYSTEM_PROCESSOR mips32el)
 
 if(DEFINED ENV{MIPS_ROOT_PATH})
-    file(TO_CMAKE_PATH $ENV{MIPS_ROOT_PATH} MIPS_ROOT_PATH)
+  file(TO_CMAKE_PATH $ENV{MIPS_ROOT_PATH} MIPS_ROOT_PATH)
 else()
-    message(FATAL_ERROR "MIPS_ROOT_PATH env must be defined")
+  message(FATAL_ERROR "MIPS_ROOT_PATH env must be defined")
 endif()
 
 set(MIPS_ROOT_PATH ${MIPS_ROOT_PATH} CACHE STRING "root path to mips toolchain")
