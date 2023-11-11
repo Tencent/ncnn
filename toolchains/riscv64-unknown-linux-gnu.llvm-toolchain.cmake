@@ -19,6 +19,7 @@ set(CMAKE_CXX_COMPILER_TARGET "riscv64-unknown-linux-gnu")
 set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
 set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
 set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
+set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
 
 # add --ld-path=${RISCV_ROOT_PATH}/bin/riscv64-unknown-linux-gnu-ld or append $RISCV_ROOT_PATH/bin to PATH.
 set(CMAKE_C_FLAGS "--gcc-toolchain=${RISCV_ROOT_PATH} -march=rv64gc")
