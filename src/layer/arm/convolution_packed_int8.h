@@ -88,49 +88,98 @@ static void convolution_transform_kernel_packed_int8(const Mat& kernel, Mat& ker
                 const signed char* k6 = kptr6 + k;
                 const signed char* k7 = kptr7 + k;
 
-                for (int i = 0; i < 8; i++)
+                for (int i = 0; i < 4; i++)
                 {
                     g00[0] = k0[0];
                     k0 += maxk;
                     g00 += 1;
                 }
-                for (int i = 0; i < 8; i++)
+                for (int i = 0; i < 4; i++)
                 {
                     g00[0] = k1[0];
                     k1 += maxk;
                     g00 += 1;
                 }
-                for (int i = 0; i < 8; i++)
+                for (int i = 0; i < 4; i++)
                 {
                     g00[0] = k2[0];
                     k2 += maxk;
                     g00 += 1;
                 }
-                for (int i = 0; i < 8; i++)
+                for (int i = 0; i < 4; i++)
                 {
                     g00[0] = k3[0];
                     k3 += maxk;
                     g00 += 1;
                 }
-                for (int i = 0; i < 8; i++)
+                for (int i = 0; i < 4; i++)
                 {
                     g00[0] = k4[0];
                     k4 += maxk;
                     g00 += 1;
                 }
-                for (int i = 0; i < 8; i++)
+                for (int i = 0; i < 4; i++)
                 {
                     g00[0] = k5[0];
                     k5 += maxk;
                     g00 += 1;
                 }
-                for (int i = 0; i < 8; i++)
+                for (int i = 0; i < 4; i++)
                 {
                     g00[0] = k6[0];
                     k6 += maxk;
                     g00 += 1;
                 }
-                for (int i = 0; i < 8; i++)
+                for (int i = 0; i < 4; i++)
+                {
+                    g00[0] = k7[0];
+                    k7 += maxk;
+                    g00 += 1;
+                }
+
+                for (int i = 4; i < 8; i++)
+                {
+                    g00[0] = k0[0];
+                    k0 += maxk;
+                    g00 += 1;
+                }
+                for (int i = 4; i < 8; i++)
+                {
+                    g00[0] = k1[0];
+                    k1 += maxk;
+                    g00 += 1;
+                }
+                for (int i = 4; i < 8; i++)
+                {
+                    g00[0] = k2[0];
+                    k2 += maxk;
+                    g00 += 1;
+                }
+                for (int i = 4; i < 8; i++)
+                {
+                    g00[0] = k3[0];
+                    k3 += maxk;
+                    g00 += 1;
+                }
+                for (int i = 4; i < 8; i++)
+                {
+                    g00[0] = k4[0];
+                    k4 += maxk;
+                    g00 += 1;
+                }
+                for (int i = 4; i < 8; i++)
+                {
+                    g00[0] = k5[0];
+                    k5 += maxk;
+                    g00 += 1;
+                }
+                for (int i = 4; i < 8; i++)
+                {
+                    g00[0] = k6[0];
+                    k6 += maxk;
+                    g00 += 1;
+                }
+                for (int i = 4; i < 8; i++)
                 {
                     g00[0] = k7[0];
                     k7 += maxk;
@@ -200,25 +249,50 @@ static void convolution_transform_kernel_packed_int8(const Mat& kernel, Mat& ker
                 const signed char* k2 = kptr2 + k;
                 const signed char* k3 = kptr3 + k;
 
-                for (int i = 0; i < 8; i++)
+                for (int i = 0; i < 4; i++)
                 {
                     g00[0] = k0[0];
                     k0 += maxk;
                     g00 += 1;
                 }
-                for (int i = 0; i < 8; i++)
+                for (int i = 0; i < 4; i++)
                 {
                     g00[0] = k1[0];
                     k1 += maxk;
                     g00 += 1;
                 }
-                for (int i = 0; i < 8; i++)
+                for (int i = 0; i < 4; i++)
                 {
                     g00[0] = k2[0];
                     k2 += maxk;
                     g00 += 1;
                 }
-                for (int i = 0; i < 8; i++)
+                for (int i = 0; i < 4; i++)
+                {
+                    g00[0] = k3[0];
+                    k3 += maxk;
+                    g00 += 1;
+                }
+
+                for (int i = 4; i < 8; i++)
+                {
+                    g00[0] = k0[0];
+                    k0 += maxk;
+                    g00 += 1;
+                }
+                for (int i = 4; i < 8; i++)
+                {
+                    g00[0] = k1[0];
+                    k1 += maxk;
+                    g00 += 1;
+                }
+                for (int i = 4; i < 8; i++)
+                {
+                    g00[0] = k2[0];
+                    k2 += maxk;
+                    g00 += 1;
+                }
+                for (int i = 4; i < 8; i++)
                 {
                     g00[0] = k3[0];
                     k3 += maxk;
@@ -274,13 +348,26 @@ static void convolution_transform_kernel_packed_int8(const Mat& kernel, Mat& ker
                 const signed char* k0 = kptr0 + k;
                 const signed char* k1 = kptr1 + k;
 
-                for (int i = 0; i < 8; i++)
+                for (int i = 0; i < 4; i++)
                 {
                     g00[0] = k0[0];
                     k0 += maxk;
                     g00 += 1;
                 }
-                for (int i = 0; i < 8; i++)
+                for (int i = 0; i < 4; i++)
+                {
+                    g00[0] = k1[0];
+                    k1 += maxk;
+                    g00 += 1;
+                }
+
+                for (int i = 4; i < 8; i++)
+                {
+                    g00[0] = k0[0];
+                    k0 += maxk;
+                    g00 += 1;
+                }
+                for (int i = 4; i < 8; i++)
                 {
                     g00[0] = k1[0];
                     k1 += maxk;
@@ -438,37 +525,32 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                             _r0 = vld1_s8(tmp);
                         }
 
-                        int8x8_t _w0 = vld1_s8(kptr);
-                        int8x8_t _w1 = vld1_s8(kptr + 8);
-                        int8x8_t _w2 = vld1_s8(kptr + 16);
-                        int8x8_t _w3 = vld1_s8(kptr + 24);
-                        int8x8_t _w4 = vld1_s8(kptr + 32);
-                        int8x8_t _w5 = vld1_s8(kptr + 40);
-                        int8x8_t _w6 = vld1_s8(kptr + 48);
-                        int8x8_t _w7 = vld1_s8(kptr + 56);
+                        int32x2x2_t _rr0 = vzip_s32(vreinterpret_s32_s8(_r0), vreinterpret_s32_s8(_r0));
+                        _r0 = vreinterpret_s8_s32(_rr0.val[0]);
+                        int8x8_t _r1 = vreinterpret_s8_s32(_rr0.val[1]);
 
-                        int16x8_t _wv0 = vmull_s8(_r0, _w0);
-                        int16x8_t _wv1 = vmull_s8(_r0, _w1);
-                        int16x8_t _wv2 = vmull_s8(_r0, _w2);
-                        int16x8_t _wv3 = vmull_s8(_r0, _w3);
-                        int16x8_t _wv4 = vmull_s8(_r0, _w4);
-                        int16x8_t _wv5 = vmull_s8(_r0, _w5);
-                        int16x8_t _wv6 = vmull_s8(_r0, _w6);
-                        int16x8_t _wv7 = vmull_s8(_r0, _w7);
+                        int8x8_t _w01l = vld1_s8(kptr);
+                        int8x8_t _w23l = vld1_s8(kptr + 8);
+                        int8x8_t _w45l = vld1_s8(kptr + 16);
+                        int8x8_t _w67l = vld1_s8(kptr + 24);
+                        int8x8_t _w01h = vld1_s8(kptr + 32);
+                        int8x8_t _w23h = vld1_s8(kptr + 40);
+                        int8x8_t _w45h = vld1_s8(kptr + 48);
+                        int8x8_t _w67h = vld1_s8(kptr + 56);
 
-                        int16x4_t _wv00 = vpadd_s16(vget_low_s16(_wv0), vget_high_s16(_wv0));
-                        int16x4_t _wv11 = vpadd_s16(vget_low_s16(_wv1), vget_high_s16(_wv1));
-                        int16x4_t _wv22 = vpadd_s16(vget_low_s16(_wv2), vget_high_s16(_wv2));
-                        int16x4_t _wv33 = vpadd_s16(vget_low_s16(_wv3), vget_high_s16(_wv3));
-                        int16x4_t _wv44 = vpadd_s16(vget_low_s16(_wv4), vget_high_s16(_wv4));
-                        int16x4_t _wv55 = vpadd_s16(vget_low_s16(_wv5), vget_high_s16(_wv5));
-                        int16x4_t _wv66 = vpadd_s16(vget_low_s16(_wv6), vget_high_s16(_wv6));
-                        int16x4_t _wv77 = vpadd_s16(vget_low_s16(_wv7), vget_high_s16(_wv7));
+                        int16x8_t _s01 = vmull_s8(_r0, _w01l);
+                        int16x8_t _s23 = vmull_s8(_r0, _w23l);
+                        int16x8_t _s45 = vmull_s8(_r0, _w45l);
+                        int16x8_t _s67 = vmull_s8(_r0, _w67l);
+                        _s01 = vmlal_s8(_s01, _r1, _w01h);
+                        _s23 = vmlal_s8(_s23, _r1, _w23h);
+                        _s45 = vmlal_s8(_s45, _r1, _w45h);
+                        _s67 = vmlal_s8(_s67, _r1, _w67h);
 
-                        _sum01 = vpadalq_s16(_sum01, vcombine_s16(_wv00, _wv11));
-                        _sum23 = vpadalq_s16(_sum23, vcombine_s16(_wv22, _wv33));
-                        _sum45 = vpadalq_s16(_sum45, vcombine_s16(_wv44, _wv55));
-                        _sum67 = vpadalq_s16(_sum67, vcombine_s16(_wv66, _wv77));
+                        _sum01 = vpadalq_s16(_sum01, _s01);
+                        _sum23 = vpadalq_s16(_sum23, _s23);
+                        _sum45 = vpadalq_s16(_sum45, _s45);
+                        _sum67 = vpadalq_s16(_sum67, _s67);
 
                         kptr += 64;
                     }
@@ -576,23 +658,22 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                             _r0 = vld1_s8(tmp);
                         }
 
-                        int8x8_t _w0 = vld1_s8(kptr);
-                        int8x8_t _w1 = vld1_s8(kptr + 8);
-                        int8x8_t _w2 = vld1_s8(kptr + 16);
-                        int8x8_t _w3 = vld1_s8(kptr + 24);
+                        int32x2x2_t _rr0 = vzip_s32(vreinterpret_s32_s8(_r0), vreinterpret_s32_s8(_r0));
+                        _r0 = vreinterpret_s8_s32(_rr0.val[0]);
+                        int8x8_t _r1 = vreinterpret_s8_s32(_rr0.val[1]);
 
-                        int16x8_t _wv0 = vmull_s8(_r0, _w0);
-                        int16x8_t _wv1 = vmull_s8(_r0, _w1);
-                        int16x8_t _wv2 = vmull_s8(_r0, _w2);
-                        int16x8_t _wv3 = vmull_s8(_r0, _w3);
+                        int8x8_t _w01l = vld1_s8(kptr);
+                        int8x8_t _w23l = vld1_s8(kptr + 8);
+                        int8x8_t _w01h = vld1_s8(kptr + 16);
+                        int8x8_t _w23h = vld1_s8(kptr + 24);
 
-                        int16x4_t _wv00 = vpadd_s16(vget_low_s16(_wv0), vget_high_s16(_wv0));
-                        int16x4_t _wv11 = vpadd_s16(vget_low_s16(_wv1), vget_high_s16(_wv1));
-                        int16x4_t _wv22 = vpadd_s16(vget_low_s16(_wv2), vget_high_s16(_wv2));
-                        int16x4_t _wv33 = vpadd_s16(vget_low_s16(_wv3), vget_high_s16(_wv3));
+                        int16x8_t _s01 = vmull_s8(_r0, _w01l);
+                        int16x8_t _s23 = vmull_s8(_r0, _w23l);
+                        _s01 = vmlal_s8(_s01, _r1, _w01h);
+                        _s23 = vmlal_s8(_s23, _r1, _w23h);
 
-                        _sum01 = vpadalq_s16(_sum01, vcombine_s16(_wv00, _wv11));
-                        _sum23 = vpadalq_s16(_sum23, vcombine_s16(_wv22, _wv33));
+                        _sum01 = vpadalq_s16(_sum01, _s01);
+                        _sum23 = vpadalq_s16(_sum23, _s23);
 
                         kptr += 32;
                     }
@@ -694,16 +775,17 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                             _r0 = vld1_s8(tmp);
                         }
 
-                        int8x8_t _w0 = vld1_s8(kptr);
-                        int8x8_t _w1 = vld1_s8(kptr + 8);
+                        int32x2x2_t _rr0 = vzip_s32(vreinterpret_s32_s8(_r0), vreinterpret_s32_s8(_r0));
+                        _r0 = vreinterpret_s8_s32(_rr0.val[0]);
+                        int8x8_t _r1 = vreinterpret_s8_s32(_rr0.val[1]);
 
-                        int16x8_t _wv0 = vmull_s8(_r0, _w0);
-                        int16x8_t _wv1 = vmull_s8(_r0, _w1);
+                        int8x8_t _w01l = vld1_s8(kptr);
+                        int8x8_t _w01h = vld1_s8(kptr + 8);
 
-                        int16x4_t _wv00 = vpadd_s16(vget_low_s16(_wv0), vget_high_s16(_wv0));
-                        int16x4_t _wv11 = vpadd_s16(vget_low_s16(_wv1), vget_high_s16(_wv1));
+                        int16x8_t _s01 = vmull_s8(_r0, _w01l);
+                        _s01 = vmlal_s8(_s01, _r1, _w01h);
 
-                        _sum01 = vpadalq_s16(_sum01, vcombine_s16(_wv00, _wv11));
+                        _sum01 = vpadalq_s16(_sum01, _s01);
 
                         kptr += 16;
                     }
