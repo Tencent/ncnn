@@ -36,10 +36,7 @@ static int test_clip_0()
 {
     return 0
            || test_clip(RandomMat(5, 6, 7, 24), -1.f, 1.f)
-           || test_clip(RandomMat(5, 6, 7, 24), -1.f, 1.f)
            || test_clip(RandomMat(7, 8, 9, 12), -1.f, 1.f)
-           || test_clip(RandomMat(7, 8, 9, 12), -1.f, 1.f)
-           || test_clip(RandomMat(3, 4, 5, 13), -1.f, 1.f)
            || test_clip(RandomMat(3, 4, 5, 13), -1.f, 1.f);
 }
 

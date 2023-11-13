@@ -24,6 +24,10 @@ class Model(nn.Module):
         self.act_1 = nn.Threshold(0.3, 0.4)
 
     def forward(self, x, y, z, w):
+        x = x * 2 - 1
+        y = y * 2 - 1
+        z = z * 2 - 1
+        w = w * 2 - 1
         x = self.act_0(x)
         y = self.act_0(y)
         z = self.act_1(z)

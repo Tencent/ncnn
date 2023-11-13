@@ -77,7 +77,7 @@ static int test_convolution1d_0()
         const int s = kdsp[i][2];
         const int p = kdsp[i][3];
         const int b0 = i % 2;
-        const int b1 = 1 - b1;
+        const int b1 = 1 - b0;
 
         int ret = 0
                   || test_convolution1d(9, 1, 1, k, d, s, p, b0)

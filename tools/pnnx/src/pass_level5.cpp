@@ -34,8 +34,10 @@
 #include "pass_level5/fuse_constant_expression.h"
 #include "pass_level5/fuse_conv1d_batchnorm1d.h"
 #include "pass_level5/fuse_conv2d_batchnorm2d.h"
+#include "pass_level5/fuse_conv3d_batchnorm3d.h"
 #include "pass_level5/fuse_convtranspose1d_batchnorm1d.h"
 #include "pass_level5/fuse_convtranspose2d_batchnorm2d.h"
+#include "pass_level5/fuse_convtranspose3d_batchnorm3d.h"
 #include "pass_level5/fuse_contiguous_view.h"
 #include "pass_level5/fuse_layernorm.h"
 #include "pass_level5/fuse_linear_batchnorm1d.h"
@@ -101,8 +103,10 @@ void pass_level5(Graph& g, const std::set<std::string>& foldable_constants, cons
 
     fuse_conv1d_batchnorm1d(g);
     fuse_conv2d_batchnorm2d(g);
+    fuse_conv3d_batchnorm3d(g);
     fuse_convtranspose1d_batchnorm1d(g);
     fuse_convtranspose2d_batchnorm2d(g);
+    fuse_convtranspose3d_batchnorm3d(g);
     fuse_linear_batchnorm1d(g);
 
     fuse_pad_conv1d(g);

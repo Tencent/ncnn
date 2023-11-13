@@ -16,8 +16,6 @@
 #define LAYER_INNERPRODUCT_ARM_H
 
 #include "innerproduct.h"
-#include <cmath>
-#include <cstdlib>
 
 namespace ncnn {
 

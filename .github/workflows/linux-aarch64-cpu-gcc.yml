@@ -32,7 +32,7 @@ jobs:
   linux-gcc:
     runs-on: ubuntu-20.04
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: cache-qemu
       id: cache-qemu
@@ -47,7 +47,7 @@ jobs:
         sudo apt-get install autoconf automake autotools-dev ninja-build
     - name: checkout-qemu
       if: steps.cache-qemu.outputs.cache-hit != 'true'
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         repository: qemu/qemu
         path: qemu
@@ -86,11 +86,22 @@ jobs:
         export PATH=$GITHUB_WORKSPACE/qemu-install/bin:$PATH
         cd build-noint8
         TESTS_EXECUTABLE_LOADER=qemu-aarch64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/aarch64-linux-gnu" ctest --output-on-failure -j 2
+    
+    - name: build-simplestl-simplemath
+      run: |
+        mkdir build-simplestl-simplemath && cd build-simplestl-simplemath 
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-linux-gnu-c.toolchain.cmake -DNCNN_STDIO=ON -DNCNN_STRING=ON -DNCNN_SIMPLESTL=ON -DNCNN_SIMPLEMATH=ON -DNCNN_BUILD_TESTS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
+        cmake --build . -j 2
+    - name: test-simplestl-simplemath
+      run: |
+        export PATH=$GITHUB_WORKSPACE/qemu-install/bin:$PATH
+        cd build-simplestl-simplemath
+        TESTS_EXECUTABLE_LOADER=qemu-aarch64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/aarch64-linux-gnu" ctest --output-on-failure -j 2
 
   linux-gcc-arm82:
     runs-on: ubuntu-20.04
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: cache-qemu
       id: cache-qemu
@@ -105,7 +116,7 @@ jobs:
         sudo apt-get install autoconf automake autotools-dev ninja-build
     - name: checkout-qemu
       if: steps.cache-qemu.outputs.cache-hit != 'true'
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         repository: qemu/qemu
         path: qemu
@@ -148,7 +159,7 @@ jobs:
   linux-gcc-arm86:
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: cache-qemu
       id: cache-qemu
@@ -163,7 +174,7 @@ jobs:
         sudo apt-get install autoconf automake autotools-dev ninja-build
     - name: checkout-qemu
       if: steps.cache-qemu.outputs.cache-hit != 'true'
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         repository: qemu/qemu
         path: qemu

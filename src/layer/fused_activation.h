@@ -15,7 +15,6 @@
 #ifndef FUSED_ACTIVATION_H
 #define FUSED_ACTIVATION_H
 
-#include <math.h>
 #include "mat.h"
 #include "layer_type.h"
 

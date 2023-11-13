@@ -14,8 +14,6 @@
 
 #include "priorbox.h"
 
-#include <math.h>
-
 namespace ncnn {
 
 PriorBox::PriorBox()

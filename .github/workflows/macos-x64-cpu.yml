@@ -43,7 +43,7 @@ jobs:
   macos-clang:
     runs-on: macos-12
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: protobuf
       run: brew install protobuf opencv3

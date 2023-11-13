@@ -1,0 +1,24 @@
+cmake:
+- cmake/**
+- toolchains/**
+
+doc: docs/**
+
+python: python/**
+
+example: examples/**
+
+test: tests/**
+
+tool: tools/**
+pnnx: tools/pnnx/**
+
+core: src/*
+layer: src/layer/*
+
+arm: src/layer/arm/**
+loongarch: src/layer/loongarch/**
+mips: src/layer/mips/**
+riscv: src/layer/riscv/**
+vulkan: src/layer/vulkan/**
+x86: src/layer/x86/**

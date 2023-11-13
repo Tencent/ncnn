@@ -15,8 +15,6 @@
 
 #include "requantize.h"
 
-#include <math.h>
-
 namespace ncnn {
 
 static inline signed char float2int8(float v)

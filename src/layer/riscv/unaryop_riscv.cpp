@@ -20,8 +20,6 @@
 #include "rvv_mathfun_fp16s.h"
 #endif // __riscv_vector
 
-#include <math.h>
-
 namespace ncnn {
 
 UnaryOp_riscv::UnaryOp_riscv()
@@ -127,9 +125,13 @@ struct unary_op_rsqrt
 {
     vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
     {
+#if C906
+        vfloat32m8_t _reciprocal = vfrdiv_vf_f32m8(vfsqrt_v_f32m8(x, vl), 1.f, vl);
+#else
         vfloat32m8_t _reciprocal = vfrsqrt7_v_f32m8(x, vl);
         _reciprocal = vfmul_vv_f32m8(vfrsub_vf_f32m8(vfmul_vv_f32m8(vfmul_vf_f32m8(x, 0.5f, vl), vfmul_vv_f32m8(_reciprocal, _reciprocal, vl), vl), 1.5f, vl), _reciprocal, vl);
         // _reciprocal = vfmul_vv_f32m8(vfrsub_vf_f32m8(vfmul_vv_f32m8(vfmul_vf_f32m8(x, 0.5f, vl), vfmul_vv_f32m8(_reciprocal, _reciprocal, vl), vl), 1.5f, vl), _reciprocal, vl);
+#endif
         return _reciprocal;
     }
 };
@@ -230,9 +232,13 @@ struct unary_op_reciprocal
 {
     vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
     {
+#if C906
+        vfloat32m8_t _reciprocal = vfrdiv_vf_f32m8(x, 1.f, vl);
+#else
         vfloat32m8_t _reciprocal = vfrec7_v_f32m8(x, vl);
         _reciprocal = vfmul_vv_f32m8(vfrsub_vf_f32m8(vfmul_vv_f32m8(x, _reciprocal, vl), 2.f, vl), _reciprocal, vl);
         // _reciprocal = vfmul_vv_f32m8(vfrsub_vf_f32m8(vfmul_vv_f32m8(x, _reciprocal, vl), 2.f, vl), _reciprocal, vl);
+#endif
         return _reciprocal;
     }
 };
@@ -459,9 +465,13 @@ struct unary_op_rsqrt_fp16s
 {
     vfloat16m8_t operator()(const vfloat16m8_t& x, const size_t& vl) const
     {
+#if C906
+        vfloat16m8_t _reciprocal = vfrdiv_vf_f16m8(vfsqrt_v_f16m8(x, vl), 1.f, vl);
+#else
         vfloat16m8_t _reciprocal = vfrsqrt7_v_f16m8(x, vl);
         _reciprocal = vfmul_vv_f16m8(vfrsub_vf_f16m8(vfmul_vv_f16m8(vfmul_vf_f16m8(x, 0.5f, vl), vfmul_vv_f16m8(_reciprocal, _reciprocal, vl), vl), 1.5f, vl), _reciprocal, vl);
         // _reciprocal = vfmul_vv_f16m8(vfrsub_vf_f16m8(vfmul_vv_f16m8(vfmul_vf_f16m8(x, 0.5f, vl), vfmul_vv_f16m8(_reciprocal, _reciprocal, vl), vl), 1.5f, vl), _reciprocal, vl);
+#endif
         return _reciprocal;
     }
 };
@@ -562,9 +572,13 @@ struct unary_op_reciprocal_fp16s
 {
     vfloat16m8_t operator()(const vfloat16m8_t& x, const size_t& vl) const
     {
+#if C906
+        vfloat16m8_t _reciprocal = vfrdiv_vf_f16m8(x, 1.f, vl);
+#else
         vfloat16m8_t _reciprocal = vfrec7_v_f16m8(x, vl);
         _reciprocal = vfmul_vv_f16m8(vfrsub_vf_f16m8(vfmul_vv_f16m8(x, _reciprocal, vl), 2.f, vl), _reciprocal, vl);
         // _reciprocal = vfmul_vv_f16m8(vfrsub_vf_f16m8(vfmul_vv_f16m8(x, _reciprocal, vl), 2.f, vl), _reciprocal, vl);
+#endif
         return _reciprocal;
     }
 };

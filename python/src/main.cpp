@@ -185,6 +185,9 @@ PYBIND11_MODULE(ncnn, m)
 #endif // NCNN_VULKAN
     .def_readwrite("openmp_blocktime", &Option::openmp_blocktime)
     .def_readwrite("use_winograd_convolution", &Option::use_winograd_convolution)
+    .def_readwrite("use_winograd23_convolution", &Option::use_winograd23_convolution)
+    .def_readwrite("use_winograd43_convolution", &Option::use_winograd43_convolution)
+    .def_readwrite("use_winograd63_convolution", &Option::use_winograd63_convolution)
     .def_readwrite("use_sgemm_convolution", &Option::use_sgemm_convolution)
     .def_readwrite("use_int8_inference", &Option::use_int8_inference)
     .def_readwrite("use_vulkan_compute", &Option::use_vulkan_compute)
@@ -1208,7 +1211,7 @@ PYBIND11_MODULE(ncnn, m)
 #endif //NCNN_STRING
 
 #if NCNN_VULKAN
-    m.def("create_gpu_instance", &create_gpu_instance);
+    m.def("create_gpu_instance", &create_gpu_instance, py::arg("driver_path") = ((const char*)0));
     m.def("destroy_gpu_instance", &destroy_gpu_instance);
     m.def("get_gpu_count", &get_gpu_count);
     m.def("get_default_gpu_index", &get_default_gpu_index);

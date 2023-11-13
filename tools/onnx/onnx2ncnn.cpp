@@ -3641,6 +3641,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "UnaryOp");
         }
+        else if (op == "Celu")
+        {
+            fprintf(pp, "%-16s", "CELU");
+        }
         else if (op == "Clip")
         {
             fprintf(pp, "%-16s", "Clip");
@@ -3713,6 +3717,10 @@ int main(int argc, char** argv)
         else if (op == "EmbedLayerNormalization")
         {
             fprintf(pp, "%-16s", "EmbedLayerNormalization");
+        }
+        else if (op == "Erf")
+        {
+            fprintf(pp, "%-16s", "Erf");
         }
         else if (op == "Exp")
         {
@@ -3885,6 +3893,10 @@ int main(int argc, char** argv)
         else if (op == "RSub")
         {
             fprintf(pp, "%-16s", "BinaryOp");
+        }
+        else if (op == "Shrink")
+        {
+            fprintf(pp, "%-16s", "Shrink");
         }
         else if (op == "ShuffleChannel")
         {
@@ -4149,6 +4161,12 @@ int main(int argc, char** argv)
         {
             int op_type = 3;
             fprintf(pp, " 0=%d", op_type);
+        }
+        else if (op == "CeLU")
+        {
+            float alpha = get_node_attr_f(node, "alpha", 1.0f);
+
+            fprintf(pp, " 0=%e", alpha);
         }
         else if (op == "Clip")
         {
@@ -4509,6 +4527,10 @@ int main(int argc, char** argv)
             fwrite(&quantize_tag, sizeof(int), 1, bp);
 
             fwrite_tensor_proto_data(B, bp);
+        }
+        else if (op == "Erf")
+        {
+            // no-op
         }
         else if (op == "Exp")
         {
@@ -5727,6 +5749,13 @@ int main(int argc, char** argv)
                 fprintf(pp, " 1=%d", with_scalar);
                 fprintf(pp, " 2=%e", b);
             }
+        }
+        else if (op == "Shrink")
+        {
+            float bias = get_node_attr_f(node, "bias", 0.0f);
+            float lambd = get_node_attr_f(node, "lambd", 0.5f);
+            fprintf(pp, " 0=%e", bias);
+            fprintf(pp, " 1=%e", lambd);
         }
         else if (op == "ShuffleChannel")
         {

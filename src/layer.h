@@ -21,13 +21,9 @@
 #include "paramdict.h"
 #include "platform.h"
 
-#include <math.h>
-
 #if NCNN_VULKAN
 #include "command.h"
 #include "pipeline.h"
-
-#include <vulkan/vulkan.h>
 #endif // NCNN_VULKAN
 
 namespace ncnn {

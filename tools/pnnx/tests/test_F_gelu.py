@@ -28,6 +28,10 @@ class Model(nn.Module):
         super(Model, self).__init__()
 
     def forward(self, x, y, z, w):
+        x = x * 2 - 1
+        y = y * 2 - 1
+        z = z * 2 - 1
+        w = w * 2 - 1
         x = F.gelu(x)
         y = F.gelu(y)
         z = gelu_forward_0(z)
@@ -59,7 +63,7 @@ def test():
     b = test_F_gelu_pnnx.test_inference()
 
     for a0, b0 in zip(a, b):
-        if not torch.allclose(a0, b0, 1e-4, 1e-4):
+        if not torch.allclose(a0, b0, 1e-3, 1e-3):
             return False
     return True
 

@@ -1,0 +1,86 @@
+// Tencent is pleased to support the open source community by making ncnn available.
+//
+// Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
+//
+// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
+// in compliance with the License. You may obtain a copy of the License at
+//
+// https://opensource.org/licenses/BSD-3-Clause
+//
+// Unless required by applicable law or agreed to in writing, software distributed
+// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+// CONDITIONS OF ANY KIND, either express or implied. See the License for the
+// specific language governing permissions and limitations under the License.
+
+#version 450
+
+#if NCNN_fp16_storage
+#extension GL_EXT_shader_16bit_storage: require
+#endif
+#if NCNN_fp16_arithmetic
+#extension GL_EXT_shader_explicit_arithmetic_types_float16: require
+#endif
+
+#define shape_constant_id_offset 0
+layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
+layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
+layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
+layout (constant_id = shape_constant_id_offset + 3) const int c = 0;
+layout (constant_id = shape_constant_id_offset + 4) const int cstep = 0;
+
+#if NCNN_image_shader
+layout (binding = 0) uniform unfp sampler3D bottom_blob_3d;
+layout (binding = 1, imfmtc1) writeonly uniform unfp image3D top_blob_3d;
+#else
+layout (binding = 0) buffer bottom_top_blob { sfp bottom_top_blob_data[]; };
+#endif
+
+layout (push_constant) uniform parameter
+{
+    int dims;
+    int w;
+    int h;
+    int c;
+    int cstep;
+} p;
+
+float erf(float x)
+{
+    float a1 =  0.254829592f;
+    float a2 = -0.284496736f;
+    float a3 =  1.421413741f;
+    float a4 = -1.453152027f;
+    float a5 =  1.061405429f;
+    float p  =  0.3275911f;
+    float s = sign(x);
+    float x_abs = abs(x);
+    float t = 1.0f/(1.0f + p*x_abs);
+    float y = 1.0f - (((((a5*t + a4)*t) + a3)*t + a2)*t + a1)*t*exp(-x_abs*x_abs);
+    return s * y;
+}
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+    int gy = int(gl_GlobalInvocationID.y);
+    int gz = int(gl_GlobalInvocationID.z);
+
+    if (gx >= psc(w) || gy >= psc(h) || gz >= psc(c))
+        return;
+
+#if NCNN_image_shader
+    afp v = image3d_ld1(bottom_blob_3d, ivec3(gx, gy, gz));
+#else
+    const int gi = gz * psc(cstep) + gy * psc(w) + gx;
+
+    afp v = buffer_ld1(bottom_top_blob_data, gi);
+#endif
+
+    v = erf(v);
+
+#if NCNN_image_shader
+    image3d_st1(top_blob_3d, ivec3(gx, gy, gz), v);
+#else
+    buffer_st1(bottom_top_blob_data, gi, v);
+#endif
+}

@@ -21,9 +21,13 @@ class Model(nn.Module):
         super(Model, self).__init__()
 
     def forward(self, x, y, z, w):
+        x = x * 2 - 1
+        y = y * 2 - 1
+        z = z * 2 - 1
+        w = w * 2 - 1
         x = F.celu(x)
         y = F.celu(y, 0.8)
-        z = F.celu(z, -0.5)
+        z = F.celu(z, 0.5)
         w = F.celu(w, 2)
         return x, y, z, w
 
