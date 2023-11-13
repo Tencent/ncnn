@@ -595,18 +595,14 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
             }
             if (out_elempack == 1)
             {
-                int sum[8];
-                vst1q_s32(sum, _sum0);
-                vst1q_s32(sum + 4, _sum1);
-
-                outptr[0] = sum[0];
-                outptr[M] = sum[1];
-                outptr[M * 2] = sum[2];
-                outptr[M * 3] = sum[3];
-                outptr[M * 4] = sum[4];
-                outptr[M * 5] = sum[5];
-                outptr[M * 6] = sum[6];
-                outptr[M * 7] = sum[7];
+                outptr[0] = vgetq_lane_s32(_sum0, 0);
+                outptr[M] = vgetq_lane_s32(_sum0, 1);
+                outptr[M * 2] = vgetq_lane_s32(_sum0, 2);
+                outptr[M * 3] = vgetq_lane_s32(_sum0, 3);
+                outptr[M * 4] = vgetq_lane_s32(_sum1, 0);
+                outptr[M * 5] = vgetq_lane_s32(_sum1, 1);
+                outptr[M * 6] = vgetq_lane_s32(_sum1, 2);
+                outptr[M * 7] = vgetq_lane_s32(_sum1, 3);
                 outptr += 1;
             }
         }
@@ -708,13 +704,10 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
             }
             if (out_elempack == 1)
             {
-                int sum[4];
-                vst1q_s32(sum, _sum0);
-
-                outptr[0] = sum[0];
-                outptr[M] = sum[1];
-                outptr[M * 2] = sum[2];
-                outptr[M * 3] = sum[3];
+                outptr[0] = vgetq_lane_s32(_sum0, 0);
+                outptr[M] = vgetq_lane_s32(_sum0, 1);
+                outptr[M * 2] = vgetq_lane_s32(_sum0, 2);
+                outptr[M * 3] = vgetq_lane_s32(_sum0, 3);
                 outptr += 1;
             }
         }
