@@ -529,23 +529,19 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         int8x8_t _r0l = vreinterpret_s8_s32(_rr0.val[0]);
                         int8x8_t _r0h = vreinterpret_s8_s32(_rr0.val[1]);
 
-                        int8x8_t _w01l = vld1_s8(kptr);
-                        int8x8_t _w23l = vld1_s8(kptr + 8);
-                        int8x8_t _w45l = vld1_s8(kptr + 16);
-                        int8x8_t _w67l = vld1_s8(kptr + 24);
-                        int8x8_t _w01h = vld1_s8(kptr + 32);
-                        int8x8_t _w23h = vld1_s8(kptr + 40);
-                        int8x8_t _w45h = vld1_s8(kptr + 48);
-                        int8x8_t _w67h = vld1_s8(kptr + 56);
+                        int8x16_t _w0l = vld1q_s8(kptr);
+                        int8x16_t _w1l = vld1q_s8(kptr + 16);
+                        int8x16_t _w0h = vld1q_s8(kptr + 32);
+                        int8x16_t _w1h = vld1q_s8(kptr + 48);
 
-                        int16x8_t _s01 = vmull_s8(_r0l, _w01l);
-                        int16x8_t _s23 = vmull_s8(_r0l, _w23l);
-                        int16x8_t _s45 = vmull_s8(_r0l, _w45l);
-                        int16x8_t _s67 = vmull_s8(_r0l, _w67l);
-                        _s01 = vmlal_s8(_s01, _r0h, _w01h);
-                        _s23 = vmlal_s8(_s23, _r0h, _w23h);
-                        _s45 = vmlal_s8(_s45, _r0h, _w45h);
-                        _s67 = vmlal_s8(_s67, _r0h, _w67h);
+                        int16x8_t _s01 = vmull_s8(_r0l, vget_low_s8(_w0l));
+                        int16x8_t _s23 = vmull_s8(_r0l, vget_high_s8(_w0l));
+                        int16x8_t _s45 = vmull_s8(_r0l, vget_low_s8(_w1l));
+                        int16x8_t _s67 = vmull_s8(_r0l, vget_high_s8(_w1l));
+                        _s01 = vmlal_s8(_s01, _r0h, vget_low_s8(_w0h));
+                        _s23 = vmlal_s8(_s23, _r0h, vget_high_s8(_w0h));
+                        _s45 = vmlal_s8(_s45, _r0h, vget_low_s8(_w1h));
+                        _s67 = vmlal_s8(_s67, _r0h, vget_high_s8(_w1h));
 
                         _sum01 = vpadalq_s16(_sum01, _s01);
                         _sum23 = vpadalq_s16(_sum23, _s23);
@@ -658,15 +654,13 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         int8x8_t _r0l = vreinterpret_s8_s32(_rr0.val[0]);
                         int8x8_t _r0h = vreinterpret_s8_s32(_rr0.val[1]);
 
-                        int8x8_t _w01l = vld1_s8(kptr);
-                        int8x8_t _w23l = vld1_s8(kptr + 8);
-                        int8x8_t _w01h = vld1_s8(kptr + 16);
-                        int8x8_t _w23h = vld1_s8(kptr + 24);
+                        int8x16_t _w0l = vld1q_s8(kptr);
+                        int8x16_t _w0h = vld1q_s8(kptr + 16);
 
-                        int16x8_t _s01 = vmull_s8(_r0l, _w01l);
-                        int16x8_t _s23 = vmull_s8(_r0l, _w23l);
-                        _s01 = vmlal_s8(_s01, _r0h, _w01h);
-                        _s23 = vmlal_s8(_s23, _r0h, _w23h);
+                        int16x8_t _s01 = vmull_s8(_r0l, vget_low_s8(_w0l));
+                        int16x8_t _s23 = vmull_s8(_r0l, vget_high_s8(_w0l));
+                        _s01 = vmlal_s8(_s01, _r0h, vget_low_s8(_w0h));
+                        _s23 = vmlal_s8(_s23, _r0h, vget_high_s8(_w0h));
 
                         _sum01 = vpadalq_s16(_sum01, _s01);
                         _sum23 = vpadalq_s16(_sum23, _s23);
@@ -772,11 +766,10 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         int8x8_t _r0l = vreinterpret_s8_s32(_rr0.val[0]);
                         int8x8_t _r0h = vreinterpret_s8_s32(_rr0.val[1]);
 
-                        int8x8_t _w01l = vld1_s8(kptr);
-                        int8x8_t _w01h = vld1_s8(kptr + 8);
+                        int8x16_t _w0 = vld1q_s8(kptr);
 
-                        int16x8_t _s01 = vmull_s8(_r0l, _w01l);
-                        _s01 = vmlal_s8(_s01, _r0h, _w01h);
+                        int16x8_t _s01 = vmull_s8(_r0l, vget_low_s8(_w0));
+                        _s01 = vmlal_s8(_s01, _r0h, vget_high_s8(_w0));
 
                         _sum01 = vpadalq_s16(_sum01, _s01);
 
