@@ -88,6 +88,56 @@ static void convolution_transform_kernel_packed_int8(const Mat& kernel, Mat& ker
                 const signed char* k6 = kptr6 + k;
                 const signed char* k7 = kptr7 + k;
 
+#if __ARM_FEATURE_DOTPROD
+                for (int i = 0; i < 8; i++)
+                {
+                    g00[0] = k0[0];
+                    k0 += maxk;
+                    g00 += 1;
+                }
+                for (int i = 0; i < 8; i++)
+                {
+                    g00[0] = k1[0];
+                    k1 += maxk;
+                    g00 += 1;
+                }
+                for (int i = 0; i < 8; i++)
+                {
+                    g00[0] = k2[0];
+                    k2 += maxk;
+                    g00 += 1;
+                }
+                for (int i = 0; i < 8; i++)
+                {
+                    g00[0] = k3[0];
+                    k3 += maxk;
+                    g00 += 1;
+                }
+                for (int i = 0; i < 8; i++)
+                {
+                    g00[0] = k4[0];
+                    k4 += maxk;
+                    g00 += 1;
+                }
+                for (int i = 0; i < 8; i++)
+                {
+                    g00[0] = k5[0];
+                    k5 += maxk;
+                    g00 += 1;
+                }
+                for (int i = 0; i < 8; i++)
+                {
+                    g00[0] = k6[0];
+                    k6 += maxk;
+                    g00 += 1;
+                }
+                for (int i = 0; i < 8; i++)
+                {
+                    g00[0] = k7[0];
+                    k7 += maxk;
+                    g00 += 1;
+                }
+#else // __ARM_FEATURE_DOTPROD
                 for (int i = 0; i < 4; i++)
                 {
                     g00[0] = k0[0];
@@ -185,6 +235,7 @@ static void convolution_transform_kernel_packed_int8(const Mat& kernel, Mat& ker
                     k7 += maxk;
                     g00 += 1;
                 }
+#endif // __ARM_FEATURE_DOTPROD
             }
 
             kptr0 += maxk * 8;
@@ -249,6 +300,32 @@ static void convolution_transform_kernel_packed_int8(const Mat& kernel, Mat& ker
                 const signed char* k2 = kptr2 + k;
                 const signed char* k3 = kptr3 + k;
 
+#if __ARM_FEATURE_DOTPROD
+                for (int i = 0; i < 8; i++)
+                {
+                    g00[0] = k0[0];
+                    k0 += maxk;
+                    g00 += 1;
+                }
+                for (int i = 0; i < 8; i++)
+                {
+                    g00[0] = k1[0];
+                    k1 += maxk;
+                    g00 += 1;
+                }
+                for (int i = 0; i < 8; i++)
+                {
+                    g00[0] = k2[0];
+                    k2 += maxk;
+                    g00 += 1;
+                }
+                for (int i = 0; i < 8; i++)
+                {
+                    g00[0] = k3[0];
+                    k3 += maxk;
+                    g00 += 1;
+                }
+#else // __ARM_FEATURE_DOTPROD
                 for (int i = 0; i < 4; i++)
                 {
                     g00[0] = k0[0];
@@ -298,6 +375,7 @@ static void convolution_transform_kernel_packed_int8(const Mat& kernel, Mat& ker
                     k3 += maxk;
                     g00 += 1;
                 }
+#endif // __ARM_FEATURE_DOTPROD
             }
 
             kptr0 += maxk * 8;
@@ -348,6 +426,20 @@ static void convolution_transform_kernel_packed_int8(const Mat& kernel, Mat& ker
                 const signed char* k0 = kptr0 + k;
                 const signed char* k1 = kptr1 + k;
 
+#if __ARM_FEATURE_DOTPROD
+                for (int i = 0; i < 8; i++)
+                {
+                    g00[0] = k0[0];
+                    k0 += maxk;
+                    g00 += 1;
+                }
+                for (int i = 0; i < 8; i++)
+                {
+                    g00[0] = k1[0];
+                    k1 += maxk;
+                    g00 += 1;
+                }
+#else // __ARM_FEATURE_DOTPROD
                 for (int i = 0; i < 4; i++)
                 {
                     g00[0] = k0[0];
@@ -373,6 +465,7 @@ static void convolution_transform_kernel_packed_int8(const Mat& kernel, Mat& ker
                     k1 += maxk;
                     g00 += 1;
                 }
+#endif // __ARM_FEATURE_DOTPROD
             }
 
             kptr0 += maxk * 8;
@@ -525,28 +618,36 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                             _r0 = vld1_s8(tmp);
                         }
 
+                        int8x16_t _w0 = vld1q_s8(kptr);
+                        int8x16_t _w1 = vld1q_s8(kptr + 16);
+                        int8x16_t _w2 = vld1q_s8(kptr + 32);
+                        int8x16_t _w3 = vld1q_s8(kptr + 48);
+
+#if __ARM_FEATURE_DOTPROD
+                        int8x16_t _r00 = vcombine_s8(_r0, _r0);
+                        _sum01 = vdotq_s32(_sum01, _r00, _w0);
+                        _sum23 = vdotq_s32(_sum23, _r00, _w1);
+                        _sum45 = vdotq_s32(_sum45, _r00, _w2);
+                        _sum67 = vdotq_s32(_sum67, _r00, _w3);
+#else // __ARM_FEATURE_DOTPROD
                         int32x2x2_t _rr0 = vzip_s32(vreinterpret_s32_s8(_r0), vreinterpret_s32_s8(_r0));
                         int8x8_t _r0l = vreinterpret_s8_s32(_rr0.val[0]);
                         int8x8_t _r0h = vreinterpret_s8_s32(_rr0.val[1]);
 
-                        int8x16_t _w0l = vld1q_s8(kptr);
-                        int8x16_t _w1l = vld1q_s8(kptr + 16);
-                        int8x16_t _w0h = vld1q_s8(kptr + 32);
-                        int8x16_t _w1h = vld1q_s8(kptr + 48);
-
-                        int16x8_t _s01 = vmull_s8(_r0l, vget_low_s8(_w0l));
-                        int16x8_t _s23 = vmull_s8(_r0l, vget_high_s8(_w0l));
-                        int16x8_t _s45 = vmull_s8(_r0l, vget_low_s8(_w1l));
-                        int16x8_t _s67 = vmull_s8(_r0l, vget_high_s8(_w1l));
-                        _s01 = vmlal_s8(_s01, _r0h, vget_low_s8(_w0h));
-                        _s23 = vmlal_s8(_s23, _r0h, vget_high_s8(_w0h));
-                        _s45 = vmlal_s8(_s45, _r0h, vget_low_s8(_w1h));
-                        _s67 = vmlal_s8(_s67, _r0h, vget_high_s8(_w1h));
+                        int16x8_t _s01 = vmull_s8(_r0l, vget_low_s8(_w0));
+                        int16x8_t _s23 = vmull_s8(_r0l, vget_high_s8(_w0));
+                        int16x8_t _s45 = vmull_s8(_r0l, vget_low_s8(_w1));
+                        int16x8_t _s67 = vmull_s8(_r0l, vget_high_s8(_w1));
+                        _s01 = vmlal_s8(_s01, _r0h, vget_low_s8(_w2));
+                        _s23 = vmlal_s8(_s23, _r0h, vget_high_s8(_w2));
+                        _s45 = vmlal_s8(_s45, _r0h, vget_low_s8(_w3));
+                        _s67 = vmlal_s8(_s67, _r0h, vget_high_s8(_w3));
 
                         _sum01 = vpadalq_s16(_sum01, _s01);
                         _sum23 = vpadalq_s16(_sum23, _s23);
                         _sum45 = vpadalq_s16(_sum45, _s45);
                         _sum67 = vpadalq_s16(_sum67, _s67);
+#endif // __ARM_FEATURE_DOTPROD
 
                         kptr += 64;
                     }
@@ -650,20 +751,26 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                             _r0 = vld1_s8(tmp);
                         }
 
+                        int8x16_t _w0 = vld1q_s8(kptr);
+                        int8x16_t _w1 = vld1q_s8(kptr + 16);
+
+#if __ARM_FEATURE_DOTPROD
+                        int8x16_t _r00 = vcombine_s8(_r0, _r0);
+                        _sum01 = vdotq_s32(_sum01, _r00, _w0);
+                        _sum23 = vdotq_s32(_sum23, _r00, _w1);
+#else // __ARM_FEATURE_DOTPROD
                         int32x2x2_t _rr0 = vzip_s32(vreinterpret_s32_s8(_r0), vreinterpret_s32_s8(_r0));
                         int8x8_t _r0l = vreinterpret_s8_s32(_rr0.val[0]);
                         int8x8_t _r0h = vreinterpret_s8_s32(_rr0.val[1]);
 
-                        int8x16_t _w0l = vld1q_s8(kptr);
-                        int8x16_t _w0h = vld1q_s8(kptr + 16);
-
-                        int16x8_t _s01 = vmull_s8(_r0l, vget_low_s8(_w0l));
-                        int16x8_t _s23 = vmull_s8(_r0l, vget_high_s8(_w0l));
-                        _s01 = vmlal_s8(_s01, _r0h, vget_low_s8(_w0h));
-                        _s23 = vmlal_s8(_s23, _r0h, vget_high_s8(_w0h));
+                        int16x8_t _s01 = vmull_s8(_r0l, vget_low_s8(_w0));
+                        int16x8_t _s23 = vmull_s8(_r0l, vget_high_s8(_w0));
+                        _s01 = vmlal_s8(_s01, _r0h, vget_low_s8(_w1));
+                        _s23 = vmlal_s8(_s23, _r0h, vget_high_s8(_w1));
 
                         _sum01 = vpadalq_s16(_sum01, _s01);
                         _sum23 = vpadalq_s16(_sum23, _s23);
+#endif // __ARM_FEATURE_DOTPROD
 
                         kptr += 32;
                     }
@@ -725,6 +832,118 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
         int* outptr1 = top_blob.channel(p + 1);
 
         int ij = 0;
+        for (; ij + 1 < outw * outh; ij += 2)
+        {
+            const int i0 = ij / outw;
+            const int i1 = (ij + 1) / outw;
+            const int j0 = ij % outw;
+            const int j1 = (ij + 1) % outw;
+
+            int sum00 = 0;
+            int sum01 = 0;
+            int sum10 = 0;
+            int sum11 = 0;
+
+#if __ARM_NEON
+            const signed char* kptr = weight_data_tm.channel(p / 8 + (p % 8) / 4 + (p % 4) / 2);
+#else
+            const signed char* kptr = weight_data_tm.channel(p / 2);
+#endif
+
+            int q = 0;
+#if __ARM_NEON
+            {
+                int32x4_t _sum01 = vdupq_n_s32(0);
+                int32x4_t _sum23 = vdupq_n_s32(0);
+                for (; q + 7 < inch; q += 8)
+                {
+                    const signed char* r0 = bottom_blob.channel(q / elempack).row<const signed char>(i0 * stride_h) + j0 * stride_w * elempack;
+                    const signed char* r1 = bottom_blob.channel(q / elempack).row<const signed char>(i1 * stride_h) + j1 * stride_w * elempack;
+
+                    for (int k = 0; k < maxk; k++)
+                    {
+                        const signed char* r0s = r0 + space_ofs[k];
+                        const signed char* r1s = r1 + space_ofs[k];
+
+                        int8x8_t _r0;
+                        int8x8_t _r1;
+                        if (elempack == 8)
+                        {
+                            _r0 = vld1_s8(r0s);
+                            _r1 = vld1_s8(r1s);
+                        }
+                        else // if (elempack == 1)
+                        {
+                            signed char tmp0[8] = {r0s[0], r0s[N], r0s[N * 2], r0s[N * 3], r0s[N * 4], r0s[N * 5], r0s[N * 6], r0s[N * 7]};
+                            signed char tmp1[8] = {r1s[0], r1s[N], r1s[N * 2], r1s[N * 3], r1s[N * 4], r1s[N * 5], r1s[N * 6], r1s[N * 7]};
+                            _r0 = vld1_s8(tmp0);
+                            _r1 = vld1_s8(tmp1);
+                        }
+
+                        int8x16_t _w0 = vld1q_s8(kptr);
+
+#if __ARM_FEATURE_DOTPROD
+                        int8x16_t _r00 = vcombine_s8(_r0, _r0);
+                        int8x16_t _r11 = vcombine_s8(_r1, _r1);
+                        _sum01 = vdotq_s32(_sum01, _r00, _w0);
+                        _sum23 = vdotq_s32(_sum23, _r11, _w0);
+#else // __ARM_FEATURE_DOTPROD
+                        int32x2x2_t _rr0 = vzip_s32(vreinterpret_s32_s8(_r0), vreinterpret_s32_s8(_r0));
+                        int32x2x2_t _rr1 = vzip_s32(vreinterpret_s32_s8(_r1), vreinterpret_s32_s8(_r1));
+                        int8x8_t _r0l = vreinterpret_s8_s32(_rr0.val[0]);
+                        int8x8_t _r0h = vreinterpret_s8_s32(_rr0.val[1]);
+                        int8x8_t _r1l = vreinterpret_s8_s32(_rr1.val[0]);
+                        int8x8_t _r1h = vreinterpret_s8_s32(_rr1.val[1]);
+
+                        int16x8_t _s01 = vmull_s8(_r0l, vget_low_s8(_w0));
+                        int16x8_t _s23 = vmull_s8(_r1l, vget_low_s8(_w0));
+                        _s01 = vmlal_s8(_s01, _r0h, vget_high_s8(_w0));
+                        _s23 = vmlal_s8(_s23, _r1h, vget_high_s8(_w0));
+
+                        _sum01 = vpadalq_s16(_sum01, _s01);
+                        _sum23 = vpadalq_s16(_sum23, _s23);
+#endif // __ARM_FEATURE_DOTPROD
+
+                        kptr += 16;
+                    }
+                }
+                int32x2_t _s0 = vpadd_s32(vget_low_s32(_sum01), vget_high_s32(_sum01));
+                int32x2_t _s1 = vpadd_s32(vget_low_s32(_sum23), vget_high_s32(_sum23));
+                sum00 += vget_lane_s32(_s0, 0);
+                sum01 += vget_lane_s32(_s1, 0);
+                sum10 += vget_lane_s32(_s0, 1);
+                sum11 += vget_lane_s32(_s1, 1);
+            }
+#endif // __ARM_NEON
+            for (; q < inch; q++)
+            {
+                const signed char* r0 = bottom_blob.channel(q).row<const signed char>(i0 * stride_h) + j0 * stride_w;
+                const signed char* r1 = bottom_blob.channel(q).row<const signed char>(i1 * stride_h) + j1 * stride_w;
+
+                for (int k = 0; k < maxk; k++)
+                {
+                    const signed char* r0s = r0 + space_ofs[k];
+                    const signed char* r1s = r1 + space_ofs[k];
+
+                    // if (elempack == 1)
+                    {
+                        sum00 += r0s[0] * kptr[0];
+                        sum01 += r1s[0] * kptr[0];
+                        sum10 += r0s[0] * kptr[1];
+                        sum11 += r1s[0] * kptr[1];
+
+                        kptr += 2;
+                    }
+                }
+            }
+
+            outptr0[0] = sum00;
+            outptr0[1] = sum01;
+            outptr1[0] = sum10;
+            outptr1[1] = sum11;
+            outptr0 += 2;
+            outptr1 += 2;
+        }
         for (; ij < outw * outh; ij++)
         {
             const int i = ij / outw;
@@ -762,16 +981,21 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                             _r0 = vld1_s8(tmp);
                         }
 
+                        int8x16_t _w0 = vld1q_s8(kptr);
+
+#if __ARM_FEATURE_DOTPROD
+                        int8x16_t _r00 = vcombine_s8(_r0, _r0);
+                        _sum01 = vdotq_s32(_sum01, _r00, _w0);
+#else // __ARM_FEATURE_DOTPROD
                         int32x2x2_t _rr0 = vzip_s32(vreinterpret_s32_s8(_r0), vreinterpret_s32_s8(_r0));
                         int8x8_t _r0l = vreinterpret_s8_s32(_rr0.val[0]);
                         int8x8_t _r0h = vreinterpret_s8_s32(_rr0.val[1]);
-
-                        int8x16_t _w0 = vld1q_s8(kptr);
 
                         int16x8_t _s01 = vmull_s8(_r0l, vget_low_s8(_w0));
                         _s01 = vmlal_s8(_s01, _r0h, vget_high_s8(_w0));
 
                         _sum01 = vpadalq_s16(_sum01, _s01);
+#endif // __ARM_FEATURE_DOTPROD
 
                         kptr += 16;
                     }
@@ -811,6 +1035,105 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
         int* outptr = top_blob.channel(p);
 
         int ij = 0;
+        for (; ij + 1 < outw * outh; ij += 2)
+        {
+            const int i0 = ij / outw;
+            const int i1 = (ij + 1) / outw;
+            const int j0 = ij % outw;
+            const int j1 = (ij + 1) % outw;
+
+            int sum0 = 0;
+            int sum1 = 0;
+
+#if __ARM_NEON
+            const signed char* kptr = weight_data_tm.channel(p / 8 + (p % 8) / 4 + (p % 4) / 2 + p % 2);
+#else
+            const signed char* kptr = weight_data_tm.channel(p / 2 + p % 2);
+#endif
+
+            int q = 0;
+#if __ARM_NEON
+            {
+                int32x4_t _sum0 = vdupq_n_s32(0);
+                int32x4_t _sum1 = vdupq_n_s32(0);
+                int32x4_t _sum2 = vdupq_n_s32(0);
+                int32x4_t _sum3 = vdupq_n_s32(0);
+                for (; q + 7 < inch; q += 8)
+                {
+                    const signed char* r0 = bottom_blob.channel(q / elempack).row<const signed char>(i0 * stride_h) + j0 * stride_w * elempack;
+                    const signed char* r1 = bottom_blob.channel(q / elempack).row<const signed char>(i1 * stride_h) + j1 * stride_w * elempack;
+
+                    for (int k = 0; k < maxk; k++)
+                    {
+                        const signed char* r0s = r0 + space_ofs[k];
+                        const signed char* r1s = r1 + space_ofs[k];
+
+                        int8x8_t _r0;
+                        int8x8_t _r1;
+                        if (elempack == 8)
+                        {
+                            _r0 = vld1_s8(r0s);
+                            _r1 = vld1_s8(r1s);
+                        }
+                        else // if (elempack == 1)
+                        {
+                            signed char tmp0[8] = {r0s[0], r0s[N], r0s[N * 2], r0s[N * 3], r0s[N * 4], r0s[N * 5], r0s[N * 6], r0s[N * 7]};
+                            signed char tmp1[8] = {r1s[0], r1s[N], r1s[N * 2], r1s[N * 3], r1s[N * 4], r1s[N * 5], r1s[N * 6], r1s[N * 7]};
+                            _r0 = vld1_s8(tmp0);
+                            _r1 = vld1_s8(tmp1);
+                        }
+
+                        int8x8_t _w = vld1_s8(kptr);
+
+                        int16x8_t _s0 = vmull_s8(_r0, _w);
+                        int16x8_t _s1 = vmull_s8(_r1, _w);
+
+                        _sum0 = vaddw_s16(_sum0, vget_low_s16(_s0));
+                        _sum1 = vaddw_s16(_sum1, vget_high_s16(_s0));
+                        _sum2 = vaddw_s16(_sum2, vget_low_s16(_s1));
+                        _sum3 = vaddw_s16(_sum3, vget_high_s16(_s1));
+
+                        kptr += 8;
+                    }
+                }
+                _sum0 = vaddq_s32(_sum0, _sum1);
+                _sum2 = vaddq_s32(_sum2, _sum3);
+#if __aarch64__
+                sum0 += vaddvq_s32(_sum0);
+                sum1 += vaddvq_s32(_sum2);
+#else
+                int32x2_t _ss0 = vadd_s32(vget_low_s32(_sum0), vget_high_s32(_sum0));
+                int32x2_t _ss2 = vadd_s32(vget_low_s32(_sum2), vget_high_s32(_sum2));
+                _ss0 = vpadd_s32(_ss0, _ss2);
+                sum0 += vget_lane_s32(_ss0, 0);
+                sum1 += vget_lane_s32(_ss0, 1);
+#endif
+            }
+#endif // __ARM_NEON
+            for (; q < inch; q++)
+            {
+                const signed char* r0 = bottom_blob.channel(q).row<const signed char>(i0 * stride_h) + j0 * stride_w;
+                const signed char* r1 = bottom_blob.channel(q).row<const signed char>(i1 * stride_h) + j1 * stride_w;
+
+                for (int k = 0; k < maxk; k++)
+                {
+                    const signed char* r0s = r0 + space_ofs[k];
+                    const signed char* r1s = r1 + space_ofs[k];
+
+                    // if (elempack == 1)
+                    {
+                        sum0 += r0s[0] * kptr[0];
+                        sum1 += r1s[0] * kptr[0];
+
+                        kptr += 1;
+                    }
+                }
+            }
+
+            outptr[0] = sum0;
+            outptr[1] = sum1;
+            outptr += 2;
+        }
         for (; ij < outw * outh; ij++)
         {
             const int i = ij / outw;
@@ -850,17 +1173,17 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
 
                         int8x8_t _w = vld1_s8(kptr);
 
-                        int16x8_t _s8 = vmull_s8(_r0, _w);
+                        int16x8_t _s0 = vmull_s8(_r0, _w);
 
-                        _sum0 = vaddw_s16(_sum0, vget_low_s16(_s8));
-                        _sum1 = vaddw_s16(_sum1, vget_high_s16(_s8));
+                        _sum0 = vaddw_s16(_sum0, vget_low_s16(_s0));
+                        _sum1 = vaddw_s16(_sum1, vget_high_s16(_s0));
 
                         kptr += 8;
                     }
                 }
                 int32x4_t _sum = vaddq_s32(_sum0, _sum1);
 #if __aarch64__
-                sum += vaddvq_s32(_sum); // dot
+                sum += vaddvq_s32(_sum);
 #else
                 int32x2_t _ss = vadd_s32(vget_low_s32(_sum), vget_high_s32(_sum));
                 _ss = vpadd_s32(_ss, _ss);
