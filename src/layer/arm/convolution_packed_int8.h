@@ -709,8 +709,8 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
 #if __ARM_FEATURE_MATMUL_INT8
                 {
                     int32x4_t _tmp0 = vcombine_s32(vget_low_s32(_sum0), vget_low_s32(_sum1));
-                    int32x4_t _tmp1 = vcombine_s32(vget_high_s32(_sum0), vget_high_s32(_sum1));
-                    int32x4_t _tmp2 = vcombine_s32(vget_low_s32(_sum2), vget_low_s32(_sum3));
+                    int32x4_t _tmp1 = vcombine_s32(vget_low_s32(_sum2), vget_low_s32(_sum3));
+                    int32x4_t _tmp2 = vcombine_s32(vget_high_s32(_sum0), vget_high_s32(_sum1));
                     int32x4_t _tmp3 = vcombine_s32(vget_high_s32(_sum2), vget_high_s32(_sum3));
                     _sum0 = _tmp0;
                     _sum1 = _tmp1;
