@@ -117,7 +117,7 @@ void benchmark(const Layer* layer, const Mat& bottom_blob, Mat& top_blob, double
     }
     if (bottom_blob.dims == 4)
     {
-        sprintf(in_shape_str, "[%3d, %3d, %3d, %3d *%d]", bottom_blob.w, bottom_blob.h, bottom_blob.d ,bottom_blob.c, bottom_blob.elempack);
+        sprintf(in_shape_str, "[%3d, %3d, %3d, %3d *%d]", bottom_blob.w, bottom_blob.h, bottom_blob.d, bottom_blob.c, bottom_blob.elempack);
     }
 
     if (top_blob.dims == 1)
