@@ -790,6 +790,8 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
 
             int32x4_t _sum0 = vdupq_n_s32(0);
             int32x4_t _sum1 = vdupq_n_s32(0);
+            int32x4_t _sum2 = vdupq_n_s32(0);
+            int32x4_t _sum3 = vdupq_n_s32(0);
 
             const signed char* kptr = weight_data_tm.channel(p / 8);
 
@@ -819,12 +821,18 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         int8x16_t _w2 = vld1q_s8(kptr + 32);
                         int8x16_t _w3 = vld1q_s8(kptr + 48);
 
-#if __ARM_FEATURE_DOTPROD
+#if __ARM_FEATURE_MATMUL_INT8
+                        int8x16_t _r00 = vcombine_s8(_r0, _r0);
+                        _sum0 = vdotq_s32(_sum0, _r00, _w0);
+                        _sum1 = vdotq_s32(_sum1, _r00, _w1);
+                        _sum2 = vdotq_s32(_sum2, _r00, _w2);
+                        _sum3 = vdotq_s32(_sum3, _r00, _w3);
+#elif __ARM_FEATURE_DOTPROD
                         _sum0 = vdotq_lane_s32(_sum0, _w0, _r0, 0);
                         _sum1 = vdotq_lane_s32(_sum1, _w1, _r0, 0);
-                        _sum0 = vdotq_lane_s32(_sum0, _w2, _r0, 1);
-                        _sum1 = vdotq_lane_s32(_sum1, _w3, _r0, 1);
-#else  // __ARM_FEATURE_DOTPROD
+                        _sum2 = vdotq_lane_s32(_sum2, _w2, _r0, 1);
+                        _sum3 = vdotq_lane_s32(_sum3, _w3, _r0, 1);
+#else  // __ARM_FEATURE_MATMUL_INT8 || __ARM_FEATURE_DOTPROD
                         int16x4_t _rr0 = vreinterpret_s16_s8(_r0);
                         int8x8_t _r0ll = vreinterpret_s8_s16(vdup_lane_s16(_rr0, 0));
                         int8x8_t _r0lh = vreinterpret_s8_s16(vdup_lane_s16(_rr0, 1));
@@ -842,13 +850,24 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
 
                         _sum0 = vpadalq_s16(_sum0, _s0l);
                         _sum1 = vpadalq_s16(_sum1, _s1l);
-                        _sum0 = vpadalq_s16(_sum0, _s0h);
-                        _sum1 = vpadalq_s16(_sum1, _s1h);
-#endif // __ARM_FEATURE_DOTPROD
+                        _sum2 = vpadalq_s16(_sum2, _s0h);
+                        _sum3 = vpadalq_s16(_sum3, _s1h);
+#endif // __ARM_FEATURE_MATMUL_INT8 || __ARM_FEATURE_DOTPROD
 
                         kptr += 64;
                     }
                 }
+#if __ARM_FEATURE_MATMUL_INT8
+                {
+                    _sum0 = vpaddq_s32(_sum0, _sum1);
+                    _sum1 = vpaddq_s32(_sum2, _sum3);
+                }
+#else
+                {
+                    _sum0 = vaddq_s32(_sum0, _sum2);
+                    _sum1 = vaddq_s32(_sum1, _sum3);
+                }
+#endif
             }
             for (; q < inch; q++)
             {
@@ -1053,6 +1072,7 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
             const int j = ij % outw;
 
             int32x4_t _sum0 = vdupq_n_s32(0);
+            int32x4_t _sum1 = vdupq_n_s32(0);
 
             const signed char* kptr = weight_data_tm.channel(p / 8 + (p % 8) / 4);
 
@@ -1080,10 +1100,14 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         int8x16_t _w0 = vld1q_s8(kptr);
                         int8x16_t _w1 = vld1q_s8(kptr + 16);
 
-#if __ARM_FEATURE_DOTPROD
+#if __ARM_FEATURE_MATMUL_INT8
+                        int8x16_t _r00 = vcombine_s8(_r0, _r0);
+                        _sum0 = vdotq_s32(_sum0, _r00, _w0);
+                        _sum1 = vdotq_s32(_sum1, _r00, _w1);
+#elif __ARM_FEATURE_DOTPROD
                         _sum0 = vdotq_lane_s32(_sum0, _w0, _r0, 0);
-                        _sum0 = vdotq_lane_s32(_sum0, _w1, _r0, 1);
-#else  // __ARM_FEATURE_DOTPROD
+                        _sum1 = vdotq_lane_s32(_sum1, _w1, _r0, 1);
+#else  // __ARM_FEATURE_MATMUL_INT8 || __ARM_FEATURE_DOTPROD
                         int16x4_t _rr0 = vreinterpret_s16_s8(_r0);
                         int8x8_t _r0ll = vreinterpret_s8_s16(vdup_lane_s16(_rr0, 0));
                         int8x8_t _r0lh = vreinterpret_s8_s16(vdup_lane_s16(_rr0, 1));
@@ -1096,12 +1120,21 @@ static void convolution_packed_int8(const Mat& bottom_blob, Mat& top_blob, const
                         _sh = vmlal_s8(_sh, _r0hh, vget_high_s8(_w1));
 
                         _sum0 = vpadalq_s16(_sum0, _sl);
-                        _sum0 = vpadalq_s16(_sum0, _sh);
-#endif // __ARM_FEATURE_DOTPROD
+                        _sum1 = vpadalq_s16(_sum1, _sh);
+#endif // __ARM_FEATURE_MATMUL_INT8 || __ARM_FEATURE_DOTPROD
 
                         kptr += 32;
                     }
                 }
+#if __ARM_FEATURE_MATMUL_INT8
+                {
+                    _sum0 = vpaddq_s32(_sum0, _sum1);
+                }
+#else
+                {
+                    _sum0 = vaddq_s32(_sum0, _sum1);
+                }
+#endif
             }
             for (; q < inch; q++)
             {
