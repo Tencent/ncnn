@@ -48,11 +48,11 @@ namespace ncnn {
 #endif // NCNN_BF16
 
 #if NCNN_INT8
+#include "convolution_packed_int8.h"
 #include "convolution_im2col_gemm_int8.h"
 #include "convolution_3x3_winograd_int8.h"
 
 // #include "convolution_3x3_int8.h"
-#include "convolution_int8.h"
 #endif // NCNN_INT8
 
 #if __ARM_NEON
@@ -68,12 +68,6 @@ namespace ncnn {
 #include "convolution_5x5_pack4_bf16s.h"
 #include "convolution_7x7_pack1to4_bf16s.h"
 #endif // NCNN_BF16
-
-#if NCNN_INT8
-#include "convolution_pack8to4_int8.h"
-#include "convolution_pack1to4_int8.h"
-#include "convolution_pack8to1_int8.h"
-#endif // NCNN_INT8
 #endif // __ARM_NEON
 
 Convolution_arm::Convolution_arm()
@@ -1238,41 +1232,6 @@ int Convolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const 
 #endif // NCNN_BF16
 
 #if NCNN_INT8
-static void convolution_transform_kernel_packed_int8_neon(const Mat& weight_data, Mat& weight_data_tm, int num_input, int num_output, int kernel_w, int kernel_h, int elempack, int out_elempack)
-{
-    const int maxk = kernel_w * kernel_h;
-
-    // src = kw-kh-inch-outch
-    // dst = pa-pb-kw-kh-inch/pa-outch/pb
-    {
-        Mat weight_data_r2 = weight_data.reshape(maxk, num_input, num_output);
-
-        weight_data_tm.create(maxk, num_input / elempack, num_output / out_elempack, (size_t)elempack * out_elempack, elempack * out_elempack);
-
-        for (int q = 0; q + (out_elempack - 1) < num_output; q += out_elempack)
-        {
-            signed char* g00 = weight_data_tm.channel(q / out_elempack);
-
-            for (int p = 0; p + (elempack - 1) < num_input; p += elempack)
-            {
-                for (int k = 0; k < maxk; k++)
-                {
-                    for (int i = 0; i < out_elempack; i++)
-                    {
-                        for (int j = 0; j < elempack; j++)
-                        {
-                            const signed char* k00 = weight_data_r2.channel(q + i).row<const signed char>(p + j);
-
-                            g00[0] = k00[k];
-
-                            g00++;
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
 int Convolution_arm::create_pipeline_int8_arm(const Option& opt)
 {
     const int maxk = kernel_w * kernel_h;
@@ -1286,16 +1245,6 @@ int Convolution_arm::create_pipeline_int8_arm(const Option& opt)
     }
 #endif
 
-    int elempack = 1;
-    int out_elempack = 1;
-#if __ARM_NEON
-    if (opt.use_packing_layout)
-    {
-        elempack = num_input % 8 == 0 ? 8 : 1;
-        out_elempack = num_output % 4 == 0 ? 4 : 1;
-    }
-#endif // __ARM_NEON
-
     if (opt.use_winograd_convolution && prefer_winograd)
     {
         if (opt.use_winograd43_convolution)
@@ -1307,13 +1256,9 @@ int Convolution_arm::create_pipeline_int8_arm(const Option& opt)
     {
         convolution_im2col_gemm_transform_kernel_int8(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h, opt);
     }
-    else if (elempack == 1 && out_elempack == 1)
-    {
-        weight_data_tm = weight_data;
-    }
     else
     {
-        convolution_transform_kernel_packed_int8_neon(weight_data, weight_data_tm, num_input, num_output, kernel_w, kernel_h, elempack, out_elempack);
+        convolution_transform_kernel_packed_int8(weight_data, weight_data_tm, num_input, num_output, kernel_w, kernel_h);
     }
 
     scale_in_data.create(num_output);
@@ -1404,14 +1349,7 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
 #if __ARM_NEON
     if (opt.use_packing_layout)
     {
-        if ((opt.use_winograd_convolution && prefer_winograd) || opt.use_sgemm_convolution)
-        {
-            out_elempack_int32 = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
-        }
-        else
-        {
-            out_elempack_int32 = num_output % 4 == 0 ? 4 : 1;
-        }
+        out_elempack_int32 = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
     }
 #endif // __ARM_NEON
 
@@ -1439,23 +1377,9 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
     {
         convolution_im2col_gemm_int8(bottom_blob_bordered, top_blob_int32, weight_sgemm_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, _nT, opt);
     }
-#if __ARM_NEON
-    else if (elempack == 8 && out_elempack_int32 == 4)
+    else
     {
-        convolution_pack8to4_int8_neon(bottom_blob_bordered, top_blob_int32, weight_data_tm, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
-    }
-    else if (elempack == 1 && out_elempack_int32 == 4)
-    {
-        convolution_pack1to4_int8_neon(bottom_blob_bordered, top_blob_int32, weight_data_tm, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
-    }
-    else if (elempack == 8 && out_elempack_int32 == 1)
-    {
-        convolution_pack8to1_int8_neon(bottom_blob_bordered, top_blob_int32, weight_data_tm, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
-    }
-#endif   // __ARM_NEON
-    else // if (elempack == 1 && out_elempack_int32 == 1)
-    {
-        convolution_int8(bottom_blob_bordered, top_blob_int32, weight_data_tm, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
+        convolution_packed_int8(bottom_blob_bordered, top_blob_int32, weight_data_tm, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
     }
 
     bottom_blob_bordered.release();
