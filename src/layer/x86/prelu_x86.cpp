@@ -81,7 +81,7 @@ int PReLU_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             {
                 int i = remain_size_start + ii * 4;
                 __m128 _p128 = _mm_load_ps(ptr + i);
-                __m128 _slope128 = _mm_load_ps(slope + i);
+                __m128 _slope128 = _mm_loadu_ps(slope + i);
                 _mm_store_ps(ptr + i, prelu_sse(_p128, _slope128));
             }
             remain_size_start += nn_size * 4;
