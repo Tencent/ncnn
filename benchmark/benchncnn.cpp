@@ -232,6 +232,9 @@ static std::vector<ncnn::Mat> parse_shape_list(char* s)
         const std::vector<int>& shape = shapes[i];
         switch (shape.size())
         {
+        case 4:
+            mats.push_back(ncnn::Mat(shape[0], shape[1], shape[2], shape[3]));
+            break;
         case 3:
             mats.push_back(ncnn::Mat(shape[0], shape[1], shape[2]));
             break;
