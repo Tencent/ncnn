@@ -26,6 +26,7 @@
 
 namespace ncnn {
 
+#if NCNN_GNU_INLINE_ASM
 #include "pooling_2x2.h"
 #include "pooling_3x3.h"
 
@@ -35,6 +36,7 @@ namespace ncnn {
 #include "pooling_2x2_pack4_bf16s.h"
 #include "pooling_3x3_pack4_bf16s.h"
 #endif
+#endif // NCNN_GNU_INLINE_ASM
 
 Pooling_arm::Pooling_arm()
 {
@@ -193,6 +195,7 @@ int Pooling_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
         if (pooling_type == PoolMethod_MAX)
         {
+#if NCNN_GNU_INLINE_ASM
             if (kernel_w == 2 && kernel_h == 2 && stride_w == 2 && stride_h == 2)
             {
                 pooling2x2s2_max_pack4_neon(bottom_blob_bordered, top_blob, opt);
@@ -206,6 +209,7 @@ int Pooling_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
                 return 0;
             }
+#endif // NCNN_GNU_INLINE_ASM
 
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
@@ -337,6 +341,7 @@ int Pooling_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
     }
 #endif // __ARM_NEON
 
+#if NCNN_GNU_INLINE_ASM
     if (kernel_w != kernel_h || stride_w != stride_h)
     {
         return Pooling::forward(bottom_blob, top_blob, opt);
@@ -376,6 +381,9 @@ int Pooling_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         pooling3x3s2_max_neon(bottom_blob_bordered, top_blob, opt);
 
     return 0;
+#else  // NCNN_GNU_INLINE_ASM
+    return Pooling::forward(bottom_blob, top_blob, opt);
+#endif // NCNN_GNU_INLINE_ASM
 }
 
 #if NCNN_BF16
@@ -533,6 +541,7 @@ int Pooling_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
 #if __ARM_NEON
         if (elempack == 4)
         {
+#if NCNN_GNU_INLINE_ASM
             if (kernel_w == 2 && kernel_h == 2 && stride_w == 2 && stride_h == 2)
             {
                 pooling2x2s2_max_pack4_bf16s_neon(bottom_blob_bordered, top_blob, opt);
@@ -546,6 +555,7 @@ int Pooling_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
 
                 return 0;
             }
+#endif // NCNN_GNU_INLINE_ASM
 
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
