@@ -133,6 +133,29 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
 
         return 0;
     }
+    
+    if (bottom_blob.dims == 3 && bottom_blob.c == num_input)
+    // if (bottom_blob.dims == 3 && bottom_blob.c == num_input && bottom_blob.w == 1 )
+    {
+        // gemm
+        int w = bottom_blob.w;
+        int h = bottom_blob.h;
+        int c = bottom_blob.c; // num_input
+        size_t elemsize = bottom_blob.elemsize;
+        int elempack = bottom_blob.elempack;
+        ncnn::Mat bottom_blob_flattened = bottom_blob.reshape(w * h, c);
+        ncnn::Mat top_blob_flattened;
+
+        // Adjust the size of top_blob
+        top_blob_flattened.create(num_output, w * h, elemsize, elempack, opt.blob_allocator);
+        if (top_blob_flattened.empty())
+        return -100;
+
+        // Perform the matrix multiplication
+        innerproduct_gemm_sse(bottom_blob_flattened, top_blob, weight_data_tm, bias_data, activation_type, activation_params, opt);
+        top_blob.reshape(w, h, num_output);
+        return 0;
+    }
 
     // flatten
     Mat bottom_blob_flattened = bottom_blob;
