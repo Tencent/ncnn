@@ -469,7 +469,7 @@ if(NCNN_TARGET_ARCH STREQUAL "arm" AND CMAKE_SIZEOF_VOID_P EQUAL 4)
 
     if(NOT NCNN_RUNTIME_CPU AND NCNN_VFPV4)
         if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC" OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_SIMULATE_ID MATCHES "MSVC" AND CMAKE_CXX_COMPILER_FRONTEND_VARIANT MATCHES "MSVC"))
-            target_compile_options(ncnn PRIVATE /arch:VFPv4 /D__ARM_FP=0x0E)
+            target_compile_options(ncnn PRIVATE /arch:VFPv4 /D__ARM_FP=0x0E /D__fp16=__n16)
         else()
             if(NCNN_COMPILER_SUPPORT_ARM_VFPV4)
                 target_compile_options(ncnn PRIVATE -mfpu=neon-vfpv4)
@@ -487,7 +487,7 @@ endif()
 if(NCNN_TARGET_ARCH STREQUAL "arm" AND CMAKE_SIZEOF_VOID_P EQUAL 8)
     if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC" OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_SIMULATE_ID MATCHES "MSVC" AND CMAKE_CXX_COMPILER_FRONTEND_VARIANT MATCHES "MSVC"))
         # always enable neon and vfpv4 for msvc arm64
-        target_compile_options(ncnn PRIVATE /D__ARM_NEON /D__ARM_FP=0x0E)
+        target_compile_options(ncnn PRIVATE /D__ARM_NEON /D__ARM_FP=0x0E /D__fp16=__n16)
     endif()
 
     if(NOT NCNN_RUNTIME_CPU AND NCNN_ARM86SVE)

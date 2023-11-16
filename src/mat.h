@@ -112,8 +112,10 @@ public:
 #endif
     void fill(int32x4_t _v0, int32x4_t _v1);
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#if !defined(_MSC_VER)
     void fill(float16x4_t _v);
     void fill(float16x8_t _v);
+#endif
 #endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 #endif // __ARM_NEON
 #if __SSE2__
@@ -986,6 +988,7 @@ NCNN_FORCEINLINE void Mat::fill(int32x4_t _v0, int32x4_t _v1)
     }
 }
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#if !defined(_MSC_VER)
 NCNN_FORCEINLINE void Mat::fill(float16x4_t _v)
 {
     int size = (int)total();
@@ -1007,6 +1010,7 @@ NCNN_FORCEINLINE void Mat::fill(float16x8_t _v)
         ptr += 8;
     }
 }
+#endif
 #endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 #endif // __ARM_NEON
 
