@@ -388,15 +388,15 @@ static void padding_constant_pack4_neon(const Mat& src, Mat& dst, int top, int b
         int x = 0;
         for (; x + 3 < bottom_size; x += 4)
         {
-            vst1q_f32(outptr, _p);
-            vst1q_f32(outptr + 4, _p);
-            vst1q_f32(outptr + 8, _p);
-            vst1q_f32(outptr + 12, _p);
+            vst1q_f32(outptr, v);
+            vst1q_f32(outptr + 4, v);
+            vst1q_f32(outptr + 8, v);
+            vst1q_f32(outptr + 12, v);
             outptr += 16;
         }
         for (; x < bottom_size; x++)
         {
-            vst1q_f32(outptr, _p);
+            vst1q_f32(outptr, v);
             outptr += 4;
         }
     }
