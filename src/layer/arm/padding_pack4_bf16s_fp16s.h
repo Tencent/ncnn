@@ -14,8 +14,8 @@
 
 static void padding_constant_pack4_bf16_fp16s_neon(const Mat& src, Mat& dst, int top, int bottom, int left, int right, uint16x8_t v)
 {
-    const short* ptr = src;
-    short* outptr = dst;
+    const unsigned short* ptr = src;
+    unsigned short* outptr = dst;
 
     int w = src.w;
     int h = src.h;
