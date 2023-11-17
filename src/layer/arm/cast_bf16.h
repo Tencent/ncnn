@@ -170,7 +170,12 @@ static void cast_fp32_to_bf16_neon(const Mat& bottom_blob, Mat& top_blob, const 
             // because intrinsic cause ndk clang crash
             // *outptr++ = vcvth_bf16_f32(*ptr++);
 #else
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            *(unsigned short*)outptr = float32_to_bfloat16(*ptr++);
+            outptr++;
+#else
             *outptr++ = float32_to_bfloat16(*ptr++);
+#endif
 #endif
         }
     }
