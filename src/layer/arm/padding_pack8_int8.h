@@ -342,15 +342,15 @@ static void padding_constant_pack8_int8_neon(const Mat& src, Mat& dst, int top, 
         int x = 0;
         for (; x + 3 < top_size; x += 4)
         {
-            vst1q_s8(outptr, v);
-            vst1q_s8(outptr + 8, v);
-            vst1q_s8(outptr + 16, v);
-            vst1q_s8(outptr + 24, v);
+            vst1_s8(outptr, v);
+            vst1_s8(outptr + 8, v);
+            vst1_s8(outptr + 16, v);
+            vst1_s8(outptr + 24, v);
             outptr += 32;
         }
         for (; x < top_size; x++)
         {
-            vst1q_s8(outptr, v);
+            vst1_s8(outptr, v);
             outptr += 8;
         }
     }
@@ -359,19 +359,19 @@ static void padding_constant_pack8_int8_neon(const Mat& src, Mat& dst, int top, 
     {
         for (int x = 0; x < left; x++)
         {
-            vst1q_s8(outptr, v);
+            vst1_s8(outptr, v);
             outptr += 8;
         }
         for (int x = 0; x < src.w; x++)
         {
-            _p = vld1q_s8(ptr);
-            vst1q_s8(outptr, _p);
+            int8x8_t _p = vld1_s8(ptr);
+            vst1_s8(outptr, _p);
             ptr += 8;
             outptr += 8;
         }
         for (int x = 0; x < right; x++)
         {
-            vst1q_s8(outptr, v);
+            vst1_s8(outptr, v);
             outptr += 8;
         }
     }
@@ -380,15 +380,15 @@ static void padding_constant_pack8_int8_neon(const Mat& src, Mat& dst, int top, 
         int x = 0;
         for (; x + 3 < bottom_size; x += 4)
         {
-            vst1q_s8(outptr, v);
-            vst1q_s8(outptr + 8, v);
-            vst1q_s8(outptr + 16, v);
-            vst1q_s8(outptr + 24, v);
+            vst1_s8(outptr, v);
+            vst1_s8(outptr + 8, v);
+            vst1_s8(outptr + 16, v);
+            vst1_s8(outptr + 24, v);
             outptr += 32;
         }
         for (; x < bottom_size; x++)
         {
-            vst1q_s8(outptr, v);
+            vst1_s8(outptr, v);
             outptr += 8;
         }
     }

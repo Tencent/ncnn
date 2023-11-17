@@ -360,7 +360,7 @@ static void padding_constant_pack4_bf16_fp16s_neon(const Mat& src, Mat& dst, int
         }
         for (int x = 0; x < src.w; x++)
         {
-            _p = vld1_u16(ptr);
+            uint16x4_t _p = vld1_u16(ptr);
             vst1_u16(outptr, _p);
             ptr += 4;
             outptr += 4;

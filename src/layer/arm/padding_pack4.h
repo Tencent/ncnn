@@ -372,7 +372,7 @@ static void padding_constant_pack4_neon(const Mat& src, Mat& dst, int top, int b
         }
         for (int x = 0; x < src.w; x++)
         {
-            _p = vld1q_f32(ptr);
+            float32x4_t _p = vld1q_f32(ptr);
             vst1q_f32(outptr, _p);
             ptr += 4;
             outptr += 4;

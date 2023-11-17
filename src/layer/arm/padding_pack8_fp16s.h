@@ -155,7 +155,7 @@ static void padding_constant_pack8_fp16s_neon(const Mat& src, Mat& dst, int top,
         "r"(right),       // %7
         "r"(top_size),    // %8
         "r"(bottom_size), // %9
-        "w"(v)           // %10
+        "w"(v)            // %10
         : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v16", "v17", "v18", "v19");
 #else  // NCNN_GNU_INLINE_ASM
 
@@ -186,7 +186,7 @@ static void padding_constant_pack8_fp16s_neon(const Mat& src, Mat& dst, int top,
         }
         for (int x = 0; x < src.w; x++)
         {
-            _p = vld1q_u16(ptr);
+            uint16x8_t _p = vld1q_u16(ptr);
             vst1q_u16(outptr, _p);
             ptr += 8;
             outptr += 8;
