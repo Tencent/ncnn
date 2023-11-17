@@ -1204,24 +1204,9 @@ Mat Mat::from_float16(const unsigned short* data, int size)
     Mat src(size, (void*)data, (size_t)2u);
     Mat dst;
 
-    Layer* cast = create_layer(LayerType::Cast);
-
-    ParamDict pd;
-    pd.set(0, 2); // type_from
-    pd.set(1, 1); // type_to
-
-    cast->load_param(pd);
-
     Option opt;
     opt.num_threads = 1; // TODO
-
-    cast->create_pipeline(opt);
-
-    cast->forward(src, dst, opt);
-
-    cast->destroy_pipeline(opt);
-
-    delete cast;
+    cast_float16_to_float32(src, dst, opt);
 
     return dst;
 }
