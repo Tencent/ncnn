@@ -736,12 +736,12 @@ int Packing_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                         : "memory", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
 #endif
 #else  // NCNN_GNU_INLINE_ASM
-                    uint16x8x4_t _r0246 = vld4q_u8(r0);
-                    uint16x8x4_t _r1357 = vld4q_u8(r0 + 32);
-                    uint16x8x2_t _r04 = vuzpq_u8(_r0246.val[0], _r1357.val[0]);
-                    uint16x8x2_t _r15 = vuzpq_u8(_r0246.val[1], _r1357.val[1]);
-                    uint16x8x2_t _r26 = vuzpq_u8(_r0246.val[2], _r1357.val[2]);
-                    uint16x8x2_t _r37 = vuzpq_u8(_r0246.val[3], _r1357.val[3]);
+                    uint16x8x4_t _r0246 = vld4q_u16(r0);
+                    uint16x8x4_t _r1357 = vld4q_u16(r0 + 32);
+                    uint16x8x2_t _r04 = vuzpq_u16(_r0246.val[0], _r1357.val[0]);
+                    uint16x8x2_t _r15 = vuzpq_u16(_r0246.val[1], _r1357.val[1]);
+                    uint16x8x2_t _r26 = vuzpq_u16(_r0246.val[2], _r1357.val[2]);
+                    uint16x8x2_t _r37 = vuzpq_u16(_r0246.val[3], _r1357.val[3]);
                     vst1q_u16(outptr0, _r04.val[0]);
                     vst1q_u16(outptr1, _r15.val[0]);
                     vst1q_u16(outptr2, _r26.val[0]);
@@ -1286,12 +1286,12 @@ int Packing_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                         : "memory", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
 #endif
 #else  // NCNN_GNU_INLINE_ASM
-                    uint16x8x4_t _r0246 = vld4q_u8(r0);
-                    uint16x8x4_t _r1357 = vld4q_u8(r0 + 32);
-                    uint16x8x2_t _r04 = vuzpq_u8(_r0246.val[0], _r1357.val[0]);
-                    uint16x8x2_t _r15 = vuzpq_u8(_r0246.val[1], _r1357.val[1]);
-                    uint16x8x2_t _r26 = vuzpq_u8(_r0246.val[2], _r1357.val[2]);
-                    uint16x8x2_t _r37 = vuzpq_u8(_r0246.val[3], _r1357.val[3]);
+                    uint16x8x4_t _r0246 = vld4q_u16(r0);
+                    uint16x8x4_t _r1357 = vld4q_u16(r0 + 32);
+                    uint16x8x2_t _r04 = vuzpq_u16(_r0246.val[0], _r1357.val[0]);
+                    uint16x8x2_t _r15 = vuzpq_u16(_r0246.val[1], _r1357.val[1]);
+                    uint16x8x2_t _r26 = vuzpq_u16(_r0246.val[2], _r1357.val[2]);
+                    uint16x8x2_t _r37 = vuzpq_u16(_r0246.val[3], _r1357.val[3]);
                     vst1q_u16(outptr0, _r04.val[0]);
                     vst1q_u16(outptr1, _r15.val[0]);
                     vst1q_u16(outptr2, _r26.val[0]);
