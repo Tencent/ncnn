@@ -61,6 +61,7 @@ jobs:
     runs-on: ubuntu-latest
     container: linaro/wine-arm64
     steps:
+    - uses: actions/checkout@v3
     - name: msvc-wine
       run: |
         chown root /github/home
@@ -72,13 +73,12 @@ jobs:
         ./vsdownload.py --accept-license --dest $GITHUB_WORKSPACE/msvc
         ./install.sh $GITHUB_WORKSPACE/msvc
         wine wineboot
-    - uses: actions/checkout@v3
     - name: build
+      env:
+        CC: cl
+        CXX: cl
       run: |
-        ls $GITHUB_WORKSPACE/msvc/bin/arm64 -l
         export PATH=$GITHUB_WORKSPACE/msvc/bin/arm64:$PATH
-        export CC=$GITHUB_WORKSPACE/msvc/bin/arm64/cl
-        export CXX=$GITHUB_WORKSPACE/msvc/bin/arm64/cl
         mkdir build && cd build
         cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_SYSTEM_NAME=Windows -DNCNN_BUILD_TESTS=ON ..
         cmake --build . --config Release -j 2
