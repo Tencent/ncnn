@@ -72,6 +72,7 @@ jobs:
         cd msvc-wine
         ./vsdownload.py --accept-license --dest $GITHUB_WORKSPACE/msvc
         ./install.sh $GITHUB_WORKSPACE/msvc
+        sed -i 's/wine64/wine/g' $GITHUB_WORKSPACE/msvc/bin/arm64/wine-msvc.sh
         wine wineboot
     - name: build
       env:
@@ -79,7 +80,6 @@ jobs:
         CXX: cl
       run: |
         export PATH=$GITHUB_WORKSPACE/msvc/bin/arm64:$PATH
-        alias wine64=wine
         mkdir build && cd build
         cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_SYSTEM_NAME=Windows -DNCNN_BUILD_TESTS=ON ..
         cmake --build . --config Release -j 2
