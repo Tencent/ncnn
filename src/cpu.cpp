@@ -245,8 +245,8 @@ DEFINE_INSTCODE(some_i8mm, 0x4e80a400)      // smmla v0.4h,v0.16b,v0.16b
 DEFINE_INSTCODE(some_sve, 0x65608000)       // fmad z0.h,p0/m,z0.h,z0.h
 DEFINE_INSTCODE(some_sve2, 0x44405000)      // smlslb z0.h,z0.b,z0.b
 DEFINE_INSTCODE(some_svebf16, 0x6460e400)   // bfmmla z0.s,z0.h,z0.h
-DEFINE_INSTCODE(some_svebi8mm, 0x45009800)  // smmla z0.s,z0.b,z0.b
-DEFINE_INSTCODE(some_svebf32mm, 0x64a0e400) // fmmla z0.s,z0.s,z0.s
+DEFINE_INSTCODE(some_svei8mm, 0x45009800)  // smmla z0.s,z0.b,z0.b
+DEFINE_INSTCODE(some_svef32mm, 0x64a0e400) // fmmla z0.s,z0.s,z0.s
 #else
 DEFINE_INSTCODE(some_edsp, 0x0000fb20)  // smlad r0,r0,r0,r0
 DEFINE_INSTCODE(some_neon, 0x0d40ef00)  // vadd.f32 q0,q0,q0
