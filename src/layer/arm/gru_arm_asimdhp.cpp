@@ -378,6 +378,7 @@ static int gru_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
             int i = 0;
             for (; i + 3 < size; i += 4)
             {
+#if NCNN_GNU_INLINE_ASM
                 asm volatile(
                     "ld1    {v4.4h}, [%0], #8       \n"
                     "ld1    {v0.8h, v1.8h, v2.8h, v3.8h}, [%1], #64 \n"
@@ -398,6 +399,20 @@ static int gru_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
                     "4"(_sum2),
                     "5"(_sum3)
                     : "memory", "v0", "v1", "v2", "v3", "v4");
+#else  // NCNN_GNU_INLINE_ASM
+                float16x4_t _x = vld1_f16(x);
+                float16x8_t _w0 = vld1q_f16(weight_xc_RUN);
+                float16x8_t _w1 = vld1q_f16(weight_xc_RUN + 8);
+                float16x8_t _w2 = vld1q_f16(weight_xc_RUN + 16);
+                float16x8_t _w3 = vld1q_f16(weight_xc_RUN + 24);
+                _RU = vfmaq_lane_f16(_RU, _w0, _x, 0);
+                _sum1 = vfmaq_lane_f16(_sum1, _w1, _x, 1);
+                _sum2 = vfmaq_lane_f16(_sum2, _w2, _x, 2);
+                _sum3 = vfmaq_lane_f16(_sum3, _w3, _x, 3);
+
+                x += 4;
+                weight_xc_RUN += 32;
+#endif // NCNN_GNU_INLINE_ASM
             }
             for (; i < size; i++)
             {
@@ -415,6 +430,7 @@ static int gru_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
             i = 0;
             for (; i + 3 < num_output; i += 4)
             {
+#if NCNN_GNU_INLINE_ASM
                 asm volatile(
                     "ld1    {v4.4s}, [%0], #16      \n"
                     "ld1    {v0.8h, v1.8h, v2.8h, v3.8h}, [%1], #64 \n"
@@ -436,6 +452,20 @@ static int gru_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
                     "4"(_sum2),
                     "5"(_sum3)
                     : "memory", "v0", "v1", "v2", "v3", "v4");
+#else  // NCNN_GNU_INLINE_ASM
+                float16x4_t _h_cont = vcvt_f16_f32(vld1q_f32(hidden_ptr));
+                float16x8_t _w0 = vld1q_f16(weight_hc_RUN);
+                float16x8_t _w1 = vld1q_f16(weight_hc_RUN + 8);
+                float16x8_t _w2 = vld1q_f16(weight_hc_RUN + 16);
+                float16x8_t _w3 = vld1q_f16(weight_hc_RUN + 24);
+                _RU = vfmaq_lane_f16(_RU, _w0, _h_cont, 0);
+                _sum1 = vfmaq_lane_f16(_sum1, _w1, _h_cont, 1);
+                _sum2 = vfmaq_lane_f16(_sum2, _w2, _h_cont, 2);
+                _sum3 = vfmaq_lane_f16(_sum3, _w3, _h_cont, 3);
+
+                hidden_ptr += 4;
+                weight_hc_RUN += 32;
+#endif // NCNN_GNU_INLINE_ASM
             }
             for (; i < num_output; i++)
             {
@@ -469,6 +499,7 @@ static int gru_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
             i = 0;
             for (; i + 3 < num_output; i += 4)
             {
+#if NCNN_GNU_INLINE_ASM
                 asm volatile(
                     "ld1    {v4.4s}, [%0], #16      \n"
                     "ld1    {v0.4h, v1.4h, v2.4h, v3.4h}, [%1], #32 \n"
@@ -490,6 +521,20 @@ static int gru_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
                     "4"(_sum5),
                     "5"(_sum6)
                     : "memory", "v0", "v1", "v2", "v3", "v4");
+#else  // NCNN_GNU_INLINE_ASM
+                float16x4_t _h_cont = vcvt_f16_f32(vld1q_f32(hidden_ptr));
+                float16x4_t _w0 = vld1_f16(weight_hc_RUN);
+                float16x4_t _w1 = vld1_f16(weight_hc_RUN + 4);
+                float16x4_t _w2 = vld1_f16(weight_hc_RUN + 8);
+                float16x4_t _w3 = vld1_f16(weight_hc_RUN + 12);
+                _gru_N = vfma_lane_f16(_gru_N, _w0, _h_cont, 0);
+                _sum4 = vfma_lane_f16(_sum4, _w1, _h_cont, 1);
+                _sum5 = vfma_lane_f16(_sum5, _w2, _h_cont, 2);
+                _sum6 = vfma_lane_f16(_sum6, _w3, _h_cont, 3);
+
+                hidden_ptr += 4;
+                weight_hc_RUN += 16;
+#endif // NCNN_GNU_INLINE_ASM
             }
             for (; i < num_output; i++)
             {
@@ -514,6 +559,7 @@ static int gru_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
             i = 0;
             for (; i + 3 < size; i += 4)
             {
+#if NCNN_GNU_INLINE_ASM
                 asm volatile(
                     "ld1    {v4.4h}, [%0], #8       \n"
                     "ld1    {v0.4h, v1.4h, v2.4h, v3.4h}, [%1], #32 \n"
@@ -534,6 +580,20 @@ static int gru_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
                     "4"(_sum5),
                     "5"(_sum6)
                     : "memory", "v0", "v1", "v2", "v3", "v4");
+#else  // NCNN_GNU_INLINE_ASM
+                float16x4_t _x = vld1_f16(x);
+                float16x4_t _w0 = vld1_f16(weight_xc_RUN);
+                float16x4_t _w1 = vld1_f16(weight_xc_RUN + 4);
+                float16x4_t _w2 = vld1_f16(weight_xc_RUN + 8);
+                float16x4_t _w3 = vld1_f16(weight_xc_RUN + 12);
+                _gru_N = vfma_lane_f16(_gru_N, _w0, _x, 0);
+                _sum4 = vfma_lane_f16(_sum4, _w1, _x, 1);
+                _sum5 = vfma_lane_f16(_sum5, _w2, _x, 2);
+                _sum6 = vfma_lane_f16(_sum6, _w3, _x, 3);
+
+                x += 4;
+                weight_xc_RUN += 16;
+#endif // NCNN_GNU_INLINE_ASM
             }
             for (; i < size; i++)
             {

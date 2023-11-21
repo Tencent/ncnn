@@ -521,6 +521,7 @@ int InnerProduct_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, cons
             const __fp16* sptr = bottom_blob_flattened;
 
             int i = 0;
+#if NCNN_GNU_INLINE_ASM
             for (; i + 7 < num_input; i += 8)
             {
                 asm volatile(
@@ -592,6 +593,7 @@ int InnerProduct_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, cons
                     "5"(kptr)
                     : "cc", "memory", "v0", "v8", "v9", "v10", "v11");
             }
+#endif // NCNN_GNU_INLINE_ASM
             for (; i < num_input; i++)
             {
                 float16x8_t _val = vdupq_n_f16(sptr[0]);
@@ -644,6 +646,7 @@ int InnerProduct_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, cons
             const __fp16* sptr = bottom_blob_flattened;
 
             int i = 0;
+#if NCNN_GNU_INLINE_ASM
             for (; i + 7 < num_input; i += 8)
             {
                 asm volatile(
@@ -715,6 +718,7 @@ int InnerProduct_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, cons
                     "5"(kptr)
                     : "cc", "memory", "v0", "v8", "v9", "v10", "v11");
             }
+#endif // NCNN_GNU_INLINE_ASM
             for (; i < num_input; i++)
             {
                 float16x4_t _val = vdup_n_f16(sptr[0]);

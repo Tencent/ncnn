@@ -51,7 +51,7 @@ static int from_rgb(const unsigned char* rgb, int w, int h, int stride, Mat& m, 
 #endif // __ARM_NEON
 
 #if __ARM_NEON
-#if __aarch64__
+#if !NCNN_GNU_INLINE_ASM || __aarch64__
         for (; nn > 0; nn--)
         {
             uint8x8x3_t _rgb = vld3_u8(rgb);
@@ -233,7 +233,7 @@ static int from_gray(const unsigned char* gray, int w, int h, int stride, Mat& m
 #endif // __ARM_NEON
 
 #if __ARM_NEON
-#if __aarch64__
+#if !NCNN_GNU_INLINE_ASM || __aarch64__
         for (; nn > 0; nn--)
         {
             uint8x16_t _gray = vld1q_u8(gray);
@@ -380,7 +380,7 @@ static int from_rgba(const unsigned char* rgba, int w, int h, int stride, Mat& m
 #endif // __ARM_NEON
 
 #if __ARM_NEON
-#if __aarch64__
+#if !NCNN_GNU_INLINE_ASM || __aarch64__
         for (; nn > 0; nn--)
         {
             uint8x8x4_t _rgba = vld4_u8(rgba);
@@ -588,7 +588,7 @@ static int from_rgb2bgr(const unsigned char* rgb, int w, int h, int stride, Mat&
 #endif // __ARM_NEON
 
 #if __ARM_NEON
-#if __aarch64__
+#if !NCNN_GNU_INLINE_ASM || __aarch64__
         for (; nn > 0; nn--)
         {
             uint8x8x3_t _rgb = vld3_u8(rgb);
@@ -776,7 +776,7 @@ static int from_rgb2gray(const unsigned char* rgb, int w, int h, int stride, Mat
 #endif // __ARM_NEON
 
 #if __ARM_NEON
-#if __aarch64__
+#if !NCNN_GNU_INLINE_ASM || __aarch64__
         uint8x8_t _R2Y = vdup_n_u8(R2Y);
         uint8x8_t _G2Y = vdup_n_u8(G2Y);
         uint8x8_t _B2Y = vdup_n_u8(B2Y);
@@ -966,7 +966,7 @@ static int from_bgr2gray(const unsigned char* bgr, int w, int h, int stride, Mat
 #endif // __ARM_NEON
 
 #if __ARM_NEON
-#if __aarch64__
+#if !NCNN_GNU_INLINE_ASM || __aarch64__
         uint8x8_t _R2Y = vdup_n_u8(R2Y);
         uint8x8_t _G2Y = vdup_n_u8(G2Y);
         uint8x8_t _B2Y = vdup_n_u8(B2Y);
@@ -1152,7 +1152,7 @@ static int from_gray2rgb(const unsigned char* gray, int w, int h, int stride, Ma
 #endif // __ARM_NEON
 
 #if __ARM_NEON
-#if __aarch64__
+#if !NCNN_GNU_INLINE_ASM || __aarch64__
         for (; nn > 0; nn--)
         {
             uint8x16_t _gray = vld1q_u8(gray);
@@ -1348,7 +1348,7 @@ static int from_rgba2rgb(const unsigned char* rgba, int w, int h, int stride, Ma
 #endif // __ARM_NEON
 
 #if __ARM_NEON
-#if __aarch64__
+#if !NCNN_GNU_INLINE_ASM || __aarch64__
         for (; nn > 0; nn--)
         {
             uint8x8x4_t _rgba = vld4_u8(rgba);
@@ -1461,7 +1461,7 @@ static int from_rgba2bgr(const unsigned char* rgba, int w, int h, int stride, Ma
 #endif // __ARM_NEON
 
 #if __ARM_NEON
-#if __aarch64__
+#if !NCNN_GNU_INLINE_ASM || __aarch64__
         for (; nn > 0; nn--)
         {
             uint8x8x4_t _rgba = vld4_u8(rgba);
@@ -1578,7 +1578,7 @@ static int from_rgba2gray(const unsigned char* rgba, int w, int h, int stride, M
 #endif // __ARM_NEON
 
 #if __ARM_NEON
-#if __aarch64__
+#if !NCNN_GNU_INLINE_ASM || __aarch64__
         uint8x8_t _R2Y = vdup_n_u8(R2Y);
         uint8x8_t _G2Y = vdup_n_u8(G2Y);
         uint8x8_t _B2Y = vdup_n_u8(B2Y);
@@ -1676,7 +1676,7 @@ static int from_rgba2bgra(const unsigned char* rgba, int w, int h, int stride, M
 #endif // __ARM_NEON
 
 #if __ARM_NEON
-#if __aarch64__
+#if !NCNN_GNU_INLINE_ASM || __aarch64__
         for (; nn > 0; nn--)
         {
             uint8x8x4_t _rgba = vld4_u8(rgba);
@@ -1888,7 +1888,7 @@ static int from_bgra2gray(const unsigned char* bgra, int w, int h, int stride, M
 #endif // __ARM_NEON
 
 #if __ARM_NEON
-#if __aarch64__
+#if !NCNN_GNU_INLINE_ASM || __aarch64__
         uint8x8_t _R2Y = vdup_n_u8(R2Y);
         uint8x8_t _G2Y = vdup_n_u8(G2Y);
         uint8x8_t _B2Y = vdup_n_u8(B2Y);
@@ -1986,7 +1986,7 @@ void yuv420sp2rgb(const unsigned char* yuv420sp, int w, int h, unsigned char* rg
 #endif // __ARM_NEON
 
 #if __ARM_NEON
-#if __aarch64__
+#if !NCNN_GNU_INLINE_ASM || __aarch64__
         for (; nn > 0; nn--)
         {
             int16x8_t _yy0 = vreinterpretq_s16_u16(vshll_n_u8(vld1_u8(yptr0), 6));
@@ -2177,7 +2177,7 @@ void yuv420sp2rgb_nv12(const unsigned char* yuv420sp, int w, int h, unsigned cha
 #endif // __ARM_NEON
 
 #if __ARM_NEON
-#if __aarch64__
+#if !NCNN_GNU_INLINE_ASM || __aarch64__
         for (; nn > 0; nn--)
         {
             int16x8_t _yy0 = vreinterpretq_s16_u16(vshll_n_u8(vld1_u8(yptr0), 6));

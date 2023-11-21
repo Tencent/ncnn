@@ -76,6 +76,7 @@ int HardSwish_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
         float32x4_t _beta = vdupq_n_f32(beta);
         for (; i + 15 < size; i += 16)
         {
+#if NCNN_GNU_INLINE_ASM
 #if __aarch64__
             asm volatile(
                 "prfm   pldl1keep, [%0, #512]   \n"
@@ -141,6 +142,33 @@ int HardSwish_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                 "w"(_beta)   // %5
                 : "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7");
 #endif // __aarch64__
+#else  // NCNN_GNU_INLINE_ASM
+            float32x4_t _p0 = vld1q_f32(ptr);
+            float32x4_t _p1 = vld1q_f32(ptr + 4);
+            float32x4_t _p2 = vld1q_f32(ptr + 8);
+            float32x4_t _p3 = vld1q_f32(ptr + 12);
+            float32x4_t _ans0 = vmlaq_f32(_beta, _p0, _alpha);
+            float32x4_t _ans1 = vmlaq_f32(_beta, _p1, _alpha);
+            float32x4_t _ans2 = vmlaq_f32(_beta, _p2, _alpha);
+            float32x4_t _ans3 = vmlaq_f32(_beta, _p3, _alpha);
+            _ans0 = vmaxq_f32(_ans0, _zero);
+            _ans1 = vmaxq_f32(_ans1, _zero);
+            _ans2 = vmaxq_f32(_ans2, _zero);
+            _ans3 = vmaxq_f32(_ans3, _zero);
+            _ans0 = vminq_f32(_ans0, _one);
+            _ans1 = vminq_f32(_ans1, _one);
+            _ans2 = vminq_f32(_ans2, _one);
+            _ans3 = vminq_f32(_ans3, _one);
+            _p0 = vmulq_f32(_ans0, _p0);
+            _p1 = vmulq_f32(_ans1, _p1);
+            _p2 = vmulq_f32(_ans2, _p2);
+            _p3 = vmulq_f32(_ans3, _p3);
+            vst1q_f32(ptr, _p0);
+            vst1q_f32(ptr + 4, _p1);
+            vst1q_f32(ptr + 8, _p2);
+            vst1q_f32(ptr + 12, _p3);
+            ptr += 16;
+#endif // NCNN_GNU_INLINE_ASM
         }
         for (; i + 7 < size; i += 8)
         {
@@ -208,6 +236,7 @@ int HardSwish_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt
         float32x4_t _beta = vdupq_n_f32(beta);
         for (; i + 15 < size; i += 16)
         {
+#if NCNN_GNU_INLINE_ASM
 #if __aarch64__
             asm volatile(
                 "prfm   pldl1keep, [%0, #256]   \n"
@@ -289,6 +318,35 @@ int HardSwish_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt
                 "w"(_beta)   // %5
                 : "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7");
 #endif // __aarch64__
+#else  // NCNN_GNU_INLINE_ASM
+            uint16x8_t _p = vld1q_u16(ptr);
+            uint16x8_t _q = vld1q_u16(ptr + 8);
+            float32x4_t _p0 = bfloat2float(vget_low_u16(_p));
+            float32x4_t _p1 = bfloat2float(vget_high_u16(_p));
+            float32x4_t _p2 = bfloat2float(vget_low_u16(_q));
+            float32x4_t _p3 = bfloat2float(vget_high_u16(_q));
+            float32x4_t _ans0 = vmlaq_f32(_beta, _p0, _alpha);
+            float32x4_t _ans1 = vmlaq_f32(_beta, _p1, _alpha);
+            float32x4_t _ans2 = vmlaq_f32(_beta, _p2, _alpha);
+            float32x4_t _ans3 = vmlaq_f32(_beta, _p3, _alpha);
+            _ans0 = vmaxq_f32(_ans0, _zero);
+            _ans1 = vmaxq_f32(_ans1, _zero);
+            _ans2 = vmaxq_f32(_ans2, _zero);
+            _ans3 = vmaxq_f32(_ans3, _zero);
+            _ans0 = vminq_f32(_ans0, _one);
+            _ans1 = vminq_f32(_ans1, _one);
+            _ans2 = vminq_f32(_ans2, _one);
+            _ans3 = vminq_f32(_ans3, _one);
+            _p0 = vmulq_f32(_ans0, _p0);
+            _p1 = vmulq_f32(_ans1, _p1);
+            _p2 = vmulq_f32(_ans2, _p2);
+            _p3 = vmulq_f32(_ans3, _p3);
+            _p = vcombine_u16(float2bfloat(_p0), float2bfloat(_p1));
+            _q = vcombine_u16(float2bfloat(_p2), float2bfloat(_p3));
+            vst1q_u16(ptr, _p);
+            vst1q_u16(ptr + 8, _q);
+            ptr += 16;
+#endif // NCNN_GNU_INLINE_ASM
         }
         for (; i + 7 < size; i += 8)
         {
