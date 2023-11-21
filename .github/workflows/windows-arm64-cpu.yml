@@ -68,10 +68,10 @@ jobs:
         apt-get install -y wine64 wine64-tools wine64-preloader python3 msitools python3-simplejson python3-six ca-certificates cmake ninja-build winbind meson
         xvfb-run winecfg &
         git clone --depth 1 https://github.com/mstorsjo/msvc-wine
-        pushd msvc-wine
+        cd msvc-wine
         ./vsdownload.py --accept-license --dest ../msvc
         ./install.sh ../msvc
-        popd
+        cd ..
         wine wineboot
         ls `pwd`/msvc
         ls `pwd`/msvc/bin
