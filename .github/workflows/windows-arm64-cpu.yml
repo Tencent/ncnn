@@ -63,6 +63,7 @@ jobs:
     steps:
     - name: msvc-wine
       run: |
+        chown root /github/home
         apt-get update
         apt-get install -y wine64 wine64-tools wine64-preloader python3 msitools python3-simplejson python3-six ca-certificates cmake ninja-build winbind meson
         git clone --depth 1 https://github.com/mstorsjo/msvc-wine
