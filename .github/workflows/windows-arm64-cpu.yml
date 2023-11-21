@@ -69,16 +69,17 @@ jobs:
         xvfb-run winecfg &
         git clone --depth 1 https://github.com/mstorsjo/msvc-wine
         cd msvc-wine
-        ./vsdownload.py --accept-license --dest $GITHUB_WORKSPACE/msvc
-        ./install.sh $GITHUB_WORKSPACE/msvc
+        ./vsdownload.py --accept-license --dest ../msvc
+        ./install.sh ../msvc
         wine wineboot
+        ls ../msvc
     - uses: actions/checkout@v3
     - name: build
       env:
         CC: cl
         CXX: cl
       run: |
-        export PATH=$GITHUB_WORKSPACE/msvc/bin/arm64:$PATH
+        export PATH=`pwd`/msvc/bin/arm64:$PATH
         mkdir build && cd build
         cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_SYSTEM_NAME=Windows -DNCNN_BUILD_TESTS=ON ..
         cmake --build . --config Release -j 2
