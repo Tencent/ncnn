@@ -27,31 +27,55 @@ permissions:
   contents: read
 
 jobs:
-  windows:
-    name: ${{ matrix.vs-version }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        include:
-          - vs-version: vs2019
-            toolset-version: v142
-            os: windows-2022
+  # windows:
+  #   name: ${{ matrix.vs-version }}
+  #   runs-on: ${{ matrix.os }}
+  #   strategy:
+  #     matrix:
+  #       include:
+  #         - vs-version: vs2019
+  #           toolset-version: v142
+  #           os: windows-2022
+  #
+  #         - vs-version: vs2022
+  #           toolset-version: v143
+  #           os: windows-2022
+  #
+  #   env:
+  #     UseMultiToolTask: true
+  #   steps:
+  #   - uses: actions/checkout@v4
+  #   - name: build
+  #     run: |
+  #       mkdir build; cd build
+  #       cmake -T ${{ matrix.toolset-version }},host=x64 -A arm64 -DNCNN_BUILD_TESTS=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
+  #       cmake --build . --config Release -j 2
+  #   - name: build-shared
+  #     run: |
+  #       mkdir build-shared; cd build-shared
+  #       cmake -T ${{ matrix.toolset-version }},host=x64 -A arm64 -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_SHARED_LIB=ON ..
+  #       cmake --build . --config Release -j 2
 
-          - vs-version: vs2022
-            toolset-version: v143
-            os: windows-2022
-
-    env:
-      UseMultiToolTask: true
+  woa-linux:
+    name: woa-linux
+    runs-on: ubuntu-latest
+    container: linaro/wine-arm64
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v3
+    - name: download-msvc
+      run: |
+        ./run.sh x64 ./get_msvc.sh
     - name: build
+      env:
+        CC: cl
+        CXX: cl
       run: |
-        mkdir build; cd build
-        cmake -T ${{ matrix.toolset-version }},host=x64 -A arm64 -DNCNN_BUILD_TESTS=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
+        export PATH=$(pwd)/build/msvc/bin/arm64:$PATH
+        mkdir build && cd build
+        cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_SYSTEM_NAME=Windows -DNCNN_BUILD_TESTS=ON ..
         cmake --build . --config Release -j 2
-    - name: build-shared
+    - name: test
       run: |
-        mkdir build-shared; cd build-shared
-        cmake -T ${{ matrix.toolset-version }},host=x64 -A arm64 -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_SHARED_LIB=ON ..
-        cmake --build . --config Release -j 2
+        export PATH=$(pwd):$PATH
+        cd build
+        TESTS_EXECUTABLE_LOADER=run.sh TESTS_EXECUTABLE_LOADER_ARGUMENTS="arm64;wine" ctest --output-on-failure -j 2
