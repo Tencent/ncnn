@@ -234,17 +234,17 @@ static int detectisa(const void* some_inst)
 
 #if __arm__
 #if __aarch64__
-DEFINE_INSTCODE(some_neon, 0x4e20d400)      // fadd v0.4s,v0.4s,v0.4s
-DEFINE_INSTCODE(some_vfpv4, 0x0e216800)     // fcvtn v0.4h,v0.4s
-DEFINE_INSTCODE(some_cpuid, 0xd5380000)     // mrs x0,midr_el1
-DEFINE_INSTCODE(some_asimdhp, 0x0e401400)   // fadd v0.4h,v0.4h,v0.4h
-DEFINE_INSTCODE(some_asimddp, 0x4e809400)   // sdot v0.4h,v0.16b,v0.16b
-DEFINE_INSTCODE(some_asimdfhm, 0x4e20ec00)  // fmlal v0.4s,v0.4h,v0.4h
-DEFINE_INSTCODE(some_bf16, 0x6e40ec00)      // bfmmla v0.4h,v0.8h,v0.8h
-DEFINE_INSTCODE(some_i8mm, 0x4e80a400)      // smmla v0.4h,v0.16b,v0.16b
-DEFINE_INSTCODE(some_sve, 0x65608000)       // fmad z0.h,p0/m,z0.h,z0.h
-DEFINE_INSTCODE(some_sve2, 0x44405000)      // smlslb z0.h,z0.b,z0.b
-DEFINE_INSTCODE(some_svebf16, 0x6460e400)   // bfmmla z0.s,z0.h,z0.h
+DEFINE_INSTCODE(some_neon, 0x4e20d400)     // fadd v0.4s,v0.4s,v0.4s
+DEFINE_INSTCODE(some_vfpv4, 0x0e216800)    // fcvtn v0.4h,v0.4s
+DEFINE_INSTCODE(some_cpuid, 0xd5380000)    // mrs x0,midr_el1
+DEFINE_INSTCODE(some_asimdhp, 0x0e401400)  // fadd v0.4h,v0.4h,v0.4h
+DEFINE_INSTCODE(some_asimddp, 0x4e809400)  // sdot v0.4h,v0.16b,v0.16b
+DEFINE_INSTCODE(some_asimdfhm, 0x4e20ec00) // fmlal v0.4s,v0.4h,v0.4h
+DEFINE_INSTCODE(some_bf16, 0x6e40ec00)     // bfmmla v0.4h,v0.8h,v0.8h
+DEFINE_INSTCODE(some_i8mm, 0x4e80a400)     // smmla v0.4h,v0.16b,v0.16b
+DEFINE_INSTCODE(some_sve, 0x65608000)      // fmad z0.h,p0/m,z0.h,z0.h
+DEFINE_INSTCODE(some_sve2, 0x44405000)     // smlslb z0.h,z0.b,z0.b
+DEFINE_INSTCODE(some_svebf16, 0x6460e400)  // bfmmla z0.s,z0.h,z0.h
 DEFINE_INSTCODE(some_svei8mm, 0x45009800)  // smmla z0.s,z0.b,z0.b
 DEFINE_INSTCODE(some_svef32mm, 0x64a0e400) // fmmla z0.s,z0.s,z0.s
 #else
