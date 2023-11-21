@@ -67,8 +67,8 @@ jobs:
         sudo apt-get install -y wine64-development python3 msitools python3-simplejson python3-six ca-certificates cmake ninja-build winbind meson
         git clone --depth 1 https://github.com/mstorsjo/msvc-wine
         cd msvc-wine
-        ./vsdownload.py --accept-license --dest ../msvc
-        ./install.sh ../msvc
+        ./vsdownload.py --accept-license --dest $GITHUB_WORKSPACE/msvc
+        ./install.sh $GITHUB_WORKSPACE/msvc
         wine64 wineboot
     - uses: actions/checkout@v3
     - name: build
