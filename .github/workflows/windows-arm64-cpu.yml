@@ -59,21 +59,17 @@ jobs:
   woa-linux:
     name: woa-linux
     runs-on: ubuntu-latest
-    container: linaro/wine-arm64
     steps:
     - uses: actions/checkout@v3
     - name: msvc-wine
       run: |
-        chown root /github/home
-        apt-get update
-        apt-get install -y wine64 wine64-tools wine64-preloader python3 msitools python3-simplejson python3-six ca-certificates cmake ninja-build winbind meson
-        xvfb-run winecfg &
+        sudo apt-get update
+        sudo apt-get install wine64-development python3 msitools python3-simplejson python3-six ca-certificates ninja-build winbind meson nasm
+        wine64 wineboot
         git clone --depth 1 https://github.com/mstorsjo/msvc-wine
         cd msvc-wine
         ./vsdownload.py --accept-license --dest $GITHUB_WORKSPACE/msvc
         ./install.sh $GITHUB_WORKSPACE/msvc
-        sed -i 's/wine64/wine/g' $GITHUB_WORKSPACE/msvc/bin/arm64/wine-msvc.sh
-        wine wineboot
     - name: build
       env:
         CC: cl
