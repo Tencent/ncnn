@@ -5,8 +5,6 @@ resnet18 is used as the example
 # use pnnx (recommand)
 [more about pnnx](https://github.com/Tencent/ncnn/tree/master/tools/pnnx)
 ## get pnnx
-[build on your own](https://zhuanlan.zhihu.com/p/431833958)
-
 [get pre-built executable file](https://github.com/pnnx/pnnx/releases)
 
 ## pytorch to torchscript
@@ -34,13 +32,74 @@ pnnx resnet18.pt inputshape=[1,3,224,224]
 the resnet18.ncnn.param and resnet18.ncnn.bin is all you need.
 
 ## some tips
-#### only have onnx model
+### mutilple input
+```pnnx xxx.pt inputshape=[n1,c1,h1,w1],[n2,c2,h2,w2]...```
+
+example:
+```
+# step 1, trace model
+import torch
+import mymodel
+
+# “nchw” is the input you need to populate for your own model
+input1 = torch.rand(n1, c1, h1, w1)
+input2 = torch.rand(n2, c2, h2, w2)
+
+net = mymodel()
+
+mod = torch.trace(net, (input1, input2))
+mod.save("mymodel.pt")
+```
+```
+# step 2, use pnnx convert model
+pnnx mymodel.pt inputshape=[n1,c1,h1,w1],[n2,c2,h2,w2]
+```
+### dynamic input
+```pnnx xxx.pt inputshape=[n,c,h,w] inputshape2=[n',c',h',w']```
+
+### only have onnx model
 use [onnx2torch](https://github.com/ENOT-AutoDL/onnx2torch), convert onnx to torchscript
+
+```
+# step 1, install onnx2torch
+
+pip install onnx2torch
+```
+
+```
+# step 2, convert onnx to torch and trace into torchscript
+# there are two ways to use onnx2torch
+
+import onnx
+import torch
+from onnx2torch import convert
+
+# Path to ONNX model
+onnx_model_path = '/some/path/mobile_net_v2.onnx'
+# You can pass the path to the onnx model to convert it or...
+torch_model_1 = convert(onnx_model_path)
+
+# Or you can load a regular onnx model and pass it to the converter
+onnx_model = onnx.load(onnx_model_path)
+torch_model_2 = convert(onnx_model)
+
+input = torch.rand(1, 3, 224, 224)
+
+mod1 = torch.trace(torch_model_1, input)
+mod1.save("mobile_net_v2.pt")
+
+# “nchw” is the input you need to populate for your own model
+input = torch.rand(n, c, h, w)
+mod2 = torch.trace(torch_model_2, input)
+mod2.save("model.pt")
+```
 
 #### verify whether the model is exported successfully
 1. pnnx generated the corresponding `xxx.ncnn.param` and `xxx.ncnn.bin`
 2. open `xxx.ncnn.param` in txt, and there is no `pnnx.XXX` operator in the first column
 3. If you are familiar with this model, you can check it against the [operator table](https://github.com/Tencent/ncnn/wiki/operators)
+
+and also, you can run xxx_pnnx.py and xxx_ncnn.py to verify whether your model was successfully converted
 
 # use onnx2ncnn
 ## pytorch to onnx
