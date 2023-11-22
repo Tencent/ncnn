@@ -60,8 +60,6 @@ jobs:
     name: woa-linux
     runs-on: ubuntu-latest
     container: linaro/wine-arm64
-    env:
-      WINEPREFIX: /tmp/wine-x64-prefix/
     steps:
     - uses: actions/checkout@v3
     - name: msvc-wine
@@ -75,6 +73,7 @@ jobs:
         msvc-wine/install.sh /msvc
     - name: build
       env:
+        WINEPREFIX: /tmp/wine-x64-prefix/
         CC: cl
         CXX: cl
       run: |
