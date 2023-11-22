@@ -55,3 +55,35 @@ jobs:
         mkdir build-shared; cd build-shared
         cmake -T ${{ matrix.toolset-version }},host=x64 -A arm64 -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_SHARED_LIB=ON ..
         cmake --build . --config Release -j 2
+
+  woa-linux:
+    name: woa-linux
+    runs-on: ubuntu-latest
+    container: linaro/wine-arm64
+    steps:
+    - uses: actions/checkout@v3
+    - name: msvc-wine
+      env:
+        WINEPREFIX: /tmp/wine-x64-prefix/
+      run: |
+        apt-get update
+        apt-get install -y wine64 python3 msitools python3-simplejson python3-six ca-certificates winbind cmake ninja-build meson
+        ln -s /usr/bin/wine /usr/bin/wine64
+        xvfb-run winecfg &
+        git clone --depth 1 https://github.com/mstorsjo/msvc-wine
+        msvc-wine/vsdownload.py --accept-license --dest /msvc
+        msvc-wine/install.sh /msvc
+    - name: build
+      env:
+        WINEPREFIX: /tmp/wine-x64-prefix/
+        CC: cl
+        CXX: cl
+      run: |
+        export PATH=/msvc/bin/arm64:$PATH
+        mkdir build && cd build
+        cmake -GNinja -DCMAKE_BUILD_TYPE=Release -DCMAKE_SYSTEM_NAME=Windows -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . --config Release -j 2
+    - name: test
+      run: |
+        cd build
+        TESTS_EXECUTABLE_LOADER=wine-arm64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="" ctest --output-on-failure -j 2
