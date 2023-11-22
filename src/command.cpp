@@ -18,6 +18,7 @@
 
 #include "option.h"
 #include "pipeline.h"
+#include <stdexcept>
 
 namespace ncnn {
 
