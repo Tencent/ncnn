@@ -16,6 +16,7 @@
 
 #include "gpu.h"
 #include "pipeline.h"
+#include <stdexcept>
 
 #if __ANDROID_API__ >= 26
 #include <android/hardware_buffer.h>
