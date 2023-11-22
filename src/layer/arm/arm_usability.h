@@ -17,7 +17,7 @@
 
 static inline signed char float2int8(float v)
 {
-    int int32 = round(v);
+    int int32 = (int)roundf(v);
     if (int32 > 127) return 127;
     if (int32 < -127) return -127;
     return (signed char)int32;
