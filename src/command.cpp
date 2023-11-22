@@ -2420,6 +2420,7 @@ int VkCompute::submit_and_wait()
         {
             NCNN_LOGE("vkQueueSubmit failed %d", ret);
             vkdev->reclaim_queue(vkdev->info.compute_queue_family_index(), compute_queue);
+            throw std::runtime_error("vkQueueSubmit failed");
             return -1;
         }
     }
@@ -2432,6 +2433,7 @@ int VkCompute::submit_and_wait()
         if (ret != VK_SUCCESS)
         {
             NCNN_LOGE("vkWaitForFences failed %d", ret);
+            throw std::runtime_error("vkWaitForFences failed");
             return -1;
         }
     }
