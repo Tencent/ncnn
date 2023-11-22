@@ -80,11 +80,8 @@ jobs:
         CXX: cl
       run: |
         export PATH=$GITHUB_WORKSPACE/msvc/bin/arm64:$PATH
-        MSVCDIR=$(. "$GITHUB_WORKSPACE/msvc/bin/arm64/msvcenv.sh" && echo $MSVCDIR)
-        MSVCDIR=${MSVCDIR//\\//}
-        MSVCDIR=${MSVCDIR#z:}
         mkdir build && cd build
-        cmake -GNinja -DCMAKE_BUILD_TYPE=Release -DCMAKE_SYSTEM_NAME=Windows -DMSVCDIR=$MSVCDIR -DNCNN_BUILD_TESTS=ON ..
+        cmake -GNinja -DCMAKE_BUILD_TYPE=Release -DCMAKE_SYSTEM_NAME=Windows -DNCNN_BUILD_TESTS=ON ..
         cmake --build . --config Release -j 2
     - name: test
       run: |
