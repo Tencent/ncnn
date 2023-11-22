@@ -33,6 +33,7 @@
 #include "layer_type.h"
 #include "mat.h"
 #include "pipelinecache.h"
+#include <stdexcept>
 
 // There is known issue that vkDestroyDebugUtilsMessengerEXT crash on exit when vulkan validation layer enabled
 // upstream fix https://github.com/KhronosGroup/Vulkan-Loader/pull/539
@@ -3314,6 +3315,7 @@ void VulkanDevice::reclaim_staging_allocator(VkAllocator* allocator) const
     }
 
     NCNN_LOGE("FATAL ERROR! reclaim_staging_allocator get wild allocator %p", allocator);
+    throw std::runtime_error("FATAL ERROR! reclaim_staging_allocator get wild allocator")
 }
 
 const VkSampler* VulkanDevice::immutable_texelfetch_sampler() const
