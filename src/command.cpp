@@ -3405,6 +3405,7 @@ int VkTransfer::submit_and_wait()
             {
                 NCNN_LOGE("vkQueueSubmit failed %d", ret);
                 vkdev->reclaim_queue(vkdev->info.compute_queue_family_index(), compute_queue);
+                throw std::runtime_error("vkQueueSubmit failed");
                 return -1;
             }
         }
@@ -3438,6 +3439,7 @@ int VkTransfer::submit_and_wait()
                 NCNN_LOGE("vkQueueSubmit failed %d", ret);
                 vkdev->reclaim_queue(vkdev->info.transfer_queue_family_index(), transfer_queue);
                 vkdev->reclaim_queue(vkdev->info.compute_queue_family_index(), compute_queue);
+                throw std::runtime_error("vkQueueSubmit failed");
                 return -1;
             }
         }
@@ -3461,6 +3463,7 @@ int VkTransfer::submit_and_wait()
                 NCNN_LOGE("vkQueueSubmit failed %d", ret);
                 vkdev->reclaim_queue(vkdev->info.transfer_queue_family_index(), transfer_queue);
                 vkdev->reclaim_queue(vkdev->info.compute_queue_family_index(), compute_queue);
+                throw std::runtime_error("vkQueueSubmit failed");
                 return -1;
             }
         }

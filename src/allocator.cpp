@@ -2042,6 +2042,7 @@ VkImageMemory* VkAndroidHardwareBufferImageAllocator::fastMalloc(int /*w*/, int 
     if (ret != VK_SUCCESS)
     {
         NCNN_LOGE("vkAllocateMemory failed %d", ret);
+        throw std::runtime_error("vkAllocateMemory failed");
         return 0;
     }
 
