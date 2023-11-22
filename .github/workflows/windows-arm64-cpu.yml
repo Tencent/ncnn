@@ -67,7 +67,7 @@ jobs:
     - name: msvc-wine
       run: |
         apt-get update
-        apt-get install -y wine64 python3 msitools python3-simplejson python3-six ca-certificates winbind
+        apt-get install -y wine64 python3 msitools python3-simplejson python3-six ca-certificates winbind cmake ninja-build meson
         ln -s /usr/bin/wine /usr/bin/wine64
         xvfb-run winecfg &
         git clone --depth 1 https://github.com/mstorsjo/msvc-wine
