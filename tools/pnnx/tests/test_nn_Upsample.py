@@ -64,7 +64,10 @@ class Model(nn.Module):
         self.up_3d_0_0 = nn.Upsample(size=16)
         self.up_3d_0_1 = nn.Upsample(scale_factor=2, mode='nearest')
         self.up_3d_0_2 = nn.Upsample(size=(20,20,20), mode='nearest')
-        self.up_3d_0_3 = nn.Upsample(scale_factor=(4,4,4), mode='nearest', recompute_scale_factor=True)
+        if version.parse(torch.__version__) >= version.parse('1.13'):
+            self.up_3d_0_3 = nn.Upsample(scale_factor=(4,4,4), mode='nearest', recompute_scale_factor=True)
+        else:
+            self.up_3d_0_3 = nn.Upsample(scale_factor=(4,4,4), mode='nearest')
         self.up_3d_0_4 = nn.Upsample(size=(16,24,20), mode='nearest')
         self.up_3d_0_5 = nn.Upsample(scale_factor=(2,3,4), mode='nearest')
         self.up_3d_1_0 = nn.Upsample(size=16, mode='trilinear')
