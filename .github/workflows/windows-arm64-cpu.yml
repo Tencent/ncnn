@@ -61,7 +61,7 @@ jobs:
     runs-on: ubuntu-latest
     container: linaro/wine-arm64
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: msvc-wine
       env:
         WINEPREFIX: /tmp/wine-x64-prefix/
