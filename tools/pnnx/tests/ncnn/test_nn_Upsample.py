@@ -29,26 +29,26 @@ class Model(nn.Module):
         self.up_1d_1_1 = nn.Upsample(scale_factor=2, mode='linear')
         self.up_1d_1_2 = nn.Upsample(size=(24), mode='linear', align_corners=True)
         if version.parse(torch.__version__) >= version.parse('1.11'):
-            self.up_1d_1_3 = nn.Upsample(scale_factor=(3.1), mode='linear', align_corners=True, recompute_scale_factor=True)
+            self.up_1d_1_3 = nn.Upsample(scale_factor=(3.5), mode='linear', align_corners=True, recompute_scale_factor=True)
         else:
-            self.up_1d_1_3 = nn.Upsample(scale_factor=(3.1), mode='linear', align_corners=True)
+            self.up_1d_1_3 = nn.Upsample(scale_factor=(3.5), mode='linear', align_corners=True)
 
         self.up_2d_0_0 = nn.Upsample(size=16)
         self.up_2d_0_1 = nn.Upsample(scale_factor=2, mode='nearest')
         self.up_2d_0_2 = nn.Upsample(size=(20,20), mode='nearest')
         if version.parse(torch.__version__) >= version.parse('1.11'):
-            self.up_2d_0_3 = nn.Upsample(scale_factor=(4,4.1), mode='nearest', recompute_scale_factor=True)
+            self.up_2d_0_3 = nn.Upsample(scale_factor=(4,4.5), mode='nearest', recompute_scale_factor=True)
         else:
-            self.up_2d_0_3 = nn.Upsample(scale_factor=(4,4.1), mode='nearest')
+            self.up_2d_0_3 = nn.Upsample(scale_factor=(4,4.5), mode='nearest')
         self.up_2d_0_4 = nn.Upsample(size=(16,24), mode='nearest')
         self.up_2d_0_5 = nn.Upsample(scale_factor=(2,3), mode='nearest')
         self.up_2d_1_0 = nn.Upsample(size=16, mode='bilinear')
         self.up_2d_1_1 = nn.Upsample(scale_factor=2, mode='bilinear')
         self.up_2d_1_2 = nn.Upsample(size=(20,20), mode='bilinear', align_corners=False)
         if version.parse(torch.__version__) >= version.parse('1.11'):
-            self.up_2d_1_3 = nn.Upsample(scale_factor=(4,4.11), mode='bilinear', align_corners=False, recompute_scale_factor=True)
+            self.up_2d_1_3 = nn.Upsample(scale_factor=(4,4.5), mode='bilinear', align_corners=False, recompute_scale_factor=True)
         else:
-            self.up_2d_1_3 = nn.Upsample(scale_factor=(4,4.11), mode='bilinear', align_corners=False)
+            self.up_2d_1_3 = nn.Upsample(scale_factor=(4,4.5), mode='bilinear', align_corners=False)
         self.up_2d_1_4 = nn.Upsample(size=(16,24), mode='bilinear', align_corners=True)
         self.up_2d_1_5 = nn.Upsample(scale_factor=(2,3), mode='bilinear', align_corners=True)
         self.up_2d_2_0 = nn.Upsample(size=16, mode='bicubic')
@@ -57,9 +57,9 @@ class Model(nn.Module):
         self.up_2d_2_3 = nn.Upsample(scale_factor=(4,4), mode='bicubic', align_corners=False)
         self.up_2d_2_4 = nn.Upsample(size=(16,24), mode='bicubic', align_corners=True)
         if version.parse(torch.__version__) >= version.parse('1.11'):
-            self.up_2d_2_5 = nn.Upsample(scale_factor=(2,3.11), mode='bicubic', align_corners=True, recompute_scale_factor=True)
+            self.up_2d_2_5 = nn.Upsample(scale_factor=(2,3.5), mode='bicubic', align_corners=True, recompute_scale_factor=True)
         else:
-            self.up_2d_2_5 = nn.Upsample(scale_factor=(2,3.11), mode='bicubic', align_corners=True)
+            self.up_2d_2_5 = nn.Upsample(scale_factor=(2,3.5), mode='bicubic', align_corners=True)
 
         self.up_w = nn.Upsample(scale_factor=(1.499,1.499), mode='nearest')
 
