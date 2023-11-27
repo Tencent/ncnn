@@ -95,21 +95,34 @@ public:
             op->params["align_corners"] = upsample->namedInput("align_corners");
         }
 
-        bool recompute_scale_factor = false;
-        if (upsample->hasNamedInput("output_size") && upsample->hasNamedInput("scale_factors"))
+        bool recompute_scale_factor = true;
+        if (op->params.find("size") != op->params.end())
         {
-            if (op->params.at("size").type == 5 && op->params.at("scale_factor").type == 0)
+            if (op->params.at("size").type == 2)
+            {
+                int s = op->params.at("size").i;
+                if (s != 0)
+                {
+                    recompute_scale_factor = false;
+                }
+            }
+            if (op->params.at("size").type == 5)
             {
                 const std::vector<int>& size = op->params.at("size").ai;
                 for (auto s : size)
                 {
-                    if (s == 0)
+                    if (s != 0)
                     {
-                        recompute_scale_factor = true;
+                        recompute_scale_factor = false;
                         break;
                     }
                 }
             }
+        }
+        if (op->params.find("scale_factor") != op->params.end())
+        {
+            if (op->params.at("scale_factor").type != 0)
+                recompute_scale_factor = false;
         }
 
         if (recompute_scale_factor)
