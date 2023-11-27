@@ -92,7 +92,7 @@ For Rasberry Pi 3 on 32bit OS, add `-DCMAKE_TOOLCHAIN_FILE=../toolchains/pi3.too
 
 #### POWER
 
-For POWER9 with Clang 13 or higher:
+For POWER9 with Clang:
 
 ```shell
 cd ncnn
@@ -102,7 +102,7 @@ cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=../toolchains/power9le-l
 make -j$(nproc)
 ```
 
-Earlier versions of Clang may fail to build ncnn due to [Bug 49864](https://github.com/llvm/llvm-project/issues/49864). To use GCC instead, use the `power9le-linux-gnu-vsx.toolchain.cmake` toolchain file instead. Note that according to benchmarks, Clang appears to produce noticeably faster CPU inference than GCC for POWER9 targets.
+To use GCC instead, use the `power9le-linux-gnu-vsx.toolchain.cmake` toolchain file instead. Note that according to benchmarks, Clang appears to produce noticeably faster CPU inference than GCC for POWER9 targets. For fastest inference, use Clang 18 or higher; earlier versions of Clang may have impaired inference speed due to [Bug 49864](https://github.com/llvm/llvm-project/issues/49864) and [Bug 64664](https://github.com/llvm/llvm-project/issues/64664).
 
 For POWER8 instead of POWER9, use the `power8le-linux-gnu-vsx.clang.toolchain.cmake` or `power8le-linux-gnu-vsx.toolchain.cmake` toolchain file instead. POWER8 will be slower than POWER9.
 
