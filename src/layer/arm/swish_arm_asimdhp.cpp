@@ -115,10 +115,10 @@ int Swish_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) c
             float16x8_t _p1 = vld1q_f16(ptr + 8);
             float16x8_t _p2 = vld1q_f16(ptr + 16);
             float16x8_t _p3 = vld1q_f16(ptr + 24);
-            _p0 = vdivq_f16(_p0, vaddq_f16(_one, exp_ps(vnegq_f16(_p0))));
-            _p1 = vdivq_f16(_p1, vaddq_f16(_one, exp_ps(vnegq_f16(_p1))));
-            _p2 = vdivq_f16(_p2, vaddq_f16(_one, exp_ps(vnegq_f16(_p2))));
-            _p3 = vdivq_f16(_p3, vaddq_f16(_one, exp_ps(vnegq_f16(_p3))));
+            _p0 = vdivq_f16(_p0, vaddq_f16(_one, exp_ps_f16(vnegq_f16(_p0))));
+            _p1 = vdivq_f16(_p1, vaddq_f16(_one, exp_ps_f16(vnegq_f16(_p1))));
+            _p2 = vdivq_f16(_p2, vaddq_f16(_one, exp_ps_f16(vnegq_f16(_p2))));
+            _p3 = vdivq_f16(_p3, vaddq_f16(_one, exp_ps_f16(vnegq_f16(_p3))));
             vst1q_f16(ptr, _p0);
             vst1q_f16(ptr + 8, _p1);
             vst1q_f16(ptr + 16, _p2);
