@@ -181,11 +181,26 @@ struct __fp16
     unsigned short _u16;
 };
 
-static inline __fp16 operator-(const __fp16& a) { return __fp16(-(float)a); }
-static inline __fp16 operator+(const __fp16& a, const __fp16& b) { return __fp16((float)a + (float)b); }
-static inline __fp16 operator-(const __fp16& a, const __fp16& b) { return __fp16((float)a - (float)b); }
-static inline __fp16 operator*(const __fp16& a, const __fp16& b) { return __fp16((float)a * (float)b); }
-static inline __fp16 operator/(const __fp16& a, const __fp16& b) { return __fp16((float)a / (float)b); }
+static inline __fp16 operator-(const __fp16& a)
+{
+    return __fp16(-(float)a);
+}
+static inline __fp16 operator+(const __fp16& a, const __fp16& b)
+{
+    return __fp16((float)a + (float)b);
+}
+static inline __fp16 operator-(const __fp16& a, const __fp16& b)
+{
+    return __fp16((float)a - (float)b);
+}
+static inline __fp16 operator*(const __fp16& a, const __fp16& b)
+{
+    return __fp16((float)a * (float)b);
+}
+static inline __fp16 operator/(const __fp16& a, const __fp16& b)
+{
+    return __fp16((float)a / (float)b);
+}
 
 static inline float16x4_t vdup_n_f16(const __fp16& f16)
 {
@@ -227,7 +242,7 @@ static inline __fp16 vmaxvq_f16(float16x8_t a)
 #define vset_lane_f16(x, v, i)  vset_lane_u16(x._u16, (uint16x4_t)v, i)
 #define vsetq_lane_f16(x, v, i) vsetq_lane_u16(x._u16, (uint16x8_t)v, i)
 
-#define vfma_n_f16(va, vb, x) vfma_f16(va, vb, vdup_n_f16(x))
+#define vfma_n_f16(va, vb, x)  vfma_f16(va, vb, vdup_n_f16(x))
 #define vfmaq_n_f16(va, vb, x) vfmaq_f16(va, vb, vdupq_n_f16(x))
 
 #endif
