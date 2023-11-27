@@ -16,6 +16,7 @@
 
 #if __ARM_NEON
 #include <arm_neon.h>
+#include "arm_usability.h"
 #include "neon_mathfun.h"
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 #include "neon_mathfun_fp16s.h"
@@ -99,7 +100,7 @@ int TanH_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) co
             for (int i = 0; i < size; i++)
             {
                 float16x8_t _p = vld1q_f16(ptr);
-                _p = tanh_ps(_p);
+                _p = tanh_ps_f16(_p);
                 vst1q_f16(ptr, _p);
 
                 ptr += 8;
@@ -119,7 +120,7 @@ int TanH_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) co
             for (int i = 0; i < size; i++)
             {
                 float16x4_t _p = vld1_f16(ptr);
-                _p = tanh_ps(_p);
+                _p = tanh_ps_f16(_p);
                 vst1_f16(ptr, _p);
 
                 ptr += 4;
@@ -138,7 +139,7 @@ int TanH_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) co
         for (; i + 3 < size; i += 4)
         {
             float16x4_t _p = vld1_f16(ptr);
-            _p = tanh_ps(_p);
+            _p = tanh_ps_f16(_p);
             vst1_f16(ptr, _p);
 
             ptr += 4;

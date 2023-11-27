@@ -16,6 +16,7 @@
 
 #if __ARM_NEON
 #include <arm_neon.h>
+#include "arm_usability.h"
 #endif // __ARM_NEON
 
 namespace ncnn {
@@ -475,7 +476,11 @@ int PReLU_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) c
             const float slope = num_slope > 1 ? slope_data[i] : slope_data[0];
 
             float16x4_t _zero = vdup_n_f16(0.f);
+#if _MSC_VER
+            float16x4_t _slope = vcvt_f16_f32(vdupq_n_f32(slope));
+#else
             float16x4_t _slope = vdup_n_f16((__fp16)slope);
+#endif
 
             int j = 0;
             for (; j + 3 < w; j += 4)
@@ -514,7 +519,11 @@ int PReLU_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) c
             const float slope = num_slope > 1 ? slope_data[q] : slope_data[0];
 
             float16x4_t _zero = vdup_n_f16(0.f);
+#if _MSC_VER
+            float16x4_t _slope = vcvt_f16_f32(vdupq_n_f32(slope));
+#else
             float16x4_t _slope = vdup_n_f16((__fp16)slope);
+#endif
 
             int j = 0;
             for (; j + 3 < size; j += 4)
