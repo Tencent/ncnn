@@ -720,6 +720,19 @@ static void convolution_packed_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                 {
                     float16x4_t _sum0_f16 = vcvt_f16_f32(_sum0);
                     float16x4_t _sum1_f16 = vcvt_f16_f32(_sum1);
+#if _MSC_VER
+                    __fp16 tmp[8];
+                    vst1_f16(tmp, _sum0_f16);
+                    vst1_f16(tmp + 4, _sum1_f16);
+                    outptr[0] = tmp[0];
+                    outptr[M] = tmp[1];
+                    outptr[M * 2] = tmp[2];
+                    outptr[M * 3] = tmp[3];
+                    outptr[M * 4] = tmp[4];
+                    outptr[M * 5] = tmp[5];
+                    outptr[M * 6] = tmp[6];
+                    outptr[M * 7] = tmp[7];
+#else
                     outptr[0] = vget_lane_f16(_sum0_f16, 0);
                     outptr[M] = vget_lane_f16(_sum0_f16, 1);
                     outptr[M * 2] = vget_lane_f16(_sum0_f16, 2);
@@ -728,6 +741,7 @@ static void convolution_packed_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                     outptr[M * 5] = vget_lane_f16(_sum1_f16, 1);
                     outptr[M * 6] = vget_lane_f16(_sum1_f16, 2);
                     outptr[M * 7] = vget_lane_f16(_sum1_f16, 3);
+#endif
                     outptr += 1;
                 }
             }
@@ -911,10 +925,19 @@ static void convolution_packed_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                 else // if (out_elempack == 1)
                 {
                     float16x4_t _sum0_f16 = vcvt_f16_f32(_sum0);
+#if _MSC_VER
+                    __fp16 tmp[4];
+                    vst1_f16(tmp, _sum0_f16);
+                    outptr[0] = tmp[0];
+                    outptr[M] = tmp[1];
+                    outptr[M * 2] = tmp[2];
+                    outptr[M * 3] = tmp[3];
+#else
                     outptr[0] = vget_lane_f16(_sum0_f16, 0);
                     outptr[M] = vget_lane_f16(_sum0_f16, 1);
                     outptr[M * 2] = vget_lane_f16(_sum0_f16, 2);
                     outptr[M * 3] = vget_lane_f16(_sum0_f16, 3);
+#endif
                     outptr += 1;
                 }
             }
@@ -1443,6 +1466,18 @@ static void convolution_packed_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
                 }
                 else // if (out_elempack == 1)
                 {
+#if _MSC_VER
+                    __fp16 tmp[8];
+                    vst1q_f16(tmp, _sum0);
+                    outptr[0] = tmp[0];
+                    outptr[M] = tmp[1];
+                    outptr[M * 2] = tmp[2];
+                    outptr[M * 3] = tmp[3];
+                    outptr[M * 4] = tmp[4];
+                    outptr[M * 5] = tmp[5];
+                    outptr[M * 6] = tmp[6];
+                    outptr[M * 7] = tmp[7];
+#else
                     outptr[0] = vgetq_lane_f16(_sum0, 0);
                     outptr[M] = vgetq_lane_f16(_sum0, 1);
                     outptr[M * 2] = vgetq_lane_f16(_sum0, 2);
@@ -1451,6 +1486,7 @@ static void convolution_packed_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
                     outptr[M * 5] = vgetq_lane_f16(_sum0, 5);
                     outptr[M * 6] = vgetq_lane_f16(_sum0, 6);
                     outptr[M * 7] = vgetq_lane_f16(_sum0, 7);
+#endif
                     outptr += 1;
                 }
             }
@@ -1630,10 +1666,19 @@ static void convolution_packed_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
                 }
                 else // if (out_elempack == 1)
                 {
+#if _MSC_VER
+                    __fp16 tmp[4];
+                    vst1_f16(tmp, _sum0);
+                    outptr[0] = tmp[0];
+                    outptr[M] = tmp[1];
+                    outptr[M * 2] = tmp[2];
+                    outptr[M * 3] = tmp[3];
+#else
                     outptr[0] = vget_lane_f16(_sum0, 0);
                     outptr[M] = vget_lane_f16(_sum0, 1);
                     outptr[M * 2] = vget_lane_f16(_sum0, 2);
                     outptr[M * 3] = vget_lane_f16(_sum0, 3);
+#endif
                     outptr += 1;
                 }
             }
@@ -1784,8 +1829,15 @@ static void convolution_packed_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
                 float16x4_t _ss1 = vadd_f16(vget_low_f16(_sum1), vget_high_f16(_sum1));
                 float16x4_t _ss = vpadd_f16(_ss0, _ss1);
                 _ss = vpadd_f16(_ss, _ss);
+#if _MSC_VER
+                __fp16 tmp[4];
+                vst1_f16(tmp, _ss);
+                sum0 += tmp[0];
+                sum1 += tmp[1];
+#else
                 sum0 += vget_lane_f16(_ss, 0);
                 sum1 += vget_lane_f16(_ss, 1);
+#endif
 
                 sum0 = activation_ss_f16(sum0, activation_type, activation_params);
                 sum1 = activation_ss_f16(sum1, activation_type, activation_params);
@@ -1921,7 +1973,13 @@ static void convolution_packed_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
                 float16x4_t _ss = vadd_f16(vget_low_f16(_sum), vget_high_f16(_sum));
                 _ss = vpadd_f16(_ss, _ss);
                 _ss = vpadd_f16(_ss, _ss);
+#if _MSC_VER
+                __fp16 tmp[4];
+                vst1_f16(tmp, _ss);
+                sum += tmp[0];
+#else
                 sum += vget_lane_f16(_ss, 0);
+#endif
 
                 sum = activation_ss_f16(sum, activation_type, activation_params);
 

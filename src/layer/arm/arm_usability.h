@@ -136,11 +136,6 @@ struct __fp16
         _u16 = vget_lane_u16(vreinterpretq_u16_f16(vcvt_f16_f32(vdupq_n_f32(f32))), 0);
     }
 
-    __fp16(__n16 n16)
-    {
-        _u16 = n16.n16_u16[0];
-    }
-
     operator const float() const
     {
         return vgetq_lane_f32(vcvt_f32_f16(vreinterpretq_f16_u16(vdup_n_u16(_u16))), 0);
