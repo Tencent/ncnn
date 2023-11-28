@@ -202,7 +202,7 @@ void resize_bilinear_c1(const unsigned char* src, int srcw, int srch, int srcstr
         int remain = w - (nn << 3);
 
 #if __ARM_NEON
-#if __aarch64__
+#if !NCNN_GNU_INLINE_ASM || __aarch64__
         int16x4_t _b0 = vdup_n_s16(b0);
         int16x4_t _b1 = vdup_n_s16(b1);
         int32x4_t _v2 = vdupq_n_s32(2);
@@ -511,7 +511,7 @@ void resize_bilinear_c2(const unsigned char* src, int srcw, int srch, int srcstr
         int remain = (w * 2) - (nn << 3);
 
 #if __ARM_NEON
-#if __aarch64__
+#if !NCNN_GNU_INLINE_ASM || __aarch64__
         int16x4_t _b0 = vdup_n_s16(b0);
         int16x4_t _b1 = vdup_n_s16(b1);
         int32x4_t _v2 = vdupq_n_s32(2);
@@ -831,7 +831,7 @@ void resize_bilinear_c3(const unsigned char* src, int srcw, int srch, int srcstr
         int remain = (w * 3) - (nn << 3);
 
 #if __ARM_NEON
-#if __aarch64__
+#if !NCNN_GNU_INLINE_ASM || __aarch64__
         int16x4_t _b0 = vdup_n_s16(b0);
         int16x4_t _b1 = vdup_n_s16(b1);
         int32x4_t _v2 = vdupq_n_s32(2);
@@ -1131,7 +1131,7 @@ void resize_bilinear_c4(const unsigned char* src, int srcw, int srch, int srcstr
         int remain = (w * 4) - (nn << 3);
 
 #if __ARM_NEON
-#if __aarch64__
+#if !NCNN_GNU_INLINE_ASM || __aarch64__
         int16x4_t _b0 = vdup_n_s16(b0);
         int16x4_t _b1 = vdup_n_s16(b1);
         int32x4_t _v2 = vdupq_n_s32(2);

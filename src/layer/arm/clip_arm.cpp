@@ -69,6 +69,7 @@ int Clip_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         float32x4_t _max = vdupq_n_f32(max);
         for (; i + 15 < size; i += 16)
         {
+#if NCNN_GNU_INLINE_ASM
 #if __aarch64__
             asm volatile(
                 "prfm   pldl1keep, [%0, #512]   \n"
@@ -106,6 +107,25 @@ int Clip_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 "w"(_max)  // %3
                 : "memory", "q0", "q1", "q2", "q3");
 #endif // __aarch64__
+#else  // NCNN_GNU_INLINE_ASM
+            float32x4_t _p0 = vld1q_f32(ptr);
+            float32x4_t _p1 = vld1q_f32(ptr + 4);
+            float32x4_t _p2 = vld1q_f32(ptr + 8);
+            float32x4_t _p3 = vld1q_f32(ptr + 12);
+            _p0 = vmaxq_f32(_p0, _min);
+            _p1 = vmaxq_f32(_p1, _min);
+            _p2 = vmaxq_f32(_p2, _min);
+            _p3 = vmaxq_f32(_p3, _min);
+            _p0 = vminq_f32(_p0, _max);
+            _p1 = vminq_f32(_p1, _max);
+            _p2 = vminq_f32(_p2, _max);
+            _p3 = vminq_f32(_p3, _max);
+            vst1q_f32(ptr, _p0);
+            vst1q_f32(ptr + 4, _p1);
+            vst1q_f32(ptr + 8, _p2);
+            vst1q_f32(ptr + 12, _p3);
+            ptr += 16;
+#endif // NCNN_GNU_INLINE_ASM
         }
         for (; i + 7 < size; i += 8)
         {
@@ -164,6 +184,7 @@ int Clip_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
         float32x4_t _max = vdupq_n_f32(max);
         for (; i + 15 < size; i += 16)
         {
+#if NCNN_GNU_INLINE_ASM
 #if __aarch64__
             asm volatile(
                 "prfm   pldl1keep, [%0, #256]   \n"
@@ -217,6 +238,27 @@ int Clip_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
                 "w"(_max)  // %3
                 : "memory", "q0", "q1", "q2", "q3");
 #endif // __aarch64__
+#else  // NCNN_GNU_INLINE_ASM
+            uint16x8_t _p = vld1q_u16(ptr);
+            uint16x8_t _q = vld1q_u16(ptr + 8);
+            float32x4_t _p0 = bfloat2float(vget_low_u16(_p));
+            float32x4_t _p1 = bfloat2float(vget_high_u16(_p));
+            float32x4_t _p2 = bfloat2float(vget_low_u16(_q));
+            float32x4_t _p3 = bfloat2float(vget_high_u16(_q));
+            _p0 = vmaxq_f32(_p0, _min);
+            _p1 = vmaxq_f32(_p1, _min);
+            _p2 = vmaxq_f32(_p2, _min);
+            _p3 = vmaxq_f32(_p3, _min);
+            _p0 = vminq_f32(_p0, _max);
+            _p1 = vminq_f32(_p1, _max);
+            _p2 = vminq_f32(_p2, _max);
+            _p3 = vminq_f32(_p3, _max);
+            _p = vcombine_u16(float2bfloat(_p0), float2bfloat(_p1));
+            _q = vcombine_u16(float2bfloat(_p2), float2bfloat(_p3));
+            vst1q_u16(ptr, _p);
+            vst1q_u16(ptr + 8, _q);
+            ptr += 16;
+#endif // NCNN_GNU_INLINE_ASM
         }
         for (; i + 7 < size; i += 8)
         {

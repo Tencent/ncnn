@@ -122,20 +122,42 @@ static ncnn::CpuSet g_cpu_affinity_mask_little;
 static ncnn::CpuSet g_cpu_affinity_mask_big;
 
 // isa info
-#if defined __ANDROID__ || defined __linux__
+#if defined _WIN32
+#if __arm__
+static int g_cpu_support_arm_neon;
+static int g_cpu_support_arm_vfpv4;
+#if __aarch64__
+static int g_cpu_support_arm_asimdhp;
+static int g_cpu_support_arm_cpuid;
+static int g_cpu_support_arm_asimddp;
+static int g_cpu_support_arm_asimdfhm;
+static int g_cpu_support_arm_bf16;
+static int g_cpu_support_arm_i8mm;
+static int g_cpu_support_arm_sve;
+static int g_cpu_support_arm_sve2;
+static int g_cpu_support_arm_svebf16;
+static int g_cpu_support_arm_svei8mm;
+static int g_cpu_support_arm_svef32mm;
+#else  // __aarch64__
+static int g_cpu_support_arm_edsp;
+#endif // __aarch64__
+#endif // __arm__
+#elif defined __ANDROID__ || defined __linux__
 static unsigned int g_hwcaps;
 static unsigned int g_hwcaps2;
-#endif // defined __ANDROID__ || defined __linux__
-#if __APPLE__
+#elif __APPLE__
 static unsigned int g_hw_cpufamily;
 static cpu_type_t g_hw_cputype;
 static cpu_subtype_t g_hw_cpusubtype;
+#if __aarch64__
 static int g_hw_optional_arm_FEAT_FP16;
 static int g_hw_optional_arm_FEAT_DotProd;
 static int g_hw_optional_arm_FEAT_FHM;
 static int g_hw_optional_arm_FEAT_BF16;
 static int g_hw_optional_arm_FEAT_I8MM;
-#endif // __APPLE__
+#endif // __aarch64__
+#endif
+
 #if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
 static int g_cpu_support_x86_avx;
 static int g_cpu_support_x86_fma;
@@ -158,6 +180,81 @@ static int g_cpu_level3_cachesize;
 static int g_cpu_is_arm_a53_a55;
 #endif // __aarch64__
 #endif // defined __ANDROID__ || defined __linux__
+
+#if defined _WIN32
+static int g_sigill_caught = 0;
+static jmp_buf g_jmpbuf;
+
+static LONG CALLBACK catch_sigill(struct _EXCEPTION_POINTERS* ExceptionInfo)
+{
+    if (ExceptionInfo->ExceptionRecord->ExceptionCode == EXCEPTION_ILLEGAL_INSTRUCTION)
+    {
+        g_sigill_caught = 1;
+        longjmp(g_jmpbuf, -1);
+    }
+
+    return EXCEPTION_CONTINUE_SEARCH;
+}
+
+static int detectisa(const void* some_inst)
+{
+    g_sigill_caught = 0;
+
+    PVOID eh = AddVectoredExceptionHandler(1, catch_sigill);
+
+    if (setjmp(g_jmpbuf) == 0)
+    {
+        ((void (*)())some_inst)();
+    }
+
+    RemoveVectoredExceptionHandler(eh);
+
+    return g_sigill_caught ? 0 : 1;
+}
+
+#if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
+#ifdef _MSC_VER
+#define DEFINE_INSTCODE(name, ...) __pragma(section(".text")) __declspec(allocate(".text")) static unsigned char name[] = {__VA_ARGS__, 0xc3};
+#else
+#define DEFINE_INSTCODE(name, ...) __attribute__((section(".text"))) static unsigned char name[] = {__VA_ARGS__, 0xc3};
+#endif
+#elif __aarch64__
+#ifdef _MSC_VER
+#define DEFINE_INSTCODE(name, ...) __pragma(section(".text")) __declspec(allocate(".text")) static unsigned int name[] = {__VA_ARGS__, 0xd65f03c0};
+#else
+#define DEFINE_INSTCODE(name, ...) __attribute__((section(".text"))) static unsigned int name[] = {__VA_ARGS__, 0xd65f03c0};
+#endif
+#elif __arm__
+#ifdef _MSC_VER
+#define DEFINE_INSTCODE(name, ...) __pragma(section(".text")) __declspec(allocate(".text")) static unsigned int name[] = {__VA_ARGS__, 0x4770bf00};
+#else
+#define DEFINE_INSTCODE(name, ...) __attribute__((section(".text"))) static unsigned int name[] = {__VA_ARGS__, 0x4770bf00};
+#endif
+#endif
+
+#if __arm__
+#if __aarch64__
+DEFINE_INSTCODE(some_neon, 0x4e20d400)     // fadd v0.4s,v0.4s,v0.4s
+DEFINE_INSTCODE(some_vfpv4, 0x0e216800)    // fcvtn v0.4h,v0.4s
+DEFINE_INSTCODE(some_cpuid, 0xd5380000)    // mrs x0,midr_el1
+DEFINE_INSTCODE(some_asimdhp, 0x0e401400)  // fadd v0.4h,v0.4h,v0.4h
+DEFINE_INSTCODE(some_asimddp, 0x4e809400)  // sdot v0.4h,v0.16b,v0.16b
+DEFINE_INSTCODE(some_asimdfhm, 0x4e20ec00) // fmlal v0.4s,v0.4h,v0.4h
+DEFINE_INSTCODE(some_bf16, 0x6e40ec00)     // bfmmla v0.4h,v0.8h,v0.8h
+DEFINE_INSTCODE(some_i8mm, 0x4e80a400)     // smmla v0.4h,v0.16b,v0.16b
+DEFINE_INSTCODE(some_sve, 0x65608000)      // fmad z0.h,p0/m,z0.h,z0.h
+DEFINE_INSTCODE(some_sve2, 0x44405000)     // smlslb z0.h,z0.b,z0.b
+DEFINE_INSTCODE(some_svebf16, 0x6460e400)  // bfmmla z0.s,z0.h,z0.h
+DEFINE_INSTCODE(some_svei8mm, 0x45009800)  // smmla z0.s,z0.b,z0.b
+DEFINE_INSTCODE(some_svef32mm, 0x64a0e400) // fmmla z0.s,z0.s,z0.s
+#else
+DEFINE_INSTCODE(some_edsp, 0x0000fb20)  // smlad r0,r0,r0,r0
+DEFINE_INSTCODE(some_neon, 0x0d40ef00)  // vadd.f32 q0,q0,q0
+DEFINE_INSTCODE(some_vfpv4, 0x0600ffb6) // vcvt.f16.f32 d0,q0
+
+#endif // __aarch64__
+#endif // __arm__
+#endif // defined _WIN32
 
 #if defined __ANDROID__ || defined __linux__
 
@@ -1780,22 +1877,41 @@ static void initialize_global_cpu_info()
     g_powersave = 0;
     initialize_cpu_thread_affinity_mask(g_cpu_affinity_mask_all, g_cpu_affinity_mask_little, g_cpu_affinity_mask_big);
 
-#if defined __ANDROID__ || defined __linux__
+#if defined _WIN32
+#if __arm__
+    g_cpu_support_arm_neon = detectisa(some_neon);
+    g_cpu_support_arm_vfpv4 = detectisa(some_vfpv4);
+#if __aarch64__
+    g_cpu_support_arm_cpuid = detectisa(some_cpuid);
+    g_cpu_support_arm_asimdhp = detectisa(some_asimdhp);
+    g_cpu_support_arm_asimddp = detectisa(some_asimddp);
+    g_cpu_support_arm_asimdfhm = detectisa(some_asimdfhm);
+    g_cpu_support_arm_bf16 = detectisa(some_bf16);
+    g_cpu_support_arm_i8mm = detectisa(some_i8mm);
+    g_cpu_support_arm_sve = detectisa(some_sve);
+    g_cpu_support_arm_sve2 = detectisa(some_sve2);
+    g_cpu_support_arm_svebf16 = detectisa(some_svebf16);
+    g_cpu_support_arm_svei8mm = detectisa(some_svei8mm);
+    g_cpu_support_arm_svef32mm = detectisa(some_svef32mm);
+#else  // __aarch64__
+    g_cpu_support_arm_edsp = detectisa(some_edsp);
+#endif // __aarch64__
+#endif // __arm__
+#elif defined __ANDROID__ || defined __linux__
     g_hwcaps = get_elf_hwcap(AT_HWCAP);
     g_hwcaps2 = get_elf_hwcap(AT_HWCAP2);
-#endif // defined __ANDROID__ || defined __linux__
-
-#if __APPLE__
+#elif __APPLE__
     g_hw_cpufamily = get_hw_cpufamily();
     g_hw_cputype = get_hw_cputype();
     g_hw_cpusubtype = get_hw_cpusubtype();
-
+#if __aarch64__
     g_hw_optional_arm_FEAT_FP16 = get_hw_capability("hw.optional.arm.FEAT_FP16");
     g_hw_optional_arm_FEAT_DotProd = get_hw_capability("hw.optional.arm.FEAT_DotProd");
     g_hw_optional_arm_FEAT_FHM = get_hw_capability("hw.optional.arm.FEAT_FHM");
     g_hw_optional_arm_FEAT_BF16 = get_hw_capability("hw.optional.arm.FEAT_BF16");
     g_hw_optional_arm_FEAT_I8MM = get_hw_capability("hw.optional.arm.FEAT_I8MM");
-#endif // __APPLE__
+#endif // __aarch64__
+#endif
 
 #if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
     g_cpu_support_x86_avx = get_cpu_support_x86_avx();
@@ -1975,17 +2091,15 @@ int CpuSet::num_enabled() const
 int cpu_support_arm_edsp()
 {
     try_initialize_global_cpu_info();
-#if defined __ANDROID__ || defined __linux__
-#if __aarch64__
-    return 0;
-#else
+#if __arm__ && !__aarch64__
+#if defined _WIN32
+    return g_cpu_support_arm_edsp;
+#elif defined __ANDROID__ || defined __linux__
     return g_hwcaps & HWCAP_EDSP;
-#endif
 #elif __APPLE__
-#if __aarch64__
-    return 0;
-#else
     return g_hw_cputype == CPU_TYPE_ARM;
+#else
+    return 0;
 #endif
 #else
     return 0;
@@ -1995,7 +2109,10 @@ int cpu_support_arm_edsp()
 int cpu_support_arm_neon()
 {
     try_initialize_global_cpu_info();
-#if defined __ANDROID__ || defined __linux__
+#if __arm__
+#if defined _WIN32
+    return g_cpu_support_arm_neon;
+#elif defined __ANDROID__ || defined __linux__
 #if __aarch64__
     return g_hwcaps & HWCAP_ASIMD;
 #else
@@ -2010,12 +2127,18 @@ int cpu_support_arm_neon()
 #else
     return 0;
 #endif
+#else
+    return 0;
+#endif
 }
 
 int cpu_support_arm_vfpv4()
 {
     try_initialize_global_cpu_info();
-#if defined __ANDROID__ || defined __linux__
+#if __arm__
+#if defined _WIN32
+    return g_cpu_support_arm_vfpv4;
+#elif defined __ANDROID__ || defined __linux__
 #if __aarch64__
     // neon always enable fma and fp16
     return g_hwcaps & HWCAP_ASIMD;
@@ -2031,19 +2154,20 @@ int cpu_support_arm_vfpv4()
 #else
     return 0;
 #endif
+#else
+    return 0;
+#endif
 }
 
 int cpu_support_arm_asimdhp()
 {
     try_initialize_global_cpu_info();
-#if defined __ANDROID__ || defined __linux__
 #if __aarch64__
+#if defined _WIN32
+    return g_cpu_support_arm_asimdhp;
+#elif defined __ANDROID__ || defined __linux__
     return g_hwcaps & HWCAP_ASIMDHP;
-#else
-    return 0;
-#endif
 #elif __APPLE__
-#if __aarch64__
     return g_hw_optional_arm_FEAT_FP16
            || g_hw_cpufamily == CPUFAMILY_ARM_MONSOON_MISTRAL
            || g_hw_cpufamily == CPUFAMILY_ARM_VORTEX_TEMPEST
@@ -2062,14 +2186,16 @@ int cpu_support_arm_asimdhp()
 int cpu_support_arm_cpuid()
 {
     try_initialize_global_cpu_info();
-#if defined __ANDROID__ || defined __linux__
 #if __aarch64__
+#if defined _WIN32
+    return g_cpu_support_arm_cpuid;
+#elif defined __ANDROID__ || defined __linux__
     return g_hwcaps & HWCAP_CPUID;
+#elif __APPLE__
+    return 0;
 #else
     return 0;
 #endif
-#elif __APPLE__
-    return 0;
 #else
     return 0;
 #endif
@@ -2078,14 +2204,12 @@ int cpu_support_arm_cpuid()
 int cpu_support_arm_asimddp()
 {
     try_initialize_global_cpu_info();
-#if defined __ANDROID__ || defined __linux__
 #if __aarch64__
+#if defined _WIN32
+    return g_cpu_support_arm_asimddp;
+#elif defined __ANDROID__ || defined __linux__
     return g_hwcaps & HWCAP_ASIMDDP;
-#else
-    return 0;
-#endif
 #elif __APPLE__
-#if __aarch64__
     return g_hw_optional_arm_FEAT_DotProd
            || g_hw_cpufamily == CPUFAMILY_ARM_LIGHTNING_THUNDER
            || g_hw_cpufamily == CPUFAMILY_ARM_FIRESTORM_ICESTORM
@@ -2102,14 +2226,12 @@ int cpu_support_arm_asimddp()
 int cpu_support_arm_asimdfhm()
 {
     try_initialize_global_cpu_info();
-#if defined __ANDROID__ || defined __linux__
 #if __aarch64__
+#if defined _WIN32
+    return g_cpu_support_arm_asimdfhm;
+#elif defined __ANDROID__ || defined __linux__
     return g_hwcaps & HWCAP_ASIMDFHM;
-#else
-    return 0;
-#endif
 #elif __APPLE__
-#if __aarch64__
     return g_hw_optional_arm_FEAT_FHM
            || g_hw_cpufamily == CPUFAMILY_ARM_LIGHTNING_THUNDER
            || g_hw_cpufamily == CPUFAMILY_ARM_FIRESTORM_ICESTORM
@@ -2126,14 +2248,12 @@ int cpu_support_arm_asimdfhm()
 int cpu_support_arm_bf16()
 {
     try_initialize_global_cpu_info();
-#if defined __ANDROID__ || defined __linux__
 #if __aarch64__
+#if defined _WIN32
+    return g_cpu_support_arm_bf16;
+#elif defined __ANDROID__ || defined __linux__
     return g_hwcaps2 & HWCAP2_BF16;
-#else
-    return 0;
-#endif
 #elif __APPLE__
-#if __aarch64__
     return g_hw_optional_arm_FEAT_BF16
            || g_hw_cpufamily == CPUFAMILY_ARM_AVALANCHE_BLIZZARD
            || g_hw_cpufamily == CPUFAMILY_ARM_EVEREST_SAWTOOTH;
@@ -2148,14 +2268,12 @@ int cpu_support_arm_bf16()
 int cpu_support_arm_i8mm()
 {
     try_initialize_global_cpu_info();
-#if defined __ANDROID__ || defined __linux__
 #if __aarch64__
+#if defined _WIN32
+    return g_cpu_support_arm_i8mm;
+#elif defined __ANDROID__ || defined __linux__
     return g_hwcaps2 & HWCAP2_I8MM;
-#else
-    return 0;
-#endif
 #elif __APPLE__
-#if __aarch64__
     return g_hw_optional_arm_FEAT_I8MM
            || g_hw_cpufamily == CPUFAMILY_ARM_AVALANCHE_BLIZZARD
            || g_hw_cpufamily == CPUFAMILY_ARM_EVEREST_SAWTOOTH;
@@ -2170,14 +2288,12 @@ int cpu_support_arm_i8mm()
 int cpu_support_arm_sve()
 {
     try_initialize_global_cpu_info();
-#if defined __ANDROID__ || defined __linux__
 #if __aarch64__
+#if defined _WIN32
+    return g_cpu_support_arm_sve;
+#elif defined __ANDROID__ || defined __linux__
     return g_hwcaps & HWCAP_SVE;
-#else
-    return 0;
-#endif
 #elif __APPLE__
-#if __aarch64__
     return 0; // no known apple cpu support armv8.6 sve
 #else
     return 0;
@@ -2190,14 +2306,12 @@ int cpu_support_arm_sve()
 int cpu_support_arm_sve2()
 {
     try_initialize_global_cpu_info();
-#if defined __ANDROID__ || defined __linux__
 #if __aarch64__
+#if defined _WIN32
+    return g_cpu_support_arm_sve2;
+#elif defined __ANDROID__ || defined __linux__
     return g_hwcaps2 & HWCAP2_SVE2;
-#else
-    return 0;
-#endif
 #elif __APPLE__
-#if __aarch64__
     return 0; // no known apple cpu support armv8.6 sve2
 #else
     return 0;
@@ -2210,14 +2324,12 @@ int cpu_support_arm_sve2()
 int cpu_support_arm_svebf16()
 {
     try_initialize_global_cpu_info();
-#if defined __ANDROID__ || defined __linux__
 #if __aarch64__
+#if defined _WIN32
+    return g_cpu_support_arm_svebf16;
+#elif defined __ANDROID__ || defined __linux__
     return g_hwcaps2 & HWCAP2_SVEBF16;
-#else
-    return 0;
-#endif
 #elif __APPLE__
-#if __aarch64__
     return 0; // no known apple cpu support armv8.6 svebf16
 #else
     return 0;
@@ -2230,14 +2342,12 @@ int cpu_support_arm_svebf16()
 int cpu_support_arm_svei8mm()
 {
     try_initialize_global_cpu_info();
-#if defined __ANDROID__ || defined __linux__
 #if __aarch64__
+#if defined _WIN32
+    return g_cpu_support_arm_svei8mm;
+#elif defined __ANDROID__ || defined __linux__
     return g_hwcaps2 & HWCAP2_SVEI8MM;
-#else
-    return 0;
-#endif
 #elif __APPLE__
-#if __aarch64__
     return 0; // no known apple cpu support armv8.6 svei8mm
 #else
     return 0;
@@ -2250,14 +2360,12 @@ int cpu_support_arm_svei8mm()
 int cpu_support_arm_svef32mm()
 {
     try_initialize_global_cpu_info();
-#if defined __ANDROID__ || defined __linux__
 #if __aarch64__
+#if defined _WIN32
+    return g_cpu_support_arm_svef32mm;
+#elif defined __ANDROID__ || defined __linux__
     return g_hwcaps2 & HWCAP2_SVEF32MM;
-#else
-    return 0;
-#endif
 #elif __APPLE__
-#if __aarch64__
     return 0; // no known apple cpu support armv8.6 svef32mm
 #else
     return 0;
