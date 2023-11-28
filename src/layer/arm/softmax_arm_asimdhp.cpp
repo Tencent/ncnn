@@ -95,13 +95,7 @@ int Softmax_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
 
             float16x4_t _sum2 = vadd_f16(vget_low_f16(_sum), vget_high_f16(_sum));
             float16x4_t _ss2 = vpadd_f16(_sum2, _sum2);
-#if _MSC_VER
-            __fp16 tmp[4];
-            vst1_f16(tmp, _ss2);
-            sum += tmp[0] + tmp[1];
-#else
             sum += vget_lane_f16(_ss2, 0) + vget_lane_f16(_ss2, 1);
-#endif
             _sum = vdupq_n_f16(sum);
         }
 
@@ -275,13 +269,7 @@ int Softmax_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
                     vst1q_f16(ptr, _p);
                     float16x4_t _sum2 = vadd_f16(vget_low_f16(_p), vget_high_f16(_p));
                     float16x4_t _ss2 = vpadd_f16(_sum2, _sum2);
-#if _MSC_VER
-                    __fp16 tmp[4];
-                    vst1_f16(tmp, _ss2);
-                    __fp16 sum0 = tmp[0] + tmp[1];
-#else
                     __fp16 sum0 = vget_lane_f16(_ss2, 0) + vget_lane_f16(_ss2, 1);
-#endif
                     *sumptr += sum0;
                     ptr += 8;
                     maxptr++;
@@ -317,13 +305,7 @@ int Softmax_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
                     _p = exp_ps_f16(vsub_f16(_p, _max));
                     vst1_f16(ptr, _p);
                     float16x4_t _ss2 = vpadd_f16(_p, _p);
-#if _MSC_VER
-                    __fp16 tmp[4];
-                    vst1_f16(tmp, _ss2);
-                    __fp16 sum0 = tmp[0] + tmp[1];
-#else
                     __fp16 sum0 = vget_lane_f16(_ss2, 0) + vget_lane_f16(_ss2, 1);
-#endif
                     *sumptr += sum0;
                     ptr += 4;
                     maxptr++;
@@ -513,13 +495,7 @@ int Softmax_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
                 {
                     float16x4_t _sum2 = vadd_f16(vget_low_f16(_sum), vget_high_f16(_sum));
                     float16x4_t _ss2 = vpadd_f16(_sum2, _sum2);
-#if _MSC_VER
-                    __fp16 tmp[4];
-                    vst1_f16(tmp, _ss2);
-                    sum += tmp[0] + tmp[1];
-#else
                     sum += vget_lane_f16(_ss2, 0) + vget_lane_f16(_ss2, 1);
-#endif
                     _sum = vdupq_n_f16(sum);
                 }
             }
@@ -777,13 +753,7 @@ int Softmax_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
                     float16x8_t _p = vld1q_f16(ptr);
                     float16x4_t _sum2 = vadd_f16(vget_low_f16(_p), vget_high_f16(_p));
                     float16x4_t _ss2 = vpadd_f16(_sum2, _sum2);
-#if _MSC_VER
-                    __fp16 tmp[4];
-                    vst1_f16(tmp, _ss2);
-                    __fp16 sum0 = tmp[0] + tmp[1];
-#else
                     __fp16 sum0 = vget_lane_f16(_ss2, 0) + vget_lane_f16(_ss2, 1);
-#endif
                     *sumptr += sum0;
                     ptr += 8;
                     sumptr++;
@@ -807,13 +777,7 @@ int Softmax_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
                 {
                     float16x4_t _p = vld1_f16(ptr);
                     float16x4_t _ss2 = vpadd_f16(_p, _p);
-#if _MSC_VER
-                    __fp16 tmp[4];
-                    vst1_f16(tmp, _ss2);
-                    __fp16 sum0 = tmp[0] + tmp[1];
-#else
                     __fp16 sum0 = vget_lane_f16(_ss2, 0) + vget_lane_f16(_ss2, 1);
-#endif
                     *sumptr += sum0;
                     ptr += 4;
                     sumptr++;
@@ -1136,13 +1100,7 @@ int Softmax_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
                     {
                         float16x4_t _sum2 = vadd_f16(vget_low_f16(_sum), vget_high_f16(_sum));
                         float16x4_t _ss2 = vpadd_f16(_sum2, _sum2);
-#if _MSC_VER
-                        __fp16 tmp[4];
-                        vst1_f16(tmp, _ss2);
-                        sum += tmp[0] + tmp[1];
-#else
                         sum += vget_lane_f16(_ss2, 0) + vget_lane_f16(_ss2, 1);
-#endif
                         _sum = vdupq_n_f16(sum);
                     }
                 }
