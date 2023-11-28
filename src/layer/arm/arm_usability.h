@@ -249,7 +249,7 @@ static inline __fp16 vmaxvq_f16(float16x8_t a)
 
 static inline signed char float2int8(__fp16 v)
 {
-    int int32 = round(v);
+    int int32 = (int)roundf(v);
     if (int32 > 127) return 127;
     if (int32 < -127) return -127;
     return (signed char)int32;
