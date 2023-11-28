@@ -3562,15 +3562,15 @@ static inline void conv3x3s1_winograd43_transform_input_tile_fp16sa(const Mat& b
 
                 __fp16 tmp12a0 = sq2 * r10 + msq2_d2 * r30;
                 __fp16 tmp12a1 = sq2 * r11 + msq2_d2 * r31;
-                __fp16 tmp12b0 = r40 - 2 * r20;
-                __fp16 tmp12b1 = r41 - 2 * r21;
+                __fp16 tmp12b0 = r40 - (__fp16)2.f * r20;
+                __fp16 tmp12b1 = r41 - (__fp16)2.f * r21;
                 __fp16 tmp34a0 = sq2 * r30 + msq2_d2 * r10;
                 __fp16 tmp34a1 = sq2 * r31 + msq2_d2 * r11;
-                __fp16 tmp34b0 = r40 - 0.5f * r20;
-                __fp16 tmp34b1 = r41 - 0.5f * r21;
+                __fp16 tmp34b0 = r40 - (__fp16)0.5f * r20;
+                __fp16 tmp34b1 = r41 - (__fp16)0.5f * r21;
 
-                tmp[0][m][0] = r00 + r40 - 2.5f * r20;
-                tmp[0][m][1] = r01 + r41 - 2.5f * r21;
+                tmp[0][m][0] = r00 + r40 - (__fp16)2.5f * r20;
+                tmp[0][m][1] = r01 + r41 - (__fp16)2.5f * r21;
                 tmp[1][m][0] = tmp12b0 - tmp12a0;
                 tmp[1][m][1] = tmp12b1 - tmp12a1;
                 tmp[2][m][0] = tmp12b0 + tmp12a0;
@@ -3579,8 +3579,8 @@ static inline void conv3x3s1_winograd43_transform_input_tile_fp16sa(const Mat& b
                 tmp[3][m][1] = tmp34b1 + tmp34a1;
                 tmp[4][m][0] = tmp34b0 - tmp34a0;
                 tmp[4][m][1] = tmp34b1 - tmp34a1;
-                tmp[5][m][0] = r10 + r50 - 2.5f * r30;
-                tmp[5][m][1] = r11 + r51 - 2.5f * r31;
+                tmp[5][m][0] = r10 + r50 - (__fp16)2.5f * r30;
+                tmp[5][m][1] = r11 + r51 - (__fp16)2.5f * r31;
 
                 r0 += w;
             }
@@ -3609,15 +3609,15 @@ static inline void conv3x3s1_winograd43_transform_input_tile_fp16sa(const Mat& b
 
                 __fp16 tmp12a0 = sq2 * r10 + msq2_d2 * r30;
                 __fp16 tmp12a1 = sq2 * r11 + msq2_d2 * r31;
-                __fp16 tmp12b0 = r40 - 2 * r20;
-                __fp16 tmp12b1 = r41 - 2 * r21;
+                __fp16 tmp12b0 = r40 - (__fp16)2.f * r20;
+                __fp16 tmp12b1 = r41 - (__fp16)2.f * r21;
                 __fp16 tmp34a0 = sq2 * r30 + msq2_d2 * r10;
                 __fp16 tmp34a1 = sq2 * r31 + msq2_d2 * r11;
-                __fp16 tmp34b0 = r40 - 0.5f * r20;
-                __fp16 tmp34b1 = r41 - 0.5f * r21;
+                __fp16 tmp34b0 = r40 - (__fp16)0.5f * r20;
+                __fp16 tmp34b1 = r41 - (__fp16)0.5f * r21;
 
-                p0[0] = r00 + r40 - 2.5f * r20;
-                p0[1] = r01 + r41 - 2.5f * r21;
+                p0[0] = r00 + r40 - (__fp16)2.5f * r20;
+                p0[1] = r01 + r41 - (__fp16)2.5f * r21;
                 p1[0] = tmp12b0 - tmp12a0;
                 p1[1] = tmp12b1 - tmp12a1;
                 p2[0] = tmp12b0 + tmp12a0;
@@ -3626,8 +3626,8 @@ static inline void conv3x3s1_winograd43_transform_input_tile_fp16sa(const Mat& b
                 p3[1] = tmp34b1 + tmp34a1;
                 p4[0] = tmp34b0 - tmp34a0;
                 p4[1] = tmp34b1 - tmp34a1;
-                p5[0] = r10 + r50 - 2.5f * r30;
-                p5[1] = r11 + r51 - 2.5f * r31;
+                p5[0] = r10 + r50 - (__fp16)2.5f * r30;
+                p5[1] = r11 + r51 - (__fp16)2.5f * r31;
 
                 p0 += max_jj * 6 * 2;
                 p1 += max_jj * 6 * 2;
@@ -3674,16 +3674,16 @@ static inline void conv3x3s1_winograd43_transform_input_tile_fp16sa(const Mat& b
                 }
 
                 __fp16 tmp12a = sq2 * r1 + msq2_d2 * r3;
-                __fp16 tmp12b = r4 - 2 * r2;
+                __fp16 tmp12b = r4 - (__fp16)2.f * r2;
                 __fp16 tmp34a = sq2 * r3 + msq2_d2 * r1;
-                __fp16 tmp34b = r4 - 0.5f * r2;
+                __fp16 tmp34b = r4 - (__fp16)0.5f * r2;
 
-                tmp[0][m] = r0 + r4 - 2.5f * r2;
+                tmp[0][m] = r0 + r4 - (__fp16)2.5f * r2;
                 tmp[1][m] = tmp12b - tmp12a;
                 tmp[2][m] = tmp12b + tmp12a;
                 tmp[3][m] = tmp34b + tmp34a;
                 tmp[4][m] = tmp34b - tmp34a;
-                tmp[5][m] = r1 + r5 - 2.5f * r3;
+                tmp[5][m] = r1 + r5 - (__fp16)2.5f * r3;
 
                 r0123 += w;
             }
@@ -3705,16 +3705,16 @@ static inline void conv3x3s1_winograd43_transform_input_tile_fp16sa(const Mat& b
                 __fp16 r5 = tmp[m][5];
 
                 __fp16 tmp12a = sq2 * r1 + msq2_d2 * r3;
-                __fp16 tmp12b = r4 - 2 * r2;
+                __fp16 tmp12b = r4 - (__fp16)2.f * r2;
                 __fp16 tmp34a = sq2 * r3 + msq2_d2 * r1;
-                __fp16 tmp34b = r4 - 0.5f * r2;
+                __fp16 tmp34b = r4 - (__fp16)0.5f * r2;
 
-                p0[0] = r0 + r4 - 2.5f * r2;
+                p0[0] = r0 + r4 - (__fp16)2.5f * r2;
                 p1[0] = tmp12b - tmp12a;
                 p2[0] = tmp12b + tmp12a;
                 p3[0] = tmp34b + tmp34a;
                 p4[0] = tmp34b - tmp34a;
-                p5[0] = r1 + r5 - 2.5f * r3;
+                p5[0] = r1 + r5 - (__fp16)2.5f * r3;
 
                 p0 += max_jj * 6;
                 p1 += max_jj * 6;
@@ -4107,8 +4107,8 @@ static inline void conv3x3s1_winograd43_transform_output_tile_fp16sa(const Mat& 
                 tmp[0][m][1] = r0[1] + tmp02a1 + tmp02b1;
                 tmp[1][m][0] = tmp13a0 * sq2_d2 + tmp13b0 * sq2;
                 tmp[1][m][1] = tmp13a1 * sq2_d2 + tmp13b1 * sq2;
-                tmp[2][m][0] = tmp02a0 * 0.5f + tmp02b0 * 2;
-                tmp[2][m][1] = tmp02a1 * 0.5f + tmp02b1 * 2;
+                tmp[2][m][0] = tmp02a0 * (__fp16)0.5f + tmp02b0 * (__fp16)2;
+                tmp[2][m][1] = tmp02a1 * (__fp16)0.5f + tmp02b1 * (__fp16)2;
                 tmp[3][m][0] = r5[0] + tmp13a0 * sq2_d4 + tmp13b0 * sq2_m2;
                 tmp[3][m][1] = r5[1] + tmp13a1 * sq2_d4 + tmp13b1 * sq2_m2;
 
@@ -4153,8 +4153,8 @@ static inline void conv3x3s1_winograd43_transform_output_tile_fp16sa(const Mat& 
                 __fp16 tmp01 = bias1 + r01 + tmp02a1 + tmp02b1;
                 __fp16 tmp10 = bias0 + tmp13a0 * sq2_d2 + tmp13b0 * sq2;
                 __fp16 tmp11 = bias1 + tmp13a1 * sq2_d2 + tmp13b1 * sq2;
-                __fp16 tmp20 = bias0 + tmp02a0 * 0.5f + tmp02b0 * 2;
-                __fp16 tmp21 = bias1 + tmp02a1 * 0.5f + tmp02b1 * 2;
+                __fp16 tmp20 = bias0 + tmp02a0 * (__fp16)0.5f + tmp02b0 * (__fp16)2;
+                __fp16 tmp21 = bias1 + tmp02a1 * (__fp16)0.5f + tmp02b1 * (__fp16)2;
                 __fp16 tmp30 = bias0 + r50 + tmp13a0 * sq2_d4 + tmp13b0 * sq2_m2;
                 __fp16 tmp31 = bias1 + r51 + tmp13a1 * sq2_d4 + tmp13b1 * sq2_m2;
 
@@ -4213,7 +4213,7 @@ static inline void conv3x3s1_winograd43_transform_output_tile_fp16sa(const Mat& 
 
                 tmp[0][m] = r0[0] + tmp02a + tmp02b;
                 tmp[1][m] = tmp13a * sq2_d2 + tmp13b * sq2;
-                tmp[2][m] = tmp02a * 0.5f + tmp02b * 2;
+                tmp[2][m] = tmp02a * (__fp16)0.5f + tmp02b * (__fp16)2;
                 tmp[3][m] = r5[0] + tmp13a * sq2_d4 + tmp13b * sq2_m2;
 
                 r0 += max_jj * 6;
@@ -4245,7 +4245,7 @@ static inline void conv3x3s1_winograd43_transform_output_tile_fp16sa(const Mat& 
 
                 __fp16 tmp0 = bias0 + r0 + tmp02a + tmp02b;
                 __fp16 tmp1 = bias0 + tmp13a * sq2_d2 + tmp13b * sq2;
-                __fp16 tmp2 = bias0 + tmp02a * 0.5f + tmp02b * 2;
+                __fp16 tmp2 = bias0 + tmp02a * (__fp16)0.5f + tmp02b * (__fp16)2;
                 __fp16 tmp3 = bias0 + r5 + tmp13a * sq2_d4 + tmp13b * sq2_m2;
 
                 // if (out_elempack == 1)
@@ -4993,21 +4993,21 @@ static inline void conv3x3s1_winograd63_transform_input_tile_fp16sa(const Mat& b
                     }
                 }
 
-                __fp16 tmp12a0 = r20 + r60 - r40 * 4.25f;
-                __fp16 tmp12a1 = r21 + r61 - r41 * 4.25f;
-                __fp16 tmp12b0 = r10 + r50 - r30 * 4.25f;
-                __fp16 tmp12b1 = r11 + r51 - r31 * 4.25f;
-                __fp16 tmp34a0 = r60 + r20 * 0.25f - r40 * 1.25f;
-                __fp16 tmp34a1 = r61 + r21 * 0.25f - r41 * 1.25f;
-                __fp16 tmp34b0 = r10 * 0.5f - r30 * 2.5f + r50 * 2.f;
-                __fp16 tmp34b1 = r11 * 0.5f - r31 * 2.5f + r51 * 2.f;
-                __fp16 tmp56a0 = r20 * 4.f - r40 * 5.f + r60;
-                __fp16 tmp56a1 = r21 * 4.f - r41 * 5.f + r61;
-                __fp16 tmp56b0 = r10 * 2.f - r30 * 2.5f + r50 * 0.5f;
-                __fp16 tmp56b1 = r11 * 2.f - r31 * 2.5f + r51 * 0.5f;
+                __fp16 tmp12a0 = r20 + r60 - r40 * (__fp16)4.25f;
+                __fp16 tmp12a1 = r21 + r61 - r41 * (__fp16)4.25f;
+                __fp16 tmp12b0 = r10 + r50 - r30 * (__fp16)4.25f;
+                __fp16 tmp12b1 = r11 + r51 - r31 * (__fp16)4.25f;
+                __fp16 tmp34a0 = r60 + r20 * (__fp16)0.25f - r40 * (__fp16)1.25f;
+                __fp16 tmp34a1 = r61 + r21 * (__fp16)0.25f - r41 * (__fp16)1.25f;
+                __fp16 tmp34b0 = r10 * (__fp16)0.5f - r30 * (__fp16)2.5f + r50 * (__fp16)2.f;
+                __fp16 tmp34b1 = r11 * (__fp16)0.5f - r31 * (__fp16)2.5f + r51 * (__fp16)2.f;
+                __fp16 tmp56a0 = r20 * (__fp16)4.f - r40 * (__fp16)5.f + r60;
+                __fp16 tmp56a1 = r21 * (__fp16)4.f - r41 * (__fp16)5.f + r61;
+                __fp16 tmp56b0 = r10 * (__fp16)2.f - r30 * (__fp16)2.5f + r50 * (__fp16)0.5f;
+                __fp16 tmp56b1 = r11 * (__fp16)2.f - r31 * (__fp16)2.5f + r51 * (__fp16)0.5f;
 
-                tmp[0][m][0] = r00 - r60 + (r40 - r20) * 5.25f;
-                tmp[0][m][1] = r01 - r61 + (r41 - r21) * 5.25f;
+                tmp[0][m][0] = r00 - r60 + (r40 - r20) * (__fp16)5.25f;
+                tmp[0][m][1] = r01 - r61 + (r41 - r21) * (__fp16)5.25f;
                 tmp[1][m][0] = tmp12a0 + tmp12b0;
                 tmp[1][m][1] = tmp12a1 + tmp12b1;
                 tmp[2][m][0] = tmp12a0 - tmp12b0;
@@ -5020,8 +5020,8 @@ static inline void conv3x3s1_winograd63_transform_input_tile_fp16sa(const Mat& b
                 tmp[5][m][1] = tmp56a1 + tmp56b1;
                 tmp[6][m][0] = tmp56a0 - tmp56b0;
                 tmp[6][m][1] = tmp56a1 - tmp56b1;
-                tmp[7][m][0] = r70 - r10 + (r30 - r50) * 5.25f;
-                tmp[7][m][1] = r71 - r11 + (r31 - r51) * 5.25f;
+                tmp[7][m][0] = r70 - r10 + (r30 - r50) * (__fp16)5.25f;
+                tmp[7][m][1] = r71 - r11 + (r31 - r51) * (__fp16)5.25f;
 
                 r0 += w;
             }
@@ -5054,21 +5054,21 @@ static inline void conv3x3s1_winograd63_transform_input_tile_fp16sa(const Mat& b
                 __fp16 r70 = tmp[m][7][0];
                 __fp16 r71 = tmp[m][7][1];
 
-                __fp16 tmp12a0 = r20 + r60 - r40 * 4.25f;
-                __fp16 tmp12a1 = r21 + r61 - r41 * 4.25f;
-                __fp16 tmp12b0 = r10 + r50 - r30 * 4.25f;
-                __fp16 tmp12b1 = r11 + r51 - r31 * 4.25f;
-                __fp16 tmp34a0 = r60 + r20 * 0.25f - r40 * 1.25f;
-                __fp16 tmp34a1 = r61 + r21 * 0.25f - r41 * 1.25f;
-                __fp16 tmp34b0 = r10 * 0.5f - r30 * 2.5f + r50 * 2.f;
-                __fp16 tmp34b1 = r11 * 0.5f - r31 * 2.5f + r51 * 2.f;
-                __fp16 tmp56a0 = r20 * 4.f - r40 * 5.f + r60;
-                __fp16 tmp56a1 = r21 * 4.f - r41 * 5.f + r61;
-                __fp16 tmp56b0 = r10 * 2.f - r30 * 2.5f + r50 * 0.5f;
-                __fp16 tmp56b1 = r11 * 2.f - r31 * 2.5f + r51 * 0.5f;
+                __fp16 tmp12a0 = r20 + r60 - r40 * (__fp16)4.25f;
+                __fp16 tmp12a1 = r21 + r61 - r41 * (__fp16)4.25f;
+                __fp16 tmp12b0 = r10 + r50 - r30 * (__fp16)4.25f;
+                __fp16 tmp12b1 = r11 + r51 - r31 * (__fp16)4.25f;
+                __fp16 tmp34a0 = r60 + r20 * (__fp16)0.25f - r40 * (__fp16)1.25f;
+                __fp16 tmp34a1 = r61 + r21 * (__fp16)0.25f - r41 * (__fp16)1.25f;
+                __fp16 tmp34b0 = r10 * (__fp16)0.5f - r30 * (__fp16)2.5f + r50 * (__fp16)2.f;
+                __fp16 tmp34b1 = r11 * (__fp16)0.5f - r31 * (__fp16)2.5f + r51 * (__fp16)2.f;
+                __fp16 tmp56a0 = r20 * (__fp16)4.f - r40 * (__fp16)5.f + r60;
+                __fp16 tmp56a1 = r21 * (__fp16)4.f - r41 * (__fp16)5.f + r61;
+                __fp16 tmp56b0 = r10 * (__fp16)2.f - r30 * (__fp16)2.5f + r50 * (__fp16)0.5f;
+                __fp16 tmp56b1 = r11 * (__fp16)2.f - r31 * (__fp16)2.5f + r51 * (__fp16)0.5f;
 
-                p0[0] = r00 - r60 + (r40 - r20) * 5.25f;
-                p0[1] = r01 - r61 + (r41 - r21) * 5.25f;
+                p0[0] = r00 - r60 + (r40 - r20) * (__fp16)5.25f;
+                p0[1] = r01 - r61 + (r41 - r21) * (__fp16)5.25f;
                 p1[0] = tmp12a0 + tmp12b0;
                 p1[1] = tmp12a1 + tmp12b1;
                 p2[0] = tmp12a0 - tmp12b0;
@@ -5081,8 +5081,8 @@ static inline void conv3x3s1_winograd63_transform_input_tile_fp16sa(const Mat& b
                 p5[1] = tmp56a1 + tmp56b1;
                 p6[0] = tmp56a0 - tmp56b0;
                 p6[1] = tmp56a1 - tmp56b1;
-                p7[0] = r70 - r10 + (r30 - r50) * 5.25f;
-                p7[1] = r71 - r11 + (r31 - r51) * 5.25f;
+                p7[0] = r70 - r10 + (r30 - r50) * (__fp16)5.25f;
+                p7[1] = r71 - r11 + (r31 - r51) * (__fp16)5.25f;
 
                 p0 += max_jj * 8 * 2;
                 p1 += max_jj * 8 * 2;
@@ -5134,21 +5134,21 @@ static inline void conv3x3s1_winograd63_transform_input_tile_fp16sa(const Mat& b
                     }
                 }
 
-                __fp16 tmp12a = r2 + r6 - r4 * 4.25f;
-                __fp16 tmp12b = r1 + r5 - r3 * 4.25f;
-                __fp16 tmp34a = r6 + r2 * 0.25f - r4 * 1.25f;
-                __fp16 tmp34b = r1 * 0.5f - r3 * 2.5f + r5 * 2.f;
-                __fp16 tmp56a = r2 * 4.f - r4 * 5.f + r6;
-                __fp16 tmp56b = r1 * 2.f - r3 * 2.5f + r5 * 0.5f;
+                __fp16 tmp12a = r2 + r6 - r4 * (__fp16)4.25f;
+                __fp16 tmp12b = r1 + r5 - r3 * (__fp16)4.25f;
+                __fp16 tmp34a = r6 + r2 * (__fp16)0.25f - r4 * (__fp16)1.25f;
+                __fp16 tmp34b = r1 * (__fp16)0.5f - r3 * (__fp16)2.5f + r5 * (__fp16)2.f;
+                __fp16 tmp56a = r2 * (__fp16)4.f - r4 * (__fp16)5.f + r6;
+                __fp16 tmp56b = r1 * (__fp16)2.f - r3 * (__fp16)2.5f + r5 * (__fp16)0.5f;
 
-                tmp[0][m] = r0 - r6 + (r4 - r2) * 5.25f;
+                tmp[0][m] = r0 - r6 + (r4 - r2) * (__fp16)5.25f;
                 tmp[1][m] = tmp12a + tmp12b;
                 tmp[2][m] = tmp12a - tmp12b;
                 tmp[3][m] = tmp34a + tmp34b;
                 tmp[4][m] = tmp34a - tmp34b;
                 tmp[5][m] = tmp56a + tmp56b;
                 tmp[6][m] = tmp56a - tmp56b;
-                tmp[7][m] = r7 - r1 + (r3 - r5) * 5.25f;
+                tmp[7][m] = r7 - r1 + (r3 - r5) * (__fp16)5.25f;
 
                 r0123 += w;
             }
@@ -5173,21 +5173,21 @@ static inline void conv3x3s1_winograd63_transform_input_tile_fp16sa(const Mat& b
                 __fp16 r6 = tmp[m][6];
                 __fp16 r7 = tmp[m][7];
 
-                __fp16 tmp12a = r2 + r6 - r4 * 4.25f;
-                __fp16 tmp12b = r1 + r5 - r3 * 4.25f;
-                __fp16 tmp34a = r6 + r2 * 0.25f - r4 * 1.25f;
-                __fp16 tmp34b = r1 * 0.5f - r3 * 2.5f + r5 * 2.f;
-                __fp16 tmp56a = r2 * 4.f - r4 * 5.f + r6;
-                __fp16 tmp56b = r1 * 2.f - r3 * 2.5f + r5 * 0.5f;
+                __fp16 tmp12a = r2 + r6 - r4 * (__fp16)4.25f;
+                __fp16 tmp12b = r1 + r5 - r3 * (__fp16)4.25f;
+                __fp16 tmp34a = r6 + r2 * (__fp16)0.25f - r4 * (__fp16)1.25f;
+                __fp16 tmp34b = r1 * (__fp16)0.5f - r3 * (__fp16)2.5f + r5 * (__fp16)2.f;
+                __fp16 tmp56a = r2 * (__fp16)4.f - r4 * (__fp16)5.f + r6;
+                __fp16 tmp56b = r1 * (__fp16)2.f - r3 * (__fp16)2.5f + r5 * (__fp16)0.5f;
 
-                p0[0] = r0 - r6 + (r4 - r2) * 5.25f;
+                p0[0] = r0 - r6 + (r4 - r2) * (__fp16)5.25f;
                 p1[0] = tmp12a + tmp12b;
                 p2[0] = tmp12a - tmp12b;
                 p3[0] = tmp34a + tmp34b;
                 p4[0] = tmp34a - tmp34b;
                 p5[0] = tmp56a + tmp56b;
                 p6[0] = tmp56a - tmp56b;
-                p7[0] = r7 - r1 + (r3 - r5) * 5.25f;
+                p7[0] = r7 - r1 + (r3 - r5) * (__fp16)5.25f;
 
                 p0 += max_jj * 8;
                 p1 += max_jj * 8;
@@ -5670,18 +5670,18 @@ static inline void conv3x3s1_winograd63_transform_output_tile_fp16sa(const Mat& 
                 __fp16 tmp135c0 = r5[0] - r6[0];
                 __fp16 tmp135c1 = r5[1] - r6[1];
 
-                tmp[0][m][0] = r0[0] + tmp024a0 + tmp024b0 + tmp024c0 * 32;
-                tmp[0][m][1] = r0[1] + tmp024a1 + tmp024b1 + tmp024c1 * 32;
-                tmp[1][m][0] = tmp135a0 + tmp135b0 + tmp135b0 + tmp135c0 * 16;
-                tmp[1][m][1] = tmp135a1 + tmp135b1 + tmp135b1 + tmp135c1 * 16;
-                tmp[2][m][0] = tmp024a0 + tmp024b0 * 4 + tmp024c0 * 8;
-                tmp[2][m][1] = tmp024a1 + tmp024b1 * 4 + tmp024c1 * 8;
-                tmp[3][m][0] = tmp135a0 + tmp135b0 * 8 + tmp135c0 * 4;
-                tmp[3][m][1] = tmp135a1 + tmp135b1 * 8 + tmp135c1 * 4;
-                tmp[4][m][0] = tmp024a0 + tmp024b0 * 16 + tmp024c0 + tmp024c0;
-                tmp[4][m][1] = tmp024a1 + tmp024b1 * 16 + tmp024c1 + tmp024c1;
-                tmp[5][m][0] = r7[0] + tmp135a0 + tmp135b0 * 32 + tmp135c0;
-                tmp[5][m][1] = r7[1] + tmp135a1 + tmp135b1 * 32 + tmp135c1;
+                tmp[0][m][0] = r0[0] + tmp024a0 + tmp024b0 + tmp024c0 * (__fp16)32;
+                tmp[0][m][1] = r0[1] + tmp024a1 + tmp024b1 + tmp024c1 * (__fp16)32;
+                tmp[1][m][0] = tmp135a0 + tmp135b0 + tmp135b0 + tmp135c0 * (__fp16)16;
+                tmp[1][m][1] = tmp135a1 + tmp135b1 + tmp135b1 + tmp135c1 * (__fp16)16;
+                tmp[2][m][0] = tmp024a0 + tmp024b0 * (__fp16)4 + tmp024c0 * (__fp16)8;
+                tmp[2][m][1] = tmp024a1 + tmp024b1 * (__fp16)4 + tmp024c1 * (__fp16)8;
+                tmp[3][m][0] = tmp135a0 + tmp135b0 * (__fp16)8 + tmp135c0 * (__fp16)4;
+                tmp[3][m][1] = tmp135a1 + tmp135b1 * (__fp16)8 + tmp135c1 * (__fp16)4;
+                tmp[4][m][0] = tmp024a0 + tmp024b0 * (__fp16)16 + tmp024c0 + tmp024c0;
+                tmp[4][m][1] = tmp024a1 + tmp024b1 * (__fp16)16 + tmp024c1 + tmp024c1;
+                tmp[5][m][0] = r7[0] + tmp135a0 + tmp135b0 * (__fp16)32 + tmp135c0;
+                tmp[5][m][1] = r7[1] + tmp135a1 + tmp135b1 * (__fp16)32 + tmp135c1;
 
                 r0 += max_jj * 8 * 2;
                 r1 += max_jj * 8 * 2;
@@ -5730,18 +5730,18 @@ static inline void conv3x3s1_winograd63_transform_output_tile_fp16sa(const Mat& 
                 __fp16 tmp135c0 = r50 - r60;
                 __fp16 tmp135c1 = r51 - r61;
 
-                __fp16 tmp00 = bias0 + r00 + tmp024a0 + tmp024b0 + tmp024c0 * 32;
-                __fp16 tmp01 = bias1 + r01 + tmp024a1 + tmp024b1 + tmp024c1 * 32;
-                __fp16 tmp10 = bias0 + tmp135a0 + tmp135b0 + tmp135b0 + tmp135c0 * 16;
-                __fp16 tmp11 = bias1 + tmp135a1 + tmp135b1 + tmp135b1 + tmp135c1 * 16;
-                __fp16 tmp20 = bias0 + tmp024a0 + tmp024b0 * 4 + tmp024c0 * 8;
-                __fp16 tmp21 = bias1 + tmp024a1 + tmp024b1 * 4 + tmp024c1 * 8;
-                __fp16 tmp30 = bias0 + tmp135a0 + tmp135b0 * 8 + tmp135c0 * 4;
-                __fp16 tmp31 = bias1 + tmp135a1 + tmp135b1 * 8 + tmp135c1 * 4;
-                __fp16 tmp40 = bias0 + tmp024a0 + tmp024b0 * 16 + tmp024c0 + tmp024c0;
-                __fp16 tmp41 = bias1 + tmp024a1 + tmp024b1 * 16 + tmp024c1 + tmp024c1;
-                __fp16 tmp50 = bias0 + r70 + tmp135a0 + tmp135b0 * 32 + tmp135c0;
-                __fp16 tmp51 = bias1 + r71 + tmp135a1 + tmp135b1 * 32 + tmp135c1;
+                __fp16 tmp00 = bias0 + r00 + tmp024a0 + tmp024b0 + tmp024c0 * (__fp16)32;
+                __fp16 tmp01 = bias1 + r01 + tmp024a1 + tmp024b1 + tmp024c1 * (__fp16)32;
+                __fp16 tmp10 = bias0 + tmp135a0 + tmp135b0 + tmp135b0 + tmp135c0 * (__fp16)16;
+                __fp16 tmp11 = bias1 + tmp135a1 + tmp135b1 + tmp135b1 + tmp135c1 * (__fp16)16;
+                __fp16 tmp20 = bias0 + tmp024a0 + tmp024b0 * (__fp16)4 + tmp024c0 * (__fp16)8;
+                __fp16 tmp21 = bias1 + tmp024a1 + tmp024b1 * (__fp16)4 + tmp024c1 * (__fp16)8;
+                __fp16 tmp30 = bias0 + tmp135a0 + tmp135b0 * (__fp16)8 + tmp135c0 * (__fp16)4;
+                __fp16 tmp31 = bias1 + tmp135a1 + tmp135b1 * (__fp16)8 + tmp135c1 * (__fp16)4;
+                __fp16 tmp40 = bias0 + tmp024a0 + tmp024b0 * (__fp16)16 + tmp024c0 + tmp024c0;
+                __fp16 tmp41 = bias1 + tmp024a1 + tmp024b1 * (__fp16)16 + tmp024c1 + tmp024c1;
+                __fp16 tmp50 = bias0 + r70 + tmp135a0 + tmp135b0 * (__fp16)32 + tmp135c0;
+                __fp16 tmp51 = bias1 + r71 + tmp135a1 + tmp135b1 * (__fp16)32 + tmp135c1;
 
                 // if (out_elempack == 1)
                 {
@@ -5810,12 +5810,12 @@ static inline void conv3x3s1_winograd63_transform_output_tile_fp16sa(const Mat& 
                 __fp16 tmp024c = r5[0] + r6[0];
                 __fp16 tmp135c = r5[0] - r6[0];
 
-                tmp[0][m] = r0[0] + tmp024a + tmp024b + tmp024c * 32;
-                tmp[1][m] = tmp135a + tmp135b + tmp135b + tmp135c * 16;
-                tmp[2][m] = tmp024a + tmp024b * 4 + tmp024c * 8;
-                tmp[3][m] = tmp135a + tmp135b * 8 + tmp135c * 4;
-                tmp[4][m] = tmp024a + tmp024b * 16 + tmp024c + tmp024c;
-                tmp[5][m] = r7[0] + tmp135a + tmp135b * 32 + tmp135c;
+                tmp[0][m] = r0[0] + tmp024a + tmp024b + tmp024c * (__fp16)32;
+                tmp[1][m] = tmp135a + tmp135b + tmp135b + tmp135c * (__fp16)16;
+                tmp[2][m] = tmp024a + tmp024b * (__fp16)4 + tmp024c * (__fp16)8;
+                tmp[3][m] = tmp135a + tmp135b * (__fp16)8 + tmp135c * (__fp16)4;
+                tmp[4][m] = tmp024a + tmp024b * (__fp16)16 + tmp024c + tmp024c;
+                tmp[5][m] = r7[0] + tmp135a + tmp135b * (__fp16)32 + tmp135c;
 
                 r0 += max_jj * 8;
                 r1 += max_jj * 8;
@@ -5850,12 +5850,12 @@ static inline void conv3x3s1_winograd63_transform_output_tile_fp16sa(const Mat& 
                 __fp16 tmp024c = r5 + r6;
                 __fp16 tmp135c = r5 - r6;
 
-                __fp16 tmp0 = bias0 + r0 + tmp024a + tmp024b + tmp024c * 32;
-                __fp16 tmp1 = bias0 + tmp135a + tmp135b + tmp135b + tmp135c * 16;
-                __fp16 tmp2 = bias0 + tmp024a + tmp024b * 4 + tmp024c * 8;
-                __fp16 tmp3 = bias0 + tmp135a + tmp135b * 8 + tmp135c * 4;
-                __fp16 tmp4 = bias0 + tmp024a + tmp024b * 16 + tmp024c + tmp024c;
-                __fp16 tmp5 = bias0 + r7 + tmp135a + tmp135b * 32 + tmp135c;
+                __fp16 tmp0 = bias0 + r0 + tmp024a + tmp024b + tmp024c * (__fp16)32;
+                __fp16 tmp1 = bias0 + tmp135a + tmp135b + tmp135b + tmp135c * (__fp16)16;
+                __fp16 tmp2 = bias0 + tmp024a + tmp024b * (__fp16)4 + tmp024c * (__fp16)8;
+                __fp16 tmp3 = bias0 + tmp135a + tmp135b * (__fp16)8 + tmp135c * (__fp16)4;
+                __fp16 tmp4 = bias0 + tmp024a + tmp024b * (__fp16)16 + tmp024c + tmp024c;
+                __fp16 tmp5 = bias0 + r7 + tmp135a + tmp135b * (__fp16)32 + tmp135c;
 
                 // if (out_elempack == 1)
                 {

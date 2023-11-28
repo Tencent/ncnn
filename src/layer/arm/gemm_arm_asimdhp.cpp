@@ -2922,7 +2922,7 @@ int Gemm_arm::forward_fp16sa(const std::vector<Mat>& bottom_blobs, std::vector<M
                 __fp16* outptr = CT_data;
                 for (int i = 0; i < size; i++)
                 {
-                    outptr[i] = ptr[i] * beta;
+                    outptr[i] = ptr[i] * (__fp16)beta;
                 }
 
                 C = CT_data;
