@@ -30,35 +30,6 @@
 
 #include <arm_neon.h>
 
-#if (__ARM_FP & 2)
-static inline float32x4_t loadfp16(const void* ptr)
-{
-#if __ARM_FP16_FORMAT_IEEE
-    return vcvt_f32_f16(vld1_f16((const __fp16*)ptr));
-#else // __ARM_FP16_FORMAT_IEEE
-    float32x4_t v;
-#if __aarch64__
-    asm volatile(
-        "ld1    {v0.4h}, [%2]       \n"
-        "fcvtl  %0.4s, v0.4h        \n"
-        : "=w"(v) // %0
-        : "0"(v),
-        "r"(ptr) // %2
-        : "memory", "v0");
-#else
-    asm volatile(
-        "vld1.s16       {d0}, [%2]  \n"
-        "vcvt.f32.f16   %q0, d0     \n"
-        : "=w"(v) // %0
-        : "0"(v),
-        "r"(ptr) // %2
-        : "memory", "d0");
-#endif // __aarch64__
-    return v;
-#endif // __ARM_FP16_FORMAT_IEEE
-}
-#endif
-
 #define c_inv_mant_mask ~0x7f800000u
 #define c_cephes_SQRTHF 0.707106781186547524
 #define c_cephes_log_p0 7.0376836292E-2

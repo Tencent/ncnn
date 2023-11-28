@@ -24,10 +24,7 @@ def find_version():
     raise RuntimeError("Unable to find version string.")
 
 # Parse environment variables
-NCNN_VULKAN = os.environ.get("NCNN_VULKAN", "")
-Vulkan_INCLUDE_DIR = os.environ.get("Vulkan_INCLUDE_DIR", "")
 Vulkan_LIBRARY = os.environ.get("Vulkan_LIBRARY", "")
-VULKAN_SDK = os.environ.get("VULKAN_SDK", "")
 CMAKE_TOOLCHAIN_FILE = os.environ.get("CMAKE_TOOLCHAIN_FILE", "")
 PLATFORM = os.environ.get("PLATFORM", "")
 ARCHS = os.environ.get("ARCHS", "")
@@ -54,9 +51,6 @@ class InstallCommand(install):
         install.finalize_options(self)
 
     def run(self):
-        global NCNN_VULKAN
-        if self.vulkan == 'on' or self.vulkan == "ON":
-            NCNN_VULKAN = "ON"
         install.run(self)
 
 # Convert distutils Windows platform specifiers to CMake -A arguments
@@ -100,20 +94,15 @@ class CMakeBuild(build_ext):
             "-DPYTHON_EXECUTABLE={}".format(sys.executable),
             "-DCMAKE_BUILD_TYPE={}".format(cfg),  # not used on MSVC, but no harm
             "-DNCNN_PYTHON=ON",
+            "-DNCNN_VULKAN=ON",
             "-DNCNN_DISABLE_RTTI=OFF",
             "-DNCNN_DISABLE_EXCEPTION=OFF",
             "-DNCNN_BUILD_BENCHMARK=OFF",
             "-DNCNN_BUILD_EXAMPLES=OFF",
             "-DNCNN_BUILD_TOOLS=OFF",
         ]
-        if NCNN_VULKAN != "":
-            cmake_args.append("-DNCNN_VULKAN=" + NCNN_VULKAN)
-        if Vulkan_INCLUDE_DIR != "":
-            cmake_args.append("-DVulkan_INCLUDE_DIR=" + Vulkan_INCLUDE_DIR)
         if Vulkan_LIBRARY != "":
             cmake_args.append("-DVulkan_LIBRARY=" + Vulkan_LIBRARY)
-        if VULKAN_SDK != "":
-            cmake_args.append("-DVULKAN_SDK=" + VULKAN_SDK)
         if CMAKE_TOOLCHAIN_FILE != "":
             cmake_args.append("-DCMAKE_TOOLCHAIN_FILE=" + CMAKE_TOOLCHAIN_FILE)
         if PLATFORM != "":

@@ -30,6 +30,7 @@
 #cmakedefine01 NCNN_PIXEL_AFFINE
 #cmakedefine01 NCNN_PIXEL_DRAWING
 #cmakedefine01 NCNN_VULKAN
+#cmakedefine01 NCNN_SIMPLEVK
 #cmakedefine01 NCNN_SYSTEM_GLSLANG
 #cmakedefine01 NCNN_RUNTIME_CPU
 #cmakedefine01 NCNN_GNU_INLINE_ASM
@@ -235,6 +236,28 @@ private:
     Mutex& mutex;
 };
 
+static inline void swap_endianness_16(void* x)
+{
+    unsigned char* xx = (unsigned char*)x;
+    unsigned char x0 = xx[0];
+    unsigned char x1 = xx[1];
+    xx[0] = x1;
+    xx[1] = x0;
+}
+
+static inline void swap_endianness_32(void* x)
+{
+    unsigned char* xx = (unsigned char*)x;
+    unsigned char x0 = xx[0];
+    unsigned char x1 = xx[1];
+    unsigned char x2 = xx[2];
+    unsigned char x3 = xx[3];
+    xx[0] = x3;
+    xx[1] = x2;
+    xx[2] = x1;
+    xx[3] = x0;
+}
+
 } // namespace ncnn
 
 #if NCNN_SIMPLESTL
@@ -253,6 +276,15 @@ private:
 #include <math.h>
 #include <fenv.h>
 #endif
+
+#if NCNN_VULKAN
+#if NCNN_SIMPLEVK
+#include "simplevk.h"
+#else
+#include <vulkan/vulkan.h>
+#endif
+#include "vulkan_header_fix.h"
+#endif // NCNN_VULKAN
 
 #endif // __cplusplus
 

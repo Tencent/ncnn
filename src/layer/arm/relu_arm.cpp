@@ -73,6 +73,7 @@ int ReLU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             float32x4_t _zero = vdupq_n_f32(0.f);
             for (; i + 15 < size; i += 16)
             {
+#if NCNN_GNU_INLINE_ASM
 #if __aarch64__
                 asm volatile(
                     "prfm   pldl1keep, [%0, #512]   \n"
@@ -100,6 +101,21 @@ int ReLU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                     "w"(_zero) // %2
                     : "memory", "q0", "q1", "q2", "q3");
 #endif // __aarch64__
+#else  // NCNN_GNU_INLINE_ASM
+                float32x4_t _p0 = vld1q_f32(ptr);
+                float32x4_t _p1 = vld1q_f32(ptr + 4);
+                float32x4_t _p2 = vld1q_f32(ptr + 8);
+                float32x4_t _p3 = vld1q_f32(ptr + 12);
+                _p0 = vmaxq_f32(_p0, _zero);
+                _p1 = vmaxq_f32(_p1, _zero);
+                _p2 = vmaxq_f32(_p2, _zero);
+                _p3 = vmaxq_f32(_p3, _zero);
+                vst1q_f32(ptr, _p0);
+                vst1q_f32(ptr + 4, _p1);
+                vst1q_f32(ptr + 8, _p2);
+                vst1q_f32(ptr + 12, _p3);
+                ptr += 16;
+#endif // NCNN_GNU_INLINE_ASM
             }
             for (; i + 7 < size; i += 8)
             {
@@ -122,7 +138,6 @@ int ReLU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             for (; i < size; i++)
             {
                 *ptr = std::max(*ptr, 0.f);
-
                 ptr++;
             }
         }
@@ -140,6 +155,7 @@ int ReLU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             float32x4_t _slope = vdupq_n_f32(slope);
             for (; i + 15 < size; i += 16)
             {
+#if NCNN_GNU_INLINE_ASM
 #if __aarch64__
                 asm volatile(
                     "prfm   pldl1keep, [%0, #512]   \n"
@@ -184,6 +200,29 @@ int ReLU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                     "w"(_slope) // %3
                     : "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11");
 #endif // __aarch64__
+#else  // NCNN_GNU_INLINE_ASM
+                float32x4_t _p0 = vld1q_f32(ptr);
+                float32x4_t _p1 = vld1q_f32(ptr + 4);
+                float32x4_t _p2 = vld1q_f32(ptr + 8);
+                float32x4_t _p3 = vld1q_f32(ptr + 12);
+                uint32x4_t _lemask0 = vcleq_f32(_p0, _zero);
+                uint32x4_t _lemask1 = vcleq_f32(_p1, _zero);
+                uint32x4_t _lemask2 = vcleq_f32(_p2, _zero);
+                uint32x4_t _lemask3 = vcleq_f32(_p3, _zero);
+                float32x4_t _ps0 = vmulq_f32(_p0, _slope);
+                float32x4_t _ps1 = vmulq_f32(_p1, _slope);
+                float32x4_t _ps2 = vmulq_f32(_p2, _slope);
+                float32x4_t _ps3 = vmulq_f32(_p3, _slope);
+                _p0 = vbslq_f32(_lemask0, _ps0, _p0);
+                _p1 = vbslq_f32(_lemask1, _ps1, _p1);
+                _p2 = vbslq_f32(_lemask2, _ps2, _p2);
+                _p3 = vbslq_f32(_lemask3, _ps3, _p3);
+                vst1q_f32(ptr, _p0);
+                vst1q_f32(ptr + 4, _p1);
+                vst1q_f32(ptr + 8, _p2);
+                vst1q_f32(ptr + 12, _p3);
+                ptr += 16;
+#endif // NCNN_GNU_INLINE_ASM
             }
             for (; i + 7 < size; i += 8)
             {
@@ -213,7 +252,6 @@ int ReLU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             {
                 if (*ptr < 0)
                     *ptr *= slope;
-
                 ptr++;
             }
         }
@@ -244,6 +282,7 @@ int ReLU_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
             float32x4_t _zero = vdupq_n_f32(0.f);
             for (; i + 15 < size; i += 16)
             {
+#if NCNN_GNU_INLINE_ASM
 #if __aarch64__
                 asm volatile(
                     "prfm   pldl1keep, [%0, #256]   \n"
@@ -287,6 +326,23 @@ int ReLU_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
                     "w"(_zero) // %2
                     : "memory", "q0", "q1", "q2", "q3");
 #endif // __aarch64__
+#else  // NCNN_GNU_INLINE_ASM
+                uint16x8_t _p = vld1q_u16(ptr);
+                uint16x8_t _q = vld1q_u16(ptr + 8);
+                float32x4_t _p0 = bfloat2float(vget_low_u16(_p));
+                float32x4_t _p1 = bfloat2float(vget_high_u16(_p));
+                float32x4_t _p2 = bfloat2float(vget_low_u16(_q));
+                float32x4_t _p3 = bfloat2float(vget_high_u16(_q));
+                _p0 = vmaxq_f32(_p0, _zero);
+                _p1 = vmaxq_f32(_p1, _zero);
+                _p2 = vmaxq_f32(_p2, _zero);
+                _p3 = vmaxq_f32(_p3, _zero);
+                _p = vcombine_u16(float2bfloat(_p0), float2bfloat(_p1));
+                _q = vcombine_u16(float2bfloat(_p2), float2bfloat(_p3));
+                vst1q_u16(ptr, _p);
+                vst1q_u16(ptr + 8, _q);
+                ptr += 16;
+#endif // NCNN_GNU_INLINE_ASM
             }
             for (; i + 7 < size; i += 8)
             {
@@ -312,7 +368,6 @@ int ReLU_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
                 float v = bfloat16_to_float32(ptr[0]);
                 if (v < 0.f)
                     ptr[0] = float32_to_bfloat16(0.f);
-
                 ptr += 1;
             }
         }
@@ -330,6 +385,7 @@ int ReLU_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
             float32x4_t _slope = vdupq_n_f32(slope);
             for (; i + 15 < size; i += 16)
             {
+#if NCNN_GNU_INLINE_ASM
 #if __aarch64__
                 asm volatile(
                     "prfm   pldl1keep, [%0, #256]   \n"
@@ -390,6 +446,31 @@ int ReLU_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
                     "w"(_slope) // %3
                     : "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11");
 #endif // __aarch64__
+#else  // NCNN_GNU_INLINE_ASM
+                uint16x8_t _p = vld1q_u16(ptr);
+                uint16x8_t _q = vld1q_u16(ptr + 8);
+                float32x4_t _p0 = bfloat2float(vget_low_u16(_p));
+                float32x4_t _p1 = bfloat2float(vget_high_u16(_p));
+                float32x4_t _p2 = bfloat2float(vget_low_u16(_q));
+                float32x4_t _p3 = bfloat2float(vget_high_u16(_q));
+                uint32x4_t _lemask0 = vcleq_f32(_p0, _zero);
+                uint32x4_t _lemask1 = vcleq_f32(_p1, _zero);
+                uint32x4_t _lemask2 = vcleq_f32(_p2, _zero);
+                uint32x4_t _lemask3 = vcleq_f32(_p3, _zero);
+                float32x4_t _ps0 = vmulq_f32(_p0, _slope);
+                float32x4_t _ps1 = vmulq_f32(_p1, _slope);
+                float32x4_t _ps2 = vmulq_f32(_p2, _slope);
+                float32x4_t _ps3 = vmulq_f32(_p3, _slope);
+                _p0 = vbslq_f32(_lemask0, _ps0, _p0);
+                _p1 = vbslq_f32(_lemask1, _ps1, _p1);
+                _p2 = vbslq_f32(_lemask2, _ps2, _p2);
+                _p3 = vbslq_f32(_lemask3, _ps3, _p3);
+                _p = vcombine_u16(float2bfloat(_p0), float2bfloat(_p1));
+                _q = vcombine_u16(float2bfloat(_p2), float2bfloat(_p3));
+                vst1q_u16(ptr, _p);
+                vst1q_u16(ptr + 8, _q);
+                ptr += 16;
+#endif // NCNN_GNU_INLINE_ASM
             }
             for (; i + 7 < size; i += 8)
             {
@@ -421,7 +502,6 @@ int ReLU_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
                 float v = bfloat16_to_float32(ptr[0]);
                 if (v < 0.f)
                     ptr[0] = float32_to_bfloat16(v * slope);
-
                 ptr += 1;
             }
         }
