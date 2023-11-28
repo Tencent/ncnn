@@ -266,7 +266,12 @@ int PReLU_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) c
             }
             else
             {
+#if _MSC_VER
+                float16x4_t _slope0 = vcvt_f16_f32(vdupq_n_f32(slope_data[0]));
+                float16x8_t _slope = vcombine_f16(_slope0, _slope0);
+#else
                 float16x8_t _slope = vdupq_n_f16((__fp16)slope_data[0]);
+#endif
 
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int i = 0; i < w; i++)
@@ -362,7 +367,11 @@ int PReLU_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) c
             }
             else
             {
+#if _MSC_VER
+                float16x4_t _slope = vcvt_f16_f32(vdupq_n_f32(slope_data[0]));
+#else
                 float16x4_t _slope = vdup_n_f16((__fp16)slope_data[0]);
+#endif
 
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int i = 0; i < w; i++)

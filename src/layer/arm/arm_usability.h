@@ -219,7 +219,9 @@ static inline __fp16 vmaxv_f16(float16x4_t a)
 
 static inline __fp16 vmaxvq_f16(float16x8_t a)
 {
-    return __fp16(vmaxvq_f32(vcvt_f32_f16(vget_low_f16(a))) + vmaxvq_f32(vcvt_f32_f16(vget_high_f16(a))));
+    float x = vmaxvq_f32(vcvt_f32_f16(vget_low_f16(a)));
+    float y = vmaxvq_f32(vcvt_f32_f16(vget_high_f16(a)));
+    return __fp16(x > y ? x : y);
 }
 
 #define vld1q_f16 vld1q_u16
