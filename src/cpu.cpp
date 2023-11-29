@@ -234,7 +234,7 @@ static int detectisa(const void* some_inst)
 #endif
 #endif
 
-#else // _WIN32
+#elif defined __ANDROID__ || defined __linux__ || defined __APPLE__
 static int g_sigill_caught = 0;
 static sigjmp_buf g_jmpbuf;
 
@@ -293,8 +293,9 @@ static int detectisa(void (*some_inst)())
     };
 #endif
 
-#endif // _WIN32
+#endif // defined _WIN32 || defined __ANDROID__ || defined __linux__ || defined __APPLE__
 
+#if defined _WIN32 || defined __ANDROID__ || defined __linux__ || defined __APPLE__
 #if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
 DEFINE_INSTCODE(some_mmx, 0x0f, 0xdb, 0xc0)                           // pand mm0,mm0
 DEFINE_INSTCODE(some_sse, 0x0f, 0x54, 0xc0)                           // andps xmm0,xmm0
@@ -345,6 +346,7 @@ DEFINE_INSTCODE(some_neon, 0x0d40ef00)  // vadd.f32 q0,q0,q0
 DEFINE_INSTCODE(some_vfpv4, 0x0600ffb6) // vcvt.f16.f32 d0,q0
 
 #endif
+#endif // defined _WIN32 || defined __ANDROID__ || defined __linux__ || defined __APPLE__
 
 #if defined __ANDROID__ || defined __linux__
 
