@@ -17,6 +17,7 @@
 #include "platform.h"
 
 #include <limits.h>
+#include <setjmp.h>
 #include <signal.h>
 #include <stdio.h>
 #include <string.h>
