@@ -17,6 +17,7 @@
 #include "platform.h"
 
 #include <limits.h>
+#include <signal.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -233,8 +234,6 @@ static int detectisa(const void* some_inst)
 #endif
 
 #else // _WIN32
-#include <signal.h>
-
 static int g_sigill_caught = 0;
 static sigjmp_buf g_jmpbuf;
 
