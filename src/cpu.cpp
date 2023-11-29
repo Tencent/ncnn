@@ -232,13 +232,13 @@ static int detectisa(const void* some_inst)
 #endif
 #endif
 
-#else  // _WIN32
+#else // _WIN32
 #include <signal.h>
 
 static int g_sigill_caught = 0;
 static sigjmp_buf g_jmpbuf;
 
-static void catch_sigill(int signo, siginfo_t* si, void *data)
+static void catch_sigill(int signo, siginfo_t* si, void* data)
 {
     g_sigill_caught = 1;
     siglongjmp(g_jmpbuf, -1);
@@ -248,7 +248,7 @@ static int detectisa(void (*some_inst)())
 {
     g_sigill_caught = 0;
 
-    struct sigaction sa = { 0 };
+    struct sigaction sa = {0};
     struct sigaction old_sa;
     sa.sa_flags = SA_ONSTACK | SA_RESTART | SA_SIGINFO;
     sa.sa_sigaction = catch_sigill;
@@ -265,11 +265,32 @@ static int detectisa(void (*some_inst)())
 }
 
 #if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
-#define DEFINE_INSTCODE(name, ...) static void name() { asm volatile(".byte " #__VA_ARGS__ : : : ); };
+#define DEFINE_INSTCODE(name, ...)         \
+    static void name()                     \
+    {                                      \
+        asm volatile(".byte " #__VA_ARGS__ \
+                     :                     \
+                     :                     \
+                     :);                   \
+    };
 #elif __aarch64__
-#define DEFINE_INSTCODE(name, ...) static void name() { asm volatile(".word " #__VA_ARGS__ : : : ); };
+#define DEFINE_INSTCODE(name, ...)         \
+    static void name()                     \
+    {                                      \
+        asm volatile(".word " #__VA_ARGS__ \
+                     :                     \
+                     :                     \
+                     :);                   \
+    };
 #elif __arm__
-#define DEFINE_INSTCODE(name, ...) static void name() { asm volatile(".word " #__VA_ARGS__ : : : ); };
+#define DEFINE_INSTCODE(name, ...)         \
+    static void name()                     \
+    {                                      \
+        asm volatile(".word " #__VA_ARGS__ \
+                     :                     \
+                     :                     \
+                     :);                   \
+    };
 #endif
 
 #endif // _WIN32
