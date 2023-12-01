@@ -814,9 +814,9 @@ int Pooling_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob,
             std::vector<vk_constant_type> constants(5);
             constants[0].i = reduced_blob.w;
             constants[1].i = reduced_blob.c;
-            constants[2].i = 0;//reduced_blob.cstep;
+            constants[2].i = 0; //reduced_blob.cstep;
             constants[3].i = reduced_blob2.w;
-            constants[4].i = 0;//reduced_blob2.cstep;
+            constants[4].i = 0; //reduced_blob2.cstep;
 
             const Pipeline* pipeline = elempack == 8 ? pipeline_pooling_global_reduce_pack8
                                        : elempack == 4 ? pipeline_pooling_global_reduce_pack4
