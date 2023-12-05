@@ -1283,17 +1283,6 @@ void resize_bilinear_font(const unsigned char* font_bitmap, unsigned char* resiz
         sx = static_cast<int>(floor(fx));
         fx -= sx;
 
-        if (sx < 0)
-        {
-            sx = 0;
-            fx = 0.f;
-        }
-        if (sx >= srcw - 1)
-        {
-            sx = srcw - 2;
-            fx = 1.f;
-        }
-
         xofs[dx] = sx;
 
         float a0 = (1.f - fx) * INTER_RESIZE_COEF_SCALE;
@@ -1308,17 +1297,6 @@ void resize_bilinear_font(const unsigned char* font_bitmap, unsigned char* resiz
         fy = (float)((dy + 0.5) * scale - 0.5);
         sy = static_cast<int>(floor(fy));
         fy -= sy;
-
-        if (sy < 0)
-        {
-            sy = 0;
-            fy = 0.f;
-        }
-        if (sy >= srch - 1)
-        {
-            sy = srch - 2;
-            fy = 1.f;
-        }
 
         yofs[dy] = sy;
 
@@ -1336,6 +1314,14 @@ void resize_bilinear_font(const unsigned char* font_bitmap, unsigned char* resiz
     Mat rowsbuf1(w, (size_t)2u);
     short* rows0 = (short*)rowsbuf0;
     short* rows1 = (short*)rowsbuf1;
+
+    {
+        short* rows0p = rows0;
+        for (int dx = 0; dx < w; dx++)
+        {
+            rows0p[dx] = 0;
+        }
+    }
 
     int prev_sy1 = -2;
 
@@ -1355,20 +1341,46 @@ void resize_bilinear_font(const unsigned char* font_bitmap, unsigned char* resiz
             rows1 = rows0_old;
             const unsigned char* S1 = font_bitmap + 10 * (sy + 1);
 
-            const short* ialphap = ialpha;
-            short* rows1p = rows1;
-            for (int dx = 0; dx < w; dx++)
+            if (sy >= srch - 1)
             {
-                sx = xofs[dx];
-                short a0 = ialphap[0];
-                short a1 = ialphap[1];
+                short* rows1p = rows1;
+                for (int dx = 0; dx < w; dx++)
+                {
+                    rows1p[dx] = 0;
+                }
+            }
+            else
+            {
+                const short* ialphap = ialpha;
+                short* rows1p = rows1;
+                for (int dx = 0; dx < w; dx++)
+                {
+                    sx = xofs[dx];
+                    short a0 = ialphap[0];
+                    short a1 = ialphap[1];
 
-                // const unsigned char* S1p = S1 + sx;
-                unsigned char S1p0 = sx % 2 == 0 ? S1[sx/2] & 0x0f : (S1[sx/2] & 0xf0) >> 4;
-                unsigned char S1p1 = sx % 2 == 0 ? (S1[sx/2] & 0xf0) >> 4 : S1[sx/2 + 1] & 0x0f;
-                rows1p[dx] = (S1p0 * a0 + S1p1 * a1) * 17 >> 4;
+                    unsigned char S1p0;
+                    unsigned char S1p1;
 
-                ialphap += 2;
+                    if (sx < 0)
+                    {
+                        S1p0 = 0;
+                        S1p1 = S1[0] & 0x0f;
+                    }
+                    else if (sx >= srcw - 1)
+                    {
+                        S1p0 = (S1[9] & 0xf0) >> 4;
+                        S1p1 = 0;
+                    }
+                    else
+                    {
+                        S1p0 = sx % 2 == 0 ? S1[sx/2] & 0x0f : (S1[sx/2] & 0xf0) >> 4;
+                        S1p1 = sx % 2 == 0 ? (S1[sx/2] & 0xf0) >> 4 : S1[sx/2 + 1] & 0x0f;
+                    }
+                    rows1p[dx] = (S1p0 * a0 + S1p1 * a1) * 17 >> 4;
+
+                    ialphap += 2;
+                }
             }
         }
         else
@@ -1377,25 +1389,83 @@ void resize_bilinear_font(const unsigned char* font_bitmap, unsigned char* resiz
             const unsigned char* S0 = font_bitmap + 10 * (sy);
             const unsigned char* S1 = font_bitmap + 10 * (sy + 1);
 
-            const short* ialphap = ialpha;
-            short* rows0p = rows0;
-            short* rows1p = rows1;
-            for (int dx = 0; dx < w; dx++)
+            if (sy >= srch - 1)
             {
-                sx = xofs[dx];
-                short a0 = ialphap[0];
-                short a1 = ialphap[1];
+                const short* ialphap = ialpha;
+                short* rows0p = rows0;
+                short* rows1p = rows1;
+                for (int dx = 0; dx < w; dx++)
+                {
+                    sx = xofs[dx];
+                    short a0 = ialphap[0];
+                    short a1 = ialphap[1];
 
-                // const unsigned char* S0p = S0 + sx;
-                // const unsigned char* S1p = S1 + sx;
-                unsigned char S0p0 = sx % 2 == 0 ? S0[sx/2] & 0x0f : (S0[sx/2] & 0xf0) >> 4;
-                unsigned char S1p0 = sx % 2 == 0 ? S1[sx/2] & 0x0f : (S1[sx/2] & 0xf0) >> 4;
-                unsigned char S0p1 = sx % 2 == 0 ? (S0[sx/2] & 0xf0) >> 4 : S0[sx/2 + 1] & 0x0f;
-                unsigned char S1p1 = sx % 2 == 0 ? (S1[sx/2] & 0xf0) >> 4 : S1[sx/2 + 1] & 0x0f;
-                rows0p[dx] = (S0p0 * a0 + S0p1 * a1) * 17 >> 4;
-                rows1p[dx] = (S1p0 * a0 + S1p1 * a1) * 17 >> 4;
+                    unsigned char S0p0;
+                    unsigned char S0p1;
 
-                ialphap += 2;
+                    if (sx < 0)
+                    {
+                        S0p0 = 0;
+                        S0p1 = S0[0] & 0x0f;
+                    }
+                    else if (sx >= srcw - 1)
+                    {
+                        S0p0 = (S0[9] & 0xf0) >> 4;
+                        S0p1 = 0;
+                    }
+                    else
+                    {
+                        S0p0 = sx % 2 == 0 ? S0[sx/2] & 0x0f : (S0[sx/2] & 0xf0) >> 4;
+                        S0p1 = sx % 2 == 0 ? (S0[sx/2] & 0xf0) >> 4 : S0[sx/2 + 1] & 0x0f;
+                    }
+                    rows0p[dx] = (S0p0 * a0 + S0p1 * a1) * 17 >> 4;
+                    rows1p[dx] = 0;
+
+                    ialphap += 2;
+                }
+            }
+            else
+            {
+                const short* ialphap = ialpha;
+                short* rows0p = rows0;
+                short* rows1p = rows1;
+                for (int dx = 0; dx < w; dx++)
+                {
+                    sx = xofs[dx];
+                    short a0 = ialphap[0];
+                    short a1 = ialphap[1];
+
+                    unsigned char S0p0;
+                    unsigned char S0p1;
+                    unsigned char S1p0;
+                    unsigned char S1p1;
+
+                    if (sx < 0)
+                    {
+                        S0p0 = 0;
+                        S0p1 = S0[0] & 0x0f;
+                        S1p0 = 0;
+                        S1p1 = S1[0] & 0x0f;
+                    }
+                    else if (sx >= srcw - 1)
+                    {
+                        S0p0 = (S0[9] & 0xf0) >> 4;
+                        S0p1 = 0;
+                        S1p0 = (S1[9] & 0xf0) >> 4;
+                        S1p1 = 0;
+                    }
+                    else
+                    {
+                        S0p0 = sx % 2 == 0 ? S0[sx/2] & 0x0f : (S0[sx/2] & 0xf0) >> 4;
+                        S0p1 = sx % 2 == 0 ? (S0[sx/2] & 0xf0) >> 4 : S0[sx/2 + 1] & 0x0f;
+                        S1p0 = sx % 2 == 0 ? S1[sx/2] & 0x0f : (S1[sx/2] & 0xf0) >> 4;
+                        S1p1 = sx % 2 == 0 ? (S1[sx/2] & 0xf0) >> 4 : S1[sx/2 + 1] & 0x0f;
+                    }
+                    rows0p[dx] = (S0p0 * a0 + S0p1 * a1) * 17 >> 4;
+                    rows1p[dx] = (S1p0 * a0 + S1p1 * a1) * 17 >> 4;
+
+                    ialphap += 2;
+                }
             }
         }
 
