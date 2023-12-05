@@ -15,6 +15,7 @@
 #include "mat.h"
 
 #include <ctype.h>
+#include <limits.h>
 
 #include "platform.h"
 
@@ -1249,6 +1250,247 @@ void draw_text_c4(unsigned char* pixels, int w, int h, const char* text, int x, 
     return draw_text_c4(pixels, w, h, w * 4, text, x, y, fontpixelsize, color);
 }
 
+void resize_bilinear_font(const unsigned char* font_bitmap, unsigned char* resized_font_bitmap, int fontpixelsize)
+{
+    const int INTER_RESIZE_COEF_BITS = 11;
+    const int INTER_RESIZE_COEF_SCALE = 1 << INTER_RESIZE_COEF_BITS;
+
+    const int srcw = 20;
+    const int srch = 40;
+    const int w = fontpixelsize;
+    const int h = fontpixelsize * 2;
+
+    double scale = (double)srcw / w;
+
+    int* buf = new int[w + h + w + h];
+
+    int* xofs = buf;     //new int[w];
+    int* yofs = buf + w; //new int[h];
+
+    short* ialpha = (short*)(buf + w + h);    //new short[w * 2];
+    short* ibeta = (short*)(buf + w + h + w); //new short[h * 2];
+
+    float fx;
+    float fy;
+    int sx;
+    int sy;
+
+#define SATURATE_CAST_SHORT(X) (short)::std::min(::std::max((int)(X + (X >= 0.f ? 0.5f : -0.5f)), SHRT_MIN), SHRT_MAX);
+
+    for (int dx = 0; dx < w; dx++)
+    {
+        fx = (float)((dx + 0.5) * scale - 0.5);
+        sx = static_cast<int>(floor(fx));
+        fx -= sx;
+
+        if (sx < 0)
+        {
+            sx = 0;
+            fx = 0.f;
+        }
+        if (sx >= srcw - 1)
+        {
+            sx = srcw - 2;
+            fx = 1.f;
+        }
+
+        xofs[dx] = sx;
+
+        float a0 = (1.f - fx) * INTER_RESIZE_COEF_SCALE;
+        float a1 = fx * INTER_RESIZE_COEF_SCALE;
+
+        ialpha[dx * 2] = SATURATE_CAST_SHORT(a0);
+        ialpha[dx * 2 + 1] = SATURATE_CAST_SHORT(a1);
+    }
+
+    for (int dy = 0; dy < h; dy++)
+    {
+        fy = (float)((dy + 0.5) * scale - 0.5);
+        sy = static_cast<int>(floor(fy));
+        fy -= sy;
+
+        if (sy < 0)
+        {
+            sy = 0;
+            fy = 0.f;
+        }
+        if (sy >= srch - 1)
+        {
+            sy = srch - 2;
+            fy = 1.f;
+        }
+
+        yofs[dy] = sy;
+
+        float b0 = (1.f - fy) * INTER_RESIZE_COEF_SCALE;
+        float b1 = fy * INTER_RESIZE_COEF_SCALE;
+
+        ibeta[dy * 2] = SATURATE_CAST_SHORT(b0);
+        ibeta[dy * 2 + 1] = SATURATE_CAST_SHORT(b1);
+    }
+
+#undef SATURATE_CAST_SHORT
+
+    // loop body
+    Mat rowsbuf0(w, (size_t)2u);
+    Mat rowsbuf1(w, (size_t)2u);
+    short* rows0 = (short*)rowsbuf0;
+    short* rows1 = (short*)rowsbuf1;
+
+    int prev_sy1 = -2;
+
+    for (int dy = 0; dy < h; dy++)
+    {
+        sy = yofs[dy];
+
+        if (sy == prev_sy1)
+        {
+            // reuse all rows
+        }
+        else if (sy == prev_sy1 + 1)
+        {
+            // hresize one row
+            short* rows0_old = rows0;
+            rows0 = rows1;
+            rows1 = rows0_old;
+            const unsigned char* S1 = font_bitmap + 10 * (sy + 1);
+
+            const short* ialphap = ialpha;
+            short* rows1p = rows1;
+            for (int dx = 0; dx < w; dx++)
+            {
+                sx = xofs[dx];
+                short a0 = ialphap[0];
+                short a1 = ialphap[1];
+
+                // const unsigned char* S1p = S1 + sx;
+                unsigned char S1p0 = sx % 2 == 0 ? S1[sx/2] & 0x0f : (S1[sx/2] & 0xf0) >> 4;
+                unsigned char S1p1 = sx % 2 == 0 ? (S1[sx/2] & 0xf0) >> 4 : S1[sx/2 + 1] & 0x0f;
+                rows1p[dx] = (S1p0 * a0 + S1p1 * a1) * 17 >> 4;
+
+                ialphap += 2;
+            }
+        }
+        else
+        {
+            // hresize two rows
+            const unsigned char* S0 = font_bitmap + 10 * (sy);
+            const unsigned char* S1 = font_bitmap + 10 * (sy + 1);
+
+            const short* ialphap = ialpha;
+            short* rows0p = rows0;
+            short* rows1p = rows1;
+            for (int dx = 0; dx < w; dx++)
+            {
+                sx = xofs[dx];
+                short a0 = ialphap[0];
+                short a1 = ialphap[1];
+
+                // const unsigned char* S0p = S0 + sx;
+                // const unsigned char* S1p = S1 + sx;
+                unsigned char S0p0 = sx % 2 == 0 ? S0[sx/2] & 0x0f : (S0[sx/2] & 0xf0) >> 4;
+                unsigned char S1p0 = sx % 2 == 0 ? S1[sx/2] & 0x0f : (S1[sx/2] & 0xf0) >> 4;
+                unsigned char S0p1 = sx % 2 == 0 ? (S0[sx/2] & 0xf0) >> 4 : S0[sx/2 + 1] & 0x0f;
+                unsigned char S1p1 = sx % 2 == 0 ? (S1[sx/2] & 0xf0) >> 4 : S1[sx/2 + 1] & 0x0f;
+                rows0p[dx] = (S0p0 * a0 + S0p1 * a1) * 17 >> 4;
+                rows1p[dx] = (S1p0 * a0 + S1p1 * a1) * 17 >> 4;
+
+                ialphap += 2;
+            }
+        }
+
+        prev_sy1 = sy;
+
+        if (dy + 1 < h && yofs[dy + 1] == sy)
+        {
+            // vresize for two rows
+            short b0 = ibeta[0];
+            short b1 = ibeta[1];
+            short b2 = ibeta[2];
+            short b3 = ibeta[3];
+
+            short* rows0p = rows0;
+            short* rows1p = rows1;
+            unsigned char* Dp0 = resized_font_bitmap + w * (dy);
+            unsigned char* Dp1 = resized_font_bitmap + w * (dy + 1);
+
+            int dx = 0;
+#if __ARM_NEON
+            int16x8_t _b0 = vdupq_n_s16(b0);
+            int16x8_t _b1 = vdupq_n_s16(b1);
+            int16x8_t _b2 = vdupq_n_s16(b2);
+            int16x8_t _b3 = vdupq_n_s16(b3);
+            int16x8_t _v2 = vdupq_n_s16(2);
+            for (; dx + 7 < w; dx += 8)
+            {
+                int16x8_t _r0 = vld1q_s16(rows0p);
+                int16x8_t _r1 = vld1q_s16(rows1p);
+                int16x8_t _acc0 = vaddq_s16(vqdmulhq_s16(_r0, _b0), vqdmulhq_s16(_r1, _b1));
+                int16x8_t _acc1 = vaddq_s16(vqdmulhq_s16(_r0, _b2), vqdmulhq_s16(_r1, _b3));
+                uint8x8_t _Dp0 = vqrshrun_n_s16(_acc0, 3);
+                uint8x8_t _Dp1 = vqrshrun_n_s16(_acc1, 3);
+                vst1_u8(Dp0, _Dp0);
+                vst1_u8(Dp1, _Dp1);
+                Dp0 += 8;
+                Dp1 += 8;
+                rows0p += 8;
+                rows1p += 8;
+            }
+#endif // __ARM_NEON
+            for (; dx < w; dx++)
+            {
+                short s0 = *rows0p++;
+                short s1 = *rows1p++;
+
+                *Dp0++ = (unsigned char)(((short)((b0 * s0) >> 16) + (short)((b1 * s1) >> 16) + 2) >> 2);
+                *Dp1++ = (unsigned char)(((short)((b2 * s0) >> 16) + (short)((b3 * s1) >> 16) + 2) >> 2);
+            }
+
+            ibeta += 4;
+            dy += 1;
+        }
+        else
+        {
+            // vresize
+            short b0 = ibeta[0];
+            short b1 = ibeta[1];
+
+            short* rows0p = rows0;
+            short* rows1p = rows1;
+            unsigned char* Dp = resized_font_bitmap + w * (dy);
+
+            int dx = 0;
+#if __ARM_NEON
+            int16x8_t _b0 = vdupq_n_s16(b0);
+            int16x8_t _b1 = vdupq_n_s16(b1);
+            int16x8_t _v2 = vdupq_n_s16(2);
+            for (; dx + 7 < w; dx += 8)
+            {
+                int16x8_t _r0 = vld1q_s16(rows0p);
+                int16x8_t _r1 = vld1q_s16(rows1p);
+                int16x8_t _acc = vaddq_s16(vqdmulhq_s16(_r0, _b0), vqdmulhq_s16(_r1, _b1));
+                uint8x8_t _Dp = vqrshrun_n_s16(_acc, 3);
+                vst1_u8(Dp, _Dp);
+                Dp += 8;
+                rows0p += 8;
+                rows1p += 8;
+            }
+#endif // __ARM_NEON
+            for (; dx < w; dx++)
+            {
+                short s0 = *rows0p++;
+                short s1 = *rows1p++;
+
+                *Dp++ = (unsigned char)(((short)((b0 * s0) >> 16) + (short)((b1 * s1) >> 16) + 2) >> 2);
+            }
+
+            ibeta += 2;
+        }
+    }
+
+    delete[] buf;
+}
+
 void draw_text_c1(unsigned char* pixels, int w, int h, int stride, const char* text, int x, int y, int fontpixelsize, unsigned int color)
 {
     const unsigned char* pen_color = (const unsigned char*)&color;
@@ -1275,7 +1517,7 @@ void draw_text_c1(unsigned char* pixels, int w, int h, int stride, const char* t
             const unsigned char* font_bitmap = mono_font_data[ch - ' '];
 
             // draw resized character
-            resize_bilinear_c1(font_bitmap, 20, 40, resized_font_bitmap, fontpixelsize, fontpixelsize * 2);
+            resize_bilinear_font(font_bitmap, resized_font_bitmap, fontpixelsize);
 
             for (int j = cursor_y; j < cursor_y + fontpixelsize * 2; j++)
             {
@@ -1336,7 +1578,7 @@ void draw_text_c2(unsigned char* pixels, int w, int h, int stride, const char* t
             const unsigned char* font_bitmap = mono_font_data[font_bitmap_index];
 
             // draw resized character
-            resize_bilinear_c1(font_bitmap, 20, 40, resized_font_bitmap, fontpixelsize, fontpixelsize * 2);
+            resize_bilinear_font(font_bitmap, resized_font_bitmap, fontpixelsize);
 
             for (int j = cursor_y; j < cursor_y + fontpixelsize * 2; j++)
             {
@@ -1398,7 +1640,7 @@ void draw_text_c3(unsigned char* pixels, int w, int h, int stride, const char* t
             const unsigned char* font_bitmap = mono_font_data[font_bitmap_index];
 
             // draw resized character
-            resize_bilinear_c1(font_bitmap, 20, 40, resized_font_bitmap, fontpixelsize, fontpixelsize * 2);
+            resize_bilinear_font(font_bitmap, resized_font_bitmap, fontpixelsize);
 
             for (int j = cursor_y; j < cursor_y + fontpixelsize * 2; j++)
             {
@@ -1460,7 +1702,7 @@ void draw_text_c4(unsigned char* pixels, int w, int h, int stride, const char* t
             const unsigned char* font_bitmap = mono_font_data[ch - ' '];
 
             // draw resized character
-            resize_bilinear_c1(font_bitmap, 20, 40, resized_font_bitmap, fontpixelsize, fontpixelsize * 2);
+            resize_bilinear_font(font_bitmap, resized_font_bitmap, fontpixelsize);
 
             for (int j = cursor_y; j < cursor_y + fontpixelsize * 2; j++)
             {
