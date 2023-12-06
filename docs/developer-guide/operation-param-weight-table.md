@@ -4,8 +4,7 @@
 |AbsVal|||
 |ArgMax|0|out_max_val|0|
 ||1|topk|1|
-|BatchNorm|0|channels|0|slope mean variance bias|
-||1|eps|0.f|
+|BatchNorm|0|channels|0|slope mean variance(+eps) bias|
 |Bias|0|bias_data_size|0|
 |BinaryOp|0|op_type|0|
 ||1|with_scalar|0|
