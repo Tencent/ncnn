@@ -1564,6 +1564,7 @@ void resize_bilinear_font(const unsigned char* font_bitmap, unsigned char* resiz
 void draw_text_c1(unsigned char* pixels, int w, int h, int stride, const char* text, int x, int y, int fontpixelsize, unsigned int color)
 {
     const unsigned char* pen_color = (const unsigned char*)&color;
+    const unsigned char pen_alpha = pen_color[3] == 0 ? 255 : pen_color[3];
 
     unsigned char* resized_font_bitmap = new unsigned char[fontpixelsize * fontpixelsize * 2];
 
@@ -1615,7 +1616,7 @@ void draw_text_c1(unsigned char* pixels, int w, int h, int stride, const char* t
                     if (k >= w)
                         break;
 
-                    unsigned char alpha = palpha[k - cursor_x];
+                    unsigned char alpha = (palpha[k - cursor_x] * pen_alpha) / 255;
 
                     p[k] = (p[k] * (255 - alpha) + pen_color[0] * alpha) / 255;
                 }
@@ -1631,6 +1632,7 @@ void draw_text_c1(unsigned char* pixels, int w, int h, int stride, const char* t
 void draw_text_c2(unsigned char* pixels, int w, int h, int stride, const char* text, int x, int y, int fontpixelsize, unsigned int color)
 {
     const unsigned char* pen_color = (const unsigned char*)&color;
+    const unsigned char pen_alpha = pen_color[3] == 0 ? 255 : pen_color[3];
 
     unsigned char* resized_font_bitmap = new unsigned char[fontpixelsize * fontpixelsize * 2];
 
@@ -1682,7 +1684,7 @@ void draw_text_c2(unsigned char* pixels, int w, int h, int stride, const char* t
                     if (k >= w)
                         break;
 
-                    unsigned char alpha = palpha[k - cursor_x];
+                    unsigned char alpha = (palpha[k - cursor_x] * pen_alpha) / 255;
 
                     p[k * 2 + 0] = (p[k * 2 + 0] * (255 - alpha) + pen_color[0] * alpha) / 255;
                     p[k * 2 + 1] = (p[k * 2 + 1] * (255 - alpha) + pen_color[1] * alpha) / 255;
@@ -1699,6 +1701,7 @@ void draw_text_c2(unsigned char* pixels, int w, int h, int stride, const char* t
 void draw_text_c3(unsigned char* pixels, int w, int h, int stride, const char* text, int x, int y, int fontpixelsize, unsigned int color)
 {
     const unsigned char* pen_color = (const unsigned char*)&color;
+    const unsigned char pen_alpha = pen_color[3] == 0 ? 255 : pen_color[3];
 
     unsigned char* resized_font_bitmap = new unsigned char[fontpixelsize * fontpixelsize * 2];
 
@@ -1750,7 +1753,7 @@ void draw_text_c3(unsigned char* pixels, int w, int h, int stride, const char* t
                     if (k >= w)
                         break;
 
-                    unsigned char alpha = palpha[k - cursor_x];
+                    unsigned char alpha = (palpha[k - cursor_x] * pen_alpha) / 255;
 
                     p[k * 3 + 0] = (p[k * 3 + 0] * (255 - alpha) + pen_color[0] * alpha) / 255;
                     p[k * 3 + 1] = (p[k * 3 + 1] * (255 - alpha) + pen_color[1] * alpha) / 255;
@@ -1768,6 +1771,7 @@ void draw_text_c3(unsigned char* pixels, int w, int h, int stride, const char* t
 void draw_text_c4(unsigned char* pixels, int w, int h, int stride, const char* text, int x, int y, int fontpixelsize, unsigned int color)
 {
     const unsigned char* pen_color = (const unsigned char*)&color;
+    const unsigned char pen_alpha = pen_color[3] == 0 ? 255 : pen_color[3];
 
     unsigned char* resized_font_bitmap = new unsigned char[fontpixelsize * fontpixelsize * 2];
 
@@ -1819,12 +1823,12 @@ void draw_text_c4(unsigned char* pixels, int w, int h, int stride, const char* t
                     if (k >= w)
                         break;
 
-                    unsigned char alpha = palpha[k - cursor_x];
+                    unsigned char alpha = (palpha[k - cursor_x] * pen_alpha) / 255;
 
                     p[k * 4 + 0] = (p[k * 4 + 0] * (255 - alpha) + pen_color[0] * alpha) / 255;
                     p[k * 4 + 1] = (p[k * 4 + 1] * (255 - alpha) + pen_color[1] * alpha) / 255;
                     p[k * 4 + 2] = (p[k * 4 + 2] * (255 - alpha) + pen_color[2] * alpha) / 255;
-                    p[k * 4 + 3] = (p[k * 4 + 3] * (255 - alpha) + pen_color[3] * alpha) / 255;
+                    p[k * 4 + 3] = (p[k * 4 + 3] * (255 - alpha) + pen_alpha * alpha) / 255;
                 }
             }
 
