@@ -1715,28 +1715,22 @@ void draw_text_c1(unsigned char* pixels, int w, int h, int stride, const char* t
             // draw resized character
             resize_bilinear_font(font_bitmap, resized_font_bitmap, fontpixelsize);
 
-            for (int j = cursor_y; j < cursor_y + fontpixelsize * 2; j++)
+            const int ystart = std::max(cursor_y, 0);
+            const int yend = std::min(cursor_y + fontpixelsize * 2, h);
+            const int xstart = std::max(cursor_x, 0);
+            const int xend = std::min(cursor_x + fontpixelsize, w);
+
+            for (int j = ystart; j < yend; j++)
             {
-                if (j < 0)
-                    continue;
+                const unsigned char* palpha = resized_font_bitmap + (j - cursor_y) * fontpixelsize + xstart - cursor_x;
+                unsigned char* p = pixels + stride * j + xstart;
 
-                if (j >= h)
-                    break;
-
-                const unsigned char* palpha = resized_font_bitmap + (j - cursor_y) * fontpixelsize;
-                unsigned char* p = pixels + stride * j;
-
-                for (int k = cursor_x; k < cursor_x + fontpixelsize; k++)
+                for (int k = xstart; k < xend; k++)
                 {
-                    if (k < 0)
-                        continue;
+                    unsigned char alpha = *palpha++;
 
-                    if (k >= w)
-                        break;
-
-                    unsigned char alpha = palpha[k - cursor_x];
-
-                    p[k] = (p[k] * (255 - alpha) + pen_color[0] * alpha) / 255;
+                    p[0] = (p[0] * (255 - alpha) + pen_color[0] * alpha) / 255;
+                    p += 1;
                 }
             }
 
@@ -1782,29 +1776,23 @@ void draw_text_c2(unsigned char* pixels, int w, int h, int stride, const char* t
             // draw resized character
             resize_bilinear_font(font_bitmap, resized_font_bitmap, fontpixelsize);
 
-            for (int j = cursor_y; j < cursor_y + fontpixelsize * 2; j++)
+            const int ystart = std::max(cursor_y, 0);
+            const int yend = std::min(cursor_y + fontpixelsize * 2, h);
+            const int xstart = std::max(cursor_x, 0);
+            const int xend = std::min(cursor_x + fontpixelsize, w);
+
+            for (int j = ystart; j < yend; j++)
             {
-                if (j < 0)
-                    continue;
+                const unsigned char* palpha = resized_font_bitmap + (j - cursor_y) * fontpixelsize + xstart - cursor_x;
+                unsigned char* p = pixels + stride * j + xstart * 2;
 
-                if (j >= h)
-                    break;
-
-                const unsigned char* palpha = resized_font_bitmap + (j - cursor_y) * fontpixelsize;
-                unsigned char* p = pixels + stride * j;
-
-                for (int k = cursor_x; k < cursor_x + fontpixelsize; k++)
+                for (int k = xstart; k < xend; k++)
                 {
-                    if (k < 0)
-                        continue;
+                    unsigned char alpha = *palpha++;
 
-                    if (k >= w)
-                        break;
-
-                    unsigned char alpha = palpha[k - cursor_x];
-
-                    p[k * 2 + 0] = (p[k * 2 + 0] * (255 - alpha) + pen_color[0] * alpha) / 255;
-                    p[k * 2 + 1] = (p[k * 2 + 1] * (255 - alpha) + pen_color[1] * alpha) / 255;
+                    p[0] = (p[0] * (255 - alpha) + pen_color[0] * alpha) / 255;
+                    p[1] = (p[1] * (255 - alpha) + pen_color[1] * alpha) / 255;
+                    p += 2;
                 }
             }
 
@@ -1850,30 +1838,24 @@ void draw_text_c3(unsigned char* pixels, int w, int h, int stride, const char* t
             // draw resized character
             resize_bilinear_font(font_bitmap, resized_font_bitmap, fontpixelsize);
 
-            for (int j = cursor_y; j < cursor_y + fontpixelsize * 2; j++)
+            const int ystart = std::max(cursor_y, 0);
+            const int yend = std::min(cursor_y + fontpixelsize * 2, h);
+            const int xstart = std::max(cursor_x, 0);
+            const int xend = std::min(cursor_x + fontpixelsize, w);
+
+            for (int j = ystart; j < yend; j++)
             {
-                if (j < 0)
-                    continue;
+                const unsigned char* palpha = resized_font_bitmap + (j - cursor_y) * fontpixelsize + xstart - cursor_x;
+                unsigned char* p = pixels + stride * j + xstart * 3;
 
-                if (j >= h)
-                    break;
-
-                const unsigned char* palpha = resized_font_bitmap + (j - cursor_y) * fontpixelsize;
-                unsigned char* p = pixels + stride * j;
-
-                for (int k = cursor_x; k < cursor_x + fontpixelsize; k++)
+                for (int k = xstart; k < xend; k++)
                 {
-                    if (k < 0)
-                        continue;
+                    unsigned char alpha = *palpha++;
 
-                    if (k >= w)
-                        break;
-
-                    unsigned char alpha = palpha[k - cursor_x];
-
-                    p[k * 3 + 0] = (p[k * 3 + 0] * (255 - alpha) + pen_color[0] * alpha) / 255;
-                    p[k * 3 + 1] = (p[k * 3 + 1] * (255 - alpha) + pen_color[1] * alpha) / 255;
-                    p[k * 3 + 2] = (p[k * 3 + 2] * (255 - alpha) + pen_color[2] * alpha) / 255;
+                    p[0] = (p[0] * (255 - alpha) + pen_color[0] * alpha) / 255;
+                    p[1] = (p[1] * (255 - alpha) + pen_color[1] * alpha) / 255;
+                    p[2] = (p[2] * (255 - alpha) + pen_color[2] * alpha) / 255;
+                    p += 3;
                 }
             }
 
@@ -1919,31 +1901,25 @@ void draw_text_c4(unsigned char* pixels, int w, int h, int stride, const char* t
             // draw resized character
             resize_bilinear_font(font_bitmap, resized_font_bitmap, fontpixelsize);
 
-            for (int j = cursor_y; j < cursor_y + fontpixelsize * 2; j++)
+            const int ystart = std::max(cursor_y, 0);
+            const int yend = std::min(cursor_y + fontpixelsize * 2, h);
+            const int xstart = std::max(cursor_x, 0);
+            const int xend = std::min(cursor_x + fontpixelsize, w);
+
+            for (int j = ystart; j < yend; j++)
             {
-                if (j < 0)
-                    continue;
+                const unsigned char* palpha = resized_font_bitmap + (j - cursor_y) * fontpixelsize + xstart - cursor_x;
+                unsigned char* p = pixels + stride * j + xstart * 4;
 
-                if (j >= h)
-                    break;
-
-                const unsigned char* palpha = resized_font_bitmap + (j - cursor_y) * fontpixelsize;
-                unsigned char* p = pixels + stride * j;
-
-                for (int k = cursor_x; k < cursor_x + fontpixelsize; k++)
+                for (int k = xstart; k < xend; k++)
                 {
-                    if (k < 0)
-                        continue;
+                    unsigned char alpha = *palpha++;
 
-                    if (k >= w)
-                        break;
-
-                    unsigned char alpha = palpha[k - cursor_x];
-
-                    p[k * 4 + 0] = (p[k * 4 + 0] * (255 - alpha) + pen_color[0] * alpha) / 255;
-                    p[k * 4 + 1] = (p[k * 4 + 1] * (255 - alpha) + pen_color[1] * alpha) / 255;
-                    p[k * 4 + 2] = (p[k * 4 + 2] * (255 - alpha) + pen_color[2] * alpha) / 255;
-                    p[k * 4 + 3] = (p[k * 4 + 3] * (255 - alpha) + pen_color[3] * alpha) / 255;
+                    p[0] = (p[0] * (255 - alpha) + pen_color[0] * alpha) / 255;
+                    p[1] = (p[1] * (255 - alpha) + pen_color[1] * alpha) / 255;
+                    p[2] = (p[2] * (255 - alpha) + pen_color[2] * alpha) / 255;
+                    p[3] = (p[3] * (255 - alpha) + pen_color[3] * alpha) / 255;
+                    p += 4;
                 }
             }
 
