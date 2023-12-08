@@ -1935,8 +1935,8 @@ void draw_text_yuv420sp(unsigned char* yuv420sp, int w, int h, const char* text,
 
     const unsigned char* pen_color = (const unsigned char*)&color;
 
-    unsigned int v_y;
-    unsigned int v_uv;
+    unsigned int v_y = 0;
+    unsigned int v_uv = 0;
     unsigned char* pen_color_y = (unsigned char*)&v_y;
     unsigned char* pen_color_uv = (unsigned char*)&v_uv;
     pen_color_y[0] = pen_color[0];
