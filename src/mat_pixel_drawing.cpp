@@ -17,6 +17,14 @@
 #include <ctype.h>
 #include <limits.h>
 
+#if __ARM_NEON
+#include <arm_neon.h>
+#endif // __ARM_NEON
+
+#if __SSE2__
+#include <emmintrin.h>
+#endif
+
 #include "platform.h"
 
 namespace ncnn {
@@ -1490,7 +1498,6 @@ void resize_bilinear_font(const unsigned char* font_bitmap, unsigned char* resiz
             int16x8_t _b1 = vdupq_n_s16(b1);
             int16x8_t _b2 = vdupq_n_s16(b2);
             int16x8_t _b3 = vdupq_n_s16(b3);
-            int16x8_t _v2 = vdupq_n_s16(2);
             for (; dx + 7 < w; dx += 8)
             {
                 int16x8_t _r0 = vld1q_s16(rows0p);
@@ -1507,6 +1514,53 @@ void resize_bilinear_font(const unsigned char* font_bitmap, unsigned char* resiz
                 rows1p += 8;
             }
 #endif // __ARM_NEON
+#if __SSE2__
+            __m128i _b0 = _mm_set1_epi16(b0);
+            __m128i _b1 = _mm_set1_epi16(b1);
+            __m128i _b2 = _mm_set1_epi16(b2);
+            __m128i _b3 = _mm_set1_epi16(b3);
+            __m128i _v2 = _mm_set1_epi16(2);
+            for (; dx + 15 < w; dx += 16)
+            {
+                __m128i _r00 = _mm_loadu_si128((const __m128i*)rows0p);
+                __m128i _r01 = _mm_loadu_si128((const __m128i*)(rows0p + 8));
+                __m128i _r10 = _mm_loadu_si128((const __m128i*)rows1p);
+                __m128i _r11 = _mm_loadu_si128((const __m128i*)(rows1p + 8));
+                __m128i _acc00 = _mm_add_epi16(_mm_mulhi_epi16(_r00, _b0), _mm_mulhi_epi16(_r10, _b1));
+                __m128i _acc01 = _mm_add_epi16(_mm_mulhi_epi16(_r01, _b0), _mm_mulhi_epi16(_r11, _b1));
+                __m128i _acc10 = _mm_add_epi16(_mm_mulhi_epi16(_r00, _b2), _mm_mulhi_epi16(_r10, _b3));
+                __m128i _acc11 = _mm_add_epi16(_mm_mulhi_epi16(_r01, _b2), _mm_mulhi_epi16(_r11, _b3));
+                _acc00 = _mm_srai_epi16(_mm_add_epi16(_acc00, _v2), 2);
+                _acc01 = _mm_srai_epi16(_mm_add_epi16(_acc01, _v2), 2);
+                _acc10 = _mm_srai_epi16(_mm_add_epi16(_acc10, _v2), 2);
+                _acc11 = _mm_srai_epi16(_mm_add_epi16(_acc11, _v2), 2);
+                __m128i _Dp0 = _mm_packus_epi16(_acc00, _acc01);
+                __m128i _Dp1 = _mm_packus_epi16(_acc10, _acc11);
+                _mm_storeu_si128((__m128i*)Dp0, _Dp0);
+                _mm_storeu_si128((__m128i*)Dp1, _Dp1);
+                Dp0 += 16;
+                Dp1 += 16;
+                rows0p += 16;
+                rows1p += 16;
+            }
+            for (; dx + 7 < w; dx += 8)
+            {
+                __m128i _r0 = _mm_loadu_si128((const __m128i*)rows0p);
+                __m128i _r1 = _mm_loadu_si128((const __m128i*)rows1p);
+                __m128i _acc0 = _mm_add_epi16(_mm_mulhi_epi16(_r0, _b0), _mm_mulhi_epi16(_r1, _b1));
+                __m128i _acc1 = _mm_add_epi16(_mm_mulhi_epi16(_r0, _b2), _mm_mulhi_epi16(_r1, _b3));
+                _acc0 = _mm_srai_epi16(_mm_add_epi16(_acc0, _v2), 2);
+                _acc1 = _mm_srai_epi16(_mm_add_epi16(_acc1, _v2), 2);
+                __m128i _Dp0 = _mm_packus_epi16(_acc0, _acc0);
+                __m128i _Dp1 = _mm_packus_epi16(_acc1, _acc1);
+                _mm_storel_epi64((__m128i*)Dp0, _Dp0);
+                _mm_storel_epi64((__m128i*)Dp1, _Dp1);
+                Dp0 += 8;
+                Dp1 += 8;
+                rows0p += 8;
+                rows1p += 8;
+            }
+#endif // __SSE2__
             for (; dx < w; dx++)
             {
                 short s0 = *rows0p++;
@@ -1533,7 +1587,6 @@ void resize_bilinear_font(const unsigned char* font_bitmap, unsigned char* resiz
 #if __ARM_NEON
             int16x8_t _b0 = vdupq_n_s16(b0);
             int16x8_t _b1 = vdupq_n_s16(b1);
-            int16x8_t _v2 = vdupq_n_s16(2);
             for (; dx + 7 < w; dx += 8)
             {
                 int16x8_t _r0 = vld1q_s16(rows0p);
@@ -1546,6 +1599,39 @@ void resize_bilinear_font(const unsigned char* font_bitmap, unsigned char* resiz
                 rows1p += 8;
             }
 #endif // __ARM_NEON
+#if __SSE2__
+            __m128i _b0 = _mm_set1_epi16(b0);
+            __m128i _b1 = _mm_set1_epi16(b1);
+            __m128i _v2 = _mm_set1_epi16(2);
+            for (; dx + 15 < w; dx += 16)
+            {
+                __m128i _r00 = _mm_loadu_si128((const __m128i*)rows0p);
+                __m128i _r01 = _mm_loadu_si128((const __m128i*)(rows0p + 8));
+                __m128i _r10 = _mm_loadu_si128((const __m128i*)rows1p);
+                __m128i _r11 = _mm_loadu_si128((const __m128i*)(rows1p + 8));
+                __m128i _acc0 = _mm_add_epi16(_mm_mulhi_epi16(_r00, _b0), _mm_mulhi_epi16(_r10, _b1));
+                __m128i _acc1 = _mm_add_epi16(_mm_mulhi_epi16(_r01, _b0), _mm_mulhi_epi16(_r11, _b1));
+                _acc0 = _mm_srai_epi16(_mm_add_epi16(_acc0, _v2), 2);
+                _acc1 = _mm_srai_epi16(_mm_add_epi16(_acc1, _v2), 2);
+                __m128i _Dp = _mm_packus_epi16(_acc0, _acc1);
+                _mm_storeu_si128((__m128i*)Dp, _Dp);
+                Dp += 16;
+                rows0p += 16;
+                rows1p += 16;
+            }
+            for (; dx + 7 < w; dx += 8)
+            {
+                __m128i _r0 = _mm_loadu_si128((const __m128i*)rows0p);
+                __m128i _r1 = _mm_loadu_si128((const __m128i*)rows1p);
+                __m128i _acc = _mm_add_epi16(_mm_mulhi_epi16(_r0, _b0), _mm_mulhi_epi16(_r1, _b1));
+                _acc = _mm_srai_epi16(_mm_add_epi16(_acc, _v2), 2);
+                __m128i _Dp = _mm_packus_epi16(_acc, _acc);
+                _mm_storel_epi64((__m128i*)Dp, _Dp);
+                Dp += 8;
+                rows0p += 8;
+                rows1p += 8;
+            }
+#endif // __SSE2__
             for (; dx < w; dx++)
             {
                 short s0 = *rows0p++;

@@ -204,7 +204,6 @@ void resize_bilinear_c1(const unsigned char* src, int srcw, int srch, int srcstr
             int16x8_t _b1 = vdupq_n_s16(b1);
             int16x8_t _b2 = vdupq_n_s16(b2);
             int16x8_t _b3 = vdupq_n_s16(b3);
-            int16x8_t _v2 = vdupq_n_s16(2);
             for (; dx + 7 < w; dx += 8)
             {
                 int16x8_t _r0 = vld1q_s16(rows0p);
@@ -247,7 +246,6 @@ void resize_bilinear_c1(const unsigned char* src, int srcw, int srch, int srcstr
 #if __ARM_NEON
             int16x8_t _b0 = vdupq_n_s16(b0);
             int16x8_t _b1 = vdupq_n_s16(b1);
-            int16x8_t _v2 = vdupq_n_s16(2);
             for (; dx + 7 < w; dx += 8)
             {
                 int16x8_t _r0 = vld1q_s16(rows0p);
@@ -492,7 +490,6 @@ void resize_bilinear_c2(const unsigned char* src, int srcw, int srch, int srcstr
             int16x8_t _b1 = vdupq_n_s16(b1);
             int16x8_t _b2 = vdupq_n_s16(b2);
             int16x8_t _b3 = vdupq_n_s16(b3);
-            int16x8_t _v2 = vdupq_n_s16(2);
             for (; dx + 7 < wsize; dx += 8)
             {
                 int16x8_t _r0 = vld1q_s16(rows0p);
@@ -537,7 +534,6 @@ void resize_bilinear_c2(const unsigned char* src, int srcw, int srch, int srcstr
 #if __ARM_NEON
             int16x8_t _b0 = vdupq_n_s16(b0);
             int16x8_t _b1 = vdupq_n_s16(b1);
-            int16x8_t _v2 = vdupq_n_s16(2);
             for (; dx + 7 < wsize; dx += 8)
             {
                 int16x8_t _r0 = vld1q_s16(rows0p);
@@ -793,7 +789,6 @@ void resize_bilinear_c3(const unsigned char* src, int srcw, int srch, int srcstr
             int16x8_t _b1 = vdupq_n_s16(b1);
             int16x8_t _b2 = vdupq_n_s16(b2);
             int16x8_t _b3 = vdupq_n_s16(b3);
-            int16x8_t _v2 = vdupq_n_s16(2);
             for (; dx + 7 < wsize; dx += 8)
             {
                 int16x8_t _r0 = vld1q_s16(rows0p);
@@ -838,7 +833,6 @@ void resize_bilinear_c3(const unsigned char* src, int srcw, int srch, int srcstr
 #if __ARM_NEON
             int16x8_t _b0 = vdupq_n_s16(b0);
             int16x8_t _b1 = vdupq_n_s16(b1);
-            int16x8_t _v2 = vdupq_n_s16(2);
             for (; dx + 7 < wsize; dx += 8)
             {
                 int16x8_t _r0 = vld1q_s16(rows0p);
@@ -1074,7 +1068,6 @@ void resize_bilinear_c4(const unsigned char* src, int srcw, int srch, int srcstr
             int16x8_t _b1 = vdupq_n_s16(b1);
             int16x8_t _b2 = vdupq_n_s16(b2);
             int16x8_t _b3 = vdupq_n_s16(b3);
-            int16x8_t _v2 = vdupq_n_s16(2);
             for (; dx + 7 < wsize; dx += 8)
             {
                 int16x8_t _r0 = vld1q_s16(rows0p);
@@ -1119,7 +1112,6 @@ void resize_bilinear_c4(const unsigned char* src, int srcw, int srch, int srcstr
 #if __ARM_NEON
             int16x8_t _b0 = vdupq_n_s16(b0);
             int16x8_t _b1 = vdupq_n_s16(b1);
-            int16x8_t _v2 = vdupq_n_s16(2);
             for (; dx + 7 < wsize; dx += 8)
             {
                 int16x8_t _r0 = vld1q_s16(rows0p);
