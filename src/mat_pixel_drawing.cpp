@@ -1374,8 +1374,8 @@ void resize_bilinear_font(const unsigned char* font_bitmap, unsigned char* resiz
                     }
                     else
                     {
-                        S1p0 = sx % 2 == 0 ? S1[sx/2] & 0x0f : (S1[sx/2] & 0xf0) >> 4;
-                        S1p1 = sx % 2 == 0 ? (S1[sx/2] & 0xf0) >> 4 : S1[sx/2 + 1] & 0x0f;
+                        S1p0 = sx % 2 == 0 ? S1[sx / 2] & 0x0f : (S1[sx / 2] & 0xf0) >> 4;
+                        S1p1 = sx % 2 == 0 ? (S1[sx / 2] & 0xf0) >> 4 : S1[sx / 2 + 1] & 0x0f;
                     }
                     rows1p[dx] = (S1p0 * a0 + S1p1 * a1) * 17 >> 4;
 
@@ -1415,8 +1415,8 @@ void resize_bilinear_font(const unsigned char* font_bitmap, unsigned char* resiz
                     }
                     else
                     {
-                        S0p0 = sx % 2 == 0 ? S0[sx/2] & 0x0f : (S0[sx/2] & 0xf0) >> 4;
-                        S0p1 = sx % 2 == 0 ? (S0[sx/2] & 0xf0) >> 4 : S0[sx/2 + 1] & 0x0f;
+                        S0p0 = sx % 2 == 0 ? S0[sx / 2] & 0x0f : (S0[sx / 2] & 0xf0) >> 4;
+                        S0p1 = sx % 2 == 0 ? (S0[sx / 2] & 0xf0) >> 4 : S0[sx / 2 + 1] & 0x0f;
                     }
                     rows0p[dx] = (S0p0 * a0 + S0p1 * a1) * 17 >> 4;
                     rows1p[dx] = 0;
@@ -1456,10 +1456,10 @@ void resize_bilinear_font(const unsigned char* font_bitmap, unsigned char* resiz
                     }
                     else
                     {
-                        S0p0 = sx % 2 == 0 ? S0[sx/2] & 0x0f : (S0[sx/2] & 0xf0) >> 4;
-                        S0p1 = sx % 2 == 0 ? (S0[sx/2] & 0xf0) >> 4 : S0[sx/2 + 1] & 0x0f;
-                        S1p0 = sx % 2 == 0 ? S1[sx/2] & 0x0f : (S1[sx/2] & 0xf0) >> 4;
-                        S1p1 = sx % 2 == 0 ? (S1[sx/2] & 0xf0) >> 4 : S1[sx/2 + 1] & 0x0f;
+                        S0p0 = sx % 2 == 0 ? S0[sx / 2] & 0x0f : (S0[sx / 2] & 0xf0) >> 4;
+                        S0p1 = sx % 2 == 0 ? (S0[sx / 2] & 0xf0) >> 4 : S0[sx / 2 + 1] & 0x0f;
+                        S1p0 = sx % 2 == 0 ? S1[sx / 2] & 0x0f : (S1[sx / 2] & 0xf0) >> 4;
+                        S1p1 = sx % 2 == 0 ? (S1[sx / 2] & 0xf0) >> 4 : S1[sx / 2 + 1] & 0x0f;
                     }
                     rows0p[dx] = (S0p0 * a0 + S0p1 * a1) * 17 >> 4;
                     rows1p[dx] = (S1p0 * a0 + S1p1 * a1) * 17 >> 4;
