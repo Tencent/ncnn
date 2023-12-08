@@ -24,6 +24,147 @@
 namespace ncnn {
 
 #if NCNN_PIXEL
+static void vresize_two(const short* rows0p, const short* rows1p, int wsize, unsigned char* Dp0, unsigned char* Dp1, short b0, short b1, short b2, short b3)
+{
+    int dx = 0;
+#if __ARM_NEON
+    int16x8_t _b0 = vdupq_n_s16(b0);
+    int16x8_t _b1 = vdupq_n_s16(b1);
+    int16x8_t _b2 = vdupq_n_s16(b2);
+    int16x8_t _b3 = vdupq_n_s16(b3);
+    for (; dx + 7 < wsize; dx += 8)
+    {
+        int16x8_t _r0 = vld1q_s16(rows0p);
+        int16x8_t _r1 = vld1q_s16(rows1p);
+        int16x8_t _acc0 = vaddq_s16(vqdmulhq_s16(_r0, _b0), vqdmulhq_s16(_r1, _b1));
+        int16x8_t _acc1 = vaddq_s16(vqdmulhq_s16(_r0, _b2), vqdmulhq_s16(_r1, _b3));
+        uint8x8_t _Dp0 = vqrshrun_n_s16(_acc0, 3);
+        uint8x8_t _Dp1 = vqrshrun_n_s16(_acc1, 3);
+        vst1_u8(Dp0, _Dp0);
+        vst1_u8(Dp1, _Dp1);
+        Dp0 += 8;
+        Dp1 += 8;
+        rows0p += 8;
+        rows1p += 8;
+    }
+#endif // __ARM_NEON
+#if __SSE2__
+    __m128i _b0 = _mm_set1_epi16(b0);
+    __m128i _b1 = _mm_set1_epi16(b1);
+    __m128i _b2 = _mm_set1_epi16(b2);
+    __m128i _b3 = _mm_set1_epi16(b3);
+    __m128i _v2 = _mm_set1_epi16(2);
+    for (; dx + 15 < wsize; dx += 16)
+    {
+        __m128i _r00 = _mm_loadu_si128((const __m128i*)rows0p);
+        __m128i _r01 = _mm_loadu_si128((const __m128i*)(rows0p + 8));
+        __m128i _r10 = _mm_loadu_si128((const __m128i*)rows1p);
+        __m128i _r11 = _mm_loadu_si128((const __m128i*)(rows1p + 8));
+        __m128i _acc00 = _mm_add_epi16(_mm_mulhi_epi16(_r00, _b0), _mm_mulhi_epi16(_r10, _b1));
+        __m128i _acc01 = _mm_add_epi16(_mm_mulhi_epi16(_r01, _b0), _mm_mulhi_epi16(_r11, _b1));
+        __m128i _acc10 = _mm_add_epi16(_mm_mulhi_epi16(_r00, _b2), _mm_mulhi_epi16(_r10, _b3));
+        __m128i _acc11 = _mm_add_epi16(_mm_mulhi_epi16(_r01, _b2), _mm_mulhi_epi16(_r11, _b3));
+        _acc00 = _mm_srai_epi16(_mm_add_epi16(_acc00, _v2), 2);
+        _acc01 = _mm_srai_epi16(_mm_add_epi16(_acc01, _v2), 2);
+        _acc10 = _mm_srai_epi16(_mm_add_epi16(_acc10, _v2), 2);
+        _acc11 = _mm_srai_epi16(_mm_add_epi16(_acc11, _v2), 2);
+        __m128i _Dp0 = _mm_packus_epi16(_acc00, _acc01);
+        __m128i _Dp1 = _mm_packus_epi16(_acc10, _acc11);
+        _mm_storeu_si128((__m128i*)Dp0, _Dp0);
+        _mm_storeu_si128((__m128i*)Dp1, _Dp1);
+        Dp0 += 16;
+        Dp1 += 16;
+        rows0p += 16;
+        rows1p += 16;
+    }
+    for (; dx + 7 < wsize; dx += 8)
+    {
+        __m128i _r0 = _mm_loadu_si128((const __m128i*)rows0p);
+        __m128i _r1 = _mm_loadu_si128((const __m128i*)rows1p);
+        __m128i _acc0 = _mm_add_epi16(_mm_mulhi_epi16(_r0, _b0), _mm_mulhi_epi16(_r1, _b1));
+        __m128i _acc1 = _mm_add_epi16(_mm_mulhi_epi16(_r0, _b2), _mm_mulhi_epi16(_r1, _b3));
+        _acc0 = _mm_srai_epi16(_mm_add_epi16(_acc0, _v2), 2);
+        _acc1 = _mm_srai_epi16(_mm_add_epi16(_acc1, _v2), 2);
+        __m128i _Dp0 = _mm_packus_epi16(_acc0, _acc0);
+        __m128i _Dp1 = _mm_packus_epi16(_acc1, _acc1);
+        _mm_storel_epi64((__m128i*)Dp0, _Dp0);
+        _mm_storel_epi64((__m128i*)Dp1, _Dp1);
+        Dp0 += 8;
+        Dp1 += 8;
+        rows0p += 8;
+        rows1p += 8;
+    }
+#endif // __SSE2__
+    for (; dx < wsize; dx++)
+    {
+        short s0 = *rows0p++;
+        short s1 = *rows1p++;
+
+        *Dp0++ = (unsigned char)(((short)((b0 * s0) >> 16) + (short)((b1 * s1) >> 16) + 2) >> 2);
+        *Dp1++ = (unsigned char)(((short)((b2 * s0) >> 16) + (short)((b3 * s1) >> 16) + 2) >> 2);
+    }
+}
+
+static void vresize_one(const short* rows0p, const short* rows1p, int wsize, unsigned char* Dp, short b0, short b1)
+{
+    int dx = 0;
+#if __ARM_NEON
+    int16x8_t _b0 = vdupq_n_s16(b0);
+    int16x8_t _b1 = vdupq_n_s16(b1);
+    for (; dx + 7 < wsize; dx += 8)
+    {
+        int16x8_t _r0 = vld1q_s16(rows0p);
+        int16x8_t _r1 = vld1q_s16(rows1p);
+        int16x8_t _acc = vaddq_s16(vqdmulhq_s16(_r0, _b0), vqdmulhq_s16(_r1, _b1));
+        uint8x8_t _Dp = vqrshrun_n_s16(_acc, 3);
+        vst1_u8(Dp, _Dp);
+        Dp += 8;
+        rows0p += 8;
+        rows1p += 8;
+    }
+#endif // __ARM_NEON
+#if __SSE2__
+    __m128i _b0 = _mm_set1_epi16(b0);
+    __m128i _b1 = _mm_set1_epi16(b1);
+    __m128i _v2 = _mm_set1_epi16(2);
+    for (; dx + 15 < wsize; dx += 16)
+    {
+        __m128i _r00 = _mm_loadu_si128((const __m128i*)rows0p);
+        __m128i _r01 = _mm_loadu_si128((const __m128i*)(rows0p + 8));
+        __m128i _r10 = _mm_loadu_si128((const __m128i*)rows1p);
+        __m128i _r11 = _mm_loadu_si128((const __m128i*)(rows1p + 8));
+        __m128i _acc0 = _mm_add_epi16(_mm_mulhi_epi16(_r00, _b0), _mm_mulhi_epi16(_r10, _b1));
+        __m128i _acc1 = _mm_add_epi16(_mm_mulhi_epi16(_r01, _b0), _mm_mulhi_epi16(_r11, _b1));
+        _acc0 = _mm_srai_epi16(_mm_add_epi16(_acc0, _v2), 2);
+        _acc1 = _mm_srai_epi16(_mm_add_epi16(_acc1, _v2), 2);
+        __m128i _Dp = _mm_packus_epi16(_acc0, _acc1);
+        _mm_storeu_si128((__m128i*)Dp, _Dp);
+        Dp += 16;
+        rows0p += 16;
+        rows1p += 16;
+    }
+    for (; dx + 7 < wsize; dx += 8)
+    {
+        __m128i _r0 = _mm_loadu_si128((const __m128i*)rows0p);
+        __m128i _r1 = _mm_loadu_si128((const __m128i*)rows1p);
+        __m128i _acc = _mm_add_epi16(_mm_mulhi_epi16(_r0, _b0), _mm_mulhi_epi16(_r1, _b1));
+        _acc = _mm_srai_epi16(_mm_add_epi16(_acc, _v2), 2);
+        __m128i _Dp = _mm_packus_epi16(_acc, _acc);
+        _mm_storel_epi64((__m128i*)Dp, _Dp);
+        Dp += 8;
+        rows0p += 8;
+        rows1p += 8;
+    }
+#endif // __SSE2__
+    for (; dx < wsize; dx++)
+    {
+        short s0 = *rows0p++;
+        short s1 = *rows1p++;
+
+        *Dp++ = (unsigned char)(((short)((b0 * s0) >> 16) + (short)((b1 * s1) >> 16) + 2) >> 2);
+    }
+}
+
 void resize_bilinear_c1(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h)
 {
     return resize_bilinear_c1(src, srcw, srch, srcw, dst, w, h, w);
@@ -188,46 +329,10 @@ void resize_bilinear_c1(const unsigned char* src, int srcw, int srch, int srcstr
         if (dy + 1 < h && yofs[dy + 1] == sy)
         {
             // vresize for two rows
-            const short b0 = ibeta[0];
-            const short b1 = ibeta[1];
-            const short b2 = ibeta[2];
-            const short b3 = ibeta[3];
-
-            const short* rows0p = rows0;
-            const short* rows1p = rows1;
             unsigned char* Dp0 = dst + stride * dy;
             unsigned char* Dp1 = dst + stride * (dy + 1);
 
-            int dx = 0;
-#if __ARM_NEON
-            int16x8_t _b0 = vdupq_n_s16(b0);
-            int16x8_t _b1 = vdupq_n_s16(b1);
-            int16x8_t _b2 = vdupq_n_s16(b2);
-            int16x8_t _b3 = vdupq_n_s16(b3);
-            for (; dx + 7 < w; dx += 8)
-            {
-                int16x8_t _r0 = vld1q_s16(rows0p);
-                int16x8_t _r1 = vld1q_s16(rows1p);
-                int16x8_t _acc0 = vaddq_s16(vqdmulhq_s16(_r0, _b0), vqdmulhq_s16(_r1, _b1));
-                int16x8_t _acc1 = vaddq_s16(vqdmulhq_s16(_r0, _b2), vqdmulhq_s16(_r1, _b3));
-                uint8x8_t _Dp0 = vqrshrun_n_s16(_acc0, 3);
-                uint8x8_t _Dp1 = vqrshrun_n_s16(_acc1, 3);
-                vst1_u8(Dp0, _Dp0);
-                vst1_u8(Dp1, _Dp1);
-                Dp0 += 8;
-                Dp1 += 8;
-                rows0p += 8;
-                rows1p += 8;
-            }
-#endif // __ARM_NEON
-            for (; dx < w; dx++)
-            {
-                short s0 = *rows0p++;
-                short s1 = *rows1p++;
-
-                *Dp0++ = (unsigned char)(((short)((b0 * s0) >> 16) + (short)((b1 * s1) >> 16) + 2) >> 2);
-                *Dp1++ = (unsigned char)(((short)((b2 * s0) >> 16) + (short)((b3 * s1) >> 16) + 2) >> 2);
-            }
+            vresize_two(rows0, rows1, w, Dp0, Dp1, ibeta[0], ibeta[1], ibeta[2], ibeta[3]);
 
             ibeta += 4;
             dy += 1;
@@ -235,36 +340,9 @@ void resize_bilinear_c1(const unsigned char* src, int srcw, int srch, int srcstr
         else
         {
             // vresize
-            const short b0 = ibeta[0];
-            const short b1 = ibeta[1];
-
-            const short* rows0p = rows0;
-            const short* rows1p = rows1;
             unsigned char* Dp = dst + stride * dy;
 
-            int dx = 0;
-#if __ARM_NEON
-            int16x8_t _b0 = vdupq_n_s16(b0);
-            int16x8_t _b1 = vdupq_n_s16(b1);
-            for (; dx + 7 < w; dx += 8)
-            {
-                int16x8_t _r0 = vld1q_s16(rows0p);
-                int16x8_t _r1 = vld1q_s16(rows1p);
-                int16x8_t _acc = vaddq_s16(vqdmulhq_s16(_r0, _b0), vqdmulhq_s16(_r1, _b1));
-                uint8x8_t _Dp = vqrshrun_n_s16(_acc, 3);
-                vst1_u8(Dp, _Dp);
-                Dp += 8;
-                rows0p += 8;
-                rows1p += 8;
-            }
-#endif // __ARM_NEON
-            for (; dx < w; dx++)
-            {
-                short s0 = *rows0p++;
-                short s1 = *rows1p++;
-
-                *Dp++ = (unsigned char)(((short)((b0 * s0) >> 16) + (short)((b1 * s1) >> 16) + 2) >> 2);
-            }
+            vresize_one(rows0, rows1, w, Dp, ibeta[0], ibeta[1]);
 
             ibeta += 2;
         }
@@ -472,48 +550,10 @@ void resize_bilinear_c2(const unsigned char* src, int srcw, int srch, int srcstr
         if (dy + 1 < h && yofs[dy + 1] == sy)
         {
             // vresize for two rows
-            const short b0 = ibeta[0];
-            const short b1 = ibeta[1];
-            const short b2 = ibeta[2];
-            const short b3 = ibeta[3];
-
-            const short* rows0p = rows0;
-            const short* rows1p = rows1;
             unsigned char* Dp0 = dst + stride * dy;
             unsigned char* Dp1 = dst + stride * (dy + 1);
 
-            const int wsize = w * 2;
-
-            int dx = 0;
-#if __ARM_NEON
-            int16x8_t _b0 = vdupq_n_s16(b0);
-            int16x8_t _b1 = vdupq_n_s16(b1);
-            int16x8_t _b2 = vdupq_n_s16(b2);
-            int16x8_t _b3 = vdupq_n_s16(b3);
-            for (; dx + 7 < wsize; dx += 8)
-            {
-                int16x8_t _r0 = vld1q_s16(rows0p);
-                int16x8_t _r1 = vld1q_s16(rows1p);
-                int16x8_t _acc0 = vaddq_s16(vqdmulhq_s16(_r0, _b0), vqdmulhq_s16(_r1, _b1));
-                int16x8_t _acc1 = vaddq_s16(vqdmulhq_s16(_r0, _b2), vqdmulhq_s16(_r1, _b3));
-                uint8x8_t _Dp0 = vqrshrun_n_s16(_acc0, 3);
-                uint8x8_t _Dp1 = vqrshrun_n_s16(_acc1, 3);
-                vst1_u8(Dp0, _Dp0);
-                vst1_u8(Dp1, _Dp1);
-                Dp0 += 8;
-                Dp1 += 8;
-                rows0p += 8;
-                rows1p += 8;
-            }
-#endif // __ARM_NEON
-            for (; dx < wsize; dx++)
-            {
-                short s0 = *rows0p++;
-                short s1 = *rows1p++;
-
-                *Dp0++ = (unsigned char)(((short)((b0 * s0) >> 16) + (short)((b1 * s1) >> 16) + 2) >> 2);
-                *Dp1++ = (unsigned char)(((short)((b2 * s0) >> 16) + (short)((b3 * s1) >> 16) + 2) >> 2);
-            }
+            vresize_two(rows0, rows1, w * 2, Dp0, Dp1, ibeta[0], ibeta[1], ibeta[2], ibeta[3]);
 
             ibeta += 4;
             dy += 1;
@@ -521,38 +561,9 @@ void resize_bilinear_c2(const unsigned char* src, int srcw, int srch, int srcstr
         else
         {
             // vresize
-            const short b0 = ibeta[0];
-            const short b1 = ibeta[1];
-
-            const short* rows0p = rows0;
-            const short* rows1p = rows1;
             unsigned char* Dp = dst + stride * dy;
 
-            const int wsize = w * 2;
-
-            int dx = 0;
-#if __ARM_NEON
-            int16x8_t _b0 = vdupq_n_s16(b0);
-            int16x8_t _b1 = vdupq_n_s16(b1);
-            for (; dx + 7 < wsize; dx += 8)
-            {
-                int16x8_t _r0 = vld1q_s16(rows0p);
-                int16x8_t _r1 = vld1q_s16(rows1p);
-                int16x8_t _acc = vaddq_s16(vqdmulhq_s16(_r0, _b0), vqdmulhq_s16(_r1, _b1));
-                uint8x8_t _Dp = vqrshrun_n_s16(_acc, 3);
-                vst1_u8(Dp, _Dp);
-                Dp += 8;
-                rows0p += 8;
-                rows1p += 8;
-            }
-#endif // __ARM_NEON
-            for (; dx < wsize; dx++)
-            {
-                short s0 = *rows0p++;
-                short s1 = *rows1p++;
-
-                *Dp++ = (unsigned char)(((short)((b0 * s0) >> 16) + (short)((b1 * s1) >> 16) + 2) >> 2);
-            }
+            vresize_one(rows0, rows1, w * 2, Dp, ibeta[0], ibeta[1]);
 
             ibeta += 2;
         }
@@ -771,48 +782,10 @@ void resize_bilinear_c3(const unsigned char* src, int srcw, int srch, int srcstr
         if (dy + 1 < h && yofs[dy + 1] == sy)
         {
             // vresize for two rows
-            const short b0 = ibeta[0];
-            const short b1 = ibeta[1];
-            const short b2 = ibeta[2];
-            const short b3 = ibeta[3];
-
-            const short* rows0p = rows0;
-            const short* rows1p = rows1;
             unsigned char* Dp0 = dst + stride * dy;
             unsigned char* Dp1 = dst + stride * (dy + 1);
 
-            const int wsize = w * 3;
-
-            int dx = 0;
-#if __ARM_NEON
-            int16x8_t _b0 = vdupq_n_s16(b0);
-            int16x8_t _b1 = vdupq_n_s16(b1);
-            int16x8_t _b2 = vdupq_n_s16(b2);
-            int16x8_t _b3 = vdupq_n_s16(b3);
-            for (; dx + 7 < wsize; dx += 8)
-            {
-                int16x8_t _r0 = vld1q_s16(rows0p);
-                int16x8_t _r1 = vld1q_s16(rows1p);
-                int16x8_t _acc0 = vaddq_s16(vqdmulhq_s16(_r0, _b0), vqdmulhq_s16(_r1, _b1));
-                int16x8_t _acc1 = vaddq_s16(vqdmulhq_s16(_r0, _b2), vqdmulhq_s16(_r1, _b3));
-                uint8x8_t _Dp0 = vqrshrun_n_s16(_acc0, 3);
-                uint8x8_t _Dp1 = vqrshrun_n_s16(_acc1, 3);
-                vst1_u8(Dp0, _Dp0);
-                vst1_u8(Dp1, _Dp1);
-                Dp0 += 8;
-                Dp1 += 8;
-                rows0p += 8;
-                rows1p += 8;
-            }
-#endif // __ARM_NEON
-            for (; dx < wsize; dx++)
-            {
-                short s0 = *rows0p++;
-                short s1 = *rows1p++;
-
-                *Dp0++ = (unsigned char)(((short)((b0 * s0) >> 16) + (short)((b1 * s1) >> 16) + 2) >> 2);
-                *Dp1++ = (unsigned char)(((short)((b2 * s0) >> 16) + (short)((b3 * s1) >> 16) + 2) >> 2);
-            }
+            vresize_two(rows0, rows1, w * 3, Dp0, Dp1, ibeta[0], ibeta[1], ibeta[2], ibeta[3]);
 
             ibeta += 4;
             dy += 1;
@@ -820,38 +793,9 @@ void resize_bilinear_c3(const unsigned char* src, int srcw, int srch, int srcstr
         else
         {
             // vresize
-            const short b0 = ibeta[0];
-            const short b1 = ibeta[1];
-
-            const short* rows0p = rows0;
-            const short* rows1p = rows1;
             unsigned char* Dp = dst + stride * dy;
 
-            const int wsize = w * 3;
-
-            int dx = 0;
-#if __ARM_NEON
-            int16x8_t _b0 = vdupq_n_s16(b0);
-            int16x8_t _b1 = vdupq_n_s16(b1);
-            for (; dx + 7 < wsize; dx += 8)
-            {
-                int16x8_t _r0 = vld1q_s16(rows0p);
-                int16x8_t _r1 = vld1q_s16(rows1p);
-                int16x8_t _acc = vaddq_s16(vqdmulhq_s16(_r0, _b0), vqdmulhq_s16(_r1, _b1));
-                uint8x8_t _Dp = vqrshrun_n_s16(_acc, 3);
-                vst1_u8(Dp, _Dp);
-                Dp += 8;
-                rows0p += 8;
-                rows1p += 8;
-            }
-#endif // __ARM_NEON
-            for (; dx < wsize; dx++)
-            {
-                short s0 = *rows0p++;
-                short s1 = *rows1p++;
-
-                *Dp++ = (unsigned char)(((short)((b0 * s0) >> 16) + (short)((b1 * s1) >> 16) + 2) >> 2);
-            }
+            vresize_one(rows0, rows1, w * 3, Dp, ibeta[0], ibeta[1]);
 
             ibeta += 2;
         }
@@ -1050,48 +994,10 @@ void resize_bilinear_c4(const unsigned char* src, int srcw, int srch, int srcstr
         if (dy + 1 < h && yofs[dy + 1] == sy)
         {
             // vresize for two rows
-            const short b0 = ibeta[0];
-            const short b1 = ibeta[1];
-            const short b2 = ibeta[2];
-            const short b3 = ibeta[3];
-
-            const short* rows0p = rows0;
-            const short* rows1p = rows1;
             unsigned char* Dp0 = dst + stride * dy;
             unsigned char* Dp1 = dst + stride * (dy + 1);
 
-            const int wsize = w * 4;
-
-            int dx = 0;
-#if __ARM_NEON
-            int16x8_t _b0 = vdupq_n_s16(b0);
-            int16x8_t _b1 = vdupq_n_s16(b1);
-            int16x8_t _b2 = vdupq_n_s16(b2);
-            int16x8_t _b3 = vdupq_n_s16(b3);
-            for (; dx + 7 < wsize; dx += 8)
-            {
-                int16x8_t _r0 = vld1q_s16(rows0p);
-                int16x8_t _r1 = vld1q_s16(rows1p);
-                int16x8_t _acc0 = vaddq_s16(vqdmulhq_s16(_r0, _b0), vqdmulhq_s16(_r1, _b1));
-                int16x8_t _acc1 = vaddq_s16(vqdmulhq_s16(_r0, _b2), vqdmulhq_s16(_r1, _b3));
-                uint8x8_t _Dp0 = vqrshrun_n_s16(_acc0, 3);
-                uint8x8_t _Dp1 = vqrshrun_n_s16(_acc1, 3);
-                vst1_u8(Dp0, _Dp0);
-                vst1_u8(Dp1, _Dp1);
-                Dp0 += 8;
-                Dp1 += 8;
-                rows0p += 8;
-                rows1p += 8;
-            }
-#endif // __ARM_NEON
-            for (; dx < wsize; dx++)
-            {
-                short s0 = *rows0p++;
-                short s1 = *rows1p++;
-
-                *Dp0++ = (unsigned char)(((short)((b0 * s0) >> 16) + (short)((b1 * s1) >> 16) + 2) >> 2);
-                *Dp1++ = (unsigned char)(((short)((b2 * s0) >> 16) + (short)((b3 * s1) >> 16) + 2) >> 2);
-            }
+            vresize_two(rows0, rows1, w * 4, Dp0, Dp1, ibeta[0], ibeta[1], ibeta[2], ibeta[3]);
 
             ibeta += 4;
             dy += 1;
@@ -1099,38 +1005,9 @@ void resize_bilinear_c4(const unsigned char* src, int srcw, int srch, int srcstr
         else
         {
             // vresize
-            const short b0 = ibeta[0];
-            const short b1 = ibeta[1];
-
-            const short* rows0p = rows0;
-            const short* rows1p = rows1;
             unsigned char* Dp = dst + stride * dy;
 
-            const int wsize = w * 4;
-
-            int dx = 0;
-#if __ARM_NEON
-            int16x8_t _b0 = vdupq_n_s16(b0);
-            int16x8_t _b1 = vdupq_n_s16(b1);
-            for (; dx + 7 < wsize; dx += 8)
-            {
-                int16x8_t _r0 = vld1q_s16(rows0p);
-                int16x8_t _r1 = vld1q_s16(rows1p);
-                int16x8_t _acc = vaddq_s16(vqdmulhq_s16(_r0, _b0), vqdmulhq_s16(_r1, _b1));
-                uint8x8_t _Dp = vqrshrun_n_s16(_acc, 3);
-                vst1_u8(Dp, _Dp);
-                Dp += 8;
-                rows0p += 8;
-                rows1p += 8;
-            }
-#endif // __ARM_NEON
-            for (; dx < wsize; dx++)
-            {
-                short s0 = *rows0p++;
-                short s1 = *rows1p++;
-
-                *Dp++ = (unsigned char)(((short)((b0 * s0) >> 16) + (short)((b1 * s1) >> 16) + 2) >> 2);
-            }
+            vresize_one(rows0, rows1, w * 4, Dp, ibeta[0], ibeta[1]);
 
             ibeta += 2;
         }
