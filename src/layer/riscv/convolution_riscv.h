@@ -37,17 +37,25 @@ protected:
     int forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
     int forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 #endif
+#if NCNN_INT8
+    int create_pipeline_int8_riscv(const Option& opt);
+    int forward_int8_riscv(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
+#endif
 
 public:
     Layer* activation;
 
     Mat weight_data_tm;
+    Mat weight_sgemm_data;
     Mat weight_winograd23_data;
     Mat weight_winograd43_data;
     Mat weight_winograd63_data;
 
     // fp16
     Mat bias_data_fp16;
+#if NCNN_INT8
+    Mat scale_in_data;
+#endif
 };
 
 } // namespace ncnn
