@@ -1316,10 +1316,10 @@ void resize_bilinear_font(const unsigned char* font_bitmap, unsigned char* resiz
     short* rows1 = (short*)rowsbuf1;
 
     {
-        short* rows0p = rows0;
+        short* rows1p = rows1;
         for (int dx = 0; dx < w; dx++)
         {
-            rows0p[dx] = 0;
+            rows1p[dx] = 0;
         }
     }
 
@@ -1580,11 +1580,18 @@ void draw_text_c1(unsigned char* pixels, int w, int h, int stride, const char* t
             // newline
             cursor_x = x;
             cursor_y += fontpixelsize * 2;
+            continue;
+        }
+
+        if (ch == ' ')
+        {
+            cursor_x += fontpixelsize;
+            continue;
         }
 
         if (isprint(ch) != 0)
         {
-            const unsigned char* font_bitmap = mono_font_data[ch - ' '];
+            const unsigned char* font_bitmap = mono_font_data[ch - '!'];
 
             // draw resized character
             resize_bilinear_font(font_bitmap, resized_font_bitmap, fontpixelsize);
@@ -1640,12 +1647,18 @@ void draw_text_c2(unsigned char* pixels, int w, int h, int stride, const char* t
             // newline
             cursor_x = x;
             cursor_y += fontpixelsize * 2;
+            continue;
+        }
+
+        if (ch == ' ')
+        {
+            cursor_x += fontpixelsize;
+            continue;
         }
 
         if (isprint(ch) != 0)
         {
-            int font_bitmap_index = ch - ' ';
-            const unsigned char* font_bitmap = mono_font_data[font_bitmap_index];
+            const unsigned char* font_bitmap = mono_font_data[ch - '!'];
 
             // draw resized character
             resize_bilinear_font(font_bitmap, resized_font_bitmap, fontpixelsize);
@@ -1702,12 +1715,18 @@ void draw_text_c3(unsigned char* pixels, int w, int h, int stride, const char* t
             // newline
             cursor_x = x;
             cursor_y += fontpixelsize * 2;
+            continue;
+        }
+
+        if (ch == ' ')
+        {
+            cursor_x += fontpixelsize;
+            continue;
         }
 
         if (isprint(ch) != 0)
         {
-            int font_bitmap_index = ch - ' ';
-            const unsigned char* font_bitmap = mono_font_data[font_bitmap_index];
+            const unsigned char* font_bitmap = mono_font_data[ch - '!'];
 
             // draw resized character
             resize_bilinear_font(font_bitmap, resized_font_bitmap, fontpixelsize);
@@ -1765,11 +1784,18 @@ void draw_text_c4(unsigned char* pixels, int w, int h, int stride, const char* t
             // newline
             cursor_x = x;
             cursor_y += fontpixelsize * 2;
+            continue;
+        }
+
+        if (ch == ' ')
+        {
+            cursor_x += fontpixelsize;
+            continue;
         }
 
         if (isprint(ch) != 0)
         {
-            const unsigned char* font_bitmap = mono_font_data[ch - ' '];
+            const unsigned char* font_bitmap = mono_font_data[ch - '!'];
 
             // draw resized character
             resize_bilinear_font(font_bitmap, resized_font_bitmap, fontpixelsize);
