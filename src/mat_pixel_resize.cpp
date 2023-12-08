@@ -32,6 +32,25 @@ static void vresize_two(const short* rows0p, const short* rows1p, int wsize, uns
     int16x8_t _b1 = vdupq_n_s16(b1);
     int16x8_t _b2 = vdupq_n_s16(b2);
     int16x8_t _b3 = vdupq_n_s16(b3);
+    for (; dx + 15 < wsize; dx += 16)
+    {
+        int16x8_t _r00 = vld1q_s16(rows0p);
+        int16x8_t _r01 = vld1q_s16(rows0p + 8);
+        int16x8_t _r10 = vld1q_s16(rows1p);
+        int16x8_t _r11 = vld1q_s16(rows1p + 8);
+        int16x8_t _acc00 = vaddq_s16(vqdmulhq_s16(_r00, _b0), vqdmulhq_s16(_r10, _b1));
+        int16x8_t _acc01 = vaddq_s16(vqdmulhq_s16(_r01, _b0), vqdmulhq_s16(_r11, _b1));
+        int16x8_t _acc10 = vaddq_s16(vqdmulhq_s16(_r00, _b2), vqdmulhq_s16(_r10, _b3));
+        int16x8_t _acc11 = vaddq_s16(vqdmulhq_s16(_r01, _b2), vqdmulhq_s16(_r11, _b3));
+        uint8x16_t _Dp0 = vcombine_u8(vqrshrun_n_s16(_acc00, 3), vqrshrun_n_s16(_acc01, 3));
+        uint8x16_t _Dp1 = vcombine_u8(vqrshrun_n_s16(_acc10, 3), vqrshrun_n_s16(_acc11, 3));
+        vst1q_u8(Dp0, _Dp0);
+        vst1q_u8(Dp1, _Dp1);
+        Dp0 += 16;
+        Dp1 += 16;
+        rows0p += 16;
+        rows1p += 16;
+    }
     for (; dx + 7 < wsize; dx += 8)
     {
         int16x8_t _r0 = vld1q_s16(rows0p);
@@ -111,6 +130,20 @@ static void vresize_one(const short* rows0p, const short* rows1p, int wsize, uns
 #if __ARM_NEON
     int16x8_t _b0 = vdupq_n_s16(b0);
     int16x8_t _b1 = vdupq_n_s16(b1);
+    for (; dx + 15 < wsize; dx += 16)
+    {
+        int16x8_t _r00 = vld1q_s16(rows0p);
+        int16x8_t _r01 = vld1q_s16(rows0p + 8);
+        int16x8_t _r10 = vld1q_s16(rows1p);
+        int16x8_t _r11 = vld1q_s16(rows1p + 8);
+        int16x8_t _acc0 = vaddq_s16(vqdmulhq_s16(_r00, _b0), vqdmulhq_s16(_r10, _b1));
+        int16x8_t _acc1 = vaddq_s16(vqdmulhq_s16(_r01, _b0), vqdmulhq_s16(_r11, _b1));
+        uint8x16_t _Dp = vcombine_u8(vqrshrun_n_s16(_acc0, 3), vqrshrun_n_s16(_acc1, 3));
+        vst1q_u8(Dp, _Dp);
+        Dp += 16;
+        rows0p += 16;
+        rows1p += 16;
+    }
     for (; dx + 7 < wsize; dx += 8)
     {
         int16x8_t _r0 = vld1q_s16(rows0p);
