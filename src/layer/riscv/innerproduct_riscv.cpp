@@ -52,8 +52,7 @@ int InnerProduct_riscv::create_pipeline(const Option& opt)
 #if NCNN_INT8
     if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
     {
-        // TODO implement int8
-        return 0;
+        return create_pipeline_int8_riscv(opt);
     }
 #endif
 
@@ -148,7 +147,7 @@ int InnerProduct_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
 
         Option opt_unpacked = opt;
         opt_unpacked.use_packing_layout = false;
-        return InnerProduct::forward_int8(bottom_blob_unpacked_fp32, top_blob, opt_unpacked);
+        return forward_int8_riscv(bottom_blob_unpacked_fp32, top_blob, opt_unpacked);
     }
 #endif
 
@@ -1090,4 +1089,177 @@ int InnerProduct_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, co
 }
 #endif // __riscv_vector && __riscv_zfh
 
+#if NCNN_INT8
+int InnerProduct_riscv::create_pipeline_int8_riscv(const Option& opt)
+{
+    const int num_input = weight_data_size / num_output;
+
+    int out_elempack = 1;
+
+    // src = inch-outch
+    // dst = pb-inch-outch/pb
+    {
+        Mat weight_data_r2 = weight_data.reshape(num_input, num_output);
+
+        weight_data_tm.create(num_input, num_output / out_elempack, (size_t)out_elempack, out_elempack);
+
+        for (int q = 0; q + (out_elempack - 1) < num_output; q += out_elempack)
+        {
+            signed char* g0 = weight_data_tm.row<signed char>(q / out_elempack);
+
+            for (int p = 0; p < num_input; p++)
+            {
+                for (int j = 0; j < out_elempack; j++)
+                {
+                    *g0++ = weight_data_r2.row<signed char>(q + j)[p];
+                }
+            }
+        }
+    }
+
+    scale_in_data.create(num_output);
+    for (int p = 0; p < num_output; p++)
+    {
+        // dequantize
+        float scale_in;
+        if (weight_data_int8_scales[p] == 0)
+            scale_in = 0;
+        else
+            scale_in = 1.f / (bottom_blob_int8_scales[0] * weight_data_int8_scales[p]);
+
+        scale_in_data[p] = scale_in;
+    }
+
+    if (opt.lightmode)
+    {
+        weight_data.release();
+    }
+
+    return 0;
+}
+
+int InnerProduct_riscv::forward_int8_riscv(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+{
+    const int num_input = weight_data_size / num_output;
+
+    int elembits = bottom_blob.elembits();
+
+    Mat bottom_blob_int8 = bottom_blob;
+    if (elembits != 8)
+    {
+        Option opt_q = opt;
+        opt_q.blob_allocator = opt.workspace_allocator;
+        quantize_to_int8(bottom_blob, bottom_blob_int8, bottom_blob_int8_scales, opt_q);
+    }
+
+    if (bottom_blob_int8.dims == 2 && bottom_blob_int8.w == num_input)
+    {
+        // gemm
+        Mat bottom_blob_int8_unpacked;
+        Option opt_unpack = opt;
+        opt_unpack.blob_allocator = opt.workspace_allocator;
+        convert_packing(bottom_blob_int8, bottom_blob_int8_unpacked, 1, opt_unpack);
+
+        int h = bottom_blob_int8_unpacked.h;
+
+        int out_elempack = 1;
+
+        int outh = h / out_elempack;
+
+        top_blob.create(num_output, outh, (size_t)(4u * out_elempack), out_elempack, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+
+        int num_output_elempack = 1;
+
+        if (num_output_elempack == 1 && out_elempack == 1)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int j = 0; j < outh; j++)
+            {
+                float* outptr = top_blob.row(j);
+
+                for (int p = 0; p < num_output; p++)
+                {
+                    const signed char* kptr = weight_data_tm.row<const signed char>(p);
+                    const signed char* m = bottom_blob_int8_unpacked.row<const signed char>(j);
+
+                    int sum = 0;
+
+                    int i = 0;
+                    for (; i < num_input; i++)
+                    {
+                        sum += *m++ * *kptr++;
+                    }
+
+                    // dequantize and relu
+                    float sumfp32 = sum * scale_in_data[p];
+
+                    if (bias_term)
+                        sumfp32 += bias_data[p];
+
+                    outptr[0] = activation_ss(sumfp32, activation_type, activation_params);
+                    outptr += 1;
+                }
+            }
+        }
+
+        return 0;
+    }
+
+    Mat bottom_blob_int8_flattened = bottom_blob_int8;
+    if (bottom_blob_int8.dims != 1)
+    {
+        Option opt_flatten = opt;
+        opt_flatten.blob_allocator = opt.workspace_allocator;
+        flatten->forward(bottom_blob_int8, bottom_blob_int8_flattened, opt_flatten);
+    }
+
+    //     int elempack = bottom_blob_int8_flattened.elempack;
+
+    int out_elempack = 1;
+    //     size_t out_elemsize = elemsize / elempack * out_elempack;
+
+    top_blob.create(num_output / out_elempack, (size_t)(4u * out_elempack), out_elempack, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+
+    if (out_elempack == 1)
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int p = 0; p < num_output / out_elempack; p++)
+        {
+            int sum = 0;
+
+            const signed char* kptr = weight_data_tm.row<const signed char>(p);
+            const signed char* sptr = bottom_blob_int8_flattened;
+
+            int i = 0;
+            for (; i < num_input; i++)
+            {
+                signed char val = sptr[0];
+
+                signed char w = kptr[0];
+
+                sum += val * w;
+
+                sptr += 1;
+                kptr += 1;
+            }
+
+            // dequantize and relu
+            float sumfp32 = sum * scale_in_data[p];
+
+            if (bias_term)
+                sumfp32 += bias_data[p];
+
+            sumfp32 = activation_ss(sumfp32, activation_type, activation_params);
+
+            top_blob[p] = sumfp32;
+        }
+    }
+
+    return 0;
+}
+#endif // NCNN_INT8
 } // namespace ncnn
