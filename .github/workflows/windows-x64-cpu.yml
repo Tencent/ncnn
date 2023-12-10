@@ -77,7 +77,7 @@ jobs:
     - name: build-sse2
       run: |
         mkdir build-sse2; cd build-sse2
-        cmake -T ${{ matrix.toolset-version }},host=x64 -A x64 -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\cmake" -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX2=OFF -DNCNN_AVX=OFF -DNCNN_AVX512=OFF -DNCNN_XOP=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake -T ${{ matrix.toolset-version }},host=x64 -A x64 -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\cmake" -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX2=OFF -DNCNN_AVX=OFF -DNCNN_AVX512=OFF -DNCNN_XOP=OFF -DNCNN_BUILD_TESTS=ON -DNCNN_DISABLE_RTTI=ON -DNCNN_DISABLE_EXCEPTION=ON ..
         cmake --build . --config Release -j 2
     - name: test-sse2
       run: cd build-sse2; ctest -C Release --output-on-failure -j 2

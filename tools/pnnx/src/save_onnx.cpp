@@ -132,10 +132,12 @@ int save_onnx(const Graph& g, const char* onnxpath, int fp16)
 
             if (param.type == 0)
             {
+                ap->set_type(onnx::AttributeProto::STRING);
                 ap->set_s("None");
             }
             if (param.type == 1)
             {
+                ap->set_type(onnx::AttributeProto::INT);
                 if (param.b)
                     ap->set_i(1);
                 else
@@ -143,18 +145,22 @@ int save_onnx(const Graph& g, const char* onnxpath, int fp16)
             }
             if (param.type == 2)
             {
+                ap->set_type(onnx::AttributeProto::INT);
                 ap->set_i(param.i);
             }
             if (param.type == 3)
             {
+                ap->set_type(onnx::AttributeProto::FLOAT);
                 ap->set_f(param.f);
             }
             if (param.type == 4)
             {
+                ap->set_type(onnx::AttributeProto::STRING);
                 ap->set_s(get_param_s(param));
             }
             if (param.type == 5)
             {
+                ap->set_type(onnx::AttributeProto::INTS);
                 for (auto i : param.ai)
                 {
                     ap->add_ints(i);
@@ -162,6 +168,7 @@ int save_onnx(const Graph& g, const char* onnxpath, int fp16)
             }
             if (param.type == 6)
             {
+                ap->set_type(onnx::AttributeProto::FLOATS);
                 for (auto f : param.af)
                 {
                     ap->add_floats(f);
@@ -169,6 +176,7 @@ int save_onnx(const Graph& g, const char* onnxpath, int fp16)
             }
             if (param.type == 7)
             {
+                ap->set_type(onnx::AttributeProto::STRINGS);
                 std::vector<const char*> as = get_param_as(param);
                 for (auto s : as)
                 {
