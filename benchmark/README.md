@@ -4174,6 +4174,51 @@ cooling_down = 1
           FastestDet  min =  266.96  max =  268.86  avg =  267.94
 ```
 
+### Loongson 2K2000 (LA364 1.5GHz * 2 with lsx)
+```
+loongson@loongson-pc:~/ncnn/build/benchmark$ ./benchncnn 4 2 0 -1 1
+loop_count = 4
+num_threads = 2
+powersave = 0
+gpu_device = -1
+cooling_down = 1
+          squeezenet  min =   58.54  max =   61.57  avg =   60.37
+     squeezenet_int8  min =   66.79  max =   72.05  avg =   70.49
+           mobilenet  min =  110.46  max =  112.72  avg =  111.84
+      mobilenet_int8  min =  117.83  max =  126.51  avg =  123.42
+        mobilenet_v2  min =   65.19  max =   70.78  avg =   67.73
+        mobilenet_v3  min =   51.30  max =   56.61  avg =   54.52
+          shufflenet  min =   32.78  max =   35.11  avg =   33.99
+       shufflenet_v2  min =   31.58  max =   32.59  avg =   32.15
+             mnasnet  min =   64.18  max =   78.53  avg =   68.72
+     proxylessnasnet  min =   73.49  max =   85.30  avg =   77.35
+     efficientnet_b0  min =  101.83  max =  106.26  avg =  104.91
+   efficientnetv2_b0  min =  126.55  max =  131.95  avg =  127.91
+        regnety_400m  min =   88.19  max =   92.58  avg =   89.60
+           blazeface  min =    8.57  max =    8.68  avg =    8.63
+           googlenet  min =  207.97  max =  214.47  avg =  211.07
+      googlenet_int8  min =  237.92  max =  241.06  avg =  239.76
+            resnet18  min =  153.42  max =  161.54  avg =  158.21
+       resnet18_int8  min =  177.77  max =  183.83  avg =  181.90
+             alexnet  min =  145.71  max =  149.41  avg =  147.97
+               vgg16  min =  937.03  max =  961.65  avg =  945.20
+          vgg16_int8  min =  850.20  max =  869.47  avg =  859.99
+            resnet50  min =  497.95  max =  524.29  avg =  511.85
+       resnet50_int8  min =  541.22  max =  549.09  avg =  544.30
+      squeezenet_ssd  min =  155.11  max =  163.01  avg =  159.72
+ squeezenet_ssd_int8  min =  136.11  max =  138.38  avg =  137.36
+       mobilenet_ssd  min =  226.97  max =  231.33  avg =  229.20
+  mobilenet_ssd_int8  min =  248.61  max =  253.10  avg =  250.83
+      mobilenet_yolo  min =  613.25  max =  626.75  avg =  619.83
+  mobilenetv2_yolov3  min =  249.50  max =  258.17  avg =  255.75
+         yolov4-tiny  min =  312.41  max =  349.24  avg =  328.38
+           nanodet_m  min =   81.50  max =   84.20  avg =   83.14
+    yolo-fastest-1.1  min =   30.46  max =   30.91  avg =   30.71
+      yolo-fastestv2  min =   26.78  max =   28.80  avg =   28.10
+  vision_transformer  min = 4483.37  max = 4519.06  avg = 4507.04
+          FastestDet  min =   31.15  max =   32.37  avg =   32.06
+```
+
 ### Loongson 3A3000 (GS464E 1.45GHz * 4)
 ```
 root@3A3K:~/Desktop/ncnn-20221128/build/benchmark$ ./benchncnn 5 4 2 -1 0
