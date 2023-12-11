@@ -194,6 +194,7 @@ int NetPrivate::forward_layer(int layer_index, std::vector<Mat>& blob_mats, cons
         bottom_blob.dims = blob_mats[bottom_blob_index].dims;
         bottom_blob.w = blob_mats[bottom_blob_index].w;
         bottom_blob.h = blob_mats[bottom_blob_index].h;
+        bottom_blob.d = blob_mats[bottom_blob_index].d;
         bottom_blob.c = blob_mats[bottom_blob_index].c;
         bottom_blob.elempack = blob_mats[bottom_blob_index].elempack;
         bottom_blob.elemsize = blob_mats[bottom_blob_index].elemsize;
@@ -1522,12 +1523,25 @@ int Net::load_param(const DataReader& dr)
 
 int Net::load_param_bin(const DataReader& dr)
 {
+#if __BIG_ENDIAN__
+#define READ_VALUE(buf)                            \
+    if (dr.read(&buf, sizeof(buf)) != sizeof(buf)) \
+    {                                              \
+        NCNN_LOGE("read " #buf " failed");         \
+        return -1;                                 \
+    }                                              \
+    if (sizeof(buf) == 2)                          \
+        swap_endianness_16(&buf);                  \
+    if (sizeof(buf) == 4)                          \
+        swap_endianness_32(&buf);
+#else
 #define READ_VALUE(buf)                            \
     if (dr.read(&buf, sizeof(buf)) != sizeof(buf)) \
     {                                              \
         NCNN_LOGE("read " #buf " failed");         \
         return -1;                                 \
     }
+#endif
 
     int magic = 0;
     READ_VALUE(magic)

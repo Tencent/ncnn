@@ -17,6 +17,7 @@
 #if __ARM_NEON
 #include <arm_neon.h>
 #include "neon_mathfun.h"
+#include "arm_usability.h"
 #endif // __ARM_NEON
 
 namespace ncnn {

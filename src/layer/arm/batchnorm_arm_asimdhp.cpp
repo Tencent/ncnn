@@ -18,6 +18,8 @@
 #include <arm_neon.h>
 #endif // __ARM_NEON
 
+#include "arm_usability.h"
+
 namespace ncnn {
 
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
@@ -109,7 +111,7 @@ int BatchNorm_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < w; i++)
         {
-            ptr[i] = b_data[i] * ptr[i] + a_data[i];
+            ptr[i] = b_data[i] * (float)ptr[i] + a_data[i];
         }
     }
 
@@ -140,7 +142,7 @@ int BatchNorm_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt
             }
             for (; j < w; j++)
             {
-                *ptr = b * *ptr + a;
+                *ptr = b * (float)*ptr + a;
 
                 ptr++;
             }
@@ -177,7 +179,7 @@ int BatchNorm_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt
             }
             for (; j < size; j++)
             {
-                *ptr = b * *ptr + a;
+                *ptr = b * (float)*ptr + a;
 
                 ptr++;
             }
@@ -367,7 +369,11 @@ int BatchNorm_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& op
             __fp16 b = (__fp16)b_data[i];
 
             float16x4_t _a = vdup_n_f16(a);
+#if _MSC_VER
+            float16x4_t _b = vcvt_f16_f32(vdupq_n_f32(b_data[i]));
+#else
             float16x4_t _b = vdup_n_f16(b);
+#endif
 
             int j = 0;
             for (; j + 3 < w; j += 4)
@@ -404,7 +410,11 @@ int BatchNorm_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& op
             __fp16 b = (__fp16)b_data[q];
 
             float16x4_t _a = vdup_n_f16(a);
+#if _MSC_VER
+            float16x4_t _b = vcvt_f16_f32(vdupq_n_f32(b_data[q]));
+#else
             float16x4_t _b = vdup_n_f16(b);
+#endif
 
             int j = 0;
             for (; j + 3 < size; j += 4)

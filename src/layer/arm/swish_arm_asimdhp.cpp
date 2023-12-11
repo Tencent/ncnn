@@ -16,6 +16,7 @@
 
 #if __ARM_NEON
 #include <arm_neon.h>
+#include "arm_usability.h"
 #include "neon_mathfun.h"
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 #include "neon_mathfun_fp16s.h"
@@ -114,10 +115,10 @@ int Swish_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) c
             float16x8_t _p1 = vld1q_f16(ptr + 8);
             float16x8_t _p2 = vld1q_f16(ptr + 16);
             float16x8_t _p3 = vld1q_f16(ptr + 24);
-            _p0 = vdivq_f16(_p0, vaddq_f16(_one, exp_ps(vnegq_f16(_p0))));
-            _p1 = vdivq_f16(_p1, vaddq_f16(_one, exp_ps(vnegq_f16(_p1))));
-            _p2 = vdivq_f16(_p2, vaddq_f16(_one, exp_ps(vnegq_f16(_p2))));
-            _p3 = vdivq_f16(_p3, vaddq_f16(_one, exp_ps(vnegq_f16(_p3))));
+            _p0 = vdivq_f16(_p0, vaddq_f16(_one, exp_ps_f16(vnegq_f16(_p0))));
+            _p1 = vdivq_f16(_p1, vaddq_f16(_one, exp_ps_f16(vnegq_f16(_p1))));
+            _p2 = vdivq_f16(_p2, vaddq_f16(_one, exp_ps_f16(vnegq_f16(_p2))));
+            _p3 = vdivq_f16(_p3, vaddq_f16(_one, exp_ps_f16(vnegq_f16(_p3))));
             vst1q_f16(ptr, _p0);
             vst1q_f16(ptr + 8, _p1);
             vst1q_f16(ptr + 16, _p2);
@@ -128,8 +129,8 @@ int Swish_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) c
         {
             float16x8_t _p0 = vld1q_f16(ptr);
             float16x8_t _p1 = vld1q_f16(ptr + 8);
-            _p0 = vdivq_f16(_p0, vaddq_f16(_one, exp_ps(vnegq_f16(_p0))));
-            _p1 = vdivq_f16(_p1, vaddq_f16(_one, exp_ps(vnegq_f16(_p1))));
+            _p0 = vdivq_f16(_p0, vaddq_f16(_one, exp_ps_f16(vnegq_f16(_p0))));
+            _p1 = vdivq_f16(_p1, vaddq_f16(_one, exp_ps_f16(vnegq_f16(_p1))));
             vst1q_f16(ptr, _p0);
             vst1q_f16(ptr + 8, _p1);
             ptr += 16;
@@ -137,21 +138,21 @@ int Swish_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) c
         for (; i + 7 < size; i += 8)
         {
             float16x8_t _p = vld1q_f16(ptr);
-            _p = vdivq_f16(_p, vaddq_f16(_one, exp_ps(vnegq_f16(_p))));
+            _p = vdivq_f16(_p, vaddq_f16(_one, exp_ps_f16(vnegq_f16(_p))));
             vst1q_f16(ptr, _p);
             ptr += 8;
         }
         for (; i + 3 < size; i += 4)
         {
             float16x4_t _p = vld1_f16(ptr);
-            _p = vdiv_f16(_p, vadd_f16(vget_low_f16(_one), exp_ps(vneg_f16(_p))));
+            _p = vdiv_f16(_p, vadd_f16(vget_low_f16(_one), exp_ps_f16(vneg_f16(_p))));
             vst1_f16(ptr, _p);
             ptr += 4;
         }
         for (; i < size; i++)
         {
             __fp16 v = *ptr;
-            v = v / ((__fp16)1.f + expf(-v));
+            v = v / (__fp16)(1.f + expf(-v));
             *ptr = v;
 
             ptr++;

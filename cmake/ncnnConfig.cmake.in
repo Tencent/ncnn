@@ -3,6 +3,7 @@ set(NCNN_THREADS @NCNN_THREADS@)
 set(NCNN_VULKAN @NCNN_VULKAN@)
 set(NCNN_SHARED_LIB @NCNN_SHARED_LIB@)
 set(NCNN_SYSTEM_GLSLANG @NCNN_SYSTEM_GLSLANG@)
+set(NCNN_SIMPLEVK @NCNN_SIMPLEVK@)
 
 if(NCNN_OPENMP)
     find_package(OpenMP)
@@ -15,7 +16,9 @@ if(NCNN_THREADS)
 endif()
 
 if(NCNN_VULKAN)
-    find_package(Vulkan REQUIRED)
+    if(NOT NCNN_SIMPLEVK)
+        find_package(Vulkan REQUIRED)
+    endif()
 
     if(NOT NCNN_SHARED_LIB)
         if(NCNN_SYSTEM_GLSLANG)
@@ -35,7 +38,6 @@ if(NCNN_VULKAN)
             set(glslang_DIR "${CMAKE_CURRENT_LIST_DIR}/../../../@CMAKE_INSTALL_LIBDIR@/cmake/glslang")
             find_package(glslang QUIET)
         endif()
-
     endif()
 endif()
 

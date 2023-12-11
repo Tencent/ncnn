@@ -19,6 +19,7 @@
 
 #if __ARM_NEON
 #include <arm_neon.h>
+#include "arm_usability.h"
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 #include "neon_mathfun_fp16s.h"
 #endif
@@ -181,7 +182,7 @@ struct unary_op_rsqrt_fp16s
 {
     __fp16 func(const __fp16& x) const
     {
-        return (__fp16)1.f / sqrtf(x);
+        return (__fp16)1.f / (__fp16)sqrtf(x);
     }
     float16x4_t func_pack4(const float16x4_t& x) const
     {
@@ -207,11 +208,11 @@ struct unary_op_exp_fp16s
     }
     float16x4_t func_pack4(const float16x4_t& x) const
     {
-        return exp_ps(x);
+        return exp_ps_f16(x);
     }
     float16x8_t func_pack8(const float16x8_t& x) const
     {
-        return exp_ps(x);
+        return exp_ps_f16(x);
     }
 };
 
@@ -223,11 +224,11 @@ struct unary_op_log_fp16s
     }
     float16x4_t func_pack4(const float16x4_t& x) const
     {
-        return log_ps(x);
+        return log_ps_f16(x);
     }
     float16x8_t func_pack8(const float16x8_t& x) const
     {
-        return log_ps(x);
+        return log_ps_f16(x);
     }
 };
 
@@ -239,11 +240,11 @@ struct unary_op_sin_fp16s
     }
     float16x4_t func_pack4(const float16x4_t& x) const
     {
-        return sin_ps(x);
+        return sin_ps_f16(x);
     }
     float16x8_t func_pack8(const float16x8_t& x) const
     {
-        return sin_ps(x);
+        return sin_ps_f16(x);
     }
 };
 
@@ -255,11 +256,11 @@ struct unary_op_cos_fp16s
     }
     float16x4_t func_pack4(const float16x4_t& x) const
     {
-        return cos_ps(x);
+        return cos_ps_f16(x);
     }
     float16x8_t func_pack8(const float16x8_t& x) const
     {
-        return cos_ps(x);
+        return cos_ps_f16(x);
     }
 };
 
@@ -429,11 +430,11 @@ struct unary_op_tanh_fp16s
     }
     float16x4_t func_pack4(const float16x4_t& x) const
     {
-        return tanh_ps(x);
+        return tanh_ps_f16(x);
     }
     float16x8_t func_pack8(const float16x8_t& x) const
     {
-        return tanh_ps(x);
+        return tanh_ps_f16(x);
     }
 };
 
@@ -445,11 +446,11 @@ struct unary_op_log10_fp16s
     }
     float16x4_t func_pack4(const float16x4_t& x) const
     {
-        return vmul_f16(log_ps(x), vdup_n_f16(0.434294481903));
+        return vmul_f16(log_ps_f16(x), vdup_n_f16(0.434294481903));
     }
     float16x8_t func_pack8(const float16x8_t& x) const
     {
-        return vmulq_f16(log_ps(x), vdupq_n_f16(0.434294481903));
+        return vmulq_f16(log_ps_f16(x), vdupq_n_f16(0.434294481903));
     }
 };
 
