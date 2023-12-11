@@ -103,22 +103,24 @@ struct TModelSet
 
     float Ratio(const TModelSet &Rset)
     {
-        float w=0;
-        int t=0;
+        float w;
+        float s=0;
+        float t=0;
 
         for(size_t r=0;r<Rset.Mset.size();r++){
             if(Rset.Mset[r].AvrTime>0.0){
                 for(size_t i=0;i<Mset.size();i++){
                     if(Mset[i].AvrTime>0.0){
                         if(Mset[i].Name==Rset.Mset[r].Name){
-                            w+=(Mset[i].AvrTime/Rset.Mset[r].AvrTime); t++;
+                            w=log(Rset.Mset[r].AvrTime);
+                            s+=w*(Mset[i].AvrTime/Rset.Mset[r].AvrTime); t+=w;
                         }
                     }
                 }
             }
         }
-        if(t>0) w/=t;
-        return w;
+        if(t>0) s/=t;
+        return s;
     }
 };
 //---------------------------------------------------------------------------
