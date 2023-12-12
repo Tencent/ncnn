@@ -204,42 +204,129 @@ https://github.com/Tencent/ncnn/releases/latest
 </tr>
 
 <tr>
+<td rowspan=2>
+  <img src="https://user-images.githubusercontent.com/25181517/186884153-99edc188-e4aa-4c84-91b0-e2df260ebc33.png" width="120" height="auto">
+</td>
+<td>Ubuntu 20.04</td>
+<td>
+
+  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-ubuntu-2004.zip)
+  [<img src="https://img.shields.io/badge/+shared-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-ubuntu-2004-shared.zip)
+
+</td>
+<td rowspan=2>
+
+  [<img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/linux-x64-gpu-gcc.yml?branch=master&style=for-the-badge&label=build">](https://github.com/Tencent/ncnn/actions?query=workflow%3Alinux-x64-gpu-gcc)
+
+</td>
+</tr>
+<tr>
+<td>Ubuntu 22.04</td>
+<td>
+
+  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-ubuntu-2204.zip)
+  [<img src="https://img.shields.io/badge/+shared-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-ubuntu-2204-shared.zip)
+
+</td>
+</tr>
+
+<tr>
 <td rowspan=4>
+  <img alt="windows" src="https://user-images.githubusercontent.com/25181517/186884150-05e9ff6d-340e-4802-9533-2c3f02363ee3.png" width="120" height="auto">
+</td>
+<td>VS2015</td>
+<td>
+
+  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-windows-vs2015.zip)
+  [<img src="https://img.shields.io/badge/+shared-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-windows-vs2015-shared.zip)
+
+</td>
+<td rowspan=4>
+
+  [<img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/windows-x64-gpu.yml?branch=master&style=for-the-badge&label=build">](https://github.com/Tencent/ncnn/actions?query=workflow%3Awindows-x64-gpu)
+
+</td>
+</tr>
+<tr>
+<td>VS2017</td>
+<td>
+
+  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-windows-vs2017.zip)
+  [<img src="https://img.shields.io/badge/+shared-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-windows-vs2017-shared.zip)
+
+</td>
+</tr>
+<tr>
+<td>VS2019</td>
+<td>
+
+  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-windows-vs2019.zip)
+  [<img src="https://img.shields.io/badge/+shared-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-windows-vs2019-shared.zip)
+
+</td>
+</tr>
+<tr>
+<td>VS2022</td>
+<td>
+
+  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-windows-vs2022.zip)
+  [<img src="https://img.shields.io/badge/+shared-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-windows-vs2022-shared.zip)
+
+</td>
+</tr>
+
+<tr>
+<td rowspan=2>
+  <img src="https://user-images.githubusercontent.com/25181517/186884153-99edc188-e4aa-4c84-91b0-e2df260ebc33.png" width="120" height="auto">
+</td>
+<td>Ubuntu 20.04</td>
+<td>
+
+  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-ubuntu-2004.zip)
+  [<img src="https://img.shields.io/badge/+shared-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-ubuntu-2004-shared.zip)
+
+</td>
+<td rowspan=2>
+
+  [<img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/linux-x64-gpu-gcc.yml?branch=master&style=for-the-badge&label=build">](https://github.com/Tencent/ncnn/actions?query=workflow%3Alinux-x64-gpu-gcc)
+
+</td>
+</tr>
+<tr>
+<td>Ubuntu 22.04</td>
+<td>
+
+  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-ubuntu-2204.zip)
+  [<img src="https://img.shields.io/badge/+shared-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-ubuntu-2204-shared.zip)
+
+</td>
+</tr>
+
+<tr>
+<td>
+  <img src="https://user-images.githubusercontent.com/25181517/188324036-d704ac9a-6e61-4722-b978-254b25b61bed.png" width="120" height="auto">
+</td>
+<td>WebAssembly</td>
+<td>
+
+  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-webassembly.zip)
+
+</td>
+<td>
+
+  [<img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/web-assembly.yml?branch=master&style=for-the-badge&label=build">](https://github.com/Tencent/ncnn/actions?query=workflow%3Aweb-assembly)
+
+</td>
+</tr>
+
+
+<tr>
+<td>
   <img alt="linux" src="https://github.com/marwin1991/profile-technology-icons/assets/76662862/2481dc48-be6b-4ebb-9e8c-3b957efe69fa" width="120" height="auto">
 </td>
-<td colspan=2>
-  <b>Ubuntu-20.04 / Ubuntu-22.04</b>
-</td>
-</tr>
-<tr>
-<td colspan=2>
-  <a href="https://github.com/Tencent/ncnn/actions?query=workflow%3Alinux-x64-gpu-gcc">
-    <img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/linux-x64-gpu-gcc.yml?branch=master&style=for-the-badge&label=build-gcc">
-  </a><br />
-  <a href="https://github.com/Tencent/ncnn/actions?query=workflow%3Alinux-x64-gpu-clang">
-    <img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/linux-x64-gpu-clang.yml?branch=master&style=for-the-badge&label=build-clang">
-  </a><br />
-  <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-ubuntu-2004.zip">
-    <img src="https://img.shields.io/badge/download_for_ubuntu_20.04-blue?style=for-the-badge">
-  </a>
-  <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-ubuntu-2004-shared.zip">
-    <img src="https://img.shields.io/badge/+shared-blue?style=for-the-badge">
-  </a><br />
-  <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-ubuntu-2204.zip">
-    <img src="https://img.shields.io/badge/download_for_ubuntu_22.04-blue?style=for-the-badge">
-  </a>
-  <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-ubuntu-2204-shared.zip">
-    <img src="https://img.shields.io/badge/+shared-blue?style=for-the-badge">
-  </a>
-</td>
-</tr>
-<tr>
-<td colspan=2>
-  <b>Linux cross-compiling </b>(arm, aarch64, mips, mips64, ppc64, riscv64, loongarch64)
-</td>
-</tr>
-<tr>
-<td colspan=2>
+<td>Linux cross-compiling</td>
+<td></td>
+<td>
   <a href="https://github.com/Tencent/ncnn/actions?query=workflow%3Alinux-arm-cpu-gcc">
     <img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/linux-arm-cpu-gcc.yml?branch=master&style=for-the-badge&label=build-arm">
   </a><br />
@@ -264,65 +351,6 @@ https://github.com/Tencent/ncnn/releases/latest
 </td>
 </tr>
 
-<tr>
-<td rowspan=2>
-  <img alt="windows" src="https://user-images.githubusercontent.com/25181517/186884150-05e9ff6d-340e-4802-9533-2c3f02363ee3.png" width="120" height="auto">
-</td>
-<td colspan=2>
-  <b>VS2015 / VS2017 </b>(x86, x64)<br />
-  <b>VS2019 / VS2022 </b>(x86, x64, arm, arm64)
-</td>
-</tr>
-<tr>
-<td colspan=2>
-  <a href="https://github.com/Tencent/ncnn/actions?query=workflow%3Awindows-x64-gpu">
-    <img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/windows-x64-gpu.yml?branch=master&style=for-the-badge&label=build">
-  </a><br />
-  <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-windows-vs2015.zip">
-    <img src="https://img.shields.io/badge/download_for_vs2015-blue?style=for-the-badge">
-  </a>
-  <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-windows-vs2015-shared.zip">
-    <img src="https://img.shields.io/badge/+shared-blue?style=for-the-badge">
-  </a><br />
-  <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-windows-vs2017.zip">
-    <img src="https://img.shields.io/badge/download_for_vs2017-blue?style=for-the-badge">
-  </a>
-  <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-windows-vs2017-shared.zip">
-    <img src="https://img.shields.io/badge/+shared-blue?style=for-the-badge">
-  </a><br />
-  <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-windows-vs2019.zip">
-    <img src="https://img.shields.io/badge/download_for_vs2019-blue?style=for-the-badge">
-  </a>
-  <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-windows-vs2019-shared.zip">
-    <img src="https://img.shields.io/badge/+shared-blue?style=for-the-badge">
-  </a><br />
-  <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-windows-vs2022.zip">
-    <img src="https://img.shields.io/badge/download_for_vs2022-blue?style=for-the-badge">
-  </a>
-  <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-windows-vs2022-shared.zip">
-    <img src="https://img.shields.io/badge/+shared-blue?style=for-the-badge">
-  </a>
-</td>
-</tr>
-
-<tr>
-<td rowspan=2>
-  <img alt="webassembly" src="https://user-images.githubusercontent.com/25181517/188324036-d704ac9a-6e61-4722-b978-254b25b61bed.png" width="120" height="auto">
-</td>
-<td colspan=2>
-  <b>WebAssembly </b>(basic, simd, threads, simd+threads)
-</td>
-</tr>
-<tr>
-<td colspan=2>
-  <a href="https://github.com/Tencent/ncnn/actions?query=workflow%3Aweb-assembly">
-    <img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/web-assembly.yml?branch=master&style=for-the-badge&label=build">
-  </a>
-  <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-webassembly.zip">
-    <img src="https://img.shields.io/badge/download-blue?style=for-the-badge">
-  </a>
-</td>
-</tr>
 </table>
 
 
