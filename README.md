@@ -63,7 +63,7 @@ https://github.com/Tencent/ncnn/releases/latest
   <img src="https://user-images.githubusercontent.com/25181517/117269608-b7dcfb80-ae58-11eb-8e66-6cc8753553f0.png" width="120" height="auto">
 </td>
 <td>
-  <b>Android </b>(armeabi-v7a, arm64-v8a, x86, x86_64)
+  <b>Android </b><br />armeabi-v7a, arm64-v8a, x86, x86_64
 </td>
 <td>
   <a href="https://github.com/Tencent/ncnn/actions?query=workflow%3Aandroid-armv7-gpu">
@@ -99,7 +99,7 @@ https://github.com/Tencent/ncnn/releases/latest
   <img src="https://user-images.githubusercontent.com/25181517/121406611-a8246b80-c95e-11eb-9b11-b771486377f6.png" width="120" height="auto">
 </td>
 <td>
-  <b>iOS </b>(armv7, arm64, arm64e)
+  <b>iOS </b><br />armv7, arm64, arm64e
 </td>
 <td>
   <a href="https://github.com/Tencent/ncnn/actions?query=workflow%3Aios-arm64-gpu">
@@ -131,7 +131,7 @@ https://github.com/Tencent/ncnn/releases/latest
 </tr>
 <tr>
 <td>
-  <b>iOS-Simulator </b>(i386, x86_64, arm64)
+  <b>iOS-Simulator </b><br />i386, x86_64, arm64
 </td>
 <td>
   <a href="https://github.com/Tencent/ncnn/actions?query=workflow%3Aios-simulator-gpu">
@@ -167,7 +167,7 @@ https://github.com/Tencent/ncnn/releases/latest
   <img src="https://user-images.githubusercontent.com/25181517/186884152-ae609cca-8cf1-4175-8d60-1ce1fa078ca2.png" width="120" height="auto">
 </td>
 <td>
-  <b>macOS </b>(x86_64, arm64)
+  <b>macOS </b><br />x86_64, arm64
 </td>
 <td>
   <a href="https://github.com/Tencent/ncnn/actions?query=workflow%3Amacos-arm64-gpu">
@@ -193,7 +193,7 @@ https://github.com/Tencent/ncnn/releases/latest
 </tr>
 <tr>
 <td>
-  <b>Mac-Catalyst </b>(x86_64, arm64)
+  <b>Mac-Catalyst </b><br />x86_64, arm64
 </td>
 <td>
   <a href="https://github.com/Tencent/ncnn/actions?query=workflow%3Amac-catalyst-arm64-gpu">
@@ -225,7 +225,7 @@ https://github.com/Tencent/ncnn/releases/latest
 </tr>
 <tr>
 <td>
-  <b>Apple xcframework </b>(ios, ios-simulator, mac-catalyst, macos)
+  <b>Apple xcframework </b><br />ios, ios-simulator, mac-catalyst, macos
 </td>
 <td>
   <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-apple-vulkan.zip">
