@@ -42,19 +42,18 @@ https://github.com/Tencent/ncnn/releases/latest
 <td rowspan=2>
   <img src="https://user-images.githubusercontent.com/25181517/192108372-f71d70ac-7ae6-4c0d-8395-51d8870c2ef0.png" width="120" height="auto">
 </td>
-<td colspan=2>
-  <b>Source </b>
-</td>
-</tr>
-<tr>
-<td colspan=2>
+<td colspan=3>
 
   **[how to build ncnn library](https://github.com/Tencent/ncnn/wiki/how-to-build) on Linux / Windows / macOS / Raspberry Pi3, Pi4 / POWER / Android / NVIDIA Jetson / iOS / WebAssembly / AllWinner D1 / Loongson 2K1000**
 
-  <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-full-source.zip">
-    <img src="https://img.shields.io/badge/download-blue?style=for-the-badge">
-  </a>
-  
+</td>
+</tr>
+<tr>
+<td>Source</td>
+<td colspan=2>
+
+  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-full-source.zip)
+
 </td>
 </tr>
 
@@ -62,35 +61,26 @@ https://github.com/Tencent/ncnn/releases/latest
 <td rowspan=2>
   <img src="https://user-images.githubusercontent.com/25181517/117269608-b7dcfb80-ae58-11eb-8e66-6cc8753553f0.png" width="120" height="auto">
 </td>
+<td>Android</td>
 <td>
-  <b>Android </b><br />armeabi-v7a, arm64-v8a, x86, x86_64
+
+  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-android-vulkan.zip)
+  [<img src="https://img.shields.io/badge/+shared-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-android-vulkan-shared.zip)
+
 </td>
-<td>
-  <a href="https://github.com/Tencent/ncnn/actions?query=workflow%3Aandroid-armv7-gpu">
-    <img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/android-armv7-gpu.yml?branch=master&style=for-the-badge&label=build">
-  </a>
-  <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-android-vulkan.zip">
-    <img src="https://img.shields.io/badge/download-blue?style=for-the-badge">
-  </a>
-  <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-android-vulkan-shared.zip">
-    <img src="https://img.shields.io/badge/+shared-blue?style=for-the-badge">
-  </a>
+<td rowspan=2>
+
+  [<img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/android-armv7-gpu.yml?branch=master&style=for-the-badge&label=build">](https://github.com/Tencent/ncnn/actions?query=workflow%3Aandroid-armv7-gpu)
+
 </td>
 </tr>
 <tr>
+<td>Android cpuonly</td>
 <td>
-  <b>Android cpuonly</b>
-</td>
-<td>
-  <a href="https://github.com/Tencent/ncnn/actions?query=workflow%3Aandroid-armv7-cpu">
-    <img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/android-armv7-cpu.yml?branch=master&style=for-the-badge&label=build">
-  </a>
-  <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-android.zip">
-    <img src="https://img.shields.io/badge/download-blue?style=for-the-badge">
-  </a>
-  <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-android-shared.zip">
-    <img src="https://img.shields.io/badge/+shared-blue?style=for-the-badge">
-  </a>
+
+  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-android.zip)
+  [<img src="https://img.shields.io/badge/+shared-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-android-shared.zip)
+
 </td>
 </tr>
 
@@ -98,67 +88,49 @@ https://github.com/Tencent/ncnn/releases/latest
 <td rowspan=4>
   <img src="https://user-images.githubusercontent.com/25181517/121406611-a8246b80-c95e-11eb-9b11-b771486377f6.png" width="120" height="auto">
 </td>
+<td>iOS</td>
 <td>
-  <b>iOS </b><br />armv7, arm64, arm64e
+
+  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-ios-vulkan.zip)
+  [<img src="https://img.shields.io/badge/+bitcode-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-ios-vulkan-bitcode.zip)
+
 </td>
-<td>
-  <a href="https://github.com/Tencent/ncnn/actions?query=workflow%3Aios-arm64-gpu">
-    <img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/ios-arm64-gpu.yml?branch=master&style=for-the-badge&label=build">
-  </a>
-  <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-ios-vulkan.zip">
-    <img src="https://img.shields.io/badge/download-blue?style=for-the-badge">
-  </a>
-  <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-ios-vulkan-bitcode.zip">
-    <img src="https://img.shields.io/badge/+bitcode-blue?style=for-the-badge">
-  </a>
+<td rowspan=2>
+
+  [<img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/ios-arm64-gpu.yml?branch=master&style=for-the-badge&label=build">](https://github.com/Tencent/ncnn/actions?query=workflow%3Aios-arm64-gpu)
+
 </td>
 </tr>
 <tr>
+<td>iOS cpuonly</td>
 <td>
-  <b>iOS cpuonly</b>
-</td>
-<td>
-  <a href="https://github.com/Tencent/ncnn/actions?query=workflow%3Aios-cpu">
-    <img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/ios-cpu.yml?branch=master&style=for-the-badge&label=build">
-  </a>
-  <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-ios.zip">
-    <img src="https://img.shields.io/badge/download-blue?style=for-the-badge">
-  </a>
-  <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-ios-bitcode.zip">
-    <img src="https://img.shields.io/badge/+bitcode-blue?style=for-the-badge">
-  </a>
+
+  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-ios.zip)
+  [<img src="https://img.shields.io/badge/+bitcode-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-ios-bitcode.zip)
+
 </td>
 </tr>
 <tr>
+<td>iOS-Simulator</td>
 <td>
-  <b>iOS-Simulator </b><br />i386, x86_64, arm64
+
+  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-ios-simulator-vulkan.zip)
+  [<img src="https://img.shields.io/badge/+bitcode-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-ios-simulator-vulkan-bitcode.zip)
+
 </td>
-<td>
-  <a href="https://github.com/Tencent/ncnn/actions?query=workflow%3Aios-simulator-gpu">
-    <img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/ios-simulator-gpu.yml?branch=master&style=for-the-badge&label=build">
-  </a>
-  <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-ios-simulator-vulkan.zip">
-    <img src="https://img.shields.io/badge/download-blue?style=for-the-badge">
-  </a>
-  <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-ios-simulator-vulkan-bitcode.zip">
-    <img src="https://img.shields.io/badge/+bitcode-blue?style=for-the-badge">
-  </a>
+<td rowspan=2>
+
+  [<img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/ios-simulator-gpu.yml?branch=master&style=for-the-badge&label=build">](https://github.com/Tencent/ncnn/actions?query=workflow%3Aios-simulator-gpu)
+
 </td>
 </tr>
 <tr>
+<td>iOS-Simulator cpuonly</td>
 <td>
-  <b>iOS-Simulator cpuonly</b>
-</td>
-<td>
-  <a href="https://github.com/Tencent/ncnn/actions?query=workflow%3Aios-simulator">
-    <img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/ios-simulator.yml?branch=master&style=for-the-badge&label=build">
-  </a>
-  <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-ios-simulator.zip">
-    <img src="https://img.shields.io/badge/download-blue?style=for-the-badge">
-  </a>
-  <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-ios-simulator-bitcode.zip">
-    <img src="https://img.shields.io/badge/+bitcode-blue?style=for-the-badge">
-  </a>
+
+  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-ios-simulator.zip)
+  [<img src="https://img.shields.io/badge/+bitcode-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-ios-simulator-bitcode.zip)
+
 </td>
 </tr>
 
@@ -166,87 +138,68 @@ https://github.com/Tencent/ncnn/releases/latest
 <td rowspan=6>
   <img src="https://user-images.githubusercontent.com/25181517/186884152-ae609cca-8cf1-4175-8d60-1ce1fa078ca2.png" width="120" height="auto">
 </td>
+<td>macOS</td>
 <td>
-  <b>macOS </b><br />x86_64, arm64
+
+  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-macos-vulkan.zip)
+
 </td>
-<td>
-  <a href="https://github.com/Tencent/ncnn/actions?query=workflow%3Amacos-arm64-gpu">
-    <img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/macos-arm64-gpu.yml?branch=master&style=for-the-badge&label=build">
-  </a>
-  <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-macos-vulkan.zip">
-    <img src="https://img.shields.io/badge/download-blue?style=for-the-badge">
-  </a>
-</td>
-</tr>
-<tr>
-<td>
-  <b>macOS cpuonly</b>
-</td>
-<td>
-  <a href="https://github.com/Tencent/ncnn/actions?query=workflow%3Amacos-arm64-cpu">
-    <img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/macos-arm64-cpu.yml?branch=master&style=for-the-badge&label=build">
-  </a>
-  <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-macos.zip">
-    <img src="https://img.shields.io/badge/download-blue?style=for-the-badge">
-  </a>
+<td rowspan=2>
+
+  [<img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/macos-arm64-gpu.yml?branch=master&style=for-the-badge&label=build">](https://github.com/Tencent/ncnn/actions?query=workflow%3Amacos-arm64-gpu)
+
 </td>
 </tr>
 <tr>
+<td>macOS cpuonly</td>
 <td>
-  <b>Mac-Catalyst </b><br />x86_64, arm64
-</td>
-<td>
-  <a href="https://github.com/Tencent/ncnn/actions?query=workflow%3Amac-catalyst-arm64-gpu">
-    <img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/mac-catalyst-arm64-gpu.yml?branch=master&style=for-the-badge&label=build">
-  </a>
-  <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-mac-catalyst-vulkan.zip">
-    <img src="https://img.shields.io/badge/download-blue?style=for-the-badge">
-  </a>
-  <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-mac-catalyst-vulkan-bitcode.zip">
-    <img src="https://img.shields.io/badge/+bitcode-blue?style=for-the-badge">
-  </a>
+
+  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-macos.zip)
+
 </td>
 </tr>
 <tr>
+<td>Mac-Catalyst</td>
 <td>
-  <b>Mac-Catalyst cpuonly</b>
+
+  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-mac-catalyst-vulkan.zip)
+  [<img src="https://img.shields.io/badge/+bitcode-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-mac-catalyst-vulkan-bitcode.zip)
+
 </td>
-<td>
-  <a href="https://github.com/Tencent/ncnn/actions?query=workflow%3Amac-catalyst-arm64-cpu">
-    <img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/mac-catalyst-arm64-cpu.yml?branch=master&style=for-the-badge&label=build">
-  </a>
-  <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-mac-catalyst.zip">
-    <img src="https://img.shields.io/badge/download-blue?style=for-the-badge">
-  </a>
-  <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-mac-catalyst-bitcode.zip">
-    <img src="https://img.shields.io/badge/+bitcode-blue?style=for-the-badge">
-  </a>
+<td rowspan=2>
+
+  [<img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/mac-catalyst-arm64-gpu.yml?branch=master&style=for-the-badge&label=build">](https://github.com/Tencent/ncnn/actions?query=workflow%3Amac-catalyst-arm64-gpu)
+
 </td>
 </tr>
 <tr>
+<td>Mac-Catalyst cpuonly</td>
 <td>
-  <b>Apple xcframework </b><br />ios, ios-simulator, mac-catalyst, macos
-</td>
-<td>
-  <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-apple-vulkan.zip">
-    <img src="https://img.shields.io/badge/download-blue?style=for-the-badge">
-  </a>
-  <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-apple-vulkan-bitcode.zip">
-    <img src="https://img.shields.io/badge/+bitcode-blue?style=for-the-badge">
-  </a>
+
+  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-mac-catalyst.zip)
+  [<img src="https://img.shields.io/badge/+bitcode-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-mac-catalyst-bitcode.zip)
+
 </td>
 </tr>
 <tr>
+<td>Apple xcframework</td>
 <td>
-  <b>Apple xcframework cpuonly</b>
+
+  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-apple-vulkan.zip)
+  [<img src="https://img.shields.io/badge/+bitcode-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-apple-vulkan-bitcode.zip)
+
 </td>
+<td rowspan=2>
+
+</td>
+</tr>
+<tr>
+<td>Apple xcframework cpuonly</td>
 <td>
-  <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-apple.zip">
-    <img src="https://img.shields.io/badge/download-blue?style=for-the-badge">
-  </a>
-  <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-apple-bitcode.zip">
-    <img src="https://img.shields.io/badge/+bitcode-blue?style=for-the-badge">
-  </a>
+
+  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-apple.zip)
+  [<img src="https://img.shields.io/badge/+bitcode-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-apple-bitcode.zip)
+
 </td>
 </tr>
 
@@ -255,7 +208,7 @@ https://github.com/Tencent/ncnn/releases/latest
   <img alt="linux" src="https://github.com/marwin1991/profile-technology-icons/assets/76662862/2481dc48-be6b-4ebb-9e8c-3b957efe69fa" width="120" height="auto">
 </td>
 <td colspan=2>
-  <b>Ubuntu-20.04 / Ubuntu-22.04 </b>(x86_64)
+  <b>Ubuntu-20.04 / Ubuntu-22.04</b>
 </td>
 </tr>
 <tr>
