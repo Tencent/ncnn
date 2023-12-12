@@ -42,12 +42,12 @@ https://github.com/Tencent/ncnn/releases/latest
 <td rowspan=2>
   <img src="https://user-images.githubusercontent.com/25181517/192108372-f71d70ac-7ae6-4c0d-8395-51d8870c2ef0.png" width="120" height="auto">
 </td>
-<td colspan=4>
+<td colspan=2>
   <b>Source </b>
 </td>
 </tr>
 <tr>
-<td colspan=4>
+<td colspan=2>
 
   **[how to build ncnn library](https://github.com/Tencent/ncnn/wiki/how-to-build) on Linux / Windows / macOS / Raspberry Pi3, Pi4 / POWER / Android / NVIDIA Jetson / iOS / WebAssembly / AllWinner D1 / Loongson 2K1000**
 
@@ -62,12 +62,12 @@ https://github.com/Tencent/ncnn/releases/latest
 <td rowspan=2>
   <img src="https://user-images.githubusercontent.com/25181517/117269608-b7dcfb80-ae58-11eb-8e66-6cc8753553f0.png" width="120" height="auto">
 </td>
-<td colspan=4>
+<td colspan=2>
   <b>Android </b>(armeabi-v7a, arm64-v8a, x86, x86_64)
 </td>
 </tr>
 <tr>
-<td colspan=4>
+<td colspan=2>
   <a href="https://github.com/Tencent/ncnn/actions?query=workflow%3Aandroid-armv7-cpu">
     <img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/android-armv7-cpu.yml?style=for-the-badge&label=build">
   </a>
@@ -94,15 +94,15 @@ https://github.com/Tencent/ncnn/releases/latest
 <td rowspan=2>
   <img src="https://user-images.githubusercontent.com/25181517/121406611-a8246b80-c95e-11eb-9b11-b771486377f6.png" width="120" height="auto">
 </td>
-<td colspan=2>
+<td>
   <b>iOS </b>(armv7, arm64, arm64e)
 </td>
-<td colspan=2>
+<td>
   <b>iOS-Simulator </b>(i386, x86_64, arm64)
 </td>
 </tr>
 <tr>
-<td colspan=2>
+<td>
   <a href="https://github.com/Tencent/ncnn/actions?query=workflow%3Aios-cpu">
     <img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/ios-cpu.yml?style=for-the-badge&label=build">
   </a>
@@ -122,7 +122,7 @@ https://github.com/Tencent/ncnn/releases/latest
     <img src="https://img.shields.io/badge/+bitcode-blue?style=for-the-badge">
   </a>
 </td>
-<td colspan=2>
+<td>
   <a href="https://github.com/Tencent/ncnn/actions?query=workflow%3Aios-simulator">
     <img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/ios-simulator.yml?style=for-the-badge&label=build">
   </a>
@@ -148,15 +148,15 @@ https://github.com/Tencent/ncnn/releases/latest
 <td rowspan=4>
   <img src="https://user-images.githubusercontent.com/25181517/186884152-ae609cca-8cf1-4175-8d60-1ce1fa078ca2.png" width="120" height="auto">
 </td>
-<td colspan=2>
+<td>
   <b>macOS </b>(x86_64, arm64)
 </td>
-<td colspan=2>
+<td>
   <b>Mac-Catalyst </b>(x86_64, arm64)
 </td>
 </tr>
 <tr>
-<td colspan=2>
+<td>
   <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-macos.zip">
     <img src="https://img.shields.io/badge/download-20231027-blue?style=for-the-badge">
   </a><br />
@@ -164,7 +164,7 @@ https://github.com/Tencent/ncnn/releases/latest
     <img src="https://img.shields.io/badge/download-20231027+gpu-blue?style=for-the-badge">
   </a>
 </td>
-<td colspan=2>
+<td>
   <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-mac-catalyst.zip">
     <img src="https://img.shields.io/badge/download-20231027-blue?style=for-the-badge">
   </a>
@@ -181,12 +181,12 @@ https://github.com/Tencent/ncnn/releases/latest
 </tr>
 
 <tr>
-<td colspan=4>
+<td colspan=2>
   <b>Apple xcframework </b>(ios, ios-simulator, ios-maccatalyst, macos)
 </td>
 </tr>
 <tr>
-<td colspan=4>
+<td colspan=2>
   <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-apple.zip">
     <img src="https://img.shields.io/badge/download-20231027-blue?style=for-the-badge">
   </a>
@@ -206,15 +206,15 @@ https://github.com/Tencent/ncnn/releases/latest
 <td rowspan=2>
   <img alt="linux" src="https://github.com/marwin1991/profile-technology-icons/assets/76662862/2481dc48-be6b-4ebb-9e8c-3b957efe69fa" width="120" height="auto">
 </td>
-<td colspan=2>
+<td>
   <b>Ubuntu-20.04 </b>(x86_64)
 </td>
-<td colspan=2>
+<td>
   <b>Ubuntu-22.04 </b>(x86_64)
 </td>
 </tr>
 <tr>
-<td colspan=2>
+<td>
   <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-ubuntu-2004.zip">
     <img src="https://img.shields.io/badge/download-20231027-blue?style=for-the-badge">
   </a>
@@ -222,7 +222,7 @@ https://github.com/Tencent/ncnn/releases/latest
     <img src="https://img.shields.io/badge/+shared-blue?style=for-the-badge">
   </a>
 </td>
-<td colspan=2>
+<td>
   <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-ubuntu-2204.zip">
     <img src="https://img.shields.io/badge/download-20231027-blue?style=for-the-badge">
   </a>
@@ -237,16 +237,10 @@ https://github.com/Tencent/ncnn/releases/latest
   <img alt="windows" src="https://user-images.githubusercontent.com/25181517/186884150-05e9ff6d-340e-4802-9533-2c3f02363ee3.png" width="120" height="auto">
 </td>
 <td>
-  <b>VS2015 </b>(x86, x64)
+  <b>VS2015 / VS2017 </b>(x86, x64)
 </td>
 <td>
-  <b>VS2017 </b>(x86, x64)
-</td>
-<td>
-  <b>VS2019 </b>(x86, x64)
-</td>
-<td>
-  <b>VS2022 </b>(x86, x64)
+  <b>VS2019 / VS2022 </b>(x86, x64, arm, arm64)
 </td>
 </tr>
 <tr>
@@ -257,8 +251,6 @@ https://github.com/Tencent/ncnn/releases/latest
   <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-windows-vs2015-shared.zip">
     <img src="https://img.shields.io/badge/+shared-blue?style=for-the-badge">
   </a>
-</td>
-<td>
   <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-windows-vs2017.zip">
     <img src="https://img.shields.io/badge/download-20231027-blue?style=for-the-badge">
   </a>
@@ -273,8 +265,6 @@ https://github.com/Tencent/ncnn/releases/latest
   <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-windows-vs2019-shared.zip">
     <img src="https://img.shields.io/badge/+shared-blue?style=for-the-badge">
   </a>
-</td>
-<td>
   <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-windows-vs2022.zip">
     <img src="https://img.shields.io/badge/download-20231027-blue?style=for-the-badge">
   </a>
@@ -288,12 +278,12 @@ https://github.com/Tencent/ncnn/releases/latest
 <td rowspan=2>
   <img alt="webassembly" src="https://user-images.githubusercontent.com/25181517/188324036-d704ac9a-6e61-4722-b978-254b25b61bed.png" width="120" height="auto">
 </td>
-<td colspan=4>
+<td colspan=2>
   <b>WebAssembly </b>(basic, simd, threads, simd+threads)
 </td>
 </tr>
 <tr>
-<td colspan=4>
+<td colspan=2>
   <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-webassembly.zip">
     <img src="https://img.shields.io/badge/download-20231027-blue?style=for-the-badge">
   </a>
