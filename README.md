@@ -42,12 +42,12 @@ https://github.com/Tencent/ncnn/releases/latest
 <td rowspan=2>
   <img src="https://user-images.githubusercontent.com/25181517/192108372-f71d70ac-7ae6-4c0d-8395-51d8870c2ef0.png" width="120" height="auto">
 </td>
-<td colspan=2>
+<td>
   <b>Source </b>
 </td>
 </tr>
 <tr>
-<td colspan=2>
+<td>
 
   **[how to build ncnn library](https://github.com/Tencent/ncnn/wiki/how-to-build) on Linux / Windows / macOS / Raspberry Pi3, Pi4 / POWER / Android / NVIDIA Jetson / iOS / WebAssembly / AllWinner D1 / Loongson 2K1000**
 
@@ -62,24 +62,24 @@ https://github.com/Tencent/ncnn/releases/latest
 <td rowspan=2>
   <img src="https://user-images.githubusercontent.com/25181517/117269608-b7dcfb80-ae58-11eb-8e66-6cc8753553f0.png" width="120" height="auto">
 </td>
-<td colspan=2>
+<td>
   <b>Android </b>(armeabi-v7a, arm64-v8a, x86, x86_64)
 </td>
 </tr>
 <tr>
-<td colspan=2>
+<td>
   <a href="https://github.com/Tencent/ncnn/actions?query=workflow%3Aandroid-armv7-gpu">
     <img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/android-armv7-gpu.yml?style=for-the-badge&label=build">
   </a>
-  <a href="https://github.com/Tencent/ncnn/actions?query=workflow%3Aandroid-armv7-cpu">
-    <img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/android-armv7-cpu.yml?style=for-the-badge&label=cpuonly">
-  </a><br />
   <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-android-vulkan.zip">
     <img src="https://img.shields.io/badge/download-20231027-blue?style=for-the-badge">
   </a>
   <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-android-vulkan-shared.zip">
     <img src="https://img.shields.io/badge/+shared-blue?style=for-the-badge">
   </a><br />
+  <a href="https://github.com/Tencent/ncnn/actions?query=workflow%3Aandroid-armv7-cpu">
+    <img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/android-armv7-cpu.yml?style=for-the-badge&label=cpuonly">
+  </a>
   <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-android.zip">
     <img src="https://img.shields.io/badge/download-20231027_cpuonly-blue?style=for-the-badge">
   </a>
@@ -90,14 +90,11 @@ https://github.com/Tencent/ncnn/releases/latest
 </tr>
 
 <tr>
-<td rowspan=2>
+<td rowspan=4>
   <img src="https://user-images.githubusercontent.com/25181517/121406611-a8246b80-c95e-11eb-9b11-b771486377f6.png" width="120" height="auto">
 </td>
 <td>
   <b>iOS </b>(armv7, arm64, arm64e)
-</td>
-<td>
-  <b>iOS-Simulator </b>(i386, x86_64, arm64)
 </td>
 </tr>
 <tr>
@@ -105,15 +102,15 @@ https://github.com/Tencent/ncnn/releases/latest
   <a href="https://github.com/Tencent/ncnn/actions?query=workflow%3Aios-arm64-gpu">
     <img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/ios-arm64-gpu.yml?style=for-the-badge&label=build">
   </a>
-  <a href="https://github.com/Tencent/ncnn/actions?query=workflow%3Aios-cpu">
-    <img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/ios-cpu.yml?style=for-the-badge&label=cpuonly">
-  </a><br />
   <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-ios-vulkan.zip">
     <img src="https://img.shields.io/badge/download-20231027-blue?style=for-the-badge">
   </a>
   <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-ios-vulkan-bitcode.zip">
     <img src="https://img.shields.io/badge/+bitcode-blue?style=for-the-badge">
   </a><br />
+  <a href="https://github.com/Tencent/ncnn/actions?query=workflow%3Aios-cpu">
+    <img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/ios-cpu.yml?style=for-the-badge&label=cpuonly">
+  </a>
   <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-ios.zip">
     <img src="https://img.shields.io/badge/download-20231027_cpuonly-blue?style=for-the-badge">
   </a>
@@ -121,19 +118,26 @@ https://github.com/Tencent/ncnn/releases/latest
     <img src="https://img.shields.io/badge/+bitcode-blue?style=for-the-badge">
   </a>
 </td>
+</tr>
+<tr>
+<td>
+  <b>iOS-Simulator </b>(i386, x86_64, arm64)
+</td>
+</tr>
+<tr>
 <td>
   <a href="https://github.com/Tencent/ncnn/actions?query=workflow%3Aios-simulator-gpu">
     <img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/ios-simulator-gpu.yml?style=for-the-badge&label=build">
   </a>
-  <a href="https://github.com/Tencent/ncnn/actions?query=workflow%3Aios-simulator">
-    <img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/ios-simulator.yml?style=for-the-badge&label=cpuonly">
-  </a><br />
   <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-ios-simulator-vulkan.zip">
     <img src="https://img.shields.io/badge/download-20231027-blue?style=for-the-badge">
   </a>
   <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-ios-simulator-vulkan-bitcode.zip">
     <img src="https://img.shields.io/badge/+bitcode-blue?style=for-the-badge">
   </a><br />
+  <a href="https://github.com/Tencent/ncnn/actions?query=workflow%3Aios-simulator">
+    <img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/ios-simulator.yml?style=for-the-badge&label=cpuonly">
+  </a>
   <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-ios-simulator.zip">
     <img src="https://img.shields.io/badge/download-20231027_cpuonly-blue?style=for-the-badge">
   </a>
