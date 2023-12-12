@@ -282,7 +282,7 @@ https://github.com/Tencent/ncnn/releases/latest
 </tr>
 <tr>
 <td colspan=2>
-  <b>Linux cross-compiling </b>(arm, aarch64, mips, mips64, riscv64, loongarch64)
+  <b>Linux cross-compiling </b>(arm, aarch64, mips, mips64, ppc64, riscv64, loongarch64)
 </td>
 </tr>
 <tr>
@@ -299,6 +299,9 @@ https://github.com/Tencent/ncnn/releases/latest
   <a href="https://github.com/Tencent/ncnn/actions?query=workflow%3Alinux-mips64-cpu-gcc">
     <img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/linux-mips64-cpu-gcc.yml?branch=master&style=for-the-badge&label=build-mips64">
   </a><br />
+  <a href="https://github.com/Tencent/ncnn/actions?query=workflow%3Alinux-ppc64-cpu-gcc">
+    <img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/linux-ppc64-cpu-gcc.yml?branch=master&style=for-the-badge&label=build-ppc64">
+  </a>
   <a href="https://github.com/Tencent/ncnn/actions?query=workflow%3Alinux-riscv64-cpu-gcc">
     <img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/linux-riscv64-cpu-gcc.yml?branch=master&style=for-the-badge&label=build-riscv64">
   </a>
