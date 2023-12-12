@@ -319,34 +319,69 @@ https://github.com/Tencent/ncnn/releases/latest
 </td>
 </tr>
 
-
 <tr>
-<td>
-  <img alt="linux" src="https://github.com/marwin1991/profile-technology-icons/assets/76662862/2481dc48-be6b-4ebb-9e8c-3b957efe69fa" width="120" height="auto">
+<td rowspan=7>
+  <img src="https://github.com/marwin1991/profile-technology-icons/assets/76662862/2481dc48-be6b-4ebb-9e8c-3b957efe69fa" width="120" height="auto">
 </td>
-<td>Linux cross-compiling</td>
+<td>Linux (arm)</td>
 <td></td>
 <td>
   <a href="https://github.com/Tencent/ncnn/actions?query=workflow%3Alinux-arm-cpu-gcc">
-    <img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/linux-arm-cpu-gcc.yml?branch=master&style=for-the-badge&label=build-arm">
-  </a><br />
+    <img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/linux-arm-cpu-gcc.yml?branch=master&style=for-the-badge&label=build">
+  </a>
+</td>
+</tr>
+<tr>
+<td>Linux (aarch64)</td>
+<td></td>
+<td>
   <a href="https://github.com/Tencent/ncnn/actions?query=workflow%3Alinux-aarch64-cpu-gcc">
-    <img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/linux-aarch64-cpu-gcc.yml?branch=master&style=for-the-badge&label=build-aarch64">
-  </a><br />
+    <img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/linux-aarch64-cpu-gcc.yml?branch=master&style=for-the-badge&label=build">
+  </a>
+</td>
+</tr>
+<tr>
+<td>Linux (mips)</td>
+<td></td>
+<td>
   <a href="https://github.com/Tencent/ncnn/actions?query=workflow%3Alinux-mips-cpu-gcc">
-    <img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/linux-mips-cpu-gcc.yml?branch=master&style=for-the-badge&label=build-mips">
-  </a><br />
+    <img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/linux-mips-cpu-gcc.yml?branch=master&style=for-the-badge&label=build">
+  </a>
+</td>
+</tr>
+<tr>
+<td>Linux (mips64)</td>
+<td></td>
+<td>
   <a href="https://github.com/Tencent/ncnn/actions?query=workflow%3Alinux-mips64-cpu-gcc">
-    <img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/linux-mips64-cpu-gcc.yml?branch=master&style=for-the-badge&label=build-mips64">
-  </a><br />
+    <img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/linux-mips64-cpu-gcc.yml?branch=master&style=for-the-badge&label=build">
+  </a>
+</td>
+</tr>
+<tr>
+<td>Linux (ppc64)</td>
+<td></td>
+<td>
   <a href="https://github.com/Tencent/ncnn/actions?query=workflow%3Alinux-ppc64-cpu-gcc">
-    <img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/linux-ppc64-cpu-gcc.yml?branch=master&style=for-the-badge&label=build-ppc64">
-  </a><br />
+    <img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/linux-ppc64-cpu-gcc.yml?branch=master&style=for-the-badge&label=build">
+  </a>
+</td>
+</tr>
+<tr>
+<td>Linux (riscv64)</td>
+<td></td>
+<td>
   <a href="https://github.com/Tencent/ncnn/actions?query=workflow%3Alinux-riscv64-cpu-gcc">
-    <img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/linux-riscv64-cpu-gcc.yml?branch=master&style=for-the-badge&label=build-riscv64">
-  </a><br />
+    <img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/linux-riscv64-cpu-gcc.yml?branch=master&style=for-the-badge&label=build">
+  </a>
+</td>
+</tr>
+<tr>
+<td>Linux (loongarch64)</td>
+<td></td>
+<td>
   <a href="https://github.com/Tencent/ncnn/actions?query=workflow%3Alinux-loongarch64-cpu-gcc">
-    <img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/linux-loongarch64-cpu-gcc.yml?branch=master&style=for-the-badge&label=build-loongarch64">
+    <img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/linux-loongarch64-cpu-gcc.yml?branch=master&style=for-the-badge&label=build">
   </a>
 </td>
 </tr>
