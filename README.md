@@ -32,7 +32,7 @@ ncnn 目前已在腾讯多款应用中使用，如：QQ，Qzone，微信，天�
 
 ---
 
-## Build status & Download
+## Download & Build status
 
 https://github.com/Tencent/ncnn/releases/latest
 
