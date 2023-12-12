@@ -257,7 +257,7 @@ https://github.com/Tencent/ncnn/releases/latest
   </a>
   <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-windows-vs2015-shared.zip">
     <img src="https://img.shields.io/badge/+shared-blue?style=for-the-badge">
-  </a>
+  </a><br />
   <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-windows-vs2017.zip">
     <img src="https://img.shields.io/badge/download-20231027_VS2017-blue?style=for-the-badge">
   </a>
@@ -278,7 +278,7 @@ https://github.com/Tencent/ncnn/releases/latest
   </a>
   <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-windows-vs2019-shared.zip">
     <img src="https://img.shields.io/badge/+shared-blue?style=for-the-badge">
-  </a>
+  </a><br />
   <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-windows-vs2022.zip">
     <img src="https://img.shields.io/badge/download-20231027_VS2022-blue?style=for-the-badge">
   </a>
