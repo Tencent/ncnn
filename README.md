@@ -202,6 +202,88 @@ https://github.com/Tencent/ncnn/releases/latest
 </td>
 </tr>
 
+<tr>
+<td rowspan=2>
+  <img alt="linux" src="https://github.com/marwin1991/profile-technology-icons/assets/76662862/2481dc48-be6b-4ebb-9e8c-3b957efe69fa" width="120" height="auto">
+</td>
+<td colspan=2>
+  <b>Ubuntu-20.04 </b>(x86_64)
+</td>
+<td colspan=2>
+  <b>Ubuntu-22.04 </b>(x86_64)
+</td>
+</tr>
+<tr>
+<td colspan=2>
+  <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-ubuntu-2004.zip">
+    <img src="https://img.shields.io/badge/download-20231027-blue?style=for-the-badge">
+  </a>
+  <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-ubuntu-2004-shared.zip">
+    <img src="https://img.shields.io/badge/+shared-blue?style=for-the-badge">
+  </a>
+</td>
+<td colspan=2>
+  <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-ubuntu-2204.zip">
+    <img src="https://img.shields.io/badge/download-20231027-blue?style=for-the-badge">
+  </a>
+  <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-ubuntu-2204-shared.zip">
+    <img src="https://img.shields.io/badge/+shared-blue?style=for-the-badge">
+  </a>
+</td>
+</tr>
+
+<tr>
+<td rowspan=2>
+  <img alt="windows" src="https://user-images.githubusercontent.com/25181517/186884150-05e9ff6d-340e-4802-9533-2c3f02363ee3.png" width="120" height="auto">
+</td>
+<td>
+  <b>VS2015 </b>(x86, x64)
+</td>
+<td>
+  <b>VS2017 </b>(x86, x64)
+</td>
+<td>
+  <b>VS2019 </b>(x86, x64)
+</td>
+<td>
+  <b>VS2022 </b>(x86, x64)
+</td>
+</tr>
+<tr>
+<td>
+  <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-windows-vs2015.zip">
+    <img src="https://img.shields.io/badge/download-20231027-blue?style=for-the-badge">
+  </a>
+  <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-windows-vs2015-shared.zip">
+    <img src="https://img.shields.io/badge/+shared-blue?style=for-the-badge">
+  </a>
+</td>
+<td>
+  <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-windows-vs2017.zip">
+    <img src="https://img.shields.io/badge/download-20231027-blue?style=for-the-badge">
+  </a>
+  <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-windows-vs2017-shared.zip">
+    <img src="https://img.shields.io/badge/+shared-blue?style=for-the-badge">
+  </a>
+</td>
+<td>
+  <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-windows-vs2019.zip">
+    <img src="https://img.shields.io/badge/download-20231027-blue?style=for-the-badge">
+  </a>
+  <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-windows-vs2019-shared.zip">
+    <img src="https://img.shields.io/badge/+shared-blue?style=for-the-badge">
+  </a>
+</td>
+<td>
+  <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-windows-vs2022.zip">
+    <img src="https://img.shields.io/badge/download-20231027-blue?style=for-the-badge">
+  </a>
+  <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-windows-vs2022-shared.zip">
+    <img src="https://img.shields.io/badge/+shared-blue?style=for-the-badge">
+  </a>
+</td>
+</tr>
+
 </table>
 
 
