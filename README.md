@@ -251,7 +251,7 @@ https://github.com/Tencent/ncnn/releases/latest
 </tr>
 
 <tr>
-<td rowspan=2>
+<td rowspan=4>
   <img alt="linux" src="https://github.com/marwin1991/profile-technology-icons/assets/76662862/2481dc48-be6b-4ebb-9e8c-3b957efe69fa" width="120" height="auto">
 </td>
 <td colspan=2>
@@ -261,7 +261,10 @@ https://github.com/Tencent/ncnn/releases/latest
 <tr>
 <td colspan=2>
   <a href="https://github.com/Tencent/ncnn/actions?query=workflow%3Alinux-x64-gpu-gcc">
-    <img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/linux-x64-gpu-gcc.yml?branch=master&style=for-the-badge&label=build">
+    <img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/linux-x64-gpu-gcc.yml?branch=master&style=for-the-badge&label=build-gcc">
+  </a>
+  <a href="https://github.com/Tencent/ncnn/actions?query=workflow%3Alinux-x64-gpu-clang">
+    <img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/linux-x64-gpu-clang.yml?branch=master&style=for-the-badge&label=build-clang">
   </a><br />
   <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-ubuntu-2004.zip">
     <img src="https://img.shields.io/badge/download-20231027_ubuntu_20.04-blue?style=for-the-badge">
@@ -274,6 +277,33 @@ https://github.com/Tencent/ncnn/releases/latest
   </a>
   <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-ubuntu-2204-shared.zip">
     <img src="https://img.shields.io/badge/+shared-blue?style=for-the-badge">
+  </a>
+</td>
+</tr>
+<tr>
+<td colspan=2>
+  <b>Linux cross-compiling </b>(arm, aarch64, mips, mips64, riscv64, loongarch64)
+</td>
+</tr>
+<tr>
+<td colspan=2>
+  <a href="https://github.com/Tencent/ncnn/actions?query=workflow%3Alinux-arm-cpu-gcc">
+    <img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/linux-arm-cpu-gcc.yml?branch=master&style=for-the-badge&label=build-arm">
+  </a>
+  <a href="https://github.com/Tencent/ncnn/actions?query=workflow%3Alinux-aarch64-cpu-gcc">
+    <img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/linux-aarch64-cpu-gcc.yml?branch=master&style=for-the-badge&label=build-aarch64">
+  </a><br />
+  <a href="https://github.com/Tencent/ncnn/actions?query=workflow%3Alinux-mips-cpu-gcc">
+    <img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/linux-mips-cpu-gcc.yml?branch=master&style=for-the-badge&label=build-mips">
+  </a>
+  <a href="https://github.com/Tencent/ncnn/actions?query=workflow%3Alinux-mips64-cpu-gcc">
+    <img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/linux-mips64-cpu-gcc.yml?branch=master&style=for-the-badge&label=build-mips64">
+  </a><br />
+  <a href="https://github.com/Tencent/ncnn/actions?query=workflow%3Alinux-riscv64-cpu-gcc">
+    <img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/linux-riscv64-cpu-gcc.yml?branch=master&style=for-the-badge&label=build-riscv64">
+  </a>
+  <a href="https://github.com/Tencent/ncnn/actions?query=workflow%3Alinux-loongarch64-cpu-gcc">
+    <img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/linux-loongarch64-cpu-gcc.yml?branch=master&style=for-the-badge&label=build-loongarch64">
   </a>
 </td>
 </tr>
