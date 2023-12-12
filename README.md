@@ -284,6 +284,21 @@ https://github.com/Tencent/ncnn/releases/latest
 </td>
 </tr>
 
+<tr>
+<td rowspan=2>
+  <img alt="webassembly" src="https://user-images.githubusercontent.com/25181517/188324036-d704ac9a-6e61-4722-b978-254b25b61bed.png" width="120" height="auto">
+</td>
+<td colspan=4>
+  <b>WebAssembly </b>(basic, simd, threads, simd+threads)
+</td>
+</tr>
+<tr>
+<td colspan=4>
+  <a href="https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231027-webassembly.zip">
+    <img src="https://img.shields.io/badge/download-20231027-blue?style=for-the-badge">
+  </a>
+</td>
+</tr>
 </table>
 
 
