@@ -225,7 +225,7 @@ https://github.com/Tencent/ncnn/releases/latest
 </tr>
 <tr>
 <td>
-  <b>Apple xcframework </b>(ios, ios-simulator, ios-maccatalyst, macos)
+  <b>Apple xcframework </b>(ios, ios-simulator, mac-catalyst, macos)
 </td>
 <td>
   <b>Apple xcframework cpuonly</b>
