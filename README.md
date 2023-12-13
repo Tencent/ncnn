@@ -29,12 +29,12 @@ ncnn 目前已在腾讯多款应用中使用，如：QQ，Qzone，微信，天�
 
 637093648 (超多大佬)
 
-答案：卷卷卷卷卷 （已满）
+答案：卷卷卷卷卷（已满）
 </td>
 <td>
 <b>Pocky QQ 群（MLIR YES!）</b>
 
-677104663(超多大佬)
+677104663 (超多大佬)
 
 答案：multi-level intermediate representation
 </td>
