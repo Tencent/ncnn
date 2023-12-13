@@ -25,28 +25,26 @@ ncnn 目前已在腾讯多款应用中使用，如：QQ，Qzone，微信，天�
 <table>
 <tr>
 <td>
-<b>技术交流 QQ 群</b>
-
-637093648 (超多大佬)
-
+<b>技术交流 QQ 群</b><br />
+637093648 (超多大佬)<br />
 答案：卷卷卷卷卷（已满）
 </td>
-<td>
-<b>Pocky QQ 群（MLIR YES!）</b>
-
-677104663 (超多大佬)
-
-答案：multi-level intermediate representation
-</td>
-<td>
+<td rowspan=2>
 <b>Telegram Group</b>
 
 <https://t.me/ncnnyes>
 </td>
-<td>
+<td rowspan=2>
 <b>Discord Channel</b>
 
 <https://discord.gg/YRsxgmF>
+</td>
+</tr>
+<tr>
+<td>
+<b>Pocky QQ 群（MLIR YES!）</b><br />
+677104663 (超多大佬)<br />
+答案：multi-level intermediate representation
 </td>
 </tr>
 </table>
