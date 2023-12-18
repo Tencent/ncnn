@@ -1526,6 +1526,10 @@ static int set_sched_affinity(const ncnn::CpuSet& thread_affinity_mask)
 static void initialize_cpu_thread_affinity_mask(ncnn::CpuSet& mask_all, ncnn::CpuSet& mask_little, ncnn::CpuSet& mask_big)
 {
     mask_all.disable_all();
+    for (int i = 0; i < g_cpucount; i++)
+    {
+        mask_all.enable(i);
+    }
 
 #if (defined _WIN32 && !(defined __MINGW32__))
     // get max freq mhz for all cores
