@@ -37,6 +37,7 @@ Install required build dependencies:
 * cmake
 * protocol buffer (protobuf) headers files and protobuf compiler
 * glslang
+* (optional) LLVM OpenMP header files # If building with Clang, and multithreaded CPU inference is desired
 * (optional) vulkan header files and loader library # If building with Vulkan, without simplevk
 * (optional) opencv  # For building examples
 
@@ -46,11 +47,11 @@ On some systems there are no Vulkan drivers easily available at the moment (Octo
 
 On Debian 10+, Ubuntu 20.04+, or Raspberry Pi OS, you can install all required dependencies using: 
 ```shell
-sudo apt install build-essential git cmake libprotobuf-dev protobuf-compiler libvulkan-dev vulkan-tools libopencv-dev
+sudo apt install build-essential git cmake libprotobuf-dev protobuf-compiler libomp-dev libvulkan-dev vulkan-tools libopencv-dev
 ```
 On earlier Debian or Ubuntu, you can install all required dependencies using: 
 ```shell
-sudo apt install build-essential git cmake libprotobuf-dev protobuf-compiler libvulkan-dev vulkan-utils libopencv-dev
+sudo apt install build-essential git cmake libprotobuf-dev protobuf-compiler libomp-dev libvulkan-dev vulkan-utils libopencv-dev
 ```
 On Redhat or Centos, you can install all required dependencies using: 
 ```shell
