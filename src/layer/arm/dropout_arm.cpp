@@ -51,6 +51,7 @@ int Dropout_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         float32x4_t _scale = vdupq_n_f32(scale);
         for (; i + 15 < size; i += 16)
         {
+#if NCNN_GNU_INLINE_ASM
 #if __aarch64__
             asm volatile(
                 "prfm   pldl1keep, [%0, #512]   \n"
@@ -78,6 +79,21 @@ int Dropout_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 "w"(_scale) // %2
                 : "memory", "q0", "q1", "q2", "q3");
 #endif // __aarch64__
+#else  // NCNN_GNU_INLINE_ASM
+            float32x4_t _p0 = vld1q_f32(ptr);
+            float32x4_t _p1 = vld1q_f32(ptr + 4);
+            float32x4_t _p2 = vld1q_f32(ptr + 8);
+            float32x4_t _p3 = vld1q_f32(ptr + 12);
+            _p0 = vmulq_f32(_p0, _scale);
+            _p1 = vmulq_f32(_p1, _scale);
+            _p2 = vmulq_f32(_p2, _scale);
+            _p3 = vmulq_f32(_p3, _scale);
+            vst1q_f32(ptr, _p0);
+            vst1q_f32(ptr + 4, _p1);
+            vst1q_f32(ptr + 8, _p2);
+            vst1q_f32(ptr + 12, _p3);
+            ptr += 16;
+#endif // NCNN_GNU_INLINE_ASM
         }
         for (; i + 7 < size; i += 8)
         {

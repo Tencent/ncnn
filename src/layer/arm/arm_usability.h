@@ -17,7 +17,7 @@
 
 static inline signed char float2int8(float v)
 {
-    int int32 = round(v);
+    int int32 = (int)roundf(v);
     if (int32 > 127) return 127;
     if (int32 < -127) return -127;
     return (signed char)int32;
@@ -123,9 +123,135 @@ static inline int8x8_t float2int8leakyrelu(float32x4_t _vlow, float32x4_t _vhigh
 }
 
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#ifdef _MSC_VER
+struct __fp16
+{
+    __fp16()
+    {
+        _u16 = 0;
+    }
+
+    __fp16(float f32)
+    {
+        _u16 = vget_lane_u16(vreinterpretq_u16_f16(vcvt_f16_f32(vdupq_n_f32(f32))), 0);
+    }
+
+    __fp16(__n16 n16)
+    {
+        _u16 = n16.n16_u16[0];
+    }
+
+    operator const float() const
+    {
+        return vgetq_lane_f32(vcvt_f32_f16(vreinterpretq_f16_u16(vdup_n_u16(_u16))), 0);
+    }
+
+    __fp16& operator+=(const __fp16& b)
+    {
+        float a = (float)*this;
+        float f32 = (a + (float)b);
+        _u16 = vget_lane_u16(vreinterpretq_u16_f16(vcvt_f16_f32(vdupq_n_f32(f32))), 0);
+        return *this;
+    }
+
+    __fp16& operator-=(const __fp16& b)
+    {
+        float a = (float)*this;
+        float f32 = (a - (float)b);
+        _u16 = vget_lane_u16(vreinterpretq_u16_f16(vcvt_f16_f32(vdupq_n_f32(f32))), 0);
+        return *this;
+    }
+
+    __fp16& operator*=(const __fp16& b)
+    {
+        float a = (float)*this;
+        float f32 = (a * (float)b);
+        _u16 = vget_lane_u16(vreinterpretq_u16_f16(vcvt_f16_f32(vdupq_n_f32(f32))), 0);
+        return *this;
+    }
+
+    __fp16& operator/=(const __fp16& b)
+    {
+        float a = (float)*this;
+        float f32 = (a / (float)b);
+        _u16 = vget_lane_u16(vreinterpretq_u16_f16(vcvt_f16_f32(vdupq_n_f32(f32))), 0);
+        return *this;
+    }
+
+    unsigned short _u16;
+};
+
+static inline __fp16 operator-(const __fp16& a)
+{
+    return __fp16(-(float)a);
+}
+static inline __fp16 operator+(const __fp16& a, const __fp16& b)
+{
+    return __fp16((float)a + (float)b);
+}
+static inline __fp16 operator-(const __fp16& a, const __fp16& b)
+{
+    return __fp16((float)a - (float)b);
+}
+static inline __fp16 operator*(const __fp16& a, const __fp16& b)
+{
+    return __fp16((float)a * (float)b);
+}
+static inline __fp16 operator/(const __fp16& a, const __fp16& b)
+{
+    return __fp16((float)a / (float)b);
+}
+
+static inline float16x4_t vdup_n_f16(const __fp16& f16)
+{
+    return vreinterpret_f16_u16(vdup_n_u16(f16._u16));
+}
+
+static inline float16x8_t vdupq_n_f16(const __fp16& f16)
+{
+    return vreinterpretq_f16_u16(vdupq_n_u16(f16._u16));
+}
+
+static inline __fp16 vmaxv_f16(float16x4_t a)
+{
+    return __fp16(vmaxvq_f32(vcvt_f32_f16(a)));
+}
+
+static inline __fp16 vmaxvq_f16(float16x8_t a)
+{
+    float x = vmaxvq_f32(vcvt_f32_f16(vget_low_f16(a)));
+    float y = vmaxvq_f32(vcvt_f32_f16(vget_high_f16(a)));
+    return __fp16(x > y ? x : y);
+}
+
+#define vld1q_f16 vld1q_u16
+#define vst1q_f16 vst1q_u16
+
+#define vld2_f16 vld2_u16
+#define vst2_f16 vst2_u16
+
+#define vld2q_f16 vld2q_u16
+#define vst2q_f16 vst2q_u16
+
+#define vld4_f16 vld4_u16
+#define vst4_f16 vst4_u16
+
+#define vld4q_f16 vld4q_u16
+#define vst4q_f16 vst4q_u16
+
+#define vld1q_dup_f16 vld1q_dup_u16
+
+#define vset_lane_f16(x, v, i)  vset_lane_u16(x._u16, (uint16x4_t)v, i)
+#define vsetq_lane_f16(x, v, i) vsetq_lane_u16(x._u16, (uint16x8_t)v, i)
+
+#define vfma_n_f16(va, vb, x)  vfma_f16(va, vb, vdup_n_f16(x))
+#define vfmaq_n_f16(va, vb, x) vfmaq_f16(va, vb, vdupq_n_f16(x))
+
+#endif
+
 static inline signed char float2int8(__fp16 v)
 {
-    int int32 = round(v);
+    int int32 = (int)roundf(v);
     if (int32 > 127) return 127;
     if (int32 < -127) return -127;
     return (signed char)int32;

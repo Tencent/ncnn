@@ -34,6 +34,10 @@
 #include "layer/convolutiondepthwise.h"
 #include "layer/deconvolution.h"
 #include "layer/deconvolutiondepthwise.h"
+#include "layer/convolution3d.h"
+#include "layer/convolutiondepthwise3d.h"
+#include "layer/deconvolution3d.h"
+#include "layer/deconvolutiondepthwise3d.h"
 
 #include <stdio.h>
 #endif // NCNN_BENCHMARK
@@ -111,6 +115,10 @@ void benchmark(const Layer* layer, const Mat& bottom_blob, Mat& top_blob, double
     {
         sprintf(in_shape_str, "[%3d, %3d, %3d *%d]", bottom_blob.w, bottom_blob.h, bottom_blob.c, bottom_blob.elempack);
     }
+    if (bottom_blob.dims == 4)
+    {
+        sprintf(in_shape_str, "[%3d, %3d, %3d, %3d *%d]", bottom_blob.w, bottom_blob.h, bottom_blob.d, bottom_blob.c, bottom_blob.elempack);
+    }
 
     if (top_blob.dims == 1)
     {
@@ -123,6 +131,10 @@ void benchmark(const Layer* layer, const Mat& bottom_blob, Mat& top_blob, double
     if (top_blob.dims == 3)
     {
         sprintf(out_shape_str, "[%3d, %3d, %3d *%d]", top_blob.w, top_blob.h, top_blob.c, top_blob.elempack);
+    }
+    if (top_blob.dims == 4)
+    {
+        sprintf(out_shape_str, "[%3d, %3d, %3d, %3d *%d]", top_blob.w, top_blob.h, top_blob.d, top_blob.c, top_blob.elempack);
     }
 
     fprintf(stderr, "    | %22s -> %-22s", in_shape_str, out_shape_str);
@@ -158,6 +170,46 @@ void benchmark(const Layer* layer, const Mat& bottom_blob, Mat& top_blob, double
                 ((DeconvolutionDepthWise*)layer)->kernel_h,
                 ((DeconvolutionDepthWise*)layer)->stride_w,
                 ((DeconvolutionDepthWise*)layer)->stride_h);
+    }
+    else if (layer->type == "Convolution3D")
+    {
+        fprintf(stderr, "     kernel: %1d x %1d x %1d    stride: %1d x %1d x %1d",
+                ((Convolution3D*)layer)->kernel_w,
+                ((Convolution3D*)layer)->kernel_h,
+                ((Convolution3D*)layer)->kernel_d,
+                ((Convolution3D*)layer)->stride_w,
+                ((Convolution3D*)layer)->stride_h,
+                ((Convolution3D*)layer)->stride_d);
+    }
+    else if (layer->type == "ConvolutionDepthWise3D")
+    {
+        fprintf(stderr, "     kernel: %1d x %1d x %1d    stride: %1d x %1d x %1d",
+                ((ConvolutionDepthWise3D*)layer)->kernel_w,
+                ((ConvolutionDepthWise3D*)layer)->kernel_h,
+                ((ConvolutionDepthWise3D*)layer)->kernel_d,
+                ((ConvolutionDepthWise3D*)layer)->stride_w,
+                ((ConvolutionDepthWise3D*)layer)->stride_h,
+                ((ConvolutionDepthWise3D*)layer)->stride_d);
+    }
+    else if (layer->type == "Deconvolution3D")
+    {
+        fprintf(stderr, "     kernel: %1d x %1d x %1d    stride: %1d x %1d x %1d",
+                ((Deconvolution3D*)layer)->kernel_w,
+                ((Deconvolution3D*)layer)->kernel_h,
+                ((Deconvolution3D*)layer)->kernel_d,
+                ((Deconvolution3D*)layer)->stride_w,
+                ((Deconvolution3D*)layer)->stride_h,
+                ((Deconvolution3D*)layer)->stride_d);
+    }
+    else if (layer->type == "DeconvolutionDepthWise3D")
+    {
+        fprintf(stderr, "     kernel: %1d x %1d x %1d    stride: %1d x %1d x %1d",
+                ((DeconvolutionDepthWise3D*)layer)->kernel_w,
+                ((DeconvolutionDepthWise3D*)layer)->kernel_h,
+                ((DeconvolutionDepthWise3D*)layer)->kernel_d,
+                ((DeconvolutionDepthWise3D*)layer)->stride_w,
+                ((DeconvolutionDepthWise3D*)layer)->stride_h,
+                ((DeconvolutionDepthWise3D*)layer)->stride_d);
     }
     fprintf(stderr, "\n");
 }

@@ -54,6 +54,7 @@ __pycache__
 *.pyd
 *.egg-info/
 python/setup.py
+tools/pnnx/python/setup.py
 
 # Clangd
 .cache/

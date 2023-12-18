@@ -18,8 +18,8 @@
 #include <arm_neon.h>
 #endif // __ARM_NEON
 
-#include "arm_activation.h"
 #include "arm_usability.h"
+#include "arm_activation.h"
 
 #include "cpu.h"
 #include "layer_type.h"

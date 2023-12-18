@@ -440,7 +440,12 @@ int Quantize_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Op
 
             if (scale_data_size == 1)
             {
+#if _MSC_VER
+                float16x4_t _scale0 = vcvt_f16_f32(vdupq_n_f32(scale_data[0]));
+                float16x8_t _scale = vcombine_f16(_scale0, _scale0);
+#else
                 float16x8_t _scale = vdupq_n_f16((__fp16)scale_data[0]);
+#endif
 
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int i = 0; i < w; i++)
@@ -480,7 +485,12 @@ int Quantize_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Op
 
             if (scale_data_size == 1)
             {
+#if _MSC_VER
+                float16x4_t _scale0 = vcvt_f16_f32(vdupq_n_f32(scale_data[0]));
+                float16x8_t _scale = vcombine_f16(_scale0, _scale0);
+#else
                 float16x8_t _scale = vdupq_n_f16((__fp16)scale_data[0]);
+#endif
 
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int i = 0; i < h; i++)
@@ -535,7 +545,12 @@ int Quantize_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Op
 
             if (scale_data_size == 1)
             {
+#if _MSC_VER
+                float16x4_t _scale0 = vcvt_f16_f32(vdupq_n_f32(scale_data[0]));
+                float16x8_t _scale = vcombine_f16(_scale0, _scale0);
+#else
                 float16x8_t _scale = vdupq_n_f16((__fp16)scale_data[0]);
+#endif
 
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
