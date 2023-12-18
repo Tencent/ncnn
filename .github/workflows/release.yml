@@ -250,7 +250,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: download-openmp-macos
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: openmp-macos
         path: openmp-macos
@@ -324,7 +324,7 @@ jobs:
       with:
         submodules: true
     - name: download-openmp-macos
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: openmp-macos
         path: openmp-macos
@@ -484,7 +484,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: download-openmp-ios
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: openmp-ios
         path: openmp-ios
@@ -574,7 +574,7 @@ jobs:
       with:
         submodules: true
     - name: download-openmp-ios
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: openmp-ios
         path: openmp-ios
@@ -754,7 +754,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: download-openmp-ios-bitcode
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: openmp-ios-bitcode
         path: openmp-ios-bitcode
@@ -844,7 +844,7 @@ jobs:
       with:
         submodules: true
     - name: download-openmp-ios-bitcode
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: openmp-ios-bitcode
         path: openmp-ios-bitcode
@@ -1024,7 +1024,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: download-openmp-ios
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: openmp-ios-simulator
         path: openmp-ios-simulator
@@ -1114,7 +1114,7 @@ jobs:
       with:
         submodules: true
     - name: download-openmp-ios-simulator
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: openmp-ios-simulator
         path: openmp-ios-simulator
@@ -1294,7 +1294,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: download-openmp-ios
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: openmp-ios-simulator-bitcode
         path: openmp-ios-simulator-bitcode
@@ -1384,7 +1384,7 @@ jobs:
       with:
         submodules: true
     - name: download-openmp-ios-simulator
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: openmp-ios-simulator-bitcode
         path: openmp-ios-simulator-bitcode
@@ -1551,7 +1551,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: download-openmp-ios
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: openmp-mac-catalyst
         path: openmp-mac-catalyst
@@ -1628,7 +1628,7 @@ jobs:
       with:
         submodules: true
     - name: download-openmp-mac-catalyst
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: openmp-mac-catalyst
         path: openmp-mac-catalyst
@@ -1795,7 +1795,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: download-openmp-ios
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: openmp-mac-catalyst-bitcode
         path: openmp-mac-catalyst-bitcode
@@ -1872,7 +1872,7 @@ jobs:
       with:
         submodules: true
     - name: download-openmp-mac-catalyst
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: openmp-mac-catalyst-bitcode
         path: openmp-mac-catalyst-bitcode
@@ -2995,7 +2995,7 @@ jobs:
     steps:
     - run: sudo xcode-select --switch /Applications/Xcode_13.4.1.app
     - name: download
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         path: artifacts
 
@@ -3041,7 +3041,7 @@ jobs:
     steps:
     - run: sudo xcode-select --switch /Applications/Xcode_13.4.1.app
     - name: download
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         path: artifacts
 
@@ -3094,7 +3094,7 @@ jobs:
     steps:
     - run: sudo xcode-select --switch /Applications/Xcode_13.4.1.app
     - name: download
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         path: artifacts
 
@@ -3140,7 +3140,7 @@ jobs:
     steps:
     - run: sudo xcode-select --switch /Applications/Xcode_13.4.1.app
     - name: download
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         path: artifacts
 
@@ -3192,7 +3192,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: download
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         path: artifacts
 
