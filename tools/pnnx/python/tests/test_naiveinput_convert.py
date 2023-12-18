@@ -40,9 +40,8 @@ def test_export():
     mod = torch.jit.trace(net, x)
     mod.save("test_F_relu_nconvert.pt")
 
-    pnnx.convert("test_F_relu_nconvert.pt", [1, 16], "f32")
+    net2 = pnnx.convert("test_F_relu_nconvert.pt", [1, 16], "f32")
 
-    import test_F_relu_nconvert_pnnx
-    b0 = test_F_relu_nconvert_pnnx.test_inference()
+    b0 = net2(x)
 
     assert torch.equal(a0, b0)

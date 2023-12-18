@@ -43,9 +43,8 @@ def test_export():
 
     a0, a1, a2, a3 = net(x, y, z, w)
 
-    pnnx.export(net, "test_F_relu_export", (x, y, z, w))
+    net_pnnx = pnnx.export(net, "test_F_relu_export", (x, y, z, w))
 
-    import test_F_relu_export_pnnx
-    b0, b1, b2, b3 = test_F_relu_export_pnnx.test_inference()
+    b0, b1, b2, b3 = net_pnnx(x, y, z, w)
 
     assert torch.equal(a0, b0) and torch.equal(a1, b1) and torch.equal(a2, b2) and torch.equal(a3, b3)

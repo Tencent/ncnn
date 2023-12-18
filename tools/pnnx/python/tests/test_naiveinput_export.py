@@ -37,9 +37,8 @@ def test_export():
 
     a0 = net(x)
 
-    pnnx.export(net, "test_F_relu_nexport", x)
+    net_pnnx = pnnx.export(net, "test_F_relu_nexport", x)
 
-    import test_F_relu_nexport_pnnx
-    b0 = test_F_relu_nexport_pnnx.test_inference()
+    b0 = net_pnnx(x)
 
     assert torch.equal(a0, b0)

@@ -92,3 +92,17 @@ def convert(ptpath, input_shapes, input_types, input_shapes2 = None,
         command_list.append("ncnnpy="+ncnnpy)
     current_dir = os.getcwd()
     subprocess.run(command_list, stdout=subprocess.PIPE, text=True, cwd=current_dir)
+
+    # return pnnx model
+    if pnnxpy is None:
+        pnnxpy = os.path.splitext(ptpath)[0] + '_pnnx.py'
+
+    pnnx_module_name = os.path.splitext(pnnxpy)[0]
+
+    import importlib.util
+    import sys
+    spec = importlib.util.spec_from_file_location(pnnx_module_name, pnnxpy)
+    foo = importlib.util.module_from_spec(spec)
+    sys.modules[pnnx_module_name] = foo
+    spec.loader.exec_module(foo)
+    return foo.Model()

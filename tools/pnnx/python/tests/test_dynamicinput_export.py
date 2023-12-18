@@ -34,7 +34,14 @@ def test_export():
 
     torch.manual_seed(0)
     x = torch.rand(1, 16)
+    x2 = torch.rand(1, 128)
 
     a0 = net(x)
+    a1 = net(x2)
 
-    pnnx.export(net, "test_F_relu_dexport", x, input_shapes2 = [1, 8], input_types2 = "f32")
+    net_pnnx = pnnx.export(net, "test_F_relu_dexport", x, x2)
+
+    b0 = net_pnnx(x)
+    b1 = net_pnnx(x2)
+
+    assert torch.equal(a0, b0) and torch.equal(a1, b1)
