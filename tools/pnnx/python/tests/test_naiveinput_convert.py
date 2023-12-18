@@ -42,21 +42,6 @@ def test_export():
 
     pnnx.convert("test_F_relu_nconvert.pt", [1, 16], "f32")
 
-    import sys
-    import os
-    sys.path.append(os.path.join(os.getcwd()))
-    # fix aten::
-    import re
-    f=open('test_F_relu_nconvert_pnnx.py','r')
-    alllines=f.readlines()
-    f.close()
-    f=open('test_F_relu_nconvert_pnnx.py','w+')
-    for eachline in alllines:
-        a=re.sub('aten::','F.',eachline)
-        a=re.sub(r'\\', r'\\\\',a)
-        f.writelines(a)
-    f.close()
-
     import test_F_relu_nconvert_pnnx
     b0 = test_F_relu_nconvert_pnnx.test_inference()
 

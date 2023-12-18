@@ -39,21 +39,6 @@ def test_export():
 
     pnnx.export(net, "test_F_relu_nexport", x)
 
-    import sys
-    import os
-    sys.path.append(os.path.join(os.getcwd()))
-    # fix aten::
-    import re
-    f=open('test_F_relu_nexport_pnnx.py','r')
-    alllines=f.readlines()
-    f.close()
-    f=open('test_F_relu_nexport_pnnx.py','w+')
-    for eachline in alllines:
-        a=re.sub('aten::','F.',eachline)
-        a=re.sub(r'\\', r'\\\\',a)
-        f.writelines(a)
-    f.close()
-
     import test_F_relu_nexport_pnnx
     b0 = test_F_relu_nexport_pnnx.test_inference()
 

@@ -19,7 +19,7 @@ from .utils import check_type, get_shape_from_inputs, \
 import subprocess
 from .. import EXEC_PATH
 
-def export(model, filename, inputs = None, input_shapes = None, input_shapes2 = None,
+def export(model, filename, inputs = None, inputs2 = None, input_shapes = None, input_shapes2 = None,
            input_types = None, input_types2 = None, device = None, customop = None,
            moduleop = None, optlevel = None, pnnxparam = None, pnnxbin = None,
            pnnxpy = None, pnnxonnx = None, ncnnparam = None, ncnnbin = None, ncnnpy = None,
@@ -31,6 +31,7 @@ def export(model, filename, inputs = None, input_shapes = None, input_shapes2 = 
 
     check_type(filename, "filename", [str], "str")
     check_type(inputs, "inputs", [torch.Tensor, tuple, list], "torch.Tensor or tuple/list of torch.Tensor")
+    check_type(inputs2, "inputs2", [torch.Tensor, tuple, list], "torch.Tensor or tuple/list of torch.Tensor")
     check_type(input_shapes, "input_shapes", [list], "list of list with int type inside")
     check_type(input_types, "input_types", [str, list], "str or list of str")
     check_type(input_shapes2, "input_shapes2", [list], "list of list with int type inside")
@@ -60,6 +61,8 @@ def export(model, filename, inputs = None, input_shapes = None, input_shapes2 = 
         optlevel = 2
     if type(inputs) == torch.Tensor:
         inputs = [inputs]
+    if type(inputs2) == torch.Tensor:
+        inputs2 = [inputs2]
 
     if not (inputs is None):
         model.eval()
@@ -77,19 +80,12 @@ def export(model, filename, inputs = None, input_shapes = None, input_shapes2 = 
             except: # model without parameters
                 device = "cpu"
 
-        if input_shapes is None:
-            input_shapes = get_shape_from_inputs(inputs)
-            input_types = get_type_from_inputs(inputs)
-        else:
-            if type(input_shapes[0]) != list:
-                input_shapes = [input_shapes]
-            if type(input_types) != list:
-                input_types = [input_types]
+        input_shapes = get_shape_from_inputs(inputs)
+        input_types = get_type_from_inputs(inputs)
 
-        if len(input_shapes) != len(input_types):
-            raise Exception("input_shapes should has the same length with input_types!")
-        if len(input_shapes2) != len(input_types2):
-            raise Exception("input_shapes2 should has the same length with input_types2!")
+        if not (inputs2 is None):
+            input_shapes2 = get_shape_from_inputs(inputs2)
+            input_types2 = get_type_from_inputs(inputs2)
 
         input_arg1 = generate_inputs_arg(input_shapes, input_types)
 
@@ -167,3 +163,17 @@ def export(model, filename, inputs = None, input_shapes = None, input_shapes2 = 
             command_list.append("ncnnpy=" + ncnnpy)
         current_dir = os.getcwd()
         subprocess.run(command_list, stdout=subprocess.PIPE, text=True, cwd=current_dir)
+
+    # return pnnx model
+    if pnnxpy is None:
+        pnnxpy = filename + '_pnnx.py'
+
+    pnnx_module_name = os.path.splitext(pnnxpy)[0]
+
+    import importlib.util
+    import sys
+    spec = importlib.util.spec_from_file_location(pnnx_module_name, pnnxpy)
+    foo = importlib.util.module_from_spec(spec)
+    sys.modules[pnnx_module_name] = foo
+    spec.loader.exec_module(foo)
+    return foo.Model()
