@@ -40,7 +40,7 @@ def test_export():
     mod = torch.jit.trace(net, x)
     mod.save("test_F_relu_nconvert.pt")
 
-    net2 = pnnx.convert("test_F_relu_nconvert.pt", [1, 16], "f32")
+    net2 = pnnx.convert("test_F_relu_nconvert.pt", x)
 
     b0 = net2(x)
 

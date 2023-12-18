@@ -47,7 +47,7 @@ def test_convert():
     mod = torch.jit.trace(net, (x, y, z, w))
     mod.save("test_F_relu_convert.pt")
 
-    net2 = pnnx.convert("test_F_relu_convert.pt",[[1,16],[12,2,16],[1,3,12,16],[1,5,7,9,11]] , ["f32", "f32", "f32", "f32"],)
+    net2 = pnnx.convert("test_F_relu_convert.pt", (x, y, z, w))
 
     b0, b1, b2, b3 = net2(x, y, z, w)
 
