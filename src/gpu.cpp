@@ -1850,8 +1850,22 @@ int create_gpu_instance(const char* driver_path)
             }
             if (gpu_info.support_VK_KHR_shader_float16_int8)
             {
-                gpu_info.support_fp16_arithmetic = queryFloat16Int8Features.shaderFloat16;
-                gpu_info.support_int8_arithmetic = queryFloat16Int8Features.shaderInt8;
+                if (gpu_info.support_fp16_storage)
+                {
+                    gpu_info.support_fp16_arithmetic = queryFloat16Int8Features.shaderFloat16 && query16BitStorageFeatures.uniformAndStorageBuffer16BitAccess;
+                }
+                else
+                {
+                    gpu_info.support_fp16_arithmetic = queryFloat16Int8Features.shaderFloat16;
+                }
+                if (gpu_info.support_int8_storage)
+                {
+                    gpu_info.support_int8_arithmetic = queryFloat16Int8Features.shaderInt8 && query8BitStorageFeatures.uniformAndStorageBuffer8BitAccess;
+                }
+                else
+                {
+                    gpu_info.support_int8_arithmetic = queryFloat16Int8Features.shaderInt8;
+                }
             }
             if (gpu_info.support_VK_KHR_sampler_ycbcr_conversion)
             {
@@ -2444,7 +2458,7 @@ VulkanDevice::VulkanDevice(int device_index)
     enabled8BitStorageFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_8BIT_STORAGE_FEATURES_KHR;
     enabled8BitStorageFeatures.pNext = 0;
     enabled8BitStorageFeatures.storageBuffer8BitAccess = info.support_int8_storage();
-    enabled8BitStorageFeatures.uniformAndStorageBuffer8BitAccess = VK_FALSE;
+    enabled8BitStorageFeatures.uniformAndStorageBuffer8BitAccess = info.support_int8_storage() && info.support_int8_arithmetic();
     enabled8BitStorageFeatures.storagePushConstant8 = VK_FALSE;
     if (support_VK_KHR_get_physical_device_properties2 && info.support_VK_KHR_8bit_storage())
     {
@@ -2457,7 +2471,7 @@ VulkanDevice::VulkanDevice(int device_index)
     enabled16BitStorageFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_16BIT_STORAGE_FEATURES_KHR;
     enabled16BitStorageFeatures.pNext = 0;
     enabled16BitStorageFeatures.storageBuffer16BitAccess = info.support_fp16_storage();
-    enabled16BitStorageFeatures.uniformAndStorageBuffer16BitAccess = VK_FALSE;
+    enabled16BitStorageFeatures.uniformAndStorageBuffer16BitAccess = info.support_fp16_storage() && info.support_fp16_arithmetic();
     enabled16BitStorageFeatures.storagePushConstant16 = VK_FALSE;
     enabled16BitStorageFeatures.storageInputOutput16 = VK_FALSE;
     if (support_VK_KHR_get_physical_device_properties2 && info.support_VK_KHR_16bit_storage())
