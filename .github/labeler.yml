@@ -1,24 +1,52 @@
 cmake:
-- cmake/**
-- toolchains/**
+- changed-files:
+  - any-glob-to-any-file: ['cmake/**', 'toolchains/**']
 
-doc: docs/**
+doc: 
+- changed-files:
+  - any-glob-to-any-file: docs/**
 
-python: python/**
+python: 
+- changed-files:
+  - any-glob-to-any-file: python/**
 
-example: examples/**
+example: 
+- changed-files:
+  - any-glob-to-any-file: examples/**
 
-test: tests/**
+test: 
+- changed-files:
+  - any-glob-to-any-file: tests/**
 
-tool: tools/**
-pnnx: tools/pnnx/**
+tool: 
+- changed-files:
+  - any-glob-to-any-file: tools/**
+pnnx: 
+- changed-files:
+  - any-glob-to-any-file: tools/pnnx/**
 
-core: src/*
-layer: src/layer/*
+core: 
+- changed-files:
+  - any-glob-to-any-file: src/*
+layer: 
+- changed-files:
+  - any-glob-to-any-file: src/layer/*
 
-arm: src/layer/arm/**
-loongarch: src/layer/loongarch/**
-mips: src/layer/mips/**
-riscv: src/layer/riscv/**
-vulkan: src/layer/vulkan/**
-x86: src/layer/x86/**
+arm: 
+- changed-files:
+  - any-glob-to-any-file: src/layer/arm/**
+loongarch: 
+- changed-files:
+  - any-glob-to-any-file: src/layer/loongarch/**
+mips: 
+- changed-files:
+  - any-glob-to-any-file: src/layer/mips/**
+riscv: 
+- changed-files:
+  - any-glob-to-any-file: src/layer/riscv/**
+vulkan: 
+- changed-files:
+  - any-glob-to-any-file: src/layer/vulkan/**
+x86: 
+- changed-files:
+  - any-glob-to-any-file: src/layer/x86/**
