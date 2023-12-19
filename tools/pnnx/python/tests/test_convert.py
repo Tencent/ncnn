@@ -47,23 +47,8 @@ def test_convert():
     mod = torch.jit.trace(net, (x, y, z, w))
     mod.save("test_F_relu_convert.pt")
 
-    pnnx.convert("test_F_relu_convert.pt",[[1,16],[12,2,16],[1,3,12,16],[1,5,7,9,11]] , ["f32", "f32", "f32", "f32"],)
+    net2 = pnnx.convert("test_F_relu_convert.pt", (x, y, z, w))
 
-    # fix aten::
-    import re
-    f=open('test_F_relu_convert_pnnx.py','r')
-    alllines=f.readlines()
-    f.close()
-    f=open('test_F_relu_convert_pnnx.py','w+')
-    for eachline in alllines:
-        a=re.sub('aten::','F.',eachline)
-        a=re.sub(r'\\', r'\\\\',a)
-        f.writelines(a)
-    f.close()
-    import sys
-    import os
-    sys.path.append(os.path.join(os.getcwd()))
-    import test_F_relu_convert_pnnx
-    b0, b1, b2, b3 = test_F_relu_convert_pnnx.test_inference()
+    b0, b1, b2, b3 = net2(x, y, z, w)
 
     assert torch.equal(a0, b0) and torch.equal(a1, b1) and torch.equal(a2, b2) and torch.equal(a3, b3)
