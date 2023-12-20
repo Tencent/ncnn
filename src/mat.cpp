@@ -1218,8 +1218,9 @@ VkImageMat VkImageMat::from_android_hardware_buffer(VkAndroidHardwareBufferImage
 {
     int width = allocator->width();
     int height = allocator->height();
+    size_t elemsize = 4u; // elemsize for ahb is actually just a placeholder
 
-    return VkImageMat(width, height, allocator);
+    return VkImageMat(width, height, elemsize, allocator);
 }
 #endif // __ANDROID_API__ >= 26
 #endif // NCNN_PLATFORM_API
