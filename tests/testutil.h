@@ -29,28 +29,9 @@
 #endif // NCNN_VULKAN
 
 static struct prng_rand_t g_prng_rand_state;
-#if NCNN_VULKAN
-class GlobalGpuInstance
-{
-public:
-    GlobalGpuInstance()
-    {
-        ncnn::create_gpu_instance();
-    }
-    ~GlobalGpuInstance()
-    {
-        ncnn::destroy_gpu_instance();
-    }
-};
-// HACK workaround nvidia driver crash on exit
-#define SRAND(seed)                              \
-    GlobalGpuInstance __ncnn_gpu_instance_guard; \
-    prng_srand(seed, &g_prng_rand_state)
-#define RAND() prng_rand(&g_prng_rand_state)
-#else // NCNN_VULKAN
+
 #define SRAND(seed) prng_srand(seed, &g_prng_rand_state)
 #define RAND()      prng_rand(&g_prng_rand_state)
-#endif // NCNN_VULKAN
 
 #define TEST_LAYER_DISABLE_AUTO_INPUT_PACKING (1 << 0)
 #define TEST_LAYER_DISABLE_AUTO_INPUT_CASTING (1 << 1)
