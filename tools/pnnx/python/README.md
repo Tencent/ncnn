@@ -76,8 +76,8 @@ net = models.resnet18(pretrained=True)
 x = torch.rand(1, 3, 224, 224)
 
 # You could try disabling checking when torch tracing raises error
-# opt_net = pnnx.export(net, "resnet18", x, check_trace=False)
-opt_net = pnnx.export(net, "resnet18", x)
+# opt_net = pnnx.export(net, "resnet18.pt", x, check_trace=False)
+opt_net = pnnx.export(net, "resnet18.pt", x)
 ```
 
 2. convert existing model to pnnx
@@ -94,7 +94,7 @@ opt_net = pnnx.convert("resnet18.pt", x)
 
 `model` (torch.nn.Model): model to be exported.
 
-`filename` (str): the file name.
+`ptpath` (str): the torchscript name.
 
 `inputs` (torch.Tensor of list of torch.Tensor) expected inputs of the model.
 
