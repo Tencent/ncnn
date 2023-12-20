@@ -2030,7 +2030,12 @@ int create_gpu_instance(const char* driver_path)
     // but it seems to be too late for nvidia driver :(
     // driver's internal data structure has been destroyed when called, causing segfault
     // atexit() seems to be helpful for calling it earlier    --- nihui
-    atexit(destroy_gpu_instance);
+    static int destroy_gpu_instance_atexit_registered = 0;
+    if (!destroy_gpu_instance_atexit_registered)
+    {
+        atexit(destroy_gpu_instance);
+        destroy_gpu_instance_atexit_registered = 1;
+    }
 
     return 0;
 }
