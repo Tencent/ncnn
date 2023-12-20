@@ -502,7 +502,7 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |nn.Hardsigmoid             | :heavy_check_mark: | :heavy_check_mark: |
 |nn.Hardswish               | :heavy_check_mark: | :heavy_check_mark: |
 |nn.Hardtanh                | :heavy_check_mark: | :heavy_check_mark: |
-|nn.Identity                |   |
+|nn.Identity                | :heavy_check_mark: | :heavy_check_mark: |
 |nn.InstanceNorm1d          | :heavy_check_mark: |
 |nn.InstanceNorm2d          | :heavy_check_mark: | :heavy_check_mark: |
 |nn.InstanceNorm3d          | :heavy_check_mark: |
