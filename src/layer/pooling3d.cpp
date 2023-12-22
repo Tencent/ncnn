@@ -108,7 +108,17 @@ int Pooling3D::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 
     if (adaptive_pooling)
     {
-        top_blob.create(out_w, out_h, out_d, channels, elemsize, opt.blob_allocator);
+        int _out_w = out_w == -233 ? w : out_w;
+        int _out_h = out_h == -233 ? h : out_h;
+        int _out_d = out_d == -233 ? d : out_d;
+
+        if (_out_w == w && _out_h == h && _out_d == d)
+        {
+            top_blob = bottom_blob;
+            return 0;
+        }
+
+        top_blob.create(_out_w, _out_h, _out_d, channels, elemsize, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
@@ -120,24 +130,24 @@ int Pooling3D::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
                 const float* inptr = bottom_blob.channel(q);
                 float* outptr = top_blob.channel(q);
 
-                for (int z = 0; z < out_d; z++)
+                for (int z = 0; z < _out_d; z++)
                 {
                     // floor div
-                    const int id0 = d * z / out_d;
+                    const int id0 = d * z / _out_d;
                     // ceil div
-                    const int id1 = (d * (z + 1) + out_d - 1) / out_d;
-                    for (int i = 0; i < out_h; i++)
+                    const int id1 = (d * (z + 1) + _out_d - 1) / _out_d;
+                    for (int i = 0; i < _out_h; i++)
                     {
                         // floor div
-                        const int ih0 = h * i / out_h;
+                        const int ih0 = h * i / _out_h;
                         // ceil div
-                        const int ih1 = (h * (i + 1) + out_h - 1) / out_h;
-                        for (int j = 0; j < out_w; j++)
+                        const int ih1 = (h * (i + 1) + _out_h - 1) / _out_h;
+                        for (int j = 0; j < _out_w; j++)
                         {
                             // floor div
-                            const int iw0 = w * j / out_w;
+                            const int iw0 = w * j / _out_w;
                             // ceil div
-                            const int iw1 = (w * (j + 1) + out_w - 1) / out_w;
+                            const int iw1 = (w * (j + 1) + _out_w - 1) / _out_w;
 
                             float max_value = inptr[id0 * w * h + ih0 * w + iw0];
 
@@ -155,7 +165,7 @@ int Pooling3D::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
                             outptr[j] = max_value;
                         }
 
-                        outptr += out_w;
+                        outptr += _out_w;
                     }
                 }
             }
@@ -168,26 +178,26 @@ int Pooling3D::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
                 const float* inptr = bottom_blob.channel(q);
                 float* outptr = top_blob.channel(q);
 
-                for (int z = 0; z < out_d; z++)
+                for (int z = 0; z < _out_d; z++)
                 {
                     // floor div
-                    const int id0 = d * z / out_d;
+                    const int id0 = d * z / _out_d;
                     // ceil div
-                    const int id1 = (d * (z + 1) + out_d - 1) / out_d;
+                    const int id1 = (d * (z + 1) + _out_d - 1) / _out_d;
                     int dk = id1 - id0;
-                    for (int i = 0; i < out_h; i++)
+                    for (int i = 0; i < _out_h; i++)
                     {
                         // floor div
-                        const int ih0 = h * i / out_h;
+                        const int ih0 = h * i / _out_h;
                         // ceil div
-                        const int ih1 = (h * (i + 1) + out_h - 1) / out_h;
+                        const int ih1 = (h * (i + 1) + _out_h - 1) / _out_h;
                         int hk = ih1 - ih0;
-                        for (int j = 0; j < out_w; j++)
+                        for (int j = 0; j < _out_w; j++)
                         {
                             // floor div
-                            const int iw0 = w * j / out_w;
+                            const int iw0 = w * j / _out_w;
                             // ceil div
-                            const int iw1 = (w * (j + 1) + out_w - 1) / out_w;
+                            const int iw1 = (w * (j + 1) + _out_w - 1) / _out_w;
                             int wk = iw1 - iw0;
 
                             float sum = 0;
@@ -205,7 +215,7 @@ int Pooling3D::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
                             outptr[j] = sum / hk / wk / dk;
                         }
 
-                        outptr += out_w;
+                        outptr += _out_w;
                     }
                 }
             }

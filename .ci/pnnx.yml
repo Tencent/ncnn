@@ -48,6 +48,10 @@ jobs:
             torchvision-version: 0.15.1
             torchvision-cache-key: '0_15_1'
 
+          - torch-version: 2.1.0
+            torchvision-version: 0.16.0
+            torchvision-cache-key: '0_16_0'
+
     runs-on:
       pool-name: docker
       container:
@@ -123,3 +127,12 @@ jobs:
         export MKL_ENABLE_INSTRUCTIONS=SSE4_2
         cd tools/pnnx
         cd build && ctest --output-on-failure -j 16
+
+    - name: python-pnnx
+      run: |
+        export PYTHONUSERBASE=${{ci.workspace}}/torch-${{matrix.torch-version}}
+        export PNNX_WHEEL_WITHOUT_BUILD=ON
+        cd tools/pnnx
+        cp build/src/pnnx python/pnnx/
+        python3 setup.py install --user
+        pytest python/tests/

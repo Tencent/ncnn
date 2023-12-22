@@ -34,7 +34,7 @@ jobs:
   linux-gcc-arm:
     runs-on: ubuntu-20.04
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: cache-qemu
       id: cache-qemu
@@ -49,7 +49,7 @@ jobs:
         sudo apt-get install autoconf automake autotools-dev ninja-build
     - name: checkout-qemu
       if: steps.cache-qemu.outputs.cache-hit != 'true'
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         repository: qemu/qemu
         path: qemu
@@ -92,7 +92,7 @@ jobs:
   linux-gcc-armhf:
     runs-on: ubuntu-20.04
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: cache-qemu
       id: cache-qemu
@@ -107,7 +107,7 @@ jobs:
         sudo apt-get install autoconf automake autotools-dev ninja-build
     - name: checkout-qemu
       if: steps.cache-qemu.outputs.cache-hit != 'true'
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         repository: qemu/qemu
         path: qemu
@@ -150,7 +150,7 @@ jobs:
   linux-gcc-armhf-vfpv3-d16:
     runs-on: ubuntu-20.04
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: cache-qemu
       id: cache-qemu
@@ -165,7 +165,7 @@ jobs:
         sudo apt-get install autoconf automake autotools-dev ninja-build
     - name: checkout-qemu
       if: steps.cache-qemu.outputs.cache-hit != 'true'
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         repository: qemu/qemu
         path: qemu

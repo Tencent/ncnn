@@ -14,9 +14,8 @@
 
 #include "unaryop_x86.h"
 
-#include <fenv.h>
+// #include <fenv.h>
 #include <float.h>
-#include <math.h>
 
 #if __SSE2__
 #include <emmintrin.h>
@@ -578,10 +577,14 @@ struct unary_op_round
     {
         // round to nearest even
         // return (x + 12582912.f) - 12582912.f;
+#ifdef FE_TONEAREST
         int old_rm = fegetround();
         fesetround(FE_TONEAREST);
+#endif
         float y = nearbyintf(x);
+#ifdef FE_TONEAREST
         fesetround(old_rm);
+#endif
         return y;
     }
 #if __SSE2__

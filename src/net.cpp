@@ -194,6 +194,7 @@ int NetPrivate::forward_layer(int layer_index, std::vector<Mat>& blob_mats, cons
         bottom_blob.dims = blob_mats[bottom_blob_index].dims;
         bottom_blob.w = blob_mats[bottom_blob_index].w;
         bottom_blob.h = blob_mats[bottom_blob_index].h;
+        bottom_blob.d = blob_mats[bottom_blob_index].d;
         bottom_blob.c = blob_mats[bottom_blob_index].c;
         bottom_blob.elempack = blob_mats[bottom_blob_index].elempack;
         bottom_blob.elemsize = blob_mats[bottom_blob_index].elemsize;
@@ -610,67 +611,41 @@ IMAGE_ALLOCATION_FAILED:
 
 int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Option& opt) const
 {
-    // clang-format off
-    // *INDENT-OFF*
-#if NCNN_ARM82
-    if (opt.use_fp16_storage && cpu_support_arm_asimdhp())
+    if (bottom_blob.elembits() == 32)
     {
-        if (bottom_blob.elembits() == 32 && layer->support_fp16_storage)
+        // clang-format off
+        // *INDENT-OFF*
+
+#if NCNN_ARM82
+        if (opt.use_fp16_storage && cpu_support_arm_asimdhp() && layer->support_fp16_storage)
         {
             Mat bottom_blob_fp16;
             cast_float32_to_float16(bottom_blob, bottom_blob_fp16, opt);
             bottom_blob = bottom_blob_fp16;
         }
-        if (bottom_blob.elembits() == 16 && !layer->support_fp16_storage)
-        {
-            Mat bottom_blob_fp32;
-            cast_float16_to_float32(bottom_blob, bottom_blob_fp32, opt);
-            bottom_blob = bottom_blob_fp32;
-        }
-    }
-    else
+        else
 #endif // NCNN_ARM82
 #if NCNN_RVV
-    if (opt.use_fp16_storage && cpu_support_riscv_v() && cpu_support_riscv_zfh())
-    {
-        if (bottom_blob.elembits() == 32 && layer->support_fp16_storage)
+        if (opt.use_fp16_storage && cpu_support_riscv_v() && cpu_support_riscv_zfh() && layer->support_fp16_storage)
         {
             Mat bottom_blob_fp16;
             cast_float32_to_float16(bottom_blob, bottom_blob_fp16, opt);
             bottom_blob = bottom_blob_fp16;
         }
-        if (bottom_blob.elembits() == 16 && !layer->support_fp16_storage)
-        {
-            Mat bottom_blob_fp32;
-            cast_float16_to_float32(bottom_blob, bottom_blob_fp32, opt);
-            bottom_blob = bottom_blob_fp32;
-        }
-    }
-    else
+        else
 #endif // NCNN_RVV
 #if NCNN_BF16
-    if (opt.use_bf16_storage)
-    {
-        if (bottom_blob.elembits() == 32 && layer->support_bf16_storage)
+        if (opt.use_bf16_storage && layer->support_bf16_storage)
         {
             Mat bottom_blob_bf16;
             cast_float32_to_bfloat16(bottom_blob, bottom_blob_bf16, opt);
             bottom_blob = bottom_blob_bf16;
         }
-        if (bottom_blob.elembits() == 16 && !layer->support_bf16_storage)
-        {
-            Mat bottom_blob_fp32;
-            cast_bfloat16_to_float32(bottom_blob, bottom_blob_fp32, opt);
-            bottom_blob = bottom_blob_fp32;
-        }
-    }
-    else
 #endif // NCNN_BF16
-    {
-        // no type conversion
+
+        // *INDENT-ON*
+        // clang-format on
     }
-    // *INDENT-ON*
-    // clang-format on
 
     int dst_elempack = 1;
     if (opt.use_packing_layout)
@@ -744,6 +719,42 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
         Mat bottom_blob_packed;
         convert_packing(bottom_blob, bottom_blob_packed, dst_elempack, opt);
         bottom_blob = bottom_blob_packed;
+    }
+
+    if (bottom_blob.elembits() == 16)
+    {
+        // clang-format off
+        // *INDENT-OFF*
+
+#if NCNN_ARM82
+        if (opt.use_fp16_storage && cpu_support_arm_asimdhp() && !layer->support_fp16_storage)
+        {
+            Mat bottom_blob_fp32;
+            cast_float16_to_float32(bottom_blob, bottom_blob_fp32, opt);
+            bottom_blob = bottom_blob_fp32;
+        }
+        else
+#endif // NCNN_ARM82
+#if NCNN_RVV
+        if (opt.use_fp16_storage && cpu_support_riscv_v() && cpu_support_riscv_zfh() && !layer->support_fp16_storage)
+        {
+            Mat bottom_blob_fp32;
+            cast_float16_to_float32(bottom_blob, bottom_blob_fp32, opt);
+            bottom_blob = bottom_blob_fp32;
+        }
+        else
+#endif // NCNN_RVV
+#if NCNN_BF16
+        if (opt.use_bf16_storage && !layer->support_bf16_storage)
+        {
+            Mat bottom_blob_fp32;
+            cast_bfloat16_to_float32(bottom_blob, bottom_blob_fp32, opt);
+            bottom_blob = bottom_blob_fp32;
+        }
+#endif // NCNN_BF16
+
+        // *INDENT-ON*
+        // clang-format on
     }
 
     return 0;
@@ -1512,12 +1523,25 @@ int Net::load_param(const DataReader& dr)
 
 int Net::load_param_bin(const DataReader& dr)
 {
+#if __BIG_ENDIAN__
+#define READ_VALUE(buf)                            \
+    if (dr.read(&buf, sizeof(buf)) != sizeof(buf)) \
+    {                                              \
+        NCNN_LOGE("read " #buf " failed");         \
+        return -1;                                 \
+    }                                              \
+    if (sizeof(buf) == 2)                          \
+        swap_endianness_16(&buf);                  \
+    if (sizeof(buf) == 4)                          \
+        swap_endianness_32(&buf);
+#else
 #define READ_VALUE(buf)                            \
     if (dr.read(&buf, sizeof(buf)) != sizeof(buf)) \
     {                                              \
         NCNN_LOGE("read " #buf " failed");         \
         return -1;                                 \
     }
+#endif
 
     int magic = 0;
     READ_VALUE(magic)
@@ -1735,6 +1759,18 @@ int Net::load_model(const DataReader& dr)
     // load file
     int ret = 0;
 
+#if NCNN_VULKAN
+    if (opt.use_vulkan_compute)
+    {
+        if (!opt.pipeline_cache)
+        {
+            if (!d->pipeline_cache)
+                d->pipeline_cache = new PipelineCache(d->vkdev);
+            opt.pipeline_cache = d->pipeline_cache;
+        }
+    }
+#endif // NCNN_VULKAN
+
     ModelBinFromDataReader mb(dr);
     for (int i = 0; i < layer_count; i++)
     {
@@ -1765,23 +1801,6 @@ int Net::load_model(const DataReader& dr)
             // no int8 gpu support yet
             opt.use_vulkan_compute = false;
         }
-    }
-
-#if NCNN_VULKAN
-    if (opt.use_vulkan_compute)
-    {
-        if (!opt.pipeline_cache)
-        {
-            if (!d->pipeline_cache)
-                d->pipeline_cache = new PipelineCache(d->vkdev);
-            opt.pipeline_cache = d->pipeline_cache;
-        }
-    }
-#endif // NCNN_VULKAN
-
-    for (int i = 0; i < layer_count; i++)
-    {
-        Layer* layer = d->layers[i];
 
         Option opt1 = get_masked_option(opt, layer->featmask);
 #if NCNN_VULKAN

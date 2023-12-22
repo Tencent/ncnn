@@ -154,6 +154,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/F_mish.cpp
     pass_level2/F_normalize.cpp
     pass_level2/F_pad.cpp
+    pass_level2/F_pairwise_distance.cpp
     pass_level2/F_pixel_shuffle.cpp
     pass_level2/F_pixel_unshuffle.cpp
     pass_level2/F_prelu.cpp
@@ -214,8 +215,10 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_clone.cpp
     pass_level2/torch_complex.cpp
     pass_level2/torch_cross.cpp
+    pass_level2/torch_cumprod.cpp
     pass_level2/torch_cumsum.cpp
     pass_level2/torch_dequantize.cpp
+    pass_level2/torch_diag.cpp
     pass_level2/torch_einsum.cpp
     pass_level2/torch_empty.cpp
     pass_level2/torch_empty_like.cpp
@@ -230,6 +233,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_imag.cpp
     pass_level2/torch_index_select.cpp
     pass_level2/torch_le.cpp
+    pass_level2/torch_lgamma.cpp
     pass_level2/torch_logsumexp.cpp
     pass_level2/torch_lt.cpp
     pass_level2/torch_matmul.cpp
@@ -237,11 +241,14 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_mean.cpp
     pass_level2/torch_min.cpp
     pass_level2/torch_mm.cpp
+    pass_level2/torch_mv.cpp
+    pass_level2/torch_narrow.cpp
     pass_level2/torch_ne.cpp
     pass_level2/torch_norm.cpp
     pass_level2/torch_normal.cpp
     pass_level2/torch_ones.cpp
     pass_level2/torch_ones_like.cpp
+    pass_level2/torch_positive.cpp
     pass_level2/torch_prod.cpp
     pass_level2/torch_quantize_per_tensor.cpp
     pass_level2/torch_randn.cpp
@@ -263,6 +270,8 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_unbind.cpp
     pass_level2/torch_unsqueeze.cpp
     pass_level2/torch_var.cpp
+    pass_level2/torch_view_as_complex.cpp
+    pass_level2/torch_view_as_real.cpp    
     pass_level2/torch_zeros.cpp
     pass_level2/torch_zeros_like.cpp
     pass_level2/torch_stft.cpp
@@ -296,6 +305,7 @@ set(pnnx_pass_level3_SRCS
     pass_level3/expand_quantization_modules.cpp
     pass_level3/fuse_opnto1_tensors.cpp
     pass_level3/fuse_op1ton_unpack.cpp
+    pass_level3/fuse_dynamic_adaptive_pool.cpp
     pass_level3/fuse_einsum_operands.cpp
     pass_level3/fuse_expression.cpp
     pass_level3/fuse_index_expression.cpp
@@ -335,8 +345,10 @@ set(pnnx_pass_level5_SRCS
     pass_level5/fuse_constant_expression.cpp
     pass_level5/fuse_conv1d_batchnorm1d.cpp
     pass_level5/fuse_conv2d_batchnorm2d.cpp
+    pass_level5/fuse_conv3d_batchnorm3d.cpp
     pass_level5/fuse_convtranspose1d_batchnorm1d.cpp
     pass_level5/fuse_convtranspose2d_batchnorm2d.cpp
+    pass_level5/fuse_convtranspose3d_batchnorm3d.cpp
     pass_level5/fuse_contiguous_view.cpp
     pass_level5/fuse_linear_batchnorm1d.cpp
     pass_level5/fuse_pad_conv1d.cpp
@@ -363,6 +375,7 @@ set(pnnx_pass_level5_SRCS
 set(pnnx_pass_ncnn_SRCS
     pass_ncnn/convert_attribute.cpp
     pass_ncnn/convert_custom_op.cpp
+    pass_ncnn/convert_module_op.cpp
     pass_ncnn/convert_half_to_float.cpp
     pass_ncnn/convert_input.cpp
     pass_ncnn/convert_torch_cat.cpp
@@ -406,6 +419,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/F_avg_pool2d.cpp
     pass_ncnn/F_avg_pool3d.cpp
     pass_ncnn/F_batch_norm.cpp
+    pass_ncnn/F_celu.cpp
     pass_ncnn/F_conv_transpose1d.cpp
     pass_ncnn/F_conv_transpose2d.cpp
     pass_ncnn/F_conv_transpose3d.cpp
@@ -428,6 +442,8 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/F_leaky_relu.cpp
     pass_ncnn/F_linear.cpp
     pass_ncnn/F_local_response_norm.cpp
+    pass_ncnn/F_log_softmax.cpp
+    pass_ncnn/F_logsigmoid.cpp
     pass_ncnn/F_max_pool1d.cpp
     pass_ncnn/F_max_pool2d.cpp
     pass_ncnn/F_max_pool3d.cpp
@@ -460,6 +476,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/nn_BatchNorm1d.cpp
     pass_ncnn/nn_BatchNorm2d.cpp
     pass_ncnn/nn_BatchNorm3d.cpp
+    pass_ncnn/nn_CELU.cpp
     pass_ncnn/nn_ChannelShuffle.cpp
     pass_ncnn/nn_ConstantPad1d.cpp
     pass_ncnn/nn_ConstantPad2d.cpp
@@ -485,6 +502,8 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/nn_LeakyReLU.cpp
     pass_ncnn/nn_Linear.cpp
     pass_ncnn/nn_LocalResponseNorm.cpp
+    pass_ncnn/nn_LogSigmoid.cpp
+    pass_ncnn/nn_LogSoftmax.cpp
     pass_ncnn/nn_LSTM.cpp
     pass_ncnn/nn_MaxPool1d.cpp
     pass_ncnn/nn_MaxPool2d.cpp
@@ -500,6 +519,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/nn_ReLU6.cpp
     pass_ncnn/nn_ReplicationPad1d.cpp
     pass_ncnn/nn_ReplicationPad2d.cpp
+    pass_ncnn/nn_ReplicationPad3d.cpp
     pass_ncnn/nn_RNN.cpp
     pass_ncnn/nn_SELU.cpp
     pass_ncnn/nn_Sigmoid.cpp
@@ -525,6 +545,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/torch_clamp.cpp
     pass_ncnn/torch_clone.cpp
     pass_ncnn/torch_cumsum.cpp
+    pass_ncnn/torch_diag.cpp
     pass_ncnn/torch_flatten.cpp
     pass_ncnn/torch_logsumexp.cpp
     pass_ncnn/torch_matmul.cpp
@@ -537,28 +558,46 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/torch_prod.cpp
     pass_ncnn/torch_squeeze.cpp
     pass_ncnn/torch_sum.cpp
+    pass_ncnn/torch_t.cpp
     pass_ncnn/torch_transpose.cpp
     pass_ncnn/torch_unsqueeze.cpp
     pass_ncnn/torchvision_DeformConv2d.cpp
 )
 
-find_package(Protobuf)
 if(PROTOBUF_FOUND)
-    protobuf_generate_cpp(ONNX_PROTO_SRCS ONNX_PROTO_HDRS onnx.proto)
+    if(DEFINED PROTOBUF_VERSION AND PROTOBUF_VERSION VERSION_GREATER_EQUAL 3.22)
+        set(CMAKE_CXX_STANDARD 17)
+    endif()
 
-    add_library(pnnx2onnx STATIC
-        save_onnx.cpp
-        save_onnx_cxxabi_bridge.cpp
-        ${ONNX_PROTO_SRCS} ${ONNX_PROTO_HDRS}
-    )
+    if(Protobuf_FOUND OR protobuf_MODULE_COMPATIBLE)
+        protobuf_generate_cpp(ONNX_PROTO_SRCS ONNX_PROTO_HDRS onnx.proto)
 
-    target_include_directories(pnnx2onnx PRIVATE ${PROTOBUF_INCLUDE_DIR} ${CMAKE_CURRENT_BINARY_DIR})
-    target_link_libraries(pnnx2onnx PRIVATE ${PROTOBUF_LIBRARIES})
+        add_library(pnnx2onnx STATIC
+            save_onnx.cpp
+            save_onnx_cxxabi_bridge.cpp
+            ${ONNX_PROTO_SRCS} ${ONNX_PROTO_HDRS}
+        )
 
-    # libtorch is usually compiled with old cxx11 abi
-    set_source_files_properties(save_onnx_cxxabi_bridge.cpp PROPERTIES COMPILE_FLAGS "${TORCH_CXX_FLAGS}")
+        target_include_directories(pnnx2onnx PRIVATE ${PROTOBUF_INCLUDE_DIR} ${CMAKE_CURRENT_BINARY_DIR})
+        target_link_libraries(pnnx2onnx PRIVATE ${PROTOBUF_LIBRARIES})
 
-    message(STATUS "Building with onnx-zero")
+        # libtorch is usually compiled with old cxx11 abi
+        set_source_files_properties(save_onnx_cxxabi_bridge.cpp PROPERTIES COMPILE_FLAGS "${TORCH_CXX_FLAGS}")
+
+        message(STATUS "Building with onnx-zero")
+    else()
+
+        add_library(pnnx2onnx STATIC
+            save_onnx.cpp
+            save_onnx_cxxabi_bridge.cpp
+            onnx.proto
+        )
+        set_source_files_properties(save_onnx_cxxabi_bridge.cpp PROPERTIES COMPILE_FLAGS "${TORCH_CXX_FLAGS}")
+        target_include_directories(pnnx2onnx PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
+        protobuf_generate(TARGET pnnx2onnx)
+        target_link_libraries(pnnx2onnx PRIVATE protobuf::libprotobuf)
+        message(STATUS "Building with onnx-zero")
+    endif()
 else()
     message(STATUS "Building without onnx-zero")
 endif()

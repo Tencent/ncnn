@@ -24,10 +24,6 @@
 
 #include <stdlib.h>
 
-#if NCNN_VULKAN
-#include <vulkan/vulkan.h>
-#endif // NCNN_VULKAN
-
 #if NCNN_PLATFORM_API
 #if __ANDROID_API__ >= 26
 #include <android/hardware_buffer.h>

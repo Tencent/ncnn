@@ -14,8 +14,6 @@
 
 #include "interp_loongarch.h"
 
-#include <math.h>
-
 #if __loongarch_sx
 #include <lsxintrin.h>
 #endif // __loongarch_sx

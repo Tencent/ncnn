@@ -21,10 +21,6 @@
 
 #include "mat.h"
 
-#include <vulkan/vulkan.h>
-
-#include "vulkan_header_fix.h"
-
 namespace ncnn {
 
 // instance
@@ -33,7 +29,7 @@ namespace ncnn {
 // Creates a VkInstance object, Checks the extended attributes supported by the Vulkan instance concerned,
 // Initializes, and creates Vulkan validation layers (if ENABLE_VALIDATION_LAYER is enabled),
 // Iterates over all supported physical devices, etc.
-NCNN_EXPORT int create_gpu_instance();
+NCNN_EXPORT int create_gpu_instance(const char* driver_path = 0);
 
 // Get global VkInstance variable
 // Must be called after create_gpu_instance() and before destroy_gpu_instance()
@@ -42,6 +38,103 @@ NCNN_EXPORT VkInstance get_gpu_instance();
 // Destroy VkInstance object and free the memory of the associated object
 // Usually called in the destructor of the main program exit
 NCNN_EXPORT void destroy_gpu_instance();
+
+// vulkan core
+extern PFN_vkAllocateCommandBuffers vkAllocateCommandBuffers;
+extern PFN_vkAllocateDescriptorSets vkAllocateDescriptorSets;
+extern PFN_vkAllocateMemory vkAllocateMemory;
+extern PFN_vkBeginCommandBuffer vkBeginCommandBuffer;
+extern PFN_vkBindBufferMemory vkBindBufferMemory;
+extern PFN_vkBindImageMemory vkBindImageMemory;
+extern PFN_vkCmdBeginQuery vkCmdBeginQuery;
+extern PFN_vkCmdBindDescriptorSets vkCmdBindDescriptorSets;
+extern PFN_vkCmdBindIndexBuffer vkCmdBindIndexBuffer;
+extern PFN_vkCmdBindPipeline vkCmdBindPipeline;
+extern PFN_vkCmdCopyBuffer vkCmdCopyBuffer;
+extern PFN_vkCmdCopyBufferToImage vkCmdCopyBufferToImage;
+extern PFN_vkCmdCopyImage vkCmdCopyImage;
+extern PFN_vkCmdCopyImageToBuffer vkCmdCopyImageToBuffer;
+extern PFN_vkCmdCopyQueryPoolResults vkCmdCopyQueryPoolResults;
+extern PFN_vkCmdDispatch vkCmdDispatch;
+extern PFN_vkCmdDispatchIndirect vkCmdDispatchIndirect;
+extern PFN_vkCmdEndQuery vkCmdEndQuery;
+extern PFN_vkCmdExecuteCommands vkCmdExecuteCommands;
+extern PFN_vkCmdFillBuffer vkCmdFillBuffer;
+extern PFN_vkCmdPipelineBarrier vkCmdPipelineBarrier;
+extern PFN_vkCmdPushConstants vkCmdPushConstants;
+extern PFN_vkCmdResetQueryPool vkCmdResetQueryPool;
+extern PFN_vkCmdResolveImage vkCmdResolveImage;
+extern PFN_vkCmdUpdateBuffer vkCmdUpdateBuffer;
+extern PFN_vkCmdWriteTimestamp vkCmdWriteTimestamp;
+extern PFN_vkCreateBuffer vkCreateBuffer;
+extern PFN_vkCreateBufferView vkCreateBufferView;
+extern PFN_vkCreateCommandPool vkCreateCommandPool;
+extern PFN_vkCreateComputePipelines vkCreateComputePipelines;
+extern PFN_vkCreateDescriptorPool vkCreateDescriptorPool;
+extern PFN_vkCreateDescriptorSetLayout vkCreateDescriptorSetLayout;
+extern PFN_vkCreateDevice vkCreateDevice;
+extern PFN_vkCreateFence vkCreateFence;
+extern PFN_vkCreateImage vkCreateImage;
+extern PFN_vkCreateImageView vkCreateImageView;
+extern PFN_vkCreatePipelineCache vkCreatePipelineCache;
+extern PFN_vkCreatePipelineLayout vkCreatePipelineLayout;
+extern PFN_vkCreateQueryPool vkCreateQueryPool;
+extern PFN_vkCreateSampler vkCreateSampler;
+extern PFN_vkCreateSemaphore vkCreateSemaphore;
+extern PFN_vkCreateShaderModule vkCreateShaderModule;
+extern PFN_vkDestroyBuffer vkDestroyBuffer;
+extern PFN_vkDestroyBufferView vkDestroyBufferView;
+extern PFN_vkDestroyCommandPool vkDestroyCommandPool;
+extern PFN_vkDestroyDescriptorPool vkDestroyDescriptorPool;
+extern PFN_vkDestroyDescriptorSetLayout vkDestroyDescriptorSetLayout;
+extern PFN_vkDestroyDevice vkDestroyDevice;
+extern PFN_vkDestroyFence vkDestroyFence;
+extern PFN_vkDestroyImage vkDestroyImage;
+extern PFN_vkDestroyImageView vkDestroyImageView;
+extern PFN_vkDestroyInstance vkDestroyInstance;
+extern PFN_vkDestroyPipeline vkDestroyPipeline;
+extern PFN_vkDestroyPipelineCache vkDestroyPipelineCache;
+extern PFN_vkDestroyPipelineLayout vkDestroyPipelineLayout;
+extern PFN_vkDestroyQueryPool vkDestroyQueryPool;
+extern PFN_vkDestroySampler vkDestroySampler;
+extern PFN_vkDestroySemaphore vkDestroySemaphore;
+extern PFN_vkDestroyShaderModule vkDestroyShaderModule;
+extern PFN_vkDeviceWaitIdle vkDeviceWaitIdle;
+extern PFN_vkEndCommandBuffer vkEndCommandBuffer;
+extern PFN_vkEnumerateDeviceExtensionProperties vkEnumerateDeviceExtensionProperties;
+extern PFN_vkEnumerateDeviceLayerProperties vkEnumerateDeviceLayerProperties;
+extern PFN_vkEnumeratePhysicalDevices vkEnumeratePhysicalDevices;
+extern PFN_vkFlushMappedMemoryRanges vkFlushMappedMemoryRanges;
+extern PFN_vkFreeCommandBuffers vkFreeCommandBuffers;
+extern PFN_vkFreeDescriptorSets vkFreeDescriptorSets;
+extern PFN_vkFreeMemory vkFreeMemory;
+extern PFN_vkGetBufferMemoryRequirements vkGetBufferMemoryRequirements;
+extern PFN_vkGetDeviceMemoryCommitment vkGetDeviceMemoryCommitment;
+extern PFN_vkGetDeviceProcAddr vkGetDeviceProcAddr;
+extern PFN_vkGetDeviceQueue vkGetDeviceQueue;
+extern PFN_vkGetFenceStatus vkGetFenceStatus;
+extern PFN_vkGetImageMemoryRequirements vkGetImageMemoryRequirements;
+extern PFN_vkGetImageSubresourceLayout vkGetImageSubresourceLayout;
+extern PFN_vkGetPhysicalDeviceFeatures vkGetPhysicalDeviceFeatures;
+extern PFN_vkGetPhysicalDeviceFormatProperties vkGetPhysicalDeviceFormatProperties;
+extern PFN_vkGetPhysicalDeviceImageFormatProperties vkGetPhysicalDeviceImageFormatProperties;
+extern PFN_vkGetPhysicalDeviceMemoryProperties vkGetPhysicalDeviceMemoryProperties;
+extern PFN_vkGetPhysicalDeviceProperties vkGetPhysicalDeviceProperties;
+extern PFN_vkGetPhysicalDeviceQueueFamilyProperties vkGetPhysicalDeviceQueueFamilyProperties;
+extern PFN_vkGetPipelineCacheData vkGetPipelineCacheData;
+extern PFN_vkGetQueryPoolResults vkGetQueryPoolResults;
+extern PFN_vkInvalidateMappedMemoryRanges vkInvalidateMappedMemoryRanges;
+extern PFN_vkMapMemory vkMapMemory;
+extern PFN_vkMergePipelineCaches vkMergePipelineCaches;
+extern PFN_vkQueueSubmit vkQueueSubmit;
+extern PFN_vkQueueWaitIdle vkQueueWaitIdle;
+extern PFN_vkResetCommandBuffer vkResetCommandBuffer;
+extern PFN_vkResetCommandPool vkResetCommandPool;
+extern PFN_vkResetDescriptorPool vkResetDescriptorPool;
+extern PFN_vkResetFences vkResetFences;
+extern PFN_vkUnmapMemory vkUnmapMemory;
+extern PFN_vkUpdateDescriptorSets vkUpdateDescriptorSets;
+extern PFN_vkWaitForFences vkWaitForFences;
 
 // instance extension capability
 extern int support_VK_KHR_external_memory_capabilities;
@@ -68,7 +161,6 @@ extern PFN_vkGetPhysicalDeviceFormatProperties2KHR vkGetPhysicalDeviceFormatProp
 extern PFN_vkGetPhysicalDeviceImageFormatProperties2KHR vkGetPhysicalDeviceImageFormatProperties2KHR;
 extern PFN_vkGetPhysicalDeviceQueueFamilyProperties2KHR vkGetPhysicalDeviceQueueFamilyProperties2KHR;
 extern PFN_vkGetPhysicalDeviceMemoryProperties2KHR vkGetPhysicalDeviceMemoryProperties2KHR;
-extern PFN_vkGetPhysicalDeviceSparseImageFormatProperties2KHR vkGetPhysicalDeviceSparseImageFormatProperties2KHR;
 
 // VK_KHR_get_surface_capabilities2
 extern PFN_vkGetPhysicalDeviceSurfaceCapabilities2KHR vkGetPhysicalDeviceSurfaceCapabilities2KHR;
@@ -220,7 +312,7 @@ private:
     GpuInfo& operator=(const GpuInfo&);
 
 private:
-    friend int create_gpu_instance();
+    friend int create_gpu_instance(const char* driver_path);
     GpuInfoPrivate* const d;
 };
 
@@ -298,12 +390,6 @@ public:
     PFN_vkGetBufferOpaqueCaptureAddressKHR vkGetBufferOpaqueCaptureAddressKHR;
     PFN_vkGetDeviceMemoryOpaqueCaptureAddressKHR vkGetDeviceMemoryOpaqueCaptureAddressKHR;
 
-    // VK_KHR_create_renderpass2
-    PFN_vkCmdBeginRenderPass2KHR vkCmdBeginRenderPass2KHR;
-    PFN_vkCmdEndRenderPass2KHR vkCmdEndRenderPass2KHR;
-    PFN_vkCmdNextSubpass2KHR vkCmdNextSubpass2KHR;
-    PFN_vkCreateRenderPass2KHR vkCreateRenderPass2KHR;
-
     // VK_KHR_descriptor_update_template
     PFN_vkCreateDescriptorUpdateTemplateKHR vkCreateDescriptorUpdateTemplateKHR;
     PFN_vkDestroyDescriptorUpdateTemplateKHR vkDestroyDescriptorUpdateTemplateKHR;
@@ -312,7 +398,6 @@ public:
     // VK_KHR_get_memory_requirements2
     PFN_vkGetImageMemoryRequirements2KHR vkGetImageMemoryRequirements2KHR;
     PFN_vkGetBufferMemoryRequirements2KHR vkGetBufferMemoryRequirements2KHR;
-    PFN_vkGetImageSparseMemoryRequirements2KHR vkGetImageSparseMemoryRequirements2KHR;
 
     // VK_KHR_maintenance1
     PFN_vkTrimCommandPoolKHR vkTrimCommandPoolKHR;

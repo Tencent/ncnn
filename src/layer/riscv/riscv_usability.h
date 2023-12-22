@@ -86,6 +86,282 @@ static inline vfloat32m8_t vle32_v_f32m8_f32m1(const float* ptr)
     return vloxei32_v_f32m8(ptr, bindex, vl);
 }
 
+static inline void transpose8x8_ps(vfloat32m1_t& _r0l, vfloat32m1_t& _r0h,
+                                   vfloat32m1_t& _r1l, vfloat32m1_t& _r1h,
+                                   vfloat32m1_t& _r2l, vfloat32m1_t& _r2h,
+                                   vfloat32m1_t& _r3l, vfloat32m1_t& _r3h,
+                                   vfloat32m1_t& _r4l, vfloat32m1_t& _r4h,
+                                   vfloat32m1_t& _r5l, vfloat32m1_t& _r5h,
+                                   vfloat32m1_t& _r6l, vfloat32m1_t& _r6h,
+                                   vfloat32m1_t& _r7l, vfloat32m1_t& _r7h, size_t vl)
+{
+    float tmp[8][8];
+    vsse32_v_f32m1(&tmp[0][0], sizeof(float) * 8, _r0l, vl);
+    vsse32_v_f32m1(&tmp[4][0], sizeof(float) * 8, _r0h, vl);
+    vsse32_v_f32m1(&tmp[0][1], sizeof(float) * 8, _r1l, vl);
+    vsse32_v_f32m1(&tmp[4][1], sizeof(float) * 8, _r1h, vl);
+    vsse32_v_f32m1(&tmp[0][2], sizeof(float) * 8, _r2l, vl);
+    vsse32_v_f32m1(&tmp[4][2], sizeof(float) * 8, _r2h, vl);
+    vsse32_v_f32m1(&tmp[0][3], sizeof(float) * 8, _r3l, vl);
+    vsse32_v_f32m1(&tmp[4][3], sizeof(float) * 8, _r3h, vl);
+    vsse32_v_f32m1(&tmp[0][4], sizeof(float) * 8, _r4l, vl);
+    vsse32_v_f32m1(&tmp[4][4], sizeof(float) * 8, _r4h, vl);
+    vsse32_v_f32m1(&tmp[0][5], sizeof(float) * 8, _r5l, vl);
+    vsse32_v_f32m1(&tmp[4][5], sizeof(float) * 8, _r5h, vl);
+    vsse32_v_f32m1(&tmp[0][6], sizeof(float) * 8, _r6l, vl);
+    vsse32_v_f32m1(&tmp[4][6], sizeof(float) * 8, _r6h, vl);
+    vsse32_v_f32m1(&tmp[0][7], sizeof(float) * 8, _r7l, vl);
+    vsse32_v_f32m1(&tmp[4][7], sizeof(float) * 8, _r7h, vl);
+    float* ptr = (float*)tmp;
+    _r0l = vle32_v_f32m1(ptr + 0 * 4, vl);
+    _r0h = vle32_v_f32m1(ptr + 1 * 4, vl);
+    _r1l = vle32_v_f32m1(ptr + 2 * 4, vl);
+    _r1h = vle32_v_f32m1(ptr + 3 * 4, vl);
+    _r2l = vle32_v_f32m1(ptr + 4 * 4, vl);
+    _r2h = vle32_v_f32m1(ptr + 5 * 4, vl);
+    _r3l = vle32_v_f32m1(ptr + 6 * 4, vl);
+    _r3h = vle32_v_f32m1(ptr + 7 * 4, vl);
+    _r4l = vle32_v_f32m1(ptr + 8 * 4, vl);
+    _r4h = vle32_v_f32m1(ptr + 9 * 4, vl);
+    _r5l = vle32_v_f32m1(ptr + 10 * 4, vl);
+    _r5h = vle32_v_f32m1(ptr + 11 * 4, vl);
+    _r6l = vle32_v_f32m1(ptr + 12 * 4, vl);
+    _r6h = vle32_v_f32m1(ptr + 13 * 4, vl);
+    _r7l = vle32_v_f32m1(ptr + 14 * 4, vl);
+    _r7h = vle32_v_f32m1(ptr + 15 * 4, vl);
+}
+
+static inline void transpose4x4_ps(vfloat32m1_t& _r0, vfloat32m1_t& _r1, vfloat32m1_t& _r2, vfloat32m1_t& _r3, size_t vl)
+{
+    float tmp[4][4];
+    vsse32_v_f32m1(&tmp[0][0], sizeof(float) * 4, _r0, vl);
+    vsse32_v_f32m1(&tmp[0][1], sizeof(float) * 4, _r1, vl);
+    vsse32_v_f32m1(&tmp[0][2], sizeof(float) * 4, _r2, vl);
+    vsse32_v_f32m1(&tmp[0][3], sizeof(float) * 4, _r3, vl);
+    float* ptr = (float*)tmp;
+    _r0 = vle32_v_f32m1(ptr + 0 * 4, vl);
+    _r1 = vle32_v_f32m1(ptr + 1 * 4, vl);
+    _r2 = vle32_v_f32m1(ptr + 2 * 4, vl);
+    _r3 = vle32_v_f32m1(ptr + 3 * 4, vl);
+}
+
+static inline void transpose8x12_ps(vfloat32m1_t& _r0l, vfloat32m1_t& _r0h,
+                                    vfloat32m1_t& _r1l, vfloat32m1_t& _r1h,
+                                    vfloat32m1_t& _r2l, vfloat32m1_t& _r2h,
+                                    vfloat32m1_t& _r3l, vfloat32m1_t& _r3h,
+                                    vfloat32m1_t& _r4l, vfloat32m1_t& _r4h,
+                                    vfloat32m1_t& _r5l, vfloat32m1_t& _r5h,
+                                    vfloat32m1_t& _r6l, vfloat32m1_t& _r6h,
+                                    vfloat32m1_t& _r7l, vfloat32m1_t& _r7h,
+                                    vfloat32m1_t& _r8l, vfloat32m1_t& _r8h,
+                                    vfloat32m1_t& _r9l, vfloat32m1_t& _r9h,
+                                    vfloat32m1_t& _ral, vfloat32m1_t& _rah,
+                                    vfloat32m1_t& _rbl, vfloat32m1_t& _rbh, size_t vl)
+{
+    float tmp[8][12];
+    vsse32_v_f32m1(&tmp[0][0], sizeof(float) * 12, _r0l, vl);
+    vsse32_v_f32m1(&tmp[4][0], sizeof(float) * 12, _r0h, vl);
+    vsse32_v_f32m1(&tmp[0][1], sizeof(float) * 12, _r1l, vl);
+    vsse32_v_f32m1(&tmp[4][1], sizeof(float) * 12, _r1h, vl);
+    vsse32_v_f32m1(&tmp[0][2], sizeof(float) * 12, _r2l, vl);
+    vsse32_v_f32m1(&tmp[4][2], sizeof(float) * 12, _r2h, vl);
+    vsse32_v_f32m1(&tmp[0][3], sizeof(float) * 12, _r3l, vl);
+    vsse32_v_f32m1(&tmp[4][3], sizeof(float) * 12, _r3h, vl);
+    vsse32_v_f32m1(&tmp[0][4], sizeof(float) * 12, _r4l, vl);
+    vsse32_v_f32m1(&tmp[4][4], sizeof(float) * 12, _r4h, vl);
+    vsse32_v_f32m1(&tmp[0][5], sizeof(float) * 12, _r5l, vl);
+    vsse32_v_f32m1(&tmp[4][5], sizeof(float) * 12, _r5h, vl);
+    vsse32_v_f32m1(&tmp[0][6], sizeof(float) * 12, _r6l, vl);
+    vsse32_v_f32m1(&tmp[4][6], sizeof(float) * 12, _r6h, vl);
+    vsse32_v_f32m1(&tmp[0][7], sizeof(float) * 12, _r7l, vl);
+    vsse32_v_f32m1(&tmp[4][7], sizeof(float) * 12, _r7h, vl);
+    vsse32_v_f32m1(&tmp[0][8], sizeof(float) * 12, _r8l, vl);
+    vsse32_v_f32m1(&tmp[4][8], sizeof(float) * 12, _r8h, vl);
+    vsse32_v_f32m1(&tmp[0][9], sizeof(float) * 12, _r9l, vl);
+    vsse32_v_f32m1(&tmp[4][9], sizeof(float) * 12, _r9h, vl);
+    vsse32_v_f32m1(&tmp[0][10], sizeof(float) * 12, _ral, vl);
+    vsse32_v_f32m1(&tmp[4][10], sizeof(float) * 12, _rah, vl);
+    vsse32_v_f32m1(&tmp[0][11], sizeof(float) * 12, _rbl, vl);
+    vsse32_v_f32m1(&tmp[4][11], sizeof(float) * 12, _rbh, vl);
+    float* ptr = (float*)tmp;
+    _r0l = vle32_v_f32m1(ptr + 0 * 4, vl);
+    _r0h = vle32_v_f32m1(ptr + 1 * 4, vl);
+    _r1l = vle32_v_f32m1(ptr + 2 * 4, vl);
+    _r1h = vle32_v_f32m1(ptr + 3 * 4, vl);
+    _r2l = vle32_v_f32m1(ptr + 4 * 4, vl);
+    _r2h = vle32_v_f32m1(ptr + 5 * 4, vl);
+    _r3l = vle32_v_f32m1(ptr + 6 * 4, vl);
+    _r3h = vle32_v_f32m1(ptr + 7 * 4, vl);
+    _r4l = vle32_v_f32m1(ptr + 8 * 4, vl);
+    _r4h = vle32_v_f32m1(ptr + 9 * 4, vl);
+    _r5l = vle32_v_f32m1(ptr + 10 * 4, vl);
+    _r5h = vle32_v_f32m1(ptr + 11 * 4, vl);
+    _r6l = vle32_v_f32m1(ptr + 12 * 4, vl);
+    _r6h = vle32_v_f32m1(ptr + 13 * 4, vl);
+    _r7l = vle32_v_f32m1(ptr + 14 * 4, vl);
+    _r7h = vle32_v_f32m1(ptr + 15 * 4, vl);
+    _r8l = vle32_v_f32m1(ptr + 16 * 4, vl);
+    _r8h = vle32_v_f32m1(ptr + 17 * 4, vl);
+    _r9l = vle32_v_f32m1(ptr + 18 * 4, vl);
+    _r9h = vle32_v_f32m1(ptr + 19 * 4, vl);
+    _ral = vle32_v_f32m1(ptr + 20 * 4, vl);
+    _rah = vle32_v_f32m1(ptr + 21 * 4, vl);
+    _rbl = vle32_v_f32m1(ptr + 22 * 4, vl);
+    _rbh = vle32_v_f32m1(ptr + 23 * 4, vl);
+}
+
+static inline void transpose12x8_ps(vfloat32m1_t& _r0l, vfloat32m1_t& _r0m, vfloat32m1_t& _r0h,
+                                    vfloat32m1_t& _r1l, vfloat32m1_t& _r1m, vfloat32m1_t& _r1h,
+                                    vfloat32m1_t& _r2l, vfloat32m1_t& _r2m, vfloat32m1_t& _r2h,
+                                    vfloat32m1_t& _r3l, vfloat32m1_t& _r3m, vfloat32m1_t& _r3h,
+                                    vfloat32m1_t& _r4l, vfloat32m1_t& _r4m, vfloat32m1_t& _r4h,
+                                    vfloat32m1_t& _r5l, vfloat32m1_t& _r5m, vfloat32m1_t& _r5h,
+                                    vfloat32m1_t& _r6l, vfloat32m1_t& _r6m, vfloat32m1_t& _r6h,
+                                    vfloat32m1_t& _r7l, vfloat32m1_t& _r7m, vfloat32m1_t& _r7h, size_t vl)
+{
+    float tmp[12][8];
+    vsse32_v_f32m1(&tmp[0][0], sizeof(float) * 8, _r0l, vl);
+    vsse32_v_f32m1(&tmp[4][0], sizeof(float) * 8, _r0m, vl);
+    vsse32_v_f32m1(&tmp[8][0], sizeof(float) * 8, _r0h, vl);
+    vsse32_v_f32m1(&tmp[0][1], sizeof(float) * 8, _r1l, vl);
+    vsse32_v_f32m1(&tmp[4][1], sizeof(float) * 8, _r1m, vl);
+    vsse32_v_f32m1(&tmp[8][0], sizeof(float) * 8, _r1h, vl);
+    vsse32_v_f32m1(&tmp[0][2], sizeof(float) * 8, _r2l, vl);
+    vsse32_v_f32m1(&tmp[4][2], sizeof(float) * 8, _r2m, vl);
+    vsse32_v_f32m1(&tmp[8][2], sizeof(float) * 8, _r2h, vl);
+    vsse32_v_f32m1(&tmp[0][3], sizeof(float) * 8, _r3l, vl);
+    vsse32_v_f32m1(&tmp[4][3], sizeof(float) * 8, _r3m, vl);
+    vsse32_v_f32m1(&tmp[8][3], sizeof(float) * 8, _r3h, vl);
+    vsse32_v_f32m1(&tmp[0][4], sizeof(float) * 8, _r4l, vl);
+    vsse32_v_f32m1(&tmp[4][4], sizeof(float) * 8, _r4m, vl);
+    vsse32_v_f32m1(&tmp[8][4], sizeof(float) * 8, _r4h, vl);
+    vsse32_v_f32m1(&tmp[0][5], sizeof(float) * 8, _r5l, vl);
+    vsse32_v_f32m1(&tmp[4][5], sizeof(float) * 8, _r5m, vl);
+    vsse32_v_f32m1(&tmp[8][5], sizeof(float) * 8, _r5h, vl);
+    vsse32_v_f32m1(&tmp[0][6], sizeof(float) * 8, _r6l, vl);
+    vsse32_v_f32m1(&tmp[4][6], sizeof(float) * 8, _r6m, vl);
+    vsse32_v_f32m1(&tmp[8][6], sizeof(float) * 8, _r6h, vl);
+    vsse32_v_f32m1(&tmp[0][7], sizeof(float) * 8, _r7l, vl);
+    vsse32_v_f32m1(&tmp[4][7], sizeof(float) * 8, _r7m, vl);
+    vsse32_v_f32m1(&tmp[8][7], sizeof(float) * 8, _r7h, vl);
+    float* ptr = (float*)tmp;
+    _r0l = vle32_v_f32m1(ptr + 0 * 4, vl);
+    _r0m = vle32_v_f32m1(ptr + 1 * 4, vl);
+    _r0h = vle32_v_f32m1(ptr + 2 * 4, vl);
+    _r1l = vle32_v_f32m1(ptr + 3 * 4, vl);
+    _r1m = vle32_v_f32m1(ptr + 4 * 4, vl);
+    _r1h = vle32_v_f32m1(ptr + 5 * 4, vl);
+    _r2l = vle32_v_f32m1(ptr + 6 * 4, vl);
+    _r2m = vle32_v_f32m1(ptr + 7 * 4, vl);
+    _r2h = vle32_v_f32m1(ptr + 8 * 4, vl);
+    _r3l = vle32_v_f32m1(ptr + 9 * 4, vl);
+    _r3m = vle32_v_f32m1(ptr + 10 * 4, vl);
+    _r3h = vle32_v_f32m1(ptr + 11 * 4, vl);
+    _r4l = vle32_v_f32m1(ptr + 12 * 4, vl);
+    _r4m = vle32_v_f32m1(ptr + 13 * 4, vl);
+    _r4h = vle32_v_f32m1(ptr + 14 * 4, vl);
+    _r5l = vle32_v_f32m1(ptr + 15 * 4, vl);
+    _r5m = vle32_v_f32m1(ptr + 16 * 4, vl);
+    _r5h = vle32_v_f32m1(ptr + 17 * 4, vl);
+    _r6l = vle32_v_f32m1(ptr + 18 * 4, vl);
+    _r6m = vle32_v_f32m1(ptr + 19 * 4, vl);
+    _r6h = vle32_v_f32m1(ptr + 20 * 4, vl);
+    _r7l = vle32_v_f32m1(ptr + 21 * 4, vl);
+    _r7m = vle32_v_f32m1(ptr + 22 * 4, vl);
+    _r7h = vle32_v_f32m1(ptr + 23 * 4, vl);
+}
+
+static inline void transpose4x8_ps(vfloat32m1_t& _r0, vfloat32m1_t& _r1, vfloat32m1_t& _r2, vfloat32m1_t& _r3, vfloat32m1_t& _r4, vfloat32m1_t& _r5, vfloat32m1_t& _r6, vfloat32m1_t& _r7, size_t vl)
+{
+    float tmp[4][8];
+    vsse32_v_f32m1(&tmp[0][0], sizeof(float) * 8, _r0, vl);
+    vsse32_v_f32m1(&tmp[0][1], sizeof(float) * 8, _r1, vl);
+    vsse32_v_f32m1(&tmp[0][2], sizeof(float) * 8, _r2, vl);
+    vsse32_v_f32m1(&tmp[0][3], sizeof(float) * 8, _r3, vl);
+    vsse32_v_f32m1(&tmp[0][4], sizeof(float) * 8, _r4, vl);
+    vsse32_v_f32m1(&tmp[0][5], sizeof(float) * 8, _r5, vl);
+    vsse32_v_f32m1(&tmp[0][6], sizeof(float) * 8, _r6, vl);
+    vsse32_v_f32m1(&tmp[0][7], sizeof(float) * 8, _r7, vl);
+    float* ptr = (float*)tmp;
+    _r0 = vle32_v_f32m1(ptr + 0 * 4, vl);
+    _r1 = vle32_v_f32m1(ptr + 1 * 4, vl);
+    _r2 = vle32_v_f32m1(ptr + 2 * 4, vl);
+    _r3 = vle32_v_f32m1(ptr + 3 * 4, vl);
+    _r4 = vle32_v_f32m1(ptr + 4 * 4, vl);
+    _r5 = vle32_v_f32m1(ptr + 5 * 4, vl);
+    _r6 = vle32_v_f32m1(ptr + 6 * 4, vl);
+    _r7 = vle32_v_f32m1(ptr + 7 * 4, vl);
+}
+
+static inline void transpose4x12_ps(vfloat32m1_t& _r0, vfloat32m1_t& _r1, vfloat32m1_t& _r2, vfloat32m1_t& _r3, vfloat32m1_t& _r4, vfloat32m1_t& _r5, vfloat32m1_t& _r6, vfloat32m1_t& _r7, vfloat32m1_t& _r8, vfloat32m1_t& _r9, vfloat32m1_t& _ra, vfloat32m1_t& _rb, size_t vl)
+{
+    float tmp[4][12];
+    vsse32_v_f32m1(&tmp[0][0], sizeof(float) * 12, _r0, vl);
+    vsse32_v_f32m1(&tmp[0][1], sizeof(float) * 12, _r1, vl);
+    vsse32_v_f32m1(&tmp[0][2], sizeof(float) * 12, _r2, vl);
+    vsse32_v_f32m1(&tmp[0][3], sizeof(float) * 12, _r3, vl);
+    vsse32_v_f32m1(&tmp[0][4], sizeof(float) * 12, _r4, vl);
+    vsse32_v_f32m1(&tmp[0][5], sizeof(float) * 12, _r5, vl);
+    vsse32_v_f32m1(&tmp[0][6], sizeof(float) * 12, _r6, vl);
+    vsse32_v_f32m1(&tmp[0][7], sizeof(float) * 12, _r7, vl);
+    vsse32_v_f32m1(&tmp[0][8], sizeof(float) * 12, _r8, vl);
+    vsse32_v_f32m1(&tmp[0][9], sizeof(float) * 12, _r9, vl);
+    vsse32_v_f32m1(&tmp[0][10], sizeof(float) * 12, _ra, vl);
+    vsse32_v_f32m1(&tmp[0][11], sizeof(float) * 12, _rb, vl);
+    float* ptr = (float*)tmp;
+    _r0 = vle32_v_f32m1(ptr + 0 * 4, vl);
+    _r1 = vle32_v_f32m1(ptr + 1 * 4, vl);
+    _r2 = vle32_v_f32m1(ptr + 2 * 4, vl);
+    _r3 = vle32_v_f32m1(ptr + 3 * 4, vl);
+    _r4 = vle32_v_f32m1(ptr + 4 * 4, vl);
+    _r5 = vle32_v_f32m1(ptr + 5 * 4, vl);
+    _r6 = vle32_v_f32m1(ptr + 6 * 4, vl);
+    _r7 = vle32_v_f32m1(ptr + 7 * 4, vl);
+    _r8 = vle32_v_f32m1(ptr + 8 * 4, vl);
+    _r9 = vle32_v_f32m1(ptr + 9 * 4, vl);
+    _ra = vle32_v_f32m1(ptr + 10 * 4, vl);
+    _rb = vle32_v_f32m1(ptr + 11 * 4, vl);
+}
+
+static inline void transpose8x4_ps(vfloat32m1_t& _r0l, vfloat32m1_t& _r0h,
+                                   vfloat32m1_t& _r1l, vfloat32m1_t& _r1h,
+                                   vfloat32m1_t& _r2l, vfloat32m1_t& _r2h,
+                                   vfloat32m1_t& _r3l, vfloat32m1_t& _r3h, size_t vl)
+{
+    float tmp[8][4];
+    vsse32_v_f32m1(&tmp[0][0], sizeof(float) * 4, _r0l, vl);
+    vsse32_v_f32m1(&tmp[4][0], sizeof(float) * 4, _r0h, vl);
+    vsse32_v_f32m1(&tmp[0][1], sizeof(float) * 4, _r1l, vl);
+    vsse32_v_f32m1(&tmp[4][1], sizeof(float) * 4, _r1h, vl);
+    vsse32_v_f32m1(&tmp[0][2], sizeof(float) * 4, _r2l, vl);
+    vsse32_v_f32m1(&tmp[4][2], sizeof(float) * 4, _r2h, vl);
+    vsse32_v_f32m1(&tmp[0][3], sizeof(float) * 4, _r3l, vl);
+    vsse32_v_f32m1(&tmp[4][3], sizeof(float) * 4, _r3h, vl);
+    float* ptr = (float*)tmp;
+    _r0l = vle32_v_f32m1(ptr + 0 * 4, vl);
+    _r0h = vle32_v_f32m1(ptr + 1 * 4, vl);
+    _r1l = vle32_v_f32m1(ptr + 2 * 4, vl);
+    _r1h = vle32_v_f32m1(ptr + 3 * 4, vl);
+    _r2l = vle32_v_f32m1(ptr + 4 * 4, vl);
+    _r2h = vle32_v_f32m1(ptr + 5 * 4, vl);
+    _r3l = vle32_v_f32m1(ptr + 6 * 4, vl);
+    _r3h = vle32_v_f32m1(ptr + 7 * 4, vl);
+}
+
+static inline void store_float_v2(vfloat32m1_t& vector1, vfloat32m1_t& vector2, float* buf, size_t vl)
+{
+    vsse32_v_f32m1(buf + 0, sizeof(float) * 2, vector1, vl);
+    vsse32_v_f32m1(buf + 1, sizeof(float) * 2, vector2, vl);
+}
+
+static inline void store_float_v4(vfloat32m1_t& vector1, vfloat32m1_t& vector2, vfloat32m1_t& vector3, vfloat32m1_t& vector4, float* buf, size_t vl)
+{
+    vsse32_v_f32m1(buf + 0, sizeof(float) * 4, vector1, vl);
+    vsse32_v_f32m1(buf + 1, sizeof(float) * 4, vector2, vl);
+    vsse32_v_f32m1(buf + 2, sizeof(float) * 4, vector3, vl);
+    vsse32_v_f32m1(buf + 3, sizeof(float) * 4, vector4, vl);
+}
+
 #if __riscv_zfh
 static inline vfloat16m8_t vle16_v_f16m8_f16m1(const __fp16* ptr)
 {

@@ -15,7 +15,6 @@
 #include "softmax_loongarch.h"
 
 #include <float.h>
-#include <math.h>
 
 #if __loongarch_sx
 #include <lsxintrin.h>

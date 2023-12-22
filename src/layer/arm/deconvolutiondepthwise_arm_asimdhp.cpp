@@ -464,7 +464,7 @@ int DeconvolutionDepthWise_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_
                                 }
                             }
 
-                            _sum = activation_ps(_sum, activation_type, activation_params);
+                            _sum = activation_ps_f16(_sum, activation_type, activation_params);
 
                             vst1q_f16(outptr + j * 8, _sum);
                         }
@@ -528,7 +528,7 @@ int DeconvolutionDepthWise_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_
                                 }
                             }
 
-                            _sum = activation_ps(_sum, activation_type, activation_params);
+                            _sum = activation_ps_f16(_sum, activation_type, activation_params);
 
                             vst1_f16(outptr + j * 4, _sum);
                         }
@@ -592,7 +592,7 @@ int DeconvolutionDepthWise_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_
                                 }
                             }
 
-                            sum = activation_ss(sum, activation_type, activation_params);
+                            sum = activation_ss_f16(sum, activation_type, activation_params);
 
                             outptr[j] = (__fp16)sum;
                         }

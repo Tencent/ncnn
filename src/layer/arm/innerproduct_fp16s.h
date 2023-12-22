@@ -74,6 +74,7 @@ static void innerproduct_pack4_fp16s_neon(const Mat& bottom_blob, Mat& top_blob,
 #endif
 
         int i = 0;
+#if NCNN_GNU_INLINE_ASM
         for (; i + 7 < num_input; i += 8)
         {
 #if __aarch64__
@@ -214,6 +215,7 @@ static void innerproduct_pack4_fp16s_neon(const Mat& bottom_blob, Mat& top_blob,
                 : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9");
 #endif // __aarch64__
         }
+#endif // NCNN_GNU_INLINE_ASM
         for (; i + 3 < num_input; i += 4)
         {
 #if __ARM_FEATURE_FP16_FML
@@ -565,6 +567,7 @@ static void innerproduct_transform_kernel_fp16s_neon(const Mat& weight_data, Mat
             const float* k7 = weight_data_r2.row(q + 7);
 
             int p = 0;
+#if NCNN_GNU_INLINE_ASM
             for (; p + 7 < num_input; p += 8)
             {
                 // transpose 8x8
@@ -626,6 +629,7 @@ static void innerproduct_transform_kernel_fp16s_neon(const Mat& weight_data, Mat
                     "8"(g0)
                     : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23");
             }
+#endif // NCNN_GNU_INLINE_ASM
             for (; p < num_input; p++)
             {
                 g0[0] = float32_to_float16(*k0++);

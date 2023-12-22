@@ -16,8 +16,6 @@
 
 #include "layer_shader_type.h"
 
-#include <math.h>
-
 namespace ncnn {
 
 BinaryOp_vulkan::BinaryOp_vulkan()
@@ -201,13 +199,21 @@ int BinaryOp_vulkan::create_pipeline(const Option& opt)
         if (A_shape.dims > 0 && B_shape.dims > 0)
         {
             const bool a_rank_is_lower = A_shape.dims < B_shape.dims;
+            const bool a_rank_is_equal = A_shape.dims == B_shape.dims;
             const bool a_pack_is_lower = A_elempack < B_elempack;
             const bool a_pack_is_equal = A_elempack == B_elempack;
             const bool a_size_is_lower = A_shape.w * A_shape.h * A_shape.d * A_shape.c < B_shape.w * B_shape.h * B_shape.d * B_shape.c;
-            if (a_rank_is_lower || a_pack_is_lower || (a_pack_is_equal && a_size_is_lower))
+            if (a_rank_is_lower || (a_rank_is_equal && a_pack_is_lower) || (a_pack_is_equal && a_size_is_lower))
             {
                 // swap AB
                 std::swap(A_shape_packed, B_shape_packed);
+            }
+
+            if (B_shape_packed.dims == 1 && ((A_shape_packed.dims == 2 && B_shape_packed.w * B_shape_packed.elempack != A_shape_packed.h * A_shape_packed.elempack) || ((A_shape_packed.dims == 3 || A_shape_packed.dims == 4) && B_shape_packed.w * B_shape_packed.elempack != A_shape_packed.c * A_shape_packed.elempack)))
+            {
+                B_shape_packed.dims = out_shape.dims;
+                B_shape_packed.w = B_shape_packed.w * B_shape_packed.elempack;
+                B_shape_packed.elempack = 1;
             }
         }
 
@@ -298,7 +304,7 @@ int BinaryOp_vulkan::create_pipeline(const Option& opt)
         }
 
         // pack4
-        if (out_shape.dims == 0 || (A_elempack == 4 && B_elempack == 4 && out_elempack == 4))
+        if (out_shape.dims == 0 || (A_shape_packed.elempack == 4 && B_shape_packed.elempack == 4 && out_elempack == 4))
         {
             pipeline_binaryop_broadcast_pack4[0] = new Pipeline(vkdev);
             pipeline_binaryop_broadcast_pack4[0]->set_optimal_local_size_xyz(local_size_xyz);
@@ -314,7 +320,7 @@ int BinaryOp_vulkan::create_pipeline(const Option& opt)
         }
 
         // pack1to4
-        if (out_shape.dims == 0 || ((A_elempack == 1 || B_elempack == 1) && out_elempack == 4))
+        if (out_shape.dims == 0 || ((A_shape_packed.elempack == 1 || B_shape_packed.elempack == 1) && out_elempack == 4))
         {
             pipeline_binaryop_broadcast_pack1to4[0] = new Pipeline(vkdev);
             pipeline_binaryop_broadcast_pack1to4[0]->set_optimal_local_size_xyz(local_size_xyz);
@@ -330,7 +336,7 @@ int BinaryOp_vulkan::create_pipeline(const Option& opt)
         }
 
         // pack8
-        if ((opt.use_shader_pack8 && out_shape.dims == 0) || (A_elempack == 8 && B_elempack == 8 && out_elempack == 8))
+        if ((opt.use_shader_pack8 && out_shape.dims == 0) || (A_shape_packed.elempack == 8 && B_shape_packed.elempack == 8 && out_elempack == 8))
         {
             pipeline_binaryop_broadcast_pack8[0] = new Pipeline(vkdev);
             pipeline_binaryop_broadcast_pack8[0]->set_optimal_local_size_xyz(local_size_xyz);
@@ -346,7 +352,7 @@ int BinaryOp_vulkan::create_pipeline(const Option& opt)
         }
 
         // pack1to8
-        if ((opt.use_shader_pack8 && out_shape.dims == 0) || ((A_elempack == 1 || B_elempack == 1) && out_elempack == 8))
+        if ((opt.use_shader_pack8 && out_shape.dims == 0) || ((A_shape_packed.elempack == 1 || B_shape_packed.elempack == 1) && out_elempack == 8))
         {
             pipeline_binaryop_broadcast_pack1to8[0] = new Pipeline(vkdev);
             pipeline_binaryop_broadcast_pack1to8[0]->set_optimal_local_size_xyz(local_size_xyz);
@@ -409,10 +415,10 @@ int BinaryOp_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector
     const VkMat& A = bottom_blobs[0];
     const VkMat& B = bottom_blobs[1];
     const int outdims = std::max(A.dims, B.dims);
-    const int out_elempack = std::max(A.elempack, B.elempack);
 
     const bool a_rank_is_lower = A.dims < B.dims;
     const bool b_rank_is_lower = B.dims < A.dims;
+    const bool a_rank_is_equal = A.dims == B.dims;
 
     VkMat& top_blob = top_blobs[0];
     if (a_rank_is_lower)
@@ -429,6 +435,7 @@ int BinaryOp_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector
         const int outh = std::max(A.h, B.h);
         const int outd = std::max(A.d, B.d);
         const int outc = std::max(A.c, B.c);
+        const int out_elempack = std::max(A.elempack, B.elempack);
         const size_t out_elemsize = std::max(A.elemsize, B.elemsize);
 
         if (outdims == 1)
@@ -476,8 +483,8 @@ int BinaryOp_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector
         constants[13].i = top_blob.c;
         constants[14].i = top_blob.cstep;
 
-        const Pipeline* pipeline = out_elempack == 8 ? pipeline_binaryop_pack8
-                                   : out_elempack == 4 ? pipeline_binaryop_pack4
+        const Pipeline* pipeline = top_blob.elempack == 8 ? pipeline_binaryop_pack8
+                                   : top_blob.elempack == 4 ? pipeline_binaryop_pack4
                                    : pipeline_binaryop;
 
         cmd.record_pipeline(pipeline, bindings, constants, top_blob);
@@ -488,11 +495,22 @@ int BinaryOp_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector
     const bool a_pack_is_lower = A.elempack < B.elempack;
     const bool a_pack_is_equal = A.elempack == B.elempack;
     const bool a_size_is_lower = A.w * A.h * A.d * A.c * A.elempack < B.w * B.h * B.d * B.c * B.elempack;
-    if (a_rank_is_lower || a_pack_is_lower || (a_pack_is_equal && a_size_is_lower))
+    if (a_rank_is_lower || (a_rank_is_equal && a_pack_is_lower) || (a_pack_is_equal && a_size_is_lower))
     {
+        VkMat A2;
+        if (A.dims == 1 && ((B.dims == 2 && A.w * A.elempack != B.h * B.elempack) || ((B.dims == 3 || B.dims == 4) && A.w * A.elempack != B.c * B.elempack)))
+        {
+            vkdev->convert_packing(A, A2, 1, cmd, opt);
+            A2.dims = top_blob.dims;
+        }
+        else
+        {
+            A2 = A;
+        }
+
         std::vector<VkMat> bindings(3);
         bindings[0] = B;
-        bindings[1] = A;
+        bindings[1] = A2;
         bindings[2] = top_blob;
 
         std::vector<vk_constant_type> constants(18);
@@ -502,12 +520,12 @@ int BinaryOp_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector
         constants[3].i = B.d;
         constants[4].i = B.c;
         constants[5].i = B.cstep;
-        constants[6].i = A.dims;
-        constants[7].i = A.w;
-        constants[8].i = A.h;
-        constants[9].i = A.d;
-        constants[10].i = A.c;
-        constants[11].i = A.cstep;
+        constants[6].i = A2.dims;
+        constants[7].i = A2.w;
+        constants[8].i = A2.h;
+        constants[9].i = A2.d;
+        constants[10].i = A2.c;
+        constants[11].i = A2.cstep;
         constants[12].i = top_blob.dims;
         constants[13].i = top_blob.w;
         constants[14].i = top_blob.h;
@@ -518,23 +536,23 @@ int BinaryOp_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector
         const int ri = get_reverse_op_type(op_type) == op_type ? 0 : 1;
 
         const Pipeline* pipeline = 0;
-        if (A.elempack == 1 && out_elempack == 1)
+        if (A2.elempack == 1 && top_blob.elempack == 1)
         {
             pipeline = pipeline_binaryop_broadcast[ri];
         }
-        if (A.elempack == 4 && out_elempack == 4)
+        if (A2.elempack == 4 && top_blob.elempack == 4)
         {
             pipeline = pipeline_binaryop_broadcast_pack4[ri];
         }
-        if (A.elempack == 1 && out_elempack == 4)
+        if (A2.elempack == 1 && top_blob.elempack == 4)
         {
             pipeline = pipeline_binaryop_broadcast_pack1to4[ri];
         }
-        if (A.elempack == 8 && out_elempack == 8)
+        if (A2.elempack == 8 && top_blob.elempack == 8)
         {
             pipeline = pipeline_binaryop_broadcast_pack8[ri];
         }
-        if (A.elempack == 1 && out_elempack == 8)
+        if (A2.elempack == 1 && top_blob.elempack == 8)
         {
             pipeline = pipeline_binaryop_broadcast_pack1to8[ri];
         }
@@ -543,9 +561,20 @@ int BinaryOp_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector
     }
     else
     {
+        VkMat B2;
+        if (B.dims == 1 && ((A.dims == 2 && B.w * B.elempack != A.h * A.elempack) || ((A.dims == 3 || A.dims == 4) && B.w * B.elempack != A.c * A.elempack)))
+        {
+            vkdev->convert_packing(B, B2, 1, cmd, opt);
+            B2.dims = top_blob.dims;
+        }
+        else
+        {
+            B2 = B;
+        }
+
         std::vector<VkMat> bindings(3);
         bindings[0] = A;
-        bindings[1] = B;
+        bindings[1] = B2;
         bindings[2] = top_blob;
 
         std::vector<vk_constant_type> constants(18);
@@ -555,12 +584,12 @@ int BinaryOp_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector
         constants[3].i = A.d;
         constants[4].i = A.c;
         constants[5].i = A.cstep;
-        constants[6].i = B.dims;
-        constants[7].i = B.w;
-        constants[8].i = B.h;
-        constants[9].i = B.d;
-        constants[10].i = B.c;
-        constants[11].i = B.cstep;
+        constants[6].i = B2.dims;
+        constants[7].i = B2.w;
+        constants[8].i = B2.h;
+        constants[9].i = B2.d;
+        constants[10].i = B2.c;
+        constants[11].i = B2.cstep;
         constants[12].i = top_blob.dims;
         constants[13].i = top_blob.w;
         constants[14].i = top_blob.h;
@@ -569,23 +598,23 @@ int BinaryOp_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector
         constants[17].i = top_blob.cstep;
 
         const Pipeline* pipeline = 0;
-        if (B.elempack == 1 && out_elempack == 1)
+        if (B2.elempack == 1 && top_blob.elempack == 1)
         {
             pipeline = pipeline_binaryop_broadcast[0];
         }
-        if (B.elempack == 4 && out_elempack == 4)
+        if (B2.elempack == 4 && top_blob.elempack == 4)
         {
             pipeline = pipeline_binaryop_broadcast_pack4[0];
         }
-        if (B.elempack == 1 && out_elempack == 4)
+        if (B2.elempack == 1 && top_blob.elempack == 4)
         {
             pipeline = pipeline_binaryop_broadcast_pack1to4[0];
         }
-        if (B.elempack == 8 && out_elempack == 8)
+        if (B2.elempack == 8 && top_blob.elempack == 8)
         {
             pipeline = pipeline_binaryop_broadcast_pack8[0];
         }
-        if (B.elempack == 1 && out_elempack == 8)
+        if (B2.elempack == 1 && top_blob.elempack == 8)
         {
             pipeline = pipeline_binaryop_broadcast_pack1to8[0];
         }
@@ -626,10 +655,10 @@ int BinaryOp_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::v
     const VkImageMat& A = bottom_blobs[0];
     const VkImageMat& B = bottom_blobs[1];
     const int outdims = std::max(A.dims, B.dims);
-    const int out_elempack = std::max(A.elempack, B.elempack);
 
     const bool a_rank_is_lower = A.dims < B.dims;
     const bool b_rank_is_lower = B.dims < A.dims;
+    const bool a_rank_is_equal = A.dims == B.dims;
 
     VkImageMat& top_blob = top_blobs[0];
     if (a_rank_is_lower)
@@ -646,6 +675,7 @@ int BinaryOp_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::v
         const int outh = std::max(A.h, B.h);
         const int outd = std::max(A.d, B.d);
         const int outc = std::max(A.c, B.c);
+        const int out_elempack = std::max(A.elempack, B.elempack);
         const size_t out_elemsize = std::max(A.elemsize, B.elemsize);
 
         if (outdims == 1)
@@ -693,8 +723,8 @@ int BinaryOp_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::v
         constants[13].i = top_blob.c;
         constants[14].i = 0; //top_blob.cstep;
 
-        const Pipeline* pipeline = out_elempack == 8 ? pipeline_binaryop_pack8
-                                   : out_elempack == 4 ? pipeline_binaryop_pack4
+        const Pipeline* pipeline = top_blob.elempack == 8 ? pipeline_binaryop_pack8
+                                   : top_blob.elempack == 4 ? pipeline_binaryop_pack4
                                    : pipeline_binaryop;
 
         cmd.record_pipeline(pipeline, bindings, constants, top_blob);
@@ -705,11 +735,22 @@ int BinaryOp_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::v
     const bool a_pack_is_lower = A.elempack < B.elempack;
     const bool a_pack_is_equal = A.elempack == B.elempack;
     const bool a_size_is_lower = A.w * A.h * A.d * A.c * A.elempack < B.w * B.h * B.d * B.c * B.elempack;
-    if (a_rank_is_lower || a_pack_is_lower || (a_pack_is_equal && a_size_is_lower))
+    if (a_rank_is_lower || (a_rank_is_equal && a_pack_is_lower) || (a_pack_is_equal && a_size_is_lower))
     {
+        VkImageMat A2;
+        if (A.dims == 1 && ((B.dims == 2 && A.w * A.elempack != B.h * B.elempack) || ((B.dims == 3 || B.dims == 4) && A.w * A.elempack != B.c * B.elempack)))
+        {
+            vkdev->convert_packing(A, A2, 1, cmd, opt);
+            A2.dims = top_blob.dims;
+        }
+        else
+        {
+            A2 = A;
+        }
+
         std::vector<VkImageMat> bindings(3);
         bindings[0] = B;
-        bindings[1] = A;
+        bindings[1] = A2;
         bindings[2] = top_blob;
 
         std::vector<vk_constant_type> constants(18);
@@ -719,12 +760,12 @@ int BinaryOp_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::v
         constants[3].i = B.d;
         constants[4].i = B.c;
         constants[5].i = 0; //B.cstep;
-        constants[6].i = A.dims;
-        constants[7].i = A.w;
-        constants[8].i = A.h;
-        constants[9].i = A.d;
-        constants[10].i = A.c;
-        constants[11].i = 0; //A.cstep;
+        constants[6].i = A2.dims;
+        constants[7].i = A2.w;
+        constants[8].i = A2.h;
+        constants[9].i = A2.d;
+        constants[10].i = A2.c;
+        constants[11].i = 0; //A2.cstep;
         constants[12].i = top_blob.dims;
         constants[13].i = top_blob.w;
         constants[14].i = top_blob.h;
@@ -735,23 +776,23 @@ int BinaryOp_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::v
         const int ri = get_reverse_op_type(op_type) == op_type ? 0 : 1;
 
         const Pipeline* pipeline = 0;
-        if (A.elempack == 1 && out_elempack == 1)
+        if (A2.elempack == 1 && top_blob.elempack == 1)
         {
             pipeline = pipeline_binaryop_broadcast[ri];
         }
-        if (A.elempack == 4 && out_elempack == 4)
+        if (A2.elempack == 4 && top_blob.elempack == 4)
         {
             pipeline = pipeline_binaryop_broadcast_pack4[ri];
         }
-        if (A.elempack == 1 && out_elempack == 4)
+        if (A2.elempack == 1 && top_blob.elempack == 4)
         {
             pipeline = pipeline_binaryop_broadcast_pack1to4[ri];
         }
-        if (A.elempack == 8 && out_elempack == 8)
+        if (A2.elempack == 8 && top_blob.elempack == 8)
         {
             pipeline = pipeline_binaryop_broadcast_pack8[ri];
         }
-        if (A.elempack == 1 && out_elempack == 8)
+        if (A2.elempack == 1 && top_blob.elempack == 8)
         {
             pipeline = pipeline_binaryop_broadcast_pack1to8[ri];
         }
@@ -760,9 +801,20 @@ int BinaryOp_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::v
     }
     else
     {
+        VkImageMat B2;
+        if (B.dims == 1 && ((A.dims == 2 && B.w * B.elempack != A.h * A.elempack) || ((A.dims == 3 || A.dims == 4) && B.w * B.elempack != A.c * A.elempack)))
+        {
+            vkdev->convert_packing(B, B2, 1, cmd, opt);
+            B2.dims = top_blob.dims;
+        }
+        else
+        {
+            B2 = B;
+        }
+
         std::vector<VkImageMat> bindings(3);
         bindings[0] = A;
-        bindings[1] = B;
+        bindings[1] = B2;
         bindings[2] = top_blob;
 
         std::vector<vk_constant_type> constants(18);
@@ -772,12 +824,12 @@ int BinaryOp_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::v
         constants[3].i = A.d;
         constants[4].i = A.c;
         constants[5].i = 0; //A.cstep;
-        constants[6].i = B.dims;
-        constants[7].i = B.w;
-        constants[8].i = B.h;
-        constants[9].i = B.d;
-        constants[10].i = B.c;
-        constants[11].i = 0; //B.cstep;
+        constants[6].i = B2.dims;
+        constants[7].i = B2.w;
+        constants[8].i = B2.h;
+        constants[9].i = B2.d;
+        constants[10].i = B2.c;
+        constants[11].i = 0; //B2.cstep;
         constants[12].i = top_blob.dims;
         constants[13].i = top_blob.w;
         constants[14].i = top_blob.h;
@@ -786,23 +838,23 @@ int BinaryOp_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::v
         constants[17].i = 0; //top_blob.cstep;
 
         const Pipeline* pipeline = 0;
-        if (B.elempack == 1 && out_elempack == 1)
+        if (B2.elempack == 1 && top_blob.elempack == 1)
         {
             pipeline = pipeline_binaryop_broadcast[0];
         }
-        if (B.elempack == 4 && out_elempack == 4)
+        if (B2.elempack == 4 && top_blob.elempack == 4)
         {
             pipeline = pipeline_binaryop_broadcast_pack4[0];
         }
-        if (B.elempack == 1 && out_elempack == 4)
+        if (B2.elempack == 1 && top_blob.elempack == 4)
         {
             pipeline = pipeline_binaryop_broadcast_pack1to4[0];
         }
-        if (B.elempack == 8 && out_elempack == 8)
+        if (B2.elempack == 8 && top_blob.elempack == 8)
         {
             pipeline = pipeline_binaryop_broadcast_pack8[0];
         }
-        if (B.elempack == 1 && out_elempack == 8)
+        if (B2.elempack == 1 && top_blob.elempack == 8)
         {
             pipeline = pipeline_binaryop_broadcast_pack1to8[0];
         }

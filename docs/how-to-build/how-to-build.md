@@ -10,7 +10,8 @@ git submodule update --init
 - [Build for Linux](#build-for-linux)
   - [Nvidia Jetson](#nvidia-jetson)
   - [Raspberry Pi](#raspberry-pi)
-  - [POWER9](#power9)
+  - [POWER](#power)
+  - [Intel oneAPI](#intel-oneapi)
   - [Verification](#verification)
 - [Build for Windows x64 using Visual Studio Community 2017](#build-for-windows-x64-using-visual-studio-community-2017)
 - [Build for macOS](#build-for-macos)
@@ -23,6 +24,7 @@ git submodule update --init
 - [Build for Loongson 2K1000](#build-for-loongson-2k1000)
 - [Build for Termux on Android](#build-for-termux-on-android)
 - [Build for QNX](#build-for-qnx)
+- [Build for Nintendo 3DS Homebrew Launcher](#build-for-nintendo-3ds-homebrew-launcher)
 
 ***
 
@@ -34,17 +36,22 @@ Install required build dependencies:
 * g++
 * cmake
 * protocol buffer (protobuf) headers files and protobuf compiler
-* vulkan header files and loader library
 * glslang
+* (optional) LLVM OpenMP header files # If building with Clang, and multithreaded CPU inference is desired
+* (optional) vulkan header files and loader library # If building with Vulkan, without simplevk
 * (optional) opencv  # For building examples
 
 Generally if you have Intel, AMD or Nvidia GPU from last 10 years, Vulkan can be easily used.
 
 On some systems there are no Vulkan drivers easily available at the moment (October 2020), so you might need to disable use of Vulkan on them. This applies to Raspberry Pi 3 (but there is experimental open source Vulkan driver in the works, which is not ready yet). Nvidia Tegra series devices (like Nvidia Jetson) should support Vulkan. Ensure you have most recent software installed for best experience.
 
-On Debian, Ubuntu or Raspberry Pi OS, you can install all required dependencies using: 
+On Debian 10+, Ubuntu 20.04+, or Raspberry Pi OS, you can install all required dependencies using: 
 ```shell
-sudo apt install build-essential git cmake libprotobuf-dev protobuf-compiler libvulkan-dev vulkan-utils libopencv-dev
+sudo apt install build-essential git cmake libprotobuf-dev protobuf-compiler libomp-dev libvulkan-dev vulkan-tools libopencv-dev
+```
+On earlier Debian or Ubuntu, you can install all required dependencies using: 
+```shell
+sudo apt install build-essential git cmake libprotobuf-dev protobuf-compiler libomp-dev libvulkan-dev vulkan-utils libopencv-dev
 ```
 On Redhat or Centos, you can install all required dependencies using: 
 ```shell
@@ -86,11 +93,11 @@ make -j$(nproc)
 
 You can add `-GNinja` to `cmake` above to use Ninja build system (invoke build using `ninja` or `cmake --build .`).
 
-For Rasberry Pi 3 on 32bit OS, add `-DCMAKE_TOOLCHAIN_FILE=../toolchains/pi3.toolchain.cmake` to cmake. You can also consider disabling Vulkan support as the Vulkan drivers for Rasberry Pi are still not mature, but it doesn't hurt to build the support in, but not use it.
+For Raspberry Pi 3 on 32bit OS, add `-DCMAKE_TOOLCHAIN_FILE=../toolchains/pi3.toolchain.cmake` to cmake. You can also consider disabling Vulkan support as the Vulkan drivers for Raspberry Pi are still not mature, but it doesn't hurt to build the support in, but not use it.
 
-#### POWER9
+#### POWER
 
-With Clang 13 or higher:
+For POWER9 with Clang:
 
 ```shell
 cd ncnn
@@ -100,9 +107,19 @@ cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=../toolchains/power9le-l
 make -j$(nproc)
 ```
 
-Earlier versions of Clang may fail to build ncnn due to [Bug 49864](https://github.com/llvm/llvm-project/issues/49864). To use GCC instead, use the `power9le-linux-gnu-vsx.toolchain.cmake` toolchain file instead. Note that according to benchmarks, Clang appears to produce noticeably faster CPU inference than GCC for POWER9 targets.
+To use GCC instead, use the `power9le-linux-gnu-vsx.toolchain.cmake` toolchain file instead. Note that according to benchmarks, Clang appears to produce noticeably faster CPU inference than GCC for POWER9 targets. For fastest inference, use Clang 18 or higher; earlier versions of Clang may have impaired inference speed due to [Bug 49864](https://github.com/llvm/llvm-project/issues/49864) and [Bug 64664](https://github.com/llvm/llvm-project/issues/64664).
 
-Note that the POWER9 toolchain files only support little-endian mode.
+For POWER8 instead of POWER9, use the `power8le-linux-gnu-vsx.clang.toolchain.cmake` or `power8le-linux-gnu-vsx.toolchain.cmake` toolchain file instead. POWER8 will be slower than POWER9.
+
+Note that the POWER toolchain files only support little-endian mode.
+
+#### Intel oneAPI
+
+Besides the prerequests in this section, Intel oneAPI BaseKit and HPCKit should be installed. They are available from https://www.intel.com/content/www/us/en/developer/tools/oneapi/base-toolkit.html and https://www.intel.com/content/www/us/en/developer/tools/oneapi/hpc-toolkit.html freely.
+
+Intel oneAPI offers two kinds of compilers, the classic `icc/icpc` and the LLVM based `icx/icpx`. To build with these compilers, add `CC=icc CXX=icpc` or `CC=icx CXX=icpx` before the `cmake` command. When compiling with `icc/icpc`, cmake will warn that `xop`, `avx512`, and `bf16` extensions are not supported by the compiler, while `icx/icpx` works well.
+
+Both of these compilers have been tested and passed the ncnn benchmark successfully. The results have been included in ncnn benchmark readme. Generally, `icx/icpx` are likely to show better performance than `icc/icpc` and the quantized models can benefit from the extensions `icx/icpx` supports.
 
 #### Verification
 
@@ -169,7 +186,7 @@ Build ncnn library (replace <protobuf-root-dir> with a proper path):
 cd <ncnn-root-dir>
 mkdir -p protobuf_build
 cd protobuf_build
-cmake -A x64 -DCMAKE_INSTALL_PREFIX=%cd%/install -DProtobuf_INCLUDE_DIR=<protobuf-root-dir>/protobuf_build/install/include -DProtobuf_LIBRARIES=<protobuf-root-dir>/protobuf_build/install/lib/libprotobuf.lib -DProtobuf_PROTOC_EXECUTABLE=<protobuf-root-dir>/protobuf_build/install/bin/protoc.exe -DNCNN_VULKAN=ON ..
+cmake -A x64 -DCMAKE_INSTALL_PREFIX=%cd%/install -Dprotobuf_DIR=<protobuf-root-dir>/protobuf_build/install/cmake -DNCNN_VULKAN=ON ..
 cmake --build . --config Release -j 2
 cmake --build . --config Release --target install
 ```
@@ -590,39 +607,11 @@ Pick `build-XYZ/install` folder for further usage.
 
 ### Build for AllWinner D1
 
-Download c906 toolchain package from https://occ.t-head.cn/community/download?id=4046947553902661632
+Download c906 toolchain package from https://xuantie.t-head.cn/community/download?id=4224193099938729984
 
 ```shell
-tar -xf Xuantie-900-gcc-linux-5.10.4-glibc-x86_64-V2.2.6-20220516.tar.gz
-export RISCV_ROOT_PATH=/home/nihui/osd/Xuantie-900-gcc-linux-5.10.4-glibc-x86_64-V2.2.6
-```
-
-You need to fix riscv_vector.h header for workaround vfrec7/vfrsqrt7 bug.
-
-Open ```$RISCV_ROOT_PATH/lib/gcc/riscv64-unknown-linux-gnu/10.2.0/include/riscv_vector.h```, goto the file end, you will find three ```#endif```, and apply changes as the following
-```c
-#endif
-
-#define vfrec7_v_f32m1(x, vl) vfrdiv_vf_f32m1(x, 1.f, vl)
-#define vfrec7_v_f32m2(x, vl) vfrdiv_vf_f32m2(x, 1.f, vl)
-#define vfrec7_v_f32m4(x, vl) vfrdiv_vf_f32m4(x, 1.f, vl)
-#define vfrec7_v_f32m8(x, vl) vfrdiv_vf_f32m8(x, 1.f, vl)
-#define vfrec7_v_f16m1(x, vl) vfrdiv_vf_f16m1(x, 1.f, vl)
-#define vfrec7_v_f16m2(x, vl) vfrdiv_vf_f16m2(x, 1.f, vl)
-#define vfrec7_v_f16m4(x, vl) vfrdiv_vf_f16m4(x, 1.f, vl)
-#define vfrec7_v_f16m8(x, vl) vfrdiv_vf_f16m8(x, 1.f, vl)
-
-#define vfrsqrt7_v_f32m1(x, vl) vfrdiv_vf_f32m1(vfsqrt_v_f32m1(x, vl), 1.f, vl)
-#define vfrsqrt7_v_f32m2(x, vl) vfrdiv_vf_f32m2(vfsqrt_v_f32m2(x, vl), 1.f, vl)
-#define vfrsqrt7_v_f32m4(x, vl) vfrdiv_vf_f32m4(vfsqrt_v_f32m4(x, vl), 1.f, vl)
-#define vfrsqrt7_v_f32m8(x, vl) vfrdiv_vf_f32m8(vfsqrt_v_f32m8(x, vl), 1.f, vl)
-#define vfrsqrt7_v_f16m1(x, vl) vfrdiv_vf_f16m1(vfsqrt_v_f16m1(x, vl), 1.f, vl)
-#define vfrsqrt7_v_f16m2(x, vl) vfrdiv_vf_f16m2(vfsqrt_v_f16m2(x, vl), 1.f, vl)
-#define vfrsqrt7_v_f16m4(x, vl) vfrdiv_vf_f16m4(vfsqrt_v_f16m4(x, vl), 1.f, vl)
-#define vfrsqrt7_v_f16m8(x, vl) vfrdiv_vf_f16m8(vfsqrt_v_f16m8(x, vl), 1.f, vl)
-
-#endif
-#endif
+tar -xf Xuantie-900-gcc-linux-5.10.4-glibc-x86_64-V2.6.1-20220906.tar.gz
+export RISCV_ROOT_PATH=/home/nihui/osd/Xuantie-900-gcc-linux-5.10.4-glibc-x86_64-V2.6.1
 ```
 
 Build ncnn with riscv-v vector and simpleocv enabled:
@@ -759,3 +748,60 @@ make install
 ```
 
 Pick `build-qnx/install` folder for further usage.
+
+### Build for Nintendo 3DS Homebrew Launcher
+Install DevkitPRO toolchains
+- If you are working on windows, download DevkitPro installer from [DevkitPro](https://devkitpro.org/wiki/Getting_Started).
+- If you are using Ubuntu, the official guidelines from DevkitPro might not work for you. Try using the lines below to install 
+```
+sudo apt-get update
+sudo apt-get upgrade
+wget https://apt.devkitpro.org/install-devkitpro-pacman
+chmod +x ./install-devkitpro-pacman
+sudo ./install-devkitpro-pacman
+```
+
+```
+export DEVKITPRO=/opt/devkitpro
+export DEVKITARM=/opt/devkitpro/devkitARM
+export DEVKITPPC=/opt/devkitpro/devkitPPC
+export export PATH=$/opt/devkitpro/tools/bin:$PATH
+source ~/.profile
+```
+```
+sudo dkp-pacman -Sy
+sudo dkp-pacman -Syu
+sudo dkp-pacman -S 3ds-dev
+```
+Copy the toolchain files from [3DS-cmake](https://github.com/Xtansia/3ds-cmake)(DevitARM3DS.cmake and the cmake folder) to NCNN's toolchains folder.
+```
+├── toolchains
+│   ├── cmake
+│   │   ├── bin2s_header.h.in
+│   │   ├── FindCITRO3D.cmake
+│   │   ├── FindCTRULIB.cmake
+│   │   ├── FindFreetype.cmake
+│   │   ├── FindJPEG.cmake
+│   │   ├── FindPNG.cmake
+│   │   ├── FindSF2D.cmake
+│   │   ├── FindSFIL.cmake
+│   │   ├── FindSFTD.cmake
+│   │   ├── FindZLIB.cmake
+│   │   ├── LibFindMacros.cmake
+│   │   ├── Tools3DS.cmake
+│   │   ├── ToolsGBA.cmake
+│   │   └── try_add_imported_target.cmake
+│   ├── DevkitArm3DS.cmake
+...
+
+```
+Build with:
+```
+cd ncnn
+mkdir build && cd build
+cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/DevkitArm3DS.cmake .. -DNCNN_SIMPLEOCV=ON -DNCNN_OPENMP=OFF -DNCNN_VFPV4=OFF ..
+make -j4
+make install
+```
+Modify the Makefile in Homebrew example to link and use NCNN in your 3DS Homebrew app.
+
