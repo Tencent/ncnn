@@ -14,6 +14,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include "requantize.h"
+#include "fused_activation.h"
 
 namespace ncnn {
 
@@ -23,38 +24,6 @@ static inline signed char float2int8(float v)
     if (int32 > 127) return 127;
     if (int32 < -127) return -127;
     return (signed char)int32;
-}
-
-static inline float activation_ss(float v, int activation_type, const ncnn::Mat& activation_params)
-{
-    if (activation_type == 1)
-    {
-        v = fmaxf(v, 0.f);
-    }
-    else if (activation_type == 2)
-    {
-        float slope = activation_params[0];
-        v = v > 0.f ? v : v * slope;
-    }
-    else if (activation_type == 3)
-    {
-        float min = activation_params[0];
-        float max = activation_params[1];
-        if (v < min)
-            v = min;
-        if (v > max)
-            v = max;
-    }
-    else if (activation_type == 4)
-    {
-        v = 1.f / (1.f + expf(-v));
-    }
-    else if (activation_type == 5)
-    {
-        v = v * tanhf(logf(expf(v) + 1.f));
-    }
-
-    return v;
 }
 
 Requantize::Requantize()
