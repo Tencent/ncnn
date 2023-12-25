@@ -1140,6 +1140,9 @@ int InnerProduct_riscv::create_pipeline_int8_riscv(const Option& opt)
 
 int InnerProduct_riscv::forward_int8_riscv(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
+#if __riscv_vector
+    const int packn = csrr_vlenb();
+#endif
     const int num_input = weight_data_size / num_output;
 
     int elembits = bottom_blob.elembits();
@@ -1178,8 +1181,46 @@ int InnerProduct_riscv::forward_int8_riscv(const Mat& bottom_blob, Mat& top_blob
             for (int j = 0; j < outh; j++)
             {
                 float* outptr = top_blob.row(j);
+#if __riscv_vector
+                int nn_num_output = num_output / packn ? num_output / packn - 1 : 0;
+                int remain_num_output_start = nn_num_output * packn;
+                
+                for (int pp = 0; pp < nn_num_output; pp++)
+                {
+                    int p = pp * packn;
 
-                for (int p = 0; p < num_output; p++)
+                    size_t vl = vsetvl_e8m1(packn);
+                    vint32m4_t _sum = vmv_v_x_i32m4(0, vl);
+
+                    const signed char* kptr = weight_data_tm.row<const signed char>(p);
+                    const signed char* m = bottom_blob_int8_unpacked.row<const signed char>(j);
+
+                    for (int i = 0; i < num_input; i++)
+                    {
+                        vint16m2_t _kptr = vwcvt_x_x_v_i16m2(vlse8_v_i8m1(kptr, num_input, vl), vl);
+                        _sum = vwmacc_vx_i32m4(_sum, *m, _kptr, vl);
+                        m++;
+                        kptr++;
+                    }
+
+                    vfloat32m4_t _sumfp32;
+                    if (bias_term)
+                        _sumfp32 = vle32_v_f32m4((const float *)bias_data + p, vl);
+                    else
+                        _sumfp32 = vfmv_v_f_f32m4(0.f, vl);
+
+                    _sumfp32 = vfmacc_vv_f32m4(_sumfp32, vreinterpret_v_i32m4_f32m4(_sum),
+                         vle32_v_f32m4((const float *)scale_in_data + p, vl), vl);
+                    
+                    _sumfp32 = activation_ps(_sumfp32, activation_type, activation_params, vl);
+
+                    vse32_v_f32m4((float*)outptr, _sumfp32, vl);
+                }
+#else
+                int remain_num_output_start = 0;
+#endif
+
+                for (int p = remain_num_output_start; p < num_output; p++)
                 {
                     const signed char* kptr = weight_data_tm.row<const signed char>(p);
                     const signed char* m = bottom_blob_int8_unpacked.row<const signed char>(j);
@@ -1226,22 +1267,117 @@ int InnerProduct_riscv::forward_int8_riscv(const Mat& bottom_blob, Mat& top_blob
 
     if (out_elempack == 1)
     {
+#if __riscv_vector
+        int nn_num_output = num_output / packn ? num_output / packn - 1 : 0;
+        int remain_num_output_start = nn_num_output * packn;
+
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int p = 0; p < num_output / out_elempack; p++)
+        for (int pp = 0; pp < nn_num_output; pp++)
+        {
+            int p = pp * packn;
+
+            size_t vl = vsetvl_e8m1(packn);
+            vint32m4_t _sum = vmv_v_x_i32m4(0, vl);
+
+            const signed char* w = weight_data_tm.row<const signed char>(p);
+
+            const signed char* m = bottom_blob_int8_flattened;
+
+            int n = num_input;
+            while (n > 0)
+            {
+                vint16m2_t _w = vwcvt_x_x_v_i16m2(vlse8_v_i8m1(w, num_input, vl), vl);
+                _sum = vwmacc_vx_i32m4(_sum, *m, _w, vl);
+
+                m += 1;
+                w += 1;
+                n -= 1;
+            }
+
+            vfloat32m4_t sumfp32;
+            if (bias_term)
+                sumfp32 = vle32_v_f32m4((const float *)bias_data + p, vl);
+            else
+                sumfp32 = vfmv_v_f_f32m4(0.f, vl);
+
+            sumfp32 = vfmacc_vv_f32m4(sumfp32, vreinterpret_v_i32m4_f32m4(_sum),
+                 vle32_v_f32m4((const float *)scale_in_data + p, vl), vl);
+
+            sumfp32 = activation_ps(sumfp32, activation_type, activation_params, vl);
+
+            vse32_v_f32m4((float*)top_blob + p, sumfp32, vl);
+        }
+#else
+        int nn_num_output = num_output / 4;
+        int remain_num_output_start = nn_num_output * 4;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int pp = 0; pp < nn_num_output; pp++)
+        {
+            int p = pp * 4;
+
+            int sum0 = 0;
+            int sum1 = 0;
+            int sum2 = 0;
+            int sum3 = 0;
+
+            const signed char* w0 = weight_data_tm.row<const signed char>(p);
+            const signed char* w1 = weight_data_tm.row<const signed char>(p + 1);
+            const signed char* w2 = weight_data_tm.row<const signed char>(p + 2);
+            const signed char* w3 = weight_data_tm.row<const signed char>(p + 3);
+
+            const signed char* m = bottom_blob_int8_flattened;
+
+            for (int i = 0; i < num_input; i++)
+            {
+                sum0 += *m * *w0;
+                sum1 += *m * *w1;
+                sum2 += *m * *w2;
+                sum3 += *m * *w3;
+
+                m++;
+                w0++;
+                w1++;
+                w2++;
+                w3++;
+            }
+            
+            float sumfp32_0 = sum0 * scale_in_data[p];
+            float sumfp32_1 = sum1 * scale_in_data[p + 1];
+            float sumfp32_2 = sum2 * scale_in_data[p + 2];
+            float sumfp32_3 = sum3 * scale_in_data[p + 3];
+
+            if (bias_term)
+            {
+                sumfp32_0 += bias_data[p];
+                sumfp32_1 += bias_data[p + 1];
+                sumfp32_2 += bias_data[p + 2];
+                sumfp32_3 += bias_data[p + 3];
+            }
+
+            sumfp32_0 = activation_ss(sumfp32_0, activation_type, activation_params);
+            sumfp32_1 = activation_ss(sumfp32_1, activation_type, activation_params);
+            sumfp32_2 = activation_ss(sumfp32_2, activation_type, activation_params);
+            sumfp32_3 = activation_ss(sumfp32_3, activation_type, activation_params);
+
+            top_blob[p] = sumfp32_0;
+            top_blob[p + 1] = sumfp32_1;
+            top_blob[p + 2] = sumfp32_2;
+            top_blob[p + 3] = sumfp32_3;
+        }
+#endif // __riscv_vector
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int p = remain_num_output_start; p < num_output; p++)
         {
             int sum = 0;
 
             const signed char* kptr = weight_data_tm.row<const signed char>(p);
             const signed char* sptr = bottom_blob_int8_flattened;
 
-            int i = 0;
-            for (; i < num_input; i++)
+            for (int i = 0; i < num_input; i++)
             {
-                signed char val = sptr[0];
-
-                signed char w = kptr[0];
-
-                sum += val * w;
+                sum += *sptr * *kptr;
 
                 sptr += 1;
                 kptr += 1;
