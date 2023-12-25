@@ -34,10 +34,17 @@ def test_export():
 
     torch.manual_seed(0)
     x = torch.rand(1, 16)
+    x1 = torch.rand(1, 128)
 
     a0 = net(x)
+    a1 = net(x1)
 
     mod = torch.jit.trace(net, x)
     mod.save("test_F_relu_dconvert.pt")
 
-    pnnx.convert("test_F_relu_dconvert.pt", [1, 16], "f32", input_shapes2 = [1, 8], input_types2 = "f32")
+    net2 = pnnx.convert("test_F_relu_dconvert.pt", x, x1)
+
+    b0 = net2(x)
+    b1 = net2(x1)
+
+    assert torch.equal(a0, b0) and torch.equal(a1, b1)
