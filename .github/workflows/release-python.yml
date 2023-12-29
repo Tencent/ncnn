@@ -300,12 +300,8 @@ jobs:
 
     - uses: actions/download-artifact@v4
       with:
-        path: all
-
-    - name: merge dist files
-      run: |
-        mkdir dist
-        mv all/*/* dist/.
+        path: dist
+        merge-multiple: true
 
     - uses: pypa/gh-action-pypi-publish@release/v1
       with:
