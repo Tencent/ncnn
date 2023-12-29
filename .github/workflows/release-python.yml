@@ -47,19 +47,19 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { os: ubuntu-20.04, arch: x86_64,     build: 'cp*-manylinux*' }
-          - { os: ubuntu-20.04, arch: x86_64,     build: 'cp*-musllinux*' }
-          - { os: ubuntu-20.04, arch: x86_64,     build: 'pp*'            }
-          - { os: ubuntu-20.04, arch: i686,       build: 'cp*-manylinux*' }
-          - { os: ubuntu-20.04, arch: i686,       build: 'cp*-musllinux*' }
-          - { os: ubuntu-20.04, arch: i686,       build: 'pp*'            }
-          - { os: windows-2019, arch: x86,        build: 'cp*'            }
-          - { os: windows-2019, arch: AMD64,      build: 'cp*'            }
-          - { os: windows-2019, arch: AMD64,      build: 'pp*'            }
-          - { os: windows-2019, arch: ARM64,      build: 'cp*'            }
-          - { os: macos-latest, arch: x86_64,     build: 'cp*'            }
-          - { os: macos-latest, arch: x86_64,     build: 'pp*'            }
-          - { os: macos-latest, arch: arm64,      build: 'cp*'            }
+          - { os: ubuntu-20.04, arch: x86_64,     build: 'cp*-manylinux*', build_id: cp-manylinux }
+          - { os: ubuntu-20.04, arch: x86_64,     build: 'cp*-musllinux*', build_id: cp-musllinux }
+          - { os: ubuntu-20.04, arch: x86_64,     build: 'pp*',            build_id: pp           }
+          - { os: ubuntu-20.04, arch: i686,       build: 'cp*-manylinux*', build_id: cp-manylinux }
+          - { os: ubuntu-20.04, arch: i686,       build: 'cp*-musllinux*', build_id: cp-musllinux }
+          - { os: ubuntu-20.04, arch: i686,       build: 'pp*',            build_id: pp           }
+          - { os: windows-2019, arch: x86,        build: 'cp*',            build_id: cp           }
+          - { os: windows-2019, arch: AMD64,      build: 'cp*',            build_id: cp           }
+          - { os: windows-2019, arch: AMD64,      build: 'pp*',            build_id: pp           }
+          - { os: windows-2019, arch: ARM64,      build: 'cp*',            build_id: cp           }
+          - { os: macos-latest, arch: x86_64,     build: 'cp*',            build_id: cp           }
+          - { os: macos-latest, arch: x86_64,     build: 'pp*',            build_id: pp           }
+          - { os: macos-latest, arch: arm64,      build: 'cp*',            build_id: cp           }
 
     steps:
     - uses: actions/checkout@v4
@@ -222,31 +222,45 @@ jobs:
     - name: Upload wheels
       uses: actions/upload-artifact@v4
       with:
-        name: wheels-${{ matrix.os }}-${{ matrix.build }}${{ matrix.arch }}
+        name: wheels-${{ matrix.os }}-${{ matrix.arch }}-${{ matrix.build_id }}
         path: wheelhouse/*.whl
 
   build_wheels_qemu:
-    name: ${{ matrix.arch }} ${{ matrix.build }}
+    name: ${{ matrix.arch }} ${{ matrix.build.build }}
     runs-on: ubuntu-20.04
 
     strategy:
       fail-fast: false
       matrix:
         arch: [aarch64, ppc64le, s390x]
-        build: [ 'cp36-manylinux*',  'cp37-manylinux*',  'cp38-manylinux*',
-                 'cp39-manylinux*',  'cp310-manylinux*', 'cp311-manylinux*',
-                 'cp312-manylinux*', 'cp36-musllinux*',  'cp37-musllinux*',
-                 'cp38-musllinux*',  'cp39-musllinux*',  'cp310-musllinux*',
-                 'cp311-musllinux*', 'cp312-musllinux*' ]
+        build:
+          - { build: 'cp36-manylinux*',   build_id: cp36-manylinux  }
+          - { build: 'cp37-manylinux*',   build_id: cp37-manylinux  }
+          - { build: 'cp38-manylinux*',   build_id: cp38-manylinux  }
+          - { build: 'cp39-manylinux*',   build_id: cp39-manylinux  }
+          - { build: 'cp310-manylinux*',  build_id: cp310-manylinux }
+          - { build: 'cp311-manylinux*',  build_id: cp311-manylinux }
+          - { build: 'cp312-manylinux*',  build_id: cp312-manylinux }
+          - { build: 'cp36-musllinux*',   build_id: cp36-musllinux  }
+          - { build: 'cp37-musllinux*',   build_id: cp37-musllinux  }
+          - { build: 'cp38-musllinux*',   build_id: cp38-musllinux  }
+          - { build: 'cp39-musllinux*',   build_id: cp39-musllinux  }
+          - { build: 'cp310-musllinux*',  build_id: cp310-musllinux }
+          - { build: 'cp311-musllinux*',  build_id: cp311-musllinux }
+          - { build: 'cp312-musllinux*',  build_id: cp312-musllinux }
         include:
           - arch: aarch64
-            build: 'pp37-*'
+            build:
+              - { build: 'pp37-*', build_id: pp37 }
           - arch: aarch64
-            build: 'pp38-*'
+            build:
+              - { build: 'pp38-*', build_id: pp38 }
           - arch: aarch64
-            build: 'pp39-*'
+            build:
+              - { build: 'pp39-*', build_id: pp39 }
           - arch: aarch64
-            build: 'pp310-*'
+            build:
+              - { build: 'pp310-*', build_id: pp310 }
 
     steps:
     - uses: actions/checkout@v4
@@ -266,7 +280,7 @@ jobs:
       uses: pypa/cibuildwheel@v2.16.2
       env:
         CIBW_ARCHS_LINUX: ${{ matrix.arch }}
-        CIBW_BUILD: ${{ matrix.build }}
+        CIBW_BUILD: ${{ matrix.build.build }}
         CIBW_BUILD_VERBOSITY: 1
         CIBW_ENVIRONMENT: CMAKE_BUILD_PARALLEL_LEVEL=2
       with:
@@ -283,7 +297,7 @@ jobs:
     - name: Upload wheels
       uses: actions/upload-artifact@v4
       with:
-        name: wheels_qemu-${{ matrix.build }}${{ matrix.arch }}
+        name: wheels_qemu-${{ matrix.arch }}-${{ matrix.build.build_id }}
         path: wheelhouse/*.whl
 
   upload_all:
