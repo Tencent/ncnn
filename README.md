@@ -169,7 +169,7 @@ https://github.com/Tencent/ncnn/releases/latest
 </tr>
 
 <tr>
-<td rowspan=7>
+<td rowspan=9>
   <img src="https://user-images.githubusercontent.com/25181517/186884152-ae609cca-8cf1-4175-8d60-1ce1fa078ca2.png" width="120" height="auto">
 </td>
 <td colspan=3>
@@ -219,6 +219,32 @@ https://github.com/Tencent/ncnn/releases/latest
 
   [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231229-mac-catalyst.zip)
   [<img src="https://img.shields.io/badge/+bitcode-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231229-mac-catalyst-bitcode.zip)
+
+</td>
+</tr>
+<tr>
+<td>watchOS</td>
+<td>
+
+  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231229-watchos.zip)
+
+</td>
+<td>
+
+  [<img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/watchos-cpu.yml?branch=master&style=for-the-badge&label=build">](https://github.com/Tencent/ncnn/actions?query=workflow%3Awatchos-cpu)
+
+</td>
+</tr>
+<tr>
+<td>tvOS</td>
+<td>
+
+  [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20231229-tvos.zip)
+
+</td>
+<td>
+
+  [<img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/tvos-cpu.yml?branch=master&style=for-the-badge&label=build">](https://github.com/Tencent/ncnn/actions?query=workflow%3Atvos-cpu)
 
 </td>
 </tr>
