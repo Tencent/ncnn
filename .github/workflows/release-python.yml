@@ -41,7 +41,7 @@ jobs:
         path: dist/*.tar.gz
 
   build_wheels:
-    name: ${{ matrix.arch }} ${{ matrix.build }} on ${{ matrix.os }}
+    name: ${{ matrix.arch }} ${{ matrix.build_id }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
