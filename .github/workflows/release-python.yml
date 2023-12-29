@@ -37,6 +37,7 @@ jobs:
 
     - uses: actions/upload-artifact@v4
       with:
+        name: sdist
         path: dist/*.tar.gz
 
   build_wheels:
@@ -221,6 +222,7 @@ jobs:
     - name: Upload wheels
       uses: actions/upload-artifact@v4
       with:
+        name: wheels
         path: wheelhouse/*.whl
 
   build_wheels_qemu:
@@ -281,6 +283,7 @@ jobs:
     - name: Upload wheels
       uses: actions/upload-artifact@v4
       with:
+        name: wheels_qemu
         path: wheelhouse/*.whl
 
   upload_all:
@@ -297,7 +300,17 @@ jobs:
 
     - uses: actions/download-artifact@v4
       with:
-        name: artifact
+        name: sdist
+        path: dist
+
+    - uses: actions/download-artifact@v4
+      with:
+        name: wheels
+        path: dist
+
+    - uses: actions/download-artifact@v4
+      with:
+        name: wheels_qemu
         path: dist
 
     - uses: pypa/gh-action-pypi-publish@release/v1
