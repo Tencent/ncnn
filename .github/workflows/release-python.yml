@@ -222,7 +222,7 @@ jobs:
     - name: Upload wheels
       uses: actions/upload-artifact@v4
       with:
-        name: wheels
+        name: wheels-${{ matrix.os }}-${{ matrix.build }}${{ matrix.arch }}
         path: wheelhouse/*.whl
 
   build_wheels_qemu:
@@ -283,7 +283,7 @@ jobs:
     - name: Upload wheels
       uses: actions/upload-artifact@v4
       with:
-        name: wheels_qemu
+        name: wheels_qemu-${{ matrix.build }}${{ matrix.arch }}
         path: wheelhouse/*.whl
 
   upload_all:
@@ -300,18 +300,12 @@ jobs:
 
     - uses: actions/download-artifact@v4
       with:
-        name: sdist
-        path: dist
+        path: all
 
-    - uses: actions/download-artifact@v4
-      with:
-        name: wheels
-        path: dist
-
-    - uses: actions/download-artifact@v4
-      with:
-        name: wheels_qemu
-        path: dist
+    - name: merge dist files
+      run: |
+        mkdir dist
+        mv all/*/* dist/.
 
     - uses: pypa/gh-action-pypi-publish@release/v1
       with:
