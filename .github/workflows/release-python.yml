@@ -225,42 +225,16 @@ jobs:
         name: wheels-${{ matrix.os }}-${{ matrix.arch }}-${{ matrix.build_id }}
         path: wheelhouse/*.whl
 
-  build_wheels_qemu:
-    name: ${{ matrix.arch }} ${{ matrix.build.build }}
+  build_wheels_qemu_cp:
+    name: ${{ matrix.arch }} ${{ matrix.build_cp }} ${{ matrix.build_sub }}
     runs-on: ubuntu-20.04
 
     strategy:
       fail-fast: false
       matrix:
         arch: [aarch64, ppc64le, s390x]
-        build:
-          - { build: 'cp36-manylinux*',   build_id: cp36-manylinux  }
-          - { build: 'cp37-manylinux*',   build_id: cp37-manylinux  }
-          - { build: 'cp38-manylinux*',   build_id: cp38-manylinux  }
-          - { build: 'cp39-manylinux*',   build_id: cp39-manylinux  }
-          - { build: 'cp310-manylinux*',  build_id: cp310-manylinux }
-          - { build: 'cp311-manylinux*',  build_id: cp311-manylinux }
-          - { build: 'cp312-manylinux*',  build_id: cp312-manylinux }
-          - { build: 'cp36-musllinux*',   build_id: cp36-musllinux  }
-          - { build: 'cp37-musllinux*',   build_id: cp37-musllinux  }
-          - { build: 'cp38-musllinux*',   build_id: cp38-musllinux  }
-          - { build: 'cp39-musllinux*',   build_id: cp39-musllinux  }
-          - { build: 'cp310-musllinux*',  build_id: cp310-musllinux }
-          - { build: 'cp311-musllinux*',  build_id: cp311-musllinux }
-          - { build: 'cp312-musllinux*',  build_id: cp312-musllinux }
-        include:
-          - arch: aarch64
-            build:
-              - { build: 'pp37-*', build_id: pp37 }
-          - arch: aarch64
-            build:
-              - { build: 'pp38-*', build_id: pp38 }
-          - arch: aarch64
-            build:
-              - { build: 'pp39-*', build_id: pp39 }
-          - arch: aarch64
-            build:
-              - { build: 'pp310-*', build_id: pp310 }
+        build_cp: [cp36, cp37, cp38, cp39, cp310, cp311, cp312]
+        build_sub: [manylinux, musllinux]
 
     steps:
     - uses: actions/checkout@v4
@@ -280,7 +254,7 @@ jobs:
       uses: pypa/cibuildwheel@v2.16.2
       env:
         CIBW_ARCHS_LINUX: ${{ matrix.arch }}
-        CIBW_BUILD: ${{ matrix.build.build }}
+        CIBW_BUILD: ${{ matrix.build_cp }}-${{ matrix.build_sub }}*
         CIBW_BUILD_VERBOSITY: 1
         CIBW_ENVIRONMENT: CMAKE_BUILD_PARALLEL_LEVEL=2
       with:
@@ -297,14 +271,62 @@ jobs:
     - name: Upload wheels
       uses: actions/upload-artifact@v4
       with:
-        name: wheels_qemu-${{ matrix.arch }}-${{ matrix.build.build_id }}
+        name: wheels_qemu_cp-${{ matrix.arch }}-${{ matrix.build_cp }}-${{ matrix.build_sub }}
+        path: wheelhouse/*.whl
+
+  build_wheels_qemu_pp:
+    name: ${{ matrix.arch }} ${{ matrix.build_pp }}
+    runs-on: ubuntu-20.04
+
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [aarch64]
+        build_pp: [pp37, pp38, pp39, pp310]
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: true
+
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.x'
+
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v3
+      with:
+        platforms: all
+
+    - name: Build wheels for manylinux with qemu
+      uses: pypa/cibuildwheel@v2.16.2
+      env:
+        CIBW_ARCHS_LINUX: ${{ matrix.arch }}
+        CIBW_BUILD: ${{ matrix.build_pp }}-*
+        CIBW_BUILD_VERBOSITY: 1
+        CIBW_ENVIRONMENT: CMAKE_BUILD_PARALLEL_LEVEL=2
+      with:
+        output-dir: wheelhouse
+
+    - name: Show files
+      run: ls -lh wheelhouse
+      shell: bash
+
+    - name: Verify clean directory
+      run: git diff --exit-code
+      shell: bash
+
+    - name: Upload wheels
+      uses: actions/upload-artifact@v4
+      with:
+        name: wheels_qemu_pp-${{ matrix.arch }}-${{ matrix.build_pp }}
         path: wheelhouse/*.whl
 
   upload_all:
     permissions:
       contents: none
     name: Upload
-    needs: [build_wheels, build_wheels_qemu, build_sdist]
+    needs: [build_wheels, build_wheels_qemu_cp, build_wheels_qemu_pp, build_sdist]
     runs-on: ubuntu-latest
 
     steps:
