@@ -25,7 +25,7 @@ public:
 5 4
 pnnx.Input              input_0     0 1 input
 pnnx.Input              input_1     0 1 dim
-prim::Constant          op_0        0 1 dtype value=None
+prim::Constant          op_0        0 1 dtype value=*
 aten::log_softmax       op_1        3 1 input dim dtype out
 pnnx.Output             output      1 0 out
 )PNNXIR";
