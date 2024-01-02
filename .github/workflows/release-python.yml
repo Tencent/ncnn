@@ -37,28 +37,29 @@ jobs:
 
     - uses: actions/upload-artifact@v4
       with:
+        name: sdist
         path: dist/*.tar.gz
 
   build_wheels:
-    name: ${{ matrix.arch }} ${{ matrix.build }} on ${{ matrix.os }}
+    name: ${{ matrix.arch }} ${{ matrix.build_id }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          - { os: ubuntu-20.04, arch: x86_64,     build: 'cp*-manylinux*' }
-          - { os: ubuntu-20.04, arch: x86_64,     build: 'cp*-musllinux*' }
-          - { os: ubuntu-20.04, arch: x86_64,     build: 'pp*'            }
-          - { os: ubuntu-20.04, arch: i686,       build: 'cp*-manylinux*' }
-          - { os: ubuntu-20.04, arch: i686,       build: 'cp*-musllinux*' }
-          - { os: ubuntu-20.04, arch: i686,       build: 'pp*'            }
-          - { os: windows-2019, arch: x86,        build: 'cp*'            }
-          - { os: windows-2019, arch: AMD64,      build: 'cp*'            }
-          - { os: windows-2019, arch: AMD64,      build: 'pp*'            }
-          - { os: windows-2019, arch: ARM64,      build: 'cp*'            }
-          - { os: macos-latest, arch: x86_64,     build: 'cp*'            }
-          - { os: macos-latest, arch: x86_64,     build: 'pp*'            }
-          - { os: macos-latest, arch: arm64,      build: 'cp*'            }
+          - { os: ubuntu-20.04, arch: x86_64,     build: 'cp*-manylinux*', build_id: cp-manylinux }
+          - { os: ubuntu-20.04, arch: x86_64,     build: 'cp*-musllinux*', build_id: cp-musllinux }
+          - { os: ubuntu-20.04, arch: x86_64,     build: 'pp*',            build_id: pp           }
+          - { os: ubuntu-20.04, arch: i686,       build: 'cp*-manylinux*', build_id: cp-manylinux }
+          - { os: ubuntu-20.04, arch: i686,       build: 'cp*-musllinux*', build_id: cp-musllinux }
+          - { os: ubuntu-20.04, arch: i686,       build: 'pp*',            build_id: pp           }
+          - { os: windows-2019, arch: x86,        build: 'cp*',            build_id: cp           }
+          - { os: windows-2019, arch: AMD64,      build: 'cp*',            build_id: cp           }
+          - { os: windows-2019, arch: AMD64,      build: 'pp*',            build_id: pp           }
+          - { os: windows-2019, arch: ARM64,      build: 'cp*',            build_id: cp           }
+          - { os: macos-latest, arch: x86_64,     build: 'cp*',            build_id: cp           }
+          - { os: macos-latest, arch: x86_64,     build: 'pp*',            build_id: pp           }
+          - { os: macos-latest, arch: arm64,      build: 'cp*',            build_id: cp           }
 
     steps:
     - uses: actions/checkout@v4
@@ -221,30 +222,19 @@ jobs:
     - name: Upload wheels
       uses: actions/upload-artifact@v4
       with:
+        name: wheels-${{ matrix.os }}-${{ matrix.arch }}-${{ matrix.build_id }}
         path: wheelhouse/*.whl
 
-  build_wheels_qemu:
-    name: ${{ matrix.arch }} ${{ matrix.build }}
+  build_wheels_qemu_cp:
+    name: ${{ matrix.arch }} ${{ matrix.build_cp }} ${{ matrix.build_sub }}
     runs-on: ubuntu-20.04
 
     strategy:
       fail-fast: false
       matrix:
         arch: [aarch64, ppc64le, s390x]
-        build: [ 'cp36-manylinux*',  'cp37-manylinux*',  'cp38-manylinux*',
-                 'cp39-manylinux*',  'cp310-manylinux*', 'cp311-manylinux*',
-                 'cp312-manylinux*', 'cp36-musllinux*',  'cp37-musllinux*',
-                 'cp38-musllinux*',  'cp39-musllinux*',  'cp310-musllinux*',
-                 'cp311-musllinux*', 'cp312-musllinux*' ]
-        include:
-          - arch: aarch64
-            build: 'pp37-*'
-          - arch: aarch64
-            build: 'pp38-*'
-          - arch: aarch64
-            build: 'pp39-*'
-          - arch: aarch64
-            build: 'pp310-*'
+        build_cp: [cp36, cp37, cp38, cp39, cp310, cp311, cp312]
+        build_sub: [manylinux, musllinux]
 
     steps:
     - uses: actions/checkout@v4
@@ -264,7 +254,7 @@ jobs:
       uses: pypa/cibuildwheel@v2.16.2
       env:
         CIBW_ARCHS_LINUX: ${{ matrix.arch }}
-        CIBW_BUILD: ${{ matrix.build }}
+        CIBW_BUILD: ${{ matrix.build_cp }}-${{ matrix.build_sub }}*
         CIBW_BUILD_VERBOSITY: 1
         CIBW_ENVIRONMENT: CMAKE_BUILD_PARALLEL_LEVEL=2
       with:
@@ -281,13 +271,62 @@ jobs:
     - name: Upload wheels
       uses: actions/upload-artifact@v4
       with:
+        name: wheels_qemu_cp-${{ matrix.arch }}-${{ matrix.build_cp }}-${{ matrix.build_sub }}
+        path: wheelhouse/*.whl
+
+  build_wheels_qemu_pp:
+    name: ${{ matrix.arch }} ${{ matrix.build_pp }}
+    runs-on: ubuntu-20.04
+
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [aarch64]
+        build_pp: [pp37, pp38, pp39, pp310]
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: true
+
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.x'
+
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v3
+      with:
+        platforms: all
+
+    - name: Build wheels for manylinux with qemu
+      uses: pypa/cibuildwheel@v2.16.2
+      env:
+        CIBW_ARCHS_LINUX: ${{ matrix.arch }}
+        CIBW_BUILD: ${{ matrix.build_pp }}-*
+        CIBW_BUILD_VERBOSITY: 1
+        CIBW_ENVIRONMENT: CMAKE_BUILD_PARALLEL_LEVEL=2
+      with:
+        output-dir: wheelhouse
+
+    - name: Show files
+      run: ls -lh wheelhouse
+      shell: bash
+
+    - name: Verify clean directory
+      run: git diff --exit-code
+      shell: bash
+
+    - name: Upload wheels
+      uses: actions/upload-artifact@v4
+      with:
+        name: wheels_qemu_pp-${{ matrix.arch }}-${{ matrix.build_pp }}
         path: wheelhouse/*.whl
 
   upload_all:
     permissions:
       contents: none
     name: Upload
-    needs: [build_wheels, build_wheels_qemu, build_sdist]
+    needs: [build_wheels, build_wheels_qemu_cp, build_wheels_qemu_pp, build_sdist]
     runs-on: ubuntu-latest
 
     steps:
@@ -297,8 +336,8 @@ jobs:
 
     - uses: actions/download-artifact@v4
       with:
-        name: artifact
         path: dist
+        merge-multiple: true
 
     - uses: pypa/gh-action-pypi-publish@release/v1
       with:
