@@ -95,17 +95,9 @@ int Convolution::load_model(const ModelBin& mb)
     }
 #endif // NCNN_INT8
 
-    return 0;
-}
-
-int Convolution::create_pipeline(const Option& opt)
-{
-    if (dynamic_weight)
-        return 0;
-
 #if NCNN_INT8
     // runtime quantize the weight data
-    if (opt.use_int8_inference && weight_data.elemsize == (size_t)4u && int8_scale_term)
+    if (weight_data.elemsize == (size_t)4u && int8_scale_term)
     {
         const int maxk = kernel_w * kernel_h;
         const int num_input = weight_data_size / num_output / maxk;
@@ -114,7 +106,8 @@ int Convolution::create_pipeline(const Option& opt)
 
         Mat weight_data_int8;
 
-        Option opt_q = opt;
+        Option opt_q;
+        opt_q.num_threads = 1;
         opt_q.blob_allocator = weight_data.allocator;
         opt_q.use_packing_layout = false;
         quantize_to_int8(weight_data_r2, weight_data_int8, weight_data_int8_scales, opt_q);
