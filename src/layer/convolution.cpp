@@ -116,8 +116,6 @@ int Convolution::load_model(const ModelBin& mb)
 
         weight_data = weight_data_int8.reshape(weight_data_size);
     }
-#else
-    (void)(opt);
 #endif // NCNN_INT8
 
     return 0;
