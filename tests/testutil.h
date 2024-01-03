@@ -18,20 +18,19 @@
 #include "cpu.h"
 #include "layer.h"
 #include "mat.h"
-#include "prng.h"
 
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
-
-static struct prng_rand_t g_prng_rand_state;
-
-#define SRAND(seed) prng_srand(seed, &g_prng_rand_state)
-#define RAND()      prng_rand(&g_prng_rand_state)
 
 #define TEST_LAYER_DISABLE_AUTO_INPUT_PACKING (1 << 0)
 #define TEST_LAYER_DISABLE_AUTO_INPUT_CASTING (1 << 1)
 #define TEST_LAYER_DISABLE_GPU_TESTING        (1 << 2)
 #define TEST_LAYER_ENABLE_FORCE_INPUT_PACK8   (1 << 3)
+
+void SRAND(int seed);
+
+uint64_t RAND();
 
 float RandomFloat(float a = -1.2f, float b = 1.2f);
 

@@ -17,6 +17,7 @@
 #include "cpu.h"
 #include "layer.h"
 #include "mat.h"
+#include "prng.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -25,6 +26,18 @@
 #include "command.h"
 #include "gpu.h"
 #endif // NCNN_VULKAN
+
+static struct prng_rand_t g_prng_rand_state;
+
+void SRAND(int seed)
+{
+    prng_srand(seed, &g_prng_rand_state);
+}
+
+uint64_t RAND()
+{
+    return prng_rand(&g_prng_rand_state);
+}
 
 float RandomFloat(float a, float b)
 {
