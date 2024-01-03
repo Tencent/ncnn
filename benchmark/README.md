@@ -7364,6 +7364,7 @@ cooling_down = 0
 
 - Platform: Xunlei OneCloud (玩客云)
 - OS: Armbian buster (20.12) armv7l
+- Compiler: gcc version 8.3.0 (Debian 8.3.0-6)
 - ncnn tag: 20240102
 
 ```
