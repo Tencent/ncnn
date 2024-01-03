@@ -167,6 +167,14 @@ static int test_convolution_int8(int w, int h, int c, int outch, int kernel, int
     ncnn::Mat weight_scales = scales_mat(weights[0], outch, c * kernel * kernel, c * kernel * kernel);
     ncnn::Mat input_scales = scales_mat(a, 1, w * h * c, a.cstep);
     ncnn::Mat top_scales = requant ? scales_mat(a, 1, w * h * c, a.cstep) : ncnn::Mat();
+
+    if (kernel == 3 && dilation == 1 && stride == 1)
+    {
+        // test for 6bit quant
+        for (int i = 0; i < weight_scales.w; i++)
+            weight_scales[i] = weight_scales[i] / 4.f;
+    }
+
     if (bias)
     {
         weights[1] = RandomMat(outch);
