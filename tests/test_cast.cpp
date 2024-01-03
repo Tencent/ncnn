@@ -12,7 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "layer/cast.h"
 #include "testutil.h"
 
 static int cast_cpu_naive(const ncnn::Mat& a, ncnn::Mat& b, int type_from, int type_to)
@@ -29,7 +28,7 @@ static int cast_cpu_naive(const ncnn::Mat& a, ncnn::Mat& b, int type_from, int t
     opt.use_int8_inference = false;
     opt.use_packing_layout = false;
 
-    ncnn::Layer* op = ncnn::create_layer("Cast");
+    ncnn::Layer* op = ncnn::create_layer_naive("Cast");
 
     op->load_param(pd);
 
@@ -39,7 +38,7 @@ static int cast_cpu_naive(const ncnn::Mat& a, ncnn::Mat& b, int type_from, int t
 
     op->create_pipeline(opt);
 
-    ((ncnn::Cast*)op)->ncnn::Cast::forward(a, b, opt);
+    op->forward(a, b, opt);
 
     op->destroy_pipeline(opt);
 

@@ -12,7 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "layer/crop.h"
 #include "testutil.h"
 
 static int test_crop(const ncnn::Mat& a, int woffset, int hoffset, int doffset, int coffset, const ncnn::Mat& ref)
@@ -37,7 +36,7 @@ static int test_crop(const ncnn::Mat& a, int woffset, int hoffset, int doffset, 
     ab[0] = a;
     ab[1] = ref;
 
-    int ret = test_layer<ncnn::Crop>("Crop", pd, weights, ab);
+    int ret = test_layer("Crop", pd, weights, ab);
     if (ret != 0)
     {
         fprintf(stderr, "test_crop failed a.dims=%d a=(%d %d %d %d) woffset=%d hoffset=%d doffset=%d coffset=%d ref.dims=%d ref=(%d %d %d %d)\n", a.dims, a.w, a.h, a.d, a.c, woffset, hoffset, doffset, coffset, ref.dims, ref.w, ref.h, ref.d, ref.c);

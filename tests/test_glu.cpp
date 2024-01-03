@@ -10,7 +10,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "layer/glu.h"
 #include "testutil.h"
 
 static int test_glu(const ncnn::Mat& a, int axis)
@@ -20,7 +19,7 @@ static int test_glu(const ncnn::Mat& a, int axis)
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer<ncnn::GLU>("GLU", pd, weights, a);
+    int ret = test_layer("GLU", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_glu failed a.dims=%d a=(%d %d %d) axis=%d\n", a.dims, a.w, a.h, a.c, axis);

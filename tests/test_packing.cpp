@@ -12,7 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "layer/packing.h"
 #include "testutil.h"
 
 static int test_packing_cpu_fp32(const ncnn::Mat& a, int in_elempack, int out_elempack)
@@ -189,7 +188,6 @@ static int test_packing_cpu(const ncnn::Mat& a, int in_elempack, int out_elempac
 }
 
 #if NCNN_VULKAN
-#include "layer/vulkan/packing_vulkan.h"
 
 static int test_packing_gpu_buffer(const ncnn::Mat& a, int in_elempack, int out_elempack)
 {

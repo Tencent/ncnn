@@ -12,7 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "layer/deconvolution1d.h"
 #include "testutil.h"
 
 static int test_deconvolution1d(int w, int h, int outh, int kernel, int dilation, int stride, int pad, int bias, int output_pad_right, int output_w)
@@ -47,7 +46,7 @@ static int test_deconvolution1d(int w, int h, int outh, int kernel, int dilation
     weights[0] = RandomMat(outh * h * kernel);
     weights[1] = RandomMat(outh);
 
-    int ret = test_layer<ncnn::Deconvolution1D>("Deconvolution1D", pd, weights, a);
+    int ret = test_layer("Deconvolution1D", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_deconvolution1d failed w=%d h=%d outh=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%f,%f] output_pad_right=%d output_w=%d\n", w, h, outh, kernel, dilation, stride, pad, bias, activation_type, activation_params[0], activation_params[1], output_pad_right, output_w);
@@ -138,7 +137,7 @@ static int test_deconvolution1d_dynamic(int w, int h, int outh, int kernel, int 
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer<ncnn::Deconvolution1D>("Deconvolution1D", pd, weights, as);
+    int ret = test_layer("Deconvolution1D", pd, weights, as);
     if (ret != 0)
     {
         fprintf(stderr, "test_deconvolution1d_dynamic failed w=%d h=%d outh=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%f,%f] output_pad_right=%d output_w=%d\n", w, h, outh, kernel, dilation, stride, pad, bias, activation_type, activation_params[0], activation_params[1], output_pad_right, output_w);

@@ -12,7 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "layer/reduction.h"
 #include "testutil.h"
 
 #define OP_TYPE_MAX 11
@@ -86,7 +85,7 @@ static int test_reduction(const ncnn::Mat& _a, float coeff, int keepdims)
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer<ncnn::Reduction>("Reduction", pd, weights, a);
+    int ret = test_layer("Reduction", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_reduction failed a.dims=%d a=(%d %d %d %d) op_type=%d coeff=%f keepdims=%d reduce_all=1\n", a.dims, a.w, a.h, a.d, a.c, op_type, coeff, keepdims);
@@ -113,7 +112,7 @@ static int test_reduction(const ncnn::Mat& _a, float coeff, int keepdims, const 
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer<ncnn::Reduction>("Reduction", pd, weights, a);
+    int ret = test_layer("Reduction", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_reduction failed a.dims=%d a=(%d %d %d %d) op_type=%d coeff=%f keepdims=%d", a.dims, a.w, a.h, a.d, a.c, op_type, coeff, keepdims);
