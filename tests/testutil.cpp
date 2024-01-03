@@ -625,6 +625,10 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     }
 
     ncnn::Layer* op = ncnn::create_layer_vulkan(typeindex);
+    if (!op)
+    {
+        return 233;
+    }
 
     if (!op->support_vulkan)
     {
@@ -1121,6 +1125,10 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     }
 
     ncnn::Layer* op = ncnn::create_layer_vulkan(typeindex);
+    if (!op)
+    {
+        return 233;
+    }
 
     if (!op->support_vulkan)
     {
