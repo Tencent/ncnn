@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Pooling_mips : virtual public Pooling
+class Pooling_mips : public Pooling
 {
 public:
     Pooling_mips();

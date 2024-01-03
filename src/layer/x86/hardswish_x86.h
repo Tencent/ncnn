@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class HardSwish_x86 : virtual public HardSwish
+class HardSwish_x86 : public HardSwish
 {
 public:
     HardSwish_x86();

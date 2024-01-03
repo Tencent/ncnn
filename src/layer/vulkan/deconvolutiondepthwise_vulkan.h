@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class DeconvolutionDepthWise_vulkan : virtual public DeconvolutionDepthWise
+class DeconvolutionDepthWise_vulkan : public DeconvolutionDepthWise
 {
 public:
     DeconvolutionDepthWise_vulkan();

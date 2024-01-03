@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Scale_vulkan : virtual public Scale
+class Scale_vulkan : public Scale
 {
 public:
     Scale_vulkan();

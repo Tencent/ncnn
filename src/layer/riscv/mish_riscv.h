@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Mish_riscv : virtual public Mish
+class Mish_riscv : public Mish
 {
 public:
     Mish_riscv();

@@ -6,6 +6,10 @@ static const layer_registry_entry layer_registry[] = {
 @layer_registry@
 };
 
+static const layer_registry_entry layer_registry_arch[] = {
+@layer_registry_arch@
+};
+
 #if NCNN_RUNTIME_CPU && NCNN_AVX512
 static const layer_registry_entry layer_registry_avx512[] = {
 @layer_registry_avx512@

@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class GRU_arm : virtual public GRU
+class GRU_arm : public GRU
 {
 public:
     GRU_arm();

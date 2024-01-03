@@ -208,6 +208,15 @@ Layer* create_layer(const char* type)
     return create_layer(index);
 }
 
+Layer* create_layer_naive(const char* type)
+{
+    int index = layer_to_index(type);
+    if (index == -1)
+        return 0;
+
+    return create_layer_naive(index);
+}
+
 Layer* create_layer_cpu(const char* type)
 {
     int index = layer_to_index(type);
@@ -472,6 +481,20 @@ Layer* create_layer(int index)
     return layer_final;
 }
 
+Layer* create_layer_naive(int index)
+{
+    if (index < 0 || index >= layer_registry_entry_count)
+        return 0;
+
+    layer_creator_func layer_creator = layer_registry[index].creator;
+    if (!layer_creator)
+        return 0;
+
+    Layer* layer = layer_creator(0);
+    layer->typeindex = index;
+    return layer;
+}
+
 Layer* create_layer_cpu(int index)
 {
     if (index < 0 || index >= layer_registry_entry_count)
@@ -529,6 +552,11 @@ Layer* create_layer_cpu(int index)
     }
     else
 #endif // NCNN_RUNTIME_CPU && NCNN_RVV
+    {
+        layer_creator = layer_registry_arch[index].creator;
+    }
+
+    if (!layer_creator)
     {
         layer_creator = layer_registry[index].creator;
     }

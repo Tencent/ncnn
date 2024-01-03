@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class ReLU_vulkan : virtual public ReLU
+class ReLU_vulkan : public ReLU
 {
 public:
     ReLU_vulkan();

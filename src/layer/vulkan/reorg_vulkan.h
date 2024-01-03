@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Reorg_vulkan : virtual public Reorg
+class Reorg_vulkan : public Reorg
 {
 public:
     Reorg_vulkan();

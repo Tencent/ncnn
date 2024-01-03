@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Dequantize_x86 : virtual public Dequantize
+class Dequantize_x86 : public Dequantize
 {
 public:
     Dequantize_x86();

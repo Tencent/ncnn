@@ -325,7 +325,7 @@ static int CompareMat(const std::vector<ncnn::Mat>& a, const std::vector<ncnn::M
 template<typename T>
 int test_layer_naive(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn::Mat>& weights, const std::vector<ncnn::Mat>& a, int top_blob_count, std::vector<ncnn::Mat>& b, void (*func)(T*), int flag)
 {
-    ncnn::Layer* op = ncnn::create_layer(typeindex);
+    ncnn::Layer* op = ncnn::create_layer_naive(typeindex);
 
     if (func)
     {
@@ -385,7 +385,7 @@ int test_layer_naive(int typeindex, const ncnn::ParamDict& pd, const std::vector
 template<typename T>
 int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn::Mat>& weights, const ncnn::Option& _opt, const std::vector<ncnn::Mat>& a, int top_blob_count, std::vector<ncnn::Mat>& c, const std::vector<ncnn::Mat>& top_shapes, void (*func)(T*), int flag)
 {
-    ncnn::Layer* op = ncnn::create_layer(typeindex);
+    ncnn::Layer* op = ncnn::create_layer_cpu(typeindex);
 
     if (!op->support_packing && _opt.use_packing_layout)
     {
@@ -626,7 +626,7 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
         return 233;
     }
 
-    ncnn::Layer* op = ncnn::create_layer(typeindex);
+    ncnn::Layer* op = ncnn::create_layer_vulkan(typeindex);
 
     if (!op->support_vulkan)
     {
@@ -855,7 +855,7 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
 template<typename T>
 int test_layer_naive(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn::Mat>& weights, const ncnn::Mat& a, ncnn::Mat& b, void (*func)(T*), int flag)
 {
-    ncnn::Layer* op = ncnn::create_layer(typeindex);
+    ncnn::Layer* op = ncnn::create_layer_naive(typeindex);
 
     if (func)
     {
@@ -902,7 +902,7 @@ int test_layer_naive(int typeindex, const ncnn::ParamDict& pd, const std::vector
 template<typename T>
 int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn::Mat>& weights, const ncnn::Option& _opt, const ncnn::Mat& a, ncnn::Mat& c, const ncnn::Mat& top_shape, void (*func)(T*), int flag)
 {
-    ncnn::Layer* op = ncnn::create_layer(typeindex);
+    ncnn::Layer* op = ncnn::create_layer_cpu(typeindex);
 
     if (!op->support_packing && _opt.use_packing_layout)
     {
@@ -1126,7 +1126,7 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
         return 233;
     }
 
-    ncnn::Layer* op = ncnn::create_layer(typeindex);
+    ncnn::Layer* op = ncnn::create_layer_vulkan(typeindex);
 
     if (!op->support_vulkan)
     {

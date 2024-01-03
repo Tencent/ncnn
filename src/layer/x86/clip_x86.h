@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Clip_x86 : virtual public Clip
+class Clip_x86 : public Clip
 {
 public:
     Clip_x86();

@@ -94,6 +94,13 @@ macro(ncnn_add_layer class)
         source_group ("sources\\\\layers" FILES "${CMAKE_CURRENT_SOURCE_DIR}/layer/${name}.cpp")
     endif()
 
+    if(WITH_LAYER_${name}_${NCNN_TARGET_ARCH})
+        set(layer_declaration "${layer_declaration}#include \"layer/${NCNN_TARGET_ARCH}/${name}_${NCNN_TARGET_ARCH}.h\"\n")
+        set(layer_declaration "${layer_declaration}namespace ncnn { DEFINE_LAYER_CREATOR(${class}_${NCNN_TARGET_ARCH}) }\n")
+
+        source_group ("sources\\\\layers\\\\${NCNN_TARGET_ARCH}" FILES "${CMAKE_CURRENT_SOURCE_DIR}/layer/${NCNN_TARGET_ARCH}/${name}_${NCNN_TARGET_ARCH}.cpp")
+    endif()
+
     if(WITH_LAYER_${name}_vulkan)
         set(layer_declaration "${layer_declaration}#include \"layer/vulkan/${name}_vulkan.h\"\n")
         set(layer_declaration "${layer_declaration}namespace ncnn { DEFINE_LAYER_CREATOR(${class}_vulkan) }\n")
@@ -108,17 +115,16 @@ macro(ncnn_add_layer class)
         source_group ("sources\\\\layers\\\\vulkan" FILES "${CMAKE_CURRENT_SOURCE_DIR}/layer/vulkan/${name}_vulkan.cpp")
     endif()
 
-    if(WITH_LAYER_${name}_${NCNN_TARGET_ARCH})
-        set(layer_declaration "${layer_declaration}#include \"layer/${NCNN_TARGET_ARCH}/${name}_${NCNN_TARGET_ARCH}.h\"\n")
-        set(layer_declaration "${layer_declaration}namespace ncnn { DEFINE_LAYER_CREATOR(${class}_${NCNN_TARGET_ARCH}) }\n")
-
-        source_group ("sources\\\\layers\\\\${NCNN_TARGET_ARCH}" FILES "${CMAKE_CURRENT_SOURCE_DIR}/layer/${NCNN_TARGET_ARCH}/${name}_${NCNN_TARGET_ARCH}.cpp")
-    endif()
-
     if(WITH_LAYER_${name})
         set(layer_registry "${layer_registry}#if NCNN_STRING\n{\"${class}\", ${class}_layer_creator},\n#else\n{${class}_layer_creator},\n#endif\n")
     else()
         set(layer_registry "${layer_registry}#if NCNN_STRING\n{\"${class}\", 0},\n#else\n{0},\n#endif\n")
+    endif()
+
+    if(WITH_LAYER_${name}_${NCNN_TARGET_ARCH})
+        set(layer_registry_arch "${layer_registry_arch}#if NCNN_STRING\n{\"${class}\", ${class}_${NCNN_TARGET_ARCH}_layer_creator},\n#else\n{${class}_${NCNN_TARGET_ARCH}_layer_creator},\n#endif\n")
+    else()
+        set(layer_registry_arch "${layer_registry_arch}#if NCNN_STRING\n{\"${class}\", 0},\n#else\n{0},\n#endif\n")
     endif()
 
     if(WITH_LAYER_${name}_vulkan)

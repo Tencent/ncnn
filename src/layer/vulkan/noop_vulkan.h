@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Noop_vulkan : virtual public Noop
+class Noop_vulkan : public Noop
 {
 public:
     Noop_vulkan();

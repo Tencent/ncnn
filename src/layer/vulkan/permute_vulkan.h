@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Permute_vulkan : virtual public Permute
+class Permute_vulkan : public Permute
 {
 public:
     Permute_vulkan();

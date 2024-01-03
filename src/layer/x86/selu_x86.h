@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class SELU_x86 : virtual public SELU
+class SELU_x86 : public SELU
 {
 public:
     SELU_x86();

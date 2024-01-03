@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Split_vulkan : virtual public Split
+class Split_vulkan : public Split
 {
 public:
     Split_vulkan();

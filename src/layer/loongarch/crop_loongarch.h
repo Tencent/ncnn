@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Crop_loongarch : virtual public Crop
+class Crop_loongarch : public Crop
 {
 public:
     Crop_loongarch();

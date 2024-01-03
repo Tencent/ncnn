@@ -22,7 +22,7 @@
 
 namespace ncnn {
 
-class HardSwish_riscv : virtual public HardSwish
+class HardSwish_riscv : public HardSwish
 {
 public:
     HardSwish_riscv();

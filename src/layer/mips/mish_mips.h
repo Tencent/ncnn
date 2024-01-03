@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Mish_mips : virtual public Mish
+class Mish_mips : public Mish
 {
 public:
     Mish_mips();

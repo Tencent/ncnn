@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Erf_vulkan : virtual public Erf
+class Erf_vulkan : public Erf
 {
 public:
     Erf_vulkan();
