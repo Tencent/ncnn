@@ -1504,6 +1504,13 @@ int Net::load_param(const DataReader& dr)
         // pull out layer specific feature disabled set
         layer->featmask = pd.get(31, 0);
 
+        int lr = layer->load_param(pd);
+        if (lr != 0)
+        {
+            NCNN_LOGE("layer load_param %d %s failed", i, layer_name);
+            continue;
+        }
+
         if (layer->support_int8_storage)
         {
             // no int8 gpu support yet
@@ -1516,19 +1523,7 @@ int Net::load_param(const DataReader& dr)
         {
             if (!layer->support_image_storage) opt1.use_image_storage = false;
         }
-        else
-        {
-            layer->vkdev = 0;
-            layer->support_vulkan = false;
-        }
 #endif // NCNN_VULKAN
-
-        int lr = layer->load_param(pd);
-        if (lr != 0)
-        {
-            NCNN_LOGE("layer load_param %d %s failed", i, layer_name);
-            continue;
-        }
 
         if (layer_support_vulkan && (!layer->support_vulkan || !opt1.use_vulkan_compute))
         {
@@ -1800,11 +1795,6 @@ int Net::load_param_bin(const DataReader& dr)
         if (opt1.use_vulkan_compute)
         {
             if (!layer->support_image_storage) opt1.use_image_storage = false;
-        }
-        else
-        {
-            layer->vkdev = 0;
-            layer->support_vulkan = false;
         }
 #endif // NCNN_VULKAN
 
