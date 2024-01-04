@@ -53,7 +53,7 @@ int InnerProduct_x86::create_pipeline(const Option& opt)
 {
     //     if (opt.use_packing_layout)
     {
-        flatten = ncnn::create_layer(ncnn::LayerType::Flatten);
+        flatten = ncnn::create_layer_cpu(ncnn::LayerType::Flatten);
 
         ncnn::ParamDict pd;
 

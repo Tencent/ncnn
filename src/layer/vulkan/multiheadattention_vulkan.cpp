@@ -49,7 +49,7 @@ int MultiHeadAttention_vulkan::create_pipeline(const Option& opt)
     {
         const float inv_sqrt_embed_dim_per_head = 1.f / sqrtf(embed_dim_per_head);
 
-        q_gemm = ncnn::create_layer(ncnn::LayerType::Gemm);
+        q_gemm = ncnn::create_layer_vulkan(ncnn::LayerType::Gemm);
         q_gemm->vkdev = vkdev;
         ncnn::ParamDict pd;
         pd.set(0, inv_sqrt_embed_dim_per_head);
@@ -75,7 +75,7 @@ int MultiHeadAttention_vulkan::create_pipeline(const Option& opt)
     }
 
     {
-        k_gemm = ncnn::create_layer(ncnn::LayerType::Gemm);
+        k_gemm = ncnn::create_layer_vulkan(ncnn::LayerType::Gemm);
         k_gemm->vkdev = vkdev;
         ncnn::ParamDict pd;
         pd.set(2, 0);         // transA
@@ -99,7 +99,7 @@ int MultiHeadAttention_vulkan::create_pipeline(const Option& opt)
     }
 
     {
-        v_gemm = ncnn::create_layer(ncnn::LayerType::Gemm);
+        v_gemm = ncnn::create_layer_vulkan(ncnn::LayerType::Gemm);
         v_gemm->vkdev = vkdev;
         ncnn::ParamDict pd;
         pd.set(2, 0);         // transA
@@ -182,7 +182,7 @@ int MultiHeadAttention_vulkan::create_pipeline(const Option& opt)
     }
 
     {
-        qk_softmax = ncnn::create_layer(ncnn::LayerType::Softmax);
+        qk_softmax = ncnn::create_layer_vulkan(ncnn::LayerType::Softmax);
         qk_softmax->vkdev = vkdev;
         ncnn::ParamDict pd;
         pd.set(0, -1);
@@ -193,7 +193,7 @@ int MultiHeadAttention_vulkan::create_pipeline(const Option& opt)
     }
 
     {
-        o_gemm = ncnn::create_layer(ncnn::LayerType::Gemm);
+        o_gemm = ncnn::create_layer_vulkan(ncnn::LayerType::Gemm);
         o_gemm->vkdev = vkdev;
         ncnn::ParamDict pd;
         pd.set(2, 1);         // transA

@@ -593,7 +593,7 @@ int Convolution_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<
         bias_data_flattened.elempack = 1;
     }
 
-    ncnn::Layer* op = ncnn::create_layer(ncnn::LayerType::Convolution);
+    ncnn::Layer* op = ncnn::create_layer_cpu(ncnn::LayerType::Convolution);
 
     ncnn::ParamDict pd;
     pd.set(0, _num_output);

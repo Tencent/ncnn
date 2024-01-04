@@ -119,7 +119,7 @@ int DeconvolutionDepthWise_mips::create_group_ops(const Option& opt)
         if (bias_term)
             bias_data_g = bias_data.range(num_output_g * g, num_output_g);
 
-        ncnn::Layer* op = ncnn::create_layer(ncnn::LayerType::Deconvolution);
+        ncnn::Layer* op = ncnn::create_layer_cpu(ncnn::LayerType::Deconvolution);
 
         // set param
         ncnn::ParamDict pd;
@@ -476,7 +476,7 @@ int DeconvolutionDepthWise_mips::forward(const std::vector<Mat>& bottom_blobs, s
         bias_data_flattened.elempack = 1;
     }
 
-    ncnn::Layer* op = ncnn::create_layer(ncnn::LayerType::DeconvolutionDepthWise);
+    ncnn::Layer* op = ncnn::create_layer_cpu(ncnn::LayerType::DeconvolutionDepthWise);
 
     ncnn::ParamDict pd;
     pd.set(0, _num_output);

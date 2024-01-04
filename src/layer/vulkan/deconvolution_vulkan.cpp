@@ -109,7 +109,7 @@ int Deconvolution_vulkan::create_pipeline(const Option& _opt)
     }
 
     {
-        crop = ncnn::create_layer(ncnn::LayerType::Crop);
+        crop = ncnn::create_layer_vulkan(ncnn::LayerType::Crop);
         crop->vkdev = vkdev;
 
         crop->bottom_shapes.resize(1);
@@ -128,7 +128,7 @@ int Deconvolution_vulkan::create_pipeline(const Option& _opt)
     }
 
     {
-        output_crop = ncnn::create_layer(ncnn::LayerType::Crop);
+        output_crop = ncnn::create_layer_vulkan(ncnn::LayerType::Crop);
         output_crop->vkdev = vkdev;
 
         output_crop->bottom_shapes.resize(1);

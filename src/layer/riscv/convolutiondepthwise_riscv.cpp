@@ -146,7 +146,7 @@ int ConvolutionDepthWise_riscv::create_group_ops(const Option& opt)
         if (bias_term)
             bias_data_g = bias_data.range(num_output_g * g, num_output_g);
 
-        ncnn::Layer* op = ncnn::create_layer(ncnn::LayerType::Convolution);
+        ncnn::Layer* op = ncnn::create_layer_cpu(ncnn::LayerType::Convolution);
 
         // set param
         ncnn::ParamDict pd;
@@ -613,7 +613,7 @@ int ConvolutionDepthWise_riscv::forward(const std::vector<Mat>& bottom_blobs, st
         bias_data_flattened.elempack = 1;
     }
 
-    ncnn::Layer* op = ncnn::create_layer(ncnn::LayerType::ConvolutionDepthWise);
+    ncnn::Layer* op = ncnn::create_layer_cpu(ncnn::LayerType::ConvolutionDepthWise);
 
     ncnn::ParamDict pd;
     pd.set(0, _num_output);

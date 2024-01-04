@@ -128,7 +128,7 @@ int Pooling_vulkan::create_pipeline(const Option& _opt)
     }
 
     {
-        padding = ncnn::create_layer(ncnn::LayerType::Padding);
+        padding = ncnn::create_layer_vulkan(ncnn::LayerType::Padding);
         padding->vkdev = vkdev;
 
         padding->bottom_shapes.resize(1);

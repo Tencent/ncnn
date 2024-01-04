@@ -46,7 +46,7 @@ InnerProduct_arm::InnerProduct_arm()
 int InnerProduct_arm::create_pipeline(const Option& opt)
 {
     {
-        flatten = ncnn::create_layer(ncnn::LayerType::Flatten);
+        flatten = ncnn::create_layer_cpu(ncnn::LayerType::Flatten);
 
         ncnn::ParamDict pd;
 

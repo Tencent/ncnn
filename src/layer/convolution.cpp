@@ -210,7 +210,7 @@ int Convolution::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         if (bottom_blob.w * bottom_blob.elempack == num_input)
         {
             // call InnerProduct
-            ncnn::Layer* op = ncnn::create_layer(ncnn::LayerType::InnerProduct);
+            ncnn::Layer* op = ncnn::create_layer_cpu(ncnn::LayerType::InnerProduct);
 
             // set param
             ncnn::ParamDict pd;

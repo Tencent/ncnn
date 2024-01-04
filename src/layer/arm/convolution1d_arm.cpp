@@ -196,7 +196,7 @@ int Convolution1D_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector
         bias_data_flattened.elempack = 1;
     }
 
-    ncnn::Layer* op = ncnn::create_layer(ncnn::LayerType::Convolution1D);
+    ncnn::Layer* op = ncnn::create_layer_cpu(ncnn::LayerType::Convolution1D);
 
     ncnn::ParamDict pd;
     pd.set(0, _num_output);

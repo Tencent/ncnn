@@ -117,7 +117,7 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
     if (kernel_w == 1 && kernel_h == 1)
     {
         {
-            reshape_1x1xw = ncnn::create_layer(ncnn::LayerType::Reshape);
+            reshape_1x1xw = ncnn::create_layer_vulkan(ncnn::LayerType::Reshape);
             reshape_1x1xw->vkdev = vkdev;
 
             reshape_1x1xw->bottom_shapes.resize(1);
@@ -136,7 +136,7 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
         }
 
         {
-            reshape_w = ncnn::create_layer(ncnn::LayerType::Reshape);
+            reshape_w = ncnn::create_layer_vulkan(ncnn::LayerType::Reshape);
             reshape_w->vkdev = vkdev;
 
             reshape_w->bottom_shapes.resize(1);
@@ -157,7 +157,7 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
     bool is_conv3x3s1d1 = kernel_w == 3 && kernel_h == 3 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1;
 
     {
-        padding = ncnn::create_layer(ncnn::LayerType::Padding);
+        padding = ncnn::create_layer_vulkan(ncnn::LayerType::Padding);
         padding->vkdev = vkdev;
 
         padding->bottom_shapes.resize(1);

@@ -42,7 +42,7 @@ int MultiHeadAttention_x86::create_pipeline(const Option& opt)
         const int embed_dim_per_head = embed_dim / num_heads;
         const float inv_sqrt_embed_dim_per_head = 1.f / sqrtf(embed_dim_per_head);
 
-        q_gemm = ncnn::create_layer(ncnn::LayerType::Gemm);
+        q_gemm = ncnn::create_layer_cpu(ncnn::LayerType::Gemm);
         ncnn::ParamDict pd;
         pd.set(0, inv_sqrt_embed_dim_per_head);
         pd.set(1, 1.f);
@@ -73,7 +73,7 @@ int MultiHeadAttention_x86::create_pipeline(const Option& opt)
     }
 
     {
-        k_gemm = ncnn::create_layer(ncnn::LayerType::Gemm);
+        k_gemm = ncnn::create_layer_cpu(ncnn::LayerType::Gemm);
         ncnn::ParamDict pd;
         pd.set(2, 0);         // transA
         pd.set(3, 1);         // transB
@@ -102,7 +102,7 @@ int MultiHeadAttention_x86::create_pipeline(const Option& opt)
     }
 
     {
-        v_gemm = ncnn::create_layer(ncnn::LayerType::Gemm);
+        v_gemm = ncnn::create_layer_cpu(ncnn::LayerType::Gemm);
         ncnn::ParamDict pd;
         pd.set(2, 0);         // transA
         pd.set(3, 1);         // transB
@@ -131,7 +131,7 @@ int MultiHeadAttention_x86::create_pipeline(const Option& opt)
     }
 
     {
-        qk_gemm = ncnn::create_layer(ncnn::LayerType::Gemm);
+        qk_gemm = ncnn::create_layer_cpu(ncnn::LayerType::Gemm);
         ncnn::ParamDict pd;
         pd.set(2, 1);                   // transA
         pd.set(3, 0);                   // transB
@@ -151,7 +151,7 @@ int MultiHeadAttention_x86::create_pipeline(const Option& opt)
         qk_gemm->create_pipeline(opt1);
     }
     {
-        qkv_gemm = ncnn::create_layer(ncnn::LayerType::Gemm);
+        qkv_gemm = ncnn::create_layer_cpu(ncnn::LayerType::Gemm);
         ncnn::ParamDict pd;
         pd.set(2, 0);   // transA
         pd.set(3, 1);   // transB
@@ -173,7 +173,7 @@ int MultiHeadAttention_x86::create_pipeline(const Option& opt)
     }
 
     {
-        qk_softmax = ncnn::create_layer(ncnn::LayerType::Softmax);
+        qk_softmax = ncnn::create_layer_cpu(ncnn::LayerType::Softmax);
         ncnn::ParamDict pd;
         pd.set(0, -1);
         pd.set(1, 1);
@@ -183,7 +183,7 @@ int MultiHeadAttention_x86::create_pipeline(const Option& opt)
     }
 
     {
-        o_gemm = ncnn::create_layer(ncnn::LayerType::Gemm);
+        o_gemm = ncnn::create_layer_cpu(ncnn::LayerType::Gemm);
         ncnn::ParamDict pd;
         pd.set(2, 1);         // transA
         pd.set(3, 1);         // transB

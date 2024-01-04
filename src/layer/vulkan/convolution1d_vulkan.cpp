@@ -47,7 +47,7 @@ int Convolution1D_vulkan::create_pipeline(const Option& _opt)
     int out_elempack = opt.use_shader_pack8 && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
 
     {
-        padding = ncnn::create_layer(ncnn::LayerType::Padding);
+        padding = ncnn::create_layer_vulkan(ncnn::LayerType::Padding);
         padding->vkdev = vkdev;
 
         ncnn::ParamDict pd;

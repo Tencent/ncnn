@@ -37,7 +37,7 @@ InnerProduct_loongarch::InnerProduct_loongarch()
 int InnerProduct_loongarch::create_pipeline(const Option& opt)
 {
     {
-        flatten = ncnn::create_layer(ncnn::LayerType::Flatten);
+        flatten = ncnn::create_layer_cpu(ncnn::LayerType::Flatten);
 
         ncnn::ParamDict pd;
 

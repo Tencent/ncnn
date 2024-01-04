@@ -214,7 +214,7 @@ int InnerProduct_vulkan::create_pipeline(const Option& _opt)
     }
 
     {
-        flatten = ncnn::create_layer(ncnn::LayerType::Flatten);
+        flatten = ncnn::create_layer_vulkan(ncnn::LayerType::Flatten);
         flatten->vkdev = vkdev;
 
         flatten->bottom_shapes.resize(1);

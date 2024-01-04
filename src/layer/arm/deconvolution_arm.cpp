@@ -85,7 +85,7 @@ int Deconvolution_arm::create_pipeline(const Option& opt)
     {
         const int maxk = kernel_w * kernel_h;
 
-        gemm = ncnn::create_layer(ncnn::LayerType::Gemm);
+        gemm = ncnn::create_layer_cpu(ncnn::LayerType::Gemm);
 
         ncnn::ParamDict pd;
         pd.set(2, 1);                 // transA
@@ -851,7 +851,7 @@ int Deconvolution_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector
         bias_data_flattened.elempack = 1;
     }
 
-    ncnn::Layer* op = ncnn::create_layer(ncnn::LayerType::Deconvolution);
+    ncnn::Layer* op = ncnn::create_layer_cpu(ncnn::LayerType::Deconvolution);
 
     ncnn::ParamDict pd;
     pd.set(0, _num_output);

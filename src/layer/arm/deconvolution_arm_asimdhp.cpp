@@ -45,7 +45,7 @@ int Deconvolution_arm::create_pipeline_fp16s(const Option& opt)
     {
         const int maxk = kernel_w * kernel_h;
 
-        gemm = ncnn::create_layer(ncnn::LayerType::Gemm);
+        gemm = ncnn::create_layer_cpu(ncnn::LayerType::Gemm);
 
         ncnn::ParamDict pd;
         pd.set(2, 1);                 // transA
