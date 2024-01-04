@@ -1828,8 +1828,6 @@ int Net::load_param_bin(const DataReader& dr)
                 return -1;
             }
 
-            layer_cpu->type = layer->type;
-            layer_cpu->name = layer->name;
             layer_cpu->bottoms = layer->bottoms;
             layer_cpu->tops = layer->tops;
             layer_cpu->bottom_shapes = layer->bottom_shapes;
