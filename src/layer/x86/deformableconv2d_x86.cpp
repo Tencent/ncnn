@@ -203,10 +203,7 @@ int DeformableConv2D_x86::create_pipeline(const Option& opt)
         deformableconv2d_transform_kernel_packed_sse(weight_data, weight_data_tm, num_input, num_output, kernel_w, kernel_h, elempack, out_elempack);
     }
 
-    if (opt.lightmode)
-    {
-        weight_data.release();
-    }
+    weight_data.release();
 
     return 0;
 }

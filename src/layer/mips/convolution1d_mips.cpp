@@ -78,6 +78,8 @@ int Convolution1D_mips::create_pipeline(const Option& opt)
         }
     }
 
+    weight_data.release();
+
     return 0;
 }
 

@@ -1150,6 +1150,9 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
         pipeline_convolution->create(shader_type_index, opt, specializations);
     }
 
+    weight_data.release();
+    bias_data.release();
+
     return 0;
 }
 

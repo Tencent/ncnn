@@ -43,6 +43,8 @@ int Convolution1D_x86::create_pipeline(const Option& /*opt*/)
 
     convolution1d_transform_kernel_packed(weight_data, weight_data_tm, num_input, num_output, kernel_w);
 
+    weight_data.release();
+
     return 0;
 }
 

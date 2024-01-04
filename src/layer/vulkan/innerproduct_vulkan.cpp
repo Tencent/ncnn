@@ -364,6 +364,9 @@ int InnerProduct_vulkan::create_pipeline(const Option& _opt)
         return 0;
     }
 
+    weight_data.release();
+    bias_data.release();
+
     return 0;
 }
 

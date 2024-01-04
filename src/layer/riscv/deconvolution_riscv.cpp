@@ -148,10 +148,7 @@ int Deconvolution_riscv::create_pipeline(const Option& opt)
     {
     }
 
-    if (opt.lightmode)
-    {
-        weight_data.release();
-    }
+    weight_data.release();
 
     return 0;
 }
@@ -533,10 +530,7 @@ int Deconvolution_riscv::create_pipeline_fp16s(const Option& opt)
 
     ncnn::cast_float32_to_float16(bias_data, bias_data_fp16, opt);
 
-    if (opt.lightmode)
-    {
-        weight_data.release();
-    }
+    weight_data.release();
 
     return 0;
 }

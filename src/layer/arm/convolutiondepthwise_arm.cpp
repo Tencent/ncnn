@@ -119,10 +119,7 @@ int ConvolutionDepthWise_arm::create_pipeline(const Option& opt)
                 ncnn::cast_float32_to_bfloat16(weight_data, weight_data_tm, opt);
             }
 
-            if (opt.lightmode)
-            {
-                weight_data.release();
-            }
+            weight_data.release();
 
             return 0;
         }
@@ -164,10 +161,7 @@ int ConvolutionDepthWise_arm::create_pipeline(const Option& opt)
             }
         }
 
-        if (opt.lightmode)
-        {
-            weight_data.release();
-        }
+        weight_data.release();
 
         return 0;
     }
@@ -175,10 +169,7 @@ int ConvolutionDepthWise_arm::create_pipeline(const Option& opt)
     // group convolution
     create_group_ops(opt);
 
-    if (opt.lightmode)
-    {
-        weight_data.release();
-    }
+    weight_data.release();
 
     return 0;
 }
@@ -1031,10 +1022,7 @@ int ConvolutionDepthWise_arm::create_pipeline_int8_arm(const Option& opt)
             weight_data_tm = weight_data;
         }
 
-        if (opt.lightmode)
-        {
-            weight_data.release();
-        }
+        weight_data.release();
 
         return 0;
     }
@@ -1042,10 +1030,7 @@ int ConvolutionDepthWise_arm::create_pipeline_int8_arm(const Option& opt)
     // group convolution
     create_group_ops(opt);
 
-    if (opt.lightmode)
-    {
-        weight_data.release();
-    }
+    weight_data.release();
 
     return 0;
 }

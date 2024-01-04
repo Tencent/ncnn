@@ -334,10 +334,7 @@ int Convolution_x86::create_pipeline(const Option& opt)
 
         convolution_dilation1->create_pipeline(opt);
 
-        if (opt.lightmode)
-        {
-            weight_data.release();
-        }
+        weight_data.release();
 
         return 0;
     }
@@ -454,10 +451,7 @@ int Convolution_x86::create_pipeline(const Option& opt)
             }
         }
 
-        if (opt.lightmode)
-        {
-            weight_data.release();
-        }
+        weight_data.release();
 
         return 0;
     }
@@ -548,10 +542,7 @@ int Convolution_x86::create_pipeline(const Option& opt)
         }
     }
 
-    if (opt.lightmode)
-    {
-        weight_data.release();
-    }
+    weight_data.release();
 
     return 0;
 }
@@ -1259,10 +1250,7 @@ int Convolution_x86::create_pipeline_int8_x86(const Option& opt)
         scale_in_data[p] = scale_in;
     }
 
-    if (opt.lightmode)
-    {
-        weight_data.release();
-    }
+    weight_data.release();
 
     return 0;
 }

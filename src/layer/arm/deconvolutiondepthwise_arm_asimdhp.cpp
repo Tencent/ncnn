@@ -145,10 +145,7 @@ int DeconvolutionDepthWise_arm::create_pipeline_fp16s(const Option& opt)
         }
     }
 
-    if (opt.lightmode)
-    {
-        weight_data.release();
-    }
+    weight_data.release();
 
     return 0;
 }

@@ -436,6 +436,9 @@ int DeconvolutionDepthWise_vulkan::create_pipeline(const Option& _opt)
         pipeline_deconvolutiondepthwise_group_pack8to1->create(LayerShaderType::deconvolutiondepthwise_group_pack8to1, opt, specializations);
     }
 
+    weight_data.release();
+    bias_data.release();
+
     return 0;
 }
 

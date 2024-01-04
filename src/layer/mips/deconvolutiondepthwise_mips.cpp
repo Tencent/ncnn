@@ -82,16 +82,15 @@ int DeconvolutionDepthWise_mips::create_pipeline(const Option& opt)
             weight_data_tm = weight_data_transposed;
         }
 
+        weight_data.release();
+
         return 0;
     }
 
     // group convolution
     create_group_ops(opt);
 
-    if (opt.lightmode)
-    {
-        weight_data.release();
-    }
+    weight_data.release();
 
     return 0;
 }
