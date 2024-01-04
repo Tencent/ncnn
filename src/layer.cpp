@@ -317,11 +317,6 @@ public:
     virtual int load_param(const ParamDict& pd)
     {
         set_layer_properties();
-        {
-            int ret = layer_cpu->load_param(pd);
-            if (ret)
-                return ret;
-        }
 #if NCNN_VULKAN
         if (layer_vulkan && vkdev)
         {
@@ -329,18 +324,19 @@ public:
             if (ret)
                 return ret;
         }
+        else
 #endif // NCNN_VULKAN
+        {
+            int ret = layer_cpu->load_param(pd);
+            if (ret)
+                return ret;
+        }
         get_layer_properties();
         return 0;
     }
 
     virtual int load_model(const ModelBin& mb)
     {
-        {
-            int ret = layer_cpu->load_model(mb);
-            if (ret)
-                return ret;
-        }
 #if NCNN_VULKAN
         if (layer_vulkan && vkdev)
         {
@@ -348,7 +344,13 @@ public:
             if (ret)
                 return ret;
         }
+        else
 #endif // NCNN_VULKAN
+        {
+            int ret = layer_cpu->load_model(mb);
+            if (ret)
+                return ret;
+        }
         get_layer_properties();
         return 0;
     }
@@ -356,11 +358,6 @@ public:
     virtual int create_pipeline(const Option& opt)
     {
         set_layer_properties();
-        {
-            int ret = layer_cpu->create_pipeline(opt);
-            if (ret)
-                return ret;
-        }
 #if NCNN_VULKAN
         if (layer_vulkan && vkdev)
         {
@@ -368,18 +365,19 @@ public:
             if (ret)
                 return ret;
         }
+        else
 #endif // NCNN_VULKAN
+        {
+            int ret = layer_cpu->create_pipeline(opt);
+            if (ret)
+                return ret;
+        }
         get_layer_properties();
         return 0;
     }
 
     virtual int destroy_pipeline(const Option& opt)
     {
-        {
-            int ret = layer_cpu->destroy_pipeline(opt);
-            if (ret)
-                return ret;
-        }
 #if NCNN_VULKAN
         if (layer_vulkan && vkdev)
         {
@@ -387,7 +385,13 @@ public:
             if (ret)
                 return ret;
         }
+        else
 #endif // NCNN_VULKAN
+        {
+            int ret = layer_cpu->destroy_pipeline(opt);
+            if (ret)
+                return ret;
+        }
         return 0;
     }
 

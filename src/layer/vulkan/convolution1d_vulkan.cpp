@@ -29,15 +29,23 @@ Convolution1D_vulkan::Convolution1D_vulkan()
     pipeline_convolution1d = 0;
 }
 
-int Convolution1D_vulkan::create_pipeline(const Option& _opt)
+int Convolution1D_vulkan::load_param(const ParamDict& pd)
 {
+    int ret = Convolution1D::load_param(pd);
+    if (ret)
+        return ret;
+
     if (dynamic_weight)
     {
         support_vulkan = false;
         support_image_storage = false;
-        return 0;
     }
 
+    return 0;
+}
+
+int Convolution1D_vulkan::create_pipeline(const Option& _opt)
+{
     Option opt = _opt;
 
     const int maxk = kernel_w;

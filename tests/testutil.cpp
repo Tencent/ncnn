@@ -630,6 +630,8 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
         return 233;
     }
 
+    op->load_param(pd);
+
     if (!op->support_vulkan)
     {
         delete op;
@@ -650,8 +652,6 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
         op->bottom_shapes = a;
         op->top_shapes = top_shapes;
     }
-
-    op->load_param(pd);
 
     if (op->one_blob_only && a.size() != 1)
     {
@@ -1130,6 +1130,8 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
         return 233;
     }
 
+    op->load_param(pd);
+
     if (!op->support_vulkan)
     {
         delete op;
@@ -1152,8 +1154,6 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
         op->bottom_shapes[0] = a;
         op->top_shapes[0] = top_shape;
     }
-
-    op->load_param(pd);
 
     ncnn::ModelBinFromMatArray mb(weights.data());
 

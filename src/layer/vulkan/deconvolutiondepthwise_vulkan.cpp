@@ -42,15 +42,23 @@ DeconvolutionDepthWise_vulkan::DeconvolutionDepthWise_vulkan()
     pipeline_deconvolutiondepthwise_group_pack8to1 = 0;
 }
 
-int DeconvolutionDepthWise_vulkan::create_pipeline(const Option& _opt)
+int DeconvolutionDepthWise_vulkan::load_param(const ParamDict& pd)
 {
+    int ret = DeconvolutionDepthWise::load_param(pd);
+    if (ret)
+        return ret;
+
     if (dynamic_weight)
     {
         support_vulkan = false;
         support_image_storage = false;
-        return 0;
     }
 
+    return 0;
+}
+
+int DeconvolutionDepthWise_vulkan::create_pipeline(const Option& _opt)
+{
     Option opt = _opt;
     const Mat& shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
     const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
