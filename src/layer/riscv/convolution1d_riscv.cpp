@@ -95,8 +95,6 @@ int Convolution1D_riscv::create_pipeline(const Option& opt)
         }
     }
 
-    weight_data.release();
-
     return 0;
 }
 

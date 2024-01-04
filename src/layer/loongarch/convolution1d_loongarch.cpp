@@ -78,8 +78,6 @@ int Convolution1D_loongarch::create_pipeline(const Option& opt)
         }
     }
 
-    weight_data.release();
-
     return 0;
 }
 
