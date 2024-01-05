@@ -288,7 +288,7 @@ public:
         support_tensor_storage = 0;
 
 #if NCNN_VULKAN
-        if (layer_vulkan && vkdev)
+        if (layer_vulkan)
         {
             support_vulkan = layer_vulkan->support_vulkan;
             support_image_storage = layer_vulkan->support_image_storage;
@@ -318,81 +318,71 @@ public:
     {
         set_layer_properties();
 #if NCNN_VULKAN
-        if (layer_vulkan && vkdev)
+        if (layer_vulkan)
         {
-            int ret = layer_vulkan->load_param(pd);
-            if (ret)
-                return ret;
+            if (vkdev)
+            {
+                int ret = layer_vulkan->load_param(pd);
+                get_layer_properties();
+
+                if (layer_vulkan->support_vulkan)
+                    return ret;
+            }
+
+            // fallback to cpu layer
+            delete layer_vulkan;
+            layer_vulkan = 0;
         }
-        else
 #endif // NCNN_VULKAN
-        {
-            int ret = layer_cpu->load_param(pd);
-            if (ret)
-                return ret;
-        }
+
+        int ret = layer_cpu->load_param(pd);
         get_layer_properties();
-        return 0;
+        return ret;
     }
 
     virtual int load_model(const ModelBin& mb)
     {
 #if NCNN_VULKAN
-        if (layer_vulkan && vkdev)
+        if (layer_vulkan)
         {
             int ret = layer_vulkan->load_model(mb);
-            if (ret)
-                return ret;
+            get_layer_properties();
+            return ret;
         }
-        else
 #endif // NCNN_VULKAN
-        {
-            int ret = layer_cpu->load_model(mb);
-            if (ret)
-                return ret;
-        }
+
+        int ret = layer_cpu->load_model(mb);
         get_layer_properties();
-        return 0;
+        return ret;
     }
 
     virtual int create_pipeline(const Option& opt)
     {
         set_layer_properties();
 #if NCNN_VULKAN
-        if (layer_vulkan && vkdev)
+        if (layer_vulkan)
         {
             int ret = layer_vulkan->create_pipeline(opt);
-            if (ret)
-                return ret;
+            get_layer_properties();
+            return ret;
         }
-        else
 #endif // NCNN_VULKAN
-        {
-            int ret = layer_cpu->create_pipeline(opt);
-            if (ret)
-                return ret;
-        }
+
+        int ret = layer_cpu->create_pipeline(opt);
         get_layer_properties();
-        return 0;
+        return ret;
     }
 
     virtual int destroy_pipeline(const Option& opt)
     {
 #if NCNN_VULKAN
-        if (layer_vulkan && vkdev)
+        if (layer_vulkan)
         {
-            int ret = layer_vulkan->destroy_pipeline(opt);
-            if (ret)
-                return ret;
+            return layer_vulkan->destroy_pipeline(opt);
         }
-        else
 #endif // NCNN_VULKAN
-        {
-            int ret = layer_cpu->destroy_pipeline(opt);
-            if (ret)
-                return ret;
-        }
-        return 0;
+
+        return layer_cpu->destroy_pipeline(opt);
     }
 
 public:
@@ -420,47 +410,47 @@ public:
 public:
     virtual int upload_model(VkTransfer& cmd, const Option& opt)
     {
-        return layer_vulkan->upload_model(cmd, opt);
+        return layer_vulkan ? layer_vulkan->upload_model(cmd, opt) : -1;
     }
 
     virtual int forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const
     {
-        return layer_vulkan->forward(bottom_blobs, top_blobs, cmd, opt);
+        return layer_vulkan ? layer_vulkan->forward(bottom_blobs, top_blobs, cmd, opt) : -1;
     }
 
     virtual int forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const
     {
-        return layer_vulkan->forward(bottom_blob, top_blob, cmd, opt);
+        return layer_vulkan ? layer_vulkan->forward(bottom_blob, top_blob, cmd, opt) : -1;
     }
 
     virtual int forward(const std::vector<VkImageMat>& bottom_blobs, std::vector<VkImageMat>& top_blobs, VkCompute& cmd, const Option& opt) const
     {
-        return layer_vulkan->forward(bottom_blobs, top_blobs, cmd, opt);
+        return layer_vulkan ? layer_vulkan->forward(bottom_blobs, top_blobs, cmd, opt) : -1;
     }
 
     virtual int forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, VkCompute& cmd, const Option& opt) const
     {
-        return layer_vulkan->forward(bottom_blob, top_blob, cmd, opt);
+        return layer_vulkan ? layer_vulkan->forward(bottom_blob, top_blob, cmd, opt) : -1;
     }
 
     virtual int forward_inplace(std::vector<VkMat>& bottom_top_blobs, VkCompute& cmd, const Option& opt) const
     {
-        return layer_vulkan->forward_inplace(bottom_top_blobs, cmd, opt);
+        return layer_vulkan ? layer_vulkan->forward_inplace(bottom_top_blobs, cmd, opt) : -1;
     }
 
     virtual int forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const
     {
-        return layer_vulkan->forward_inplace(bottom_top_blob, cmd, opt);
+        return layer_vulkan ? layer_vulkan->forward_inplace(bottom_top_blob, cmd, opt) : -1;
     }
 
     virtual int forward_inplace(std::vector<VkImageMat>& bottom_top_blobs, VkCompute& cmd, const Option& opt) const
     {
-        return layer_vulkan->forward_inplace(bottom_top_blobs, cmd, opt);
+        return layer_vulkan ? layer_vulkan->forward_inplace(bottom_top_blobs, cmd, opt) : -1;
     }
 
     virtual int forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const
     {
-        return layer_vulkan->forward_inplace(bottom_top_blob, cmd, opt);
+        return layer_vulkan ? layer_vulkan->forward_inplace(bottom_top_blob, cmd, opt) : -1;
     }
 #endif // NCNN_VULKAN
 };
