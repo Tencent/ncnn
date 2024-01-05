@@ -44,8 +44,6 @@ ConvolutionDepthWise_vulkan::ConvolutionDepthWise_vulkan()
 int ConvolutionDepthWise_vulkan::load_param(const ParamDict& pd)
 {
     int ret = ConvolutionDepthWise::load_param(pd);
-    if (ret)
-        return ret;
 
     if (dynamic_weight)
     {
@@ -53,7 +51,7 @@ int ConvolutionDepthWise_vulkan::load_param(const ParamDict& pd)
         support_image_storage = false;
     }
 
-    return 0;
+    return ret;
 }
 
 int ConvolutionDepthWise_vulkan::create_pipeline(const Option& _opt)

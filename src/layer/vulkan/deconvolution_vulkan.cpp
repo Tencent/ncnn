@@ -36,8 +36,6 @@ Deconvolution_vulkan::Deconvolution_vulkan()
 int Deconvolution_vulkan::load_param(const ParamDict& pd)
 {
     int ret = Deconvolution::load_param(pd);
-    if (ret)
-        return ret;
 
     if (dynamic_weight)
     {
@@ -45,7 +43,7 @@ int Deconvolution_vulkan::load_param(const ParamDict& pd)
         support_image_storage = false;
     }
 
-    return 0;
+    return ret;
 }
 
 int Deconvolution_vulkan::create_pipeline(const Option& _opt)

@@ -32,8 +32,6 @@ Convolution1D_vulkan::Convolution1D_vulkan()
 int Convolution1D_vulkan::load_param(const ParamDict& pd)
 {
     int ret = Convolution1D::load_param(pd);
-    if (ret)
-        return ret;
 
     if (dynamic_weight)
     {
@@ -41,7 +39,7 @@ int Convolution1D_vulkan::load_param(const ParamDict& pd)
         support_image_storage = false;
     }
 
-    return 0;
+    return ret;
 }
 
 int Convolution1D_vulkan::create_pipeline(const Option& _opt)
