@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Concat_mips : virtual public Concat
+class Concat_mips : public Concat
 {
 public:
     Concat_mips();

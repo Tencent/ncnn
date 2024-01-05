@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class LRN_vulkan : virtual public LRN
+class LRN_vulkan : public LRN
 {
 public:
     LRN_vulkan();

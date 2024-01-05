@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class MultiHeadAttention_x86 : virtual public MultiHeadAttention
+class MultiHeadAttention_x86 : public MultiHeadAttention
 {
 public:
     MultiHeadAttention_x86();

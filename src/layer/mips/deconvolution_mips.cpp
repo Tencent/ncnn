@@ -126,10 +126,7 @@ int Deconvolution_mips::create_pipeline(const Option& opt)
     {
     }
 
-    if (opt.lightmode)
-    {
-        weight_data.release();
-    }
+    weight_data.release();
 
     return 0;
 }
@@ -348,7 +345,7 @@ int Deconvolution_mips::forward(const std::vector<Mat>& bottom_blobs, std::vecto
         bias_data_flattened.elempack = 1;
     }
 
-    ncnn::Layer* op = ncnn::create_layer(ncnn::LayerType::Deconvolution);
+    ncnn::Layer* op = ncnn::create_layer_cpu(ncnn::LayerType::Deconvolution);
 
     ncnn::ParamDict pd;
     pd.set(0, _num_output);

@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class ShuffleChannel_x86 : virtual public ShuffleChannel
+class ShuffleChannel_x86 : public ShuffleChannel
 {
 public:
     ShuffleChannel_x86();

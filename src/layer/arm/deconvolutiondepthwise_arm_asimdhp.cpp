@@ -100,7 +100,7 @@ int DeconvolutionDepthWise_arm::create_pipeline_fp16s(const Option& opt)
             if (bias_term)
                 bias_data_g = bias_data.range(num_output_g * g, num_output_g);
 
-            ncnn::Layer* op = ncnn::create_layer(ncnn::LayerType::Deconvolution);
+            ncnn::Layer* op = ncnn::create_layer_cpu(ncnn::LayerType::Deconvolution);
 
             // set param
             ncnn::ParamDict pd;
@@ -145,10 +145,7 @@ int DeconvolutionDepthWise_arm::create_pipeline_fp16s(const Option& opt)
         }
     }
 
-    if (opt.lightmode)
-    {
-        weight_data.release();
-    }
+    weight_data.release();
 
     return 0;
 }

@@ -297,7 +297,7 @@ int Convolution_x86::create_pipeline(const Option& opt)
 
     if (!opt.use_packing_layout && kernel_w == kernel_h && dilation_w != 1 && dilation_h == dilation_w && stride_w == 1 && stride_h == 1)
     {
-        convolution_dilation1 = ncnn::create_layer(ncnn::LayerType::Convolution);
+        convolution_dilation1 = ncnn::create_layer_cpu(ncnn::LayerType::Convolution);
 
         // set param
         ncnn::ParamDict pd;
@@ -334,10 +334,7 @@ int Convolution_x86::create_pipeline(const Option& opt)
 
         convolution_dilation1->create_pipeline(opt);
 
-        if (opt.lightmode)
-        {
-            weight_data.release();
-        }
+        weight_data.release();
 
         return 0;
     }
@@ -454,10 +451,7 @@ int Convolution_x86::create_pipeline(const Option& opt)
             }
         }
 
-        if (opt.lightmode)
-        {
-            weight_data.release();
-        }
+        weight_data.release();
 
         return 0;
     }
@@ -469,7 +463,7 @@ int Convolution_x86::create_pipeline(const Option& opt)
     {
         const int maxk = kernel_w * kernel_h;
 
-        gemm = ncnn::create_layer(ncnn::LayerType::Gemm);
+        gemm = ncnn::create_layer_cpu(ncnn::LayerType::Gemm);
 
         ncnn::ParamDict pd;
         pd.set(2, 0);                   // transA
@@ -548,10 +542,7 @@ int Convolution_x86::create_pipeline(const Option& opt)
         }
     }
 
-    if (opt.lightmode)
-    {
-        weight_data.release();
-    }
+    weight_data.release();
 
     return 0;
 }
@@ -1182,7 +1173,7 @@ int Convolution_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
         bias_data_flattened.elempack = 1;
     }
 
-    ncnn::Layer* op = ncnn::create_layer(ncnn::LayerType::Convolution);
+    ncnn::Layer* op = ncnn::create_layer_cpu(ncnn::LayerType::Convolution);
 
     ncnn::ParamDict pd;
     pd.set(0, _num_output);
@@ -1259,10 +1250,7 @@ int Convolution_x86::create_pipeline_int8_x86(const Option& opt)
         scale_in_data[p] = scale_in;
     }
 
-    if (opt.lightmode)
-    {
-        weight_data.release();
-    }
+    weight_data.release();
 
     return 0;
 }

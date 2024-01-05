@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Normalize_vulkan : virtual public Normalize
+class Normalize_vulkan : public Normalize
 {
 public:
     Normalize_vulkan();

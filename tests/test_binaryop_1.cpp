@@ -12,7 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "layer/binaryop.h"
 #include "testutil.h"
 
 #define OP_TYPE_MAX 12
@@ -67,7 +66,7 @@ static int test_binaryop(const ncnn::Mat& _a, const ncnn::Mat& _b, int flag)
     ab[0] = a;
     ab[1] = b;
 
-    int ret = test_layer<ncnn::BinaryOp>("BinaryOp", pd, weights, ab, 1, 0.001, 0, flag);
+    int ret = test_layer("BinaryOp", pd, weights, ab, 1, 0.001, 0, flag);
     if (ret != 0)
     {
         fprintf(stderr, "test_binaryop failed a.dims=%d a=(%d %d %d %d) b.dims=%d b=(%d %d %d %d) op_type=%d\n", a.dims, a.w, a.h, a.d, a.c, b.dims, b.w, b.h, b.d, b.c, op_type);
@@ -109,7 +108,7 @@ static int test_binaryop(const ncnn::Mat& _a, float b, int flag)
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer<ncnn::BinaryOp>("BinaryOp", pd, weights, a, 0.001, 0, flag);
+    int ret = test_layer("BinaryOp", pd, weights, a, 0.001, 0, flag);
     if (ret != 0)
     {
         fprintf(stderr, "test_binaryop failed a.dims=%d a=(%d %d %d %d) b=%f op_type=%d\n", a.dims, a.w, a.h, a.d, a.c, b, op_type);

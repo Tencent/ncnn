@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class MatMul_arm : virtual public MatMul
+class MatMul_arm : public MatMul
 {
 public:
     MatMul_arm();

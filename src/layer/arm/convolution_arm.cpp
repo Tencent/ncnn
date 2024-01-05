@@ -157,7 +157,7 @@ int Convolution_arm::create_pipeline(const Option& opt)
 
     if ((!support_packing || !opt.use_packing_layout) && !opt.use_bf16_storage && kernel_w == kernel_h && dilation_w != 1 && dilation_h == dilation_w && stride_w == 1 && stride_h == 1)
     {
-        convolution_dilation1 = ncnn::create_layer(ncnn::LayerType::Convolution);
+        convolution_dilation1 = ncnn::create_layer_cpu(ncnn::LayerType::Convolution);
 
         // set param
         ncnn::ParamDict pd;
@@ -194,6 +194,8 @@ int Convolution_arm::create_pipeline(const Option& opt)
 
         convolution_dilation1->create_pipeline(opt);
 
+        weight_data.release();
+
         return 0;
     }
 
@@ -222,10 +224,7 @@ int Convolution_arm::create_pipeline(const Option& opt)
         else
             conv3x3s1_winograd23_transform_kernel(weight_data, weight_winograd23_data, num_input, num_output, opt);
 
-        if (opt.lightmode)
-        {
-            weight_data.release();
-        }
+        weight_data.release();
 
         return 0;
     }
@@ -271,10 +270,7 @@ int Convolution_arm::create_pipeline(const Option& opt)
     {
         convolution_im2col_gemm_transform_kernel(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h, opt);
 
-        if (opt.lightmode)
-        {
-            weight_data.release();
-        }
+        weight_data.release();
 
         return 0;
     }
@@ -309,10 +305,7 @@ int Convolution_arm::create_pipeline(const Option& opt)
         convolution_transform_kernel_packed(weight_data, weight_data_tm, num_input, num_output, kernel_w, kernel_h);
     }
 
-    if (opt.lightmode)
-    {
-        weight_data.release();
-    }
+    weight_data.release();
 
     return 0;
 }
@@ -807,7 +800,7 @@ int Convolution_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
         bias_data_flattened.elempack = 1;
     }
 
-    ncnn::Layer* op = ncnn::create_layer(ncnn::LayerType::Convolution);
+    ncnn::Layer* op = ncnn::create_layer_cpu(ncnn::LayerType::Convolution);
 
     ncnn::ParamDict pd;
     pd.set(0, _num_output);
@@ -911,10 +904,7 @@ int Convolution_arm::create_pipeline_bf16s(const Option& opt)
         else
             conv3x3s1_winograd23_transform_kernel(weight_data, weight_winograd23_data, num_input, num_output, opt);
 
-        if (opt.lightmode)
-        {
-            weight_data.release();
-        }
+        weight_data.release();
 
         return 0;
     }
@@ -960,10 +950,7 @@ int Convolution_arm::create_pipeline_bf16s(const Option& opt)
     {
         convolution_im2col_gemm_transform_kernel_bf16s(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h, opt);
 
-        if (opt.lightmode)
-        {
-            weight_data.release();
-        }
+        weight_data.release();
 
         return 0;
     }
@@ -984,10 +971,7 @@ int Convolution_arm::create_pipeline_bf16s(const Option& opt)
         convolution_transform_kernel_packed_bf16s(weight_data, weight_data_tm, num_input, num_output, kernel_w, kernel_h);
     }
 
-    if (opt.lightmode)
-    {
-        weight_data.release();
-    }
+    weight_data.release();
 
     return 0;
 }
@@ -1300,10 +1284,7 @@ int Convolution_arm::create_pipeline_int8_arm(const Option& opt)
         scale_in_data[p] = scale_in;
     }
 
-    if (opt.lightmode)
-    {
-        weight_data.release();
-    }
+    weight_data.release();
 
     return 0;
 }

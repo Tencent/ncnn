@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Pooling_vulkan : virtual public Pooling
+class Pooling_vulkan : public Pooling
 {
 public:
     Pooling_vulkan();

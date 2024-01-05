@@ -12,7 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "layer/concat.h"
 #include "testutil.h"
 
 static int test_concat(const std::vector<ncnn::Mat>& a, int axis)
@@ -22,7 +21,7 @@ static int test_concat(const std::vector<ncnn::Mat>& a, int axis)
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer<ncnn::Concat>("Concat", pd, weights, a);
+    int ret = test_layer("Concat", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_concat failed a[0].dims=%d a[0]=(%d %d %d %d) axis=%d\n", a[0].dims, a[0].w, a[0].h, a[0].d, a[0].c, axis);

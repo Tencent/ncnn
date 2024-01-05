@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Flatten_riscv : virtual public Flatten
+class Flatten_riscv : public Flatten
 {
 public:
     Flatten_riscv();

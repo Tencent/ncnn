@@ -37,7 +37,7 @@ InnerProduct_mips::InnerProduct_mips()
 int InnerProduct_mips::create_pipeline(const Option& opt)
 {
     {
-        flatten = ncnn::create_layer(ncnn::LayerType::Flatten);
+        flatten = ncnn::create_layer_cpu(ncnn::LayerType::Flatten);
 
         ncnn::ParamDict pd;
 
@@ -99,10 +99,7 @@ int InnerProduct_mips::create_pipeline(const Option& opt)
         weight_data_tm = weight_data;
     }
 
-    if (opt.lightmode)
-    {
-        weight_data.release();
-    }
+    weight_data.release();
 
     return 0;
 }
@@ -655,10 +652,7 @@ int InnerProduct_mips::create_pipeline_fp16s(const Option& opt)
         ncnn::cast_float32_to_float16(weight_data_r2, weight_data_tm, opt);
     }
 
-    if (opt.lightmode)
-    {
-        weight_data.release();
-    }
+    weight_data.release();
 
     return 0;
 }
@@ -1146,10 +1140,7 @@ int InnerProduct_mips::create_pipeline_int8_mips(const Option& opt)
         scale_in_data[p] = scale_in;
     }
 
-    if (opt.lightmode)
-    {
-        weight_data.release();
-    }
+    weight_data.release();
 
     return 0;
 }

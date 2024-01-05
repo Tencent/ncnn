@@ -97,11 +97,6 @@ else()
 endif()
 
 if(NCNN_SHARED_LIB)
-    if(NCNN_BUILD_TESTS)
-        message(WARNING "NCNN_SHARED_LIB must be OFF to build tests! NCNN_BUILD_TESTS will be turned off.")
-        set(NCNN_BUILD_TESTS OFF)
-    endif()
-
     if(NCNN_ENABLE_LTO)
         # enable global link time optimization
         cmake_policy(SET CMP0069 NEW)

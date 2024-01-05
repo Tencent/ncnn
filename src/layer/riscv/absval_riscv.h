@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class AbsVal_riscv : virtual public AbsVal
+class AbsVal_riscv : public AbsVal
 {
 public:
     AbsVal_riscv();

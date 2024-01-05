@@ -12,7 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "layer/crop.h"
 #include "testutil.h"
 
 static ncnn::Mat IntArrayMat(int a0)
@@ -74,7 +73,7 @@ static int test_crop(const ncnn::Mat& a, const ncnn::Mat& starts, const ncnn::Ma
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer<ncnn::Crop>("Crop", pd, weights, a);
+    int ret = test_layer("Crop", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_crop failed a.dims=%d a=(%d %d %d %d)", a.dims, a.w, a.h, a.d, a.c);

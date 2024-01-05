@@ -26,7 +26,7 @@
 #include "glslang/glslang/Public/ShaderLang.h"
 #endif
 
-#include "vulkan_activation.comp.hex.h"
+#include "layer/vulkan/shader/vulkan_activation.comp.hex.h"
 
 #include "command.h"
 #include "layer.h"

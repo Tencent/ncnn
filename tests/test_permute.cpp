@@ -12,7 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "layer/permute.h"
 #include "testutil.h"
 
 static int test_permute(const ncnn::Mat& a, int order_type)
@@ -22,7 +21,7 @@ static int test_permute(const ncnn::Mat& a, int order_type)
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer<ncnn::Permute>("Permute", pd, weights, a);
+    int ret = test_layer("Permute", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_permute failed a.dims=%d a=(%d %d %d %d) order_type=%d\n", a.dims, a.w, a.h, a.d, a.c, order_type);

@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class UnaryOp_x86 : virtual public UnaryOp
+class UnaryOp_x86 : public UnaryOp
 {
 public:
     UnaryOp_x86();

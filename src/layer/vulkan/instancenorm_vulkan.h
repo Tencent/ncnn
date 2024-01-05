@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class InstanceNorm_vulkan : virtual public InstanceNorm
+class InstanceNorm_vulkan : public InstanceNorm
 {
 public:
     InstanceNorm_vulkan();

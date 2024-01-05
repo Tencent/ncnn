@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Dropout_vulkan : virtual public Dropout
+class Dropout_vulkan : public Dropout
 {
 public:
     Dropout_vulkan();
