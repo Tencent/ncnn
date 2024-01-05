@@ -145,6 +145,8 @@ int NetPrivate::upload_model()
     }
 
     Option opt_upload = opt;
+    opt_upload.blob_allocator = 0;
+    opt_upload.workspace_allocator = 0;
     opt_upload.blob_vkallocator = weight_vkallocator;
     opt_upload.workspace_vkallocator = weight_vkallocator;
     opt_upload.staging_vkallocator = weight_staging_vkallocator;
