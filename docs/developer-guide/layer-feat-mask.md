@@ -48,7 +48,7 @@ Convolution     conv1   1 1 conv0 conv1 0=128 1=3 6=36864 9=1 31=3
 
 ```ruby
 7767517
-4 4
+5 5
 Input           input   0 1 input0 0=22 1=22 2=32
 Convolution     conv0   1 1 input0 conv0 0=32 1=1 6=1024 9=1
 SomeCPULayer    c0      1 1 conv0 c0 0=32
@@ -60,7 +60,7 @@ Between the CPU layers, there is a simple calculation layer that supports vulkan
 
 ```ruby
 7767517
-4 4
+5 5
 Input           input   0 1 input0 0=22 1=22 2=32
 Convolution     conv0   1 1 input0 conv0 0=32 1=1 6=1024 9=1
 SomeCPULayer    c0      1 1 conv0 c0 0=32
