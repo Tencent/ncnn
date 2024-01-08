@@ -115,7 +115,7 @@ If `nvidia-smi` crashes or cannot be found, please reinstall your graphics drive
 
 If ncnn *is* utilizing the Tesla GPU, you can see your program in the `Processes` block at the bottom. In that case, it's likely some operators are not yet supported in Vulkan, and have fallbacked to the CPU, thus leading to a low utilization of the GPU.
 
-If you *couldn't* find your process running, plase check the active driver model, which can be found to the right of your device name. For Geforce and Titan GPUs, the default driver model is WDDM (Windows Desktop Driver Model), which supports both rendering graphics as well as computing. But for Tesla GPUs, without configuration, the driver model is defualted to TCC ([Tesla Computing Cluster](https://docs.nvidia.com/gameworks/content/developertools/desktop/tesla_compute_cluster.htm)). NVIDIA's TCC driver does not support Vulkan, so you need to use the following command to set the driver model back to WDDM, to use Vulkan:
+If you *couldn't* find your process running, please check the active driver model, which can be found to the right of your device name. For Geforce and Titan GPUs, the default driver model is WDDM (Windows Desktop Driver Model), which supports both rendering graphics as well as computing. But for Tesla GPUs, without configuration, the driver model is defualted to TCC ([Tesla Computing Cluster](https://docs.nvidia.com/gameworks/content/developertools/desktop/tesla_compute_cluster.htm)). NVIDIA's TCC driver does not support Vulkan, so you need to use the following command to set the driver model back to WDDM, to use Vulkan:
 
 ```bash
 $ nvidia-smi -g 0 -dm 0
