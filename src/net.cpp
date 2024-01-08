@@ -126,6 +126,9 @@ static Option get_masked_option(const Option& opt, int featmask)
     opt1.use_sgemm_convolution = opt1.use_sgemm_convolution && !(featmask & (1 << 5));
     opt1.use_winograd_convolution = opt1.use_winograd_convolution && !(featmask & (1 << 6));
 
+    if (featmask & (1 << 7))
+        opt1.num_threads = 1;
+
     return opt1;
 }
 
@@ -2461,7 +2464,8 @@ void Extractor::set_light_mode(bool enable)
 
 void Extractor::set_num_threads(int num_threads)
 {
-    d->opt.num_threads = num_threads;
+    NCNN_LOGE("ex.set_num_threads() is no-op, please set net.opt.num_threads=N before net.load_param()");
+    NCNN_LOGE("If you want to use single thread for only some layer, see https://github.com/Tencent/ncnn/wiki/layer-feat-mask");
 }
 
 void Extractor::set_blob_allocator(Allocator* allocator)
@@ -2477,14 +2481,8 @@ void Extractor::set_workspace_allocator(Allocator* allocator)
 #if NCNN_VULKAN
 void Extractor::set_vulkan_compute(bool enable)
 {
-    if (d->net->d->opt.use_vulkan_compute)
-    {
-        d->opt.use_vulkan_compute = enable;
-    }
-    else
-    {
-        NCNN_LOGE("set_vulkan_compute failed, network use_vulkan_compute disabled");
-    }
+    NCNN_LOGE("ex.set_vulkan_compute() is no-op, please set net.opt.use_vulkan_compute=true/false before net.load_param()");
+    NCNN_LOGE("If you want to disable vulkan for only some layer, see https://github.com/Tencent/ncnn/wiki/layer-feat-mask");
 }
 
 void Extractor::set_blob_vkallocator(VkAllocator* allocator)
