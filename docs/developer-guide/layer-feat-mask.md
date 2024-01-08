@@ -1,6 +1,6 @@
 # layer feature mask
 
-Each ncnn layer allows a special parameter pair 31=X to control specific bahavior.
+Each ncnn layer allows a special parameter pair `31=X` to control specific bahavior.
 
 X is an unsigned integer with each bit contributing a feature mask.
 
