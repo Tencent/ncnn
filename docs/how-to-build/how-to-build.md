@@ -229,8 +229,7 @@ cd <ncnn-root-dir>
 mkdir -p build
 cd build
 
-cmake -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" \
-    -DVulkan_INCLUDE_DIR=`pwd`/../vulkansdk-macos-1.2.189.0/MoltenVK/include \
+cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DPLATFORM=MAC -DARCHS="x86_64;arm64" \
     -DVulkan_LIBRARY=`pwd`/../vulkansdk-macos-1.2.189.0/MoltenVK/dylib/macOS/libMoltenVK.dylib \
     -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=ON ..
 
@@ -330,12 +329,7 @@ cd build-android-armv7
 
 cmake -DCMAKE_TOOLCHAIN_FILE="$ANDROID_NDK/build/cmake/android.toolchain.cmake" \
     -DANDROID_ABI="armeabi-v7a" -DANDROID_ARM_NEON=ON \
-    -DANDROID_PLATFORM=android-14 ..
-
-# If you want to enable Vulkan, platform api version >= android-24 is needed
-cmake -DCMAKE_TOOLCHAIN_FILE="$ANDROID_NDK/build/cmake/android.toolchain.cmake" \
-    -DANDROID_ABI="armeabi-v7a" -DANDROID_ARM_NEON=ON \
-    -DANDROID_PLATFORM=android-24 -DNCNN_VULKAN=ON ..
+    -DANDROID_PLATFORM=android-14 -DNCNN_VULKAN=ON ..
 
 # If you use cmake >= 3.21 and ndk-r23
 # you need to add -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False option for working optimization flags
@@ -356,12 +350,7 @@ cd build-android-aarch64
 
 cmake -DCMAKE_TOOLCHAIN_FILE="$ANDROID_NDK/build/cmake/android.toolchain.cmake"\
     -DANDROID_ABI="arm64-v8a" \
-    -DANDROID_PLATFORM=android-21 ..
-
-# If you want to enable Vulkan, platform api version >= android-24 is needed
-cmake -DCMAKE_TOOLCHAIN_FILE="$ANDROID_NDK/build/cmake/android.toolchain.cmake" \
-    -DANDROID_ABI="arm64-v8a" \
-    -DANDROID_PLATFORM=android-24 -DNCNN_VULKAN=ON ..
+    -DANDROID_PLATFORM=android-21 -DNCNN_VULKAN=ON ..
 
 # If you use cmake >= 3.21 and ndk-r23
 # you need to add -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False option for working optimization flags
@@ -395,7 +384,7 @@ mkdir -p build-ios
 cd build-ios
 
 cmake -DCMAKE_TOOLCHAIN_FILE=<ncnn-root-dir>/toolchains/ios.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
-    -DIOS_PLATFORM=OS -DENABLE_BITCODE=0 -DENABLE_ARC=0 -DENABLE_VISIBILITY=0 -DIOS_ARCH="armv7;arm64;arm64e" \
+    -DPLATFORM=OS64 -DENABLE_BITCODE=0 -DENABLE_ARC=0 -DENABLE_VISIBILITY=0 -DARCHS="arm64;arm64e" \
     -DPERL_EXECUTABLE=/usr/local/bin/perl \
     -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
 
@@ -422,7 +411,7 @@ mkdir -p build-ios-sim
 cd build-ios-sim
 
 cmake -DCMAKE_TOOLCHAIN_FILE=<ncnn-root-dir>/toolchains/ios.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
-    -DIOS_PLATFORM=SIMULATOR -DENABLE_BITCODE=0 -DENABLE_ARC=0 -DENABLE_VISIBILITY=0 -DIOS_ARCH="i386;x86_64" \
+    -DPLATFORM=SIMULATORARM64 -DENABLE_BITCODE=0 -DENABLE_ARC=0 -DENABLE_VISIBILITY=0 -DARCHS="x86_64;arm64" \
     -DPERL_EXECUTABLE=/usr/local/bin/perl \
     -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
 
@@ -469,21 +458,11 @@ git submodule update --init
 mkdir -p build-ios
 cd build-ios
 
-cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DIOS_PLATFORM=OS -DIOS_ARCH="armv7;arm64;arm64e" \
+cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DPLATFORM=OS64 -DARCHS="arm64;arm64e" \
     -DENABLE_BITCODE=0 -DENABLE_ARC=0 -DENABLE_VISIBILITY=0 \
     -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
     -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
     -DOpenMP_libomp_LIBRARY="/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib/libomp.a" \
-    -DNCNN_BUILD_BENCHMARK=OFF ..
-
-# vulkan is only available on arm64 devices
-cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DIOS_PLATFORM=OS64 -DIOS_ARCH="arm64;arm64e" \
-    -DENABLE_BITCODE=0 -DENABLE_ARC=0 -DENABLE_VISIBILITY=0 \
-    -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
-    -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
-    -DOpenMP_libomp_LIBRARY="/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib/libomp.a" \
-    -DVulkan_INCLUDE_DIR=$VULKAN_SDK/../MoltenVK/include \
-    -DVulkan_LIBRARY=$VULKAN_SDK/../MoltenVK/dylib/iOS/libMoltenVK.dylib \
     -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF ..
 
 cmake --build . -j 4
@@ -497,7 +476,7 @@ cd <ncnn-root-dir>
 mkdir -p build-ios-sim
 cd build-ios-sim
 
-cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DIOS_PLATFORM=SIMULATOR -DIOS_ARCH="i386;x86_64" \
+cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DPLATFORM=SIMULATORARM64 -DARCHS="x86_64;arm64" \
     -DENABLE_BITCODE=0 -DENABLE_ARC=0 -DENABLE_VISIBILITY=0 \
     -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
     -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
@@ -508,7 +487,7 @@ cmake --build . -j 4
 cmake --build . --target install
 ```
 
-Package glslang framework:
+Package glslang framework for iPhoneOS:
 ```shell
 cd <ncnn-root-dir>
 
@@ -519,13 +498,12 @@ ln -s Versions/Current/Headers glslang.framework/Headers
 ln -s Versions/Current/Resources glslang.framework/Resources
 ln -s Versions/Current/glslang glslang.framework/glslang
 libtool -static build-ios/install/lib/libglslang.a build-ios/install/lib/libMachineIndependent.a build-ios/install/lib/libGenericCodeGen.a build-ios/install/lib/libSPIRV.a build-ios/install/lib/libOGLCompiler.a build-ios/install/lib/libOSDependent.a -o build-ios/install/lib/libglslang_combined.a
-libtool -static build-ios-sim/install/lib/libglslang.a build-ios-sim/install/lib/libMachineIndependent.a build-ios-sim/install/lib/libGenericCodeGen.a build-ios-sim/install/lib/libSPIRV.a build-ios-sim/install/lib/libOGLCompiler.a build-ios-sim/install/lib/libOSDependent.a -o build-ios-sim/install/lib/libglslang_combined.a
-lipo -create build-ios/install/lib/libglslang_combined.a build-ios-sim/install/lib/libglslang_combined.a -o glslang.framework/Versions/A/glslang
+lipo -create build-ios/install/lib/libglslang_combined.a -o glslang.framework/Versions/A/glslang
 cp -r build/install/include/glslang glslang.framework/Versions/A/Headers/
 sed -e 's/__NAME__/glslang/g' -e 's/__IDENTIFIER__/org.khronos.glslang/g' -e 's/__VERSION__/1.0/g' Info.plist > glslang.framework/Versions/A/Resources/Info.plist
 ```
 
-Package ncnn framework:
+Package ncnn framework for iPhoneOS:
 ```shell
 cd <ncnn-root-dir>
 
@@ -535,7 +513,7 @@ ln -s A ncnn.framework/Versions/Current
 ln -s Versions/Current/Headers ncnn.framework/Headers
 ln -s Versions/Current/Resources ncnn.framework/Resources
 ln -s Versions/Current/ncnn ncnn.framework/ncnn
-lipo -create build-ios/install/lib/libncnn.a build-ios-sim/install/lib/libncnn.a -o ncnn.framework/Versions/A/ncnn
+lipo -create build-ios/install/lib/libncnn.a -o ncnn.framework/Versions/A/ncnn
 cp -r build-ios/install/include/* ncnn.framework/Versions/A/Headers/
 sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
 ```
