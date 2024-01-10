@@ -1064,7 +1064,11 @@ struct post_process_sqrt
 {
     T operator()(const T& x) const
     {
-        return static_cast<T>(sqrtf(x));
+        // math optimization will probably generate rsqrt
+        // that produce -inf on sse with subnormal input
+        // flush subnormal input to zero as a workaround
+        // TODO explicit use simd sqrt like unaryop     --- nihui
+        return static_cast<T>(sqrtf(x < FLT_MIN ? 0.f : x));
     }
 };
 
