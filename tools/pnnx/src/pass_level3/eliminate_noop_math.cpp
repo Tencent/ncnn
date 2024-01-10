@@ -265,6 +265,12 @@ void eliminate_noop_math(Graph& graph)
                 }
             }
 
+            // but if shape changes
+            if (need_eliminate && op->inputs[identity_input_id]->shape != op->outputs[0]->shape)
+            {
+                need_eliminate = false;
+            }
+
             if (!need_eliminate)
                 continue;
 
