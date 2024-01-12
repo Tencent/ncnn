@@ -58,6 +58,7 @@
 #include <sys/system_properties.h> // __system_property_get()
 #include <dlfcn.h>
 #endif
+#include <ctype.h>
 #include <stdint.h>
 #include <fcntl.h>
 #include <sys/stat.h>
@@ -210,12 +211,12 @@ static bool is_being_debugged()
     if (!tracer_pid_ptr)
         return false;
 
-    for (const char* characterPtr = tracer_pid_ptr + sizeof(tracerPidString) - 1; characterPtr <= buf + num_read; ++characterPtr)
+    for (const char* ch = tracer_pid_ptr + sizeof(tracerPidString) - 1; ch <= buf + num_read; ++ch)
     {
-        if (isspace(*characterPtr))
+        if (isspace(*ch))
             continue;
 
-        return isdigit(*characterPtr) != 0 && *characterPtr != '0';
+        return isdigit(*ch) != 0 && *ch != '0';
     }
 
     return false;
