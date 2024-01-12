@@ -2845,7 +2845,7 @@ cooling_down = 0
       yolo-fastestv2  min =   24.94  max =   25.07  avg =   25.01
 ```
 
-### OrangePi Zero 2, Allwinner H616 (Cortex-A43 1.5GHz x 4)
+### OrangePi Zero 2, Allwinner H616 (Cortex-A53 1.5GHz x 4)
 ```
 orangepi@zero2:~/ncnn/benchmark$ ./benchncnn 10 4 0 -1 1
 loop_count = 10
