@@ -2845,7 +2845,50 @@ cooling_down = 0
       yolo-fastestv2  min =   24.94  max =   25.07  avg =   25.01
 ```
 
-
+### OrangePi Zero 2, Allwinner H616 (Cortex-A53 1.5GHz x 4)
+```
+orangepi@zero2:~/ncnn/benchmark$ ./benchncnn 10 4 0 -1 1
+loop_count = 10
+num_threads = 4
+powersave = 0
+gpu_device = -1
+cooling_down = 1
+          squeezenet  min =   76.25  max =   90.20  avg =   78.99
+     squeezenet_int8  min =   59.92  max =   60.44  avg =   60.10
+           mobilenet  min =  106.91  max =  132.22  avg =  109.99
+      mobilenet_int8  min =   57.96  max =   59.06  avg =   58.19
+        mobilenet_v2  min =   97.93  max =  124.48  avg =  100.91
+        mobilenet_v3  min =   82.27  max =   83.93  avg =   83.00
+          shufflenet  min =   55.27  max =   82.06  avg =   58.40
+       shufflenet_v2  min =   44.94  max =   71.99  avg =   48.10
+             mnasnet  min =   90.66  max =   91.41  avg =   90.92
+     proxylessnasnet  min =   91.55  max =  118.74  avg =   94.71
+     efficientnet_b0  min =  127.95  max =  155.13  avg =  131.25
+   efficientnetv2_b0  min =  145.96  max =  173.67  avg =  149.36
+        regnety_400m  min =  102.83  max =  103.52  avg =  103.08
+           blazeface  min =   14.46  max =   14.95  avg =   14.77
+           googlenet  min =  217.71  max =  244.16  avg =  221.38
+      googlenet_int8  min =  163.04  max =  187.69  avg =  166.20
+            resnet18  min =  251.45  max =  277.52  avg =  255.00
+       resnet18_int8  min =  136.54  max =  161.95  avg =  141.60
+             alexnet  min =  212.07  max =  233.27  avg =  215.34
+               vgg16  min = 1206.92  max = 1981.79  avg = 1673.28
+          vgg16_int8  min =  622.93  max =  702.12  avg =  661.83
+            resnet50  min =  555.84  max =  643.69  avg =  576.17
+       resnet50_int8  min =  348.11  max =  374.25  avg =  354.17
+      squeezenet_ssd  min =  224.68  max =  251.32  avg =  230.59
+ squeezenet_ssd_int8  min =  154.87  max =  182.66  avg =  159.08
+       mobilenet_ssd  min =  238.49  max =  426.65  avg =  263.18
+  mobilenet_ssd_int8  min =  118.36  max =  138.39  avg =  120.78
+      mobilenet_yolo  min =  500.28  max =  615.83  avg =  553.59
+  mobilenetv2_yolov3  min =  340.27  max =  369.13  avg =  347.17
+         yolov4-tiny  min =  365.04  max =  408.48  avg =  383.93
+           nanodet_m  min =  112.88  max =  141.85  avg =  116.13
+    yolo-fastest-1.1  min =   72.05  max =   73.46  avg =   72.68
+      yolo-fastestv2  min =   54.94  max =   55.35  avg =   55.15
+  vision_transformer  min = 6842.19  max = 9125.07  avg = 7343.64
+          FastestDet  min =   59.09  max =   59.87  avg =   59.35
+```
 
 ### OrangePi4 LTS, Rockchip RK3399 (Cortex-A72 1.8GHz x 2 + Cortex-A53 1.5GHz x 4)
 Test Ubuntu 22.04 Gnome Desktop
