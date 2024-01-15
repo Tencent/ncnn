@@ -1347,8 +1347,11 @@ int Net::load_param(const DataReader& dr)
         // sanitize use options
         if (!d->vkdev->info.support_fp16_packed()) opt.use_fp16_packed = false;
         if (!d->vkdev->info.support_fp16_storage()) opt.use_fp16_storage = false;
+        if (!d->vkdev->info.support_fp16_uniform()) opt.use_fp16_uniform = false;
         if (!d->vkdev->info.support_fp16_arithmetic()) opt.use_fp16_arithmetic = false;
+        if (!d->vkdev->info.support_int8_packed()) opt.use_int8_packed = false;
         if (!d->vkdev->info.support_int8_storage()) opt.use_int8_storage = false;
+        if (!d->vkdev->info.support_int8_uniform()) opt.use_int8_uniform = false;
         if (!d->vkdev->info.support_int8_arithmetic()) opt.use_int8_arithmetic = false;
         if (!d->vkdev->info.support_cooperative_matrix()) opt.use_cooperative_matrix = false;
 
@@ -1637,8 +1640,11 @@ int Net::load_param_bin(const DataReader& dr)
         // sanitize use options
         if (!d->vkdev->info.support_fp16_packed()) opt.use_fp16_packed = false;
         if (!d->vkdev->info.support_fp16_storage()) opt.use_fp16_storage = false;
+        if (!d->vkdev->info.support_fp16_uniform()) opt.use_fp16_uniform = false;
         if (!d->vkdev->info.support_fp16_arithmetic()) opt.use_fp16_arithmetic = false;
+        if (!d->vkdev->info.support_int8_packed()) opt.use_int8_packed = false;
         if (!d->vkdev->info.support_int8_storage()) opt.use_int8_storage = false;
+        if (!d->vkdev->info.support_int8_uniform()) opt.use_int8_uniform = false;
         if (!d->vkdev->info.support_int8_arithmetic()) opt.use_int8_arithmetic = false;
         if (!d->vkdev->info.support_cooperative_matrix()) opt.use_cooperative_matrix = false;
 
