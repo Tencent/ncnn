@@ -3859,10 +3859,15 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         custom_defines.push_back(std::make_pair("afpmat4", "mat4"));
     }
 
-    if (opt.use_fp16_storage && opt.use_fp16_uniform)
+    if (opt.use_fp16_storage && opt.use_fp16_uniform && opt.use_fp16_arithmetic)
     {
         custom_defines.push_back(std::make_pair("lfp", "float16_t"));
         custom_defines.push_back(std::make_pair("lfpvec4", "f16vec4"));
+    }
+    else if (opt.use_fp16_storage && opt.use_fp16_arithmetic)
+    {
+        custom_defines.push_back(std::make_pair("lfp", "float"));
+        custom_defines.push_back(std::make_pair("lfpvec4", "uint64_t"));
     }
     else if (opt.use_fp16_storage || opt.use_fp16_packed)
     {
@@ -3875,7 +3880,7 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         custom_defines.push_back(std::make_pair("lfpvec4", "vec4"));
     }
 
-    if (opt.use_fp16_storage && opt.use_fp16_uniform)
+    if (opt.use_fp16_storage && opt.use_fp16_uniform && opt.use_fp16_arithmetic)
     {
         custom_defines.push_back(std::make_pair("sfp2lfp(v)", "v"));
         custom_defines.push_back(std::make_pair("sfp2lfpvec4(v)", "v"));
@@ -3883,7 +3888,15 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         custom_defines.push_back(std::make_pair("lfp2afp(v)", "v"));
         custom_defines.push_back(std::make_pair("lfp2afpvec4(v)", "v"));
     }
-    else if (opt.use_fp16_packed && opt.use_fp16_uniform)
+    else if (opt.use_fp16_storage && opt.use_fp16_arithmetic)
+    {
+        custom_defines.push_back(std::make_pair("sfp2lfp(v)", "float(v)"));
+        custom_defines.push_back(std::make_pair("sfp2lfpvec4(v)", "pack64(halfBitsToUInt16(v))"));
+
+        custom_defines.push_back(std::make_pair("lfp2afp(v)", "float16_t(v)"));
+        custom_defines.push_back(std::make_pair("lfp2afpvec4(v)", "int16BitsToHalf(unpack16(v))"));
+    }
+    else if (opt.use_fp16_packed && opt.use_fp16_arithmetic)
     {
         custom_defines.push_back(std::make_pair("sfp2lfp(v)", "v"));
         custom_defines.push_back(std::make_pair("sfp2lfpvec4(v)", "v"));
