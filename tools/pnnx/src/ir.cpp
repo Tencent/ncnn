@@ -227,7 +227,7 @@ Parameter::Parameter(const torch::jit::Node* value_node)
         {
             at::Tensor t = value_node->t(torch::jit::attr::value);
 
-            if (t.dim() == 0)
+            if (t.dim() == 0 && t.numel() == 1)
             {
                 if (t.scalar_type() == c10::ScalarType::Long)
                 {
@@ -1810,29 +1810,48 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                 }
             }
 
-            if (is_running_mean_var)
-            {
-                fprintf(pyfp, "        self.%s_%s = self.load_pnnx_bin_as_tensor(archive, '%s.%s', (", sanitize_identifier(op->name).c_str(), sanitize_identifier(key).c_str(), op->name.c_str(), key.c_str());
-            }
-            else
-            {
-                fprintf(pyfp, "        self.%s_%s = self.load_pnnx_bin_as_parameter(archive, '%s.%s', (", sanitize_identifier(op->name).c_str(), sanitize_identifier(key).c_str(), op->name.c_str(), key.c_str());
-            }
-
+            bool is_empty = false;
             for (size_t i = 0; i < attr.shape.size(); i++)
             {
-                fprintf(pyfp, "%d", attr.shape[i]);
-                if (i + 1 != attr.shape.size())
-                    fprintf(pyfp, ",");
+                if (attr.shape[i] == 0)
+                    is_empty = true;
             }
 
-            if (attr.type == 1 || attr.type == 2 || attr.type == 3)
+            if (is_empty)
             {
-                fprintf(pyfp, "), '%s')\n", type_to_numpy_string(attr.type));
+                fprintf(pyfp, "        self.%s_%s = torch.from_numpy(np.empty((", sanitize_identifier(op->name).c_str(), sanitize_identifier(key).c_str());
+
+                for (size_t i = 0; i < attr.shape.size(); i++)
+                {
+                    fprintf(pyfp, "%d,", attr.shape[i]);
+                }
+
+                fprintf(pyfp, "), dtype='%s'))\n", type_to_numpy_string(attr.type));
             }
             else
             {
-                fprintf(pyfp, "), '%s', requires_grad=False)\n", type_to_numpy_string(attr.type));
+                if (is_running_mean_var)
+                {
+                    fprintf(pyfp, "        self.%s_%s = self.load_pnnx_bin_as_tensor(archive, '%s.%s', (", sanitize_identifier(op->name).c_str(), sanitize_identifier(key).c_str(), op->name.c_str(), key.c_str());
+                }
+                else
+                {
+                    fprintf(pyfp, "        self.%s_%s = self.load_pnnx_bin_as_parameter(archive, '%s.%s', (", sanitize_identifier(op->name).c_str(), sanitize_identifier(key).c_str(), op->name.c_str(), key.c_str());
+                }
+
+                for (size_t i = 0; i < attr.shape.size(); i++)
+                {
+                    fprintf(pyfp, "%d,", attr.shape[i]);
+                }
+
+                if (attr.type == 1 || attr.type == 2 || attr.type == 3)
+                {
+                    fprintf(pyfp, "), '%s')\n", type_to_numpy_string(attr.type));
+                }
+                else
+                {
+                    fprintf(pyfp, "), '%s', requires_grad=False)\n", type_to_numpy_string(attr.type));
+                }
             }
         }
 
@@ -2320,7 +2339,14 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                     }
                     if (param.type == 3)
                     {
-                        fprintf(pyfp, "%f", param.f);
+                        if (op->type == "Tensor.index_put" && it.first == "values")
+                        {
+                            fprintf(pyfp, "torch.tensor(%f)", param.f);
+                        }
+                        else
+                        {
+                            fprintf(pyfp, "%f", param.f);
+                        }
                     }
                     if (param.type == 4)
                     {
