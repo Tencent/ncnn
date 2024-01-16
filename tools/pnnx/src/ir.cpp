@@ -277,7 +277,6 @@ Parameter::Parameter(const torch::jit::Node* value_node)
         }
         case c10::TypeKind::ListType:
         {
-            fprintf(stderr, "hey Parameter value list element kind %s\n", torch::jit::toString(value_node->kindOf(torch::jit::attr::value)));
             switch (value_node->output()->type()->containedType(0)->kind())
             {
                 case c10::TypeKind::IntType:
@@ -1237,11 +1236,6 @@ static std::string sanitize_identifier(const std::string& s)
     {
         if (ss[i] == '.' || ss[i] == ':')
             ss[i] = '_';
-    }
-
-    if (isdigit(ss[0]))
-    {
-        ss = std::string("_") + ss;
     }
 
     return ss;
