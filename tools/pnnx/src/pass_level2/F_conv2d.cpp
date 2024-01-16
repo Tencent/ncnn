@@ -56,7 +56,6 @@ class F_conv2d_cudnn_relu : public GraphRewriterPass
 public:
     const char* match_pattern_graph() const
     {
-        // aten::cudnn_convolution_relu(Tensor self, Tensor weight, Tensor? bias, int[] stride, int[] padding, int[] dilation, int groups) -> Tensor
         return R"PNNXIR(7767517
 9 8
 pnnx.Input              input_0     0 1 input
@@ -96,7 +95,6 @@ class F_conv2d_cudnn_add_relu : public GraphRewriterPass
 public:
     const char* match_pattern_graph() const
     {
-        // aten::cudnn_convolution_add_relu(Tensor self, Tensor weight, y, alpha, Tensor? bias, int[] stride, int[] padding, int[] dilation, int groups) -> Tensor
         return R"PNNXIR(7767517
 11 10
 pnnx.Input              input_0     0 1 input
