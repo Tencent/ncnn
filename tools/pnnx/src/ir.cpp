@@ -279,33 +279,33 @@ Parameter::Parameter(const torch::jit::Node* value_node)
         {
             switch (value_node->output()->type()->containedType(0)->kind())
             {
-                case c10::TypeKind::IntType:
+            case c10::TypeKind::IntType:
+            {
+                type = 5;
+                std::vector<int64_t> i64s = value_node->ival(torch::jit::attr::value).toIntVector();
+                for (auto i64 : i64s)
                 {
-                    type = 5;
-                    std::vector<int64_t> i64s = value_node->ival(torch::jit::attr::value).toIntVector();
-                    for (auto i64 : i64s)
-                    {
-                        if (i64 == std::numeric_limits<int64_t>::max()) i64 = INT_MAX;
-                        if (i64 == std::numeric_limits<int64_t>::min()) i64 = INT_MIN;
-                        ai.push_back(i64);
-                    }
-                    break;
+                    if (i64 == std::numeric_limits<int64_t>::max()) i64 = INT_MAX;
+                    if (i64 == std::numeric_limits<int64_t>::min()) i64 = INT_MIN;
+                    ai.push_back(i64);
                 }
-                case c10::TypeKind::FloatType:
+                break;
+            }
+            case c10::TypeKind::FloatType:
+            {
+                type = 6;
+                std::vector<double> fs = value_node->ival(torch::jit::attr::value).toDoubleVector();
+                for (auto f : fs)
                 {
-                    type = 6;
-                    std::vector<double> fs = value_node->ival(torch::jit::attr::value).toDoubleVector();
-                    for (auto f : fs)
-                    {
-                        af.push_back((float)f);
-                    }
-                    break;
+                    af.push_back((float)f);
                 }
-                default:
-                {
-                    fprintf(stderr, "unknown Parameter value list element kind %s\n", c10::typeKindToString(value_node->output()->type()->containedType(0)->kind()));
-                    break;
-                }
+                break;
+            }
+            default:
+            {
+                fprintf(stderr, "unknown Parameter value list element kind %s\n", c10::typeKindToString(value_node->output()->type()->containedType(0)->kind()));
+                break;
+            }
             }
             break;
         }
