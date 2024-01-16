@@ -277,7 +277,7 @@ Parameter::Parameter(const torch::jit::Node* value_node)
         }
         case c10::TypeKind::ListType:
         {
-            switch (value_node->output()->type()->containedType(0)->kind())
+            switch (value_node->output()->type()->containedTypes()[0]->kind())
             {
             case c10::TypeKind::IntType:
             {
@@ -303,7 +303,7 @@ Parameter::Parameter(const torch::jit::Node* value_node)
             }
             default:
             {
-                fprintf(stderr, "unknown Parameter value list element kind %s\n", c10::typeKindToString(value_node->output()->type()->containedType(0)->kind()));
+                fprintf(stderr, "unknown Parameter value list element kind %s\n", c10::typeKindToString(value_node->output()->type()->containedTypes()[0]->kind()));
                 break;
             }
             }
@@ -2358,7 +2358,14 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                     const Parameter& param = it.second;
                     if (param.type == 0)
                     {
-                        fprintf(pyfp, "None");
+                        if (op->type == "Tensor.index_put" && it.first == "values")
+                        {
+                            fprintf(pyfp, "torch.tensor(False)");
+                        }
+                        else
+                        {
+                            fprintf(pyfp, "None");
+                        }
                     }
                     if (param.type == 1)
                     {
@@ -2369,7 +2376,14 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                     }
                     if (param.type == 2)
                     {
-                        fprintf(pyfp, "%d", param.i);
+                        if (op->type == "Tensor.index_put" && it.first == "values")
+                        {
+                            fprintf(pyfp, "torch.tensor(%d)", param.i);
+                        }
+                        else
+                        {
+                            fprintf(pyfp, "%d", param.i);
+                        }
                     }
                     if (param.type == 3)
                     {
@@ -2387,6 +2401,17 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                         if (param.s.substr(0, 6) == "torch.")
                         {
                             fprintf(pyfp, "%s", param.s.c_str());
+                        }
+                        else if (op->type == "Tensor.index_put" && it.first == "values")
+                        {
+                            if (param.s == "inf" || param.s == "-inf")
+                            {
+                                fprintf(pyfp, "torch.tensor(float(\'%s\'))", param.s.c_str());
+                            }
+                            else
+                            {
+                                fprintf(pyfp, "torch.tensor(\'%s\')", param.s.c_str());
+                            }
                         }
                         else
                         {
