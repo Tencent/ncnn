@@ -275,6 +275,41 @@ Parameter::Parameter(const torch::jit::Node* value_node)
 
             break;
         }
+        case c10::TypeKind::ListType:
+        {
+            fprintf(stderr, "hey Parameter value list element kind %s\n", torch::jit::toString(value_node->kindOf(torch::jit::attr::value)));
+            switch (value_node->output()->type()->containedType(0)->kind())
+            {
+                case c10::TypeKind::IntType:
+                {
+                    type = 5;
+                    std::vector<int64_t> i64s = value_node->ival(torch::jit::attr::value).toIntVector();
+                    for (auto i64 : i64s)
+                    {
+                        if (i64 == std::numeric_limits<int64_t>::max()) i64 = INT_MAX;
+                        if (i64 == std::numeric_limits<int64_t>::min()) i64 = INT_MIN;
+                        ai.push_back(i64);
+                    }
+                    break;
+                }
+                case c10::TypeKind::FloatType:
+                {
+                    type = 6;
+                    std::vector<double> fs = value_node->ival(torch::jit::attr::value).toDoubleVector();
+                    for (auto f : fs)
+                    {
+                        af.push_back((float)f);
+                    }
+                    break;
+                }
+                default:
+                {
+                    fprintf(stderr, "unknown Parameter value list element kind %s\n", c10::typeKindToString(value_node->output()->type()->containedType(0)->kind()));
+                    break;
+                }
+            }
+            break;
+        }
         default:
         {
             fprintf(stderr, "unknown Parameter value kind %s\n", c10::typeKindToString(value_node->output()->type()->kind()));
@@ -1202,6 +1237,11 @@ static std::string sanitize_identifier(const std::string& s)
     {
         if (ss[i] == '.' || ss[i] == ':')
             ss[i] = '_';
+    }
+
+    if (isdigit(ss[0]))
+    {
+        ss = std::string("_") + ss;
     }
 
     return ss;

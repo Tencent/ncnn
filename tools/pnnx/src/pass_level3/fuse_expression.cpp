@@ -172,6 +172,34 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
         {
             expr += param.s;
         }
+        else if (param.type == 5)
+        {
+            // ints
+            expr += "[";
+            for (int i = 0; i < (int)param.ai.size(); i++)
+            {
+                char tmp[32];
+                sprintf(tmp, "%d", param.ai[i]);
+                expr += tmp;
+                if (i != (int)param.ai.size() - 1)
+                    expr += ",";
+            }
+            expr += "]";
+        }
+        else if (param.type == 6)
+        {
+            // floats
+            expr += "[";
+            for (int i = 0; i < (int)param.af.size(); i++)
+            {
+                char tmp[32];
+                sprintf(tmp, "%e", param.af[i]);
+                expr += tmp;
+                if (i != (int)param.af.size() - 1)
+                    expr += ",";
+            }
+            expr += "]";
+        }
         else if (param.type == 10)
         {
             char tmp[32];
