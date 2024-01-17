@@ -321,9 +321,11 @@ public:
     // fp16 and int8 feature
     bool support_fp16_packed;
     bool support_fp16_storage;
+    bool support_fp16_uniform;
     bool support_fp16_arithmetic;
     bool support_int8_packed;
     bool support_int8_storage;
+    bool support_int8_uniform;
     bool support_int8_arithmetic;
 
     // ycbcr conversion feature
@@ -604,6 +606,11 @@ bool GpuInfo::support_fp16_storage() const
     return d->support_fp16_storage;
 }
 
+bool GpuInfo::support_fp16_uniform() const
+{
+    return d->support_fp16_uniform;
+}
+
 bool GpuInfo::support_fp16_arithmetic() const
 {
     return d->support_fp16_arithmetic;
@@ -617,6 +624,11 @@ bool GpuInfo::support_int8_packed() const
 bool GpuInfo::support_int8_storage() const
 {
     return d->support_int8_storage;
+}
+
+bool GpuInfo::support_int8_uniform() const
+{
+    return d->support_int8_uniform;
 }
 
 bool GpuInfo::support_int8_arithmetic() const
@@ -1763,9 +1775,11 @@ int create_gpu_instance(const char* driver_path)
         // check features
         gpu_info.support_fp16_packed = true;
         gpu_info.support_fp16_storage = false;
+        gpu_info.support_fp16_uniform = false;
         gpu_info.support_fp16_arithmetic = false;
         gpu_info.support_int8_packed = true;
         gpu_info.support_int8_storage = false;
+        gpu_info.support_int8_uniform = false;
         gpu_info.support_int8_arithmetic = false;
         gpu_info.support_ycbcr_conversion = false;
         gpu_info.support_cooperative_matrix = false;
@@ -1843,30 +1857,18 @@ int create_gpu_instance(const char* driver_path)
             if (gpu_info.support_VK_KHR_8bit_storage)
             {
                 gpu_info.support_int8_storage = query8BitStorageFeatures.storageBuffer8BitAccess;
+                gpu_info.support_int8_uniform = query8BitStorageFeatures.uniformAndStorageBuffer8BitAccess;
             }
             if (gpu_info.support_VK_KHR_16bit_storage && queryFeatures.features.shaderStorageImageExtendedFormats)
             {
                 // shaderStorageImageExtendedFormats enables r16f format in storage image
                 gpu_info.support_fp16_storage = query16BitStorageFeatures.storageBuffer16BitAccess;
+                gpu_info.support_fp16_uniform = query16BitStorageFeatures.uniformAndStorageBuffer16BitAccess;
             }
             if (gpu_info.support_VK_KHR_shader_float16_int8)
             {
-                if (gpu_info.support_fp16_storage)
-                {
-                    gpu_info.support_fp16_arithmetic = queryFloat16Int8Features.shaderFloat16 && query16BitStorageFeatures.uniformAndStorageBuffer16BitAccess;
-                }
-                else
-                {
-                    gpu_info.support_fp16_arithmetic = queryFloat16Int8Features.shaderFloat16;
-                }
-                if (gpu_info.support_int8_storage)
-                {
-                    gpu_info.support_int8_arithmetic = queryFloat16Int8Features.shaderInt8 && query8BitStorageFeatures.uniformAndStorageBuffer8BitAccess;
-                }
-                else
-                {
-                    gpu_info.support_int8_arithmetic = queryFloat16Int8Features.shaderInt8;
-                }
+                gpu_info.support_fp16_arithmetic = queryFloat16Int8Features.shaderFloat16;
+                gpu_info.support_int8_arithmetic = queryFloat16Int8Features.shaderInt8;
             }
             if (gpu_info.support_VK_KHR_sampler_ycbcr_conversion)
             {
@@ -2018,9 +2020,9 @@ int create_gpu_instance(const char* driver_path)
         NCNN_LOGE("[%u %s]  bugsbn1=%d  bugbilz=%d  bugcopc=%d  bugihfa=%d", i, physicalDeviceProperties.deviceName,
                   gpu_info.bug_storage_buffer_no_l1, gpu_info.bug_buffer_image_load_zero, gpu_info.bug_corrupted_online_pipeline_cache, gpu_info.bug_implicit_fp16_arithmetic);
 
-        NCNN_LOGE("[%u %s]  fp16-p/s/a=%d/%d/%d  int8-p/s/a=%d/%d/%d", i, physicalDeviceProperties.deviceName,
-                  gpu_info.support_fp16_packed, gpu_info.support_fp16_storage, gpu_info.support_fp16_arithmetic,
-                  gpu_info.support_int8_packed, gpu_info.support_int8_storage, gpu_info.support_int8_arithmetic);
+        NCNN_LOGE("[%u %s]  fp16-p/s/u/a=%d/%d/%d/%d  int8-p/s/u/a=%d/%d/%d/%d", i, physicalDeviceProperties.deviceName,
+                  gpu_info.support_fp16_packed, gpu_info.support_fp16_storage, gpu_info.support_fp16_uniform, gpu_info.support_fp16_arithmetic,
+                  gpu_info.support_int8_packed, gpu_info.support_int8_storage, gpu_info.support_int8_uniform, gpu_info.support_int8_arithmetic);
 
         NCNN_LOGE("[%u %s]  subgroup=%u  basic/vote/ballot/shuffle=%d/%d/%d/%d", i, physicalDeviceProperties.deviceName,
                   gpu_info.subgroup_size, gpu_info.support_subgroup_basic, gpu_info.support_subgroup_vote,
@@ -2470,7 +2472,7 @@ VulkanDevice::VulkanDevice(int device_index)
     enabled8BitStorageFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_8BIT_STORAGE_FEATURES_KHR;
     enabled8BitStorageFeatures.pNext = 0;
     enabled8BitStorageFeatures.storageBuffer8BitAccess = info.support_int8_storage();
-    enabled8BitStorageFeatures.uniformAndStorageBuffer8BitAccess = info.support_int8_storage() && info.support_int8_arithmetic();
+    enabled8BitStorageFeatures.uniformAndStorageBuffer8BitAccess = info.support_int8_uniform();
     enabled8BitStorageFeatures.storagePushConstant8 = VK_FALSE;
     if (support_VK_KHR_get_physical_device_properties2 && info.support_VK_KHR_8bit_storage())
     {
@@ -2483,7 +2485,7 @@ VulkanDevice::VulkanDevice(int device_index)
     enabled16BitStorageFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_16BIT_STORAGE_FEATURES_KHR;
     enabled16BitStorageFeatures.pNext = 0;
     enabled16BitStorageFeatures.storageBuffer16BitAccess = info.support_fp16_storage();
-    enabled16BitStorageFeatures.uniformAndStorageBuffer16BitAccess = info.support_fp16_storage() && info.support_fp16_arithmetic();
+    enabled16BitStorageFeatures.uniformAndStorageBuffer16BitAccess = info.support_fp16_uniform();
     enabled16BitStorageFeatures.storagePushConstant16 = VK_FALSE;
     enabled16BitStorageFeatures.storageInputOutput16 = VK_FALSE;
     if (support_VK_KHR_get_physical_device_properties2 && info.support_VK_KHR_16bit_storage())
@@ -3857,10 +3859,15 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         custom_defines.push_back(std::make_pair("afpmat4", "mat4"));
     }
 
-    if (opt.use_fp16_storage && opt.use_fp16_arithmetic)
+    if (opt.use_fp16_storage && opt.use_fp16_uniform && opt.use_fp16_arithmetic)
     {
         custom_defines.push_back(std::make_pair("lfp", "float16_t"));
         custom_defines.push_back(std::make_pair("lfpvec4", "f16vec4"));
+    }
+    else if (opt.use_fp16_storage && opt.use_fp16_arithmetic)
+    {
+        custom_defines.push_back(std::make_pair("lfp", "float"));
+        custom_defines.push_back(std::make_pair("lfpvec4", "uint64_t"));
     }
     else if (opt.use_fp16_storage || opt.use_fp16_packed)
     {
@@ -3873,13 +3880,21 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         custom_defines.push_back(std::make_pair("lfpvec4", "vec4"));
     }
 
-    if (opt.use_fp16_storage && opt.use_fp16_arithmetic)
+    if (opt.use_fp16_storage && opt.use_fp16_uniform && opt.use_fp16_arithmetic)
     {
         custom_defines.push_back(std::make_pair("sfp2lfp(v)", "v"));
         custom_defines.push_back(std::make_pair("sfp2lfpvec4(v)", "v"));
 
         custom_defines.push_back(std::make_pair("lfp2afp(v)", "v"));
         custom_defines.push_back(std::make_pair("lfp2afpvec4(v)", "v"));
+    }
+    else if (opt.use_fp16_storage && opt.use_fp16_arithmetic)
+    {
+        custom_defines.push_back(std::make_pair("sfp2lfp(v)", "float(v)"));
+        custom_defines.push_back(std::make_pair("sfp2lfpvec4(v)", "pack64(halfBitsToUInt16(v))"));
+
+        custom_defines.push_back(std::make_pair("lfp2afp(v)", "float16_t(v)"));
+        custom_defines.push_back(std::make_pair("lfp2afpvec4(v)", "int16BitsToHalf(unpack16(v))"));
     }
     else if (opt.use_fp16_packed && opt.use_fp16_arithmetic)
     {
@@ -4208,6 +4223,11 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         custom_defines.push_back(std::make_pair("NCNN_fp16_packed", "1"));
     }
 
+    if (opt.use_fp16_uniform)
+    {
+        custom_defines.push_back(std::make_pair("NCNN_fp16_uniform", "1"));
+    }
+
     if (opt.use_fp16_arithmetic)
     {
         custom_defines.push_back(std::make_pair("NCNN_fp16_arithmetic", "1"));
@@ -4220,6 +4240,11 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
     else if (opt.use_int8_packed)
     {
         custom_defines.push_back(std::make_pair("NCNN_int8_packed", "1"));
+    }
+
+    if (opt.use_int8_uniform)
+    {
+        custom_defines.push_back(std::make_pair("NCNN_int8_uniform", "1"));
     }
 
     if (opt.use_int8_arithmetic)
