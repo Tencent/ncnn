@@ -186,7 +186,7 @@ jobs:
     steps:
     - name: cache-openmp
       id: cache-openmp
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: openmp-install
         key: openmp-macos-release-11.0.0-20230504
@@ -407,7 +407,7 @@ jobs:
     steps:
     - name: cache-openmp
       id: cache-openmp
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: openmp-install
         key: openmp-ios-release-11.0.0-20230504
@@ -677,7 +677,7 @@ jobs:
     steps:
     - name: cache-openmp
       id: cache-openmp
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: openmp-install
         key: openmp-ios-bitcode-release-11.0.0-20230504
@@ -947,7 +947,7 @@ jobs:
     steps:
     - name: cache-openmp
       id: cache-openmp
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: openmp-install
         key: openmp-ios-simulator-release-11.0.0-20230504
@@ -1217,7 +1217,7 @@ jobs:
     steps:
     - name: cache-openmp
       id: cache-openmp
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: openmp-install
         key: openmp-ios-simulator-bitcode-release-11.0.0-20230504
@@ -1487,7 +1487,7 @@ jobs:
     steps:
     - name: cache-openmp
       id: cache-openmp
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: openmp-install
         key: openmp-mac-catalyst-release-11.0.0-20230504
@@ -1731,7 +1731,7 @@ jobs:
     steps:
     - name: cache-openmp
       id: cache-openmp
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: openmp-install
         key: openmp-mac-catalyst-bitcode-release-11.0.0-20230504
@@ -2479,7 +2479,7 @@ jobs:
         submodules: true
     - name: cache-protobuf
       id: cache-protobuf
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: "protobuf-install"
         key: protobuf-vs2015-x86-x64-install
@@ -2536,7 +2536,7 @@ jobs:
         submodules: true
     - name: cache-protobuf
       id: cache-protobuf
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: "protobuf-install"
         key: protobuf-vs2015-x86-x64-install
@@ -2593,7 +2593,7 @@ jobs:
         submodules: true
     - name: cache-protobuf
       id: cache-protobuf
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: "protobuf-install"
         key: protobuf-vs2017-x86-x64-install
@@ -2650,7 +2650,7 @@ jobs:
         submodules: true
     - name: cache-protobuf
       id: cache-protobuf
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: "protobuf-install"
         key: protobuf-vs2017-x86-x64-install
@@ -2707,7 +2707,7 @@ jobs:
         submodules: true
     - name: cache-protobuf
       id: cache-protobuf
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: "protobuf-install"
         key: protobuf-vs2019-x86-x64-install
@@ -2780,7 +2780,7 @@ jobs:
         submodules: true
     - name: cache-protobuf
       id: cache-protobuf
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: "protobuf-install"
         key: protobuf-vs2019-x86-x64-install
@@ -2853,7 +2853,7 @@ jobs:
         submodules: true
     - name: cache-protobuf
       id: cache-protobuf
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: "protobuf-install"
         key: protobuf-vs2022-x86-x64-install
@@ -2926,7 +2926,7 @@ jobs:
         submodules: true
     - name: cache-protobuf
       id: cache-protobuf
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: "protobuf-install"
         key: protobuf-vs2022-x86-x64-install
