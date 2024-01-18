@@ -61,7 +61,7 @@ jobs:
     - uses: actions/checkout@v4
     - name: cache-protobuf
       id: cache-protobuf
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: "protobuf-install"
         key: protobuf-${{ matrix.vs-version }}-x64-install-2

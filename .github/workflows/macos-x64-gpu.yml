@@ -53,7 +53,7 @@ jobs:
 
     - name: cache-openmp
       id: cache-openmp
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: openmp-install
         key: openmp-macos-install-20230504
@@ -107,7 +107,7 @@ jobs:
 
     - name: cache-swiftshader
       id: cache-swiftshader
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: swiftshader-install
         key: swiftshader-macos-install-20230420

@@ -38,7 +38,7 @@ jobs:
 
     - name: cache-qemu
       id: cache-qemu
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: qemu-install
         key: qemu-arm-install-20220502-2
@@ -96,7 +96,7 @@ jobs:
 
     - name: cache-qemu
       id: cache-qemu
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: qemu-install
         key: qemu-arm-install-20220502-2
@@ -154,7 +154,7 @@ jobs:
 
     - name: cache-qemu
       id: cache-qemu
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: qemu-install
         key: qemu-arm-install-20220502-2
