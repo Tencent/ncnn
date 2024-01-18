@@ -1789,6 +1789,7 @@ int create_gpu_instance(const char* driver_path)
         gpu_info.support_int8_arithmetic = false;
         gpu_info.support_ycbcr_conversion = false;
         gpu_info.support_cooperative_matrix = false;
+        gpu_info.support_cooperative_matrix_8_8_16 = false;
         gpu_info.support_cooperative_matrix_16_8_8 = false;
         gpu_info.support_cooperative_matrix_16_8_16 = false;
         gpu_info.support_cooperative_matrix_16_16_16 = false;
