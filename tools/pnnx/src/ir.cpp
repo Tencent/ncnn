@@ -817,6 +817,32 @@ std::string Parameter::encode_to_string(const Parameter& param)
     return std::string();
 }
 
+bool Operator::has_param(const std::string& key) const
+{
+    return params.find(key) != params.end();
+}
+
+bool Operator::has_attr(const std::string& key) const
+{
+    return attrs.find(key) != attrs.end();
+}
+
+bool Operator::has_input(const std::string& key) const
+{
+    return std::find(inputnames.begin(), inputnames.end(), key) != inputnames.end();
+}
+
+Operand* Operator::named_input(const std::string& key)
+{
+    for (size_t i = 0; i < inputnames.size(); i++)
+    {
+        if (inputnames[i] == key)
+            return inputs[i];
+    }
+
+    return 0;
+}
+
 Graph::Graph()
 {
 }
@@ -1478,7 +1504,7 @@ static std::string make_slice_expression(const Operator* op)
     }
 
     std::vector<int> dims;
-    if (op->params.find("dims") != op->params.end())
+    if (op->has_param("dims"))
     {
         dims = op->params.at("dims").ai;
     }
@@ -1487,20 +1513,26 @@ static std::string make_slice_expression(const Operator* op)
         dims.push_back(op->params.at("dim").i);
     }
 
-    std::string r;
+    std::string pr;
+    std::string nr;
+
+    if (dims[0] < 0)
+        nr += "...,";
 
     int last_dim = -1;
     const int ndim = (int)dims.size();
     for (int i = 0; i < ndim; i++)
     {
         int dim = dims[i];
+        std::string& r = dim < 0 ? nr : pr;
+
         for (int j = last_dim + 1; j < dim; j++)
         {
             r += ":,";
         }
         last_dim = dim;
 
-        if (op->params.find("starts") != op->params.end())
+        if (op->has_param("starts"))
         {
             std::vector<int> starts = op->params.at("starts").ai;
             int start = starts[i];
@@ -1510,7 +1542,6 @@ static std::string make_slice_expression(const Operator* op)
         }
         else
         {
-            fprintf(stderr, "find start\n");
             // find start
             for (size_t j = 0; j < op->inputnames.size(); j++)
             {
@@ -1526,7 +1557,7 @@ static std::string make_slice_expression(const Operator* op)
 
         r += ':';
 
-        if (op->params.find("ends") != op->params.end())
+        if (op->has_param("ends"))
         {
             std::vector<int> ends = op->params.at("ends").ai;
             int end = ends[i];
@@ -1546,7 +1577,7 @@ static std::string make_slice_expression(const Operator* op)
             }
         }
 
-        if (op->params.find("steps") != op->params.end())
+        if (op->has_param("steps"))
         {
             std::vector<int> steps = op->params.at("steps").ai;
             int step = steps[i];
@@ -1574,7 +1605,10 @@ static std::string make_slice_expression(const Operator* op)
             r += ',';
     }
 
-    return r;
+    if (!pr.empty() && !nr.empty())
+        return pr + ',' + nr;
+
+    return pr + nr;
 }
 
 static std::string make_index_expression(const Operator* op)
@@ -1930,6 +1964,9 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
         for (const Operator* op : ops)
         {
             if (op->type == "pnnx.Input" || op->type == "pnnx.Output")
+                continue;
+
+            if (op->type == "pnnx.Expression" && op->outputs[0]->consumers.size() == 1 && op->outputs[0]->consumers[0]->type == "Tensor.slice")
                 continue;
 
             fprintf(pyfp, "        ");

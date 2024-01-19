@@ -43,12 +43,18 @@ void fuse_slice_copy(Graph& graph)
                 const Operator* sop = in0->producer;
                 if (sop->type == "Tensor.slice")
                 {
-                    if (sop->params.find("dims") == sop->params.end()
-                            || sop->params.find("starts") == sop->params.end()
-                            || sop->params.find("ends") == sop->params.end()
-                            || sop->params.find("steps") == sop->params.end())
+                    // if (sop->params.find("dims") == sop->params.end()
+                    //         || sop->params.find("starts") == sop->params.end()
+                    //         || sop->params.find("ends") == sop->params.end()
+                    //         || sop->params.find("steps") == sop->params.end())
+                    // {
+                    //     fprintf(stderr, "dynamic index in slice copy chain is not supported\n");
+                    //     break;
+                    // }
+
+                    if (sop->params.find("dims") == sop->params.end())
                     {
-                        fprintf(stderr, "dynamic index in slice copy chain is not supported\n");
+                        fprintf(stderr, "dynamic dims in slice copy chain is not supported\n");
                         break;
                     }
 
@@ -63,10 +69,16 @@ void fuse_slice_copy(Graph& graph)
 
                 if (sop->type == "Tensor.select")
                 {
-                    if (sop->params.find("dim") == sop->params.end()
-                            || sop->params.find("index") == sop->params.end())
+                    // if (sop->params.find("dim") == sop->params.end()
+                    //         || sop->params.find("index") == sop->params.end())
+                    // {
+                    //     fprintf(stderr, "dynamic index in select copy chain is not supported\n");
+                    //     break;
+                    // }
+
+                    if (sop->params.find("dim") == sop->params.end())
                     {
-                        fprintf(stderr, "dynamic index in select copy chain is not supported\n");
+                        fprintf(stderr, "dynamic dim in select copy chain is not supported\n");
                         break;
                     }
 
