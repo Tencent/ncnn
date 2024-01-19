@@ -333,6 +333,7 @@ public:
 
     // cooperative matrix
     bool support_cooperative_matrix;
+    bool support_cooperative_matrix_8_8_16;
     bool support_cooperative_matrix_16_8_8;
     bool support_cooperative_matrix_16_8_16;
     bool support_cooperative_matrix_16_16_16;
@@ -644,6 +645,11 @@ bool GpuInfo::support_ycbcr_conversion() const
 bool GpuInfo::support_cooperative_matrix() const
 {
     return d->support_cooperative_matrix;
+}
+
+bool GpuInfo::support_cooperative_matrix_8_8_16() const
+{
+    return d->support_cooperative_matrix_8_8_16;
 }
 
 bool GpuInfo::support_cooperative_matrix_16_8_8() const
@@ -1783,6 +1789,7 @@ int create_gpu_instance(const char* driver_path)
         gpu_info.support_int8_arithmetic = false;
         gpu_info.support_ycbcr_conversion = false;
         gpu_info.support_cooperative_matrix = false;
+        gpu_info.support_cooperative_matrix_8_8_16 = false;
         gpu_info.support_cooperative_matrix_16_8_8 = false;
         gpu_info.support_cooperative_matrix_16_8_16 = false;
         gpu_info.support_cooperative_matrix_16_16_16 = false;
@@ -1938,6 +1945,13 @@ int create_gpu_instance(const char* driver_path)
                     const VkCooperativeMatrixPropertiesKHR& cmp = properties[j];
                     // NCNN_LOGE("cpm %2d %2d %2d  %d %d %d %d  %d", cmp.MSize, cmp.NSize, cmp.KSize, cmp.AType, cmp.BType, cmp.CType, cmp.ResultType, cmp.scope);
 
+                    if (cmp.MSize == 8 && cmp.NSize == 8 && cmp.KSize == 16
+                            && cmp.AType == VK_COMPONENT_TYPE_FLOAT16_KHR && cmp.BType == VK_COMPONENT_TYPE_FLOAT16_KHR
+                            && cmp.CType == VK_COMPONENT_TYPE_FLOAT32_KHR && cmp.ResultType == VK_COMPONENT_TYPE_FLOAT32_KHR
+                            && cmp.scope == VK_SCOPE_SUBGROUP_KHR)
+                    {
+                        gpu_info.support_cooperative_matrix_8_8_16 = true;
+                    }
                     if (cmp.MSize == 16 && cmp.NSize == 8 && cmp.KSize == 8
                             && cmp.AType == VK_COMPONENT_TYPE_FLOAT16_KHR && cmp.BType == VK_COMPONENT_TYPE_FLOAT16_KHR
                             && cmp.CType == VK_COMPONENT_TYPE_FLOAT32_KHR && cmp.ResultType == VK_COMPONENT_TYPE_FLOAT32_KHR
@@ -1987,6 +2001,13 @@ int create_gpu_instance(const char* driver_path)
                     const VkCooperativeMatrixPropertiesNV& cmp = properties[j];
                     // NCNN_LOGE("cpm %2d %2d %2d  %d %d %d %d  %d", cmp.MSize, cmp.NSize, cmp.KSize, cmp.AType, cmp.BType, cmp.CType, cmp.DType, cmp.scope);
 
+                    if (cmp.MSize == 8 && cmp.NSize == 8 && cmp.KSize == 16
+                            && cmp.AType == VK_COMPONENT_TYPE_FLOAT16_NV && cmp.BType == VK_COMPONENT_TYPE_FLOAT16_NV
+                            && cmp.CType == VK_COMPONENT_TYPE_FLOAT32_NV && cmp.DType == VK_COMPONENT_TYPE_FLOAT32_NV
+                            && cmp.scope == VK_SCOPE_SUBGROUP_NV)
+                    {
+                        gpu_info.support_cooperative_matrix_8_8_16 = true;
+                    }
                     if (cmp.MSize == 16 && cmp.NSize == 8 && cmp.KSize == 8
                             && cmp.AType == VK_COMPONENT_TYPE_FLOAT16_NV && cmp.BType == VK_COMPONENT_TYPE_FLOAT16_NV
                             && cmp.CType == VK_COMPONENT_TYPE_FLOAT32_NV && cmp.DType == VK_COMPONENT_TYPE_FLOAT32_NV
@@ -2028,9 +2049,9 @@ int create_gpu_instance(const char* driver_path)
                   gpu_info.subgroup_size, gpu_info.support_subgroup_basic, gpu_info.support_subgroup_vote,
                   gpu_info.support_subgroup_ballot, gpu_info.support_subgroup_shuffle);
 
-        NCNN_LOGE("[%u %s]  fp16-matrix-16_8_8/16_8_16/16_16_16=%d/%d/%d", i, physicalDeviceProperties.deviceName,
-                  gpu_info.support_cooperative_matrix_16_8_8, gpu_info.support_cooperative_matrix_16_8_16,
-                  gpu_info.support_cooperative_matrix_16_16_16);
+        NCNN_LOGE("[%u %s]  fp16-8x8x16/16x8x8/16x8x16/16x16x16=%d/%d/%d/%d", i, physicalDeviceProperties.deviceName,
+                  gpu_info.support_cooperative_matrix_8_8_16, gpu_info.support_cooperative_matrix_16_8_8,
+                  gpu_info.support_cooperative_matrix_16_8_16, gpu_info.support_cooperative_matrix_16_16_16);
 
         gpu_info_index++;
     }
