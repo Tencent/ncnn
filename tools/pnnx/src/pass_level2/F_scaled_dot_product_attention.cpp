@@ -72,7 +72,7 @@ pnnx.Output             output      1 0 out
 
         if (captured_params.at("scale").type == 0)
         {
-            // drop scale=None for compatiblity with old torch
+            // drop scale=None for compatibility with old torch
             op->params.erase("scale");
         }
     }
