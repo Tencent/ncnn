@@ -1540,14 +1540,24 @@ static std::string make_slice_expression(const Operator* op)
         }
         last_dim = dim;
 
-        if (op->has_param("starts"))
+        if (op->has_param("start"))
+        {
+            int start = op->params.at("start").i;
+            if (start != 0)
+                r += std::to_string(start);
+        }
+        else if (op->has_param("starts"))
         {
             std::vector<int> starts = op->params.at("starts").ai;
             int start = starts[i];
             if (start != 0)
                 r += std::to_string(start);
         }
-        else
+        else if (op->has_input("start"))
+        {
+            r += std::string("v_") + sanitize_identifier(op->named_input("start")->name);
+        }
+        else // if (op->has_input("starts"))
         {
             // must be pnnx.SliceIndexes
             const Operator* op_sliceindexes = op->named_input("starts")->producer;
@@ -1567,14 +1577,24 @@ static std::string make_slice_expression(const Operator* op)
 
         r += ':';
 
-        if (op->has_param("ends"))
+        if (op->has_param("end"))
+        {
+            int end = op->params.at("end").i;
+            if (end != INT_MAX)
+                r += std::to_string(end);
+        }
+        else if (op->has_param("ends"))
         {
             std::vector<int> ends = op->params.at("ends").ai;
             int end = ends[i];
             if (end != INT_MAX)
                 r += std::to_string(end);
         }
-        else
+        else if (op->has_input("end"))
+        {
+            r += std::string("v_") + sanitize_identifier(op->named_input("end")->name);
+        }
+        else // if (op->has_input("ends"))
         {
             // must be pnnx.SliceIndexes
             const Operator* op_sliceindexes = op->named_input("ends")->producer;
@@ -1592,7 +1612,16 @@ static std::string make_slice_expression(const Operator* op)
             }
         }
 
-        if (op->has_param("steps"))
+        if (op->has_param("step"))
+        {
+            int step = op->params.at("step").i;
+            if (step != 1)
+            {
+                r += ':';
+                r += std::to_string(step);
+            }
+        }
+        else if (op->has_param("steps"))
         {
             std::vector<int> steps = op->params.at("steps").ai;
             int step = steps[i];
@@ -1602,7 +1631,12 @@ static std::string make_slice_expression(const Operator* op)
                 r += std::to_string(step);
             }
         }
-        else
+        else if (op->has_input("step"))
+        {
+            r += ':';
+            r += std::string("v_") + sanitize_identifier(op->named_input("step")->name);
+        }
+        else // if (op->has_input("steps"))
         {
             // must be pnnx.SliceIndexes
             const Operator* op_sliceindexes = op->named_input("steps")->producer;
