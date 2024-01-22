@@ -33,29 +33,43 @@ void fuse_slice_indices(Graph& graph)
         {
             Operator* op = graph.ops[i];
 
-            if (op->type != "Tensor.slice")
+            if (op->type != "Tensor.slice" && op->type != "Tensor.select")
                 continue;
+
+            if (op->has_param("dims"))
+            {
+                // skip fused ones
+                continue;
+            }
 
             if (!op->has_param("dim"))
             {
-                fprintf(stderr, "dynamic dim in slice chain is not supported\n");
+                fprintf(stderr, "dynamic dim in slice/select chain is not supported\n");
                 continue;
             }
 
             bool static_starts = true;
             bool static_ends = true;
             bool static_steps = true;
+            bool static_selects = true;
 
-            if (!op->has_param("start")) static_starts = false;
-            if (!op->has_param("end")) static_ends = false;
-            if (!op->has_param("step")) static_steps = false;
+            if (op->type == "Tensor.slice")
+            {
+                if (!op->has_param("start")) static_starts = false;
+                if (!op->has_param("end")) static_ends = false;
+                if (!op->has_param("step")) static_steps = false;
+            }
+            else // if (op->type == "Tensor.select")
+            {
+                if (!op->has_param("index")) static_selects = false;
+            }
 
             int descent_dim_current = op->params.at("dim").i;
 
             // collect slice op chain
-            std::stack<Operator*> slice_ops;
+            std::stack<Operator*> slice_select_ops;
             Operand* in0 = op->inputs[0];
-            while (in0->producer->type == "Tensor.slice")
+            while (in0->producer->type == "Tensor.slice" || in0->producer->type == "Tensor.select")
             {
                 Operator* sop = in0->producer;
                 if (in0->consumers.size() != 1)
@@ -64,31 +78,48 @@ void fuse_slice_indices(Graph& graph)
                     break;
                 }
 
-                if (!sop->has_param("dim"))
+                if (sop->has_param("dims"))
                 {
-                    fprintf(stderr, "dynamic dim in slice chain is not supported\n");
+                    // skip fused ones
                     break;
                 }
 
-                if (!sop->has_param("start")) static_starts = false;
-                if (!sop->has_param("end")) static_ends = false;
-                if (!sop->has_param("step")) static_steps = false;
+                if (!sop->has_param("dim"))
+                {
+                    fprintf(stderr, "dynamic dim in slice/select chain is not supported\n");
+                    break;
+                }
+
+                if (sop->type == "Tensor.slice")
+                {
+                    if (!sop->has_param("start")) static_starts = false;
+                    if (!sop->has_param("end")) static_ends = false;
+                    if (!sop->has_param("step")) static_steps = false;
+                }
+                else // if (sop->type == "Tensor.select")
+                {
+                    if (!sop->has_param("index")) static_selects = false;
+                }
 
                 int dim = sop->params.at("dim").i;
-                if (descent_dim_current <= dim && !(descent_dim_current < 0 && dim >= 0))
+
+                if ((dim < 0 && descent_dim_current <= dim)
+                    || (descent_dim_current >= 0 && dim >= 0 && descent_dim_current < dim)
+                    || (descent_dim_current >= 0 && dim < 0))
                 {
+                    // not adjacent slice/select in chain
                     break;
                 }
 
                 descent_dim_current = dim;
 
-                slice_ops.push(sop);
+                slice_select_ops.push(sop);
                 in0 = sop->inputs[0];
             }
 
-            if (slice_ops.empty())
+            if (slice_select_ops.empty())
             {
-                // single orphaned slice
+                // single orphaned slice/select
                 continue;
             }
 
@@ -99,106 +130,181 @@ void fuse_slice_indices(Graph& graph)
             std::vector<int> new_starts;
             std::vector<int> new_ends;
             std::vector<int> new_steps;
+            std::vector<int> new_selects;
             Operator* op_starts = 0;
             Operator* op_ends = 0;
             Operator* op_steps = 0;
+            Operator* op_selects = 0;
             if (!static_starts) op_starts = graph.new_operator_before("pnnx.SliceIndexes", op->name + "_ncnnstarts", op);
             if (!static_ends) op_ends = graph.new_operator_before("pnnx.SliceIndexes", op->name + "_ncnnends", op);
             if (!static_steps) op_steps = graph.new_operator_before("pnnx.SliceIndexes", op->name + "_ncnnsteps", op);
+            if (!static_selects) op_selects = graph.new_operator_before("pnnx.SliceIndexes", op->name + "_ncnnselects", op);
 
             std::vector<std::string> starts_indexes;
             std::vector<std::string> ends_indexes;
             std::vector<std::string> steps_indexes;
+            std::vector<std::string> selects_indexes;
 
-            while (!slice_ops.empty())
+            while (!slice_select_ops.empty())
             {
-                Operator* sop = slice_ops.top();
-                slice_ops.pop();
+                Operator* sop = slice_select_ops.top();
+                slice_select_ops.pop();
 
                 new_dims.push_back(sop->params.at("dim").i);
 
-                if (static_starts)
+                if (sop->type == "Tensor.slice")
                 {
-                    new_starts.push_back(sop->params.at("start").type == 0 ? 0 : sop->params.at("start").i);
-                }
-                else if (sop->has_param("start"))
-                {
-                    char tmp[32];
-                    if (sop->params.at("start").type == 0)
+                    if (static_starts)
                     {
-                        sprintf(tmp, "0");
+                        new_starts.push_back(sop->params.at("start").type == 0 ? 0 : sop->params.at("start").i);
+                    }
+                    else if (sop->has_param("start"))
+                    {
+                        char tmp[32];
+                        if (sop->params.at("start").type == 0)
+                        {
+                            sprintf(tmp, "0");
+                        }
+                        else
+                        {
+                            sprintf(tmp, "%d", sop->params.at("start").i);
+                        }
+                        starts_indexes.push_back(tmp);
                     }
                     else
                     {
-                        sprintf(tmp, "%d", sop->params.at("start").i);
+                        char tmp[32];
+                        sprintf(tmp, "@%d", (int)op_starts->inputs.size());
+                        starts_indexes.push_back(tmp);
+                        Operand* start = sop->named_input("start");
+                        op_starts->inputs.push_back(start);
+                        start->remove_consumer(sop);
+                        start->consumers.push_back(op_starts);
                     }
-                    starts_indexes.push_back(tmp);
-                }
-                else
-                {
-                    char tmp[32];
-                    sprintf(tmp, "@%d", (int)op_starts->inputs.size());
-                    starts_indexes.push_back(tmp);
-                    Operand* start = sop->named_input("start");
-                    op_starts->inputs.push_back(start);
-                    start->remove_consumer(sop);
-                    start->consumers.push_back(op_starts);
-                }
 
-                if (static_ends)
-                {
-                    new_ends.push_back(sop->params.at("end").type == 0 ? INT_MAX : sop->params.at("end").i);
-                }
-                else if (sop->has_param("end"))
-                {
-                    char tmp[32];
-                    if (sop->params.at("end").type == 0)
+                    if (static_ends)
                     {
+                        new_ends.push_back(sop->params.at("end").type == 0 ? INT_MAX : sop->params.at("end").i);
+                    }
+                    else if (sop->has_param("end"))
+                    {
+                        char tmp[32];
+                        if (sop->params.at("end").type == 0)
+                        {
+                            sprintf(tmp, "%d", INT_MAX);
+                        }
+                        else
+                        {
+                            sprintf(tmp, "%d", sop->params.at("end").i);
+                        }
+                        ends_indexes.push_back(tmp);
+                    }
+                    else
+                    {
+                        char tmp[32];
+                        sprintf(tmp, "@%d", (int)op_ends->inputs.size());
+                        ends_indexes.push_back(tmp);
+                        Operand* end = sop->named_input("end");
+                        op_ends->inputs.push_back(end);
+                        end->remove_consumer(sop);
+                        end->consumers.push_back(op_ends);
+                    }
+
+                    if (static_steps)
+                    {
+                        new_steps.push_back(sop->params.at("step").type == 0 ? 1 : sop->params.at("step").i);
+                    }
+                    else if (sop->has_param("step"))
+                    {
+                        char tmp[32];
+                        if (sop->params.at("step").type == 0)
+                        {
+                            sprintf(tmp, "1");
+                        }
+                        else
+                        {
+                            sprintf(tmp, "%d", sop->params.at("step").i);
+                        }
+                        steps_indexes.push_back(tmp);
+                    }
+                    else
+                    {
+                        char tmp[32];
+                        sprintf(tmp, "@%d", (int)op_steps->inputs.size());
+                        steps_indexes.push_back(tmp);
+                        Operand* step = sop->named_input("step");
+                        op_steps->inputs.push_back(step);
+                        step->remove_consumer(sop);
+                        step->consumers.push_back(op_steps);
+                    }
+
+                    if (static_selects)
+                    {
+                        new_selects.push_back(INT_MAX);
+                    }
+                    else
+                    {
+                        char tmp[32];
                         sprintf(tmp, "%d", INT_MAX);
+                        selects_indexes.push_back(tmp);
+                    }
+                }
+                else // if (sop->type == "Tensor.select")
+                {
+                    if (static_starts)
+                    {
+                        new_starts.push_back(0);
                     }
                     else
                     {
-                        sprintf(tmp, "%d", sop->params.at("end").i);
+                        starts_indexes.push_back("0");
                     }
-                    ends_indexes.push_back(tmp);
-                }
-                else
-                {
-                    char tmp[32];
-                    sprintf(tmp, "@%d", (int)op_ends->inputs.size());
-                    ends_indexes.push_back(tmp);
-                    Operand* end = sop->named_input("end");
-                    op_ends->inputs.push_back(end);
-                    end->remove_consumer(sop);
-                    end->consumers.push_back(op_ends);
-                }
 
-                if (static_steps)
-                {
-                    new_steps.push_back(sop->params.at("step").type == 0 ? 1 : sop->params.at("step").i);
-                }
-                else if (sop->has_param("step"))
-                {
-                    char tmp[32];
-                    if (sop->params.at("step").type == 0)
+                    if (static_ends)
                     {
-                        sprintf(tmp, "1");
+                        new_ends.push_back(0);
                     }
                     else
                     {
-                        sprintf(tmp, "%d", sop->params.at("step").i);
+                        ends_indexes.push_back("0");
                     }
-                    steps_indexes.push_back(tmp);
-                }
-                else
-                {
-                    char tmp[32];
-                    sprintf(tmp, "@%d", (int)op_steps->inputs.size());
-                    steps_indexes.push_back(tmp);
-                    Operand* step = sop->named_input("step");
-                    op_steps->inputs.push_back(step);
-                    step->remove_consumer(sop);
-                    step->consumers.push_back(op_steps);
+
+                    if (static_steps)
+                    {
+                        new_steps.push_back(0);
+                    }
+                    else
+                    {
+                        steps_indexes.push_back("0");
+                    }
+
+                    if (static_selects)
+                    {
+                        new_selects.push_back(sop->params.at("index").type == 0 ? 0 : sop->params.at("index").i);
+                    }
+                    else if (sop->has_param("index"))
+                    {
+                        char tmp[32];
+                        if (sop->params.at("index").type == 0)
+                        {
+                            sprintf(tmp, "0");
+                        }
+                        else
+                        {
+                            sprintf(tmp, "%d", sop->params.at("index").i);
+                        }
+                        selects_indexes.push_back(tmp);
+                    }
+                    else
+                    {
+                        char tmp[32];
+                        sprintf(tmp, "@%d", (int)op_selects->inputs.size());
+                        selects_indexes.push_back(tmp);
+                        Operand* index = sop->named_input("index");
+                        op_selects->inputs.push_back(index);
+                        index->remove_consumer(sop);
+                        index->consumers.push_back(op_selects);
+                    }
                 }
 
                 {
@@ -215,9 +321,10 @@ void fuse_slice_indices(Graph& graph)
                 }
             }
 
-            {
-                new_dims.push_back(op->params.at("dim").i);
+            new_dims.push_back(op->params.at("dim").i);
 
+            if (op->type == "Tensor.slice")
+            {
                 if (static_starts)
                 {
                     new_starts.push_back(op->params.at("start").type == 0 ? 0 : op->params.at("start").i);
@@ -301,7 +408,77 @@ void fuse_slice_indices(Graph& graph)
                     step->remove_consumer(op);
                     step->consumers.push_back(op_steps);
                 }
+
+                if (static_selects)
+                {
+                    new_selects.push_back(INT_MAX);
+                }
+                else if (op->has_param("index"))
+                {
+                    char tmp[32];
+                    sprintf(tmp, "%d", INT_MAX);
+                    selects_indexes.push_back(tmp);
+                }
             }
+            else // if (op->type == "Tensor.select")
+            {
+                if (static_starts)
+                {
+                    new_starts.push_back(0);
+                }
+                else
+                {
+                    starts_indexes.push_back("0");
+                }
+
+                if (static_ends)
+                {
+                    new_ends.push_back(0);
+                }
+                else
+                {
+                    ends_indexes.push_back("0");
+                }
+
+                if (static_steps)
+                {
+                    new_steps.push_back(0);
+                }
+                else
+                {
+                    steps_indexes.push_back("0");
+                }
+
+                if (static_selects)
+                {
+                    new_selects.push_back(op->params.at("index").type == 0 ? 0 : op->params.at("index").i);
+                }
+                else if (op->has_param("index"))
+                {
+                    char tmp[32];
+                    if (op->params.at("index").type == 0)
+                    {
+                        sprintf(tmp, "0");
+                    }
+                    else
+                    {
+                        sprintf(tmp, "%d", op->params.at("index").i);
+                    }
+                    selects_indexes.push_back(tmp);
+                }
+                else
+                {
+                    char tmp[32];
+                    sprintf(tmp, "@%d", (int)op_selects->inputs.size());
+                    selects_indexes.push_back(tmp);
+                    Operand* index = op->named_input("index");
+                    op_selects->inputs.push_back(index);
+                    index->remove_consumer(op);
+                    index->consumers.push_back(op_selects);
+                }
+            }
+
+            op->type = "Tensor.slice";
 
             op->params.clear();
             op->params["dims"] = new_dims;
@@ -361,6 +538,22 @@ void fuse_slice_indices(Graph& graph)
                 steps_out->consumers.push_back(op);
                 op->inputs.push_back(steps_out);
                 op->inputnames.push_back("steps");
+            }
+
+            if (static_selects)
+            {
+                op->params["selects"] = new_selects;
+            }
+            else
+            {
+                op_selects->params["indexes"] = selects_indexes;
+
+                Operand* selects_out = graph.new_operand(op->name + "_ncnnselects_out");
+                selects_out->producer = op_selects;
+                op_selects->outputs.push_back(selects_out);
+                selects_out->consumers.push_back(op);
+                op->inputs.push_back(selects_out);
+                op->inputnames.push_back("selects");
             }
 
             break;

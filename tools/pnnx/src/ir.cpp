@@ -1509,10 +1509,10 @@ static std::string expand_expression(const Operator* op)
 
 static std::string make_slice_expression(const Operator* op)
 {
-    for (size_t j = 0; j < op->inputnames.size(); j++)
-    {
-        fprintf(stderr, "make_slice_expression %s %s\n", op->inputnames[j].c_str(), op->inputs[j]->name.c_str());
-    }
+    // for (size_t j = 0; j < op->inputnames.size(); j++)
+    // {
+    //     fprintf(stderr, "make_slice_expression %s %s\n", op->inputnames[j].c_str(), op->inputs[j]->name.c_str());
+    // }
 
     std::vector<int> dims;
     if (op->has_param("dims"))
@@ -1539,6 +1539,46 @@ static std::string make_slice_expression(const Operator* op)
             r += ":,";
         }
         last_dim = dim;
+
+        bool is_select = false;
+        if (op->has_param("selects"))
+        {
+            std::vector<int> selects = op->params.at("selects").ai;
+            int select = selects[i];
+            if (select != INT_MAX)
+            {
+                r += std::to_string(select);
+                is_select = true;
+            }
+        }
+        if (op->has_input("selects"))
+        {
+            // must be pnnx.SliceIndexes
+            const Operator* op_sliceindexes = op->named_input("selects")->producer;
+            const std::string& index = op_sliceindexes->params.at("indexes").as[i];
+            if (index[0] == '@')
+            {
+                int selecti = std::stoi(index.substr(1));
+                r += std::string("v_") + sanitize_identifier(op_sliceindexes->inputs[selecti]->name);
+                is_select = true;
+            }
+            else
+            {
+                int select = std::stoi(index);
+                if (select != INT_MAX)
+                {
+                    r += std::to_string(select);
+                    is_select = true;
+                }
+            }
+        }
+
+        if (is_select)
+        {
+            if (i + 1 != ndim)
+                r += ',';
+            continue;
+        }
 
         if (op->has_param("start"))
         {
