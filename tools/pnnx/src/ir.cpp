@@ -843,6 +843,17 @@ Operand* Operator::named_input(const std::string& key)
     return 0;
 }
 
+const Operand* Operator::named_input(const std::string& key) const
+{
+    for (size_t i = 0; i < inputnames.size(); i++)
+    {
+        if (inputnames[i] == key)
+            return inputs[i];
+    }
+
+    return 0;
+}
+
 Graph::Graph()
 {
 }
@@ -1516,9 +1527,6 @@ static std::string make_slice_expression(const Operator* op)
     std::string pr;
     std::string nr;
 
-    if (dims[0] < 0)
-        nr += "...,";
-
     int last_dim = -1;
     const int ndim = (int)dims.size();
     for (int i = 0; i < ndim; i++)
@@ -1536,22 +1544,24 @@ static std::string make_slice_expression(const Operator* op)
         {
             std::vector<int> starts = op->params.at("starts").ai;
             int start = starts[i];
-
             if (start != 0)
                 r += std::to_string(start);
         }
         else
         {
-            // find start
-            for (size_t j = 0; j < op->inputnames.size(); j++)
+            // must be pnnx.SliceIndexes
+            const Operator* op_sliceindexes = op->named_input("starts")->producer;
+            const std::string& index = op_sliceindexes->params.at("indexes").as[i];
+            if (index[0] == '@')
             {
-                if (op->inputnames[j] == "start")
-                {
-                    r += std::string("v_") + sanitize_identifier(op->inputs[j]->name);
-
-                    fprintf(stderr, "find start %s\n", op->inputs[j]->name.c_str());
-                    break;
-                }
+                int starti = std::stoi(index.substr(1));
+                r += std::string("v_") + sanitize_identifier(op_sliceindexes->inputs[starti]->name);
+            }
+            else
+            {
+                int start = std::stoi(index);
+                if (start != 0)
+                    r += std::to_string(start);
             }
         }
 
@@ -1566,14 +1576,19 @@ static std::string make_slice_expression(const Operator* op)
         }
         else
         {
-            // find end
-            for (size_t j = 0; j < op->inputnames.size(); j++)
+            // must be pnnx.SliceIndexes
+            const Operator* op_sliceindexes = op->named_input("ends")->producer;
+            const std::string& index = op_sliceindexes->params.at("indexes").as[i];
+            if (index[0] == '@')
             {
-                if (op->inputnames[j] == "end")
-                {
-                    r += std::string("v_") + sanitize_identifier(op->inputs[j]->name);
-                    break;
-                }
+                int endi = std::stoi(index.substr(1));
+                r += std::string("v_") + sanitize_identifier(op_sliceindexes->inputs[endi]->name);
+            }
+            else
+            {
+                int end = std::stoi(index);
+                if (end != INT_MAX)
+                    r += std::to_string(end);
             }
         }
 
@@ -1589,14 +1604,22 @@ static std::string make_slice_expression(const Operator* op)
         }
         else
         {
-            // find step
-            for (size_t j = 0; j < op->inputnames.size(); j++)
+            // must be pnnx.SliceIndexes
+            const Operator* op_sliceindexes = op->named_input("steps")->producer;
+            const std::string& index = op_sliceindexes->params.at("indexes").as[i];
+            if (index[0] == '@')
             {
-                if (op->inputnames[j] == "step")
+                int stepi = std::stoi(index.substr(1));
+                r += ':';
+                r += std::string("v_") + sanitize_identifier(op_sliceindexes->inputs[stepi]->name);
+            }
+            else
+            {
+                int step = std::stoi(index);
+                if (step != 1)
                 {
                     r += ':';
-                    r += std::string("v_") + sanitize_identifier(op->inputs[j]->name);
-                    break;
+                    r += std::to_string(step);
                 }
             }
         }
@@ -1606,7 +1629,7 @@ static std::string make_slice_expression(const Operator* op)
     }
 
     if (!pr.empty() && !nr.empty())
-        return pr + ',' + nr;
+        return pr + "...," + nr;
 
     return pr + nr;
 }
@@ -1966,7 +1989,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
             if (op->type == "pnnx.Input" || op->type == "pnnx.Output")
                 continue;
 
-            if (op->type == "pnnx.Expression" && op->outputs[0]->consumers.size() == 1 && op->outputs[0]->consumers[0]->type == "Tensor.slice")
+            if (op->type == "pnnx.SliceIndexes")
                 continue;
 
             fprintf(pyfp, "        ");
