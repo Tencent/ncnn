@@ -3048,7 +3048,7 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
             }
             else
             {
-                vsseg2e32_v_f32m1(_sum0, _sum1, outptr, vl);
+                vsseg2e32_v_f32m1(outptr, _sum0, _sum1, vl);
             }
 
             outptr += 8;
