@@ -348,20 +348,6 @@ static inline void transpose8x4_ps(vfloat32m1_t& _r0l, vfloat32m1_t& _r0h,
     _r3h = vle32_v_f32m1(ptr + 7 * 4, vl);
 }
 
-static inline void store_float_v2(vfloat32m1_t& vector1, vfloat32m1_t& vector2, float* buf, size_t vl)
-{
-    vsse32_v_f32m1(buf + 0, sizeof(float) * 2, vector1, vl);
-    vsse32_v_f32m1(buf + 1, sizeof(float) * 2, vector2, vl);
-}
-
-static inline void store_float_v4(vfloat32m1_t& vector1, vfloat32m1_t& vector2, vfloat32m1_t& vector3, vfloat32m1_t& vector4, float* buf, size_t vl)
-{
-    vsse32_v_f32m1(buf + 0, sizeof(float) * 4, vector1, vl);
-    vsse32_v_f32m1(buf + 1, sizeof(float) * 4, vector2, vl);
-    vsse32_v_f32m1(buf + 2, sizeof(float) * 4, vector3, vl);
-    vsse32_v_f32m1(buf + 3, sizeof(float) * 4, vector4, vl);
-}
-
 #if __riscv_zfh
 static inline vfloat16m8_t vle16_v_f16m8_f16m1(const __fp16* ptr)
 {
