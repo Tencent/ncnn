@@ -1541,6 +1541,15 @@ static std::string make_slice_expression(const Operator* op)
         last_dim = dim;
 
         bool is_select = false;
+        if (op->has_param("select"))
+        {
+            int select = op->params.at("select").i;
+            if (select != INT_MAX)
+            {
+                r += std::to_string(select);
+                is_select = true;
+            }
+        }
         if (op->has_param("selects"))
         {
             std::vector<int> selects = op->params.at("selects").ai;
@@ -1550,6 +1559,11 @@ static std::string make_slice_expression(const Operator* op)
                 r += std::to_string(select);
                 is_select = true;
             }
+        }
+        if (op->has_input("select"))
+        {
+            r += std::string("v_") + sanitize_identifier(op->named_input("select")->name);
+            is_select = true;
         }
         if (op->has_input("selects"))
         {
