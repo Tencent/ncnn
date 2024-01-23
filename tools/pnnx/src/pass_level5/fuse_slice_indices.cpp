@@ -28,7 +28,6 @@ void fuse_slice_indices(Graph& graph)
     {
         bool matched = false;
 
-        // for (size_t i = 0; i < graph.ops.size(); i++)
         for (int i = (int)graph.ops.size() - 1; i >= 0; i--)
         {
             Operator* op = graph.ops[i];

@@ -1719,6 +1719,9 @@ static std::string make_slice_expression(const Operator* op)
     if (!pr.empty() && !nr.empty())
         return pr + "...," + nr;
 
+    if (pr.empty() && !nr.empty())
+        return std::string("...,") + nr;
+
     return pr + nr;
 }
 
