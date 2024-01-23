@@ -103,8 +103,8 @@ void fuse_slice_indices(Graph& graph)
                 int dim = sop->params.at("dim").i;
 
                 if ((dim < 0 && descent_dim_current <= dim)
-                    || (descent_dim_current >= 0 && dim >= 0 && descent_dim_current < dim)
-                    || (descent_dim_current >= 0 && dim < 0))
+                        || (descent_dim_current >= 0 && dim >= 0 && descent_dim_current < dim)
+                        || (descent_dim_current >= 0 && dim < 0))
                 {
                     // not adjacent slice/select in chain
                     break;
