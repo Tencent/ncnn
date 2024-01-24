@@ -86,6 +86,42 @@ static inline vfloat32m8_t vle32_v_f32m8_f32m1(const float* ptr)
     return vloxei32_v_f32m8(ptr, bindex, vl);
 }
 
+static inline void transpose4x4_f16(vfloat16mf2_t & _r0, vfloat16mf2_t & _r1, vfloat16mf2_t & _r2, vfloat16mf2_t & _r3, size_t vl)
+{
+    __fp16 tmp[4][4];
+    vsse16_v_f16m1(&tmp[0][0], sizeof(__fp16) * 4, _r0, vl);
+    vsse16_v_f16m1(&tmp[0][1], sizeof(__fp16) * 4, _r1, vl);
+    vsse16_v_f16m1(&tmp[0][2], sizeof(__fp16) * 4, _r2, vl);
+    vsse16_v_f16m1(&tmp[0][3], sizeof(__fp16) * 4, _r3, vl);
+    __fp16* ptr = (__fp16*)tmp;
+    _r0 = vle16_v_f16m1(ptr + 0 * 4, vl);
+    _r1 = vle16_v_f16m1(ptr + 1 * 4, vl);
+    _r2 = vle16_v_f16m1(ptr + 2 * 4, vl);
+    _r3 = vle16_v_f16m1(ptr + 3 * 4, vl);
+}
+
+static inline void transpose8x8_f16(vfloat16m1_t& _r0, vfloat16m1_t _r1, vfloat16m1_t& _r2, vfloat16m1_t& _r3, vfloat16m1_t& _r4, vfloat16m1_t& _r5, vfloat16m1_t& _r6, vfloat16m1_t& _r7, size_t vl)
+{
+    __fp16 tmp[8][8];
+    vsse16_v_f16m1(&tmp[0][0], sizeof(__fp16) * 8, _r0, vl);
+    vsse16_v_f16m1(&tmp[0][1], sizeof(__fp16) * 8, _r1, vl);
+    vsse16_v_f16m1(&tmp[0][2], sizeof(__fp16) * 8, _r2, vl);
+    vsse16_v_f16m1(&tmp[0][3], sizeof(__fp16) * 8, _r3, vl);
+    vsse16_v_f16m1(&tmp[0][4], sizeof(__fp16) * 8, _r4, vl);
+    vsse16_v_f16m1(&tmp[0][5], sizeof(__fp16) * 8, _r5, vl);
+    vsse16_v_f16m1(&tmp[0][6], sizeof(__fp16) * 8, _r6, vl);
+    vsse16_v_f16m1(&tmp[0][7], sizeof(__fp16) * 8, _r7, vl);
+    __fp16* ptr = (__fp16*)tmp;
+    _r0 = vle16_v_f16m1(ptr + 0 * 4, vl);
+    _r1 = vle16_v_f16m1(ptr + 1 * 4, vl);
+    _r2 = vle16_v_f16m1(ptr + 2 * 4, vl);
+    _r3 = vle16_v_f16m1(ptr + 3 * 4, vl);
+    _r4 = vle16_v_f16m1(ptr + 4 * 4, vl);
+    _r5 = vle16_v_f16m1(ptr + 5 * 4, vl);
+    _r6 = vle16_v_f16m1(ptr + 6 * 4, vl);
+    _r7 = vle16_v_f16m1(ptr + 7 * 4, vl);
+}
+
 static inline void transpose8x8_ps(vfloat32m1_t& _r0l, vfloat32m1_t& _r0h,
                                    vfloat32m1_t& _r1l, vfloat32m1_t& _r1h,
                                    vfloat32m1_t& _r2l, vfloat32m1_t& _r2h,
@@ -587,6 +623,18 @@ static inline void vlseg2e16_v_u16m4(vuint16m4_t* v0, vuint16m4_t* v1, const uin
 #if __riscv_zfh
 
 // f16m1, vsseg.v, 8/4/2
+static inline void vsseg4e16_v_f16mf2(float16_t* base, vfloat16mf2_t v0, vfloat16mf2_t v1, vfloat16mf2_t v2, vfloat16mf2_t v3, size_t vl)
+{
+    vfloat16mf2x4_t _tmp = vcreate_f16mf2x4(v0, v1, v2, v3);
+    vsseg4e16_v_f16mf2x4(base, _tmp, vl);
+}
+
+static inline void vsseg2e16_v_f16mf2(float16_t* base, vfloat16mf2_t v0, vfloat16mf2_t v1, size_t vl)
+{
+    vfloat16mf2x2_t _tmp = vcreate_f16mf2x2(v0, v1);
+    vsseg2e16_v_f16mf2x2(base, _tmp, vl);
+}
+
 static inline void vsseg8e16_v_f16m1(float16_t* base, vfloat16m1_t v0, vfloat16m1_t v1, vfloat16m1_t v2, vfloat16m1_t v3, vfloat16m1_t v4, vfloat16m1_t v5, vfloat16m1_t v6, vfloat16m1_t v7, size_t vl)
 {
     vfloat16m1x8_t _tmp = vcreate_f16m1x8(v0, v1, v2, v3, v4, v5, v6, v7);
