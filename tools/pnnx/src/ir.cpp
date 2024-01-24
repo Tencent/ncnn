@@ -1376,7 +1376,7 @@ static std::string expand_expression(const Operator* op)
             if (t == "floor") unaryop = "torch.floor";
             if (t == "log") unaryop = "torch.log";
             if (t == "log10") unaryop = "torch.log10";
-            if (t == "neg") unaryop = "torch.neg";
+            if (t == "neg") unaryop = "-";
             if (t == "reciprocal") unaryop = "torch.reciprocal";
             if (t == "round") unaryop = "torch.round";
             if (t == "rsqrt") unaryop = "torch.rsqrt";
@@ -2566,7 +2566,14 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                         }
                         else
                         {
-                            fprintf(pyfp, "\'%s\'", param.s.c_str());
+                            if (param.s == "inf" || param.s == "-inf")
+                            {
+                                fprintf(pyfp, "float(\'%s\')", param.s.c_str());
+                            }
+                            else
+                            {
+                                fprintf(pyfp, "\'%s\'", param.s.c_str());
+                            }
                         }
                     }
                     if (param.type == 5)
