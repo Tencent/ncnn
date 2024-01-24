@@ -387,6 +387,8 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/convert_torch_tensor_split.cpp
     pass_ncnn/convert_torch_unbind.cpp
     pass_ncnn/convert_Tensor_select.cpp
+    pass_ncnn/convert_Tensor_slice.cpp
+    pass_ncnn/convert_Tensor_slice_copy.cpp
     pass_ncnn/eliminate_output.cpp
     pass_ncnn/expand_expression.cpp
     pass_ncnn/fuse_convert_shufflechannel_slice.cpp
@@ -536,8 +538,8 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/Tensor_contiguous.cpp
     pass_ncnn/Tensor_reshape.cpp
     pass_ncnn/Tensor_repeat.cpp
-    pass_ncnn/Tensor_slice.cpp
-    pass_ncnn/Tensor_slice_copy.cpp
+    # pass_ncnn/Tensor_slice.cpp
+    # pass_ncnn/Tensor_slice_copy.cpp
     pass_ncnn/Tensor_view.cpp
     pass_ncnn/torch_addmm.cpp
     pass_ncnn/torch_amax.cpp
@@ -660,8 +662,8 @@ else()
     target_link_libraries(pnnx PRIVATE ${TORCH_LIBRARIES} pthread dl)
 endif()
 
-#set_target_properties(pnnx PROPERTIES COMPILE_FLAGS -fsanitize=address)
-#set_target_properties(pnnx PROPERTIES LINK_FLAGS -fsanitize=address)
+# set_target_properties(pnnx PROPERTIES COMPILE_FLAGS -fsanitize=address)
+# set_target_properties(pnnx PROPERTIES LINK_FLAGS -fsanitize=address)
 
 if(APPLE)
     set_target_properties(pnnx PROPERTIES INSTALL_RPATH "@executable_path/")
