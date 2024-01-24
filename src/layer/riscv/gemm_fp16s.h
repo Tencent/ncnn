@@ -119,7 +119,6 @@ static void pack_A_tile_fp32_to_fp16(const Mat& A, Mat& AT, int i, int max_ii, i
         int kk = 0;
         for (; kk + 7 < max_kk; kk += 8)
         {
-            
             vfloat16m1_t v0 = vfncvt_f_f_w_f16m1(vle32_v_f32m2(p0, vl), vl);
             vfloat16m1_t v1 = vfncvt_f_f_w_f16m1(vle32_v_f32m2(p1, vl), vl);
             vfloat16m1_t v2 = vfncvt_f_f_w_f16m1(vle32_v_f32m2(p2, vl), vl);
@@ -366,9 +365,6 @@ static void pack_B_tile_fp32_to_fp16(const Mat& B, Mat& BT, int j, int max_jj, i
             vse16_v_f16mf2(pp + 4 * 9, _r3, vl / 2);
             vse16_v_f16mf2(pp + 4 * 10, _r7, vl / 2);
             vse16_v_f16mf2(pp + 4 * 11, _rb, vl / 2);
-            
-
-            
 
             // uint16x4_t _r0 = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p0));
             // uint16x4_t _r1 = (uint16x4_t)vcvt_f16_f32(vld1q_f32(p1));
