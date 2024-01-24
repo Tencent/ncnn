@@ -731,7 +731,7 @@ Pick `build-qnx/install` folder for further usage.
 Install DevkitPRO toolchains
 - If you are working on windows, download DevkitPro installer from [DevkitPro](https://devkitpro.org/wiki/Getting_Started).
 - If you are using Ubuntu, the official guidelines from DevkitPro might not work for you. Try using the lines below to install 
-```
+```shell
 sudo apt-get update
 sudo apt-get upgrade
 wget https://apt.devkitpro.org/install-devkitpro-pacman
@@ -739,14 +739,14 @@ chmod +x ./install-devkitpro-pacman
 sudo ./install-devkitpro-pacman
 ```
 
-```
+```shell
 export DEVKITPRO=/opt/devkitpro
 export DEVKITARM=/opt/devkitpro/devkitARM
 export DEVKITPPC=/opt/devkitpro/devkitPPC
 export export PATH=$/opt/devkitpro/tools/bin:$PATH
 source ~/.profile
 ```
-```
+```shell
 sudo dkp-pacman -Sy
 sudo dkp-pacman -Syu
 sudo dkp-pacman -S 3ds-dev
@@ -774,7 +774,7 @@ Copy the toolchain files from [3DS-cmake](https://github.com/Xtansia/3ds-cmake)(
 
 ```
 Build with:
-```
+```shell
 cd ncnn
 mkdir build && cd build
 cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/DevkitArm3DS.cmake .. -DNCNN_SIMPLEOCV=ON -DNCNN_OPENMP=OFF -DNCNN_VFPV4=OFF ..
