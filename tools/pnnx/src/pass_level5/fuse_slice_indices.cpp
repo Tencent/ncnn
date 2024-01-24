@@ -115,8 +115,8 @@ void fuse_slice_indices(Graph& graph)
                     break;
                 }
 
-                // only allow select-select on same dim
-                if (sop->type == "Tensor.select" && ((slice_select_ops.empty() && op->type == "Tensor.select") || (!slice_select_ops.empty() && slice_select_ops.top()->type == "Tensor.select")))
+                // only allow select on same dim
+                if (sop->type == "Tensor.select")
                 {
                     if (descent_dim_current >= 0 && dim >= 0 && descent_dim_current < dim)
                     {
