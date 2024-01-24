@@ -236,6 +236,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_lgamma.cpp
     pass_level2/torch_logsumexp.cpp
     pass_level2/torch_lt.cpp
+    pass_level2/torch_masked_select.cpp
     pass_level2/torch_matmul.cpp
     pass_level2/torch_max.cpp
     pass_level2/torch_mean.cpp
