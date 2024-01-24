@@ -67,6 +67,7 @@ void fuse_slice_indices(Graph& graph)
 
             // collect slice op chain
             std::stack<Operator*> slice_select_ops;
+            Operator* top_sop = op;
             Operand* in0 = op->inputs[0];
             while (in0->producer->type == "Tensor.slice" || in0->producer->type == "Tensor.select")
             {
@@ -135,6 +136,7 @@ void fuse_slice_indices(Graph& graph)
                 descent_dim_current = dim;
 
                 slice_select_ops.push(sop);
+                top_sop = sop;
                 in0 = sop->inputs[0];
             }
 
@@ -510,7 +512,7 @@ void fuse_slice_indices(Graph& graph)
             op->inputs.push_back(in0);
             op->inputnames.push_back("input");
 
-            in0->consumers.clear();
+            in0->remove_consumer(top_sop);
             in0->consumers.push_back(op);
 
             if (static_starts)
