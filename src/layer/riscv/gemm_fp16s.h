@@ -3321,22 +3321,6 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
                 _sum1 = vfmlalq_high_f16(_sum1, _pA, _pB01);
                 _sum2 = vfmlalq_low_f16(_sum2, _pA, _pB22);
 
-                uint16x8_t _pB = vld1q_u16(pB);
-                vfloat32m1_t _pB0 = vcvt_f32_f16((float16x4_t)vget_low_u16(_pB));
-                vfloat32m1_t _pB1 = vcvt_f32_f16((float16x4_t)vget_high_u16(_pB));
-                vfloat32m1_t _pB2 = vcvt_f32_f16((float16x4_t)vld1_u16(pB + 8));
-
-                vfloat32m1_t _pA0 = vcvt_f32_f16((float16x4_t)vdup_n_u16(pA[0]));
-#if __riscv_vector
-                _sum0 = vfmaq_f32(_sum0, _pA0, _pB0);
-                _sum1 = vfmaq_f32(_sum1, _pA0, _pB1);
-                _sum2 = vfmaq_f32(_sum2, _pA0, _pB2);
-#else
-                _sum0 = vmlaq_f32(_sum0, _pA0, _pB0);
-                _sum1 = vmlaq_f32(_sum1, _pA0, _pB1);
-                _sum2 = vmlaq_f32(_sum2, _pA0, _pB2);
-#endif
-#endif
 
                 pA += 1;
                 pB += 12;
