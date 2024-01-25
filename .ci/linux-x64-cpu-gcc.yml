@@ -44,7 +44,7 @@ jobs:
     runs-on:
       pool-name: docker
       container:
-        image: bkci/ci:ubuntu
+        image: bkci/ci:debian12
     steps:
     - name: checkout
       checkout: self
@@ -82,7 +82,7 @@ jobs:
     runs-on:
       pool-name: docker
       container:
-        image: bkci/ci:ubuntu
+        image: bkci/ci:debian12
     steps:
     - name: checkout
       checkout: self
