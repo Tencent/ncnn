@@ -124,7 +124,10 @@ static bool operand_maybe_tensor(const Operand* operand)
 
     if (op->type == "aten::add" || op->type == "aten::sub" || op->type == "aten::rsub")
     {
-        return operand_maybe_tensor(op->inputs[0]) || operand_maybe_tensor(op->inputs[1]) || operand_maybe_tensor(op->inputs[2]);
+        if (op->inputs.size() == 2)
+            return operand_maybe_tensor(op->inputs[0]) || operand_maybe_tensor(op->inputs[1]);
+        else // if (op->inputs.size() == 3)
+            return operand_maybe_tensor(op->inputs[0]) || operand_maybe_tensor(op->inputs[1]) || operand_maybe_tensor(op->inputs[2]);
     }
 
     return true;
@@ -615,22 +618,30 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
         expr += ",";
 
         std::string expr1;
-        std::string expr2;
         fuse_expression(graph, op->inputs[1], expr1, inputs, foldable_constants, zip);
-        fuse_expression(graph, op->inputs[2], expr2, inputs, foldable_constants, zip);
 
-        if (expr2 == "1")
+        if (op->inputs.size() == 2)
         {
             expr += expr1;
         }
-        else
+        else // if (op->inputs.size() == 3)
         {
-            expr += ",";
-            expr += "mul(";
-            expr += expr1;
-            expr += ",";
-            expr += expr2;
-            expr += ")";
+            std::string expr2;
+            fuse_expression(graph, op->inputs[2], expr2, inputs, foldable_constants, zip);
+
+            if (expr2 == "1")
+            {
+                expr += expr1;
+            }
+            else
+            {
+                expr += ",";
+                expr += "mul(";
+                expr += expr1;
+                expr += ",";
+                expr += expr2;
+                expr += ")";
+            }
         }
 
         expr += ")";
@@ -639,22 +650,30 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
     {
         expr += "sub(";
         std::string expr1;
-        std::string expr2;
         fuse_expression(graph, op->inputs[1], expr1, inputs, foldable_constants, zip);
-        fuse_expression(graph, op->inputs[2], expr2, inputs, foldable_constants, zip);
 
-        if (expr2 == "1")
+        if (op->inputs.size() == 2)
         {
             expr += expr1;
         }
-        else
+        else // if (op->inputs.size() == 3)
         {
-            expr += ",";
-            expr += "mul(";
-            expr += expr1;
-            expr += ",";
-            expr += expr2;
-            expr += ")";
+            std::string expr2;
+            fuse_expression(graph, op->inputs[2], expr2, inputs, foldable_constants, zip);
+
+            if (expr2 == "1")
+            {
+                expr += expr1;
+            }
+            else
+            {
+                expr += ",";
+                expr += "mul(";
+                expr += expr1;
+                expr += ",";
+                expr += expr2;
+                expr += ")";
+            }
         }
 
         expr += ",";
