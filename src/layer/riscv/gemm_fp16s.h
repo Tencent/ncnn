@@ -579,7 +579,7 @@ static void pack_B_tile_fp32_to_fp16(const Mat& B, Mat& BT, int j, int max_jj, i
             vfloat16m1_t _r1 = vfncvt_f_f_w_f16m1(vle32_v_f32m2(p1, vl), vl);
             vfloat16m1_t _r2 = vfncvt_f_f_w_f16m1(vle32_v_f32m2(p2, vl), vl);
             vfloat16m1_t _r3 = vfncvt_f_f_w_f16m1(vle32_v_f32m2(p3, vl), vl);
-            
+
             vsseg4e16_v_f16m1(pp, _r0, _r1, _r2, _r3, vl);
 
             // uint16x8x4_t _r0123;
@@ -935,13 +935,13 @@ static void transpose_unpack_output_tile_fp32_to_fp16(const Mat& topT, Mat& top_
 
 static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile, const Mat& CT_tile, Mat& topT_tile, Mat& top_blob, int broadcast_type_C, float alpha, int i, int max_ii, int j, int max_jj, int k, int max_kk, bool k_end)
 {
-// #if NCNN_RUNTIME_CPU && NCNN_ARM82FP16FML && __riscv_vector && !__ARM_FEATURE_FP16_FML
-//     if (ncnn::cpu_support_arm_asimdfhm())
-//     {
-//         gemm_transB_packed_tile_fp16s_asimdfhm(AT_tile, BT_tile, CT_tile, topT_tile, top_blob, broadcast_type_C, alpha, i, max_ii, j, max_jj, k, max_kk, k_end);
-//         return;
-//     }
-// #endif
+    // #if NCNN_RUNTIME_CPU && NCNN_ARM82FP16FML && __riscv_vector && !__ARM_FEATURE_FP16_FML
+    //     if (ncnn::cpu_support_arm_asimdfhm())
+    //     {
+    //         gemm_transB_packed_tile_fp16s_asimdfhm(AT_tile, BT_tile, CT_tile, topT_tile, top_blob, broadcast_type_C, alpha, i, max_ii, j, max_jj, k, max_kk, k_end);
+    //         return;
+    //     }
+    // #endif
 
     const int out_elempack = top_blob.elempack;
     const int out_hstep = top_blob.dims == 3 ? (int)top_blob.cstep : top_blob.w;
@@ -2151,7 +2151,6 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
 
                 pA += 4;
                 pB += 12;
-
             }
 
             if (alpha != 1.f)
@@ -2549,7 +2548,7 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
             }
 
             const __fp16* pA = pAT;
-            
+
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
@@ -3606,7 +3605,7 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
             {
                 __fp16 pA0 = pA[0];
                 __fp16 pB0 = pB[0];
-                
+
                 sum += pA0 * pB0;
                 pA += 1;
                 pB += 1;
