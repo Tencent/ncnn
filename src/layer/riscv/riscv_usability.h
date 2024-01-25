@@ -86,7 +86,7 @@ static inline vfloat32m8_t vle32_v_f32m8_f32m1(const float* ptr)
     return vloxei32_v_f32m8(ptr, bindex, vl);
 }
 
-static inline void transpose4x4_f16(vfloat16mf2_t & _r0, vfloat16mf2_t & _r1, vfloat16mf2_t & _r2, vfloat16mf2_t & _r3, size_t vl)
+static inline void transpose4x4_f16(vfloat16mf2_t& _r0, vfloat16mf2_t& _r1, vfloat16mf2_t& _r2, vfloat16mf2_t& _r3, size_t vl)
 {
     __fp16 tmp[4][4];
     vsse16_v_f16m1(&tmp[0][0], sizeof(__fp16) * 4, _r0, vl);
