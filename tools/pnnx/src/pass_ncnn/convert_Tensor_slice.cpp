@@ -48,7 +48,7 @@ void convert_Tensor_slice(Graph& graph)
             }
             else if (op->has_param("dim"))
             {
-                axes = std::vector<int>{op->params.at("dim").i};
+                axes = std::vector<int> {op->params.at("dim").i};
             }
             else
             {
@@ -62,7 +62,7 @@ void convert_Tensor_slice(Graph& graph)
             }
             else if (op->has_param("start"))
             {
-                starts = std::vector<int>{op->params.at("start").i};
+                starts = std::vector<int> {op->params.at("start").i};
             }
             else
             {
@@ -76,7 +76,7 @@ void convert_Tensor_slice(Graph& graph)
             }
             else if (op->has_param("end"))
             {
-                ends = std::vector<int>{op->params.at("end").i};
+                ends = std::vector<int> {op->params.at("end").i};
             }
             else
             {
@@ -90,7 +90,7 @@ void convert_Tensor_slice(Graph& graph)
             }
             else if (op->has_param("step"))
             {
-                steps = std::vector<int>{op->params.at("step").i};
+                steps = std::vector<int> {op->params.at("step").i};
             }
             else
             {
@@ -104,7 +104,7 @@ void convert_Tensor_slice(Graph& graph)
             }
             else if (op->has_param("select"))
             {
-                selects = std::vector<int>{op->params.at("select").i};
+                selects = std::vector<int> {op->params.at("select").i};
             }
             else if (op->has_input("selects") || op->has_input("select"))
             {
