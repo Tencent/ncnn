@@ -119,8 +119,11 @@ void convert_Tensor_slice(Graph& graph)
             const int axes_rank = axes.size();
 
             bool has_select = false;
+            std::vector<int> selected_axes;
             for (int i = 0; i < axes_rank; i++)
             {
+                axes[i] += selected_axes.size();
+
                 if (steps[i] == 0)
                 {
                     // simulate select as slice
@@ -128,6 +131,7 @@ void convert_Tensor_slice(Graph& graph)
                     ends[i] = selects[i] + 1;
                     steps[i] = 1;
                     has_select = true;
+                    selected_axes.push_back(axes[i]);
                 }
                 else if (steps[i] != 1)
                 {

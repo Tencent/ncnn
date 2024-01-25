@@ -218,17 +218,9 @@ void convert_Tensor_slice_copy(Graph& graph)
                 std::vector<int> shape = in->shape;
                 for (auto sa : selected_axes)
                 {
-                    fprintf(stderr, "sa = %d\n", sa);
                     // unsqueeze
                     shape.insert(shape.begin() + sa, 1);
                 }
-
-                fprintf(stderr, "shape = ");
-                for (auto z : shape)
-                {
-                    fprintf(stderr, " %d ", z);
-                }
-                fprintf(stderr, "\n");
 
                 reshape->params["shape"] = shape;
             }
