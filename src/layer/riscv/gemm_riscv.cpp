@@ -99,23 +99,10 @@ static void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max
                 vfloat32m1_t _r6h = vle32_v_f32m1(p6 + 4, vl);
                 vfloat32m1_t _r7l = vle32_v_f32m1(p7, vl);
                 vfloat32m1_t _r7h = vle32_v_f32m1(p7 + 4, vl);
-                transpose8x8_ps(_r0l, _r0h, _r1l, _r1h, _r2l, _r2h, _r3l, _r3h, _r4l, _r4h, _r5l, _r5h, _r6l, _r6h, _r7l, _r7h, vl);
-                vse32_v_f32m1(pp, _r0l, vl);
-                vse32_v_f32m1(pp + 4, _r0h, vl);
-                vse32_v_f32m1(pp + 8, _r1l, vl);
-                vse32_v_f32m1(pp + 12, _r1h, vl);
-                vse32_v_f32m1(pp + 8 * 2, _r2l, vl);
-                vse32_v_f32m1(pp + 8 * 2 + 4, _r2h, vl);
-                vse32_v_f32m1(pp + 8 * 3, _r3l, vl);
-                vse32_v_f32m1(pp + 8 * 3 + 4, _r3h, vl);
-                vse32_v_f32m1(pp + 8 * 4, _r4l, vl);
-                vse32_v_f32m1(pp + 8 * 4 + 4, _r4h, vl);
-                vse32_v_f32m1(pp + 8 * 5, _r5l, vl);
-                vse32_v_f32m1(pp + 8 * 5 + 4, _r5h, vl);
-                vse32_v_f32m1(pp + 8 * 6, _r6l, vl);
-                vse32_v_f32m1(pp + 8 * 6 + 4, _r6h, vl);
-                vse32_v_f32m1(pp + 8 * 7, _r7l, vl);
-                vse32_v_f32m1(pp + 8 * 7 + 4, _r7h, vl);
+
+                vsseg8e32_v_f32m1(pp, _r0l, _r1l, _r2l, _r3l, _r4l, _r5l, _r6l, _r7l, vl);
+                vsseg8e32_v_f32m1(pp + 32, _r0h, _r1h, _r2h, _r3h, _r4h, _r5h, _r6h, _r7h, vl);
+
                 pp += 64;
                 p0 += 8;
                 p1 += 8;
@@ -562,17 +549,8 @@ static void pack_B_tile(const Mat& B, Mat& BT, int j, int max_jj, int k, int max
                 vfloat32m1_t _r6 = vle32_v_f32m1(p6, vl);
                 vfloat32m1_t _r7 = vle32_v_f32m1(p7, vl);
 
-                transpose4x4_ps(_r0, _r1, _r2, _r3, vl);
-                transpose4x4_ps(_r4, _r5, _r6, _r7, vl);
+                vsseg8e32_v_f32m1(pp, _r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7, vl);
 
-                vse32_v_f32m1(pp, _r0, vl);
-                vse32_v_f32m1(pp + 4, _r4, vl);
-                vse32_v_f32m1(pp + 4 * 2, _r1, vl);
-                vse32_v_f32m1(pp + 4 * 3, _r5, vl);
-                vse32_v_f32m1(pp + 4 * 4, _r2, vl);
-                vse32_v_f32m1(pp + 4 * 5, _r6, vl);
-                vse32_v_f32m1(pp + 4 * 6, _r3, vl);
-                vse32_v_f32m1(pp + 4 * 7, _r7, vl);
                 pp += 32;
                 p0 += 4;
                 p1 += 4;
