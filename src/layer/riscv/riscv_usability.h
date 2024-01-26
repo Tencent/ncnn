@@ -86,8 +86,6 @@ static inline vfloat32m8_t vle32_v_f32m8_f32m1(const float* ptr)
     return vloxei32_v_f32m8(ptr, bindex, vl);
 }
 
-
-
 #if __riscv_zfh
 static inline vfloat16m8_t vle16_v_f16m8_f16m1(const __fp16* ptr)
 {
@@ -459,7 +457,7 @@ static inline void transpose8x12_ps(vfloat32m1_t& _r0l, vfloat32m1_t& _r0h,
                                     vfloat32m1_t& _rbl, vfloat32m1_t& _rbh, size_t vl)
 {
     float tmp[8][12];
-    
+
     vsse32_v_f32m1(&tmp[0][0], sizeof(float) * 12, _r0l, vl);
     vsse32_v_f32m1(&tmp[4][0], sizeof(float) * 12, _r0h, vl);
     vsse32_v_f32m1(&tmp[0][1], sizeof(float) * 12, _r1l, vl);
