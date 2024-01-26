@@ -99,7 +99,7 @@ void main()
 )";
 
 Option opt;
- // you can control the extention behavior
+ // you can control the extension behavior
  // even if the gpu supports 16bit storage
 opt.use_fp16_storage = false;
 
