@@ -428,7 +428,7 @@ static void transpose_pack_A_tile_bf16_fp16(const Mat& A, Mat& AT, int i, int ma
 }
 
 
-static void pack_B_tile_bf16_fp16(const Mat<unsigned short>& B, Mat<unsigned short>& BT, int j, int max_jj, int k, int max_kk)
+static void pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk)
 {
     const int elempack = B.elempack;
     const int B_hstep = B.dims == 3 ? (int)B.cstep : B.w;
@@ -800,7 +800,7 @@ static void pack_B_tile_bf16_fp16(const Mat<unsigned short>& B, Mat<unsigned sho
     }
 }
 
-static void transpose_pack_B_tile_bf16_fp16(const Mat<unsigned short>& B, Mat<unsigned short>& BT, int j, int max_jj, int k, int max_kk)
+static void transpose_pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk)
 {
     const int elempack = B.elempack;
     const int B_hstep = B.dims == 3 ? (int)B.cstep : B.w;
