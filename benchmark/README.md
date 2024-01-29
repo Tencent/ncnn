@@ -2647,6 +2647,7 @@ cooling_down = 0
 ```
 
 ### Rockchip RK3399 (Cortex-A72 1.8GHz x 2 + Cortex-A53 1.5GHz x 4)
+
 ```
 nanopc-t4:/data/local/tmp # ./benchncnn 8 2 2 -1 1
 loop_count = 8
@@ -2845,7 +2846,52 @@ cooling_down = 0
       yolo-fastestv2  min =   24.94  max =   25.07  avg =   25.01
 ```
 
+### MYIR RemiPi,Renesas RZG2L(Cortex-A55 1.5GHz x 2)
+
+```
+root@myir-remi-1g:~/ncnn# time ./benchncnn 10 4 0 -1 1
+loop_count = 10
+num_threads = 4
+powersave = 0
+gpu_device = -1
+cooling_down = 1
+          squeezenet  min =   85.38  max =   87.72  avg =   86.78
+     squeezenet_int8  min =   84.23  max =   86.46  avg =   85.59
+           mobilenet  min =  121.01  max =  122.55  avg =  121.76
+      mobilenet_int8  min =   95.64  max =   97.27  avg =   96.25
+        mobilenet_v2  min =  101.35  max =  102.24  avg =  101.72
+        mobilenet_v3  min =   84.09  max =   86.66  avg =   84.86
+          shufflenet  min =   63.32  max =   65.16  avg =   64.53
+       shufflenet_v2  min =   60.33  max =   62.35  avg =   61.04
+             mnasnet  min =   95.51  max =   96.70  avg =   95.95
+     proxylessnasnet  min =  124.46  max =  125.82  avg =  125.14
+     efficientnet_b0  min =  144.94  max =  146.46  avg =  145.56
+   efficientnetv2_b0  min =  182.87  max =  185.63  avg =  184.56
+        regnety_400m  min =  105.31  max =  106.42  avg =  105.72
+           blazeface  min =   21.34  max =   21.90  avg =   21.50
+           googlenet  min =  313.01  max =  318.42  avg =  314.25
+      googlenet_int8  min =  301.87  max =  304.93  avg =  303.66
+            resnet18  min =  248.02  max =  253.93  avg =  250.12
+       resnet18_int8  min =  244.65  max =  246.62  avg =  245.66
+             alexnet  min =  204.00  max =  206.39  avg =  205.21
+            resnet50  min =  583.13  max =  584.82  avg =  584.11
+       resnet50_int8  min =  517.42  max =  520.97  avg =  519.07
+      squeezenet_ssd  min =  266.63  max =  273.34  avg =  268.60
+ squeezenet_ssd_int8  min =  255.42  max =  260.98  avg =  257.15
+       mobilenet_ssd  min =  267.16  max =  270.41  avg =  268.20
+  mobilenet_ssd_int8  min =  205.03  max =  206.43  avg =  205.53
+      mobilenet_yolo  min =  571.08  max =  576.15  avg =  574.18
+  mobilenetv2_yolov3  min =  342.52  max =  344.84  avg =  343.38
+         yolov4-tiny  min =  499.74  max =  503.13  avg =  501.45
+           nanodet_m  min =  161.87  max =  163.90  avg =  162.93
+    yolo-fastest-1.1  min =   72.84  max =   74.81  avg =   73.35
+      yolo-fastestv2  min =   68.24  max =   70.49  avg =   68.74
+  vision_transformer  min = 12464.09  max = 12491.57  avg = 12475.63
+          FastestDet  min =   67.92  max =   69.90  avg =   68.94
+```
+
 ### OrangePi Zero 2, Allwinner H616 (Cortex-A53 1.5GHz x 4)
+
 ```
 orangepi@zero2:~/ncnn/benchmark$ ./benchncnn 10 4 0 -1 1
 loop_count = 10
