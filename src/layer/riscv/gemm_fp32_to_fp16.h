@@ -3321,7 +3321,6 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
                 _sum1 = vfmlalq_high_f16(_sum1, _pA, _pB01);
                 _sum2 = vfmlalq_low_f16(_sum2, _pA, _pB22);
 
-
                 pA += 1;
                 pB += 12;
             }
