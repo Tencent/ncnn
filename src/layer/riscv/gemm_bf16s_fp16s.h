@@ -69,7 +69,8 @@ static void pack_A_tile_bf16_fp16(const Mat& A, Mat& AT, int i, int max_ii, int 
             int kk = 0;
 
             int n = max_kk;
-            while (n > 0) {
+            while (n > 0)
+            {
                 vl = vsetvl_e16m1(n);
                 vuint16m1_t _r0 = vle16_v_u16m1(p0, vl);
                 vuint16m1_t _r1 = vle16_v_u16m1(p1, vl);
@@ -78,7 +79,7 @@ static void pack_A_tile_bf16_fp16(const Mat& A, Mat& AT, int i, int max_ii, int 
                 vuint16m1_t _r4 = vle16_v_u16m1(p4, vl);
                 vuint16m1_t _r5 = vle16_v_u16m1(p5, vl);
                 vuint16m1_t _r6 = vle16_v_u16m1(p6, vl);
-                vuint16m1_t _r7 = vle16_v_u16m1(p7, vl); 
+                vuint16m1_t _r7 = vle16_v_u16m1(p7, vl);
 
                 vsseg8e16_v_u16m1(pp, _r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7, vl);
 
@@ -93,7 +94,6 @@ static void pack_A_tile_bf16_fp16(const Mat& A, Mat& AT, int i, int max_ii, int 
                 p7 += vl;
                 n -= vl;
             }
-
         }
     }
     for (; ii + 3 < max_ii; ii += 4)
@@ -128,7 +128,8 @@ static void pack_A_tile_bf16_fp16(const Mat& A, Mat& AT, int i, int max_ii, int 
             int kk = 0;
 
             int n = max_kk;
-            while (n > 0) {
+            while (n > 0)
+            {
                 vl = vsetvl_e16m1(n);
                 vuint16m1_t _r0 = vle16_v_u16m1(p0, vl);
                 vuint16m1_t _r1 = vle16_v_u16m1(p1, vl);
@@ -155,7 +156,8 @@ static void pack_A_tile_bf16_fp16(const Mat& A, Mat& AT, int i, int max_ii, int 
             int kk = 0;
 #if __riscv_vector
             int n = max_kk;
-            while (n > 0) {
+            while (n > 0)
+            {
                 vl = vsetvl_e16m1(n);
                 vuint16m1_t _r0 = vle16_v_u16m1(p0, vl);
                 vuint16m1_t _r1 = vle16_v_u16m1(p1, vl);
@@ -186,7 +188,8 @@ static void pack_A_tile_bf16_fp16(const Mat& A, Mat& AT, int i, int max_ii, int 
             int kk = 0;
 #if __riscv_vector
             int n = max_kk;
-            while (n > 0) {
+            while (n > 0)
+            {
                 vl = vsetvl_e16m1(n);
                 vuint16m1_t _r0 = vle16_v_u16m1(p0, vl);
                 vse16_v_u16m1(pp, _r0, vl);
@@ -201,7 +204,7 @@ static void pack_A_tile_bf16_fp16(const Mat& A, Mat& AT, int i, int max_ii, int 
                 pp += 1;
                 p0 += 1;
             }
-#endif 
+#endif
         }
     }
 }
@@ -233,7 +236,7 @@ static void transpose_pack_A_tile_bf16_fp16(const Mat& A, Mat& AT, int i, int ma
                 vuint16m1_t _r4;
                 vuint16m1_t _r5;
                 vuint16m1_t _r6;
-                vuint16m1_t _r7; 
+                vuint16m1_t _r7;
                 vlseg8e16_v_u16m1(&_r0, &_r1, &_r2, &_r3, &_r4, &_r5, &_r6, &_r7, p0, vl);
                 vse16_v_u16m1(pp, _r0, vl);
                 vse16_v_u16m1(pp + 8, _r1, vl);
@@ -364,7 +367,7 @@ static void transpose_pack_A_tile_bf16_fp16(const Mat& A, Mat& AT, int i, int ma
                 vuint16m1_t _r010 = vle16_v_u16m1(p0, vl);
                 vuint16m1_t _r011 = vle16_v_u16m1(p0 + 4, vl);
                 vsseg2e16_v_u16m1(pp, _r010, _r011, vl);
-        
+
                 pp += 8;
                 p0 += A_hstep * 4;
             }
@@ -428,7 +431,6 @@ static void transpose_pack_A_tile_bf16_fp16(const Mat& A, Mat& AT, int i, int ma
         }
     }
 }
-
 
 static void pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk)
 {
@@ -535,7 +537,7 @@ static void pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int max_jj, int 
                 vsse16_v_u16m1(pp + 8, 12 * sizeof(unsigned short), _r8, vl);
                 vsse16_v_u16m1(pp + 9, 12 * sizeof(unsigned short), _r9, vl);
                 vsse16_v_u16m1(pp + 10, 12 * sizeof(unsigned short), _ra, vl);
-                vsse16_v_u16m1(pp + 11, 12 * sizeof(unsigned short), _rb, vl); 
+                vsse16_v_u16m1(pp + 11, 12 * sizeof(unsigned short), _rb, vl);
 
                 pp += 48;
                 p0 += 4;
@@ -640,7 +642,8 @@ static void pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int max_jj, int 
             int kk = 0;
 
             int n = max_kk;
-            while (n > 0) {
+            while (n > 0)
+            {
                 vl = vsetvl_e16m1(n);
                 vuint16m1_t _r0 = vle16_v_u16m1(p0, vl);
                 vuint16m1_t _r1 = vle16_v_u16m1(p1, vl);
@@ -721,9 +724,10 @@ static void pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int max_jj, int 
             const unsigned short* p3 = (const unsigned short*)B + (j + jj + 3) * B_hstep + k;
 
             int kk = 0;
-            
+
             int n = max_kk;
-            while (n > 0) {
+            while (n > 0)
+            {
                 vl = vsetvl_e16m1(n);
                 vuint16m1_t _r0 = vle16_v_u16m1(p0, vl);
                 vuint16m1_t _r1 = vle16_v_u16m1(p1, vl);
@@ -749,9 +753,10 @@ static void pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int max_jj, int 
 
             int kk = 0;
 #if __riscv_vector
-            
+
             int n = max_kk;
-            while (n > 0) {
+            while (n > 0)
+            {
                 vl = vsetvl_e16m1(n);
                 vuint16m1_t _r0 = vle16_v_u16m1(p0, vl);
                 vuint16m1_t _r1 = vle16_v_u16m1(p1, vl);
@@ -781,9 +786,10 @@ static void pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int max_jj, int 
 
             int kk = 0;
 #if __riscv_vector
-            
+
             int n = max_kk;
-            while (n > 0) {
+            while (n > 0)
+            {
                 vl = vsetvl_e16m1(n);
                 vuint16m1_t _r0 = vle16_v_u16m1(p0, vl);
                 vse16_v_u16m1(pp, _r0, vl);
@@ -823,7 +829,6 @@ static void transpose_pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int ma
 
             for (; kk + 7 < max_kk; kk += 8)
             {
-
                 vl = 8;
                 vuint16m1_t _r0 = vle16_v_u16m1(p0, vl);
                 vuint16m1_t _r1 = vle16_v_u16m1(p0 + 8, vl);
@@ -849,7 +854,7 @@ static void transpose_pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int ma
                 vsse16_v_u16m1(pp + 8, 12 * sizeof(unsigned short), _r8, vl);
                 vsse16_v_u16m1(pp + 9, 12 * sizeof(unsigned short), _r9, vl);
                 vsse16_v_u16m1(pp + 10, 12 * sizeof(unsigned short), _ra, vl);
-                vsse16_v_u16m1(pp + 11, 12 * sizeof(unsigned short), _rb, vl); 
+                vsse16_v_u16m1(pp + 11, 12 * sizeof(unsigned short), _rb, vl);
 
                 pp += 96;
                 p0 += B_hstep * 8;
@@ -862,7 +867,6 @@ static void transpose_pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int ma
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
-                
                 vl = 4;
                 vuint16m1_t _r0 = vle16_v_u16m1(p0, vl);
                 vuint16m1_t _r1 = vle16_v_u16m1(p0 + 8, vl);
@@ -888,7 +892,7 @@ static void transpose_pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int ma
                 vsse16_v_u16m1(pp + 8, 12 * sizeof(unsigned short), _r8, vl);
                 vsse16_v_u16m1(pp + 9, 12 * sizeof(unsigned short), _r9, vl);
                 vsse16_v_u16m1(pp + 10, 12 * sizeof(unsigned short), _ra, vl);
-                vsse16_v_u16m1(pp + 11, 12 * sizeof(unsigned short), _rb, vl); 
+                vsse16_v_u16m1(pp + 11, 12 * sizeof(unsigned short), _rb, vl);
 
                 pp += 48;
                 p0 += B_hstep * 4;
@@ -1052,7 +1056,7 @@ static void transpose_pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int ma
                 vl = 4;
                 vuint16m1_t _r0 = vle16_v_u16m1(p0, vl);
                 vuint16m1_t _r1 = vle16_v_u16m1(p0 + 8, vl);
-                vsseg2e16_v_u16m1(pp, _r0, _r1, vl); 
+                vsseg2e16_v_u16m1(pp, _r0, _r1, vl);
                 pp += 8;
                 p0 += B_hstep * 4;
             }
