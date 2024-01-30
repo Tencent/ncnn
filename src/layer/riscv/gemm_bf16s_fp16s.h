@@ -1213,7 +1213,7 @@ static void transpose_unpack_output_tile_bf16_fp16(const Mat& topT, Mat& top_blo
             {
                 vl = 8;
                 vuint16m1_t _r0 = vle16_v_u16m1(pp, vl);
-                vse16_v_u16(p0, _r0, vl);
+                vse16_v_u16m1(p0, _r0, vl);
                 pp += 8;
                 p0 += out_hstep;
             }
