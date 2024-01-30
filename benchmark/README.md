@@ -1928,6 +1928,50 @@ cooling_down = 1
       yolo-fastestv2  min =  316.93  max =  319.86  avg =  318.33
 ```
 
+### Radxa Zero 3W, Cortex-A55 (ARMv82) (1.416 GHz x 4)
+```
+loop_count = 10
+num_threads = 4
+powersave = 0
+gpu_device = -1
+cooling_down = 1
+          squeezenet  min =   34.51  max =  106.19  avg =   79.43
+     squeezenet_int8  min =   31.48  max =   49.87  avg =   34.65
+           mobilenet  min =   42.23  max =   45.36  avg =   42.89
+      mobilenet_int8  min =   35.97  max =   53.84  avg =   38.77
+        mobilenet_v2  min =   39.61  max =   40.35  avg =   40.00
+        mobilenet_v3  min =   31.19  max =   31.85  avg =   31.50
+          shufflenet  min =   24.75  max =   27.74  avg =   25.55
+       shufflenet_v2  min =   22.00  max =   22.70  avg =   22.31
+             mnasnet  min =   34.95  max =   53.55  avg =   37.39
+     proxylessnasnet  min =   39.96  max =   44.32  avg =   40.81
+     efficientnet_b0  min =   49.76  max =   67.77  avg =   52.61
+   efficientnetv2_b0  min =   64.00  max =   85.78  avg =   67.06
+        regnety_400m  min =   55.23  max =   73.22  avg =   57.87
+           blazeface  min =    7.80  max =   10.39  avg =    8.27
+           googlenet  min =   98.24  max =  118.27  avg =  101.78
+      googlenet_int8  min =   98.81  max =  115.66  avg =  101.52
+            resnet18  min =   75.33  max =   88.59  avg =   78.19
+       resnet18_int8  min =   76.31  max =   95.17  avg =   79.03
+             alexnet  min =   65.07  max =   73.80  avg =   67.18
+               vgg16  min =  423.20  max =  455.15  avg =  436.32
+          vgg16_int8  min =  591.82  max =  620.22  avg =  607.55
+            resnet50  min =  185.53  max =  207.10  avg =  193.03
+       resnet50_int8  min =  176.84  max =  194.73  avg =  181.81
+      squeezenet_ssd  min =   96.64  max =  118.46  avg =  100.86
+ squeezenet_ssd_int8  min =   96.61  max =  123.48  avg =  104.64
+       mobilenet_ssd  min =   95.38  max =  110.52  avg =   98.61
+  mobilenet_ssd_int8  min =   76.21  max =   95.41  avg =   79.10
+      mobilenet_yolo  min =  210.73  max =  235.47  avg =  221.72
+  mobilenetv2_yolov3  min =  134.59  max =  154.33  avg =  139.54
+         yolov4-tiny  min =  167.79  max =  191.60  avg =  171.25
+           nanodet_m  min =   63.22  max =   80.73  avg =   66.25
+    yolo-fastest-1.1  min =   32.87  max =   88.05  avg =   47.36
+      yolo-fastestv2  min =   26.03  max =   27.01  avg =   26.54
+  vision_transformer  min = 3682.51  max = 3882.79  avg = 3809.42
+          FastestDet  min =   30.69  max =   50.65  avg =   33.65
+```
+
 ### Avaota Aim T527, Allwinner T527 (Cortex-A55 2.2GHz x 4 + Cortex-A55 1.8GHz x 4)
 
 ```
