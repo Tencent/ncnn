@@ -563,14 +563,14 @@ static void transpose_unpack_output_tile_fp32_to_fp16(const Mat& topT, Mat& top_
 
             for (int jj = 0; jj + 3 < max_jj; jj += 4)
             {
-                p0[0] = float32_to_float16(pp[0]);
-                p0[1] = float32_to_float16(pp[2]);
-                p0[2] = float32_to_float16(pp[4]);
-                p0[3] = float32_to_float16(pp[6]);
-                p0[4] = float32_to_float16(pp[1]);
-                p0[5] = float32_to_float16(pp[3]);
-                p0[6] = float32_to_float16(pp[5]);
-                p0[7] = float32_to_float16(pp[7]);
+                p0[0] = (__fp16)(pp[0]);
+                p0[1] = (__fp16)(pp[2]);
+                p0[2] = (__fp16)(pp[4]);
+                p0[3] = (__fp16)(pp[6]);
+                p0[4] = (__fp16)(pp[1]);
+                p0[5] = (__fp16)(pp[3]);
+                p0[6] = (__fp16)(pp[5]);
+                p0[7] = (__fp16)(pp[7]);
                 pp += 8;
                 p0 += out_hstep * 4;
             }
@@ -582,8 +582,8 @@ static void transpose_unpack_output_tile_fp32_to_fp16(const Mat& topT, Mat& top_
 
             for (int jj = 0; jj < max_jj; jj += 1)
             {
-                p0[0] = float32_to_float16(pp[0]);
-                p0[1] = float32_to_float16(pp[1]);
+                p0[0] = (__fp16)(pp[0]);
+                p0[1] = (__fp16)(pp[1]);
                 pp += 2;
                 p0 += out_hstep;
             }
@@ -613,7 +613,7 @@ static void transpose_unpack_output_tile_fp32_to_fp16(const Mat& topT, Mat& top_
 
             for (int jj = 0; jj < max_jj; jj += 1)
             {
-                p0[0] = float32_to_float16(pp[0]);
+                p0[0] = (__fp16)(pp[0]);
                 pp += 1;
                 p0 += out_hstep;
             }
@@ -3109,10 +3109,10 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
             {
                 // if (out_elempack == 1)
                 {
-                    outptr0[0] = float32_to_float16(sum00);
-                    outptr0[1] = float32_to_float16(sum10);
-                    outptr0[out_hstep] = float32_to_float16(sum01);
-                    outptr0[out_hstep + 1] = float32_to_float16(sum11);
+                    outptr0[0] = (__fp16)(sum00);
+                    outptr0[1] = (__fp16)(sum10);
+                    outptr0[out_hstep] = (__fp16)(sum01);
+                    outptr0[out_hstep + 1] = (__fp16)(sum11);
                     outptr0 += 2;
                 }
             }
@@ -3193,8 +3193,8 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
             {
                 // if (out_elempack == 1)
                 {
-                    outptr0[0] = float32_to_float16(_sum0);
-                    outptr0[out_hstep] = float32_to_float16(_sum1);
+                    outptr0[0] = (__fp16)(_sum0);
+                    outptr0[out_hstep] = (__fp16)(_sum1);
                     outptr0++;
                 }
             }
@@ -3533,8 +3533,8 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
             {
                 // if (out_elempack == 1)
                 {
-                    outptr0[0] = float32_to_float16(_sum0);
-                    outptr0[1] = float32_to_float16(_sum1);
+                    outptr0[0] = (__fp16)(_sum0);
+                    outptr0[1] = (__fp16)(_sum1);
                     outptr0 += 2;
                 }
             }
@@ -3589,12 +3589,14 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
             {
                 sum *= alpha;
             }
+            fprintf(stderr, "sum: %f\n", sum);
 
             if (k_end)
             {
                 // if (out_elempack == 1)
                 {
-                    outptr0[0] = float32_to_float16(sum);
+                    outptr0[0] = (__fp16)(sum);
+                    fprintf(stderr, "outptr: %f\n", outptr0[0]);
                     outptr0++;
                 }
             }
