@@ -3979,7 +3979,7 @@ int Gemm_riscv::create_pipeline(const Option& opt)
     if (support_fp16_storage && opt.use_fp16_storage)
     {
         return create_pipeline_fp16s(opt);
-    } 
+    }
     if (constantA)
     {
         const int M = constantM;

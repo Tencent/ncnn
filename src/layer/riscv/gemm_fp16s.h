@@ -43,7 +43,8 @@ static void pack_A_tile_fp32_to_fp16(const Mat& A, Mat& AT, int i, int max_ii, i
         int kk = 0;
 
         int n = max_kk;
-        while (n > 0) {
+        while (n > 0)
+        {
             vl = vsetvl_e32m2(n);
             vfloat16m1_t _r0 = vfncvt_f_f_w_f16m1(vle32_v_f32m2(p0, vl), vl);
             vfloat16m1_t _r1 = vfncvt_f_f_w_f16m1(vle32_v_f32m2(p1, vl), vl);
@@ -76,7 +77,8 @@ static void pack_A_tile_fp32_to_fp16(const Mat& A, Mat& AT, int i, int max_ii, i
         int kk = 0;
 
         int n = max_kk;
-        while (n > 0) {
+        while (n > 0)
+        {
             vl = vsetvl_e32m2(n);
             vfloat16m1_t _r0 = vfncvt_f_f_w_f16m1(vle32_v_f32m2(p0, vl), vl);
             vfloat16m1_t _r1 = vfncvt_f_f_w_f16m1(vle32_v_f32m2(p1, vl), vl);
@@ -98,7 +100,8 @@ static void pack_A_tile_fp32_to_fp16(const Mat& A, Mat& AT, int i, int max_ii, i
 
         int kk = 0;
         int n = max_kk;
-        while (n > 0) {
+        while (n > 0)
+        {
             vl = vsetvl_e32m2(n);
             vfloat16m1_t _r0 = vfncvt_f_f_w_f16m1(vle32_v_f32m2(p0, vl), vl);
             vfloat16m1_t _r1 = vfncvt_f_f_w_f16m1(vle32_v_f32m2(p1, vl), vl);
@@ -116,7 +119,8 @@ static void pack_A_tile_fp32_to_fp16(const Mat& A, Mat& AT, int i, int max_ii, i
         int kk = 0;
         int n = max_kk;
 
-        while (n > 0) {
+        while (n > 0)
+        {
             vl = vsetvl_e32m2(n);
             vfloat16m1_t _r0 = vfncvt_f_f_w_f16m1(vle32_v_f32m2(p0, vl), vl);
             vse16_v_f16m1(pp, _r0, vl);
@@ -138,7 +142,8 @@ static void transpose_pack_A_tile_fp32_to_fp16(const Mat& A, Mat& AT, int i, int
     int ii = 0;
 #if __riscv_vector
     // vl = 8;
-    for (; ii + 7 < max_ii; ii += 8) {
+    for (; ii + 7 < max_ii; ii += 8)
+    {
         vl = 8;
         const float* p0 = (const float*)A + k * A_hstep + (i + ii);
 
@@ -151,7 +156,8 @@ static void transpose_pack_A_tile_fp32_to_fp16(const Mat& A, Mat& AT, int i, int
             p0 += A_hstep;
         }
     }
-    for (; ii + 3 < max_ii; ii += 4) {
+    for (; ii + 3 < max_ii; ii += 4)
+    {
         vl = 4;
         const float* p0 = (const float*)A + k * A_hstep + (i + ii);
 
@@ -165,7 +171,8 @@ static void transpose_pack_A_tile_fp32_to_fp16(const Mat& A, Mat& AT, int i, int
         }
     }
 
-    for (; ii + 1 < max_ii; ii += 2) {
+    for (; ii + 1 < max_ii; ii += 2)
+    {
         vl = 2;
         const float* p0 = (const float*)A + k * A_hstep + (i + ii);
 
@@ -179,7 +186,8 @@ static void transpose_pack_A_tile_fp32_to_fp16(const Mat& A, Mat& AT, int i, int
         }
     }
 
-    for (; ii < max_ii; ii += 1) {
+    for (; ii < max_ii; ii += 1)
+    {
         vl = 1;
         const float* p0 = (const float*)A + k * A_hstep + (i + ii);
 
@@ -220,9 +228,10 @@ static void pack_B_tile_fp32_to_fp16(const Mat& B, Mat& BT, int j, int max_jj, i
         const float* pb = (const float*)B + (j + jj + 11) * B_hstep + k;
 
         int kk = 0;
-        
+
         int n = max_kk;
-        while (n > 0) {
+        while (n > 0)
+        {
             vl = vsetvl_e32m2(n);
             vfloat16m1_t _r0 = vfncvt_f_f_w_f16m1(vle32_v_f32m2(p0, vl), vl);
             vfloat16m1_t _r1 = vfncvt_f_f_w_f16m1(vle32_v_f32m2(p1, vl), vl);
@@ -303,10 +312,9 @@ static void pack_B_tile_fp32_to_fp16(const Mat& B, Mat& BT, int j, int max_jj, i
             p4 += vl;
             p5 += vl;
             p6 += vl;
-            p7 += vl; 
+            p7 += vl;
             n -= vl;
         }
-
     }
     for (; jj + 3 < max_jj; jj += 4)
     {
@@ -318,7 +326,7 @@ static void pack_B_tile_fp32_to_fp16(const Mat& B, Mat& BT, int j, int max_jj, i
         int kk = 0;
 
         int n = max_kk;
-        
+
         while (n > 0)
         {
             vl = vsetvl_e32m2(n);
@@ -364,7 +372,7 @@ static void pack_B_tile_fp32_to_fp16(const Mat& B, Mat& BT, int j, int max_jj, i
         const float* p0 = (const float*)B + (j + jj) * B_hstep + k;
 
         int kk = 0;
-        
+
         int n = max_kk;
         while (n > 0)
         {
@@ -464,7 +472,6 @@ static void transpose_pack_B_tile_fp32_to_fp16(const Mat& B, Mat& BT, int j, int
         }
     }
 }
-
 
 static void transpose_unpack_output_tile_fp32_to_fp16(const Mat& topT, Mat& top_blob, int i, int max_ii, int j, int max_jj)
 {
@@ -855,7 +862,7 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
                     vse16_v_f16m1(outptr0 + 4 * 9, vfncvt_f_f_w_f16m1(_sum9, vl), vl);
                     vse16_v_f16m1(outptr0 + 4 * 10, vfncvt_f_f_w_f16m1(_suma, vl), vl);
                     vse16_v_f16m1(outptr0 + 4 * 11, vfncvt_f_f_w_f16m1(_sumb, vl), vl);
-                    
+
                     _sum0 = vslidedown_vx_f32m2(_sum0, _sum0, 4, vl);
                     _sum1 = vslidedown_vx_f32m2(_sum1, _sum1, 4, vl);
                     _sum2 = vslidedown_vx_f32m2(_sum2, _sum2, 4, vl);
@@ -1176,7 +1183,7 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
                     vse16_v_f16m1(outptr0 + 4 * 5, vfncvt_f_f_w_f16m1(_sum5, vl), vl);
                     vse16_v_f16m1(outptr0 + 4 * 6, vfncvt_f_f_w_f16m1(_sum6, vl), vl);
                     vse16_v_f16m1(outptr0 + 4 * 7, vfncvt_f_f_w_f16m1(_sum7, vl), vl);
-                    
+
                     _sum0 = vslidedown_vx_f32m2(_sum0, _sum0, 4, vl);
                     _sum1 = vslidedown_vx_f32m2(_sum1, _sum1, 4, vl);
                     _sum2 = vslidedown_vx_f32m2(_sum2, _sum2, 4, vl);
@@ -1380,7 +1387,7 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
                     vse16_v_f16m1(outptr0 + 4, vfncvt_f_f_w_f16m1(_sum1, vl), vl);
                     vse16_v_f16m1(outptr0 + 4 * 2, vfncvt_f_f_w_f16m1(_sum2, vl), vl);
                     vse16_v_f16m1(outptr0 + 4 * 3, vfncvt_f_f_w_f16m1(_sum3, vl), vl);
-                    
+
                     _sum0 = vslidedown_vx_f32m2(_sum0, _sum0, 4, vl);
                     _sum1 = vslidedown_vx_f32m2(_sum1, _sum1, 4, vl);
                     _sum2 = vslidedown_vx_f32m2(_sum2, _sum2, 4, vl);
@@ -1409,7 +1416,7 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
                     vfloat16m1_t _sum1_f16 = vfncvt_f_f_w_f16m1(_sum1, vl);
                     vfloat16m1_t _sum2_f16 = vfncvt_f_f_w_f16m1(_sum2, vl);
                     vfloat16m1_t _sum3_f16 = vfncvt_f_f_w_f16m1(_sum3, vl);
-                    
+
                     vsse16_v_f16m1(outptr0, out_hstep * sizeof(__fp16), _sum0_f16, vl);
                     vsse16_v_f16m1(outptr0 + 1, out_hstep * sizeof(__fp16), _sum1_f16, vl);
                     vsse16_v_f16m1(outptr0 + 2, out_hstep * sizeof(__fp16), _sum2_f16, vl);
@@ -1826,7 +1833,7 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
             for (; kk < max_kk; kk += 1)
             {
                 vfloat16m1_t _pA = vle16_v_f16m1(pA, vl);
-                
+
                 _sum0 = vfwmacc_vf_f32m2(_sum0, pB[0], _pA, vl);
                 _sum1 = vfwmacc_vf_f32m2(_sum1, pB[1], _pA, vl);
                 _sum2 = vfwmacc_vf_f32m2(_sum2, pB[2], _pA, vl);
@@ -2141,7 +2148,7 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
                     vse16_v_f16m1(outptr0 + 4 * 5, vfncvt_f_f_w_f16m1(_sum5, vl), vl);
                     vse16_v_f16m1(outptr0 + 4 * 6, vfncvt_f_f_w_f16m1(_sum6, vl), vl);
                     vse16_v_f16m1(outptr0 + 4 * 7, vfncvt_f_f_w_f16m1(_sum7, vl), vl);
-                    
+
                     // vse16_v_f16mf2(outptr0, vfncvt_f_f_w_f16mf2(_sum0, vl), vl);
                     // vse16_v_f16mf2(outptr0 + 4, vfncvt_f_f_w_f16mf2(_sum1, vl), vl);
                     // vse16_v_f16mf2(outptr0 + 4 * 2, vfncvt_f_f_w_f16mf2(_sum2, vl), vl);
@@ -2171,7 +2178,6 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
                     vsse16_v_f16m1(outptr0 + 5, out_hstep * sizeof(__fp16), _sum5_f16, vl);
                     vsse16_v_f16m1(outptr0 + 6, out_hstep * sizeof(__fp16), _sum6_f16, vl);
                     vsse16_v_f16m1(outptr0 + 7, out_hstep * sizeof(__fp16), _sum7_f16, vl);
-
 
                     // transpose4x8_ps(_sum0, _sum1, _sum2, _sum3, _sum4, _sum5, _sum6, _sum7);
 
@@ -2671,7 +2677,6 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
                 _sum11 = vfwmacc_vf_f32m2(_sum11, pA[1], _pB1, vl);
                 _sum12 = vfwmacc_vf_f32m2(_sum12, pA[1], _pB2, vl);
 
-
                 // vfloat16m1_t _pB01 = vle16_v_f16m1(pB, vl);
                 // vfloat16mf2_t _pB2 = vle16_v_f16mf2(pB + 8, vl);
                 // vfloat16m1_t _pB22 = vcombine_f16(_pB2, _pB2);
@@ -2837,7 +2842,7 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
             int kk = 0;
             for (; kk < max_kk; kk += 1)
             {
-                vfloat16m1_t _pB0 = vle16_v_f16m1(pB, vl);   
+                vfloat16m1_t _pB0 = vle16_v_f16m1(pB, vl);
                 _sum0 = vfwmacc_vf_f32m2(_sum0, pA[0], _pB0, vl);
                 _sum1 = vfwmacc_vf_f32m2(_sum1, pA[1], _pB0, vl);
                 // vfloat16m1_t _pB01 = vle16_v_f16m1(pB, vl);
@@ -2928,7 +2933,6 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
                     }
                     if (broadcast_type_C == 3)
                     {
-
                         vfloat32m1_t _tmp0;
                         vfloat32m1_t _tmp1;
                         vlseg2e32_v_f32m1(&_tmp0, &_tmp1, pC, vl);
@@ -3285,7 +3289,6 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
                 // _sum0 = vfmlalq_low_f16(_sum0, _pA, _pB01);
                 // _sum1 = vfmlalq_high_f16(_sum1, _pA, _pB01);
                 // _sum2 = vfmlalq_low_f16(_sum2, _pA, _pB22);
-
 
                 pA += 1;
                 pB += 12;
