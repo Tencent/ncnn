@@ -3,6 +3,7 @@ macro(ncnn_add_arch_opt_layer class NCNN_TARGET_ARCH_OPT NCNN_TARGET_ARCH_OPT_CF
     set(NCNN_${NCNN_TARGET_ARCH}_HEADER ${CMAKE_CURRENT_SOURCE_DIR}/layer/${NCNN_TARGET_ARCH}/${name}_${NCNN_TARGET_ARCH}.h)
     set(NCNN_${NCNN_TARGET_ARCH}_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/layer/${NCNN_TARGET_ARCH}/${name}_${NCNN_TARGET_ARCH}.cpp)
 
+
     if(WITH_LAYER_${name} AND EXISTS ${NCNN_${NCNN_TARGET_ARCH}_HEADER} AND EXISTS ${NCNN_${NCNN_TARGET_ARCH}_SOURCE})
 
         set(NCNN_${NCNN_TARGET_ARCH_OPT}_HEADER ${CMAKE_CURRENT_BINARY_DIR}/layer/${NCNN_TARGET_ARCH}/${name}_${NCNN_TARGET_ARCH}_${NCNN_TARGET_ARCH_OPT}.h)
@@ -305,6 +306,7 @@ macro(ncnn_add_layer class)
         if(NCNN_RUNTIME_CPU AND NCNN_RVV)
             if(NCNN_COMPILER_SUPPORT_RVV_ZFH)
                 ncnn_add_arch_opt_layer(${class} rvv "-march=rv64gcv_zfh")
+                ncnn_add_arch_opt_source(${class} zfh "-march=rv64gcv_zfh")
             elseif(NCNN_COMPILER_SUPPORT_RVV_ZVFH)
                 ncnn_add_arch_opt_layer(${class} rvv "-march=rv64gcv_zfh_zvfh0p1 -menable-experimental-extensions -D__fp16=_Float16")
             elseif(NCNN_COMPILER_SUPPORT_RVV)
