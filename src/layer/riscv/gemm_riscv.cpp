@@ -36,6 +36,9 @@ Gemm_riscv::Gemm_riscv()
     support_inplace = false;
 
     nT = 0;
+    fprintf(stderr, "Gemm_riscv constructor\n");
+    // printf support_fp16_storage = %d\n", support_fp16_storage);
+    fprintf(stderr, "support_fp16_storage = %d\n", support_fp16_storage);
 #if __riscv_vector
     // When processing float data,
     // even if the current hardware provides vector registers of more than 128 bits,
@@ -3972,6 +3975,11 @@ int Gemm_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt
 
 int Gemm_riscv::create_pipeline(const Option& opt)
 {
+    fprintf(stderr, " in Gemm_riscv::create_pipeline\n");
+    if (support_fp16_storage && opt.use_fp16_storage)
+    {
+        return create_pipeline_fp16s(opt);
+    } 
     if (constantA)
     {
         const int M = constantM;
@@ -4094,6 +4102,7 @@ int Gemm_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
 {
     const Mat& bottom_blob = constantA ? AT_data : bottom_blobs[0];
     int elembits = bottom_blob.elembits();
+    fprintf(stderr, " in Gemm_riscv::forward %d\n", elembits);
     if (support_fp16_storage && opt.use_fp16_storage && elembits == 16)
     {
         return forward_fp16s(bottom_blobs, top_blobs, opt);

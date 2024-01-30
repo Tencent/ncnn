@@ -48,6 +48,7 @@ static int test_gemm(int M, int N, int K, float alpha, int transA, int transB, i
     {
         Randomize(a[i]);
     }
+    fprintf(stderr, "test_gemm run M=%d N=%d K=%d alpha=%f transA=%d transB=%d output_transpose=%d constantA=%d constantB=%d output_N1M=%d\n", M, N, K, alpha, transA, transB, output_transpose, constantA, constantB, output_N1M);
 
     int ret = test_layer("Gemm", pd, weights, a);
     if (ret != 0)

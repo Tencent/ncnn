@@ -390,6 +390,7 @@ static int gemm_AT_BT_riscv_fp16s(const Mat& AT, const Mat& BT, const Mat& C, Ma
 
 int Gemm_riscv::create_pipeline_fp16s(const Option& opt)
 {
+    fprintf(stderr, "create pipeline gemm riscv fp16s\n");
     if (constantA)
     {
         const int M = constantM;
@@ -654,6 +655,7 @@ int Gemm_riscv::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<
         // so we could use pre-packed A/B from the same tile config
         NCNN_LOGE("opt.num_threads %d changed, gemm will use load-time value %d", opt.num_threads, nT);
     }
+    fprintf(stderr, "before call gemm riscv fp16s\n");
 
     int ret = 0;
     if (constantA && constantB)
