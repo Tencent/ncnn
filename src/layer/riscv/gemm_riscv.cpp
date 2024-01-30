@@ -3102,7 +3102,8 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 sum01 += pA[1] * pB[0];
                 sum10 += pA[0] * pB[1];
                 sum11 += pA[1] * pB[1];
-
+                fprintf(stderr, "fp32 pA0: %f, pA1: %f, pB0: %f, pB1: %f\n", pA[0], pA[1], pB[0], pB[1]);
+                fprintf(stderr, "fp32 sum00: %f, sum01: %f, sum10: %f, sum11: %f\n", sum00, sum01, sum10, sum11);
                 pA += 2;
                 pB += 2;
             }
@@ -4628,7 +4629,6 @@ static int gemm_AT_BT_riscv_fp16s(const Mat& AT, const Mat& BT, const Mat& C, Ma
 
 int Gemm_riscv::create_pipeline_fp16s(const Option& opt)
 {
-    fprintf(stderr, "create pipeline gemm riscv fp16s\n");
     if (constantA)
     {
         const int M = constantM;

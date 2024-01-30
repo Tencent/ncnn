@@ -397,7 +397,7 @@ static void transpose_pack_B_tile_fp32_to_fp16(const Mat& B, Mat& BT, int j, int
 
     int jj = 0;
 
-    for (; jj + 12 < max_jj; jj += 12)
+    for (; jj + 11 < max_jj; jj += 12)
     {
         vl = 12;
         const float* p0 = (const float*)B + k * B_hstep + (j + jj);
@@ -412,7 +412,7 @@ static void transpose_pack_B_tile_fp32_to_fp16(const Mat& B, Mat& BT, int j, int
         }
     }
 
-    for (; jj + 8 < max_jj; jj += 8)
+    for (; jj + 7 < max_jj; jj += 8)
     {
         vl = 8;
         const float* p0 = (const float*)B + k * B_hstep + (j + jj);
@@ -427,7 +427,7 @@ static void transpose_pack_B_tile_fp32_to_fp16(const Mat& B, Mat& BT, int j, int
         }
     }
 
-    for (; jj + 4 < max_jj; jj += 4)
+    for (; jj + 3 < max_jj; jj += 4)
     {
         vl = 4;
         const float* p0 = (const float*)B + k * B_hstep + (j + jj);
@@ -442,7 +442,7 @@ static void transpose_pack_B_tile_fp32_to_fp16(const Mat& B, Mat& BT, int j, int
         }
     }
 
-    for (; jj + 2 < max_jj; jj += 2)
+    for (; jj + 1 < max_jj; jj += 2)
     {
         vl = 2;
         const float* p0 = (const float*)B + k * B_hstep + (j + jj);
@@ -3087,11 +3087,13 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
                 __fp16 pA1 = pA[1];
                 __fp16 pB0 = pB[0];
                 __fp16 pB1 = pB[1];
+                fprintf(stderr, "pA0: %f, pA1: %f, pB0: %f, pB1: %f\n", pA0, pA1, pB0, pB1);
 
                 sum00 += pA0 * pB0;
                 sum01 += pA1 * pB0;
                 sum10 += pA0 * pB1;
                 sum11 += pA1 * pB1;
+                fprintf(stderr, "sum00: %f, sum01: %f, sum10: %f, sum11: %f\n", sum00, sum01, sum10, sum11);
 
                 pA += 2;
                 pB += 2;
@@ -3104,6 +3106,7 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
                 sum10 *= alpha;
                 sum11 *= alpha;
             }
+            fprintf(stderr, "------- final ------ sum00: %f, sum01: %f, sum10: %f, sum11: %f\n", sum00, sum01, sum10, sum11);
 
             if (k_end)
             {
