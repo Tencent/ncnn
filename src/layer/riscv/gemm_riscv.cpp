@@ -40,14 +40,14 @@ Gemm_riscv::Gemm_riscv()
     // When processing float data,
     // even if the current hardware provides vector registers of more than 128 bits,
     // vl=4 is still used, even though this will waste the width of the vector register.
-    vl = support_fp16_storage ? vsetvlmax_e16m1() : vsetvlmax_e32m1();
+    vl = vsetvlmax_e32m1();
     // vl = vl >= 4 ? 4 : vl;
 #else
     vl = 0;
 #endif // __riscv_vector
 }
 
-static void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk, size_t vl)
+void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk, size_t vl)
 {
     const int elempack = A.elempack;
     const int A_hstep = A.dims == 3 ? (int)A.cstep : A.w;
