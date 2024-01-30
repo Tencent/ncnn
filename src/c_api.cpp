@@ -1458,6 +1458,17 @@ void ncnn_copy_cut_border_3d(const ncnn_mat_t src, ncnn_mat_t dst, int top, int 
     copy_cut_border_3d(*(const Mat*)src, *(Mat*)dst, top, bottom, left, right, front, behind, _opt);
 }
 
+void ncnn_draw_rectangle_c3(unsigned char* pixels, int w, int h, int rx, int ry, int rw, int rh, unsigned int color, int thickness)
+{
+    ncnn::draw_rectangle_c3(pixels, w, h, w * 3, rx, ry, rw, rh, color, thickness);
+}
+
+void ncnn_draw_text_c3(unsigned char* pixels, int w, int h, const char* text, int x, int y, int fontpixelsize, unsigned int color)
+{
+    ncnn::draw_text_c3(pixels, w, h, w * 3, text, x, y, fontpixelsize, color);
+}
+
+
 #ifdef __cplusplus
 } /* extern "C" */
 #endif
