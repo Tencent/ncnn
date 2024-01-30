@@ -388,7 +388,7 @@ static int gemm_AT_BT_riscv_fp16s(const Mat& AT, const Mat& BT, const Mat& C, Ma
     return 0;
 }
 
-int gemm_riscv::create_pipeline_fp16s(const Option& opt)
+int Gemm_riscv::create_pipeline_fp16s(const Option& opt)
 {
     if (constantA)
     {

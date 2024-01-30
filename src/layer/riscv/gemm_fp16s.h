@@ -843,31 +843,31 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
                 {
                     vl = 4;
 
-                    vse16_v_f16m1(outptr0, vfncvt_f_f_w_f16m1(sum0, vl), vl);
-                    vse16_v_f16m1(outptr0 + 4, vfncvt_f_f_w_f16m1(sum1, vl), vl);
-                    vse16_v_f16m1(outptr0 + 4 * 2, vfncvt_f_f_w_f16m1(sum2, vl), vl);
-                    vse16_v_f16m1(outptr0 + 4 * 3, vfncvt_f_f_w_f16m1(sum3, vl), vl);
-                    vse16_v_f16m1(outptr0 + 4 * 4, vfncvt_f_f_w_f16m1(sum4, vl), vl);
-                    vse16_v_f16m1(outptr0 + 4 * 5, vfncvt_f_f_w_f16m1(sum5, vl), vl);
-                    vse16_v_f16m1(outptr0 + 4 * 6, vfncvt_f_f_w_f16m1(sum6, vl), vl);
-                    vse16_v_f16m1(outptr0 + 4 * 7, vfncvtv_a_f_f_w_f16m1(sum7, vl), vl);
-                    vse16_v_f16m1(outptr0 + 4 * 8, vfncvt_f_f_w_f16m1(sum8, vl), vl);
-                    vse16_v_f16m1(outptr0 + 4 * 9, vfncvt_f_f_w_f16m1(sum9, vl), vl);
-                    vse16_v_f16m1(outptr0 + 4 * 10, vfncvt_f_f_w_f16m1(suma, vl), vl);
-                    vse16_v_f16m1(outptr0 + 4 * 11, vfncvt_f_f_w_f16m1(sumb, vl), vl);
+                    vse16_v_f16m1(outptr0, vfncvt_f_f_w_f16m1(_sum0, vl), vl);
+                    vse16_v_f16m1(outptr0 + 4, vfncvt_f_f_w_f16m1(_sum1, vl), vl);
+                    vse16_v_f16m1(outptr0 + 4 * 2, vfncvt_f_f_w_f16m1(_sum2, vl), vl);
+                    vse16_v_f16m1(outptr0 + 4 * 3, vfncvt_f_f_w_f16m1(_sum3, vl), vl);
+                    vse16_v_f16m1(outptr0 + 4 * 4, vfncvt_f_f_w_f16m1(_sum4, vl), vl);
+                    vse16_v_f16m1(outptr0 + 4 * 5, vfncvt_f_f_w_f16m1(_sum5, vl), vl);
+                    vse16_v_f16m1(outptr0 + 4 * 6, vfncvt_f_f_w_f16m1(_sum6, vl), vl);
+                    vse16_v_f16m1(outptr0 + 4 * 7, vfncvtv_a_f_f_w_f16m1(_sum7, vl), vl);
+                    vse16_v_f16m1(outptr0 + 4 * 8, vfncvt_f_f_w_f16m1(_sum8, vl), vl);
+                    vse16_v_f16m1(outptr0 + 4 * 9, vfncvt_f_f_w_f16m1(_sum9, vl), vl);
+                    vse16_v_f16m1(outptr0 + 4 * 10, vfncvt_f_f_w_f16m1(_suma, vl), vl);
+                    vse16_v_f16m1(outptr0 + 4 * 11, vfncvt_f_f_w_f16m1(_sumb, vl), vl);
                     
-                    sum0 = vslidedown_vx_f32m2(sum0, sum0, 4, vl);
-                    sum1 = vslidedown_vx_f32m2(sum1, sum1, 4, vl);
-                    sum2 = vslidedown_vx_f32m2(sum2, sum2, 4, vl);
-                    sum3 = vslidedown_vx_f32m2(sum3, sum3, 4, vl);
-                    sum4 = vslidedown_vx_f32m2(sum4, sum4, 4, vl);
-                    sum5 = vslidedown_vx_f32m2(sum5, sum5, 4, vl);
-                    sum6 = vslidedown_vx_f32m2(sum6, sum6, 4, vl);
-                    sum7 = vslidedown_vx_f32m2(sum7, sum7, 4, vl);
-                    sum8 = vslidedown_vx_f32m2(sum8, sum8, 4, vl);
-                    sum9 = vslidedown_vx_f32m2(sum9, sum9, 4, vl);
-                    suma = vslidedown_vx_f32m2(suma, suma, 4, vl);
-                    sumb = vslidedown_vx_f32m2(sumb, sumb, 4, vl);
+                    _sum0 = vslidedown_vx_f32m2(_sum0, _sum0, 4, vl);
+                    _sum1 = vslidedown_vx_f32m2(_sum1, _sum1, 4, vl);
+                    _sum2 = vslidedown_vx_f32m2(_sum2, _sum2, 4, vl);
+                    _sum3 = vslidedown_vx_f32m2(_sum3, _sum3, 4, vl);
+                    _sum4 = vslidedown_vx_f32m2(_sum4, _sum4, 4, vl);
+                    _sum5 = vslidedown_vx_f32m2(_sum5, _sum5, 4, vl);
+                    _sum6 = vslidedown_vx_f32m2(_sum6, _sum6, 4, vl);
+                    _sum7 = vslidedown_vx_f32m2(_sum7, _sum7, 4, vl);
+                    _sum8 = vslidedown_vx_f32m2(_sum8, _sum8, 4, vl);
+                    _sum9 = vslidedown_vx_f32m2(_sum9, _sum9, 4, vl);
+                    _suma = vslidedown_vx_f32m2(_suma, _suma, 4, vl);
+                    _sumb = vslidedown_vx_f32m2(_sumb, _sumb, 4, vl);
                     vse16_v_f16m1(outptr0 + out_hstep * 4, vfncvt_f_f_w_f16m1(_sum0, vl), vl);
                     vse16_v_f16m1(outptr0 + out_hstep * 4 + 4, vfncvt_f_f_w_f16m1(_sum1, vl), vl);
                     vse16_v_f16m1(outptr0 + out_hstep * 4 + 4 * 2, vfncvt_f_f_w_f16m1(_sum2, vl), vl);
@@ -1168,23 +1168,23 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
                 {
                     vl = 4;
 
-                    vse16_v_f16m1(outptr0, vfncvt_f_f_w_f16m1(sum0, vl), vl);
-                    vse16_v_f16m1(outptr0 + 4, vfncvt_f_f_w_f16m1(sum1, vl), vl);
-                    vse16_v_f16m1(outptr0 + 4 * 2, vfncvt_f_f_w_f16m1(sum2, vl), vl);
-                    vse16_v_f16m1(outptr0 + 4 * 3, vfncvt_f_f_w_f16m1(sum3, vl), vl);
-                    vse16_v_f16m1(outptr0 + 4 * 4, vfncvt_f_f_w_f16m1(sum4, vl), vl);
-                    vse16_v_f16m1(outptr0 + 4 * 5, vfncvt_f_f_w_f16m1(sum5, vl), vl);
-                    vse16_v_f16m1(outptr0 + 4 * 6, vfncvt_f_f_w_f16m1(sum6, vl), vl);
-                    vse16_v_f16m1(outptr0 + 4 * 7, vfncvtv_a_f_f_w_f16m1(sum7, vl), vl);
+                    vse16_v_f16m1(outptr0, vfncvt_f_f_w_f16m1(_sum0, vl), vl);
+                    vse16_v_f16m1(outptr0 + 4, vfncvt_f_f_w_f16m1(_sum1, vl), vl);
+                    vse16_v_f16m1(outptr0 + 4 * 2, vfncvt_f_f_w_f16m1(_sum2, vl), vl);
+                    vse16_v_f16m1(outptr0 + 4 * 3, vfncvt_f_f_w_f16m1(_sum3, vl), vl);
+                    vse16_v_f16m1(outptr0 + 4 * 4, vfncvt_f_f_w_f16m1(_sum4, vl), vl);
+                    vse16_v_f16m1(outptr0 + 4 * 5, vfncvt_f_f_w_f16m1(_sum5, vl), vl);
+                    vse16_v_f16m1(outptr0 + 4 * 6, vfncvt_f_f_w_f16m1(_sum6, vl), vl);
+                    vse16_v_f16m1(outptr0 + 4 * 7, vfncvtv_a_f_f_w_f16m1(_sum7, vl), vl);
                     
-                    sum0 = vslidedown_vx_f32m2(sum0, sum0, 4, vl);
-                    sum1 = vslidedown_vx_f32m2(sum1, sum1, 4, vl);
-                    sum2 = vslidedown_vx_f32m2(sum2, sum2, 4, vl);
-                    sum3 = vslidedown_vx_f32m2(sum3, sum3, 4, vl);
-                    sum4 = vslidedown_vx_f32m2(sum4, sum4, 4, vl);
-                    sum5 = vslidedown_vx_f32m2(sum5, sum5, 4, vl);
-                    sum6 = vslidedown_vx_f32m2(sum6, sum6, 4, vl);
-                    sum7 = vslidedown_vx_f32m2(sum7, sum7, 4, vl);
+                    _sum0 = vslidedown_vx_f32m2(_sum0, _sum0, 4, vl);
+                    _sum1 = vslidedown_vx_f32m2(_sum1, _sum1, 4, vl);
+                    _sum2 = vslidedown_vx_f32m2(_sum2, _sum2, 4, vl);
+                    _sum3 = vslidedown_vx_f32m2(_sum3, _sum3, 4, vl);
+                    _sum4 = vslidedown_vx_f32m2(_sum4, _sum4, 4, vl);
+                    _sum5 = vslidedown_vx_f32m2(_sum5, _sum5, 4, vl);
+                    _sum6 = vslidedown_vx_f32m2(_sum6, _sum6, 4, vl);
+                    _sum7 = vslidedown_vx_f32m2(_sum7, _sum7, 4, vl);
                     vse16_v_f16m1(outptr0 + out_hstep * 4, vfncvt_f_f_w_f16m1(_sum0, vl), vl);
                     vse16_v_f16m1(outptr0 + out_hstep * 4 + 4, vfncvt_f_f_w_f16m1(_sum1, vl), vl);
                     vse16_v_f16m1(outptr0 + out_hstep * 4 + 4 * 2, vfncvt_f_f_w_f16m1(_sum2, vl), vl);
@@ -1376,15 +1376,15 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
                 {
                     vl = 4;
 
-                    vse16_v_f16m1(outptr0, vfncvt_f_f_w_f16m1(sum0, vl), vl);
-                    vse16_v_f16m1(outptr0 + 4, vfncvt_f_f_w_f16m1(sum1, vl), vl);
-                    vse16_v_f16m1(outptr0 + 4 * 2, vfncvt_f_f_w_f16m1(sum2, vl), vl);
-                    vse16_v_f16m1(outptr0 + 4 * 3, vfncvt_f_f_w_f16m1(sum3, vl), vl);
+                    vse16_v_f16m1(outptr0, vfncvt_f_f_w_f16m1(_sum0, vl), vl);
+                    vse16_v_f16m1(outptr0 + 4, vfncvt_f_f_w_f16m1(_sum1, vl), vl);
+                    vse16_v_f16m1(outptr0 + 4 * 2, vfncvt_f_f_w_f16m1(_sum2, vl), vl);
+                    vse16_v_f16m1(outptr0 + 4 * 3, vfncvt_f_f_w_f16m1(_sum3, vl), vl);
                     
-                    sum0 = vslidedown_vx_f32m2(sum0, sum0, 4, vl);
-                    sum1 = vslidedown_vx_f32m2(sum1, sum1, 4, vl);
-                    sum2 = vslidedown_vx_f32m2(sum2, sum2, 4, vl);
-                    sum3 = vslidedown_vx_f32m2(sum3, sum3, 4, vl);
+                    _sum0 = vslidedown_vx_f32m2(_sum0, _sum0, 4, vl);
+                    _sum1 = vslidedown_vx_f32m2(_sum1, _sum1, 4, vl);
+                    _sum2 = vslidedown_vx_f32m2(_sum2, _sum2, 4, vl);
+                    _sum3 = vslidedown_vx_f32m2(_sum3, _sum3, 4, vl);
                     vse16_v_f16m1(outptr0 + out_hstep * 4, vfncvt_f_f_w_f16m1(_sum0, vl), vl);
                     vse16_v_f16m1(outptr0 + out_hstep * 4 + 4, vfncvt_f_f_w_f16m1(_sum1, vl), vl);
                     vse16_v_f16m1(outptr0 + out_hstep * 4 + 4 * 2, vfncvt_f_f_w_f16m1(_sum2, vl), vl);
@@ -1522,11 +1522,11 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
                 if (out_elempack == 4)
                 {
                     vl = 8;
-                    vse16_v_f16m1(outptr0, vfncvt_f_f_w_f16m1(sum0, vl), vl);
-                    vse16_v_f16m1(outptr0 + 4, vfncvt_f_f_w_f16m1(sum1, vl), vl);
+                    vse16_v_f16m1(outptr0, vfncvt_f_f_w_f16m1(_sum0, vl), vl);
+                    vse16_v_f16m1(outptr0 + 4, vfncvt_f_f_w_f16m1(_sum1, vl), vl);
 
-                    sum0 = vslidedown_vx_f32m2(sum0, sum0, 4, vl);
-                    sum1 = vslidedown_vx_f32m2(sum1, sum1, 4, vl);
+                    _sum0 = vslidedown_vx_f32m2(_sum0, _sum0, 4, vl);
+                    _sum1 = vslidedown_vx_f32m2(_sum1, _sum1, 4, vl);
 
                     vse16_v_f16m1(outptr0 + out_hstep * 4, vfncvt_f_f_w_f16m1(_sum0, vl), vl);
                     vse16_v_f16m1(outptr0 + out_hstep * 4 + 4, vfncvt_f_f_w_f16m1(_sum1, vl), vl);
@@ -1547,30 +1547,30 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
                     vsse16_v_f16m1(outptr0, out_hstep * sizeof(__fp16), _sum0_f16, vl);
                     vsse16_v_f16m1(outptr0 + 1, out_hstep * sizeof(__fp16), _sum1_f16, vl);
 
-                    // __fp16 sum0[8];
-                    // __fp16 sum1[8];
-                    // vse16_v_f16mf2(sum0, vfncvt_f_f_w_f16mf2(_sum0, vl), vl);
-                    // vse16_v_f16mf2(sum0 + 4, vfncvt_f_f_w_f16mf2(_sum01, vl), vl);
-                    // vse16_v_f16mf2(sum1, vfncvt_f_f_w_f16mf2(_sum1, vl), vl);
-                    // vse16_v_f16mf2(sum1 + 4, vfncvt_f_f_w_f16mf2(_sum11, vl), vl);
+                    // __fp16 _sum0[8];
+                    // __fp16 _sum1[8];
+                    // vse16_v_f16mf2(_sum0, vfncvt_f_f_w_f16mf2(_sum0, vl), vl);
+                    // vse16_v_f16mf2(_sum0 + 4, vfncvt_f_f_w_f16mf2(_sum01, vl), vl);
+                    // vse16_v_f16mf2(_sum1, vfncvt_f_f_w_f16mf2(_sum1, vl), vl);
+                    // vse16_v_f16mf2(_sum1 + 4, vfncvt_f_f_w_f16mf2(_sum11, vl), vl);
 
-                    // outptr0[0] = sum0[0];
-                    // outptr0[out_hstep] = sum0[1];
-                    // outptr0[out_hstep * 2] = sum0[2];
-                    // outptr0[out_hstep * 3] = sum0[3];
-                    // outptr0[out_hstep * 4] = sum0[4];
-                    // outptr0[out_hstep * 5] = sum0[5];
-                    // outptr0[out_hstep * 6] = sum0[6];
-                    // outptr0[out_hstep * 7] = sum0[7];
+                    // outptr0[0] = _sum0[0];
+                    // outptr0[out_hstep] = _sum0[1];
+                    // outptr0[out_hstep * 2] = _sum0[2];
+                    // outptr0[out_hstep * 3] = _sum0[3];
+                    // outptr0[out_hstep * 4] = _sum0[4];
+                    // outptr0[out_hstep * 5] = _sum0[5];
+                    // outptr0[out_hstep * 6] = _sum0[6];
+                    // outptr0[out_hstep * 7] = _sum0[7];
 
-                    // outptr0[1] = sum1[0];
-                    // outptr0[out_hstep + 1] = sum1[1];
-                    // outptr0[out_hstep * 2 + 1] = sum1[2];
-                    // outptr0[out_hstep * 3 + 1] = sum1[3];
-                    // outptr0[out_hstep * 4 + 1] = sum1[4];
-                    // outptr0[out_hstep * 5 + 1] = sum1[5];
-                    // outptr0[out_hstep * 6 + 1] = sum1[6];
-                    // outptr0[out_hstep * 7 + 1] = sum1[7];
+                    // outptr0[1] = _sum1[0];
+                    // outptr0[out_hstep + 1] = _sum1[1];
+                    // outptr0[out_hstep * 2 + 1] = _sum1[2];
+                    // outptr0[out_hstep * 3 + 1] = _sum1[3];
+                    // outptr0[out_hstep * 4 + 1] = _sum1[4];
+                    // outptr0[out_hstep * 5 + 1] = _sum1[5];
+                    // outptr0[out_hstep * 6 + 1] = _sum1[6];
+                    // outptr0[out_hstep * 7 + 1] = _sum1[7];
                     outptr0 += 2;
                 }
             }
@@ -1648,8 +1648,8 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
                 if (out_elempack == 4)
                 {
                     vl = 8;
-                    vse16_v_f16m1(outptr0, vfncvt_f_f_w_f16m1(sum0, vl), vl);
-                    sum0 = vslidedown_vx_f32m2(sum0, sum0, 4, vl);
+                    vse16_v_f16m1(outptr0, vfncvt_f_f_w_f16m1(_sum0, vl), vl);
+                    _sum0 = vslidedown_vx_f32m2(_sum0, _sum0, 4, vl);
                     vse16_v_f16m1(outptr0 + out_hstep * 4, vfncvt_f_f_w_f16m1(_sum0, vl), vl);
                     // vse16_v_f16mf2(outptr0, vfncvt_f_f_w_f16mf2(_sum0, vl), vl);
                     // vse16_v_f16mf2(outptr0 + out_hstep * 4, vfncvt_f_f_w_f16mf2(_sum01, vl), vl);
@@ -1661,18 +1661,18 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
                     vfloat16m1_t _sum0_f16 = vfncvt_f_f_w_f16m1(_sum0, vl);
                     vsse16_v_f16m1(outptr0, out_hstep * sizeof(__fp16), _sum0_f16, vl);
 
-                    // __fp16 sum0[8];
-                    // vse16_v_f16mf2(sum0, vfncvt_f_f_w_f16mf2(_sum0, vl), vl);
-                    // vse16_v_f16mf2(sum0 + 4, vfncvt_f_f_w_f16mf2(_sum01, vl), vl);
+                    // __fp16 _sum0[8];
+                    // vse16_v_f16mf2(_sum0, vfncvt_f_f_w_f16mf2(_sum0, vl), vl);
+                    // vse16_v_f16mf2(_sum0 + 4, vfncvt_f_f_w_f16mf2(_sum01, vl), vl);
 
-                    // outptr0[0] = sum0[0];
-                    // outptr0[out_hstep * 1] = sum0[1];
-                    // outptr0[out_hstep * 2] = sum0[2];
-                    // outptr0[out_hstep * 3] = sum0[3];
-                    // outptr0[out_hstep * 4] = sum0[4];
-                    // outptr0[out_hstep * 5] = sum0[5];
-                    // outptr0[out_hstep * 6] = sum0[6];
-                    // outptr0[out_hstep * 7] = sum0[7];
+                    // outptr0[0] = _sum0[0];
+                    // outptr0[out_hstep * 1] = _sum0[1];
+                    // outptr0[out_hstep * 2] = _sum0[2];
+                    // outptr0[out_hstep * 3] = _sum0[3];
+                    // outptr0[out_hstep * 4] = _sum0[4];
+                    // outptr0[out_hstep * 5] = _sum0[5];
+                    // outptr0[out_hstep * 6] = _sum0[6];
+                    // outptr0[out_hstep * 7] = _sum0[7];
                     outptr0++;
                 }
             }
@@ -1897,18 +1897,18 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
             {
                 if (out_elempack == 4)
                 {
-                    vse16_v_f16m1(outptr0, vfncvt_f_f_w_f16m1(sum0, vl), vl);
-                    vse16_v_f16m1(outptr0 + 4, vfncvt_f_f_w_f16m1(sum1, vl), vl);
-                    vse16_v_f16m1(outptr0 + 4 * 2, vfncvt_f_f_w_f16m1(sum2, vl), vl);
-                    vse16_v_f16m1(outptr0 + 4 * 3, vfncvt_f_f_w_f16m1(sum3, vl), vl);
-                    vse16_v_f16m1(outptr0 + 4 * 4, vfncvt_f_f_w_f16m1(sum4, vl), vl);
-                    vse16_v_f16m1(outptr0 + 4 * 5, vfncvt_f_f_w_f16m1(sum5, vl), vl);
-                    vse16_v_f16m1(outptr0 + 4 * 6, vfncvt_f_f_w_f16m1(sum6, vl), vl);
-                    vse16_v_f16m1(outptr0 + 4 * 7, vfncvt_f_f_w_f16m1(sum7, vl), vl);
-                    vse16_v_f16m1(outptr0 + 4 * 8, vfncvt_f_f_w_f16m1(sum8, vl), vl);
-                    vse16_v_f16m1(outptr0 + 4 * 9, vfncvt_f_f_w_f16m1(sum9, vl), vl);
-                    vse16_v_f16m1(outptr0 + 4 * 10, vfncvt_f_f_w_f16m1(suma, vl), vl);
-                    vse16_v_f16m1(outptr0 + 4 * 11, vfncvt_f_f_w_f16m1(sumb, vl), vl);
+                    vse16_v_f16m1(outptr0, vfncvt_f_f_w_f16m1(_sum0, vl), vl);
+                    vse16_v_f16m1(outptr0 + 4, vfncvt_f_f_w_f16m1(_sum1, vl), vl);
+                    vse16_v_f16m1(outptr0 + 4 * 2, vfncvt_f_f_w_f16m1(_sum2, vl), vl);
+                    vse16_v_f16m1(outptr0 + 4 * 3, vfncvt_f_f_w_f16m1(_sum3, vl), vl);
+                    vse16_v_f16m1(outptr0 + 4 * 4, vfncvt_f_f_w_f16m1(_sum4, vl), vl);
+                    vse16_v_f16m1(outptr0 + 4 * 5, vfncvt_f_f_w_f16m1(_sum5, vl), vl);
+                    vse16_v_f16m1(outptr0 + 4 * 6, vfncvt_f_f_w_f16m1(_sum6, vl), vl);
+                    vse16_v_f16m1(outptr0 + 4 * 7, vfncvt_f_f_w_f16m1(_sum7, vl), vl);
+                    vse16_v_f16m1(outptr0 + 4 * 8, vfncvt_f_f_w_f16m1(_sum8, vl), vl);
+                    vse16_v_f16m1(outptr0 + 4 * 9, vfncvt_f_f_w_f16m1(_sum9, vl), vl);
+                    vse16_v_f16m1(outptr0 + 4 * 10, vfncvt_f_f_w_f16m1(_suma, vl), vl);
+                    vse16_v_f16m1(outptr0 + 4 * 11, vfncvt_f_f_w_f16m1(_sumb, vl), vl);
 
                     // vse16_v_f16mf2(outptr0, vfncvt_f_f_w_f16mf2(_sum0, vl), vl);
                     // vse16_v_f16mf2(outptr0 + 4, vfncvt_f_f_w_f16mf2(_sum1, vl), vl);
@@ -2133,14 +2133,14 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
             {
                 if (out_elempack == 4)
                 {
-                    vse16_v_f16m1(outptr0, vfncvt_f_f_w_f16m1(sum0, vl), vl);
-                    vse16_v_f16m1(outptr0 + 4, vfncvt_f_f_w_f16m1(sum1, vl), vl);
-                    vse16_v_f16m1(outptr0 + 4 * 2, vfncvt_f_f_w_f16m1(sum2, vl), vl);
-                    vse16_v_f16m1(outptr0 + 4 * 3, vfncvt_f_f_w_f16m1(sum3, vl), vl);
-                    vse16_v_f16m1(outptr0 + 4 * 4, vfncvt_f_f_w_f16m1(sum4, vl), vl);
-                    vse16_v_f16m1(outptr0 + 4 * 5, vfncvt_f_f_w_f16m1(sum5, vl), vl);
-                    vse16_v_f16m1(outptr0 + 4 * 6, vfncvt_f_f_w_f16m1(sum6, vl), vl);
-                    vse16_v_f16m1(outptr0 + 4 * 7, vfncvt_f_f_w_f16m1(sum7, vl), vl);
+                    vse16_v_f16m1(outptr0, vfncvt_f_f_w_f16m1(_sum0, vl), vl);
+                    vse16_v_f16m1(outptr0 + 4, vfncvt_f_f_w_f16m1(_sum1, vl), vl);
+                    vse16_v_f16m1(outptr0 + 4 * 2, vfncvt_f_f_w_f16m1(_sum2, vl), vl);
+                    vse16_v_f16m1(outptr0 + 4 * 3, vfncvt_f_f_w_f16m1(_sum3, vl), vl);
+                    vse16_v_f16m1(outptr0 + 4 * 4, vfncvt_f_f_w_f16m1(_sum4, vl), vl);
+                    vse16_v_f16m1(outptr0 + 4 * 5, vfncvt_f_f_w_f16m1(_sum5, vl), vl);
+                    vse16_v_f16m1(outptr0 + 4 * 6, vfncvt_f_f_w_f16m1(_sum6, vl), vl);
+                    vse16_v_f16m1(outptr0 + 4 * 7, vfncvt_f_f_w_f16m1(_sum7, vl), vl);
                     
                     // vse16_v_f16mf2(outptr0, vfncvt_f_f_w_f16mf2(_sum0, vl), vl);
                     // vse16_v_f16mf2(outptr0 + 4, vfncvt_f_f_w_f16mf2(_sum1, vl), vl);
@@ -2299,10 +2299,10 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
             {
                 if (out_elempack == 4)
                 {
-                    vse16_v_f16m1(outptr0, vfncvt_f_f_w_f16m1(sum0, vl), vl);
-                    vse16_v_f16m1(outptr0 + 4, vfncvt_f_f_w_f16m1(sum1, vl), vl);
-                    vse16_v_f16m1(outptr0 + 4 * 2, vfncvt_f_f_w_f16m1(sum2, vl), vl);
-                    vse16_v_f16m1(outptr0 + 4 * 3, vfncvt_f_f_w_f16m1(sum3, vl), vl);
+                    vse16_v_f16m1(outptr0, vfncvt_f_f_w_f16m1(_sum0, vl), vl);
+                    vse16_v_f16m1(outptr0 + 4, vfncvt_f_f_w_f16m1(_sum1, vl), vl);
+                    vse16_v_f16m1(outptr0 + 4 * 2, vfncvt_f_f_w_f16m1(_sum2, vl), vl);
+                    vse16_v_f16m1(outptr0 + 4 * 3, vfncvt_f_f_w_f16m1(_sum3, vl), vl);
 
                     // vse16_v_f16mf2(outptr0, vfncvt_f_f_w_f16mf2(_sum0, vl), vl);
                     // vse16_v_f16mf2(outptr0 + 4, vfncvt_f_f_w_f16mf2(_sum1, vl), vl);
@@ -2421,8 +2421,8 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
             {
                 if (out_elempack == 4)
                 {
-                    vse16_v_f16m1(outptr0, vfncvt_f_f_w_f16m1(sum0, vl), vl);
-                    vse16_v_f16m1(outptr0 + 4, vfncvt_f_f_w_f16m1(sum1, vl), vl);
+                    vse16_v_f16m1(outptr0, vfncvt_f_f_w_f16m1(_sum0, vl), vl);
+                    vse16_v_f16m1(outptr0 + 4, vfncvt_f_f_w_f16m1(_sum1, vl), vl);
                     // vse16_v_f16mf2(outptr0, vfncvt_f_f_w_f16mf2(_sum0, vl), vl);
                     // vse16_v_f16mf2(outptr0 + 4, vfncvt_f_f_w_f16mf2(_sum1, vl), vl);
                     outptr0 += 8;
@@ -2433,19 +2433,19 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
                     vfloat16m1_t _sum1_f16 = vfncvt_f_f_w_f16m1(_sum1, vl);
                     vsse16_v_f16m1(outptr0, out_hstep * sizeof(__fp16), _sum0_f16, vl);
                     vsse16_v_f16m1(outptr0 + 1, out_hstep * sizeof(__fp16), _sum1_f16, vl);
-                    // __fp16 sum0[4];
-                    // __fp16 sum1[4];
-                    // vse16_v_f16mf2(sum0, vfncvt_f_f_w_f16mf2(_sum0, vl), vl);
-                    // vse16_v_f16mf2(sum1, vfncvt_f_f_w_f16mf2(_sum1, vl), vl);
+                    // __fp16 _sum0[4];
+                    // __fp16 _sum1[4];
+                    // vse16_v_f16mf2(_sum0, vfncvt_f_f_w_f16mf2(_sum0, vl), vl);
+                    // vse16_v_f16mf2(_sum1, vfncvt_f_f_w_f16mf2(_sum1, vl), vl);
 
-                    // outptr0[0] = sum0[0];
-                    // outptr0[out_hstep] = sum0[1];
-                    // outptr0[out_hstep * 2] = sum0[2];
-                    // outptr0[out_hstep * 3] = sum0[3];
-                    // outptr0[1] = sum1[0];
-                    // outptr0[out_hstep + 1] = sum1[1];
-                    // outptr0[out_hstep * 2 + 1] = sum1[2];
-                    // outptr0[out_hstep * 3 + 1] = sum1[3];
+                    // outptr0[0] = _sum0[0];
+                    // outptr0[out_hstep] = _sum0[1];
+                    // outptr0[out_hstep * 2] = _sum0[2];
+                    // outptr0[out_hstep * 3] = _sum0[3];
+                    // outptr0[1] = _sum1[0];
+                    // outptr0[out_hstep + 1] = _sum1[1];
+                    // outptr0[out_hstep * 2 + 1] = _sum1[2];
+                    // outptr0[out_hstep * 3 + 1] = _sum1[3];
                     outptr0 += 2;
                 }
             }
@@ -2523,7 +2523,7 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
             {
                 if (out_elempack == 4)
                 {
-                    vse16_v_f16m1(outptr0, vfncvt_f_f_w_f16m1(sum0, vl), vl);
+                    vse16_v_f16m1(outptr0, vfncvt_f_f_w_f16m1(_sum0, vl), vl);
                     // vse16_v_f16mf2(outptr0, vfncvt_f_f_w_f16mf2(_sum0, vl), vl);
                     outptr0 += 4;
                 }
@@ -2531,13 +2531,13 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
                 {
                     vfloat16m1_t _sum0_f16 = vfncvt_f_f_w_f16m1(_sum0, vl);
                     vsse16_v_f16m1(outptr0, out_hstep * sizeof(__fp16), _sum0_f16, vl);
-                    // __fp16 sum0[4];
-                    // vse16_v_f16mf2(sum0, vfncvt_f_f_w_f16mf2(_sum0, vl), vl);
+                    // __fp16 _sum0[4];
+                    // vse16_v_f16mf2(_sum0, vfncvt_f_f_w_f16mf2(_sum0, vl), vl);
 
-                    // outptr0[0] = sum0[0];
-                    // outptr0[out_hstep] = sum0[1];
-                    // outptr0[out_hstep * 2] = sum0[2];
-                    // outptr0[out_hstep * 3] = sum0[3];
+                    // outptr0[0] = _sum0[0];
+                    // outptr0[out_hstep] = _sum0[1];
+                    // outptr0[out_hstep * 2] = _sum0[2];
+                    // outptr0[out_hstep * 3] = _sum0[3];
                     outptr0++;
                 }
             }
@@ -2797,7 +2797,7 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
                     if (broadcast_type_C == 4)
                     {
                         _sum0 = vle32_v_f32m1(pC, vl);
-                        _sum1 = sum0;
+                        _sum1 = _sum0;
                         // _sum0 = vle32_v_f32m1(pC, vl);
                         // _sum01 = vle32_v_f32m1(pC + 4, vl);
                         // _sum1 = _sum0;
@@ -2867,8 +2867,8 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
             {
                 // if (out_elempack == 1)
                 {
-                    vse16_v_f16m1(outptr0, vfncvt_f_f_w_f16m1(sum0, vl), vl);
-                    vse16_v_f16m1(outptr0 + out_hstep, vfncvt_f_f_w_f16m1(sum1, vl), vl);
+                    vse16_v_f16m1(outptr0, vfncvt_f_f_w_f16m1(_sum0, vl), vl);
+                    vse16_v_f16m1(outptr0 + out_hstep, vfncvt_f_f_w_f16m1(_sum1, vl), vl);
 
                     // vse16_v_f16mf2(outptr0, vfncvt_f_f_w_f16mf2(_sum0, vl), vl);
                     // vse16_v_f16mf2(outptr0 + 4, vfncvt_f_f_w_f16mf2(_sum01, vl), vl);
@@ -2996,8 +2996,8 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
             {
                 // if (out_elempack == 1)
                 {
-                    vse16_v_f16m1(outptr0, vfncvt_f_f_w_f16m1(sum0, vl), vl);
-                    vse16_v_f16m1(outptr0 + out_hstep, vfncvt_f_f_w_f16m1(sum1, vl), vl);
+                    vse16_v_f16m1(outptr0, vfncvt_f_f_w_f16m1(_sum0, vl), vl);
+                    vse16_v_f16m1(outptr0 + out_hstep, vfncvt_f_f_w_f16m1(_sum1, vl), vl);
                     // vse16_v_f16mf2(outptr0, vfncvt_f_f_w_f16mf2(_sum0, vl), vl);
                     // vse16_v_f16mf2(outptr0 + out_hstep, vfncvt_f_f_w_f16mf2(_sum1, vl), vl);
                     outptr0 += 4;
@@ -3120,44 +3120,44 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
         }
         for (; jj < max_jj; jj += 1)
         {
-            float sum0;
-            float sum1;
+            float _sum0;
+            float _sum1;
 
             if (k == 0)
             {
-                sum0 = 0.f;
-                sum1 = 0.f;
+                _sum0 = 0.f;
+                _sum1 = 0.f;
 
                 if (pC)
                 {
                     if (broadcast_type_C == 0)
                     {
-                        sum0 = pC[0];
-                        sum1 = pC[0];
+                        _sum0 = pC[0];
+                        _sum1 = pC[0];
                     }
                     if (broadcast_type_C == 1 || broadcast_type_C == 2)
                     {
-                        sum0 = pC[0];
-                        sum1 = pC[1];
+                        _sum0 = pC[0];
+                        _sum1 = pC[1];
                     }
                     if (broadcast_type_C == 3)
                     {
-                        sum0 = pC[0];
-                        sum1 = pC[1];
+                        _sum0 = pC[0];
+                        _sum1 = pC[1];
                         pC += 2;
                     }
                     if (broadcast_type_C == 4)
                     {
-                        sum0 = pC[0];
-                        sum1 = pC[0];
+                        _sum0 = pC[0];
+                        _sum1 = pC[0];
                         pC += 1;
                     }
                 }
             }
             else
             {
-                sum0 = outptr[0];
-                sum1 = outptr[1];
+                _sum0 = outptr[0];
+                _sum1 = outptr[1];
             }
 
             const __fp16* pA = pAT;
@@ -3169,31 +3169,31 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
                 __fp16 pA1 = pA[1];
                 __fp16 pB0 = pB[0];
 
-                sum0 += pA0 * pB0;
-                sum1 += pA1 * pB0;
+                _sum0 += pA0 * pB0;
+                _sum1 += pA1 * pB0;
                 pA += 2;
                 pB += 1;
             }
 
             if (alpha != 1.f)
             {
-                sum0 *= alpha;
-                sum1 *= alpha;
+                _sum0 *= alpha;
+                _sum1 *= alpha;
             }
 
             if (k_end)
             {
                 // if (out_elempack == 1)
                 {
-                    outptr0[0] = float32_to_float16(sum0);
-                    outptr0[out_hstep] = float32_to_float16(sum1);
+                    outptr0[0] = float32_to_float16(_sum0);
+                    outptr0[out_hstep] = float32_to_float16(_sum1);
                     outptr0++;
                 }
             }
             else
             {
-                outptr[0] = sum0;
-                outptr[1] = sum1;
+                outptr[0] = _sum0;
+                outptr[1] = _sum1;
             }
 
             outptr += 2;
@@ -3302,9 +3302,9 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
             {
                 // if (out_elempack == 1)
                 {
-                    vse16_v_f16m1(outptr0, vfncvt_f_f_w_f16m1(sum0, vl), vl);
-                    vse16_v_f16m1(outptr0 + 4, vfncvt_f_f_w_f16m1(sum1, vl), vl);
-                    vse16_v_f16m1(outptr0 + 8, vfncvt_f_f_w_f16m1(sum2, vl), vl);
+                    vse16_v_f16m1(outptr0, vfncvt_f_f_w_f16m1(_sum0, vl), vl);
+                    vse16_v_f16m1(outptr0 + 4, vfncvt_f_f_w_f16m1(_sum1, vl), vl);
+                    vse16_v_f16m1(outptr0 + 8, vfncvt_f_f_w_f16m1(_sum2, vl), vl);
                     // vse16_v_f16mf2(outptr0, vfncvt_f_f_w_f16mf2(_sum0, vl), vl);
                     // vse16_v_f16mf2(outptr0 + 4, vfncvt_f_f_w_f16mf2(_sum1, vl), vl);
                     // vse16_v_f16mf2(outptr0 + 8, vfncvt_f_f_w_f16mf2(_sum2, vl), vl);
@@ -3387,8 +3387,8 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
             {
                 // if (out_elempack == 1)
                 {
-                    vse16_v_f16m1(outptr0, vfncvt_f_f_w_f16m1(sum0, vl), vl);
-                    vse16_v_f16m1(outptr0 + 4, vfncvt_f_f_w_f16m1(sum1, vl), vl);
+                    vse16_v_f16m1(outptr0, vfncvt_f_f_w_f16m1(_sum0, vl), vl);
+                    vse16_v_f16m1(outptr0 + 4, vfncvt_f_f_w_f16m1(_sum1, vl), vl);
                     // vse16_v_f16mf2(outptr0, vfncvt_f_f_w_f16mf2(_sum0, vl), vl);
                     // vse16_v_f16mf2(outptr0 + 4, vfncvt_f_f_w_f16mf2(_sum1, vl), vl);
                     outptr0 += 8;
@@ -3457,7 +3457,7 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
             {
                 // if (out_elempack == 1)
                 {
-                    vse16_v_f16m1(outptr0, vfncvt_f_f_w_f16m1(sum0, vl), vl);
+                    vse16_v_f16m1(outptr0, vfncvt_f_f_w_f16m1(_sum0, vl), vl);
                     // vse16_v_f16mf2(outptr0, vfncvt_f_f_w_f16mf2(_sum, vl), vl);
                     outptr0 += 4;
                 }
@@ -3471,33 +3471,33 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
         }
         for (; jj + 1 < max_jj; jj += 2)
         {
-            float sum0;
-            float sum1;
+            float _sum0;
+            float _sum1;
 
             if (k == 0)
             {
-                sum0 = 0.f;
-                sum1 = 0.f;
+                _sum0 = 0.f;
+                _sum1 = 0.f;
 
                 if (pC)
                 {
                     if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
                     {
-                        sum0 = pC[0];
-                        sum1 = pC[0];
+                        _sum0 = pC[0];
+                        _sum1 = pC[0];
                     }
                     if (broadcast_type_C == 3 || broadcast_type_C == 4)
                     {
-                        sum0 = pC[0];
-                        sum1 = pC[1];
+                        _sum0 = pC[0];
+                        _sum1 = pC[1];
                         pC += 2;
                     }
                 }
             }
             else
             {
-                sum0 = outptr[0];
-                sum1 = outptr[1];
+                _sum0 = outptr[0];
+                _sum1 = outptr[1];
             }
 
             const __fp16* pA = pAT;
@@ -3509,8 +3509,8 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
                 __fp16 pB0 = pB[0];
                 __fp16 pB1 = pB[1];
 
-                sum0 += pA0 * pB0;
-                sum1 += pA0 * pB1;
+                _sum0 += pA0 * pB0;
+                _sum1 += pA0 * pB1;
 
                 pA += 1;
                 pB += 2;
@@ -3518,23 +3518,23 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
 
             if (alpha != 1.f)
             {
-                sum0 *= alpha;
-                sum1 *= alpha;
+                _sum0 *= alpha;
+                _sum1 *= alpha;
             }
 
             if (k_end)
             {
                 // if (out_elempack == 1)
                 {
-                    outptr0[0] = float32_to_float16(sum0);
-                    outptr0[1] = float32_to_float16(sum1);
+                    outptr0[0] = float32_to_float16(_sum0);
+                    outptr0[1] = float32_to_float16(_sum1);
                     outptr0 += 2;
                 }
             }
             else
             {
-                outptr[0] = sum0;
-                outptr[1] = sum1;
+                outptr[0] = _sum0;
+                outptr[1] = _sum1;
             }
 
             outptr += 2;
