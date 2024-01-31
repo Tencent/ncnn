@@ -354,6 +354,11 @@ NCNN_EXPORT void ncnn_draw_circle_c2(unsigned char* pixels, int w, int h, int cx
 NCNN_EXPORT void ncnn_draw_circle_c3(unsigned char* pixels, int w, int h, int cx, int cy, int radius, unsigned int color, int thickness);
 NCNN_EXPORT void ncnn_draw_circle_c4(unsigned char* pixels, int w, int h, int cx, int cy, int radius, unsigned int color, int thickness);
 
+NCNN_EXPORT void ncnn_draw_line_c1(unsigned char* pixels, int w, int h, int x0, int y0, int x1, int y1, unsigned int color, int thickness);
+NCNN_EXPORT void ncnn_draw_line_c2(unsigned char* pixels, int w, int h, int x0, int y0, int x1, int y1, unsigned int color, int thickness);
+NCNN_EXPORT void ncnn_draw_line_c3(unsigned char* pixels, int w, int h, int x0, int y0, int x1, int y1, unsigned int color, int thickness);
+NCNN_EXPORT void ncnn_draw_line_c4(unsigned char* pixels, int w, int h, int x0, int y0, int x1, int y1, unsigned int color, int thickness);
+
 #ifdef __cplusplus
 } /* extern "C" */
 #endif

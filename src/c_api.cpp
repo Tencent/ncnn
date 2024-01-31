@@ -1518,6 +1518,26 @@ void ncnn_draw_circle_c4(unsigned char* pixels, int w, int h, int cx, int cy, in
     ncnn::draw_circle_c4(pixels, w, h, w * 4, cx, cy, radius, color, thickness);
 }
 
+void ncnn_draw_line_c1(unsigned char* pixels, int w, int h, int x0, int y0, int x1, int y1, unsigned int color, int thickness)
+{
+    ncnn::draw_line_c1(pixels, w, h, w, x0, y0, x1, y1, color, thickness);
+}
+
+void ncnn_draw_line_c2(unsigned char* pixels, int w, int h, int x0, int y0, int x1, int y1, unsigned int color, int thickness)
+{
+    ncnn::draw_line_c2(pixels, w, h, w * 2, x0, y0, x1, y1, color, thickness);
+}
+
+void ncnn_draw_line_c3(unsigned char* pixels, int w, int h, int x0, int y0, int x1, int y1, unsigned int color, int thickness)
+{
+    ncnn::draw_line_c3(pixels, w, h, w * 3, x0, y0, x1, y1, color, thickness);
+}
+
+void ncnn_draw_line_c4(unsigned char* pixels, int w, int h, int x0, int y0, int x1, int y1, unsigned int color, int thickness)
+{
+    ncnn::draw_line_c4(pixels, w, h, w * 4, x0, y0, x1, y1, color, thickness);
+}
+
 #ifdef __cplusplus
 } /* extern "C" */
 #endif
