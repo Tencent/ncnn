@@ -1498,6 +1498,25 @@ void ncnn_draw_text_c4(unsigned char* pixels, int w, int h, const char* text, in
     ncnn::draw_text_c4(pixels, w, h, w * 4, text, x, y, fontpixelsize, color);
 }
 
+void ncnn_draw_circle_c1(unsigned char* pixels, int w, int h, int cx, int cy, int radius, unsigned int color, int thickness)
+{
+    ncnn::draw_circle_c1(pixels, w, h, w, cx, cy, radius, color, thickness);
+}
+
+void ncnn_draw_circle_c2(unsigned char* pixels, int w, int h, int cx, int cy, int radius, unsigned int color, int thickness)
+{
+    ncnn::draw_circle_c2(pixels, w, h, w * 2, cx, cy, radius, color, thickness);
+}
+
+void ncnn_draw_circle_c3(unsigned char* pixels, int w, int h, int cx, int cy, int radius, unsigned int color, int thickness)
+{
+    ncnn::draw_circle_c3(pixels, w, h, w * 3, cx, cy, radius, color, thickness);
+}
+
+void ncnn_draw_circle_c4(unsigned char* pixels, int w, int h, int cx, int cy, int radius, unsigned int color, int thickness)
+{
+    ncnn::draw_circle_c4(pixels, w, h, w * 4, cx, cy, radius, color, thickness);
+}
 
 #ifdef __cplusplus
 } /* extern "C" */
