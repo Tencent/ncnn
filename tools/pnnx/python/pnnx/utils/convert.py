@@ -21,7 +21,7 @@ from .. import EXEC_PATH
 def convert(ptpath, inputs = None, inputs2 = None, input_shapes = None, input_types = None,
             input_shapes2 = None, input_types2 = None, device = None, customop = None,
             moduleop = None, optlevel = None, pnnxparam = None, pnnxbin = None,
-            pnnxpy = None, pnnxonnx = None, ncnnparam = None, ncnnbin = None, ncnnpy = None):
+            pnnxpy = None, pnnxonnx = None, ncnnparam = None, ncnnbin = None, ncnnpy = None, fp16 = True):
 
     check_type(ptpath, "modelname", [str], "str")
     check_type(inputs, "inputs", [torch.Tensor, tuple, list], "torch.Tensor or tuple/list of torch.Tensor")
@@ -106,6 +106,8 @@ def convert(ptpath, inputs = None, inputs2 = None, input_shapes = None, input_ty
             command_list.append("ncnnbin=" + ncnnbin)
         if not (ncnnpy is None):
             command_list.append("ncnnpy=" + ncnnpy)
+        if not (fp16 is True):
+            command_list.append("fp16=0")
         current_dir = os.getcwd()
         subprocess.run(command_list, stdout=subprocess.PIPE, text=True, cwd=current_dir)
 
