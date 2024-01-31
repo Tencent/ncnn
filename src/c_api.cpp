@@ -1463,9 +1463,24 @@ void ncnn_draw_rectangle_c3(unsigned char* pixels, int w, int h, int rx, int ry,
     ncnn::draw_rectangle_c3(pixels, w, h, w * 3, rx, ry, rw, rh, color, thickness);
 }
 
+void ncnn_draw_text_c1(unsigned char* pixels, int w, int h, const char* text, int x, int y, int fontpixelsize, unsigned int color)
+{
+    ncnn::draw_text_c1(pixels, w, h, w, text, x, y, fontpixelsize, color);
+}
+
+void ncnn_draw_text_c2(unsigned char* pixels, int w, int h, const char* text, int x, int y, int fontpixelsize, unsigned int color)
+{
+    ncnn::draw_text_c2(pixels, w, h, w * 2, text, x, y, fontpixelsize, color);
+}
+
 void ncnn_draw_text_c3(unsigned char* pixels, int w, int h, const char* text, int x, int y, int fontpixelsize, unsigned int color)
 {
     ncnn::draw_text_c3(pixels, w, h, w * 3, text, x, y, fontpixelsize, color);
+}
+
+void ncnn_draw_text_c4(unsigned char* pixels, int w, int h, const char* text, int x, int y, int fontpixelsize, unsigned int color)
+{
+    ncnn::draw_text_c4(pixels, w, h, w * 4, text, x, y, fontpixelsize, color);
 }
 
 

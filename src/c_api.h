@@ -340,7 +340,13 @@ NCNN_EXPORT void ncnn_copy_cut_border_3d(const ncnn_mat_t src, ncnn_mat_t dst, i
 
 /* mat pixel drawing api*/
 NCNN_EXPORT void ncnn_draw_rectangle_c3(unsigned char* pixels, int w, int h, int rx, int ry, int rw, int rh, unsigned int color, int thickness);
+
+NCNN_EXPORT void ncnn_draw_text_c1(unsigned char* pixels, int w, int h, const char* text, int x, int y, int fontpixelsize, unsigned int color);
+NCNN_EXPORT void ncnn_draw_text_c2(unsigned char* pixels, int w, int h, const char* text, int x, int y, int fontpixelsize, unsigned int color);
 NCNN_EXPORT void ncnn_draw_text_c3(unsigned char* pixels, int w, int h, const char* text, int x, int y, int fontpixelsize, unsigned int color);
+NCNN_EXPORT void ncnn_draw_text_c4(unsigned char* pixels, int w, int h, const char* text, int x, int y, int fontpixelsize, unsigned int color);
+
+
 
 #ifdef __cplusplus
 } /* extern "C" */
