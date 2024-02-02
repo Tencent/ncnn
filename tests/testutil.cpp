@@ -675,7 +675,6 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
         fprintf(stderr, "\n");
     }
 
-
     op->destroy_pipeline(opt);
 
     delete op;
@@ -1489,7 +1488,6 @@ int test_layer_opt(const char* layer_type, const ncnn::ParamDict& pd, const std:
         fprintf(stderr, "test_layer %s failed use_packing_layout=%d use_fp16_packed=%d use_fp16_storage=%d use_fp16_arithmetic=%d use_shader_pack8=%d use_bf16_storage=%d use_image_storage=%d use_sgemm_convolution=%d use_winograd_convolution=%d\n", layer_type, opt.use_packing_layout, opt.use_fp16_packed, opt.use_fp16_storage, opt.use_fp16_arithmetic, opt.use_shader_pack8, opt.use_bf16_storage, opt.use_image_storage, opt.use_sgemm_convolution, opt.use_winograd_convolution);
         return ret;
     }
-
 
     return 0;
 }
