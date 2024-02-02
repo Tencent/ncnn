@@ -645,7 +645,6 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
 
     const __fp16* pAT = AT_tile;
     const __fp16* pBT = BT_tile;
-    const float* pBF = BT_tile;
 
     const float* pC = CT_tile;
 

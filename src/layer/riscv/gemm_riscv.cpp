@@ -4326,24 +4326,7 @@ static int gemm_riscv_fp16s(const Mat& A, const Mat& B, const Mat& C, Mat& top_b
         {
             const int max_jj = std::min((N - j), TILE_N);
 
-            if (broadcast_type_C == 3)
-            {
-                fprintf(stderr, "-----called pack_A_tile in gemm_riscv_f16s\n");
-                pack_A_tile(C, topT_tile, i, max_ii, j, max_jj, 4);
-            }
-
             const Mat& CT_tile = broadcast_type_C == 3 ? topT_tile : C;
-            fprintf(stderr, "-----CT_tile.dims = %d\n", CT_tile.dims);
-            fprintf(stderr, "-----CT_tile.w = %d\n", CT_tile.w);
-            fprintf(stderr, "-----CT_tile.h = %d\n", CT_tile.h);
-            fprintf(stderr, "-----CT_tile.c = %d\n", CT_tile.c);
-            fprintf(stderr, "-----CT_tile.elempack = %d\n", CT_tile.elempack);
-
-            for (int x = 0; x < CT_tile.total(); x++)
-            {
-                fprintf(stderr, "-----CT_tile[%d] = %f\n", x, CT_tile[x]);
-            }
-
             for (int k = 0; k < K; k += TILE_K)
             {
                 const int max_kk = std::min((K - k), TILE_K);
@@ -4374,12 +4357,6 @@ static int gemm_riscv_fp16s(const Mat& A, const Mat& B, const Mat& C, Mat& top_b
 
             if (output_transpose)
             {
-                fprintf(stderr, "-----called transpose_unpack_output_tile in gemm_riscv_f16s\n");
-                fprintf(stderr, "-----top_blob.dims = %d\n", top_blob.dims);
-                fprintf(stderr, "-----top_blob.w = %d\n", top_blob.w);
-                fprintf(stderr, "-----top_blob.h = %d\n", top_blob.h);
-                fprintf(stderr, "-----top_blob.c = %d\n", top_blob.c);
-                fprintf(stderr, "-----top_blob.elempack = %d\n", top_blob.elempack);
                 transpose_unpack_output_tile_fp32_to_fp16(topT_tile, top_blob, i, max_ii, j, max_jj);
             }
         }
