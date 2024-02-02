@@ -73,7 +73,7 @@ static int test_gemm(int M, int N, int K, float alpha, int transA, int transB, i
     {
         fprintf(stderr, "test_gemm failed M=%d N=%d K=%d alpha=%f transA=%d transB=%d output_transpose=%d constantA=%d constantB=%d output_N1M=%d\n", M, N, K, alpha, transA, transB, output_transpose, constantA, constantB, output_N1M);
     }
-    else 
+    else
     {
         fprintf(stderr, "test_gemm successed M=%d N=%d K=%d alpha=%f transA=%d transB=%d output_transpose=%d constantA=%d constantB=%d output_N1M=%d\n", M, N, K, alpha, transA, transB, output_transpose, constantA, constantB, output_N1M);
     }
@@ -150,7 +150,8 @@ static int test_gemm_bias(int M, int N, int K, const ncnn::Mat& C, float alpha, 
         Randomize(a[i]);
     }
 
-    if (a.size()) {
+    if (a.size())
+    {
         const ncnn::Mat& sum = a[a.size() - 1];
         // print c
         fprintf(stderr, "c: %d %d %d\n", sum.w, sum.h, sum.c);
@@ -169,13 +170,12 @@ static int test_gemm_bias(int M, int N, int K, const ncnn::Mat& C, float alpha, 
         }
     }
 
-
     int ret = test_layer("Gemm", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_gemm_bias failed M=%d N=%d K=%d C.dims=%d C=(%d %d %d) alpha=%f beta=%f transA=%d transB=%d output_transpose=%d constantA=%d constantB=%d constantC=%d\n", M, N, K, C.dims, C.w, C.h, C.c, alpha, beta, transA, transB, output_transpose, constantA, constantB, constantC);
     }
-    else 
+    else
     {
         fprintf(stderr, "test_gemm_bias success M=%d N=%d K=%d C.dims=%d C=(%d %d %d) alpha=%f beta=%f transA=%d transB=%d output_transpose=%d constantA=%d constantB=%d constantC=%d\n", M, N, K, C.dims, C.w, C.h, C.c, alpha, beta, transA, transB, output_transpose, constantA, constantB, constantC);
     }

@@ -339,17 +339,15 @@ static void pack_B_tile_fp32_to_fp16(const Mat& B, Mat& BT, int j, int max_jj, i
             p6 += vl;
             p7 += vl;
             n -= vl;
-        print_f16_m1(_r0, vl);
-        print_f16_m1(_r1, vl);
-        print_f16_m1(_r2, vl);
-        print_f16_m1(_r3, vl);
-        print_f16_m1(_r4, vl);
-        print_f16_m1(_r5, vl);
-        print_f16_m1(_r6, vl);
-        print_f16_m1(_r7, vl);
+            print_f16_m1(_r0, vl);
+            print_f16_m1(_r1, vl);
+            print_f16_m1(_r2, vl);
+            print_f16_m1(_r3, vl);
+            print_f16_m1(_r4, vl);
+            print_f16_m1(_r5, vl);
+            print_f16_m1(_r6, vl);
+            print_f16_m1(_r7, vl);
         }
-
-
     }
     for (; jj + 3 < max_jj; jj += 4)
     {
@@ -1204,7 +1202,6 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
                 // print_f32_m2(_sum5, 8);
                 // print_f32_m2(_sum6, 8);
                 // print_f32_m2(_sum7, 8);
-
 
                 // vfloat16m1_t _pB = vle16_v_f16m1(pB, vl);
 
@@ -2407,7 +2404,6 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
                 // _sum2 = vfmul_vf_f32(_sum2, _alpha, vl);
                 // _sum3 = vfmul_vf_f32(_sum3, _alpha, vl);
             }
-
 
             if (k_end)
             {

@@ -3941,7 +3941,6 @@ static int gemm_AT_BT_riscv(const Mat& AT, const Mat& BT, const Mat& C, Mat& top
     return 0;
 }
 
-
 int Gemm_riscv::create_pipeline(const Option& opt)
 {
     if (support_fp16_storage && opt.use_fp16_storage)
