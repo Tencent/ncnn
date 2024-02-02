@@ -446,13 +446,13 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     {
         // clang-format off
         // *INDENT-OFF*
-#if NCNN_ARM82
-        if (opt.use_fp16_storage && ncnn::cpu_support_arm_asimdhp() && op->support_fp16_storage && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
+#if NCNN_VFPV4
+        if (opt.use_fp16_storage && ncnn::cpu_support_arm_vfpv4() && op->support_fp16_storage && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
         {
             ncnn::cast_float32_to_float16(a[i], a4[i], opt);
         }
         else
-#endif // NCNN_ARM82
+#endif // NCNN_VFPV4
 #if NCNN_RVV
         if (opt.use_fp16_storage && ncnn::cpu_support_riscv_v() && ncnn::cpu_support_riscv_zfh() && op->support_fp16_storage && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
         {
@@ -571,15 +571,15 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     {
         // clang-format off
         // *INDENT-OFF*
-#if NCNN_ARM82
-        if (opt.use_fp16_storage && ncnn::cpu_support_arm_asimdhp() && op->support_fp16_storage && c[i].elembits() == 16)
+#if NCNN_VFPV4
+        if (opt.use_fp16_storage && ncnn::cpu_support_arm_vfpv4() && op->support_fp16_storage && c[i].elembits() == 16)
         {
             ncnn::Mat c_fp32;
             ncnn::cast_float16_to_float32(c[i], c_fp32, opt);
             c[i] = c_fp32;
         }
         else
-#endif // NCNN_ARM82
+#endif // NCNN_VFPV4
 #if NCNN_RVV
         if (opt.use_fp16_storage && ncnn::cpu_support_riscv_v() && ncnn::cpu_support_riscv_zfh() && op->support_fp16_storage && c[i].elembits() == 16)
         {
@@ -961,13 +961,13 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
 
     // clang-format off
     // *INDENT-OFF*
-#if NCNN_ARM82
-    if (opt.use_fp16_storage && ncnn::cpu_support_arm_asimdhp() && op->support_fp16_storage && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
+#if NCNN_VFPV4
+    if (opt.use_fp16_storage && ncnn::cpu_support_arm_vfpv4() && op->support_fp16_storage && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
     {
         ncnn::cast_float32_to_float16(a, a4, opt);
     }
     else
-#endif // NCNN_ARM82
+#endif // NCNN_VFPV4
 #if NCNN_RVV
     if (opt.use_fp16_storage && ncnn::cpu_support_riscv_v() && ncnn::cpu_support_riscv_zfh() && op->support_fp16_storage && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
     {
@@ -1077,15 +1077,15 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
 
     // clang-format off
     // *INDENT-OFF*
-#if NCNN_ARM82
-    if (opt.use_fp16_storage && ncnn::cpu_support_arm_asimdhp() && op->support_fp16_storage && c.elembits() == 16)
+#if NCNN_VFPV4
+    if (opt.use_fp16_storage && ncnn::cpu_support_arm_vfpv4() && op->support_fp16_storage && c.elembits() == 16)
     {
         ncnn::Mat c_fp32;
         ncnn::cast_float16_to_float32(c, c_fp32, opt);
         c = c_fp32;
     }
     else
-#endif // NCNN_ARM82
+#endif // NCNN_VFPV4
 #if NCNN_RVV
     if (opt.use_fp16_storage && ncnn::cpu_support_riscv_v() && ncnn::cpu_support_riscv_zfh() && op->support_fp16_storage && c.elembits() == 16)
     {
