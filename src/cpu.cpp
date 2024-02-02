@@ -249,7 +249,7 @@ static int detectisa(const void* /*some_inst*/)
     // uwp does not support seh  :(
     return 0;
 }
-#else // WINAPI_FAMILY == WINAPI_FAMILY_APP
+#else  // WINAPI_FAMILY == WINAPI_FAMILY_APP
 static int g_sigill_caught = 0;
 static jmp_buf g_jmpbuf;
 
