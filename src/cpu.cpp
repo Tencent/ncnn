@@ -137,7 +137,7 @@ static int g_cpu_support_arm_sve2;
 static int g_cpu_support_arm_svebf16;
 static int g_cpu_support_arm_svei8mm;
 static int g_cpu_support_arm_svef32mm;
-#elif  // __arm__
+#elif __arm__
 static int g_cpu_support_arm_edsp;
 static int g_cpu_support_arm_neon;
 static int g_cpu_support_arm_vfpv4;
@@ -1975,7 +1975,7 @@ static void initialize_global_cpu_info()
     g_cpu_support_arm_svebf16 = detectisa(some_svebf16);
     g_cpu_support_arm_svei8mm = detectisa(some_svei8mm);
     g_cpu_support_arm_svef32mm = detectisa(some_svef32mm);
-#elif  // __arm__
+#elif __arm__
     g_cpu_support_arm_edsp = detectisa(some_edsp);
     g_cpu_support_arm_neon = detectisa(some_neon);
     g_cpu_support_arm_vfpv4 = detectisa(some_vfpv4);
