@@ -3102,8 +3102,6 @@ static void gemm_transB_packed_tile(const Mat& AT_tile, const Mat& BT_tile, cons
                 sum01 += pA[1] * pB[0];
                 sum10 += pA[0] * pB[1];
                 sum11 += pA[1] * pB[1];
-                fprintf(stderr, "fp32 pA0: %f, pA1: %f, pB0: %f, pB1: %f\n", pA[0], pA[1], pB[0], pB[1]);
-                fprintf(stderr, "fp32 sum00: %f, sum01: %f, sum10: %f, sum11: %f\n", sum00, sum01, sum10, sum11);
                 pA += 2;
                 pB += 2;
             }
@@ -3943,14 +3941,6 @@ static int gemm_AT_BT_riscv(const Mat& AT, const Mat& BT, const Mat& C, Mat& top
     return 0;
 }
 
-int Gemm_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
-{
-    std::vector<Mat> bottom_blobs(1, bottom_blob);
-    std::vector<Mat> top_blobs(1, top_blob);
-    int ret = forward(bottom_blobs, top_blobs, opt);
-    top_blob = top_blobs[0];
-    return ret;
-}
 
 int Gemm_riscv::create_pipeline(const Option& opt)
 {
@@ -4339,6 +4329,7 @@ static int gemm_riscv_fp16s(const Mat& A, const Mat& B, const Mat& C, Mat& top_b
 
             if (broadcast_type_C == 3)
             {
+                fprintf(stderr, "-----called pack_A_tile in gemm_riscv_f16s\n");
                 pack_A_tile(C, topT_tile, i, max_ii, j, max_jj, 4);
             }
 
@@ -4853,6 +4844,22 @@ int Gemm_riscv::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<
                 }
 
                 C = CT_data;
+            }
+            fprintf(stderr, "C.dims = %d\n", C.dims);
+            fprintf(stderr, "C.w = %d\n", C.w);
+            fprintf(stderr, "C.h = %d\n", C.h);
+            fprintf(stderr, "C.c = %d\n", C.c);
+            for (int q = 0; q < C.c; q++)
+            {
+                for (int i = 0; i < C.h; i++)
+                {
+                    for (int j = 0; j < C.w; j++)
+                    {
+                        fprintf(stderr, "%f ", C[q * C.h * C.w + i * C.w + j]);
+                    }
+                    fprintf(stderr, "\n");
+                }
+                fprintf(stderr, "\n");
             }
         }
     }

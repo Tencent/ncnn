@@ -631,9 +631,14 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
         else
 #endif // NCNN_ARM82
 #if NCNN_RVV
+        fprintf(stderr, "opt.use_fp16_storage = %d\n", opt.use_fp16_storage);
+        fprintf(stderr, "cpu_support_riscv_v() = %d\n", cpu_support_riscv_v());
+        fprintf(stderr, "cpu_support_riscv_zfh() = %d\n", cpu_support_riscv_zfh());
+        fprintf(stderr, "layer->support_fp16_storage = %d\n", layer->support_fp16_storage);
         if (opt.use_fp16_storage && cpu_support_riscv_v() && cpu_support_riscv_zfh() && layer->support_fp16_storage)
         {
             Mat bottom_blob_fp16;
+            fprintf(stderr, "Cast_float32_to_float16 in riscv\n");
             cast_float32_to_float16(bottom_blob, bottom_blob_fp16, opt);
             bottom_blob = bottom_blob_fp16;
         }
@@ -820,6 +825,7 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<Mat>& blob_mats
     }
     else
     {
+        fprintf(stderr, "layer->one_blob_only = %d\n", layer->one_blob_only);
         std::vector<Mat> bottom_blobs(layer->bottoms.size());
         for (size_t i = 0; i < layer->bottoms.size(); i++)
         {

@@ -245,6 +245,47 @@ int Compare(const ncnn::Mat& a, const ncnn::Mat& b, float epsilon)
                     if (!NearlyEqual(pa[j], pb[j], epsilon))
                     {
                         fprintf(stderr, "value not match  at c:%d d:%d h:%d w:%d    expect %f but got %f\n", q, z, i, j, pa[j], pb[j]);
+                        // print all value for debug
+                        fprintf(stderr, "a = \n");
+                        for (int q = 0; q < a.c; q++)
+                        {
+                            const ncnn::Mat ma = a.channel(q);
+                            for (int z = 0; z < a.d; z++)
+                            {
+                                const ncnn::Mat da = ma.depth(z);
+                                for (int i = 0; i < a.h; i++)
+                                {
+                                    const float* pa = da.row(i);
+                                    for (int j = 0; j < a.w; j++)
+                                    {
+                                        fprintf(stderr, "%f ", pa[j]);
+                                    }
+                                    fprintf(stderr, "\n");
+                                }
+                                fprintf(stderr, "\n");
+                            }
+                            fprintf(stderr, "\n");
+                        }
+                        fprintf(stderr, "b = \n");
+                        for (int q = 0; q < b.c; q++)
+                        {
+                            const ncnn::Mat mb = b.channel(q);
+                            for (int z = 0; z < b.d; z++)
+                            {
+                                const ncnn::Mat db = mb.depth(z);
+                                for (int i = 0; i < b.h; i++)
+                                {
+                                    const float* pb = db.row(i);
+                                    for (int j = 0; j < b.w; j++)
+                                    {
+                                        fprintf(stderr, "%f ", pb[j]);
+                                    }
+                                    fprintf(stderr, "\n");
+                                }
+                                fprintf(stderr, "\n");
+                            }
+                            fprintf(stderr, "\n");
+                        }
                         return -1;
                     }
                 }
@@ -1415,6 +1456,10 @@ int test_layer_opt(const char* layer_type, const ncnn::ParamDict& pd, const std:
         fprintf(stderr, "test_layer %s failed use_packing_layout=%d use_fp16_packed=%d use_fp16_storage=%d use_fp16_arithmetic=%d use_shader_pack8=%d use_bf16_storage=%d use_image_storage=%d use_sgemm_convolution=%d use_winograd_convolution=%d\n", layer_type, opt.use_packing_layout, opt.use_fp16_packed, opt.use_fp16_storage, opt.use_fp16_arithmetic, opt.use_shader_pack8, opt.use_bf16_storage, opt.use_image_storage, opt.use_sgemm_convolution, opt.use_winograd_convolution);
         return ret;
     }
+    else 
+    {
+        fprintf(stderr, "test_layer %s success use_packing_layout=%d use_fp16_packed=%d use_fp16_storage=%d use_fp16_arithmetic=%d use_shader_pack8=%d use_bf16_storage=%d use_image_storage=%d use_sgemm_convolution=%d use_winograd_convolution=%d\n", layer_type, opt.use_packing_layout, opt.use_fp16_packed, opt.use_fp16_storage, opt.use_fp16_arithmetic, opt.use_shader_pack8, opt.use_bf16_storage, opt.use_image_storage, opt.use_sgemm_convolution, opt.use_winograd_convolution);
+    }
 
     return 0;
 }
@@ -1481,6 +1526,10 @@ int test_layer_opt(const char* layer_type, const ncnn::ParamDict& pd, const std:
     {
         fprintf(stderr, "test_layer %s failed use_packing_layout=%d use_fp16_packed=%d use_fp16_storage=%d use_fp16_arithmetic=%d use_shader_pack8=%d use_bf16_storage=%d use_image_storage=%d use_sgemm_convolution=%d use_winograd_convolution=%d\n", layer_type, opt.use_packing_layout, opt.use_fp16_packed, opt.use_fp16_storage, opt.use_fp16_arithmetic, opt.use_shader_pack8, opt.use_bf16_storage, opt.use_image_storage, opt.use_sgemm_convolution, opt.use_winograd_convolution);
         return ret;
+    }
+    else 
+    {
+        fprintf(stderr, "test_layer %s success use_packing_layout=%d use_fp16_packed=%d use_fp16_storage=%d use_fp16_arithmetic=%d use_shader_pack8=%d use_bf16_storage=%d use_image_storage=%d use_sgemm_convolution=%d use_winograd_convolution=%d\n", layer_type, opt.use_packing_layout, opt.use_fp16_packed, opt.use_fp16_storage, opt.use_fp16_arithmetic, opt.use_shader_pack8, opt.use_bf16_storage, opt.use_image_storage, opt.use_sgemm_convolution, opt.use_winograd_convolution);
     }
 
     return 0;

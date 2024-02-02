@@ -26,11 +26,11 @@ static void pack_A_tile_bf16_fp16(const Mat& A, Mat& AT, int i, int max_ii, int 
     {
         if (elempack == 8)
         {
+            vl = 8;
             const unsigned short* p0 = (const unsigned short*)A + (i + ii) * A_hstep + k * 8;
 
             for (int kk = 0; kk < max_kk; kk++)
             {
-                vl = 8;
                 vse16_v_u16m1(pp, vle16_v_u16m1(p0, vl), vl);
                 // vst1q_u16(pp, vle16_v_u16m1(p0), vl);
                 pp += 8;
@@ -39,12 +39,12 @@ static void pack_A_tile_bf16_fp16(const Mat& A, Mat& AT, int i, int max_ii, int 
         }
         if (elempack == 4)
         {
+            vl = 4;
             const unsigned short* p0 = (const unsigned short*)A + (i + ii) * A_hstep + k * 4;
             const unsigned short* p1 = (const unsigned short*)A + (i + ii + 4) * A_hstep + k * 4;
 
             for (int kk = 0; kk < max_kk; kk++)
             {
-                vl = 4;
                 vuint16m1_t _r00 = vle16_v_u16m1(p0, vl);
                 vuint16m1_t _r01 = vle16_v_u16m1(p1, vl);
                 vsseg2e16_v_u16m1(pp, _r00, _r01, vl);
@@ -223,12 +223,12 @@ static void transpose_pack_A_tile_bf16_fp16(const Mat& A, Mat& AT, int i, int ma
     {
         if (elempack == 8)
         {
+            vl = 8;
             const unsigned short* p0 = (const unsigned short*)A + k * A_hstep + (i + ii) * 8;
 
             int kk = 0;
             for (; kk + 7 < max_kk; kk += 8)
             {
-                vl = 8;
                 vuint16m1_t _r0;
                 vuint16m1_t _r1;
                 vuint16m1_t _r2;
@@ -252,12 +252,12 @@ static void transpose_pack_A_tile_bf16_fp16(const Mat& A, Mat& AT, int i, int ma
         }
         if (elempack == 4)
         {
+            vl = 8;
             const unsigned short* p0 = (const unsigned short*)A + k * A_hstep + (i + ii) * 4;
 
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
-                vl = 8;
                 vuint16m1_t _r0;
                 vuint16m1_t _r1;
                 vuint16m1_t _r2;
@@ -272,12 +272,12 @@ static void transpose_pack_A_tile_bf16_fp16(const Mat& A, Mat& AT, int i, int ma
         }
         if (elempack == 1)
         {
+            vl = 8;
             const unsigned short* p0 = (const unsigned short*)A + k * A_hstep + (i + ii);
 
             int kk = 0;
             for (; kk < max_kk; kk++)
             {
-                vl = 8;
                 vse16_v_u16m1(pp, vle16_v_u16m1(p0, vl), vl);
                 pp += 8;
                 p0 += A_hstep;
@@ -288,6 +288,7 @@ static void transpose_pack_A_tile_bf16_fp16(const Mat& A, Mat& AT, int i, int ma
     {
         if (elempack == 8)
         {
+            vl = 8;
             const unsigned short* p0 = (const unsigned short*)A + k * A_hstep + (i + ii) * 8;
 
             int kk = 0;
@@ -304,12 +305,12 @@ static void transpose_pack_A_tile_bf16_fp16(const Mat& A, Mat& AT, int i, int ma
         }
         if (elempack == 4)
         {
+            vl = 4;
             const unsigned short* p0 = (const unsigned short*)A + k * A_hstep + (i + ii) * 4;
 
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
-                vl = 4;
                 vuint16m1_t _r0;
                 vuint16m1_t _r1;
                 vuint16m1_t _r2;
@@ -325,12 +326,12 @@ static void transpose_pack_A_tile_bf16_fp16(const Mat& A, Mat& AT, int i, int ma
         }
         if (elempack == 1)
         {
+            vl = 4;
             const unsigned short* p0 = (const unsigned short*)A + k * A_hstep + (i + ii);
 
             int kk = 0;
             for (; kk < max_kk; kk++)
             {
-                vl = 4;
                 vse16_v_u16m1(pp, vle16_v_u16m1(p0, vl), vl);
                 pp += 4;
                 p0 += A_hstep;
@@ -343,12 +344,12 @@ static void transpose_pack_A_tile_bf16_fp16(const Mat& A, Mat& AT, int i, int ma
 #if __riscv_vector
         if (elempack == 8)
         {
+            vl = 8;
             const unsigned short* p0 = (const unsigned short*)A + k * A_hstep + (i + ii) * 8;
 
             int kk = 0;
             for (; kk + 7 < max_kk; kk += 8)
             {
-                vl = 8;
                 vuint16m1_t _r0 = vle16_v_u16m1(p0, vl);
                 vuint16m1_t _r1 = vle16_v_u16m1(p0 + 8, vl);
                 vsseg2e16_v_u16m1(pp, _r0, _r1, vl);
@@ -358,12 +359,12 @@ static void transpose_pack_A_tile_bf16_fp16(const Mat& A, Mat& AT, int i, int ma
         }
         if (elempack == 4)
         {
+            vl = 4;
             const unsigned short* p0 = (const unsigned short*)A + k * A_hstep + (i + ii) * 4;
 
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
-                vl = 4;
                 vuint16m1_t _r010 = vle16_v_u16m1(p0, vl);
                 vuint16m1_t _r011 = vle16_v_u16m1(p0 + 4, vl);
                 vsseg2e16_v_u16m1(pp, _r010, _r011, vl);
@@ -392,12 +393,12 @@ static void transpose_pack_A_tile_bf16_fp16(const Mat& A, Mat& AT, int i, int ma
 #if __riscv_vector
         if (elempack == 8)
         {
+            vl = 8;
             const unsigned short* p0 = (const unsigned short*)A + k * A_hstep + (i + ii) * 8;
 
             int kk = 0;
             for (; kk + 7 < max_kk; kk += 8)
             {
-                vl = 8;
                 vse16_v_u16m1(pp, vle16_v_u16m1(p0, vl), vl);
                 pp += 8;
                 p0 += A_hstep * 8;
@@ -405,12 +406,12 @@ static void transpose_pack_A_tile_bf16_fp16(const Mat& A, Mat& AT, int i, int ma
         }
         if (elempack == 4)
         {
+            vl = 4;
             const unsigned short* p0 = (const unsigned short*)A + k * A_hstep + (i + ii) * 4;
 
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
-                vl = 4;
                 vse16_v_u16m1(pp, vle16_v_u16m1(p0, vl), vl);
                 pp += 4;
                 p0 += A_hstep * 4;
@@ -434,6 +435,7 @@ static void transpose_pack_A_tile_bf16_fp16(const Mat& A, Mat& AT, int i, int ma
 
 static void pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk)
 {
+    fprintf(stderr, "in pack_B_tile_bf16_fp16 \n");
     int vl;
     const int elempack = B.elempack;
     const int B_hstep = B.dims == 3 ? (int)B.cstep : B.w;
@@ -811,6 +813,7 @@ static void pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int max_jj, int 
 
 static void transpose_pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk)
 {
+    fprintf(stderr, "in transpose_pack_B_tile_bf16_fp16 \n");
     int vl;
     const int elempack = B.elempack;
     const int B_hstep = B.dims == 3 ? (int)B.cstep : B.w;
@@ -916,6 +919,7 @@ static void transpose_pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int ma
     {
         if (elempack == 8)
         {
+            vl = 8;
             const unsigned short* p0 = (const unsigned short*)B + k * B_hstep + (j + jj) * 8;
 
             int kk = 0;
@@ -936,12 +940,12 @@ static void transpose_pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int ma
         }
         if (elempack == 4)
         {
+            vl = 8;
             const unsigned short* p0 = (const unsigned short*)B + k * B_hstep + (j + jj) * 4;
 
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
-                vl = 8;
                 vuint16m1_t _r0;
                 vuint16m1_t _r1;
                 vuint16m1_t _r2;
@@ -960,6 +964,7 @@ static void transpose_pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int ma
         }
         if (elempack == 1)
         {
+            vl = 8;
             const unsigned short* p0 = (const unsigned short*)B + k * B_hstep + (j + jj);
 
             int kk = 0;
@@ -975,6 +980,7 @@ static void transpose_pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int ma
     {
         if (elempack == 8)
         {
+            vl = 8;
             const unsigned short* p0 = (const unsigned short*)B + k * B_hstep + (j + jj) * 8;
 
             int kk = 0;
@@ -992,12 +998,12 @@ static void transpose_pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int ma
         }
         if (elempack == 4)
         {
+            vl = 4;
             const unsigned short* p0 = (const unsigned short*)B + k * B_hstep + (j + jj) * 4;
 
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
-                vl = 4;
                 vuint16m1_t _r0;
                 vuint16m1_t _r1;
                 vuint16m1_t _r2;
@@ -1015,12 +1021,12 @@ static void transpose_pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int ma
         }
         if (elempack == 1)
         {
+            vl = 4;
             const unsigned short* p0 = (const unsigned short*)B + k * B_hstep + (j + jj);
 
             int kk = 0;
             for (; kk < max_kk; kk++)
             {
-                vl = 4;
                 vse16_v_u16m1(pp, vle16_v_u16m1(p0, vl), vl);
                 pp += 4;
                 p0 += B_hstep;
@@ -1033,12 +1039,12 @@ static void transpose_pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int ma
 #if __riscv_vector
         if (elempack == 8)
         {
+            vl = 8;
             const unsigned short* p0 = (const unsigned short*)B + k * B_hstep + (j + jj) * 8;
 
             int kk = 0;
             for (; kk + 7 < max_kk; kk += 8)
             {
-                vl = 8;
                 vuint16m1_t _r0 = vle16_v_u16m1(p0, vl);
                 vuint16m1_t _r1 = vle16_v_u16m1(p0 + 8, vl);
                 vsseg2e16_v_u16m1(pp, _r0, _r1, vl);
@@ -1048,12 +1054,12 @@ static void transpose_pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int ma
         }
         if (elempack == 4)
         {
+            vl = 4;
             const unsigned short* p0 = (const unsigned short*)B + k * B_hstep + (j + jj) * 4;
 
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
-                vl = 4;
                 vuint16m1_t _r0 = vle16_v_u16m1(p0, vl);
                 vuint16m1_t _r1 = vle16_v_u16m1(p0 + 8, vl);
                 vsseg2e16_v_u16m1(pp, _r0, _r1, vl);
@@ -1081,12 +1087,12 @@ static void transpose_pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int ma
 #if __riscv_vector
         if (elempack == 8)
         {
+            vl = 8;
             const unsigned short* p0 = (const unsigned short*)B + k * B_hstep + (j + jj) * 8;
 
             int kk = 0;
             for (; kk + 7 < max_kk; kk += 8)
             {
-                vl = 8;
                 vse16_v_u16m1(pp, vle16_v_u16m1(p0, vl), vl);
                 pp += 8;
                 p0 += B_hstep * 8;
@@ -1094,12 +1100,12 @@ static void transpose_pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int ma
         }
         if (elempack == 4)
         {
+            vl = 4;
             const unsigned short* p0 = (const unsigned short*)B + k * B_hstep + (j + jj) * 4;
 
             int kk = 0;
             for (; kk + 3 < max_kk; kk += 4)
             {
-                vl = 8;
                 vse16_v_u16m1(pp, vle16_v_u16m1(p0, vl), vl);
                 pp += 4;
                 p0 += B_hstep * 4;
