@@ -16,7 +16,6 @@ static void pack_A_tile_bf16_fp16(const Mat& A, Mat& AT, int i, int max_ii, int 
 {
     int vl;
     const int elempack = A.elempack;
-    fprintf(stderr, "in pack_A_tile_bf16_fp16 ,elempack = %d\n", elempack);
     const int A_hstep = A.dims == 3 ? (int)A.cstep : A.w;
 
     unsigned short* pp = AT;
@@ -215,7 +214,6 @@ static void pack_A_tile_bf16_fp16(const Mat& A, Mat& AT, int i, int max_ii, int 
 static void transpose_pack_A_tile_bf16_fp16(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
 {
     int vl;
-    fprintf(stderr, "in transpose_pack_A_tile_bf16_fp16 ,elempack = %d\n", A.elempack);
     const int elempack = A.elempack;
     const int A_hstep = A.dims == 3 ? (int)A.cstep : A.w;
 
@@ -440,8 +438,6 @@ static void transpose_pack_A_tile_bf16_fp16(const Mat& A, Mat& AT, int i, int ma
 
 static void pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk)
 {
-    fprintf(stderr, "in pack_B_tile_bf16_fp16 \n");
-    fprintf(stderr, "B.elempack = %d\n", B.elempack);
     int vl;
     const int elempack = B.elempack;
     const int B_hstep = B.dims == 3 ? (int)B.cstep : B.w;
@@ -819,8 +815,6 @@ static void pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int max_jj, int 
 
 static void transpose_pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk)
 {
-    fprintf(stderr, "in transpose_pack_B_tile_bf16_fp16 \n");
-    fprintf(stderr, "B.elempack = %d\n", B.elempack);
     int vl;
     const int elempack = B.elempack;
     const int B_hstep = B.dims == 3 ? (int)B.cstep : B.w;
