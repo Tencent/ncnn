@@ -932,8 +932,6 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
                     print_f32_m2(_suma, 8);
                     print_f32_m2(_sumb, 8);
 
-
-
                     vse16_v_f16m1(outptr0, vfncvt_f_f_w_f16m1(_sum0, vl), vl);
                     vse16_v_f16m1(outptr0 + 4, vfncvt_f_f_w_f16m1(_sum1, vl), vl);
                     vse16_v_f16m1(outptr0 + 4 * 2, vfncvt_f_f_w_f16m1(_sum2, vl), vl);

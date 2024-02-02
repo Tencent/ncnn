@@ -4339,7 +4339,6 @@ static int gemm_riscv_fp16s(const Mat& A, const Mat& B, const Mat& C, Mat& top_b
             fprintf(stderr, "-----CT_tile.c = %d\n", CT_tile.c);
             fprintf(stderr, "-----CT_tile.elempack = %d\n", CT_tile.elempack);
 
-
             for (int x = 0; x < CT_tile.total(); x++)
             {
                 fprintf(stderr, "-----CT_tile[%d] = %f\n", x, CT_tile[x]);
@@ -4850,10 +4849,10 @@ int Gemm_riscv::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<
             fprintf(stderr, "broadcast_type_C = %d\n", broadcast_type_C);
             for (int q = 0; q < C.c; q++)
             {
-                __fp16 *data = C.channel(q);
+                __fp16* data = C.channel(q);
                 for (int i = 0; i < C.h * C.elempack; i++)
                 {
-                    for (int j = 0; j < C.w ; j++)
+                    for (int j = 0; j < C.w; j++)
                     {
                         fprintf(stderr, "%f ", data[q * C.h * C.w * C.elempack + i * C.w + j]);
                     }
@@ -4875,7 +4874,6 @@ int Gemm_riscv::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<
             fprintf(stderr, "C.c = %d\n", C.c);
             fprintf(stderr, "C.elempack = %d\n", C.elempack);
             fprintf(stderr, "C.elesize = %d\n", C.elemsize);
-
 
             // pre-multiply C with beta
             if (beta != 1.f)
@@ -4901,10 +4899,10 @@ int Gemm_riscv::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<
             fprintf(stderr, "C.elesize = %d\n", C.elemsize);
             for (int q = 0; q < C.c; q++)
             {
-                float *data = C.channel(q);
+                float* data = C.channel(q);
                 for (int i = 0; i < C.h * C.elempack; i++)
                 {
-                    for (int j = 0; j < C.w ; j++)
+                    for (int j = 0; j < C.w; j++)
                     {
                         fprintf(stderr, "%f ", data[q * C.h * C.w * C.elempack + i * C.w + j]);
                     }
@@ -4912,7 +4910,6 @@ int Gemm_riscv::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<
                 }
                 fprintf(stderr, "\n");
             }
-
         }
     }
 
