@@ -58,7 +58,10 @@
 #include <sys/system_properties.h> // __system_property_get()
 #include <dlfcn.h>
 #endif
+#include <ctype.h>
 #include <stdint.h>
+#include <fcntl.h>
+#include <sys/stat.h>
 #include <sys/syscall.h>
 #include <unistd.h>
 #endif
@@ -69,6 +72,7 @@
 #include <mach/thread_act.h>
 #include <sys/sysctl.h>
 #include <sys/types.h>
+#include <unistd.h>
 #include "TargetConditionals.h"
 #if TARGET_OS_IPHONE
 #define __IOS__ 1
@@ -125,9 +129,6 @@ static ncnn::CpuSet g_cpu_affinity_mask_big;
 
 // isa info
 #if defined _WIN32
-#if __arm__
-static int g_cpu_support_arm_neon;
-static int g_cpu_support_arm_vfpv4;
 #if __aarch64__
 static int g_cpu_support_arm_asimdhp;
 static int g_cpu_support_arm_cpuid;
@@ -140,10 +141,11 @@ static int g_cpu_support_arm_sve2;
 static int g_cpu_support_arm_svebf16;
 static int g_cpu_support_arm_svei8mm;
 static int g_cpu_support_arm_svef32mm;
-#else  // __aarch64__
+#elif __arm__
 static int g_cpu_support_arm_edsp;
-#endif // __aarch64__
-#endif // __arm__
+static int g_cpu_support_arm_neon;
+static int g_cpu_support_arm_vfpv4;
+#endif // __aarch64__ || __arm__
 #elif defined __ANDROID__ || defined __linux__
 static unsigned int g_hwcaps;
 static unsigned int g_hwcaps2;
@@ -183,7 +185,69 @@ static int g_cpu_is_arm_a53_a55;
 #endif // __aarch64__
 #endif // defined __ANDROID__ || defined __linux__
 
+static bool g_is_being_debugged = false;
+static bool is_being_debugged()
+{
 #if defined _WIN32
+    return IsDebuggerPresent();
+#elif defined __ANDROID__ || defined __linux__
+    // https://stackoverflow.com/questions/3596781/how-to-detect-if-the-current-process-is-being-run-by-gdb
+    int status_fd = open("/proc/self/status", O_RDONLY);
+    if (status_fd == -1)
+        return false;
+
+    char buf[4096];
+    ssize_t num_read = read(status_fd, buf, sizeof(buf) - 1);
+    close(status_fd);
+
+    if (num_read <= 0)
+        return false;
+
+    buf[num_read] = '\0';
+    const char tracerPidString[] = "TracerPid:";
+    const char* tracer_pid_ptr = strstr(buf, tracerPidString);
+    if (!tracer_pid_ptr)
+        return false;
+
+    for (const char* ch = tracer_pid_ptr + sizeof(tracerPidString) - 1; ch <= buf + num_read; ++ch)
+    {
+        if (isspace(*ch))
+            continue;
+
+        return isdigit(*ch) != 0 && *ch != '0';
+    }
+
+    return false;
+#elif defined __APPLE__
+    // https://stackoverflow.com/questions/2200277/detecting-debugger-on-mac-os-x
+    struct kinfo_proc info;
+    info.kp_proc.p_flag = 0;
+
+    int mib[4];
+    mib[0] = CTL_KERN;
+    mib[1] = KERN_PROC;
+    mib[2] = KERN_PROC_PID;
+    mib[3] = getpid();
+
+    size_t size = sizeof(info);
+    sysctl(mib, sizeof(mib) / sizeof(*mib), &info, &size, NULL, 0);
+
+    return ((info.kp_proc.p_flag & P_TRACED) != 0);
+#else
+    // unknown platform :(
+    fprintf(stderr, "unknown platform!\n");
+    return false;
+#endif
+}
+
+#if defined _WIN32
+#if WINAPI_FAMILY == WINAPI_FAMILY_APP
+static int detectisa(const void* /*some_inst*/)
+{
+    // uwp does not support seh  :(
+    return 0;
+}
+#else  // WINAPI_FAMILY == WINAPI_FAMILY_APP
 static int g_sigill_caught = 0;
 static jmp_buf g_jmpbuf;
 
@@ -200,6 +264,9 @@ static LONG CALLBACK catch_sigill(struct _EXCEPTION_POINTERS* ExceptionInfo)
 
 static int detectisa(const void* some_inst)
 {
+    if (g_is_being_debugged)
+        return 0;
+
     g_sigill_caught = 0;
 
     PVOID eh = AddVectoredExceptionHandler(1, catch_sigill);
@@ -213,6 +280,7 @@ static int detectisa(const void* some_inst)
 
     return g_sigill_caught ? 0 : 1;
 }
+#endif // WINAPI_FAMILY == WINAPI_FAMILY_APP
 
 #if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
 #ifdef _MSC_VER
@@ -246,6 +314,9 @@ static void catch_sigill(int /*signo*/, siginfo_t* /*si*/, void* /*data*/)
 
 static int detectisa(void (*some_inst)())
 {
+    if (g_is_being_debugged)
+        return 0;
+
     g_sigill_caught = 0;
 
     struct sigaction sa;
@@ -1964,14 +2035,13 @@ static void initialize_global_cpu_info()
     g_powersave = 0;
     initialize_cpu_thread_affinity_mask(g_cpu_affinity_mask_all, g_cpu_affinity_mask_little, g_cpu_affinity_mask_big);
 
+    g_is_being_debugged = is_being_debugged();
+
 #if defined _WIN32
-#if __arm__
-    g_cpu_support_arm_neon = detectisa(some_neon);
-    g_cpu_support_arm_vfpv4 = detectisa(some_vfpv4);
 #if __aarch64__
     g_cpu_support_arm_cpuid = detectisa(some_cpuid);
-    g_cpu_support_arm_asimdhp = detectisa(some_asimdhp);
-    g_cpu_support_arm_asimddp = detectisa(some_asimddp);
+    g_cpu_support_arm_asimdhp = detectisa(some_asimdhp) || IsProcessorFeaturePresent(43); // dp implies hp
+    g_cpu_support_arm_asimddp = detectisa(some_asimddp) || IsProcessorFeaturePresent(43); // 43 is PF_ARM_V82_DP_INSTRUCTIONS_AVAILABLE
     g_cpu_support_arm_asimdfhm = detectisa(some_asimdfhm);
     g_cpu_support_arm_bf16 = detectisa(some_bf16);
     g_cpu_support_arm_i8mm = detectisa(some_i8mm);
@@ -1980,10 +2050,11 @@ static void initialize_global_cpu_info()
     g_cpu_support_arm_svebf16 = detectisa(some_svebf16);
     g_cpu_support_arm_svei8mm = detectisa(some_svei8mm);
     g_cpu_support_arm_svef32mm = detectisa(some_svef32mm);
-#else  // __aarch64__
+#elif __arm__
     g_cpu_support_arm_edsp = detectisa(some_edsp);
-#endif // __aarch64__
-#endif // __arm__
+    g_cpu_support_arm_neon = 1; // all modern windows arm devices have neon
+    g_cpu_support_arm_vfpv4 = detectisa(some_vfpv4);
+#endif // __aarch64__ || __arm__
 #elif defined __ANDROID__ || defined __linux__
     g_hwcaps = get_elf_hwcap(AT_HWCAP);
     g_hwcaps2 = get_elf_hwcap(AT_HWCAP2);
@@ -2196,21 +2267,15 @@ int cpu_support_arm_edsp()
 int cpu_support_arm_neon()
 {
     try_initialize_global_cpu_info();
-#if __arm__
+#if __aarch64__
+    return 1;
+#elif __arm__
 #if defined _WIN32
     return g_cpu_support_arm_neon;
 #elif defined __ANDROID__ || defined __linux__
-#if __aarch64__
-    return g_hwcaps & HWCAP_ASIMD;
-#else
     return g_hwcaps & HWCAP_NEON;
-#endif
 #elif __APPLE__
-#if __aarch64__
-    return g_hw_cputype == CPU_TYPE_ARM64;
-#else
     return g_hw_cputype == CPU_TYPE_ARM && g_hw_cpusubtype > CPU_SUBTYPE_ARM_V7;
-#endif
 #else
     return 0;
 #endif
@@ -2222,22 +2287,15 @@ int cpu_support_arm_neon()
 int cpu_support_arm_vfpv4()
 {
     try_initialize_global_cpu_info();
-#if __arm__
+#if __aarch64__
+    return 1;
+#elif __arm__
 #if defined _WIN32
     return g_cpu_support_arm_vfpv4;
 #elif defined __ANDROID__ || defined __linux__
-#if __aarch64__
-    // neon always enable fma and fp16
-    return g_hwcaps & HWCAP_ASIMD;
-#else
     return g_hwcaps & HWCAP_VFPv4;
-#endif
 #elif __APPLE__
-#if __aarch64__
-    return g_hw_cputype == CPU_TYPE_ARM64;
-#else
     return g_hw_cputype == CPU_TYPE_ARM && g_hw_cpusubtype > CPU_SUBTYPE_ARM_V7S;
-#endif
 #else
     return 0;
 #endif
