@@ -78,7 +78,7 @@ jobs:
         CIBW_ARCHS_LINUX: ${{ matrix.arch }}
         CIBW_BUILD: ${{ matrix.build }}
         CIBW_BUILD_VERBOSITY: 1
-        CIBW_ENVIRONMENT: CMAKE_BUILD_PARALLEL_LEVEL=2
+        CIBW_ENVIRONMENT: CMAKE_BUILD_PARALLEL_LEVEL=4
       with:
         output-dir: wheelhouse
 
@@ -90,7 +90,7 @@ jobs:
         CIBW_ARCHS_WINDOWS: ${{ matrix.arch }}
         CIBW_BUILD: ${{ matrix.build }}
         CIBW_BUILD_VERBOSITY: 1
-        CIBW_ENVIRONMENT_WINDOWS: CMAKE_BUILD_PARALLEL_LEVEL=2
+        CIBW_ENVIRONMENT_WINDOWS: CMAKE_BUILD_PARALLEL_LEVEL=4
         CIBW_BEFORE_BUILD: pip install delvewheel
         CIBW_REPAIR_WHEEL_COMMAND: delvewheel repair -w {dest_dir} {wheel}
       with:
@@ -103,7 +103,7 @@ jobs:
         CIBW_ARCHS_WINDOWS: ${{ matrix.arch }}
         CIBW_BUILD: ${{ matrix.build }}
         CIBW_BUILD_VERBOSITY: 1
-        CIBW_ENVIRONMENT_WINDOWS: CMAKE_BUILD_PARALLEL_LEVEL=2
+        CIBW_ENVIRONMENT_WINDOWS: CMAKE_BUILD_PARALLEL_LEVEL=4
         CIBW_BEFORE_BUILD: pip install delvewheel
         CIBW_REPAIR_WHEEL_COMMAND: delvewheel repair -w {dest_dir} {wheel} --no-dll "msvcp140.dll;vcomp140.dll"
       with:
@@ -184,7 +184,7 @@ jobs:
         CIBW_ARCHS_MACOS: ${{ matrix.arch }}
         CIBW_BUILD: ${{ matrix.build }}
         CIBW_BUILD_VERBOSITY: 1
-        CIBW_ENVIRONMENT: CMAKE_BUILD_PARALLEL_LEVEL=2
+        CIBW_ENVIRONMENT: CMAKE_BUILD_PARALLEL_LEVEL=3
           CMAKE_TOOLCHAIN_FILE=$GITHUB_WORKSPACE/toolchains/ios.toolchain.cmake PLATFORM=MAC ARCHS="x86_64"
           DEPLOYMENT_TARGET="10.9" ENABLE_BITCODE=OFF ENABLE_ARC=OFF ENABLE_VISIBILITY=OFF
           OpenMP_C_FLAGS="-Xclang -fopenmp" OpenMP_CXX_FLAGS="-Xclang -fopenmp"
@@ -201,7 +201,7 @@ jobs:
         CIBW_ARCHS_MACOS: ${{ matrix.arch }}
         CIBW_BUILD: ${{ matrix.build }}
         CIBW_BUILD_VERBOSITY: 1
-        CIBW_ENVIRONMENT: CMAKE_BUILD_PARALLEL_LEVEL=2
+        CIBW_ENVIRONMENT: CMAKE_BUILD_PARALLEL_LEVEL=3
           CMAKE_TOOLCHAIN_FILE=$GITHUB_WORKSPACE/toolchains/ios.toolchain.cmake PLATFORM=MAC_ARM64 ARCHS="arm64"
           DEPLOYMENT_TARGET="11.0" ENABLE_BITCODE=OFF ENABLE_ARC=OFF ENABLE_VISIBILITY=OFF
           OpenMP_C_FLAGS="-Xclang -fopenmp" OpenMP_CXX_FLAGS="-Xclang -fopenmp"
@@ -256,7 +256,7 @@ jobs:
         CIBW_ARCHS_LINUX: ${{ matrix.arch }}
         CIBW_BUILD: ${{ matrix.build_cp }}-${{ matrix.build_sub }}*
         CIBW_BUILD_VERBOSITY: 1
-        CIBW_ENVIRONMENT: CMAKE_BUILD_PARALLEL_LEVEL=2
+        CIBW_ENVIRONMENT: CMAKE_BUILD_PARALLEL_LEVEL=4
       with:
         output-dir: wheelhouse
 
@@ -304,7 +304,7 @@ jobs:
         CIBW_ARCHS_LINUX: ${{ matrix.arch }}
         CIBW_BUILD: ${{ matrix.build_pp }}-*
         CIBW_BUILD_VERBOSITY: 1
-        CIBW_ENVIRONMENT: CMAKE_BUILD_PARALLEL_LEVEL=2
+        CIBW_ENVIRONMENT: CMAKE_BUILD_PARALLEL_LEVEL=4
       with:
         output-dir: wheelhouse
 

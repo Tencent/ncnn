@@ -51,7 +51,7 @@ jobs:
         CXX: clang++
       run: mkdir build && cd build && cmake -DNCNN_PYTHON=ON -DNCNN_DISABLE_RTTI=OFF -DNCNN_DISABLE_EXCEPTION=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
     - name: build
-      run: cmake --build build -j 2
+      run: cmake --build build -j $(nproc)
     - name: install python
       run: cd python && pip install .
     - name: test
