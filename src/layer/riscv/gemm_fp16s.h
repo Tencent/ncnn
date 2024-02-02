@@ -1152,8 +1152,10 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
                     }
                     if (broadcast_type_C == 3)
                     {
-                        for (int x = 0; x < 8; x++) {
-                            for (int y = 0; y < 8; y++) {
+                        for (int x = 0; x < 8; x++)
+                        {
+                            for (int y = 0; y < 8; y++)
+                            {
                                 fprintf(stderr, "pC[%d] = %f, ", x * 8 + y, pC[x * 8 + y]);
                             }
                             fprintf(stderr, "----------------\n");
@@ -1209,7 +1211,7 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
             for (; kk < max_kk; kk += 1)
             {
                 vfloat16m1_t _pA = vle16_v_f16m1(pA, vl);
-   
+
                 _sum0 = vfwmacc_vf_f32m2(_sum0, pB[0], _pA, vl);
                 _sum1 = vfwmacc_vf_f32m2(_sum1, pB[1], _pA, vl);
                 _sum2 = vfwmacc_vf_f32m2(_sum2, pB[2], _pA, vl);
@@ -1218,7 +1220,6 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
                 _sum5 = vfwmacc_vf_f32m2(_sum5, pB[5], _pA, vl);
                 _sum6 = vfwmacc_vf_f32m2(_sum6, pB[6], _pA, vl);
                 _sum7 = vfwmacc_vf_f32m2(_sum7, pB[7], _pA, vl);
-
 
                 // vfloat16m1_t _pB = vle16_v_f16m1(pB, vl);
 
@@ -1286,7 +1287,6 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
                     print_f32_m2(_sum6, 8);
                     print_f32_m2(_sum7, 8);
 
-                    
                     vl = 4;
 
                     vse16_v_f16m1(outptr0, vfncvt_f_f_w_f16m1(_sum0, vl), vl);
@@ -1308,7 +1308,6 @@ static void gemm_transB_packed_tile_fp16s(const Mat& AT_tile, const Mat& BT_tile
                     _sum5 = vslidedown_vx_f32m2(_sum5, _sum5, 4, vl);
                     _sum6 = vslidedown_vx_f32m2(_sum6, _sum6, 4, vl);
                     _sum7 = vslidedown_vx_f32m2(_sum7, _sum7, 4, vl);
-
 
                     fprintf(stderr, "-------------------------------------\n");
 
