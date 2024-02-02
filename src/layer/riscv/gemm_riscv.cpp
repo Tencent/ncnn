@@ -4839,14 +4839,6 @@ int Gemm_riscv::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<
                 broadcast_type_C = 4;
             }
 
-            fprintf(stderr, "YXY kernel\n");
-            fprintf(stderr, "C.dims = %d\n", C.dims);
-            fprintf(stderr, "C.w = %d\n", C.w);
-            fprintf(stderr, "C.h = %d\n", C.h);
-            fprintf(stderr, "C.c = %d\n", C.c);
-            fprintf(stderr, "C.elempack = %d\n", C.elempack);
-            fprintf(stderr, "C.elesize = %d\n", C.elemsize);
-            fprintf(stderr, "broadcast_type_C = %d\n", broadcast_type_C);
             for (int q = 0; q < C.c; q++)
             {
                 __fp16* data = C.channel(q);
@@ -4867,14 +4859,6 @@ int Gemm_riscv::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<
                 cast_float16_to_float32(C, CT_data);
                 C = CT_data;
             }
-            fprintf(stderr, "after cast_float_16_to_float32\n");
-            fprintf(stderr, "C.dims = %d\n", C.dims);
-            fprintf(stderr, "C.w = %d\n", C.w);
-            fprintf(stderr, "C.h = %d\n", C.h);
-            fprintf(stderr, "C.c = %d\n", C.c);
-            fprintf(stderr, "C.elempack = %d\n", C.elempack);
-            fprintf(stderr, "C.elesize = %d\n", C.elemsize);
-
             // pre-multiply C with beta
             if (beta != 1.f)
             {
@@ -4888,27 +4872,6 @@ int Gemm_riscv::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<
                 }
 
                 C = CT_data;
-            }
-
-            fprintf(stderr, "after beta\n");
-            fprintf(stderr, "C.dims = %d\n", C.dims);
-            fprintf(stderr, "C.w = %d\n", C.w);
-            fprintf(stderr, "C.h = %d\n", C.h);
-            fprintf(stderr, "C.c = %d\n", C.c);
-            fprintf(stderr, "C.elempack = %d\n", C.elempack);
-            fprintf(stderr, "C.elesize = %d\n", C.elemsize);
-            for (int q = 0; q < C.c; q++)
-            {
-                float* data = C.channel(q);
-                for (int i = 0; i < C.h * C.elempack; i++)
-                {
-                    for (int j = 0; j < C.w; j++)
-                    {
-                        fprintf(stderr, "%f ", data[q * C.h * C.w * C.elempack + i * C.w + j]);
-                    }
-                    fprintf(stderr, "\n");
-                }
-                fprintf(stderr, "\n");
             }
         }
     }
