@@ -524,7 +524,8 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
 #elif NCNN_RVV
                 const int packn = ncnn::cpu_riscv_vlenb() / 2;
                 if (elemcount % packn == 0)
-                    dst_elempack = packn;
+                    // dst_elempack = packn;
+                    dst_elempack = 4;
 #else
                 if (elemcount % 4 == 0)
                     dst_elempack = 4;
@@ -1039,7 +1040,8 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
 #elif NCNN_RVV
             const int packn = ncnn::cpu_riscv_vlenb() / 2;
             if (elemcount % packn == 0)
-                dst_elempack = packn;
+                // dst_elempack = packn;
+                dst_elempack = 4;
 #else
             if (elemcount % 4 == 0)
                 dst_elempack = 4;

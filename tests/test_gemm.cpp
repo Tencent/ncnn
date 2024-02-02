@@ -48,35 +48,11 @@ static int test_gemm(int M, int N, int K, float alpha, int transA, int transB, i
     {
         Randomize(a[i]);
     }
-    fprintf(stderr, "--------------------run M=%d N=%d K=%d alpha=%f transA=%d transB=%d output_transpose=%d constantA=%d constantB=%d output_N1M=%d\n", M, N, K, alpha, transA, transB, output_transpose, constantA, constantB, output_N1M);
-    // print a
-    for (size_t i = 0; i < a.size(); i++)
-    {
-        fprintf(stderr, "a[%zu]: %d %d %d\n", i, a[i].w, a[i].h, a[i].c);
-        fprintf(stderr, "a.element_pack = %d\n", a[i].elempack);
-        for (int q = 0; q < a[i].c; q++)
-        {
-            for (int p = 0; p < a[i].h; p++)
-            {
-                const float* ptr = a[i].row(p);
-                for (int j = 0; j < a[i].w; j++)
-                {
-                    fprintf(stderr, "%f ", ptr[j]);
-                }
-                fprintf(stderr, "\n");
-            }
-            fprintf(stderr, "\n");
-        }
-    }
 
     int ret = test_layer("Gemm", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_gemm failed M=%d N=%d K=%d alpha=%f transA=%d transB=%d output_transpose=%d constantA=%d constantB=%d output_N1M=%d\n", M, N, K, alpha, transA, transB, output_transpose, constantA, constantB, output_N1M);
-    }
-    else
-    {
-        fprintf(stderr, "test_gemm successed M=%d N=%d K=%d alpha=%f transA=%d transB=%d output_transpose=%d constantA=%d constantB=%d output_N1M=%d\n", M, N, K, alpha, transA, transB, output_transpose, constantA, constantB, output_N1M);
     }
 
     return ret;
@@ -151,34 +127,10 @@ static int test_gemm_bias(int M, int N, int K, const ncnn::Mat& C, float alpha, 
         Randomize(a[i]);
     }
 
-    if (a.size())
-    {
-        const ncnn::Mat& sum = a[a.size() - 1];
-        // print c
-        fprintf(stderr, "c: %d %d %d\n", sum.w, sum.h, sum.c);
-        for (int q = 0; q < sum.c; q++)
-        {
-            for (int p = 0; p < sum.h; p++)
-            {
-                const float* ptr = sum.row(p);
-                for (int j = 0; j < C.w * C.elempack; j++)
-                {
-                    fprintf(stderr, "%f ", ptr[j]);
-                }
-                fprintf(stderr, "\n");
-            }
-            fprintf(stderr, "\n");
-        }
-    }
-
     int ret = test_layer("Gemm", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_gemm_bias failed M=%d N=%d K=%d C.dims=%d C=(%d %d %d) alpha=%f beta=%f transA=%d transB=%d output_transpose=%d constantA=%d constantB=%d constantC=%d\n", M, N, K, C.dims, C.w, C.h, C.c, alpha, beta, transA, transB, output_transpose, constantA, constantB, constantC);
-    }
-    else
-    {
-        fprintf(stderr, "test_gemm_bias success M=%d N=%d K=%d C.dims=%d C=(%d %d %d) alpha=%f beta=%f transA=%d transB=%d output_transpose=%d constantA=%d constantB=%d constantC=%d\n", M, N, K, C.dims, C.w, C.h, C.c, alpha, beta, transA, transB, output_transpose, constantA, constantB, constantC);
     }
 
     return ret;

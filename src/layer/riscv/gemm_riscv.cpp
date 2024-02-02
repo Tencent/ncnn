@@ -4325,6 +4325,10 @@ static int gemm_riscv_fp16s(const Mat& A, const Mat& B, const Mat& C, Mat& top_b
         for (int j = 0; j < N; j += TILE_N)
         {
             const int max_jj = std::min((N - j), TILE_N);
+            if (broadcast_type_C == 3)
+            {
+                pack_A_tile(C, topT_tile, i, max_ii, j, max_jj, 4);
+            }
 
             const Mat& CT_tile = broadcast_type_C == 3 ? topT_tile : C;
             for (int k = 0; k < K; k += TILE_K)
@@ -4814,20 +4818,6 @@ int Gemm_riscv::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<
             {
                 // 1xN
                 broadcast_type_C = 4;
-            }
-
-            for (int q = 0; q < C.c; q++)
-            {
-                __fp16* data = C.channel(q);
-                for (int i = 0; i < C.h * C.elempack; i++)
-                {
-                    for (int j = 0; j < C.w; j++)
-                    {
-                        fprintf(stderr, "%f ", data[q * C.h * C.w * C.elempack + i * C.w + j]);
-                    }
-                    fprintf(stderr, "\n");
-                }
-                fprintf(stderr, "\n");
             }
 
             // cast to fp32
