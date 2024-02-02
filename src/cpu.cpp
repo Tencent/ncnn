@@ -129,9 +129,6 @@ static ncnn::CpuSet g_cpu_affinity_mask_big;
 
 // isa info
 #if defined _WIN32
-#if __arm__
-static int g_cpu_support_arm_neon;
-static int g_cpu_support_arm_vfpv4;
 #if __aarch64__
 static int g_cpu_support_arm_asimdhp;
 static int g_cpu_support_arm_cpuid;
@@ -144,10 +141,11 @@ static int g_cpu_support_arm_sve2;
 static int g_cpu_support_arm_svebf16;
 static int g_cpu_support_arm_svei8mm;
 static int g_cpu_support_arm_svef32mm;
-#else  // __aarch64__
+#elif __arm__
 static int g_cpu_support_arm_edsp;
-#endif // __aarch64__
-#endif // __arm__
+static int g_cpu_support_arm_neon;
+static int g_cpu_support_arm_vfpv4;
+#endif // __aarch64__ || __arm__
 #elif defined __ANDROID__ || defined __linux__
 static unsigned int g_hwcaps;
 static unsigned int g_hwcaps2;
@@ -2040,9 +2038,6 @@ static void initialize_global_cpu_info()
     g_is_being_debugged = is_being_debugged();
 
 #if defined _WIN32
-#if __arm__
-    g_cpu_support_arm_neon = 1; // all modern windows arm devices have neon
-    g_cpu_support_arm_vfpv4 = detectisa(some_vfpv4);
 #if __aarch64__
     g_cpu_support_arm_cpuid = detectisa(some_cpuid);
     g_cpu_support_arm_asimdhp = detectisa(some_asimdhp) || IsProcessorFeaturePresent(43); // dp implies hp
@@ -2055,10 +2050,11 @@ static void initialize_global_cpu_info()
     g_cpu_support_arm_svebf16 = detectisa(some_svebf16);
     g_cpu_support_arm_svei8mm = detectisa(some_svei8mm);
     g_cpu_support_arm_svef32mm = detectisa(some_svef32mm);
-#else  // __aarch64__
+#elif __arm__
     g_cpu_support_arm_edsp = detectisa(some_edsp);
-#endif // __aarch64__
-#endif // __arm__
+    g_cpu_support_arm_neon = 1; // all modern windows arm devices have neon
+    g_cpu_support_arm_vfpv4 = detectisa(some_vfpv4);
+#endif // __aarch64__ || __arm__
 #elif defined __ANDROID__ || defined __linux__
     g_hwcaps = get_elf_hwcap(AT_HWCAP);
     g_hwcaps2 = get_elf_hwcap(AT_HWCAP2);
@@ -2271,21 +2267,15 @@ int cpu_support_arm_edsp()
 int cpu_support_arm_neon()
 {
     try_initialize_global_cpu_info();
-#if __arm__
+#if __aarch64__
+    return 1;
+#elif __arm__
 #if defined _WIN32
     return g_cpu_support_arm_neon;
 #elif defined __ANDROID__ || defined __linux__
-#if __aarch64__
-    return g_hwcaps & HWCAP_ASIMD;
-#else
     return g_hwcaps & HWCAP_NEON;
-#endif
 #elif __APPLE__
-#if __aarch64__
-    return g_hw_cputype == CPU_TYPE_ARM64;
-#else
     return g_hw_cputype == CPU_TYPE_ARM && g_hw_cpusubtype > CPU_SUBTYPE_ARM_V7;
-#endif
 #else
     return 0;
 #endif
@@ -2297,22 +2287,15 @@ int cpu_support_arm_neon()
 int cpu_support_arm_vfpv4()
 {
     try_initialize_global_cpu_info();
-#if __arm__
+#if __aarch64__
+    return 1;
+#elif __arm__
 #if defined _WIN32
     return g_cpu_support_arm_vfpv4;
 #elif defined __ANDROID__ || defined __linux__
-#if __aarch64__
-    // neon always enable fma and fp16
-    return g_hwcaps & HWCAP_ASIMD;
-#else
     return g_hwcaps & HWCAP_VFPv4;
-#endif
 #elif __APPLE__
-#if __aarch64__
-    return g_hw_cputype == CPU_TYPE_ARM64;
-#else
     return g_hw_cputype == CPU_TYPE_ARM && g_hw_cpusubtype > CPU_SUBTYPE_ARM_V7S;
-#endif
 #else
     return 0;
 #endif

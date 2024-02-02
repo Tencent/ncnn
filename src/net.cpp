@@ -621,15 +621,15 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
         // clang-format off
         // *INDENT-OFF*
 
-#if NCNN_ARM82
-        if (opt.use_fp16_storage && cpu_support_arm_asimdhp() && layer->support_fp16_storage)
+#if NCNN_VFPV4
+        if (opt.use_fp16_storage && cpu_support_arm_vfpv4() && layer->support_fp16_storage)
         {
             Mat bottom_blob_fp16;
             cast_float32_to_float16(bottom_blob, bottom_blob_fp16, opt);
             bottom_blob = bottom_blob_fp16;
         }
         else
-#endif // NCNN_ARM82
+#endif // NCNN_VFPV4
 #if NCNN_RVV
         if (opt.use_fp16_storage && cpu_support_riscv_v() && cpu_support_riscv_zfh() && layer->support_fp16_storage)
         {
@@ -731,15 +731,15 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
         // clang-format off
         // *INDENT-OFF*
 
-#if NCNN_ARM82
-        if (opt.use_fp16_storage && cpu_support_arm_asimdhp() && !layer->support_fp16_storage)
+#if NCNN_VFPV4
+        if (opt.use_fp16_storage && cpu_support_arm_vfpv4() && !layer->support_fp16_storage)
         {
             Mat bottom_blob_fp32;
             cast_float16_to_float32(bottom_blob, bottom_blob_fp32, opt);
             bottom_blob = bottom_blob_fp32;
         }
         else
-#endif // NCNN_ARM82
+#endif // NCNN_VFPV4
 #if NCNN_RVV
         if (opt.use_fp16_storage && cpu_support_riscv_v() && cpu_support_riscv_zfh() && !layer->support_fp16_storage)
         {
@@ -2691,8 +2691,8 @@ int Extractor::extract(int blob_index, Mat& feat, int type)
 
     // clang-format off
     // *INDENT-OFF*
-#if NCNN_ARM82
-    if (d->opt.use_fp16_storage && cpu_support_arm_asimdhp() && (type == 0))
+#if NCNN_VFPV4
+    if (d->opt.use_fp16_storage && cpu_support_arm_vfpv4() && (type == 0))
     {
         if (feat.elembits() == 16)
         {
@@ -2702,7 +2702,7 @@ int Extractor::extract(int blob_index, Mat& feat, int type)
         }
     }
     else
-#endif // NCNN_ARM82
+#endif // NCNN_VFPV4
 #if NCNN_BF16
     if (d->opt.use_bf16_storage && (type == 0))
     {
