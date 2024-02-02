@@ -4333,6 +4333,17 @@ static int gemm_riscv_fp16s(const Mat& A, const Mat& B, const Mat& C, Mat& top_b
             }
 
             const Mat& CT_tile = broadcast_type_C == 3 ? topT_tile : C;
+            fprintf(stderr, "-----CT_tile.dims = %d\n", CT_tile.dims);
+            fprintf(stderr, "-----CT_tile.w = %d\n", CT_tile.w);
+            fprintf(stderr, "-----CT_tile.h = %d\n", CT_tile.h);
+            fprintf(stderr, "-----CT_tile.c = %d\n", CT_tile.c);
+            fprintf(stderr, "-----CT_tile.elempack = %d\n", CT_tile.elempack);
+
+
+            for (int x = 0; x < CT_tile.total(); x++)
+            {
+                fprintf(stderr, "-----CT_tile[%d] = %f\n", x, CT_tile[x]);
+            }
 
             for (int k = 0; k < K; k += TILE_K)
             {
@@ -4364,6 +4375,12 @@ static int gemm_riscv_fp16s(const Mat& A, const Mat& B, const Mat& C, Mat& top_b
 
             if (output_transpose)
             {
+                fprintf(stderr, "-----called transpose_unpack_output_tile in gemm_riscv_f16s\n");
+                fprintf(stderr, "-----top_blob.dims = %d\n", top_blob.dims);
+                fprintf(stderr, "-----top_blob.w = %d\n", top_blob.w);
+                fprintf(stderr, "-----top_blob.h = %d\n", top_blob.h);
+                fprintf(stderr, "-----top_blob.c = %d\n", top_blob.c);
+                fprintf(stderr, "-----top_blob.elempack = %d\n", top_blob.elempack);
                 transpose_unpack_output_tile_fp32_to_fp16(topT_tile, top_blob, i, max_ii, j, max_jj);
             }
         }
@@ -4823,12 +4840,42 @@ int Gemm_riscv::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<
                 broadcast_type_C = 4;
             }
 
+            fprintf(stderr, "YXY kernel\n");
+            fprintf(stderr, "C.dims = %d\n", C.dims);
+            fprintf(stderr, "C.w = %d\n", C.w);
+            fprintf(stderr, "C.h = %d\n", C.h);
+            fprintf(stderr, "C.c = %d\n", C.c);
+            fprintf(stderr, "C.elempack = %d\n", C.elempack);
+            fprintf(stderr, "C.elesize = %d\n", C.elemsize);
+            fprintf(stderr, "broadcast_type_C = %d\n", broadcast_type_C);
+            for (int q = 0; q < C.c; q++)
+            {
+                __fp16 *data = C.channel(q);
+                for (int i = 0; i < C.h * C.elempack; i++)
+                {
+                    for (int j = 0; j < C.w ; j++)
+                    {
+                        fprintf(stderr, "%f ", data[q * C.h * C.w * C.elempack + i * C.w + j]);
+                    }
+                    fprintf(stderr, "\n");
+                }
+                fprintf(stderr, "\n");
+            }
+
             // cast to fp32
             {
                 Mat CT_data;
                 cast_float16_to_float32(C, CT_data);
                 C = CT_data;
             }
+            fprintf(stderr, "after cast_float_16_to_float32\n");
+            fprintf(stderr, "C.dims = %d\n", C.dims);
+            fprintf(stderr, "C.w = %d\n", C.w);
+            fprintf(stderr, "C.h = %d\n", C.h);
+            fprintf(stderr, "C.c = %d\n", C.c);
+            fprintf(stderr, "C.elempack = %d\n", C.elempack);
+            fprintf(stderr, "C.elesize = %d\n", C.elemsize);
+
 
             // pre-multiply C with beta
             if (beta != 1.f)
@@ -4844,22 +4891,28 @@ int Gemm_riscv::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<
 
                 C = CT_data;
             }
+
+            fprintf(stderr, "after beta\n");
             fprintf(stderr, "C.dims = %d\n", C.dims);
             fprintf(stderr, "C.w = %d\n", C.w);
             fprintf(stderr, "C.h = %d\n", C.h);
             fprintf(stderr, "C.c = %d\n", C.c);
+            fprintf(stderr, "C.elempack = %d\n", C.elempack);
+            fprintf(stderr, "C.elesize = %d\n", C.elemsize);
             for (int q = 0; q < C.c; q++)
             {
-                for (int i = 0; i < C.h; i++)
+                float *data = C.channel(q);
+                for (int i = 0; i < C.h * C.elempack; i++)
                 {
-                    for (int j = 0; j < C.w; j++)
+                    for (int j = 0; j < C.w ; j++)
                     {
-                        fprintf(stderr, "%f ", C[q * C.h * C.w + i * C.w + j]);
+                        fprintf(stderr, "%f ", data[q * C.h * C.w * C.elempack + i * C.w + j]);
                     }
                     fprintf(stderr, "\n");
                 }
                 fprintf(stderr, "\n");
             }
+
         }
     }
 

@@ -53,6 +53,7 @@ static int test_gemm(int M, int N, int K, float alpha, int transA, int transB, i
     for (size_t i = 0; i < a.size(); i++)
     {
         fprintf(stderr, "a[%zu]: %d %d %d\n", i, a[i].w, a[i].h, a[i].c);
+        fprintf(stderr, "a.element_pack = %d\n", a[i].elempack);
         for (int q = 0; q < a[i].c; q++)
         {
             for (int p = 0; p < a[i].h; p++)
@@ -160,7 +161,7 @@ static int test_gemm_bias(int M, int N, int K, const ncnn::Mat& C, float alpha, 
             for (int p = 0; p < sum.h; p++)
             {
                 const float* ptr = sum.row(p);
-                for (int j = 0; j < C.w; j++)
+                for (int j = 0; j < C.w * C.elempack; j++)
                 {
                     fprintf(stderr, "%f ", ptr[j]);
                 }

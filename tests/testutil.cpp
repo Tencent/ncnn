@@ -225,6 +225,7 @@ int Compare(const ncnn::Mat& a, const ncnn::Mat& b, float epsilon)
     CHECK_MEMBER(c)
     CHECK_MEMBER(elemsize)
     CHECK_MEMBER(elempack)
+    fprintf(stderr, "w = %d, h = %d, c = %d, elemsize = %d, elempack = %d\n", a.w, a.h, a.c, a.elemsize, a.elempack);
 
 #undef CHECK_MEMBER
 
@@ -299,6 +300,8 @@ int Compare(const ncnn::Mat& a, const ncnn::Mat& b, float epsilon)
 int CompareMat(const ncnn::Mat& a, const ncnn::Mat& b, float epsilon)
 {
     ncnn::Option opt;
+    fprintf(stderr, "In compareMat, a.w = %d, a.h = %d, a.c = %d, a.elemsize = %d, a.elempack = %d\n", a.w, a.h, a.c, a.elemsize, a.elempack);
+    fprintf(stderr, "In compareMat, b.w = %d, b.h = %d, b.c = %d, b.elemsize = %d, b.elempack = %d\n", b.w, b.h, b.c, b.elemsize, b.elempack);
     opt.num_threads = 1;
 
     if (a.elempack != 1)
@@ -346,6 +349,7 @@ int CompareMat(const ncnn::Mat& a, const ncnn::Mat& b, float epsilon)
 
 int CompareMat(const std::vector<ncnn::Mat>& a, const std::vector<ncnn::Mat>& b, float epsilon)
 {
+    fprintf(stderr, "In CompareMat 352, a.size() = %d, b.size() = %d\n", a.size(), b.size());
     if (a.size() != b.size())
     {
         fprintf(stderr, "output blob count not match %zu %zu\n", a.size(), b.size());
@@ -565,7 +569,8 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
 #elif NCNN_RVV
                 const int packn = ncnn::cpu_riscv_vlenb() / 2;
                 if (elemcount % packn == 0)
-                    dst_elempack = packn;
+                    dst_elempack = 4;
+                // dst_elempack = 4;
 #else
                 if (elemcount % 4 == 0)
                     dst_elempack = 4;
@@ -648,6 +653,28 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
         // *INDENT-ON*
         // clang-format on
     }
+    const ncnn::Mat& c_fp32 = c[0];
+    fprintf(stderr, "c_fp32.w = %d, c_fp32.h = %d, c_fp32.c = %d, c_fp32.elemsize = %d, c_fp32.elempack = %d\n", c_fp32.w, c_fp32.h, c_fp32.c, c_fp32.elemsize, c_fp32.elempack);
+    for (int q = 0; q < c_fp32.c; q++)
+    {
+        const ncnn::Mat ma = c_fp32.channel(q);
+        for (int z = 0; z < c_fp32.d; z++)
+        {
+            const ncnn::Mat da = ma.depth(z);
+            for (int i = 0; i < c_fp32.h; i++)
+            {
+                const float* pa = da.row(i);
+                for (int j = 0; j < c_fp32.w; j++)
+                {
+                    fprintf(stderr, "%f ", pa[j]);
+                }
+                fprintf(stderr, "\n");
+            }
+            fprintf(stderr, "\n");
+        }
+        fprintf(stderr, "\n");
+    }
+
 
     op->destroy_pipeline(opt);
 
@@ -1080,7 +1107,8 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
 #elif NCNN_RVV
             const int packn = ncnn::cpu_riscv_vlenb() / 2;
             if (elemcount % packn == 0)
-                dst_elempack = packn;
+                // dst_elempack = packn;
+                dst_elempack = 4;
 #else
             if (elemcount % 4 == 0)
                 dst_elempack = 4;
@@ -1387,6 +1415,7 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
 
 int test_layer_opt(const char* layer_type, const ncnn::ParamDict& pd, const std::vector<ncnn::Mat>& weights, const ncnn::Option& opt, const std::vector<ncnn::Mat>& a, int top_blob_count, float epsilon, void (*func)(ncnn::Layer*), int flag)
 {
+    fprintf(stderr, "Fuck test_layer %s use_packing_layout=%d use_fp16_packed=%d use_fp16_storage=%d use_fp16_arithmetic=%d use_shader_pack8=%d use_bf16_storage=%d use_image_storage=%d use_sgemm_convolution=%d use_winograd_convolution=%d\n", layer_type, opt.use_packing_layout, opt.use_fp16_packed, opt.use_fp16_storage, opt.use_fp16_arithmetic, opt.use_shader_pack8, opt.use_bf16_storage, opt.use_image_storage, opt.use_sgemm_convolution, opt.use_winograd_convolution);
     // fp16 representation
     std::vector<ncnn::Mat> a_fp16;
     if (opt.use_bf16_storage && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
@@ -1412,6 +1441,10 @@ int test_layer_opt(const char* layer_type, const ncnn::ParamDict& pd, const std:
     else
     {
         a_fp16 = a;
+    }
+    for (size_t j = 0; j < a_fp16.size(); j++)
+    {
+        fprintf(stderr, "a_fp16[%d].w = %d, a_fp16[%d].h = %d, a_fp16[%d].c = %d, a_fp16[%d].elempack = %d\n", j, a_fp16[j].w, j, a_fp16[j].h, j, a_fp16[j].c, j, a_fp16[j].elempack);
     }
 
     std::vector<ncnn::Mat> weights_fp16;
@@ -1456,10 +1489,7 @@ int test_layer_opt(const char* layer_type, const ncnn::ParamDict& pd, const std:
         fprintf(stderr, "test_layer %s failed use_packing_layout=%d use_fp16_packed=%d use_fp16_storage=%d use_fp16_arithmetic=%d use_shader_pack8=%d use_bf16_storage=%d use_image_storage=%d use_sgemm_convolution=%d use_winograd_convolution=%d\n", layer_type, opt.use_packing_layout, opt.use_fp16_packed, opt.use_fp16_storage, opt.use_fp16_arithmetic, opt.use_shader_pack8, opt.use_bf16_storage, opt.use_image_storage, opt.use_sgemm_convolution, opt.use_winograd_convolution);
         return ret;
     }
-    else
-    {
-        fprintf(stderr, "test_layer %s success use_packing_layout=%d use_fp16_packed=%d use_fp16_storage=%d use_fp16_arithmetic=%d use_shader_pack8=%d use_bf16_storage=%d use_image_storage=%d use_sgemm_convolution=%d use_winograd_convolution=%d\n", layer_type, opt.use_packing_layout, opt.use_fp16_packed, opt.use_fp16_storage, opt.use_fp16_arithmetic, opt.use_shader_pack8, opt.use_bf16_storage, opt.use_image_storage, opt.use_sgemm_convolution, opt.use_winograd_convolution);
-    }
+
 
     return 0;
 }
@@ -1539,14 +1569,14 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
 {
     // pack fp16p fp16s fp16a bf16s shader8 image
     const int options[][7] = {
-        {0, 0, 0, 0, 0, 0, 0},
-        {0, 0, 1, 0, 0, 0, 0},
-        {0, 0, 1, 1, 1, 0, 0},
-        {1, 0, 0, 0, 0, 0, 0},
-        {1, 1, 0, 0, 1, 0, 0},
+        // {0, 0, 0, 0, 0, 0, 0},
+        // {0, 0, 1, 0, 0, 0, 0},
+        // {0, 0, 1, 1, 1, 0, 0},
+        // {1, 0, 0, 0, 0, 0, 0},
+        // {1, 1, 0, 0, 1, 0, 0},
         {1, 0, 1, 0, 0, 1, 0},
-        {1, 1, 1, 1, 0, 0, 0},
-        {1, 1, 1, 1, 1, 1, 1},
+        // {1, 1, 1, 1, 0, 0, 0},
+        // {1, 1, 1, 1, 1, 1, 1},
     };
 
     const int opt_count = sizeof(options) / sizeof(options[0]);

@@ -239,6 +239,25 @@ int Gemm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
                 // 1xN
                 broadcast_type_C = 4;
             }
+            fprintf(stderr, "Naive Kernel!\n");
+            fprintf(stderr, "C.dims = %d\n", C.dims);
+            fprintf(stderr, "C.w = %d\n", C.w);
+            fprintf(stderr, "C.h = %d\n", C.h);
+            fprintf(stderr, "C.c = %d\n", C.c);
+            fprintf(stderr, "C.elempack = %d\n", C.elempack);
+            fprintf(stderr, "broadcast_type_C = %d\n", broadcast_type_C);
+            for (int q = 0; q < C.c; q++)
+            {
+                for (int i = 0; i < C.h; i++)
+                {
+                    for (int j = 0; j < C.w * C.elempack; j++)
+                    {
+                        fprintf(stderr, "%f ", C[q * C.h * C.w * C.elempack + i * C.w * C.elempack + j]);
+                    }
+                    fprintf(stderr, "\n");
+                }
+                fprintf(stderr, "\n");
+            }
         }
     }
 
