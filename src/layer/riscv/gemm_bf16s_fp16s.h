@@ -447,7 +447,6 @@ static void pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int max_jj, int 
     {
         if (elempack == 8)
         {
-            fprintf(stderr, "Called!\n");
             const unsigned short* p0 = (const unsigned short*)B + (j + jj) / 8 * 8 * B_hstep + k * 8;
             const unsigned short* p1 = (const unsigned short*)B + (j + jj + 8) / 8 * 8 * B_hstep + k * 8;
 
@@ -469,7 +468,7 @@ static void pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int max_jj, int 
                 for (int kk = 0; kk < max_kk; kk++)
                 {
                     vl = 4;
-                    vse16_v_u16m1(pp, vle16_v_u16m1(p0, vl), vl);
+                    vse16_v_u16m1(pp, vle16_v_u16m1(p0 + 4, vl), vl);
                     vl = 8;
                     vse16_v_u16m1(pp + 4, vle16_v_u16m1(p1, vl), vl);
                     pp += 12;
@@ -825,7 +824,6 @@ static void transpose_pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int ma
     {
         if (elempack == 8)
         {
-            fprintf(stderr, "transpose_pack_B_tile_bf16_fp16 Called!\n");
             const unsigned short* p0 = (const unsigned short*)B + k * B_hstep + (j + jj) * 8;
 
             int kk = 0;
