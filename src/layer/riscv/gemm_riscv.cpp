@@ -61,6 +61,18 @@ void pack_A_tile(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk, si
 #if __riscv_vector
     for (; ii + 7 < max_ii; ii += 8)
     {
+        if (elempack == 8)
+        {
+            const float* p0 = (const float*)A + (i + ii) * A_hstep + k * 8;
+
+            for (int kk = 0; kk < max_kk; kk++)
+            {
+                vse32_v_f32m1(pp, vle32_v_f32m1(p0, vl), vl);
+                vse32_v_f32m1(pp + 4, vle32_v_f32m1(p0 + 4, vl), vl);
+                pp += 8;
+                p0 += 8;
+            }
+        }
         if (elempack == 4)
         {
             const float* p0 = (const float*)A + (i + ii) * A_hstep + k * 4;

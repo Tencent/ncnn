@@ -47,11 +47,8 @@ static void pack_A_tile_bf16_fp16(const Mat& A, Mat& AT, int i, int max_ii, int 
             {
                 vuint16m1_t _r00 = vle16_v_u16m1(p0, vl);
                 vuint16m1_t _r01 = vle16_v_u16m1(p1, vl);
-                // vsseg2e16_v_u16m1(pp, _r00, _r01, vl);
                 vse16_v_u16m1(pp, _r00, vl);
                 vse16_v_u16m1(pp + 4, _r01, vl);
-                // vuint16m1_t _r0 = vcombine_u16(vld1_u16(p0), vld1_u16(p1));
-                // vst1q_u16(pp, _r0);
                 pp += 8;
                 p0 += 4;
                 p1 += 4;
@@ -608,7 +605,7 @@ static void pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int max_jj, int 
             {
                 for (int kk = 0; kk < max_kk; kk++)
                 {
-                    vl = 4;
+                    vl = 8;
                     vse16_v_u16m1(pp, vle16_v_u16m1(p0 + 4, vl), vl);
                     vse16_v_u16m1(pp + 4, vle16_v_u16m1(p1, vl), vl);
                     pp += 8;
@@ -683,7 +680,7 @@ static void pack_B_tile_bf16_fp16(const Mat& B, Mat& BT, int j, int max_jj, int 
             {
                 for (int kk = 0; kk < max_kk; kk++)
                 {
-                    vl = 8;
+                    vl = 4;
                     vse16_v_u16m1(pp, vle16_v_u16m1(p0, vl), vl);
                     pp += 4;
                     p0 += 8;
