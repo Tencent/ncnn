@@ -37,27 +37,27 @@ jobs:
       run: |
         mkdir build && cd build
         cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_LATEST_HOME/build/cmake/android.toolchain.cmake -DANDROID_ABI="arm64-v8a" -DANDROID_PLATFORM=android-21 -DNCNN_VULKAN=ON ..
-        cmake --build . -j 2
+        cmake --build . -j $(nproc)
     - name: build-shared
       run: |
         mkdir build-shared && cd build-shared
         cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_LATEST_HOME/build/cmake/android.toolchain.cmake -DANDROID_ABI="arm64-v8a" -DANDROID_PLATFORM=android-21 -DNCNN_VULKAN=ON -DNCNN_SHARED_LIB=ON ..
-        cmake --build . -j 2
+        cmake --build . -j $(nproc)
     - name: build-termux
       run: |
         mkdir build-termux && cd build-termux
         cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_LATEST_HOME/build/cmake/android.toolchain.cmake -DANDROID_ABI="arm64-v8a" -DANDROID_PLATFORM=android-21 -DNCNN_VULKAN=ON -DNCNN_PLATFORM_API=OFF ..
-        cmake --build . -j 2
+        cmake --build . -j $(nproc)
     - name: build-android-29
       run: |
         mkdir build-android-29 && cd build-android-29
         cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_LATEST_HOME/build/cmake/android.toolchain.cmake -DANDROID_ABI="arm64-v8a" -DANDROID_PLATFORM=android-29 -DNCNN_VULKAN=ON ..
-        cmake --build . -j 2
+        cmake --build . -j $(nproc)
     - name: build-android-29-shared
       run: |
         mkdir build-android-29-shared && cd build-android-29-shared
         cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_LATEST_HOME/build/cmake/android.toolchain.cmake -DANDROID_ABI="arm64-v8a" -DANDROID_PLATFORM=android-29 -DNCNN_VULKAN=ON -DNCNN_SHARED_LIB=ON ..
-        cmake --build . -j 2
+        cmake --build . -j $(nproc)
 
   android-aarch64-gpu-ndk-r16b:
     runs-on: ubuntu-20.04
@@ -72,4 +72,4 @@ jobs:
     - name: configure
       run: mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=$GITHUB_WORKSPACE/android-ndk-r16b/build/cmake/android.toolchain.cmake -DANDROID_ABI="arm64-v8a" -DANDROID_PLATFORM=android-21 -DNCNN_VULKAN=ON ..
     - name: build
-      run: cmake --build build -j 2
+      run: cmake --build build -j $(nproc)
