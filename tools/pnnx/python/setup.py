@@ -156,10 +156,10 @@ setup(
     ],
     license="BSD-3",
     python_requires=">=3.7",
-    packages=find_packages("python"),
+    packages=find_packages(),
     package_data={"pnnx": ["pnnx", "pnnx.exe"]},
-    package_dir={"": "python"},
+    package_dir={"": "."},
     install_requires=requirements,
-    ext_modules=[CMakeExtension("pnnx")],
+    ext_modules=None if PNNX_WHEEL_WITHOUT_BUILD == 'ON' else [CMakeExtension("pnnx")],
     cmdclass={"build_ext": CMakeBuild},
 )
