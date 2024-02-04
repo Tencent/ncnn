@@ -160,6 +160,7 @@ setup(
     package_data={"pnnx": ["pnnx", "pnnx.exe"]},
     package_dir={"": "."},
     install_requires=requirements,
-    ext_modules=None if PNNX_WHEEL_WITHOUT_BUILD == 'ON' else [CMakeExtension("pnnx")],
+    ext_modules=None if PNNX_WHEEL_WITHOUT_BUILD == 'ON' else [CMakeExtension("pnnx", "..")],
     cmdclass={"build_ext": CMakeBuild},
+    entry_points={"console_scripts": ["pnnx=pnnx:pnnx"]},
 )
