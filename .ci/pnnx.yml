@@ -132,7 +132,7 @@ jobs:
       run: |
         export PYTHONUSERBASE=${{ci.workspace}}/torch-${{matrix.torch-version}}
         export PNNX_WHEEL_WITHOUT_BUILD=ON
-        cd tools/pnnx
-        cp build/src/pnnx python/pnnx/
+        cd tools/pnnx/python
+        cp ../build/src/pnnx pnnx/
         python3 setup.py install --user
-        pytest python/tests/
+        pytest tests
