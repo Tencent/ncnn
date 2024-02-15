@@ -83,7 +83,7 @@ int Requantize_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
                         signed char* ptr = (signed char*)top_blob + i * packn;
 
                         vfloat32m4_t _v = vfcvt_f_x_v_f32m4(vle32_v_i32m4(intptr, vl), vl);
-                        _v = activation_ps(vfmacc_vf_f32m4(_v, scale_in, _bias, vl), activation_type, activation_params, vl);
+                        _v = activation_ps(vfmacc_vf_f32m4(_bias, scale_in, _v, vl), activation_type, activation_params, vl);
                         vint8m1_t _out = float2int8(vfmul_vf_f32m4(_v, scale_out, vl), vl);
                         vse8_v_i8m1(ptr, _out, vl);
                     }
@@ -98,7 +98,7 @@ int Requantize_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
 
                         vfloat32m4_t _bias = vle32_v_f32m4((const float*)bias_data + i * packn, vl);
                         vfloat32m4_t _v = vfcvt_f_x_v_f32m4(vle32_v_i32m4(intptr, vl), vl);
-                        _v = activation_ps(vfmacc_vf_f32m4(_v, scale_in, _bias, vl), activation_type, activation_params, vl);
+                        _v = activation_ps(vfmacc_vf_f32m4(_bias, scale_in, _v, vl), activation_type, activation_params, vl);
                         vint8m1_t _out = float2int8(vfmul_vf_f32m4(_v, scale_out, vl), vl);
                         vse8_v_i8m1(ptr, _out, vl);
                     }
@@ -137,7 +137,7 @@ int Requantize_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
                         vfloat32m4_t _scale_out = vle32_v_f32m4((const float*)scale_out_data + i * packn, vl);
 
                         vfloat32m4_t _v = vfcvt_f_x_v_f32m4(vle32_v_i32m4(intptr, vl), vl);
-                        _v = activation_ps(vfmacc_vf_f32m4(_v, scale_in, _bias, vl), activation_type, activation_params, vl);
+                        _v = activation_ps(vfmacc_vf_f32m4(_bias, scale_in, _v, vl), activation_type, activation_params, vl);
                         vint8m1_t _out = float2int8(vfmul_vv_f32m4(_v, _scale_out, vl), vl);
                         vse8_v_i8m1(ptr, _out, vl);
                     }
@@ -154,7 +154,7 @@ int Requantize_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
                         vfloat32m4_t _bias = vle32_v_f32m4((const float*)bias_data + i * packn, vl);
 
                         vfloat32m4_t _v = vfcvt_f_x_v_f32m4(vle32_v_i32m4(intptr, vl), vl);
-                        _v = activation_ps(vfmacc_vf_f32m4(_v, scale_in, _bias, vl), activation_type, activation_params, vl);
+                        _v = activation_ps(vfmacc_vf_f32m4(_bias, scale_in, _v, vl), activation_type, activation_params, vl);
                         vint8m1_t _out = float2int8(vfmul_vv_f32m4(_v, _scale_out, vl), vl);
                         vse8_v_i8m1(ptr, _out, vl);
                     }
@@ -193,7 +193,7 @@ int Requantize_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
                         vfloat32m4_t _scale_in = vle32_v_f32m4((const float*)scale_in_data + i * packn, vl);
 
                         vfloat32m4_t _v = vfcvt_f_x_v_f32m4(vle32_v_i32m4(intptr, vl), vl);
-                        _v = activation_ps(vfmacc_vv_f32m4(_v, _scale_in, _bias, vl), activation_type, activation_params, vl);
+                        _v = activation_ps(vfmacc_vv_f32m4(_bias, _scale_in, _v, vl), activation_type, activation_params, vl);
                         vint8m1_t _out = float2int8(vfmul_vf_f32m4(_v, scale_out, vl), vl);
                         vse8_v_i8m1(ptr, _out, vl);
                     }
@@ -210,7 +210,7 @@ int Requantize_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
                         vfloat32m4_t _bias = vle32_v_f32m4((const float*)bias_data + i * packn, vl);
 
                         vfloat32m4_t _v = vfcvt_f_x_v_f32m4(vle32_v_i32m4(intptr, vl), vl);
-                        _v = activation_ps(vfmacc_vv_f32m4(_v, _scale_in, _bias, vl), activation_type, activation_params, vl);
+                        _v = activation_ps(vfmacc_vv_f32m4(_bias, _scale_in, _v, vl), activation_type, activation_params, vl);
                         vint8m1_t _out = float2int8(vfmul_vf_f32m4(_v, scale_out, vl), vl);
                         vse8_v_i8m1(ptr, _out, vl);
                     }
@@ -249,7 +249,7 @@ int Requantize_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
                         vfloat32m4_t _scale_out = vle32_v_f32m4((const float*)scale_out_data + i * packn, vl);
 
                         vfloat32m4_t _v = vfcvt_f_x_v_f32m4(vle32_v_i32m4(intptr, vl), vl);
-                        _v = activation_ps(vfmacc_vv_f32m4(_v, _scale_in, _bias, vl), activation_type, activation_params, vl);
+                        _v = activation_ps(vfmacc_vv_f32m4(_bias, _scale_in, _v, vl), activation_type, activation_params, vl);
                         vint8m1_t _out = float2int8(vfmul_vv_f32m4(_v, _scale_out, vl), vl);
                         vse8_v_i8m1(ptr, _out, vl);
                     }
@@ -267,7 +267,7 @@ int Requantize_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
                         vfloat32m4_t _bias = vle32_v_f32m4((const float*)bias_data + i * packn, vl);
 
                         vfloat32m4_t _v = vfcvt_f_x_v_f32m4(vle32_v_i32m4(intptr, vl), vl);
-                        _v = activation_ps(vfmacc_vv_f32m4(_v, _scale_in, _bias, vl), activation_type, activation_params, vl);
+                        _v = activation_ps(vfmacc_vv_f32m4(_bias, _scale_in, _v, vl), activation_type, activation_params, vl);
                         vint8m1_t _out = float2int8(vfmul_vv_f32m4(_v, _scale_out, vl), vl);
                         vse8_v_i8m1(ptr, _out, vl);
                     }
@@ -322,7 +322,7 @@ int Requantize_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
                     for (int j = 0; j < w; j++)
                     {
                         vfloat32m4_t _v = vfcvt_f_x_v_f32m4(vle32_v_i32m4(intptr, vl), vl);
-                        _v = activation_ps(vfmacc_vv_f32m4(_v, scale_in, bias, vl), activation_type, activation_params, vl);
+                        _v = activation_ps(vfmacc_vv_f32m4(bias, scale_in, _v, vl), activation_type, activation_params, vl);
                         vint8m1_t _out = float2int8(vfmul_vv_f32m4(_v, scale_out, vl), vl);
                         vse8_v_i8m1(ptr, _out, vl);
 
@@ -394,7 +394,7 @@ int Requantize_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
                     for (int i = 0; i < size; i++)
                     {
                         vfloat32m4_t _v = vfcvt_f_x_v_f32m4(vle32_v_i32m4(intptr, vl), vl);
-                        _v = activation_ps(vfmacc_vv_f32m4(_v, scale_in, bias, vl), activation_type, activation_params, vl);
+                        _v = activation_ps(vfmacc_vv_f32m4(bias, scale_in, _v, vl), activation_type, activation_params, vl);
                         vint8m1_t _out = float2int8(vfmul_vv_f32m4(_v, scale_out, vl), vl);
                         vse8_v_i8m1(ptr, _out, vl);
 

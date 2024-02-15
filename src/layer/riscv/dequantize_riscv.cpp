@@ -83,7 +83,7 @@ int Dequantize_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
                         float* ptr = (float*)top_blob + i * packn;
 
                         vfloat32m4_t _v = vfcvt_f_x_v_f32m4(vle32_v_i32m4(intptr, vl), vl);
-                        _v = vfmacc_vf_f32m4(_v, scale, _bias, vl);
+                        _v = vfmacc_vf_f32m4(_bias, scale, _v, vl);
                         vse32_v_f32m4(ptr, _v, vl);
                     }
                 }
@@ -97,7 +97,7 @@ int Dequantize_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
 
                         vfloat32m4_t _bias = vle32_v_f32m4((const float*)bias_data + i * packn, vl);
                         vfloat32m4_t _v = vfcvt_f_x_v_f32m4(vle32_v_i32m4(intptr, vl), vl);
-                        _v = vfmacc_vf_f32m4(_v, scale, _bias, vl);
+                        _v = vfmacc_vf_f32m4(_bias, scale, _v, vl);
                         vse32_v_f32m4(ptr, _v, vl);
                     }
                 }
@@ -130,7 +130,7 @@ int Dequantize_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
 
                         vfloat32m4_t _scale = vle32_v_f32m4((const float*)scale_data + i * packn, vl);
                         vfloat32m4_t _v = vfcvt_f_x_v_f32m4(vle32_v_i32m4(intptr, vl), vl);
-                        _v = vfmacc_vv_f32m4(_v, _scale, _bias, vl);       
+                        _v = vfmacc_vv_f32m4(_bias, _scale, _v, vl);       
                         vse32_v_f32m4(ptr, _v, vl);                 
                     }
                 }
@@ -145,7 +145,7 @@ int Dequantize_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
                         vfloat32m4_t _scale = vle32_v_f32m4((const float*)scale_data + i * packn, vl);
                         vfloat32m4_t _bias = vle32_v_f32m4((const float*)bias_data + i * packn, vl);
                         vfloat32m4_t _v = vfcvt_f_x_v_f32m4(vle32_v_i32m4(intptr, vl), vl);
-                        _v = vfmacc_vv_f32m4(_v, _scale, _bias, vl);
+                        _v = vfmacc_vv_f32m4(_bias, _scale, _v, vl);
                         vse32_v_f32m4(ptr, _v, vl);
                     }
                 }
@@ -227,10 +227,10 @@ int Dequantize_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
                         vfloat32m4_t _v1 = vfcvt_f_x_v_f32m4(vle32_v_i32m4(intptr + packn, vl), vl);
                         vfloat32m4_t _v2 = vfcvt_f_x_v_f32m4(vle32_v_i32m4(intptr + packn * 2, vl), vl);
                         vfloat32m4_t _v3 = vfcvt_f_x_v_f32m4(vle32_v_i32m4(intptr + packn * 3, vl), vl);
-                        _v0 = vfmacc_vv_f32m4(_v0, _scale0, _bias0, vl);
-                        _v1 = vfmacc_vv_f32m4(_v1, _scale1, _bias1, vl);
-                        _v2 = vfmacc_vv_f32m4(_v2, _scale2, _bias2, vl);
-                        _v3 = vfmacc_vv_f32m4(_v3, _scale3, _bias3, vl);
+                        _v0 = vfmacc_vv_f32m4(_bias0, _scale0, _v0, vl);
+                        _v1 = vfmacc_vv_f32m4(_bias1, _scale1, _v1, vl);
+                        _v2 = vfmacc_vv_f32m4(_bias2, _scale2, _v2, vl);
+                        _v3 = vfmacc_vv_f32m4(_bias3, _scale3, _v3, vl);
                         vse32_v_f32m4(ptr0, _v0, vl);
                         vse32_v_f32m4(ptr1, _v1, vl);
                         vse32_v_f32m4(ptr2, _v2, vl);
@@ -323,10 +323,10 @@ int Dequantize_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
                         vfloat32m4_t _v1 = vfcvt_f_x_v_f32m4(vle32_v_i32m4(intptr + packn, vl), vl);
                         vfloat32m4_t _v2 = vfcvt_f_x_v_f32m4(vle32_v_i32m4(intptr + packn * 2, vl), vl);
                         vfloat32m4_t _v3 = vfcvt_f_x_v_f32m4(vle32_v_i32m4(intptr + packn * 3, vl), vl);
-                        _v0 = vfmacc_vv_f32m4(_v0, _scale0, _bias0, vl);
-                        _v1 = vfmacc_vv_f32m4(_v1, _scale1, _bias1, vl);
-                        _v2 = vfmacc_vv_f32m4(_v2, _scale2, _bias2, vl);
-                        _v3 = vfmacc_vv_f32m4(_v3, _scale3, _bias3, vl);
+                        _v0 = vfmacc_vv_f32m4(_bias0, _scale0, _v0, vl);
+                        _v1 = vfmacc_vv_f32m4(_bias1, _scale1, _v1, vl);
+                        _v2 = vfmacc_vv_f32m4(_bias2, _scale2, _v2, vl);
+                        _v3 = vfmacc_vv_f32m4(_bias3, _scale3, _v3, vl);
                         vse32_v_f32m4(ptr0, _v0, vl);
                         vse32_v_f32m4(ptr1, _v1, vl);
                         vse32_v_f32m4(ptr2, _v2, vl);

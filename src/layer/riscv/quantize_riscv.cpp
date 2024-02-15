@@ -231,8 +231,6 @@ int Quantize_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
             int size = w * h;
             int out_elempack = opt.use_packing_layout && channels * elempack % out_packn == 0 ? out_packn : 1;
             int outc = channels * elempack / out_elempack;
-            NCNN_LOGE("out_elempack:%d", out_elempack);
-            NCNN_LOGE("outc:%d", outc);
 
             top_blob.create(w, h, outc, (size_t)out_elempack, out_elempack, opt.blob_allocator);
             if (top_blob.empty())
