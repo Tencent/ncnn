@@ -12,61 +12,35 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#ifndef LAYER_CONVOLUTION3D_H
-#define LAYER_CONVOLUTION3D_H
+#ifndef LAYER_CONVOLUTION3D_ARM_H
+#define LAYER_CONVOLUTION3D_ARM_H
 
-#include "layer.h"
+#include "convolution3d.h"
 
 namespace ncnn {
 
-class Convolution3D : public Layer
+class Convolution3D_arm : virtual public Convolution3D
 {
 public:
-    Convolution3D();
-
-    virtual int load_param(const ParamDict& pd);
-
-    virtual int load_model(const ModelBin& mb);
+    Convolution3D_arm();
 
     virtual int create_pipeline(const Option& opt);
+    virtual int destroy_pipeline(const Option& opt);
 
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
-protected:
-    void make_padding(const Mat& bottom_blob, Mat& bottom_blob_bordered, const Option& opt) const;
+    virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 
 public:
-    // param
-    int num_output;
-    int kernel_w;
-    int kernel_h;
-    int kernel_d;
-    int dilation_w;
-    int dilation_h;
-    int dilation_d;
-    int stride_w;
-    int stride_h;
-    int stride_d;
-    int pad_left; // -233=SAME_UPPER -234=SAME_LOWER
-    int pad_right;
-    int pad_top;
-    int pad_bottom;
-    int pad_front;
-    int pad_behind;
-    float pad_value;
-    int bias_term;
-
-    int weight_data_size;
-
-    int activation_type;
-    Mat activation_params;
-
-    Mat weight_data;
-    Mat bias_data;
-
-    int impl_type;
+    Layer* activation;
+    Mat weight_sgemm_data;
+    // pack4
+    Mat weight_data_pack4;
+    Mat weight_data_pack1to4;
+    Mat weight_data_pack4to1;
+    Mat weight_sgemm_data_pack4;
 };
 
 } // namespace ncnn
 
-#endif //LAYER_CONVOLUTION3D_H
+#endif // LAYER_CONVOLUTION3D_ARM_H
