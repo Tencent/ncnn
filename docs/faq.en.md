@@ -262,7 +262,7 @@ Fully customizable op, first change to one that can export (e.g. concat slice), 
 
    Set net.opt.use_vulkan_compute = true before load_param / load_model;
 
-- ## How to exexcite multiple blob inputs, multiple blob outputs？
+- ## How to ececute multiple blob inputs, multiple blob outputs？
    Multiple execute `ex.input()` and `ex.extract()` like following
     ```
     ex.input("data1", in_1);
