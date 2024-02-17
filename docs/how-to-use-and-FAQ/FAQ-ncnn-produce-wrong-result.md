@@ -1,6 +1,6 @@
 ### caffemodel should be row-major
 
-`caffe2ncnn` tool asumes the caffemodel is row-major (produced by c++ caffe train command).
+`caffe2ncnn` tool assumes the caffemodel is row-major (produced by c++ caffe train command).
 
 The kernel 3x3 weights should be stored as
 ```
