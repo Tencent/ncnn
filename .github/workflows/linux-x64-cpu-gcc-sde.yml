@@ -42,7 +42,7 @@ jobs:
     - name: gcc12
       run: sudo apt-get install gcc-12 g++-12
     - name: Setup SDE binaries
-      uses: petarpetrovt/setup-sde@v2.3
+      uses: petarpetrovt/setup-sde@v2.4
     - name: build-avx512-spr
       env:
         CC: gcc-12
