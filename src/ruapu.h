@@ -20,6 +20,14 @@ int ruapu_supports(const char* isa);
 
 #include <windows.h>
 
+#if WINAPI_FAMILY == WINAPI_FAMILY_APP
+static int ruapu_detect_isa(const void* some_inst)
+{
+    // uwp does not support seh  :(
+    (void)some_inst;
+    return 0;
+}
+#else // WINAPI_FAMILY == WINAPI_FAMILY_APP
 static int g_ruapu_sigill_caught = 0;
 static jmp_buf g_ruapu_jmpbuf;
 
@@ -51,6 +59,7 @@ static int ruapu_detect_isa(const void* some_inst)
 
     return g_ruapu_sigill_caught ? 0 : 1;
 }
+#endif // WINAPI_FAMILY == WINAPI_FAMILY_APP
 
 #if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
 #ifdef _MSC_VER
@@ -83,8 +92,7 @@ static int ruapu_detect_isa(const void* some_inst)
 
 #endif
 
-
-#else
+#elif defined __ANDROID__ || defined __linux__ || defined __APPLE__
 #include <signal.h>
 
 static int g_ruapu_sigill_caught = 0;
@@ -123,14 +131,23 @@ static int ruapu_detect_isa(ruapu_some_inst some_inst)
 }
 
 #if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
-#define RUAPU_INSTCODE(isa, ...) static void ruapu_some_##isa() { asm volatile(".byte " #__VA_ARGS__ : : : ); };
+#define RUAPU_INSTCODE(isa, ...) static void ruapu_some_##isa() { asm volatile(".byte " #__VA_ARGS__ : : : ); }
 #elif __aarch64__
-#define RUAPU_INSTCODE(isa, ...) static void ruapu_some_##isa() { asm volatile(".word " #__VA_ARGS__ : : : ); };
+#define RUAPU_INSTCODE(isa, ...) static void ruapu_some_##isa() { asm volatile(".word " #__VA_ARGS__ : : : ); }
 #elif __arm__
-#define RUAPU_INSTCODE(isa, ...) static void ruapu_some_##isa() { asm volatile(".word " #__VA_ARGS__ : : : ); };
+#define RUAPU_INSTCODE(isa, ...) static void ruapu_some_##isa() { asm volatile(".word " #__VA_ARGS__ : : : ); }
 #endif
 
-#endif
+#else // defined _WIN32 || defined __ANDROID__ || defined __linux__ || defined __APPLE__
+static int ruapu_detect_isa(const void* some_inst)
+{
+    // unknown platform, bare metal os ?
+    (void)some_inst;
+    return 0;
+}
+
+#define RUAPU_INSTCODE(isa, ...) static void ruapu_some_##isa() { }
+#endif // defined _WIN32 || defined __ANDROID__ || defined __linux__ || defined __APPLE__
 
 struct ruapu_isa_entry
 {
@@ -194,6 +211,7 @@ RUAPU_INSTCODE(edsp, 0xe7000010) // smlad r0,r0,r0,r0
 RUAPU_INSTCODE(neon, 0xf2000d40) // vadd.f32 q0,q0,q0
 RUAPU_INSTCODE(vfpv4, 0xf3b60600) // vcvt.f16.f32 d0,q0
 #endif
+
 #endif
 
 #undef RUAPU_INSTCODE

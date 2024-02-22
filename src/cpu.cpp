@@ -119,14 +119,8 @@
 #include <immintrin.h>
 #endif
 
-#if defined _WIN32 && WINAPI_FAMILY == WINAPI_FAMILY_APP
-// uwp does not support seh  :(
-static void ruapu_init() {}
-static int ruapu_supports(const char* /*isa*/) { return 0; }
-#else
 #define RUAPU_IMPLEMENTATION
 #include "ruapu.h"
-#endif
 
 // topology info
 static int g_cpucount;
