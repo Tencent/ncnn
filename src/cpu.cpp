@@ -1857,10 +1857,12 @@ static void initialize_global_cpu_info()
     g_powersave = 0;
     initialize_cpu_thread_affinity_mask(g_cpu_affinity_mask_all, g_cpu_affinity_mask_little, g_cpu_affinity_mask_big);
 
+#if (defined _WIN32 && (__aarch64__ || __arm__)) || __APPLE__
     if (!is_being_debugged())
     {
         ruapu_init();
     }
+#endif
 
 #if defined _WIN32
 #if __aarch64__
