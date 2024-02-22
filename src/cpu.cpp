@@ -119,6 +119,9 @@
 #include <immintrin.h>
 #endif
 
+#define RUAPU_IMPLEMENTATION
+#include "ruapu.h"
+
 // topology info
 static int g_cpucount;
 static int g_physical_cpucount;
@@ -185,7 +188,6 @@ static int g_cpu_is_arm_a53_a55;
 #endif // __aarch64__
 #endif // defined __ANDROID__ || defined __linux__
 
-static bool g_is_being_debugged = false;
 static bool is_being_debugged()
 {
 #if defined _WIN32
@@ -239,186 +241,6 @@ static bool is_being_debugged()
     return false;
 #endif
 }
-
-#if defined _WIN32
-#if WINAPI_FAMILY == WINAPI_FAMILY_APP
-static int detectisa(const void* /*some_inst*/)
-{
-    // uwp does not support seh  :(
-    return 0;
-}
-#else  // WINAPI_FAMILY == WINAPI_FAMILY_APP
-static int g_sigill_caught = 0;
-static jmp_buf g_jmpbuf;
-
-static LONG CALLBACK catch_sigill(struct _EXCEPTION_POINTERS* ExceptionInfo)
-{
-    if (ExceptionInfo->ExceptionRecord->ExceptionCode == EXCEPTION_ILLEGAL_INSTRUCTION)
-    {
-        g_sigill_caught = 1;
-        longjmp(g_jmpbuf, -1);
-    }
-
-    return EXCEPTION_CONTINUE_SEARCH;
-}
-
-static int detectisa(const void* some_inst)
-{
-    if (g_is_being_debugged)
-        return 0;
-
-    g_sigill_caught = 0;
-
-    PVOID eh = AddVectoredExceptionHandler(1, catch_sigill);
-
-    if (setjmp(g_jmpbuf) == 0)
-    {
-        ((void (*)())some_inst)();
-    }
-
-    RemoveVectoredExceptionHandler(eh);
-
-    return g_sigill_caught ? 0 : 1;
-}
-#endif // WINAPI_FAMILY == WINAPI_FAMILY_APP
-
-#if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
-#ifdef _MSC_VER
-#define DEFINE_INSTCODE(name, ...) __pragma(section(".text")) __declspec(allocate(".text")) static unsigned char name[] = {__VA_ARGS__, 0xc3};
-#else
-#define DEFINE_INSTCODE(name, ...) __attribute__((section(".text"))) static unsigned char name[] = {__VA_ARGS__, 0xc3};
-#endif
-#elif __aarch64__
-#ifdef _MSC_VER
-#define DEFINE_INSTCODE(name, ...) __pragma(section(".text")) __declspec(allocate(".text")) static unsigned int name[] = {__VA_ARGS__, 0xd65f03c0};
-#else
-#define DEFINE_INSTCODE(name, ...) __attribute__((section(".text"))) static unsigned int name[] = {__VA_ARGS__, 0xd65f03c0};
-#endif
-#elif __arm__
-#ifdef _MSC_VER
-#define DEFINE_INSTCODE(name, ...) __pragma(section(".text")) __declspec(allocate(".text")) static unsigned int name[] = {__VA_ARGS__, 0x4770bf00};
-#else
-#define DEFINE_INSTCODE(name, ...) __attribute__((section(".text"))) static unsigned int name[] = {__VA_ARGS__, 0x4770bf00};
-#endif
-#endif
-
-#elif defined __ANDROID__ || defined __linux__ || defined __APPLE__
-static int g_sigill_caught = 0;
-static sigjmp_buf g_jmpbuf;
-
-static void catch_sigill(int /*signo*/, siginfo_t* /*si*/, void* /*data*/)
-{
-    g_sigill_caught = 1;
-    siglongjmp(g_jmpbuf, -1);
-}
-
-static int detectisa(void (*some_inst)())
-{
-    if (g_is_being_debugged)
-        return 0;
-
-    g_sigill_caught = 0;
-
-    struct sigaction sa;
-    struct sigaction old_sa;
-    memset(&sa, 0, sizeof(sa));
-    sa.sa_sigaction = catch_sigill;
-    sa.sa_flags = SA_ONSTACK | SA_RESTART | SA_SIGINFO;
-    sigaction(SIGILL, &sa, &old_sa);
-
-    if (sigsetjmp(g_jmpbuf, 1) == 0)
-    {
-        some_inst();
-    }
-
-    sigaction(SIGILL, &old_sa, NULL);
-
-    return g_sigill_caught ? 0 : 1;
-}
-
-#if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
-#define DEFINE_INSTCODE(name, ...)         \
-    static void name()                     \
-    {                                      \
-        asm volatile(".byte " #__VA_ARGS__ \
-                     :                     \
-                     :                     \
-                     :);                   \
-    };
-#elif __aarch64__
-#define DEFINE_INSTCODE(name, ...)         \
-    static void name()                     \
-    {                                      \
-        asm volatile(".word " #__VA_ARGS__ \
-                     :                     \
-                     :                     \
-                     :);                   \
-    };
-#elif __arm__
-#define DEFINE_INSTCODE(name, ...)         \
-    static void name()                     \
-    {                                      \
-        asm volatile(".word " #__VA_ARGS__ \
-                     :                     \
-                     :                     \
-                     :);                   \
-    };
-#endif
-
-#endif // defined _WIN32 || defined __ANDROID__ || defined __linux__ || defined __APPLE__
-
-#if defined _WIN32 || defined __ANDROID__ || defined __linux__ || defined __APPLE__
-#if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
-DEFINE_INSTCODE(some_mmx, 0x0f, 0xdb, 0xc0)                           // pand mm0,mm0
-DEFINE_INSTCODE(some_sse, 0x0f, 0x54, 0xc0)                           // andps xmm0,xmm0
-DEFINE_INSTCODE(some_sse2, 0x66, 0x0f, 0xfe, 0xc0)                    // paddd xmm0,xmm0
-DEFINE_INSTCODE(some_sse3, 0xf2, 0x0f, 0x7c, 0xc0)                    // haddps xmm0,xmm0
-DEFINE_INSTCODE(some_ssse3, 0x66, 0x0f, 0x38, 0x06, 0xc0)             // phsubd xmm0,xmm0
-DEFINE_INSTCODE(some_sse41, 0x66, 0x0f, 0x38, 0x3d, 0xc0)             // pmaxsd xmm0,xmm0
-DEFINE_INSTCODE(some_sse42, 0x66, 0x0f, 0x38, 0x37, 0xc0)             // pcmpgtq xmm0,xmm0
-DEFINE_INSTCODE(some_sse4a, 0x66, 0x0f, 0x79, 0xc0)                   // extrq xmm0,xmm0
-DEFINE_INSTCODE(some_xop, 0x8f, 0xe8, 0x78, 0xb6, 0xc0, 0x00)         // vpmadcswd %xmm0,%xmm0,%xmm0,%xmm0
-DEFINE_INSTCODE(some_avx, 0xc5, 0xfc, 0x54, 0xc0)                     // vandps ymm0,ymm0,ymm0
-DEFINE_INSTCODE(some_f16c, 0xc4, 0xe2, 0x7d, 0x13, 0xc0)              // vcvtph2ps ymm0,xmm0
-DEFINE_INSTCODE(some_fma, 0xc4, 0xe2, 0x7d, 0x98, 0xc0)               // vfmadd132ps ymm0,ymm0,ymm0
-DEFINE_INSTCODE(some_avx2, 0xc5, 0xfd, 0xfe, 0xc0)                    // vpaddd ymm0,ymm0,ymm0
-DEFINE_INSTCODE(some_avx512f, 0x62, 0xf1, 0x7c, 0x48, 0x58, 0xc0)     // vaddps zmm0,zmm0,zmm0
-DEFINE_INSTCODE(some_avx512bw, 0x62, 0xf1, 0x7d, 0x48, 0xfd, 0xc0)    // vpaddw zmm0,zmm0,zmm0
-DEFINE_INSTCODE(some_avx512cd, 0x62, 0xf2, 0xfd, 0x48, 0x44, 0xc0)    // vplzcntq zmm0,zmm0
-DEFINE_INSTCODE(some_avx512dq, 0x62, 0xf1, 0x7c, 0x48, 0x54, 0xc0)    // vandps zmm0,zmm0,zmm0
-DEFINE_INSTCODE(some_avx512vl, 0x62, 0xf2, 0xfd, 0x28, 0x1f, 0xc0)    // vpabsq ymm0,ymm0
-DEFINE_INSTCODE(some_avx512vnni, 0x62, 0xf2, 0x7d, 0x48, 0x52, 0xc0)  // vpdpwssd %zmm0,%zmm0,%zmm0
-DEFINE_INSTCODE(some_avx512bf16, 0x62, 0xf2, 0x7e, 0x48, 0x52, 0xc0)  // vdpbf16ps %zmm0,%zmm0,%zmm0
-DEFINE_INSTCODE(some_avx512ifma, 0x62, 0xf2, 0xfd, 0x48, 0xb4, 0xc0)  // vpmadd52luq %zmm0,%zmm0,%zmm0
-DEFINE_INSTCODE(some_avx512vbmi, 0x62, 0xf2, 0x7d, 0x48, 0x75, 0xc0)  // vpermi2b %zmm0,%zmm0,%zmm0
-DEFINE_INSTCODE(some_avx512vbmi2, 0x62, 0xf2, 0x7d, 0x48, 0x71, 0xc0) // vpshldvd %zmm0,%zmm0,%zmm0
-DEFINE_INSTCODE(some_avx512fp16, 0x62, 0xf6, 0x7d, 0x48, 0x98, 0xc0)  // vfmadd132ph %zmm0,%zmm0,%zmm0
-DEFINE_INSTCODE(some_avxvnni, 0x62, 0xf2, 0x7d, 0x28, 0x52, 0xc0)     // vpdpwssd ymm0,ymm0,ymm0
-DEFINE_INSTCODE(some_avxvnniint8, 0xc4, 0xe2, 0x7f, 0x50, 0xc0)       // vpdpbssd ymm0,ymm0,ymm0
-DEFINE_INSTCODE(some_avxifma, 0x62, 0xf2, 0xfd, 0x28, 0xb4, 0xc0)     // vpmadd52luq %ymm0,%ymm0,%ymm0
-
-#elif __aarch64__
-DEFINE_INSTCODE(some_neon, 0x4e20d400)     // fadd v0.4s,v0.4s,v0.4s
-DEFINE_INSTCODE(some_vfpv4, 0x0e216800)    // fcvtn v0.4h,v0.4s
-DEFINE_INSTCODE(some_cpuid, 0xd5380000)    // mrs x0,midr_el1
-DEFINE_INSTCODE(some_asimdhp, 0x0e401400)  // fadd v0.4h,v0.4h,v0.4h
-DEFINE_INSTCODE(some_asimddp, 0x4e809400)  // sdot v0.4h,v0.16b,v0.16b
-DEFINE_INSTCODE(some_asimdfhm, 0x4e20ec00) // fmlal v0.4s,v0.4h,v0.4h
-DEFINE_INSTCODE(some_bf16, 0x6e40ec00)     // bfmmla v0.4h,v0.8h,v0.8h
-DEFINE_INSTCODE(some_i8mm, 0x4e80a400)     // smmla v0.4h,v0.16b,v0.16b
-DEFINE_INSTCODE(some_sve, 0x65608000)      // fmad z0.h,p0/m,z0.h,z0.h
-DEFINE_INSTCODE(some_sve2, 0x44405000)     // smlslb z0.h,z0.b,z0.b
-DEFINE_INSTCODE(some_svebf16, 0x6460e400)  // bfmmla z0.s,z0.h,z0.h
-DEFINE_INSTCODE(some_svei8mm, 0x45009800)  // smmla z0.s,z0.b,z0.b
-DEFINE_INSTCODE(some_svef32mm, 0x64a0e400) // fmmla z0.s,z0.s,z0.s
-
-#elif __arm__
-DEFINE_INSTCODE(some_edsp, 0x0000fb20)  // smlad r0,r0,r0,r0
-DEFINE_INSTCODE(some_neon, 0x0d40ef00)  // vadd.f32 q0,q0,q0
-DEFINE_INSTCODE(some_vfpv4, 0x0600ffb6) // vcvt.f16.f32 d0,q0
-
-#endif
-#endif // defined _WIN32 || defined __ANDROID__ || defined __linux__ || defined __APPLE__
 
 #if defined __ANDROID__ || defined __linux__
 
@@ -765,7 +587,7 @@ static int get_cpu_support_x86_avx2()
 static int get_cpu_support_x86_avx_vnni()
 {
 #if __APPLE__
-    return detectisa(some_avxvnni);
+    return ruapu_supports("avxvnni");
 #else
     unsigned int cpu_info[4] = {0};
     x86_cpuid(0, cpu_info);
@@ -791,7 +613,7 @@ static int get_cpu_support_x86_avx_vnni()
 static int get_cpu_support_x86_avx512()
 {
 #if __APPLE__
-    return detectisa(some_avx512f) && detectisa(some_avx512bw) && detectisa(some_avx512cd) && detectisa(some_avx512dq) && detectisa(some_avx512vl);
+    return ruapu_supports("avx512f") && ruapu_supports("avx512bw") && ruapu_supports("avx512cd") && ruapu_supports("avx512dq") && ruapu_supports("avx512vl");
 #else
     unsigned int cpu_info[4] = {0};
     x86_cpuid(0, cpu_info);
@@ -821,7 +643,7 @@ static int get_cpu_support_x86_avx512()
 static int get_cpu_support_x86_avx512_vnni()
 {
 #if __APPLE__
-    return detectisa(some_avx512vnni);
+    return ruapu_supports("avx512vnni");
 #else
     unsigned int cpu_info[4] = {0};
     x86_cpuid(0, cpu_info);
@@ -851,7 +673,7 @@ static int get_cpu_support_x86_avx512_vnni()
 static int get_cpu_support_x86_avx512_bf16()
 {
 #if __APPLE__
-    return detectisa(some_avx512bf16);
+    return ruapu_supports("avx512bf16");
 #else
     unsigned int cpu_info[4] = {0};
     x86_cpuid(0, cpu_info);
@@ -877,7 +699,7 @@ static int get_cpu_support_x86_avx512_bf16()
 static int get_cpu_support_x86_avx512_fp16()
 {
 #if __APPLE__
-    return detectisa(some_avx512fp16);
+    return ruapu_supports("avx512fp16");
 #else
     unsigned int cpu_info[4] = {0};
     x86_cpuid(0, cpu_info);
@@ -2035,25 +1857,30 @@ static void initialize_global_cpu_info()
     g_powersave = 0;
     initialize_cpu_thread_affinity_mask(g_cpu_affinity_mask_all, g_cpu_affinity_mask_little, g_cpu_affinity_mask_big);
 
-    g_is_being_debugged = is_being_debugged();
+#if (defined _WIN32 && (__aarch64__ || __arm__)) || __APPLE__
+    if (!is_being_debugged())
+    {
+        ruapu_init();
+    }
+#endif
 
 #if defined _WIN32
 #if __aarch64__
-    g_cpu_support_arm_cpuid = detectisa(some_cpuid);
-    g_cpu_support_arm_asimdhp = detectisa(some_asimdhp) || IsProcessorFeaturePresent(43); // dp implies hp
-    g_cpu_support_arm_asimddp = detectisa(some_asimddp) || IsProcessorFeaturePresent(43); // 43 is PF_ARM_V82_DP_INSTRUCTIONS_AVAILABLE
-    g_cpu_support_arm_asimdfhm = detectisa(some_asimdfhm);
-    g_cpu_support_arm_bf16 = detectisa(some_bf16);
-    g_cpu_support_arm_i8mm = detectisa(some_i8mm);
-    g_cpu_support_arm_sve = detectisa(some_sve);
-    g_cpu_support_arm_sve2 = detectisa(some_sve2);
-    g_cpu_support_arm_svebf16 = detectisa(some_svebf16);
-    g_cpu_support_arm_svei8mm = detectisa(some_svei8mm);
-    g_cpu_support_arm_svef32mm = detectisa(some_svef32mm);
+    g_cpu_support_arm_cpuid = ruapu_supports("cpuid");
+    g_cpu_support_arm_asimdhp = ruapu_supports("asimdhp") || IsProcessorFeaturePresent(43); // dp implies hp
+    g_cpu_support_arm_asimddp = ruapu_supports("asimddp") || IsProcessorFeaturePresent(43); // 43 is PF_ARM_V82_DP_INSTRUCTIONS_AVAILABLE
+    g_cpu_support_arm_asimdfhm = ruapu_supports("asimdfhm");
+    g_cpu_support_arm_bf16 = ruapu_supports("bf16");
+    g_cpu_support_arm_i8mm = ruapu_supports("i8mm");
+    g_cpu_support_arm_sve = ruapu_supports("sve");
+    g_cpu_support_arm_sve2 = ruapu_supports("sve2");
+    g_cpu_support_arm_svebf16 = ruapu_supports("svebf16");
+    g_cpu_support_arm_svei8mm = ruapu_supports("svei8mm");
+    g_cpu_support_arm_svef32mm = ruapu_supports("svef32mm");
 #elif __arm__
-    g_cpu_support_arm_edsp = detectisa(some_edsp);
+    g_cpu_support_arm_edsp = ruapu_supports("edsp");
     g_cpu_support_arm_neon = 1; // all modern windows arm devices have neon
-    g_cpu_support_arm_vfpv4 = detectisa(some_vfpv4);
+    g_cpu_support_arm_vfpv4 = ruapu_supports("vfpv4");
 #endif // __aarch64__ || __arm__
 #elif defined __ANDROID__ || defined __linux__
     g_hwcaps = get_elf_hwcap(AT_HWCAP);
