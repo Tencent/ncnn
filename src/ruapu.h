@@ -139,6 +139,7 @@ static int ruapu_detect_isa(ruapu_some_inst some_inst)
 #endif
 
 #else // defined _WIN32 || defined __ANDROID__ || defined __linux__ || defined __APPLE__
+typedef const void* ruapu_some_inst;
 static int ruapu_detect_isa(const void* some_inst)
 {
     // unknown platform, bare metal os ?
