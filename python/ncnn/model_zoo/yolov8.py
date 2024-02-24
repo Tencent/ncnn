@@ -18,6 +18,7 @@ import ncnn
 from .model_store import get_model_file
 from ..utils.objects import Detect_Object
 from ..utils.functional import *
+from typing import Iterable
 
 class YoloV8s:
     def __init__(
@@ -204,17 +205,20 @@ class YoloV8s:
             pred, self.prob_threshold, self.nms_threshold
         )[0]
 
-        objects = [
-            Detect_Object(
-                obj[5],
-                obj[4],
-                (obj[0] - (wpad / 2)) / scale,
-                (obj[1] - (hpad / 2)) / scale,
-                (obj[2] - obj[0]) / scale,
-                (obj[3] - obj[1]) / scale,
-            )
-            for obj in result
-        ]
+        if isinstance(result, Iterable):
+            objects = [
+                Detect_Object(
+                    obj[5],
+                    obj[4],
+                    (obj[0] - (wpad / 2)) / scale,
+                    (obj[1] - (hpad / 2)) / scale,
+                    (obj[2] - obj[0]) / scale,
+                    (obj[3] - obj[1]) / scale,
+                )
+                for obj in result
+            ]
+        else:
+            objects = []
 
         return objects
 
