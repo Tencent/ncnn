@@ -23,8 +23,9 @@
 #include <torch/script.h>
 #include <torch/csrc/api/include/torch/version.h>
 #ifdef PNNX_TORCHVISION
-// register torchvision ops via including headers
-#include <torchvision/vision.h>
+namespace vision {
+int64_t cuda_version();
+} // namespace vision
 #endif
 
 #include "pass_level0.h"
