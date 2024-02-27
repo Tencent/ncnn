@@ -22,6 +22,10 @@
 
 #include <torch/script.h>
 #include <torch/csrc/api/include/torch/version.h>
+#ifdef PNNX_TORCHVISION
+// register torchvision ops via including headers
+#include <torchvision/vision.h>
+#endif
 
 #include "pass_level0.h"
 #include "pass_level1.h"
@@ -435,6 +439,11 @@ int load_torchscript(const std::string& ptpath, Graph& pnnx_graph,
                      const std::string& foldable_constants_zippath,
                      std::set<std::string>& foldable_constants)
 {
+#ifdef PNNX_TORCHVISION
+    // call some vision api to register vision ops  :P
+    (void)vision::cuda_version();
+#endif
+
     for (auto m : customop_modules)
     {
         fprintf(stderr, "load custom module %s\n", m.c_str());
