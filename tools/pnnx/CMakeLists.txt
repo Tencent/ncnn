@@ -39,30 +39,7 @@ set(TorchVision_INSTALL_DIR "/home/nihui/osd/vision/build/install" CACHE STRING 
 #set(Torch_DIR "${Torch_INSTALL_DIR}/share/cmake/Torch")
 set(TorchVision_DIR "${TorchVision_INSTALL_DIR}/share/cmake/TorchVision")
 
-find_package(protobuf CONFIG)
-
-if(protobuf_FOUND)
-    set(PROTOBUF_FOUND ${protobuf_FOUND})
-    set(PROTOBUF_VERSION ${protobuf_VERSION})
-else()
-    # fallback to system
-    find_package(Protobuf)
-    set(PROTOBUF_FOUND ${Protobuf_FOUND})
-    set(PROTOBUF_VERSION ${Protobuf_VERSION})
-    if(TARGET protobuf::protoc)
-        set_target_properties(protobuf::protoc PROPERTIES IMPORTED_LOCATION_RELEASE "${PROTOBUF_PROTOC_EXECUTABLE}")
-    endif()
-endif()
-
-# set(onnxruntime_INSTALL_DIR "/home/nihui/osd/ncnn-nihui/tools/pnnx/build/src/test/onnxruntime-1.16.3/build/install" CACHE STRING "")
-# set(onnxruntime_DIR "${onnxruntime_INSTALL_DIR}/lib64/cmake/onnxruntime")
-#
-# find_package(onnxruntime)
-#
-# message(STATUS "onnxruntime_VERSION = ${onnxruntime_VERSION}")
-# message(STATUS "onnxruntime_VERSION_MAJOR = ${onnxruntime_VERSION_MAJOR}")
-# message(STATUS "onnxruntime_VERSION_MINOR = ${onnxruntime_VERSION_MINOR}")
-# message(STATUS "onnxruntime_VERSION_PATCH = ${onnxruntime_VERSION_PATCH}")
+# test if libtorch and protobuf has the same cxxabi version
 
 find_package(Python3 COMPONENTS Interpreter Development)
 
@@ -105,6 +82,38 @@ else()
 endif()
 
 include_directories(${TORCH_INCLUDE_DIRS})
+
+include(CheckCXXSourceCompiles)
+set(CMAKE_REQUIRED_FLAGS "${TORCH_CXX_FLAGS}")
+check_cxx_source_compiles("#if _GLIBCXX_USE_CXX11_ABI\nint main() { return 0; }\n#endif" TORCH_USE_CXX11_ABI)
+unset(CMAKE_REQUIRED_FLAGS)
+
+if(TORCH_USE_CXX11_ABI)
+    find_package(protobuf CONFIG)
+
+    if(protobuf_FOUND)
+        set(PROTOBUF_FOUND ${protobuf_FOUND})
+        set(PROTOBUF_VERSION ${protobuf_VERSION})
+    else()
+        # fallback to system
+        find_package(Protobuf)
+        set(PROTOBUF_FOUND ${Protobuf_FOUND})
+        set(PROTOBUF_VERSION ${Protobuf_VERSION})
+        if(TARGET protobuf::protoc)
+            set_target_properties(protobuf::protoc PROPERTIES IMPORTED_LOCATION_RELEASE "${PROTOBUF_PROTOC_EXECUTABLE}")
+        endif()
+    endif()
+endif()
+
+# set(onnxruntime_INSTALL_DIR "/home/nihui/osd/ncnn-nihui/tools/pnnx/build/src/test/onnxruntime-1.16.3/build/install" CACHE STRING "")
+# set(onnxruntime_DIR "${onnxruntime_INSTALL_DIR}/lib64/cmake/onnxruntime")
+#
+# find_package(onnxruntime)
+#
+# message(STATUS "onnxruntime_VERSION = ${onnxruntime_VERSION}")
+# message(STATUS "onnxruntime_VERSION_MAJOR = ${onnxruntime_VERSION_MAJOR}")
+# message(STATUS "onnxruntime_VERSION_MINOR = ${onnxruntime_VERSION_MINOR}")
+# message(STATUS "onnxruntime_VERSION_PATCH = ${onnxruntime_VERSION_PATCH}")
 
 add_subdirectory(src)
 
