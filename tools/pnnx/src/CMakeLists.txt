@@ -666,8 +666,7 @@ set_property(SOURCE main.cpp APPEND PROPERTY COMPILE_DEFINITIONS BUILD_TORCH2PNN
 target_link_libraries(pnnx PRIVATE torch2pnnx)
 
 if(TorchVision_FOUND)
-    # torch cmake macro
-    append_wholearchive_lib_if_found(torchvision)
+    target_link_libraries(pnnx PRIVATE ${TORCHVISION_LIBRARY})
 endif()
 
 if(WIN32)
