@@ -24,7 +24,7 @@
 #include <string>
 #include <vector>
 
-#if BUILD_PNNX
+#if BUILD_TORCH2PNNX
 namespace torch {
 namespace jit {
 struct Value;
@@ -34,7 +34,14 @@ struct Node;
 namespace at {
 class Tensor;
 }
-#endif // BUILD_PNNX
+#endif // BUILD_TORCH2PNNX
+
+#if BUILD_ONNX2PNNX
+namespace onnx {
+class TensorProto;
+class ValueInfoProto;
+}
+#endif // BUILD_ONNX2PNNX
 
 namespace pnnx {
 
@@ -102,6 +109,17 @@ public:
         : type(5), ai(_ai)
     {
     }
+    Parameter(const std::vector<int64_t>& _ai)
+        : type(5)
+    {
+        for (const auto& x : _ai)
+        {
+            int64_t _l = x;
+            if (_l == std::numeric_limits<int64_t>::max()) _l = INT_MAX;
+            if (_l == std::numeric_limits<int64_t>::min()) _l = INT_MIN;
+            ai.push_back((int)_l);
+        }
+    }
     Parameter(const std::initializer_list<float>& _af)
         : type(6), af(_af)
     {
@@ -165,10 +183,10 @@ public:
             ac.push_back(std::complex<float>(x));
     }
 
-#if BUILD_PNNX
+#if BUILD_TORCH2PNNX
     Parameter(const torch::jit::Node* value_node);
     Parameter(const torch::jit::Value* value);
-#endif // BUILD_PNNX
+#endif // BUILD_TORCH2PNNX
 
     static Parameter parse_from_string(const std::string& value);
     static std::string encode_to_string(const Parameter& param);
@@ -200,9 +218,12 @@ public:
     {
     }
 
-#if BUILD_PNNX
+#if BUILD_TORCH2PNNX
     Attribute(const at::Tensor& t);
-#endif // BUILD_PNNX
+#endif
+#if BUILD_ONNX2PNNX
+    Attribute(const onnx::TensorProto& t);
+#endif
 
     Attribute(const std::initializer_list<int>& shape, const std::vector<float>& t);
 
@@ -299,8 +320,11 @@ public:
 
     Operator* new_operator_after(const std::string& type, const std::string& name, const Operator* cur);
 
-#if BUILD_PNNX
+#if BUILD_TORCH2PNNX
     Operand* new_operand(const torch::jit::Value* v);
+#endif
+#if BUILD_ONNX2PNNX
+    Operand* new_operand(const onnx::ValueInfoProto& value);
 #endif
 
     Operand* new_operand(const std::string& name);

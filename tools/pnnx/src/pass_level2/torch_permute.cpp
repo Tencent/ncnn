@@ -14,7 +14,7 @@
 
 #include "pass_level2.h"
 
-#include <torch/csrc/api/include/torch/torch.h>
+#include <torch/csrc/api/include/torch/version.h>
 
 namespace pnnx {
 

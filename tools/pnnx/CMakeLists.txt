@@ -25,16 +25,16 @@ include(PNNXPyTorch)
 # c++14 is required for using torch headers
 set(CMAKE_CXX_STANDARD 14)
 
-#set(CMAKE_BUILD_TYPE debug)
+# set(CMAKE_BUILD_TYPE debug)
 #set(CMAKE_BUILD_TYPE relwithdebinfo)
-#set(CMAKE_BUILD_TYPE release)
+# set(CMAKE_BUILD_TYPE release)
 
 option(PNNX_COVERAGE "build for coverage" OFF)
 
 #set(Torch_INSTALL_DIR "/home/nihui/.local/lib/python3.9/site-packages/torch" CACHE STRING "")
 #set(Torch_INSTALL_DIR "/home/nihui/osd/pnnx/pytorch-v1.10.0/build/install" CACHE STRING "")
-#set(Torch_INSTALL_DIR "/home/nihui/osd/pnnx/libtorch" CACHE STRING "")
-set(TorchVision_INSTALL_DIR "/home/nihui/osd/vision/build/install" CACHE STRING "")
+set(Torch_INSTALL_DIR "/home/nihui/osd/pnnx/install" CACHE STRING "")
+set(TorchVision_INSTALL_DIR "/home/nihui/osd/pnnx/install" CACHE STRING "")
 
 #set(Torch_DIR "${Torch_INSTALL_DIR}/share/cmake/Torch")
 set(TorchVision_DIR "${TorchVision_INSTALL_DIR}/share/cmake/TorchVision")
@@ -53,6 +53,16 @@ else()
         set_target_properties(protobuf::protoc PROPERTIES IMPORTED_LOCATION_RELEASE "${PROTOBUF_PROTOC_EXECUTABLE}")
     endif()
 endif()
+
+# set(onnxruntime_INSTALL_DIR "/home/nihui/osd/ncnn-nihui/tools/pnnx/build/src/test/onnxruntime-1.16.3/build/install" CACHE STRING "")
+# set(onnxruntime_DIR "${onnxruntime_INSTALL_DIR}/lib64/cmake/onnxruntime")
+#
+# find_package(onnxruntime)
+#
+# message(STATUS "onnxruntime_VERSION = ${onnxruntime_VERSION}")
+# message(STATUS "onnxruntime_VERSION_MAJOR = ${onnxruntime_VERSION_MAJOR}")
+# message(STATUS "onnxruntime_VERSION_MINOR = ${onnxruntime_VERSION_MINOR}")
+# message(STATUS "onnxruntime_VERSION_PATCH = ${onnxruntime_VERSION_PATCH}")
 
 find_package(Python3 COMPONENTS Interpreter Development)
 
@@ -77,7 +87,6 @@ endif()
 
 if(TorchVision_FOUND)
     message(STATUS "Building with TorchVision")
-    add_definitions(-DPNNX_TORCHVISION)
 else()
     message(WARNING "Building without TorchVision")
 endif()

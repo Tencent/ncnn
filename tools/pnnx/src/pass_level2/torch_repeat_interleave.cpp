@@ -14,8 +14,6 @@
 
 #include "pass_level2.h"
 
-#include <torch/csrc/api/include/torch/torch.h>
-
 namespace pnnx {
 
 class torch_repeat_interleave : public GraphRewriterPass
