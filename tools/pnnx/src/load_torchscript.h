@@ -33,4 +33,3 @@ int load_torchscript(const std::string& ptpath, Graph& g,
 } // namespace pnnx
 
 #endif // PNNX_LOAD_TORCHSCRIPT_H
-

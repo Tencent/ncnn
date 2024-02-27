@@ -313,7 +313,6 @@ Parameter::Parameter(const torch::jit::Value* value)
 {
 }
 
-
 Attribute::Attribute(const at::Tensor& t)
 {
     type = get_at_tensor_type(t.scalar_type());
@@ -525,13 +524,13 @@ int load_torchscript(const std::string& ptpath, Graph& pnnx_graph,
 
     auto g = method->graph();
 
-        // g->dump();
+    // g->dump();
 
     fprintf(stderr, "############# pass_level0\n");
 
     pnnx::pass_level0(mod, g, input_tensors, input_tensors2, module_operators, ptpath, device, foldable_constants, foldable_constants_zippath);
 
-        // g->dump();
+    // g->dump();
 
     fprintf(stderr, "############# pass_level1\n");
 

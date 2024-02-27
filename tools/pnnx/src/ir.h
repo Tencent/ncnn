@@ -40,7 +40,7 @@ class Tensor;
 namespace onnx {
 class TensorProto;
 class ValueInfoProto;
-}
+} // namespace onnx
 #endif // BUILD_ONNX2PNNX
 
 namespace pnnx {
