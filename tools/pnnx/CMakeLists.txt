@@ -83,12 +83,15 @@ endif()
 
 include_directories(${TORCH_INCLUDE_DIRS})
 
-include(CheckCXXSourceCompiles)
-set(CMAKE_REQUIRED_FLAGS "${TORCH_CXX_FLAGS}")
-check_cxx_source_compiles("#if _GLIBCXX_USE_CXX11_ABI\nint main() { return 0; }\n#endif" TORCH_USE_CXX11_ABI)
-unset(CMAKE_REQUIRED_FLAGS)
+if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+    include(CheckCXXSourceCompiles)
+    set(CMAKE_REQUIRED_FLAGS "${TORCH_CXX_FLAGS}")
+    check_cxx_source_compiles("#include <cxxabi.h>\n#if _GLIBCXX_USE_CXX11_ABI\nint main() { return 0; }\n#endif" PNNX_TORCH_USE_CXX11_ABI)
+    unset(CMAKE_REQUIRED_FLAGS)
+    check_cxx_source_compiles("#include <cxxabi.h>\n#if _GLIBCXX_USE_CXX11_ABI\nint main() { return 0; }\n#endif" PNNX_COMPILER_USE_CXX11_ABI)
+endif()
 
-if(TORCH_USE_CXX11_ABI)
+if((PNNX_TORCH_USE_CXX11_ABI AND PNNX_COMPILER_USE_CXX11_ABI) OR (NOT PNNX_TORCH_USE_CXX11_ABI AND NOT PNNX_COMPILER_USE_CXX11_ABI))
     find_package(protobuf CONFIG)
 
     if(protobuf_FOUND)
