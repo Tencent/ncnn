@@ -900,6 +900,7 @@ void pnnx_graph_rewrite(Graph& graph, const GraphRewriterPass* pass, int& opinde
                 matched_outputs.clear();
                 captured_params.clear();
                 captured_attrs.clear();
+                matched = false;
                 continue;
             }
 
