@@ -821,6 +821,8 @@ void pnnx_graph_rewrite(Graph& graph, const GraphRewriterPass* pass, int& opinde
         int q = graph_op_count - 1;
         for (; q >= 1; q--)
         {
+            matched = true;
+
             for (const Operator* pattern : pattern_graph_output_operators)
             {
                 for (size_t i = 0; i < pattern->inputs.size(); i++)
