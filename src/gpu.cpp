@@ -51,6 +51,7 @@ public:
     {
         instance = 0;
         created = 0;
+        glslang_initialized = false;
 
 #if NCNN_VULKAN_LOADER
         libvulkan = 0;
@@ -76,6 +77,7 @@ public:
 
     VkInstance instance;
     int created;
+    bool glslang_initialized;
 
 #if ENABLE_VALIDATION_LAYER
     VkDebugUtilsMessengerEXT callback;
@@ -2061,7 +2063,7 @@ int create_gpu_instance(const char* driver_path)
     // the default gpu device
     g_default_gpu_index = find_default_vulkan_device_index();
 
-    glslang::InitializeProcess();
+    g_instance.glslang_initialized = glslang::InitializeProcess();
 
     // the global __ncnn_vulkan_instance_holder destructor will call destroy_gpu_instance() on exit
     // but it seems to be too late for nvidia driver :(
@@ -2091,7 +2093,8 @@ void destroy_gpu_instance()
 
     // NCNN_LOGE("destroy_gpu_instance");
 
-    glslang::FinalizeProcess();
+    if (g_instance.glslang_initialized)
+        glslang::FinalizeProcess();
 
     for (int i = 0; i < NCNN_MAX_GPU_COUNT; i++)
     {
@@ -2110,7 +2113,8 @@ void destroy_gpu_instance()
     }
 #endif // ENABLE_VALIDATION_LAYER
 
-    vkDestroyInstance(g_instance, 0);
+    if (vkDestroyInstance)
+        vkDestroyInstance(g_instance, 0);
 
     g_instance.instance = 0;
 
