@@ -2094,7 +2094,10 @@ void destroy_gpu_instance()
     // NCNN_LOGE("destroy_gpu_instance");
 
     if (g_instance.glslang_initialized)
+    {
         glslang::FinalizeProcess();
+        g_instance.glslang_initialized = false;
+    }
 
     for (int i = 0; i < NCNN_MAX_GPU_COUNT; i++)
     {
@@ -2106,7 +2109,7 @@ void destroy_gpu_instance()
     }
 
 #if ENABLE_VALIDATION_LAYER
-    if (support_VK_EXT_debug_utils)
+    if (support_VK_EXT_debug_utils && g_instance.callback)
     {
         DestroyDebugUtilsMessengerEXT(g_instance, g_instance.callback, NULL);
         g_instance.callback = 0;
@@ -2114,7 +2117,10 @@ void destroy_gpu_instance()
 #endif // ENABLE_VALIDATION_LAYER
 
     if (vkDestroyInstance)
+    {
         vkDestroyInstance(g_instance, 0);
+        vkDestroyInstance = 0;
+    }
 
     g_instance.instance = 0;
 
