@@ -12,7 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "layer/convolution1d.h"
 #include "testutil.h"
 
 static int test_convolution1d(int w, int h, int outh, int kernel, int dilation, int stride, int pad, int bias)
@@ -40,7 +39,7 @@ static int test_convolution1d(int w, int h, int outh, int kernel, int dilation, 
     if (bias)
         weights[1] = RandomMat(outh);
 
-    int ret = test_layer<ncnn::Convolution1D>("Convolution1D", pd, weights, a);
+    int ret = test_layer("Convolution1D", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_convolution1d failed w=%d h=%d outh=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%f,%f]\n", w, h, outh, kernel, dilation, stride, pad, bias, activation_type, activation_params[0], activation_params[1]);
@@ -167,7 +166,7 @@ static int test_convolution1d_dynamic(int w, int h, int outh, int kernel, int di
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer<ncnn::Convolution1D>("Convolution1D", pd, weights, as);
+    int ret = test_layer("Convolution1D", pd, weights, as);
     if (ret != 0)
     {
         fprintf(stderr, "test_convolution1d_dynamic failed w=%d h=%d outh=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%f,%f]\n", w, h, outh, kernel, dilation, stride, pad, bias, activation_type, activation_params[0], activation_params[1]);

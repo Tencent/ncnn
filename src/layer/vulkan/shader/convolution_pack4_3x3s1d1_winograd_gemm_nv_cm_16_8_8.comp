@@ -70,6 +70,16 @@ void main()
     const int lxd8 = lx / 8; // 0 1 2 3
     const int lxm8 = lx % 8; // 0 1 2 3 .... 7
 
+#if NCNN_fp16_arithmetic
+    fcoopmatNV<16, gl_ScopeSubgroup, 16, 8> sum0 = fcoopmatNV<16, gl_ScopeSubgroup, 16, 8>(0.f);
+    fcoopmatNV<16, gl_ScopeSubgroup, 16, 8> sum1 = fcoopmatNV<16, gl_ScopeSubgroup, 16, 8>(0.f);
+    fcoopmatNV<16, gl_ScopeSubgroup, 16, 8> sum2 = fcoopmatNV<16, gl_ScopeSubgroup, 16, 8>(0.f);
+    fcoopmatNV<16, gl_ScopeSubgroup, 16, 8> sum3 = fcoopmatNV<16, gl_ScopeSubgroup, 16, 8>(0.f);
+    fcoopmatNV<16, gl_ScopeSubgroup, 16, 8> sum4 = fcoopmatNV<16, gl_ScopeSubgroup, 16, 8>(0.f);
+    fcoopmatNV<16, gl_ScopeSubgroup, 16, 8> sum5 = fcoopmatNV<16, gl_ScopeSubgroup, 16, 8>(0.f);
+    fcoopmatNV<16, gl_ScopeSubgroup, 16, 8> sum6 = fcoopmatNV<16, gl_ScopeSubgroup, 16, 8>(0.f);
+    fcoopmatNV<16, gl_ScopeSubgroup, 16, 8> sum7 = fcoopmatNV<16, gl_ScopeSubgroup, 16, 8>(0.f);
+#else
     fcoopmatNV<32, gl_ScopeSubgroup, 16, 8> sum0 = fcoopmatNV<32, gl_ScopeSubgroup, 16, 8>(0.f);
     fcoopmatNV<32, gl_ScopeSubgroup, 16, 8> sum1 = fcoopmatNV<32, gl_ScopeSubgroup, 16, 8>(0.f);
     fcoopmatNV<32, gl_ScopeSubgroup, 16, 8> sum2 = fcoopmatNV<32, gl_ScopeSubgroup, 16, 8>(0.f);
@@ -78,6 +88,7 @@ void main()
     fcoopmatNV<32, gl_ScopeSubgroup, 16, 8> sum5 = fcoopmatNV<32, gl_ScopeSubgroup, 16, 8>(0.f);
     fcoopmatNV<32, gl_ScopeSubgroup, 16, 8> sum6 = fcoopmatNV<32, gl_ScopeSubgroup, 16, 8>(0.f);
     fcoopmatNV<32, gl_ScopeSubgroup, 16, 8> sum7 = fcoopmatNV<32, gl_ScopeSubgroup, 16, 8>(0.f);
+#endif
 
     const int N = psc(c) / 2;
 
@@ -202,6 +213,16 @@ void main()
     if (gx >= psc(outw) || gy >= psc(outc) || gz >= batch)
         return;
 
+#if NCNN_fp16_arithmetic
+    coopMatStoreNV(sum0, tmp_v0, 0, 2, false);
+    coopMatStoreNV(sum1, tmp_v1, 0, 2, false);
+    coopMatStoreNV(sum2, tmp_v0, 16*2, 2, false);
+    coopMatStoreNV(sum3, tmp_v1, 16*2, 2, false);
+    coopMatStoreNV(sum4, tmp_v0, 16*4, 2, false);
+    coopMatStoreNV(sum5, tmp_v1, 16*4, 2, false);
+    coopMatStoreNV(sum6, tmp_v0, 16*6, 2, false);
+    coopMatStoreNV(sum7, tmp_v1, 16*6, 2, false);
+#else
     fcoopmatNV<16, gl_ScopeSubgroup, 16, 8> sum0_fp16 = fcoopmatNV<16, gl_ScopeSubgroup, 16, 8>(sum0);
     fcoopmatNV<16, gl_ScopeSubgroup, 16, 8> sum1_fp16 = fcoopmatNV<16, gl_ScopeSubgroup, 16, 8>(sum1);
     fcoopmatNV<16, gl_ScopeSubgroup, 16, 8> sum2_fp16 = fcoopmatNV<16, gl_ScopeSubgroup, 16, 8>(sum2);
@@ -219,6 +240,7 @@ void main()
     coopMatStoreNV(sum5_fp16, tmp_v1, 16*4, 2, false);
     coopMatStoreNV(sum6_fp16, tmp_v0, 16*6, 2, false);
     coopMatStoreNV(sum7_fp16, tmp_v1, 16*6, 2, false);
+#endif
 
     barrier();
 

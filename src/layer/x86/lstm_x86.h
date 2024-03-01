@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class LSTM_x86 : virtual public LSTM
+class LSTM_x86 : public LSTM
 {
 public:
     LSTM_x86();

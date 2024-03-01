@@ -53,7 +53,7 @@ int InnerProduct_x86::create_pipeline(const Option& opt)
 {
     //     if (opt.use_packing_layout)
     {
-        flatten = ncnn::create_layer(ncnn::LayerType::Flatten);
+        flatten = ncnn::create_layer_cpu(ncnn::LayerType::Flatten);
 
         ncnn::ParamDict pd;
 
@@ -80,10 +80,7 @@ int InnerProduct_x86::create_pipeline(const Option& opt)
 
     innerproduct_transform_kernel_sse(weight_data, weight_data_tm, num_input, num_output, opt);
 
-    if (opt.lightmode)
-    {
-        weight_data.release();
-    }
+    weight_data.release();
 
     return 0;
 }
@@ -178,10 +175,7 @@ int InnerProduct_x86::create_pipeline_fp16s(const Option& opt)
 
     innerproduct_transform_kernel_fp16s_sse(weight_data, weight_data_tm, num_input, num_output, opt);
 
-    if (opt.lightmode)
-    {
-        weight_data.release();
-    }
+    weight_data.release();
 
     return 0;
 }
@@ -287,10 +281,7 @@ int InnerProduct_x86::create_pipeline_int8_x86(const Option& opt)
         scale_in_data[p] = scale_in;
     }
 
-    if (opt.lightmode)
-    {
-        weight_data.release();
-    }
+    weight_data.release();
 
     return 0;
 }

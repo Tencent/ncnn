@@ -76,10 +76,7 @@ int ConvolutionDepthWise_arm::create_pipeline_fp16s(const Option& opt)
 
         ncnn::cast_float32_to_float16(bias_data, bias_data_fp16, opt);
 
-        if (opt.lightmode)
-        {
-            weight_data.release();
-        }
+        weight_data.release();
 
         return 0;
     }
@@ -87,10 +84,7 @@ int ConvolutionDepthWise_arm::create_pipeline_fp16s(const Option& opt)
     // group convolution
     create_group_ops(opt);
 
-    if (opt.lightmode)
-    {
-        weight_data.release();
-    }
+    weight_data.release();
 
     return 0;
 }
@@ -431,7 +425,7 @@ int ConvolutionDepthWise_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_bl
                                 _sum = vfmaq_f16(_sum, _val, _w);
                             }
 
-                            _sum = activation_ps(_sum, activation_type, activation_params);
+                            _sum = activation_ps_f16(_sum, activation_type, activation_params);
 
                             vst1q_f16(outptr + j * 8, _sum);
                         }
@@ -493,7 +487,7 @@ int ConvolutionDepthWise_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_bl
                                 _sum = vfma_f16(_sum, _val, _w);
                             }
 
-                            _sum = activation_ps(_sum, activation_type, activation_params);
+                            _sum = activation_ps_f16(_sum, activation_type, activation_params);
 
                             vst1_f16(outptr + j * 4, _sum);
                         }
@@ -574,7 +568,7 @@ int ConvolutionDepthWise_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_bl
                                 sum += val * w;
                             }
 
-                            sum = activation_ss(sum, activation_type, activation_params);
+                            sum = activation_ss_f16(sum, activation_type, activation_params);
 
                             outptr[j] = (__fp16)sum;
                         }

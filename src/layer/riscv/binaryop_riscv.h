@@ -21,7 +21,7 @@
 
 namespace ncnn {
 
-class BinaryOp_riscv : virtual public BinaryOp
+class BinaryOp_riscv : public BinaryOp
 {
 public:
     BinaryOp_riscv();

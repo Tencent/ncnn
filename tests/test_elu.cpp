@@ -12,7 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "layer/elu.h"
 #include "testutil.h"
 
 static int test_elu(const ncnn::Mat& a)
@@ -23,7 +22,7 @@ static int test_elu(const ncnn::Mat& a)
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer<ncnn::ELU>("ELU", pd, weights, a);
+    int ret = test_layer("ELU", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_elu failed a.dims=%d a=(%d %d %d %d) alpha=%f\n", a.dims, a.w, a.h, a.d, a.c, alpha);

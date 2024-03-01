@@ -1378,7 +1378,7 @@ static void convolution1d_packed_fp16sa(const Mat& bottom_blob, Mat& top_blob, c
             _sum2 = vaddq_f16(_sum2, _sum3);
             _sum0 = vaddq_f16(_sum0, _sum2);
 
-            _sum0 = activation_ps(_sum0, activation_type, activation_params);
+            _sum0 = activation_ps_f16(_sum0, activation_type, activation_params);
 
             if (out_elempack == 8)
             {
@@ -1571,7 +1571,7 @@ static void convolution1d_packed_fp16sa(const Mat& bottom_blob, Mat& top_blob, c
             _sum2 = vadd_f16(_sum2, _sum3);
             _sum0 = vadd_f16(_sum0, _sum2);
 
-            _sum0 = activation_ps(_sum0, activation_type, activation_params);
+            _sum0 = activation_ps_f16(_sum0, activation_type, activation_params);
 
             if (out_elempack == 4)
             {
@@ -1737,8 +1737,8 @@ static void convolution1d_packed_fp16sa(const Mat& bottom_blob, Mat& top_blob, c
             sum0 += vget_lane_f16(_ss, 0);
             sum1 += vget_lane_f16(_ss, 1);
 
-            sum0 = activation_ss(sum0, activation_type, activation_params);
-            sum1 = activation_ss(sum1, activation_type, activation_params);
+            sum0 = activation_ss_f16(sum0, activation_type, activation_params);
+            sum1 = activation_ss_f16(sum1, activation_type, activation_params);
 
             outptr0[0] = sum0;
             outptr1[0] = sum1;
@@ -1874,7 +1874,7 @@ static void convolution1d_packed_fp16sa(const Mat& bottom_blob, Mat& top_blob, c
             _ss = vpadd_f16(_ss, _ss);
             sum += vget_lane_f16(_ss, 0);
 
-            sum = activation_ss(sum, activation_type, activation_params);
+            sum = activation_ss_f16(sum, activation_type, activation_params);
 
             outptr[0] = sum;
             outptr += 1;

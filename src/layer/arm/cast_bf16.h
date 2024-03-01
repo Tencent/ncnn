@@ -88,7 +88,7 @@ static void cast_fp32_to_bf16_neon(const Mat& bottom_blob, Mat& top_blob, const 
                 "vshrn.u32  d1, q1, #16     \n"
                 "vshrn.u32  d2, q2, #16     \n"
                 "vshrn.u32  d3, q3, #16     \n"
-                "vst1.u16   {d0-d3}, [%1 :128]! \n"
+                "vst1.u16   {d0-d3}, [%1]!  \n"
                 : "=r"(ptr),   // %0
                 "=r"(outptr) // %1
                 : "0"(ptr),
@@ -231,7 +231,7 @@ static void cast_bf16_to_fp32_neon(const Mat& bottom_blob, Mat& top_blob, const 
 #else  // __aarch64__
             asm volatile(
                 "pld        [%0, #256]      \n"
-                "vld1.u16   {d4-d7}, [%0 :128]! \n"
+                "vld1.u16   {d4-d7}, [%0]!  \n"
                 "vshll.u16  q0, d4, #16     \n"
                 "vshll.u16  q1, d5, #16     \n"
                 "vshll.u16  q2, d6, #16     \n"

@@ -48,7 +48,7 @@ jobs:
         rm -f /tmp/${{ env.PACKAGENAME }}.zip
         zip -9 -y -r /tmp/${{ env.PACKAGENAME }}.zip .
     - name: upload-zip
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ env.PACKAGENAME }}
         path: /tmp/${{ env.PACKAGENAME }}.zip
@@ -80,7 +80,7 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
@@ -102,7 +102,7 @@ jobs:
         mkdir build && cd build
         cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
-        cmake --build . -j 2
+        cmake --build . -j $(nproc)
         cmake --build . --target install/strip
     - name: package
       run: |
@@ -112,7 +112,7 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
@@ -134,7 +134,7 @@ jobs:
         mkdir build && cd build
         cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 2
+        cmake --build . -j $(nproc)
         cmake --build . --target install/strip
     - name: package
       run: |
@@ -144,7 +144,7 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
@@ -166,7 +166,7 @@ jobs:
         mkdir build && cd build
         cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
-        cmake --build . -j 2
+        cmake --build . -j $(nproc)
         cmake --build . --target install/strip
     - name: package
       run: |
@@ -176,7 +176,7 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
@@ -186,7 +186,7 @@ jobs:
     steps:
     - name: cache-openmp
       id: cache-openmp
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: openmp-install
         key: openmp-macos-release-11.0.0-20230504
@@ -237,7 +237,7 @@ jobs:
             openmp-11.0.0.src/build-arm64/install/lib/libomp.a \
             -o $GITHUB_WORKSPACE/openmp-install/lib/libomp.a
     - name: upload
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: openmp-macos
         path: openmp-install
@@ -250,7 +250,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: download-openmp-macos
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: openmp-macos
         path: openmp-macos
@@ -309,7 +309,7 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework ncnn.framework
     - name: upload-zip
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
@@ -324,7 +324,7 @@ jobs:
       with:
         submodules: true
     - name: download-openmp-macos
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: openmp-macos
         path: openmp-macos
@@ -397,7 +397,7 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework glslang.framework ncnn.framework
     - name: upload-zip
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
@@ -407,7 +407,7 @@ jobs:
     steps:
     - name: cache-openmp
       id: cache-openmp
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: openmp-install
         key: openmp-ios-release-11.0.0-20230504
@@ -471,7 +471,7 @@ jobs:
             openmp-11.0.0.src/build-arm64e/install/lib/libomp.a \
             -o $GITHUB_WORKSPACE/openmp-install/lib/libomp.a
     - name: upload
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: openmp-ios
         path: openmp-install
@@ -484,7 +484,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: download-openmp-ios
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: openmp-ios
         path: openmp-ios
@@ -559,7 +559,7 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework ncnn.framework
     - name: upload-zip
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
@@ -574,7 +574,7 @@ jobs:
       with:
         submodules: true
     - name: download-openmp-ios
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: openmp-ios
         path: openmp-ios
@@ -667,7 +667,7 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework glslang.framework ncnn.framework
     - name: upload-zip
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
@@ -677,7 +677,7 @@ jobs:
     steps:
     - name: cache-openmp
       id: cache-openmp
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: openmp-install
         key: openmp-ios-bitcode-release-11.0.0-20230504
@@ -741,7 +741,7 @@ jobs:
             openmp-11.0.0.src/build-arm64e/install/lib/libomp.a \
             -o $GITHUB_WORKSPACE/openmp-install/lib/libomp.a
     - name: upload
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: openmp-ios-bitcode
         path: openmp-install
@@ -754,7 +754,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: download-openmp-ios-bitcode
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: openmp-ios-bitcode
         path: openmp-ios-bitcode
@@ -829,7 +829,7 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework ncnn.framework
     - name: upload-zip
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
@@ -844,7 +844,7 @@ jobs:
       with:
         submodules: true
     - name: download-openmp-ios-bitcode
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: openmp-ios-bitcode
         path: openmp-ios-bitcode
@@ -937,7 +937,7 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework glslang.framework ncnn.framework
     - name: upload-zip
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
@@ -947,7 +947,7 @@ jobs:
     steps:
     - name: cache-openmp
       id: cache-openmp
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: openmp-install
         key: openmp-ios-simulator-release-11.0.0-20230504
@@ -1011,7 +1011,7 @@ jobs:
             openmp-11.0.0.src/build-arm64/install/lib/libomp.a \
             -o $GITHUB_WORKSPACE/openmp-install/lib/libomp.a
     - name: upload
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: openmp-ios-simulator
         path: openmp-install
@@ -1024,7 +1024,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: download-openmp-ios
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: openmp-ios-simulator
         path: openmp-ios-simulator
@@ -1099,7 +1099,7 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework ncnn.framework
     - name: upload-zip
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
@@ -1114,7 +1114,7 @@ jobs:
       with:
         submodules: true
     - name: download-openmp-ios-simulator
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: openmp-ios-simulator
         path: openmp-ios-simulator
@@ -1207,7 +1207,7 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework glslang.framework ncnn.framework
     - name: upload-zip
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
@@ -1217,7 +1217,7 @@ jobs:
     steps:
     - name: cache-openmp
       id: cache-openmp
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: openmp-install
         key: openmp-ios-simulator-bitcode-release-11.0.0-20230504
@@ -1281,7 +1281,7 @@ jobs:
             openmp-11.0.0.src/build-arm64/install/lib/libomp.a \
             -o $GITHUB_WORKSPACE/openmp-install/lib/libomp.a
     - name: upload
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: openmp-ios-simulator-bitcode
         path: openmp-install
@@ -1294,7 +1294,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: download-openmp-ios
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: openmp-ios-simulator-bitcode
         path: openmp-ios-simulator-bitcode
@@ -1369,7 +1369,7 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework ncnn.framework
     - name: upload-zip
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
@@ -1384,7 +1384,7 @@ jobs:
       with:
         submodules: true
     - name: download-openmp-ios-simulator
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: openmp-ios-simulator-bitcode
         path: openmp-ios-simulator-bitcode
@@ -1477,7 +1477,7 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework glslang.framework ncnn.framework
     - name: upload-zip
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
@@ -1487,7 +1487,7 @@ jobs:
     steps:
     - name: cache-openmp
       id: cache-openmp
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: openmp-install
         key: openmp-mac-catalyst-release-11.0.0-20230504
@@ -1538,7 +1538,7 @@ jobs:
             openmp-11.0.0.src/build-arm64/install/lib/libomp.a \
             -o $GITHUB_WORKSPACE/openmp-install/lib/libomp.a
     - name: upload
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: openmp-mac-catalyst
         path: openmp-install
@@ -1551,7 +1551,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: download-openmp-ios
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: openmp-mac-catalyst
         path: openmp-mac-catalyst
@@ -1613,7 +1613,7 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework ncnn.framework
     - name: upload-zip
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
@@ -1628,7 +1628,7 @@ jobs:
       with:
         submodules: true
     - name: download-openmp-mac-catalyst
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: openmp-mac-catalyst
         path: openmp-mac-catalyst
@@ -1721,7 +1721,7 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework glslang.framework ncnn.framework
     - name: upload-zip
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
@@ -1731,7 +1731,7 @@ jobs:
     steps:
     - name: cache-openmp
       id: cache-openmp
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: openmp-install
         key: openmp-mac-catalyst-bitcode-release-11.0.0-20230504
@@ -1782,7 +1782,7 @@ jobs:
             openmp-11.0.0.src/build-arm64/install/lib/libomp.a \
             -o $GITHUB_WORKSPACE/openmp-install/lib/libomp.a
     - name: upload
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: openmp-mac-catalyst-bitcode
         path: openmp-install
@@ -1795,7 +1795,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: download-openmp-ios
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: openmp-mac-catalyst-bitcode
         path: openmp-mac-catalyst-bitcode
@@ -1857,7 +1857,7 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework ncnn.framework
     - name: upload-zip
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
@@ -1872,7 +1872,7 @@ jobs:
       with:
         submodules: true
     - name: download-openmp-mac-catalyst
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: openmp-mac-catalyst-bitcode
         path: openmp-mac-catalyst-bitcode
@@ -1965,7 +1965,7 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework glslang.framework ncnn.framework
     - name: upload-zip
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
@@ -2015,7 +2015,7 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework ncnn.framework
     - name: upload-zip
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
@@ -2076,7 +2076,7 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework ncnn.framework
     - name: upload-zip
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
@@ -2115,7 +2115,7 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework ncnn.framework
     - name: upload-zip
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
@@ -2165,7 +2165,7 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework ncnn.framework
     - name: upload-zip
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
@@ -2185,7 +2185,7 @@ jobs:
         cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_LATEST_HOME/build/cmake/android.toolchain.cmake -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DANDROID_ABI="armeabi-v7a" -DANDROID_ARM_NEON=ON -DANDROID_PLATFORM=android-14 \
             -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 2
+        cmake --build . -j $(nproc)
         cmake --build . --target install/strip
     - name: build-aarch64
       run: |
@@ -2193,7 +2193,7 @@ jobs:
         cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_LATEST_HOME/build/cmake/android.toolchain.cmake -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DANDROID_ABI="arm64-v8a" -DANDROID_PLATFORM=android-21 \
             -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 2
+        cmake --build . -j $(nproc)
         cmake --build . --target install/strip
     - name: build-x86
       run: |
@@ -2201,7 +2201,7 @@ jobs:
         cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_LATEST_HOME/build/cmake/android.toolchain.cmake -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DANDROID_ABI="x86" -DANDROID_PLATFORM=android-14 \
             -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 2
+        cmake --build . -j $(nproc)
         cmake --build . --target install/strip
     - name: build-x86_64
       run: |
@@ -2209,7 +2209,7 @@ jobs:
         cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_LATEST_HOME/build/cmake/android.toolchain.cmake -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DANDROID_ABI="x86_64" -DANDROID_PLATFORM=android-21 \
             -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 2
+        cmake --build . -j $(nproc)
         cmake --build . --target install/strip
     - name: package
       run: |
@@ -2222,7 +2222,7 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
@@ -2242,7 +2242,7 @@ jobs:
         cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_LATEST_HOME/build/cmake/android.toolchain.cmake -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DANDROID_ABI="armeabi-v7a" -DANDROID_ARM_NEON=ON -DANDROID_PLATFORM=android-14 \
             -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
-        cmake --build . -j 2
+        cmake --build . -j $(nproc)
         cmake --build . --target install/strip
     - name: build-aarch64
       run: |
@@ -2250,7 +2250,7 @@ jobs:
         cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_LATEST_HOME/build/cmake/android.toolchain.cmake -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DANDROID_ABI="arm64-v8a" -DANDROID_PLATFORM=android-21 \
             -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
-        cmake --build . -j 2
+        cmake --build . -j $(nproc)
         cmake --build . --target install/strip
     - name: build-x86
       run: |
@@ -2258,7 +2258,7 @@ jobs:
         cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_LATEST_HOME/build/cmake/android.toolchain.cmake -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DANDROID_ABI="x86" -DANDROID_PLATFORM=android-14 \
             -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
-        cmake --build . -j 2
+        cmake --build . -j $(nproc)
         cmake --build . --target install/strip
     - name: build-x86_64
       run: |
@@ -2266,7 +2266,7 @@ jobs:
         cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_LATEST_HOME/build/cmake/android.toolchain.cmake -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DANDROID_ABI="x86_64" -DANDROID_PLATFORM=android-21 \
             -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
-        cmake --build . -j 2
+        cmake --build . -j $(nproc)
         cmake --build . --target install/strip
     - name: package
       run: |
@@ -2279,7 +2279,7 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
@@ -2299,9 +2299,9 @@ jobs:
       run: |
         mkdir build-armv7 && cd build-armv7
         cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_LATEST_HOME/build/cmake/android.toolchain.cmake -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DANDROID_ABI="armeabi-v7a" -DANDROID_ARM_NEON=ON -DANDROID_PLATFORM=android-21 \
+            -DANDROID_ABI="armeabi-v7a" -DANDROID_ARM_NEON=ON -DANDROID_PLATFORM=android-14 \
             -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 2
+        cmake --build . -j $(nproc)
         cmake --build . --target install/strip
     - name: build-aarch64
       run: |
@@ -2309,15 +2309,15 @@ jobs:
         cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_LATEST_HOME/build/cmake/android.toolchain.cmake -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DANDROID_ABI="arm64-v8a" -DANDROID_PLATFORM=android-21 \
             -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 2
+        cmake --build . -j $(nproc)
         cmake --build . --target install/strip
     - name: build-x86
       run: |
         mkdir build-x86 && cd build-x86
         cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_LATEST_HOME/build/cmake/android.toolchain.cmake -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DANDROID_ABI="x86" -DANDROID_PLATFORM=android-21 \
+            -DANDROID_ABI="x86" -DANDROID_PLATFORM=android-14 \
             -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 2
+        cmake --build . -j $(nproc)
         cmake --build . --target install/strip
     - name: build-x86_64
       run: |
@@ -2325,7 +2325,7 @@ jobs:
         cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_LATEST_HOME/build/cmake/android.toolchain.cmake -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DANDROID_ABI="x86_64" -DANDROID_PLATFORM=android-21 \
             -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 2
+        cmake --build . -j $(nproc)
         cmake --build . --target install/strip
     - name: package
       run: |
@@ -2338,7 +2338,7 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
@@ -2358,9 +2358,9 @@ jobs:
       run: |
         mkdir build-armv7 && cd build-armv7
         cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_LATEST_HOME/build/cmake/android.toolchain.cmake -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DANDROID_ABI="armeabi-v7a" -DANDROID_ARM_NEON=ON -DANDROID_PLATFORM=android-21 \
+            -DANDROID_ABI="armeabi-v7a" -DANDROID_ARM_NEON=ON -DANDROID_PLATFORM=android-14 \
             -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
-        cmake --build . -j 2
+        cmake --build . -j $(nproc)
         cmake --build . --target install/strip
     - name: build-aarch64
       run: |
@@ -2368,15 +2368,15 @@ jobs:
         cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_LATEST_HOME/build/cmake/android.toolchain.cmake -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DANDROID_ABI="arm64-v8a" -DANDROID_PLATFORM=android-21 \
             -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
-        cmake --build . -j 2
+        cmake --build . -j $(nproc)
         cmake --build . --target install/strip
     - name: build-x86
       run: |
         mkdir build-x86 && cd build-x86
         cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_LATEST_HOME/build/cmake/android.toolchain.cmake -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DANDROID_ABI="x86" -DANDROID_PLATFORM=android-21 \
+            -DANDROID_ABI="x86" -DANDROID_PLATFORM=android-14 \
             -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
-        cmake --build . -j 2
+        cmake --build . -j $(nproc)
         cmake --build . --target install/strip
     - name: build-x86_64
       run: |
@@ -2384,7 +2384,7 @@ jobs:
         cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_LATEST_HOME/build/cmake/android.toolchain.cmake -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DANDROID_ABI="x86_64" -DANDROID_PLATFORM=android-21 \
             -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
-        cmake --build . -j 2
+        cmake --build . -j $(nproc)
         cmake --build . --target install/strip
     - name: package
       run: |
@@ -2397,7 +2397,7 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
@@ -2422,7 +2422,7 @@ jobs:
         cmake -DCMAKE_TOOLCHAIN_FILE=$EMSDK/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DNCNN_THREADS=OFF -DNCNN_OPENMP=OFF -DNCNN_SIMPLEOMP=OFF -DNCNN_SIMPLEOCV=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_SSE2=OFF -DNCNN_AVX2=OFF -DNCNN_AVX=OFF \
             -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 2
+        cmake --build . -j $(nproc)
         cmake --build . --target install/strip
     - name: build-simd
       run: |
@@ -2431,7 +2431,7 @@ jobs:
         cmake -DCMAKE_TOOLCHAIN_FILE=$EMSDK/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DNCNN_THREADS=OFF -DNCNN_OPENMP=OFF -DNCNN_SIMPLEOMP=OFF -DNCNN_SIMPLEOCV=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_SSE2=ON -DNCNN_AVX2=OFF -DNCNN_AVX=OFF \
             -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 2
+        cmake --build . -j $(nproc)
         cmake --build . --target install/strip
     - name: build-threads
       run: |
@@ -2440,7 +2440,7 @@ jobs:
         cmake -DCMAKE_TOOLCHAIN_FILE=$EMSDK/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DNCNN_THREADS=ON -DNCNN_OPENMP=ON -DNCNN_SIMPLEOMP=ON -DNCNN_SIMPLEOCV=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_SSE2=OFF -DNCNN_AVX2=OFF -DNCNN_AVX=OFF \
             -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 2
+        cmake --build . -j $(nproc)
         cmake --build . --target install/strip
     - name: build-simd-threads
       run: |
@@ -2449,7 +2449,7 @@ jobs:
         cmake -DCMAKE_TOOLCHAIN_FILE=$EMSDK/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DNCNN_THREADS=ON -DNCNN_OPENMP=ON -DNCNN_SIMPLEOMP=ON -DNCNN_SIMPLEOCV=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_SSE2=ON -DNCNN_AVX2=OFF -DNCNN_AVX=OFF \
             -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 2
+        cmake --build . -j $(nproc)
         cmake --build . --target install/strip
     - name: package
       run: |
@@ -2462,7 +2462,7 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
@@ -2479,7 +2479,7 @@ jobs:
         submodules: true
     - name: cache-protobuf
       id: cache-protobuf
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: "protobuf-install"
         key: protobuf-vs2015-x86-x64-install
@@ -2491,24 +2491,24 @@ jobs:
         cd protobuf-3.11.2
         mkdir build-x86; cd build-x86;
         cmake -T v140,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE\protobuf-install\x86" -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF ../cmake
-        cmake --build . --config Release -j 2
+        cmake --build . --config Release -j 4
         cmake --build . --config Release --target install
         cd ..
         mkdir build-x64; cd build-x64;
         cmake -T v140,host=x64 -A x64 -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE\protobuf-install\x64" -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF ../cmake
-        cmake --build . --config Release -j 2
+        cmake --build . --config Release -j 4
         cmake --build . --config Release --target install
     - name: build-x86
       run: |
         mkdir build-x86; cd build-x86
         cmake -T v140,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x86\cmake" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . --config Release -j 2
+        cmake --build . --config Release -j 4
         cmake --build . --config Release --target install
     - name: build-x64
       run: |
         mkdir build-x64; cd build-x64
         cmake -T v140,host=x64 -A x64 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x64\cmake" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . --config Release -j 2
+        cmake --build . --config Release -j 4
         cmake --build . --config Release --target install
     - name: package
       run: |
@@ -2519,7 +2519,7 @@ jobs:
         Copy-Item -Verbose -Recurse -Path "build-x64\install\*" -Destination "${{ env.PACKAGENAME }}\x64"
         7z a -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
@@ -2536,7 +2536,7 @@ jobs:
         submodules: true
     - name: cache-protobuf
       id: cache-protobuf
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: "protobuf-install"
         key: protobuf-vs2015-x86-x64-install
@@ -2548,24 +2548,24 @@ jobs:
         cd protobuf-3.11.2
         mkdir build-x86; cd build-x86;
         cmake -T v140,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE\protobuf-install\x86" -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF ../cmake
-        cmake --build . --config Release -j 2
+        cmake --build . --config Release -j 4
         cmake --build . --config Release --target install
         cd ..
         mkdir build-x64; cd build-x64;
         cmake -T v140,host=x64 -A x64 -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE\protobuf-install\x64" -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF ../cmake
-        cmake --build . --config Release -j 2
+        cmake --build . --config Release -j 4
         cmake --build . --config Release --target install
     - name: build-x86
       run: |
         mkdir build-x86; cd build-x86
         cmake -T v140,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x86\cmake" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
-        cmake --build . --config Release -j 2
+        cmake --build . --config Release -j 4
         cmake --build . --config Release --target install
     - name: build-x64
       run: |
         mkdir build-x64; cd build-x64
         cmake -T v140,host=x64 -A x64 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x64\cmake" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
-        cmake --build . --config Release -j 2
+        cmake --build . --config Release -j 4
         cmake --build . --config Release --target install
     - name: package
       run: |
@@ -2576,7 +2576,7 @@ jobs:
         Copy-Item -Verbose -Recurse -Path "build-x64\install\*" -Destination "${{ env.PACKAGENAME }}\x64"
         7z a -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
@@ -2593,7 +2593,7 @@ jobs:
         submodules: true
     - name: cache-protobuf
       id: cache-protobuf
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: "protobuf-install"
         key: protobuf-vs2017-x86-x64-install
@@ -2605,24 +2605,24 @@ jobs:
         cd protobuf-3.11.2
         mkdir build-x86; cd build-x86;
         cmake -T v141,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE\protobuf-install\x86" -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF ../cmake
-        cmake --build . --config Release -j 2
+        cmake --build . --config Release -j 4
         cmake --build . --config Release --target install
         cd ..
         mkdir build-x64; cd build-x64;
         cmake -T v141,host=x64 -A x64 -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE\protobuf-install\x64" -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF ../cmake
-        cmake --build . --config Release -j 2
+        cmake --build . --config Release -j 4
         cmake --build . --config Release --target install
     - name: build-x86
       run: |
         mkdir build-x86; cd build-x86
         cmake -T v141,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x86\cmake" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . --config Release -j 2
+        cmake --build . --config Release -j 4
         cmake --build . --config Release --target install
     - name: build-x64
       run: |
         mkdir build-x64; cd build-x64
         cmake -T v141,host=x64 -A x64 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x64\cmake" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . --config Release -j 2
+        cmake --build . --config Release -j 4
         cmake --build . --config Release --target install
     - name: package
       run: |
@@ -2633,7 +2633,7 @@ jobs:
         Copy-Item -Verbose -Recurse -Path "build-x64\install\*" -Destination "${{ env.PACKAGENAME }}\x64"
         7z a -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
@@ -2650,7 +2650,7 @@ jobs:
         submodules: true
     - name: cache-protobuf
       id: cache-protobuf
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: "protobuf-install"
         key: protobuf-vs2017-x86-x64-install
@@ -2662,24 +2662,24 @@ jobs:
         cd protobuf-3.11.2
         mkdir build-x86; cd build-x86;
         cmake -T v141,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE\protobuf-install\x86" -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF ../cmake
-        cmake --build . --config Release -j 2
+        cmake --build . --config Release -j 4
         cmake --build . --config Release --target install
         cd ..
         mkdir build-x64; cd build-x64;
         cmake -T v141,host=x64 -A x64 -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE\protobuf-install\x64" -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF ../cmake
-        cmake --build . --config Release -j 2
+        cmake --build . --config Release -j 4
         cmake --build . --config Release --target install
     - name: build-x86
       run: |
         mkdir build-x86; cd build-x86
         cmake -T v141,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x86\cmake" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
-        cmake --build . --config Release -j 2
+        cmake --build . --config Release -j 4
         cmake --build . --config Release --target install
     - name: build-x64
       run: |
         mkdir build-x64; cd build-x64
         cmake -T v141,host=x64 -A x64 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x64\cmake" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
-        cmake --build . --config Release -j 2
+        cmake --build . --config Release -j 4
         cmake --build . --config Release --target install
     - name: package
       run: |
@@ -2690,7 +2690,7 @@ jobs:
         Copy-Item -Verbose -Recurse -Path "build-x64\install\*" -Destination "${{ env.PACKAGENAME }}\x64"
         7z a -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
@@ -2707,7 +2707,7 @@ jobs:
         submodules: true
     - name: cache-protobuf
       id: cache-protobuf
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: "protobuf-install"
         key: protobuf-vs2019-x86-x64-install
@@ -2719,36 +2719,36 @@ jobs:
         cd protobuf-3.11.2
         mkdir build-x86; cd build-x86;
         cmake -T v142,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE\protobuf-install\x86" -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF ../cmake
-        cmake --build . --config Release -j 2
+        cmake --build . --config Release -j 4
         cmake --build . --config Release --target install
         cd ..
         mkdir build-x64; cd build-x64;
         cmake -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE\protobuf-install\x64" -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF ../cmake
-        cmake --build . --config Release -j 2
+        cmake --build . --config Release -j 4
         cmake --build . --config Release --target install
     - name: build-x86
       run: |
         mkdir build-x86; cd build-x86
         cmake -T v142,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x86\cmake" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . --config Release -j 2
+        cmake --build . --config Release -j 4
         cmake --build . --config Release --target install
     - name: build-x64
       run: |
         mkdir build-x64; cd build-x64
         cmake -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x64\cmake" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . --config Release -j 2
+        cmake --build . --config Release -j 4
         cmake --build . --config Release --target install
     - name: build-arm
       run: |
         mkdir build-arm; cd build-arm
         cmake -T v142,host=x64 -A arm -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . --config Release -j 2
+        cmake --build . --config Release -j 4
         cmake --build . --config Release --target install
     - name: build-arm64
       run: |
         mkdir build-arm64; cd build-arm64
         cmake -T v142,host=x64 -A arm64 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . --config Release -j 2
+        cmake --build . --config Release -j 4
         cmake --build . --config Release --target install
     - name: package
       run: |
@@ -2763,7 +2763,7 @@ jobs:
         Copy-Item -Verbose -Recurse -Path "build-arm64\install\*" -Destination "${{ env.PACKAGENAME }}\arm64"
         7z a -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
@@ -2780,7 +2780,7 @@ jobs:
         submodules: true
     - name: cache-protobuf
       id: cache-protobuf
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: "protobuf-install"
         key: protobuf-vs2019-x86-x64-install
@@ -2792,36 +2792,36 @@ jobs:
         cd protobuf-3.11.2
         mkdir build-x86; cd build-x86;
         cmake -T v142,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE\protobuf-install\x86" -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF ../cmake
-        cmake --build . --config Release -j 2
+        cmake --build . --config Release -j 4
         cmake --build . --config Release --target install
         cd ..
         mkdir build-x64; cd build-x64;
         cmake -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE\protobuf-install\x64" -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF ../cmake
-        cmake --build . --config Release -j 2
+        cmake --build . --config Release -j 4
         cmake --build . --config Release --target install
     - name: build-x86
       run: |
         mkdir build-x86; cd build-x86
         cmake -T v142,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x86\cmake" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
-        cmake --build . --config Release -j 2
+        cmake --build . --config Release -j 4
         cmake --build . --config Release --target install
     - name: build-x64
       run: |
         mkdir build-x64; cd build-x64
         cmake -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x64\cmake" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
-        cmake --build . --config Release -j 2
+        cmake --build . --config Release -j 4
         cmake --build . --config Release --target install
     - name: build-arm
       run: |
         mkdir build-arm; cd build-arm
         cmake -T v142,host=x64 -A arm -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
-        cmake --build . --config Release -j 2
+        cmake --build . --config Release -j 4
         cmake --build . --config Release --target install
     - name: build-arm64
       run: |
         mkdir build-arm64; cd build-arm64
         cmake -T v142,host=x64 -A arm64 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
-        cmake --build . --config Release -j 2
+        cmake --build . --config Release -j 4
         cmake --build . --config Release --target install
     - name: package
       run: |
@@ -2836,7 +2836,7 @@ jobs:
         Copy-Item -Verbose -Recurse -Path "build-arm64\install\*" -Destination "${{ env.PACKAGENAME }}\arm64"
         7z a -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
@@ -2853,7 +2853,7 @@ jobs:
         submodules: true
     - name: cache-protobuf
       id: cache-protobuf
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: "protobuf-install"
         key: protobuf-vs2022-x86-x64-install
@@ -2865,36 +2865,36 @@ jobs:
         cd protobuf-3.11.2
         mkdir build-x86; cd build-x86;
         cmake -T v143,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE\protobuf-install\x86" -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF ../cmake
-        cmake --build . --config Release -j 2
+        cmake --build . --config Release -j 4
         cmake --build . --config Release --target install
         cd ..
         mkdir build-x64; cd build-x64;
         cmake -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE\protobuf-install\x64" -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF ../cmake
-        cmake --build . --config Release -j 2
+        cmake --build . --config Release -j 4
         cmake --build . --config Release --target install
     - name: build-x86
       run: |
         mkdir build-x86; cd build-x86
         cmake -T v143,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x86\cmake" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . --config Release -j 2
+        cmake --build . --config Release -j 4
         cmake --build . --config Release --target install
     - name: build-x64
       run: |
         mkdir build-x64; cd build-x64
         cmake -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x64\cmake" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . --config Release -j 2
+        cmake --build . --config Release -j 4
         cmake --build . --config Release --target install
     - name: build-arm
       run: |
         mkdir build-arm; cd build-arm
         cmake -T v143,host=x64 -A arm -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . --config Release -j 2
+        cmake --build . --config Release -j 4
         cmake --build . --config Release --target install
     - name: build-arm64
       run: |
         mkdir build-arm64; cd build-arm64
         cmake -T v143,host=x64 -A arm64 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . --config Release -j 2
+        cmake --build . --config Release -j 4
         cmake --build . --config Release --target install
     - name: package
       run: |
@@ -2909,7 +2909,7 @@ jobs:
         Copy-Item -Verbose -Recurse -Path "build-arm64\install\*" -Destination "${{ env.PACKAGENAME }}\arm64"
         7z a -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
@@ -2926,7 +2926,7 @@ jobs:
         submodules: true
     - name: cache-protobuf
       id: cache-protobuf
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: "protobuf-install"
         key: protobuf-vs2022-x86-x64-install
@@ -2938,36 +2938,36 @@ jobs:
         cd protobuf-3.11.2
         mkdir build-x86; cd build-x86;
         cmake -T v143,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE\protobuf-install\x86" -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF ../cmake
-        cmake --build . --config Release -j 2
+        cmake --build . --config Release -j 4
         cmake --build . --config Release --target install
         cd ..
         mkdir build-x64; cd build-x64;
         cmake -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE\protobuf-install\x64" -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF ../cmake
-        cmake --build . --config Release -j 2
+        cmake --build . --config Release -j 4
         cmake --build . --config Release --target install
     - name: build-x86
       run: |
         mkdir build-x86; cd build-x86
         cmake -T v143,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x86\cmake" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
-        cmake --build . --config Release -j 2
+        cmake --build . --config Release -j 4
         cmake --build . --config Release --target install
     - name: build-x64
       run: |
         mkdir build-x64; cd build-x64
         cmake -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -Dprotobuf_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x64\cmake" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
-        cmake --build . --config Release -j 2
+        cmake --build . --config Release -j 4
         cmake --build . --config Release --target install
     - name: build-arm
       run: |
         mkdir build-arm; cd build-arm
         cmake -T v143,host=x64 -A arm -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
-        cmake --build . --config Release -j 2
+        cmake --build . --config Release -j 4
         cmake --build . --config Release --target install
     - name: build-arm64
       run: |
         mkdir build-arm64; cd build-arm64
         cmake -T v143,host=x64 -A arm64 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
-        cmake --build . --config Release -j 2
+        cmake --build . --config Release -j 4
         cmake --build . --config Release --target install
     - name: package
       run: |
@@ -2982,7 +2982,7 @@ jobs:
         Copy-Item -Verbose -Recurse -Path "build-arm64\install\*" -Destination "${{ env.PACKAGENAME }}\arm64"
         7z a -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
@@ -2995,7 +2995,7 @@ jobs:
     steps:
     - run: sudo xcode-select --switch /Applications/Xcode_13.4.1.app
     - name: download
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         path: artifacts
 
@@ -3028,7 +3028,7 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.xcframework ncnn.xcframework
     - name: upload-zip
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
@@ -3041,7 +3041,7 @@ jobs:
     steps:
     - run: sudo xcode-select --switch /Applications/Xcode_13.4.1.app
     - name: download
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         path: artifacts
 
@@ -3081,7 +3081,7 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.xcframework glslang.xcframework ncnn.xcframework
     - name: upload-zip
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
@@ -3094,7 +3094,7 @@ jobs:
     steps:
     - run: sudo xcode-select --switch /Applications/Xcode_13.4.1.app
     - name: download
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         path: artifacts
 
@@ -3127,7 +3127,7 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.xcframework ncnn.xcframework
     - name: upload-zip
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
@@ -3140,7 +3140,7 @@ jobs:
     steps:
     - run: sudo xcode-select --switch /Applications/Xcode_13.4.1.app
     - name: download
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         path: artifacts
 
@@ -3180,7 +3180,7 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.xcframework glslang.xcframework ncnn.xcframework
     - name: upload-zip
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
@@ -3192,7 +3192,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: download
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         path: artifacts
 

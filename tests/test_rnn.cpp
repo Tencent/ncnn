@@ -12,7 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "layer/rnn.h"
 #include "testutil.h"
 
 static int test_rnn(const ncnn::Mat& a, int outch, int direction)
@@ -30,7 +29,7 @@ static int test_rnn(const ncnn::Mat& a, int outch, int direction)
     weights[1] = RandomMat(outch * num_directions);
     weights[2] = RandomMat(outch * outch * num_directions);
 
-    int ret = test_layer<ncnn::RNN>("RNN", pd, weights, a);
+    int ret = test_layer("RNN", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_rnn failed a.dims=%d a=(%d %d %d) outch=%d, direction = %d \n", a.dims, a.w, a.h, a.c, outch, direction);
@@ -61,7 +60,7 @@ int test_rnn_layer_with_hidden(const ncnn::Mat& a, int outch, int direction)
     as[0] = a;
     as[1] = hidden;
 
-    int ret = test_layer<ncnn::RNN>("RNN", pd, weights, as, 2);
+    int ret = test_layer("RNN", pd, weights, as, 2);
     if (ret != 0)
     {
         fprintf(stderr, "test_rnn_layer_with_hidden failed a.dims=%d a=(%d %d %d) outch=%d, direction = %d \n", a.dims, a.w, a.h, a.c, outch, direction);
@@ -92,7 +91,7 @@ int test_rnn_layer_with_hidden_input(const ncnn::Mat& a, int outch, int directio
     as[0] = a;
     as[1] = hidden;
 
-    int ret = test_layer<ncnn::RNN>("RNN", pd, weights, as, 1);
+    int ret = test_layer("RNN", pd, weights, as, 1);
     if (ret != 0)
     {
         fprintf(stderr, "test_rnn_layer_with_hidden_input failed a.dims=%d a=(%d %d %d) outch=%d, direction = %d \n", a.dims, a.w, a.h, a.c, outch, direction);
@@ -119,7 +118,7 @@ int test_rnn_layer_with_hidden_output(const ncnn::Mat& a, int outch, int directi
     std::vector<ncnn::Mat> as(1);
     as[0] = a;
 
-    int ret = test_layer<ncnn::RNN>("RNN", pd, weights, as, 2);
+    int ret = test_layer("RNN", pd, weights, as, 2);
     if (ret != 0)
     {
         fprintf(stderr, "test_rnn_layer_with_hidden_output failed a.dims=%d a=(%d %d %d) outch=%d, direction = %d \n", a.dims, a.w, a.h, a.c, outch, direction);

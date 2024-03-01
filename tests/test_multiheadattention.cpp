@@ -12,7 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "layer/multiheadattention.h"
 #include "testutil.h"
 
 static int test_multiheadattention(const ncnn::Mat& q, const ncnn::Mat& k, const ncnn::Mat& v, int num_heads, int kdim, int vdim, int attn_mask)
@@ -49,7 +48,7 @@ static int test_multiheadattention(const ncnn::Mat& q, const ncnn::Mat& k, const
 
     float epsilon = 0.005;
 
-    int ret = test_layer<ncnn::MultiHeadAttention>("MultiHeadAttention", pd, weights, as, 1, epsilon);
+    int ret = test_layer("MultiHeadAttention", pd, weights, as, 1, epsilon);
     if (ret != 0)
     {
         fprintf(stderr, "test_multiheadattention failed q=(%d %d) k=(%d %d) v=(%d %d) num_heads=%d kdim=%d vdim=%d attn_mask=%d\n", q.w, q.h, k.w, k.h, v.w, v.h, num_heads, kdim, vdim, attn_mask);
@@ -85,7 +84,7 @@ static int test_multiheadattention_samekv(const ncnn::Mat& q, const ncnn::Mat& k
 
     float epsilon = 0.005;
 
-    int ret = test_layer<ncnn::MultiHeadAttention>("MultiHeadAttention", pd, weights, as, 1, epsilon);
+    int ret = test_layer("MultiHeadAttention", pd, weights, as, 1, epsilon);
     if (ret != 0)
     {
         fprintf(stderr, "test_multiheadattention_samekv failed q=(%d %d) kv=(%d %d) num_heads=%d kvdim=%d\n", q.w, q.h, kv.w, kv.h, num_heads, kvdim);
@@ -118,7 +117,7 @@ static int test_multiheadattention_sameqkv(const ncnn::Mat& a, int num_heads)
 
     float epsilon = 0.005;
 
-    int ret = test_layer<ncnn::MultiHeadAttention>("MultiHeadAttention", pd, weights, as, 1, epsilon);
+    int ret = test_layer("MultiHeadAttention", pd, weights, as, 1, epsilon);
     if (ret != 0)
     {
         fprintf(stderr, "test_multiheadattention_sameqkv failed a=(%d %d) num_heads=%d\n", a.w, a.h, num_heads);

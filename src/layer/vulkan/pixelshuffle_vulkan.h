@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class PixelShuffle_vulkan : virtual public PixelShuffle
+class PixelShuffle_vulkan : public PixelShuffle
 {
 public:
     PixelShuffle_vulkan();

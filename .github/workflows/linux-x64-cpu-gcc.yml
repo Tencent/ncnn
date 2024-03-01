@@ -47,42 +47,42 @@ jobs:
       run: |
         mkdir build-sse2 && cd build-sse2
         cmake -DNCNN_AVX=OFF -DNCNN_AVX2=OFF -DNCNN_BUILD_TESTS=ON ..
-        cmake --build . -j 2
+        cmake --build . -j $(nproc)
     - name: test-sse2
-      run: cd build-sse2 && ctest --output-on-failure -j 2
+      run: cd build-sse2 && ctest --output-on-failure -j $(nproc)
     - name: build-shared
       run: |
         mkdir build-shared && cd build-shared
         cmake -DNCNN_AVX2=ON -DNCNN_SHARED_LIB=ON ..
-        cmake --build . -j 2
+        cmake --build . -j $(nproc)
     - name: build-avx2
       run: |
         mkdir build-avx2 && cd build-avx2
         cmake -DNCNN_AVX2=ON -DNCNN_BUILD_TESTS=ON ..
-        cmake --build . -j 2
+        cmake --build . -j $(nproc)
     - name: test-avx2
-      run: cd build-avx2 && ctest --output-on-failure -j 2
+      run: cd build-avx2 && ctest --output-on-failure -j $(nproc)
     - name: build-avx
       run: |
         mkdir build-avx && cd build-avx
         cmake -DNCNN_AVX2=OFF -DNCNN_AVX=ON -DNCNN_BUILD_TESTS=ON ..
-        cmake --build . -j 2
+        cmake --build . -j $(nproc)
     - name: test-avx
-      run: cd build-avx && ctest --output-on-failure -j 2
+      run: cd build-avx && ctest --output-on-failure -j $(nproc)
     - name: build-avx1-2
       run: |
         mkdir build-avx1-2 && cd build-avx1-2
         cmake -DNCNN_AVX2=ON -DNCNN_AVX=ON -DNCNN_BUILD_TESTS=ON ..
-        cmake --build . -j 2
+        cmake --build . -j $(nproc)
     - name: test-avx1-2
-      run: cd build-avx1-2 && ctest --output-on-failure -j 2
+      run: cd build-avx1-2 && ctest --output-on-failure -j $(nproc)
     - name: build-noint8
       run: |
         mkdir build-noint8 && cd build-noint8
         cmake -DNCNN_INT8=OFF -DNCNN_BUILD_TESTS=ON ..
-        cmake --build . -j 2
+        cmake --build . -j $(nproc)
     - name: test-noint8
-      run: cd build-noint8 && ctest --output-on-failure -j 2
+      run: cd build-noint8 && ctest --output-on-failure -j $(nproc)
 
   linux-gcc-cpp03-nostdio-nostring-simplestl:
     runs-on: ubuntu-20.04
@@ -92,28 +92,28 @@ jobs:
       run: |
         mkdir build-nostdio && cd build-nostdio
         cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/host.gcc-c++03.toolchain.cmake -DNCNN_BUILD_TESTS=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
-        cmake --build . -j 2
+        cmake --build . -j $(nproc)
     - name: test-nostdio
-      run: cd build-nostdio && ctest --output-on-failure -j 2
+      run: cd build-nostdio && ctest --output-on-failure -j $(nproc)
     - name: build-nostdio-nostring
       run: |
         mkdir build-nostdio-nostring && cd build-nostdio-nostring
         cmake -DNCNN_STDIO=OFF -DNCNN_STRING=OFF -DNCNN_BUILD_TESTS=OFF -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
-        cmake --build . -j 2
+        cmake --build . -j $(nproc)
     - name: build-simplestl
       run: |
         mkdir build-simplestl && cd build-simplestl
         cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/host-c.gcc.toolchain.cmake -DNCNN_STDIO=ON -DNCNN_STRING=ON -DNCNN_SIMPLESTL=ON -DNCNN_BUILD_TESTS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
-        cmake --build . -j 2
+        cmake --build . -j $(nproc)
     - name: test-simplestl
-      run: cd build-simplestl && ctest --output-on-failure -j 2
+      run: cd build-simplestl && ctest --output-on-failure -j $(nproc)
     - name: build-simplestl-simpleomp
       run: |
         mkdir build-simplestl-simpleomp && cd build-simplestl-simpleomp
         cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/host-c.gcc.toolchain.cmake -DNCNN_STDIO=ON -DNCNN_STRING=ON -DNCNN_SIMPLESTL=ON -DNCNN_SIMPLEOMP=ON -DNCNN_BUILD_TESTS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
-        cmake --build . -j 2
+        cmake --build . -j $(nproc)
     - name: test-simplestl-simpleomp
-      run: cd build-simplestl-simpleomp && ctest --output-on-failure -j 2
+      run: cd build-simplestl-simpleomp && ctest --output-on-failure -j $(nproc)
 
   linux-gcc-avx512:
     runs-on: [self-hosted, linux, t4]

@@ -16,6 +16,7 @@
 
 #if __ARM_NEON
 #include <arm_neon.h>
+#include "arm_usability.h"
 #include "neon_mathfun.h"
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 #include "neon_mathfun_fp16s.h"
@@ -99,7 +100,7 @@ int Mish_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) co
             for (int i = 0; i < size; i++)
             {
                 float16x8_t _p = vld1q_f16(ptr);
-                _p = vmulq_f16(_p, tanh_ps(log_ps(vaddq_f16(exp_ps(_p), vdupq_n_f16(1.f)))));
+                _p = vmulq_f16(_p, tanh_ps_f16(log_ps_f16(vaddq_f16(exp_ps_f16(_p), vdupq_n_f16(1.f)))));
                 vst1q_f16(ptr, _p);
 
                 ptr += 8;
@@ -119,7 +120,7 @@ int Mish_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) co
             for (int i = 0; i < size; i++)
             {
                 float16x4_t _p = vld1_f16(ptr);
-                _p = vmul_f16(_p, tanh_ps(log_ps(vadd_f16(exp_ps(_p), vdup_n_f16(1.f)))));
+                _p = vmul_f16(_p, tanh_ps_f16(log_ps_f16(vadd_f16(exp_ps_f16(_p), vdup_n_f16(1.f)))));
                 vst1_f16(ptr, _p);
 
                 ptr += 4;
@@ -138,7 +139,7 @@ int Mish_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) co
         for (; i + 3 < size; i += 4)
         {
             float16x4_t _p = vld1_f16(ptr);
-            _p = vmul_f16(_p, tanh_ps(log_ps(vadd_f16(exp_ps(_p), vdup_n_f16(1.f)))));
+            _p = vmul_f16(_p, tanh_ps_f16(log_ps_f16(vadd_f16(exp_ps_f16(_p), vdup_n_f16(1.f)))));
             vst1_f16(ptr, _p);
 
             ptr += 4;
@@ -146,7 +147,7 @@ int Mish_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) co
         for (; i < size; i++)
         {
             __fp16 v = *ptr;
-            v = v * tanhf(logf(expf(v) + (__fp16)1.f));
+            v = v * (__fp16)tanhf(logf(expf(v) + 1.f));
             *ptr = v;
             ptr++;
         }

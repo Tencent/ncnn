@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Quantize_mips : virtual public Quantize
+class Quantize_mips : public Quantize
 {
 public:
     Quantize_mips();

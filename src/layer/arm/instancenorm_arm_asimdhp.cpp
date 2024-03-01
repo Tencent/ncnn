@@ -16,6 +16,7 @@
 
 #if __ARM_NEON
 #include <arm_neon.h>
+#include "arm_usability.h"
 #endif // __ARM_NEON
 
 namespace ncnn {
@@ -231,8 +232,9 @@ int InstanceNorm_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& 
 #endif // __ARM_NEON
         for (; i < size; i++)
         {
-            float tmp = *ptr++ - mean;
+            float tmp = (float)*ptr - mean;
             sqsum += tmp * tmp;
+            ptr++;
         }
         float var = sqsum / size;
         // the var maybe minus due to accuracy
@@ -245,13 +247,15 @@ int InstanceNorm_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& 
             float gamma = gamma_data[q];
             float beta = beta_data[q];
 
-            a = (__fp16)(gamma / (sqrtf(var + eps)));
-            b = (__fp16)(-mean * a + beta);
+            float a_fp32 = gamma / (sqrtf(var + eps));
+            a = (__fp16)(a_fp32);
+            b = (__fp16)(-mean * a_fp32 + beta);
         }
         else
         {
-            a = (__fp16)(1.f / (sqrtf(var + eps)));
-            b = (__fp16)(-mean * a);
+            float a_fp32 = 1.f / (sqrtf(var + eps));
+            a = (__fp16)(a_fp32);
+            b = (__fp16)(-mean * a_fp32);
         }
 
         i = 0;

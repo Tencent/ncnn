@@ -109,6 +109,12 @@ void fuse_slice_to_tensor_split(Graph& graph)
                     full_dimsize_slice = true;
                     break;
                 }
+                if (!op_in->shape.empty() && end2 == op_in->shape[dim])
+                {
+                    slice_n_ops.push_back(op2);
+                    full_dimsize_slice = true;
+                    break;
+                }
 
                 tensor_split_indices.push_back(end2);
                 slice_n_ops.push_back(op2);

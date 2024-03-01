@@ -236,6 +236,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_lgamma.cpp
     pass_level2/torch_logsumexp.cpp
     pass_level2/torch_lt.cpp
+    pass_level2/torch_masked_select.cpp
     pass_level2/torch_matmul.cpp
     pass_level2/torch_max.cpp
     pass_level2/torch_mean.cpp
@@ -386,6 +387,8 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/convert_torch_tensor_split.cpp
     pass_ncnn/convert_torch_unbind.cpp
     pass_ncnn/convert_Tensor_select.cpp
+    pass_ncnn/convert_Tensor_slice.cpp
+    pass_ncnn/convert_Tensor_slice_copy.cpp
     pass_ncnn/eliminate_output.cpp
     pass_ncnn/expand_expression.cpp
     pass_ncnn/fuse_convert_shufflechannel_slice.cpp
@@ -535,8 +538,6 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/Tensor_contiguous.cpp
     pass_ncnn/Tensor_reshape.cpp
     pass_ncnn/Tensor_repeat.cpp
-    pass_ncnn/Tensor_slice.cpp
-    pass_ncnn/Tensor_slice_copy.cpp
     pass_ncnn/Tensor_view.cpp
     pass_ncnn/torch_addmm.cpp
     pass_ncnn/torch_amax.cpp
@@ -571,35 +572,75 @@ if(PROTOBUF_FOUND)
 
     if(Protobuf_FOUND OR protobuf_MODULE_COMPATIBLE)
         protobuf_generate_cpp(ONNX_PROTO_SRCS ONNX_PROTO_HDRS onnx.proto)
-
-        add_library(pnnx2onnx STATIC
-            save_onnx.cpp
-            save_onnx_cxxabi_bridge.cpp
-            ${ONNX_PROTO_SRCS} ${ONNX_PROTO_HDRS}
-        )
-
-        target_include_directories(pnnx2onnx PRIVATE ${PROTOBUF_INCLUDE_DIR} ${CMAKE_CURRENT_BINARY_DIR})
-        target_link_libraries(pnnx2onnx PRIVATE ${PROTOBUF_LIBRARIES})
-
-        # libtorch is usually compiled with old cxx11 abi
-        set_source_files_properties(save_onnx_cxxabi_bridge.cpp PROPERTIES COMPILE_FLAGS "${TORCH_CXX_FLAGS}")
-
-        message(STATUS "Building with onnx-zero")
+        add_library(onnxproto STATIC ${ONNX_PROTO_SRCS} ${ONNX_PROTO_HDRS})
+        target_include_directories(onnxproto PUBLIC ${PROTOBUF_INCLUDE_DIR} ${CMAKE_CURRENT_BINARY_DIR})
+        target_link_libraries(onnxproto PUBLIC ${PROTOBUF_LIBRARIES})
     else()
-
-        add_library(pnnx2onnx STATIC
-            save_onnx.cpp
-            save_onnx_cxxabi_bridge.cpp
-            onnx.proto
-        )
-        set_source_files_properties(save_onnx_cxxabi_bridge.cpp PROPERTIES COMPILE_FLAGS "${TORCH_CXX_FLAGS}")
-        target_include_directories(pnnx2onnx PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
-        protobuf_generate(TARGET pnnx2onnx)
-        target_link_libraries(pnnx2onnx PRIVATE protobuf::libprotobuf)
-        message(STATUS "Building with onnx-zero")
+        add_library(onnxproto STATIC onnx.proto)
+        target_include_directories(onnxproto PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
+        protobuf_generate(TARGET onnxproto)
+        target_link_libraries(onnxproto PUBLIC protobuf::libprotobuf)
     endif()
+endif()
+
+set(torch2pnnx_SRCS
+
+    pass_level0.cpp
+    pass_level1.cpp
+
+    ${pnnx_pass_level0_SRCS}
+    ${pnnx_pass_level1_SRCS}
+
+    load_torchscript.cpp
+)
+
+add_library(torch2pnnx OBJECT ${torch2pnnx_SRCS})
+target_compile_definitions(torch2pnnx PRIVATE BUILD_TORCH2PNNX)
+target_compile_options(torch2pnnx PUBLIC "${TORCH_CXX_FLAGS}")
+
+if(TorchVision_FOUND)
+    set_property(SOURCE load_torchscript.cpp APPEND PROPERTY COMPILE_DEFINITIONS PNNX_TORCHVISION)
+endif()
+
+if(PROTOBUF_FOUND)
+    add_library(pnnx2onnx STATIC
+        save_onnx.cpp
+    )
+    target_link_libraries(pnnx2onnx PRIVATE onnxproto)
+
+    message(STATUS "Building with onnx-zero")
 else()
     message(STATUS "Building without onnx-zero")
+endif()
+
+# if(onnxruntime_FOUND)
+#
+#     set(pnnx_pass_onnx_SRCS
+#         pass_onnx/canonicalize.cpp
+#         pass_onnx/dead_code_elimination.cpp
+#         pass_onnx/fold_constants.cpp
+#         pass_onnx/inline_containers.cpp
+#         pass_onnx/model_stat.cpp
+#         pass_onnx/shape_inference.cpp
+#     )
+#
+#     set(onnx2pnnx_SRCS
+#         ${pnnx_pass_onnx_SRCS}
+#         load_onnx.cpp
+#     )
+#
+#     add_library(onnx2pnnx STATIC ${onnx2pnnx_SRCS})
+#     target_link_libraries(onnx2pnnx PRIVATE onnxproto onnxruntime::onnxruntime)
+#
+#     target_compile_definitions(onnx2pnnx PRIVATE BUILD_ONNX2PNNX)
+#
+#     message(STATUS "Building with dynamo-onnx")
+# else()
+#     message(STATUS "Building without dynamo-onnx")
+# endif()
+
+if(NOT MSVC)
+    add_definitions(-Wall -Wextra)
 endif()
 
 set(pnnx_SRCS
@@ -608,15 +649,11 @@ set(pnnx_SRCS
     storezip.cpp
     utils.cpp
 
-    pass_level0.cpp
-    pass_level1.cpp
     pass_level2.cpp
     pass_level3.cpp
     pass_level4.cpp
     pass_level5.cpp
 
-    ${pnnx_pass_level0_SRCS}
-    ${pnnx_pass_level1_SRCS}
     ${pnnx_pass_level2_SRCS}
     ${pnnx_pass_level3_SRCS}
     ${pnnx_pass_level4_SRCS}
@@ -627,13 +664,30 @@ set(pnnx_SRCS
     ${pnnx_pass_ncnn_SRCS}
 )
 
-if(NOT MSVC)
-    add_definitions(-Wall -Wextra)
-endif()
-
 add_executable(pnnx ${pnnx_SRCS})
 
-target_compile_definitions(pnnx PRIVATE BUILD_PNNX)
+set_property(SOURCE main.cpp APPEND PROPERTY COMPILE_DEFINITIONS BUILD_TORCH2PNNX)
+target_link_libraries(pnnx PRIVATE torch2pnnx)
+
+if(TorchVision_FOUND)
+    target_link_libraries(pnnx PRIVATE ${TORCHVISION_LIBRARY})
+endif()
+
+if(WIN32)
+    target_link_libraries(pnnx PRIVATE ${TORCH_LIBRARIES})
+else()
+    target_link_libraries(pnnx PRIVATE ${TORCH_LIBRARIES} pthread dl)
+endif()
+
+if(PROTOBUF_FOUND)
+    set_property(SOURCE main.cpp APPEND PROPERTY COMPILE_DEFINITIONS BUILD_PNNX2ONNX)
+    target_link_libraries(pnnx PRIVATE pnnx2onnx)
+endif()
+
+# if(onnxruntime_FOUND)
+#     set_property(SOURCE main.cpp APPEND PROPERTY COMPILE_DEFINITIONS BUILD_ONNX2PNNX)
+#     target_link_libraries(pnnx PRIVATE onnx2pnnx)
+# endif()
 
 if(PNNX_COVERAGE)
     target_compile_options(pnnx PUBLIC -coverage -fprofile-arcs -ftest-coverage)
@@ -644,23 +698,8 @@ if(WIN32)
     target_compile_definitions(pnnx PUBLIC NOMINMAX)
 endif()
 
-if(PROTOBUF_FOUND)
-    target_compile_definitions(pnnx PRIVATE BUILD_PNNX2ONNX)
-    target_link_libraries(pnnx PRIVATE pnnx2onnx)
-endif()
-
-if(TorchVision_FOUND)
-    target_link_libraries(pnnx PRIVATE TorchVision::TorchVision)
-endif()
-
-if(WIN32)
-    target_link_libraries(pnnx PRIVATE ${TORCH_LIBRARIES})
-else()
-    target_link_libraries(pnnx PRIVATE ${TORCH_LIBRARIES} pthread dl)
-endif()
-
-#set_target_properties(pnnx PROPERTIES COMPILE_FLAGS -fsanitize=address)
-#set_target_properties(pnnx PROPERTIES LINK_FLAGS -fsanitize=address)
+# set_target_properties(pnnx PROPERTIES COMPILE_FLAGS -fsanitize=address)
+# set_target_properties(pnnx PROPERTIES LINK_FLAGS -fsanitize=address)
 
 if(APPLE)
     set_target_properties(pnnx PROPERTIES INSTALL_RPATH "@executable_path/")

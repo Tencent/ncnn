@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class ELU_x86 : virtual public ELU
+class ELU_x86 : public ELU
 {
 public:
     ELU_x86();

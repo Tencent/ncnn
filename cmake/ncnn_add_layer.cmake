@@ -31,35 +31,14 @@ macro(ncnn_add_arch_opt_layer class NCNN_TARGET_ARCH_OPT NCNN_TARGET_ARCH_OPT_CF
         list(APPEND ncnn_SRCS ${NCNN_${NCNN_TARGET_ARCH_OPT}_HEADER} ${NCNN_${NCNN_TARGET_ARCH_OPT}_SOURCE})
 
         # generate layer_declaration and layer_registry file
-        set(layer_declaration "${layer_declaration}#include \"layer/${name}.h\"\n")
-        set(layer_declaration_class "class ${class}_final_${NCNN_TARGET_ARCH_OPT} : virtual public ${class}")
-        set(create_pipeline_content "        { int ret = ${class}::create_pipeline(opt); if (ret) return ret; }\n")
-        set(destroy_pipeline_content "        { int ret = ${class}::destroy_pipeline(opt); if (ret) return ret; }\n")
-
-        if(WITH_LAYER_${name}_vulkan)
-            set(layer_declaration "${layer_declaration}#include \"layer/vulkan/${name}_vulkan.h\"\n")
-            set(layer_declaration_class "${layer_declaration_class}, virtual public ${class}_vulkan")
-            set(create_pipeline_content "${create_pipeline_content}        if (vkdev) { int ret = ${class}_vulkan::create_pipeline(opt); if (ret) return ret; }\n")
-            set(destroy_pipeline_content "        if (vkdev) { int ret = ${class}_vulkan::destroy_pipeline(opt); if (ret) return ret; }\n${destroy_pipeline_content}")
-        endif()
-
         set(layer_declaration "${layer_declaration}#include \"layer/${NCNN_TARGET_ARCH}/${name}_${NCNN_TARGET_ARCH}_${NCNN_TARGET_ARCH_OPT}.h\"\n")
-        set(layer_declaration_class "${layer_declaration_class}, virtual public ${class}_${NCNN_TARGET_ARCH}_${NCNN_TARGET_ARCH_OPT}")
-        set(create_pipeline_content "${create_pipeline_content}        { int ret = ${class}_${NCNN_TARGET_ARCH}_${NCNN_TARGET_ARCH_OPT}::create_pipeline(opt); if (ret) return ret; }\n")
-        set(destroy_pipeline_content "        { int ret = ${class}_${NCNN_TARGET_ARCH}_${NCNN_TARGET_ARCH_OPT}::destroy_pipeline(opt); if (ret) return ret; }\n${destroy_pipeline_content}")
+        set(layer_declaration "${layer_declaration}namespace ncnn { DEFINE_LAYER_CREATOR(${class}_${NCNN_TARGET_ARCH}_${NCNN_TARGET_ARCH_OPT}) }\n")
 
-        set(layer_declaration "${layer_declaration}namespace ncnn {\n${layer_declaration_class}\n{\n")
-        set(layer_declaration "${layer_declaration}public:\n")
-        set(layer_declaration "${layer_declaration}    virtual int create_pipeline(const Option& opt) {\n${create_pipeline_content}        return 0;\n    }\n")
-        set(layer_declaration "${layer_declaration}    virtual int destroy_pipeline(const Option& opt) {\n${destroy_pipeline_content}        return 0;\n    }\n")
-        set(layer_declaration "${layer_declaration}};\n")
-        set(layer_declaration "${layer_declaration}DEFINE_LAYER_CREATOR(${class}_final_${NCNN_TARGET_ARCH_OPT})\n} // namespace ncnn\n\n")
-
-        set(layer_registry_${NCNN_TARGET_ARCH_OPT} "${layer_registry_${NCNN_TARGET_ARCH_OPT}}#if NCNN_STRING\n{\"${class}\", ${class}_final_${NCNN_TARGET_ARCH_OPT}_layer_creator},\n#else\n{${class}_final_${NCNN_TARGET_ARCH_OPT}_layer_creator},\n#endif\n")
+        set(layer_registry_${NCNN_TARGET_ARCH_OPT} "${layer_registry_${NCNN_TARGET_ARCH_OPT}}#if NCNN_STRING\n{\"${class}\", ${class}_${NCNN_TARGET_ARCH}_${NCNN_TARGET_ARCH_OPT}_layer_creator},\n#else\n{${class}_${NCNN_TARGET_ARCH}_${NCNN_TARGET_ARCH_OPT}_layer_creator},\n#endif\n")
     else()
         # no isa optimized version
         if(WITH_LAYER_${name})
-            set(layer_registry_${NCNN_TARGET_ARCH_OPT} "${layer_registry_${NCNN_TARGET_ARCH_OPT}}#if NCNN_STRING\n{\"${class}\", ${class}_final_layer_creator},\n#else\n{${class}_final_layer_creator},\n#endif\n")
+            set(layer_registry_${NCNN_TARGET_ARCH_OPT} "${layer_registry_${NCNN_TARGET_ARCH_OPT}}#if NCNN_STRING\n{\"${class}\", ${class}_layer_creator},\n#else\n{${class}_layer_creator},\n#endif\n")
         else()
             set(layer_registry_${NCNN_TARGET_ARCH_OPT} "${layer_registry_${NCNN_TARGET_ARCH_OPT}}#if NCNN_STRING\n{\"${class}\", 0},\n#else\n{0},\n#endif\n")
         endif()
@@ -110,18 +89,21 @@ macro(ncnn_add_layer class)
     # generate layer_declaration and layer_registry file
     if(WITH_LAYER_${name})
         set(layer_declaration "${layer_declaration}#include \"layer/${name}.h\"\n")
-        set(layer_declaration_class "class ${class}_final : virtual public ${class}")
-        set(create_pipeline_content "        { int ret = ${class}::create_pipeline(opt); if (ret) return ret; }\n")
-        set(destroy_pipeline_content "        { int ret = ${class}::destroy_pipeline(opt); if (ret) return ret; }\n")
+        set(layer_declaration "${layer_declaration}namespace ncnn { DEFINE_LAYER_CREATOR(${class}) }\n")
 
         source_group ("sources\\\\layers" FILES "${CMAKE_CURRENT_SOURCE_DIR}/layer/${name}.cpp")
     endif()
 
+    if(WITH_LAYER_${name}_${NCNN_TARGET_ARCH})
+        set(layer_declaration "${layer_declaration}#include \"layer/${NCNN_TARGET_ARCH}/${name}_${NCNN_TARGET_ARCH}.h\"\n")
+        set(layer_declaration "${layer_declaration}namespace ncnn { DEFINE_LAYER_CREATOR(${class}_${NCNN_TARGET_ARCH}) }\n")
+
+        source_group ("sources\\\\layers\\\\${NCNN_TARGET_ARCH}" FILES "${CMAKE_CURRENT_SOURCE_DIR}/layer/${NCNN_TARGET_ARCH}/${name}_${NCNN_TARGET_ARCH}.cpp")
+    endif()
+
     if(WITH_LAYER_${name}_vulkan)
         set(layer_declaration "${layer_declaration}#include \"layer/vulkan/${name}_vulkan.h\"\n")
-        set(layer_declaration_class "${layer_declaration_class}, virtual public ${class}_vulkan")
-        set(create_pipeline_content "${create_pipeline_content}        if (vkdev) { int ret = ${class}_vulkan::create_pipeline(opt); if (ret) return ret; }\n")
-        set(destroy_pipeline_content "        if (vkdev) { int ret = ${class}_vulkan::destroy_pipeline(opt); if (ret) return ret; }\n${destroy_pipeline_content}")
+        set(layer_declaration "${layer_declaration}namespace ncnn { DEFINE_LAYER_CREATOR(${class}_vulkan) }\n")
 
         file(GLOB_RECURSE NCNN_SHADER_SRCS "layer/vulkan/shader/${name}.comp")
         file(GLOB_RECURSE NCNN_SHADER_SUBSRCS "layer/vulkan/shader/${name}_*.comp")
@@ -133,28 +115,22 @@ macro(ncnn_add_layer class)
         source_group ("sources\\\\layers\\\\vulkan" FILES "${CMAKE_CURRENT_SOURCE_DIR}/layer/vulkan/${name}_vulkan.cpp")
     endif()
 
-    if(WITH_LAYER_${name}_${NCNN_TARGET_ARCH})
-        set(layer_declaration "${layer_declaration}#include \"layer/${NCNN_TARGET_ARCH}/${name}_${NCNN_TARGET_ARCH}.h\"\n")
-        set(layer_declaration_class "${layer_declaration_class}, virtual public ${class}_${NCNN_TARGET_ARCH}")
-        set(create_pipeline_content "${create_pipeline_content}        { int ret = ${class}_${NCNN_TARGET_ARCH}::create_pipeline(opt); if (ret) return ret; }\n")
-        set(destroy_pipeline_content "        { int ret = ${class}_${NCNN_TARGET_ARCH}::destroy_pipeline(opt); if (ret) return ret; }\n${destroy_pipeline_content}")
-
-        source_group ("sources\\\\layers\\\\${NCNN_TARGET_ARCH}" FILES "${CMAKE_CURRENT_SOURCE_DIR}/layer/${NCNN_TARGET_ARCH}/${name}_${NCNN_TARGET_ARCH}.cpp")
-    endif()
-
     if(WITH_LAYER_${name})
-        set(layer_declaration "${layer_declaration}namespace ncnn {\n${layer_declaration_class}\n{\n")
-        set(layer_declaration "${layer_declaration}public:\n")
-        set(layer_declaration "${layer_declaration}    virtual int create_pipeline(const Option& opt) {\n${create_pipeline_content}        return 0;\n    }\n")
-        set(layer_declaration "${layer_declaration}    virtual int destroy_pipeline(const Option& opt) {\n${destroy_pipeline_content}        return 0;\n    }\n")
-        set(layer_declaration "${layer_declaration}};\n")
-        set(layer_declaration "${layer_declaration}DEFINE_LAYER_CREATOR(${class}_final)\n} // namespace ncnn\n\n")
-    endif()
-
-    if(WITH_LAYER_${name})
-        set(layer_registry "${layer_registry}#if NCNN_STRING\n{\"${class}\", ${class}_final_layer_creator},\n#else\n{${class}_final_layer_creator},\n#endif\n")
+        set(layer_registry "${layer_registry}#if NCNN_STRING\n{\"${class}\", ${class}_layer_creator},\n#else\n{${class}_layer_creator},\n#endif\n")
     else()
         set(layer_registry "${layer_registry}#if NCNN_STRING\n{\"${class}\", 0},\n#else\n{0},\n#endif\n")
+    endif()
+
+    if(WITH_LAYER_${name}_${NCNN_TARGET_ARCH})
+        set(layer_registry_arch "${layer_registry_arch}#if NCNN_STRING\n{\"${class}\", ${class}_${NCNN_TARGET_ARCH}_layer_creator},\n#else\n{${class}_${NCNN_TARGET_ARCH}_layer_creator},\n#endif\n")
+    else()
+        set(layer_registry_arch "${layer_registry_arch}#if NCNN_STRING\n{\"${class}\", 0},\n#else\n{0},\n#endif\n")
+    endif()
+
+    if(WITH_LAYER_${name}_vulkan)
+        set(layer_registry_vulkan "${layer_registry_vulkan}#if NCNN_STRING\n{\"${class}\", ${class}_vulkan_layer_creator},\n#else\n{${class}_vulkan_layer_creator},\n#endif\n")
+    else()
+        set(layer_registry_vulkan "${layer_registry_vulkan}#if NCNN_STRING\n{\"${class}\", 0},\n#else\n{0},\n#endif\n")
     endif()
 
     if(NCNN_TARGET_ARCH STREQUAL "x86")

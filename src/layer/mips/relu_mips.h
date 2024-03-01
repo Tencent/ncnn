@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class ReLU_mips : virtual public ReLU
+class ReLU_mips : public ReLU
 {
 public:
     ReLU_mips();

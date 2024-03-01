@@ -38,7 +38,7 @@ jobs:
 
     - name: cache-qemu
       id: cache-qemu
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: qemu-install
         key: qemu-mips64el-install-20220502-2
@@ -59,7 +59,7 @@ jobs:
       run: |
         cd qemu
         ./configure --prefix=$GITHUB_WORKSPACE/qemu-install --target-list=mips64el-linux-user --disable-system
-        make -j2
+        make -j$(nproc)
         make install
 
     - name: mips64el-gnuabi64-toolchain
@@ -70,13 +70,13 @@ jobs:
     - name: configure
       run: mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/mips64el-linux-gnuabi64.toolchain.cmake -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
     - name: build
-      run: cmake --build build -j 2
+      run: cmake --build build -j $(nproc)
 
     - name: test
       run: |
         export PATH=$GITHUB_WORKSPACE/qemu-install/bin:$PATH
         cd build
-        TESTS_EXECUTABLE_LOADER=qemu-mips64el TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/mips64el-linux-gnuabi64" ctest --output-on-failure -j 2
+        TESTS_EXECUTABLE_LOADER=qemu-mips64el TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/mips64el-linux-gnuabi64" ctest --output-on-failure -j $(nproc)
 
   linux-gcc-mipsisa64r6el:
     runs-on: ubuntu-20.04
@@ -85,7 +85,7 @@ jobs:
 
     - name: cache-qemu
       id: cache-qemu
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: qemu-install
         key: qemu-mips64el-install-20220502-4
@@ -118,7 +118,7 @@ jobs:
         patch -p1 -i 0005-target-mips-Fix-FTRUNC_S-and-FTRUNC_U-trans-helper.patch
         patch -p1 -i 0006-target-mips-Fix-store-adress-of-high-64bit-in-helper.patch
         ./configure --prefix=$GITHUB_WORKSPACE/qemu-install --target-list=mips64el-linux-user --disable-system
-        make -j2
+        make -j$(nproc)
         make install
 
     - name: mipsisa64r6el-gnuabi64-toolchain
@@ -129,10 +129,10 @@ jobs:
     - name: configure
       run: mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/mipsisa64r6el-linux-gnuabi64.toolchain.cmake -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
     - name: build
-      run: cmake --build build -j 2
+      run: cmake --build build -j $(nproc)
 
     - name: test
       run: |
         export PATH=$GITHUB_WORKSPACE/qemu-install/bin:$PATH
         cd build
-        TESTS_EXECUTABLE_LOADER=qemu-mips64el TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/mipsisa64r6el-linux-gnuabi64" ctest --output-on-failure -j 2
+        TESTS_EXECUTABLE_LOADER=qemu-mips64el TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/mipsisa64r6el-linux-gnuabi64" ctest --output-on-failure -j $(nproc)

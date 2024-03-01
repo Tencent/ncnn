@@ -12,7 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "layer/deconvolution.h"
 #include "testutil.h"
 
 static int test_deconvolution(int w, int h, int c, int outch, int kernel, int dilation, int stride, int pad, int bias, int output_pad_right, int output_pad_bottom, int output_w, int output_h)
@@ -49,7 +48,7 @@ static int test_deconvolution(int w, int h, int c, int outch, int kernel, int di
     weights[0] = RandomMat(outch * c * kernel * kernel);
     weights[1] = RandomMat(outch);
 
-    int ret = test_layer<ncnn::Deconvolution>("Deconvolution", pd, weights, a);
+    int ret = test_layer("Deconvolution", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_deconvolution failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%f,%f] output_pad_right=%d output_pad_bottom=%d output_w=%d output_h=%d\n", w, h, c, outch, kernel, dilation, stride, pad, bias, activation_type, activation_params[0], activation_params[1], output_pad_right, output_pad_bottom, output_w, output_h);
@@ -68,7 +67,7 @@ static int test_deconvolution(int w, int h, int c, int outch, int kernel, int di
         opt.use_sgemm_convolution = false;
         opt.use_winograd_convolution = false;
 
-        ret = test_layer_opt<ncnn::Deconvolution>("Deconvolution", pd, weights, opt, a);
+        ret = test_layer_opt("Deconvolution", pd, weights, opt, a);
         if (ret != 0)
         {
             fprintf(stderr, "test_deconvolution failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%f,%f] output_pad_right=%d output_pad_bottom=%d output_w=%d output_h=%d\n", w, h, c, outch, kernel, dilation, stride, pad, bias, activation_type, activation_params[0], activation_params[1], output_pad_right, output_pad_bottom, output_w, output_h);
@@ -88,7 +87,7 @@ static int test_deconvolution(int w, int h, int c, int outch, int kernel, int di
         opt.use_sgemm_convolution = false;
         opt.use_winograd_convolution = false;
 
-        ret = test_layer_opt<ncnn::Deconvolution>("Deconvolution", pd, weights, opt, a);
+        ret = test_layer_opt("Deconvolution", pd, weights, opt, a);
         if (ret != 0)
         {
             fprintf(stderr, "test_deconvolution failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%f,%f] output_pad_right=%d output_pad_bottom=%d output_w=%d output_h=%d\n", w, h, c, outch, kernel, dilation, stride, pad, bias, activation_type, activation_params[0], activation_params[1], output_pad_right, output_pad_bottom, output_w, output_h);
@@ -190,7 +189,7 @@ static int test_deconvolution_dynamic(int w, int h, int c, int outch, int kernel
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer<ncnn::Deconvolution>("Deconvolution", pd, weights, as);
+    int ret = test_layer("Deconvolution", pd, weights, as);
     if (ret != 0)
     {
         fprintf(stderr, "test_deconvolution_dynamic failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%f,%f] output_pad_right=%d output_pad_bottom=%d output_w=%d output_h=%d\n", w, h, c, outch, kernel, dilation, stride, pad, bias, activation_type, activation_params[0], activation_params[1], output_pad_right, output_pad_bottom, output_w, output_h);

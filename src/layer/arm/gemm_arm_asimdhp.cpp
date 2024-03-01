@@ -2736,10 +2736,7 @@ int Gemm_arm::create_pipeline_fp16sa(const Option& opt)
             }
         }
 
-        if (opt.lightmode)
-        {
-            A_data.release();
-        }
+        A_data.release();
     }
 
     if (constantB)
@@ -2779,10 +2776,7 @@ int Gemm_arm::create_pipeline_fp16sa(const Option& opt)
             }
         }
 
-        if (opt.lightmode)
-        {
-            B_data.release();
-        }
+        B_data.release();
     }
 
     if (constantC && constant_broadcast_type_C != -1)
@@ -2808,10 +2802,7 @@ int Gemm_arm::create_pipeline_fp16sa(const Option& opt)
             }
         }
 
-        if (opt.lightmode)
-        {
-            C_data.release();
-        }
+        C_data.release();
     }
 
     if (constantA || constantB || constantC)
@@ -2922,7 +2913,7 @@ int Gemm_arm::forward_fp16sa(const std::vector<Mat>& bottom_blobs, std::vector<M
                 __fp16* outptr = CT_data;
                 for (int i = 0; i < size; i++)
                 {
-                    outptr[i] = ptr[i] * beta;
+                    outptr[i] = ptr[i] * (__fp16)beta;
                 }
 
                 C = CT_data;

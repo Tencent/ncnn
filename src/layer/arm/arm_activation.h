@@ -68,9 +68,10 @@ static inline float32x4_t activation_ps(float32x4_t _v, int activation_type, con
 }
 
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#include "arm_usability.h"
 #include "neon_mathfun_fp16s.h"
 
-static inline __fp16 activation_ss(__fp16 v, int activation_type, const ncnn::Mat& activation_params)
+static inline __fp16 activation_ss_f16(__fp16 v, int activation_type, const ncnn::Mat& activation_params)
 {
     if (activation_type == 1)
     {
@@ -92,11 +93,11 @@ static inline __fp16 activation_ss(__fp16 v, int activation_type, const ncnn::Ma
     }
     else if (activation_type == 4)
     {
-        v = (__fp16)1.f / ((__fp16)1.f + expf(-v));
+        v = (__fp16)1.f / ((__fp16)1.f + (__fp16)expf(-v));
     }
     else if (activation_type == 5)
     {
-        v = v * tanhf(logf(expf(v) + (__fp16)1.f));
+        v = v * (__fp16)tanhf(logf(expf((float)v) + 1.f));
     }
     else if (activation_type == 6)
     {
@@ -115,7 +116,7 @@ static inline __fp16 activation_ss(__fp16 v, int activation_type, const ncnn::Ma
     return v;
 }
 
-static inline float16x4_t activation_ps(float16x4_t _v, int activation_type, const ncnn::Mat& activation_params)
+static inline float16x4_t activation_ps_f16(float16x4_t _v, int activation_type, const ncnn::Mat& activation_params)
 {
     if (activation_type == 1)
     {
@@ -125,7 +126,11 @@ static inline float16x4_t activation_ps(float16x4_t _v, int activation_type, con
     else if (activation_type == 2)
     {
         const float16x4_t _zero = vdup_n_f16(0.f);
+#if _MSC_VER
+        const float16x4_t _slope = vcvt_f16_f32(vdupq_n_f32(activation_params[0]));
+#else
         const float16x4_t _slope = vdup_n_f16((__fp16)activation_params[0]);
+#endif
         const uint16x4_t _lemask = vcle_f16(_v, _zero);
         float16x4_t _ps = vmul_f16(_v, _slope);
         _v = vbsl_f16(_lemask, _ps, _v);
@@ -139,11 +144,11 @@ static inline float16x4_t activation_ps(float16x4_t _v, int activation_type, con
     }
     else if (activation_type == 4)
     {
-        _v = sigmoid_ps(_v);
+        _v = sigmoid_ps_f16(_v);
     }
     else if (activation_type == 5)
     {
-        _v = vmul_f16(_v, tanh_ps(log_ps(vadd_f16(exp_ps(_v), vdup_n_f16(1.f)))));
+        _v = vmul_f16(_v, tanh_ps_f16(log_ps_f16(vadd_f16(exp_ps_f16(_v), vdup_n_f16(1.f)))));
     }
     else if (activation_type == 6)
     {
@@ -161,7 +166,7 @@ static inline float16x4_t activation_ps(float16x4_t _v, int activation_type, con
     return _v;
 }
 
-static inline float16x8_t activation_ps(float16x8_t _v, int activation_type, const ncnn::Mat& activation_params)
+static inline float16x8_t activation_ps_f16(float16x8_t _v, int activation_type, const ncnn::Mat& activation_params)
 {
     if (activation_type == 1)
     {
@@ -171,7 +176,12 @@ static inline float16x8_t activation_ps(float16x8_t _v, int activation_type, con
     else if (activation_type == 2)
     {
         const float16x8_t _zero = vdupq_n_f16(0.f);
+#if _MSC_VER
+        const float16x4_t _slope0 = vcvt_f16_f32(vdupq_n_f32(activation_params[0]));
+        const float16x8_t _slope = vcombine_f16(_slope0, _slope0);
+#else
         const float16x8_t _slope = vdupq_n_f16((__fp16)activation_params[0]);
+#endif
         const uint16x8_t _lemask = vcleq_f16(_v, _zero);
         float16x8_t _ps = vmulq_f16(_v, _slope);
         _v = vbslq_f16(_lemask, _ps, _v);
@@ -185,11 +195,11 @@ static inline float16x8_t activation_ps(float16x8_t _v, int activation_type, con
     }
     else if (activation_type == 4)
     {
-        _v = sigmoid_ps(_v);
+        _v = sigmoid_ps_f16(_v);
     }
     else if (activation_type == 5)
     {
-        _v = vmulq_f16(_v, tanh_ps(log_ps(vaddq_f16(exp_ps(_v), vdupq_n_f16(1.f)))));
+        _v = vmulq_f16(_v, tanh_ps_f16(log_ps_f16(vaddq_f16(exp_ps_f16(_v), vdupq_n_f16(1.f)))));
     }
     else if (activation_type == 6)
     {

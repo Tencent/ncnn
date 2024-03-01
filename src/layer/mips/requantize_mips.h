@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Requantize_mips : virtual public Requantize
+class Requantize_mips : public Requantize
 {
 public:
     Requantize_mips();

@@ -12,7 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "layer/tanh.h"
 #include "testutil.h"
 
 static int test_tanh(const ncnn::Mat& a)
@@ -21,7 +20,7 @@ static int test_tanh(const ncnn::Mat& a)
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer<ncnn::TanH>("TanH", pd, weights, a);
+    int ret = test_layer("TanH", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_tanh failed a.dims=%d a=(%d %d %d %d)\n", a.dims, a.w, a.h, a.d, a.c);

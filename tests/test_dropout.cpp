@@ -12,7 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "layer/dropout.h"
 #include "testutil.h"
 
 static int test_dropout(const ncnn::Mat& a, float scale)
@@ -22,7 +21,7 @@ static int test_dropout(const ncnn::Mat& a, float scale)
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer<ncnn::Dropout>("Dropout", pd, weights, a);
+    int ret = test_layer("Dropout", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_dropout failed a.dims=%d a=(%d %d %d) scale=%f\n", a.dims, a.w, a.h, a.c, scale);
