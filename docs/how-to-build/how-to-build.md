@@ -193,6 +193,45 @@ cmake --build . --config Release --target install
 
 Note: To speed up compilation process on multi core machines, configuring `cmake` to use `jom` or `ninja` using `-G` flag is recommended.
 
+(additionally) For protobuf >=22.0 (Take v25.3 for example)
+
+Build zlib:
+```shell
+git clone -b -v1.3.1 https://github.com/madler/zlib.git
+cd zlib
+mkdir build
+cd build
+cmake -A x64 -DCMAKE_INSTALL_PREFIX=%cd%/install ..
+cmake --build . --config Release -j 2
+cmake --build . --config Release --target install
+```
+
+Build protobuf library (replace &lt;zlib-root-dir&gt; with a proper path):
+```shell
+git clone -b v25.3 https://github.com/protocolbuffers/protobuf.git
+cd protobuf
+git submodule update --init --recursive
+
+mkdir protobuf_build
+cd protobuf_build
+cmake -A x64 -DCMAKE_INSTALL_PREFIX=%cd%/install -DCMAKE_CXX_STANDARD=14 -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF -DZLIB_INCLUDE_DIR=<zlib-root-dir>\build\install\include -DZLIB_LIBRARY=<zlib-root-dir>\build\install\lib\zlib.lib -DABSL_PROPAGATE_CXX_STD=ON ../cmake
+cmake --build . --config Release -j 2
+cmake --build . --config Release --target install
+```
+
+Note: Before the build of ncnn, replace all `find_package(protobuf CONFIG)` in *tools/caffe/CMakeList*, *tools/onnx/CMakeList* and *tools/pnnx/CMakeList* with `find_package(protobuf REQUIRED CONFIG)`.
+
+Build ncnn library (replace &lt;zlib-root-dir&gt; and &lt;protobuf-root-dir&gt; with a proper path):
+
+```shell
+cd <ncnn-root-dir>
+mkdir -p build
+cd build
+cmake -A x64 -DCMAKE_INSTALL_PREFIX=%cd%/install -DCMAKE_PREFIX_PATH=<protobuf-root-dir>/protobuf_build\install\cmake -DZLIB_INCLUDE_DIR=<zlib-root-dir>\build\install\include -DZLIB_LIBRARY=<zlib-root-dir>\build\install\lib\zlib.lib -Dabsl_DIR=<protobuf-root-dir>/protobuf_build\install\lib\cmake\absl -Dutf8_range_DIR=<protobuf-root-dir>/protobuf_build\install\lib\cmake\utf8_range -DNCNN_VULKAN=ON ..
+cmake --build . --config Release -j 2
+cmake --build . --config Release --target install
+```
+
 ***
 ### Build for macOS
 
