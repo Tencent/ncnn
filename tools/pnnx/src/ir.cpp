@@ -943,7 +943,7 @@ static std::string sanitize_identifier(const std::string& s)
     std::string ss = s;
     for (size_t i = 0; i < ss.size(); i++)
     {
-        if (ss[i] == '.' || ss[i] == ':')
+        if (ss[i] == '.' || ss[i] == ':' || ss[i] == '/')
             ss[i] = '_';
     }
 
