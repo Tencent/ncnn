@@ -106,13 +106,13 @@ void fold_constants(onnx::ModelProto& model)
             // aten::size
             // aten::_shape_as_tensor
             if (op_type == "aten_new_empty"
-                || op_type == "aten_new_full"
-                || op_type == "aten_new_ones"
-                || op_type == "aten_new_zeros"
-                || op_type == "aten_empty_like"
-                || op_type == "aten_full_like"
-                || op_type == "aten_ones_like"
-                || op_type == "aten_zeros_like")
+                    || op_type == "aten_new_full"
+                    || op_type == "aten_new_ones"
+                    || op_type == "aten_new_zeros"
+                    || op_type == "aten_empty_like"
+                    || op_type == "aten_full_like"
+                    || op_type == "aten_ones_like"
+                    || op_type == "aten_zeros_like")
             {
                 is_outputs_foldable = true;
             }

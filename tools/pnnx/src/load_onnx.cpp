@@ -383,7 +383,7 @@ int load_onnx(const std::string& onnxpath, Graph& pnnx_graph)
 
     double t1 = get_current_time();
 
-    fprintf(stderr, "%10.2fms\n", t1-t0);
+    fprintf(stderr, "%10.2fms\n", t1 - t0);
 
     fprintf(stderr, "%-30s", "fold_constants ... ");
 
@@ -393,7 +393,7 @@ int load_onnx(const std::string& onnxpath, Graph& pnnx_graph)
 
     t1 = get_current_time();
 
-    fprintf(stderr, "%10.2fms\n", t1-t0);
+    fprintf(stderr, "%10.2fms\n", t1 - t0);
 
     fprintf(stderr, "%-30s", "dead_code_elimination ... ");
 
@@ -403,7 +403,7 @@ int load_onnx(const std::string& onnxpath, Graph& pnnx_graph)
 
     t1 = get_current_time();
 
-    fprintf(stderr, "%10.2fms\n", t1-t0);
+    fprintf(stderr, "%10.2fms\n", t1 - t0);
 
     fprintf(stderr, "%-30s", "canonicalize ... ");
 
@@ -413,7 +413,7 @@ int load_onnx(const std::string& onnxpath, Graph& pnnx_graph)
 
     t1 = get_current_time();
 
-    fprintf(stderr, "%10.2fms\n", t1-t0);
+    fprintf(stderr, "%10.2fms\n", t1 - t0);
 
     fprintf(stderr, "%-30s", "shape_inference ... ");
 
@@ -423,7 +423,7 @@ int load_onnx(const std::string& onnxpath, Graph& pnnx_graph)
 
     t1 = get_current_time();
 
-    fprintf(stderr, "%10.2fms\n", t1-t0);
+    fprintf(stderr, "%10.2fms\n", t1 - t0);
 
     // save
     std::fstream output("tmp2.onnx", std::ios::out | std::ios::trunc | std::ios::binary);

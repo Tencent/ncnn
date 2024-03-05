@@ -46,9 +46,9 @@ public:
             {
                 std::vector<int64_t> constant_dim_value = constant_dim.attribute("value");
 
-                if (constant_dim_value == std::vector<int64_t>{-1, -2})
+                if (constant_dim_value == std::vector<int64_t> {-1, -2})
                 {
-                    op->params["output_size"] = {1,1};
+                    op->params["output_size"] = {1, 1};
                 }
             }
         }

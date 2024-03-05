@@ -26,7 +26,7 @@ class ModelProto;
 class NodeProto;
 class TensorProto;
 class ValueInfoProto;
-}
+} // namespace onnx
 
 namespace pnnx {
 
@@ -38,14 +38,35 @@ namespace onnx2pnnx {
 class OnnxAttributeProxy
 {
 public:
-    OnnxAttributeProxy(const onnx::AttributeProto& _attr) : attr(_attr) {}
+    OnnxAttributeProxy(const onnx::AttributeProto& _attr)
+        : attr(_attr)
+    {
+    }
 
-    operator float() const { return value_f(); }
-    operator int64_t() const { return value_i(); }
-    operator std::string() const { return value_s(); }
-    operator std::vector<float>() const { return value_fs(); }
-    operator std::vector<int64_t>() const { return value_is(); }
-    operator std::vector<std::string>() const { return value_ss(); }
+    operator float() const
+    {
+        return value_f();
+    }
+    operator int64_t() const
+    {
+        return value_i();
+    }
+    operator std::string() const
+    {
+        return value_s();
+    }
+    operator std::vector<float>() const
+    {
+        return value_fs();
+    }
+    operator std::vector<int64_t>() const
+    {
+        return value_is();
+    }
+    operator std::vector<std::string>() const
+    {
+        return value_ss();
+    }
 
     float value_f() const;
     int64_t value_i() const;
