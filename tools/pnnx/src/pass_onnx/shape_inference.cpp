@@ -63,7 +63,7 @@ void shape_inference(onnx::ModelProto& model)
             if (op_type == "aten_split")
                 continue;
 
-            if (node.domain().empty() || string_starts_with(op_type, "nn_") || string_starts_with(op_type, "aten_"))
+            if (node.domain().empty() || string_starts_with(op_type, "nn_") || string_starts_with(op_type, "aten_") || string_starts_with(op_type, "_aten_"))
             {
                 for (int j = 0; j < node.output_size(); j++)
                 {

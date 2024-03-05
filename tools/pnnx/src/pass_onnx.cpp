@@ -59,6 +59,28 @@ static float get_tensor_f(const onnx::TensorProto& tensor)
     return 0.f;
 }
 
+static std::vector<float> get_tensor_af(const onnx::TensorProto& tensor)
+{
+    if (tensor.dims_size() != 1)
+    {
+        fprintf(stderr, "get_tensor_af dims_size %d\n", (int)tensor.dims_size());
+    }
+
+    const int64_t numel = tensor.dims(0);
+
+    if (tensor.data_type() == onnx::TensorProto::FLOAT)
+    {
+        const float* p = tensor.has_raw_data() ? (float*)tensor.raw_data().data() : tensor.float_data().data();
+        std::vector<float> af(numel);
+        memcpy(af.data(), p, sizeof(float) * numel);
+        return af;
+    }
+
+    // fatal error
+    fprintf(stderr, "get_tensor_af failed\n");
+    return std::vector<float>();
+}
+
 static int64_t get_tensor_i(const onnx::TensorProto& tensor)
 {
     int64_t numel = 1;
@@ -99,6 +121,37 @@ static int64_t get_tensor_i(const onnx::TensorProto& tensor)
     // fatal error
     fprintf(stderr, "get_tensor_i failed\n");
     return 0;
+}
+
+static std::vector<int64_t> get_tensor_ai(const onnx::TensorProto& tensor)
+{
+    if (tensor.dims_size() != 1)
+    {
+        fprintf(stderr, "get_tensor_af dims_size %d\n", (int)tensor.dims_size());
+    }
+
+    const int64_t numel = tensor.dims(0);
+
+    if (tensor.data_type() == onnx::TensorProto::INT32)
+    {
+        const int* p = tensor.has_raw_data() ? (int*)tensor.raw_data().data() : tensor.int32_data().data();
+        std::vector<int64_t> ai(numel);
+        for (int i = 0; i < numel; i++)
+            ai[i] = p[i];
+        return ai;
+    }
+
+    if (tensor.data_type() == onnx::TensorProto::INT64)
+    {
+        const int64_t* p = tensor.has_raw_data() ? (int64_t*)tensor.raw_data().data() : tensor.int64_data().data();
+        std::vector<int64_t> ai(numel);
+        memcpy(ai.data(), p, sizeof(int64_t) * numel);
+        return ai;
+    }
+
+    // fatal error
+    fprintf(stderr, "get_tensor_ai failed\n");
+    return std::vector<int64_t>();
 }
 
 float OnnxAttributeProxy::value_f() const
@@ -143,30 +196,46 @@ std::string OnnxAttributeProxy::value_s() const
 
 std::vector<float> OnnxAttributeProxy::value_fs() const
 {
-    if (attr.type() != onnx::AttributeProto::FLOATS)
-        fprintf(stderr, "OnnxAttributeProxy value_fs failed\n");
-
-    const int size = attr.floats().size();
-    std::vector<float> fs(size);
-    for (int i = 0; i < size; i++)
+    if (attr.type() == onnx::AttributeProto::FLOATS)
     {
-        fs[i] = attr.floats().at(i);
+        const int size = attr.floats().size();
+        std::vector<float> fs(size);
+        for (int i = 0; i < size; i++)
+        {
+            fs[i] = attr.floats().at(i);
+        }
+        return fs;
     }
-    return fs;
+
+    if (attr.type() == onnx::AttributeProto::TENSOR)
+    {
+        return get_tensor_af(attr.t());
+    }
+
+    fprintf(stderr, "OnnxAttributeProxy value_fs failed\n");
+    return std::vector<float>();
 }
 
 std::vector<int64_t> OnnxAttributeProxy::value_is() const
 {
-    if (attr.type() != onnx::AttributeProto::INTS)
-        fprintf(stderr, "OnnxAttributeProxy value_is failed\n");
-
-    const int size = attr.ints().size();
-    std::vector<int64_t> is(size);
-    for (int i = 0; i < size; i++)
+    if (attr.type() == onnx::AttributeProto::INTS)
     {
-        is[i] = attr.ints().at(i);
+        const int size = attr.ints().size();
+        std::vector<int64_t> is(size);
+        for (int i = 0; i < size; i++)
+        {
+            is[i] = attr.ints().at(i);
+        }
+        return is;
     }
-    return is;
+
+    if (attr.type() == onnx::AttributeProto::TENSOR)
+    {
+        return get_tensor_ai(attr.t());
+    }
+
+    fprintf(stderr, "OnnxAttributeProxy value_is failed\n");
+    return std::vector<int64_t>();
 }
 
 std::vector<std::string> OnnxAttributeProxy::value_ss() const
