@@ -206,6 +206,10 @@ Parameter::Parameter(const onnx::AttributeProto& attr)
     }
 }
 
+Parameter::Parameter(const onnx2pnnx::OnnxAttributeProxy& attr) : Parameter(attr.attr)
+{
+}
+
 Attribute::Attribute(const onnx::TensorProto& t)
 {
     type = get_onnx_tensor_type(t.data_type());
