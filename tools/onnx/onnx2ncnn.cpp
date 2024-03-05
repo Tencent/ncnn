@@ -3910,6 +3910,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "UnaryOp");
         }
+        else if (op == "Size")
+        {
+            fprintf(pp, "%-16s", "Size");
+        }
         else if (op == "SkipLayerNormalization")
         {
             fprintf(pp, "%-16s", "SkipLayerNormalization");
@@ -5772,6 +5776,10 @@ int main(int argc, char** argv)
         {
             int op_type = 9;
             fprintf(pp, " 0=%d", op_type);
+        }
+        else if (op == "Size")
+        {
+            // no-op
         }
         else if (op == "SkipLayerNormalization")
         {
