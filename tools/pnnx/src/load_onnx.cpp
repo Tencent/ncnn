@@ -206,7 +206,8 @@ Parameter::Parameter(const onnx::AttributeProto& attr)
     }
 }
 
-Parameter::Parameter(const onnx2pnnx::OnnxAttributeProxy& attr) : Parameter(attr.attr)
+Parameter::Parameter(const onnx2pnnx::OnnxAttributeProxy& attr)
+    : Parameter(attr.attr)
 {
 }
 
