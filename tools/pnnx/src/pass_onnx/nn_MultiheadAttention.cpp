@@ -36,7 +36,6 @@ public:
 
     void write(Operator* op, const OnnxFunctionProxy& function) const
     {
-
         const OnnxNodeProxy attention_scale = function.typed_node("_attention_scale");
 
         const OnnxNodeProxy reshape_heads = function.find_producer(attention_scale.node.input(0));
@@ -49,10 +48,9 @@ public:
             op->params["num_heads"] = shape[1];
         }
 
-
         const OnnxNodeProxy transpose = function.typed_node("Transpose");
         std::vector<int64_t> perm = transpose.attribute("perm");
-        if (perm == std::vector<int64_t>{1, 0, 2})
+        if (perm == std::vector<int64_t> {1, 0, 2})
         {
             op->params["batch_first"] = true;
         }
@@ -63,12 +61,10 @@ public:
 
         op->params["add_zero_attn"] = false; // TODO
 
-
         if (function.has_typed_node("_aten_scaled_dot_product_attention_no_mask_onnx"))
         {
             // TODO handle attn_mask
         }
-
 
         if (function.has_initializer("in_proj_weight"))
         {
