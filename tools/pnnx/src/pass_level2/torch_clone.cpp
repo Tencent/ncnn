@@ -65,6 +65,23 @@ pnnx.Output             output      1 0 out
     {
         return "torch.clone";
     }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        if (captured_params.at("memory_format").type == 4 && captured_params.at("memory_format").s.empty())
+        {
+            op->params["memory_format"] = "torch.contiguous_format";
+        }
+        else
+        {
+            if (captured_params.at("memory_format").i == 0)
+                op->params["memory_format"] = "torch.contiguous_format";
+            if (captured_params.at("memory_format").i == 1)
+                op->params["memory_format"] = "torch.preserve_format";
+            if (captured_params.at("memory_format").i == 2)
+                op->params["memory_format"] = "torch.channels_last";
+        }
+    }
 };
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_clone_1, 20)

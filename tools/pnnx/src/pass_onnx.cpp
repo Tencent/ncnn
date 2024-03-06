@@ -493,6 +493,84 @@ static bool string_starts_with(const std::string& s, const std::string& s2)
     return strncmp(s.c_str(), s2.c_str(), s2.size()) == 0;
 }
 
+static void fuse_list_unpack(Graph& graph)
+{
+    // prim::Constant + aten::getitem ...  ->  prim::ListUnpack
+
+    while (1)
+    {
+        bool matched = false;
+
+        for (size_t i = 0; i < graph.ops.size(); i++)
+        {
+            Operator* op = graph.ops[i];
+
+            if (op->type != "aten::getitem")
+                continue;
+
+            Operand* op_in = op->inputs[0];
+
+            const int item_count = (int)op_in->consumers.size();
+
+            std::vector<Operator*> getitem_ops(item_count);
+
+            Operator* cur = op;
+
+            bool full_getitem = true;
+            for (Operator* op2 : op_in->consumers)
+            {
+                if (op2->type != "aten::getitem")
+                {
+                    fprintf(stderr, "unbalanced getitem\n");
+                    full_getitem = false;
+                    break;
+                }
+
+                int gi = op2->inputs[1]->producer->params.at("value").i;
+                getitem_ops[gi] = op2;
+
+                if (std::find(graph.ops.begin(), graph.ops.end(), op2) < std::find(graph.ops.begin(), graph.ops.end(), cur))
+                    cur = op2;
+            }
+
+            if (!full_getitem)
+                continue;
+
+            matched = true;
+
+            // delete all getitem ops and replace with ListUnpack
+            Operator* op_list_unpack = graph.new_operator_before("prim::ListUnpack", op->name, cur);
+
+            op_list_unpack->inputs.push_back(op_in);
+            for (auto op2 : getitem_ops)
+            {
+                op_in->remove_consumer(op2);
+            }
+            op_in->consumers.push_back(op_list_unpack);
+
+            op_list_unpack->outputs.resize(getitem_ops.size());
+            for (size_t j = 0; j < getitem_ops.size(); j++)
+            {
+                op_list_unpack->outputs[j] = getitem_ops[j]->outputs[0];
+                getitem_ops[j]->outputs[0]->producer = op_list_unpack;
+            }
+
+            for (auto op2 : getitem_ops)
+            {
+                op2->inputs[1]->remove_consumer(op2);
+
+                graph.ops.erase(std::find(graph.ops.begin(), graph.ops.end(), op2));
+                delete op2;
+            }
+
+            break;
+        }
+
+        if (!matched)
+            break;
+    }
+}
+
 void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
 {
     onnx2pnnx::OnnxModelProxy modelproxy(model);
@@ -783,12 +861,6 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
                 op->params[attr.name()] = attr;
             }
 
-            // fix some aten attribute
-            if (sim_op_type == "aten::clone")
-            {
-                op->params["memory_format"] = "torch.contiguous_format";
-            }
-
             if (op_type == "Slice")
             {
                 // data start end dim step -> data dim start end step
@@ -817,6 +889,7 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
     }
 
     // post process
+    fuse_list_unpack(pnnx_graph);
 }
 
 } // namespace pnnx

@@ -50,7 +50,7 @@ public:
             pads = {pads[0], pads[2]};
         }
 
-        op->params["in_channels"] = weight.dims(1);
+        op->params["in_channels"] = weight.dims(1) * groups;
         op->params["out_channels"] = weight.dims(0);
         op->params["kernel_size"] = {weight.dims(2), weight.dims(3)};
         op->params["dilation"] = dilations;
