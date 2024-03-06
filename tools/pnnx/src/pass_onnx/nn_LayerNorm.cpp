@@ -55,15 +55,11 @@ public:
 
         op->params["normalized_shape"] = normalized_shape;
         op->params["eps"] = layernormalization.attribute("epsilon");
-        op->params["elementwise_affine"] = function.has_initializer("weight");
-        op->params["bias"] = function.has_initializer("bias");
+        op->params["elementwise_affine"] = function.has_initializer("weight") && function.has_initializer("bias");
 
-        if (function.has_initializer("weight"))
+        if (function.has_initializer("weight") && function.has_initializer("bias"))
         {
             op->attrs["weight"] = function.initializer("weight");
-        }
-        if (function.has_initializer("bias"))
-        {
             op->attrs["bias"] = function.initializer("bias");
         }
     }
