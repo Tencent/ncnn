@@ -44,7 +44,6 @@ public:
 
         if (approximate_tanh)
             op->params["approximate"] = "tanh";
-
     }
 };
 

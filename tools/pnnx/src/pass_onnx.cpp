@@ -792,8 +792,8 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
             if (op_type == "Slice")
             {
                 // data start end dim step -> data dim start end step
-                op->inputnames = { "data", "dim", "start", "end", "step" };
-                op->inputs = { op->inputs[0], op->inputs[3], op->inputs[1], op->inputs[2], op->inputs[4] };
+                op->inputnames = {"data", "dim", "start", "end", "step"};
+                op->inputs = {op->inputs[0], op->inputs[3], op->inputs[1], op->inputs[2], op->inputs[4]};
             }
 
             if (op_type == "Transpose")
