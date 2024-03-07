@@ -36,22 +36,12 @@ public:
 
     void write(Operator* op, const OnnxFunctionProxy& function) const
     {
-        if (function.has_typed_node("aten_mean_dim"))
-        {
-            const OnnxNodeProxy aten_mean_dim = function.typed_node("aten_mean_dim");
+        const std::vector<int>& out_shape = op->outputs[0]->shape;
 
-            const OnnxNodeProxy constant_dim = function.find_producer(aten_mean_dim.node.input(1));
-
-            if (constant_dim.node.op_type() == "Constant")
-            {
-                std::vector<int64_t> constant_dim_value = constant_dim.attribute("value");
-
-                if (constant_dim_value == std::vector<int64_t> {-1, -2})
-                {
-                    op->params["output_size"] = {1, 1};
-                }
-            }
-        }
+        if (out_shape.size() == 3)
+            op->params["output_size"] = std::vector<int>{out_shape[1], out_shape[2]};
+        else // if (out_shape.size() == 4)
+            op->params["output_size"] = std::vector<int>{out_shape[2], out_shape[3]};
     }
 };
 
