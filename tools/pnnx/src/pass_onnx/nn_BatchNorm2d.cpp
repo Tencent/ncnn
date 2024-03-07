@@ -36,8 +36,17 @@ public:
 
     void write(Operator* op, const OnnxFunctionProxy& function) const
     {
-        const OnnxNodeProxy add_eps = function.named_node("aten_add_5");
-        float eps = function.find_producer(add_eps.node.input(1)).attribute("value");
+        float eps;
+        if (function.has_typed_node("_aten_native_batch_norm_inference_onnx"))
+        {
+            const OnnxNodeProxy aten_native_batch_norm_inference_onnx = function.typed_node("_aten_native_batch_norm_inference_onnx");
+            eps = aten_native_batch_norm_inference_onnx.attribute("eps");
+        }
+        else
+        {
+            const OnnxNodeProxy add_eps = function.named_node("aten_add_5");
+            eps = function.find_producer(add_eps.node.input(1)).attribute("value");
+        }
 
         const onnx::TensorProto& running_mean = function.initializer("running_mean");
         const onnx::TensorProto& running_var = function.initializer("running_var");
