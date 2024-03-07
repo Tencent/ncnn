@@ -659,6 +659,8 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
 
         bool is_aten_op = string_starts_with(sim_op_type, "aten::");
 
+        bool is_prim_op = string_starts_with(sim_op_type, "prim::");
+
         for (int j = 0; j < node.input_size(); j++)
         {
             const std::string& input = node.input(j);
@@ -850,8 +852,7 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
                 break;
             }
         }
-
-        if (is_aten_op)
+        else if (is_aten_op)
         {
             // extract attributes
             for (int j = 0; j < node.attribute_size(); j++)
@@ -872,6 +873,20 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
             {
                 op->params["dims"] = op->params["perm"];
                 op->params.erase("perm");
+            }
+        }
+        else if (is_prim_op)
+        {
+            // do nothing :)
+        }
+        else
+        {
+            // onnx native op, extract attributes
+            for (int j = 0; j < node.attribute_size(); j++)
+            {
+                const onnx::AttributeProto& attr = node.attribute(j);
+
+                op->params[attr.name()] = attr;
             }
         }
     }
