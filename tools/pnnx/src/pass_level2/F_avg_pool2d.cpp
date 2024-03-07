@@ -43,4 +43,46 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_avg_pool2d, 10)
 
+class F_avg_pool2d_1 : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input_0     0 1 input
+AveragePool             op_0        1 1 input out kernel_shape=%kernel_shape strides=%strides pads=%pads ceil_mode=%ceil_mode count_include_pad=%count_include_pad auto_pad=*
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "F.avg_pool2d";
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        std::vector<int> kernel_shape = captured_params.at("kernel_shape").ai;
+        std::vector<int> strides = captured_params.at("strides").ai;
+        std::vector<int> pads = captured_params.at("pads").ai;
+        int ceil_mode = captured_params.at("ceil_mode").i;
+        int count_include_pad = captured_params.at("count_include_pad").i;
+
+        if (pads.size() == 4)
+        {
+            pads = {pads[0], pads[1]};
+        }
+
+        op->params["kernel_size"] = kernel_shape;
+        op->params["stride"] = strides;
+        op->params["padding"] = pads;
+        op->params["ceil_mode"] = (ceil_mode != 0);
+        op->params["count_include_pad"] = (count_include_pad != 0);
+        op->params["divisor_override"] = Parameter();
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_avg_pool2d_1, 10)
+
 } // namespace pnnx

@@ -46,7 +46,7 @@ public:
 
         if (pads.size() == 4)
         {
-            pads = {pads[0], pads[2]};
+            pads = {pads[0], pads[1]};
         }
 
         op->params["kernel_size"] = kernel_shape;

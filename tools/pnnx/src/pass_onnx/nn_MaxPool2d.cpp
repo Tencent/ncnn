@@ -46,7 +46,7 @@ public:
 
         if (padding.size() == 4)
         {
-            padding = {padding[0], padding[2]};
+            padding = {padding[0], padding[1]};
         }
 
         op->params["kernel_size"] = kernel_size;

@@ -47,7 +47,7 @@ public:
 
         if (pads.size() == 4)
         {
-            pads = {pads[0], pads[2]};
+            pads = {pads[0], pads[1]};
         }
 
         op->params["in_channels"] = weight.dims(1) * groups;
