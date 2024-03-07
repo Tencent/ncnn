@@ -4871,7 +4871,6 @@ static void convolution_gemm_transB_packed_tile_int8(const Mat& AT_tile, const M
                     _sum0 = _mm512_unpacklo_epi64(_tmp0, _tmp1);
                     _sum1 = _mm512_unpackhi_epi64(_tmp0, _tmp1);
 
-                    _sum0 = _sum0;
                     _sum1 = _mm512_shuffle_epi32(_sum1, _MM_PERM_CBAD);
 
                     // 0123 4567 89ab cdef  x 0
