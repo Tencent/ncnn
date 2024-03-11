@@ -14,7 +14,7 @@
 
 #include "testutil.h"
 
-#define OP_TYPE_MAX 12
+#define OP_TYPE_MAX 13
 
 static int op_type = 0;
 
@@ -48,6 +48,16 @@ static int test_binaryop(const ncnn::Mat& _a, const ncnn::Mat& _b, int flag)
             if (a[i] == 0.f)
                 a[i] = 0.001f;
         }
+        for (int i = 0; i < b.total(); i++)
+        {
+            if (b[i] == 0.f)
+                b[i] = 0.001f;
+        }
+    }
+    if (op_type == 12)
+    {
+        // divisor must be non-zero for remainder
+        b = b.clone();
         for (int i = 0; i < b.total(); i++)
         {
             if (b[i] == 0.f)
