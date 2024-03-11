@@ -39,9 +39,9 @@ public:
         const std::vector<int>& out_shape = op->outputs[0]->shape;
 
         if (out_shape.size() == 4)
-            op->params["output_size"] = std::vector<int>{out_shape[1], out_shape[2], out_shape[3]};
+            op->params["output_size"] = std::vector<int> {out_shape[1], out_shape[2], out_shape[3]};
         else // if (out_shape.size() == 5)
-            op->params["output_size"] = std::vector<int>{out_shape[2], out_shape[3], out_shape[4]};
+            op->params["output_size"] = std::vector<int> {out_shape[2], out_shape[3], out_shape[4]};
     }
 };
 
