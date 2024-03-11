@@ -731,6 +731,19 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
                             op_const->params["value"] = tensor.float_data().at(0);
                         }
                     }
+                    else if (tensor.data_type() == onnx::TensorProto::BOOL)
+                    {
+                        if (tensor.has_raw_data())
+                        {
+                            // assert tensor.raw_data().size() == 2
+                            op_const->params["value"] = ((uint16_t*)tensor.raw_data().data())[0] ? true : false;
+                        }
+                        else
+                        {
+                            // assert tensor.int32_data().size() == 1
+                            op_const->params["value"] = tensor.int32_data().at(0) ? true : false;
+                        }
+                    }
                     else
                     {
                         fprintf(stderr, "unknown constant scalar type %d\n", (int)tensor.data_type());

@@ -123,6 +123,12 @@ void fold_constants(onnx::ModelProto& model)
                 is_outputs_foldable = true;
             }
 
+            // TODO whitelist for static type
+            if (op_type == "CastLike")
+            {
+                is_outputs_foldable = non_foldable_outputs.find(node.input(0)) == non_foldable_outputs.end();
+            }
+
             if (!is_outputs_foldable)
             {
                 for (int j = 0; j < node.input_size(); j++)
