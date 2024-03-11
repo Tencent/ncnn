@@ -27,7 +27,7 @@ jobs:
     runs-on:
       pool-name: docker
       container:
-        image: bkci/ci:ubuntu
+        image: bkci/ci:debian12
     steps:
     - name: checkout
       checkout: self
@@ -52,7 +52,7 @@ jobs:
       uses: cache@1.*
       with:
         cachePaths: swiftshader-install
-        cacheKey: swiftshader-linux-install-20230420-1
+        cacheKey: swiftshader-linux-install-20240125-1
 
     - name: checkout-swiftshader
       if: steps.cache-swiftshader.outputs.cacheHit != 'true'
@@ -101,7 +101,7 @@ jobs:
     runs-on:
       pool-name: docker
       container:
-        image: bkci/ci:ubuntu
+        image: bkci/ci:debian12
     steps:
     - name: checkout
       checkout: self
@@ -126,7 +126,7 @@ jobs:
       uses: cache@1.*
       with:
         cachePaths: lavapipe-install
-        cacheKey: lavapipe-linux-install-20211127-4
+        cacheKey: lavapipe-linux-install-20240125-1
 
     - name: checkout-lavapipe
       if: steps.cache-lavapipe.outputs.cacheHit != 'true'
@@ -141,8 +141,8 @@ jobs:
     - name: lavapipe
       if: steps.cache-lavapipe.outputs.cacheHit != 'true'
       run: |
-        echo 'deb-src http://mirrors.cloud.tencent.com/debian bullseye main' | tee -a /etc/apt/sources.list
-        echo 'deb-src http://mirrors.cloud.tencent.com/debian bullseye-updates main' | tee -a /etc/apt/sources.list
+        echo 'deb-src http://mirrors.cloud.tencent.com/debian bookworm main' | tee -a /etc/apt/sources.list
+        echo 'deb-src http://mirrors.cloud.tencent.com/debian bookworm-updates main' | tee -a /etc/apt/sources.list
         apt-get update
         apt-get build-dep -y mesa
         mkdir -p "${{ci.workspace}}/lavapipe-install"
@@ -192,7 +192,7 @@ jobs:
     runs-on:
       pool-name: docker
       container:
-        image: bkci/ci:ubuntu
+        image: bkci/ci:debian12
     steps:
     - name: checkout
       checkout: self
@@ -254,7 +254,7 @@ jobs:
     runs-on:
       pool-name: docker
       container:
-        image: bkci/ci:ubuntu
+        image: bkci/ci:debian12
     steps:
     - name: checkout
       checkout: self
@@ -280,7 +280,7 @@ jobs:
       uses: cache@1.*
       with:
         cachePaths: qemu-install
-        cacheKey: qemu-arm-install-20220831-1
+        cacheKey: qemu-arm-install-20240125-1
 
     - name: checkout-qemu
       if: steps.cache-qemu.outputs.cacheHit != 'true'
@@ -295,8 +295,8 @@ jobs:
     - name: qemu
       if: steps.cache-qemu.outputs.cacheHit != 'true'
       run: |
-        echo 'deb-src http://mirrors.cloud.tencent.com/debian bullseye main' | tee -a /etc/apt/sources.list
-        echo 'deb-src http://mirrors.cloud.tencent.com/debian bullseye-updates main' | tee -a /etc/apt/sources.list
+        echo 'deb-src http://mirrors.cloud.tencent.com/debian bookworm main' | tee -a /etc/apt/sources.list
+        echo 'deb-src http://mirrors.cloud.tencent.com/debian bookworm-updates main' | tee -a /etc/apt/sources.list
         apt-get update
         apt-get build-dep -y qemu
         cd qemu
@@ -360,7 +360,7 @@ jobs:
     runs-on:
       pool-name: docker
       container:
-        image: bkci/ci:ubuntu
+        image: bkci/ci:debian12
     steps:
     - name: checkout
       checkout: self
@@ -386,7 +386,7 @@ jobs:
       uses: cache@1.*
       with:
         cachePaths: qemu-install
-        cacheKey: qemu-aarch64-install-20220831-1
+        cacheKey: qemu-aarch64-install-20240125-1
 
     - name: checkout-qemu
       if: steps.cache-qemu.outputs.cacheHit != 'true'
@@ -401,8 +401,8 @@ jobs:
     - name: qemu
       if: steps.cache-qemu.outputs.cacheHit != 'true'
       run: |
-        echo 'deb-src http://mirrors.cloud.tencent.com/debian bullseye main' | tee -a /etc/apt/sources.list
-        echo 'deb-src http://mirrors.cloud.tencent.com/debian bullseye-updates main' | tee -a /etc/apt/sources.list
+        echo 'deb-src http://mirrors.cloud.tencent.com/debian bookworm main' | tee -a /etc/apt/sources.list
+        echo 'deb-src http://mirrors.cloud.tencent.com/debian bookworm-updates main' | tee -a /etc/apt/sources.list
         apt-get update
         apt-get build-dep -y qemu
         cd qemu
@@ -447,7 +447,7 @@ jobs:
     runs-on:
       pool-name: docker
       container:
-        image: bkci/ci:ubuntu
+        image: bkci/ci:debian12
     steps:
     - name: checkout
       checkout: self
@@ -473,7 +473,7 @@ jobs:
       uses: cache@1.*
       with:
         cachePaths: qemu-install
-        cacheKey: qemu-mipsel-install-20220831-1
+        cacheKey: qemu-mipsel-install-20240125-1
 
     - name: checkout-qemu
       if: steps.cache-qemu.outputs.cacheHit != 'true'
@@ -488,8 +488,8 @@ jobs:
     - name: qemu
       if: steps.cache-qemu.outputs.cacheHit != 'true'
       run: |
-        echo 'deb-src http://mirrors.cloud.tencent.com/debian bullseye main' | tee -a /etc/apt/sources.list
-        echo 'deb-src http://mirrors.cloud.tencent.com/debian bullseye-updates main' | tee -a /etc/apt/sources.list
+        echo 'deb-src http://mirrors.cloud.tencent.com/debian bookworm main' | tee -a /etc/apt/sources.list
+        echo 'deb-src http://mirrors.cloud.tencent.com/debian bookworm-updates main' | tee -a /etc/apt/sources.list
         apt-get update
         apt-get build-dep -y qemu
         cd qemu
@@ -526,7 +526,7 @@ jobs:
     runs-on:
       pool-name: docker
       container:
-        image: bkci/ci:ubuntu
+        image: bkci/ci:debian12
     steps:
     - name: checkout
       checkout: self
@@ -552,7 +552,7 @@ jobs:
       uses: cache@1.*
       with:
         cachePaths: qemu-install
-        cacheKey: qemu-mips64el-install-20220831-1
+        cacheKey: qemu-mips64el-install-20240125-1
 
     - name: checkout-qemu
       if: steps.cache-qemu.outputs.cacheHit != 'true'
@@ -567,8 +567,8 @@ jobs:
     - name: qemu
       if: steps.cache-qemu.outputs.cacheHit != 'true'
       run: |
-        echo 'deb-src http://mirrors.cloud.tencent.com/debian bullseye main' | tee -a /etc/apt/sources.list
-        echo 'deb-src http://mirrors.cloud.tencent.com/debian bullseye-updates main' | tee -a /etc/apt/sources.list
+        echo 'deb-src http://mirrors.cloud.tencent.com/debian bookworm main' | tee -a /etc/apt/sources.list
+        echo 'deb-src http://mirrors.cloud.tencent.com/debian bookworm-updates main' | tee -a /etc/apt/sources.list
         apt-get update
         apt-get build-dep -y qemu
         cd qemu
@@ -605,7 +605,7 @@ jobs:
     runs-on:
       pool-name: docker
       container:
-        image: bkci/ci:ubuntu
+        image: bkci/ci:debian12
     steps:
     - name: checkout
       checkout: self
@@ -631,7 +631,7 @@ jobs:
       uses: cache@1.*
       with:
         cachePaths: qemu-install
-        cacheKey: qemu-ppc-install-20220831-1
+        cacheKey: qemu-ppc-install-20240125-1
 
     - name: checkout-qemu
       if: steps.cache-qemu.outputs.cacheHit != 'true'
@@ -646,8 +646,8 @@ jobs:
     - name: qemu
       if: steps.cache-qemu.outputs.cacheHit != 'true'
       run: |
-        echo 'deb-src http://mirrors.cloud.tencent.com/debian bullseye main' | tee -a /etc/apt/sources.list
-        echo 'deb-src http://mirrors.cloud.tencent.com/debian bullseye-updates main' | tee -a /etc/apt/sources.list
+        echo 'deb-src http://mirrors.cloud.tencent.com/debian bookworm main' | tee -a /etc/apt/sources.list
+        echo 'deb-src http://mirrors.cloud.tencent.com/debian bookworm-updates main' | tee -a /etc/apt/sources.list
         apt-get update
         apt-get build-dep -y qemu
         cd qemu
@@ -684,7 +684,7 @@ jobs:
     runs-on:
       pool-name: docker
       container:
-        image: bkci/ci:ubuntu
+        image: bkci/ci:debian12
     steps:
     - name: checkout
       checkout: self
@@ -710,7 +710,7 @@ jobs:
       uses: cache@1.*
       with:
         cachePaths: qemu-install
-        cacheKey: qemu-ppc64le-install-20220831-1
+        cacheKey: qemu-ppc64le-install-20240125-1
 
     - name: checkout-qemu
       if: steps.cache-qemu.outputs.cacheHit != 'true'
@@ -725,8 +725,8 @@ jobs:
     - name: qemu
       if: steps.cache-qemu.outputs.cacheHit != 'true'
       run: |
-        echo 'deb-src http://mirrors.cloud.tencent.com/debian bullseye main' | tee -a /etc/apt/sources.list
-        echo 'deb-src http://mirrors.cloud.tencent.com/debian bullseye-updates main' | tee -a /etc/apt/sources.list
+        echo 'deb-src http://mirrors.cloud.tencent.com/debian bookworm main' | tee -a /etc/apt/sources.list
+        echo 'deb-src http://mirrors.cloud.tencent.com/debian bookworm-updates main' | tee -a /etc/apt/sources.list
         apt-get update
         apt-get build-dep -y qemu
         cd qemu
@@ -763,7 +763,7 @@ jobs:
     runs-on:
       pool-name: docker
       container:
-        image: bkci/ci:ubuntu
+        image: bkci/ci:debian12
     steps:
     - name: checkout
       checkout: self
@@ -789,7 +789,7 @@ jobs:
       uses: cache@1.*
       with:
         cachePaths: qemu-install
-        cacheKey: qemu-riscv64-install-20230624-1
+        cacheKey: qemu-riscv64-install-20240125-1
 
     - name: checkout-qemu
       if: steps.cache-qemu.outputs.cacheHit != 'true'
@@ -804,8 +804,8 @@ jobs:
     - name: qemu
       if: steps.cache-qemu.outputs.cacheHit != 'true'
       run: |
-        echo 'deb-src http://mirrors.cloud.tencent.com/debian bullseye main' | tee -a /etc/apt/sources.list
-        echo 'deb-src http://mirrors.cloud.tencent.com/debian bullseye-updates main' | tee -a /etc/apt/sources.list
+        echo 'deb-src http://mirrors.cloud.tencent.com/debian bookworm main' | tee -a /etc/apt/sources.list
+        echo 'deb-src http://mirrors.cloud.tencent.com/debian bookworm-updates main' | tee -a /etc/apt/sources.list
         apt-get update
         apt-get build-dep -y qemu
         apt-get install -y python3-pip
@@ -848,7 +848,7 @@ jobs:
     runs-on:
       pool-name: docker
       container:
-        image: bkci/ci:ubuntu
+        image: bkci/ci:debian12
     steps:
     - name: checkout
       checkout: self
@@ -874,7 +874,7 @@ jobs:
       uses: cache@1.*
       with:
         cachePaths: qemu-install
-        cacheKey: qemu-riscv64-install-20230624-1
+        cacheKey: qemu-riscv64-install-20240125-1
 
     - name: checkout-qemu
       if: steps.cache-qemu.outputs.cacheHit != 'true'
@@ -889,8 +889,8 @@ jobs:
     - name: qemu
       if: steps.cache-qemu.outputs.cacheHit != 'true'
       run: |
-        echo 'deb-src http://mirrors.cloud.tencent.com/debian bullseye main' | tee -a /etc/apt/sources.list
-        echo 'deb-src http://mirrors.cloud.tencent.com/debian bullseye-updates main' | tee -a /etc/apt/sources.list
+        echo 'deb-src http://mirrors.cloud.tencent.com/debian bookworm main' | tee -a /etc/apt/sources.list
+        echo 'deb-src http://mirrors.cloud.tencent.com/debian bookworm-updates main' | tee -a /etc/apt/sources.list
         apt-get update
         apt-get build-dep -y qemu
         apt-get install -y python3-pip
@@ -909,7 +909,7 @@ jobs:
       uses: cache@1.*
       with:
         cachePaths: rv64gcv-install
-        cacheKey: rv64gcv-linux-install-20221029-1
+        cacheKey: rv64gcv-linux-install-20240125-1
 
     - name: checkout-riscv-gnu-toolchain
       if: steps.cache-rv64gcv.outputs.cacheHit != 'true'
@@ -991,7 +991,7 @@ jobs:
     runs-on:
       pool-name: docker
       container:
-        image: bkci/ci:ubuntu
+        image: bkci/ci:debian12
     steps:
     - name: checkout
       checkout: self
@@ -1019,7 +1019,7 @@ jobs:
       uses: cache@1.*
       with:
         cachePaths: qemu-install
-        cacheKey: qemu-loongarch64-install-20230524-1
+        cacheKey: qemu-loongarch64-install-20240125-1
 
     - name: checkout-qemu
       if: steps.cache-qemu.outputs.cacheHit != 'true'
@@ -1034,8 +1034,8 @@ jobs:
     - name: qemu
       if: steps.cache-qemu.outputs.cacheHit != 'true'
       run: |
-        echo 'deb-src http://mirrors.cloud.tencent.com/debian bullseye main' | tee -a /etc/apt/sources.list
-        echo 'deb-src http://mirrors.cloud.tencent.com/debian bullseye-updates main' | tee -a /etc/apt/sources.list
+        echo 'deb-src http://mirrors.cloud.tencent.com/debian bookworm main' | tee -a /etc/apt/sources.list
+        echo 'deb-src http://mirrors.cloud.tencent.com/debian bookworm-updates main' | tee -a /etc/apt/sources.list
         apt-get update
         apt-get build-dep -y qemu
         cd qemu
@@ -1073,7 +1073,7 @@ jobs:
     runs-on:
       pool-name: docker
       container:
-        image: bkci/ci:ubuntu
+        image: bkci/ci:debian12
     steps:
     - name: checkout
       checkout: self
