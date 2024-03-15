@@ -348,6 +348,7 @@ if(Torch_VERSION VERSION_GREATER_EQUAL "1.10")
 endif()
 
 if(Torch_VERSION VERSION_GREATER_EQUAL "1.11")
+    pnnx_add_test(torch_slice_scatter)
     pnnx_add_test(torch_fft_ihfft2)
     pnnx_add_test(torch_fft_ihfftn)
     pnnx_add_test(torch_fft_hfft2)
