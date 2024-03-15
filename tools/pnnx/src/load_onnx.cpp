@@ -27,6 +27,7 @@
 
 #include "pass_onnx/canonicalize.h"
 #include "pass_onnx/dead_code_elimination.h"
+#include "pass_onnx/eliminate_noop.h"
 #include "pass_onnx/fold_constants.h"
 #include "pass_onnx/inline_containers.h"
 #include "pass_onnx/model_stat.h"
@@ -387,6 +388,26 @@ int load_onnx(const std::string& onnxpath, Graph& pnnx_graph)
     onnx2pnnx::inline_containers(model);
 
     double t1 = get_current_time();
+
+    fprintf(stderr, "%10.2fms\n", t1 - t0);
+
+    fprintf(stderr, "%-30s", "eliminate_noop ... ");
+
+    t0 = get_current_time();
+
+    onnx2pnnx::eliminate_noop(model);
+
+    t1 = get_current_time();
+
+    fprintf(stderr, "%10.2fms\n", t1 - t0);
+
+    fprintf(stderr, "%-30s", "dead_code_elimination ... ");
+
+    t0 = get_current_time();
+
+    onnx2pnnx::dead_code_elimination(model);
+
+    t1 = get_current_time();
 
     fprintf(stderr, "%10.2fms\n", t1 - t0);
 
