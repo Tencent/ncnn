@@ -22,7 +22,7 @@ class Model(nn.Module):
 
     def forward(self, x, y, z, w):
         out0 = torch.stack((x, y), dim=0)
-        out1 = torch.stack((x, y), dim=1)
+        out1 = torch.stack((x, y), dim=2)
         out2 = torch.stack((z, w), dim=2)
         out3 = torch.stack((z, w), dim=-1)
         return out0, out1, out2, out3
