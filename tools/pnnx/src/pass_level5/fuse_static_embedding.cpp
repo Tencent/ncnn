@@ -27,7 +27,7 @@ public:
 4 3
 pnnx.Input              input       0 1 input
 pnnx.Attribute          op_weight   0 1 weight @data=(%num_embeddings,%embedding_dim)f32
-F.embedding             op_0        2 1 input weight out scale_grad_by_freq=%scale_grad_by_freq sparse=%sparse
+F.embedding             op_0        2 1 input weight out scale_grad_by_freq=* sparse=%sparse
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -37,7 +37,7 @@ pnnx.Output             output      1 0 out
         return R"PNNXIR(7767517
 3 2
 pnnx.Input              input       0 1 input
-nn.Embedding            embedding   1 1 input out num_embeddings=%num_embeddings embedding_dim=%embedding_dim scale_grad_by_freq=%scale_grad_by_freq sparse=%sparse @weight=%op_weight.data
+nn.Embedding            embedding   1 1 input out num_embeddings=%num_embeddings embedding_dim=%embedding_dim sparse=%sparse @weight=%op_weight.data
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
