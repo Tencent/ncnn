@@ -122,6 +122,7 @@ jobs:
     - name: test
       run: |
         export PYTHONUSERBASE=${{ci.workspace}}/torch-${{matrix.torch-version}}
+        export LD_LIBRARY_PATH=${{ci.workspace}}/torchvision-${{matrix.torchvision-version}}-install/lib
         export OMP_NUM_THREADS=1
         export MKL_NUM_THREADS=1
         export MKL_ENABLE_INSTRUCTIONS=SSE4_2
@@ -131,6 +132,7 @@ jobs:
     - name: python-pnnx
       run: |
         export PYTHONUSERBASE=${{ci.workspace}}/torch-${{matrix.torch-version}}
+        export LD_LIBRARY_PATH=${{ci.workspace}}/torchvision-${{matrix.torchvision-version}}-install/lib
         export PNNX_WHEEL_WITHOUT_BUILD=ON
         cd tools/pnnx/python
         cp ../build/src/pnnx pnnx/

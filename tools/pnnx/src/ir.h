@@ -38,9 +38,15 @@ class Tensor;
 
 #if BUILD_ONNX2PNNX
 namespace onnx {
+class AttributeProto;
 class TensorProto;
 class ValueInfoProto;
 } // namespace onnx
+namespace pnnx {
+namespace onnx2pnnx {
+class OnnxAttributeProxy;
+} // namespace onnx2pnnx
+} // namespace pnnx
 #endif // BUILD_ONNX2PNNX
 
 namespace pnnx {
@@ -187,6 +193,10 @@ public:
     Parameter(const torch::jit::Node* value_node);
     Parameter(const torch::jit::Value* value);
 #endif // BUILD_TORCH2PNNX
+#if BUILD_ONNX2PNNX
+    Parameter(const onnx::AttributeProto& attr);
+    Parameter(const onnx2pnnx::OnnxAttributeProxy& attr);
+#endif // BUILD_ONNX2PNNX
 
     static Parameter parse_from_string(const std::string& value);
     static std::string encode_to_string(const Parameter& param);
@@ -325,6 +335,7 @@ public:
 #endif
 #if BUILD_ONNX2PNNX
     Operand* new_operand(const onnx::ValueInfoProto& value);
+    Operand* new_operand(const onnx::TensorProto& t);
 #endif
 
     Operand* new_operand(const std::string& name);

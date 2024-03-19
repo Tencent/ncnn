@@ -943,7 +943,7 @@ static std::string sanitize_identifier(const std::string& s)
     std::string ss = s;
     for (size_t i = 0; i < ss.size(); i++)
     {
-        if (ss[i] == '.' || ss[i] == ':')
+        if (ss[i] == '.' || ss[i] == ':' || ss[i] == '/')
             ss[i] = '_';
     }
 
@@ -2771,7 +2771,8 @@ int Graph::parse(const std::string& param)
 void Operand::remove_consumer(const Operator* c)
 {
     auto it = std::find(consumers.begin(), consumers.end(), c);
-    consumers.erase(it);
+    if (it != consumers.end())
+        consumers.erase(it);
 }
 
 Operator* Graph::new_operator(const std::string& type, const std::string& name)

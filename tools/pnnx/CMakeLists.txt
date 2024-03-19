@@ -26,20 +26,16 @@ include(PNNXPyTorch)
 set(CMAKE_CXX_STANDARD 14)
 
 # set(CMAKE_BUILD_TYPE debug)
-#set(CMAKE_BUILD_TYPE relwithdebinfo)
+# set(CMAKE_BUILD_TYPE relwithdebinfo)
 # set(CMAKE_BUILD_TYPE release)
 
 option(PNNX_COVERAGE "build for coverage" OFF)
 
-#set(Torch_INSTALL_DIR "/home/nihui/.local/lib/python3.9/site-packages/torch" CACHE STRING "")
-#set(Torch_INSTALL_DIR "/home/nihui/osd/pnnx/pytorch-v1.10.0/build/install" CACHE STRING "")
 # set(Torch_INSTALL_DIR "/home/nihui/osd/pnnx/install" CACHE STRING "")
-set(TorchVision_INSTALL_DIR "/home/nihui/osd/vision/build/install" CACHE STRING "")
+# set(TorchVision_INSTALL_DIR "/home/nihui/osd/pnnx/install" CACHE STRING "")
 
 #set(Torch_DIR "${Torch_INSTALL_DIR}/share/cmake/Torch")
 set(TorchVision_DIR "${TorchVision_INSTALL_DIR}/share/cmake/TorchVision")
-
-# test if libtorch and protobuf has the same cxxabi version
 
 find_package(Python3 COMPONENTS Interpreter Development)
 
@@ -67,11 +63,11 @@ find_library(TORCHVISION_LIBRARY torchvision PATHS "${TorchVision_INSTALL_DIR}/l
 if(TORCHVISION_LIBRARY)
     message(STATUS "Found TorchVision: ${TORCHVISION_LIBRARY}")
     if(APPLE)
-        list(APPEND TORCHVISION_LIBRARY "-Wl,-force_load,${TORCHVISION_LIBRARY}")
+        set(TORCHVISION_LIBRARY "-Wl,-force_load,${TORCHVISION_LIBRARY}")
     elseif(MSVC)
-        list(APPEND TORCHVISION_LIBRARY "-WHOLEARCHIVE:${TORCHVISION_LIBRARY}")
+        set(TORCHVISION_LIBRARY "-WHOLEARCHIVE:${TORCHVISION_LIBRARY}")
     else()
-        list(APPEND TORCHVISION_LIBRARY "-Wl,--whole-archive ${TORCHVISION_LIBRARY} -Wl,--no-whole-archive")
+        set(TORCHVISION_LIBRARY "-Wl,--whole-archive ${TORCHVISION_LIBRARY} -Wl,--no-whole-archive")
     endif()
     set(TorchVision_FOUND TRUE)
     message(STATUS "Building with TorchVision")
@@ -84,6 +80,7 @@ endif()
 include_directories(${TORCH_INCLUDE_DIRS})
 
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+    # test if libtorch and protobuf has the same cxxabi version
     include(CheckCXXSourceCompiles)
     set(CMAKE_REQUIRED_FLAGS "${TORCH_CXX_FLAGS}")
     check_cxx_source_compiles("#include <cxxabi.h>\n#if _GLIBCXX_USE_CXX11_ABI\nint main() { return 0; }\n#endif" PNNX_TORCH_USE_CXX11_ABI)
