@@ -621,20 +621,36 @@ endif()
 #     set(pnnx_pass_onnx_SRCS
 #         pass_onnx/canonicalize.cpp
 #         pass_onnx/dead_code_elimination.cpp
+#         pass_onnx/eliminate_noop.cpp
 #         pass_onnx/fold_constants.cpp
 #         pass_onnx/inline_containers.cpp
 #         pass_onnx/model_stat.cpp
 #         pass_onnx/shape_inference.cpp
+#
+#         pass_onnx/nn_AdaptiveAvgPool2d.cpp
+#         pass_onnx/nn_AdaptiveAvgPool3d.cpp
+#         pass_onnx/nn_AvgPool2d.cpp
+#         pass_onnx/nn_AvgPool3d.cpp
+#         pass_onnx/nn_BatchNorm2d.cpp
+#         pass_onnx/nn_BatchNorm3d.cpp
+#         pass_onnx/nn_Conv2d.cpp
+#         pass_onnx/nn_Conv3d.cpp
+#         pass_onnx/nn_GELU.cpp
+#         pass_onnx/nn_LayerNorm.cpp
+#         pass_onnx/nn_Linear.cpp
+#         pass_onnx/nn_MaxPool2d.cpp
+#         pass_onnx/nn_MaxPool3d.cpp
+#         pass_onnx/nn_MultiheadAttention.cpp
 #     )
 #
 #     set(onnx2pnnx_SRCS
+#         pass_onnx.cpp
 #         ${pnnx_pass_onnx_SRCS}
 #         load_onnx.cpp
 #     )
 #
-#     add_library(onnx2pnnx STATIC ${onnx2pnnx_SRCS})
+#     add_library(onnx2pnnx OBJECT ${onnx2pnnx_SRCS})
 #     target_link_libraries(onnx2pnnx PRIVATE onnxproto onnxruntime::onnxruntime)
-#
 #     target_compile_definitions(onnx2pnnx PRIVATE BUILD_ONNX2PNNX)
 #
 #     message(STATUS "Building with dynamo-onnx")
