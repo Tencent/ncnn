@@ -366,6 +366,7 @@ set(pnnx_pass_level5_SRCS
     pass_level5/fuse_static_batchnorm.cpp
     pass_level5/fuse_static_conv.cpp
     pass_level5/fuse_static_convtranspose.cpp
+    pass_level5/fuse_static_embedding.cpp
     pass_level5/fuse_static_groupnorm.cpp
     pass_level5/fuse_static_instancenorm.cpp
     pass_level5/fuse_static_layernorm.cpp
