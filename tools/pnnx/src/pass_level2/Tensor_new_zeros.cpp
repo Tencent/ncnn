@@ -41,18 +41,25 @@ pnnx.Output             output              1 0 out
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
-        if (captured_params.at("dtype").i == 0) op->params["dtype"] = "torch.uint8";
-        if (captured_params.at("dtype").i == 1) op->params["dtype"] = "torch.int8";
-        if (captured_params.at("dtype").i == 2) op->params["dtype"] = "torch.short";
-        if (captured_params.at("dtype").i == 3) op->params["dtype"] = "torch.int";
-        if (captured_params.at("dtype").i == 4) op->params["dtype"] = "torch.long";
-        if (captured_params.at("dtype").i == 5) op->params["dtype"] = "torch.half";
-        if (captured_params.at("dtype").i == 6) op->params["dtype"] = "torch.float";
-        if (captured_params.at("dtype").i == 7) op->params["dtype"] = "torch.double";
-        if (captured_params.at("dtype").i == 8) op->params["dtype"] = "torch.complex32";
-        if (captured_params.at("dtype").i == 9) op->params["dtype"] = "torch.complex64";
-        if (captured_params.at("dtype").i == 10) op->params["dtype"] = "torch.complex128";
-        if (captured_params.at("dtype").i == 11) op->params["dtype"] = "torch.bool";
+        if (captured_params.at("dtype").type == 0)
+        {
+            op->params["dtype"] = Parameter();
+        }
+        else // if (captured_params.at("dtype").type == 2)
+        {
+            if (captured_params.at("dtype").i == 0) op->params["dtype"] = "torch.uint8";
+            if (captured_params.at("dtype").i == 1) op->params["dtype"] = "torch.int8";
+            if (captured_params.at("dtype").i == 2) op->params["dtype"] = "torch.short";
+            if (captured_params.at("dtype").i == 3) op->params["dtype"] = "torch.int";
+            if (captured_params.at("dtype").i == 4) op->params["dtype"] = "torch.long";
+            if (captured_params.at("dtype").i == 5) op->params["dtype"] = "torch.half";
+            if (captured_params.at("dtype").i == 6) op->params["dtype"] = "torch.float";
+            if (captured_params.at("dtype").i == 7) op->params["dtype"] = "torch.double";
+            if (captured_params.at("dtype").i == 8) op->params["dtype"] = "torch.complex32";
+            if (captured_params.at("dtype").i == 9) op->params["dtype"] = "torch.complex64";
+            if (captured_params.at("dtype").i == 10) op->params["dtype"] = "torch.complex128";
+            if (captured_params.at("dtype").i == 11) op->params["dtype"] = "torch.bool";
+        }
     }
 };
 
