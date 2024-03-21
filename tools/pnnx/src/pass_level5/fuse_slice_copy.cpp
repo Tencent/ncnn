@@ -122,7 +122,8 @@ void fuse_slice_copy(Graph& graph)
             op->type = "Tensor.slice_copy";
 
             // insert clone before any slices
-            Operator* op_clone = graph.new_operator_before("Tensor.clone", op->name + "_ncnnclone", top_sop);
+            // Operator* op_clone = graph.new_operator_before("Tensor.clone", op->name + "_ncnnclone", top_sop);
+            Operator* op_clone = graph.new_operator_after("Tensor.clone", op->name + "_ncnnclone", top_sop->inputs[0]->producer);
             Operand* clone_out = graph.new_operand(op->name + "_ncnnclone_out");
 
             clone_out->type = top_sop->inputs[0]->type;
