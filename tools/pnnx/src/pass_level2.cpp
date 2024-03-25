@@ -1352,7 +1352,7 @@ static void functionize(Graph& graph)
 
                         for (size_t l = doi; l < i - i_advanced; l++)
                         {
-                            std::swap(graph.ops[l], graph.ops[l+1]);
+                            std::swap(graph.ops[l], graph.ops[l + 1]);
                         }
 
                         k += 1;
@@ -1388,7 +1388,6 @@ static void functionize(Graph& graph)
                             x->params["__alias__"] = new_alias_index;
                         }
                     }
-
                 }
 
                 // rewind to the updated copy operator
@@ -1406,7 +1405,6 @@ static void functionize(Graph& graph)
             x->params.erase("__alias__");
         }
     }
-
 }
 
 void pass_level2(Graph& g)
