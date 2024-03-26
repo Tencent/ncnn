@@ -1234,9 +1234,6 @@ static void functionize(Graph& graph)
                 // replace with non-inplace version, create copy op
                 op->type = op->type.substr(0, op->type.size() - 1);
 
-                op->outputs[0]->params["__alias__"] = alias_index;
-                // fprintf(stderr, "operand %s is alias of %s\n", op->outputs[0]->name.c_str(), graph.operands[alias_index]->name.c_str());
-
                 // append aten::copy_
                 {
                     Operand* in0 = op->inputs[0];
