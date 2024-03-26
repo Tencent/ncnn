@@ -91,10 +91,10 @@ void fuse_slice_copy(Graph& graph)
                     for (size_t j = 0; j < x->inputs.size(); j++)
                     {
                         if (x->inputs[j] == out)
-                            x->inputs[j] = op->inputs[0];
+                            x->inputs[j] = op->inputs[1];
                     }
 
-                    op->inputs[0]->consumers.push_back(x);
+                    op->inputs[1]->consumers.push_back(x);
                 }
 
                 op->inputs[0]->remove_consumer(op);
