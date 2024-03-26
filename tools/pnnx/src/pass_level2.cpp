@@ -1187,53 +1187,15 @@ static void functionize(Graph& graph)
     // graph.save("1.param", "1.bin");
 
     // 2. replace inplace op, append copy
-    {
-        for (size_t i = 0; i < graph.ops.size(); i++)
-        {
-            Operator* op = graph.ops[i];
-
-            if (op->type == "aten::copy_")
-                continue;
-
-            bool is_inplace_op = op->type.size() > 2 && op->type[op->type.size() - 2] != '_' && op->type[op->type.size() - 1] == '_';
-
-            if (!is_inplace_op)
-                continue;
-
-            // replace with non-inplace version, create copy op
-            op->type = op->type.substr(0, op->type.size() - 1);
-
-            // append aten::copy_
-            {
-                Operand* in0 = op->inputs[0];
-                Operand* out0 = op->outputs[0];
-
-                Operator* op_copy = graph.new_operator_after("aten::copy_", op->name + "_copy", op);
-                Operand* copy_out = graph.new_operand(op->name + "_copy_out");
-
-                copy_out->type = out0->type;
-                copy_out->shape = out0->shape;
-
-                op_copy->inputs.push_back(in0);
-                op_copy->inputs.push_back(out0);
-                in0->consumers.push_back(op_copy);
-                out0->consumers.push_back(op_copy);
-
-                op_copy->outputs.push_back(copy_out);
-                copy_out->producer = op_copy;
-            }
-        }
-    }
-
-    // graph.save("2.param", "2.bin");
-
     // 3. tag operand alias for view/slice/select/... output
     {
         for (size_t i = 0; i < graph.ops.size(); i++)
         {
             Operator* op = graph.ops[i];
 
-            if (!is_alias_op(op) && op->type != "aten::copy_")
+            bool is_inplace_op = op->type.size() > 2 && op->type[op->type.size() - 2] != '_' && op->type[op->type.size() - 1] == '_';
+
+            if (op->type != "aten::copy_" && !is_alias_op(op) && !is_inplace_op)
                 continue;
 
             Operand* in = op->inputs[0];
@@ -1248,12 +1210,50 @@ static void functionize(Graph& graph)
                 alias_index = std::find(graph.operands.begin(), graph.operands.end(), in) - graph.operands.begin();
             }
 
-            for (Operand* x : op->outputs)
+            if (op->type == "aten::copy_")
             {
-                x->params["__alias__"] = alias_index;
+                op->outputs[0]->params["__alias__"] = alias_index;
+                // fprintf(stderr, "operand %s is alias of %s\n", op->outputs[0]->name.c_str(), graph.operands[alias_index]->name.c_str());
+
+                // set copy output shape as the alias one
+                op->outputs[0]->type = graph.operands[alias_index]->type;
+                op->outputs[0]->shape = graph.operands[alias_index]->shape;
+
+                continue;
             }
 
-            // fprintf(stderr, "operand %s is alias of %s\n", op->outputs[0]->name.c_str(), graph.operands[alias_index]->name.c_str());
+            if (is_alias_op(op))
+            {
+                op->outputs[0]->params["__alias__"] = alias_index;
+                // fprintf(stderr, "operand %s is alias of %s\n", op->outputs[0]->name.c_str(), graph.operands[alias_index]->name.c_str());
+                continue;
+            }
+
+            if (is_inplace_op)
+            {
+                // replace with non-inplace version, create copy op
+                op->type = op->type.substr(0, op->type.size() - 1);
+
+                op->outputs[0]->params["__alias__"] = alias_index;
+                // fprintf(stderr, "operand %s is alias of %s\n", op->outputs[0]->name.c_str(), graph.operands[alias_index]->name.c_str());
+
+                // append aten::copy_
+                {
+                    Operand* in0 = op->inputs[0];
+                    Operand* out0 = op->outputs[0];
+
+                    Operator* op_copy = graph.new_operator_after("aten::copy_", op->name + "_copy", op);
+                    Operand* copy_out = graph.new_operand(op->name + "_copy_out");
+
+                    op_copy->inputs.push_back(in0);
+                    op_copy->inputs.push_back(out0);
+                    in0->consumers.push_back(op_copy);
+                    out0->consumers.push_back(op_copy);
+
+                    op_copy->outputs.push_back(copy_out);
+                    copy_out->producer = op_copy;
+                }
+            }
         }
     }
 
@@ -1304,8 +1304,6 @@ static void functionize(Graph& graph)
                         break;
                     }
                 }
-
-                // fprintf(stderr, "op %s affacted %d\n", op1->name.c_str(), affacted);
 
                 if (!affacted)
                     continue;
