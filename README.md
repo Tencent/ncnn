@@ -29,12 +29,12 @@ ncnn 目前已在腾讯多款应用中使用，如：QQ，Qzone，微信，天�
 637093648 (超多大佬)<br />
 答案：卷卷卷卷卷（已满）
 </td>
-<td rowspan=2>
+<td rowspan=3>
 <b>Telegram Group</b>
 
 <https://t.me/ncnnyes>
 </td>
-<td rowspan=2>
+<td rowspan=3>
 <b>Discord Channel</b>
 
 <https://discord.gg/YRsxgmF>
@@ -45,6 +45,12 @@ ncnn 目前已在腾讯多款应用中使用，如：QQ，Qzone，微信，天�
 <b>Pocky QQ 群（MLIR YES!）</b><br />
 677104663 (超多大佬)<br />
 答案：multi-level intermediate representation
+</td>
+</tr>
+<tr>
+<td>
+<b>他们都不知道 pnnx 有多好用群</b><br />
+818998520 (新群！)
 </td>
 </tr>
 </table>
