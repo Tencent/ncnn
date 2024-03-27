@@ -1235,6 +1235,7 @@ static void functionize(Graph& graph)
                 op->type = op->type.substr(0, op->type.size() - 1);
 
                 // append aten::copy_
+                if (graph.operands[alias_index]->consumers.size() > 1)
                 {
                     Operand* in0 = op->inputs[0];
                     Operand* out0 = op->outputs[0];
