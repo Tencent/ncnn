@@ -252,13 +252,13 @@ Download and install Vulkan SDK from <https://vulkan.lunarg.com/sdk/home>
 
 
 ```shell
-wget https://sdk.lunarg.com/sdk/download/1.2.189.0/mac/vulkansdk-macos-1.2.189.0.dmg?Human=true -O vulkansdk-macos-1.2.189.0.dmg
-hdiutil attach vulkansdk-macos-1.2.189.0.dmg
-sudo /Volumes/vulkansdk-macos-1.2.189.0/InstallVulkan.app/Contents/MacOS/InstallVulkan --root `pwd`/vulkansdk-macos-1.2.189.0 --accept-licenses --default-answer --confirm-command install
-hdiutil detach /Volumes/vulkansdk-macos-1.2.189.0
+wget https://sdk.lunarg.com/sdk/download/1.3.280.1/mac/vulkansdk-macos-1.3.280.1.dmg -O vulkansdk-macos-1.3.280.1.dmg
+hdiutil attach vulkansdk-macos-1.3.280.1.dmg
+sudo /Volumes/vulkansdk-macos-1.3.280.1/InstallVulkan.app/Contents/MacOS/InstallVulkan --root `pwd`/vulkansdk-macos-1.3.280.1 --accept-licenses --default-answer --confirm-command install
+hdiutil detach /Volumes/vulkansdk-macos-1.3.280.1
 
 # setup env
-export VULKAN_SDK=`pwd`/vulkansdk-macos-1.2.189.0/macOS
+export VULKAN_SDK=`pwd`/vulkansdk-macos-1.3.280.1/macOS
 ```
 
 ```shell
@@ -267,7 +267,7 @@ mkdir -p build
 cd build
 
 cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DPLATFORM=MAC -DARCHS="x86_64;arm64" \
-    -DVulkan_LIBRARY=`pwd`/../vulkansdk-macos-1.2.189.0/MoltenVK/dylib/macOS/libMoltenVK.dylib \
+    -DVulkan_LIBRARY=`pwd`/../vulkansdk-macos-1.3.280.1/macOS/lib/libMoltenVK.dylib \
     -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=ON ..
 
 cmake --build . -j 4
