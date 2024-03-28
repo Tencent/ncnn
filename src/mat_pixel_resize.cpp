@@ -38,12 +38,12 @@ static void vresize_two(const short* rows0p, const short* rows1p, int wsize, uns
         int16x8_t _r01 = vld1q_s16(rows0p + 8);
         int16x8_t _r10 = vld1q_s16(rows1p);
         int16x8_t _r11 = vld1q_s16(rows1p + 8);
-        int16x8_t _acc00 = vaddq_s16(vqdmulhq_s16(_r00, _b0), vqdmulhq_s16(_r10, _b1));
-        int16x8_t _acc01 = vaddq_s16(vqdmulhq_s16(_r01, _b0), vqdmulhq_s16(_r11, _b1));
-        int16x8_t _acc10 = vaddq_s16(vqdmulhq_s16(_r00, _b2), vqdmulhq_s16(_r10, _b3));
-        int16x8_t _acc11 = vaddq_s16(vqdmulhq_s16(_r01, _b2), vqdmulhq_s16(_r11, _b3));
-        uint8x16_t _Dp0 = vcombine_u8(vqrshrun_n_s16(_acc00, 3), vqrshrun_n_s16(_acc01, 3));
-        uint8x16_t _Dp1 = vcombine_u8(vqrshrun_n_s16(_acc10, 3), vqrshrun_n_s16(_acc11, 3));
+        int16x8_t _acc00 = vsraq_n_s16(vshrq_n_s16(vqdmulhq_s16(_r00, _b0), 1), vqdmulhq_s16(_r10, _b1), 1);
+        int16x8_t _acc01 = vsraq_n_s16(vshrq_n_s16(vqdmulhq_s16(_r01, _b0), 1), vqdmulhq_s16(_r11, _b1), 1);
+        int16x8_t _acc10 = vsraq_n_s16(vshrq_n_s16(vqdmulhq_s16(_r00, _b2), 1), vqdmulhq_s16(_r10, _b3), 1);
+        int16x8_t _acc11 = vsraq_n_s16(vshrq_n_s16(vqdmulhq_s16(_r01, _b2), 1), vqdmulhq_s16(_r11, _b3), 1);
+        uint8x16_t _Dp0 = vcombine_u8(vqrshrun_n_s16(_acc00, 2), vqrshrun_n_s16(_acc01, 2));
+        uint8x16_t _Dp1 = vcombine_u8(vqrshrun_n_s16(_acc10, 2), vqrshrun_n_s16(_acc11, 2));
         vst1q_u8(Dp0, _Dp0);
         vst1q_u8(Dp1, _Dp1);
         Dp0 += 16;
@@ -55,10 +55,10 @@ static void vresize_two(const short* rows0p, const short* rows1p, int wsize, uns
     {
         int16x8_t _r0 = vld1q_s16(rows0p);
         int16x8_t _r1 = vld1q_s16(rows1p);
-        int16x8_t _acc0 = vaddq_s16(vqdmulhq_s16(_r0, _b0), vqdmulhq_s16(_r1, _b1));
-        int16x8_t _acc1 = vaddq_s16(vqdmulhq_s16(_r0, _b2), vqdmulhq_s16(_r1, _b3));
-        uint8x8_t _Dp0 = vqrshrun_n_s16(_acc0, 3);
-        uint8x8_t _Dp1 = vqrshrun_n_s16(_acc1, 3);
+        int16x8_t _acc0 = vsraq_n_s16(vshrq_n_s16(vqdmulhq_s16(_r0, _b0), 1), vqdmulhq_s16(_r1, _b1), 1);
+        int16x8_t _acc1 = vsraq_n_s16(vshrq_n_s16(vqdmulhq_s16(_r0, _b2), 1), vqdmulhq_s16(_r1, _b3), 1);
+        uint8x8_t _Dp0 = vqrshrun_n_s16(_acc0, 2);
+        uint8x8_t _Dp1 = vqrshrun_n_s16(_acc1, 2);
         vst1_u8(Dp0, _Dp0);
         vst1_u8(Dp1, _Dp1);
         Dp0 += 8;
@@ -136,9 +136,9 @@ static void vresize_one(const short* rows0p, const short* rows1p, int wsize, uns
         int16x8_t _r01 = vld1q_s16(rows0p + 8);
         int16x8_t _r10 = vld1q_s16(rows1p);
         int16x8_t _r11 = vld1q_s16(rows1p + 8);
-        int16x8_t _acc0 = vaddq_s16(vqdmulhq_s16(_r00, _b0), vqdmulhq_s16(_r10, _b1));
-        int16x8_t _acc1 = vaddq_s16(vqdmulhq_s16(_r01, _b0), vqdmulhq_s16(_r11, _b1));
-        uint8x16_t _Dp = vcombine_u8(vqrshrun_n_s16(_acc0, 3), vqrshrun_n_s16(_acc1, 3));
+        int16x8_t _acc0 = vsraq_n_s16(vshrq_n_s16(vqdmulhq_s16(_r00, _b0), 1), vqdmulhq_s16(_r10, _b1), 1);
+        int16x8_t _acc1 = vsraq_n_s16(vshrq_n_s16(vqdmulhq_s16(_r01, _b0), 1), vqdmulhq_s16(_r11, _b1), 1);
+        uint8x16_t _Dp = vcombine_u8(vqrshrun_n_s16(_acc0, 2), vqrshrun_n_s16(_acc1, 2));
         vst1q_u8(Dp, _Dp);
         Dp += 16;
         rows0p += 16;
@@ -148,8 +148,8 @@ static void vresize_one(const short* rows0p, const short* rows1p, int wsize, uns
     {
         int16x8_t _r0 = vld1q_s16(rows0p);
         int16x8_t _r1 = vld1q_s16(rows1p);
-        int16x8_t _acc = vaddq_s16(vqdmulhq_s16(_r0, _b0), vqdmulhq_s16(_r1, _b1));
-        uint8x8_t _Dp = vqrshrun_n_s16(_acc, 3);
+        int16x8_t _acc = vsraq_n_s16(vshrq_n_s16(vqdmulhq_s16(_r0, _b0), 1), vqdmulhq_s16(_r1, _b1), 1);
+        uint8x8_t _Dp = vqrshrun_n_s16(_acc, 2);
         vst1_u8(Dp, _Dp);
         Dp += 8;
         rows0p += 8;
