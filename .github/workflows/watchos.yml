@@ -27,7 +27,7 @@ concurrency:
   cancel-in-progress: true
 env:
   DEVELOPER_DIR: /Applications/Xcode_15.2.app/Contents/Developer
-  WATCHOS_DEPLOYMENT_TARGET: '2.0'
+  WATCHOS_DEPLOYMENT_TARGET: '6.0'
   ENABLE_BITCODE: OFF
   ENABLE_ARC: OFF
   ENABLE_VISIBILITY: OFF
@@ -81,6 +81,8 @@ jobs:
         cd openmp-${{ env.OPENMP_VERSION }}.src
         sed -i'' -e '/.size __kmp_unnamed_critical_addr/d' runtime/src/z_Linux_asm.S
         sed -i'' -e 's/__kmp_unnamed_critical_addr/___kmp_unnamed_critical_addr/g' runtime/src/z_Linux_asm.S
+        wget https://github.com/nihui/llvm-project/commit/5c12711f9a21f41bea70566bf15a4026804d6b20.patch
+        patch -p2 -i 5c12711f9a21f41bea70566bf15a4026804d6b20.patch
     - name: openmp-armv7k
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
