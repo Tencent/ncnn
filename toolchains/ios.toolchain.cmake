@@ -70,6 +70,7 @@
 #    WATCHOS = Build for armv7k arm64_32 for watchOS.
 #    WATCHOSCOMBINED = Build for armv7k arm64_32 x86_64 watchOS + watchOS Simulator. Combined into FAT STATIC lib (only supported on 3.14+ of CMake with "-G Xcode" argument in combination with the "cmake --install" CMake build step)
 #    SIMULATOR_WATCHOS = Build for x86_64 for watchOS Simulator.
+#    SIMULATORARM64_WATCHOS = Build for arm64 for watchOS Simulator.
 #    MAC = Build for x86_64 macOS.
 #    MAC_ARM64 = Build for Apple Silicon macOS.
 #    MAC_UNIVERSAL = Combined build for x86_64 and Apple Silicon on macOS.
@@ -87,7 +88,7 @@
 #    CMAKE_OSX_SYSROOT, but can also be manually specified (although this should
 #    not be required).
 #
-# DEPLOYMENT_TARGET: Minimum SDK version to target. Default 2.0 on watchOS and 9.0 on tvOS+iOS
+# DEPLOYMENT_TARGET: Minimum SDK version to target. Default 6.0 on watchOS, 13.0 on tvOS+iOS/iPadOS, 11.0 on macOS, 1.0 on visionOS
 #
 # NAMED_LANGUAGE_SUPPORT:
 #    ON (default) = Will require "enable_language(OBJC) and/or enable_language(OBJCXX)" for full OBJC|OBJCXX support
@@ -113,6 +114,7 @@
 #    SIMULATORARM64_TVOS = arm64
 #    WATCHOS = armv7k arm64_32 (if applicable)
 #    SIMULATOR_WATCHOS = x86_64 (i386 has since long been deprecated)
+#    SIMULATORARM64_WATCHOS = arm64
 #    MAC = x86_64
 #    MAC_ARM64 = arm64
 #    MAC_UNIVERSAL = x86_64 arm64
@@ -158,7 +160,7 @@ set(ENV{_IOS_TOOLCHAIN_HAS_RUN} true)
 list(APPEND _supported_platforms
         "OS" "OS64" "OS64COMBINED" "SIMULATOR" "SIMULATOR64" "SIMULATORARM64" "SIMULATOR64COMBINED"
         "TVOS" "TVOSCOMBINED" "SIMULATOR_TVOS" "SIMULATORARM64_TVOS"
-        "WATCHOS" "WATCHOSCOMBINED" "SIMULATOR_WATCHOS"
+        "WATCHOS" "WATCHOSCOMBINED" "SIMULATOR_WATCHOS" "SIMULATORARM64_WATCHOS"
         "MAC" "MAC_ARM64" "MAC_UNIVERSAL"
         "VISIONOS" "SIMULATOR_VISIONOS" "SIMULATOR64_VISIONOS"
         "MAC_CATALYST" "MAC_CATALYST_ARM64")
@@ -257,10 +259,10 @@ set(NAMED_LANGUAGE_SUPPORT_INT ${NAMED_LANGUAGE_SUPPORT} CACHE BOOL
 if(NOT DEFINED DEPLOYMENT_TARGET)
   if (PLATFORM MATCHES "WATCHOS")
     # Unless specified, SDK version 4.0 is used by default as minimum target version (watchOS).
-    set(DEPLOYMENT_TARGET "4.0")
+    set(DEPLOYMENT_TARGET "6.0")
   elseif(PLATFORM STREQUAL "MAC")
     # Unless specified, SDK version 10.13 (High Sierra) is used by default as the minimum target version (macos).
-    set(DEPLOYMENT_TARGET "10.13")
+    set(DEPLOYMENT_TARGET "11.0")
   elseif(PLATFORM STREQUAL "VISIONOS" OR PLATFORM STREQUAL "SIMULATOR_VISIONOS" OR PLATFORM STREQUAL "SIMULATOR64_VISIONOS")
     # Unless specified, SDK version 1.0 is used by default as minimum target version (visionOS).
     set(DEPLOYMENT_TARGET "1.0")
@@ -275,7 +277,7 @@ if(NOT DEFINED DEPLOYMENT_TARGET)
     set(DEPLOYMENT_TARGET "13.1")
   else()
     # Unless specified, SDK version 11.0 is used by default as the minimum target version (iOS, tvOS).
-    set(DEPLOYMENT_TARGET "11.0")
+    set(DEPLOYMENT_TARGET "13.0")
   endif()
   message(STATUS "[DEFAULTS] Using the default min-version since DEPLOYMENT_TARGET not provided!")
 elseif(DEFINED DEPLOYMENT_TARGET AND PLATFORM MATCHES "^MAC_CATALYST" AND ${DEPLOYMENT_TARGET} VERSION_LESS "13.1")
@@ -478,6 +480,14 @@ elseif(PLATFORM_INT STREQUAL "SIMULATOR_WATCHOS")
   if(NOT ARCHS)
     set(ARCHS i386)
     set(APPLE_TARGET_TRIPLE_INT i386-apple-watchos${DEPLOYMENT_TARGET}-simulator)
+  else()
+    set(APPLE_TARGET_TRIPLE_INT ${ARCHS_SPLIT}-apple-watchos${DEPLOYMENT_TARGET}-simulator)
+  endif()
+elseif(PLATFORM_INT STREQUAL "SIMULATORARM64_WATCHOS")
+  set(SDK_NAME watchsimulator)
+  if(NOT ARCHS)
+    set(ARCHS arm64)
+    set(APPLE_TARGET_TRIPLE_INT arm64-apple-watchos${DEPLOYMENT_TARGET}-simulator)
   else()
     set(APPLE_TARGET_TRIPLE_INT ${ARCHS_SPLIT}-apple-watchos${DEPLOYMENT_TARGET}-simulator)
   endif()
@@ -761,6 +771,7 @@ endif()
 set(CMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_REQUIRED "NO")
 set(CMAKE_SHARED_LIBRARY_PREFIX "lib")
 set(CMAKE_SHARED_LIBRARY_SUFFIX ".dylib")
+set(CMAKE_EXTRA_SHARED_LIBRARY_SUFFIXES ".tbd" ".so")
 set(CMAKE_SHARED_MODULE_PREFIX "lib")
 set(CMAKE_SHARED_MODULE_SUFFIX ".so")
 set(CMAKE_C_COMPILER_ABI ELF)
@@ -816,6 +827,9 @@ elseif(PLATFORM_INT STREQUAL "SIMULATORARM64_TVOS")
   elseif(PLATFORM_INT STREQUAL "SIMULATOR_WATCHOS")
     set(SDK_NAME_VERSION_FLAGS
             "-mwatchos-simulator-version-min=${DEPLOYMENT_TARGET}")
+  elseif(PLATFORM_INT STREQUAL "SIMULATORARM64_WATCHOS")
+    set(SDK_NAME_VERSION_FLAGS
+            "-mwatchos-simulator-version-min=${DEPLOYMENT_TARGET}")
   elseif(PLATFORM_INT STREQUAL "MAC")
     set(SDK_NAME_VERSION_FLAGS
             "-mmacosx-version-min=${DEPLOYMENT_TARGET}")
@@ -826,7 +840,7 @@ elseif(PLATFORM_INT STREQUAL "SIMULATORARM64_TVOS")
   endif()
 elseif(NOT PLATFORM_INT MATCHES "^MAC_CATALYST")
   # Newer versions of CMake sets the version min flags correctly, skip this for Mac Catalyst targets
-  set(CMAKE_OSX_DEPLOYMENT_TARGET ${DEPLOYMENT_TARGET})
+  set(CMAKE_OSX_DEPLOYMENT_TARGET ${DEPLOYMENT_TARGET} CACHE INTERNAL "Minimum OS X deployment version")
 endif()
 
 if(DEFINED APPLE_TARGET_TRIPLE_INT)
@@ -887,35 +901,44 @@ endif()
 if(CMAKE_GENERATOR MATCHES "Xcode")
   message(STATUS "Not setting any manual command-line buildflags, since Xcode is selected as the generator. Modifying the Xcode build-settings directly instead.")
 else()
-  set(CMAKE_C_FLAGS "${C_TARGET_FLAGS} ${APPLE_TARGET_TRIPLE_FLAG} ${SDK_NAME_VERSION_FLAGS} ${OBJC_LEGACY_VARS} ${BITCODE} ${VISIBILITY} ${CMAKE_C_FLAGS}")
+  set(CMAKE_C_FLAGS "${C_TARGET_FLAGS} ${APPLE_TARGET_TRIPLE_FLAG} ${SDK_NAME_VERSION_FLAGS} ${OBJC_LEGACY_VARS} ${BITCODE} ${VISIBILITY} ${CMAKE_C_FLAGS}" CACHE INTERNAL
+     "Flags used by the compiler during all C build types.")
   set(CMAKE_C_FLAGS_DEBUG "-O0 -g ${CMAKE_C_FLAGS_DEBUG}")
   set(CMAKE_C_FLAGS_MINSIZEREL "-DNDEBUG -Os ${CMAKE_C_FLAGS_MINSIZEREL}")
   set(CMAKE_C_FLAGS_RELWITHDEBINFO "-DNDEBUG -O2 -g ${CMAKE_C_FLAGS_RELWITHDEBINFO}")
   set(CMAKE_C_FLAGS_RELEASE "-DNDEBUG -O3 ${CMAKE_C_FLAGS_RELEASE}")
-  set(CMAKE_CXX_FLAGS "${C_TARGET_FLAGS} ${APPLE_TARGET_TRIPLE_FLAG} ${SDK_NAME_VERSION_FLAGS} ${OBJC_LEGACY_VARS} ${BITCODE} ${VISIBILITY} ${CMAKE_CXX_FLAGS}")
+  set(CMAKE_CXX_FLAGS "${C_TARGET_FLAGS} ${APPLE_TARGET_TRIPLE_FLAG} ${SDK_NAME_VERSION_FLAGS} ${OBJC_LEGACY_VARS} ${BITCODE} ${VISIBILITY} ${CMAKE_CXX_FLAGS}" CACHE INTERNAL
+     "Flags used by the compiler during all CXX build types.")
   set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g ${CMAKE_CXX_FLAGS_DEBUG}")
   set(CMAKE_CXX_FLAGS_MINSIZEREL "-DNDEBUG -Os ${CMAKE_CXX_FLAGS_MINSIZEREL}")
   set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-DNDEBUG -O2 -g ${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
   set(CMAKE_CXX_FLAGS_RELEASE "-DNDEBUG -O3 ${CMAKE_CXX_FLAGS_RELEASE}")
   if(NAMED_LANGUAGE_SUPPORT_INT)
-    set(CMAKE_OBJC_FLAGS "${C_TARGET_FLAGS} ${APPLE_TARGET_TRIPLE_FLAG} ${SDK_NAME_VERSION_FLAGS} ${BITCODE} ${VISIBILITY} ${FOBJC_ARC} ${OBJC_VARS} ${CMAKE_OBJC_FLAGS}")
+    set(CMAKE_OBJC_FLAGS "${C_TARGET_FLAGS} ${APPLE_TARGET_TRIPLE_FLAG} ${SDK_NAME_VERSION_FLAGS} ${BITCODE} ${VISIBILITY} ${FOBJC_ARC} ${OBJC_VARS} ${CMAKE_OBJC_FLAGS}" CACHE INTERNAL
+     "Flags used by the compiler during all OBJC build types.")
     set(CMAKE_OBJC_FLAGS_DEBUG "-O0 -g ${CMAKE_OBJC_FLAGS_DEBUG}")
     set(CMAKE_OBJC_FLAGS_MINSIZEREL "-DNDEBUG -Os ${CMAKE_OBJC_FLAGS_MINSIZEREL}")
     set(CMAKE_OBJC_FLAGS_RELWITHDEBINFO "-DNDEBUG -O2 -g ${CMAKE_OBJC_FLAGS_RELWITHDEBINFO}")
     set(CMAKE_OBJC_FLAGS_RELEASE "-DNDEBUG -O3 ${CMAKE_OBJC_FLAGS_RELEASE}")
-    set(CMAKE_OBJCXX_FLAGS "${C_TARGET_FLAGS} ${APPLE_TARGET_TRIPLE_FLAG} ${SDK_NAME_VERSION_FLAGS} ${BITCODE} ${VISIBILITY} ${FOBJC_ARC} ${OBJC_VARS} ${CMAKE_OBJCXX_FLAGS}")
+    set(CMAKE_OBJCXX_FLAGS "${C_TARGET_FLAGS} ${APPLE_TARGET_TRIPLE_FLAG} ${SDK_NAME_VERSION_FLAGS} ${BITCODE} ${VISIBILITY} ${FOBJC_ARC} ${OBJC_VARS} ${CMAKE_OBJCXX_FLAGS}" CACHE INTERNAL
+     "Flags used by the compiler during all OBJCXX build types.")
     set(CMAKE_OBJCXX_FLAGS_DEBUG "-O0 -g ${CMAKE_OBJCXX_FLAGS_DEBUG}")
     set(CMAKE_OBJCXX_FLAGS_MINSIZEREL "-DNDEBUG -Os ${CMAKE_OBJCXX_FLAGS_MINSIZEREL}")
     set(CMAKE_OBJCXX_FLAGS_RELWITHDEBINFO "-DNDEBUG -O2 -g ${CMAKE_OBJCXX_FLAGS_RELWITHDEBINFO}")
     set(CMAKE_OBJCXX_FLAGS_RELEASE "-DNDEBUG -O3 ${CMAKE_OBJCXX_FLAGS_RELEASE}")
   endif()
-  set(CMAKE_C_LINK_FLAGS "${C_TARGET_FLAGS} ${SDK_NAME_VERSION_FLAGS} -Wl,-search_paths_first ${CMAKE_C_LINK_FLAGS}")
-  set(CMAKE_CXX_LINK_FLAGS "${C_TARGET_FLAGS} ${SDK_NAME_VERSION_FLAGS}  -Wl,-search_paths_first ${CMAKE_CXX_LINK_FLAGS}")
+  set(CMAKE_C_LINK_FLAGS "${C_TARGET_FLAGS} ${SDK_NAME_VERSION_FLAGS} -Wl,-search_paths_first ${CMAKE_C_LINK_FLAGS}" CACHE INTERNAL
+     "Flags used by the compiler for all C link types.")
+  set(CMAKE_CXX_LINK_FLAGS "${C_TARGET_FLAGS} ${SDK_NAME_VERSION_FLAGS}  -Wl,-search_paths_first ${CMAKE_CXX_LINK_FLAGS}" CACHE INTERNAL
+     "Flags used by the compiler for all CXX link types.")
   if(NAMED_LANGUAGE_SUPPORT_INT)
-    set(CMAKE_OBJC_LINK_FLAGS "${C_TARGET_FLAGS} ${SDK_NAME_VERSION_FLAGS} -Wl,-search_paths_first ${CMAKE_OBJC_LINK_FLAGS}")
-    set(CMAKE_OBJCXX_LINK_FLAGS "${C_TARGET_FLAGS} ${SDK_NAME_VERSION_FLAGS} -Wl,-search_paths_first ${CMAKE_OBJCXX_LINK_FLAGS}")
+    set(CMAKE_OBJC_LINK_FLAGS "${C_TARGET_FLAGS} ${SDK_NAME_VERSION_FLAGS} -Wl,-search_paths_first ${CMAKE_OBJC_LINK_FLAGS}" CACHE INTERNAL
+     "Flags used by the compiler for all OBJC link types.")
+    set(CMAKE_OBJCXX_LINK_FLAGS "${C_TARGET_FLAGS} ${SDK_NAME_VERSION_FLAGS} -Wl,-search_paths_first ${CMAKE_OBJCXX_LINK_FLAGS}" CACHE INTERNAL
+     "Flags used by the compiler for all OBJCXX link types.")
   endif()
-  set(CMAKE_ASM_FLAGS "${CMAKE_C_FLAGS} -x assembler-with-cpp -arch ${CMAKE_OSX_ARCHITECTURES} ${APPLE_TARGET_TRIPLE_FLAG}")
+  set(CMAKE_ASM_FLAGS "${CMAKE_C_FLAGS} -x assembler-with-cpp -arch ${CMAKE_OSX_ARCHITECTURES} ${APPLE_TARGET_TRIPLE_FLAG}" CACHE INTERNAL
+     "Flags used by the compiler for all ASM build types.")
 endif()
 
 ## Print status messages to inform of the current state
