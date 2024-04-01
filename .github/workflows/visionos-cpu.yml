@@ -10,16 +10,16 @@ on:
     - 'src/*'
     - 'src/layer/*'
     - 'src/layer/arm/**'
-  pull_request:
-    branches: [master]
-    paths:
-    - '.github/workflows/visionos-cpu.yml'
-    - 'toolchains/ios.toolchain.cmake'
-    - 'CMakeLists.txt'
-    - 'cmake/**'
-    - 'src/*'
-    - 'src/layer/*'
-    - 'src/layer/arm/**'
+  # pull_request:
+  #   branches: [master]
+  #   paths:
+  #   - '.github/workflows/visionos-cpu.yml'
+  #   - 'toolchains/ios.toolchain.cmake'
+  #   - 'CMakeLists.txt'
+  #   - 'cmake/**'
+  #   - 'src/*'
+  #   - 'src/layer/*'
+  #   - 'src/layer/arm/**'
 concurrency:
   group: visionos-cpu-${{ github.ref }}
   cancel-in-progress: true
