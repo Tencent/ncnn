@@ -1,0 +1,79 @@
+name: watchos
+on:
+  push:
+    branches: [master]
+    paths:
+    - '.github/workflows/watchos.yml'
+    - 'toolchains/ios.toolchain.cmake'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/arm/**'
+    - 'src/layer/x86/**'
+  pull_request:
+    branches: [master]
+    paths:
+    - '.github/workflows/watchos.yml'
+    - 'toolchains/ios.toolchain.cmake'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/arm/**'
+    - 'src/layer/x86/**'
+concurrency:
+  group: watchos-${{ github.ref }}
+  cancel-in-progress: true
+env:
+  DEVELOPER_DIR: /Applications/Xcode_14.3.1.app/Contents/Developer
+  WATCHOS_DEPLOYMENT_TARGET: '2.0'
+  ENABLE_BITCODE: OFF
+  ENABLE_ARC: OFF
+  ENABLE_VISIBILITY: OFF
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-13
+    env:
+      COMMON_CMAKE_OPTIONS: |
+        -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake \
+        -DDEPLOYMENT_TARGET=$WATCHOS_DEPLOYMENT_TARGET \
+        -DENABLE_BITCODE=$ENABLE_BITCODE \
+        -DENABLE_ARC=$ENABLE_ARC \
+        -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
+        -DNCNN_OPENMP=OFF -DNCNN_THREADS=OFF \
+        -DCMAKE_INSTALL_PREFIX=install \
+        -DCMAKE_BUILD_TYPE=Release \
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: armv7k
+      run: |
+        mkdir build-armv7k && cd build-armv7k
+        cmake ${{ env.COMMON_CMAKE_OPTIONS }} -DPLATFORM=WATCHOS -DARCHS="armv7k" ..
+        cmake --build . -j 4
+    - name: arm64_32
+      run: |
+        mkdir build-arm64_32 && cd build-arm64_32
+        cmake ${{ env.COMMON_CMAKE_OPTIONS }} -DPLATFORM=WATCHOS -DARCHS="arm64_32" ..
+        cmake --build . -j 4
+
+    - name: simulator-i386
+      run: |
+        mkdir build-simulator-i386 && cd build-simulator-i386
+        cmake ${{ env.COMMON_CMAKE_OPTIONS }} -DPLATFORM=SIMULATOR_WATCHOS -DARCHS="i386" ..
+        cmake --build . -j 4
+    - name: simulator-x86_64
+      run: |
+        mkdir build-simulator-x86_64 && cd build-simulator-x86_64
+        cmake ${{ env.COMMON_CMAKE_OPTIONS }} -DPLATFORM=SIMULATOR_WATCHOS -DARCHS="x86_64" ..
+        cmake --build . -j 4
+    - name: simulator-arm64
+      run: |
+        mkdir build-simulator-arm64 && cd build-simulator-arm64
+        cmake ${{ env.COMMON_CMAKE_OPTIONS }} -DPLATFORM=SIMULATOR_WATCHOS -DARCHS="arm64" ..
+        cmake --build . -j 4
