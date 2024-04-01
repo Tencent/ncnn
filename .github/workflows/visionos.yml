@@ -86,7 +86,7 @@ jobs:
       run: |
         cd openmp-${{ env.OPENMP_VERSION }}.src
         mkdir -p build-arm64 && cd build-arm64
-        cmake ${{ env.OPENMP_CMAKE_OPTIONS }} -DPLATFORM=WATCHOS -DARCHS="arm64" ..
+        cmake ${{ env.OPENMP_CMAKE_OPTIONS }} -DPLATFORM=VISIONOS -DARCHS="arm64" ..
         cmake --build . -j 4
         cmake --build . --target install
     - name: openmp-simulator-x86_64
@@ -94,7 +94,7 @@ jobs:
       run: |
         cd openmp-${{ env.OPENMP_VERSION }}.src
         mkdir -p build-simulator-x86_64 && cd build-simulator-x86_64
-        cmake ${{ env.OPENMP_CMAKE_OPTIONS }} -DPLATFORM=SIMULATOR_WATCHOS -DARCHS="x86_64" ..
+        cmake ${{ env.OPENMP_CMAKE_OPTIONS }} -DPLATFORM=SIMULATOR_VISIONOS -DARCHS="x86_64" ..
         cmake --build . -j 4
         cmake --build . --target install
     - name: openmp-simulator-arm64
@@ -102,7 +102,7 @@ jobs:
       run: |
         cd openmp-${{ env.OPENMP_VERSION }}.src
         mkdir -p build-simulator-arm64 && cd build-simulator-arm64
-        cmake ${{ env.OPENMP_CMAKE_OPTIONS }} -DPLATFORM=SIMULATOR_WATCHOS -DARCHS="arm64" ..
+        cmake ${{ env.OPENMP_CMAKE_OPTIONS }} -DPLATFORM=SIMULATOR_VISIONOS -DARCHS="arm64" ..
         cmake --build . -j 4
         cmake --build . --target install
     - name: openmp-merge-fat-library

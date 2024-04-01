@@ -46,9 +46,7 @@ jobs:
         -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
         -DCMAKE_INSTALL_PREFIX=install \
         -DCMAKE_BUILD_TYPE=Release \
-        -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
-        -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
-        -DOpenMP_libomp_LIBRARY="libomp.a" \
+        -DNCNN_OPENMP=OFF -DNCNN_THREADS=OFF \
 
     steps:
     - uses: actions/checkout@v4
