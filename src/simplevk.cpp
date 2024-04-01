@@ -316,6 +316,12 @@ static int load_vulkan_linux(const char* driver_path)
 #endif
 
     void* libvulkan = dlopen(libpath, RTLD_LOCAL | RTLD_NOW);
+#if !__APPLE__
+    if (!libvulkan)
+    {
+        libvulkan = dlopen("libvulkan.so.1", RTLD_LOCAL | RTLD_NOW);
+    }
+#endif
     if (!libvulkan)
     {
         NCNN_LOGE("dlopen failed %s", dlerror());
