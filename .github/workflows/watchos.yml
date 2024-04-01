@@ -38,7 +38,7 @@ jobs:
   build:
     runs-on: macos-13
     env:
-      OPENMP_VERSION: '16.0.6'
+      OPENMP_VERSION: '11.0.0'
       OPENMP_CMAKE_OPTIONS: |
         -DCMAKE_TOOLCHAIN_FILE=../../toolchains/ios.toolchain.cmake \
         -DDEPLOYMENT_TARGET=$WATCHOS_DEPLOYMENT_TARGET \
