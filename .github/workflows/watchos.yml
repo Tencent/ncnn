@@ -79,8 +79,6 @@ jobs:
         wget https://github.com/llvm/llvm-project/releases/download/llvmorg-${{ env.OPENMP_VERSION }}/openmp-${{ env.OPENMP_VERSION }}.src.tar.xz
         tar -xf openmp-${{ env.OPENMP_VERSION }}.src.tar.xz
         cd openmp-${{ env.OPENMP_VERSION }}.src
-        sed -i'' -e '/.size __kmp_unnamed_critical_addr/d' runtime/src/z_Linux_asm.S
-        sed -i'' -e 's/__kmp_unnamed_critical_addr/___kmp_unnamed_critical_addr/g' runtime/src/z_Linux_asm.S
         wget https://github.com/nihui/llvm-project/commit/5c12711f9a21f41bea70566bf15a4026804d6b20.patch
         patch -p2 -i 5c12711f9a21f41bea70566bf15a4026804d6b20.patch
     - name: openmp-armv7k
