@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class ReLU_loongarch : virtual public ReLU
+class ReLU_loongarch : public ReLU
 {
 public:
     ReLU_loongarch();

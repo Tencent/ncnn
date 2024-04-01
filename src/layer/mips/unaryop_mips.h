@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class UnaryOp_mips : virtual public UnaryOp
+class UnaryOp_mips : public UnaryOp
 {
 public:
     UnaryOp_mips();

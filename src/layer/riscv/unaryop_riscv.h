@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class UnaryOp_riscv : virtual public UnaryOp
+class UnaryOp_riscv : public UnaryOp
 {
 public:
     UnaryOp_riscv();

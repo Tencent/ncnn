@@ -40,7 +40,7 @@ jobs:
         submodules: true
     - name: cache-swiftshader
       id: cache-swiftshader
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: swiftshader-install
         key: swiftshader-linux-install-20230420
@@ -62,7 +62,7 @@ jobs:
         cd swiftshader
         mkdir -p build; cd build
         cmake -DCMAKE_INSTALL_PREFIX=install -DSWIFTSHADER_BUILD_EGL=FALSE -DSWIFTSHADER_BUILD_GLESv2=FALSE -DSWIFTSHADER_BUILD_GLES_CM=FALSE -DSWIFTSHADER_BUILD_VULKAN=TRUE -DSWIFTSHADER_BUILD_PVR=FALSE -DSWIFTSHADER_BUILD_TESTS=FALSE -DSWIFTSHADER_ENABLE_ASTC=FALSE -DSWIFTSHADER_WARNINGS_AS_ERRORS=FALSE -DREACTOR_BACKEND=Subzero -DREACTOR_DEFAULT_OPT_LEVEL=Default -DCMAKE_BUILD_TYPE=Release ..
-        cmake --build . -j 2
+        cmake --build . -j $(nproc)
         mkdir $GITHUB_WORKSPACE/swiftshader-install
         cp Linux/* $GITHUB_WORKSPACE/swiftshader-install
     - name: set up python ${{ matrix.python-version }}
@@ -80,7 +80,7 @@ jobs:
       run: |
         mkdir build && cd build
         cmake -DNCNN_VULKAN=ON -DNCNN_PYTHON=ON -DNCNN_DISABLE_RTTI=OFF -DNCNN_DISABLE_EXCEPTION=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
-        cmake --build . -j 2
+        cmake --build . -j $(nproc)
     - name: install python
       run: cd python && pip install .
     - name: test

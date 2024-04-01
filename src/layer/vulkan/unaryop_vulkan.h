@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class UnaryOp_vulkan : virtual public UnaryOp
+class UnaryOp_vulkan : public UnaryOp
 {
 public:
     UnaryOp_vulkan();

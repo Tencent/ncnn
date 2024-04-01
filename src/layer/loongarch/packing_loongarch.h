@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Packing_loongarch : virtual public Packing
+class Packing_loongarch : public Packing
 {
 public:
     Packing_loongarch();

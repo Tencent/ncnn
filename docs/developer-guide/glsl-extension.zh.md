@@ -170,10 +170,10 @@ void main()
 shared lfp tmp_a[8][4][2];
 ```
 
-|local type|fp32|fp16p / fp16s|fp16s + fp16a|
-|---|---|---|---|
-|lfp|float|float|float16_t|
-|lfpvec4|vec4|uvec2|f16vec4|
+|local type|fp32|fp16p / fp16s only|fp16s+fp16a|fp16s+fp16u|
+|---|---|---|---|---|
+|lfp|float|float|float|float16_t|
+|lfpvec4|vec4|uvec2|uint64_t|f16vec4|
 
 ## 图像格式类型(image format type)和精度类型(precision hint type)
 

@@ -134,7 +134,7 @@ int DeformableConv2D_x86::create_pipeline(const Option& opt)
     {
         const int maxk = kernel_w * kernel_h;
 
-        gemm = ncnn::create_layer(ncnn::LayerType::Gemm);
+        gemm = ncnn::create_layer_cpu(ncnn::LayerType::Gemm);
 
         ncnn::ParamDict pd;
         pd.set(2, 0);                   // transA
@@ -203,10 +203,7 @@ int DeformableConv2D_x86::create_pipeline(const Option& opt)
         deformableconv2d_transform_kernel_packed_sse(weight_data, weight_data_tm, num_input, num_output, kernel_w, kernel_h, elempack, out_elempack);
     }
 
-    if (opt.lightmode)
-    {
-        weight_data.release();
-    }
+    weight_data.release();
 
     return 0;
 }

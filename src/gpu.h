@@ -260,9 +260,11 @@ public:
     // fp16 and int8 feature
     bool support_fp16_packed() const;
     bool support_fp16_storage() const;
+    bool support_fp16_uniform() const;
     bool support_fp16_arithmetic() const;
     bool support_int8_packed() const;
     bool support_int8_storage() const;
+    bool support_int8_uniform() const;
     bool support_int8_arithmetic() const;
 
     // ycbcr conversion feature
@@ -270,6 +272,7 @@ public:
 
     // cooperative matrix feature
     bool support_cooperative_matrix() const;
+    bool support_cooperative_matrix_8_8_16() const;
     bool support_cooperative_matrix_16_8_8() const;
     bool support_cooperative_matrix_16_8_16() const;
     bool support_cooperative_matrix_16_16_16() const;

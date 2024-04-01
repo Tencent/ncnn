@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Yolov3DetectionOutput_x86 : virtual public Yolov3DetectionOutput
+class Yolov3DetectionOutput_x86 : public Yolov3DetectionOutput
 {
 public:
     Yolov3DetectionOutput_x86();

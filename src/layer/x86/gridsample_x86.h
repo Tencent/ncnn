@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class GridSample_x86 : virtual public GridSample
+class GridSample_x86 : public GridSample
 {
 public:
     GridSample_x86();

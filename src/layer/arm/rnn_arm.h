@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class RNN_arm : virtual public RNN
+class RNN_arm : public RNN
 {
 public:
     RNN_arm();

@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class ELU_vulkan : virtual public ELU
+class ELU_vulkan : public ELU
 {
 public:
     ELU_vulkan();

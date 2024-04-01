@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Concat_loongarch : virtual public Concat
+class Concat_loongarch : public Concat
 {
 public:
     Concat_loongarch();

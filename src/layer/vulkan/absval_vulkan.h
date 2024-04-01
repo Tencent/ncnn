@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class AbsVal_vulkan : virtual public AbsVal
+class AbsVal_vulkan : public AbsVal
 {
 public:
     AbsVal_vulkan();

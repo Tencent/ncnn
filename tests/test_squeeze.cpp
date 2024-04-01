@@ -12,7 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "layer/squeeze.h"
 #include "testutil.h"
 
 static int test_squeeze(const ncnn::Mat& a, int squeeze_w, int squeeze_h, int squeeze_d, int squeeze_c)
@@ -25,7 +24,7 @@ static int test_squeeze(const ncnn::Mat& a, int squeeze_w, int squeeze_h, int sq
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer<ncnn::Squeeze>("Squeeze", pd, weights, a);
+    int ret = test_layer("Squeeze", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_squeeze failed a.dims=%d a=(%d %d %d %d) squeeze_w=%d squeeze_h=%d squeeze_d=%d squeeze_c=%d\n", a.dims, a.w, a.h, a.d, a.c, squeeze_w, squeeze_h, squeeze_d, squeeze_c);
@@ -91,7 +90,7 @@ static int test_squeeze_axes(const ncnn::Mat& a, const ncnn::Mat& axes)
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer<ncnn::Squeeze>("Squeeze", pd, weights, a);
+    int ret = test_layer("Squeeze", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_squeeze_axes failed a.dims=%d a=(%d %d %d %d)\n", a.dims, a.w, a.h, a.d, a.c);

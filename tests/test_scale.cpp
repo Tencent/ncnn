@@ -12,7 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "layer/scale.h"
 #include "testutil.h"
 
 static int test_scale(const ncnn::Mat& a, int bias)
@@ -31,7 +30,7 @@ static int test_scale(const ncnn::Mat& a, int bias)
     if (bias)
         weights[1] = RandomMat(scale_data_size);
 
-    int ret = test_layer<ncnn::Scale>("Scale", pd, weights, a);
+    int ret = test_layer("Scale", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_scale failed a.dims=%d a=(%d %d %d) bias=%d\n", a.dims, a.w, a.h, a.c, bias);
@@ -56,7 +55,7 @@ static int test_scale_attention(const ncnn::Mat& a)
     ab[0] = a;
     ab[1] = RandomMat(scale_data_size);
 
-    int ret = test_layer<ncnn::Scale>("Scale", pd, weights, ab, 2);
+    int ret = test_layer("Scale", pd, weights, ab, 2);
     if (ret != 0)
     {
         fprintf(stderr, "test_scale_attention failed a.dims=%d a=(%d %d %d)\n", a.dims, a.w, a.h, a.c);

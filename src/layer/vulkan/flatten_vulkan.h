@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Flatten_vulkan : virtual public Flatten
+class Flatten_vulkan : public Flatten
 {
 public:
     Flatten_vulkan();

@@ -49,12 +49,12 @@ jobs:
       run: |
         mkdir build; cd build
         cmake -T ${{ matrix.toolset-version }},host=x64 -A arm64 -DNCNN_BUILD_TESTS=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
-        cmake --build . --config Release -j 2
+        cmake --build . --config Release -j 4
     - name: build-shared
       run: |
         mkdir build-shared; cd build-shared
         cmake -T ${{ matrix.toolset-version }},host=x64 -A arm64 -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_SHARED_LIB=ON ..
-        cmake --build . --config Release -j 2
+        cmake --build . --config Release -j 4
 
   woa-linux:
     name: woa-linux
@@ -82,8 +82,8 @@ jobs:
         export PATH=/msvc/bin/arm64:$PATH
         mkdir build && cd build
         cmake -GNinja -DCMAKE_BUILD_TYPE=Release -DCMAKE_SYSTEM_NAME=Windows -DNCNN_BUILD_TESTS=ON ..
-        cmake --build . --config Release -j 2
+        cmake --build . --config Release -j $(nproc)
     - name: test
       run: |
         cd build
-        TESTS_EXECUTABLE_LOADER=wine-arm64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="" ctest --output-on-failure -j 2
+        TESTS_EXECUTABLE_LOADER=wine-arm64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="" ctest --output-on-failure -j $(nproc)

@@ -12,7 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "layer/reshape.h"
 #include "testutil.h"
 
 static int test_reshape(const ncnn::Mat& a, int outw, int outh, int outd, int outc)
@@ -25,7 +24,7 @@ static int test_reshape(const ncnn::Mat& a, int outw, int outh, int outd, int ou
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer<ncnn::Reshape>("Reshape", pd, weights, a);
+    int ret = test_layer("Reshape", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_reshape failed a.dims=%d a=(%d %d %d %d) outw=%d outh=%d outd=%d outc=%d\n", a.dims, a.w, a.h, a.d, a.c, outw, outh, outd, outc);

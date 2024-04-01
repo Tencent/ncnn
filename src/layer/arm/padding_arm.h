@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Padding_arm : virtual public Padding
+class Padding_arm : public Padding
 {
 public:
     Padding_arm();

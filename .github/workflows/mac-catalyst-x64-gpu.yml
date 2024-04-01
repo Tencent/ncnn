@@ -50,7 +50,7 @@ jobs:
 
     - name: cache-openmp
       id: cache-openmp
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: openmp-install
         key: openmp-mac-catalyst-install-20230504

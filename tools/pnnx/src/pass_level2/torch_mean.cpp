@@ -40,6 +40,43 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_mean, 20)
 
+class torch_mean_01 : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+4 3
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 dim
+aten::mean_dim          op_0        2 1 input dim out keepdim=%keepdim
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "torch.mean";
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        bool keepdim;
+        if (captured_params.at("keepdim").type == 2)
+        {
+            keepdim = captured_params.at("keepdim").i ? true : false;
+        }
+        else // if (captured_params.at("keepdim").type == 1)
+        {
+            keepdim = captured_params.at("keepdim").b;
+        }
+
+        op->params["keepdim"] = keepdim;
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_mean_01, 20)
+
 class torch_mean_1 : public GraphRewriterPass
 {
 public:

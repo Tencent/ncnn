@@ -126,10 +126,10 @@ public:
             op->params["padding"] = convolution->namedInput("padding");
         }
         op->params["dilation"] = convolution->namedInput("dilation");
-        op->params["bias"] = mod.hasattr("bias");
+        op->params["bias"] = mod.hasattr("bias") && mod.attr("bias").isTensor();
 
         op->attrs["weight"] = weight;
-        if (mod.hasattr("bias"))
+        if (mod.hasattr("bias") && mod.attr("bias").isTensor())
         {
             op->attrs["bias"] = mod.attr("bias").toTensor();
         }

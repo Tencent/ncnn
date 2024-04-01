@@ -181,7 +181,10 @@ static std::string eval_expression(const Operator* op)
                  || t == "square"
                  || t == "tan"
                  || t == "tanh"
-                 || t == "trunc")
+                 || t == "trunc"
+                 || t == "torch.bool"
+                 || t == "torch.float"
+                 || t == "torch.long")
         {
             std::string a = exprstack.top();
             exprstack.pop();
@@ -332,6 +335,31 @@ static std::string eval_expression(const Operator* op)
                 if (t == "trunc")
                 {
                     float r = trunc(af);
+                    exprstack.push(std::to_string(r));
+                }
+                if (t == "torch.bool")
+                {
+                    int r = int(af);
+                    if (token_is_interger_literal(a))
+                    {
+                        r = std::stoi(a);
+                    }
+
+                    exprstack.push(r == 0 ? "False" : "True");
+                }
+                if (t == "torch.float")
+                {
+                    float r = af;
+                    exprstack.push(std::to_string(r));
+                }
+                if (t == "torch.long")
+                {
+                    long r = long(af);
+                    if (token_is_interger_literal(a))
+                    {
+                        r = std::stol(a);
+                    }
+
                     exprstack.push(std::to_string(r));
                 }
             }

@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Eltwise_mips : virtual public Eltwise
+class Eltwise_mips : public Eltwise
 {
 public:
     Eltwise_mips();

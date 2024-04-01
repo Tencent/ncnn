@@ -41,25 +41,25 @@ jobs:
       run: |
         mkdir build && cd build
         cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/host.gcc-m32.toolchain.cmake -DNCNN_BUILD_TESTS=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
-        cmake --build . -j 2
+        cmake --build . -j $(nproc)
     - name: test
-      run: cd build && ctest --output-on-failure -j 2
+      run: cd build && ctest --output-on-failure -j $(nproc)
     - name: build-nosse
       run: |
         mkdir build-nosse && cd build-nosse
         cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/host.gcc-m32.toolchain.cmake -DNCNN_RUNTIME_CPU=OFF -DNCNN_SSE2=OFF -DNCNN_AVX=OFF -DNCNN_BUILD_TESTS=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
-        cmake --build . -j 2
+        cmake --build . -j $(nproc)
     - name: test-nosse
-      run: cd build-nosse && ctest --output-on-failure -j 2
+      run: cd build-nosse && ctest --output-on-failure -j $(nproc)
     - name: build-shared
       run: |
         mkdir build-shared && cd build-shared
         cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/host.gcc-m32.toolchain.cmake -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_SHARED_LIB=ON ..
-        cmake --build . -j 2
+        cmake --build . -j $(nproc)
     - name: build-noint8
       run: |
         mkdir build-noint8 && cd build-noint8
         cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/host.gcc-m32.toolchain.cmake -DNCNN_BUILD_TESTS=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_INT8=OFF ..
-        cmake --build . -j 2
+        cmake --build . -j $(nproc)
     - name: test-noint8
-      run: cd build-noint8 && ctest --output-on-failure -j 2
+      run: cd build-noint8 && ctest --output-on-failure -j $(nproc)

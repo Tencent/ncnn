@@ -213,6 +213,10 @@ if(Torch_VERSION VERSION_GREATER_EQUAL "1.9")
     pnnx_ncnn_add_test(nn_Mish)
 endif()
 
+if(Torch_VERSION VERSION_GREATER_EQUAL "1.11")
+    pnnx_ncnn_add_test(torch_slice_scatter)
+endif()
+
 if(TorchVision_FOUND)
     pnnx_ncnn_add_test(torchvision_DeformConv2d)
 endif()
