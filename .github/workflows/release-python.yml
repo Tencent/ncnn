@@ -73,7 +73,7 @@ jobs:
     # build wheels for ubuntu-20.04
     - name: Build wheels for ubuntu
       if: matrix.os == 'ubuntu-20.04'
-      uses: pypa/cibuildwheel@v2.16.5
+      uses: pypa/cibuildwheel@v2.17.0
       env:
         CIBW_ARCHS_LINUX: ${{ matrix.arch }}
         CIBW_BUILD: ${{ matrix.build }}
@@ -85,7 +85,7 @@ jobs:
     # build wheels for windows-2019
     - name: Build wheels for windows
       if: matrix.os == 'windows-2019' && (matrix.arch == 'AMD64' || matrix.arch == 'x86')
-      uses: pypa/cibuildwheel@v2.16.5
+      uses: pypa/cibuildwheel@v2.17.0
       env:
         CIBW_ARCHS_WINDOWS: ${{ matrix.arch }}
         CIBW_BUILD: ${{ matrix.build }}
@@ -98,7 +98,7 @@ jobs:
 
     - name: Build wheels for windows ARM64
       if: matrix.os == 'windows-2019' && matrix.arch == 'ARM64'
-      uses: pypa/cibuildwheel@v2.16.5
+      uses: pypa/cibuildwheel@v2.17.0
       env:
         CIBW_ARCHS_WINDOWS: ${{ matrix.arch }}
         CIBW_BUILD: ${{ matrix.build }}
@@ -179,7 +179,7 @@ jobs:
 
     - name: Build wheels for macos x86_64
       if: matrix.os == 'macos-latest' && matrix.arch == 'x86_64'
-      uses: pypa/cibuildwheel@v2.16.5
+      uses: pypa/cibuildwheel@v2.17.0
       env:
         CIBW_ARCHS_MACOS: ${{ matrix.arch }}
         CIBW_BUILD: ${{ matrix.build }}
@@ -196,7 +196,7 @@ jobs:
 
     - name: Build wheels for macos arm64
       if: matrix.os == 'macos-latest' && matrix.arch == 'arm64'
-      uses: pypa/cibuildwheel@v2.16.5
+      uses: pypa/cibuildwheel@v2.17.0
       env:
         CIBW_ARCHS_MACOS: ${{ matrix.arch }}
         CIBW_BUILD: ${{ matrix.build }}
@@ -251,7 +251,7 @@ jobs:
         platforms: all
 
     - name: Build wheels for manylinux with qemu
-      uses: pypa/cibuildwheel@v2.16.5
+      uses: pypa/cibuildwheel@v2.17.0
       env:
         CIBW_ARCHS_LINUX: ${{ matrix.arch }}
         CIBW_BUILD: ${{ matrix.build_cp }}-${{ matrix.build_sub }}*
@@ -299,7 +299,7 @@ jobs:
         platforms: all
 
     - name: Build wheels for manylinux with qemu
-      uses: pypa/cibuildwheel@v2.16.5
+      uses: pypa/cibuildwheel@v2.17.0
       env:
         CIBW_ARCHS_LINUX: ${{ matrix.arch }}
         CIBW_BUILD: ${{ matrix.build_pp }}-*
