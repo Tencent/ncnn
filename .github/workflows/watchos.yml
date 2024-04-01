@@ -79,6 +79,8 @@ jobs:
         wget https://github.com/llvm/llvm-project/releases/download/llvmorg-${{ env.OPENMP_VERSION }}/openmp-${{ env.OPENMP_VERSION }}.src.tar.xz
         tar -xf openmp-${{ env.OPENMP_VERSION }}.src.tar.xz
         cd openmp-${{ env.OPENMP_VERSION }}.src
+        wget https://github.com/nihui/llvm-project/commit/0f09753bd22af28ad9292aa5c8d2018bc35feb5a.patch
+        patch -p2 -i 0f09753bd22af28ad9292aa5c8d2018bc35feb5a.patch
         wget https://github.com/nihui/llvm-project/commit/5c12711f9a21f41bea70566bf15a4026804d6b20.patch
         patch -p2 -i 5c12711f9a21f41bea70566bf15a4026804d6b20.patch
     - name: openmp-armv7k
