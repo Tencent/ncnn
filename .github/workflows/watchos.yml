@@ -38,6 +38,7 @@ jobs:
   build:
     runs-on: macos-13
     env:
+      OPENMP_VERSION: '16.0.6'
       OPENMP_CMAKE_OPTIONS: |
         -DCMAKE_TOOLCHAIN_FILE=../../toolchains/ios.toolchain.cmake \
         -DDEPLOYMENT_TARGET=$WATCHOS_DEPLOYMENT_TARGET \
@@ -75,15 +76,15 @@ jobs:
     - name: openmp
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
-        wget https://github.com/llvm/llvm-project/releases/download/llvmorg-18.1.2/openmp-18.1.2.src.tar.xz
-        tar -xf openmp-18.1.2.src.tar.xz
-        cd openmp-18.1.2.src
+        wget https://github.com/llvm/llvm-project/releases/download/llvmorg-${{ env.OPENMP_VERSION }}/openmp-${{ env.OPENMP_VERSION }}.src.tar.xz
+        tar -xf openmp-${{ env.OPENMP_VERSION }}.src.tar.xz
+        cd openmp-${{ env.OPENMP_VERSION }}.src
         sed -i'' -e '/.size __kmp_unnamed_critical_addr/d' runtime/src/z_Linux_asm.S
         sed -i'' -e 's/__kmp_unnamed_critical_addr/___kmp_unnamed_critical_addr/g' runtime/src/z_Linux_asm.S
     - name: openmp-armv7k
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
-        cd openmp-18.1.2.src
+        cd openmp-${{ env.OPENMP_VERSION }}.src
         mkdir -p build-armv7k && cd build-armv7k
         cmake ${{ env.OPENMP_CMAKE_OPTIONS }} -DPLATFORM=WATCHOS -DARCHS="armv7k" ..
         cmake --build . -j 4
@@ -91,7 +92,7 @@ jobs:
     - name: openmp-arm64_32
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
-        cd openmp-18.1.2.src
+        cd openmp-${{ env.OPENMP_VERSION }}.src
         mkdir -p build-arm64_32 && cd build-arm64_32
         cmake ${{ env.OPENMP_CMAKE_OPTIONS }} -DPLATFORM=WATCHOS -DARCHS="arm64_32" ..
         cmake --build . -j 4
@@ -99,7 +100,7 @@ jobs:
     - name: openmp-simulator-x86_64
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
-        cd openmp-18.1.2.src
+        cd openmp-${{ env.OPENMP_VERSION }}.src
         mkdir -p build-simulator-x86_64 && cd build-simulator-x86_64
         cmake ${{ env.OPENMP_CMAKE_OPTIONS }} -DPLATFORM=SIMULATOR_WATCHOS -DARCHS="x86_64" ..
         cmake --build . -j 4
@@ -107,7 +108,7 @@ jobs:
     - name: openmp-simulator-arm64
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
-        cd openmp-18.1.2.src
+        cd openmp-${{ env.OPENMP_VERSION }}.src
         mkdir -p build-simulator-arm64 && cd build-simulator-arm64
         cmake ${{ env.OPENMP_CMAKE_OPTIONS }} -DPLATFORM=SIMULATOR_WATCHOS -DARCHS="arm64" ..
         cmake --build . -j 4
@@ -119,18 +120,18 @@ jobs:
         mkdir -p $GITHUB_WORKSPACE/openmp-install/watchos
         mkdir -p $GITHUB_WORKSPACE/openmp-install/watchos-simulator
 
-        cp -a openmp-18.1.2.src/build-arm64_32/install/include $GITHUB_WORKSPACE/openmp-install/watchos
+        cp -a openmp-${{ env.OPENMP_VERSION }}.src/build-arm64_32/install/include $GITHUB_WORKSPACE/openmp-install/watchos
         mkdir -p $GITHUB_WORKSPACE/openmp-install/watchos/lib
         lipo -create \
-            openmp-18.1.2.src/build-armv7k/install/lib/libomp.a \
-            openmp-18.1.2.src/build-arm64_32/install/lib/libomp.a \
+            openmp-${{ env.OPENMP_VERSION }}.src/build-armv7k/install/lib/libomp.a \
+            openmp-${{ env.OPENMP_VERSION }}.src/build-arm64_32/install/lib/libomp.a \
             -o $GITHUB_WORKSPACE/openmp-install/watchos/lib/libomp.a
 
-        cp -a openmp-18.1.2.src/build-simulator-x86_64/install/include $GITHUB_WORKSPACE/openmp-install/watchos-simulator
+        cp -a openmp-${{ env.OPENMP_VERSION }}.src/build-simulator-x86_64/install/include $GITHUB_WORKSPACE/openmp-install/watchos-simulator
         mkdir -p $GITHUB_WORKSPACE/openmp-install/watchos-simulator/lib
         lipo -create \
-            openmp-18.1.2.src/build-simulator-x86_64/install/lib/libomp.a \
-            openmp-18.1.2.src/build-simulator-arm64/install/lib/libomp.a \
+            openmp-${{ env.OPENMP_VERSION }}.src/build-simulator-x86_64/install/lib/libomp.a \
+            openmp-${{ env.OPENMP_VERSION }}.src/build-simulator-arm64/install/lib/libomp.a \
             -o $GITHUB_WORKSPACE/openmp-install/watchos-simulator/lib/libomp.a
 
     - name: install-openmp
