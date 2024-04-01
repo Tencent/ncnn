@@ -2703,6 +2703,18 @@ int Extractor::extract(int blob_index, Mat& feat, int type)
     }
     else
 #endif // NCNN_VFPV4
+#if NCNN_RVV
+    if (d->opt.use_fp16_storage && cpu_support_riscv_v() && cpu_support_riscv_zfh() && (type == 0))
+    {
+        if (feat.elembits() == 16)
+        {
+            Mat feat_fp32;
+            cast_float16_to_float32(feat, feat_fp32, d->opt);
+            feat = feat_fp32;
+        }
+    }
+    else
+#endif // NCNN_RVV
 #if NCNN_BF16
     if (d->opt.use_bf16_storage && (type == 0))
     {
