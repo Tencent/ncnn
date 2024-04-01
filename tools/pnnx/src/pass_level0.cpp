@@ -26,11 +26,11 @@ void pass_level0(const torch::jit::Module& mod, std::shared_ptr<torch::jit::Grap
 {
     inline_block(g, module_operators);
 
+    constant_unpooling(g);
+
     reset_device(g, device);
 
     flatten_input(g);
-
-    constant_unpooling(g);
 
     if (!input_tensors.empty())
     {

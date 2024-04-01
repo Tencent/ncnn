@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Cast_riscv : virtual public Cast
+class Cast_riscv : public Cast
 {
 public:
     Cast_riscv();

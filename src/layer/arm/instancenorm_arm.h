@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class InstanceNorm_arm : virtual public InstanceNorm
+class InstanceNorm_arm : public InstanceNorm
 {
 public:
     InstanceNorm_arm();

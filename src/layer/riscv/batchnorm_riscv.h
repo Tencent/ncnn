@@ -18,7 +18,7 @@
 #include "batchnorm.h"
 
 namespace ncnn {
-class BatchNorm_riscv : virtual public BatchNorm
+class BatchNorm_riscv : public BatchNorm
 {
 public:
     BatchNorm_riscv();

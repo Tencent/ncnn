@@ -120,14 +120,14 @@ int InnerProduct_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, cons
                         kptr += 8;
                     }
 
-                    _sum0 = activation_ps(_sum0, activation_type, activation_params);
-                    _sum1 = activation_ps(_sum1, activation_type, activation_params);
-                    _sum2 = activation_ps(_sum2, activation_type, activation_params);
-                    _sum3 = activation_ps(_sum3, activation_type, activation_params);
-                    _sum4 = activation_ps(_sum4, activation_type, activation_params);
-                    _sum5 = activation_ps(_sum5, activation_type, activation_params);
-                    _sum6 = activation_ps(_sum6, activation_type, activation_params);
-                    _sum7 = activation_ps(_sum7, activation_type, activation_params);
+                    _sum0 = activation_ps_f16(_sum0, activation_type, activation_params);
+                    _sum1 = activation_ps_f16(_sum1, activation_type, activation_params);
+                    _sum2 = activation_ps_f16(_sum2, activation_type, activation_params);
+                    _sum3 = activation_ps_f16(_sum3, activation_type, activation_params);
+                    _sum4 = activation_ps_f16(_sum4, activation_type, activation_params);
+                    _sum5 = activation_ps_f16(_sum5, activation_type, activation_params);
+                    _sum6 = activation_ps_f16(_sum6, activation_type, activation_params);
+                    _sum7 = activation_ps_f16(_sum7, activation_type, activation_params);
 
                     vst1q_f16(outptr, _sum0);
                     vst1q_f16(outptr + 8, _sum1);
@@ -167,7 +167,7 @@ int InnerProduct_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, cons
                         kptr += 8;
                     }
 
-                    _sum = activation_ps(_sum, activation_type, activation_params);
+                    _sum = activation_ps_f16(_sum, activation_type, activation_params);
 
                     vst1q_f16(outptr, _sum);
                     outptr += 8;
@@ -221,14 +221,14 @@ int InnerProduct_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, cons
                         kptr += 8;
                     }
 
-                    _sum0 = activation_ps(_sum0, activation_type, activation_params);
-                    _sum1 = activation_ps(_sum1, activation_type, activation_params);
-                    _sum2 = activation_ps(_sum2, activation_type, activation_params);
-                    _sum3 = activation_ps(_sum3, activation_type, activation_params);
-                    _sum4 = activation_ps(_sum4, activation_type, activation_params);
-                    _sum5 = activation_ps(_sum5, activation_type, activation_params);
-                    _sum6 = activation_ps(_sum6, activation_type, activation_params);
-                    _sum7 = activation_ps(_sum7, activation_type, activation_params);
+                    _sum0 = activation_ps_f16(_sum0, activation_type, activation_params);
+                    _sum1 = activation_ps_f16(_sum1, activation_type, activation_params);
+                    _sum2 = activation_ps_f16(_sum2, activation_type, activation_params);
+                    _sum3 = activation_ps_f16(_sum3, activation_type, activation_params);
+                    _sum4 = activation_ps_f16(_sum4, activation_type, activation_params);
+                    _sum5 = activation_ps_f16(_sum5, activation_type, activation_params);
+                    _sum6 = activation_ps_f16(_sum6, activation_type, activation_params);
+                    _sum7 = activation_ps_f16(_sum7, activation_type, activation_params);
 
                     vst1_f16(outptr, _sum0);
                     vst1_f16(outptr + 4, _sum1);
@@ -268,7 +268,7 @@ int InnerProduct_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, cons
                         kptr += 1;
                     }
 
-                    _sum = activation_ps(_sum, activation_type, activation_params);
+                    _sum = activation_ps_f16(_sum, activation_type, activation_params);
 
                     vst1q_f16(outptr, _sum);
                     outptr += 8;
@@ -310,10 +310,10 @@ int InnerProduct_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, cons
                         kptr += 4;
                     }
 
-                    _sum0 = activation_ps(_sum0, activation_type, activation_params);
-                    _sum1 = activation_ps(_sum1, activation_type, activation_params);
-                    _sum2 = activation_ps(_sum2, activation_type, activation_params);
-                    _sum3 = activation_ps(_sum3, activation_type, activation_params);
+                    _sum0 = activation_ps_f16(_sum0, activation_type, activation_params);
+                    _sum1 = activation_ps_f16(_sum1, activation_type, activation_params);
+                    _sum2 = activation_ps_f16(_sum2, activation_type, activation_params);
+                    _sum3 = activation_ps_f16(_sum3, activation_type, activation_params);
 
                     vst1q_f16(outptr, _sum0);
                     vst1q_f16(outptr + 8, _sum1);
@@ -358,10 +358,10 @@ int InnerProduct_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, cons
                         kptr += 4;
                     }
 
-                    _sum0 = activation_ps(_sum0, activation_type, activation_params);
-                    _sum1 = activation_ps(_sum1, activation_type, activation_params);
-                    _sum2 = activation_ps(_sum2, activation_type, activation_params);
-                    _sum3 = activation_ps(_sum3, activation_type, activation_params);
+                    _sum0 = activation_ps_f16(_sum0, activation_type, activation_params);
+                    _sum1 = activation_ps_f16(_sum1, activation_type, activation_params);
+                    _sum2 = activation_ps_f16(_sum2, activation_type, activation_params);
+                    _sum3 = activation_ps_f16(_sum3, activation_type, activation_params);
 
                     vst1_f16(outptr, _sum0);
                     vst1_f16(outptr + 4, _sum1);
@@ -397,7 +397,7 @@ int InnerProduct_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, cons
                         kptr += 4;
                     }
 
-                    _sum = activation_ps(_sum, activation_type, activation_params);
+                    _sum = activation_ps_f16(_sum, activation_type, activation_params);
 
                     vst1_f16(outptr, _sum);
                     outptr += 4;
@@ -430,7 +430,7 @@ int InnerProduct_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, cons
                         kptr += 1;
                     }
 
-                    _sum = activation_ps(_sum, activation_type, activation_params);
+                    _sum = activation_ps_f16(_sum, activation_type, activation_params);
 
                     vst1_f16(outptr, _sum);
                     outptr += 4;
@@ -461,7 +461,7 @@ int InnerProduct_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, cons
                         kptr += 1;
                     }
 
-                    sum = activation_ss(sum, activation_type, activation_params);
+                    sum = activation_ss_f16(sum, activation_type, activation_params);
 
                     outptr[0] = (__fp16)sum;
                     outptr += 1;
@@ -521,6 +521,7 @@ int InnerProduct_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, cons
             const __fp16* sptr = bottom_blob_flattened;
 
             int i = 0;
+#if NCNN_GNU_INLINE_ASM
             for (; i + 7 < num_input; i += 8)
             {
                 asm volatile(
@@ -592,6 +593,7 @@ int InnerProduct_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, cons
                     "5"(kptr)
                     : "cc", "memory", "v0", "v8", "v9", "v10", "v11");
             }
+#endif // NCNN_GNU_INLINE_ASM
             for (; i < num_input; i++)
             {
                 float16x8_t _val = vdupq_n_f16(sptr[0]);
@@ -612,7 +614,7 @@ int InnerProduct_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, cons
             _sum4 = vaddq_f16(_sum4, _sum6);
             _sum0 = vaddq_f16(_sum0, _sum4);
 
-            _sum0 = activation_ps(_sum0, activation_type, activation_params);
+            _sum0 = activation_ps_f16(_sum0, activation_type, activation_params);
 
             __fp16* outptr = (__fp16*)top_blob;
             vst1q_f16(outptr + p * 8, _sum0);
@@ -644,6 +646,7 @@ int InnerProduct_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, cons
             const __fp16* sptr = bottom_blob_flattened;
 
             int i = 0;
+#if NCNN_GNU_INLINE_ASM
             for (; i + 7 < num_input; i += 8)
             {
                 asm volatile(
@@ -715,6 +718,7 @@ int InnerProduct_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, cons
                     "5"(kptr)
                     : "cc", "memory", "v0", "v8", "v9", "v10", "v11");
             }
+#endif // NCNN_GNU_INLINE_ASM
             for (; i < num_input; i++)
             {
                 float16x4_t _val = vdup_n_f16(sptr[0]);
@@ -735,7 +739,7 @@ int InnerProduct_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, cons
             _sum4 = vadd_f16(_sum4, _sum6);
             _sum0 = vadd_f16(_sum0, _sum4);
 
-            _sum0 = activation_ps(_sum0, activation_type, activation_params);
+            _sum0 = activation_ps_f16(_sum0, activation_type, activation_params);
 
             __fp16* outptr = (__fp16*)top_blob;
             vst1_f16(outptr + p * 4, _sum0);
@@ -783,7 +787,7 @@ int InnerProduct_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, cons
             float16x4_t _s4 = vadd_f16(vget_low_f16(_sum), vget_high_f16(_sum));
             sum += vaddvq_f32(vcvt_f32_f16(_s4)); // dot
 
-            sum = activation_ss(sum, activation_type, activation_params);
+            sum = activation_ss_f16(sum, activation_type, activation_params);
 
             __fp16* outptr = (__fp16*)top_blob;
             outptr[p] = (__fp16)sum;

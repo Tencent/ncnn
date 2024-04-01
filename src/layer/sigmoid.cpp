@@ -14,8 +14,6 @@
 
 #include "sigmoid.h"
 
-#include <math.h>
-
 namespace ncnn {
 
 Sigmoid::Sigmoid()

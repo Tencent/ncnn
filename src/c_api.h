@@ -210,6 +210,7 @@ NCNN_EXPORT ncnn_layer_t ncnn_layer_create();
 NCNN_EXPORT ncnn_layer_t ncnn_layer_create_by_typeindex(int typeindex);
 #if NCNN_STRING
 NCNN_EXPORT ncnn_layer_t ncnn_layer_create_by_type(const char* type);
+NCNN_EXPORT int ncnn_layer_type_to_index(const char* type);
 #endif /* NCNN_STRING */
 NCNN_EXPORT void ncnn_layer_destroy(ncnn_layer_t layer);
 
@@ -326,6 +327,39 @@ NCNN_EXPORT int ncnn_extractor_extract(ncnn_extractor_t ex, const char* name, nc
 #endif /* NCNN_STRING */
 NCNN_EXPORT int ncnn_extractor_input_index(ncnn_extractor_t ex, int index, const ncnn_mat_t mat);
 NCNN_EXPORT int ncnn_extractor_extract_index(ncnn_extractor_t ex, int index, ncnn_mat_t* mat);
+
+/* mat process api */
+#define NCNN_BORDER_CONSTANT    0
+#define NCNN_BORDER_REPLICATE   1
+#define NCNN_BORDER_REFLECT     2
+#define NCNN_BORDER_TRANSPARENT -233
+NCNN_EXPORT void ncnn_copy_make_border(const ncnn_mat_t src, ncnn_mat_t dst, int top, int bottom, int left, int right, int type, float v, const ncnn_option_t opt);
+NCNN_EXPORT void ncnn_copy_make_border_3d(const ncnn_mat_t src, ncnn_mat_t dst, int top, int bottom, int left, int right, int front, int behind, int type, float v, const ncnn_option_t opt);
+NCNN_EXPORT void ncnn_copy_cut_border(const ncnn_mat_t src, ncnn_mat_t dst, int top, int bottom, int left, int right, const ncnn_option_t opt);
+NCNN_EXPORT void ncnn_copy_cut_border_3d(const ncnn_mat_t src, ncnn_mat_t dst, int top, int bottom, int left, int right, int front, int behind, const ncnn_option_t opt);
+
+#if NCNN_PIXEL_DRAWING
+/* mat pixel drawing api*/
+NCNN_EXPORT void ncnn_draw_rectangle_c1(unsigned char* pixels, int w, int h, int rx, int ry, int rw, int rh, unsigned int color, int thickness);
+NCNN_EXPORT void ncnn_draw_rectangle_c2(unsigned char* pixels, int w, int h, int rx, int ry, int rw, int rh, unsigned int color, int thickness);
+NCNN_EXPORT void ncnn_draw_rectangle_c3(unsigned char* pixels, int w, int h, int rx, int ry, int rw, int rh, unsigned int color, int thickness);
+NCNN_EXPORT void ncnn_draw_rectangle_c4(unsigned char* pixels, int w, int h, int rx, int ry, int rw, int rh, unsigned int color, int thickness);
+
+NCNN_EXPORT void ncnn_draw_text_c1(unsigned char* pixels, int w, int h, const char* text, int x, int y, int fontpixelsize, unsigned int color);
+NCNN_EXPORT void ncnn_draw_text_c2(unsigned char* pixels, int w, int h, const char* text, int x, int y, int fontpixelsize, unsigned int color);
+NCNN_EXPORT void ncnn_draw_text_c3(unsigned char* pixels, int w, int h, const char* text, int x, int y, int fontpixelsize, unsigned int color);
+NCNN_EXPORT void ncnn_draw_text_c4(unsigned char* pixels, int w, int h, const char* text, int x, int y, int fontpixelsize, unsigned int color);
+
+NCNN_EXPORT void ncnn_draw_circle_c1(unsigned char* pixels, int w, int h, int cx, int cy, int radius, unsigned int color, int thickness);
+NCNN_EXPORT void ncnn_draw_circle_c2(unsigned char* pixels, int w, int h, int cx, int cy, int radius, unsigned int color, int thickness);
+NCNN_EXPORT void ncnn_draw_circle_c3(unsigned char* pixels, int w, int h, int cx, int cy, int radius, unsigned int color, int thickness);
+NCNN_EXPORT void ncnn_draw_circle_c4(unsigned char* pixels, int w, int h, int cx, int cy, int radius, unsigned int color, int thickness);
+
+NCNN_EXPORT void ncnn_draw_line_c1(unsigned char* pixels, int w, int h, int x0, int y0, int x1, int y1, unsigned int color, int thickness);
+NCNN_EXPORT void ncnn_draw_line_c2(unsigned char* pixels, int w, int h, int x0, int y0, int x1, int y1, unsigned int color, int thickness);
+NCNN_EXPORT void ncnn_draw_line_c3(unsigned char* pixels, int w, int h, int x0, int y0, int x1, int y1, unsigned int color, int thickness);
+NCNN_EXPORT void ncnn_draw_line_c4(unsigned char* pixels, int w, int h, int x0, int y0, int x1, int y1, unsigned int color, int thickness);
+#endif /* NCNN_PIXEL_DRAWING */
 
 #ifdef __cplusplus
 } /* extern "C" */

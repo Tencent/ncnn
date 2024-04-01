@@ -22,11 +22,15 @@ class Model(nn.Module):
 
         self.pool_0 = nn.AdaptiveMaxPool3d(output_size=(7,6,5))
         self.pool_1 = nn.AdaptiveMaxPool3d(output_size=1)
+        self.pool_2 = nn.AdaptiveMaxPool3d(output_size=(None,4,3))
+        self.pool_3 = nn.AdaptiveMaxPool3d(output_size=(5,None,None))
 
     def forward(self, x):
-        x = self.pool_0(x)
-        x = self.pool_1(x)
-        return x
+        out0 = self.pool_0(x)
+        out1 = self.pool_1(x)
+        out2 = self.pool_2(x)
+        out3 = self.pool_3(x)
+        return out0, out1, out2, out3
 
 def test():
     net = Model()
@@ -49,9 +53,11 @@ def test():
     import test_nn_AdaptiveMaxPool3d_ncnn
     b = test_nn_AdaptiveMaxPool3d_ncnn.test_inference()
 
-    b = b.reshape_as(a)
-
-    return torch.allclose(a, b, 1e-4, 1e-4)
+    for a0, b0 in zip(a, b):
+        b0 = b0.reshape_as(a0)
+        if not torch.allclose(a0, b0, 1e-4, 1e-4):
+            return False
+    return True
 
 if __name__ == "__main__":
     if test():

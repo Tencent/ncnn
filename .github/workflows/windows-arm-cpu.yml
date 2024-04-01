@@ -44,14 +44,14 @@ jobs:
     env:
       UseMultiToolTask: true
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: build
       run: |
         mkdir build; cd build
-        cmake -T ${{ matrix.toolset-version }},host=x64 -A arm -DNCNN_BUILD_TESTS=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
-        cmake --build . --config Release -j 2
+        cmake -T ${{ matrix.toolset-version }},host=x64 -A arm -DNCNN_BUILD_TESTS=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
+        cmake --build . --config Release -j 4
     - name: build-shared
       run: |
         mkdir build-shared; cd build-shared
         cmake -T ${{ matrix.toolset-version }},host=x64 -A arm -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_SHARED_LIB=ON ..
-        cmake --build . --config Release -j 2
+        cmake --build . --config Release -j 4

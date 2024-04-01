@@ -6,6 +6,7 @@
 * [BinaryOp](#binaryop)
 * [BNLL](#bnll)
 * [Cast](#cast)
+* [CELU](#celu)
 * [Clip](#clip)
 * [Concat](#concat)
 * [Convolution](#convolution)
@@ -25,6 +26,7 @@
 * [DeconvolutionDepthWise3D](#deconvolutiondepthwise3d)
 * [DeformableConv2D](#deformableconv2d)
 * [Dequantize](#dequantize)
+* [Diag](#diag)
 * [Dropout](#dropout)
 * [Eltwise](#eltwise)
 * [ELU](#elu)
@@ -70,6 +72,7 @@
 * [RNN](#rnn)
 * [Scale](#scale)
 * [SELU](#selu)
+* [Shrink](#shrink)
 * [ShuffleChannel](#shufflechannel)
 * [Sigmoid](#sigmoid)
 * [Slice](#slice)
@@ -195,6 +198,19 @@ Element type:
 - 2 = float16
 - 3 = int8
 - 4 = bfloat16
+
+# CELU
+```
+if x < 0    y = (exp(x / alpha) - 1.f) * alpha
+else        y = x
+```
+
+* one_blob_only
+* support_inplace
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | alpha         | float | 1.f       |                   |
 
 # Clip
 ```
@@ -513,6 +529,7 @@ y = activation(x3, act_type, act_params)
 | 19        | output_pad_bottom| int | output_pad_right |           |
 | 20        | output_w      | int   | 0         |                   |
 | 21        | output_h      | int   | output_w  |                   |
+| 28        | dynamic_weight| int   | 0         |                   |
 
 | weight        | type  | shape                 |
 | ------------- | ----- | --------------------- |
@@ -542,6 +559,7 @@ y = activation(x3, act_type, act_params)
 | 15        | pad_right     | int   | pad_left  |                   |
 | 18        | output_pad_right| int | 0         |                   |
 | 20        | output_w      | int   | 0         |                   |
+| 28        | dynamic_weight| int   | 0         |                   |
 
 | weight        | type  | shape                 |
 | ------------- | ----- | --------------------- |
@@ -622,6 +640,7 @@ y = activation(x3, act_type, act_params)
 | 19        | output_pad_bottom| int | output_pad_right |           |
 | 20        | output_w      | int   | 0         |                   |
 | 21        | output_h      | int   | output_w  |                   |
+| 28        | dynamic_weight| int   | 0         |                   |
 
 | weight        | type  | shape                 |
 | ------------- | ----- | --------------------- |
@@ -652,6 +671,7 @@ y = activation(x3, act_type, act_params)
 | 15        | pad_right     | int   | pad_left  |                   |
 | 18        | output_pad_right| int | 0         |                   |
 | 20        | output_w      | int   | 0         |                   |
+| 28        | dynamic_weight| int   | 0         |                   |
 
 | weight        | type  | shape                 |
 | ------------- | ----- | --------------------- |
@@ -748,6 +768,17 @@ y = x * scale + bias
 | ------------- | ----- | --------------------- |
 | scale_data    | float | [scale_data_size]     |
 | bias_data     | float | [bias_data_size]      |
+
+# Diag
+```
+y = diag(x, diagonal)
+```
+
+* one_blob_only
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | diagonal      | int   | 0         |                   |
 
 # Dropout
 ```
@@ -887,6 +918,7 @@ This function is often used in conjunction with affine_grid() to build Spatial T
 | 0         | sample_type   | int   | 1         |                   |
 | 1         | padding_mode  | int   | 1         |                   |
 | 2         | align_corner  | int   | 0         |                   |
+| 3         | permute_fusion| int   | 0         | fuse with permute |
 
 
 Sample type:
@@ -1649,6 +1681,21 @@ else        y = x * lambda
 | 0         | alpha         | float | 1.67326324f|                  |
 | 1         | lambda        | float | 1.050700987f|                 |
 
+# Shrink
+```
+if x < -lambd y = x + bias
+if x >  lambd y = x - bias
+else          y = x
+```
+
+* one_blob_only
+* support_inplace
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | bias          | float | 0.0f      |                   |
+| 1         | lambd         | float | 0.5f      |                   |
+
 # ShuffleChannel
 ```
 if reverse == 0     y = shufflechannel(x) by group
@@ -1679,6 +1726,7 @@ split x along axis into slices, each part slice size is based on slices array
 | --------- | ------------- | ----- | --------- | ----------------- |
 | 0         | slices        | array | [ ]       |                   |
 | 1         | axis          | int   | 0         |                   |
+| 2         | indices       | array | [ ]       |                   |
 
 # Softmax
 ```
@@ -1779,3 +1827,5 @@ Operation type:
 - 15 = RECIPROCAL
 - 16 = TANH
 - 17 = LOG10
+- 18 = ROUND
+- 19 = TRUNC

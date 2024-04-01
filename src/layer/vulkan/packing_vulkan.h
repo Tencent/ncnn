@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Packing_vulkan : virtual public Packing
+class Packing_vulkan : public Packing
 {
 public:
     Packing_vulkan();

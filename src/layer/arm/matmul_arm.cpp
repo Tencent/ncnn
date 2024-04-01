@@ -37,7 +37,7 @@ MatMul_arm::MatMul_arm()
 
 int MatMul_arm::create_pipeline(const Option& opt)
 {
-    gemm = ncnn::create_layer(ncnn::LayerType::Gemm);
+    gemm = ncnn::create_layer_cpu(ncnn::LayerType::Gemm);
 
     ncnn::ParamDict pd;
     pd.set(2, 0);      // transA

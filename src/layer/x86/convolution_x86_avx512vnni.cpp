@@ -18,55 +18,31 @@
 
 namespace ncnn {
 
-#include "convolution_sgemm_int8.h"
-#include "convolution_sgemm_pack1to4_int8.h"
-#include "convolution_sgemm_pack8to1_int8.h"
-#include "convolution_sgemm_pack8to4_int8.h"
-#include "convolution_3x3_pack8to1_int8.h"
-#include "convolution_3x3_pack8to4_int8.h"
+#include "convolution_packed_int8.h"
+#include "convolution_im2col_gemm_int8.h"
+#include "convolution_3x3_winograd_int8.h"
 
-// pack1
-void im2col_sgemm_int8_sse_avx512vnni(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Option& opt)
+// packed
+void convolution_packed_int8_avx512vnni(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_tm, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, const Option& opt)
 {
-    im2col_sgemm_int8_sse(bottom_im2col, top_blob, kernel, opt);
+    convolution_packed_int8(bottom_blob, top_blob, weight_data_tm, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
 }
 
-// pack1to4
-void im2col_sgemm_pack1to4_int8_sse_avx512vnni(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Option& opt)
+// gemm
+void convolution_im2col_gemm_int8_avx512vnni(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int nT, const Option& opt)
 {
-    im2col_sgemm_pack1to4_int8_sse(bottom_im2col, top_blob, kernel, opt);
+    convolution_im2col_gemm_int8(bottom_blob, top_blob, AT, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, nT, opt);
 }
 
-// pack8to1
-void im2col_sgemm_pack8to1_int8_sse_avx512vnni(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Option& opt)
+// winograd
+void conv3x3s1_winograd23_int8_avx512vnni(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, int nT, const Option& opt)
 {
-    im2col_sgemm_pack8to1_int8_sse(bottom_im2col, top_blob, kernel, opt);
+    conv3x3s1_winograd23_int8(bottom_blob, top_blob, AT, nT, opt);
 }
 
-void conv3x3s1_winograd43_transform_kernel_pack8to1_int8_sse_avx512vnni(const Mat& kernel, Mat& kernel_tm, int inch, int outch, const Option& opt)
+void conv3x3s1_winograd43_int8_avx512vnni(const Mat& bottom_blob, Mat& top_blob, const Mat& AT, int nT, const Option& opt)
 {
-    conv3x3s1_winograd43_transform_kernel_pack8to1_int8_sse(kernel, kernel_tm, inch, outch, opt);
-}
-
-void conv3x3s1_winograd43_pack8to1_int8_sse_avx512vnni(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Option& opt)
-{
-    conv3x3s1_winograd43_pack8to1_int8_sse(bottom_blob, top_blob, kernel, opt);
-}
-
-// pack8to4
-void im2col_sgemm_pack8to4_int8_sse_avx512vnni(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Option& opt)
-{
-    im2col_sgemm_pack8to4_int8_sse(bottom_im2col, top_blob, kernel, opt);
-}
-
-void conv3x3s1_winograd43_transform_kernel_pack8to4_int8_sse_avx512vnni(const Mat& kernel, Mat& kernel_tm, int inch, int outch, const Option& opt)
-{
-    conv3x3s1_winograd43_transform_kernel_pack8to4_int8_sse(kernel, kernel_tm, inch, outch, opt);
-}
-
-void conv3x3s1_winograd43_pack8to4_int8_sse_avx512vnni(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Option& opt)
-{
-    conv3x3s1_winograd43_pack8to4_int8_sse(bottom_blob, top_blob, kernel, opt);
+    conv3x3s1_winograd43_int8(bottom_blob, top_blob, AT, nT, opt);
 }
 
 } // namespace ncnn

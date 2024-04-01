@@ -16,15 +16,19 @@
 
 #include "pass_ncnn/convert_attribute.h"
 #include "pass_ncnn/convert_custom_op.h"
+#include "pass_ncnn/convert_module_op.h"
 #include "pass_ncnn/convert_half_to_float.h"
 #include "pass_ncnn/convert_input.h"
 #include "pass_ncnn/convert_torch_cat.h"
 #include "pass_ncnn/convert_torch_chunk.h"
 #include "pass_ncnn/convert_torch_einsum.h"
 #include "pass_ncnn/convert_torch_split.h"
+#include "pass_ncnn/convert_torch_stack.h"
 #include "pass_ncnn/convert_torch_tensor_split.h"
 #include "pass_ncnn/convert_torch_unbind.h"
 #include "pass_ncnn/convert_Tensor_select.h"
+#include "pass_ncnn/convert_Tensor_slice.h"
+#include "pass_ncnn/convert_Tensor_slice_copy.h"
 #include "pass_ncnn/eliminate_output.h"
 #include "pass_ncnn/expand_expression.h"
 #include "pass_ncnn/fuse_convert_shufflechannel_slice.h"
@@ -46,6 +50,7 @@
 #include "pass_ncnn/insert_reshape_numpy_binaryop_broadcast.h"
 #include "pass_ncnn/insert_reshape_linear.h"
 #include "pass_ncnn/insert_reshape_pooling.h"
+#include "pass_ncnn/insert_reshape_global_pooling.h"
 
 #include "pass_level4/dead_code_elimination.h"
 #include "pass_level4/canonicalize.h"
@@ -72,7 +77,7 @@ NcnnGraphRewriterPassRegister::~NcnnGraphRewriterPassRegister()
     delete pass;
 }
 
-void pass_ncnn(Graph& g)
+void pass_ncnn(Graph& g, const std::vector<std::string>& module_operators)
 {
     unroll_rnn_op(g);
 
@@ -89,17 +94,24 @@ void pass_ncnn(Graph& g)
     ncnn::insert_reshape_numpy_binaryop_broadcast(g);
     ncnn::insert_reshape_pooling(g);
     ncnn::insert_reshape_linear(g);
+    ncnn::insert_reshape_global_pooling(g);
 
     ncnn::fuse_convert_shufflechannel_slice(g);
 
     ncnn::convert_torch_cat(g);
     ncnn::convert_torch_chunk(g);
+    ncnn::convert_torch_stack(g);
     ncnn::convert_torch_split(g);
     ncnn::convert_torch_unbind(g);
     ncnn::convert_torch_tensor_split(g);
     ncnn::convert_torch_einsum(g);
 
     ncnn::convert_Tensor_select(g);
+    ncnn::convert_Tensor_slice(g);
+    ncnn::convert_Tensor_slice_copy(g);
+
+    // slice        -> crop + reshape
+    // slice_copy   -> reshape + copyto
 
     int opindex = 0;
     for (auto x : g_global_pnnx_ncnn_graph_rewriter_passes)
@@ -110,9 +122,10 @@ void pass_ncnn(Graph& g)
         }
     }
 
+    ncnn::eliminate_noop(g);
+
     ncnn::insert_split(g);
 
-    ncnn::eliminate_noop(g);
     ncnn::fuse_transpose_matmul(g);
     ncnn::fuse_binaryop_eltwise(g);
     ncnn::fuse_convolution_activation(g);
@@ -129,6 +142,7 @@ void pass_ncnn(Graph& g)
     canonicalize(g);
 
     ncnn::convert_custom_op(g);
+    ncnn::convert_module_op(g, module_operators);
 
     ncnn::convert_attribute(g);
 

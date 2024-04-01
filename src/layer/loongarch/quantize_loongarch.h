@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Quantize_loongarch : virtual public Quantize
+class Quantize_loongarch : public Quantize
 {
 public:
     Quantize_loongarch();

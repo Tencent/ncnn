@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class ConvolutionDepthWise_riscv : virtual public ConvolutionDepthWise
+class ConvolutionDepthWise_riscv : public ConvolutionDepthWise
 {
 public:
     ConvolutionDepthWise_riscv();

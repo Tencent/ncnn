@@ -45,7 +45,41 @@ pnnx.Output             output      1 0 out
     {
         const std::vector<int>& sizes = captured_params.at("sizes").ai;
 
-        op->params["2"] = sizes;
+        const int batch_index = op->outputs[0]->params["__batch_index"].i;
+
+        if (batch_index != 0 && batch_index != 233)
+        {
+            fprintf(stderr, "repeat tensor with batch index %d is not supported yet!\n", batch_index);
+        }
+
+        // drop sizes batch index
+        std::vector<int> new_sizes;
+        for (int i = 0; i < (int)sizes.size(); i++)
+        {
+            if (i == batch_index && sizes[i] == 1)
+                continue;
+
+            new_sizes.push_back(sizes[i]);
+        }
+
+        if (new_sizes.size() == 5 && batch_index == 233)
+        {
+            if (new_sizes[0] == 1)
+            {
+                fprintf(stderr, "assume repeat 5-rank tensor has batch_index 0\n");
+                new_sizes.erase(new_sizes.begin());
+            }
+        }
+
+        const int sizes_rank = (int)new_sizes.size();
+
+        if (sizes_rank > 5)
+        {
+            fprintf(stderr, "repeat to %d-rank tensor is not supported yet!\n", sizes_rank);
+            return;
+        }
+
+        op->params["2"] = new_sizes;
     }
 };
 

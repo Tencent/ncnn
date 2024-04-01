@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class InnerProduct_riscv : virtual public InnerProduct
+class InnerProduct_riscv : public InnerProduct
 {
 public:
     InnerProduct_riscv();

@@ -12,7 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "layer/pixelshuffle.h"
 #include "testutil.h"
 
 static int test_pixelshuffle(const ncnn::Mat& a, int upscale_factor, int mode)
@@ -23,7 +22,7 @@ static int test_pixelshuffle(const ncnn::Mat& a, int upscale_factor, int mode)
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer<ncnn::PixelShuffle>("PixelShuffle", pd, weights, a);
+    int ret = test_layer("PixelShuffle", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_pixelshuffle failed a.dims=%d a=(%d %d %d) upscale_factor=%d mode=%d\n", a.dims, a.w, a.h, a.c, upscale_factor, mode);

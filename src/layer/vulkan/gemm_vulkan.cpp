@@ -100,6 +100,10 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
         pipeline_gemm->create(LayerShaderType::gemm, opt, specializations);
     }
 
+    A_data.release();
+    B_data.release();
+    C_data.release();
+
     return 0;
 }
 

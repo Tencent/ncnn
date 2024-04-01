@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Pooling_arm : virtual public Pooling
+class Pooling_arm : public Pooling
 {
 public:
     Pooling_arm();

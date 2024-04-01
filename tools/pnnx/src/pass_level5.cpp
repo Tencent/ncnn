@@ -20,25 +20,31 @@
 #include "pass_level5/eliminate_identity_operator.h"
 #include "pass_level5/eliminate_noop_cat.h"
 #include "pass_level5/eliminate_noop_einsum.h"
+#include "pass_level5/eliminate_noop_expand.h"
 #include "pass_level5/eliminate_noop_expression.h"
 #include "pass_level5/eliminate_noop_pad.h"
 #include "pass_level5/eliminate_noop_upsample.h"
 #include "pass_level5/eliminate_noop_slice.h"
 #include "pass_level5/eliminate_noop_view_reshape.h"
 #include "pass_level5/eliminate_reshape_shape_expression.h"
+#include "pass_level5/eliminate_type_as.h"
 #include "pass_level5/eval_expression.h"
 #include "pass_level5/fuse_adjacent_reshape.h"
 #include "pass_level5/fuse_channel_shuffle.h"
 #include "pass_level5/fuse_constant_expression.h"
 #include "pass_level5/fuse_conv1d_batchnorm1d.h"
 #include "pass_level5/fuse_conv2d_batchnorm2d.h"
+#include "pass_level5/fuse_conv3d_batchnorm3d.h"
 #include "pass_level5/fuse_convtranspose1d_batchnorm1d.h"
 #include "pass_level5/fuse_convtranspose2d_batchnorm2d.h"
+#include "pass_level5/fuse_convtranspose3d_batchnorm3d.h"
 #include "pass_level5/fuse_contiguous_view.h"
+#include "pass_level5/fuse_layernorm.h"
 #include "pass_level5/fuse_linear_batchnorm1d.h"
 #include "pass_level5/fuse_multiheadattention.h"
 #include "pass_level5/fuse_pad_conv1d.h"
 #include "pass_level5/fuse_pad_conv2d.h"
+#include "pass_level5/fuse_scaled_dot_product_attention.h"
 #include "pass_level5/fuse_select_to_unbind.h"
 #include "pass_level5/fuse_slice_copy.h"
 #include "pass_level5/fuse_slice_indices.h"
@@ -46,6 +52,7 @@
 #include "pass_level5/fuse_static_batchnorm.h"
 #include "pass_level5/fuse_static_conv.h"
 #include "pass_level5/fuse_static_convtranspose.h"
+#include "pass_level5/fuse_static_embedding.h"
 #include "pass_level5/fuse_static_groupnorm.h"
 #include "pass_level5/fuse_static_instancenorm.h"
 #include "pass_level5/fuse_static_layernorm.h"
@@ -94,11 +101,14 @@ void pass_level5(Graph& g, const std::set<std::string>& foldable_constants, cons
     fuse_static_conv(g);
     fuse_static_convtranspose(g);
     fuse_static_linear(g);
+    fuse_static_embedding(g);
 
     fuse_conv1d_batchnorm1d(g);
     fuse_conv2d_batchnorm2d(g);
+    fuse_conv3d_batchnorm3d(g);
     fuse_convtranspose1d_batchnorm1d(g);
     fuse_convtranspose2d_batchnorm2d(g);
+    fuse_convtranspose3d_batchnorm3d(g);
     fuse_linear_batchnorm1d(g);
 
     fuse_pad_conv1d(g);
@@ -109,6 +119,7 @@ void pass_level5(Graph& g, const std::set<std::string>& foldable_constants, cons
     eliminate_noop_cat(g);
 
     eliminate_dropout(g);
+    eliminate_type_as(g);
 
     eliminate_noop_upsample(g);
 
@@ -122,9 +133,12 @@ void pass_level5(Graph& g, const std::set<std::string>& foldable_constants, cons
     eliminate_noop_view_reshape(g);
 
     eliminate_reshape_shape_expression(g);
+    eliminate_noop_expand(g);
 
     fuse_channel_shuffle(g);
+    fuse_layernorm(g);
     fuse_multiheadattention(g);
+    fuse_scaled_dot_product_attention(g);
 
     fuse_index_expression(g);
 

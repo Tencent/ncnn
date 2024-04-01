@@ -39,6 +39,8 @@ set(ncnn_SRCS
     simpleocv.cpp
     simpleomp.cpp
     simplestl.cpp
+    simplemath.cpp
+    simplevk.cpp
 )
 
 if(ANDROID)
@@ -48,8 +50,6 @@ endif()
 ncnn_src_group(ncnn_SRCS "sources")
 
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/layer/${NCNN_TARGET_ARCH}")
-
-include(${CMAKE_CURRENT_SOURCE_DIR}/../cmake/ncnn_generate_shader_spv_header.cmake)
 
 # ncnn macro
 include(${CMAKE_CURRENT_SOURCE_DIR}/../cmake/ncnn_add_shader.cmake)
@@ -162,6 +162,10 @@ ncnn_add_layer(Unfold)
 ncnn_add_layer(GridSample)
 ncnn_add_layer(CumulativeSum)
 ncnn_add_layer(CopyTo)
+ncnn_add_layer(Erf)
+ncnn_add_layer(Diag)
+ncnn_add_layer(CELU)
+ncnn_add_layer(Shrink)
 
 if(NCNN_VULKAN)
     ncnn_add_shader(${CMAKE_CURRENT_SOURCE_DIR}/convert_ycbcr.comp)
@@ -203,7 +207,7 @@ if(NOT NCNN_SHARED_LIB)
     set_target_properties(ncnn PROPERTIES COMPILE_FLAGS -DNCNN_STATIC_DEFINE)
 endif()
 
-if(NCNN_SIMPLESTL)
+if(NCNN_SIMPLESTL AND NOT NCNN_SIMPLEMATH)
     # link math lib explicitly
     target_link_libraries(ncnn PUBLIC m)
 endif()
@@ -256,37 +260,71 @@ if(NCNN_THREADS)
     if(TARGET Threads::Threads)
         target_link_libraries(ncnn PUBLIC Threads::Threads)
     endif()
-
     if(NCNN_SIMPLEOMP OR NCNN_SIMPLESTL)
         target_link_libraries(ncnn PUBLIC pthread)
     endif()
 endif()
 
 if(NCNN_VULKAN)
-    find_package(Vulkan QUIET)
-    if(NOT Vulkan_FOUND)
-        message(STATUS "=== CMAKE_SYSTEM_NAME is: ${CMAKE_SYSTEM_NAME}")
-        if(DEFINED ENV{VULKAN_SDK})
-            if(CMAKE_SYSTEM_NAME MATCHES "Linux")
-                list(APPEND CMAKE_MODULE_PATH "$ENV{VULKAN_SDK}/../source/VulkanTools/cmake")
-            elseif(CMAKE_SYSTEM_NAME MATCHES "Windows")
-                list(APPEND CMAKE_MODULE_PATH "$ENV{VULKAN_SDK}/Samples/cmake")
-            elseif(CMAKE_SYSTEM_NAME MATCHES "Darwin")
-                message(WARNING "Failed to find vulkan since cmake too old\n"
-                    "cmake >= 3.7 required. Consider `brew upgrade cmake`")
+    if(NCNN_SIMPLEVK)
+        if(APPLE)
+            # simplevk always use static vulkan linkage on apple platform
+            if(NOT DEFINED Vulkan_LIBRARY)
+                message(WARNING "Vulkan_LIBRARY shall be defined for simplevk static linkage on APPLE platforms")
             endif()
+            target_link_libraries(ncnn PUBLIC ${Vulkan_LIBRARY})
         else()
-            message(FATAL_ERROR "!! CMake didn't find Vulkan. Please set VULKAN_SDK env var, e.g.:\n"
-                "Linux: export VULKAN_SDK=~/soft/vulkansdk/1.2.148.0/x86_64\n"
-                "Windows: set VULKAN_SDK=E:/lib/VulkanSDK/1.2.148.0\n"
-                "MacOS: export VULKAN_SDK=~/soft/vulkansdk/1.2.148.0/macOS\n"
-            )
+            target_link_libraries(ncnn PRIVATE ${CMAKE_DL_LIBS})
         endif()
-        find_package(Vulkan REQUIRED)
+    else()
+        find_package(Vulkan QUIET)
+        if(NOT Vulkan_FOUND)
+            if(DEFINED ENV{VULKAN_SDK})
+                if(CMAKE_SYSTEM_NAME MATCHES "Linux")
+                    list(APPEND CMAKE_MODULE_PATH "$ENV{VULKAN_SDK}/../source/VulkanTools/cmake")
+                elseif(CMAKE_SYSTEM_NAME MATCHES "Windows")
+                    list(APPEND CMAKE_MODULE_PATH "$ENV{VULKAN_SDK}/Samples/cmake")
+                elseif(CMAKE_SYSTEM_NAME MATCHES "Darwin")
+                    message(WARNING "Failed to find vulkan since cmake is too old\n"
+                        "cmake >= 3.7 required. Consider `brew upgrade cmake`")
+                endif()
+            else()
+                message(FATAL_ERROR "Error: CMake didn't find Vulkan. Please set VULKAN_SDK env var, e.g.:\n"
+                    "Linux: export VULKAN_SDK=~/soft/vulkansdk/1.2.148.0/x86_64\n"
+                    "Windows: set VULKAN_SDK=E:/lib/VulkanSDK/1.2.148.0\n"
+                    "MacOS: export VULKAN_SDK=~/soft/vulkansdk/1.2.148.0/macOS\n"
+                )
+            endif()
+            find_package(Vulkan REQUIRED)
+        endif()
+
+        target_link_libraries(ncnn PUBLIC Vulkan::Vulkan)
     endif()
 
-    target_link_libraries(ncnn PUBLIC Vulkan::Vulkan)
+    # Support mac platform static library compilation
+    if(NOT NCNN_SHARED_LIB AND APPLE AND NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
+        find_library(CoreFoundation NAMES CoreFoundation)
+        find_library(Foundation NAMES Foundation)
+        find_library(QuartzCore NAMES QuartzCore)
+        find_library(CoreGraphics NAMES CoreGraphics)
+        find_library(Cocoa NAMES Cocoa)
+        find_library(Metal NAMES Metal)
+        find_library(IOKit NAMES IOKit)
+        find_library(IOSurface NAMES IOSurface)
+        list(APPEND vulkan_dependent_LINK_LIBRARIES
+            ${Metal}
+            ${IOKit}
+            ${IOSurface}
+            ${QuartzCore}
+            ${CoreGraphics}
+            ${Cocoa}
+            ${Foundation}
+            ${CoreFoundation}
+        )
+        target_link_libraries(ncnn PRIVATE ${vulkan_dependent_LINK_LIBRARIES})
+    endif()
 
+    # link in-house glslang
     target_include_directories(ncnn PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../>)
     target_link_libraries(ncnn PRIVATE glslang SPIRV)
 endif()
@@ -333,17 +371,28 @@ else()
 endif()
 
 if(NCNN_DISABLE_RTTI)
-    target_compile_options(ncnn PUBLIC -fno-rtti)
+    if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC" OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_SIMULATE_ID MATCHES "MSVC" AND CMAKE_CXX_COMPILER_FRONTEND_VARIANT MATCHES "MSVC"))
+        target_compile_options(ncnn PUBLIC /GR-)
+    else()
+        target_compile_options(ncnn PUBLIC -fno-rtti)
+    endif()
 endif()
 
 if(NCNN_DISABLE_EXCEPTION)
-    target_compile_options(ncnn PUBLIC -fno-exceptions)
+    if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC" OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_SIMULATE_ID MATCHES "MSVC" AND CMAKE_CXX_COMPILER_FRONTEND_VARIANT MATCHES "MSVC"))
+        target_compile_options(ncnn PUBLIC /EHsc /D_HAS_EXCEPTIONS=0)
+    else()
+        target_compile_options(ncnn PUBLIC -fno-exceptions)
+    endif()
 endif()
 
 if(NCNN_TARGET_ARCH STREQUAL "x86")
     if(NCNN_SSE2)
         if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC" OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_SIMULATE_ID MATCHES "MSVC" AND CMAKE_CXX_COMPILER_FRONTEND_VARIANT MATCHES "MSVC"))
-            target_compile_options(ncnn PRIVATE /arch:SSE2 /D__SSE2__)
+            if(CMAKE_SIZEOF_VOID_P EQUAL 4)
+                target_compile_options(ncnn PRIVATE /arch:SSE2)
+            endif()
+            target_compile_options(ncnn PRIVATE /D__SSE2__)
         else()
             target_compile_options(ncnn PRIVATE -msse2 -msse)
             if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
@@ -422,45 +471,96 @@ if(NCNN_TARGET_ARCH STREQUAL "x86")
 endif()
 
 if(NCNN_TARGET_ARCH STREQUAL "arm" AND CMAKE_SIZEOF_VOID_P EQUAL 4)
+    if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC" OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_SIMULATE_ID MATCHES "MSVC" AND CMAKE_CXX_COMPILER_FRONTEND_VARIANT MATCHES "MSVC"))
+        # always enable neon for msvc arm
+        target_compile_options(ncnn PRIVATE /D__arm__ /D__ARM_NEON)
+    endif()
+
     if(NOT NCNN_RUNTIME_CPU AND NCNN_VFPV4)
-        if(NCNN_COMPILER_SUPPORT_ARM_VFPV4)
-            target_compile_options(ncnn PRIVATE -mfpu=neon-vfpv4)
-        elseif(NCNN_COMPILER_SUPPORT_ARM_VFPV4_FP16)
-            target_compile_options(ncnn PRIVATE -mfpu=neon-vfpv4 -mfp16-format=ieee)
+        if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC" OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_SIMULATE_ID MATCHES "MSVC" AND CMAKE_CXX_COMPILER_FRONTEND_VARIANT MATCHES "MSVC"))
+            target_compile_options(ncnn PRIVATE /arch:VFPv4 /D__ARM_FP=0x0E)
+        else()
+            if(NCNN_COMPILER_SUPPORT_ARM_VFPV4)
+                target_compile_options(ncnn PRIVATE -mfpu=neon-vfpv4)
+            elseif(NCNN_COMPILER_SUPPORT_ARM_VFPV4_FP16)
+                target_compile_options(ncnn PRIVATE -mfpu=neon-vfpv4 -mfp16-format=ieee)
+            endif()
+        endif()
+    elseif(NOT NCNN_RUNTIME_CPU)
+        if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC" OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_SIMULATE_ID MATCHES "MSVC" AND CMAKE_CXX_COMPILER_FRONTEND_VARIANT MATCHES "MSVC"))
+            target_compile_options(ncnn PRIVATE /D__ARM_FP=0x0C)
         endif()
     endif()
 endif()
 
 if(NCNN_TARGET_ARCH STREQUAL "arm" AND CMAKE_SIZEOF_VOID_P EQUAL 8)
+    if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC" OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_SIMULATE_ID MATCHES "MSVC" AND CMAKE_CXX_COMPILER_FRONTEND_VARIANT MATCHES "MSVC"))
+        # always enable neon and vfpv4 for msvc arm64
+        target_compile_options(ncnn PRIVATE /D__arm__ /D__aarch64__ /D__ARM_NEON /D__ARM_FP=0x0E)
+    endif()
+
     if(NOT NCNN_RUNTIME_CPU AND NCNN_ARM86SVE)
-        set(ARM_MARCH_FLAG "-march=armv8.6-a+fp16+dotprod+sve")
-        if(NCNN_ARM86SVE2)
-            set(ARM_MARCH_FLAG "${ARM_MARCH_FLAG}+sve2")
-        endif()
-        if(NCNN_ARM86SVEBF16)
-            set(ARM_MARCH_FLAG "${ARM_MARCH_FLAG}+bf16")
-        endif()
-        if(NCNN_ARM86SVEI8MM)
-            set(ARM_MARCH_FLAG "${ARM_MARCH_FLAG}+i8mm")
-        endif()
-        if(NCNN_ARM86SVEF32MM)
-            set(ARM_MARCH_FLAG "${ARM_MARCH_FLAG}+f32mm")
+        if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC" OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_SIMULATE_ID MATCHES "MSVC" AND CMAKE_CXX_COMPILER_FRONTEND_VARIANT MATCHES "MSVC"))
+            # TODO add support for sve family
+            target_compile_options(ncnn PRIVATE /arch:armv8.6 /D__ARM_FEATURE_FP16_VECTOR_ARITHMETIC /D__ARM_FEATURE_DOTPROD /D__ARM_FEATURE_FP16_FML /D__ARM_FEATURE_BF16_VECTOR_ARITHMETIC /D__ARM_FEATURE_MATMUL_INT8)
+            if(NCNN_ARM86SVE2)
+            endif()
+            if(NCNN_ARM86SVEBF16)
+            endif()
+            if(NCNN_ARM86SVEI8MM)
+            endif()
+            if(NCNN_ARM86SVEF32MM)
+            endif()
+        else()
+            set(ARM_MARCH_FLAG "-march=armv8.6-a+fp16+dotprod+sve")
+            if(NCNN_ARM86SVE2)
+                set(ARM_MARCH_FLAG "${ARM_MARCH_FLAG}+sve2")
+            endif()
+            if(NCNN_ARM86SVEBF16)
+                set(ARM_MARCH_FLAG "${ARM_MARCH_FLAG}+bf16")
+            endif()
+            if(NCNN_ARM86SVEI8MM)
+                set(ARM_MARCH_FLAG "${ARM_MARCH_FLAG}+i8mm")
+            endif()
+            if(NCNN_ARM86SVEF32MM)
+                set(ARM_MARCH_FLAG "${ARM_MARCH_FLAG}+f32mm")
+            endif()
         endif()
     elseif(NOT NCNN_RUNTIME_CPU AND (NCNN_ARM84BF16 OR NCNN_ARM84I8MM))
-        set(ARM_MARCH_FLAG "-march=armv8.4-a+fp16+dotprod")
-        if(NCNN_ARM84BF16)
-            set(ARM_MARCH_FLAG "${ARM_MARCH_FLAG}+bf16")
-        endif()
-        if(NCNN_ARM84I8MM)
-            set(ARM_MARCH_FLAG "${ARM_MARCH_FLAG}+i8mm")
+        if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC" OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_SIMULATE_ID MATCHES "MSVC" AND CMAKE_CXX_COMPILER_FRONTEND_VARIANT MATCHES "MSVC"))
+            target_compile_options(ncnn PRIVATE /arch:armv8.4 /D__ARM_FEATURE_FP16_VECTOR_ARITHMETIC /D__ARM_FEATURE_DOTPROD /D__ARM_FEATURE_FP16_FML)
+            if(NCNN_ARM84BF16)
+                target_compile_options(ncnn PRIVATE /D__ARM_FEATURE_BF16_VECTOR_ARITHMETIC)
+            endif()
+            if(NCNN_ARM84I8MM)
+                target_compile_options(ncnn PRIVATE /D__ARM_FEATURE_MATMUL_INT8)
+            endif()
+        else()
+            set(ARM_MARCH_FLAG "-march=armv8.4-a+fp16+dotprod")
+            if(NCNN_ARM84BF16)
+                set(ARM_MARCH_FLAG "${ARM_MARCH_FLAG}+bf16")
+            endif()
+            if(NCNN_ARM84I8MM)
+                set(ARM_MARCH_FLAG "${ARM_MARCH_FLAG}+i8mm")
+            endif()
         endif()
     elseif(NOT NCNN_RUNTIME_CPU AND NCNN_ARM82)
-        set(ARM_MARCH_FLAG "-march=armv8.2-a+fp16")
-        if(NCNN_ARM82DOT)
-            set(ARM_MARCH_FLAG "${ARM_MARCH_FLAG}+dotprod")
-        endif()
-        if(NCNN_ARM82FP16FML)
-            set(ARM_MARCH_FLAG "${ARM_MARCH_FLAG}+fp16fml")
+        if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC" OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_SIMULATE_ID MATCHES "MSVC" AND CMAKE_CXX_COMPILER_FRONTEND_VARIANT MATCHES "MSVC"))
+            target_compile_options(ncnn PRIVATE /arch:armv8.2 /D__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
+            if(NCNN_ARM82DOT)
+                target_compile_options(ncnn PRIVATE /D__ARM_FEATURE_DOTPROD)
+            endif()
+            if(NCNN_ARM82FP16FML)
+                target_compile_options(ncnn PRIVATE /D__ARM_FEATURE_FP16_FML)
+            endif()
+        else()
+            set(ARM_MARCH_FLAG "-march=armv8.2-a+fp16")
+            if(NCNN_ARM82DOT)
+                set(ARM_MARCH_FLAG "${ARM_MARCH_FLAG}+dotprod")
+            endif()
+            if(NCNN_ARM82FP16FML)
+                set(ARM_MARCH_FLAG "${ARM_MARCH_FLAG}+fp16fml")
+            endif()
         endif()
     endif()
     target_compile_options(ncnn PRIVATE ${ARM_MARCH_FLAG})
@@ -484,6 +584,9 @@ endif()
 if(NCNN_TARGET_ARCH STREQUAL "loongarch")
     if(NOT NCNN_RUNTIME_CPU AND NCNN_LSX)
         target_compile_options(ncnn PRIVATE -mlsx)
+        if(NCNN_LASX)
+            target_compile_options(ncnn PRIVATE -mlasx)
+        endif()
     endif()
 endif()
 
@@ -496,6 +599,18 @@ if(NCNN_TARGET_ARCH STREQUAL "riscv" AND NOT C906)
         elseif(NCNN_COMPILER_SUPPORT_RVV)
             target_compile_options(ncnn PRIVATE -march=rv64gcv)
         endif()
+    endif()
+endif()
+
+if(NCNN_PPC64LE_VSX)
+    # Auto-translate SSE2 to VSX if compiler is new enough.
+    if(NCNN_VSX_SSE2)
+        target_compile_options(ncnn PRIVATE -DNO_WARN_X86_INTRINSICS -D__SSE2__)
+    endif()
+
+    # Auto-translate SSE4.1 to VSX if compiler is new enough.
+    if(NCNN_VSX_SSE41)
+        target_compile_options(ncnn PRIVATE -DNO_WARN_X86_INTRINSICS -D__SSE4_1__)
     endif()
 endif()
 
@@ -541,6 +656,8 @@ if(NCNN_INSTALL_SDK)
         simpleocv.h
         simpleomp.h
         simplestl.h
+        simplemath.h
+        simplevk.h
         vulkan_header_fix.h
         ${CMAKE_CURRENT_BINARY_DIR}/ncnn_export.h
         ${CMAKE_CURRENT_BINARY_DIR}/layer_shader_type_enum.h
@@ -560,4 +677,3 @@ endif()
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 set_property(TARGET ncnn PROPERTY FOLDER "libncnn")
 set_property(TARGET ncnn-generate-spirv PROPERTY FOLDER "libncnn")
-

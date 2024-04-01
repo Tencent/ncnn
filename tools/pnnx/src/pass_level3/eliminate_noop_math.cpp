@@ -166,62 +166,107 @@ void eliminate_noop_math(Graph& graph)
             {
                 Operator* op0 = op->inputs[0]->producer;
                 Operator* op1 = op->inputs[1]->producer;
-                Operator* op2 = op->inputs[2]->producer;
 
-                if (operator_is_all_constant(op1, 0.f, 0))
+                if (op->inputs.size() == 2)
                 {
-                    // x <= a + 0 * c
-                    need_eliminate = true;
-                    identity_input_id = 0;
+                    if (operator_is_all_constant(op0, 0.f, 0))
+                    {
+                        // x <= 0 + b
+                        need_eliminate = true;
+                        identity_input_id = 1;
+                    }
+                    else if (operator_is_all_constant(op1, 0.f, 0))
+                    {
+                        // x <= a + 0
+                        need_eliminate = true;
+                        identity_input_id = 0;
+                    }
                 }
-                else if (operator_is_all_constant(op2, 0.f, 0))
+                else // if (op->inputs.size() == 3)
                 {
-                    // x <= a + b * 0
-                    need_eliminate = true;
-                    identity_input_id = 0;
-                }
-                else if (operator_is_all_constant(op0, 0.f, 0) && operator_is_all_constant(op2, 1.f, 1))
-                {
-                    // x <= 0 + b * 1
-                    need_eliminate = true;
-                    identity_input_id = 1;
+                    Operator* op2 = op->inputs[2]->producer;
+
+                    if (operator_is_all_constant(op1, 0.f, 0))
+                    {
+                        // x <= a + 0 * c
+                        need_eliminate = true;
+                        identity_input_id = 0;
+                    }
+                    else if (operator_is_all_constant(op2, 0.f, 0))
+                    {
+                        // x <= a + b * 0
+                        need_eliminate = true;
+                        identity_input_id = 0;
+                    }
+                    else if (operator_is_all_constant(op0, 0.f, 0) && operator_is_all_constant(op2, 1.f, 1))
+                    {
+                        // x <= 0 + b * 1
+                        need_eliminate = true;
+                        identity_input_id = 1;
+                    }
                 }
             }
             if (op->type == "aten::sub")
             {
                 Operator* op1 = op->inputs[1]->producer;
-                Operator* op2 = op->inputs[2]->producer;
 
-                if (operator_is_all_constant(op1, 0.f, 0))
+                if (op->inputs.size() == 2)
                 {
-                    // x <= a - 0 * c
-                    need_eliminate = true;
-                    identity_input_id = 0;
+                    if (operator_is_all_constant(op1, 0.f, 0))
+                    {
+                        // x <= a - 0
+                        need_eliminate = true;
+                        identity_input_id = 0;
+                    }
                 }
-                else if (operator_is_all_constant(op2, 0.f, 0))
+                else // if (op->inputs.size() == 3)
                 {
-                    // x <= a - b * 0
-                    need_eliminate = true;
-                    identity_input_id = 0;
+                    Operator* op2 = op->inputs[2]->producer;
+
+                    if (operator_is_all_constant(op1, 0.f, 0))
+                    {
+                        // x <= a - 0 * c
+                        need_eliminate = true;
+                        identity_input_id = 0;
+                    }
+                    else if (operator_is_all_constant(op2, 0.f, 0))
+                    {
+                        // x <= a - b * 0
+                        need_eliminate = true;
+                        identity_input_id = 0;
+                    }
                 }
             }
             if (op->type == "aten::rsub")
             {
                 Operator* op0 = op->inputs[0]->producer;
                 Operator* op1 = op->inputs[1]->producer;
-                Operator* op2 = op->inputs[2]->producer;
 
-                if (operator_is_all_constant(op0, 0.f, 0) && operator_is_all_constant(op2, 1.f, 1))
+                if (op->inputs.size() == 2)
                 {
-                    // x <= b * 1 - 0
-                    need_eliminate = true;
-                    identity_input_id = 1;
+                    if (operator_is_all_constant(op0, 0.f, 0))
+                    {
+                        // x <= b - 0
+                        need_eliminate = true;
+                        identity_input_id = 1;
+                    }
                 }
-                else if (operator_is_all_constant(op0, 0.f, 0) && operator_is_all_constant(op1, 1.f, 1))
+                else // if (op->inputs.size() == 3)
                 {
-                    // x <= 1 * c - 0
-                    need_eliminate = true;
-                    identity_input_id = 2;
+                    Operator* op2 = op->inputs[2]->producer;
+
+                    if (operator_is_all_constant(op0, 0.f, 0) && operator_is_all_constant(op2, 1.f, 1))
+                    {
+                        // x <= b * 1 - 0
+                        need_eliminate = true;
+                        identity_input_id = 1;
+                    }
+                    else if (operator_is_all_constant(op0, 0.f, 0) && operator_is_all_constant(op1, 1.f, 1))
+                    {
+                        // x <= 1 * c - 0
+                        need_eliminate = true;
+                        identity_input_id = 2;
+                    }
                 }
             }
             if (op->type == "aten::mul")
@@ -263,6 +308,12 @@ void eliminate_noop_math(Graph& graph)
                     need_eliminate = true;
                     identity_input_id = 0;
                 }
+            }
+
+            // but if shape changes
+            if (need_eliminate && op->inputs[identity_input_id]->shape != op->outputs[0]->shape)
+            {
+                need_eliminate = false;
             }
 
             if (!need_eliminate)

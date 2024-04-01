@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Clip_riscv : virtual public Clip
+class Clip_riscv : public Clip
 {
 public:
     Clip_riscv();

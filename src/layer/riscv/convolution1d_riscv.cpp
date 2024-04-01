@@ -387,7 +387,7 @@ int Convolution1D_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vect
         bias_data_flattened.elempack = 1;
     }
 
-    ncnn::Layer* op = ncnn::create_layer(ncnn::LayerType::Convolution1D);
+    ncnn::Layer* op = ncnn::create_layer_cpu(ncnn::LayerType::Convolution1D);
 
     ncnn::ParamDict pd;
     pd.set(0, _num_output);
@@ -469,6 +469,8 @@ int Convolution1D_riscv::create_pipeline_fp16s(const Option& opt)
     }
 
     ncnn::cast_float32_to_float16(bias_data, bias_data_fp16, opt);
+
+    weight_data.release();
 
     return 0;
 }
@@ -629,7 +631,7 @@ int Convolution1D_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, co
                         }
                     }
 
-#ifdef RVV_SPEC_0_7
+#if C906
                     // TODO
                     std::vector<float> ss(packn);
                     vse32_v_f32m2((float*)ss.data(), _sum, vl);

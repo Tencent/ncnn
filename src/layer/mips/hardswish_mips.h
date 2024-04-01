@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class HardSwish_mips : virtual public HardSwish
+class HardSwish_mips : public HardSwish
 {
 public:
     HardSwish_mips();

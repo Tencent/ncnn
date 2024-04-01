@@ -14,7 +14,8 @@
 
 #include "unaryop_x86.h"
 
-#include <math.h>
+// #include <fenv.h>
+#include <float.h>
 
 #if __SSE2__
 #include <emmintrin.h>
@@ -41,6 +42,7 @@ UnaryOp_x86::UnaryOp_x86()
     support_packing = true;
 #endif // __SSE2__
 }
+
 template<typename Op>
 static int unary_op_inplace(Mat& a, const Option& opt)
 {
@@ -569,6 +571,76 @@ struct unary_op_log10
 #endif // __SSE2__
 };
 
+struct unary_op_round
+{
+    float func(const float& x) const
+    {
+        // round to nearest even
+        // return (x + 12582912.f) - 12582912.f;
+#ifdef FE_TONEAREST
+        int old_rm = fegetround();
+        fesetround(FE_TONEAREST);
+#endif
+        float y = nearbyintf(x);
+#ifdef FE_TONEAREST
+        fesetround(old_rm);
+#endif
+        return y;
+    }
+#if __SSE2__
+    __m128 func_pack4(const __m128& x) const
+    {
+#if __SSE4_1__
+        return _mm_round_ps(x, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+#else
+        return _mm_cvtepi32_ps(_mm_cvtps_epi32(x));
+#endif
+    }
+#if __AVX__
+    __m256 func_pack8(const __m256& x) const
+    {
+        return _mm256_round_ps(x, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+    }
+#if __AVX512F__
+    __m512 func_pack16(const __m512& x) const
+    {
+        return _mm512_roundscale_ps(x, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+    }
+#endif // __AVX512F__
+#endif // __AVX__
+#endif // __SSE2__
+};
+
+struct unary_op_trunc
+{
+    float func(const float& x) const
+    {
+        return (float)truncf(x);
+    }
+#if __SSE2__
+    __m128 func_pack4(const __m128& x) const
+    {
+#if __SSE4_1__
+        return _mm_round_ps(x, _MM_FROUND_TO_ZERO | _MM_FROUND_NO_EXC);
+#else
+        return _mm_cvtepi32_ps(_mm_cvttps_epi32(x));
+#endif
+    }
+#if __AVX__
+    __m256 func_pack8(const __m256& x) const
+    {
+        return _mm256_round_ps(x, _MM_FROUND_TO_ZERO | _MM_FROUND_NO_EXC);
+    }
+#if __AVX512F__
+    __m512 func_pack16(const __m512& x) const
+    {
+        return _mm512_roundscale_ps(x, _MM_FROUND_TO_ZERO | _MM_FROUND_NO_EXC);
+    }
+#endif // __AVX512F__
+#endif // __AVX__
+#endif // __SSE2__
+};
+
 } // namespace UnaryOp_x86_functor
 
 int UnaryOp_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
@@ -627,6 +699,12 @@ int UnaryOp_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
     if (op_type == Operation_LOG10)
         return unary_op_inplace<unary_op_log10>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ROUND)
+        return unary_op_inplace<unary_op_round>(bottom_top_blob, opt);
+
+    if (op_type == Operation_TRUNC)
+        return unary_op_inplace<unary_op_trunc>(bottom_top_blob, opt);
 
     return 0;
 }

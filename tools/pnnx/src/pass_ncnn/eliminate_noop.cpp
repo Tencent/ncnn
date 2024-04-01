@@ -35,21 +35,22 @@ void eliminate_noop(Graph& graph)
 
             need_eliminate = true;
 
-            op->inputs[0]->remove_consumer(op);
-
+            Operand* op_in = op->inputs[0];
             Operand* op_out = op->outputs[0];
 
-            op->inputs[0]->params = op_out->params;
+            op_in->remove_consumer(op);
+
+            op_in->params = op_out->params;
 
             for (auto& x : op_out->consumers)
             {
                 for (size_t j = 0; j < x->inputs.size(); j++)
                 {
                     if (x->inputs[j] == op_out)
-                        x->inputs[j] = op->inputs[0];
+                        x->inputs[j] = op_in;
                 }
 
-                op->inputs[0]->consumers.push_back(x);
+                op_in->consumers.push_back(x);
             }
 
             op_out->producer = 0;

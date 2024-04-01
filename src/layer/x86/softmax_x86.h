@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Softmax_x86 : virtual public Softmax
+class Softmax_x86 : public Softmax
 {
 public:
     Softmax_x86();

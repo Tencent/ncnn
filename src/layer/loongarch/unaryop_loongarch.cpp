@@ -14,7 +14,8 @@
 
 #include "unaryop_loongarch.h"
 
-#include <math.h>
+// #include <fenv.h>
+#include <float.h>
 
 #if __loongarch_sx
 #include <lsxintrin.h>
@@ -107,14 +108,7 @@ struct unary_op_floor
 #if __loongarch_sx
     __m128 func_pack4(const __m128& x) const
     {
-        // TODO msa optimize
-        float tmp[4];
-        __lsx_vst(x, tmp, 0);
-        tmp[0] = floor(tmp[0]);
-        tmp[1] = floor(tmp[1]);
-        tmp[2] = floor(tmp[2]);
-        tmp[3] = floor(tmp[3]);
-        return (__m128)__lsx_vld(tmp, 0);
+        return (__m128)__lsx_vfrintrm_s(x);
     }
 #endif // __loongarch_sx
 };
@@ -128,14 +122,7 @@ struct unary_op_ceil
 #if __loongarch_sx
     __m128 func_pack4(const __m128& x) const
     {
-        // TODO msa optimize
-        float tmp[4];
-        __lsx_vst(x, tmp, 0);
-        tmp[0] = ceil(tmp[0]);
-        tmp[1] = ceil(tmp[1]);
-        tmp[2] = ceil(tmp[2]);
-        tmp[3] = ceil(tmp[3]);
-        return (__m128)__lsx_vld(tmp, 0);
+        return (__m128)__lsx_vfrintrp_s(x);
     }
 #endif // __loongarch_sx
 };
@@ -378,6 +365,56 @@ struct unary_op_log10
 #endif // __loongarch_sx
 };
 
+struct unary_op_round
+{
+    float func(const float& x) const
+    {
+        // round to nearest even
+#if NCNN_GNU_INLINE_ASM
+        // return (x + 12582912.f) - 12582912.f;
+        float y;
+        const float magic = 12582912.f;
+        asm volatile(
+            "fadd.s     %0, %1, %2  \n"
+            "fsub.s     %0, %0, %2  \n"
+            : "=f"(y)
+            : "f"(x), "f"(magic)
+            :);
+        return y;
+#else
+#ifdef FE_TONEAREST
+        int old_rm = fegetround();
+        fesetround(FE_TONEAREST);
+#endif
+        float y = nearbyintf(x);
+#ifdef FE_TONEAREST
+        fesetround(old_rm);
+#endif
+        return y;
+#endif
+    }
+#if __loongarch_sx
+    __m128 func_pack4(const __m128& x) const
+    {
+        return (__m128)__lsx_vfrintrne_s(x);
+    }
+#endif // __loongarch_sx
+};
+
+struct unary_op_trunc
+{
+    float func(const float& x) const
+    {
+        return (float)truncf(x);
+    }
+#if __loongarch_sx
+    __m128 func_pack4(const __m128& x) const
+    {
+        return (__m128)__lsx_vfrintrz_s(x);
+    }
+#endif // __loongarch_sx
+};
+
 } // namespace UnaryOp_loongarch_functor
 
 int UnaryOp_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
@@ -437,6 +474,12 @@ int UnaryOp_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) 
 
     if (op_type == Operation_LOG10)
         return unary_op_inplace<unary_op_log10>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ROUND)
+        return unary_op_inplace<unary_op_round>(bottom_top_blob, opt);
+
+    if (op_type == Operation_TRUNC)
+        return unary_op_inplace<unary_op_trunc>(bottom_top_blob, opt);
 
     return 0;
 }

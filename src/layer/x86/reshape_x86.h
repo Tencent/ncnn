@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Reshape_x86 : virtual public Reshape
+class Reshape_x86 : public Reshape
 {
 public:
     Reshape_x86();

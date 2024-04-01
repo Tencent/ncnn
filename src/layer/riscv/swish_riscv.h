@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Swish_riscv : virtual public Swish
+class Swish_riscv : public Swish
 {
 public:
     Swish_riscv();

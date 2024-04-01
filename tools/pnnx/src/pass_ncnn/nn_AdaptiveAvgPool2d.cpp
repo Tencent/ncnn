@@ -75,10 +75,12 @@ pnnx.Output             output      1 0 out
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
+        const std::vector<int>& output_size = captured_params.at("output_size").ai;
+
         op->params["0"] = 1;
         op->params["7"] = 1;
-        op->params["8"] = captured_params.at("output_size").ai[1];
-        op->params["18"] = captured_params.at("output_size").ai[0];
+        op->params["8"] = output_size[1] == 0 ? -233 : output_size[1];
+        op->params["18"] = output_size[0] == 0 ? -233 : output_size[0];
     }
 };
 

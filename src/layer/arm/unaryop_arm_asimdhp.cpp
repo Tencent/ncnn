@@ -14,10 +14,12 @@
 
 #include "unaryop_arm.h"
 
-#include <math.h>
+// #include <fenv.h>
+#include <float.h>
 
 #if __ARM_NEON
 #include <arm_neon.h>
+#include "arm_usability.h"
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 #include "neon_mathfun_fp16s.h"
 #endif
@@ -180,7 +182,7 @@ struct unary_op_rsqrt_fp16s
 {
     __fp16 func(const __fp16& x) const
     {
-        return (__fp16)1.f / sqrtf(x);
+        return (__fp16)1.f / (__fp16)sqrtf(x);
     }
     float16x4_t func_pack4(const float16x4_t& x) const
     {
@@ -206,11 +208,11 @@ struct unary_op_exp_fp16s
     }
     float16x4_t func_pack4(const float16x4_t& x) const
     {
-        return exp_ps(x);
+        return exp_ps_f16(x);
     }
     float16x8_t func_pack8(const float16x8_t& x) const
     {
-        return exp_ps(x);
+        return exp_ps_f16(x);
     }
 };
 
@@ -222,11 +224,11 @@ struct unary_op_log_fp16s
     }
     float16x4_t func_pack4(const float16x4_t& x) const
     {
-        return log_ps(x);
+        return log_ps_f16(x);
     }
     float16x8_t func_pack8(const float16x8_t& x) const
     {
-        return log_ps(x);
+        return log_ps_f16(x);
     }
 };
 
@@ -238,11 +240,11 @@ struct unary_op_sin_fp16s
     }
     float16x4_t func_pack4(const float16x4_t& x) const
     {
-        return sin_ps(x);
+        return sin_ps_f16(x);
     }
     float16x8_t func_pack8(const float16x8_t& x) const
     {
-        return sin_ps(x);
+        return sin_ps_f16(x);
     }
 };
 
@@ -254,11 +256,11 @@ struct unary_op_cos_fp16s
     }
     float16x4_t func_pack4(const float16x4_t& x) const
     {
-        return cos_ps(x);
+        return cos_ps_f16(x);
     }
     float16x8_t func_pack8(const float16x8_t& x) const
     {
-        return cos_ps(x);
+        return cos_ps_f16(x);
     }
 };
 
@@ -428,11 +430,11 @@ struct unary_op_tanh_fp16s
     }
     float16x4_t func_pack4(const float16x4_t& x) const
     {
-        return tanh_ps(x);
+        return tanh_ps_f16(x);
     }
     float16x8_t func_pack8(const float16x8_t& x) const
     {
-        return tanh_ps(x);
+        return tanh_ps_f16(x);
     }
 };
 
@@ -444,11 +446,65 @@ struct unary_op_log10_fp16s
     }
     float16x4_t func_pack4(const float16x4_t& x) const
     {
-        return vmul_f16(log_ps(x), vdup_n_f16(0.434294481903));
+        return vmul_f16(log_ps_f16(x), vdup_n_f16(0.434294481903));
     }
     float16x8_t func_pack8(const float16x8_t& x) const
     {
-        return vmulq_f16(log_ps(x), vdupq_n_f16(0.434294481903));
+        return vmulq_f16(log_ps_f16(x), vdupq_n_f16(0.434294481903));
+    }
+};
+
+struct unary_op_round_fp16s
+{
+    __fp16 func(const __fp16& x) const
+    {
+        // round to nearest even
+#if NCNN_GNU_INLINE_ASM
+        // return (x + 1536.f) - 1536.f;
+        __fp16 y;
+        const __fp16 magic = 1536.f;
+        asm volatile(
+            "fadd   %h0, %h1, %h2  \n"
+            "fsub   %h0, %h0, %h2  \n"
+            : "=w"(y)
+            : "w"(x), "w"(magic)
+            :);
+        return y;
+#else
+#ifdef FE_TONEAREST
+        int old_rm = fegetround();
+        fesetround(FE_TONEAREST);
+#endif
+        __fp16 y = (__fp16)nearbyintf(x);
+#ifdef FE_TONEAREST
+        fesetround(old_rm);
+#endif
+        return y;
+#endif
+    }
+    float16x4_t func_pack4(const float16x4_t& x) const
+    {
+        return vrndn_f16(x);
+    }
+    float16x8_t func_pack8(const float16x8_t& x) const
+    {
+        return vrndnq_f16(x);
+    }
+};
+
+struct unary_op_trunc_fp16s
+{
+    __fp16 func(const __fp16& x) const
+    {
+        return (__fp16)truncf(x);
+    }
+    float16x4_t func_pack4(const float16x4_t& x) const
+    {
+        return vrnd_f16(x);
+    }
+    float16x8_t func_pack8(const float16x8_t& x) const
+    {
+        return vrndq_f16(x);
     }
 };
 
@@ -511,6 +567,12 @@ int UnaryOp_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
 
     if (op_type == Operation_LOG10)
         return unary_op_inplace_fp16s<unary_op_log10_fp16s>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ROUND)
+        return unary_op_inplace_fp16s<unary_op_round_fp16s>(bottom_top_blob, opt);
+
+    if (op_type == Operation_TRUNC)
+        return unary_op_inplace_fp16s<unary_op_trunc_fp16s>(bottom_top_blob, opt);
 
     return 0;
 }

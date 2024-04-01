@@ -12,7 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "layer/gelu.h"
 #include "testutil.h"
 
 static int test_gelu(const ncnn::Mat& a, bool fast_gelu)
@@ -22,7 +21,7 @@ static int test_gelu(const ncnn::Mat& a, bool fast_gelu)
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer<ncnn::GELU>("GELU", pd, weights, a);
+    int ret = test_layer("GELU", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_gelu failed a.dims=%d a=(%d %d %d %d) fast_gelu=%s\n", a.dims, a.w, a.h, a.d, a.c, fast_gelu ? "true" : "false");

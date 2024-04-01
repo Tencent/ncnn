@@ -20,8 +20,6 @@
 #include "rvv_mathfun_fp16s.h"
 #endif // __riscv_vector
 
-#include <math.h>
-
 namespace ncnn {
 
 Swish_riscv::Swish_riscv()

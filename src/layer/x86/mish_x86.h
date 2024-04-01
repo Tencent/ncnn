@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Mish_x86 : virtual public Mish
+class Mish_x86 : public Mish
 {
 public:
     Mish_x86();

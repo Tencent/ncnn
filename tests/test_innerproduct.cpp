@@ -12,7 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "layer/innerproduct.h"
 #include "testutil.h"
 
 static int test_innerproduct(const ncnn::Mat& a, int outch, int bias)
@@ -34,7 +33,7 @@ static int test_innerproduct(const ncnn::Mat& a, int outch, int bias)
     if (bias)
         weights[1] = RandomMat(outch);
 
-    int ret = test_layer<ncnn::InnerProduct>("InnerProduct", pd, weights, a);
+    int ret = test_layer("InnerProduct", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_innerproduct failed a.dims=%d a=(%d %d %d) outch=%d bias=%d act=%d actparams=[%f,%f]\n", a.dims, a.w, a.h, a.c, outch, bias, activation_type, activation_params[0], activation_params[1]);
@@ -122,7 +121,7 @@ static int test_innerproduct_int8(const ncnn::Mat& a, int outch, int bias)
     }
 
     int flag = TEST_LAYER_DISABLE_GPU_TESTING;
-    int ret = test_layer<ncnn::InnerProduct>("InnerProduct", pd, weights, a, 0.001f, 0, flag);
+    int ret = test_layer("InnerProduct", pd, weights, a, 0.001f, 0, flag);
     if (ret != 0)
     {
         fprintf(stderr, "test_innerproduct_int8 failed a.dims=%d a=(%d %d %d) outch=%d bias=%d act=%d actparams=[%f,%f]\n", a.dims, a.w, a.h, a.c, outch, bias, activation_type, activation_params[0], activation_params[1]);
@@ -167,7 +166,7 @@ static int test_innerproduct_gemm(const ncnn::Mat& a, int outch, int bias)
     if (bias)
         weights[1] = RandomMat(outch);
 
-    int ret = test_layer<ncnn::InnerProduct>("InnerProduct", pd, weights, a);
+    int ret = test_layer("InnerProduct", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_innerproduct_gemm failed a.dims=%d a=(%d %d %d) outch=%d bias=%d act=%d actparams=[%f,%f]\n", a.dims, a.w, a.h, a.c, outch, bias, activation_type, activation_params[0], activation_params[1]);
@@ -234,7 +233,7 @@ static int test_innerproduct_gemm_int8(const ncnn::Mat& a, int outch, int bias)
     }
 
     int flag = TEST_LAYER_DISABLE_GPU_TESTING;
-    int ret = test_layer<ncnn::InnerProduct>("InnerProduct", pd, weights, a, 0.001f, 0, flag);
+    int ret = test_layer("InnerProduct", pd, weights, a, 0.001f, 0, flag);
     if (ret != 0)
     {
         fprintf(stderr, "test_innerproduct_gemm_int8 failed a.dims=%d a=(%d %d %d) outch=%d bias=%d\n", a.dims, a.w, a.h, a.c, outch, bias);

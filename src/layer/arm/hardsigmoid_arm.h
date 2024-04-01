@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class HardSigmoid_arm : virtual public HardSigmoid
+class HardSigmoid_arm : public HardSigmoid
 {
 public:
     HardSigmoid_arm();

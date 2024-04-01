@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Interp_mips : virtual public Interp
+class Interp_mips : public Interp
 {
 public:
     Interp_mips();

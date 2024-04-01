@@ -1,0 +1,196 @@
+// Tencent is pleased to support the open source community by making ncnn available.
+//
+// Copyright (C) 2023 THL A29 Limited, a Tencent company. All rights reserved.
+//
+// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
+// in compliance with the License. You may obtain a copy of the License at
+//
+// https://opensource.org/licenses/BSD-3-Clause
+//
+// Unless required by applicable law or agreed to in writing, software distributed
+// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+// CONDITIONS OF ANY KIND, either express or implied. See the License for the
+// specific language governing permissions and limitations under the License.
+
+#version 450
+
+#if NCNN_fp16_storage
+#extension GL_EXT_shader_16bit_storage: require
+#endif
+#if NCNN_fp16_arithmetic
+#extension GL_EXT_shader_explicit_arithmetic_types_float16: require
+#endif
+
+#extension GL_GOOGLE_include_directive: enable
+#include "vulkan_activation.comp"
+
+layout (constant_id = 0) const int kernel_w = 1;
+layout (constant_id = 1) const int dilation_w = 1;
+layout (constant_id = 2) const int stride_w = 1;
+layout (constant_id = 3) const int bias_term = 0;
+layout (constant_id = 4) const int activation_type = 0;
+layout (constant_id = 5) const float activation_param_0 = 0;
+layout (constant_id = 6) const float activation_param_1 = 0;
+
+#define shape_constant_id_offset 7
+layout (constant_id = shape_constant_id_offset + 0) const int w = 0;
+layout (constant_id = shape_constant_id_offset + 1) const int h = 0;
+
+layout (constant_id = shape_constant_id_offset + 2) const int outw = 0;
+layout (constant_id = shape_constant_id_offset + 3) const int outh = 0;
+
+#if NCNN_image_shader
+layout (binding = 0) uniform unfp sampler3D bottom_blob;
+layout (binding = 1, imfmtc4) writeonly uniform unfp image3D top_blob;
+layout (binding = 2) uniform unfp sampler3D weight_blob;
+layout (binding = 3) uniform unfp sampler3D bias_blob;
+#else
+layout (binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; };
+layout (binding = 1) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
+#if NCNN_fp16_packed || (NCNN_fp16_storage && !NCNN_fp16_arithmetic)
+// GL_EXT_shader_16bit_storage does not define f16mat4 type :(
+layout (binding = 2) readonly buffer weight_blob { sfpvec4 weight_data[]; };
+#else
+layout (binding = 2) readonly buffer weight_blob { sfpmat4 weight_data[]; };
+#endif
+layout (binding = 3) readonly buffer bias_blob { sfpvec4 bias_data[]; };
+#endif
+
+layout (push_constant) uniform parameter
+{
+    int w;
+    int h;
+
+    int outw;
+    int outh;
+} p;
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x) * 2;
+    int gy = int(gl_GlobalInvocationID.y) * 2;
+
+    if (gx >= psc(outw) || gy >= psc(outh))
+        return;
+
+    const ivec2 gx2 = gx + ivec2(0, 1);
+    const ivec2 gy2 = gy + ivec2(0, 1);
+
+    afpvec4 sum0 = afpvec4(0.0f);
+    afpvec4 sum1 = afpvec4(0.0f);
+    afpvec4 sum2 = afpvec4(0.0f);
+    afpvec4 sum3 = afpvec4(0.0f);
+
+    if (bias_term == 1)
+    {
+#if NCNN_image_shader
+        sum0 = image3d_ld4(bias_blob, ivec3(gy2.x, 0, 0));
+        sum2 = image3d_ld4(bias_blob, ivec3(gy2.y, 0, 0));
+#else
+        sum0 = buffer_ld4(bias_data, gy2.x);
+        sum2 = buffer_ld4(bias_data, gy2.y);
+#endif
+        sum1 = sum0;
+        sum3 = sum2;
+    }
+
+#if NCNN_image_shader
+
+    ivec2 v_offset = gx2 * stride_w;
+
+    for (int y = 0; y < psc(h); y++)
+    {
+        int wx = 0;
+
+        for (int x = 0; x < kernel_w; x++)
+        {
+            afpvec4 v0 = image3d_ld4(bottom_blob, ivec3(v_offset.x + x * dilation_w, y, 0));
+            afpvec4 v1 = image3d_ld4(bottom_blob, ivec3(v_offset.y + x * dilation_w, y, 0));
+
+            afpmat4 k0 = afpmat4(
+                image3d_ld4(weight_blob, ivec3(wx + 0, y, gy2.x)),
+                image3d_ld4(weight_blob, ivec3(wx + 1, y, gy2.x)),
+                image3d_ld4(weight_blob, ivec3(wx + 2, y, gy2.x)),
+                image3d_ld4(weight_blob, ivec3(wx + 3, y, gy2.x))
+            );
+            afpmat4 k1 = afpmat4(
+                image3d_ld4(weight_blob, ivec3(wx + 0, y, gy2.y)),
+                image3d_ld4(weight_blob, ivec3(wx + 1, y, gy2.y)),
+                image3d_ld4(weight_blob, ivec3(wx + 2, y, gy2.y)),
+                image3d_ld4(weight_blob, ivec3(wx + 3, y, gy2.y))
+            );
+
+            sum0 += v0 * k0;
+            sum1 += v1 * k0;
+            sum2 += v0 * k1;
+            sum3 += v1 * k1;
+
+            wx += 4;
+        }
+    }
+    
+#else
+
+    ivec2 v_offset = gx2 * stride_w;
+    ivec2 w_offset = gy2 * psc(h) * kernel_w;
+    
+    for (int y = 0; y < psc(h); y++)
+    {    
+        for (int x = 0; x < kernel_w; x++)
+        {
+            afpvec4 v0 = buffer_ld4(bottom_blob_data, v_offset.x + x * dilation_w);
+            afpvec4 v1 = buffer_ld4(bottom_blob_data, v_offset.y + x * dilation_w);
+            
+#if NCNN_fp16_packed || (NCNN_fp16_storage && !NCNN_fp16_arithmetic)
+            // GL_EXT_shader_16bit_storage does not define f16mat4 type :(
+            afpmat4 k0 = afpmat4(
+                buffer_ld4(weight_data, (w_offset.x + x) * 4 + 0),
+                buffer_ld4(weight_data, (w_offset.x + x) * 4 + 1),
+                buffer_ld4(weight_data, (w_offset.x + x) * 4 + 2),
+                buffer_ld4(weight_data, (w_offset.x + x) * 4 + 3)
+            );
+            afpmat4 k1 = afpmat4(
+                buffer_ld4(weight_data, (w_offset.y + x) * 4 + 0),
+                buffer_ld4(weight_data, (w_offset.y + x) * 4 + 1),
+                buffer_ld4(weight_data, (w_offset.y + x) * 4 + 2),
+                buffer_ld4(weight_data, (w_offset.y + x) * 4 + 3)
+            );
+#else
+            afpmat4 k0 = sfp2afpmat4(weight_data[w_offset.x + x]);
+            afpmat4 k1 = sfp2afpmat4(weight_data[w_offset.y + x]);
+#endif
+
+            sum0 += v0 * k0;
+            sum1 += v1 * k0;
+            sum2 += v0 * k1;
+            sum3 += v1 * k1;
+        }       
+        v_offset += psc(w);
+        w_offset += kernel_w;
+    }
+    
+#endif
+
+    sum0 = activation_afpvec4(sum0, activation_type, activation_param_0, activation_param_1);
+    sum1 = activation_afpvec4(sum1, activation_type, activation_param_0, activation_param_1);
+    sum2 = activation_afpvec4(sum2, activation_type, activation_param_0, activation_param_1);
+    sum3 = activation_afpvec4(sum3, activation_type, activation_param_0, activation_param_1);
+    
+#if NCNN_image_shader
+
+    image3d_st4(top_blob, ivec3(gx2.x, gy2.x, 0), sum0);
+    image3d_st4(top_blob, ivec3(gx2.y, gy2.x, 0), sum1);
+    image3d_st4(top_blob, ivec3(gx2.x, gy2.y, 0), sum2);
+    image3d_st4(top_blob, ivec3(gx2.y, gy2.y, 0), sum3);
+    
+#else
+
+    const int gi = gy * psc(outw) + gx;
+
+    buffer_st4(top_blob_data, gi, sum0);
+    if (gx + 1 < psc(outw)) buffer_st4(top_blob_data, gi + 1, sum1);
+    if (gy + 1 < psc(outh)) buffer_st4(top_blob_data, gi + psc(outw), sum2);
+    if (gy + 1 < psc(outh) && gx + 1 < psc(outw)) buffer_st4(top_blob_data, gi + psc(outw) + 1, sum3);
+    
+#endif
+}

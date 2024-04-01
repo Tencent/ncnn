@@ -31,13 +31,12 @@ static bool token_is_interger_literal(const std::string& t)
     return iss.eof() && !iss.fail();
 }
 
-static std::vector<int> build_shape(const std::string& expr)
+static void build_shape(const std::string& expr, std::vector<int>& shape, std::vector<std::string>& expr_tokens)
 {
     std::string listexpr = expr.substr(1, expr.size() - 2);
 
-    std::vector<int> shape;
-
     std::string t;
+    std::string et;
     int level = 0;
     for (size_t i = 0; i < listexpr.size(); i++)
     {
@@ -47,21 +46,26 @@ static std::vector<int> build_shape(const std::string& expr)
         {
             level += 1;
             t = "-1";
+            et += ch;
         }
         else if (ch == ')' || ch == ']')
         {
             level -= 1;
             t = "-1";
+            et += ch;
         }
         else if (level == 0 && ch == ',')
         {
             int dimsize = token_is_interger_literal(t) ? std::stoi(t) : -1;
             shape.push_back(dimsize);
+            expr_tokens.push_back(et);
             t.clear();
+            et.clear();
         }
         else
         {
             t += ch;
+            et += ch;
         }
     }
 
@@ -71,7 +75,26 @@ static std::vector<int> build_shape(const std::string& expr)
         shape.push_back(dimsize);
     }
 
-    return shape;
+    if (level == 0 && !et.empty())
+    {
+        expr_tokens.push_back(et);
+    }
+}
+
+static std::string build_expr(const std::vector<std::string>& expr_tokens)
+{
+    std::string expr;
+
+    expr += '[';
+    for (int i = 0; i < (int)expr_tokens.size(); i++)
+    {
+        expr += expr_tokens[i];
+        if (i != (int)expr_tokens.size() - 1)
+            expr += ',';
+    }
+    expr += ']';
+
+    return expr;
 }
 
 void eliminate_reshape_shape_expression(Graph& graph)
@@ -98,18 +121,21 @@ void eliminate_reshape_shape_expression(Graph& graph)
             if (expr.empty() || expr[0] != '[')
                 continue;
 
-            std::vector<int> shape = build_shape(expr);
+            std::vector<int> outshape = op->outputs[0]->shape;
+            if (outshape.empty())
+                continue;
+
+            std::vector<int> shape;
+            std::vector<std::string> expr_tokens;
+            build_shape(expr, shape, expr_tokens);
 
             // replace -1 with static dim-size
-            std::vector<int> outshape = op->outputs[0]->shape;
-            if (!outshape.empty())
+            for (size_t j = 0; j < outshape.size(); j++)
             {
-                for (size_t j = 0; j < outshape.size(); j++)
+                if (outshape[j] != -1)
                 {
-                    if (outshape[j] != -1)
-                    {
-                        shape[j] = outshape[j];
-                    }
+                    shape[j] = outshape[j];
+                    expr_tokens[j] = std::to_string(outshape[j]);
                 }
             }
 
@@ -124,7 +150,10 @@ void eliminate_reshape_shape_expression(Graph& graph)
             }
 
             if (dynamic_dim_count > 1)
+            {
+                op_expr->params["expr"] = build_expr(expr_tokens);
                 continue;
+            }
 
             matched = true;
 
@@ -136,7 +165,10 @@ void eliminate_reshape_shape_expression(Graph& graph)
             if (op_expr->outputs[0]->consumers.size() == 0)
             {
                 // remove expression operator
-                op_expr->inputs[0]->remove_consumer(op_expr);
+                for (auto x : op_expr->inputs)
+                {
+                    x->remove_consumer(op_expr);
+                }
 
                 Operand* op_expr_out = op_expr->outputs[0];
 
@@ -155,6 +187,34 @@ void eliminate_reshape_shape_expression(Graph& graph)
 
         if (!matched)
             break;
+    }
+
+    for (size_t i = 0; i < graph.ops.size(); i++)
+    {
+        Operator* op = graph.ops[i];
+
+        if (op->type != "Tensor.view" && op->type != "Tensor.reshape")
+            continue;
+
+        if (op->inputs.size() != 1)
+            continue;
+
+        std::vector<int> outshape = op->outputs[0]->shape;
+        if (outshape.empty())
+            continue;
+
+        std::vector<int> shape = op->params.at("shape").ai;
+
+        // replace -1 with static dim-size
+        for (size_t j = 0; j < outshape.size(); j++)
+        {
+            if (outshape[j] != -1)
+            {
+                shape[j] = outshape[j];
+            }
+        }
+
+        op->params["shape"] = shape;
     }
 }
 

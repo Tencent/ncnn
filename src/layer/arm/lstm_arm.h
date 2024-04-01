@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class LSTM_arm : virtual public LSTM
+class LSTM_arm : public LSTM
 {
 public:
     LSTM_arm();

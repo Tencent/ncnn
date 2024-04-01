@@ -14,8 +14,6 @@
 
 #include "gru_arm.h"
 
-#include <math.h>
-
 #if __ARM_NEON
 #include <arm_neon.h>
 #endif // __ARM_NEON
@@ -57,8 +55,8 @@ static int gru_fp16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
             const __fp16* weight_xc_RUN = weight_xc.row<const __fp16>(q / 4);
             const __fp16* weight_hc_RUN = weight_hc.row<const __fp16>(q / 4);
 
-            float32x4_t _R = vcvt_f32_f16(vld1_f16(bias_c_RUBNWN));
-            float32x4_t _U = vcvt_f32_f16(vld1_f16(bias_c_RUBNWN + 4));
+            float32x4_t _gru_R = vcvt_f32_f16(vld1_f16(bias_c_RUBNWN));
+            float32x4_t _gru_U = vcvt_f32_f16(vld1_f16(bias_c_RUBNWN + 4));
             float32x4_t _sum1 = vdupq_n_f32(0.f);
             float32x4_t _sum2 = vdupq_n_f32(0.f);
             float32x4_t _sum3 = vdupq_n_f32(0.f);
@@ -78,8 +76,8 @@ static int gru_fp16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
                 float32x4_t _weight_xc_U_2 = vcvt_f32_f16(vld1_f16(weight_xc_RUN + 20));
                 float32x4_t _weight_xc_R_3 = vcvt_f32_f16(vld1_f16(weight_xc_RUN + 24));
                 float32x4_t _weight_xc_U_3 = vcvt_f32_f16(vld1_f16(weight_xc_RUN + 28));
-                _R = vfmaq_laneq_f32(_R, _weight_xc_R, _xi, 0);
-                _U = vfmaq_laneq_f32(_U, _weight_xc_U, _xi, 0);
+                _gru_R = vfmaq_laneq_f32(_gru_R, _weight_xc_R, _xi, 0);
+                _gru_U = vfmaq_laneq_f32(_gru_U, _weight_xc_U, _xi, 0);
                 _sum1 = vfmaq_laneq_f32(_sum1, _weight_xc_R_1, _xi, 1);
                 _sum2 = vfmaq_laneq_f32(_sum2, _weight_xc_U_1, _xi, 1);
                 _sum3 = vfmaq_laneq_f32(_sum3, _weight_xc_R_2, _xi, 2);
@@ -96,8 +94,8 @@ static int gru_fp16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
                 float32x4_t _xi = vcvt_f32_f16(vdup_n_f16(xi));
                 float32x4_t _weight_xc_R = vcvt_f32_f16(vld1_f16(weight_xc_RUN));
                 float32x4_t _weight_xc_U = vcvt_f32_f16(vld1_f16(weight_xc_RUN + 4));
-                _R = vmlaq_f32(_R, _weight_xc_R, _xi);
-                _U = vmlaq_f32(_U, _weight_xc_U, _xi);
+                _gru_R = vmlaq_f32(_gru_R, _weight_xc_R, _xi);
+                _gru_U = vmlaq_f32(_gru_U, _weight_xc_U, _xi);
 
                 weight_xc_RUN += 8;
             }
@@ -114,8 +112,8 @@ static int gru_fp16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
                 float32x4_t _weight_hc_U_2 = vcvt_f32_f16(vld1_f16(weight_hc_RUN + 20));
                 float32x4_t _weight_hc_R_3 = vcvt_f32_f16(vld1_f16(weight_hc_RUN + 24));
                 float32x4_t _weight_hc_U_3 = vcvt_f32_f16(vld1_f16(weight_hc_RUN + 28));
-                _R = vfmaq_laneq_f32(_R, _weight_hc_R, _h_cont, 0);
-                _U = vfmaq_laneq_f32(_U, _weight_hc_U, _h_cont, 0);
+                _gru_R = vfmaq_laneq_f32(_gru_R, _weight_hc_R, _h_cont, 0);
+                _gru_U = vfmaq_laneq_f32(_gru_U, _weight_hc_U, _h_cont, 0);
                 _sum1 = vfmaq_laneq_f32(_sum1, _weight_hc_R_1, _h_cont, 1);
                 _sum2 = vfmaq_laneq_f32(_sum2, _weight_hc_U_1, _h_cont, 1);
                 _sum3 = vfmaq_laneq_f32(_sum3, _weight_hc_R_2, _h_cont, 2);
@@ -132,26 +130,26 @@ static int gru_fp16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
                 float32x4_t _h_cont = vdupq_n_f32(h_cont);
                 float32x4_t _weight_hc_R = vcvt_f32_f16(vld1_f16(weight_hc_RUN));
                 float32x4_t _weight_hc_U = vcvt_f32_f16(vld1_f16(weight_hc_RUN + 4));
-                _R = vmlaq_f32(_R, _weight_hc_R, _h_cont);
-                _U = vmlaq_f32(_U, _weight_hc_U, _h_cont);
+                _gru_R = vmlaq_f32(_gru_R, _weight_hc_R, _h_cont);
+                _gru_U = vmlaq_f32(_gru_U, _weight_hc_U, _h_cont);
 
                 weight_hc_RUN += 8;
             }
 
-            _R = vaddq_f32(_R, _sum1);
-            _U = vaddq_f32(_U, _sum2);
+            _gru_R = vaddq_f32(_gru_R, _sum1);
+            _gru_U = vaddq_f32(_gru_U, _sum2);
             _sum3 = vaddq_f32(_sum3, _sum5);
             _sum4 = vaddq_f32(_sum4, _sum6);
-            _R = vaddq_f32(_R, _sum3);
-            _U = vaddq_f32(_U, _sum4);
+            _gru_R = vaddq_f32(_gru_R, _sum3);
+            _gru_U = vaddq_f32(_gru_U, _sum4);
 
             // sigmoid(R)
             // sigmoid(U)
-            _R = sigmoid_ps(_R);
-            _U = sigmoid_ps(_U);
+            _gru_R = sigmoid_ps(_gru_R);
+            _gru_U = sigmoid_ps(_gru_U);
 
             // gate new
-            float32x4_t _N = vcvt_f32_f16(vld1_f16(bias_c_RUBNWN + 8));
+            float32x4_t _gru_N = vcvt_f32_f16(vld1_f16(bias_c_RUBNWN + 8));
             _sum1 = vdupq_n_f32(0.f);
             _sum2 = vdupq_n_f32(0.f);
             _sum3 = vdupq_n_f32(0.f);
@@ -164,7 +162,7 @@ static int gru_fp16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
                 float32x4_t _weight_hc_N_1 = vcvt_f32_f16(vld1_f16(weight_hc_RUN + 4));
                 float32x4_t _weight_hc_N_2 = vcvt_f32_f16(vld1_f16(weight_hc_RUN + 8));
                 float32x4_t _weight_hc_N_3 = vcvt_f32_f16(vld1_f16(weight_hc_RUN + 12));
-                _N = vfmaq_laneq_f32(_N, _weight_hc_N, _h_cont, 0);
+                _gru_N = vfmaq_laneq_f32(_gru_N, _weight_hc_N, _h_cont, 0);
                 _sum1 = vfmaq_laneq_f32(_sum1, _weight_hc_N_1, _h_cont, 1);
                 _sum2 = vfmaq_laneq_f32(_sum2, _weight_hc_N_2, _h_cont, 2);
                 _sum3 = vfmaq_laneq_f32(_sum3, _weight_hc_N_3, _h_cont, 3);
@@ -177,16 +175,16 @@ static int gru_fp16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
 
                 float32x4_t _h_cont = vdupq_n_f32(h_cont);
                 float32x4_t _weight_hc_N = vcvt_f32_f16(vld1_f16(weight_hc_RUN));
-                _N = vmlaq_f32(_N, _weight_hc_N, _h_cont);
+                _gru_N = vmlaq_f32(_gru_N, _weight_hc_N, _h_cont);
 
                 weight_hc_RUN += 4;
             }
 
-            _N = vaddq_f32(_N, _sum1);
+            _gru_N = vaddq_f32(_gru_N, _sum1);
             _sum2 = vaddq_f32(_sum2, _sum3);
-            _N = vaddq_f32(_N, _sum2);
+            _gru_N = vaddq_f32(_gru_N, _sum2);
 
-            _N = vmlaq_f32(vcvt_f32_f16(vld1_f16(bias_c_RUBNWN + 12)), _R, _N);
+            _gru_N = vmlaq_f32(vcvt_f32_f16(vld1_f16(bias_c_RUBNWN + 12)), _gru_R, _gru_N);
             _sum1 = vdupq_n_f32(0.f);
             _sum2 = vdupq_n_f32(0.f);
             _sum3 = vdupq_n_f32(0.f);
@@ -199,7 +197,7 @@ static int gru_fp16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
                 float32x4_t _weight_xc_N_1 = vcvt_f32_f16(vld1_f16(weight_xc_RUN + 4));
                 float32x4_t _weight_xc_N_2 = vcvt_f32_f16(vld1_f16(weight_xc_RUN + 8));
                 float32x4_t _weight_xc_N_3 = vcvt_f32_f16(vld1_f16(weight_xc_RUN + 12));
-                _N = vfmaq_laneq_f32(_N, _weight_xc_N, _xi, 0);
+                _gru_N = vfmaq_laneq_f32(_gru_N, _weight_xc_N, _xi, 0);
                 _sum1 = vfmaq_laneq_f32(_sum1, _weight_xc_N_1, _xi, 1);
                 _sum2 = vfmaq_laneq_f32(_sum2, _weight_xc_N_2, _xi, 2);
                 _sum3 = vfmaq_laneq_f32(_sum3, _weight_xc_N_3, _xi, 3);
@@ -212,22 +210,22 @@ static int gru_fp16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
 
                 float32x4_t _xi = vcvt_f32_f16(vdup_n_f16(xi));
                 float32x4_t _weight_xc_N = vcvt_f32_f16(vld1_f16(weight_xc_RUN));
-                _N = vmlaq_f32(_N, _weight_xc_N, _xi);
+                _gru_N = vmlaq_f32(_gru_N, _weight_xc_N, _xi);
 
                 weight_xc_RUN += 4;
             }
 
-            _N = vaddq_f32(_N, _sum1);
+            _gru_N = vaddq_f32(_gru_N, _sum1);
             _sum2 = vaddq_f32(_sum2, _sum3);
-            _N = vaddq_f32(_N, _sum2);
+            _gru_N = vaddq_f32(_gru_N, _sum2);
 
             // tanh(N)
-            _N = tanh_ps(_N);
+            _gru_N = tanh_ps(_gru_N);
 
             float* gates_data = gates.row(q / 4);
 
-            vst1q_f32(gates_data, _U);
-            vst1q_f32(gates_data + 4, _N);
+            vst1q_f32(gates_data, _gru_U);
+            vst1q_f32(gates_data + 4, _gru_N);
         }
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = remain_num_output_start; q < num_output; q++)
@@ -314,13 +312,13 @@ static int gru_fp16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
 
             const float* gates_data = gates.row(q / 4);
 
-            float32x4_t _U = vld1q_f32(gates_data);
-            float32x4_t _N = vld1q_f32(gates_data + 4);
+            float32x4_t _gru_U = vld1q_f32(gates_data);
+            float32x4_t _gru_N = vld1q_f32(gates_data + 4);
 
-            float32x4_t _H = vaddq_f32(vmulq_f32(vsubq_f32(vdupq_n_f32(1.f), _U), _N), vmulq_f32(_U, vld1q_f32(hidden_ptr + q)));
+            float32x4_t _gru_H = vaddq_f32(vmulq_f32(vsubq_f32(vdupq_n_f32(1.f), _gru_U), _gru_N), vmulq_f32(_gru_U, vld1q_f32(hidden_ptr + q)));
 
-            vst1q_f32(hidden_ptr + q, _H);
-            vst1_f16(output_data + q, vcvt_f16_f32(_H));
+            vst1q_f32(hidden_ptr + q, _gru_H);
+            vst1_f16(output_data + q, vcvt_f16_f32(_gru_H));
         }
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = remain_num_output_start; q < num_output; q++)
@@ -380,6 +378,7 @@ static int gru_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
             int i = 0;
             for (; i + 3 < size; i += 4)
             {
+#if NCNN_GNU_INLINE_ASM
                 asm volatile(
                     "ld1    {v4.4h}, [%0], #8       \n"
                     "ld1    {v0.8h, v1.8h, v2.8h, v3.8h}, [%1], #64 \n"
@@ -400,6 +399,20 @@ static int gru_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
                     "4"(_sum2),
                     "5"(_sum3)
                     : "memory", "v0", "v1", "v2", "v3", "v4");
+#else  // NCNN_GNU_INLINE_ASM
+                float16x4_t _x = vld1_f16(x);
+                float16x8_t _w0 = vld1q_f16(weight_xc_RUN);
+                float16x8_t _w1 = vld1q_f16(weight_xc_RUN + 8);
+                float16x8_t _w2 = vld1q_f16(weight_xc_RUN + 16);
+                float16x8_t _w3 = vld1q_f16(weight_xc_RUN + 24);
+                _RU = vfmaq_lane_f16(_RU, _w0, _x, 0);
+                _sum1 = vfmaq_lane_f16(_sum1, _w1, _x, 1);
+                _sum2 = vfmaq_lane_f16(_sum2, _w2, _x, 2);
+                _sum3 = vfmaq_lane_f16(_sum3, _w3, _x, 3);
+
+                x += 4;
+                weight_xc_RUN += 32;
+#endif // NCNN_GNU_INLINE_ASM
             }
             for (; i < size; i++)
             {
@@ -417,6 +430,7 @@ static int gru_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
             i = 0;
             for (; i + 3 < num_output; i += 4)
             {
+#if NCNN_GNU_INLINE_ASM
                 asm volatile(
                     "ld1    {v4.4s}, [%0], #16      \n"
                     "ld1    {v0.8h, v1.8h, v2.8h, v3.8h}, [%1], #64 \n"
@@ -438,6 +452,20 @@ static int gru_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
                     "4"(_sum2),
                     "5"(_sum3)
                     : "memory", "v0", "v1", "v2", "v3", "v4");
+#else  // NCNN_GNU_INLINE_ASM
+                float16x4_t _h_cont = vcvt_f16_f32(vld1q_f32(hidden_ptr));
+                float16x8_t _w0 = vld1q_f16(weight_hc_RUN);
+                float16x8_t _w1 = vld1q_f16(weight_hc_RUN + 8);
+                float16x8_t _w2 = vld1q_f16(weight_hc_RUN + 16);
+                float16x8_t _w3 = vld1q_f16(weight_hc_RUN + 24);
+                _RU = vfmaq_lane_f16(_RU, _w0, _h_cont, 0);
+                _sum1 = vfmaq_lane_f16(_sum1, _w1, _h_cont, 1);
+                _sum2 = vfmaq_lane_f16(_sum2, _w2, _h_cont, 2);
+                _sum3 = vfmaq_lane_f16(_sum3, _w3, _h_cont, 3);
+
+                hidden_ptr += 4;
+                weight_hc_RUN += 32;
+#endif // NCNN_GNU_INLINE_ASM
             }
             for (; i < num_output; i++)
             {
@@ -463,7 +491,7 @@ static int gru_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
             hidden_ptr = hidden_state;
 
             // gate new
-            float16x4_t _N = vld1_f16(bias_c_RUBNWN + 8);
+            float16x4_t _gru_N = vld1_f16(bias_c_RUBNWN + 8);
             float16x4_t _sum4 = vdup_n_f16((__fp16)0.f);
             float16x4_t _sum5 = vdup_n_f16((__fp16)0.f);
             float16x4_t _sum6 = vdup_n_f16((__fp16)0.f);
@@ -471,6 +499,7 @@ static int gru_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
             i = 0;
             for (; i + 3 < num_output; i += 4)
             {
+#if NCNN_GNU_INLINE_ASM
                 asm volatile(
                     "ld1    {v4.4s}, [%0], #16      \n"
                     "ld1    {v0.4h, v1.4h, v2.4h, v3.4h}, [%1], #32 \n"
@@ -481,17 +510,31 @@ static int gru_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
                     "fmla   %5.4h, v3.4h, v4.h[3]   \n"
                     : "=r"(hidden_ptr),
                     "=r"(weight_hc_RUN),
-                    "=w"(_N),
+                    "=w"(_gru_N),
                     "=w"(_sum4),
                     "=w"(_sum5),
                     "=w"(_sum6)
                     : "0"(hidden_ptr),
                     "1"(weight_hc_RUN),
-                    "2"(_N),
+                    "2"(_gru_N),
                     "3"(_sum4),
                     "4"(_sum5),
                     "5"(_sum6)
                     : "memory", "v0", "v1", "v2", "v3", "v4");
+#else  // NCNN_GNU_INLINE_ASM
+                float16x4_t _h_cont = vcvt_f16_f32(vld1q_f32(hidden_ptr));
+                float16x4_t _w0 = vld1_f16(weight_hc_RUN);
+                float16x4_t _w1 = vld1_f16(weight_hc_RUN + 4);
+                float16x4_t _w2 = vld1_f16(weight_hc_RUN + 8);
+                float16x4_t _w3 = vld1_f16(weight_hc_RUN + 12);
+                _gru_N = vfma_lane_f16(_gru_N, _w0, _h_cont, 0);
+                _sum4 = vfma_lane_f16(_sum4, _w1, _h_cont, 1);
+                _sum5 = vfma_lane_f16(_sum5, _w2, _h_cont, 2);
+                _sum6 = vfma_lane_f16(_sum6, _w3, _h_cont, 3);
+
+                hidden_ptr += 4;
+                weight_hc_RUN += 16;
+#endif // NCNN_GNU_INLINE_ASM
             }
             for (; i < num_output; i++)
             {
@@ -499,16 +542,16 @@ static int gru_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
 
                 float16x4_t _h_cont = vdup_n_f16((__fp16)h_cont);
                 float16x4_t _weight_hc_N = vld1_f16(weight_hc_RUN);
-                _N = vfma_f16(_N, _weight_hc_N, _h_cont);
+                _gru_N = vfma_f16(_gru_N, _weight_hc_N, _h_cont);
 
                 weight_hc_RUN += 4;
             }
 
-            _N = vadd_f16(_N, _sum4);
+            _gru_N = vadd_f16(_gru_N, _sum4);
             _sum5 = vadd_f16(_sum5, _sum6);
-            _N = vadd_f16(_N, _sum5);
+            _gru_N = vadd_f16(_gru_N, _sum5);
 
-            _N = vfma_f16(vld1_f16(bias_c_RUBNWN + 12), vcvt_f16_f32(_R32), _N);
+            _gru_N = vfma_f16(vld1_f16(bias_c_RUBNWN + 12), vcvt_f16_f32(_R32), _gru_N);
             _sum4 = vdup_n_f16((__fp16)0.f);
             _sum5 = vdup_n_f16((__fp16)0.f);
             _sum6 = vdup_n_f16((__fp16)0.f);
@@ -516,6 +559,7 @@ static int gru_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
             i = 0;
             for (; i + 3 < size; i += 4)
             {
+#if NCNN_GNU_INLINE_ASM
                 asm volatile(
                     "ld1    {v4.4h}, [%0], #8       \n"
                     "ld1    {v0.4h, v1.4h, v2.4h, v3.4h}, [%1], #32 \n"
@@ -525,17 +569,31 @@ static int gru_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
                     "fmla   %5.4h, v3.4h, v4.h[3]   \n"
                     : "=r"(x),
                     "=r"(weight_xc_RUN),
-                    "=w"(_N),
+                    "=w"(_gru_N),
                     "=w"(_sum4),
                     "=w"(_sum5),
                     "=w"(_sum6)
                     : "0"(x),
                     "1"(weight_xc_RUN),
-                    "2"(_N),
+                    "2"(_gru_N),
                     "3"(_sum4),
                     "4"(_sum5),
                     "5"(_sum6)
                     : "memory", "v0", "v1", "v2", "v3", "v4");
+#else  // NCNN_GNU_INLINE_ASM
+                float16x4_t _x = vld1_f16(x);
+                float16x4_t _w0 = vld1_f16(weight_xc_RUN);
+                float16x4_t _w1 = vld1_f16(weight_xc_RUN + 4);
+                float16x4_t _w2 = vld1_f16(weight_xc_RUN + 8);
+                float16x4_t _w3 = vld1_f16(weight_xc_RUN + 12);
+                _gru_N = vfma_lane_f16(_gru_N, _w0, _x, 0);
+                _sum4 = vfma_lane_f16(_sum4, _w1, _x, 1);
+                _sum5 = vfma_lane_f16(_sum5, _w2, _x, 2);
+                _sum6 = vfma_lane_f16(_sum6, _w3, _x, 3);
+
+                x += 4;
+                weight_xc_RUN += 16;
+#endif // NCNN_GNU_INLINE_ASM
             }
             for (; i < size; i++)
             {
@@ -543,17 +601,17 @@ static int gru_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
 
                 float16x4_t _xi = vdup_n_f16(xi);
                 float16x4_t _weight_xc_N = vld1_f16(weight_xc_RUN);
-                _N = vfma_f16(_N, _weight_xc_N, _xi);
+                _gru_N = vfma_f16(_gru_N, _weight_xc_N, _xi);
 
                 weight_xc_RUN += 4;
             }
 
-            _N = vadd_f16(_N, _sum4);
+            _gru_N = vadd_f16(_gru_N, _sum4);
             _sum5 = vadd_f16(_sum5, _sum6);
-            _N = vadd_f16(_N, _sum5);
+            _gru_N = vadd_f16(_gru_N, _sum5);
 
             // tanh(N)
-            float32x4_t _N32 = tanh_ps(vcvt_f32_f16(_N));
+            float32x4_t _N32 = tanh_ps(vcvt_f32_f16(_gru_N));
 
             float* gates_data = gates.row(q / 4);
 
@@ -645,13 +703,13 @@ static int gru_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
 
             const float* gates_data = gates.row(q / 4);
 
-            float32x4_t _U = vld1q_f32(gates_data);
-            float32x4_t _N = vld1q_f32(gates_data + 4);
+            float32x4_t _gru_U = vld1q_f32(gates_data);
+            float32x4_t _gru_N = vld1q_f32(gates_data + 4);
 
-            float32x4_t _H = vaddq_f32(vmulq_f32(vsubq_f32(vdupq_n_f32(1.f), _U), _N), vmulq_f32(_U, vld1q_f32(hidden_ptr + q)));
+            float32x4_t _gru_H = vaddq_f32(vmulq_f32(vsubq_f32(vdupq_n_f32(1.f), _gru_U), _gru_N), vmulq_f32(_gru_U, vld1q_f32(hidden_ptr + q)));
 
-            vst1q_f32(hidden_ptr + q, _H);
-            vst1_f16(output_data + q, vcvt_f16_f32(_H));
+            vst1q_f32(hidden_ptr + q, _gru_H);
+            vst1_f16(output_data + q, vcvt_f16_f32(_gru_H));
         }
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = remain_num_output_start; q < num_output; q++)
@@ -855,6 +913,10 @@ int GRU_arm::create_pipeline_fp16s(const Option& opt)
             }
         }
     }
+
+    weight_xc_data.release();
+    bias_c_data.release();
+    weight_hc_data.release();
 
     return 0;
 }

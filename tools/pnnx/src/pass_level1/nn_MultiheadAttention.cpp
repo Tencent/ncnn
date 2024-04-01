@@ -35,9 +35,8 @@ public:
 
     void write(Operator* op, const std::shared_ptr<torch::jit::Graph>& graph, const torch::jit::Module& mod) const
     {
-        //         mod.dump(false, false, false);
-
-        //         graph->dump();
+        // mod.dump(false, false, false);
+        // graph->dump();
 
         const torch::jit::Node* multi_head_attention = find_node_by_kind(graph, "aten::_native_multi_head_attention");
         if (multi_head_attention)
@@ -89,6 +88,18 @@ public:
                 op->params["add_zero_attn"] = false;
             }
 
+            const torch::jit::Node* scaled_dot_product_attention = find_node_by_kind(graph, "aten::scaled_dot_product_attention");
+            if (scaled_dot_product_attention)
+            {
+                if (scaled_dot_product_attention->input(3)->type()->kind() != c10::TypeKind::NoneType)
+                {
+                    size_t input_count = op->inputs.size();
+                    op->inputnames.resize(input_count);
+                    op->inputnames[input_count - 1] = "attn_mask";
+                }
+            }
+
+            // find attention mask addition pattern pre torch-2.1
             const torch::jit::Node* has_attn_mask = find_node_by_kind(graph, "aten::baddbmm");
             if (has_attn_mask)
             {

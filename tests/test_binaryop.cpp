@@ -12,14 +12,13 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "layer/binaryop.h"
 #include "testutil.h"
 
 #define OP_TYPE_MAX 12
 
 static int op_type = 0;
 
-static int test_binaryop(const ncnn::Mat& _a, const ncnn::Mat& _b)
+static int test_binaryop(const ncnn::Mat& _a, const ncnn::Mat& _b, int flag)
 {
     ncnn::Mat a = _a;
     ncnn::Mat b = _b;
@@ -39,6 +38,22 @@ static int test_binaryop(const ncnn::Mat& _a, const ncnn::Mat& _b)
         Randomize(a, 0.1f, 10.f);
         Randomize(b, 0.1f, 10.f);
     }
+    if (op_type == 10 || op_type == 11)
+    {
+        // value must be non-zero for atan2/ratan2
+        a = a.clone();
+        b = b.clone();
+        for (int i = 0; i < a.total(); i++)
+        {
+            if (a[i] == 0.f)
+                a[i] = 0.001f;
+        }
+        for (int i = 0; i < b.total(); i++)
+        {
+            if (b[i] == 0.f)
+                b[i] = 0.001f;
+        }
+    }
 
     ncnn::ParamDict pd;
     pd.set(0, op_type);
@@ -51,7 +66,7 @@ static int test_binaryop(const ncnn::Mat& _a, const ncnn::Mat& _b)
     ab[0] = a;
     ab[1] = b;
 
-    int ret = test_layer<ncnn::BinaryOp>("BinaryOp", pd, weights, ab);
+    int ret = test_layer("BinaryOp", pd, weights, ab, 1, 0.001, 0, flag);
     if (ret != 0)
     {
         fprintf(stderr, "test_binaryop failed a.dims=%d a=(%d %d %d %d) b.dims=%d b=(%d %d %d %d) op_type=%d\n", a.dims, a.w, a.h, a.d, a.c, b.dims, b.w, b.h, b.d, b.c, op_type);
@@ -60,7 +75,7 @@ static int test_binaryop(const ncnn::Mat& _a, const ncnn::Mat& _b)
     return ret;
 }
 
-static int test_binaryop(const ncnn::Mat& _a, float b)
+static int test_binaryop(const ncnn::Mat& _a, float b, int flag)
 {
     ncnn::Mat a = _a;
     if (op_type == 6 || op_type == 9)
@@ -75,6 +90,16 @@ static int test_binaryop(const ncnn::Mat& _a, float b)
         a = a.clone();
         Randomize(a, 0.1f, 10.f);
     }
+    if (op_type == 10 || op_type == 11)
+    {
+        // value must be non-zero for atan2/ratan2
+        a = a.clone();
+        for (int i = 0; i < a.total(); i++)
+        {
+            if (a[i] == 0.f)
+                a[i] = 0.001f;
+        }
+    }
 
     ncnn::ParamDict pd;
     pd.set(0, op_type);
@@ -83,7 +108,7 @@ static int test_binaryop(const ncnn::Mat& _a, float b)
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer<ncnn::BinaryOp>("BinaryOp", pd, weights, a);
+    int ret = test_layer("BinaryOp", pd, weights, a, 0.001, 0, flag);
     if (ret != 0)
     {
         fprintf(stderr, "test_binaryop failed a.dims=%d a=(%d %d %d %d) b=%f op_type=%d\n", a.dims, a.w, a.h, a.d, a.c, b, op_type);
@@ -94,44 +119,33 @@ static int test_binaryop(const ncnn::Mat& _a, float b)
 
 static int test_binaryop_1()
 {
-    ncnn::Mat a[] = {
-        RandomMat(31),
-        RandomMat(28),
-        RandomMat(24),
-        RandomMat(32),
-        RandomMat(13, 31),
-        RandomMat(14, 28),
-        RandomMat(15, 24),
-        RandomMat(16, 32),
-        RandomMat(7, 3, 31),
-        RandomMat(6, 4, 28),
-        RandomMat(5, 5, 24),
-        RandomMat(4, 6, 32),
-        RandomMat(2, 7, 3, 31),
-        RandomMat(3, 6, 4, 28),
-        RandomMat(4, 5, 5, 24),
-        RandomMat(5, 4, 6, 32)
-    };
+    const int ws[] = {31, 28, 24, 32};
 
-    ncnn::Mat b[] = {
-        RandomMat(1),
-        RandomMat(1, 1),
-        RandomMat(1, 1, 1),
-        RandomMat(1, 1, 1, 1)
-    };
-
-    for (int i = 0; i < sizeof(a) / sizeof(a[0]); i++)
+    for (int i = 0; i < 4; i++)
     {
-        for (int j = 0; j < sizeof(b) / sizeof(b[0]); j++)
+        const int w = ws[i];
+        const int flag = w == 32 ? TEST_LAYER_DISABLE_GPU_TESTING : 0;
+
+        ncnn::Mat a[2];
+        for (int j = 0; j < 2; j++)
         {
-            int ret = test_binaryop(a[i], b[j]) || test_binaryop(b[j], a[i]);
+            int bw = j % 2 == 0 ? w : 1;
+            a[j] = RandomMat(bw);
+        }
+
+        for (int j = 0; j < 2; j++)
+        {
+            for (int k = 0; k < 2; k++)
+            {
+                int ret = test_binaryop(a[j], a[k], flag);
+                if (ret != 0)
+                    return ret;
+            }
+
+            int ret = test_binaryop(a[j], 0.2f, flag);
             if (ret != 0)
                 return ret;
         }
-
-        int ret = test_binaryop(a[i], 0.2f);
-        if (ret != 0)
-            return ret;
     }
 
     return 0;
@@ -139,34 +153,39 @@ static int test_binaryop_1()
 
 static int test_binaryop_2()
 {
-    ncnn::Mat a[] = {
-        RandomMat(31),
-        RandomMat(28),
-        RandomMat(24),
-        RandomMat(32),
-        RandomMat(13, 31),
-        RandomMat(14, 28),
-        RandomMat(15, 24),
-        RandomMat(16, 32),
-        RandomMat(7, 3, 31),
-        RandomMat(6, 4, 28),
-        RandomMat(5, 5, 24),
-        RandomMat(4, 6, 32),
-        RandomMat(2, 7, 3, 31),
-        RandomMat(3, 6, 4, 28),
-        RandomMat(4, 5, 5, 24),
-        RandomMat(5, 4, 6, 32)
-    };
+    const int ws[] = {13, 14, 15, 16};
+    const int hs[] = {31, 28, 24, 32};
 
-    for (int i = 0; i < sizeof(a) / sizeof(a[0]); i++)
+    for (int i = 0; i < 4; i++)
     {
-        ncnn::Mat b;
-        b.create_like(a[i]);
-        Randomize(b);
+        const int w = ws[i];
+        const int h = hs[i];
+        const int flag = h == 32 ? TEST_LAYER_DISABLE_GPU_TESTING : 0;
 
-        int ret = test_binaryop(a[i], b) || test_binaryop(b, a[i]);
-        if (ret != 0)
-            return ret;
+        ncnn::Mat a[4];
+        for (int j = 0; j < 2; j++)
+        {
+            for (int k = 0; k < 2; k++)
+            {
+                int bw = j % 2 == 0 ? w : 1;
+                int bh = k % 2 == 0 ? h : 1;
+                a[j * 2 + k] = RandomMat(bw, bh);
+            }
+        }
+
+        for (int j = 0; j < 4; j++)
+        {
+            for (int k = 0; k < 4; k++)
+            {
+                int ret = test_binaryop(a[j], a[k], flag);
+                if (ret != 0)
+                    return ret;
+            }
+
+            int ret = test_binaryop(a[j], 0.2f, flag);
+            if (ret != 0)
+                return ret;
+        }
     }
 
     return 0;
@@ -174,24 +193,45 @@ static int test_binaryop_2()
 
 static int test_binaryop_3()
 {
-    ncnn::Mat a[] = {
-        RandomMat(13, 31),
-        RandomMat(14, 28),
-        RandomMat(15, 24),
-        RandomMat(16, 32)
-    };
+    const int ws[] = {7, 6, 5, 4};
+    const int hs[] = {3, 4, 5, 6};
+    const int cs[] = {31, 28, 24, 32};
 
-    for (int i = 0; i < sizeof(a) / sizeof(a[0]); i++)
+    for (int i = 0; i < 4; i++)
     {
-        ncnn::Mat b0(a[i].h);
-        ncnn::Mat b1(1, a[i].h);
-        Randomize(b0);
-        Randomize(b1);
+        const int w = ws[i];
+        const int h = hs[i];
+        const int c = cs[i];
+        const int flag = c == 32 ? TEST_LAYER_DISABLE_GPU_TESTING : 0;
 
-        int ret = test_binaryop(a[i], b0) || test_binaryop(b0, a[i])
-                  || test_binaryop(a[i], b1) || test_binaryop(b1, a[i]);
-        if (ret != 0)
-            return ret;
+        ncnn::Mat a[8];
+        for (int j = 0; j < 2; j++)
+        {
+            for (int k = 0; k < 2; k++)
+            {
+                for (int l = 0; l < 2; l++)
+                {
+                    int bw = j % 2 == 0 ? w : 1;
+                    int bh = k % 2 == 0 ? h : 1;
+                    int bc = l % 2 == 0 ? c : 1;
+                    a[j * 4 + k * 2 + l] = RandomMat(bw, bh, bc);
+                }
+            }
+        }
+
+        for (int j = 0; j < 8; j++)
+        {
+            for (int k = 0; k < 8; k++)
+            {
+                int ret = test_binaryop(a[j], a[k], flag);
+                if (ret != 0)
+                    return ret;
+            }
+
+            int ret = test_binaryop(a[j], 0.2f, flag);
+            if (ret != 0)
+                return ret;
+        }
     }
 
     return 0;
@@ -199,30 +239,51 @@ static int test_binaryop_3()
 
 static int test_binaryop_4()
 {
-    ncnn::Mat a[] = {
-        RandomMat(7, 3, 31),
-        RandomMat(6, 4, 28),
-        RandomMat(5, 5, 24),
-        RandomMat(4, 6, 32)
-    };
+    const int ws[] = {2, 3, 4, 5};
+    const int hs[] = {7, 6, 5, 4};
+    const int ds[] = {3, 4, 5, 6};
+    const int cs[] = {31, 28, 24, 32};
 
-    for (int i = 0; i < sizeof(a) / sizeof(a[0]); i++)
+    for (int i = 0; i < 4; i++)
     {
-        ncnn::Mat b0(a[i].c);
-        ncnn::Mat b1(1, 1, a[i].c);
-        ncnn::Mat b2(a[i].h, a[i].c);
-        ncnn::Mat b3(1, a[i].h, a[i].c);
-        Randomize(b0);
-        Randomize(b1);
-        Randomize(b2);
-        Randomize(b3);
+        const int w = ws[i];
+        const int h = hs[i];
+        const int d = ds[i];
+        const int c = cs[i];
+        const int flag = c == 32 ? TEST_LAYER_DISABLE_GPU_TESTING : 0;
 
-        int ret = test_binaryop(a[i], b0) || test_binaryop(b0, a[i])
-                  || test_binaryop(a[i], b1) || test_binaryop(b1, a[i])
-                  || test_binaryop(a[i], b2) || test_binaryop(b2, a[i])
-                  || test_binaryop(a[i], b3) || test_binaryop(b3, a[i]);
-        if (ret != 0)
-            return ret;
+        ncnn::Mat a[16];
+        for (int j = 0; j < 2; j++)
+        {
+            for (int k = 0; k < 2; k++)
+            {
+                for (int l = 0; l < 2; l++)
+                {
+                    for (int m = 0; m < 2; m++)
+                    {
+                        int bw = j % 2 == 0 ? w : 1;
+                        int bh = k % 2 == 0 ? h : 1;
+                        int bd = l % 2 == 0 ? d : 1;
+                        int bc = m % 2 == 0 ? c : 1;
+                        a[j * 8 + k * 4 + l * 2 + m] = RandomMat(bw, bh, bd, bc);
+                    }
+                }
+            }
+        }
+
+        for (int j = 0; j < 16; j++)
+        {
+            for (int k = 0; k < 16; k++)
+            {
+                int ret = test_binaryop(a[j], a[k], flag);
+                if (ret != 0)
+                    return ret;
+            }
+
+            int ret = test_binaryop(a[j], 0.2f, flag);
+            if (ret != 0)
+                return ret;
+        }
     }
 
     return 0;
@@ -230,36 +291,38 @@ static int test_binaryop_4()
 
 static int test_binaryop_5()
 {
-    ncnn::Mat a[] = {
-        RandomMat(2, 7, 3, 31),
-        RandomMat(3, 6, 4, 28),
-        RandomMat(4, 5, 5, 24),
-        RandomMat(5, 4, 6, 32)
-    };
+    const int ws[] = {2, 3, 4, 5};
+    const int hs[] = {7, 6, 5, 4};
+    const int ds[] = {3, 4, 5, 6};
+    const int cs[] = {31, 28, 24, 32};
 
-    for (int i = 0; i < sizeof(a) / sizeof(a[0]); i++)
+    for (int i = 0; i < 4; i++)
     {
-        ncnn::Mat b0(a[i].c);
-        ncnn::Mat b1(1, 1, 1, a[i].c);
-        ncnn::Mat b2(a[i].d, a[i].c);
-        ncnn::Mat b3(1, 1, a[i].d, a[i].c);
-        ncnn::Mat b4(a[i].h, a[i].d, a[i].c);
-        ncnn::Mat b5(1, a[i].h, a[i].d, a[i].c);
-        Randomize(b0);
-        Randomize(b1);
-        Randomize(b2);
-        Randomize(b3);
-        Randomize(b4);
-        Randomize(b5);
+        const int w = ws[i];
+        const int h = hs[i];
+        const int d = ds[i];
+        const int c = cs[i];
+        const int flag = c == 32 ? TEST_LAYER_DISABLE_GPU_TESTING : 0;
 
-        int ret = test_binaryop(a[i], b0) || test_binaryop(b0, a[i])
-                  || test_binaryop(a[i], b1) || test_binaryop(b1, a[i])
-                  || test_binaryop(a[i], b2) || test_binaryop(b2, a[i])
-                  || test_binaryop(a[i], b3) || test_binaryop(b3, a[i])
-                  || test_binaryop(a[i], b4) || test_binaryop(b4, a[i])
-                  || test_binaryop(a[i], b5) || test_binaryop(b5, a[i]);
-        if (ret != 0)
-            return ret;
+        ncnn::Mat a[4] = {
+            RandomMat(c),
+            RandomMat(d, c),
+            RandomMat(h, d, c),
+            RandomMat(w, h, d, c),
+        };
+
+        for (int j = 0; j < 4; j++)
+        {
+            for (int k = 0; k < 4; k++)
+            {
+                if (j == k)
+                    continue;
+
+                int ret = test_binaryop(a[j], a[k], flag);
+                if (ret != 0)
+                    return ret;
+            }
+        }
     }
 
     return 0;
@@ -267,96 +330,48 @@ static int test_binaryop_5()
 
 static int test_binaryop_6()
 {
-    ncnn::Mat a[] = {
-        RandomMat(13, 31),
-        RandomMat(14, 28),
-        RandomMat(15, 24),
-        RandomMat(16, 32)
-    };
+    const int ws[] = {16, 12, 16, 15};
+    const int hs[] = {15, 16, 15, 12};
+    const int ds[] = {12, 14, 12, 16};
+    const int cs[] = {31, 28, 24, 32};
 
-    for (int i = 0; i < sizeof(a) / sizeof(a[0]); i++)
+    for (int i = 0; i < 4; i++)
     {
-        ncnn::Mat b0(a[i].w, 1);
-        Randomize(b0);
+        const int w = ws[i];
+        const int h = hs[i];
+        const int d = ds[i];
+        const int c = cs[i];
+        const int flag = c == 32 ? TEST_LAYER_DISABLE_GPU_TESTING : 0;
 
-        int ret = test_binaryop(a[i], b0) || test_binaryop(b0, a[i]);
-        if (ret != 0)
-            return ret;
-    }
+        ncnn::Mat a[3] = {
+            RandomMat(d, c),
+            RandomMat(h, d, c),
+            RandomMat(w, h, d, c),
+        };
 
-    return 0;
-}
+        for (int j = 0; j < 3; j++)
+        {
+            ncnn::Mat b = RandomMat(a[j].w);
 
-static int test_binaryop_7()
-{
-    ncnn::Mat a[] = {
-        RandomMat(7, 3, 31),
-        RandomMat(6, 4, 28),
-        RandomMat(5, 5, 24),
-        RandomMat(4, 6, 32)
-    };
+            int ret = test_binaryop(a[j], b, flag) || test_binaryop(b, a[j], flag);
+            if (ret != 0)
+                return ret;
+        }
 
-    for (int i = 0; i < sizeof(a) / sizeof(a[0]); i++)
-    {
-        ncnn::Mat b0(a[i].w, 1, 1);
-        ncnn::Mat b1(a[i].w, a[i].h, 1);
-        Randomize(b0);
-        Randomize(b1);
+        ncnn::Mat aa[3] = {
+            RandomMat(c, c),
+            RandomMat(c, d, c),
+            RandomMat(c, h, d, c),
+        };
 
-        int ret = test_binaryop(a[i], b0) || test_binaryop(b0, a[i])
-                  || test_binaryop(a[i], b1) || test_binaryop(b1, a[i]);
-        if (ret != 0)
-            return ret;
-    }
+        for (int j = 0; j < 3; j++)
+        {
+            ncnn::Mat b = RandomMat(aa[j].w);
 
-    return 0;
-}
-
-static int test_binaryop_8()
-{
-    ncnn::Mat a[] = {
-        RandomMat(2, 7, 3, 31),
-        RandomMat(3, 6, 4, 28),
-        RandomMat(4, 5, 5, 24),
-        RandomMat(5, 4, 6, 32)
-    };
-
-    for (int i = 0; i < sizeof(a) / sizeof(a[0]); i++)
-    {
-        ncnn::Mat b0(a[i].w, 1, 1, 1);
-        ncnn::Mat b1(a[i].w, a[i].h, 1, 1);
-        ncnn::Mat b2(a[i].w, a[i].h, a[i].d, 1);
-        Randomize(b0);
-        Randomize(b1);
-        Randomize(b2);
-
-        int ret = test_binaryop(a[i], b0) || test_binaryop(b0, a[i])
-                  || test_binaryop(a[i], b1) || test_binaryop(b1, a[i])
-                  || test_binaryop(a[i], b2) || test_binaryop(b2, a[i]);
-        if (ret != 0)
-            return ret;
-    }
-
-    return 0;
-}
-
-static int test_binaryop_9()
-{
-    ncnn::Mat a[] = {
-        RandomMat(7, 3, 31),
-        RandomMat(6, 4, 28),
-        RandomMat(5, 5, 24),
-        RandomMat(4, 6, 32)
-    };
-
-    for (int i = 0; i < sizeof(a) / sizeof(a[0]); i++)
-    {
-        ncnn::Mat b0(a[i].w, 1, a[i].c);
-        Randomize(b0);
-
-        int ret = test_binaryop(a[i], b0) || test_binaryop(b0, a[i]);
-        if (ret != 0)
-            return ret;
+            int ret = test_binaryop(aa[j], b, flag) || test_binaryop(b, aa[j], flag);
+            if (ret != 0)
+                return ret;
+        }
     }
 
     return 0;
@@ -374,10 +389,7 @@ int main()
                   || test_binaryop_3()
                   || test_binaryop_4()
                   || test_binaryop_5()
-                  || test_binaryop_6()
-                  || test_binaryop_7()
-                  || test_binaryop_8()
-                  || test_binaryop_9();
+                  || test_binaryop_6();
 
         if (ret != 0)
             return ret;

@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class AbsVal_mips : virtual public AbsVal
+class AbsVal_mips : public AbsVal
 {
 public:
     AbsVal_mips();

@@ -12,7 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "layer/expanddims.h"
 #include "testutil.h"
 
 static int test_expanddims(const ncnn::Mat& a, int expand_w, int expand_h, int expand_d, int expand_c)
@@ -25,7 +24,7 @@ static int test_expanddims(const ncnn::Mat& a, int expand_w, int expand_h, int e
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer<ncnn::ExpandDims>("ExpandDims", pd, weights, a);
+    int ret = test_layer("ExpandDims", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_expanddims failed a.dims=%d a=(%d %d %d %d) expand_w=%d expand_h=%d expand_d=%d expand_c=%d\n", a.dims, a.w, a.h, a.d, a.c, expand_w, expand_h, expand_d, expand_c);
@@ -91,7 +90,7 @@ static int test_expanddims_axes(const ncnn::Mat& a, const ncnn::Mat& axes)
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer<ncnn::ExpandDims>("ExpandDims", pd, weights, a);
+    int ret = test_layer("ExpandDims", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_expanddims_axes failed a.dims=%d a=(%d %d %d %d)\n", a.dims, a.w, a.h, a.d, a.c);

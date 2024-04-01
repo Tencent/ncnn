@@ -12,7 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "layer/shufflechannel.h"
 #include "testutil.h"
 
 static int test_shufflechannel(int w, int h, int c, int group, int reverse)
@@ -25,7 +24,7 @@ static int test_shufflechannel(int w, int h, int c, int group, int reverse)
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer<ncnn::ShuffleChannel>("ShuffleChannel", pd, weights, a);
+    int ret = test_layer("ShuffleChannel", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_shufflechannel failed w=%d h=%d c=%d group=%d reverse=%d\n", w, h, c, group, reverse);
@@ -53,7 +52,10 @@ static int test_shufflechannel_0()
            || test_shufflechannel(5, 7, 24, 2, 0)
            || test_shufflechannel(3, 7, 24, 3, 0)
            || test_shufflechannel(5, 9, 24, 4, 0)
+           || test_shufflechannel(3, 7, 32, 2, 0)
            || test_shufflechannel(3, 7, 32, 8, 0)
+           || test_shufflechannel(5, 7, 48, 2, 0)
+           || test_shufflechannel(5, 7, 48, 3, 0)
            || test_shufflechannel(5, 9, 64, 4, 0);
 }
 
@@ -76,7 +78,10 @@ static int test_shufflechannel_1()
            || test_shufflechannel(5, 7, 24, 2, 1)
            || test_shufflechannel(3, 7, 24, 3, 1)
            || test_shufflechannel(5, 9, 24, 4, 1)
+           || test_shufflechannel(3, 7, 32, 2, 1)
            || test_shufflechannel(3, 7, 32, 8, 1)
+           || test_shufflechannel(5, 7, 48, 2, 1)
+           || test_shufflechannel(5, 7, 48, 3, 1)
            || test_shufflechannel(3, 7, 64, 4, 1);
 }
 

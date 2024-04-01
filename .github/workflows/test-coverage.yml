@@ -28,7 +28,7 @@ jobs:
   linux-gcc-gpu-t4:
     runs-on: [self-hosted, linux, t4]
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: true
     - name: build
@@ -37,7 +37,6 @@ jobs:
         CXX: g++
         LD_LIBRARY_PATH: /data/action/install/lib64
       run: |
-        export VULKAN_SDK=/data/action/osd/1.2.189.0/x86_64
         mkdir build && cd build
         cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_VULKAN=ON -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX2=ON -DNCNN_XOP=OFF -DNCNN_AVXVNNI=OFF -DNCNN_AVX512=ON -DNCNN_AVX512VNNI=ON -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
         cmake --build . -j 4
@@ -112,7 +111,7 @@ jobs:
   linux-gcc-x64-avx512-spr:
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: update
       run: sudo apt-get update
     - name: gcc12
@@ -120,7 +119,7 @@ jobs:
     - name: lcov
       run: sudo apt-get install lcov
     - name: Setup SDE binaries
-      uses: petarpetrovt/setup-sde@v2
+      uses: petarpetrovt/setup-sde@v2.4
     - name: build-avx512-spr
       env:
         CC: gcc-12

@@ -1028,8 +1028,14 @@ ncnn_layer_t ncnn_layer_create()
 
 ncnn_layer_t ncnn_layer_create_by_typeindex(int typeindex)
 {
+    void* pthis = (void*)(ncnn::create_layer(typeindex));
+    if (!pthis)
+    {
+        return 0;
+    }
+
     ncnn_layer_t layer = (ncnn_layer_t)malloc(sizeof(__ncnn_layer_t));
-    layer->pthis = (void*)(ncnn::create_layer(typeindex));
+    layer->pthis = pthis;
     layer->load_param = __ncnn_layer_load_param;
     layer->load_model = __ncnn_layer_load_model;
     layer->create_pipeline = __ncnn_layer_create_pipeline;
@@ -1044,8 +1050,14 @@ ncnn_layer_t ncnn_layer_create_by_typeindex(int typeindex)
 #if NCNN_STRING
 ncnn_layer_t ncnn_layer_create_by_type(const char* type)
 {
+    void* pthis = (void*)(ncnn::create_layer(type));
+    if (!pthis)
+    {
+        return 0;
+    }
+
     ncnn_layer_t layer = (ncnn_layer_t)malloc(sizeof(__ncnn_layer_t));
-    layer->pthis = (void*)(ncnn::create_layer(type));
+    layer->pthis = pthis;
     layer->load_param = __ncnn_layer_load_param;
     layer->load_model = __ncnn_layer_load_model;
     layer->create_pipeline = __ncnn_layer_create_pipeline;
@@ -1055,6 +1067,11 @@ ncnn_layer_t ncnn_layer_create_by_type(const char* type)
     layer->forward_inplace_1 = __ncnn_layer_forward_inplace_1;
     layer->forward_inplace_n = __ncnn_layer_forward_inplace_n;
     return layer;
+}
+
+int ncnn_layer_type_to_index(const char* type)
+{
+    return ncnn::layer_to_index(type);
 }
 #endif /* NCNN_STRING */
 
@@ -1416,6 +1433,112 @@ int ncnn_extractor_extract_index(ncnn_extractor_t ex, int index, ncnn_mat_t* mat
     *mat = (ncnn_mat_t)(new Mat(mat0));
     return ret;
 }
+
+void ncnn_copy_make_border(const ncnn_mat_t src, ncnn_mat_t dst, int top, int bottom, int left, int right, int type, float v, const ncnn_option_t opt)
+{
+    const Option _opt = opt ? *((const Option*)opt) : Option();
+    copy_make_border(*(const Mat*)src, *(Mat*)dst, top, bottom, left, right, type, v, _opt);
+}
+
+void ncnn_copy_make_border_3d(const ncnn_mat_t src, ncnn_mat_t dst, int top, int bottom, int left, int right, int front, int behind, int type, float v, const ncnn_option_t opt)
+{
+    const Option _opt = opt ? *((const Option*)opt) : Option();
+    copy_make_border_3d(*(const Mat*)src, *(Mat*)dst, top, bottom, left, right, front, behind, type, v, _opt);
+}
+
+void ncnn_copy_cut_border(const ncnn_mat_t src, ncnn_mat_t dst, int top, int bottom, int left, int right, const ncnn_option_t opt)
+{
+    const Option _opt = opt ? *((const Option*)opt) : Option();
+    copy_cut_border(*(const Mat*)src, *(Mat*)dst, top, bottom, left, right, _opt);
+}
+
+void ncnn_copy_cut_border_3d(const ncnn_mat_t src, ncnn_mat_t dst, int top, int bottom, int left, int right, int front, int behind, const ncnn_option_t opt)
+{
+    const Option _opt = opt ? *((const Option*)opt) : Option();
+    copy_cut_border_3d(*(const Mat*)src, *(Mat*)dst, top, bottom, left, right, front, behind, _opt);
+}
+
+#if NCNN_PIXEL_DRAWING
+void ncnn_draw_rectangle_c1(unsigned char* pixels, int w, int h, int rx, int ry, int rw, int rh, unsigned int color, int thickness)
+{
+    ncnn::draw_rectangle_c1(pixels, w, h, w, rx, ry, rw, rh, color, thickness);
+}
+
+void ncnn_draw_rectangle_c2(unsigned char* pixels, int w, int h, int rx, int ry, int rw, int rh, unsigned int color, int thickness)
+{
+    ncnn::draw_rectangle_c2(pixels, w, h, w * 2, rx, ry, rw, rh, color, thickness);
+}
+
+void ncnn_draw_rectangle_c3(unsigned char* pixels, int w, int h, int rx, int ry, int rw, int rh, unsigned int color, int thickness)
+{
+    ncnn::draw_rectangle_c3(pixels, w, h, w * 3, rx, ry, rw, rh, color, thickness);
+}
+
+void ncnn_draw_rectangle_c4(unsigned char* pixels, int w, int h, int rx, int ry, int rw, int rh, unsigned int color, int thickness)
+{
+    ncnn::draw_rectangle_c4(pixels, w, h, w * 4, rx, ry, rw, rh, color, thickness);
+}
+
+void ncnn_draw_text_c1(unsigned char* pixels, int w, int h, const char* text, int x, int y, int fontpixelsize, unsigned int color)
+{
+    ncnn::draw_text_c1(pixels, w, h, w, text, x, y, fontpixelsize, color);
+}
+
+void ncnn_draw_text_c2(unsigned char* pixels, int w, int h, const char* text, int x, int y, int fontpixelsize, unsigned int color)
+{
+    ncnn::draw_text_c2(pixels, w, h, w * 2, text, x, y, fontpixelsize, color);
+}
+
+void ncnn_draw_text_c3(unsigned char* pixels, int w, int h, const char* text, int x, int y, int fontpixelsize, unsigned int color)
+{
+    ncnn::draw_text_c3(pixels, w, h, w * 3, text, x, y, fontpixelsize, color);
+}
+
+void ncnn_draw_text_c4(unsigned char* pixels, int w, int h, const char* text, int x, int y, int fontpixelsize, unsigned int color)
+{
+    ncnn::draw_text_c4(pixels, w, h, w * 4, text, x, y, fontpixelsize, color);
+}
+
+void ncnn_draw_circle_c1(unsigned char* pixels, int w, int h, int cx, int cy, int radius, unsigned int color, int thickness)
+{
+    ncnn::draw_circle_c1(pixels, w, h, w, cx, cy, radius, color, thickness);
+}
+
+void ncnn_draw_circle_c2(unsigned char* pixels, int w, int h, int cx, int cy, int radius, unsigned int color, int thickness)
+{
+    ncnn::draw_circle_c2(pixels, w, h, w * 2, cx, cy, radius, color, thickness);
+}
+
+void ncnn_draw_circle_c3(unsigned char* pixels, int w, int h, int cx, int cy, int radius, unsigned int color, int thickness)
+{
+    ncnn::draw_circle_c3(pixels, w, h, w * 3, cx, cy, radius, color, thickness);
+}
+
+void ncnn_draw_circle_c4(unsigned char* pixels, int w, int h, int cx, int cy, int radius, unsigned int color, int thickness)
+{
+    ncnn::draw_circle_c4(pixels, w, h, w * 4, cx, cy, radius, color, thickness);
+}
+
+void ncnn_draw_line_c1(unsigned char* pixels, int w, int h, int x0, int y0, int x1, int y1, unsigned int color, int thickness)
+{
+    ncnn::draw_line_c1(pixels, w, h, w, x0, y0, x1, y1, color, thickness);
+}
+
+void ncnn_draw_line_c2(unsigned char* pixels, int w, int h, int x0, int y0, int x1, int y1, unsigned int color, int thickness)
+{
+    ncnn::draw_line_c2(pixels, w, h, w * 2, x0, y0, x1, y1, color, thickness);
+}
+
+void ncnn_draw_line_c3(unsigned char* pixels, int w, int h, int x0, int y0, int x1, int y1, unsigned int color, int thickness)
+{
+    ncnn::draw_line_c3(pixels, w, h, w * 3, x0, y0, x1, y1, color, thickness);
+}
+
+void ncnn_draw_line_c4(unsigned char* pixels, int w, int h, int x0, int y0, int x1, int y1, unsigned int color, int thickness)
+{
+    ncnn::draw_line_c4(pixels, w, h, w * 4, x0, y0, x1, y1, color, thickness);
+}
+#endif /* NCNN_PIXEL_DRAWING */
 
 #ifdef __cplusplus
 } /* extern "C" */

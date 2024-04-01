@@ -2,11 +2,11 @@
 # set(UNIX True)
 # set(Darwin True)
 # set(IOS True)
-set (CMAKE_SYSTEM_NAME Darwin)
-set (CMAKE_SYSTEM_VERSION 1)
-set (UNIX True)
-set (APPLE True)
-set (IOS True)
+set(CMAKE_SYSTEM_NAME Darwin)
+set(CMAKE_SYSTEM_VERSION 1)
+set(UNIX True)
+set(APPLE True)
+set(IOS True)
 
 # suppress -rdynamic
 # set(CMAKE_SYSTEM_NAME Generic)

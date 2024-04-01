@@ -129,12 +129,15 @@ static std::string expand_expression(Graph& graph, const Operator* op, int& pnnx
                  || t == "log10"
                  || t == "neg"
                  || t == "reciprocal"
+                 || t == "round"
                  || t == "rsqrt"
+                 || t == "sign"
                  || t == "sin"
                  || t == "sqrt"
                  || t == "square"
                  || t == "tan"
-                 || t == "tanh")
+                 || t == "tanh"
+                 || t == "trunc")
         {
             std::string a = exprstack.top();
             exprstack.pop();
@@ -156,12 +159,15 @@ static std::string expand_expression(Graph& graph, const Operator* op, int& pnnx
             if (t == "log10") op_unary->params["0"] = 17;
             if (t == "neg") op_unary->params["0"] = 1;
             if (t == "reciprocal") op_unary->params["0"] = 15;
+            if (t == "round") op_unary->params["0"] = 18;
             if (t == "rsqrt") op_unary->params["0"] = 6;
+            if (t == "sign") fprintf(stderr, "UnaryOp sign not supported yet\n"); // TODO
             if (t == "sin") op_unary->params["0"] = 9;
             if (t == "sqrt") op_unary->params["0"] = 5;
             if (t == "square") op_unary->params["0"] = 4;
             if (t == "tan") op_unary->params["0"] = 11;
             if (t == "tanh") op_unary->params["0"] = 16;
+            if (t == "trunc") op_unary->params["0"] = 19;
 
             Operand* op_unary_in = token_is_argument(a) ? op->inputs[std::stoi(a.substr(1))] : graph.get_operand(op->name + "_" + a);
             op_unary_in->consumers.push_back(op_unary);
@@ -174,7 +180,19 @@ static std::string expand_expression(Graph& graph, const Operator* op, int& pnnx
             op_unary->inputs.push_back(op_unary_in);
             op_unary->outputs.push_back(op_unary_out);
         }
-        else if (t == "add" || t == "sub" || t == "mul" || t == "div" || /*t == "floor_divide" || */ t == "pow" || t == "atan2")
+        else if (t == "add"
+                 || t == "atan2"
+                 || t == "div"
+                 || t == "floor_divide"
+                 || t == "fmod"
+                 || t == "max"
+                 || t == "maximum"
+                 || t == "min"
+                 || t == "minimum"
+                 || t == "mul"
+                 || t == "pow"
+                 || t == "remainder"
+                 || t == "sub")
         {
             std::string a = exprstack.top();
             exprstack.pop();
@@ -186,10 +204,18 @@ static std::string expand_expression(Graph& graph, const Operator* op, int& pnnx
 
             Operator* op_binary = graph.new_operator_before("BinaryOp", t + "_" + std::to_string(pnnx_expr_index++), op);
 
+            // default todo type mark  :[
+            op_binary->params["0"] = -1;
+
             if (t == "add") op_binary->params["0"] = 0;
             if (t == "sub") op_binary->params["0"] = 1;
             if (t == "mul") op_binary->params["0"] = 2;
             if (t == "div") op_binary->params["0"] = 3;
+            if (t == "max" || t == "maximum") op_binary->params["0"] = 4;
+            if (t == "min" || t == "minimum") op_binary->params["0"] = 5;
+            if (t == "floor_divide") fprintf(stderr, "BinaryOp floor_divide not supported yet\n"); // TODO
+            if (t == "fmod") fprintf(stderr, "BinaryOp fmod not supported yet\n");                 // TODO
+            if (t == "remainder") fprintf(stderr, "BinaryOp remainder not supported yet\n");       // TODO
             if (t == "pow") op_binary->params["0"] = 6;
             if (t == "atan2") op_binary->params["0"] = 10;
 
