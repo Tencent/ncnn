@@ -95,14 +95,14 @@ jobs:
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
         cd openmp-${{ env.OPENMP_VERSION }}.src
-        wget https://github.com/nihui/llvm-project/commit/82ffbddacd16d4d088e7c0ffccdb58517e20ea4d.patch
-        patch -p2 -i 82ffbddacd16d4d088e7c0ffccdb58517e20ea4d.patch
+        wget https://github.com/nihui/llvm-project/commit/fd5669f5679d8a44fe59393a0f895d371a76caba.patch
+        patch -p2 -i fd5669f5679d8a44fe59393a0f895d371a76caba.patch
         mkdir -p build-arm64_32 && cd build-arm64_32
         cmake ${{ env.OPENMP_CMAKE_OPTIONS }} -DPLATFORM=WATCHOS -DARCHS="arm64_32" ..
         cmake --build . -j 4
         cmake --build . --target install
         cd ..
-        patch -R -p2 -i 82ffbddacd16d4d088e7c0ffccdb58517e20ea4d.patch
+        patch -R -p2 -i fd5669f5679d8a44fe59393a0f895d371a76caba.patch
     - name: openmp-simulator-x86_64
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
