@@ -38,7 +38,7 @@ jobs:
   build:
     runs-on: macos-13
     env:
-      OPENMP_VERSION: '14.0.6'
+      OPENMP_VERSION: '18.1.2'
       OPENMP_CMAKE_OPTIONS: |
         -DCMAKE_TOOLCHAIN_FILE=../../toolchains/ios.toolchain.cmake \
         -DDEPLOYMENT_TARGET=$WATCHOS_DEPLOYMENT_TARGET \
@@ -72,15 +72,18 @@ jobs:
       uses: actions/cache@v4
       with:
         path: openmp-install
-        key: openmp-watchos-install-20240401
+        key: openmp-watchos-install-20240402
     - name: openmp
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
+        wget https://github.com/llvm/llvm-project/releases/download/llvmorg-${{ env.OPENMP_VERSION }}/cmake-${{ env.OPENMP_VERSION }}.src.tar.xz
+        tar -xf cmake-${{ env.OPENMP_VERSION }}.src.tar.xz
         wget https://github.com/llvm/llvm-project/releases/download/llvmorg-${{ env.OPENMP_VERSION }}/openmp-${{ env.OPENMP_VERSION }}.src.tar.xz
         tar -xf openmp-${{ env.OPENMP_VERSION }}.src.tar.xz
+        mv cmake-${{ env.OPENMP_VERSION }}.src cmake
         cd openmp-${{ env.OPENMP_VERSION }}.src
-        wget https://github.com/nihui/llvm-project/commit/0f09753bd22af28ad9292aa5c8d2018bc35feb5a.patch
-        patch -p2 -i 0f09753bd22af28ad9292aa5c8d2018bc35feb5a.patch
+        wget https://github.com/nihui/llvm-project/commit/ef8c35bcf5d9cfdb0764ffde6a63c04ec715bc37.patch
+        patch -p2 -i ef8c35bcf5d9cfdb0764ffde6a63c04ec715bc37.patch
         wget https://github.com/nihui/llvm-project/commit/5c12711f9a21f41bea70566bf15a4026804d6b20.patch
         patch -p2 -i 5c12711f9a21f41bea70566bf15a4026804d6b20.patch
     - name: openmp-armv7k
@@ -95,14 +98,10 @@ jobs:
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
         cd openmp-${{ env.OPENMP_VERSION }}.src
-        wget https://github.com/nihui/llvm-project/commit/fd5669f5679d8a44fe59393a0f895d371a76caba.patch
-        patch -p2 -i fd5669f5679d8a44fe59393a0f895d371a76caba.patch
         mkdir -p build-arm64_32 && cd build-arm64_32
         cmake ${{ env.OPENMP_CMAKE_OPTIONS }} -DPLATFORM=WATCHOS -DARCHS="arm64_32" ..
         cmake --build . -j 4
         cmake --build . --target install
-        cd ..
-        patch -R -p2 -i fd5669f5679d8a44fe59393a0f895d371a76caba.patch
     - name: openmp-simulator-x86_64
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
