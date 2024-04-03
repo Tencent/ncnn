@@ -65,7 +65,6 @@ jobs:
         -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
         -DOpenMP_libomp_LIBRARY="libomp.a" \
         -DNCNN_VULKAN=ON \
-        -DVulkan_LIBRARY=$GITHUB_WORKSPACE/MoltenVK/static/MoltenVK.xcframework/ios-arm64_x86_64-maccatalyst/libMoltenVK.a
 
     steps:
     - uses: actions/checkout@v4
@@ -131,10 +130,12 @@ jobs:
     - name: x86_64
       run: |
         mkdir build-x86_64 && cd build-x86_64
-        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=MAC_CATALYST -DARCHS="x86_64" ..
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=MAC_CATALYST -DARCHS="x86_64" \
+            -DVulkan_LIBRARY=$GITHUB_WORKSPACE/MoltenVK/static/MoltenVK.xcframework/ios-arm64_x86_64-maccatalyst/libMoltenVK.a ..
         cmake --build . -j 4
     - name: arm64
       run: |
         mkdir build-arm64 && cd build-arm64
-        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=MAC_CATALYST_ARM64 -DARCHS="arm64" ..
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=MAC_CATALYST_ARM64 -DARCHS="arm64" \
+            -DVulkan_LIBRARY=$GITHUB_WORKSPACE/MoltenVK/static/MoltenVK.xcframework/ios-arm64_x86_64-maccatalyst/libMoltenVK.a ..
         cmake --build . -j 4
