@@ -4,6 +4,7 @@ on:
     branches: [master]
     paths:
     - '.github/workflows/macos.yml'
+    - 'toolchains/ios.toolchain.cmake'
     - 'CMakeLists.txt'
     - 'cmake/**'
     - 'src/*'
@@ -19,6 +20,7 @@ on:
     branches: [master]
     paths:
     - '.github/workflows/macos.yml'
+    - 'toolchains/ios.toolchain.cmake'
     - 'CMakeLists.txt'
     - 'cmake/**'
     - 'src/*'
@@ -178,8 +180,8 @@ jobs:
         cmake --build . -j 4
     - name: x86_64-test
       run: |
-        printf "[Processor]\nThreadCount=1\n" > build/tests/SwiftShader.ini
-        cd build && ctest --output-on-failure -j 4
+        printf "[Processor]\nThreadCount=1\n" > build-x86_64/tests/SwiftShader.ini
+        cd build-x86_64 && ctest --output-on-failure -j 4
 
     - name: arm64-shared
       run: |
