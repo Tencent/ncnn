@@ -103,7 +103,7 @@ jobs:
     - name: install-deps
       run: |
         apt-get update
-        apt-get install -y cmake wget git curl
+        DEBIAN_FRONTEND=noninteractive apt-get install -y cmake wget git curl
 
     - uses: actions/checkout@v4
       with:
