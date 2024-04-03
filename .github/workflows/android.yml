@@ -69,22 +69,22 @@ jobs:
 
     - name: armeabi-v7a-shared
       run: |
-        mkdir build-armeabi-v7a && cd build-armeabi-v7a
+        mkdir build-armeabi-v7a-shared && cd build-armeabi-v7a-shared
         cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DANDROID_ABI="armeabi-v7a" -DANDROID_ARM_NEON=ON -DNCNN_SHARED_LIB=ON ..
         cmake --build . -j $(nproc)
     - name: arm64-v8a-shared
       run: |
-        mkdir build-arm64-v8a && cd build-arm64-v8a
+        mkdir build-arm64-v8a-shared && cd build-arm64-v8a-shared
         cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DANDROID_ABI="arm64-v8a" -DNCNN_SHARED_LIB=ON ..
         cmake --build . -j $(nproc)
     - name: x86-shared
       run: |
-        mkdir build-x86 && cd build-x86
+        mkdir build-x86-shared && cd build-x86-shared
         cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DANDROID_ABI="x86" -DNCNN_SHARED_LIB=ON ..
         cmake --build . -j $(nproc)
     - name: x86_64-shared
       run: |
-        mkdir build-x86_64 && cd build-x86_64
+        mkdir build-x86_64-shared && cd build-x86_64-shared
         cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DANDROID_ABI="x86_64" -DNCNN_SHARED_LIB=ON ..
         cmake --build . -j $(nproc)
 
@@ -117,6 +117,11 @@ jobs:
         mkdir build-armeabi-v7a && cd build-armeabi-v7a
         cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DANDROID_ABI="armeabi-v7a" -DANDROID_ARM_NEON=OFF ..
         cmake --build . -j $(nproc)
+    - name: armeabi
+      run: |
+        mkdir build-armeabi && cd build-armeabi
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DANDROID_ABI="armeabi" ..
+        cmake --build . -j $(nproc)
     - name: mips
       run: |
         mkdir build-mips && cd build-mips
@@ -130,16 +135,21 @@ jobs:
 
     - name: armeabi-v7a-shared
       run: |
-        mkdir build-armeabi-v7a && cd build-armeabi-v7a
+        mkdir build-armeabi-v7a-shared && cd build-armeabi-v7a-shared
         cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DANDROID_ABI="armeabi-v7a" -DANDROID_ARM_NEON=OFF -DNCNN_SHARED_LIB=ON ..
+        cmake --build . -j $(nproc)
+    - name: armeabi-shared
+      run: |
+        mkdir build-armeabi-shared && cd build-armeabi-shared
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DANDROID_ABI="armeabi" -DNCNN_SHARED_LIB=ON ..
         cmake --build . -j $(nproc)
     - name: mips-shared
       run: |
-        mkdir build-mips && cd build-mips
+        mkdir build-mips-shared && cd build-mips-shared
         cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DANDROID_ABI="mips" -DNCNN_SHARED_LIB=ON ..
         cmake --build . -j $(nproc)
     - name: mips64-shared
       run: |
-        mkdir build-mips64 && cd build-mips64
+        mkdir build-mips64-shared && cd build-mips64-shared
         cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DANDROID_ABI="mips64" -DNCNN_SHARED_LIB=ON ..
         cmake --build . -j $(nproc)
