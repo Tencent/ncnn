@@ -237,7 +237,7 @@ https://github.com/Tencent/ncnn/releases/latest
 </td>
 <td rowspan=2>
 
-  [<img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/watchos-cpu.yml?branch=master&style=for-the-badge&label=build">](https://github.com/Tencent/ncnn/actions?query=workflow%3Awatchos-cpu)
+  [<img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/watchos.yml?branch=master&style=for-the-badge&label=build">](https://github.com/Tencent/ncnn/actions?query=workflow%3Awatchos)
 
 </td>
 </tr>
@@ -258,7 +258,7 @@ https://github.com/Tencent/ncnn/releases/latest
 </td>
 <td rowspan=2>
 
-  [<img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/tvos-cpu.yml?branch=master&style=for-the-badge&label=build">](https://github.com/Tencent/ncnn/actions?query=workflow%3Atvos-cpu)
+  [<img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/tvos.yml?branch=master&style=for-the-badge&label=build">](https://github.com/Tencent/ncnn/actions?query=workflow%3Atvos)
 
 </td>
 </tr>
