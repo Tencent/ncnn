@@ -100,14 +100,6 @@ jobs:
         cmake ${{ env.OPENMP_CMAKE_OPTIONS }} -DPLATFORM=OS64 -DARCHS="arm64" ..
         cmake --build . -j 4
         cmake --build . --target install
-    - name: openmp-arm64e
-      if: steps.cache-openmp.outputs.cache-hit != 'true'
-      run: |
-        cd openmp-${{ env.OPENMP_VERSION }}.src
-        mkdir -p build-arm64e && cd build-arm64e
-        cmake ${{ env.OPENMP_CMAKE_OPTIONS }} -DPLATFORM=OS64 -DARCHS="arm64e" ..
-        cmake --build . -j 4
-        cmake --build . --target install
     - name: openmp-simulator-x86_64
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
@@ -133,10 +125,7 @@ jobs:
 
         cp -a openmp-${{ env.OPENMP_VERSION }}.src/build-arm64/install/include $GITHUB_WORKSPACE/openmp-install/ios
         mkdir -p $GITHUB_WORKSPACE/openmp-install/ios/lib
-        lipo -create \
-            openmp-${{ env.OPENMP_VERSION }}.src/build-arm64/install/lib/libomp.a \
-            openmp-${{ env.OPENMP_VERSION }}.src/build-arm64e/install/lib/libomp.a \
-            -o $GITHUB_WORKSPACE/openmp-install/ios/lib/libomp.a
+        cp openmp-${{ env.OPENMP_VERSION }}.src/build-arm64/install/lib/libomp.a $GITHUB_WORKSPACE/openmp-install/ios/lib/libomp.a
 
         cp -a openmp-${{ env.OPENMP_VERSION }}.src/build-simulator-x86_64/install/include $GITHUB_WORKSPACE/openmp-install/ios-simulator
         mkdir -p $GITHUB_WORKSPACE/openmp-install/ios-simulator/lib
@@ -162,12 +151,6 @@ jobs:
       run: |
         mkdir build-arm64 && cd build-arm64
         cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=OS64 -DARCHS="arm64" \
-            -DVulkan_LIBRARY=$GITHUB_WORKSPACE/MoltenVK/MoltenVK/static/MoltenVK.xcframework/ios-arm64/libMoltenVK.a ..
-        cmake --build . -j 4
-    - name: arm64e
-      run: |
-        mkdir build-arm64e && cd build-arm64e
-        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=OS64 -DARCHS="arm64e" \
             -DVulkan_LIBRARY=$GITHUB_WORKSPACE/MoltenVK/MoltenVK/static/MoltenVK.xcframework/ios-arm64/libMoltenVK.a ..
         cmake --build . -j 4
     - name: simulator-x86_64
