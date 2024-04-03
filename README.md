@@ -215,7 +215,7 @@ https://github.com/Tencent/ncnn/releases/latest
 </td>
 <td rowspan=2>
 
-  [<img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/mac-catalyst-arm64-gpu.yml?branch=master&style=for-the-badge&label=build">](https://github.com/Tencent/ncnn/actions?query=workflow%3Amac-catalyst-arm64-gpu)
+  [<img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/mac-catalyst.yml?branch=master&style=for-the-badge&label=build">](https://github.com/Tencent/ncnn/actions?query=workflow%3Amac-catalyst)
 
 </td>
 </tr>
