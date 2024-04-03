@@ -101,9 +101,11 @@ jobs:
 
     steps:
     - name: install-deps
+      env:
+        DEBIAN_FRONTEND: noninteractive
       run: |
         apt-get update
-        DEBIAN_FRONTEND=noninteractive apt-get install -y cmake wget git curl
+        apt-get install -y cmake wget git unzip
 
     - uses: actions/checkout@v4
       with:
