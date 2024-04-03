@@ -11,6 +11,7 @@ on:
     - 'src/layer/*'
     - 'src/layer/arm/**'
     - 'src/layer/x86/**'
+    - 'src/layer/vulkan/**'
   pull_request:
     branches: [master]
     paths:
@@ -22,12 +23,13 @@ on:
     - 'src/layer/*'
     - 'src/layer/arm/**'
     - 'src/layer/x86/**'
+    - 'src/layer/vulkan/**'
 concurrency:
   group: tvos-${{ github.ref }}
   cancel-in-progress: true
 env:
   DEVELOPER_DIR: /Applications/Xcode_15.2.app/Contents/Developer
-  TVOS_DEPLOYMENT_TARGET: '9.0'
+  TVOS_DEPLOYMENT_TARGET: '11.0'
   ENABLE_BITCODE: OFF
   ENABLE_ARC: OFF
   ENABLE_VISIBILITY: OFF
@@ -52,6 +54,7 @@ jobs:
         -DLIBOMP_OMPT_SUPPORT=OFF \
         -DLIBOMP_USE_HWLOC=OFF \
 
+      MOLTENVK_VERSION: 'v1.2.8'
       NCNN_CMAKE_OPTIONS: |
         -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake \
         -DDEPLOYMENT_TARGET=$TVOS_DEPLOYMENT_TARGET \
@@ -63,16 +66,19 @@ jobs:
         -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
         -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
         -DOpenMP_libomp_LIBRARY="libomp.a" \
+        -DNCNN_VULKAN=ON \
 
     steps:
     - uses: actions/checkout@v4
+      with:
+        submodules: true
 
     - name: cache-openmp
       id: cache-openmp
       uses: actions/cache@v4
       with:
         path: openmp-install
-        key: openmp-tvos-install-20240402
+        key: openmp-tvos-install-20240403
     - name: openmp
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
@@ -92,6 +98,14 @@ jobs:
         cd openmp-${{ env.OPENMP_VERSION }}.src
         mkdir -p build-arm64 && cd build-arm64
         cmake ${{ env.OPENMP_CMAKE_OPTIONS }} -DPLATFORM=TVOS -DARCHS="arm64" ..
+        cmake --build . -j 4
+        cmake --build . --target install
+    - name: openmp-arm64e
+      if: steps.cache-openmp.outputs.cache-hit != 'true'
+      run: |
+        cd openmp-${{ env.OPENMP_VERSION }}.src
+        mkdir -p build-arm64e && cd build-arm64e
+        cmake ${{ env.OPENMP_CMAKE_OPTIONS }} -DPLATFORM=TVOS -DARCHS="arm64e" ..
         cmake --build . -j 4
         cmake --build . --target install
     - name: openmp-simulator-x86_64
@@ -119,7 +133,10 @@ jobs:
 
         cp -a openmp-${{ env.OPENMP_VERSION }}.src/build-arm64/install/include $GITHUB_WORKSPACE/openmp-install/tvos
         mkdir -p $GITHUB_WORKSPACE/openmp-install/tvos/lib
-        cp openmp-${{ env.OPENMP_VERSION }}.src/build-arm64/install/lib/libomp.a $GITHUB_WORKSPACE/openmp-install/tvos/lib/libomp.a
+        lipo -create \
+            openmp-${{ env.OPENMP_VERSION }}.src/build-arm64/install/lib/libomp.a \
+            openmp-${{ env.OPENMP_VERSION }}.src/build-arm64e/install/lib/libomp.a \
+            -o $GITHUB_WORKSPACE/openmp-install/tvos/lib/libomp.a
 
         cp -a openmp-${{ env.OPENMP_VERSION }}.src/build-simulator-x86_64/install/include $GITHUB_WORKSPACE/openmp-install/tvos-simulator
         mkdir -p $GITHUB_WORKSPACE/openmp-install/tvos-simulator/lib
@@ -136,18 +153,32 @@ jobs:
         sudo cp $GITHUB_WORKSPACE/openmp-install/tvos-simulator/include/* $DEVELOPER_DIR/Platforms/AppleTVSimulator.platform/Developer/SDKs/AppleTVSimulator.sdk/usr/include
         sudo cp $GITHUB_WORKSPACE/openmp-install/tvos-simulator/lib/libomp.a $DEVELOPER_DIR/Platforms/AppleTVSimulator.platform/Developer/SDKs/AppleTVSimulator.sdk/usr/lib
 
+    - name: moltenvk
+      run: |
+        wget -q https://github.com/KhronosGroup/MoltenVK/releases/download/${{ env.MOLTENVK_VERSION }}/MoltenVK-all.tar
+        tar -xf MoltenVK-all.tar
+
     - name: arm64
       run: |
         mkdir build-arm64 && cd build-arm64
-        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=TVOS -DARCHS="arm64" ..
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=TVOS -DARCHS="arm64" \
+            -DVulkan_LIBRARY=$GITHUB_WORKSPACE/MoltenVK/MoltenVK/static/MoltenVK.xcframework/tvos-arm64_arm64e/libMoltenVK.a ..
+        cmake --build . -j 4
+    - name: arm64e
+      run: |
+        mkdir build-arm64e && cd build-arm64e
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=TVOS -DARCHS="arm64e" \
+            -DVulkan_LIBRARY=$GITHUB_WORKSPACE/MoltenVK/MoltenVK/static/MoltenVK.xcframework/tvos-arm64_arm64e/libMoltenVK.a ..
         cmake --build . -j 4
     - name: simulator-x86_64
       run: |
         mkdir build-simulator-x86_64 && cd build-simulator-x86_64
-        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=SIMULATOR_TVOS -DARCHS="x86_64" ..
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=SIMULATOR_TVOS -DARCHS="x86_64" \
+            -DVulkan_LIBRARY=$GITHUB_WORKSPACE/MoltenVK/MoltenVK/static/MoltenVK.xcframework/tvos-arm64_x86_64-simulator/libMoltenVK.a ..
         cmake --build . -j 4
     - name: simulator-arm64
       run: |
         mkdir build-simulator-arm64 && cd build-simulator-arm64
-        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=SIMULATORARM64_TVOS -DARCHS="arm64" ..
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=SIMULATORARM64_TVOS -DARCHS="arm64" \
+            -DVulkan_LIBRARY=$GITHUB_WORKSPACE/MoltenVK/MoltenVK/static/MoltenVK.xcframework/tvos-arm64_x86_64-simulator/libMoltenVK.a ..
         cmake --build . -j 4

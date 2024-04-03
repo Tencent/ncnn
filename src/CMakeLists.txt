@@ -302,25 +302,22 @@ if(NCNN_VULKAN)
     endif()
 
     # Support mac platform static library compilation
-    if(NOT NCNN_SHARED_LIB AND APPLE AND NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
-        find_library(CoreFoundation NAMES CoreFoundation)
+    # https://github.com/KhronosGroup/MoltenVK/blob/main/Docs/MoltenVK_Runtime_UserGuide.md#optionally-link-to-required-system-libraries
+    if(NOT NCNN_SHARED_LIB AND APPLE)
+        find_library(Metal NAMES Metal)
         find_library(Foundation NAMES Foundation)
         find_library(QuartzCore NAMES QuartzCore)
         find_library(CoreGraphics NAMES CoreGraphics)
-        find_library(Cocoa NAMES Cocoa)
-        find_library(Metal NAMES Metal)
-        find_library(IOKit NAMES IOKit)
         find_library(IOSurface NAMES IOSurface)
-        list(APPEND vulkan_dependent_LINK_LIBRARIES
-            ${Metal}
-            ${IOKit}
-            ${IOSurface}
-            ${QuartzCore}
-            ${CoreGraphics}
-            ${Cocoa}
-            ${Foundation}
-            ${CoreFoundation}
-        )
+        list(APPEND vulkan_dependent_LINK_LIBRARIES ${Metal} ${Foundation} ${QuartzCore} ${CoreGraphics} ${IOSurface})
+        if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+            find_library(IOKit NAMES IOKit)
+            list(APPEND vulkan_dependent_LINK_LIBRARIES ${IOKit})
+        endif()
+        if(IOS OR CMAKE_SYSTEM_NAME STREQUAL "iOS" OR CMAKE_SYSTEM_NAME STREQUAL "tvOS")
+            find_library(UIKit NAMES UIKit)
+            list(APPEND vulkan_dependent_LINK_LIBRARIES ${UIKit})
+        endif()
         target_link_libraries(ncnn PRIVATE ${vulkan_dependent_LINK_LIBRARIES})
     endif()
 
