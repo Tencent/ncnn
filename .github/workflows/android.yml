@@ -103,8 +103,8 @@ jobs:
       env:
         DEBIAN_FRONTEND: noninteractive
       run: |
-        apt-get update
-        apt-get install -y libncurses5
+        sudo apt-get update
+        sudo apt-get install -y libncurses5
 
     - uses: actions/checkout@v4
       with:
