@@ -96,12 +96,9 @@ jobs:
         -DANDROID_PLATFORM=android-14 \
         -DCMAKE_INSTALL_PREFIX=install \
         -DCMAKE_BUILD_TYPE=Release \
-        -DNCNN_VULKAN=ON \
 
     steps:
     - uses: actions/checkout@v4
-      with:
-        submodules: true
 
     - name: ndk-r16b
       env:
@@ -120,7 +117,7 @@ jobs:
     - name: armeabi
       run: |
         mkdir build-armeabi && cd build-armeabi
-        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DANDROID_ABI="armeabi" -DNCNN_VULKAN=OFF ..
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DANDROID_ABI="armeabi" ..
         cmake --build . -j $(nproc)
     - name: mips
       run: |
@@ -141,7 +138,7 @@ jobs:
     - name: armeabi-shared
       run: |
         mkdir build-armeabi-shared && cd build-armeabi-shared
-        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DANDROID_ABI="armeabi" -DNCNN_VULKAN=OFF -DNCNN_SHARED_LIB=ON ..
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DANDROID_ABI="armeabi" -DNCNN_SHARED_LIB=ON ..
         cmake --build . -j $(nproc)
     - name: mips-shared
       run: |
