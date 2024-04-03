@@ -103,7 +103,7 @@ https://github.com/Tencent/ncnn/releases/latest
 </td>
 <td rowspan=2>
 
-  [<img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/android-armv7-gpu.yml?branch=master&style=for-the-badge&label=build">](https://github.com/Tencent/ncnn/actions?query=workflow%3Aandroid-armv7-gpu)
+  [<img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/android.yml?branch=master&style=for-the-badge&label=build">](https://github.com/Tencent/ncnn/actions?query=workflow%3Aandroid)
 
 </td>
 </tr>
