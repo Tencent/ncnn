@@ -90,7 +90,6 @@ jobs:
 
   ndk-r16b:
     runs-on: ubuntu-latest
-    container: ubuntu:20.04
     env:
       NCNN_CMAKE_OPTIONS: |
         -DCMAKE_TOOLCHAIN_FILE=$GITHUB_WORKSPACE/android-ndk-r16b/build/cmake/android.toolchain.cmake \
@@ -105,7 +104,7 @@ jobs:
         DEBIAN_FRONTEND: noninteractive
       run: |
         apt-get update
-        apt-get install -y cmake wget git unzip
+        apt-get install -y libncurses5
 
     - uses: actions/checkout@v4
       with:
