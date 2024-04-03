@@ -178,20 +178,21 @@ jobs:
             -DVulkan_LIBRARY=$GITHUB_WORKSPACE/swiftshader-install/libvulkan.dylib \
             -DNCNN_BUILD_TESTS=ON ..
         cmake --build . -j 4
-    - name: x86_64-test
-      run: |
-        printf "[Processor]\nThreadCount=1\n" > build-x86_64/tests/SwiftShader.ini
-        cd build-x86_64 && ctest --output-on-failure -j 4
 
     - name: arm64-shared
       run: |
         mkdir build-arm64-shared && cd build-arm64-shared
         cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=MAC_ARM64 -DARCHS="arm64" -DNCNN_SHARED_LIB=ON \
-            -DVulkan_LIBRARY=$GITHUB_WORKSPACE/MoltenVK/MoltenVK/static/MoltenVK.xcframework/macos-arm64_x86_64/libMoltenVK.a ..
+            -DVulkan_LIBRARY=$GITHUB_WORKSPACE/MoltenVK/MoltenVK/dynamic/MoltenVK.xcframework/macos-arm64_x86_64/MoltenVK.framework/MoltenVK ..
         cmake --build . -j 4
     - name: x86_64-shared
       run: |
         mkdir build-x86_64-shared && cd build-x86_64-shared
         cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=MAC -DARCHS="x86_64" -DNCNN_SHARED_LIB=ON \
-            -DVulkan_LIBRARY=$GITHUB_WORKSPACE/MoltenVK/MoltenVK/static/MoltenVK.xcframework/macos-arm64_x86_64/libMoltenVK.a ..
+            -DVulkan_LIBRARY=$GITHUB_WORKSPACE/MoltenVK/MoltenVK/dynamic/MoltenVK.xcframework/macos-arm64_x86_64/MoltenVK.framework/MoltenVK ..
         cmake --build . -j 4
+
+    - name: x86_64-test
+      run: |
+        printf "[Processor]\nThreadCount=1\n" > build-x86_64/tests/SwiftShader.ini
+        cd build-x86_64 && ctest --output-on-failure -j 4
