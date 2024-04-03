@@ -68,6 +68,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+      with:
+        submodules: true
 
     - name: cache-openmp
       id: cache-openmp
@@ -124,7 +126,7 @@ jobs:
 
     - name: moltenvk
       run: |
-        wget https://github.com/KhronosGroup/MoltenVK/releases/download/${{ env.MOLTENVK_VERSION }}/MoltenVK-all.tar
+        wget -q https://github.com/KhronosGroup/MoltenVK/releases/download/${{ env.MOLTENVK_VERSION }}/MoltenVK-all.tar
         tar -xf MoltenVK-all.tar
 
     - name: x86_64
