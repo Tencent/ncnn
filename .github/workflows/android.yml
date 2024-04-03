@@ -99,19 +99,16 @@ jobs:
         -DNCNN_VULKAN=ON \
 
     steps:
-    - name: install-deps
-      env:
-        DEBIAN_FRONTEND: noninteractive
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y libncurses5
-
     - uses: actions/checkout@v4
       with:
         submodules: true
 
     - name: ndk-r16b
+      env:
+        DEBIAN_FRONTEND: noninteractive
       run: |
+        sudo apt-get update
+        sudo apt-get install -y libncurses5
         wget -q https://dl.google.com/android/repository/android-ndk-r16b-linux-x86_64.zip -O $GITHUB_WORKSPACE/android-ndk-r16b-linux-x86_64.zip
         cd $GITHUB_WORKSPACE && unzip -q android-ndk-r16b-linux-x86_64.zip
 
