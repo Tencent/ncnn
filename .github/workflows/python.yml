@@ -27,6 +27,10 @@ concurrency:
   cancel-in-progress: true
 env:
   DEVELOPER_DIR: /Applications/Xcode_15.2.app/Contents/Developer
+  MAC_DEPLOYMENT_TARGET: '11.0'
+  ENABLE_BITCODE: OFF
+  ENABLE_ARC: OFF
+  ENABLE_VISIBILITY: OFF
   CMAKE_BUILD_PARALLEL_LEVEL: 4
   UseMultiToolTask: true
 permissions:
@@ -97,7 +101,9 @@ jobs:
       if: matrix.os == 'macos-latest'
       run: |
         mkdir build && cd build
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DPLATFORM=MAC -DARCHS="x86_64" -DNCNN_VULKAN=ON -DNCNN_PYTHON=ON ..
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DPLATFORM=MAC -DARCHS="x86_64" \
+            -DDEPLOYMENT_TARGET=$MAC_DEPLOYMENT_TARGET -DENABLE_BITCODE=$ENABLE_BITCODE -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
+            -DNCNN_VULKAN=ON -DNCNN_PYTHON=ON ..
         cmake --build . -j 4
     - name: build
       if: matrix.os == 'windows-latest'
