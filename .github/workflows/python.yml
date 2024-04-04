@@ -85,7 +85,7 @@ jobs:
         pip install pytest setuptools wheel twine
 
     - name: build
-      run: cd python && pip install .
+      run: pip install .
     - name: test
       env:
         VK_ICD_FILENAMES: $GITHUB_WORKSPACE/swiftshader-install/vk_swiftshader_icd.json
