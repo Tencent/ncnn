@@ -16,17 +16,6 @@
 
 namespace pnnx {
 
-const torch::jit::Node* find_node_by_kind(const std::shared_ptr<torch::jit::Graph>& graph, const std::string& kind)
-{
-    for (const auto& n : graph->nodes())
-    {
-        if (n->kind().toDisplayString() == kind)
-            return n;
-    }
-
-    return 0;
-}
-
 unsigned short float32_to_float16(float value)
 {
     // 1 : 8 : 23

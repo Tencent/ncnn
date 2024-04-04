@@ -36,17 +36,22 @@ Install required build dependencies:
 * g++
 * cmake
 * protocol buffer (protobuf) headers files and protobuf compiler
-* vulkan header files and loader library
 * glslang
+* (optional) LLVM OpenMP header files # If building with Clang, and multithreaded CPU inference is desired
+* (optional) vulkan header files and loader library # If building with Vulkan, without simplevk
 * (optional) opencv  # For building examples
 
 Generally if you have Intel, AMD or Nvidia GPU from last 10 years, Vulkan can be easily used.
 
 On some systems there are no Vulkan drivers easily available at the moment (October 2020), so you might need to disable use of Vulkan on them. This applies to Raspberry Pi 3 (but there is experimental open source Vulkan driver in the works, which is not ready yet). Nvidia Tegra series devices (like Nvidia Jetson) should support Vulkan. Ensure you have most recent software installed for best experience.
 
-On Debian, Ubuntu or Raspberry Pi OS, you can install all required dependencies using: 
+On Debian 10+, Ubuntu 20.04+, or Raspberry Pi OS, you can install all required dependencies using: 
 ```shell
-sudo apt install build-essential git cmake libprotobuf-dev protobuf-compiler libvulkan-dev vulkan-utils libopencv-dev
+sudo apt install build-essential git cmake libprotobuf-dev protobuf-compiler libomp-dev libvulkan-dev vulkan-tools libopencv-dev
+```
+On earlier Debian or Ubuntu, you can install all required dependencies using: 
+```shell
+sudo apt install build-essential git cmake libprotobuf-dev protobuf-compiler libomp-dev libvulkan-dev vulkan-utils libopencv-dev
 ```
 On Redhat or Centos, you can install all required dependencies using: 
 ```shell
@@ -88,11 +93,11 @@ make -j$(nproc)
 
 You can add `-GNinja` to `cmake` above to use Ninja build system (invoke build using `ninja` or `cmake --build .`).
 
-For Rasberry Pi 3 on 32bit OS, add `-DCMAKE_TOOLCHAIN_FILE=../toolchains/pi3.toolchain.cmake` to cmake. You can also consider disabling Vulkan support as the Vulkan drivers for Rasberry Pi are still not mature, but it doesn't hurt to build the support in, but not use it.
+For Raspberry Pi 3 on 32bit OS, add `-DCMAKE_TOOLCHAIN_FILE=../toolchains/pi3.toolchain.cmake` to cmake. You can also consider disabling Vulkan support as the Vulkan drivers for Raspberry Pi are still not mature, but it doesn't hurt to build the support in, but not use it.
 
 #### POWER
 
-For POWER9 with Clang 13 or higher:
+For POWER9 with Clang:
 
 ```shell
 cd ncnn
@@ -102,7 +107,7 @@ cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=../toolchains/power9le-l
 make -j$(nproc)
 ```
 
-Earlier versions of Clang may fail to build ncnn due to [Bug 49864](https://github.com/llvm/llvm-project/issues/49864). To use GCC instead, use the `power9le-linux-gnu-vsx.toolchain.cmake` toolchain file instead. Note that according to benchmarks, Clang appears to produce noticeably faster CPU inference than GCC for POWER9 targets.
+To use GCC instead, use the `power9le-linux-gnu-vsx.toolchain.cmake` toolchain file instead. Note that according to benchmarks, Clang appears to produce noticeably faster CPU inference than GCC for POWER9 targets. For fastest inference, use Clang 18 or higher; earlier versions of Clang may have impaired inference speed due to [Bug 49864](https://github.com/llvm/llvm-project/issues/49864) and [Bug 64664](https://github.com/llvm/llvm-project/issues/64664).
 
 For POWER8 instead of POWER9, use the `power8le-linux-gnu-vsx.clang.toolchain.cmake` or `power8le-linux-gnu-vsx.toolchain.cmake` toolchain file instead. POWER8 will be slower than POWER9.
 
@@ -175,7 +180,7 @@ cmake --build . --config Release --target install
 ```
 (optional) Download and install Vulkan SDK from https://vulkan.lunarg.com/sdk/home
 
-Build ncnn library (replace <protobuf-root-dir> with a proper path):
+Build ncnn library (replace `<protobuf-root-dir>` with a proper path):
 
 ```shell
 cd <ncnn-root-dir>
@@ -187,6 +192,43 @@ cmake --build . --config Release --target install
 ```
 
 Note: To speed up compilation process on multi core machines, configuring `cmake` to use `jom` or `ninja` using `-G` flag is recommended.
+
+Note: For protobuf >=22.0 (Take v25.3 for example):
+
+Build zlib:
+```shell
+git clone -b -v1.3.1 https://github.com/madler/zlib.git
+cd zlib
+mkdir build
+cd build
+cmake -A x64 -DCMAKE_INSTALL_PREFIX=%cd%/install ..
+cmake --build . --config Release -j 2
+cmake --build . --config Release --target install
+```
+
+Build protobuf library (replace `<zlib-root-dir>` with a proper path):
+```shell
+git clone -b v25.3 https://github.com/protocolbuffers/protobuf.git
+cd protobuf
+git submodule update --init --recursive
+
+mkdir protobuf_build
+cd protobuf_build
+cmake -A x64 -DCMAKE_INSTALL_PREFIX=%cd%/install -DCMAKE_CXX_STANDARD=14 -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF -DZLIB_INCLUDE_DIR=<zlib-root-dir>\build\install\include -DZLIB_LIBRARY=<zlib-root-dir>\build\install\lib\zlib.lib -DABSL_PROPAGATE_CXX_STD=ON ../cmake
+cmake --build . --config Release -j 2
+cmake --build . --config Release --target install
+```
+
+Build ncnn library (replace `<zlib-root-dir>` and `<protobuf-root-dir>` with a proper path):
+
+```shell
+cd <ncnn-root-dir>
+mkdir -p build
+cd build
+cmake -A x64 -DCMAKE_INSTALL_PREFIX=%cd%/install -DCMAKE_PREFIX_PATH=<protobuf-root-dir>/protobuf_build\install\cmake -DZLIB_INCLUDE_DIR=<zlib-root-dir>\build\install\include -DZLIB_LIBRARY=<zlib-root-dir>\build\install\lib\zlib.lib -Dabsl_DIR=<protobuf-root-dir>/protobuf_build\install\lib\cmake\absl -Dutf8_range_DIR=<protobuf-root-dir>/protobuf_build\install\lib\cmake\utf8_range -DNCNN_VULKAN=ON ..
+cmake --build . --config Release -j 2
+cmake --build . --config Release --target install
+```
 
 ***
 ### Build for macOS
@@ -210,13 +252,13 @@ Download and install Vulkan SDK from <https://vulkan.lunarg.com/sdk/home>
 
 
 ```shell
-wget https://sdk.lunarg.com/sdk/download/1.2.189.0/mac/vulkansdk-macos-1.2.189.0.dmg?Human=true -O vulkansdk-macos-1.2.189.0.dmg
-hdiutil attach vulkansdk-macos-1.2.189.0.dmg
-sudo /Volumes/vulkansdk-macos-1.2.189.0/InstallVulkan.app/Contents/MacOS/InstallVulkan --root `pwd`/vulkansdk-macos-1.2.189.0 --accept-licenses --default-answer --confirm-command install
-hdiutil detach /Volumes/vulkansdk-macos-1.2.189.0
+wget https://sdk.lunarg.com/sdk/download/1.3.280.1/mac/vulkansdk-macos-1.3.280.1.dmg -O vulkansdk-macos-1.3.280.1.dmg
+hdiutil attach vulkansdk-macos-1.3.280.1.dmg
+sudo /Volumes/vulkansdk-macos-1.3.280.1/InstallVulkan.app/Contents/MacOS/InstallVulkan --root `pwd`/vulkansdk-macos-1.3.280.1 --accept-licenses --default-answer --confirm-command install
+hdiutil detach /Volumes/vulkansdk-macos-1.3.280.1
 
 # setup env
-export VULKAN_SDK=`pwd`/vulkansdk-macos-1.2.189.0/macOS
+export VULKAN_SDK=`pwd`/vulkansdk-macos-1.3.280.1/macOS
 ```
 
 ```shell
@@ -224,9 +266,8 @@ cd <ncnn-root-dir>
 mkdir -p build
 cd build
 
-cmake -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" \
-    -DVulkan_INCLUDE_DIR=`pwd`/../vulkansdk-macos-1.2.189.0/MoltenVK/include \
-    -DVulkan_LIBRARY=`pwd`/../vulkansdk-macos-1.2.189.0/MoltenVK/dylib/macOS/libMoltenVK.dylib \
+cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DPLATFORM=MAC -DARCHS="x86_64;arm64" \
+    -DVulkan_LIBRARY=`pwd`/../vulkansdk-macos-1.3.280.1/macOS/lib/libMoltenVK.dylib \
     -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=ON ..
 
 cmake --build . -j 4
@@ -325,12 +366,7 @@ cd build-android-armv7
 
 cmake -DCMAKE_TOOLCHAIN_FILE="$ANDROID_NDK/build/cmake/android.toolchain.cmake" \
     -DANDROID_ABI="armeabi-v7a" -DANDROID_ARM_NEON=ON \
-    -DANDROID_PLATFORM=android-14 ..
-
-# If you want to enable Vulkan, platform api version >= android-24 is needed
-cmake -DCMAKE_TOOLCHAIN_FILE="$ANDROID_NDK/build/cmake/android.toolchain.cmake" \
-    -DANDROID_ABI="armeabi-v7a" -DANDROID_ARM_NEON=ON \
-    -DANDROID_PLATFORM=android-24 -DNCNN_VULKAN=ON ..
+    -DANDROID_PLATFORM=android-14 -DNCNN_VULKAN=ON ..
 
 # If you use cmake >= 3.21 and ndk-r23
 # you need to add -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False option for working optimization flags
@@ -351,12 +387,7 @@ cd build-android-aarch64
 
 cmake -DCMAKE_TOOLCHAIN_FILE="$ANDROID_NDK/build/cmake/android.toolchain.cmake"\
     -DANDROID_ABI="arm64-v8a" \
-    -DANDROID_PLATFORM=android-21 ..
-
-# If you want to enable Vulkan, platform api version >= android-24 is needed
-cmake -DCMAKE_TOOLCHAIN_FILE="$ANDROID_NDK/build/cmake/android.toolchain.cmake" \
-    -DANDROID_ABI="arm64-v8a" \
-    -DANDROID_PLATFORM=android-24 -DNCNN_VULKAN=ON ..
+    -DANDROID_PLATFORM=android-21 -DNCNN_VULKAN=ON ..
 
 # If you use cmake >= 3.21 and ndk-r23
 # you need to add -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False option for working optimization flags
@@ -390,7 +421,7 @@ mkdir -p build-ios
 cd build-ios
 
 cmake -DCMAKE_TOOLCHAIN_FILE=<ncnn-root-dir>/toolchains/ios.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
-    -DIOS_PLATFORM=OS -DENABLE_BITCODE=0 -DENABLE_ARC=0 -DENABLE_VISIBILITY=0 -DIOS_ARCH="armv7;arm64;arm64e" \
+    -DPLATFORM=OS64 -DENABLE_BITCODE=0 -DENABLE_ARC=0 -DENABLE_VISIBILITY=0 -DARCHS="arm64;arm64e" \
     -DPERL_EXECUTABLE=/usr/local/bin/perl \
     -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
 
@@ -417,7 +448,7 @@ mkdir -p build-ios-sim
 cd build-ios-sim
 
 cmake -DCMAKE_TOOLCHAIN_FILE=<ncnn-root-dir>/toolchains/ios.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
-    -DIOS_PLATFORM=SIMULATOR -DENABLE_BITCODE=0 -DENABLE_ARC=0 -DENABLE_VISIBILITY=0 -DIOS_ARCH="i386;x86_64" \
+    -DPLATFORM=SIMULATORARM64 -DENABLE_BITCODE=0 -DENABLE_ARC=0 -DENABLE_VISIBILITY=0 -DARCHS="x86_64;arm64" \
     -DPERL_EXECUTABLE=/usr/local/bin/perl \
     -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
 
@@ -464,21 +495,11 @@ git submodule update --init
 mkdir -p build-ios
 cd build-ios
 
-cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DIOS_PLATFORM=OS -DIOS_ARCH="armv7;arm64;arm64e" \
+cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DPLATFORM=OS64 -DARCHS="arm64;arm64e" \
     -DENABLE_BITCODE=0 -DENABLE_ARC=0 -DENABLE_VISIBILITY=0 \
     -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
     -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
     -DOpenMP_libomp_LIBRARY="/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib/libomp.a" \
-    -DNCNN_BUILD_BENCHMARK=OFF ..
-
-# vulkan is only available on arm64 devices
-cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DIOS_PLATFORM=OS64 -DIOS_ARCH="arm64;arm64e" \
-    -DENABLE_BITCODE=0 -DENABLE_ARC=0 -DENABLE_VISIBILITY=0 \
-    -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
-    -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
-    -DOpenMP_libomp_LIBRARY="/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib/libomp.a" \
-    -DVulkan_INCLUDE_DIR=$VULKAN_SDK/../MoltenVK/include \
-    -DVulkan_LIBRARY=$VULKAN_SDK/../MoltenVK/dylib/iOS/libMoltenVK.dylib \
     -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF ..
 
 cmake --build . -j 4
@@ -492,7 +513,7 @@ cd <ncnn-root-dir>
 mkdir -p build-ios-sim
 cd build-ios-sim
 
-cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DIOS_PLATFORM=SIMULATOR -DIOS_ARCH="i386;x86_64" \
+cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DPLATFORM=SIMULATORARM64 -DARCHS="x86_64;arm64" \
     -DENABLE_BITCODE=0 -DENABLE_ARC=0 -DENABLE_VISIBILITY=0 \
     -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
     -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
@@ -503,7 +524,7 @@ cmake --build . -j 4
 cmake --build . --target install
 ```
 
-Package glslang framework:
+Package glslang framework for iPhoneOS:
 ```shell
 cd <ncnn-root-dir>
 
@@ -514,13 +535,12 @@ ln -s Versions/Current/Headers glslang.framework/Headers
 ln -s Versions/Current/Resources glslang.framework/Resources
 ln -s Versions/Current/glslang glslang.framework/glslang
 libtool -static build-ios/install/lib/libglslang.a build-ios/install/lib/libMachineIndependent.a build-ios/install/lib/libGenericCodeGen.a build-ios/install/lib/libSPIRV.a build-ios/install/lib/libOGLCompiler.a build-ios/install/lib/libOSDependent.a -o build-ios/install/lib/libglslang_combined.a
-libtool -static build-ios-sim/install/lib/libglslang.a build-ios-sim/install/lib/libMachineIndependent.a build-ios-sim/install/lib/libGenericCodeGen.a build-ios-sim/install/lib/libSPIRV.a build-ios-sim/install/lib/libOGLCompiler.a build-ios-sim/install/lib/libOSDependent.a -o build-ios-sim/install/lib/libglslang_combined.a
-lipo -create build-ios/install/lib/libglslang_combined.a build-ios-sim/install/lib/libglslang_combined.a -o glslang.framework/Versions/A/glslang
+lipo -create build-ios/install/lib/libglslang_combined.a -o glslang.framework/Versions/A/glslang
 cp -r build/install/include/glslang glslang.framework/Versions/A/Headers/
 sed -e 's/__NAME__/glslang/g' -e 's/__IDENTIFIER__/org.khronos.glslang/g' -e 's/__VERSION__/1.0/g' Info.plist > glslang.framework/Versions/A/Resources/Info.plist
 ```
 
-Package ncnn framework:
+Package ncnn framework for iPhoneOS:
 ```shell
 cd <ncnn-root-dir>
 
@@ -530,7 +550,7 @@ ln -s A ncnn.framework/Versions/Current
 ln -s Versions/Current/Headers ncnn.framework/Headers
 ln -s Versions/Current/Resources ncnn.framework/Resources
 ln -s Versions/Current/ncnn ncnn.framework/ncnn
-lipo -create build-ios/install/lib/libncnn.a build-ios-sim/install/lib/libncnn.a -o ncnn.framework/Versions/A/ncnn
+lipo -create build-ios/install/lib/libncnn.a -o ncnn.framework/Versions/A/ncnn
 cp -r build-ios/install/include/* ncnn.framework/Versions/A/Headers/
 sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
 ```
@@ -748,7 +768,7 @@ Pick `build-qnx/install` folder for further usage.
 Install DevkitPRO toolchains
 - If you are working on windows, download DevkitPro installer from [DevkitPro](https://devkitpro.org/wiki/Getting_Started).
 - If you are using Ubuntu, the official guidelines from DevkitPro might not work for you. Try using the lines below to install 
-```
+```shell
 sudo apt-get update
 sudo apt-get upgrade
 wget https://apt.devkitpro.org/install-devkitpro-pacman
@@ -756,14 +776,14 @@ chmod +x ./install-devkitpro-pacman
 sudo ./install-devkitpro-pacman
 ```
 
-```
+```shell
 export DEVKITPRO=/opt/devkitpro
 export DEVKITARM=/opt/devkitpro/devkitARM
 export DEVKITPPC=/opt/devkitpro/devkitPPC
 export export PATH=$/opt/devkitpro/tools/bin:$PATH
 source ~/.profile
 ```
-```
+```shell
 sudo dkp-pacman -Sy
 sudo dkp-pacman -Syu
 sudo dkp-pacman -S 3ds-dev
@@ -791,7 +811,7 @@ Copy the toolchain files from [3DS-cmake](https://github.com/Xtansia/3ds-cmake)(
 
 ```
 Build with:
-```
+```shell
 cd ncnn
 mkdir build && cd build
 cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/DevkitArm3DS.cmake .. -DNCNN_SIMPLEOCV=ON -DNCNN_OPENMP=OFF -DNCNN_VFPV4=OFF ..

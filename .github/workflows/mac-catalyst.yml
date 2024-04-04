@@ -1,0 +1,145 @@
+name: mac-catalyst
+on:
+  push:
+    branches: [master]
+    paths:
+    - '.github/workflows/mac-catalyst.yml'
+    - 'toolchains/ios.toolchain.cmake'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/arm/**'
+    - 'src/layer/x86/**'
+    - 'src/layer/vulkan/**'
+  pull_request:
+    branches: [master]
+    paths:
+    - '.github/workflows/mac-catalyst.yml'
+    - 'toolchains/ios.toolchain.cmake'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/arm/**'
+    - 'src/layer/x86/**'
+    - 'src/layer/vulkan/**'
+concurrency:
+  group: mac-catalyst-${{ github.ref }}
+  cancel-in-progress: true
+env:
+  DEVELOPER_DIR: /Applications/Xcode_15.2.app/Contents/Developer
+  MAC_CATALYST_DEPLOYMENT_TARGET: '13.1'
+  ENABLE_BITCODE: OFF
+  ENABLE_ARC: OFF
+  ENABLE_VISIBILITY: OFF
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-13
+    env:
+      OPENMP_VERSION: '18.1.2'
+      OPENMP_CMAKE_OPTIONS: |
+        -DCMAKE_TOOLCHAIN_FILE=../../toolchains/ios.toolchain.cmake \
+        -DDEPLOYMENT_TARGET=$MAC_CATALYST_DEPLOYMENT_TARGET \
+        -DENABLE_BITCODE=$ENABLE_BITCODE \
+        -DENABLE_ARC=$ENABLE_ARC \
+        -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
+        -DCMAKE_INSTALL_PREFIX=install \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DPERL_EXECUTABLE=/usr/local/bin/perl \
+        -DLIBOMP_ENABLE_SHARED=OFF \
+        -DLIBOMP_OMPT_SUPPORT=OFF \
+        -DLIBOMP_USE_HWLOC=OFF \
+
+      MOLTENVK_VERSION: 'v1.2.8'
+      NCNN_CMAKE_OPTIONS: |
+        -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake \
+        -DDEPLOYMENT_TARGET=$MAC_CATALYST_DEPLOYMENT_TARGET \
+        -DENABLE_BITCODE=$ENABLE_BITCODE \
+        -DENABLE_ARC=$ENABLE_ARC \
+        -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
+        -DCMAKE_INSTALL_PREFIX=install \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
+        -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
+        -DOpenMP_libomp_LIBRARY="libomp.a" \
+        -DNCNN_VULKAN=ON \
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: true
+
+    - name: cache-openmp
+      id: cache-openmp
+      uses: actions/cache@v4
+      with:
+        path: openmp-install
+        key: openmp-mac-catalyst-install-20240403
+    - name: openmp
+      if: steps.cache-openmp.outputs.cache-hit != 'true'
+      run: |
+        wget https://github.com/llvm/llvm-project/releases/download/llvmorg-${{ env.OPENMP_VERSION }}/cmake-${{ env.OPENMP_VERSION }}.src.tar.xz
+        tar -xf cmake-${{ env.OPENMP_VERSION }}.src.tar.xz
+        wget https://github.com/llvm/llvm-project/releases/download/llvmorg-${{ env.OPENMP_VERSION }}/openmp-${{ env.OPENMP_VERSION }}.src.tar.xz
+        tar -xf openmp-${{ env.OPENMP_VERSION }}.src.tar.xz
+        mv cmake-${{ env.OPENMP_VERSION }}.src/Modules/* openmp-${{ env.OPENMP_VERSION }}.src/cmake/
+        cd openmp-${{ env.OPENMP_VERSION }}.src
+        wget https://github.com/nihui/llvm-project/commit/ef8c35bcf5d9cfdb0764ffde6a63c04ec715bc37.patch
+        patch -p2 -i ef8c35bcf5d9cfdb0764ffde6a63c04ec715bc37.patch
+        wget https://github.com/nihui/llvm-project/commit/5c12711f9a21f41bea70566bf15a4026804d6b20.patch
+        patch -p2 -i 5c12711f9a21f41bea70566bf15a4026804d6b20.patch
+    - name: openmp-x86_64
+      if: steps.cache-openmp.outputs.cache-hit != 'true'
+      run: |
+        cd openmp-${{ env.OPENMP_VERSION }}.src
+        mkdir -p build-x86_64 && cd build-x86_64
+        cmake ${{ env.OPENMP_CMAKE_OPTIONS }} -DPLATFORM=MAC_CATALYST -DARCHS="x86_64" ..
+        cmake --build . -j 4
+        cmake --build . --target install
+    - name: openmp-arm64
+      if: steps.cache-openmp.outputs.cache-hit != 'true'
+      run: |
+        cd openmp-${{ env.OPENMP_VERSION }}.src
+        mkdir -p build-arm64 && cd build-arm64
+        cmake ${{ env.OPENMP_CMAKE_OPTIONS }} -DPLATFORM=MAC_CATALYST_ARM64 -DARCHS="arm64" ..
+        cmake --build . -j 4
+        cmake --build . --target install
+    - name: openmp-merge-fat-library
+      if: steps.cache-openmp.outputs.cache-hit != 'true'
+      run: |
+        mkdir -p $GITHUB_WORKSPACE/openmp-install
+        mkdir -p $GITHUB_WORKSPACE/openmp-install/mac-catalyst
+
+        cp -a openmp-${{ env.OPENMP_VERSION }}.src/build-x86_64/install/include $GITHUB_WORKSPACE/openmp-install/mac-catalyst
+        mkdir -p $GITHUB_WORKSPACE/openmp-install/mac-catalyst/lib
+        lipo -create \
+            openmp-${{ env.OPENMP_VERSION }}.src/build-x86_64/install/lib/libomp.a \
+            openmp-${{ env.OPENMP_VERSION }}.src/build-arm64/install/lib/libomp.a \
+            -o $GITHUB_WORKSPACE/openmp-install/mac-catalyst/lib/libomp.a
+
+    - name: install-openmp
+      run: |
+        sudo cp $GITHUB_WORKSPACE/openmp-install/mac-catalyst/include/* $DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include
+        sudo cp $GITHUB_WORKSPACE/openmp-install/mac-catalyst/lib/libomp.a $DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib
+
+    - name: moltenvk
+      run: |
+        wget -q https://github.com/KhronosGroup/MoltenVK/releases/download/${{ env.MOLTENVK_VERSION }}/MoltenVK-all.tar
+        tar -xf MoltenVK-all.tar
+
+    - name: x86_64
+      run: |
+        mkdir build-x86_64 && cd build-x86_64
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=MAC_CATALYST -DARCHS="x86_64" \
+            -DVulkan_LIBRARY=$GITHUB_WORKSPACE/MoltenVK/MoltenVK/static/MoltenVK.xcframework/ios-arm64_x86_64-maccatalyst/libMoltenVK.a ..
+        cmake --build . -j 4
+    - name: arm64
+      run: |
+        mkdir build-arm64 && cd build-arm64
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=MAC_CATALYST_ARM64 -DARCHS="arm64" \
+            -DVulkan_LIBRARY=$GITHUB_WORKSPACE/MoltenVK/MoltenVK/static/MoltenVK.xcframework/ios-arm64_x86_64-maccatalyst/libMoltenVK.a ..
+        cmake --build . -j 4

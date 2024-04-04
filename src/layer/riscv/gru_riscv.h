@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class GRU_riscv : virtual public GRU
+class GRU_riscv : public GRU
 {
 public:
     GRU_riscv();

@@ -82,16 +82,15 @@ int DeconvolutionDepthWise_mips::create_pipeline(const Option& opt)
             weight_data_tm = weight_data_transposed;
         }
 
+        weight_data.release();
+
         return 0;
     }
 
     // group convolution
     create_group_ops(opt);
 
-    if (opt.lightmode)
-    {
-        weight_data.release();
-    }
+    weight_data.release();
 
     return 0;
 }
@@ -119,7 +118,7 @@ int DeconvolutionDepthWise_mips::create_group_ops(const Option& opt)
         if (bias_term)
             bias_data_g = bias_data.range(num_output_g * g, num_output_g);
 
-        ncnn::Layer* op = ncnn::create_layer(ncnn::LayerType::Deconvolution);
+        ncnn::Layer* op = ncnn::create_layer_cpu(ncnn::LayerType::Deconvolution);
 
         // set param
         ncnn::ParamDict pd;
@@ -476,7 +475,7 @@ int DeconvolutionDepthWise_mips::forward(const std::vector<Mat>& bottom_blobs, s
         bias_data_flattened.elempack = 1;
     }
 
-    ncnn::Layer* op = ncnn::create_layer(ncnn::LayerType::DeconvolutionDepthWise);
+    ncnn::Layer* op = ncnn::create_layer_cpu(ncnn::LayerType::DeconvolutionDepthWise);
 
     ncnn::ParamDict pd;
     pd.set(0, _num_output);

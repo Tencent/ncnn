@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class BatchNorm_mips : virtual public BatchNorm
+class BatchNorm_mips : public BatchNorm
 {
 public:
     BatchNorm_mips();

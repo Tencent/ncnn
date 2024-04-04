@@ -35,8 +35,8 @@ jobs:
       run: |
         mkdir build && cd build
         cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_ASAN=ON -DNCNN_BUILD_TESTS=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
-        cmake --build . -j 2
+        cmake --build . -j $(nproc)
     - name: test
       run: |
         cd build
-        ctest --output-on-failure -j 2
+        ctest --output-on-failure -j $(nproc)

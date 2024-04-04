@@ -25,6 +25,9 @@ class Model(nn.Module):
         z = z.clone()
         x = x.index_put(indices=[torch.tensor([10,2])], values=y, accumulate=False)
         z.index_put_(indices=[torch.tensor([1,0,0]), torch.tensor([3,2,1])], values=w, accumulate=True)
+
+        x[torch.tensor([1], dtype=torch.int64)] = torch.tensor(45).float()
+        x[torch.tensor([], dtype=torch.int64)] = torch.tensor(233).float()
         return x, z
 
 def test():

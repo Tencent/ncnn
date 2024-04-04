@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class PReLU_x86 : virtual public PReLU
+class PReLU_x86 : public PReLU
 {
 public:
     PReLU_x86();

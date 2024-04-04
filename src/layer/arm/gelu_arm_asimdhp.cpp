@@ -16,6 +16,7 @@
 
 #if __ARM_NEON
 #include <arm_neon.h>
+#include "arm_usability.h"
 #include "neon_mathfun.h"
 #if NCNN_ARM82
 #include "neon_mathfun_fp16s.h"
@@ -92,7 +93,7 @@ int GELU_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) co
             _blob = vmulq_f16(_pLoad, _blob);
             _blob = vmulq_f16(vdupq_n_f16(0.044715f * 0.79788452f), _blob);
             _blob = vfmaq_f16(_blob, vdupq_n_f16(0.79788452f), _pLoad);
-            _blob = tanh_ps(_blob);
+            _blob = tanh_ps_f16(_blob);
             _blob = vaddq_f16(vdupq_n_f16(1.f), _blob);
             _blob = vmulq_f16(vdupq_n_f16(0.5f), vmulq_f16(_blob, _pLoad));
             vst1q_f16(ptr, _blob);
@@ -101,7 +102,7 @@ int GELU_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) co
 
         for (; i < size; i++)
         {
-            *ptr = (__fp16)0.5f * *ptr * ((__fp16)1.0f + tanhf((__fp16)0.79788452f * (*ptr + (__fp16)0.044715f * *ptr * *ptr * *ptr)));
+            *ptr = (__fp16)0.5f * *ptr * (__fp16)(1.0f + tanhf((__fp16)0.79788452f * (*ptr + (__fp16)0.044715f * *ptr * *ptr * *ptr)));
             ptr++;
         }
     }

@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Requantize_x86 : virtual public Requantize
+class Requantize_x86 : public Requantize
 {
 public:
     Requantize_x86();

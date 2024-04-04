@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class InnerProduct_loongarch : virtual public InnerProduct
+class InnerProduct_loongarch : public InnerProduct
 {
 public:
     InnerProduct_loongarch();

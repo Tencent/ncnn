@@ -62,7 +62,7 @@ static bool operand_maybe_tensor(const Operand* operand)
         return operand_maybe_tensor(op->inputs[0]);
     }
 
-    if (op->type == "aten::to" || op->type == "aten::detach")
+    if (op->type == "Tensor.to" || op->type == "aten::detach")
     {
         return operand_maybe_tensor(op->inputs[0]);
     }
@@ -124,7 +124,10 @@ static bool operand_maybe_tensor(const Operand* operand)
 
     if (op->type == "aten::add" || op->type == "aten::sub" || op->type == "aten::rsub")
     {
-        return operand_maybe_tensor(op->inputs[0]) || operand_maybe_tensor(op->inputs[1]) || operand_maybe_tensor(op->inputs[2]);
+        if (op->inputs.size() == 2)
+            return operand_maybe_tensor(op->inputs[0]) || operand_maybe_tensor(op->inputs[1]);
+        else // if (op->inputs.size() == 3)
+            return operand_maybe_tensor(op->inputs[0]) || operand_maybe_tensor(op->inputs[1]) || operand_maybe_tensor(op->inputs[2]);
     }
 
     return true;
@@ -171,6 +174,34 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
         else if (param.type == 4)
         {
             expr += param.s;
+        }
+        else if (param.type == 5)
+        {
+            // ints
+            expr += "[";
+            for (int i = 0; i < (int)param.ai.size(); i++)
+            {
+                char tmp[32];
+                sprintf(tmp, "%d", param.ai[i]);
+                expr += tmp;
+                if (i != (int)param.ai.size() - 1)
+                    expr += ",";
+            }
+            expr += "]";
+        }
+        else if (param.type == 6)
+        {
+            // floats
+            expr += "[";
+            for (int i = 0; i < (int)param.af.size(); i++)
+            {
+                char tmp[32];
+                sprintf(tmp, "%e", param.af[i]);
+                expr += tmp;
+                if (i != (int)param.af.size() - 1)
+                    expr += ",";
+            }
+            expr += "]";
         }
         else if (param.type == 10)
         {
@@ -494,6 +525,15 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
         {
             fuse_expression(graph, op->inputs[0], expr, inputs, foldable_constants, zip);
         }
+        else if (!operand_maybe_tensor(operand))
+        {
+            std::string dtype = op->params.at("dtype").s;
+
+            // torch.xxx
+            expr += dtype + "(";
+            fuse_expression(graph, op->inputs[0], expr, inputs, foldable_constants, zip);
+            expr += ")";
+        }
         else
         {
             goto DEFAULT;
@@ -578,22 +618,30 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
         expr += ",";
 
         std::string expr1;
-        std::string expr2;
         fuse_expression(graph, op->inputs[1], expr1, inputs, foldable_constants, zip);
-        fuse_expression(graph, op->inputs[2], expr2, inputs, foldable_constants, zip);
 
-        if (expr2 == "1")
+        if (op->inputs.size() == 2)
         {
             expr += expr1;
         }
-        else
+        else // if (op->inputs.size() == 3)
         {
-            expr += ",";
-            expr += "mul(";
-            expr += expr1;
-            expr += ",";
-            expr += expr2;
-            expr += ")";
+            std::string expr2;
+            fuse_expression(graph, op->inputs[2], expr2, inputs, foldable_constants, zip);
+
+            if (expr2 == "1")
+            {
+                expr += expr1;
+            }
+            else
+            {
+                expr += ",";
+                expr += "mul(";
+                expr += expr1;
+                expr += ",";
+                expr += expr2;
+                expr += ")";
+            }
         }
 
         expr += ")";
@@ -602,22 +650,30 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
     {
         expr += "sub(";
         std::string expr1;
-        std::string expr2;
         fuse_expression(graph, op->inputs[1], expr1, inputs, foldable_constants, zip);
-        fuse_expression(graph, op->inputs[2], expr2, inputs, foldable_constants, zip);
 
-        if (expr2 == "1")
+        if (op->inputs.size() == 2)
         {
             expr += expr1;
         }
-        else
+        else // if (op->inputs.size() == 3)
         {
-            expr += ",";
-            expr += "mul(";
-            expr += expr1;
-            expr += ",";
-            expr += expr2;
-            expr += ")";
+            std::string expr2;
+            fuse_expression(graph, op->inputs[2], expr2, inputs, foldable_constants, zip);
+
+            if (expr2 == "1")
+            {
+                expr += expr1;
+            }
+            else
+            {
+                expr += ",";
+                expr += "mul(";
+                expr += expr1;
+                expr += ",";
+                expr += expr2;
+                expr += ")";
+            }
         }
 
         expr += ",";
@@ -712,7 +768,8 @@ void fuse_expression(Graph& graph, const std::set<std::string>& foldable_constan
             {
                 // fuse noop type cast only
                 bool noop_to = (op->outputs[0]->type != -1) && (op->inputs[0]->type == op->outputs[0]->type);
-                need_fuse = noop_to;
+                bool is_scalar = !operand_maybe_tensor(op->outputs[0]);
+                need_fuse = noop_to || is_scalar;
             }
             if (op->type == "aten::detach" || op->type == "aten::ScalarImplicit")
             {

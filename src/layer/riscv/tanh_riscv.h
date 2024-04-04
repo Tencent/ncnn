@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class TanH_riscv : virtual public TanH
+class TanH_riscv : public TanH
 {
 public:
     TanH_riscv();

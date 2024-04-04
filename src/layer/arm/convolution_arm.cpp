@@ -27,12 +27,14 @@
 
 namespace ncnn {
 
+#if NCNN_GNU_INLINE_ASM
 #include "convolution_1x1.h"
 #include "convolution_2x2.h"
 #include "convolution_3x3.h"
 #include "convolution_4x4.h"
 #include "convolution_5x5.h"
 #include "convolution_7x7.h"
+#endif // NCNN_GNU_INLINE_ASM
 
 #include "convolution_packed.h"
 #include "convolution_3x3_winograd.h"
@@ -40,9 +42,7 @@ namespace ncnn {
 
 #if NCNN_BF16
 #include "convolution_packed_bf16s.h"
-
 #include "convolution_3x3_winograd_bf16s.h"
-
 #include "convolution_im2col_gemm_bf16s_fp16s.h"
 #include "convolution_im2col_gemm_bf16s.h"
 #endif // NCNN_BF16
@@ -56,6 +56,7 @@ namespace ncnn {
 #endif // NCNN_INT8
 
 #if __ARM_NEON
+#if NCNN_GNU_INLINE_ASM
 #include "convolution_3x3_pack1to4.h"
 #include "convolution_3x3_pack4.h"
 #include "convolution_3x3_pack4to1.h"
@@ -68,6 +69,7 @@ namespace ncnn {
 #include "convolution_5x5_pack4_bf16s.h"
 #include "convolution_7x7_pack1to4_bf16s.h"
 #endif // NCNN_BF16
+#endif // NCNN_GNU_INLINE_ASM
 #endif // __ARM_NEON
 
 Convolution_arm::Convolution_arm()
@@ -155,7 +157,7 @@ int Convolution_arm::create_pipeline(const Option& opt)
 
     if ((!support_packing || !opt.use_packing_layout) && !opt.use_bf16_storage && kernel_w == kernel_h && dilation_w != 1 && dilation_h == dilation_w && stride_w == 1 && stride_h == 1)
     {
-        convolution_dilation1 = ncnn::create_layer(ncnn::LayerType::Convolution);
+        convolution_dilation1 = ncnn::create_layer_cpu(ncnn::LayerType::Convolution);
 
         // set param
         ncnn::ParamDict pd;
@@ -192,6 +194,8 @@ int Convolution_arm::create_pipeline(const Option& opt)
 
         convolution_dilation1->create_pipeline(opt);
 
+        weight_data.release();
+
         return 0;
     }
 
@@ -220,10 +224,7 @@ int Convolution_arm::create_pipeline(const Option& opt)
         else
             conv3x3s1_winograd23_transform_kernel(weight_data, weight_winograd23_data, num_input, num_output, opt);
 
-        if (opt.lightmode)
-        {
-            weight_data.release();
-        }
+        weight_data.release();
 
         return 0;
     }
@@ -231,6 +232,7 @@ int Convolution_arm::create_pipeline(const Option& opt)
     int l2_cache_size_fp32 = get_cpu_level2_cache_size() / sizeof(float);
     bool prefer_sgemm = num_input * num_output * kernel_w * kernel_h * dilation_w * dilation_h * stride_w * stride_h * 2 > l2_cache_size_fp32 || (num_input > 16 || num_output > 16);
 
+#if NCNN_GNU_INLINE_ASM
     if (elempack == 4 && out_elempack == 4)
     {
         if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2 && (num_input < 4 || num_output < 32))
@@ -262,19 +264,18 @@ int Convolution_arm::create_pipeline(const Option& opt)
             prefer_sgemm = false;
         }
     }
+#endif // NCNN_GNU_INLINE_ASM
 
     if ((opt.use_sgemm_convolution && prefer_sgemm) || (kernel_w == 1 && kernel_h == 1))
     {
         convolution_im2col_gemm_transform_kernel(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h, opt);
 
-        if (opt.lightmode)
-        {
-            weight_data.release();
-        }
+        weight_data.release();
 
         return 0;
     }
 
+#if NCNN_GNU_INLINE_ASM
     if ((elempack == 4 && out_elempack == 4 && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
             || (elempack == 4 && out_elempack == 4 && kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
             || (elempack == 4 && out_elempack == 4 && kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
@@ -299,14 +300,12 @@ int Convolution_arm::create_pipeline(const Option& opt)
         weight_data_tm = weight_data;
     }
     else
+#endif // NCNN_GNU_INLINE_ASM
     {
         convolution_transform_kernel_packed(weight_data, weight_data_tm, num_input, num_output, kernel_w, kernel_h);
     }
 
-    if (opt.lightmode)
-    {
-        weight_data.release();
-    }
+    weight_data.release();
 
     return 0;
 }
@@ -512,6 +511,7 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     int l2_cache_size_fp32 = get_cpu_level2_cache_size() / sizeof(float);
     bool prefer_sgemm = num_input * num_output * kernel_w * kernel_h * dilation_w * dilation_h * stride_w * stride_h * 2 > l2_cache_size_fp32 || (num_input > 16 || num_output > 16);
 
+#if NCNN_GNU_INLINE_ASM
     if (elempack == 4 && out_elempack == 4)
     {
         if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2 && (num_input < 4 || num_output < 32))
@@ -543,6 +543,7 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             prefer_sgemm = false;
         }
     }
+#endif // NCNN_GNU_INLINE_ASM
 
     if ((opt.use_sgemm_convolution && prefer_sgemm) || (kernel_w == 1 && kernel_h == 1))
     {
@@ -563,6 +564,7 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         return 0;
     }
 
+#if NCNN_GNU_INLINE_ASM
 #if __ARM_NEON
     if (elempack == 4 && out_elempack == 4)
     {
@@ -721,6 +723,11 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             convolution_packed(bottom_blob_bordered, top_blob, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
         }
     }
+#else  // NCNN_GNU_INLINE_ASM
+    {
+        convolution_packed(bottom_blob_bordered, top_blob, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
+    }
+#endif // NCNN_GNU_INLINE_ASM
 
     return 0;
 }
@@ -793,7 +800,7 @@ int Convolution_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
         bias_data_flattened.elempack = 1;
     }
 
-    ncnn::Layer* op = ncnn::create_layer(ncnn::LayerType::Convolution);
+    ncnn::Layer* op = ncnn::create_layer_cpu(ncnn::LayerType::Convolution);
 
     ncnn::ParamDict pd;
     pd.set(0, _num_output);
@@ -897,10 +904,7 @@ int Convolution_arm::create_pipeline_bf16s(const Option& opt)
         else
             conv3x3s1_winograd23_transform_kernel(weight_data, weight_winograd23_data, num_input, num_output, opt);
 
-        if (opt.lightmode)
-        {
-            weight_data.release();
-        }
+        weight_data.release();
 
         return 0;
     }
@@ -908,6 +912,7 @@ int Convolution_arm::create_pipeline_bf16s(const Option& opt)
     int l2_cache_size_bf16 = get_cpu_level2_cache_size() / sizeof(unsigned short);
     bool prefer_sgemm = num_input * num_output * kernel_w * kernel_h * dilation_w * dilation_h * stride_w * stride_h * 2 > l2_cache_size_bf16 || (num_input > 16 || num_output > 16);
 
+#if NCNN_GNU_INLINE_ASM
     if (elempack == 4 && out_elempack == 4)
     {
         if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2 && (num_input < 4 || num_output < 32))
@@ -939,19 +944,18 @@ int Convolution_arm::create_pipeline_bf16s(const Option& opt)
             prefer_sgemm = false;
         }
     }
+#endif // NCNN_GNU_INLINE_ASM
 
     if ((opt.use_sgemm_convolution && prefer_sgemm) || (kernel_w == 1 && kernel_h == 1))
     {
         convolution_im2col_gemm_transform_kernel_bf16s(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h, opt);
 
-        if (opt.lightmode)
-        {
-            weight_data.release();
-        }
+        weight_data.release();
 
         return 0;
     }
 
+#if NCNN_GNU_INLINE_ASM
     if ((elempack == 4 && out_elempack == 4 && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
             || (elempack == 4 && out_elempack == 4 && kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
             || (elempack == 4 && out_elempack == 4 && kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
@@ -962,14 +966,12 @@ int Convolution_arm::create_pipeline_bf16s(const Option& opt)
         convolution_transform_kernel_packed_bf16s_neon(weight_data, weight_data_tm, num_input, num_output, kernel_w, kernel_h, elempack, out_elempack);
     }
     else
+#endif // NCNN_GNU_INLINE_ASM
     {
         convolution_transform_kernel_packed_bf16s(weight_data, weight_data_tm, num_input, num_output, kernel_w, kernel_h);
     }
 
-    if (opt.lightmode)
-    {
-        weight_data.release();
-    }
+    weight_data.release();
 
     return 0;
 }
@@ -1090,6 +1092,7 @@ int Convolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const 
     int l2_cache_size_bf16 = get_cpu_level2_cache_size() / sizeof(unsigned short);
     bool prefer_sgemm = num_input * num_output * kernel_w * kernel_h * dilation_w * dilation_h * stride_w * stride_h * 2 > l2_cache_size_bf16 || (num_input > 16 || num_output > 16);
 
+#if NCNN_GNU_INLINE_ASM
     if (elempack == 4 && out_elempack == 4)
     {
         if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2 && (num_input < 4 || num_output < 32))
@@ -1121,6 +1124,7 @@ int Convolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const 
             prefer_sgemm = false;
         }
     }
+#endif // NCNN_GNU_INLINE_ASM
 
     if ((opt.use_sgemm_convolution && prefer_sgemm) || (kernel_w == 1 && kernel_h == 1))
     {
@@ -1141,6 +1145,7 @@ int Convolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const 
         return 0;
     }
 
+#if NCNN_GNU_INLINE_ASM
 #if __ARM_NEON
     if (elempack == 4 && out_elempack == 4)
     {
@@ -1226,6 +1231,11 @@ int Convolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const 
             convolution_packed_bf16s(bottom_blob_bordered, top_blob, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
         }
     }
+#else  // NCNN_GNU_INLINE_ASM
+    {
+        convolution_packed_bf16s(bottom_blob_bordered, top_blob, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
+    }
+#endif // NCNN_GNU_INLINE_ASM
 
     return 0;
 }
@@ -1274,10 +1284,7 @@ int Convolution_arm::create_pipeline_int8_arm(const Option& opt)
         scale_in_data[p] = scale_in;
     }
 
-    if (opt.lightmode)
-    {
-        weight_data.release();
-    }
+    weight_data.release();
 
     return 0;
 }

@@ -39,7 +39,7 @@ jobs:
       with:
         submodules: true
     - name: set up python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
     - name: install dependencies
@@ -50,7 +50,7 @@ jobs:
       run: |
         mkdir build; cd build
         cmake -T v142,host=x64 -A x64 -DNCNN_PYTHON=ON -DNCNN_DISABLE_RTTI=OFF -DNCNN_DISABLE_EXCEPTION=OFF -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=OFF ..
-        cmake --build . --config Release -j 2
+        cmake --build . --config Release -j 4
     - name: install python
       run: cd python && pip install .
     - name: test

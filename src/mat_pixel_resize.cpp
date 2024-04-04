@@ -24,6 +24,180 @@
 namespace ncnn {
 
 #if NCNN_PIXEL
+static void vresize_two(const short* rows0p, const short* rows1p, int wsize, unsigned char* Dp0, unsigned char* Dp1, short b0, short b1, short b2, short b3)
+{
+    int dx = 0;
+#if __ARM_NEON
+    int16x8_t _b0 = vdupq_n_s16(b0);
+    int16x8_t _b1 = vdupq_n_s16(b1);
+    int16x8_t _b2 = vdupq_n_s16(b2);
+    int16x8_t _b3 = vdupq_n_s16(b3);
+    for (; dx + 15 < wsize; dx += 16)
+    {
+        int16x8_t _r00 = vld1q_s16(rows0p);
+        int16x8_t _r01 = vld1q_s16(rows0p + 8);
+        int16x8_t _r10 = vld1q_s16(rows1p);
+        int16x8_t _r11 = vld1q_s16(rows1p + 8);
+        int16x8_t _acc00 = vsraq_n_s16(vshrq_n_s16(vqdmulhq_s16(_r00, _b0), 1), vqdmulhq_s16(_r10, _b1), 1);
+        int16x8_t _acc01 = vsraq_n_s16(vshrq_n_s16(vqdmulhq_s16(_r01, _b0), 1), vqdmulhq_s16(_r11, _b1), 1);
+        int16x8_t _acc10 = vsraq_n_s16(vshrq_n_s16(vqdmulhq_s16(_r00, _b2), 1), vqdmulhq_s16(_r10, _b3), 1);
+        int16x8_t _acc11 = vsraq_n_s16(vshrq_n_s16(vqdmulhq_s16(_r01, _b2), 1), vqdmulhq_s16(_r11, _b3), 1);
+        uint8x16_t _Dp0 = vcombine_u8(vqrshrun_n_s16(_acc00, 2), vqrshrun_n_s16(_acc01, 2));
+        uint8x16_t _Dp1 = vcombine_u8(vqrshrun_n_s16(_acc10, 2), vqrshrun_n_s16(_acc11, 2));
+        vst1q_u8(Dp0, _Dp0);
+        vst1q_u8(Dp1, _Dp1);
+        Dp0 += 16;
+        Dp1 += 16;
+        rows0p += 16;
+        rows1p += 16;
+    }
+    for (; dx + 7 < wsize; dx += 8)
+    {
+        int16x8_t _r0 = vld1q_s16(rows0p);
+        int16x8_t _r1 = vld1q_s16(rows1p);
+        int16x8_t _acc0 = vsraq_n_s16(vshrq_n_s16(vqdmulhq_s16(_r0, _b0), 1), vqdmulhq_s16(_r1, _b1), 1);
+        int16x8_t _acc1 = vsraq_n_s16(vshrq_n_s16(vqdmulhq_s16(_r0, _b2), 1), vqdmulhq_s16(_r1, _b3), 1);
+        uint8x8_t _Dp0 = vqrshrun_n_s16(_acc0, 2);
+        uint8x8_t _Dp1 = vqrshrun_n_s16(_acc1, 2);
+        vst1_u8(Dp0, _Dp0);
+        vst1_u8(Dp1, _Dp1);
+        Dp0 += 8;
+        Dp1 += 8;
+        rows0p += 8;
+        rows1p += 8;
+    }
+#endif // __ARM_NEON
+#if __SSE2__
+    __m128i _b0 = _mm_set1_epi16(b0);
+    __m128i _b1 = _mm_set1_epi16(b1);
+    __m128i _b2 = _mm_set1_epi16(b2);
+    __m128i _b3 = _mm_set1_epi16(b3);
+    __m128i _v2 = _mm_set1_epi16(2);
+    for (; dx + 15 < wsize; dx += 16)
+    {
+        __m128i _r00 = _mm_loadu_si128((const __m128i*)rows0p);
+        __m128i _r01 = _mm_loadu_si128((const __m128i*)(rows0p + 8));
+        __m128i _r10 = _mm_loadu_si128((const __m128i*)rows1p);
+        __m128i _r11 = _mm_loadu_si128((const __m128i*)(rows1p + 8));
+        __m128i _acc00 = _mm_add_epi16(_mm_mulhi_epi16(_r00, _b0), _mm_mulhi_epi16(_r10, _b1));
+        __m128i _acc01 = _mm_add_epi16(_mm_mulhi_epi16(_r01, _b0), _mm_mulhi_epi16(_r11, _b1));
+        __m128i _acc10 = _mm_add_epi16(_mm_mulhi_epi16(_r00, _b2), _mm_mulhi_epi16(_r10, _b3));
+        __m128i _acc11 = _mm_add_epi16(_mm_mulhi_epi16(_r01, _b2), _mm_mulhi_epi16(_r11, _b3));
+        _acc00 = _mm_srai_epi16(_mm_add_epi16(_acc00, _v2), 2);
+        _acc01 = _mm_srai_epi16(_mm_add_epi16(_acc01, _v2), 2);
+        _acc10 = _mm_srai_epi16(_mm_add_epi16(_acc10, _v2), 2);
+        _acc11 = _mm_srai_epi16(_mm_add_epi16(_acc11, _v2), 2);
+        __m128i _Dp0 = _mm_packus_epi16(_acc00, _acc01);
+        __m128i _Dp1 = _mm_packus_epi16(_acc10, _acc11);
+        _mm_storeu_si128((__m128i*)Dp0, _Dp0);
+        _mm_storeu_si128((__m128i*)Dp1, _Dp1);
+        Dp0 += 16;
+        Dp1 += 16;
+        rows0p += 16;
+        rows1p += 16;
+    }
+    for (; dx + 7 < wsize; dx += 8)
+    {
+        __m128i _r0 = _mm_loadu_si128((const __m128i*)rows0p);
+        __m128i _r1 = _mm_loadu_si128((const __m128i*)rows1p);
+        __m128i _acc0 = _mm_add_epi16(_mm_mulhi_epi16(_r0, _b0), _mm_mulhi_epi16(_r1, _b1));
+        __m128i _acc1 = _mm_add_epi16(_mm_mulhi_epi16(_r0, _b2), _mm_mulhi_epi16(_r1, _b3));
+        _acc0 = _mm_srai_epi16(_mm_add_epi16(_acc0, _v2), 2);
+        _acc1 = _mm_srai_epi16(_mm_add_epi16(_acc1, _v2), 2);
+        __m128i _Dp0 = _mm_packus_epi16(_acc0, _acc0);
+        __m128i _Dp1 = _mm_packus_epi16(_acc1, _acc1);
+        _mm_storel_epi64((__m128i*)Dp0, _Dp0);
+        _mm_storel_epi64((__m128i*)Dp1, _Dp1);
+        Dp0 += 8;
+        Dp1 += 8;
+        rows0p += 8;
+        rows1p += 8;
+    }
+#endif // __SSE2__
+    for (; dx < wsize; dx++)
+    {
+        short s0 = *rows0p++;
+        short s1 = *rows1p++;
+
+        *Dp0++ = (unsigned char)(((short)((b0 * s0) >> 16) + (short)((b1 * s1) >> 16) + 2) >> 2);
+        *Dp1++ = (unsigned char)(((short)((b2 * s0) >> 16) + (short)((b3 * s1) >> 16) + 2) >> 2);
+    }
+}
+
+static void vresize_one(const short* rows0p, const short* rows1p, int wsize, unsigned char* Dp, short b0, short b1)
+{
+    int dx = 0;
+#if __ARM_NEON
+    int16x8_t _b0 = vdupq_n_s16(b0);
+    int16x8_t _b1 = vdupq_n_s16(b1);
+    for (; dx + 15 < wsize; dx += 16)
+    {
+        int16x8_t _r00 = vld1q_s16(rows0p);
+        int16x8_t _r01 = vld1q_s16(rows0p + 8);
+        int16x8_t _r10 = vld1q_s16(rows1p);
+        int16x8_t _r11 = vld1q_s16(rows1p + 8);
+        int16x8_t _acc0 = vsraq_n_s16(vshrq_n_s16(vqdmulhq_s16(_r00, _b0), 1), vqdmulhq_s16(_r10, _b1), 1);
+        int16x8_t _acc1 = vsraq_n_s16(vshrq_n_s16(vqdmulhq_s16(_r01, _b0), 1), vqdmulhq_s16(_r11, _b1), 1);
+        uint8x16_t _Dp = vcombine_u8(vqrshrun_n_s16(_acc0, 2), vqrshrun_n_s16(_acc1, 2));
+        vst1q_u8(Dp, _Dp);
+        Dp += 16;
+        rows0p += 16;
+        rows1p += 16;
+    }
+    for (; dx + 7 < wsize; dx += 8)
+    {
+        int16x8_t _r0 = vld1q_s16(rows0p);
+        int16x8_t _r1 = vld1q_s16(rows1p);
+        int16x8_t _acc = vsraq_n_s16(vshrq_n_s16(vqdmulhq_s16(_r0, _b0), 1), vqdmulhq_s16(_r1, _b1), 1);
+        uint8x8_t _Dp = vqrshrun_n_s16(_acc, 2);
+        vst1_u8(Dp, _Dp);
+        Dp += 8;
+        rows0p += 8;
+        rows1p += 8;
+    }
+#endif // __ARM_NEON
+#if __SSE2__
+    __m128i _b0 = _mm_set1_epi16(b0);
+    __m128i _b1 = _mm_set1_epi16(b1);
+    __m128i _v2 = _mm_set1_epi16(2);
+    for (; dx + 15 < wsize; dx += 16)
+    {
+        __m128i _r00 = _mm_loadu_si128((const __m128i*)rows0p);
+        __m128i _r01 = _mm_loadu_si128((const __m128i*)(rows0p + 8));
+        __m128i _r10 = _mm_loadu_si128((const __m128i*)rows1p);
+        __m128i _r11 = _mm_loadu_si128((const __m128i*)(rows1p + 8));
+        __m128i _acc0 = _mm_add_epi16(_mm_mulhi_epi16(_r00, _b0), _mm_mulhi_epi16(_r10, _b1));
+        __m128i _acc1 = _mm_add_epi16(_mm_mulhi_epi16(_r01, _b0), _mm_mulhi_epi16(_r11, _b1));
+        _acc0 = _mm_srai_epi16(_mm_add_epi16(_acc0, _v2), 2);
+        _acc1 = _mm_srai_epi16(_mm_add_epi16(_acc1, _v2), 2);
+        __m128i _Dp = _mm_packus_epi16(_acc0, _acc1);
+        _mm_storeu_si128((__m128i*)Dp, _Dp);
+        Dp += 16;
+        rows0p += 16;
+        rows1p += 16;
+    }
+    for (; dx + 7 < wsize; dx += 8)
+    {
+        __m128i _r0 = _mm_loadu_si128((const __m128i*)rows0p);
+        __m128i _r1 = _mm_loadu_si128((const __m128i*)rows1p);
+        __m128i _acc = _mm_add_epi16(_mm_mulhi_epi16(_r0, _b0), _mm_mulhi_epi16(_r1, _b1));
+        _acc = _mm_srai_epi16(_mm_add_epi16(_acc, _v2), 2);
+        __m128i _Dp = _mm_packus_epi16(_acc, _acc);
+        _mm_storel_epi64((__m128i*)Dp, _Dp);
+        Dp += 8;
+        rows0p += 8;
+        rows1p += 8;
+    }
+#endif // __SSE2__
+    for (; dx < wsize; dx++)
+    {
+        short s0 = *rows0p++;
+        short s1 = *rows1p++;
+
+        *Dp++ = (unsigned char)(((short)((b0 * s0) >> 16) + (short)((b1 * s1) >> 16) + 2) >> 2);
+    }
+}
+
 void resize_bilinear_c1(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h)
 {
     return resize_bilinear_c1(src, srcw, srch, srcw, dst, w, h, w);
@@ -48,7 +222,6 @@ void resize_bilinear_c1(const unsigned char* src, int srcw, int srch, int srcstr
 {
     const int INTER_RESIZE_COEF_BITS = 11;
     const int INTER_RESIZE_COEF_SCALE = 1 << INTER_RESIZE_COEF_BITS;
-    //     const int ONE=INTER_RESIZE_COEF_SCALE;
 
     double scale_x = (double)srcw / w;
     double scale_y = (double)srch / h;
@@ -186,113 +359,26 @@ void resize_bilinear_c1(const unsigned char* src, int srcw, int srch, int srcstr
 
         prev_sy1 = sy;
 
-        // vresize
-        short b0 = ibeta[0];
-        short b1 = ibeta[1];
-
-        short* rows0p = rows0;
-        short* rows1p = rows1;
-        unsigned char* Dp = dst + stride * (dy);
-
-#if __ARM_NEON
-        int nn = w >> 3;
-#else
-        int nn = 0;
-#endif
-        int remain = w - (nn << 3);
-
-#if __ARM_NEON
-#if __aarch64__
-        int16x4_t _b0 = vdup_n_s16(b0);
-        int16x4_t _b1 = vdup_n_s16(b1);
-        int32x4_t _v2 = vdupq_n_s32(2);
-        for (; nn > 0; nn--)
+        if (dy + 1 < h && yofs[dy + 1] == sy)
         {
-            int16x4_t _rows0p_sr4 = vld1_s16(rows0p);
-            int16x4_t _rows1p_sr4 = vld1_s16(rows1p);
-            int16x4_t _rows0p_1_sr4 = vld1_s16(rows0p + 4);
-            int16x4_t _rows1p_1_sr4 = vld1_s16(rows1p + 4);
+            // vresize for two rows
+            unsigned char* Dp0 = dst + stride * dy;
+            unsigned char* Dp1 = dst + stride * (dy + 1);
 
-            int32x4_t _rows0p_sr4_mb0 = vmull_s16(_rows0p_sr4, _b0);
-            int32x4_t _rows1p_sr4_mb1 = vmull_s16(_rows1p_sr4, _b1);
-            int32x4_t _rows0p_1_sr4_mb0 = vmull_s16(_rows0p_1_sr4, _b0);
-            int32x4_t _rows1p_1_sr4_mb1 = vmull_s16(_rows1p_1_sr4, _b1);
+            vresize_two(rows0, rows1, w, Dp0, Dp1, ibeta[0], ibeta[1], ibeta[2], ibeta[3]);
 
-            int32x4_t _acc = _v2;
-            _acc = vsraq_n_s32(_acc, _rows0p_sr4_mb0, 16);
-            _acc = vsraq_n_s32(_acc, _rows1p_sr4_mb1, 16);
-
-            int32x4_t _acc_1 = _v2;
-            _acc_1 = vsraq_n_s32(_acc_1, _rows0p_1_sr4_mb0, 16);
-            _acc_1 = vsraq_n_s32(_acc_1, _rows1p_1_sr4_mb1, 16);
-
-            int16x4_t _acc16 = vshrn_n_s32(_acc, 2);
-            int16x4_t _acc16_1 = vshrn_n_s32(_acc_1, 2);
-
-            uint8x8_t _Dp = vqmovun_s16(vcombine_s16(_acc16, _acc16_1));
-
-            vst1_u8(Dp, _Dp);
-
-            Dp += 8;
-            rows0p += 8;
-            rows1p += 8;
+            ibeta += 4;
+            dy += 1;
         }
-#else
-        if (nn > 0)
+        else
         {
-            asm volatile(
-                "vdup.s16   d16, %8         \n"
-                "mov        r4, #2          \n"
-                "vdup.s16   d17, %9         \n"
-                "vdup.s32   q12, r4         \n"
-                "pld        [%0, #128]      \n"
-                "vld1.s16   {d2-d3}, [%0 :128]!\n"
-                "pld        [%1, #128]      \n"
-                "vld1.s16   {d6-d7}, [%1 :128]!\n"
-                "0:                         \n"
-                "vmull.s16  q0, d2, d16     \n"
-                "vmull.s16  q1, d3, d16     \n"
-                "vorr.s32   q10, q12, q12   \n"
-                "vorr.s32   q11, q12, q12   \n"
-                "vmull.s16  q2, d6, d17     \n"
-                "vmull.s16  q3, d7, d17     \n"
-                "vsra.s32   q10, q0, #16    \n"
-                "vsra.s32   q11, q1, #16    \n"
-                "pld        [%0, #128]      \n"
-                "vld1.s16   {d2-d3}, [%0 :128]!\n"
-                "vsra.s32   q10, q2, #16    \n"
-                "vsra.s32   q11, q3, #16    \n"
-                "pld        [%1, #128]      \n"
-                "vld1.s16   {d6-d7}, [%1 :128]!\n"
-                "vshrn.s32  d20, q10, #2    \n"
-                "vshrn.s32  d21, q11, #2    \n"
-                "vqmovun.s16 d20, q10        \n"
-                "vst1.8     {d20}, [%2]!    \n"
-                "subs       %3, #1          \n"
-                "bne        0b              \n"
-                "sub        %0, #16         \n"
-                "sub        %1, #16         \n"
-                : "=r"(rows0p), // %0
-                "=r"(rows1p), // %1
-                "=r"(Dp),     // %2
-                "=r"(nn)      // %3
-                : "0"(rows0p),
-                "1"(rows1p),
-                "2"(Dp),
-                "3"(nn),
-                "r"(b0), // %8
-                "r"(b1)  // %9
-                : "cc", "memory", "r4", "q0", "q1", "q2", "q3", "q8", "q9", "q10", "q11", "q12");
-        }
-#endif // __aarch64__
-#endif // __ARM_NEON
-        for (; remain; --remain)
-        {
-            //             D[x] = (rows0[x]*b0 + rows1[x]*b1) >> INTER_RESIZE_COEF_BITS;
-            *Dp++ = (unsigned char)(((short)((b0 * (short)(*rows0p++)) >> 16) + (short)((b1 * (short)(*rows1p++)) >> 16) + 2) >> 2);
-        }
+            // vresize
+            unsigned char* Dp = dst + stride * dy;
 
-        ibeta += 2;
+            vresize_one(rows0, rows1, w, Dp, ibeta[0], ibeta[1]);
+
+            ibeta += 2;
+        }
     }
 
     delete[] buf;
@@ -302,7 +388,6 @@ void resize_bilinear_c2(const unsigned char* src, int srcw, int srch, int srcstr
 {
     const int INTER_RESIZE_COEF_BITS = 11;
     const int INTER_RESIZE_COEF_SCALE = 1 << INTER_RESIZE_COEF_BITS;
-    //     const int ONE=INTER_RESIZE_COEF_SCALE;
 
     double scale_x = (double)srcw / w;
     double scale_y = (double)srch / h;
@@ -495,113 +580,26 @@ void resize_bilinear_c2(const unsigned char* src, int srcw, int srch, int srcstr
 
         prev_sy1 = sy;
 
-        // vresize
-        short b0 = ibeta[0];
-        short b1 = ibeta[1];
-
-        short* rows0p = rows0;
-        short* rows1p = rows1;
-        unsigned char* Dp = dst + stride * (dy);
-
-#if __ARM_NEON
-        int nn = (w * 2) >> 3;
-#else
-        int nn = 0;
-#endif
-        int remain = (w * 2) - (nn << 3);
-
-#if __ARM_NEON
-#if __aarch64__
-        int16x4_t _b0 = vdup_n_s16(b0);
-        int16x4_t _b1 = vdup_n_s16(b1);
-        int32x4_t _v2 = vdupq_n_s32(2);
-        for (; nn > 0; nn--)
+        if (dy + 1 < h && yofs[dy + 1] == sy)
         {
-            int16x4_t _rows0p_sr4 = vld1_s16(rows0p);
-            int16x4_t _rows1p_sr4 = vld1_s16(rows1p);
-            int16x4_t _rows0p_1_sr4 = vld1_s16(rows0p + 4);
-            int16x4_t _rows1p_1_sr4 = vld1_s16(rows1p + 4);
+            // vresize for two rows
+            unsigned char* Dp0 = dst + stride * dy;
+            unsigned char* Dp1 = dst + stride * (dy + 1);
 
-            int32x4_t _rows0p_sr4_mb0 = vmull_s16(_rows0p_sr4, _b0);
-            int32x4_t _rows1p_sr4_mb1 = vmull_s16(_rows1p_sr4, _b1);
-            int32x4_t _rows0p_1_sr4_mb0 = vmull_s16(_rows0p_1_sr4, _b0);
-            int32x4_t _rows1p_1_sr4_mb1 = vmull_s16(_rows1p_1_sr4, _b1);
+            vresize_two(rows0, rows1, w * 2, Dp0, Dp1, ibeta[0], ibeta[1], ibeta[2], ibeta[3]);
 
-            int32x4_t _acc = _v2;
-            _acc = vsraq_n_s32(_acc, _rows0p_sr4_mb0, 16);
-            _acc = vsraq_n_s32(_acc, _rows1p_sr4_mb1, 16);
-
-            int32x4_t _acc_1 = _v2;
-            _acc_1 = vsraq_n_s32(_acc_1, _rows0p_1_sr4_mb0, 16);
-            _acc_1 = vsraq_n_s32(_acc_1, _rows1p_1_sr4_mb1, 16);
-
-            int16x4_t _acc16 = vshrn_n_s32(_acc, 2);
-            int16x4_t _acc16_1 = vshrn_n_s32(_acc_1, 2);
-
-            uint8x8_t _Dp = vqmovun_s16(vcombine_s16(_acc16, _acc16_1));
-
-            vst1_u8(Dp, _Dp);
-
-            Dp += 8;
-            rows0p += 8;
-            rows1p += 8;
+            ibeta += 4;
+            dy += 1;
         }
-#else
-        if (nn > 0)
+        else
         {
-            asm volatile(
-                "vdup.s16   d16, %8         \n"
-                "mov        r4, #2          \n"
-                "vdup.s16   d17, %9         \n"
-                "vdup.s32   q12, r4         \n"
-                "pld        [%0, #128]      \n"
-                "vld1.s16   {d2-d3}, [%0 :128]!\n"
-                "pld        [%1, #128]      \n"
-                "vld1.s16   {d6-d7}, [%1 :128]!\n"
-                "0:                         \n"
-                "vmull.s16  q0, d2, d16     \n"
-                "vmull.s16  q1, d3, d16     \n"
-                "vorr.s32   q10, q12, q12   \n"
-                "vorr.s32   q11, q12, q12   \n"
-                "vmull.s16  q2, d6, d17     \n"
-                "vmull.s16  q3, d7, d17     \n"
-                "vsra.s32   q10, q0, #16    \n"
-                "vsra.s32   q11, q1, #16    \n"
-                "pld        [%0, #128]      \n"
-                "vld1.s16   {d2-d3}, [%0 :128]!\n"
-                "vsra.s32   q10, q2, #16    \n"
-                "vsra.s32   q11, q3, #16    \n"
-                "pld        [%1, #128]      \n"
-                "vld1.s16   {d6-d7}, [%1 :128]!\n"
-                "vshrn.s32  d20, q10, #2    \n"
-                "vshrn.s32  d21, q11, #2    \n"
-                "vqmovun.s16 d20, q10        \n"
-                "vst1.8     {d20}, [%2]!    \n"
-                "subs       %3, #1          \n"
-                "bne        0b              \n"
-                "sub        %0, #16         \n"
-                "sub        %1, #16         \n"
-                : "=r"(rows0p), // %0
-                "=r"(rows1p), // %1
-                "=r"(Dp),     // %2
-                "=r"(nn)      // %3
-                : "0"(rows0p),
-                "1"(rows1p),
-                "2"(Dp),
-                "3"(nn),
-                "r"(b0), // %8
-                "r"(b1)  // %9
-                : "cc", "memory", "r4", "q0", "q1", "q2", "q3", "q8", "q9", "q10", "q11", "q12");
-        }
-#endif // __aarch64__
-#endif // __ARM_NEON
-        for (; remain; --remain)
-        {
-            //             D[x] = (rows0[x]*b0 + rows1[x]*b1) >> INTER_RESIZE_COEF_BITS;
-            *Dp++ = (unsigned char)(((short)((b0 * (short)(*rows0p++)) >> 16) + (short)((b1 * (short)(*rows1p++)) >> 16) + 2) >> 2);
-        }
+            // vresize
+            unsigned char* Dp = dst + stride * dy;
 
-        ibeta += 2;
+            vresize_one(rows0, rows1, w * 2, Dp, ibeta[0], ibeta[1]);
+
+            ibeta += 2;
+        }
     }
 
     delete[] buf;
@@ -611,7 +609,6 @@ void resize_bilinear_c3(const unsigned char* src, int srcw, int srch, int srcstr
 {
     const int INTER_RESIZE_COEF_BITS = 11;
     const int INTER_RESIZE_COEF_SCALE = 1 << INTER_RESIZE_COEF_BITS;
-    //     const int ONE=INTER_RESIZE_COEF_SCALE;
 
     double scale_x = (double)srcw / w;
     double scale_y = (double)srch / h;
@@ -815,113 +812,26 @@ void resize_bilinear_c3(const unsigned char* src, int srcw, int srch, int srcstr
 
         prev_sy1 = sy;
 
-        // vresize
-        short b0 = ibeta[0];
-        short b1 = ibeta[1];
-
-        short* rows0p = rows0;
-        short* rows1p = rows1;
-        unsigned char* Dp = dst + stride * (dy);
-
-#if __ARM_NEON
-        int nn = (w * 3) >> 3;
-#else
-        int nn = 0;
-#endif
-        int remain = (w * 3) - (nn << 3);
-
-#if __ARM_NEON
-#if __aarch64__
-        int16x4_t _b0 = vdup_n_s16(b0);
-        int16x4_t _b1 = vdup_n_s16(b1);
-        int32x4_t _v2 = vdupq_n_s32(2);
-        for (; nn > 0; nn--)
+        if (dy + 1 < h && yofs[dy + 1] == sy)
         {
-            int16x4_t _rows0p_sr4 = vld1_s16(rows0p);
-            int16x4_t _rows1p_sr4 = vld1_s16(rows1p);
-            int16x4_t _rows0p_1_sr4 = vld1_s16(rows0p + 4);
-            int16x4_t _rows1p_1_sr4 = vld1_s16(rows1p + 4);
+            // vresize for two rows
+            unsigned char* Dp0 = dst + stride * dy;
+            unsigned char* Dp1 = dst + stride * (dy + 1);
 
-            int32x4_t _rows0p_sr4_mb0 = vmull_s16(_rows0p_sr4, _b0);
-            int32x4_t _rows1p_sr4_mb1 = vmull_s16(_rows1p_sr4, _b1);
-            int32x4_t _rows0p_1_sr4_mb0 = vmull_s16(_rows0p_1_sr4, _b0);
-            int32x4_t _rows1p_1_sr4_mb1 = vmull_s16(_rows1p_1_sr4, _b1);
+            vresize_two(rows0, rows1, w * 3, Dp0, Dp1, ibeta[0], ibeta[1], ibeta[2], ibeta[3]);
 
-            int32x4_t _acc = _v2;
-            _acc = vsraq_n_s32(_acc, _rows0p_sr4_mb0, 16);
-            _acc = vsraq_n_s32(_acc, _rows1p_sr4_mb1, 16);
-
-            int32x4_t _acc_1 = _v2;
-            _acc_1 = vsraq_n_s32(_acc_1, _rows0p_1_sr4_mb0, 16);
-            _acc_1 = vsraq_n_s32(_acc_1, _rows1p_1_sr4_mb1, 16);
-
-            int16x4_t _acc16 = vshrn_n_s32(_acc, 2);
-            int16x4_t _acc16_1 = vshrn_n_s32(_acc_1, 2);
-
-            uint8x8_t _Dp = vqmovun_s16(vcombine_s16(_acc16, _acc16_1));
-
-            vst1_u8(Dp, _Dp);
-
-            Dp += 8;
-            rows0p += 8;
-            rows1p += 8;
+            ibeta += 4;
+            dy += 1;
         }
-#else
-        if (nn > 0)
+        else
         {
-            asm volatile(
-                "vdup.s16   d16, %8         \n"
-                "mov        r4, #2          \n"
-                "vdup.s16   d17, %9         \n"
-                "vdup.s32   q12, r4         \n"
-                "pld        [%0, #128]      \n"
-                "vld1.s16   {d2-d3}, [%0 :128]!\n"
-                "pld        [%1, #128]      \n"
-                "vld1.s16   {d6-d7}, [%1 :128]!\n"
-                "0:                         \n"
-                "vmull.s16  q0, d2, d16     \n"
-                "vmull.s16  q1, d3, d16     \n"
-                "vorr.s32   q10, q12, q12   \n"
-                "vorr.s32   q11, q12, q12   \n"
-                "vmull.s16  q2, d6, d17     \n"
-                "vmull.s16  q3, d7, d17     \n"
-                "vsra.s32   q10, q0, #16    \n"
-                "vsra.s32   q11, q1, #16    \n"
-                "pld        [%0, #128]      \n"
-                "vld1.s16   {d2-d3}, [%0 :128]!\n"
-                "vsra.s32   q10, q2, #16    \n"
-                "vsra.s32   q11, q3, #16    \n"
-                "pld        [%1, #128]      \n"
-                "vld1.s16   {d6-d7}, [%1 :128]!\n"
-                "vshrn.s32  d20, q10, #2    \n"
-                "vshrn.s32  d21, q11, #2    \n"
-                "vqmovun.s16 d20, q10        \n"
-                "vst1.8     {d20}, [%2]!    \n"
-                "subs       %3, #1          \n"
-                "bne        0b              \n"
-                "sub        %0, #16         \n"
-                "sub        %1, #16         \n"
-                : "=r"(rows0p), // %0
-                "=r"(rows1p), // %1
-                "=r"(Dp),     // %2
-                "=r"(nn)      // %3
-                : "0"(rows0p),
-                "1"(rows1p),
-                "2"(Dp),
-                "3"(nn),
-                "r"(b0), // %8
-                "r"(b1)  // %9
-                : "cc", "memory", "r4", "q0", "q1", "q2", "q3", "q8", "q9", "q10", "q11", "q12");
-        }
-#endif // __aarch64__
-#endif // __ARM_NEON
-        for (; remain; --remain)
-        {
-            //             D[x] = (rows0[x]*b0 + rows1[x]*b1) >> INTER_RESIZE_COEF_BITS;
-            *Dp++ = (unsigned char)(((short)((b0 * (short)(*rows0p++)) >> 16) + (short)((b1 * (short)(*rows1p++)) >> 16) + 2) >> 2);
-        }
+            // vresize
+            unsigned char* Dp = dst + stride * dy;
 
-        ibeta += 2;
+            vresize_one(rows0, rows1, w * 3, Dp, ibeta[0], ibeta[1]);
+
+            ibeta += 2;
+        }
     }
 
     delete[] buf;
@@ -931,7 +841,6 @@ void resize_bilinear_c4(const unsigned char* src, int srcw, int srch, int srcstr
 {
     const int INTER_RESIZE_COEF_BITS = 11;
     const int INTER_RESIZE_COEF_SCALE = 1 << INTER_RESIZE_COEF_BITS;
-    //     const int ONE=INTER_RESIZE_COEF_SCALE;
 
     double scale_x = (double)srcw / w;
     double scale_y = (double)srch / h;
@@ -1115,113 +1024,26 @@ void resize_bilinear_c4(const unsigned char* src, int srcw, int srch, int srcstr
 
         prev_sy1 = sy;
 
-        // vresize
-        short b0 = ibeta[0];
-        short b1 = ibeta[1];
-
-        short* rows0p = rows0;
-        short* rows1p = rows1;
-        unsigned char* Dp = dst + stride * (dy);
-
-#if __ARM_NEON
-        int nn = (w * 4) >> 3;
-#else
-        int nn = 0;
-#endif
-        int remain = (w * 4) - (nn << 3);
-
-#if __ARM_NEON
-#if __aarch64__
-        int16x4_t _b0 = vdup_n_s16(b0);
-        int16x4_t _b1 = vdup_n_s16(b1);
-        int32x4_t _v2 = vdupq_n_s32(2);
-        for (; nn > 0; nn--)
+        if (dy + 1 < h && yofs[dy + 1] == sy)
         {
-            int16x4_t _rows0p_sr4 = vld1_s16(rows0p);
-            int16x4_t _rows1p_sr4 = vld1_s16(rows1p);
-            int16x4_t _rows0p_1_sr4 = vld1_s16(rows0p + 4);
-            int16x4_t _rows1p_1_sr4 = vld1_s16(rows1p + 4);
+            // vresize for two rows
+            unsigned char* Dp0 = dst + stride * dy;
+            unsigned char* Dp1 = dst + stride * (dy + 1);
 
-            int32x4_t _rows0p_sr4_mb0 = vmull_s16(_rows0p_sr4, _b0);
-            int32x4_t _rows1p_sr4_mb1 = vmull_s16(_rows1p_sr4, _b1);
-            int32x4_t _rows0p_1_sr4_mb0 = vmull_s16(_rows0p_1_sr4, _b0);
-            int32x4_t _rows1p_1_sr4_mb1 = vmull_s16(_rows1p_1_sr4, _b1);
+            vresize_two(rows0, rows1, w * 4, Dp0, Dp1, ibeta[0], ibeta[1], ibeta[2], ibeta[3]);
 
-            int32x4_t _acc = _v2;
-            _acc = vsraq_n_s32(_acc, _rows0p_sr4_mb0, 16);
-            _acc = vsraq_n_s32(_acc, _rows1p_sr4_mb1, 16);
-
-            int32x4_t _acc_1 = _v2;
-            _acc_1 = vsraq_n_s32(_acc_1, _rows0p_1_sr4_mb0, 16);
-            _acc_1 = vsraq_n_s32(_acc_1, _rows1p_1_sr4_mb1, 16);
-
-            int16x4_t _acc16 = vshrn_n_s32(_acc, 2);
-            int16x4_t _acc16_1 = vshrn_n_s32(_acc_1, 2);
-
-            uint8x8_t _Dp = vqmovun_s16(vcombine_s16(_acc16, _acc16_1));
-
-            vst1_u8(Dp, _Dp);
-
-            Dp += 8;
-            rows0p += 8;
-            rows1p += 8;
+            ibeta += 4;
+            dy += 1;
         }
-#else
-        if (nn > 0)
+        else
         {
-            asm volatile(
-                "vdup.s16   d16, %8         \n"
-                "mov        r4, #2          \n"
-                "vdup.s16   d17, %9         \n"
-                "vdup.s32   q12, r4         \n"
-                "pld        [%0, #128]      \n"
-                "vld1.s16   {d2-d3}, [%0 :128]!\n"
-                "pld        [%1, #128]      \n"
-                "vld1.s16   {d6-d7}, [%1 :128]!\n"
-                "0:                         \n"
-                "vmull.s16  q0, d2, d16     \n"
-                "vmull.s16  q1, d3, d16     \n"
-                "vorr.s32   q10, q12, q12   \n"
-                "vorr.s32   q11, q12, q12   \n"
-                "vmull.s16  q2, d6, d17     \n"
-                "vmull.s16  q3, d7, d17     \n"
-                "vsra.s32   q10, q0, #16    \n"
-                "vsra.s32   q11, q1, #16    \n"
-                "pld        [%0, #128]      \n"
-                "vld1.s16   {d2-d3}, [%0 :128]!\n"
-                "vsra.s32   q10, q2, #16    \n"
-                "vsra.s32   q11, q3, #16    \n"
-                "pld        [%1, #128]      \n"
-                "vld1.s16   {d6-d7}, [%1 :128]!\n"
-                "vshrn.s32  d20, q10, #2    \n"
-                "vshrn.s32  d21, q11, #2    \n"
-                "vqmovun.s16 d20, q10        \n"
-                "vst1.8     {d20}, [%2]!    \n"
-                "subs       %3, #1          \n"
-                "bne        0b              \n"
-                "sub        %0, #16         \n"
-                "sub        %1, #16         \n"
-                : "=r"(rows0p), // %0
-                "=r"(rows1p), // %1
-                "=r"(Dp),     // %2
-                "=r"(nn)      // %3
-                : "0"(rows0p),
-                "1"(rows1p),
-                "2"(Dp),
-                "3"(nn),
-                "r"(b0), // %8
-                "r"(b1)  // %9
-                : "cc", "memory", "r4", "q0", "q1", "q2", "q3", "q8", "q9", "q10", "q11", "q12");
-        }
-#endif // __aarch64__
-#endif // __ARM_NEON
-        for (; remain; --remain)
-        {
-            //             D[x] = (rows0[x]*b0 + rows1[x]*b1) >> INTER_RESIZE_COEF_BITS;
-            *Dp++ = (unsigned char)(((short)((b0 * (short)(*rows0p++)) >> 16) + (short)((b1 * (short)(*rows1p++)) >> 16) + 2) >> 2);
-        }
+            // vresize
+            unsigned char* Dp = dst + stride * dy;
 
-        ibeta += 2;
+            vresize_one(rows0, rows1, w * 4, Dp, ibeta[0], ibeta[1]);
+
+            ibeta += 2;
+        }
     }
 
     delete[] buf;

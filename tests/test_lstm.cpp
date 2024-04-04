@@ -12,7 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "layer/lstm.h"
 #include "testutil.h"
 
 static int test_lstm(const ncnn::Mat& a, int outch, int direction, int hidden_size = 0)
@@ -37,7 +36,7 @@ static int test_lstm(const ncnn::Mat& a, int outch, int direction, int hidden_si
         weights[3] = RandomMat(hidden_size * outch * num_directions);
     }
 
-    int ret = test_layer<ncnn::LSTM>("LSTM", pd, weights, a);
+    int ret = test_layer("LSTM", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_lstm failed a.dims=%d a=(%d %d %d) outch=%d direction=%d hidden_size=%d\n", a.dims, a.w, a.h, a.c, outch, direction, hidden_size);
@@ -79,7 +78,7 @@ int test_lstm_layer_with_hidden(const ncnn::Mat& a, int outch, int direction, in
     as[1] = hidden;
     as[2] = cell;
 
-    int ret = test_layer<ncnn::LSTM>("LSTM", pd, weights, as, 3);
+    int ret = test_layer("LSTM", pd, weights, as, 3);
     if (ret != 0)
     {
         fprintf(stderr, "test_lstm_layer_with_hidden failed a.dims=%d a=(%d %d %d) outch=%d direction=%d hidden_size=%d\n", a.dims, a.w, a.h, a.c, outch, direction, hidden_size);
@@ -121,7 +120,7 @@ int test_lstm_layer_with_hidden_input(const ncnn::Mat& a, int outch, int directi
     as[1] = hidden;
     as[2] = cell;
 
-    int ret = test_layer<ncnn::LSTM>("LSTM", pd, weights, as, 1);
+    int ret = test_layer("LSTM", pd, weights, as, 1);
     if (ret != 0)
     {
         fprintf(stderr, "test_lstm_layer_with_hidden_input failed a.dims=%d a=(%d %d %d) outch=%d direction=%d hidden_size=%d\n", a.dims, a.w, a.h, a.c, outch, direction, hidden_size);
@@ -155,7 +154,7 @@ int test_lstm_layer_with_hidden_output(const ncnn::Mat& a, int outch, int direct
     std::vector<ncnn::Mat> as(1);
     as[0] = a;
 
-    int ret = test_layer<ncnn::LSTM>("LSTM", pd, weights, as, 3);
+    int ret = test_layer("LSTM", pd, weights, as, 3);
     if (ret != 0)
     {
         fprintf(stderr, "test_lstm_layer_with_hidden_output failed a.dims=%d a=(%d %d %d) outch=%d direction=%d hidden_size=%d\n", a.dims, a.w, a.h, a.c, outch, direction, hidden_size);

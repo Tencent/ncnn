@@ -297,7 +297,7 @@ int Convolution_x86::create_pipeline(const Option& opt)
 
     if (!opt.use_packing_layout && kernel_w == kernel_h && dilation_w != 1 && dilation_h == dilation_w && stride_w == 1 && stride_h == 1)
     {
-        convolution_dilation1 = ncnn::create_layer(ncnn::LayerType::Convolution);
+        convolution_dilation1 = ncnn::create_layer_cpu(ncnn::LayerType::Convolution);
 
         // set param
         ncnn::ParamDict pd;
@@ -334,10 +334,7 @@ int Convolution_x86::create_pipeline(const Option& opt)
 
         convolution_dilation1->create_pipeline(opt);
 
-        if (opt.lightmode)
-        {
-            weight_data.release();
-        }
+        weight_data.release();
 
         return 0;
     }
@@ -454,10 +451,7 @@ int Convolution_x86::create_pipeline(const Option& opt)
             }
         }
 
-        if (opt.lightmode)
-        {
-            weight_data.release();
-        }
+        weight_data.release();
 
         return 0;
     }
@@ -469,7 +463,7 @@ int Convolution_x86::create_pipeline(const Option& opt)
     {
         const int maxk = kernel_w * kernel_h;
 
-        gemm = ncnn::create_layer(ncnn::LayerType::Gemm);
+        gemm = ncnn::create_layer_cpu(ncnn::LayerType::Gemm);
 
         ncnn::ParamDict pd;
         pd.set(2, 0);                   // transA
@@ -548,10 +542,7 @@ int Convolution_x86::create_pipeline(const Option& opt)
         }
     }
 
-    if (opt.lightmode)
-    {
-        weight_data.release();
-    }
+    weight_data.release();
 
     return 0;
 }
@@ -1182,7 +1173,7 @@ int Convolution_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
         bias_data_flattened.elempack = 1;
     }
 
-    ncnn::Layer* op = ncnn::create_layer(ncnn::LayerType::Convolution);
+    ncnn::Layer* op = ncnn::create_layer_cpu(ncnn::LayerType::Convolution);
 
     ncnn::ParamDict pd;
     pd.set(0, _num_output);
@@ -1259,10 +1250,7 @@ int Convolution_x86::create_pipeline_int8_x86(const Option& opt)
         scale_in_data[p] = scale_in;
     }
 
-    if (opt.lightmode)
-    {
-        weight_data.release();
-    }
+    weight_data.release();
 
     return 0;
 }
@@ -1279,7 +1267,7 @@ int Convolution_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, con
         quantize_to_int8(bottom_blob, bottom_blob_int8, bottom_blob_int8_scales, opt_q);
     }
 
-    //     NCNN_LOGE("Convolution_arm input %d x %d  ksize=%d %d  stride=%d %d", w, h, kernel_w, kernel_h, stride_w, stride_h);
+    //     NCNN_LOGE("Convolution_x86 input %d x %d  ksize=%d %d  stride=%d %d", w, h, kernel_w, kernel_h, stride_w, stride_h);
 
     Mat bottom_blob_bordered;
     make_padding(bottom_blob_int8, bottom_blob_bordered, opt);
@@ -1310,7 +1298,7 @@ int Convolution_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, con
 #endif // __SSE2__
     size_t out_elemsize = use_int8_requantize ? 1u * out_elempack : 4u * out_elempack;
 
-    //     NCNN_LOGE("forward_int8_arm %d %d %d    %d %d", w, h, bottom_blob_bordered.c, elempack, out_elempack);
+    //     NCNN_LOGE("forward_int8_x86 %d %d %d    %d %d", w, h, bottom_blob_bordered.c, elempack, out_elempack);
 
     top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
     if (top_blob.empty())

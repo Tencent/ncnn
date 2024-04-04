@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class GELU_arm : virtual public GELU
+class GELU_arm : public GELU
 {
 public:
     GELU_arm();

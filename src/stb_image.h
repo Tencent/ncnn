@@ -786,6 +786,20 @@ static int stbi__sse2_available(void)
 #endif
 #endif
 
+// RISC-V VECTOR
+#if defined(STBI_NO_SIMD) && defined(STBI_RVV)
+#undef STBI_RVV
+#endif
+
+#ifdef STBI_RVV
+#include <riscv_vector.h>
+#ifdef _MSC_VER
+#define STBI_SIMD_ALIGN(type, name) __declspec(align(16)) type name
+#else
+#define STBI_SIMD_ALIGN(type, name) type name __attribute__((aligned(16)))
+#endif
+#endif
+
 #ifndef STBI_SIMD_ALIGN
 #define STBI_SIMD_ALIGN(type, name) type name
 #endif
@@ -2910,6 +2924,180 @@ static void stbi__idct_simd(stbi_uc *out, int out_stride, short data[64])
 
 #endif // STBI_NEON
 
+#ifdef STBI_RVV
+
+// risc-v vector integer IDCT. should produce bit-identical
+// results to the generic C version.
+static void stbi__idct_simd(stbi_uc *out, int out_stride, short data[64])
+{
+   const short rot0_0 = stbi__f2f(0.5411961f);
+   const short rot0_1 = stbi__f2f(-1.847759065f);
+   const short rot0_2 = stbi__f2f( 0.765366865f);
+   const short rot1_0 = stbi__f2f( 1.175875602f);
+   const short rot1_1 = stbi__f2f(-0.899976223f);
+   const short rot1_2 = stbi__f2f(-2.562915447f);
+   const short rot2_0 = stbi__f2f(-1.961570560f);
+   const short rot2_1 = stbi__f2f(-0.390180644f);
+   const short rot3_0 = stbi__f2f( 0.298631336f);
+   const short rot3_1 = stbi__f2f( 2.053119869f);
+   const short rot3_2 = stbi__f2f( 3.072711026f);
+   const short rot3_3 = stbi__f2f( 1.501321110f);
+
+   // scratch buffer for data transpose
+   short tmp[64];
+
+   const size_t vl = vsetvl_e16m1(8);
+
+   // column pass
+   {
+      vint16m1_t row0 = vle16_v_i16m1(data + 0*8, vl);
+      vint16m1_t row1 = vle16_v_i16m1(data + 1*8, vl);
+      vint16m1_t row2 = vle16_v_i16m1(data + 2*8, vl);
+      vint16m1_t row3 = vle16_v_i16m1(data + 3*8, vl);
+      vint16m1_t row4 = vle16_v_i16m1(data + 4*8, vl);
+      vint16m1_t row5 = vle16_v_i16m1(data + 5*8, vl);
+      vint16m1_t row6 = vle16_v_i16m1(data + 6*8, vl);
+      vint16m1_t row7 = vle16_v_i16m1(data + 7*8, vl);
+
+      // even part
+      vint16m1_t sum26 = vadd_vv_i16m1(row2, row6, vl);
+      vint32m2_t p1e = vwmul_vx_i32m2(sum26, rot0_0, vl);
+      vint32m2_t t2e = vwmacc_vx_i32m2(p1e, rot0_1, row6, vl);
+      vint32m2_t t3e = vwmacc_vx_i32m2(p1e, rot0_2, row2, vl);
+      vint32m2_t t0e = vsll_vx_i32m2(vwadd_vv_i32m2(row0, row4, vl), 12, vl);
+      vint32m2_t t1e = vsll_vx_i32m2(vwsub_vv_i32m2(row0, row4, vl), 12, vl);
+      vint32m2_t x0 = vadd_vv_i32m2(t0e, t3e, vl);
+      vint32m2_t x3 = vsub_vv_i32m2(t0e, t3e, vl);
+      vint32m2_t x1 = vadd_vv_i32m2(t1e, t2e, vl);
+      vint32m2_t x2 = vsub_vv_i32m2(t1e, t2e, vl);
+
+      // odd part
+      vint16m1_t sum15 = vadd_vv_i16m1(row1, row5, vl);
+      vint16m1_t sum17 = vadd_vv_i16m1(row1, row7, vl);
+      vint16m1_t sum35 = vadd_vv_i16m1(row3, row5, vl);
+      vint16m1_t sum37 = vadd_vv_i16m1(row3, row7, vl);
+      vint32m2_t p5o = vwmul_vx_i32m2(vadd_vv_i16m1(sum17, sum35, vl), rot1_0, vl);
+      vint32m2_t p1o = vwmacc_vx_i32m2(p5o, rot1_1, sum17, vl);
+      vint32m2_t p2o = vwmacc_vx_i32m2(p5o, rot1_2, sum35, vl);
+      vint32m2_t p3o = vwmul_vx_i32m2(sum37, rot2_0, vl);
+      vint32m2_t p4o = vwmul_vx_i32m2(sum15, rot2_1, vl);
+      vint32m2_t sump13o = vadd_vv_i32m2(p1o, p3o, vl);
+      vint32m2_t sump24o = vadd_vv_i32m2(p2o, p4o, vl);
+      vint32m2_t sump23o = vadd_vv_i32m2(p2o, p3o, vl);
+      vint32m2_t sump14o = vadd_vv_i32m2(p1o, p4o, vl);
+      vint32m2_t x4 = vwmacc_vx_i32m2(sump13o, rot3_0, row7, vl);
+      vint32m2_t x5 = vwmacc_vx_i32m2(sump24o, rot3_1, row5, vl);
+      vint32m2_t x6 = vwmacc_vx_i32m2(sump23o, rot3_2, row3, vl);
+      vint32m2_t x7 = vwmacc_vx_i32m2(sump14o, rot3_3, row1, vl);
+
+      // bfly32
+      x0 = vadd_vx_i32m2(x0, 512, vl);
+      x1 = vadd_vx_i32m2(x1, 512, vl);
+      x2 = vadd_vx_i32m2(x2, 512, vl);
+      x3 = vadd_vx_i32m2(x3, 512, vl);
+      vint16m1_t out0 = vnsra_wx_i16m1(vadd_vv_i32m2(x0, x7, vl), 10, vl);
+      vint16m1_t out7 = vnsra_wx_i16m1(vsub_vv_i32m2(x0, x7, vl), 10, vl);
+      vint16m1_t out1 = vnsra_wx_i16m1(vadd_vv_i32m2(x1, x6, vl), 10, vl);
+      vint16m1_t out6 = vnsra_wx_i16m1(vsub_vv_i32m2(x1, x6, vl), 10, vl);
+      vint16m1_t out2 = vnsra_wx_i16m1(vadd_vv_i32m2(x2, x5, vl), 10, vl);
+      vint16m1_t out5 = vnsra_wx_i16m1(vsub_vv_i32m2(x2, x5, vl), 10, vl);
+      vint16m1_t out3 = vnsra_wx_i16m1(vadd_vv_i32m2(x3, x4, vl), 10, vl);
+      vint16m1_t out4 = vnsra_wx_i16m1(vsub_vv_i32m2(x3, x4, vl), 10, vl);
+
+      // 8x8 transpose
+      // I would prefer to implement this transpose in register without save+load,
+      // but rvv does not have shuffle/zip instructions among multiple registers.
+      // what a pity :(   --- nihui
+      vsse16_v_i16m1(tmp + 0, 8 * 2, out0, vl);
+      vsse16_v_i16m1(tmp + 1, 8 * 2, out1, vl);
+      vsse16_v_i16m1(tmp + 2, 8 * 2, out2, vl);
+      vsse16_v_i16m1(tmp + 3, 8 * 2, out3, vl);
+      vsse16_v_i16m1(tmp + 4, 8 * 2, out4, vl);
+      vsse16_v_i16m1(tmp + 5, 8 * 2, out5, vl);
+      vsse16_v_i16m1(tmp + 6, 8 * 2, out6, vl);
+      vsse16_v_i16m1(tmp + 7, 8 * 2, out7, vl);
+   }
+
+   // row pass
+   {
+      vint16m1_t row0 = vle16_v_i16m1(tmp + 0*8, vl);
+      vint16m1_t row1 = vle16_v_i16m1(tmp + 1*8, vl);
+      vint16m1_t row2 = vle16_v_i16m1(tmp + 2*8, vl);
+      vint16m1_t row3 = vle16_v_i16m1(tmp + 3*8, vl);
+      vint16m1_t row4 = vle16_v_i16m1(tmp + 4*8, vl);
+      vint16m1_t row5 = vle16_v_i16m1(tmp + 5*8, vl);
+      vint16m1_t row6 = vle16_v_i16m1(tmp + 6*8, vl);
+      vint16m1_t row7 = vle16_v_i16m1(tmp + 7*8, vl);
+
+      // even part
+      vint16m1_t sum26 = vadd_vv_i16m1(row2, row6, vl);
+      vint32m2_t p1e = vwmul_vx_i32m2(sum26, rot0_0, vl);
+      vint32m2_t t2e = vwmacc_vx_i32m2(p1e, rot0_1, row6, vl);
+      vint32m2_t t3e = vwmacc_vx_i32m2(p1e, rot0_2, row2, vl);
+      vint32m2_t t0e = vsll_vx_i32m2(vwadd_vv_i32m2(row0, row4, vl), 12, vl);
+      vint32m2_t t1e = vsll_vx_i32m2(vwsub_vv_i32m2(row0, row4, vl), 12, vl);
+      vint32m2_t x0 = vadd_vv_i32m2(t0e, t3e, vl);
+      vint32m2_t x3 = vsub_vv_i32m2(t0e, t3e, vl);
+      vint32m2_t x1 = vadd_vv_i32m2(t1e, t2e, vl);
+      vint32m2_t x2 = vsub_vv_i32m2(t1e, t2e, vl);
+
+      // odd part
+      vint16m1_t sum15 = vadd_vv_i16m1(row1, row5, vl);
+      vint16m1_t sum17 = vadd_vv_i16m1(row1, row7, vl);
+      vint16m1_t sum35 = vadd_vv_i16m1(row3, row5, vl);
+      vint16m1_t sum37 = vadd_vv_i16m1(row3, row7, vl);
+      vint32m2_t p5o = vwmul_vx_i32m2(vadd_vv_i16m1(sum17, sum35, vl), rot1_0, vl);
+      vint32m2_t p1o = vwmacc_vx_i32m2(p5o, rot1_1, sum17, vl);
+      vint32m2_t p2o = vwmacc_vx_i32m2(p5o, rot1_2, sum35, vl);
+      vint32m2_t p3o = vwmul_vx_i32m2(sum37, rot2_0, vl);
+      vint32m2_t p4o = vwmul_vx_i32m2(sum15, rot2_1, vl);
+      vint32m2_t sump13o = vadd_vv_i32m2(p1o, p3o, vl);
+      vint32m2_t sump24o = vadd_vv_i32m2(p2o, p4o, vl);
+      vint32m2_t sump23o = vadd_vv_i32m2(p2o, p3o, vl);
+      vint32m2_t sump14o = vadd_vv_i32m2(p1o, p4o, vl);
+      vint32m2_t x4 = vwmacc_vx_i32m2(sump13o, rot3_0, row7, vl);
+      vint32m2_t x5 = vwmacc_vx_i32m2(sump24o, rot3_1, row5, vl);
+      vint32m2_t x6 = vwmacc_vx_i32m2(sump23o, rot3_2, row3, vl);
+      vint32m2_t x7 = vwmacc_vx_i32m2(sump14o, rot3_3, row1, vl);
+
+      // bfly32
+      x0 = vadd_vx_i32m2(x0, (int)(65536 + (128<<17)), vl);
+      x1 = vadd_vx_i32m2(x1, (int)(65536 + (128<<17)), vl);
+      x2 = vadd_vx_i32m2(x2, (int)(65536 + (128<<17)), vl);
+      x3 = vadd_vx_i32m2(x3, (int)(65536 + (128<<17)), vl);
+      vint16m1_t out0 = vnsra_wx_i16m1(vadd_vv_i32m2(x0, x7, vl), 17, vl);
+      vint16m1_t out7 = vnsra_wx_i16m1(vsub_vv_i32m2(x0, x7, vl), 17, vl);
+      vint16m1_t out1 = vnsra_wx_i16m1(vadd_vv_i32m2(x1, x6, vl), 17, vl);
+      vint16m1_t out6 = vnsra_wx_i16m1(vsub_vv_i32m2(x1, x6, vl), 17, vl);
+      vint16m1_t out2 = vnsra_wx_i16m1(vadd_vv_i32m2(x2, x5, vl), 17, vl);
+      vint16m1_t out5 = vnsra_wx_i16m1(vsub_vv_i32m2(x2, x5, vl), 17, vl);
+      vint16m1_t out3 = vnsra_wx_i16m1(vadd_vv_i32m2(x3, x4, vl), 17, vl);
+      vint16m1_t out4 = vnsra_wx_i16m1(vsub_vv_i32m2(x3, x4, vl), 17, vl);
+
+      // clamp 0~255
+      vuint8m1_t out0u8 = vnclipu_wx_u8m1(vreinterpret_v_i16m1_u16m2(vmax_vx_i16m1(out0, 0, vl)), 0, vl);
+      vuint8m1_t out7u8 = vnclipu_wx_u8m1(vreinterpret_v_i16m1_u16m2(vmax_vx_i16m1(out7, 0, vl)), 0, vl);
+      vuint8m1_t out1u8 = vnclipu_wx_u8m1(vreinterpret_v_i16m1_u16m2(vmax_vx_i16m1(out1, 0, vl)), 0, vl);
+      vuint8m1_t out6u8 = vnclipu_wx_u8m1(vreinterpret_v_i16m1_u16m2(vmax_vx_i16m1(out6, 0, vl)), 0, vl);
+      vuint8m1_t out2u8 = vnclipu_wx_u8m1(vreinterpret_v_i16m1_u16m2(vmax_vx_i16m1(out2, 0, vl)), 0, vl);
+      vuint8m1_t out5u8 = vnclipu_wx_u8m1(vreinterpret_v_i16m1_u16m2(vmax_vx_i16m1(out5, 0, vl)), 0, vl);
+      vuint8m1_t out3u8 = vnclipu_wx_u8m1(vreinterpret_v_i16m1_u16m2(vmax_vx_i16m1(out3, 0, vl)), 0, vl);
+      vuint8m1_t out4u8 = vnclipu_wx_u8m1(vreinterpret_v_i16m1_u16m2(vmax_vx_i16m1(out4, 0, vl)), 0, vl);
+
+      // 8x8 transpose
+      vsse8_v_u8m1(out + 0, out_stride, out0u8, vl);
+      vsse8_v_u8m1(out + 1, out_stride, out1u8, vl);
+      vsse8_v_u8m1(out + 2, out_stride, out2u8, vl);
+      vsse8_v_u8m1(out + 3, out_stride, out3u8, vl);
+      vsse8_v_u8m1(out + 4, out_stride, out4u8, vl);
+      vsse8_v_u8m1(out + 5, out_stride, out5u8, vl);
+      vsse8_v_u8m1(out + 6, out_stride, out6u8, vl);
+      vsse8_v_u8m1(out + 7, out_stride, out7u8, vl);
+   }
+}
+
+#endif // STBI_RVV
+
 #define STBI__MARKER_none  0xff
 // if there's a pending marker from the entropy stream, return that
 // otherwise, fetch from the stream and get a marker. if there's no
@@ -3524,7 +3712,7 @@ static stbi_uc *stbi__resample_row_hv_2(stbi_uc *out, stbi_uc *in_near, stbi_uc 
    return out;
 }
 
-#if defined(STBI_SSE2) || defined(STBI_NEON)
+#if defined(STBI_SSE2) || defined(STBI_NEON) || defined(STBI_RVV)
 static stbi_uc *stbi__resample_row_hv_2_simd(stbi_uc *out, stbi_uc *in_near, stbi_uc *in_far, int w, int hs)
 {
    // need to generate 2x2 samples for every one in input
@@ -3536,6 +3724,48 @@ static stbi_uc *stbi__resample_row_hv_2_simd(stbi_uc *out, stbi_uc *in_near, stb
    }
 
    t1 = 3*in_near[0] + in_far[0];
+#if defined(STBI_RVV)
+   // process groups of vl*4 pixels for as long as we can.
+   // note we can't handle the last pixel in a row in this loop
+   // because we need to handle the filter boundary conditions.
+   int n = w-1;
+   while (n > 0) {
+      size_t vl = vsetvl_e8m4(n);
+
+      // load and perform the vertical filtering pass
+      vuint8m4_t farb  = vle8_v_u8m4(in_far + i, vl);
+      vuint8m4_t nearb = vle8_v_u8m4(in_near + i, vl);
+      vuint16m8_t curr  = vadd_vv_u16m8(vwmulu_vx_u16m8(nearb, 3, vl), vwcvtu_x_x_v_u16m8(farb, vl), vl); // current row
+
+      // horizontal filter works the same based on shifted vers of current
+      // row. "prev" is current row shifted right by 1 pixel; we need to
+      // insert the previous pixel value (from t1).
+      // "next" is current row shifted left by 1 pixel, with first pixel
+      // of next block of vl*4 pixels added in.
+      vuint16m8_t prev = vslide1up_vx_u16m8(curr, t1, vl);
+      vuint16m8_t next = vslide1down_vx_u16m8(curr, 3*in_near[i+vl] + in_far[i+vl], vl);
+
+      // horizontal filter, polyphase implementation since it's convenient:
+      // even pixels = 3*cur + prev + 8
+      // odd  pixels = 3*cur + next + 8
+      // note the shared term.
+      vuint16m8_t curs = vmacc_vx_u16m8(vmv_v_x_u16m8(8, vl), 3, curr, vl);
+      vuint16m8_t even = vadd_vv_u16m8(curs, prev, vl);
+      vuint16m8_t odd  = vadd_vv_u16m8(curs, next, vl);
+
+      // undo scaling and round, then store with even/odd phases interleaved
+      vuint8m4_t evenu8 = vnclipu_wx_u8m4(vsrl_vx_u16m8(even, 4, vl), 0, vl);
+      vuint8m4_t oddu8 = vnclipu_wx_u8m4(vsrl_vx_u16m8(odd, 4, vl), 0, vl);
+      vuint8m4x2_t o = vcreate_u8m4x2(evenu8, oddu8);
+      vsseg2e8_v_u8m4x2(out + i*2, o, vl);
+
+      // "previous" value for next iter
+      t1 = 3*in_near[i+(vl-1)] + in_far[i+(vl-1)];
+
+      i += vl;
+      n -= vl;
+   }
+#else
    // process groups of 8 pixels for as long as we can.
    // note we can't handle the last pixel in a row in this loop
    // because we need to handle the filter boundary conditions.
@@ -3622,6 +3852,7 @@ static stbi_uc *stbi__resample_row_hv_2_simd(stbi_uc *out, stbi_uc *in_near, stb
       // "previous" value for next iter
       t1 = 3*in_near[i+7] + in_far[i+7];
    }
+#endif
 
    t0 = t1;
    t1 = 3*in_near[i] + in_far[i];
@@ -3680,7 +3911,7 @@ static void stbi__YCbCr_to_RGB_row(stbi_uc *out, const stbi_uc *y, const stbi_uc
    }
 }
 
-#if defined(STBI_SSE2) || defined(STBI_NEON)
+#if defined(STBI_SSE2) || defined(STBI_NEON) || defined(STBI_RVV)
 static void stbi__YCbCr_to_RGB_simd(stbi_uc *out, stbi_uc const *y, stbi_uc const *pcb, stbi_uc const *pcr, int count, int step)
 {
    int i = 0;
@@ -3747,7 +3978,47 @@ static void stbi__YCbCr_to_RGB_simd(stbi_uc *out, stbi_uc const *y, stbi_uc cons
 #endif
 
 #ifdef STBI_NEON
-   // in this version, step=3 support would be easy to add. but is there demand?
+   if (step == 3) {
+      // this is a fairly straightforward implementation and not super-optimized.
+      uint8x8_t signflip = vdup_n_u8(0x80);
+      int16x8_t cr_const0 = vdupq_n_s16(   (short) ( 1.40200f*4096.0f+0.5f));
+      int16x8_t cr_const1 = vdupq_n_s16( - (short) ( 0.71414f*4096.0f+0.5f));
+      int16x8_t cb_const0 = vdupq_n_s16( - (short) ( 0.34414f*4096.0f+0.5f));
+      int16x8_t cb_const1 = vdupq_n_s16(   (short) ( 1.77200f*4096.0f+0.5f));
+
+      for (; i+7 < count; i += 8) {
+         // load
+         uint8x8_t y_bytes  = vld1_u8(y + i);
+         uint8x8_t cr_bytes = vld1_u8(pcr + i);
+         uint8x8_t cb_bytes = vld1_u8(pcb + i);
+         int8x8_t cr_biased = vreinterpret_s8_u8(vsub_u8(cr_bytes, signflip));
+         int8x8_t cb_biased = vreinterpret_s8_u8(vsub_u8(cb_bytes, signflip));
+
+         // expand to s16
+         int16x8_t yws = vreinterpretq_s16_u16(vshll_n_u8(y_bytes, 4));
+         int16x8_t crw = vshll_n_s8(cr_biased, 7);
+         int16x8_t cbw = vshll_n_s8(cb_biased, 7);
+
+         // color transform
+         int16x8_t cr0 = vqdmulhq_s16(crw, cr_const0);
+         int16x8_t cb0 = vqdmulhq_s16(cbw, cb_const0);
+         int16x8_t cr1 = vqdmulhq_s16(crw, cr_const1);
+         int16x8_t cb1 = vqdmulhq_s16(cbw, cb_const1);
+         int16x8_t rws = vaddq_s16(yws, cr0);
+         int16x8_t gws = vaddq_s16(vaddq_s16(yws, cb0), cr1);
+         int16x8_t bws = vaddq_s16(yws, cb1);
+
+         // undo scaling, round, convert to byte
+         uint8x8x3_t o;
+         o.val[0] = vqrshrun_n_s16(rws, 4);
+         o.val[1] = vqrshrun_n_s16(gws, 4);
+         o.val[2] = vqrshrun_n_s16(bws, 4);
+
+         // store, interleaving r/g/b
+         vst3_u8(out, o);
+         out += 8*3;
+      }
+   }
    if (step == 4) {
       // this is a fairly straightforward implementation and not super-optimized.
       uint8x8_t signflip = vdup_n_u8(0x80);
@@ -3792,6 +4063,104 @@ static void stbi__YCbCr_to_RGB_simd(stbi_uc *out, stbi_uc const *y, stbi_uc cons
    }
 #endif
 
+#ifdef STBI_RVV
+   if (step == 3) {
+      // this is a fairly straightforward implementation and not super-optimized.
+      const unsigned char signflip = 0x80;
+      const short cr_const0 =    (short) ( 1.40200f*4096.0f+0.5f);
+      const short cr_const1 =  - (short) ( 0.71414f*4096.0f+0.5f);
+      const short cb_const0 =  - (short) ( 0.34414f*4096.0f+0.5f);
+      const short cb_const1 =    (short) ( 1.77200f*4096.0f+0.5f);
+
+      int n = count;
+      while (n > 0) {
+         size_t vl = vsetvl_e8m2(n);
+
+         // load
+         vuint8m2_t y_bytes  = vle8_v_u8m2(y + i, vl);
+         vuint8m2_t cr_bytes = vle8_v_u8m2(pcr + i, vl);
+         vuint8m2_t cb_bytes = vle8_v_u8m2(pcb + i, vl);
+         vint8m2_t cr_biased = vreinterpret_v_u8m2_i8m2(vsub_vx_u8m2(cr_bytes, signflip, vl));
+         vint8m2_t cb_biased = vreinterpret_v_u8m2_i8m2(vsub_vx_u8m2(cb_bytes, signflip, vl));
+
+         // expand to s16
+         vint16m4_t yws = vadd_vx_i16m4(vsll_vx_i16m4(vreinterpret_v_u16m4_i16m4(vwcvtu_x_x_v_u16m4(y_bytes, vl)), 4, vl), 8, vl);
+         vint16m4_t crw = vsll_vx_i16m4(vwcvt_x_x_v_i16m4(cr_biased, vl), 8, vl);
+         vint16m4_t cbw = vsll_vx_i16m4(vwcvt_x_x_v_i16m4(cb_biased, vl), 8, vl);
+
+         // color transform
+         vint16m4_t cr0 = vnclip_wx_i16m4(vsra_vx_i32m8(vwmul_vx_i32m8(crw, cr_const0, vl), 16, vl), 0, vl);
+         vint16m4_t cb0 = vnclip_wx_i16m4(vsra_vx_i32m8(vwmul_vx_i32m8(cbw, cb_const0, vl), 16, vl), 0, vl);
+         vint16m4_t cr1 = vnclip_wx_i16m4(vsra_vx_i32m8(vwmul_vx_i32m8(crw, cr_const1, vl), 16, vl), 0, vl);
+         vint16m4_t cb1 = vnclip_wx_i16m4(vsra_vx_i32m8(vwmul_vx_i32m8(cbw, cb_const1, vl), 16, vl), 0, vl);
+         vint16m4_t rws = vadd_vv_i16m4(yws, cr0, vl);
+         vint16m4_t gws = vadd_vv_i16m4(vadd_vv_i16m4(yws, cb0, vl), cr1, vl);
+         vint16m4_t bws = vadd_vv_i16m4(yws, cb1, vl);
+
+         // undo scaling, round, convert to byte
+         vuint8m2_t rb = vnclipu_wx_u8m2(vreinterpret_v_i16m4_u16m4(vmax_vx_i16m4(vsra_vx_i16m4(rws, 4, vl), 0, vl)), 0, vl);
+         vuint8m2_t gb = vnclipu_wx_u8m2(vreinterpret_v_i16m4_u16m4(vmax_vx_i16m4(vsra_vx_i16m4(gws, 4, vl), 0, vl)), 0, vl);
+         vuint8m2_t bb = vnclipu_wx_u8m2(vreinterpret_v_i16m4_u16m4(vmax_vx_i16m4(vsra_vx_i16m4(bws, 4, vl), 0, vl)), 0, vl);
+
+         // store, interleaving r/g/b
+         vuint8m2x3_t o = vcreate_u8m2x3(rb, gb, bb);
+         vsseg3e8_v_u8m2x3(out, o, vl);
+         out += vl*3;
+
+         i += vl;
+         n -= vl;
+      }
+   }
+   if (step == 4) {
+      // this is a fairly straightforward implementation and not super-optimized.
+      const unsigned char signflip = 128;
+      const short cr_const0 =    (short) ( 1.40200f*4096.0f+0.5f);
+      const short cr_const1 =  - (short) ( 0.71414f*4096.0f+0.5f);
+      const short cb_const0 =  - (short) ( 0.34414f*4096.0f+0.5f);
+      const short cb_const1 =    (short) ( 1.77200f*4096.0f+0.5f);
+
+      int n = count;
+      while (n > 0) {
+         size_t vl = vsetvl_e8m1(n);
+
+         // load
+         vuint8m2_t y_bytes  = vle8_v_u8m2(y + i, vl);
+         vuint8m2_t cr_bytes = vle8_v_u8m2(pcr + i, vl);
+         vuint8m2_t cb_bytes = vle8_v_u8m2(pcb + i, vl);
+         vint8m2_t cr_biased = vreinterpret_v_u8m2_i8m2(vsub_vx_u8m2(cr_bytes, signflip, vl));
+         vint8m2_t cb_biased = vreinterpret_v_u8m2_i8m2(vsub_vx_u8m2(cb_bytes, signflip, vl));
+
+         // expand to s16
+         vint16m4_t yws = vadd_vx_i16m4(vsll_vx_i16m4(vreinterpret_v_u16m4_i16m4(vwcvtu_x_x_v_u16m4(y_bytes, vl)), 4, vl), 8, vl);
+         vint16m4_t crw = vsll_vx_i16m4(vwcvt_x_x_v_i16m4(cr_biased, vl), 8, vl);
+         vint16m4_t cbw = vsll_vx_i16m4(vwcvt_x_x_v_i16m4(cb_biased, vl), 8, vl);
+
+         // color transform
+         vint16m4_t cr0 = vnclip_wx_i16m4(vsra_vx_i32m8(vwmul_vx_i32m8(crw, cr_const0, vl), 16, vl), 0, vl);
+         vint16m4_t cb0 = vnclip_wx_i16m4(vsra_vx_i32m8(vwmul_vx_i32m8(cbw, cb_const0, vl), 16, vl), 0, vl);
+         vint16m4_t cr1 = vnclip_wx_i16m4(vsra_vx_i32m8(vwmul_vx_i32m8(crw, cr_const1, vl), 16, vl), 0, vl);
+         vint16m4_t cb1 = vnclip_wx_i16m4(vsra_vx_i32m8(vwmul_vx_i32m8(cbw, cb_const1, vl), 16, vl), 0, vl);
+         vint16m4_t rws = vadd_vv_i16m4(yws, cr0, vl);
+         vint16m4_t gws = vadd_vv_i16m4(vadd_vv_i16m4(yws, cb0, vl), cr1, vl);
+         vint16m4_t bws = vadd_vv_i16m4(yws, cb1, vl);
+
+         // undo scaling, round, convert to byte
+         vuint8m2_t rb = vnclipu_wx_u8m2(vreinterpret_v_i16m4_u16m4(vmax_vx_i16m4(vsra_vx_i16m4(rws, 4, vl), 0, vl)), 0, vl);
+         vuint8m2_t gb = vnclipu_wx_u8m2(vreinterpret_v_i16m4_u16m4(vmax_vx_i16m4(vsra_vx_i16m4(gws, 4, vl), 0, vl)), 0, vl);
+         vuint8m2_t bb = vnclipu_wx_u8m2(vreinterpret_v_i16m4_u16m4(vmax_vx_i16m4(vsra_vx_i16m4(bws, 4, vl), 0, vl)), 0, vl);
+         vuint8m2_t ab = vmv_v_x_u8m2(255, vl);
+
+         // store, interleaving r/g/b/a
+         vuint8m2x4_t o = vcreate_u8m2x4(rb, gb, bb, ab);
+         vsseg4e8_v_u8m2x4(out, o, vl);
+         out += vl*4;
+
+         i += vl;
+         n -= vl;
+      }
+   }
+#endif
+
    for (; i < count; ++i) {
       int y_fixed = (y[i] << 20) + (1<<19); // rounding
       int r,g,b;
@@ -3831,6 +4200,12 @@ static void stbi__setup_jpeg(stbi__jpeg *j)
 #endif
 
 #ifdef STBI_NEON
+   j->idct_block_kernel = stbi__idct_simd;
+   j->YCbCr_to_RGB_kernel = stbi__YCbCr_to_RGB_simd;
+   j->resample_row_hv_2_kernel = stbi__resample_row_hv_2_simd;
+#endif
+
+#ifdef STBI_RVV
    j->idct_block_kernel = stbi__idct_simd;
    j->YCbCr_to_RGB_kernel = stbi__YCbCr_to_RGB_simd;
    j->resample_row_hv_2_kernel = stbi__resample_row_hv_2_simd;

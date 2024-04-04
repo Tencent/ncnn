@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Cast_x86 : virtual public Cast
+class Cast_x86 : public Cast
 {
 public:
     Cast_x86();

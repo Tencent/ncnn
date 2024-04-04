@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Convolution_loongarch : virtual public Convolution
+class Convolution_loongarch : public Convolution
 {
 public:
     Convolution_loongarch();

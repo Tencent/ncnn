@@ -52,6 +52,7 @@
 #include "pass_level5/fuse_static_batchnorm.h"
 #include "pass_level5/fuse_static_conv.h"
 #include "pass_level5/fuse_static_convtranspose.h"
+#include "pass_level5/fuse_static_embedding.h"
 #include "pass_level5/fuse_static_groupnorm.h"
 #include "pass_level5/fuse_static_instancenorm.h"
 #include "pass_level5/fuse_static_layernorm.h"
@@ -100,6 +101,7 @@ void pass_level5(Graph& g, const std::set<std::string>& foldable_constants, cons
     fuse_static_conv(g);
     fuse_static_convtranspose(g);
     fuse_static_linear(g);
+    fuse_static_embedding(g);
 
     fuse_conv1d_batchnorm1d(g);
     fuse_conv2d_batchnorm2d(g);

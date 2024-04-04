@@ -25,6 +25,7 @@
 
 namespace ncnn {
 
+#if NCNN_GNU_INLINE_ASM
 #if __ARM_NEON
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 #include "convolutiondepthwise_3x3_fp16s.h"
@@ -32,6 +33,7 @@ namespace ncnn {
 #include "convolutiondepthwise_5x5_pack8_fp16s.h"
 #endif
 #endif // __ARM_NEON
+#endif // NCNN_GNU_INLINE_ASM
 
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 int ConvolutionDepthWise_arm::create_pipeline_fp16s(const Option& opt)
@@ -74,10 +76,7 @@ int ConvolutionDepthWise_arm::create_pipeline_fp16s(const Option& opt)
 
         ncnn::cast_float32_to_float16(bias_data, bias_data_fp16, opt);
 
-        if (opt.lightmode)
-        {
-            weight_data.release();
-        }
+        weight_data.release();
 
         return 0;
     }
@@ -85,10 +84,7 @@ int ConvolutionDepthWise_arm::create_pipeline_fp16s(const Option& opt)
     // group convolution
     create_group_ops(opt);
 
-    if (opt.lightmode)
-    {
-        weight_data.release();
-    }
+    weight_data.release();
 
     return 0;
 }
@@ -341,6 +337,7 @@ int ConvolutionDepthWise_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_bl
     {
         if (elempack == 8)
         {
+#if NCNN_GNU_INLINE_ASM
             if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
             {
                 convdw3x3s1_pack8_fp16sa_neon(bottom_blob_bordered, top_blob, weight_data_tm, bias_data_fp16, opt);
@@ -378,6 +375,7 @@ int ConvolutionDepthWise_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_bl
                 }
             }
             else
+#endif // NCNN_GNU_INLINE_ASM
             {
                 const int maxk = kernel_w * kernel_h;
 
@@ -427,7 +425,7 @@ int ConvolutionDepthWise_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_bl
                                 _sum = vfmaq_f16(_sum, _val, _w);
                             }
 
-                            _sum = activation_ps(_sum, activation_type, activation_params);
+                            _sum = activation_ps_f16(_sum, activation_type, activation_params);
 
                             vst1q_f16(outptr + j * 8, _sum);
                         }
@@ -489,7 +487,7 @@ int ConvolutionDepthWise_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_bl
                                 _sum = vfma_f16(_sum, _val, _w);
                             }
 
-                            _sum = activation_ps(_sum, activation_type, activation_params);
+                            _sum = activation_ps_f16(_sum, activation_type, activation_params);
 
                             vst1_f16(outptr + j * 4, _sum);
                         }
@@ -502,6 +500,7 @@ int ConvolutionDepthWise_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_bl
 
         if (elempack == 1)
         {
+#if NCNN_GNU_INLINE_ASM
             if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
             {
                 convdw3x3s1_fp16sa_neon(bottom_blob_bordered, top_blob, weight_data_tm, bias_data_fp16, opt);
@@ -521,6 +520,7 @@ int ConvolutionDepthWise_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_bl
                 }
             }
             else
+#endif // NCNN_GNU_INLINE_ASM
             {
                 const int maxk = kernel_w * kernel_h;
 
@@ -568,7 +568,7 @@ int ConvolutionDepthWise_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_bl
                                 sum += val * w;
                             }
 
-                            sum = activation_ss(sum, activation_type, activation_params);
+                            sum = activation_ss_f16(sum, activation_type, activation_params);
 
                             outptr[j] = (__fp16)sum;
                         }

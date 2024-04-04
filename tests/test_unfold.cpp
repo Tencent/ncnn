@@ -12,7 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "layer/unfold.h"
 #include "testutil.h"
 
 static int test_unfold(int w, int h, int c, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int pad_w, int pad_h, float pad_value)
@@ -32,7 +31,7 @@ static int test_unfold(int w, int h, int c, int kernel_w, int kernel_h, int dila
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer<ncnn::Unfold>("Unfold", pd, weights, a);
+    int ret = test_layer("Unfold", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_unfold failed w=%d h=%d c=%d kernel=%d,%d dilation=%d,%d stride=%d,%d pad=%d,%d pad_value=%f\n", w, h, c, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, pad_w, pad_h, pad_value);

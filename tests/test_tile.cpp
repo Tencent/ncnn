@@ -12,7 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "layer/tile.h"
 #include "testutil.h"
 
 static int test_tile(const ncnn::Mat& a, int axis, int tiles)
@@ -23,7 +22,7 @@ static int test_tile(const ncnn::Mat& a, int axis, int tiles)
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer<ncnn::Tile>("Tile", pd, weights, a);
+    int ret = test_layer("Tile", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_tile failed a.dims=%d a=(%d %d %d %d) axis=%d tiles=%d\n", a.dims, a.w, a.h, a.d, a.c, axis, tiles);
@@ -89,7 +88,7 @@ static int test_tile(const ncnn::Mat& a, const ncnn::Mat& repeats)
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer<ncnn::Tile>("Tile", pd, weights, a);
+    int ret = test_layer("Tile", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_tile failed a.dims=%d a=(%d %d %d %d) repeats=", a.dims, a.w, a.h, a.d, a.c);

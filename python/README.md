@@ -48,6 +48,12 @@ git submodule init && git submodule update
 python setup.py install
 ```
 
+If you want to use a custom toolchain, you can install with the `CMAKE_TOOLCHAIN_FILE` environment variable, like this:
+
+```
+CMAKE_TOOLCHAIN_FILE="../../toolchains/power9le-linux-gnu-vsx.clang.toolchain.cmake" python setup.py install
+```
+
 if you want to enable the usage of vulkan, you can install as following:
 
 ```
