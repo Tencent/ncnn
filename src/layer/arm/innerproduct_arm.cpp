@@ -406,7 +406,7 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
         return 0;
     }
 
-    if (bottom_blob.dims == 3 && bottom_blob.c  == num_input)
+    if (bottom_blob.dims == 3 && bottom_blob.c == num_input)
     {
         // 3d tensor input gemm
         int w = bottom_blob.w;
@@ -414,7 +414,7 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
         int c = bottom_blob.c; // num_input
         size_t elemsize = bottom_blob.elemsize;
         int elempack = bottom_blob.elempack;
-        ncnn::Mat bottom_blob_flattened = bottom_blob.reshape( c, w * h);
+        ncnn::Mat bottom_blob_flattened = bottom_blob.reshape(c, w * h);
 
         top_blob.create(num_output, w * h, elemsize, elempack, opt.blob_allocator);
         if (top_blob.empty())
@@ -640,9 +640,7 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
         top_blob = top_blob.reshape(w, h, num_output);
         return 0;
     }
-    
 
-    
     // flatten
     Mat bottom_blob_flattened = bottom_blob;
     if (bottom_blob.dims != 1)
