@@ -85,7 +85,28 @@ jobs:
         pip install pytest setuptools wheel twine
 
     - name: build
-      run: pip install .
+      if: matrix.os == 'ubuntu-latest'
+      env:
+        CC: clang
+        CXX: clang++
+      run: |
+        mkdir build && cd build
+        cmake -DNCNN_VULKAN=ON -DNCNN_PYTHON=ON ..
+        cmake --build . -j $(nproc)
+    - name: build
+      if: matrix.os == 'macos-latest'
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DPLATFORM=MAC -DARCHS="x86_64" -DNCNN_VULKAN=ON -DNCNN_PYTHON=ON ..
+        cmake --build . -j 4
+    - name: build
+      if: matrix.os == 'windows-latest'
+      run: |
+        mkdir build; cd build
+        cmake -T v142,host=x64 -A x64 -DNCNN_VULKAN=ON -DNCNN_PYTHON=ON ..
+        cmake --build . --config Release -j 4
+    - name: build-python
+      run: cd python && pip install .
     - name: test
       env:
         VK_ICD_FILENAMES: $GITHUB_WORKSPACE/swiftshader-install/vk_swiftshader_icd.json
