@@ -684,7 +684,7 @@ jobs:
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
         cd openmp-${{ env.OPENMP_VERSION }}.src
-        mkdir -p build-simulator-x86_64 && cd build-simulator-x86_64
+        mkdir -p build-x86_64 && cd build-x86_64
         cmake ${{ env.OPENMP_CMAKE_OPTIONS }} -DPLATFORM=SIMULATOR64 -DARCHS="x86_64" ..
         cmake --build . -j 4
         cmake --build . --target install/strip
@@ -692,7 +692,7 @@ jobs:
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
         cd openmp-${{ env.OPENMP_VERSION }}.src
-        mkdir -p build-simulator-arm64 && cd build-simulator-arm64
+        mkdir -p build-arm64 && cd build-arm64
         cmake ${{ env.OPENMP_CMAKE_OPTIONS }} -DPLATFORM=SIMULATORARM64 -DARCHS="arm64" ..
         cmake --build . -j 4
         cmake --build . --target install/strip
