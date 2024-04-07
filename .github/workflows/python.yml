@@ -40,8 +40,8 @@ jobs:
   build:
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-13, windows-latest]
-        python-version: [3.7, 3.9, 3.11]
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python-version: [3.9, 3.12]
 
     runs-on: ${{ matrix.os }}
 
@@ -95,25 +95,30 @@ jobs:
         CXX: clang++
       run: |
         mkdir build && cd build
-        cmake -DNCNN_VULKAN=ON -DNCNN_PYTHON=ON ..
+        cmake -DNCNN_VULKAN=ON -DNCNN_PYTHON=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
         cmake --build . -j $(nproc)
     - name: build
-      if: matrix.os == 'macos-13'
+      if: matrix.os == 'macos-latest'
       run: |
         mkdir build && cd build
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DPLATFORM=MAC -DARCHS="x86_64" \
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DPLATFORM=MAC_ARM64 -DARCHS="arm64" \
             -DDEPLOYMENT_TARGET=$MAC_DEPLOYMENT_TARGET -DENABLE_BITCODE=$ENABLE_BITCODE -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
-            -DNCNN_VULKAN=OFF -DNCNN_PYTHON=ON ..
+            -DNCNN_VULKAN=OFF -DNCNN_PYTHON=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
         cmake --build . -j 4
     - name: build
       if: matrix.os == 'windows-latest'
       run: |
         mkdir build; cd build
-        cmake -T v142,host=x64 -A x64 -DNCNN_VULKAN=OFF -DNCNN_PYTHON=ON ..
+        cmake -T v142,host=x64 -A x64 -DNCNN_VULKAN=OFF -DNCNN_PYTHON=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
         cmake --build . --config Release -j 4
     - name: build-python
       run: cd python && pip install .
     - name: test
+      if: matrix.os == 'ubuntu-latest'
       run: |
         export VK_ICD_FILENAMES="$GITHUB_WORKSPACE/swiftshader-install/vk_swiftshader_icd.json"
+        cd python && pytest tests
+    - name: test
+      if: matrix.os != 'ubuntu-latest'
+      run: |
         cd python && pytest tests
