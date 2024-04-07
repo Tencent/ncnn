@@ -103,13 +103,13 @@ jobs:
         mkdir build && cd build
         cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DPLATFORM=MAC -DARCHS="x86_64" \
             -DDEPLOYMENT_TARGET=$MAC_DEPLOYMENT_TARGET -DENABLE_BITCODE=$ENABLE_BITCODE -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
-            -DNCNN_VULKAN=ON -DNCNN_PYTHON=ON ..
+            -DNCNN_VULKAN=OFF -DNCNN_PYTHON=ON ..
         cmake --build . -j 4
     - name: build
       if: matrix.os == 'windows-latest'
       run: |
         mkdir build; cd build
-        cmake -T v142,host=x64 -A x64 -DNCNN_VULKAN=ON -DNCNN_PYTHON=ON ..
+        cmake -T v142,host=x64 -A x64 -DNCNN_VULKAN=OFF -DNCNN_PYTHON=ON ..
         cmake --build . --config Release -j 4
     - name: build-python
       run: cd python && pip install .
