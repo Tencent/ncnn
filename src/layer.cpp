@@ -320,18 +320,22 @@ public:
 #if NCNN_VULKAN
         if (layer_vulkan)
         {
+            int ret = 0;
             if (vkdev)
             {
-                int ret = layer_vulkan->load_param(pd);
+                ret = layer_vulkan->load_param(pd);
                 get_layer_properties();
-
-                if (layer_vulkan->support_vulkan)
-                    return ret;
             }
 
-            // fallback to cpu layer
-            delete layer_vulkan;
-            layer_vulkan = 0;
+            if (!support_vulkan || !vkdev)
+            {
+                // fallback to cpu layer
+                delete layer_vulkan;
+                layer_vulkan = 0;
+            }
+
+            if (ret)
+                return ret;
         }
 #endif // NCNN_VULKAN
 
@@ -345,9 +349,22 @@ public:
 #if NCNN_VULKAN
         if (layer_vulkan)
         {
-            int ret = layer_vulkan->load_model(mb);
-            get_layer_properties();
-            return ret;
+            int ret = 0;
+            if (vkdev)
+            {
+                ret = layer_vulkan->load_model(mb);
+                get_layer_properties();
+            }
+
+            if (!support_vulkan || !vkdev)
+            {
+                // fallback to cpu layer
+                delete layer_vulkan;
+                layer_vulkan = 0;
+            }
+
+            if (ret)
+                return ret;
         }
 #endif // NCNN_VULKAN
 
@@ -362,9 +379,22 @@ public:
 #if NCNN_VULKAN
         if (layer_vulkan)
         {
-            int ret = layer_vulkan->create_pipeline(opt);
-            get_layer_properties();
-            return ret;
+            int ret = 0;
+            if (vkdev)
+            {
+                ret = layer_vulkan->create_pipeline(opt);
+                get_layer_properties();
+            }
+
+            if (!support_vulkan || !vkdev)
+            {
+                // fallback to cpu layer
+                delete layer_vulkan;
+                layer_vulkan = 0;
+            }
+
+            if (ret)
+                return ret;
         }
 #endif // NCNN_VULKAN
 
