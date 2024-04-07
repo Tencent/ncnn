@@ -37,8 +37,8 @@ NCNN_EXPORT VkInstance get_gpu_instance();
 
 // Destroy VkInstance object and free the memory of the associated object
 // Usually called in the destructor of the main program exit
-// If need_wait != 0, it will wait for all devices to be idle before destroy
-NCNN_EXPORT void destroy_gpu_instance(int need_wait = 0);
+// The function will internally ensure that all vulkan devices are idle before proceeding with destruction.
+NCNN_EXPORT void destroy_gpu_instance();
 
 // vulkan core
 extern PFN_vkAllocateCommandBuffers vkAllocateCommandBuffers;
