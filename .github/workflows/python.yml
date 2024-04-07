@@ -114,6 +114,6 @@ jobs:
     - name: build-python
       run: cd python && pip install .
     - name: test
-      env:
-        VK_ICD_FILENAMES: $GITHUB_WORKSPACE/swiftshader-install/vk_swiftshader_icd.json
-      run: cd python && pytest tests
+      run: |
+        export VK_ICD_FILENAMES="$GITHUB_WORKSPACE/swiftshader-install/vk_swiftshader_icd.json"
+        cd python && pytest tests
