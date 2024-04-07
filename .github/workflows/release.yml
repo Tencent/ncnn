@@ -5,13 +5,13 @@ on:
       - '*'
 
 env:
-  DEVELOPER_DIR: /Applications/Xcode_13.4.1.app/Contents/Developer
-  IOS_DEPLOYMENT_TARGET: '9.0'
-  MAC_DEPLOYMENT_TARGET: '10.9'
-  MAC_ARM64_DEPLOYMENT_TARGET: '11.0'
+  DEVELOPER_DIR: /Applications/Xcode_15.2.app/Contents/Developer
+  IOS_DEPLOYMENT_TARGET: '13.0'
+  MAC_DEPLOYMENT_TARGET: '11.0'
   MAC_CATALYST_DEPLOYMENT_TARGET: '13.1'
-  WATCHOS_DEPLOYMENT_TARGET: '2.0'
-  TVOS_DEPLOYMENT_TARGET: '9.0'
+  WATCHOS_DEPLOYMENT_TARGET: '6.0'
+  TVOS_DEPLOYMENT_TARGET: '11.0'
+  VISIONOS_DEPLOYMENT_TARGET: '1.0'
   ENABLE_BITCODE: OFF
   ENABLE_ARC: OFF
   ENABLE_VISIBILITY: OFF
@@ -182,59 +182,70 @@ jobs:
         path: ${{ env.PACKAGENAME }}.zip
 
   openmp-macos:
-    runs-on: macos-12
+    runs-on: macos-13
+    env:
+      OPENMP_VERSION: '18.1.2'
+      OPENMP_CMAKE_OPTIONS: |
+        -DCMAKE_TOOLCHAIN_FILE=../../toolchains/ios.toolchain.cmake \
+        -DDEPLOYMENT_TARGET=$MAC_DEPLOYMENT_TARGET \
+        -DENABLE_BITCODE=$ENABLE_BITCODE \
+        -DENABLE_ARC=$ENABLE_ARC \
+        -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
+        -DCMAKE_INSTALL_PREFIX=install \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DPERL_EXECUTABLE=/usr/local/bin/perl \
+        -DLIBOMP_ENABLE_SHARED=OFF \
+        -DLIBOMP_OMPT_SUPPORT=OFF \
+        -DLIBOMP_USE_HWLOC=OFF \
     steps:
     - name: cache-openmp
       id: cache-openmp
       uses: actions/cache@v4
       with:
         path: openmp-install
-        key: openmp-macos-release-11.0.0-20230504
+        key: openmp-macos-release-18.1.2-20240403
     - name: checkout
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       uses: actions/checkout@v4
     - name: openmp
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
-        wget https://github.com/llvm/llvm-project/releases/download/llvmorg-11.0.0/openmp-11.0.0.src.tar.xz
-        tar -xf openmp-11.0.0.src.tar.xz
-        cd openmp-11.0.0.src
-        sed -i'' -e '/.size __kmp_unnamed_critical_addr/d' runtime/src/z_Linux_asm.S
-        sed -i'' -e 's/__kmp_unnamed_critical_addr/___kmp_unnamed_critical_addr/g' runtime/src/z_Linux_asm.S
+        wget https://github.com/llvm/llvm-project/releases/download/llvmorg-${{ env.OPENMP_VERSION }}/cmake-${{ env.OPENMP_VERSION }}.src.tar.xz
+        tar -xf cmake-${{ env.OPENMP_VERSION }}.src.tar.xz
+        wget https://github.com/llvm/llvm-project/releases/download/llvmorg-${{ env.OPENMP_VERSION }}/openmp-${{ env.OPENMP_VERSION }}.src.tar.xz
+        tar -xf openmp-${{ env.OPENMP_VERSION }}.src.tar.xz
+        mv cmake-${{ env.OPENMP_VERSION }}.src/Modules/* openmp-${{ env.OPENMP_VERSION }}.src/cmake/
+        cd openmp-${{ env.OPENMP_VERSION }}.src
+        wget https://github.com/nihui/llvm-project/commit/ef8c35bcf5d9cfdb0764ffde6a63c04ec715bc37.patch
+        patch -p2 -i ef8c35bcf5d9cfdb0764ffde6a63c04ec715bc37.patch
+        wget https://github.com/nihui/llvm-project/commit/5c12711f9a21f41bea70566bf15a4026804d6b20.patch
+        patch -p2 -i 5c12711f9a21f41bea70566bf15a4026804d6b20.patch
     - name: build-x86_64
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
-        cd openmp-11.0.0.src
-        mkdir build-x86_64 && cd build-x86_64
-        cmake -DCMAKE_TOOLCHAIN_FILE=../../toolchains/ios.toolchain.cmake -DPLATFORM=MAC -DARCHS="x86_64" \
-            -DDEPLOYMENT_TARGET=$MAC_DEPLOYMENT_TARGET -DENABLE_BITCODE=$ENABLE_BITCODE -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
-            -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
-            -DPERL_EXECUTABLE=/usr/local/bin/perl \
-            -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
-        cmake --build . -j 3
+        cd openmp-${{ env.OPENMP_VERSION }}.src
+        mkdir -p build-x86_64 && cd build-x86_64
+        cmake ${{ env.OPENMP_CMAKE_OPTIONS }} -DPLATFORM=MAC -DARCHS="x86_64" ..
+        cmake --build . -j 4
         cmake --build . --target install/strip
     - name: build-arm64
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
-        cd openmp-11.0.0.src
-        mkdir build-arm64 && cd build-arm64
-        cmake -DCMAKE_TOOLCHAIN_FILE=../../toolchains/ios.toolchain.cmake -DPLATFORM=MAC_ARM64 -DARCHS="arm64" \
-            -DDEPLOYMENT_TARGET=$MAC_ARM64_DEPLOYMENT_TARGET -DENABLE_BITCODE=$ENABLE_BITCODE -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
-            -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
-            -DPERL_EXECUTABLE=/usr/local/bin/perl \
-            -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
-        cmake --build . -j 3
+        cd openmp-${{ env.OPENMP_VERSION }}.src
+        mkdir -p build-arm64 && cd build-arm64
+        cmake ${{ env.OPENMP_CMAKE_OPTIONS }} -DPLATFORM=MAC_ARM64 -DARCHS="arm64" ..
+        cmake --build . -j 4
         cmake --build . --target install/strip
     - name: merge-fat-library
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
         rm -rf $GITHUB_WORKSPACE/openmp-install
         mkdir -p $GITHUB_WORKSPACE/openmp-install
-        cp -a openmp-11.0.0.src/build-x86_64/install/include $GITHUB_WORKSPACE/openmp-install
+        cp -a openmp-${{ env.OPENMP_VERSION }}.src/build-x86_64/install/include $GITHUB_WORKSPACE/openmp-install
         mkdir -p $GITHUB_WORKSPACE/openmp-install/lib
         lipo -create \
-            openmp-11.0.0.src/build-x86_64/install/lib/libomp.a \
-            openmp-11.0.0.src/build-arm64/install/lib/libomp.a \
+            openmp-${{ env.OPENMP_VERSION }}.src/build-x86_64/install/lib/libomp.a \
+            openmp-${{ env.OPENMP_VERSION }}.src/build-arm64/install/lib/libomp.a \
             -o $GITHUB_WORKSPACE/openmp-install/lib/libomp.a
     - name: upload
       uses: actions/upload-artifact@v4
@@ -244,9 +255,25 @@ jobs:
 
   macos:
     needs: [setup, openmp-macos]
-    runs-on: macos-12
+    runs-on: macos-13
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-macos
+      NCNN_CMAKE_OPTIONS: |
+        -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake \
+        -DDEPLOYMENT_TARGET=$MAC_DEPLOYMENT_TARGET \
+        -DENABLE_BITCODE=$ENABLE_BITCODE \
+        -DENABLE_ARC=$ENABLE_ARC \
+        -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
+        -DCMAKE_INSTALL_PREFIX=install \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
+        -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
+        -DOpenMP_libomp_LIBRARY="libomp.a" \
+        -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
+        -DNCNN_BUILD_TOOLS=OFF \
+        -DNCNN_BUILD_EXAMPLES=OFF \
+        -DNCNN_BUILD_BENCHMARK=OFF \
+
     steps:
     - uses: actions/checkout@v4
     - name: download-openmp-macos
@@ -261,26 +288,14 @@ jobs:
     - name: build-x86_64
       run: |
         mkdir build-x86_64 && cd build-x86_64
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DPLATFORM=MAC -DARCHS="x86_64" \
-            -DDEPLOYMENT_TARGET=$MAC_DEPLOYMENT_TARGET -DENABLE_BITCODE=$ENABLE_BITCODE -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
-            -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
-            -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
-            -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/libomp.a" \
-            -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=MAC -DARCHS="x86_64" ..
+        cmake --build . -j 4
         cmake --build . --target install/strip
     - name: build-arm64
       run: |
         mkdir build-arm64 && cd build-arm64
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DPLATFORM=MAC_ARM64 -DARCHS="arm64" \
-            -DDEPLOYMENT_TARGET=$MAC_ARM64_DEPLOYMENT_TARGET -DENABLE_BITCODE=$ENABLE_BITCODE -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
-            -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
-            -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
-            -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/libomp.a" \
-            -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=MAC_ARM64 -DARCHS="arm64" ..
+        cmake --build . -j 4
         cmake --build . --target install/strip
     - name: package-openmp
       run: |
@@ -293,7 +308,7 @@ jobs:
         ln -s Versions/Current/openmp openmp.framework/openmp
         cp openmp-macos/lib/libomp.a openmp.framework/Versions/A/openmp
         cp -a openmp-macos/include/* openmp.framework/Versions/A/Headers/
-        sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/11.0/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
+        sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/18.1/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
     - name: package
       run: |
         rm -rf ncnn.framework
@@ -316,9 +331,26 @@ jobs:
 
   macos-gpu:
     needs: [setup, openmp-macos]
-    runs-on: macos-12
+    runs-on: macos-13
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-macos-vulkan
+      NCNN_CMAKE_OPTIONS: |
+        -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake \
+        -DDEPLOYMENT_TARGET=$MAC_DEPLOYMENT_TARGET \
+        -DENABLE_BITCODE=$ENABLE_BITCODE \
+        -DENABLE_ARC=$ENABLE_ARC \
+        -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
+        -DCMAKE_INSTALL_PREFIX=install \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
+        -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
+        -DOpenMP_libomp_LIBRARY="libomp.a" \
+        -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
+        -DNCNN_VULKAN=ON \
+        -DNCNN_BUILD_TOOLS=OFF \
+        -DNCNN_BUILD_EXAMPLES=OFF \
+        -DNCNN_BUILD_BENCHMARK=OFF \
+
     steps:
     - uses: actions/checkout@v4
       with:
@@ -335,26 +367,14 @@ jobs:
     - name: build-x86_64
       run: |
         mkdir build-x86_64 && cd build-x86_64
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DPLATFORM=MAC -DARCHS="x86_64" \
-            -DDEPLOYMENT_TARGET=$MAC_DEPLOYMENT_TARGET -DENABLE_BITCODE=$ENABLE_BITCODE -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
-            -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
-            -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
-            -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/libomp.a" \
-            -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DNCNN_VULKAN=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=MAC -DARCHS="x86_64" ..
+        cmake --build . -j 4
         cmake --build . --target install/strip
     - name: build-arm64
       run: |
         mkdir build-arm64 && cd build-arm64
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DPLATFORM=MAC_ARM64 -DARCHS="arm64" \
-            -DDEPLOYMENT_TARGET=$MAC_ARM64_DEPLOYMENT_TARGET -DENABLE_BITCODE=$ENABLE_BITCODE -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
-            -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
-            -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
-            -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/libomp.a" \
-            -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DNCNN_VULKAN=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=MAC_ARM64 -DARCHS="arm64" ..
+        cmake --build . -j 4
         cmake --build . --target install/strip
     - name: package-openmp
       run: |
@@ -367,7 +387,7 @@ jobs:
         ln -s Versions/Current/openmp openmp.framework/openmp
         cp openmp-macos/lib/libomp.a openmp.framework/Versions/A/openmp
         cp -a openmp-macos/include/* openmp.framework/Versions/A/Headers/
-        sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/11.0/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
+        sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/18.1/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
     - name: package-glslang
       run: |
         rm -rf glslang.framework
@@ -403,73 +423,60 @@ jobs:
         path: ${{ env.PACKAGENAME }}.zip
 
   openmp-ios:
-    runs-on: macos-12
+    runs-on: macos-13
+    env:
+      OPENMP_VERSION: '18.1.2'
+      OPENMP_CMAKE_OPTIONS: |
+        -DCMAKE_TOOLCHAIN_FILE=../../toolchains/ios.toolchain.cmake \
+        -DDEPLOYMENT_TARGET=$IOS_DEPLOYMENT_TARGET \
+        -DENABLE_BITCODE=$ENABLE_BITCODE \
+        -DENABLE_ARC=$ENABLE_ARC \
+        -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
+        -DCMAKE_INSTALL_PREFIX=install \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DPERL_EXECUTABLE=/usr/local/bin/perl \
+        -DLIBOMP_ENABLE_SHARED=OFF \
+        -DLIBOMP_OMPT_SUPPORT=OFF \
+        -DLIBOMP_USE_HWLOC=OFF \
     steps:
     - name: cache-openmp
       id: cache-openmp
       uses: actions/cache@v4
       with:
         path: openmp-install
-        key: openmp-ios-release-11.0.0-20230504
+        key: openmp-ios-release-18.1.2-20240403
     - name: checkout
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       uses: actions/checkout@v4
     - name: openmp
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
-        wget https://github.com/llvm/llvm-project/releases/download/llvmorg-11.0.0/openmp-11.0.0.src.tar.xz
-        tar -xf openmp-11.0.0.src.tar.xz
-        cd openmp-11.0.0.src
-        sed -i'' -e '/.size __kmp_unnamed_critical_addr/d' runtime/src/z_Linux_asm.S
-        sed -i'' -e 's/__kmp_unnamed_critical_addr/___kmp_unnamed_critical_addr/g' runtime/src/z_Linux_asm.S
-    - name: build-armv7
-      if: steps.cache-openmp.outputs.cache-hit != 'true'
-      run: |
-        cd openmp-11.0.0.src
-        mkdir -p build-armv7 && cd build-armv7
-        cmake -DCMAKE_TOOLCHAIN_FILE=../../toolchains/ios.toolchain.cmake -DPLATFORM=OS -DARCHS="armv7" \
-            -DDEPLOYMENT_TARGET=$IOS_DEPLOYMENT_TARGET -DENABLE_BITCODE=$ENABLE_BITCODE -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
-            -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
-            -DPERL_EXECUTABLE=/usr/local/bin/perl \
-            -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
-        cmake --build . -j 3
-        cmake --build . --target install/strip
+        wget https://github.com/llvm/llvm-project/releases/download/llvmorg-${{ env.OPENMP_VERSION }}/cmake-${{ env.OPENMP_VERSION }}.src.tar.xz
+        tar -xf cmake-${{ env.OPENMP_VERSION }}.src.tar.xz
+        wget https://github.com/llvm/llvm-project/releases/download/llvmorg-${{ env.OPENMP_VERSION }}/openmp-${{ env.OPENMP_VERSION }}.src.tar.xz
+        tar -xf openmp-${{ env.OPENMP_VERSION }}.src.tar.xz
+        mv cmake-${{ env.OPENMP_VERSION }}.src/Modules/* openmp-${{ env.OPENMP_VERSION }}.src/cmake/
+        cd openmp-${{ env.OPENMP_VERSION }}.src
+        wget https://github.com/nihui/llvm-project/commit/ef8c35bcf5d9cfdb0764ffde6a63c04ec715bc37.patch
+        patch -p2 -i ef8c35bcf5d9cfdb0764ffde6a63c04ec715bc37.patch
+        wget https://github.com/nihui/llvm-project/commit/5c12711f9a21f41bea70566bf15a4026804d6b20.patch
+        patch -p2 -i 5c12711f9a21f41bea70566bf15a4026804d6b20.patch
     - name: build-arm64
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
-        cd openmp-11.0.0.src
+        cd openmp-${{ env.OPENMP_VERSION }}.src
         mkdir -p build-arm64 && cd build-arm64
-        cmake -DCMAKE_TOOLCHAIN_FILE=../../toolchains/ios.toolchain.cmake -DPLATFORM=OS64 -DARCHS="arm64" \
-            -DDEPLOYMENT_TARGET=$IOS_DEPLOYMENT_TARGET -DENABLE_BITCODE=$ENABLE_BITCODE -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
-            -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
-            -DPERL_EXECUTABLE=/usr/local/bin/perl \
-            -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
-        cmake --build . -j 3
-        cmake --build . --target install/strip
-    - name: build-arm64e
-      if: steps.cache-openmp.outputs.cache-hit != 'true'
-      run: |
-        cd openmp-11.0.0.src
-        mkdir -p build-arm64e && cd build-arm64e
-        cmake -DCMAKE_TOOLCHAIN_FILE=../../toolchains/ios.toolchain.cmake -DPLATFORM=OS64 -DARCHS="arm64e" \
-            -DDEPLOYMENT_TARGET=$IOS_DEPLOYMENT_TARGET -DENABLE_BITCODE=$ENABLE_BITCODE -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
-            -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
-            -DPERL_EXECUTABLE=/usr/local/bin/perl \
-            -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
-        cmake --build . -j 3
+        cmake ${{ env.OPENMP_CMAKE_OPTIONS }} -DPLATFORM=OS64 -DARCHS="arm64" ..
+        cmake --build . -j 4
         cmake --build . --target install/strip
     - name: merge-fat-library
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
         rm -rf $GITHUB_WORKSPACE/openmp-install
         mkdir -p $GITHUB_WORKSPACE/openmp-install
-        cp -a openmp-11.0.0.src/build-arm64/install/include $GITHUB_WORKSPACE/openmp-install
+        cp -a openmp-${{ env.OPENMP_VERSION }}.src/build-arm64/install/include $GITHUB_WORKSPACE/openmp-install
         mkdir -p $GITHUB_WORKSPACE/openmp-install/lib
-        lipo -create \
-            openmp-11.0.0.src/build-armv7/install/lib/libomp.a \
-            openmp-11.0.0.src/build-arm64/install/lib/libomp.a \
-            openmp-11.0.0.src/build-arm64e/install/lib/libomp.a \
-            -o $GITHUB_WORKSPACE/openmp-install/lib/libomp.a
+        cp openmp-${{ env.OPENMP_VERSION }}.src/build-arm64/install/lib/libomp.a $GITHUB_WORKSPACE/openmp-install/lib/libomp.a
     - name: upload
       uses: actions/upload-artifact@v4
       with:
@@ -478,9 +485,23 @@ jobs:
 
   ios:
     needs: [setup, openmp-ios]
-    runs-on: macos-12
+    runs-on: macos-13
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ios
+      NCNN_CMAKE_OPTIONS: |
+        -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake \
+        -DDEPLOYMENT_TARGET=$IOS_DEPLOYMENT_TARGET \
+        -DENABLE_BITCODE=$ENABLE_BITCODE \
+        -DENABLE_ARC=$ENABLE_ARC \
+        -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
+        -DCMAKE_INSTALL_PREFIX=install \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
+        -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
+        -DOpenMP_libomp_LIBRARY="libomp.a" \
+        -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
+        -DNCNN_BUILD_BENCHMARK=OFF \
+
     steps:
     - uses: actions/checkout@v4
     - name: download-openmp-ios
@@ -492,41 +513,11 @@ jobs:
       run: |
         sudo cp openmp-ios/include/* $DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/include
         sudo cp openmp-ios/lib/libomp.a $DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib
-    - name: build-armv7
-      run: |
-        mkdir build-armv7 && cd build-armv7
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DPLATFORM=OS -DARCHS="armv7" \
-            -DDEPLOYMENT_TARGET=$IOS_DEPLOYMENT_TARGET -DENABLE_BITCODE=$ENABLE_BITCODE -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
-            -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
-            -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
-            -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib/libomp.a" \
-            -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
-        cmake --build . --target install/strip
     - name: build-arm64
       run: |
         mkdir build-arm64 && cd build-arm64
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DPLATFORM=OS64 -DARCHS="arm64" \
-            -DDEPLOYMENT_TARGET=$IOS_DEPLOYMENT_TARGET -DENABLE_BITCODE=$ENABLE_BITCODE -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
-            -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
-            -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
-            -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib/libomp.a" \
-            -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
-        cmake --build . --target install/strip
-    - name: build-arm64e
-      run: |
-        mkdir build-arm64e && cd build-arm64e
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DPLATFORM=OS64 -DARCHS="arm64e" \
-            -DDEPLOYMENT_TARGET=$IOS_DEPLOYMENT_TARGET -DENABLE_BITCODE=$ENABLE_BITCODE -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
-            -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
-            -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
-            -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib/libomp.a" \
-            -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=OS64 -DARCHS="arm64" ..
+        cmake --build . -j 4
         cmake --build . --target install/strip
     - name: package-openmp
       run: |
@@ -539,7 +530,7 @@ jobs:
         ln -s Versions/Current/openmp openmp.framework/openmp
         cp openmp-ios/lib/libomp.a openmp.framework/Versions/A/openmp
         cp -a openmp-ios/include/* openmp.framework/Versions/A/Headers/
-        sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/11.0/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
+        sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/18.1/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
     - name: package
       run: |
         rm -rf ncnn.framework
@@ -549,11 +540,7 @@ jobs:
         ln -s Versions/Current/Headers ncnn.framework/Headers
         ln -s Versions/Current/Resources ncnn.framework/Resources
         ln -s Versions/Current/ncnn ncnn.framework/ncnn
-        lipo -create \
-            build-armv7/install/lib/libncnn.a \
-            build-arm64/install/lib/libncnn.a \
-            build-arm64e/install/lib/libncnn.a \
-            -o ncnn.framework/Versions/A/ncnn
+        cp build-arm64/install/lib/libncnn.a ncnn.framework/Versions/A/ncnn
         cp -a build-arm64/install/include/* ncnn.framework/Versions/A/Headers/
         sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
         rm -f ${{ env.PACKAGENAME }}.zip
@@ -566,9 +553,24 @@ jobs:
 
   ios-gpu:
     needs: [setup, openmp-ios]
-    runs-on: macos-12
+    runs-on: macos-13
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ios-vulkan
+      NCNN_CMAKE_OPTIONS: |
+        -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake \
+        -DDEPLOYMENT_TARGET=$IOS_DEPLOYMENT_TARGET \
+        -DENABLE_BITCODE=$ENABLE_BITCODE \
+        -DENABLE_ARC=$ENABLE_ARC \
+        -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
+        -DCMAKE_INSTALL_PREFIX=install \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
+        -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
+        -DOpenMP_libomp_LIBRARY="libomp.a" \
+        -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
+        -DNCNN_VULKAN=ON \
+        -DNCNN_BUILD_BENCHMARK=OFF \
+
     steps:
     - uses: actions/checkout@v4
       with:
@@ -585,26 +587,8 @@ jobs:
     - name: build-arm64
       run: |
         mkdir build-arm64 && cd build-arm64
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DPLATFORM=OS64 -DARCHS="arm64" \
-            -DDEPLOYMENT_TARGET=$IOS_DEPLOYMENT_TARGET -DENABLE_BITCODE=$ENABLE_BITCODE -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
-            -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
-            -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
-            -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib/libomp.a" \
-            -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
-        cmake --build . --target install/strip
-    - name: build-arm64e
-      run: |
-        mkdir build-arm64e && cd build-arm64e
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DPLATFORM=OS64 -DARCHS="arm64e" \
-            -DDEPLOYMENT_TARGET=$IOS_DEPLOYMENT_TARGET -DENABLE_BITCODE=$ENABLE_BITCODE -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
-            -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
-            -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
-            -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib/libomp.a" \
-            -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=OS64 -DARCHS="arm64" ..
+        cmake --build . -j 4
         cmake --build . --target install/strip
     - name: package-openmp
       run: |
@@ -617,7 +601,7 @@ jobs:
         ln -s Versions/Current/openmp openmp.framework/openmp
         cp openmp-ios/lib/libomp.a openmp.framework/Versions/A/openmp
         cp -a openmp-ios/include/* openmp.framework/Versions/A/Headers/
-        sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/11.0/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
+        sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/18.1/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
     - name: package-glslang
       run: |
         rm -rf glslang.framework
@@ -635,18 +619,7 @@ jobs:
             build-arm64/install/lib/libOGLCompiler.a \
             build-arm64/install/lib/libOSDependent.a \
             -o build-arm64/install/lib/libglslang_combined.a
-        libtool -static \
-            build-arm64e/install/lib/libglslang.a \
-            build-arm64e/install/lib/libMachineIndependent.a \
-            build-arm64e/install/lib/libGenericCodeGen.a \
-            build-arm64e/install/lib/libSPIRV.a \
-            build-arm64e/install/lib/libOGLCompiler.a \
-            build-arm64e/install/lib/libOSDependent.a \
-            -o build-arm64e/install/lib/libglslang_combined.a
-        lipo -create \
-            build-arm64/install/lib/libglslang_combined.a \
-            build-arm64e/install/lib/libglslang_combined.a \
-            -o glslang.framework/Versions/A/glslang
+        cp build-arm64/install/lib/libglslang_combined.a glslang.framework/Versions/A/glslang
         cp -a build-arm64/install/include/glslang glslang.framework/Versions/A/Headers/
         sed -e 's/__NAME__/glslang/g' -e 's/__IDENTIFIER__/org.khronos.glslang/g' -e 's/__VERSION__/1.0/g' Info.plist > glslang.framework/Versions/A/Resources/Info.plist
     - name: package
@@ -658,280 +631,7 @@ jobs:
         ln -s Versions/Current/Headers ncnn.framework/Headers
         ln -s Versions/Current/Resources ncnn.framework/Resources
         ln -s Versions/Current/ncnn ncnn.framework/ncnn
-        lipo -create \
-            build-arm64/install/lib/libncnn.a \
-            build-arm64e/install/lib/libncnn.a \
-            -o ncnn.framework/Versions/A/ncnn
-        cp -a build-arm64/install/include/ncnn ncnn.framework/Versions/A/Headers/
-        sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
-        rm -f ${{ env.PACKAGENAME }}.zip
-        zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework glslang.framework ncnn.framework
-    - name: upload-zip
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ env.PACKAGENAME }}
-        path: ${{ env.PACKAGENAME }}.zip
-
-  openmp-ios-bitcode:
-    runs-on: macos-12
-    steps:
-    - name: cache-openmp
-      id: cache-openmp
-      uses: actions/cache@v4
-      with:
-        path: openmp-install
-        key: openmp-ios-bitcode-release-11.0.0-20230504
-    - name: checkout
-      if: steps.cache-openmp.outputs.cache-hit != 'true'
-      uses: actions/checkout@v4
-    - name: openmp
-      if: steps.cache-openmp.outputs.cache-hit != 'true'
-      run: |
-        wget https://github.com/llvm/llvm-project/releases/download/llvmorg-11.0.0/openmp-11.0.0.src.tar.xz
-        tar -xf openmp-11.0.0.src.tar.xz
-        cd openmp-11.0.0.src
-        sed -i'' -e '/.size __kmp_unnamed_critical_addr/d' runtime/src/z_Linux_asm.S
-        sed -i'' -e 's/__kmp_unnamed_critical_addr/___kmp_unnamed_critical_addr/g' runtime/src/z_Linux_asm.S
-    - name: build-armv7
-      if: steps.cache-openmp.outputs.cache-hit != 'true'
-      run: |
-        cd openmp-11.0.0.src
-        mkdir -p build-armv7 && cd build-armv7
-        cmake -DCMAKE_TOOLCHAIN_FILE=../../toolchains/ios.toolchain.cmake -DPLATFORM=OS -DARCHS="armv7" \
-            -DDEPLOYMENT_TARGET=$IOS_DEPLOYMENT_TARGET -DENABLE_BITCODE=ON -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
-            -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
-            -DPERL_EXECUTABLE=/usr/local/bin/perl \
-            -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
-        cmake --build . -j 3
-        cmake --build . --target install/strip
-    - name: build-arm64
-      if: steps.cache-openmp.outputs.cache-hit != 'true'
-      run: |
-        cd openmp-11.0.0.src
-        mkdir -p build-arm64 && cd build-arm64
-        cmake -DCMAKE_TOOLCHAIN_FILE=../../toolchains/ios.toolchain.cmake -DPLATFORM=OS64 -DARCHS="arm64" \
-            -DDEPLOYMENT_TARGET=$IOS_DEPLOYMENT_TARGET -DENABLE_BITCODE=ON -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
-            -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
-            -DPERL_EXECUTABLE=/usr/local/bin/perl \
-            -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
-        cmake --build . -j 3
-        cmake --build . --target install/strip
-    - name: build-arm64e
-      if: steps.cache-openmp.outputs.cache-hit != 'true'
-      run: |
-        cd openmp-11.0.0.src
-        mkdir -p build-arm64e && cd build-arm64e
-        cmake -DCMAKE_TOOLCHAIN_FILE=../../toolchains/ios.toolchain.cmake -DPLATFORM=OS64 -DARCHS="arm64e" \
-            -DDEPLOYMENT_TARGET=$IOS_DEPLOYMENT_TARGET -DENABLE_BITCODE=ON -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
-            -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
-            -DPERL_EXECUTABLE=/usr/local/bin/perl \
-            -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
-        cmake --build . -j 3
-        cmake --build . --target install/strip
-    - name: merge-fat-library
-      if: steps.cache-openmp.outputs.cache-hit != 'true'
-      run: |
-        rm -rf $GITHUB_WORKSPACE/openmp-install
-        mkdir -p $GITHUB_WORKSPACE/openmp-install
-        cp -a openmp-11.0.0.src/build-arm64/install/include $GITHUB_WORKSPACE/openmp-install
-        mkdir -p $GITHUB_WORKSPACE/openmp-install/lib
-        lipo -create \
-            openmp-11.0.0.src/build-armv7/install/lib/libomp.a \
-            openmp-11.0.0.src/build-arm64/install/lib/libomp.a \
-            openmp-11.0.0.src/build-arm64e/install/lib/libomp.a \
-            -o $GITHUB_WORKSPACE/openmp-install/lib/libomp.a
-    - name: upload
-      uses: actions/upload-artifact@v4
-      with:
-        name: openmp-ios-bitcode
-        path: openmp-install
-
-  ios-bitcode:
-    needs: [setup, openmp-ios-bitcode]
-    runs-on: macos-12
-    env:
-      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ios-bitcode
-    steps:
-    - uses: actions/checkout@v4
-    - name: download-openmp-ios-bitcode
-      uses: actions/download-artifact@v4
-      with:
-        name: openmp-ios-bitcode
-        path: openmp-ios-bitcode
-    - name: install-openmp
-      run: |
-        sudo cp openmp-ios-bitcode/include/* $DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/include
-        sudo cp openmp-ios-bitcode/lib/libomp.a $DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib
-    - name: build-armv7
-      run: |
-        mkdir build-armv7 && cd build-armv7
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DPLATFORM=OS -DARCHS="armv7" \
-            -DDEPLOYMENT_TARGET=$IOS_DEPLOYMENT_TARGET -DENABLE_BITCODE=ON -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
-            -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
-            -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
-            -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib/libomp.a" \
-            -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
-        cmake --build . --target install/strip
-    - name: build-arm64
-      run: |
-        mkdir build-arm64 && cd build-arm64
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DPLATFORM=OS64 -DARCHS="arm64" \
-            -DDEPLOYMENT_TARGET=$IOS_DEPLOYMENT_TARGET -DENABLE_BITCODE=ON -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
-            -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
-            -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
-            -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib/libomp.a" \
-            -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
-        cmake --build . --target install/strip
-    - name: build-arm64e
-      run: |
-        mkdir build-arm64e && cd build-arm64e
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DPLATFORM=OS64 -DARCHS="arm64e" \
-            -DDEPLOYMENT_TARGET=$IOS_DEPLOYMENT_TARGET -DENABLE_BITCODE=ON -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
-            -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
-            -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
-            -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib/libomp.a" \
-            -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
-        cmake --build . --target install/strip
-    - name: package-openmp
-      run: |
-        rm -rf openmp.framework
-        mkdir -p openmp.framework/Versions/A/Headers
-        mkdir -p openmp.framework/Versions/A/Resources
-        ln -s A openmp.framework/Versions/Current
-        ln -s Versions/Current/Headers openmp.framework/Headers
-        ln -s Versions/Current/Resources openmp.framework/Resources
-        ln -s Versions/Current/openmp openmp.framework/openmp
-        cp openmp-ios-bitcode/lib/libomp.a openmp.framework/Versions/A/openmp
-        cp -a openmp-ios-bitcode/include/* openmp.framework/Versions/A/Headers/
-        sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/11.0/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
-    - name: package
-      run: |
-        rm -rf ncnn.framework
-        mkdir -p ncnn.framework/Versions/A/Headers
-        mkdir -p ncnn.framework/Versions/A/Resources
-        ln -s A ncnn.framework/Versions/Current
-        ln -s Versions/Current/Headers ncnn.framework/Headers
-        ln -s Versions/Current/Resources ncnn.framework/Resources
-        ln -s Versions/Current/ncnn ncnn.framework/ncnn
-        lipo -create \
-            build-armv7/install/lib/libncnn.a \
-            build-arm64/install/lib/libncnn.a \
-            build-arm64e/install/lib/libncnn.a \
-            -o ncnn.framework/Versions/A/ncnn
-        cp -a build-arm64/install/include/* ncnn.framework/Versions/A/Headers/
-        sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
-        rm -f ${{ env.PACKAGENAME }}.zip
-        zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework ncnn.framework
-    - name: upload-zip
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ env.PACKAGENAME }}
-        path: ${{ env.PACKAGENAME }}.zip
-
-  ios-gpu-bitcode:
-    needs: [setup, openmp-ios-bitcode]
-    runs-on: macos-12
-    env:
-      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ios-vulkan-bitcode
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: true
-    - name: download-openmp-ios-bitcode
-      uses: actions/download-artifact@v4
-      with:
-        name: openmp-ios-bitcode
-        path: openmp-ios-bitcode
-    - name: install-openmp
-      run: |
-        sudo cp openmp-ios-bitcode/include/* $DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/include
-        sudo cp openmp-ios-bitcode/lib/libomp.a $DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib
-    - name: build-arm64
-      run: |
-        mkdir build-arm64 && cd build-arm64
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DPLATFORM=OS64 -DARCHS="arm64" \
-            -DDEPLOYMENT_TARGET=$IOS_DEPLOYMENT_TARGET -DENABLE_BITCODE=ON -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
-            -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
-            -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
-            -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib/libomp.a" \
-            -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
-        cmake --build . --target install/strip
-    - name: build-arm64e
-      run: |
-        mkdir build-arm64e && cd build-arm64e
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DPLATFORM=OS64 -DARCHS="arm64e" \
-            -DDEPLOYMENT_TARGET=$IOS_DEPLOYMENT_TARGET -DENABLE_BITCODE=ON -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
-            -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
-            -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
-            -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib/libomp.a" \
-            -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
-        cmake --build . --target install/strip
-    - name: package-openmp
-      run: |
-        rm -rf openmp.framework
-        mkdir -p openmp.framework/Versions/A/Headers
-        mkdir -p openmp.framework/Versions/A/Resources
-        ln -s A openmp.framework/Versions/Current
-        ln -s Versions/Current/Headers openmp.framework/Headers
-        ln -s Versions/Current/Resources openmp.framework/Resources
-        ln -s Versions/Current/openmp openmp.framework/openmp
-        cp openmp-ios-bitcode/lib/libomp.a openmp.framework/Versions/A/openmp
-        cp -a openmp-ios-bitcode/include/* openmp.framework/Versions/A/Headers/
-        sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/11.0/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
-    - name: package-glslang
-      run: |
-        rm -rf glslang.framework
-        mkdir -p glslang.framework/Versions/A/Headers
-        mkdir -p glslang.framework/Versions/A/Resources
-        ln -s A glslang.framework/Versions/Current
-        ln -s Versions/Current/Headers glslang.framework/Headers
-        ln -s Versions/Current/Resources glslang.framework/Resources
-        ln -s Versions/Current/glslang glslang.framework/glslang
-        libtool -static \
-            build-arm64/install/lib/libglslang.a \
-            build-arm64/install/lib/libMachineIndependent.a \
-            build-arm64/install/lib/libGenericCodeGen.a \
-            build-arm64/install/lib/libSPIRV.a \
-            build-arm64/install/lib/libOGLCompiler.a \
-            build-arm64/install/lib/libOSDependent.a \
-            -o build-arm64/install/lib/libglslang_combined.a
-        libtool -static \
-            build-arm64e/install/lib/libglslang.a \
-            build-arm64e/install/lib/libMachineIndependent.a \
-            build-arm64e/install/lib/libGenericCodeGen.a \
-            build-arm64e/install/lib/libSPIRV.a \
-            build-arm64e/install/lib/libOGLCompiler.a \
-            build-arm64e/install/lib/libOSDependent.a \
-            -o build-arm64e/install/lib/libglslang_combined.a
-        lipo -create \
-            build-arm64/install/lib/libglslang_combined.a \
-            build-arm64e/install/lib/libglslang_combined.a \
-            -o glslang.framework/Versions/A/glslang
-        cp -a build-arm64/install/include/glslang glslang.framework/Versions/A/Headers/
-        sed -e 's/__NAME__/glslang/g' -e 's/__IDENTIFIER__/org.khronos.glslang/g' -e 's/__VERSION__/1.0/g' Info.plist > glslang.framework/Versions/A/Resources/Info.plist
-    - name: package
-      run: |
-        rm -rf ncnn.framework
-        mkdir -p ncnn.framework/Versions/A/Headers
-        mkdir -p ncnn.framework/Versions/A/Resources
-        ln -s A ncnn.framework/Versions/Current
-        ln -s Versions/Current/Headers ncnn.framework/Headers
-        ln -s Versions/Current/Resources ncnn.framework/Resources
-        ln -s Versions/Current/ncnn ncnn.framework/ncnn
-        lipo -create \
-            build-arm64/install/lib/libncnn.a \
-            build-arm64e/install/lib/libncnn.a \
-            -o ncnn.framework/Versions/A/ncnn
+        cp build-arm64/install/lib/libncnn.a ncnn.framework/Versions/A/ncnn
         cp -a build-arm64/install/include/ncnn ncnn.framework/Versions/A/Headers/
         sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
         rm -f ${{ env.PACKAGENAME }}.zip
@@ -943,72 +643,70 @@ jobs:
         path: ${{ env.PACKAGENAME }}.zip
 
   openmp-ios-simulator:
-    runs-on: macos-12
+    runs-on: macos-13
+    env:
+      OPENMP_VERSION: '18.1.2'
+      OPENMP_CMAKE_OPTIONS: |
+        -DCMAKE_TOOLCHAIN_FILE=../../toolchains/ios.toolchain.cmake \
+        -DDEPLOYMENT_TARGET=$IOS_DEPLOYMENT_TARGET \
+        -DENABLE_BITCODE=$ENABLE_BITCODE \
+        -DENABLE_ARC=$ENABLE_ARC \
+        -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
+        -DCMAKE_INSTALL_PREFIX=install \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DPERL_EXECUTABLE=/usr/local/bin/perl \
+        -DLIBOMP_ENABLE_SHARED=OFF \
+        -DLIBOMP_OMPT_SUPPORT=OFF \
+        -DLIBOMP_USE_HWLOC=OFF \
     steps:
     - name: cache-openmp
       id: cache-openmp
       uses: actions/cache@v4
       with:
         path: openmp-install
-        key: openmp-ios-simulator-release-11.0.0-20230504
+        key: openmp-ios-simulator-release-18.1.2-20240403
     - name: checkout
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       uses: actions/checkout@v4
     - name: openmp
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
-        wget https://github.com/llvm/llvm-project/releases/download/llvmorg-11.0.0/openmp-11.0.0.src.tar.xz
-        tar -xf openmp-11.0.0.src.tar.xz
-        cd openmp-11.0.0.src
-        sed -i'' -e '/.size __kmp_unnamed_critical_addr/d' runtime/src/z_Linux_asm.S
-        sed -i'' -e 's/__kmp_unnamed_critical_addr/___kmp_unnamed_critical_addr/g' runtime/src/z_Linux_asm.S
-    - name: build-i386
-      if: steps.cache-openmp.outputs.cache-hit != 'true'
-      run: |
-        cd openmp-11.0.0.src
-        mkdir -p build-i386 && cd build-i386
-        cmake -DCMAKE_TOOLCHAIN_FILE=../../toolchains/ios.toolchain.cmake -DPLATFORM=SIMULATOR -DARCHS="i386" \
-            -DDEPLOYMENT_TARGET=$IOS_DEPLOYMENT_TARGET -DENABLE_BITCODE=$ENABLE_BITCODE -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
-            -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
-            -DPERL_EXECUTABLE=/usr/local/bin/perl \
-            -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
-        cmake --build . -j 3
-        cmake --build . --target install/strip
+        wget https://github.com/llvm/llvm-project/releases/download/llvmorg-${{ env.OPENMP_VERSION }}/cmake-${{ env.OPENMP_VERSION }}.src.tar.xz
+        tar -xf cmake-${{ env.OPENMP_VERSION }}.src.tar.xz
+        wget https://github.com/llvm/llvm-project/releases/download/llvmorg-${{ env.OPENMP_VERSION }}/openmp-${{ env.OPENMP_VERSION }}.src.tar.xz
+        tar -xf openmp-${{ env.OPENMP_VERSION }}.src.tar.xz
+        mv cmake-${{ env.OPENMP_VERSION }}.src/Modules/* openmp-${{ env.OPENMP_VERSION }}.src/cmake/
+        cd openmp-${{ env.OPENMP_VERSION }}.src
+        wget https://github.com/nihui/llvm-project/commit/ef8c35bcf5d9cfdb0764ffde6a63c04ec715bc37.patch
+        patch -p2 -i ef8c35bcf5d9cfdb0764ffde6a63c04ec715bc37.patch
+        wget https://github.com/nihui/llvm-project/commit/5c12711f9a21f41bea70566bf15a4026804d6b20.patch
+        patch -p2 -i 5c12711f9a21f41bea70566bf15a4026804d6b20.patch
     - name: build-x86_64
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
-        cd openmp-11.0.0.src
+        cd openmp-${{ env.OPENMP_VERSION }}.src
         mkdir -p build-x86_64 && cd build-x86_64
-        cmake -DCMAKE_TOOLCHAIN_FILE=../../toolchains/ios.toolchain.cmake -DPLATFORM=SIMULATOR64 -DARCHS="x86_64" \
-            -DDEPLOYMENT_TARGET=$IOS_DEPLOYMENT_TARGET -DENABLE_BITCODE=$ENABLE_BITCODE -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
-            -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
-            -DPERL_EXECUTABLE=/usr/local/bin/perl \
-            -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
-        cmake --build . -j 3
+        cmake ${{ env.OPENMP_CMAKE_OPTIONS }} -DPLATFORM=SIMULATOR64 -DARCHS="x86_64" ..
+        cmake --build . -j 4
         cmake --build . --target install/strip
     - name: build-arm64
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
-        cd openmp-11.0.0.src
+        cd openmp-${{ env.OPENMP_VERSION }}.src
         mkdir -p build-arm64 && cd build-arm64
-        cmake -DCMAKE_TOOLCHAIN_FILE=../../toolchains/ios.toolchain.cmake -DPLATFORM=SIMULATORARM64 -DARCHS="arm64" \
-            -DDEPLOYMENT_TARGET=$IOS_DEPLOYMENT_TARGET -DENABLE_BITCODE=$ENABLE_BITCODE -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
-            -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
-            -DPERL_EXECUTABLE=/usr/local/bin/perl \
-            -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
-        cmake --build . -j 3
+        cmake ${{ env.OPENMP_CMAKE_OPTIONS }} -DPLATFORM=SIMULATORARM64 -DARCHS="arm64" ..
+        cmake --build . -j 4
         cmake --build . --target install/strip
     - name: merge-fat-library
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
         rm -rf $GITHUB_WORKSPACE/openmp-install
         mkdir -p $GITHUB_WORKSPACE/openmp-install
-        cp -a openmp-11.0.0.src/build-x86_64/install/include $GITHUB_WORKSPACE/openmp-install
+        cp -a openmp-${{ env.OPENMP_VERSION }}.src/build-x86_64/install/include $GITHUB_WORKSPACE/openmp-install
         mkdir -p $GITHUB_WORKSPACE/openmp-install/lib
         lipo -create \
-            openmp-11.0.0.src/build-i386/install/lib/libomp.a \
-            openmp-11.0.0.src/build-x86_64/install/lib/libomp.a \
-            openmp-11.0.0.src/build-arm64/install/lib/libomp.a \
+            openmp-${{ env.OPENMP_VERSION }}.src/build-x86_64/install/lib/libomp.a \
+            openmp-${{ env.OPENMP_VERSION }}.src/build-arm64/install/lib/libomp.a \
             -o $GITHUB_WORKSPACE/openmp-install/lib/libomp.a
     - name: upload
       uses: actions/upload-artifact@v4
@@ -1018,12 +716,26 @@ jobs:
 
   ios-simulator:
     needs: [setup, openmp-ios-simulator]
-    runs-on: macos-12
+    runs-on: macos-13
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator
+      NCNN_CMAKE_OPTIONS: |
+        -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake \
+        -DDEPLOYMENT_TARGET=$IOS_DEPLOYMENT_TARGET \
+        -DENABLE_BITCODE=$ENABLE_BITCODE \
+        -DENABLE_ARC=$ENABLE_ARC \
+        -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
+        -DCMAKE_INSTALL_PREFIX=install \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
+        -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
+        -DOpenMP_libomp_LIBRARY="libomp.a" \
+        -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
+        -DNCNN_BUILD_BENCHMARK=OFF \
+
     steps:
     - uses: actions/checkout@v4
-    - name: download-openmp-ios
+    - name: download-openmp-ios-simulator
       uses: actions/download-artifact@v4
       with:
         name: openmp-ios-simulator
@@ -1032,41 +744,17 @@ jobs:
       run: |
         sudo cp openmp-ios-simulator/include/* $DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/include
         sudo cp openmp-ios-simulator/lib/libomp.a $DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/lib
-    - name: build-i386
-      run: |
-        mkdir build-i386 && cd build-i386
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DPLATFORM=SIMULATOR -DARCHS="i386" \
-            -DDEPLOYMENT_TARGET=$IOS_DEPLOYMENT_TARGET -DENABLE_BITCODE=$ENABLE_BITCODE -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
-            -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
-            -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
-            -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/lib/libomp.a" \
-            -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
-        cmake --build . --target install/strip
     - name: build-x86_64
       run: |
         mkdir build-x86_64 && cd build-x86_64
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DPLATFORM=SIMULATOR64 -DARCHS="x86_64" \
-            -DDEPLOYMENT_TARGET=$IOS_DEPLOYMENT_TARGET -DENABLE_BITCODE=$ENABLE_BITCODE -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
-            -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
-            -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
-            -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/lib/libomp.a" \
-            -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=SIMULATOR64 -DARCHS="x86_64" ..
+        cmake --build . -j 4
         cmake --build . --target install/strip
     - name: build-arm64
       run: |
         mkdir build-arm64 && cd build-arm64
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DPLATFORM=SIMULATORARM64 -DARCHS="arm64" \
-            -DDEPLOYMENT_TARGET=$IOS_DEPLOYMENT_TARGET -DENABLE_BITCODE=$ENABLE_BITCODE -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
-            -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
-            -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
-            -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/lib/libomp.a" \
-            -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=SIMULATORARM64 -DARCHS="arm64" ..
+        cmake --build . -j 4
         cmake --build . --target install/strip
     - name: package-openmp
       run: |
@@ -1079,7 +767,7 @@ jobs:
         ln -s Versions/Current/openmp openmp.framework/openmp
         cp openmp-ios-simulator/lib/libomp.a openmp.framework/Versions/A/openmp
         cp -a openmp-ios-simulator/include/* openmp.framework/Versions/A/Headers/
-        sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/11.0/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
+        sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/18.1/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
     - name: package
       run: |
         rm -rf ncnn.framework
@@ -1090,7 +778,6 @@ jobs:
         ln -s Versions/Current/Resources ncnn.framework/Resources
         ln -s Versions/Current/ncnn ncnn.framework/ncnn
         lipo -create \
-            build-i386/install/lib/libncnn.a \
             build-x86_64/install/lib/libncnn.a \
             build-arm64/install/lib/libncnn.a \
             -o ncnn.framework/Versions/A/ncnn
@@ -1106,9 +793,24 @@ jobs:
 
   ios-simulator-gpu:
     needs: [setup, openmp-ios-simulator]
-    runs-on: macos-12
+    runs-on: macos-13
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator-vulkan
+      NCNN_CMAKE_OPTIONS: |
+        -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake \
+        -DDEPLOYMENT_TARGET=$IOS_DEPLOYMENT_TARGET \
+        -DENABLE_BITCODE=$ENABLE_BITCODE \
+        -DENABLE_ARC=$ENABLE_ARC \
+        -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
+        -DCMAKE_INSTALL_PREFIX=install \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
+        -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
+        -DOpenMP_libomp_LIBRARY="libomp.a" \
+        -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
+        -DNCNN_VULKAN=ON \
+        -DNCNN_BUILD_BENCHMARK=OFF \
+
     steps:
     - uses: actions/checkout@v4
       with:
@@ -1125,26 +827,14 @@ jobs:
     - name: build-x86_64
       run: |
         mkdir build-x86_64 && cd build-x86_64
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DPLATFORM=SIMULATOR64 -DARCHS="x86_64" \
-            -DDEPLOYMENT_TARGET=$IOS_DEPLOYMENT_TARGET -DENABLE_BITCODE=$ENABLE_BITCODE -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
-            -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
-            -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
-            -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/lib/libomp.a" \
-            -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=SIMULATOR64 -DARCHS="x86_64" ..
+        cmake --build . -j 4
         cmake --build . --target install/strip
     - name: build-arm64
       run: |
         mkdir build-arm64 && cd build-arm64
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DPLATFORM=SIMULATORARM64 -DARCHS="arm64" \
-            -DDEPLOYMENT_TARGET=$IOS_DEPLOYMENT_TARGET -DENABLE_BITCODE=$ENABLE_BITCODE -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
-            -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
-            -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
-            -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/lib/libomp.a" \
-            -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=SIMULATORARM64 -DARCHS="arm64" ..
+        cmake --build . -j 4
         cmake --build . --target install/strip
     - name: package-openmp
       run: |
@@ -1157,277 +847,7 @@ jobs:
         ln -s Versions/Current/openmp openmp.framework/openmp
         cp openmp-ios-simulator/lib/libomp.a openmp.framework/Versions/A/openmp
         cp -a openmp-ios-simulator/include/* openmp.framework/Versions/A/Headers/
-        sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/11.0/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
-    - name: package-glslang
-      run: |
-        rm -rf glslang.framework
-        mkdir -p glslang.framework/Versions/A/Headers
-        mkdir -p glslang.framework/Versions/A/Resources
-        ln -s A glslang.framework/Versions/Current
-        ln -s Versions/Current/Headers glslang.framework/Headers
-        ln -s Versions/Current/Resources glslang.framework/Resources
-        ln -s Versions/Current/glslang glslang.framework/glslang
-        libtool -static \
-            build-x86_64/install/lib/libglslang.a \
-            build-x86_64/install/lib/libMachineIndependent.a \
-            build-x86_64/install/lib/libGenericCodeGen.a \
-            build-x86_64/install/lib/libSPIRV.a \
-            build-x86_64/install/lib/libOGLCompiler.a \
-            build-x86_64/install/lib/libOSDependent.a \
-            -o build-x86_64/install/lib/libglslang_combined.a
-        libtool -static \
-            build-arm64/install/lib/libglslang.a \
-            build-arm64/install/lib/libMachineIndependent.a \
-            build-arm64/install/lib/libGenericCodeGen.a \
-            build-arm64/install/lib/libSPIRV.a \
-            build-arm64/install/lib/libOGLCompiler.a \
-            build-arm64/install/lib/libOSDependent.a \
-            -o build-arm64/install/lib/libglslang_combined.a
-        lipo -create \
-            build-x86_64/install/lib/libglslang_combined.a \
-            build-arm64/install/lib/libglslang_combined.a \
-            -o glslang.framework/Versions/A/glslang
-        cp -a build-x86_64/install/include/glslang glslang.framework/Versions/A/Headers/
-        sed -e 's/__NAME__/glslang/g' -e 's/__IDENTIFIER__/org.khronos.glslang/g' -e 's/__VERSION__/1.0/g' Info.plist > glslang.framework/Versions/A/Resources/Info.plist
-    - name: package
-      run: |
-        rm -rf ncnn.framework
-        mkdir -p ncnn.framework/Versions/A/Headers
-        mkdir -p ncnn.framework/Versions/A/Resources
-        ln -s A ncnn.framework/Versions/Current
-        ln -s Versions/Current/Headers ncnn.framework/Headers
-        ln -s Versions/Current/Resources ncnn.framework/Resources
-        ln -s Versions/Current/ncnn ncnn.framework/ncnn
-        lipo -create \
-            build-x86_64/install/lib/libncnn.a \
-            build-arm64/install/lib/libncnn.a \
-            -o ncnn.framework/Versions/A/ncnn
-        cp -a build-x86_64/install/include/ncnn ncnn.framework/Versions/A/Headers/
-        sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
-        rm -f ${{ env.PACKAGENAME }}.zip
-        zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework glslang.framework ncnn.framework
-    - name: upload-zip
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ env.PACKAGENAME }}
-        path: ${{ env.PACKAGENAME }}.zip
-
-  openmp-ios-simulator-bitcode:
-    runs-on: macos-12
-    steps:
-    - name: cache-openmp
-      id: cache-openmp
-      uses: actions/cache@v4
-      with:
-        path: openmp-install
-        key: openmp-ios-simulator-bitcode-release-11.0.0-20230504
-    - name: checkout
-      if: steps.cache-openmp.outputs.cache-hit != 'true'
-      uses: actions/checkout@v4
-    - name: openmp
-      if: steps.cache-openmp.outputs.cache-hit != 'true'
-      run: |
-        wget https://github.com/llvm/llvm-project/releases/download/llvmorg-11.0.0/openmp-11.0.0.src.tar.xz
-        tar -xf openmp-11.0.0.src.tar.xz
-        cd openmp-11.0.0.src
-        sed -i'' -e '/.size __kmp_unnamed_critical_addr/d' runtime/src/z_Linux_asm.S
-        sed -i'' -e 's/__kmp_unnamed_critical_addr/___kmp_unnamed_critical_addr/g' runtime/src/z_Linux_asm.S
-    - name: build-i386
-      if: steps.cache-openmp.outputs.cache-hit != 'true'
-      run: |
-        cd openmp-11.0.0.src
-        mkdir -p build-i386 && cd build-i386
-        cmake -DCMAKE_TOOLCHAIN_FILE=../../toolchains/ios.toolchain.cmake -DPLATFORM=SIMULATOR -DARCHS="i386" \
-            -DDEPLOYMENT_TARGET=$IOS_DEPLOYMENT_TARGET -DENABLE_BITCODE=ON -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
-            -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
-            -DPERL_EXECUTABLE=/usr/local/bin/perl \
-            -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
-        cmake --build . -j 3
-        cmake --build . --target install/strip
-    - name: build-x86_64
-      if: steps.cache-openmp.outputs.cache-hit != 'true'
-      run: |
-        cd openmp-11.0.0.src
-        mkdir -p build-x86_64 && cd build-x86_64
-        cmake -DCMAKE_TOOLCHAIN_FILE=../../toolchains/ios.toolchain.cmake -DPLATFORM=SIMULATOR64 -DARCHS="x86_64" \
-            -DDEPLOYMENT_TARGET=$IOS_DEPLOYMENT_TARGET -DENABLE_BITCODE=ON -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
-            -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
-            -DPERL_EXECUTABLE=/usr/local/bin/perl \
-            -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
-        cmake --build . -j 3
-        cmake --build . --target install/strip
-    - name: build-arm64
-      if: steps.cache-openmp.outputs.cache-hit != 'true'
-      run: |
-        cd openmp-11.0.0.src
-        mkdir -p build-arm64 && cd build-arm64
-        cmake -DCMAKE_TOOLCHAIN_FILE=../../toolchains/ios.toolchain.cmake -DPLATFORM=SIMULATORARM64 -DARCHS="arm64" \
-            -DDEPLOYMENT_TARGET=$IOS_DEPLOYMENT_TARGET -DENABLE_BITCODE=ON -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
-            -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
-            -DPERL_EXECUTABLE=/usr/local/bin/perl \
-            -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
-        cmake --build . -j 3
-        cmake --build . --target install/strip
-    - name: merge-fat-library
-      if: steps.cache-openmp.outputs.cache-hit != 'true'
-      run: |
-        rm -rf $GITHUB_WORKSPACE/openmp-install
-        mkdir -p $GITHUB_WORKSPACE/openmp-install
-        cp -a openmp-11.0.0.src/build-x86_64/install/include $GITHUB_WORKSPACE/openmp-install
-        mkdir -p $GITHUB_WORKSPACE/openmp-install/lib
-        lipo -create \
-            openmp-11.0.0.src/build-i386/install/lib/libomp.a \
-            openmp-11.0.0.src/build-x86_64/install/lib/libomp.a \
-            openmp-11.0.0.src/build-arm64/install/lib/libomp.a \
-            -o $GITHUB_WORKSPACE/openmp-install/lib/libomp.a
-    - name: upload
-      uses: actions/upload-artifact@v4
-      with:
-        name: openmp-ios-simulator-bitcode
-        path: openmp-install
-
-  ios-simulator-bitcode:
-    needs: [setup, openmp-ios-simulator-bitcode]
-    runs-on: macos-12
-    env:
-      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator-bitcode
-    steps:
-    - uses: actions/checkout@v4
-    - name: download-openmp-ios
-      uses: actions/download-artifact@v4
-      with:
-        name: openmp-ios-simulator-bitcode
-        path: openmp-ios-simulator-bitcode
-    - name: install-openmp
-      run: |
-        sudo cp openmp-ios-simulator-bitcode/include/* $DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/include
-        sudo cp openmp-ios-simulator-bitcode/lib/libomp.a $DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/lib
-    - name: build-i386
-      run: |
-        mkdir build-i386 && cd build-i386
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DPLATFORM=SIMULATOR -DARCHS="i386" \
-            -DDEPLOYMENT_TARGET=$IOS_DEPLOYMENT_TARGET -DENABLE_BITCODE=ON -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
-            -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
-            -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
-            -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/lib/libomp.a" \
-            -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
-        cmake --build . --target install/strip
-    - name: build-x86_64
-      run: |
-        mkdir build-x86_64 && cd build-x86_64
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DPLATFORM=SIMULATOR64 -DARCHS="x86_64" \
-            -DDEPLOYMENT_TARGET=$IOS_DEPLOYMENT_TARGET -DENABLE_BITCODE=ON -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
-            -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
-            -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
-            -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/lib/libomp.a" \
-            -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
-        cmake --build . --target install/strip
-    - name: build-arm64
-      run: |
-        mkdir build-arm64 && cd build-arm64
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DPLATFORM=SIMULATORARM64 -DARCHS="arm64" \
-            -DDEPLOYMENT_TARGET=$IOS_DEPLOYMENT_TARGET -DENABLE_BITCODE=ON -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
-            -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
-            -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
-            -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/lib/libomp.a" \
-            -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
-        cmake --build . --target install/strip
-    - name: package-openmp
-      run: |
-        rm -rf openmp.framework
-        mkdir -p openmp.framework/Versions/A/Headers
-        mkdir -p openmp.framework/Versions/A/Resources
-        ln -s A openmp.framework/Versions/Current
-        ln -s Versions/Current/Headers openmp.framework/Headers
-        ln -s Versions/Current/Resources openmp.framework/Resources
-        ln -s Versions/Current/openmp openmp.framework/openmp
-        cp openmp-ios-simulator-bitcode/lib/libomp.a openmp.framework/Versions/A/openmp
-        cp -a openmp-ios-simulator-bitcode/include/* openmp.framework/Versions/A/Headers/
-        sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/11.0/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
-    - name: package
-      run: |
-        rm -rf ncnn.framework
-        mkdir -p ncnn.framework/Versions/A/Headers
-        mkdir -p ncnn.framework/Versions/A/Resources
-        ln -s A ncnn.framework/Versions/Current
-        ln -s Versions/Current/Headers ncnn.framework/Headers
-        ln -s Versions/Current/Resources ncnn.framework/Resources
-        ln -s Versions/Current/ncnn ncnn.framework/ncnn
-        lipo -create \
-            build-i386/install/lib/libncnn.a \
-            build-x86_64/install/lib/libncnn.a \
-            build-arm64/install/lib/libncnn.a \
-            -o ncnn.framework/Versions/A/ncnn
-        cp -a build-x86_64/install/include/* ncnn.framework/Versions/A/Headers/
-        sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
-        rm -f ${{ env.PACKAGENAME }}.zip
-        zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework ncnn.framework
-    - name: upload-zip
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ env.PACKAGENAME }}
-        path: ${{ env.PACKAGENAME }}.zip
-
-  ios-simulator-gpu-bitcode:
-    needs: [setup, openmp-ios-simulator-bitcode]
-    runs-on: macos-12
-    env:
-      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator-vulkan-bitcode
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: true
-    - name: download-openmp-ios-simulator
-      uses: actions/download-artifact@v4
-      with:
-        name: openmp-ios-simulator-bitcode
-        path: openmp-ios-simulator-bitcode
-    - name: install-openmp
-      run: |
-        sudo cp openmp-ios-simulator-bitcode/include/* $DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/include
-        sudo cp openmp-ios-simulator-bitcode/lib/libomp.a $DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/lib
-    - name: build-x86_64
-      run: |
-        mkdir build-x86_64 && cd build-x86_64
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DPLATFORM=SIMULATOR64 -DARCHS="x86_64" \
-            -DDEPLOYMENT_TARGET=$IOS_DEPLOYMENT_TARGET -DENABLE_BITCODE=ON -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
-            -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
-            -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
-            -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/lib/libomp.a" \
-            -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
-        cmake --build . --target install/strip
-    - name: build-arm64
-      run: |
-        mkdir build-arm64 && cd build-arm64
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DPLATFORM=SIMULATORARM64 -DARCHS="arm64" \
-            -DDEPLOYMENT_TARGET=$IOS_DEPLOYMENT_TARGET -DENABLE_BITCODE=ON -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
-            -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
-            -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
-            -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/lib/libomp.a" \
-            -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
-        cmake --build . --target install/strip
-    - name: package-openmp
-      run: |
-        rm -rf openmp.framework
-        mkdir -p openmp.framework/Versions/A/Headers
-        mkdir -p openmp.framework/Versions/A/Resources
-        ln -s A openmp.framework/Versions/Current
-        ln -s Versions/Current/Headers openmp.framework/Headers
-        ln -s Versions/Current/Resources openmp.framework/Resources
-        ln -s Versions/Current/openmp openmp.framework/openmp
-        cp openmp-ios-simulator-bitcode/lib/libomp.a openmp.framework/Versions/A/openmp
-        cp -a openmp-ios-simulator-bitcode/include/* openmp.framework/Versions/A/Headers/
-        sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/11.0/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
+        sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/18.1/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
     - name: package-glslang
       run: |
         rm -rf glslang.framework
@@ -1483,59 +903,70 @@ jobs:
         path: ${{ env.PACKAGENAME }}.zip
 
   openmp-mac-catalyst:
-    runs-on: macos-12
+    runs-on: macos-13
+    env:
+      OPENMP_VERSION: '18.1.2'
+      OPENMP_CMAKE_OPTIONS: |
+        -DCMAKE_TOOLCHAIN_FILE=../../toolchains/ios.toolchain.cmake \
+        -DDEPLOYMENT_TARGET=$MAC_CATALYST_DEPLOYMENT_TARGET \
+        -DENABLE_BITCODE=$ENABLE_BITCODE \
+        -DENABLE_ARC=$ENABLE_ARC \
+        -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
+        -DCMAKE_INSTALL_PREFIX=install \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DPERL_EXECUTABLE=/usr/local/bin/perl \
+        -DLIBOMP_ENABLE_SHARED=OFF \
+        -DLIBOMP_OMPT_SUPPORT=OFF \
+        -DLIBOMP_USE_HWLOC=OFF \
     steps:
     - name: cache-openmp
       id: cache-openmp
       uses: actions/cache@v4
       with:
         path: openmp-install
-        key: openmp-mac-catalyst-release-11.0.0-20230504
+        key: openmp-mac-catalyst-release-18.1.2-20240403
     - name: checkout
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       uses: actions/checkout@v4
     - name: openmp
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
-        wget https://github.com/llvm/llvm-project/releases/download/llvmorg-11.0.0/openmp-11.0.0.src.tar.xz
-        tar -xf openmp-11.0.0.src.tar.xz
-        cd openmp-11.0.0.src
-        sed -i'' -e '/.size __kmp_unnamed_critical_addr/d' runtime/src/z_Linux_asm.S
-        sed -i'' -e 's/__kmp_unnamed_critical_addr/___kmp_unnamed_critical_addr/g' runtime/src/z_Linux_asm.S
+        wget https://github.com/llvm/llvm-project/releases/download/llvmorg-${{ env.OPENMP_VERSION }}/cmake-${{ env.OPENMP_VERSION }}.src.tar.xz
+        tar -xf cmake-${{ env.OPENMP_VERSION }}.src.tar.xz
+        wget https://github.com/llvm/llvm-project/releases/download/llvmorg-${{ env.OPENMP_VERSION }}/openmp-${{ env.OPENMP_VERSION }}.src.tar.xz
+        tar -xf openmp-${{ env.OPENMP_VERSION }}.src.tar.xz
+        mv cmake-${{ env.OPENMP_VERSION }}.src/Modules/* openmp-${{ env.OPENMP_VERSION }}.src/cmake/
+        cd openmp-${{ env.OPENMP_VERSION }}.src
+        wget https://github.com/nihui/llvm-project/commit/ef8c35bcf5d9cfdb0764ffde6a63c04ec715bc37.patch
+        patch -p2 -i ef8c35bcf5d9cfdb0764ffde6a63c04ec715bc37.patch
+        wget https://github.com/nihui/llvm-project/commit/5c12711f9a21f41bea70566bf15a4026804d6b20.patch
+        patch -p2 -i 5c12711f9a21f41bea70566bf15a4026804d6b20.patch
     - name: build-x86_64
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
-        cd openmp-11.0.0.src
+        cd openmp-${{ env.OPENMP_VERSION }}.src
         mkdir -p build-x86_64 && cd build-x86_64
-        cmake -DCMAKE_TOOLCHAIN_FILE=../../toolchains/ios.toolchain.cmake -DPLATFORM=MAC_CATALYST -DARCHS="x86_64" \
-            -DDEPLOYMENT_TARGET=$MAC_CATALYST_DEPLOYMENT_TARGET -DENABLE_BITCODE=$ENABLE_BITCODE -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
-            -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
-            -DPERL_EXECUTABLE=/usr/local/bin/perl \
-            -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
-        cmake --build . -j 3
+        cmake ${{ env.OPENMP_CMAKE_OPTIONS }} -DPLATFORM=MAC_CATALYST -DARCHS="x86_64" ..
+        cmake --build . -j 4
         cmake --build . --target install/strip
     - name: build-arm64
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
-        cd openmp-11.0.0.src
+        cd openmp-${{ env.OPENMP_VERSION }}.src
         mkdir -p build-arm64 && cd build-arm64
-        cmake -DCMAKE_TOOLCHAIN_FILE=../../toolchains/ios.toolchain.cmake -DPLATFORM=MAC_CATALYST -DARCHS="arm64" \
-            -DDEPLOYMENT_TARGET=$MAC_CATALYST_DEPLOYMENT_TARGET -DENABLE_BITCODE=$ENABLE_BITCODE -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
-            -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
-            -DPERL_EXECUTABLE=/usr/local/bin/perl \
-            -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
-        cmake --build . -j 3
+        cmake ${{ env.OPENMP_CMAKE_OPTIONS }} -DPLATFORM=MAC_CATALYST_ARM64 -DARCHS="arm64" ..
+        cmake --build . -j 4
         cmake --build . --target install/strip
     - name: merge-fat-library
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
         rm -rf $GITHUB_WORKSPACE/openmp-install
         mkdir -p $GITHUB_WORKSPACE/openmp-install
-        cp -a openmp-11.0.0.src/build-x86_64/install/include $GITHUB_WORKSPACE/openmp-install
+        cp -a openmp-${{ env.OPENMP_VERSION }}.src/build-x86_64/install/include $GITHUB_WORKSPACE/openmp-install
         mkdir -p $GITHUB_WORKSPACE/openmp-install/lib
         lipo -create \
-            openmp-11.0.0.src/build-x86_64/install/lib/libomp.a \
-            openmp-11.0.0.src/build-arm64/install/lib/libomp.a \
+            openmp-${{ env.OPENMP_VERSION }}.src/build-x86_64/install/lib/libomp.a \
+            openmp-${{ env.OPENMP_VERSION }}.src/build-arm64/install/lib/libomp.a \
             -o $GITHUB_WORKSPACE/openmp-install/lib/libomp.a
     - name: upload
       uses: actions/upload-artifact@v4
@@ -1545,12 +976,26 @@ jobs:
 
   mac-catalyst:
     needs: [setup, openmp-mac-catalyst]
-    runs-on: macos-12
+    runs-on: macos-13
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst
+      NCNN_CMAKE_OPTIONS: |
+        -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake \
+        -DDEPLOYMENT_TARGET=$MAC_CATALYST_DEPLOYMENT_TARGET \
+        -DENABLE_BITCODE=$ENABLE_BITCODE \
+        -DENABLE_ARC=$ENABLE_ARC \
+        -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
+        -DCMAKE_INSTALL_PREFIX=install \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
+        -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
+        -DOpenMP_libomp_LIBRARY="libomp.a" \
+        -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
+        -DNCNN_BUILD_BENCHMARK=OFF \
+
     steps:
     - uses: actions/checkout@v4
-    - name: download-openmp-ios
+    - name: download-openmp-mac-catalyst
       uses: actions/download-artifact@v4
       with:
         name: openmp-mac-catalyst
@@ -1562,26 +1007,14 @@ jobs:
     - name: build-x86_64
       run: |
         mkdir build-x86_64 && cd build-x86_64
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DPLATFORM=MAC_CATALYST -DARCHS="x86_64" \
-            -DDEPLOYMENT_TARGET=$MAC_CATALYST_DEPLOYMENT_TARGET -DENABLE_BITCODE=$ENABLE_BITCODE -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
-            -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
-            -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
-            -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/libomp.a" \
-            -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=MAC_CATALYST -DARCHS="x86_64" ..
+        cmake --build . -j 4
         cmake --build . --target install/strip
     - name: build-arm64
       run: |
         mkdir build-arm64 && cd build-arm64
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DPLATFORM=MAC_CATALYST -DARCHS="arm64" \
-            -DDEPLOYMENT_TARGET=$MAC_CATALYST_DEPLOYMENT_TARGET -DENABLE_BITCODE=$ENABLE_BITCODE -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
-            -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
-            -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
-            -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/libomp.a" \
-            -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=MAC_CATALYST -DARCHS="arm64" ..
+        cmake --build . -j 4
         cmake --build . --target install/strip
     - name: package-openmp
       run: |
@@ -1594,7 +1027,7 @@ jobs:
         ln -s Versions/Current/openmp openmp.framework/openmp
         cp openmp-mac-catalyst/lib/libomp.a openmp.framework/Versions/A/openmp
         cp -a openmp-mac-catalyst/include/* openmp.framework/Versions/A/Headers/
-        sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/11.0/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
+        sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/18.1/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
     - name: package
       run: |
         rm -rf ncnn.framework
@@ -1620,9 +1053,24 @@ jobs:
 
   mac-catalyst-gpu:
     needs: [setup, openmp-mac-catalyst]
-    runs-on: macos-12
+    runs-on: macos-13
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst-vulkan
+      NCNN_CMAKE_OPTIONS: |
+        -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake \
+        -DDEPLOYMENT_TARGET=$MAC_CATALYST_DEPLOYMENT_TARGET \
+        -DENABLE_BITCODE=$ENABLE_BITCODE \
+        -DENABLE_ARC=$ENABLE_ARC \
+        -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
+        -DCMAKE_INSTALL_PREFIX=install \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
+        -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
+        -DOpenMP_libomp_LIBRARY="libomp.a" \
+        -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
+        -DNCNN_VULKAN=ON \
+        -DNCNN_BUILD_BENCHMARK=OFF \
+
     steps:
     - uses: actions/checkout@v4
       with:
@@ -1639,26 +1087,14 @@ jobs:
     - name: build-x86_64
       run: |
         mkdir build-x86_64 && cd build-x86_64
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DPLATFORM=MAC_CATALYST -DARCHS="x86_64" \
-            -DDEPLOYMENT_TARGET=$MAC_CATALYST_DEPLOYMENT_TARGET -DENABLE_BITCODE=$ENABLE_BITCODE -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
-            -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
-            -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
-            -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/libomp.a" \
-            -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=MAC_CATALYST -DARCHS="x86_64" ..
+        cmake --build . -j 4
         cmake --build . --target install/strip
     - name: build-arm64
       run: |
         mkdir build-arm64 && cd build-arm64
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DPLATFORM=MAC_CATALYST -DARCHS="arm64" \
-            -DDEPLOYMENT_TARGET=$MAC_CATALYST_DEPLOYMENT_TARGET -DENABLE_BITCODE=$ENABLE_BITCODE -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
-            -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
-            -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
-            -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/libomp.a" \
-            -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=MAC_CATALYST -DARCHS="arm64" ..
+        cmake --build . -j 4
         cmake --build . --target install/strip
     - name: package-openmp
       run: |
@@ -1671,7 +1107,7 @@ jobs:
         ln -s Versions/Current/openmp openmp.framework/openmp
         cp openmp-mac-catalyst/lib/libomp.a openmp.framework/Versions/A/openmp
         cp -a openmp-mac-catalyst/include/* openmp.framework/Versions/A/Headers/
-        sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/11.0/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
+        sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/18.1/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
     - name: package-glslang
       run: |
         rm -rf glslang.framework
@@ -1726,277 +1162,132 @@ jobs:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
 
-  openmp-mac-catalyst-bitcode:
-    runs-on: macos-12
+  openmp-watchos:
+    runs-on: macos-13
+    env:
+      OPENMP_VERSION: '18.1.2'
+      OPENMP_CMAKE_OPTIONS: |
+        -DCMAKE_TOOLCHAIN_FILE=../../toolchains/ios.toolchain.cmake \
+        -DDEPLOYMENT_TARGET=$WATCHOS_DEPLOYMENT_TARGET \
+        -DENABLE_BITCODE=$ENABLE_BITCODE \
+        -DENABLE_ARC=$ENABLE_ARC \
+        -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
+        -DCMAKE_INSTALL_PREFIX=install \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DPERL_EXECUTABLE=/usr/local/bin/perl \
+        -DLIBOMP_ENABLE_SHARED=OFF \
+        -DLIBOMP_OMPT_SUPPORT=OFF \
+        -DLIBOMP_USE_HWLOC=OFF \
     steps:
     - name: cache-openmp
       id: cache-openmp
       uses: actions/cache@v4
       with:
         path: openmp-install
-        key: openmp-mac-catalyst-bitcode-release-11.0.0-20230504
+        key: openmp-watchos-release-18.1.2-20240403
     - name: checkout
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       uses: actions/checkout@v4
     - name: openmp
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
-        wget https://github.com/llvm/llvm-project/releases/download/llvmorg-11.0.0/openmp-11.0.0.src.tar.xz
-        tar -xf openmp-11.0.0.src.tar.xz
-        cd openmp-11.0.0.src
-        sed -i'' -e '/.size __kmp_unnamed_critical_addr/d' runtime/src/z_Linux_asm.S
-        sed -i'' -e 's/__kmp_unnamed_critical_addr/___kmp_unnamed_critical_addr/g' runtime/src/z_Linux_asm.S
-    - name: build-x86_64
+        wget https://github.com/llvm/llvm-project/releases/download/llvmorg-${{ env.OPENMP_VERSION }}/cmake-${{ env.OPENMP_VERSION }}.src.tar.xz
+        tar -xf cmake-${{ env.OPENMP_VERSION }}.src.tar.xz
+        wget https://github.com/llvm/llvm-project/releases/download/llvmorg-${{ env.OPENMP_VERSION }}/openmp-${{ env.OPENMP_VERSION }}.src.tar.xz
+        tar -xf openmp-${{ env.OPENMP_VERSION }}.src.tar.xz
+        mv cmake-${{ env.OPENMP_VERSION }}.src/Modules/* openmp-${{ env.OPENMP_VERSION }}.src/cmake/
+        cd openmp-${{ env.OPENMP_VERSION }}.src
+        wget https://github.com/nihui/llvm-project/commit/ef8c35bcf5d9cfdb0764ffde6a63c04ec715bc37.patch
+        patch -p2 -i ef8c35bcf5d9cfdb0764ffde6a63c04ec715bc37.patch
+        wget https://github.com/nihui/llvm-project/commit/5c12711f9a21f41bea70566bf15a4026804d6b20.patch
+        patch -p2 -i 5c12711f9a21f41bea70566bf15a4026804d6b20.patch
+    - name: build-armv7k
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
-        cd openmp-11.0.0.src
-        mkdir -p build-x86_64 && cd build-x86_64
-        cmake -DCMAKE_TOOLCHAIN_FILE=../../toolchains/ios.toolchain.cmake -DPLATFORM=MAC_CATALYST -DARCHS="x86_64" \
-            -DDEPLOYMENT_TARGET=$MAC_CATALYST_DEPLOYMENT_TARGET -DENABLE_BITCODE=ON -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
-            -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
-            -DPERL_EXECUTABLE=/usr/local/bin/perl \
-            -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
-        cmake --build . -j 3
+        cd openmp-${{ env.OPENMP_VERSION }}.src
+        mkdir -p build-armv7k && cd build-armv7k
+        cmake ${{ env.OPENMP_CMAKE_OPTIONS }} -DPLATFORM=WATCHOS -DARCHS="armv7k" ..
+        cmake --build . -j 4
         cmake --build . --target install/strip
-    - name: build-arm64
+    - name: build-arm64_32
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
-        cd openmp-11.0.0.src
-        mkdir -p build-arm64 && cd build-arm64
-        cmake -DCMAKE_TOOLCHAIN_FILE=../../toolchains/ios.toolchain.cmake -DPLATFORM=MAC_CATALYST -DARCHS="arm64" \
-            -DDEPLOYMENT_TARGET=$MAC_CATALYST_DEPLOYMENT_TARGET -DENABLE_BITCODE=ON -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
-            -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
-            -DPERL_EXECUTABLE=/usr/local/bin/perl \
-            -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
-        cmake --build . -j 3
+        cd openmp-${{ env.OPENMP_VERSION }}.src
+        mkdir -p build-arm64_32 && cd build-arm64_32
+        cmake ${{ env.OPENMP_CMAKE_OPTIONS }} -DPLATFORM=WATCHOS -DARCHS="arm64_32" ..
+        cmake --build . -j 4
         cmake --build . --target install/strip
     - name: merge-fat-library
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
         rm -rf $GITHUB_WORKSPACE/openmp-install
         mkdir -p $GITHUB_WORKSPACE/openmp-install
-        cp -a openmp-11.0.0.src/build-x86_64/install/include $GITHUB_WORKSPACE/openmp-install
+        cp -a openmp-${{ env.OPENMP_VERSION }}.src/build-arm64_32/install/include $GITHUB_WORKSPACE/openmp-install
         mkdir -p $GITHUB_WORKSPACE/openmp-install/lib
         lipo -create \
-            openmp-11.0.0.src/build-x86_64/install/lib/libomp.a \
-            openmp-11.0.0.src/build-arm64/install/lib/libomp.a \
+            openmp-${{ env.OPENMP_VERSION }}.src/build-armv7k/install/lib/libomp.a \
+            openmp-${{ env.OPENMP_VERSION }}.src/build-arm64_32/install/lib/libomp.a \
             -o $GITHUB_WORKSPACE/openmp-install/lib/libomp.a
     - name: upload
       uses: actions/upload-artifact@v4
       with:
-        name: openmp-mac-catalyst-bitcode
+        name: openmp-watchos
         path: openmp-install
 
-  mac-catalyst-bitcode:
-    needs: [setup, openmp-mac-catalyst-bitcode]
-    runs-on: macos-12
-    env:
-      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst-bitcode
-    steps:
-    - uses: actions/checkout@v4
-    - name: download-openmp-ios
-      uses: actions/download-artifact@v4
-      with:
-        name: openmp-mac-catalyst-bitcode
-        path: openmp-mac-catalyst-bitcode
-    - name: install-openmp
-      run: |
-        sudo cp openmp-mac-catalyst-bitcode/include/* $DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include
-        sudo cp openmp-mac-catalyst-bitcode/lib/libomp.a $DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib
-    - name: build-x86_64
-      run: |
-        mkdir build-x86_64 && cd build-x86_64
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DPLATFORM=MAC_CATALYST -DARCHS="x86_64" \
-            -DDEPLOYMENT_TARGET=$MAC_CATALYST_DEPLOYMENT_TARGET -DENABLE_BITCODE=ON -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
-            -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
-            -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
-            -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/libomp.a" \
-            -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
-        cmake --build . --target install/strip
-    - name: build-arm64
-      run: |
-        mkdir build-arm64 && cd build-arm64
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DPLATFORM=MAC_CATALYST -DARCHS="arm64" \
-            -DDEPLOYMENT_TARGET=$MAC_CATALYST_DEPLOYMENT_TARGET -DENABLE_BITCODE=ON -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
-            -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
-            -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
-            -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/libomp.a" \
-            -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
-        cmake --build . --target install/strip
-    - name: package-openmp
-      run: |
-        rm -rf openmp.framework
-        mkdir -p openmp.framework/Versions/A/Headers
-        mkdir -p openmp.framework/Versions/A/Resources
-        ln -s A openmp.framework/Versions/Current
-        ln -s Versions/Current/Headers openmp.framework/Headers
-        ln -s Versions/Current/Resources openmp.framework/Resources
-        ln -s Versions/Current/openmp openmp.framework/openmp
-        cp openmp-mac-catalyst-bitcode/lib/libomp.a openmp.framework/Versions/A/openmp
-        cp -a openmp-mac-catalyst-bitcode/include/* openmp.framework/Versions/A/Headers/
-        sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/11.0/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
-    - name: package
-      run: |
-        rm -rf ncnn.framework
-        mkdir -p ncnn.framework/Versions/A/Headers
-        mkdir -p ncnn.framework/Versions/A/Resources
-        ln -s A ncnn.framework/Versions/Current
-        ln -s Versions/Current/Headers ncnn.framework/Headers
-        ln -s Versions/Current/Resources ncnn.framework/Resources
-        ln -s Versions/Current/ncnn ncnn.framework/ncnn
-        lipo -create \
-            build-x86_64/install/lib/libncnn.a \
-            build-arm64/install/lib/libncnn.a \
-            -o ncnn.framework/Versions/A/ncnn
-        cp -a build-x86_64/install/include/* ncnn.framework/Versions/A/Headers/
-        sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
-        rm -f ${{ env.PACKAGENAME }}.zip
-        zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework ncnn.framework
-    - name: upload-zip
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ env.PACKAGENAME }}
-        path: ${{ env.PACKAGENAME }}.zip
-
-  mac-catalyst-gpu-bitcode:
-    needs: [setup, openmp-mac-catalyst-bitcode]
-    runs-on: macos-12
-    env:
-      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst-vulkan-bitcode
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: true
-    - name: download-openmp-mac-catalyst
-      uses: actions/download-artifact@v4
-      with:
-        name: openmp-mac-catalyst-bitcode
-        path: openmp-mac-catalyst-bitcode
-    - name: install-openmp
-      run: |
-        sudo cp openmp-mac-catalyst-bitcode/include/* $DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include
-        sudo cp openmp-mac-catalyst-bitcode/lib/libomp.a $DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib
-    - name: build-x86_64
-      run: |
-        mkdir build-x86_64 && cd build-x86_64
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DPLATFORM=MAC_CATALYST -DARCHS="x86_64" \
-            -DDEPLOYMENT_TARGET=$MAC_CATALYST_DEPLOYMENT_TARGET -DENABLE_BITCODE=ON -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
-            -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
-            -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
-            -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/libomp.a" \
-            -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
-        cmake --build . --target install/strip
-    - name: build-arm64
-      run: |
-        mkdir build-arm64 && cd build-arm64
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DPLATFORM=MAC_CATALYST -DARCHS="arm64" \
-            -DDEPLOYMENT_TARGET=$MAC_CATALYST_DEPLOYMENT_TARGET -DENABLE_BITCODE=ON -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
-            -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
-            -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
-            -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/libomp.a" \
-            -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
-        cmake --build . --target install/strip
-    - name: package-openmp
-      run: |
-        rm -rf openmp.framework
-        mkdir -p openmp.framework/Versions/A/Headers
-        mkdir -p openmp.framework/Versions/A/Resources
-        ln -s A openmp.framework/Versions/Current
-        ln -s Versions/Current/Headers openmp.framework/Headers
-        ln -s Versions/Current/Resources openmp.framework/Resources
-        ln -s Versions/Current/openmp openmp.framework/openmp
-        cp openmp-mac-catalyst-bitcode/lib/libomp.a openmp.framework/Versions/A/openmp
-        cp -a openmp-mac-catalyst-bitcode/include/* openmp.framework/Versions/A/Headers/
-        sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/11.0/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
-    - name: package-glslang
-      run: |
-        rm -rf glslang.framework
-        mkdir -p glslang.framework/Versions/A/Headers
-        mkdir -p glslang.framework/Versions/A/Resources
-        ln -s A glslang.framework/Versions/Current
-        ln -s Versions/Current/Headers glslang.framework/Headers
-        ln -s Versions/Current/Resources glslang.framework/Resources
-        ln -s Versions/Current/glslang glslang.framework/glslang
-        libtool -static \
-            build-x86_64/install/lib/libglslang.a \
-            build-x86_64/install/lib/libMachineIndependent.a \
-            build-x86_64/install/lib/libGenericCodeGen.a \
-            build-x86_64/install/lib/libSPIRV.a \
-            build-x86_64/install/lib/libOGLCompiler.a \
-            build-x86_64/install/lib/libOSDependent.a \
-            -o build-x86_64/install/lib/libglslang_combined.a
-        libtool -static \
-            build-arm64/install/lib/libglslang.a \
-            build-arm64/install/lib/libMachineIndependent.a \
-            build-arm64/install/lib/libGenericCodeGen.a \
-            build-arm64/install/lib/libSPIRV.a \
-            build-arm64/install/lib/libOGLCompiler.a \
-            build-arm64/install/lib/libOSDependent.a \
-            -o build-arm64/install/lib/libglslang_combined.a
-        lipo -create \
-            build-x86_64/install/lib/libglslang_combined.a \
-            build-arm64/install/lib/libglslang_combined.a \
-            -o glslang.framework/Versions/A/glslang
-        cp -a build-x86_64/install/include/glslang glslang.framework/Versions/A/Headers/
-        sed -e 's/__NAME__/glslang/g' -e 's/__IDENTIFIER__/org.khronos.glslang/g' -e 's/__VERSION__/1.0/g' Info.plist > glslang.framework/Versions/A/Resources/Info.plist
-    - name: package
-      run: |
-        rm -rf ncnn.framework
-        mkdir -p ncnn.framework/Versions/A/Headers
-        mkdir -p ncnn.framework/Versions/A/Resources
-        ln -s A ncnn.framework/Versions/Current
-        ln -s Versions/Current/Headers ncnn.framework/Headers
-        ln -s Versions/Current/Resources ncnn.framework/Resources
-        ln -s Versions/Current/ncnn ncnn.framework/ncnn
-        lipo -create \
-            build-x86_64/install/lib/libncnn.a \
-            build-arm64/install/lib/libncnn.a \
-            -o ncnn.framework/Versions/A/ncnn
-        cp -a build-x86_64/install/include/ncnn ncnn.framework/Versions/A/Headers/
-        sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
-        rm -f ${{ env.PACKAGENAME }}.zip
-        zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework glslang.framework ncnn.framework
-    - name: upload-zip
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ env.PACKAGENAME }}
-        path: ${{ env.PACKAGENAME }}.zip
-
   watchos:
-    needs: [setup]
-    runs-on: macos-12
+    needs: [setup, openmp-watchos]
+    runs-on: macos-13
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-watchos
+      NCNN_CMAKE_OPTIONS: |
+        -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake \
+        -DDEPLOYMENT_TARGET=$WATCHOS_DEPLOYMENT_TARGET \
+        -DENABLE_BITCODE=$ENABLE_BITCODE \
+        -DENABLE_ARC=$ENABLE_ARC \
+        -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
+        -DCMAKE_INSTALL_PREFIX=install \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
+        -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
+        -DOpenMP_libomp_LIBRARY="libomp.a" \
+        -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
+        -DNCNN_BUILD_BENCHMARK=OFF \
+
     steps:
     - uses: actions/checkout@v4
+    - name: download-openmp-watchos
+      uses: actions/download-artifact@v4
+      with:
+        name: openmp-watchos
+        path: openmp-watchos
+    - name: install-openmp
+      run: |
+        sudo cp openmp-watchos/include/* $DEVELOPER_DIR/Platforms/WatchOS.platform/Developer/SDKs/WatchOS.sdk/usr/include
+        sudo cp openmp-watchos/lib/libomp.a $DEVELOPER_DIR/Platforms/WatchOS.platform/Developer/SDKs/WatchOS.sdk/usr/lib
     - name: build-armv7k
       run: |
         mkdir build-armv7k && cd build-armv7k
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DPLATFORM=WATCHOS -DARCHS="armv7k" \
-            -DDEPLOYMENT_TARGET=$WATCHOS_DEPLOYMENT_TARGET -DENABLE_BITCODE=$ENABLE_BITCODE -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
-            -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DNCNN_OPENMP=OFF -DNCNN_THREADS=OFF \
-            -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=WATCHOS -DARCHS="armv7k" ..
+        cmake --build . -j 4
         cmake --build . --target install/strip
     - name: build-arm64_32
       run: |
         mkdir build-arm64_32 && cd build-arm64_32
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DPLATFORM=WATCHOS -DARCHS="arm64_32" \
-            -DDEPLOYMENT_TARGET=$WATCHOS_DEPLOYMENT_TARGET -DENABLE_BITCODE=$ENABLE_BITCODE -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
-            -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DNCNN_OPENMP=OFF -DNCNN_THREADS=OFF \
-            -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=WATCHOS -DARCHS="arm64_32" ..
+        cmake --build . -j 4
         cmake --build . --target install/strip
+    - name: package-openmp
+      run: |
+        rm -rf openmp.framework
+        mkdir -p openmp.framework/Versions/A/Headers
+        mkdir -p openmp.framework/Versions/A/Resources
+        ln -s A openmp.framework/Versions/Current
+        ln -s Versions/Current/Headers openmp.framework/Headers
+        ln -s Versions/Current/Resources openmp.framework/Resources
+        ln -s Versions/Current/openmp openmp.framework/openmp
+        cp openmp-watchos/lib/libomp.a openmp.framework/Versions/A/openmp
+        cp -a openmp-watchos/include/* openmp.framework/Versions/A/Headers/
+        sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/18.1/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
     - name: package
       run: |
         rm -rf ncnn.framework
@@ -2020,43 +1311,132 @@ jobs:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
 
+  openmp-watchos-simulator:
+    runs-on: macos-13
+    env:
+      OPENMP_VERSION: '18.1.2'
+      OPENMP_CMAKE_OPTIONS: |
+        -DCMAKE_TOOLCHAIN_FILE=../../toolchains/ios.toolchain.cmake \
+        -DDEPLOYMENT_TARGET=$WATCHOS_DEPLOYMENT_TARGET \
+        -DENABLE_BITCODE=$ENABLE_BITCODE \
+        -DENABLE_ARC=$ENABLE_ARC \
+        -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
+        -DCMAKE_INSTALL_PREFIX=install \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DPERL_EXECUTABLE=/usr/local/bin/perl \
+        -DLIBOMP_ENABLE_SHARED=OFF \
+        -DLIBOMP_OMPT_SUPPORT=OFF \
+        -DLIBOMP_USE_HWLOC=OFF \
+    steps:
+    - name: cache-openmp
+      id: cache-openmp
+      uses: actions/cache@v4
+      with:
+        path: openmp-install
+        key: openmp-watchos-simulator-release-18.1.2-20240403
+    - name: checkout
+      if: steps.cache-openmp.outputs.cache-hit != 'true'
+      uses: actions/checkout@v4
+    - name: openmp
+      if: steps.cache-openmp.outputs.cache-hit != 'true'
+      run: |
+        wget https://github.com/llvm/llvm-project/releases/download/llvmorg-${{ env.OPENMP_VERSION }}/cmake-${{ env.OPENMP_VERSION }}.src.tar.xz
+        tar -xf cmake-${{ env.OPENMP_VERSION }}.src.tar.xz
+        wget https://github.com/llvm/llvm-project/releases/download/llvmorg-${{ env.OPENMP_VERSION }}/openmp-${{ env.OPENMP_VERSION }}.src.tar.xz
+        tar -xf openmp-${{ env.OPENMP_VERSION }}.src.tar.xz
+        mv cmake-${{ env.OPENMP_VERSION }}.src/Modules/* openmp-${{ env.OPENMP_VERSION }}.src/cmake/
+        cd openmp-${{ env.OPENMP_VERSION }}.src
+        wget https://github.com/nihui/llvm-project/commit/ef8c35bcf5d9cfdb0764ffde6a63c04ec715bc37.patch
+        patch -p2 -i ef8c35bcf5d9cfdb0764ffde6a63c04ec715bc37.patch
+        wget https://github.com/nihui/llvm-project/commit/5c12711f9a21f41bea70566bf15a4026804d6b20.patch
+        patch -p2 -i 5c12711f9a21f41bea70566bf15a4026804d6b20.patch
+    - name: build-x86_64
+      if: steps.cache-openmp.outputs.cache-hit != 'true'
+      run: |
+        cd openmp-${{ env.OPENMP_VERSION }}.src
+        mkdir -p build-x86_64 && cd build-x86_64
+        cmake ${{ env.OPENMP_CMAKE_OPTIONS }} -DPLATFORM=SIMULATOR_WATCHOS -DARCHS="x86_64" ..
+        cmake --build . -j 4
+        cmake --build . --target install/strip
+    - name: build-arm64
+      if: steps.cache-openmp.outputs.cache-hit != 'true'
+      run: |
+        cd openmp-${{ env.OPENMP_VERSION }}.src
+        mkdir -p build-arm64 && cd build-arm64
+        cmake ${{ env.OPENMP_CMAKE_OPTIONS }} -DPLATFORM=SIMULATOR_WATCHOS -DARCHS="arm64" ..
+        cmake --build . -j 4
+        cmake --build . --target install/strip
+    - name: merge-fat-library
+      if: steps.cache-openmp.outputs.cache-hit != 'true'
+      run: |
+        rm -rf $GITHUB_WORKSPACE/openmp-install
+        mkdir -p $GITHUB_WORKSPACE/openmp-install
+        cp -a openmp-${{ env.OPENMP_VERSION }}.src/build-x86_64/install/include $GITHUB_WORKSPACE/openmp-install
+        mkdir -p $GITHUB_WORKSPACE/openmp-install/lib
+        lipo -create \
+            openmp-${{ env.OPENMP_VERSION }}.src/build-x86_64/install/lib/libomp.a \
+            openmp-${{ env.OPENMP_VERSION }}.src/build-arm64/install/lib/libomp.a \
+            -o $GITHUB_WORKSPACE/openmp-install/lib/libomp.a
+    - name: upload
+      uses: actions/upload-artifact@v4
+      with:
+        name: openmp-watchos-simulator
+        path: openmp-install
+
   watchos-simulator:
-    needs: [setup]
-    runs-on: macos-12
+    needs: [setup, openmp-watchos-simulator]
+    runs-on: macos-13
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-watchos-simulator
+      NCNN_CMAKE_OPTIONS: |
+        -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake \
+        -DDEPLOYMENT_TARGET=$WATCHOS_DEPLOYMENT_TARGET \
+        -DENABLE_BITCODE=$ENABLE_BITCODE \
+        -DENABLE_ARC=$ENABLE_ARC \
+        -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
+        -DCMAKE_INSTALL_PREFIX=install \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
+        -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
+        -DOpenMP_libomp_LIBRARY="libomp.a" \
+        -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
+        -DNCNN_BUILD_BENCHMARK=OFF \
+
     steps:
     - uses: actions/checkout@v4
-    - name: build-i386
+    - name: download-openmp-watchos-simulator
+      uses: actions/download-artifact@v4
+      with:
+        name: openmp-watchos-simulator
+        path: openmp-watchos-simulator
+    - name: install-openmp
       run: |
-        mkdir build-i386 && cd build-i386
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DPLATFORM=SIMULATOR_WATCHOS -DARCHS="i386" \
-            -DDEPLOYMENT_TARGET=$WATCHOS_DEPLOYMENT_TARGET -DENABLE_BITCODE=$ENABLE_BITCODE -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
-            -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DNCNN_OPENMP=OFF -DNCNN_THREADS=OFF \
-            -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
-        cmake --build . --target install/strip
+        sudo cp openmp-watchos-simulator/include/* $DEVELOPER_DIR/Platforms/WatchSimulator.platform/Developer/SDKs/WatchSimulator.sdk/usr/include
+        sudo cp openmp-watchos-simulator/lib/libomp.a $DEVELOPER_DIR/Platforms/WatchSimulator.platform/Developer/SDKs/WatchSimulator.sdk/usr/lib
     - name: build-x86_64
       run: |
         mkdir build-x86_64 && cd build-x86_64
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DPLATFORM=SIMULATOR_WATCHOS -DARCHS="x86_64" \
-            -DDEPLOYMENT_TARGET=$WATCHOS_DEPLOYMENT_TARGET -DENABLE_BITCODE=$ENABLE_BITCODE -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
-            -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DNCNN_OPENMP=OFF -DNCNN_THREADS=OFF \
-            -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=SIMULATOR_WATCHOS -DARCHS="x86_64" ..
+        cmake --build . -j 4
         cmake --build . --target install/strip
     - name: build-arm64
       run: |
         mkdir build-arm64 && cd build-arm64
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DPLATFORM=SIMULATOR_WATCHOS -DARCHS="arm64" \
-            -DDEPLOYMENT_TARGET=$WATCHOS_DEPLOYMENT_TARGET -DENABLE_BITCODE=$ENABLE_BITCODE -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
-            -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DNCNN_OPENMP=OFF -DNCNN_THREADS=OFF \
-            -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=SIMULATOR_WATCHOS -DARCHS="arm64" ..
+        cmake --build . -j 4
         cmake --build . --target install/strip
+    - name: package-openmp
+      run: |
+        rm -rf openmp.framework
+        mkdir -p openmp.framework/Versions/A/Headers
+        mkdir -p openmp.framework/Versions/A/Resources
+        ln -s A openmp.framework/Versions/Current
+        ln -s Versions/Current/Headers openmp.framework/Headers
+        ln -s Versions/Current/Resources openmp.framework/Resources
+        ln -s Versions/Current/openmp openmp.framework/openmp
+        cp openmp-watchos-simulator/lib/libomp.a openmp.framework/Versions/A/openmp
+        cp -a openmp-watchos-simulator/include/* openmp.framework/Versions/A/Headers/
+        sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/18.1/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
     - name: package
       run: |
         rm -rf ncnn.framework
@@ -2067,7 +1447,6 @@ jobs:
         ln -s Versions/Current/Resources ncnn.framework/Resources
         ln -s Versions/Current/ncnn ncnn.framework/ncnn
         lipo -create \
-            build-i386/install/lib/libncnn.a \
             build-x86_64/install/lib/libncnn.a \
             build-arm64/install/lib/libncnn.a \
             -o ncnn.framework/Versions/A/ncnn
@@ -2081,23 +1460,132 @@ jobs:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
 
+  openmp-tvos:
+    runs-on: macos-13
+    env:
+      OPENMP_VERSION: '18.1.2'
+      OPENMP_CMAKE_OPTIONS: |
+        -DCMAKE_TOOLCHAIN_FILE=../../toolchains/ios.toolchain.cmake \
+        -DDEPLOYMENT_TARGET=$TVOS_DEPLOYMENT_TARGET \
+        -DENABLE_BITCODE=$ENABLE_BITCODE \
+        -DENABLE_ARC=$ENABLE_ARC \
+        -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
+        -DCMAKE_INSTALL_PREFIX=install \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DPERL_EXECUTABLE=/usr/local/bin/perl \
+        -DLIBOMP_ENABLE_SHARED=OFF \
+        -DLIBOMP_OMPT_SUPPORT=OFF \
+        -DLIBOMP_USE_HWLOC=OFF \
+    steps:
+    - name: cache-openmp
+      id: cache-openmp
+      uses: actions/cache@v4
+      with:
+        path: openmp-install
+        key: openmp-tvos-release-18.1.2-20240403
+    - name: checkout
+      if: steps.cache-openmp.outputs.cache-hit != 'true'
+      uses: actions/checkout@v4
+    - name: openmp
+      if: steps.cache-openmp.outputs.cache-hit != 'true'
+      run: |
+        wget https://github.com/llvm/llvm-project/releases/download/llvmorg-${{ env.OPENMP_VERSION }}/cmake-${{ env.OPENMP_VERSION }}.src.tar.xz
+        tar -xf cmake-${{ env.OPENMP_VERSION }}.src.tar.xz
+        wget https://github.com/llvm/llvm-project/releases/download/llvmorg-${{ env.OPENMP_VERSION }}/openmp-${{ env.OPENMP_VERSION }}.src.tar.xz
+        tar -xf openmp-${{ env.OPENMP_VERSION }}.src.tar.xz
+        mv cmake-${{ env.OPENMP_VERSION }}.src/Modules/* openmp-${{ env.OPENMP_VERSION }}.src/cmake/
+        cd openmp-${{ env.OPENMP_VERSION }}.src
+        wget https://github.com/nihui/llvm-project/commit/ef8c35bcf5d9cfdb0764ffde6a63c04ec715bc37.patch
+        patch -p2 -i ef8c35bcf5d9cfdb0764ffde6a63c04ec715bc37.patch
+        wget https://github.com/nihui/llvm-project/commit/5c12711f9a21f41bea70566bf15a4026804d6b20.patch
+        patch -p2 -i 5c12711f9a21f41bea70566bf15a4026804d6b20.patch
+    - name: build-arm64
+      if: steps.cache-openmp.outputs.cache-hit != 'true'
+      run: |
+        cd openmp-${{ env.OPENMP_VERSION }}.src
+        mkdir -p build-arm64 && cd build-arm64
+        cmake ${{ env.OPENMP_CMAKE_OPTIONS }} -DPLATFORM=TVOS -DARCHS="arm64" ..
+        cmake --build . -j 4
+        cmake --build . --target install/strip
+    - name: build-arm64e
+      if: steps.cache-openmp.outputs.cache-hit != 'true'
+      run: |
+        cd openmp-${{ env.OPENMP_VERSION }}.src
+        mkdir -p build-arm64e && cd build-arm64e
+        cmake ${{ env.OPENMP_CMAKE_OPTIONS }} -DPLATFORM=TVOS -DARCHS="arm64e" ..
+        cmake --build . -j 4
+        cmake --build . --target install/strip
+    - name: merge-fat-library
+      if: steps.cache-openmp.outputs.cache-hit != 'true'
+      run: |
+        rm -rf $GITHUB_WORKSPACE/openmp-install
+        mkdir -p $GITHUB_WORKSPACE/openmp-install
+        cp -a openmp-${{ env.OPENMP_VERSION }}.src/build-arm64/install/include $GITHUB_WORKSPACE/openmp-install
+        mkdir -p $GITHUB_WORKSPACE/openmp-install/lib
+        lipo -create \
+            openmp-${{ env.OPENMP_VERSION }}.src/build-arm64/install/lib/libomp.a \
+            openmp-${{ env.OPENMP_VERSION }}.src/build-arm64e/install/lib/libomp.a \
+            -o $GITHUB_WORKSPACE/openmp-install/lib/libomp.a
+    - name: upload
+      uses: actions/upload-artifact@v4
+      with:
+        name: openmp-tvos
+        path: openmp-install
+
   tvos:
-    needs: [setup]
-    runs-on: macos-12
+    needs: [setup, openmp-tvos]
+    runs-on: macos-13
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-tvos
+      NCNN_CMAKE_OPTIONS: |
+        -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake \
+        -DDEPLOYMENT_TARGET=$TVOS_DEPLOYMENT_TARGET \
+        -DENABLE_BITCODE=$ENABLE_BITCODE \
+        -DENABLE_ARC=$ENABLE_ARC \
+        -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
+        -DCMAKE_INSTALL_PREFIX=install \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
+        -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
+        -DOpenMP_libomp_LIBRARY="libomp.a" \
+        -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
+        -DNCNN_BUILD_BENCHMARK=OFF \
+
     steps:
     - uses: actions/checkout@v4
+    - name: download-openmp-tvos
+      uses: actions/download-artifact@v4
+      with:
+        name: openmp-tvos
+        path: openmp-tvos
+    - name: install-openmp
+      run: |
+        sudo cp openmp-tvos/include/* $DEVELOPER_DIR/Platforms/AppleTVOS.platform/Developer/SDKs/AppleTVOS.sdk/usr/include
+        sudo cp openmp-tvos/lib/libomp.a $DEVELOPER_DIR/Platforms/AppleTVOS.platform/Developer/SDKs/AppleTVOS.sdk/usr/lib
     - name: build-arm64
       run: |
         mkdir build-arm64 && cd build-arm64
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DPLATFORM=TVOS -DARCHS="arm64" \
-            -DDEPLOYMENT_TARGET=$TVOS_DEPLOYMENT_TARGET -DENABLE_BITCODE=$ENABLE_BITCODE -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
-            -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DNCNN_OPENMP=OFF -DNCNN_THREADS=OFF \
-            -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=TVOS -DARCHS="arm64" ..
+        cmake --build . -j 4
         cmake --build . --target install/strip
+    - name: build-arm64e
+      run: |
+        mkdir build-arm64e && cd build-arm64e
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=TVOS -DARCHS="arm64e" ..
+        cmake --build . -j 4
+        cmake --build . --target install/strip
+    - name: package-openmp
+      run: |
+        rm -rf openmp.framework
+        mkdir -p openmp.framework/Versions/A/Headers
+        mkdir -p openmp.framework/Versions/A/Resources
+        ln -s A openmp.framework/Versions/Current
+        ln -s Versions/Current/Headers openmp.framework/Headers
+        ln -s Versions/Current/Resources openmp.framework/Resources
+        ln -s Versions/Current/openmp openmp.framework/openmp
+        cp openmp-tvos/lib/libomp.a openmp.framework/Versions/A/openmp
+        cp -a openmp-tvos/include/* openmp.framework/Versions/A/Headers/
+        sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/18.1/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
     - name: package
       run: |
         rm -rf ncnn.framework
@@ -2109,6 +1597,7 @@ jobs:
         ln -s Versions/Current/ncnn ncnn.framework/ncnn
         lipo -create \
             build-arm64/install/lib/libncnn.a \
+            build-arm64e/install/lib/libncnn.a \
             -o ncnn.framework/Versions/A/ncnn
         cp -a build-arm64/install/include/* ncnn.framework/Versions/A/Headers/
         sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
@@ -2120,33 +1609,632 @@ jobs:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
 
-  tvos-simulator:
-    needs: [setup]
-    runs-on: macos-12
+  tvos-gpu:
+    needs: [setup, openmp-tvos]
+    runs-on: macos-13
     env:
-      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-tvos-simulator
+      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-tvos-vulkan
+      NCNN_CMAKE_OPTIONS: |
+        -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake \
+        -DDEPLOYMENT_TARGET=$TVOS_DEPLOYMENT_TARGET \
+        -DENABLE_BITCODE=$ENABLE_BITCODE \
+        -DENABLE_ARC=$ENABLE_ARC \
+        -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
+        -DCMAKE_INSTALL_PREFIX=install \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
+        -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
+        -DOpenMP_libomp_LIBRARY="libomp.a" \
+        -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
+        -DNCNN_VULKAN=ON \
+        -DNCNN_BUILD_BENCHMARK=OFF \
+
     steps:
     - uses: actions/checkout@v4
+      with:
+        submodules: true
+    - name: download-openmp-tvos
+      uses: actions/download-artifact@v4
+      with:
+        name: openmp-tvos
+        path: openmp-tvos
+    - name: install-openmp
+      run: |
+        sudo cp openmp-tvos/include/* $DEVELOPER_DIR/Platforms/AppleTVOS.platform/Developer/SDKs/AppleTVOS.sdk/usr/include
+        sudo cp openmp-tvos/lib/libomp.a $DEVELOPER_DIR/Platforms/AppleTVOS.platform/Developer/SDKs/AppleTVOS.sdk/usr/lib
+    - name: build-arm64
+      run: |
+        mkdir build-arm64 && cd build-arm64
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=TVOS -DARCHS="arm64" ..
+        cmake --build . -j 4
+        cmake --build . --target install/strip
+    - name: build-arm64e
+      run: |
+        mkdir build-arm64e && cd build-arm64e
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=TVOS -DARCHS="arm64e" ..
+        cmake --build . -j 4
+        cmake --build . --target install/strip
+    - name: package-openmp
+      run: |
+        rm -rf openmp.framework
+        mkdir -p openmp.framework/Versions/A/Headers
+        mkdir -p openmp.framework/Versions/A/Resources
+        ln -s A openmp.framework/Versions/Current
+        ln -s Versions/Current/Headers openmp.framework/Headers
+        ln -s Versions/Current/Resources openmp.framework/Resources
+        ln -s Versions/Current/openmp openmp.framework/openmp
+        cp openmp-tvos/lib/libomp.a openmp.framework/Versions/A/openmp
+        cp -a openmp-tvos/include/* openmp.framework/Versions/A/Headers/
+        sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/18.1/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
+    - name: package-glslang
+      run: |
+        rm -rf glslang.framework
+        mkdir -p glslang.framework/Versions/A/Headers
+        mkdir -p glslang.framework/Versions/A/Resources
+        ln -s A glslang.framework/Versions/Current
+        ln -s Versions/Current/Headers glslang.framework/Headers
+        ln -s Versions/Current/Resources glslang.framework/Resources
+        ln -s Versions/Current/glslang glslang.framework/glslang
+        libtool -static \
+            build-arm64/install/lib/libglslang.a \
+            build-arm64/install/lib/libMachineIndependent.a \
+            build-arm64/install/lib/libGenericCodeGen.a \
+            build-arm64/install/lib/libSPIRV.a \
+            build-arm64/install/lib/libOGLCompiler.a \
+            build-arm64/install/lib/libOSDependent.a \
+            -o build-arm64/install/lib/libglslang_combined.a
+        libtool -static \
+            build-arm64e/install/lib/libglslang.a \
+            build-arm64e/install/lib/libMachineIndependent.a \
+            build-arm64e/install/lib/libGenericCodeGen.a \
+            build-arm64e/install/lib/libSPIRV.a \
+            build-arm64e/install/lib/libOGLCompiler.a \
+            build-arm64e/install/lib/libOSDependent.a \
+            -o build-arm64e/install/lib/libglslang_combined.a
+        lipo -create \
+            build-arm64/install/lib/libglslang_combined.a \
+            build-arm64e/install/lib/libglslang_combined.a \
+            -o glslang.framework/Versions/A/glslang
+        cp -a build-arm64/install/include/glslang glslang.framework/Versions/A/Headers/
+        sed -e 's/__NAME__/glslang/g' -e 's/__IDENTIFIER__/org.khronos.glslang/g' -e 's/__VERSION__/1.0/g' Info.plist > glslang.framework/Versions/A/Resources/Info.plist
+    - name: package
+      run: |
+        rm -rf ncnn.framework
+        mkdir -p ncnn.framework/Versions/A/Headers
+        mkdir -p ncnn.framework/Versions/A/Resources
+        ln -s A ncnn.framework/Versions/Current
+        ln -s Versions/Current/Headers ncnn.framework/Headers
+        ln -s Versions/Current/Resources ncnn.framework/Resources
+        ln -s Versions/Current/ncnn ncnn.framework/ncnn
+        lipo -create \
+            build-arm64/install/lib/libncnn.a \
+            build-arm64e/install/lib/libncnn.a \
+            -o ncnn.framework/Versions/A/ncnn
+        cp -a build-arm64/install/include/* ncnn.framework/Versions/A/Headers/
+        sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
+        rm -f ${{ env.PACKAGENAME }}.zip
+        zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework glslang.framework ncnn.framework
+    - name: upload-zip
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ env.PACKAGENAME }}
+        path: ${{ env.PACKAGENAME }}.zip
+
+  openmp-tvos-simulator:
+    runs-on: macos-13
+    env:
+      OPENMP_VERSION: '18.1.2'
+      OPENMP_CMAKE_OPTIONS: |
+        -DCMAKE_TOOLCHAIN_FILE=../../toolchains/ios.toolchain.cmake \
+        -DDEPLOYMENT_TARGET=$TVOS_DEPLOYMENT_TARGET \
+        -DENABLE_BITCODE=$ENABLE_BITCODE \
+        -DENABLE_ARC=$ENABLE_ARC \
+        -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
+        -DCMAKE_INSTALL_PREFIX=install \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DPERL_EXECUTABLE=/usr/local/bin/perl \
+        -DLIBOMP_ENABLE_SHARED=OFF \
+        -DLIBOMP_OMPT_SUPPORT=OFF \
+        -DLIBOMP_USE_HWLOC=OFF \
+    steps:
+    - name: cache-openmp
+      id: cache-openmp
+      uses: actions/cache@v4
+      with:
+        path: openmp-install
+        key: openmp-tvos-simulator-release-18.1.2-20240403
+    - name: checkout
+      if: steps.cache-openmp.outputs.cache-hit != 'true'
+      uses: actions/checkout@v4
+    - name: openmp
+      if: steps.cache-openmp.outputs.cache-hit != 'true'
+      run: |
+        wget https://github.com/llvm/llvm-project/releases/download/llvmorg-${{ env.OPENMP_VERSION }}/cmake-${{ env.OPENMP_VERSION }}.src.tar.xz
+        tar -xf cmake-${{ env.OPENMP_VERSION }}.src.tar.xz
+        wget https://github.com/llvm/llvm-project/releases/download/llvmorg-${{ env.OPENMP_VERSION }}/openmp-${{ env.OPENMP_VERSION }}.src.tar.xz
+        tar -xf openmp-${{ env.OPENMP_VERSION }}.src.tar.xz
+        mv cmake-${{ env.OPENMP_VERSION }}.src/Modules/* openmp-${{ env.OPENMP_VERSION }}.src/cmake/
+        cd openmp-${{ env.OPENMP_VERSION }}.src
+        wget https://github.com/nihui/llvm-project/commit/ef8c35bcf5d9cfdb0764ffde6a63c04ec715bc37.patch
+        patch -p2 -i ef8c35bcf5d9cfdb0764ffde6a63c04ec715bc37.patch
+        wget https://github.com/nihui/llvm-project/commit/5c12711f9a21f41bea70566bf15a4026804d6b20.patch
+        patch -p2 -i 5c12711f9a21f41bea70566bf15a4026804d6b20.patch
+    - name: build-x86_64
+      if: steps.cache-openmp.outputs.cache-hit != 'true'
+      run: |
+        cd openmp-${{ env.OPENMP_VERSION }}.src
+        mkdir -p build-x86_64 && cd build-x86_64
+        cmake ${{ env.OPENMP_CMAKE_OPTIONS }} -DPLATFORM=SIMULATOR_TVOS -DARCHS="x86_64" ..
+        cmake --build . -j 4
+        cmake --build . --target install/strip
+    - name: build-arm64
+      if: steps.cache-openmp.outputs.cache-hit != 'true'
+      run: |
+        cd openmp-${{ env.OPENMP_VERSION }}.src
+        mkdir -p build-arm64 && cd build-arm64
+        cmake ${{ env.OPENMP_CMAKE_OPTIONS }} -DPLATFORM=SIMULATOR_TVOS -DARCHS="arm64" ..
+        cmake --build . -j 4
+        cmake --build . --target install/strip
+    - name: merge-fat-library
+      if: steps.cache-openmp.outputs.cache-hit != 'true'
+      run: |
+        rm -rf $GITHUB_WORKSPACE/openmp-install
+        mkdir -p $GITHUB_WORKSPACE/openmp-install
+        cp -a openmp-${{ env.OPENMP_VERSION }}.src/build-x86_64/install/include $GITHUB_WORKSPACE/openmp-install
+        mkdir -p $GITHUB_WORKSPACE/openmp-install/lib
+        lipo -create \
+            openmp-${{ env.OPENMP_VERSION }}.src/build-x86_64/install/lib/libomp.a \
+            openmp-${{ env.OPENMP_VERSION }}.src/build-arm64/install/lib/libomp.a \
+            -o $GITHUB_WORKSPACE/openmp-install/lib/libomp.a
+    - name: upload
+      uses: actions/upload-artifact@v4
+      with:
+        name: openmp-tvos-simulator
+        path: openmp-install
+
+  tvos-simulator:
+    needs: [setup, openmp-tvos-simulator]
+    runs-on: macos-13
+    env:
+      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-tvos-simulator
+      NCNN_CMAKE_OPTIONS: |
+        -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake \
+        -DDEPLOYMENT_TARGET=$TVOS_DEPLOYMENT_TARGET \
+        -DENABLE_BITCODE=$ENABLE_BITCODE \
+        -DENABLE_ARC=$ENABLE_ARC \
+        -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
+        -DCMAKE_INSTALL_PREFIX=install \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
+        -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
+        -DOpenMP_libomp_LIBRARY="libomp.a" \
+        -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
+        -DNCNN_BUILD_BENCHMARK=OFF \
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: download-openmp-tvos-simulator
+      uses: actions/download-artifact@v4
+      with:
+        name: openmp-tvos-simulator
+        path: openmp-tvos-simulator
+    - name: install-openmp
+      run: |
+        sudo cp openmp-tvos-simulator/include/* $DEVELOPER_DIR/Platforms/AppleTVSimulator.platform/Developer/SDKs/AppleTVSimulator.sdk/usr/include
+        sudo cp openmp-tvos-simulator/lib/libomp.a $DEVELOPER_DIR/Platforms/AppleTVSimulator.platform/Developer/SDKs/AppleTVSimulator.sdk/usr/lib
     - name: build-x86_64
       run: |
         mkdir build-x86_64 && cd build-x86_64
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DPLATFORM=SIMULATOR_TVOS -DARCHS="x86_64" \
-            -DDEPLOYMENT_TARGET=$TVOS_DEPLOYMENT_TARGET -DENABLE_BITCODE=$ENABLE_BITCODE -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
-            -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DNCNN_OPENMP=OFF -DNCNN_THREADS=OFF \
-            -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=SIMULATOR_TVOS -DARCHS="x86_64" ..
+        cmake --build . -j 4
         cmake --build . --target install/strip
     - name: build-arm64
       run: |
         mkdir build-arm64 && cd build-arm64
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DPLATFORM=SIMULATORARM64_TVOS -DARCHS="arm64" \
-            -DDEPLOYMENT_TARGET=$TVOS_DEPLOYMENT_TARGET -DENABLE_BITCODE=$ENABLE_BITCODE -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
-            -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DNCNN_OPENMP=OFF -DNCNN_THREADS=OFF \
-            -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 3
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=SIMULATOR_TVOS -DARCHS="arm64" ..
+        cmake --build . -j 4
         cmake --build . --target install/strip
+    - name: package-openmp
+      run: |
+        rm -rf openmp.framework
+        mkdir -p openmp.framework/Versions/A/Headers
+        mkdir -p openmp.framework/Versions/A/Resources
+        ln -s A openmp.framework/Versions/Current
+        ln -s Versions/Current/Headers openmp.framework/Headers
+        ln -s Versions/Current/Resources openmp.framework/Resources
+        ln -s Versions/Current/openmp openmp.framework/openmp
+        cp openmp-tvos-simulator/lib/libomp.a openmp.framework/Versions/A/openmp
+        cp -a openmp-tvos-simulator/include/* openmp.framework/Versions/A/Headers/
+        sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/18.1/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
+    - name: package
+      run: |
+        rm -rf ncnn.framework
+        mkdir -p ncnn.framework/Versions/A/Headers
+        mkdir -p ncnn.framework/Versions/A/Resources
+        ln -s A ncnn.framework/Versions/Current
+        ln -s Versions/Current/Headers ncnn.framework/Headers
+        ln -s Versions/Current/Resources ncnn.framework/Resources
+        ln -s Versions/Current/ncnn ncnn.framework/ncnn
+        lipo -create \
+            build-x86_64/install/lib/libncnn.a \
+            build-arm64/install/lib/libncnn.a \
+            -o ncnn.framework/Versions/A/ncnn
+        cp -a build-x86_64/install/include/* ncnn.framework/Versions/A/Headers/
+        sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
+        rm -f ${{ env.PACKAGENAME }}.zip
+        zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework ncnn.framework
+    - name: upload-zip
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ env.PACKAGENAME }}
+        path: ${{ env.PACKAGENAME }}.zip
+
+  tvos-simulator-gpu:
+    needs: [setup, openmp-tvos-simulator]
+    runs-on: macos-13
+    env:
+      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-tvos-simulator-vulkan
+      NCNN_CMAKE_OPTIONS: |
+        -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake \
+        -DDEPLOYMENT_TARGET=$TVOS_DEPLOYMENT_TARGET \
+        -DENABLE_BITCODE=$ENABLE_BITCODE \
+        -DENABLE_ARC=$ENABLE_ARC \
+        -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
+        -DCMAKE_INSTALL_PREFIX=install \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
+        -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
+        -DOpenMP_libomp_LIBRARY="libomp.a" \
+        -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
+        -DNCNN_VULKAN=ON \
+        -DNCNN_BUILD_BENCHMARK=OFF \
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: true
+    - name: download-openmp-tvos-simulator
+      uses: actions/download-artifact@v4
+      with:
+        name: openmp-tvos-simulator
+        path: openmp-tvos-simulator
+    - name: install-openmp
+      run: |
+        sudo cp openmp-tvos-simulator/include/* $DEVELOPER_DIR/Platforms/AppleTVSimulator.platform/Developer/SDKs/AppleTVSimulator.sdk/usr/include
+        sudo cp openmp-tvos-simulator/lib/libomp.a $DEVELOPER_DIR/Platforms/AppleTVSimulator.platform/Developer/SDKs/AppleTVSimulator.sdk/usr/lib
+    - name: build-x86_64
+      run: |
+        mkdir build-x86_64 && cd build-x86_64
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=SIMULATOR_TVOS -DARCHS="x86_64" ..
+        cmake --build . -j 4
+        cmake --build . --target install/strip
+    - name: build-arm64
+      run: |
+        mkdir build-arm64 && cd build-arm64
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=SIMULATOR_TVOS -DARCHS="arm64" ..
+        cmake --build . -j 4
+        cmake --build . --target install/strip
+    - name: package-openmp
+      run: |
+        rm -rf openmp.framework
+        mkdir -p openmp.framework/Versions/A/Headers
+        mkdir -p openmp.framework/Versions/A/Resources
+        ln -s A openmp.framework/Versions/Current
+        ln -s Versions/Current/Headers openmp.framework/Headers
+        ln -s Versions/Current/Resources openmp.framework/Resources
+        ln -s Versions/Current/openmp openmp.framework/openmp
+        cp openmp-tvos-simulator/lib/libomp.a openmp.framework/Versions/A/openmp
+        cp -a openmp-tvos-simulator/include/* openmp.framework/Versions/A/Headers/
+        sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/18.1/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
+    - name: package-glslang
+      run: |
+        rm -rf glslang.framework
+        mkdir -p glslang.framework/Versions/A/Headers
+        mkdir -p glslang.framework/Versions/A/Resources
+        ln -s A glslang.framework/Versions/Current
+        ln -s Versions/Current/Headers glslang.framework/Headers
+        ln -s Versions/Current/Resources glslang.framework/Resources
+        ln -s Versions/Current/glslang glslang.framework/glslang
+        libtool -static \
+            build-x86_64/install/lib/libglslang.a \
+            build-x86_64/install/lib/libMachineIndependent.a \
+            build-x86_64/install/lib/libGenericCodeGen.a \
+            build-x86_64/install/lib/libSPIRV.a \
+            build-x86_64/install/lib/libOGLCompiler.a \
+            build-x86_64/install/lib/libOSDependent.a \
+            -o build-x86_64/install/lib/libglslang_combined.a
+        libtool -static \
+            build-arm64/install/lib/libglslang.a \
+            build-arm64/install/lib/libMachineIndependent.a \
+            build-arm64/install/lib/libGenericCodeGen.a \
+            build-arm64/install/lib/libSPIRV.a \
+            build-arm64/install/lib/libOGLCompiler.a \
+            build-arm64/install/lib/libOSDependent.a \
+            -o build-arm64/install/lib/libglslang_combined.a
+        lipo -create \
+            build-x86_64/install/lib/libglslang_combined.a \
+            build-arm64/install/lib/libglslang_combined.a \
+            -o glslang.framework/Versions/A/glslang
+        cp -a build-x86_64/install/include/glslang glslang.framework/Versions/A/Headers/
+        sed -e 's/__NAME__/glslang/g' -e 's/__IDENTIFIER__/org.khronos.glslang/g' -e 's/__VERSION__/1.0/g' Info.plist > glslang.framework/Versions/A/Resources/Info.plist
+    - name: package
+      run: |
+        rm -rf ncnn.framework
+        mkdir -p ncnn.framework/Versions/A/Headers
+        mkdir -p ncnn.framework/Versions/A/Resources
+        ln -s A ncnn.framework/Versions/Current
+        ln -s Versions/Current/Headers ncnn.framework/Headers
+        ln -s Versions/Current/Resources ncnn.framework/Resources
+        ln -s Versions/Current/ncnn ncnn.framework/ncnn
+        lipo -create \
+            build-x86_64/install/lib/libncnn.a \
+            build-arm64/install/lib/libncnn.a \
+            -o ncnn.framework/Versions/A/ncnn
+        cp -a build-x86_64/install/include/* ncnn.framework/Versions/A/Headers/
+        sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
+        rm -f ${{ env.PACKAGENAME }}.zip
+        zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework glslang.framework ncnn.framework
+    - name: upload-zip
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ env.PACKAGENAME }}
+        path: ${{ env.PACKAGENAME }}.zip
+
+  openmp-visionos:
+    runs-on: macos-13
+    env:
+      OPENMP_VERSION: '18.1.2'
+      OPENMP_CMAKE_OPTIONS: |
+        -DCMAKE_TOOLCHAIN_FILE=../../toolchains/ios.toolchain.cmake \
+        -DDEPLOYMENT_TARGET=$VISIONOS_DEPLOYMENT_TARGET \
+        -DENABLE_BITCODE=$ENABLE_BITCODE \
+        -DENABLE_ARC=$ENABLE_ARC \
+        -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
+        -DCMAKE_INSTALL_PREFIX=install \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DPERL_EXECUTABLE=/usr/local/bin/perl \
+        -DLIBOMP_ENABLE_SHARED=OFF \
+        -DLIBOMP_OMPT_SUPPORT=OFF \
+        -DLIBOMP_USE_HWLOC=OFF \
+    steps:
+    - name: cache-openmp
+      id: cache-openmp
+      uses: actions/cache@v4
+      with:
+        path: openmp-install
+        key: openmp-visionos-release-18.1.2-20240403
+    - name: checkout
+      if: steps.cache-openmp.outputs.cache-hit != 'true'
+      uses: actions/checkout@v4
+    - name: openmp
+      if: steps.cache-openmp.outputs.cache-hit != 'true'
+      run: |
+        wget https://github.com/llvm/llvm-project/releases/download/llvmorg-${{ env.OPENMP_VERSION }}/cmake-${{ env.OPENMP_VERSION }}.src.tar.xz
+        tar -xf cmake-${{ env.OPENMP_VERSION }}.src.tar.xz
+        wget https://github.com/llvm/llvm-project/releases/download/llvmorg-${{ env.OPENMP_VERSION }}/openmp-${{ env.OPENMP_VERSION }}.src.tar.xz
+        tar -xf openmp-${{ env.OPENMP_VERSION }}.src.tar.xz
+        mv cmake-${{ env.OPENMP_VERSION }}.src/Modules/* openmp-${{ env.OPENMP_VERSION }}.src/cmake/
+        cd openmp-${{ env.OPENMP_VERSION }}.src
+        wget https://github.com/nihui/llvm-project/commit/ef8c35bcf5d9cfdb0764ffde6a63c04ec715bc37.patch
+        patch -p2 -i ef8c35bcf5d9cfdb0764ffde6a63c04ec715bc37.patch
+        wget https://github.com/nihui/llvm-project/commit/5c12711f9a21f41bea70566bf15a4026804d6b20.patch
+        patch -p2 -i 5c12711f9a21f41bea70566bf15a4026804d6b20.patch
+    - name: build-arm64
+      if: steps.cache-openmp.outputs.cache-hit != 'true'
+      run: |
+        cd openmp-${{ env.OPENMP_VERSION }}.src
+        mkdir -p build-arm64 && cd build-arm64
+        cmake ${{ env.OPENMP_CMAKE_OPTIONS }} -DPLATFORM=VISIONOS -DARCHS="arm64" ..
+        cmake --build . -j 4
+        cmake --build . --target install/strip
+    - name: merge-fat-library
+      if: steps.cache-openmp.outputs.cache-hit != 'true'
+      run: |
+        rm -rf $GITHUB_WORKSPACE/openmp-install
+        mkdir -p $GITHUB_WORKSPACE/openmp-install
+        cp -a openmp-${{ env.OPENMP_VERSION }}.src/build-arm64/install/include $GITHUB_WORKSPACE/openmp-install
+        mkdir -p $GITHUB_WORKSPACE/openmp-install/lib
+        cp openmp-${{ env.OPENMP_VERSION }}.src/build-arm64/install/lib/libomp.a $GITHUB_WORKSPACE/openmp-install/lib/libomp.a
+    - name: upload
+      uses: actions/upload-artifact@v4
+      with:
+        name: openmp-visionos
+        path: openmp-install
+
+  visionos:
+    needs: [setup, openmp-visionos]
+    runs-on: macos-13
+    env:
+      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-visionos
+      NCNN_CMAKE_OPTIONS: |
+        -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake \
+        -DDEPLOYMENT_TARGET=$VISIONOS_DEPLOYMENT_TARGET \
+        -DENABLE_BITCODE=$ENABLE_BITCODE \
+        -DENABLE_ARC=$ENABLE_ARC \
+        -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
+        -DCMAKE_INSTALL_PREFIX=install \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
+        -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
+        -DOpenMP_libomp_LIBRARY="libomp.a" \
+        -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
+        -DNCNN_BUILD_BENCHMARK=OFF \
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: download-openmp-visionos
+      uses: actions/download-artifact@v4
+      with:
+        name: openmp-visionos
+        path: openmp-visionos
+    - name: install-openmp
+      run: |
+        sudo cp openmp-visionos/include/* $DEVELOPER_DIR/Platforms/XROS.platform/Developer/SDKs/XROS.sdk/usr/include
+        sudo cp openmp-visionos/lib/libomp.a $DEVELOPER_DIR/Platforms/XROS.platform/Developer/SDKs/XROS.sdk/usr/lib
+    - name: build-arm64
+      run: |
+        mkdir build-arm64 && cd build-arm64
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=VISIONOS -DARCHS="arm64" ..
+        cmake --build . -j 4
+        cmake --build . --target install/strip
+    - name: package-openmp
+      run: |
+        rm -rf openmp.framework
+        mkdir -p openmp.framework/Versions/A/Headers
+        mkdir -p openmp.framework/Versions/A/Resources
+        ln -s A openmp.framework/Versions/Current
+        ln -s Versions/Current/Headers openmp.framework/Headers
+        ln -s Versions/Current/Resources openmp.framework/Resources
+        ln -s Versions/Current/openmp openmp.framework/openmp
+        cp openmp-visionos/lib/libomp.a openmp.framework/Versions/A/openmp
+        cp -a openmp-visionos/include/* openmp.framework/Versions/A/Headers/
+        sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/18.1/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
+    - name: package
+      run: |
+        rm -rf ncnn.framework
+        mkdir -p ncnn.framework/Versions/A/Headers
+        mkdir -p ncnn.framework/Versions/A/Resources
+        ln -s A ncnn.framework/Versions/Current
+        ln -s Versions/Current/Headers ncnn.framework/Headers
+        ln -s Versions/Current/Resources ncnn.framework/Resources
+        ln -s Versions/Current/ncnn ncnn.framework/ncnn
+        cp build-arm64/install/lib/libncnn.a ncnn.framework/Versions/A/ncnn
+        cp -a build-arm64/install/include/* ncnn.framework/Versions/A/Headers/
+        sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
+        rm -f ${{ env.PACKAGENAME }}.zip
+        zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework ncnn.framework
+    - name: upload-zip
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ env.PACKAGENAME }}
+        path: ${{ env.PACKAGENAME }}.zip
+
+  openmp-visionos-simulator:
+    runs-on: macos-13
+    env:
+      OPENMP_VERSION: '18.1.2'
+      OPENMP_CMAKE_OPTIONS: |
+        -DCMAKE_TOOLCHAIN_FILE=../../toolchains/ios.toolchain.cmake \
+        -DDEPLOYMENT_TARGET=$VISIONOS_DEPLOYMENT_TARGET \
+        -DENABLE_BITCODE=$ENABLE_BITCODE \
+        -DENABLE_ARC=$ENABLE_ARC \
+        -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
+        -DCMAKE_INSTALL_PREFIX=install \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DPERL_EXECUTABLE=/usr/local/bin/perl \
+        -DLIBOMP_ENABLE_SHARED=OFF \
+        -DLIBOMP_OMPT_SUPPORT=OFF \
+        -DLIBOMP_USE_HWLOC=OFF \
+    steps:
+    - name: cache-openmp
+      id: cache-openmp
+      uses: actions/cache@v4
+      with:
+        path: openmp-install
+        key: openmp-visionos-simulator-release-18.1.2-20240403
+    - name: checkout
+      if: steps.cache-openmp.outputs.cache-hit != 'true'
+      uses: actions/checkout@v4
+    - name: openmp
+      if: steps.cache-openmp.outputs.cache-hit != 'true'
+      run: |
+        wget https://github.com/llvm/llvm-project/releases/download/llvmorg-${{ env.OPENMP_VERSION }}/cmake-${{ env.OPENMP_VERSION }}.src.tar.xz
+        tar -xf cmake-${{ env.OPENMP_VERSION }}.src.tar.xz
+        wget https://github.com/llvm/llvm-project/releases/download/llvmorg-${{ env.OPENMP_VERSION }}/openmp-${{ env.OPENMP_VERSION }}.src.tar.xz
+        tar -xf openmp-${{ env.OPENMP_VERSION }}.src.tar.xz
+        mv cmake-${{ env.OPENMP_VERSION }}.src/Modules/* openmp-${{ env.OPENMP_VERSION }}.src/cmake/
+        cd openmp-${{ env.OPENMP_VERSION }}.src
+        wget https://github.com/nihui/llvm-project/commit/ef8c35bcf5d9cfdb0764ffde6a63c04ec715bc37.patch
+        patch -p2 -i ef8c35bcf5d9cfdb0764ffde6a63c04ec715bc37.patch
+        wget https://github.com/nihui/llvm-project/commit/5c12711f9a21f41bea70566bf15a4026804d6b20.patch
+        patch -p2 -i 5c12711f9a21f41bea70566bf15a4026804d6b20.patch
+    - name: build-x86_64
+      if: steps.cache-openmp.outputs.cache-hit != 'true'
+      run: |
+        cd openmp-${{ env.OPENMP_VERSION }}.src
+        mkdir -p build-x86_64 && cd build-x86_64
+        cmake ${{ env.OPENMP_CMAKE_OPTIONS }} -DPLATFORM=SIMULATOR_VISIONOS -DARCHS="x86_64" ..
+        cmake --build . -j 4
+        cmake --build . --target install/strip
+    - name: build-arm64
+      if: steps.cache-openmp.outputs.cache-hit != 'true'
+      run: |
+        cd openmp-${{ env.OPENMP_VERSION }}.src
+        mkdir -p build-arm64 && cd build-arm64
+        cmake ${{ env.OPENMP_CMAKE_OPTIONS }} -DPLATFORM=SIMULATOR_VISIONOS -DARCHS="arm64" ..
+        cmake --build . -j 4
+        cmake --build . --target install/strip
+    - name: merge-fat-library
+      if: steps.cache-openmp.outputs.cache-hit != 'true'
+      run: |
+        rm -rf $GITHUB_WORKSPACE/openmp-install
+        mkdir -p $GITHUB_WORKSPACE/openmp-install
+        cp -a openmp-${{ env.OPENMP_VERSION }}.src/build-x86_64/install/include $GITHUB_WORKSPACE/openmp-install
+        mkdir -p $GITHUB_WORKSPACE/openmp-install/lib
+        lipo -create \
+            openmp-${{ env.OPENMP_VERSION }}.src/build-x86_64/install/lib/libomp.a \
+            openmp-${{ env.OPENMP_VERSION }}.src/build-arm64/install/lib/libomp.a \
+            -o $GITHUB_WORKSPACE/openmp-install/lib/libomp.a
+    - name: upload
+      uses: actions/upload-artifact@v4
+      with:
+        name: openmp-visionos-simulator
+        path: openmp-install
+
+  visionos-simulator:
+    needs: [setup, openmp-visionos-simulator]
+    runs-on: macos-13
+    env:
+      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-visionos-simulator
+      NCNN_CMAKE_OPTIONS: |
+        -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake \
+        -DDEPLOYMENT_TARGET=$VISIONOS_DEPLOYMENT_TARGET \
+        -DENABLE_BITCODE=$ENABLE_BITCODE \
+        -DENABLE_ARC=$ENABLE_ARC \
+        -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
+        -DCMAKE_INSTALL_PREFIX=install \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
+        -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
+        -DOpenMP_libomp_LIBRARY="libomp.a" \
+        -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
+        -DNCNN_BUILD_BENCHMARK=OFF \
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: download-openmp-visionos-simulator
+      uses: actions/download-artifact@v4
+      with:
+        name: openmp-visionos-simulator
+        path: openmp-visionos-simulator
+    - name: install-openmp
+      run: |
+        sudo cp openmp-visionos-simulator/include/* $DEVELOPER_DIR/Platforms/XRSimulator.platform/Developer/SDKs/XRSimulator.sdk/usr/include
+        sudo cp openmp-visionos-simulator/lib/libomp.a $DEVELOPER_DIR/Platforms/XRSimulator.platform/Developer/SDKs/XRSimulator.sdk/usr/lib
+    - name: build-x86_64
+      run: |
+        mkdir build-x86_64 && cd build-x86_64
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=SIMULATOR_VISIONOS -DARCHS="x86_64" ..
+        cmake --build . -j 4
+        cmake --build . --target install/strip
+    - name: build-arm64
+      run: |
+        mkdir build-arm64 && cd build-arm64
+        cmake ${{ env.NCNN_CMAKE_OPTIONS }} -DPLATFORM=SIMULATOR_VISIONOS -DARCHS="arm64" ..
+        cmake --build . -j 4
+        cmake --build . --target install/strip
+    - name: package-openmp
+      run: |
+        rm -rf openmp.framework
+        mkdir -p openmp.framework/Versions/A/Headers
+        mkdir -p openmp.framework/Versions/A/Resources
+        ln -s A openmp.framework/Versions/Current
+        ln -s Versions/Current/Headers openmp.framework/Headers
+        ln -s Versions/Current/Resources openmp.framework/Resources
+        ln -s Versions/Current/openmp openmp.framework/openmp
+        cp openmp-visionos-simulator/lib/libomp.a openmp.framework/Versions/A/openmp
+        cp -a openmp-visionos-simulator/include/* openmp.framework/Versions/A/Headers/
+        sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/18.1/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
     - name: package
       run: |
         rm -rf ncnn.framework
@@ -2988,12 +3076,12 @@ jobs:
         path: ${{ env.PACKAGENAME }}.zip
 
   apple:
-    needs: [setup, macos, ios, ios-simulator, mac-catalyst]
-    runs-on: macos-12
+    needs: [setup, macos, ios, ios-simulator, mac-catalyst, watchos, watchos-simulator, tvos, tvos-simulator, visionos, visionos-simulator]
+    runs-on: macos-13
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-apple
     steps:
-    - run: sudo xcode-select --switch /Applications/Xcode_13.4.1.app
+    - run: sudo xcode-select --switch /Applications/Xcode_15.2.app
     - name: download
       uses: actions/download-artifact@v4
       with:
@@ -3005,17 +3093,35 @@ jobs:
         mkdir -p ncnn-ios
         mkdir -p ncnn-ios-simulator
         mkdir -p ncnn-mac-catalyst
+        mkdir -p ncnn-watchos
+        mkdir -p ncnn-watchos-simulator
+        mkdir -p ncnn-tvos
+        mkdir -p ncnn-tvos-simulator
+        mkdir -p ncnn-visionos
+        mkdir -p ncnn-visionos-simulator
 
         unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-macos/ncnn-${{ needs.setup.outputs.VERSION }}-macos.zip -d ncnn-macos
         unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios/ncnn-${{ needs.setup.outputs.VERSION }}-ios.zip -d ncnn-ios
         unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator/ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator.zip -d ncnn-ios-simulator
         unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst/ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst.zip -d ncnn-mac-catalyst
+        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-watchos/ncnn-${{ needs.setup.outputs.VERSION }}-watchos.zip -d ncnn-watchos
+        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-watchos-simulator/ncnn-${{ needs.setup.outputs.VERSION }}-watchos-simulator.zip -d ncnn-watchos-simulator
+        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-tvos/ncnn-${{ needs.setup.outputs.VERSION }}-tvos.zip -d ncnn-tvos
+        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-tvos-simulator/ncnn-${{ needs.setup.outputs.VERSION }}-tvos-simulator.zip -d ncnn-tvos-simulator
+        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-visionos/ncnn-${{ needs.setup.outputs.VERSION }}-visionos.zip -d ncnn-visionos
+        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-visionos-simulator/ncnn-${{ needs.setup.outputs.VERSION }}-visionos-simulator.zip -d ncnn-visionos-simulator
 
         xcodebuild -create-xcframework \
             -framework ncnn-macos/openmp.framework \
             -framework ncnn-ios/openmp.framework \
             -framework ncnn-ios-simulator/openmp.framework \
             -framework ncnn-mac-catalyst/openmp.framework \
+            -framework ncnn-watchos/openmp.framework \
+            -framework ncnn-watchos-simulator/openmp.framework \
+            -framework ncnn-tvos/openmp.framework \
+            -framework ncnn-tvos-simulator/openmp.framework \
+            -framework ncnn-visionos/openmp.framework \
+            -framework ncnn-visionos-simulator/openmp.framework \
             -output openmp.xcframework
 
         xcodebuild -create-xcframework \
@@ -3023,6 +3129,12 @@ jobs:
             -framework ncnn-ios/ncnn.framework \
             -framework ncnn-ios-simulator/ncnn.framework \
             -framework ncnn-mac-catalyst/ncnn.framework \
+            -framework ncnn-watchos/ncnn.framework \
+            -framework ncnn-watchos-simulator/ncnn.framework \
+            -framework ncnn-tvos/ncnn.framework \
+            -framework ncnn-tvos-simulator/ncnn.framework \
+            -framework ncnn-visionos/ncnn.framework \
+            -framework ncnn-visionos-simulator/ncnn.framework \
             -output ncnn.xcframework
 
         rm -f ${{ env.PACKAGENAME }}.zip
@@ -3034,12 +3146,12 @@ jobs:
         path: ${{ env.PACKAGENAME }}.zip
 
   apple-gpu:
-    needs: [setup, macos-gpu, ios-gpu, ios-simulator-gpu, mac-catalyst-gpu]
-    runs-on: macos-12
+    needs: [setup, macos-gpu, ios-gpu, ios-simulator-gpu, mac-catalyst-gpu, watchos, watchos-simulator, tvos-gpu, tvos-simulator-gpu, visionos, visionos-simulator]
+    runs-on: macos-13
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-apple-vulkan
     steps:
-    - run: sudo xcode-select --switch /Applications/Xcode_13.4.1.app
+    - run: sudo xcode-select --switch /Applications/Xcode_15.2.app
     - name: download
       uses: actions/download-artifact@v4
       with:
@@ -3051,17 +3163,35 @@ jobs:
         mkdir -p ncnn-ios-vulkan
         mkdir -p ncnn-ios-simulator-vulkan
         mkdir -p ncnn-mac-catalyst-vulkan
+        mkdir -p ncnn-watchos
+        mkdir -p ncnn-watchos-simulator
+        mkdir -p ncnn-tvos-vulkan
+        mkdir -p ncnn-tvos-simulator-vulkan
+        mkdir -p ncnn-visionos
+        mkdir -p ncnn-visionos-simulator
 
         unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-macos-vulkan/ncnn-${{ needs.setup.outputs.VERSION }}-macos-vulkan.zip -d ncnn-macos-vulkan
         unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios-vulkan/ncnn-${{ needs.setup.outputs.VERSION }}-ios-vulkan.zip -d ncnn-ios-vulkan
         unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator-vulkan/ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator-vulkan.zip -d ncnn-ios-simulator-vulkan
         unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst-vulkan/ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst-vulkan.zip -d ncnn-mac-catalyst-vulkan
+        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-watchos/ncnn-${{ needs.setup.outputs.VERSION }}-watchos.zip -d ncnn-watchos
+        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-watchos-simulator/ncnn-${{ needs.setup.outputs.VERSION }}-watchos-simulator.zip -d ncnn-watchos-simulator
+        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-tvos-vulkan/ncnn-${{ needs.setup.outputs.VERSION }}-tvos-vulkan.zip -d ncnn-tvos-vulkan
+        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-tvos-simulator-vulkan/ncnn-${{ needs.setup.outputs.VERSION }}-tvos-simulator-vulkan.zip -d ncnn-tvos-simulator-vulkan
+        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-visionos/ncnn-${{ needs.setup.outputs.VERSION }}-visionos.zip -d ncnn-visionos
+        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-visionos-simulator/ncnn-${{ needs.setup.outputs.VERSION }}-visionos-simulator.zip -d ncnn-visionos-simulator
 
         xcodebuild -create-xcframework \
             -framework ncnn-macos-vulkan/openmp.framework \
             -framework ncnn-ios-vulkan/openmp.framework \
             -framework ncnn-ios-simulator-vulkan/openmp.framework \
             -framework ncnn-mac-catalyst-vulkan/openmp.framework \
+            -framework ncnn-watchos/openmp.framework \
+            -framework ncnn-watchos-simulator/openmp.framework \
+            -framework ncnn-tvos-vulkan/openmp.framework \
+            -framework ncnn-tvos-simulator-vulkan/openmp.framework \
+            -framework ncnn-visionos/openmp.framework \
+            -framework ncnn-visionos-simulator/openmp.framework \
             -output openmp.xcframework
 
         xcodebuild -create-xcframework \
@@ -3069,6 +3199,8 @@ jobs:
             -framework ncnn-ios-vulkan/glslang.framework \
             -framework ncnn-ios-simulator-vulkan/glslang.framework \
             -framework ncnn-mac-catalyst-vulkan/glslang.framework \
+            -framework ncnn-tvos-vulkan/glslang.framework \
+            -framework ncnn-tvos-simulator-vulkan/glslang.framework \
             -output glslang.xcframework
 
         xcodebuild -create-xcframework \
@@ -3076,105 +3208,12 @@ jobs:
             -framework ncnn-ios-vulkan/ncnn.framework \
             -framework ncnn-ios-simulator-vulkan/ncnn.framework \
             -framework ncnn-mac-catalyst-vulkan/ncnn.framework \
-            -output ncnn.xcframework
-
-        rm -f ${{ env.PACKAGENAME }}.zip
-        zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.xcframework glslang.xcframework ncnn.xcframework
-    - name: upload-zip
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ env.PACKAGENAME }}
-        path: ${{ env.PACKAGENAME }}.zip
-
-  apple-bitcode:
-    needs: [setup, macos, ios-bitcode, ios-simulator-bitcode, mac-catalyst-bitcode]
-    runs-on: macos-12
-    env:
-      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-apple-bitcode
-    steps:
-    - run: sudo xcode-select --switch /Applications/Xcode_13.4.1.app
-    - name: download
-      uses: actions/download-artifact@v4
-      with:
-        path: artifacts
-
-    - name: create-xcframwork
-      run: |
-        mkdir -p ncnn-macos
-        mkdir -p ncnn-ios-bitcode
-        mkdir -p ncnn-ios-simulator-bitcode
-        mkdir -p ncnn-mac-catalyst-bitcode
-
-        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-macos/ncnn-${{ needs.setup.outputs.VERSION }}-macos.zip -d ncnn-macos
-        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios-bitcode/ncnn-${{ needs.setup.outputs.VERSION }}-ios-bitcode.zip -d ncnn-ios-bitcode
-        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator-bitcode/ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator-bitcode.zip -d ncnn-ios-simulator-bitcode
-        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst-bitcode/ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst-bitcode.zip -d ncnn-mac-catalyst-bitcode
-
-        xcodebuild -create-xcframework \
-            -framework ncnn-macos/openmp.framework \
-            -framework ncnn-ios-bitcode/openmp.framework \
-            -framework ncnn-ios-simulator-bitcode/openmp.framework \
-            -framework ncnn-mac-catalyst-bitcode/openmp.framework \
-            -output openmp.xcframework
-
-        xcodebuild -create-xcframework \
-            -framework ncnn-macos/ncnn.framework \
-            -framework ncnn-ios-bitcode/ncnn.framework \
-            -framework ncnn-ios-simulator-bitcode/ncnn.framework \
-            -framework ncnn-mac-catalyst-bitcode/ncnn.framework \
-            -output ncnn.xcframework
-
-        rm -f ${{ env.PACKAGENAME }}.zip
-        zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.xcframework ncnn.xcframework
-    - name: upload-zip
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ env.PACKAGENAME }}
-        path: ${{ env.PACKAGENAME }}.zip
-
-  apple-gpu-bitcode:
-    needs: [setup, macos-gpu, ios-gpu-bitcode, ios-simulator-gpu-bitcode, mac-catalyst-gpu-bitcode]
-    runs-on: macos-12
-    env:
-      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-apple-vulkan-bitcode
-    steps:
-    - run: sudo xcode-select --switch /Applications/Xcode_13.4.1.app
-    - name: download
-      uses: actions/download-artifact@v4
-      with:
-        path: artifacts
-
-    - name: create-xcframwork
-      run: |
-        mkdir -p ncnn-macos-vulkan
-        mkdir -p ncnn-ios-vulkan-bitcode
-        mkdir -p ncnn-ios-simulator-vulkan-bitcode
-        mkdir -p ncnn-mac-catalyst-vulkan-bitcode
-
-        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-macos-vulkan/ncnn-${{ needs.setup.outputs.VERSION }}-macos-vulkan.zip -d ncnn-macos-vulkan
-        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios-vulkan-bitcode/ncnn-${{ needs.setup.outputs.VERSION }}-ios-vulkan-bitcode.zip -d ncnn-ios-vulkan-bitcode
-        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator-vulkan-bitcode/ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator-vulkan-bitcode.zip -d ncnn-ios-simulator-vulkan-bitcode
-        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst-vulkan-bitcode/ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst-vulkan-bitcode.zip -d ncnn-mac-catalyst-vulkan-bitcode
-
-        xcodebuild -create-xcframework \
-            -framework ncnn-macos-vulkan/openmp.framework \
-            -framework ncnn-ios-vulkan-bitcode/openmp.framework \
-            -framework ncnn-ios-simulator-vulkan-bitcode/openmp.framework \
-            -framework ncnn-mac-catalyst-vulkan-bitcode/openmp.framework \
-            -output openmp.xcframework
-
-        xcodebuild -create-xcframework \
-            -framework ncnn-macos-vulkan/glslang.framework \
-            -framework ncnn-ios-vulkan-bitcode/glslang.framework \
-            -framework ncnn-ios-simulator-vulkan-bitcode/glslang.framework \
-            -framework ncnn-mac-catalyst-vulkan-bitcode/glslang.framework \
-            -output glslang.xcframework
-
-        xcodebuild -create-xcframework \
-            -framework ncnn-macos-vulkan/ncnn.framework \
-            -framework ncnn-ios-vulkan-bitcode/ncnn.framework \
-            -framework ncnn-ios-simulator-vulkan-bitcode/ncnn.framework \
-            -framework ncnn-mac-catalyst-vulkan-bitcode/ncnn.framework \
+            -framework ncnn-watchos/ncnn.framework \
+            -framework ncnn-watchos-simulator/ncnn.framework \
+            -framework ncnn-tvos-vulkan/ncnn.framework \
+            -framework ncnn-tvos-simulator-vulkan/ncnn.framework \
+            -framework ncnn-visionos/ncnn.framework \
+            -framework ncnn-visionos-simulator/ncnn.framework \
             -output ncnn.xcframework
 
         rm -f ${{ env.PACKAGENAME }}.zip
@@ -3188,7 +3227,7 @@ jobs:
   release:
     permissions:
       contents: write  # for softprops/action-gh-release to create a release
-    needs: [setup, full-source, ubuntu-2004, ubuntu-2004-shared, ubuntu-2204, ubuntu-2204-shared, macos, macos-gpu, ios, ios-gpu, ios-bitcode, ios-gpu-bitcode, ios-simulator, ios-simulator-gpu, ios-simulator-bitcode, ios-simulator-gpu-bitcode, mac-catalyst, mac-catalyst-gpu, mac-catalyst-bitcode, mac-catalyst-gpu-bitcode, watchos, watchos-simulator, tvos, tvos-simulator, android, android-shared, android-gpu, android-gpu-shared, webassembly, windows-vs2015, windows-vs2015-shared, windows-vs2017, windows-vs2017-shared, windows-vs2019, windows-vs2019-shared, windows-vs2022, windows-vs2022-shared, apple, apple-gpu, apple-bitcode, apple-gpu-bitcode]
+    needs: [setup, full-source, ubuntu-2004, ubuntu-2004-shared, ubuntu-2204, ubuntu-2204-shared, macos, macos-gpu, ios, ios-gpu, ios-simulator, ios-simulator-gpu, mac-catalyst, mac-catalyst-gpu, watchos, watchos-simulator, tvos, tvos-simulator, android, android-shared, android-gpu, android-gpu-shared, webassembly, windows-vs2015, windows-vs2015-shared, windows-vs2017, windows-vs2017-shared, windows-vs2019, windows-vs2019-shared, windows-vs2022, windows-vs2022-shared, apple, apple-gpu]
     runs-on: ubuntu-latest
     steps:
     - name: download
