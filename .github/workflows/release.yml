@@ -3076,7 +3076,7 @@ jobs:
         path: ${{ env.PACKAGENAME }}.zip
 
   apple:
-    needs: [setup, macos, ios, ios-simulator, mac-catalyst, watchos, tvos, visionos]
+    needs: [setup, macos, ios, ios-simulator, mac-catalyst, watchos, watchos-simulator, tvos, tvos-simulator, visionos, visionos-simulator]
     runs-on: macos-13
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-apple
@@ -3094,16 +3094,22 @@ jobs:
         mkdir -p ncnn-ios-simulator
         mkdir -p ncnn-mac-catalyst
         mkdir -p ncnn-watchos
+        mkdir -p ncnn-watchos-simulator
         mkdir -p ncnn-tvos
+        mkdir -p ncnn-tvos-simulator
         mkdir -p ncnn-visionos
+        mkdir -p ncnn-visionos-simulator
 
         unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-macos/ncnn-${{ needs.setup.outputs.VERSION }}-macos.zip -d ncnn-macos
         unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios/ncnn-${{ needs.setup.outputs.VERSION }}-ios.zip -d ncnn-ios
         unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator/ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator.zip -d ncnn-ios-simulator
         unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst/ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst.zip -d ncnn-mac-catalyst
         unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-watchos/ncnn-${{ needs.setup.outputs.VERSION }}-watchos.zip -d ncnn-watchos
+        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-watchos-simulator/ncnn-${{ needs.setup.outputs.VERSION }}-watchos-simulator.zip -d ncnn-watchos-simulator
         unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-tvos/ncnn-${{ needs.setup.outputs.VERSION }}-tvos.zip -d ncnn-tvos
+        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-tvos-simulator/ncnn-${{ needs.setup.outputs.VERSION }}-tvos-simulator.zip -d ncnn-tvos-simulator
         unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-visionos/ncnn-${{ needs.setup.outputs.VERSION }}-visionos.zip -d ncnn-visionos
+        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-visionos-simulator/ncnn-${{ needs.setup.outputs.VERSION }}-visionos-simulator.zip -d ncnn-visionos-simulator
 
         xcodebuild -create-xcframework \
             -framework ncnn-macos/openmp.framework \
@@ -3111,8 +3117,11 @@ jobs:
             -framework ncnn-ios-simulator/openmp.framework \
             -framework ncnn-mac-catalyst/openmp.framework \
             -framework ncnn-watchos/openmp.framework \
+            -framework ncnn-watchos-simulator/openmp.framework \
             -framework ncnn-tvos/openmp.framework \
+            -framework ncnn-tvos-simulator/openmp.framework \
             -framework ncnn-visionos/openmp.framework \
+            -framework ncnn-visionos-simulator/openmp.framework \
             -output openmp.xcframework
 
         xcodebuild -create-xcframework \
@@ -3121,8 +3130,11 @@ jobs:
             -framework ncnn-ios-simulator/ncnn.framework \
             -framework ncnn-mac-catalyst/ncnn.framework \
             -framework ncnn-watchos/ncnn.framework \
+            -framework ncnn-watchos-simulator/ncnn.framework \
             -framework ncnn-tvos/ncnn.framework \
+            -framework ncnn-tvos-simulator/ncnn.framework \
             -framework ncnn-visionos/ncnn.framework \
+            -framework ncnn-visionos-simulator/ncnn.framework \
             -output ncnn.xcframework
 
         rm -f ${{ env.PACKAGENAME }}.zip
@@ -3134,7 +3146,7 @@ jobs:
         path: ${{ env.PACKAGENAME }}.zip
 
   apple-gpu:
-    needs: [setup, macos-gpu, ios-gpu, ios-simulator-gpu, mac-catalyst-gpu, watchos, tvos-gpu, visionos]
+    needs: [setup, macos-gpu, ios-gpu, ios-simulator-gpu, mac-catalyst-gpu, watchos, watchos-simulator, tvos-gpu, tvos-simulator-gpu, visionos, visionos-simulator]
     runs-on: macos-13
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-apple-vulkan
@@ -3152,16 +3164,22 @@ jobs:
         mkdir -p ncnn-ios-simulator-vulkan
         mkdir -p ncnn-mac-catalyst-vulkan
         mkdir -p ncnn-watchos
+        mkdir -p ncnn-watchos-simulator
         mkdir -p ncnn-tvos-vulkan
+        mkdir -p ncnn-tvos-simulator-vulkan
         mkdir -p ncnn-visionos
+        mkdir -p ncnn-visionos-simulator
 
         unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-macos-vulkan/ncnn-${{ needs.setup.outputs.VERSION }}-macos-vulkan.zip -d ncnn-macos-vulkan
         unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios-vulkan/ncnn-${{ needs.setup.outputs.VERSION }}-ios-vulkan.zip -d ncnn-ios-vulkan
         unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator-vulkan/ncnn-${{ needs.setup.outputs.VERSION }}-ios-simulator-vulkan.zip -d ncnn-ios-simulator-vulkan
         unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst-vulkan/ncnn-${{ needs.setup.outputs.VERSION }}-mac-catalyst-vulkan.zip -d ncnn-mac-catalyst-vulkan
         unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-watchos/ncnn-${{ needs.setup.outputs.VERSION }}-watchos.zip -d ncnn-watchos
+        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-watchos-simulator/ncnn-${{ needs.setup.outputs.VERSION }}-watchos-simulator.zip -d ncnn-watchos-simulator
         unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-tvos-vulkan/ncnn-${{ needs.setup.outputs.VERSION }}-tvos-vulkan.zip -d ncnn-tvos-vulkan
+        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-tvos-simulator-vulkan/ncnn-${{ needs.setup.outputs.VERSION }}-tvos-simulator-vulkan.zip -d ncnn-tvos-simulator-vulkan
         unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-visionos/ncnn-${{ needs.setup.outputs.VERSION }}-visionos.zip -d ncnn-visionos
+        unzip -q artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-visionos-simulator/ncnn-${{ needs.setup.outputs.VERSION }}-visionos-simulator.zip -d ncnn-visionos-simulator
 
         xcodebuild -create-xcframework \
             -framework ncnn-macos-vulkan/openmp.framework \
@@ -3169,8 +3187,11 @@ jobs:
             -framework ncnn-ios-simulator-vulkan/openmp.framework \
             -framework ncnn-mac-catalyst-vulkan/openmp.framework \
             -framework ncnn-watchos/openmp.framework \
+            -framework ncnn-watchos-simulator/openmp.framework \
             -framework ncnn-tvos-vulkan/openmp.framework \
+            -framework ncnn-tvos-simulator-vulkan/openmp.framework \
             -framework ncnn-visionos/openmp.framework \
+            -framework ncnn-visionos-simulator/openmp.framework \
             -output openmp.xcframework
 
         xcodebuild -create-xcframework \
@@ -3179,6 +3200,7 @@ jobs:
             -framework ncnn-ios-simulator-vulkan/glslang.framework \
             -framework ncnn-mac-catalyst-vulkan/glslang.framework \
             -framework ncnn-tvos-vulkan/glslang.framework \
+            -framework ncnn-tvos-simulator-vulkan/glslang.framework \
             -output glslang.xcframework
 
         xcodebuild -create-xcframework \
@@ -3187,8 +3209,11 @@ jobs:
             -framework ncnn-ios-simulator-vulkan/ncnn.framework \
             -framework ncnn-mac-catalyst-vulkan/ncnn.framework \
             -framework ncnn-watchos/ncnn.framework \
+            -framework ncnn-watchos-simulator/ncnn.framework \
             -framework ncnn-tvos-vulkan/ncnn.framework \
+            -framework ncnn-tvos-simulator-vulkan/ncnn.framework \
             -framework ncnn-visionos/ncnn.framework \
+            -framework ncnn-visionos-simulator/ncnn.framework \
             -output ncnn.xcframework
 
         rm -f ${{ env.PACKAGENAME }}.zip
