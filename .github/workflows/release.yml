@@ -1631,6 +1631,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+      with:
+        submodules: true
     - name: download-openmp-tvos
       uses: actions/download-artifact@v4
       with:
@@ -1889,6 +1891,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+      with:
+        submodules: true
     - name: download-openmp-tvos-simulator
       uses: actions/download-artifact@v4
       with:
