@@ -408,7 +408,21 @@ public:
 #if NCNN_VULKAN
         if (layer_vulkan)
         {
-            return layer_vulkan->destroy_pipeline(opt);
+            int ret = 0;
+            if (vkdev)
+            {
+                ret = layer_vulkan->destroy_pipeline(opt);
+            }
+
+            if (!support_vulkan || !vkdev)
+            {
+                // fallback to cpu layer
+                delete layer_vulkan;
+                layer_vulkan = 0;
+            }
+
+            if (ret)
+                return ret;
         }
 #endif // NCNN_VULKAN
 
