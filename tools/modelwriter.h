@@ -897,7 +897,7 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             }
             fprintf_param_value(" 19=%d", dynamic_weight)
 
-            if (dynamic_weight == 0)
+            if (op->dynamic_weight == 0)
             {
                 fwrite_weight_tag_data(op->weight_data, bp);
                 fwrite_weight_data(op->bias_data, bp);
@@ -945,7 +945,7 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             }
             fprintf_param_value(" 19=%d", dynamic_weight)
 
-            if (dynamic_weight == 0)
+            if (op->dynamic_weight == 0)
             {
                 fwrite_weight_tag_data(op->weight_data, bp);
                 fwrite_weight_data(op->bias_data, bp);
@@ -1056,7 +1056,7 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             }
             fprintf_param_value(" 19=%d", dynamic_weight)
 
-            if (dynamic_weight == 0)
+            if (op->dynamic_weight == 0)
             {
                 fwrite_weight_tag_data(op->weight_data, bp);
                 fwrite_weight_data(op->bias_data, bp);
@@ -1119,7 +1119,7 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             }
             fprintf_param_value(" 19=%d", dynamic_weight)
 
-            if (dynamic_weight == 0)
+            if (op->dynamic_weight == 0)
             {
                 fwrite_weight_tag_data(op->weight_data, bp);
                 fwrite_weight_data(op->bias_data, bp);
@@ -1286,7 +1286,7 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             }
             fprintf_param_value(" 28=%d", dynamic_weight)
 
-            if (dynamic_weight == 0)
+            if (op->dynamic_weight == 0)
             {
                 fwrite_weight_tag_data(op->weight_data, bp);
                 fwrite_weight_data(op->bias_data, bp);
@@ -1325,7 +1325,7 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             }
             fprintf_param_value(" 28=%d", dynamic_weight)
 
-            if (dynamic_weight == 0)
+            if (op->dynamic_weight == 0)
             {
                 fwrite_weight_tag_data(op->weight_data, bp);
                 fwrite_weight_data(op->bias_data, bp);
@@ -1451,7 +1451,7 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             }
             fprintf_param_value(" 28=%d", dynamic_weight)
 
-            if (dynamic_weight == 0)
+            if (op->dynamic_weight == 0)
             {
                 fwrite_weight_tag_data(op->weight_data, bp);
                 fwrite_weight_data(op->bias_data, bp);
@@ -1491,7 +1491,7 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             }
             fprintf_param_value(" 28=%d", dynamic_weight)
 
-            if (dynamic_weight == 0)
+            if (op->dynamic_weight == 0)
             {
                 fwrite_weight_tag_data(op->weight_data, bp);
                 fwrite_weight_data(op->bias_data, bp);
