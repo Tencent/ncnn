@@ -362,9 +362,16 @@ public:
 #if NCNN_VULKAN
         if (layer_vulkan)
         {
-            int ret = layer_vulkan->create_pipeline(opt);
-            get_layer_properties();
-            return ret;
+            if (vkdev)
+            {
+                int ret = layer_vulkan->create_pipeline(opt);
+                get_layer_properties();
+                return ret;
+            }
+
+            // fallback to cpu layer
+            delete layer_vulkan;
+            layer_vulkan = 0;
         }
 #endif // NCNN_VULKAN
 
