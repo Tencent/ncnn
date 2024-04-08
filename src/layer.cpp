@@ -290,6 +290,13 @@ public:
 #if NCNN_VULKAN
         if (layer_vulkan)
         {
+            one_blob_only = layer_vulkan->one_blob_only;
+            support_inplace = layer_vulkan->support_inplace;
+            support_packing = layer_vulkan->support_packing;
+            support_bf16_storage = layer_vulkan->support_bf16_storage;
+            support_fp16_storage = layer_vulkan->support_fp16_storage;
+            support_int8_storage = layer_vulkan->support_int8_storage;
+
             support_vulkan = layer_vulkan->support_vulkan;
             support_image_storage = layer_vulkan->support_image_storage;
             support_tensor_storage = layer_vulkan->support_tensor_storage;
@@ -320,22 +327,18 @@ public:
 #if NCNN_VULKAN
         if (layer_vulkan)
         {
-            int ret = 0;
             if (vkdev)
             {
-                ret = layer_vulkan->load_param(pd);
+                int ret = layer_vulkan->load_param(pd);
                 get_layer_properties();
+
+                if (layer_vulkan->support_vulkan)
+                    return ret;
             }
 
-            if (!support_vulkan || !vkdev)
-            {
-                // fallback to cpu layer
-                delete layer_vulkan;
-                layer_vulkan = 0;
-            }
-
-            if (ret)
-                return ret;
+            // fallback to cpu layer
+            delete layer_vulkan;
+            layer_vulkan = 0;
         }
 #endif // NCNN_VULKAN
 
@@ -349,22 +352,9 @@ public:
 #if NCNN_VULKAN
         if (layer_vulkan)
         {
-            int ret = 0;
-            if (vkdev)
-            {
-                ret = layer_vulkan->load_model(mb);
-                get_layer_properties();
-            }
-
-            if (!support_vulkan || !vkdev)
-            {
-                // fallback to cpu layer
-                delete layer_vulkan;
-                layer_vulkan = 0;
-            }
-
-            if (ret)
-                return ret;
+            int ret = layer_vulkan->load_model(mb);
+            get_layer_properties();
+            return ret;
         }
 #endif // NCNN_VULKAN
 
@@ -379,22 +369,16 @@ public:
 #if NCNN_VULKAN
         if (layer_vulkan)
         {
-            int ret = 0;
             if (vkdev)
             {
-                ret = layer_vulkan->create_pipeline(opt);
+                int ret = layer_vulkan->create_pipeline(opt);
                 get_layer_properties();
-            }
-
-            if (!support_vulkan || !vkdev)
-            {
-                // fallback to cpu layer
-                delete layer_vulkan;
-                layer_vulkan = 0;
-            }
-
-            if (ret)
                 return ret;
+            }
+
+            // fallback to cpu layer
+            delete layer_vulkan;
+            layer_vulkan = 0;
         }
 #endif // NCNN_VULKAN
 
@@ -408,21 +392,7 @@ public:
 #if NCNN_VULKAN
         if (layer_vulkan)
         {
-            int ret = 0;
-            if (vkdev)
-            {
-                ret = layer_vulkan->destroy_pipeline(opt);
-            }
-
-            if (!support_vulkan || !vkdev)
-            {
-                // fallback to cpu layer
-                delete layer_vulkan;
-                layer_vulkan = 0;
-            }
-
-            if (ret)
-                return ret;
+            return layer_vulkan->destroy_pipeline(opt);
         }
 #endif // NCNN_VULKAN
 
