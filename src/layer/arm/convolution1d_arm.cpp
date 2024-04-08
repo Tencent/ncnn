@@ -234,7 +234,7 @@ int Convolution1D_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector
 }
 
 #if NCNN_BF16
-int Convolution1D_arm::create_pipeline_bf16s(const Option& /*opt*/)
+int Convolution1D_arm::create_pipeline_bf16s(const Option& opt)
 {
     const int num_input = weight_data_size / kernel_w / num_output;
 
