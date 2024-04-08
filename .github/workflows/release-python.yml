@@ -6,9 +6,8 @@ on:
       - '*'
 
 env:
-  DEVELOPER_DIR: /Applications/Xcode_13.4.1.app/Contents/Developer
-  MAC_DEPLOYMENT_TARGET: '10.9'
-  MAC_ARM64_DEPLOYMENT_TARGET: '11.0'
+  DEVELOPER_DIR: /Applications/Xcode_15.2.app/Contents/Developer
+  MAC_DEPLOYMENT_TARGET: '11.0'
   ENABLE_BITCODE: OFF
   ENABLE_ARC: OFF
   ENABLE_VISIBILITY: OFF
@@ -57,9 +56,24 @@ jobs:
           - { os: windows-2019, arch: AMD64,      build: 'cp*',            build_id: cp           }
           - { os: windows-2019, arch: AMD64,      build: 'pp*',            build_id: pp           }
           - { os: windows-2019, arch: ARM64,      build: 'cp*',            build_id: cp           }
-          - { os: macos-latest, arch: x86_64,     build: 'cp*',            build_id: cp           }
-          - { os: macos-latest, arch: x86_64,     build: 'pp*',            build_id: pp           }
-          - { os: macos-latest, arch: arm64,      build: 'cp*',            build_id: cp           }
+          - { os: macos-13,     arch: x86_64,     build: 'cp*',            build_id: cp           }
+          - { os: macos-13,     arch: x86_64,     build: 'pp*',            build_id: pp           }
+          - { os: macos-13,     arch: arm64,      build: 'cp*',            build_id: cp           }
+
+    env:
+      OPENMP_VERSION: '18.1.2'
+      OPENMP_CMAKE_OPTIONS: |
+        -DCMAKE_TOOLCHAIN_FILE=../../toolchains/ios.toolchain.cmake \
+        -DDEPLOYMENT_TARGET=$MAC_DEPLOYMENT_TARGET \
+        -DENABLE_BITCODE=$ENABLE_BITCODE \
+        -DENABLE_ARC=$ENABLE_ARC \
+        -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
+        -DCMAKE_INSTALL_PREFIX=install \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DPERL_EXECUTABLE=/usr/local/bin/perl \
+        -DLIBOMP_ENABLE_SHARED=OFF \
+        -DLIBOMP_OMPT_SUPPORT=OFF \
+        -DLIBOMP_USE_HWLOC=OFF \
 
     steps:
     - uses: actions/checkout@v4
@@ -109,76 +123,73 @@ jobs:
       with:
         output-dir: wheelhouse
 
-    # build wheels for macos-latest
+    # build wheels for macos-13
     - name: cache-openmp for macos
-      if: matrix.os == 'macos-latest'
+      if: matrix.os == 'macos-13'
       id: cache-openmp
       uses: actions/cache@v4
       with:
         path: openmp-install
-        key: openmp-macos-install-20230504
+        key: openmp-macos-install-20240403
 
     - name: openmp for macos
-      if: matrix.os == 'macos-latest' && steps.cache-openmp.outputs.cache-hit != 'true'
+      if: matrix.os == 'macos-13' && steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
-        wget https://github.com/llvm/llvm-project/releases/download/llvmorg-11.0.0/openmp-11.0.0.src.tar.xz
-        tar -xf openmp-11.0.0.src.tar.xz
-        cd openmp-11.0.0.src
-        sed -i'' -e '/.size __kmp_unnamed_critical_addr/d' runtime/src/z_Linux_asm.S
-        sed -i'' -e 's/__kmp_unnamed_critical_addr/___kmp_unnamed_critical_addr/g' runtime/src/z_Linux_asm.S
+        wget https://github.com/llvm/llvm-project/releases/download/llvmorg-${{ env.OPENMP_VERSION }}/cmake-${{ env.OPENMP_VERSION }}.src.tar.xz
+        tar -xf cmake-${{ env.OPENMP_VERSION }}.src.tar.xz
+        wget https://github.com/llvm/llvm-project/releases/download/llvmorg-${{ env.OPENMP_VERSION }}/openmp-${{ env.OPENMP_VERSION }}.src.tar.xz
+        tar -xf openmp-${{ env.OPENMP_VERSION }}.src.tar.xz
+        mv cmake-${{ env.OPENMP_VERSION }}.src/Modules/* openmp-${{ env.OPENMP_VERSION }}.src/cmake/
+        cd openmp-${{ env.OPENMP_VERSION }}.src
+        wget https://github.com/nihui/llvm-project/commit/ef8c35bcf5d9cfdb0764ffde6a63c04ec715bc37.patch
+        patch -p2 -i ef8c35bcf5d9cfdb0764ffde6a63c04ec715bc37.patch
+        wget https://github.com/nihui/llvm-project/commit/5c12711f9a21f41bea70566bf15a4026804d6b20.patch
+        patch -p2 -i 5c12711f9a21f41bea70566bf15a4026804d6b20.patch
 
     - name: openmp-build-x86_64 for macos
-      if: matrix.os == 'macos-latest' && steps.cache-openmp.outputs.cache-hit != 'true'
+      if: matrix.os == 'macos-13' && steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
-        cd openmp-11.0.0.src
+        cd openmp-${{ env.OPENMP_VERSION }}.src
         mkdir -p build-x86_64 && cd build-x86_64
-        cmake -DCMAKE_TOOLCHAIN_FILE=$GITHUB_WORKSPACE/toolchains/ios.toolchain.cmake -DPLATFORM=MAC -DARCHS="x86_64" \
-            -DDEPLOYMENT_TARGET=$MAC_DEPLOYMENT_TARGET -DENABLE_BITCODE=$ENABLE_BITCODE -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
-            -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
-            -DPERL_EXECUTABLE=/usr/local/bin/perl \
-            -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
-        cmake --build . -j 3
+        cmake ${{ env.OPENMP_CMAKE_OPTIONS }} -DPLATFORM=MAC -DARCHS="x86_64" ..
+        cmake --build . -j 4
         cmake --build . --target install
 
     - name: openmp-build-arm64 for macos
-      if: matrix.os == 'macos-latest' && steps.cache-openmp.outputs.cache-hit != 'true'
+      if: matrix.os == 'macos-13' && steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
-        cd openmp-11.0.0.src
+        cd openmp-${{ env.OPENMP_VERSION }}.src
         mkdir -p build-arm64 && cd build-arm64
-        cmake -DCMAKE_TOOLCHAIN_FILE=$GITHUB_WORKSPACE/toolchains/ios.toolchain.cmake -DPLATFORM=MAC_ARM64 -DARCHS="arm64" \
-            -DDEPLOYMENT_TARGET=$MAC_ARM64_DEPLOYMENT_TARGET -DENABLE_BITCODE=$ENABLE_BITCODE -DENABLE_ARC=$ENABLE_ARC -DENABLE_VISIBILITY=$ENABLE_VISIBILITY \
-            -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
-            -DPERL_EXECUTABLE=/usr/local/bin/perl \
-            -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
-        cmake --build . -j 3
+        cmake ${{ env.OPENMP_CMAKE_OPTIONS }} -DPLATFORM=MAC_ARM64 -DARCHS="arm64" ..
+        cmake --build . -j 4
         cmake --build . --target install
 
     - name: openmp-merge-fat-library for macos
-      if: matrix.os == 'macos-latest' && steps.cache-openmp.outputs.cache-hit != 'true'
+      if: matrix.os == 'macos-13' && steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
         mkdir -p $GITHUB_WORKSPACE/openmp-install
-        cp -a openmp-11.0.0.src/build-x86_64/install/include $GITHUB_WORKSPACE/openmp-install
+        cp -a openmp-${{ env.OPENMP_VERSION }}.src/build-x86_64/install/include $GITHUB_WORKSPACE/openmp-install
         mkdir -p $GITHUB_WORKSPACE/openmp-install/lib
         lipo -create \
-            openmp-11.0.0.src/build-x86_64/install/lib/libomp.a \
-            openmp-11.0.0.src/build-arm64/install/lib/libomp.a \
+            openmp-${{ env.OPENMP_VERSION }}.src/build-x86_64/install/lib/libomp.a \
+            openmp-${{ env.OPENMP_VERSION }}.src/build-arm64/install/lib/libomp.a \
             -o $GITHUB_WORKSPACE/openmp-install/lib/libomp.a
 
     - name: install-openmp for macos
-      if: matrix.os == 'macos-latest'
+      if: matrix.os == 'macos-13'
       run: |
         sudo cp $GITHUB_WORKSPACE/openmp-install/include/* $DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include
         sudo cp $GITHUB_WORKSPACE/openmp-install/lib/libomp.a $DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib
 
     - name: vulkansdk for macos
-      if: matrix.os == 'macos-latest'
+      if: matrix.os == 'macos-13'
       run: |
         wget https://sdk.lunarg.com/sdk/download/1.3.236.0/mac/vulkansdk-macos-1.3.236.0.dmg?Human=true -O vulkansdk-macos-1.3.236.0.dmg
         hdiutil attach vulkansdk-macos-1.3.236.0.dmg
         sudo /Volumes/vulkansdk-macos-1.3.236.0/InstallVulkan.app/Contents/MacOS/InstallVulkan --root $GITHUB_WORKSPACE/vulkansdk-macos-1.3.236.0 --accept-licenses --default-answer --confirm-command install
 
     - name: Build wheels for macos x86_64
-      if: matrix.os == 'macos-latest' && matrix.arch == 'x86_64'
+      if: matrix.os == 'macos-13' && matrix.arch == 'x86_64'
       uses: pypa/cibuildwheel@v2.17.0
       env:
         CIBW_ARCHS_MACOS: ${{ matrix.arch }}
@@ -189,13 +200,13 @@ jobs:
           DEPLOYMENT_TARGET="10.9" ENABLE_BITCODE=OFF ENABLE_ARC=OFF ENABLE_VISIBILITY=OFF
           OpenMP_C_FLAGS="-Xclang -fopenmp" OpenMP_CXX_FLAGS="-Xclang -fopenmp"
           OpenMP_C_LIB_NAMES="libomp" OpenMP_CXX_LIB_NAMES="libomp"
-          OpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/libomp.a"
+          OpenMP_libomp_LIBRARY="libomp.a"
           Vulkan_LIBRARY=$GITHUB_WORKSPACE/vulkansdk-macos-1.3.236.0/MoltenVK/dylib/macOS/libMoltenVK.dylib
       with:
         output-dir: wheelhouse
 
     - name: Build wheels for macos arm64
-      if: matrix.os == 'macos-latest' && matrix.arch == 'arm64'
+      if: matrix.os == 'macos-13' && matrix.arch == 'arm64'
       uses: pypa/cibuildwheel@v2.17.0
       env:
         CIBW_ARCHS_MACOS: ${{ matrix.arch }}
@@ -206,7 +217,7 @@ jobs:
           DEPLOYMENT_TARGET="11.0" ENABLE_BITCODE=OFF ENABLE_ARC=OFF ENABLE_VISIBILITY=OFF
           OpenMP_C_FLAGS="-Xclang -fopenmp" OpenMP_CXX_FLAGS="-Xclang -fopenmp"
           OpenMP_C_LIB_NAMES="libomp" OpenMP_CXX_LIB_NAMES="libomp"
-          OpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/libomp.a"
+          OpenMP_libomp_LIBRARY="libomp.a"
           Vulkan_LIBRARY=$GITHUB_WORKSPACE/vulkansdk-macos-1.3.236.0/MoltenVK/dylib/macOS/libMoltenVK.dylib
       with:
         output-dir: wheelhouse
