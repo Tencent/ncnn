@@ -154,8 +154,11 @@ int InnerProduct_vulkan::create_pipeline(const Option& _opt)
         pipeline_innerproduct_gemm->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_innerproduct_gemm->create(shader_type_index, opt, specializations);
 
-        weight_data.release();
-        bias_data.release();
+        if (opt.lightmode)
+        {
+            weight_data.release();
+            bias_data.release();
+        }
 
         return 0;
     }
@@ -364,14 +367,20 @@ int InnerProduct_vulkan::create_pipeline(const Option& _opt)
         pipeline_innerproduct_gemm->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_innerproduct_gemm->create(shader_type_index, opt, specializations);
 
-        weight_data.release();
-        bias_data.release();
+        if (opt.lightmode)
+        {
+            weight_data.release();
+            bias_data.release();
+        }
 
         return 0;
     }
 
-    weight_data.release();
-    bias_data.release();
+    if (opt.lightmode)
+    {
+        weight_data.release();
+        bias_data.release();
+    }
 
     return 0;
 }

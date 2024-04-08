@@ -211,7 +211,8 @@ int Deconvolution_arm::create_pipeline(const Option& opt)
         }
     }
 
-    weight_data.release();
+    if (opt.lightmode)
+        weight_data.release();
 
     return 0;
 }
@@ -954,7 +955,8 @@ int Deconvolution_arm::create_pipeline_bf16s(const Option& opt)
         }
     }
 
-    weight_data.release();
+    if (opt.lightmode)
+        weight_data.release();
 
     return 0;
 }

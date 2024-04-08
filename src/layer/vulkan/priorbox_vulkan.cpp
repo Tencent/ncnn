@@ -129,6 +129,13 @@ int PriorBox_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 
     cmd.record_upload(aspect_ratios, aspect_ratios_gpu, opt);
 
+    if (opt.lightmode)
+    {
+        min_sizes.release();
+        max_sizes.release();
+        aspect_ratios.release();
+    }
+
     return 0;
 }
 

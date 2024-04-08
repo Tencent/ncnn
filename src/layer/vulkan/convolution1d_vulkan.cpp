@@ -133,8 +133,11 @@ int Convolution1D_vulkan::create_pipeline(const Option& _opt)
         pipeline_convolution1d->create(shader_type_index, opt, specializations);
     }
 
-    weight_data.release();
-    bias_data.release();
+    if (opt.lightmode)
+    {
+        weight_data.release();
+        bias_data.release();
+    }
 
     return 0;
 }

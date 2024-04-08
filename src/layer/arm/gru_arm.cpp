@@ -250,9 +250,12 @@ int GRU_arm::create_pipeline(const Option& opt)
         }
     }
 
-    weight_xc_data.release();
-    bias_c_data.release();
-    weight_hc_data.release();
+    if (opt.lightmode)
+    {
+        weight_xc_data.release();
+        bias_c_data.release();
+        weight_hc_data.release();
+    }
 
     return 0;
 }
@@ -1372,9 +1375,12 @@ int GRU_arm::create_pipeline_bf16s(const Option& opt)
         }
     }
 
-    weight_xc_data.release();
-    bias_c_data.release();
-    weight_hc_data.release();
+    if (opt.lightmode)
+    {
+        weight_xc_data.release();
+        bias_c_data.release();
+        weight_hc_data.release();
+    }
 
     return 0;
 }

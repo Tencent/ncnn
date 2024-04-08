@@ -156,6 +156,12 @@ int BatchNorm_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
         cmd.record_upload(b_data_packed, b_data_gpu, opt);
     }
 
+    if (opt.lightmode)
+    {
+        a_data.release();
+        b_data.release();
+    }
+
     return 0;
 }
 

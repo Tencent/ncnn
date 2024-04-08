@@ -73,8 +73,11 @@ int MultiHeadAttention_vulkan::create_pipeline(const Option& opt)
         q_gemm->load_model(ModelBinFromMatArray(weights));
         q_gemm->create_pipeline(opt);
 
-        q_weight_data.release();
-        q_bias_data.release();
+        if (opt.lightmode)
+        {
+            q_weight_data.release();
+            q_bias_data.release();
+        }
     }
 
     {
@@ -100,8 +103,11 @@ int MultiHeadAttention_vulkan::create_pipeline(const Option& opt)
         k_gemm->load_model(ModelBinFromMatArray(weights));
         k_gemm->create_pipeline(opt);
 
-        k_weight_data.release();
-        k_bias_data.release();
+        if (opt.lightmode)
+        {
+            k_weight_data.release();
+            k_bias_data.release();
+        }
     }
 
     {
@@ -127,8 +133,11 @@ int MultiHeadAttention_vulkan::create_pipeline(const Option& opt)
         v_gemm->load_model(ModelBinFromMatArray(weights));
         v_gemm->create_pipeline(opt);
 
-        v_weight_data.release();
-        v_bias_data.release();
+        if (opt.lightmode)
+        {
+            v_weight_data.release();
+            v_bias_data.release();
+        }
     }
 
     {
@@ -222,8 +231,11 @@ int MultiHeadAttention_vulkan::create_pipeline(const Option& opt)
         o_gemm->load_model(ModelBinFromMatArray(weights));
         o_gemm->create_pipeline(opt);
 
-        out_weight_data.release();
-        out_bias_data.release();
+        if (opt.lightmode)
+        {
+            out_weight_data.release();
+            out_bias_data.release();
+        }
     }
 
     return 0;

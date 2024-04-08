@@ -68,7 +68,8 @@ int Convolution1D_arm::create_pipeline(const Option& opt)
 
     convolution1d_transform_kernel_packed(weight_data, weight_data_tm, num_input, num_output, kernel_w);
 
-    weight_data.release();
+    if (opt.lightmode)
+        weight_data.release();
 
     return 0;
 }
@@ -239,7 +240,8 @@ int Convolution1D_arm::create_pipeline_bf16s(const Option& /*opt*/)
 
     convolution1d_transform_kernel_packed_bf16s(weight_data, weight_data_tm, num_input, num_output, kernel_w);
 
-    weight_data.release();
+    if (opt.lightmode)
+        weight_data.release();
 
     return 0;
 }
