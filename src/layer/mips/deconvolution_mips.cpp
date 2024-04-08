@@ -126,7 +126,8 @@ int Deconvolution_mips::create_pipeline(const Option& opt)
     {
     }
 
-    weight_data.release();
+    if (opt.lightmode)
+        weight_data.release();
 
     return 0;
 }

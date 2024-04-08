@@ -83,7 +83,8 @@ int ConvolutionDepthWise_loongarch::create_pipeline(const Option& opt)
             weight_data_tm = weight_data;
         }
 
-        weight_data.release();
+        if (opt.lightmode)
+            weight_data.release();
 
         return 0;
     }
@@ -91,7 +92,8 @@ int ConvolutionDepthWise_loongarch::create_pipeline(const Option& opt)
     // group convolution
     create_group_ops(opt);
 
-    weight_data.release();
+    if (opt.lightmode)
+        weight_data.release();
 
     return 0;
 }
@@ -600,7 +602,8 @@ int ConvolutionDepthWise_loongarch::create_pipeline_int8_loongarch(const Option&
             weight_data_tm = weight_data;
         }
 
-        weight_data.release();
+        if (opt.lightmode)
+            weight_data.release();
 
         return 0;
     }
@@ -608,7 +611,8 @@ int ConvolutionDepthWise_loongarch::create_pipeline_int8_loongarch(const Option&
     // group convolution
     create_group_ops(opt);
 
-    weight_data.release();
+    if (opt.lightmode)
+        weight_data.release();
 
     return 0;
 }

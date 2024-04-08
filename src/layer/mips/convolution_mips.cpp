@@ -225,7 +225,8 @@ int Convolution_mips::create_pipeline(const Option& opt)
         }
     }
 
-    weight_data.release();
+    if (opt.lightmode)
+        weight_data.release();
 
     return 0;
 }
@@ -789,7 +790,8 @@ int Convolution_mips::create_pipeline_int8_mips(const Option& opt)
         scale_in_data[p] = scale_in;
     }
 
-    weight_data.release();
+    if (opt.lightmode)
+        weight_data.release();
 
     return 0;
 }

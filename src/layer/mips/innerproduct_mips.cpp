@@ -99,7 +99,8 @@ int InnerProduct_mips::create_pipeline(const Option& opt)
         weight_data_tm = weight_data;
     }
 
-    weight_data.release();
+    if (opt.lightmode)
+        weight_data.release();
 
     return 0;
 }
@@ -652,7 +653,8 @@ int InnerProduct_mips::create_pipeline_fp16s(const Option& opt)
         ncnn::cast_float32_to_float16(weight_data_r2, weight_data_tm, opt);
     }
 
-    weight_data.release();
+    if (opt.lightmode)
+        weight_data.release();
 
     return 0;
 }
@@ -1140,7 +1142,8 @@ int InnerProduct_mips::create_pipeline_int8_mips(const Option& opt)
         scale_in_data[p] = scale_in;
     }
 
-    weight_data.release();
+    if (opt.lightmode)
+        weight_data.release();
 
     return 0;
 }

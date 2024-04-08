@@ -714,9 +714,12 @@ int GRU_riscv::create_pipeline_fp16sa(const Option& opt)
     cast_float32_to_float16(weight_hc_data, weight_hc_data_fp16sa, opt);
     cast_float32_to_float16(bias_c_data, bias_c_data_fp16sa, opt);
 
-    weight_xc_data.release();
-    bias_c_data.release();
-    weight_hc_data.release();
+    if (opt.lightmode)
+    {
+        weight_xc_data.release();
+        bias_c_data.release();
+        weight_hc_data.release();
+    }
 
     return 0;
 }
