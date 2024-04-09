@@ -139,9 +139,12 @@ int RNN_arm::create_pipeline(const Option& opt)
 
     bias_c_data_packed = bias_c_data;
 
-    weight_xc_data.release();
-    bias_c_data.release();
-    weight_hc_data.release();
+    if (opt.lightmode)
+    {
+        weight_xc_data.release();
+        bias_c_data.release();
+        weight_hc_data.release();
+    }
 
     return 0;
 }
@@ -736,9 +739,12 @@ int RNN_arm::create_pipeline_bf16s(const Option& opt)
 
     cast_float32_to_bfloat16(bias_c_data, bias_c_data_packed, opt);
 
-    weight_xc_data.release();
-    bias_c_data.release();
-    weight_hc_data.release();
+    if (opt.lightmode)
+    {
+        weight_xc_data.release();
+        bias_c_data.release();
+        weight_hc_data.release();
+    }
 
     return 0;
 }

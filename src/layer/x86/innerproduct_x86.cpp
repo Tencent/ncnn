@@ -80,7 +80,8 @@ int InnerProduct_x86::create_pipeline(const Option& opt)
 
     innerproduct_transform_kernel_sse(weight_data, weight_data_tm, num_input, num_output, opt);
 
-    weight_data.release();
+    if (opt.lightmode)
+        weight_data.release();
 
     return 0;
 }
@@ -175,7 +176,8 @@ int InnerProduct_x86::create_pipeline_fp16s(const Option& opt)
 
     innerproduct_transform_kernel_fp16s_sse(weight_data, weight_data_tm, num_input, num_output, opt);
 
-    weight_data.release();
+    if (opt.lightmode)
+        weight_data.release();
 
     return 0;
 }
@@ -281,7 +283,8 @@ int InnerProduct_x86::create_pipeline_int8_x86(const Option& opt)
         scale_in_data[p] = scale_in;
     }
 
-    weight_data.release();
+    if (opt.lightmode)
+        weight_data.release();
 
     return 0;
 }

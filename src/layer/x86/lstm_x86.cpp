@@ -182,9 +182,12 @@ int LSTM_x86::create_pipeline(const Option& opt)
         }
     }
 
-    weight_xc_data.release();
-    bias_c_data.release();
-    weight_hc_data.release();
+    if (opt.lightmode)
+    {
+        weight_xc_data.release();
+        bias_c_data.release();
+        weight_hc_data.release();
+    }
 
     return 0;
 }

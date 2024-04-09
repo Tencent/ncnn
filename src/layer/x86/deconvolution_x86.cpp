@@ -193,7 +193,8 @@ int Deconvolution_x86::create_pipeline(const Option& opt)
         }
     }
 
-    weight_data.release();
+    if (opt.lightmode)
+        weight_data.release();
 
     return 0;
 }

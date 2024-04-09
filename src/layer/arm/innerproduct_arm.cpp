@@ -122,7 +122,8 @@ int InnerProduct_arm::create_pipeline(const Option& opt)
         weight_data_tm = weight_data;
     }
 
-    weight_data.release();
+    if (opt.lightmode)
+        weight_data.release();
 
     return 0;
 }
@@ -865,7 +866,8 @@ int InnerProduct_arm::create_pipeline_bf16s(const Option& opt)
         }
     }
 
-    weight_data.release();
+    if (opt.lightmode)
+        weight_data.release();
 
     return 0;
 }
@@ -1258,7 +1260,8 @@ int InnerProduct_arm::create_pipeline_int8_arm(const Option& opt)
         scale_in_data[p] = scale_in;
     }
 
-    weight_data.release();
+    if (opt.lightmode)
+        weight_data.release();
 
     return 0;
 }

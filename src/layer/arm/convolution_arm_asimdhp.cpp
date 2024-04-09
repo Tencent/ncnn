@@ -108,7 +108,8 @@ int Convolution_arm::create_pipeline_fp16s(const Option& opt)
         else
             conv3x3s1_winograd23_transform_kernel_fp16sa(weight_data, weight_winograd23_data, num_input, num_output, opt);
 
-        weight_data.release();
+        if (opt.lightmode)
+            weight_data.release();
 
         if (opt.use_fp16_arithmetic)
         {
@@ -189,7 +190,8 @@ int Convolution_arm::create_pipeline_fp16s(const Option& opt)
 
         ncnn::cast_float32_to_float16(bias_data, bias_data_fp16, opt);
 
-        weight_data.release();
+        if (opt.lightmode)
+            weight_data.release();
 
         return 0;
     }
@@ -219,7 +221,8 @@ int Convolution_arm::create_pipeline_fp16s(const Option& opt)
         ncnn::cast_float32_to_float16(bias_data, bias_data_fp16, opt);
     }
 
-    weight_data.release();
+    if (opt.lightmode)
+        weight_data.release();
 
     return 0;
 }

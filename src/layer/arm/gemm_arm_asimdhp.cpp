@@ -2736,7 +2736,8 @@ int Gemm_arm::create_pipeline_fp16sa(const Option& opt)
             }
         }
 
-        A_data.release();
+        if (opt.lightmode)
+            A_data.release();
     }
 
     if (constantB)
@@ -2776,7 +2777,8 @@ int Gemm_arm::create_pipeline_fp16sa(const Option& opt)
             }
         }
 
-        B_data.release();
+        if (opt.lightmode)
+            B_data.release();
     }
 
     if (constantC && constant_broadcast_type_C != -1)
@@ -2802,7 +2804,8 @@ int Gemm_arm::create_pipeline_fp16sa(const Option& opt)
             }
         }
 
-        C_data.release();
+        if (opt.lightmode)
+            C_data.release();
     }
 
     if (constantA || constantB || constantC)

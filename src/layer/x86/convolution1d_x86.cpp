@@ -34,7 +34,7 @@ Convolution1D_x86::Convolution1D_x86()
 #endif // __SSE2__
 }
 
-int Convolution1D_x86::create_pipeline(const Option& /*opt*/)
+int Convolution1D_x86::create_pipeline(const Option& opt)
 {
     if (dynamic_weight)
         return 0;
@@ -43,7 +43,8 @@ int Convolution1D_x86::create_pipeline(const Option& /*opt*/)
 
     convolution1d_transform_kernel_packed(weight_data, weight_data_tm, num_input, num_output, kernel_w);
 
-    weight_data.release();
+    if (opt.lightmode)
+        weight_data.release();
 
     return 0;
 }

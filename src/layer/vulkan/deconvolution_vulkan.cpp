@@ -366,6 +366,12 @@ int Deconvolution_vulkan::create_pipeline(const Option& _opt)
             pipeline_deconvolution_col2im->create(shader_type_index, opt, specializations);
         }
 
+        if (opt.lightmode)
+        {
+            weight_data.release();
+            bias_data.release();
+        }
+
         return 0;
     }
 
@@ -462,8 +468,11 @@ int Deconvolution_vulkan::create_pipeline(const Option& _opt)
     pipeline_deconvolution->set_optimal_local_size_xyz(local_size_xyz);
     pipeline_deconvolution->create(shader_type_index, opt, specializations);
 
-    weight_data.release();
-    bias_data.release();
+    if (opt.lightmode)
+    {
+        weight_data.release();
+        bias_data.release();
+    }
 
     return 0;
 }
