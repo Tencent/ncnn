@@ -796,7 +796,7 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             continue;
         }
 
-        ncnn::Layer* layer_default = ncnn::create_layer(layer->typeindex);
+        ncnn::Layer* layer_default = ncnn::create_layer_cpu(layer->typeindex);
 
         ncnn::ParamDict pd;
         layer_default->load_param(pd);
@@ -1764,6 +1764,19 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 20=%d", constant_TILE_M)
             fprintf_param_value(" 21=%d", constant_TILE_N)
             fprintf_param_value(" 22=%d", constant_TILE_K)
+
+            if (op->constantA == 1)
+            {
+                fwrite_weight_tag_data(op->A_data, bp);
+            }
+            if (op->constantB == 1)
+            {
+                fwrite_weight_tag_data(op->B_data, bp);
+            }
+            if (op->constantC == 1 && op->constant_broadcast_type_C != -1)
+            {
+                fwrite_weight_tag_data(op->C_data, bp);
+            }
         }
         else if (layer->type == "GLU")
         {
