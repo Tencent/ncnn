@@ -796,7 +796,7 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             continue;
         }
 
-        ncnn::Layer* layer_default = ncnn::create_layer(layer->typeindex);
+        ncnn::Layer* layer_default = ncnn::create_layer_cpu(layer->typeindex);
 
         ncnn::ParamDict pd;
         layer_default->load_param(pd);
