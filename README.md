@@ -247,7 +247,7 @@ https://github.com/Tencent/ncnn/releases/latest
 </td>
 </tr>
 <tr>
-<td>watchOS-Simulator</td>
+<td>visionOS-Simulator</td>
 <td>
 
   [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20240410-visionos-simulator.zip)
