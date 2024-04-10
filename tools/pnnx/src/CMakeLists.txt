@@ -601,6 +601,10 @@ add_library(torch2pnnx OBJECT ${torch2pnnx_SRCS})
 target_compile_definitions(torch2pnnx PRIVATE BUILD_TORCH2PNNX)
 target_compile_options(torch2pnnx PUBLIC "${TORCH_CXX_FLAGS}")
 
+if(WIN32)
+    target_compile_definitions(torch2pnnx PUBLIC NOMINMAX)
+endif()
+
 if(TorchVision_FOUND)
     set_property(SOURCE load_torchscript.cpp APPEND PROPERTY COMPILE_DEFINITIONS PNNX_TORCHVISION)
 endif()
@@ -711,10 +715,6 @@ endif()
 if(PNNX_COVERAGE)
     target_compile_options(pnnx PUBLIC -coverage -fprofile-arcs -ftest-coverage)
     target_link_libraries(pnnx PUBLIC -coverage -lgcov)
-endif()
-
-if(WIN32)
-    target_compile_definitions(pnnx PUBLIC NOMINMAX)
 endif()
 
 # set_target_properties(pnnx PROPERTIES COMPILE_FLAGS -fsanitize=address)
