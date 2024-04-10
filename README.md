@@ -132,7 +132,6 @@ https://github.com/Tencent/ncnn/releases/latest
 <td>
 
   [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20240102-ios-vulkan.zip)
-  [<img src="https://img.shields.io/badge/+bitcode-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20240102-ios-vulkan-bitcode.zip)
 
 </td>
 <td rowspan=4>
@@ -146,7 +145,6 @@ https://github.com/Tencent/ncnn/releases/latest
 <td>
 
   [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20240102-ios.zip)
-  [<img src="https://img.shields.io/badge/+bitcode-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20240102-ios-bitcode.zip)
 
 </td>
 </tr>
@@ -155,7 +153,6 @@ https://github.com/Tencent/ncnn/releases/latest
 <td>
 
   [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20240102-ios-simulator-vulkan.zip)
-  [<img src="https://img.shields.io/badge/+bitcode-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20240102-ios-simulator-vulkan-bitcode.zip)
 
 </td>
 </tr>
@@ -164,7 +161,6 @@ https://github.com/Tencent/ncnn/releases/latest
 <td>
 
   [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20240102-ios-simulator.zip)
-  [<img src="https://img.shields.io/badge/+bitcode-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20240102-ios-simulator-bitcode.zip)
 
 </td>
 </tr>
@@ -205,7 +201,6 @@ https://github.com/Tencent/ncnn/releases/latest
 <td>
 
   [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20240102-mac-catalyst-vulkan.zip)
-  [<img src="https://img.shields.io/badge/+bitcode-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20240102-mac-catalyst-vulkan-bitcode.zip)
 
 </td>
 <td rowspan=2>
@@ -219,7 +214,6 @@ https://github.com/Tencent/ncnn/releases/latest
 <td>
 
   [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20240102-mac-catalyst.zip)
-  [<img src="https://img.shields.io/badge/+bitcode-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20240102-mac-catalyst-bitcode.zip)
 
 </td>
 </tr>
@@ -270,7 +264,6 @@ https://github.com/Tencent/ncnn/releases/latest
 <td>
 
   [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20240102-apple-vulkan.zip)
-  [<img src="https://img.shields.io/badge/+bitcode-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20240102-apple-vulkan-bitcode.zip)
 
 </td>
 <td rowspan=2>
@@ -282,7 +275,6 @@ https://github.com/Tencent/ncnn/releases/latest
 <td>
 
   [<img src="https://img.shields.io/badge/download-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20240102-apple.zip)
-  [<img src="https://img.shields.io/badge/+bitcode-blue?style=for-the-badge">](https://github.com/Tencent/ncnn/releases/latest/download/ncnn-20240102-apple-bitcode.zip)
 
 </td>
 </tr>
