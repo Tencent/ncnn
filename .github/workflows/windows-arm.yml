@@ -45,11 +45,7 @@ jobs:
 
     env:
       UseMultiToolTask: true
-      NCNN_CMAKE_OPTIONS: |
-        -DNCNN_BUILD_TESTS=OFF \
-        -DNCNN_BUILD_TOOLS=OFF \
-        -DNCNN_BUILD_EXAMPLES=OFF \
-        -DNCNN_VULKAN=ON \
+      NCNN_CMAKE_OPTIONS: -DNCNN_BUILD_TESTS=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_VULKAN=ON
 
     steps:
     - uses: actions/checkout@v4
