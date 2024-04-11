@@ -75,7 +75,7 @@ jobs:
   woa-linux:
     name: woa-linux
     runs-on: ubuntu-latest
-    container: linaro/wine-arm
+    container: linaro/wine-arm64
     steps:
     - uses: actions/checkout@v4
     - name: msvc-wine
