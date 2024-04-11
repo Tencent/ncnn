@@ -49,6 +49,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+      with:
+        submodules: true
     - name: arm64
       run: |
         mkdir build-arm64; cd build-arm64
