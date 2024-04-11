@@ -646,7 +646,10 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
             cast_float32_to_bfloat16(bottom_blob, bottom_blob_bf16, opt);
             bottom_blob = bottom_blob_bf16;
         }
+        else
 #endif // NCNN_BF16
+        {
+        }
 
         // *INDENT-ON*
         // clang-format on
@@ -756,7 +759,10 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
             cast_bfloat16_to_float32(bottom_blob, bottom_blob_fp32, opt);
             bottom_blob = bottom_blob_fp32;
         }
+        else
 #endif // NCNN_BF16
+        {
+        }
 
         // *INDENT-ON*
         // clang-format on
