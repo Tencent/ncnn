@@ -1,27 +1,29 @@
-name: windows-arm64-cpu
+name: windows-arm
 on:
   push:
     branches: [master]
     paths:
-    - '.github/workflows/windows-arm64-cpu.yml'
+    - '.github/workflows/windows-arm.yml'
     - 'CMakeLists.txt'
     - 'cmake/**'
     - 'src/*'
     - 'src/layer/*'
     - 'src/layer/arm/**'
+    - 'src/layer/vulkan/**'
     - 'tests/**'
   pull_request:
     branches: [master]
     paths:
-    - '.github/workflows/windows-arm64-cpu.yml'
+    - '.github/workflows/windows-arm.yml'
     - 'CMakeLists.txt'
     - 'cmake/**'
     - 'src/*'
     - 'src/layer/*'
     - 'src/layer/arm/**'
+    - 'src/layer/vulkan/**'
     - 'tests/**'
 concurrency:
-  group: windows-arm64-cpu-${{ github.ref }}
+  group: windows-arm-${{ github.ref }}
   cancel-in-progress: true
 permissions:
   contents: read
@@ -43,17 +45,31 @@ jobs:
 
     env:
       UseMultiToolTask: true
+      NCNN_CMAKE_OPTIONS: -DNCNN_BUILD_TESTS=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_VULKAN=ON
+
     steps:
     - uses: actions/checkout@v4
-    - name: build
+      with:
+        submodules: true
+    - name: arm64
       run: |
-        mkdir build; cd build
-        cmake -T ${{ matrix.toolset-version }},host=x64 -A arm64 -DNCNN_BUILD_TESTS=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
+        mkdir build-arm64; cd build-arm64
+        cmake -T ${{ matrix.toolset-version }},host=x64 -A arm64 ${{ env.NCNN_CMAKE_OPTIONS }} ..
         cmake --build . --config Release -j 4
-    - name: build-shared
+    - name: arm
       run: |
-        mkdir build-shared; cd build-shared
-        cmake -T ${{ matrix.toolset-version }},host=x64 -A arm64 -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_SHARED_LIB=ON ..
+        mkdir build-arm; cd build-arm
+        cmake -T ${{ matrix.toolset-version }},host=x64 -A arm ${{ env.NCNN_CMAKE_OPTIONS }} ..
+        cmake --build . --config Release -j 4
+    - name: arm64-shared
+      run: |
+        mkdir build-arm64-shared; cd build-arm64-shared
+        cmake -T ${{ matrix.toolset-version }},host=x64 -A arm64 ${{ env.NCNN_CMAKE_OPTIONS }} -DNCNN_SHARED_LIB=ON ..
+        cmake --build . --config Release -j 4
+    - name: arm-shared
+      run: |
+        mkdir build-arm-shared; cd build-arm-shared
+        cmake -T ${{ matrix.toolset-version }},host=x64 -A arm ${{ env.NCNN_CMAKE_OPTIONS }} -DNCNN_SHARED_LIB=ON ..
         cmake --build . --config Release -j 4
 
   woa-linux:
