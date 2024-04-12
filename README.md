@@ -321,7 +321,7 @@ https://github.com/Tencent/ncnn/releases/latest
 </td>
 <td rowspan=4>
 
-  [<img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/windows-x64-gpu.yml?branch=master&style=for-the-badge&label=build">](https://github.com/Tencent/ncnn/actions?query=workflow%3Awindows-x64-gpu)
+  [<img src="https://img.shields.io/github/actions/workflow/status/Tencent/ncnn/windows.yml?branch=master&style=for-the-badge&label=build">](https://github.com/Tencent/ncnn/actions?query=workflow%3Awindows)
 
 </td>
 </tr>
