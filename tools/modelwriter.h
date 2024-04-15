@@ -1816,10 +1816,20 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 0=%d", num_output)
             fprintf_param_value(" 1=%d", weight_data_size)
             fprintf_param_value(" 2=%d", direction)
+            fprintf_param_value(" 8=%d", int8_scale_term)
 
             fwrite_weight_tag_data(op->weight_xc_data, bp);
             fwrite_weight_tag_data(op->bias_c_data, bp);
             fwrite_weight_tag_data(op->weight_hc_data, bp);
+
+#if NCNN_INT8
+            // write int8_scale data
+            if (op->int8_scale_term)
+            {
+                fwrite_weight_data(op->weight_xc_data_int8_scales, bp, 90, 100);
+                fwrite_weight_data(op->weight_hc_data_int8_scales, bp, 90, 100);
+            }
+#endif // NCNN_INT8
         }
         else if (layer->type == "HardSigmoid")
         {
@@ -1948,6 +1958,7 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 1=%d", weight_data_size)
             fprintf_param_value(" 2=%d", direction)
             fprintf_param_value(" 3=%d", hidden_size)
+            fprintf_param_value(" 8=%d", int8_scale_term)
 
             fwrite_weight_tag_data(op->weight_xc_data, bp);
             fwrite_weight_tag_data(op->bias_c_data, bp);
@@ -1957,6 +1968,15 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             {
                 fwrite_weight_tag_data(op->weight_hr_data, bp);
             }
+
+#if NCNN_INT8
+            // write int8_scale data
+            if (op->int8_scale_term)
+            {
+                fwrite_weight_data(op->weight_xc_data_int8_scales, bp, 90, 100);
+                fwrite_weight_data(op->weight_hc_data_int8_scales, bp, 90, 100);
+            }
+#endif // NCNN_INT8
         }
         else if (layer->type == "MatMul")
         {
@@ -2289,10 +2309,20 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 0=%d", num_output)
             fprintf_param_value(" 1=%d", weight_data_size)
             fprintf_param_value(" 2=%d", direction)
+            fprintf_param_value(" 8=%d", int8_scale_term)
 
             fwrite_weight_tag_data(op->weight_xc_data, bp);
             fwrite_weight_tag_data(op->bias_c_data, bp);
             fwrite_weight_tag_data(op->weight_hc_data, bp);
+
+#if NCNN_INT8
+            // write int8_scale data
+            if (op->int8_scale_term)
+            {
+                fwrite_weight_data(op->weight_xc_data_int8_scales, bp, 90, 100);
+                fwrite_weight_data(op->weight_hc_data_int8_scales, bp, 90, 100);
+            }
+#endif // NCNN_INT8
         }
         else if (layer->type == "ROIAlign")
         {

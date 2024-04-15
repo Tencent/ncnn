@@ -27,6 +27,16 @@ int GRU::load_param(const ParamDict& pd)
     num_output = pd.get(0, 0);
     weight_data_size = pd.get(1, 0);
     direction = pd.get(2, 0);
+    int8_scale_term = pd.get(8, 0);
+
+    if (int8_scale_term)
+    {
+#if !NCNN_INT8
+        NCNN_LOGE("please build ncnn with NCNN_INT8 enabled for int8 inference");
+        return -1;
+#endif
+    }
+
     return 0;
 }
 
@@ -48,6 +58,45 @@ int GRU::load_model(const ModelBin& mb)
     weight_hc_data = mb.load(num_output, num_output * 3, num_directions, 0);
     if (weight_hc_data.empty())
         return -100;
+
+#if NCNN_INT8
+    if (int8_scale_term)
+    {
+        weight_xc_data_int8_scales = mb.load(num_output * 3, num_directions, 1);
+        weight_hc_data_int8_scales = mb.load(num_output * 3, num_directions, 1);
+
+        // TODO fuse weight de-scale into kernel
+        Mat weight_xc_data_fp32(size, num_output * 3, num_directions);
+        Mat weight_hc_data_fp32(num_output, num_output * 3, num_directions);
+        for (int d = 0; d < num_directions; d++)
+        {
+            for (int q = 0; q < num_output * 3; q++)
+            {
+                const signed char* weight_xc_ptr = weight_xc_data.channel(d).row<const signed char>(q);
+                const signed char* weight_hc_ptr = weight_hc_data.channel(d).row<const signed char>(q);
+
+                float* weight_xc_fp32_ptr = weight_xc_data_fp32.channel(d).row(q);
+                float* weight_hc_fp32_ptr = weight_hc_data_fp32.channel(d).row(q);
+
+                const float descale_xc = 1.f / weight_xc_data_int8_scales.row(d)[q];
+                const float descale_hc = 1.f / weight_hc_data_int8_scales.row(d)[q];
+
+                for (int i = 0; i < size; i++)
+                {
+                    weight_xc_fp32_ptr[i] = weight_xc_ptr[i] * descale_xc;
+                }
+
+                for (int i = 0; i < num_output; i++)
+                {
+                    weight_hc_fp32_ptr[i] = weight_hc_ptr[i] * descale_hc;
+                }
+            }
+        }
+
+        weight_xc_data = weight_xc_data_fp32;
+        weight_hc_data = weight_hc_data_fp32;
+    }
+#endif // NCNN_INT8
 
     return 0;
 }
