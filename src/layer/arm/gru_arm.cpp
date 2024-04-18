@@ -2376,7 +2376,7 @@ int GRU_arm::create_pipeline_bf16s(const Option& opt)
         create_pipeline_int8(opt);
 
         ncnn::Mat tmp;
-        ncnn::cast_float32_to_bfloat16(bias_c_data_packed, tmp, opt);
+        cast_float32_to_bfloat16(bias_c_data_packed, tmp, opt);
         bias_c_data_packed = tmp;
 
         return 0;

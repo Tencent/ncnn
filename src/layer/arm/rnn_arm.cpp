@@ -54,12 +54,23 @@ int RNN_arm::create_pipeline(const Option& opt)
     }
 #endif
 
-    int num_directions = direction == 2 ? 2 : 1;
-    int size = weight_data_size / num_directions / num_output;
+#if NCNN_INT8
+    if (int8_scale_term)
+    {
+        return create_pipeline_int8(opt);
+    }
+#endif
+
+    const int num_directions = direction == 2 ? 2 : 1;
+    const int size = weight_data_size / num_directions / num_output;
 
 #if __ARM_NEON
     weight_xc_data_packed.create(size * 4, num_output / 4 + num_output % 4, num_directions);
     weight_hc_data_packed.create(num_output * 4, num_output / 4 + num_output % 4, num_directions);
+#else
+    weight_xc_data_packed.create(size, num_output, num_directions);
+    weight_hc_data_packed.create(num_output, num_output, num_directions);
+#endif
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int dr = 0; dr < num_directions; dr++)
@@ -132,10 +143,6 @@ int RNN_arm::create_pipeline(const Option& opt)
             }
         }
     }
-#else
-    weight_xc_data_packed = weight_xc_data;
-    weight_hc_data_packed = weight_hc_data;
-#endif
 
     bias_c_data_packed = bias_c_data;
 
@@ -317,6 +324,332 @@ static int rnn(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& we
     return 0;
 }
 
+#if NCNN_INT8
+static int rnn_int8(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& weight_xc_int8, const Mat& weight_xc_int8_descales, const Mat& bias_c, const Mat& weight_hc_int8, const Mat& weight_hc_int8_descales, Mat& hidden_state, const Option& opt)
+{
+    int size = bottom_blob.w;
+    int T = bottom_blob.h;
+
+    int num_output = top_blob.w;
+
+    // num_output
+    Mat gates(num_output, 4u, opt.workspace_allocator);
+    if (gates.empty())
+        return -100;
+
+    // unroll
+    for (int t = 0; t < T; t++)
+    {
+        int ti = reverse ? T - 1 - t : t;
+
+        const float* x = bottom_blob.row(ti);
+
+        int remain_num_output_start = 0;
+#if __ARM_NEON
+        int nn_num_output = num_output >> 2;
+        remain_num_output_start = nn_num_output << 2;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int qq = 0; qq < nn_num_output; qq++)
+        {
+            int q = qq * 4;
+
+            const signed char* weight_xc_int8_ptr = weight_xc_int8.row<const signed char>(q / 4);
+            const signed char* weight_hc_int8_ptr = weight_hc_int8.row<const signed char>(q / 4);
+
+            const float* weight_xc_int8_descales_ptr = weight_xc_int8_descales.row(q / 4);
+            const float* weight_hc_int8_descales_ptr = weight_hc_int8_descales.row(q / 4);
+
+            float32x4_t _descale_xc = vld1q_f32(weight_xc_int8_descales_ptr);
+            float32x4_t _descale_hc = vld1q_f32(weight_hc_int8_descales_ptr);
+
+            float32x4_t _rnn_H = vld1q_f32((const float*)bias_c + q);
+            float32x4_t _sum1 = vdupq_n_f32(0.f);
+            float32x4_t _sum2 = vdupq_n_f32(0.f);
+            float32x4_t _sum3 = vdupq_n_f32(0.f);
+
+            int i = 0;
+            for (; i + 3 < size; i += 4)
+            {
+                float32x4_t _x = vld1q_f32(x + i);
+
+                int8x16_t _weight_xc = vld1q_s8(weight_xc_int8_ptr);
+                int16x8_t _weight_xc_01 = vmovl_s8(vget_low_s8(_weight_xc));
+                int16x8_t _weight_xc_23 = vmovl_s8(vget_high_s8(_weight_xc));
+                float32x4_t _weight_xc_0 = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_low_s16(_weight_xc_01))), _descale_xc);
+                float32x4_t _weight_xc_1 = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_high_s16(_weight_xc_01))), _descale_xc);
+                float32x4_t _weight_xc_2 = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_low_s16(_weight_xc_23))), _descale_xc);
+                float32x4_t _weight_xc_3 = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_high_s16(_weight_xc_23))), _descale_xc);
+
+#if __aarch64__
+                _rnn_H = vfmaq_laneq_f32(_rnn_H, _weight_xc_0, _x, 0);
+                _sum1 = vfmaq_laneq_f32(_sum1, _weight_xc_1, _x, 1);
+                _sum2 = vfmaq_laneq_f32(_sum2, _weight_xc_2, _x, 2);
+                _sum3 = vfmaq_laneq_f32(_sum3, _weight_xc_3, _x, 3);
+#else
+                _rnn_H = vmlaq_lane_f32(_rnn_H, _weight_xc_0, vget_low_f32(_x), 0);
+                _sum1 = vmlaq_lane_f32(_sum1, _weight_xc_1, vget_low_f32(_x), 1);
+                _sum2 = vmlaq_lane_f32(_sum2, _weight_xc_2, vget_high_f32(_x), 0);
+                _sum3 = vmlaq_lane_f32(_sum3, _weight_xc_3, vget_high_f32(_x), 1);
+#endif
+
+                weight_xc_int8_ptr += 16;
+            }
+            for (; i < size; i++)
+            {
+                float32x4_t _x = vdupq_n_f32(x[i]);
+                float32x4_t _weight_xc = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_low_s16(vmovl_s8(vld1_s8(weight_xc_int8_ptr))))), _descale_xc);
+                _rnn_H = vmlaq_f32(_rnn_H, _weight_xc, _x);
+
+                weight_xc_int8_ptr += 4;
+            }
+
+            i = 0;
+            for (; i + 3 < num_output; i += 4)
+            {
+                float32x4_t _hidden_state = vld1q_f32((const float*)hidden_state + i);
+
+                int8x16_t _weight_hc = vld1q_s8(weight_hc_int8_ptr);
+                int16x8_t _weight_hc_01 = vmovl_s8(vget_low_s8(_weight_hc));
+                int16x8_t _weight_hc_23 = vmovl_s8(vget_high_s8(_weight_hc));
+                float32x4_t _weight_hc_0 = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_low_s16(_weight_hc_01))), _descale_hc);
+                float32x4_t _weight_hc_1 = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_high_s16(_weight_hc_01))), _descale_hc);
+                float32x4_t _weight_hc_2 = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_low_s16(_weight_hc_23))), _descale_hc);
+                float32x4_t _weight_hc_3 = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_high_s16(_weight_hc_23))), _descale_hc);
+
+#if __aarch64__
+                _rnn_H = vfmaq_laneq_f32(_rnn_H, _weight_hc_0, _hidden_state, 0);
+                _sum1 = vfmaq_laneq_f32(_sum1, _weight_hc_1, _hidden_state, 1);
+                _sum2 = vfmaq_laneq_f32(_sum2, _weight_hc_2, _hidden_state, 2);
+                _sum3 = vfmaq_laneq_f32(_sum3, _weight_hc_3, _hidden_state, 3);
+#else
+                _rnn_H = vmlaq_lane_f32(_rnn_H, _weight_hc_0, vget_low_f32(_hidden_state), 0);
+                _sum1 = vmlaq_lane_f32(_sum1, _weight_hc_1, vget_low_f32(_hidden_state), 1);
+                _sum2 = vmlaq_lane_f32(_sum2, _weight_hc_2, vget_high_f32(_hidden_state), 0);
+                _sum3 = vmlaq_lane_f32(_sum3, _weight_hc_3, vget_high_f32(_hidden_state), 1);
+#endif
+
+                weight_hc_int8_ptr += 16;
+            }
+            for (; i < num_output; i++)
+            {
+                float32x4_t _hidden_state = vdupq_n_f32(hidden_state[i]);
+                float32x4_t _weight_hc = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_low_s16(vmovl_s8(vld1_s8(weight_hc_int8_ptr))))), _descale_hc);
+                _rnn_H = vmlaq_f32(_rnn_H, _weight_hc, _hidden_state);
+
+                weight_hc_int8_ptr += 4;
+            }
+
+            _rnn_H = vaddq_f32(_rnn_H, _sum1);
+            _sum2 = vaddq_f32(_sum2, _sum3);
+            _rnn_H = vaddq_f32(_rnn_H, _sum2);
+
+            _rnn_H = tanh_ps(_rnn_H);
+
+            vst1q_f32((float*)gates + q, _rnn_H);
+        }
+#endif // __ARM_NEON
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = remain_num_output_start; q < num_output; q++)
+        {
+#if __ARM_NEON
+            const signed char* weight_xc_int8_ptr = weight_xc_int8.row<const signed char>(q / 4 + q % 4);
+            const signed char* weight_hc_int8_ptr = weight_hc_int8.row<const signed char>(q / 4 + q % 4);
+            const float* weight_xc_int8_descales_ptr = weight_xc_int8_descales.row(q / 4 + q % 4);
+            const float* weight_hc_int8_descales_ptr = weight_hc_int8_descales.row(q / 4 + q % 4);
+#else
+            const signed char* weight_xc_int8_ptr = weight_xc_int8.row<const signed char>(q);
+            const signed char* weight_hc_int8_ptr = weight_hc_int8.row<const signed char>(q);
+            const float* weight_xc_int8_descales_ptr = weight_xc_int8_descales.row(q);
+            const float* weight_hc_int8_descales_ptr = weight_hc_int8_descales.row(q);
+#endif // __ARM_NEON
+
+            const float descale_xc = weight_xc_int8_descales_ptr[0];
+            const float descale_hc = weight_hc_int8_descales_ptr[0];
+
+            float H = bias_c[q];
+
+            for (int i = 0; i < size; i++)
+            {
+                H += weight_xc_int8_ptr[i] * descale_xc * x[i];
+            }
+
+            for (int i = 0; i < num_output; i++)
+            {
+                H += weight_hc_int8_ptr[i] * descale_hc * hidden_state[i];
+            }
+
+            H = tanhf(H);
+
+            gates[q] = H;
+        }
+
+        float* output_data = top_blob.row(ti);
+
+        float* hidden_ptr = hidden_state;
+
+#if __ARM_NEON
+        nn_num_output = num_output >> 2;
+        remain_num_output_start = nn_num_output << 2;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int qq = 0; qq < nn_num_output; qq++)
+        {
+            int q = qq * 4;
+
+            float32x4_t _rnn_H = vld1q_f32((float*)gates + q);
+
+            vst1q_f32(hidden_ptr + q, _rnn_H);
+            vst1q_f32(output_data + q, _rnn_H);
+        }
+#endif // __ARM_NEON
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = remain_num_output_start; q < num_output; q++)
+        {
+            float H = gates[q];
+
+            hidden_ptr[q] = H;
+            output_data[q] = H;
+        }
+    }
+
+    return 0;
+}
+
+int RNN_arm::create_pipeline_int8(const Option& opt)
+{
+    const int num_directions = direction == 2 ? 2 : 1;
+    const int size = weight_data_size / num_directions / num_output;
+
+#if __ARM_NEON
+    weight_xc_data_packed.create(size * 4, num_output / 4 + num_output % 4, num_directions, 1u, 1);
+    weight_hc_data_packed.create(num_output * 4, num_output / 4 + num_output % 4, num_directions, 1u, 1);
+    weight_xc_data_int8_descales_packed.create(4, num_output / 4 + num_output % 4, num_directions);
+    weight_hc_data_int8_descales_packed.create(4, num_output / 4 + num_output % 4, num_directions);
+#else
+    weight_xc_data_packed.create(size, num_output, num_directions);
+    weight_hc_data_packed.create(num_output, num_output, num_directions);
+    weight_xc_data_int8_descales_packed.create(1, num_output, num_directions);
+    weight_hc_data_int8_descales_packed.create(1, num_output, num_directions);
+#endif
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int dr = 0; dr < num_directions; dr++)
+    {
+        const Mat weight_xc = weight_xc_data.channel(dr);
+        const Mat weight_hc = weight_hc_data.channel(dr);
+        const float* weight_xc_int8_scales = weight_xc_data_int8_scales.row(dr);
+        const float* weight_hc_int8_scales = weight_hc_data_int8_scales.row(dr);
+
+        Mat weight_xc_data_packed_dr = weight_xc_data_packed.channel(dr);
+        Mat weight_hc_data_packed_dr = weight_hc_data_packed.channel(dr);
+        Mat weight_xc_data_int8_descales_packed_dr = weight_xc_data_int8_descales_packed.channel(dr);
+        Mat weight_hc_data_int8_descales_packed_dr = weight_hc_data_int8_descales_packed.channel(dr);
+
+        int q = 0;
+#if __ARM_NEON
+        for (; q + 3 < num_output; q += 4)
+        {
+            const signed char* weight_xc_0 = weight_xc.row<const signed char>(q);
+            const signed char* weight_xc_1 = weight_xc.row<const signed char>(q + 1);
+            const signed char* weight_xc_2 = weight_xc.row<const signed char>(q + 2);
+            const signed char* weight_xc_3 = weight_xc.row<const signed char>(q + 3);
+
+            const signed char* weight_hc_0 = weight_hc.row<const signed char>(q);
+            const signed char* weight_hc_1 = weight_hc.row<const signed char>(q + 1);
+            const signed char* weight_hc_2 = weight_hc.row<const signed char>(q + 2);
+            const signed char* weight_hc_3 = weight_hc.row<const signed char>(q + 3);
+
+            signed char* weight_xc_ptr = weight_xc_data_packed_dr.row<signed char>(q / 4);
+            signed char* weight_hc_ptr = weight_hc_data_packed_dr.row<signed char>(q / 4);
+            float* weight_xc_int8_descales_ptr = weight_xc_data_int8_descales_packed_dr.row(q / 4);
+            float* weight_hc_int8_descales_ptr = weight_hc_data_int8_descales_packed_dr.row(q / 4);
+
+            for (int i = 0; i < size; i++)
+            {
+                weight_xc_ptr[0] = weight_xc_0[i];
+                weight_xc_ptr[1] = weight_xc_1[i];
+                weight_xc_ptr[2] = weight_xc_2[i];
+                weight_xc_ptr[3] = weight_xc_3[i];
+
+                weight_xc_ptr += 4;
+            }
+
+            for (int i = 0; i < num_output; i++)
+            {
+                weight_hc_ptr[0] = weight_hc_0[i];
+                weight_hc_ptr[1] = weight_hc_1[i];
+                weight_hc_ptr[2] = weight_hc_2[i];
+                weight_hc_ptr[3] = weight_hc_3[i];
+
+                weight_hc_ptr += 4;
+            }
+
+            float32x4_t _xc = vld1q_f32(weight_xc_int8_scales + q);
+            float32x4_t _hc = vld1q_f32(weight_hc_int8_scales + q);
+
+#if __aarch64__
+            float32x4_t _one = vdupq_n_f32(1.f);
+            float32x4_t _reciprocal_xc = vdivq_f32(_one, _xc);
+            float32x4_t _reciprocal_hc = vdivq_f32(_one, _hc);
+#else
+            float32x4_t _reciprocal_xc = vrecpeq_f32(_xc);
+            _reciprocal_xc = vmulq_f32(vrecpsq_f32(_xc, _reciprocal_xc_R), _reciprocal_xc_R);
+            float32x4_t _reciprocal_hc = vrecpeq_f32(_hc);
+            _reciprocal_hc = vmulq_f32(vrecpsq_f32(_hc, _reciprocal_hc_R), _reciprocal_hc_R);
+#endif
+
+            vst1q_f32(weight_xc_int8_descales_ptr, _reciprocal_xc);
+            vst1q_f32(weight_hc_int8_descales_ptr, _reciprocal_hc);
+        }
+#endif // __ARM_NEON
+        for (; q < num_output; q++)
+        {
+            const float* weight_xc_0 = weight_xc.row(q);
+            const float* weight_hc_0 = weight_hc.row(q);
+
+#if __ARM_NEON
+            float* weight_xc_ptr = weight_xc_data_packed_dr.row(q / 4 + q % 4);
+            float* weight_hc_ptr = weight_hc_data_packed_dr.row(q / 4 + q % 4);
+            float* weight_xc_int8_descales_ptr = weight_xc_data_int8_descales_packed_dr.row(q / 4 + q % 4);
+            float* weight_hc_int8_descales_ptr = weight_hc_data_int8_descales_packed_dr.row(q / 4 + q % 4);
+#else
+            float* weight_xc_ptr = weight_xc_data_packed_dr.row(q);
+            float* weight_hc_ptr = weight_hc_data_packed_dr.row(q);
+            float* weight_xc_int8_descales_ptr = weight_xc_data_int8_descales_packed_dr.row(q);
+            float* weight_hc_int8_descales_ptr = weight_hc_data_int8_descales_packed_dr.row(q);
+#endif // __ARM_NEON
+
+            for (int i = 0; i < size; i++)
+            {
+                weight_xc_ptr[i] = weight_xc_0[i];
+            }
+
+            for (int i = 0; i < num_output; i++)
+            {
+                weight_hc_ptr[i] = weight_hc_0[i];
+            }
+
+            weight_xc_int8_descales_ptr[0] = 1.f / weight_xc_int8_scales[q];
+            weight_hc_int8_descales_ptr[0] = 1.f / weight_hc_int8_scales[q];
+        }
+    }
+
+    bias_c_data_packed = bias_c_data;
+
+    if (opt.lightmode)
+    {
+        weight_xc_data.release();
+        bias_c_data.release();
+        weight_hc_data.release();
+        weight_xc_data_int8_scales.release();
+        weight_hc_data_int8_scales.release();
+    }
+
+    return 0;
+}
+#endif // NCNN_INT8
+
 int RNN_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     int elembits = bottom_blob.elembits();
@@ -353,9 +686,20 @@ int RNN_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
     // Uni directional
     if (direction == 0 || direction == 1)
     {
-        int ret = rnn(bottom_blob, top_blob, direction, weight_xc_data_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), hidden, opt);
-        if (ret != 0)
-            return ret;
+#if NCNN_INT8
+        if (int8_scale_term)
+        {
+            int ret = rnn_int8(bottom_blob, top_blob, direction, weight_xc_data_packed.channel(0), weight_xc_data_int8_descales_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), weight_hc_data_int8_descales_packed.channel(0), hidden, opt);
+            if (ret != 0)
+                return ret;
+        }
+        else
+#endif
+        {
+            int ret = rnn(bottom_blob, top_blob, direction, weight_xc_data_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), hidden, opt);
+            if (ret != 0)
+                return ret;
+        }
     }
 
     if (direction == 2)
@@ -368,15 +712,37 @@ int RNN_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
         if (top_blob_reverse.empty())
             return -100;
 
-        int ret0 = rnn(bottom_blob, top_blob_forward, 0, weight_xc_data_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), hidden, opt);
-        if (ret0 != 0)
-            return ret0;
+#if NCNN_INT8
+        if (int8_scale_term)
+        {
+            int ret = rnn_int8(bottom_blob, top_blob_forward, 0, weight_xc_data_packed.channel(0), weight_xc_data_int8_descales_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), weight_hc_data_int8_descales_packed.channel(0), hidden, opt);
+            if (ret != 0)
+                return ret;
+        }
+        else
+#endif
+        {
+            int ret = rnn(bottom_blob, top_blob_forward, 0, weight_xc_data_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), hidden, opt);
+            if (ret != 0)
+                return ret;
+        }
 
         hidden.fill(0.0f);
 
-        int ret1 = rnn(bottom_blob, top_blob_reverse, 1, weight_xc_data_packed.channel(1), bias_c_data_packed.channel(1), weight_hc_data_packed.channel(1), hidden, opt);
-        if (ret1 != 0)
-            return ret1;
+#if NCNN_INT8
+        if (int8_scale_term)
+        {
+            int ret = rnn_int8(bottom_blob, top_blob_reverse, 1, weight_xc_data_packed.channel(1), weight_xc_data_int8_descales_packed.channel(1), bias_c_data_packed.channel(1), weight_hc_data_packed.channel(1), weight_hc_data_int8_descales_packed.channel(1), hidden, opt);
+            if (ret != 0)
+                return ret;
+        }
+        else
+#endif
+        {
+            int ret = rnn(bottom_blob, top_blob_reverse, 1, weight_xc_data_packed.channel(1), bias_c_data_packed.channel(1), weight_hc_data_packed.channel(1), hidden, opt);
+            if (ret != 0)
+                return ret;
+        }
 
         // concat w
         for (int i = 0; i < T; i++)
@@ -438,9 +804,20 @@ int RNN_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
     // Uni directional
     if (direction == 0 || direction == 1)
     {
-        int ret = rnn(bottom_blob, top_blob, direction, weight_xc_data_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), hidden, opt);
-        if (ret != 0)
-            return ret;
+#if NCNN_INT8
+        if (int8_scale_term)
+        {
+            int ret = rnn_int8(bottom_blob, top_blob, direction, weight_xc_data_packed.channel(0), weight_xc_data_int8_descales_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), weight_hc_data_int8_descales_packed.channel(0), hidden, opt);
+            if (ret != 0)
+                return ret;
+        }
+        else
+#endif
+        {
+            int ret = rnn(bottom_blob, top_blob, direction, weight_xc_data_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), hidden, opt);
+            if (ret != 0)
+                return ret;
+        }
     }
 
     if (direction == 2)
@@ -454,14 +831,36 @@ int RNN_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
             return -100;
 
         Mat hidden0 = hidden.row_range(0, 1);
-        int ret0 = rnn(bottom_blob, top_blob_forward, 0, weight_xc_data_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), hidden0, opt);
-        if (ret0 != 0)
-            return ret0;
+#if NCNN_INT8
+        if (int8_scale_term)
+        {
+            int ret = rnn_int8(bottom_blob, top_blob_forward, 0, weight_xc_data_packed.channel(0), weight_xc_data_int8_descales_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), weight_hc_data_int8_descales_packed.channel(0), hidden0, opt);
+            if (ret != 0)
+                return ret;
+        }
+        else
+#endif
+        {
+            int ret = rnn(bottom_blob, top_blob_forward, 0, weight_xc_data_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), hidden0, opt);
+            if (ret != 0)
+                return ret;
+        }
 
         Mat hidden1 = hidden.row_range(1, 1);
-        int ret1 = rnn(bottom_blob, top_blob_reverse, 1, weight_xc_data_packed.channel(1), bias_c_data_packed.channel(1), weight_hc_data_packed.channel(1), hidden1, opt);
-        if (ret1 != 0)
-            return ret1;
+#if NCNN_INT8
+        if (int8_scale_term)
+        {
+            int ret = rnn_int8(bottom_blob, top_blob_reverse, 1, weight_xc_data_packed.channel(1), weight_xc_data_int8_descales_packed.channel(1), bias_c_data_packed.channel(1), weight_hc_data_packed.channel(1), weight_hc_data_int8_descales_packed.channel(1), hidden1, opt);
+            if (ret != 0)
+                return ret;
+        }
+        else
+#endif
+        {
+            int ret = rnn(bottom_blob, top_blob_reverse, 1, weight_xc_data_packed.channel(1), bias_c_data_packed.channel(1), weight_hc_data_packed.channel(1), hidden1, opt);
+            if (ret != 0)
+                return ret;
+        }
 
         // concat w
         for (int i = 0; i < T; i++)
@@ -652,8 +1051,214 @@ static int rnn_bf16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
     return 0;
 }
 
+#if NCNN_INT8
+static int rnn_bf16s_int8(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& weight_xc_int8, const Mat& weight_xc_int8_descales, const Mat& bias_c, const Mat& weight_hc_int8, const Mat& weight_hc_int8_descales, Mat& hidden_state, const Option& opt)
+{
+    int size = bottom_blob.w;
+    int T = bottom_blob.h;
+
+    int num_output = top_blob.w;
+
+    // num_output
+    Mat gates(num_output, 4u, opt.workspace_allocator);
+    if (gates.empty())
+        return -100;
+
+    // unroll
+    for (int t = 0; t < T; t++)
+    {
+        int ti = reverse ? T - 1 - t : t;
+
+        const unsigned short* x = bottom_blob.row<const unsigned short>(ti);
+
+        int remain_num_output_start = 0;
+#if __ARM_NEON
+        int nn_num_output = num_output >> 2;
+        remain_num_output_start = nn_num_output << 2;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int qq = 0; qq < nn_num_output; qq++)
+        {
+            int q = qq * 4;
+
+            const signed char* weight_xc_int8_ptr = weight_xc_int8.row<const signed char>(q / 4);
+            const signed char* weight_hc_int8_ptr = weight_hc_int8.row<const signed char>(q / 4);
+
+            const float* weight_xc_int8_descales_ptr = weight_xc_int8_descales.row(q / 4);
+            const float* weight_hc_int8_descales_ptr = weight_hc_int8_descales.row(q / 4);
+
+            float32x4_t _descale_xc = vld1q_f32(weight_xc_int8_descales_ptr);
+            float32x4_t _descale_hc = vld1q_f32(weight_hc_int8_descales_ptr);
+
+            float32x4_t _rnn_H = bfloat2float(vld1_u16((const unsigned short*)bias_c + q));
+            float32x4_t _sum1 = vdupq_n_f32(0.f);
+            float32x4_t _sum2 = vdupq_n_f32(0.f);
+            float32x4_t _sum3 = vdupq_n_f32(0.f);
+
+            int i = 0;
+            for (; i + 3 < size; i += 4)
+            {
+                float32x4_t _x = bfloat2float(vld1_u16(x + i));
+
+                int8x16_t _weight_xc = vld1q_s8(weight_xc_int8_ptr);
+                int16x8_t _weight_xc_01 = vmovl_s8(vget_low_s8(_weight_xc));
+                int16x8_t _weight_xc_23 = vmovl_s8(vget_high_s8(_weight_xc));
+                float32x4_t _weight_xc_0 = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_low_s16(_weight_xc_01))), _descale_xc);
+                float32x4_t _weight_xc_1 = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_high_s16(_weight_xc_01))), _descale_xc);
+                float32x4_t _weight_xc_2 = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_low_s16(_weight_xc_23))), _descale_xc);
+                float32x4_t _weight_xc_3 = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_high_s16(_weight_xc_23))), _descale_xc);
+
+#if __aarch64__
+                _rnn_H = vfmaq_laneq_f32(_rnn_H, _weight_xc_0, _x, 0);
+                _sum1 = vfmaq_laneq_f32(_sum1, _weight_xc_1, _x, 1);
+                _sum2 = vfmaq_laneq_f32(_sum2, _weight_xc_2, _x, 2);
+                _sum3 = vfmaq_laneq_f32(_sum3, _weight_xc_3, _x, 3);
+#else
+                _rnn_H = vmlaq_lane_f32(_rnn_H, _weight_xc_0, vget_low_f32(_x), 0);
+                _sum1 = vmlaq_lane_f32(_sum1, _weight_xc_1, vget_low_f32(_x), 1);
+                _sum2 = vmlaq_lane_f32(_sum2, _weight_xc_2, vget_high_f32(_x), 0);
+                _sum3 = vmlaq_lane_f32(_sum3, _weight_xc_3, vget_high_f32(_x), 1);
+#endif
+
+                weight_xc_int8_ptr += 16;
+            }
+            for (; i < size; i++)
+            {
+                float32x4_t _x = bfloat2float(vdup_n_u16(x[i]));
+                float32x4_t _weight_xc = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_low_s16(vmovl_s8(vld1_s8(weight_xc_int8_ptr))))), _descale_xc);
+                _rnn_H = vmlaq_f32(_rnn_H, _weight_xc, _x);
+
+                weight_xc_int8_ptr += 4;
+            }
+
+            i = 0;
+            for (; i + 3 < num_output; i += 4)
+            {
+                float32x4_t _hidden_state = vld1q_f32((const float*)hidden_state + i);
+
+                int8x16_t _weight_hc = vld1q_s8(weight_hc_int8_ptr);
+                int16x8_t _weight_hc_01 = vmovl_s8(vget_low_s8(_weight_hc));
+                int16x8_t _weight_hc_23 = vmovl_s8(vget_high_s8(_weight_hc));
+                float32x4_t _weight_hc_0 = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_low_s16(_weight_hc_01))), _descale_hc);
+                float32x4_t _weight_hc_1 = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_high_s16(_weight_hc_01))), _descale_hc);
+                float32x4_t _weight_hc_2 = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_low_s16(_weight_hc_23))), _descale_hc);
+                float32x4_t _weight_hc_3 = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_high_s16(_weight_hc_23))), _descale_hc);
+
+#if __aarch64__
+                _rnn_H = vfmaq_laneq_f32(_rnn_H, _weight_hc_0, _hidden_state, 0);
+                _sum1 = vfmaq_laneq_f32(_sum1, _weight_hc_1, _hidden_state, 1);
+                _sum2 = vfmaq_laneq_f32(_sum2, _weight_hc_2, _hidden_state, 2);
+                _sum3 = vfmaq_laneq_f32(_sum3, _weight_hc_3, _hidden_state, 3);
+#else
+                _rnn_H = vmlaq_lane_f32(_rnn_H, _weight_hc_0, vget_low_f32(_hidden_state), 0);
+                _sum1 = vmlaq_lane_f32(_sum1, _weight_hc_1, vget_low_f32(_hidden_state), 1);
+                _sum2 = vmlaq_lane_f32(_sum2, _weight_hc_2, vget_high_f32(_hidden_state), 0);
+                _sum3 = vmlaq_lane_f32(_sum3, _weight_hc_3, vget_high_f32(_hidden_state), 1);
+#endif
+
+                weight_hc_int8_ptr += 16;
+            }
+            for (; i < num_output; i++)
+            {
+                float32x4_t _hidden_state = vdupq_n_f32(hidden_state[i]);
+                float32x4_t _weight_hc = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_low_s16(vmovl_s8(vld1_s8(weight_hc_int8_ptr))))), _descale_hc);
+                _rnn_H = vmlaq_f32(_rnn_H, _weight_hc, _hidden_state);
+
+                weight_hc_int8_ptr += 4;
+            }
+
+            _rnn_H = vaddq_f32(_rnn_H, _sum1);
+            _sum2 = vaddq_f32(_sum2, _sum3);
+            _rnn_H = vaddq_f32(_rnn_H, _sum2);
+
+            _rnn_H = tanh_ps(_rnn_H);
+
+            vst1q_f32((float*)gates + q, _rnn_H);
+        }
+#endif // __ARM_NEON
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = remain_num_output_start; q < num_output; q++)
+        {
+#if __ARM_NEON
+            const signed char* weight_xc_int8_ptr = weight_xc_int8.row<const signed char>(q / 4 + q % 4);
+            const signed char* weight_hc_int8_ptr = weight_hc_int8.row<const signed char>(q / 4 + q % 4);
+            const float* weight_xc_int8_descales_ptr = weight_xc_int8_descales.row(q / 4 + q % 4);
+            const float* weight_hc_int8_descales_ptr = weight_hc_int8_descales.row(q / 4 + q % 4);
+#else
+            const signed char* weight_xc_int8_ptr = weight_xc_int8.row<const signed char>(q);
+            const signed char* weight_hc_int8_ptr = weight_hc_int8.row<const signed char>(q);
+            const float* weight_xc_int8_descales_ptr = weight_xc_int8_descales.row(q);
+            const float* weight_hc_int8_descales_ptr = weight_hc_int8_descales.row(q);
+#endif // __ARM_NEON
+
+            const float descale_xc = weight_xc_int8_descales_ptr[0];
+            const float descale_hc = weight_hc_int8_descales_ptr[0];
+
+            float H = bfloat16_to_float32(((const unsigned short*)bias_c)[q]);
+
+            for (int i = 0; i < size; i++)
+            {
+                H += weight_xc_int8_ptr[i] * descale_xc * bfloat16_to_float32(x[i]);
+            }
+
+            for (int i = 0; i < num_output; i++)
+            {
+                H += weight_hc_int8_ptr[i] * descale_hc * hidden_state[i];
+            }
+
+            H = tanhf(H);
+
+            gates[q] = H;
+        }
+
+        unsigned short* output_data = top_blob.row<unsigned short>(ti);
+
+        float* hidden_ptr = hidden_state;
+
+#if __ARM_NEON
+        nn_num_output = num_output >> 2;
+        remain_num_output_start = nn_num_output << 2;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int qq = 0; qq < nn_num_output; qq++)
+        {
+            int q = qq * 4;
+
+            float32x4_t _rnn_H = vld1q_f32((float*)gates + q);
+
+            vst1q_f32(hidden_ptr + q, _rnn_H);
+            vst1_u16(output_data + q, float2bfloat(_rnn_H));
+        }
+#endif // __ARM_NEON
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = remain_num_output_start; q < num_output; q++)
+        {
+            float H = gates[q];
+
+            hidden_ptr[q] = H;
+            output_data[q] = float32_to_bfloat16(H);
+        }
+    }
+
+    return 0;
+}
+#endif // NCNN_INT8
+
 int RNN_arm::create_pipeline_bf16s(const Option& opt)
 {
+#if NCNN_INT8
+    if (int8_scale_term)
+    {
+        create_pipeline_int8(opt);
+
+        ncnn::Mat tmp;
+        cast_float32_to_bfloat16(bias_c_data_packed, tmp, opt);
+        bias_c_data_packed = tmp;
+
+        return 0;
+    }
+#endif
+
     int num_directions = direction == 2 ? 2 : 1;
     int size = weight_data_size / num_directions / num_output;
 
@@ -768,9 +1373,20 @@ int RNN_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Option& 
     // Uni directional
     if (direction == 0 || direction == 1)
     {
-        int ret = rnn_bf16s(bottom_blob, top_blob, direction, weight_xc_data_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), hidden, opt);
-        if (ret != 0)
-            return ret;
+#if NCNN_INT8
+        if (int8_scale_term)
+        {
+            int ret = rnn_bf16s_int8(bottom_blob, top_blob, direction, weight_xc_data_packed.channel(0), weight_xc_data_int8_descales_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), weight_hc_data_int8_descales_packed.channel(0), hidden, opt);
+            if (ret != 0)
+                return ret;
+        }
+        else
+#endif
+        {
+            int ret = rnn_bf16s(bottom_blob, top_blob, direction, weight_xc_data_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), hidden, opt);
+            if (ret != 0)
+                return ret;
+        }
     }
 
     if (direction == 2)
@@ -783,15 +1399,37 @@ int RNN_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Option& 
         if (top_blob_reverse.empty())
             return -100;
 
-        int ret0 = rnn_bf16s(bottom_blob, top_blob_forward, 0, weight_xc_data_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), hidden, opt);
-        if (ret0 != 0)
-            return ret0;
+#if NCNN_INT8
+        if (int8_scale_term)
+        {
+            int ret = rnn_bf16s_int8(bottom_blob, top_blob_forward, 0, weight_xc_data_packed.channel(0), weight_xc_data_int8_descales_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), weight_hc_data_int8_descales_packed.channel(0), hidden, opt);
+            if (ret != 0)
+                return ret;
+        }
+        else
+#endif
+        {
+            int ret = rnn_bf16s(bottom_blob, top_blob_forward, 0, weight_xc_data_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), hidden, opt);
+            if (ret != 0)
+                return ret;
+        }
 
         hidden.fill(0.f);
 
-        int ret1 = rnn_bf16s(bottom_blob, top_blob_reverse, 1, weight_xc_data_packed.channel(1), bias_c_data_packed.channel(1), weight_hc_data_packed.channel(1), hidden, opt);
-        if (ret1 != 0)
-            return ret1;
+#if NCNN_INT8
+        if (int8_scale_term)
+        {
+            int ret = rnn_bf16s_int8(bottom_blob, top_blob_reverse, 1, weight_xc_data_packed.channel(1), weight_xc_data_int8_descales_packed.channel(1), bias_c_data_packed.channel(1), weight_hc_data_packed.channel(1), weight_hc_data_int8_descales_packed.channel(1), hidden, opt);
+            if (ret != 0)
+                return ret;
+        }
+        else
+#endif
+        {
+            int ret = rnn_bf16s(bottom_blob, top_blob_reverse, 1, weight_xc_data_packed.channel(1), bias_c_data_packed.channel(1), weight_hc_data_packed.channel(1), hidden, opt);
+            if (ret != 0)
+                return ret;
+        }
 
         // concat w
         for (int i = 0; i < T; i++)
@@ -838,9 +1476,20 @@ int RNN_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat
     // Uni directional
     if (direction == 0 || direction == 1)
     {
-        int ret = rnn_bf16s(bottom_blob, top_blob, direction, weight_xc_data_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), hidden, opt);
-        if (ret != 0)
-            return ret;
+#if NCNN_INT8
+        if (int8_scale_term)
+        {
+            int ret = rnn_bf16s_int8(bottom_blob, top_blob, direction, weight_xc_data_packed.channel(0), weight_xc_data_int8_descales_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), weight_hc_data_int8_descales_packed.channel(0), hidden, opt);
+            if (ret != 0)
+                return ret;
+        }
+        else
+#endif
+        {
+            int ret = rnn_bf16s(bottom_blob, top_blob, direction, weight_xc_data_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), hidden, opt);
+            if (ret != 0)
+                return ret;
+        }
     }
 
     if (direction == 2)
@@ -854,14 +1503,36 @@ int RNN_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat
             return -100;
 
         Mat hidden0 = hidden.row_range(0, 1);
-        int ret0 = rnn_bf16s(bottom_blob, top_blob_forward, 0, weight_xc_data_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), hidden0, opt);
-        if (ret0 != 0)
-            return ret0;
+#if NCNN_INT8
+        if (int8_scale_term)
+        {
+            int ret = rnn_bf16s_int8(bottom_blob, top_blob_forward, 0, weight_xc_data_packed.channel(0), weight_xc_data_int8_descales_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), weight_hc_data_int8_descales_packed.channel(0), hidden0, opt);
+            if (ret != 0)
+                return ret;
+        }
+        else
+#endif
+        {
+            int ret = rnn_bf16s(bottom_blob, top_blob_forward, 0, weight_xc_data_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), hidden0, opt);
+            if (ret != 0)
+                return ret;
+        }
 
         Mat hidden1 = hidden.row_range(1, 1);
-        int ret1 = rnn_bf16s(bottom_blob, top_blob_reverse, 1, weight_xc_data_packed.channel(1), bias_c_data_packed.channel(1), weight_hc_data_packed.channel(1), hidden1, opt);
-        if (ret1 != 0)
-            return ret1;
+#if NCNN_INT8
+        if (int8_scale_term)
+        {
+            int ret = rnn_bf16s_int8(bottom_blob, top_blob_reverse, 1, weight_xc_data_packed.channel(1), weight_xc_data_int8_descales_packed.channel(1), bias_c_data_packed.channel(1), weight_hc_data_packed.channel(1), weight_hc_data_int8_descales_packed.channel(1), hidden1, opt);
+            if (ret != 0)
+                return ret;
+        }
+        else
+#endif
+        {
+            int ret = rnn_bf16s(bottom_blob, top_blob_reverse, 1, weight_xc_data_packed.channel(1), bias_c_data_packed.channel(1), weight_hc_data_packed.channel(1), hidden1, opt);
+            if (ret != 0)
+                return ret;
+        }
 
         // concat w
         for (int i = 0; i < T; i++)

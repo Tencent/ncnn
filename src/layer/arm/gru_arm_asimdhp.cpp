@@ -1594,21 +1594,21 @@ int GRU_arm::create_pipeline_fp16s(const Option& opt)
 
         {
             ncnn::Mat tmp;
-            ncnn::cast_float32_to_float16(bias_c_data_packed, tmp, opt);
+            cast_float32_to_float16(bias_c_data_packed, tmp, opt);
             bias_c_data_packed = tmp;
         }
 
         if (opt.use_fp16_arithmetic)
         {
             ncnn::Mat tmp;
-            ncnn::cast_float32_to_float16(weight_xc_data_int8_descales_packed, tmp, opt);
+            cast_float32_to_float16(weight_xc_data_int8_descales_packed, tmp, opt);
             weight_xc_data_int8_descales_packed = tmp;
         }
 
         if (opt.use_fp16_arithmetic)
         {
             ncnn::Mat tmp;
-            ncnn::cast_float32_to_float16(weight_hc_data_int8_descales_packed, tmp, opt);
+            cast_float32_to_float16(weight_hc_data_int8_descales_packed, tmp, opt);
             weight_hc_data_int8_descales_packed = tmp;
         }
 
