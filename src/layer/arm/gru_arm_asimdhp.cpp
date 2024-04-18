@@ -1148,7 +1148,7 @@ static int gru_fp16sa_int8(const Mat& bottom_blob, Mat& top_blob, int reverse, c
             int i = 0;
             for (; i + 3 < size; i += 4)
             {
-#if 0//NCNN_GNU_INLINE_ASM
+#if 0  //NCNN_GNU_INLINE_ASM
                 asm volatile(
                     "ld1    {v4.4h}, [%0], #8       \n"
                     "ld1    {v0.8h, v1.8h, v2.8h, v3.8h}, [%1], #64 \n"
@@ -1207,7 +1207,7 @@ static int gru_fp16sa_int8(const Mat& bottom_blob, Mat& top_blob, int reverse, c
             i = 0;
             for (; i + 3 < num_output; i += 4)
             {
-#if 0//NCNN_GNU_INLINE_ASM
+#if 0  //NCNN_GNU_INLINE_ASM
                 asm volatile(
                     "ld1    {v4.4s}, [%0], #16      \n"
                     "ld1    {v0.8h, v1.8h, v2.8h, v3.8h}, [%1], #64 \n"
@@ -1286,7 +1286,7 @@ static int gru_fp16sa_int8(const Mat& bottom_blob, Mat& top_blob, int reverse, c
             i = 0;
             for (; i + 3 < num_output; i += 4)
             {
-#if 0//NCNN_GNU_INLINE_ASM
+#if 0  //NCNN_GNU_INLINE_ASM
                 asm volatile(
                     "ld1    {v4.4s}, [%0], #16      \n"
                     "ld1    {v0.4h, v1.4h, v2.4h, v3.4h}, [%1], #32 \n"
@@ -1352,7 +1352,7 @@ static int gru_fp16sa_int8(const Mat& bottom_blob, Mat& top_blob, int reverse, c
             i = 0;
             for (; i + 3 < size; i += 4)
             {
-#if 0//NCNN_GNU_INLINE_ASM
+#if 0  //NCNN_GNU_INLINE_ASM
                 asm volatile(
                     "ld1    {v4.4h}, [%0], #8       \n"
                     "ld1    {v0.4h, v1.4h, v2.4h, v3.4h}, [%1], #32 \n"
