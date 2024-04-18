@@ -594,9 +594,9 @@ int RNN_arm::create_pipeline_int8(const Option& opt)
             float32x4_t _reciprocal_hc = vdivq_f32(_one, _hc);
 #else
             float32x4_t _reciprocal_xc = vrecpeq_f32(_xc);
-            _reciprocal_xc = vmulq_f32(vrecpsq_f32(_xc, _reciprocal_xc_R), _reciprocal_xc_R);
+            _reciprocal_xc = vmulq_f32(vrecpsq_f32(_xc, _reciprocal_xc), _reciprocal_xc);
             float32x4_t _reciprocal_hc = vrecpeq_f32(_hc);
-            _reciprocal_hc = vmulq_f32(vrecpsq_f32(_hc, _reciprocal_hc_R), _reciprocal_hc_R);
+            _reciprocal_hc = vmulq_f32(vrecpsq_f32(_hc, _reciprocal_hc), _reciprocal_hc);
 #endif
 
             vst1q_f32(weight_xc_int8_descales_ptr, _reciprocal_xc);
