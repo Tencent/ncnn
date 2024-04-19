@@ -1150,8 +1150,6 @@ static int find_default_vulkan_device_index()
 
 int create_gpu_instance(const char* driver_path)
 {
-    destroy_gpu_instance();
-
     MutexLockGuard lock(g_instance_lock);
 
     if (g_instance.created != 0)
