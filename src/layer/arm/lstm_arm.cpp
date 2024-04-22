@@ -40,6 +40,45 @@ LSTM_arm::LSTM_arm()
 
 int LSTM_arm::create_pipeline(const Option& opt)
 {
+#if NCNN_INT8
+    if (int8_scale_term)
+    {
+        const int num_directions = direction == 2 ? 2 : 1;
+        const int size = weight_data_size / num_directions / hidden_size / 4;
+
+        // TODO fuse weight de-scale into kernel
+        Mat weight_xc_data_fp32(size, hidden_size * 4, num_directions);
+        Mat weight_hc_data_fp32(num_output, hidden_size * 4, num_directions);
+        for (int d = 0; d < num_directions; d++)
+        {
+            for (int q = 0; q < hidden_size * 4; q++)
+            {
+                const signed char* weight_xc_ptr = weight_xc_data.channel(d).row<const signed char>(q);
+                const signed char* weight_hc_ptr = weight_hc_data.channel(d).row<const signed char>(q);
+
+                float* weight_xc_fp32_ptr = weight_xc_data_fp32.channel(d).row(q);
+                float* weight_hc_fp32_ptr = weight_hc_data_fp32.channel(d).row(q);
+
+                const float descale_xc = 1.f / weight_xc_data_int8_scales.row(d)[q];
+                const float descale_hc = 1.f / weight_hc_data_int8_scales.row(d)[q];
+
+                for (int i = 0; i < size; i++)
+                {
+                    weight_xc_fp32_ptr[i] = weight_xc_ptr[i] * descale_xc;
+                }
+
+                for (int i = 0; i < num_output; i++)
+                {
+                    weight_hc_fp32_ptr[i] = weight_hc_ptr[i] * descale_hc;
+                }
+            }
+        }
+
+        weight_xc_data = weight_xc_data_fp32;
+        weight_hc_data = weight_hc_data_fp32;
+    }
+#endif // NCNN_INT8
+
 #if NCNN_ARM82
     if (support_fp16_storage && opt.use_fp16_storage)
     {
@@ -308,7 +347,7 @@ static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& w
         float* tmp_hidden_ptr = tmp_hidden_state;
 
         int remain_hidden_size_start = 0;
-#if __ARM_NEON
+#if 0 //__ARM_NEON  TODO test_lstm failed for precision loss
         int nn_hidden_size = hidden_size >> 2;
         remain_hidden_size_start = nn_hidden_size << 2;
 
