@@ -332,8 +332,6 @@ static int rnn_int8(const Mat& bottom_blob, Mat& top_blob, int reverse, const Ma
 
     int num_output = top_blob.w;
 
-    NCNN_LOGE("rnn_int8 %d %d %d", size, T, num_output);
-
     // num_output
     Mat gates(num_output, 4u, opt.workspace_allocator);
     if (gates.empty())
@@ -607,17 +605,17 @@ int RNN_arm::create_pipeline_int8(const Option& opt)
 #endif // __ARM_NEON
         for (; q < num_output; q++)
         {
-            const float* weight_xc_0 = weight_xc.row(q);
-            const float* weight_hc_0 = weight_hc.row(q);
+            const signed char* weight_xc_0 = weight_xc.row<const signed char>(q);
+            const signed char* weight_hc_0 = weight_hc.row<const signed char>(q);
 
 #if __ARM_NEON
-            float* weight_xc_ptr = weight_xc_data_packed_dr.row(q / 4 + q % 4);
-            float* weight_hc_ptr = weight_hc_data_packed_dr.row(q / 4 + q % 4);
+            signed char* weight_xc_ptr = weight_xc_data_packed_dr.row<signed char>(q / 4 + q % 4);
+            signed char* weight_hc_ptr = weight_hc_data_packed_dr.row<signed char>(q / 4 + q % 4);
             float* weight_xc_int8_descales_ptr = weight_xc_data_int8_descales_packed_dr.row(q / 4 + q % 4);
             float* weight_hc_int8_descales_ptr = weight_hc_data_int8_descales_packed_dr.row(q / 4 + q % 4);
 #else
-            float* weight_xc_ptr = weight_xc_data_packed_dr.row(q);
-            float* weight_hc_ptr = weight_hc_data_packed_dr.row(q);
+            signed char* weight_xc_ptr = weight_xc_data_packed_dr.row<signed char>(q);
+            signed char* weight_hc_ptr = weight_hc_data_packed_dr.row<signed char>(q);
             float* weight_xc_int8_descales_ptr = weight_xc_data_int8_descales_packed_dr.row(q);
             float* weight_hc_int8_descales_ptr = weight_hc_data_int8_descales_packed_dr.row(q);
 #endif // __ARM_NEON
@@ -1050,8 +1048,6 @@ static int rnn_bf16s_int8(const Mat& bottom_blob, Mat& top_blob, int reverse, co
     int T = bottom_blob.h;
 
     int num_output = top_blob.w;
-
-    NCNN_LOGE("rnn_bf16s_int8 %d %d %d", size, T, num_output);
 
     // num_output
     Mat gates(num_output, 4u, opt.workspace_allocator);
