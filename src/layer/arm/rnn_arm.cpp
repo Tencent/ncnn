@@ -332,6 +332,8 @@ static int rnn_int8(const Mat& bottom_blob, Mat& top_blob, int reverse, const Ma
 
     int num_output = top_blob.w;
 
+    NCNN_LOGE("rnn_int8 %d %d %d", size, T, num_output);
+
     // num_output
     Mat gates(num_output, 4u, opt.workspace_allocator);
     if (gates.empty())
@@ -1048,6 +1050,8 @@ static int rnn_bf16s_int8(const Mat& bottom_blob, Mat& top_blob, int reverse, co
     int T = bottom_blob.h;
 
     int num_output = top_blob.w;
+
+    NCNN_LOGE("rnn_bf16s_int8 %d %d %d", size, T, num_output);
 
     // num_output
     Mat gates(num_output, 4u, opt.workspace_allocator);
