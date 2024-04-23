@@ -1122,8 +1122,8 @@ static int gru_fp16sa_int8(const Mat& bottom_blob, Mat& top_blob, int reverse, c
             {
                 __fp16 xi = x[i];
 
-                R += weight_xc_int8_RUN[0] * descale_xc_R * xi;
-                U += weight_xc_int8_RUN[1] * descale_xc_U * xi;
+                R += (__fp16)weight_xc_int8_RUN[0] * descale_xc_R * xi;
+                U += (__fp16)weight_xc_int8_RUN[1] * descale_xc_U * xi;
 
                 weight_xc_int8_RUN += 2;
             }
@@ -1132,8 +1132,8 @@ static int gru_fp16sa_int8(const Mat& bottom_blob, Mat& top_blob, int reverse, c
             {
                 __fp16 h_cont = (__fp16)hidden_state[i];
 
-                R += weight_hc_int8_RUN[0] * descale_hc_R * h_cont;
-                U += weight_hc_int8_RUN[1] * descale_hc_U * h_cont;
+                R += (__fp16)weight_hc_int8_RUN[0] * descale_hc_R * h_cont;
+                U += (__fp16)weight_hc_int8_RUN[1] * descale_hc_U * h_cont;
 
                 weight_hc_int8_RUN += 2;
             }
@@ -1150,7 +1150,7 @@ static int gru_fp16sa_int8(const Mat& bottom_blob, Mat& top_blob, int reverse, c
             {
                 __fp16 h_cont = (__fp16)hidden_state[i];
 
-                N += weight_hc_int8_RUN[0] * descale_hc_N * h_cont;
+                N += (__fp16)weight_hc_int8_RUN[0] * descale_hc_N * h_cont;
 
                 weight_hc_int8_RUN += 1;
             }
@@ -1161,7 +1161,7 @@ static int gru_fp16sa_int8(const Mat& bottom_blob, Mat& top_blob, int reverse, c
             {
                 __fp16 xi = x[i];
 
-                N += weight_xc_int8_RUN[0] * descale_xc_N * xi;
+                N += (__fp16)weight_xc_int8_RUN[0] * descale_xc_N * xi;
 
                 weight_xc_int8_RUN += 1;
             }
