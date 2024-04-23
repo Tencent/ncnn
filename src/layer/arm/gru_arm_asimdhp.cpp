@@ -23,321 +23,6 @@
 namespace ncnn {
 
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-static int gru_fp16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& weight_xc, const Mat& bias_c, const Mat& weight_hc, Mat& hidden_state, const Option& opt)
-{
-    int size = bottom_blob.w;
-    int T = bottom_blob.h;
-
-    int num_output = top_blob.w;
-
-    // 2 x num_output
-    Mat gates(4 * 2, num_output / 4 + num_output % 4, 4u, opt.workspace_allocator);
-    if (gates.empty())
-        return -100;
-
-    // unroll
-    for (int t = 0; t < T; t++)
-    {
-        int ti = reverse ? T - 1 - t : t;
-
-        int nn_num_output = num_output >> 2;
-        int remain_num_output_start = nn_num_output << 2;
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int qq = 0; qq < nn_num_output; qq++)
-        {
-            int q = qq * 4;
-
-            const __fp16* x = bottom_blob.row<const __fp16>(ti);
-
-            // gate reset update
-            const __fp16* bias_c_RUBNWN = (const __fp16*)bias_c + q * 4;
-
-            const __fp16* weight_xc_RUN = weight_xc.row<const __fp16>(q / 4);
-            const __fp16* weight_hc_RUN = weight_hc.row<const __fp16>(q / 4);
-
-            float32x4_t _gru_R = vcvt_f32_f16(vld1_f16(bias_c_RUBNWN));
-            float32x4_t _gru_U = vcvt_f32_f16(vld1_f16(bias_c_RUBNWN + 4));
-            float32x4_t _sum1 = vdupq_n_f32(0.f);
-            float32x4_t _sum2 = vdupq_n_f32(0.f);
-            float32x4_t _sum3 = vdupq_n_f32(0.f);
-            float32x4_t _sum4 = vdupq_n_f32(0.f);
-            float32x4_t _sum5 = vdupq_n_f32(0.f);
-            float32x4_t _sum6 = vdupq_n_f32(0.f);
-
-            int i = 0;
-            for (; i + 3 < size; i += 4)
-            {
-                float32x4_t _xi = vcvt_f32_f16(vld1_f16(x + i));
-                float32x4_t _weight_xc_R = vcvt_f32_f16(vld1_f16(weight_xc_RUN));
-                float32x4_t _weight_xc_U = vcvt_f32_f16(vld1_f16(weight_xc_RUN + 4));
-                float32x4_t _weight_xc_R_1 = vcvt_f32_f16(vld1_f16(weight_xc_RUN + 8));
-                float32x4_t _weight_xc_U_1 = vcvt_f32_f16(vld1_f16(weight_xc_RUN + 12));
-                float32x4_t _weight_xc_R_2 = vcvt_f32_f16(vld1_f16(weight_xc_RUN + 16));
-                float32x4_t _weight_xc_U_2 = vcvt_f32_f16(vld1_f16(weight_xc_RUN + 20));
-                float32x4_t _weight_xc_R_3 = vcvt_f32_f16(vld1_f16(weight_xc_RUN + 24));
-                float32x4_t _weight_xc_U_3 = vcvt_f32_f16(vld1_f16(weight_xc_RUN + 28));
-                _gru_R = vfmaq_laneq_f32(_gru_R, _weight_xc_R, _xi, 0);
-                _gru_U = vfmaq_laneq_f32(_gru_U, _weight_xc_U, _xi, 0);
-                _sum1 = vfmaq_laneq_f32(_sum1, _weight_xc_R_1, _xi, 1);
-                _sum2 = vfmaq_laneq_f32(_sum2, _weight_xc_U_1, _xi, 1);
-                _sum3 = vfmaq_laneq_f32(_sum3, _weight_xc_R_2, _xi, 2);
-                _sum4 = vfmaq_laneq_f32(_sum4, _weight_xc_U_2, _xi, 2);
-                _sum5 = vfmaq_laneq_f32(_sum5, _weight_xc_R_3, _xi, 3);
-                _sum6 = vfmaq_laneq_f32(_sum6, _weight_xc_U_3, _xi, 3);
-
-                weight_xc_RUN += 32;
-            }
-            for (; i < size; i++)
-            {
-                __fp16 xi = x[i];
-
-                float32x4_t _xi = vcvt_f32_f16(vdup_n_f16(xi));
-                float32x4_t _weight_xc_R = vcvt_f32_f16(vld1_f16(weight_xc_RUN));
-                float32x4_t _weight_xc_U = vcvt_f32_f16(vld1_f16(weight_xc_RUN + 4));
-                _gru_R = vmlaq_f32(_gru_R, _weight_xc_R, _xi);
-                _gru_U = vmlaq_f32(_gru_U, _weight_xc_U, _xi);
-
-                weight_xc_RUN += 8;
-            }
-
-            i = 0;
-            for (; i + 3 < num_output; i += 4)
-            {
-                float32x4_t _h_cont = vld1q_f32((const float*)hidden_state + i);
-                float32x4_t _weight_hc_R = vcvt_f32_f16(vld1_f16(weight_hc_RUN));
-                float32x4_t _weight_hc_U = vcvt_f32_f16(vld1_f16(weight_hc_RUN + 4));
-                float32x4_t _weight_hc_R_1 = vcvt_f32_f16(vld1_f16(weight_hc_RUN + 8));
-                float32x4_t _weight_hc_U_1 = vcvt_f32_f16(vld1_f16(weight_hc_RUN + 12));
-                float32x4_t _weight_hc_R_2 = vcvt_f32_f16(vld1_f16(weight_hc_RUN + 16));
-                float32x4_t _weight_hc_U_2 = vcvt_f32_f16(vld1_f16(weight_hc_RUN + 20));
-                float32x4_t _weight_hc_R_3 = vcvt_f32_f16(vld1_f16(weight_hc_RUN + 24));
-                float32x4_t _weight_hc_U_3 = vcvt_f32_f16(vld1_f16(weight_hc_RUN + 28));
-                _gru_R = vfmaq_laneq_f32(_gru_R, _weight_hc_R, _h_cont, 0);
-                _gru_U = vfmaq_laneq_f32(_gru_U, _weight_hc_U, _h_cont, 0);
-                _sum1 = vfmaq_laneq_f32(_sum1, _weight_hc_R_1, _h_cont, 1);
-                _sum2 = vfmaq_laneq_f32(_sum2, _weight_hc_U_1, _h_cont, 1);
-                _sum3 = vfmaq_laneq_f32(_sum3, _weight_hc_R_2, _h_cont, 2);
-                _sum4 = vfmaq_laneq_f32(_sum4, _weight_hc_U_2, _h_cont, 2);
-                _sum5 = vfmaq_laneq_f32(_sum5, _weight_hc_R_3, _h_cont, 3);
-                _sum6 = vfmaq_laneq_f32(_sum6, _weight_hc_U_3, _h_cont, 3);
-
-                weight_hc_RUN += 32;
-            }
-            for (; i < num_output; i++)
-            {
-                float h_cont = hidden_state[i];
-
-                float32x4_t _h_cont = vdupq_n_f32(h_cont);
-                float32x4_t _weight_hc_R = vcvt_f32_f16(vld1_f16(weight_hc_RUN));
-                float32x4_t _weight_hc_U = vcvt_f32_f16(vld1_f16(weight_hc_RUN + 4));
-                _gru_R = vmlaq_f32(_gru_R, _weight_hc_R, _h_cont);
-                _gru_U = vmlaq_f32(_gru_U, _weight_hc_U, _h_cont);
-
-                weight_hc_RUN += 8;
-            }
-
-            _gru_R = vaddq_f32(_gru_R, _sum1);
-            _gru_U = vaddq_f32(_gru_U, _sum2);
-            _sum3 = vaddq_f32(_sum3, _sum5);
-            _sum4 = vaddq_f32(_sum4, _sum6);
-            _gru_R = vaddq_f32(_gru_R, _sum3);
-            _gru_U = vaddq_f32(_gru_U, _sum4);
-
-            // sigmoid(R)
-            // sigmoid(U)
-            _gru_R = sigmoid_ps(_gru_R);
-            _gru_U = sigmoid_ps(_gru_U);
-
-            // gate new
-            float32x4_t _gru_N = vcvt_f32_f16(vld1_f16(bias_c_RUBNWN + 8));
-            _sum1 = vdupq_n_f32(0.f);
-            _sum2 = vdupq_n_f32(0.f);
-            _sum3 = vdupq_n_f32(0.f);
-
-            i = 0;
-            for (; i + 3 < num_output; i += 4)
-            {
-                float32x4_t _h_cont = vld1q_f32((const float*)hidden_state + i);
-                float32x4_t _weight_hc_N = vcvt_f32_f16(vld1_f16(weight_hc_RUN));
-                float32x4_t _weight_hc_N_1 = vcvt_f32_f16(vld1_f16(weight_hc_RUN + 4));
-                float32x4_t _weight_hc_N_2 = vcvt_f32_f16(vld1_f16(weight_hc_RUN + 8));
-                float32x4_t _weight_hc_N_3 = vcvt_f32_f16(vld1_f16(weight_hc_RUN + 12));
-                _gru_N = vfmaq_laneq_f32(_gru_N, _weight_hc_N, _h_cont, 0);
-                _sum1 = vfmaq_laneq_f32(_sum1, _weight_hc_N_1, _h_cont, 1);
-                _sum2 = vfmaq_laneq_f32(_sum2, _weight_hc_N_2, _h_cont, 2);
-                _sum3 = vfmaq_laneq_f32(_sum3, _weight_hc_N_3, _h_cont, 3);
-
-                weight_hc_RUN += 16;
-            }
-            for (; i < num_output; i++)
-            {
-                float h_cont = hidden_state[i];
-
-                float32x4_t _h_cont = vdupq_n_f32(h_cont);
-                float32x4_t _weight_hc_N = vcvt_f32_f16(vld1_f16(weight_hc_RUN));
-                _gru_N = vmlaq_f32(_gru_N, _weight_hc_N, _h_cont);
-
-                weight_hc_RUN += 4;
-            }
-
-            _gru_N = vaddq_f32(_gru_N, _sum1);
-            _sum2 = vaddq_f32(_sum2, _sum3);
-            _gru_N = vaddq_f32(_gru_N, _sum2);
-
-            _gru_N = vmlaq_f32(vcvt_f32_f16(vld1_f16(bias_c_RUBNWN + 12)), _gru_R, _gru_N);
-            _sum1 = vdupq_n_f32(0.f);
-            _sum2 = vdupq_n_f32(0.f);
-            _sum3 = vdupq_n_f32(0.f);
-
-            i = 0;
-            for (; i + 3 < size; i += 4)
-            {
-                float32x4_t _xi = vcvt_f32_f16(vld1_f16(x + i));
-                float32x4_t _weight_xc_N = vcvt_f32_f16(vld1_f16(weight_xc_RUN));
-                float32x4_t _weight_xc_N_1 = vcvt_f32_f16(vld1_f16(weight_xc_RUN + 4));
-                float32x4_t _weight_xc_N_2 = vcvt_f32_f16(vld1_f16(weight_xc_RUN + 8));
-                float32x4_t _weight_xc_N_3 = vcvt_f32_f16(vld1_f16(weight_xc_RUN + 12));
-                _gru_N = vfmaq_laneq_f32(_gru_N, _weight_xc_N, _xi, 0);
-                _sum1 = vfmaq_laneq_f32(_sum1, _weight_xc_N_1, _xi, 1);
-                _sum2 = vfmaq_laneq_f32(_sum2, _weight_xc_N_2, _xi, 2);
-                _sum3 = vfmaq_laneq_f32(_sum3, _weight_xc_N_3, _xi, 3);
-
-                weight_xc_RUN += 16;
-            }
-            for (; i < size; i++)
-            {
-                __fp16 xi = x[i];
-
-                float32x4_t _xi = vcvt_f32_f16(vdup_n_f16(xi));
-                float32x4_t _weight_xc_N = vcvt_f32_f16(vld1_f16(weight_xc_RUN));
-                _gru_N = vmlaq_f32(_gru_N, _weight_xc_N, _xi);
-
-                weight_xc_RUN += 4;
-            }
-
-            _gru_N = vaddq_f32(_gru_N, _sum1);
-            _sum2 = vaddq_f32(_sum2, _sum3);
-            _gru_N = vaddq_f32(_gru_N, _sum2);
-
-            // tanh(N)
-            _gru_N = tanh_ps(_gru_N);
-
-            float* gates_data = gates.row(q / 4);
-
-            vst1q_f32(gates_data, _gru_U);
-            vst1q_f32(gates_data + 4, _gru_N);
-        }
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = remain_num_output_start; q < num_output; q++)
-        {
-            const __fp16* x = bottom_blob.row<const __fp16>(ti);
-
-            // gate reset update
-            const __fp16* bias_c_RUBNWN = (const __fp16*)bias_c + q * 4;
-
-            const __fp16* weight_xc_RUN = weight_xc.row<const __fp16>(q / 4 + q % 4);
-            const __fp16* weight_hc_RUN = weight_hc.row<const __fp16>(q / 4 + q % 4);
-
-            float R = (float)bias_c_RUBNWN[0];
-            float U = (float)bias_c_RUBNWN[1];
-
-            for (int i = 0; i < size; i++)
-            {
-                float xi = (float)x[i];
-
-                R += (float)weight_xc_RUN[0] * xi;
-                U += (float)weight_xc_RUN[1] * xi;
-
-                weight_xc_RUN += 2;
-            }
-
-            for (int i = 0; i < num_output; i++)
-            {
-                float h_cont = hidden_state[i];
-
-                R += (float)weight_hc_RUN[0] * h_cont;
-                U += (float)weight_hc_RUN[1] * h_cont;
-
-                weight_hc_RUN += 2;
-            }
-
-            // sigmoid(R)
-            // sigmoid(U)
-            R = 1.f / (1.f + expf(-R));
-            U = 1.f / (1.f + expf(-U));
-
-            // gate new
-            float N = (float)bias_c_RUBNWN[2];
-
-            for (int i = 0; i < num_output; i++)
-            {
-                float h_cont = hidden_state[i];
-
-                N += (float)weight_hc_RUN[0] * h_cont;
-
-                weight_hc_RUN += 1;
-            }
-
-            N = (float)bias_c_RUBNWN[3] + R * N;
-
-            for (int i = 0; i < size; i++)
-            {
-                float xi = (float)x[i];
-
-                N += (float)weight_xc_RUN[0] * xi;
-
-                weight_xc_RUN += 1;
-            }
-
-            // tanh(N)
-            N = tanhf(N);
-
-            float* gates_data = gates.row(q / 4 + q % 4);
-
-            gates_data[0] = U;
-            gates_data[1] = N;
-        }
-
-        // h_t := (1 - update) .* new + update .* h_{t-1}
-        __fp16* output_data = top_blob.row<__fp16>(ti);
-
-        float* hidden_ptr = hidden_state;
-
-        nn_num_output = num_output >> 2;
-        remain_num_output_start = nn_num_output << 2;
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int qq = 0; qq < nn_num_output; qq++)
-        {
-            int q = qq * 4;
-
-            const float* gates_data = gates.row(q / 4);
-
-            float32x4_t _gru_U = vld1q_f32(gates_data);
-            float32x4_t _gru_N = vld1q_f32(gates_data + 4);
-
-            float32x4_t _gru_H = vaddq_f32(vmulq_f32(vsubq_f32(vdupq_n_f32(1.f), _gru_U), _gru_N), vmulq_f32(_gru_U, vld1q_f32(hidden_ptr + q)));
-
-            vst1q_f32(hidden_ptr + q, _gru_H);
-            vst1_f16(output_data + q, vcvt_f16_f32(_gru_H));
-        }
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = remain_num_output_start; q < num_output; q++)
-        {
-            const float* gates_data = gates.row(q / 4 + q % 4);
-
-            float U = gates_data[0];
-            float N = gates_data[1];
-
-            float H = (1 - U) * N + U * hidden_ptr[q];
-
-            hidden_ptr[q] = H;
-            output_data[q] = (__fp16)H;
-        }
-    }
-
-    return 0;
-}
-
 static int gru_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& weight_xc, const Mat& bias_c, const Mat& weight_hc, Mat& hidden_state, const Option& opt)
 {
     int size = bottom_blob.w;
@@ -729,9 +414,11 @@ static int gru_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
     return 0;
 }
 
-#if NCNN_INT8
-static int gru_fp16s_int8(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& weight_xc_int8, const Mat& weight_xc_int8_descales, const Mat& bias_c, const Mat& weight_hc_int8, const Mat& weight_hc_int8_descales, Mat& hidden_state, const Option& opt)
+static int gru_fp16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& weight_xc, const Mat& bias_c, const Mat& weight_hc, Mat& hidden_state, const Option& opt)
 {
+    if (opt.use_fp16_arithmetic)
+        return gru_fp16sa(bottom_blob, top_blob, reverse, weight_xc, bias_c, weight_hc, hidden_state, opt);
+
     int size = bottom_blob.w;
     int T = bottom_blob.h;
 
@@ -759,16 +446,8 @@ static int gru_fp16s_int8(const Mat& bottom_blob, Mat& top_blob, int reverse, co
             // gate reset update
             const __fp16* bias_c_RUBNWN = (const __fp16*)bias_c + q * 4;
 
-            const signed char* weight_xc_int8_RUN = weight_xc_int8.row<const signed char>(q / 4);
-            const signed char* weight_hc_int8_RUN = weight_hc_int8.row<const signed char>(q / 4);
-
-            const float* weight_xc_int8_descales_RUN = weight_xc_int8_descales.row(q / 4);
-            const float* weight_hc_int8_descales_RUN = weight_hc_int8_descales.row(q / 4);
-
-            float32x4_t _descale_xc_R = vld1q_f32(weight_xc_int8_descales_RUN);
-            float32x4_t _descale_xc_U = vld1q_f32(weight_xc_int8_descales_RUN + 4);
-            float32x4_t _descale_hc_R = vld1q_f32(weight_hc_int8_descales_RUN);
-            float32x4_t _descale_hc_U = vld1q_f32(weight_hc_int8_descales_RUN + 4);
+            const __fp16* weight_xc_RUN = weight_xc.row<const __fp16>(q / 4);
+            const __fp16* weight_hc_RUN = weight_hc.row<const __fp16>(q / 4);
 
             float32x4_t _gru_R = vcvt_f32_f16(vld1_f16(bias_c_RUBNWN));
             float32x4_t _gru_U = vcvt_f32_f16(vld1_f16(bias_c_RUBNWN + 4));
@@ -783,24 +462,14 @@ static int gru_fp16s_int8(const Mat& bottom_blob, Mat& top_blob, int reverse, co
             for (; i + 3 < size; i += 4)
             {
                 float32x4_t _xi = vcvt_f32_f16(vld1_f16(x + i));
-
-                int8x16_t _weight_xc_RU01 = vld1q_s8(weight_xc_int8_RUN);
-                int8x16_t _weight_xc_RU23 = vld1q_s8(weight_xc_int8_RUN + 16);
-
-                int16x8_t _weight_xc_RU0 = vmovl_s8(vget_low_s8(_weight_xc_RU01));
-                int16x8_t _weight_xc_RU1 = vmovl_s8(vget_high_s8(_weight_xc_RU01));
-                int16x8_t _weight_xc_RU2 = vmovl_s8(vget_low_s8(_weight_xc_RU23));
-                int16x8_t _weight_xc_RU3 = vmovl_s8(vget_high_s8(_weight_xc_RU23));
-
-                float32x4_t _weight_xc_R = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_low_s16(_weight_xc_RU0))), _descale_xc_R);
-                float32x4_t _weight_xc_U = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_high_s16(_weight_xc_RU0))), _descale_xc_U);
-                float32x4_t _weight_xc_R_1 = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_low_s16(_weight_xc_RU1))), _descale_xc_R);
-                float32x4_t _weight_xc_U_1 = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_high_s16(_weight_xc_RU1))), _descale_xc_U);
-                float32x4_t _weight_xc_R_2 = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_low_s16(_weight_xc_RU2))), _descale_xc_R);
-                float32x4_t _weight_xc_U_2 = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_high_s16(_weight_xc_RU2))), _descale_xc_U);
-                float32x4_t _weight_xc_R_3 = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_low_s16(_weight_xc_RU3))), _descale_xc_R);
-                float32x4_t _weight_xc_U_3 = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_high_s16(_weight_xc_RU3))), _descale_xc_U);
-
+                float32x4_t _weight_xc_R = vcvt_f32_f16(vld1_f16(weight_xc_RUN));
+                float32x4_t _weight_xc_U = vcvt_f32_f16(vld1_f16(weight_xc_RUN + 4));
+                float32x4_t _weight_xc_R_1 = vcvt_f32_f16(vld1_f16(weight_xc_RUN + 8));
+                float32x4_t _weight_xc_U_1 = vcvt_f32_f16(vld1_f16(weight_xc_RUN + 12));
+                float32x4_t _weight_xc_R_2 = vcvt_f32_f16(vld1_f16(weight_xc_RUN + 16));
+                float32x4_t _weight_xc_U_2 = vcvt_f32_f16(vld1_f16(weight_xc_RUN + 20));
+                float32x4_t _weight_xc_R_3 = vcvt_f32_f16(vld1_f16(weight_xc_RUN + 24));
+                float32x4_t _weight_xc_U_3 = vcvt_f32_f16(vld1_f16(weight_xc_RUN + 28));
                 _gru_R = vfmaq_laneq_f32(_gru_R, _weight_xc_R, _xi, 0);
                 _gru_U = vfmaq_laneq_f32(_gru_U, _weight_xc_U, _xi, 0);
                 _sum1 = vfmaq_laneq_f32(_sum1, _weight_xc_R_1, _xi, 1);
@@ -810,46 +479,33 @@ static int gru_fp16s_int8(const Mat& bottom_blob, Mat& top_blob, int reverse, co
                 _sum5 = vfmaq_laneq_f32(_sum5, _weight_xc_R_3, _xi, 3);
                 _sum6 = vfmaq_laneq_f32(_sum6, _weight_xc_U_3, _xi, 3);
 
-                weight_xc_int8_RUN += 32;
+                weight_xc_RUN += 32;
             }
             for (; i < size; i++)
             {
                 __fp16 xi = x[i];
 
                 float32x4_t _xi = vcvt_f32_f16(vdup_n_f16(xi));
-
-                int16x8_t _weight_xc_RU = vmovl_s8(vld1_s8(weight_xc_int8_RUN));
-                float32x4_t _weight_xc_R = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_low_s16(_weight_xc_RU))), _descale_xc_R);
-                float32x4_t _weight_xc_U = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_high_s16(_weight_xc_RU))), _descale_xc_U);
-
+                float32x4_t _weight_xc_R = vcvt_f32_f16(vld1_f16(weight_xc_RUN));
+                float32x4_t _weight_xc_U = vcvt_f32_f16(vld1_f16(weight_xc_RUN + 4));
                 _gru_R = vmlaq_f32(_gru_R, _weight_xc_R, _xi);
                 _gru_U = vmlaq_f32(_gru_U, _weight_xc_U, _xi);
 
-                weight_xc_int8_RUN += 8;
+                weight_xc_RUN += 8;
             }
 
             i = 0;
             for (; i + 3 < num_output; i += 4)
             {
                 float32x4_t _h_cont = vld1q_f32((const float*)hidden_state + i);
-
-                int8x16_t _weight_hc_RU01 = vld1q_s8(weight_hc_int8_RUN);
-                int8x16_t _weight_hc_RU23 = vld1q_s8(weight_hc_int8_RUN + 16);
-
-                int16x8_t _weight_hc_RU0 = vmovl_s8(vget_low_s8(_weight_hc_RU01));
-                int16x8_t _weight_hc_RU1 = vmovl_s8(vget_high_s8(_weight_hc_RU01));
-                int16x8_t _weight_hc_RU2 = vmovl_s8(vget_low_s8(_weight_hc_RU23));
-                int16x8_t _weight_hc_RU3 = vmovl_s8(vget_high_s8(_weight_hc_RU23));
-
-                float32x4_t _weight_hc_R = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_low_s16(_weight_hc_RU0))), _descale_hc_R);
-                float32x4_t _weight_hc_U = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_high_s16(_weight_hc_RU0))), _descale_hc_U);
-                float32x4_t _weight_hc_R_1 = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_low_s16(_weight_hc_RU1))), _descale_hc_R);
-                float32x4_t _weight_hc_U_1 = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_high_s16(_weight_hc_RU1))), _descale_hc_U);
-                float32x4_t _weight_hc_R_2 = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_low_s16(_weight_hc_RU2))), _descale_hc_R);
-                float32x4_t _weight_hc_U_2 = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_high_s16(_weight_hc_RU2))), _descale_hc_U);
-                float32x4_t _weight_hc_R_3 = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_low_s16(_weight_hc_RU3))), _descale_hc_R);
-                float32x4_t _weight_hc_U_3 = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_high_s16(_weight_hc_RU3))), _descale_hc_U);
-
+                float32x4_t _weight_hc_R = vcvt_f32_f16(vld1_f16(weight_hc_RUN));
+                float32x4_t _weight_hc_U = vcvt_f32_f16(vld1_f16(weight_hc_RUN + 4));
+                float32x4_t _weight_hc_R_1 = vcvt_f32_f16(vld1_f16(weight_hc_RUN + 8));
+                float32x4_t _weight_hc_U_1 = vcvt_f32_f16(vld1_f16(weight_hc_RUN + 12));
+                float32x4_t _weight_hc_R_2 = vcvt_f32_f16(vld1_f16(weight_hc_RUN + 16));
+                float32x4_t _weight_hc_U_2 = vcvt_f32_f16(vld1_f16(weight_hc_RUN + 20));
+                float32x4_t _weight_hc_R_3 = vcvt_f32_f16(vld1_f16(weight_hc_RUN + 24));
+                float32x4_t _weight_hc_U_3 = vcvt_f32_f16(vld1_f16(weight_hc_RUN + 28));
                 _gru_R = vfmaq_laneq_f32(_gru_R, _weight_hc_R, _h_cont, 0);
                 _gru_U = vfmaq_laneq_f32(_gru_U, _weight_hc_U, _h_cont, 0);
                 _sum1 = vfmaq_laneq_f32(_sum1, _weight_hc_R_1, _h_cont, 1);
@@ -859,22 +515,19 @@ static int gru_fp16s_int8(const Mat& bottom_blob, Mat& top_blob, int reverse, co
                 _sum5 = vfmaq_laneq_f32(_sum5, _weight_hc_R_3, _h_cont, 3);
                 _sum6 = vfmaq_laneq_f32(_sum6, _weight_hc_U_3, _h_cont, 3);
 
-                weight_hc_int8_RUN += 32;
+                weight_hc_RUN += 32;
             }
             for (; i < num_output; i++)
             {
                 float h_cont = hidden_state[i];
 
                 float32x4_t _h_cont = vdupq_n_f32(h_cont);
-
-                int16x8_t _weight_hc_RU = vmovl_s8(vld1_s8(weight_hc_int8_RUN));
-                float32x4_t _weight_hc_R = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_low_s16(_weight_hc_RU))), _descale_hc_R);
-                float32x4_t _weight_hc_U = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_high_s16(_weight_hc_RU))), _descale_hc_U);
-
+                float32x4_t _weight_hc_R = vcvt_f32_f16(vld1_f16(weight_hc_RUN));
+                float32x4_t _weight_hc_U = vcvt_f32_f16(vld1_f16(weight_hc_RUN + 4));
                 _gru_R = vmlaq_f32(_gru_R, _weight_hc_R, _h_cont);
                 _gru_U = vmlaq_f32(_gru_U, _weight_hc_U, _h_cont);
 
-                weight_hc_int8_RUN += 8;
+                weight_hc_RUN += 8;
             }
 
             _gru_R = vaddq_f32(_gru_R, _sum1);
@@ -895,38 +548,30 @@ static int gru_fp16s_int8(const Mat& bottom_blob, Mat& top_blob, int reverse, co
             _sum2 = vdupq_n_f32(0.f);
             _sum3 = vdupq_n_f32(0.f);
 
-            float32x4_t _descale_xc_N = vld1q_f32(weight_xc_int8_descales_RUN + 8);
-            float32x4_t _descale_hc_N = vld1q_f32(weight_hc_int8_descales_RUN + 8);
-
             i = 0;
             for (; i + 3 < num_output; i += 4)
             {
                 float32x4_t _h_cont = vld1q_f32((const float*)hidden_state + i);
-
-                int8x16_t _weight_hc_N0123 = vld1q_s8(weight_hc_int8_RUN);
-                int16x8_t _weight_hc_N01 = vmovl_s8(vget_low_s8(_weight_hc_N0123));
-                int16x8_t _weight_hc_N23 = vmovl_s8(vget_high_s8(_weight_hc_N0123));
-                float32x4_t _weight_hc_N = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_low_s16(_weight_hc_N01))), _descale_hc_N);
-                float32x4_t _weight_hc_N_1 = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_high_s16(_weight_hc_N01))), _descale_hc_N);
-                float32x4_t _weight_hc_N_2 = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_low_s16(_weight_hc_N23))), _descale_hc_N);
-                float32x4_t _weight_hc_N_3 = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_high_s16(_weight_hc_N23))), _descale_hc_N);
-
+                float32x4_t _weight_hc_N = vcvt_f32_f16(vld1_f16(weight_hc_RUN));
+                float32x4_t _weight_hc_N_1 = vcvt_f32_f16(vld1_f16(weight_hc_RUN + 4));
+                float32x4_t _weight_hc_N_2 = vcvt_f32_f16(vld1_f16(weight_hc_RUN + 8));
+                float32x4_t _weight_hc_N_3 = vcvt_f32_f16(vld1_f16(weight_hc_RUN + 12));
                 _gru_N = vfmaq_laneq_f32(_gru_N, _weight_hc_N, _h_cont, 0);
                 _sum1 = vfmaq_laneq_f32(_sum1, _weight_hc_N_1, _h_cont, 1);
                 _sum2 = vfmaq_laneq_f32(_sum2, _weight_hc_N_2, _h_cont, 2);
                 _sum3 = vfmaq_laneq_f32(_sum3, _weight_hc_N_3, _h_cont, 3);
 
-                weight_hc_int8_RUN += 16;
+                weight_hc_RUN += 16;
             }
             for (; i < num_output; i++)
             {
                 float h_cont = hidden_state[i];
 
                 float32x4_t _h_cont = vdupq_n_f32(h_cont);
-                float32x4_t _weight_hc_N = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_low_s16(vmovl_s8(vld1_s8(weight_hc_int8_RUN))))), _descale_hc_N);
+                float32x4_t _weight_hc_N = vcvt_f32_f16(vld1_f16(weight_hc_RUN));
                 _gru_N = vmlaq_f32(_gru_N, _weight_hc_N, _h_cont);
 
-                weight_hc_int8_RUN += 4;
+                weight_hc_RUN += 4;
             }
 
             _gru_N = vaddq_f32(_gru_N, _sum1);
@@ -942,31 +587,26 @@ static int gru_fp16s_int8(const Mat& bottom_blob, Mat& top_blob, int reverse, co
             for (; i + 3 < size; i += 4)
             {
                 float32x4_t _xi = vcvt_f32_f16(vld1_f16(x + i));
-
-                int8x16_t _weight_xc_N0123 = vld1q_s8(weight_xc_int8_RUN);
-                int16x8_t _weight_xc_N01 = vmovl_s8(vget_low_s8(_weight_xc_N0123));
-                int16x8_t _weight_xc_N23 = vmovl_s8(vget_high_s8(_weight_xc_N0123));
-                float32x4_t _weight_xc_N = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_low_s16(_weight_xc_N01))), _descale_xc_N);
-                float32x4_t _weight_xc_N_1 = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_high_s16(_weight_xc_N01))), _descale_xc_N);
-                float32x4_t _weight_xc_N_2 = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_low_s16(_weight_xc_N23))), _descale_xc_N);
-                float32x4_t _weight_xc_N_3 = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_high_s16(_weight_xc_N23))), _descale_xc_N);
-
+                float32x4_t _weight_xc_N = vcvt_f32_f16(vld1_f16(weight_xc_RUN));
+                float32x4_t _weight_xc_N_1 = vcvt_f32_f16(vld1_f16(weight_xc_RUN + 4));
+                float32x4_t _weight_xc_N_2 = vcvt_f32_f16(vld1_f16(weight_xc_RUN + 8));
+                float32x4_t _weight_xc_N_3 = vcvt_f32_f16(vld1_f16(weight_xc_RUN + 12));
                 _gru_N = vfmaq_laneq_f32(_gru_N, _weight_xc_N, _xi, 0);
                 _sum1 = vfmaq_laneq_f32(_sum1, _weight_xc_N_1, _xi, 1);
                 _sum2 = vfmaq_laneq_f32(_sum2, _weight_xc_N_2, _xi, 2);
                 _sum3 = vfmaq_laneq_f32(_sum3, _weight_xc_N_3, _xi, 3);
 
-                weight_xc_int8_RUN += 16;
+                weight_xc_RUN += 16;
             }
             for (; i < size; i++)
             {
                 __fp16 xi = x[i];
 
                 float32x4_t _xi = vcvt_f32_f16(vdup_n_f16(xi));
-                float32x4_t _weight_xc_N = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_low_s16(vmovl_s8(vld1_s8(weight_xc_int8_RUN))))), _descale_xc_N);
+                float32x4_t _weight_xc_N = vcvt_f32_f16(vld1_f16(weight_xc_RUN));
                 _gru_N = vmlaq_f32(_gru_N, _weight_xc_N, _xi);
 
-                weight_xc_int8_RUN += 4;
+                weight_xc_RUN += 4;
             }
 
             _gru_N = vaddq_f32(_gru_N, _sum1);
@@ -989,18 +629,8 @@ static int gru_fp16s_int8(const Mat& bottom_blob, Mat& top_blob, int reverse, co
             // gate reset update
             const __fp16* bias_c_RUBNWN = (const __fp16*)bias_c + q * 4;
 
-            const signed char* weight_xc_int8_RUN = weight_xc_int8.row<const signed char>(q / 4 + q % 4);
-            const signed char* weight_hc_int8_RUN = weight_hc_int8.row<const signed char>(q / 4 + q % 4);
-            const float* weight_xc_int8_descales_RUN = weight_xc_int8_descales.row(q / 4 + q % 4);
-            const float* weight_hc_int8_descales_RUN = weight_hc_int8_descales.row(q / 4 + q % 4);
-
-            const float descale_xc_R = weight_xc_int8_descales_RUN[0];
-            const float descale_xc_U = weight_xc_int8_descales_RUN[1];
-            const float descale_xc_N = weight_xc_int8_descales_RUN[2];
-
-            const float descale_hc_R = weight_hc_int8_descales_RUN[0];
-            const float descale_hc_U = weight_hc_int8_descales_RUN[1];
-            const float descale_hc_N = weight_hc_int8_descales_RUN[2];
+            const __fp16* weight_xc_RUN = weight_xc.row<const __fp16>(q / 4 + q % 4);
+            const __fp16* weight_hc_RUN = weight_hc.row<const __fp16>(q / 4 + q % 4);
 
             float R = (float)bias_c_RUBNWN[0];
             float U = (float)bias_c_RUBNWN[1];
@@ -1009,20 +639,20 @@ static int gru_fp16s_int8(const Mat& bottom_blob, Mat& top_blob, int reverse, co
             {
                 float xi = (float)x[i];
 
-                R += weight_xc_int8_RUN[0] * descale_xc_R * xi;
-                U += weight_xc_int8_RUN[1] * descale_xc_U * xi;
+                R += (float)weight_xc_RUN[0] * xi;
+                U += (float)weight_xc_RUN[1] * xi;
 
-                weight_xc_int8_RUN += 2;
+                weight_xc_RUN += 2;
             }
 
             for (int i = 0; i < num_output; i++)
             {
                 float h_cont = hidden_state[i];
 
-                R += weight_hc_int8_RUN[0] * descale_hc_R * h_cont;
-                U += weight_hc_int8_RUN[1] * descale_hc_U * h_cont;
+                R += (float)weight_hc_RUN[0] * h_cont;
+                U += (float)weight_hc_RUN[1] * h_cont;
 
-                weight_hc_int8_RUN += 2;
+                weight_hc_RUN += 2;
             }
 
             // sigmoid(R)
@@ -1037,9 +667,9 @@ static int gru_fp16s_int8(const Mat& bottom_blob, Mat& top_blob, int reverse, co
             {
                 float h_cont = hidden_state[i];
 
-                N += weight_hc_int8_RUN[0] * descale_hc_N * h_cont;
+                N += (float)weight_hc_RUN[0] * h_cont;
 
-                weight_hc_int8_RUN += 1;
+                weight_hc_RUN += 1;
             }
 
             N = (float)bias_c_RUBNWN[3] + R * N;
@@ -1048,9 +678,9 @@ static int gru_fp16s_int8(const Mat& bottom_blob, Mat& top_blob, int reverse, co
             {
                 float xi = (float)x[i];
 
-                N += weight_xc_int8_RUN[0] * descale_xc_N * xi;
+                N += (float)weight_xc_RUN[0] * xi;
 
-                weight_xc_int8_RUN += 1;
+                weight_xc_RUN += 1;
             }
 
             // tanh(N)
@@ -1102,6 +732,7 @@ static int gru_fp16s_int8(const Mat& bottom_blob, Mat& top_blob, int reverse, co
     return 0;
 }
 
+#if NCNN_INT8
 static int gru_fp16sa_int8(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& weight_xc_int8, const Mat& weight_xc_int8_descales, const Mat& bias_c, const Mat& weight_hc_int8, const Mat& weight_hc_int8_descales, Mat& hidden_state, const Option& opt)
 {
     int size = bottom_blob.w;
@@ -1583,6 +1214,381 @@ static int gru_fp16sa_int8(const Mat& bottom_blob, Mat& top_blob, int reverse, c
 
     return 0;
 }
+
+static int gru_fp16s_int8(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& weight_xc_int8, const Mat& weight_xc_int8_descales, const Mat& bias_c, const Mat& weight_hc_int8, const Mat& weight_hc_int8_descales, Mat& hidden_state, const Option& opt)
+{
+    if (opt.use_fp16_arithmetic)
+        return gru_fp16sa_int8(bottom_blob, top_blob, reverse, weight_xc_int8, weight_xc_int8_descales, bias_c, weight_hc_int8, weight_hc_int8_descales, hidden_state, opt);
+
+    int size = bottom_blob.w;
+    int T = bottom_blob.h;
+
+    int num_output = top_blob.w;
+
+    // 2 x num_output
+    Mat gates(4 * 2, num_output / 4 + num_output % 4, 4u, opt.workspace_allocator);
+    if (gates.empty())
+        return -100;
+
+    // unroll
+    for (int t = 0; t < T; t++)
+    {
+        int ti = reverse ? T - 1 - t : t;
+
+        int nn_num_output = num_output >> 2;
+        int remain_num_output_start = nn_num_output << 2;
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int qq = 0; qq < nn_num_output; qq++)
+        {
+            int q = qq * 4;
+
+            const __fp16* x = bottom_blob.row<const __fp16>(ti);
+
+            // gate reset update
+            const __fp16* bias_c_RUBNWN = (const __fp16*)bias_c + q * 4;
+
+            const signed char* weight_xc_int8_RUN = weight_xc_int8.row<const signed char>(q / 4);
+            const signed char* weight_hc_int8_RUN = weight_hc_int8.row<const signed char>(q / 4);
+
+            const float* weight_xc_int8_descales_RUN = weight_xc_int8_descales.row(q / 4);
+            const float* weight_hc_int8_descales_RUN = weight_hc_int8_descales.row(q / 4);
+
+            float32x4_t _descale_xc_R = vld1q_f32(weight_xc_int8_descales_RUN);
+            float32x4_t _descale_xc_U = vld1q_f32(weight_xc_int8_descales_RUN + 4);
+            float32x4_t _descale_hc_R = vld1q_f32(weight_hc_int8_descales_RUN);
+            float32x4_t _descale_hc_U = vld1q_f32(weight_hc_int8_descales_RUN + 4);
+
+            float32x4_t _gru_R = vcvt_f32_f16(vld1_f16(bias_c_RUBNWN));
+            float32x4_t _gru_U = vcvt_f32_f16(vld1_f16(bias_c_RUBNWN + 4));
+            float32x4_t _sum1 = vdupq_n_f32(0.f);
+            float32x4_t _sum2 = vdupq_n_f32(0.f);
+            float32x4_t _sum3 = vdupq_n_f32(0.f);
+            float32x4_t _sum4 = vdupq_n_f32(0.f);
+            float32x4_t _sum5 = vdupq_n_f32(0.f);
+            float32x4_t _sum6 = vdupq_n_f32(0.f);
+
+            int i = 0;
+            for (; i + 3 < size; i += 4)
+            {
+                float32x4_t _xi = vcvt_f32_f16(vld1_f16(x + i));
+
+                int8x16_t _weight_xc_RU01 = vld1q_s8(weight_xc_int8_RUN);
+                int8x16_t _weight_xc_RU23 = vld1q_s8(weight_xc_int8_RUN + 16);
+
+                int16x8_t _weight_xc_RU0 = vmovl_s8(vget_low_s8(_weight_xc_RU01));
+                int16x8_t _weight_xc_RU1 = vmovl_s8(vget_high_s8(_weight_xc_RU01));
+                int16x8_t _weight_xc_RU2 = vmovl_s8(vget_low_s8(_weight_xc_RU23));
+                int16x8_t _weight_xc_RU3 = vmovl_s8(vget_high_s8(_weight_xc_RU23));
+
+                float32x4_t _weight_xc_R = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_low_s16(_weight_xc_RU0))), _descale_xc_R);
+                float32x4_t _weight_xc_U = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_high_s16(_weight_xc_RU0))), _descale_xc_U);
+                float32x4_t _weight_xc_R_1 = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_low_s16(_weight_xc_RU1))), _descale_xc_R);
+                float32x4_t _weight_xc_U_1 = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_high_s16(_weight_xc_RU1))), _descale_xc_U);
+                float32x4_t _weight_xc_R_2 = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_low_s16(_weight_xc_RU2))), _descale_xc_R);
+                float32x4_t _weight_xc_U_2 = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_high_s16(_weight_xc_RU2))), _descale_xc_U);
+                float32x4_t _weight_xc_R_3 = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_low_s16(_weight_xc_RU3))), _descale_xc_R);
+                float32x4_t _weight_xc_U_3 = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_high_s16(_weight_xc_RU3))), _descale_xc_U);
+
+                _gru_R = vfmaq_laneq_f32(_gru_R, _weight_xc_R, _xi, 0);
+                _gru_U = vfmaq_laneq_f32(_gru_U, _weight_xc_U, _xi, 0);
+                _sum1 = vfmaq_laneq_f32(_sum1, _weight_xc_R_1, _xi, 1);
+                _sum2 = vfmaq_laneq_f32(_sum2, _weight_xc_U_1, _xi, 1);
+                _sum3 = vfmaq_laneq_f32(_sum3, _weight_xc_R_2, _xi, 2);
+                _sum4 = vfmaq_laneq_f32(_sum4, _weight_xc_U_2, _xi, 2);
+                _sum5 = vfmaq_laneq_f32(_sum5, _weight_xc_R_3, _xi, 3);
+                _sum6 = vfmaq_laneq_f32(_sum6, _weight_xc_U_3, _xi, 3);
+
+                weight_xc_int8_RUN += 32;
+            }
+            for (; i < size; i++)
+            {
+                __fp16 xi = x[i];
+
+                float32x4_t _xi = vcvt_f32_f16(vdup_n_f16(xi));
+
+                int16x8_t _weight_xc_RU = vmovl_s8(vld1_s8(weight_xc_int8_RUN));
+                float32x4_t _weight_xc_R = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_low_s16(_weight_xc_RU))), _descale_xc_R);
+                float32x4_t _weight_xc_U = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_high_s16(_weight_xc_RU))), _descale_xc_U);
+
+                _gru_R = vmlaq_f32(_gru_R, _weight_xc_R, _xi);
+                _gru_U = vmlaq_f32(_gru_U, _weight_xc_U, _xi);
+
+                weight_xc_int8_RUN += 8;
+            }
+
+            i = 0;
+            for (; i + 3 < num_output; i += 4)
+            {
+                float32x4_t _h_cont = vld1q_f32((const float*)hidden_state + i);
+
+                int8x16_t _weight_hc_RU01 = vld1q_s8(weight_hc_int8_RUN);
+                int8x16_t _weight_hc_RU23 = vld1q_s8(weight_hc_int8_RUN + 16);
+
+                int16x8_t _weight_hc_RU0 = vmovl_s8(vget_low_s8(_weight_hc_RU01));
+                int16x8_t _weight_hc_RU1 = vmovl_s8(vget_high_s8(_weight_hc_RU01));
+                int16x8_t _weight_hc_RU2 = vmovl_s8(vget_low_s8(_weight_hc_RU23));
+                int16x8_t _weight_hc_RU3 = vmovl_s8(vget_high_s8(_weight_hc_RU23));
+
+                float32x4_t _weight_hc_R = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_low_s16(_weight_hc_RU0))), _descale_hc_R);
+                float32x4_t _weight_hc_U = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_high_s16(_weight_hc_RU0))), _descale_hc_U);
+                float32x4_t _weight_hc_R_1 = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_low_s16(_weight_hc_RU1))), _descale_hc_R);
+                float32x4_t _weight_hc_U_1 = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_high_s16(_weight_hc_RU1))), _descale_hc_U);
+                float32x4_t _weight_hc_R_2 = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_low_s16(_weight_hc_RU2))), _descale_hc_R);
+                float32x4_t _weight_hc_U_2 = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_high_s16(_weight_hc_RU2))), _descale_hc_U);
+                float32x4_t _weight_hc_R_3 = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_low_s16(_weight_hc_RU3))), _descale_hc_R);
+                float32x4_t _weight_hc_U_3 = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_high_s16(_weight_hc_RU3))), _descale_hc_U);
+
+                _gru_R = vfmaq_laneq_f32(_gru_R, _weight_hc_R, _h_cont, 0);
+                _gru_U = vfmaq_laneq_f32(_gru_U, _weight_hc_U, _h_cont, 0);
+                _sum1 = vfmaq_laneq_f32(_sum1, _weight_hc_R_1, _h_cont, 1);
+                _sum2 = vfmaq_laneq_f32(_sum2, _weight_hc_U_1, _h_cont, 1);
+                _sum3 = vfmaq_laneq_f32(_sum3, _weight_hc_R_2, _h_cont, 2);
+                _sum4 = vfmaq_laneq_f32(_sum4, _weight_hc_U_2, _h_cont, 2);
+                _sum5 = vfmaq_laneq_f32(_sum5, _weight_hc_R_3, _h_cont, 3);
+                _sum6 = vfmaq_laneq_f32(_sum6, _weight_hc_U_3, _h_cont, 3);
+
+                weight_hc_int8_RUN += 32;
+            }
+            for (; i < num_output; i++)
+            {
+                float h_cont = hidden_state[i];
+
+                float32x4_t _h_cont = vdupq_n_f32(h_cont);
+
+                int16x8_t _weight_hc_RU = vmovl_s8(vld1_s8(weight_hc_int8_RUN));
+                float32x4_t _weight_hc_R = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_low_s16(_weight_hc_RU))), _descale_hc_R);
+                float32x4_t _weight_hc_U = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_high_s16(_weight_hc_RU))), _descale_hc_U);
+
+                _gru_R = vmlaq_f32(_gru_R, _weight_hc_R, _h_cont);
+                _gru_U = vmlaq_f32(_gru_U, _weight_hc_U, _h_cont);
+
+                weight_hc_int8_RUN += 8;
+            }
+
+            _gru_R = vaddq_f32(_gru_R, _sum1);
+            _gru_U = vaddq_f32(_gru_U, _sum2);
+            _sum3 = vaddq_f32(_sum3, _sum5);
+            _sum4 = vaddq_f32(_sum4, _sum6);
+            _gru_R = vaddq_f32(_gru_R, _sum3);
+            _gru_U = vaddq_f32(_gru_U, _sum4);
+
+            // sigmoid(R)
+            // sigmoid(U)
+            _gru_R = sigmoid_ps(_gru_R);
+            _gru_U = sigmoid_ps(_gru_U);
+
+            // gate new
+            float32x4_t _gru_N = vcvt_f32_f16(vld1_f16(bias_c_RUBNWN + 8));
+            _sum1 = vdupq_n_f32(0.f);
+            _sum2 = vdupq_n_f32(0.f);
+            _sum3 = vdupq_n_f32(0.f);
+
+            float32x4_t _descale_xc_N = vld1q_f32(weight_xc_int8_descales_RUN + 8);
+            float32x4_t _descale_hc_N = vld1q_f32(weight_hc_int8_descales_RUN + 8);
+
+            i = 0;
+            for (; i + 3 < num_output; i += 4)
+            {
+                float32x4_t _h_cont = vld1q_f32((const float*)hidden_state + i);
+
+                int8x16_t _weight_hc_N0123 = vld1q_s8(weight_hc_int8_RUN);
+                int16x8_t _weight_hc_N01 = vmovl_s8(vget_low_s8(_weight_hc_N0123));
+                int16x8_t _weight_hc_N23 = vmovl_s8(vget_high_s8(_weight_hc_N0123));
+                float32x4_t _weight_hc_N = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_low_s16(_weight_hc_N01))), _descale_hc_N);
+                float32x4_t _weight_hc_N_1 = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_high_s16(_weight_hc_N01))), _descale_hc_N);
+                float32x4_t _weight_hc_N_2 = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_low_s16(_weight_hc_N23))), _descale_hc_N);
+                float32x4_t _weight_hc_N_3 = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_high_s16(_weight_hc_N23))), _descale_hc_N);
+
+                _gru_N = vfmaq_laneq_f32(_gru_N, _weight_hc_N, _h_cont, 0);
+                _sum1 = vfmaq_laneq_f32(_sum1, _weight_hc_N_1, _h_cont, 1);
+                _sum2 = vfmaq_laneq_f32(_sum2, _weight_hc_N_2, _h_cont, 2);
+                _sum3 = vfmaq_laneq_f32(_sum3, _weight_hc_N_3, _h_cont, 3);
+
+                weight_hc_int8_RUN += 16;
+            }
+            for (; i < num_output; i++)
+            {
+                float h_cont = hidden_state[i];
+
+                float32x4_t _h_cont = vdupq_n_f32(h_cont);
+                float32x4_t _weight_hc_N = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_low_s16(vmovl_s8(vld1_s8(weight_hc_int8_RUN))))), _descale_hc_N);
+                _gru_N = vmlaq_f32(_gru_N, _weight_hc_N, _h_cont);
+
+                weight_hc_int8_RUN += 4;
+            }
+
+            _gru_N = vaddq_f32(_gru_N, _sum1);
+            _sum2 = vaddq_f32(_sum2, _sum3);
+            _gru_N = vaddq_f32(_gru_N, _sum2);
+
+            _gru_N = vmlaq_f32(vcvt_f32_f16(vld1_f16(bias_c_RUBNWN + 12)), _gru_R, _gru_N);
+            _sum1 = vdupq_n_f32(0.f);
+            _sum2 = vdupq_n_f32(0.f);
+            _sum3 = vdupq_n_f32(0.f);
+
+            i = 0;
+            for (; i + 3 < size; i += 4)
+            {
+                float32x4_t _xi = vcvt_f32_f16(vld1_f16(x + i));
+
+                int8x16_t _weight_xc_N0123 = vld1q_s8(weight_xc_int8_RUN);
+                int16x8_t _weight_xc_N01 = vmovl_s8(vget_low_s8(_weight_xc_N0123));
+                int16x8_t _weight_xc_N23 = vmovl_s8(vget_high_s8(_weight_xc_N0123));
+                float32x4_t _weight_xc_N = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_low_s16(_weight_xc_N01))), _descale_xc_N);
+                float32x4_t _weight_xc_N_1 = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_high_s16(_weight_xc_N01))), _descale_xc_N);
+                float32x4_t _weight_xc_N_2 = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_low_s16(_weight_xc_N23))), _descale_xc_N);
+                float32x4_t _weight_xc_N_3 = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_high_s16(_weight_xc_N23))), _descale_xc_N);
+
+                _gru_N = vfmaq_laneq_f32(_gru_N, _weight_xc_N, _xi, 0);
+                _sum1 = vfmaq_laneq_f32(_sum1, _weight_xc_N_1, _xi, 1);
+                _sum2 = vfmaq_laneq_f32(_sum2, _weight_xc_N_2, _xi, 2);
+                _sum3 = vfmaq_laneq_f32(_sum3, _weight_xc_N_3, _xi, 3);
+
+                weight_xc_int8_RUN += 16;
+            }
+            for (; i < size; i++)
+            {
+                __fp16 xi = x[i];
+
+                float32x4_t _xi = vcvt_f32_f16(vdup_n_f16(xi));
+                float32x4_t _weight_xc_N = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_low_s16(vmovl_s8(vld1_s8(weight_xc_int8_RUN))))), _descale_xc_N);
+                _gru_N = vmlaq_f32(_gru_N, _weight_xc_N, _xi);
+
+                weight_xc_int8_RUN += 4;
+            }
+
+            _gru_N = vaddq_f32(_gru_N, _sum1);
+            _sum2 = vaddq_f32(_sum2, _sum3);
+            _gru_N = vaddq_f32(_gru_N, _sum2);
+
+            // tanh(N)
+            _gru_N = tanh_ps(_gru_N);
+
+            float* gates_data = gates.row(q / 4);
+
+            vst1q_f32(gates_data, _gru_U);
+            vst1q_f32(gates_data + 4, _gru_N);
+        }
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = remain_num_output_start; q < num_output; q++)
+        {
+            const __fp16* x = bottom_blob.row<const __fp16>(ti);
+
+            // gate reset update
+            const __fp16* bias_c_RUBNWN = (const __fp16*)bias_c + q * 4;
+
+            const signed char* weight_xc_int8_RUN = weight_xc_int8.row<const signed char>(q / 4 + q % 4);
+            const signed char* weight_hc_int8_RUN = weight_hc_int8.row<const signed char>(q / 4 + q % 4);
+            const float* weight_xc_int8_descales_RUN = weight_xc_int8_descales.row(q / 4 + q % 4);
+            const float* weight_hc_int8_descales_RUN = weight_hc_int8_descales.row(q / 4 + q % 4);
+
+            const float descale_xc_R = weight_xc_int8_descales_RUN[0];
+            const float descale_xc_U = weight_xc_int8_descales_RUN[1];
+            const float descale_xc_N = weight_xc_int8_descales_RUN[2];
+
+            const float descale_hc_R = weight_hc_int8_descales_RUN[0];
+            const float descale_hc_U = weight_hc_int8_descales_RUN[1];
+            const float descale_hc_N = weight_hc_int8_descales_RUN[2];
+
+            float R = (float)bias_c_RUBNWN[0];
+            float U = (float)bias_c_RUBNWN[1];
+
+            for (int i = 0; i < size; i++)
+            {
+                float xi = (float)x[i];
+
+                R += weight_xc_int8_RUN[0] * descale_xc_R * xi;
+                U += weight_xc_int8_RUN[1] * descale_xc_U * xi;
+
+                weight_xc_int8_RUN += 2;
+            }
+
+            for (int i = 0; i < num_output; i++)
+            {
+                float h_cont = hidden_state[i];
+
+                R += weight_hc_int8_RUN[0] * descale_hc_R * h_cont;
+                U += weight_hc_int8_RUN[1] * descale_hc_U * h_cont;
+
+                weight_hc_int8_RUN += 2;
+            }
+
+            // sigmoid(R)
+            // sigmoid(U)
+            R = 1.f / (1.f + expf(-R));
+            U = 1.f / (1.f + expf(-U));
+
+            // gate new
+            float N = (float)bias_c_RUBNWN[2];
+
+            for (int i = 0; i < num_output; i++)
+            {
+                float h_cont = hidden_state[i];
+
+                N += weight_hc_int8_RUN[0] * descale_hc_N * h_cont;
+
+                weight_hc_int8_RUN += 1;
+            }
+
+            N = (float)bias_c_RUBNWN[3] + R * N;
+
+            for (int i = 0; i < size; i++)
+            {
+                float xi = (float)x[i];
+
+                N += weight_xc_int8_RUN[0] * descale_xc_N * xi;
+
+                weight_xc_int8_RUN += 1;
+            }
+
+            // tanh(N)
+            N = tanhf(N);
+
+            float* gates_data = gates.row(q / 4 + q % 4);
+
+            gates_data[0] = U;
+            gates_data[1] = N;
+        }
+
+        // h_t := (1 - update) .* new + update .* h_{t-1}
+        __fp16* output_data = top_blob.row<__fp16>(ti);
+
+        float* hidden_ptr = hidden_state;
+
+        nn_num_output = num_output >> 2;
+        remain_num_output_start = nn_num_output << 2;
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int qq = 0; qq < nn_num_output; qq++)
+        {
+            int q = qq * 4;
+
+            const float* gates_data = gates.row(q / 4);
+
+            float32x4_t _gru_U = vld1q_f32(gates_data);
+            float32x4_t _gru_N = vld1q_f32(gates_data + 4);
+
+            float32x4_t _gru_H = vaddq_f32(vmulq_f32(vsubq_f32(vdupq_n_f32(1.f), _gru_U), _gru_N), vmulq_f32(_gru_U, vld1q_f32(hidden_ptr + q)));
+
+            vst1q_f32(hidden_ptr + q, _gru_H);
+            vst1_f16(output_data + q, vcvt_f16_f32(_gru_H));
+        }
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = remain_num_output_start; q < num_output; q++)
+        {
+            const float* gates_data = gates.row(q / 4 + q % 4);
+
+            float U = gates_data[0];
+            float N = gates_data[1];
+
+            float H = (1 - U) * N + U * hidden_ptr[q];
+
+            hidden_ptr[q] = H;
+            output_data[q] = (__fp16)H;
+        }
+    }
+
+    return 0;
+}
 #endif // NCNN_INT8
 
 int GRU_arm::create_pipeline_fp16s(const Option& opt)
@@ -2004,206 +2010,6 @@ int GRU_arm::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat
     if (top_blobs.size() == 2)
     {
         cast_float32_to_float16(hidden, top_blobs[1], opt);
-    }
-
-    return 0;
-}
-
-int GRU_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
-{
-    int T = bottom_blob.h;
-
-    int num_directions = direction == 2 ? 2 : 1;
-
-    // initial hidden state
-    Mat hidden(num_output, 4u, opt.workspace_allocator);
-    if (hidden.empty())
-        return -100;
-    hidden.fill(0.f);
-
-    top_blob.create(num_output * num_directions, T, 2u, opt.blob_allocator);
-    if (top_blob.empty())
-        return -100;
-
-    // Uni directional
-    if (direction == 0 || direction == 1)
-    {
-#if NCNN_INT8
-        if (int8_scale_term)
-        {
-            int ret = gru_fp16sa_int8(bottom_blob, top_blob, direction, weight_xc_data_packed.channel(0), weight_xc_data_int8_descales_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), weight_hc_data_int8_descales_packed.channel(0), hidden, opt);
-            if (ret != 0)
-                return ret;
-        }
-        else
-#endif
-        {
-            int ret = gru_fp16sa(bottom_blob, top_blob, direction, weight_xc_data_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), hidden, opt);
-            if (ret != 0)
-                return ret;
-        }
-    }
-
-    if (direction == 2)
-    {
-        Mat top_blob_forward(num_output, T, 2u, opt.workspace_allocator);
-        if (top_blob_forward.empty())
-            return -100;
-
-        Mat top_blob_reverse(num_output, T, 2u, opt.workspace_allocator);
-        if (top_blob_reverse.empty())
-            return -100;
-
-#if NCNN_INT8
-        if (int8_scale_term)
-        {
-            int ret = gru_fp16sa_int8(bottom_blob, top_blob_forward, 0, weight_xc_data_packed.channel(0), weight_xc_data_int8_descales_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), weight_hc_data_int8_descales_packed.channel(0), hidden, opt);
-            if (ret != 0)
-                return ret;
-        }
-        else
-#endif
-        {
-            int ret = gru_fp16sa(bottom_blob, top_blob_forward, 0, weight_xc_data_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), hidden, opt);
-            if (ret != 0)
-                return ret;
-        }
-
-        hidden.fill(0.f);
-
-#if NCNN_INT8
-        if (int8_scale_term)
-        {
-            int ret = gru_fp16sa_int8(bottom_blob, top_blob_reverse, 1, weight_xc_data_packed.channel(1), weight_xc_data_int8_descales_packed.channel(1), bias_c_data_packed.channel(1), weight_hc_data_packed.channel(1), weight_hc_data_int8_descales_packed.channel(1), hidden, opt);
-            if (ret != 0)
-                return ret;
-        }
-        else
-#endif
-        {
-            int ret = gru_fp16sa(bottom_blob, top_blob_reverse, 1, weight_xc_data_packed.channel(1), bias_c_data_packed.channel(1), weight_hc_data_packed.channel(1), hidden, opt);
-            if (ret != 0)
-                return ret;
-        }
-
-        // concat w
-        for (int i = 0; i < T; i++)
-        {
-            const __fp16* pf = top_blob_forward.row<const __fp16>(i);
-            const __fp16* pr = top_blob_reverse.row<const __fp16>(i);
-            __fp16* ptr = top_blob.row<__fp16>(i);
-
-            memcpy(ptr, pf, num_output * sizeof(__fp16));
-            memcpy(ptr + num_output, pr, num_output * sizeof(__fp16));
-        }
-    }
-
-    return 0;
-}
-
-int GRU_arm::forward_fp16sa(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
-{
-    const Mat& bottom_blob = bottom_blobs[0];
-    int T = bottom_blob.h;
-    int num_directions = direction == 2 ? 2 : 1;
-
-    Mat hidden;
-    Allocator* hidden_allocator = top_blobs.size() == 2 ? opt.blob_allocator : opt.workspace_allocator;
-    if (bottom_blobs.size() == 2)
-    {
-        Option opt_cast = opt;
-        opt_cast.blob_allocator = hidden_allocator;
-        cast_float16_to_float32(bottom_blobs[1], hidden, opt_cast);
-    }
-    else
-    {
-        hidden.create(num_output, num_directions, 4u, hidden_allocator);
-        if (hidden.empty())
-            return -100;
-        hidden.fill(0.f);
-    }
-
-    Mat& top_blob = top_blobs[0];
-    top_blob.create(num_output * num_directions, T, 2u, opt.blob_allocator);
-    if (top_blob.empty())
-        return -100;
-
-    // Uni directional
-    if (direction == 0 || direction == 1)
-    {
-#if NCNN_INT8
-        if (int8_scale_term)
-        {
-            int ret = gru_fp16sa_int8(bottom_blob, top_blob, direction, weight_xc_data_packed.channel(0), weight_xc_data_int8_descales_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), weight_hc_data_int8_descales_packed.channel(0), hidden, opt);
-            if (ret != 0)
-                return ret;
-        }
-        else
-#endif
-        {
-            int ret = gru_fp16sa(bottom_blob, top_blob, direction, weight_xc_data_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), hidden, opt);
-            if (ret != 0)
-                return ret;
-        }
-    }
-
-    if (direction == 2)
-    {
-        Mat top_blob_forward(num_output, T, 2u, opt.workspace_allocator);
-        if (top_blob_forward.empty())
-            return -100;
-
-        Mat top_blob_reverse(num_output, T, 2u, opt.workspace_allocator);
-        if (top_blob_reverse.empty())
-            return -100;
-
-        Mat hidden0 = hidden.row_range(0, 1);
-#if NCNN_INT8
-        if (int8_scale_term)
-        {
-            int ret = gru_fp16sa_int8(bottom_blob, top_blob_forward, 0, weight_xc_data_packed.channel(0), weight_xc_data_int8_descales_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), weight_hc_data_int8_descales_packed.channel(0), hidden0, opt);
-            if (ret != 0)
-                return ret;
-        }
-        else
-#endif
-        {
-            int ret = gru_fp16sa(bottom_blob, top_blob_forward, 0, weight_xc_data_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), hidden0, opt);
-            if (ret != 0)
-                return ret;
-        }
-
-        Mat hidden1 = hidden.row_range(1, 1);
-#if NCNN_INT8
-        if (int8_scale_term)
-        {
-            int ret = gru_fp16sa_int8(bottom_blob, top_blob_reverse, 1, weight_xc_data_packed.channel(1), weight_xc_data_int8_descales_packed.channel(1), bias_c_data_packed.channel(1), weight_hc_data_packed.channel(1), weight_hc_data_int8_descales_packed.channel(1), hidden1, opt);
-            if (ret != 0)
-                return ret;
-        }
-        else
-#endif
-        {
-            int ret = gru_fp16sa(bottom_blob, top_blob_reverse, 1, weight_xc_data_packed.channel(1), bias_c_data_packed.channel(1), weight_hc_data_packed.channel(1), hidden1, opt);
-            if (ret != 0)
-                return ret;
-        }
-
-        // concat w
-        for (int i = 0; i < T; i++)
-        {
-            const __fp16* pf = top_blob_forward.row<const __fp16>(i);
-            const __fp16* pr = top_blob_reverse.row<const __fp16>(i);
-            __fp16* ptr = top_blob.row<__fp16>(i);
-
-            memcpy(ptr, pf, num_output * sizeof(__fp16));
-            memcpy(ptr + num_output, pr, num_output * sizeof(__fp16));
-        }
-    }
-
-    if (top_blobs.size() == 2)
-    {
-        top_blobs[1] = hidden;
     }
 
     return 0;

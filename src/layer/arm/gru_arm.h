@@ -36,8 +36,6 @@ protected:
     int create_pipeline_fp16s(const Option& opt);
     int forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
     int forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
-    int forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
-    int forward_fp16sa(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 #endif
 #if NCNN_BF16
     int create_pipeline_bf16s(const Option& opt);

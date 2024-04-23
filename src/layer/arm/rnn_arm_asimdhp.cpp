@@ -382,6 +382,7 @@ static int rnn_fp16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
 
     return 0;
 }
+
 #if NCNN_INT8
 static int rnn_fp16sa_int8(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& weight_xc_int8, const Mat& weight_xc_int8_descales, const Mat& bias_c, const Mat& weight_hc_int8, const Mat& weight_hc_int8_descales, Mat& hidden_state, const Option& opt)
 {

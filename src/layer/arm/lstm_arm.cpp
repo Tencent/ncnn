@@ -821,12 +821,7 @@ int LSTM_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
 
 #if NCNN_ARM82
     if (support_fp16_storage && opt.use_fp16_storage && elembits == 16)
-    {
-        if (opt.use_fp16_arithmetic)
-            return forward_fp16sa(bottom_blob, top_blob, opt);
-        else
-            return forward_fp16s(bottom_blob, top_blob, opt);
-    }
+        return forward_fp16s(bottom_blob, top_blob, opt);
 #endif
 
 #if NCNN_BF16
@@ -937,12 +932,7 @@ int LSTM_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 
 #if NCNN_ARM82
     if (support_fp16_storage && opt.use_fp16_storage && elembits == 16)
-    {
-        if (opt.use_fp16_arithmetic)
-            return forward_fp16sa(bottom_blobs, top_blobs, opt);
-        else
-            return forward_fp16s(bottom_blobs, top_blobs, opt);
-    }
+        return forward_fp16s(bottom_blobs, top_blobs, opt);
 #endif
 
 #if NCNN_BF16
