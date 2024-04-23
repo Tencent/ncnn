@@ -527,8 +527,8 @@ int RNN_arm::create_pipeline_int8(const Option& opt)
     weight_xc_data_int8_descales_packed.create(4, num_output / 4 + num_output % 4, num_directions);
     weight_hc_data_int8_descales_packed.create(4, num_output / 4 + num_output % 4, num_directions);
 #else
-    weight_xc_data_packed.create(size, num_output, num_directions);
-    weight_hc_data_packed.create(num_output, num_output, num_directions);
+    weight_xc_data_packed.create(size, num_output, num_directions, 1u, 1);
+    weight_hc_data_packed.create(num_output, num_output, num_directions, 1u, 1);
     weight_xc_data_int8_descales_packed.create(1, num_output, num_directions);
     weight_hc_data_int8_descales_packed.create(1, num_output, num_directions);
 #endif
