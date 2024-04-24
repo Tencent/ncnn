@@ -1637,9 +1637,9 @@ int LSTM_arm::create_pipeline_fp16s(const Option& opt)
 
         __fp16* bias_c_IFOG = bias_c_data_packed_dr.row<__fp16>(0);
 
+        int q = 0;
         if (opt.use_fp16_arithmetic)
         {
-            int q = 0;
             for (; q + 1 < hidden_size; q += 2)
             {
                 bias_c_IFOG[0] = (__fp16)bias_c_I[q];
@@ -1702,92 +1702,48 @@ int LSTM_arm::create_pipeline_fp16s(const Option& opt)
                     weight_hc_IFOG += 8;
                 }
             }
-            for (; q < hidden_size; q++)
-            {
-                bias_c_IFOG[0] = (__fp16)bias_c_I[q];
-                bias_c_IFOG[1] = (__fp16)bias_c_F[q];
-                bias_c_IFOG[2] = (__fp16)bias_c_O[q];
-                bias_c_IFOG[3] = (__fp16)bias_c_G[q];
-
-                bias_c_IFOG += 4;
-
-                const float* weight_xc_I = weight_xc.row(hidden_size * 0 + q);
-                const float* weight_xc_F = weight_xc.row(hidden_size * 1 + q);
-                const float* weight_xc_O = weight_xc.row(hidden_size * 2 + q);
-                const float* weight_xc_G = weight_xc.row(hidden_size * 3 + q);
-
-                const float* weight_hc_I = weight_hc.row(hidden_size * 0 + q);
-                const float* weight_hc_F = weight_hc.row(hidden_size * 1 + q);
-                const float* weight_hc_O = weight_hc.row(hidden_size * 2 + q);
-                const float* weight_hc_G = weight_hc.row(hidden_size * 3 + q);
-
-                __fp16* weight_xc_IFOG = weight_xc_data_packed_dr.row<__fp16>(q / 2 + q % 2);
-                __fp16* weight_hc_IFOG = weight_hc_data_packed_dr.row<__fp16>(q / 2 + q % 2);
-
-                for (int i = 0; i < size; i++)
-                {
-                    weight_xc_IFOG[0] = (__fp16)weight_xc_I[i];
-                    weight_xc_IFOG[1] = (__fp16)weight_xc_F[i];
-                    weight_xc_IFOG[2] = (__fp16)weight_xc_O[i];
-                    weight_xc_IFOG[3] = (__fp16)weight_xc_G[i];
-
-                    weight_xc_IFOG += 4;
-                }
-
-                for (int i = 0; i < num_output; i++)
-                {
-                    weight_hc_IFOG[0] = (__fp16)weight_hc_I[i];
-                    weight_hc_IFOG[1] = (__fp16)weight_hc_F[i];
-                    weight_hc_IFOG[2] = (__fp16)weight_hc_O[i];
-                    weight_hc_IFOG[3] = (__fp16)weight_hc_G[i];
-
-                    weight_hc_IFOG += 4;
-                }
-            }
         }
-        else
+        for (; q < hidden_size; q++)
         {
-            for (int q = 0; q < hidden_size; q++)
+            bias_c_IFOG[0] = (__fp16)bias_c_I[q];
+            bias_c_IFOG[1] = (__fp16)bias_c_F[q];
+            bias_c_IFOG[2] = (__fp16)bias_c_O[q];
+            bias_c_IFOG[3] = (__fp16)bias_c_G[q];
+
+            bias_c_IFOG += 4;
+
+            const float* weight_xc_I = weight_xc.row(hidden_size * 0 + q);
+            const float* weight_xc_F = weight_xc.row(hidden_size * 1 + q);
+            const float* weight_xc_O = weight_xc.row(hidden_size * 2 + q);
+            const float* weight_xc_G = weight_xc.row(hidden_size * 3 + q);
+
+            const float* weight_hc_I = weight_hc.row(hidden_size * 0 + q);
+            const float* weight_hc_F = weight_hc.row(hidden_size * 1 + q);
+            const float* weight_hc_O = weight_hc.row(hidden_size * 2 + q);
+            const float* weight_hc_G = weight_hc.row(hidden_size * 3 + q);
+
+            const int qq = opt.use_fp16_arithmetic ? q / 2 + q % 2 : q;
+            __fp16* weight_xc_IFOG = weight_xc_data_packed_dr.row<__fp16>(qq);
+            __fp16* weight_hc_IFOG = weight_hc_data_packed_dr.row<__fp16>(qq);
+
+            for (int i = 0; i < size; i++)
             {
-                bias_c_IFOG[0] = (__fp16)bias_c_I[q];
-                bias_c_IFOG[1] = (__fp16)bias_c_F[q];
-                bias_c_IFOG[2] = (__fp16)bias_c_O[q];
-                bias_c_IFOG[3] = (__fp16)bias_c_G[q];
+                weight_xc_IFOG[0] = (__fp16)weight_xc_I[i];
+                weight_xc_IFOG[1] = (__fp16)weight_xc_F[i];
+                weight_xc_IFOG[2] = (__fp16)weight_xc_O[i];
+                weight_xc_IFOG[3] = (__fp16)weight_xc_G[i];
 
-                bias_c_IFOG += 4;
+                weight_xc_IFOG += 4;
+            }
 
-                const float* weight_xc_I = weight_xc.row(hidden_size * 0 + q);
-                const float* weight_xc_F = weight_xc.row(hidden_size * 1 + q);
-                const float* weight_xc_O = weight_xc.row(hidden_size * 2 + q);
-                const float* weight_xc_G = weight_xc.row(hidden_size * 3 + q);
+            for (int i = 0; i < num_output; i++)
+            {
+                weight_hc_IFOG[0] = (__fp16)weight_hc_I[i];
+                weight_hc_IFOG[1] = (__fp16)weight_hc_F[i];
+                weight_hc_IFOG[2] = (__fp16)weight_hc_O[i];
+                weight_hc_IFOG[3] = (__fp16)weight_hc_G[i];
 
-                const float* weight_hc_I = weight_hc.row(hidden_size * 0 + q);
-                const float* weight_hc_F = weight_hc.row(hidden_size * 1 + q);
-                const float* weight_hc_O = weight_hc.row(hidden_size * 2 + q);
-                const float* weight_hc_G = weight_hc.row(hidden_size * 3 + q);
-
-                __fp16* weight_xc_IFOG = weight_xc_data_packed_dr.row<__fp16>(q);
-                __fp16* weight_hc_IFOG = weight_hc_data_packed_dr.row<__fp16>(q);
-
-                for (int i = 0; i < size; i++)
-                {
-                    weight_xc_IFOG[0] = (__fp16)weight_xc_I[i];
-                    weight_xc_IFOG[1] = (__fp16)weight_xc_F[i];
-                    weight_xc_IFOG[2] = (__fp16)weight_xc_O[i];
-                    weight_xc_IFOG[3] = (__fp16)weight_xc_G[i];
-
-                    weight_xc_IFOG += 4;
-                }
-
-                for (int i = 0; i < num_output; i++)
-                {
-                    weight_hc_IFOG[0] = (__fp16)weight_hc_I[i];
-                    weight_hc_IFOG[1] = (__fp16)weight_hc_F[i];
-                    weight_hc_IFOG[2] = (__fp16)weight_hc_O[i];
-                    weight_hc_IFOG[3] = (__fp16)weight_hc_G[i];
-
-                    weight_hc_IFOG += 4;
-                }
+                weight_hc_IFOG += 4;
             }
         }
     }
