@@ -539,7 +539,8 @@ static int rnn_fp16sa_int8(const Mat& bottom_blob, Mat& top_blob, int reverse, c
             for (; i < size; i++)
             {
                 float16x4_t _x = vdup_n_f16(x[i]);
-                float16x4_t _weight_xc = vmul_f16(vcvt_f16_s16(vget_low_s16(vmovl_s8(vld1_s8(weight_xc_int8_ptr)))), _descale_xc);
+                int8x8_t _w = vreinterpret_s8_s32(vdup_n_s32(((const int*)weight_xc_int8_ptr)[0]));
+                float16x4_t _weight_xc = vmul_f16(vcvt_f16_s16(vget_low_s16(vmovl_s8(_w))), _descale_xc);
                 _rnn_H = vfma_f16(_rnn_H, _weight_xc, _x);
 
                 weight_xc_int8_ptr += 4;
@@ -568,7 +569,8 @@ static int rnn_fp16sa_int8(const Mat& bottom_blob, Mat& top_blob, int reverse, c
             for (; i < num_output; i++)
             {
                 float16x4_t _hidden_state = vdup_n_f16((__fp16)hidden_state[i]);
-                float16x4_t _weight_hc = vmul_f16(vcvt_f16_s16(vget_low_s16(vmovl_s8(vld1_s8(weight_hc_int8_ptr)))), _descale_hc);
+                int8x8_t _w = vreinterpret_s8_s32(vdup_n_s32(((const int*)weight_hc_int8_ptr)[0]));
+                float16x4_t _weight_hc = vmul_f16(vcvt_f16_s16(vget_low_s16(vmovl_s8(_w))), _descale_hc);
                 _rnn_H = vfma_f16(_rnn_H, _weight_hc, _hidden_state);
 
                 weight_hc_int8_ptr += 4;
@@ -706,7 +708,8 @@ static int rnn_fp16s_int8(const Mat& bottom_blob, Mat& top_blob, int reverse, co
             for (; i < size; i++)
             {
                 float32x4_t _x = vcvt_f32_f16(vdup_n_f16(x[i]));
-                float32x4_t _weight_xc = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_low_s16(vmovl_s8(vld1_s8(weight_xc_int8_ptr))))), _descale_xc);
+                int8x8_t _w = vreinterpret_s8_s32(vdup_n_s32(((const int*)weight_xc_int8_ptr)[0]));
+                float32x4_t _weight_xc = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_low_s16(vmovl_s8(_w)))), _descale_xc);
                 _rnn_H = vfmaq_f32(_rnn_H, _weight_xc, _x);
 
                 weight_xc_int8_ptr += 4;
@@ -735,7 +738,8 @@ static int rnn_fp16s_int8(const Mat& bottom_blob, Mat& top_blob, int reverse, co
             for (; i < num_output; i++)
             {
                 float32x4_t _hidden_state = vdupq_n_f32(hidden_state[i]);
-                float32x4_t _weight_hc = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_low_s16(vmovl_s8(vld1_s8(weight_hc_int8_ptr))))), _descale_hc);
+                int8x8_t _w = vreinterpret_s8_s32(vdup_n_s32(((const int*)weight_hc_int8_ptr)[0]));
+                float32x4_t _weight_hc = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_low_s16(vmovl_s8(_w)))), _descale_hc);
                 _rnn_H = vfmaq_f32(_rnn_H, _weight_hc, _hidden_state);
 
                 weight_hc_int8_ptr += 4;

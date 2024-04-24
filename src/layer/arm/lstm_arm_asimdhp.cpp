@@ -944,7 +944,8 @@ static int lstm_fp16sa_int8(const Mat& bottom_blob, Mat& top_blob, int reverse, 
 
                 float16x4_t _xi = vdup_n_f16(xi);
 
-                float16x4_t _weight_xc_IFOG = vcvt_f16_s16(vget_low_s16(vmovl_s8(vld1_s8(weight_xc_int8_IFOG))));
+                int8x8_t _w = vreinterpret_s8_s32(vdup_n_s32(((const int*)weight_xc_int8_IFOG)[0]));
+                float16x4_t _weight_xc_IFOG = vcvt_f16_s16(vget_low_s16(vmovl_s8(_w)));
                 _weight_xc_IFOG = vmul_f16(_weight_xc_IFOG, _descale_xc);
 
                 _IFOG = vfma_f16(_IFOG, _weight_xc_IFOG, _xi);
@@ -1012,7 +1013,8 @@ static int lstm_fp16sa_int8(const Mat& bottom_blob, Mat& top_blob, int reverse, 
 
                 float16x4_t _h_cont = vdup_n_f16((__fp16)h_cont);
 
-                float16x4_t _weight_hc_IFOG = vcvt_f16_s16(vget_low_s16(vmovl_s8(vld1_s8(weight_hc_int8_IFOG))));
+                int8x8_t _w = vreinterpret_s8_s32(vdup_n_s32(((const int*)weight_hc_int8_IFOG)[0]));
+                float16x4_t _weight_hc_IFOG = vcvt_f16_s16(vget_low_s16(vmovl_s8(_w)));
                 _weight_hc_IFOG = vmul_f16(_weight_hc_IFOG, _descale_hc);
 
                 _IFOG = vfma_f16(_IFOG, _weight_hc_IFOG, _h_cont);
@@ -1220,7 +1222,8 @@ static int lstm_fp16s_int8(const Mat& bottom_blob, Mat& top_blob, int reverse, c
                 __fp16 xi = x[i];
 
                 float32x4_t _xi = vcvt_f32_f16(vdup_n_f16(xi));
-                float32x4_t _weight_xc_IFOG = vcvtq_f32_s32(vmovl_s16(vget_low_s16(vmovl_s8(vld1_s8(weight_xc_int8_IFOG)))));
+                int8x8_t _w = vreinterpret_s8_s32(vdup_n_s32(((const int*)weight_xc_int8_IFOG)[0]));
+                float32x4_t _weight_xc_IFOG = vcvtq_f32_s32(vmovl_s16(vget_low_s16(vmovl_s8(_w))));
                 _weight_xc_IFOG = vmulq_f32(_weight_xc_IFOG, _descale_xc);
                 _IFOG = vfmaq_f32(_IFOG, _weight_xc_IFOG, _xi);
 
@@ -1256,7 +1259,8 @@ static int lstm_fp16s_int8(const Mat& bottom_blob, Mat& top_blob, int reverse, c
                 float h_cont = hidden_state[i];
 
                 float32x4_t _h_cont = vdupq_n_f32(h_cont);
-                float32x4_t _weight_hc_IFOG = vcvtq_f32_s32(vmovl_s16(vget_low_s16(vmovl_s8(vld1_s8(weight_hc_int8_IFOG)))));
+                int8x8_t _w = vreinterpret_s8_s32(vdup_n_s32(((const int*)weight_hc_int8_IFOG)[0]));
+                float32x4_t _weight_hc_IFOG = vcvtq_f32_s32(vmovl_s16(vget_low_s16(vmovl_s8(_w))));
                 _weight_hc_IFOG = vmulq_f32(_weight_hc_IFOG, _descale_hc);
                 _IFOG = vfmaq_f32(_IFOG, _weight_hc_IFOG, _h_cont);
 

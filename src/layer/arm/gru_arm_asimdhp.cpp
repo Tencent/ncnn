@@ -1002,7 +1002,8 @@ static int gru_fp16sa_int8(const Mat& bottom_blob, Mat& top_blob, int reverse, c
                 float h_cont = *hidden_ptr++;
 
                 float16x4_t _h_cont = vdup_n_f16((__fp16)h_cont);
-                float16x4_t _weight_hc_N = vmul_f16(vcvt_f16_s16(vget_low_s16(vmovl_s8(vld1_s8(weight_hc_int8_RUN)))), _descale_hc_N);
+                int8x8_t _w = vreinterpret_s8_s32(vdup_n_s32(((const int*)weight_hc_int8_RUN)[0]));
+                float16x4_t _weight_hc_N = vmul_f16(vcvt_f16_s16(vget_low_s16(vmovl_s8(_w))), _descale_hc_N);
                 _gru_N = vfma_f16(_gru_N, _weight_hc_N, _h_cont);
 
                 weight_hc_int8_RUN += 4;
@@ -1076,7 +1077,8 @@ static int gru_fp16sa_int8(const Mat& bottom_blob, Mat& top_blob, int reverse, c
                 __fp16 xi = *x++;
 
                 float16x4_t _xi = vdup_n_f16(xi);
-                float16x4_t _weight_xc_N = vmul_f16(vcvt_f16_s16(vget_low_s16(vmovl_s8(vld1_s8(weight_xc_int8_RUN)))), _descale_xc_N);
+                int8x8_t _w = vreinterpret_s8_s32(vdup_n_s32(((const int*)weight_xc_int8_RUN)[0]));
+                float16x4_t _weight_xc_N = vmul_f16(vcvt_f16_s16(vget_low_s16(vmovl_s8(_w))), _descale_xc_N);
                 _gru_N = vfma_f16(_gru_N, _weight_xc_N, _xi);
 
                 weight_xc_int8_RUN += 4;
@@ -1411,7 +1413,8 @@ static int gru_fp16s_int8(const Mat& bottom_blob, Mat& top_blob, int reverse, co
                 float h_cont = hidden_state[i];
 
                 float32x4_t _h_cont = vdupq_n_f32(h_cont);
-                float32x4_t _weight_hc_N = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_low_s16(vmovl_s8(vld1_s8(weight_hc_int8_RUN))))), _descale_hc_N);
+                int8x8_t _w = vreinterpret_s8_s32(vdup_n_s32(((const int*)weight_hc_int8_RUN)[0]));
+                float32x4_t _weight_hc_N = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_low_s16(vmovl_s8(_w)))), _descale_hc_N);
                 _gru_N = vmlaq_f32(_gru_N, _weight_hc_N, _h_cont);
 
                 weight_hc_int8_RUN += 4;
@@ -1451,7 +1454,8 @@ static int gru_fp16s_int8(const Mat& bottom_blob, Mat& top_blob, int reverse, co
                 __fp16 xi = x[i];
 
                 float32x4_t _xi = vcvt_f32_f16(vdup_n_f16(xi));
-                float32x4_t _weight_xc_N = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_low_s16(vmovl_s8(vld1_s8(weight_xc_int8_RUN))))), _descale_xc_N);
+                int8x8_t _w = vreinterpret_s8_s32(vdup_n_s32(((const int*)weight_xc_int8_RUN)[0]));
+                float32x4_t _weight_xc_N = vmulq_f32(vcvtq_f32_s32(vmovl_s16(vget_low_s16(vmovl_s8(_w)))), _descale_xc_N);
                 _gru_N = vmlaq_f32(_gru_N, _weight_xc_N, _xi);
 
                 weight_xc_int8_RUN += 4;
