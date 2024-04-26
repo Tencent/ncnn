@@ -510,7 +510,7 @@ int NetQuantize::quantize_gru()
                     {
                         absmax = std::max(absmax, (float)fabs(weight_xc_ptr[i]));
                     }
-                    weight_xc_data_int8_scales[d * gru->num_output + q] = 127 / absmax;
+                    weight_xc_data_int8_scales[d * gru->num_output * 3 + q] = 127 / absmax;
                 }
 
                 {
@@ -520,7 +520,7 @@ int NetQuantize::quantize_gru()
                     {
                         absmax = std::max(absmax, (float)fabs(weight_hc_ptr[i]));
                     }
-                    weight_hc_data_int8_scales[d * gru->num_output + q] = 127 / absmax;
+                    weight_hc_data_int8_scales[d * gru->num_output * 3 + q] = 127 / absmax;
                 }
             }
         }
