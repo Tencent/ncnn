@@ -138,12 +138,65 @@ static int rnn_int8(const Mat& bottom_blob, Mat& top_blob, int reverse, const Ma
     if (gates.empty())
         return -100;
 
+    // dynamic quantize bottom_blob
+    Mat bottom_blob_int8(size, T, (size_t)1u, 1, opt.workspace_allocator);
+    Mat bottom_blob_int8_scales(T, (size_t)4u, 1, opt.workspace_allocator);
+    {
+        for (int t = 0; t < T; t++)
+        {
+            const float* x = bottom_blob.row(t);
+
+            float absmax = 0.f;
+            for (int i = 0; i < size; i++)
+            {
+                absmax = std::max(absmax, (float)fabs(x[i]));
+            }
+
+            bottom_blob_int8_scales[t] = 127.f / absmax;
+        }
+
+        Option opt_quant = opt;
+        opt_quant.blob_allocator = opt.workspace_allocator;
+        opt_quant.use_packing_layout = false;
+        quantize_to_int8(bottom_blob, bottom_blob_int8, bottom_blob_int8_scales, opt_quant);
+    }
+
+    Mat hidden_state_int8(num_output, (size_t)1u, 1, opt.workspace_allocator);
+    Mat hidden_state_int8_scales(1, (size_t)4u, 1, opt.workspace_allocator);
+
     // unroll
     for (int t = 0; t < T; t++)
     {
         int ti = reverse ? T - 1 - t : t;
 
-        const float* x = bottom_blob.row(ti);
+        // dynamic quantize hidden_state
+        {
+            float absmax = 0.f;
+            for (int i = 0; i < num_output; i++)
+            {
+                absmax = std::max(absmax, (float)fabs(hidden_state[i]));
+            }
+
+            if (absmax == 0.f)
+            {
+                hidden_state_int8_scales[0] = 1.f;
+                hidden_state_int8.fill<signed char>(0);
+            }
+            else
+            {
+                hidden_state_int8_scales[0] = 127.f / absmax;
+
+                Option opt_quant = opt;
+                opt_quant.blob_allocator = opt.workspace_allocator;
+                opt_quant.use_packing_layout = false;
+                quantize_to_int8(hidden_state, hidden_state_int8, hidden_state_int8_scales, opt_quant);
+            }
+        }
+
+        const signed char* x = bottom_blob_int8.row<const signed char>(ti);
+        const signed char* hs = hidden_state_int8;
+        const float descale_x = 1.f / bottom_blob_int8_scales[ti];
+        const float descale_h = 1.f / hidden_state_int8_scales[0];
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < num_output; q++)
         {
@@ -153,17 +206,19 @@ static int rnn_int8(const Mat& bottom_blob, Mat& top_blob, int reverse, const Ma
             const float descale_xc = 1.f / weight_xc_int8_scales[q];
             const float descale_hc = 1.f / weight_hc_int8_scales[q];
 
-            float H = bias_c[q];
-
+            int Hx = 0;
             for (int i = 0; i < size; i++)
             {
-                H += weight_xc_int8_ptr[i] * descale_xc * x[i];
+                Hx += weight_xc_int8_ptr[i] * x[i];
             }
 
+            int Hh = 0;
             for (int i = 0; i < num_output; i++)
             {
-                H += weight_hc_int8_ptr[i] * descale_hc * hidden_state[i];
+                Hh += weight_hc_int8_ptr[i] * hs[i];
             }
+
+            float H = bias_c[q] + Hx * (descale_x * descale_xc) + Hh * (descale_h * descale_hc);
 
             H = tanhf(H);
 

@@ -246,6 +246,32 @@ static int lstm_int8(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
             return -100;
     }
 
+    // dynamic quantize bottom_blob
+    Mat bottom_blob_int8(size, T, (size_t)1u, 1, opt.workspace_allocator);
+    Mat bottom_blob_int8_scales(T, (size_t)4u, 1, opt.workspace_allocator);
+    {
+        for (int t = 0; t < T; t++)
+        {
+            const float* x = bottom_blob.row(t);
+
+            float absmax = 0.f;
+            for (int i = 0; i < size; i++)
+            {
+                absmax = std::max(absmax, (float)fabs(x[i]));
+            }
+
+            bottom_blob_int8_scales[t] = 127.f / absmax;
+        }
+
+        Option opt_quant = opt;
+        opt_quant.blob_allocator = opt.workspace_allocator;
+        opt_quant.use_packing_layout = false;
+        quantize_to_int8(bottom_blob, bottom_blob_int8, bottom_blob_int8_scales, opt_quant);
+    }
+
+    Mat hidden_state_int8(num_output, (size_t)1u, 1, opt.workspace_allocator);
+    Mat hidden_state_int8_scales(1, (size_t)4u, 1, opt.workspace_allocator);
+
     // unroll
     for (int t = 0; t < T; t++)
     {
@@ -258,7 +284,34 @@ static int lstm_int8(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
 
         int ti = reverse ? T - 1 - t : t;
 
-        const float* x = bottom_blob.row(ti);
+        // dynamic quantize hidden_state
+        {
+            float absmax = 0.f;
+            for (int i = 0; i < num_output; i++)
+            {
+                absmax = std::max(absmax, (float)fabs(hidden_state[i]));
+            }
+
+            if (absmax == 0.f)
+            {
+                hidden_state_int8_scales[0] = 1.f;
+                hidden_state_int8.fill<signed char>(0);
+            }
+            else
+            {
+                hidden_state_int8_scales[0] = 127.f / absmax;
+
+                Option opt_quant = opt;
+                opt_quant.blob_allocator = opt.workspace_allocator;
+                opt_quant.use_packing_layout = false;
+                quantize_to_int8(hidden_state, hidden_state_int8, hidden_state_int8_scales, opt_quant);
+            }
+        }
+
+        const signed char* x = bottom_blob_int8.row<const signed char>(ti);
+        const signed char* hs = hidden_state_int8;
+        const float descale_x = 1.f / bottom_blob_int8_scales[ti];
+        const float descale_h = 1.f / hidden_state_int8_scales[0];
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < hidden_size; q++)
         {
@@ -289,30 +342,38 @@ static int lstm_int8(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
             const float descale_hc_O = 1.f / weight_hc_int8_scales[hidden_size * 2 + q];
             const float descale_hc_G = 1.f / weight_hc_int8_scales[hidden_size * 3 + q];
 
-            float I = bias_c_I[q];
-            float F = bias_c_F[q];
-            float O = bias_c_O[q];
-            float G = bias_c_G[q];
-
+            int Ix = 0;
+            int Fx = 0;
+            int Ox = 0;
+            int Gx = 0;
             for (int i = 0; i < size; i++)
             {
-                float xi = x[i];
+                signed char xi = x[i];
 
-                I += weight_xc_int8_I[i] * descale_xc_I * xi;
-                F += weight_xc_int8_F[i] * descale_xc_F * xi;
-                O += weight_xc_int8_O[i] * descale_xc_O * xi;
-                G += weight_xc_int8_G[i] * descale_xc_G * xi;
+                Ix += weight_xc_int8_I[i] * xi;
+                Fx += weight_xc_int8_F[i] * xi;
+                Ox += weight_xc_int8_O[i] * xi;
+                Gx += weight_xc_int8_G[i] * xi;
             }
 
+            int Ih = 0;
+            int Fh = 0;
+            int Oh = 0;
+            int Gh = 0;
             for (int i = 0; i < num_output; i++)
             {
-                float h_cont = hidden_state[i];
+                signed char h_cont = hs[i];
 
-                I += weight_hc_int8_I[i] * descale_hc_I * h_cont;
-                F += weight_hc_int8_F[i] * descale_hc_F * h_cont;
-                O += weight_hc_int8_O[i] * descale_hc_O * h_cont;
-                G += weight_hc_int8_G[i] * descale_hc_G * h_cont;
+                Ih += weight_hc_int8_I[i] * h_cont;
+                Fh += weight_hc_int8_F[i] * h_cont;
+                Oh += weight_hc_int8_O[i] * h_cont;
+                Gh += weight_hc_int8_G[i] * h_cont;
             }
+
+            float I = bias_c_I[q] + Ix * (descale_x * descale_xc_I) + Ih * (descale_h * descale_hc_I);
+            float F = bias_c_F[q] + Fx * (descale_x * descale_xc_F) + Fh * (descale_h * descale_hc_F);
+            float O = bias_c_O[q] + Ox * (descale_x * descale_xc_O) + Oh * (descale_h * descale_hc_O);
+            float G = bias_c_G[q] + Gx * (descale_x * descale_xc_G) + Gh * (descale_h * descale_hc_G);
 
             gates_data[0] = I;
             gates_data[1] = F;
