@@ -1752,7 +1752,7 @@ int GRU_arm::forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
     {
         if (elemtype == 1)
         {
-            hidden = bottom_blobs[1].clone();
+            hidden = bottom_blobs[1].clone(hidden_allocator);
         }
         if (elemtype == 2)
         {
