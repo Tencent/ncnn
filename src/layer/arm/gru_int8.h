@@ -542,8 +542,8 @@ static void gru_int8(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_de
             for (; i + 7 < size; i += 8)
             {
                 int32x2_t _xi01 = vreinterpret_s32_s8(vld1_s8(x + i));
-                int8x16_t _xi0 = vreinterpretq_s8_s16(vdupq_lane_s32(_xi01, 0));
-                int8x16_t _xi1 = vreinterpretq_s8_s16(vdupq_lane_s32(_xi01, 1));
+                int8x16_t _xi0 = vreinterpretq_s8_s32(vdupq_lane_s32(_xi01, 0));
+                int8x16_t _xi1 = vreinterpretq_s8_s32(vdupq_lane_s32(_xi01, 1));
                 int8x16_t _w0 = vld1q_s8(kptr);
                 int8x16_t _w1 = vld1q_s8(kptr + 16);
                 int8x16_t _w2 = vld1q_s8(kptr + 32);
@@ -561,7 +561,7 @@ static void gru_int8(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_de
             for (; i + 3 < size; i += 4)
             {
 #if __ARM_FEATURE_DOTPROD
-                int8x16_t _xi = vreinterpretq_s8_s16(vdupq_lane_s32(vreinterpret_s32_s8(vld1_s8(x + i)), 0));
+                int8x16_t _xi = vreinterpretq_s8_s32(vdupq_lane_s32(vreinterpret_s32_s8(vld1_s8(x + i)), 0));
                 int8x16_t _w0 = vld1q_s8(kptr);
                 int8x16_t _w1 = vld1q_s8(kptr + 16);
                 _gru_Rx0 = vdotq_s32(_gru_Rx0, _w0, _xi);
@@ -618,8 +618,8 @@ static void gru_int8(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_de
             for (; i + 7 < num_output; i += 8)
             {
                 int32x2_t _h_cont01 = vreinterpret_s32_s8(vld1_s8(hs + i));
-                int8x16_t _h_cont0 = vreinterpretq_s8_s16(vdupq_lane_s32(_h_cont01, 0));
-                int8x16_t _h_cont1 = vreinterpretq_s8_s16(vdupq_lane_s32(_h_cont01, 1));
+                int8x16_t _h_cont0 = vreinterpretq_s8_s32(vdupq_lane_s32(_h_cont01, 0));
+                int8x16_t _h_cont1 = vreinterpretq_s8_s32(vdupq_lane_s32(_h_cont01, 1));
                 int8x16_t _w0 = vld1q_s8(kptr);
                 int8x16_t _w1 = vld1q_s8(kptr + 16);
                 int8x16_t _w2 = vld1q_s8(kptr + 32);
@@ -637,7 +637,7 @@ static void gru_int8(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_de
             for (; i + 3 < num_output; i += 4)
             {
 #if __ARM_FEATURE_DOTPROD
-                int8x16_t _h_cont = vreinterpretq_s8_s16(vdupq_lane_s32(vreinterpret_s32_s8(vld1_s8(hs + i)), 0));
+                int8x16_t _h_cont = vreinterpretq_s8_s32(vdupq_lane_s32(vreinterpret_s32_s8(vld1_s8(hs + i)), 0));
                 int8x16_t _w0 = vld1q_s8(kptr);
                 int8x16_t _w1 = vld1q_s8(kptr + 16);
                 _gru_Rh0 = vdotq_s32(_gru_Rh0, _w0, _h_cont);
@@ -717,8 +717,8 @@ static void gru_int8(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_de
             for (; i + 7 < num_output; i += 8)
             {
                 int32x2_t _h_cont01 = vreinterpret_s32_s8(vld1_s8(hs + i));
-                int8x16_t _h_cont0 = vreinterpretq_s8_s16(vdupq_lane_s32(_h_cont01, 0));
-                int8x16_t _h_cont1 = vreinterpretq_s8_s16(vdupq_lane_s32(_h_cont01, 1));
+                int8x16_t _h_cont0 = vreinterpretq_s8_s32(vdupq_lane_s32(_h_cont01, 0));
+                int8x16_t _h_cont1 = vreinterpretq_s8_s32(vdupq_lane_s32(_h_cont01, 1));
                 int8x16_t _w0 = vld1q_s8(kptr);
                 int8x16_t _w1 = vld1q_s8(kptr + 16);
                 _gru_Nh0 = vdotq_s32(_gru_Nh0, _w0, _h_cont0);
@@ -731,7 +731,7 @@ static void gru_int8(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_de
             for (; i + 3 < num_output; i += 4)
             {
 #if __ARM_FEATURE_DOTPROD
-                int8x16_t _h_cont = vreinterpretq_s8_s16(vdupq_lane_s32(vreinterpret_s32_s8(vld1_s8(hs + i)), 0));
+                int8x16_t _h_cont = vreinterpretq_s8_s32(vdupq_lane_s32(vreinterpret_s32_s8(vld1_s8(hs + i)), 0));
                 int8x16_t _w = vld1q_s8(kptr);
                 _gru_Nh0 = vdotq_s32(_gru_Nh0, _w, _h_cont);
 #else
@@ -775,8 +775,8 @@ static void gru_int8(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_de
             for (; i + 7 < size; i += 8)
             {
                 int32x2_t _xi01 = vreinterpret_s32_s8(vld1_s8(x + i));
-                int8x16_t _xi0 = vreinterpretq_s8_s16(vdupq_lane_s32(_xi01, 0));
-                int8x16_t _xi1 = vreinterpretq_s8_s16(vdupq_lane_s32(_xi01, 1));
+                int8x16_t _xi0 = vreinterpretq_s8_s32(vdupq_lane_s32(_xi01, 0));
+                int8x16_t _xi1 = vreinterpretq_s8_s32(vdupq_lane_s32(_xi01, 1));
                 int8x16_t _w0 = vld1q_s8(kptr);
                 int8x16_t _w1 = vld1q_s8(kptr + 16);
                 _gru_Nx0 = vdotq_s32(_gru_Nx0, _w0, _xi0);
@@ -789,7 +789,7 @@ static void gru_int8(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_de
             for (; i + 3 < size; i += 4)
             {
 #if __ARM_FEATURE_DOTPROD
-                int8x16_t _xi = vreinterpretq_s8_s16(vdupq_lane_s32(vreinterpret_s32_s8(vld1_s8(x + i)), 0));
+                int8x16_t _xi = vreinterpretq_s8_s32(vdupq_lane_s32(vreinterpret_s32_s8(vld1_s8(x + i)), 0));
                 int8x16_t _w = vld1q_s8(kptr);
                 _gru_Nx0 = vdotq_s32(_gru_Nx0, _w, _xi);
 #else
