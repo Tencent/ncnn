@@ -24,7 +24,7 @@
 #include "x86_activation.h"
 #include "x86_usability.h"
 
-#include "layer_type.h"
+#include "cpu.h"
 
 namespace ncnn {
 
