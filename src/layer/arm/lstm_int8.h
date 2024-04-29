@@ -78,6 +78,7 @@ static void lstm_transform_weight_int8(const Mat& weight_xc, const Mat& weight_x
             float* descales_ptr = weight_data_tm_int8_descales_dr.row(q);
 
             int i = 0;
+#if __ARM_NEON
 #if __ARM_FEATURE_DOTPROD
             for (; i + 3 < size; i += 4)
             {
@@ -112,6 +113,7 @@ static void lstm_transform_weight_int8(const Mat& weight_xc, const Mat& weight_x
                 kptr[7] = weight_xc_G[i + 1];
                 kptr += 8;
             }
+#endif // __ARM_NEON
             for (; i < size; i++)
             {
                 kptr[0] = weight_xc_I[i];
@@ -122,6 +124,7 @@ static void lstm_transform_weight_int8(const Mat& weight_xc, const Mat& weight_x
             }
 
             i = 0;
+#if __ARM_NEON
 #if __ARM_FEATURE_DOTPROD
             for (; i + 3 < num_output; i += 4)
             {
@@ -156,6 +159,7 @@ static void lstm_transform_weight_int8(const Mat& weight_xc, const Mat& weight_x
                 kptr[7] = weight_hc_G[i + 1];
                 kptr += 8;
             }
+#endif // __ARM_NEON
             for (; i < num_output; i++)
             {
                 kptr[0] = weight_hc_I[i];
