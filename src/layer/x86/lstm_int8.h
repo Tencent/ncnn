@@ -12,12 +12,17 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__
+#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX2__ && !__AVXVNNI__
+void lstm_transform_weight_int8_avxvnni(const Mat& weight_xc, const Mat& weight_xc_int8_scales, const Mat& weight_hc, const Mat& weight_hc_int8_scales, const Mat& bias_c, Mat& weight_data_tm, Mat& weight_data_tm_int8_descales, Mat& bias_c_tm, int size, int num_output, int num_directions, int hidden_size, const Option& opt);
+void lstm_int8_avxvnni(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_descales, Mat& top_blob, int reverse, const Mat& weight_data_tm, const Mat& weight_data_tm_int8_descales, const Mat& bias_c, const Mat& weight_hr, Mat& hidden_state, Mat& cell_state, const Option& opt);
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVXVNNI__
 void lstm_transform_weight_int8_avx2(const Mat& weight_xc, const Mat& weight_xc_int8_scales, const Mat& weight_hc, const Mat& weight_hc_int8_scales, const Mat& bias_c, Mat& weight_data_tm, Mat& weight_data_tm_int8_descales, Mat& bias_c_tm, int size, int num_output, int num_directions, int hidden_size, const Option& opt);
 void lstm_int8_avx2(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_descales, Mat& top_blob, int reverse, const Mat& weight_data_tm, const Mat& weight_data_tm_int8_descales, const Mat& bias_c, const Mat& weight_hr, Mat& hidden_state, Mat& cell_state, const Option& opt);
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_XOP && __SSE2__ && !__XOP__ && !__AVX2__
+#if NCNN_RUNTIME_CPU && NCNN_XOP && __SSE2__ && !__XOP__ && !__AVX2__ && !__AVXVNNI__
 void lstm_int8_xop(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_descales, Mat& top_blob, int reverse, const Mat& weight_data_tm, const Mat& weight_data_tm_int8_descales, const Mat& bias_c, const Mat& weight_hr, Mat& hidden_state, Mat& cell_state, const Option& opt);
 #endif
 
@@ -25,7 +30,15 @@ static void lstm_transform_weight_int8(const Mat& weight_xc, const Mat& weight_x
 {
     // TODO dispatch
 
-#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__
+#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX2__ && !__AVXVNNI__
+    if (ncnn::cpu_support_x86_avx_vnni())
+    {
+        lstm_transform_weight_int8_avxvnni(weight_xc, weight_xc_int8_scales, weight_hc, weight_hc_int8_scales, bias_c, weight_data_tm, weight_data_tm_int8_descales, bias_c_tm, size, num_output, num_directions, hidden_size, opt);
+        return;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVXVNNI__
     if (ncnn::cpu_support_x86_avx2())
     {
         lstm_transform_weight_int8_avx2(weight_xc, weight_xc_int8_scales, weight_hc, weight_hc_int8_scales, bias_c, weight_data_tm, weight_data_tm_int8_descales, bias_c_tm, size, num_output, num_directions, hidden_size, opt);
@@ -35,7 +48,11 @@ static void lstm_transform_weight_int8(const Mat& weight_xc, const Mat& weight_x
 
 #if __AVX2__
     weight_data_tm.create(size + num_output, hidden_size / 2 + hidden_size % 2, num_directions, 8u, 8);
+#if __AVXVNNI__
+    weight_data_tm_int8_descales.create(8 + 8 + 8, hidden_size / 2 + hidden_size % 2, num_directions);
+#else
     weight_data_tm_int8_descales.create(8 + 8, hidden_size / 2 + hidden_size % 2, num_directions);
+#endif // __AVXVNNI__
 #else
     weight_data_tm.create(size + num_output, hidden_size, num_directions, 4u, 4);
     weight_data_tm_int8_descales.create(4 + 4, hidden_size, num_directions);
@@ -99,6 +116,95 @@ static void lstm_transform_weight_int8(const Mat& weight_xc, const Mat& weight_x
             float* descales_ptr = weight_data_tm_int8_descales_dr.row(q / 2);
 
             int i = 0;
+#if __AVXVNNI__
+            int ts0 = 0;
+            int ts1 = 0;
+            int ts2 = 0;
+            int ts3 = 0;
+            int ts4 = 0;
+            int ts5 = 0;
+            int ts6 = 0;
+            int ts7 = 0;
+            for (; i + 3 < size; i += 4)
+            {
+                kptr[0] = weight_xc_I_0[i];
+                kptr[1] = weight_xc_I_0[i + 1];
+                kptr[2] = weight_xc_I_0[i + 2];
+                kptr[3] = weight_xc_I_0[i + 3];
+                kptr[4] = weight_xc_F_0[i];
+                kptr[5] = weight_xc_F_0[i + 1];
+                kptr[6] = weight_xc_F_0[i + 2];
+                kptr[7] = weight_xc_F_0[i + 3];
+                kptr[8 + 0] = weight_xc_O_0[i];
+                kptr[8 + 1] = weight_xc_O_0[i + 1];
+                kptr[8 + 2] = weight_xc_O_0[i + 2];
+                kptr[8 + 3] = weight_xc_O_0[i + 3];
+                kptr[8 + 4] = weight_xc_G_0[i];
+                kptr[8 + 5] = weight_xc_G_0[i + 1];
+                kptr[8 + 6] = weight_xc_G_0[i + 2];
+                kptr[8 + 7] = weight_xc_G_0[i + 3];
+                kptr[16 + 0] = weight_xc_I_1[i];
+                kptr[16 + 1] = weight_xc_I_1[i + 1];
+                kptr[16 + 2] = weight_xc_I_1[i + 2];
+                kptr[16 + 3] = weight_xc_I_1[i + 3];
+                kptr[16 + 4] = weight_xc_F_1[i];
+                kptr[16 + 5] = weight_xc_F_1[i + 1];
+                kptr[16 + 6] = weight_xc_F_1[i + 2];
+                kptr[16 + 7] = weight_xc_F_1[i + 3];
+                kptr[24 + 0] = weight_xc_O_1[i];
+                kptr[24 + 1] = weight_xc_O_1[i + 1];
+                kptr[24 + 2] = weight_xc_O_1[i + 2];
+                kptr[24 + 3] = weight_xc_O_1[i + 3];
+                kptr[24 + 4] = weight_xc_G_1[i];
+                kptr[24 + 5] = weight_xc_G_1[i + 1];
+                kptr[24 + 6] = weight_xc_G_1[i + 2];
+                kptr[24 + 7] = weight_xc_G_1[i + 3];
+                kptr += 32;
+
+                ts0 += 127 * weight_xc_I_0[i];
+                ts0 += 127 * weight_xc_I_0[i + 1];
+                ts0 += 127 * weight_xc_I_0[i + 2];
+                ts0 += 127 * weight_xc_I_0[i + 3];
+                ts1 += 127 * weight_xc_F_0[i];
+                ts1 += 127 * weight_xc_F_0[i + 1];
+                ts1 += 127 * weight_xc_F_0[i + 2];
+                ts1 += 127 * weight_xc_F_0[i + 3];
+                ts2 += 127 * weight_xc_O_0[i];
+                ts2 += 127 * weight_xc_O_0[i + 1];
+                ts2 += 127 * weight_xc_O_0[i + 2];
+                ts2 += 127 * weight_xc_O_0[i + 3];
+                ts3 += 127 * weight_xc_G_0[i];
+                ts3 += 127 * weight_xc_G_0[i + 1];
+                ts3 += 127 * weight_xc_G_0[i + 2];
+                ts3 += 127 * weight_xc_G_0[i + 3];
+                ts4 += 127 * weight_xc_I_1[i];
+                ts4 += 127 * weight_xc_I_1[i + 1];
+                ts4 += 127 * weight_xc_I_1[i + 2];
+                ts4 += 127 * weight_xc_I_1[i + 3];
+                ts5 += 127 * weight_xc_F_1[i];
+                ts5 += 127 * weight_xc_F_1[i + 1];
+                ts5 += 127 * weight_xc_F_1[i + 2];
+                ts5 += 127 * weight_xc_F_1[i + 3];
+                ts6 += 127 * weight_xc_O_1[i];
+                ts6 += 127 * weight_xc_O_1[i + 1];
+                ts6 += 127 * weight_xc_O_1[i + 2];
+                ts6 += 127 * weight_xc_O_1[i + 3];
+                ts7 += 127 * weight_xc_G_1[i];
+                ts7 += 127 * weight_xc_G_1[i + 1];
+                ts7 += 127 * weight_xc_G_1[i + 2];
+                ts7 += 127 * weight_xc_G_1[i + 3];
+            }
+
+            ((int*)descales_ptr)[0] = ts0;
+            ((int*)descales_ptr)[1] = ts1;
+            ((int*)descales_ptr)[2] = ts2;
+            ((int*)descales_ptr)[3] = ts3;
+            ((int*)descales_ptr)[4] = ts4;
+            ((int*)descales_ptr)[5] = ts5;
+            ((int*)descales_ptr)[6] = ts6;
+            ((int*)descales_ptr)[7] = ts7;
+            descales_ptr += 8;
+#endif // __AVXVNNI__
             for (; i + 1 < size; i += 2)
             {
                 kptr[0] = weight_xc_I_0[i];
@@ -213,6 +319,54 @@ static void lstm_transform_weight_int8(const Mat& weight_xc, const Mat& weight_x
 
             int i = 0;
 #if __SSE2__
+#if __AVXVNNI__
+            int ts0 = 0;
+            int ts1 = 0;
+            int ts2 = 0;
+            int ts3 = 0;
+            for (; i + 3 < size; i += 4)
+            {
+                kptr[0] = weight_xc_I[i];
+                kptr[1] = weight_xc_I[i + 1];
+                kptr[2] = weight_xc_I[i + 2];
+                kptr[3] = weight_xc_I[i + 3];
+                kptr[4] = weight_xc_F[i];
+                kptr[5] = weight_xc_F[i + 1];
+                kptr[6] = weight_xc_F[i + 2];
+                kptr[7] = weight_xc_F[i + 3];
+                kptr[8 + 0] = weight_xc_O[i];
+                kptr[8 + 1] = weight_xc_O[i + 1];
+                kptr[8 + 2] = weight_xc_O[i + 2];
+                kptr[8 + 3] = weight_xc_O[i + 3];
+                kptr[8 + 4] = weight_xc_G[i];
+                kptr[8 + 5] = weight_xc_G[i + 1];
+                kptr[8 + 6] = weight_xc_G[i + 2];
+                kptr[8 + 7] = weight_xc_G[i + 3];
+                kptr += 16;
+
+                ts0 += 127 * weight_xc_I[i];
+                ts0 += 127 * weight_xc_I[i + 1];
+                ts0 += 127 * weight_xc_I[i + 2];
+                ts0 += 127 * weight_xc_I[i + 3];
+                ts1 += 127 * weight_xc_F[i];
+                ts1 += 127 * weight_xc_F[i + 1];
+                ts1 += 127 * weight_xc_F[i + 2];
+                ts1 += 127 * weight_xc_F[i + 3];
+                ts2 += 127 * weight_xc_O[i];
+                ts2 += 127 * weight_xc_O[i + 1];
+                ts2 += 127 * weight_xc_O[i + 2];
+                ts2 += 127 * weight_xc_O[i + 3];
+                ts3 += 127 * weight_xc_G[i];
+                ts3 += 127 * weight_xc_G[i + 1];
+                ts3 += 127 * weight_xc_G[i + 2];
+                ts3 += 127 * weight_xc_G[i + 3];
+            }
+            ((int*)descales_ptr)[0] = ts0;
+            ((int*)descales_ptr)[1] = ts1;
+            ((int*)descales_ptr)[2] = ts2;
+            ((int*)descales_ptr)[3] = ts3;
+            descales_ptr += 4;
+#endif // __AVXVNNI__
             for (; i + 1 < size; i += 2)
             {
                 kptr[0] = weight_xc_I[i];
@@ -275,7 +429,15 @@ static void lstm_int8(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_d
 {
     // TODO dispatch
 
-#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__
+#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX2__ && !__AVXVNNI__
+    if (ncnn::cpu_support_x86_avx_vnni())
+    {
+        lstm_int8_avxvnni(bottom_blob_int8, bottom_blob_int8_descales, top_blob, reverse, weight_data_tm, weight_data_tm_int8_descales, bias_c, weight_hr, hidden_state, cell_state, opt);
+        return;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVXVNNI__
     if (ncnn::cpu_support_x86_avx2())
     {
         lstm_int8_avx2(bottom_blob_int8, bottom_blob_int8_descales, top_blob, reverse, weight_data_tm, weight_data_tm_int8_descales, bias_c, weight_hr, hidden_state, cell_state, opt);
@@ -283,7 +445,7 @@ static void lstm_int8(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_d
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_XOP && __SSE2__ && !__XOP__ && !__AVX2__
+#if NCNN_RUNTIME_CPU && NCNN_XOP && __SSE2__ && !__XOP__ && !__AVX2__ && !__AVXVNNI__
     if (ncnn::cpu_support_x86_xop())
     {
         lstm_int8_xop(bottom_blob_int8, bottom_blob_int8_descales, top_blob, reverse, weight_data_tm, weight_data_tm_int8_descales, bias_c, weight_hr, hidden_state, cell_state, opt);
@@ -362,6 +524,22 @@ static void lstm_int8(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_d
 
             __m256i _lstm_IFOGx0 = _mm256_setzero_si256();
             int i = 0;
+#if __AVXVNNI__
+            __m256i _v127 = _mm256_set1_epi8(127);
+            for (; i + 3 < size; i += 4)
+            {
+                __m256i _xi = _mm256_castps_si256(_mm256_broadcast_ss((const float*)(x + i)));
+                __m256i _w = _mm256_loadu_si256((const __m256i*)kptr);
+
+                _xi = _mm256_add_epi8(_xi, _v127);
+                _lstm_IFOGx0 = _mm256_dpbusd_epi32(_lstm_IFOGx0, _xi, _w);
+
+                kptr += 32;
+            }
+            __m256i _ts = _mm256_loadu_si256((const __m256i*)descales_ptr);
+            _lstm_IFOGx0 = _mm256_sub_epi32(_lstm_IFOGx0, _ts);
+            descales_ptr += 8;
+#endif // __AVXVNNI__
             for (; i + 1 < size; i += 2)
             {
                 __m128i _xi = _mm_castps_si128(_mm_load1_ps((const float*)(x + i)));
@@ -464,6 +642,22 @@ static void lstm_int8(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_d
 #if __SSE2__
             __m128i _lstm_IFOGx0 = _mm_setzero_si128();
             int i = 0;
+#if __AVXVNNI__
+            __m128i _v127 = _mm_set1_epi8(127);
+            for (; i + 3 < size; i += 4)
+            {
+                __m128i _xi = _mm_castps_si128(_mm_load1_ps((const float*)(x + i)));
+                __m128i _w = _mm_loadu_si128((const __m128i*)kptr);
+
+                _xi = _mm_add_epi8(_xi, _v127);
+                _lstm_IFOGx0 = _mm_dpbusd_epi32(_lstm_IFOGx0, _xi, _w);
+
+                kptr += 16;
+            }
+            __m128i _ts = _mm_loadu_si128((const __m128i*)descales_ptr);
+            _lstm_IFOGx0 = _mm_sub_epi32(_lstm_IFOGx0, _ts);
+            descales_ptr += 4;
+#endif // __AVXVNNI__
             for (; i + 1 < size; i += 2)
             {
                 __m128i _xi = _mm_set1_epi16(((const short*)(x + i))[0]);
