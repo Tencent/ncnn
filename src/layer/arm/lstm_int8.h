@@ -55,7 +55,7 @@ static void lstm_transform_weight_int8(const Mat& weight_xc, const Mat& weight_x
         float* bias_c_IFOG = bias_c_tm_dr.row(0);
 
         int q = 0;
-        for (; q < num_output; q++)
+        for (; q < hidden_size; q++)
         {
             bias_c_IFOG[0] = bias_c_I[q];
             bias_c_IFOG[1] = bias_c_F[q];
@@ -64,15 +64,15 @@ static void lstm_transform_weight_int8(const Mat& weight_xc, const Mat& weight_x
 
             bias_c_IFOG += 4;
 
-            const signed char* weight_xc_I = weight_xc_dr.row<const signed char>(num_output * 0 + q);
-            const signed char* weight_xc_F = weight_xc_dr.row<const signed char>(num_output * 1 + q);
-            const signed char* weight_xc_O = weight_xc_dr.row<const signed char>(num_output * 2 + q);
-            const signed char* weight_xc_G = weight_xc_dr.row<const signed char>(num_output * 3 + q);
+            const signed char* weight_xc_I = weight_xc_dr.row<const signed char>(hidden_size * 0 + q);
+            const signed char* weight_xc_F = weight_xc_dr.row<const signed char>(hidden_size * 1 + q);
+            const signed char* weight_xc_O = weight_xc_dr.row<const signed char>(hidden_size * 2 + q);
+            const signed char* weight_xc_G = weight_xc_dr.row<const signed char>(hidden_size * 3 + q);
 
-            const signed char* weight_hc_I = weight_hc_dr.row<const signed char>(num_output * 0 + q);
-            const signed char* weight_hc_F = weight_hc_dr.row<const signed char>(num_output * 1 + q);
-            const signed char* weight_hc_O = weight_hc_dr.row<const signed char>(num_output * 2 + q);
-            const signed char* weight_hc_G = weight_hc_dr.row<const signed char>(num_output * 3 + q);
+            const signed char* weight_hc_I = weight_hc_dr.row<const signed char>(hidden_size * 0 + q);
+            const signed char* weight_hc_F = weight_hc_dr.row<const signed char>(hidden_size * 1 + q);
+            const signed char* weight_hc_O = weight_hc_dr.row<const signed char>(hidden_size * 2 + q);
+            const signed char* weight_hc_G = weight_hc_dr.row<const signed char>(hidden_size * 3 + q);
 
             signed char* kptr = weight_data_tm_dr.row<signed char>(q);
             float* descales_ptr = weight_data_tm_int8_descales_dr.row(q);
@@ -95,14 +95,14 @@ static void lstm_transform_weight_int8(const Mat& weight_xc, const Mat& weight_x
                 kptr += 4;
             }
 
-            descales_ptr[0] = 1.f / weight_xc_int8_scales_ptr[num_output * 0 + q];
-            descales_ptr[1] = 1.f / weight_xc_int8_scales_ptr[num_output * 1 + q];
-            descales_ptr[2] = 1.f / weight_xc_int8_scales_ptr[num_output * 2 + q];
-            descales_ptr[3] = 1.f / weight_xc_int8_scales_ptr[num_output * 3 + q];
-            descales_ptr[4] = 1.f / weight_hc_int8_scales_ptr[num_output * 0 + q];
-            descales_ptr[5] = 1.f / weight_hc_int8_scales_ptr[num_output * 1 + q];
-            descales_ptr[6] = 1.f / weight_hc_int8_scales_ptr[num_output * 2 + q];
-            descales_ptr[7] = 1.f / weight_hc_int8_scales_ptr[num_output * 3 + q];
+            descales_ptr[0] = 1.f / weight_xc_int8_scales_ptr[hidden_size * 0 + q];
+            descales_ptr[1] = 1.f / weight_xc_int8_scales_ptr[hidden_size * 1 + q];
+            descales_ptr[2] = 1.f / weight_xc_int8_scales_ptr[hidden_size * 2 + q];
+            descales_ptr[3] = 1.f / weight_xc_int8_scales_ptr[hidden_size * 3 + q];
+            descales_ptr[4] = 1.f / weight_hc_int8_scales_ptr[hidden_size * 0 + q];
+            descales_ptr[5] = 1.f / weight_hc_int8_scales_ptr[hidden_size * 1 + q];
+            descales_ptr[6] = 1.f / weight_hc_int8_scales_ptr[hidden_size * 2 + q];
+            descales_ptr[7] = 1.f / weight_hc_int8_scales_ptr[hidden_size * 3 + q];
         }
     }
 }
@@ -124,7 +124,7 @@ static void lstm_int8(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_d
     int T = bottom_blob_int8.h;
 
     int num_output = top_blob.w;
-    int hidden_size = hidden_state.w;
+    int hidden_size = cell_state.w;
 
     // 4 x hidden_size
     Mat gates(4, hidden_size, 4u, opt.workspace_allocator);

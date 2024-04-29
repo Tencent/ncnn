@@ -1349,35 +1349,40 @@ int LSTM_arm::forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat
 
     Mat hidden;
     Mat cell;
-    Allocator* hidden_allocator = top_blobs.size() == 2 ? opt.blob_allocator : opt.workspace_allocator;
-    if (bottom_blobs.size() == 2)
+    Allocator* hidden_cell_allocator = top_blobs.size() == 3 ? opt.blob_allocator : opt.workspace_allocator;
+    if (bottom_blobs.size() == 3)
     {
         if (elemtype == 1)
         {
-            hidden = bottom_blobs[1].clone(hidden_allocator);
-            cell = bottom_blobs[2].clone(hidden_allocator);
+            hidden = bottom_blobs[1].clone(hidden_cell_allocator);
+            cell = bottom_blobs[2].clone(hidden_cell_allocator);
         }
         if (elemtype == 2)
         {
             Option opt_cast = opt;
-            opt_cast.blob_allocator = hidden_allocator;
+            opt_cast.blob_allocator = hidden_cell_allocator;
             cast_float16_to_float32(bottom_blobs[1], hidden, opt_cast);
             cast_float16_to_float32(bottom_blobs[2], cell, opt_cast);
         }
         if (elemtype == 4)
         {
             Option opt_cast = opt;
-            opt_cast.blob_allocator = hidden_allocator;
+            opt_cast.blob_allocator = hidden_cell_allocator;
             cast_bfloat16_to_float32(bottom_blobs[1], hidden, opt_cast);
             cast_bfloat16_to_float32(bottom_blobs[2], cell, opt_cast);
         }
     }
     else
     {
-        hidden.create(num_output, num_directions, 4u, hidden_allocator);
+        hidden.create(num_output, num_directions, 4u, hidden_cell_allocator);
         if (hidden.empty())
             return -100;
         hidden.fill(0.f);
+
+        cell.create(hidden_size, num_directions, 4u, hidden_cell_allocator);
+        if (cell.empty())
+            return -100;
+        cell.fill(0.f);
     }
 
     Mat& top_blob = top_blobs[0];
@@ -1435,7 +1440,7 @@ int LSTM_arm::forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat
         }
     }
 
-    if (top_blobs.size() == 2)
+    if (top_blobs.size() == 3)
     {
         if (elemtype == 1)
         {
