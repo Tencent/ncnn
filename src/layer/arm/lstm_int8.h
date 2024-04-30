@@ -256,7 +256,7 @@ static void lstm_int8_gate_output(const Mat& gates, const Mat& weight_hr, Mat& h
                     "st1    {v0.4h}, [%0]       \n"
                     : "=r"(outptr) // %0
                     : "0"(outptr),
-                      "w"(_lstm_H)
+                    "w"(_lstm_H)
                     : "memory", "v0");
 #else  // __aarch64__
                 asm volatile(
@@ -264,7 +264,7 @@ static void lstm_int8_gate_output(const Mat& gates, const Mat& weight_hr, Mat& h
                     "vst1.u16   {d0}, [%0]      \n"
                     : "=r"(outptr) // %0
                     : "0"(outptr),
-                      "w"(_lstm_H)
+                    "w"(_lstm_H)
                     : "memory", "q0");
 #endif // __aarch64__
 #else  // NCNN_GNU_INLINE_ASM

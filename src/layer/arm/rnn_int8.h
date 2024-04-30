@@ -259,7 +259,7 @@ static void rnn_int8_gate_output(const Mat& gates, Mat& hidden_state, Mat& top_b
                 "st1    {v0.4h}, [%0]       \n"
                 : "=r"(outptr) // %0
                 : "0"(outptr),
-                  "w"(_rnn_H)
+                "w"(_rnn_H)
                 : "memory", "v0");
 #else  // __aarch64__
             asm volatile(
@@ -267,7 +267,7 @@ static void rnn_int8_gate_output(const Mat& gates, Mat& hidden_state, Mat& top_b
                 "vst1.u16   {d0}, [%0]      \n"
                 : "=r"(outptr) // %0
                 : "0"(outptr),
-                  "w"(_rnn_H)
+                "w"(_rnn_H)
                 : "memory", "q0");
 #endif // __aarch64__
 #else  // NCNN_GNU_INLINE_ASM
