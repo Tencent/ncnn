@@ -27,8 +27,6 @@ static void deformableconv2d_pack4_sse(const std::vector<Mat>& bottom_blobs, Mat
     int outw = top_blob.w;
     int outh = top_blob.h;
     int outch = top_blob.c;
-    const int size = outw * outh;
-    const int maxk = kernel_w * kernel_h;
 
     const float* bias_data_ptr = bias_data;
     const int elempack = 4;
