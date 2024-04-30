@@ -12,25 +12,36 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX2__ && !__AVXVNNI__
+#if NCNN_RUNTIME_CPU && NCNN_AVX512VNNI && __AVX512F__ && !__AVX512VNNI__
+void lstm_transform_weight_int8_avx512vnni(const Mat& weight_xc, const Mat& weight_xc_int8_scales, const Mat& weight_hc, const Mat& weight_hc_int8_scales, const Mat& bias_c, Mat& weight_data_tm, Mat& weight_data_tm_int8_descales, Mat& bias_c_tm, int size, int num_output, int num_directions, int hidden_size, const Option& opt);
+void lstm_int8_avx512vnni(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_descales, Mat& top_blob, int reverse, const Mat& weight_data_tm, const Mat& weight_data_tm_int8_descales, const Mat& bias_c, const Mat& weight_hr, Mat& hidden_state, Mat& cell_state, const Option& opt);
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX2__ && !__AVXVNNI__ && !__AVX512VNNI__
 void lstm_transform_weight_int8_avxvnni(const Mat& weight_xc, const Mat& weight_xc_int8_scales, const Mat& weight_hc, const Mat& weight_hc_int8_scales, const Mat& bias_c, Mat& weight_data_tm, Mat& weight_data_tm_int8_descales, Mat& bias_c_tm, int size, int num_output, int num_directions, int hidden_size, const Option& opt);
 void lstm_int8_avxvnni(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_descales, Mat& top_blob, int reverse, const Mat& weight_data_tm, const Mat& weight_data_tm_int8_descales, const Mat& bias_c, const Mat& weight_hr, Mat& hidden_state, Mat& cell_state, const Option& opt);
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVXVNNI__
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVXVNNI__ && !__AVX512VNNI__
 void lstm_transform_weight_int8_avx2(const Mat& weight_xc, const Mat& weight_xc_int8_scales, const Mat& weight_hc, const Mat& weight_hc_int8_scales, const Mat& bias_c, Mat& weight_data_tm, Mat& weight_data_tm_int8_descales, Mat& bias_c_tm, int size, int num_output, int num_directions, int hidden_size, const Option& opt);
 void lstm_int8_avx2(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_descales, Mat& top_blob, int reverse, const Mat& weight_data_tm, const Mat& weight_data_tm_int8_descales, const Mat& bias_c, const Mat& weight_hr, Mat& hidden_state, Mat& cell_state, const Option& opt);
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_XOP && __SSE2__ && !__XOP__ && !__AVX2__ && !__AVXVNNI__
+#if NCNN_RUNTIME_CPU && NCNN_XOP && __SSE2__ && !__XOP__ && !__AVX2__ && !__AVXVNNI__ && !__AVX512VNNI__
 void lstm_int8_xop(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_descales, Mat& top_blob, int reverse, const Mat& weight_data_tm, const Mat& weight_data_tm_int8_descales, const Mat& bias_c, const Mat& weight_hr, Mat& hidden_state, Mat& cell_state, const Option& opt);
 #endif
 
 static void lstm_transform_weight_int8(const Mat& weight_xc, const Mat& weight_xc_int8_scales, const Mat& weight_hc, const Mat& weight_hc_int8_scales, const Mat& bias_c, Mat& weight_data_tm, Mat& weight_data_tm_int8_descales, Mat& bias_c_tm, int size, int num_output, int num_directions, int hidden_size, const Option& opt)
 {
-    // TODO dispatch
+#if NCNN_RUNTIME_CPU && NCNN_AVX512VNNI && __AVX512F__ && !__AVX512VNNI__
+    if (ncnn::cpu_support_x86_avx512_vnni())
+    {
+        lstm_transform_weight_int8_avx512vnni(weight_xc, weight_xc_int8_scales, weight_hc, weight_hc_int8_scales, bias_c, weight_data_tm, weight_data_tm_int8_descales, bias_c_tm, size, num_output, num_directions, hidden_size, opt);
+        return;
+    }
+#endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX2__ && !__AVXVNNI__
+#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX2__ && !__AVXVNNI__ && !__AVX512VNNI__
     if (ncnn::cpu_support_x86_avx_vnni())
     {
         lstm_transform_weight_int8_avxvnni(weight_xc, weight_xc_int8_scales, weight_hc, weight_hc_int8_scales, bias_c, weight_data_tm, weight_data_tm_int8_descales, bias_c_tm, size, num_output, num_directions, hidden_size, opt);
@@ -38,7 +49,7 @@ static void lstm_transform_weight_int8(const Mat& weight_xc, const Mat& weight_x
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVXVNNI__
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVXVNNI__ && !__AVX512VNNI__
     if (ncnn::cpu_support_x86_avx2())
     {
         lstm_transform_weight_int8_avx2(weight_xc, weight_xc_int8_scales, weight_hc, weight_hc_int8_scales, bias_c, weight_data_tm, weight_data_tm_int8_descales, bias_c_tm, size, num_output, num_directions, hidden_size, opt);
@@ -46,13 +57,20 @@ static void lstm_transform_weight_int8(const Mat& weight_xc, const Mat& weight_x
     }
 #endif
 
-#if __AVX2__
-    weight_data_tm.create(size + num_output, hidden_size / 2 + hidden_size % 2, num_directions, 8u, 8);
-#if __AVXVNNI__
-    weight_data_tm_int8_descales.create(8 + 8 + 8, hidden_size / 2 + hidden_size % 2, num_directions);
+#if __AVX512F__
+#if __AVX512VNNI__
+    weight_data_tm.create(size + 4 + num_output + 4, hidden_size / 4 + hidden_size % 4, num_directions, 16u, 16);
 #else
+    weight_data_tm.create(size + num_output, hidden_size / 4 + hidden_size % 4, num_directions, 16u, 16);
+#endif
+    weight_data_tm_int8_descales.create(16 + 16, hidden_size / 4 + hidden_size % 4, num_directions);
+#elif __AVX2__
+#if __AVXVNNI__
+    weight_data_tm.create(size + 4 + num_output + 4, hidden_size / 2 + hidden_size % 2, num_directions, 8u, 8);
+#else
+    weight_data_tm.create(size + num_output, hidden_size / 2 + hidden_size % 2, num_directions, 8u, 8);
+#endif
     weight_data_tm_int8_descales.create(8 + 8, hidden_size / 2 + hidden_size % 2, num_directions);
-#endif // __AVXVNNI__
 #else
     weight_data_tm.create(size + num_output, hidden_size, num_directions, 4u, 4);
     weight_data_tm_int8_descales.create(4 + 4, hidden_size, num_directions);
@@ -81,7 +99,8 @@ static void lstm_transform_weight_int8(const Mat& weight_xc, const Mat& weight_x
 
         int q = 0;
 #if __AVX2__
-        for (; q + 1 < hidden_size; q += 2)
+#if __AVX512F__
+        for (; q + 3 < hidden_size; q += 4)
         {
             bias_c_IFOG[0] = bias_c_I[q];
             bias_c_IFOG[1] = bias_c_F[q];
@@ -91,8 +110,16 @@ static void lstm_transform_weight_int8(const Mat& weight_xc, const Mat& weight_x
             bias_c_IFOG[5] = bias_c_F[q + 1];
             bias_c_IFOG[6] = bias_c_O[q + 1];
             bias_c_IFOG[7] = bias_c_G[q + 1];
+            bias_c_IFOG[8 + 0] = bias_c_I[q + 2];
+            bias_c_IFOG[8 + 1] = bias_c_F[q + 2];
+            bias_c_IFOG[8 + 2] = bias_c_O[q + 2];
+            bias_c_IFOG[8 + 3] = bias_c_G[q + 2];
+            bias_c_IFOG[8 + 4] = bias_c_I[q + 3];
+            bias_c_IFOG[8 + 5] = bias_c_F[q + 3];
+            bias_c_IFOG[8 + 6] = bias_c_O[q + 3];
+            bias_c_IFOG[8 + 7] = bias_c_G[q + 3];
 
-            bias_c_IFOG += 8;
+            bias_c_IFOG += 16;
 
             const signed char* weight_xc_I_0 = weight_xc_dr.row<const signed char>(hidden_size * 0 + q);
             const signed char* weight_xc_F_0 = weight_xc_dr.row<const signed char>(hidden_size * 1 + q);
@@ -102,6 +129,14 @@ static void lstm_transform_weight_int8(const Mat& weight_xc, const Mat& weight_x
             const signed char* weight_xc_F_1 = weight_xc_dr.row<const signed char>(hidden_size * 1 + q + 1);
             const signed char* weight_xc_O_1 = weight_xc_dr.row<const signed char>(hidden_size * 2 + q + 1);
             const signed char* weight_xc_G_1 = weight_xc_dr.row<const signed char>(hidden_size * 3 + q + 1);
+            const signed char* weight_xc_I_2 = weight_xc_dr.row<const signed char>(hidden_size * 0 + q + 2);
+            const signed char* weight_xc_F_2 = weight_xc_dr.row<const signed char>(hidden_size * 1 + q + 2);
+            const signed char* weight_xc_O_2 = weight_xc_dr.row<const signed char>(hidden_size * 2 + q + 2);
+            const signed char* weight_xc_G_2 = weight_xc_dr.row<const signed char>(hidden_size * 3 + q + 2);
+            const signed char* weight_xc_I_3 = weight_xc_dr.row<const signed char>(hidden_size * 0 + q + 3);
+            const signed char* weight_xc_F_3 = weight_xc_dr.row<const signed char>(hidden_size * 1 + q + 3);
+            const signed char* weight_xc_O_3 = weight_xc_dr.row<const signed char>(hidden_size * 2 + q + 3);
+            const signed char* weight_xc_G_3 = weight_xc_dr.row<const signed char>(hidden_size * 3 + q + 3);
 
             const signed char* weight_hc_I_0 = weight_hc_dr.row<const signed char>(hidden_size * 0 + q);
             const signed char* weight_hc_F_0 = weight_hc_dr.row<const signed char>(hidden_size * 1 + q);
@@ -111,20 +146,22 @@ static void lstm_transform_weight_int8(const Mat& weight_xc, const Mat& weight_x
             const signed char* weight_hc_F_1 = weight_hc_dr.row<const signed char>(hidden_size * 1 + q + 1);
             const signed char* weight_hc_O_1 = weight_hc_dr.row<const signed char>(hidden_size * 2 + q + 1);
             const signed char* weight_hc_G_1 = weight_hc_dr.row<const signed char>(hidden_size * 3 + q + 1);
+            const signed char* weight_hc_I_2 = weight_hc_dr.row<const signed char>(hidden_size * 0 + q + 2);
+            const signed char* weight_hc_F_2 = weight_hc_dr.row<const signed char>(hidden_size * 1 + q + 2);
+            const signed char* weight_hc_O_2 = weight_hc_dr.row<const signed char>(hidden_size * 2 + q + 2);
+            const signed char* weight_hc_G_2 = weight_hc_dr.row<const signed char>(hidden_size * 3 + q + 2);
+            const signed char* weight_hc_I_3 = weight_hc_dr.row<const signed char>(hidden_size * 0 + q + 3);
+            const signed char* weight_hc_F_3 = weight_hc_dr.row<const signed char>(hidden_size * 1 + q + 3);
+            const signed char* weight_hc_O_3 = weight_hc_dr.row<const signed char>(hidden_size * 2 + q + 3);
+            const signed char* weight_hc_G_3 = weight_hc_dr.row<const signed char>(hidden_size * 3 + q + 3);
 
-            signed char* kptr = weight_data_tm_dr.row<signed char>(q / 2);
-            float* descales_ptr = weight_data_tm_int8_descales_dr.row(q / 2);
+            signed char* kptr = weight_data_tm_dr.row<signed char>(q / 4);
+            float* descales_ptr = weight_data_tm_int8_descales_dr.row(q / 4);
 
             int i = 0;
-#if __AVXVNNI__
-            int ts0 = 0;
-            int ts1 = 0;
-            int ts2 = 0;
-            int ts3 = 0;
-            int ts4 = 0;
-            int ts5 = 0;
-            int ts6 = 0;
-            int ts7 = 0;
+#if __AVX512VNNI__
+            __m512i _w_shift = _mm512_setzero_si512();
+            __m512i _v127 = _mm512_set1_epi8(127);
             for (; i + 3 < size; i += 4)
             {
                 kptr[0] = weight_xc_I_0[i];
@@ -159,52 +196,360 @@ static void lstm_transform_weight_int8(const Mat& weight_xc, const Mat& weight_x
                 kptr[24 + 5] = weight_xc_G_1[i + 1];
                 kptr[24 + 6] = weight_xc_G_1[i + 2];
                 kptr[24 + 7] = weight_xc_G_1[i + 3];
-                kptr += 32;
+                kptr[32 + 0] = weight_xc_I_2[i];
+                kptr[32 + 1] = weight_xc_I_2[i + 1];
+                kptr[32 + 2] = weight_xc_I_2[i + 2];
+                kptr[32 + 3] = weight_xc_I_2[i + 3];
+                kptr[32 + 4] = weight_xc_F_2[i];
+                kptr[32 + 5] = weight_xc_F_2[i + 1];
+                kptr[32 + 6] = weight_xc_F_2[i + 2];
+                kptr[32 + 7] = weight_xc_F_2[i + 3];
+                kptr[40 + 0] = weight_xc_O_2[i];
+                kptr[40 + 1] = weight_xc_O_2[i + 1];
+                kptr[40 + 2] = weight_xc_O_2[i + 2];
+                kptr[40 + 3] = weight_xc_O_2[i + 3];
+                kptr[40 + 4] = weight_xc_G_2[i];
+                kptr[40 + 5] = weight_xc_G_2[i + 1];
+                kptr[40 + 6] = weight_xc_G_2[i + 2];
+                kptr[40 + 7] = weight_xc_G_2[i + 3];
+                kptr[48 + 0] = weight_xc_I_3[i];
+                kptr[48 + 1] = weight_xc_I_3[i + 1];
+                kptr[48 + 2] = weight_xc_I_3[i + 2];
+                kptr[48 + 3] = weight_xc_I_3[i + 3];
+                kptr[48 + 4] = weight_xc_F_3[i];
+                kptr[48 + 5] = weight_xc_F_3[i + 1];
+                kptr[48 + 6] = weight_xc_F_3[i + 2];
+                kptr[48 + 7] = weight_xc_F_3[i + 3];
+                kptr[56 + 0] = weight_xc_O_3[i];
+                kptr[56 + 1] = weight_xc_O_3[i + 1];
+                kptr[56 + 2] = weight_xc_O_3[i + 2];
+                kptr[56 + 3] = weight_xc_O_3[i + 3];
+                kptr[56 + 4] = weight_xc_G_3[i];
+                kptr[56 + 5] = weight_xc_G_3[i + 1];
+                kptr[56 + 6] = weight_xc_G_3[i + 2];
+                kptr[56 + 7] = weight_xc_G_3[i + 3];
 
-                ts0 += 127 * weight_xc_I_0[i];
-                ts0 += 127 * weight_xc_I_0[i + 1];
-                ts0 += 127 * weight_xc_I_0[i + 2];
-                ts0 += 127 * weight_xc_I_0[i + 3];
-                ts1 += 127 * weight_xc_F_0[i];
-                ts1 += 127 * weight_xc_F_0[i + 1];
-                ts1 += 127 * weight_xc_F_0[i + 2];
-                ts1 += 127 * weight_xc_F_0[i + 3];
-                ts2 += 127 * weight_xc_O_0[i];
-                ts2 += 127 * weight_xc_O_0[i + 1];
-                ts2 += 127 * weight_xc_O_0[i + 2];
-                ts2 += 127 * weight_xc_O_0[i + 3];
-                ts3 += 127 * weight_xc_G_0[i];
-                ts3 += 127 * weight_xc_G_0[i + 1];
-                ts3 += 127 * weight_xc_G_0[i + 2];
-                ts3 += 127 * weight_xc_G_0[i + 3];
-                ts4 += 127 * weight_xc_I_1[i];
-                ts4 += 127 * weight_xc_I_1[i + 1];
-                ts4 += 127 * weight_xc_I_1[i + 2];
-                ts4 += 127 * weight_xc_I_1[i + 3];
-                ts5 += 127 * weight_xc_F_1[i];
-                ts5 += 127 * weight_xc_F_1[i + 1];
-                ts5 += 127 * weight_xc_F_1[i + 2];
-                ts5 += 127 * weight_xc_F_1[i + 3];
-                ts6 += 127 * weight_xc_O_1[i];
-                ts6 += 127 * weight_xc_O_1[i + 1];
-                ts6 += 127 * weight_xc_O_1[i + 2];
-                ts6 += 127 * weight_xc_O_1[i + 3];
-                ts7 += 127 * weight_xc_G_1[i];
-                ts7 += 127 * weight_xc_G_1[i + 1];
-                ts7 += 127 * weight_xc_G_1[i + 2];
-                ts7 += 127 * weight_xc_G_1[i + 3];
+                __m512i _w = _mm512_loadu_si512((const __m512i*)kptr);
+                _w_shift = _mm512_dpbusd_epi32(_w_shift, _v127, _w);
+
+                kptr += 64;
+            }
+            _mm512_storeu_si512((__m512i*)kptr, _w_shift);
+            kptr += 64;
+#endif // __AVX512VNNI__
+            for (; i + 1 < size; i += 2)
+            {
+                kptr[0] = weight_xc_I_0[i];
+                kptr[1] = weight_xc_I_0[i + 1];
+                kptr[2] = weight_xc_F_0[i];
+                kptr[3] = weight_xc_F_0[i + 1];
+                kptr[4] = weight_xc_O_0[i];
+                kptr[5] = weight_xc_O_0[i + 1];
+                kptr[6] = weight_xc_G_0[i];
+                kptr[7] = weight_xc_G_0[i + 1];
+                kptr[8 + 0] = weight_xc_I_1[i];
+                kptr[8 + 1] = weight_xc_I_1[i + 1];
+                kptr[8 + 2] = weight_xc_F_1[i];
+                kptr[8 + 3] = weight_xc_F_1[i + 1];
+                kptr[8 + 4] = weight_xc_O_1[i];
+                kptr[8 + 5] = weight_xc_O_1[i + 1];
+                kptr[8 + 6] = weight_xc_G_1[i];
+                kptr[8 + 7] = weight_xc_G_1[i + 1];
+                kptr[16 + 0] = weight_xc_I_2[i];
+                kptr[16 + 1] = weight_xc_I_2[i + 1];
+                kptr[16 + 2] = weight_xc_F_2[i];
+                kptr[16 + 3] = weight_xc_F_2[i + 1];
+                kptr[16 + 4] = weight_xc_O_2[i];
+                kptr[16 + 5] = weight_xc_O_2[i + 1];
+                kptr[16 + 6] = weight_xc_G_2[i];
+                kptr[16 + 7] = weight_xc_G_2[i + 1];
+                kptr[24 + 0] = weight_xc_I_3[i];
+                kptr[24 + 1] = weight_xc_I_3[i + 1];
+                kptr[24 + 2] = weight_xc_F_3[i];
+                kptr[24 + 3] = weight_xc_F_3[i + 1];
+                kptr[24 + 4] = weight_xc_O_3[i];
+                kptr[24 + 5] = weight_xc_O_3[i + 1];
+                kptr[24 + 6] = weight_xc_G_3[i];
+                kptr[24 + 7] = weight_xc_G_3[i + 1];
+                kptr += 32;
+            }
+            for (; i < size; i++)
+            {
+                kptr[0] = weight_xc_I_0[i];
+                kptr[1] = weight_xc_F_0[i];
+                kptr[2] = weight_xc_O_0[i];
+                kptr[3] = weight_xc_G_0[i];
+                kptr[4] = weight_xc_I_1[i];
+                kptr[5] = weight_xc_F_1[i];
+                kptr[6] = weight_xc_O_1[i];
+                kptr[7] = weight_xc_G_1[i];
+                kptr[8 + 0] = weight_xc_I_2[i];
+                kptr[8 + 1] = weight_xc_F_2[i];
+                kptr[8 + 2] = weight_xc_O_2[i];
+                kptr[8 + 3] = weight_xc_G_2[i];
+                kptr[8 + 4] = weight_xc_I_3[i];
+                kptr[8 + 5] = weight_xc_F_3[i];
+                kptr[8 + 6] = weight_xc_O_3[i];
+                kptr[8 + 7] = weight_xc_G_3[i];
+                kptr += 16;
             }
 
-            ((int*)descales_ptr)[0] = ts0;
-            ((int*)descales_ptr)[1] = ts1;
-            ((int*)descales_ptr)[2] = ts2;
-            ((int*)descales_ptr)[3] = ts3;
-            ((int*)descales_ptr)[4] = ts4;
-            ((int*)descales_ptr)[5] = ts5;
-            ((int*)descales_ptr)[6] = ts6;
-            ((int*)descales_ptr)[7] = ts7;
-            descales_ptr += 8;
-#endif // __AVXVNNI__
+            i = 0;
+#if __AVX512VNNI__
+            _w_shift = _mm512_setzero_si512();
+            for (; i + 3 < num_output; i += 4)
+            {
+                kptr[0] = weight_hc_I_0[i];
+                kptr[1] = weight_hc_I_0[i + 1];
+                kptr[2] = weight_hc_I_0[i + 2];
+                kptr[3] = weight_hc_I_0[i + 3];
+                kptr[4] = weight_hc_F_0[i];
+                kptr[5] = weight_hc_F_0[i + 1];
+                kptr[6] = weight_hc_F_0[i + 2];
+                kptr[7] = weight_hc_F_0[i + 3];
+                kptr[8 + 0] = weight_hc_O_0[i];
+                kptr[8 + 1] = weight_hc_O_0[i + 1];
+                kptr[8 + 2] = weight_hc_O_0[i + 2];
+                kptr[8 + 3] = weight_hc_O_0[i + 3];
+                kptr[8 + 4] = weight_hc_G_0[i];
+                kptr[8 + 5] = weight_hc_G_0[i + 1];
+                kptr[8 + 6] = weight_hc_G_0[i + 2];
+                kptr[8 + 7] = weight_hc_G_0[i + 3];
+                kptr[16 + 0] = weight_hc_I_1[i];
+                kptr[16 + 1] = weight_hc_I_1[i + 1];
+                kptr[16 + 2] = weight_hc_I_1[i + 2];
+                kptr[16 + 3] = weight_hc_I_1[i + 3];
+                kptr[16 + 4] = weight_hc_F_1[i];
+                kptr[16 + 5] = weight_hc_F_1[i + 1];
+                kptr[16 + 6] = weight_hc_F_1[i + 2];
+                kptr[16 + 7] = weight_hc_F_1[i + 3];
+                kptr[24 + 0] = weight_hc_O_1[i];
+                kptr[24 + 1] = weight_hc_O_1[i + 1];
+                kptr[24 + 2] = weight_hc_O_1[i + 2];
+                kptr[24 + 3] = weight_hc_O_1[i + 3];
+                kptr[24 + 4] = weight_hc_G_1[i];
+                kptr[24 + 5] = weight_hc_G_1[i + 1];
+                kptr[24 + 6] = weight_hc_G_1[i + 2];
+                kptr[24 + 7] = weight_hc_G_1[i + 3];
+                kptr[32 + 0] = weight_hc_I_2[i];
+                kptr[32 + 1] = weight_hc_I_2[i + 1];
+                kptr[32 + 2] = weight_hc_I_2[i + 2];
+                kptr[32 + 3] = weight_hc_I_2[i + 3];
+                kptr[32 + 4] = weight_hc_F_2[i];
+                kptr[32 + 5] = weight_hc_F_2[i + 1];
+                kptr[32 + 6] = weight_hc_F_2[i + 2];
+                kptr[32 + 7] = weight_hc_F_2[i + 3];
+                kptr[40 + 0] = weight_hc_O_2[i];
+                kptr[40 + 1] = weight_hc_O_2[i + 1];
+                kptr[40 + 2] = weight_hc_O_2[i + 2];
+                kptr[40 + 3] = weight_hc_O_2[i + 3];
+                kptr[40 + 4] = weight_hc_G_2[i];
+                kptr[40 + 5] = weight_hc_G_2[i + 1];
+                kptr[40 + 6] = weight_hc_G_2[i + 2];
+                kptr[40 + 7] = weight_hc_G_2[i + 3];
+                kptr[48 + 0] = weight_hc_I_3[i];
+                kptr[48 + 1] = weight_hc_I_3[i + 1];
+                kptr[48 + 2] = weight_hc_I_3[i + 2];
+                kptr[48 + 3] = weight_hc_I_3[i + 3];
+                kptr[48 + 4] = weight_hc_F_3[i];
+                kptr[48 + 5] = weight_hc_F_3[i + 1];
+                kptr[48 + 6] = weight_hc_F_3[i + 2];
+                kptr[48 + 7] = weight_hc_F_3[i + 3];
+                kptr[56 + 0] = weight_hc_O_3[i];
+                kptr[56 + 1] = weight_hc_O_3[i + 1];
+                kptr[56 + 2] = weight_hc_O_3[i + 2];
+                kptr[56 + 3] = weight_hc_O_3[i + 3];
+                kptr[56 + 4] = weight_hc_G_3[i];
+                kptr[56 + 5] = weight_hc_G_3[i + 1];
+                kptr[56 + 6] = weight_hc_G_3[i + 2];
+                kptr[56 + 7] = weight_hc_G_3[i + 3];
+
+                __m512i _w = _mm512_loadu_si512((const __m512i*)kptr);
+                _w_shift = _mm512_dpbusd_epi32(_w_shift, _v127, _w);
+
+                kptr += 64;
+            }
+            _mm512_storeu_si512((__m512i*)kptr, _w_shift);
+            kptr += 64;
+#endif // __AVX512VNNI__
+            for (; i + 1 < num_output; i += 2)
+            {
+                kptr[0] = weight_hc_I_0[i];
+                kptr[1] = weight_hc_I_0[i + 1];
+                kptr[2] = weight_hc_F_0[i];
+                kptr[3] = weight_hc_F_0[i + 1];
+                kptr[4] = weight_hc_O_0[i];
+                kptr[5] = weight_hc_O_0[i + 1];
+                kptr[6] = weight_hc_G_0[i];
+                kptr[7] = weight_hc_G_0[i + 1];
+                kptr[8 + 0] = weight_hc_I_1[i];
+                kptr[8 + 1] = weight_hc_I_1[i + 1];
+                kptr[8 + 2] = weight_hc_F_1[i];
+                kptr[8 + 3] = weight_hc_F_1[i + 1];
+                kptr[8 + 4] = weight_hc_O_1[i];
+                kptr[8 + 5] = weight_hc_O_1[i + 1];
+                kptr[8 + 6] = weight_hc_G_1[i];
+                kptr[8 + 7] = weight_hc_G_1[i + 1];
+                kptr[16 + 0] = weight_hc_I_2[i];
+                kptr[16 + 1] = weight_hc_I_2[i + 1];
+                kptr[16 + 2] = weight_hc_F_2[i];
+                kptr[16 + 3] = weight_hc_F_2[i + 1];
+                kptr[16 + 4] = weight_hc_O_2[i];
+                kptr[16 + 5] = weight_hc_O_2[i + 1];
+                kptr[16 + 6] = weight_hc_G_2[i];
+                kptr[16 + 7] = weight_hc_G_2[i + 1];
+                kptr[24 + 0] = weight_hc_I_3[i];
+                kptr[24 + 1] = weight_hc_I_3[i + 1];
+                kptr[24 + 2] = weight_hc_F_3[i];
+                kptr[24 + 3] = weight_hc_F_3[i + 1];
+                kptr[24 + 4] = weight_hc_O_3[i];
+                kptr[24 + 5] = weight_hc_O_3[i + 1];
+                kptr[24 + 6] = weight_hc_G_3[i];
+                kptr[24 + 7] = weight_hc_G_3[i + 1];
+                kptr += 32;
+            }
+            for (; i < num_output; i++)
+            {
+                kptr[0] = weight_hc_I_0[i];
+                kptr[1] = weight_hc_F_0[i];
+                kptr[2] = weight_hc_O_0[i];
+                kptr[3] = weight_hc_G_0[i];
+                kptr[4] = weight_hc_I_1[i];
+                kptr[5] = weight_hc_F_1[i];
+                kptr[6] = weight_hc_O_1[i];
+                kptr[7] = weight_hc_G_1[i];
+                kptr[8 + 0] = weight_hc_I_2[i];
+                kptr[8 + 1] = weight_hc_F_2[i];
+                kptr[8 + 2] = weight_hc_O_2[i];
+                kptr[8 + 3] = weight_hc_G_2[i];
+                kptr[8 + 4] = weight_hc_I_3[i];
+                kptr[8 + 5] = weight_hc_F_3[i];
+                kptr[8 + 6] = weight_hc_O_3[i];
+                kptr[8 + 7] = weight_hc_G_3[i];
+                kptr += 16;
+            }
+
+            descales_ptr[0] = 1.f / weight_xc_int8_scales_ptr[hidden_size * 0 + q];
+            descales_ptr[1] = 1.f / weight_xc_int8_scales_ptr[hidden_size * 1 + q];
+            descales_ptr[2] = 1.f / weight_xc_int8_scales_ptr[hidden_size * 2 + q];
+            descales_ptr[3] = 1.f / weight_xc_int8_scales_ptr[hidden_size * 3 + q];
+            descales_ptr[4] = 1.f / weight_xc_int8_scales_ptr[hidden_size * 0 + q + 1];
+            descales_ptr[5] = 1.f / weight_xc_int8_scales_ptr[hidden_size * 1 + q + 1];
+            descales_ptr[6] = 1.f / weight_xc_int8_scales_ptr[hidden_size * 2 + q + 1];
+            descales_ptr[7] = 1.f / weight_xc_int8_scales_ptr[hidden_size * 3 + q + 1];
+            descales_ptr[8 + 0] = 1.f / weight_xc_int8_scales_ptr[hidden_size * 0 + q + 2];
+            descales_ptr[8 + 1] = 1.f / weight_xc_int8_scales_ptr[hidden_size * 1 + q + 2];
+            descales_ptr[8 + 2] = 1.f / weight_xc_int8_scales_ptr[hidden_size * 2 + q + 2];
+            descales_ptr[8 + 3] = 1.f / weight_xc_int8_scales_ptr[hidden_size * 3 + q + 2];
+            descales_ptr[8 + 4] = 1.f / weight_xc_int8_scales_ptr[hidden_size * 0 + q + 3];
+            descales_ptr[8 + 5] = 1.f / weight_xc_int8_scales_ptr[hidden_size * 1 + q + 3];
+            descales_ptr[8 + 6] = 1.f / weight_xc_int8_scales_ptr[hidden_size * 2 + q + 3];
+            descales_ptr[8 + 7] = 1.f / weight_xc_int8_scales_ptr[hidden_size * 3 + q + 3];
+            descales_ptr[16 + 0] = 1.f / weight_hc_int8_scales_ptr[hidden_size * 0 + q];
+            descales_ptr[16 + 1] = 1.f / weight_hc_int8_scales_ptr[hidden_size * 1 + q];
+            descales_ptr[16 + 2] = 1.f / weight_hc_int8_scales_ptr[hidden_size * 2 + q];
+            descales_ptr[16 + 3] = 1.f / weight_hc_int8_scales_ptr[hidden_size * 3 + q];
+            descales_ptr[16 + 4] = 1.f / weight_hc_int8_scales_ptr[hidden_size * 0 + q + 1];
+            descales_ptr[16 + 5] = 1.f / weight_hc_int8_scales_ptr[hidden_size * 1 + q + 1];
+            descales_ptr[16 + 6] = 1.f / weight_hc_int8_scales_ptr[hidden_size * 2 + q + 1];
+            descales_ptr[16 + 7] = 1.f / weight_hc_int8_scales_ptr[hidden_size * 3 + q + 1];
+            descales_ptr[24 + 0] = 1.f / weight_hc_int8_scales_ptr[hidden_size * 0 + q + 2];
+            descales_ptr[24 + 1] = 1.f / weight_hc_int8_scales_ptr[hidden_size * 1 + q + 2];
+            descales_ptr[24 + 2] = 1.f / weight_hc_int8_scales_ptr[hidden_size * 2 + q + 2];
+            descales_ptr[24 + 3] = 1.f / weight_hc_int8_scales_ptr[hidden_size * 3 + q + 2];
+            descales_ptr[24 + 4] = 1.f / weight_hc_int8_scales_ptr[hidden_size * 0 + q + 3];
+            descales_ptr[24 + 5] = 1.f / weight_hc_int8_scales_ptr[hidden_size * 1 + q + 3];
+            descales_ptr[24 + 6] = 1.f / weight_hc_int8_scales_ptr[hidden_size * 2 + q + 3];
+            descales_ptr[24 + 7] = 1.f / weight_hc_int8_scales_ptr[hidden_size * 3 + q + 3];
+        }
+#endif // __AVX512F__
+        for (; q + 1 < hidden_size; q += 2)
+        {
+            bias_c_IFOG[0] = bias_c_I[q];
+            bias_c_IFOG[1] = bias_c_F[q];
+            bias_c_IFOG[2] = bias_c_O[q];
+            bias_c_IFOG[3] = bias_c_G[q];
+            bias_c_IFOG[4] = bias_c_I[q + 1];
+            bias_c_IFOG[5] = bias_c_F[q + 1];
+            bias_c_IFOG[6] = bias_c_O[q + 1];
+            bias_c_IFOG[7] = bias_c_G[q + 1];
+
+            bias_c_IFOG += 8;
+
+            const signed char* weight_xc_I_0 = weight_xc_dr.row<const signed char>(hidden_size * 0 + q);
+            const signed char* weight_xc_F_0 = weight_xc_dr.row<const signed char>(hidden_size * 1 + q);
+            const signed char* weight_xc_O_0 = weight_xc_dr.row<const signed char>(hidden_size * 2 + q);
+            const signed char* weight_xc_G_0 = weight_xc_dr.row<const signed char>(hidden_size * 3 + q);
+            const signed char* weight_xc_I_1 = weight_xc_dr.row<const signed char>(hidden_size * 0 + q + 1);
+            const signed char* weight_xc_F_1 = weight_xc_dr.row<const signed char>(hidden_size * 1 + q + 1);
+            const signed char* weight_xc_O_1 = weight_xc_dr.row<const signed char>(hidden_size * 2 + q + 1);
+            const signed char* weight_xc_G_1 = weight_xc_dr.row<const signed char>(hidden_size * 3 + q + 1);
+
+            const signed char* weight_hc_I_0 = weight_hc_dr.row<const signed char>(hidden_size * 0 + q);
+            const signed char* weight_hc_F_0 = weight_hc_dr.row<const signed char>(hidden_size * 1 + q);
+            const signed char* weight_hc_O_0 = weight_hc_dr.row<const signed char>(hidden_size * 2 + q);
+            const signed char* weight_hc_G_0 = weight_hc_dr.row<const signed char>(hidden_size * 3 + q);
+            const signed char* weight_hc_I_1 = weight_hc_dr.row<const signed char>(hidden_size * 0 + q + 1);
+            const signed char* weight_hc_F_1 = weight_hc_dr.row<const signed char>(hidden_size * 1 + q + 1);
+            const signed char* weight_hc_O_1 = weight_hc_dr.row<const signed char>(hidden_size * 2 + q + 1);
+            const signed char* weight_hc_G_1 = weight_hc_dr.row<const signed char>(hidden_size * 3 + q + 1);
+
+#if __AVX512F__
+            signed char* kptr = weight_data_tm_dr.row<signed char>(q / 4 + (q % 4) / 2);
+            float* descales_ptr = weight_data_tm_int8_descales_dr.row(q / 4 + (q % 4) / 2);
+#else
+            signed char* kptr = weight_data_tm_dr.row<signed char>(q / 2);
+            float* descales_ptr = weight_data_tm_int8_descales_dr.row(q / 2);
+#endif
+
+            int i = 0;
+#if __AVXVNNI__ || __AVX512VNNI__
+            __m256i _w_shift = _mm256_setzero_si256();
+            __m256i _v127 = _mm256_set1_epi8(127);
+            for (; i + 3 < size; i += 4)
+            {
+                kptr[0] = weight_xc_I_0[i];
+                kptr[1] = weight_xc_I_0[i + 1];
+                kptr[2] = weight_xc_I_0[i + 2];
+                kptr[3] = weight_xc_I_0[i + 3];
+                kptr[4] = weight_xc_F_0[i];
+                kptr[5] = weight_xc_F_0[i + 1];
+                kptr[6] = weight_xc_F_0[i + 2];
+                kptr[7] = weight_xc_F_0[i + 3];
+                kptr[8 + 0] = weight_xc_O_0[i];
+                kptr[8 + 1] = weight_xc_O_0[i + 1];
+                kptr[8 + 2] = weight_xc_O_0[i + 2];
+                kptr[8 + 3] = weight_xc_O_0[i + 3];
+                kptr[8 + 4] = weight_xc_G_0[i];
+                kptr[8 + 5] = weight_xc_G_0[i + 1];
+                kptr[8 + 6] = weight_xc_G_0[i + 2];
+                kptr[8 + 7] = weight_xc_G_0[i + 3];
+                kptr[16 + 0] = weight_xc_I_1[i];
+                kptr[16 + 1] = weight_xc_I_1[i + 1];
+                kptr[16 + 2] = weight_xc_I_1[i + 2];
+                kptr[16 + 3] = weight_xc_I_1[i + 3];
+                kptr[16 + 4] = weight_xc_F_1[i];
+                kptr[16 + 5] = weight_xc_F_1[i + 1];
+                kptr[16 + 6] = weight_xc_F_1[i + 2];
+                kptr[16 + 7] = weight_xc_F_1[i + 3];
+                kptr[24 + 0] = weight_xc_O_1[i];
+                kptr[24 + 1] = weight_xc_O_1[i + 1];
+                kptr[24 + 2] = weight_xc_O_1[i + 2];
+                kptr[24 + 3] = weight_xc_O_1[i + 3];
+                kptr[24 + 4] = weight_xc_G_1[i];
+                kptr[24 + 5] = weight_xc_G_1[i + 1];
+                kptr[24 + 6] = weight_xc_G_1[i + 2];
+                kptr[24 + 7] = weight_xc_G_1[i + 3];
+
+                __m256i _w = _mm256_loadu_si256((const __m256i*)kptr);
+                _w_shift = _mm256_dpbusd_epi32(_w_shift, _v127, _w);
+
+                kptr += 32;
+            }
+
+            _mm256_storeu_si256((__m256i*)kptr, _w_shift);
+            kptr += 32;
+#endif // __AVXVNNI__ || __AVX512VNNI__
             for (; i + 1 < size; i += 2)
             {
                 kptr[0] = weight_xc_I_0[i];
@@ -239,6 +584,53 @@ static void lstm_transform_weight_int8(const Mat& weight_xc, const Mat& weight_x
             }
 
             i = 0;
+#if __AVXVNNI__ || __AVX512VNNI__
+            _w_shift = _mm256_setzero_si256();
+            _v127 = _mm256_set1_epi8(127);
+            for (; i + 3 < num_output; i += 4)
+            {
+                kptr[0] = weight_hc_I_0[i];
+                kptr[1] = weight_hc_I_0[i + 1];
+                kptr[2] = weight_hc_I_0[i + 2];
+                kptr[3] = weight_hc_I_0[i + 3];
+                kptr[4] = weight_hc_F_0[i];
+                kptr[5] = weight_hc_F_0[i + 1];
+                kptr[6] = weight_hc_F_0[i + 2];
+                kptr[7] = weight_hc_F_0[i + 3];
+                kptr[8 + 0] = weight_hc_O_0[i];
+                kptr[8 + 1] = weight_hc_O_0[i + 1];
+                kptr[8 + 2] = weight_hc_O_0[i + 2];
+                kptr[8 + 3] = weight_hc_O_0[i + 3];
+                kptr[8 + 4] = weight_hc_G_0[i];
+                kptr[8 + 5] = weight_hc_G_0[i + 1];
+                kptr[8 + 6] = weight_hc_G_0[i + 2];
+                kptr[8 + 7] = weight_hc_G_0[i + 3];
+                kptr[16 + 0] = weight_hc_I_1[i];
+                kptr[16 + 1] = weight_hc_I_1[i + 1];
+                kptr[16 + 2] = weight_hc_I_1[i + 2];
+                kptr[16 + 3] = weight_hc_I_1[i + 3];
+                kptr[16 + 4] = weight_hc_F_1[i];
+                kptr[16 + 5] = weight_hc_F_1[i + 1];
+                kptr[16 + 6] = weight_hc_F_1[i + 2];
+                kptr[16 + 7] = weight_hc_F_1[i + 3];
+                kptr[24 + 0] = weight_hc_O_1[i];
+                kptr[24 + 1] = weight_hc_O_1[i + 1];
+                kptr[24 + 2] = weight_hc_O_1[i + 2];
+                kptr[24 + 3] = weight_hc_O_1[i + 3];
+                kptr[24 + 4] = weight_hc_G_1[i];
+                kptr[24 + 5] = weight_hc_G_1[i + 1];
+                kptr[24 + 6] = weight_hc_G_1[i + 2];
+                kptr[24 + 7] = weight_hc_G_1[i + 3];
+
+                __m256i _w = _mm256_loadu_si256((const __m256i*)kptr);
+                _w_shift = _mm256_dpbusd_epi32(_w_shift, _v127, _w);
+
+                kptr += 32;
+            }
+
+            _mm256_storeu_si256((__m256i*)kptr, _w_shift);
+            kptr += 32;
+#endif // __AVXVNNI__ || __AVX512VNNI__
             for (; i + 1 < num_output; i += 2)
             {
                 kptr[0] = weight_hc_I_0[i];
@@ -309,7 +701,10 @@ static void lstm_transform_weight_int8(const Mat& weight_xc, const Mat& weight_x
             const signed char* weight_hc_O = weight_hc_dr.row<const signed char>(hidden_size * 2 + q);
             const signed char* weight_hc_G = weight_hc_dr.row<const signed char>(hidden_size * 3 + q);
 
-#if __AVX2__
+#if __AVX512F__
+            signed char* kptr = weight_data_tm_dr.row<signed char>(q / 4 + (q % 4) / 2 + q % 2);
+            float* descales_ptr = weight_data_tm_int8_descales_dr.row(q / 4 + (q % 4) / 2 + q % 2);
+#elif __AVX2__
             signed char* kptr = weight_data_tm_dr.row<signed char>(q / 2 + q % 2);
             float* descales_ptr = weight_data_tm_int8_descales_dr.row(q / 2 + q % 2);
 #else
@@ -319,11 +714,9 @@ static void lstm_transform_weight_int8(const Mat& weight_xc, const Mat& weight_x
 
             int i = 0;
 #if __SSE2__
-#if __AVXVNNI__
-            int ts0 = 0;
-            int ts1 = 0;
-            int ts2 = 0;
-            int ts3 = 0;
+#if __AVXVNNI__ || __AVX512VNNI__
+            __m128i _w_shift = _mm_setzero_si128();
+            __m128i _v127 = _mm_set1_epi8(127);
             for (; i + 3 < size; i += 4)
             {
                 kptr[0] = weight_xc_I[i];
@@ -342,31 +735,16 @@ static void lstm_transform_weight_int8(const Mat& weight_xc, const Mat& weight_x
                 kptr[8 + 5] = weight_xc_G[i + 1];
                 kptr[8 + 6] = weight_xc_G[i + 2];
                 kptr[8 + 7] = weight_xc_G[i + 3];
-                kptr += 16;
 
-                ts0 += 127 * weight_xc_I[i];
-                ts0 += 127 * weight_xc_I[i + 1];
-                ts0 += 127 * weight_xc_I[i + 2];
-                ts0 += 127 * weight_xc_I[i + 3];
-                ts1 += 127 * weight_xc_F[i];
-                ts1 += 127 * weight_xc_F[i + 1];
-                ts1 += 127 * weight_xc_F[i + 2];
-                ts1 += 127 * weight_xc_F[i + 3];
-                ts2 += 127 * weight_xc_O[i];
-                ts2 += 127 * weight_xc_O[i + 1];
-                ts2 += 127 * weight_xc_O[i + 2];
-                ts2 += 127 * weight_xc_O[i + 3];
-                ts3 += 127 * weight_xc_G[i];
-                ts3 += 127 * weight_xc_G[i + 1];
-                ts3 += 127 * weight_xc_G[i + 2];
-                ts3 += 127 * weight_xc_G[i + 3];
+                __m128i _w = _mm_loadu_si128((const __m128i*)kptr);
+                _w_shift = _mm_dpbusd_epi32(_w_shift, _v127, _w);
+
+                kptr += 16;
             }
-            ((int*)descales_ptr)[0] = ts0;
-            ((int*)descales_ptr)[1] = ts1;
-            ((int*)descales_ptr)[2] = ts2;
-            ((int*)descales_ptr)[3] = ts3;
-            descales_ptr += 4;
-#endif // __AVXVNNI__
+
+            _mm_storeu_si128((__m128i*)kptr, _w_shift);
+            kptr += 16;
+#endif // __AVXVNNI__ || __AVX512VNNI__
             for (; i + 1 < size; i += 2)
             {
                 kptr[0] = weight_xc_I[i];
@@ -391,6 +769,36 @@ static void lstm_transform_weight_int8(const Mat& weight_xc, const Mat& weight_x
 
             i = 0;
 #if __SSE2__
+#if __AVXVNNI__ || __AVX512VNNI__
+            _w_shift = _mm_setzero_si128();
+            for (; i + 3 < num_output; i += 4)
+            {
+                kptr[0] = weight_hc_I[i];
+                kptr[1] = weight_hc_I[i + 1];
+                kptr[2] = weight_hc_I[i + 2];
+                kptr[3] = weight_hc_I[i + 3];
+                kptr[4] = weight_hc_F[i];
+                kptr[5] = weight_hc_F[i + 1];
+                kptr[6] = weight_hc_F[i + 2];
+                kptr[7] = weight_hc_F[i + 3];
+                kptr[8 + 0] = weight_hc_O[i];
+                kptr[8 + 1] = weight_hc_O[i + 1];
+                kptr[8 + 2] = weight_hc_O[i + 2];
+                kptr[8 + 3] = weight_hc_O[i + 3];
+                kptr[8 + 4] = weight_hc_G[i];
+                kptr[8 + 5] = weight_hc_G[i + 1];
+                kptr[8 + 6] = weight_hc_G[i + 2];
+                kptr[8 + 7] = weight_hc_G[i + 3];
+
+                __m128i _w = _mm_loadu_si128((const __m128i*)kptr);
+                _w_shift = _mm_dpbusd_epi32(_w_shift, _v127, _w);
+
+                kptr += 16;
+            }
+
+            _mm_storeu_si128((__m128i*)kptr, _w_shift);
+            kptr += 16;
+#endif // __AVXVNNI__ || __AVX512VNNI__
             for (; i + 1 < num_output; i += 2)
             {
                 kptr[0] = weight_hc_I[i];
@@ -427,9 +835,15 @@ static void lstm_transform_weight_int8(const Mat& weight_xc, const Mat& weight_x
 
 static void lstm_int8(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_descales, Mat& top_blob, int reverse, const Mat& weight_data_tm, const Mat& weight_data_tm_int8_descales, const Mat& bias_c, const Mat& weight_hr, Mat& hidden_state, Mat& cell_state, const Option& opt)
 {
-    // TODO dispatch
+#if NCNN_RUNTIME_CPU && NCNN_AVX512VNNI && __AVX512F__ && !__AVX512VNNI__
+    if (ncnn::cpu_support_x86_avx512_vnni())
+    {
+        lstm_int8_avx512vnni(bottom_blob_int8, bottom_blob_int8_descales, top_blob, reverse, weight_data_tm, weight_data_tm_int8_descales, bias_c, weight_hr, hidden_state, cell_state, opt);
+        return;
+    }
+#endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX2__ && !__AVXVNNI__
+#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX2__ && !__AVXVNNI__ && !__AVX512VNNI__
     if (ncnn::cpu_support_x86_avx_vnni())
     {
         lstm_int8_avxvnni(bottom_blob_int8, bottom_blob_int8_descales, top_blob, reverse, weight_data_tm, weight_data_tm_int8_descales, bias_c, weight_hr, hidden_state, cell_state, opt);
@@ -437,7 +851,7 @@ static void lstm_int8(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_d
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVXVNNI__
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVXVNNI__ && !__AVX512VNNI__
     if (ncnn::cpu_support_x86_avx2())
     {
         lstm_int8_avx2(bottom_blob_int8, bottom_blob_int8_descales, top_blob, reverse, weight_data_tm, weight_data_tm_int8_descales, bias_c, weight_hr, hidden_state, cell_state, opt);
@@ -445,7 +859,7 @@ static void lstm_int8(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_d
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_XOP && __SSE2__ && !__XOP__ && !__AVX2__ && !__AVXVNNI__
+#if NCNN_RUNTIME_CPU && NCNN_XOP && __SSE2__ && !__XOP__ && !__AVX2__ && !__AVXVNNI__ && !__AVX512VNNI__
     if (ncnn::cpu_support_x86_xop())
     {
         lstm_int8_xop(bottom_blob_int8, bottom_blob_int8_descales, top_blob, reverse, weight_data_tm, weight_data_tm_int8_descales, bias_c, weight_hr, hidden_state, cell_state, opt);
@@ -502,13 +916,15 @@ static void lstm_int8(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_d
             }
         }
 
+        int remain_hidden_size_start = 0;
+        int nn_hidden_size = 0;
 #if __AVX2__
-        int nn_hidden_size = hidden_size >> 1;
-        int remain_hidden_size_start = nn_hidden_size << 1;
+#if __AVX512F__
+        nn_hidden_size = hidden_size >> 2;
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int qq = 0; qq < nn_hidden_size; qq++)
         {
-            int q = qq * 2;
+            int q = qq * 4;
 
             const signed char* x = bottom_blob_int8.row<const signed char>(ti);
             const signed char* hs = hidden_state_int8;
@@ -517,15 +933,275 @@ static void lstm_int8(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_d
 
             const float* bias_c_IFOG = (const float*)bias_c + q * 4;
 
+            const signed char* kptr = weight_data_tm.row<const signed char>(q / 4);
+            const float* descales_ptr = weight_data_tm_int8_descales.row(q / 4);
+
+            float* gates_data = gates.row(q);
+
+            __m512i _lstm_IFOGx0 = _mm512_setzero_si512();
+            int i = 0;
+#if __AVX512VNNI__
+            __m512i _sum1 = _mm512_setzero_si512();
+            __m512i _sum2 = _mm512_setzero_si512();
+            __m512i _sum3 = _mm512_setzero_si512();
+            __m512i _v127 = _mm512_set1_epi8(127);
+            for (; i + 15 < size; i += 16)
+            {
+                __m512i _xi0 = _mm512_set1_epi32(((const int*)(x + i))[0]);
+                __m512i _xi1 = _mm512_set1_epi32(((const int*)(x + i))[1]);
+                __m512i _xi2 = _mm512_set1_epi32(((const int*)(x + i))[2]);
+                __m512i _xi3 = _mm512_set1_epi32(((const int*)(x + i))[3]);
+                __m512i _w0 = _mm512_loadu_si512((const __m512i*)kptr);
+                __m512i _w1 = _mm512_loadu_si512((const __m512i*)(kptr + 64));
+                __m512i _w2 = _mm512_loadu_si512((const __m512i*)(kptr + 128));
+                __m512i _w3 = _mm512_loadu_si512((const __m512i*)(kptr + 192));
+
+                _xi0 = _mm512_add_epi8(_xi0, _v127);
+                _xi1 = _mm512_add_epi8(_xi1, _v127);
+                _xi2 = _mm512_add_epi8(_xi2, _v127);
+                _xi3 = _mm512_add_epi8(_xi3, _v127);
+                _lstm_IFOGx0 = _mm512_dpbusd_epi32(_lstm_IFOGx0, _xi0, _w0);
+                _sum1 = _mm512_dpbusd_epi32(_sum1, _xi1, _w1);
+                _sum2 = _mm512_dpbusd_epi32(_sum2, _xi2, _w2);
+                _sum3 = _mm512_dpbusd_epi32(_sum3, _xi3, _w3);
+
+                kptr += 256;
+            }
+            for (; i + 7 < size; i += 8)
+            {
+                __m512i _xi0 = _mm512_set1_epi32(((const int*)(x + i))[0]);
+                __m512i _xi1 = _mm512_set1_epi32(((const int*)(x + i))[1]);
+                __m512i _w0 = _mm512_loadu_si512((const __m512i*)kptr);
+                __m512i _w1 = _mm512_loadu_si512((const __m512i*)(kptr + 64));
+
+                _xi0 = _mm512_add_epi8(_xi0, _v127);
+                _xi1 = _mm512_add_epi8(_xi1, _v127);
+                _lstm_IFOGx0 = _mm512_dpbusd_epi32(_lstm_IFOGx0, _xi0, _w0);
+                _sum1 = _mm512_dpbusd_epi32(_sum1, _xi1, _w1);
+
+                kptr += 128;
+            }
+            for (; i + 3 < size; i += 4)
+            {
+                __m512i _xi = _mm512_set1_epi32(((const int*)(x + i))[0]);
+                __m512i _w = _mm512_loadu_si512((const __m512i*)kptr);
+
+                _xi = _mm512_add_epi8(_xi, _v127);
+                _lstm_IFOGx0 = _mm512_dpbusd_epi32(_lstm_IFOGx0, _xi, _w);
+
+                kptr += 64;
+            }
+            _lstm_IFOGx0 = _mm512_add_epi32(_lstm_IFOGx0, _sum1);
+            _lstm_IFOGx0 = _mm512_add_epi32(_lstm_IFOGx0, _sum2);
+            _lstm_IFOGx0 = _mm512_add_epi32(_lstm_IFOGx0, _sum3);
+            {
+                __m512i _w_shift = _mm512_loadu_si512((const __m512i*)kptr);
+                _lstm_IFOGx0 = _mm512_sub_epi32(_lstm_IFOGx0, _w_shift);
+                kptr += 64;
+            }
+#endif // __AVX512VNNI__
+            for (; i + 1 < size; i += 2)
+            {
+                __m256i _xi = _mm256_castps_si256(_mm256_broadcast_ss((const float*)(x + i)));
+                __m256i _w = _mm256_loadu_si256((const __m256i*)kptr);
+
+                __m512i _ww = _mm512_cvtepi8_epi16(_w);
+                __m512i _xixi = _mm512_cvtepi8_epi16(_xi);
+
+                __m512i _xixi0 = _mm512_shuffle_epi32(_xixi, _MM_PERM_AAAA);
+
+                _lstm_IFOGx0 = _mm512_add_epi32(_lstm_IFOGx0, _mm512_madd_epi16(_ww, _xixi0));
+
+                kptr += 32;
+            }
+            for (; i < size; i++)
+            {
+                __m256i _xi = _mm256_set1_epi16(x[i]);
+                __m128i _w = _mm_load_si128((const __m128i*)kptr);
+
+                __m256i _ww = _mm256_cvtepi8_epi16(_w);
+
+                __m512i _s0 = _mm512_cvtepi16_epi32(_mm256_mullo_epi16(_ww, _xi));
+
+                _lstm_IFOGx0 = _mm512_add_epi32(_lstm_IFOGx0, _s0);
+
+                kptr += 16;
+            }
+
+            __m512i _lstm_IFOGh0 = _mm512_setzero_si512();
+            i = 0;
+#if __AVX512VNNI__
+            _sum1 = _mm512_setzero_si512();
+            _sum2 = _mm512_setzero_si512();
+            _sum3 = _mm512_setzero_si512();
+            for (; i + 15 < num_output; i += 16)
+            {
+                __m512i _h_cont0 = _mm512_set1_epi32(((const int*)(hs + i))[0]);
+                __m512i _h_cont1 = _mm512_set1_epi32(((const int*)(hs + i))[1]);
+                __m512i _h_cont2 = _mm512_set1_epi32(((const int*)(hs + i))[2]);
+                __m512i _h_cont3 = _mm512_set1_epi32(((const int*)(hs + i))[3]);
+                __m512i _w0 = _mm512_loadu_si512((const __m512i*)kptr);
+                __m512i _w1 = _mm512_loadu_si512((const __m512i*)(kptr + 64));
+                __m512i _w2 = _mm512_loadu_si512((const __m512i*)(kptr + 128));
+                __m512i _w3 = _mm512_loadu_si512((const __m512i*)(kptr + 192));
+
+                _h_cont0 = _mm512_add_epi8(_h_cont0, _v127);
+                _h_cont1 = _mm512_add_epi8(_h_cont1, _v127);
+                _h_cont2 = _mm512_add_epi8(_h_cont2, _v127);
+                _h_cont3 = _mm512_add_epi8(_h_cont3, _v127);
+                _lstm_IFOGh0 = _mm512_dpbusd_epi32(_lstm_IFOGh0, _h_cont0, _w0);
+                _sum1 = _mm512_dpbusd_epi32(_sum1, _h_cont1, _w1);
+                _sum2 = _mm512_dpbusd_epi32(_sum2, _h_cont2, _w2);
+                _sum3 = _mm512_dpbusd_epi32(_sum3, _h_cont3, _w3);
+
+                kptr += 256;
+            }
+            for (; i + 7 < num_output; i += 8)
+            {
+                __m512i _h_cont0 = _mm512_set1_epi32(((const int*)(hs + i))[0]);
+                __m512i _h_cont1 = _mm512_set1_epi32(((const int*)(hs + i))[1]);
+                __m512i _w0 = _mm512_loadu_si512((const __m512i*)kptr);
+                __m512i _w1 = _mm512_loadu_si512((const __m512i*)(kptr + 64));
+
+                _h_cont0 = _mm512_add_epi8(_h_cont0, _v127);
+                _h_cont1 = _mm512_add_epi8(_h_cont1, _v127);
+                _lstm_IFOGh0 = _mm512_dpbusd_epi32(_lstm_IFOGh0, _h_cont0, _w0);
+                _sum1 = _mm512_dpbusd_epi32(_sum1, _h_cont1, _w1);
+
+                kptr += 128;
+            }
+            for (; i + 3 < num_output; i += 4)
+            {
+                __m512i _h_cont = _mm512_set1_epi32(((const int*)(hs + i))[0]);
+                __m512i _w = _mm512_loadu_si512((const __m512i*)kptr);
+
+                _h_cont = _mm512_add_epi8(_h_cont, _v127);
+                _lstm_IFOGh0 = _mm512_dpbusd_epi32(_lstm_IFOGh0, _h_cont, _w);
+
+                kptr += 64;
+            }
+            _lstm_IFOGh0 = _mm512_add_epi32(_lstm_IFOGh0, _sum1);
+            _lstm_IFOGh0 = _mm512_add_epi32(_lstm_IFOGh0, _sum2);
+            _lstm_IFOGh0 = _mm512_add_epi32(_lstm_IFOGh0, _sum3);
+            {
+                __m512i _w_shift = _mm512_loadu_si512((const __m512i*)kptr);
+                _lstm_IFOGh0 = _mm512_sub_epi32(_lstm_IFOGh0, _w_shift);
+                kptr += 64;
+            }
+#endif // __AVX512VNNI__
+            for (; i + 1 < num_output; i += 2)
+            {
+                __m256i _h_cont = _mm256_castps_si256(_mm256_broadcast_ss((const float*)(hs + i)));
+                __m256i _w = _mm256_loadu_si256((const __m256i*)kptr);
+
+                __m512i _ww = _mm512_cvtepi8_epi16(_w);
+                __m512i _hh_cont = _mm512_cvtepi8_epi16(_h_cont);
+
+                __m512i _hh_cont0 = _mm512_shuffle_epi32(_hh_cont, _MM_PERM_AAAA);
+
+                _lstm_IFOGh0 = _mm512_add_epi32(_lstm_IFOGh0, _mm512_madd_epi16(_ww, _hh_cont0));
+
+                kptr += 32;
+            }
+            for (; i < num_output; i++)
+            {
+                __m256i _h_cont = _mm256_set1_epi16(hs[i]);
+                __m128i _w = _mm_load_si128((const __m128i*)kptr);
+
+                __m256i _ww = _mm256_cvtepi8_epi16(_w);
+
+                __m512i _s0 = _mm512_cvtepi16_epi32(_mm256_mullo_epi16(_ww, _h_cont));
+
+                _lstm_IFOGh0 = _mm512_add_epi32(_lstm_IFOGh0, _s0);
+
+                kptr += 16;
+            }
+
+            __m512 _descale_x = _mm512_set1_ps(descale_x);
+            __m512 _descale_h = _mm512_set1_ps(descale_h);
+
+            __m512 _lstm_IFOG0 = _mm512_loadu_ps(bias_c_IFOG);
+
+            __m512 _descale_xc_IFOG = _mm512_loadu_ps(descales_ptr);
+
+            _lstm_IFOG0 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(_lstm_IFOGx0), _mm512_mul_ps(_descale_x, _descale_xc_IFOG), _lstm_IFOG0);
+
+            __m512 _descale_hc_IFOG = _mm512_loadu_ps(descales_ptr + 16);
+
+            _lstm_IFOG0 = _mm512_fmadd_ps(_mm512_cvtepi32_ps(_lstm_IFOGh0), _mm512_mul_ps(_descale_h, _descale_hc_IFOG), _lstm_IFOG0);
+
+            _mm512_storeu_ps(gates_data, _lstm_IFOG0);
+        }
+        remain_hidden_size_start += nn_hidden_size << 2;
+        nn_hidden_size = (hidden_size - remain_hidden_size_start) >> 1;
+#else
+        nn_hidden_size = hidden_size >> 1;
+#endif // __AVX512F__
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int qq = 0; qq < nn_hidden_size; qq++)
+        {
+            int q = remain_hidden_size_start + qq * 2;
+
+            const signed char* x = bottom_blob_int8.row<const signed char>(ti);
+            const signed char* hs = hidden_state_int8;
+            const float descale_x = bottom_blob_int8_descales[ti];
+            const float descale_h = hidden_state_int8_descale;
+
+            const float* bias_c_IFOG = (const float*)bias_c + q * 4;
+
+#if __AVX512F__
+            const signed char* kptr = weight_data_tm.row<const signed char>(q / 4 + (q % 4) / 2);
+            const float* descales_ptr = weight_data_tm_int8_descales.row(q / 4 + (q % 4) / 2);
+#else
             const signed char* kptr = weight_data_tm.row<const signed char>(q / 2);
             const float* descales_ptr = weight_data_tm_int8_descales.row(q / 2);
+#endif
 
             float* gates_data = gates.row(q);
 
             __m256i _lstm_IFOGx0 = _mm256_setzero_si256();
             int i = 0;
-#if __AVXVNNI__
+#if __AVXVNNI__ || __AVX512VNNI__
+            __m256i _sum1 = _mm256_setzero_si256();
+            __m256i _sum2 = _mm256_setzero_si256();
+            __m256i _sum3 = _mm256_setzero_si256();
             __m256i _v127 = _mm256_set1_epi8(127);
+            for (; i + 15 < size; i += 16)
+            {
+                __m256i _xi0 = _mm256_castps_si256(_mm256_broadcast_ss((const float*)(x + i)));
+                __m256i _xi1 = _mm256_castps_si256(_mm256_broadcast_ss((const float*)(x + i + 4)));
+                __m256i _xi2 = _mm256_castps_si256(_mm256_broadcast_ss((const float*)(x + i + 8)));
+                __m256i _xi3 = _mm256_castps_si256(_mm256_broadcast_ss((const float*)(x + i + 12)));
+                __m256i _w0 = _mm256_loadu_si256((const __m256i*)kptr);
+                __m256i _w1 = _mm256_loadu_si256((const __m256i*)(kptr + 32));
+                __m256i _w2 = _mm256_loadu_si256((const __m256i*)(kptr + 64));
+                __m256i _w3 = _mm256_loadu_si256((const __m256i*)(kptr + 96));
+
+                _xi0 = _mm256_add_epi8(_xi0, _v127);
+                _xi1 = _mm256_add_epi8(_xi1, _v127);
+                _xi2 = _mm256_add_epi8(_xi2, _v127);
+                _xi3 = _mm256_add_epi8(_xi3, _v127);
+                _lstm_IFOGx0 = _mm256_dpbusd_epi32(_lstm_IFOGx0, _xi0, _w0);
+                _sum1 = _mm256_dpbusd_epi32(_sum1, _xi1, _w1);
+                _sum2 = _mm256_dpbusd_epi32(_sum2, _xi2, _w2);
+                _sum3 = _mm256_dpbusd_epi32(_sum3, _xi3, _w3);
+
+                kptr += 128;
+            }
+            for (; i + 7 < size; i += 8)
+            {
+                __m256i _xi0 = _mm256_castps_si256(_mm256_broadcast_ss((const float*)(x + i)));
+                __m256i _xi1 = _mm256_castps_si256(_mm256_broadcast_ss((const float*)(x + i + 4)));
+                __m256i _w0 = _mm256_loadu_si256((const __m256i*)kptr);
+                __m256i _w1 = _mm256_loadu_si256((const __m256i*)(kptr + 32));
+
+                _xi0 = _mm256_add_epi8(_xi0, _v127);
+                _xi1 = _mm256_add_epi8(_xi1, _v127);
+                _lstm_IFOGx0 = _mm256_dpbusd_epi32(_lstm_IFOGx0, _xi0, _w0);
+                _sum1 = _mm256_dpbusd_epi32(_sum1, _xi1, _w1);
+
+                kptr += 64;
+            }
             for (; i + 3 < size; i += 4)
             {
                 __m256i _xi = _mm256_castps_si256(_mm256_broadcast_ss((const float*)(x + i)));
@@ -536,10 +1212,15 @@ static void lstm_int8(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_d
 
                 kptr += 32;
             }
-            __m256i _ts = _mm256_loadu_si256((const __m256i*)descales_ptr);
-            _lstm_IFOGx0 = _mm256_sub_epi32(_lstm_IFOGx0, _ts);
-            descales_ptr += 8;
-#endif // __AVXVNNI__
+            _lstm_IFOGx0 = _mm256_add_epi32(_lstm_IFOGx0, _sum1);
+            _lstm_IFOGx0 = _mm256_add_epi32(_lstm_IFOGx0, _sum2);
+            _lstm_IFOGx0 = _mm256_add_epi32(_lstm_IFOGx0, _sum3);
+            {
+                __m256i _w_shift = _mm256_loadu_si256((const __m256i*)kptr);
+                _lstm_IFOGx0 = _mm256_sub_epi32(_lstm_IFOGx0, _w_shift);
+                kptr += 32;
+            }
+#endif // __AVXVNNI__ || __AVX512VNNI__
             for (; i + 1 < size; i += 2)
             {
                 __m128i _xi = _mm_castps_si128(_mm_load1_ps((const float*)(x + i)));
@@ -570,6 +1251,65 @@ static void lstm_int8(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_d
 
             __m256i _lstm_IFOGh0 = _mm256_setzero_si256();
             i = 0;
+#if __AVXVNNI__ || __AVX512VNNI__
+            _sum1 = _mm256_setzero_si256();
+            _sum2 = _mm256_setzero_si256();
+            _sum3 = _mm256_setzero_si256();
+            for (; i + 15 < num_output; i += 16)
+            {
+                __m256i _h_cont0 = _mm256_castps_si256(_mm256_broadcast_ss((const float*)(hs + i)));
+                __m256i _h_cont1 = _mm256_castps_si256(_mm256_broadcast_ss((const float*)(hs + i + 4)));
+                __m256i _h_cont2 = _mm256_castps_si256(_mm256_broadcast_ss((const float*)(hs + i + 8)));
+                __m256i _h_cont3 = _mm256_castps_si256(_mm256_broadcast_ss((const float*)(hs + i + 12)));
+                __m256i _w0 = _mm256_loadu_si256((const __m256i*)kptr);
+                __m256i _w1 = _mm256_loadu_si256((const __m256i*)(kptr + 32));
+                __m256i _w2 = _mm256_loadu_si256((const __m256i*)(kptr + 64));
+                __m256i _w3 = _mm256_loadu_si256((const __m256i*)(kptr + 96));
+
+                _h_cont0 = _mm256_add_epi8(_h_cont0, _v127);
+                _h_cont1 = _mm256_add_epi8(_h_cont1, _v127);
+                _h_cont2 = _mm256_add_epi8(_h_cont2, _v127);
+                _h_cont3 = _mm256_add_epi8(_h_cont3, _v127);
+                _lstm_IFOGh0 = _mm256_dpbusd_epi32(_lstm_IFOGh0, _h_cont0, _w0);
+                _sum1 = _mm256_dpbusd_epi32(_sum1, _h_cont1, _w1);
+                _sum2 = _mm256_dpbusd_epi32(_sum2, _h_cont2, _w2);
+                _sum3 = _mm256_dpbusd_epi32(_sum3, _h_cont3, _w3);
+
+                kptr += 128;
+            }
+            for (; i + 7 < num_output; i += 8)
+            {
+                __m256i _h_cont0 = _mm256_castps_si256(_mm256_broadcast_ss((const float*)(hs + i)));
+                __m256i _h_cont1 = _mm256_castps_si256(_mm256_broadcast_ss((const float*)(hs + i + 4)));
+                __m256i _w0 = _mm256_loadu_si256((const __m256i*)kptr);
+                __m256i _w1 = _mm256_loadu_si256((const __m256i*)(kptr + 32));
+
+                _h_cont0 = _mm256_add_epi8(_h_cont0, _v127);
+                _h_cont1 = _mm256_add_epi8(_h_cont1, _v127);
+                _lstm_IFOGh0 = _mm256_dpbusd_epi32(_lstm_IFOGh0, _h_cont0, _w0);
+                _sum1 = _mm256_dpbusd_epi32(_sum1, _h_cont1, _w1);
+
+                kptr += 64;
+            }
+            for (; i + 3 < num_output; i += 4)
+            {
+                __m256i _h_cont = _mm256_castps_si256(_mm256_broadcast_ss((const float*)(hs + i)));
+                __m256i _w = _mm256_loadu_si256((const __m256i*)kptr);
+
+                _h_cont = _mm256_add_epi8(_h_cont, _v127);
+                _lstm_IFOGh0 = _mm256_dpbusd_epi32(_lstm_IFOGh0, _h_cont, _w);
+
+                kptr += 32;
+            }
+            _lstm_IFOGh0 = _mm256_add_epi32(_lstm_IFOGh0, _sum1);
+            _lstm_IFOGh0 = _mm256_add_epi32(_lstm_IFOGh0, _sum2);
+            _lstm_IFOGh0 = _mm256_add_epi32(_lstm_IFOGh0, _sum3);
+            {
+                __m256i _w_shift = _mm256_loadu_si256((const __m256i*)kptr);
+                _lstm_IFOGh0 = _mm256_sub_epi32(_lstm_IFOGh0, _w_shift);
+                kptr += 32;
+            }
+#endif // __AVXVNNI__ || __AVX512VNNI__
             for (; i + 1 < num_output; i += 2)
             {
                 __m128i _h_cont = _mm_castps_si128(_mm_load1_ps((const float*)(hs + i)));
@@ -613,11 +1353,8 @@ static void lstm_int8(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_d
 
             _mm256_storeu_ps(gates_data, _lstm_IFOG0);
         }
-#else
-        int nn_hidden_size = 0;
-        int remain_hidden_size_start = 0;
+        remain_hidden_size_start += nn_hidden_size << 1;
 #endif // __AVX2__
-
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = remain_hidden_size_start; q < hidden_size; q++)
         {
@@ -629,7 +1366,10 @@ static void lstm_int8(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_d
             // gate reset update
             const float* bias_c_IFOG = (const float*)bias_c + q * 4;
 
-#if __AVX2__
+#if __AVX512F__
+            const signed char* kptr = weight_data_tm.row<const signed char>(q / 4 + (q % 4) / 2 + q % 2);
+            const float* descales_ptr = weight_data_tm_int8_descales.row(q / 4 + (q % 4) / 2 + q % 2);
+#elif __AVX2__
             const signed char* kptr = weight_data_tm.row<const signed char>(q / 2 + q % 2);
             const float* descales_ptr = weight_data_tm_int8_descales.row(q / 2 + q % 2);
 #else
@@ -642,8 +1382,47 @@ static void lstm_int8(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_d
 #if __SSE2__
             __m128i _lstm_IFOGx0 = _mm_setzero_si128();
             int i = 0;
-#if __AVXVNNI__
+#if __AVXVNNI__ || __AVX512VNNI__
+            __m128i _sum1 = _mm_setzero_si128();
+            __m128i _sum2 = _mm_setzero_si128();
+            __m128i _sum3 = _mm_setzero_si128();
             __m128i _v127 = _mm_set1_epi8(127);
+            for (; i + 15 < size; i += 16)
+            {
+                __m128i _xi0 = _mm_castps_si128(_mm_load1_ps((const float*)(x + i)));
+                __m128i _xi1 = _mm_castps_si128(_mm_load1_ps((const float*)(x + i + 4)));
+                __m128i _xi2 = _mm_castps_si128(_mm_load1_ps((const float*)(x + i + 8)));
+                __m128i _xi3 = _mm_castps_si128(_mm_load1_ps((const float*)(x + i + 12)));
+                __m128i _w0 = _mm_loadu_si128((const __m128i*)kptr);
+                __m128i _w1 = _mm_loadu_si128((const __m128i*)(kptr + 16));
+                __m128i _w2 = _mm_loadu_si128((const __m128i*)(kptr + 32));
+                __m128i _w3 = _mm_loadu_si128((const __m128i*)(kptr + 48));
+
+                _xi0 = _mm_add_epi8(_xi0, _v127);
+                _xi1 = _mm_add_epi8(_xi1, _v127);
+                _xi2 = _mm_add_epi8(_xi2, _v127);
+                _xi3 = _mm_add_epi8(_xi3, _v127);
+                _lstm_IFOGx0 = _mm_dpbusd_epi32(_lstm_IFOGx0, _xi0, _w0);
+                _sum1 = _mm_dpbusd_epi32(_sum1, _xi1, _w1);
+                _sum2 = _mm_dpbusd_epi32(_sum2, _xi2, _w2);
+                _sum3 = _mm_dpbusd_epi32(_sum3, _xi3, _w3);
+
+                kptr += 64;
+            }
+            for (; i + 7 < size; i += 8)
+            {
+                __m128i _xi0 = _mm_castps_si128(_mm_load1_ps((const float*)(x + i)));
+                __m128i _xi1 = _mm_castps_si128(_mm_load1_ps((const float*)(x + i + 4)));
+                __m128i _w0 = _mm_loadu_si128((const __m128i*)kptr);
+                __m128i _w1 = _mm_loadu_si128((const __m128i*)(kptr + 16));
+
+                _xi0 = _mm_add_epi8(_xi0, _v127);
+                _xi1 = _mm_add_epi8(_xi1, _v127);
+                _lstm_IFOGx0 = _mm_dpbusd_epi32(_lstm_IFOGx0, _xi0, _w0);
+                _sum1 = _mm_dpbusd_epi32(_sum1, _xi1, _w1);
+
+                kptr += 32;
+            }
             for (; i + 3 < size; i += 4)
             {
                 __m128i _xi = _mm_castps_si128(_mm_load1_ps((const float*)(x + i)));
@@ -654,10 +1433,15 @@ static void lstm_int8(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_d
 
                 kptr += 16;
             }
-            __m128i _ts = _mm_loadu_si128((const __m128i*)descales_ptr);
-            _lstm_IFOGx0 = _mm_sub_epi32(_lstm_IFOGx0, _ts);
-            descales_ptr += 4;
-#endif // __AVXVNNI__
+            _lstm_IFOGx0 = _mm_add_epi32(_lstm_IFOGx0, _sum1);
+            _lstm_IFOGx0 = _mm_add_epi32(_lstm_IFOGx0, _sum2);
+            _lstm_IFOGx0 = _mm_add_epi32(_lstm_IFOGx0, _sum3);
+            {
+                __m128i _w_shift = _mm_loadu_si128((const __m128i*)kptr);
+                _lstm_IFOGx0 = _mm_sub_epi32(_lstm_IFOGx0, _w_shift);
+                kptr += 16;
+            }
+#endif // __AVXVNNI__ || __AVX512VNNI__
             for (; i + 1 < size; i += 2)
             {
                 __m128i _xi = _mm_set1_epi16(((const short*)(x + i))[0]);
@@ -707,6 +1491,65 @@ static void lstm_int8(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_d
 
             __m128i _lstm_IFOGh0 = _mm_setzero_si128();
             i = 0;
+#if __AVXVNNI__ || __AVX512VNNI__
+            _sum1 = _mm_setzero_si128();
+            _sum2 = _mm_setzero_si128();
+            _sum3 = _mm_setzero_si128();
+            for (; i + 15 < num_output; i += 16)
+            {
+                __m128i _h_cont0 = _mm_castps_si128(_mm_load1_ps((const float*)(hs + i)));
+                __m128i _h_cont1 = _mm_castps_si128(_mm_load1_ps((const float*)(hs + i + 4)));
+                __m128i _h_cont2 = _mm_castps_si128(_mm_load1_ps((const float*)(hs + i + 8)));
+                __m128i _h_cont3 = _mm_castps_si128(_mm_load1_ps((const float*)(hs + i + 12)));
+                __m128i _w0 = _mm_loadu_si128((const __m128i*)kptr);
+                __m128i _w1 = _mm_loadu_si128((const __m128i*)(kptr + 16));
+                __m128i _w2 = _mm_loadu_si128((const __m128i*)(kptr + 32));
+                __m128i _w3 = _mm_loadu_si128((const __m128i*)(kptr + 48));
+
+                _h_cont0 = _mm_add_epi8(_h_cont0, _v127);
+                _h_cont1 = _mm_add_epi8(_h_cont1, _v127);
+                _h_cont2 = _mm_add_epi8(_h_cont2, _v127);
+                _h_cont3 = _mm_add_epi8(_h_cont3, _v127);
+                _lstm_IFOGh0 = _mm_dpbusd_epi32(_lstm_IFOGh0, _h_cont0, _w0);
+                _sum1 = _mm_dpbusd_epi32(_sum1, _h_cont1, _w1);
+                _sum2 = _mm_dpbusd_epi32(_sum2, _h_cont2, _w2);
+                _sum3 = _mm_dpbusd_epi32(_sum3, _h_cont3, _w3);
+
+                kptr += 64;
+            }
+            for (; i + 7 < num_output; i += 8)
+            {
+                __m128i _h_cont0 = _mm_castps_si128(_mm_load1_ps((const float*)(hs + i)));
+                __m128i _h_cont1 = _mm_castps_si128(_mm_load1_ps((const float*)(hs + i + 4)));
+                __m128i _w0 = _mm_loadu_si128((const __m128i*)kptr);
+                __m128i _w1 = _mm_loadu_si128((const __m128i*)(kptr + 16));
+
+                _h_cont0 = _mm_add_epi8(_h_cont0, _v127);
+                _h_cont1 = _mm_add_epi8(_h_cont1, _v127);
+                _lstm_IFOGh0 = _mm_dpbusd_epi32(_lstm_IFOGh0, _h_cont0, _w0);
+                _sum1 = _mm_dpbusd_epi32(_sum1, _h_cont1, _w1);
+
+                kptr += 32;
+            }
+            for (; i + 3 < num_output; i += 4)
+            {
+                __m128i _h_cont = _mm_castps_si128(_mm_load1_ps((const float*)(hs + i)));
+                __m128i _w = _mm_loadu_si128((const __m128i*)kptr);
+
+                _h_cont = _mm_add_epi8(_h_cont, _v127);
+                _lstm_IFOGh0 = _mm_dpbusd_epi32(_lstm_IFOGh0, _h_cont, _w);
+
+                kptr += 16;
+            }
+            _lstm_IFOGh0 = _mm_add_epi32(_lstm_IFOGh0, _sum1);
+            _lstm_IFOGh0 = _mm_add_epi32(_lstm_IFOGh0, _sum2);
+            _lstm_IFOGh0 = _mm_add_epi32(_lstm_IFOGh0, _sum3);
+            {
+                __m128i _w_shift = _mm_loadu_si128((const __m128i*)kptr);
+                _lstm_IFOGh0 = _mm_sub_epi32(_lstm_IFOGh0, _w_shift);
+                kptr += 16;
+            }
+#endif // __AVXVNNI__ || __AVX512VNNI__
             for (; i + 1 < num_output; i += 2)
             {
                 __m128i _h_cont = _mm_set1_epi16(((const short*)(hs + i))[0]);
@@ -838,11 +1681,67 @@ static void lstm_int8(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_d
         remain_hidden_size_start = 0;
 #if __SSE2__
 #if __AVX__
-        nn_hidden_size = hidden_size >> 3;
+#if __AVX512F__
+        nn_hidden_size = hidden_size >> 4;
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int qq = 0; qq < nn_hidden_size; qq++)
         {
-            int q = qq * 8;
+            int q = qq * 16;
+
+            const float* gates_data = gates.row(q);
+
+            __m512 _IFOG_0 = _mm512_loadu_ps(gates_data);
+            __m512 _IFOG_4 = _mm512_loadu_ps(gates_data + 16);
+            __m512 _IFOG_8 = _mm512_loadu_ps(gates_data + 32);
+            __m512 _IFOG_c = _mm512_loadu_ps(gates_data + 48);
+
+            // unzip4
+            __m512 _tmp0 = _mm512_shuffle_f32x4(_IFOG_0, _IFOG_4, _MM_SHUFFLE(2, 0, 2, 0));
+            __m512 _tmp1 = _mm512_shuffle_f32x4(_IFOG_0, _IFOG_4, _MM_SHUFFLE(3, 1, 3, 1));
+            __m512 _tmp2 = _mm512_shuffle_f32x4(_IFOG_8, _IFOG_c, _MM_SHUFFLE(2, 0, 2, 0));
+            __m512 _tmp3 = _mm512_shuffle_f32x4(_IFOG_8, _IFOG_c, _MM_SHUFFLE(3, 1, 3, 1));
+            __m512 _tmp4 = _mm512_shuffle_f32x4(_tmp0, _tmp2, _MM_SHUFFLE(2, 0, 2, 0));
+            __m512 _tmp5 = _mm512_shuffle_f32x4(_tmp0, _tmp2, _MM_SHUFFLE(3, 1, 3, 1));
+            __m512 _tmp6 = _mm512_shuffle_f32x4(_tmp1, _tmp3, _MM_SHUFFLE(2, 0, 2, 0));
+            __m512 _tmp7 = _mm512_shuffle_f32x4(_tmp1, _tmp3, _MM_SHUFFLE(3, 1, 3, 1));
+            _tmp0 = _mm512_unpacklo_ps(_tmp4, _tmp5);
+            _tmp1 = _mm512_unpacklo_ps(_tmp6, _tmp7);
+            _tmp2 = _mm512_unpackhi_ps(_tmp4, _tmp5);
+            _tmp3 = _mm512_unpackhi_ps(_tmp6, _tmp7);
+            __m512 _lstm_I = _mm512_unpacklo_ps(_tmp0, _tmp1);
+            __m512 _lstm_F = _mm512_unpackhi_ps(_tmp0, _tmp1);
+            __m512 _lstm_O = _mm512_unpacklo_ps(_tmp2, _tmp3);
+            __m512 _lstm_G = _mm512_unpackhi_ps(_tmp2, _tmp3);
+
+            _lstm_I = sigmoid_avx512(_lstm_I);
+            _lstm_F = sigmoid_avx512(_lstm_F);
+            _lstm_O = sigmoid_avx512(_lstm_O);
+            _lstm_G = tanh_avx512(_lstm_G);
+
+            __m512 _cell2 = _mm512_add_ps(_mm512_mul_ps(_lstm_F, _mm512_loadu_ps(cell_ptr + q)), _mm512_mul_ps(_lstm_I, _lstm_G));
+            __m512 _lstm_H = _mm512_mul_ps(_lstm_O, tanh_avx512(_cell2));
+
+            _mm512_storeu_ps(cell_ptr + q, _cell2);
+
+            if (num_output == hidden_size)
+            {
+                _mm512_storeu_ps(hidden_ptr + q, _lstm_H);
+                _mm512_storeu_ps(output_data + q, _lstm_H);
+            }
+            else
+            {
+                _mm512_storeu_ps(tmp_hidden_ptr + q, _lstm_H);
+            }
+        }
+        remain_hidden_size_start += nn_hidden_size << 4;
+        nn_hidden_size = (hidden_size - remain_hidden_size_start) >> 3;
+#else
+        nn_hidden_size = hidden_size >> 3;
+#endif // __AVX512F__
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int qq = 0; qq < nn_hidden_size; qq++)
+        {
+            int q = remain_hidden_size_start + qq * 8;
 
             const float* gates_data = gates.row(q);
 
