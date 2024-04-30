@@ -257,7 +257,7 @@ static void rnn_int8_gate_output(const Mat& gates, Mat& hidden_state, Mat& top_b
             asm volatile(
                 "fcvtn  v0.4h, %2.4s        \n"
                 "st1    {v0.4h}, [%0]       \n"
-                : "=r"(_rnn_H) // %0
+                : "=r"(outptr) // %0
                 : "0"(outptr),
                   "w"(_rnn_H)
                 : "memory", "v0");
