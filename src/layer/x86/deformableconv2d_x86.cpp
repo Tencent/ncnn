@@ -265,8 +265,6 @@ int DeformableConv2D_x86::forward(const std::vector<Mat>& bottom_blobs, std::vec
     if (top_blob.empty())
         return -100;
 
-    const int num_input = channels * elempack;
-
     if (opt.use_sgemm_convolution)
     {
         const int size = outw * outh;
