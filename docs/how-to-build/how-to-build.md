@@ -12,6 +12,7 @@ git submodule update --init
   - [Raspberry Pi](#raspberry-pi)
   - [POWER](#power)
   - [Intel oneAPI](#intel-oneapi)
+  - [Cross compile: Riscv-gnu-toolchain](#cross-compile-riscv-gnu-toolchain)
   - [Verification](#verification)
 - [Build for Windows x64 using Visual Studio Community 2017](#build-for-windows-x64-using-visual-studio-community-2017)
 - [Build for macOS](#build-for-macos)
@@ -120,6 +121,29 @@ Besides the prerequests in this section, Intel oneAPI BaseKit and HPCKit should 
 Intel oneAPI offers two kinds of compilers, the classic `icc/icpc` and the LLVM based `icx/icpx`. To build with these compilers, add `CC=icc CXX=icpc` or `CC=icx CXX=icpx` before the `cmake` command. When compiling with `icc/icpc`, cmake will warn that `xop`, `avx512`, and `bf16` extensions are not supported by the compiler, while `icx/icpx` works well.
 
 Both of these compilers have been tested and passed the ncnn benchmark successfully. The results have been included in ncnn benchmark readme. Generally, `icx/icpx` are likely to show better performance than `icc/icpc` and the quantized models can benefit from the extensions `icx/icpx` supports.
+
+#### Cross compile: Riscv-gnu-toolchain
+Before compiling the whole project, toolchain must be installed.
+[Reference: Riscv-gnu-toolchain build guide](https://github.com/riscv-collab/riscv-gnu-toolchain/blob/master/README.md)
+```shell
+
+# configure with vector extension.
+./configure --prefix=/opt/riscv --enable-multilib --with-arch=rv64gcv
+
+# configure without vector extension.
+./configure --prefix=/opt/riscv --enable-multilib --with-arch=rv64gc
+
+# it takes quite a long time:(
+sudo make linux 
+
+```
+Now you can build the project:
+```shell
+mkdir build-riscv
+cd build-riscv
+cmake -DDCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=../toolchains/riscv64-unknown-linux-gnu.toolchain.cmake -DNCNN_BUILD_EXAMPLES=ON ..
+make -j$(nproc) # or `make -j2` if your cpu isn't powerful enough.
+```
 
 #### Verification
 
