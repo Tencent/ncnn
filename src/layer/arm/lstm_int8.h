@@ -104,6 +104,15 @@ static void lstm_transform_weight_int8(const Mat& weight_xc, const Mat& weight_x
                 kptr[8 + 7] = weight_xc_G[i + 3];
                 kptr += 16;
             }
+#else
+            for (; i + 7 < size; i += 8)
+            {
+                vst1_s8(kptr, vld1_s8(weight_xc_I + i));
+                vst1_s8(kptr + 8, vld1_s8(weight_xc_F + i));
+                vst1_s8(kptr + 16, vld1_s8(weight_xc_O + i));
+                vst1_s8(kptr + 24, vld1_s8(weight_xc_G + i));
+                kptr += 32;
+            }
 #endif // __ARM_FEATURE_DOTPROD
             for (; i + 1 < size; i += 2)
             {
@@ -149,6 +158,15 @@ static void lstm_transform_weight_int8(const Mat& weight_xc, const Mat& weight_x
                 kptr[8 + 6] = weight_hc_G[i + 2];
                 kptr[8 + 7] = weight_hc_G[i + 3];
                 kptr += 16;
+            }
+#else
+            for (; i + 7 < num_output; i += 8)
+            {
+                vst1_s8(kptr, vld1_s8(weight_hc_I + i));
+                vst1_s8(kptr + 8, vld1_s8(weight_hc_F + i));
+                vst1_s8(kptr + 16, vld1_s8(weight_hc_O + i));
+                vst1_s8(kptr + 24, vld1_s8(weight_hc_G + i));
+                kptr += 32;
             }
 #endif // __ARM_FEATURE_DOTPROD
             for (; i + 1 < num_output; i += 2)
@@ -484,6 +502,87 @@ static void lstm_int8(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_d
             _lstm_IFOGx0 = vaddq_s32(_lstm_IFOGx0, _sum1);
             _lstm_IFOGx0 = vaddq_s32(_lstm_IFOGx0, _sum2);
             _lstm_IFOGx0 = vaddq_s32(_lstm_IFOGx0, _sum3);
+#else
+            int32x4_t _sum0 = vdupq_n_s32(0);
+            int32x4_t _sum1 = vdupq_n_s32(0);
+            int32x4_t _sum2 = vdupq_n_s32(0);
+            int32x4_t _sum3 = vdupq_n_s32(0);
+            for (; i + 15 < size; i += 16)
+            {
+#if NCNN_GNU_INLINE_ASM && !__aarch64__
+                const signed char* xptr = x + i;
+
+                asm volatile(
+                    "vldm       %1!, {d0-d7}        \n"
+                    "vld1.s8    {d16-d17}, [%0]     \n"
+                    "vmull.s8   q4, d0, d16         \n"
+                    "vmull.s8   q5, d1, d16         \n"
+                    "vmull.s8   q6, d2, d16         \n"
+                    "vmull.s8   q7, d3, d16         \n"
+                    "vmlal.s8   q4, d4, d17         \n"
+                    "vmlal.s8   q5, d5, d17         \n"
+                    "vmlal.s8   q6, d6, d17         \n"
+                    "vmlal.s8   q7, d7, d17         \n"
+                    "vpadal.s16 %q2, q4             \n"
+                    "vpadal.s16 %q3, q5             \n"
+                    "vpadal.s16 %q4, q6             \n"
+                    "vpadal.s16 %q5, q7             \n"
+                    : "=r"(xptr), "=r"(kptr), "=w"(_sum0), "=w"(_sum1), "=w"(_sum2), "=w"(_sum3)
+                    : "0"(xptr), "1"(kptr), "2"(_sum0), "3"(_sum1), "4"(_sum2), "5"(_sum3)
+                    : "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8"
+                );
+#else
+                int8x16_t _xi = vld1q_s8(x + i);
+                int8x16_t _w0 = vld1q_s8(kptr);
+                int8x16_t _w1 = vld1q_s8(kptr + 16);
+                int8x16_t _w2 = vld1q_s8(kptr + 32);
+                int8x16_t _w3 = vld1q_s8(kptr + 48);
+
+                int16x8_t _s0 = vmull_s8(vget_low_s8(_w0), vget_low_s8(_xi));
+                int16x8_t _s1 = vmull_s8(vget_high_s8(_w0), vget_low_s8(_xi));
+                int16x8_t _s2 = vmull_s8(vget_low_s8(_w1), vget_low_s8(_xi));
+                int16x8_t _s3 = vmull_s8(vget_high_s8(_w1), vget_low_s8(_xi));
+                _s0 = vmlal_s8(_s0, vget_low_s8(_w2), vget_high_s8(_xi));
+                _s1 = vmlal_s8(_s1, vget_high_s8(_w2), vget_high_s8(_xi));
+                _s2 = vmlal_s8(_s2, vget_low_s8(_w3), vget_high_s8(_xi));
+                _s3 = vmlal_s8(_s3, vget_high_s8(_w3), vget_high_s8(_xi));
+                _sum0 = vpadalq_s16(_sum0, _s0);
+                _sum1 = vpadalq_s16(_sum1, _s1);
+                _sum2 = vpadalq_s16(_sum2, _s2);
+                _sum3 = vpadalq_s16(_sum3, _s3);
+
+                kptr += 64;
+#endif
+            }
+            for (; i + 7 < size; i += 8)
+            {
+                int8x8_t _xi = vld1_s8(x + i);
+                int8x16_t _w0 = vld1q_s8(kptr);
+                int8x16_t _w1 = vld1q_s8(kptr + 16);
+
+                int16x8_t _s0 = vmull_s8(vget_low_s8(_w0), _xi);
+                int16x8_t _s1 = vmull_s8(vget_high_s8(_w0), _xi);
+                int16x8_t _s2 = vmull_s8(vget_low_s8(_w1), _xi);
+                int16x8_t _s3 = vmull_s8(vget_high_s8(_w1), _xi);
+                _sum0 = vpadalq_s16(_sum0, _s0);
+                _sum1 = vpadalq_s16(_sum1, _s1);
+                _sum2 = vpadalq_s16(_sum2, _s2);
+                _sum3 = vpadalq_s16(_sum3, _s3);
+
+                kptr += 32;
+            }
+            {
+                int32x4x2_t _tmp0 = vzipq_s32(_sum0, _sum1);
+                int32x4x2_t _tmp1 = vzipq_s32(_sum2, _sum3);
+                _sum0 = vcombine_s32(vget_low_s32(_tmp0.val[0]), vget_low_s32(_tmp1.val[0]));
+                _sum1 = vcombine_s32(vget_high_s32(_tmp0.val[0]), vget_high_s32(_tmp1.val[0]));
+                _sum2 = vcombine_s32(vget_low_s32(_tmp0.val[1]), vget_low_s32(_tmp1.val[1]));
+                _sum3 = vcombine_s32(vget_high_s32(_tmp0.val[1]), vget_high_s32(_tmp1.val[1]));
+            }
+            _lstm_IFOGx0 = vaddq_s32(_lstm_IFOGx0, _sum0);
+            _lstm_IFOGx0 = vaddq_s32(_lstm_IFOGx0, _sum1);
+            _lstm_IFOGx0 = vaddq_s32(_lstm_IFOGx0, _sum2);
+            _lstm_IFOGx0 = vaddq_s32(_lstm_IFOGx0, _sum3);
 #endif // __ARM_FEATURE_DOTPROD
             for (; i + 3 < size; i += 4)
             {
@@ -555,6 +654,87 @@ static void lstm_int8(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_d
 
                 kptr += 32;
             }
+            _lstm_IFOGh0 = vaddq_s32(_lstm_IFOGh0, _sum1);
+            _lstm_IFOGh0 = vaddq_s32(_lstm_IFOGh0, _sum2);
+            _lstm_IFOGh0 = vaddq_s32(_lstm_IFOGh0, _sum3);
+#else
+            _sum0 = vdupq_n_s32(0);
+            _sum1 = vdupq_n_s32(0);
+            _sum2 = vdupq_n_s32(0);
+            _sum3 = vdupq_n_s32(0);
+            for (; i + 15 < num_output; i += 16)
+            {
+#if NCNN_GNU_INLINE_ASM && !__aarch64__
+                const signed char* hsptr = hs + i;
+
+                asm volatile(
+                    "vldm       %1!, {d0-d7}        \n"
+                    "vld1.s8    {d16-d17}, [%0]     \n"
+                    "vmull.s8   q4, d0, d16         \n"
+                    "vmull.s8   q5, d1, d16         \n"
+                    "vmull.s8   q6, d2, d16         \n"
+                    "vmull.s8   q7, d3, d16         \n"
+                    "vmlal.s8   q4, d4, d17         \n"
+                    "vmlal.s8   q5, d5, d17         \n"
+                    "vmlal.s8   q6, d6, d17         \n"
+                    "vmlal.s8   q7, d7, d17         \n"
+                    "vpadal.s16 %q2, q4             \n"
+                    "vpadal.s16 %q3, q5             \n"
+                    "vpadal.s16 %q4, q6             \n"
+                    "vpadal.s16 %q5, q7             \n"
+                    : "=r"(hsptr), "=r"(kptr), "=w"(_sum0), "=w"(_sum1), "=w"(_sum2), "=w"(_sum3)
+                    : "0"(hsptr), "1"(kptr), "2"(_sum0), "3"(_sum1), "4"(_sum2), "5"(_sum3)
+                    : "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8"
+                );
+#else
+                int8x16_t _h_cont = vld1q_s8(hs + i);
+                int8x16_t _w0 = vld1q_s8(kptr);
+                int8x16_t _w1 = vld1q_s8(kptr + 16);
+                int8x16_t _w2 = vld1q_s8(kptr + 32);
+                int8x16_t _w3 = vld1q_s8(kptr + 48);
+
+                int16x8_t _s0 = vmull_s8(vget_low_s8(_w0), vget_low_s8(_h_cont));
+                int16x8_t _s1 = vmull_s8(vget_high_s8(_w0), vget_low_s8(_h_cont));
+                int16x8_t _s2 = vmull_s8(vget_low_s8(_w1), vget_low_s8(_h_cont));
+                int16x8_t _s3 = vmull_s8(vget_high_s8(_w1), vget_low_s8(_h_cont));
+                _s0 = vmlal_s8(_s0, vget_low_s8(_w2), vget_high_s8(_h_cont));
+                _s1 = vmlal_s8(_s1, vget_high_s8(_w2), vget_high_s8(_h_cont));
+                _s2 = vmlal_s8(_s2, vget_low_s8(_w3), vget_high_s8(_h_cont));
+                _s3 = vmlal_s8(_s3, vget_high_s8(_w3), vget_high_s8(_h_cont));
+                _sum0 = vpadalq_s16(_sum0, _s0);
+                _sum1 = vpadalq_s16(_sum1, _s1);
+                _sum2 = vpadalq_s16(_sum2, _s2);
+                _sum3 = vpadalq_s16(_sum3, _s3);
+
+                kptr += 64;
+#endif
+            }
+            for (; i + 7 < num_output; i += 8)
+            {
+                int8x8_t _h_cont = vld1_s8(hs + i);
+                int8x16_t _w0 = vld1q_s8(kptr);
+                int8x16_t _w1 = vld1q_s8(kptr + 16);
+
+                int16x8_t _s0 = vmull_s8(vget_low_s8(_w0), _h_cont);
+                int16x8_t _s1 = vmull_s8(vget_high_s8(_w0), _h_cont);
+                int16x8_t _s2 = vmull_s8(vget_low_s8(_w1), _h_cont);
+                int16x8_t _s3 = vmull_s8(vget_high_s8(_w1), _h_cont);
+                _sum0 = vpadalq_s16(_sum0, _s0);
+                _sum1 = vpadalq_s16(_sum1, _s1);
+                _sum2 = vpadalq_s16(_sum2, _s2);
+                _sum3 = vpadalq_s16(_sum3, _s3);
+
+                kptr += 32;
+            }
+            {
+                int32x4x2_t _tmp0 = vzipq_s32(_sum0, _sum1);
+                int32x4x2_t _tmp1 = vzipq_s32(_sum2, _sum3);
+                _sum0 = vcombine_s32(vget_low_s32(_tmp0.val[0]), vget_low_s32(_tmp1.val[0]));
+                _sum1 = vcombine_s32(vget_high_s32(_tmp0.val[0]), vget_high_s32(_tmp1.val[0]));
+                _sum2 = vcombine_s32(vget_low_s32(_tmp0.val[1]), vget_low_s32(_tmp1.val[1]));
+                _sum3 = vcombine_s32(vget_high_s32(_tmp0.val[1]), vget_high_s32(_tmp1.val[1]));
+            }
+            _lstm_IFOGh0 = vaddq_s32(_lstm_IFOGh0, _sum0);
             _lstm_IFOGh0 = vaddq_s32(_lstm_IFOGh0, _sum1);
             _lstm_IFOGh0 = vaddq_s32(_lstm_IFOGh0, _sum2);
             _lstm_IFOGh0 = vaddq_s32(_lstm_IFOGh0, _sum3);
