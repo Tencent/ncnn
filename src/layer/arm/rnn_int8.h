@@ -462,8 +462,7 @@ static void rnn_int8(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_de
                     "vpadal.s16 %q5, q7             \n"
                     : "=r"(xptr), "=r"(kptr), "=w"(_sum0), "=w"(_sum1), "=w"(_sum2), "=w"(_sum3)
                     : "0"(xptr), "1"(kptr), "2"(_sum0), "3"(_sum1), "4"(_sum2), "5"(_sum3)
-                    : "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8"
-                );
+                    : "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8");
 #else
                 int8x16_t _xi = vld1q_s8(x + i);
                 int8x16_t _w0 = vld1q_s8(kptr);
@@ -617,8 +616,7 @@ static void rnn_int8(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_de
                     "vpadal.s16 %q5, q7             \n"
                     : "=r"(hsptr), "=r"(kptr), "=w"(_sum0), "=w"(_sum1), "=w"(_sum2), "=w"(_sum3)
                     : "0"(hsptr), "1"(kptr), "2"(_sum0), "3"(_sum1), "4"(_sum2), "5"(_sum3)
-                    : "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8"
-                );
+                    : "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8");
 #else
                 int8x16_t _h_cont = vld1q_s8(hs + i);
                 int8x16_t _w0 = vld1q_s8(kptr);
