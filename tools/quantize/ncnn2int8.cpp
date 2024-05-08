@@ -767,7 +767,7 @@ int NetQuantize::fuse_requantize()
 
 int main(int argc, char** argv)
 {
-    if (argc != 6)
+    if (argc != 5 && argc != 6)
     {
         fprintf(stderr, "usage: %s [inparam] [inbin] [outparam] [outbin] [calibration table]\n", argv[0]);
         return -1;
@@ -777,7 +777,7 @@ int main(int argc, char** argv)
     const char* inbin = argv[2];
     const char* outparam = argv[3];
     const char* outbin = argv[4];
-    const char* int8scale_table_path = argv[5];
+    const char* int8scale_table_path = argc == 6 ? argv[5] : NULL;
 
     NetQuantize quantizer;
 
