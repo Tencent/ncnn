@@ -215,6 +215,14 @@ GRU_riscv::GRU_riscv()
 
 int GRU_riscv::create_pipeline(const Option& opt)
 {
+#if NCNN_INT8
+    if (int8_scale_term)
+    {
+        support_fp16_storage = false;
+        return 0;
+    }
+#endif
+
 #if __riscv_vector && __riscv_zfh
     if (opt.use_fp16_storage && opt.use_fp16_arithmetic)
         return create_pipeline_fp16sa(opt);
@@ -225,6 +233,13 @@ int GRU_riscv::create_pipeline(const Option& opt)
 
 int GRU_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
+#if NCNN_INT8
+    if (int8_scale_term)
+    {
+        return GRU::forward(bottom_blob, top_blob, opt);
+    }
+#endif
+
     int elembits = bottom_blob.elembits();
 #if __riscv_vector
 
@@ -299,6 +314,13 @@ int GRU_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 
 int GRU_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
+#if NCNN_INT8
+    if (int8_scale_term)
+    {
+        return GRU::forward(bottom_blobs, top_blobs, opt);
+    }
+#endif
+
     const Mat& bottom_blob = bottom_blobs[0];
     int elembits = bottom_blob.elembits();
 
