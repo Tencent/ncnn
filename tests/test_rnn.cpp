@@ -54,7 +54,7 @@ int test_rnn_with_hidden(const ncnn::Mat& a, int outch, int direction)
     weights[2] = RandomMat(outch * outch * num_directions);
 
     // initial hidden state
-    ncnn::Mat hidden = RandomMat(outch, num_directions);
+    ncnn::Mat hidden = RandomMat(outch, num_directions, -1.f, 1.f);
 
     std::vector<ncnn::Mat> as(2);
     as[0] = a;
@@ -85,7 +85,7 @@ int test_rnn_with_hidden_input(const ncnn::Mat& a, int outch, int direction)
     weights[2] = RandomMat(outch * outch * num_directions);
 
     // initial hidden state
-    ncnn::Mat hidden = RandomMat(outch, num_directions);
+    ncnn::Mat hidden = RandomMat(outch, num_directions, -1.f, 1.f);
 
     std::vector<ncnn::Mat> as(2);
     as[0] = a;
