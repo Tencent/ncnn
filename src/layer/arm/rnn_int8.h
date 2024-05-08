@@ -23,9 +23,6 @@ void rnn_int8_gate_output_vfpv4(const Mat& gates, Mat& hidden_state, Mat& top_bl
 
 static void rnn_transform_weight_int8(const Mat& weight_xc, const Mat& weight_xc_int8_scales, const Mat& weight_hc, const Mat& weight_hc_int8_scales, const Mat& bias_c, Mat& weight_data_tm, Mat& weight_data_tm_int8_descales, Mat& bias_c_tm, int size, int num_output, int num_directions, const Option& opt)
 {
-    // TODO dispatch for __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-    // TODO dispatch for __ARM_FEATURE_DOTPROD
-
 #if NCNN_RUNTIME_CPU && NCNN_ARM82DOT && __aarch64__ && !__ARM_FEATURE_DOTPROD
     if (ncnn::cpu_support_arm_asimddp())
     {
@@ -332,9 +329,6 @@ static void rnn_int8_gate_output(const Mat& gates, Mat& hidden_state, Mat& top_b
 
 static void rnn_int8(const Mat& bottom_blob_int8, const Mat& bottom_blob_int8_descales, Mat& top_blob, int elemtype, int reverse, const Mat& weight_data_tm, const Mat& weight_data_tm_int8_descales, const Mat& bias_c, Mat& hidden_state, const Option& opt)
 {
-    // TODO dispatch for __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-    // TODO dispatch for __ARM_FEATURE_DOTPROD
-
 #if NCNN_RUNTIME_CPU && NCNN_ARM82DOT && __aarch64__ && !__ARM_FEATURE_DOTPROD
     if (ncnn::cpu_support_arm_asimddp())
     {
