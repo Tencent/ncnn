@@ -193,7 +193,9 @@ static void rnn_transform_weight_int8(const Mat& weight_xc, const Mat& weight_xc
 #else
             float32x4_t _reciprocal_xc = vrecpeq_f32(_xc);
             _reciprocal_xc = vmulq_f32(vrecpsq_f32(_xc, _reciprocal_xc), _reciprocal_xc);
+            _reciprocal_xc = vmulq_f32(vrecpsq_f32(_xc, _reciprocal_xc), _reciprocal_xc);
             float32x4_t _reciprocal_hc = vrecpeq_f32(_hc);
+            _reciprocal_hc = vmulq_f32(vrecpsq_f32(_hc, _reciprocal_hc), _reciprocal_hc);
             _reciprocal_hc = vmulq_f32(vrecpsq_f32(_hc, _reciprocal_hc), _reciprocal_hc);
 #endif
 

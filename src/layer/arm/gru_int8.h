@@ -447,9 +447,15 @@ static void gru_transform_weight_int8(const Mat& weight_xc, const Mat& weight_xc
             _reciprocal_xc_R0 = vmulq_f32(vrecpsq_f32(_xc_R0, _reciprocal_xc_R0), _reciprocal_xc_R0);
             _reciprocal_xc_U0 = vmulq_f32(vrecpsq_f32(_xc_U0, _reciprocal_xc_U0), _reciprocal_xc_U0);
             _reciprocal_xc_N0 = vmulq_f32(vrecpsq_f32(_xc_N0, _reciprocal_xc_N0), _reciprocal_xc_N0);
+            _reciprocal_xc_R0 = vmulq_f32(vrecpsq_f32(_xc_R0, _reciprocal_xc_R0), _reciprocal_xc_R0);
+            _reciprocal_xc_U0 = vmulq_f32(vrecpsq_f32(_xc_U0, _reciprocal_xc_U0), _reciprocal_xc_U0);
+            _reciprocal_xc_N0 = vmulq_f32(vrecpsq_f32(_xc_N0, _reciprocal_xc_N0), _reciprocal_xc_N0);
             float32x4_t _reciprocal_hc_R0 = vrecpeq_f32(_hc_R0);
             float32x4_t _reciprocal_hc_U0 = vrecpeq_f32(_hc_U0);
             float32x4_t _reciprocal_hc_N0 = vrecpeq_f32(_hc_N0);
+            _reciprocal_hc_R0 = vmulq_f32(vrecpsq_f32(_hc_R0, _reciprocal_hc_R0), _reciprocal_hc_R0);
+            _reciprocal_hc_U0 = vmulq_f32(vrecpsq_f32(_hc_U0, _reciprocal_hc_U0), _reciprocal_hc_U0);
+            _reciprocal_hc_N0 = vmulq_f32(vrecpsq_f32(_hc_N0, _reciprocal_hc_N0), _reciprocal_hc_N0);
             _reciprocal_hc_R0 = vmulq_f32(vrecpsq_f32(_hc_R0, _reciprocal_hc_R0), _reciprocal_hc_R0);
             _reciprocal_hc_U0 = vmulq_f32(vrecpsq_f32(_hc_U0, _reciprocal_hc_U0), _reciprocal_hc_U0);
             _reciprocal_hc_N0 = vmulq_f32(vrecpsq_f32(_hc_N0, _reciprocal_hc_N0), _reciprocal_hc_N0);
