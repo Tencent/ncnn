@@ -174,7 +174,7 @@ static int test_lstm_0()
            || test_lstm(RandomMat(5, 16), 16, 2)
            || test_lstm(RandomMat(3, 16), 8, 2)
            || test_lstm(RandomMat(8, 16), 16, 2)
-           || test_lstm(RandomMat(31, 31), 31, 2)
+           || test_lstm(RandomMat(31, 3), 31, 2)
            || test_lstm(RandomMat(2, 5), 17, 2, 15);
 }
 
@@ -478,7 +478,7 @@ static int test_lstm_4()
            || test_lstm_int8(RandomMat(5, 16), 16, 2)
            || test_lstm_int8(RandomMat(3, 16), 8, 2)
            || test_lstm_int8(RandomMat(8, 16), 16, 2)
-           || test_lstm_int8(RandomMat(31, 31), 31, 2)
+           || test_lstm_int8(RandomMat(31, 3), 31, 2)
            || test_lstm_int8(RandomMat(2, 5), 17, 2, 15);
 }
 

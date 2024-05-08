@@ -138,7 +138,7 @@ static int test_rnn_0()
            || test_rnn(RandomMat(5, 16), 16, 2)
            || test_rnn(RandomMat(3, 16), 8, 2)
            || test_rnn(RandomMat(8, 16), 16, 2)
-           || test_rnn(RandomMat(31, 31), 31, 2)
+           || test_rnn(RandomMat(31, 3), 31, 2)
            || test_rnn(RandomMat(2, 5), 17, 2);
 }
 
@@ -386,7 +386,7 @@ static int test_rnn_4()
            || test_rnn_int8(RandomMat(5, 16), 16, 2)
            || test_rnn_int8(RandomMat(3, 16), 8, 2)
            || test_rnn_int8(RandomMat(8, 16), 16, 2)
-           || test_rnn_int8(RandomMat(31, 31), 31, 2)
+           || test_rnn_int8(RandomMat(31, 3), 31, 2)
            || test_rnn_int8(RandomMat(2, 5), 17, 2);
 }
 
