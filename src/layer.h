@@ -199,9 +199,19 @@ struct overwrite_builtin_layer_registry_entry
 NCNN_EXPORT int layer_to_index(const char* type);
 // create layer from type name
 NCNN_EXPORT Layer* create_layer(const char* type);
+NCNN_EXPORT Layer* create_layer_naive(const char* type);
+NCNN_EXPORT Layer* create_layer_cpu(const char* type);
+#if NCNN_VULKAN
+NCNN_EXPORT Layer* create_layer_vulkan(const char* type);
+#endif // NCNN_VULKAN
 #endif // NCNN_STRING
 // create layer from layer type
 NCNN_EXPORT Layer* create_layer(int index);
+NCNN_EXPORT Layer* create_layer_naive(int index);
+NCNN_EXPORT Layer* create_layer_cpu(int index);
+#if NCNN_VULKAN
+NCNN_EXPORT Layer* create_layer_vulkan(int index);
+#endif // NCNN_VULKAN
 
 #define DEFINE_LAYER_CREATOR(name)                          \
     ::ncnn::Layer* name##_layer_creator(void* /*userdata*/) \

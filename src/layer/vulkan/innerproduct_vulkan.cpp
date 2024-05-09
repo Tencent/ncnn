@@ -154,6 +154,12 @@ int InnerProduct_vulkan::create_pipeline(const Option& _opt)
         pipeline_innerproduct_gemm->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_innerproduct_gemm->create(shader_type_index, opt, specializations);
 
+        if (opt.lightmode)
+        {
+            weight_data.release();
+            bias_data.release();
+        }
+
         return 0;
     }
 
@@ -214,7 +220,7 @@ int InnerProduct_vulkan::create_pipeline(const Option& _opt)
     }
 
     {
-        flatten = ncnn::create_layer(ncnn::LayerType::Flatten);
+        flatten = ncnn::create_layer_vulkan(ncnn::LayerType::Flatten);
         flatten->vkdev = vkdev;
 
         flatten->bottom_shapes.resize(1);
@@ -361,7 +367,19 @@ int InnerProduct_vulkan::create_pipeline(const Option& _opt)
         pipeline_innerproduct_gemm->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_innerproduct_gemm->create(shader_type_index, opt, specializations);
 
+        if (opt.lightmode)
+        {
+            weight_data.release();
+            bias_data.release();
+        }
+
         return 0;
+    }
+
+    if (opt.lightmode)
+    {
+        weight_data.release();
+        bias_data.release();
     }
 
     return 0;

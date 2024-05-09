@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Cast_vulkan : virtual public Cast
+class Cast_vulkan : public Cast
 {
 public:
     Cast_vulkan();

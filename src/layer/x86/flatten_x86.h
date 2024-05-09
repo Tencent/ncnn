@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Flatten_x86 : virtual public Flatten
+class Flatten_x86 : public Flatten
 {
 public:
     Flatten_x86();

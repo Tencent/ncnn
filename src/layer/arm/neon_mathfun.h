@@ -276,7 +276,7 @@ static inline float32x4_t div_ps(float32x4_t a, float32x4_t b)
 #else
     float32x4_t reciprocal = vrecpeq_f32(b);
     reciprocal = vmulq_f32(vrecpsq_f32(b, reciprocal), reciprocal);
-    // reciprocal = vmulq_f32(vrecpsq_f32(b, reciprocal), reciprocal);
+    reciprocal = vmulq_f32(vrecpsq_f32(b, reciprocal), reciprocal);
     return vmulq_f32(a, reciprocal);
 #endif
 }
@@ -302,7 +302,7 @@ static inline float32x4_t sigmoid_ps(float32x4_t _v)
     _v = exp_ps(_v);
     _v = vaddq_f32(_v, _one);
     float32x4_t _outp = vrecpeq_f32(_v);
-    // _outp = vmulq_f32(vrecpsq_f32(_v, _outp), _outp);
+    _outp = vmulq_f32(vrecpsq_f32(_v, _outp), _outp);
     return vmulq_f32(vrecpsq_f32(_v, _outp), _outp);
 }
 

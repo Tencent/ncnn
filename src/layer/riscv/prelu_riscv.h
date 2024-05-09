@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class PReLU_riscv : virtual public PReLU
+class PReLU_riscv : public PReLU
 {
 public:
     PReLU_riscv();

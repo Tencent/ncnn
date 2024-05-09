@@ -12,7 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "layer/gemm.h"
 #include "testutil.h"
 
 static int test_gemm(int M, int N, int K, int TILE_M, int TILE_N, int TILE_K, float alpha, int transA, int transB, int output_transpose)
@@ -37,7 +36,7 @@ static int test_gemm(int M, int N, int K, int TILE_M, int TILE_N, int TILE_K, fl
     Randomize(a[0]);
     Randomize(a[1]);
 
-    int ret = test_layer<ncnn::Gemm>("Gemm", pd, weights, a);
+    int ret = test_layer("Gemm", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_gemm failed M=%d N=%d K=%d TILE_M=%d TILE_N=%d TILE_K=%d alpha=%f transA=%d transB=%d output_transpose=%d\n", M, N, K, TILE_M, TILE_N, TILE_K, alpha, transA, transB, output_transpose);

@@ -121,7 +121,7 @@ int Reshape_vulkan::create_pipeline(const Option& _opt)
     if (need_permute)
     {
         {
-            permute_wh = ncnn::create_layer(ncnn::LayerType::Permute);
+            permute_wh = ncnn::create_layer_vulkan(ncnn::LayerType::Permute);
             permute_wh->vkdev = vkdev;
 
             permute_wh->bottom_shapes.resize(1);
@@ -137,7 +137,7 @@ int Reshape_vulkan::create_pipeline(const Option& _opt)
             permute_wh->create_pipeline(opt);
         }
         {
-            permute_hwc = ncnn::create_layer(ncnn::LayerType::Permute);
+            permute_hwc = ncnn::create_layer_vulkan(ncnn::LayerType::Permute);
             permute_hwc->vkdev = vkdev;
 
             permute_hwc->bottom_shapes.resize(1);
@@ -153,7 +153,7 @@ int Reshape_vulkan::create_pipeline(const Option& _opt)
             permute_hwc->create_pipeline(opt);
         }
         {
-            permute_dhwc = ncnn::create_layer(ncnn::LayerType::Permute);
+            permute_dhwc = ncnn::create_layer_vulkan(ncnn::LayerType::Permute);
             permute_dhwc->vkdev = vkdev;
 
             permute_dhwc->bottom_shapes.resize(1);
@@ -171,7 +171,7 @@ int Reshape_vulkan::create_pipeline(const Option& _opt)
 
         if (ndim == 2)
         {
-            permute_hw = ncnn::create_layer(ncnn::LayerType::Permute);
+            permute_hw = ncnn::create_layer_vulkan(ncnn::LayerType::Permute);
             permute_hw->vkdev = vkdev;
 
             permute_hw->bottom_shapes.resize(1);
@@ -188,7 +188,7 @@ int Reshape_vulkan::create_pipeline(const Option& _opt)
         }
         if (ndim == 3)
         {
-            permute_chw = ncnn::create_layer(ncnn::LayerType::Permute);
+            permute_chw = ncnn::create_layer_vulkan(ncnn::LayerType::Permute);
             permute_chw->vkdev = vkdev;
 
             permute_chw->bottom_shapes.resize(1);
@@ -205,7 +205,7 @@ int Reshape_vulkan::create_pipeline(const Option& _opt)
         }
         if (ndim == 4)
         {
-            permute_cdhw = ncnn::create_layer(ncnn::LayerType::Permute);
+            permute_cdhw = ncnn::create_layer_vulkan(ncnn::LayerType::Permute);
             permute_cdhw->vkdev = vkdev;
 
             permute_cdhw->bottom_shapes.resize(1);

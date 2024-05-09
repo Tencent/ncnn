@@ -62,13 +62,13 @@ static void cast_fp32_to_fp16_neon(const Mat& bottom_blob, Mat& top_blob, const 
                 : "memory", "v0", "v1", "v2", "v3");
 #else  // __aarch64__
             asm volatile(
-                "pld        [%0, #512]          \n"
-                "vldm       %0!, {d0-d7}        \n"
-                "vcvt.f16.f32 d0, q0            \n"
-                "vcvt.f16.f32 d1, q1            \n"
-                "vcvt.f16.f32 d2, q2            \n"
-                "vcvt.f16.f32 d3, q3            \n"
-                "vst1.u16   {d0-d3}, [%1 :128]! \n"
+                "pld        [%0, #512]      \n"
+                "vldm       %0!, {d0-d7}    \n"
+                "vcvt.f16.f32 d0, q0        \n"
+                "vcvt.f16.f32 d1, q1        \n"
+                "vcvt.f16.f32 d2, q2        \n"
+                "vcvt.f16.f32 d3, q3        \n"
+                "vst1.u16   {d0-d3}, [%1]!  \n"
                 : "=r"(ptr),   // %0
                 "=r"(outptr) // %1
                 : "0"(ptr),
@@ -220,13 +220,13 @@ static void cast_fp16_to_fp32_neon(const Mat& bottom_blob, Mat& top_blob, const 
                 : "memory", "v0", "v1", "v2", "v3");
 #else  // __aarch64__
             asm volatile(
-                "pld        [%0, #256]          \n"
-                "vld1.u16   {d4-d7}, [%0 :128]! \n"
-                "vcvt.f32.f16 q0, d4            \n"
-                "vcvt.f32.f16 q1, d5            \n"
-                "vcvt.f32.f16 q2, d6            \n"
-                "vcvt.f32.f16 q3, d7            \n"
-                "vstm       %1!, {d0-d7}        \n"
+                "pld        [%0, #256]      \n"
+                "vld1.u16   {d4-d7}, [%0]!  \n"
+                "vcvt.f32.f16 q0, d4        \n"
+                "vcvt.f32.f16 q1, d5        \n"
+                "vcvt.f32.f16 q2, d6        \n"
+                "vcvt.f32.f16 q3, d7        \n"
+                "vstm       %1!, {d0-d7}    \n"
                 : "=r"(ptr),   // %0
                 "=r"(outptr) // %1
                 : "0"(ptr),

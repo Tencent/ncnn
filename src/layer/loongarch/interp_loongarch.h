@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Interp_loongarch : virtual public Interp
+class Interp_loongarch : public Interp
 {
 public:
     Interp_loongarch();

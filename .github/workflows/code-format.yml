@@ -19,7 +19,7 @@ jobs:
 
     - name: cache-clang-format
       id: cache-clang-format
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: clang-format-install
         key: clang-format-install-4

@@ -4,5 +4,6 @@ requires = [
     "wheel",
     "ninja; sys_platform != 'win32'",
     "cmake>=3.12",
+    "importlib-metadata",
 ]
 build-backend = "setuptools.build_meta"

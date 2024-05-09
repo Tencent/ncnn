@@ -95,6 +95,9 @@ int Convolution1D_riscv::create_pipeline(const Option& opt)
         }
     }
 
+    if (opt.lightmode)
+        weight_data.release();
+
     return 0;
 }
 
@@ -308,7 +311,7 @@ int Convolution1D_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Op
                         sum = bias_data[p];
                     }
 
-                    const float* kptr = (const float*)weight_data + kernel_w * h * p;
+                    const float* kptr = weight_data_packed.channel(p);
 
                     for (int q = 0; q < h; q++)
                     {
@@ -387,7 +390,7 @@ int Convolution1D_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vect
         bias_data_flattened.elempack = 1;
     }
 
-    ncnn::Layer* op = ncnn::create_layer(ncnn::LayerType::Convolution1D);
+    ncnn::Layer* op = ncnn::create_layer_cpu(ncnn::LayerType::Convolution1D);
 
     ncnn::ParamDict pd;
     pd.set(0, _num_output);
@@ -469,6 +472,9 @@ int Convolution1D_riscv::create_pipeline_fp16s(const Option& opt)
     }
 
     ncnn::cast_float32_to_float16(bias_data, bias_data_fp16, opt);
+
+    if (opt.lightmode)
+        weight_data.release();
 
     return 0;
 }

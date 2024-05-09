@@ -12,7 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "layer/prelu.h"
 #include "testutil.h"
 
 static int test_prelu(const ncnn::Mat& a, int num_slope)
@@ -23,7 +22,7 @@ static int test_prelu(const ncnn::Mat& a, int num_slope)
     std::vector<ncnn::Mat> weights(1);
     weights[0] = RandomMat(num_slope);
 
-    int ret = test_layer<ncnn::PReLU>("PReLU", pd, weights, a);
+    int ret = test_layer("PReLU", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_prelu failed a.dims=%d a=(%d %d %d) num_slope=%d\n", a.dims, a.w, a.h, a.c, num_slope);

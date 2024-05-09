@@ -129,6 +129,13 @@ int PriorBox_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 
     cmd.record_upload(aspect_ratios, aspect_ratios_gpu, opt);
 
+    if (opt.lightmode)
+    {
+        min_sizes.release();
+        max_sizes.release();
+        aspect_ratios.release();
+    }
+
     return 0;
 }
 
@@ -137,7 +144,7 @@ int PriorBox_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector
     int w = bottom_blobs[0].w;
     int h = bottom_blobs[0].h;
 
-    if (bottom_blobs.size() == 1 && image_width == -233 && image_height == -233 && max_sizes.empty())
+    if (bottom_blobs.size() == 1 && image_width == -233 && image_height == -233 && max_sizes_gpu.empty())
     {
         // mxnet style _contrib_MultiBoxPrior
         float step_w = step_width;
@@ -147,8 +154,8 @@ int PriorBox_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector
         if (step_h == -233)
             step_h = 1.f / (float)h;
 
-        int num_sizes = min_sizes.w;
-        int num_ratios = aspect_ratios.w;
+        int num_sizes = min_sizes_gpu.w;
+        int num_ratios = aspect_ratios_gpu.w;
 
         int num_prior = num_sizes - 1 + num_ratios;
 
@@ -200,9 +207,9 @@ int PriorBox_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector
     if (step_h == -233)
         step_h = (float)image_h / h;
 
-    int num_min_size = min_sizes.w;
-    int num_max_size = max_sizes.w;
-    int num_aspect_ratio = aspect_ratios.w;
+    int num_min_size = min_sizes_gpu.w;
+    int num_max_size = max_sizes_gpu.w;
+    int num_aspect_ratio = aspect_ratios_gpu.w;
 
     int num_prior = num_min_size * num_aspect_ratio + num_min_size + num_max_size;
     if (flip)

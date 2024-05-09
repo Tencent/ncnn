@@ -1,0 +1,105 @@
+name: windows-arm
+on:
+  push:
+    branches: [master]
+    paths:
+    - '.github/workflows/windows-arm.yml'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/arm/**'
+    - 'src/layer/vulkan/**'
+    - 'tests/**'
+  pull_request:
+    branches: [master]
+    paths:
+    - '.github/workflows/windows-arm.yml'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/arm/**'
+    - 'src/layer/vulkan/**'
+    - 'tests/**'
+concurrency:
+  group: windows-arm-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    name: ${{ matrix.vs-version }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - vs-version: vs2019
+            toolset-version: v142
+            os: windows-2022
+
+          - vs-version: vs2022
+            toolset-version: v143
+            os: windows-2022
+
+    env:
+      UseMultiToolTask: true
+      NCNN_CMAKE_OPTIONS: -DNCNN_BUILD_TESTS=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_VULKAN=ON
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: true
+    - name: arm64
+      run: |
+        mkdir build-arm64; cd build-arm64
+        cmake -T ${{ matrix.toolset-version }},host=x64 -A arm64 ${{ env.NCNN_CMAKE_OPTIONS }} ..
+        cmake --build . --config Release -j 4
+    - name: arm
+      run: |
+        mkdir build-arm; cd build-arm
+        cmake -T ${{ matrix.toolset-version }},host=x64 -A arm ${{ env.NCNN_CMAKE_OPTIONS }} ..
+        cmake --build . --config Release -j 4
+    - name: arm64-shared
+      run: |
+        mkdir build-arm64-shared; cd build-arm64-shared
+        cmake -T ${{ matrix.toolset-version }},host=x64 -A arm64 ${{ env.NCNN_CMAKE_OPTIONS }} -DNCNN_SHARED_LIB=ON ..
+        cmake --build . --config Release -j 4
+    - name: arm-shared
+      run: |
+        mkdir build-arm-shared; cd build-arm-shared
+        cmake -T ${{ matrix.toolset-version }},host=x64 -A arm ${{ env.NCNN_CMAKE_OPTIONS }} -DNCNN_SHARED_LIB=ON ..
+        cmake --build . --config Release -j 4
+
+  woa-linux:
+    name: woa-linux
+    runs-on: ubuntu-latest
+    container: linaro/wine-arm64
+    steps:
+    - uses: actions/checkout@v4
+    - name: msvc-wine
+      env:
+        WINEPREFIX: /tmp/wine-x64-prefix/
+      run: |
+        apt-get update
+        apt-get install -y wine64 python3 msitools python3-simplejson python3-six ca-certificates winbind cmake ninja-build meson
+        ln -s /usr/bin/wine /usr/bin/wine64
+        xvfb-run winecfg &
+        git clone --depth 1 https://github.com/mstorsjo/msvc-wine
+        msvc-wine/vsdownload.py --accept-license --dest /msvc
+        msvc-wine/install.sh /msvc
+    - name: build
+      env:
+        WINEPREFIX: /tmp/wine-x64-prefix/
+        CC: cl
+        CXX: cl
+      run: |
+        export PATH=/msvc/bin/arm64:$PATH
+        mkdir build && cd build
+        cmake -GNinja -DCMAKE_BUILD_TYPE=Release -DCMAKE_SYSTEM_NAME=Windows -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . --config Release -j $(nproc)
+    - name: test
+      run: |
+        cd build
+        TESTS_EXECUTABLE_LOADER=wine-arm64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="" ctest --output-on-failure -j $(nproc)

@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class InnerProduct_x86 : virtual public InnerProduct
+class InnerProduct_x86 : public InnerProduct
 {
 public:
     InnerProduct_x86();

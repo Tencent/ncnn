@@ -22,7 +22,7 @@
 
 namespace ncnn {
 
-class Pooling_x86 : virtual public Pooling
+class Pooling_x86 : public Pooling
 {
 public:
     Pooling_x86();

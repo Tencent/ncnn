@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class TanH_arm : virtual public TanH
+class TanH_arm : public TanH
 {
 public:
     TanH_arm();

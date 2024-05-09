@@ -43,7 +43,7 @@ jobs:
         submodules: true
     - name: cache-swiftshader
       id: cache-swiftshader
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: swiftshader-install
         key: swiftshader-linux-install-20230420

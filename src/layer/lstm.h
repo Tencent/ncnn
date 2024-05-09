@@ -38,10 +38,17 @@ public:
     int direction; // 0=forward 1=reverse 2=bidirectional
     int hidden_size;
 
+    int int8_scale_term;
+
     Mat weight_hc_data;
     Mat weight_xc_data;
     Mat bias_c_data;
     Mat weight_hr_data;
+
+#if NCNN_INT8
+    Mat weight_hc_data_int8_scales;
+    Mat weight_xc_data_int8_scales;
+#endif
 };
 
 } // namespace ncnn

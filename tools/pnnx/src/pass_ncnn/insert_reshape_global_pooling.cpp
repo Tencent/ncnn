@@ -23,7 +23,7 @@ namespace ncnn {
 
 static bool is_known_operator_handle_flatten_0(const Operator* op)
 {
-    // opeartors that have similiar behavior for (1,c,1,1,1)/(1,c,1,1)/(1,c,1) and (1,c)
+    // opeartors that have similar behavior for (1,c,1,1,1)/(1,c,1,1)/(1,c,1) and (1,c)
 
     static const char* operator_handle_flatten_0[] = {
         "F.batch_norm",

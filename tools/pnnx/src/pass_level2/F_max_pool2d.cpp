@@ -80,4 +80,46 @@ pnnx.Output             output      2 0 out indices
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_max_pool2d_2, 10)
 
+class F_max_pool2d_3 : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 3
+pnnx.Input              input_0     0 1 input
+aten::max_pool_with_indices_onnx op_1 1 2 input out indices kernel_size=%kernel_size stride=%stride padding=%padding dilation=%dilation ceil_mode=%ceil_mode n_dims_axes=* n_dims_one=* n_dims_zero=* unbatched_rank=*
+pnnx.Output             output      2 0 out indices
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "F.max_pool2d";
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        std::vector<int> kernel_size = captured_params.at("kernel_size").ai;
+        std::vector<int> dilation = captured_params.at("dilation").ai;
+        std::vector<int> stride = captured_params.at("stride").ai;
+        std::vector<int> padding = captured_params.at("padding").ai;
+        int ceil_mode = captured_params.at("ceil_mode").i;
+
+        if (padding.size() == 4)
+        {
+            padding = {padding[0], padding[1]};
+        }
+
+        op->params["kernel_size"] = kernel_size;
+        op->params["dilation"] = dilation;
+        op->params["stride"] = stride;
+        op->params["padding"] = padding;
+        op->params["ceil_mode"] = (ceil_mode != 0);
+        op->params["return_indices"] = (op->outputs.size() != 1);
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_max_pool2d_3, 10)
+
 } // namespace pnnx

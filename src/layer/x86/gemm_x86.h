@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Gemm_x86 : virtual public Gemm
+class Gemm_x86 : public Gemm
 {
 public:
     Gemm_x86();

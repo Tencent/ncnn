@@ -13,7 +13,10 @@
 # specific language governing permissions and limitations under the License.
 
 import os
+import sys
 import platform
+import subprocess
+
 EXEC_DIR_PATH = os.path.dirname(os.path.abspath(__file__))
 if platform.system() == 'Linux' or platform.system() == "Darwin":
     EXEC_PATH = EXEC_DIR_PATH + "/pnnx"
@@ -31,3 +34,5 @@ try:
 except:
     pass
 
+def pnnx():
+    raise SystemExit(subprocess.call([EXEC_PATH] + sys.argv[1:], close_fds=False))

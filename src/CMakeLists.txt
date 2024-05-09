@@ -51,8 +51,6 @@ ncnn_src_group(ncnn_SRCS "sources")
 
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/layer/${NCNN_TARGET_ARCH}")
 
-include(${CMAKE_CURRENT_SOURCE_DIR}/../cmake/ncnn_generate_shader_spv_header.cmake)
-
 # ncnn macro
 include(${CMAKE_CURRENT_SOURCE_DIR}/../cmake/ncnn_add_shader.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/../cmake/ncnn_add_layer.cmake)
@@ -304,25 +302,26 @@ if(NCNN_VULKAN)
     endif()
 
     # Support mac platform static library compilation
-    if(NOT NCNN_SHARED_LIB AND APPLE AND NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
-        find_library(CoreFoundation NAMES CoreFoundation)
+    # https://github.com/KhronosGroup/MoltenVK/blob/main/Docs/MoltenVK_Runtime_UserGuide.md#optionally-link-to-required-system-libraries
+    if(NOT NCNN_SHARED_LIB AND APPLE)
+        find_library(Metal NAMES Metal)
         find_library(Foundation NAMES Foundation)
         find_library(QuartzCore NAMES QuartzCore)
         find_library(CoreGraphics NAMES CoreGraphics)
-        find_library(Cocoa NAMES Cocoa)
-        find_library(Metal NAMES Metal)
-        find_library(IOKit NAMES IOKit)
         find_library(IOSurface NAMES IOSurface)
-        list(APPEND vulkan_dependent_LINK_LIBRARIES
-            ${Metal}
-            ${IOKit}
-            ${IOSurface}
-            ${QuartzCore}
-            ${CoreGraphics}
-            ${Cocoa}
-            ${Foundation}
-            ${CoreFoundation}
-        )
+        list(APPEND vulkan_dependent_LINK_LIBRARIES ${Metal} ${Foundation} ${QuartzCore} ${CoreGraphics} ${IOSurface})
+        if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+            if(NOT IOS)
+                find_library(AppKit NAMES AppKit)
+                list(APPEND vulkan_dependent_LINK_LIBRARIES ${AppKit})
+            endif()
+            find_library(IOKit NAMES IOKit)
+            list(APPEND vulkan_dependent_LINK_LIBRARIES ${IOKit})
+        endif()
+        if(IOS OR CMAKE_SYSTEM_NAME STREQUAL "iOS" OR CMAKE_SYSTEM_NAME STREQUAL "tvOS")
+            find_library(UIKit NAMES UIKit)
+            list(APPEND vulkan_dependent_LINK_LIBRARIES ${UIKit})
+        endif()
         target_link_libraries(ncnn PRIVATE ${vulkan_dependent_LINK_LIBRARIES})
     endif()
 
@@ -405,7 +404,7 @@ if(NCNN_TARGET_ARCH STREQUAL "x86")
 
     if(NOT NCNN_RUNTIME_CPU AND NCNN_AVX512)
         if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC" OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_SIMULATE_ID MATCHES "MSVC" AND CMAKE_CXX_COMPILER_FRONTEND_VARIANT MATCHES "MSVC"))
-            target_compile_options(ncnn PRIVATE /arch:AVX512 /D__SSE4_1__ /D__FMA__ /D__F16C__)
+            target_compile_options(ncnn PRIVATE /arch:AVX512 /D__SSSE3__ /D__SSE4_1__ /D__FMA__ /D__F16C__)
             if(NCNN_AVX512VNNI)
                 target_compile_options(ncnn PRIVATE /D__AVX512VNNI__)
             endif()
@@ -424,9 +423,9 @@ if(NCNN_TARGET_ARCH STREQUAL "x86")
     elseif(NOT NCNN_RUNTIME_CPU AND NCNN_FMA)
         if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC" OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_SIMULATE_ID MATCHES "MSVC" AND CMAKE_CXX_COMPILER_FRONTEND_VARIANT MATCHES "MSVC"))
             if(NCNN_AVX2)
-                target_compile_options(ncnn PRIVATE /arch:AVX2 /D__SSE4_1__ /D__FMA__)
+                target_compile_options(ncnn PRIVATE /arch:AVX2 /D__SSSE3__ /D__SSE4_1__ /D__FMA__)
             else()
-                target_compile_options(ncnn PRIVATE /arch:AVX /D__SSE4_1__ /D__FMA__)
+                target_compile_options(ncnn PRIVATE /arch:AVX /D__SSSE3__ /D__SSE4_1__ /D__FMA__)
             endif()
             if(NCNN_AVXVNNI)
                 target_compile_options(ncnn PRIVATE /D__AVXVNNI__)
@@ -453,7 +452,7 @@ if(NCNN_TARGET_ARCH STREQUAL "x86")
         endif()
     elseif(NOT NCNN_RUNTIME_CPU AND NCNN_AVX)
         if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC" OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_SIMULATE_ID MATCHES "MSVC" AND CMAKE_CXX_COMPILER_FRONTEND_VARIANT MATCHES "MSVC"))
-            target_compile_options(ncnn PRIVATE /arch:AVX /D__SSE4_1__)
+            target_compile_options(ncnn PRIVATE /arch:AVX /D__SSSE3__ /D__SSE4_1__)
             if(NCNN_XOP)
                 target_compile_options(ncnn PRIVATE /D__XOP__)
             endif()
@@ -472,7 +471,7 @@ if(NCNN_TARGET_ARCH STREQUAL "x86")
     endif()
 endif()
 
-if(NCNN_TARGET_ARCH STREQUAL "arm" AND CMAKE_SIZEOF_VOID_P EQUAL 4)
+if(NCNN_TARGET_ARCH STREQUAL "arm" AND (CMAKE_SIZEOF_VOID_P EQUAL 4 AND NOT NCNN_TARGET_ILP32))
     if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC" OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_SIMULATE_ID MATCHES "MSVC" AND CMAKE_CXX_COMPILER_FRONTEND_VARIANT MATCHES "MSVC"))
         # always enable neon for msvc arm
         target_compile_options(ncnn PRIVATE /D__arm__ /D__ARM_NEON)
@@ -495,7 +494,7 @@ if(NCNN_TARGET_ARCH STREQUAL "arm" AND CMAKE_SIZEOF_VOID_P EQUAL 4)
     endif()
 endif()
 
-if(NCNN_TARGET_ARCH STREQUAL "arm" AND CMAKE_SIZEOF_VOID_P EQUAL 8)
+if(NCNN_TARGET_ARCH STREQUAL "arm" AND (CMAKE_SIZEOF_VOID_P EQUAL 8 OR NCNN_TARGET_ILP32))
     if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC" OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_SIMULATE_ID MATCHES "MSVC" AND CMAKE_CXX_COMPILER_FRONTEND_VARIANT MATCHES "MSVC"))
         # always enable neon and vfpv4 for msvc arm64
         target_compile_options(ncnn PRIVATE /D__arm__ /D__aarch64__ /D__ARM_NEON /D__ARM_FP=0x0E)

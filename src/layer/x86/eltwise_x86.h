@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Eltwise_x86 : virtual public Eltwise
+class Eltwise_x86 : public Eltwise
 {
 public:
     Eltwise_x86();

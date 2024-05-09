@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class PReLU_arm : virtual public PReLU
+class PReLU_arm : public PReLU
 {
 public:
     PReLU_arm();

@@ -52,4 +52,50 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_conv3d, 10)
 
+class F_conv3d_0 : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+6 5
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 weight
+pnnx.Input              input_2     0 1 bias
+prim::Constant          op_0        0 1 transposed value=False
+aten::convolution_onnx  op_1        4 1 input weight bias transposed out dilations=%dilations groups=%groups output_padding=(0,0,0) pads=%pads strides=%strides
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "F.conv3d";
+    }
+
+    bool match(const std::map<std::string, Parameter>& captured_params) const
+    {
+        const std::vector<int>& dilations = captured_params.at("dilations").ai;
+        const std::vector<int>& strides = captured_params.at("strides").ai;
+        const std::vector<int>& pads = captured_params.at("pads").ai;
+        return dilations.size() == 3 && strides.size() == 3 && pads.size() == 6;
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        std::vector<int> pads = captured_params.at("pads").ai;
+        if (pads.size() == 6)
+        {
+            pads = {pads[0], pads[1], pads[2]};
+        }
+
+        op->params["dilation"] = captured_params.at("dilations");
+        op->params["stride"] = captured_params.at("strides");
+        op->params["padding"] = pads;
+        op->params["groups"] = captured_params.at("groups");
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_conv3d_0, 10)
+
 } // namespace pnnx

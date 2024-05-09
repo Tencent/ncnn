@@ -12,7 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "layer/unaryop.h"
 #include "testutil.h"
 
 #define OP_TYPE_MAX 20
@@ -46,7 +45,7 @@ static int test_unaryop(const ncnn::Mat& _a)
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer<ncnn::UnaryOp>("UnaryOp", pd, weights, a);
+    int ret = test_layer("UnaryOp", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_unaryop failed a.dims=%d a=(%d %d %d %d) op_type=%d\n", a.dims, a.w, a.h, a.d, a.c, op_type);

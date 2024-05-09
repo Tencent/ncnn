@@ -25,7 +25,7 @@ class Model(nn.Module):
         out1 = x.new_empty(3)
         out2 = x.new_empty((4,5,6,7,8))
         out3 = x.new_empty((1,2,1))
-        out4 = x.new_empty((3,3,3,3))
+        out4 = x.new_empty((3,3,3,3), dtype=torch.long)
         return out0, out1, out2, out3, out4
 
 def test():

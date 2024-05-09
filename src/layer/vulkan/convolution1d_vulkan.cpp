@@ -29,15 +29,21 @@ Convolution1D_vulkan::Convolution1D_vulkan()
     pipeline_convolution1d = 0;
 }
 
-int Convolution1D_vulkan::create_pipeline(const Option& _opt)
+int Convolution1D_vulkan::load_param(const ParamDict& pd)
 {
+    int ret = Convolution1D::load_param(pd);
+
     if (dynamic_weight)
     {
         support_vulkan = false;
         support_image_storage = false;
-        return 0;
     }
 
+    return ret;
+}
+
+int Convolution1D_vulkan::create_pipeline(const Option& _opt)
+{
     Option opt = _opt;
 
     const int maxk = kernel_w;
@@ -47,7 +53,7 @@ int Convolution1D_vulkan::create_pipeline(const Option& _opt)
     int out_elempack = opt.use_shader_pack8 && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
 
     {
-        padding = ncnn::create_layer(ncnn::LayerType::Padding);
+        padding = ncnn::create_layer_vulkan(ncnn::LayerType::Padding);
         padding->vkdev = vkdev;
 
         ncnn::ParamDict pd;
@@ -125,6 +131,12 @@ int Convolution1D_vulkan::create_pipeline(const Option& _opt)
         pipeline_convolution1d = new Pipeline(vkdev);
         pipeline_convolution1d->set_optimal_local_size_xyz(1, 1, 1);
         pipeline_convolution1d->create(shader_type_index, opt, specializations);
+    }
+
+    if (opt.lightmode)
+    {
+        weight_data.release();
+        bias_data.release();
     }
 
     return 0;

@@ -49,7 +49,7 @@ int MultiHeadAttention_vulkan::create_pipeline(const Option& opt)
     {
         const float inv_sqrt_embed_dim_per_head = 1.f / sqrtf(embed_dim_per_head);
 
-        q_gemm = ncnn::create_layer(ncnn::LayerType::Gemm);
+        q_gemm = ncnn::create_layer_vulkan(ncnn::LayerType::Gemm);
         q_gemm->vkdev = vkdev;
         ncnn::ParamDict pd;
         pd.set(0, inv_sqrt_embed_dim_per_head);
@@ -72,10 +72,16 @@ int MultiHeadAttention_vulkan::create_pipeline(const Option& opt)
         weights[1] = q_bias_data;
         q_gemm->load_model(ModelBinFromMatArray(weights));
         q_gemm->create_pipeline(opt);
+
+        if (opt.lightmode)
+        {
+            q_weight_data.release();
+            q_bias_data.release();
+        }
     }
 
     {
-        k_gemm = ncnn::create_layer(ncnn::LayerType::Gemm);
+        k_gemm = ncnn::create_layer_vulkan(ncnn::LayerType::Gemm);
         k_gemm->vkdev = vkdev;
         ncnn::ParamDict pd;
         pd.set(2, 0);         // transA
@@ -96,10 +102,16 @@ int MultiHeadAttention_vulkan::create_pipeline(const Option& opt)
         weights[1] = k_bias_data;
         k_gemm->load_model(ModelBinFromMatArray(weights));
         k_gemm->create_pipeline(opt);
+
+        if (opt.lightmode)
+        {
+            k_weight_data.release();
+            k_bias_data.release();
+        }
     }
 
     {
-        v_gemm = ncnn::create_layer(ncnn::LayerType::Gemm);
+        v_gemm = ncnn::create_layer_vulkan(ncnn::LayerType::Gemm);
         v_gemm->vkdev = vkdev;
         ncnn::ParamDict pd;
         pd.set(2, 0);         // transA
@@ -120,6 +132,12 @@ int MultiHeadAttention_vulkan::create_pipeline(const Option& opt)
         weights[1] = v_bias_data;
         v_gemm->load_model(ModelBinFromMatArray(weights));
         v_gemm->create_pipeline(opt);
+
+        if (opt.lightmode)
+        {
+            v_weight_data.release();
+            v_bias_data.release();
+        }
     }
 
     {
@@ -182,7 +200,7 @@ int MultiHeadAttention_vulkan::create_pipeline(const Option& opt)
     }
 
     {
-        qk_softmax = ncnn::create_layer(ncnn::LayerType::Softmax);
+        qk_softmax = ncnn::create_layer_vulkan(ncnn::LayerType::Softmax);
         qk_softmax->vkdev = vkdev;
         ncnn::ParamDict pd;
         pd.set(0, -1);
@@ -193,7 +211,7 @@ int MultiHeadAttention_vulkan::create_pipeline(const Option& opt)
     }
 
     {
-        o_gemm = ncnn::create_layer(ncnn::LayerType::Gemm);
+        o_gemm = ncnn::create_layer_vulkan(ncnn::LayerType::Gemm);
         o_gemm->vkdev = vkdev;
         ncnn::ParamDict pd;
         pd.set(2, 1);         // transA
@@ -212,6 +230,12 @@ int MultiHeadAttention_vulkan::create_pipeline(const Option& opt)
         weights[1] = out_bias_data;
         o_gemm->load_model(ModelBinFromMatArray(weights));
         o_gemm->create_pipeline(opt);
+
+        if (opt.lightmode)
+        {
+            out_weight_data.release();
+            out_bias_data.release();
+        }
     }
 
     return 0;

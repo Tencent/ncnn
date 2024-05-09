@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Deconvolution_arm : virtual public Deconvolution
+class Deconvolution_arm : public Deconvolution
 {
 public:
     Deconvolution_arm();

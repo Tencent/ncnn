@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Reshape_arm : virtual public Reshape
+class Reshape_arm : public Reshape
 {
 public:
     Reshape_arm();

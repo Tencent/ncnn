@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class PReLU_mips : virtual public PReLU
+class PReLU_mips : public PReLU
 {
 public:
     PReLU_mips();

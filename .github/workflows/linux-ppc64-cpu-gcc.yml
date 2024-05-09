@@ -34,7 +34,7 @@ jobs:
 
     - name: cache-qemu
       id: cache-qemu
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: qemu-install
         key: qemu-ppc-install-20220502-2
@@ -55,7 +55,7 @@ jobs:
       run: |
         cd qemu
         ./configure --prefix=$GITHUB_WORKSPACE/qemu-install --target-list=ppc-linux-user --disable-system
-        make -j2
+        make -j$(nproc)
         make install
 
     - name: powerpc-gnu-toolchain
@@ -66,13 +66,13 @@ jobs:
     - name: configure
       run: mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/powerpc-linux-gnu.toolchain.cmake -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
     - name: build
-      run: cmake --build build -j 2
+      run: cmake --build build -j $(nproc)
 
     - name: test
       run: |
         export PATH=$GITHUB_WORKSPACE/qemu-install/bin:$PATH
         cd build
-        TESTS_EXECUTABLE_LOADER=qemu-ppc TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/powerpc-linux-gnu" ctest --output-on-failure -j 2
+        TESTS_EXECUTABLE_LOADER=qemu-ppc TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/powerpc-linux-gnu" ctest --output-on-failure -j $(nproc)
 
   linux-gcc-ppc64le:
     runs-on: ubuntu-20.04
@@ -81,7 +81,7 @@ jobs:
 
     - name: cache-qemu
       id: cache-qemu
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: qemu-install
         key: qemu-ppc64le-install-20220502-2
@@ -102,7 +102,7 @@ jobs:
       run: |
         cd qemu
         ./configure --prefix=$GITHUB_WORKSPACE/qemu-install --target-list=ppc64le-linux-user --disable-system
-        make -j2
+        make -j$(nproc)
         make install
 
     - name: powerpc64le-gnu-toolchain
@@ -113,13 +113,13 @@ jobs:
     - name: configure
       run: mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/powerpc64le-linux-gnu.toolchain.cmake -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
     - name: build
-      run: cmake --build build -j 2
+      run: cmake --build build -j $(nproc)
 
     - name: test
       run: |
         export PATH=$GITHUB_WORKSPACE/qemu-install/bin:$PATH
         cd build
-        TESTS_EXECUTABLE_LOADER=qemu-ppc64le TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/powerpc64le-linux-gnu" ctest --output-on-failure -j 2
+        TESTS_EXECUTABLE_LOADER=qemu-ppc64le TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/powerpc64le-linux-gnu" ctest --output-on-failure -j $(nproc)
 
   linux-gcc-power8le-vsx:
     runs-on: ubuntu-20.04
@@ -128,7 +128,7 @@ jobs:
 
     - name: cache-qemu
       id: cache-qemu
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: qemu-install
         key: qemu-ppc64le-install-20220502-2
@@ -149,7 +149,7 @@ jobs:
       run: |
         cd qemu
         ./configure --prefix=$GITHUB_WORKSPACE/qemu-install --target-list=ppc64le-linux-user --disable-system
-        make -j2
+        make -j$(nproc)
         make install
 
     - name: powerpc64le-gnu-toolchain
@@ -160,13 +160,13 @@ jobs:
     - name: configure
       run: mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/power8le-linux-gnu-vsx.toolchain.cmake -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
     - name: build
-      run: cmake --build build -j 2
+      run: cmake --build build -j $(nproc)
 
     - name: test
       run: |
         export PATH=$GITHUB_WORKSPACE/qemu-install/bin:$PATH
         cd build
-        TESTS_EXECUTABLE_LOADER=qemu-ppc64le TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/powerpc64le-linux-gnu;-cpu;power8_v2.0" ctest --output-on-failure -j 2
+        TESTS_EXECUTABLE_LOADER=qemu-ppc64le TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/powerpc64le-linux-gnu;-cpu;power8_v2.0" ctest --output-on-failure -j $(nproc)
   linux-gcc-power9le-vsx:
     runs-on: ubuntu-20.04
     steps:
@@ -174,7 +174,7 @@ jobs:
 
     - name: cache-qemu
       id: cache-qemu
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: qemu-install
         key: qemu-ppc64le-install-20220502-2
@@ -195,7 +195,7 @@ jobs:
       run: |
         cd qemu
         ./configure --prefix=$GITHUB_WORKSPACE/qemu-install --target-list=ppc64le-linux-user --disable-system
-        make -j2
+        make -j$(nproc)
         make install
 
     - name: powerpc64le-gnu-toolchain
@@ -206,10 +206,10 @@ jobs:
     - name: configure
       run: mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/power9le-linux-gnu-vsx.toolchain.cmake -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
     - name: build
-      run: cmake --build build -j 2
+      run: cmake --build build -j $(nproc)
 
     - name: test
       run: |
         export PATH=$GITHUB_WORKSPACE/qemu-install/bin:$PATH
         cd build
-        TESTS_EXECUTABLE_LOADER=qemu-ppc64le TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/powerpc64le-linux-gnu;-cpu;power9_v2.0" ctest --output-on-failure -j 2
+        TESTS_EXECUTABLE_LOADER=qemu-ppc64le TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/powerpc64le-linux-gnu;-cpu;power9_v2.0" ctest --output-on-failure -j $(nproc)

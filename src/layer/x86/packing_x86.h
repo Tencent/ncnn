@@ -19,7 +19,7 @@
 
 namespace ncnn {
 
-class Packing_x86 : virtual public Packing
+class Packing_x86 : public Packing
 {
 public:
     Packing_x86();

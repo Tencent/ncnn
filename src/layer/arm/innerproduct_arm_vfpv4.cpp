@@ -42,9 +42,7 @@ int InnerProduct_arm::create_pipeline_fp16s(const Option& opt)
 #endif
 
     if (opt.lightmode)
-    {
         weight_data.release();
-    }
 
     return 0;
 }
