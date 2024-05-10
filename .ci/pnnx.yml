@@ -56,6 +56,10 @@ jobs:
             torchvision-version: 0.17.1
             torchvision-cache-key: '0_17_1'
 
+          - torch-version: 2.3.0
+            torchvision-version: 0.18.0
+            torchvision-cache-key: '0_18_0'
+
     runs-on:
       pool-name: docker
       container:
