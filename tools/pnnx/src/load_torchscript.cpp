@@ -50,6 +50,7 @@ static int get_at_tensor_type(const at::ScalarType& st)
     if (st == c10::ScalarType::ComplexFloat) return 10;
     if (st == c10::ScalarType::ComplexDouble) return 11;
     if (st == c10::ScalarType::ComplexHalf) return 12;
+    if (st == c10::ScalarType::BFloat16) return 13;
     return 0; // unknown type
 }
 
@@ -67,6 +68,7 @@ static size_t type_to_elemsize(int type)
     if (type == 10) return 8;
     if (type == 11) return 16;
     if (type == 12) return 4;
+    if (type == 13) return 2;
     return 0; // null
 }
 
@@ -405,6 +407,7 @@ static c10::ScalarType input_type_to_c10_ScalarType(const std::string& t)
     if (t == "c64") return torch::kComplexFloat;
     if (t == "c32") return torch::kComplexHalf;
     if (t == "c128") return torch::kComplexDouble;
+    if (t == "bf16") return torch::kBFloat16;
     if (t == "f32") return torch::kFloat32;
     if (t == "f16") return torch::kFloat16;
     if (t == "f64") return torch::kFloat64;
