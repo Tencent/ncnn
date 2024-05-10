@@ -38,15 +38,15 @@ static bool is_alias_op(const std::string& optype)
 static bool is_static_shape_foldable(const std::string& optype)
 {
     return optype == "aten::size"
-              || optype == "aten::new_empty"
-              || optype == "aten::new_full"
-              || optype == "aten::new_ones"
-              || optype == "aten::new_zeros"
-              || optype == "aten::empty_like"
-              || optype == "aten::full_like"
-              || optype == "aten::ones_like"
-              || optype == "aten::zeros_like"
-              || optype == "aten::_shape_as_tensor";
+           || optype == "aten::new_empty"
+           || optype == "aten::new_full"
+           || optype == "aten::new_ones"
+           || optype == "aten::new_zeros"
+           || optype == "aten::empty_like"
+           || optype == "aten::full_like"
+           || optype == "aten::ones_like"
+           || optype == "aten::zeros_like"
+           || optype == "aten::_shape_as_tensor";
 }
 
 static void build_value_link_input_map(const torch::jit::Node* node, const std::unordered_map<std::string, torch::jit::Value*>& value_alias_map, std::unordered_map<std::string, int>& value_link_input_map, bool ignore_aten_size)
