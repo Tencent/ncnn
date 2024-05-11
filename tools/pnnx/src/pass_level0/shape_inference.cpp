@@ -62,19 +62,16 @@ static void build_value_link_input_map(const torch::jit::Node* node, const std::
     {
         auto out2 = node->outputs()[i];
 
-        auto tensor_type = out2->type()->cast<torch::jit::TensorType>();
-        if (!tensor_type)
-            continue;
-
         std::string os = out2->debugName();
 
-        if (os.empty())
+        if (!os.empty() && value_link_input_map.find(os) != value_link_input_map.end())
             continue;
 
-        if (value_link_input_map.find(os) != value_link_input_map.end())
-            continue;
-
-        value_link_input_map[os] = 1;
+        auto tensor_type = out2->type()->cast<torch::jit::TensorType>();
+        if (tensor_type)
+        {
+            value_link_input_map[os] = 1;
+        }
 
         for (size_t j = 0; j < out2->uses().size(); j++)
         {
