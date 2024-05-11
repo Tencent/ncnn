@@ -60,6 +60,7 @@ pnnx.Output             output      1 0 out
             if (captured_params.at("dtype").i == 9) op->params["dtype"] = "torch.complex64";
             if (captured_params.at("dtype").i == 10) op->params["dtype"] = "torch.complex128";
             if (captured_params.at("dtype").i == 11) op->params["dtype"] = "torch.bool";
+            if (captured_params.at("dtype").i == 15) op->params["dtype"] = "torch.bfloat16";
         }
     }
 };

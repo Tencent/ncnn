@@ -93,7 +93,7 @@ static void parse_shape_list(char* s, std::vector<std::vector<int64_t> >& shapes
     while (pch != NULL)
     {
         // assign user data type
-        if (!types.empty() && (pch[0] == 'f' || pch[0] == 'i' || pch[0] == 'u' || pch[0] == 'c'))
+        if (!types.empty() && (pch[0] == 'b' || pch[0] == 'f' || pch[0] == 'i' || pch[0] == 'u' || pch[0] == 'c'))
         {
             char type[32];
             int nscan = sscanf(pch, "%31[^,]", type);
