@@ -21,6 +21,77 @@ namespace pnnx {
 
 namespace onnx2pnnx {
 
+static void collect_dead_nodes(const onnx::GraphProto& graph, std::vector<std::string>& dead_outputs, std::vector<int>& dead_node_indexes, std::unordered_set<std::string>& live_inputs)
+{
+    for (int i = 0; i < graph.output_size(); i++)
+    {
+        live_inputs.insert(graph.output(i).name());
+    }
+
+    for (int i = graph.node_size() - 1; i >= 0; i--)
+    {
+        const onnx::NodeProto& node = graph.node(i);
+
+        bool is_outputs_live = false;
+        for (int j = 0; j < node.output_size(); j++)
+        {
+            if (live_inputs.find(node.output(j)) != live_inputs.end())
+            {
+                is_outputs_live = true;
+                break;
+            }
+        }
+
+        if (is_outputs_live)
+        {
+            for (int j = 0; j < node.output_size(); j++)
+            {
+                if (live_inputs.find(node.output(j)) == live_inputs.end())
+                {
+                    dead_outputs.push_back(node.output(j));
+                }
+            }
+
+            for (int j = 0; j < node.input_size(); j++)
+            {
+                live_inputs.insert(node.input(j));
+            }
+        }
+        else
+        {
+            dead_node_indexes.push_back(i);
+        }
+
+        if (is_outputs_live)
+        {
+            for (int j = 0; j < node.attribute_size(); j++)
+            {
+                const onnx::AttributeProto& attr = node.attribute(j);
+
+                if (attr.type() == onnx::AttributeProto::GRAPH)
+                {
+                    const onnx::GraphProto& sg = attr.g();
+
+                    std::vector<std::string> sg_dead_outputs;
+                    std::vector<int> sg_dead_node_indexes;
+                    collect_dead_nodes(sg, sg_dead_outputs, sg_dead_node_indexes, live_inputs);
+                }
+                if (attr.type() == onnx::AttributeProto::GRAPHS)
+                {
+                    for (int k = 0; k < attr.graphs().size(); k++)
+                    {
+                        const onnx::GraphProto& sg = attr.graphs().at(k);
+
+                        std::vector<std::string> sg_dead_outputs;
+                        std::vector<int> sg_dead_node_indexes;
+                        collect_dead_nodes(sg, sg_dead_outputs, sg_dead_node_indexes, live_inputs);
+                    }
+                }
+            }
+        }
+    }
+}
+
 void dead_code_elimination(onnx::ModelProto& model)
 {
     // collect all nodes that have no links with graph outputs
@@ -30,45 +101,7 @@ void dead_code_elimination(onnx::ModelProto& model)
         const onnx::GraphProto& graph = model.graph();
 
         std::unordered_set<std::string> live_inputs;
-        for (int i = 0; i < graph.output_size(); i++)
-        {
-            live_inputs.insert(graph.output(i).name());
-        }
-
-        for (int i = graph.node_size() - 1; i >= 0; i--)
-        {
-            const onnx::NodeProto& node = graph.node(i);
-
-            bool is_outputs_live = false;
-            for (int j = 0; j < node.output_size(); j++)
-            {
-                if (live_inputs.find(node.output(j)) != live_inputs.end())
-                {
-                    is_outputs_live = true;
-                    break;
-                }
-            }
-
-            if (is_outputs_live)
-            {
-                for (int j = 0; j < node.output_size(); j++)
-                {
-                    if (live_inputs.find(node.output(j)) == live_inputs.end())
-                    {
-                        dead_outputs.push_back(node.output(j));
-                    }
-                }
-
-                for (int j = 0; j < node.input_size(); j++)
-                {
-                    live_inputs.insert(node.input(j));
-                }
-            }
-            else
-            {
-                dead_node_indexes.push_back(i);
-            }
-        }
+        collect_dead_nodes(graph, dead_outputs, dead_node_indexes, live_inputs);
     }
 
     // eliminate dead nodes
