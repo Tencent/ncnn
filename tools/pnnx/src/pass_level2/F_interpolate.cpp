@@ -943,4 +943,58 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate_6_1, 10)
 
+class F_interpolate_7 : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+4 3
+pnnx.Input              input       0 1 input
+pnnx.Input              size        0 1 size
+aten::upsample_output_size op_0     2 1 input size out coordinate_transformation_mode=%coordinate_transformation_mode mode=%mode
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "F.interpolate";
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        const int input_rank = op->inputs[0]->shape.size();
+
+        const std::string& coordinate_transformation_mode = captured_params.at("coordinate_transformation_mode").s;
+        const std::string& mode = captured_params.at("mode").s;
+
+        if (coordinate_transformation_mode == "pytorch_half_pixel")
+        {
+            op->params["align_corners"] = false;
+        }
+
+        if (mode == "nearest")
+        {
+            op->params["mode"] = "nearest";
+        }
+        if (mode == "linear")
+        {
+            if (input_rank == 3)
+                op->params["mode"] = "linear";
+            else if (input_rank == 5)
+                op->params["mode"] = "trilinear";
+            else
+                op->params["mode"] = "bilinear";
+        }
+        if (mode == "cubic")
+        {
+            if (input_rank == 4)
+                op->params["mode"] = "bicubic";
+        }
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate_7, 10)
+
 } // namespace pnnx

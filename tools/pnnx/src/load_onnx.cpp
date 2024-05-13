@@ -452,7 +452,7 @@ int load_onnx(const std::string& onnxpath, Graph& pnnx_graph)
     fprintf(stderr, "%10.2fms\n", t1 - t0);
 
     // save
-    std::fstream output("tmp2.onnx", std::ios::out | std::ios::trunc | std::ios::binary);
+    std::fstream output("debug.onnx", std::ios::out | std::ios::trunc | std::ios::binary);
     if (!model.SerializeToOstream(&output))
     {
         fprintf(stderr, "write onnx failed\n");
