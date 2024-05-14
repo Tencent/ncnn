@@ -93,9 +93,9 @@ jobs:
         apt-get remove -y python3-setuptools
         pip3 install -U setuptools
         pip3 install -U pytest wheel twine requests einops
+        cd ${{ci.workspace}}
         wget -q https://github.com/Kitware/CMake/releases/download/v3.29.3/cmake-3.29.3-linux-x86_64.tar.gz
         tar -xf cmake-3.29.3-linux-x86_64.tar.gz
-        export PATH=`pwd`/cmake-3.29.3-linux-x86_64/bin:$PATH
 
     - name: cache-torch
       id: cache-torch
@@ -115,6 +115,7 @@ jobs:
     - name: torch
       if: steps.cache-torch.outputs.cacheHit != 'true'
       run: |
+        export PATH=${{ci.workspace}}/cmake-3.29.3-linux-x86_64/bin:$PATH
         cd pytorch
         pip3 install -r requirements.txt
         mkdir -p build && cd build
@@ -140,6 +141,7 @@ jobs:
     - name: torchvision
       if: steps.cache-torchvision.outputs.cacheHit != 'true'
       run: |
+        export PATH=${{ci.workspace}}/cmake-3.29.3-linux-x86_64/bin:$PATH
         cd vision
         mkdir -p build; cd build
         export CXXFLAGS="-isystem ${{ci.workspace}}/torch-${{matrix.torch-version}}-install/include -isystem ${{ci.workspace}}/torch-${{matrix.torch-version}}-install/include/torch/csrc/api/include"
@@ -156,6 +158,7 @@ jobs:
     - name: onnxruntime
       if: steps.cache-onnxruntime.outputs.cacheHit != 'true'
       run: |
+        export PATH=${{ci.workspace}}/cmake-3.29.3-linux-x86_64/bin:$PATH
         wget -q https://github.com/microsoft/onnxruntime/archive/v${{variables.onnxruntime_version}}.zip -O onnxruntime-${{variables.onnxruntime_version}}.zip
         unzip -q onnxruntime-${{variables.onnxruntime_version}}.zip
         cd onnxruntime-${{variables.onnxruntime_version}}
@@ -175,6 +178,7 @@ jobs:
 
     - name: build-ncnn
       run: |
+        export PATH=${{ci.workspace}}/cmake-3.29.3-linux-x86_64/bin:$PATH
         export PYTHONUSERBASE=${{ci.workspace}}/torch-${{matrix.torch-version}}
         mkdir build && cd build
         cmake -DCMAKE_BUILD_TYPE=Release -DNCNN_PYTHON=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
@@ -185,6 +189,7 @@ jobs:
 
     - name: build-pnnx
       run: |
+        export PATH=${{ci.workspace}}/cmake-3.29.3-linux-x86_64/bin:$PATH
         export PYTHONUSERBASE=${{ci.workspace}}/torch-${{matrix.torch-version}}
         cd tools/pnnx
         mkdir build && cd build
@@ -193,6 +198,7 @@ jobs:
 
     - name: test
       run: |
+        export PATH=${{ci.workspace}}/cmake-3.29.3-linux-x86_64/bin:$PATH
         export PYTHONUSERBASE=${{ci.workspace}}/torch-${{matrix.torch-version}}
         export LD_LIBRARY_PATH=${{ci.workspace}}/torchvision-${{matrix.torchvision-version}}-install/lib
         export OMP_NUM_THREADS=1
