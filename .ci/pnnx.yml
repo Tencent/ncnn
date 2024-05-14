@@ -83,18 +83,39 @@ jobs:
         apt-get remove -y python3-setuptools
         pip3 install -U setuptools
         pip3 install -U pytest wheel twine requests einops
+        wget -q https://github.com/Kitware/CMake/releases/download/v3.29.3/cmake-3.29.3-linux-x86_64.tar.gz
+        tar -xf cmake-3.29.3-linux-x86_64.tar.gz
+        export PATH=`pwd`/cmake-3.29.3-linux-x86_64/bin:$PATH
 
     - name: setup pytorch
       run: |
         export PYTHONUSERBASE=${{ci.workspace}}/torch-${{matrix.torch-version}}
         pip3 install --user torch==${{matrix.torch-version}}+cpu torchvision==${{matrix.torchvision-version}}+cpu -f https://download.pytorch.org/whl/torch_stable.html
 
+    - name: cache-torch
+      id: cache-torch
+      uses: cache@1.*
+      with:
+        cachePaths: torch-${{matrix.torch-version}}-install
+        cacheKey: torch-${{matrix.torch-cache-key}}-linux-install-20240501
+    - name: torch
+      if: steps.cache-torch.outputs.cacheHit != 'true'
+      run: |
+        wget -q https://github.com/pytorch/pytorch/releases/download/v${{matrix.torch-version}}/pytorch-v${{matrix.torch-version}}.tar.gz
+        tar -xf pytorch-v${{matrix.torch-version}}.tar.gz
+        cd pytorch-v${{matrix.torch-version}}
+        pip3 install -r requirements.txt
+        mkdir -p build && cd build
+        cmake -DCMAKE_INSTALL_PREFIX=${{ci.workspace}}/torch-${{matrix.torch-version}}-install -DCMAKE_BUILD_TYPE=MinSizeRel -DBUILD_SHARED_LIBS=OFF -DBUILD_CAFFE2_OPS=OFF -DBUILD_CUSTOM_PROTOBUF=OFF -DBUILD_LITE_INTERPRETER=OFF -DBUILD_PYTHON=OFF -DINTERN_BUILD_MOBILE=ON -DINTERN_DISABLE_AUTOGRAD=ON -DINTERN_DISABLE_ONNX=ON -DUSE_CUDA=OFF -DUSE_DISTRIBUTED=OFF -DUSE_ITT=OFF -DUSE_KINETO=OFF -DUSE_LITE_INTERPRETER_PROFILER=OFF -DUSE_MKLDNN=OFF -DUSE_MPS=OFF -DUSE_NUMPY=OFF -DUSE_OPENMP=OFF -DUSE_SOURCE_DEBUG_ON_MOBILE=OFF -DUSE_XNNPACK=OFF ..
+        cmake --build . -j 16
+        cmake --build . --target install/strip
+
     - name: cache-torchvision
       id: cache-torchvision
       uses: cache@1.*
       with:
         cachePaths: torchvision-${{matrix.torchvision-version}}-install
-        cacheKey: torchvision-${{matrix.torchvision-cache-key}}-linux-install-20211228
+        cacheKey: torchvision-${{matrix.torchvision-cache-key}}-linux-install-20240501
     - name: checkout-torchvision
       if: steps.cache-torchvision.outputs.cacheHit != 'true'
       checkout: https://github.com/pytorch/vision.git
@@ -109,22 +130,19 @@ jobs:
       run: |
         cd vision
         mkdir -p build; cd build
-        cmake -DCMAKE_INSTALL_PREFIX=${{ci.workspace}}/torchvision-${{matrix.torchvision-version}}-install -DTorch_DIR=${{ci.workspace}}/torch-${{matrix.torch-version}}/lib/python3.9/site-packages/torch/share/cmake/Torch -DCMAKE_BUILD_TYPE=Release ..
-        cmake --build . -j $(nproc)
-        cmake --build . --target install
+        cmake -DCMAKE_INSTALL_PREFIX=${{ci.workspace}}/torchvision-${{matrix.torchvision-version}}-install -DTorch_DIR=${{ci.workspace}}/torch-${{matrix.torch-version}}-install/share/cmake/Torch -DCMAKE_BUILD_TYPE=Release ..
+        cmake --build . -j 16
+        cmake --build . --target install/strip
 
     - name: cache-onnxruntime
       id: cache-onnxruntime
       uses: cache@1.*
       with:
         cachePaths: onnxruntime-${{variables.onnxruntime_version}}-install
-        cacheKey: onnxruntime-${{variables.onnxruntime_cache_key}}-linux-install-20211228
+        cacheKey: onnxruntime-${{variables.onnxruntime_cache_key}}-linux-install-20240501
     - name: onnxruntime
       if: steps.cache-onnxruntime.outputs.cacheHit != 'true'
       run: |
-        wget -q https://github.com/Kitware/CMake/releases/download/v3.29.3/cmake-3.29.3-linux-x86_64.tar.gz
-        tar -xf cmake-3.29.3-linux-x86_64.tar.gz
-        export PATH=`pwd`/cmake-3.29.3-linux-x86_64/bin:$PATH
         wget -q https://github.com/microsoft/onnxruntime/archive/v${{variables.onnxruntime_version}}.zip -O onnxruntime-${{variables.onnxruntime_version}}.zip
         unzip -q onnxruntime-${{variables.onnxruntime_version}}.zip
         cd onnxruntime-${{variables.onnxruntime_version}}
@@ -134,7 +152,7 @@ jobs:
         patch -p1 -i onnxruntime-${{variables.onnxruntime_version}}-monolithic-static-library.patch
         mkdir -p build && cd build
         cmake -DCMAKE_INSTALL_PREFIX=${{ci.workspace}}/onnxruntime-${{variables.onnxruntime_version}}-install -DCMAKE_BUILD_TYPE=MinSizeRel -Donnxruntime_USE_FULL_PROTOBUF=ON -Donnxruntime_BUILD_SHARED_LIB=ON -Donnxruntime_BUILD_UNIT_TESTS=OFF -Donnxruntime_DISABLE_CONTRIB_OPS=ON -Donnxruntime_DISABLE_ML_OPS=ON -Donnxruntime_DISABLE_SPARSE_TENSORS=ON --compile-no-warning-as-error ../cmake
-        cmake --build . -j $(nproc)
+        cmake --build . -j 16
         cmake --build . --target install/strip
 
     - name: build-ncnn
@@ -142,9 +160,9 @@ jobs:
         export PYTHONUSERBASE=${{ci.workspace}}/torch-${{matrix.torch-version}}
         mkdir build && cd build
         cmake -DCMAKE_BUILD_TYPE=Release -DNCNN_PYTHON=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
-        cmake --build . -j $(nproc)
+        cmake --build . -j 16
         cd ..
-        export CMAKE_BUILD_PARALLEL_LEVEL=$(nproc)
+        export CMAKE_BUILD_PARALLEL_LEVEL=16
         pip3 install --user .
 
     - name: build-pnnx
@@ -152,7 +170,7 @@ jobs:
         export PYTHONUSERBASE=${{ci.workspace}}/torch-${{matrix.torch-version}}
         cd tools/pnnx
         mkdir build && cd build
-        cmake -DCMAKE_BUILD_TYPE=Release -DTorchVision_INSTALL_DIR=${{ci.workspace}}/torchvision-${{matrix.torchvision-version}}-install -Donnxruntime_INSTALL_DIR=${{ci.workspace}}/onnxruntime-${{variables.onnxruntime_version}}-install ..
+        cmake -DCMAKE_BUILD_TYPE=Release -DTorch_INSTALL_DIR=${{ci.workspace}}/torch-${{matrix.torch-version}}-install -DTorchVision_INSTALL_DIR=${{ci.workspace}}/torchvision-${{matrix.torchvision-version}}-install -Donnxruntime_INSTALL_DIR=${{ci.workspace}}/onnxruntime-${{variables.onnxruntime_version}}-install ..
         cmake --build . -j 16
 
     - name: test
