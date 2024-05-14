@@ -25,42 +25,52 @@ jobs:
       matrix:
         include:
           - torch-version: 1.8.1
+            torch-cache-key: '1_8_1'
             torchvision-version: 0.9.1
             torchvision-cache-key: '0_9_1'
 
           - torch-version: 1.9.1
+            torch-cache-key: '1_9_1'
             torchvision-version: 0.10.1
             torchvision-cache-key: '0_10_1'
 
           - torch-version: 1.10.0
+            torch-cache-key: '1_10_0'
             torchvision-version: 0.11.1
             torchvision-cache-key: '0_11_1'
 
           - torch-version: 1.11.0
+            torch-cache-key: '1_11_0'
             torchvision-version: 0.12.0
             torchvision-cache-key: '0_12_0'
 
           - torch-version: 1.12.0
+            torch-cache-key: '1_12_0'
             torchvision-version: 0.13.0
             torchvision-cache-key: '0_13_0'
 
           - torch-version: 1.13.0
+            torch-cache-key: '1_13_0'
             torchvision-version: 0.14.0
             torchvision-cache-key: '0_14_0'
 
           - torch-version: 2.0.0
+            torch-cache-key: '2_0_0'
             torchvision-version: 0.15.1
             torchvision-cache-key: '0_15_1'
 
           - torch-version: 2.1.0
+            torch-cache-key: '2_1_0'
             torchvision-version: 0.16.0
             torchvision-cache-key: '0_16_0'
 
           - torch-version: 2.2.1
+            torch-cache-key: '2_2_1'
             torchvision-version: 0.17.1
             torchvision-cache-key: '0_17_1'
 
           - torch-version: 2.3.0
+            torch-cache-key: '2_3_0'
             torchvision-version: 0.18.0
             torchvision-cache-key: '0_18_0'
 
