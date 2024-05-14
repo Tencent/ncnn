@@ -142,7 +142,7 @@ jobs:
       run: |
         cd vision
         mkdir -p build; cd build
-        export CXXFLAGS="-isystem ${{ci.workspace}}/torch-${{matrix.torch-version}}-install/include"
+        export CXXFLAGS="-isystem ${{ci.workspace}}/torch-${{matrix.torch-version}}-install/include -isystem ${{ci.workspace}}/torch-${{matrix.torch-version}}-install/include/torch/csrc/api/include"
         cmake -DCMAKE_INSTALL_PREFIX=${{ci.workspace}}/torchvision-${{matrix.torchvision-version}}-install -DTorch_DIR=${{ci.workspace}}/torch-${{matrix.torch-version}}-install/share/cmake/Torch -DCMAKE_BUILD_TYPE=Release ..
         cmake --build . -j 16
         cmake --build . --target install/strip
