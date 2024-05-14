@@ -118,7 +118,7 @@ jobs:
         cd pytorch
         pip3 install -r requirements.txt
         mkdir -p build && cd build
-        cmake -DCMAKE_INSTALL_PREFIX=${{ci.workspace}}/torch-${{matrix.torch-version}}-install -DCMAKE_BUILD_TYPE=MinSizeRel -DBUILD_SHARED_LIBS=OFF -DBUILD_CAFFE2_OPS=OFF -DBUILD_CUSTOM_PROTOBUF=OFF -DBUILD_LITE_INTERPRETER=OFF -DBUILD_PYTHON=OFF -DINTERN_BUILD_MOBILE=ON -DINTERN_DISABLE_AUTOGRAD=ON -DINTERN_DISABLE_ONNX=ON -DUSE_CUDA=OFF -DUSE_DISTRIBUTED=OFF -DUSE_ITT=OFF -DUSE_KINETO=OFF -DUSE_LITE_INTERPRETER_PROFILER=OFF -DUSE_MKLDNN=OFF -DUSE_MPS=OFF -DUSE_NUMPY=OFF -DUSE_OPENMP=OFF -DUSE_SOURCE_DEBUG_ON_MOBILE=OFF -DUSE_XNNPACK=OFF ..
+        cmake -DCMAKE_INSTALL_PREFIX=${{ci.workspace}}/torch-${{matrix.torch-version}}-install -DCMAKE_BUILD_TYPE=MinSizeRel -DBUILD_SHARED_LIBS=OFF -DBUILD_CAFFE2_OPS=OFF -DBUILD_CUSTOM_PROTOBUF=OFF -DBUILD_LITE_INTERPRETER=OFF -DBUILD_PYTHON=OFF -DINTERN_BUILD_MOBILE=ON -DINTERN_DISABLE_AUTOGRAD=ON -DINTERN_DISABLE_ONNX=ON -DUSE_CUDA=OFF -DUSE_DISTRIBUTED=OFF -DUSE_ITT=OFF -DUSE_KINETO=OFF -DUSE_LITE_INTERPRETER_PROFILER=OFF -DUSE_MKLDNN=OFF -DUSE_MPS=OFF -DUSE_NUMPY=OFF -DUSE_OPENMP=OFF -DUSE_SOURCE_DEBUG_ON_MOBILE=OFF -DUSE_XNNPACK=OFF -DUSE_BREAKPAD=OFF ..
         cmake --build . -j 16
         cmake --build . --target install/strip
 
@@ -142,7 +142,7 @@ jobs:
       run: |
         cd vision
         mkdir -p build; cd build
-        export CXXFLAGS="-isystem ${{ci.workspace}}/torchvision-${{matrix.torchvision-version}}-install/include"
+        export CXXFLAGS="-isystem ${{ci.workspace}}/torch-${{matrix.torch-version}}-install/include"
         cmake -DCMAKE_INSTALL_PREFIX=${{ci.workspace}}/torchvision-${{matrix.torchvision-version}}-install -DTorch_DIR=${{ci.workspace}}/torch-${{matrix.torch-version}}-install/share/cmake/Torch -DCMAKE_BUILD_TYPE=Release ..
         cmake --build . -j 16
         cmake --build . --target install/strip
