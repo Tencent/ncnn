@@ -97,11 +97,6 @@ jobs:
         tar -xf cmake-3.29.3-linux-x86_64.tar.gz
         export PATH=`pwd`/cmake-3.29.3-linux-x86_64/bin:$PATH
 
-    - name: setup pytorch
-      run: |
-        export PYTHONUSERBASE=${{ci.workspace}}/torch-${{matrix.torch-version}}
-        pip3 install --user torch==${{matrix.torch-version}}+cpu torchvision==${{matrix.torchvision-version}}+cpu -f https://download.pytorch.org/whl/torch_stable.html
-
     - name: cache-torch
       id: cache-torch
       uses: cache@1.*
@@ -111,7 +106,7 @@ jobs:
     - name: torch
       if: steps.cache-torch.outputs.cacheHit != 'true'
       run: |
-        wget -q https://github.com/pytorch/pytorch/releases/download/v${{matrix.torch-version}}/pytorch-v${{matrix.torch-version}}.tar.gz
+        wget -q https://github.com/pytorch/pytorch/archive/v${{matrix.torch-version}}.tar.gz -O pytorch-v${{matrix.torch-version}}.tar.gz
         tar -xf pytorch-v${{matrix.torch-version}}.tar.gz
         cd pytorch-v${{matrix.torch-version}}
         pip3 install -r requirements.txt
@@ -140,6 +135,7 @@ jobs:
       run: |
         cd vision
         mkdir -p build; cd build
+        export CXXFLAGS="-isystem ${{ci.workspace}}/torchvision-${{matrix.torchvision-version}}-install/include"
         cmake -DCMAKE_INSTALL_PREFIX=${{ci.workspace}}/torchvision-${{matrix.torchvision-version}}-install -DTorch_DIR=${{ci.workspace}}/torch-${{matrix.torch-version}}-install/share/cmake/Torch -DCMAKE_BUILD_TYPE=Release ..
         cmake --build . -j 16
         cmake --build . --target install/strip
@@ -164,6 +160,11 @@ jobs:
         cmake -DCMAKE_INSTALL_PREFIX=${{ci.workspace}}/onnxruntime-${{variables.onnxruntime_version}}-install -DCMAKE_BUILD_TYPE=MinSizeRel -Donnxruntime_USE_FULL_PROTOBUF=ON -Donnxruntime_BUILD_SHARED_LIB=ON -Donnxruntime_BUILD_UNIT_TESTS=OFF -Donnxruntime_DISABLE_CONTRIB_OPS=ON -Donnxruntime_DISABLE_ML_OPS=ON -Donnxruntime_DISABLE_SPARSE_TENSORS=ON --compile-no-warning-as-error ../cmake
         cmake --build . -j 16
         cmake --build . --target install/strip
+
+    - name: setup pytorch
+      run: |
+        export PYTHONUSERBASE=${{ci.workspace}}/torch-${{matrix.torch-version}}
+        pip3 install --user torch==${{matrix.torch-version}}+cpu torchvision==${{matrix.torchvision-version}}+cpu -f https://download.pytorch.org/whl/torch_stable.html
 
     - name: build-ncnn
       run: |
