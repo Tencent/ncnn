@@ -312,20 +312,20 @@ int main(int argc, char** argv)
     std::set<std::string> foldable_constants;
     std::string foldable_constants_zippath = ptbase + ".foldable_constants.zip";
 
-    bool model_maybe_torchscript = model_file_maybe_torchscript(ptpath);
-
     pnnx::Graph pnnx_graph;
-    if (model_maybe_torchscript)
+#if BUILD_ONNX2PNNX
+    if (!model_file_maybe_torchscript(ptpath))
+    {
+        load_onnx(ptpath.c_str(), pnnx_graph);
+    }
+    else
+#endif
     {
         load_torchscript(ptpath, pnnx_graph,
                         device, input_shapes, input_types,
                         input_shapes2, input_types2,
                         customop_modules, module_operators,
                         foldable_constants_zippath, foldable_constants);
-    }
-    else
-    {
-        load_onnx(ptpath.c_str(), pnnx_graph);
     }
 
     //     g->dump();
