@@ -40,9 +40,11 @@ set(TorchVision_DIR "${TorchVision_INSTALL_DIR}/share/cmake/TorchVision")
 find_package(Python3 COMPONENTS Interpreter Development)
 
 PNNXProbeForPyTorchInstall()
-find_package(Torch REQUIRED)
 
 find_package(TorchVision QUIET)
+if(NOT TorchVision_FOUND)
+    find_package(Torch REQUIRED)
+endif()
 
 message(STATUS "Torch_VERSION = ${Torch_VERSION}")
 message(STATUS "Torch_VERSION_MAJOR = ${Torch_VERSION_MAJOR}")
