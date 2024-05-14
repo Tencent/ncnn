@@ -89,6 +89,7 @@ jobs:
       if: steps.cache-pnnx-deps.outputs.cacheHit != 'true'
       checkout: https://github.com/pnnx/pnnx.git
       with:
+        refName: main
         localPath: pnnx-patches
         enableSubmodule: false
         enableGitLfs: false
