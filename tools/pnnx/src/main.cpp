@@ -322,10 +322,10 @@ int main(int argc, char** argv)
 #endif
     {
         load_torchscript(ptpath, pnnx_graph,
-                        device, input_shapes, input_types,
-                        input_shapes2, input_types2,
-                        customop_modules, module_operators,
-                        foldable_constants_zippath, foldable_constants);
+                         device, input_shapes, input_types,
+                         input_shapes2, input_types2,
+                         customop_modules, module_operators,
+                         foldable_constants_zippath, foldable_constants);
     }
 
     //     g->dump();

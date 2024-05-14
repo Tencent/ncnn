@@ -15,6 +15,10 @@ on:
 concurrency:
   group: pnnx-${{ ci.head_ref }}
 
+variables:
+  onnxruntime-version: 1.17.3
+  onnxruntime-cache-key: '1_17_3'
+
 jobs:
   ubuntu:
     strategy:
@@ -109,6 +113,27 @@ jobs:
         cmake --build . -j $(nproc)
         cmake --build . --target install
 
+    - name: cache-onnxruntime
+      id: cache-onnxruntime
+      uses: cache@1.*
+      with:
+        cachePaths: onnxruntime-${{variables.onnxruntime-version}}-install
+        cacheKey: onnxruntime-${{variables.onnxruntime-cache-key}}-linux-install-20211228
+    - name: onnxruntime
+      if: steps.cache-onnxruntime.outputs.cacheHit != 'true'
+      run: |
+        wget -q https://github.com/microsoft/onnxruntime/archive/v${{variables.onnxruntime-version}}.zip -O onnxruntime-${{variables.onnxruntime-version}}.zip
+        unzip -q onnxruntime-${{variables.onnxruntime-version}}.zip
+        cd onnxruntime-${{variables.onnxruntime-version}}
+        wget https://github.com/pnnx/pnnx/raw/onnxruntime/onnxruntime-${{variables.onnxruntime-version}}-less-mlas-features.patch
+        wget https://github.com/pnnx/pnnx/raw/onnxruntime/onnxruntime-${{variables.onnxruntime-version}}-monolithic-static-library.patch
+        patch -p1 -i onnxruntime-${{variables.onnxruntime-version}}-less-mlas-features.patch
+        patch -p1 -i onnxruntime-${{variables.onnxruntime-version}}-monolithic-static-library.patch
+        mkdir -p build && cd build
+        cmake -DCMAKE_INSTALL_PREFIX=${{ci.workspace}}/onnxruntime-${{variables.onnxruntime-version}}-install -DCMAKE_BUILD_TYPE=MinSizeRel -Donnxruntime_USE_FULL_PROTOBUF=ON -Donnxruntime_BUILD_SHARED_LIB=ON -Donnxruntime_BUILD_UNIT_TESTS=OFF -Donnxruntime_DISABLE_CONTRIB_OPS=ON -Donnxruntime_DISABLE_ML_OPS=ON -Donnxruntime_DISABLE_SPARSE_TENSORS=ON --compile-no-warning-as-error ../cmake
+        cmake --build . -j $(nproc)
+        cmake --build . --target install/strip
+
     - name: build-ncnn
       run: |
         export PYTHONUSERBASE=${{ci.workspace}}/torch-${{matrix.torch-version}}
@@ -124,7 +149,7 @@ jobs:
         export PYTHONUSERBASE=${{ci.workspace}}/torch-${{matrix.torch-version}}
         cd tools/pnnx
         mkdir build && cd build
-        cmake -DCMAKE_BUILD_TYPE=Release -DTorchVision_INSTALL_DIR=${{ci.workspace}}/torchvision-${{matrix.torchvision-version}}-install ..
+        cmake -DCMAKE_BUILD_TYPE=Release -DTorchVision_INSTALL_DIR=${{ci.workspace}}/torchvision-${{matrix.torchvision-version}}-install -Donnxruntime_INSTALL_DIR=${{ci.workspace}}/onnxruntime-${{variables.onnxruntime-version}}-install ..
         cmake --build . -j 16
 
     - name: test
