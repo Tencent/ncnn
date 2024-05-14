@@ -13,6 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include <stdio.h>
+#include <stdint.h>
 #include <string.h>
 
 #include <algorithm>
@@ -154,6 +155,24 @@ static void print_shape_list(const std::vector<std::vector<int64_t> >& shapes, c
     }
 }
 
+static bool model_file_maybe_torchscript(const std::string& path)
+{
+    FILE* fp = fopen(path.c_str(), "rb");
+    if (!fp)
+    {
+        fprintf(stderr, "open failed %s\n", path.c_str());
+        return false;
+    }
+
+    uint32_t signature = 0;
+    fread((char*)&signature, sizeof(signature), 1, fp);
+
+    fclose(fp);
+
+    // torchscript is a zip
+    return signature == 0x04034b50;
+}
+
 static void show_usage()
 {
     fprintf(stderr, "Usage: pnnx [model.pt] [(key=value)...]\n");
@@ -293,14 +312,21 @@ int main(int argc, char** argv)
     std::set<std::string> foldable_constants;
     std::string foldable_constants_zippath = ptbase + ".foldable_constants.zip";
 
-    pnnx::Graph pnnx_graph;
-    load_torchscript(ptpath, pnnx_graph,
-                     device, input_shapes, input_types,
-                     input_shapes2, input_types2,
-                     customop_modules, module_operators,
-                     foldable_constants_zippath, foldable_constants);
+    bool model_maybe_torchscript = model_file_maybe_torchscript(ptpath);
 
-    // load_onnx(ptpath.c_str(), pnnx_graph);
+    pnnx::Graph pnnx_graph;
+    if (model_maybe_torchscript)
+    {
+        load_torchscript(ptpath, pnnx_graph,
+                        device, input_shapes, input_types,
+                        input_shapes2, input_types2,
+                        customop_modules, module_operators,
+                        foldable_constants_zippath, foldable_constants);
+    }
+    else
+    {
+        load_onnx(ptpath.c_str(), pnnx_graph);
+    }
 
     //     g->dump();
 

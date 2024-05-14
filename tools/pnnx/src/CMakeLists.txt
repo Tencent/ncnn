@@ -584,6 +584,13 @@ if(PROTOBUF_FOUND)
         protobuf_generate(TARGET onnxproto)
         target_link_libraries(onnxproto PUBLIC protobuf::libprotobuf)
     endif()
+
+    # use onnxruntime onnx proto if found
+    if(onnxruntime_FOUND)
+        add_dependencies(onnxruntime::onnxruntime onnxproto)
+        set_property(TARGET onnxruntime::onnxruntime APPEND PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${PROTOBUF_INCLUDE_DIR} ${CMAKE_CURRENT_BINARY_DIR})
+        set_property(TARGET onnxruntime::onnxruntime APPEND PROPERTY INTERFACE_LINK_LIBRARIES ${PROTOBUF_LIBRARIES} protobuf::libprotobuf)
+    endif()
 endif()
 
 set(torch2pnnx_SRCS
@@ -613,54 +620,58 @@ if(PROTOBUF_FOUND)
     add_library(pnnx2onnx STATIC
         save_onnx.cpp
     )
-    target_link_libraries(pnnx2onnx PRIVATE onnxproto)
+    if(onnxruntime_FOUND)
+        target_link_libraries(pnnx2onnx PRIVATE onnxruntime::onnxruntime)
+    else()
+        target_link_libraries(pnnx2onnx PRIVATE onnxproto)
+    endif()
 
     message(STATUS "Building with onnx-zero")
 else()
     message(STATUS "Building without onnx-zero")
 endif()
 
-# if(onnxruntime_FOUND)
-#
-#     set(pnnx_pass_onnx_SRCS
-#         pass_onnx/canonicalize.cpp
-#         pass_onnx/dead_code_elimination.cpp
-#         pass_onnx/eliminate_noop.cpp
-#         pass_onnx/fold_constants.cpp
-#         pass_onnx/inline_containers.cpp
-#         pass_onnx/model_stat.cpp
-#         pass_onnx/shape_inference.cpp
-#
-#         pass_onnx/nn_AdaptiveAvgPool2d.cpp
-#         pass_onnx/nn_AdaptiveAvgPool3d.cpp
-#         pass_onnx/nn_AvgPool2d.cpp
-#         pass_onnx/nn_AvgPool3d.cpp
-#         pass_onnx/nn_BatchNorm2d.cpp
-#         pass_onnx/nn_BatchNorm3d.cpp
-#         pass_onnx/nn_Conv2d.cpp
-#         pass_onnx/nn_Conv3d.cpp
-#         pass_onnx/nn_GELU.cpp
-#         pass_onnx/nn_LayerNorm.cpp
-#         pass_onnx/nn_Linear.cpp
-#         pass_onnx/nn_MaxPool2d.cpp
-#         pass_onnx/nn_MaxPool3d.cpp
-#         pass_onnx/nn_MultiheadAttention.cpp
-#     )
-#
-#     set(onnx2pnnx_SRCS
-#         pass_onnx.cpp
-#         ${pnnx_pass_onnx_SRCS}
-#         load_onnx.cpp
-#     )
-#
-#     add_library(onnx2pnnx OBJECT ${onnx2pnnx_SRCS})
-#     target_link_libraries(onnx2pnnx PRIVATE onnxproto onnxruntime::onnxruntime)
-#     target_compile_definitions(onnx2pnnx PRIVATE BUILD_ONNX2PNNX)
-#
-#     message(STATUS "Building with dynamo-onnx")
-# else()
-#     message(STATUS "Building without dynamo-onnx")
-# endif()
+if(onnxruntime_FOUND)
+
+    set(pnnx_pass_onnx_SRCS
+        pass_onnx/canonicalize.cpp
+        pass_onnx/dead_code_elimination.cpp
+        pass_onnx/eliminate_noop.cpp
+        pass_onnx/fold_constants.cpp
+        pass_onnx/inline_containers.cpp
+        pass_onnx/model_stat.cpp
+        pass_onnx/shape_inference.cpp
+
+        pass_onnx/nn_AdaptiveAvgPool2d.cpp
+        pass_onnx/nn_AdaptiveAvgPool3d.cpp
+        pass_onnx/nn_AvgPool2d.cpp
+        pass_onnx/nn_AvgPool3d.cpp
+        pass_onnx/nn_BatchNorm2d.cpp
+        pass_onnx/nn_BatchNorm3d.cpp
+        pass_onnx/nn_Conv2d.cpp
+        pass_onnx/nn_Conv3d.cpp
+        pass_onnx/nn_GELU.cpp
+        pass_onnx/nn_LayerNorm.cpp
+        pass_onnx/nn_Linear.cpp
+        pass_onnx/nn_MaxPool2d.cpp
+        pass_onnx/nn_MaxPool3d.cpp
+        pass_onnx/nn_MultiheadAttention.cpp
+    )
+
+    set(onnx2pnnx_SRCS
+        pass_onnx.cpp
+        ${pnnx_pass_onnx_SRCS}
+        load_onnx.cpp
+    )
+
+    add_library(onnx2pnnx OBJECT ${onnx2pnnx_SRCS})
+    target_link_libraries(onnx2pnnx PRIVATE onnxruntime::onnxruntime)
+    target_compile_definitions(onnx2pnnx PRIVATE BUILD_ONNX2PNNX)
+
+    message(STATUS "Building with onnx2pnnx")
+else()
+    message(STATUS "Building without onnx2pnnx")
+endif()
 
 if(NOT MSVC)
     add_definitions(-Wall -Wextra)
@@ -707,10 +718,10 @@ if(PROTOBUF_FOUND)
     target_link_libraries(pnnx PRIVATE pnnx2onnx)
 endif()
 
-# if(onnxruntime_FOUND)
-#     set_property(SOURCE main.cpp APPEND PROPERTY COMPILE_DEFINITIONS BUILD_ONNX2PNNX)
-#     target_link_libraries(pnnx PRIVATE onnx2pnnx)
-# endif()
+if(onnxruntime_FOUND)
+    set_property(SOURCE main.cpp APPEND PROPERTY COMPILE_DEFINITIONS BUILD_ONNX2PNNX)
+    target_link_libraries(pnnx PRIVATE onnx2pnnx)
+endif()
 
 if(PNNX_COVERAGE)
     target_compile_options(pnnx PUBLIC -coverage -fprofile-arcs -ftest-coverage)
