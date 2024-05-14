@@ -103,12 +103,19 @@ jobs:
       with:
         cachePaths: torch-${{matrix.torch-version}}-install
         cacheKey: torch-${{matrix.torch-cache-key}}-linux-install-20240501
+    - name: checkout-torch
+      if: steps.cache-torch.outputs.cacheHit != 'true'
+      checkout: https://github.com/pytorch/pytorch.git
+      with:
+        pullType: TAG
+        refName: v${{matrix.torch-version}}
+        localPath: pytorch
+        enableSubmodule: true
+        enableGitLfs: false
     - name: torch
       if: steps.cache-torch.outputs.cacheHit != 'true'
       run: |
-        wget -q https://github.com/pytorch/pytorch/archive/v${{matrix.torch-version}}.tar.gz -O pytorch-v${{matrix.torch-version}}.tar.gz
-        tar -xf pytorch-v${{matrix.torch-version}}.tar.gz
-        cd pytorch-v${{matrix.torch-version}}
+        cd pytorch
         pip3 install -r requirements.txt
         mkdir -p build && cd build
         cmake -DCMAKE_INSTALL_PREFIX=${{ci.workspace}}/torch-${{matrix.torch-version}}-install -DCMAKE_BUILD_TYPE=MinSizeRel -DBUILD_SHARED_LIBS=OFF -DBUILD_CAFFE2_OPS=OFF -DBUILD_CUSTOM_PROTOBUF=OFF -DBUILD_LITE_INTERPRETER=OFF -DBUILD_PYTHON=OFF -DINTERN_BUILD_MOBILE=ON -DINTERN_DISABLE_AUTOGRAD=ON -DINTERN_DISABLE_ONNX=ON -DUSE_CUDA=OFF -DUSE_DISTRIBUTED=OFF -DUSE_ITT=OFF -DUSE_KINETO=OFF -DUSE_LITE_INTERPRETER_PROFILER=OFF -DUSE_MKLDNN=OFF -DUSE_MPS=OFF -DUSE_NUMPY=OFF -DUSE_OPENMP=OFF -DUSE_SOURCE_DEBUG_ON_MOBILE=OFF -DUSE_XNNPACK=OFF ..
