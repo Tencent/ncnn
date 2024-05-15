@@ -71,12 +71,6 @@ public:
             {
                 op->params["batch_first"] = true;
             }
-#if TORCH_VERSION_MAJOR >= 2 || TORCH_VERSION_MAJOR == 1 && TORCH_VERSION_MINOR >= 9
-            else
-            {
-                op->params["batch_first"] = false;
-            }
-#endif
 
             const torch::jit::Node* add_zero_attn = find_node_by_kind(graph, "aten::zeros");
             if (add_zero_attn)
