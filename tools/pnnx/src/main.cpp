@@ -328,7 +328,7 @@ int main(int argc, char** argv)
                          foldable_constants_zippath, foldable_constants);
     }
 
-    //     g->dump();
+    g->dump();
 
     fprintf(stderr, "############# pass_level2\n");
 
