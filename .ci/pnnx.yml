@@ -80,22 +80,22 @@ jobs:
         wget -q https://github.com/Kitware/CMake/releases/download/v3.29.3/cmake-3.29.3-linux-x86_64.tar.gz
         tar -xf cmake-3.29.3-linux-x86_64.tar.gz
 
-    - name: cache-pnnx-deps
-      id: cache-pnnx-deps
+    - name: cache-pnnx-deps-torch
+      id: cache-pnnx-deps-torch
       uses: cache@1.*
       with:
-        cachePaths: pnnx-deps-install
-        cacheKey: pnnx-deps-linux-install-${{variables.cache_date}}
+        cachePaths: pnnx-deps-torch-install
+        cacheKey: pnnx-deps-torch-linux-install-${{variables.cache_date}}
     - name: checkout-pnnx-patches
-      if: steps.cache-pnnx-deps.outputs.cacheHit != 'true'
+      if: steps.cache-pnnx-deps-torch.outputs.cacheHit != 'true'
       checkout: https://github.com/pnnx/pnnx.git
       with:
         refName: main
         localPath: pnnx-patches
         enableSubmodule: false
         enableGitLfs: false
-    - name: pnnx-deps-libtorch
-      if: steps.cache-pnnx-deps.outputs.cacheHit != 'true'
+    - name: pnnx-deps-torch-libtorch
+      if: steps.cache-pnnx-deps-torch.outputs.cacheHit != 'true'
       run: |
         export PATH=${{ci.workspace}}/cmake-3.29.3-linux-x86_64/bin:$PATH
         wget -q https://github.com/pytorch/pytorch/releases/download/v${{variables.libtorch_version}}/pytorch-v${{variables.libtorch_version}}.tar.gz
@@ -106,11 +106,11 @@ jobs:
         patch -p1 -i ${{ci.workspace}}/pnnx-patches/pytorch-v${{variables.libtorch_version}}-no-link-system-lib.patch
         patch -p1 -i ${{ci.workspace}}/pnnx-patches/pytorch-v${{variables.libtorch_version}}-fix-pocketfft-build.patch
         mkdir -p build && cd build
-        cmake -DCMAKE_INSTALL_PREFIX=${{ci.workspace}}/pnnx-deps-install -DCMAKE_BUILD_TYPE=MinSizeRel -DBUILD_SHARED_LIBS=OFF -DBUILD_CAFFE2_OPS=OFF -DBUILD_CUSTOM_PROTOBUF=OFF -DBUILD_LITE_INTERPRETER=OFF -DBUILD_PYTHON=OFF -DINTERN_BUILD_MOBILE=ON -DINTERN_DISABLE_AUTOGRAD=ON -DINTERN_DISABLE_ONNX=ON -DUSE_CUDA=OFF -DUSE_DISTRIBUTED=OFF -DUSE_ITT=OFF -DUSE_KINETO=OFF -DUSE_LITE_INTERPRETER_PROFILER=OFF -DUSE_MKLDNN=OFF -DUSE_MPS=OFF -DUSE_NUMPY=OFF -DUSE_OPENMP=OFF -DUSE_SOURCE_DEBUG_ON_MOBILE=OFF -DUSE_XNNPACK=OFF ..
-        cmake --build . -j 16
+        cmake -DCMAKE_INSTALL_PREFIX=${{ci.workspace}}/pnnx-deps-torch-install -DCMAKE_BUILD_TYPE=MinSizeRel -DBUILD_SHARED_LIBS=OFF -DBUILD_CAFFE2_OPS=OFF -DBUILD_CUSTOM_PROTOBUF=OFF -DBUILD_LITE_INTERPRETER=OFF -DBUILD_PYTHON=OFF -DINTERN_BUILD_MOBILE=ON -DINTERN_DISABLE_AUTOGRAD=ON -DINTERN_DISABLE_ONNX=ON -DUSE_CUDA=OFF -DUSE_DISTRIBUTED=OFF -DUSE_ITT=OFF -DUSE_KINETO=OFF -DUSE_LITE_INTERPRETER_PROFILER=OFF -DUSE_MKLDNN=OFF -DUSE_MPS=OFF -DUSE_NUMPY=OFF -DUSE_OPENMP=OFF -DUSE_SOURCE_DEBUG_ON_MOBILE=OFF -DUSE_XNNPACK=OFF ..
+        cmake --build . -j $(nproc)
         cmake --build . --target install/strip
-    - name: pnnx-deps-libtorchvision
-      if: steps.cache-pnnx-deps.outputs.cacheHit != 'true'
+    - name: pnnx-deps-torch-libtorchvision
+      if: steps.cache-pnnx-deps-torch.outputs.cacheHit != 'true'
       run: |
         export PATH=${{ci.workspace}}/cmake-3.29.3-linux-x86_64/bin:$PATH
         wget -q https://github.com/pytorch/vision/archive/v${{variables.libtorchvision_version}}.zip -O vision-${{variables.libtorchvision_version}}.zip
@@ -119,9 +119,10 @@ jobs:
         patch -p1 -i ${{ci.workspace}}/pnnx-patches/vision-${{variables.libtorchvision_version}}-ops-only.patch
         patch -p1 -i ${{ci.workspace}}/pnnx-patches/vision-${{variables.libtorchvision_version}}-no-cuda-version.patch
         mkdir -p build && cd build
-        cmake -DCMAKE_INSTALL_PREFIX=${{ci.workspace}}/pnnx-deps-install -DTorch_DIR=${{ci.workspace}}/pnnx-deps-install/share/cmake/Torch -DCMAKE_BUILD_TYPE=MinSizeRel -DWITH_PNG=OFF -DWITH_JPEG=OFF ..
-        cmake --build . -j 16
+        cmake -DCMAKE_INSTALL_PREFIX=${{ci.workspace}}/pnnx-deps-torch-install -DTorch_DIR=${{ci.workspace}}/pnnx-deps-torch-install/share/cmake/Torch -DCMAKE_BUILD_TYPE=MinSizeRel -DWITH_PNG=OFF -DWITH_JPEG=OFF ..
+        cmake --build . -j $(nproc)
         cmake --build . --target install/strip
+
     # - name: pnnx-deps-protobuf
     #   if: steps.cache-pnnx-deps.outputs.cacheHit != 'true'
     #   run: |
@@ -171,7 +172,7 @@ jobs:
     #     export PYTHONUSERBASE=${{ci.workspace}}/torch-${{matrix.torch-version}}
     #     cd tools/pnnx
     #     mkdir build && cd build
-    #     cmake -DCMAKE_BUILD_TYPE=Release -DTorch_INSTALL_DIR=${{ci.workspace}}/pnnx-deps-install -DTorchVision_INSTALL_DIR=${{ci.workspace}}/pnnx-deps-install -Donnxruntime_INSTALL_DIR=${{ci.workspace}}/pnnx-deps-install -Dprotobuf_DIR=${{ci.workspace}}/pnnx-deps-install/lib/cmake/protobuf ..
+    #     cmake -DCMAKE_BUILD_TYPE=Release -DTorch_INSTALL_DIR=${{ci.workspace}}/pnnx-deps-torch-install -DTorchVision_INSTALL_DIR=${{ci.workspace}}/pnnx-deps-torch-install -Donnxruntime_INSTALL_DIR=${{ci.workspace}}/pnnx-deps-install -Dprotobuf_DIR=${{ci.workspace}}/pnnx-deps-install/lib/cmake/protobuf ..
     #     cmake --build . -j 16
     #
     # - name: test
