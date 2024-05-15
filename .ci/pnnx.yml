@@ -161,25 +161,25 @@ jobs:
         export PYTHONUSERBASE=${{ci.workspace}}/torch-${{matrix.torch-version}}
         pip3 install --user torch==${{matrix.torch-version}}+cpu torchvision==${{matrix.torchvision-version}}+cpu -f https://download.pytorch.org/whl/torch_stable.html
 
-    # - name: build-ncnn
-    #   run: |
-    #     export PATH=${{ci.workspace}}/cmake-3.29.3-linux-x86_64/bin:$PATH
-    #     export PYTHONUSERBASE=${{ci.workspace}}/torch-${{matrix.torch-version}}
-    #     mkdir build && cd build
-    #     cmake -DCMAKE_BUILD_TYPE=Release -DNCNN_PYTHON=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
-    #     cmake --build . -j 16
-    #     cd ..
-    #     export CMAKE_BUILD_PARALLEL_LEVEL=16
-    #     pip3 install --user .
-    #
-    # - name: build-pnnx
-    #   run: |
-    #     export PATH=${{ci.workspace}}/cmake-3.29.3-linux-x86_64/bin:$PATH
-    #     export PYTHONUSERBASE=${{ci.workspace}}/torch-${{matrix.torch-version}}
-    #     cd tools/pnnx
-    #     mkdir build && cd build
-    #     cmake -DCMAKE_BUILD_TYPE=Release -DTorch_INSTALL_DIR=${{ci.workspace}}/pnnx-deps-torch-install -DTorchVision_INSTALL_DIR=${{ci.workspace}}/pnnx-deps-torch-install -Donnxruntime_INSTALL_DIR=${{ci.workspace}}/pnnx-deps-onnx-install -Dprotobuf_DIR=${{ci.workspace}}/pnnx-deps-onnx-install/lib/cmake/protobuf ..
-    #     cmake --build . -j 16
+    - name: build-ncnn
+      run: |
+        export PATH=${{ci.workspace}}/cmake-3.29.3-linux-x86_64/bin:$PATH
+        export PYTHONUSERBASE=${{ci.workspace}}/torch-${{matrix.torch-version}}
+        mkdir build && cd build
+        cmake -DCMAKE_BUILD_TYPE=Release -DNCNN_PYTHON=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
+        cmake --build . -j 16
+        cd ..
+        export CMAKE_BUILD_PARALLEL_LEVEL=16
+        pip3 install --user .
+
+    - name: build-pnnx
+      run: |
+        export PATH=${{ci.workspace}}/cmake-3.29.3-linux-x86_64/bin:$PATH
+        export PYTHONUSERBASE=${{ci.workspace}}/torch-${{matrix.torch-version}}
+        cd tools/pnnx
+        mkdir build && cd build
+        cmake -DCMAKE_BUILD_TYPE=Release -DTorch_INSTALL_DIR=${{ci.workspace}}/pnnx-deps-torch-install -DTorchVision_INSTALL_DIR=${{ci.workspace}}/pnnx-deps-torch-install -Donnxruntime_INSTALL_DIR=${{ci.workspace}}/pnnx-deps-onnx-install -Dprotobuf_DIR=${{ci.workspace}}/pnnx-deps-onnx-install/lib/cmake/protobuf ..
+        cmake --build . -j 16
 
     - name: test
       run: |
