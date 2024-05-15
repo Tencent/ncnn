@@ -188,6 +188,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/Tensor_new_empty.cpp
     pass_level2/Tensor_new_ones.cpp
     pass_level2/Tensor_new_zeros.cpp
+    pass_level2/Tensor_permute.cpp
     pass_level2/Tensor_repeat.cpp
     pass_level2/Tensor_reshape.cpp
     pass_level2/Tensor_select.cpp
@@ -264,7 +265,6 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_stack.cpp
     pass_level2/torch_std.cpp
     pass_level2/torch_sum.cpp
-    pass_level2/torch_permute.cpp
     pass_level2/torch_t.cpp
     pass_level2/torch_tensor_split.cpp
     pass_level2/torch_topk.cpp
@@ -538,6 +538,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/nn_UpsamplingNearest2d.cpp
     pass_ncnn/nn_ZeroPad2d.cpp
     pass_ncnn/Tensor_contiguous.cpp
+    pass_ncnn/Tensor_permute.cpp
     pass_ncnn/Tensor_reshape.cpp
     pass_ncnn/Tensor_repeat.cpp
     pass_ncnn/Tensor_view.cpp
@@ -557,7 +558,6 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/torch_min.cpp
     pass_ncnn/torch_mm.cpp
     pass_ncnn/torch_norm.cpp
-    pass_ncnn/torch_permute.cpp
     pass_ncnn/torch_prod.cpp
     pass_ncnn/torch_slice_scatter.cpp
     pass_ncnn/torch_squeeze.cpp
