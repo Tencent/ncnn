@@ -15,6 +15,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from packaging import version
 
 def mish_forward_0(x):
     return x * F.softplus(x).tanh()
@@ -38,6 +39,9 @@ class Model(nn.Module):
         return x, y, z, w
 
 def test():
+    if version.parse(torch.__version__) < version.parse('1.9'):
+        return True
+
     net = Model()
     net.eval()
 
