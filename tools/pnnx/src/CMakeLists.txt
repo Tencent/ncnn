@@ -588,8 +588,14 @@ if(PROTOBUF_FOUND)
     # use onnxruntime onnx proto if found
     if(onnxruntime_FOUND)
         add_dependencies(onnxruntime::onnxruntime onnxproto)
-        set_property(TARGET onnxruntime::onnxruntime APPEND PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${PROTOBUF_INCLUDE_DIR} ${CMAKE_CURRENT_BINARY_DIR})
-        set_property(TARGET onnxruntime::onnxruntime APPEND PROPERTY INTERFACE_LINK_LIBRARIES ${PROTOBUF_LIBRARIES} protobuf::libprotobuf)
+
+        if(Protobuf_FOUND OR protobuf_MODULE_COMPATIBLE)
+            set_property(TARGET onnxruntime::onnxruntime APPEND PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${PROTOBUF_INCLUDE_DIR} ${CMAKE_CURRENT_BINARY_DIR})
+            set_property(TARGET onnxruntime::onnxruntime APPEND PROPERTY INTERFACE_LINK_LIBRARIES ${PROTOBUF_LIBRARIES})
+        else()
+            set_property(TARGET onnxruntime::onnxruntime APPEND PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_CURRENT_BINARY_DIR})
+            set_property(TARGET onnxruntime::onnxruntime APPEND PROPERTY INTERFACE_LINK_LIBRARIES protobuf::libprotobuf)
+        endif()
     endif()
 endif()
 
