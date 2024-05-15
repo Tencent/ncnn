@@ -102,7 +102,7 @@ jobs:
         unzip -q protobuf-${{variables.protobuf_version}}.zip
         cd protobuf-${{variables.protobuf_version}}
         mkdir -p build2 && cd build2
-        cmake -DCMAKE_INSTALL_PREFIX=${{ci.workspace}}/pnnx-deps-install -Dprotobuf_BUILD_TESTS=OFF -DCMAKE_BUILD_TYPE=MinSizeRel ../cmake
+        cmake -DCMAKE_INSTALL_PREFIX=${{ci.workspace}}/pnnx-deps-install -Dprotobuf_BUILD_TESTS=OFF -DCMAKE_BUILD_TYPE=MinSizeRel -DCMAKE_POSITION_INDEPENDENT_CODE=ON ../cmake
         cmake --build . -j 16
         cmake --build . --target install/strip
     - name: pnnx-deps-libtorch
