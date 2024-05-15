@@ -190,7 +190,7 @@ jobs:
         export MKL_ENABLE_INSTRUCTIONS=SSE4_2
         cd tools/pnnx
         cd build
-        ctest -R test_F_gelu --verbose || ;
+        ctest -R test_F_gelu --verbose || true
         cd tests
         unzip test_F_gelu.pt
         cat test_F_gelu/code/__torch__.py
