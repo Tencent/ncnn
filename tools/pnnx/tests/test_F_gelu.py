@@ -54,18 +54,19 @@ def test():
     mod = torch.jit.trace(net, (x, y, z, w))
     mod.save("test_F_gelu.pt")
 
-    # torchscript to pnnx
-    import os
-    os.system("../src/pnnx test_F_gelu.pt inputshape=[1,16],[12,2,16],[1,3,12,16],[1,5,7,9,11]")
-
-    # pnnx inference
-    import test_F_gelu_pnnx
-    b = test_F_gelu_pnnx.test_inference()
-
-    for a0, b0 in zip(a, b):
-        if not torch.allclose(a0, b0, 1e-3, 1e-3):
-            return False
-    return True
+    # # torchscript to pnnx
+    # import os
+    # os.system("../src/pnnx test_F_gelu.pt inputshape=[1,16],[12,2,16],[1,3,12,16],[1,5,7,9,11]")
+    #
+    # # pnnx inference
+    # import test_F_gelu_pnnx
+    # b = test_F_gelu_pnnx.test_inference()
+    #
+    # for a0, b0 in zip(a, b):
+    #     if not torch.allclose(a0, b0, 1e-3, 1e-3):
+    #         return False
+    # return True
+    return False
 
 if __name__ == "__main__":
     if test():
