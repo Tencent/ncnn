@@ -537,7 +537,7 @@ int load_torchscript(const std::string& ptpath, Graph& pnnx_graph,
 
     auto g = method->graph();
 
-    // g->dump();
+    g->dump();
 
     fprintf(stderr, "############# pass_level0\n");
 

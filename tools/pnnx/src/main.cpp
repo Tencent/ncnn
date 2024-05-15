@@ -328,8 +328,6 @@ int main(int argc, char** argv)
                          foldable_constants_zippath, foldable_constants);
     }
 
-    pnnx_graph->dump();
-
     fprintf(stderr, "############# pass_level2\n");
 
     pnnx::pass_level2(pnnx_graph);
