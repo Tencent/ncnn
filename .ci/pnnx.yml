@@ -16,6 +16,7 @@ concurrency:
   group: pnnx-${{ ci.head_ref }}
 
 variables:
+  protobuf_version: 21.12
   libtorch_version: 2.2.1
   libtorchvision_version: 0.17.1
   onnxruntime_version: 1.17.3
@@ -70,7 +71,7 @@ jobs:
     - name: install-deps
       run: |
         apt-get update
-        apt-get install -y python3-pip libjpeg-dev libpng-dev libprotobuf-dev protobuf-compiler
+        apt-get install -y python3-pip libjpeg-dev libpng-dev
         python3 -m pip install --upgrade pip
         apt-get remove -y python3-setuptools
         pip3 install -U setuptools
@@ -93,6 +94,17 @@ jobs:
         localPath: pnnx-patches
         enableSubmodule: false
         enableGitLfs: false
+    - name: pnnx-deps-protobuf
+      if: steps.cache-pnnx-deps.outputs.cacheHit != 'true'
+      run: |
+        export PATH=${{ci.workspace}}/cmake-3.29.3-linux-x86_64/bin:$PATH
+        wget -q https://github.com/protocolbuffers/protobuf/archive/v${{variables.protobuf_version}}.zip -O protobuf-${{variables.protobuf_version}}.zip
+        unzip -q protobuf-${{variables.protobuf_version}}.zip
+        cd protobuf-${{variables.protobuf_version}}
+        mkdir -p build2 && cd build2
+        cmake -DCMAKE_INSTALL_PREFIX=${{ci.workspace}}/pnnx-deps-install -Dprotobuf_BUILD_TESTS=OFF -DCMAKE_BUILD_TYPE=MinSizeRel ../cmake
+        cmake --build . -j 16
+        cmake --build . --target install/strip
     - name: pnnx-deps-libtorch
       if: steps.cache-pnnx-deps.outputs.cacheHit != 'true'
       run: |
@@ -112,7 +124,7 @@ jobs:
       if: steps.cache-pnnx-deps.outputs.cacheHit != 'true'
       run: |
         export PATH=${{ci.workspace}}/cmake-3.29.3-linux-x86_64/bin:$PATH
-        wget -q https://github.com/pytorch/vision/archive/refs/tags/v${{variables.libtorchvision_version}}.zip -O vision-${{variables.libtorchvision_version}}.zip
+        wget -q https://github.com/pytorch/vision/archive/v${{variables.libtorchvision_version}}.zip -O vision-${{variables.libtorchvision_version}}.zip
         unzip -q vision-${{variables.libtorchvision_version}}.zip
         cd vision-${{variables.libtorchvision_version}}
         patch -p1 -i ${{ci.workspace}}/pnnx-patches/vision-${{variables.libtorchvision_version}}-ops-only.patch
@@ -159,7 +171,7 @@ jobs:
         export PYTHONUSERBASE=${{ci.workspace}}/torch-${{matrix.torch-version}}
         cd tools/pnnx
         mkdir build && cd build
-        cmake -DCMAKE_BUILD_TYPE=Release -DTorch_INSTALL_DIR=${{ci.workspace}}/pnnx-deps-install -DTorchVision_INSTALL_DIR=${{ci.workspace}}/pnnx-deps-install -Donnxruntime_INSTALL_DIR=${{ci.workspace}}/pnnx-deps-install ..
+        cmake -DCMAKE_BUILD_TYPE=Release -DTorch_INSTALL_DIR=${{ci.workspace}}/pnnx-deps-install -DTorchVision_INSTALL_DIR=${{ci.workspace}}/pnnx-deps-install -Donnxruntime_INSTALL_DIR=${{ci.workspace}}/pnnx-deps-install -DProtobuf_INCLUDE_DIR=${{ci.workspace}}/pnnx-deps-install/include -DProtobuf_LIBRARIES=${{ci.workspace}}/pnnx-deps-install/lib64/libprotobuf.a -DProtobuf_PROTOC_EXECUTABLE=${{ci.workspace}}/pnnx-deps-install/bin/protoc ..
         cmake --build . -j 16
 
     - name: test
