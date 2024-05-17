@@ -33,26 +33,26 @@ jobs:
           - torch-version: 1.9.1
             torchvision-version: 0.10.1
 
-          # - torch-version: 1.10.0
-          #   torchvision-version: 0.11.1
-          #
-          # - torch-version: 1.11.0
-          #   torchvision-version: 0.12.0
-          #
-          # - torch-version: 1.12.0
-          #   torchvision-version: 0.13.0
-          #
-          # - torch-version: 1.13.0
-          #   torchvision-version: 0.14.0
-          #
-          # - torch-version: 2.0.0
-          #   torchvision-version: 0.15.1
-          #
-          # - torch-version: 2.1.0
-          #   torchvision-version: 0.16.0
-          #
-          # - torch-version: 2.2.1
-          #   torchvision-version: 0.17.1
+          - torch-version: 1.10.0
+            torchvision-version: 0.11.1
+
+          - torch-version: 1.11.0
+            torchvision-version: 0.12.0
+
+          - torch-version: 1.12.0
+            torchvision-version: 0.13.0
+
+          - torch-version: 1.13.0
+            torchvision-version: 0.14.0
+
+          - torch-version: 2.0.0
+            torchvision-version: 0.15.1
+
+          - torch-version: 2.1.0
+            torchvision-version: 0.16.0
+
+          - torch-version: 2.2.1
+            torchvision-version: 0.17.1
 
           - torch-version: 2.3.0
             torchvision-version: 0.18.0
@@ -189,10 +189,7 @@ jobs:
         export MKL_NUM_THREADS=1
         export MKL_ENABLE_INSTRUCTIONS=SSE4_2
         cd tools/pnnx
-        cd build
-        ctest -R test_nn_MultiheadAttention --verbose || true
-        cat tests/test_nn_MultiheadAttention_pnnx.py
-        #cd build && ctest --output-on-failure -j 16
+        cd build && ctest --output-on-failure -j 16
 
     - name: python-pnnx
       run: |
