@@ -12,7 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-static void padding_constant_pack16_avx512(const Mat& src, Mat& dst, int top, int bottom, int left, int right, __m512 v)
+static void padding_constant_pack16_avx512(const Mat& src, Mat& dst, int top, int bottom, int left, int right, const __m512& v)
 {
     const float* ptr = src;
     float* outptr = dst;
