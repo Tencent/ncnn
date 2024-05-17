@@ -618,6 +618,11 @@ void pass_onnx(const onnx::ModelProto& model, Graph& pnnx_graph)
             {
                 sim_op_type = "aten::permute";
             }
+
+            if (op_type == "Add")
+            {
+                sim_op_type = "aten::add";
+            }
         }
         else if (string_starts_with(op_type, "aten_"))
         {

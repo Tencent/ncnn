@@ -631,7 +631,7 @@ static void load_shape(Operator* op, const std::string& key, const std::string& 
             operand->shape.push_back(-233);
             int index = operand->shape.size() - 1;
             std::string key = elem.substr(1);
-            operand->params[std::string("__shape_") + std::to_string(index)] = key;
+            operand->params[std::string("__shape__") + std::to_string(index)] = key;
         }
         else
         {
@@ -2082,8 +2082,13 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                 }
                 fprintf(pyfp, ")\n");
             }
-            else if (op->type.find("::") != std::string::npos || op->type.find(".") != std::string::npos)
+            else
             {
+                if (op->type.find("::") == std::string::npos && op->type.find(".") == std::string::npos)
+                {
+                    fprintf(stderr, "todo %s\n", op->type.c_str());
+                }
+
                 // direct
                 for (size_t i = 0; i < op->outputs.size(); i++)
                 {
@@ -2323,10 +2328,6 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                 }
 
                 fprintf(pyfp, ")\n");
-            }
-            else
-            {
-                fprintf(stderr, "todo %s\n", op->type.c_str());
             }
         }
     }
@@ -2743,7 +2744,7 @@ int Graph::parse(const std::string& param)
                             attr.shape.push_back(-233);
                             int index = attr.shape.size() - 1;
                             std::string key = elem.substr(1);
-                            attr.params[std::string("__shape_") + std::to_string(index)] = key;
+                            attr.params[std::string("__shape__") + std::to_string(index)] = key;
                         }
                         else
                         {

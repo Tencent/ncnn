@@ -119,4 +119,27 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_linear_3, 10)
 
+class F_linear_onnx : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+5 4
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 weight
+pnnx.Input              input_2     0 1 bias
+Gemm                    op_0        3 1 input weight bias out alpha=1.000000e+00 beta=1.000000e+00 transB=1
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "F.linear";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_linear_onnx, 10)
+
 } // namespace pnnx
